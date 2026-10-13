@@ -4,6 +4,7 @@ var args := {}
 var xr: OpenXRInterface
 var rig: Rig
 var tool: WallTool
+var sound: Soundscape
 var metrics: Metrics
 var spectator: SubViewport
 
@@ -19,6 +20,8 @@ func _ready() -> void:
 	add_child(builds)
 	tool = WallTool.new(rig)
 	builds.add_child(tool)
+	sound = Soundscape.new(tool)
+	add_child(sound)
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 	metrics = Metrics.new(args.get("metrics", ""))
 	metrics.info = {"xr": _start_xr(), "label": ""}

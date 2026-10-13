@@ -25,6 +25,12 @@ func length() -> float:
 	return lengths[-1] if lengths.size() > 0 else 0.0
 
 
+## The ground point at arc length `s`.
+func point_at(s: float) -> Vector3:
+	var i := clampi(lengths.bsearch(s), 0, samples.size() - 1)
+	return samples[i]
+
+
 func spring() -> float:
 	return minf(1.5, height - ARCH_HALF - RING - 0.3)
 

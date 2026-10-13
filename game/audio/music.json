@@ -1,0 +1,62 @@
+[
+ {
+  "name": "00-first-light",
+  "bpm": 100,
+  "beats": 32
+ },
+ {
+  "name": "01-ostinato",
+  "bpm": 108,
+  "beats": 32
+ },
+ {
+  "name": "02-waltz",
+  "bpm": 138,
+  "beats": 48
+ },
+ {
+  "name": "03-overlay-minor",
+  "bpm": 104,
+  "beats": 32
+ },
+ {
+  "name": "04-fragments",
+  "bpm": 72,
+  "beats": 32
+ },
+ {
+  "name": "05-relative",
+  "bpm": 100,
+  "beats": 32
+ },
+ {
+  "name": "06-slow-reharm",
+  "bpm": 84,
+  "beats": 32
+ },
+ {
+  "name": "07-dorian",
+  "bpm": 120,
+  "beats": 32
+ },
+ {
+  "name": "08-overlay-major",
+  "bpm": 104,
+  "beats": 32
+ },
+ {
+  "name": "09-mirror",
+  "bpm": 92,
+  "beats": 32
+ },
+ {
+  "name": "10-canon",
+  "bpm": 96,
+  "beats": 32
+ },
+ {
+  "name": "11-lullaby",
+  "bpm": 80,
+  "beats": 24
+ }
+]

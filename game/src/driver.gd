@@ -84,6 +84,10 @@ func _arch(s: Dictionary) -> void:
 	main.tool.toggle_arch(main.tool.walls[s.index], s.s)
 
 
+func _music(s: Dictionary) -> void:
+	main.sound.play_from(s.section)
+
+
 func _view(s: Dictionary) -> void:
 	main.view(Vector3(s.eye[0], s.eye[1], s.eye[2]), Vector3(s.at[0], s.at[1], s.at[2]), s.get("relative", false))
 	await get_tree().process_frame

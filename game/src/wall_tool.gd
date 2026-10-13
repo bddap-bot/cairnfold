@@ -8,6 +8,9 @@ const REBUILD_EVERY := 0.06
 const AUTO_ARCH_LENGTH := 5.0
 const WALL_PICK := 0.7
 
+## A stone event for the soundscape, at the stones it moved.
+signal built(kind: StringName, at: Vector3)
+
 var rig: Rig
 var walls: Array[Wall] = []
 var drawing: Wall
@@ -15,6 +18,7 @@ var lifting: Wall
 var _lift_start := 0.0
 var _lift_hand_y := 0.0
 var _lift_gain := 1.0
+var _lift_at := Vector3.ZERO
 var _since_rebuild := 0.0
 var _dirty := false
 var _seed := 1
@@ -70,7 +74,7 @@ func _process(delta: float) -> void:
 		end_stroke()
 
 	if _pressed("grip_click") and not pick.is_empty() and drawing == null:
-		begin_lift(pick.wall, origin.y, origin.distance_to(pick.point))
+		begin_lift(pick.wall, origin, pick.point)
 	elif _held("grip_click") and lifting != null:
 		drag_lift(origin.y)
 	elif _released("grip_click"):
@@ -109,6 +113,7 @@ func extend_stroke(p: Vector3) -> void:
 		pts[-1] = p
 	else:
 		pts.append(p)
+		built.emit(&"stone", p + Vector3.UP * drawing.layout.height * 0.5)
 	_dirty = true
 
 
@@ -123,14 +128,16 @@ func end_stroke() -> Wall:
 		w.layout.arches = [w.layout.length() * 0.5]
 	w.rebuild()
 	walls.append(w)
+	built.emit(&"settle", _top(w, w.layout.length() * 0.5))
 	return w
 
 
-func begin_lift(w: Wall, hand_y: float, reach: float) -> void:
+func begin_lift(w: Wall, hand: Vector3, at: Vector3) -> void:
 	lifting = w
 	_lift_start = w.layout.height
-	_lift_hand_y = hand_y
-	_lift_gain = maxf(1.0, reach / 1.2)
+	_lift_hand_y = hand.y
+	_lift_gain = maxf(1.0, hand.distance_to(at) / 1.2)
+	_lift_at = at
 
 
 func drag_lift(hand_y: float) -> void:
@@ -139,6 +146,7 @@ func drag_lift(hand_y: float) -> void:
 	if not is_equal_approx(h, lifting.layout.height):
 		lifting.layout.height = h
 		_dirty = true
+		built.emit(&"stone", Vector3(_lift_at.x, Terrain.height_at(_lift_at.x, _lift_at.z) + h, _lift_at.z))
 
 
 func toggle_arch(w: Wall, s: float) -> void:
@@ -147,18 +155,26 @@ func toggle_arch(w: Wall, s: float) -> void:
 		if absf(arches[i] - s) < WallLayout.ARCH_HALF * 2.0:
 			arches.remove_at(i)
 			w.rebuild()
+			built.emit(&"settle", _top(w, s))
 			return
 	for a in arches:
 		if absf(a - s) < (WallLayout.ARCH_HALF + WallLayout.RING) * 2.0 + 0.4:
 			return
 	arches.append(s)
 	w.rebuild()
+	built.emit(&"arch", w.layout.point_at(s) + Vector3.UP * w.layout.spring())
 
 
 func undo() -> void:
 	if walls.is_empty():
 		return
-	walls.pop_back().queue_free()
+	var w: Wall = walls.pop_back()
+	built.emit(&"crumble", _top(w, w.layout.length() * 0.5))
+	w.queue_free()
+
+
+func _top(w: Wall, s: float) -> Vector3:
+	return w.layout.point_at(s) + Vector3.UP * w.layout.height
 
 
 func pick_wall(origin: Vector3, dir: Vector3) -> Dictionary:

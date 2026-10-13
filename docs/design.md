@@ -111,7 +111,7 @@ Stage numbers refer to the build order at the end.
 | Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap, grading, glow (done). No depth of field: in a headset your eyes focus for themselves | 1 (done) |
 | Time of day | Continuous, lockable, sun-angle slider | Reach up and drag the sun across the sky | 8 |
 | Seasons and palettes | Five glade palettes, colour wheel per element | Palette presets; a colour picker held in the left hand | 8 |
-| Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised and recorded-by-us effects, spatialised at the stone that made them; ambient meadow bed; adaptive music | 9 |
+| Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | B undoes the last wall (done); an eraser beam that cuts walls into ruins | 1 (done), 10 |
 | Save and load | Autosave after every action, backups, cloud | Autosave the build list (strokes, heights, arches) as JSON after every edit | 10 |
 | Wildlife | Sheep, birds, ducks, fireflies | Sheep and birds with simple steering | 11 |
@@ -153,9 +153,35 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 6. Windows, doors, fences, chimneys, lanterns and flags.
 7. Terrain shaping and water.
 8. Time of day, seasons and palettes, a colour picker.
-9. Sound and music.
+9. Sound and music. (Done.)
 10. Save and load, undo history and the eraser.
 11. Wildlife and photo mode.
+
+## Sound
+
+Every sound is synthesised by `scripts/compose.py` into `game/audio/`; rerun it
+(`nix-shell --run 'python3 scripts/compose.py'`) after changing it, never edit the
+files by hand. The runtime only plays them: Godot mixes on its audio thread, so
+sound costs no frame time.
+
+- Music: two short motifs (a B-major call with a pickup into each long note, and a
+  B-minor arpeggio that settles into a D–C# eighth-note ostinato) worked into twelve
+  sections: plain statements, reharmonisations, a waltz, a canon, a mirror
+  inversion, fragments traded between voices, the relative major, dorian colour, and
+  both motifs overlaid in minor and in major, at 72–138 bpm. Each section has three
+  synchronized stems: bed (pad and bass), lead and ornament. They loop as one
+  playlist from a random start, crossfading at section ends.
+- Building thins the music: while a wall is being drawn or pulled, and for a few
+  seconds after any edit, the ornament fades out and the lead drops 14 dB; the bed
+  carries on. The tune returns gradually once you stop.
+- Comfort in a headset: soft felt plucks, a low breathy flute, mallets and pads,
+  melodies in octaves 3–5, harmonics cut off below 3 kHz, a dark reverb. Keep it
+  that way: no stacked high registers and almost no energy above 2 kHz.
+- Effects: stone clacks as a stroke grows and as a wall is pulled up or down, a
+  settling rattle when a wall finishes, a gravel trickle for an arch and a tumble for
+  undo, each played from a pool of 3D voices at the stones involved.
+- `scripts/render.sh demo/sound.json OUT --write-movie OUT/sound.avi --fixed-fps 30`
+  records the game's own mix through an idle stretch, a build and the return.
 
 ## Verifying on a headset
 

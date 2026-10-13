@@ -12,6 +12,7 @@ func _init() -> void:
 	_short_or_low_walls_take_no_arch()
 	_layout_is_deterministic()
 	_raising_the_wall_adds_courses()
+	_point_at_follows_the_curve()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
 
@@ -101,3 +102,9 @@ func _raising_the_wall_adds_courses() -> void:
 		return m
 	_check(top.call(high) > top.call(low) + 1.5, "raising 1.8 m adds height")
 	_check(_blocks(high).size() > _blocks(low).size() * 1.6, "raising adds courses of stone")
+
+
+func _point_at_follows_the_curve() -> void:
+	var w := _wall(6.0, 2.4, [])
+	_check(w.point_at(3.0).distance_to(Vector3(3, -0.12, 0)) < WallLayout.SAMPLE * 2.0, "point_at(3) is %s" % w.point_at(3.0))
+	_check(w.point_at(99.0) == w.samples[-1], "point_at past the end is the end")
