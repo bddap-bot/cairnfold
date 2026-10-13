@@ -23,9 +23,12 @@ build order.
 
 - Desktop preview and tests: `nix-shell --run scripts/test.sh`,
   `nix-shell --run 'scripts/render.sh demo/slice.json out'`.
-- Headset: `scripts/package.sh cairnfold.tar.gz`, then
-  `scripts/deploy.sh <ssh-host> cairnfold.tar.gz`, and add `~/cairnfold/play.sh`
-  as a VR shortcut in Steam.
+- Headset (developer mode on: it enables SSH and the Steam client's debug port,
+  through which deploy adds the shortcut):
+  `scripts/package.sh cairnfold.tar.gz`, then
+  `nix-shell --run 'scripts/deploy.sh cairnfold.tar.gz <ssh-host>'`. It installs
+  `~/cairnfold` and a "Cairnfold" VR shortcut in the Steam library that launches
+  it.
 
 ## License
 

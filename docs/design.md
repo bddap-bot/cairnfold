@@ -186,8 +186,10 @@ sound costs no frame time.
 ## Verifying on a headset
 
 `scripts/package.sh` builds an aarch64 bundle (the pinned Godot runtime plus the
-game); `scripts/deploy.sh HOST BUNDLE` installs it to `~/cairnfold` on the headset
-over SSH, and `cairnfold/play.sh` launches it. `play.sh --script demo/slice.json
+game); `nix-shell --run 'scripts/deploy.sh BUNDLE HOST'` installs it to `~/cairnfold`
+on the headset over SSH, runs Godot's asset import there once, and adds (or
+corrects) a "Cairnfold" VR shortcut in the Steam library that runs
+`cairnfold/play.sh`. `play.sh --script demo/slice.json
 --metrics FILE --capture-dir DIR` plays a scripted session through the same entry
 points as the controllers (teleport, float, draw a wall), logs per-second frame
 times and saves view captures. `scripts/test.sh` runs the headless layout tests;
