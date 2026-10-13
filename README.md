@@ -10,8 +10,9 @@ build order.
 
 ## Controls
 
-- Left stick forward: aim a teleport arc; release to go. While aiming, right
-  stick up lifts the target into the air, where you float.
+- Left stick forward: aim a straight teleport ray; release to go. Aim into the
+  sky to target a point in the air and float there; while aiming, right stick
+  up or down moves that point farther or nearer.
 - Y: glide back down to the ground.
 - Right stick left/right: snap turn.
 - Right trigger: draw a wall along the ground.

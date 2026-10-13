@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
-# The repo's checks: scripts compile, then the headless wall tests.
+# The repo's checks: scripts compile, then every headless test.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 scripts/check.sh
-godot4 --headless --path game --script ../tests/test_wall.gd 2>&1 | grep -vE "^Godot Engine|^$"
-exit "${PIPESTATUS[0]}"
+status=0
+for t in tests/test_*.gd; do
+  out=$(godot4 --headless --path game --script "../$t" 2>&1) || status=1
+  grep -E "^(tests|FAIL):" <<<"$out" | sed "s|^|$t: |"
+done
+exit "$status"

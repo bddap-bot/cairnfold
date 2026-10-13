@@ -121,9 +121,9 @@ Stage numbers refer to the build order at the end.
 
 | Action | Control |
 | --- | --- |
-| Teleport onto the ground | Left stick forward: an arc from the left hand; release the stick to go |
-| Teleport into the air | While aiming, right stick up raises the target above the arc's landing spot (a ring on a pole); release the left stick to arrive, slightly high, then settle gently into a hover with a slow bob |
-| Come back down | Aim at the ground with no lift, or press Y (left upper button) to glide down to the ground below |
+| Teleport onto the ground | Left stick forward: a straight ray from the left hand lands where it meets the ground; release the stick to go |
+| Teleport into the air | Aim above the horizon: with no ground within reach (10 m to start), the ray targets the point in the air at its end, a ring on a pole down to the ground below. Right stick up or down while aiming moves that point farther or nearer (2–40 m). Release to arrive, slightly high, then settle gently into a hover with a slow bob |
+| Come back down | Aim at the ground, or press Y (left upper button) to glide down to the ground below |
 | Turn | Right stick left or right: 30° snap turn |
 | Draw a wall | Right trigger held, sweep the pointer across the ground; release to finish. Strokes under 1 m are discarded |
 | Raise or lower a wall | Right grip while pointing at a wall, move the hand up or down; the gain grows with distance so far walls are easy to adjust |

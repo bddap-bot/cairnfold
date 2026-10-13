@@ -3,9 +3,11 @@ extends XROrigin3D
 
 ## The player: head, two hands, and locomotion by teleport — onto the ground or into the air to float.
 
-const ARC_SPEED := 10.0
-const GRAVITY := 9.8
-const LIFT_RATE := 5.0
+const MAX_REACH := 80.0
+const AIR_REACH := 10.0
+const REACH_RATE := 12.0
+const MIN_AIR_REACH := 2.0
+const MAX_AIR_REACH := 40.0
 const MAX_LIFT := 40.0
 const ARRIVE_LIFT := 0.45
 const SNAP := deg_to_rad(30.0)
@@ -17,8 +19,9 @@ var right: XRController3D
 
 var floating := false
 var aiming := false
-var aim_lift := 0.0
+var air_reach := AIR_REACH
 var aim_ground: Variant = null
+var aim_lift := 0.0
 var _rest_y := 0.0
 var _vel_y := 0.0
 var _bob := 0.0
@@ -27,7 +30,7 @@ var _descend_held := false
 var _fade_t := -1.0
 var _pending: Variant = null
 
-var _arc: MeshInstance3D
+var _beam: MeshInstance3D
 var _ground_ring: MeshInstance3D
 var _float_ring: MeshInstance3D
 var _pole: MeshInstance3D
@@ -69,12 +72,12 @@ func _build_markers() -> void:
 	glow.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glow.albedo_color = Color(0.85, 0.97, 1.0, 0.75)
 	glow.no_depth_test = false
-	_arc = MeshInstance3D.new()
-	_arc.mesh = ImmediateMesh.new()
-	_arc.material_override = glow
-	_arc.top_level = true
-	_arc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(_arc)
+	_beam = MeshInstance3D.new()
+	_beam.mesh = ImmediateMesh.new()
+	_beam.material_override = glow
+	_beam.top_level = true
+	_beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_beam)
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.32
 	ring.outer_radius = 0.4
@@ -136,16 +139,15 @@ func _locomotion_input(delta: float) -> void:
 	var rstick := right.get_vector2("primary")
 	if not aiming and stick.y > 0.65:
 		aiming = true
-		aim_lift = 0.0
 	if aiming:
 		if absf(rstick.y) > 0.25:
-			aim_lift = clampf(aim_lift + signf(rstick.y) * (absf(rstick.y) - 0.25) / 0.75 * LIFT_RATE * delta, 0.0, MAX_LIFT)
+			air_reach = clampf(air_reach + signf(rstick.y) * (absf(rstick.y) - 0.25) / 0.75 * REACH_RATE * delta, MIN_AIR_REACH, MAX_AIR_REACH)
 		aim(left.global_transform)
 		if stick.length() < 0.3:
 			aiming = false
 			if aim_ground != null:
 				teleport(aim_ground, aim_lift)
-			_hide_markers()
+			hide_markers()
 	elif absf(rstick.x) > 0.7:
 		if not _turned:
 			snap_turn(-signf(rstick.x) * SNAP)
@@ -158,27 +160,26 @@ func _locomotion_input(delta: float) -> void:
 	_descend_held = descend
 
 
-## Trace the teleport arc from a pointing pose and show where it lands, lifted by `aim_lift`.
+## Cast the teleport ray from a pointing pose. It lands on the ground it hits; aimed above the horizon with no ground within `air_reach`, it targets the point in the air at that reach.
 func aim(from: Transform3D) -> void:
-	var pts: Array[Vector3] = []
-	var p := from.origin
-	var v := -from.basis.z * ARC_SPEED
-	aim_ground = null
-	for i in 90:
-		pts.append(p)
-		var n := p + v * 0.03
-		v.y -= GRAVITY * 0.03
-		var g := Terrain.height_at(n.x, n.z)
-		if n.y <= g:
-			var hit: Variant = Terrain.raycast(p, (n - p).normalized(), (n - p).length() + 0.01)
-			aim_ground = hit if hit != null else Vector3(n.x, g, n.z)
-			pts.append(aim_ground)
-			break
-		p = n
-	_draw_arc(pts)
-	if aim_ground == null:
-		_hide_markers()
+	var origin := from.origin
+	var dir := -from.basis.z.normalized()
+	var upward := dir.y > 0.0
+	var reach := air_reach if upward else MAX_REACH
+	var hit: Variant = Terrain.raycast(origin, dir, reach)
+	var target: Vector3
+	if hit != null:
+		target = hit
+	elif upward:
+		target = origin + dir * reach
+	else:
+		aim_ground = null
+		hide_markers()
 		return
+	var g := Terrain.height_at(target.x, target.z)
+	aim_ground = Vector3(target.x, g, target.z)
+	aim_lift = clampf(target.y - g, 0.0, MAX_LIFT)
+	_draw_beam(origin, target)
 	var g3: Vector3 = aim_ground
 	_ground_ring.visible = true
 	_ground_ring.global_transform = Transform3D(Basis(), g3 + Vector3.UP * 0.03)
@@ -190,24 +191,19 @@ func aim(from: Transform3D) -> void:
 		_pole.global_transform = Transform3D(Basis().scaled(Vector3(1, aim_lift, 1)), g3 + Vector3.UP * aim_lift * 0.5)
 
 
-func _draw_arc(pts: Array[Vector3]) -> void:
-	var im: ImmediateMesh = _arc.mesh
+func _draw_beam(a: Vector3, b: Vector3) -> void:
+	var im: ImmediateMesh = _beam.mesh
 	im.clear_surfaces()
-	if pts.size() < 2:
-		return
-	var eye := head.global_position
+	var side := (b - a).cross(head.global_position - a).normalized() * 0.012
 	im.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
-	for i in pts.size():
-		var a := pts[i]
-		var b := pts[mini(i + 1, pts.size() - 1)] if i + 1 < pts.size() else pts[i] + (pts[i] - pts[i - 1])
-		var side := (b - a).cross(eye - a).normalized() * 0.012
-		im.surface_add_vertex(a - side)
-		im.surface_add_vertex(a + side)
+	for p in [a, b]:
+		im.surface_add_vertex(p - side)
+		im.surface_add_vertex(p + side)
 	im.surface_end()
 
 
-func _hide_markers() -> void:
-	(_arc.mesh as ImmediateMesh).clear_surfaces()
+func hide_markers() -> void:
+	(_beam.mesh as ImmediateMesh).clear_surfaces()
 	_ground_ring.visible = false
 	_float_ring.visible = false
 	_pole.visible = false
