@@ -29,21 +29,21 @@ func _wait(s: Dictionary) -> void:
 
 
 func _place(s: Dictionary) -> void:
-	main.rig.place(_ground(s.x, s.z), s.get("lift", 0.0))
+	main.rig.place(_spot(s, s.x, s.z), s.get("lift", 0.0))
 
 
 func _teleport(s: Dictionary) -> void:
-	main.rig.teleport(_ground(s.x, s.z), s.get("lift", 0.0))
+	main.rig.teleport(_spot(s, s.x, s.z), s.get("lift", 0.0))
 	await get_tree().create_timer(s.get("seconds", 2.0)).timeout
 
 
 func _wall(s: Dictionary) -> void:
 	var pts: Array = s.points
 	var tool: WallTool = main.tool
-	tool.begin_stroke(_ground(pts[0][0], pts[0][1]))
 	var path: Array[Vector3] = []
 	for p in pts:
-		path.append(_ground(p[0], p[1]))
+		path.append(_spot(s, p[0], p[1]))
+	tool.begin_stroke(path[0])
 	var total := 0.0
 	for i in path.size() - 1:
 		total += path[i].distance_to(path[i + 1])
@@ -78,6 +78,19 @@ func _capture(s: Dictionary) -> void:
 
 func _quit(_s: Dictionary) -> void:
 	main.finish()
+
+
+## With "relative", x is metres to the head's right and z metres ahead of it, so a script works whichever way the headset faces.
+func _spot(s: Dictionary, x: float, z: float) -> Vector3:
+	if not s.get("relative", false):
+		return _ground(x, z)
+	var head: Node3D = main.rig.head
+	var fwd := -head.global_basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
+	var right := fwd.cross(Vector3.UP)
+	var p := head.global_position + right * x + fwd * z
+	return _ground(p.x, p.z)
 
 
 func _ground(x: float, z: float) -> Vector3:
