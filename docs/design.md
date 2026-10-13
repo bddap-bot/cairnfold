@@ -60,8 +60,8 @@ Adreno 750 driver, SteamVR OpenXR runtime 2.18.2, 1728×1728 per-eye render targ
 
 The runtime offers a single refresh rate on the Frame, 72 Hz, and the game holds
 it at a steady 13.89 ms outside the two transitions above. The teleport hitch is
-open work in the lighting/performance stage. GPU time per frame is not reported
-by the runtime under OpenXR here, so headroom is not yet measured; adding a
+open work, scheduled before stage 2 in the build order. GPU time per frame is not
+reported by the runtime under OpenXR here, so headroom is not yet measured; adding a
 heavier effect needs a fresh device run.
 
 ## Look on a mobile budget
@@ -89,25 +89,25 @@ Stage numbers refer to the build order at the end.
 | --- | --- | --- | --- |
 | Freehand walls | Drag on the ground; gridless, follows terrain, stroke speed sets corner sharpness; bricks laid by GPU compute | Hold trigger and sweep the pointer over the ground (from the ground or from the air). The stroke is Catmull-Rom smoothed and courses of individual stones are laid live while you draw | 1 (done) |
 | Wall height | Height gizmo; walls from very low to very high | Grip a wall and raise or lower your hand; height snaps to whole stone courses, so it grows and shrinks a row at a time | 1 (done) |
-| Wall tops | Merlons on flat tops, can be turned off; wooden railings on half-timber | Capping slabs plus merlons; a per-wall style toggle comes with houses | 1 (done), 3 |
-| Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | Walls of 5 m or more open an arch at the middle; A on a wall cuts or fills an arch there. Stage 2 adds the chemistry: a path stroke through a wall cuts the arch, wide crossings become arcades | 1 (done), 2 |
-| Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends; loop-to-tower in stage 3 | 1 (done), 3 |
-| Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | Trigger-sweep with a path brush; stones laid along the stroke and pressed into the terrain shader's mask so grass parts around them | 2 |
-| Towers | A loop held down straightens into a circle | Draw a loop and keep holding: it snaps to a round tower | 3 |
-| Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Two-handed: pinch both grips and pull apart to size a footprint on the ground, twist to rotate | 3 |
-| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Grab a roof ridge and pull up for pitch, sideways for curvature; tiles laid individually as a MultiMesh | 3 |
+| Wall tops | Merlons on flat tops, can be turned off; wooden railings on half-timber | Capping slabs plus merlons; a per-wall style toggle comes with houses | 1 (done), 4 |
+| Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | Walls of 5 m or more open an arch at the middle; A on a wall cuts or fills an arch there. Stage 5 adds the chemistry: a path stroke through a wall cuts the arch, wide crossings become arcades | 1 (done), 5 |
+| Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends; loop-to-tower in stage 4 | 1 (done), 4 |
+| Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | Trigger-sweep with a path brush; stones laid along the stroke and pressed into the terrain shader's mask so grass parts around them | 5 |
+| Towers | A loop held down straightens into a circle | Draw a loop and keep holding: it snaps to a round tower | 4 |
+| Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Two-handed: pinch both grips and pull apart to size a footprint on the ground, twist to rotate | 4 |
+| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Grab a roof ridge and pull up for pitch, sideways for curvature; tiles laid individually as a MultiMesh | 4 |
 | Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | Point and click on a wall to place; neighbours fuse; doors at ground level | 6 |
 | Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | Point and click; lanterns as cheap emissive cards plus a few real lights | 6 |
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | Wall drawing with a fence profile | 6 |
-| Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Instanced leaf cards grown along wall faces from the stone layout; avoids openings by construction | 4 |
-| Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers (done); a paint brush with the left hand in stage 4 | 1 (done), 4 |
-| Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs (done); placement by pointing in stage 4 | 1 (done), 4 |
+| Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Instanced leaf cards grown along wall faces from the stone layout; avoids openings by construction | 3 |
+| Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers (done); a paint brush with the left hand in stage 3 | 1 (done), 3 |
+| Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs (done); placement by pointing in stage 3 | 1 (done), 3 |
 | Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | Grip the ground and pull up or push down; rock on steep slopes in the terrain shader | 7 |
 | Water | Dug holes with a flat surface and normal-map waves | Dig with a downward pull, flat water with scrolling normals and a depth tint | 7 |
-| Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, a low-res light-probe volume rebuilt when building changes | 5 |
-| Shadows | Soft sun shadows with temporal filtering, contact shadows | Two-split soft shadows; tuned splits for a floating viewpoint | 1 (done), 5 |
+| Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, a low-res light-probe volume rebuilt when building changes | 2 |
+| Shadows | Soft sun shadows with temporal filtering, contact shadows | Two-split soft shadows; tuned splits for a floating viewpoint | 1 (done), 2 |
 | Sky and clouds | Hand-tuned colour timelines per glade; clouds as pre-lit sprites on a cylinder | Sky shader gradient and painted noise clouds (done); timelines per time of day in stage 8 | 1 (done), 8 |
-| Fog | Froxel fog with density and height controls | Depth and height fog with sun scatter | 1 (done), 5 |
+| Fog | Froxel fog with density and height controls | Depth and height fog with sun scatter | 1 (done), 2 |
 | Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap, grading, glow (done). No depth of field: in a headset your eyes focus for themselves | 1 (done) |
 | Time of day | Continuous, lockable, sun-angle slider | Reach up and drag the sun across the sky | 8 |
 | Seasons and palettes | Five glade palettes, colour wheel per element | Palette presets; a colour picker held in the left hand | 8 |
@@ -139,16 +139,20 @@ then teleport down to stand in its gate.
 
 ## Build order
 
-Ordered by what makes it feel like the original soonest:
+Ordered by what makes it feel like the original soonest. Progress is tracked in
+the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 
-1. First playable: meadow, sky, teleport and float, walls with stones, cap, merlons, piers and arches. (Done.)
-2. Paths and wall chemistry: path brush; a path through a wall cuts an arch, wide crossings become arcades.
-3. Towers, houses and roofs: loop-to-tower, two-handed footprints, tiled roofs with pull-to-shape.
-4. Ivy and flora: ivy on walls, flower and grass painting, tree placement.
-5. Lighting pass: light probes for bounce light, occlusion, shadow and fog tuning, all measured on the Frame.
+1. First playable: meadow, sky and fog, teleport and float, walls with stones, cap, merlons, piers and arches. (Done.)
+   Still open before stage 2:
+   - A Steam library shortcut on the Frame launches the game standalone, installed by `scripts/deploy.sh`.
+   - The air teleport holds refresh: no frame over 1.5× the refresh period at the moment it happens.
+2. Lighting pass: bounce light from a probe volume rebuilt on edits, contact darkening, shadow split and fog tuning for floating viewpoints, compared side by side with the mood target.
+3. Ivy and flora: ivy over walls and around openings, flower and grass painting with the left hand, tree placement by pointing.
+4. Towers, houses and roofs: loop-to-tower, two-handed footprints, tiled roofs with pull-to-shape, wall-top style per wall.
+5. Paths and wall chemistry: path brush; a path through a wall cuts an arch, wide crossings become arcades.
 6. Windows, doors, fences, chimneys, lanterns and flags.
 7. Terrain shaping and water.
-8. Time of day, seasons and palettes.
+8. Time of day, seasons and palettes, a colour picker.
 9. Sound and music.
 10. Save and load, undo history and the eraser.
 11. Wildlife and photo mode.
