@@ -48,12 +48,26 @@ can move to a GDExtension later without touching the rest.
 
 Filled from on-device runs of `demo/slice.json` (see "Verifying on a headset").
 
-FRAME_MEASUREMENTS
+Standalone run of `demo/headset.json` (Godot 4.5.1 Mobile renderer, Turnip
+Adreno 750 driver, SteamVR OpenXR runtime 2.18.2, 1728×1728 per-eye render target,
+4× MSAA; scene: 22,000 grass clumps, 3,200 flowers, 46 trees, one drawn wall):
+
+| Phase | Seconds | Frame time p99 | Frames over 1.5× the refresh period |
+| --- | --- | --- | --- |
+| Meadow idle | 19 | 13.89 ms | 3, all in the first second (session start) |
+| Drawing a wall (live rebuild) | 19 | 13.89 ms | 0 |
+| Floating 6 m up | 67 | 16.67 ms | 2, both at the moment of the air teleport (~142 ms) |
+
+The runtime offers a single refresh rate on the Frame, 72 Hz, and the game holds
+it at a steady 13.89 ms outside the two transitions above. The teleport hitch is
+open work in the lighting/performance stage. GPU time per frame is not reported
+by the runtime under OpenXR here, so headroom is not yet measured; adding a
+heavier effect needs a fresh device run.
 
 ## Look on a mobile budget
 
 The original's look rests on soft global illumination, warm sun, painterly
-colour and dense, touchable detail. On a mobile GPU in stereo at 90 Hz we get it by:
+colour and dense, touchable detail. On a mobile GPU in stereo at the headset's refresh rate we get it by:
 
 - **Light:** one warm directional sun with soft two-split shadows; sky ambient
   from a hand-tuned sky shader (zenith-to-horizon gradient, sun glow, painted noise
