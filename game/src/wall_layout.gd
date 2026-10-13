@@ -113,7 +113,7 @@ func _lay_mortar(a: float, b: float, y0: float, h: float) -> void:
 		var l := minf(1.0, b - s)
 		var frame := frame_at(s + l * 0.5)
 		var basis := Basis(frame.tangent, Vector3.UP, frame.tangent.cross(Vector3.UP))
-		var size := Vector3(l + 0.04, h + 0.02, THICKNESS - 0.14)
+		var size := Vector3(l, h + 0.02, THICKNESS - 0.14)
 		stones.append({"xform": Transform3D(basis.scaled_local(size), frame.point + Vector3.UP * (y0 + h * 0.5)), "color": Color(0.32, 0.29, 0.25), "kind": "mortar", "s": s + l * 0.5, "y": y0 + h * 0.5, "size": size, "ao": 0.8, "variant": 0})
 		s += l
 
