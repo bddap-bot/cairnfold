@@ -33,6 +33,8 @@ func _start_xr() -> bool:
 	xr = XRServer.find_interface("OpenXR")
 	if args.has("desktop") or xr == null or not xr.is_initialized():
 		return false
+	if args.has("render-scale"):
+		xr.render_target_size_multiplier = float(args["render-scale"])
 	var vp := get_viewport()
 	vp.use_xr = true
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
@@ -50,7 +52,15 @@ func _note_session() -> void:
 	metrics.info.refresh_hz = xr.display_refresh_rate
 	metrics.info.available_hz = Array(xr.get_available_display_refresh_rates())
 	metrics.info.render_size = [xr.get_render_target_size().x, xr.get_render_target_size().y] if xr.has_method("get_render_target_size") else []
+	metrics.info.render_scale = xr.render_target_size_multiplier
+	metrics.info.eye_fov_deg = [_fov(xr.get_projection_for_view(0, 1.0, 0.05, 400.0)), _fov(xr.get_projection_for_view(1, 1.0, 0.05, 400.0))]
 	print("xr: session at ", xr.display_refresh_rate, " Hz")
+
+
+## Left, right, down and up half-angles of an eye's frustum.
+static func _fov(p: Projection) -> Array:
+	var deg := func(t: float) -> float: return snappedf(rad_to_deg(atan(t)), 0.1)
+	return [deg.call((1.0 - p.z.x) / p.x.x), deg.call((1.0 + p.z.x) / p.x.x), deg.call((1.0 - p.z.y) / p.y.y), deg.call((1.0 + p.z.y) / p.y.y)]
 
 
 ## Desktop only: put the head at `eye` looking at `at`.
