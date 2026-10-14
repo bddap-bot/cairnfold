@@ -1,12 +1,13 @@
 class_name FloraTool
 extends Node3D
 
-## Flowers, grass and trees, for whichever hand holds them: the trigger paints flowers or grass where the
-## hand points, or plants a tree there. The brush widens with distance; painting a spot again thickens it.
+## Flowers, grass, trees and paths, for whichever hand holds them: the trigger paints flowers or grass where
+## the hand points, plants a tree there, or lays a path along the stroke. The brush widens with distance;
+## painting a spot again thickens it, and a path is as wide as the brush.
 
 ## Plants per square metre per second of painting.
 const RATES := {Hand.Tool.FLOWERS: 12.0, Hand.Tool.GRASS: 30.0}
-const TINTS := {Hand.Tool.FLOWERS: Color(1.0, 0.82, 0.9, 0.6), Hand.Tool.GRASS: Color(0.78, 1.0, 0.55, 0.6), Hand.Tool.TREES: Color(0.85, 1.0, 0.8, 0.6)}
+const TINTS := {Hand.Tool.FLOWERS: Color(1.0, 0.82, 0.9, 0.6), Hand.Tool.GRASS: Color(0.78, 1.0, 0.55, 0.6), Hand.Tool.TREES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.PATH: Color(1.0, 0.9, 0.7, 0.6)}
 const RADIUS_PER_METRE := 0.15
 const MIN_RADIUS := 0.3
 const MAX_RADIUS := 3.0
@@ -21,10 +22,12 @@ class Brush:
 	## What the current trigger hold has painted, one undo step on release.
 	var stroke: Array[Flora.Plant] = []
 	var owed := 0.0
+	var paving := false
 
 
 var rig: Rig
 var flora: Flora
+var paths: Paths
 var history: History
 var brushes: Array[Brush] = []
 ## Where the grass feels the left hand while it is untracked; desktop scripts hold it in the grass.
@@ -32,9 +35,10 @@ var stand_in := Flora.NO_HAND
 var _rng := RandomNumberGenerator.new()
 
 
-func _init(player: Rig, plants: Flora, steps: History) -> void:
+func _init(player: Rig, plants: Flora, ways: Paths, steps: History) -> void:
 	rig = player
 	flora = plants
+	paths = ways
 	history = steps
 	_rng.seed = 23
 	var ring := TorusMesh.new()
@@ -60,6 +64,8 @@ func _init(player: Rig, plants: Flora, steps: History) -> void:
 
 
 func busy() -> bool:
+	if paths.busy():
+		return true
 	for b in brushes:
 		if not b.stroke.is_empty():
 			return true
@@ -109,9 +115,16 @@ func _handle(b: Brush, delta: float) -> void:
 			plant_tree(hit)
 		return
 	var radius := brush_radius(hand.origin, hit)
+	if held == Hand.Tool.PATH:
+		radius = clampf(radius, PathLayout.HALF_WIDTH.x, PathLayout.HALF_WIDTH.y)
 	b.ring.visible = true
 	b.ring.global_transform = Transform3D(Basis().scaled(Vector3(radius, 1.0, radius)), hit + Vector3.UP * 0.04)
-	if b.buttons.held("trigger_click"):
+	if held == Hand.Tool.PATH:
+		if b.buttons.pressed("trigger_click") and not paths.busy():
+			begin_path(b, hit, radius)
+		elif b.buttons.held("trigger_click") and b.paving:
+			extend_path(hit, radius)
+	elif b.buttons.held("trigger_click"):
 		paint(b, hit, radius, delta)
 
 
@@ -131,6 +144,9 @@ func paint(b: Brush, center: Vector3, radius: float, delta: float) -> void:
 	var n := int(b.owed)
 	b.owed -= n
 	for p in FloraLayout.brush(center, radius, n, _rng, Terrain.height_at):
+		# A plant on a path would be parted to nothing and still take a slot in the pool.
+		if Paths.cover(p.x, p.z) > 0.9:
+			continue
 		var plant := flora.add_grass(p, _rng) if grass else flora.add_flower(p, _rng)
 		if plant != null:
 			b.stroke.append(plant)
@@ -139,10 +155,31 @@ func paint(b: Brush, center: Vector3, radius: float, delta: float) -> void:
 
 
 func end_stroke(b: Brush) -> void:
+	if b.paving:
+		end_path(b)
 	if b.stroke.is_empty():
 		return
 	_record(b.stroke)
 	b.stroke = []
+
+
+func begin_path(b: Brush, at: Vector3, radius: float) -> void:
+	b.paving = true
+	paths.begin(at, radius)
+	planted.emit()
+
+
+func extend_path(at: Vector3, radius: float) -> void:
+	paths.extend(at, radius)
+	planted.emit()
+
+
+func end_path(b: Brush) -> void:
+	b.paving = false
+	var path := paths.end()
+	if path != null:
+		history.add(paths.take.bind(path), paths.put.bind(path), paths.chunks(path))
+	planted.emit()
 
 
 func plant_tree(at: Vector3) -> void:

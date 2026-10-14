@@ -4,7 +4,8 @@ extends Node3D
 ## Walls, for whichever hand holds them: trigger draws a wall along the ground (a loop held closed snaps to a
 ## round tower), grip on a wall pulls its height and on a roof its pitch and curvature, and the right A cuts or
 ## fills an arch where a walls hand points or, on a wall's top, changes its style. With walls in both hands,
-## both grips on the ground lay out a house between them.
+## both grips on the ground lay out a house between them. A path laid across a wall, or a wall drawn across a
+## path, opens an arch where they cross, or an arcade where the crossing is wide; undoing the path closes them.
 
 const POINT_SPACING := 0.45
 const REBUILD_EVERY := 0.06
@@ -53,6 +54,9 @@ class Stroke:
 var rig: Rig
 var history: History
 var flora: Flora
+var paths: Paths
+## The arches each laid path opened, as [wall, arc length] pairs, so lifting the path closes them.
+var _opened := {}
 var walls: Array[Wall] = []
 var masons: Array[Mason] = []
 var house: Wall
@@ -62,10 +66,13 @@ var _seed := 1
 var _arch_button: Buttons
 
 
-func _init(player: Rig, steps: History, plants: Flora) -> void:
+func _init(player: Rig, steps: History, plants: Flora, ways: Paths) -> void:
 	rig = player
 	history = steps
 	flora = plants
+	paths = ways
+	paths.laid.connect(open_crossings)
+	paths.taken.connect(close_crossings)
 	for h in [rig.right, rig.left]:
 		var m := Mason.new()
 		m.hand = h
@@ -286,6 +293,7 @@ func end_stroke(m: Mason) -> Array[Wall]:
 func _finish(ws: Array[Wall]) -> void:
 	for w in ws:
 		w.finished = true
+		_cross_paths(w)
 		w.rebuild()
 		walls.append(w)
 		built.emit(&"settle", _top(w, w.layout.length() * 0.5))
@@ -423,7 +431,7 @@ func toggle_arch(w: Wall, s: float) -> void:
 			_record_arches(w, before)
 			return
 	for a in arches:
-		if absf(a - s) < (WallLayout.ARCH_HALF + WallLayout.RING) * 2.0 + 0.4:
+		if absf(a - s) < WallLayout.ARCADE_GAP:
 			return
 	arches.append(s)
 	w.rebuild()
@@ -440,15 +448,74 @@ func remove(w: Wall) -> void:
 	history.add(_put.bind(w), _take.bind(w), [w])
 
 
+## Wall chemistry: a laid path opens arches in every wall it crosses.
+func open_crossings(path: PathLayout) -> void:
+	_opened[path] = []
+	for w in walls:
+		var cut := _cut_crossings(w, path)
+		if cut.is_empty():
+			continue
+		w.rebuild()
+		for a in cut:
+			_opened[path].append([w, a])
+			built.emit(&"arch", w.layout.point_at(a) + Vector3.UP * w.layout.spring())
+
+
+func _cross_paths(w: Wall) -> void:
+	for p in paths.layouts:
+		for s in _cut_crossings(w, p):
+			_opened[p].append([w, s])
+
+
+func close_crossings(path: PathLayout) -> void:
+	for pair in _opened.get(path, []):
+		var w: Wall = pair[0]
+		w.layout.arches.erase(pair[1])
+		if walls.has(w):
+			w.rebuild()
+	_opened.erase(path)
+
+
+## Opens the arches `path` makes in `w` and returns them. A crossing already inside an opening needs none;
+## one whose ring would overlap an arch there stands a pitch from it as an arcade instead, on the crossing's
+## side if that fits, else the other, so no opening closes.
+func _cut_crossings(w: Wall, path: PathLayout) -> Array[float]:
+	var opened: Array[float] = []
+	var layout := w.layout
+	if not layout.can_arch():
+		return opened
+	var arches := layout.arches.duplicate()
+	for a in path.crossings(layout):
+		a = layout.wrap(a)
+		var past := INF
+		for e in arches:
+			if absf(layout.offset(a, e)) < absf(past):
+				past = layout.offset(a, e)
+		if absf(past) < WallLayout.ARCH_HALF:
+			continue
+		var tries := [a]
+		if absf(past) < WallLayout.ARCH_SPACING:
+			var side := signf(past) * WallLayout.ARCADE_PITCH
+			tries = [layout.wrap(a - past + side), layout.wrap(a - past - side)]
+		for t in tries:
+			if layout.fits_arch(t, arches):
+				arches.append(t)
+				layout.arches.append(t)
+				opened.append(t)
+				break
+	return opened
+
+
 func _take(w: Wall) -> void:
 	built.emit(&"crumble", _top(w, w.layout.length() * 0.5))
 	walls.erase(w)
 	w.get_parent().remove_child(w)
 
 
-## The ground may have moved while the wall was away.
+## The ground may have moved while the wall was away, and paths come and gone.
 func _put(w: Wall) -> void:
 	get_parent().add_child(w)
+	_cross_paths(w)
 	w.rebuild()
 	walls.append(w)
 	built.emit(&"settle", _top(w, w.layout.length() * 0.5))

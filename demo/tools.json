@@ -15,5 +15,8 @@
   {"op": "pick", "hand": "right", "tool": "walls", "capture": "04-ring-open", "popping": "05-mid-transition"},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "06-walls-delete"},
+  {"op": "pick", "hand": "left", "tool": "path"},
+  {"op": "wait", "seconds": 0.5},
+  {"op": "capture", "name": "07-walls-path"},
   {"op": "quit"}
 ]

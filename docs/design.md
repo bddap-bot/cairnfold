@@ -148,9 +148,9 @@ Stage numbers refer to the build order at the end.
 | Freehand walls | Drag on the ground; gridless, follows terrain, stroke speed sets corner sharpness; bricks laid by GPU compute | Hold trigger and sweep the pointer over the ground (from the ground or from the air). The stroke is Catmull-Rom smoothed and courses of individual stones are laid live while you draw. A stroke near a standing wall merges into it (see "Walls meeting walls") | 1 (done) |
 | Wall height | Height gizmo; walls from very low to very high | Grip a wall and raise or lower your hand; height snaps to whole stone courses, so it grows and shrinks a row at a time | 1 (done) |
 | Wall tops | Merlons on flat tops, can be turned off; wooden railings on half-timber | Per wall: capping slabs with merlons, plain capping, or dry-stone coping (stones on edge, tall and short in turn); A on a wall's top cycles them | 1 (done), 4 (done) |
-| Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | A wall drawn over a tree or bush arches over it, shown live while drawing; one of 5 m or more over open ground opens an arch at the middle; A on a wall cuts or fills an arch there. Stage 5 adds the chemistry: a path stroke through a wall cuts the arch, wide crossings become arcades | 1 (done), 5 |
+| Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | A wall drawn over a tree or bush arches over it, shown live while drawing; one of 5 m or more over open ground opens an arch at the middle; A on a wall cuts or fills an arch there. Wall chemistry, in either order (a path laid through a wall, or a wall drawn across a path): one arch where they cross, or, where the crossing runs 2.8 m or more along the wall (a wide path, or one meeting it at a slant), an arcade of arches 2.3 m apart on stone pillars. A crossing beside an arch already there joins it as an arcade, so no opening closes; undoing the path closes the arches it opened | 1 (done), 5 (done) |
 | Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends and at the corners of a house | 1 (done), 4 (done) |
-| Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | Trigger-sweep with a path brush; stones laid along the stroke and pressed into the terrain shader's mask so grass parts around them | 5 |
+| Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | The path tool's trigger, swept over the ground: flat stones laid in rows along the smoothed stroke, as wide as the brush ring (`PathLayout`); like the plants they ride the ground, so reshaping it carries them along. The stroke wears a ground mask (the `path_mask` shader global) that the terrain shader turns to trodden earth and the grass and flower shaders read to part around the stones | 5 (done) |
 | Towers | A loop held down straightens into a circle | Draw a loop and keep holding with the end back near the start: after a moment it snaps to a round tower (radius 1.2–4 m) with a tiled cone roof, standing level on its lowest ground | 4 (done) |
 | Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Two-handed: both grips while pointing at the ground; the two spots are the ends of the ridge, so pulling apart lengthens the house (2.6–14 m, depth following) and twisting turns it. Stone walls with corner piers, a door arch in the front, level on its lowest ground | 4 (done) |
 | Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, plaster gable ends. Grip on a roof with the walls tool: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`) | 4 (done) |
@@ -231,12 +231,12 @@ attached to the little controller. I like the minimalist little controller geome
 something, like walls, we could display a representation of the item that we've selected … probably on
 top of the little controller."
 
-Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, flowers,
-grass, trees, teleport and delete. The tool a hand holds stands on top of its controller as a small
-object, built from the same generators as the full-size thing: a short wall of stones, three flowers, a
-grass tuft, a tree, the air-teleport marker (a ring on a pole over a ring), and a spade for delete. A
-new tool pops up in place of the old one, which shrinks away, in under a fifth of a second. The
-controller's own rounded body is unchanged, and there is no text anywhere.
+Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, paths,
+flowers, grass, trees, teleport and delete. The tool a hand holds stands on top of its controller as a
+small object, built from the same generators as the full-size thing: a short wall of stones, a bend of
+paving, three flowers, a grass tuft, a tree, the air-teleport marker (a ring on a pole over a ring), and
+a spade for delete. A new tool pops up in place of the old one, which shrinks away, in under a fifth
+of a second. The controller's own rounded body is unchanged, and there is no text anywhere.
 
 One value per hand, `Hand.tool`, is what the input code dispatches on and what the object on top and
 the ring show, so they cannot disagree. The hands start as walls in the right and flowers in the left.
@@ -273,9 +273,9 @@ aiming at the ground is how you come back down.
 | Plant a tree | Trigger of a hand holding trees, pointing at the ground |
 | Shape the ground | Trigger held on a hand holding terrain, pointing at the ground: the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it |
 | Delete | Trigger of a hand holding delete: takes the wall, tower or house it points at, else the tree nearest where it meets the ground, else the painted plants under it; one thing per press, never more |
-| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes, ground shaped) |
+| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes, paths, ground shaped) |
 | Redo | Tap the left D-pad up (left or right too): one step forward per tap. A new edit after an undo drops what could be redone |
-| Later: paint paths | A path tool with the same brush |
+| Lay a path | Trigger held on a hand holding paths, sweep the pointer over the ground; the ring is the path's width, wider the farther you point. Through a wall it opens an arch or an arcade |
 | Later: move the sun | Grip the sun in the sky and drag it |
 
 Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
@@ -303,7 +303,7 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 2. Lighting pass: bounce light from a probe volume rebuilt on edits, contact darkening, shadow split and fog tuning for floating viewpoints, compared side by side with the mood target.
 3. Ivy and flora: ivy over walls and around openings, flower and grass painting, tree placement by pointing. (Done.)
 4. Towers, houses and roofs: loop-to-tower, two-handed footprints, tiled roofs with pull-to-shape, wall-top style per wall. (Done.)
-5. Paths and wall chemistry: path brush; a path through a wall cuts an arch, wide crossings become arcades.
+5. Paths and wall chemistry: path brush; a path through a wall cuts an arch, wide crossings become arcades. (Done.)
 6. Windows, doors, fences, chimneys, lanterns and flags.
 7. Terrain shaping and water.
 8. Time of day, seasons and palettes, a colour picker.
@@ -373,7 +373,8 @@ points as the controllers (teleport, float, draw a wall), logs per-second frame
 times and saves view captures. `scripts/test.sh` runs the headless layout tests;
 `scripts/render.sh` plays a script on a desktop renderer; `demo/flora.json` paints,
 plants trees and lets the ivy grow; `demo/houses.json` builds a tower, two houses and
-walls in each top style, and shapes the roofs.
+walls in each top style, and shapes the roofs; `demo/paths.json` lays paths through walls (an arch, an
+arcade), draws a wall across a wide path and raises the ground under a path.
 
 ## Sources
 

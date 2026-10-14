@@ -21,6 +21,10 @@ const PIER := THICKNESS + 0.28
 const LOOP_MIN_RUN := 4.0
 const LOOP_CLOSE := 1.2
 const TOWER_RADIUS := Vector2(1.2, 4.0)
+## Arches whose rings would touch cannot both open; arches nearer than ARCADE_GAP share a pillar.
+const ARCH_SPACING := (ARCH_HALF + RING) * 2.0
+const ARCADE_GAP := ARCH_SPACING + 0.4
+const ARCADE_PITCH := 2.3
 
 var points: Array[Vector3] = []
 var height := 2.6
@@ -80,15 +84,18 @@ func build(ground: Callable) -> void:
 	if total < 0.3:
 		return
 	if can_arch():
-		var piers: Array = corners() if closed else []
-		for a in arches:
-			if a > ARCH_END and a < total - ARCH_END and piers.all(func(c): return absf(c - a) > ARCH_HALF + RING + PIER * 0.5):
+		var sorted := arches.duplicate()
+		sorted.sort()
+		for a in sorted:
+			if fits_arch(a, live_arches):
 				live_arches.append(a)
 	_stone_scale = 1.0
 	if closed and corners().is_empty():
 		_stone_scale = clampf(total / TAU / 3.0, 0.45, 1.0)
 	var courses := maxi(1, int(round(height / COURSE)))
 	var course_h := height / courses
+	var bays := pillars()
+	var pillar_top := 0.0
 	for k in courses:
 		var y0 := k * course_h
 		var yc := y0 + course_h * 0.5
@@ -97,18 +104,32 @@ func build(ground: Callable) -> void:
 			var w := opening(yc, true)
 			if w > 0.0:
 				spans = _cut(spans, a - w, a + w)
+		if yc < spring():
+			pillar_top = y0 + course_h
+			for b in bays:
+				spans = _cut(spans, b.s - b.half, b.s + b.half)
 		var offset := (0.5 if k % 2 == 1 else 0.0) * rng.randf_range(0.3, 0.6)
 		for span in spans:
 			_lay_course(span[0], span[1], y0, course_h, offset, rng)
 			_lay_mortar(span[0], span[1], y0, course_h)
 	for a in live_arches:
 		_lay_ring(a, rng)
+	for p in pillars():
+		_lay_pillar(p.s, p.half, pillar_top, rng)
 	_lay_top(rng)
 	for s in corners():
 		_lay_pier(s, rng)
 
 
+## Removes [lo, hi] from the spans; on a closed loop an opening across the seam is cut at both ends.
 func _cut(spans: Array, lo: float, hi: float) -> Array:
+	if closed and (lo < 0.0 or hi > length()):
+		var shift := length() if lo < 0.0 else -length()
+		spans = _cut_span(spans, lo + shift, hi + shift)
+	return _cut_span(spans, lo, hi)
+
+
+func _cut_span(spans: Array, lo: float, hi: float) -> Array:
 	var out := []
 	for s in spans:
 		if hi <= s[0] or lo >= s[1]:
@@ -160,6 +181,50 @@ func _lay_ring(a: float, rng: RandomNumberGenerator) -> void:
 		stones.append(_stone(along, up, size, rng, "voussoir", 1.0, 0.0, PI * 0.5 - t))
 	var top := spring() + r
 	_add(a, top, Vector3(0.34, RING * 1.15, THICKNESS * 1.1), rng, "keystone", 1.05, 0.0)
+
+
+## Whether an arch can open at `s` beside `others`: clear of an open wall's ends, a loop's corner piers and
+## the others' rings, measured round a loop.
+func fits_arch(s: float, others: Array[float]) -> bool:
+	var reach := ARCH_HALF + RING
+	if not closed and (s < ARCH_END or s > length() - ARCH_END):
+		return false
+	if closed and not corners().all(func(c): return absf(offset(s, c)) > reach + PIER * 0.5):
+		return false
+	return others.all(func(o): return absf(offset(s, o)) >= ARCH_SPACING)
+
+
+## How far along the wall `a` lies past `b`, the short way round a closed loop.
+func offset(a: float, b: float) -> float:
+	return fposmod(a - b + length() * 0.5, length()) - length() * 0.5 if closed else a - b
+
+
+## An arc length on this wall: wrapped round a closed loop, clamped to an open wall.
+func wrap(s: float) -> float:
+	return fposmod(s, length()) if closed else clampf(s, 0.0, length())
+
+
+## The pillars of the arcades: their arc length and half-width.
+func pillars() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var n := live_arches.size()
+	for i in range(0 if closed and n > 1 else 1, n):
+		var prev := live_arches[(i + n - 1) % n]
+		var gap := offset(live_arches[i], prev)
+		if gap > 0.0 and gap < ARCADE_GAP:
+			out.append({"s": prev + gap * 0.5, "half": gap * 0.5 - ARCH_HALF})
+	return out
+
+
+func _lay_pillar(s: float, half: float, top_y: float, rng: RandomNumberGenerator) -> void:
+	var w := half * 2.0
+	_add(s, 0.1, Vector3(w + 0.08, 0.2, THICKNESS + 0.1), rng, "pillar", 0.95, 0.02)
+	var y := 0.2
+	while y < top_y - 0.25:
+		var h := minf(rng.randf_range(0.34, 0.46), top_y - 0.18 - y)
+		_add(s, y + h * 0.5, Vector3(w - 0.1, h, THICKNESS - 0.06), rng, "pillar", 1.0, 0.02)
+		y += h
+	_add(s, top_y - 0.09, Vector3(w + 0.1, 0.18, THICKNESS + 0.1), rng, "pillar", 0.95, 0.0)
 
 
 ## Where piers stand: the two ends of an open wall, the sharp corners of a loop.
@@ -252,6 +317,8 @@ func snapshot() -> WallLayout:
 
 ## Ground point and unit tangent at arc length `s`.
 func frame_at(s: float) -> Dictionary:
+	if closed and lengths.size() > 1:
+		s = fposmod(s, length())
 	var i := lengths.bsearch(s)
 	i = clampi(i, 1, samples.size() - 1)
 	var l0 := lengths[i - 1]
@@ -292,19 +359,7 @@ func resample(ground: Callable) -> void:
 
 func _resample_open(ground: Callable) -> void:
 	var dense: Array[Vector3] = []
-	if points.size() == 1:
-		dense.append(points[0])
-	for i in points.size() - 1:
-		var p0 := points[maxi(i - 1, 0)]
-		var p1 := points[i]
-		var p2 := points[i + 1]
-		var p3 := points[mini(i + 2, points.size() - 1)]
-		var seg := maxi(1, int(ceil(p1.distance_to(p2) / SAMPLE)))
-		for j in seg:
-			var t := float(j) / seg
-			dense.append(_catmull(p0, p1, p2, p3, t))
-	if points.size() > 1:
-		dense.append(points[-1])
+	smooth(points, func(q: Vector3, _i: int, _t: float): dense.append(q))
 	var acc := 0.0
 	for i in dense.size():
 		var q := dense[i]
@@ -381,6 +436,20 @@ static func rectangle(a: Vector3, b: Vector3, depth: float) -> Array[Vector3]:
 
 static func _flat_distance(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x - b.x, a.z - b.z).length()
+
+
+## Visits Catmull-Rom samples through an open stroke, SAMPLE apart and ending on its last point, as
+## `each(sample, i, t)`: `t` of the way from point `i` to the next.
+static func smooth(stroke: Array[Vector3], each: Callable) -> void:
+	for i in stroke.size() - 1:
+		var p0 := stroke[maxi(i - 1, 0)]
+		var p3 := stroke[mini(i + 2, stroke.size() - 1)]
+		var seg := maxi(1, int(ceil(stroke[i].distance_to(stroke[i + 1]) / SAMPLE)))
+		for j in seg:
+			var t := float(j) / seg
+			each.call(_catmull(p0, stroke[i], stroke[i + 1], p3, t), i, t)
+	if stroke.size() > 0:
+		each.call(stroke[-1], stroke.size() - 1, 0.0)
 
 
 static func _catmull(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: float) -> Vector3:

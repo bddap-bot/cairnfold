@@ -229,6 +229,20 @@ func _paint(s: Dictionary) -> void:
 	flora_tool.end_stroke(b)
 
 
+## A stroke of the path tool from `hand` (left by default); `radius` is half the path's width.
+func _pave(s: Dictionary) -> void:
+	var flora_tool: FloraTool = main.flora_tool
+	var b := flora_tool.brush(main.rig.left if s.get("hand", "left") == "left" else main.rig.right)
+	b.hand.tool = Hand.Tool.PATH
+	var path := _path(s)
+	flora_tool.begin_path(b, path[0], s.radius)
+	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
+	for f in frames:
+		await get_tree().process_frame
+		flora_tool.extend_path(_along(path, float(f + 1) / frames), s.radius)
+	flora_tool.end_path(b)
+
+
 ## Grabs the ground at x, z and pulls it `lift` metres over `seconds` (negative digs), as a hand on the terrain tool does.
 func _sculpt(s: Dictionary) -> void:
 	var tool: TerrainTool = main.terrain_tool

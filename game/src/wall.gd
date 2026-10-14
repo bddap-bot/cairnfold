@@ -1,15 +1,13 @@
 class_name Wall
 extends Node3D
 
-static var _meshes: Array[ArrayMesh] = []
-static var _material: ShaderMaterial
 static var _leaf_material: StandardMaterial3D
 static var _leaf := Meshes.leaf()
 static var _tile := Meshes.rounded_box(0.22, 2, 41)
 static var _plaster: StandardMaterial3D
 
 var layout := WallLayout.new()
-var _instances: Array[MultiMeshInstance3D] = []
+var _stones := Stones.new()
 var _ivy := MultiMeshInstance3D.new()
 var _ivy_times := PackedFloat32Array()
 var _ivy_task := -1
@@ -22,21 +20,6 @@ var _tiles: MultiMeshInstance3D
 var _gables: MeshInstance3D
 ## Seconds since the wall was finished: how far its ivy has grown.
 var ivy_age := 0.0
-
-
-static func shared_material() -> ShaderMaterial:
-	if _material == null:
-		_material = ShaderMaterial.new()
-		_material.shader = load("res://src/stone.gdshader")
-		_material.set_shader_parameter("detail", Look.detail_noise())
-	return _material
-
-
-static func stone_meshes() -> Array[ArrayMesh]:
-	if _meshes.is_empty():
-		for v in 3:
-			_meshes.append(Meshes.rounded_box(0.14, 3, 100 + v))
-	return _meshes
 
 
 static func leaf_material() -> StandardMaterial3D:
@@ -52,17 +35,7 @@ static func leaf_material() -> StandardMaterial3D:
 
 func _init(seed: int) -> void:
 	layout.seed = seed
-	for mesh in stone_meshes():
-		var mmi := MultiMeshInstance3D.new()
-		var mm := MultiMesh.new()
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
-		mm.use_custom_data = true
-		mm.mesh = mesh
-		mmi.multimesh = mm
-		mmi.material_override = shared_material()
-		_instances.append(mmi)
-		add_child(mmi)
+	add_child(_stones)
 	var ivy := MultiMesh.new()
 	ivy.transform_format = MultiMesh.TRANSFORM_3D
 	ivy.use_colors = true
@@ -84,7 +57,7 @@ func add_roof(r: RoofLayout) -> void:
 	mm.use_custom_data = true
 	mm.mesh = _tile
 	_tiles.multimesh = mm
-	_tiles.material_override = shared_material()
+	_tiles.material_override = Stones.shared_material()
 	add_child(_tiles)
 	if _plaster == null:
 		_plaster = StandardMaterial3D.new()
@@ -145,17 +118,7 @@ func _apply_ivy() -> void:
 func rebuild(with_ivy := true) -> void:
 	layout.build(Terrain.height_at)
 	_ivy.visible = with_ivy
-	var buckets: Array[Array] = [[], [], []]
-	for s in layout.stones:
-		buckets[s.variant].append(s)
-	for v in 3:
-		var mm := _instances[v].multimesh
-		mm.instance_count = buckets[v].size()
-		for i in buckets[v].size():
-			var s: Dictionary = buckets[v][i]
-			mm.set_instance_transform(i, s.xform)
-			mm.set_instance_color(i, s.color)
-			mm.set_instance_custom_data(i, Color(s.ao, 0, 0, 0))
+	_stones.lay(layout.stones)
 	if roof != null:
 		rebuild_roof()
 	if finished and with_ivy:

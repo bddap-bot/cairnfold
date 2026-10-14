@@ -30,6 +30,10 @@ ground_hump={
 "type": "vec4",
 "value": Vector4(0, 0, 1, 0)
 }
+path_mask={
+"type": "sampler2D",
+"value": ""
+}
 
 [xr]
 openxr/enabled=true

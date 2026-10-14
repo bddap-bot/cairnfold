@@ -43,6 +43,8 @@ void vertex() {
 	VERTEX.y += ground;
 	vec3 root = MODEL_MATRIX[3].xyz + vec3(0.0, ground, 0.0);
 	float size = length(MODEL_MATRIX[1].xyz);
+	float worn = path_cover(root.xz);
+	VERTEX = root + (VERTEX - root) * vec3(1.0 - worn * 0.5, 1.0 - worn, 1.0 - worn * 0.5);
 
 	// Gusts are bands travelling downwind; a slower cross-wind wave keeps them from reading as stripes.
 	float along = sin(dot(root.xz, wind_dir) * (TAU / gust_wavelength) - TIME * gust_speed) * 0.5 + 0.5;

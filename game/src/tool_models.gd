@@ -13,6 +13,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 	match tool:
 		Hand.Tool.WALLS:
 			_wall(root)
+		Hand.Tool.PATH:
+			_path(root)
 		Hand.Tool.FLOWERS:
 			_flowers(root)
 		Hand.Tool.GRASS:
@@ -34,21 +36,30 @@ static func _wall(root: Node3D) -> void:
 	layout.height = 1.5
 	layout.points = [Vector3(0, 0, -1.4), Vector3(0, 0, 1.4)]
 	layout.build(func(_x: float, _z: float) -> float: return 0.0)
-	var meshes := Wall.stone_meshes()
-	var buckets: Array[Array] = [[], [], []]
-	for s in layout.stones:
-		buckets[s.variant].append(s)
-	for v in meshes.size():
-		var mm := _multimesh(meshes[v], buckets[v].size(), true)
-		for i in buckets[v].size():
-			mm.set_instance_transform(i, buckets[v][i].xform)
-			mm.set_instance_color(i, buckets[v][i].color)
-			mm.set_instance_custom_data(i, Color(buckets[v][i].ao, 0, 0, 0))
-		_add(root, mm, Wall.shared_material(), 0.015)
+	_stones(root, layout.stones, 0.015)
+
+
+## A short bend of paving.
+static func _path(root: Node3D) -> void:
+	var layout := PathLayout.new()
+	layout.seed = 3
+	for p in [Vector3(-0.3, 0, -1.6), Vector3(0.25, 0, -0.5), Vector3(-0.2, 0, 0.6), Vector3(0.3, 0, 1.6)]:
+		layout.add(p, 0.62)
+	layout.build()
+	_stones(root, layout.stones, 0.024)
+
+
+static func _stones(root: Node3D, stones: Array[Dictionary], scale: float) -> void:
+	var node := Stones.new()
+	node.lay(stones)
+	node.scale = Vector3.ONE * scale
+	for mmi in node.get_children():
+		(mmi as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(node)
 
 
 static func _flowers(root: Node3D) -> void:
-	var mm := _multimesh(Meshes.flower(6), 3, false)
+	var mm := _multimesh(Meshes.flower(6), 3)
 	var spots := [Vector3(0, 0, 0), Vector3(0.09, 0, 0.05), Vector3(-0.07, 0, 0.07)]
 	var sizes := [1.15, 0.8, 0.9]
 	for i in 3:
@@ -89,12 +100,12 @@ static func _tree(root: Node3D) -> void:
 		bark.albedo_color = Color(0.36, 0.27, 0.2)
 		bark.roughness = 1.0
 		_mats["bark"] = bark
-	var trunk_mm := _multimesh(trunk, 1, false)
+	var trunk_mm := _multimesh(trunk, 1)
 	trunk_mm.set_instance_transform(0, t.trunk)
 	trunk_mm.set_instance_color(0, Color.WHITE)
 	var scale := 0.006
 	_add(root, trunk_mm, bark, scale)
-	var blobs := _multimesh(Meshes.blob(4), t.blobs.size(), false)
+	var blobs := _multimesh(Meshes.blob(4), t.blobs.size())
 	for i in t.blobs.size():
 		blobs.set_instance_transform(i, t.blobs[i][0])
 		blobs.set_instance_color(i, t.blobs[i][1])
@@ -208,11 +219,10 @@ static func _spade(root: Node3D) -> void:
 		tilt.add_child(mi)
 
 
-static func _multimesh(mesh: Mesh, count: int, custom: bool) -> MultiMesh:
+static func _multimesh(mesh: Mesh, count: int) -> MultiMesh:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
-	mm.use_custom_data = custom
 	mm.mesh = mesh
 	mm.instance_count = count
 	return mm

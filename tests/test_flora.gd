@@ -53,7 +53,9 @@ func _tool() -> FloraTool:
 	root.add_child(flora)
 	var history := History.new(rig.left)
 	root.add_child(history)
-	var t := FloraTool.new(rig, flora, history)
+	var paths := Paths.new()
+	root.add_child(paths)
+	var t := FloraTool.new(rig, flora, paths, history)
 	t.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(t)
 	return t

@@ -25,5 +25,11 @@
   {"op": "top", "index": 0, "style": "cope"},
   {"op": "wait", "seconds": 20},
   {"op": "capture", "name": "04-houses-floating"},
+  {"op": "label", "name": "paths"},
+  {"op": "pave", "relative": true, "points": [[-3, 1], [-2, 5], [-1, 9], [0, 13]], "radius": 0.6, "seconds": 4},
+  {"op": "pave", "relative": true, "points": [[4, 1], [3, 6], [2.5, 12]], "radius": 2.2, "seconds": 4},
+  {"op": "wall", "relative": true, "points": [[-6, 11], [-1, 11.5], [6, 11]], "seconds": 3},
+  {"op": "wait", "seconds": 20},
+  {"op": "capture", "name": "05-paths-floating"},
   {"op": "quit"}
 ]
