@@ -306,7 +306,7 @@ Stage numbers refer to the build order at the end.
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of the left D-pad down undoes a step, up redoes one; with others, each player's own steps (done); the delete tool takes away a tree or painted patch (done) and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. One reshape (or unwall) per sweep, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it; it is loaded at start. Only your own garden is kept, never one you are visiting. A file the game cannot read whole is moved aside to `garden.save.bad` before the garden is saved again. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
 | Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, butterflies gather over painted flowers, a conure perches on a tree or wall (see "Wildlife") | 11 |
-| Photo mode | Camera modes and filters | A hand-held camera that saves the view | 11 |
+| Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 1600×1200 photo with a level horizon, saved as a PNG under `user://photos` (see "Photos") | 11 (done) |
 | Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network with the visit tool (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
 
 ## Walls meeting walls
@@ -369,12 +369,12 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, decorations, paths, stone, flowers, grass, trees, terrain, ponds, colour, teleport, delete and visit. The tool a hand
+windows, decorations, paths, stone, flowers, grass, trees, terrain, ponds, colour, camera, teleport, delete and visit. The tool a hand
 holds stands on top of its controller as a small object, built from the same generators as the full-size
 thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
 flag with lanterns on it, a bend of paving, a disc of turf half
 paved with slabs, three flowers, a grass tuft, a tree, a mound, a pond in a
-sandy dish, a painter's palette with dabs of colour, the air-teleport marker (a ring on a pole over a ring), a spade for delete, and a little avatar
+sandy dish, a painter's palette with dabs of colour, a small camera, the air-teleport marker (a ring on a pole over a ring), a spade for delete, and a little avatar
 figure for visit. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
 rounded body is unchanged, and there is no text anywhere.
@@ -425,6 +425,7 @@ aiming at the ground is how you come back down.
 | Decorate | Trigger of a hand holding decorations: a chimney on a house's roof, a flag on a tower's roof or a wall's top, a lantern on a wall's face (on the side the hand is) or a fence; on one already there it takes it away |
 | Move the sun | Point either hand at the sun, whatever it holds, grip and drag it across the sky |
 | Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window or door, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top |
+| Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
 
 Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
 a D-pad on the left. Godot 4.5 has no Frame interaction profile, so the game binds
@@ -591,6 +592,12 @@ fly in and settle on it. There is no tool, menu or button for animals.
   drift back. They leave, out of sight, when their patch is erased, drowned or out of season; the
   meadow's own flowers draw none. Wings come in five soft colours (butter, apricot, sky, chalk,
   lilac), darker at the rim.
+- **Fireflies** come out at dusk, in spring and summer, over what you have made: five to nine
+  over each pond's shore and each painted flower patch (`Fireflies`), fading in as the sun goes
+  down and out when it rises, the season turns or their pond or patch is gone. Each hovers
+  about a spot of its own, drifting and flashing on its own slow beat with a faint glow
+  between; the drift and the flashing run in the shader, so the CPU writes their spots once a
+  second at most, and only after sunset. They are additive glows and cast no light.
 - **A conure**, iridescent blue and green, comes after the ducks: it lands on a
   tree or a wall top. Its plumage is poofy and soft, with a view-dependent hue
   shift (blue facing you, green at grazing angles) computed per fragment from
@@ -604,7 +611,23 @@ refresh rate. Ducks are capped at two families of at most five
 (`Wildlife.FAMILIES`, `DUCKLINGS`): ten draw calls and about 6,000 triangles at
 most, one shared mesh per kind and one material. Butterflies are one MultiMesh capped at 24
 (`Butterflies.CAP`): one draw call of 22 triangles each; the CPU steers them and the
-vertex shader beats their wings.
+vertex shader beats their wings. Fireflies are one MultiMesh of camera-facing quads capped at 48
+(`Fireflies.CAP`): one draw call, additive, no lights.
+
+## Photos
+
+The camera is a tool in the ring (`PhotoTool`). Held, a small camera stands on the controller with
+its lens along the aim and a screen on its back toward the eye, showing what the lens sees. The
+lens keeps the horizon level however the wrist rolls, so photos never come out tilted. The
+trigger takes a 1600×1200 photo (4× MSAA, 55° field of view), saved as a PNG named by the date and
+time under `user://photos` (in a scripted run, `photos/` in the capture directory); the screen
+holds the shot for a moment with a soft flash, and the hand gets a short buzz.
+
+What it costs: the screen is a second view of the garden, 256×192 without MSAA, redrawn on one
+frame in three and only while a hand holds the camera, so each redraw repeats the frame's draw
+calls at a small size. The shot is one extra render at photo size and one read back of it, on
+the frame the trigger is pulled; the PNG is encoded and written on a worker thread. Head-pose
+view captures (`Main.capture` in a headset) use the same render.
 
 ## Verifying on a headset
 
@@ -621,7 +644,7 @@ walls in each top style, and shapes the roofs; `demo/paths.json` lays paths thro
 arcade), draws a wall across a wide path and raises the ground under a path; `demo/fittings.json` opens windows
 and doors in a wall, a house and a tower, hangs lanterns, flies flags, builds a chimney and draws a fence a
 path crosses; `demo/stone.json` paints stone ground into the meadow, paints part of it back and
-walks the history; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
+walks the history; `demo/photo.json` takes the camera from the ring and takes two photos; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/daylight.json` drags the sun from dawn to dusk, opens the colour wheel, recolours roofs, stone, wood
 and plaster, and walks the meadow through the seasons; `demo/ruins.json` erases stretches of walls into
 ruins and walks the history. Run with `--garden FILE`, it keeps its garden there, and `demo/garden.json`

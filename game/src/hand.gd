@@ -4,10 +4,10 @@ extends XRController3D
 ## A controller and the tool it holds. Every tool's input code dispatches on `tool`, and the object on top
 ## of the controller and the selection ring show it, so they cannot disagree.
 
-enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, TERRAIN, TELEPORT, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR }
+enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, TERRAIN, TELEPORT, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA }
 
 ## The ring's contents: a tree, one level deep for now.
-const MENU := [Tool.WALLS, Tool.FENCE, Tool.WINDOWS, Tool.DECORATIONS, Tool.PATH, Tool.STONE, Tool.FLOWERS, Tool.GRASS, Tool.TREES, Tool.TERRAIN, Tool.POND, Tool.COLOUR, Tool.TELEPORT, Tool.DELETE, Tool.VISIT]
+const MENU := [Tool.WALLS, Tool.FENCE, Tool.WINDOWS, Tool.DECORATIONS, Tool.PATH, Tool.STONE, Tool.FLOWERS, Tool.GRASS, Tool.TREES, Tool.TERRAIN, Tool.POND, Tool.COLOUR, Tool.CAMERA, Tool.TELEPORT, Tool.DELETE, Tool.VISIT]
 const TOP := Vector3(0, 0.0075, 0.045)
 const RING_RADIUS := 0.11
 const POP := 0.18

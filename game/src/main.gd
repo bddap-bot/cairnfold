@@ -18,9 +18,9 @@ var wildlife: Wildlife
 var look: Look
 var sun_tool: SunTool
 var palette_tool: PaletteTool
+var photo_tool: PhotoTool
 var sound: Soundscape
 var metrics: Metrics
-var spectator: SubViewport
 
 
 func _ready() -> void:
@@ -64,6 +64,10 @@ func _ready() -> void:
 	add_child(palette_tool)
 	sun_tool = SunTool.new(rig, look, _editing)
 	add_child(sun_tool)
+	photo_tool = PhotoTool.new(rig)
+	if args.has("capture-dir"):
+		photo_tool.folder = str(args["capture-dir"]).path_join("photos")
+	add_child(photo_tool)
 	_undo_buttons = Buttons.new(rig.left).watch(["ax_button", "by_button"])
 	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT)))
 	add_child(session)
@@ -72,7 +76,7 @@ func _ready() -> void:
 	if args.has("join"):
 		var at: PackedStringArray = str(args.join).split(":")
 		session.join.call_deferred(at[0], int(at[1]) if at.size() > 1 else Session.PORT)
-	wildlife = Wildlife.new(water, flora, tool, world.palette, rig.head, hands, int(args.get("seed", -1)))
+	wildlife = Wildlife.new(water, flora, tool, world.palette, rig.head, hands, int(args.get("seed", -1)), look)
 	add_child(wildlife)
 	sound = Soundscape.new(tool, flora_tool, water)
 	add_child(sound)
@@ -155,32 +159,13 @@ func capture(name: String) -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
 	var img: Image
 	if metrics.info.xr:
-		img = await _spectate()
+		img = await photo_tool.render(rig.head.global_transform, 90.0)
 	else:
 		await RenderingServer.frame_post_draw
 		img = get_viewport().get_texture().get_image()
 	var path := dir.path_join(name + ".png")
 	img.save_png(path)
 	print("capture: ", path)
-
-
-## A companion camera at the head pose, rendered once; the eyes themselves go to the compositor.
-func _spectate() -> Image:
-	if spectator == null:
-		spectator = SubViewport.new()
-		spectator.size = Vector2i(1600, 1200)
-		spectator.msaa_3d = Viewport.MSAA_4X
-		spectator.render_target_update_mode = SubViewport.UPDATE_DISABLED
-		var cam := Camera3D.new()
-		cam.fov = 90.0
-		cam.far = 400.0
-		spectator.add_child(cam)
-		add_child(spectator)
-	var cam: Camera3D = spectator.get_child(0)
-	cam.global_transform = rig.head.global_transform
-	spectator.render_target_update_mode = SubViewport.UPDATE_ONCE
-	await RenderingServer.frame_post_draw
-	return spectator.get_texture().get_image()
 
 
 func finish() -> void:

@@ -41,6 +41,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_figure(root)
 		Hand.Tool.COLOUR:
 			_palette(root)
+		Hand.Tool.CAMERA:
+			_camera(root)
 	return root
 
 
@@ -73,6 +75,51 @@ static func _palette(root: Node3D) -> void:
 		var mi := MeshInstance3D.new()
 		mi.mesh = part[0]
 		mi.position = part[1]
+		mi.material_override = mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(mi)
+
+
+## A small camera, its lens along the controller's aim and its screen toward the eye; PhotoTool shows the
+## view on that screen while the camera is held.
+static func _camera(root: Node3D) -> void:
+	var lens := CylinderMesh.new()
+	lens.top_radius = 0.012
+	lens.bottom_radius = 0.013
+	lens.height = 0.018
+	lens.radial_segments = 16
+	lens.rings = 1
+	var glass := CylinderMesh.new()
+	glass.top_radius = 0.009
+	glass.bottom_radius = 0.009
+	glass.height = 0.001
+	glass.radial_segments = 16
+	glass.rings = 1
+	var button := CylinderMesh.new()
+	button.top_radius = 0.004
+	button.bottom_radius = 0.0045
+	button.height = 0.004
+	button.radial_segments = 10
+	button.rings = 1
+	var facing := Basis(Vector3.RIGHT, PI * 0.5)
+	var parts := [
+		[Meshes.rounded_box(0.25, 2, 41), Transform3D(Basis().scaled(Vector3(0.064, 0.046, 0.026)), Vector3(0, 0.024, 0)), Color(0.84, 0.76, 0.62)],
+		[Meshes.rounded_box(0.2, 2, 42), Transform3D(Basis().scaled(Vector3(0.054, 0.042, 0.002)), Vector3(0, 0.024, 0.013)), Color(0.16, 0.14, 0.13)],
+		[lens, Transform3D(facing, Vector3(0, 0.024, -0.021)), Color(0.22, 0.2, 0.19)],
+		[glass, Transform3D(facing, Vector3(0, 0.024, -0.0302)), Color(0.08, 0.1, 0.16)],
+		[button, Transform3D(Basis(), Vector3(0.019, 0.048, 0.002)), Color(0.72, 0.56, 0.3)],
+	]
+	for part in parts:
+		var key := "camera_%s" % part[2].to_html()
+		var mat: StandardMaterial3D = _mats.get(key)
+		if mat == null:
+			mat = StandardMaterial3D.new()
+			mat.albedo_color = part[2]
+			mat.roughness = 0.35 if part[0] == glass else 0.7
+			_mats[key] = mat
+		var mi := MeshInstance3D.new()
+		mi.mesh = part[0]
+		mi.transform = part[1]
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(mi)

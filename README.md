@@ -11,7 +11,7 @@ build order.
 ## Controls
 
 Each hand holds a tool, shown as a small object on top of its controller: walls,
-paths, flowers, grass, trees, terrain, pond, colour, teleport, delete or visit.
+paths, flowers, grass, trees, terrain, pond, colour, camera, teleport, delete or visit.
 
 - Hold a stick's click, push toward a tool in the ring, let go: that hand takes it.
 - Trigger: use the tool. Draw a wall, lay a path, paint, plant a tree, grab the
@@ -24,6 +24,9 @@ paths, flowers, grass, trees, terrain, pond, colour, teleport, delete or visit.
 - Holding colour: hold the trigger on a wall, roof, gable, fence, window or door, or
   the meadow, and twist your wrist to turn a wheel of swatches for that material, or
   of seasons for the meadow; let go to keep the one at the top.
+- Holding camera: the screen on its back shows what its lens sees; the trigger
+  takes a photo, saved as a PNG in the game's `photos` folder
+  (`~/.local/share/godot/app_userdata/Cairnfold/photos` on the Frame).
 - Point any hand at the sun and grip it to drag it across the sky: dawn to dusk.
 - Holding visit: a small figure of each player nearby on the same network stands
   in front of you; point at one and pull the trigger to build in their garden
@@ -37,6 +40,8 @@ paths, flowers, grass, trees, terrain, pond, colour, teleport, delete or visit.
 - Right stick left/right: snap turn.
 - Left D-pad down: undo. Up: redo. One history across every tool; with others,
   each player undoes only their own steps.
+- Animals come on their own, drawn by what you make: ducks to a pond, butterflies
+  to painted flowers, and fireflies at dusk over both.
 - Your garden is saved after every edit and is back when the game starts again.
 
 On Quest Touch controllers, which have no D-pad: left X undoes, left Y redoes,

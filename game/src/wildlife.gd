@@ -6,7 +6,7 @@ extends Node3D
 ## ducklings walks in from the meadow with them in a line. They paddle about, now and then waddle up
 ## the bank to rest on the grass, and leave when their pond is gone. Arrivals and departures happen
 ## out of the viewer's sight, so nothing pops in or out of being. Butterflies come the same way to the flower
-## patches painted (`Butterflies`).
+## patches painted (`Butterflies`), and fireflies at dusk over ponds and flower patches (`Fireflies`).
 
 const ARRIVE_AFTER := Vector2(20.0, 60.0)
 const BUTTERFLIES_AFTER := Vector2(8.0, 25.0)
@@ -49,6 +49,7 @@ var viewer: Node3D
 var hands: Array[Node3D] = []
 var families: Array[Family] = []
 var butterflies: Butterflies
+var fireflies: Fireflies
 var rng := RandomNumberGenerator.new()
 var _due := {}
 var _due_butterflies := {}
@@ -76,7 +77,7 @@ class Family:
 		return ducks[0]
 
 
-func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes: Node3D, near: Array[Node3D], seed := -1) -> void:
+func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes: Node3D, near: Array[Node3D], seed := -1, sky: Look = null) -> void:
 	water = ponds
 	flora = plants
 	walls = builds
@@ -89,6 +90,8 @@ func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes:
 		rng.randomize()
 	butterflies = Butterflies.new(self, rng.seed + 1)
 	add_child(butterflies)
+	fireflies = Fireflies.new(self, sky, rng.seed + 2)
+	add_child(fireflies)
 
 
 func ducks() -> Array[Duck]:
@@ -112,6 +115,7 @@ func tick(delta: float) -> void:
 		var from := _unseen_direction(butterflies.centre(key), Butterflies.FROM_DISTANCE, Butterflies.FROM_HEIGHT, SIGHT, butterflies.rng)
 		butterflies.arrive(key, from)
 	butterflies.tick(delta)
+	fireflies.tick(delta)
 	for i in range(families.size() - 1, -1, -1):
 		var f := families[i]
 		_think(f, delta)
