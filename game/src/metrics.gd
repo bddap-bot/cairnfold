@@ -15,7 +15,7 @@ var _viewport_ms := 0.0
 var _viewport_frames := 0
 var _deltas: PackedFloat32Array = []
 ## Whether the last frame ran over 1.5× the refresh period; only the first of a run of late frames is logged.
-var _late := false
+var _was_late := false
 var _gpu_ns := -1
 var _drm_fds: PackedStringArray = []
 ## Counts readings; every tenth looks for the DRM clients again, since the runtime may open more later.
@@ -33,11 +33,10 @@ func _init(out: String) -> void:
 
 func _process(delta: float) -> void:
 	_deltas.append(delta * 1000.0)
-	var hz: float = info.get("refresh_hz", 0.0)
-	var late := hz > 0.0 and delta * 1000.0 > 1500.0 / hz
-	if late and not _late:
+	var late := is_late(delta * 1000.0)
+	if late and not _was_late:
 		print("metrics: late frame %.1f ms" % (delta * 1000.0))
-	_late = late
+	_was_late = late
 	_draws = maxi(_draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 	if quality != null and quality.fresh:
@@ -76,13 +75,17 @@ func _process(delta: float) -> void:
 func summary(d: PackedFloat32Array) -> Dictionary:
 	var ds := Array(d)
 	ds.sort()
-	var hz: float = info.get("refresh_hz", 0.0)
 	var late := 0
-	if hz > 0.0:
-		for x in ds:
-			if x > 1500.0 / hz:
-				late += 1
+	for x in ds:
+		if is_late(x):
+			late += 1
 	return {"t": Time.get_ticks_msec() / 1000.0, "frames": ds.size(), "p50": _q(ds, 0.5), "p95": _q(ds, 0.95), "p99": _q(ds, 0.99), "max": ds[-1], "late": late, "label": info.get("label", "")}
+
+
+## Whether a frame of `ms` ran over 1.5× the refresh period.
+func is_late(ms: float) -> bool:
+	var hz: float = info.get("refresh_hz", 0.0)
+	return hz > 0.0 and ms > 1500.0 / hz
 
 
 ## GPU time this process has used, summed over its DRM clients, from the kernel's fdinfo; -1 where the driver reports none.

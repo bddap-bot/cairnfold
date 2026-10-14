@@ -74,8 +74,8 @@ A run with the headset worn (Godot 4.5.1 Mobile renderer, Turnip Adreno 750, Ste
 1728×1728 per eye, 4× MSAA, one drawn wall, before the flora stage) rendered at
 27.78 ms per frame, every other 72 Hz refresh, with about 16 ms of GPU time per
 frame against a 13.89 ms budget. Holding the refresh rate is open work; measure it
-from worn sessions' `metrics.json`. A late frame is logged as it happens
-(`metrics: late frame`), between the script steps around it.
+from worn sessions' `metrics.json`. The first of each run of late frames is logged
+as it happens (`metrics: late frame`), between the script steps around it.
 
 The runtime's recommended render target is 1728×1728 per eye on a 2160×2160 panel,
 and Valve's foveation layer (`VK_LAYER_VALVE_fdm_injection`) lowers shading density
@@ -91,7 +91,7 @@ GPU time per frame), first three phases:
 | Drawing a wall (live rebuild) | 18 | 14.29 ms | 0 |
 | Floating 6 m up, air teleport and a capture | 47 | 14.29 ms | 0 |
 
-A 140 ms frame once seen at the air teleport was the script's capture just before
+A 142 ms frame once seen at the air teleport was the script's capture just before
 it, which encoded its PNG on the main thread; captures now save on a worker
 thread, as the camera's photos do.
 
@@ -845,7 +845,8 @@ the garden at `PhotoTool.PREVIEW_SIZE` without MSAA, out to 60 m, redrawn on one
 that frame pays the scene's draw calls and shadow pass again at a small size. A photo is one
 more render at photo size on the frame after the press, read back from the GPU asynchronously
 and written on a worker thread, so no frame waits on the pixels. A headset run's view captures
-(`Main.capture`) take the same render from the head. Not yet measured on a headset.
+(`Main.capture`) take the same render from the head and cost no late frame on the
+Frame (see "Frame measurements"). A held camera is not yet measured on a headset.
 
 ## Verifying on a headset
 
