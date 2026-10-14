@@ -34,12 +34,11 @@ right A cuts arches.
   `nix-shell --run 'scripts/render.sh demo/slice.json out'`.
 - Steam library artwork: `nix-shell --run scripts/steam-art.sh` regenerates
   `steam/` from captures of `demo/steam.json`.
-- Headset (developer mode on: it enables SSH and the Steam client's debug port,
-  through which deploy adds the shortcut):
-  `scripts/package.sh cairnfold.tar.gz`, then
-  `nix-shell --run 'scripts/deploy.sh cairnfold.tar.gz <ssh-host>'`. It installs
-  `~/cairnfold` and a "Cairnfold" VR shortcut in the Steam library that launches
-  it.
+- Headset: `scripts/package.sh cairnfold.tar.gz` builds the aarch64 bundle.
+  Unpack it in the headset's home, run
+  `cairnfold/bin/godot --headless --path cairnfold/game --import` once, and add
+  `cairnfold/play.sh` as a VR non-Steam shortcut with the art in
+  `cairnfold/steam/`.
 
 ## Quest
 

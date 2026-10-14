@@ -248,7 +248,7 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 
 1. First playable: meadow, sky and fog, teleport and float, walls with stones, cap, merlons, piers and arches. (Done.)
    Still open before stage 2:
-   - A Steam library shortcut on the Frame launches the game standalone, installed by `scripts/deploy.sh`.
+   - A Steam library shortcut on the Frame launches the game standalone.
    - The air teleport holds refresh: no frame over 1.5× the refresh period at the moment it happens.
 2. Lighting pass: bounce light from a probe volume rebuilt on edits, contact darkening, shadow split and fog tuning for floating viewpoints, compared side by side with the mood target.
 3. Ivy and flora: ivy over walls and around openings, flower and grass painting, tree placement by pointing. (Done.)
@@ -315,10 +315,9 @@ refresh rate.
 ## Verifying on a headset
 
 `scripts/package.sh` builds an aarch64 bundle (the pinned Godot runtime plus the
-game); `nix-shell --run 'scripts/deploy.sh BUNDLE HOST'` installs it to `~/cairnfold`
-on the headset over SSH, runs Godot's asset import there once, and adds (or
-corrects) a "Cairnfold" VR shortcut in the Steam library that runs
-`cairnfold/play.sh`. `play.sh --script demo/slice.json
+game and its library art in `steam/`). Installed as `~/cairnfold` on the headset,
+with Godot's asset import run there once, it starts from a VR shortcut in the
+Steam library that runs `cairnfold/play.sh`. `play.sh --script demo/slice.json
 --metrics FILE --capture-dir DIR` plays a scripted session through the same entry
 points as the controllers (teleport, float, draw a wall), logs per-second frame
 times and saves view captures. `scripts/test.sh` runs the headless layout tests;
