@@ -125,7 +125,7 @@ Stage numbers refer to the build order at the end.
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | Holding the left D-pad down undoes the last wall (done); an eraser beam that cuts walls into ruins | 1 (done), 10 |
 | Save and load | Autosave after every action, backups, cloud | Autosave the build list (strokes, heights, arches) as JSON after every edit | 10 |
-| Wildlife | Sheep, birds, ducks, fireflies | Sheep and birds with simple steering | 11 |
+| Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, a conure perches on a tree or wall (see "Wildlife") | 11 |
 | Photo mode | Camera modes and filters | A hand-held camera that saves the view | 11 |
 
 ## VR controls
@@ -208,6 +208,31 @@ sound costs no frame time.
   undo, each played from a pool of 3D voices at the stones involved.
 - `scripts/render.sh demo/sound.json OUT --write-movie OUT/sound.avi --fixed-fps 30`
   records the game's own mix through an idle stretch, a build and the return.
+
+## Wildlife
+
+Directive (verbatim): "I'd love to get some animals like ducks and stuff, but I... I don't know... how skilled Opus... 5.5... will be at making ducks... and making them cute and pretty"
+
+Wildlife is never placed by the player. Animals show up on their own, as a
+surprise, drawn by what you build: dig a pond and, some time later, a duck may
+fly in and settle on it. There is no tool, menu or button for animals.
+
+- **Ducks** arrive once a pond exists: one flies in from beyond the meadow,
+  glides down and splashes onto the water, then paddles about; now and then one
+  waddles up the bank to rest on the grass, and ducklings follow their mother in
+  a line. The duck's look is chosen by a side-by-side bake-off of a credited
+  CC0 model and one built here in code; a licensed animal, if chosen, is
+  credited in a credits file and is the one exception to original assets.
+- **A conure**, iridescent blue and green, comes after the ducks: it lands on a
+  tree or a wall top. Its plumage is poofy and soft, with a view-dependent hue
+  shift (blue facing you, green at grazing angles) computed per fragment from
+  the view angle, cheap enough for the headset. It should read as a real bird,
+  so its motion (head tilts, preening, hops, flight) comes from a human-animated
+  rig, never invented motion.
+
+Budget: each animal is a few hundred triangles, skinned or vertex-animated, one
+draw call, and only a handful are ever in view, so wildlife never costs the
+refresh rate.
 
 ## Verifying on a headset
 
