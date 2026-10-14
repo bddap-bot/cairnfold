@@ -100,6 +100,8 @@ var flames: Array[Transform3D] = []
 var cloths: Array[Dictionary] = []
 ## Per course from the foot up, the stretches broken away there: each ruin, wider every course up.
 var breaks: Array[PackedVector2Array] = []
+## Counts the times stones were laid here, by `build` or `adopt`, so what is worked out from them knows when it is stale.
+var laid := 0
 
 
 func length() -> float:
@@ -132,6 +134,7 @@ func opening(y: float, ring: bool) -> float:
 
 func build(ground: Callable) -> void:
 	resample(ground)
+	laid += 1
 	stones.clear()
 	flames.clear()
 	cloths.clear()
@@ -850,6 +853,7 @@ func adopt(built: WallLayout) -> void:
 	flames = built.flames
 	cloths = built.cloths
 	breaks = built.breaks
+	laid += 1
 
 
 ## The built shape without its stones, safe to read on another thread while this one is edited.

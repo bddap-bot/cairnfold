@@ -8,6 +8,8 @@ extends Node3D
 
 const NONE := -100.0
 const RIPPLE_MOVE := 0.07
+## How finely `crosses` looks for water where a pond is near.
+const WADE := 0.1
 
 signal splashed(kind: StringName, at: Vector3)
 
@@ -136,6 +138,40 @@ func pond_at(x: float, z: float) -> PondWater:
 	if i < 0 or Terrain.height_at(x, z) >= ponds[i].pond.level:
 		return null
 	return ponds[i]
+
+
+## Whether a straight way across the ground from `a` to `b` goes into water, as `pond_at` finds it every WADE
+## metres. Only the grid squares a pond reaches are looked at that closely, so a way over dry ground costs one
+## step a square. Water the way starts in does not count until the way has left it.
+func crosses(a: Vector2, b: Vector2) -> bool:
+	var length := a.distance_to(b)
+	if length < 1e-4:
+		return false
+	var dir := (b - a) / length
+	var dry := pond_at(a.x, a.y) == null
+	var t := 0.0
+	while t < length:
+		var p := a + dir * t
+		var g := Terrain.grid_point(p.x, p.y)
+		var centre := Terrain.grid_xz(g)
+		var out := INF
+		for axis in 2:
+			if absf(dir[axis]) > 1e-6:
+				out = minf(out, (centre[axis] + signf(dir[axis]) * Terrain.STEP * 0.5 - p[axis]) / dir[axis])
+		var end := minf(t + maxf(out, 0.0) + 1e-3, length)
+		if _owner[g.y * Terrain.VERTS + g.x] < 0:
+			dry = true
+		else:
+			var s := t
+			while s < end:
+				s = minf(s + WADE, end)
+				var q := a + dir * s
+				var wet := pond_at(q.x, q.y) != null
+				if wet and dry:
+					return true
+				dry = dry or not wet
+		t = end
+	return false
 
 
 ## A hand dipping into a pond, or moving through its surface, rings out a ripple; entering it plays a dip.

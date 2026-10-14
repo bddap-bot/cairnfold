@@ -9,6 +9,7 @@ extends Node3D
 ## patches painted (`Butterflies`), fireflies at dusk over ponds and flower patches (`Fireflies`), conures,
 ## after the ducks, to planted trees and wall tops (`Birds`), and sheep to the fences built (`Herds`).
 
+## How long after its habitat appears a duck, or a flock of conures, comes.
 const ARRIVE_AFTER := Vector2(20.0, 60.0)
 const BUTTERFLIES_AFTER := Vector2(8.0, 25.0)
 const SHEEP_AFTER := Vector2(25.0, 60.0)
@@ -40,6 +41,8 @@ const LEAVE_SIGHT := SIGHT - 0.1
 const GONE := 8.0
 const FAR := 60.0
 const EDGE := Terrain.SIZE * 0.5 - 1.0
+## Seconds between looks over the walls and trees for where conures may perch and sheep graze.
+const LOOK_EVERY := 0.5
 
 enum State { FLY_IN, ENTER, SWIM, ASHORE, REST, FLY_OUT, WALK_OUT }
 
@@ -55,9 +58,13 @@ var fireflies: Fireflies
 var birds: Birds
 var herds: Herds
 var rng := RandomNumberGenerator.new()
+## Whether a duck has ever come: conures come only after.
+var ducks_came := false
 var _due := {}
 var _due_butterflies := {}
+var _due_birds := {}
 var _due_sheep := {}
+var _since_look := INF
 
 
 class Family:
@@ -99,7 +106,7 @@ func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes:
 	add_child(fireflies)
 	birds = Birds.new(self, rng.seed + 2)
 	add_child(birds)
-	herds = Herds.new(self, rng.seed + 2)
+	herds = Herds.new(self, rng.seed + 4)
 	add_child(herds)
 
 
@@ -125,6 +132,16 @@ func tick(delta: float) -> void:
 		butterflies.arrive(key, from)
 	butterflies.tick(delta)
 	fireflies.tick(delta)
+	_since_look += delta
+	if _since_look >= LOOK_EVERY:
+		_since_look = 0.0
+		birds.look()
+		herds.look()
+	ducks_came = ducks_came or not families.is_empty()
+	var perches := [birds] if ducks_came and birds.birds.is_empty() and not birds.sites.is_empty() else []
+	if not _ripe(_due_birds, perches, ARRIVE_AFTER, delta, true, birds.rng).is_empty():
+		_due_birds.clear()
+		birds.arrive()
 	birds.tick(delta)
 	herds.tick(delta)
 	for fence in _ripe(_due_sheep, herds.empty_pastures(), SHEEP_AFTER, delta, herds.count() < Herds.CAP):
@@ -152,7 +169,8 @@ func _schedule(delta: float) -> void:
 
 ## Starts a wait in `after` for each habitat when it first appears and counts it down; the habitats whose
 ## wait is over. A habitat that is gone, or taken, forgets its wait; while not `counting`, waits hold still.
-func _ripe(due: Dictionary, habitats: Array, after: Vector2, delta: float, counting := true) -> Array:
+## Waits are drawn from `random`.
+func _ripe(due: Dictionary, habitats: Array, after: Vector2, delta: float, counting := true, random := rng) -> Array:
 	var present := {}
 	for h in habitats:
 		present[h] = true
@@ -164,7 +182,7 @@ func _ripe(due: Dictionary, habitats: Array, after: Vector2, delta: float, count
 		return out
 	for h in habitats:
 		if not due.has(h):
-			due[h] = rng.randf_range(after.x, after.y)
+			due[h] = random.randf_range(after.x, after.y)
 			continue
 		due[h] -= delta
 		if due[h] <= 0.0:
@@ -199,7 +217,7 @@ func _arrive(p: PondWater) -> void:
 		f.state = State.ENTER
 	else:
 		f.goal.y = p.surface_y() - SINK
-		f.sky = land + _unseen_direction(land, FLY_DISTANCE, FLY_HEIGHT) * FLY_DISTANCE + Vector3.UP * FLY_HEIGHT
+		f.sky = _unseen_point(land, FLY_DISTANCE, FLY_HEIGHT)
 		f.leader().position = f.sky
 		_face(f.leader(), land - f.sky, 1.0)
 		f.state = State.FLY_IN
@@ -263,7 +281,7 @@ func _leave(f: Family) -> void:
 		if f.state != State.FLY_IN:
 			f.goal = at
 			f.flight = 1.0
-			f.sky = at + _unseen_direction(at, FLY_DISTANCE, FLY_HEIGHT, LEAVE_SIGHT) * FLY_DISTANCE + Vector3.UP * FLY_HEIGHT
+			f.sky = _unseen_point(at, FLY_DISTANCE, FLY_HEIGHT, LEAVE_SIGHT)
 		f.heading = Vector3(f.sky.x - f.goal.x, 0, f.sky.z - f.goal.z).normalized()
 		f.state = State.FLY_OUT
 	else:
@@ -276,14 +294,27 @@ func _leave(f: Family) -> void:
 func _gone(f: Family) -> bool:
 	if f.state != State.WALK_OUT and (f.state != State.FLY_OUT or f.flight > 0.0):
 		return false
+	return f.ducks.all(func(d: Duck) -> bool: return _let_go(d.position, 0.0 if _at_edge(d.position) else GONE))
+
+
+## Whether a leaving animal at `at` may be let go: FAR off, or out of sight and at least `near` off.
+func _let_go(at: Vector3, near: float) -> bool:
 	if viewer == null or not viewer.is_inside_tree():
 		return true
-	for d in f.ducks:
-		var off := d.position.distance_to(viewer.global_position)
-		var edge := maxf(absf(d.position.x), absf(d.position.z)) >= EDGE - 0.5
-		if off < FAR and (_in_sight(d.position, LEAVE_SIGHT) or (off < GONE and not edge)):
-			return false
-	return true
+	var off := at.distance_to(viewer.global_position)
+	return off >= FAR or (off >= near and not _in_sight(at, LEAVE_SIGHT))
+
+
+func _at_edge(at: Vector3) -> bool:
+	return maxf(absf(at.x), absf(at.z)) >= EDGE - 0.5
+
+
+## The first of `hands` within `reach` of `p`, or null.
+func _hand_within(p: Vector3, reach: float) -> Node3D:
+	for h in hands:
+		if h.is_inside_tree() and p.distance_to(h.global_position) < reach:
+			return h
+	return null
 
 
 ## WALK_AWAY further along `heading`, kept on the terrain.
@@ -395,6 +426,11 @@ func _in_sight(at: Vector3, cone := SIGHT) -> bool:
 	if viewer == null or not viewer.is_inside_tree():
 		return false
 	return (at - viewer.global_position).normalized().dot(-viewer.global_basis.z) > cone
+
+
+## The point `reach` away from `at` along `_unseen_direction`, and `height` up.
+func _unseen_point(at: Vector3, reach: float, height: float, cone := SIGHT, random := rng) -> Vector3:
+	return at + _unseen_direction(at, reach, height, cone, random) * reach + Vector3.UP * height
 
 
 ## A level direction from `at` along which the point `reach` away and `height` up is outside `cone`, else

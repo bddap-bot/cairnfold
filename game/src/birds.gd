@@ -5,15 +5,12 @@ extends Node3D
 ## trio flies in from out of sight and lands on a crown or a wall top. Perched, they look about, preen,
 ## hop along, now and then flutter to another perch or swoop down to peck in the grass, and flush up to
 ## another perch when a hand comes near. They leave, out of sight, once no perch stands. Part of
-## `Wildlife`, which knows where nobody is looking.
+## `Wildlife`, which decides when they come and knows where nobody is looking.
 
 enum State { ARRIVE, PERCH, HOP, FLY, PECK, LEAVE }
 
 const CAP := 3
 const FLOCK := Vector2i(2, 3)
-const ARRIVE_AFTER := Vector2(20.0, 60.0)
-## How often the perches are looked over; between times the birds use what was found.
-const REFRESH := 0.5
 const FROM_DISTANCE := 22.0
 const FROM_HEIGHT := 9.0
 const LEAVE_TO := 40.0
@@ -41,11 +38,10 @@ const CROWN_DEPTH := 1.2
 var wildlife: Wildlife
 var rng := RandomNumberGenerator.new()
 var birds: Array[Bird] = []
-var ducks_came := false
-## Each perch site by its wall or its trunk.
-var sites := {}
-var _due := -1.0
-var _since_refresh := INF
+## Every perch site standing at the last look.
+var sites: Array[Site] = []
+## The same sites by their wall or trunk, so the next look keeps what each has worked out.
+var _by_key := {}
 
 static var _crown_points := PackedVector3Array()
 
@@ -66,12 +62,65 @@ class Bird:
 	var then := State.PERCH
 
 
-## A wall or a planted tree, with the points a bird may stand on, worked out again only when its shape changed.
+## Something a bird may stand on, and the points on it where it may.
 class Site:
+	## Whether the last look over the garden found it.
+	var listed := true
+
+	func standing() -> bool:
+		return false
+
+	func points() -> PackedVector3Array:
+		return PackedVector3Array()
+
+	## How far one hop along it may reach.
+	func hop() -> float:
+		return Birds.HOP.y
+
+
+class WallSite extends Site:
 	var wall: Wall
-	var tree: Array[Flora.Plant] = []
-	var points := PackedVector3Array()
-	var shape := []
+
+	func _init(w: Wall) -> void:
+		wall = w
+
+	func standing() -> bool:
+		return is_instance_valid(wall) and not wall.is_queued_for_deletion()
+
+	func points() -> PackedVector3Array:
+		return wall.perches() if standing() else PackedVector3Array()
+
+
+## A planted tree's crown; its points are worked out again only when a blob of it is taken or put back, and
+## stand on whatever ground is under the trunk now.
+class TreeSite extends Site:
+	var parts: Array[Flora.Plant] = []
+	var _crown := PackedVector3Array()
+	var _shown := -1
+
+	func _init(tree: Array) -> void:
+		parts.assign(tree)
+
+	func standing() -> bool:
+		return parts[0].shown()
+
+	func points() -> PackedVector3Array:
+		if not standing():
+			return PackedVector3Array()
+		var shown := 0
+		for p in parts:
+			shown += int(p.shown())
+		if shown != _shown:
+			_shown = shown
+			_crown = Birds._crown(parts)
+		var out := _crown.duplicate()
+		var ground := Vector3.UP * Terrain.height_at(parts[0].anchor.x, parts[0].anchor.z)
+		for i in out.size():
+			out[i] += ground
+		return out
+
+	func hop() -> float:
+		return Birds.HOP_TREE
 
 
 func _init(home: Wildlife, seed: int) -> void:
@@ -80,114 +129,86 @@ func _init(home: Wildlife, seed: int) -> void:
 
 
 func tick(delta: float) -> void:
-	ducks_came = ducks_came or not wildlife.families.is_empty()
-	_since_refresh += delta
-	if _since_refresh >= REFRESH:
-		_since_refresh = 0.0
-		_refresh()
-	_schedule(delta)
+	if birds.any(func(b: Bird) -> bool: return b.site != null and not b.site.standing()):
+		look()
 	for i in range(birds.size() - 1, -1, -1):
 		var b := birds[i]
 		_think(b, delta)
 		_move(b, delta)
-		if b.state == State.LEAVE and _gone(b):
+		if b.state == State.LEAVE and wildlife._let_go(b.node.position, LET_GO):
 			b.node.queue_free()
 			birds.remove_at(i)
 
 
-func _schedule(delta: float) -> void:
-	if sites.is_empty() or not ducks_came or not birds.is_empty():
-		_due = -1.0
-		return
-	if _due < 0.0:
-		_due = rng.randf_range(ARRIVE_AFTER.x, ARRIVE_AFTER.y)
-		return
-	_due -= delta
-	if _due <= 0.0:
-		_due = -1.0
-		_arrive()
-
-
-func _arrive() -> void:
+## A pair or a trio flies in from out of sight to a perch site, as many as find a free point there.
+func arrive() -> void:
 	var count := rng.randi_range(FLOCK.x, FLOCK.y)
 	var site: Site
 	var land := Vector3.INF
 	for attempt in 4:
-		site = sites.values()[rng.randi() % sites.size()]
+		site = sites[rng.randi() % sites.size()]
 		land = _free_spot(site, Vector3.INF)
 		if land != Vector3.INF:
 			break
 	if land == Vector3.INF:
 		return
-	var away := wildlife._unseen_direction(land, FROM_DISTANCE, FROM_HEIGHT, Wildlife.SIGHT, rng)
-	var start := land + away * FROM_DISTANCE + Vector3.UP * FROM_HEIGHT
-	for i in mini(count, CAP - birds.size()):
+	var start := wildlife._unseen_point(land, FROM_DISTANCE, FROM_HEIGHT, Wildlife.SIGHT, rng)
+	for i in count:
+		var spot := land if i == 0 else _free_spot(site, land)
+		if spot == Vector3.INF:
+			break
 		var b := Bird.new()
 		b.node = Conure.new(rng.randf() * 10.0)
 		add_child(b.node)
 		b.node.position = start + Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.5, 0.5), rng.randf_range(-1, 1))
 		b.node.blend(Conure.FLY, 1.0)
 		birds.append(b)
-		var spot := land if i == 0 else _free_spot(site, land)
-		if spot == Vector3.INF:
-			spot = land
 		_fly_to(b, site, spot, State.ARRIVE)
 		b.flight = -rng.randf_range(0.0, 0.25)
 
 
-## Walls standing finished without a roof and planted trees out of the water. Their points are only worked
-## out once a bird makes for one, so a garden full of them costs nothing until then.
-func _refresh() -> void:
-	var now := {}
+## Looks the garden over for perch sites: finished walls with a top to stand on and planted trees out of the
+## water. A bird whose site is gone flies elsewhere, and one whose site was laid again steps onto it as it is now.
+func look() -> void:
+	var old := _by_key
+	_by_key = {}
+	for s in sites:
+		s.listed = false
+	sites.clear()
 	var walls := wildlife.walls
 	if walls != null:
 		for w in walls.walls:
-			if w.finished and w.roof == null:
-				if sites.has(w):
-					now[w] = sites[w]
-				else:
-					now[w] = Site.new()
-					now[w].wall = w
+			if w.finished and not w.perches().is_empty():
+				var s: Site = old.get(w)
+				_list(w, s if s != null else WallSite.new(w))
 	for parts: Array in wildlife.flora.planted_trees():
 		var trunk: Flora.Plant = parts[0]
-		if wildlife.water.pond_at(trunk.anchor.x, trunk.anchor.z) != null:
-			continue
-		if sites.has(trunk):
-			now[trunk] = sites[trunk]
-		else:
-			var s := Site.new()
-			s.tree.assign(parts)
-			now[trunk] = s
-	sites = now
+		if parts.size() > 1 and wildlife.water.pond_at(trunk.anchor.x, trunk.anchor.z) == null:
+			var s: Site = old.get(trunk)
+			_list(trunk, s if s != null else TreeSite.new(parts))
+	for s in sites:
+		s.listed = true
 	for b in birds:
 		if b.state == State.LEAVE:
 			continue
 		if sites.is_empty():
 			_leave(b)
-		elif b.site != null and not sites.values().has(b.site):
+		elif b.site != null and not b.site.listed:
 			_flutter(b)
 		elif b.state in [State.PERCH, State.HOP] and b.site != null:
 			_resettle(b)
 
 
-## The site's points, laid out again when its wall or the ground under it changed.
-func _points(s: Site) -> PackedVector3Array:
-	var shape := [Terrain.revision]
-	if s.wall != null:
-		var l := s.wall.layout
-		shape.append_array([l.stones.size(), l.length(), l.height, l.top, l.flags.size(), l.lanterns.size(), l.ruins.size(), l.roofed])
-	if shape == s.shape:
-		return s.points
-	s.shape = shape
-	s.points = s.wall.layout.perches() if s.wall != null else _crown(s.tree)
-	return s.points
+func _list(key: Object, s: Site) -> void:
+	_by_key[key] = s
+	sites.append(s)
 
 
-## Points on top of a tree's crown: upward-facing points of its foliage blobs that no other blob hides, a
-## little apart, highest first.
-func _crown(parts: Array[Flora.Plant]) -> PackedVector3Array:
+## Points on top of a tree's crown, over the ground under its trunk: upward-facing points of its foliage
+## blobs that no other blob hides, a little apart, highest first.
+static func _crown(parts: Array[Flora.Plant]) -> PackedVector3Array:
 	if _crown_points.is_empty():
-		var arrays := wildlife.flora.foliage.mm.mesh.surface_get_arrays(0)
+		var arrays := parts[1].pool.mm.mesh.surface_get_arrays(0)
 		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 		for i in verts.size():
@@ -197,10 +218,8 @@ func _crown(parts: Array[Flora.Plant]) -> PackedVector3Array:
 	var into: Array[Transform3D] = []
 	for p: Flora.Plant in parts.slice(1):
 		if p.shown():
-			var x := p.xform
-			x.origin.y += Terrain.height_at(p.anchor.x, p.anchor.z)
-			blobs.append(x)
-			into.append(x.affine_inverse())
+			blobs.append(p.xform)
+			into.append(p.xform.affine_inverse())
 	var found: Array[Vector3] = []
 	for i in blobs.size():
 		for v in _crown_points:
@@ -225,8 +244,9 @@ func _crown(parts: Array[Flora.Plant]) -> PackedVector3Array:
 func _think(b: Bird, delta: float) -> void:
 	if b.state == State.LEAVE or b.state == State.ARRIVE or b.state == State.FLY:
 		return
-	if _hand_within(b.node.position) != null:
-		_flush(b)
+	var hand := wildlife._hand_within(b.node.position, FLUSH)
+	if hand != null:
+		_flush(b, hand.global_position)
 		return
 	if b.state == State.HOP:
 		return
@@ -236,7 +256,9 @@ func _think(b: Bird, delta: float) -> void:
 			_flutter(b)
 		elif rng.randf() < delta * 0.4:
 			var to := b.node.position + Vector3.FORWARD.rotated(Vector3.UP, rng.randf() * TAU) * rng.randf_range(0.08, 0.2)
-			_hop(b, Terrain.ground(to.x, to.z), State.PECK)
+			to = Terrain.ground(to.x, to.z)
+			if _open_ground(to):
+				_hop(b, to, State.PECK)
 		return
 	b.preening = maxf(b.preening - delta, 0.0)
 	b.node.blend(Conure.PREEN if b.preening > 0.0 else Conure.IDLE, delta)
@@ -258,11 +280,10 @@ func _think(b: Bird, delta: float) -> void:
 
 
 func _hop_spot(b: Bird) -> Vector3:
-	var reach := HOP.y if b.site.wall != null else HOP_TREE
 	var near: Array[Vector3] = []
-	for p in _points(b.site):
+	for p in b.site.points():
 		var d := p.distance_to(b.spot)
-		if d > HOP.x and d < reach and _clear(p, b):
+		if d > HOP.x and d < b.site.hop() and _clear(p, b):
 			near.append(p)
 	return near[rng.randi() % near.size()] if not near.is_empty() else Vector3.INF
 
@@ -279,17 +300,23 @@ func _hop(b: Bird, to: Vector3, then: State) -> void:
 		b.spot = to
 
 
-## Up and away from a hand to a perch out of its reach: on another site if there is one.
-func _flush(b: Bird) -> void:
-	var hand := _hand_within(b.node.position).global_position
-	var others := sites.values().filter(func(s: Site) -> bool: return s != b.site)
-	var first := rng.randi()
-	var order := []
-	for k in others.size():
-		order.append(others[(first + k) % others.size()])
-	if sites.values().has(b.site):
+## Whether a site is there to land on: found at the last look and not taken away since.
+func _open(site: Site) -> bool:
+	return site != null and site.listed and site.standing()
+
+
+## Up and away from a hand at `hand` to a perch out of its reach: on another site if one has room, else on
+## this one, else away.
+func _flush(b: Bird, hand: Vector3) -> void:
+	var order: Array[Site] = []
+	if not sites.is_empty():
+		var i := rng.randi() % sites.size()
+		if sites[i] == b.site and sites.size() > 1:
+			i = (i + 1) % sites.size()
+		order.append(sites[i])
+	if _open(b.site) and not order.has(b.site):
 		order.append(b.site)
-	for site: Site in order:
+	for site in order:
 		var best := Vector3.INF
 		for i in 8:
 			var p := _free_spot(site, Vector3.INF, b)
@@ -301,18 +328,20 @@ func _flush(b: Bird) -> void:
 	_leave(b)
 
 
-## Flies to a perch elsewhere: another site now and then, else further along this one.
+## Flies to a perch elsewhere: another site now and then, else further along this one. With no free point
+## there, a perched bird whose site still stands stays put, and any other leaves.
 func _flutter(b: Bird) -> void:
 	if sites.is_empty():
 		_leave(b)
 		return
 	var site: Site = b.site
-	if site == null or not sites.values().has(site) or rng.randf() < 0.5:
-		site = sites.values()[rng.randi() % sites.size()]
+	if not _open(site) or rng.randf() < 0.5:
+		site = sites[rng.randi() % sites.size()]
 	var spot := _free_spot(site, Vector3.INF, b)
-	if spot == Vector3.INF:
-		return
-	_fly_to(b, site, spot, State.FLY)
+	if spot != Vector3.INF:
+		_fly_to(b, site, spot, State.FLY)
+	elif b.state != State.PERCH or not _open(b.site):
+		_leave(b)
 
 
 ## Down to the grass near the perch, to peck about there and come back up.
@@ -351,7 +380,7 @@ func _fly_to(b: Bird, site: Site, to: Vector3, state: State) -> void:
 ## A perched bird whose wall or crown was laid again steps to the nearest point now there, or flies to one.
 func _resettle(b: Bird) -> void:
 	var best := Vector3.INF
-	for p in _points(b.site):
+	for p in b.site.points():
 		if p.distance_to(b.spot) < best.distance_to(b.spot):
 			best = p
 	if best == Vector3.INF or best.distance_to(b.spot) > 0.4:
@@ -364,7 +393,7 @@ func _resettle(b: Bird) -> void:
 func _leave(b: Bird) -> void:
 	var at := b.node.position
 	b.from = at
-	b.to = at + wildlife._unseen_direction(at, LEAVE_TO, FROM_HEIGHT, Wildlife.LEAVE_SIGHT, rng) * LEAVE_TO + Vector3.UP * FROM_HEIGHT
+	b.to = wildlife._unseen_point(at, LEAVE_TO, FROM_HEIGHT, Wildlife.LEAVE_SIGHT, rng)
 	b.flight = 0.0
 	b.duration = at.distance_to(b.to) / SPEED
 	b.lift = 0.0
@@ -374,7 +403,7 @@ func _leave(b: Bird) -> void:
 
 ## A point of `site` no other bird stands on or makes for, away from `near` when given, else at random.
 func _free_spot(site: Site, near: Vector3, me: Bird = null) -> Vector3:
-	var points := _points(site)
+	var points := site.points()
 	if points.is_empty():
 		return Vector3.INF
 	for attempt in 10:
@@ -391,21 +420,6 @@ func _clear(p: Vector3, me: Bird) -> bool:
 		if o != me and o.state != State.LEAVE and o.spot.distance_to(p) < SPACING:
 			return false
 	return true
-
-
-func _gone(b: Bird) -> bool:
-	var eye := wildlife.viewer
-	if eye == null or not eye.is_inside_tree():
-		return true
-	var off := b.node.position.distance_to(eye.global_position)
-	return off > Wildlife.FAR or (off > LET_GO and not wildlife._in_sight(b.node.position, Wildlife.LEAVE_SIGHT))
-
-
-func _hand_within(p: Vector3) -> Node3D:
-	for h in wildlife.hands:
-		if h.is_inside_tree() and p.distance_to(h.global_position) < FLUSH:
-			return h
-	return null
 
 
 ## Along an arc from `from` to `to`, slowing to land; a leaving bird speeds up and keeps going.

@@ -46,6 +46,11 @@ var _settle_when_laid := false
 ## Stones a newer layout replaced. Freeing a long wall's thousands of them takes milliseconds, so the wall's
 ## next worker task does it.
 var _litter: Array[Array] = []
+## Where a bird can stand on the top (`WallLayout.perches`), and the `layout.laid` they were worked out from.
+var _perches := PackedVector3Array()
+var _perches_laid := -1
+var _perch_task := -1
+var _perch_out := {}
 
 
 ## How each Part is drawn. Stones, roof tiles and the mortar between stones cast no shadow; a plain box per
@@ -168,12 +173,32 @@ func _ivy_growing() -> bool:
 
 
 func _exit_tree() -> void:
-	for t in [_ivy_task, _build_task]:
+	for t in [_ivy_task, _build_task, _perch_task]:
 		if t >= 0:
 			WorkerThreadPool.wait_for_task_completion(t)
 	_ivy_task = -1
 	_build_task = -1
+	_perch_task = -1
 	masonry.remove(get_instance_id())
+
+
+## Where a bird can stand on the wall's top, as last worked out. Working them out reads every stone, several
+## milliseconds for a long wall, so once the stones are laid again it is done on a worker thread, and not while a
+## newer preview is being laid; until it is done, the old ones stand.
+func perches() -> PackedVector3Array:
+	if _perch_task >= 0 and WorkerThreadPool.is_task_completed(_perch_task):
+		WorkerThreadPool.wait_for_task_completion(_perch_task)
+		_perch_task = -1
+		_perches = _perch_out.points
+		_perches_laid = _perch_out.laid
+	if _perch_task < 0 and _perches_laid != layout.laid and not laying():
+		var job := WallLayout.new()
+		job.stones = layout.stones.duplicate()
+		job.roofed = layout.roofed
+		var out := {"laid": layout.laid}
+		_perch_out = out
+		_perch_task = WorkerThreadPool.add_task(func(): out.points = job.perches())
+	return _perches
 
 
 ## Ivy for a long wall takes longer than a frame to lay out, so it grows on a worker thread from a snapshot.

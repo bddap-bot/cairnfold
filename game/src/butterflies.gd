@@ -125,7 +125,7 @@ func tick(delta: float) -> void:
 		b.clock += delta
 		_think(b, delta)
 		_move(b, delta)
-		if b.state == State.LEAVE and _gone(b):
+		if b.state == State.LEAVE and wildlife._let_go(b.at, LET_GO):
 			butterflies.remove_at(i)
 	_upload()
 
@@ -181,7 +181,7 @@ func _think(b: Butterfly, delta: float) -> void:
 	if not patches.has(b.patch):
 		_leave(b)
 		return
-	var hand := _hand_within(b.at)
+	var hand := wildlife._hand_within(b.at, SCATTER)
 	if b.state != State.FLEE and hand != null:
 		b.state = State.FLEE
 		b.timer = rng.randf_range(FLEE_FOR.x, FLEE_FOR.y)
@@ -216,22 +216,7 @@ func _flit(b: Butterfly) -> void:
 
 func _leave(b: Butterfly) -> void:
 	b.state = State.LEAVE
-	b.goal = b.at + wildlife._unseen_direction(b.at, LEAVE_TO, FROM_HEIGHT, Wildlife.LEAVE_SIGHT, rng) * LEAVE_TO + Vector3.UP * FROM_HEIGHT
-
-
-func _gone(b: Butterfly) -> bool:
-	var eye := wildlife.viewer
-	if eye == null or not eye.is_inside_tree():
-		return true
-	var off := b.at.distance_to(eye.global_position)
-	return off > Wildlife.FAR or (off > LET_GO and not wildlife._in_sight(b.at, Wildlife.LEAVE_SIGHT))
-
-
-func _hand_within(p: Vector3) -> Node3D:
-	for h in wildlife.hands:
-		if h.is_inside_tree() and p.distance_to(h.global_position) < SCATTER:
-			return h
-	return null
+	b.goal = wildlife._unseen_point(b.at, LEAVE_TO, FROM_HEIGHT, Wildlife.LEAVE_SIGHT, rng)
 
 
 ## Flutters toward the goal on a wandering path that straightens as it closes in; perched, it only beats.
