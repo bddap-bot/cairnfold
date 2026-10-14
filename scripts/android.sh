@@ -52,7 +52,7 @@ tools=$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS
 "$tools/apksigner" verify "$out"
 manifest=$("$tools/aapt" dump xmltree "$out" AndroidManifest.xml)
 for want in org.khronos.openxr.intent.category.IMMERSIVE_HMD com.oculus.intent.category.VR android.hardware.vr.headtracking \
-  android.hardware.vulkan.level org.khronos.openxr.permission.OPENXR; do
+  android.hardware.vulkan.level org.khronos.openxr.permission.OPENXR android.permission.INTERNET; do
   grep -q "\"$want\"" <<<"$manifest" || { echo "android: manifest lacks $want" >&2; exit 1; }
 done
 unzip -l "$out" lib/arm64-v8a/libopenxr_loader.so > /dev/null || { echo "android: no OpenXR loader in the APK" >&2; exit 1; }
