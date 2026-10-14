@@ -1,0 +1,6 @@
+[
+  {"op": "label", "name": "settle"},
+  {"op": "wait", "seconds": 10},
+  {"op": "label", "name": "run"},
+  {"op": "gaze", "on": true, "seconds": 30}
+]

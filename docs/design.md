@@ -58,6 +58,12 @@ fdinfo, so it is real on the device whether or not the runtime reports any).
 `info` records the render-target size, the render scale and each eye's field of
 view.
 
+`info.eye_gaze` records whether the runtime tracks the eyes for the game
+(XR_EXT_eye_gaze_interaction: the Steam Frame's SteamVR does; the Quest 2 has no eye
+cameras). The rig's `Gaze` node follows the `/user/eyes_ext` tracker. Nothing in play
+uses it yet; `demo/gaze.json` shows a debug gaze ray and logs the gaze pose twice a
+second, which reads untracked while the headset is off the head.
+
 With the headset off the head the runtime does not render the game's frames: the
 game's GPU time is about 0.3 ms per frame and every frame lands on vsync. Runs taken
 that way say nothing about headroom, and the table below is one of them. A run with
