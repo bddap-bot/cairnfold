@@ -38,10 +38,11 @@ check(len(kinds("tree")) == 1 and kinds("tree")[0]["shown"] == 0, "the host's un
 check(len(kinds("flowers")) == 1 and kinds("flowers")[0]["shown"] == kinds("flowers")[0]["plants"], "the joiner's undo then redo left its flowers standing")
 check(len(g["paths"]) == 1 and len(kinds("grass")) == 1, "the host's path and the grass painted across it stand")
 check(len(g["seeds"]) == 1 and g["ponds"] == 1, f"the joiner's dug pond holds water: {g['ponds']} ponds")
+check(g["palette"][2] == 3, f"the joiner's roof colour is the garden's: {g['palette']}")
 check(len(g["grounds"]) == 1 and any("lanterns\": PackedVector3Array(3" in w["data"] for w in g["walls"].values()), "the host's stone ground and lantern stand")
 home = json.load(open(f"{out}/home.json"))
 home.pop("avatars")
-check(len(home["walls"]) == 1 and list(home["groups"]) == ["0"] and not home["paths"] and home["ponds"] == 0, "the visitor's own garden, one wall, is back when it goes home")
+check(len(home["walls"]) == 1 and list(home["groups"]) == ["0"] and not home["paths"] and home["ponds"] == 0 and home["palette"] == [1, 0, 0, 0, 0], "the visitor's own garden, one wall, is back when it goes home")
 check(seen == {"host": 1, "join": 1, "late": 2}, f"each player sees the others' avatars: {seen}")
 sys.exit(0 if ok else 1)
 PY

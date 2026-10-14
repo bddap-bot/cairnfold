@@ -14,7 +14,9 @@ Every finished edit is a **build command**: a small dictionary of plain values. 
 carries the walls a stroke built, `unwall` removes walls, and `reshape` changes a wall's
 height, top, arches or roof. `path` and `unpath` lay and lift paths, `plant` grows a
 paint stroke or a tree, `show` hides or restores plants, and `heights` sets an area of
-ground (a dug pond's seed, the point its water fills from, rides on the same command). `World` (game/src/world.gd) applies them, and nothing else changes the garden.
+ground (a dug pond's seed, the point its water fills from, rides on the same command), and
+`palette` sets one material's swatch or the season. `World` (game/src/world.gd) applies them, and nothing else changes the garden.
+The time of day is each player's own view of it: dragging the sun sends nothing.
 Every machine applies the same commands in the same order, so every copy of the garden
 comes out the same.
 
@@ -60,6 +62,7 @@ commands that rebuild it from an empty meadow:
 - the ground, if it was ever shaped, and the seeds ponds fill from
 - each path and wall
 - each plant group, in the order it was planted, with the plants since hidden
+- each material whose swatch, or the season, was changed
 
 A joiner clears its own garden, applies that snapshot, and then applies the log from the
 snapshot's sequence number on. ENet delivers reliable messages in order, so nothing
@@ -87,8 +90,8 @@ another player's later work. A player alone sees plain single-player history, si
 nobody else ever builds on their steps.
 
 The host tracks, for each thing in the garden, which player last changed it and at which
-sequence number. A thing is a wall, a path, a plant group, an 8 m patch of ground, or an
-8 m patch of the meadow's own plants. A step is still yours if every other player's last
+sequence number. A thing is a wall, a path, a plant group, an 8 m patch of ground, an
+8 m patch of the meadow's own plants, or one material's colour. A step is still yours if every other player's last
 change to everything it touched came before it. The host does not track one kind of
 dependency: things standing on each other. If you undo a ground edit, a wall a friend
 later built on that patch settles onto the restored ground.
