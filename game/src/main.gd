@@ -82,7 +82,7 @@ func _ready() -> void:
 	add_child(metrics)
 	var garden: String = args.get("garden", "user://garden.save" if get_tree().current_scene == self and not args.has("script") else "")
 	if garden != "":
-		world.keep_at(garden)
+		world.load_from(garden)
 	if args.has("script"):
 		add_child(Driver.new(self, Driver.read(args.script)))
 	if args.has("quit-after"):

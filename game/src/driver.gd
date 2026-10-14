@@ -335,11 +335,16 @@ func _tree(s: Dictionary) -> void:
 	main.flora_tool.plant_tree(_spot(s, s.x, s.z))
 
 
-## Points the delete tool straight down at a ground spot from `height` metres up and presses once.
+## Points the delete tool straight down at a ground spot from `height` metres up and presses once: a tap.
 func _delete(s: Dictionary) -> void:
 	var at := _spot(s, s.x, s.z)
 	var tool: DeleteTool = main.delete_tool
-	tool.take(tool.aim(at + Vector3.UP * s.get("height", 2.0), Vector3.DOWN))
+	var target := tool.aim(at + Vector3.UP * s.get("height", 2.0), Vector3.DOWN)
+	if target.has("wall"):
+		tool.begin(self, target.wall, target.s)
+		tool.let_go(self)
+	else:
+		tool.take(target)
 	await get_tree().process_frame
 
 

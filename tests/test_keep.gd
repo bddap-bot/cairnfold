@@ -20,10 +20,11 @@ func _run() -> void:
 	world = main.world
 	dir = OS.get_temp_dir().path_join("cairnfold-keep-%d" % OS.get_process_id())
 	DirAccess.make_dir_recursive_absolute(dir)
-	_check(world.kept == "", "a test or scripted run keeps no garden unless told to")
+	_check(world.save_path == "", "a test or scripted run keeps no garden unless told to")
 	await _every_edit_is_kept_and_loads_whole()
 	await _a_visited_garden_is_not_kept()
 	_an_unreadable_file_starts_the_meadow()
+	await _a_garden_read_in_part_is_moved_aside()
 	for f in DirAccess.get_files_at(dir):
 		DirAccess.remove_absolute(dir.path_join(f))
 	DirAccess.remove_absolute(dir)
@@ -44,12 +45,10 @@ func _play(steps: Array) -> void:
 	d.queue_free()
 
 
-## The keeper writes on a worker thread; this waits for the last write to land.
+## Saves are written on a worker thread; this waits for the last one to land.
 func _settled() -> void:
 	await process_frame
-	if world._keep_task >= 0:
-		WorkerThreadPool.wait_for_task_completion(world._keep_task)
-		world._keep_task = -1
+	world.flush()
 
 
 func _picture() -> String:
@@ -58,7 +57,7 @@ func _picture() -> String:
 
 func _every_edit_is_kept_and_loads_whole() -> void:
 	var path := dir.path_join("garden.save")
-	world.keep_at(path)
+	world.load_from(path)
 	_check(not FileAccess.file_exists(path), "with nothing kept yet, the meadow starts empty and nothing is written")
 	await _play([{"op": "wall", "points": [[-6, -4], [6, -4]], "seconds": 0.3}])
 	await _settled()
@@ -80,7 +79,7 @@ func _every_edit_is_kept_and_loads_whole() -> void:
 	world.restore({"seq": 0, "cmds": []})
 	await _settled()
 	_check(_picture() != picture, "an empty garden looks different")
-	world.keep_at(path)
+	world.load_from(path)
 	_check(_picture() == picture, "loading rebuilds every wall, ruin, plant, path and height")
 	var seq := world.seq
 	await _play([{"op": "tree", "x": -8, "z": 8}, {"op": "wait", "seconds": 0.1}])
@@ -107,6 +106,21 @@ func _an_unreadable_file_starts_the_meadow() -> void:
 	FileAccess.open(path, FileAccess.WRITE).store_string("not a garden")
 	world.restore({"seq": 0, "cmds": []})
 	var empty := _picture()
-	world.keep_at(path)
+	world.load_from(path)
 	_check(_picture() == empty, "a file holding no garden leaves the empty meadow")
-	world.kept = ""
+	_check(FileAccess.get_file_as_string(path + ".bad") == "not a garden" and not FileAccess.file_exists(path), "and is moved aside, not written over")
+	world.save_path = ""
+
+
+func _a_garden_read_in_part_is_moved_aside() -> void:
+	var path := dir.path_join("part.save")
+	var tree := {"op": "plant", "kind": "tree", "seed": 1, "at": Terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}
+	var odd := {"op": "wall", "ids": PackedInt32Array([8]), "walls": [{"points": "not points"}], "seq": 0, "by": 1}
+	var bytes := var_to_bytes({"seq": 9, "cmds": [tree, odd]})
+	FileAccess.open(path, FileAccess.WRITE).store_buffer(bytes)
+	world.load_from(path)
+	await _settled()
+	_check(world.state.groups.has(5) and world.state.walls.is_empty(), "what can be read of a garden loads")
+	_check(FileAccess.get_file_as_bytes(path + ".bad") == bytes, "and the file as it was is moved aside before the garden is saved again")
+	_check(FileAccess.file_exists(path), "the part that loaded is saved in its place")
+	world.save_path = ""

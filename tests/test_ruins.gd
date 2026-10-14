@@ -126,27 +126,31 @@ func _ruins_are_deterministic_and_keep_their_own_steps() -> void:
 
 func _erase_widens_merges_and_trims() -> void:
 	var w := _wall(12.0, 2.4, [])
-	var tap := w.erase(6.0, 6.0)
+	var tap := _after(w, 6.0, 6.0)
 	_check(tap.size() == 1 and is_equal_approx(tap[0].y - tap[0].x, WallLayout.MIN_GAP), "a tap breaks MIN_GAP: %s" % [tap])
-	_check(w.erase(3.0, 5.0) == [Vector2(3.0, 5.0)], "a sweep breaks what it swept")
-	_check(w.erase(0.5, 3.0) == [Vector2(0.0, 3.0)], "no stub shorter than MIN_STUB stands at an end")
-	_check(w.erase(-2.0, 3.0) == [Vector2(0.0, 3.0)], "a sweep past the end stops there")
+	_check(_after(w, 3.0, 5.0) == [Vector2(3.0, 5.0)], "a sweep breaks what it swept")
+	_check(_after(w, 0.5, 3.0) == [Vector2(0.0, 3.0)], "no stub shorter than MIN_STUB stands at an end")
+	_check(_after(w, -2.0, 3.0) == [Vector2(0.0, 3.0)], "a sweep past the end stops there")
 	w.ruins = [Vector2(2.0, 4.0)]
-	_check(w.erase(3.5, 6.0) == [Vector2(2.0, 6.0)], "an overlapping sweep joins the ruin")
-	_check(w.erase(4.5, 6.0) == [Vector2(2.0, 6.0)], "a sweep leaving a stub between joins it too")
-	_check(w.erase(8.0, 9.0) == [Vector2(2.0, 4.0), Vector2(8.0, 9.0)], "a separate sweep makes a second ruin")
-	_check(w.erase(0.5, 11.5) == [Vector2(0.0, 12.0)], "nothing worth standing is all of it")
+	_check(_after(w, 3.5, 6.0) == [Vector2(2.0, 6.0)], "an overlapping sweep joins the ruin")
+	_check(_after(w, 4.5, 6.0) == [Vector2(2.0, 6.0)], "a sweep leaving a stub between joins it too")
+	_check(_after(w, 8.0, 9.0) == [Vector2(2.0, 4.0), Vector2(8.0, 9.0)], "a separate sweep makes a second ruin")
+	_check(_after(w, 0.5, 11.5) == [Vector2(0.0, 12.0)], "nothing worth standing is all of it")
 
 
 func _erase_round_a_loop() -> void:
 	var w := _wall(20.0, 3.0, [], true)
 	var total := w.length()
-	var seam := w.erase(total - 1.0, total + 2.0)
+	var seam := _after(w, total - 1.0, total + 2.0)
 	_check(seam.size() == 2 and is_equal_approx(seam[0].x, 0.0) and is_equal_approx(seam[0].y, 2.0) and is_equal_approx(seam[1].y, total), "a sweep across a loop's seam breaks both sides: %s" % [seam])
-	_check(w.erase(0.0, total) == [Vector2(0.0, total)], "sweeping all the way round takes it all")
+	_check(_after(w, 0.0, total) == [Vector2(0.0, total)], "sweeping all the way round takes it all")
 	w.ruins.assign(seam)
 	w.build(_flat)
 	_check(_standing_in(w, 0.0, 1.9, 1.0).is_empty() and _standing_in(w, total - 0.9, total, 1.0).is_empty(), "the loop stands broken either side of its seam")
+
+
+func _after(w: WallLayout, lo: float, hi: float) -> Array[Vector2]:
+	return WallLayout.ruins_after(w.ruins, w.length(), w.closed, lo, hi)
 
 
 func _the_schema_checks_ruins() -> void:
@@ -188,12 +192,24 @@ func _the_eraser_sweeps_a_ruin_and_undo_mends_it() -> void:
 	var ruins: PackedVector2Array = world.state.walls[w.id].ruins
 	_check(ruins.size() == 1 and ruins[0].y - ruins[0].x > 3.5 and ruins[0].y - ruins[0].x < 4.5, "a sweep along it breaks that stretch away: %s" % ruins)
 	_check(Array(w.layout.ruins) == Array(ruins) and w.layout.stones.size() < stones, "the wall shows the ruin it holds")
-	await _play([{"op": "erase", "points": [[6, -10], [5, -10]], "seconds": 0.2}])
-	_check(world.state.walls[w.id].ruins.size() == 2, "a second sweep breaks a second stretch")
+	await _play([{"op": "erase", "points": [[7.5, -10], [5, -10]], "seconds": 0.3}])
+	ruins = world.state.walls[w.id].ruins
+	_check(ruins.size() == 2 and ruins[1].y - ruins[1].x > 2.0, "a second sweep, leftward, breaks all of its stretch: %s" % ruins)
+	var steps: int = world.stacks[world.me()].undo.size()
+	await _play([{"op": "delete", "x": 0, "z": -10}])
+	_check(world.stacks[world.me()].undo.size() == steps and world.state.walls[w.id].ruins == ruins, "a tap inside a ruin changes nothing and takes no step")
+	var arches: PackedFloat32Array = world.state.walls[w.id].arches
+	main.tool.toggle_arch(w, w.layout.closest_s(Terrain.ground(6.2, -10)))
+	await process_frame
+	_check(world.state.walls[w.id].arches == arches and world.stacks[world.me()].undo.size() == steps, "no arch opens in a ruin")
 	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(world.state.walls[w.id].ruins.size() == 1, "undo mends the last one")
 	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(world.state.walls[w.id].ruins.is_empty() and w.layout.ruins.is_empty(), "and the next the first")
+	await _play([{"op": "erase", "points": [[-6, -10], [-4, -10], [-8, -10]], "seconds": 0.4}])
+	ruins = world.state.walls[w.id].ruins
+	_check(ruins.size() == 1 and ruins[0].y - ruins[0].x > 3.5 and ruins[0].y - ruins[0].x < 4.5, "a sweep that turns back breaks everything it passed over: %s" % ruins)
+	await _play([{"op": "press", "button": "dpad_down"}])
 	await _play([{"op": "erase", "points": [[-9.8, -10], [11, -10], [-11, -10]], "seconds": 0.4}])
 	_check(walls.is_empty(), "sweeping the whole wall takes it")
 	await _play([{"op": "press", "button": "dpad_down"}])

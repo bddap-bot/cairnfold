@@ -75,37 +75,36 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	return {}
 
 
-## One press and release: a wall breaks a short gap where it was pointed at, plants go at once.
+## Takes the plants a press points at.
 func take(target: Dictionary) -> void:
-	if target.has("wall"):
-		begin(self, target.wall, target.s)
-		let_go(self)
-	elif target.has("plants"):
-		var by_group := {}
-		for p: Flora.Plant in target.plants:
-			by_group.get_or_add(p.group, []).append(p.index)
-		for g in by_group:
-			by_group[g] = PackedInt32Array(by_group[g])
-		world.submit({"op": "show", "plants": by_group, "on": false})
+	if not target.has("plants"):
+		return
+	var by_group := {}
+	for p: Flora.Plant in target.plants:
+		by_group.get_or_add(p.group, []).append(p.index)
+	for g in by_group:
+		by_group[g] = PackedInt32Array(by_group[g])
+	world.submit({"op": "show", "plants": by_group, "on": false})
 
 
+## Starts erasing wall `w` at arc length `s`. A fence, house or tower is taken whole, so it shows no ruin.
 func begin(who: Object, w: Wall, s: float) -> void:
-	_cuts[who] = {"wall": w, "from": s, "to": s, "last": s}
+	_cuts[who] = {"wall": w, "from": s, "to": s, "at": s, "last": s, "whole": w.layout.fence or w.roof != null}
 	_preview(_cuts[who])
 
 
 ## Follows a ray along the wall being erased and returns the point on it the ray is nearest.
 func sweep(who: Object, origin: Vector3, dir: Vector3) -> Vector3:
-	var cut: Dictionary = _cuts[who]
-	var w: Wall = cut.wall
-	if not is_instance_valid(w) or walls.find(w.id) != w:
+	var cut: Dictionary = _cuts.get(who, {})
+	var w: Wall = cut.get("wall")
+	if w == null or not is_instance_valid(w) or walls.find(w.id) != w:
 		_cuts.erase(who)
 		return origin + dir
 	var hit := w.ray_distance(origin, dir)
-	var at: float = cut.to + w.layout.offset(hit.s, cut.last)
+	cut.at += w.layout.offset(hit.s, cut.last)
 	cut.last = hit.s
-	cut.from = minf(cut.from, at)
-	cut.to = maxf(cut.to, at)
+	cut.from = minf(cut.from, cut.at)
+	cut.to = maxf(cut.to, cut.at)
 	_preview(cut)
 	return hit.point
 
@@ -120,31 +119,32 @@ func let_go(who: Object) -> void:
 	var ruins := _ruins(cut)
 	if ruins.is_empty():
 		world.submit({"op": "unwall", "ids": PackedInt32Array([w.id])}, walls.settle.bind(w.id))
+	elif ruins == Array(world.state.walls[w.id].ruins):
+		walls.settle(w.id)
 	else:
 		world.submit({"op": "reshape", "id": w.id, "data": {"ruins": PackedVector2Array(ruins)}}, walls.settle.bind(w.id))
 
 
 ## The wall's ruins once the sweep breaks away, or none when the whole wall goes.
 func _ruins(cut: Dictionary) -> Array[Vector2]:
-	var w: Wall = cut.wall
 	var out: Array[Vector2] = []
-	if w.layout.fence or w.roof != null:
+	if cut.whole:
 		return out
-	var layout := WallLayout.new()
-	layout.lengths = w.layout.lengths
-	layout.closed = w.layout.closed
-	layout.ruins.assign(Array(world.state.walls[w.id].ruins))
-	var left := layout.erase(cut.from, cut.to)
-	if left.size() == 1 and left[0] == Vector2(0.0, layout.length()):
+	var w: Wall = cut.wall
+	var standing: Array[Vector2] = []
+	standing.assign(Array(world.state.walls[w.id].ruins))
+	var total := w.layout.length()
+	var left := WallLayout.ruins_after(standing, total, w.layout.closed, cut.from, cut.to)
+	if left.size() == 1 and left[0] == Vector2(0.0, total):
 		return out
 	return left
 
 
 ## Shows the wall broken as the sweep would leave it, on this machine only, until its command comes back.
 func _preview(cut: Dictionary) -> void:
-	var w: Wall = cut.wall
-	if w.layout.fence or w.roof != null:
+	if cut.whole:
 		return
+	var w: Wall = cut.wall
 	var ruins := _ruins(cut)
 	if ruins.is_empty():
 		ruins.append(Vector2(0.0, w.layout.length()))

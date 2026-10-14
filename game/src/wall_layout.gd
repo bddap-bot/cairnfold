@@ -137,17 +137,14 @@ func build(ground: Callable) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	live_arches.clear()
-	breaks.clear()
 	var total := length()
 	if total < 0.3:
 		return
-	if not fence:
-		_break()
 	if can_arch():
 		var sorted := arches.duplicate()
 		sorted.sort()
 		for a in sorted:
-			if fits_arch(a, live_arches) and not broken(a, ARCH_HALF + RING):
+			if fits_arch(a, live_arches):
 				live_arches.append(a)
 	if fence:
 		_build_fence(rng)
@@ -226,7 +223,7 @@ func _break() -> void:
 			lean = (lean + Vector2(rng.randf_range(RUIN_STEP.x, RUIN_STEP.y), rng.randf_range(RUIN_STEP.x, RUIN_STEP.y))).min(Vector2.ONE * RUIN_LEAN)
 
 
-## Whether arc length `s` lies within `margin` of a stretch broken away at the top.
+## Whether arc length `s` lies within `margin` of a stretch broken away at the top, where a ruin is widest.
 func broken(s: float, margin := 0.0) -> bool:
 	if breaks.is_empty():
 		return false
@@ -258,11 +255,10 @@ func _lay_rubble() -> void:
 			stones.append(st)
 
 
-## The ruins after the stretch `lo` to `hi` (lo < hi, unwrapped round a loop) is broken away too: at least
-## MIN_GAP wide, merged with those standing, and no stub shorter than MIN_STUB left. Nothing standing is
-## [Vector2(0, length())].
-func erase(lo: float, hi: float) -> Array[Vector2]:
-	var total := length()
+## A wall's `ruins` after the stretch `lo` to `hi` (lo <= hi, unwrapped round a `closed` loop) of its
+## `total` length is broken away too: at least MIN_GAP wide, merged with those standing, and no stub
+## shorter than MIN_STUB left. Nothing standing is [Vector2(0, total)].
+static func ruins_after(ruins: Array[Vector2], total: float, closed: bool, lo: float, hi: float) -> Array[Vector2]:
 	if hi - lo < MIN_GAP:
 		var mid := (lo + hi) * 0.5
 		lo = mid - MIN_GAP * 0.5
@@ -647,11 +643,11 @@ func _lay_ring(a: float, rng: RandomNumberGenerator) -> void:
 	_add(a, top, Vector3(0.34, RING * 1.15, THICKNESS * 1.1), rng, "keystone", 1.05, 0.0)
 
 
-## Whether an arch can open at `s` beside `others`: clear of an open wall's ends, a loop's corner piers and
-## the others' rings, measured round a loop.
+## Whether an arch can open at `s` beside `others`: clear of an open wall's ends, a loop's corner piers,
+## ruins and the others' rings, measured round a loop.
 func fits_arch(s: float, others: Array[float]) -> bool:
 	var reach := ARCH_HALF + RING
-	if not closed and (s < ARCH_END or s > length() - ARCH_END):
+	if broken(s, reach) or (not closed and (s < ARCH_END or s > length() - ARCH_END)):
 		return false
 	if closed and not corners().all(func(c): return absf(offset(s, c)) > reach + PIER * 0.5):
 		return false
@@ -857,12 +853,16 @@ func closest_s(p: Vector3) -> float:
 	return best_s
 
 
+## The ground curve, and the ruins' breaks along it, for the inputs as they stand.
 func resample(ground: Callable) -> void:
 	samples.clear()
 	lengths.clear()
+	breaks.clear()
 	bounds = Rect2()
 	if points.size() == 0:
 		return
+	if not fence:
+		_break()
 	if closed:
 		_resample_loop(ground)
 	else:

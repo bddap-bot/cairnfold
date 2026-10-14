@@ -44,8 +44,8 @@ var _strokes := {}
 var _resending := {}
 ## What to do when each of our sent commands is settled, by token.
 var _done := {}
-## Where this garden is kept between sessions, or "" to keep nothing (see `keep_at`).
-var kept := ""
+## Where this garden is saved between sessions, or "" to save nothing (see `load_from`).
+var save_path := ""
 var _keep_due := false
 var _keep_task := -1
 
@@ -60,35 +60,39 @@ func _ready() -> void:
 
 
 func _exit_tree() -> void:
+	flush()
+
+
+## Waits for the last save to be written.
+func flush() -> void:
 	if _keep_task >= 0:
 		WorkerThreadPool.wait_for_task_completion(_keep_task)
 		_keep_task = -1
 
 
-## Loads the garden kept at `path`, if there is one, and from then on keeps this garden there: rewritten
-## after every frame in which a command changed it, while it is our own (not one we are visiting). A file
-## that holds no garden is reported and the meadow starts empty.
-func keep_at(path: String) -> void:
-	kept = path
+## Loads the garden saved at `path`, if there is one, and from then on saves this garden there: rewritten
+## after every frame in which a command changed it while it was our own (not one we are visiting). A file
+## this game cannot read whole is moved aside to `path`.bad before anything is written over it.
+func load_from(path: String) -> void:
+	save_path = path
 	if not FileAccess.file_exists(path):
 		return
 	var snap: Variant = bytes_to_var(FileAccess.get_file_as_bytes(path))
-	if snap is Dictionary and snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT:
-		restore(snap)
-		print("world: loaded %d commands from %s" % [snap.cmds.size(), path])
-	else:
-		push_error("world: %s holds no garden this game can read; starting from the empty meadow" % path)
+	var whole := snap is Dictionary and snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT
+	if whole:
+		whole = restore(snap) == snap.cmds.size()
+		print("world: loaded %s" % path)
+	if not whole:
+		var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(path), ProjectSettings.globalize_path(path) + ".bad")
+		push_error("world: %s held a garden this game cannot read whole; moved it to .bad (%s)" % [path, error_string(err)])
 
 
 ## The snapshot is taken here, so the garden it describes cannot change under the writer.
 func _keep() -> void:
 	_keep_due = false
-	if kept == "" or not multiplayer.is_server():
-		return
 	var bytes := var_to_bytes(snapshot())
-	if _keep_task >= 0:
-		WorkerThreadPool.wait_for_task_completion(_keep_task)
-	var path := ProjectSettings.globalize_path(kept)
+	flush()
+	var path := ProjectSettings.globalize_path(save_path)
 	_keep_task = WorkerThreadPool.add_task(func() -> void: World._write(path, bytes))
 
 
@@ -96,13 +100,13 @@ func _keep() -> void:
 static func _write(path: String, bytes: PackedByteArray) -> void:
 	var f := FileAccess.open(path + ".new", FileAccess.WRITE)
 	if f == null:
-		push_error("world: cannot keep the garden at %s: %s" % [path, error_string(FileAccess.get_open_error())])
+		push_error("world: cannot save the garden at %s: %s" % [path, error_string(FileAccess.get_open_error())])
 		return
 	f.store_buffer(bytes)
 	f.close()
 	var err := DirAccess.rename_absolute(path + ".new", path)
 	if err != OK:
-		push_error("world: cannot keep the garden at %s: %s" % [path, error_string(err)])
+		push_error("world: cannot save the garden at %s: %s" % [path, error_string(err)])
 
 
 func attach(walls: WallTool, plants: Flora, ways: Paths, ground: TerrainTool, ponds: Water = null) -> void:
@@ -404,7 +408,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			palette.picks[cmd.element] = cmd.index
 			palette.apply()
 	applied.emit(cmd)
-	if kept != "" and not _keep_due:
+	if save_path != "" and not _keep_due and multiplayer.is_server():
 		_keep_due = true
 		_keep.call_deferred()
 	return inverse
@@ -460,8 +464,9 @@ func snapshot() -> Dictionary:
 	return {"seq": seq, "cmds": cmds}
 
 
-## Back to the empty meadow, then the snapshot's garden. Undo history goes with the old garden.
-func restore(snap: Dictionary) -> void:
+## Back to the empty meadow, then the snapshot's garden, and how many of its commands applied. Undo history
+## goes with the old garden.
+func restore(snap: Dictionary) -> int:
 	wall_tool.quiet = true
 	Ground.quiet = true
 	for id in state.walls.keys():
@@ -485,6 +490,7 @@ func restore(snap: Dictionary) -> void:
 	for t in _done.keys():
 		_settle(t)
 	restored.emit()
+	var applied := 0
 	for sent in snap.cmds:
 		var cmd := Commands.clean(sent, state, true) if sent is Dictionary else {}
 		if cmd.is_empty():
@@ -492,10 +498,12 @@ func restore(snap: Dictionary) -> void:
 			continue
 		cmd.erase("token")
 		_apply(cmd)
+		applied += 1
 	seq = snap.seq
 	wall_tool.quiet = false
 	Ground.quiet = false
 	Ground.rewear()
+	return applied
 
 
 ## What this machine shows of the garden, for comparing machines: every wall's data and laid stones,
