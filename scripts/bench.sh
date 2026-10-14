@@ -75,7 +75,7 @@ if [ "${2:-}" = --android ]; then
   adb shell "rm -rf $dir; mkdir -p $dir"
   adb push "$out/stress.json" "$dir/stress.json" > /dev/null
   adb shell am broadcast -a com.oculus.vrpowermanager.prox_close > /dev/null
-  trap 'adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable > /dev/null; adb shell am force-stop "$pkg"; stop' EXIT
+  trap 'adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable > /dev/null || true; adb shell am force-stop "$pkg" || true; stop' EXIT
   adb shell am force-stop "$pkg"
   adb logcat -c
   adb shell am start -W -n "$pkg/com.godot.game.GodotApp" --esa command_line_params "--,--script,$dir/stress.json,--metrics,$dir/metrics.json,--capture-dir,$dir,--seed,$seed" > /dev/null
@@ -99,7 +99,7 @@ elif [ $# -ge 3 ]; then
     status=0; timeout 900 bin/godot --path game --resolution 3456x1728 --xr-mode off -- --desktop --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --seed '"$seed"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
     rm log/pid; echo "bench: $(cat REVISION) exit $status"' &
   remote=$!
-  trap 'ssh -n "$2" "kill \$(cat cairnfold-bench/cairnfold/log/pid)" 2>/dev/null; stop' EXIT
+  trap 'ssh -n "$2" "[ ! -f cairnfold-bench/cairnfold/log/pid ] || kill \$(cat cairnfold-bench/cairnfold/log/pid)" || true; stop' EXIT
   if [ "$players" -gt 1 ]; then
     join ssh -n "$2" cat cairnfold-bench/cairnfold/log/godot.log -- \
       "$(ssh -n "$2" "ip -4 route get 1.1.1.1" | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')"

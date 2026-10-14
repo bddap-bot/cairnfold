@@ -156,7 +156,7 @@ snapshot round trip.
 ## Budget
 
 Networking adds no per-frame work beyond reading sockets and sending one pose packet
-every other frame. Each remote player adds six small draw calls and a few hundred
+every other frame. Each remote player adds about seven small draw calls and a few hundred
 triangles. Frame times with 1, 2 and 4 players in the stress scene are under
 "Measurements".
 
@@ -168,18 +168,32 @@ triangles. Frame times with 1, 2 and 4 players in the stress scene are under
 
 ## Measurements
 
-The stress scene (walls filling discs of 10–25 m, a village, every flora pool full)
-was played on a desktop renderer, alone and with one and three other players
-standing in view and streaming poses:
+`CAIRNFOLD_PLAYERS=N scripts/bench.sh OUT ...` plays the stress scene with N-1 other
+players, headless on the benching machine, who join the measured instance and stand in
+view streaming their heads and hands. The measured instance waits for all of them before
+its first phase.
 
-| | 1 player | 2 players | 4 players |
+On the Steam Frame (`bench.sh OUT steam-frame BUNDLE`: both eyes' pixels in one window
+with the headset off the head, so the numbers compare builds rather than give the
+headset's own frame time), GPU milliseconds per frame:
+
+| Phase | 1 player | 2 players | 4 players |
 | --- | --- | --- | --- |
-| Draw calls, meadow from above | 18 | 26 | 39 |
-| Draw calls, densest walls (25 m disc) from above | 186 | 194 | 207 |
-| Draw calls, village from above | 227 | 235 | 248 |
-| Primitives, densest walls from the ground | 15.15 M | 15.15 M | 15.14 M |
+| Meadow, from the air | 3.54 | 3.53 | 3.59 |
+| Meadow, standing | 3.51 | 3.61 | 3.63 |
+| Every flora pool full, standing | 6.35 | 6.49 | 6.46 |
+| Walls on a 15 m disc, from the air | 7.03 | 7.06 | 7.02 |
+| Walls on a 25 m disc, from the air | 13.41 | 13.25 | 13.19 |
+| Walls on a 25 m disc, standing | 12.83 | 14.41 | 12.58 |
+| Village, from the air | 7.53 | 7.53 | 7.56 |
+| Village, standing | 8.41 | 8.85 | 9.10 |
+| Hills, standing | 12.86 | 13.94 | 14.03 |
 
-Each other player costs 7 draw calls and about 500 triangles, wherever you look,
-since an avatar casts no shadow. The desktop machine rendered every phase at the
-same frame time with or without players, so its frame times say nothing about a
-headset's budget. Headset frame times follow.
+Each other player adds about 7 draw calls, and an avatar casts no shadow. From the air,
+other players cost under 0.1 ms. Standing among walls and hills, run-to-run differences
+of up to 1.6 ms go both ways: the 25 m disc costs more with 2 players than with 4. That is
+the scene's own variance from run to run, not something that grows with players. The
+phases that go over the Quest's 12.5 ms budget do so alone as well; that budget belongs to
+the stress scene, not to co-op.
+
+The Quest 2 run of the same ladder is the budget check (`bench.sh OUT --android APK`).
