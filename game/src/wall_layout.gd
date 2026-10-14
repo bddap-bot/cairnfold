@@ -211,20 +211,33 @@ func openings_for(placed: Array[Vector2]) -> Array[Dictionary]:
 	for w in placed:
 		single.append(_opening_for(w))
 	single.sort_custom(func(a, b): return a.s < b.s)
+	if closed and single.size() > 1:
+		# Round a loop, windows are read from just past the widest gap between them, so none straddles the seam.
+		var n := single.size()
+		var cut := 0
+		var widest := -1.0
+		for i in n:
+			var gap := fposmod(single[(i + 1) % n].s - single[i].s, length())
+			if gap > widest:
+				widest = gap
+				cut = (i + 1) % n
+		single = single.slice(cut) + single.slice(0, cut)
+	var start: float = single[0].s if not single.is_empty() else 0.0
 	var fused: Array[Dictionary] = []
 	for o in single:
+		var u: float = start + fposmod(o.s - start, length()) if closed else o.s
 		var into := {}
 		for f in fused:
-			if is_equal_approx(f.sill, o.sill) and absf(offset(o.s, f.last)) < FUSE:
+			if is_equal_approx(f.sill, o.sill) and u - f.last < FUSE:
 				into = f
 		if into.is_empty():
-			o.first = o.s
-			o.last = o.s
+			o.first = u
+			o.last = u
 			fused.append(o)
 			continue
-		into.last = o.s
+		into.last = u
 		into.lights += 1
-		into.s = self.wrap(into.first + offset(into.last, into.first) * 0.5)
+		into.s = self.wrap((into.first + into.last) * 0.5)
 		into.half = into.lights * (DOOR_HALF if o.door else WINDOW_HALF) + (into.lights - 1) * MULLION * 0.5
 	var out: Array[Dictionary] = []
 	for o in fused:
@@ -415,6 +428,8 @@ func _build_fence(rng: RandomNumberGenerator) -> void:
 			var size := Vector3(PI * r / k * 1.2, 0.11, 0.1)
 			stones.append(_stone(a - cos(t) * r, GATE_POST + 0.04 + sin(t) * r * squash, size, rng, "gate", 1.0, 0.0, atan2(cos(t) * squash, sin(t))))
 			stones[-1].color = WOOD * rng.randf_range(0.8, 1.05)
+	if standing.is_empty():
+		return
 	var lit: Array[float] = []
 	for l in lanterns:
 		var s := nearest_post(l.x)

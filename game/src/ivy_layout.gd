@@ -67,7 +67,7 @@ static func blocked(wall: WallLayout, s: float, y: float) -> bool:
 	if w <= 0.0:
 		return false
 	for a in wall.live_arches:
-		if absf(s - a) < w + MARGIN:
+		if absf(wall.offset(s, a)) < w + MARGIN:
 			return true
 	return false
 

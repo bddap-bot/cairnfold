@@ -168,6 +168,12 @@ func _windows_fuse_across_a_loop_seam() -> void:
 	if w.openings.size() == 1:
 		_check(absf(w.offset(w.openings[0].s, 0.0) + 0.05) < 0.01, "the fused opening is centred between them, across the seam: s=%.2f" % w.openings[0].s)
 		_check(_intruders(w, w.openings[0]).is_empty(), "the opening across the seam is clear")
+	for start in [w.length() - 0.4, w.length() - 1.1, 0.3]:
+		w.windows = [Vector2(start, 2.0), Vector2(start + 0.7, 2.0), Vector2(fposmod(start + 1.4, w.length()), 2.0)]
+		w.build(_flat)
+		_check(w.openings.size() == 1 and w.openings[0].lights == 3, "three windows in a row fuse into one of three lights, starting at s=%.2f by the seam: %s" % [start, w.openings])
+		if w.openings.size() == 1:
+			_check(absf(w.offset(w.openings[0].s, start + 0.7)) < 0.01, "and it is centred on the middle one")
 
 
 func _flags_keep_their_colour() -> void:
