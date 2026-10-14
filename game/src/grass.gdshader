@@ -3,6 +3,7 @@ render_mode world_vertex_coords, cull_disabled, diffuse_lambert_wrap, specular_d
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/water.gdshaderinc"
+#include "res://src/palette.gdshaderinc"
 
 uniform vec3 root_color : source_color = vec3(0.10, 0.24, 0.06);
 uniform vec3 tip_lush : source_color = vec3(0.45, 0.68, 0.18);
@@ -26,8 +27,7 @@ uniform vec3 hand_left;
 uniform vec3 hand_right;
 
 varying float tip;
-varying float dryness;
-varying float tint;
+varying vec3 top;
 varying float gust;
 varying float far;
 
@@ -41,8 +41,7 @@ vec3 parted(vec3 v, vec3 root, vec3 hand) {
 
 void vertex() {
 	tip = UV.y;
-	dryness = INSTANCE_CUSTOM.x;
-	tint = INSTANCE_CUSTOM.y;
+	top = seasoned(mix(tip_lush, tip_dry, INSTANCE_CUSTOM.x) * mix(cool_clump, warm_clump, INSTANCE_CUSTOM.y), season_meadow);
 	float ground = ground_at(INSTANCE_CUSTOM.zw);
 	VERTEX.y += ground;
 	vec3 root = MODEL_MATRIX[3].xyz + vec3(0.0, ground, 0.0);
@@ -73,8 +72,7 @@ void vertex() {
 void fragment() {
 	// Far blades converge on their mid-tone so sub-pixel slivers do not flicker in a headset.
 	float t = mix(tip, 0.6, far * 0.7);
-	vec3 top = mix(tip_lush, tip_dry, dryness) * mix(cool_clump, warm_clump, tint);
-	vec3 c = mix(root_color, top, t) * mix(root_shade, 1.0, smoothstep(0.0, 0.7, t));
+	vec3 c = mix(seasoned(root_color, season_meadow), top, t) * mix(root_shade, 1.0, smoothstep(0.0, 0.7, t));
 	ALBEDO = c * COLOR.rgb * (1.0 + gust_brighten * gust * t * (1.0 - far));
 	// Back faces arrive with the normal flipped, which would turn the up-bent normal downward and shade them dark.
 	vec3 up = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;

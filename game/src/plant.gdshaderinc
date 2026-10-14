@@ -1,5 +1,6 @@
 #include "res://src/ground.gdshaderinc"
 #include "res://src/water.gdshaderinc"
+#include "res://src/palette.gdshaderinc"
 
 uniform vec3 albedo : source_color = vec3(1.0);
 uniform float roughness = 1.0;
@@ -14,9 +15,19 @@ void vertex() {
 	vec3 root = MODEL_MATRIX[3].xyz + vec3(0.0, ground, 0.0);
 	VERTEX = mix(root, VERTEX, 1.0 - bare(root.xz));
 #endif
+#ifdef FLOWER
+	vec3 h = fract(root.xzx * 0.1031);
+	h += dot(h, h.yzx + 33.33);
+	if (fract((h.x + h.y) * h.z) >= season_bloom) {
+		VERTEX = root;
+	}
+#endif
 	if (drowned(INSTANCE_CUSTOM.zw, ground)) {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);
 	}
+#ifdef BACKLIT
+	COLOR.rgb = seasoned(albedo * COLOR.rgb, season_foliage);
+#endif
 }
 
 #ifdef FLOWER
@@ -28,11 +39,13 @@ void fragment() {
 #ifdef FLOWER
 	vec3 head = mix(albedo * COLOR.rgb, eye, smoothstep(0.55, 0.9, UV.y));
 	ALBEDO = mix(stalk, head, UV.x);
+#elif defined(BACKLIT)
+	ALBEDO = COLOR.rgb;
 #else
 	ALBEDO = albedo * COLOR.rgb;
 #endif
 	ROUGHNESS = roughness;
 #ifdef BACKLIT
-	BACKLIGHT = backlight;
+	BACKLIGHT = seasoned(backlight, season_foliage);
 #endif
 }

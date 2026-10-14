@@ -17,6 +17,8 @@ const CURVE := 1.0
 const PROFILE_STEPS := 8
 const STACK_WIDTH := 0.66
 
+## The clay roof tiles are laid in, before each roof's hue and each tile's variation.
+const CLAY := Color(0.72, 0.4, 0.28)
 var kind := Kind.GABLE
 ## For a gable, the corners from WallLayout.rectangle: the ridge runs along the first side's direction.
 var corners: Array[Vector3] = []
@@ -37,6 +39,7 @@ var tiles: Array[Dictionary] = []
 var cloths: Array[Dictionary] = []
 ## The surface triangles from the last build, kept for pointing.
 var faces := PackedVector3Array()
+var gable_faces := PackedVector3Array()
 var bounds := AABB()
 
 
@@ -86,8 +89,9 @@ func profile(steps: int) -> PackedVector2Array:
 
 func build() -> void:
 	faces = surface()
+	gable_faces = gables()
 	bounds = AABB(faces[0], Vector3.ZERO)
-	for p in faces:
+	for p in faces + gable_faces:
 		bounds = bounds.expand(p)
 	tiles.clear()
 	cloths.clear()
@@ -217,7 +221,7 @@ func _tile(p: Vector3, basis: Basis, hue: float, rng: RandomNumberGenerator, wid
 
 func _clay(hue: float, rng: RandomNumberGenerator) -> Color:
 	var warm := rng.randf_range(-0.05, 0.05) + hue
-	return Color(0.72 + warm, 0.4 + warm * 0.4, 0.28 - warm) * rng.randf_range(0.82, 1.08)
+	return Color(CLAY.r + warm, CLAY.g + warm * 0.4, CLAY.b - warm) * rng.randf_range(0.82, 1.08)
 
 
 func _add(xform: Transform3D, what: String, color: Color, ao: float) -> void:
@@ -279,11 +283,20 @@ func gables() -> PackedVector3Array:
 
 ## Nearest distance along a ray to the roof, or INF.
 func ray_hit(origin: Vector3, dir: Vector3) -> float:
+	return _nearest(origin, dir, faces)
+
+
+## Nearest distance along a ray to a plastered gable end, or INF.
+func gable_hit(origin: Vector3, dir: Vector3) -> float:
+	return _nearest(origin, dir, gable_faces)
+
+
+func _nearest(origin: Vector3, dir: Vector3, tris: PackedVector3Array) -> float:
 	var best := INF
-	if faces.is_empty() or bounds.grow(0.1).intersects_ray(origin, dir) == null:
+	if tris.is_empty() or bounds.grow(0.1).intersects_ray(origin, dir) == null:
 		return best
-	for i in range(0, faces.size(), 3):
-		var hit: Variant = Geometry3D.ray_intersects_triangle(origin, dir, faces[i], faces[i + 1], faces[i + 2])
+	for i in range(0, tris.size(), 3):
+		var hit: Variant = Geometry3D.ray_intersects_triangle(origin, dir, tris[i], tris[i + 1], tris[i + 2])
 		if hit != null:
 			best = minf(best, origin.distance_to(hit))
 	return best

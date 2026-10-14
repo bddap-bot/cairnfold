@@ -48,7 +48,8 @@ func _init(paving := false) -> void:
 	add_child(_instance)
 
 
-## `stones` are dictionaries with `xform`, `color`, `ao` (occlusion) and `variant` (0–2).
+## `stones` are dictionaries with `xform`, `color`, `ao` (occlusion), `variant` (0–2) and, painted with
+## a material of the palette, `kind`.
 func lay(stones: Array[Dictionary]) -> void:
 	var mm := _instance.multimesh
 	mm.instance_count = stones.size()
@@ -66,4 +67,9 @@ func lay(stones: Array[Dictionary]) -> void:
 		x.basis = x.basis * FLIPS[s.variant]
 		mm.set_instance_transform(i, x)
 		mm.set_instance_color(i, s.color)
-		mm.set_instance_custom_data(i, Color(s.ao, 0, 0, 0))
+		mm.set_instance_custom_data(i, custom(s))
+
+
+## A laid part's custom data: its occlusion, and the code of the material it is painted with.
+static func custom(part: Dictionary) -> Color:
+	return Color(part.ao, Palette.code(part.get("kind", "")), 0, 0)

@@ -12,7 +12,7 @@ const CHUNK_METRES := 16.0
 
 
 ## How one kind of piece is drawn. An instance is 12 transform floats, then 4 colour floats and 4 custom
-## floats (occlusion in the first) when the kind uses them.
+## floats (occlusion, then the code of its palette material) when the kind uses them.
 class Kind:
 	var mesh: Mesh
 	var material: Material
@@ -31,7 +31,7 @@ class Kind:
 		return 12 + (4 if colors else 0) + (4 if custom else 0)
 
 	## Writes instance `n` of `buf`.
-	func write(buf: PackedFloat32Array, n: int, x: Transform3D, color := Color.WHITE, occlusion := 1.0) -> void:
+	func write(buf: PackedFloat32Array, n: int, x: Transform3D, color := Color.WHITE, occlusion := 1.0, material := 0.0) -> void:
 		var i := n * stride()
 		var b := x.basis
 		buf[i] = b.x.x
@@ -53,6 +53,7 @@ class Kind:
 			buf[i + 15] = color.a
 		if custom:
 			buf[i + 16] = occlusion
+			buf[i + 17] = material
 
 	func instance() -> MultiMeshInstance3D:
 		var mm := MultiMesh.new()

@@ -51,5 +51,15 @@
   {"op": "fit", "what": "lantern", "index": -1, "s": 8.0},
   {"op": "wait", "seconds": 20},
   {"op": "capture", "name": "07-fittings-floating"},
+  {"op": "label", "name": "daylight"},
+  {"op": "sun", "time": 0.95, "seconds": 6},
+  {"op": "wait", "seconds": 5},
+  {"op": "capture", "name": "08-evening-floating"},
+  {"op": "colour", "hand": "left", "element": "roof", "swatch": 1, "seconds": 2},
+  {"op": "colour", "hand": "left", "element": "stone", "swatch": 2, "seconds": 2},
+  {"op": "colour", "hand": "left", "element": "meadow", "swatch": 3, "seconds": 2},
+  {"op": "sun", "time": 0.287, "seconds": 6},
+  {"op": "wait", "seconds": 5},
+  {"op": "capture", "name": "09-autumn-floating"},
   {"op": "quit"}
 ]

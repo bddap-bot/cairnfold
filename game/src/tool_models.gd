@@ -39,7 +39,43 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_flagstones(root)
 		Hand.Tool.VISIT:
 			_figure(root)
+		Hand.Tool.COLOUR:
+			_palette(root)
 	return root
+
+
+## A painter's palette: a wooden board with a dab of each roof colour round its edge.
+static func _palette(root: Node3D) -> void:
+	var board := CylinderMesh.new()
+	board.top_radius = 0.026
+	board.bottom_radius = 0.026
+	board.height = 0.003
+	board.radial_segments = 24
+	board.rings = 1
+	var dab := SphereMesh.new()
+	dab.radius = 0.0055
+	dab.height = 0.004
+	dab.radial_segments = 10
+	dab.rings = 4
+	var swatches: Array = Palette.SWATCHES[Palette.Element.ROOF]
+	var parts := [[board, Vector3(0, 0.0015, 0), Color(0.62, 0.46, 0.3)]]
+	for i in swatches.size():
+		var a := TAU * (0.12 + 0.76 * i / (swatches.size() - 1))
+		parts.append([dab, Vector3(cos(a), 0, sin(a)) * 0.018 + Vector3(0, 0.0035, 0), swatches[i]])
+	for part in parts:
+		var key := "palette_%s" % part[2].to_html()
+		var mat: StandardMaterial3D = _mats.get(key)
+		if mat == null:
+			mat = StandardMaterial3D.new()
+			mat.albedo_color = part[2]
+			mat.roughness = 0.6
+			_mats[key] = mat
+		var mi := MeshInstance3D.new()
+		mi.mesh = part[0]
+		mi.position = part[1]
+		mi.material_override = mat
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(mi)
 
 
 ## A little person: the visit tool goes to see other players.

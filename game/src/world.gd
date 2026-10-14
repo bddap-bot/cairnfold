@@ -23,6 +23,8 @@ var flora: Flora
 var paths: Paths
 var terrain_tool: TerrainTool
 var water: Water
+## The glade's colours: a swatch per material and the season.
+var palette := Palette.new()
 ## Standing walls, paths and plant groups by id, as the plain values their commands carry, and the grid
 ## points ponds fill from. A group keeps its command's fields, its `size` and the indices of its plants
 ## since `hidden`.
@@ -46,6 +48,7 @@ var _done := {}
 
 func _init() -> void:
 	name = "World"
+	palette.apply()
 
 
 func _ready() -> void:
@@ -237,6 +240,8 @@ func _keys(cmd: Dictionary) -> Array:
 			return ["p%d" % cmd.id]
 		"path", "unpath", "ground", "unground":
 			return ["q%d" % cmd.id]
+		"palette":
+			return ["c%d" % cmd.element]
 		"show":
 			var out := {}
 			for g in cmd.plants:
@@ -344,6 +349,10 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				state.seeds.erase(cmd.unseed)
 				water.remove_seed(cmd.unseed)
 				inverse.seed = cmd.unseed
+		"palette":
+			inverse = {"op": "palette", "element": cmd.element, "index": palette.picks[cmd.element]}
+			palette.picks[cmd.element] = cmd.index
+			palette.apply()
 	applied.emit(cmd)
 	return inverse
 
@@ -388,6 +397,10 @@ func snapshot() -> Dictionary:
 			cmds.append(c)
 		if not g.hidden.is_empty():
 			cmds.append({"op": "show", "plants": {id: PackedInt32Array(g.hidden.keys())}, "on": false})
+	var plain := Palette.new()
+	for e in palette.picks.size():
+		if palette.picks[e] != plain.picks[e]:
+			cmds.append({"op": "palette", "element": e, "index": palette.picks[e]})
 	for c in cmds:
 		c.seq = seq
 		c.by = 1
@@ -410,6 +423,8 @@ func restore(snap: Dictionary) -> void:
 	stacks.clear()
 	touched.clear()
 	flora.reset()
+	palette.picks = Palette.new().picks
+	palette.apply()
 	state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}}
 	if sculpted:
 		terrain_tool.restore(Terrain.ALL, Terrain.base_heights())
@@ -449,4 +464,5 @@ func digest() -> Dictionary:
 	out.grounds = state.grounds.keys()
 	out.mask = hash(Ground.laid.get_data())
 	out.ponds = water.ponds.size() if water != null else 0
+	out.palette = Array(palette.picks)
 	return out

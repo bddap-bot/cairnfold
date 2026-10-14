@@ -1,9 +1,12 @@
+#include "res://src/palette.gdshaderinc"
+
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 uniform vec3 moss : source_color = vec3(0.30, 0.42, 0.14);
 
 varying vec3 world_pos;
 varying vec3 world_nrm;
 varying float occlusion;
+varying vec3 tint;
 
 void vertex() {
 #ifdef RIDES_GROUND
@@ -20,13 +23,14 @@ void vertex() {
 	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 #endif
 	occlusion = INSTANCE_CUSTOM.x;
+	tint = material_tint(INSTANCE_CUSTOM.y);
 }
 
 void fragment() {
 	vec3 p = world_pos * 1.7;
 	vec3 an = abs(world_nrm);
 	float tri = texture(detail, p.yz).r * an.x + texture(detail, p.xz).r * an.y + texture(detail, p.xy).r * an.z;
-	vec3 base = COLOR.rgb * (0.78 + tri * 0.45);
+	vec3 base = COLOR.rgb * tint * (0.78 + tri * 0.45);
 	float mossy = smoothstep(0.55, 0.9, world_nrm.y) * smoothstep(0.45, 0.7, texture(detail, world_pos.xz * 0.3).r);
 	ALBEDO = mix(base, moss, mossy * 0.8) * occlusion;
 	ROUGHNESS = 0.92;

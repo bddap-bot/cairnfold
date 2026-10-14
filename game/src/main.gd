@@ -15,6 +15,9 @@ var terrain_tool: TerrainTool
 var water: Water
 var water_tool: WaterTool
 var wildlife: Wildlife
+var look: Look
+var sun_tool: SunTool
+var palette_tool: PaletteTool
 var sound: Soundscape
 var metrics: Metrics
 var spectator: SubViewport
@@ -24,7 +27,7 @@ func _ready() -> void:
 	args = _parse(OS.get_cmdline_user_args())
 	Terrain.install()
 	Ground.install()
-	Look.build(self)
+	look = Look.build(self)
 	var flora := Flora.new()
 	add_child(flora)
 	add_child(Meadow.new(flora))
@@ -57,6 +60,10 @@ func _ready() -> void:
 	water_tool = WaterTool.new(rig, terrain_tool, water)
 	add_child(water_tool)
 	world.attach(tool, flora, paths, terrain_tool, water)
+	palette_tool = PaletteTool.new(rig, tool, world)
+	add_child(palette_tool)
+	sun_tool = SunTool.new(rig, look, tool)
+	add_child(sun_tool)
 	_undo_buttons = Buttons.new(rig.left).watch(["ax_button", "by_button"])
 	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT)))
 	add_child(session)
@@ -81,7 +88,7 @@ func _ready() -> void:
 
 ## Left D-pad down undoes, up redoes; both wait while an edit is under way.
 func _process(_delta: float) -> void:
-	if not (tool.busy() or flora_tool.busy() or terrain_tool.busy()):
+	if not (tool.busy() or flora_tool.busy() or terrain_tool.busy() or palette_tool.busy()):
 		if _undo_buttons.pressed("ax_button"):
 			world.undo()
 		if _undo_buttons.pressed("by_button"):

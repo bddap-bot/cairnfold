@@ -3,6 +3,7 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/water.gdshaderinc"
+#include "res://src/palette.gdshaderinc"
 
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 uniform sampler2D flagstones : filter_linear_mipmap, repeat_enable;
@@ -31,7 +32,7 @@ void fragment() {
 	float d = texture(detail, world_pos.xz * 0.07).r;
 	float fine = texture(detail, world_pos.xz * 0.45).r;
 	vec3 grass = mix(meadow_dry, meadow_lush, clamp(COLOR.r + (d - 0.5) * 0.8, 0.0, 1.0));
-	grass *= 0.85 + fine * 0.3;
+	grass = seasoned(grass * (0.85 + fine * 0.3), season_meadow);
 	float s = steep + (fine - 0.5) * 0.06;
 	vec3 c = mix(grass, earth, smoothstep(0.2, 0.32, s));
 	vec2 cover = ground_cover(world_pos.xz);

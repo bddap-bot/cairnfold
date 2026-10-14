@@ -7,7 +7,7 @@ extends Node3D
 enum Part { STONE, MORTAR, STONE_SHADOW, TILE, TILE_SHADOW, IVY }
 
 static var _kinds: Array[Masonry.Kind] = []
-static var _plaster: StandardMaterial3D
+static var _plaster: ShaderMaterial
 
 var layout := WallLayout.new()
 var masonry: Masonry
@@ -76,10 +76,9 @@ func add_roof(r: RoofLayout) -> void:
 	roof = r
 	layout.roofed = true
 	if _plaster == null:
-		_plaster = StandardMaterial3D.new()
-		_plaster.albedo_color = Color(0.8, 0.73, 0.6)
-		_plaster.roughness = 0.95
-		_plaster.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_plaster = ShaderMaterial.new()
+		_plaster.shader = load("res://src/plaster.gdshader")
+		_plaster.set_shader_parameter("albedo", Color(0.8, 0.73, 0.6))
 	_gables = MeshInstance3D.new()
 	_gables.material_override = _plaster
 	add_child(_gables)
@@ -263,12 +262,12 @@ func _pack_roof() -> void:
 	shadows.resize(roof.tiles.size() * shadow.stride())
 	for i in roof.tiles.size():
 		var t: Dictionary = roof.tiles[i]
-		tile.write(tiles, i, t.xform, t.color, t.ao)
+		tile.write(tiles, i, t.xform, t.color, t.ao, Palette.code(t.kind))
 		shadow.write(shadows, i, t.xform)
 	_parts[Part.TILE] = tiles
 	_parts[Part.TILE_SHADOW] = shadows
 	_fittings.lay(layout.flames, layout.cloths + roof.cloths)
-	var tris := roof.gables()
+	var tris := roof.gable_faces
 	if tris.is_empty():
 		_gables.mesh = null
 		return
@@ -300,11 +299,11 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind]) -> Dictionary:
 	for s in built.stones:
 		var x: Transform3D = s.xform
 		if s.kind == "mortar":
-			mortar.write(bufs[1], n[1], x, s.color, s.ao)
+			mortar.write(bufs[1], n[1], x, s.color, s.ao, Palette.code(s.kind))
 			n[1] += 1
 		else:
 			x.basis = x.basis * Stones.FLIPS[s.variant]
-			stone.write(bufs[0], n[0], x, s.color, s.ao)
+			stone.write(bufs[0], n[0], x, s.color, s.ao, Palette.code(s.kind))
 			shadow.write(bufs[2], n[0], x)
 			n[0] += 1
 		box = box.expand(x.origin)

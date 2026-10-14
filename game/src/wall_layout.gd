@@ -49,6 +49,8 @@ const WOOD := Color(0.46, 0.33, 0.21)
 const IRON := Color(0.16, 0.15, 0.14)
 const GLASS := Color(0.12, 0.17, 0.22)
 const PLASTER := Color(0.86, 0.8, 0.68)
+## The stone walls are laid in, before each stone's variation.
+const STONE := Color(0.66, 0.61, 0.53)
 
 var points: Array[Vector3] = []
 var height := 2.6
@@ -450,7 +452,7 @@ func _build_fence(rng: RandomNumberGenerator) -> void:
 
 static func stone_color(rng: RandomNumberGenerator) -> Color:
 	var warm := rng.randf_range(-0.05, 0.05)
-	return Color(0.66 + warm, 0.61, 0.53 - warm * 1.5) * rng.randf_range(0.82, 1.08)
+	return Color(STONE.r + warm, STONE.g, STONE.b - warm * 1.5) * rng.randf_range(0.82, 1.08)
 
 
 ## A coloured part on the wall's frame at `s`, `y`, `out` metres off the centre plane toward face +1.

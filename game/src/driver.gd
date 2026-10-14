@@ -467,6 +467,40 @@ func _digest(s: Dictionary) -> void:
 	print("driver: digest ", path)
 
 
+## Drags the sun from where it stands to `time` (0 dawn, 1 dusk) over `seconds`.
+func _sun(s: Dictionary) -> void:
+	var tool: SunTool = main.sun_tool
+	var from: float = main.look.time
+	var t := 0.0
+	var seconds: float = s.get("seconds", 2.0)
+	while t < seconds:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		tool.drag(lerpf(from, s.time, smoothstep(0.0, 1.0, minf(t / seconds, 1.0))))
+
+
+## The colour picker on `element` (meadow, stone, roof, wood or plaster): opens its wheel on `hand`, twists
+## to `swatch` over `seconds`, optionally captures the view with the wheel open, then lets go.
+func _colour(s: Dictionary) -> void:
+	var tool: PaletteTool = main.palette_tool
+	var hand := _holding(s, Hand.Tool.COLOUR)
+	var element: Palette.Element = Palette.Element[s.element.to_upper()]
+	tool.open(hand, element)
+	var from: int = main.world.palette.picks[element]
+	var to: int = s.swatch
+	var turn := (to - from) * Palette.TWIST_STEP
+	var t := 0.0
+	var seconds: float = s.get("seconds", 1.0)
+	while t < seconds:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		tool.twist(hand, turn * minf(t / seconds, 1.0))
+	if s.has("capture"):
+		await main.capture(s.capture)
+	tool.close(hand)
+	await get_tree().process_frame
+
+
 func _music(s: Dictionary) -> void:
 	main.sound.play_from(s.section)
 

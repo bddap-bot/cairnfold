@@ -1,11 +1,31 @@
 class_name Look
-extends RefCounted
+extends Node
 
-## Sky, sun, fog and grading: the mood of a late-morning meadow.
+## Sky, sun, fog and grading, lit for the time of day (Daylight).
+
+## Each change to the sky restarts its radiance update, which takes several frames and is where the ambient
+## light comes from; so while the sun is dragged the sky changes this often, letting each update finish,
+## and the light and the sun's disc, which follow every frame, stay out of the sky.
+const SKY_EVERY := 0.2
+const DISC_DISTANCE := 350.0
+## Degrees from the sun's centre: the quad's half-width, and the disc's radius at rest and while a hand
+## points at it.
+const DISC_SPAN_DEG := 6.5
+const DISC_RADIUS_DEG := 1.8
+const DISC_SWELL_DEG := 3.6
 
 const FLAGSTONE_TEXELS := 256
 
 static var _detail: NoiseTexture2D
+
+var sun: DirectionalLight3D
+var env: Environment
+var sky_mat: ShaderMaterial
+var disc: MeshInstance3D
+var disc_mat := ShaderMaterial.new()
+var time := -1.0
+var _sky_time := -1.0
+var _since_sky := INF
 
 
 static func detail_noise() -> NoiseTexture2D:
@@ -65,7 +85,9 @@ static func cloud_noise() -> NoiseTexture2D:
 	return t
 
 
-static func build(parent: Node) -> DirectionalLight3D:
+static func build(parent: Node) -> Look:
+	var look := Look.new()
+	parent.add_child(look)
 	var sky_mat := ShaderMaterial.new()
 	sky_mat.shader = load("res://src/sky.gdshader")
 	sky_mat.set_shader_parameter("clouds", cloud_noise())
@@ -78,13 +100,11 @@ static func build(parent: Node) -> DirectionalLight3D:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_sky_contribution = 1.0
-	env.ambient_light_energy = 0.75
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
 	env.tonemap_exposure = 1.05
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
-	env.fog_light_color = Color(0.80, 0.85, 0.90)
 	env.fog_light_energy = 1.0
 	env.fog_sun_scatter = 0.35
 	env.fog_depth_begin = 18.0
@@ -101,14 +121,67 @@ static func build(parent: Node) -> DirectionalLight3D:
 	parent.add_child(we)
 
 	var sun := DirectionalLight3D.new()
-	sun.light_color = Color(1.0, 0.93, 0.80)
-	sun.light_energy = 1.7
-	sun.rotation = Vector3(deg_to_rad(-34.0), deg_to_rad(-150.0), 0.0)
 	sun.shadow_enabled = true
+	sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	sun.directional_shadow_max_distance = 45.0
 	sun.shadow_blur = 1.5
 	sun.shadow_bias = 0.04
 	sun.shadow_normal_bias = 1.2
 	parent.add_child(sun)
-	return sun
+	look.sun = sun
+	look.env = env
+	look.sky_mat = sky_mat
+	var quad := QuadMesh.new()
+	var half := DISC_DISTANCE * tan(deg_to_rad(DISC_SPAN_DEG))
+	quad.size = Vector2.ONE * 2.0 * half
+	look.disc = MeshInstance3D.new()
+	look.disc.mesh = quad
+	look.disc_mat.shader = load("res://src/sun_disc.gdshader")
+	look.disc.material_override = look.disc_mat
+	look.disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The quad turns to the eye in its shader, so its bounds must hold it facing any way.
+	look.disc.custom_aabb = AABB(-Vector3.ONE * half * sqrt(2.0), Vector3.ONE * half * 2.0 * sqrt(2.0))
+	look.add_child(look.disc)
+	look.swell(false)
+	look.set_time(Daylight.DEFAULT)
+	look._paint_sky()
+	return look
+
+
+func set_time(t: float) -> void:
+	t = clampf(t, 0.0, 1.0)
+	if t == time:
+		return
+	time = t
+	var l := Daylight.light(t)
+	sun.basis = Basis.looking_at(-Daylight.toward_sun(t))
+	sun.light_color = l.sun
+	sun.light_energy = l.energy
+	disc_mat.set_shader_parameter("tint", l.sun)
+	env.ambient_light_energy = l.ambient
+	env.fog_light_color = l.fog
+
+
+func swell(on: bool) -> void:
+	disc_mat.set_shader_parameter("radius", (DISC_SWELL_DEG if on else DISC_RADIUS_DEG) / DISC_SPAN_DEG)
+
+
+func _process(delta: float) -> void:
+	var eye := get_viewport().get_camera_3d()
+	if eye != null:
+		disc.global_position = eye.global_position + Daylight.toward_sun(time) * DISC_DISTANCE
+	_since_sky += delta
+	if _sky_time != time and _since_sky >= SKY_EVERY:
+		_paint_sky()
+
+
+func _paint_sky() -> void:
+	_sky_time = time
+	_since_sky = 0.0
+	var l := Daylight.light(time)
+	sky_mat.set_shader_parameter("sun_dir", Daylight.toward_sun(time))
+	sky_mat.set_shader_parameter("zenith", l.zenith)
+	sky_mat.set_shader_parameter("horizon", l.horizon)
+	sky_mat.set_shader_parameter("sun_glow", l.glow)
+	sky_mat.set_shader_parameter("cloud_light", l.clouds)

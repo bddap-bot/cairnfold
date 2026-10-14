@@ -277,11 +277,11 @@ Stage numbers refer to the build order at the end.
 | Water | Dug holes with a flat surface and normal-map waves | The pond tool scoops a hollow where it points; it fills to just below its rim with depth-tinted water, shore foam and ripples where a hand breaks it (see "Water") | 7 (water done) |
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, a low-res light-probe volume rebuilt when building changes | 2 |
 | Shadows | Soft sun shadows with temporal filtering, contact shadows | Two-split soft shadows; tuned splits for a floating viewpoint | 1 (done), 2 |
-| Sky and clouds | Hand-tuned colour timelines per glade; clouds as pre-lit sprites on a cylinder | Sky shader gradient and painted noise clouds (done); timelines per time of day in stage 8 | 1 (done), 8 |
+| Sky and clouds | Hand-tuned colour timelines per glade; clouds as pre-lit sprites on a cylinder | Sky shader gradient and painted noise clouds; zenith, horizon, sun glow, cloud light and fog colour follow the sun's elevation through one timeline of keys (`Daylight`) | 1 (done), 8 (done) |
 | Fog | Froxel fog with density and height controls | Depth and height fog with sun scatter | 1 (done), 2 |
 | Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap and grading (done); glow cut for the Quest 2. No depth of field: in a headset your eyes focus for themselves | 1 (done) |
-| Time of day | Continuous, lockable, sun-angle slider | Reach up and drag the sun across the sky | 8 |
-| Seasons and palettes | Five glade palettes, colour wheel per element | Palette presets; a colour picker held in the left hand | 8 |
+| Time of day | Continuous, lockable, sun-angle slider | Point any hand at the sun (it swells), grip it and drag it along its arc, from under the horizon at dawn, high in front at noon, to under it at dusk; a soft click in the hand each hour. The sun's colour and strength, sky, fog and ambient follow. Not an edit: undo leaves it be | 8 (done) |
+| Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette on the controller): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. Stone, roof tiles, woodwork (fences, window frames, doors) and plaster (gable ends) each take one of 6–8 curated swatches for the whole glade; on the meadow the wheel holds the five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch through one shader global per material (`Palette`), so recolouring relays nothing | 8 (done) |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of the left D-pad down undoes a step, up redoes one; with others, each player's own steps (done); a delete tool takes away one wall, tree or painted patch (done); an eraser beam that cuts walls into ruins | 1 (done), 10 |
 | Save and load | Autosave after every action, backups, cloud | Autosave the build list (strokes, heights, arches) as JSON after every edit | 10 |
@@ -349,12 +349,12 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, decorations, paths, stone, flowers, grass, trees, terrain, ponds, teleport, delete and visit. The tool a hand
+windows, decorations, paths, stone, flowers, grass, trees, terrain, ponds, colour, teleport, delete and visit. The tool a hand
 holds stands on top of its controller as a small object, built from the same generators as the full-size
 thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
 flag with lanterns on it, a bend of paving, a disc of turf half
 paved with slabs, three flowers, a grass tuft, a tree, a mound, a pond in a
-sandy dish, the air-teleport marker (a ring on a pole over a ring), a spade for delete, and a little avatar
+sandy dish, a painter's palette with dabs of colour, the air-teleport marker (a ring on a pole over a ring), a spade for delete, and a little avatar
 figure for visit. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
 rounded body is unchanged, and there is no text anywhere.
@@ -403,7 +403,8 @@ aiming at the ground is how you come back down.
 | Draw a fence | Trigger held on a hand holding fences, swept like a wall |
 | Open a window or door | Trigger of a hand holding windows, pointing at a wall: a window where it points, a door if that is low on the wall; beside another window it fuses with it; on a window it closes that light |
 | Decorate | Trigger of a hand holding decorations: a chimney on a house's roof, a flag on a tower's roof or a wall's top, a lantern on a wall's face (on the side the hand is) or a fence; on one already there it takes it away |
-| Later: move the sun | Grip the sun in the sky and drag it |
+| Move the sun | Point either hand at the sun, whatever it holds, grip and drag it across the sky |
+| Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window or door, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top |
 
 Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
 a D-pad on the left. Godot 4.5 has no Frame interaction profile, so the game binds
@@ -433,7 +434,7 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 5. Paths and wall chemistry: path brush; a path through a wall cuts an arch, wide crossings become arcades. (Done.)
 6. Windows, doors, fences, chimneys, lanterns and flags. (Done.)
 7. Terrain shaping, stone ground and water.
-8. Time of day, seasons and palettes, a colour picker.
+8. Time of day, seasons and palettes, a colour picker. (Done.)
 9. Sound and music. (Done.)
 10. Save and load, undo history and the eraser.
 11. Wildlife and photo mode.
@@ -590,7 +591,9 @@ walls in each top style, and shapes the roofs; `demo/paths.json` lays paths thro
 arcade), draws a wall across a wide path and raises the ground under a path; `demo/fittings.json` opens windows
 and doors in a wall, a house and a tower, hangs lanterns, flies flags, builds a chimney and draws a fence a
 path crosses; `demo/stone.json` paints stone ground into the meadow, paints part of it back and
-walks the history; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive).
+walks the history; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
+`demo/daylight.json` drags the sun from dawn to dusk, opens the colour wheel, recolours roofs, stone, wood
+and plaster, and walks the meadow through the seasons.
 
 ## Sources
 

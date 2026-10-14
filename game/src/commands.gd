@@ -5,7 +5,7 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "heights"]
+const OPS := ["wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "heights", "palette"]
 ## A stroke builds at most this many walls; their ids follow from the command's sequence number.
 const MAX_PIECES := 8
 const MAX_POINTS := 256
@@ -110,6 +110,12 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			out.on = cmd.get("on")
 		"heights":
 			ok = _heights(cmd, state, from_host, out)
+		"palette":
+			var e: Variant = cmd.get("element")
+			var i: Variant = cmd.get("index")
+			ok = typeof(e) == TYPE_INT and e >= 0 and e < Palette.Element.size() and typeof(i) == TYPE_INT and i >= 0 and i < Palette.count(e)
+			out.element = e
+			out.index = i
 	return out if ok else {}
 
 
