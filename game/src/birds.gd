@@ -430,7 +430,7 @@ func _move(b: Bird, delta: float) -> void:
 	var at := b.from.lerp(b.to, s) + Vector3.UP * b.lift * sin(PI * s)
 	if leaving and b.flight >= 1.0:
 		at = n.position + (b.to - b.from).normalized() * SPEED * delta
-	_face(n, at - n.position, delta * (14.0 if b.state == State.HOP else 6.0))
+	Wildlife._face(n, at - n.position, delta * (14.0 if b.state == State.HOP else 6.0))
 	n.position = at
 	if b.state == State.HOP:
 		n.blend(Conure.FLY * 0.35, delta * 3.0)
@@ -452,9 +452,3 @@ func _land(b: Bird) -> void:
 		b.timer = rng.randf_range(PAUSE.x, PAUSE.y)
 		if flew:
 			b.node.rotation.y += rng.randf_range(-1.2, 1.2)
-
-
-func _face(n: Node3D, dir: Vector3, weight: float) -> void:
-	if Vector2(dir.x, dir.z).length() < 1e-4:
-		return
-	n.rotation.y = lerp_angle(n.rotation.y, atan2(-dir.x, -dir.z), clampf(weight, 0.0, 1.0))
