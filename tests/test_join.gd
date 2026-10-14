@@ -63,6 +63,8 @@ func _the_preview_over_a_bush_is_the_wall_left_on_release() -> void:
 		await process_frame
 		tool.extend_stroke(m, Driver._along(path, (f + 1) / 40.0))
 	tool._flush()
+	while m.stroke.walls.any(func(w: Wall) -> bool: return w.laying()):
+		await process_frame
 	_check(m.stroke.walls.size() == 1 and m.stroke.walls[0].layout.live_arches.size() == 1, "the preview arches over the bush while drawing")
 	var shown := _stones(m.stroke.walls)
 	var preview := m.stroke.walls.duplicate()

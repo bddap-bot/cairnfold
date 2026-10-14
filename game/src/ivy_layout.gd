@@ -1,7 +1,8 @@
 class_name IvyLayout
 extends RefCounted
 
-## Ivy climbing both faces of a wall, steering around arch openings, windows and doors.
+## Ivy climbing both faces of a wall, steering around arch openings, windows and doors. Each leaf here is
+## drawn as a sprig of three (Meshes.sprig).
 
 const STEP := 0.1
 const RATE := 0.15
@@ -91,10 +92,7 @@ static func _vine(wall: WallLayout, at: Vector2, dir: Vector2, side: float, t: f
 		walked += STEP
 		t += STEP / RATE
 		var young := 1.0 - clampf((reach - walked) / 0.4, 0.0, 1.0)
-		for j in 3:
-			var q := at + Vector2(rng.randf_range(-0.08, 0.08), rng.randf_range(-0.06, 0.06))
-			q = q.clamp(Vector2(END, 0.0), Vector2(wall.length() - END, top))
-			leaves.append(_leaf(wall, at if blocked(wall, q.x, q.y) else q, side, t + j * 0.3, young, rng))
+		leaves.append(_leaf(wall, at, side, t, young, rng))
 		if main and branches < MAX_BRANCHES and rng.randf() < 0.3:
 			branches += 1
 			_vine(wall, at, Vector2(1.0 if rng.randf() < 0.5 else -1.0, 0.7).normalized(), side, t, rng.randf_range(0.6, 1.5), false, rng, leaves)

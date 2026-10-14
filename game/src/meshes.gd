@@ -39,6 +39,14 @@ static func rounded_box(radius: float, segments: int, seed: int) -> ArrayMesh:
 	return st.commit()
 
 
+## `mesh` with simplified levels of detail, which the renderer swaps in as it shrinks on screen.
+static func with_lods(mesh: ArrayMesh) -> ArrayMesh:
+	var im := ImporterMesh.new()
+	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, mesh.surface_get_arrays(0))
+	im.generate_lods(25.0, 60.0, [])
+	return im.get_mesh()
+
+
 ## A clump of crossed blades; UV.y runs 0 at the root to 1 at the tip.
 static func grass_clump(blades: int, seed: int) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
@@ -132,21 +140,30 @@ static func blob(seed: int, subdiv: int = 2) -> ArrayMesh:
 	return st.commit()
 
 
-## An ivy leaf card in the XY plane facing +Z, its stem at the origin and its tip at Y = 1, folded along the vein.
-static func leaf() -> ArrayMesh:
+## Three ivy leaf cards around the origin in the XY plane, facing +Z, each folded along its vein with its stem
+## below its tip; a leaf is one unit long. A vine lays one sprig a step rather than three leaves, since the
+## renderer pays most per instance.
+static func sprig() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var stem := Vector3(0, 0, 0)
 	var tip := Vector3(0, 1, 0)
 	var vein := Vector3(0, 0.45, 0.04)
-	for lobe in [Vector3(-0.5, 0.5, -0.06), Vector3(0.5, 0.5, -0.06)]:
-		for tri in [[stem, lobe, vein], [vein, lobe, tip]]:
-			var n: Vector3 = (tri[1] - tri[0]).cross(tri[2] - tri[0]).normalized()
-			if n.z < 0.0:
-				n = -n
-			for p in tri:
-				st.set_normal(n)
-				st.set_color(Color(1, 1, 1))
-				st.add_vertex(p)
+	var placed := [
+		[Transform3D(Basis(Vector3.BACK, 0.55), Vector3(-0.45, -0.3, 0.0)), 0.85],
+		[Transform3D(Basis(Vector3.BACK, -0.6), Vector3(0.4, -0.2, 0.02)), 0.95],
+		[Transform3D(Basis(Vector3.BACK, 0.1), Vector3(0.05, 0.15, 0.04)), 1.05],
+	]
+	for leaf in placed:
+		var x: Transform3D = leaf[0]
+		for lobe in [Vector3(-0.5, 0.5, -0.06), Vector3(0.5, 0.5, -0.06)]:
+			for tri in [[stem, lobe, vein], [vein, lobe, tip]]:
+				var n: Vector3 = (tri[1] - tri[0]).cross(tri[2] - tri[0]).normalized()
+				if n.z < 0.0:
+					n = -n
+				for p in tri:
+					st.set_normal(x.basis * n)
+					st.set_color(Color(leaf[1], leaf[1], leaf[1]))
+					st.add_vertex(x * p)
 	st.index()
 	return st.commit()

@@ -58,6 +58,7 @@ var flora: Flora
 var paths: Paths
 ## The arches each laid path opened, as [wall, arc length] pairs, so lifting the path closes them.
 var _opened := {}
+var masonry := Masonry.new(Wall.kinds())
 var walls: Array[Wall] = []
 var masons: Array[Mason] = []
 var house: Wall
@@ -72,6 +73,7 @@ func _init(player: Rig, steps: History, plants: Flora, ways: Paths) -> void:
 	history = steps
 	flora = plants
 	paths = ways
+	add_child(masonry)
 	paths.laid.connect(open_crossings)
 	paths.taken.connect(close_crossings)
 	for h in [rig.right, rig.left]:
@@ -206,7 +208,7 @@ func _flush() -> void:
 		if m.lifting != null:
 			m.lifting.rebuild(false)
 		if m.roofing != null:
-			m.roofing.rebuild_roof()
+			m.roofing.rebuild_roof(true)
 	if house != null:
 		house.rebuild(false)
 	_dirty = false
@@ -215,7 +217,7 @@ func _flush() -> void:
 
 func _new_wall() -> Wall:
 	_seed += 1
-	return _add_wall(Wall.new(_seed - 1))
+	return _add_wall(Wall.new(_seed - 1, masonry))
 
 
 func _add_wall(w: Wall) -> Wall:
@@ -262,7 +264,7 @@ func _plan(st: Stroke) -> void:
 		st.walls.pop_back().queue_free()
 	for i in layouts.size():
 		if i == st.walls.size():
-			st.walls.append(_add_wall(Wall.new(layouts[i].seed)))
+			st.walls.append(_add_wall(Wall.new(layouts[i].seed, masonry)))
 		st.walls[i].layout = layouts[i]
 
 
@@ -582,6 +584,8 @@ func pick_wall(origin: Vector3, dir: Vector3) -> Dictionary:
 	var best_key := Vector2(1.0, WALL_PICK)
 	for w in walls:
 		if _held(w):
+			continue
+		if w.pick_bounds.grow(WALL_PICK).intersects_ray(origin, dir) == null:
 			continue
 		var hit := w.ray_distance(origin, dir)
 		var through: bool = hit.distance < (0.1 if w.layout.fence else WallLayout.THICKNESS * 0.5)

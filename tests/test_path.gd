@@ -290,9 +290,9 @@ func _a_tower_opens_a_doorway_across_its_seam() -> void:
 		t.height = 4.5
 		t.arches.assign([w.wrap(a - 1.0)])
 		t.build(_flat)
-		var tower := Wall.new(1)
-		tower.layout = t
 		var nodes := _setup()
+		var tower := Wall.new(1, nodes[0].masonry)
+		tower.layout = t
 		nodes[0].walls.append(tower)
 		var opened: Array[float] = nodes[0]._cut_crossings(tower, _path([[-1, 0.15], [4, 0.15]], 0.5))
 		_check(opened.size() == 1 and absf(t.offset(opened[0], w.wrap(a - 1.0))) > WallLayout.ARCH_SPACING - 0.01, "a crossing beside an arch across the seam stands a pitch from it: %s beside %.2f" % [opened, w.wrap(a - 1.0)])

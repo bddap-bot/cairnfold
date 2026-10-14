@@ -11,6 +11,7 @@ func _init() -> void:
 	_arch_ring_closes_over_the_opening()
 	_short_or_low_walls_take_no_arch()
 	_layout_is_deterministic()
+	_a_copy_built_elsewhere_lays_the_same_stones()
 	_raising_the_wall_adds_courses()
 	_point_at_follows_the_curve()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -90,6 +91,38 @@ func _layout_is_deterministic() -> void:
 		if not a.stones[i].xform.is_equal_approx(b.stones[i].xform):
 			_check(false, "stone %d differs between identical builds" % i)
 			break
+
+
+func _a_copy_built_elsewhere_lays_the_same_stones() -> void:
+	var loop := WallLayout.new()
+	loop.points = [Vector3(0, 0, 0), Vector3(4, 0, 2), Vector3(8, 0, 0), Vector3(5, 0, -3)]
+	loop.closed = true
+	loop.height = 3.3
+	loop.top = WallLayout.Top.CAP
+	loop.roofed = true
+	loop.seed = 9
+	loop.arches.assign([16.1])
+	loop.windows.assign([Vector2(2.2, 1.4)])
+	loop.lanterns.assign([Vector3(7.0, 1.8, 1.0)])
+	var flagged := WallLayout.new()
+	flagged.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
+	flagged.flags.assign([6.0])
+	var fence := WallLayout.new()
+	fence.points = [Vector3(0, 0, 0), Vector3(6, 0, 1)]
+	fence.fence = true
+	for a: WallLayout in [loop, flagged, fence]:
+		a.build(_flat)
+		var copy := a.inputs()
+		copy.build(_flat)
+		var b := WallLayout.new()
+		b.adopt(copy)
+		_check(b.stones.size() == a.stones.size() and b.live_arches == a.live_arches and b.samples == a.samples and b.openings.size() == a.openings.size() and b.flames == a.flames and b.cloths.size() == a.cloths.size(), "a copy's build matches: %d vs %d stones" % [b.stones.size(), a.stones.size()])
+		for i in mini(a.stones.size(), b.stones.size()):
+			if not a.stones[i].xform.is_equal_approx(b.stones[i].xform) or a.stones[i].kind != b.stones[i].kind:
+				_check(false, "stone %d differs in the copy's build" % i)
+				break
+	_check(loop.live_arches.size() == 1 and not loop.openings.is_empty() and not loop.flames.is_empty(), "the loop opens its arch and window and hangs its lantern")
+	_check(not flagged.cloths.is_empty(), "the flag flies")
 
 
 func _raising_the_wall_adds_courses() -> void:

@@ -16,6 +16,8 @@ static var _heights := _base_heights()
 ## The hump a stroke is pulling, not yet baked into the heights: centre x, z, radius and lift. Shaders add
 ## it through ground_hump, so a stroke moves the ground without rewriting the grid every frame.
 static var _hump := NO_HUMP
+## Counts changes to the ground, so work laid on it can tell whether it still stands where it was laid.
+static var revision := 0
 static var _image: Image
 static var _texture: ImageTexture
 
@@ -122,6 +124,7 @@ static func _hump_at(i: int, j: int) -> float:
 
 static func set_hump(x: float, z: float, radius: float, lift: float) -> void:
 	_hump = Vector4(x, z, maxf(radius, STEP), lift)
+	revision += 1
 	RenderingServer.global_shader_parameter_set(&"ground_hump", _hump)
 
 
@@ -132,6 +135,7 @@ static func bake() -> void:
 		for i in range(cells.position.x, cells.end.x):
 			_heights[j * VERTS + i] += _hump_at(i, j)
 	_hump = NO_HUMP
+	revision += 1
 	RenderingServer.global_shader_parameter_set(&"ground_hump", _hump)
 	_sync(cells)
 
@@ -153,6 +157,7 @@ static func write(cells: Rect2i, values: PackedFloat32Array) -> void:
 		for i in range(cells.position.x, cells.end.x):
 			_heights[j * VERTS + i] = values[n]
 			n += 1
+	revision += 1
 	_sync(cells)
 
 

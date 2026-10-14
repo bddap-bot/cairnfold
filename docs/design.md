@@ -19,8 +19,9 @@ aiming at; our implementation is our own.
   (`scripts/release.sh`) carries both builds.
 - One graphics configuration for every headset, tuned to the weakest GPU: the
   Quest 2's XR2 Gen 1 at 72 Hz. No per-device quality tiers.
-- Hold the headset's refresh rate at all times. A frame that misses vsync in VR is
-  felt, not seen; every stage is measured on the device before it lands.
+- Hold the headset's refresh rate at all times, whatever is built. A frame that
+  misses vsync in VR is felt, not seen; every feature is measured at worst-case
+  density before it lands (see "Frame budget").
 - Original assets only, generated procedurally wherever possible.
 - One input mapping that works on any OpenXR controller with a stick, trigger,
   grip and two face buttons.
@@ -121,6 +122,64 @@ The configuration as it stands:
 Floating misses. What it costs there: the grass 3.2 ms, trees and bushes 2.1 ms,
 shadows 2.0 ms, flowers 1.0 ms; one shadow split instead of two, or 30 m of shadow
 instead of 45 m, saved nothing.
+
+## Frame budget
+
+Directive (verbatim): "The-the only reason I could see for adding a resource to this
+game... is to represent... frame budget. Cause I don't want the game getting bogged
+down when someone makes some big build. I don't want it to be possible to make a
+build that... bogs down the frame rate"
+
+Directive (verbatim): "...through the whole course of this game, we'll need a heavy
+focus on... making it run fast, because it's in VR. That's important"
+
+So speed is a standing focus: every feature holds the refresh rate at worst-case
+density, and no build the player can make may bring the frame rate down.
+
+- `game/src/budget.gd` holds the budget: the refresh rate of the weakest headset
+  and the share of each frame the game's GPU work may take. Nothing else states it.
+- `demo/stress.json` is the worst case: the bare meadow, then every flora pool full,
+  a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
+  over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, and a village of houses
+  and towers, each seen from the air and standing among them.
+- `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
+  calls, primitives and GPU time; on a Quest it holds each phase to the budget and
+  fails when one goes over. A new feature adds itself to the stress scene.
+
+What makes building cheap:
+
+- Settled walls are drawn by `Masonry` per 16 m ground chunk: one MultiMesh per
+  kind of piece per chunk, culled as a whole, instead of a handful of draws per
+  wall. A wall being drawn or pulled draws itself until it settles.
+- Stones and roof tiles cast no shadow themselves; a plain box per stone does.
+  Mortar, seen only in the gaps, is a plain box.
+- A wall's live preview is laid on a worker thread from a copy of its inputs, so a
+  long stroke costs the main thread nothing while it grows.
+- Cost follows instance count more than triangles. A vine lays one three-leaf
+  sprig a step rather than three leaves; sprigs shrink away between 20 and 35 m.
+- A path's stone chunks are bounded by their own stones, so they cull.
+
+Measured on the Steam Frame (`bench.sh OUT steam-frame BUNDLE`: both eyes' pixels,
+3456×1728, in one window with the headset off the head, so the numbers compare
+builds rather than give the headset's frame time). GPU milliseconds per frame:
+
+| Phase | Before | Masonry | + one stone mesh, LOD | + ivy sprigs |
+| --- | --- | --- | --- | --- |
+| Meadow, from the air | 6.70 | 6.73 | 6.72 | 6.71 |
+| Every flora pool full | 8.14 | 8.17 | 8.17 | 8.16 |
+| 159 m of walls | 9.97 | 9.21 | 9.25 | 9.06 |
+| 347 m of walls | 11.93 | 10.40 | 10.48 | 10.03 |
+| 630 m of walls | 15.27 | 12.36 | 12.53 | 11.68 |
+| 973 m of walls | 20.13 | 15.26 | 15.68 | 14.43 |
+| 347 m of 9 m walls | 15.03 | 11.81 | 12.17 | 11.70 |
+| Village of houses and towers | 12.51 | 11.11 | 11.25 | 10.84 |
+
+At 973 m, walls cost 12.0 ms over full flora before and 6.3 ms after. Draw calls
+there fell from 184 to 46 and primitives from 12.6 M to 4.5 M. The levels of
+detail took 38% of the primitives and no GPU time, so they stay only for the
+weaker Quest GPU if it shows a gain. With 630 m of walls, ivy cost 1.9 ms, stones
+2.1 ms, the shadow boxes 0.3 ms from the air and 1.0 ms standing among them, and
+mortar 0.2 to 0.4 ms. The stone shader's cost did not register.
 
 ## Look on a mobile budget
 

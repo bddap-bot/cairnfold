@@ -66,6 +66,7 @@ var windows: Array[Vector2] = []
 var lanterns: Array[Vector3] = []
 ## Flags on the wall's top, by arc length.
 var flags: Array[float] = []
+# The fields above are what `build` reads (see `inputs`); those below are what it lays (see `adopt`).
 
 var samples: Array[Vector3] = []
 var lengths: Array[float] = []
@@ -641,6 +642,46 @@ func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind:
 	origin += basis.z * rng.randf_range(-0.015, 0.015)
 	var color := stone_color(rng) * shade
 	return {"xform": Transform3D(basis.scaled_local(size), origin), "color": color, "kind": kind, "s": s, "y": y, "size": size, "ao": clampf(0.6 + y * 0.25, 0.6, 1.0), "variant": rng.randi() % 3}
+
+
+## A copy of what `build` reads, to build on another thread while this one is edited.
+func inputs() -> WallLayout:
+	var w := WallLayout.new()
+	w.points = points.duplicate()
+	w.height = height
+	w.arches = arches.duplicate()
+	w.seed = seed
+	w.closed = closed
+	w.top = top
+	w.roofed = roofed
+	w.fence = fence
+	w.windows = windows.duplicate()
+	w.lanterns = lanterns.duplicate()
+	w.flags = flags.duplicate()
+	return w
+
+
+## Whether `other` would lay the same stones on the same ground.
+func same_inputs(other: WallLayout) -> bool:
+	var a := inputs()
+	var b := other.inputs()
+	for p in a.get_property_list():
+		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and a.get(p.name) != b.get(p.name):
+			return false
+	return true
+
+
+## Takes what `built` laid, as if `build` had run here.
+func adopt(built: WallLayout) -> void:
+	samples = built.samples
+	lengths = built.lengths
+	bounds = built.bounds
+	stones = built.stones
+	_stone_scale = built._stone_scale
+	live_arches = built.live_arches
+	openings = built.openings
+	flames = built.flames
+	cloths = built.cloths
 
 
 ## The built shape without its stones, safe to read on another thread while this one is edited.
