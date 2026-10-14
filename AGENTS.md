@@ -21,7 +21,8 @@ controls and the build order.
   scripts, `game/project.godot` or `game/export_presets.cfg` also owes a green
   `nix-shell android.nix --run 'scripts/android.sh out/cairnfold.apk'`.
 - Deploying main is `scripts/release.sh`, which publishes the Frame bundle and the
-  Quest APK together, then `scripts/deploy.sh` with that bundle for the Frame.
+  Quest APK together; the Frame's install and library shortcut are kept outside
+  this repo (README, "Running").
 - Every edit to the garden is a build command applied by `World` (docs/multiplayer.md): a tool never
   changes the garden itself, only shows its ghost until the command comes back. After touching
   `World`, `Commands` or a tool, `nix-shell --run 'scripts/coop.sh out'` must pass too.

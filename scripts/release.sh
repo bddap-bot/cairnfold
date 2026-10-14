@@ -16,5 +16,5 @@ trap 'rm -rf "$out"' EXIT
 scripts/package.sh "$out/cairnfold-frame.tar.gz"
 nix-shell android.nix --run "scripts/android.sh '$out/cairnfold-quest.apk'"
 gh release create "$tag" --target "$rev" --title "Cairnfold $tag" \
-  --notes "Built from $rev. Quest: install cairnfold-quest.apk (README, \"Quest\"). Steam Frame: cairnfold-frame.tar.gz through scripts/deploy.sh." \
+  --notes "Built from $rev. Quest: install cairnfold-quest.apk (README, \"Quest\"). Steam Frame: cairnfold-frame.tar.gz (README, \"Running\")." \
   "$out/cairnfold-quest.apk" "$out/cairnfold-frame.tar.gz"
