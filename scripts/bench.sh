@@ -72,23 +72,94 @@ if [ "${2:-}" = --android ]; then
   device=quest
   pkg=io.github.bddapbot.cairnfold
   dir=/sdcard/Android/data/$pkg/files/bench
-  adb install -r "$3" > /dev/null
+  serial=${ANDROID_SERIAL:-}
+  case $serial in *:*) adb connect "$serial" > /dev/null ;; esac
+  # shows SERVICE PATTERN [TEXT]: whether the first line of `dumpsys SERVICE` matching PATTERN holds TEXT. The
+  # dump is read whole, since a grep stopping early would fail the pipe under pipefail.
+  shows() {
+    local dump
+    dump=$(adb shell dumpsys "$1")
+    grep -m1 "$2" <<< "$dump" | grep -q "${3:-}"
+  }
+  if ! failed=$(adb install -r -g "$3" 2>&1); then
+    case $failed in
+      *INSTALL_FAILED_UPDATE_INCOMPATIBLE* | *INSTALL_FAILED_VERSION_DOWNGRADE*)
+        adb uninstall "$pkg" > /dev/null
+        adb install -g "$3" > /dev/null ;;
+      *) echo "$failed" >&2; exit 1 ;;
+    esac
+  fi
   same "$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')" --short HEAD
   adb shell "rm -rf $dir; mkdir -p $dir"
   adb push "$out/stress.json" "$dir/stress.json" > /dev/null
+  # Off the head the headset loses tracking, and its Guardian pause would stop the game. The clocks are held at
+  # level 4, the highest the headset sustains warm, so runs compare: left free it moves the GPU between 525 and
+  # 587 MHz as it warms.
+  saved_props=$(for k in guardian_pause cpuLevel gpuLevel; do printf '%s=%s ' "$k" "$(adb shell getprop "debug.oculus.$k" | tr -d '\r')"; done)
+  logcat_pid=
+  restore_headset() {
+    local kv
+    set +e
+    [ -z "$logcat_pid" ] || kill "$logcat_pid" 2> /dev/null
+    adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable > /dev/null
+    for kv in $saved_props; do adb shell "setprop debug.oculus.${kv%%=*} '${kv#*=}'"; done
+    adb shell am force-stop "$pkg"
+    stop
+  }
+  trap restore_headset EXIT
+  adb shell setprop debug.oculus.guardian_pause 0
+  adb shell setprop debug.oculus.cpuLevel 4
+  adb shell setprop debug.oculus.gpuLevel 4
   adb shell am broadcast -a com.oculus.vrpowermanager.prox_close > /dev/null
-  trap 'adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable > /dev/null || true; adb shell am force-stop "$pkg" || true; stop' EXIT
-  adb shell am force-stop "$pkg"
-  adb logcat -c
-  adb shell am start -W -n "$pkg/com.godot.game.GodotApp" --esa command_line_params "--,--script,$dir/stress.json,--metrics,$dir/metrics.json,--capture-dir,$dir,--seed,$seed" > /dev/null
+  for _ in $(seq 30); do
+    shows vrpowermanager 'State: HEADSET_MOUNTED' && break
+    sleep 1
+  done
+  shows vrpowermanager 'State: HEADSET_MOUNTED' || { echo "bench: the headset did not wake" >&2; exit 1; }
+  # Streams logcat to the file, from where it left off after a drop: the headset's ring holds a minute or two.
+  follow() {
+    [ -z "$logcat_pid" ] || kill "$logcat_pid" 2> /dev/null || true
+    local since
+    since=$(grep -aE '^[0-9]{2}-[0-9]{2} [0-9:.]{12} ' "$out/logcat.txt" | tail -1 | cut -c1-18 || true)
+    if [ -n "$since" ]; then
+      adb logcat -T "$since" >> "$out/logcat.txt" &
+    else
+      adb logcat > "$out/logcat.txt" &
+    fi
+    logcat_pid=$!
+  }
+  # A launch into a waking headset can meet the shell's controller check, with the controllers idle, or be
+  # paused as it starts, which crashes Godot; a fresh shell lets the next launch through.
+  for try in 1 2 3; do
+    adb shell am force-stop "$pkg"
+    [ -z "$logcat_pid" ] || kill "$logcat_pid" 2> /dev/null || true
+    logcat_pid=
+    adb logcat -c
+    : > "$out/logcat.txt"
+    follow
+    adb shell am start -n "$pkg/com.godot.game.GodotApp" --esa command_line_params "--,--script,$dir/stress.json,--metrics,$dir/metrics.json,--capture-dir,$dir,--seed,$seed" > /dev/null
+    sleep 15
+    shows "activity activities" topResumedActivity "$pkg" && break
+    [ "$try" -lt 3 ] || { echo "bench: the game would not start; see $out/logcat.txt" >&2; exit 1; }
+    echo "bench: launch $try did not hold, restarting the shell" >&2
+    adb shell am force-stop com.oculus.vrshell
+    sleep 10
+  done
   if [ "$players" -gt 1 ]; then
-    join adb logcat -d -- "$(adb shell ip -4 -o addr show wlan0 | awk '{print $4}' | cut -d/ -f1)"
+    join cat "$out/logcat.txt" -- "$(adb shell ip -4 -o addr show wlan0 | awk '{print $4}' | cut -d/ -f1)"
   fi
+  # The host's adb server can drop the headset mid-run: reconnect and follow the log again.
   for _ in $(seq 900); do
     sleep 1
-    adb shell pidof "$pkg" > /dev/null || break
+    if ! adb get-state > /dev/null 2>&1; then
+      case $serial in *:*) adb connect "$serial" > /dev/null 2>&1 || true ;; esac
+      continue
+    fi
+    kill -0 "$logcat_pid" 2> /dev/null || follow
+    adb shell pidof "$pkg" > /dev/null || ! adb get-state > /dev/null 2>&1 || break
   done
-  adb logcat -d > "$out/logcat.txt"
+  kill "$logcat_pid" 2> /dev/null || true
+  logcat_pid=
   adb pull "$dir/." "$out/" > /dev/null
 elif [ $# -ge 3 ]; then
   device=frame
@@ -128,22 +199,30 @@ phases = {}
 for s in d["seconds"]:
     if s["label"] != "-":
         phases.setdefault(s["label"], []).append(s)
+if not phases:
+    sys.exit("bench: the run measured no phase; see the game's log")
 # Per frame GPU milliseconds by phase: the Frame's driver time, or the Quest runtime's App= time per logcat second.
 gpu = {}
 if device == "frame":
     for name, secs in phases.items():
         gpu[name] = [s["gpu_ms"] / s["frames"] for s in secs[1:] if "gpu_ms" in s]
 elif device == "quest":
-    label = "-"
+    # The shell prints its own VrApi lines too: only the game's process counts, the one printing the labels.
+    label, game_pid = "-", None
     for line in open(os.path.join(out, "logcat.txt"), errors="replace"):
+        fields = line.split()
+        pid = fields[2] if len(fields) > 2 else None
         m = re.search(r'"op": "label", "name": "([^"]*)"', line)
         if m:
-            label = m.group(1)
+            label, game_pid = m.group(1), pid
         m = re.search(r"VrApi.*FPS=(\d+)/\d+.*App=([\d.]+)ms", line)
-        if m and label != "-":
+        if m and label != "-" and pid == game_pid:
             gpu.setdefault(label, []).append(float(m.group(2)))
     for v in gpu.values():
         v.pop(0)
+    unmeasured = [name for name in phases if not gpu.get(name) and not name.startswith("sweep/")]
+    if unmeasured:
+        sys.exit("bench: no runtime GPU time for " + ", ".join(unmeasured) + "; see logcat.txt")
 print(f"{device}: budget {budget['gpu_ms']:.2f} ms of GPU time a frame at {budget['refresh_hz']:.0f} Hz, held on a Quest")
 print(f"{'phase':18} {'frame p50':>9} {'p99':>7} {'draws':>6} {'prims':>9} {'gpu ms':>7}")
 over = []
