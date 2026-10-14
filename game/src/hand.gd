@@ -16,6 +16,8 @@ const POP := 0.18
 static var injected_sticks := {}
 
 var tool := Tool.WALLS
+## While its grip drags the sun (SunTool), the grip is the sun's alone.
+var holds_sun := false
 var picking := false
 ## After a pick the stick is still pushed toward the tool; locomotion ignores it until it recentres.
 var _stick_free := true

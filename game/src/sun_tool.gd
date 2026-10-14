@@ -37,7 +37,7 @@ func _process(_delta: float) -> void:
 	for b in _grips:
 		var hand: Hand = b.hand
 		if holder == hand and (b.released("grip_click") or not hand.get_has_tracking_data()):
-			holder = null
+			let_go()
 		if hand.get_has_tracking_data() and not hand.picking:
 			var dir := -hand.global_basis.z
 			if holder == hand:
@@ -64,8 +64,14 @@ func aims_at_sun(dir: Vector3) -> bool:
 
 func take(hand: Hand, dir: Vector3) -> void:
 	holder = hand
+	hand.holds_sun = true
 	_offset = look.time - Daylight.time_toward(dir)
 	_ticked = floori(look.time / TICK)
+
+
+func let_go() -> void:
+	holder.holds_sun = false
+	holder = null
 
 
 func drag(time: float) -> void:

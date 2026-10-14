@@ -133,7 +133,7 @@ func _handle(b: Brush, delta: float) -> void:
 			extend_path(hit, radius)
 	elif b.buttons.held("trigger_click"):
 		paint(b, hit, radius, delta)
-	elif held == Hand.Tool.STONE and b.buttons.held("grip_click"):
+	elif held == Hand.Tool.STONE and b.buttons.held("grip_click") and not b.hand.holds_sun:
 		paint(b, hit, radius, delta, true)
 
 

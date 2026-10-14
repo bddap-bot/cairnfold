@@ -255,7 +255,9 @@ func _in_the_glade() -> void:
 	sun.take(main.rig.right, beside)
 	sun.drag(Daylight.time_toward(beside) + sun._offset)
 	_check(absf(look.time - Daylight.DEFAULT) < 1e-4, "taking the sun beside its disc does not jump it")
-	sun.holder = null
+	_check(main.rig.right.holds_sun, "the hand holding the sun keeps its grip from other tools")
+	sun.let_go()
+	_check(not main.rig.right.holds_sun, "letting go of the sun frees the grip")
 	await _play([{"op": "sun", "time": 0.9, "seconds": 0.2}])
 	_check(absf(look.time - 0.9) < 1e-4, "the sun is dragged to late afternoon")
 	_check((-look.sun.global_basis.z).is_equal_approx(-Daylight.toward_sun(0.9)), "the sunlight shines from where the sun stands")
