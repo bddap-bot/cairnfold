@@ -1,7 +1,10 @@
 class_name WallLayout
 extends RefCounted
 
-## Lays out the stones of a dry-stone wall along a ground curve. Pure data: no nodes, so tests run headless.
+## Lays out the stones of a dry-stone wall along a ground curve, or around a closed loop (a tower or a
+## house) standing level on its lowest ground. Pure data: no nodes, so tests run headless.
+
+enum Top { CRENEL, CAP, COPE }
 
 const COURSE := 0.3
 const THICKNESS := 0.62
@@ -10,15 +13,28 @@ const SAMPLE := 0.2
 const ARCH_HALF := 0.75
 const RING := 0.32
 const MIN_ARCH_SPAN := 2.4
+const CORNER_TURN := deg_to_rad(35.0)
+const PIER := THICKNESS + 0.28
+## A stroke at least this long whose end comes back within LOOP_CLOSE of its start is a loop.
+const LOOP_MIN_RUN := 4.0
+const LOOP_CLOSE := 1.2
+const TOWER_RADIUS := Vector2(1.2, 4.0)
 
 var points: Array[Vector3] = []
 var height := 2.6
 var arches: Array[float] = []
 var seed := 1
+## A closed loop runs through its points and back to the first, straight between them.
+var closed := false
+var top := Top.CRENEL
+## A roof rests on the cap, so piers stop flush with it.
+var roofed := false
 
 var samples: Array[Vector3] = []
 var lengths: Array[float] = []
 var stones: Array[Dictionary] = []
+## Stones shorten on a round loop so their outer ends stay closed.
+var _stone_scale := 1.0
 ## The arches `build` could open, after dropping those too near an end or on a wall too low.
 var live_arches: Array[float] = []
 
@@ -61,9 +77,13 @@ func build(ground: Callable) -> void:
 	if total < 0.3:
 		return
 	if can_arch():
+		var piers: Array = corners() if closed else []
 		for a in arches:
-			if a > ARCH_HALF + RING + 0.3 and a < total - ARCH_HALF - RING - 0.3:
+			if a > ARCH_HALF + RING + 0.3 and a < total - ARCH_HALF - RING - 0.3 and piers.all(func(c): return absf(c - a) > ARCH_HALF + RING + PIER * 0.5):
 				live_arches.append(a)
+	_stone_scale = 1.0
+	if closed and corners().is_empty():
+		_stone_scale = clampf(total / TAU / 3.0, 0.45, 1.0)
 	var courses := maxi(1, int(round(height / COURSE)))
 	var course_h := height / courses
 	for k in courses:
@@ -80,8 +100,8 @@ func build(ground: Callable) -> void:
 			_lay_mortar(span[0], span[1], y0, course_h)
 	for a in live_arches:
 		_lay_ring(a, rng)
-	_lay_cap(rng)
-	for s in [0.0, total]:
+	_lay_top(rng)
+	for s in corners():
 		_lay_pier(s, rng)
 
 
@@ -102,7 +122,7 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 	var s := a
 	var first := true
 	while b - s > 0.08:
-		var want := rng.randf_range(0.42, 0.85)
+		var want := rng.randf_range(0.42, 0.85) * _stone_scale
 		if first:
 			want = maxf(0.2, want * (1.0 - offset))
 			first = false
@@ -118,7 +138,7 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 func _lay_mortar(a: float, b: float, y0: float, h: float) -> void:
 	var s := a
 	while b - s > 0.02:
-		var l := minf(1.0, b - s)
+		var l := minf(_stone_scale, b - s)
 		var frame := frame_at(s + l * 0.5)
 		var basis := Basis(frame.tangent, Vector3.UP, frame.tangent.cross(Vector3.UP))
 		var size := Vector3(l, h + 0.02, THICKNESS - 0.14)
@@ -139,8 +159,39 @@ func _lay_ring(a: float, rng: RandomNumberGenerator) -> void:
 	_add(a, top, Vector3(0.34, RING * 1.15, THICKNESS * 1.1), rng, "keystone", 1.05, 0.0)
 
 
-func _lay_cap(rng: RandomNumberGenerator) -> void:
+## Where piers stand: the two ends of an open wall, the sharp corners of a loop.
+func corners() -> Array[float]:
+	var out: Array[float] = []
+	if not closed:
+		if length() > 0.0:
+			out.assign([0.0, length()])
+		return out
+	var n := points.size()
+	var s := 0.0
+	for i in n:
+		var a := points[(i + n - 1) % n]
+		var b := points[i]
+		var c := points[(i + 1) % n]
+		var into := Vector2(b.x - a.x, b.z - a.z)
+		var out_of := Vector2(c.x - b.x, c.z - b.z)
+		if into.length() > 1e-4 and out_of.length() > 1e-4 and absf(into.angle_to(out_of)) > CORNER_TURN:
+			out.append(s)
+		s += out_of.length()
+	return out
+
+
+func _lay_top(rng: RandomNumberGenerator) -> void:
 	var total := length()
+	if top == Top.COPE:
+		var s := 0.0
+		var tall := true
+		while total - s > 0.08:
+			var l := minf(rng.randf_range(0.11, 0.17), total - s)
+			var h := rng.randf_range(0.34, 0.42) if tall else rng.randf_range(0.22, 0.28)
+			_add(s + l * 0.5, height + h * 0.5, Vector3(l, h, THICKNESS * 0.86), rng, "cope", 0.97, 0.06)
+			tall = not tall
+			s += l + 0.012
+		return
 	var s := 0.0
 	while total - s > 0.05:
 		var l := minf(rng.randf_range(0.5, 0.95), total - s)
@@ -148,6 +199,8 @@ func _lay_cap(rng: RandomNumberGenerator) -> void:
 			l = total - s
 		_add(s + l * 0.5, height + CAP * 0.5, Vector3(l, CAP, THICKNESS + 0.16), rng, "cap", 0.95, 0.02)
 		s += l
+	if top != Top.CRENEL:
+		return
 	var m := 0.55
 	while m < total - 0.4:
 		_add(m, height + CAP + 0.24, Vector3(0.5, 0.48, THICKNESS * 0.8), rng, "merlon", 1.0, 0.03)
@@ -155,14 +208,14 @@ func _lay_cap(rng: RandomNumberGenerator) -> void:
 
 
 func _lay_pier(s: float, rng: RandomNumberGenerator) -> void:
-	var w := THICKNESS + 0.28
 	var y := 0.0
-	var top := height + CAP + 0.35
-	while y < top - 0.05:
-		var h := minf(rng.randf_range(0.36, 0.5), top - y)
-		_add(s, y + h * 0.5, Vector3(w, h, w) * rng.randf_range(0.97, 1.03), rng, "pier", 0.97, 0.03)
+	var top_y := height + CAP + (0.0 if roofed else 0.35)
+	while y < top_y - 0.05:
+		var h := minf(rng.randf_range(0.36, 0.5), top_y - y)
+		_add(s, y + h * 0.5, Vector3(PIER, h, PIER) * rng.randf_range(0.97, 1.03), rng, "pier", 0.97, 0.03)
 		y += h
-	_add(s, top + 0.09, Vector3(w + 0.14, 0.18, w + 0.14), rng, "pier", 0.92, 0.0)
+	if not roofed:
+		_add(s, top_y + 0.09, Vector3(PIER + 0.14, 0.18, PIER + 0.14), rng, "pier", 0.92, 0.0)
 
 
 func _add(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: String, shade: float, wobble: float) -> void:
@@ -186,6 +239,7 @@ func snapshot() -> WallLayout:
 	var w := WallLayout.new()
 	w.seed = seed
 	w.height = height
+	w.closed = closed
 	w.samples = samples.duplicate()
 	w.lengths = lengths.duplicate()
 	w.live_arches = live_arches.duplicate()
@@ -222,6 +276,9 @@ func _resample(ground: Callable) -> void:
 	lengths.clear()
 	if points.size() == 0:
 		return
+	if closed:
+		_resample_loop(ground)
+		return
 	var dense: Array[Vector3] = []
 	if points.size() == 1:
 		dense.append(points[0])
@@ -244,6 +301,74 @@ func _resample(ground: Callable) -> void:
 			acc += Vector2(q.x - samples[-1].x, q.z - samples[-1].z).length()
 		samples.append(q)
 		lengths.append(acc)
+
+
+func _resample_loop(ground: Callable) -> void:
+	var dense: Array[Vector3] = []
+	var n := points.size()
+	for i in n:
+		var a := points[i]
+		var b := points[(i + 1) % n]
+		var seg := maxi(1, int(ceil(a.distance_to(b) / SAMPLE)))
+		for j in seg:
+			dense.append(a.lerp(b, float(j) / seg))
+	dense.append(points[0])
+	var foot := INF
+	for q in dense:
+		foot = minf(foot, ground.call(q.x, q.z))
+	var acc := 0.0
+	for i in dense.size():
+		var q := Vector3(dense[i].x, foot - 0.12, dense[i].z)
+		if i > 0:
+			acc += Vector2(q.x - samples[-1].x, q.z - samples[-1].z).length()
+		samples.append(q)
+		lengths.append(acc)
+
+
+## The centre and radius of the tower a held stroke snaps to, or empty while the stroke is not yet a loop.
+static func fit_loop(stroke: Array[Vector3]) -> Dictionary:
+	if stroke.size() < 6:
+		return {}
+	var run := 0.0
+	var center := Vector3.ZERO
+	for i in stroke.size():
+		center += stroke[i]
+		if i > 0:
+			run += _flat_distance(stroke[i - 1], stroke[i])
+	center /= stroke.size()
+	if run < LOOP_MIN_RUN or _flat_distance(stroke[0], stroke[-1]) > LOOP_CLOSE:
+		return {}
+	var radius := 0.0
+	for p in stroke:
+		radius += _flat_distance(p, center)
+	radius /= stroke.size()
+	var spread := 0.0
+	for p in stroke:
+		spread += absf(_flat_distance(p, center) - radius)
+	spread /= stroke.size()
+	if radius < LOOP_CLOSE * 0.5 or radius > TOWER_RADIUS.y * 1.25 or spread > radius * 0.25:
+		return {}
+	return {"center": center, "radius": clampf(radius, TOWER_RADIUS.x, TOWER_RADIUS.y)}
+
+
+static func circle(center: Vector3, radius: float) -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	var n := maxi(12, ceili(TAU * radius / 0.35))
+	for i in n:
+		var a := TAU * i / n
+		out.append(center + Vector3(cos(a), 0.0, sin(a)) * radius)
+	return out
+
+
+## Corners of a house footprint whose long axis runs from `a` to `b`, `depth` across.
+static func rectangle(a: Vector3, b: Vector3, depth: float) -> Array[Vector3]:
+	var along := Vector3(b.x - a.x, 0.0, b.z - a.z)
+	var across := along.cross(Vector3.UP).normalized() * depth * 0.5
+	return [a - across, b - across, b + across, a + across]
+
+
+static func _flat_distance(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
 static func _catmull(p0: Vector3, p1: Vector3, p2: Vector3, p3: Vector3, t: float) -> Vector3:

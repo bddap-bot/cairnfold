@@ -89,13 +89,13 @@ Stage numbers refer to the build order at the end.
 | --- | --- | --- | --- |
 | Freehand walls | Drag on the ground; gridless, follows terrain, stroke speed sets corner sharpness; bricks laid by GPU compute | Hold trigger and sweep the pointer over the ground (from the ground or from the air). The stroke is Catmull-Rom smoothed and courses of individual stones are laid live while you draw | 1 (done) |
 | Wall height | Height gizmo; walls from very low to very high | Grip a wall and raise or lower your hand; height snaps to whole stone courses, so it grows and shrinks a row at a time | 1 (done) |
-| Wall tops | Merlons on flat tops, can be turned off; wooden railings on half-timber | Capping slabs plus merlons; a per-wall style toggle comes with houses | 1 (done), 4 |
+| Wall tops | Merlons on flat tops, can be turned off; wooden railings on half-timber | Per wall: capping slabs with merlons, plain capping, or dry-stone coping (stones on edge, tall and short in turn); A on a wall's top cycles them | 1 (done), 4 (done) |
 | Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | Walls of 5 m or more open an arch at the middle; A on a wall cuts or fills an arch there. Stage 5 adds the chemistry: a path stroke through a wall cuts the arch, wide crossings become arcades | 1 (done), 5 |
-| Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends; loop-to-tower in stage 4 | 1 (done), 4 |
+| Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends and at the corners of a house | 1 (done), 4 (done) |
 | Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | Trigger-sweep with a path brush; stones laid along the stroke and pressed into the terrain shader's mask so grass parts around them | 5 |
-| Towers | A loop held down straightens into a circle | Draw a loop and keep holding: it snaps to a round tower | 4 |
-| Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Two-handed: pinch both grips and pull apart to size a footprint on the ground, twist to rotate | 4 |
-| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Grab a roof ridge and pull up for pitch, sideways for curvature; tiles laid individually as a MultiMesh | 4 |
+| Towers | A loop held down straightens into a circle | Draw a loop and keep holding with the end back near the start: after a moment it snaps to a round tower (radius 1.2–4 m) with a tiled cone roof, standing level on its lowest ground | 4 (done) |
+| Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Two-handed: both grips while pointing at the ground; the two spots are the ends of the ridge, so pulling apart lengthens the house (2.6–14 m, depth following) and twisting turns it. Stone walls with corner piers, a door arch in the front, level on its lowest ground | 4 (done) |
+| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, plaster gable ends. Right grip on a roof: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`) | 4 (done) |
 | Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | Point and click on a wall to place; neighbours fuse; doors at ground level | 6 |
 | Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | Point and click; lanterns as cheap emissive cards plus a few real lights | 6 |
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | Wall drawing with a fence profile | 6 |
@@ -126,13 +126,16 @@ Stage numbers refer to the build order at the end.
 | Come back down | Aim at the ground, or press the left D-pad up, left or right to glide down to the ground below |
 | Turn | Right stick left or right: 30° snap turn |
 | Draw a wall | Right trigger held, sweep the pointer across the ground; release to finish. Strokes under 1 m are discarded |
+| Build a tower | Draw a loop and hold the trigger with the end back at the start until it snaps round |
 | Raise or lower a wall | Right grip while pointing at a wall, move the hand up or down; the gain grows with distance so far walls are easy to adjust |
+| Shape a roof | Right grip while pointing at a roof: up and down for pitch, sideways for curvature |
 | Cut or fill an arch | A while pointing at a wall |
+| Change a wall's top | A while pointing at its top: merlons, plain capping, coping |
 | Undo the last wall | Hold the left D-pad down for half a second; a tap does nothing, and each hold removes one wall |
 | Paint flowers or grass | Left trigger held while pointing at the ground; the ring shows the brush, which widens the farther you point |
 | Switch flowers and grass | X (B and Y too) |
-| Plant a tree | Left grip while pointing at the ground |
-| Later: size a house | Both grips on the ground, pull apart, twist to rotate |
+| Plant a tree | Left grip while pointing at the ground, on release |
+| Lay out a house | Both grips while pointing at the ground; pull apart to size, twist to rotate, release to build |
 | Later: paint paths | The left-hand brush with a path mode |
 | Later: move the sun | Grip the sun in the sky and drag it |
 
@@ -160,7 +163,7 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
    - The air teleport holds refresh: no frame over 1.5× the refresh period at the moment it happens.
 2. Lighting pass: bounce light from a probe volume rebuilt on edits, contact darkening, shadow split and fog tuning for floating viewpoints, compared side by side with the mood target.
 3. Ivy and flora: ivy over walls and around openings, flower and grass painting with the left hand, tree placement by pointing. (Done.)
-4. Towers, houses and roofs: loop-to-tower, two-handed footprints, tiled roofs with pull-to-shape, wall-top style per wall.
+4. Towers, houses and roofs: loop-to-tower, two-handed footprints, tiled roofs with pull-to-shape, wall-top style per wall. (Done.)
 5. Paths and wall chemistry: path brush; a path through a wall cuts an arch, wide crossings become arcades.
 6. Windows, doors, fences, chimneys, lanterns and flags.
 7. Terrain shaping and water.
@@ -206,7 +209,8 @@ corrects) a "Cairnfold" VR shortcut in the Steam library that runs
 points as the controllers (teleport, float, draw a wall), logs per-second frame
 times and saves view captures. `scripts/test.sh` runs the headless layout tests;
 `scripts/render.sh` plays a script on a desktop renderer; `demo/flora.json` paints,
-plants trees and lets the ivy grow.
+plants trees and lets the ivy grow; `demo/houses.json` builds a tower, two houses and
+walls in each top style, and shapes the roofs.
 
 ## Sources
 

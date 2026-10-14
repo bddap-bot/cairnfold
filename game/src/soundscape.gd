@@ -79,7 +79,7 @@ func play_from(section: int) -> void:
 
 func _process(delta: float) -> void:
 	since_edit += delta
-	var building := tool.drawing != null or tool.lifting != null or since_edit < QUIET_AFTER
+	var building := tool.busy() or since_edit < QUIET_AFTER
 	var target: Array = BUILDING if building else IDLE
 	for j in STEMS.size():
 		var rate := 1.5 if target[j] < gains[j] else 0.25

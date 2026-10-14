@@ -17,5 +17,13 @@
   {"op": "tree", "relative": true, "x": 8, "z": 11},
   {"op": "wait", "seconds": 20},
   {"op": "capture", "name": "03-flora-floating"},
+  {"op": "label", "name": "houses"},
+  {"op": "tower", "relative": true, "points": [[-9, 6], [-7.5, 4], [-5.5, 4.5], [-5, 6.5], [-6.5, 8.2], [-8.6, 7.8], [-9, 6]], "seconds": 3, "hold": 0.8},
+  {"op": "house", "relative": true, "a": [6, 3], "b": [8, 4], "to_a": [4.5, 4.5], "to_b": [10, 3], "seconds": 3},
+  {"op": "roof", "index": 2, "pitch": 3.0, "curve": -0.5},
+  {"op": "roof", "index": 1, "pitch": 4.0, "curve": 0.3},
+  {"op": "top", "index": 0, "style": "cope"},
+  {"op": "wait", "seconds": 20},
+  {"op": "capture", "name": "04-houses-floating"},
   {"op": "quit"}
 ]

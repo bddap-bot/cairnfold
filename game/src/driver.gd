@@ -99,6 +99,55 @@ func _wall(s: Dictionary) -> void:
 	tool.end_stroke()
 
 
+## Draws a loop and keeps holding at its end until it snaps to a tower.
+func _tower(s: Dictionary) -> void:
+	var tool: WallTool = main.tool
+	var path := _path(s)
+	tool.begin_stroke(path[0])
+	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
+	for f in frames:
+		await get_tree().process_frame
+		tool.extend_stroke(_along(path, float(f + 1) / frames))
+	var held := 0.0
+	while held < s.get("hold", 0.6):
+		await get_tree().process_frame
+		held += get_process_delta_time()
+		tool.extend_stroke(path[-1])
+	tool.end_stroke()
+
+
+## Both grips: the hands point at `a` and `b`, then move to `to_a` and `to_b` (pulling apart, twisting) over `seconds`.
+func _house(s: Dictionary) -> void:
+	var tool: WallTool = main.tool
+	var a := _spot(s, s.a[0], s.a[1])
+	var b := _spot(s, s.b[0], s.b[1])
+	var to_a := _spot(s, s.to_a[0], s.to_a[1]) if s.has("to_a") else a
+	var to_b := _spot(s, s.to_b[0], s.to_b[1]) if s.has("to_b") else b
+	tool.begin_house(a, b)
+	var t := 0.0
+	var seconds: float = s.get("seconds", 2.0)
+	while t < seconds:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		var k := minf(t / seconds, 1.0)
+		tool.size_house(a.lerp(to_a, k), b.lerp(to_b, k))
+	tool.end_house()
+
+
+func _roof(s: Dictionary) -> void:
+	var w: Wall = main.tool.walls[s.index]
+	main.tool.shape_roof(w, s.get("pitch", w.roof.pitch), s.get("curve", w.roof.curve))
+	w.rebuild()
+
+
+func _top(s: Dictionary) -> void:
+	var w: Wall = main.tool.walls[s.index]
+	if w.roof != null:
+		return
+	while w.layout.top != WallLayout.Top[s.style.to_upper()]:
+		main.tool.cycle_top(w)
+
+
 func _lift_wall(s: Dictionary) -> void:
 	var w: Wall = main.tool.walls[s.index]
 	w.layout.height = s.height

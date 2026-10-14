@@ -1,9 +1,9 @@
 class_name FloraTool
 extends Node3D
 
-## Left hand: trigger paints grass or flowers where the hand points, grip plants a tree there; the
-## Frame's X (with B and Y) switches between them. The brush widens with distance; painting a spot
-## again thickens it.
+## Left hand: trigger paints grass or flowers where the hand points, grip plants a tree there on
+## release; the Frame's X (with B and Y) switches between them. The brush widens with distance; painting
+## a spot again thickens it. A grip hold that the right grip joins is laying out a house, so it plants nothing.
 
 enum Mode { FLOWERS, GRASS }
 ## Plants per square metre per second of painting, by mode.
@@ -20,6 +20,7 @@ var flora: Flora
 var mode := Mode.FLOWERS
 var _rng := RandomNumberGenerator.new()
 var _owed := 0.0
+var _two_handed := false
 var _buttons: Buttons
 var _right: Buttons
 var _beam: Beam
@@ -31,7 +32,7 @@ func _init(player: Rig, plants: Flora) -> void:
 	flora = plants
 	_rng.seed = 23
 	_buttons = Buttons.new(rig.left).watch(["trigger_click", "grip_click"])
-	_right = Buttons.new(rig.right).watch(["by_button"])
+	_right = Buttons.new(rig.right).watch(["by_button", "grip_click"])
 	_beam = Beam.new(Color.WHITE)
 	add_child(_beam)
 	var ring := TorusMesh.new()
@@ -64,7 +65,11 @@ func _process(delta: float) -> void:
 		paint(hit, radius, delta)
 	if _right.pressed("by_button"):
 		set_mode(Mode.GRASS if mode == Mode.FLOWERS else Mode.FLOWERS)
-	if _buttons.pressed("grip_click") and hit != null:
+	if _buttons.pressed("grip_click"):
+		_two_handed = false
+	if _buttons.held("grip_click") and _right.held("grip_click"):
+		_two_handed = true
+	if _buttons.released("grip_click") and hit != null and not _two_handed:
 		plant_tree(hit)
 	_buttons.latch()
 	_right.latch()

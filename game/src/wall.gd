@@ -5,6 +5,8 @@ static var _meshes: Array[ArrayMesh] = []
 static var _material: ShaderMaterial
 static var _leaf_material: StandardMaterial3D
 static var _leaf := Meshes.leaf()
+static var _tile := Meshes.rounded_box(0.22, 2, 41)
+static var _plaster: StandardMaterial3D
 
 var layout := WallLayout.new()
 var _instances: Array[MultiMeshInstance3D] = []
@@ -14,6 +16,10 @@ var _ivy_task := -1
 var _ivy_baked := {}
 var _ivy_stale := false
 var finished := false
+## The roof on a house or tower, laid again with the walls under it.
+var roof: RoofLayout
+var _tiles: MultiMeshInstance3D
+var _gables: MeshInstance3D
 ## Seconds since the wall was finished: how far its ivy has grown.
 var ivy_age := 0.0
 
@@ -65,6 +71,29 @@ func _init(seed: int) -> void:
 	_ivy.multimesh = ivy
 	_ivy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_ivy)
+
+
+## Puts a roof on this closed wall; its stones then stop flush under the eaves.
+func add_roof(r: RoofLayout) -> void:
+	roof = r
+	layout.roofed = true
+	_tiles = MultiMeshInstance3D.new()
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.use_colors = true
+	mm.use_custom_data = true
+	mm.mesh = _tile
+	_tiles.multimesh = mm
+	_tiles.material_override = shared_material()
+	add_child(_tiles)
+	if _plaster == null:
+		_plaster = StandardMaterial3D.new()
+		_plaster.albedo_color = Color(0.8, 0.73, 0.6)
+		_plaster.roughness = 0.95
+		_plaster.cull_mode = BaseMaterial3D.CULL_DISABLED
+	_gables = MeshInstance3D.new()
+	_gables.material_override = _plaster
+	add_child(_gables)
 
 
 func _ready() -> void:
@@ -127,13 +156,39 @@ func rebuild(with_ivy := true) -> void:
 			mm.set_instance_transform(i, s.xform)
 			mm.set_instance_color(i, s.color)
 			mm.set_instance_custom_data(i, Color(s.ao, 0, 0, 0))
+	if roof != null:
+		rebuild_roof()
 	if finished and with_ivy:
 		_layout_ivy()
 
 
+func rebuild_roof() -> void:
+	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
+	if roof.kind == RoofLayout.Kind.GABLE:
+		roof.corners = layout.points
+	roof.build()
+	var mm := _tiles.multimesh
+	mm.instance_count = roof.tiles.size()
+	for i in roof.tiles.size():
+		var t: Dictionary = roof.tiles[i]
+		mm.set_instance_transform(i, t.xform)
+		mm.set_instance_color(i, t.color)
+		mm.set_instance_custom_data(i, Color(t.ao, 0, 0, 0))
+	var tris := roof.gables()
+	if tris.is_empty():
+		_gables.mesh = null
+		return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for p in tris:
+		st.add_vertex(p)
+	st.generate_normals()
+	_gables.mesh = st.commit()
+
+
 ## Distance from a ray to this wall's body, with the arc length it is nearest.
 func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
-	var best := {"distance": INF, "s": 0.0, "point": Vector3.ZERO}
+	var best := {"distance": INF, "s": 0.0, "point": Vector3.ZERO, "along": INF}
 	for i in layout.samples.size():
 		var base := layout.samples[i]
 		var top := base + Vector3.UP * (layout.height + WallLayout.CAP)
