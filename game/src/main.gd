@@ -71,14 +71,16 @@ static func _fov(p: Projection) -> Array:
 	return [deg.call((1.0 - p.z.x) / p.x.x), deg.call((1.0 + p.z.x) / p.x.x), deg.call((1.0 - p.z.y) / p.y.y), deg.call((1.0 + p.z.y) / p.y.y)]
 
 
-## Desktop only: put the head at `eye` looking at `at`.
+## Put the head at `eye` looking at `at`; in a headset the play space moves under the tracked head instead.
 func view(eye: Vector3, at: Vector3, relative: bool) -> void:
 	if relative:
 		eye += rig.head.global_position
 		at += rig.head.global_position
+	var want := Transform3D(Basis.looking_at(at - eye, Vector3.UP), eye)
 	if metrics.info.xr:
-		return
-	rig.head.global_transform = Transform3D(Basis.looking_at(at - eye, Vector3.UP), eye)
+		rig.global_transform = want * rig.head.transform.affine_inverse()
+	else:
+		rig.head.global_transform = want
 
 
 func capture(name: String) -> void:

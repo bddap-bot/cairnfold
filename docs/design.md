@@ -46,23 +46,34 @@ can move to a GDExtension later without touching the rest.
 
 ### Frame measurements
 
-Filled from on-device runs of `demo/slice.json` (see "Verifying on a headset").
+Every session writes `log/metrics.json` in the install: per second, frame-time
+percentiles, frames over 1.5× the refresh period, and `gpu_ms`, the GPU time the
+game process used in that second (summed `drm-engine-*` time from the kernel's
+fdinfo, so it is real on the device whether or not the runtime reports any).
+`info` records the render-target size, the render scale and each eye's field of
+view.
 
-Standalone run of `demo/headset.json` (Godot 4.5.1 Mobile renderer, Turnip
-Adreno 750 driver, SteamVR OpenXR runtime 2.18.2, 1728×1728 per-eye render target,
-4× MSAA; scene: 22,000 grass clumps, 3,200 flowers, 46 trees, one drawn wall):
+With the headset off the head the runtime does not render the game's frames: the
+game's GPU time is about 0.3 ms per frame and every frame lands on vsync. Runs taken
+that way say nothing about headroom, and the table below is one of them. A run with
+the headset worn (Godot 4.5.1 Mobile renderer, Turnip Adreno 750, SteamVR 2.18.2,
+1728×1728 per eye, 4× MSAA, one drawn wall, before the flora stage) rendered at
+27.78 ms per frame, every other 72 Hz refresh, with about 16 ms of GPU time per
+frame against a 13.89 ms budget. Holding the refresh rate is open work; measure it
+from worn sessions' `metrics.json`.
+
+The runtime's recommended render target is 1728×1728 per eye on a 2160×2160 panel,
+and Valve's foveation layer (`VK_LAYER_VALVE_fdm_injection`) lowers shading density
+outside the gaze in every frame. `--render-scale` sets the render target relative
+to the runtime's recommendation.
+
+Earlier run, headset off the head, `demo/headset.json`:
 
 | Phase | Seconds | Frame time p99 | Frames over 1.5× the refresh period |
 | --- | --- | --- | --- |
 | Meadow idle | 19 | 13.89 ms | 3, all in the first second (session start) |
 | Drawing a wall (live rebuild) | 19 | 13.89 ms | 0 |
 | Floating 6 m up | 67 | 16.67 ms | 2, both at the moment of the air teleport (~142 ms) |
-
-The runtime offers a single refresh rate on the Frame, 72 Hz, and the game holds
-it at a steady 13.89 ms outside the two transitions above. The teleport hitch is
-open work, scheduled before stage 2 in the build order. GPU time per frame is not
-reported by the runtime under OpenXR here, so headroom is not yet measured; adding a
-heavier effect needs a fresh device run.
 
 ## Look on a mobile budget
 
