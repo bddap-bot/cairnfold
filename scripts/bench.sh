@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # Plays the stress scene, demo/stress.json, and holds each phase to the frame budget in game/src/budget.gd:
 #   bench.sh OUT_DIR                          desktop renderer: draw calls and primitives only, its GPU is no target
-#   bench.sh OUT_DIR SSH_HOST BUNDLE.tar.gz   a Steam Frame, from a scratch install that leaves ~/cairnfold alone:
-#                                             both eyes' pixels in one window, since the runtime renders nothing
-#                                             unworn, so its GPU times compare builds but are not the headset's
+#   bench.sh OUT_DIR SSH_HOST BUNDLE.tar.gz   a Steam Frame, from a scratch install that leaves ~/cairnfold alone,
+#                                             in the headset's XR session unworn: SteamVR pauses the game while the
+#                                             headset is in standby, so the run turns power.pauseCompositorOnStandby
+#                                             off and restarts SteamVR, and puts both back on exit. Nothing else may
+#                                             use SteamVR meanwhile. The GPU times are the headset's own render path;
+#                                             a worn session's eye tracking and passthrough cameras are not in them
 #   bench.sh OUT_DIR --android APK            a Quest over adb (ANDROID_SERIAL picks it), in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
 # On a Quest, exits 1 when a phase the build must hold goes over budget; phases named "sweep/..." only measure.
@@ -167,18 +170,36 @@ elif [ $# -ge 3 ]; then
     bin/godot --headless --path game --import > log/import.log 2>&1' < "$3"
   same "$(ssh -n "$2" cat cairnfold-bench/cairnfold/REVISION)"
   scp -q "$out/stress.json" "$2:cairnfold-bench/cairnfold/log/stress.json"
+  # standby HOST off|on: SteamVR reads its settings only as it starts.
+  standby() {
+    ssh -n "$1" 'cfg=$HOME/.config/openvr/config/steamvr.vrsettings saved=$cfg.bench
+      export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
+      if [ "'"$2"'" = off ]; then
+        [ -f "$saved" ] || cp "$cfg" "$saved"
+        python3 -c "import json, sys; s = json.load(open(sys.argv[1])); s.setdefault(\"power\", {})[\"pauseCompositorOnStandby\"] = False; json.dump(s, open(sys.argv[1], \"w\"), indent=3)" "$cfg"
+      elif [ -f "$saved" ]; then
+        mv "$saved" "$cfg"
+      else
+        exit 0
+      fi
+      systemctl --user restart steamvr
+      for _ in $(seq 60); do pgrep -x vrcompositor > /dev/null && exit 0; sleep 1; done
+      echo "bench: SteamVR did not come back" >&2; exit 1'
+  }
+  trap 'ssh -n "$2" "[ ! -f cairnfold-bench/cairnfold/log/pid ] || kill \$(cat cairnfold-bench/cairnfold/log/pid)" || true; standby "$2" on || true; stop' EXIT
+  standby "$2" off
   ssh -n "$2" 'cd cairnfold-bench/cairnfold
     export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)} DISPLAY=${DISPLAY:-:0}
-    status=0; timeout 900 bin/godot --path game --resolution 3456x1728 --xr-mode off -- --desktop --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --seed '"$seed"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
+    status=0; timeout 900 bin/godot --path game -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --seed '"$seed"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
     rm log/pid; echo "bench: $(cat REVISION) exit $status"' &
   remote=$!
-  trap 'ssh -n "$2" "[ ! -f cairnfold-bench/cairnfold/log/pid ] || kill \$(cat cairnfold-bench/cairnfold/log/pid)" || true; stop' EXIT
   if [ "$players" -gt 1 ]; then
     join ssh -n "$2" cat cairnfold-bench/cairnfold/log/godot.log -- \
       "$(ssh -n "$2" "ip -4 route get 1.1.1.1" | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')"
   fi
   wait "$remote"
   scp -rq "$2:cairnfold-bench/cairnfold/log/*" "$out/"
+  standby "$2" on
 else
   setsid env CAIRNFOLD_QUIT_AFTER=900 "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" > "$out/godot.log" 2>&1 &
   measured=$!
@@ -201,6 +222,8 @@ for s in d["seconds"]:
         phases.setdefault(s["label"], []).append(s)
 if not phases:
     sys.exit("bench: the run measured no phase; see the game's log")
+if device == "frame" and not d["info"].get("xr"):
+    sys.exit("bench: the game ran without an XR session; see the game's log")
 # Per frame GPU milliseconds by phase: the Frame's driver time, or the Quest runtime's App= time per logcat second.
 gpu = {}
 if device == "frame":
