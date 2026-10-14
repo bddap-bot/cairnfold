@@ -29,7 +29,7 @@ func _ready() -> void:
 	var builds := Node3D.new()
 	builds.name = "Builds"
 	add_child(builds)
-	tool = WallTool.new(rig, history)
+	tool = WallTool.new(rig, history, flora)
 	builds.add_child(tool)
 	delete_tool = DeleteTool.new(rig, tool, flora_tool, history)
 	add_child(delete_tool)

@@ -145,10 +145,10 @@ Stage numbers refer to the build order at the end.
 
 | Element | How the original does it | Our VR approach | Stage |
 | --- | --- | --- | --- |
-| Freehand walls | Drag on the ground; gridless, follows terrain, stroke speed sets corner sharpness; bricks laid by GPU compute | Hold trigger and sweep the pointer over the ground (from the ground or from the air). The stroke is Catmull-Rom smoothed and courses of individual stones are laid live while you draw | 1 (done) |
+| Freehand walls | Drag on the ground; gridless, follows terrain, stroke speed sets corner sharpness; bricks laid by GPU compute | Hold trigger and sweep the pointer over the ground (from the ground or from the air). The stroke is Catmull-Rom smoothed and courses of individual stones are laid live while you draw. A stroke near a standing wall merges into it (see "Walls meeting walls") | 1 (done) |
 | Wall height | Height gizmo; walls from very low to very high | Grip a wall and raise or lower your hand; height snaps to whole stone courses, so it grows and shrinks a row at a time | 1 (done) |
 | Wall tops | Merlons on flat tops, can be turned off; wooden railings on half-timber | Per wall: capping slabs with merlons, plain capping, or dry-stone coping (stones on edge, tall and short in turn); A on a wall's top cycles them | 1 (done), 4 (done) |
-| Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | Walls of 5 m or more open an arch at the middle; A on a wall cuts or fills an arch there. Stage 5 adds the chemistry: a path stroke through a wall cuts the arch, wide crossings become arcades | 1 (done), 5 |
+| Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | A wall drawn over a tree or bush arches over it, shown live while drawing; one of 5 m or more over open ground opens an arch at the middle; A on a wall cuts or fills an arch there. Stage 5 adds the chemistry: a path stroke through a wall cuts the arch, wide crossings become arcades | 1 (done), 5 |
 | Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends and at the corners of a house | 1 (done), 4 (done) |
 | Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | Trigger-sweep with a path brush; stones laid along the stroke and pressed into the terrain shader's mask so grass parts around them | 5 |
 | Towers | A loop held down straightens into a circle | Draw a loop and keep holding with the end back near the start: after a moment it snaps to a round tower (radius 1.2–4 m) with a tiled cone roof, standing level on its lowest ground | 4 (done) |
@@ -174,6 +174,55 @@ Stage numbers refer to the build order at the end.
 | Save and load | Autosave after every action, backups, cloud | Autosave the build list (strokes, heights, arches) as JSON after every edit | 10 |
 | Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, a conure perches on a tree or wall (see "Wildlife") | 11 |
 | Photo mode | Camera modes and filters | A hand-held camera that saves the view | 11 |
+
+## Walls meeting walls
+
+Report (verbatim): "I don't really... like that I can crowd... walls together pretty tight. If if... Tiny
+Glade has shown that there is a solution to keeping walls from crowding together... then... I would be
+interested in implementing that solution. Tightly-packed walls just don't really look very good"
+
+What Tiny Glade's public material shows (developer patch notes and diaries on its Steam news page; no
+numbers are published):
+
+- A wall or fence being drawn can snap to an existing wall; the preview shows a solid line with a dot that
+  follows the target wall's shape
+  ([1.14.1a notes](https://store.steampowered.com/news/app/2198150/view/1806698490679275)).
+- Holding a "disable snapping" key turns snapping off
+  ([demo 1.5.4 notes](https://store.steampowered.com/news/app/2198150/view/6890025005352661540)).
+- A "continue wall" gizmo exists and is offered walls to walls and fences to fences only
+  ([1.8.5 notes](https://store.steampowered.com/news/app/2198150/view/6339469370197280611)).
+- Walls and fences can merge: one fix names a crash "when merging two walls whose points already share same
+  position" ([1.8.5 notes](https://store.steampowered.com/news/app/2198150/view/6339469370197280611)), another
+  has merged fences inherit the colour of the fence merged into
+  ([1.10.0b notes](https://store.steampowered.com/news/app/2198150/view/6931694080295313754)); what triggers a
+  merge is not public.
+- The developers hardened the game against tangled overlapping walls ("wall pasta") rather than refusing them
+  ([dev update](https://store.steampowered.com/news/app/2198150/view/5125698536871949230)).
+- Not public: snap distances, whether a crossing becomes a junction, any minimum gap between parallel walls.
+
+Cairnfold's version, adapted to a pointer swept by hand, where a few centimetres of jitter are normal
+(`WallPlan`, pure data; tests in `tests/test_plan.gd` and, through the driver, `tests/test_join.gd`):
+
+- Any part of a stroke within 1.8 m (centre line to centre line) of a standing wall merges into that wall:
+  the wall already stands there, so that stretch builds nothing. A merged stretch only ends once the stroke is
+  2.2 m out, so a hand wavering near the edge does not flicker in and out. A stroke hugging a wall therefore
+  adds nothing, and two parallel drawn walls never stand closer than a 1.2 m walkway (1.8 m less a 0.62 m
+  wall); walls that meet do so only at a junction.
+- A kept stretch that runs into a standing wall steeply (more than about 35° off the wall's line) is
+  extended onto the wall's centre line and meets it in a junction marked by its end pier, moved aside if it
+  would land in an arch. A stroke drawn away from a wall starts on it; one drawn across a wall, or past a
+  wall's end, becomes two walls meeting it from either side. A stretch drifting in at a shallow angle ends
+  free instead, so a wavering parallel stroke grows no spurs.
+- A finished wall arches over any tree or bush it stands on; with none, a wall of 5 m or more arches at its
+  middle.
+- The preview is the result: the same call lays out the walls shown while drawing and the walls left on
+  release, so merged stretches vanish from the preview, and junction piers and arches appear in it as the
+  hand moves. One stroke is one undo step, however many walls it built. The plan reruns only when the stroke
+  moves, and each stroke point's nearest wall is found once, so a rerun costs about 0.1 ms beside 120
+  standing walls and 470 plants on a desktop CPU.
+- Not adopted: merging two walls into one polyline at their ends and the "continue wall" handle; junctions
+  between separate walls give a similar look without rewriting a standing wall's stones. Towers and houses
+  are placed as drawn; only strokes merge.
 
 ## Tools in hand
 
@@ -213,7 +262,7 @@ aiming at the ground is how you come back down.
 | Teleport into the air | Aim above the horizon: with no ground within reach (10 m to start), the ray targets the point in the air at its end, a ring on a pole down to the ground below. The other hand's stick up or down while aiming moves that point farther or nearer (2–40 m). Release to arrive, slightly high, then settle gently into a hover with a slow bob |
 | Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick left or right: 30° snap turn |
-| Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground; release to finish. Strokes under 1 m are discarded |
+| Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground; release to finish. Strokes under 1 m are discarded, and a stroke near a standing wall merges into it |
 | Build a tower | Draw a loop and hold the trigger with the end back at the start until it snaps round |
 | Raise or lower a wall | Grip of a hand holding walls while pointing at a wall, move the hand up or down; the gain grows with distance so far walls are easy to adjust |
 | Shape a roof | Grip of a hand holding walls while pointing at a roof: up and down for pitch, sideways for curvature |

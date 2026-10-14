@@ -12,6 +12,8 @@ const CAP := 0.14
 const SAMPLE := 0.2
 const ARCH_HALF := 0.75
 const RING := 0.32
+## The nearest an arch's centre stands to a wall's end.
+const ARCH_END := ARCH_HALF + RING + 0.3
 const MIN_ARCH_SPAN := 2.4
 const CORNER_TURN := deg_to_rad(35.0)
 const PIER := THICKNESS + 0.28
@@ -32,6 +34,7 @@ var roofed := false
 
 var samples: Array[Vector3] = []
 var lengths: Array[float] = []
+var bounds := Rect2()
 var stones: Array[Dictionary] = []
 ## Stones shorten on a round loop so their outer ends stay closed.
 var _stone_scale := 1.0
@@ -68,7 +71,7 @@ func opening(y: float, ring: bool) -> float:
 
 
 func build(ground: Callable) -> void:
-	_resample(ground)
+	resample(ground)
 	stones.clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
@@ -79,7 +82,7 @@ func build(ground: Callable) -> void:
 	if can_arch():
 		var piers: Array = corners() if closed else []
 		for a in arches:
-			if a > ARCH_HALF + RING + 0.3 and a < total - ARCH_HALF - RING - 0.3 and piers.all(func(c): return absf(c - a) > ARCH_HALF + RING + PIER * 0.5):
+			if a > ARCH_END and a < total - ARCH_END and piers.all(func(c): return absf(c - a) > ARCH_HALF + RING + PIER * 0.5):
 				live_arches.append(a)
 	_stone_scale = 1.0
 	if closed and corners().is_empty():
@@ -242,6 +245,7 @@ func snapshot() -> WallLayout:
 	w.closed = closed
 	w.samples = samples.duplicate()
 	w.lengths = lengths.duplicate()
+	w.bounds = bounds
 	w.live_arches = live_arches.duplicate()
 	return w
 
@@ -271,14 +275,22 @@ func closest_s(p: Vector3) -> float:
 	return best_s
 
 
-func _resample(ground: Callable) -> void:
+func resample(ground: Callable) -> void:
 	samples.clear()
 	lengths.clear()
+	bounds = Rect2()
 	if points.size() == 0:
 		return
 	if closed:
 		_resample_loop(ground)
-		return
+	else:
+		_resample_open(ground)
+	bounds = Rect2(Vector2(samples[0].x, samples[0].z), Vector2.ZERO)
+	for q in samples:
+		bounds = bounds.expand(Vector2(q.x, q.z))
+
+
+func _resample_open(ground: Callable) -> void:
 	var dense: Array[Vector3] = []
 	if points.size() == 1:
 		dense.append(points[0])

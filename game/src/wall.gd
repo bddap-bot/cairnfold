@@ -187,10 +187,7 @@ func rebuild_roof() -> void:
 
 
 func footprint() -> Rect2:
-	var r := Rect2(Vector2(layout.samples[0].x, layout.samples[0].z), Vector2.ZERO)
-	for p in layout.samples:
-		r = r.expand(Vector2(p.x, p.z))
-	return r.grow(WallLayout.THICKNESS)
+	return layout.bounds.grow(WallLayout.THICKNESS)
 
 
 ## Distance from a ray to this wall's body, with the arc length it is nearest.

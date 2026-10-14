@@ -8,7 +8,6 @@ extends Node3D
 
 const POINT_SPACING := 0.45
 const REBUILD_EVERY := 0.06
-const AUTO_ARCH_LENGTH := 5.0
 const WALL_PICK := 0.7
 const TINT := Color(1.0, 0.97, 0.9, 0.55)
 ## Seconds a stroke must stay closed into a loop before it snaps to a tower.
@@ -27,7 +26,7 @@ signal built(kind: StringName, at: Vector3)
 class Mason:
 	var hand: Hand
 	var buttons: Buttons
-	var drawing: Wall
+	var stroke: Stroke
 	var lifting: Wall
 	var roofing: Wall
 	var lift_start := 0.0
@@ -42,8 +41,18 @@ class Mason:
 	var ground: Variant = null
 
 
+## A stroke being drawn and the walls it builds, shown as it grows and kept on release.
+class Stroke:
+	var points: Array[Vector3] = []
+	## Null once the stroke has snapped to a tower.
+	var plan: WallPlan
+	var walls: Array[Wall] = []
+	var planned := false
+
+
 var rig: Rig
 var history: History
+var flora: Flora
 var walls: Array[Wall] = []
 var masons: Array[Mason] = []
 var house: Wall
@@ -53,9 +62,10 @@ var _seed := 1
 var _arch_button: Buttons
 
 
-func _init(player: Rig, steps: History) -> void:
+func _init(player: Rig, steps: History, plants: Flora) -> void:
 	rig = player
 	history = steps
+	flora = plants
 	for h in [rig.right, rig.left]:
 		var m := Mason.new()
 		m.hand = h
@@ -75,7 +85,7 @@ func busy() -> bool:
 	if house != null:
 		return true
 	for m in masons:
-		if m.drawing != null or m.lifting != null or m.roofing != null:
+		if m.stroke != null or m.lifting != null or m.roofing != null:
 			return true
 	return false
 
@@ -107,14 +117,14 @@ func _handle(m: Mason, delta: float) -> void:
 	if m.hand.tool != Hand.Tool.WALLS or rig.aim_hand == m.hand:
 		_let_go(m)
 		return
-	if m.buttons.released("trigger_click") and m.drawing != null:
+	if m.buttons.released("trigger_click") and m.stroke != null:
 		end_stroke(m)
 	if m.buttons.released("grip_click"):
 		if m.lifting != null:
 			end_lift(m)
 		if m.roofing != null:
 			end_roof(m)
-	if m.drawing != null and not m.loop.is_empty():
+	if m.stroke != null and not m.loop.is_empty():
 		m.loop_held += delta
 		if m.loop_held >= LOOP_HOLD:
 			snap_tower(m, m.loop.center, m.loop.radius)
@@ -131,7 +141,7 @@ func _handle(m: Mason, delta: float) -> void:
 
 	if m.buttons.pressed("trigger_click") and m.ground != null and not busy():
 		begin_stroke(m, m.ground)
-	elif m.buttons.held("trigger_click") and m.drawing != null and m.ground != null:
+	elif m.buttons.held("trigger_click") and m.stroke != null and m.ground != null:
 		extend_stroke(m, m.ground)
 
 	if m.buttons.pressed("grip_click") and not busy() and not _other_grip_held(m):
@@ -146,7 +156,7 @@ func _handle(m: Mason, delta: float) -> void:
 
 
 func _let_go(m: Mason) -> void:
-	if m.drawing != null:
+	if m.stroke != null:
 		end_stroke(m)
 	if m.lifting != null:
 		end_lift(m)
@@ -175,9 +185,12 @@ func _house_input() -> void:
 
 func _flush() -> void:
 	for m in masons:
-		for w in [m.drawing, m.lifting]:
-			if w != null:
+		if m.stroke != null:
+			_plan(m.stroke)
+			for w in m.stroke.walls:
 				w.rebuild(false)
+		if m.lifting != null:
+			m.lifting.rebuild(false)
 		if m.roofing != null:
 			m.roofing.rebuild_roof()
 	if house != null:
@@ -187,37 +200,64 @@ func _flush() -> void:
 
 
 func _new_wall() -> Wall:
-	var w := Wall.new(_seed)
 	_seed += 1
+	return _add_wall(Wall.new(_seed - 1))
+
+
+func _add_wall(w: Wall) -> Wall:
 	get_parent().add_child(w)
 	return w
 
 
 func begin_stroke(m: Mason, p: Vector3) -> void:
-	m.drawing = _new_wall()
-	m.drawing.layout.points = [p]
+	var standing: Array[WallLayout] = []
+	for w in walls:
+		standing.append(w.layout)
+	m.stroke = Stroke.new()
+	m.stroke.points = [p]
+	m.stroke.plan = WallPlan.new(standing, flora.obstacles(), _seed)
+	_seed += 64
 	m.loop = {}
+	m.loop_held = 0.0
 	_dirty = true
 
 
 func extend_stroke(m: Mason, p: Vector3) -> void:
-	if m.drawing.layout.closed:
+	var pts := m.stroke.points
+	if m.stroke.plan == null or pts[-1].is_equal_approx(p):
 		return
-	var pts := m.drawing.layout.points
 	if pts.size() >= 2 and pts[-1].distance_to(pts[-2]) < POINT_SPACING:
 		pts[-1] = p
 	else:
 		pts.append(p)
-		built.emit(&"stone", p + Vector3.UP * m.drawing.layout.height * 0.5)
+		built.emit(&"stone", p + Vector3.UP)
+	m.stroke.planned = false
 	_dirty = true
 	m.loop = WallLayout.fit_loop(pts)
 	if m.loop.is_empty():
 		m.loop_held = 0.0
 
 
+func _plan(st: Stroke) -> void:
+	if st.planned or st.plan == null:
+		return
+	st.planned = true
+	var layouts := st.plan.pieces(st.points, Terrain.height_at)
+	while st.walls.size() > layouts.size():
+		st.walls.pop_back().queue_free()
+	for i in layouts.size():
+		if i == st.walls.size():
+			st.walls.append(_add_wall(Wall.new(layouts[i].seed)))
+		st.walls[i].layout = layouts[i]
+
+
 ## The stroke becomes a round tower with a cone roof; the rest of the stroke is ignored.
 func snap_tower(m: Mason, center: Vector3, radius: float) -> void:
-	var layout := m.drawing.layout
+	for w in m.stroke.walls:
+		w.queue_free()
+	m.stroke.walls = [_new_wall()]
+	m.stroke.plan = null
+	var layout := m.stroke.walls[0].layout
 	layout.points = WallLayout.circle(center, radius)
 	layout.closed = true
 	layout.top = WallLayout.Top.CAP
@@ -228,31 +268,40 @@ func snap_tower(m: Mason, center: Vector3, radius: float) -> void:
 	roof.radius = radius
 	roof.pitch = clampf(radius * 1.6, RoofLayout.PITCH.x, RoofLayout.PITCH.y)
 	roof.seed = layout.seed
-	m.drawing.add_roof(roof)
+	m.stroke.walls[0].add_roof(roof)
 	m.loop = {}
 	_dirty = true
 	built.emit(&"settle", center + Vector3.UP * TOWER_HEIGHT)
 
 
-func end_stroke(m: Mason) -> Wall:
-	var w := m.drawing
-	m.drawing = null
-	w.layout.build(Terrain.height_at)
-	if w.layout.length() < 1.0:
-		w.queue_free()
-		return null
-	if not w.layout.closed and w.layout.length() >= AUTO_ARCH_LENGTH and w.layout.can_arch():
-		w.layout.arches = [w.layout.length() * 0.5]
-	_finish(w)
-	return w
+func end_stroke(m: Mason) -> Array[Wall]:
+	_plan(m.stroke)
+	var built_walls := m.stroke.walls
+	m.stroke = null
+	if not built_walls.is_empty():
+		_finish(built_walls)
+	return built_walls
 
 
-func _finish(w: Wall) -> void:
-	w.finished = true
-	w.rebuild()
-	walls.append(w)
-	built.emit(&"settle", _top(w, w.layout.length() * 0.5))
-	history.add(_take.bind(w), _put.bind(w), [w])
+func _finish(ws: Array[Wall]) -> void:
+	for w in ws:
+		w.finished = true
+		w.rebuild()
+		walls.append(w)
+		built.emit(&"settle", _top(w, w.layout.length() * 0.5))
+	var nodes: Array[Node] = []
+	nodes.assign(ws)
+	history.add(_take_all.bind(ws), _put_all.bind(ws), nodes)
+
+
+func _take_all(ws: Array[Wall]) -> void:
+	for w in ws:
+		_take(w)
+
+
+func _put_all(ws: Array[Wall]) -> void:
+	for w in ws:
+		_put(w)
 
 
 ## A house between two pointed ground spots: they mark the ends of its ridge; its depth follows its length.
@@ -288,7 +337,7 @@ func size_house(a: Vector3, b: Vector3) -> void:
 func end_house() -> Wall:
 	var w := house
 	house = null
-	_finish(w)
+	_finish([w])
 	return w
 
 

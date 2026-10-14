@@ -1,0 +1,13 @@
+[
+  {"op": "place", "x": 0, "z": 7},
+  {"op": "wall", "points": [[-6, -2], [6, -2]], "seconds": 1.5},
+  {"op": "wall", "points": [[-5, -1.2], [5, -1.2]], "seconds": 1.5},
+  {"op": "wall", "points": [[-4, -3.0], [4, -2.6]], "seconds": 1.5},
+  {"op": "wall", "points": [[7, 4], [6.2, -1.5]], "seconds": 1.5},
+  {"op": "wait", "seconds": 1},
+  {"op": "view", "eye": [0, 2.2, 6], "at": [0, 1.0, -2]},
+  {"op": "capture", "name": "tight-eye"},
+  {"op": "view", "eye": [0.5, 16, 4], "at": [0, 0, -1.5]},
+  {"op": "capture", "name": "tight-above"},
+  {"op": "quit"}
+]

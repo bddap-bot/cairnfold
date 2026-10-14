@@ -1,0 +1,173 @@
+extends SceneTree
+
+## Headless checks of how a stroke meets standing walls: godot4 --headless --path game --script ../tests/test_plan.gd
+
+var failures := 0
+
+
+func _init() -> void:
+	_a_stroke_alongside_a_wall_merges_into_it()
+	_a_stroke_a_walkway_away_stands_free()
+	_a_stroke_from_a_wall_starts_on_it()
+	_a_crossing_stroke_meets_the_wall_from_both_sides()
+	_a_short_wall_can_meet_another()
+	_a_stroke_drifting_near_a_wall_grows_no_spur()
+	_a_stroke_passing_a_walls_end_meets_it_there()
+	_a_junction_keeps_out_of_an_arch()
+	_a_junction_keeps_out_of_neighbouring_arches()
+	_a_merged_stroke_wavering_past_reach_stays_merged()
+	_a_junction_among_crowded_arches_takes_the_widest_pier()
+	_a_wall_arches_over_a_plant()
+	_a_long_wall_over_open_ground_arches_at_its_middle()
+	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
+	quit(1 if failures else 0)
+
+
+func _check(ok: bool, what: String) -> void:
+	if not ok:
+		failures += 1
+		print("FAIL: ", what)
+
+
+func _flat(_x: float, _z: float) -> float:
+	return 0.0
+
+
+func _line(a: Vector2, b: Vector2) -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	var n := maxi(1, int(ceil(a.distance_to(b) / 0.45)))
+	for i in n + 1:
+		var p := a.lerp(b, float(i) / n)
+		out.append(Vector3(p.x, 0, p.y))
+	return out
+
+
+func _standing(arches: Array[float] = []) -> Array[WallLayout]:
+	var w := WallLayout.new()
+	w.points = _line(Vector2(-6, 0), Vector2(6, 0))
+	w.arches = arches
+	w.build(_flat)
+	return [w]
+
+
+func _plan(a: Vector2, b: Vector2, obstacles := PackedVector3Array(), standing := _standing()) -> Array[WallLayout]:
+	return _plan_stroke(_line(a, b), obstacles, standing)
+
+
+func _plan_stroke(stroke: Array[Vector3], obstacles := PackedVector3Array(), standing := _standing()) -> Array[WallLayout]:
+	return WallPlan.new(standing, obstacles, 1).pieces(stroke, _flat)
+
+
+## Smallest centre-line distance from any sample of `w` to the standing wall at z = 0, x in [-6, 6].
+func _gap(w: WallLayout) -> float:
+	var m := INF
+	for p in w.samples:
+		m = minf(m, Vector2(p.x - clampf(p.x, -6, 6), p.z).length())
+	return m
+
+
+func _a_stroke_alongside_a_wall_merges_into_it() -> void:
+	for gap in [0.0, 0.5, 1.2]:
+		var got := _plan(Vector2(-5, gap), Vector2(5, gap))
+		_check(got.is_empty(), "a stroke %.1f m from a wall builds %d walls, not none" % [gap, got.size()])
+
+
+func _a_stroke_a_walkway_away_stands_free() -> void:
+	var got := _plan(Vector2(-5, 2.5), Vector2(5, 2.5))
+	_check(got.size() == 1, "a stroke 2.5 m away builds %d walls, not one" % got.size())
+	if got.size() == 1:
+		_check(_gap(got[0]) >= WallPlan.REACH - 0.01, "it keeps %.2f m from the wall" % _gap(got[0]))
+
+
+func _a_stroke_from_a_wall_starts_on_it() -> void:
+	var got := _plan(Vector2(1, 0.4), Vector2(1, 6))
+	_check(got.size() == 1, "a stroke away from a wall builds %d walls, not one" % got.size())
+	if got.size() == 1:
+		_check(absf(got[0].samples[0].z) < 0.01, "it starts on the wall's centre line, at z=%.2f" % got[0].samples[0].z)
+		_check(got[0].samples.all(func(p): return p.z > -0.01), "it does not poke through")
+
+
+func _a_crossing_stroke_meets_the_wall_from_both_sides() -> void:
+	var got := _plan(Vector2(2, -5), Vector2(2, 5))
+	_check(got.size() == 2, "a crossing stroke builds %d walls, not two" % got.size())
+	for w in got:
+		var on := [w.samples[0], w.samples[-1]].filter(func(p): return absf(p.z) < 0.01)
+		_check(on.size() == 1, "each half has one end on the wall")
+
+
+func _a_wall_arches_over_a_plant() -> void:
+	var got := _plan(Vector2(-3, 6), Vector2(3, 6), PackedVector3Array([Vector3(-1.2, 0, 6.2)]))
+	for w in got:
+		w.build(_flat)
+	_check(got.size() == 1 and got[0].arches.size() == 1, "a wall over a bush has one arch")
+	if got.size() == 1 and got[0].arches.size() == 1:
+		_check(absf(got[0].point_at(got[0].arches[0]).x + 1.2) < 0.25, "the arch stands over the bush")
+		_check(got[0].live_arches == got[0].arches, "and the layout opens it")
+
+
+func _a_long_wall_over_open_ground_arches_at_its_middle() -> void:
+	var got := _plan(Vector2(-4, 6), Vector2(4, 6))
+	_check(got.size() == 1 and got[0].arches == [got[0].length() * 0.5], "an 8 m wall arches at its middle")
+	got = _plan(Vector2(-1.5, 6), Vector2(1.5, 6))
+	_check(got.size() == 1 and got[0].arches.is_empty(), "a 3 m wall over open ground does not")
+
+
+func _a_short_wall_can_meet_another() -> void:
+	var got := _plan(Vector2(2, 0.3), Vector2(2, 2.6))
+	_check(got.size() == 1, "a 2.6 m stroke from a wall builds %d walls, not one" % got.size())
+
+
+func _a_stroke_drifting_near_a_wall_grows_no_spur() -> void:
+	var stroke: Array[Vector3] = []
+	for i in 30:
+		var x := -6.0 + i * 0.4
+		stroke.append(Vector3(x, 0, 2.0 - 0.4 * exp(-pow(x, 2))))
+	for w in _plan_stroke(stroke):
+		_check(_gap(w) >= WallPlan.REACH - 0.05, "a stroke dipping toward a wall keeps %.2f m from it" % _gap(w))
+
+
+func _a_stroke_passing_a_walls_end_meets_it_there() -> void:
+	var got := _plan(Vector2(7, -5), Vector2(7, 5))
+	_check(got.size() == 2, "a stroke passing 1 m from a wall's end builds %d walls, not two" % got.size())
+	for w in got:
+		var tip := [w.samples[0], w.samples[-1]].filter(func(p): return Vector2(p.x - 6.0, p.z).length() < 0.05)
+		_check(tip.size() == 1, "each meets the wall at its end")
+
+
+func _a_junction_keeps_out_of_an_arch() -> void:
+	var standing := _standing([0.0 + 6.0])
+	var got := _plan(Vector2(0, 0.5), Vector2(0, 6), PackedVector3Array(), standing)
+	_check(got.size() == 1, "a stroke from an arch builds %d walls, not one" % got.size())
+	if got.size() == 1:
+		var x := got[0].samples[0].x
+		_check(absf(x) >= WallLayout.ARCH_HALF + WallLayout.RING, "its junction stands clear of the arch, at x=%.2f" % x)
+
+
+func _a_junction_keeps_out_of_neighbouring_arches() -> void:
+	var standing := _standing([4.73, 7.27])
+	var got := _plan(Vector2(0.1 + 0.27, 0.5), Vector2(0.37, 6), PackedVector3Array(), standing)
+	if got.size() == 1:
+		var x := got[0].samples[0].x
+		for a in [-1.27, 1.27]:
+			_check(absf(x - a) >= WallLayout.ARCH_HALF + WallLayout.RING, "a junction between two arches stands clear of both, at x=%.2f" % x)
+	else:
+		_check(false, "a stroke between two arches builds %d walls, not one" % got.size())
+
+
+func _a_merged_stroke_wavering_past_reach_stays_merged() -> void:
+	var stroke: Array[Vector3] = []
+	for i in 30:
+		var x := -5.0 + i * 0.35
+		stroke.append(Vector3(x, 0, 1.0 if i < 5 else 1.9 + 0.2 * sin(i * 1.7)))
+	var got := _plan_stroke(stroke)
+	_check(got.is_empty(), "a stroke wavering between 1.7 and 2.1 m from a wall after merging builds %d walls" % got.size())
+
+
+func _a_junction_among_crowded_arches_takes_the_widest_pier() -> void:
+	var w := WallLayout.new()
+	w.points = _line(Vector2(0, 0), Vector2(5.4, 0))
+	w.arches = [1.4, 3.94]
+	w.build(_flat)
+	_check(w.live_arches.size() == 2, "a 5.4 m wall opens both arches")
+	var s := WallPlan._clear_of_arches(w, 1.5)
+	_check(absf(s - 1.4) > 0.9 and absf(s - 3.94) > 0.9, "with no clear spot the junction stands off both arches, at s=%.2f" % s)

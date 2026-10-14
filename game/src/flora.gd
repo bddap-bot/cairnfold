@@ -214,6 +214,16 @@ func painted_near(p: Vector3, radius: float) -> Array[Plant]:
 	return out
 
 
+## Where trees and bushes stand: the ground points a wall arches over.
+func obstacles() -> PackedVector3Array:
+	var out := PackedVector3Array()
+	for pool in [trunks, foliage]:
+		for i in pool.size():
+			if pool.anchors[i] != Pool.GONE:
+				out.append(pool.anchors[i])
+	return out
+
+
 ## Pools and their plants point at each other; the cycle is cut here so both are freed.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
