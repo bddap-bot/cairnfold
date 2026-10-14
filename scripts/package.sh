@@ -13,5 +13,8 @@ chmod +x "$stage/cairnfold/bin/godot"
 git -C "$root" archive HEAD game demo steam | tar -x -C "$stage/cairnfold"
 cp "$root/scripts/play.sh" "$stage/cairnfold/play.sh"
 git -C "$root" rev-parse HEAD > "$stage/cairnfold/REVISION"
+"$root/scripts/notices.sh" frame "$stage/cairnfold/notices"
+cp "$root"/LICENSE-* "$stage/cairnfold/"
 tar -czf "$out" -C "$stage" cairnfold
+python3 "$root/scripts/notices.py" check "$out" "$stage/cairnfold/notices"
 echo "package: $out ($(git -C "$root" rev-parse --short HEAD))"

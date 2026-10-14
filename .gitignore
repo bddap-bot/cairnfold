@@ -1,2 +1,4 @@
 .godot/
 /out/
+
+__pycache__/

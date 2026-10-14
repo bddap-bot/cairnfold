@@ -10,7 +10,7 @@ let
   }).androidsdk;
 in
 pkgs.mkShell {
-  packages = [ pkgs.godot_4 pkgs.jdk17 sdk pkgs.unzip pkgs.curl pkgs.git ];
+  packages = [ pkgs.python3 pkgs.godot_4 pkgs.jdk17 sdk pkgs.unzip pkgs.curl pkgs.git ];
   ANDROID_HOME = "${sdk}/libexec/android-sdk";
   ANDROID_BUILD_TOOLS = buildTools;
   JAVA_HOME = pkgs.jdk17.home;

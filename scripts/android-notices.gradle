@@ -1,0 +1,57 @@
+// Resolve the shipping configuration, not build tools or a hand-maintained library list.
+android.sourceSets.main.assets.srcDir 'noticeAssets'
+
+afterEvaluate {
+    def notices = tasks.register('collectPackageNotices') {
+        doLast {
+            def output = file('noticeAssets/notices/android')
+            output.mkdirs()
+            def inventory = []
+            configurations.standardReleaseRuntimeClasspath.resolvedConfiguration.resolvedArtifacts
+                    .groupBy { it.moduleVersion.id }.each { id, artifacts ->
+                def coordinate = "${id.group}:${id.name}:${id.version}"
+                def target = new File(output, "${id.group}/${id.name}/${id.version}")
+                target.mkdirs()
+                inventory.add(coordinate)
+                // Sources retain copyright headers often omitted from compiled AARs/JARs.
+                def sources = configurations.detachedConfiguration(
+                    dependencies.create("${coordinate}:sources@jar"))
+                sources.transitive = false
+                def texts = new TreeSet<String>()
+                (artifacts.collect { it.file } + [sources.singleFile]).each { jar ->
+                    zipTree(jar).visit { entry ->
+                        if (!entry.directory) {
+                            def name = entry.relativePath.toString()
+                            if (entry.name ==~ /(?i)(LICENSE|NOTICE|COPYING|COPYRIGHT)([._-].*)?/) {
+                                texts.add(entry.file.getText('UTF-8'))
+                            } else if (name.endsWith('.java') || name.endsWith('.kt')) {
+                                def matcher = entry.file.getText('UTF-8') =~ /(?s)\/\*.*?\*\//
+                                while (matcher.find()) {
+                                    def block = matcher.group()
+                                    if (block.toLowerCase().contains('copyright')) texts.add(block)
+                                }
+                            }
+                        }
+                    }
+                }
+                def pom = configurations.detachedConfiguration(dependencies.create("${coordinate}@pom"))
+                pom.transitive = false
+                def metadata = pom.singleFile.getText('UTF-8')
+                new File(target, 'pom.xml').setText(metadata, 'UTF-8')
+                // Kotlin's JDK compatibility modules contain only module-info.java,
+                // with no copyright header; their POM declares Apache-2.0.
+                if (texts.empty && id.group == 'org.jetbrains.kotlin' &&
+                        id.name in ['kotlin-stdlib-jdk7', 'kotlin-stdlib-jdk8'] &&
+                        metadata.contains('http://www.apache.org/licenses/LICENSE-2.0')) {
+                    texts.add(file('noticeAssets/notices/LICENSE-APACHE').getText('UTF-8'))
+                }
+                if (texts.empty) throw new GradleException("No upstream notices for ${coordinate}")
+                new File(target, 'NOTICES.txt').setText(texts.join('\n\n'), 'UTF-8')
+            }
+            new File(output, 'DEPENDENCIES.txt').setText(inventory.sort().join('\n') + '\n', 'UTF-8')
+            // AndroidX and Kotlin headers refer to Apache-2.0; ship its full text too.
+            copy { from 'noticeAssets/notices/LICENSE-APACHE'; into output }
+        }
+    }
+    tasks.matching { it.name == 'preBuild' }.configureEach { dependsOn notices }
+}

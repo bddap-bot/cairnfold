@@ -34,8 +34,16 @@ export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$CAIRNFOLD_KEYSTORE GODOT_ANDROID_KEY
   GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$CAIRNFOLD_KEYSTORE_PASS
 
 cd "$stage/game"
+# Install first so notices enter ordinary APK assets before signing.
+mkdir -p android/build
+unzip -q "$tdir/android_source.zip" -d android/build
+printf '%s.stable\n' "$godot_version" > android/.build_version
+touch android/build/.gdignore
+"$root/scripts/notices.sh" quest "$stage/game/android/build/noticeAssets/notices"
+cp "$root/scripts/android-notices.gradle" "$stage/game/android/build/"
+printf '\napply from: "android-notices.gradle"\n' >> "$stage/game/android/build/build.gradle"
 rm -f "$out"
-if ! godot4 --headless --path . --install-android-build-template --export-release Quest "$out" > "$stage/export.log" 2>&1 || [ ! -f "$out" ]; then
+if ! godot4 --headless --path . --export-release Quest "$out" > "$stage/export.log" 2>&1 || [ ! -f "$out" ]; then
   grep -v Fontconfig "$stage/export.log" | tail -60
   exit 1
 fi
@@ -48,4 +56,5 @@ for want in org.khronos.openxr.intent.category.IMMERSIVE_HMD com.oculus.intent.c
   grep -q "\"$want\"" <<<"$manifest" || { echo "android: manifest lacks $want" >&2; exit 1; }
 done
 unzip -l "$out" lib/arm64-v8a/libopenxr_loader.so > /dev/null || { echo "android: no OpenXR loader in the APK" >&2; exit 1; }
+python3 "$root/scripts/notices.py" check "$out" "$stage/game/android/build/noticeAssets/notices"
 echo "android: $out ($(git -C "$root" rev-parse --short HEAD)), signature and manifest verified"
