@@ -42,17 +42,14 @@ func _plants(rng: RandomNumberGenerator) -> void:
 	for t in TREES:
 		var ang := rng.randf() * TAU
 		var r := rng.randf_range(24.0, 58.0)
-		flora.add_tree(_ground_at(cos(ang) * r, sin(ang) * r), rng)
+		flora.add_tree(Terrain.ground(cos(ang) * r, sin(ang) * r), rng)
 	for b in BUSHES:
 		var ang := rng.randf() * TAU
 		var r := rng.randf_range(14.0, 40.0)
-		flora.add_bush(_ground_at(cos(ang) * r, sin(ang) * r), rng)
+		flora.add_bush(Terrain.ground(cos(ang) * r, sin(ang) * r), rng)
 	flora.keep()
 
 
 func _scatter(rng: RandomNumberGenerator, radius: float) -> Vector3:
 	return FloraLayout.brush(Vector3.ZERO, radius, 1, rng, Terrain.height_at)[0]
 
-
-static func _ground_at(x: float, z: float) -> Vector3:
-	return Vector3(x, Terrain.height_at(x, z), z)

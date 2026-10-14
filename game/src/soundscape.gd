@@ -13,7 +13,6 @@ const FX := {"stone": 5, "settle": 3, "arch": 2, "crumble": 2}
 const VOICES := 10
 
 var tool: WallTool
-var gardener: FloraTool
 var music := AudioStreamPlayer.new()
 var meadow := AudioStreamPlayer.new()
 var sections: Array[AudioStreamSynchronized] = []
@@ -25,11 +24,10 @@ var _next_voice := 0
 var _offsets: Array[float] = []
 
 
-func _init(builder: WallTool, garden: FloraTool) -> void:
+func _init(builder: WallTool, flora_tool: FloraTool) -> void:
 	tool = builder
 	tool.built.connect(_on_built)
-	gardener = garden
-	gardener.planted.connect(_on_planted)
+	flora_tool.planted.connect(_on_planted)
 	var list := AudioStreamPlaylist.new()
 	list.loop = true
 	list.fade_time = 3.0
@@ -81,7 +79,7 @@ func play_from(section: int) -> void:
 
 func _process(delta: float) -> void:
 	since_edit += delta
-	var building := tool.drawing != null or tool.lifting != null or gardener.painting or since_edit < QUIET_AFTER
+	var building := tool.drawing != null or tool.lifting != null or since_edit < QUIET_AFTER
 	var target: Array = BUILDING if building else IDLE
 	for j in STEMS.size():
 		var rate := 1.5 if target[j] < gains[j] else 0.25
@@ -92,7 +90,7 @@ func _process(delta: float) -> void:
 				s.set_sync_stream_volume(j, g)
 
 
-func _on_planted(_at: Vector3) -> void:
+func _on_planted() -> void:
 	since_edit = 0.0
 
 

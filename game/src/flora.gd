@@ -14,7 +14,6 @@ const PLACED_TREES := 64
 class Pool:
 	var mm := MultiMesh.new()
 	var kept := 0
-	## The slot the latest plant went into.
 	var last := -1
 	var _next := 0
 
@@ -25,11 +24,15 @@ class Pool:
 		mm.mesh = mesh
 		mm.instance_count = capacity
 		mm.visible_instance_count = 0
+		# Painting changes the instance list every frame; a fixed box spares a bounds pass over every plant.
+		mm.custom_aabb = AABB(Vector3(-Terrain.SIZE * 0.5, -10.0, -Terrain.SIZE * 0.5), Vector3(Terrain.SIZE, 40.0, Terrain.SIZE))
 
 	func add(xform: Transform3D, color: Color, custom := Color()) -> void:
 		var i := mm.visible_instance_count
 		if i < mm.instance_count:
 			mm.visible_instance_count = i + 1
+		elif kept == mm.instance_count:
+			return
 		else:
 			i = kept + _next
 			_next = (_next + 1) % (mm.instance_count - kept)
@@ -111,7 +114,6 @@ func add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 	foliage.add(b[0], b[1])
 
 
-## Everything added so far stays; painting past capacity recycles only what comes after.
 func keep() -> void:
 	for p in [grass, flowers, trunks, foliage]:
 		p.keep()

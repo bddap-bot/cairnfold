@@ -26,7 +26,7 @@ var _rest_y := 0.0
 var _vel_y := 0.0
 var _bob := 0.0
 var _turned := false
-var _descend_held := false
+var _left_buttons: Buttons
 var _fade_t := -1.0
 var _pending: Variant = null
 
@@ -46,6 +46,7 @@ func _init() -> void:
 	add_child(head)
 	left = _hand("left_hand")
 	right = _hand("right_hand")
+	_left_buttons = Buttons.new(left).watch(["by_button"])
 	_build_markers()
 
 
@@ -154,10 +155,9 @@ func _locomotion_input(delta: float) -> void:
 		_turned = true
 	elif absf(rstick.x) < 0.3:
 		_turned = false
-	var descend := left.is_button_pressed("by_button")
-	if descend and not _descend_held and floating:
+	if _left_buttons.pressed("by_button") and floating:
 		settle_down()
-	_descend_held = descend
+	_left_buttons.latch()
 
 
 ## Cast the teleport ray from a pointing pose. It lands on the ground it hits; aimed above the horizon with no ground within `air_reach`, it targets the point in the air at that reach.

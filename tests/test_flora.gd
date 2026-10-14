@@ -58,7 +58,7 @@ func _tool() -> FloraTool:
 func _painting_again_thickens() -> void:
 	var t := _tool()
 	var at := Vector3(2, Terrain.height_at(2, 2), 2)
-	t.set_mode(&"flowers")
+	t.set_mode(FloraTool.Mode.FLOWERS)
 	for i in 60:
 		t.paint(at, 1.0, 1.0 / 60.0)
 	var once := t.flora.flowers.size()
@@ -67,7 +67,7 @@ func _painting_again_thickens() -> void:
 	_check(once > 0, "a second of painting adds flowers")
 	_check(absf(t.flora.flowers.size() - 2 * once) <= 1, "a second pass doubles them, %d then %d" % [once, t.flora.flowers.size()])
 	_check(t.flora.grass.size() == 0, "the flower brush leaves the grass alone")
-	t.set_mode(&"grass")
+	t.set_mode(FloraTool.Mode.GRASS)
 	t.paint(at, 1.0, 1.0)
 	_check(t.flora.grass.size() > once, "the grass brush paints grass, denser than flowers")
 

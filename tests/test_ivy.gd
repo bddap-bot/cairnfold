@@ -12,6 +12,9 @@ func _init() -> void:
 	_ivy_grows_over_time()
 	_ivy_is_deterministic()
 	_short_walls_take_no_ivy()
+	_tall_walls_stay_bounded()
+	_raising_a_wall_keeps_its_ivy()
+	_bake_packs_each_leaf()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
 
@@ -92,3 +95,33 @@ func _ivy_is_deterministic() -> void:
 
 func _short_walls_take_no_ivy() -> void:
 	_check(IvyLayout.grow(_wall(1.2, 2.4, [])).is_empty(), "a stub between two piers takes no ivy")
+
+
+func _tall_walls_stay_bounded() -> void:
+	var low := IvyLayout.grow(_wall(15.0, 2.7, [])).size()
+	var tall := IvyLayout.grow(_wall(15.0, 9.0, [])).size()
+	_check(tall < low * 2.5, "ivy on a 9 m wall stays within a small multiple of a 2.7 m one, %d against %d leaves" % [tall, low])
+
+
+func _raising_a_wall_keeps_its_ivy() -> void:
+	var before := {}
+	for l in IvyLayout.grow(_wall(10.0, 2.7, [], 3)):
+		if l.y < 1.0:
+			before[l.xform.origin] = true
+	var kept := 0
+	for l in IvyLayout.grow(_wall(10.0, 3.3, [], 3)):
+		if before.has(l.xform.origin):
+			kept += 1
+	_check(kept == before.size(), "raising a wall leaves the ivy below where it was, %d of %d leaves" % [kept, before.size()])
+
+
+func _bake_packs_each_leaf() -> void:
+	var w := _wall(8.0, 2.4, [])
+	var leaves := IvyLayout.grow(w)
+	var baked := IvyLayout.bake(w.snapshot())
+	_check(baked.buffer.size() == leaves.size() * 16 and baked.times.size() == leaves.size(), "a transform and a colour per leaf")
+	var i := leaves.size() / 2
+	var b: PackedFloat32Array = baked.buffer
+	var x: Transform3D = leaves[i].xform
+	_check(is_equal_approx(b[i * 16 + 3], x.origin.x) and is_equal_approx(b[i * 16 + 1], x.basis.y.x) and is_equal_approx(b[i * 16 + 14], leaves[i].color.b), "rows laid out as the MultiMesh reads them")
+	_check(baked.bounds.has_point(x.origin), "the bounds hold the leaves")

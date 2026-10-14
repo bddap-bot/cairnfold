@@ -4,14 +4,18 @@ extends Node3D
 static var _meshes: Array[ArrayMesh] = []
 static var _material: ShaderMaterial
 static var _leaf_material: StandardMaterial3D
-static var _leaf: ArrayMesh
+static var _leaf := Meshes.leaf()
 
 var layout := WallLayout.new()
 var _instances: Array[MultiMeshInstance3D] = []
 var _ivy := MultiMeshInstance3D.new()
-var _ivy_times: Array[float] = []
-## Seconds since the wall was finished, which is how far its ivy has grown; negative while it is being drawn.
-var ivy_age := -1.0
+var _ivy_times := PackedFloat32Array()
+var _ivy_task := -1
+var _ivy_baked := {}
+var _ivy_stale := false
+var finished := false
+## Seconds since the wall was finished: how far its ivy has grown.
+var ivy_age := 0.0
 
 
 static func shared_material() -> ShaderMaterial:
@@ -37,7 +41,6 @@ static func leaf_material() -> StandardMaterial3D:
 		_leaf_material.roughness = 0.75
 		_leaf_material.backlight_enabled = true
 		_leaf_material.backlight = Color(0.2, 0.3, 0.06)
-		_leaf = Meshes.leaf()
 	return _leaf_material
 
 
@@ -62,37 +65,55 @@ func _init(seed: int) -> void:
 	_ivy.multimesh = ivy
 	_ivy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_ivy)
-	set_process(false)
 
 
-## Start the ivy growing; called once the wall is finished.
-func grow_ivy() -> void:
-	ivy_age = 0.0
-	_layout_ivy()
-	set_process(true)
+func _ready() -> void:
+	set_process(finished)
 
 
 func _process(delta: float) -> void:
 	ivy_age += delta
+	if _ivy_task >= 0 and WorkerThreadPool.is_task_completed(_ivy_task):
+		WorkerThreadPool.wait_for_task_completion(_ivy_task)
+		_ivy_task = -1
+		_apply_ivy()
+		if _ivy_stale:
+			_layout_ivy()
 	_ivy.multimesh.visible_instance_count = _ivy_times.bsearch(ivy_age)
-	if _ivy_times.is_empty() or ivy_age > _ivy_times[-1]:
+	if _ivy_task < 0 and (_ivy_times.is_empty() or ivy_age > _ivy_times[-1]):
 		set_process(false)
 
 
+func _exit_tree() -> void:
+	if _ivy_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_ivy_task)
+		_ivy_task = -1
+
+
+## Ivy for a long wall takes longer than a frame to lay out, so it grows on a worker thread from a snapshot.
 func _layout_ivy() -> void:
-	var leaves := IvyLayout.grow(layout)
+	set_process(true)
+	if _ivy_task >= 0:
+		_ivy_stale = true
+		return
+	_ivy_stale = false
+	var shape := layout.snapshot()
+	var out := _ivy_baked
+	out.clear()
+	_ivy_task = WorkerThreadPool.add_task(func(): out.merge(IvyLayout.bake(shape)))
+
+
+func _apply_ivy() -> void:
 	var mm := _ivy.multimesh
-	mm.instance_count = leaves.size()
-	_ivy_times.clear()
-	for i in leaves.size():
-		mm.set_instance_transform(i, leaves[i].xform)
-		mm.set_instance_color(i, leaves[i].color)
-		_ivy_times.append(leaves[i].t)
-	mm.visible_instance_count = _ivy_times.bsearch(ivy_age)
-	set_process(ivy_age >= 0.0)
+	_ivy_times = _ivy_baked.times
+	mm.instance_count = _ivy_times.size()
+	if _ivy_times.size() > 0:
+		mm.buffer = _ivy_baked.buffer
+	mm.custom_aabb = _ivy_baked.bounds
 
 
-func rebuild() -> void:
+## Lays the stones again; the ivy too unless `with_ivy` is false, which a grip lift uses until the hand lets go.
+func rebuild(with_ivy := true) -> void:
 	layout.build(Terrain.height_at)
 	var buckets: Array[Array] = [[], [], []]
 	for s in layout.stones:
@@ -105,7 +126,7 @@ func rebuild() -> void:
 			mm.set_instance_transform(i, s.xform)
 			mm.set_instance_color(i, s.color)
 			mm.set_instance_custom_data(i, Color(s.ao, 0, 0, 0))
-	if ivy_age >= 0.0:
+	if finished and with_ivy:
 		_layout_ivy()
 
 

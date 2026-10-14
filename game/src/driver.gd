@@ -58,19 +58,13 @@ func _aim(s: Dictionary) -> void:
 
 
 func _wall(s: Dictionary) -> void:
-	var pts: Array = s.points
 	var tool: WallTool = main.tool
-	var path: Array[Vector3] = []
-	for p in pts:
-		path.append(_spot(s, p[0], p[1]))
+	var path := _path(s)
 	tool.begin_stroke(path[0])
-	var total := 0.0
-	for i in path.size() - 1:
-		total += path[i].distance_to(path[i + 1])
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
 	for f in frames:
 		await get_tree().process_frame
-		tool.extend_stroke(_along(path, total * (f + 1) / frames))
+		tool.extend_stroke(_along(path, float(f + 1) / frames))
 	tool.end_stroke()
 
 
@@ -84,27 +78,21 @@ func _arch(s: Dictionary) -> void:
 	main.tool.toggle_arch(main.tool.walls[s.index], s.s)
 
 
-## Sweeps the left-hand brush through `points` over `seconds`, painting `mode` with a brush of `radius`.
 func _paint(s: Dictionary) -> void:
-	var gardener: FloraTool = main.gardener
-	gardener.set_mode(StringName(s.mode))
-	var path: Array[Vector3] = []
-	for p in s.points:
-		path.append(_spot(s, p[0], p[1]))
-	var total := 0.0
-	for i in path.size() - 1:
-		total += path[i].distance_to(path[i + 1])
+	var flora_tool: FloraTool = main.flora_tool
+	flora_tool.set_mode(FloraTool.Mode[s.mode.to_upper()])
+	var path := _path(s)
 	var t := 0.0
 	var seconds: float = s.get("seconds", 2.0)
 	while t < seconds:
 		await get_tree().process_frame
 		var dt := get_process_delta_time()
 		t += dt
-		gardener.paint(_along(path, total * minf(t / seconds, 1.0)), s.radius, dt)
+		flora_tool.paint(_along(path, minf(t / seconds, 1.0)), s.radius, dt)
 
 
 func _tree(s: Dictionary) -> void:
-	main.gardener.plant_tree(_spot(s, s.x, s.z))
+	main.flora_tool.plant_tree(_spot(s, s.x, s.z))
 
 
 func _music(s: Dictionary) -> void:
@@ -127,21 +115,29 @@ func _quit(_s: Dictionary) -> void:
 ## With "relative", x is metres to the head's right and z metres ahead of it, so a script works whichever way the headset faces.
 func _spot(s: Dictionary, x: float, z: float) -> Vector3:
 	if not s.get("relative", false):
-		return _ground(x, z)
+		return Terrain.ground(x, z)
 	var head: Node3D = main.rig.head
 	var fwd := -head.global_basis.z
 	fwd.y = 0.0
 	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
 	var right := fwd.cross(Vector3.UP)
 	var p := head.global_position + right * x + fwd * z
-	return _ground(p.x, p.z)
+	return Terrain.ground(p.x, p.z)
 
 
-func _ground(x: float, z: float) -> Vector3:
-	return Vector3(x, Terrain.height_at(x, z), z)
+func _path(s: Dictionary) -> Array[Vector3]:
+	var path: Array[Vector3] = []
+	for p in s.points:
+		path.append(_spot(s, p[0], p[1]))
+	return path
 
 
-static func _along(path: Array[Vector3], d: float) -> Vector3:
+## The ground point `fraction` of the way along `path`.
+static func _along(path: Array[Vector3], fraction: float) -> Vector3:
+	var d := 0.0
+	for i in path.size() - 1:
+		d += path[i].distance_to(path[i + 1])
+	d *= fraction
 	for i in path.size() - 1:
 		var seg := path[i].distance_to(path[i + 1])
 		if d <= seg:

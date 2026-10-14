@@ -24,6 +24,10 @@ static func height_at(x: float, z: float) -> float:
 	return rolling + rim
 
 
+static func ground(x: float, z: float) -> Vector3:
+	return Vector3(x, height_at(x, z), z)
+
+
 static func normal_at(x: float, z: float) -> Vector3:
 	var e := 0.5
 	var dx := height_at(x + e, z) - height_at(x - e, z)

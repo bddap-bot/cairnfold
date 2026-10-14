@@ -64,8 +64,8 @@ func _process(delta: float) -> void:
 		begin_lift(pick.wall, origin, pick.point)
 	elif _buttons.held("grip_click") and lifting != null:
 		drag_lift(origin.y)
-	elif _buttons.released("grip_click"):
-		lifting = null
+	elif _buttons.released("grip_click") and lifting != null:
+		end_lift()
 
 	if _buttons.pressed("ax_button") and not pick.is_empty():
 		toggle_arch(pick.wall, pick.s)
@@ -79,9 +79,10 @@ func _process(delta: float) -> void:
 
 
 func _flush() -> void:
-	for w in [drawing, lifting]:
-		if w != null:
-			w.rebuild()
+	if drawing != null:
+		drawing.rebuild()
+	if lifting != null:
+		lifting.rebuild(false)
 	_dirty = false
 	_since_rebuild = 0.0
 
@@ -113,8 +114,8 @@ func end_stroke() -> Wall:
 		return null
 	if w.layout.length() >= AUTO_ARCH_LENGTH and w.layout.can_arch():
 		w.layout.arches = [w.layout.length() * 0.5]
+	w.finished = true
 	w.rebuild()
-	w.grow_ivy()
 	walls.append(w)
 	built.emit(&"settle", _top(w, w.layout.length() * 0.5))
 	return w
@@ -135,6 +136,11 @@ func drag_lift(hand_y: float) -> void:
 		lifting.layout.height = h
 		_dirty = true
 		built.emit(&"stone", Vector3(_lift_at.x, Terrain.height_at(_lift_at.x, _lift_at.z) + h, _lift_at.z))
+
+
+func end_lift() -> void:
+	lifting.rebuild()
+	lifting = null
 
 
 func toggle_arch(w: Wall, s: float) -> void:

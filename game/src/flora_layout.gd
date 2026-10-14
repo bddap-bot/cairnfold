@@ -1,15 +1,14 @@
 class_name FloraLayout
 extends RefCounted
 
-## Where grass, flowers, bushes and trees go and how each looks. The meadow and the
-## left-hand brush both place plants through here. Pure data: no nodes, so tests run headless.
+## Where grass, flowers, bushes and trees go and how each looks; the meadow and the left-hand brush both place plants through here.
 
 const FLOWER_COLORS := [Color(0.97, 0.96, 0.92), Color(1.0, 0.85, 0.25), Color(0.95, 0.62, 0.72), Color(0.72, 0.62, 0.95), Color(0.98, 0.45, 0.30)]
 const BLOBS := 8
 const GREENS := [Color(0.16, 0.34, 0.08), Color(0.24, 0.42, 0.1), Color(0.14, 0.30, 0.12), Color(0.32, 0.46, 0.12)]
 
-static var _patches: FastNoiseLite
-static var _kinds: FastNoiseLite
+static var _patches := _noise(9, 0.06)
+static var _kinds := _noise(17, 0.08)
 
 
 static func _noise(seed: int, frequency: float) -> FastNoiseLite:
@@ -21,23 +20,16 @@ static func _noise(seed: int, frequency: float) -> FastNoiseLite:
 
 ## How dry the grass tips are at a ground point, 0 lush to 1 straw.
 static func dryness(p: Vector3) -> float:
-	if _patches == null:
-		_patches = _noise(9, 0.06)
 	return clampf(0.4 + _patches.get_noise_2d(p.x, p.z) * 1.2, 0.0, 1.0)
 
 
 ## Flowers come in single-colour drifts, so a painted patch matches the meadow's around it.
 static func flower_color(p: Vector3) -> Color:
-	if _kinds == null:
-		_kinds = _noise(17, 0.08)
 	var k := int(clampf((_kinds.get_noise_2d(p.x, p.z) + 0.6) / 1.2, 0.0, 0.999) * FLOWER_COLORS.size())
 	return FLOWER_COLORS[k]
 
 
-## Whether the meadow's flower drifts favour a ground point.
 static func flowery(p: Vector3) -> bool:
-	if _kinds == null:
-		flower_color(p)
 	return _kinds.get_noise_2d(p.z * 1.9, p.x * 1.9) >= 0.05
 
 
@@ -51,7 +43,6 @@ static func flower(p: Vector3, rng: RandomNumberGenerator) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * s), p)
 
 
-## `count` points spread over a disc of `radius` around `center`, each set into the ground.
 static func brush(center: Vector3, radius: float, count: int, rng: RandomNumberGenerator, ground: Callable) -> Array[Vector3]:
 	var out: Array[Vector3] = []
 	for i in count:

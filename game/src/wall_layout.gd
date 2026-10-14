@@ -181,6 +181,17 @@ func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind:
 	return {"xform": Transform3D(basis.scaled_local(size), origin), "color": color, "kind": kind, "s": s, "y": y, "size": size, "ao": clampf(0.6 + y * 0.25, 0.6, 1.0), "variant": rng.randi() % 3}
 
 
+## The built shape without its stones, safe to read on another thread while this one is edited.
+func snapshot() -> WallLayout:
+	var w := WallLayout.new()
+	w.seed = seed
+	w.height = height
+	w.samples = samples.duplicate()
+	w.lengths = lengths.duplicate()
+	w.live_arches = live_arches.duplicate()
+	return w
+
+
 ## Ground point and unit tangent at arc length `s`.
 func frame_at(s: float) -> Dictionary:
 	var i := lengths.bsearch(s)

@@ -1,8 +1,6 @@
 class_name Beam
 extends MeshInstance3D
 
-## A thin pointer ray from a hand to what it points at.
-
 
 func _init(color: Color) -> void:
 	var mat := StandardMaterial3D.new()
