@@ -138,6 +138,7 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	var coped := WallLayout.new()
 	coped.points = [Vector3(0, 0, -4), Vector3(6, 0, -4)]
 	coped.top = WallLayout.Top.COPE
+	coped.ruins = [Vector2(2.0, 3.5)]
 	coped.build(_flat)
 	var fence := WallLayout.new()
 	fence.fence = true
@@ -157,7 +158,7 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	for k in Palette.KINDS:
 		_check(kinds.has(k), "%s is a kind something lays" % k)
 	var want := {
-		Palette.Element.STONE: ["block", "mortar", "voussoir", "keystone", "pillar", "cope", "cap", "merlon", "pier", "lintel", "sill", "mullion", "chimney"],
+		Palette.Element.STONE: ["block", "mortar", "voussoir", "keystone", "pillar", "cope", "cap", "merlon", "pier", "lintel", "sill", "mullion", "chimney", "rubble"],
 		Palette.Element.ROOF: ["tile", "ridge"],
 		Palette.Element.WOOD: ["post", "rail", "gate", "frame", "door", "pole"],
 		Palette.Element.PLASTER: ["plaster"],

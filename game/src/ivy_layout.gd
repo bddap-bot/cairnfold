@@ -58,9 +58,11 @@ static func bake(wall: WallLayout) -> Dictionary:
 	return {"buffer": buffer, "times": times, "bounds": bounds.grow(0.3)}
 
 
-## Whether the face point `s` along the wall, `y` above its foot, lies in an arch opening or its ring, or
-## in a window or door with its sill and lintel.
+## Whether the face point `s` along the wall, `y` above its foot, lies in an arch opening or its ring, in
+## a window or door with its sill and lintel, or above a ruin's broken stones.
 static func blocked(wall: WallLayout, s: float, y: float) -> bool:
+	if y > wall.standing(s) - 0.2:
+		return true
 	for o in wall.openings:
 		if absf(wall.offset(s, o.s)) < o.half + WallLayout.LINTEL_EAR + MARGIN and y > o.sill - 0.15 - MARGIN and y < o.head + wall.course_height() + MARGIN:
 			return true

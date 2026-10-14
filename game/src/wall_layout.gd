@@ -51,6 +51,15 @@ const GLASS := Color(0.12, 0.17, 0.22)
 const PLASTER := Color(0.86, 0.8, 0.68)
 ## The stone walls are laid in, before each stone's variation.
 const STONE := Color(0.66, 0.61, 0.53)
+## A ruin's broken ends lean back by up to this much a course, out to at most RUIN_LEAN, ragged by RUIN_JAG.
+const RUIN_STEP := Vector2(0.03, 0.22)
+const RUIN_LEAN := 1.6
+const RUIN_JAG := 0.18
+## Fallen stones per metre of ruin.
+const RUBBLE := 1.5
+## The narrowest stretch an eraser breaks away, and the shortest stub it leaves standing.
+const MIN_GAP := 1.0
+const MIN_STUB := 0.8
 
 var points: Array[Vector3] = []
 var height := 2.6
@@ -69,6 +78,8 @@ var windows: Array[Vector2] = []
 var lanterns: Array[Vector3] = []
 ## Flags on the wall's top, by arc length.
 var flags: Array[float] = []
+## Stretches broken away to the ground, by arc length from and to, each within the wall's length.
+var ruins: Array[Vector2] = []
 # The fields above are what `build` reads (see `inputs`); those below are what it lays (see `adopt`).
 
 var samples: Array[Vector3] = []
@@ -85,6 +96,8 @@ var openings: Array[Dictionary] = []
 ## Lantern flames and flag cloths, laid with the stones; flames are unit boxes, cloths unit quads off the pole.
 var flames: Array[Transform3D] = []
 var cloths: Array[Dictionary] = []
+## Per course from the foot up, the stretches broken away there: each ruin, wider every course up.
+var breaks: Array[PackedVector2Array] = []
 
 
 func length() -> float:
@@ -124,14 +137,17 @@ func build(ground: Callable) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	live_arches.clear()
+	breaks.clear()
 	var total := length()
 	if total < 0.3:
 		return
+	if not fence:
+		_break()
 	if can_arch():
 		var sorted := arches.duplicate()
 		sorted.sort()
 		for a in sorted:
-			if fits_arch(a, live_arches):
+			if fits_arch(a, live_arches) and not broken(a, ARCH_HALF + RING):
 				live_arches.append(a)
 	if fence:
 		_build_fence(rng)
@@ -160,6 +176,8 @@ func build(ground: Callable) -> void:
 			pillar_top = y0 + course_h
 			for b in bays:
 				spans = _cut(spans, b.s - b.half, b.s + b.half)
+		for b in breaks[k]:
+			spans = _cut(spans, b.x, b.y)
 		var offset := (0.5 if k % 2 == 1 else 0.0) * rng.randf_range(0.3, 0.6)
 		for span in spans:
 			_lay_course(span[0], span[1], y0, course_h, offset, rng)
@@ -172,12 +190,14 @@ func build(ground: Callable) -> void:
 		_lay_opening(o, rng)
 	_lay_top(rng)
 	for s in corners():
-		_lay_pier(s, rng)
+		if not broken(s, PIER * 0.5):
+			_lay_pier(s, rng)
+	_lay_rubble()
 	for l in lanterns:
 		if lantern_fits(l.x, l.y):
 			_lay_lantern(l.x, frame_at(l.x).point + Vector3.UP * l.y, _normal(l.x) * l.z, rng)
 	for f in flags:
-		if flag_fits(f):
+		if flag_fits(f) and not broken(f, 0.3):
 			var parts := flag(frame_at(f).point + Vector3.UP * (height + CAP), frame_at(f).tangent, flag_color(seed, f))
 			_world(parts.pole, POLE, "pole", f)
 			_world(parts.finial, FINIAL, "finial", f)
@@ -186,6 +206,103 @@ func build(ground: Callable) -> void:
 
 func courses() -> int:
 	return maxi(1, int(round(height / COURSE)))
+
+
+## Each ruin's stretch per course, leaning back further every course up so its ends stand as ragged steps.
+## A ruin draws from its own stream, so breaking one stretch leaves another's steps as they were.
+func _break() -> void:
+	var n := courses()
+	breaks.resize(n)
+	for k in n:
+		breaks[k] = PackedVector2Array()
+	for r in ruins:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash([seed, snappedf(r.x, 0.01)])
+		var lean := Vector2.ZERO
+		var edge := r
+		for k in n:
+			edge = Vector2(minf(edge.x, r.x - lean.x - rng.randf() * RUIN_JAG), maxf(edge.y, r.y + lean.y + rng.randf() * RUIN_JAG))
+			breaks[k].append(edge)
+			lean = (lean + Vector2(rng.randf_range(RUIN_STEP.x, RUIN_STEP.y), rng.randf_range(RUIN_STEP.x, RUIN_STEP.y))).min(Vector2.ONE * RUIN_LEAN)
+
+
+## Whether arc length `s` lies within `margin` of a stretch broken away at the top.
+func broken(s: float, margin := 0.0) -> bool:
+	if breaks.is_empty():
+		return false
+	for b in breaks[-1]:
+		if absf(offset(s, (b.x + b.y) * 0.5)) < (b.y - b.x) * 0.5 + margin:
+			return true
+	return false
+
+
+## How high the wall stands at arc length `s`: its height, or lower where a ruin's end steps down.
+func standing(s: float) -> float:
+	for k in breaks.size():
+		for b in breaks[k]:
+			if absf(offset(s, (b.x + b.y) * 0.5)) < (b.y - b.x) * 0.5:
+				return k * course_height()
+	return height
+
+
+## Stones fallen from each ruin, lying in and beside its gap.
+func _lay_rubble() -> void:
+	for r in ruins:
+		var rng := RandomNumberGenerator.new()
+		rng.seed = hash([seed, snappedf(r.x, 0.01), 1])
+		for i in mini(int((r.y - r.x) * RUBBLE * minf(height, 3.0) / 3.0) + 2, 40):
+			var s := rng.randf_range(r.x, r.y)
+			var size := Vector3(rng.randf_range(0.3, 0.6), rng.randf_range(0.16, 0.28), rng.randf_range(0.24, 0.42))
+			var st := _stone(s, size.y * 0.4, size, rng, "rubble", 0.92, 0.45, rng.randf_range(-0.5, 0.5))
+			st.xform.origin += _normal(s) * rng.randf_range(-0.8, 0.8)
+			stones.append(st)
+
+
+## The ruins after the stretch `lo` to `hi` (lo < hi, unwrapped round a loop) is broken away too: at least
+## MIN_GAP wide, merged with those standing, and no stub shorter than MIN_STUB left. Nothing standing is
+## [Vector2(0, length())].
+func erase(lo: float, hi: float) -> Array[Vector2]:
+	var total := length()
+	if hi - lo < MIN_GAP:
+		var mid := (lo + hi) * 0.5
+		lo = mid - MIN_GAP * 0.5
+		hi = mid + MIN_GAP * 0.5
+	var out: Array[Vector2] = []
+	var spans: Array[Vector2] = ruins.duplicate()
+	if closed:
+		if hi - lo >= total:
+			out.append(Vector2(0.0, total))
+			return out
+		var a := fposmod(lo, total)
+		var b := a + hi - lo
+		spans.append(Vector2(a, minf(b, total)))
+		if b > total:
+			spans.append(Vector2(0.0, b - total))
+	else:
+		spans.append(Vector2(maxf(lo, 0.0), minf(hi, total)))
+	spans.sort_custom(func(p: Vector2, q: Vector2) -> bool: return p.x < q.x)
+	var start := 0.0
+	for sp in spans:
+		if sp.x - start < MIN_STUB and not out.is_empty():
+			out[-1].y = maxf(out[-1].y, sp.y)
+		elif sp.x - start < MIN_STUB and not closed:
+			out.append(Vector2(0.0, sp.y))
+		else:
+			out.append(sp)
+		start = out[-1].y
+	if out.is_empty():
+		return out
+	if not closed and total - out[-1].y < MIN_STUB:
+		out[-1].y = total
+	if closed and out.size() > 1 and total - out[-1].y + out[0].x < MIN_STUB:
+		out[0].x = 0.0
+		out[-1].y = total
+	var left := total
+	for sp in out:
+		left -= sp.y - sp.x
+	if left < MIN_STUB:
+		out.assign([Vector2(0.0, total)])
+	return out
 
 
 ## Whole courses fill the wall's height.
@@ -264,7 +381,7 @@ func _opening_fits(o: Dictionary, others: Array[Dictionary]) -> bool:
 	if o.head + course_height() > height + 0.01:
 		return false
 	var side: float = o.half + LINTEL_EAR + PIER * 0.5
-	if not closed and (o.s < side or o.s > length() - side):
+	if broken(o.s, side) or (not closed and (o.s < side or o.s > length() - side)):
 		return false
 	if not corners().all(func(c): return absf(offset(o.s, c)) > side):
 		return false
@@ -297,7 +414,7 @@ func window_fits(at: Vector2) -> bool:
 func lantern_fits(s: float, y: float) -> bool:
 	if fence:
 		return true
-	if y < 0.9 or y > height - 0.2 or (not closed and (s < PIER or s > length() - PIER)):
+	if broken(s, 0.3) or y < 0.9 or y > height - 0.2 or (not closed and (s < PIER or s > length() - PIER)):
 		return false
 	if live_arches.any(func(a): return absf(offset(s, a)) < ARCH_HALF + RING + 0.2):
 		return false
@@ -596,9 +713,17 @@ func corners() -> Array[float]:
 
 
 func _lay_top(rng: RandomNumberGenerator) -> void:
-	var total := length()
+	var spans := [[0.0, length()]]
+	if not breaks.is_empty():
+		for b in breaks[-1]:
+			spans = _cut(spans, b.x, b.y)
+	for span in spans:
+		_lay_top_span(span[0], span[1], rng)
+
+
+func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 	if top == Top.COPE:
-		var s := 0.0
+		var s := a
 		var tall := true
 		while total - s > 0.08:
 			var l := minf(rng.randf_range(0.11, 0.17), total - s)
@@ -607,7 +732,7 @@ func _lay_top(rng: RandomNumberGenerator) -> void:
 			tall = not tall
 			s += l + 0.012
 		return
-	var s := 0.0
+	var s := a
 	while total - s > 0.05:
 		var l := minf(rng.randf_range(0.5, 0.95), total - s)
 		if total - s - l < 0.3:
@@ -616,7 +741,7 @@ func _lay_top(rng: RandomNumberGenerator) -> void:
 		s += l
 	if top != Top.CRENEL:
 		return
-	var m := 0.55
+	var m := a + 0.55
 	while m < total - 0.4:
 		_add(m, height + CAP + 0.24, Vector3(0.5, 0.48, THICKNESS * 0.8), rng, "merlon", 1.0, 0.03)
 		m += 1.15
@@ -661,6 +786,7 @@ func inputs() -> WallLayout:
 	w.windows = windows.duplicate()
 	w.lanterns = lanterns.duplicate()
 	w.flags = flags.duplicate()
+	w.ruins = ruins.duplicate()
 	return w
 
 
@@ -685,6 +811,7 @@ func adopt(built: WallLayout) -> void:
 	openings = built.openings
 	flames = built.flames
 	cloths = built.cloths
+	breaks = built.breaks
 
 
 ## The built shape without its stones, safe to read on another thread while this one is edited.
@@ -698,6 +825,7 @@ func snapshot() -> WallLayout:
 	w.bounds = bounds
 	w.live_arches = live_arches.duplicate()
 	w.openings = openings.duplicate(true)
+	w.breaks = breaks.duplicate()
 	w.fence = fence
 	return w
 

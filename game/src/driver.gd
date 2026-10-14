@@ -343,6 +343,29 @@ func _delete(s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
+## Sweeps the delete tool's beam along a wall, pointing straight down from `height` metres over each point of
+## `points` in turn across `seconds`, then lets go.
+func _erase(s: Dictionary) -> void:
+	var tool: DeleteTool = main.delete_tool
+	var path := _path(s)
+	var up: Vector3 = Vector3.UP * float(s.get("height", 6.0))
+	var target := tool.aim(path[0] + up, Vector3.DOWN)
+	if not target.has("wall"):
+		push_error("driver: erase finds no wall at %s" % path[0])
+		await get_tree().process_frame
+		return
+	tool.begin(self, target.wall, target.s)
+	var secs: float = s.get("seconds", 0.5)
+	var t := 0.0
+	while t < secs:
+		tool.sweep(self, _along(path, t / secs) + up, Vector3.DOWN)
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	tool.sweep(self, path[-1] + up, Vector3.DOWN)
+	tool.let_go(self)
+	await get_tree().process_frame
+
+
 ## Fills a disc at once with parallel walls (see StressLayout) of one height, their ivy fully grown.
 func _stress(s: Dictionary) -> void:
 	var tool: WallTool = main.tool

@@ -152,6 +152,8 @@ static func raised(cells: Rect2i) -> PackedFloat32Array:
 
 
 static func read(cells: Rect2i) -> PackedFloat32Array:
+	if cells == ALL:
+		return _heights.duplicate()
 	var out := PackedFloat32Array()
 	out.resize(cells.size.x * cells.size.y)
 	var n := 0

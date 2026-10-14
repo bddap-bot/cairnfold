@@ -378,7 +378,7 @@ func end_lift(m: Mason) -> void:
 	if is_equal_approx(w.layout.height, m.lift_start):
 		_relay(w)
 	else:
-		world.submit({"op": "reshape", "id": w.id, "data": {"height": w.layout.height}}, _settle.bind(w.id))
+		world.submit({"op": "reshape", "id": w.id, "data": {"height": w.layout.height}}, settle.bind(w.id))
 
 
 ## Grip on a roof: raising the hand raises the ridge, moving it sideways bows or sags the slopes.
@@ -417,7 +417,7 @@ func end_roof(m: Mason) -> void:
 	if is_equal_approx(w.roof.pitch, m.lift_start) and is_equal_approx(w.roof.curve, m.curve_start):
 		_relay(w)
 	else:
-		world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, _settle.bind(w.id))
+		world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id))
 
 
 func cycle_top(w: Wall) -> void:
@@ -441,8 +441,9 @@ func toggle_arch(w: Wall, s: float) -> void:
 		_set_arches(w, own)
 
 
-## A pulled height or roof shows as pulled until its command comes back, or goes back if it is turned down.
-func _settle(id: int) -> void:
+## A pulled height, roof or erased stretch shows as pulled until its command comes back, or goes back if it is
+## turned down.
+func settle(id: int) -> void:
 	var w := find(id)
 	if w != null and not _held(w):
 		_relay(w)
@@ -532,7 +533,9 @@ func restyle(id: int, changed: Array) -> void:
 	if _held(w):
 		return
 	_relay(w)
-	if "arches" in changed:
+	if "ruins" in changed:
+		_sound(&"crumble", _top(w, w.layout.length() * 0.5))
+	elif "arches" in changed:
 		_sound(&"arch", _top(w, w.layout.length() * 0.5))
 	elif "roof" in changed:
 		_sound(&"stone", w.roof.frame().mid + Vector3.UP * w.roof.pitch)

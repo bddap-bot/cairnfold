@@ -17,8 +17,10 @@ paths, flowers, grass, trees, terrain, pond, colour, teleport, delete or visit.
 - Trigger: use the tool. Draw a wall, lay a path, paint, plant a tree, grab the
   ground and lift or lower the hand to pull a hill or press a hollow, dig a pond
   (hold to dig deeper, release to fill), aim a teleport (release to go; into the
-  sky to float), or delete the one thing you point at. A path through a wall opens
-  an arch, a wide one an arcade.
+  sky to float), or erase: hold it on a wall and sweep along it to break that
+  stretch into a ruin (a tap breaks a short gap, sweeping it all takes it all), or
+  press on a tree or painted plants to take them. A path through a wall opens an
+  arch, a wide one an arcade.
 - Holding colour: hold the trigger on a wall, roof, gable, fence, window or door, or
   the meadow, and twist your wrist to turn a wheel of swatches for that material, or
   of seasons for the meadow; let go to keep the one at the top.
@@ -35,6 +37,7 @@ paths, flowers, grass, trees, terrain, pond, colour, teleport, delete or visit.
 - Right stick left/right: snap turn.
 - Left D-pad down: undo. Up: redo. One history across every tool; with others,
   each player undoes only their own steps.
+- Your garden is saved after every edit and is back when the game starts again.
 
 On Quest Touch controllers, which have no D-pad: left X undoes, left Y redoes,
 right A cuts arches.

@@ -26,6 +26,7 @@ const MAX_SEEDS := 256
 const MAX_STAMPS := 2000
 const MAX_FITTINGS := 64
 const MAX_CHIMNEYS := 8
+const MAX_RUINS := 32
 
 
 ## Length of a stroke along the ground.
@@ -154,7 +155,12 @@ static func _wall(d: Variant) -> Variant:
 		return null
 	if d.fence and not (windows.is_empty() and flags.is_empty()):
 		return null
-	var out := {"points": points, "height": d.height, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags}
+	var ruins: Variant = d.get("ruins")
+	if typeof(ruins) != TYPE_PACKED_VECTOR2_ARRAY or ruins.size() > MAX_RUINS or not Array(ruins).all(func(r: Vector2) -> bool: return r.is_finite() and r.x >= 0.0 and r.y > r.x and r.y < 4000.0):
+		return null
+	if not ruins.is_empty() and (d.fence or d.has("roof")):
+		return null
+	var out := {"points": points, "height": d.height, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins}
 	if d.has("roof"):
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():
@@ -179,7 +185,7 @@ static func _reshape(d: Dictionary, now: Dictionary) -> Variant:
 	for k in d:
 		if typeof(k) != TYPE_STRING:
 			return null
-		if k in ["height", "top", "arches", "windows", "lanterns", "flags"]:
+		if k in ["height", "top", "arches", "windows", "lanterns", "flags", "ruins"]:
 			out[k] = d[k]
 			trial[k] = d[k]
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():

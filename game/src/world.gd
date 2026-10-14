@@ -44,6 +44,10 @@ var _strokes := {}
 var _resending := {}
 ## What to do when each of our sent commands is settled, by token.
 var _done := {}
+## Where this garden is kept between sessions, or "" to keep nothing (see `keep_at`).
+var kept := ""
+var _keep_due := false
+var _keep_task := -1
 
 
 func _init() -> void:
@@ -53,6 +57,52 @@ func _init() -> void:
 
 func _ready() -> void:
 	multiplayer.peer_disconnected.connect(func(id: int) -> void: _allowance.erase(id))
+
+
+func _exit_tree() -> void:
+	if _keep_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_keep_task)
+		_keep_task = -1
+
+
+## Loads the garden kept at `path`, if there is one, and from then on keeps this garden there: rewritten
+## after every frame in which a command changed it, while it is our own (not one we are visiting). A file
+## that holds no garden is reported and the meadow starts empty.
+func keep_at(path: String) -> void:
+	kept = path
+	if not FileAccess.file_exists(path):
+		return
+	var snap: Variant = bytes_to_var(FileAccess.get_file_as_bytes(path))
+	if snap is Dictionary and snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT:
+		restore(snap)
+		print("world: loaded %d commands from %s" % [snap.cmds.size(), path])
+	else:
+		push_error("world: %s holds no garden this game can read; starting from the empty meadow" % path)
+
+
+## The snapshot is taken here, so the garden it describes cannot change under the writer.
+func _keep() -> void:
+	_keep_due = false
+	if kept == "" or not multiplayer.is_server():
+		return
+	var bytes := var_to_bytes(snapshot())
+	if _keep_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_keep_task)
+	var path := ProjectSettings.globalize_path(kept)
+	_keep_task = WorkerThreadPool.add_task(func() -> void: World._write(path, bytes))
+
+
+## Written beside the garden and renamed over it, so a crash mid-write leaves the last one whole.
+static func _write(path: String, bytes: PackedByteArray) -> void:
+	var f := FileAccess.open(path + ".new", FileAccess.WRITE)
+	if f == null:
+		push_error("world: cannot keep the garden at %s: %s" % [path, error_string(FileAccess.get_open_error())])
+		return
+	f.store_buffer(bytes)
+	f.close()
+	var err := DirAccess.rename_absolute(path + ".new", path)
+	if err != OK:
+		push_error("world: cannot keep the garden at %s: %s" % [path, error_string(err)])
 
 
 func attach(walls: WallTool, plants: Flora, ways: Paths, ground: TerrainTool, ponds: Water = null) -> void:
@@ -354,6 +404,9 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			palette.picks[cmd.element] = cmd.index
 			palette.apply()
 	applied.emit(cmd)
+	if kept != "" and not _keep_due:
+		_keep_due = true
+		_keep.call_deferred()
 	return inverse
 
 

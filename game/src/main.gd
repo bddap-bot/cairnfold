@@ -80,6 +80,9 @@ func _ready() -> void:
 	metrics = Metrics.new(args.get("metrics", ""))
 	metrics.info = {"xr": _start_xr(), "label": "", "budget": Budget.info()}
 	add_child(metrics)
+	var garden: String = args.get("garden", "user://garden.save" if get_tree().current_scene == self and not args.has("script") else "")
+	if garden != "":
+		world.keep_at(garden)
 	if args.has("script"):
 		add_child(Driver.new(self, Driver.read(args.script)))
 	if args.has("quit-after"):
@@ -97,7 +100,7 @@ func _process(_delta: float) -> void:
 
 
 func _editing() -> bool:
-	return tool.busy() or flora_tool.busy() or terrain_tool.busy() or palette_tool.busy()
+	return tool.busy() or flora_tool.busy() or terrain_tool.busy() or palette_tool.busy() or delete_tool.busy()
 
 
 func _start_xr() -> bool:

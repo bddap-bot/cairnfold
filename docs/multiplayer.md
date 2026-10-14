@@ -12,7 +12,7 @@ internet comes next and uses the same protocol.
 
 Every finished edit is a **build command**: a small dictionary of plain values. `wall`
 carries the walls a stroke built, `unwall` removes walls, and `reshape` changes a wall's
-height, top, arches or roof. `path` and `unpath` lay and lift paths, `plant` grows a
+height, top, arches, fittings, ruins or roof. `path` and `unpath` lay and lift paths, `plant` grows a
 paint stroke or a tree, `show` hides or restores plants, and `heights` sets an area of
 ground (a dug pond's seed, the point its water fills from, rides on the same command), and
 `palette` sets one material's swatch or the season. `World` (game/src/world.gd) applies them, and nothing else changes the garden.
@@ -69,6 +69,10 @@ snapshot's sequence number on. ENet delivers reliable messages in order, so noth
 broadcast after the snapshot can overtake it. While you visit, your own garden waits in
 memory as a snapshot and comes back when you leave or the host goes away. Undo history
 stays with the garden it belongs to: visiting starts fresh, and so does coming home.
+
+The same snapshot keeps your garden between sessions: the host writes it to disk after every frame in which
+a command changed its garden, and loads it at start. A player visiting writes nothing, so a visit never
+overwrites their own garden.
 
 ## Undo and redo: your own steps, never someone else's
 

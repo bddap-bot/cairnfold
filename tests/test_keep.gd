@@ -1,0 +1,112 @@
+extends SceneTree
+
+## Headless checks of keeping the garden: autosaved after every edit, loaded whole, and unreadable files
+## reported: godot4 --headless --path game --script ../tests/test_keep.gd
+
+var failures := 0
+var main: Node
+var world: World
+var dir := ""
+
+
+func _initialize() -> void:
+	main = (load("res://main.tscn") as PackedScene).instantiate()
+	root.add_child(main)
+	_run.call_deferred()
+
+
+func _run() -> void:
+	await process_frame
+	world = main.world
+	dir = OS.get_temp_dir().path_join("cairnfold-keep-%d" % OS.get_process_id())
+	DirAccess.make_dir_recursive_absolute(dir)
+	_check(world.kept == "", "a test or scripted run keeps no garden unless told to")
+	await _every_edit_is_kept_and_loads_whole()
+	await _a_visited_garden_is_not_kept()
+	_an_unreadable_file_starts_the_meadow()
+	for f in DirAccess.get_files_at(dir):
+		DirAccess.remove_absolute(dir.path_join(f))
+	DirAccess.remove_absolute(dir)
+	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
+	quit(1 if failures else 0)
+
+
+func _check(ok: bool, what: String) -> void:
+	if not ok:
+		failures += 1
+		print("FAIL: ", what)
+
+
+func _play(steps: Array) -> void:
+	var d := Driver.new(main, steps)
+	main.add_child(d)
+	await d.finished
+	d.queue_free()
+
+
+## The keeper writes on a worker thread; this waits for the last write to land.
+func _settled() -> void:
+	await process_frame
+	if world._keep_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(world._keep_task)
+		world._keep_task = -1
+
+
+func _picture() -> String:
+	return var_to_str(world.digest())
+
+
+func _every_edit_is_kept_and_loads_whole() -> void:
+	var path := dir.path_join("garden.save")
+	world.keep_at(path)
+	_check(not FileAccess.file_exists(path), "with nothing kept yet, the meadow starts empty and nothing is written")
+	await _play([{"op": "wall", "points": [[-6, -4], [6, -4]], "seconds": 0.3}])
+	await _settled()
+	_check(FileAccess.file_exists(path), "the first edit is kept")
+	var after_wall := FileAccess.get_file_as_bytes(path)
+	await _play([
+		{"op": "tree", "x": 4, "z": 4},
+		{"op": "paint", "tool": "flowers", "points": [[-4, 4], [-3, 4]], "radius": 1.0, "seconds": 0.3},
+		{"op": "pave", "points": [[0, 2], [0, -8]], "radius": 1.5, "seconds": 0.3},
+		{"op": "erase", "points": [[3, -4], [5, -4]], "seconds": 0.2},
+		{"op": "sculpt", "x": 10, "z": 10, "lift": 1.5, "seconds": 0.3},
+	])
+	await _settled()
+	_check(FileAccess.get_file_as_bytes(path) != after_wall, "each later edit rewrites it")
+	_check(not FileAccess.file_exists(path + ".new"), "and leaves no half-written file")
+	var picture := _picture()
+	var walls: Dictionary = world.state.walls
+	_check(walls.size() == 1 and not walls.values()[0].ruins.is_empty() and world.state.paths.size() == 1 and world.sculpted, "the garden holds a ruined wall, a path and shaped ground")
+	world.restore({"seq": 0, "cmds": []})
+	await _settled()
+	_check(_picture() != picture, "an empty garden looks different")
+	world.keep_at(path)
+	_check(_picture() == picture, "loading rebuilds every wall, ruin, plant, path and height")
+	var seq := world.seq
+	await _play([{"op": "tree", "x": -8, "z": 8}, {"op": "wait", "seconds": 0.1}])
+	_check(world.seq == seq + 1 and world.state.groups.has(world.seq), "commands go on numbering from the loaded garden")
+
+
+func _a_visited_garden_is_not_kept() -> void:
+	var path := dir.path_join("garden.save")
+	await _settled()
+	var home := FileAccess.get_file_as_bytes(path)
+	var real := main.multiplayer.multiplayer_peer
+	var client := ENetMultiplayerPeer.new()
+	client.create_client("127.0.0.1", 9)
+	main.multiplayer.multiplayer_peer = client
+	world.restore({"seq": 0, "cmds": [{"op": "plant", "kind": "tree", "seed": 1, "at": Terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}]})
+	await _settled()
+	_check(FileAccess.get_file_as_bytes(path) == home, "a garden we visit is not written over our own")
+	client.close()
+	main.multiplayer.multiplayer_peer = real
+
+
+func _an_unreadable_file_starts_the_meadow() -> void:
+	var path := dir.path_join("broken.save")
+	FileAccess.open(path, FileAccess.WRITE).store_string("not a garden")
+	world.restore({"seq": 0, "cmds": []})
+	var empty := _picture()
+	world.keep_at(path)
+	_check(_picture() == empty, "a file holding no garden leaves the empty meadow")
+	world.kept = ""

@@ -1,0 +1,7 @@
+[
+  {"op": "wait", "seconds": 1},
+  {"op": "digest", "name": "garden"},
+  {"op": "view", "eye": [0, 1.7, 9], "at": [0, 1.4, -3]},
+  {"op": "capture", "name": "01-kept"},
+  {"op": "quit"}
+]

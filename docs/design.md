@@ -294,8 +294,8 @@ Stage numbers refer to the build order at the end.
 | Time of day | Continuous, lockable, sun-angle slider | Point any hand at the sun (it swells), grip it and drag it along its arc, from under the horizon at dawn, high in front at noon, to under it at dusk; a soft click in the hand each hour. The sun's colour and strength, sky, fog and ambient follow. Not an edit: undo leaves it be | 8 (done) |
 | Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette on the controller): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. Stone, roof tiles, woodwork (fences, window frames, doors) and plaster (gable ends) each take one of 6–8 curated swatches for the whole glade; on the meadow the wheel holds the five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch through one shader global per material (`Palette`), so recolouring relays nothing | 8 (done) |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
-| Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of the left D-pad down undoes a step, up redoes one; with others, each player's own steps (done); a delete tool takes away one wall, tree or painted patch (done); an eraser beam that cuts walls into ruins | 1 (done), 10 |
-| Save and load | Autosave after every action, backups, cloud | Autosave the build list (strokes, heights, arches) as JSON after every edit | 10 |
+| Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of the left D-pad down undoes a step, up redoes one; with others, each player's own steps (done); the delete tool takes away a tree or painted patch (done) and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. One reshape (or unwall) per sweep, so one undo step (done) | 1 (done), 10 (done) |
+| Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it; it is loaded at start. Only your own garden is kept, never one you are visiting. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (snapshot and encoding) took 0.4 ms on the desktop for the stress scene's densest walls (24 walls, 973 m, shaped ground: 122 kB) | 10 (done) |
 | Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, a conure perches on a tree or wall (see "Wildlife") | 11 |
 | Photo mode | Camera modes and filters | A hand-held camera that saves the view | 11 |
 | Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network with the visit tool (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
@@ -406,8 +406,8 @@ aiming at the ground is how you come back down.
 | Plant a tree | Trigger of a hand holding trees, pointing at the ground |
 | Shape the ground | Trigger held on a hand holding terrain, pointing at the ground: the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it |
 | Dig a pond | Trigger held on a hand holding the pond tool, pointing at the ground: the hollow deepens while held and fills with water on release (see "Water") |
-| Delete | Trigger of a hand holding delete: takes the wall, tower or house it points at, else the tree nearest where it meets the ground, else the painted plants under it; one thing per press, never more |
-| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes, stone ground, paths, ground shaped, ponds dug, fences, windows and decorations). With others, your own steps only, skipping any another player has built on since (see [multiplayer.md](multiplayer.md)) |
+| Delete | Trigger of a hand holding delete. On a wall it is an eraser: hold and sweep the beam along the wall, and the stretch swept breaks into a ruin as you sweep, sent when you let go; a tap breaks a short gap; a sweep leaving nothing worth standing, or any press on a fence, house or tower, takes it whole. Off the walls: the tree nearest where the beam meets the ground, else the painted plants under it, one thing per press |
+| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled, erased into ruins or deleted, trees, paint strokes, stone ground, paths, ground shaped, ponds dug, fences, windows and decorations). With others, your own steps only, skipping any another player has built on since (see [multiplayer.md](multiplayer.md)) |
 | Redo | Tap the left D-pad up (left or right too): one step forward per tap. A new edit after an undo drops what could be redone |
 | Visit | Trigger of a hand holding visit, pointing at a nearby player's figure: join their garden. Pointing at the small cairn while visiting: go home to your own |
 | Lay a path | Trigger held on a hand holding paths, sweep the pointer over the ground; the ring is the path's width, wider the farther you point. Through a wall it opens an arch or an arcade, through a fence a gate |
@@ -447,7 +447,7 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 7. Terrain shaping, stone ground and water.
 8. Time of day, seasons and palettes, a colour picker. (Done.)
 9. Sound and music. (Done.)
-10. Save and load, undo history and the eraser.
+10. Save and load, undo history and the eraser. (Done.)
 11. Wildlife and photo mode.
 
 ## Water
@@ -604,7 +604,9 @@ and doors in a wall, a house and a tower, hangs lanterns, flies flags, builds a 
 path crosses; `demo/stone.json` paints stone ground into the meadow, paints part of it back and
 walks the history; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/daylight.json` drags the sun from dawn to dusk, opens the colour wheel, recolours roofs, stone, wood
-and plaster, and walks the meadow through the seasons.
+and plaster, and walks the meadow through the seasons; `demo/ruins.json` erases stretches of walls into
+ruins and walks the history. Run with `--garden FILE`, it keeps its garden there, and `demo/garden.json`
+run with the same `--garden FILE` loads it back and writes the same digest.
 
 ## Sources
 

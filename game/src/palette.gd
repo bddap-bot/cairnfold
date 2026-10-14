@@ -34,7 +34,7 @@ const KINDS := {
 	"block": Element.STONE, "mortar": Element.STONE, "voussoir": Element.STONE, "keystone": Element.STONE,
 	"pillar": Element.STONE, "cope": Element.STONE, "cap": Element.STONE, "merlon": Element.STONE,
 	"pier": Element.STONE, "lintel": Element.STONE, "sill": Element.STONE, "mullion": Element.STONE,
-	"chimney": Element.STONE,
+	"chimney": Element.STONE, "rubble": Element.STONE,
 	"tile": Element.ROOF, "ridge": Element.ROOF,
 	"post": Element.WOOD, "rail": Element.WOOD, "gate": Element.WOOD, "frame": Element.WOOD,
 	"door": Element.WOOD, "pole": Element.WOOD,

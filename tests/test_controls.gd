@@ -53,10 +53,11 @@ func _run() -> void:
 	var tree := flora.tree_near(Terrain.ground(-9, 9), 0.5)
 	_check(not _painted(flora, patch).is_empty(), "painting adds flowers")
 	_check(not tree.is_empty(), "a tree stands where it was planted")
-	_check(walls.size() == 1, "delete takes the one wall it points at, leaving %d" % walls.size())
+	var ruined := func() -> int: return walls.filter(func(w: Wall) -> bool: return not w.layout.ruins.is_empty()).size()
+	_check(walls.size() == 2 and ruined.call() == 1, "a tap of delete breaks a gap in the one wall it points at: %d walls, %d ruined" % [walls.size(), ruined.call()])
 
 	await _play([{"op": "press", "button": "dpad_down"}])
-	_check(walls.size() == 2, "undo puts the deleted wall back")
+	_check(walls.size() == 2 and ruined.call() == 0, "undo closes the gap")
 	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
 	_check(not tree[0].shown(), "the next undo takes the tree away")
 	_check(_painted(flora, patch).is_empty(), "and the next the painted flowers")
