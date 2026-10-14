@@ -42,6 +42,10 @@ var _build_out := {}
 ## takes it rather than laying the stones again.
 var _shown: WallLayout
 var _shown_ground := -1
+var _settle_when_laid := false
+## Stones a newer layout replaced. Freeing a long wall's thousands of them takes milliseconds, so the wall's
+## next worker task does it.
+var _litter: Array[Array] = []
 
 
 ## How each Part is drawn. Stones, roof tiles and the mortar between stones cast no shadow; a plain box per
@@ -127,6 +131,7 @@ func _process(delta: float) -> void:
 		WorkerThreadPool.wait_for_task_completion(_build_task)
 		_build_task = -1
 		if _build_out.gen == _build_gen:
+			_litter.append(layout.stones)
 			layout.adopt(_build_job)
 			_take(_build_out)
 			_shown = _build_job
@@ -135,6 +140,9 @@ func _process(delta: float) -> void:
 			_sync()
 		if _build_stale:
 			_build_live()
+		elif _settle_when_laid:
+			_shown_ground = Terrain.revision
+			rebuild()
 	if finished:
 		ivy_age += delta
 	if _ivy_task >= 0 and WorkerThreadPool.is_task_completed(_ivy_task):
@@ -177,7 +185,10 @@ func _layout_ivy() -> void:
 	var shape := layout.snapshot()
 	var out := _ivy_baked
 	out.clear()
-	_ivy_task = WorkerThreadPool.add_task(func(): out.merge(IvyLayout.bake(shape)))
+	var litter := _sweep()
+	_ivy_task = WorkerThreadPool.add_task(func():
+		_drop(litter)
+		out.merge(IvyLayout.bake(shape)))
 
 
 ## Lays the stones again. With `settle`, at once, and the wall then settles into the Masonry with its ivy.
@@ -185,6 +196,7 @@ func _layout_ivy() -> void:
 ## thread, since a long wall takes several frames' worth of main-thread time, and appear when ready.
 func rebuild(settle := true) -> void:
 	_settled = finished and settle
+	_settle_when_laid = false
 	if not settle:
 		_build_live()
 		return
@@ -208,6 +220,25 @@ func rebuild(settle := true) -> void:
 	_sync()
 
 
+## Lays the stones again on a worker thread and settles when they are laid, for ground that moved under a wall
+## nobody holds: every rebuild(false) until then is ground still moving under it, so the last preview stands on
+## the ground as it settled.
+func settle_when_laid() -> void:
+	rebuild(false)
+	_settle_when_laid = true
+
+
+func _sweep() -> Array[Array]:
+	var litter := _litter
+	_litter = []
+	return litter
+
+
+static func _drop(litter: Array[Array]) -> void:
+	for stones in litter:
+		stones.clear()
+
+
 ## Whether a preview is still being laid on a worker thread.
 func laying() -> bool:
 	return _build_task >= 0
@@ -226,7 +257,9 @@ func _build_live() -> void:
 	out.ground = Terrain.revision
 	var ks := kinds()
 	_build_job = job
+	var litter := _sweep()
 	_build_task = WorkerThreadPool.add_task(func():
+		_drop(litter)
 		job.build(Terrain.height_at)
 		out.merge(Wall.pack(job, ks)))
 

@@ -152,6 +152,7 @@
   {"op": "wait", "seconds": 3},
   {"op": "label", "name": "hills/stroke"},
   {"op": "sculpt", "x": -4, "z": 4, "lift": 3, "radius": 6, "seconds": 8},
+  {"op": "wait", "seconds": 2},
   {"op": "label", "name": "-"},
   {"op": "sculpt", "x": 5, "z": -5, "lift": -1.5, "radius": 4, "seconds": 2},
   {"op": "wait", "seconds": 3},

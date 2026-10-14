@@ -284,13 +284,24 @@ func _sculpt(s: Dictionary) -> void:
 	tool.begin(_spot(s, s.x, s.z), s.get("radius", TerrainTool.MIN_RADIUS))
 	var t := 0.0
 	var seconds: float = s.get("seconds", 1.0)
+	var frames := 0
+	var total := 0
+	var worst := 0
 	while t < seconds:
 		await get_tree().process_frame
 		var dt := get_process_delta_time()
 		t += dt
+		var start := Time.get_ticks_usec()
 		tool.pull(s.lift * smoothstep(0.0, 1.0, minf(t / seconds, 1.0)))
 		tool.follow(dt)
+		var us := Time.get_ticks_usec() - start
+		frames += 1
+		total += us
+		worst = maxi(worst, us)
+	var start := Time.get_ticks_usec()
 	tool.end_stroke()
+	print("sculpt: %d frames, main thread %.2f ms mean, %.2f ms worst, %.2f ms to end the stroke"
+		% [frames, total / 1000.0 / maxi(frames, 1), worst / 1000.0, (Time.get_ticks_usec() - start) / 1000.0])
 
 
 ## Desktop only, where no hand is tracked: holds a hand `at` [x, height above the ground, z] for `seconds`, optionally capturing the view.

@@ -107,6 +107,14 @@ func _on_ground(w: Wall) -> float:
 	return worst
 
 
+func _settles(w: Wall, what: String) -> void:
+	var frames := 0
+	while w.laying() and frames < 300:
+		await process_frame
+		frames += 1
+	_check(not w.laying(), what)
+
+
 func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
 	await _play([
 		{"op": "place", "x": 0, "z": 8},
@@ -115,6 +123,7 @@ func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
 	var w: Wall = main.tool.walls[-1]
 	var mid := w.layout.samples[w.layout.samples.size() / 2]
 	await _play([{"op": "sculpt", "x": mid.x, "z": mid.z, "lift": 2.5, "radius": 5.0, "seconds": 0.5}])
+	await _settles(w, "a wall the ground rose under settles")
 	_check(_on_ground(w) < 0.01, "after the ground rose under it every wall sample sits on the ground, worst gap %f" % _on_ground(w))
 	_check(w.layout.samples[w.layout.samples.size() / 2].y > mid.y + 2.0, "the wall rose with the hill")
 	var buried := 0
@@ -124,6 +133,7 @@ func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
 			buried += 1
 	_check(buried == 0, "no stone is left buried under the raised ground, %d are" % buried)
 	await _play([{"op": "press", "button": "dpad_down"}])
+	await _settles(w, "a wall the ground sank back under settles")
 	_check(_on_ground(w) < 0.01 and absf(w.layout.samples[w.layout.samples.size() / 2].y - mid.y) < 0.01, "undoing the hill sets the wall back down on the ground")
 
 

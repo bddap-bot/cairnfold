@@ -454,12 +454,12 @@ func _set_arches(w: Wall, arches: Array) -> void:
 
 
 ## Lays a wall as the garden has it, with the arches the paths standing open in it.
-func _relay(w: Wall, with_ivy := true) -> void:
+func _relay(w: Wall) -> void:
 	w.set_data(world.state.walls[w.id])
 	w.layout.resample(Terrain.height_at)
 	for p in paths.layouts:
 		_cut_crossings(w, p)
-	w.rebuild(with_ivy)
+	w.rebuild()
 
 
 ## Wall chemistry: a path laid or lifted opens or closes arches in every wall it crosses.
@@ -561,10 +561,10 @@ func _held(w: Wall) -> bool:
 func reground(area: Rect2, settled: bool) -> void:
 	for w in walls:
 		if w.footprint().intersects(area):
-			if _held(w):
+			if not settled or _held(w):
 				w.rebuild(settled)
 			else:
-				_relay(w, settled)
+				w.settle_when_laid()
 
 
 func _top(w: Wall, s: float) -> Vector3:
