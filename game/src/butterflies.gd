@@ -16,7 +16,7 @@ const MIN_BLOOMS := 12
 const SCAN_PER_FRAME := 128
 const PER_PATCH := Vector2i(2, 4)
 const COLORS := [Color(0.86, 0.78, 0.36), Color(0.88, 0.52, 0.22), Color(0.42, 0.58, 0.86), Color(0.88, 0.88, 0.84), Color(0.64, 0.52, 0.86)]
-const SIZE := Vector2(0.6, 0.9)
+const SIZE := Vector2(0.8, 1.2)
 const FROM_DISTANCE := 14.0
 const FROM_HEIGHT := 2.5
 ## How far off a leaving butterfly heads; it is let go sooner, once out of sight and LET_GO away.
