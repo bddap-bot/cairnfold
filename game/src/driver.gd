@@ -14,6 +14,8 @@ const FRAME_BUTTONS := {
 	"dpad_up": ["left_hand", "by_button"],
 	"dpad_left": ["left_hand", "by_button"],
 	"dpad_right": ["left_hand", "by_button"],
+	"left_stick_click": ["left_hand", "primary_click"],
+	"right_stick_click": ["right_hand", "primary_click"],
 }
 
 signal finished
@@ -59,6 +61,56 @@ func _press(s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
+## Takes a tool from a hand's ring as a player does: hold the stick click, push toward the tool, let go.
+## "capture" saves a view while the ring is open, "popping" one the frame after the pick.
+func _pick(s: Dictionary) -> void:
+	var hand: Hand = _hand(s)
+	var key := "%s/primary_click" % hand.tracker
+	Buttons.injected[key] = true
+	await _frames(3)
+	var i := Hand.MENU.find(Hand.Tool[s.tool.to_upper()])
+	Hand.injected_sticks[hand.tracker] = Hand.ring_dir(i)
+	await _frames(3)
+	if s.has("capture"):
+		await main.capture(s.capture)
+	Buttons.injected.erase(key)
+	await _frames(1)
+	if s.has("popping"):
+		await main.capture(s.popping)
+	await _frames(1)
+	Hand.injected_sticks.erase(hand.tracker)
+	await _frames(2)
+
+
+## Desktop only: holds both controllers in front of the head, `left` and `right` in head space, tops tipped toward the eye.
+func _hands(s: Dictionary) -> void:
+	var head: Transform3D = main.rig.head.global_transform
+	for side in ["left", "right"]:
+		if not s.has(side):
+			continue
+		var hand: Hand = main.rig.left if side == "left" else main.rig.right
+		var at: Vector3 = head * Vector3(s[side][0], s[side][1], s[side][2])
+		var fwd := -head.basis.z
+		hand.global_transform = Transform3D(Basis.looking_at(fwd, Vector3.UP).rotated(head.basis.x, deg_to_rad(s.get("tip", 35.0))), at)
+	await get_tree().process_frame
+
+
+func _frames(n: int) -> void:
+	for f in n:
+		await get_tree().process_frame
+
+
+func _hand(s: Dictionary) -> Hand:
+	return main.rig.left if s.get("hand", "right") == "left" else main.rig.right
+
+
+## The step's hand, handed `tool` first, as a player picks it before using it.
+func _holding(s: Dictionary, tool: Hand.Tool) -> Hand:
+	var hand := _hand(s)
+	hand.tool = tool
+	return hand
+
+
 func _place(s: Dictionary) -> void:
 	main.rig.place(_spot(s, s.x, s.z), s.get("lift", 0.0))
 
@@ -90,35 +142,39 @@ func _aim(s: Dictionary) -> void:
 
 func _wall(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
+	var m := tool.mason(_holding(s, Hand.Tool.WALLS))
 	var path := _path(s)
-	tool.begin_stroke(path[0])
+	tool.begin_stroke(m, path[0])
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
 	for f in frames:
 		await get_tree().process_frame
-		tool.extend_stroke(_along(path, float(f + 1) / frames))
-	tool.end_stroke()
+		tool.extend_stroke(m, _along(path, float(f + 1) / frames))
+	tool.end_stroke(m)
 
 
 ## Draws a loop and keeps holding at its end until it snaps to a tower.
 func _tower(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
+	var m := tool.mason(_holding(s, Hand.Tool.WALLS))
 	var path := _path(s)
-	tool.begin_stroke(path[0])
+	tool.begin_stroke(m, path[0])
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
 	for f in frames:
 		await get_tree().process_frame
-		tool.extend_stroke(_along(path, float(f + 1) / frames))
+		tool.extend_stroke(m, _along(path, float(f + 1) / frames))
 	var held := 0.0
 	while held < s.get("hold", 0.6):
 		await get_tree().process_frame
 		held += get_process_delta_time()
-		tool.extend_stroke(path[-1])
-	tool.end_stroke()
+		tool.extend_stroke(m, path[-1])
+	tool.end_stroke(m)
 
 
 ## Both grips: the hands point at `a` and `b`, then move to `to_a` and `to_b` (pulling apart, twisting) over `seconds`.
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
+	main.rig.left.tool = Hand.Tool.WALLS
+	main.rig.right.tool = Hand.Tool.WALLS
 	var a := _spot(s, s.a[0], s.a[1])
 	var b := _spot(s, s.b[0], s.b[1])
 	var to_a := _spot(s, s.to_a[0], s.to_a[1]) if s.has("to_a") else a
@@ -160,7 +216,8 @@ func _arch(s: Dictionary) -> void:
 
 func _paint(s: Dictionary) -> void:
 	var flora_tool: FloraTool = main.flora_tool
-	flora_tool.set_mode(FloraTool.Mode[s.mode.to_upper()])
+	var b := flora_tool.brush(main.rig.left if s.get("hand", "left") == "left" else main.rig.right)
+	b.hand.tool = Hand.Tool[s.tool.to_upper()]
 	var path := _path(s)
 	var t := 0.0
 	var seconds: float = s.get("seconds", 2.0)
@@ -168,7 +225,8 @@ func _paint(s: Dictionary) -> void:
 		await get_tree().process_frame
 		var dt := get_process_delta_time()
 		t += dt
-		flora_tool.paint(_along(path, minf(t / seconds, 1.0)), s.radius, dt)
+		flora_tool.paint(b, _along(path, minf(t / seconds, 1.0)), s.radius, dt)
+	flora_tool.end_stroke(b)
 
 
 ## Grabs the ground at x, z and pulls it `lift` metres over `seconds` (negative digs), as a hand on the terrain tool does.
@@ -197,6 +255,14 @@ func _touch(s: Dictionary) -> void:
 
 func _tree(s: Dictionary) -> void:
 	main.flora_tool.plant_tree(_spot(s, s.x, s.z))
+
+
+## Points the delete tool straight down at a ground spot from `height` metres up and presses once.
+func _delete(s: Dictionary) -> void:
+	var at := _spot(s, s.x, s.z)
+	var tool: DeleteTool = main.delete_tool
+	tool.take(tool.aim(at + Vector3.UP * s.get("height", 2.0), Vector3.DOWN))
+	await get_tree().process_frame
 
 
 func _music(s: Dictionary) -> void:

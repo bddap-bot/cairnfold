@@ -3,8 +3,10 @@ extends Node3D
 var args := {}
 var xr: OpenXRInterface
 var rig: Rig
+var history: History
 var tool: WallTool
 var flora_tool: FloraTool
+var delete_tool: DeleteTool
 var terrain_tool: TerrainTool
 var sound: Soundscape
 var metrics: Metrics
@@ -20,13 +22,18 @@ func _ready() -> void:
 	add_child(Meadow.new(flora))
 	rig = Rig.new()
 	add_child(rig)
-	flora_tool = FloraTool.new(rig, flora)
+	history = History.new(rig.left)
+	add_child(history)
+	flora_tool = FloraTool.new(rig, flora, history)
 	add_child(flora_tool)
 	var builds := Node3D.new()
 	builds.name = "Builds"
 	add_child(builds)
-	tool = WallTool.new(rig)
+	tool = WallTool.new(rig, history)
 	builds.add_child(tool)
+	delete_tool = DeleteTool.new(rig, tool, flora_tool, history)
+	add_child(delete_tool)
+	history.busy = func() -> bool: return tool.busy() or flora_tool.busy()
 	terrain_tool = TerrainTool.new()
 	terrain_tool.reshaped.connect(tool.reground)
 	terrain_tool.reshaped.connect(rig.reground)

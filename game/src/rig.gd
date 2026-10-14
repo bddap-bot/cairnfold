@@ -2,6 +2,8 @@ class_name Rig
 extends XROrigin3D
 
 ## The player: head, two hands, and locomotion by teleport — onto the ground or into the air to float.
+## A hand holding the teleport tool aims with its trigger; the left stick pushed forward aims from the
+## left hand whatever it holds, so no choice of tools leaves the player unable to move.
 
 const MAX_REACH := 80.0
 const AIR_REACH := 10.0
@@ -14,11 +16,15 @@ const SNAP := deg_to_rad(30.0)
 const FADE := 0.09
 
 var head: XRCamera3D
-var left: XRController3D
-var right: XRController3D
+var left: Hand
+var right: Hand
+var hands: Array[Hand] = []
 
 var floating := false
-var aiming := false
+## The hand whose teleport ray is out, or null.
+var aim_hand: Hand
+var _aim_by_stick := false
+var _triggers: Array[Buttons] = []
 var air_reach := AIR_REACH
 var aim_ground: Variant = null
 var aim_lift := 0.0
@@ -26,7 +32,6 @@ var _rest_y := 0.0
 var _vel_y := 0.0
 var _bob := 0.0
 var _turned := false
-var _left_buttons: Buttons
 var _fade_t := -1.0
 var _pending: Variant = null
 
@@ -44,27 +49,13 @@ func _init() -> void:
 	head.near = 0.05
 	head.far = 400.0
 	add_child(head)
-	left = _hand("left_hand")
-	right = _hand("right_hand")
-	_left_buttons = Buttons.new(left).watch(["by_button"])
+	left = Hand.new("left_hand", Hand.Tool.FLOWERS)
+	right = Hand.new("right_hand", Hand.Tool.WALLS)
+	hands = [left, right]
+	for h in hands:
+		add_child(h)
+		_triggers.append(Buttons.new(h).watch(["trigger_click"]))
 	_build_markers()
-
-
-func _hand(tracker: String) -> XRController3D:
-	var c := XRController3D.new()
-	c.tracker = tracker
-	c.pose = &"aim"
-	var mi := MeshInstance3D.new()
-	mi.mesh = Meshes.rounded_box(0.3, 2, 7)
-	mi.scale = Vector3(0.05, 0.035, 0.11)
-	mi.position = Vector3(0, -0.01, 0.04)
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.93, 0.9, 0.84)
-	mat.roughness = 0.6
-	mi.material_override = mat
-	c.add_child(mi)
-	add_child(c)
-	return c
 
 
 func _build_markers() -> void:
@@ -136,28 +127,40 @@ func _process(delta: float) -> void:
 
 
 func _locomotion_input(delta: float) -> void:
-	var stick := left.get_vector2("primary")
-	var rstick := right.get_vector2("primary")
-	if not aiming and stick.y > 0.65:
-		aiming = true
-	if aiming:
+	if aim_hand == null:
+		if left.stick().y > 0.65:
+			aim_hand = left
+			_aim_by_stick = true
+		else:
+			for i in hands.size():
+				if hands[i].tool == Hand.Tool.TELEPORT and _triggers[i].pressed("trigger_click"):
+					aim_hand = hands[i]
+					_aim_by_stick = false
+	if aim_hand != null and aim_hand.picking:
+		aim_hand = null
+		hide_markers()
+	if aim_hand != null:
+		var rstick := (right if aim_hand == left else left).stick()
 		if absf(rstick.y) > 0.25:
 			air_reach = clampf(air_reach + signf(rstick.y) * (absf(rstick.y) - 0.25) / 0.75 * REACH_RATE * delta, MIN_AIR_REACH, MAX_AIR_REACH)
-		aim(left.global_transform)
-		if stick.length() < 0.3:
-			aiming = false
-			if aim_ground != null:
+		aim(aim_hand.global_transform)
+		var by_tool := not _aim_by_stick and aim_hand.tool == Hand.Tool.TELEPORT
+		var held := left.stick().length() >= 0.3 if _aim_by_stick else by_tool and _triggers[hands.find(aim_hand)].held("trigger_click")
+		if not held:
+			if aim_ground != null and (_aim_by_stick or by_tool):
 				teleport(aim_ground, aim_lift)
+			aim_hand = null
 			hide_markers()
-	elif absf(rstick.x) > 0.7:
-		if not _turned:
-			snap_turn(-signf(rstick.x) * SNAP)
-		_turned = true
-	elif absf(rstick.x) < 0.3:
-		_turned = false
-	if _left_buttons.pressed("by_button") and floating:
-		settle_down()
-	_left_buttons.latch()
+	else:
+		var x := right.stick().x
+		if absf(x) > 0.7:
+			if not _turned:
+				snap_turn(-signf(x) * SNAP)
+			_turned = true
+		elif absf(x) < 0.3:
+			_turned = false
+	for b in _triggers:
+		b.latch()
 
 
 ## Cast the teleport ray from a pointing pose. It lands on the ground it hits; aimed above the horizon with no ground within `air_reach`, it targets the point in the air at that reach.
@@ -224,11 +227,6 @@ func place(ground: Vector3, lift_m: float) -> void:
 	_vel_y = 0.0
 	_bob = 0.0
 	global_position.y = _rest_y + (ARRIVE_LIFT if floating else 0.0)
-
-
-func settle_down() -> void:
-	floating = false
-	_rest_y = ground_under_head()
 
 
 func reground(area: Rect2, _settled: bool) -> void:

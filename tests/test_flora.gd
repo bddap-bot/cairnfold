@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of flora placement and the left-hand brush: godot4 --headless --path game --script ../tests/test_flora.gd
+## Headless checks of flora placement and the flower and grass brushes: godot4 --headless --path game --script ../tests/test_flora.gd
 
 var failures := 0
 
@@ -51,25 +51,29 @@ func _tool() -> FloraTool:
 	root.add_child(rig)
 	var flora := Flora.new()
 	root.add_child(flora)
-	var t := FloraTool.new(rig, flora)
-	t.set_process(false)
+	var history := History.new(rig.left)
+	root.add_child(history)
+	var t := FloraTool.new(rig, flora, history)
+	t.process_mode = Node.PROCESS_MODE_DISABLED
+	root.add_child(t)
 	return t
 
 
 func _painting_again_thickens() -> void:
 	var t := _tool()
 	var at := Vector3(2, Terrain.height_at(2, 2), 2)
-	t.set_mode(FloraTool.Mode.FLOWERS)
+	var b := t.brushes[0]
+	b.hand.tool = Hand.Tool.FLOWERS
 	for i in 60:
-		t.paint(at, 1.0, 1.0 / 60.0)
+		t.paint(b, at, 1.0, 1.0 / 60.0)
 	var once := t.flora.flowers.size()
 	for i in 60:
-		t.paint(at, 1.0, 1.0 / 60.0)
+		t.paint(b, at, 1.0, 1.0 / 60.0)
 	_check(once > 0, "a second of painting adds flowers")
 	_check(absf(t.flora.flowers.size() - 2 * once) <= 1, "a second pass doubles them, %d then %d" % [once, t.flora.flowers.size()])
 	_check(t.flora.grass.size() == 0, "the flower brush leaves the grass alone")
-	t.set_mode(FloraTool.Mode.GRASS)
-	t.paint(at, 1.0, 1.0)
+	b.hand.tool = Hand.Tool.GRASS
+	t.paint(b, at, 1.0, 1.0)
 	_check(t.flora.grass.size() > once, "the grass brush paints grass, denser than flowers")
 
 

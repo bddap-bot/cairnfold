@@ -10,19 +10,23 @@ build order.
 
 ## Controls
 
-- Left stick forward: aim a straight teleport ray; release to go. Aim into the
-  sky to target a point in the air and float there; while aiming, right stick
-  up or down moves that point farther or nearer.
-- Left D-pad up, left or right: glide back down to the ground.
-- Right stick left/right: snap turn.
-- Right trigger: draw a wall along the ground.
-- Right grip on a wall: pull its height up or down.
-- A on a wall: cut or fill an arch.
-- Hold the left D-pad down: undo the last wall.
-- Left trigger: paint flowers or grass; X switches which. Left grip: plant a tree.
+Each hand holds a tool, shown as a small object on top of its controller: walls,
+flowers, grass, trees, teleport or delete.
 
-On Quest Touch controllers, which have no D-pad: hold left X to undo, left Y
-glides down, right A cuts arches and right B switches flowers and grass.
+- Hold a stick's click, push toward a tool in the ring, let go: that hand takes it.
+- Trigger: use the tool. Draw a wall, paint, plant a tree, aim a teleport (release
+  to go; into the sky to float), or delete the one thing you point at.
+- Holding walls: grip on a wall pulls its height, grip on a roof shapes it; A on a
+  wall cuts or fills an arch, A on its top changes its style; a loop held closed
+  snaps to a round tower. Both hands on walls, both grips on the ground: lay out a
+  house.
+- Left stick forward: teleport with any tool. While aiming, the other stick up or
+  down moves an air target farther or nearer.
+- Right stick left/right: snap turn.
+- Left D-pad down: undo. Up: redo. Every tool shares the one history.
+
+On Quest Touch controllers, which have no D-pad: left X undoes, left Y redoes,
+right A cuts arches.
 
 ## Running
 

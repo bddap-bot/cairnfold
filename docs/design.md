@@ -153,13 +153,13 @@ Stage numbers refer to the build order at the end.
 | Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | Trigger-sweep with a path brush; stones laid along the stroke and pressed into the terrain shader's mask so grass parts around them | 5 |
 | Towers | A loop held down straightens into a circle | Draw a loop and keep holding with the end back near the start: after a moment it snaps to a round tower (radius 1.2–4 m) with a tiled cone roof, standing level on its lowest ground | 4 (done) |
 | Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Two-handed: both grips while pointing at the ground; the two spots are the ends of the ridge, so pulling apart lengthens the house (2.6–14 m, depth following) and twisting turns it. Stone walls with corner piers, a door arch in the front, level on its lowest ground | 4 (done) |
-| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, plaster gable ends. Right grip on a roof: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`) | 4 (done) |
+| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, plaster gable ends. Grip on a roof with the walls tool: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`) | 4 (done) |
 | Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | Point and click on a wall to place; neighbours fuse; doors at ground level | 6 |
 | Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | Point and click; lanterns as cheap emissive cards plus a few real lights | 6 |
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | Wall drawing with a fence profile | 6 |
 | Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces, wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`) | 3 (done) |
-| Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Left trigger paints where the left hand points, X switches grass and flowers; the brush widens with distance and painting a spot again thickens it. Flowers take the colour of the meadow drift they land in | 1 (done), 3 (done) |
-| Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs; left grip plants one where the left hand points | 1 (done), 3 (done) |
+| Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers take the colour of the meadow drift they land in | 1 (done), 3 (done) |
+| Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs; the trigger of a hand holding the tree tool plants one where it points | 1 (done), 3 (done) |
 | Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | Grip the ground and pull up or push down; rock on steep slopes in the terrain shader | 7 |
 | Water | Dug holes with a flat surface and normal-map waves | Dig with a downward pull, flat water with scrolling normals and a depth tint | 7 |
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, a low-res light-probe volume rebuilt when building changes | 2 |
@@ -170,42 +170,72 @@ Stage numbers refer to the build order at the end.
 | Time of day | Continuous, lockable, sun-angle slider | Reach up and drag the sun across the sky | 8 |
 | Seasons and palettes | Five glade palettes, colour wheel per element | Palette presets; a colour picker held in the left hand | 8 |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
-| Undo, erase | Animated undo; eraser splits walls into ruins | Holding the left D-pad down undoes the last wall (done); an eraser beam that cuts walls into ruins | 1 (done), 10 |
+| Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of the left D-pad down undoes a step, up redoes one (done); a delete tool takes away one wall, tree or painted patch (done); an eraser beam that cuts walls into ruins | 1 (done), 10 |
 | Save and load | Autosave after every action, backups, cloud | Autosave the build list (strokes, heights, arches) as JSON after every edit | 10 |
 | Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, a conure perches on a tree or wall (see "Wildlife") | 11 |
 | Photo mode | Camera modes and filters | A hand-held camera that saves the view | 11 |
+
+## Tools in hand
+
+Directive (verbatim): "I'm thinking we represent each tool as an object in hand, or perhaps an object
+attached to the little controller. I like the minimalist little controller geometry. When we select
+something, like walls, we could display a representation of the item that we've selected … probably on
+top of the little controller."
+
+Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, flowers,
+grass, trees, teleport and delete. The tool a hand holds stands on top of its controller as a small
+object, built from the same generators as the full-size thing: a short wall of stones, three flowers, a
+grass tuft, a tree, the air-teleport marker (a ring on a pole over a ring), and a spade for delete. A
+new tool pops up in place of the old one, which shrinks away, in under a fifth of a second. The
+controller's own rounded body is unchanged, and there is no text anywhere.
+
+One value per hand, `Hand.tool`, is what the input code dispatches on and what the object on top and
+the ring show, so they cannot disagree. The hands start as walls in the right and flowers in the left.
+
+Directive: per hand, clicking the thumbstick opens a small ring of the tool objects around that
+controller; push toward one and release to pick it. Each hand's ring sets that hand's tool.
+
+Hold the stick click and the ring opens around that controller; move the stick toward a tool, and it
+grows; let go of the click to take it. Letting go without a push keeps the tool held. The ring's
+contents are a tree (`Hand.MENU`) with one level today. When it grows crowded it becomes multi-step:
+move to a category, the category opens, move on to the item within it.
+
+Teleport is a tool: a hand holding it aims with its trigger and goes on release. The left stick pushed
+forward aims from the left hand whatever it holds, so no choice of tools leaves you unable to move, and
+aiming at the ground is how you come back down.
 
 ## VR controls
 
 | Action | Control |
 | --- | --- |
-| Teleport onto the ground | Left stick forward: a straight ray from the left hand lands where it meets the ground; release the stick to go |
-| Teleport into the air | Aim above the horizon: with no ground within reach (10 m to start), the ray targets the point in the air at its end, a ring on a pole down to the ground below. Right stick up or down while aiming moves that point farther or nearer (2–40 m). Release to arrive, slightly high, then settle gently into a hover with a slow bob |
-| Come back down | Aim at the ground, or press the left D-pad up, left or right to glide down to the ground below |
+| Pick a hand's tool | Hold that stick's click, push toward a tool in the ring, let go of the click |
+| Teleport onto the ground | Trigger of a hand holding teleport, or left stick forward with any tool: a straight ray from that hand lands where it meets the ground; release to go |
+| Teleport into the air | Aim above the horizon: with no ground within reach (10 m to start), the ray targets the point in the air at its end, a ring on a pole down to the ground below. The other hand's stick up or down while aiming moves that point farther or nearer (2–40 m). Release to arrive, slightly high, then settle gently into a hover with a slow bob |
+| Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick left or right: 30° snap turn |
-| Draw a wall | Right trigger held, sweep the pointer across the ground; release to finish. Strokes under 1 m are discarded |
+| Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground; release to finish. Strokes under 1 m are discarded |
 | Build a tower | Draw a loop and hold the trigger with the end back at the start until it snaps round |
-| Raise or lower a wall | Right grip while pointing at a wall, move the hand up or down; the gain grows with distance so far walls are easy to adjust |
-| Shape a roof | Right grip while pointing at a roof: up and down for pitch, sideways for curvature |
-| Cut or fill an arch | A while pointing at a wall |
-| Change a wall's top | A while pointing at its top: merlons, plain capping, coping |
-| Undo the last wall | Hold the left D-pad down for half a second; a tap does nothing, and each hold removes one wall |
-| Paint flowers or grass | Left trigger held while pointing at the ground; the ring shows the brush, which widens the farther you point |
-| Switch flowers and grass | X (B and Y too) |
-| Plant a tree | Left grip while pointing at the ground, on release |
-| Lay out a house | Both grips while pointing at the ground; pull apart to size, twist to rotate, release to build |
-| Later: paint paths | The left-hand brush with a path mode |
+| Raise or lower a wall | Grip of a hand holding walls while pointing at a wall, move the hand up or down; the gain grows with distance so far walls are easy to adjust |
+| Shape a roof | Grip of a hand holding walls while pointing at a roof: up and down for pitch, sideways for curvature |
+| Cut or fill an arch | A while a hand holding walls points at a wall |
+| Change a wall's top | A while a hand holding walls points at its top: merlons, plain capping, coping |
+| Lay out a house | Both hands holding walls, both grips while pointing at the ground; pull apart to size, twist to rotate, release to build |
+| Paint flowers or grass | Trigger held on a hand holding flowers or grass, pointing at the ground; the ring shows the brush, which widens the farther you point |
+| Plant a tree | Trigger of a hand holding trees, pointing at the ground |
+| Delete | Trigger of a hand holding delete: takes the wall, tower or house it points at, else the tree nearest where it meets the ground, else the painted plants under it; one thing per press, never more |
+| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes) |
+| Redo | Tap the left D-pad up (left or right too): one step forward per tap. A new edit after an undo drops what could be redone |
+| Later: paint paths | A path tool with the same brush |
 | Later: move the sun | Grip the sun in the sky and drag it |
 
 Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
 a D-pad on the left. Godot 4.5 has no Frame interaction profile, so the game binds
 the Touch and Index profiles and SteamVR remaps them: B, X and Y arrive as one
 button (Touch right B), D-pad down as Touch left X, and the other D-pad directions
-as Touch left Y. Whatever B does, X and Y do too, so that button only switches
-paint mode; nothing that removes walls sits on a single tap. The table lives in
+as Touch left Y. B, X and Y do nothing for now. The table lives in
 `Driver.FRAME_BUTTONS`, and `tests/test_controls.gd` presses every button with walls
-built. On Quest the same Touch bindings arrive unremapped: left X is the D-pad's
-down, left Y its other directions, and right B alone switches paint mode.
+built, picks every tool from each ring, and walks the history back and forth. On Quest the
+same Touch bindings arrive unremapped: left X undoes and left Y redoes.
 
 Floating turns the meadow into a diorama: drawing works from any height because
 the pointer ray hits the terrain, so you can lay out a whole castle from above and
@@ -221,7 +251,7 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
    - A Steam library shortcut on the Frame launches the game standalone, installed by `scripts/deploy.sh`.
    - The air teleport holds refresh: no frame over 1.5× the refresh period at the moment it happens.
 2. Lighting pass: bounce light from a probe volume rebuilt on edits, contact darkening, shadow split and fog tuning for floating viewpoints, compared side by side with the mood target.
-3. Ivy and flora: ivy over walls and around openings, flower and grass painting with the left hand, tree placement by pointing. (Done.)
+3. Ivy and flora: ivy over walls and around openings, flower and grass painting, tree placement by pointing. (Done.)
 4. Towers, houses and roofs: loop-to-tower, two-handed footprints, tiled roofs with pull-to-shape, wall-top style per wall. (Done.)
 5. Paths and wall chemistry: path brush; a path through a wall cuts an arch, wide crossings become arcades.
 6. Windows, doors, fences, chimneys, lanterns and flags.

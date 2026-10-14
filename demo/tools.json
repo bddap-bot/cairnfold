@@ -1,0 +1,19 @@
+[
+  {"op": "place", "x": 0, "z": 6},
+  {"op": "view", "eye": [0, 1.65, 6], "at": [0, 0.75, 5.45]},
+  {"op": "hands", "left": [-0.075, -0.02, -0.3], "right": [0.075, -0.02, -0.3], "tip": 20},
+  {"op": "wait", "seconds": 1.5},
+  {"op": "capture", "name": "01-walls-flowers"},
+  {"op": "pick", "hand": "left", "tool": "grass"},
+  {"op": "pick", "hand": "right", "tool": "trees"},
+  {"op": "wait", "seconds": 0.5},
+  {"op": "capture", "name": "02-trees-grass"},
+  {"op": "pick", "hand": "left", "tool": "delete"},
+  {"op": "pick", "hand": "right", "tool": "teleport"},
+  {"op": "wait", "seconds": 0.5},
+  {"op": "capture", "name": "03-teleport-delete"},
+  {"op": "pick", "hand": "right", "tool": "walls", "capture": "04-ring-open", "popping": "05-mid-transition"},
+  {"op": "wait", "seconds": 0.5},
+  {"op": "capture", "name": "06-walls-delete"},
+  {"op": "quit"}
+]

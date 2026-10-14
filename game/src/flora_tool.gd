@@ -1,81 +1,118 @@
 class_name FloraTool
 extends Node3D
 
-## Left hand: trigger paints grass or flowers where the hand points, grip plants a tree there on
-## release; the Frame's X (with B and Y) switches between them. The brush widens with distance; painting
-## a spot again thickens it. A grip hold that the right grip joins is laying out a house, so it plants nothing.
+## Flowers, grass and trees, for whichever hand holds them: the trigger paints flowers or grass where the
+## hand points, or plants a tree there. The brush widens with distance; painting a spot again thickens it.
 
-enum Mode { FLOWERS, GRASS }
-## Plants per square metre per second of painting, by mode.
-const RATES := [12.0, 30.0]
-const TINTS := [Color(1.0, 0.82, 0.9, 0.6), Color(0.78, 1.0, 0.55, 0.6)]
+## Plants per square metre per second of painting.
+const RATES := {Hand.Tool.FLOWERS: 12.0, Hand.Tool.GRASS: 30.0}
+const TINTS := {Hand.Tool.FLOWERS: Color(1.0, 0.82, 0.9, 0.6), Hand.Tool.GRASS: Color(0.78, 1.0, 0.55, 0.6), Hand.Tool.TREES: Color(0.85, 1.0, 0.8, 0.6)}
 const RADIUS_PER_METRE := 0.15
 const MIN_RADIUS := 0.3
 const MAX_RADIUS := 3.0
 
 signal planted
 
+
+class Brush:
+	var hand: Hand
+	var buttons: Buttons
+	var ring: MeshInstance3D
+	## What the current trigger hold has painted, one undo step on release.
+	var stroke: Array[Flora.Plant] = []
+	var owed := 0.0
+
+
 var rig: Rig
 var flora: Flora
-var mode := Mode.FLOWERS
+var history: History
+var brushes: Array[Brush] = []
 ## Where the grass feels the left hand while it is untracked; desktop scripts hold it in the grass.
 var stand_in := Flora.NO_HAND
 var _rng := RandomNumberGenerator.new()
-var _owed := 0.0
-var _two_handed := false
-var _buttons: Buttons
-var _right: Buttons
-var _beam: Beam
-var _ring: MeshInstance3D
 
 
-func _init(player: Rig, plants: Flora) -> void:
+func _init(player: Rig, plants: Flora, steps: History) -> void:
 	rig = player
 	flora = plants
+	history = steps
 	_rng.seed = 23
-	_buttons = Buttons.new(rig.left).watch(["trigger_click", "grip_click"])
-	_right = Buttons.new(rig.right).watch(["by_button", "grip_click"])
-	_beam = Beam.new(Color.WHITE)
-	add_child(_beam)
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.96
 	ring.outer_radius = 1.0
 	ring.rings = 32
 	ring.ring_segments = 4
-	_ring = MeshInstance3D.new()
-	_ring.mesh = ring
-	_ring.material_override = _beam.material_override
-	_ring.top_level = true
-	_ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(_ring)
-	set_mode(mode)
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = Color(1, 1, 1, 0.6)
+	for h in rig.hands:
+		var b := Brush.new()
+		b.hand = h
+		b.buttons = Buttons.new(h).watch(["trigger_click"])
+		b.ring = MeshInstance3D.new()
+		b.ring.mesh = ring
+		b.ring.material_override = mat
+		b.ring.top_level = true
+		b.ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(b.ring)
+		brushes.append(b)
+
+
+func busy() -> bool:
+	for b in brushes:
+		if not b.stroke.is_empty():
+			return true
+	return false
+
+
+## False for a plant still in a stroke being painted; it becomes undoable when the stroke ends.
+func settled(plant: Flora.Plant) -> bool:
+	for b in brushes:
+		if b.stroke.has(plant):
+			return false
+	return true
+
+
+func brush(hand: Hand) -> Brush:
+	for b in brushes:
+		if b.hand == hand:
+			return b
+	return null
 
 
 func _process(delta: float) -> void:
-	var hand := rig.left.global_transform
-	var hit: Variant = null
-	if not rig.aiming and rig.left.get_has_tracking_data():
-		hit = Terrain.raycast(hand.origin, -hand.basis.z)
-	var radius := brush_radius(hand.origin, hit)
-	_beam.visible = hit != null
-	_ring.visible = _beam.visible
-	if _beam.visible:
-		_beam.span(hand.origin, hit)
-		_ring.global_transform = Transform3D(Basis().scaled(Vector3(radius, 1.0, radius)), hit + Vector3.UP * 0.04)
-
 	flora.part(rig.left.global_position if rig.left.get_has_tracking_data() else stand_in, _reach(rig.right))
-	if hit != null and _buttons.held("trigger_click"):
-		paint(hit, radius, delta)
-	if _right.pressed("by_button"):
-		set_mode(Mode.GRASS if mode == Mode.FLOWERS else Mode.FLOWERS)
-	if _buttons.pressed("grip_click"):
-		_two_handed = false
-	if _buttons.held("grip_click") and _right.held("grip_click"):
-		_two_handed = true
-	if _buttons.released("grip_click") and hit != null and not _two_handed:
-		plant_tree(hit)
-	_buttons.latch()
-	_right.latch()
+	for b in brushes:
+		_handle(b, delta)
+		b.buttons.latch()
+
+
+func _handle(b: Brush, delta: float) -> void:
+	var held := b.hand.tool
+	b.ring.visible = false
+	if not TINTS.has(held) or rig.aim_hand == b.hand:
+		end_stroke(b)
+		return
+	if b.buttons.released("trigger_click"):
+		end_stroke(b)
+	if not b.hand.get_has_tracking_data():
+		return
+	var hand := b.hand.global_transform
+	var hit: Variant = Terrain.raycast(hand.origin, -hand.basis.z)
+	b.hand.point(hit, TINTS[held])
+	if hit == null:
+		end_stroke(b)
+		return
+	if held == Hand.Tool.TREES:
+		if b.buttons.pressed("trigger_click"):
+			plant_tree(hit)
+		return
+	var radius := brush_radius(hand.origin, hit)
+	b.ring.visible = true
+	b.ring.global_transform = Transform3D(Basis().scaled(Vector3(radius, 1.0, radius)), hit + Vector3.UP * 0.04)
+	if b.buttons.held("trigger_click"):
+		paint(b, hit, radius, delta)
 
 
 static func _reach(hand: XRController3D) -> Vector3:
@@ -88,24 +125,33 @@ static func brush_radius(hand: Vector3, hit: Variant) -> float:
 	return clampf(hand.distance_to(hit) * RADIUS_PER_METRE, MIN_RADIUS, MAX_RADIUS)
 
 
-func paint(center: Vector3, radius: float, delta: float) -> void:
-	_owed += RATES[mode] * PI * radius * radius * delta
-	var n := int(_owed)
-	_owed -= n
+func paint(b: Brush, center: Vector3, radius: float, delta: float) -> void:
+	var grass := b.hand.tool == Hand.Tool.GRASS
+	b.owed += RATES[b.hand.tool] * PI * radius * radius * delta
+	var n := int(b.owed)
+	b.owed -= n
 	for p in FloraLayout.brush(center, radius, n, _rng, Terrain.height_at):
-		if mode == Mode.GRASS:
-			flora.add_grass(p, _rng)
-		else:
-			flora.add_flower(p, _rng)
+		var plant := flora.add_grass(p, _rng) if grass else flora.add_flower(p, _rng)
+		if plant != null:
+			b.stroke.append(plant)
 	if n > 0:
 		planted.emit()
 
 
+func end_stroke(b: Brush) -> void:
+	if b.stroke.is_empty():
+		return
+	_record(b.stroke)
+	b.stroke = []
+
+
 func plant_tree(at: Vector3) -> void:
-	flora.add_tree(at, _rng)
+	var parts := flora.add_tree(at, _rng)
+	if parts.is_empty():
+		return
+	_record(parts)
 	planted.emit()
 
 
-func set_mode(m: Mode) -> void:
-	mode = m
-	(_beam.material_override as StandardMaterial3D).albedo_color = TINTS[m]
+func _record(plants: Array[Flora.Plant]) -> void:
+	history.add(flora.set_shown.bind(plants, false), flora.set_shown.bind(plants, true))
