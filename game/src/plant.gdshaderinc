@@ -19,8 +19,18 @@ void vertex() {
 	}
 }
 
+#ifdef FLOWER
+uniform vec3 stalk : source_color;
+uniform vec3 eye : source_color;
+#endif
+
 void fragment() {
+#ifdef FLOWER
+	vec3 head = mix(albedo * COLOR.rgb, eye, smoothstep(0.55, 0.9, UV.y));
+	ALBEDO = mix(stalk, head, UV.x);
+#else
 	ALBEDO = albedo * COLOR.rgb;
+#endif
 	ROUGHNESS = roughness;
 #ifdef BACKLIT
 	BACKLIGHT = backlight;

@@ -109,7 +109,10 @@ func _init() -> void:
 	grass_mat.shader = load("res://src/grass.gdshader")
 	part(NO_HAND, NO_HAND)
 	grass = _pool(Meshes.grass_clump(7, 1), Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false)
-	flowers = _pool(Meshes.flower(6), Meadow.FLOWERS + PAINTED_FLOWERS, _plant_material("flower", Color.WHITE, 0.8), false)
+	var flower_mat := _plant_material("flower", Color.WHITE, 0.8)
+	flower_mat.set_shader_parameter("stalk", Meshes.STALK)
+	flower_mat.set_shader_parameter("eye", Meshes.EYE)
+	flowers = _pool(Meshes.flower(6), Meadow.FLOWERS + PAINTED_FLOWERS, flower_mat, false)
 	var trunk := CylinderMesh.new()
 	trunk.top_radius = 0.16
 	trunk.bottom_radius = 0.3
@@ -148,8 +151,8 @@ func part(left: Vector3, right: Vector3) -> void:
 
 func add_grass(p: Vector3, rng: RandomNumberGenerator) -> Plant:
 	var v := rng.randf_range(0.85, 1.1)
-	var c := FloraLayout.clump(p)
-	return grass.add(FloraLayout.grass(p, c, rng), Color(v, v, v), p, Color(FloraLayout.dryness(p), FloraLayout.clump_trait(c, FloraLayout.Trait.TINT), 0, 0))
+	var c := FloraLayout.clump(p, FloraLayout.GRASS_CLUMP)
+	return grass.add(FloraLayout.grass(p, c, rng), Color(v, v, v), p, Color(FloraLayout.dryness(p), FloraLayout.clump_trait(c, FloraLayout.Trait.TINT, FloraLayout.GRASS_CLUMP), 0, 0))
 
 
 func add_flower(p: Vector3, rng: RandomNumberGenerator) -> Plant:

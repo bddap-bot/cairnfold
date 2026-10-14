@@ -3,14 +3,21 @@ extends RefCounted
 
 ## Where grass, flowers, bushes and trees go and how each looks; the meadow and the left-hand brush both place plants through here.
 
-const FLOWER_COLORS := [Color(0.97, 0.96, 0.92), Color(1.0, 0.85, 0.25), Color(0.95, 0.62, 0.72), Color(0.72, 0.62, 0.95), Color(0.98, 0.45, 0.30)]
+## White, butter, peach, pale pink, rose, lavender, violet, cornflower, sky; dim enough that full sun leaves them coloured.
+const FLOWER_COLORS := [
+	Color(0.86, 0.85, 0.80), Color(0.80, 0.58, 0.14), Color(0.80, 0.40, 0.24),
+	Color(0.78, 0.40, 0.52), Color(0.66, 0.20, 0.38), Color(0.48, 0.34, 0.72),
+	Color(0.34, 0.20, 0.58), Color(0.20, 0.30, 0.72), Color(0.30, 0.48, 0.76),
+]
+## Flowers of one colour grow together in clumps about this wide, so a stroke paints a few colours in patches.
+const FLOWER_CLUMP := 1.3
 const BLOBS := 8
-const CLUMP_SIZE := 0.7
+const GRASS_CLUMP := 0.7
 const CLUMP_LEAN := 0.5
 const GREENS := [Color(0.16, 0.34, 0.08), Color(0.24, 0.42, 0.1), Color(0.14, 0.30, 0.12), Color(0.32, 0.46, 0.12)]
 
 static var _patches := _noise(9, 0.06)
-static var _kinds := _noise(17, 0.08)
+static var _beds := _noise(17, 0.08)
 
 
 static func _noise(seed: int, frequency: float) -> FastNoiseLite:
@@ -25,29 +32,28 @@ static func dryness(p: Vector3) -> float:
 	return clampf(0.4 + _patches.get_noise_2d(p.x, p.z) * 1.2, 0.0, 1.0)
 
 
-## Flowers come in single-colour drifts, so a painted patch matches the meadow's around it.
 static func flower_color(p: Vector3) -> Color:
-	var k := int(clampf((_kinds.get_noise_2d(p.x, p.z) + 0.6) / 1.2, 0.0, 0.999) * FLOWER_COLORS.size())
-	return FLOWER_COLORS[k]
+	var k := int(clump_trait(clump(p, FLOWER_CLUMP), Trait.COLOUR, FLOWER_CLUMP) * FLOWER_COLORS.size())
+	return FLOWER_COLORS[mini(k, FLOWER_COLORS.size() - 1)]
 
 
 static func flowery(p: Vector3) -> bool:
-	return _kinds.get_noise_2d(p.z * 1.9, p.x * 1.9) >= 0.05
+	return _beds.get_noise_2d(p.z * 1.9, p.x * 1.9) >= 0.05
 
 
-enum Trait { X, Z, HEIGHT, FACING, TINT }
+enum Trait { X, Z, HEIGHT, FACING, TINT, COLOUR }
 
 
-## The centre of the grass clump a ground point belongs to: the nearest of one jittered point per CLUMP_SIZE cell.
-## Clumps share height, facing and tint, so the meadow grows in tufts rather than an even carpet.
-static func clump(p: Vector3) -> Vector3:
-	var ci := floori(p.x / CLUMP_SIZE)
-	var cj := floori(p.z / CLUMP_SIZE)
+## The centre of the clump a ground point belongs to: the nearest of one jittered point per `size` cell.
+## Grass clumps share height, facing and tint, so the meadow grows in tufts rather than an even carpet.
+static func clump(p: Vector3, size: float) -> Vector3:
+	var ci := floori(p.x / size)
+	var cj := floori(p.z / size)
 	var best := Vector3.ZERO
 	var best_d := INF
 	for j in range(cj - 1, cj + 2):
 		for i in range(ci - 1, ci + 2):
-			var c := Vector3((i + _hash(i, j, Trait.X)) * CLUMP_SIZE, 0.0, (j + _hash(i, j, Trait.Z)) * CLUMP_SIZE)
+			var c := Vector3((i + _hash(i, j, Trait.X)) * size, 0.0, (j + _hash(i, j, Trait.Z)) * size)
 			var d := Vector2(p.x - c.x, p.z - c.z).length_squared()
 			if d < best_d:
 				best_d = d
@@ -55,9 +61,9 @@ static func clump(p: Vector3) -> Vector3:
 	return best
 
 
-## A clump's 0..1 value for one trait, the same for every blade in it.
-static func clump_trait(centre: Vector3, t: Trait) -> float:
-	return _hash(floori(centre.x / CLUMP_SIZE), floori(centre.z / CLUMP_SIZE), t)
+## A clump's 0..1 value for one trait, the same for every plant in it; `size` is the one its centre came from.
+static func clump_trait(centre: Vector3, t: Trait, size: float) -> float:
+	return _hash(floori(centre.x / size), floori(centre.z / size), t)
 
 
 static func _hash(i: int, j: int, k: int) -> float:
@@ -67,9 +73,9 @@ static func _hash(i: int, j: int, k: int) -> float:
 ## A grass clump mesh at `p` in the clump centred at `c`: its height and facing with some scatter, its tips leaning out from the centre.
 static func grass(p: Vector3, c: Vector3, rng: RandomNumberGenerator) -> Transform3D:
 	var s := rng.randf_range(0.8, 1.15)
-	var h := s * lerpf(0.65, 1.45, clump_trait(c, Trait.HEIGHT)) * rng.randf_range(0.9, 1.1)
-	var basis := Basis(Vector3.UP, clump_trait(c, Trait.FACING) * TAU + rng.randf_range(-0.7, 0.7)).scaled(Vector3(s, h, s))
-	basis.y += Vector3(p.x - c.x, 0.0, p.z - c.z) * (CLUMP_LEAN * h / CLUMP_SIZE)
+	var h := s * lerpf(0.65, 1.45, clump_trait(c, Trait.HEIGHT, GRASS_CLUMP)) * rng.randf_range(0.9, 1.1)
+	var basis := Basis(Vector3.UP, clump_trait(c, Trait.FACING, GRASS_CLUMP) * TAU + rng.randf_range(-0.7, 0.7)).scaled(Vector3(s, h, s))
+	basis.y += Vector3(p.x - c.x, 0.0, p.z - c.z) * (CLUMP_LEAN * h / GRASS_CLUMP)
 	return Transform3D(basis, p)
 
 

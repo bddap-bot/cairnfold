@@ -113,13 +113,15 @@ static func _stones(root: Node3D, stones: Array[Dictionary], scale: float) -> vo
 
 
 static func _flowers(root: Node3D) -> void:
-	var mm := _multimesh(Meshes.flower(6), 3)
 	var spots := [Vector3(0, 0, 0), Vector3(0.09, 0, 0.05), Vector3(-0.07, 0, 0.07)]
 	var sizes := [1.15, 0.8, 0.9]
 	for i in 3:
-		mm.set_instance_transform(i, Transform3D(Basis(Vector3.UP, i * 1.3).scaled(Vector3.ONE * sizes[i]), spots[i]))
-		mm.set_instance_color(i, FloraLayout.FLOWER_COLORS[[2, 1, 0][i]])
-	_add(root, mm, _vertex_mat("flower", 0.8, true), 0.17)
+		var mi := MeshInstance3D.new()
+		mi.mesh = Meshes.flower(6, FloraLayout.FLOWER_COLORS[[4, 7, 1][i]])
+		mi.material_override = _vertex_mat("flower", 0.8, true)
+		mi.transform = Transform3D(Basis(Vector3.UP, i * 1.3).scaled(Vector3.ONE * sizes[i] * 0.17), spots[i] * 0.17)
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(mi)
 
 
 static func _grass(root: Node3D) -> void:

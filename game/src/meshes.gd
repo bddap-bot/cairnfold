@@ -68,15 +68,20 @@ static func grass_clump(blades: int, seed: int) -> ArrayMesh:
 	return st.commit()
 
 
-## A tiny flower head: a flat star of petals around a raised centre, on a stalk.
-static func flower(petals: int) -> ArrayMesh:
+const STALK := Color(0.25, 0.45, 0.12)
+const EYE := Color(1.0, 0.78, 0.25)
+
+
+## A tiny flower head: a flat star of `head`-coloured petals around a raised eye, on a stalk.
+## UV.x is 0 on the stalk and 1 on the head, UV.y 1 at its eye, for shaders that colour each instance.
+static func flower(petals: int, head := Color.WHITE) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var h := 0.22
-	var stalk := Color(0.25, 0.45, 0.12)
 	for tri in [[Vector3(-0.006, 0, 0), Vector3(0, h, 0), Vector3(0.006, 0, 0)], [Vector3(0, 0, -0.006), Vector3(0, h, 0), Vector3(0, 0, 0.006)]]:
 		for p in tri:
-			st.set_color(stalk)
+			st.set_color(STALK)
+			st.set_uv(Vector2(0, 0))
 			st.set_normal(Vector3.UP)
 			st.add_vertex(p)
 	var c := Vector3(0, h, 0)
@@ -85,14 +90,14 @@ static func flower(petals: int) -> ArrayMesh:
 		var a1 := TAU * (i + 0.5) / petals
 		var a2 := TAU * (i + 1) / petals
 		var r := 0.06
-		for p in [c + Vector3(0, 0.008, 0), c + Vector3(cos(a0), 0, sin(a0)) * r * 0.5, c + Vector3(cos(a1), 0.004, sin(a1)) * r]:
-			st.set_color(Color(1, 1, 1))
-			st.set_normal(Vector3.UP)
-			st.add_vertex(p)
-		for p in [c + Vector3(0, 0.008, 0), c + Vector3(cos(a1), 0.004, sin(a1)) * r, c + Vector3(cos(a2), 0, sin(a2)) * r * 0.5]:
-			st.set_color(Color(1, 1, 1))
-			st.set_normal(Vector3.UP)
-			st.add_vertex(p)
+		var eye := c + Vector3(0, 0.008, 0)
+		var tip := c + Vector3(cos(a1), 0.004, sin(a1)) * r
+		for tri in [[eye, c + Vector3(cos(a0), 0, sin(a0)) * r * 0.5, tip], [eye, tip, c + Vector3(cos(a2), 0, sin(a2)) * r * 0.5]]:
+			for p: Vector3 in tri:
+				st.set_color(EYE if p == eye else head)
+				st.set_uv(Vector2(1, 1 if p == eye else 0))
+				st.set_normal(Vector3.UP)
+				st.add_vertex(p)
 	return st.commit()
 
 

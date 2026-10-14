@@ -13,6 +13,7 @@ func _initialize() -> void:
 	_full_pools_recycle_only_painted()
 	_trees_recycle_whole()
 	_grass_grows_in_clumps()
+	_flowers_vary_by_patch()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
 
@@ -137,19 +138,40 @@ func _trees_recycle_whole() -> void:
 
 func _grass_grows_in_clumps() -> void:
 	var rng := _rng(6)
-	var c := FloraLayout.clump(Vector3(5.3, 0, -2.1))
+	var c := FloraLayout.clump(Vector3(5.3, 0, -2.1), FloraLayout.GRASS_CLUMP)
 	var sizes := []
 	for i in 40:
 		var a := rng.randf() * TAU
 		var p := Vector3(c.x + cos(a) * 0.05, 0, c.z + sin(a) * 0.05)
-		_check(FloraLayout.clump(p) == c, "points beside a clump's centre belong to it")
+		_check(FloraLayout.clump(p, FloraLayout.GRASS_CLUMP) == c, "points beside a clump's centre belong to it")
 		sizes.append(FloraLayout.grass(p, c, rng).basis.y.y)
 	var spread: float = sizes.max() / sizes.min()
 	_check(spread < 1.8, "a clump's blades share a height, spread %.2f" % spread)
 	var across := []
 	for i in 40:
-		var o := FloraLayout.clump(Vector3(i * 1.3, 0, i * 0.7))
+		var o := FloraLayout.clump(Vector3(i * 1.3, 0, i * 0.7), FloraLayout.GRASS_CLUMP)
 		across.append(FloraLayout.grass(o, o, rng).basis.y.y)
 	_check(across.max() / across.min() > spread * 1.2, "clumps differ in height more than blades within one, %.2f against %.2f" % [across.max() / across.min(), spread])
 	var lean := FloraLayout.grass(c + Vector3(0.05, 0, 0), c, rng).basis.y
 	_check(lean.x > 0.0 and absf(lean.z) < 1e-4, "blades lean away from their clump's centre")
+
+
+func _flowers_vary_by_patch() -> void:
+	var rng := _rng(3)
+	var kinds := 0
+	for stroke in 20:
+		var colours := {}
+		for p in FloraLayout.brush(Vector3(rng.randf_range(-20, 20), 0, rng.randf_range(-20, 20)), 1.2, 150, rng, Terrain.height_at):
+			colours[FloraLayout.flower_color(p)] = true
+		kinds += colours.size()
+	_check(kinds >= 80, "a stroke paints a few colours, %.1f on average" % (kinds / 20.0))
+	var pts := FloraLayout.brush(Vector3(-2, 0, 3), 2.0, 600, _rng(9), Terrain.height_at)
+	var same := 0
+	var near := 0
+	for i in pts.size():
+		var c := FloraLayout.flower_color(pts[i])
+		for j in range(i + 1, pts.size()):
+			if Vector2(pts[i].x - pts[j].x, pts[i].z - pts[j].z).length() < 0.15:
+				near += 1
+				same += int(FloraLayout.flower_color(pts[j]) == c)
+	_check(same > near * 0.85, "neighbouring flowers mostly share a colour, %d of %d" % [same, near])
