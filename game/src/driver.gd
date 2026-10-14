@@ -548,12 +548,21 @@ func _music(s: Dictionary) -> void:
 
 
 ## With "ground", eye and target heights count from the ground under each.
+## With "subject", `eye` and `at` are in the frame of the first node in that group, as it stands now.
 func _view(s: Dictionary) -> void:
 	var eye := Vector3(s.eye[0], s.eye[1], s.eye[2])
 	var at := Vector3(s.at[0], s.at[1], s.at[2])
 	if s.get("ground", false):
 		eye.y += Terrain.height_at(eye.x, eye.z)
 		at.y += Terrain.height_at(at.x, at.z)
+	if s.has("subject"):
+		var found := get_tree().get_nodes_in_group(s.subject)
+		if found.is_empty():
+			push_error("driver: nothing in %s to view" % s.subject)
+			return
+		var frame: Transform3D = found[0].global_transform
+		eye = frame * eye
+		at = frame * at
 	main.view(eye, at, s.get("relative", false))
 	await get_tree().process_frame
 

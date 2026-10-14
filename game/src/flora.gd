@@ -391,6 +391,15 @@ func tree_near(p: Vector3, reach: float) -> Array[Plant]:
 	return best
 
 
+## The standing trees planted in the garden, each as its trunk then its blobs; the meadow's own are left out.
+func planted_trees() -> Array[Array]:
+	var out: Array[Array] = []
+	for parts: Array[Plant] in _trees.values():
+		if parts[0].slot >= trunks.kept and parts[0].shown():
+			out.append(parts)
+	return out
+
+
 ## Painted grass and flowers standing within `radius` of `p` across the ground; the meadow's own stay.
 func painted_near(p: Vector3, radius: float) -> Array[Plant]:
 	var out: Array[Plant] = []

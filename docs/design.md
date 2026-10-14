@@ -148,7 +148,8 @@ density, and no build the player can make may bring the frame rate down.
   a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
   over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
   and towers, eight ponds, and the most ducks there can be at them (`bench.sh`
-  fixes the seed), with every butterfly there can be over the full flower pool,
+  fixes the seed), with every butterfly there can be over the full flower pool
+  and the most conures there can be among the full pool of planted trees,
   and a hill pulled up live under 973 m of walls, each seen from the air and
   standing among them.
 - `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
@@ -600,21 +601,36 @@ fly in and settle on it. There is no tool, menu or button for animals.
   faint glow between. The drift and the flashing run in the shader, so the CPU writes their
   spots only when they change, at most once a second, and never by day. One that drifts
   within half a metre of the eyes shrinks away, so none fills the view with overdraw.
-- **A conure**, iridescent blue and green, comes after the ducks: it lands on a
-  tree or a wall top. Its plumage is poofy and soft, with a view-dependent hue
-  shift (blue facing you, green at grazing angles) computed per fragment from
-  the view angle, cheap enough for the headset. It should read as a real bird,
-  so its motion (head tilts, preening, hops, flight) comes from a human-animated
-  rig, never invented motion.
+- **Conures**, iridescent blue and green, come after the ducks: once a duck has
+  come to the garden and a planted tree (not the meadow's own) or a finished
+  wall or fence stands, a pair or a trio flies in from out of sight 20 to 60
+  seconds later (`Birds`, at most `Birds.CAP`, three) and lands on a tree's crown
+  or a wall top: the top of its caps, coping, merlons and piers, or a fence's top
+  rail and posts (`WallLayout.perches`), never a roof. Perched, a conure looks
+  about with quick head turns and tilts, preens, hops along the top, now and
+  then flutters to another perch or swoops down to peck in the grass, and flushes
+  up to a perch out of reach when a hand comes within 0.8 m. They leave, out of
+  sight, once no perch stands. The conure is built in code (`conure.gd`) like
+  the duck: about 18 cm of soft, slightly ruffled ellipsoids whose normals lean
+  toward the body's as a whole so it shades as one poofy mass, a round head with
+  a pale hooked bill, dark eyes with a pale ring and a white shine, folded wings,
+  a long tapering tail and small grey feet. Like the duck's, its motion (looking
+  about, preening, pecking, wingbeats, and the body levelling out to fly) is
+  computed in its vertex shader. Its plumage turns per fragment from blue facing
+  the eye to green at grazing angles, with a faint mottle, wrapped diffuse light
+  and a soft rim, and no texture.
 
-Budget: each animal is a few hundred triangles, skinned or vertex-animated, one
+Budget: each animal is at most a couple of thousand triangles, skinned or vertex-animated, one
 draw call, and only a handful are ever in view, so wildlife never costs the
 refresh rate. Ducks are capped at two families of at most five
 (`Wildlife.FAMILIES`, `DUCKLINGS`): ten draw calls and about 6,000 triangles at
 most, one shared mesh per kind and one material. Butterflies are one MultiMesh capped at 24
 (`Butterflies.CAP`): one draw call of 22 triangles each; the CPU steers them and the
 vertex shader beats their wings. Fireflies are one MultiMesh of camera-facing quads capped at 48
-(`Fireflies.CAP`): one draw call, additive glows that cast no light.
+(`Fireflies.CAP`): one draw call, additive glows that cast no light. Conures are capped at three (`Birds.CAP`): three
+draw calls of about 1,600 triangles each, one shared mesh and material, casting no
+shadow. Their perches are looked over twice a second, and a wall's or a crown's
+points are worked out only when a conure makes for it.
 
 ## Photos
 
@@ -651,6 +667,8 @@ arcade), draws a wall across a wide path and raises the ground under a path; `de
 and doors in a wall, a house and a tower, hangs lanterns, flies flags, builds a chimney and draws a fence a
 path crosses; `demo/stone.json` paints stone ground into the meadow, paints part of it back and
 walks the history; `demo/photo.json` takes the camera from the ring and takes two photos; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
+`demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks
+at a perched one from in front and from the side;
 `demo/daylight.json` drags the sun from dawn to dusk, opens the colour wheel, recolours roofs, stone, wood
 and plaster, and walks the meadow through the seasons; `demo/ruins.json` erases stretches of walls into
 ruins and walks the history. Run with `--garden FILE`, it keeps its garden there, and `demo/garden.json`

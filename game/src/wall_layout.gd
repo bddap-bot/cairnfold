@@ -60,6 +60,8 @@ const RUBBLE := 1.5
 ## The narrowest stretch an eraser breaks away, and the shortest stub it leaves standing.
 const MIN_GAP := 1.0
 const MIN_STUB := 0.8
+## The spacing of the points a bird may stand on along a wall's top.
+const PERCH_STEP := 0.16
 
 var points: Array[Vector3] = []
 var height := 2.6
@@ -766,6 +768,46 @@ func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind:
 	origin += basis.z * rng.randf_range(-0.015, 0.015)
 	var color := stone_color(rng) * shade
 	return {"xform": Transform3D(basis.scaled_local(size), origin), "color": color, "kind": kind, "s": s, "y": y, "size": size, "ao": clampf(0.6 + y * 0.25, 0.6, 1.0), "variant": rng.randi() % 3}
+
+
+## Where a small bird can stand on the wall's top, in world space: along the top of every cap, coping stone,
+## merlon and pier, a fence's upper rails and its posts, a step apart, and only the highest where they
+## overlap; none on a roofed wall, none beside a flag or a lantern.
+func perches() -> PackedVector3Array:
+	var out := PackedVector3Array()
+	if roofed:
+		return out
+	var tops: Array[Vector3] = []
+	var fittings: Array[Vector3] = []
+	for st in stones:
+		var kind: String = st.kind
+		var x: Transform3D = st.xform
+		if kind in ["pole", "iron", "finial"]:
+			fittings.append(x.origin)
+			continue
+		if not (kind in ["cap", "cope", "merlon", "pier", "post"] or kind == "rail" and st.y > FENCE_HEIGHT * 0.6):
+			continue
+		var top := x.origin + x.basis.y * 0.5
+		var run := x.basis.x
+		var n := maxi(1, floori(run.length() / PERCH_STEP))
+		for i in n:
+			tops.append(top + run * ((i + 0.5) / n - 0.5))
+	tops.sort_custom(func(a: Vector3, b: Vector3) -> bool: return a.y > b.y)
+	var taken := {}
+	for p in tops:
+		var cell := Vector2i(floori(p.x / PERCH_STEP), floori(p.z / PERCH_STEP))
+		var clear := true
+		for dx in range(-1, 2):
+			for dz in range(-1, 2):
+				for q: Vector3 in taken.get(cell + Vector2i(dx, dz), []):
+					if Vector2(q.x - p.x, q.z - p.z).length() < PERCH_STEP:
+						clear = false
+		if fittings.any(func(f: Vector3) -> bool: return Vector2(f.x - p.x, f.z - p.z).length() < 0.3):
+			clear = false
+		if clear:
+			taken.get_or_add(cell, []).append(p)
+			out.append(p)
+	return out
 
 
 ## A copy of what `build` reads, to build on another thread while this one is edited.

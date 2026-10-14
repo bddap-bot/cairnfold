@@ -6,7 +6,8 @@ extends Node3D
 ## ducklings walks in from the meadow with them in a line. They paddle about, now and then waddle up
 ## the bank to rest on the grass, and leave when their pond is gone. Arrivals and departures happen
 ## out of the viewer's sight, so nothing pops in or out of being. Butterflies come the same way to the flower
-## patches painted (`Butterflies`), and fireflies at dusk over ponds and flower patches (`Fireflies`).
+## patches painted (`Butterflies`), fireflies at dusk over ponds and flower patches (`Fireflies`), and
+## conures, after the ducks, to planted trees and wall tops (`Birds`).
 
 const ARRIVE_AFTER := Vector2(20.0, 60.0)
 const BUTTERFLIES_AFTER := Vector2(8.0, 25.0)
@@ -50,6 +51,7 @@ var hands: Array[Node3D] = []
 var families: Array[Family] = []
 var butterflies: Butterflies
 var fireflies: Fireflies
+var birds: Birds
 var rng := RandomNumberGenerator.new()
 var _due := {}
 var _due_butterflies := {}
@@ -90,8 +92,10 @@ func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes:
 		rng.randomize()
 	butterflies = Butterflies.new(self, rng.seed + 1)
 	add_child(butterflies)
-	fireflies = Fireflies.new(self, sky, rng.seed + 2)
+	fireflies = Fireflies.new(self, sky, rng.seed + 3)
 	add_child(fireflies)
+	birds = Birds.new(self, rng.seed + 2)
+	add_child(birds)
 
 
 func ducks() -> Array[Duck]:
@@ -116,6 +120,7 @@ func tick(delta: float) -> void:
 		butterflies.arrive(key, from)
 	butterflies.tick(delta)
 	fireflies.tick(delta)
+	birds.tick(delta)
 	for i in range(families.size() - 1, -1, -1):
 		var f := families[i]
 		_think(f, delta)
