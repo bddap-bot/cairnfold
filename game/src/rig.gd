@@ -16,6 +16,7 @@ const SNAP := deg_to_rad(30.0)
 const FADE := 0.09
 
 var head: XRCamera3D
+var gaze: Gaze
 var left: Hand
 var right: Hand
 var hands: Array[Hand] = []
@@ -49,6 +50,8 @@ func _init() -> void:
 	head.near = 0.05
 	head.far = 400.0
 	add_child(head)
+	gaze = Gaze.new()
+	add_child(gaze)
 	left = Hand.new("left_hand", Hand.Tool.FLOWERS)
 	right = Hand.new("right_hand", Hand.Tool.WALLS)
 	hands = [left, right]

@@ -114,7 +114,8 @@ func _note_session() -> void:
 	metrics.info.render_size = [xr.get_render_target_size().x, xr.get_render_target_size().y] if xr.has_method("get_render_target_size") else []
 	metrics.info.render_scale = xr.render_target_size_multiplier
 	metrics.info.eye_fov_deg = [_fov(xr.get_projection_for_view(0, 1.0, 0.05, 400.0)), _fov(xr.get_projection_for_view(1, 1.0, 0.05, 400.0))]
-	print("xr: session at ", xr.display_refresh_rate, " Hz")
+	metrics.info.eye_gaze = xr.is_eye_gaze_interaction_supported()
+	print("xr: session at ", xr.display_refresh_rate, " Hz, eye gaze ", metrics.info.eye_gaze)
 
 
 ## Left, right, down and up half-angles of an eye's frustum.

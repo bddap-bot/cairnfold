@@ -120,6 +120,17 @@ func _teleport(s: Dictionary) -> void:
 	await get_tree().create_timer(s.get("seconds", 2.0)).timeout
 
 
+## Shows or hides the gaze marker and logs the gaze pose for `seconds`.
+func _gaze(s: Dictionary) -> void:
+	var gaze: Gaze = main.rig.gaze
+	gaze.show_marker(s.get("on", true))
+	var t := 0.0
+	while t < s.get("seconds", 0.0):
+		print("gaze: tracked ", gaze.get_has_tracking_data(), " ", gaze.global_transform)
+		await get_tree().create_timer(0.5).timeout
+		t += 0.5
+
+
 ## Points the teleport ray from beside the head along `dir` (relative to the head's facing), holds it for `seconds`, optionally captures the aimed view, then goes.
 func _aim(s: Dictionary) -> void:
 	var rig: Rig = main.rig
