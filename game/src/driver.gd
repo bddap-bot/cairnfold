@@ -349,10 +349,11 @@ func _delete(s: Dictionary) -> void:
 
 
 ## Sweeps the delete tool's beam along a wall, pointing straight down from `height` metres over each point of
-## `points` in turn across `seconds`, then lets go.
+## `points` in turn across `seconds`, then lets go. With `index` instead, it sweeps that wall in build order
+## from fraction `from` of its length to `to`, wherever the head stands.
 func _erase(s: Dictionary) -> void:
 	var tool: DeleteTool = main.delete_tool
-	var path := _path(s)
+	var path := _path(s) if s.has("points") else _stretch(main.tool.walls[s.index].layout, s.from, s.to)
 	var up: Vector3 = Vector3.UP * float(s.get("height", 6.0))
 	var target := tool.aim(path[0] + up, Vector3.DOWN)
 	if not target.has("wall"):
@@ -369,6 +370,13 @@ func _erase(s: Dictionary) -> void:
 	tool.sweep(self, path[-1] + up, Vector3.DOWN)
 	tool.let_go(self)
 	await get_tree().process_frame
+
+
+static func _stretch(layout: WallLayout, from: float, to: float) -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	for i in 9:
+		out.append(layout.frame_at(layout.length() * lerpf(from, to, i / 8.0)).point)
+	return out
 
 
 ## Fills a disc at once with parallel walls (see StressLayout) of one height, their ivy fully grown.
