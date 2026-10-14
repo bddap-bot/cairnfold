@@ -27,6 +27,7 @@ if players > 1:
     steps.insert(0, {"op": "until", "players": players, "seconds": 180})
 print(json.dumps(steps))
 PY
+[ "$players" -eq 1 ] || godot4 --headless --path "$here/../game" --import > "$out/import.log" 2>&1
 guests=()
 measured=
 stop() {
@@ -104,7 +105,7 @@ elif [ $# -ge 3 ]; then
       "$(ssh -n "$2" "ip -4 route get 1.1.1.1" | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')"
   fi
   wait "$remote"
-  scp -q "$2:cairnfold-bench/cairnfold/log/*" "$out/"
+  scp -rq "$2:cairnfold-bench/cairnfold/log/*" "$out/"
 else
   setsid env CAIRNFOLD_QUIT_AFTER=900 "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" > "$out/godot.log" 2>&1 &
   measured=$!
