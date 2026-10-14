@@ -85,6 +85,7 @@ func host() -> void:
 		if peer.create_server(p, MAX_PLAYERS - 1) == OK:
 			port = p
 			multiplayer.multiplayer_peer = peer
+			print("session: hosting on port %d" % p)
 			return
 	port = 0
 	multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
@@ -173,11 +174,14 @@ func _announce() -> void:
 func _hear() -> void:
 	var before := nearby.keys()
 	for n in HEAR_PER_FRAME:
-		if _listen.get_available_packet_count() == 0:
+		if _listen.get_available_packet_count() <= 0:
 			break
 		var raw := _listen.get_packet()
 		var ip := _listen.get_packet_ip()
-		var msg: Variant = JSON.parse_string(raw.slice(0, 512).get_string_from_utf8())
+		var json := JSON.new()
+		if json.parse(raw.slice(0, 512).get_string_from_utf8()) != OK:
+			continue
+		var msg: Variant = json.data
 		if not (msg is Dictionary and msg.get("cairnfold") == 1.0 and msg.get("key") is float and msg.get("port") is float and msg.get("avatar") is float):
 			continue
 		var at := int(msg.port)
