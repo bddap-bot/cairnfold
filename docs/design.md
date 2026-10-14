@@ -685,7 +685,7 @@ path crosses; `demo/stone.json` paints stone ground into the meadow, paints part
 walks the history; `demo/photo.json` takes the camera from the ring and takes two photos; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks
 at a perched one from in front and from the side;
-`demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar;
+`demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar (`--seed 1` puts sheep in the close views);
 `demo/daylight.json` drags the sun from dawn to dusk, opens the colour wheel, recolours roofs, stone, wood
 and plaster, and walks the meadow through the seasons; `demo/ruins.json` erases stretches of walls into
 ruins and walks the history. Run with `--garden FILE`, it keeps its garden there, and `demo/garden.json`
