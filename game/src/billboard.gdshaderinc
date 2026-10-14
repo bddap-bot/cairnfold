@@ -1,5 +1,4 @@
-// A quad turned to the eye about its centre, keeping the instance's scale.
-void vertex() {
-	float scale = length(MODEL_MATRIX[0].xyz);
-	MODELVIEW_MATRIX = VIEW_MATRIX * mat4(INV_VIEW_MATRIX[0] * scale, INV_VIEW_MATRIX[1] * scale, INV_VIEW_MATRIX[2] * scale, MODEL_MATRIX[3]);
+// A quad turned to the eye about `at`, `scale` times its size.
+mat4 billboard(mat4 view, mat4 inv_view, vec3 at, float scale) {
+	return view * mat4(inv_view[0] * scale, inv_view[1] * scale, inv_view[2] * scale, vec4(at, 1.0));
 }

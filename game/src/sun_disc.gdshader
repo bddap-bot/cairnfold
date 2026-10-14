@@ -9,6 +9,10 @@ uniform float radius = 0.28;
 
 #include "res://src/billboard.gdshaderinc"
 
+void vertex() {
+	MODELVIEW_MATRIX = billboard(VIEW_MATRIX, INV_VIEW_MATRIX, MODEL_MATRIX[3].xyz, length(MODEL_MATRIX[0].xyz));
+}
+
 void fragment() {
 	float d = length(UV - 0.5) * 2.0;
 	float disc = smoothstep(radius, radius * 0.8, d);

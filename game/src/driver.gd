@@ -506,12 +506,7 @@ func _digest(s: Dictionary) -> void:
 ## Takes a photo with the camera in `hand` (right by default) wherever that hand points, as pulling its
 ## trigger does, and waits until it is saved.
 func _photo(s: Dictionary) -> void:
-	var hand := _holding(s, Hand.Tool.CAMERA)
-	await _frames(2)
-	var key := "%s/trigger_click" % hand.tracker
-	Buttons.injected[key] = true
-	await main.photo_tool.taken
-	Buttons.injected.erase(key)
+	await main.photo_tool.shoot(_holding(s, Hand.Tool.CAMERA))
 
 
 ## Drags the sun from where it stands to `time` (0 dawn, 1 dusk) over `seconds`.

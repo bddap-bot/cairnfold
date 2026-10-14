@@ -26,7 +26,8 @@ paths, flowers, grass, trees, terrain, pond, colour, camera, teleport, delete or
   of seasons for the meadow; let go to keep the one at the top.
 - Holding camera: the screen on its back shows what its lens sees; the trigger
   takes a photo, saved as a PNG in the game's `photos` folder
-  (`~/.local/share/godot/app_userdata/Cairnfold/photos` on the Frame).
+  (`~/.local/share/godot/app_userdata/Cairnfold/photos` on the Frame; inside the
+  app on a Quest).
 - Point any hand at the sun and grip it to drag it across the sky: dawn to dusk.
 - Holding visit: a small figure of each player nearby on the same network stands
   in front of you; point at one and pull the trigger to build in their garden

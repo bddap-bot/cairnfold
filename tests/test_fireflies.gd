@@ -57,9 +57,14 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	root.add_child(water)
 	var tool := WaterTool.new(rig, terrain, water)
 	root.add_child(tool)
-	world.attach(null, null, null, terrain, water)
 	var flora := Flora.new()
 	root.add_child(flora)
+	var paths := Paths.new()
+	root.add_child(paths)
+	world.attach(null, flora, paths, terrain, water)
+	var painter := FloraTool.new(rig, flora, paths, world)
+	painter.process_mode = Node.PROCESS_MODE_DISABLED
+	root.add_child(painter)
 	var look := Look.build(root)
 	var palette := Palette.new()
 	var no_hands: Array[Node3D] = []
@@ -92,7 +97,7 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 			for g in pond.pond.shore:
 				shore = minf(shore, Terrain.grid_xz(g).distance_to(Vector2(s.x, s.z)))
 			var ground := maxf(Terrain.height_at(s.x, s.z), pond.surface_y())
-			near = near and shore <= Fireflies.SPREAD + 0.01 and s.y - ground >= Fireflies.HEIGHT.x - 0.01 and s.y - ground <= Fireflies.HEIGHT.y + 0.01
+			near = near and shore <= Fireflies.SHORE_SPREAD + 0.01 and s.y - ground >= Fireflies.HEIGHT.x - 0.01 and s.y - ground <= Fireflies.HEIGHT.y + 0.01
 	_check(near, "they hover low by the pond's shore")
 	_check(ff.dusk() > 0.9, "it is dark at the end of the day, %.2f" % ff.dusk())
 	look.set_time(0.02)
@@ -107,7 +112,35 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	_run(wildlife, 1.5)
 	_check(ff.count() >= Fireflies.PER_HABITAT.x, "summer brings them back")
 
+	await _dig(tool, 4.2, -4)
+	_run(wildlife, Fireflies.REFRESH + 0.5)
+	var reshaped := ff.spots.keys().filter(func(k: Variant) -> bool: return ff.spots[k].any(func(s: Vector4) -> bool: return s.w > 0.0))
+	_check(ff.spots.size() == 2 and reshaped.size() == 1 and reshaped[0] == water.ponds[0].pond.shore.hash(), "a pond dug wider moves its fireflies to its new shore")
+	_run(wildlife, Fireflies.FADE + 1.5)
+	_check(ff.spots.size() == 1, "and the old ones fade away")
+
+	var b := painter.brushes[0]
+	b.hand.tool = Hand.Tool.FLOWERS
+	for i in 90:
+		painter.paint(b, Terrain.ground(-6, 3), 1.0, STEP)
+	painter.end_stroke(b)
+	_run(wildlife, 3.0)
+	var patches := wildlife.butterflies.patches
+	_check(not patches.is_empty(), "the painted flowers make a patch")
+	var bloomed := patches.keys().all(func(k: Vector2i) -> bool: return ff.spots.has(k))
+	_check(bloomed, "each flower patch has fireflies too")
+	var by_blooms := true
+	for k in patches:
+		for s: Vector4 in ff.spots.get(k, []):
+			var best := INF
+			for p: Vector3 in patches[k]:
+				best = minf(best, Vector2(p.x, p.z).distance_to(Vector2(s.x, s.z)))
+			by_blooms = by_blooms and best <= Fireflies.BLOOM_SPREAD + 0.01
+	_check(by_blooms, "they hover over the blooms")
+	_check(ff.count() <= Fireflies.CAP, "never more than the cap")
+
+	water.remove_seed(water._seeds[0])
 	water.remove_seed(water._seeds[0])
 	water.refill()
 	_run(wildlife, Fireflies.FADE + 2.5)
-	_check(water.ponds.is_empty() and ff.count() == 0, "filling the pond in takes them away")
+	_check(water.ponds.is_empty() and not ff.spots.keys().any(func(k: Variant) -> bool: return k is int), "filling the pond in takes its fireflies away")

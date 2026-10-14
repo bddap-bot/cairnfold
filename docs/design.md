@@ -305,7 +305,7 @@ Stage numbers refer to the build order at the end.
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of the left D-pad down undoes a step, up redoes one; with others, each player's own steps (done); the delete tool takes away a tree or painted patch (done) and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. One reshape (or unwall) per sweep, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it; it is loaded at start. Only your own garden is kept, never one you are visiting. A file the game cannot read whole is moved aside to `garden.save.bad` before the garden is saved again. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
-| Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, butterflies gather over painted flowers, a conure perches on a tree or wall (see "Wildlife") | 11 |
+| Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, butterflies gather over painted flowers, fireflies come out over both at dusk, a conure perches on a tree or wall (see "Wildlife") | 11 |
 | Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 1600×1200 photo with a level horizon, saved as a PNG under `user://photos` (see "Photos") | 11 (done) |
 | Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network with the visit tool (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
 
@@ -592,12 +592,14 @@ fly in and settle on it. There is no tool, menu or button for animals.
   drift back. They leave, out of sight, when their patch is erased, drowned or out of season; the
   meadow's own flowers draw none. Wings come in five soft colours (butter, apricot, sky, chalk,
   lilac), darker at the rim.
-- **Fireflies** come out at dusk, in spring and summer, over what you have made: five to nine
-  over each pond's shore and each painted flower patch (`Fireflies`), fading in as the sun goes
-  down and out when it rises, the season turns or their pond or patch is gone. Each hovers
-  about a spot of its own, drifting and flashing on its own slow beat with a faint glow
-  between; the drift and the flashing run in the shader, so the CPU writes their spots once a
-  second at most, and only after sunset. They are additive glows and cast no light.
+- **Fireflies** come out once the sun is low, in spring and summer, over what you have made:
+  six to ten over each pond's shore and each painted flower patch, 48 in all, shared evenly
+  once there are many (`Fireflies`). They fade in as the light goes and out when it returns,
+  the season turns or their pond or patch is gone; a pond dug wider sends them to its new
+  shore. Each hovers about a spot of its own, drifting and flashing on its own slow beat with a
+  faint glow between. The drift and the flashing run in the shader, so the CPU writes their
+  spots only when they change, at most once a second, and never by day. One that drifts
+  within half a metre of the eyes shrinks away, so none fills the view with overdraw.
 - **A conure**, iridescent blue and green, comes after the ducks: it lands on a
   tree or a wall top. Its plumage is poofy and soft, with a view-dependent hue
   shift (blue facing you, green at grazing angles) computed per fragment from
@@ -612,22 +614,26 @@ refresh rate. Ducks are capped at two families of at most five
 most, one shared mesh per kind and one material. Butterflies are one MultiMesh capped at 24
 (`Butterflies.CAP`): one draw call of 22 triangles each; the CPU steers them and the
 vertex shader beats their wings. Fireflies are one MultiMesh of camera-facing quads capped at 48
-(`Fireflies.CAP`): one draw call, additive, no lights.
+(`Fireflies.CAP`): one draw call, additive glows that cast no light.
 
 ## Photos
 
 The camera is a tool in the ring (`PhotoTool`). Held, a small camera stands on the controller with
 its lens along the aim and a screen on its back toward the eye, showing what the lens sees. The
-lens keeps the horizon level however the wrist rolls, so photos never come out tilted. The
-trigger takes a 1600×1200 photo (4× MSAA, 55° field of view), saved as a PNG named by the date and
-time under `user://photos` (in a scripted run, `photos/` in the capture directory); the screen
-holds the shot for a moment with a soft flash, and the hand gets a short buzz.
+lens keeps the horizon level however the wrist rolls, so photos never come out tilted; pointed
+straight up or down, the top of the controller is up. The trigger takes a photo
+(`PhotoTool.PHOTO_SIZE`), saved as a PNG named by the date and time under `user://photos`, or
+under `photos/` in the `--capture-dir` of a scripted run. On the Frame that is
+`~/.local/share/godot/app_userdata/Cairnfold/photos`; on a Quest the photos stay in the app's
+own storage. The screen holds the shot for a moment with a soft flash, and the hand gets a
+short buzz on the press. Either hand can hold a camera; both show the view of the first.
 
-What it costs: the screen is a second view of the garden, 256×192 without MSAA, redrawn on one
-frame in three and only while a hand holds the camera, so each redraw repeats the frame's draw
-calls at a small size. The shot is one extra render at photo size and one read back of it, on
-the frame the trigger is pulled; the PNG is encoded and written on a worker thread. Head-pose
-view captures (`Main.capture` in a headset) use the same render.
+What it costs: nothing until a hand first holds the camera. The screen is then a second view of
+the garden at `PhotoTool.PREVIEW_SIZE` without MSAA, out to 60 m, redrawn on one frame in three:
+that frame pays the scene's draw calls and shadow pass again at a small size. A photo is one
+more render at photo size on the frame after the press, read back from the GPU asynchronously
+and written on a worker thread, so no frame waits on the pixels. A headset run's view captures
+(`Main.capture`) take the same render from the head. Not yet measured on a headset.
 
 ## Verifying on a headset
 

@@ -5,7 +5,12 @@ extends RefCounted
 ## built from the same generators and meshes as the full-size things, standing on y = 0. The meadow's
 ## plant shaders lift each instance by the terrain under it, so these carry plain materials of their own.
 
+## The camera model's lens, from the model's origin; PhotoTool takes photos from here.
+const CAMERA_LENS := Vector3(0, 0.024, -0.0302)
+const CAMERA_SCREEN := Vector2(0.048, 0.036)
+
 static var _mats := {}
+static var _camera_screen: StandardMaterial3D
 
 
 static func build(tool: Hand.Tool) -> Node3D:
@@ -80,8 +85,15 @@ static func _palette(root: Node3D) -> void:
 		root.add_child(mi)
 
 
-## A small camera, its lens along the controller's aim and its screen toward the eye; PhotoTool shows the
-## view on that screen while the camera is held.
+## The screen on the back of every camera model, one material PhotoTool shows the lens's view in.
+static func camera_screen() -> StandardMaterial3D:
+	if _camera_screen == null:
+		_camera_screen = StandardMaterial3D.new()
+		_camera_screen.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	return _camera_screen
+
+
+## A small camera, its lens along the controller's aim and its screen toward the eye.
 static func _camera(root: Node3D) -> void:
 	var lens := CylinderMesh.new()
 	lens.top_radius = 0.012
@@ -106,7 +118,7 @@ static func _camera(root: Node3D) -> void:
 		[Meshes.rounded_box(0.25, 2, 41), Transform3D(Basis().scaled(Vector3(0.064, 0.046, 0.026)), Vector3(0, 0.024, 0)), Color(0.84, 0.76, 0.62)],
 		[Meshes.rounded_box(0.2, 2, 42), Transform3D(Basis().scaled(Vector3(0.054, 0.042, 0.002)), Vector3(0, 0.024, 0.013)), Color(0.16, 0.14, 0.13)],
 		[lens, Transform3D(facing, Vector3(0, 0.024, -0.021)), Color(0.22, 0.2, 0.19)],
-		[glass, Transform3D(facing, Vector3(0, 0.024, -0.0302)), Color(0.08, 0.1, 0.16)],
+		[glass, Transform3D(facing, CAMERA_LENS), Color(0.08, 0.1, 0.16)],
 		[button, Transform3D(Basis(), Vector3(0.019, 0.048, 0.002)), Color(0.72, 0.56, 0.3)],
 	]
 	for part in parts:
@@ -123,6 +135,14 @@ static func _camera(root: Node3D) -> void:
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(mi)
+	var quad := QuadMesh.new()
+	quad.size = CAMERA_SCREEN
+	var screen := MeshInstance3D.new()
+	screen.mesh = quad
+	screen.position = Vector3(0, 0.024, 0.0141)
+	screen.material_override = camera_screen()
+	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(screen)
 
 
 ## A little person: the visit tool goes to see other players.

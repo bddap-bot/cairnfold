@@ -7,6 +7,10 @@ uniform vec3 tint : source_color = vec3(1.0, 0.62, 0.28);
 
 #include "res://src/billboard.gdshaderinc"
 
+void vertex() {
+	MODELVIEW_MATRIX = billboard(VIEW_MATRIX, INV_VIEW_MATRIX, MODEL_MATRIX[3].xyz, length(MODEL_MATRIX[0].xyz));
+}
+
 void fragment() {
 	float d = length(UV - 0.5) * 2.0;
 	float f = max(1.0 - d, 0.0);
