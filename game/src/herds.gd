@@ -20,7 +20,8 @@ const BAND := Vector2(1.0, 7.0)
 const END := 0.5
 ## Seconds between looks at the walls for pastures and at the trees; nothing reads every wall each frame.
 const REFRESH := 0.5
-## How far beyond its first grass a flock starts walking in, and how far a leaving one heads off each leg.
+## How far beyond its first grass a flock starts walking in (twice or three times as far if nearer is in sight
+## or has no clear way), and how far a leaving one heads off each leg.
 const WALK_FROM := 12.0
 const WALK_AWAY := 30.0
 const SPEED := {State.ENTER: 0.5, State.WALK: 0.45, State.FLEE: 1.5, State.LEAVE: 0.55, State.GRAZE: 0.12}
@@ -142,12 +143,13 @@ func arrive(fence: Wall) -> void:
 	if first == null or n <= 0:
 		return
 	var starts := PackedVector3Array()
-	for attempt in 16:
-		var away := wildlife._unseen_direction(first, WALK_FROM, 0.0, Wildlife.SIGHT, rng)
+	for attempt in 18:
+		var reach := WALK_FROM * (1 + attempt / 6)
+		var away := wildlife._unseen_direction(first, reach, 0.0, Wildlife.SIGHT, rng)
 		var across := away.cross(Vector3.UP)
 		starts.clear()
 		for i in n:
-			starts.append(first + away * (WALK_FROM + 1.1 * i) + across * rng.randf_range(-0.5, 0.5))
+			starts.append(first + away * (reach + 1.1 * i) + across * rng.randf_range(-0.5, 0.5))
 		if _starts_ok(first, starts):
 			break
 		starts.clear()
