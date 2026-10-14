@@ -121,3 +121,22 @@ static func blob(seed: int, subdiv: int = 2) -> ArrayMesh:
 	st.create_from(tmp, 0)
 	st.generate_normals()
 	return st.commit()
+
+
+## An ivy leaf card in the XY plane facing +Z, its stem at the origin and its tip at Y = 1, folded along the vein.
+static func leaf() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var stem := Vector3(0, 0, 0)
+	var tip := Vector3(0, 1, 0)
+	var vein := Vector3(0, 0.45, 0.04)
+	for lobe in [Vector3(-0.5, 0.5, -0.06), Vector3(0.5, 0.5, -0.06)]:
+		for tri in [[stem, lobe, vein], [vein, lobe, tip]]:
+			var n: Vector3 = (tri[1] - tri[0]).cross(tri[2] - tri[0]).normalized()
+			if n.z < 0.0:
+				n = -n
+			for p in tri:
+				st.set_normal(n)
+				st.set_color(Color(1, 1, 1))
+				st.add_vertex(p)
+	return st.commit()

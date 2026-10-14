@@ -84,6 +84,29 @@ func _arch(s: Dictionary) -> void:
 	main.tool.toggle_arch(main.tool.walls[s.index], s.s)
 
 
+## Sweeps the left-hand brush through `points` over `seconds`, painting `mode` with a brush of `radius`.
+func _paint(s: Dictionary) -> void:
+	var gardener: FloraTool = main.gardener
+	gardener.set_mode(StringName(s.mode))
+	var path: Array[Vector3] = []
+	for p in s.points:
+		path.append(_spot(s, p[0], p[1]))
+	var total := 0.0
+	for i in path.size() - 1:
+		total += path[i].distance_to(path[i + 1])
+	var t := 0.0
+	var seconds: float = s.get("seconds", 2.0)
+	while t < seconds:
+		await get_tree().process_frame
+		var dt := get_process_delta_time()
+		t += dt
+		gardener.paint(_along(path, total * minf(t / seconds, 1.0)), s.radius, dt)
+
+
+func _tree(s: Dictionary) -> void:
+	main.gardener.plant_tree(_spot(s, s.x, s.z))
+
+
 func _music(s: Dictionary) -> void:
 	main.sound.play_from(s.section)
 

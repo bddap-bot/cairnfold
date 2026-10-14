@@ -22,36 +22,23 @@ var _lift_at := Vector3.ZERO
 var _since_rebuild := 0.0
 var _dirty := false
 var _seed := 1
-var _was := {}
+var _buttons: Buttons
 
-var _beam: MeshInstance3D
+var _beam: Beam
 var _dot: MeshInstance3D
 
 
 func _init(player: Rig) -> void:
 	rig = player
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1.0, 0.97, 0.9, 0.55)
-	var beam := CylinderMesh.new()
-	beam.top_radius = 0.004
-	beam.bottom_radius = 0.004
-	beam.height = 1.0
-	beam.radial_segments = 5
-	beam.rings = 1
-	_beam = MeshInstance3D.new()
-	_beam.mesh = beam
-	_beam.material_override = mat
-	_beam.top_level = true
-	_beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_buttons = Buttons.new(rig.right).watch(["trigger_click", "grip_click", "ax_button", "by_button"])
+	_beam = Beam.new(Color(1.0, 0.97, 0.9, 0.55))
 	add_child(_beam)
 	var dot := SphereMesh.new()
 	dot.radius = 0.05
 	dot.height = 0.1
 	_dot = MeshInstance3D.new()
 	_dot.mesh = dot
-	_dot.material_override = mat
+	_dot.material_override = _beam.material_override
 	_dot.top_level = true
 	_dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_dot)
@@ -66,29 +53,29 @@ func _process(delta: float) -> void:
 	_beam.visible = rig.right.get_has_tracking_data()
 	_show_beam(origin, ground if pick.is_empty() else pick.point)
 
-	if _pressed("trigger_click") and ground != null and lifting == null:
+	if _buttons.pressed("trigger_click") and ground != null and lifting == null:
 		begin_stroke(ground)
-	elif _held("trigger_click") and drawing != null and ground != null:
+	elif _buttons.held("trigger_click") and drawing != null and ground != null:
 		extend_stroke(ground)
-	elif _released("trigger_click") and drawing != null:
+	elif _buttons.released("trigger_click") and drawing != null:
 		end_stroke()
 
-	if _pressed("grip_click") and not pick.is_empty() and drawing == null:
+	if _buttons.pressed("grip_click") and not pick.is_empty() and drawing == null:
 		begin_lift(pick.wall, origin, pick.point)
-	elif _held("grip_click") and lifting != null:
+	elif _buttons.held("grip_click") and lifting != null:
 		drag_lift(origin.y)
-	elif _released("grip_click"):
+	elif _buttons.released("grip_click"):
 		lifting = null
 
-	if _pressed("ax_button") and not pick.is_empty():
+	if _buttons.pressed("ax_button") and not pick.is_empty():
 		toggle_arch(pick.wall, pick.s)
-	if _pressed("by_button"):
+	if _buttons.pressed("by_button"):
 		undo()
 
 	_since_rebuild += delta
 	if _dirty and _since_rebuild >= REBUILD_EVERY:
 		_flush()
-	_latch()
+	_buttons.latch()
 
 
 func _flush() -> void:
@@ -127,6 +114,7 @@ func end_stroke() -> Wall:
 	if w.layout.length() >= AUTO_ARCH_LENGTH and w.layout.can_arch():
 		w.layout.arches = [w.layout.length() * 0.5]
 	w.rebuild()
+	w.grow_ivy()
 	walls.append(w)
 	built.emit(&"settle", _top(w, w.layout.length() * 0.5))
 	return w
@@ -189,29 +177,7 @@ func pick_wall(origin: Vector3, dir: Vector3) -> Dictionary:
 
 
 func _show_beam(origin: Vector3, hit: Variant) -> void:
-	var end: Vector3 = hit if hit != null else origin + (-rig.right.global_transform.basis.z) * 20.0
-	var mid := (origin + end) * 0.5
-	var len := origin.distance_to(end)
-	var up := (end - origin).normalized()
-	var side := up.cross(Vector3.FORWARD if absf(up.dot(Vector3.FORWARD)) < 0.9 else Vector3.RIGHT).normalized()
-	_beam.global_transform = Transform3D(Basis(side, up * len, side.cross(up)), mid)
+	_beam.span(origin, hit if hit != null else origin + (-rig.right.global_transform.basis.z) * 20.0)
 	_dot.visible = hit != null and _beam.visible
 	if hit != null:
 		_dot.global_position = hit
-
-
-func _pressed(action: String) -> bool:
-	return rig.right.is_button_pressed(action) and not _was.get(action, false)
-
-
-func _held(action: String) -> bool:
-	return rig.right.is_button_pressed(action)
-
-
-func _released(action: String) -> bool:
-	return not rig.right.is_button_pressed(action) and _was.get(action, false)
-
-
-func _latch() -> void:
-	for a in ["trigger_click", "grip_click", "ax_button", "by_button"]:
-		_was[a] = rig.right.is_button_pressed(a)

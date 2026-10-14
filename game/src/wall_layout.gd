@@ -19,6 +19,8 @@ var seed := 1
 var samples: Array[Vector3] = []
 var lengths: Array[float] = []
 var stones: Array[Dictionary] = []
+## The arches `build` could open, after dropping those too near an end or on a wall too low.
+var live_arches: Array[float] = []
 
 
 func length() -> float:
@@ -54,10 +56,10 @@ func build(ground: Callable) -> void:
 	stones.clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
+	live_arches.clear()
 	var total := length()
 	if total < 0.3:
 		return
-	var live_arches: Array[float] = []
 	if can_arch():
 		for a in arches:
 			if a > ARCH_HALF + RING + 0.3 and a < total - ARCH_HALF - RING - 0.3:

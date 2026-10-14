@@ -3,9 +3,15 @@ extends Node3D
 
 static var _meshes: Array[ArrayMesh] = []
 static var _material: ShaderMaterial
+static var _leaf_material: StandardMaterial3D
+static var _leaf: ArrayMesh
 
 var layout := WallLayout.new()
 var _instances: Array[MultiMeshInstance3D] = []
+var _ivy := MultiMeshInstance3D.new()
+var _ivy_times: Array[float] = []
+## Seconds since the wall was finished, which is how far its ivy has grown; negative while it is being drawn.
+var ivy_age := -1.0
 
 
 static func shared_material() -> ShaderMaterial:
@@ -23,6 +29,18 @@ static func stone_meshes() -> Array[ArrayMesh]:
 	return _meshes
 
 
+static func leaf_material() -> StandardMaterial3D:
+	if _leaf_material == null:
+		_leaf_material = StandardMaterial3D.new()
+		_leaf_material.vertex_color_use_as_albedo = true
+		_leaf_material.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_leaf_material.roughness = 0.75
+		_leaf_material.backlight_enabled = true
+		_leaf_material.backlight = Color(0.2, 0.3, 0.06)
+		_leaf = Meshes.leaf()
+	return _leaf_material
+
+
 func _init(seed: int) -> void:
 	layout.seed = seed
 	for mesh in stone_meshes():
@@ -36,6 +54,42 @@ func _init(seed: int) -> void:
 		mmi.material_override = shared_material()
 		_instances.append(mmi)
 		add_child(mmi)
+	var ivy := MultiMesh.new()
+	ivy.transform_format = MultiMesh.TRANSFORM_3D
+	ivy.use_colors = true
+	_ivy.material_override = leaf_material()
+	ivy.mesh = _leaf
+	_ivy.multimesh = ivy
+	_ivy.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_ivy)
+	set_process(false)
+
+
+## Start the ivy growing; called once the wall is finished.
+func grow_ivy() -> void:
+	ivy_age = 0.0
+	_layout_ivy()
+	set_process(true)
+
+
+func _process(delta: float) -> void:
+	ivy_age += delta
+	_ivy.multimesh.visible_instance_count = _ivy_times.bsearch(ivy_age)
+	if _ivy_times.is_empty() or ivy_age > _ivy_times[-1]:
+		set_process(false)
+
+
+func _layout_ivy() -> void:
+	var leaves := IvyLayout.grow(layout)
+	var mm := _ivy.multimesh
+	mm.instance_count = leaves.size()
+	_ivy_times.clear()
+	for i in leaves.size():
+		mm.set_instance_transform(i, leaves[i].xform)
+		mm.set_instance_color(i, leaves[i].color)
+		_ivy_times.append(leaves[i].t)
+	mm.visible_instance_count = _ivy_times.bsearch(ivy_age)
+	set_process(ivy_age >= 0.0)
 
 
 func rebuild() -> void:
@@ -51,6 +105,8 @@ func rebuild() -> void:
 			mm.set_instance_transform(i, s.xform)
 			mm.set_instance_color(i, s.color)
 			mm.set_instance_custom_data(i, Color(s.ao, 0, 0, 0))
+	if ivy_age >= 0.0:
+		_layout_ivy()
 
 
 ## Distance from a ray to this wall's body, with the arc length it is nearest.

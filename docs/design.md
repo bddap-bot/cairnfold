@@ -99,9 +99,9 @@ Stage numbers refer to the build order at the end.
 | Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | Point and click on a wall to place; neighbours fuse; doors at ground level | 6 |
 | Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | Point and click; lanterns as cheap emissive cards plus a few real lights | 6 |
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | Wall drawing with a fence profile | 6 |
-| Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Instanced leaf cards grown along wall faces from the stone layout; avoids openings by construction | 3 |
-| Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers (done); a paint brush with the left hand in stage 3 | 1 (done), 3 |
-| Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs (done); placement by pointing in stage 3 | 1 (done), 3 |
+| Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces, wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`) | 3 (done) |
+| Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Left trigger paints where the left hand points, X switches grass and flowers; the brush widens with distance and painting a spot again thickens it. Flowers take the colour of the meadow drift they land in | 1 (done), 3 (done) |
+| Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs; left grip plants one where the left hand points | 1 (done), 3 (done) |
 | Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | Grip the ground and pull up or push down; rock on steep slopes in the terrain shader | 7 |
 | Water | Dug holes with a flat surface and normal-map waves | Dig with a downward pull, flat water with scrolling normals and a depth tint | 7 |
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, a low-res light-probe volume rebuilt when building changes | 2 |
@@ -129,8 +129,11 @@ Stage numbers refer to the build order at the end.
 | Raise or lower a wall | Right grip while pointing at a wall, move the hand up or down; the gain grows with distance so far walls are easy to adjust |
 | Cut or fill an arch | Right A while pointing at a wall |
 | Undo | Right B |
+| Paint flowers or grass | Left trigger held while pointing at the ground; the ring shows the brush, which widens the farther you point |
+| Switch flowers and grass | Left X |
+| Plant a tree | Left grip while pointing at the ground |
 | Later: size a house | Both grips on the ground, pull apart, twist to rotate |
-| Later: paint flora or paths | Left-hand brush, trigger to paint, distance from the ground sets brush size |
+| Later: paint paths | The left-hand brush with a path mode |
 | Later: move the sun | Grip the sun in the sky and drag it |
 
 Floating turns the meadow into a diorama: drawing works from any height because
@@ -147,7 +150,7 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
    - A Steam library shortcut on the Frame launches the game standalone, installed by `scripts/deploy.sh`.
    - The air teleport holds refresh: no frame over 1.5× the refresh period at the moment it happens.
 2. Lighting pass: bounce light from a probe volume rebuilt on edits, contact darkening, shadow split and fog tuning for floating viewpoints, compared side by side with the mood target.
-3. Ivy and flora: ivy over walls and around openings, flower and grass painting with the left hand, tree placement by pointing.
+3. Ivy and flora: ivy over walls and around openings, flower and grass painting with the left hand, tree placement by pointing. (Done.)
 4. Towers, houses and roofs: loop-to-tower, two-handed footprints, tiled roofs with pull-to-shape, wall-top style per wall.
 5. Paths and wall chemistry: path brush; a path through a wall cuts an arch, wide crossings become arcades.
 6. Windows, doors, fences, chimneys, lanterns and flags.
@@ -171,9 +174,9 @@ sound costs no frame time.
   both motifs overlaid in minor and in major, at 72–138 bpm. Each section has three
   synchronized stems: bed (pad and bass), lead and ornament. They loop as one
   playlist from a random start, crossfading at section ends.
-- Building thins the music: while a wall is being drawn or pulled, and for a few
-  seconds after any edit, the ornament fades out and the lead drops 14 dB; the bed
-  carries on. The tune returns gradually once you stop.
+- Building thins the music: while a wall is being drawn or pulled or flora is
+  painted, and for a few seconds after any edit, the ornament fades out and the
+  lead drops 14 dB; the bed carries on. The tune returns gradually once you stop.
 - Comfort in a headset: soft felt plucks, a low breathy flute, mallets and pads,
   melodies in octaves 3–5, harmonics cut off below 3 kHz, a dark reverb. Keep it
   that way: no stacked high registers and almost no energy above 2 kHz.
@@ -193,7 +196,8 @@ corrects) a "Cairnfold" VR shortcut in the Steam library that runs
 --metrics FILE --capture-dir DIR` plays a scripted session through the same entry
 points as the controllers (teleport, float, draw a wall), logs per-second frame
 times and saves view captures. `scripts/test.sh` runs the headless layout tests;
-`scripts/render.sh` plays a script on a desktop renderer.
+`scripts/render.sh` plays a script on a desktop renderer; `demo/flora.json` paints,
+plants trees and lets the ivy grow.
 
 ## Sources
 

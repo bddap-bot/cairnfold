@@ -4,6 +4,7 @@ var args := {}
 var xr: OpenXRInterface
 var rig: Rig
 var tool: WallTool
+var gardener: FloraTool
 var sound: Soundscape
 var metrics: Metrics
 var spectator: SubViewport
@@ -12,15 +13,19 @@ var spectator: SubViewport
 func _ready() -> void:
 	args = _parse(OS.get_cmdline_user_args())
 	Look.build(self)
-	add_child(Meadow.new())
+	var flora := Flora.new()
+	add_child(flora)
+	add_child(Meadow.new(flora))
 	rig = Rig.new()
 	add_child(rig)
+	gardener = FloraTool.new(rig, flora)
+	add_child(gardener)
 	var builds := Node3D.new()
 	builds.name = "Builds"
 	add_child(builds)
 	tool = WallTool.new(rig)
 	builds.add_child(tool)
-	sound = Soundscape.new(tool)
+	sound = Soundscape.new(tool, gardener)
 	add_child(sound)
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 	metrics = Metrics.new(args.get("metrics", ""))
