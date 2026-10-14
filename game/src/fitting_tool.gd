@@ -10,7 +10,7 @@ extends Node3D
 
 const TINT := Color(1.0, 0.93, 0.78, 0.6)
 ## A press this near a placed fitting takes it away.
-const TOGGLE := 0.6
+const TAKE_REACH := 0.6
 const LIGHTS := 3
 const LIGHT_EVERY := 0.25
 
@@ -43,7 +43,7 @@ func _init(player: Rig, builder: WallTool, steps: History) -> void:
 func _process(delta: float) -> void:
 	for b in _buttons:
 		var hand: Hand = b.hand
-		if (hand.tool == Hand.Tool.WINDOWS or hand.tool == Hand.Tool.DECOR) and rig.aim_hand != hand and hand.get_has_tracking_data():
+		if (hand.tool == Hand.Tool.WINDOWS or hand.tool == Hand.Tool.DECORATIONS) and rig.aim_hand != hand and hand.get_has_tracking_data():
 			var t := hand.global_transform
 			var target := aim(hand.tool, t.origin, -t.basis.z)
 			hand.point(target.point if not target.is_empty() else Terrain.raycast(t.origin, -t.basis.z), TINT)
@@ -86,35 +86,39 @@ static func _height(pick: Dictionary) -> float:
 ## Places what `aim` found, or takes away the one already there; one undo step either way.
 func fit(target: Dictionary) -> void:
 	var w: Wall = target.wall
+	var layout := w.layout
+	var at := _spot(target)
 	match target.what:
 		"window":
-			var at := Vector2(target.s, target.y)
-			_edit(w, false, "windows", at, _pane_at(w.layout, at), func(): return not w.layout.opening_at(at.x, at.y).is_empty(), _spot(target))
+			var click := Vector2(target.s, target.y)
+			var near := _window_at(layout, click)
+			_edit(w, false, "windows", click, near, near >= 0 or layout.window_fits(click), at)
 		"lantern":
-			var at := Vector3(target.s, target.y, target.side)
-			var near := _nearest(w.layout.lanterns, func(e): return absf(w.layout.offset(e.x, at.x)) < TOGGLE and (w.layout.fence or absf(e.y - at.y) < TOGGLE and e.z == at.z))
-			_edit(w, false, "lanterns", at, near, func(): return w.layout.lantern_fits(at.x, at.y), _spot(target))
+			var s: float = layout.nearest_post(target.s) if layout.fence else target.s
+			var hang := Vector3(s, target.y, target.side)
+			var near := layout.lanterns.find_custom(func(e): return absf(layout.offset(e.x, s)) < TAKE_REACH and (layout.fence or absf(e.y - hang.y) < TAKE_REACH and e.z == hang.z))
+			_edit(w, false, "lanterns", hang, near, near >= 0 or layout.lantern_fits(s, hang.y), at)
 		"flag":
-			var near := _nearest(w.layout.flags, func(e): return absf(w.layout.offset(e, target.s)) < TOGGLE)
-			_edit(w, false, "flags", target.s, near, func(): return w.layout.flag_fits(target.s), _spot(target))
+			var near := layout.flags.find_custom(func(e): return absf(layout.offset(e, target.s)) < TAKE_REACH)
+			_edit(w, false, "flags", target.s, near, near >= 0 or layout.flag_fits(target.s), at)
 		"chimney":
-			var near := _nearest(w.roof.chimneys, func(e): return w.roof.chimney_spot(e).distance_to(target.at) < RoofLayout.STACK + 0.3)
-			_edit(w, true, "chimneys", target.at, near, func(): return true, _spot(target))
+			var spot := w.roof.chimney_spot(target.at)
+			var near := w.roof.chimneys.find_custom(func(e): return e.distance_to(spot) < RoofLayout.STACK_WIDTH + 0.3)
+			_edit(w, true, "chimneys", spot, near, true, at)
 		"tower_flag":
-			var at := _spot(target)
 			_assign(w, true, "flag", not w.roof.flag, at)
 			history.add(_assign.bind(w, true, "flag", not w.roof.flag, at), _assign.bind(w, true, "flag", w.roof.flag, at), [w])
 
 
-## The placed window nearest `at` among those in the opening there, or -1 where there is none.
-static func _pane_at(layout: WallLayout, at: Vector2) -> int:
-	var o := layout.opening_at(at.x, at.y)
+## The placed window nearest `click` among those in the opening there, or -1 where there is none.
+static func _window_at(layout: WallLayout, click: Vector2) -> int:
+	var o := layout.opening_at(click.x, click.y)
 	var near := -1
 	if o.is_empty():
 		return near
 	for i in layout.windows.size():
 		var e := layout.windows[i]
-		if layout.opening_at(e.x, e.y) == o and (near < 0 or absf(layout.offset(e.x, at.x)) < absf(layout.offset(layout.windows[near].x, at.x))):
+		if layout.opening_at(e.x, e.y) == o and (near < 0 or absf(layout.offset(e.x, click.x)) < absf(layout.offset(layout.windows[near].x, click.x))):
 			near = i
 	return near
 
@@ -125,16 +129,10 @@ static func _spot(target: Dictionary) -> Vector3:
 	return target.get("point", layout.point_at(layout.length() * 0.5) + Vector3.UP * layout.height)
 
 
-## Index of the first entry `close` accepts, or -1.
-static func _nearest(list: Array, close: Callable) -> int:
-	for i in list.size():
-		if close.call(list[i]):
-			return i
-	return -1
-
-
-## Takes entry `near` out of the list `key`, or adds `value` if `near` is -1 and it then `fits`.
-func _edit(w: Wall, on_roof: bool, key: StringName, value: Variant, near: int, fits: Callable, at: Vector3) -> void:
+## Takes entry `near` out of the list `key`, or adds `value` if `near` is -1; nothing happens unless `ok`.
+func _edit(w: Wall, on_roof: bool, key: StringName, value: Variant, near: int, ok: bool, at: Vector3) -> void:
+	if not ok:
+		return
 	var host: Object = w.roof if on_roof else w.layout
 	var before: Array = host.get(key).duplicate()
 	var after := before.duplicate()
@@ -143,9 +141,6 @@ func _edit(w: Wall, on_roof: bool, key: StringName, value: Variant, near: int, f
 	else:
 		after.append(value)
 	_assign(w, on_roof, key, after, at)
-	if near < 0 and not fits.call():
-		_assign(w, on_roof, key, before, at)
-		return
 	history.add(_assign.bind(w, on_roof, key, before, at), _assign.bind(w, on_roof, key, after, at), [w])
 
 

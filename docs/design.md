@@ -259,6 +259,9 @@ Cairnfold's version, adapted to a pointer swept by hand, where a few centimetres
   would land in an arch. A stroke drawn away from a wall starts on it; one drawn across a wall, or past a
   wall's end, becomes two walls meeting it from either side. A stretch drifting in at a shallow angle ends
   free instead, so a wavering parallel stroke grows no spurs.
+- Fences plan the same way, among walls and fences alike: a fence stroke near a wall merges into it or meets
+  it at a junction, and a wall stroke near a fence does the same, so neither crowds the other. Fences never
+  arch over plants.
 - A finished wall arches over any tree or bush it stands on; with none, a wall of 5 m or more arches at its
   middle.
 - The preview is the result: the same call lays out the walls shown while drawing and the walls left on

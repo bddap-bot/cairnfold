@@ -15,7 +15,7 @@ const TILE := Vector3(0.27, 0.05, 0.36)
 const PITCH := Vector2(0.4, 6.0)
 const CURVE := 1.0
 const PROFILE_STEPS := 8
-const STACK := 0.66
+const STACK_WIDTH := 0.66
 
 var kind := Kind.GABLE
 ## For a gable, the corners from WallLayout.rectangle: the ridge runs along the first side's direction.
@@ -107,18 +107,18 @@ func build() -> void:
 		for c in chimneys:
 			_lay_chimney(chimney_spot(c), rng)
 	elif flag:
-		var pole := WallLayout.FLAG_POLE
-		_add(Transform3D(Basis().scaled(Vector3(0.05, pole, 0.05)), f.mid + Vector3.UP * (pitch + pole * 0.5)), "pole", WallLayout.WOOD * 0.8, 1.0)
-		_add(Transform3D(Basis().scaled(Vector3.ONE * 0.09), f.mid + Vector3.UP * (pitch + pole + 0.04)), "finial", Color(0.7, 0.58, 0.3), 1.0)
-		cloths.append(WallLayout.flag_cloth(f.mid + Vector3.UP * (pitch + pole - 0.33), Vector3(1, 0, 0.4), WallLayout.FLAG_COLORS[seed % WallLayout.FLAG_COLORS.size()]))
+		var parts := WallLayout.flag(f.mid + Vector3.UP * pitch, Vector3(1, 0, 0.4), WallLayout.flag_color(seed, 0.0))
+		_add(parts.pole, "pole", WallLayout.POLE, 1.0)
+		_add(parts.finial, "finial", WallLayout.FINIAL, 1.0)
+		cloths.append(parts.cloth)
 	else:
 		_add(Transform3D(Basis().scaled(Vector3(0.16, 0.5, 0.16)), f.mid + Vector3.UP * (pitch + 0.2)), "finial", Color(0.6, 0.56, 0.5), 1.0)
 
 
 ## A chimney's place clamped onto the roof, clear of the gable ends and the eaves.
 func chimney_spot(c: Vector2) -> Vector2:
-	var along := maxf(0.0, ridge_length() * 0.5 - STACK)
-	var across := maxf(0.0, half_span() - STACK)
+	var along := maxf(0.0, ridge_length() * 0.5 - STACK_WIDTH)
+	var across := maxf(0.0, half_span() - STACK_WIDTH)
 	return Vector2(clampf(c.x, -along, along), clampf(c.y, -across, across))
 
 
@@ -139,14 +139,13 @@ func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
 	var y := surface - 0.3
 	while y < top - 0.05:
 		var h := minf(rng.randf_range(0.26, 0.34), top - y)
-		var warm := rng.randf_range(-0.05, 0.05)
-		var stone := Color(0.66 + warm, 0.61, 0.53 - warm * 1.5) * rng.randf_range(0.82, 1.08)
+		var stone := WallLayout.stone_color(rng)
 		var wobble := Basis.from_euler(Vector3(0.0, rng.randf_range(-0.04, 0.04), 0.0))
-		_add(Transform3D((basis * wobble).scaled_local(Vector3(STACK, h, STACK)), foot + Vector3.UP * (y + h * 0.5)), "chimney", stone, 1.0)
+		_add(Transform3D((basis * wobble).scaled_local(Vector3(STACK_WIDTH, h, STACK_WIDTH)), foot + Vector3.UP * (y + h * 0.5)), "chimney", stone, 1.0)
 		y += h
-	_add(Transform3D(basis.scaled_local(Vector3(STACK + 0.14, 0.09, STACK + 0.14)), foot + Vector3.UP * (top + 0.045)), "chimney", Color(0.6, 0.56, 0.5), 1.0)
+	_add(Transform3D(basis.scaled_local(Vector3(STACK_WIDTH + 0.14, 0.09, STACK_WIDTH + 0.14)), foot + Vector3.UP * (top + 0.045)), "chimney", Color(0.6, 0.56, 0.5), 1.0)
 	for side in [-1.0, 1.0]:
-		_add(Transform3D(basis.scaled_local(Vector3(0.15, 0.24, 0.15)), foot + f.along * side * STACK * 0.22 + Vector3.UP * (top + 0.21)), "pot", _clay(0.0, rng) * 0.9, 1.0)
+		_add(Transform3D(basis.scaled_local(Vector3(0.15, 0.24, 0.15)), foot + f.along * side * STACK_WIDTH * 0.22 + Vector3.UP * (top + 0.21)), "pot", _clay(0.0, rng) * 0.9, 1.0)
 
 
 ## Tile rows as {x, y, slope}, eave first, spaced along the curved slope.

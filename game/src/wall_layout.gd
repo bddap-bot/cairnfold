@@ -42,6 +42,8 @@ const LINTEL_EAR := 0.16
 const LANTERN_OUT := 0.34
 const FLAG_POLE := 1.7
 const FLAG_COLORS := [Color(0.62, 0.12, 0.1), Color(0.14, 0.24, 0.5), Color(0.82, 0.62, 0.18), Color(0.2, 0.38, 0.2)]
+const POLE := Color(0.37, 0.26, 0.17)
+const FINIAL := Color(0.7, 0.58, 0.3)
 const WOOD := Color(0.46, 0.33, 0.21)
 const IRON := Color(0.16, 0.15, 0.14)
 const GLASS := Color(0.12, 0.17, 0.22)
@@ -133,8 +135,8 @@ func build(ground: Callable) -> void:
 	_stone_scale = 1.0
 	if closed and corners().is_empty():
 		_stone_scale = clampf(total / TAU / 3.0, 0.45, 1.0)
-	var course_h := course()
-	openings = _fit_openings()
+	var course_h := course_height()
+	openings = openings_for(windows)
 	var bays := pillars()
 	var pillar_top := 0.0
 	for k in courses():
@@ -172,15 +174,18 @@ func build(ground: Callable) -> void:
 			_lay_lantern(l.x, frame_at(l.x).point + Vector3.UP * l.y, _normal(l.x) * l.z, rng)
 	for f in flags:
 		if flag_fits(f):
-			_lay_flag(f, frame_at(f).point + Vector3.UP * (height + CAP), frame_at(f).tangent, rng)
+			var parts := flag(frame_at(f).point + Vector3.UP * (height + CAP), frame_at(f).tangent, flag_color(seed, f))
+			_world(parts.pole, POLE, "pole", f)
+			_world(parts.finial, FINIAL, "finial", f)
+			cloths.append(parts.cloth)
 
 
 func courses() -> int:
 	return maxi(1, int(round(height / COURSE)))
 
 
-## The height of one course: whole courses fill the wall's height.
-func course() -> float:
+## Whole courses fill the wall's height.
+func course_height() -> float:
 	return height / courses()
 
 
@@ -191,25 +196,26 @@ func _normal(s: float) -> Vector3:
 
 ## The opening a placed window makes on its own, before fusing: a door if its sill would be near the ground.
 func _opening_for(w: Vector2) -> Dictionary:
-	var c := course()
+	var c := course_height()
 	if w.y - WINDOW_TALL * 0.5 < DOOR_SILL:
 		return {"s": w.x, "half": DOOR_HALF, "sill": 0.0, "head": roundf(DOOR_TALL / c) * c, "door": true, "lights": 1}
 	var sill := roundf((w.y - WINDOW_TALL * 0.5) / c) * c
 	return {"s": w.x, "half": WINDOW_HALF, "sill": sill, "head": sill + roundf(WINDOW_TALL / c) * c, "door": false, "lights": 1}
 
 
-## Fuses neighbouring windows on one course (and doors beside doors) into wider openings, then keeps those
-## that fit: under the top with a course left for the lintel, clear of the ends, corner piers, arches and each other.
-func _fit_openings() -> Array[Dictionary]:
+## The openings `placed` windows make on the built wall: neighbours on one course (doors beside doors) fuse,
+## round a loop's seam too, and those that fit are kept: under the top with a course left for the lintel,
+## clear of the ends, corner piers, arches and each other.
+func openings_for(placed: Array[Vector2]) -> Array[Dictionary]:
 	var single: Array[Dictionary] = []
-	for w in windows:
+	for w in placed:
 		single.append(_opening_for(w))
 	single.sort_custom(func(a, b): return a.s < b.s)
 	var fused: Array[Dictionary] = []
 	for o in single:
 		var into := {}
 		for f in fused:
-			if f.door == o.door and is_equal_approx(f.sill, o.sill) and o.s - f.last < FUSE:
+			if is_equal_approx(f.sill, o.sill) and absf(offset(o.s, f.last)) < FUSE:
 				into = f
 		if into.is_empty():
 			o.first = o.s
@@ -218,7 +224,7 @@ func _fit_openings() -> Array[Dictionary]:
 			continue
 		into.last = o.s
 		into.lights += 1
-		into.s = (into.first + into.last) * 0.5
+		into.s = self.wrap(into.first + offset(into.last, into.first) * 0.5)
 		into.half = into.lights * (DOOR_HALF if o.door else WINDOW_HALF) + (into.lights - 1) * MULLION * 0.5
 	var out: Array[Dictionary] = []
 	for o in fused:
@@ -230,7 +236,7 @@ func _fit_openings() -> Array[Dictionary]:
 
 
 func _opening_fits(o: Dictionary, others: Array[Dictionary]) -> bool:
-	if o.head + course() > height + 0.01:
+	if o.head + course_height() > height + 0.01:
 		return false
 	var side: float = o.half + LINTEL_EAR + PIER * 0.5
 	if not closed and (o.s < side or o.s > length() - side):
@@ -239,15 +245,27 @@ func _opening_fits(o: Dictionary, others: Array[Dictionary]) -> bool:
 		return false
 	if not live_arches.all(func(a): return absf(offset(o.s, a)) > o.half + LINTEL_EAR + ARCH_HALF + RING):
 		return false
-	return others.all(func(e): return absf(offset(o.s, e.s)) > o.half + e.half + LINTEL_EAR * 2.0 or o.sill > e.head + course() * 0.5 or e.sill > o.head + course() * 0.5)
+	return others.all(func(e): return absf(offset(o.s, e.s)) > o.half + e.half + LINTEL_EAR * 2.0 or o.sill > e.head + course_height() * 0.5 or e.sill > o.head + course_height() * 0.5)
 
 
 ## The opening at a face point, or empty.
 func opening_at(s: float, y: float) -> Dictionary:
-	for o in openings:
+	return _opening_in(openings, s, y)
+
+
+func _opening_in(list: Array[Dictionary], s: float, y: float) -> Dictionary:
+	for o in list:
 		if absf(offset(s, o.s)) < o.half + 0.05 and y > o.sill - 0.05 and y < o.head + 0.05:
 			return o
 	return {}
+
+
+## Whether a window placed at `at` would open without closing any window open now.
+func window_fits(at: Vector2) -> bool:
+	var after := windows.duplicate()
+	after.append(at)
+	var now := openings_for(after)
+	return not _opening_in(now, at.x, at.y).is_empty() and windows.all(func(e): return opening_at(e.x, e.y).is_empty() or not _opening_in(now, e.x, e.y).is_empty())
 
 
 ## Whether a lantern hangs at face point `s`, `y`: on a stone face clear of every opening, or on a fence post.
@@ -258,7 +276,7 @@ func lantern_fits(s: float, y: float) -> bool:
 		return false
 	if live_arches.any(func(a): return absf(offset(s, a)) < ARCH_HALF + RING + 0.2):
 		return false
-	return openings.all(func(o): return absf(offset(s, o.s)) > o.half + LINTEL_EAR + 0.15 or y > o.head + course() + 0.3 or y < o.sill - 0.3)
+	return openings.all(func(o): return absf(offset(s, o.s)) > o.half + LINTEL_EAR + 0.15 or y > o.head + course_height() + 0.3 or y < o.sill - 0.3)
 
 
 func flag_fits(s: float) -> bool:
@@ -269,10 +287,10 @@ func _lay_opening(o: Dictionary, rng: RandomNumberGenerator) -> void:
 	var s: float = o.s
 	var half: float = o.half
 	var tall: float = o.head - o.sill
-	var c := course()
-	_part(s, o.head + c * 0.5, Vector3(half * 2.0 + LINTEL_EAR * 2.0, c, THICKNESS * 1.04), _stone_color(rng) * 1.05, rng, "lintel")
+	var c := course_height()
+	_part(s, o.head + c * 0.5, Vector3(half * 2.0 + LINTEL_EAR * 2.0, c, THICKNESS * 1.04), stone_color(rng) * 1.05, rng, "lintel")
 	if not o.door:
-		_part(s, o.sill + 0.04, Vector3(half * 2.0 + 0.16, 0.08, THICKNESS + 0.1), _stone_color(rng) * 1.05, rng, "sill")
+		_part(s, o.sill + 0.04, Vector3(half * 2.0 + 0.16, 0.08, THICKNESS + 0.1), stone_color(rng) * 1.05, rng, "sill")
 	for face in [-1.0, 1.0]:
 		for edge in [-1.0, 1.0]:
 			_part(s + edge * (half + 0.09), o.sill + tall * 0.5, Vector3(0.18, tall, 0.03), PLASTER * rng.randf_range(0.94, 1.02), rng, "plaster", face * (THICKNESS * 0.5 + 0.01))
@@ -283,7 +301,7 @@ func _lay_opening(o: Dictionary, rng: RandomNumberGenerator) -> void:
 	for i in n:
 		var at := s - half + light * (i + 0.5) + MULLION * i
 		if i > 0:
-			_part(at - light * 0.5 - MULLION * 0.5, o.sill + tall * 0.5, Vector3(MULLION, tall, THICKNESS * 0.9), _stone_color(rng), rng, "mullion")
+			_part(at - light * 0.5 - MULLION * 0.5, o.sill + tall * 0.5, Vector3(MULLION, tall, THICKNESS * 0.9), stone_color(rng), rng, "mullion")
 		if o.door:
 			_lay_door(at, light, tall, rng)
 		else:
@@ -327,33 +345,51 @@ func _lay_lantern(s: float, at: Vector3, out: Vector3, rng: RandomNumberGenerato
 	flames.append(Transform3D(turn.scaled_local(Vector3(0.12, 0.22, 0.12)), hang + Vector3.UP * 0.055))
 
 
-func _lay_flag(s: float, foot: Vector3, along: Vector3, rng: RandomNumberGenerator) -> void:
-	_world(Transform3D(Basis().scaled(Vector3(0.05, FLAG_POLE, 0.05)), foot + Vector3.UP * FLAG_POLE * 0.5), WOOD * 0.8, "pole", s)
-	_world(Transform3D(Basis().scaled(Vector3.ONE * 0.09), foot + Vector3.UP * (FLAG_POLE + 0.04)), Color(0.7, 0.58, 0.3), "finial", s)
-	var color: Color = FLAG_COLORS[rng.randi() % FLAG_COLORS.size()]
-	cloths.append(flag_cloth(foot + Vector3.UP * (FLAG_POLE - 0.33), along, color))
-
-
-## A flag's cloth hanging off a pole at `at`, streaming along `along`.
-static func flag_cloth(at: Vector3, along: Vector3, color: Color) -> Dictionary:
+## A flag standing at `foot`: its `pole` and `finial` transforms, and its `cloth` streaming along `along`.
+static func flag(foot: Vector3, along: Vector3, color: Color) -> Dictionary:
 	var x := along.normalized()
-	return {"xform": Transform3D(Basis(x, Vector3.UP, x.cross(Vector3.UP)).scaled_local(Vector3(0.9, 0.55, 1.0)), at + x * 0.03), "color": color}
+	var cloth := Basis(x, Vector3.UP, x.cross(Vector3.UP)).scaled_local(Vector3(0.9, 0.55, 1.0))
+	return {
+		"pole": Transform3D(Basis().scaled(Vector3(0.05, FLAG_POLE, 0.05)), foot + Vector3.UP * FLAG_POLE * 0.5),
+		"finial": Transform3D(Basis().scaled(Vector3.ONE * 0.09), foot + Vector3.UP * (FLAG_POLE + 0.04)),
+		"cloth": {"xform": Transform3D(cloth, foot + Vector3.UP * (FLAG_POLE - 0.33) + x * 0.03), "color": color},
+	}
+
+
+## A flag keeps its colour through every other edit to its wall.
+static func flag_color(wall_seed: int, s: float) -> Color:
+	return FLAG_COLORS[posmod(hash([wall_seed, roundi(s * 100.0)]), FLAG_COLORS.size())]
+
+
+## Where a fence's posts stand, clear of its gates.
+func posts() -> Array[float]:
+	var total := length()
+	var n := maxi(1, ceili(total / POST_SPACING))
+	var out: Array[float] = []
+	for i in n + 1:
+		var s := total * i / n
+		if live_arches.all(func(a): return absf(s - a) > ARCH_HALF + 0.4):
+			out.append(s)
+	return out
+
+
+## The fence post nearest `s`, where a lantern on the fence stands.
+func nearest_post(s: float) -> float:
+	var best := INF
+	for p in posts():
+		if absf(p - s) < absf(best - s):
+			best = p
+	return best if best != INF else s
 
 
 ## Posts along the ground with two rails between each pair; a gate where a path crosses: two tall posts
 ## under a bent wooden arch, the rails cut between them.
 func _build_fence(rng: RandomNumberGenerator) -> void:
-	var total := length()
-	var n := maxi(1, ceili(total / POST_SPACING))
-	var posts: Array[float] = []
-	for i in n + 1:
-		var s := total * i / n
-		if live_arches.all(func(a): return absf(s - a) > ARCH_HALF + 0.4):
-			posts.append(s)
+	var standing := posts()
 	var gates: Array[float] = []
 	for a in live_arches:
 		gates.append_array([a - ARCH_HALF - 0.08, a + ARCH_HALF + 0.08])
-	var all := posts + gates
+	var all := standing + gates
 	all.sort()
 	for i in all.size():
 		var s := all[i]
@@ -379,17 +415,15 @@ func _build_fence(rng: RandomNumberGenerator) -> void:
 			var size := Vector3(PI * r / k * 1.2, 0.11, 0.1)
 			stones.append(_stone(a - cos(t) * r, GATE_POST + 0.04 + sin(t) * r * squash, size, rng, "gate", 1.0, 0.0, atan2(cos(t) * squash, sin(t))))
 			stones[-1].color = WOOD * rng.randf_range(0.8, 1.05)
-	if posts.is_empty():
-		return
+	var lit: Array[float] = []
 	for l in lanterns:
-		var s := posts[0]
-		for p in posts:
-			if absf(p - l.x) < absf(s - l.x):
-				s = p
-		_lay_lantern(s, frame_at(s).point + Vector3.UP * (FENCE_HEIGHT + 0.25), Vector3.ZERO, rng)
+		var s := nearest_post(l.x)
+		if not lit.has(s):
+			lit.append(s)
+			_lay_lantern(s, frame_at(s).point + Vector3.UP * (FENCE_HEIGHT + 0.25), Vector3.ZERO, rng)
 
 
-func _stone_color(rng: RandomNumberGenerator) -> Color:
+static func stone_color(rng: RandomNumberGenerator) -> Color:
 	var warm := rng.randf_range(-0.05, 0.05)
 	return Color(0.66 + warm, 0.61, 0.53 - warm * 1.5) * rng.randf_range(0.82, 1.08)
 
@@ -582,9 +616,7 @@ func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind:
 	basis = basis * Basis.from_euler(Vector3(rng.randf_range(-wobble, wobble), rng.randf_range(-wobble, wobble) * 2.0, rng.randf_range(-wobble, wobble)))
 	var origin: Vector3 = frame.point + Vector3.UP * y
 	origin += basis.z * rng.randf_range(-0.015, 0.015)
-	var warm := rng.randf_range(-0.05, 0.05)
-	var v := rng.randf_range(0.82, 1.08) * shade
-	var color := Color(0.66 + warm, 0.61, 0.53 - warm * 1.5) * v
+	var color := stone_color(rng) * shade
 	return {"xform": Transform3D(basis.scaled_local(size), origin), "color": color, "kind": kind, "s": s, "y": y, "size": size, "ao": clampf(0.6 + y * 0.25, 0.6, 1.0), "variant": rng.randi() % 3}
 
 

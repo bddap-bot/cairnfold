@@ -61,7 +61,7 @@ static func bake(wall: WallLayout) -> Dictionary:
 ## in a window or door with its sill and lintel.
 static func blocked(wall: WallLayout, s: float, y: float) -> bool:
 	for o in wall.openings:
-		if absf(s - o.s) < o.half + WallLayout.LINTEL_EAR + MARGIN and y > o.sill - 0.15 - MARGIN and y < o.head + wall.course() + MARGIN:
+		if absf(wall.offset(s, o.s)) < o.half + WallLayout.LINTEL_EAR + MARGIN and y > o.sill - 0.15 - MARGIN and y < o.head + wall.course_height() + MARGIN:
 			return true
 	var w := wall.opening(y, true)
 	if w <= 0.0:
@@ -80,7 +80,7 @@ static func _vine(wall: WallLayout, at: Vector2, dir: Vector2, side: float, t: f
 		dir = (dir + Vector2(rng.randf_range(-0.45, 0.45), 0.2)).normalized()
 		var next := at + dir * STEP
 		if blocked(wall, next.x, next.y):
-			dir = Vector2(signf(next.x - _nearest_opening(wall, next.x)), 0.35).normalized()
+			dir = Vector2(signf(wall.offset(next.x, _nearest_opening(wall, next.x))), 0.35).normalized()
 			next = at + dir * STEP
 			if blocked(wall, next.x, next.y):
 				return
@@ -103,7 +103,7 @@ static func _vine(wall: WallLayout, at: Vector2, dir: Vector2, side: float, t: f
 static func _nearest_opening(wall: WallLayout, s: float) -> float:
 	var best := INF
 	for a in wall.live_arches + wall.openings.map(func(o): return o.s):
-		if absf(a - s) < absf(best - s):
+		if best == INF or absf(wall.offset(a, s)) < absf(wall.offset(best, s)):
 			best = a
 	return best
 

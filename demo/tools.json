@@ -25,7 +25,7 @@
   {"op": "pick", "hand": "right", "tool": "fence"},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "09-fence-windows"},
-  {"op": "pick", "hand": "left", "tool": "decor", "capture": "10-ring-open-left"},
+  {"op": "pick", "hand": "left", "tool": "decorations", "capture": "10-ring-open-left"},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "11-fence-decor"},
   {"op": "quit"}

@@ -222,9 +222,9 @@ func _arch(s: Dictionary) -> void:
 	main.tool.toggle_arch(main.tool.walls[s.index], s.s)
 
 
-## A press of the windows or decorations tool on wall `index` (-1 the last drawn), as `FittingTool.aim` would find it: `what` is
-## window, lantern, flag, chimney or tower_flag; `s` and `y` place it on the wall, `side` picks a lantern's
-## face, `at` a chimney's spot along and across the ridge.
+## A press of the windows or decorations tool on wall `index` (-1 the last drawn), as `FittingTool.aim`
+## would find it: `what` is window, lantern, flag, chimney or tower_flag; `s` and `y` place it on the wall,
+## `side` picks a lantern's face, `at` a chimney's spot along and across the ridge.
 func _fit(s: Dictionary) -> void:
 	var target := {"what": s.what, "wall": main.tool.walls[s.index], "s": s.get("s", 0.0), "y": s.get("y", 0.0), "side": s.get("side", 1.0)}
 	if s.has("at"):

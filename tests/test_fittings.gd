@@ -13,6 +13,11 @@ func _initialize() -> void:
 	_neighbours_fuse()
 	_a_window_stands_over_a_door()
 	_windows_keep_clear()
+	_windows_on_two_courses_stay_apart()
+	_the_lintel_course_is_cut()
+	_a_new_window_never_closes_another()
+	_windows_fuse_across_a_loop_seam()
+	_flags_keep_their_colour()
 	_a_house_takes_windows()
 	_lanterns_hang_off_the_face()
 	_flags_fly_from_open_tops()
@@ -65,8 +70,8 @@ func _a_window_cuts_its_opening() -> void:
 		return
 	var o := w.openings[0]
 	_check(not o.door and o.lights == 1, "a window at 1.5 m is a single window")
-	_check(o.sill > 0.6 and o.head <= w.height - w.course() + 0.01, "sill %.2f and head %.2f leave a lintel course under the top" % [o.sill, o.head])
-	_check(is_equal_approx(fmod(o.sill + 1e-4, w.course()), 1e-4), "the sill sits on a course joint")
+	_check(o.sill > 0.6 and o.head <= w.height - w.course_height() + 0.01, "sill %.2f and head %.2f leave a lintel course under the top" % [o.sill, o.head])
+	_check(is_equal_approx(fmod(o.sill + 1e-4, w.course_height()), 1e-4), "the sill sits on a course joint")
 	_check(_intruders(w, o).is_empty(), "no coursed stone fills the window")
 	for k in ["glass", "frame", "lintel", "sill", "plaster"]:
 		_check(not _kind(w, k).is_empty(), "a window has a %s" % k)
@@ -109,7 +114,8 @@ func _a_window_stands_over_a_door() -> void:
 func _windows_keep_clear() -> void:
 	_check(_wall(8.0, 2.7, [Vector2(0.5, 1.5)]).openings.is_empty(), "no window in a wall's end pier")
 	_check(_wall(8.0, 2.7, [Vector2(4.0, 1.5)], [4.0]).openings.is_empty(), "no window in an arch")
-	_check(_wall(8.0, 2.7, [Vector2(4.0, 2.5)]).openings.is_empty(), "no window without a course over its lintel")
+	_check(_wall(8.0, 2.7, [Vector2(4.0, 2.5)]).openings.is_empty(), "no window above the top")
+	_check(_wall(8.0, 2.7, [Vector2(4.0, 2.25)]).openings.is_empty(), "no window whose head reaches the top, leaving no course for its lintel")
 	_check(_wall(8.0, 1.2, [Vector2(4.0, 1.0)]).openings.is_empty(), "a wall too low for a door takes none")
 	var w := _wall(8.0, 2.7, [Vector2(4.0, 1.5)])
 	w.height = 1.5
@@ -128,6 +134,52 @@ func _house() -> WallLayout:
 	w.top = WallLayout.Top.CAP
 	w.height = 2.4
 	return w
+
+
+func _windows_on_two_courses_stay_apart() -> void:
+	var w := _wall(8.0, 4.2, [Vector2(4.0, 1.5), Vector2(4.0, 2.7)])
+	_check(w.openings.size() == 2 and w.openings.all(func(o): return o.lights == 1), "windows one above the other stay two single windows: %s" % [w.openings])
+
+
+func _the_lintel_course_is_cut() -> void:
+	var w := _wall(8.0, 2.7, [Vector2(4.0, 1.5)])
+	var o := w.openings[0]
+	var reach: float = o.half + WallLayout.LINTEL_EAR
+	var under := w.stones.filter(func(s): return (s.kind == "block" or s.kind == "mortar") and s.y > o.head and s.y < o.head + w.course_height() and absf(s.s - o.s) < reach + s.size.x * 0.5 - 0.02)
+	_check(under.is_empty(), "the lintel's course is cut for it, %d coursed stones in its way" % under.size())
+
+
+func _a_new_window_never_closes_another() -> void:
+	var w := _wall(8.0, 2.7, [Vector2(4.0, 1.5)])
+	_check(w.window_fits(Vector2(6.0, 1.5)), "a window clear of the first fits")
+	_check(w.window_fits(Vector2(4.8, 1.5)), "a window beside the first fuses with it")
+	_check(not w.window_fits(Vector2(3.4, 1.85)), "a window a course up, overlapping the first, would close it, so it does not fit")
+
+
+func _windows_fuse_across_a_loop_seam() -> void:
+	var w := WallLayout.new()
+	w.points = WallLayout.circle(Vector3.ZERO, 2.5)
+	w.closed = true
+	w.height = 4.5
+	w.build(_flat)
+	w.windows = [Vector2(0.2, 2.0), Vector2(w.length() - 0.3, 2.0)]
+	w.build(_flat)
+	_check(w.openings.size() == 1 and w.openings[0].lights == 2, "two windows either side of a tower's seam fuse: %s" % [w.openings])
+	if w.openings.size() == 1:
+		_check(absf(w.offset(w.openings[0].s, 0.0) + 0.05) < 0.01, "the fused opening is centred between them, across the seam: s=%.2f" % w.openings[0].s)
+		_check(_intruders(w, w.openings[0]).is_empty(), "the opening across the seam is clear")
+
+
+func _flags_keep_their_colour() -> void:
+	var w := _wall(8.0, 2.7, [])
+	w.flags = [2.0, 6.0]
+	w.build(_flat)
+	var before := w.cloths.map(func(c): return c.color)
+	w.lanterns = [Vector3(4.0, 1.5, 1.0)]
+	w.windows = [Vector2(4.0, 0.8)]
+	w.height = 3.0
+	w.build(_flat)
+	_check(w.cloths.map(func(c): return c.color) == before, "a flag keeps its colour while its wall is raised, lit and given a door")
 
 
 func _a_house_takes_windows() -> void:
@@ -151,6 +203,10 @@ func _lanterns_hang_off_the_face() -> void:
 	if w.flames.size() == 2:
 		_check(signf(w.flames[0].origin.z) != signf(w.flames[1].origin.z), "the two lanterns are on opposite faces")
 	_check(_kind(w, "iron").size() >= 4, "lanterns hang from iron arms")
+	var arched := _wall(8.0, 2.7, [], [4.0])
+	arched.lanterns = [Vector3(4.6, 1.6, 1.0)]
+	arched.build(_flat)
+	_check(arched.flames.is_empty(), "no lantern in an arch")
 
 
 func _flags_fly_from_open_tops() -> void:
@@ -189,6 +245,9 @@ func _a_fence_is_posts_and_rails() -> void:
 	w.lanterns = [Vector3(3.0, 1.0, 1.0)]
 	w.build(_flat)
 	_check(w.flames.size() == 1 and absf(w.flames[0].origin.x - 3.2) < 0.01, "a lantern on a fence stands on the nearest post, at %s" % (w.flames[0].origin if w.flames.size() else null))
+	w.lanterns = [Vector3(3.0, 1.0, 1.0), Vector3(3.6, 1.0, 1.0)]
+	w.build(_flat)
+	_check(w.flames.size() == 1, "two lanterns for one post light it once, %d flames" % w.flames.size())
 
 
 func _a_gate_in_a_fence() -> void:
@@ -231,7 +290,7 @@ func _chimneys_clear_the_ridge() -> void:
 	_check(top > r.base + r.pitch + 0.6, "a chimney clears the ridge: top %.2f over ridge %.2f" % [top, r.base + r.pitch])
 	_check(_kind(r, "pot").size() == 4, "two pots on each chimney")
 	var spot := r.chimney_spot(Vector2(40.0, -40.0))
-	_check(absf(spot.x) <= r.ridge_length() * 0.5 - RoofLayout.STACK + 0.001 and absf(spot.y) <= r.half_span() - RoofLayout.STACK + 0.001, "a chimney placed off the roof is pulled back onto it: %s" % spot)
+	_check(absf(spot.x) <= r.ridge_length() * 0.5 - RoofLayout.STACK_WIDTH + 0.001 and absf(spot.y) <= r.half_span() - RoofLayout.STACK_WIDTH + 0.001, "a chimney placed off the roof is pulled back onto it: %s" % spot)
 	var f := r.frame()
 	var p: Vector3 = f.mid + f.along * 2.0 + f.across * 1.2 + Vector3.UP
 	_check(r.spot_of(p).distance_to(Vector2(2.0, 1.2)) < 0.001, "a point on the roof maps back to its chimney spot")
@@ -303,21 +362,27 @@ func _in_the_glade() -> void:
 	var normal: Vector3 = face.tangent.cross(Vector3.UP)
 	var on_face: Vector3 = face.point + Vector3.UP * 1.5
 	var lantern_spot: Vector3 = wall.layout.frame_at(7.6).point + Vector3.UP * 1.5
-	var t := fit.aim(Hand.Tool.DECOR, lantern_spot + normal * 3.0, -normal)
+	var t := fit.aim(Hand.Tool.DECORATIONS, lantern_spot + normal * 3.0, -normal)
 	_check(t.get("what") == "lantern" and t.wall == wall and t.side == 1.0 and absf(t.s - 7.6) < 0.3 and absf(t.y - 1.5) < 0.15, "decorations pointed at a wall's face hang a lantern there: %s" % t)
-	_check(fit.aim(Hand.Tool.DECOR, on_face - normal * 3.0, normal).get("side") == -1.0, "from the other side, on the other face")
+	_check(fit.aim(Hand.Tool.DECORATIONS, on_face - normal * 3.0, normal).get("side") == -1.0, "from the other side, on the other face")
 	var near_top: Vector3 = face.point + Vector3.UP * (wall.layout.height - 0.1)
-	_check(fit.aim(Hand.Tool.DECOR, near_top + normal * 3.0, -normal).get("what") == "flag", "at a wall's top they fly a flag")
+	_check(fit.aim(Hand.Tool.DECORATIONS, near_top + normal * 3.0, -normal).get("what") == "flag", "at a wall's top they fly a flag")
 	var w_aim := fit.aim(Hand.Tool.WINDOWS, on_face + normal * 3.0, -normal)
 	_check(w_aim.get("what") == "window", "windows pointed at a wall open a window")
 	var ridge: Vector3 = house.roof.frame().mid + Vector3.UP * (house.roof.pitch * 0.5)
-	_check(fit.aim(Hand.Tool.DECOR, ridge + house.roof.frame().across * 1.2 + Vector3.UP * 6.0, Vector3.DOWN).get("what") == "chimney", "on a house's roof, a chimney")
-	_check(fit.aim(Hand.Tool.DECOR, tower.roof.frame().mid + Vector3.UP * 12.0, Vector3.DOWN).get("what") == "tower_flag", "on a tower's roof, a flag")
+	_check(fit.aim(Hand.Tool.DECORATIONS, ridge + house.roof.frame().across * 1.2 + Vector3.UP * 6.0, Vector3.DOWN).get("what") == "chimney", "on a house's roof, a chimney")
+	_check(fit.aim(Hand.Tool.DECORATIONS, tower.roof.frame().mid + Vector3.UP * 12.0, Vector3.DOWN).get("what") == "tower_flag", "on a tower's roof, a flag")
 	_check(fit.aim(Hand.Tool.WINDOWS, ridge + Vector3.UP * 6.0, Vector3.DOWN).is_empty(), "windows do nothing on a roof")
 	var post := fence.layout.frame_at(3.0)
 	var post_n: Vector3 = post.tangent.cross(Vector3.UP)
-	_check(fit.aim(Hand.Tool.DECOR, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).get("what") == "lantern", "on a fence, a lantern")
+	_check(fit.aim(Hand.Tool.DECORATIONS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).get("what") == "lantern", "on a fence, a lantern")
 	_check(fit.aim(Hand.Tool.WINDOWS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).is_empty(), "no windows in a fence")
+	_check(main.tool.pick_wall(post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).get("wall") == fence, "a ray through the fence and on into the wall behind picks the fence")
+	fit.fit(fit.aim(Hand.Tool.DECORATIONS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n))
+	_check(fence.layout.flames.size() == 1, "a press hangs a lantern on the fence")
+	var beside: Vector3 = fence.layout.frame_at(3.7).point + Vector3.UP * 0.8
+	fit.fit(fit.aim(Hand.Tool.DECORATIONS, beside + post_n * 3.0, -post_n))
+	_check(fence.layout.flames.is_empty() and fence.layout.lanterns.is_empty(), "a press farther along the same post takes it away")
 
 	var steps := history.undo_stack.size()
 	fit.fit(w_aim)

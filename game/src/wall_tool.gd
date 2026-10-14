@@ -584,7 +584,7 @@ func pick_wall(origin: Vector3, dir: Vector3) -> Dictionary:
 		if _held(w):
 			continue
 		var hit := w.ray_distance(origin, dir)
-		var through: bool = hit.distance < WallLayout.THICKNESS * 0.5
+		var through: bool = hit.distance < (0.1 if w.layout.fence else WallLayout.THICKNESS * 0.5)
 		var key := Vector2(0.0, hit.along) if through else Vector2(1.0, hit.distance)
 		if key < best_key:
 			best_key = key

@@ -17,7 +17,7 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_fence(root)
 		Hand.Tool.WINDOWS:
 			_windows(root)
-		Hand.Tool.DECOR:
+		Hand.Tool.DECORATIONS:
 			_decor(root)
 		Hand.Tool.PATH:
 			_path(root)
