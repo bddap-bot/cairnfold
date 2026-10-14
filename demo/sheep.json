@@ -1,0 +1,21 @@
+[
+  {"op": "place", "x": 0, "z": 10},
+  {"op": "view", "eye": [0, 3.2, 10], "at": [0, 0.4, 0]},
+  {"op": "wait", "seconds": 2},
+  {"op": "label", "name": "fence"},
+  {"op": "fence", "points": [[-7, 0], [-2.5, 0.5], [2.5, 0.3], [7, -0.3]], "seconds": 2},
+  {"op": "wait", "seconds": 3},
+  {"op": "capture", "name": "00-fence"},
+  {"op": "label", "name": "waiting"},
+  {"op": "wait", "seconds": 60},
+  {"op": "capture", "name": "01-waiting"},
+  {"op": "label", "name": "sheep"},
+  {"op": "wait", "seconds": 30},
+  {"op": "capture", "name": "02-flock"},
+  {"op": "wait", "seconds": 30},
+  {"op": "capture", "name": "03-grazing"},
+  {"op": "view", "eye": [0, 12, 20], "at": [0, 0, 0]},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "04-afar"},
+  {"op": "quit"}
+]

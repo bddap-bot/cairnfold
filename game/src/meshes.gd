@@ -194,3 +194,34 @@ static func butterfly() -> ArrayMesh:
 			st.set_normal(Vector3.UP)
 			st.add_vertex(p)
 	return st.commit()
+
+
+## A latitude-longitude ellipsoid whose vertices carry `part` in UV2.x, for a vertex shader to pivot by;
+## `shape` may bend each surface point (given relative to the centre).
+static func ellipsoid(st: SurfaceTool, part: int, c: Vector3, r: Vector3, col: Color, lat: int, lon: int, shape := Callable()) -> void:
+	var ring := []
+	for i in lat + 1:
+		var row := []
+		var th := PI * i / lat
+		for j in lon:
+			var ph := TAU * j / lon
+			var u := Vector3(sin(th) * cos(ph), cos(th), sin(th) * sin(ph))
+			var p := u * r
+			if shape.is_valid():
+				p = shape.call(p)
+			row.append([c + p, (u / r).normalized()])
+		ring.append(row)
+	for i in lat:
+		for j in lon:
+			var k := (j + 1) % lon
+			var quad := [ring[i][j], ring[i + 1][j], ring[i + 1][k], ring[i][k]]
+			for t in [[0, 2, 1], [0, 3, 2]]:
+				if i == 0 and t[0] == 0 and t[1] == 3:
+					continue
+				if i == lat - 1 and t[1] == 2 and t[2] == 1:
+					continue
+				for v in t:
+					st.set_color(col)
+					st.set_uv2(Vector2(part, 0))
+					st.set_normal(quad[v][1])
+					st.add_vertex(quad[v][0])

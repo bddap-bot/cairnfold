@@ -6,11 +6,12 @@ extends Node3D
 ## ducklings walks in from the meadow with them in a line. They paddle about, now and then waddle up
 ## the bank to rest on the grass, and leave when their pond is gone. Arrivals and departures happen
 ## out of the viewer's sight, so nothing pops in or out of being. Butterflies come the same way to the flower
-## patches painted (`Butterflies`), fireflies at dusk over ponds and flower patches (`Fireflies`), and
-## conures, after the ducks, to planted trees and wall tops (`Birds`).
+## patches painted (`Butterflies`), fireflies at dusk over ponds and flower patches (`Fireflies`), conures,
+## after the ducks, to planted trees and wall tops (`Birds`), and sheep to the fences built (`Herds`).
 
 const ARRIVE_AFTER := Vector2(20.0, 60.0)
 const BUTTERFLIES_AFTER := Vector2(8.0, 25.0)
+const SHEEP_AFTER := Vector2(25.0, 60.0)
 ## In wet grid points.
 const MIN_POND := 6
 const FAMILIES := 2
@@ -52,9 +53,11 @@ var families: Array[Family] = []
 var butterflies: Butterflies
 var fireflies: Fireflies
 var birds: Birds
+var herds: Herds
 var rng := RandomNumberGenerator.new()
 var _due := {}
 var _due_butterflies := {}
+var _due_sheep := {}
 
 
 class Family:
@@ -96,6 +99,8 @@ func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes:
 	add_child(fireflies)
 	birds = Birds.new(self, rng.seed + 2)
 	add_child(birds)
+	herds = Herds.new(self, rng.seed + 2)
+	add_child(herds)
 
 
 func ducks() -> Array[Duck]:
@@ -121,6 +126,11 @@ func tick(delta: float) -> void:
 	butterflies.tick(delta)
 	fireflies.tick(delta)
 	birds.tick(delta)
+	herds.tick(delta)
+	for fence in _ripe(_due_sheep, herds.empty_pastures(), SHEEP_AFTER, delta, herds.count() < Herds.CAP):
+		_due_sheep.erase(fence)
+		if herds.count() < Herds.CAP:
+			herds.arrive(fence)
 	for i in range(families.size() - 1, -1, -1):
 		var f := families[i]
 		_think(f, delta)

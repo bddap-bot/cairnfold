@@ -148,10 +148,10 @@ density, and no build the player can make may bring the frame rate down.
   a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
   over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
   and towers, eight ponds, and the most ducks there can be at them (`bench.sh`
-  fixes the seed), with every butterfly there can be over the full flower pool
-  and the most conures there can be among the full pool of planted trees,
-  and a hill pulled up live under 973 m of walls, each seen from the air and
-  standing among them.
+  fixes the seed) and the most sheep at four fences between them, with every butterfly there can be
+  over the full flower pool and the most conures there can be among the full pool of planted trees,
+  every firefly there can be over the ponds at dusk, and a hill pulled up live under 973 m of walls,
+  each seen from the air and standing among them, then the camera held up to it and a photo taken.
 - `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
   calls, primitives and GPU time; on a Quest it holds each phase to the budget and
   fails when one goes over. A new feature adds itself to the stress scene.
@@ -619,6 +619,19 @@ fly in and settle on it. There is no tool, menu or button for animals.
   computed in its vertex shader. Its plumage turns per fragment from blue facing
   the eye to green at grazing angles, with a faint mottle, wrapped diffuse light
   and a soft rim, and no texture.
+- **Sheep** come to fences. A finished fence standing at least 6 m long (`Herds.MIN_FENCE`) is a
+  pasture, and 25 to 60 seconds after one appears a flock of two to four walks in from out of
+  sight and grazes the grass along one side of it, 1 to 7 m out. They crop with heads down,
+  drifting a step at a time, look about with an ear flick, walk on to fresh grass and now and
+  then lie down for a while; a hand within a metre sends one trotting a few metres off before it
+  settles. They never stand in water, on a path or paving, in a wall, house or tower or against a
+  trunk, keep a little apart, and never walk straight through a wall. When their fence is erased
+  or broken too short they walk away and are let go out of sight, as duck families are. The sheep
+  is built in code (`sheep.gd`) in the duck's style: a cream fleece of overlapping clumps,
+  darker underneath, a dark grey face, ears and legs, small dark eyes with a white shine, a wool
+  tuft and a short tail, about 880 triangles, a little varied in size and wool tint per sheep;
+  idle, graze, walk and lie are blended in its vertex shader, the legs stepped by the ground
+  covered so the hooves stay planted.
 
 Budget: each animal is at most a couple of thousand triangles, skinned or vertex-animated, one
 draw call, and only a handful are ever in view, so wildlife never costs the
@@ -630,7 +643,10 @@ vertex shader beats their wings. Fireflies are one MultiMesh of camera-facing qu
 (`Fireflies.CAP`): one draw call, additive glows that cast no light. Conures are capped at three (`Birds.CAP`): three
 draw calls of about 1,600 triangles each, one shared mesh and material, casting no
 shadow. Their perches are looked over twice a second, and a wall's or a crown's
-points are worked out only when a conure makes for it.
+points are worked out only when a conure makes for it. Sheep are capped at eight (`Herds.CAP`, flocks of `Herds.FLOCK`):
+eight draw calls and about 7,000 triangles at most, one shared mesh and one material, no shadows;
+the CPU looks for pastures twice a second rather than reading every wall each frame, and tests
+walls only when a sheep picks where to go.
 
 ## Photos
 
@@ -669,6 +685,7 @@ path crosses; `demo/stone.json` paints stone ground into the meadow, paints part
 walks the history; `demo/photo.json` takes the camera from the ring and takes two photos; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks
 at a perched one from in front and from the side;
+`demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar;
 `demo/daylight.json` drags the sun from dawn to dusk, opens the colour wheel, recolours roofs, stone, wood
 and plaster, and walks the meadow through the seasons; `demo/ruins.json` erases stretches of walls into
 ruins and walks the history. Run with `--garden FILE`, it keeps its garden there, and `demo/garden.json`
