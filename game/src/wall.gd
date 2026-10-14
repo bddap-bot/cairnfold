@@ -38,7 +38,7 @@ var _build_stale := false
 var _build_gen := 0
 var _build_job: WallLayout
 var _build_out := {}
-## The preview now shown, with the ground revision it was laid on: a settling rebuild with the same inputs
+## The preview now shown, with the ground revision it stands on: a settling rebuild with the same inputs
 ## takes it rather than laying the stones again.
 var _shown: WallLayout
 var _shown_ground := -1
@@ -136,13 +136,14 @@ func _process(delta: float) -> void:
 			_take(_build_out)
 			_shown = _build_job
 			_shown_ground = _build_out.ground
-			_lay_dressing()
-			_sync()
+			if _settle_when_laid and not _build_stale:
+				_shown_ground = Terrain.revision
+				rebuild()
+			else:
+				_lay_dressing()
+				_sync()
 		if _build_stale:
 			_build_live()
-		elif _settle_when_laid:
-			_shown_ground = Terrain.revision
-			rebuild()
 	if finished:
 		ivy_age += delta
 	if _ivy_task >= 0 and WorkerThreadPool.is_task_completed(_ivy_task):

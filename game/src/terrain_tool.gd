@@ -37,6 +37,7 @@ var _since_follow := 0.0
 ## Sent strokes whose humps still show, and the ground they moved.
 var _sent := 0
 var _pending := Rect2()
+var _due := Rect2()
 
 
 func _init(player: Rig, garden: World) -> void:
@@ -170,18 +171,31 @@ func end_stroke(extra := {}) -> void:
 
 
 ## A sent stroke is in the garden or was turned down: the hump goes and what stood on it settles back.
+## The garden applies a stroke it takes right after this, so what stood on the hump settles with that write,
+## never on the ground between the hump going and the heights arriving.
 func _settled() -> void:
 	_sent -= 1
 	if _sent == 0 and _grabbed == null:
 		Terrain.clear_hump()
-		reshaped.emit(_pending, true)
+		_due = _due.merge(_pending) if _due.has_area() else _pending
 		_pending = Rect2()
+		_settle_due.call_deferred()
+
+
+func _settle_due() -> void:
+	if _due.has_area():
+		reshaped.emit(_due, true)
+		_due = Rect2()
 
 
 ## The garden's side of a ground edit, from any player.
 func restore(cells: Rect2i, values: PackedFloat32Array) -> void:
 	Terrain.write(cells, values)
-	reshaped.emit(Terrain.world_rect(cells), true)
+	var area := Terrain.world_rect(cells)
+	if _due.has_area():
+		area = area.merge(_due)
+		_due = Rect2()
+	reshaped.emit(area, true)
 
 
 ## Forgets a stroke under way, as when the garden is swapped for another.

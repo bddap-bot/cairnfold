@@ -145,7 +145,6 @@
   {"op": "sun", "time": 0.95, "seconds": 6},
   {"op": "capture", "name": "daylight-aerial"},
   {"op": "label", "name": "-"},
-  {"op": "label", "name": "-"},
   {"op": "clear"},
   {"op": "stress", "radius": 25, "spacing": 2.0, "height": 4.5},
   {"op": "view", "eye": [0, 22, 32], "at": [0, 0, 0]},

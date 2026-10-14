@@ -149,7 +149,8 @@ density, and no build the player can make may bring the frame rate down.
   over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
   and towers, eight ponds, and the most ducks there can be at them (`bench.sh`
   fixes the seed), with every butterfly there can be over the full flower pool,
-  each seen from the air and standing among them.
+  and a hill pulled up live under 973 m of walls, each seen from the air and
+  standing among them.
 - `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
   calls, primitives and GPU time; on a Quest it holds each phase to the budget and
   fails when one goes over. A new feature adds itself to the stress scene.
@@ -166,6 +167,13 @@ What makes building cheap:
 - Cost follows instance count more than triangles. A vine lays one three-leaf
   sprig a step rather than three leaves; sprigs shrink away between 20 and 35 m.
 - A path's stone chunks are bounded by their own stones, so they cull.
+- Ground moving under walls changes neither their data nor where paths cross them,
+  so a stroke only lays their stones again on a worker thread, and a wall settles
+  from the preview laid on the ground as it settled. A replaced layout's stones are
+  freed by the wall's next worker task: dropping thousands of them took 3 to 5 ms
+  a wall. Pulling a hill up under eight of 973 m of walls, headless (CPU only),
+  had frames of 22 to 58 ms at the 99th percentile and two of 117 and 133 ms as
+  it settled; now no frame of the stroke or its settling passes 7.1 ms.
 
 Measured on the Steam Frame (`bench.sh OUT steam-frame BUNDLE`: both eyes' pixels,
 3456×1728, in one window with the headset off the head, so the numbers compare
