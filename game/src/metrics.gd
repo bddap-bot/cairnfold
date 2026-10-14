@@ -31,6 +31,9 @@ func _init(out: String) -> void:
 
 func _process(delta: float) -> void:
 	_deltas.append(delta * 1000.0)
+	var hz: float = info.get("refresh_hz", 0.0)
+	if hz > 0.0 and delta * 1000.0 > 1500.0 / hz:
+		print("metrics: late frame %.1f ms" % (delta * 1000.0))
 	_draws = maxi(_draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 	if quality != null and quality.fresh:
