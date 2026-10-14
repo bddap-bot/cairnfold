@@ -335,6 +335,13 @@ func undo() -> void:
 	w.queue_free()
 
 
+## Lays again every wall standing on ground that moved; ivy waits for `settled`.
+func reground(area: Rect2, settled: bool) -> void:
+	for w in walls:
+		if w.footprint().intersects(area):
+			w.rebuild(settled)
+
+
 func _top(w: Wall, s: float) -> Vector3:
 	return w.layout.point_at(s) + Vector3.UP * w.layout.height
 

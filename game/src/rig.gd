@@ -231,6 +231,12 @@ func settle_down() -> void:
 	_rest_y = ground_under_head()
 
 
+func reground(area: Rect2, _settled: bool) -> void:
+	var h := head.global_position
+	if not floating and area.has_point(Vector2(h.x, h.z)):
+		_rest_y = ground_under_head()
+
+
 func snap_turn(angle: float) -> void:
 	var pivot := head.global_position
 	var t := Transform3D(Basis(Vector3.UP, angle), Vector3.ZERO)

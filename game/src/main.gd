@@ -5,6 +5,7 @@ var xr: OpenXRInterface
 var rig: Rig
 var tool: WallTool
 var flora_tool: FloraTool
+var terrain_tool: TerrainTool
 var sound: Soundscape
 var metrics: Metrics
 var spectator: SubViewport
@@ -12,6 +13,7 @@ var spectator: SubViewport
 
 func _ready() -> void:
 	args = _parse(OS.get_cmdline_user_args())
+	Terrain.install()
 	Look.build(self)
 	var flora := Flora.new()
 	add_child(flora)
@@ -25,6 +27,10 @@ func _ready() -> void:
 	add_child(builds)
 	tool = WallTool.new(rig)
 	builds.add_child(tool)
+	terrain_tool = TerrainTool.new()
+	terrain_tool.reshaped.connect(tool.reground)
+	terrain_tool.reshaped.connect(rig.reground)
+	add_child(terrain_tool)
 	sound = Soundscape.new(tool, flora_tool)
 	add_child(sound)
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)

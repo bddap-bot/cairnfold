@@ -186,6 +186,13 @@ func rebuild_roof() -> void:
 	_gables.mesh = st.commit()
 
 
+func footprint() -> Rect2:
+	var r := Rect2(Vector2(layout.samples[0].x, layout.samples[0].z), Vector2.ZERO)
+	for p in layout.samples:
+		r = r.expand(Vector2(p.x, p.z))
+	return r.grow(WallLayout.THICKNESS)
+
+
 ## Distance from a ray to this wall's body, with the arc length it is nearest.
 func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 	var best := {"distance": INF, "s": 0.0, "point": Vector3.ZERO, "along": INF}

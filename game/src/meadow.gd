@@ -27,6 +27,7 @@ func _ground() -> void:
 	mat.set_shader_parameter("detail", Look.detail_noise())
 	var mi := MeshInstance3D.new()
 	mi.mesh = Terrain.build_mesh()
+	mi.custom_aabb = Terrain.bounds()
 	mi.material_override = mat
 	add_child(mi)
 

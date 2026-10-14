@@ -171,6 +171,21 @@ func _paint(s: Dictionary) -> void:
 		flora_tool.paint(_along(path, minf(t / seconds, 1.0)), s.radius, dt)
 
 
+## Grabs the ground at x, z and pulls it `lift` metres over `seconds` (negative digs), as a hand on the terrain tool does.
+func _sculpt(s: Dictionary) -> void:
+	var tool: TerrainTool = main.terrain_tool
+	tool.begin(_spot(s, s.x, s.z), s.get("radius", TerrainTool.MIN_RADIUS))
+	var t := 0.0
+	var seconds: float = s.get("seconds", 1.0)
+	while t < seconds:
+		await get_tree().process_frame
+		var dt := get_process_delta_time()
+		t += dt
+		tool.pull(s.lift * smoothstep(0.0, 1.0, minf(t / seconds, 1.0)))
+		tool.follow(dt)
+	tool.end()
+
+
 func _tree(s: Dictionary) -> void:
 	main.flora_tool.plant_tree(_spot(s, s.x, s.z))
 
