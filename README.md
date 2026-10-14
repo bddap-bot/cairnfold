@@ -32,6 +32,8 @@ right A cuts arches.
 
 - Desktop preview and tests: `nix-shell --run scripts/test.sh`,
   `nix-shell --run 'scripts/render.sh demo/slice.json out'`.
+- Steam library artwork: `nix-shell --run scripts/steam-art.sh` regenerates
+  `steam/` from captures of `demo/steam.json`.
 - Headset (developer mode on: it enables SSH and the Steam client's debug port,
   through which deploy adds the shortcut):
   `scripts/package.sh cairnfold.tar.gz`, then

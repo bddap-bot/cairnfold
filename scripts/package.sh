@@ -10,7 +10,7 @@ trap 'rm -rf "$stage"' EXIT
 mkdir -p "$stage/cairnfold/bin"
 unzip -p "$zip" "Godot_v$godot_version-stable_linux.arm64" > "$stage/cairnfold/bin/godot"
 chmod +x "$stage/cairnfold/bin/godot"
-git -C "$root" archive HEAD game demo | tar -x -C "$stage/cairnfold"
+git -C "$root" archive HEAD game demo steam | tar -x -C "$stage/cairnfold"
 cp "$root/scripts/play.sh" "$stage/cairnfold/play.sh"
 git -C "$root" rev-parse HEAD > "$stage/cairnfold/REVISION"
 tar -czf "$out" -C "$stage" cairnfold
