@@ -148,7 +148,7 @@ density, and no build the player can make may bring the frame rate down.
   a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
   over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
   and towers, eight ponds, and the most ducks there can be at them (`bench.sh`
-  fixes the seed) and the most sheep at four fences between them, with every butterfly there can be
+  fixes the seed) and the most sheep at four fences between them (seen too from the ground by a fence), with every butterfly there can be
   over the full flower pool and the most conures there can be among the full pool of planted trees,
   every firefly there can be over the ponds at dusk, and a hill pulled up live under 973 m of walls,
   each seen from the air and standing among them, then the camera held up to it and a photo taken.
@@ -306,7 +306,7 @@ Stage numbers refer to the build order at the end.
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of the left D-pad down undoes a step, up redoes one; with others, each player's own steps (done); the delete tool takes away a tree or painted patch (done) and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. One reshape (or unwall) per sweep, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it; it is loaded at start. Only your own garden is kept, never one you are visiting. A file the game cannot read whole is moved aside to `garden.save.bad` before the garden is saved again. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
-| Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, butterflies gather over painted flowers, fireflies come out over both at dusk, a conure perches on a tree or wall (see "Wildlife") | 11 |
+| Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, butterflies gather over painted flowers, fireflies come out over both at dusk, conures perch on a tree or wall, sheep graze beside a fence (see "Wildlife") | 11 |
 | Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 1600×1200 photo with a level horizon, saved as a PNG under `user://photos` (see "Photos") | 11 (done) |
 | Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network with the visit tool (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
 
@@ -604,19 +604,20 @@ fly in and settle on it. There is no tool, menu or button for animals.
 - **Conures**, iridescent blue and green, come after the ducks: once a duck has
   come to the garden and a planted tree (not the meadow's own) or a finished
   wall or fence stands, a pair or a trio flies in from out of sight 20 to 60
-  seconds later (`Birds`, at most `Birds.CAP`, three) and lands on a tree's crown
+  seconds later (`Birds`), at most three (`Birds.CAP`), and lands on a tree's crown
   or a wall top: the top of its caps, coping, merlons and piers, or a fence's top
   rail and posts (`WallLayout.perches`), never a roof. Perched, a conure looks
   about with quick head turns and tilts, preens, hops along the top, now and
   then flutters to another perch or swoops down to peck in the grass, and flushes
-  up to a perch out of reach when a hand comes within 0.8 m. They leave, out of
-  sight, once no perch stands. The conure is built in code (`conure.gd`) like
+  up to a perch out of reach when a hand comes within 0.8 m. A perch taken away,
+  reshaped or laid again sends them to another, and when none has room they leave,
+  out of sight, as they do once no perch stands. The conure is built in code (`conure.gd`) like
   the duck: about 18 cm of soft, slightly ruffled ellipsoids whose normals lean
   toward the body's as a whole so it shades as one poofy mass, a round head with
   a pale hooked bill, dark eyes with a pale ring and a white shine, folded wings,
-  a long tapering tail and small grey feet. Like the duck's, its motion (looking
-  about, preening, pecking, wingbeats, and the body levelling out to fly) is
-  computed in its vertex shader. Its plumage turns per fragment from blue facing
+  a long tapering tail and small grey feet. Its motion is computed in its vertex
+  shader, as the ducks' is: looking about, preening, pecking, wingbeats, and the
+  body levelling out to fly. Its plumage turns per fragment from blue facing
   the eye to green at grazing angles, with a faint mottle, wrapped diffuse light
   and a soft rim, and no texture.
 - **Sheep** come to fences. A finished fence standing at least 6 m long (`Herds.MIN_FENCE`) is a
@@ -625,8 +626,11 @@ fly in and settle on it. There is no tool, menu or button for animals.
   drifting a step at a time, look about with an ear flick, walk on to fresh grass and now and
   then lie down for a while; a hand within a metre sends one trotting a few metres off before it
   settles. They never stand in water, on a path or paving, in a wall, house or tower or against a
-  trunk, keep a little apart, and never walk straight through a wall. When their fence is erased
-  or broken too short they walk away and are let go out of sight, as duck families are. The sheep
+  trunk, keep a little apart, and never walk through a wall or into water. A pond dug, a wall drawn
+  or ground pulled under them sends them, within a second, to grass they can reach; one that ends up
+  beyond its flock's grass walks back. When their fence is erased or broken too short, or no grass
+  beside it can be reached, they walk away, each by a clear way, and are let go out of sight, as
+  duck families are; walled in, they stand where they are until nobody looks. The sheep
   is built in code (`sheep.gd`) in the duck's style: a cream fleece of overlapping clumps,
   darker underneath, a dark grey face, ears and legs, small dark eyes with a white shine, a wool
   tuft and a short tail, about 880 triangles, a little varied in size and wool tint per sheep;
@@ -634,19 +638,26 @@ fly in and settle on it. There is no tool, menu or button for animals.
   covered so the hooves stay planted.
 
 Budget: each animal is at most a couple of thousand triangles, skinned or vertex-animated, one
-draw call, and only a handful are ever in view, so wildlife never costs the
-refresh rate. Ducks are capped at two families of at most five
+draw call, and only a handful are ever in view; what that costs a headset is for the stress scene's
+wildlife phases to show once they run on one. Ducks are capped at two families of at most five
 (`Wildlife.FAMILIES`, `DUCKLINGS`): ten draw calls and about 6,000 triangles at
 most, one shared mesh per kind and one material. Butterflies are one MultiMesh capped at 24
 (`Butterflies.CAP`): one draw call of 22 triangles each; the CPU steers them and the
 vertex shader beats their wings. Fireflies are one MultiMesh of camera-facing quads capped at 48
-(`Fireflies.CAP`): one draw call, additive glows that cast no light. Conures are capped at three (`Birds.CAP`): three
-draw calls of about 1,600 triangles each, one shared mesh and material, casting no
-shadow. Their perches are looked over twice a second, and a wall's or a crown's
-points are worked out only when a conure makes for it. Sheep are capped at eight (`Herds.CAP`, flocks of `Herds.FLOCK`):
-eight draw calls and about 7,000 triangles at most, one shared mesh and one material, no shadows;
-the CPU looks for pastures twice a second rather than reading every wall each frame, and tests
-walls only when a sheep picks where to go.
+(`Fireflies.CAP`): one draw call, additive glows that cast no light. Conures are capped at three
+(`Birds.CAP`): three draw calls of about 1,560 triangles each, one shared mesh and material, casting
+no shadow. Sheep are capped at eight (`Herds.CAP`, flocks of `Herds.FLOCK`): eight draw calls and
+about 7,000 triangles at most, one shared mesh and one material, no shadows. Every animal of a kind
+shares its mesh and material through `Critter`.
+
+On the CPU, `Wildlife` looks the walls and trees over twice a second for perches and pastures, and
+between looks the animals use what it found. A wall's perch points read every stone, several
+milliseconds for a long wall, so the wall works them out on a worker thread once its stones are laid
+again, and not while a newer preview is being laid; a crown's are worked out when a blob of it comes
+or goes and stand on the ground under its trunk as it is. At each look every sheep not leaving checks
+its ground and its way, and a sheep checks walls and water whenever it picks where to go and, for
+every nudge apart, where it would stand. Water along a way is looked for closely only in the grid
+squares a pond reaches (`Water.crosses`).
 
 ## Photos
 
@@ -685,7 +696,7 @@ path crosses; `demo/stone.json` paints stone ground into the meadow, paints part
 walks the history; `demo/photo.json` takes the camera from the ring and takes two photos; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks
 at a perched one from in front and from the side;
-`demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar (`--seed 1` puts sheep in the close views);
+`demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar (`--seed 40` puts sheep in the close views);
 `demo/daylight.json` drags the sun from dawn to dusk, opens the colour wheel, recolours roofs, stone, wood
 and plaster, and walks the meadow through the seasons; `demo/ruins.json` erases stretches of walls into
 ruins and walks the history. Run with `--garden FILE`, it keeps its garden there, and `demo/garden.json`
