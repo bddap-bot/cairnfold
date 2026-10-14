@@ -326,12 +326,88 @@ func _delete(s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
+## Fills a disc at once with parallel walls (see StressLayout) of one height, their ivy fully grown.
+func _stress(s: Dictionary) -> void:
+	var tool: WallTool = main.tool
+	var m := tool.mason(_holding(s, Hand.Tool.WALLS))
+	var rows := StressLayout.walls(s.radius, s.spacing)
+	var start := Time.get_ticks_usec()
+	for row in rows:
+		tool.begin_stroke(m, Terrain.ground(row[0].x, row[0].y))
+		for i in range(1, row.size()):
+			tool.extend_stroke(m, Terrain.ground(row[i].x, row[i].y))
+		for w in tool.end_stroke(m):
+			w.layout.height = s.height
+			w.rebuild()
+			w.ivy_age = INF
+	var ms := (Time.get_ticks_usec() - start) / 1000.0
+	var stones := 0
+	for w in tool.walls:
+		stones += w.layout.stones.size()
+	print("stress: %d walls, %.0f m, %d stones, laid in %.0f ms" % [tool.walls.size(), StressLayout.length(rows), stones, ms])
+
+
+## Fills every painted and placed flora pool to capacity within `radius` of the centre.
+func _fill_flora(s: Dictionary) -> void:
+	var flora: Flora = main.flora_tool.flora
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 99
+	for i in Flora.PAINTED_GRASS:
+		flora.add_grass(_scatter(rng, s.radius), rng)
+	for i in Flora.PAINTED_FLOWERS:
+		flora.add_flower(_scatter(rng, s.radius), rng)
+	for i in Flora.PLACED_TREES:
+		flora.add_tree(_scatter(rng, s.radius), rng)
+
+
+## Fills a disc at once with a grid of houses and round towers, `spacing` apart, alternating.
+func _village(s: Dictionary) -> void:
+	var tool: WallTool = main.tool
+	var m := tool.mason(_holding(s, Hand.Tool.WALLS))
+	var start := Time.get_ticks_usec()
+	var r: float = s.radius
+	var step: float = s.spacing
+	var k := 0
+	for z in range(-int(r / step), int(r / step) + 1):
+		for x in range(-int(r / step), int(r / step) + 1):
+			var c := Vector2(x, z) * step
+			if c.length() > r - step * 0.5:
+				continue
+			k += 1
+			if k % 2 == 0:
+				tool.begin_house(Terrain.ground(c.x - step * 0.35, c.y), Terrain.ground(c.x + step * 0.35, c.y))
+				tool.end_house().ivy_age = INF
+			else:
+				var at := Terrain.ground(c.x, c.y)
+				tool.begin_stroke(m, at)
+				tool.snap_tower(m, at, step * 0.25)
+				for w in tool.end_stroke(m):
+					w.ivy_age = INF
+	print("village: %d buildings in %.0f ms" % [k, (Time.get_ticks_usec() - start) / 1000.0])
+
+
+func _clear(_s: Dictionary) -> void:
+	for w in main.tool.walls.duplicate():
+		main.tool.remove(w)
+	await get_tree().process_frame
+
+
+static func _scatter(rng: RandomNumberGenerator, radius: float) -> Vector3:
+	return FloraLayout.brush(Vector3.ZERO, radius, 1, rng, Terrain.height_at)[0]
+
+
 func _music(s: Dictionary) -> void:
 	main.sound.play_from(s.section)
 
 
+## With "ground", eye and target heights count from the ground under each.
 func _view(s: Dictionary) -> void:
-	main.view(Vector3(s.eye[0], s.eye[1], s.eye[2]), Vector3(s.at[0], s.at[1], s.at[2]), s.get("relative", false))
+	var eye := Vector3(s.eye[0], s.eye[1], s.eye[2])
+	var at := Vector3(s.at[0], s.at[1], s.at[2])
+	if s.get("ground", false):
+		eye.y += Terrain.height_at(eye.x, eye.z)
+		at.y += Terrain.height_at(at.x, at.z)
+	main.view(eye, at, s.get("relative", false))
 	await get_tree().process_frame
 
 

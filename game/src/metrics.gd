@@ -1,12 +1,18 @@
 class_name Metrics
 extends Node
 
-## Frame-time record: every frame's delta summarised per second with the GPU time the process used in it, flushed to JSON as it goes.
+## Frame-time record: every frame's delta summarised per second with the GPU time the process used in it and
+## the most draw calls and primitives any frame drew, flushed to JSON as it goes.
 
 var path: String
 var info := {}
 var _deltas: PackedFloat32Array = []
 var _gpu_ns := -1
+var _drm_fds: PackedStringArray = []
+## Counts readings; every tenth looks for the DRM clients again, since the runtime may open more later.
+var _drm_scan := 0
+var _draws := 0
+var _prims := 0
 var _seconds: Array = []
 var _acc := 0.0
 var _since_flush := 0.0
@@ -18,6 +24,8 @@ func _init(out: String) -> void:
 
 func _process(delta: float) -> void:
 	_deltas.append(delta * 1000.0)
+	_draws = maxi(_draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
+	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 	_acc += delta
 	if _acc >= 1.0:
 		var gpu := gpu_ns()
@@ -25,6 +33,10 @@ func _process(delta: float) -> void:
 		if gpu >= 0 and _gpu_ns >= 0:
 			row.gpu_ms = (gpu - _gpu_ns) / 1e6
 		_gpu_ns = gpu
+		row.draws = _draws
+		row.prims = _prims
+		_draws = 0
+		_prims = 0
 		_seconds.append(row)
 		_deltas.clear()
 		_acc = 0.0
@@ -46,16 +58,21 @@ func summary(d: PackedFloat32Array) -> Dictionary:
 
 
 ## GPU time this process has used, summed over its DRM clients, from the kernel's fdinfo; -1 where the driver reports none.
-static func gpu_ns() -> int:
-	var dir := DirAccess.open("/proc/self/fdinfo")
-	if dir == null:
-		return -1
+func gpu_ns() -> int:
+	if _drm_scan % 10 == 0:
+		var dir := DirAccess.open("/proc/self/fdinfo")
+		if dir == null:
+			return -1
+		_drm_fds.clear()
+		for fd in dir.get_files():
+			if _fdinfo(fd).contains("drm-client-id:"):
+				_drm_fds.append(fd)
+	_drm_scan += 1
 	var by_client := {}
-	for fd in dir.get_files():
-		var text := FileAccess.get_file_as_string("/proc/self/fdinfo/" + fd)
+	for fd in _drm_fds:
 		var client := ""
 		var ns := 0
-		for line in text.split("\n"):
+		for line in _fdinfo(fd).split("\n"):
 			if line.begins_with("drm-client-id:"):
 				client = line.get_slice(":", 1).strip_edges()
 			elif line.begins_with("drm-engine-") and not line.begins_with("drm-engine-capacity"):
@@ -68,6 +85,12 @@ static func gpu_ns() -> int:
 	for v in by_client.values():
 		total += v
 	return total
+
+
+## procfs reports no length, and the kernel writes a DRM fd's info afresh on every read, so it is taken in one read.
+static func _fdinfo(fd: String) -> String:
+	var f := FileAccess.open("/proc/self/fdinfo/" + fd, FileAccess.READ)
+	return f.get_buffer(65536).get_string_from_utf8() if f != null else ""
 
 
 static func _q(a: Array, q: float) -> float:

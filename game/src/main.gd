@@ -57,7 +57,7 @@ func _ready() -> void:
 	add_child(sound)
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 	metrics = Metrics.new(args.get("metrics", ""))
-	metrics.info = {"xr": _start_xr(), "label": ""}
+	metrics.info = {"xr": _start_xr(), "label": "", "budget": Budget.info()}
 	add_child(metrics)
 	if args.has("script"):
 		add_child(Driver.new(self, Driver.read(args.script)))
