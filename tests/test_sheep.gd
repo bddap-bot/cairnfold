@@ -485,7 +485,6 @@ func _a_sheep_off_its_grass_goes_back() -> void:
 		await _teardown(g)
 		return
 	var s: Sheep = flock.sheep[0]
-	var away := Terrain.ground(0, -4 + flock.side * -13.0)
 	var stray := Vector3.ZERO
 	for i in 20:
 		stray = Terrain.ground(-4.0 + i * 0.4, -4.0 + flock.side * 13.0)
