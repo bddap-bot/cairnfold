@@ -18,6 +18,8 @@ signal planted
 var rig: Rig
 var flora: Flora
 var mode := Mode.FLOWERS
+## Where the grass feels the left hand while it is untracked; desktop scripts hold it in the grass.
+var stand_in := Flora.NO_HAND
 var _rng := RandomNumberGenerator.new()
 var _owed := 0.0
 var _two_handed := false
@@ -61,6 +63,7 @@ func _process(delta: float) -> void:
 		_beam.span(hand.origin, hit)
 		_ring.global_transform = Transform3D(Basis().scaled(Vector3(radius, 1.0, radius)), hit + Vector3.UP * 0.04)
 
+	flora.part(rig.left.global_position if rig.left.get_has_tracking_data() else stand_in, _reach(rig.right))
 	if hit != null and _buttons.held("trigger_click"):
 		paint(hit, radius, delta)
 	if _right.pressed("by_button"):
@@ -73,6 +76,10 @@ func _process(delta: float) -> void:
 		plant_tree(hit)
 	_buttons.latch()
 	_right.latch()
+
+
+static func _reach(hand: XRController3D) -> Vector3:
+	return hand.global_position if hand.get_has_tracking_data() else Flora.NO_HAND
 
 
 static func brush_radius(hand: Vector3, hit: Variant) -> float:

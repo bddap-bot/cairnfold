@@ -186,6 +186,15 @@ func _sculpt(s: Dictionary) -> void:
 	tool.end()
 
 
+## Desktop only, where no hand is tracked: holds a hand `at` [x, height above the ground, z] for `seconds`, optionally capturing the view.
+func _touch(s: Dictionary) -> void:
+	main.flora_tool.stand_in = _spot(s, s.at[0], s.at[2]) + Vector3.UP * s.at[1]
+	await get_tree().create_timer(s.get("seconds", 1.0)).timeout
+	if s.has("capture"):
+		await main.capture(s.capture)
+	main.flora_tool.stand_in = Flora.NO_HAND
+
+
 func _tree(s: Dictionary) -> void:
 	main.flora_tool.plant_tree(_spot(s, s.x, s.z))
 

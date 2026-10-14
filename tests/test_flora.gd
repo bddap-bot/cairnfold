@@ -12,6 +12,7 @@ func _initialize() -> void:
 	_tree_stands_on_its_spot()
 	_full_pools_recycle_only_painted()
 	_trees_recycle_whole()
+	_grass_grows_in_clumps()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
 
@@ -126,3 +127,23 @@ func _trees_recycle_whole() -> void:
 		if blob != (tree + 1) * FloraLayout.BLOBS - 1:
 			_check(false, "placed tree %d: trunk slot %d but its last blob in slot %d" % [i, tree, blob])
 			return
+
+
+func _grass_grows_in_clumps() -> void:
+	var rng := _rng(6)
+	var c := FloraLayout.clump(Vector3(5.3, 0, -2.1))
+	var sizes := []
+	for i in 40:
+		var a := rng.randf() * TAU
+		var p := Vector3(c.x + cos(a) * 0.05, 0, c.z + sin(a) * 0.05)
+		_check(FloraLayout.clump(p) == c, "points beside a clump's centre belong to it")
+		sizes.append(FloraLayout.grass(p, c, rng).basis.y.y)
+	var spread: float = sizes.max() / sizes.min()
+	_check(spread < 1.8, "a clump's blades share a height, spread %.2f" % spread)
+	var across := []
+	for i in 40:
+		var o := FloraLayout.clump(Vector3(i * 1.3, 0, i * 0.7))
+		across.append(FloraLayout.grass(o, o, rng).basis.y.y)
+	_check(across.max() / across.min() > spread * 1.2, "clumps differ in height more than blades within one, %.2f against %.2f" % [across.max() / across.min(), spread])
+	var lean := FloraLayout.grass(c + Vector3(0.05, 0, 0), c, rng).basis.y
+	_check(lean.x > 0.0 and absf(lean.z) < 1e-4, "blades lean away from their clump's centre")

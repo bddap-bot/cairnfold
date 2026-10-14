@@ -9,6 +9,8 @@ extends Node3D
 const PAINTED_GRASS := 12000
 const PAINTED_FLOWERS := 4000
 const PLACED_TREES := 64
+## Where an untracked hand is, as far as the grass knows.
+const NO_HAND := Vector3(0, -1000, 0)
 
 
 ## A fixed-capacity MultiMesh that fills in order; once full, new plants replace the oldest added after `keep()`.
@@ -55,14 +57,15 @@ class Pool:
 
 
 var grass: Pool
+var grass_mat := ShaderMaterial.new()
 var flowers: Pool
 var trunks: Pool
 var foliage: Pool
 
 
 func _init() -> void:
-	var grass_mat := ShaderMaterial.new()
 	grass_mat.shader = load("res://src/grass.gdshader")
+	part(NO_HAND, NO_HAND)
 	grass = _pool(Meshes.grass_clump(7, 1), Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false)
 	flowers = _pool(Meshes.flower(6), Meadow.FLOWERS + PAINTED_FLOWERS, _plant_material("flower", Color.WHITE, 0.8), false)
 	var trunk := CylinderMesh.new()
@@ -96,9 +99,15 @@ func _pool(mesh: Mesh, capacity: int, mat: Material, shadows: bool) -> Pool:
 	return pool
 
 
+func part(left: Vector3, right: Vector3) -> void:
+	grass_mat.set_shader_parameter(&"hand_left", left)
+	grass_mat.set_shader_parameter(&"hand_right", right)
+
+
 func add_grass(p: Vector3, rng: RandomNumberGenerator) -> void:
 	var v := rng.randf_range(0.85, 1.1)
-	grass.add(FloraLayout.grass(p, rng), Color(v, v, v), p, Color(FloraLayout.dryness(p), 0, 0, 0))
+	var c := FloraLayout.clump(p)
+	grass.add(FloraLayout.grass(p, c, rng), Color(v, v, v), p, Color(FloraLayout.dryness(p), FloraLayout.clump_trait(c, FloraLayout.Trait.TINT), 0, 0))
 
 
 func add_flower(p: Vector3, rng: RandomNumberGenerator) -> void:

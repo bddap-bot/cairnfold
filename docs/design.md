@@ -90,7 +90,50 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
 - **Grading:** AgX tonemapping, mild saturation and contrast lift, gentle glow.
 - **Detail:** everything repeated is a MultiMesh: stones, grass clumps, flowers,
   foliage. Stones are rounded, lumpy boxes with per-stone colour, so walls read as
-  individual pieces. Grass is geometry (no alpha test) to stay cheap on tiled GPUs.
+  individual pieces. Grass is geometry (no alpha test) to stay cheap on tiled GPUs;
+  see "Grass" below.
+
+### Grass
+
+What games known for their grass do, ranked by how much each adds to the look
+for what it costs. Costs are for the Frame's tiled Adreno GPU in stereo: grass
+there is mostly vertex work (1.4 M vertices for the meadow's own grass, up to
+0.76 M more painted), so per-vertex arithmetic is the currency and anything that
+breaks early depth (`discard`, alpha test) is ruled out. Each grass value is
+defined once: tunables as uniforms in `grass.gdshader`, placement in
+`FloraLayout`.
+
+| # | Technique | What it adds | Cost on the Frame | Here |
+| --- | --- | --- | --- | --- |
+| 1 | Root-to-tip gradient with root occlusion (Ghost of Tsushima) | Depth: blades read as a lit canopy over a shaded base instead of flat green | A mix per fragment | Done (`root_shade`) |
+| 2 | Clumping (Ghost of Tsushima: Voronoi clumps share height, facing, lean and tint) | Tufts and bare gaps instead of an even carpet | None per frame: computed on the CPU when a plant is placed (`FloraLayout.clump`) | Done |
+| 3 | Rounded normals (Ghost of Tsushima: edge normals tilt outward) | A flat blade shades as if curved across its width | None: baked into the clump mesh | Done |
+| 4 | Opaque geometry blades, no alpha cards | Stable edges under head motion; alpha-tested cards shimmer in a headset, and standalone-headset developers report alpha to coverage as too expensive for grass | Vertices instead of overdraw; keeps the tiler's early depth | Kept |
+| 5 | Wind as a travelling wave (Ghost of Tsushima, Breath of the Wild) | Gusts visible as bands rolling across the meadow, tips brightening as they bend | A few sines per vertex, no texture fetch | Done (`wind_*`, `gust_*`) |
+| 6 | Per-clump colour variation | Warm and cool tufts break up large areas | A mix and a multiply per fragment from per-instance data | Done (`warm_clump`, `cool_clump`) |
+| 7 | Backlit translucency | Blades glow when you look toward the sun | One lighting term per fragment | Retuned: stronger, tinted by the blade (`backlight`) |
+| 8 | Distance convergence (inferred from Tsushima's clump-normal blend for specular aliasing) | Far blades fade toward their mid-tone with normals toward up, so sub-pixel slivers do not flicker as the head moves | One distance per vertex | Done (`far_begin`, `far_end`) |
+| 9 | Grass parts around the hands | The meadow responds to touch: reaching into it pushes blades aside and down | Two distance tests per vertex; two uniforms set per frame | Done (`hand_radius`) |
+| 10 | Per-blade Bezier curves with more segments | Smooth arcs instead of a two-segment bend | Vertex count grows with segments: about twice today's for a smooth curve | Not yet: needs headroom measured on the device |
+| 11 | View-space thickening (Tsushima: widen blades seen edge-on) | No vanishing slivers; less thin-geometry aliasing | A few vertex operations, but needs each blade's facing per vertex | Not yet |
+| 12 | Distance LOD: fewer, wider blades far away | Larger meadows at the same cost | Saves vertices; a second mesh per distance band | Not yet: the meadow fits today |
+
+Ruled out on this target: alpha-tested or dithered fades (break early depth on
+the tiler), screen-space or impostor grass shadows, and specular on blades
+(Ghost of Tsushima blends blade normals toward the clump's with distance
+specifically to tame specular aliasing). Wind stays low-frequency and
+world-anchored, so it moves the grass rather than the ground. Tiny Glade's public
+talks cover its walls and lighting, not its grass.
+
+Cost so far: on a desktop RTX 2080 at 1600×1200 the painted-meadow views of
+`demo/grass.json` render in about 1.1–1.6 ms of GPU time before and after these
+changes, inside run-to-run noise. Holding the Frame's refresh with them is
+measured on the device (the epic's flora-on-the-headset box).
+
+`demo/grass.json` paints a meadow, captures it from fixed cameras (with a hand
+held in the grass for the last pair), and records two benchmark stretches;
+`demo/wind.json` holds a view for a wind clip
+(`scripts/render.sh demo/wind.json OUT --write-movie OUT/wind.avi --fixed-fps 30`).
 
 ## Element inventory
 
@@ -261,3 +304,12 @@ The "how the original does it" column summarises public material only:
 - Developer posts on wall chemistry and arches: https://x.com/anastasiaopara/status/1575049506449563648, https://x.com/anastasiaopara/status/1472627194409230343
 - Developer post on ivy: https://x.com/anastasiaopara/status/1543163341513842690
 - Audio talk: https://www.youtube.com/watch?v=uSOccCo_CzI
+
+Grass techniques (public material from other games):
+
+- Eric Wohllaib, "Procedural Grass in 'Ghost of Tsushima'", GDC 2022, read through a summary: https://gist.ly/youtube-summarizer/procedural-grass-systems-in-ghost-of-tsushima-achieving-art-direction
+- A Godot implementation following that talk: https://github.com/2Retr0/GodotGrass
+- Grass rendering in Godot, theory and LOD: https://hexaquo.at/pages/grass-rendering-series-part-1-theory/, https://hexaquo.at/pages/grass-rendering-series-part-4-level-of-detail-tricks-for-infinite-plains-of-grass-in-godot/
+- Breath of the Wild grass, discussed: https://forums.unrealengine.com/t/botw-grass-style/437647
+- Grass on a standalone headset GPU: https://discussions.unity.com/t/any-clever-trick-for-tall-grass-on-mobile-quest/811738
+- Why `discard` costs early depth on Adreno: https://docs.mesa3d.org/drivers/freedreno/hw/lrz.html
