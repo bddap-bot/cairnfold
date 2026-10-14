@@ -1,4 +1,5 @@
 #include "res://src/palette.gdshaderinc"
+#include "res://src/bounce.gdshaderinc"
 
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 uniform vec3 moss : source_color = vec3(0.30, 0.42, 0.14);
@@ -7,6 +8,7 @@ varying vec3 world_pos;
 varying vec3 world_nrm;
 varying float occlusion;
 varying vec3 tint;
+varying vec3 bounce_at;
 
 void vertex() {
 #ifdef RIDES_GROUND
@@ -22,6 +24,7 @@ void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 #endif
+	bounce_at = bounce_coord(world_pos, world_nrm);
 	occlusion = INSTANCE_CUSTOM.x;
 	tint = material_tint(INSTANCE_CUSTOM.y);
 }
@@ -35,4 +38,7 @@ void fragment() {
 	ALBEDO = mix(base, moss, mossy * 0.8) * occlusion;
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.25;
+	vec4 bounce = texture(bounce_volume, bounce_at);
+	AO = bounce.a;
+	EMISSION = ALBEDO * bounce.rgb * bounce_light;
 }

@@ -18,6 +18,18 @@ textures/vram_compression/import_etc2_astc=true
 
 [shader_globals]
 
+bounce_volume={
+"type": "sampler3D",
+"value": ""
+}
+bounce_grid={
+"type": "vec3",
+"value": Vector3(0, 1, 1)
+}
+bounce_light={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
 ground_height={
 "type": "sampler2D",
 "value": ""

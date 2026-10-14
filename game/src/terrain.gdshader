@@ -4,6 +4,7 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 #include "res://src/ground.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
+#include "res://src/bounce.gdshaderinc"
 
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 uniform sampler2D flagstones : filter_linear_mipmap, repeat_enable;
@@ -18,6 +19,7 @@ uniform vec3 bed : source_color = vec3(0.50, 0.44, 0.32);
 varying vec3 world_pos;
 varying float steep;
 varying float under;
+varying vec3 bounce_at;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -26,6 +28,7 @@ void vertex() {
 	NORMAL = ground_normal(world_pos.xz);
 	steep = 1.0 - NORMAL.y;
 	under = water_at(world_pos.xz) - VERTEX.y;
+	bounce_at = bounce_on_ground(world_pos.xz);
 }
 
 void fragment() {
@@ -58,4 +61,7 @@ void fragment() {
 	}
 	ALBEDO = mix(c, trodden * (0.85 + fine * 0.3), smoothstep(0.1, 0.7, cover.r * (1.0 - cover.g) + (d - 0.5) * 0.3));
 	ROUGHNESS = 1.0;
+	vec4 bounce = texture(bounce_volume, bounce_at);
+	AO = bounce.a;
+	EMISSION = ALBEDO * bounce.rgb * bounce_light;
 }

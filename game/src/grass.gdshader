@@ -4,6 +4,7 @@ render_mode world_vertex_coords, cull_disabled, diffuse_lambert_wrap, specular_d
 #include "res://src/ground.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
+#include "res://src/bounce.gdshaderinc"
 
 uniform vec3 root_color : source_color = vec3(0.10, 0.24, 0.06);
 uniform vec3 tip_lush : source_color = vec3(0.45, 0.68, 0.18);
@@ -34,6 +35,7 @@ varying float tip;
 varying vec3 top;
 varying float gust;
 varying float far;
+varying vec3 bounce_at;
 
 vec3 parted(vec3 v, vec3 root, vec3 hand) {
 	vec2 away = v.xz - hand.xz;
@@ -50,6 +52,7 @@ void vertex() {
 	VERTEX.y += ground;
 	vec3 root = MODEL_MATRIX[3].xyz + vec3(0.0, ground, 0.0);
 	float size = length(MODEL_MATRIX[1].xyz);
+	bounce_at = bounce_on_ground(root.xz);
 	float worn = bare(root.xz);
 	VERTEX = root + (VERTEX - root) * vec3(1.0 - worn * 0.5, 1.0 - worn, 1.0 - worn * 0.5);
 	float dist = distance(root, CAMERA_POSITION_WORLD);
@@ -85,4 +88,7 @@ void fragment() {
 	NORMAL -= 2.0 * min(dot(NORMAL, up), 0.0) * up;
 	ROUGHNESS = 0.9;
 	BACKLIGHT = top * backlight * t * (1.0 - 0.5 * far);
+	vec4 bounce = texture(bounce_volume, bounce_at);
+	AO = bounce.a;
+	EMISSION = ALBEDO * bounce.rgb * bounce_light;
 }

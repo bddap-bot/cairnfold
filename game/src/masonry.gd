@@ -10,6 +10,10 @@ extends Node3D
 ## MultiMesh as a whole, by its bounds.
 const CHUNK_METRES := 16.0
 
+## An owner's pieces that stand in the light (`Kind.occludes`) changed: their buffers and strides, empty
+## once it is gone.
+signal placed(owner: int, buffers: Array[PackedFloat32Array], strides: PackedInt32Array)
+
 
 ## How one kind of piece is drawn. An instance is 12 transform floats, then 4 colour floats and 4 custom
 ## floats (occlusion, then the code of its palette material) when the kind uses them.
@@ -19,13 +23,17 @@ class Kind:
 	var colors: bool
 	var custom: bool
 	var shadow: GeometryInstance3D.ShadowCastingSetting
+	## Whether its pieces shade the light around them (Bounce); such a kind uses colours.
+	var occludes: bool
 
-	func _init(m: Mesh, mat: Material, use_colors: bool, use_custom: bool, cast: GeometryInstance3D.ShadowCastingSetting) -> void:
+	func _init(m: Mesh, mat: Material, use_colors: bool, use_custom: bool, cast: GeometryInstance3D.ShadowCastingSetting, occluding := false) -> void:
+		assert(use_colors or not occluding, "occluding pieces carry colours")
 		mesh = m
 		material = mat
 		colors = use_colors
 		custom = use_custom
 		shadow = cast
+		occludes = occluding
 
 	func stride() -> int:
 		return 12 + (4 if colors else 0) + (4 if custom else 0)
@@ -90,7 +98,15 @@ func _init(piece_kinds: Array[Kind]) -> void:
 ## it had placed before. An owner stays whole in one chunk, so placing it splits no buffer.
 func place(owner: int, at: Vector3, parts: Array[PackedFloat32Array]) -> void:
 	assert(parts.size() == kinds.size(), "one buffer per kind")
-	remove(owner)
+	var had := _drop(owner)
+	var buffers: Array[PackedFloat32Array] = []
+	var strides := PackedInt32Array()
+	for k in kinds.size():
+		if kinds[k].occludes and not parts[k].is_empty():
+			buffers.append(parts[k])
+			strides.append(kinds[k].stride())
+	if had or not buffers.is_empty():
+		placed.emit(owner, buffers, strides)
 	if parts.all(func(b: PackedFloat32Array) -> bool: return b.is_empty()):
 		return
 	var key := Vector2i(floori(at.x / CHUNK_METRES), floori(at.z / CHUNK_METRES))
@@ -101,13 +117,20 @@ func place(owner: int, at: Vector3, parts: Array[PackedFloat32Array]) -> void:
 
 
 func remove(owner: int) -> void:
+	if _drop(owner):
+		placed.emit(owner, [] as Array[PackedFloat32Array], PackedInt32Array())
+
+
+## Takes away what `owner` had placed; false if it had nothing.
+func _drop(owner: int) -> bool:
 	if not _owners.has(owner):
-		return
+		return false
 	var key: Vector2i = _owners[owner]
 	_chunks[key].parts.erase(owner)
 	_owners.erase(owner)
 	_dirty[key] = true
 	set_process(true)
+	return true
 
 
 ## Instances placed, by kind: what the build costs to render.

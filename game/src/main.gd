@@ -45,6 +45,7 @@ func _ready() -> void:
 	add_child(flora_tool)
 	tool = WallTool.new(rig, world, flora, paths)
 	builds.add_child(tool)
+	tool.masonry.placed.connect(look.bounce.place)
 	fitting_tool = FittingTool.new(rig, tool, world)
 	add_child(fitting_tool)
 	delete_tool = DeleteTool.new(rig, tool, flora_tool, world)

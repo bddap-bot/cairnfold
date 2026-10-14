@@ -1,6 +1,7 @@
 #include "res://src/ground.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
+#include "res://src/bounce.gdshaderinc"
 
 uniform vec3 albedo : source_color = vec3(1.0);
 uniform float roughness = 1.0;
@@ -13,6 +14,8 @@ uniform vec3 backlight : source_color = vec3(0.0);
 uniform float draw_reach = 1000.0;
 uniform float draw_fade = 4.0;
 #endif
+
+varying vec3 bounce_at;
 
 void vertex() {
 	float ground = ground_at(INSTANCE_CUSTOM.zw);
@@ -27,6 +30,7 @@ void vertex() {
 	}
 	VERTEX = mix(VERTEX, root, smoothstep(draw_reach - draw_fade, draw_reach, distance(root, CAMERA_POSITION_WORLD)));
 #endif
+	bounce_at = bounce_coord(VERTEX, NORMAL);
 	if (drowned(INSTANCE_CUSTOM.zw, ground)) {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);
 	}
@@ -50,6 +54,9 @@ void fragment() {
 	ALBEDO = albedo * COLOR.rgb;
 #endif
 	ROUGHNESS = roughness;
+	vec4 bounce = texture(bounce_volume, bounce_at);
+	AO = bounce.a;
+	EMISSION = ALBEDO * bounce.rgb * bounce_light;
 #ifdef BACKLIT
 	BACKLIGHT = seasoned(backlight, season_foliage);
 #endif

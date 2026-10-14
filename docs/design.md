@@ -483,17 +483,76 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
 
 - **Light:** one warm directional sun with soft two-split shadows; sky ambient
   from a hand-tuned sky shader (zenith-to-horizon gradient, sun glow, painted noise
-  clouds); baked per-instance occlusion (lower courses darker, wall bases darker)
-  standing in for GI darkening; wrap-lambert diffuse for soft terminators; foliage
-  backlight for the glowing-leaf look.
+  clouds); a probe volume of the light the builds give back (see "Bounce light"
+  below) on top of baked per-instance occlusion (lower courses darker); wrap-lambert
+  diffuse for soft terminators; foliage backlight for the glowing-leaf look.
 - **Atmosphere:** depth fog with aerial perspective and sun scatter, tinted towards
-  the sky, so distant hills fade blue and the near meadow stays saturated.
+  the sky, so distant hills fade and the near meadow stays saturated.
+- **Floating viewpoints:** shadows and fog follow the eye's height above the
+  ground (`Look.shadow_and_fog`). Standing, the sun's shadows reach 45 m and the
+  nearer of their two splits covers the first 6 m. Floating higher, both stretch
+  with the drop to the ground (to 90 m at most), so the sharp split lands on the
+  garden below instead of the empty air around the eye, and fog begins and ends
+  farther out, so the garden is not greyed by air a standing eye would not look
+  through. Setting them costs only the uniform writes, made each time the height
+  moves by half a metre.
 - **Grading:** AgX tonemapping, mild saturation and contrast lift. No glow: its
   extra passes cost the Quest 2 9 ms of its 13.9 (see "Quest 2 measurements").
 - **Detail:** everything repeated is a MultiMesh: stones, grass clumps, flowers,
   foliage. Stones are rounded, lumpy boxes with per-stone colour, so walls read as
   individual pieces. Grass is geometry (no alpha test) to stay cheap on tiled GPUs;
   see "Grass" below.
+
+### Bounce light
+
+A low-resolution probe volume stands in for global illumination (`Bounce`). The
+play area, 160 m square, has one probe per metre in 12 layers a metre apart that
+follow the ground, shared with shaders as a 160×160×12 RGBA8 3D texture
+(`bounce_volume`, `bounce.gdshaderinc`). Alpha is how much sky a probe sees past
+the builds around it. It scales ambient light only (`AO`), so in shade the feet of
+walls, inner corners and the inside of a house darken over about a metre, while
+sunlit ground keeps its sun. RGB is sunlight thrown back by the sunlit stone faces
+a probe sees, added as emission: the surface's own colour times the sun's colour
+and strength (`bounce_light`). A shaded face across from a sunlit one warms up.
+
+The builds are read as a height field: per one-metre column, the top of the
+stones and roof tiles over it and their mean colour, taken from the pieces each
+build places (`Masonry`, kinds marked `occludes`). Walls, towers and houses stand
+straight up, so a probe's view becomes a horizon in each of 8 directions, walked 6
+columns out. A face counts as sunlit when a walk of 12 columns toward the sun
+passes over the builds in between at the face's mid-height. When a build settles,
+changes or goes, when the sun moves, or when the ground is reshaped, the probes
+that could see the change are solved again on a worker thread, and the main
+thread only uploads the finished layers. On the desktop the densest stress scene
+(973 m of walls, about 40,000 stones) solves in under 0.7 s. While the sun is
+dragged the bounce follows a solve behind it. Walls still being drawn or pulled
+are left out until they settle.
+
+Its cost on the Quest 2, from `scripts/bench.sh --android` on the stress scene with
+and without this pass (the ladder held at the top, 23 phases from the meadow
+through the ducks): a median of 1.3 ms more GPU time a frame. The open meadow
+costs 0.2 ms more standing and 1.0 ms more from the air, so shadows stretched for
+the air are a suspect, as is the stone shader reading the ground's height again
+in every vertex; the epic tracks finding and cutting it.
+
+Every lit surface built or grown on the ground reads it: stone, roof tiles and
+plaster, the ground, grass, flowers and trees. Each finds its texel in its vertex
+shader and samples once per fragment; the ground and grass take the lowest layer
+without reading the ground's height again. Tested headless in
+`tests/test_bounce.gd`; `demo/lighting.json` renders a tower, walls with an arch
+and a house from the ground, from 9 m up and from 25 m up, in late afternoon
+light.
+
+![The mood target, then the garden without and with the probe volume and the height-following shadows and fog: from the ground (top), 9 m up (middle) and 25 m up (bottom)](lighting.jpg)
+
+The mood target (left) is a generated painting of the light wanted, made for
+this comparison. Without the probe volume and the height-following shadows and
+fog (middle) and with them (right; ivy grows differently each run): the inside
+of the house through its arch and the corner where wall meets tower go dark, the
+wall's foot darkens, and from 25 m up the garden is no longer greyed by fog while
+the hills beyond still fade. Still short of the target: its warmer, golden
+late-afternoon light and blue distant haze belong to the time-of-day colours
+(`Daylight`), not to this pass.
 
 ### Grass
 
@@ -563,10 +622,10 @@ Stage numbers refer to the build order at the end.
 | Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs; the trigger of a hand holding the tree tool plants one where it points | 1 (done), 3 (done) |
 | Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | The terrain tool's trigger grabs the ground where it points and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then stone ground show on steep slopes | 7 (shaping done) |
 | Water | Dug holes with a flat surface and normal-map waves | The pond tool scoops a hollow where it points; it fills to just below its rim with depth-tinted water, shore foam and ripples where a hand breaks it (see "Water") | 7 (water done) |
-| Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, a low-res light-probe volume rebuilt when building changes | 2 |
-| Shadows | Soft sun shadows with temporal filtering, contact shadows | Two-split soft shadows; tuned splits for a floating viewpoint | 1 (done), 2 |
+| Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, and a one-metre probe volume of sky seen and sunlight bounced off sunlit stone, solved again on a worker when a build settles or the sun moves (see "Bounce light") | 2 (done) |
+| Shadows | Soft sun shadows with temporal filtering, contact shadows | Two-split soft shadows; occlusion darkening at wall feet and corners from the probe volume; splits and reach that follow the eye's height | 1 (done), 2 (done) |
 | Sky and clouds | Hand-tuned colour timelines per glade; clouds as pre-lit sprites on a cylinder | Sky shader gradient and painted noise clouds; zenith, horizon, sun glow, cloud light and fog colour follow the sun's elevation through one timeline of keys (`Daylight`) | 1 (done), 8 (done) |
-| Fog | Froxel fog with density and height controls | Depth and height fog with sun scatter | 1 (done), 2 |
+| Fog | Froxel fog with density and height controls | Depth fog with aerial perspective and sun scatter, thinning as the eye lifts | 1 (done), 2 (done) |
 | Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap and grading (done); glow cut for the Quest 2. No depth of field: in a headset your eyes focus for themselves | 1 (done) |
 | Time of day | Continuous, lockable, sun-angle slider | Point any hand at the sun (it swells), grip it and drag it along its arc, from under the horizon at dawn, high in front at noon, to under it at dusk; a soft click in the hand each hour. The sun's colour and strength, sky, fog and ambient follow. Not an edit: undo leaves it be | 8 (done) |
 | Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette on the controller): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. Stone, roof tiles, woodwork (fences, window frames, doors) and plaster (gable ends) each take one of 6–8 curated swatches for the whole glade; on the meadow the wheel holds the five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch through one shader global per material (`Palette`), so recolouring relays nothing | 8 (done) |
@@ -714,7 +773,7 @@ Ordered by what makes it feel like the original soonest. Progress is tracked in
 the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 
 1. First playable: meadow, sky and fog, teleport and float, walls with stones, cap, merlons, piers and arches. (Done.)
-2. Lighting pass: bounce light from a probe volume rebuilt on edits, contact darkening, shadow split and fog tuning for floating viewpoints, compared side by side with the mood target.
+2. Lighting pass: bounce light from a probe volume rebuilt on edits, contact darkening, shadow split and fog tuning for floating viewpoints, compared side by side with the mood target. (Done.)
 3. Ivy and flora: ivy over walls and around openings, flower and grass painting, tree placement by pointing. (Done.)
 4. Towers, houses and roofs: loop-to-tower, two-handed footprints, tiled roofs with pull-to-shape, wall-top style per wall. (Done.)
 5. Paths and wall chemistry: path brush; a path through a wall cuts an arch, wide crossings become arcades. (Done.)
