@@ -1,11 +1,18 @@
 class_name Metrics
 extends Node
 
-## Frame-time record: every frame's delta summarised per second with the GPU time the process used in it and
-## the most draw calls and primitives any frame drew, flushed to JSON as it goes.
+## Frame-time record: every frame's delta summarised per second with the GPU time the process used in it, the
+## most draw calls and primitives any frame drew, and the viewport's GPU time per frame and the lowest quality
+## step the governor took (see Quality), flushed to JSON as it goes.
 
 var path: String
 var info := {}
+var quality: Quality
+## The tracked head, whose height above the play area's floor each second records.
+var head: Node3D
+var _step := 0
+var _viewport_ms := 0.0
+var _viewport_frames := 0
 var _deltas: PackedFloat32Array = []
 var _gpu_ns := -1
 var _drm_fds: PackedStringArray = []
@@ -26,6 +33,10 @@ func _process(delta: float) -> void:
 	_deltas.append(delta * 1000.0)
 	_draws = maxi(_draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
+	if quality != null and quality.fresh:
+		_step = maxi(_step, quality.step())
+		_viewport_ms += quality.frame_ms
+		_viewport_frames += 1
 	_acc += delta
 	if _acc >= 1.0:
 		var gpu := gpu_ns()
@@ -34,9 +45,19 @@ func _process(delta: float) -> void:
 			row.gpu_ms = (gpu - _gpu_ns) / 1e6
 		_gpu_ns = gpu
 		row.draws = _draws
+		if head != null:
+			row.head_m = snappedf(head.position.y, 0.01)
 		row.prims = _prims
 		_draws = 0
 		_prims = 0
+		if _viewport_frames > 0:
+			row.viewport_gpu_ms = _viewport_ms / _viewport_frames
+			row.step = _step
+			if quality.budget_ms > 0.0:
+				row.budget_ms = quality.budget_ms
+		_step = quality.step() if quality != null else 0
+		_viewport_ms = 0.0
+		_viewport_frames = 0
 		_seconds.append(row)
 		_deltas.clear()
 		_acc = 0.0

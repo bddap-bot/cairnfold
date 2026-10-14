@@ -208,12 +208,12 @@ func _grass_out_of_reach_is_not_drawn() -> void:
 	var flora := Flora.new()
 	root.add_child(flora)
 	var rng := _rng(7)
-	var near := Vector3(Flora.GRASS_REACH - 1.0, 0, 0)
-	var far := Vector3(Flora.GRASS_REACH + Flora.Pool.CELL * 1.5, 0, 0)
+	var near := Vector3(flora.grass_reach - 1.0, 0, 0)
+	var far := Vector3(flora.grass_reach + Flora.Pool.CELL * 1.5, 0, 0)
 	flora.add_grass(near, rng)
 	flora.add_grass(far, rng)
 	flora.keep()
-	flora.grass.cull(Vector3.ZERO)
+	flora.grass.cull(Vector3.ZERO, flora.grass_reach)
 	var shown := {}
 	for mmi: MultiMeshInstance3D in flora.get_children():
 		if mmi.multimesh != flora.grass.mm and mmi.multimesh.mesh == flora.grass.mm.mesh:

@@ -9,8 +9,6 @@ extends Node3D
 const PAINTED_GRASS := 12000
 const PAINTED_FLOWERS := 4000
 const PLACED_TREES := 64
-## How far from the eye grass is drawn: sub-pixel blades beyond it cost the Quest 2 most of its frame.
-const GRASS_REACH := 24.0
 ## Where an untracked hand is, as far as the grass knows.
 const NO_HAND := Vector3(0, -1000, 0)
 ## Painted plant kinds, as build commands name them; "tree" is the other kind of group.
@@ -35,7 +33,6 @@ class Pool:
 	var _parent: Node3D
 	var _mat: Material
 	var _shadows: bool
-	var _reach: float
 	## Each slot's colour and custom data until `keep()` bakes it: a MultiMesh does not give them back.
 	var _colors := PackedColorArray()
 	var _customs := PackedColorArray()
@@ -44,11 +41,10 @@ class Pool:
 	var _cells: Array[MultiMeshInstance3D] = []
 	var _centres := PackedVector2Array()
 
-	func _init(parent: Node3D, mesh: Mesh, capacity: int, mat: Material, shadows: bool, reach := INF) -> void:
+	func _init(parent: Node3D, mesh: Mesh, capacity: int, mat: Material, shadows: bool) -> void:
 		_parent = parent
 		_mat = mat
 		_shadows = shadows
-		_reach = reach
 		_setup(mm, mesh, capacity)
 		mm.visible_instance_count = 0
 		stamps.resize(capacity)
@@ -138,8 +134,8 @@ class Pool:
 
 	## Not `visibility_range_end`: that measures to the box's centre, which sits high above the ground because a
 	## cell's box spans every height the terrain can be pulled to.
-	func cull(eye: Vector3) -> void:
-		var r := _reach + CELL * sqrt(0.5)
+	func cull(eye: Vector3, reach: float) -> void:
+		var r := reach + CELL * sqrt(0.5)
 		for i in _cells.size():
 			_cells[i].visible = _centres[i].distance_to(Vector2(eye.x, eye.z)) < r
 
@@ -206,15 +202,20 @@ var groups := {}
 ## garden's plants so that those fill their pools in command order on every machine.
 var ghost_grass: Pool
 var ghost_flowers: Pool
+## How far from the eye grass is drawn, as Quality steps it; sub-pixel blades beyond it cost the Quest 2 most of its frame.
+var grass_reach: float = Quality.GRASS_M[0]:
+	set(m):
+		grass_reach = m
+		grass_mat.set_shader_parameter(&"draw_reach", m)
 
 
 func _init() -> void:
 	grass_mat.shader = load("res://src/grass.gdshader")
+	grass_mat.set_shader_parameter(&"draw_reach", grass_reach)
 	part(NO_HAND, NO_HAND)
-	grass_mat.set_shader_parameter(&"draw_reach", GRASS_REACH)
 	var clump := Meshes.grass_clump(7, 1)
 	var bloom := Meshes.flower(6)
-	grass = Pool.new(self, clump, Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false, GRASS_REACH)
+	grass = Pool.new(self, clump, Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false)
 	var flower_mat := _plant_material("flower", Color.WHITE, 0.8)
 	flower_mat.set_shader_parameter("stalk", Meshes.STALK)
 	flower_mat.set_shader_parameter("eye", Meshes.EYE)
@@ -244,7 +245,7 @@ static func _plant_material(shader: String, albedo: Color, roughness: float) -> 
 func _process(_delta: float) -> void:
 	var eye := get_viewport().get_camera_3d()
 	if eye != null:
-		grass.cull(eye.global_position)
+		grass.cull(eye.global_position, grass_reach)
 
 
 func part(left: Vector3, right: Vector3) -> void:

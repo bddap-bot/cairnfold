@@ -21,6 +21,7 @@ var palette_tool: PaletteTool
 var photo_tool: PhotoTool
 var sound: Soundscape
 var metrics: Metrics
+var quality: Quality
 
 
 func _ready() -> void:
@@ -83,6 +84,12 @@ func _ready() -> void:
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 	metrics = Metrics.new(args.get("metrics", ""))
 	metrics.info = {"xr": _start_xr(), "label": "", "budget": Budget.info()}
+	quality = Quality.new(xr if metrics.info.xr else null, flora)
+	if args.has("quality"):
+		quality.pin = int(args.quality)
+	add_child(quality)
+	metrics.quality = quality
+	metrics.head = rig.head
 	add_child(metrics)
 	var garden: String = args.get("garden", "user://garden.save" if get_tree().current_scene == self and not args.has("script") else "")
 	if garden != "":
@@ -133,6 +140,7 @@ func _note_session() -> void:
 	metrics.info.render_scale = xr.render_target_size_multiplier
 	metrics.info.eye_fov_deg = [_fov(xr.get_projection_for_view(0, 1.0, 0.05, 400.0)), _fov(xr.get_projection_for_view(1, 1.0, 0.05, 400.0))]
 	metrics.info.eye_gaze = xr.is_eye_gaze_interaction_supported()
+	metrics.info.play_area = {XRInterface.XR_PLAY_AREA_SITTING: "local", XRInterface.XR_PLAY_AREA_ROOMSCALE: "local floor", XRInterface.XR_PLAY_AREA_STAGE: "stage"}.get(xr.xr_play_area_mode, str(xr.xr_play_area_mode))
 	print("xr: session at ", xr.display_refresh_rate, " Hz, eye gaze ", metrics.info.eye_gaze)
 
 

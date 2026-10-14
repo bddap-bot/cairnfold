@@ -17,8 +17,10 @@ aiming at; our implementation is our own.
 - Standalone on the Steam Frame, launched from a Steam library shortcut, and on
   Quest 2 and later as a sideloaded APK (`scripts/android.sh`). Every release
   (`scripts/release.sh`) carries both builds.
-- One graphics configuration for every headset, tuned to the weakest GPU: the
-  Quest 2's XR2 Gen 1 at 72 Hz. No per-device quality tiers.
+- One graphics configuration for every headset: a ladder from full quality down
+  that each headset walks by its own GPU time, settling on the prettiest step it
+  can hold (see "Automatic quality"). No per-device quality tiers, no settings
+  menu.
 - Hold the headset's refresh rate at all times, whatever is built. A frame that
   misses vsync in VR is felt, not seen; every feature is measured at worst-case
   density before it lands (see "Frame budget").
@@ -208,6 +210,130 @@ a 12.5 ms budget, so standing leaves room for roughly 2,000 stones (about 75 m o
 2.6 m wall) at the Frame's cost scaled to the Quest's slower GPU, and floating
 leaves none until the meadow's own cost comes down. A Quest run of this scene sets
 the number.
+
+## Automatic quality
+
+Directive (verbatim):
+> I expect since cairnfold can measure frame times it could dynamically choose graphics settings to keep players safer from stutter. Limitations/quirks I think:
+> - delta in the setting would need to not *cause* a frame pause
+> - not sure which settings are worth making dynamic
+> - multiple settings to tweak but only one signal
+>
+> My motivation for these thoughts are not wanting myself or my players to need to think about or tweak settings, but still see things as pretty as possible but still experience buttery framerate.
+
+**Decision: the one graphics configuration is a ladder of grass reach, walked by the GPU
+time of every frame.** `Quality` (`game/src/quality.gd`) draws grass to 24, 20, 16, 13 or
+10 m. A governor reads each frame's GPU time and steps down the ladder at once when frames
+run over the refresh period, and back up only after a calm spell. Every headset starts at
+the top and settles on the prettiest step it holds at its own refresh rate. There are no
+per-headset presets and no settings menu.
+
+### Which knobs matter
+
+Measured on the Quest 2 (72 Hz, GPU at its top clock) with each candidate held on its own,
+from 22 m up over the bare meadow, where the full-quality game misses refresh. GPU time is
+the runtime's `App=` time per frame, the median of 7 seconds:
+
+| Knob, held at | GPU per frame | Frames per second |
+| --- | --- | --- |
+| Full quality | 14.0 ms | 67 |
+| Grass drawn to 13 m instead of 24 m | 12.2 ms | 72 |
+| Render resolution 0.5 of each eye's width and height (the OpenXR render region) | 14.0 ms | 67 |
+| Render resolution 0.7 | 13.9 ms | 67 |
+| Fixed foveation level 3 (`XR_FB_foveation`) | 13.9 ms | 67 |
+| Sun shadows to 20 m instead of 45 m | 13.8 ms | 68 |
+| Mesh LOD threshold 4 px instead of 1 | 14.0 ms | 67 |
+
+Standing in the meadow, or floating 8.5 m above it, every knob measured within the
+half-millisecond noise. The GPU is bound by grass vertices, not pixels, so grass reach is
+the only knob that buys time; the others would cost looks for nothing and are not on the
+ladder. A knob joins it only with a measured saving. Grass reach changes at no frame cost:
+`Flora.grass_reach` hides whole 16 m grass cells beyond it and sets one shader uniform over
+which blades shrink into the ground over the last 8 m, and it moves toward each new step at
+8 m a second, so the meadow's edge recedes rather than jumps. Ruled out for any later knob
+because they reallocate or recompile mid-play: MSAA level, shadow atlas size, toggling
+shadows or glow (pipeline variants) and the render-target multiplier (Godot frees and
+recreates the swapchain when it changes).
+
+Each step, measured the same way (`demo/ladder.json`):
+
+| Grass reach | Bare meadow from the air | Every flora pool full, from the air |
+| --- | --- | --- |
+| 24 m | 13.9 ms, 67 fps | 20.7 ms, 45 fps |
+| 20 m | 12.9 ms, 72 fps | 19.3 ms, 48 fps |
+| 16 m | 12.4 ms, 72 fps | 18.3 ms, 51 fps |
+| 13 m | 11.7 ms, 72 fps | 16.9 ms, 55 fps |
+| 10 m | 11.8 ms, 72 fps | 16.6 ms, 56 fps |
+
+From the air the grass beyond 16 m is a few pixels a blade, so the settled steps are hard to
+tell apart from the top. Full flora and dense walls are beyond what the ladder can reach:
+at 973 m of walls the Quest 2 takes 42 ms a frame and no knob moved it by more than noise.
+Those are building costs, held by the build budget ("Frame budget"), not by the ladder.
+
+### One signal, many knobs
+
+The signal is the GPU time of the frame the viewport just rendered
+(`RenderingServer.viewport_get_measured_render_time_gpu`, GPU timestamps around the
+viewport's passes): the same on every headset and blind to CPU hitches, which no graphics
+knob would cure. On the Quest 2 it reads about 1 ms above the runtime's `App=` time, and
+frames hold 72 Hz until it reaches the whole refresh period, so the period is its line. The
+rate is read from the runtime every frame, since it reports the shell's rate for the first
+frames of a session. Any later knob takes its place on the same ladder, cheapest loss per
+millisecond first, so one signal still maps to one position.
+
+The governor (`Quality.Governor`) is Valve's adaptive quality with slower recovery:
+
+- Down fast: two consecutive frames over 105% of the period step down one; frames a
+  quarter over step down two. Six frames then pass unjudged while the timer catches up,
+  and none is judged until the grass has reached its new step.
+- Up slowly: two seconds with the frame time, averaged over one second, under 96% of the
+  period step up one. Single frames vary by more than a step saves, so they neither make
+  nor break a calm spell.
+- No oscillation: a step down within ten seconds of the step up that reached it doubles the
+  calm needed to step up into that step again, up to 64 seconds, for the session.
+- The first five seconds of rendered frames are not judged: loading's frames are not the
+  scene's cost.
+
+Valve's The Lab drops two levels on a single frame over 90% of the refresh period and climbs
+one after three frames under 70%, but its levels only change resolution, which does not
+show frame to frame. A step of grass reach does show, so climbing waits for seconds rather
+than frames.
+
+`--quality N` and the driver's `quality` op hold the ladder at step N, for measuring. Each
+second of `metrics.json` records the lowest step the ladder took (`step`), the viewport's
+GPU time per frame (`viewport_gpu_ms`) and the governor's line (`budget_ms`).
+
+### On the Quest 2
+
+`demo/tour.json` walks the meadow from the ground and the air, then every flora pool full
+and walls 2 m apart over a 10 m disc. Played with the ladder held at the top
+(`--quality 0`) and governed, on the Quest 2 (runtime `FPS=` and `App=` per second):
+
+| Phase | Held at the top | Governed |
+| --- | --- | --- |
+| Meadow, standing | 72 fps (step 0) | 72 fps (step 0) |
+| Meadow, from the air | 67 fps, 149 frames missed in 30 s | 72 fps at step 2, 2 missed |
+| Back on the ground | 72 fps | 72 fps, climbing back to step 0 within 25 s |
+| Every flora pool full, from the air | 45 fps | 57 fps at step 4 |
+| Walls over a 10 m disc, from the air | 33 fps | 36 fps at step 4 |
+
+Over the whole tour 3,291 frames missed held at the top and 2,475 governed.
+
+The play area on the Quest 2 resolves to LOCAL space when no boundary is set, as when the
+headset lies unworn after a restart; `metrics.json` records it (`info.play_area`) with the
+head's height each second (`head_m`).
+
+Not yet measured worn on the Steam Frame, where the GPU timer's offset from the runtime's
+own time is unknown; the epic tracks that check.
+
+Sources: Alex Vlachos, "Advanced VR Rendering Performance", GDC 2016
+(https://gdcvault.com/play/1023522/Advanced-VR-) and the adaptive quality code it describes
+in Valve's The Lab Renderer (https://github.com/ValveSoftware/the_lab_renderer,
+`ValveCamera.cs`); Unity's `XRSettings.renderViewportScale`, which renders into part of the
+eye texture so resolution can change without reallocating it
+(https://docs.unity3d.com/ScriptReference/XR.XRSettings-eyeTextureResolutionScale.html);
+Meta's dynamic resolution, which scales the rendered viewport between a minimum and maximum
+by GPU utilisation (https://developers.meta.com/horizon/documentation/unity/dynamic-resolution-unity/).
 
 ## Look on a mobile budget
 
