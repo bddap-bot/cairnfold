@@ -1,5 +1,5 @@
 class_name Duck
-extends MeshInstance3D
+extends Critter
 
 ## A low-poly duck built from soft ellipsoids; idle, paddle, waddle and flight run in its vertex shader.
 ## Part ids ride in UV2.x so the shader knows which pivot each vertex turns about.
@@ -22,42 +22,21 @@ const WADDLE := Vector4(0, 0, 1, 0)
 const FLY := Vector4(0, 0, 0, 1)
 const BLEND := 3.0
 
-static var _meshes := {}
-static var _material: ShaderMaterial
-
 var size := 1.0
 var pace := 1.0
-var mode := IDLE
 var afloat := false
 
 
 func _init(chick: bool, phase: float) -> void:
-	if not _meshes.has(chick):
-		_meshes[chick] = build(chick)
-	if _material == null:
-		_material = ShaderMaterial.new()
-		_material.shader = load("res://src/duck.gdshader")
-	mesh = _meshes[chick]
-	material_override = _material
+	super("duckling" if chick else "duck", build.bind(chick), "res://src/duck.gdshader", BLEND, phase)
 	size = CHICK_SIZE if chick else 1.0
 	pace = 1.6 if chick else 1.0
 	scale = Vector3.ONE * size
-	set_instance_shader_parameter("phase", phase)
 	set_instance_shader_parameter("pace", pace)
-	set_instance_shader_parameter("mode", mode)
 
 
 func walk_speed() -> float:
 	return STRIDE_SPEED * size * pace
-
-
-func blend(target: Vector4, delta: float) -> void:
-	if mode == target:
-		return
-	var d := target - mode
-	var step := delta * BLEND
-	mode = target if d.length() <= step else mode + d * (step / d.length())
-	set_instance_shader_parameter("mode", mode)
 
 
 static func build(chick: bool) -> ArrayMesh:

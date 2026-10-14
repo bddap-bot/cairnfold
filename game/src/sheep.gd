@@ -1,5 +1,5 @@
 class_name Sheep
-extends MeshInstance3D
+extends Critter
 
 ## A low-poly sheep: a fleece of overlapping soft blobs, a dark face and legs. Idle, graze, walk and lie run in
 ## its vertex shader, blended by `mode`; the legs step by `gait`, which the CPU advances by the ground covered
@@ -30,42 +30,21 @@ const RADIUS := 0.42
 const HIP := 0.32
 const FACE_AT := Vector3(0, 0.7, -0.47)
 
-static var _mesh: ArrayMesh
-static var _material: ShaderMaterial
-
 var size := 1.0
-var mode := IDLE
 var gait := 0.0
-## What `Herds` has this sheep doing (a `Herds.State`), until when, and where to.
-var state := 0
+## What `Herds` has this sheep doing, until when, and where to.
+var state := Herds.State.ENTER
 var timer := 0.0
 var goal := Vector3.ZERO
-var speed := 0.0
 
 
 func _init(phase: float, scale_by: float, tint: Color) -> void:
-	if _mesh == null:
-		_mesh = build()
-		_material = ShaderMaterial.new()
-		_material.shader = load("res://src/sheep.gdshader")
-	mesh = _mesh
-	material_override = _material
+	super("sheep", build, "res://src/sheep.gdshader", BLEND, phase)
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	size = scale_by
 	scale = Vector3.ONE * size
-	set_instance_shader_parameter("phase", phase)
-	set_instance_shader_parameter("mode", mode)
 	set_instance_shader_parameter("gait", gait)
 	set_instance_shader_parameter("wool", Vector3(tint.r, tint.g, tint.b))
-
-
-func blend(target: Vector4, delta: float) -> void:
-	if mode == target:
-		return
-	var d := target - mode
-	var step := delta * BLEND
-	mode = target if d.length() <= step else mode + d * (step / d.length())
-	set_instance_shader_parameter("mode", mode)
 
 
 ## Advances the legs by `distance` walked.

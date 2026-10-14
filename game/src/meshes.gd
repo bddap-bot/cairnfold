@@ -1,6 +1,9 @@
 class_name Meshes
 extends RefCounted
 
+## How far `ellipsoid` leans normals toward its `round` point.
+const ROUND := 0.6
+
 
 ## A unit cube (-0.5..0.5) with rounded edges, its surface lumped by `seed` so no two variants match.
 static func rounded_box(radius: float, segments: int, seed: int) -> ArrayMesh:
@@ -196,9 +199,11 @@ static func butterfly() -> ArrayMesh:
 	return st.commit()
 
 
-## A latitude-longitude ellipsoid whose vertices carry `part` in UV2.x, for a vertex shader to pivot by;
-## `shape` may bend each surface point (given relative to the centre).
-static func ellipsoid(st: SurfaceTool, part: int, c: Vector3, r: Vector3, col: Color, lat: int, lon: int, shape := Callable()) -> void:
+## A latitude-longitude ellipsoid with half-axes `r` along `axes`, its vertices carrying `part` in UV2.x for a
+## vertex shader to pivot by. `shape` may bend each surface point (given in the ellipsoid's own frame, relative
+## to its centre), and `ruffle` pushes the surface in and out a little, like fluffed feathers. Given `round`,
+## normals lean by ROUND toward pointing away from it, so overlapping blobs shade as one soft mass.
+static func ellipsoid(st: SurfaceTool, part: int, c: Vector3, r: Vector3, col: Color, lat: int, lon: int, shape := Callable(), axes := Basis(), ruffle := 0.0, round := Vector3.INF) -> void:
 	var ring := []
 	for i in lat + 1:
 		var row := []
@@ -206,19 +211,23 @@ static func ellipsoid(st: SurfaceTool, part: int, c: Vector3, r: Vector3, col: C
 		for j in lon:
 			var ph := TAU * j / lon
 			var u := Vector3(sin(th) * cos(ph), cos(th), sin(th) * sin(ph))
-			var p := u * r
+			var p := u * r * (1.0 + ruffle * (sin(ph * 5.0 + th * 3.0) * 0.6 + sin(ph * 3.0 - th * 7.0 + 1.3) * 0.4) * sin(th))
 			if shape.is_valid():
 				p = shape.call(p)
-			row.append([c + p, (u / r).normalized()])
+			var at := c + axes * p
+			var n := (axes * (u / r)).normalized()
+			if round != Vector3.INF:
+				n = n.lerp((at - round).normalized(), ROUND).normalized()
+			row.append([at, n])
 		ring.append(row)
 	for i in lat:
 		for j in lon:
 			var k := (j + 1) % lon
 			var quad := [ring[i][j], ring[i + 1][j], ring[i + 1][k], ring[i][k]]
-			for t in [[0, 2, 1], [0, 3, 2]]:
-				if i == 0 and t[0] == 0 and t[1] == 3:
+			for t in [[0, 1, 2], [0, 2, 3]]:
+				if i == 0 and t[2] == 3:
 					continue
-				if i == lat - 1 and t[1] == 2 and t[2] == 1:
+				if i == lat - 1 and t[1] == 1:
 					continue
 				for v in t:
 					st.set_color(col)
