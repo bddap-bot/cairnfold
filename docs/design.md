@@ -66,27 +66,34 @@ cameras). The rig's `Gaze` node follows the `/user/eyes_ext` tracker. Nothing in
 uses it yet; `demo/gaze.json` shows a debug gaze ray and logs the gaze pose twice a
 second, which reads untracked while the headset is off the head.
 
-With the headset off the head the runtime does not render the game's frames: the
-game's GPU time is about 0.3 ms per frame and every frame lands on vsync. Runs taken
-that way say nothing about headroom, and the table below is one of them. A run with
-the headset worn (Godot 4.5.1 Mobile renderer, Turnip Adreno 750, SteamVR 2.18.2,
+With the headset off the head SteamVR pauses the game in standby
+(`power.pauseCompositorOnStandby`, on by default): the game's GPU time is about
+0.3 ms per frame and every frame lands on vsync, so such a run measures nothing.
+With that setting off for the run the game renders unworn and its GPU time is real.
+A run with the headset worn (Godot 4.5.1 Mobile renderer, Turnip Adreno 750, SteamVR 2.18.2,
 1728×1728 per eye, 4× MSAA, one drawn wall, before the flora stage) rendered at
 27.78 ms per frame, every other 72 Hz refresh, with about 16 ms of GPU time per
 frame against a 13.89 ms budget. Holding the refresh rate is open work; measure it
-from worn sessions' `metrics.json`.
+from worn sessions' `metrics.json`. A late frame is logged as it happens
+(`metrics: late frame`), between the script steps around it.
 
 The runtime's recommended render target is 1728×1728 per eye on a 2160×2160 panel,
 and Valve's foveation layer (`VK_LAYER_VALVE_fdm_injection`) lowers shading density
 outside the gaze in every frame. `--render-scale` sets the render target relative
 to the runtime's recommendation.
 
-Earlier run, headset off the head, `demo/headset.json`:
+`demo/headset.json` unworn with the standby pause off, rendering (about 8 ms of
+GPU time per frame), first three phases:
 
 | Phase | Seconds | Frame time p99 | Frames over 1.5× the refresh period |
 | --- | --- | --- | --- |
-| Meadow idle | 19 | 13.89 ms | 3, all in the first second (session start) |
-| Drawing a wall (live rebuild) | 19 | 13.89 ms | 0 |
-| Floating 6 m up | 67 | 16.67 ms | 2, both at the moment of the air teleport (~142 ms) |
+| Meadow idle | 18 | 14.29 ms | 0 after the session's first second |
+| Drawing a wall (live rebuild) | 18 | 14.29 ms | 0 |
+| Floating 6 m up, air teleport and a capture | 47 | 14.29 ms | 0 |
+
+A 140 ms frame once seen at the air teleport was the script's capture just before
+it, which encoded its PNG on the main thread; captures now save on a worker
+thread, as the camera's photos do.
 
 ### Quest 2 measurements
 
@@ -612,9 +619,6 @@ Ordered by what makes it feel like the original soonest. Progress is tracked in
 the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 
 1. First playable: meadow, sky and fog, teleport and float, walls with stones, cap, merlons, piers and arches. (Done.)
-   Still open before stage 2:
-   - A Steam library shortcut on the Frame launches the game standalone.
-   - The air teleport holds refresh: no frame over 1.5× the refresh period at the moment it happens.
 2. Lighting pass: bounce light from a probe volume rebuilt on edits, contact darkening, shadow split and fog tuning for floating viewpoints, compared side by side with the mood target.
 3. Ivy and flora: ivy over walls and around openings, flower and grass painting, tree placement by pointing. (Done.)
 4. Towers, houses and roofs: loop-to-tower, two-handed footprints, tiled roofs with pull-to-shape, wall-top style per wall. (Done.)
