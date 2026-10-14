@@ -111,7 +111,7 @@ time per frame. With the proximity sensor held closed
 renders the game off the head, so those numbers are real; `--script` and the other
 game arguments reach it through the launch intent's `command_line_params` string
 array. Off the head, with no floor known, the tracked head sits at ground level, so
-a script lifts the view with `place`'s `lift`. Godot 4.5.1 Mobile renderer, 2×
+a script lifts the view with `place`'s `lift`. Godot 4.5.1 Mobile renderer, 4×
 MSAA, the runtime's default render size, median of 20 seconds after two walls are
 drawn.
 
@@ -220,22 +220,23 @@ phase, and the median frame time at 72 Hz; the stress scene as it stands:
 
 | Phase | From the air | Standing | Frame time from the air |
 | --- | --- | --- | --- |
-| Meadow | 10.17 | 5.59 | 13.89 |
-| Every flora pool full | 11.61 | 8.90 | 13.89 |
-| Every butterfly | 15.03 | 8.87 | 27.78 |
-| Walls on a 10 m disc | 17.62 | 16.93 | 27.78 |
-| 15 m | 21.00 | 21.61 | 27.78 |
-| 20 m | 31.77 | 29.38 | 31.75 |
-| 25 m | 41.62 | 34.27 | 41.67 |
-| 9 m walls on a 15 m disc | 28.13 | 28.05 | 41.67 |
-| Village | 21.32 | 20.22 | 27.78 |
-| Ponds | 14.60 | 8.74 | 27.78 |
-| Hills | 35.68 | 33.41 | 41.67 |
-| Camera held up | | 37.17 | |
+| Meadow | 9.10 | 5.38 | 13.89 |
+| Every flora pool full | 11.07 | 8.43 | 13.89 |
+| Every butterfly | 11.08 | 8.43 | 13.89 |
+| Walls on a 10 m disc | 17.18 | 17.33 | 27.78 |
+| 15 m | 20.22 | 20.13 | 27.78 |
+| 20 m | 24.45 | 24.03 | 29.10 |
+| 25 m | 34.46 | 33.79 | 41.67 |
+| 9 m walls on a 15 m disc | 23.68 | 23.01 | 27.78 |
+| Village | 20.86 | 19.73 | 27.78 |
+| Ponds | 11.19 | 8.12 | 13.89 |
+| Hills | 34.44 | 33.49 | 41.67 |
+| Camera held up | | 37.26 | |
 
-From the air the Frame holds 72 Hz over the meadow and every flora pool, and drops to
-every other refresh or below from every butterfly on; the budget check stays on the
-Quest 2, the weaker headset.
+The budget check stays on the Quest 2, the weaker headset. Against the same scene before
+the flora changes in "Flora on the Quest 2", every phase's frame time is the same or
+shorter, and GPU time is lower in every phase before the walls; the wall and hill phases
+vary by up to 2 ms between runs of one build.
 
 What is left grows with what is built, so building needs a bound, and the bound
 counts stones (`Budget.STONE_US`, GPU time per stone laid, ivy, mortar and shadow
@@ -243,45 +244,38 @@ included): a small plot of tall walls costs as much as a wide one of low walls.
 
 Measured on the Quest 2 (`bench.sh OUT --android APK`: in the headset with its
 proximity sensor held closed, the runtime's `App=` GPU time per frame, median of
-each phase, CPU and GPU held at level 4, 525 MHz, the quality ladder at its top;
-"Automatic quality" below measured at the top clock and its own views, so its numbers
-run lower). GPU milliseconds per frame against a 12.5 ms budget:
+each phase, CPU and GPU held at level 4, 525 MHz, the quality ladder at its top, and no
+other process rendering, the headset's own system shell included; "Automatic quality" below measured
+at the top clock and its own views, so its numbers run lower). GPU milliseconds per
+frame against a 12.5 ms budget:
 
-| Phase | Stone LODs | No LODs | 12-triangle stones |
-| --- | --- | --- | --- |
-| Meadow, from the air | 19.6 | 17.5 | 18.4 |
-| Every flora pool full, from the air | 25.6 | 26.5 | 26.2 |
-| 159 m of walls (6,650 stones), from the air | 37.9 | 37.2 | 34.9 |
-| 347 m (14,350), from the air | 51.8 | 48.3 | 36.8 |
-| 630 m (25,850), from the air | 47.1 | 46.6 | 38.0 |
-| 973 m (39,850), from the air | 55.5 | 55.5 | 42.0 |
-| 347 m of 9 m walls (28,150), from the air | 53.3 | 55.2 | 43.1 |
-| Meadow, standing | 23.4 | 23.5 | 23.6 |
-| Every flora pool full, standing | 36.1 | 38.7 | 38.7 |
-| 159 m of walls, standing | 33.6 | 37.8 | 36.5 |
-| 347 m, standing | 43.2 | 42.6 | 37.3 |
-| 630 m, standing | 53.1 | 48.8 | 44.0 |
-| 973 m, standing | 63.5 | 63.1 | 51.7 |
-| 347 m of 9 m walls, standing | 51.4 | 55.7 | 43.3 |
+| Phase | From the air | Standing |
+| --- | --- | --- |
+| Meadow | 14.2 | 12.0 |
+| Every flora pool full | 23.7 | 19.9 |
+| 159 m of walls (6,650 stones) | 32.6 | 23.1 |
+| 347 m (14,350) | 39.0 | 29.6 |
+| 630 m (25,900) | 43.8 | 36.3 |
+| 973 m (39,850) | 48.0 | 46.0 |
+| 347 m of 9 m walls (28,200) | 43.8 | 36.1 |
 
 The walls' cost is vertex work on the GPU. Frame time follows the GPU time, the
 live wall preview holds 72 Hz on the CPU (below), and draw calls stay near 150 at
-every size. Dropping the levels of detail raised primitives at 973 m from 4.4 M to
-7.1 M and cost nothing. Swapping the stone mesh for a plain 12-triangle box (24
-vertices instead of 96; a trial build, not the game's) left the scene with about the
-primitives the levels of detail had (4.7 M) and halved the walls' cost: what costs is
-the vertices each stone instance runs, so the stone mesh is the lever.
+every size. Dropping the stones' levels of detail (primitives at 973 m from 4.4 M to
+7.1 M) cost nothing; a trial build with a plain 12-triangle box per stone (24 vertices
+instead of 96) had about the primitives the levels of detail had and roughly halved
+what the walls cost over the flora (measured with the headset's shell rendering
+beside the game, so those runs' own times read high): what costs is the vertices each
+stone instance runs, so the stone mesh is the lever.
 
-Over every flora pool full, without levels of detail, a stone costs 0.87 µs of the
-Quest's GPU from the air and 0.54 µs standing (fits through zero over the five wall
-phases of each view; single phases stray by up to 12 ms, and the first walls cost
-the most: 159 m from the air, 10.7 ms). `Budget.STONE_US` takes the air's, so a bound
-holds from either view. Stones allowed are the budget less the meadow and flora,
-divided by that, and come to none, standing or floating: at the top of the ladder
-the full flora alone takes 38.7 ms standing and 26.5 ms from the air, and the bare
-meadow 23.5 ms and 17.5 ms, all over the 12.5 ms budget. Building gets room only
-once the meadow's own cost comes down; until then the bench's Quest check fails on
-every phase.
+Over every flora pool full, a stone costs 0.71 to 0.81 µs of the Quest's GPU from the
+air and 0.60 to 0.63 µs standing, in two runs (fits through zero over the five wall
+phases of each view; the first walls cost the most: 159 m from the air, 8.9 ms).
+`Budget.STONE_US` takes the highest, so a bound holds from either view. Stones allowed
+are the budget less the meadow and flora, divided by that, and come to none at the top
+of the ladder: every flora pool full alone takes 23.7 ms from the air and 19.9 ms
+standing. The ladder's lowest step brings full
+flora to 72 Hz (see "Automatic quality"), but not walls.
 
 The live wall preview, measured with the view turned to the sky so the GPU sits
 idle: every second of two 5 s strokes ran 72 frames with none late, the 99th
@@ -297,12 +291,13 @@ Directive (verbatim):
 >
 > My motivation for these thoughts are not wanting myself or my players to need to think about or tweak settings, but still see things as pretty as possible but still experience buttery framerate.
 
-**Decision: the one graphics configuration is a ladder of grass reach, walked by the GPU
-time of every frame.** `Quality` (`game/src/quality.gd`) draws grass to 24, 20, 16, 13 or
-10 m. A governor reads each frame's GPU time and steps down the ladder at once when frames
-run over the refresh period, and back up only after a calm spell. Every headset starts at
-the top and settles on the prettiest step it holds at its own refresh rate. There are no
-per-headset presets and no settings menu.
+**Decision: the one graphics configuration is a ladder of steps, walked by the GPU time of
+every frame.** `Quality` (`game/src/quality.gd`) draws grass to 24, 20, 16, 13 or 10 m; below
+those, flowers to 20 m instead of 60 m, and then foliage from coarser blobs. A governor reads
+each frame's GPU time and steps down the ladder at once when frames run over the refresh
+period, and back up only after a calm spell. Every headset starts at the top and settles on
+the prettiest step it holds at its own refresh rate. There are no per-headset presets and no
+settings menu.
 
 ### Which knobs matter
 
@@ -321,9 +316,10 @@ the runtime's `App=` time per frame, the median of 7 seconds:
 | Mesh LOD threshold 4 px instead of 1 | 14.0 ms | 67 |
 
 Standing in the meadow, or floating 8.5 m above it, every knob measured within the
-half-millisecond noise. The GPU is bound by grass vertices, not pixels, so grass reach is
-the only knob that buys time; the others would cost looks for nothing and are not on the
-ladder. A knob joins it only with a measured saving. Grass reach changes at no frame cost:
+half-millisecond noise. The GPU is bound by vertices, not pixels (see "Flora on the Quest 2"
+below for why the render region does not help), so grass reach is the only one of these that
+buys time; the others would cost looks for nothing and are not on the ladder. A knob joins it
+only with a measured saving. Grass reach changes at no frame cost:
 `Flora.grass_reach` hides whole 16 m grass cells beyond it and sets one shader uniform over
 which blades shrink into the ground over the last 8 m, and it moves toward each new step at
 8 m a second, so the meadow's edge recedes rather than jumps. Ruled out for any later knob
@@ -331,20 +327,87 @@ because they reallocate or recompile mid-play: MSAA level, shadow atlas size, to
 shadows or glow (pipeline variants) and the render-target multiplier (Godot frees and
 recreates the swapchain when it changes).
 
-Each step, measured the same way (`demo/ladder.json`):
+Each step, measured the same way (`demo/ladder.json`), with the flora changes in "Flora on
+the Quest 2" below:
 
-| Grass reach | Bare meadow from the air | Every flora pool full, from the air |
-| --- | --- | --- |
-| 24 m | 13.9 ms, 67 fps | 20.7 ms, 45 fps |
-| 20 m | 12.9 ms, 72 fps | 19.3 ms, 48 fps |
-| 16 m | 12.4 ms, 72 fps | 18.3 ms, 51 fps |
-| 13 m | 11.7 ms, 72 fps | 16.9 ms, 55 fps |
-| 10 m | 11.8 ms, 72 fps | 16.6 ms, 56 fps |
+| Step | Grass, flowers, blobs | Bare meadow from the air | Every flora pool full, from the air | Every flora pool full, standing |
+| --- | --- | --- | --- | --- |
+| 0 | 24 m, 60 m, fine | 12.8 ms, 71 fps | 18.5 ms, 51 fps | 17.9 ms, 52 fps |
+| 1 | 20 m | 11.9 ms, 72 fps | 17.6 ms, 53 fps | 17.3 ms, 54 fps |
+| 2 | 16 m | 11.8 ms, 72 fps | 16.9 ms, 55 fps | 16.7 ms, 56 fps |
+| 3 | 13 m | 12.0 ms, 72 fps | 15.5 ms, 60 fps | 15.5 ms, 60 fps |
+| 4 | 10 m | 11.8 ms, 72 fps | 15.2 ms, 61 fps | 14.9 ms, 62 fps |
+| 5 | 10 m, 20 m | 12.0 ms, 72 fps | 14.1 ms, 65 fps | 14.5 ms, 64 fps |
+| 6 | 10 m, 20 m, coarse | 12.2 ms, 72 fps | 12.0 ms, 72 fps | 12.8 ms, 72 fps |
+
+Before them the ladder was steps 0 to 4 alone.
 
 From the air the grass beyond 16 m is a few pixels a blade, so the settled steps are hard to
-tell apart from the top. Full flora and dense walls are beyond what the ladder can reach:
-at 973 m of walls the Quest 2 takes 42 ms a frame and no knob moved it by more than noise.
-Those are building costs, held by the build budget ("Frame budget"), not by the ladder.
+tell apart from the top. Dense walls are beyond what the ladder can reach: at 973 m of walls
+the Quest 2 took 42 ms a frame and no knob moved it by more than noise. Those are building
+costs, held by the build budget ("Frame budget"), not by the ladder.
+
+### Flora on the Quest 2
+
+Every flora pool full, from the air and standing among it (`demo/tour.json`'s flora
+phases), missed 72 Hz at every grass step: 16.6 and 15.5 ms at the bottom. Measured on the
+device before changing anything, by `App=` time with each part of the scene hidden in turn
+and by the Quest's own GPU profiler (`ovrgpuprofiler`):
+
+- The GPU is the limit (`GPU%=1.00` in the runtime's line, the CPU under 15% busy).
+- One frame, read with the profiler's render-stage trace: the shadow map's passes take
+  1.6 ms; the scene renders in one 4× MSAA 1440×1584 surface split into 135 bins of
+  96×176 pixels, taking 4.1 ms to bin (every submitted vertex runs once there, whatever
+  the shader later does with it), 9.3 ms to render the bins and 1.5 ms to store them. The
+  OpenXR render region leaves that surface and its bins as they are, which is why render
+  resolution moved nothing.
+- Per frame, at the bottom grass step, hiding each part saved: painted grass 1.9 ms from
+  the air and 1.8 ms standing, the flowers (painted and the meadow's) 2.6 and 1.5 ms, the
+  planted trees 2.6 and 1.8 ms, every tree's shadow 1.5 and 1.0 ms.
+- Halving the grass vertex shader's arithmetic saved nothing; lighting it per vertex saved
+  1 ms at full quality and nothing at the bottom; drawing it unlit saved 4.3 ms. Draw calls
+  are not the cost: 32 or 48 m cells instead of 16 m halved them and saved nothing.
+
+So the cost is vertices (binning) and the raster of thin slivers, not shading arithmetic
+or draws. What now runs at every step, each measured against the build without it on the
+same device in the same session:
+
+| Change | From the air | Standing |
+| --- | --- | --- |
+| Far grass drawn as 3 widened blades of 7 (row 12 of the grass table below) | 0.6 ms (bare meadow 1.1 ms) | 1.3 ms |
+| Foliage blobs from a twice-split icosphere (162 vertices) instead of a 20 × 10 latitude-longitude sphere (252) | 1.2 ms | 0.9 ms |
+
+The ladder's two new steps, measured at the bottom grass step, where the rest is spent:
+
+| Step | From the air | Standing |
+| --- | --- | --- |
+| Flowers to 20 m instead of 60 m | 1.4 ms | 0.2 ms |
+| Then blobs from a once-split icosphere (42 vertices) | 1.9 ms | 1.1 ms |
+
+Flowers come first: beyond 20 m they are a few pixels, while coarse blobs show on every
+tree. A flower's reach works as grass reach does: the meadow's flower cells beyond it are
+not drawn and flowers shrink to their roots over its last 4 m; painted flowers and a
+stroke's ghost shrink alike. Both reaches move at 8 m a second. The blob detail changes by
+swapping the mesh the foliage's MultiMeshes draw, kept for both details from the start:
+switching it back and forth six times over 12 s, from the air, left the slowest frame of
+each second at 14.8 to 16.7 ms, as in the seconds around the switches: switching causes no stall.
+
+Measured and left out: 16 m chunks for painted plants, so the camera and grass reach could
+cull them (1.5 to 2.2 ms slower at full quality, and at the bottom 0.8 ms faster from the
+air but 1.4 ms slower standing); drawing both blob details in one mesh and dropping one per vertex by distance
+(0.7 ms, where the twice-split icosphere alone saves 1.2: dropped vertices are still binned);
+lighting flowers or leaves per vertex, shrinking flower stalks beyond 8 m, and sun shadows
+to 25 m (each within noise); grass lit per vertex (near blades lose the rounded shading
+of row 3 of the grass table). MSAA, which sets the bin size, stays at 4×:
+fewer samples would buy time at the cost of edges.
+
+Measuring this, two traps. Godot's Android override of `soft_shadow_filter_quality`, which
+`project.godot` leaves at its default, gives the Quest hard shadows, so a probe that sets the
+filter quality at run time measures a different game. And the headset's system shell keeps
+rendering beside the game while a Store or Library panel is open, or, unworn, while the
+Guardian's dialog is up, taking GPU time the game's own `App=` line does not show.
+`bench.sh --android` closes the panels, restarts the shell and holds the Guardian paused
+before each run, and fails if another process renders during a measured phase.
 
 ### One signal, many knobs
 
@@ -361,7 +424,7 @@ The governor (`Quality.Governor`) is Valve's adaptive quality with slower recove
 
 - Down fast: two consecutive frames over 105% of the period step down one; frames a
   quarter over step down two. Six frames then pass unjudged while the timer catches up,
-  and none is judged until the grass has reached its new step.
+  and none is judged until grass and flowers have reached their new step.
 - Up slowly: two seconds with the frame time, averaged over one second, under 96% of the
   period step up one. Single frames vary by more than a step saves, so they neither make
   nor break a calm spell.
@@ -382,18 +445,20 @@ GPU time per frame (`viewport_gpu_ms`) and the governor's line (`budget_ms`).
 ### On the Quest 2
 
 `demo/tour.json` walks the meadow from the ground and the air, then every flora pool full
-and walls 2 m apart over a 10 m disc. Played with the ladder held at the top
-(`--quality 0`) and governed, on the Quest 2 (runtime `FPS=` and `App=` per second):
+and walls 2 m apart over a 10 m disc. Played governed on the Quest 2 (runtime `FPS=` and
+`App=` per second, the GPU at its top clock), with the ladder of grass reach alone and with
+the ladder and flora as they now stand:
 
-| Phase | Held at the top | Governed |
+| Phase | Grass reach alone | Now |
 | --- | --- | --- |
-| Meadow, standing | 72 fps (step 0) | 72 fps (step 0) |
-| Meadow, from the air | 67 fps, 149 frames missed in 30 s | 72 fps at step 2, 2 missed |
-| Back on the ground | 72 fps | 72 fps, climbing back to step 0 within 25 s |
-| Every flora pool full, from the air | 45 fps | 57 fps at step 4 |
-| Walls over a 10 m disc, from the air | 33 fps | 36 fps at step 4 |
+| Meadow, standing | 72 fps, 12.0 ms (step 0) | 72 fps, 11.9 ms (step 0) |
+| Meadow, from the air | 72 fps, 12.8 ms at step 3 | 72 fps, 12.7 ms at step 0 |
+| Every flora pool full, from the air | 56 fps, 16.6 ms at step 4 | 72 fps, 12.1 ms at step 6 |
+| Every flora pool full, standing | 60 fps, 15.5 ms at step 4 | 72 fps, 12.6 ms at step 6 |
+| Walls over a 10 m disc, from the air | 38 fps, 24.9 ms at step 4 | 48 fps, 19.5 ms at step 6 |
 
-Over the whole tour 3,291 frames missed held at the top and 2,475 governed.
+Over the whole tour 2,536 frames missed before and 1,257 now. Held at each step (the table
+above), full flora holds 72 Hz only at the bottom, so on the Quest 2 it settles there.
 
 The play area on the Quest 2 resolves to LOCAL space when no boundary is set, as when the
 headset lies unworn after a restart; `metrics.json` records it (`info.play_area`) with the
@@ -454,8 +519,8 @@ defined once: tunables as uniforms in `grass.gdshader`, placement in
 | 9 | Grass parts around the hands | The meadow responds to touch: reaching into it pushes blades aside and down | Two distance tests per vertex; two uniforms set per frame | Done (`hand_radius`) |
 | 10 | Per-blade Bezier curves with more segments | Smooth arcs instead of a two-segment bend | Vertex count grows with segments: about twice today's for a smooth curve | Not yet: needs headroom measured on the device |
 | 11 | View-space thickening (Tsushima: widen blades seen edge-on) | No vanishing slivers; less thin-geometry aliasing | A few vertex operations, but needs each blade's facing per vertex | Not yet |
-| 12 | Distance LOD: fewer, wider blades far away | Larger meadows at the same cost | Saves vertices; a second mesh per distance band | Not yet |
-| 13 | Draw reach | Beyond `Flora.GRASS_REACH` (24 m) the terrain's own colour carries the meadow; blades shrink into the ground over the last `draw_fade` (8 m), so nothing pops | Saves the far, sub-pixel blades that cost the Quest 2 most of its frame: the meadow's grass is baked into 16 m cells, and cells wholly out of reach are not drawn | Done |
+| 12 | Distance LOD: fewer, wider blades far away | Larger meadows at the same cost | From 8 m out, over 4 m, a clump keeps 3 of its 7 blades, widened to cover the same ground, and the rest shrink to their roots: one mesh, chosen per vertex (`Meshes.grass_clump`), so nothing pops at a band's edge. The dropped blades' vertices still run, but their slivers are no longer drawn (see "Flora on the Quest 2") | Done |
+| 13 | Draw reach | Beyond `Flora.grass_reach` (24 m at full quality, less down the ladder) the terrain's own colour carries the meadow; blades shrink into the ground over the last `draw_fade` (8 m), so nothing pops | Saves the far, sub-pixel blades that cost the Quest 2 most of its frame: the meadow's grass is baked into 16 m cells, and cells wholly out of reach are not drawn | Done |
 
 Ruled out on this target: alpha-tested or dithered fades (break early depth on
 the tiler), screen-space or impostor grass shadows, and specular on blades

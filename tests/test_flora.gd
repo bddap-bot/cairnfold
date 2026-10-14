@@ -19,6 +19,8 @@ func _run() -> void:
 	_grass_grows_in_clumps()
 	_flowers_vary_by_patch()
 	_grass_out_of_reach_is_not_drawn()
+	_flowers_out_of_reach_are_not_drawn()
+	_blob_detail_changes_only_what_is_drawn()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
 
@@ -220,3 +222,48 @@ func _grass_out_of_reach_is_not_drawn() -> void:
 			shown[mmi.multimesh.custom_aabb.has_point(Vector3(near.x, Terrain.height_at(near.x, near.z) + 0.1, near.z))] = mmi.visible
 	_check(shown.get(true, false), "grass just within reach is drawn")
 	_check(not shown.get(false, true), "grass a cell and a half beyond reach is not")
+
+
+func _flowers_out_of_reach_are_not_drawn() -> void:
+	var flora := Flora.new()
+	root.add_child(flora)
+	var eye := Camera3D.new()
+	root.add_child(eye)
+	eye.make_current()
+	_check(flora.flower_mat.get_shader_parameter(&"draw_reach") == flora.flower_reach, "the flowers' shader is told their reach")
+	var rng := _rng(8)
+	flora.add_flower(Vector3(5, 0, 0), rng)
+	flora.add_flower(Vector3(5 + Flora.Pool.CELL * 3, 0, 0), rng)
+	flora.keep()
+	flora.flower_reach = 10.0
+	_check(flora.flower_mat.get_shader_parameter(&"draw_reach") == 10.0, "and each new reach")
+	flora._process(0.0)
+	var shown := []
+	for mmi: MultiMeshInstance3D in flora.get_children():
+		if mmi.multimesh != flora.flowers.mm and mmi.multimesh.mesh == flora.flowers.mesh and mmi.multimesh.instance_count == 1:
+			shown.append(mmi.visible)
+	_check(shown.count(true) == 1 and shown.count(false) == 1, "of two meadow flowers, the one beyond reach is not drawn: %s" % [shown])
+	eye.queue_free()
+	flora.queue_free()
+
+
+func _blob_detail_changes_only_what_is_drawn() -> void:
+	var flora := Flora.new()
+	root.add_child(flora)
+	flora.add_tree(Vector3.ZERO, _rng(9))
+	flora.keep()
+	flora.add_tree(Vector3(20, 0, 0), _rng(10))
+	var made := flora.foliage.mesh
+	var foliage: Array[MultiMesh] = []
+	for mmi: MultiMeshInstance3D in flora.get_children():
+		if mmi.multimesh.mesh == made:
+			foliage.append(mmi.multimesh)
+	_check(foliage.size() >= 2, "the meadow's cell and the planted pool both draw foliage: %d" % foliage.size())
+	flora.blob_detail = Quality.ladder[-1].blob_detail
+	var coarse := flora.foliage.mm.mesh
+	_check(coarse.surface_get_array_len(0) < made.surface_get_array_len(0), "the bottom step draws coarser blobs")
+	_check(foliage.all(func(m: MultiMesh) -> bool: return m.mesh == coarse), "in every cell")
+	_check(flora.foliage.mesh == made, "birds still find crowns on the blobs as made")
+	flora.blob_detail = Quality.ladder[0].blob_detail
+	_check(flora.foliage.mm.mesh == made, "and full quality draws them as made again")
+	flora.queue_free()

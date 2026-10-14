@@ -42,12 +42,15 @@ static func rounded_box(radius: float, segments: int, seed: int) -> ArrayMesh:
 	return st.commit()
 
 
-## A clump of crossed blades; UV.y runs 0 at the root to 1 at the tip.
-static func grass_clump(blades: int, seed: int) -> ArrayMesh:
+## A clump of crossed blades; UV.y runs 0 at the root to 1 at the tip. Far off, grass.gdshader draws only the first
+## `kept` blades, each widened by its CUSTOM0.xz, so they cover the ground all `blades` did; CUSTOM0.z is 1 on the
+## blades it drops.
+static func grass_clump(blades: int, seed: int, kept := blades) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_custom_format(0, SurfaceTool.CUSTOM_RGB_FLOAT)
 	for b in blades:
 		var ang := rng.randf() * TAU
 		var dir := Vector3(cos(ang), 0, sin(ang))
@@ -63,10 +66,13 @@ static func grass_clump(blades: int, seed: int) -> ArrayMesh:
 		var uvs := [Vector2(0, 0), Vector2(1, 0), Vector2(0, 0.55), Vector2(1, 0.55), Vector2(0.5, 1)]
 		# Edge normals tilt outward, so a flat blade shades as if rounded across its width.
 		var rounded := [nrm - side * 0.7, nrm + side * 0.7, nrm - side * 0.7, nrm + side * 0.7, nrm]
+		var widen := [-side * w, side * w, -side * w * 0.7, side * w * 0.7, Vector3.ZERO]
+		var grow := float(blades) / kept - 1.0 if b < kept else 0.0
 		for tri in [[0, 2, 1], [1, 2, 3], [2, 4, 3]]:
 			for k in tri:
 				st.set_normal(rounded[k].normalized())
 				st.set_uv(uvs[k])
+				st.set_custom(0, Color(widen[k].x * grow, widen[k].z * grow, float(b >= kept)))
 				st.add_vertex(pts[k])
 	st.index()
 	return st.commit()
@@ -108,33 +114,63 @@ static func flower(petals: int, head := Color.WHITE) -> ArrayMesh:
 	return st.commit()
 
 
-## A lumpy foliage blob: an icosphere pushed out by noise, shaded darker underneath.
-static func blob(seed: int, subdiv: int = 2) -> ArrayMesh:
-	var sphere := SphereMesh.new()
-	sphere.radial_segments = 10 * subdiv
-	sphere.rings = 5 * subdiv
-	var arrays := sphere.get_mesh_arrays()
+## A lumpy foliage blob: an icosphere pushed out by noise, shaded darker underneath. Its vertices are spread evenly,
+## so it holds the lumps of a latitude-longitude sphere with far fewer of them, which is what the Quest 2 pays for.
+static func blob(seed: int, subdiv := 2) -> ArrayMesh:
+	var arrays := icosphere(subdiv)
 	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var noise := FastNoiseLite.new()
 	noise.seed = seed
 	noise.frequency = 2.2
 	var colors := PackedColorArray()
 	for i in verts.size():
-		var v := verts[i] * 2.0
-		v *= 1.0 + noise.get_noise_3dv(v) * 0.35
+		var v := verts[i] * (1.0 + noise.get_noise_3dv(verts[i]) * 0.35)
 		verts[i] = v
 		var shade := clampf(0.55 + v.y * 0.45, 0.35, 1.0)
 		colors.append(Color(shade, shade, shade))
 	arrays[Mesh.ARRAY_VERTEX] = verts
 	arrays[Mesh.ARRAY_COLOR] = colors
-	arrays[Mesh.ARRAY_NORMAL] = null
-	arrays[Mesh.ARRAY_TANGENT] = null
 	var st := SurfaceTool.new()
 	var tmp := ArrayMesh.new()
 	tmp.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	st.create_from(tmp, 0)
 	st.generate_normals()
 	return st.commit()
+
+
+static func icosphere(subdiv: int) -> Array:
+	var t := (1.0 + sqrt(5.0)) / 2.0
+	var verts := PackedVector3Array()
+	for p in [[-1, t, 0], [1, t, 0], [-1, -t, 0], [1, -t, 0], [0, -1, t], [0, 1, t], [0, -1, -t], [0, 1, -t],
+			[t, 0, -1], [t, 0, 1], [-t, 0, -1], [-t, 0, 1]]:
+		verts.append(Vector3(p[0], p[1], p[2]).normalized())
+	var faces := PackedInt32Array([0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2,
+		10, 7, 6, 7, 1, 8, 3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1])
+	for s in subdiv:
+		var mid := {}
+		var split := PackedInt32Array()
+		for f in range(0, faces.size(), 3):
+			var m := []
+			for e in 3:
+				var a := faces[f + e]
+				var b := faces[f + (e + 1) % 3]
+				var key := Vector2i(mini(a, b), maxi(a, b))
+				if not mid.has(key):
+					mid[key] = verts.size()
+					verts.append(((verts[a] + verts[b]) * 0.5).normalized())
+				m.append(mid[key])
+			split.append_array([faces[f], m[0], m[2], m[0], faces[f + 1], m[1], m[2], m[1], faces[f + 2], m[0], m[1], m[2]])
+		faces = split
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	# Godot's front faces wind clockwise; the faces above wind the other way.
+	for f in range(0, faces.size(), 3):
+		var b := faces[f + 1]
+		faces[f + 1] = faces[f + 2]
+		faces[f + 2] = b
+	arrays[Mesh.ARRAY_INDEX] = faces
+	return arrays
 
 
 ## Three ivy leaf cards around the origin in the XY plane, facing +Z, each folded along its vein with its stem

@@ -8,6 +8,12 @@ uniform float roughness = 1.0;
 uniform vec3 backlight : source_color = vec3(0.0);
 #endif
 
+#ifdef FLOWER
+// Flowers shrink to their roots over the last draw_fade before draw_reach, so the edge Flora culls at shows no pop.
+uniform float draw_reach = 1000.0;
+uniform float draw_fade = 4.0;
+#endif
+
 void vertex() {
 	float ground = ground_at(INSTANCE_CUSTOM.zw);
 	VERTEX.y += ground;
@@ -19,6 +25,7 @@ void vertex() {
 	if (INSTANCE_CUSTOM.r >= season_bloom) {
 		VERTEX = root;
 	}
+	VERTEX = mix(VERTEX, root, smoothstep(draw_reach - draw_fade, draw_reach, distance(root, CAMERA_POSITION_WORLD)));
 #endif
 	if (drowned(INSTANCE_CUSTOM.zw, ground)) {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);

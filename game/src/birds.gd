@@ -208,7 +208,7 @@ func _list(key: Object, s: Site) -> void:
 ## blobs that no other blob hides, a little apart, highest first.
 static func _crown(parts: Array[Flora.Plant]) -> PackedVector3Array:
 	if _crown_points.is_empty():
-		var arrays := parts[1].pool.mm.mesh.surface_get_arrays(0)
+		var arrays := parts[1].pool.mesh.surface_get_arrays(0)
 		var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 		for i in verts.size():

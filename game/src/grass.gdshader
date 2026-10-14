@@ -22,6 +22,10 @@ uniform float far_end = 30.0;
 // Blades shrink into the ground over the last stretch before `draw_reach`, past which Flora draws no meadow grass.
 uniform float draw_reach;
 uniform float draw_fade = 8.0;
+// From lod_begin out, over lod_band, a clump draws fewer, wider blades (Meshes.grass_clump): far blades are slivers
+// whose cost is their count, not their pixels.
+uniform float lod_begin = 8.0;
+uniform float lod_band = 4.0;
 uniform float hand_radius = 0.35;
 uniform vec3 hand_left;
 uniform vec3 hand_right;
@@ -48,6 +52,9 @@ void vertex() {
 	float size = length(MODEL_MATRIX[1].xyz);
 	float worn = bare(root.xz);
 	VERTEX = root + (VERTEX - root) * vec3(1.0 - worn * 0.5, 1.0 - worn, 1.0 - worn * 0.5);
+	float dist = distance(root, CAMERA_POSITION_WORLD);
+	float lod = smoothstep(lod_begin, lod_begin + lod_band, dist);
+	VERTEX = mix(VERTEX + mat3(MODEL_MATRIX) * vec3(CUSTOM0.x, 0.0, CUSTOM0.y) * lod, root, lod * CUSTOM0.z);
 
 	// Gusts are bands travelling downwind; a slower cross-wind wave keeps them from reading as stripes.
 	float along = sin(dot(root.xz, wind_dir) * (TAU / gust_wavelength) - TIME * gust_speed) * 0.5 + 0.5;
@@ -60,7 +67,6 @@ void vertex() {
 	VERTEX += bend;
 	VERTEX.y -= length(bend.xz) * 0.6 * tip;
 
-	float dist = distance(root, CAMERA_POSITION_WORLD);
 	far = smoothstep(far_begin, far_end, dist);
 	VERTEX = mix(VERTEX, root, smoothstep(draw_reach - draw_fade, draw_reach, dist));
 	NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), 0.35 + 0.5 * far));

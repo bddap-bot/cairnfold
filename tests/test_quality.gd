@@ -9,7 +9,7 @@ var failures := 0
 
 
 func _initialize() -> void:
-	_every_step_draws_less_grass()
+	_every_step_draws_less()
 	_frames_over_budget_step_down_at_once()
 	_a_badly_late_frame_steps_down_two()
 	_one_late_frame_is_not_enough()
@@ -17,6 +17,7 @@ func _initialize() -> void:
 	_an_undone_step_up_waits_twice_as_long()
 	_a_spike_after_a_step_up_slows_only_that_step()
 	_the_ladder_has_ends()
+	_a_held_step_reaches_its_knobs()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
 
@@ -34,13 +35,17 @@ func _feed(g: Quality.Governor, ms: float, frames: int) -> int:
 	return g.level
 
 
-func _every_step_draws_less_grass() -> void:
-	for i in Quality.GRASS_M.size() - 1:
-		_check(Quality.GRASS_M[i + 1] < Quality.GRASS_M[i], "step %d draws less grass than step %d" % [i + 1, i])
+func _every_step_draws_less() -> void:
+	var steps := Quality.ladder
+	for i in steps.size() - 1:
+		var a := steps[i]
+		var b := steps[i + 1]
+		_check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail, "step %d draws no more than step %d" % [i + 1, i])
+		_check(b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail, "step %d draws less than step %d" % [i + 1, i])
 	var q := Quality.new(null, null)
-	_check(q.governor.bottom == Quality.GRASS_M.size() - 1, "the governor's bottom is the ladder's last step")
+	_check(q.governor.bottom == steps.size() - 1, "the governor's bottom is the ladder's last step")
 	q.pin = 99
-	_check(q.step() == Quality.GRASS_M.size() - 1, "a pin past the bottom holds the bottom")
+	_check(q.step() == steps.size() - 1, "a pin past the bottom holds the bottom")
 	q.free()
 
 
@@ -97,3 +102,21 @@ func _the_ladder_has_ends() -> void:
 	var g := Quality.Governor.new(3)
 	_check(_feed(g, BUDGET * 2.0, 200) == 3, "it stops at the bottom")
 	_check(_feed(g, 1.0, 72 * 400) == 0, "and at the top")
+
+
+func _a_held_step_reaches_its_knobs() -> void:
+	var flora := Flora.new()
+	root.add_child(flora)
+	var q := Quality.new(null, flora)
+	root.add_child(q)
+	var bottom: Quality.Step = Quality.ladder[-1]
+	q.pin = Quality.ladder.size() - 1
+	q._process(0.1)
+	_check(not q._settled, "a step whose reaches are still moving is not settled")
+	_check(flora.blob_detail == bottom.blob_detail, "blob detail changes at once")
+	for i in 100:
+		q._process(0.1)
+	_check(q._settled, "and settles once they arrive")
+	_check(flora.grass_reach == bottom.grass_m and flora.flower_reach == bottom.flowers_m, "grass and flowers at the step's reach")
+	q.free()
+	flora.free()

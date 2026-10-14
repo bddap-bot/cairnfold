@@ -95,9 +95,10 @@ if [ "${2:-}" = --android ]; then
   same "$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')" --short HEAD
   adb shell "rm -rf $dir; mkdir -p $dir"
   adb push "$out/stress.json" "$dir/stress.json" > /dev/null
-  # Off the head the headset loses tracking, and its Guardian pause would stop the game. The clocks are held at
-  # level 4, the highest the headset sustains warm, so runs compare: left free it moves the GPU between 525 and
-  # 587 MHz as it warms.
+  # Off the head the headset loses tracking, and its Guardian then puts up a dialog the shell keeps drawing beside
+  # the game, at the cost of the game's GPU time, so the Guardian is held paused. The clocks are held at level 4,
+  # the highest the headset sustains warm, so runs compare: left free it moves the GPU between 525 and 587 MHz as
+  # it warms.
   saved_props=$(for k in guardian_pause cpuLevel gpuLevel; do printf '%s=%s ' "$k" "$(adb shell getprop "debug.oculus.$k" | tr -d '\r')"; done)
   logcat_pid=
   restore_headset() {
@@ -110,7 +111,7 @@ if [ "${2:-}" = --android ]; then
     stop
   }
   trap restore_headset EXIT
-  adb shell setprop debug.oculus.guardian_pause 0
+  adb shell setprop debug.oculus.guardian_pause 1
   adb shell setprop debug.oculus.cpuLevel 4
   adb shell setprop debug.oculus.gpuLevel 4
   adb shell am broadcast -a com.oculus.vrpowermanager.prox_close > /dev/null
@@ -131,8 +132,16 @@ if [ "${2:-}" = --android ]; then
     fi
     logcat_pid=$!
   }
-  # A launch into a waking headset can meet the shell's controller check, with the controllers idle, or be
-  # paused as it starts, which crashes Godot; a fresh shell lets the next launch through.
+  # A Store or Library panel left open keeps the shell rendering beside the game and takes GPU time from it, which
+  # no reading of the game's own App= time can subtract. A launch into a waking headset can also meet the shell's
+  # controller check, with the controllers idle, or be paused as it starts, which crashes Godot. A fresh shell, with
+  # the panels closed, starts with neither.
+  fresh_shell() {
+    local app
+    for app in com.oculus.store com.oculus.panelapp.library com.oculus.vrshell; do adb shell am force-stop "$app"; done
+    sleep 10
+  }
+  fresh_shell
   for try in 1 2 3; do
     adb shell am force-stop "$pkg"
     [ -z "$logcat_pid" ] || kill "$logcat_pid" 2> /dev/null || true
@@ -145,8 +154,7 @@ if [ "${2:-}" = --android ]; then
     shows "activity activities" topResumedActivity "$pkg" && break
     [ "$try" -lt 3 ] || { echo "bench: the game would not start; see $out/logcat.txt" >&2; exit 1; }
     echo "bench: launch $try did not hold, restarting the shell" >&2
-    adb shell am force-stop com.oculus.vrshell
-    sleep 10
+    fresh_shell
   done
   if [ "$players" -gt 1 ]; then
     join cat "$out/logcat.txt" -- "$(adb shell ip -4 -o addr show wlan0 | awk '{print $4}' | cut -d/ -f1)"
@@ -230,8 +238,10 @@ if device == "frame":
     for name, secs in phases.items():
         gpu[name] = [s["gpu_ms"] / s["frames"] for s in secs[1:] if "gpu_ms" in s]
 elif device == "quest":
-    # The shell prints its own VrApi lines too: only the game's process counts, the one printing the labels.
+    # Only the game's process counts, the one printing the labels. Another process rendering during a phase, as the
+    # shell does under an open panel, shares the GPU with the game, so that phase's times are not the game's.
     label, game_pid = "-", None
+    shared = {}
     for line in open(os.path.join(out, "logcat.txt"), errors="replace"):
         fields = line.split()
         pid = fields[2] if len(fields) > 2 else None
@@ -241,6 +251,10 @@ elif device == "quest":
         m = re.search(r"VrApi.*FPS=(\d+)/\d+.*App=([\d.]+)ms", line)
         if m and label != "-" and pid == game_pid:
             gpu.setdefault(label, []).append(float(m.group(2)))
+        elif m and label != "-":
+            shared.setdefault(label, set()).add(pid)
+    if shared:
+        sys.exit("bench: another process rendered during " + ", ".join(f"{k} (pid {', '.join(sorted(v))})" for k, v in shared.items()) + "; see logcat.txt")
     for v in gpu.values():
         v.pop(0)
     unmeasured = [name for name in phases if not gpu.get(name) and not name.startswith("sweep/")]

@@ -23,6 +23,8 @@ class Pool:
 	const GONE := Vector3(1e9, 0, 1e9)
 	const CELL := 16.0
 	var mm := MultiMesh.new()
+	## The mesh each plant was made with; `draw_with` may draw a simpler one in its place.
+	var mesh: Mesh
 	var kept := 0
 	var last := -1
 	var _next := 0
@@ -41,11 +43,12 @@ class Pool:
 	var _cells: Array[MultiMeshInstance3D] = []
 	var _centres := PackedVector2Array()
 
-	func _init(parent: Node3D, mesh: Mesh, capacity: int, mat: Material, shadows: bool) -> void:
+	func _init(parent: Node3D, m: Mesh, capacity: int, mat: Material, shadows: bool) -> void:
+		mesh = m
 		_parent = parent
 		_mat = mat
 		_shadows = shadows
-		_setup(mm, mesh, capacity)
+		_setup(mm, m, capacity)
 		mm.visible_instance_count = 0
 		stamps.resize(capacity)
 		anchors.resize(capacity)
@@ -95,7 +98,7 @@ class Pool:
 			var slots: Array = cells[key]
 			var cell := MultiMesh.new()
 			_setup(cell, mm.mesh, slots.size())
-			var box: AABB = plants[slots[0]].xform * mm.mesh.get_aabb()
+			var box: AABB = plants[slots[0]].xform * mesh.get_aabb()
 			for j in slots.size():
 				var i: int = slots[j]
 				cell.set_instance_transform(j, plants[i].xform)
@@ -103,7 +106,7 @@ class Pool:
 				cell.set_instance_custom_data(j, _customs[i])
 				_cell_of[i] = cell
 				_index_in_cell[i] = j
-				box = box.merge(plants[i].xform * mm.mesh.get_aabb())
+				box = box.merge(plants[i].xform * mesh.get_aabb())
 			# Heights are kept above the ground, which the shaders add; wind and hands bend blades a little further.
 			box.position.y += ground.position.y
 			box.size.y += ground.size.y
@@ -132,6 +135,11 @@ class Pool:
 		else:
 			mm.set_instance_transform(slot - kept, xform)
 
+	func draw_with(m: Mesh) -> void:
+		mm.mesh = m
+		for c in _cells:
+			c.multimesh.mesh = m
+
 	## Not `visibility_range_end`: that measures to the box's centre, which sits high above the ground because a
 	## cell's box spans every height the terrain can be pulled to.
 	func cull(eye: Vector3, reach: float) -> void:
@@ -139,11 +147,11 @@ class Pool:
 		for i in _cells.size():
 			_cells[i].visible = _centres[i].distance_to(Vector2(eye.x, eye.z)) < r
 
-	func _setup(m: MultiMesh, mesh: Mesh, count: int) -> void:
+	func _setup(m: MultiMesh, drawn: Mesh, count: int) -> void:
 		m.transform_format = MultiMesh.TRANSFORM_3D
 		m.use_colors = true
 		m.use_custom_data = true
-		m.mesh = mesh
+		m.mesh = drawn
 		m.instance_count = count
 
 	func _show(m: MultiMesh) -> MultiMeshInstance3D:
@@ -203,22 +211,37 @@ var groups := {}
 var ghost_grass: Pool
 var ghost_flowers: Pool
 ## How far from the eye grass is drawn, as Quality steps it; sub-pixel blades beyond it cost the Quest 2 most of its frame.
-var grass_reach: float = Quality.GRASS_M[0]:
+var grass_reach: float = Quality.ladder[0].grass_m:
 	set(m):
 		grass_reach = m
 		grass_mat.set_shader_parameter(&"draw_reach", m)
+## How far flowers are drawn, as Quality steps it: meadow, painted and a stroke's flowers alike, as grass reach is.
+var flower_reach: float = Quality.ladder[0].flowers_m:
+	set(m):
+		flower_reach = m
+		flower_mat.set_shader_parameter(&"draw_reach", m)
+## Which of `_blobs` the foliage is drawn with, as Quality steps it.
+var blob_detail: int = Quality.ladder[0].blob_detail:
+	set(n):
+		if n != blob_detail:
+			blob_detail = n
+			foliage.draw_with(_blobs[n])
+var flower_mat: ShaderMaterial
+## Foliage blobs at each detail, made up front so a step changes only which one is drawn.
+var _blobs := {}
 
 
 func _init() -> void:
 	grass_mat.shader = load("res://src/grass.gdshader")
 	grass_mat.set_shader_parameter(&"draw_reach", grass_reach)
 	part(NO_HAND, NO_HAND)
-	var clump := Meshes.grass_clump(7, 1)
+	var clump := Meshes.grass_clump(7, 1, 3)
 	var bloom := Meshes.flower(6)
 	grass = Pool.new(self, clump, Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false)
-	var flower_mat := _plant_material("flower", Color.WHITE, 0.8)
+	flower_mat = _plant_material("flower", Color.WHITE, 0.8)
 	flower_mat.set_shader_parameter("stalk", Meshes.STALK)
 	flower_mat.set_shader_parameter("eye", Meshes.EYE)
+	flower_mat.set_shader_parameter(&"draw_reach", flower_reach)
 	flowers = Pool.new(self, bloom, Meadow.FLOWERS + PAINTED_FLOWERS, flower_mat, false)
 	ghost_grass = Pool.new(self, clump, Commands.MAX_STROKE * 2, grass_mat, false)
 	ghost_flowers = Pool.new(self, bloom, Commands.MAX_STROKE * 2, flower_mat, false)
@@ -231,7 +254,9 @@ func _init() -> void:
 	trunks = Pool.new(self, trunk, Meadow.TREES + PLACED_TREES, _plant_material("plant", Color(0.36, 0.27, 0.2), 1.0), true)
 	var leaf_mat := _plant_material("leaf", Color.WHITE, 1.0)
 	leaf_mat.set_shader_parameter("backlight", Color(0.25, 0.35, 0.08))
-	foliage = Pool.new(self, Meshes.blob(4), (Meadow.TREES + PLACED_TREES) * FloraLayout.BLOBS + Meadow.BUSHES, leaf_mat, true)
+	for step in Quality.ladder:
+		_blobs.get_or_add(step.blob_detail, Meshes.blob(4, step.blob_detail))
+	foliage = Pool.new(self, _blobs[blob_detail], (Meadow.TREES + PLACED_TREES) * FloraLayout.BLOBS + Meadow.BUSHES, leaf_mat, true)
 
 
 static func _plant_material(shader: String, albedo: Color, roughness: float) -> ShaderMaterial:
@@ -246,6 +271,20 @@ func _process(_delta: float) -> void:
 	var eye := get_viewport().get_camera_3d()
 	if eye != null:
 		grass.cull(eye.global_position, grass_reach)
+		flowers.cull(eye.global_position, flower_reach)
+
+
+## Moves grass and flower reach toward `step`'s at Quality.REACH_RATE and draws its blobs; whether both reaches are
+## there, since a step still under way is not yet the step's cost.
+func approach(step: Quality.Step, delta: float) -> bool:
+	var grass_m := move_toward(grass_reach, step.grass_m, Quality.REACH_RATE * delta)
+	if grass_m != grass_reach:
+		grass_reach = grass_m
+	var flowers_m := move_toward(flower_reach, step.flowers_m, Quality.REACH_RATE * delta)
+	if flowers_m != flower_reach:
+		flower_reach = flowers_m
+	blob_detail = step.blob_detail
+	return grass_reach == step.grass_m and flower_reach == step.flowers_m
 
 
 func part(left: Vector3, right: Vector3) -> void:

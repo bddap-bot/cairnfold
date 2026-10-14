@@ -2,22 +2,42 @@ class_name Quality
 extends Node
 
 ## The game's one graphics configuration: a ladder of steps from full quality down, walked by the GPU time each
-## frame takes, so every headset settles on the prettiest step it holds at its refresh rate. Grass reach is the
-## only knob on it, the only one measured to buy frame time on the Quest 2 (see "Automatic quality" in
-## docs/design.md); it moves at no frame cost, by hiding whole grass cells.
+## frame takes, so every headset settles on the prettiest step it holds at its refresh rate. A knob is on it only with
+## a saving measured on the Quest 2 (see "Automatic quality" in docs/design.md), and each moves at no frame cost.
 
-## How far grass is drawn at each step, full quality first.
-const GRASS_M: Array[float] = [24.0, 20.0, 16.0, 13.0, 10.0]
-## Grass reach moves toward its step at this many metres a second, so the edge of the meadow recedes rather than jumps.
-const GRASS_RATE := 8.0
+## One rung of the ladder. Reaches are in metres; `blob_detail` is `Meshes.blob`'s subdivisions.
+class Step:
+	var grass_m: float
+	var flowers_m: float
+	var blob_detail: int
+
+	func _init(grass: float, flowers: float, blobs: int) -> void:
+		grass_m = grass
+		flowers_m = flowers
+		blob_detail = blobs
+
+
+## Full quality first, then cheapest loss per millisecond saved. Flowers beyond 60 m are under two pixels across on
+## the Quest 2.
+static var ladder: Array[Step] = [
+	Step.new(24.0, 60.0, 2),
+	Step.new(20.0, 60.0, 2),
+	Step.new(16.0, 60.0, 2),
+	Step.new(13.0, 60.0, 2),
+	Step.new(10.0, 60.0, 2),
+	Step.new(10.0, 20.0, 2),
+	Step.new(10.0, 20.0, 1),
+]
+## Grass and flower reach move toward their step at this many metres a second, so the edge recedes rather than jumps.
+const REACH_RATE := 8.0
 ## Seconds of rendered frames the governor sits out at the start: loading's first frames are not the scene's cost.
 const WARMUP := 5.0
 
-var governor := Governor.new(GRASS_M.size() - 1)
+var governor := Governor.new(ladder.size() - 1)
 ## The step held instead of the governor's, for measuring; -1 while governed.
 var pin := -1:
 	set(n):
-		pin = clampi(n, -1, GRASS_M.size() - 1)
+		pin = clampi(n, -1, ladder.size() - 1)
 var budget_ms := 0.0
 ## The viewport's GPU time for the last frame measured, in milliseconds, and whether this frame measured one.
 var frame_ms := 0.0
@@ -26,6 +46,8 @@ var _xr: OpenXRInterface
 var _flora: Flora
 var _vp: RID
 var _warm := 0.0
+## Whether the knobs had reached their step last frame: a step still under way is not judged as one that failed.
+var _settled := false
 
 
 func _init(xr: OpenXRInterface, flora: Flora) -> void:
@@ -55,12 +77,9 @@ func _process(delta: float) -> void:
 		var hz := _xr.display_refresh_rate if _xr.display_refresh_rate > 0.0 else Budget.REFRESH_HZ
 		budget_ms = 1000.0 / hz
 		_warm += delta
-		# Judged only once the grass has reached its step, so a step still under way is not taken for one that failed.
-		if pin < 0 and _warm > WARMUP and _flora.grass_reach == GRASS_M[step()]:
+		if pin < 0 and _warm > WARMUP and _settled:
 			governor.step(frame_ms, budget_ms, delta)
-	var reach := move_toward(_flora.grass_reach, GRASS_M[step()], GRASS_RATE * delta)
-	if reach != _flora.grass_reach:
-		_flora.grass_reach = reach
+	_settled = _flora.approach(ladder[step()], delta)
 
 
 ## Walks the ladder on one signal, the GPU time of each frame against the budget: down at once when frames

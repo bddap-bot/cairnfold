@@ -11,7 +11,7 @@ const GPU_SHARE := 0.9
 ## What building costs: GPU microseconds a frame per stone laid (WallLayout.stones, ivy, mortar and shadow
 ## included), the one number a visible budget would count. Fitted on the Quest 2 from the stress scene's walls
 ## over every flora pool full, from the air, the costlier view (see "Frame budget" in docs/design.md).
-const STONE_US := 0.87
+const STONE_US := 0.81
 
 
 static func gpu_ms() -> float:
