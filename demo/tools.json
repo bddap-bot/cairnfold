@@ -18,5 +18,8 @@
   {"op": "pick", "hand": "left", "tool": "path"},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "07-walls-path"},
+  {"op": "pick", "hand": "left", "tool": "pond"},
+  {"op": "wait", "seconds": 0.5},
+  {"op": "capture", "name": "08-walls-pond"},
   {"op": "quit"}
 ]

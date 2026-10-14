@@ -11,13 +11,14 @@ build order.
 ## Controls
 
 Each hand holds a tool, shown as a small object on top of its controller: walls,
-paths, flowers, grass, trees, terrain, teleport or delete.
+paths, flowers, grass, trees, terrain, pond, teleport or delete.
 
 - Hold a stick's click, push toward a tool in the ring, let go: that hand takes it.
 - Trigger: use the tool. Draw a wall, lay a path, paint, plant a tree, grab the
-  ground and lift or lower the hand to pull a hill or press a hollow, aim a teleport
-  (release to go; into the sky to float), or delete the one thing you point at. A
-  path through a wall opens an arch, a wide one an arcade.
+  ground and lift or lower the hand to pull a hill or press a hollow, dig a pond
+  (hold to dig deeper, release to fill), aim a teleport (release to go; into the
+  sky to float), or delete the one thing you point at. A path through a wall opens
+  an arch, a wide one an arcade.
 - Holding walls: grip on a wall pulls its height, grip on a roof shapes it; A on a
   wall cuts or fills an arch, A on its top changes its style; a loop held closed
   snaps to a round tower. Both hands on walls, both grips on the ground: lay out a

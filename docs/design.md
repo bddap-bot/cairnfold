@@ -161,7 +161,7 @@ Stage numbers refer to the build order at the end.
 | Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers take the colour of the meadow drift they land in | 1 (done), 3 (done) |
 | Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs; the trigger of a hand holding the tree tool plants one where it points | 1 (done), 3 (done) |
 | Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | The terrain tool's trigger grabs the ground where it points and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then rock show on steep slopes | 7 (shaping done) |
-| Water | Dug holes with a flat surface and normal-map waves | Dig with a downward pull, flat water with scrolling normals and a depth tint | 7 |
+| Water | Dug holes with a flat surface and normal-map waves | The pond tool scoops a hollow where it points; it fills to just below its rim with depth-tinted water, shore foam and ripples where a hand breaks it (see "Water") | 7 (water done) |
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, a low-res light-probe volume rebuilt when building changes | 2 |
 | Shadows | Soft sun shadows with temporal filtering, contact shadows | Two-split soft shadows; tuned splits for a floating viewpoint | 1 (done), 2 |
 | Sky and clouds | Hand-tuned colour timelines per glade; clouds as pre-lit sprites on a cylinder | Sky shader gradient and painted noise clouds (done); timelines per time of day in stage 8 | 1 (done), 8 |
@@ -272,8 +272,9 @@ aiming at the ground is how you come back down.
 | Paint flowers or grass | Trigger held on a hand holding flowers or grass, pointing at the ground; the ring shows the brush, which widens the farther you point |
 | Plant a tree | Trigger of a hand holding trees, pointing at the ground |
 | Shape the ground | Trigger held on a hand holding terrain, pointing at the ground: the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it |
+| Dig a pond | Trigger held on a hand holding the pond tool, pointing at the ground: the hollow deepens while held and fills with water on release (see "Water") |
 | Delete | Trigger of a hand holding delete: takes the wall, tower or house it points at, else the tree nearest where it meets the ground, else the painted plants under it; one thing per press, never more |
-| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes, paths, ground shaped) |
+| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes, paths, ground shaped, ponds dug) |
 | Redo | Tap the left D-pad up (left or right too): one step forward per tap. A new edit after an undo drops what could be redone |
 | Lay a path | Trigger held on a hand holding paths, sweep the pointer over the ground; the ring is the path's width, wider the farther you point. Through a wall it opens an arch or an arcade |
 | Later: move the sun | Grip the sun in the sky and drag it |
@@ -310,6 +311,46 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 9. Sound and music. (Done.)
 10. Save and load, undo history and the eraser.
 11. Wildlife and photo mode.
+
+## Water
+
+Directive (verbatim): "Definitely gonna need pretty water"
+
+The pond tool sits in each hand's ring as a small sandy dish of water. Holding its trigger scoops a
+hollow where it points (the terrain tool's stroke, pulled down), deeper the longer it is held, from
+0.45 m for a tap to 1.3 m. On release the hollow fills; undo fills the hollow back in. Water is not
+placed: each dig leaves a seed, and after every settled ground edit the basin around each seed
+fills lowest ground first until it would spill over the lowest point of its rim, settling 8 cm
+below that (`PondLayout`). So digs beside each other become one pond, a hill raised through a pond
+drains it, and undoing a dig empties it. Basins shallower than 12 cm, or wider than 24 m from the
+seed, hold nothing.
+
+The look follows the usual recipe for stylised water (Sea of Thieves' blend of deep and shallow
+colour, the common stylised-water shaders' depth bands and shore foam), adapted so nothing reads
+the frame back, which on a tiled GPU costs a full-frame resolve per eye:
+
+- **One shared level:** pond levels go to shaders as a texture on the ground grid
+  (`water.gdshaderinc`), beside the ground heights. The water shader takes its depth from the heights, the
+  terrain shader turns a pond's bed and a hand's breadth of bank to wet, pebbled sand under drifting
+  caustics, and grass, flowers and trees standing under water collapse in their vertex shaders. No
+  instance is touched, and undo needs no bookkeeping.
+- **Colour:** clear turquoise in the shallows to deep teal, opacity rising with depth; a broken foam
+  line at the shore and faint foam bands drifting toward it.
+- **Ripples:** two scrolling normal maps for the breeze, plus up to twelve rings where a hand dips in
+  or moves through the surface.
+- **Reflections:** the sky's radiance and the sun's glint through the rippled normal, with Fresnel
+  raising opacity at grazing angles. No planar or screen-space reflection: a planar pass renders
+  the scene again per eye.
+- **Filling:** a new pond rises from its deepest point over 1.8 s.
+- **Cost:** measured with Godot's viewport GPU timer on a desktop RTX 2080 at 1600×1200, same view
+  (lowest tenth of 23–24 one-second samples): 1.01 ms before, 1.01 ms with the plant and terrain
+  shader changes and no pond, 1.03 ms with two ponds in view. A variant that refracts the screen
+  texture and reads the depth buffer measured 1.17 ms in the same scene, eight times the cost, before
+  the tiled-GPU resolve that makes it worse on a headset; it was dropped. Headset numbers belong to the
+  on-device run.
+
+Sound: each pond laps softly from its middle (slow, low-passed sloshes with rare bubbles), a hand
+dipping in plops, and a filling pond gurgles; all of it sits below 1.8 kHz.
 
 ## Sound
 

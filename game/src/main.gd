@@ -8,6 +8,8 @@ var tool: WallTool
 var flora_tool: FloraTool
 var delete_tool: DeleteTool
 var terrain_tool: TerrainTool
+var water: Water
+var water_tool: WaterTool
 var sound: Soundscape
 var metrics: Metrics
 var spectator: SubViewport
@@ -40,7 +42,14 @@ func _ready() -> void:
 	terrain_tool.reshaped.connect(tool.reground)
 	terrain_tool.reshaped.connect(rig.reground)
 	add_child(terrain_tool)
-	sound = Soundscape.new(tool, flora_tool)
+	var hands: Array[Node3D] = []
+	hands.assign(rig.hands)
+	water = Water.new(hands)
+	terrain_tool.reshaped.connect(water.reground)
+	add_child(water)
+	water_tool = WaterTool.new(rig, terrain_tool, water)
+	add_child(water_tool)
+	sound = Soundscape.new(tool, flora_tool, water)
 	add_child(sound)
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 	metrics = Metrics.new(args.get("metrics", ""))

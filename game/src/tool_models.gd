@@ -27,7 +27,61 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_teleport(root)
 		Hand.Tool.DELETE:
 			_spade(root)
+		Hand.Tool.POND:
+			_pond(root)
 	return root
+
+
+## A pond in small: a sandy dish holding a disc of glinting water inside a line of foam, pebbles on its bank.
+static func _pond(root: Node3D) -> void:
+	var sand: StandardMaterial3D = _mats.get("sand")
+	if sand == null:
+		sand = StandardMaterial3D.new()
+		sand.albedo_color = Color(0.62, 0.53, 0.38)
+		sand.roughness = 1.0
+		_mats["sand"] = sand
+		var water := StandardMaterial3D.new()
+		water.albedo_color = Color(0.16, 0.48, 0.52)
+		water.roughness = 0.08
+		water.metallic_specular = 0.7
+		_mats["water"] = water
+		var foam := StandardMaterial3D.new()
+		foam.albedo_color = Color(0.95, 0.97, 0.94)
+		foam.roughness = 0.6
+		_mats["foam"] = foam
+		var pebble := StandardMaterial3D.new()
+		pebble.albedo_color = Color(0.6, 0.6, 0.57)
+		pebble.roughness = 0.9
+		_mats["pebble"] = pebble
+	var dish := CylinderMesh.new()
+	dish.top_radius = 0.026
+	dish.bottom_radius = 0.021
+	dish.height = 0.006
+	dish.radial_segments = 20
+	dish.rings = 1
+	var disc := CylinderMesh.new()
+	disc.top_radius = 0.019
+	disc.bottom_radius = 0.019
+	disc.height = 0.001
+	disc.radial_segments = 20
+	disc.rings = 1
+	var ring := TorusMesh.new()
+	ring.inner_radius = 0.0185
+	ring.outer_radius = 0.0205
+	ring.rings = 24
+	ring.ring_segments = 4
+	var parts := [[dish, Vector3(0, 0.003, 0), Vector3.ONE, "sand"], [disc, Vector3(0, 0.0063, 0), Vector3.ONE, "water"], [ring, Vector3(0, 0.0064, 0), Vector3(1, 0.3, 1), "foam"]]
+	for k in 3:
+		var a := TAU * (0.1 + k * 0.13)
+		parts.append([Meshes.rounded_box(0.3, 2, 5), Vector3(cos(a), 0, sin(a)) * 0.024 + Vector3(0, 0.0068, 0), Vector3(0.005, 0.003, 0.004) * (1.0 - k * 0.15), "pebble"])
+	for part in parts:
+		var mi := MeshInstance3D.new()
+		mi.mesh = part[0]
+		mi.position = part[1]
+		mi.scale = part[2]
+		mi.material_override = _mats[part[3]]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(mi)
 
 
 static func _wall(root: Node3D) -> void:

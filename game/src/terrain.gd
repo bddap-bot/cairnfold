@@ -93,6 +93,16 @@ static func cells_around(x: float, z: float, radius: float) -> Rect2i:
 	return Rect2i(lo, hi - lo + Vector2i.ONE).intersection(Rect2i(0, 0, VERTS, VERTS))
 
 
+## The grid point nearest (x, z).
+static func grid_point(x: float, z: float) -> Vector2i:
+	return Vector2i(clampi(roundi((x + SIZE * 0.5) / STEP), 0, CELLS), clampi(roundi((z + SIZE * 0.5) / STEP), 0, CELLS))
+
+
+## The world position of grid point `g` across the ground.
+static func grid_xz(g: Vector2i) -> Vector2:
+	return Vector2(g) * STEP - Vector2.ONE * SIZE * 0.5
+
+
 ## The world rectangle whose ground `cells` decide.
 static func world_rect(cells: Rect2i) -> Rect2:
 	return Rect2(Vector2(cells.position - Vector2i.ONE) * STEP - Vector2.ONE * SIZE * 0.5, Vector2(cells.size + Vector2i.ONE) * STEP)

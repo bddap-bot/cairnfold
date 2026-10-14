@@ -142,7 +142,9 @@ func follow(delta: float) -> void:
 
 
 ## Makes the stroke permanent and records it as one undo step; a tap that barely moved leaves the ground as it was.
-func end_stroke() -> void:
+## A stroke that changed the ground runs `apply` now and on redo and `revert` on undo, so whatever rides on
+## the ground edit (a pond's seed) is undone with it.
+func end_stroke(apply := Callable(), revert := Callable()) -> void:
 	var g: Vector3 = _grabbed
 	_grabbed = null
 	_hand = null
@@ -153,8 +155,16 @@ func end_stroke() -> void:
 	var cells := Terrain.cells_around(g.x, g.z, _radius)
 	var before := Terrain.read(cells)
 	Terrain.bake()
+	if apply.is_valid():
+		apply.call()
 	reshaped.emit(_moved, true)
-	history.add(restore.bind(cells, before), restore.bind(cells, Terrain.read(cells)))
+	history.add(_step.bind(cells, before, revert), _step.bind(cells, Terrain.read(cells), apply))
+
+
+func _step(cells: Rect2i, values: PackedFloat32Array, also: Callable) -> void:
+	if also.is_valid():
+		also.call()
+	restore(cells, values)
 
 
 func restore(cells: Rect2i, values: PackedFloat32Array) -> void:

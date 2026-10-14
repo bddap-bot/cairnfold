@@ -9,7 +9,7 @@ const STEMS := ["bed", "lead", "orn"]
 const IDLE := [0.0, 0.0, 0.0]
 const BUILDING := [-3.0, -14.0, -40.0]
 const QUIET_AFTER := 4.0
-const FX := {"stone": 5, "settle": 3, "arch": 2, "crumble": 2}
+const FX := {"stone": 5, "settle": 3, "arch": 2, "crumble": 2, "dip": 3, "fill": 2}
 const VOICES := 10
 
 var tool: WallTool
@@ -24,10 +24,11 @@ var _next_voice := 0
 var _offsets: Array[float] = []
 
 
-func _init(builder: WallTool, flora_tool: FloraTool) -> void:
+func _init(builder: WallTool, flora_tool: FloraTool, water: Water) -> void:
 	tool = builder
 	tool.built.connect(_on_built)
 	flora_tool.planted.connect(_on_planted)
+	water.splashed.connect(_play)
 	var list := AudioStreamPlaylist.new()
 	list.loop = true
 	list.fade_time = 3.0
@@ -96,6 +97,10 @@ func _on_planted() -> void:
 
 func _on_built(kind: StringName, at: Vector3) -> void:
 	since_edit = 0.0
+	_play(kind, at)
+
+
+func _play(kind: StringName, at: Vector3) -> void:
 	var v := _voices[_next_voice]
 	_next_voice = (_next_voice + 1) % _voices.size()
 	var options: Array = _fx[kind]

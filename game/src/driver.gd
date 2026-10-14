@@ -267,6 +267,35 @@ func _touch(s: Dictionary) -> void:
 	main.flora_tool.stand_in = Flora.NO_HAND
 
 
+## Holds the pond tool's trigger on the ground at x, z for `seconds`, as a hand digging there does.
+func _dig(s: Dictionary) -> void:
+	var tool: WaterTool = main.water_tool
+	tool.begin(_holding(s, Hand.Tool.POND), _spot(s, s.x, s.z))
+	var t := 0.0
+	while t < s.get("seconds", 1.5):
+		await get_tree().process_frame
+		var dt := get_process_delta_time()
+		t += dt
+		tool.deepen(dt)
+	tool.end()
+
+
+## Sweeps the right hand along `points` at `y` metres above the pond at the first point, as if trailing it through.
+func _wade(s: Dictionary) -> void:
+	var path := _path(s)
+	var pond: PondWater = main.water.pond_at(path[0].x, path[0].z)
+	assert(pond != null, "wade: no pond at %s" % path[0])
+	var y: float = pond.surface_y() + s.get("y", 0.0)
+	var t := 0.0
+	var seconds: float = s.get("seconds", 2.0)
+	while t < seconds:
+		var p := _along(path, minf(t / seconds, 1.0))
+		main.rig.right.global_position = Vector3(p.x, y, p.z)
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	main.rig.right.position = Vector3.ZERO
+
+
 func _tree(s: Dictionary) -> void:
 	main.flora_tool.plant_tree(_spot(s, s.x, s.z))
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes every sound in game/audio: the music sections as three synchronized stems
-each, the meadow bed and the stone sounds. Deterministic; run under nix-shell."""
+each, the meadow bed, the stone sounds and the water sounds. Deterministic; run under nix-shell."""
 
 import json
 import pathlib
@@ -389,6 +389,67 @@ def _bird():
     return np.concatenate(notes) * 0.012
 
 
+# ---------------------------------------------------------------- water
+
+# Its own generator, so adding water sounds never changes the music, bed or stone sounds above.
+wrng = np.random.default_rng(31)
+
+
+def _bubble(f0, seconds, rise):
+    """A small bubble: a decaying sine whose pitch rises as it shrinks, as real bubbles do."""
+    t = _t(seconds)
+    f = f0 * (1 + rise * t / seconds)
+    return np.sin(2 * np.pi * np.cumsum(f) / SR) * np.exp(-t * 6 / seconds) * np.sin(np.pi * np.minimum(t / 0.004, 0.5))
+
+
+def _slosh(seconds, cutoff):
+    """One soft wave against the bank: low band-limited noise under a slow swell."""
+    t = _t(seconds)
+    n = wrng.standard_normal(len(t))
+    body = _fft_lowpass(n, cutoff) - _fft_lowpass(n, 90)
+    swell = np.sin(np.pi * t / seconds) ** 2 * np.exp(-t * 1.2 / seconds)
+    return body / np.std(body) * swell
+
+
+def lapping(seconds=16.0):
+    n = int(seconds * SR)
+    out = np.zeros(n)
+    at = 0.0
+    while at < seconds - 1.6:
+        w = _slosh(wrng.uniform(0.9, 1.6), wrng.uniform(500, 850)) * wrng.uniform(0.5, 1.0)
+        start = int(at * SR)
+        out[start : start + len(w)] += w[: n - start]
+        if wrng.random() < 0.6:
+            b = _bubble(wrng.uniform(280, 520), wrng.uniform(0.05, 0.1), 0.4) * wrng.uniform(0.1, 0.25)
+            bs = start + int(wrng.uniform(0.3, 0.8) * SR)
+            out[bs : bs + len(b)] += b[: max(0, n - bs)]
+        at += wrng.uniform(1.1, 2.3)
+    fade = int(2 * SR)
+    ramp = np.linspace(0, 1, fade)
+    out[:fade] = out[:fade] * ramp + out[-fade:] * (1 - ramp)
+    return _fft_lowpass(out[:-fade], 1400)
+
+
+def water():
+    fx = {}
+    for i in range(3):
+        x = _slosh(0.5, 900) * 0.6
+        for k in range(wrng.integers(2, 4)):
+            b = _bubble(wrng.uniform(330, 640), wrng.uniform(0.04, 0.09), 0.5) * wrng.uniform(0.3, 0.7)
+            s = int(wrng.uniform(0.0, 0.2) * SR)
+            x[s : s + len(b)] += b[: len(x) - s]
+        fx[f"dip{i}"] = x
+    for i in range(2):
+        seconds = 2.4
+        x = _slosh(seconds, 700) * 0.7
+        for k in range(14):
+            b = _bubble(wrng.uniform(220, 480), wrng.uniform(0.06, 0.14), 0.45) * wrng.uniform(0.15, 0.5)
+            s = int(wrng.uniform(0.05, seconds - 0.4) ** 1.3 / seconds**0.3 * SR)
+            x[s : s + len(b)] += b[: len(x) - s]
+        fx[f"fill{i}"] = x
+    return {k: _fft_lowpass(v, 1800) for k, v in fx.items()}
+
+
 # ---------------------------------------------------------------- output
 
 def write_ogg(path, x, quality=3):
@@ -424,6 +485,10 @@ def main():
     fx.mkdir(exist_ok=True)
     for name, x in effects().items():
         write_ogg(fx / f"{name}.ogg", x / np.abs(x).max() * 0.8)
+    for name, x in water().items():
+        write_ogg(fx / f"{name}.ogg", x / np.abs(x).max() * 0.6)
+    lap = lapping()
+    write_ogg(ROOT / "lap.ogg", lap / np.abs(lap).max() * 0.6, 2)
     print(f"audio: {ROOT}")
 
 

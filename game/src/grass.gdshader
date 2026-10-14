@@ -2,6 +2,7 @@ shader_type spatial;
 render_mode world_vertex_coords, cull_disabled, diffuse_lambert_wrap, specular_disabled;
 
 #include "res://src/ground.gdshaderinc"
+#include "res://src/water.gdshaderinc"
 
 uniform vec3 root_color : source_color = vec3(0.10, 0.24, 0.06);
 uniform vec3 tip_lush : source_color = vec3(0.45, 0.68, 0.18);
@@ -59,6 +60,9 @@ void vertex() {
 
 	far = smoothstep(far_begin, far_end, distance(root, CAMERA_POSITION_WORLD));
 	NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), 0.35 + 0.5 * far));
+	if (drowned(INSTANCE_CUSTOM.zw, ground)) {
+		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);
+	}
 }
 
 void fragment() {
