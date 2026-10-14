@@ -11,7 +11,7 @@ build order.
 ## Controls
 
 Each hand holds a tool, shown as a small object on top of its controller: walls,
-paths, flowers, grass, trees, terrain, pond, teleport, delete or visit.
+paths, flowers, grass, trees, terrain, pond, colour, teleport, delete or visit.
 
 - Hold a stick's click, push toward a tool in the ring, let go: that hand takes it.
 - Trigger: use the tool. Draw a wall, lay a path, paint, plant a tree, grab the
@@ -19,6 +19,10 @@ paths, flowers, grass, trees, terrain, pond, teleport, delete or visit.
   (hold to dig deeper, release to fill), aim a teleport (release to go; into the
   sky to float), or delete the one thing you point at. A path through a wall opens
   an arch, a wide one an arcade.
+- Holding colour: hold the trigger on a wall, roof, gable, fence, window or door, or
+  the meadow, and twist your wrist to turn a wheel of swatches for that material, or
+  of seasons for the meadow; let go to keep the one at the top.
+- Point any hand at the sun and grip it to drag it across the sky: dawn to dusk.
 - Holding visit: a small figure of each player nearby on the same network stands
   in front of you; point at one and pull the trigger to build in their garden
   with them. While visiting, pick the little cairn to go home.
