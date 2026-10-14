@@ -67,7 +67,7 @@ func _glade(seed: int) -> Glade:
 	var hands: Array[Node3D] = []
 	hands.assign(g.rig.hands)
 	await process_frame
-	g.wildlife = Wildlife.new(water, g.flora, g.palette, g.rig.head, hands, seed)
+	g.wildlife = Wildlife.new(water, g.flora, null, g.palette, g.rig.head, hands, seed)
 	g.wildlife.set_process(false)
 	root.add_child(g.wildlife)
 	for h in g.rig.hands:

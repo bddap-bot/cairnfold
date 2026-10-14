@@ -43,6 +43,7 @@ enum State { FLY_IN, ENTER, SWIM, ASHORE, REST, FLY_OUT, WALK_OUT }
 
 var water: Water
 var flora: Flora
+var walls: WallTool
 var palette: Palette
 var viewer: Node3D
 var hands: Array[Node3D] = []
@@ -75,9 +76,10 @@ class Family:
 		return ducks[0]
 
 
-func _init(ponds: Water, plants: Flora, season: Palette, eyes: Node3D, near: Array[Node3D], seed := -1) -> void:
+func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes: Node3D, near: Array[Node3D], seed := -1) -> void:
 	water = ponds
 	flora = plants
+	walls = builds
 	palette = season
 	viewer = eyes
 	hands = near

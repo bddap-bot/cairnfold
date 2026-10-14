@@ -90,7 +90,7 @@ func _ducks_come_only_to_ponds() -> void:
 	root.add_child(flora)
 	var no_hands: Array[Node3D] = []
 	await process_frame
-	var wildlife := Wildlife.new(water, flora, Palette.new(), rig.head, no_hands, 1)
+	var wildlife := Wildlife.new(water, flora, null, Palette.new(), rig.head, no_hands, 1)
 	wildlife.set_process(false)
 	root.add_child(wildlife)
 
@@ -135,7 +135,7 @@ func _ducks_come_only_to_ponds() -> void:
 	_check(worst[2] == 0 and worst[0] <= Wildlife.BANK.y + 0.75, "it rests on dry grass near the water, at most %.2f m from the shore" % worst[0])
 	_check(worst[1] < 0.02, "afloat, each duck sits at the waterline, off by %.3f" % worst[1])
 
-	var flier := Wildlife.new(water, flora, Palette.new(), rig.head, no_hands, 0)
+	var flier := Wildlife.new(water, flora, null, Palette.new(), rig.head, no_hands, 0)
 	root.add_child(flier)
 	flier.set_process(false)
 	var lone: Duck = null
@@ -162,7 +162,7 @@ func _ducks_come_only_to_ponds() -> void:
 	_check(midair.state == Wildlife.State.FLY_IN, "the same seed flies in again")
 	_run(flier, 1.0)
 	var low := [midair.leader().position.y, 0.0]
-	var walker := Wildlife.new(water, flora, Palette.new(), rig.head, no_hands, 0)
+	var walker := Wildlife.new(water, flora, null, Palette.new(), rig.head, no_hands, 0)
 	root.add_child(walker)
 	walker.set_process(false)
 	for seed in 40:
