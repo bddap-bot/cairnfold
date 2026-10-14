@@ -173,9 +173,9 @@ players, headless on the benching machine, who join the measured instance and st
 view streaming their heads and hands. The measured instance waits for all of them before
 its first phase.
 
-On the Steam Frame (`bench.sh OUT steam-frame BUNDLE`: both eyes' pixels in one window
-with the headset off the head, so the numbers compare builds rather than give the
-headset's own frame time), GPU milliseconds per frame:
+On the Steam Frame, with the bench's earlier flat-window mode (both eyes' pixels in one
+window, about a third of the headset's XR cost; see "Frame measurements" in
+[design.md](design.md)), GPU milliseconds per frame:
 
 | Phase | 1 player | 2 players | 4 players |
 | --- | --- | --- | --- |

@@ -66,15 +66,21 @@ cameras). The rig's `Gaze` node follows the `/user/eyes_ext` tracker. Nothing in
 uses it yet; `demo/gaze.json` shows a debug gaze ray and logs the gaze pose twice a
 second, which reads untracked while the headset is off the head.
 
-With the headset off the head SteamVR pauses the game in standby
-(`power.pauseCompositorOnStandby`, on by default): the game's GPU time is about
-0.3 ms per frame and every frame lands on vsync, so such a run measures nothing.
-With that setting off for the run the game renders unworn and its GPU time is real.
-A run with the headset worn (Godot 4.5.1 Mobile renderer, Turnip Adreno 750, SteamVR 2.18.2,
-1728×1728 per eye, 4× MSAA, one drawn wall, before the flora stage) rendered at
-27.78 ms per frame, every other 72 Hz refresh, with about 16 ms of GPU time per
-frame against a 13.89 ms budget. Holding the refresh rate is open work; measure it
-from worn sessions' `metrics.json`. The first of each run of late frames is logged
+Off the head SteamVR puts the headset in standby and, by default
+(`power.pauseCompositorOnStandby`), pauses the game: about 0.3 ms of GPU time a
+frame, every frame on vsync, nothing drawn, so such a run measures nothing. With
+that setting off in `~/.config/openvr/config/steamvr.vrsettings` and SteamVR
+restarted, the unworn headset renders the game through its own XR session and
+compositor at full cost; `scripts/bench.sh`'s Frame mode measures that way. Its
+times are the headset's render path: the runtime's render target, both eyes, the
+foveation layer and the compositor. They stand in for a worn session's game GPU
+time, short of what only a worn session runs: eye tracking and the passthrough
+cameras, whose load on the shared SoC is not in these numbers, and a tracked gaze,
+so foveation follows no eye unworn. A run with the headset worn (Godot 4.5.1 Mobile
+renderer, Turnip Adreno 750, SteamVR 2.18.2, 1728×1728 per eye, 4× MSAA, one drawn
+wall, before the flora stage) rendered at 27.78 ms per frame, every other 72 Hz
+refresh, with about 16 ms of GPU time per frame. Holding
+the refresh rate is open work. The first of each run of late frames is logged
 as it happens (`metrics: late frame`), between the script steps around it.
 
 The runtime's recommended render target is 1728×1728 per eye on a 2160×2160 panel,
@@ -185,9 +191,10 @@ What makes building cheap:
   had frames of 22 to 58 ms at the 99th percentile and two of 117 and 133 ms as
   it settled; now no frame of the stroke or its settling passes 7.1 ms.
 
-Measured on the Steam Frame (`bench.sh OUT steam-frame BUNDLE`: both eyes' pixels,
-3456×1728, in one window with the headset off the head, so the numbers compare
-builds rather than give the headset's frame time). GPU milliseconds per frame:
+Measured on the Steam Frame with an earlier mode of the bench: both eyes' pixels,
+3456×1728, in one flat window, which compares builds but runs about a third of the
+headset's XR cost (walls on a 25 m disc from the air: 14.5 ms flat, 41.6 ms in XR,
+below). GPU milliseconds per frame:
 
 | Phase | Before | Masonry | + one stone mesh, LOD | + ivy sprigs |
 | --- | --- | --- | --- | --- |
@@ -206,6 +213,29 @@ for the stone mesh took 38% of the primitives and no GPU time here, nor on the
 Quest 2 (below), so stones have none. With 630 m of walls, ivy cost 1.9 ms, stones
 2.1 ms, the shadow boxes 0.3 ms from the air and 1.0 ms standing among them, and
 mortar 0.2 to 0.4 ms. The stone shader's cost did not register.
+
+Measured on the Steam Frame in its XR session unworn (`bench.sh OUT SSH_HOST
+BUNDLE`, see "Frame measurements"): the game's GPU time per frame, median of each
+phase, and the median frame time at 72 Hz; the stress scene as it stands:
+
+| Phase | From the air | Standing | Frame time from the air |
+| --- | --- | --- | --- |
+| Meadow | 10.17 | 5.59 | 13.89 |
+| Every flora pool full | 11.61 | 8.90 | 13.89 |
+| Every butterfly | 15.03 | 8.87 | 27.78 |
+| Walls on a 10 m disc | 17.62 | 16.93 | 27.78 |
+| 15 m | 21.00 | 21.61 | 27.78 |
+| 20 m | 31.77 | 29.38 | 31.75 |
+| 25 m | 41.62 | 34.27 | 41.67 |
+| 9 m walls on a 15 m disc | 28.13 | 28.05 | 41.67 |
+| Village | 21.32 | 20.22 | 27.78 |
+| Ponds | 14.60 | 8.74 | 27.78 |
+| Hills | 35.68 | 33.41 | 41.67 |
+| Camera held up | | 37.17 | |
+
+From the air the Frame holds 72 Hz over the meadow and every flora pool, and drops to
+every other refresh or below from every butterfly on; the budget check stays on the
+Quest 2, the weaker headset.
 
 What is left grows with what is built, so building needs a bound, and the bound
 counts stones (`Budget.STONE_US`, GPU time per stone laid, ivy, mortar and shadow
