@@ -3,8 +3,8 @@
 global uniform sampler2D ground_height : filter_linear, repeat_disable;
 global uniform vec3 ground_grid;
 global uniform vec4 ground_hump;
-// How worn into a path the ground is (Paths.mask): 0 on the meadow, 1 under the stones.
-global uniform sampler2D path_mask : filter_linear, repeat_disable;
+// What the ground is made of (Ground): red trodden earth, green stone, neither meadow.
+global uniform sampler2D ground_mask : filter_linear, repeat_disable;
 
 float bell(float t) {
 	float s = max(1.0 - t * t, 0.0);
@@ -28,8 +28,14 @@ float ground_at(vec2 xz) {
 	return h;
 }
 
-float path_cover(vec2 xz) {
-	return textureLod(path_mask, (xz - ground_grid.x) / (ground_grid.y * (ground_grid.z - 1.0)), 0.0).r;
+vec2 ground_cover(vec2 xz) {
+	return textureLod(ground_mask, (xz - ground_grid.x) / (ground_grid.y * (ground_grid.z - 1.0)), 0.0).rg;
+}
+
+// How bare of plants the ground is, as Ground.bare reads it: 1 on earth or stone.
+float bare(vec2 xz) {
+	vec2 c = ground_cover(xz);
+	return min(c.r + c.g, 1.0);
 }
 
 vec3 ground_normal(vec2 xz) {

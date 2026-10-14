@@ -35,7 +35,48 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_spade(root)
 		Hand.Tool.POND:
 			_pond(root)
+		Hand.Tool.STONE:
+			_flagstones(root)
 	return root
+
+
+## A disc of meadow paved over half with flat, lumpy slabs.
+static func _flagstones(root: Node3D) -> void:
+	var turf := CylinderMesh.new()
+	turf.top_radius = 0.026
+	turf.bottom_radius = 0.024
+	turf.height = 0.004
+	turf.radial_segments = 20
+	turf.rings = 1
+	var mi := MeshInstance3D.new()
+	mi.mesh = turf
+	mi.position = Vector3(0, 0.002, 0)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
+	var slab: StandardMaterial3D = _mats.get("slab")
+	if slab == null:
+		var turf_mat := StandardMaterial3D.new()
+		turf_mat.albedo_color = Color(0.3, 0.52, 0.14)
+		turf_mat.roughness = 1.0
+		_mats["turf"] = turf_mat
+		slab = StandardMaterial3D.new()
+		slab.albedo_color = Color(0.62, 0.59, 0.54)
+		slab.roughness = 0.95
+		_mats["slab"] = slab
+	mi.material_override = _mats["turf"]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 6
+	for k in 6:
+		var a := TAU * k / 6.0 + rng.randf_range(-0.2, 0.2)
+		var r := 0.0 if k == 0 else 0.014
+		var s := MeshInstance3D.new()
+		s.mesh = Meshes.rounded_box(0.3, 2, 40 + k)
+		s.position = Vector3(cos(a) * r, 0.0048, sin(a) * r)
+		s.rotation.y = rng.randf() * TAU
+		s.scale = Vector3(0.011, 0.0018, 0.009) * rng.randf_range(0.85, 1.1)
+		s.material_override = slab
+		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(s)
 
 
 ## A pond in small: a sandy dish holding a disc of glinting water inside a line of foam, pebbles on its bank.

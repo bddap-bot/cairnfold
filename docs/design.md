@@ -196,7 +196,8 @@ Stage numbers refer to the build order at the end.
 | Wall tops | Merlons on flat tops, can be turned off; wooden railings on half-timber | Per wall: capping slabs with merlons, plain capping, or dry-stone coping (stones on edge, tall and short in turn); A on a wall's top cycles them | 1 (done), 4 (done) |
 | Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | A wall drawn over a tree or bush arches over it, shown live while drawing; one of 5 m or more over open ground opens an arch at the middle; A on a wall cuts or fills an arch there. Wall chemistry, in either order (a path laid through a wall, or a wall drawn across a path): one arch where they cross, or, where the crossing runs 2.8 m or more along the wall (a wide path, or one meeting it at a slant), an arcade of arches 2.3 m apart on stone pillars. A crossing beside an arch already there joins it as an arcade, so no opening closes; undoing the path closes the arches it opened | 1 (done), 5 (done) |
 | Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends and at the corners of a house | 1 (done), 4 (done) |
-| Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | The path tool's trigger, swept over the ground: flat stones laid in rows along the smoothed stroke, as wide as the brush ring (`PathLayout`); like the plants they ride the ground, so reshaping it carries them along. The stroke wears a ground mask (the `path_mask` shader global) that the terrain shader turns to trodden earth and the grass and flower shaders read to part around the stones | 5 (done) |
+| Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | The path tool's trigger, swept over the ground: flat stones laid in rows along the smoothed stroke, as wide as the brush ring (`PathLayout`); like the plants they ride the ground, so reshaping it carries them along. The stroke wears trodden earth into the ground mask (see "Ground materials") that the terrain shader shows and the grass and flower shaders read to part around the stones | 5 (done) |
+| Stone ground | Steep terrain turns rocky; paths of dirt and, later, cobblestone blended with them | The stone tool paints flagstone ground where it points, fraying into the meadow slab by slab; its grip paints meadow back (see "Ground materials") | 7 (done) |
 | Towers | A loop held down straightens into a circle | Draw a loop and keep holding with the end back near the start: after a moment it snaps to a round tower (radius 1.2–4 m) with a tiled cone roof, standing level on its lowest ground | 4 (done) |
 | Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Two-handed: both grips while pointing at the ground; the two spots are the ends of the ridge, so pulling apart lengthens the house (2.6–14 m, depth following) and twisting turns it. Stone walls with corner piers, a door arch in the front, level on its lowest ground | 4 (done) |
 | Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, plaster gable ends. Grip on a roof with the walls tool: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`) | 4 (done) |
@@ -206,7 +207,7 @@ Stage numbers refer to the build order at the end.
 | Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces, wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`), kept out of windows and doors too | 3 (done), 6 (done) |
 | Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers grow in clumps about 1.3 m across, each one of nine soft colours (white, butter, peach, pinks, lavender, violet, blues), so a stroke paints a few colour patches with nothing to pick | 1 (done), 3 (done) |
 | Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs; the trigger of a hand holding the tree tool plants one where it points | 1 (done), 3 (done) |
-| Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | The terrain tool's trigger grabs the ground where it points and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then rock show on steep slopes | 7 (shaping done) |
+| Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | The terrain tool's trigger grabs the ground where it points and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then stone ground show on steep slopes | 7 (shaping done) |
 | Water | Dug holes with a flat surface and normal-map waves | The pond tool scoops a hollow where it points; it fills to just below its rim with depth-tinted water, shore foam and ripples where a hand breaks it (see "Water") | 7 (water done) |
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, a low-res light-probe volume rebuilt when building changes | 2 |
 | Shadows | Soft sun shadows with temporal filtering, contact shadows | Two-split soft shadows; tuned splits for a floating viewpoint | 1 (done), 2 |
@@ -281,10 +282,11 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, decorations, paths, flowers, grass, trees, terrain, ponds, teleport and delete. The tool a hand
+windows, decorations, paths, stone, flowers, grass, trees, terrain, ponds, teleport and delete. The tool a hand
 holds stands on top of its controller as a small object, built from the same generators as the full-size
 thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
-flag with lanterns on it, a bend of paving, three flowers, a grass tuft, a tree, a mound, a pond in a
+flag with lanterns on it, a bend of paving, a disc of turf half
+paved with slabs, three flowers, a grass tuft, a tree, a mound, a pond in a
 sandy dish, the air-teleport marker (a ring on a pole over a ring), and a spade for delete. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
 rounded body is unchanged, and there is no text anywhere.
@@ -321,11 +323,12 @@ aiming at the ground is how you come back down.
 | Change a wall's top | A while a hand holding walls points at its top: merlons, plain capping, coping |
 | Lay out a house | Both hands holding walls, both grips while pointing at the ground; pull apart to size, twist to rotate, release to build |
 | Paint flowers or grass | Trigger held on a hand holding flowers or grass, pointing at the ground; the ring shows the brush, which widens the farther you point |
+| Paint stone ground | Trigger held on a hand holding stone, pointing at the ground; the grip held instead paints it back to meadow. The ring shows the brush, which widens the farther you point |
 | Plant a tree | Trigger of a hand holding trees, pointing at the ground |
 | Shape the ground | Trigger held on a hand holding terrain, pointing at the ground: the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it |
 | Dig a pond | Trigger held on a hand holding the pond tool, pointing at the ground: the hollow deepens while held and fills with water on release (see "Water") |
 | Delete | Trigger of a hand holding delete: takes the wall, tower or house it points at, else the tree nearest where it meets the ground, else the painted plants under it; one thing per press, never more |
-| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes, paths, ground shaped, ponds dug, fences, windows and decorations) |
+| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes, stone ground, paths, ground shaped, ponds dug, fences, windows and decorations) |
 | Redo | Tap the left D-pad up (left or right too): one step forward per tap. A new edit after an undo drops what could be redone |
 | Lay a path | Trigger held on a hand holding paths, sweep the pointer over the ground; the ring is the path's width, wider the farther you point. Through a wall it opens an arch or an arcade, through a fence a gate |
 | Draw a fence | Trigger held on a hand holding fences, swept like a wall |
@@ -360,7 +363,7 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 4. Towers, houses and roofs: loop-to-tower, two-handed footprints, tiled roofs with pull-to-shape, wall-top style per wall. (Done.)
 5. Paths and wall chemistry: path brush; a path through a wall cuts an arch, wide crossings become arcades. (Done.)
 6. Windows, doors, fences, chimneys, lanterns and flags. (Done.)
-7. Terrain shaping and water.
+7. Terrain shaping, stone ground and water.
 8. Time of day, seasons and palettes, a colour picker.
 9. Sound and music. (Done.)
 10. Save and load, undo history and the eraser.
@@ -405,6 +408,43 @@ the frame back, which on a tiled GPU costs a full-frame resolve per eye:
 
 Sound: each pond laps softly from its middle (slow, low-passed sloshes with rare bubbles), a hand
 dipping in plops, and a filling pond gurgles; all of it sits below 1.8 kHz.
+
+## Ground materials
+
+Directive (verbatim): "I would like stone." / "Stone as in terrain material that is not grass."
+
+What the ground is made of lives in one mask (`Ground`, the `ground_mask` shader global): one texel per
+0.31 m over the play area, red for trodden earth, green for stone, neither for meadow. Every path and
+painted stroke is a mark that stamps soft discs onto it, each blending over what lies beneath, and the
+mask is those marks replayed in the order they were laid, so undoing or redoing any stroke, a path's
+included, leaves exactly what the others made. Grass and flowers shrink to nothing wherever the mask
+is bare (earth or stone), and the brushes plant nothing there.
+
+- **Painting:** the stone tool's trigger lays stone under the brush; its grip paints meadow back, which
+  takes away only stone, so a path through the area keeps its wear. The meadow's own grass and flowers
+  stand up again where the stone goes. A stroke is one history step.
+- **Slopes:** the terrain shader treats a slope too steep to hold soil as stone ground too: one stone
+  look, fed by the mask's green channel or by the slope, whichever is higher.
+- **Look:** flagstones from a tiling cellular-noise texture (`Look.flagstones`: distance to the joint,
+  and one value per slab), in a warm grey with a lighter middle on each slab and earthy green joints.
+  Toward the edge of stone ground whole slabs drop out, the lowest-valued first, so it frays into the
+  meadow as scattered stepping stones rather than ending in a line, while the grass thins over the
+  same fade.
+- **Cost:** the terrain and plant shaders read the mask once per fragment or vertex; only stone ground
+  adds one texture read, behind a branch. Desktop RTX 2080 at
+  1600×1200, a meadow with a path and painted flowers in view (`render.sh`, Godot's viewport GPU timer,
+  median of 23–24 one-second samples, two interleaved runs each, on a GPU busy with other processes):
+  11.16 and 11.27 ms before, 11.10 and 9.97 ms after with a stone patch in view. Run-to-run spread on
+  that GPU is over a millisecond, so the lower run is noise, not a gain. Headset cost is not yet
+  measured.
+
+What Tiny Glade does, from public material only: grass and rocky terrain are separate surface kinds
+(beta 1.16.0 notes fix "terrain cracks and 'astroturf' popping on top of grass and rocky terrain"); rock
+there comes from steepness, set with the terrain tool's slope control, rather than a rock brush; the
+path tool lays brown dirt over the green, and a July 2025 update added cobblestone in three options that
+"combine and blend with paths". Its palette is warm and pastel. How its painted edges blend is not
+described publicly; ours fray slab by slab while the grass thins, which reads as a soft edge in desktop
+renders.
 
 ## Sound
 
@@ -471,7 +511,8 @@ plants trees and lets the ivy grow; `demo/houses.json` builds a tower, two house
 walls in each top style, and shapes the roofs; `demo/paths.json` lays paths through walls (an arch, an
 arcade), draws a wall across a wide path and raises the ground under a path; `demo/fittings.json` opens windows
 and doors in a wall, a house and a tower, hangs lanterns, flies flags, builds a chimney and draws a fence a
-path crosses.
+path crosses; `demo/stone.json` paints stone ground into the meadow, paints part of it back and
+walks the history.
 
 ## Sources
 
@@ -486,6 +527,10 @@ The "how the original does it" column summarises public material only:
 - Developer posts on wall chemistry and arches: https://x.com/anastasiaopara/status/1575049506449563648, https://x.com/anastasiaopara/status/1472627194409230343
 - Developer post on ivy: https://x.com/anastasiaopara/status/1543163341513842690
 - Audio talk: https://www.youtube.com/watch?v=uSOccCo_CzI
+- Patch notes on grass and rocky terrain, and paths past the glade edge: https://steamcommunity.com/app/2198150/allnews/
+- Players on the terrain tool's slope control and rocky cliffs: https://steamcommunity.com/app/2198150/discussions/0/4842023530179623756/
+- Paths as dirt over grass, with a developer reply: https://steamcommunity.com/app/2198150/discussions/0/597406800761043765/
+- Cobblestone paths blended with dirt: https://80.lv/articles/you-can-finally-make-stairs-easily-in-tiny-glade
 
 Grass techniques (public material from other games):
 

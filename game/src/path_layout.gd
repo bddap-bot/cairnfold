@@ -10,6 +10,8 @@ const HALF_WIDTH := Vector2(0.45, 3.0)
 ## A crossing at least this long along the wall opens an arcade instead of a single arch.
 const ARCADE_SPAN := 2.8
 const SINK := 0.035
+## The ground wears to earth this far past a path's stones.
+const VERGE := 0.3
 
 var points: Array[Vector3] = []
 var half_widths: Array[float] = []
@@ -58,6 +60,13 @@ func build(keep_before := 0.0) -> void:
 		row_lengths.append(_next_row)
 		_lay_row(_next_row, rng)
 		_next_row += ROW * rng.randf_range(0.9, 1.1)
+
+
+## Wears rows `from_row` up to `to_row` (all of them by default) into the ground mask `onto`; a Ground mark.
+func wear(onto: Image, from_row := 0, to_row := -1) -> void:
+	for k in range(from_row, row_lengths.size() if to_row < 0 else to_row):
+		var f := frame_at(row_lengths[k])
+		Ground.stamp(onto, f.point.x, f.point.z, f.half - 0.1, VERGE + 0.1, Ground.Kind.EARTH)
 
 
 ## The spine point, half-width and unit direction at arc length `s`.

@@ -12,7 +12,7 @@ void vertex() {
 	VERTEX.y += ground;
 #ifdef PARTED
 	vec3 root = MODEL_MATRIX[3].xyz + vec3(0.0, ground, 0.0);
-	VERTEX = mix(root, VERTEX, 1.0 - path_cover(root.xz));
+	VERTEX = mix(root, VERTEX, 1.0 - bare(root.xz));
 #endif
 	if (drowned(INSTANCE_CUSTOM.zw, ground)) {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);

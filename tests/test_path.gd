@@ -6,6 +6,7 @@ var failures := 0
 
 
 func _initialize() -> void:
+	Ground.install()
 	_stones_pave_the_stroke()
 	_stones_sit_on_the_ground()
 	_paths_are_deterministic()
@@ -184,10 +185,10 @@ func _the_mask_parts_the_path_only() -> void:
 		paths.extend(Vector3(-10 + i * 0.3, 0, 20), 0.8)
 	var p := paths.end()
 	_check(p != null and paths.layouts.size() == 1, "a 9 m stroke is a path")
-	_check(Paths.cover(-5, 20) > 0.99, "the ground under the stones is fully worn (%.2f)" % Paths.cover(-5, 20))
-	_check(Paths.cover(-5, 20.7) > 0.5, "the stones' edge is worn (%.2f)" % Paths.cover(-5, 20.7))
-	_check(Paths.cover(-5, 21.6) == 0.0, "the meadow a metre past the edge is untouched (%.2f)" % Paths.cover(-5, 21.6))
-	_check(Paths.cover(10, 20) == 0.0, "the meadow past the end is untouched")
+	_check(Ground.bare(-5, 20) > 0.99, "the ground under the stones is fully worn (%.2f)" % Ground.bare(-5, 20))
+	_check(Ground.bare(-5, 20.7) > 0.5, "the stones' edge is worn (%.2f)" % Ground.bare(-5, 20.7))
+	_check(Ground.bare(-5, 21.6) == 0.0, "the meadow a metre past the edge is untouched (%.2f)" % Ground.bare(-5, 21.6))
+	_check(Ground.bare(10, 20) == 0.0, "the meadow past the end is untouched")
 	paths.queue_free()
 
 
@@ -197,7 +198,7 @@ func _a_short_stroke_leaves_no_trace() -> void:
 	paths.begin(Vector3(30, 0, 30), 1.0)
 	paths.extend(Vector3(30.4, 0, 30), 1.0)
 	_check(paths.end() == null and paths.layouts.is_empty(), "a stroke under a metre is dropped")
-	_check(Paths.cover(30, 30) == 0.0, "a dropped stroke unwears the ground (%.2f)" % Paths.cover(30, 30))
+	_check(Ground.bare(30, 30) == 0.0, "a dropped stroke unwears the ground (%.2f)" % Ground.bare(30, 30))
 	paths.queue_free()
 
 
@@ -357,11 +358,11 @@ func _undo_lifts_a_path_and_its_arches() -> void:
 	var paths: Paths = nodes[1]
 	_check(paths.layouts.size() == 1 and w.layout.live_arches.size() == 1, "the path is laid and opens its arch: %s" % [w.layout.live_arches])
 	history.undo()
-	_check(paths.layouts.is_empty() and Paths.cover(2, 57) == 0.0, "undo lifts the path and its wear (%.2f)" % Paths.cover(2, 57))
+	_check(paths.layouts.is_empty() and Ground.bare(2, 57) == 0.0, "undo lifts the path and its wear (%.2f)" % Ground.bare(2, 57))
 	_check(w.layout.live_arches.is_empty(), "undo closes the arch the path opened: %s" % [w.layout.live_arches])
 	_check(not paths.get_children().any(func(c): return c is Stones), "undo takes the path's stones away")
 	history.redo()
-	_check(paths.layouts.size() == 1 and Paths.cover(2, 57) > 0.99 and w.layout.live_arches.size() == 1, "redo lays it again, arch and all: %s" % [w.layout.live_arches])
+	_check(paths.layouts.size() == 1 and Ground.bare(2, 57) > 0.99 and w.layout.live_arches.size() == 1, "redo lays it again, arch and all: %s" % [w.layout.live_arches])
 	t.free()
 	_teardown(nodes)
 

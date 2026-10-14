@@ -25,6 +25,7 @@ func _ground() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://src/terrain.gdshader")
 	mat.set_shader_parameter("detail", Look.detail_noise())
+	mat.set_shader_parameter("flagstones", Look.flagstones())
 	var mi := MeshInstance3D.new()
 	mi.mesh = Terrain.build_mesh()
 	mi.custom_aabb = Terrain.bounds()

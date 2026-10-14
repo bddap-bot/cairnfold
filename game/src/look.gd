@@ -3,6 +3,8 @@ extends RefCounted
 
 ## Sky, sun, fog and grading: the mood of a late-morning meadow.
 
+const FLAGSTONE_TEXELS := 256
+
 static var _detail: NoiseTexture2D
 
 
@@ -19,6 +21,32 @@ static func detail_noise() -> NoiseTexture2D:
 		_detail.generate_mipmaps = true
 		_detail.noise = n
 	return _detail
+
+
+## Flagstones for stone ground, tiling: red rises from 0 along the joints between slabs, green is each
+## slab's own value.
+static func flagstones() -> ImageTexture:
+	var seams := _cells(FastNoiseLite.RETURN_DISTANCE2_SUB).get_data()
+	var cells := _cells(FastNoiseLite.RETURN_CELL_VALUE).get_data()
+	var rg := PackedByteArray()
+	rg.resize(seams.size() * 2)
+	for i in seams.size():
+		rg[i * 2] = seams[i]
+		rg[i * 2 + 1] = cells[i]
+	var img := Image.create_from_data(FLAGSTONE_TEXELS, FLAGSTONE_TEXELS, false, Image.FORMAT_RG8, rg)
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
+static func _cells(returns: FastNoiseLite.CellularReturnType) -> Image:
+	var n := FastNoiseLite.new()
+	n.seed = 31
+	n.noise_type = FastNoiseLite.TYPE_CELLULAR
+	n.frequency = 0.05
+	n.fractal_type = FastNoiseLite.FRACTAL_NONE
+	n.cellular_jitter = 0.85
+	n.cellular_return_type = returns
+	return n.get_seamless_image(FLAGSTONE_TEXELS, FLAGSTONE_TEXELS)
 
 
 static func cloud_noise() -> NoiseTexture2D:

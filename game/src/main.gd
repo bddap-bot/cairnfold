@@ -19,6 +19,7 @@ var spectator: SubViewport
 func _ready() -> void:
 	args = _parse(OS.get_cmdline_user_args())
 	Terrain.install()
+	Ground.install()
 	Look.build(self)
 	var flora := Flora.new()
 	add_child(flora)

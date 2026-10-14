@@ -243,7 +243,7 @@ func _paint(s: Dictionary) -> void:
 		await get_tree().process_frame
 		var dt := get_process_delta_time()
 		t += dt
-		flora_tool.paint(b, _along(path, minf(t / seconds, 1.0)), s.radius, dt)
+		flora_tool.paint(b, _along(path, minf(t / seconds, 1.0)), s.radius, dt, s.get("meadow", false))
 	flora_tool.end_stroke(b)
 
 
