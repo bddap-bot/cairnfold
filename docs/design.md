@@ -148,7 +148,8 @@ density, and no build the player can make may bring the frame rate down.
   a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
   over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
   and towers, eight ponds, and the most ducks there can be at them (`bench.sh`
-  fixes the seed), each seen from the air and standing among them.
+  fixes the seed), with every butterfly there can be over the full flower pool,
+  each seen from the air and standing among them.
 - `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
   calls, primitives and GPU time; on a Quest it holds each phase to the budget and
   fails when one goes over. A new feature adds itself to the stress scene.
@@ -296,7 +297,7 @@ Stage numbers refer to the build order at the end.
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of the left D-pad down undoes a step, up redoes one; with others, each player's own steps (done); the delete tool takes away a tree or painted patch (done) and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. One reshape (or unwall) per sweep, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it; it is loaded at start. Only your own garden is kept, never one you are visiting. A file the game cannot read whole is moved aside to `garden.save.bad` before the garden is saved again. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
-| Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, a conure perches on a tree or wall (see "Wildlife") | 11 |
+| Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, butterflies gather over painted flowers, a conure perches on a tree or wall (see "Wildlife") | 11 |
 | Photo mode | Camera modes and filters | A hand-held camera that saves the view | 11 |
 | Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network with the visit tool (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
 
@@ -574,6 +575,14 @@ fly in and settle on it. There is no tool, menu or button for animals.
   preferred, so no animal asset is licensed.
 
   Directive (verbatim): "Agree the built here ones are cuter. Excellent wing flicks btw. Keep em."
+- **Butterflies** come to flower patches you paint. Directive (verbatim): "Wife wants butterflies."
+  Painted flowers are grouped into 3 m squares; one holding at least twelve in bloom
+  (`Butterflies.MIN_BLOOMS`) is a patch, and 8 to 25 seconds after it appears two to four
+  butterflies flutter in from out of sight. They wander from bloom to bloom, settle on one with
+  their wings slowly opening and closing, scatter up and away when a hand comes within 0.6 m, and
+  drift back. They leave, out of sight, when their patch is erased, drowned or out of season; the
+  meadow's own flowers draw none. Wings come in five soft colours (butter, apricot, sky, chalk,
+  lilac), darker at the rim.
 - **A conure**, iridescent blue and green, comes after the ducks: it lands on a
   tree or a wall top. Its plumage is poofy and soft, with a view-dependent hue
   shift (blue facing you, green at grazing angles) computed per fragment from
@@ -585,7 +594,9 @@ Budget: each animal is a few hundred triangles, skinned or vertex-animated, one
 draw call, and only a handful are ever in view, so wildlife never costs the
 refresh rate. Ducks are capped at two families of at most five
 (`Wildlife.FAMILIES`, `DUCKLINGS`): ten draw calls and about 6,000 triangles at
-most, one shared mesh per kind and one material.
+most, one shared mesh per kind and one material. Butterflies are one MultiMesh capped at 24
+(`Butterflies.CAP`): one draw call of 22 triangles each; the CPU steers them and the
+vertex shader beats their wings.
 
 ## Verifying on a headset
 

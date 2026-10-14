@@ -79,6 +79,8 @@ static func grass_clump(blades: int, seed: int) -> ArrayMesh:
 
 const STALK := Color(0.25, 0.45, 0.12)
 const EYE := Color(1.0, 0.78, 0.25)
+## Stalk length to the head, in an unscaled flower.
+const FLOWER_HEIGHT := 0.22
 
 
 ## A tiny flower head: a flat star of `head`-coloured petals around a raised eye, on a stalk.
@@ -86,7 +88,7 @@ const EYE := Color(1.0, 0.78, 0.25)
 static func flower(petals: int, head := Color.WHITE) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var h := 0.22
+	var h := FLOWER_HEIGHT
 	for tri in [[Vector3(-0.006, 0, 0), Vector3(0, h, 0), Vector3(0.006, 0, 0)], [Vector3(0, 0, -0.006), Vector3(0, h, 0), Vector3(0, 0, 0.006)]]:
 		for p in tri:
 			st.set_color(STALK)
@@ -166,4 +168,29 @@ static func sprig() -> ArrayMesh:
 					st.set_color(Color(leaf[1], leaf[1], leaf[1]))
 					st.add_vertex(x * p)
 	st.index()
+	return st.commit()
+
+
+## A butterfly facing -Z with its wings flat: fore and hind wings fanned from the body on each side, and a
+## thin body. UV.x runs 0 at the body to 1 at a wing's edge; UV.y is 0 on a forewing, 1 on a hindwing, 2 on the body.
+static func butterfly() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var fore := [Vector2(0.010, -0.006), Vector2(0.030, -0.032), Vector2(0.050, -0.040), Vector2(0.058, -0.028), Vector2(0.050, -0.010), Vector2(0.034, 0.0)]
+	var hind := [Vector2(0.036, 0.006), Vector2(0.040, 0.022), Vector2(0.030, 0.036), Vector2(0.014, 0.034), Vector2(0.004, 0.012)]
+	for side in [1.0, -1.0]:
+		for wing in [[fore, -0.004, 0.0], [hind, 0.004, 1.0]]:
+			var rim: Array = wing[0]
+			var hinge := Vector3(0, 0, wing[1])
+			for i in rim.size() - 1:
+				for p in [hinge, Vector3(rim[i].x * side, 0, rim[i].y), Vector3(rim[i + 1].x * side, 0, rim[i + 1].y)]:
+					st.set_uv(Vector2(0.0 if p == hinge else 1.0, wing[2]))
+					st.set_normal(Vector3.UP)
+					st.add_vertex(p)
+	var w := 0.004
+	for across in [Vector3(w, 0, 0), Vector3(0, w, 0)]:
+		for p in [-across - Vector3(0, 0, 0.018), across - Vector3(0, 0, 0.018), across + Vector3(0, 0, 0.026), -across - Vector3(0, 0, 0.018), across + Vector3(0, 0, 0.026), -across + Vector3(0, 0, 0.026)]:
+			st.set_uv(Vector2(0, 2))
+			st.set_normal(Vector3.UP)
+			st.add_vertex(p)
 	return st.commit()

@@ -5,9 +5,11 @@ extends Node3D
 ## Some time after a pond appears a duck arrives: alone it flies in and splashes down, a mother with
 ## ducklings walks in from the meadow with them in a line. They paddle about, now and then waddle up
 ## the bank to rest on the grass, and leave when their pond is gone. Arrivals and departures happen
-## out of the viewer's sight, so nothing pops in or out of being.
+## out of the viewer's sight, so nothing pops in or out of being. Butterflies come the same way to the flower
+## patches painted (`Butterflies`).
 
 const ARRIVE_AFTER := Vector2(20.0, 60.0)
+const BUTTERFLIES_AFTER := Vector2(8.0, 25.0)
 ## In wet grid points.
 const MIN_POND := 6
 const FAMILIES := 2
@@ -40,10 +42,15 @@ const EDGE := Terrain.SIZE * 0.5 - 1.0
 enum State { FLY_IN, ENTER, SWIM, ASHORE, REST, FLY_OUT, WALK_OUT }
 
 var water: Water
+var flora: Flora
+var palette: Palette
 var viewer: Node3D
+var hands: Array[Node3D] = []
 var families: Array[Family] = []
+var butterflies: Butterflies
 var rng := RandomNumberGenerator.new()
 var _due := {}
+var _due_butterflies := {}
 
 
 class Family:
@@ -68,13 +75,18 @@ class Family:
 		return ducks[0]
 
 
-func _init(ponds: Water, eyes: Node3D, seed := -1) -> void:
+func _init(ponds: Water, plants: Flora, season: Palette, eyes: Node3D, near: Array[Node3D], seed := -1) -> void:
 	water = ponds
+	flora = plants
+	palette = season
 	viewer = eyes
+	hands = near
 	if seed >= 0:
 		rng.seed = seed
 	else:
 		rng.randomize()
+	butterflies = Butterflies.new(self, rng.seed + 1)
+	add_child(butterflies)
 
 
 func ducks() -> Array[Duck]:
@@ -90,6 +102,14 @@ func _process(delta: float) -> void:
 
 func tick(delta: float) -> void:
 	_schedule(delta)
+	var room := butterflies.butterflies.size() < Butterflies.CAP
+	for key in _ripe(_due_butterflies, butterflies.empty_patches(), BUTTERFLIES_AFTER, delta, room):
+		if butterflies.butterflies.size() >= Butterflies.CAP:
+			break
+		_due_butterflies.erase(key)
+		var from := _unseen_direction(butterflies.centre(key), Butterflies.FROM_DISTANCE, Butterflies.FROM_HEIGHT, SIGHT, butterflies.rng)
+		butterflies.arrive(key, from)
+	butterflies.tick(delta)
 	for i in range(families.size() - 1, -1, -1):
 		var f := families[i]
 		_think(f, delta)
@@ -102,22 +122,33 @@ func tick(delta: float) -> void:
 
 
 func _schedule(delta: float) -> void:
-	for p in _due.keys():
-		if not water.ponds.has(p):
-			_due.erase(p)
-	if families.size() >= FAMILIES:
-		return
-	for p in water.ponds:
-		if p.pond.cells.size() < MIN_POND or _family_at(p) != null:
+	var ponds := water.ponds.filter(func(p: PondWater) -> bool: return p.pond.cells.size() >= MIN_POND and _family_at(p) == null)
+	var ripe := _ripe(_due, ponds, ARRIVE_AFTER, delta, families.size() < FAMILIES)
+	if not ripe.is_empty():
+		_due.erase(ripe[0])
+		_arrive(ripe[0])
+
+
+## Starts a wait in `after` for each habitat when it first appears and counts it down; the habitats whose
+## wait is over. A habitat that is gone, or taken, forgets its wait; while not `counting`, waits hold still.
+func _ripe(due: Dictionary, habitats: Array, after: Vector2, delta: float, counting := true) -> Array:
+	var present := {}
+	for h in habitats:
+		present[h] = true
+	for h in due.keys():
+		if not present.has(h):
+			due.erase(h)
+	var out := []
+	if not counting:
+		return out
+	for h in habitats:
+		if not due.has(h):
+			due[h] = rng.randf_range(after.x, after.y)
 			continue
-		if not _due.has(p):
-			_due[p] = rng.randf_range(ARRIVE_AFTER.x, ARRIVE_AFTER.y)
-			continue
-		_due[p] -= delta
-		if _due[p] <= 0.0:
-			_due.erase(p)
-			_arrive(p)
-			return
+		due[h] -= delta
+		if due[h] <= 0.0:
+			out.append(h)
+	return out
 
 
 func _family_at(p: PondWater) -> Family:
@@ -347,11 +378,11 @@ func _in_sight(at: Vector3, cone := SIGHT) -> bool:
 
 ## A level direction from `at` along which the point `reach` away and `height` up is outside `cone`, else
 ## the one of those tried furthest from the gaze.
-func _unseen_direction(at: Vector3, reach: float, height: float, cone := SIGHT) -> Vector3:
+func _unseen_direction(at: Vector3, reach: float, height: float, cone := SIGHT, random := rng) -> Vector3:
 	var best := Vector3.FORWARD
 	var best_dot := INF
 	for attempt in 12:
-		var dir := Vector3.FORWARD.rotated(Vector3.UP, rng.randf() * TAU)
+		var dir := Vector3.FORWARD.rotated(Vector3.UP, random.randf() * TAU)
 		var to := at + dir * reach + Vector3.UP * height
 		if not _in_sight(to, cone):
 			return dir

@@ -16,9 +16,7 @@ void vertex() {
 	VERTEX = mix(root, VERTEX, 1.0 - bare(root.xz));
 #endif
 #ifdef FLOWER
-	vec3 h = fract(root.xzx * 0.1031);
-	h += dot(h, h.yzx + 33.33);
-	if (fract((h.x + h.y) * h.z) >= season_bloom) {
+	if (INSTANCE_CUSTOM.r >= season_bloom) {
 		VERTEX = root;
 	}
 #endif

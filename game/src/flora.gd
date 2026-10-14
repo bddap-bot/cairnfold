@@ -259,7 +259,7 @@ func add_grass(p: Vector3, rng: RandomNumberGenerator, pool := grass) -> Plant:
 
 
 func add_flower(p: Vector3, rng: RandomNumberGenerator, pool := flowers) -> Plant:
-	return pool.add(FloraLayout.flower(p, rng), FloraLayout.flower_color(p), p)
+	return pool.add(FloraLayout.flower(p, rng), FloraLayout.flower_color(p), p, Color(FloraLayout.bloom_rank(p), 0, 0, 0))
 
 
 func add_tree(at: Vector3, rng: RandomNumberGenerator) -> Array[Plant]:

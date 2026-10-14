@@ -80,8 +80,13 @@ func globals() -> Dictionary:
 	for key in ["meadow", "foliage"]:
 		var t: Color = season[key]
 		out["season_" + key] = Vector4(t.r, t.g, t.b, t.a)
-	out["season_bloom"] = season.bloom
+	out["season_bloom"] = bloom()
 	return out
+
+
+## The share of flowers in bloom this season.
+func bloom() -> float:
+	return SEASONS[picks[Element.MEADOW]].bloom
 
 
 func apply() -> void:

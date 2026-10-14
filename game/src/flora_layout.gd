@@ -37,11 +37,17 @@ static func flower_color(p: Vector3) -> Color:
 	return FLOWER_COLORS[mini(k, FLOWER_COLORS.size() - 1)]
 
 
+## Where a flower stands in the order the seasons take them: one blooms while its rank is under the season's
+## share in bloom (plant.gdshaderinc reads it from the instance).
+static func bloom_rank(p: Vector3) -> float:
+	return _hash(floori(p.x * 64.0), floori(p.z * 64.0), Trait.BLOOM)
+
+
 static func flowery(p: Vector3) -> bool:
 	return _beds.get_noise_2d(p.z * 1.9, p.x * 1.9) >= 0.05
 
 
-enum Trait { X, Z, HEIGHT, FACING, TINT, COLOUR }
+enum Trait { X, Z, HEIGHT, FACING, TINT, COLOUR, BLOOM }
 
 
 ## The centre of the clump a ground point belongs to: the nearest of one jittered point per `size` cell.
