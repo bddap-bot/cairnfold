@@ -32,7 +32,7 @@ func _ready() -> void:
 	metrics.info = {"xr": _start_xr(), "label": ""}
 	add_child(metrics)
 	if args.has("script"):
-		add_child(Driver.new(self, args.script))
+		add_child(Driver.new(self, Driver.read(args.script)))
 	if args.has("quit-after"):
 		get_tree().create_timer(float(args["quit-after"])).timeout.connect(finish)
 

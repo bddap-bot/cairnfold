@@ -13,11 +13,13 @@ build order.
 - Left stick forward: aim a straight teleport ray; release to go. Aim into the
   sky to target a point in the air and float there; while aiming, right stick
   up or down moves that point farther or nearer.
-- Y: glide back down to the ground.
+- Left D-pad up, left or right: glide back down to the ground.
 - Right stick left/right: snap turn.
 - Right trigger: draw a wall along the ground.
 - Right grip on a wall: pull its height up or down.
-- A on a wall: cut or fill an arch. B: undo.
+- A on a wall: cut or fill an arch.
+- Hold the left D-pad down: undo the last wall.
+- Left trigger: paint flowers or grass; X switches which. Left grip: plant a tree.
 
 ## Running
 

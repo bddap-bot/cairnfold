@@ -112,7 +112,7 @@ Stage numbers refer to the build order at the end.
 | Time of day | Continuous, lockable, sun-angle slider | Reach up and drag the sun across the sky | 8 |
 | Seasons and palettes | Five glade palettes, colour wheel per element | Palette presets; a colour picker held in the left hand | 8 |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
-| Undo, erase | Animated undo; eraser splits walls into ruins | B undoes the last wall (done); an eraser beam that cuts walls into ruins | 1 (done), 10 |
+| Undo, erase | Animated undo; eraser splits walls into ruins | Holding the left D-pad down undoes the last wall (done); an eraser beam that cuts walls into ruins | 1 (done), 10 |
 | Save and load | Autosave after every action, backups, cloud | Autosave the build list (strokes, heights, arches) as JSON after every edit | 10 |
 | Wildlife | Sheep, birds, ducks, fireflies | Sheep and birds with simple steering | 11 |
 | Photo mode | Camera modes and filters | A hand-held camera that saves the view | 11 |
@@ -123,18 +123,27 @@ Stage numbers refer to the build order at the end.
 | --- | --- |
 | Teleport onto the ground | Left stick forward: a straight ray from the left hand lands where it meets the ground; release the stick to go |
 | Teleport into the air | Aim above the horizon: with no ground within reach (10 m to start), the ray targets the point in the air at its end, a ring on a pole down to the ground below. Right stick up or down while aiming moves that point farther or nearer (2–40 m). Release to arrive, slightly high, then settle gently into a hover with a slow bob |
-| Come back down | Aim at the ground, or press Y (left upper button) to glide down to the ground below |
+| Come back down | Aim at the ground, or press the left D-pad up, left or right to glide down to the ground below |
 | Turn | Right stick left or right: 30° snap turn |
 | Draw a wall | Right trigger held, sweep the pointer across the ground; release to finish. Strokes under 1 m are discarded |
 | Raise or lower a wall | Right grip while pointing at a wall, move the hand up or down; the gain grows with distance so far walls are easy to adjust |
-| Cut or fill an arch | Right A while pointing at a wall |
-| Undo | Right B |
+| Cut or fill an arch | A while pointing at a wall |
+| Undo the last wall | Hold the left D-pad down for half a second; a tap does nothing, and each hold removes one wall |
 | Paint flowers or grass | Left trigger held while pointing at the ground; the ring shows the brush, which widens the farther you point |
-| Switch flowers and grass | Left X |
+| Switch flowers and grass | X (B and Y too) |
 | Plant a tree | Left grip while pointing at the ground |
 | Later: size a house | Both grips on the ground, pull apart, twist to rotate |
 | Later: paint paths | The left-hand brush with a path mode |
 | Later: move the sun | Grip the sun in the sky and drag it |
+
+Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
+a D-pad on the left. Godot 4.5 has no Frame interaction profile, so the game binds
+the Touch and Index profiles and SteamVR remaps them: B, X and Y arrive as one
+button (Touch right B), D-pad down as Touch left X, and the other D-pad directions
+as Touch left Y. Whatever B does, X and Y do too, so that button only switches
+paint mode; nothing that removes walls sits on a single tap. The table lives in
+`Driver.FRAME_BUTTONS`, and `tests/test_controls.gd` presses every button with walls
+built.
 
 Floating turns the meadow into a diorama: drawing works from any height because
 the pointer ray hits the terrain, so you can lay out a whole castle from above and

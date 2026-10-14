@@ -3,14 +3,34 @@ extends Node
 
 ## Plays a JSON list of steps through the same rig and tool entry points the controllers use.
 
+## The Steam Frame's buttons as SteamVR delivers them to a game bound through the Touch or Index
+## profiles (its frame_controller remapping): B, X and Y all arrive as right-hand B.
+const FRAME_BUTTONS := {
+	"A": ["right_hand", "ax_button"],
+	"B": ["right_hand", "by_button"],
+	"X": ["right_hand", "by_button"],
+	"Y": ["right_hand", "by_button"],
+	"dpad_down": ["left_hand", "ax_button"],
+	"dpad_up": ["left_hand", "by_button"],
+	"dpad_left": ["left_hand", "by_button"],
+	"dpad_right": ["left_hand", "by_button"],
+}
+
+signal finished
+
 var main: Node
 var steps: Array
 
 
-func _init(owner: Node, path: String) -> void:
+func _init(owner: Node, script: Array) -> void:
 	main = owner
-	steps = JSON.parse_string(FileAccess.get_file_as_string(path))
-	assert(steps is Array, "script %s is not a JSON array" % path)
+	steps = script
+
+
+static func read(path: String) -> Array:
+	var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))
+	assert(parsed is Array, "script %s is not a JSON array" % path)
+	return parsed
 
 
 func _ready() -> void:
@@ -22,10 +42,21 @@ func _run() -> void:
 		print("driver: ", step)
 		await call("_" + step.op, step)
 	print("driver: done")
+	finished.emit()
 
 
 func _wait(s: Dictionary) -> void:
 	await get_tree().create_timer(s.seconds).timeout
+
+
+## Holds a Frame button (see FRAME_BUTTONS) for `seconds`, through the same edges the controllers feed.
+func _press(s: Dictionary) -> void:
+	var key := "%s/%s" % FRAME_BUTTONS[s.button]
+	Buttons.injected[key] = true
+	await get_tree().create_timer(s.get("seconds", 0.1)).timeout
+	Buttons.injected.erase(key)
+	await get_tree().process_frame
+	await get_tree().process_frame
 
 
 func _place(s: Dictionary) -> void:

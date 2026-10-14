@@ -1,7 +1,8 @@
 class_name WallTool
 extends Node3D
 
-## Right hand: trigger draws a wall along the ground, grip on a wall pulls its height, A cuts or fills an arch, B undoes.
+## Right hand: trigger draws a wall along the ground, grip on a wall pulls its height, A cuts or fills an arch.
+## Holding the left hand's lower button undoes the last wall.
 
 const POINT_SPACING := 0.45
 const REBUILD_EVERY := 0.06
@@ -23,6 +24,7 @@ var _since_rebuild := 0.0
 var _dirty := false
 var _seed := 1
 var _buttons: Buttons
+var _left: Buttons
 
 var _beam: Beam
 var _dot: MeshInstance3D
@@ -30,7 +32,8 @@ var _dot: MeshInstance3D
 
 func _init(player: Rig) -> void:
 	rig = player
-	_buttons = Buttons.new(rig.right).watch(["trigger_click", "grip_click", "ax_button", "by_button"])
+	_buttons = Buttons.new(rig.right).watch(["trigger_click", "grip_click", "ax_button"])
+	_left = Buttons.new(rig.left).watch(["ax_button"])
 	_beam = Beam.new(Color(1.0, 0.97, 0.9, 0.55))
 	add_child(_beam)
 	var dot := SphereMesh.new()
@@ -69,13 +72,14 @@ func _process(delta: float) -> void:
 
 	if _buttons.pressed("ax_button") and not pick.is_empty():
 		toggle_arch(pick.wall, pick.s)
-	if _buttons.pressed("by_button"):
+	if _left.held_long("ax_button"):
 		undo()
 
 	_since_rebuild += delta
 	if _dirty and _since_rebuild >= REBUILD_EVERY:
 		_flush()
 	_buttons.latch()
+	_left.latch()
 
 
 func _flush() -> void:

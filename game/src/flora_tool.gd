@@ -1,8 +1,9 @@
 class_name FloraTool
 extends Node3D
 
-## Left hand: trigger paints grass or flowers where the hand points, X switches between them, grip
-## plants a tree there. The brush widens with distance; painting a spot again thickens it.
+## Left hand: trigger paints grass or flowers where the hand points, grip plants a tree there; the
+## Frame's X (with B and Y) switches between them. The brush widens with distance; painting a spot
+## again thickens it.
 
 enum Mode { FLOWERS, GRASS }
 ## Plants per square metre per second of painting, by mode.
@@ -20,6 +21,7 @@ var mode := Mode.FLOWERS
 var _rng := RandomNumberGenerator.new()
 var _owed := 0.0
 var _buttons: Buttons
+var _right: Buttons
 var _beam: Beam
 var _ring: MeshInstance3D
 
@@ -28,7 +30,8 @@ func _init(player: Rig, plants: Flora) -> void:
 	rig = player
 	flora = plants
 	_rng.seed = 23
-	_buttons = Buttons.new(rig.left).watch(["trigger_click", "grip_click", "ax_button"])
+	_buttons = Buttons.new(rig.left).watch(["trigger_click", "grip_click"])
+	_right = Buttons.new(rig.right).watch(["by_button"])
 	_beam = Beam.new(Color.WHITE)
 	add_child(_beam)
 	var ring := TorusMesh.new()
@@ -59,11 +62,12 @@ func _process(delta: float) -> void:
 
 	if hit != null and _buttons.held("trigger_click"):
 		paint(hit, radius, delta)
-	if _buttons.pressed("ax_button"):
+	if _right.pressed("by_button"):
 		set_mode(Mode.GRASS if mode == Mode.FLOWERS else Mode.FLOWERS)
 	if _buttons.pressed("grip_click") and hit != null:
 		plant_tree(hit)
 	_buttons.latch()
+	_right.latch()
 
 
 static func brush_radius(hand: Vector3, hit: Variant) -> float:
