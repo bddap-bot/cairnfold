@@ -194,22 +194,61 @@ builds rather than give the headset's frame time). GPU milliseconds per frame:
 | Village of houses and towers | 12.51 | 11.11 | 11.25 | 10.84 |
 
 At 973 m, walls cost 12.0 ms over full flora before and 6.3 ms after. Draw calls
-there fell from 184 to 46 and primitives from 12.6 M to 4.5 M. The levels of
-detail took 38% of the primitives and no GPU time, so they stay only for the
-weaker Quest GPU if it shows a gain. With 630 m of walls, ivy cost 1.9 ms, stones
+there fell from 184 to 46 and primitives from 12.6 M to 4.5 M. Levels of detail
+for the stone mesh took 38% of the primitives and no GPU time here, nor on the
+Quest 2 (below), so stones have none. With 630 m of walls, ivy cost 1.9 ms, stones
 2.1 ms, the shadow boxes 0.3 ms from the air and 1.0 ms standing among them, and
 mortar 0.2 to 0.4 ms. The stone shader's cost did not register.
 
-What is left grows with what is built: about 0.14 µs of the Frame's GPU time per
-stone laid (`Budget.STONE_US`, ivy, mortar and shadow included), linear from 6,600
-to 40,000 stones and the same for 9 m walls as for 4.5 m ones. Nothing flattens it
-further without dropping detail, so building needs a bound, and the bound counts
-stones: a small plot of tall walls costs as much as a wide one of low walls. On the
-Quest 2 the meadow alone takes 11.8 ms standing and 15.9 ms floating (above) against
-a 12.5 ms budget, so standing leaves room for roughly 2,000 stones (about 75 m of
-2.6 m wall) at the Frame's cost scaled to the Quest's slower GPU, and floating
-leaves none until the meadow's own cost comes down. A Quest run of this scene sets
-the number.
+What is left grows with what is built, so building needs a bound, and the bound
+counts stones (`Budget.STONE_US`, GPU time per stone laid, ivy, mortar and shadow
+included): a small plot of tall walls costs as much as a wide one of low walls.
+
+Measured on the Quest 2 (`bench.sh OUT --android APK`: in the headset with its
+proximity sensor held closed, the runtime's `App=` GPU time per frame, median of
+each phase, CPU and GPU held at level 4, 525 MHz, the quality ladder at its top;
+"Automatic quality" below measured at the top clock and its own views, so its numbers
+run lower). GPU milliseconds per frame against a 12.5 ms budget:
+
+| Phase | Stone LODs | No LODs | 12-triangle stones |
+| --- | --- | --- | --- |
+| Meadow, from the air | 19.6 | 17.5 | 18.4 |
+| Every flora pool full, from the air | 25.6 | 26.5 | 26.2 |
+| 159 m of walls (6,650 stones), from the air | 37.9 | 37.2 | 34.9 |
+| 347 m (14,350), from the air | 51.8 | 48.3 | 36.8 |
+| 630 m (25,850), from the air | 47.1 | 46.6 | 38.0 |
+| 973 m (39,850), from the air | 55.5 | 55.5 | 42.0 |
+| 347 m of 9 m walls (28,150), from the air | 53.3 | 55.2 | 43.1 |
+| Meadow, standing | 23.4 | 23.5 | 23.6 |
+| Every flora pool full, standing | 36.1 | 38.7 | 38.7 |
+| 159 m of walls, standing | 33.6 | 37.8 | 36.5 |
+| 347 m, standing | 43.2 | 42.6 | 37.3 |
+| 630 m, standing | 53.1 | 48.8 | 44.0 |
+| 973 m, standing | 63.5 | 63.1 | 51.7 |
+| 347 m of 9 m walls, standing | 51.4 | 55.7 | 43.3 |
+
+The walls' cost is vertex work on the GPU. Frame time follows the GPU time, the
+live wall preview holds 72 Hz on the CPU (below), and draw calls stay near 150 at
+every size. Dropping the levels of detail raised primitives at 973 m from 4.4 M to
+7.1 M and cost nothing. Swapping the stone mesh for a plain 12-triangle box (24
+vertices instead of 96; a trial build, not the game's) left the scene with about the
+primitives the levels of detail had (4.7 M) and halved the walls' cost: what costs is
+the vertices each stone instance runs, so the stone mesh is the lever.
+
+Over every flora pool full, without levels of detail, a stone costs 0.87 µs of the
+Quest's GPU from the air and 0.54 µs standing (fits through zero over the five wall
+phases of each view; single phases stray by up to 12 ms, and the first walls cost
+the most: 159 m from the air, 10.7 ms). `Budget.STONE_US` takes the air's, so a bound
+holds from either view. Stones allowed are the budget less the meadow and flora,
+divided by that, and come to none, standing or floating: at the top of the ladder
+the full flora alone takes 38.7 ms standing and 26.5 ms from the air, and the bare
+meadow 23.5 ms and 17.5 ms, all over the 12.5 ms budget. Building gets room only
+once the meadow's own cost comes down; until then the bench's Quest check fails on
+every phase.
+
+The live wall preview, measured with the view turned to the sky so the GPU sits
+idle: every second of two 5 s strokes ran 72 frames with none late, the 99th
+percentile 14.3 ms as with no stroke at all.
 
 ## Automatic quality
 

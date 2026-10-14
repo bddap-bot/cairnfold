@@ -42,14 +42,6 @@ static func rounded_box(radius: float, segments: int, seed: int) -> ArrayMesh:
 	return st.commit()
 
 
-## `mesh` with simplified levels of detail, which the renderer swaps in as it shrinks on screen.
-static func with_lods(mesh: ArrayMesh) -> ArrayMesh:
-	var im := ImporterMesh.new()
-	im.add_surface(Mesh.PRIMITIVE_TRIANGLES, mesh.surface_get_arrays(0))
-	im.generate_lods(25.0, 60.0, [])
-	return im.get_mesh()
-
-
 ## A clump of crossed blades; UV.y runs 0 at the root to 1 at the tip.
 static func grass_clump(blades: int, seed: int) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()

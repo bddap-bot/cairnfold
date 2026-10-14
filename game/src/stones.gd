@@ -30,7 +30,7 @@ static func _stone_material(shader: String) -> ShaderMaterial:
 
 static func mesh() -> ArrayMesh:
 	if _mesh == null:
-		_mesh = Meshes.with_lods(Meshes.rounded_box(0.14, 3, 100))
+		_mesh = Meshes.rounded_box(0.14, 3, 100)
 	return _mesh
 
 
