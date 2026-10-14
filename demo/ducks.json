@@ -1,0 +1,23 @@
+[
+  {"op": "place", "x": 0, "z": 6},
+  {"op": "view", "eye": [1.9, 0.95, 2.0], "at": [0, -0.45, -1.2]},
+  {"op": "wait", "seconds": 2},
+  {"op": "label", "name": "digging"},
+  {"op": "dig", "x": -0.8, "z": -1, "seconds": 1.8},
+  {"op": "dig", "x": 0.9, "z": -1.4, "seconds": 1.8},
+  {"op": "label", "name": "pond"},
+  {"op": "wait", "seconds": 8},
+  {"op": "capture", "name": "00-pond"},
+  {"op": "wait", "seconds": 30},
+  {"op": "capture", "name": "01-waiting"},
+  {"op": "label", "name": "ducks"},
+  {"op": "wait", "seconds": 25},
+  {"op": "capture", "name": "02-arriving"},
+  {"op": "wait", "seconds": 25},
+  {"op": "capture", "name": "03-swimming"},
+  {"op": "wait", "seconds": 40},
+  {"op": "capture", "name": "04-later"},
+  {"op": "wait", "seconds": 40},
+  {"op": "capture", "name": "05-later"},
+  {"op": "quit"}
+]

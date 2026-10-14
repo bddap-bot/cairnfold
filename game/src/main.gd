@@ -14,6 +14,7 @@ var fitting_tool: FittingTool
 var terrain_tool: TerrainTool
 var water: Water
 var water_tool: WaterTool
+var wildlife: Wildlife
 var sound: Soundscape
 var metrics: Metrics
 var spectator: SubViewport
@@ -64,6 +65,8 @@ func _ready() -> void:
 	if args.has("join"):
 		var at: PackedStringArray = str(args.join).split(":")
 		session.join.call_deferred(at[0], int(at[1]) if at.size() > 1 else Session.PORT)
+	wildlife = Wildlife.new(water, rig.head, int(args.get("seed", -1)))
+	add_child(wildlife)
 	sound = Soundscape.new(tool, flora_tool, water)
 	add_child(sound)
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)

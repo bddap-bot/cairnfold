@@ -545,9 +545,16 @@ fly in and settle on it. There is no tool, menu or button for animals.
 - **Ducks** arrive once a pond exists: one flies in from beyond the meadow,
   glides down and splashes onto the water, then paddles about; now and then one
   waddles up the bank to rest on the grass, and ducklings follow their mother in
-  a line. The duck's look is chosen by a side-by-side bake-off of a credited
-  CC0 model and one built here in code; a licensed animal, if chosen, is
-  credited in a credits file and is the one exception to original assets.
+  a line. A mother with ducklings walks in from the grass instead. A duck
+  comes 20 to 60 seconds after a pond of at least six wet grid points appears;
+  arrivals and departures happen out of the player's sight, and the ducks
+  leave when their pond is filled in. The duck is built in code (`duck.gd`):
+  soft ellipsoids with vertex colours, about 600 triangles, a white adult and
+  yellow ducklings at 0.6 scale, with idle, paddle, waddle and flight computed
+  in the vertex shader. It was compared side by side with a licensed model and
+  preferred, so no animal asset is licensed.
+
+  Directive (verbatim): "Agree the built here ones are cuter. Excellent wing flicks btw. Keep em."
 - **A conure**, iridescent blue and green, comes after the ducks: it lands on a
   tree or a wall top. Its plumage is poofy and soft, with a view-dependent hue
   shift (blue facing you, green at grazing angles) computed per fragment from
@@ -557,7 +564,9 @@ fly in and settle on it. There is no tool, menu or button for animals.
 
 Budget: each animal is a few hundred triangles, skinned or vertex-animated, one
 draw call, and only a handful are ever in view, so wildlife never costs the
-refresh rate.
+refresh rate. Ducks are capped at two families of at most five
+(`Wildlife.FAMILIES`, `DUCKLINGS`): ten draw calls and about 6,000 triangles at
+most, one shared mesh per kind and one material.
 
 ## Verifying on a headset
 
@@ -574,7 +583,7 @@ walls in each top style, and shapes the roofs; `demo/paths.json` lays paths thro
 arcade), draws a wall across a wide path and raises the ground under a path; `demo/fittings.json` opens windows
 and doors in a wall, a house and a tower, hangs lanterns, flies flags, builds a chimney and draws a fence a
 path crosses; `demo/stone.json` paints stone ground into the meadow, paints part of it back and
-walks the history.
+walks the history; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive).
 
 ## Sources
 
