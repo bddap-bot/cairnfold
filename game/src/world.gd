@@ -81,15 +81,20 @@ func load_from(path: String) -> void:
 	var whole := snap is Dictionary and snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT
 	if whole:
 		whole = restore(snap) == snap.cmds.size()
+	if whole:
 		print("world: loaded %s" % path)
-	if not whole:
-		var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(path), ProjectSettings.globalize_path(path) + ".bad")
-		push_error("world: %s held a garden this game cannot read whole; moved it to .bad (%s)" % [path, error_string(err)])
+		return
+	var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(path), ProjectSettings.globalize_path(path) + ".bad")
+	push_error("world: %s held a garden this game cannot read whole; moved it to .bad (%s)" % [path, error_string(err)])
+	if err != OK:
+		save_path = ""
 
 
 ## The snapshot is taken here, so the garden it describes cannot change under the writer.
 func _keep() -> void:
 	_keep_due = false
+	if save_path == "":
+		return
 	var bytes := var_to_bytes(snapshot())
 	flush()
 	var path := ProjectSettings.globalize_path(save_path)
