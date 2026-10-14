@@ -345,7 +345,7 @@ the frame back, which on a tiled GPU costs a full-frame resolve per eye:
 - **Cost:** measured with Godot's viewport GPU timer on a desktop RTX 2080 at 1600×1200, same view
   (lowest tenth of 23–24 one-second samples): 1.01 ms before, 1.01 ms with the plant and terrain
   shader changes and no pond, 1.03 ms with two ponds in view. A variant that refracts the screen
-  texture and reads the depth buffer measured 1.17 ms in the same scene, eight times the cost, before
+  texture and reads the depth buffer measured 1.18 ms in the same scene, seven times the cost, before
   the tiled-GPU resolve that makes it worse on a headset; it was dropped. Headset numbers belong to the
   on-device run.
 
