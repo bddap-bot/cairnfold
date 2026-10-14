@@ -112,9 +112,10 @@ func _apply_ivy() -> void:
 	mm.custom_aabb = _ivy_baked.bounds
 
 
-## Lays the stones again; the ivy too unless `with_ivy` is false, which a grip lift uses until the hand lets go.
+## Lays the stones again; the ivy too unless `with_ivy` is false, which hides it while a grip lift is under way.
 func rebuild(with_ivy := true) -> void:
 	layout.build(Terrain.height_at)
+	_ivy.visible = with_ivy
 	var buckets: Array[Array] = [[], [], []]
 	for s in layout.stones:
 		buckets[s.variant].append(s)
