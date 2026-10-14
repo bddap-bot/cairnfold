@@ -132,12 +132,15 @@ func twist(hand: Hand, degrees: float) -> void:
 		hand.trigger_haptic_pulse(&"haptic", 0.0, 0.25, 0.02, 0.0)
 
 
-## Sends the swatch at the top of `hand`'s wheel to the garden; until it comes back it shows here alone.
+## Sends the swatch at the top of `hand`'s wheel to the garden, unless the garden already has it (another
+## player may have picked it meanwhile); until it comes back it shows here alone.
 func close(hand: Hand) -> void:
 	var w: Wheel = wheels[hand]
 	_drop(hand)
-	if w.pick != w.start:
+	if w.pick != world.palette.picks[w.element]:
 		world.submit({"op": "palette", "element": w.element, "index": w.pick}, world.palette.apply)
+	else:
+		world.palette.apply()
 
 
 func _drop(hand: Hand) -> void:

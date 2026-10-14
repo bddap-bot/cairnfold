@@ -62,7 +62,7 @@ func _ready() -> void:
 	world.attach(tool, flora, paths, terrain_tool, water)
 	palette_tool = PaletteTool.new(rig, tool, world)
 	add_child(palette_tool)
-	sun_tool = SunTool.new(rig, look, tool)
+	sun_tool = SunTool.new(rig, look, _editing)
 	add_child(sun_tool)
 	_undo_buttons = Buttons.new(rig.left).watch(["ax_button", "by_button"])
 	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT)))
@@ -88,12 +88,16 @@ func _ready() -> void:
 
 ## Left D-pad down undoes, up redoes; both wait while an edit is under way.
 func _process(_delta: float) -> void:
-	if not (tool.busy() or flora_tool.busy() or terrain_tool.busy() or palette_tool.busy()):
+	if not _editing():
 		if _undo_buttons.pressed("ax_button"):
 			world.undo()
 		if _undo_buttons.pressed("by_button"):
 			world.redo()
 	_undo_buttons.latch()
+
+
+func _editing() -> bool:
+	return tool.busy() or flora_tool.busy() or terrain_tool.busy() or palette_tool.busy()
 
 
 func _start_xr() -> bool:

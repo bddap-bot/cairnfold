@@ -14,7 +14,8 @@ const TICK := 1.0 / 24.0
 
 var rig: Rig
 var look: Look
-var walls: WallTool
+## True while a tool is in the middle of an edit, which a grip may have started this frame.
+var editing: Callable
 ## The hand holding the sun, and where along the arc its ray stood from the sun when it took it.
 var holder: Hand
 var _offset := 0.0
@@ -23,10 +24,10 @@ var _grips: Array[Buttons] = []
 var _lit := false
 
 
-func _init(player: Rig, sky: Look, builder: WallTool) -> void:
+func _init(player: Rig, sky: Look, busy: Callable) -> void:
 	rig = player
 	look = sky
-	walls = builder
+	editing = busy
 	for h in rig.hands:
 		_grips.append(Buttons.new(h).watch(["grip_click"]))
 
@@ -43,7 +44,7 @@ func _process(_delta: float) -> void:
 				drag(Daylight.time_toward(dir) + _offset)
 			elif holder == null and aims_at_sun(dir):
 				hover = true
-				if b.pressed("grip_click") and not walls.busy():
+				if b.pressed("grip_click") and not editing.call():
 					take(hand, dir)
 			if holder == hand or (holder == null and aims_at_sun(dir)):
 				hand.point(null, BEAM, 30.0)

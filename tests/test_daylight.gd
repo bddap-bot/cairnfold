@@ -237,6 +237,13 @@ func _in_the_glade() -> void:
 	_check(world.palette.picks == Palette.new().picks, "undo takes both picks back: %s" % [world.palette.picks])
 	await _play([{"op": "press", "button": "dpad_up"}])
 	_check(world.palette.picks[Palette.Element.ROOF] == 3, "redo paints the roofs again")
+	var left: Hand = main.rig.left
+	tool.open(left, Palette.Element.STONE)
+	world.submit({"op": "palette", "element": Palette.Element.STONE, "index": 2})
+	tool.twist(left, Palette.TWIST_STEP * 2.0)
+	var before: int = world.stacks[world.me()].undo.size()
+	tool.close(left)
+	_check(world.stacks[world.me()].undo.size() == before and world.palette.picks[Palette.Element.STONE] == 2, "a wheel let go on the swatch the garden already has sends nothing")
 	world.restore(snap)
 	_check(world.palette.picks[Palette.Element.MEADOW] == 4 and world.palette.picks[Palette.Element.ROOF] == 3, "a garden rebuilt from its snapshot keeps its colours")
 	_check(Commands.clean({"op": "palette", "element": Palette.Element.ROOF, "index": Palette.count(Palette.Element.ROOF)}, world.state, false).is_empty(), "a swatch off the wheel is refused")
