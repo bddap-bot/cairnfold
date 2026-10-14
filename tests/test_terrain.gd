@@ -4,21 +4,21 @@ extends SceneTree
 
 var failures := 0
 var main: Node
+var tool: TerrainTool
 
 
 func _initialize() -> void:
-	Terrain.install()
-	_pull_raises_a_smooth_hill()
-	_baking_a_live_hump_moves_nothing()
-	_dig_lowers_and_restore_undoes()
-	_height_between_grid_points_is_continuous()
-	_texture_matches_the_heights()
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	_run.call_deferred()
 
 
 func _run() -> void:
+	tool = main.terrain_tool
+	_pull_raises_a_smooth_hill()
+	_baking_a_live_hump_moves_nothing()
+	_texture_matches_the_heights()
+	_height_between_grid_points_is_continuous()
 	await _raising_ground_under_a_wall_keeps_it_on_the_ground()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
@@ -36,55 +36,60 @@ func _all() -> PackedFloat32Array:
 
 func _pull_raises_a_smooth_hill() -> void:
 	var original := _all()
-	var tool := TerrainTool.new()
 	var c := Terrain.ground(10, 10)
 	var far := Terrain.ground(10, 30)
 	tool.begin(c, 4.0)
 	tool.pull(3.0)
 	_check(absf(Terrain.height_at(10, 10) - c.y - 3.0) < 0.01, "a live pull lifts the grabbed point by the pull")
 	_check(absf(Terrain.height_at(10, 30) - far.y) < 1e-4, "ground beyond the hill stays put")
-	var edit := tool.end()
+	tool.end_stroke()
 	_check(absf(Terrain.height_at(10, 10) - c.y - 3.0) < 0.01, "the baked hill keeps its height, %f" % (Terrain.height_at(10, 10) - c.y))
-	_check(edit.cells.has_point(Vector2i(90, 90)), "the edit names the cells it changed")
 	var steepest := 0.0
 	for i in 60:
 		var x := 10.0 + i * 0.25
 		steepest = maxf(steepest, absf(Terrain.height_at(x + 0.05, 10) - Terrain.height_at(x - 0.05, 10)) / 0.1)
 	_check(steepest < 0.8, "the hill's flank stays walkable, slope %f" % steepest)
-	tool.restore(edit.cells, edit.before)
-	_check(_all() == original, "restoring the before heights undoes the stroke exactly")
-	tool.restore(edit.cells, edit.after)
-	_check(_all() != original, "restoring the after heights redoes it")
-	tool.restore(edit.cells, edit.before)
-	tool.free()
+	var raised := _all()
+	main.history.undo()
+	_check(_all() == original, "undo takes the hill away exactly")
+	main.history.redo()
+	_check(_all() == raised, "redo puts it back exactly")
+	main.history.undo()
+	var d := Terrain.ground(-5, 3)
+	tool.begin(d, 3.0)
+	tool.pull(-2.0)
+	tool.end_stroke()
+	_check(absf(Terrain.height_at(-5, 3) - d.y + 2.0) < 0.01, "a downward pull digs")
+	main.history.undo()
+	_check(_all() == original, "undo fills the dig")
 
 
 func _baking_a_live_hump_moves_nothing() -> void:
-	var tool := TerrainTool.new()
 	tool.begin(Terrain.ground(-12.5, 7.5), 2.0)
 	tool.pull(0.6)
 	var live := PackedFloat32Array()
 	for i in 50:
 		live.append(Terrain.height_at(-14.0 + i * 0.06, 7.5 + i * 0.013))
-	var edit := tool.end()
+	tool.end_stroke()
 	var worst := 0.0
 	for i in 50:
 		worst = maxf(worst, absf(live[i] - Terrain.height_at(-14.0 + i * 0.06, 7.5 + i * 0.013)))
 	_check(worst < 1e-4, "ground under a hump grabbed between grid points stays put when it bakes, worst %f" % worst)
-	tool.restore(edit.cells, edit.before)
-	tool.free()
+	main.history.undo()
 
 
-func _dig_lowers_and_restore_undoes() -> void:
-	var tool := TerrainTool.new()
-	var c := Terrain.ground(-5, 3)
-	tool.begin(c, 3.0)
-	tool.pull(-2.0)
-	var edit := tool.end()
-	_check(Terrain.height_at(-5, 3) < c.y - 1.9, "a downward pull digs")
-	tool.restore(edit.cells, edit.before)
-	_check(absf(Terrain.height_at(-5, 3) - c.y) < 1e-6, "undoing the dig fills it")
-	tool.free()
+func _texture_matches_the_heights() -> void:
+	tool.begin(Terrain.ground(20, -20), 3.0)
+	tool.pull(2.0)
+	tool.end_stroke()
+	var worst := 0.0
+	var cells := Terrain.cells_around(20, -20, 3.0)
+	for j in range(cells.position.y, cells.end.y):
+		for i in range(cells.position.x, cells.end.x):
+			var h := Terrain.height_at(-Terrain.SIZE * 0.5 + i * Terrain.STEP, -Terrain.SIZE * 0.5 + j * Terrain.STEP)
+			worst = maxf(worst, absf(Terrain._image.get_pixel(i, j).r - h))
+	_check(worst < 0.02, "the GPU's heights match the CPU's after an edit, worst %f" % worst)
+	main.history.undo()
 
 
 func _height_between_grid_points_is_continuous() -> void:
@@ -95,19 +100,11 @@ func _height_between_grid_points_is_continuous() -> void:
 	_check(worst < 0.01, "the ground has no steps between grid points, worst %f" % worst)
 
 
-func _texture_matches_the_heights() -> void:
-	var tool := TerrainTool.new()
-	tool.begin(Terrain.ground(20, -20), 3.0)
-	tool.pull(2.0)
-	var edit := tool.end()
+func _on_ground(w: Wall) -> float:
 	var worst := 0.0
-	for j in range(edit.cells.position.y, edit.cells.end.y):
-		for i in range(edit.cells.position.x, edit.cells.end.x):
-			var h := Terrain.height_at(-Terrain.SIZE * 0.5 + i * Terrain.STEP, -Terrain.SIZE * 0.5 + j * Terrain.STEP)
-			worst = maxf(worst, absf(Terrain._image.get_pixel(i, j).r - h))
-	_check(worst < 0.02, "the GPU's heights match the CPU's after an edit, worst %f" % worst)
-	tool.restore(edit.cells, edit.before)
-	tool.free()
+	for p in w.layout.samples:
+		worst = maxf(worst, absf(p.y + 0.12 - Terrain.height_at(p.x, p.z)))
+	return worst
 
 
 func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
@@ -118,17 +115,16 @@ func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
 	var w: Wall = main.tool.walls[-1]
 	var mid := w.layout.samples[w.layout.samples.size() / 2]
 	await _play([{"op": "sculpt", "x": mid.x, "z": mid.z, "lift": 2.5, "radius": 5.0, "seconds": 0.5}])
-	var worst := 0.0
-	for p in w.layout.samples:
-		worst = maxf(worst, absf(p.y + 0.12 - Terrain.height_at(p.x, p.z)))
-	_check(worst < 0.01, "after the ground rose under it every wall sample sits on the ground, worst gap %f" % worst)
+	_check(_on_ground(w) < 0.01, "after the ground rose under it every wall sample sits on the ground, worst gap %f" % _on_ground(w))
 	_check(w.layout.samples[w.layout.samples.size() / 2].y > mid.y + 2.0, "the wall rose with the hill")
-	var stones_ok := true
+	var buried := 0
 	for s in w.layout.stones:
 		var o: Vector3 = s.xform.origin
 		if o.y < Terrain.height_at(o.x, o.z) - 0.6:
-			stones_ok = false
-	_check(stones_ok, "no stone is left buried under the raised ground")
+			buried += 1
+	_check(buried == 0, "no stone is left buried under the raised ground, %d are" % buried)
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(_on_ground(w) < 0.01 and absf(w.layout.samples[w.layout.samples.size() / 2].y - mid.y) < 0.01, "undoing the hill sets the wall back down on the ground")
 
 
 func _play(steps: Array) -> void:

@@ -160,7 +160,7 @@ Stage numbers refer to the build order at the end.
 | Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces, wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`) | 3 (done) |
 | Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers take the colour of the meadow drift they land in | 1 (done), 3 (done) |
 | Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs; the trigger of a hand holding the tree tool plants one where it points | 1 (done), 3 (done) |
-| Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | Grip the ground and pull up or push down; rock on steep slopes in the terrain shader | 7 |
+| Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | The terrain tool's trigger grabs the ground where it points and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then rock show on steep slopes | 7 (shaping done) |
 | Water | Dug holes with a flat surface and normal-map waves | Dig with a downward pull, flat water with scrolling normals and a depth tint | 7 |
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, a low-res light-probe volume rebuilt when building changes | 2 |
 | Shadows | Soft sun shadows with temporal filtering, contact shadows | Two-split soft shadows; tuned splits for a floating viewpoint | 1 (done), 2 |
@@ -222,8 +222,9 @@ aiming at the ground is how you come back down.
 | Lay out a house | Both hands holding walls, both grips while pointing at the ground; pull apart to size, twist to rotate, release to build |
 | Paint flowers or grass | Trigger held on a hand holding flowers or grass, pointing at the ground; the ring shows the brush, which widens the farther you point |
 | Plant a tree | Trigger of a hand holding trees, pointing at the ground |
+| Shape the ground | Trigger held on a hand holding terrain, pointing at the ground: the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it |
 | Delete | Trigger of a hand holding delete: takes the wall, tower or house it points at, else the tree nearest where it meets the ground, else the painted plants under it; one thing per press, never more |
-| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes) |
+| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes, ground shaped) |
 | Redo | Tap the left D-pad up (left or right too): one step forward per tap. A new edit after an undo drops what could be redone |
 | Later: paint paths | A path tool with the same brush |
 | Later: move the sun | Grip the sun in the sky and drag it |

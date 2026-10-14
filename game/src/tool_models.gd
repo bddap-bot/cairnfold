@@ -19,6 +19,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_grass(root)
 		Hand.Tool.TREES:
 			_tree(root)
+		Hand.Tool.TERRAIN:
+			_mound(root)
 		Hand.Tool.TELEPORT:
 			_teleport(root)
 		Hand.Tool.DELETE:
@@ -100,6 +102,42 @@ static func _tree(root: Node3D) -> void:
 	leaf.backlight_enabled = true
 	leaf.backlight = Color(0.25, 0.35, 0.08)
 	_add(root, blobs, leaf, scale)
+
+
+## A round grassy hill on a rim of earth, raised by the same bell the terrain tool pulls.
+static func _mound(root: Node3D) -> void:
+	var r := 0.028
+	var rings := 6
+	var sides := 20
+	var low := Color(0.2, 0.4, 0.1)
+	var high := Color(0.36, 0.56, 0.15)
+	var earth := Color(0.4, 0.3, 0.2)
+	var base := 0.005
+	var rise := 0.022
+	var at := func(k: int, a: int) -> Vector3:
+		var t := float(k) / rings
+		var ang := TAU * a / sides
+		return Vector3(cos(ang) * r * t, base + rise * Terrain.bell(t * 0.92), sin(ang) * r * t)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for k in rings:
+		for a in sides:
+			var q: Array[Vector3] = [at.call(k, a), at.call(k + 1, a), at.call(k, a + 1), at.call(k + 1, a + 1)]
+			for v in [q[0], q[2], q[1], q[1], q[2], q[3]]:
+				st.set_color(low.lerp(high, (v.y - base) / rise))
+				st.add_vertex(v)
+	for a in sides:
+		var p: Vector3 = at.call(rings, a)
+		var n: Vector3 = at.call(rings, a + 1)
+		for v in [p, n, Vector3(p.x, 0, p.z), Vector3(p.x, 0, p.z), n, Vector3(n.x, 0, n.z)]:
+			st.set_color(earth)
+			st.add_vertex(v)
+	st.generate_normals()
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = _vertex_mat("mound", 1.0, true)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
 
 
 ## A ring on a pole over a ring on the ground: the air-teleport marker in small.

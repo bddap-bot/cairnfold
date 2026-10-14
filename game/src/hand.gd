@@ -4,10 +4,10 @@ extends XRController3D
 ## A controller and the tool it holds. Every tool's input code dispatches on `tool`, and the object on top
 ## of the controller and the selection ring show it, so they cannot disagree.
 
-enum Tool { WALLS, FLOWERS, GRASS, TREES, TELEPORT, DELETE }
+enum Tool { WALLS, FLOWERS, GRASS, TREES, TERRAIN, TELEPORT, DELETE }
 
 ## The ring's contents: a tree, one level deep for now.
-const MENU := [Tool.WALLS, Tool.FLOWERS, Tool.GRASS, Tool.TREES, Tool.TELEPORT, Tool.DELETE]
+const MENU := [Tool.WALLS, Tool.FLOWERS, Tool.GRASS, Tool.TREES, Tool.TERRAIN, Tool.TELEPORT, Tool.DELETE]
 const TOP := Vector3(0, 0.0075, 0.045)
 const RING_RADIUS := 0.11
 const POP := 0.18
@@ -85,6 +85,11 @@ func stick() -> Vector2:
 static func ring_dir(i: int) -> Vector2:
 	var a := TAU * i / MENU.size()
 	return Vector2(sin(a), cos(a))
+
+
+## How many metres a thing pulled at `reach` metres moves per metre of hand, so far things keep up.
+static func reach_gain(reach: float) -> float:
+	return maxf(1.0, reach / 1.2)
 
 
 func _raw_stick() -> Vector2:

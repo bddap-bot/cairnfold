@@ -296,7 +296,7 @@ func begin_lift(m: Mason, w: Wall, hand: Vector3, at: Vector3) -> void:
 	m.lifting = w
 	m.lift_start = w.layout.height
 	m.lift_hand = hand
-	m.lift_gain = maxf(1.0, hand.distance_to(at) / 1.2)
+	m.lift_gain = Hand.reach_gain(hand.distance_to(at))
 	m.lift_at = at
 
 
@@ -324,7 +324,7 @@ func begin_roof(m: Mason, w: Wall, hand: Vector3) -> void:
 	m.curve_start = w.roof.curve
 	m.lift_hand = hand
 	m.lift_at = w.roof.frame().mid + Vector3.UP * w.roof.pitch
-	m.lift_gain = maxf(1.0, hand.distance_to(m.lift_at) / 1.2)
+	m.lift_gain = Hand.reach_gain(hand.distance_to(m.lift_at))
 	var side := rig.head.global_basis.x
 	side.y = 0.0
 	m.lift_side = side.normalized() if side.length() > 0.01 else Vector3.RIGHT

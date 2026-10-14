@@ -241,7 +241,7 @@ func _sculpt(s: Dictionary) -> void:
 		t += dt
 		tool.pull(s.lift * smoothstep(0.0, 1.0, minf(t / seconds, 1.0)))
 		tool.follow(dt)
-	tool.end()
+	tool.end_stroke()
 
 
 ## Desktop only, where no hand is tracked: holds a hand `at` [x, height above the ground, z] for `seconds`, optionally capturing the view.
