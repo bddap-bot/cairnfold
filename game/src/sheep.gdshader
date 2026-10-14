@@ -52,10 +52,10 @@ void vertex() {
 		float look = idle * (0.5 * sin(t * 0.43) + 0.2 * sin(t * 1.3 + 1.0)) + lie * 0.45 * sin(t * 0.31) + graze * 0.2 * sin(t * 0.5);
 		float tilt = idle * 0.18 * smoothstep(0.4, 0.95, sin(t * 0.29 + 2.0));
 		float nibble = graze * 0.08 * sin(t * 9.0) * smoothstep(0.0, 0.6, sin(t * 0.8));
-		float pitch = -graze * 1.2 + nibble + walk * 0.05 * sin(2.0 * gait) + lie * 0.1;
+		float pitch = -graze * 1.3 + nibble + walk * 0.05 * sin(2.0 * gait) + lie * 0.1;
 		vec3 v = VERTEX, n = NORMAL;
 		turn(v, n, vec3(0.0, 0.58, -0.3), rot(vec3(0.0, 1.0, 0.0), look) * rot(vec3(1.0, 0.0, 0.0), pitch) * rot(vec3(0.0, 0.0, 1.0), tilt));
-		v += graze * vec3(0.0, -0.22, -0.06);
+		v += graze * vec3(0.0, -0.18, -0.02);
 		VERTEX = mix(VERTEX, v, follow);
 		NORMAL = normalize(mix(NORMAL, n, follow));
 	}

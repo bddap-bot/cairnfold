@@ -16,6 +16,8 @@ const FLOCK := Vector2i(2, 4)
 const MIN_FENCE := 6.0
 ## How far beside its fence a flock grazes.
 const BAND := Vector2(1.0, 7.0)
+## Grass nearer a fence's end than this along it is past the end, not beside it.
+const END := 0.5
 ## Seconds between looks at the walls for pastures and at the trees; nothing reads every wall each frame.
 const REFRESH := 0.5
 ## How far beyond its first grass a flock starts walking in, and how far a leaving one heads off each leg.
@@ -41,6 +43,9 @@ const WALL_CLEAR := 0.55
 const TRUNK_CLEAR := 0.9
 ## Ground barer than this is a path or paving.
 const BARE := 0.4
+## How far from the water a sheep stands, and how often a way is checked for water.
+const SHORE := 0.4
+const WADE := 0.1
 const TURN := 3.0
 
 var wildlife: Wildlife
@@ -123,7 +128,8 @@ static func standing_length(layout: WallLayout) -> float:
 	return out
 
 
-## A few sheep walk in toward `fence` from WALK_FROM beyond their grass, unless no grass beside it will do.
+## A few sheep walk in toward `fence` from WALK_FROM beyond their grass, along a clear way that starts out of
+## sight; if there is no such way or no grass beside it will do, none come this time.
 func arrive(fence: Wall) -> void:
 	var f := Flock.new()
 	f.fence = fence
@@ -132,37 +138,44 @@ func arrive(fence: Wall) -> void:
 	if first == null:
 		f.side = -f.side
 		first = _pasture_point(f, null)
-	if first == null:
-		return
 	var n := mini(rng.randi_range(FLOCK.x, FLOCK.y), CAP - count())
-	if n <= 0:
+	if first == null or n <= 0:
 		return
-	var away := Vector3.ZERO
-	for attempt in 8:
-		away = wildlife._unseen_direction(first, WALK_FROM, 0.0, Wildlife.SIGHT, rng)
-		if _start_ok(first, away, n):
+	var starts := PackedVector3Array()
+	for attempt in 16:
+		var away := wildlife._unseen_direction(first, WALK_FROM, 0.0, Wildlife.SIGHT, rng)
+		var across := away.cross(Vector3.UP)
+		starts.clear()
+		for i in n:
+			starts.append(first + away * (WALK_FROM + 1.1 * i) + across * rng.randf_range(-0.5, 0.5))
+		if _starts_ok(first, starts):
 			break
-	var across := away.cross(Vector3.UP)
-	for i in n:
-		var at: Vector3 = first + away * (WALK_FROM + 1.1 * i) + across * rng.randf_range(-0.5, 0.5)
+		starts.clear()
+	for at in starts:
 		var s := Sheep.new(rng.randf() * 10.0, rng.randf_range(Sheep.SIZE.x, Sheep.SIZE.y), Color.WHITE.lerp(Sheep.TINTS[rng.randi() % Sheep.TINTS.size()], rng.randf()))
-		s.position = Terrain.ground(clampf(at.x, -Wildlife.EDGE, Wildlife.EDGE), clampf(at.z, -Wildlife.EDGE, Wildlife.EDGE))
-		_face(s, -away, 1.0)
+		s.position = Terrain.ground(at.x, at.z)
+		_face(s, first - at, 1.0)
 		s.state = State.ENTER
-		var spot: Variant = _pasture_point(f, null, first, 2.5)
+		var spot: Variant = _pasture_point(f, s, first, 3.5)
+		if spot == null:
+			spot = _pasture_point(f, s)
+		if spot == null and not f.sheep.is_empty():
+			s.free()
+			continue
 		s.goal = spot if spot != null else first
 		add_child(s)
 		f.sheep.append(s)
-	flocks.append(f)
+	if not f.sheep.is_empty():
+		flocks.append(f)
 
 
-## Whether a flock of `n` walking in along `away` starts out of sight and meets no wall or water on its way.
-func _start_ok(first: Vector3, away: Vector3, n: int) -> bool:
-	for i in n:
-		var at := first + away * (WALK_FROM + 1.1 * i)
-		if wildlife._in_sight(at):
+## Whether sheep walking in from `starts` begin out of sight, inside the garden, and meet no wall or water on
+## their way to `first`.
+func _starts_ok(first: Vector3, starts: PackedVector3Array) -> bool:
+	for at in starts:
+		if maxf(absf(at.x), absf(at.z)) > Wildlife.EDGE or wildlife._in_sight(at) or not _clear_way(at, first):
 			return false
-	return _clear_way(first + away * WALK_FROM, first)
+	return true
 
 
 func _think(f: Flock, s: Sheep, delta: float) -> void:
@@ -175,7 +188,7 @@ func _think(f: Flock, s: Sheep, delta: float) -> void:
 		_flee(s, hand.global_position)
 	match s.state:
 		State.ENTER, State.WALK:
-			if _go(s, s.goal, SPEED[s.state], delta):
+			if _go(s, s.goal, SPEED[s.state], delta) or _short_of_a_taken_spot(f, s):
 				_graze(s)
 		State.FLEE:
 			if _go(s, s.goal, SPEED[State.FLEE], delta):
@@ -183,16 +196,16 @@ func _think(f: Flock, s: Sheep, delta: float) -> void:
 				s.timer = rng.randf_range(CALM_FOR.x, CALM_FOR.y)
 		State.GRAZE:
 			s.timer -= delta
-			if s.position.distance_to(s.goal) > 0.02:
+			if s.position.distance_to(s.goal) > 1e-3:
 				_go(s, s.goal, SPEED[State.GRAZE], delta, Sheep.GRAZE + Sheep.WALK * 0.5)
+			elif s.timer <= 0.0:
+				_next(f, s)
 			else:
 				s.blend(Sheep.GRAZE, delta)
 				if rng.randf() < delta * 0.25:
 					var step: Variant = _pasture_point(f, s, s.position + _forward(s) * rng.randf_range(NIBBLE_STEP.x, NIBBLE_STEP.y), 0.25)
 					if step != null:
 						s.goal = step
-			if s.timer <= 0.0:
-				_next(f, s)
 		State.STAND:
 			s.blend(Sheep.IDLE, delta)
 			s.timer -= delta
@@ -227,13 +240,15 @@ func _graze(s: Sheep) -> void:
 	s.goal = s.position
 
 
-func _walk_on(f: Flock, s: Sheep) -> void:
+## Off to fresh grass, else grazing on where it stands; false if no grass would do.
+func _walk_on(f: Flock, s: Sheep) -> bool:
 	var to: Variant = _pasture_point(f, s, s.position, ROAM.y, ROAM.x)
 	if to == null:
 		_graze(s)
-		return
+		return false
 	s.state = State.WALK
 	s.goal = to
+	return true
 
 
 func _flee(s: Sheep, from: Vector3) -> void:
@@ -312,7 +327,8 @@ func _forward(s: Sheep) -> Vector3:
 	return Vector3(-sin(s.rotation.y), 0.0, -cos(s.rotation.y))
 
 
-## Sheep of a flock nudge apart where they overlap, never into anything they keep out of.
+## Sheep of a flock nudge apart where they overlap, never into anything they keep out of; of two settled ones
+## crowding each other, one soon walks on.
 func _part(f: Flock, delta: float) -> void:
 	if f.leaving:
 		return
@@ -325,14 +341,40 @@ func _part(f: Flock, delta: float) -> void:
 			var d := off.length()
 			if d >= room:
 				continue
+			if d < room * 0.75 and _settled(a) and _settled(b) and rng.randf() < delta:
+				if not _walk_on(f, b):
+					_walk_on(f, a)
+				continue
 			var push := (off / d if d > 1e-4 else Vector3.RIGHT) * minf(room - d, delta * 0.6) * 0.5
-			for pair in [[a, -push], [b, push]]:
-				var s: Sheep = pair[0]
-				if s.state == State.ENTER or s.state == State.LIE:
-					continue
-				var to: Vector3 = s.position + pair[1]
-				if allowed(to):
-					s.position = Terrain.ground(to.x, to.z)
+			var moved_a := _nudge(f, a, -push)
+			var moved_b := _nudge(f, b, push)
+			if not moved_a:
+				_nudge(f, b, push)
+			if not moved_b:
+				_nudge(f, a, -push)
+
+
+## Moves `s` by `by` unless it is walking in or lying, or that would take it onto ground it keeps off or out of
+## its flock's grass.
+func _nudge(f: Flock, s: Sheep, by: Vector3) -> bool:
+	if s.state == State.ENTER or s.state == State.LIE:
+		return false
+	var to := s.position + by
+	if not allowed(to) or (s.state != State.FLEE and not _beside(f, to)):
+		return false
+	s.position = Terrain.ground(to.x, to.z)
+	if s.state == State.GRAZE:
+		s.goal = s.position
+	return true
+
+
+## Whether another sheep has come to stand where `s` is going, and `s` may as well stop where it is.
+func _short_of_a_taken_spot(f: Flock, s: Sheep) -> bool:
+	return s.position.distance_to(s.goal) < 1.5 and _crowded(f, s, s.goal) and not _crowded(f, s, s.position) and _beside(f, s.position) and allowed(s.position)
+
+
+func _settled(s: Sheep) -> bool:
+	return s.state == State.GRAZE or s.state == State.STAND or s.state == State.LIE
 
 
 ## Grass beside `f`'s fence on its side: near `near` (within `reach`, at least `least` off) if given, else
@@ -345,12 +387,12 @@ func _pasture_point(f: Flock, s: Sheep, near: Variant = null, reach := 0.0, leas
 	for attempt in 16:
 		var p: Vector3
 		if near == null:
-			var at := layout.frame_at(rng.randf_range(0.5, maxf(total - 0.5, 0.5)))
+			var at := layout.frame_at(rng.randf_range(END, maxf(total - END, END)))
 			var normal: Vector3 = (at.tangent as Vector3).cross(Vector3.UP) * f.side
 			p = at.point + normal * rng.randf_range(BAND.x, BAND.y)
 		else:
 			p = near + Vector3.FORWARD.rotated(Vector3.UP, rng.randf() * TAU) * rng.randf_range(least, reach)
-		if not _beside(f, p) or not allowed(p):
+		if not _beside(f, p) or not allowed(p) or _crowded(f, s, p):
 			continue
 		if s != null and not _clear_way(s.position, p):
 			continue
@@ -358,22 +400,39 @@ func _pasture_point(f: Flock, s: Sheep, near: Variant = null, reach := 0.0, leas
 	return null
 
 
-## Whether `p` lies in the flock's band on its side of the fence.
+## Whether another sheep of the flock stands, or is headed, too near `p` for `s` to stand there too.
+func _crowded(f: Flock, s: Sheep, p: Vector3) -> bool:
+	for o in f.sheep:
+		if o == s:
+			continue
+		var room := Sheep.RADIUS * (o.size + (s.size if s != null else 1.0)) * 1.2
+		if Vector2(o.goal.x - p.x, o.goal.z - p.z).length() < room or Vector2(o.position.x - p.x, o.position.z - p.z).length() < room:
+			return true
+	return false
+
+
+## Whether `p` lies in the flock's band on its side of the fence, alongside it rather than beyond an end.
 func _beside(f: Flock, p: Vector3) -> bool:
 	var layout := f.fence.layout
-	var at := layout.frame_at(layout.closest_s(p))
+	var s := layout.closest_s(p)
+	if s < END or s > layout.length() - END:
+		return false
+	var at := layout.frame_at(s)
 	var off := Vector3(p.x - at.point.x, 0, p.z - at.point.z)
 	var d := off.length()
 	return d >= BAND.x and d <= BAND.y and off.dot((at.tangent as Vector3).cross(Vector3.UP)) * f.side > 0.0
 
 
-## Where a sheep may stand: on dry, unpaved grass in the garden, clear of every wall, inside no house or tower,
-## and away from trunks.
+## Where a sheep may stand: on unpaved grass in the garden, back from the water, clear of every wall, inside no
+## house or tower, and away from trunks.
 func allowed(p: Vector3) -> bool:
 	if maxf(absf(p.x), absf(p.z)) > Wildlife.EDGE - 1.0:
 		return false
-	if wildlife.water.pond_at(p.x, p.z) != null or Ground.bare(p.x, p.z) > BARE:
+	if Ground.bare(p.x, p.z) > BARE:
 		return false
+	for o in [Vector2.ZERO, Vector2(SHORE, 0), Vector2(-SHORE, 0), Vector2(0, SHORE), Vector2(0, -SHORE)]:
+		if wildlife.water.pond_at(p.x + o.x, p.z + o.y) != null:
+			return false
 	for t in _trunks:
 		if Vector2(t.x - p.x, t.z - p.z).length() < TRUNK_CLEAR:
 			return false
@@ -404,7 +463,7 @@ func _clear_way(a: Vector3, b: Vector3) -> bool:
 		for i in pts.size() - 1:
 			if Geometry2D.segment_intersects_segment(p, q, pts[i], pts[i + 1]) != null:
 				return false
-	var steps := ceili(p.distance_to(q))
+	var steps := ceili(p.distance_to(q) / WADE)
 	for i in steps:
 		var at := p.lerp(q, (i + 1.0) / steps)
 		if wildlife.water.pond_at(at.x, at.y) != null:

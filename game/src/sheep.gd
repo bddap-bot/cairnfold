@@ -85,17 +85,18 @@ static func build() -> ArrayMesh:
 		[Part.BODY, Vector3(-0.12, 0.45, 0.18), Vector3(0.15, 0.15, 0.17)], [Part.BODY, Vector3(0.12, 0.45, 0.18), Vector3(0.15, 0.15, 0.17)],
 		[Part.BODY, Vector3(0, 0.43, -0.25), Vector3(0.15, 0.15, 0.13)], [Part.BODY, Vector3(0, 0.48, 0.33), Vector3(0.14, 0.14, 0.11)],
 		[Part.NECK, Vector3(0, 0.58, -0.33), Vector3(0.12, 0.12, 0.11)],
+		[Part.NECK, Vector3(0, 0.47, -0.36), Vector3(0.11, 0.11, 0.1)],
 		[Part.TAIL, Vector3(0, 0.51, 0.43), Vector3(0.055, 0.07, 0.05)],
 		[Part.HEAD, FACE_AT + Vector3(0, 0.085, 0.01), Vector3(0.075, 0.05, 0.07)],
 	]
 	for w in wool:
 		var rings: Vector2i = {Part.BODY: Vector2i(5, 8), Part.HEAD: Vector2i(4, 7)}.get(w[0], Vector2i(3, 6))
 		Meshes.ellipsoid(st, w[0], w[1], w[2], WOOL, rings.x, rings.y)
-	Meshes.ellipsoid(st, Part.HEAD, FACE_AT, Vector3(0.09, 0.1, 0.115), FACE, 5, 8)
+	Meshes.ellipsoid(st, Part.HEAD, FACE_AT, Vector3(0.09, 0.1, 0.115), FACE, 4, 8)
 	Meshes.ellipsoid(st, Part.HEAD, FACE_AT + Vector3(0, -0.05, -0.085), Vector3(0.066, 0.06, 0.07), MUZZLE, 3, 7)
 	for s in [-1.0, 1.0]:
 		var ear := Part.EAR_L if s < 0 else Part.EAR_R
-		Meshes.ellipsoid(st, ear, FACE_AT + Vector3(s * 0.13, 0.03, 0.04), Vector3(0.072, 0.02, 0.036), FACE, 3, 6, _ear_shape.bind(s))
+		Meshes.ellipsoid(st, ear, FACE_AT + Vector3(s * 0.13, 0.03, 0.04), Vector3(0.072, 0.02, 0.036), FACE, 3, 5, _ear_shape.bind(s))
 		var eye := FACE_AT + Vector3(s * 0.064, 0.025, -0.082)
 		Meshes.ellipsoid(st, Part.HEAD, eye, Vector3.ONE * 0.02, EYE, 3, 5)
 		Meshes.ellipsoid(st, Part.HEAD, eye + Vector3(s * 0.006, 0.008, -0.014), Vector3.ONE * 0.007, SHINE, 2, 4)
