@@ -156,7 +156,7 @@ func arrive(fence: Wall) -> void:
 	for at in starts:
 		var s := Sheep.new(rng.randf() * 10.0, rng.randf_range(Sheep.SIZE.x, Sheep.SIZE.y), Color.WHITE.lerp(Sheep.TINTS[rng.randi() % Sheep.TINTS.size()], rng.randf()))
 		s.position = Terrain.ground(at.x, at.z)
-		_face(s, first - at, 1.0)
+		Wildlife._face(s, first - at, 1.0)
 		s.state = State.ENTER
 		var spot: Variant = _pasture_point(f, s, first, 3.5)
 		if spot == null:
@@ -312,17 +312,11 @@ func _go(s: Sheep, goal: Vector3, speed: float, delta: float, look := Sheep.WALK
 	var step := minf(d, speed * delta)
 	if d > 1e-4:
 		s.position += to / d * step
-		_face(s, to, delta * TURN)
+		Wildlife._face(s, to, delta * TURN)
 	s.position.y = Terrain.height_at(s.position.x, s.position.z)
 	s.walked(step)
 	s.blend(look, delta)
 	return d <= speed * delta
-
-
-func _face(s: Sheep, dir: Vector3, weight: float) -> void:
-	if Vector2(dir.x, dir.z).length() < 1e-4:
-		return
-	s.rotation.y = lerp_angle(s.rotation.y, atan2(-dir.x, -dir.z), clampf(weight, 0.0, 1.0))
 
 
 func _forward(s: Sheep) -> Vector3:
