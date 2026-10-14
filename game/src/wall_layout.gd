@@ -207,44 +207,52 @@ func _opening_for(w: Vector2) -> Dictionary:
 ## round a loop's seam too, and those that fit are kept: under the top with a course left for the lintel,
 ## clear of the ends, corner piers, arches and each other.
 func openings_for(placed: Array[Vector2]) -> Array[Dictionary]:
-	var single: Array[Dictionary] = []
+	var courses_of := {}
 	for w in placed:
-		single.append(_opening_for(w))
-	single.sort_custom(func(a, b): return a.s < b.s)
-	if closed and single.size() > 1:
-		# Round a loop, windows are read from just past the widest gap between them, so none straddles the seam.
-		var n := single.size()
+		var o := _opening_for(w)
+		var key := roundi(o.sill * 100.0)
+		if not courses_of.has(key):
+			courses_of[key] = []
+		courses_of[key].append(o)
+	var fused: Array[Dictionary] = []
+	for row in courses_of.values():
+		fused.append_array(_fuse(row))
+	fused.sort_custom(func(a, b): return a.s < b.s)
+	var out: Array[Dictionary] = []
+	for o in fused:
+		if _opening_fits(o, out):
+			out.append(o)
+	return out
+
+
+## Fuses the openings of one course that stand within FUSE of each other into wider ones.
+func _fuse(row: Array) -> Array[Dictionary]:
+	row.sort_custom(func(a, b): return a.s < b.s)
+	if closed and row.size() > 1:
+		# Round a loop, the row is read from just past its widest gap, so no run of windows straddles the seam.
+		var n := row.size()
 		var cut := 0
 		var widest := -1.0
 		for i in n:
-			var gap := fposmod(single[(i + 1) % n].s - single[i].s, length())
+			var gap := fposmod(row[(i + 1) % n].s - row[i].s, length())
 			if gap > widest:
 				widest = gap
 				cut = (i + 1) % n
-		single = single.slice(cut) + single.slice(0, cut)
-	var start: float = single[0].s if not single.is_empty() else 0.0
-	var fused: Array[Dictionary] = []
-	for o in single:
-		var u: float = start + fposmod(o.s - start, length()) if closed else o.s
-		var into := {}
-		for f in fused:
-			if is_equal_approx(f.sill, o.sill) and u - f.last < FUSE:
-				into = f
-		if into.is_empty():
-			o.first = u
-			o.last = u
-			fused.append(o)
-			continue
-		into.last = u
-		into.lights += 1
-		into.s = self.wrap((into.first + into.last) * 0.5)
-		into.half = into.lights * (DOOR_HALF if o.door else WINDOW_HALF) + (into.lights - 1) * MULLION * 0.5
+		row = row.slice(cut) + row.slice(0, cut)
 	var out: Array[Dictionary] = []
-	for o in fused:
-		o.erase("first")
-		o.erase("last")
-		if _opening_fits(o, out):
+	var first := 0.0
+	var last := 0.0
+	for o in row:
+		var u: float = row[0].s + fposmod(o.s - row[0].s, length()) if closed else o.s
+		if out.is_empty() or u - last >= FUSE:
 			out.append(o)
+			first = u
+		else:
+			var into: Dictionary = out[-1]
+			into.lights += 1
+			into.s = self.wrap((first + u) * 0.5)
+			into.half = into.lights * (DOOR_HALF if o.door else WINDOW_HALF) + (into.lights - 1) * MULLION * 0.5
+		last = u
 	return out
 
 

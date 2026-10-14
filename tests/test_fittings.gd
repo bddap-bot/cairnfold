@@ -174,6 +174,17 @@ func _windows_fuse_across_a_loop_seam() -> void:
 		_check(w.openings.size() == 1 and w.openings[0].lights == 3, "three windows in a row fuse into one of three lights, starting at s=%.2f by the seam: %s" % [start, w.openings])
 		if w.openings.size() == 1:
 			_check(absf(w.offset(w.openings[0].s, start + 0.7)) < 0.01, "and it is centred on the middle one")
+	var low := WallLayout.new()
+	low.points = WallLayout.circle(Vector3.ZERO, 0.7)
+	low.closed = true
+	low.height = 4.5
+	low.build(_flat)
+	var spaced: Array[Vector2] = [Vector2(0.0, 1.5), Vector2(0.7, 1.5)]
+	for k in 5:
+		spaced.append(Vector2(1.3 + 0.6 * k, 3.3))
+	low.windows = spaced
+	low.build(_flat)
+	_check(low.openings.any(func(o): return o.lights == 2 and o.sill < 1.5), "a pair on one course fuses whatever stands on the course above: %s" % [low.openings])
 
 
 func _flags_keep_their_colour() -> void:
