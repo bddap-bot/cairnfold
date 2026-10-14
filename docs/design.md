@@ -140,8 +140,9 @@ density, and no build the player can make may bring the frame rate down.
   and the share of each frame the game's GPU work may take. Nothing else states it.
 - `demo/stress.json` is the worst case: the bare meadow, then every flora pool full,
   a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
-  over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, and a village of houses
-  and towers, each seen from the air and standing among them.
+  over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
+  and towers, eight ponds, and the most ducks there can be at them (`bench.sh`
+  fixes the seed), each seen from the air and standing among them.
 - `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
   calls, primitives and GPU time; on a Quest it holds each phase to the budget and
   fails when one goes over. A new feature adds itself to the stress scene.

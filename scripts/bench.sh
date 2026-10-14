@@ -11,6 +11,8 @@ set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 out=$(realpath -m "$1")
 mkdir -p "$out"
+# Which ducks come to the stress scene's ponds: this one brings the most there can be, two families of five.
+seed=25
 device=desktop
 if [ "${2:-}" = --android ]; then
   device=quest
@@ -23,7 +25,7 @@ if [ "${2:-}" = --android ]; then
   trap 'adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable > /dev/null' EXIT
   adb shell am force-stop "$pkg"
   adb logcat -c
-  adb shell am start -W -n "$pkg/com.godot.game.GodotApp" --esa command_line_params "--,--script,$dir/stress.json,--metrics,$dir/metrics.json,--capture-dir,$dir" > /dev/null
+  adb shell am start -W -n "$pkg/com.godot.game.GodotApp" --esa command_line_params "--,--script,$dir/stress.json,--metrics,$dir/metrics.json,--capture-dir,$dir,--seed,$seed" > /dev/null
   for _ in $(seq 900); do
     sleep 1
     adb shell pidof "$pkg" > /dev/null || break
@@ -35,11 +37,11 @@ elif [ $# -ge 3 ]; then
   ssh "$2" 'set -e; rm -rf cairnfold-bench; mkdir cairnfold-bench; tar -xz -C cairnfold-bench; cd cairnfold-bench/cairnfold; mkdir log
     bin/godot --headless --path game --import > log/import.log 2>&1
     export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)} DISPLAY=${DISPLAY:-:0}
-    status=0; timeout 900 bin/godot --path game --resolution 3456x1728 --xr-mode off -- --desktop --script "$PWD/demo/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" > log/godot.log 2>&1 || status=$?
+    status=0; timeout 900 bin/godot --path game --resolution 3456x1728 --xr-mode off -- --desktop --script "$PWD/demo/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --seed '"$seed"' > log/godot.log 2>&1 || status=$?
     echo "bench: $(cat REVISION) exit $status"' < "$3"
   scp -q "$2:cairnfold-bench/cairnfold/log/*" "$out/"
 else
-  CAIRNFOLD_QUIT_AFTER=900 "$here/render.sh" "$here/../demo/stress.json" "$out" > "$out/godot.log" 2>&1
+  CAIRNFOLD_QUIT_AFTER=900 "$here/render.sh" "$here/../demo/stress.json" "$out" -- --seed "$seed" > "$out/godot.log" 2>&1
 fi
 python3 - "$out" "$device" <<'PY'
 import json, os, re, sys

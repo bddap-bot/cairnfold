@@ -119,5 +119,15 @@
   {"op": "wait", "seconds": 6},
   {"op": "capture", "name": "ponds-ground"},
   {"op": "label", "name": "-"},
+  {"op": "view", "eye": [0, 22, 32], "at": [0, 0, 0]},
+  {"op": "wait", "seconds": 60},
+  {"op": "label", "name": "ducks/aerial"},
+  {"op": "wait", "seconds": 6},
+  {"op": "capture", "name": "ducks-aerial"},
+  {"op": "label", "name": "ducks/ground"},
+  {"op": "view", "ground": true, "eye": [0, 1.65, 0], "at": [20, 1.2, 0]},
+  {"op": "wait", "seconds": 6},
+  {"op": "capture", "name": "ducks-ground"},
+  {"op": "label", "name": "-"},
   {"op": "quit"}
 ]
