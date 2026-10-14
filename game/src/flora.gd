@@ -1,22 +1,27 @@
 class_name Flora
 extends Node3D
 
-## Every plant in the glade: the meadow's own and those painted or placed since. Each kind is one
-## MultiMesh allocated up front, so painting writes instances without resizing GPU buffers. A plant's
+## Every plant in the glade: the meadow's own and those painted or placed since. Painted plants of each
+## kind share one MultiMesh allocated up front, so painting writes instances without resizing GPU buffers. A plant's
 ## transform counts its height from the ground under its anchor, which its shader reads from the
 ## terrain each frame, so reshaping the ground moves no instance.
 
 const PAINTED_GRASS := 12000
 const PAINTED_FLOWERS := 4000
 const PLACED_TREES := 64
+## How far from the eye grass is drawn: sub-pixel blades beyond it cost the Quest 2 most of its frame.
+const GRASS_REACH := 24.0
 ## Where an untracked hand is, as far as the grass knows.
 const NO_HAND := Vector3(0, -1000, 0)
 
 
-## A fixed-capacity MultiMesh that fills in order; once full, new plants replace the oldest added after `keep()`.
-## Every tree has the same number of blobs, so the trunk and foliage pools recycle in step.
+## One kind of plant, in numbered slots. Slots filled before `keep()` are the meadow's own: `keep()` bakes them into
+## one MultiMesh per CELL square, so the camera culls those off screen, and they are never recycled. Later slots fill
+## a fixed-capacity MultiMesh in order and, once it is full, replace the oldest. Every tree has the same number of
+## blobs, so the trunk and foliage pools recycle in step.
 class Pool:
 	const GONE := Vector3(1e9, 0, 1e9)
+	const CELL := 16.0
 	var mm := MultiMesh.new()
 	var kept := 0
 	var last := -1
@@ -25,37 +30,55 @@ class Pool:
 	var stamps := PackedInt32Array()
 	var anchors := PackedVector3Array()
 	var plants: Array[Plant] = []
+	var _parent: Node3D
+	var _mat: Material
+	var _shadows: bool
+	var _reach: float
+	## Each slot's colour and custom data until `keep()` bakes it: a MultiMesh does not give them back.
+	var _colors := PackedColorArray()
+	var _customs := PackedColorArray()
+	var _cell_of: Array[MultiMesh] = []
+	var _index_in_cell := PackedInt32Array()
+	var _cells: Array[MultiMeshInstance3D] = []
+	var _centres := PackedVector2Array()
 
-	func _init(mesh: Mesh, capacity: int) -> void:
-		mm.transform_format = MultiMesh.TRANSFORM_3D
-		mm.use_colors = true
-		mm.use_custom_data = true
-		mm.mesh = mesh
-		mm.instance_count = capacity
+	func _init(parent: Node3D, mesh: Mesh, capacity: int, mat: Material, shadows: bool, reach := INF) -> void:
+		_parent = parent
+		_mat = mat
+		_shadows = shadows
+		_reach = reach
+		_setup(mm, mesh, capacity)
 		mm.visible_instance_count = 0
 		stamps.resize(capacity)
 		anchors.resize(capacity)
 		plants.resize(capacity)
+		_colors.resize(capacity)
+		_customs.resize(capacity)
 		# Painting changes the instance list every frame; a fixed box spares a bounds pass over every plant.
 		mm.custom_aabb = Terrain.bounds()
+		_show(mm)
 
 	## `custom`'s blue and alpha are taken for `anchor`.
 	func add(xform: Transform3D, color: Color, anchor: Vector3, custom := Color()) -> Plant:
-		var i := mm.visible_instance_count
-		if i < mm.instance_count:
-			mm.visible_instance_count = i + 1
-		elif kept == mm.instance_count:
+		var n := mm.visible_instance_count
+		var i := kept + n
+		if n < mm.instance_count:
+			mm.visible_instance_count = n + 1
+		elif mm.instance_count == 0:
 			return null
 		else:
 			i = kept + _next
-			_next = (_next + 1) % (mm.instance_count - kept)
+			_next = (_next + 1) % mm.instance_count
 		last = i
 		xform.origin.y -= Terrain.height_at(anchor.x, anchor.z)
 		custom.b = anchor.x
 		custom.a = anchor.z
-		mm.set_instance_transform(i, xform)
-		mm.set_instance_color(i, color)
-		mm.set_instance_custom_data(i, custom)
+		mm.set_instance_transform(i - kept, xform)
+		mm.set_instance_color(i - kept, color)
+		mm.set_instance_custom_data(i - kept, custom)
+		if i < _colors.size():
+			_colors[i] = color
+			_customs[i] = custom
 		stamps[i] += 1
 		anchors[i] = anchor
 		plants[i] = Plant.new(self, i, xform, anchor)
@@ -63,9 +86,68 @@ class Pool:
 
 	func keep() -> void:
 		kept = mm.visible_instance_count
+		var cells := {}
+		for i in kept:
+			var o := plants[i].xform.origin
+			cells.get_or_add(Vector2i(floori(o.x / CELL), floori(o.z / CELL)), []).append(i)
+		_cell_of.resize(kept)
+		_index_in_cell.resize(kept)
+		var ground := Terrain.bounds()
+		for key: Vector2i in cells:
+			var slots: Array = cells[key]
+			var cell := MultiMesh.new()
+			_setup(cell, mm.mesh, slots.size())
+			var box: AABB = plants[slots[0]].xform * mm.mesh.get_aabb()
+			for j in slots.size():
+				var i: int = slots[j]
+				cell.set_instance_transform(j, plants[i].xform)
+				cell.set_instance_color(j, _colors[i])
+				cell.set_instance_custom_data(j, _customs[i])
+				_cell_of[i] = cell
+				_index_in_cell[i] = j
+				box = box.merge(plants[i].xform * mm.mesh.get_aabb())
+			# Heights are kept above the ground, which the shaders add; wind and hands bend blades a little further.
+			box.position.y += ground.position.y
+			box.size.y += ground.size.y
+			cell.custom_aabb = box.grow(0.5)
+			_cells.append(_show(cell))
+			_centres.append((Vector2(key) + Vector2(0.5, 0.5)) * CELL)
+		_colors = PackedColorArray()
+		_customs = PackedColorArray()
+		mm.instance_count = mm.instance_count - kept
+		mm.visible_instance_count = 0
 
 	func size() -> int:
-		return mm.visible_instance_count
+		return kept + mm.visible_instance_count
+
+	func place(slot: int, xform: Transform3D) -> void:
+		if slot < kept:
+			_cell_of[slot].set_instance_transform(_index_in_cell[slot], xform)
+		else:
+			mm.set_instance_transform(slot - kept, xform)
+
+	## Not `visibility_range_end`: that measures to the box's centre, which sits high above the ground because a
+	## cell's box spans every height the terrain can be pulled to.
+	func cull(eye: Vector3) -> void:
+		var r := _reach + CELL * sqrt(0.5)
+		for i in _cells.size():
+			_cells[i].visible = _centres[i].distance_to(Vector2(eye.x, eye.z)) < r
+
+	func _setup(m: MultiMesh, mesh: Mesh, count: int) -> void:
+		m.transform_format = MultiMesh.TRANSFORM_3D
+		m.use_colors = true
+		m.use_custom_data = true
+		m.mesh = mesh
+		m.instance_count = count
+
+	func _show(m: MultiMesh) -> MultiMeshInstance3D:
+		var mmi := MultiMeshInstance3D.new()
+		mmi.multimesh = m
+		mmi.material_override = _mat
+		if not _shadows:
+			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_parent.add_child(mmi)
+		return mmi
 
 
 ## One instance in a pool, remembered so it can be taken out and put back.
@@ -92,7 +174,7 @@ class Plant:
 	func set_shown(on: bool) -> void:
 		if not current():
 			return
-		pool.mm.set_instance_transform(slot, xform if on else Transform3D(Basis.from_scale(Vector3.ZERO), xform.origin))
+		pool.place(slot, xform if on else Transform3D(Basis.from_scale(Vector3.ZERO), xform.origin))
 		pool.anchors[slot] = anchor if on else Pool.GONE
 
 
@@ -108,21 +190,22 @@ var _trees := {}
 func _init() -> void:
 	grass_mat.shader = load("res://src/grass.gdshader")
 	part(NO_HAND, NO_HAND)
-	grass = _pool(Meshes.grass_clump(7, 1), Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false)
+	grass_mat.set_shader_parameter(&"draw_reach", GRASS_REACH)
+	grass = Pool.new(self, Meshes.grass_clump(7, 1), Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false, GRASS_REACH)
 	var flower_mat := _plant_material("flower", Color.WHITE, 0.8)
 	flower_mat.set_shader_parameter("stalk", Meshes.STALK)
 	flower_mat.set_shader_parameter("eye", Meshes.EYE)
-	flowers = _pool(Meshes.flower(6), Meadow.FLOWERS + PAINTED_FLOWERS, flower_mat, false)
+	flowers = Pool.new(self, Meshes.flower(6), Meadow.FLOWERS + PAINTED_FLOWERS, flower_mat, false)
 	var trunk := CylinderMesh.new()
 	trunk.top_radius = 0.16
 	trunk.bottom_radius = 0.3
 	trunk.height = 1.0
 	trunk.radial_segments = 8
 	trunk.rings = 1
-	trunks = _pool(trunk, Meadow.TREES + PLACED_TREES, _plant_material("plant", Color(0.36, 0.27, 0.2), 1.0), true)
+	trunks = Pool.new(self, trunk, Meadow.TREES + PLACED_TREES, _plant_material("plant", Color(0.36, 0.27, 0.2), 1.0), true)
 	var leaf_mat := _plant_material("leaf", Color.WHITE, 1.0)
 	leaf_mat.set_shader_parameter("backlight", Color(0.25, 0.35, 0.08))
-	foliage = _pool(Meshes.blob(4), (Meadow.TREES + PLACED_TREES) * FloraLayout.BLOBS + Meadow.BUSHES, leaf_mat, true)
+	foliage = Pool.new(self, Meshes.blob(4), (Meadow.TREES + PLACED_TREES) * FloraLayout.BLOBS + Meadow.BUSHES, leaf_mat, true)
 
 
 static func _plant_material(shader: String, albedo: Color, roughness: float) -> ShaderMaterial:
@@ -133,15 +216,10 @@ static func _plant_material(shader: String, albedo: Color, roughness: float) -> 
 	return mat
 
 
-func _pool(mesh: Mesh, capacity: int, mat: Material, shadows: bool) -> Pool:
-	var pool := Pool.new(mesh, capacity)
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = pool.mm
-	mmi.material_override = mat
-	if not shadows:
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mmi)
-	return pool
+func _process(_delta: float) -> void:
+	var eye := get_viewport().get_camera_3d()
+	if eye != null:
+		grass.cull(eye.global_position)
 
 
 func part(left: Vector3, right: Vector3) -> void:

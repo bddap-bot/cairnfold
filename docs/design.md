@@ -79,6 +79,49 @@ Earlier run, headset off the head, `demo/headset.json`:
 | Drawing a wall (live rebuild) | 19 | 13.89 ms | 0 |
 | Floating 6 m up | 67 | 16.67 ms | 2, both at the moment of the air teleport (~142 ms) |
 
+### Quest 2 measurements
+
+The Quest 2 (XR2 Gen 1, Adreno 650) is the weakest headset and sets the one
+graphics configuration: 13.9 ms per frame at its 72 Hz. Its runtime prints a line
+a second to logcat (`VrApi`): `FPS=` delivered/refresh and `App=`, the game's GPU
+time per frame. With the proximity sensor held closed
+(`adb shell am broadcast -a com.oculus.vrpowermanager.prox_close`) the headset
+renders the game off the head, so those numbers are real; `--script` and the other
+game arguments reach it through the launch intent's `command_line_params` string
+array. Off the head, with no floor known, the tracked head sits at ground level, so
+a script lifts the view with `place`'s `lift`. Godot 4.5.1 Mobile renderer, 2×
+MSAA, the runtime's default render size, median of 20 seconds after two walls are
+drawn.
+
+How the configuration was found, with the eye at ground level looking at the
+walls:
+
+| Configuration | GPU per frame | Frames per second |
+| --- | --- | --- |
+| As first built, the Frame's settings | 32.1 ms | 29 |
+| Glow off | 22.6 ms | 42 |
+| Grass clump mesh indexed (63 to 35 vertices) | 18.2 ms | 51 |
+| The meadow's plants baked into 16 m cells the camera culls | 16.8 ms | 56 |
+| Grass drawn to 28 m, shrinking into the ground from 20 m | 13.4 ms | 70 |
+| Flower and leaf meshes indexed | 13.1 ms | 71 |
+| Grass drawn to 24 m | 12.4 ms | 72 |
+
+Single changes from the first row, for scale: shadows off saved 2.6 ms, fog off
+1.4 ms, MSAA off 6.3 ms, render scale 0.8 (with glow off) 1.6 ms; foveation level 3
+applied (`Fov=3`) and saved nothing. The GPU is bound by grass vertices and by
+glow's extra passes, not by pixels.
+
+The configuration as it stands:
+
+| View | GPU per frame | Frames per second |
+| --- | --- | --- |
+| Standing (1.65 m) at the walls | 11.8 ms | 72 |
+| Floating 8.5 m above them, looking down over the meadow | 15.9 ms | 58 |
+
+Floating misses. What it costs there: the grass 3.2 ms, trees and bushes 2.1 ms,
+shadows 2.0 ms, flowers 1.0 ms; one shadow split instead of two, or 30 m of shadow
+instead of 45 m, saved nothing.
+
 ## Look on a mobile budget
 
 The original's look rests on soft global illumination, warm sun, painterly
@@ -91,7 +134,8 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
   backlight for the glowing-leaf look.
 - **Atmosphere:** depth fog with aerial perspective and sun scatter, tinted towards
   the sky, so distant hills fade blue and the near meadow stays saturated.
-- **Grading:** AgX tonemapping, mild saturation and contrast lift, gentle glow.
+- **Grading:** AgX tonemapping, mild saturation and contrast lift. No glow: its
+  extra passes cost the Quest 2 9 ms of its 13.9 (see "Quest 2 measurements").
 - **Detail:** everything repeated is a MultiMesh: stones, grass clumps, flowers,
   foliage. Stones are rounded, lumpy boxes with per-stone colour, so walls read as
   individual pieces. Grass is geometry (no alpha test) to stay cheap on tiled GPUs;
@@ -100,9 +144,10 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
 ### Grass
 
 What games known for their grass do, ranked by how much each adds to the look
-for what it costs. Costs are for the Frame's tiled Adreno GPU in stereo: grass
-there is mostly vertex work (1.4 M vertices for the meadow's own grass, up to
-0.76 M more painted), so per-vertex arithmetic is the currency and anything that
+for what it costs. Costs are for tiled Adreno GPUs in stereo, the Quest 2's the
+tightest: grass there is mostly vertex work (0.77 M indexed vertices for the
+meadow's own grass, up to 0.42 M more painted, before culling), so per-vertex
+arithmetic is the currency and anything that
 breaks early depth (`discard`, alpha test) is ruled out. Each grass value is
 defined once: tunables as uniforms in `grass.gdshader`, placement in
 `FloraLayout`.
@@ -120,7 +165,8 @@ defined once: tunables as uniforms in `grass.gdshader`, placement in
 | 9 | Grass parts around the hands | The meadow responds to touch: reaching into it pushes blades aside and down | Two distance tests per vertex; two uniforms set per frame | Done (`hand_radius`) |
 | 10 | Per-blade Bezier curves with more segments | Smooth arcs instead of a two-segment bend | Vertex count grows with segments: about twice today's for a smooth curve | Not yet: needs headroom measured on the device |
 | 11 | View-space thickening (Tsushima: widen blades seen edge-on) | No vanishing slivers; less thin-geometry aliasing | A few vertex operations, but needs each blade's facing per vertex | Not yet |
-| 12 | Distance LOD: fewer, wider blades far away | Larger meadows at the same cost | Saves vertices; a second mesh per distance band | Not yet: the meadow fits today |
+| 12 | Distance LOD: fewer, wider blades far away | Larger meadows at the same cost | Saves vertices; a second mesh per distance band | Not yet |
+| 13 | Draw reach | Beyond `Flora.GRASS_REACH` (24 m) the terrain's own colour carries the meadow; blades shrink into the ground over the last `draw_fade` (8 m), so nothing pops | Saves the far, sub-pixel blades that cost the Quest 2 most of its frame: the meadow's grass is baked into 16 m cells, and cells wholly out of reach are not drawn | Done |
 
 Ruled out on this target: alpha-tested or dithered fades (break early depth on
 the tiler), screen-space or impostor grass shadows, and specular on blades
@@ -166,7 +212,7 @@ Stage numbers refer to the build order at the end.
 | Shadows | Soft sun shadows with temporal filtering, contact shadows | Two-split soft shadows; tuned splits for a floating viewpoint | 1 (done), 2 |
 | Sky and clouds | Hand-tuned colour timelines per glade; clouds as pre-lit sprites on a cylinder | Sky shader gradient and painted noise clouds (done); timelines per time of day in stage 8 | 1 (done), 8 |
 | Fog | Froxel fog with density and height controls | Depth and height fog with sun scatter | 1 (done), 2 |
-| Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap, grading, glow (done). No depth of field: in a headset your eyes focus for themselves | 1 (done) |
+| Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap and grading (done); glow cut for the Quest 2. No depth of field: in a headset your eyes focus for themselves | 1 (done) |
 | Time of day | Continuous, lockable, sun-angle slider | Reach up and drag the sun across the sky | 8 |
 | Seasons and palettes | Five glade palettes, colour wheel per element | Palette presets; a colour picker held in the left hand | 8 |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |

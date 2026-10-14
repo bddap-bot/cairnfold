@@ -65,10 +65,6 @@ static func build(parent: Node) -> DirectionalLight3D:
 	env.fog_density = 0.55
 	env.fog_aerial_perspective = 0.55
 	env.fog_sky_affect = 0.15
-	env.glow_enabled = true
-	env.glow_intensity = 0.35
-	env.glow_bloom = 0.04
-	env.glow_hdr_threshold = 1.1
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.12
 	env.adjustment_contrast = 1.04

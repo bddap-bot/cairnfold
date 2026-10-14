@@ -14,6 +14,7 @@ func _initialize() -> void:
 	_trees_recycle_whole()
 	_grass_grows_in_clumps()
 	_flowers_vary_by_patch()
+	_grass_out_of_reach_is_not_drawn()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
 
@@ -105,16 +106,33 @@ func _full_pools_recycle_only_painted() -> void:
 	var t := _tool()
 	var pool := t.flora.flowers
 	var rng := _rng(4)
+	var spots := []
 	for i in 100:
-		t.flora.add_flower(Vector3.ZERO, rng)
+		spots.append(Vector3(rng.randf_range(-30, 30), 0, rng.randf_range(-30, 30)))
+		t.flora.add_flower(spots[-1], rng)
 	t.flora.keep()
 	var slots := {}
 	for i in pool.mm.instance_count + 10:
 		t.flora.add_flower(Vector3.ZERO, rng)
 		slots[pool.last] = true
-	_check(pool.size() == pool.mm.instance_count, "a full pool draws all it holds")
+	_check(pool.size() == 100 + pool.mm.instance_count, "a full pool draws all it holds")
 	_check(slots.keys().min() == 100, "overpainting recycles painted flowers, never the meadow's own")
-	_check(slots.size() == pool.mm.instance_count - 100, "and every painted slot in turn")
+	_check(slots.size() == pool.mm.instance_count, "and every painted slot in turn")
+	var meadow := 0
+	var boxes := []
+	for mmi: MultiMeshInstance3D in t.flora.get_children():
+		if mmi.multimesh != pool.mm and mmi.multimesh.mesh == pool.mm.mesh:
+			meadow += mmi.multimesh.instance_count
+			boxes.append(mmi.multimesh.custom_aabb)
+	_check(meadow == 100, "the meadow's own flowers are baked into cells: %d" % meadow)
+	var own := pool.plants[0]
+	t.flora.set_shown([own], false)
+	_check(not own.shown(), "a meadow flower can be taken out of its cell")
+	t.flora.set_shown([own], true)
+	_check(own.shown(), "and put back")
+	_check(boxes.size() > 4, "spread over cells the camera can cull: %d" % boxes.size())
+	for p: Vector3 in spots:
+		_check(boxes.any(func(b: AABB) -> bool: return b.has_point(Vector3(p.x, Terrain.height_at(p.x, p.z) + 0.1, p.z))), "a meadow flower at %s lies in a cell's box" % p)
 
 
 func _trees_recycle_whole() -> void:
@@ -175,3 +193,21 @@ func _flowers_vary_by_patch() -> void:
 				near += 1
 				same += int(FloraLayout.flower_color(pts[j]) == c)
 	_check(same > near * 0.85, "neighbouring flowers mostly share a colour, %d of %d" % [same, near])
+
+
+func _grass_out_of_reach_is_not_drawn() -> void:
+	var flora := Flora.new()
+	root.add_child(flora)
+	var rng := _rng(7)
+	var near := Vector3(Flora.GRASS_REACH - 1.0, 0, 0)
+	var far := Vector3(Flora.GRASS_REACH + Flora.Pool.CELL * 1.5, 0, 0)
+	flora.add_grass(near, rng)
+	flora.add_grass(far, rng)
+	flora.keep()
+	flora.grass.cull(Vector3.ZERO)
+	var shown := {}
+	for mmi: MultiMeshInstance3D in flora.get_children():
+		if mmi.multimesh != flora.grass.mm and mmi.multimesh.mesh == flora.grass.mm.mesh:
+			shown[mmi.multimesh.custom_aabb.has_point(Vector3(near.x, Terrain.height_at(near.x, near.z) + 0.1, near.z))] = mmi.visible
+	_check(shown.get(true, false), "grass just within reach is drawn")
+	_check(not shown.get(false, true), "grass a cell and a half beyond reach is not")

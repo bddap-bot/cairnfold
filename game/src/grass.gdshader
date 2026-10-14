@@ -18,6 +18,9 @@ uniform float gust_speed = 1.4;
 uniform float gust_brighten = 0.22;
 uniform float far_begin = 10.0;
 uniform float far_end = 30.0;
+// Blades shrink into the ground over the last stretch before `draw_reach`, past which Flora draws no meadow grass.
+uniform float draw_reach;
+uniform float draw_fade = 8.0;
 uniform float hand_radius = 0.35;
 uniform vec3 hand_left;
 uniform vec3 hand_right;
@@ -58,7 +61,9 @@ void vertex() {
 	VERTEX += bend;
 	VERTEX.y -= length(bend.xz) * 0.6 * tip;
 
-	far = smoothstep(far_begin, far_end, distance(root, CAMERA_POSITION_WORLD));
+	float dist = distance(root, CAMERA_POSITION_WORLD);
+	far = smoothstep(far_begin, far_end, dist);
+	VERTEX = mix(VERTEX, root, smoothstep(draw_reach - draw_fade, draw_reach, dist));
 	NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), 0.35 + 0.5 * far));
 	if (drowned(INSTANCE_CUSTOM.zw, ground)) {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);

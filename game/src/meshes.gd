@@ -65,6 +65,7 @@ static func grass_clump(blades: int, seed: int) -> ArrayMesh:
 				st.set_normal(rounded[k].normalized())
 				st.set_uv(uvs[k])
 				st.add_vertex(pts[k])
+	st.index()
 	return st.commit()
 
 
@@ -98,6 +99,7 @@ static func flower(petals: int, head := Color.WHITE) -> ArrayMesh:
 				st.set_uv(Vector2(1, 1 if p == eye else 0))
 				st.set_normal(Vector3.UP)
 				st.add_vertex(p)
+	st.index()
 	return st.commit()
 
 
@@ -146,4 +148,5 @@ static func leaf() -> ArrayMesh:
 				st.set_normal(n)
 				st.set_color(Color(1, 1, 1))
 				st.add_vertex(p)
+	st.index()
 	return st.commit()
