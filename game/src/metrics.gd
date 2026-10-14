@@ -14,6 +14,8 @@ var _step := 0
 var _viewport_ms := 0.0
 var _viewport_frames := 0
 var _deltas: PackedFloat32Array = []
+## Whether the last frame ran over 1.5× the refresh period; only the first of a run of late frames is logged.
+var _late := false
 var _gpu_ns := -1
 var _drm_fds: PackedStringArray = []
 ## Counts readings; every tenth looks for the DRM clients again, since the runtime may open more later.
@@ -32,8 +34,10 @@ func _init(out: String) -> void:
 func _process(delta: float) -> void:
 	_deltas.append(delta * 1000.0)
 	var hz: float = info.get("refresh_hz", 0.0)
-	if hz > 0.0 and delta * 1000.0 > 1500.0 / hz:
+	var late := hz > 0.0 and delta * 1000.0 > 1500.0 / hz
+	if late and not _late:
 		print("metrics: late frame %.1f ms" % (delta * 1000.0))
+	_late = late
 	_draws = maxi(_draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 	if quality != null and quality.fresh:

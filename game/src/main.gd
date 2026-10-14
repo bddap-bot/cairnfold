@@ -172,7 +172,10 @@ func capture(name: String) -> void:
 		await RenderingServer.frame_post_draw
 		img = get_viewport().get_texture().get_image()
 	var path := dir.path_join(name + ".png")
-	img.save_png(path)
+	var saved := await photo_tool.save(img, path)
+	if saved != OK:
+		push_error("capture: could not write %s: %s" % [path, error_string(saved)])
+		return
 	print("capture: ", path)
 
 

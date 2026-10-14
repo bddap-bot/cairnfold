@@ -117,18 +117,24 @@ func shoot(hand: Hand) -> String:
 		n += 1
 		path = folder.path_join("%s-%d.png" % [stamp, n])
 	_reserved[path] = true
+	var saved := await save(img, path)
+	_reserved.erase(path)
+	if saved != OK:
+		push_error("photo: could not write %s: %s" % [path, error_string(saved)])
+		return ""
+	print("photo: ", path)
+	return path
+
+
+## Writes `img` as a PNG on a worker thread: encoding a photo-sized image takes longer than a frame.
+func save(img: Image, path: String) -> Error:
 	var file := ProjectSettings.globalize_path(path)
 	var saved := [ERR_BUG]
 	var task := WorkerThreadPool.add_task(func() -> void: saved[0] = img.save_png(file))
 	while not WorkerThreadPool.is_task_completed(task):
 		await get_tree().process_frame
 	WorkerThreadPool.wait_for_task_completion(task)
-	_reserved.erase(path)
-	if saved[0] != OK:
-		push_error("photo: could not write %s: %s" % [path, error_string(saved[0])])
-		return ""
-	print("photo: ", path)
-	return path
+	return saved[0]
 
 
 ## The garden seen from `at`, rendered once at photo size, one render at a time. The pixels come back from
