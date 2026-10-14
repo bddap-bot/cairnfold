@@ -7,6 +7,7 @@ var history: History
 var tool: WallTool
 var flora_tool: FloraTool
 var delete_tool: DeleteTool
+var fitting_tool: FittingTool
 var terrain_tool: TerrainTool
 var water: Water
 var water_tool: WaterTool
@@ -35,6 +36,8 @@ func _ready() -> void:
 	add_child(flora_tool)
 	tool = WallTool.new(rig, history, flora, paths)
 	builds.add_child(tool)
+	fitting_tool = FittingTool.new(rig, tool, history)
+	add_child(fitting_tool)
 	delete_tool = DeleteTool.new(rig, tool, flora_tool, history)
 	add_child(delete_tool)
 	terrain_tool = TerrainTool.new(rig, history)

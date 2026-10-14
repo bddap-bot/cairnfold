@@ -23,6 +23,8 @@ const OBSTACLE_REACH := 0.6
 var standing: Array[WallLayout]
 var obstacles: PackedVector3Array
 var seed: int
+## The stroke draws a fence: low posts and rails, with no arches over plants.
+var fence := false
 ## Each stroke point's nearest standing wall, kept while the point stays put: only the newest point moves.
 var _hits: Array[Dictionary] = []
 
@@ -40,6 +42,9 @@ func pieces(stroke: Array[Vector3], ground: Callable) -> Array[WallLayout]:
 		var w := WallLayout.new()
 		w.seed = seed + out.size()
 		w.points = run
+		w.fence = fence
+		if fence:
+			w.height = WallLayout.FENCE_HEIGHT
 		w.resample(ground)
 		if w.length() < MIN_LENGTH:
 			continue
@@ -90,7 +95,7 @@ func _steep(stroke: Array[Vector3], i: int, step: int) -> bool:
 ## Arches over the plants the wall stands on; a long wall over open ground opens one at its middle.
 func arches_for(w: WallLayout) -> Array[float]:
 	var out: Array[float] = []
-	if not w.can_arch():
+	if w.fence or not w.can_arch():
 		return out
 	var hi := w.length() - WallLayout.ARCH_END
 	var spacing := WallLayout.ARCADE_GAP

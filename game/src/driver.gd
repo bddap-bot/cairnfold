@@ -141,8 +141,16 @@ func _aim(s: Dictionary) -> void:
 
 
 func _wall(s: Dictionary) -> void:
+	await _stroke(s, Hand.Tool.WALLS)
+
+
+func _fence(s: Dictionary) -> void:
+	await _stroke(s, Hand.Tool.FENCE)
+
+
+func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 	var tool: WallTool = main.tool
-	var m := tool.mason(_holding(s, Hand.Tool.WALLS))
+	var m := tool.mason(_holding(s, held))
 	var path := _path(s)
 	tool.begin_stroke(m, path[0])
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
@@ -212,6 +220,16 @@ func _lift_wall(s: Dictionary) -> void:
 
 func _arch(s: Dictionary) -> void:
 	main.tool.toggle_arch(main.tool.walls[s.index], s.s)
+
+
+## A press of the windows or decorations tool on wall `index` (-1 the last drawn), as `FittingTool.aim` would find it: `what` is
+## window, lantern, flag, chimney or tower_flag; `s` and `y` place it on the wall, `side` picks a lantern's
+## face, `at` a chimney's spot along and across the ridge.
+func _fit(s: Dictionary) -> void:
+	var target := {"what": s.what, "wall": main.tool.walls[s.index], "s": s.get("s", 0.0), "y": s.get("y", 0.0), "side": s.get("side", 1.0)}
+	if s.has("at"):
+		target.at = Vector2(s.at[0], s.at[1])
+	main.fitting_tool.fit(target)
 
 
 func _paint(s: Dictionary) -> void:

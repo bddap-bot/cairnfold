@@ -2,7 +2,8 @@ class_name WallLayout
 extends RefCounted
 
 ## Lays out the stones of a dry-stone wall along a ground curve, or around a closed loop (a tower or a
-## house) standing level on its lowest ground. Pure data: no nodes, so tests run headless.
+## house) standing level on its lowest ground, with its windows, doors, lanterns and flags; or, with the
+## fence profile, the posts and rails of a wooden fence. Pure data: no nodes, so tests run headless.
 
 enum Top { CRENEL, CAP, COPE }
 
@@ -25,6 +26,26 @@ const TOWER_RADIUS := Vector2(1.2, 4.0)
 const ARCH_SPACING := (ARCH_HALF + RING) * 2.0
 const ARCADE_GAP := ARCH_SPACING + 0.4
 const ARCADE_PITCH := 2.3
+const FENCE_HEIGHT := 1.1
+const POST_SPACING := 1.6
+const GATE_POST := 2.1
+const WINDOW_HALF := 0.3
+const WINDOW_TALL := 0.9
+const DOOR_HALF := 0.5
+const DOOR_TALL := 2.0
+## A window whose sill would stand lower than this reaches down to the ground as a door.
+const DOOR_SILL := 0.6
+const MULLION := 0.14
+## Windows (or doors) on one course whose centres stand this near fuse into one opening.
+const FUSE := WINDOW_HALF * 2.0 + 0.5
+const LINTEL_EAR := 0.16
+const LANTERN_OUT := 0.34
+const FLAG_POLE := 1.7
+const FLAG_COLORS := [Color(0.62, 0.12, 0.1), Color(0.14, 0.24, 0.5), Color(0.82, 0.62, 0.18), Color(0.2, 0.38, 0.2)]
+const WOOD := Color(0.46, 0.33, 0.21)
+const IRON := Color(0.16, 0.15, 0.14)
+const GLASS := Color(0.12, 0.17, 0.22)
+const PLASTER := Color(0.86, 0.8, 0.68)
 
 var points: Array[Vector3] = []
 var height := 2.6
@@ -35,6 +56,14 @@ var closed := false
 var top := Top.CRENEL
 ## A roof rests on the cap, so piers stop flush with it.
 var roofed := false
+## Posts and rails instead of stone; a path through a fence opens a wooden arch.
+var fence := false
+## Where windows were placed: arc length and the height of the click above the foot.
+var windows: Array[Vector2] = []
+## Lanterns: arc length, height above the foot, and the face they hang from (+1 or -1).
+var lanterns: Array[Vector3] = []
+## Flags on the wall's top, by arc length.
+var flags: Array[float] = []
 
 var samples: Array[Vector3] = []
 var lengths: Array[float] = []
@@ -44,6 +73,12 @@ var stones: Array[Dictionary] = []
 var _stone_scale := 1.0
 ## The arches `build` could open, after dropping those too near an end or on a wall too low.
 var live_arches: Array[float] = []
+## The openings `build` cut for the windows that fit, fused where they stand together: arc length `s`,
+## half-width `half`, `sill` and `head` heights, `door`, and `lights`, the panes side by side.
+var openings: Array[Dictionary] = []
+## Lantern flames and flag cloths, laid with the stones; flames are unit boxes, cloths unit quads off the pole.
+var flames: Array[Transform3D] = []
+var cloths: Array[Dictionary] = []
 
 
 func length() -> float:
@@ -61,7 +96,7 @@ func spring() -> float:
 
 
 func can_arch() -> bool:
-	return spring() >= 0.9
+	return fence or spring() >= 0.9
 
 
 ## Arch opening half-width at height `y` above the ground, or -1 where the arch does not reach.
@@ -77,6 +112,9 @@ func opening(y: float, ring: bool) -> float:
 func build(ground: Callable) -> void:
 	resample(ground)
 	stones.clear()
+	flames.clear()
+	cloths.clear()
+	openings.clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	live_arches.clear()
@@ -89,14 +127,17 @@ func build(ground: Callable) -> void:
 		for a in sorted:
 			if fits_arch(a, live_arches):
 				live_arches.append(a)
+	if fence:
+		_build_fence(rng)
+		return
 	_stone_scale = 1.0
 	if closed and corners().is_empty():
 		_stone_scale = clampf(total / TAU / 3.0, 0.45, 1.0)
-	var courses := maxi(1, int(round(height / COURSE)))
-	var course_h := height / courses
+	var course_h := course()
+	openings = _fit_openings()
 	var bays := pillars()
 	var pillar_top := 0.0
-	for k in courses:
+	for k in courses():
 		var y0 := k * course_h
 		var yc := y0 + course_h * 0.5
 		var spans := [[0.0, total]]
@@ -104,6 +145,11 @@ func build(ground: Callable) -> void:
 			var w := opening(yc, true)
 			if w > 0.0:
 				spans = _cut(spans, a - w, a + w)
+		for o in openings:
+			if yc > o.sill and yc < o.head:
+				spans = _cut(spans, o.s - o.half, o.s + o.half)
+			elif yc > o.head and yc < o.head + course_h:
+				spans = _cut(spans, o.s - o.half - LINTEL_EAR, o.s + o.half + LINTEL_EAR)
 		if yc < spring():
 			pillar_top = y0 + course_h
 			for b in bays:
@@ -116,9 +162,249 @@ func build(ground: Callable) -> void:
 		_lay_ring(a, rng)
 	for p in pillars():
 		_lay_pillar(p.s, p.half, pillar_top, rng)
+	for o in openings:
+		_lay_opening(o, rng)
 	_lay_top(rng)
 	for s in corners():
 		_lay_pier(s, rng)
+	for l in lanterns:
+		if lantern_fits(l.x, l.y):
+			_lay_lantern(l.x, frame_at(l.x).point + Vector3.UP * l.y, _normal(l.x) * l.z, rng)
+	for f in flags:
+		if flag_fits(f):
+			_lay_flag(f, frame_at(f).point + Vector3.UP * (height + CAP), frame_at(f).tangent, rng)
+
+
+func courses() -> int:
+	return maxi(1, int(round(height / COURSE)))
+
+
+## The height of one course: whole courses fill the wall's height.
+func course() -> float:
+	return height / courses()
+
+
+## The face normal at arc length `s`, pointing to the side ivy and lanterns call +1.
+func _normal(s: float) -> Vector3:
+	return frame_at(s).tangent.cross(Vector3.UP)
+
+
+## The opening a placed window makes on its own, before fusing: a door if its sill would be near the ground.
+func _opening_for(w: Vector2) -> Dictionary:
+	var c := course()
+	if w.y - WINDOW_TALL * 0.5 < DOOR_SILL:
+		return {"s": w.x, "half": DOOR_HALF, "sill": 0.0, "head": roundf(DOOR_TALL / c) * c, "door": true, "lights": 1}
+	var sill := roundf((w.y - WINDOW_TALL * 0.5) / c) * c
+	return {"s": w.x, "half": WINDOW_HALF, "sill": sill, "head": sill + roundf(WINDOW_TALL / c) * c, "door": false, "lights": 1}
+
+
+## Fuses neighbouring windows on one course (and doors beside doors) into wider openings, then keeps those
+## that fit: under the top with a course left for the lintel, clear of the ends, corner piers, arches and each other.
+func _fit_openings() -> Array[Dictionary]:
+	var single: Array[Dictionary] = []
+	for w in windows:
+		single.append(_opening_for(w))
+	single.sort_custom(func(a, b): return a.s < b.s)
+	var fused: Array[Dictionary] = []
+	for o in single:
+		var into := {}
+		for f in fused:
+			if f.door == o.door and is_equal_approx(f.sill, o.sill) and o.s - f.last < FUSE:
+				into = f
+		if into.is_empty():
+			o.first = o.s
+			o.last = o.s
+			fused.append(o)
+			continue
+		into.last = o.s
+		into.lights += 1
+		into.s = (into.first + into.last) * 0.5
+		into.half = into.lights * (DOOR_HALF if o.door else WINDOW_HALF) + (into.lights - 1) * MULLION * 0.5
+	var out: Array[Dictionary] = []
+	for o in fused:
+		o.erase("first")
+		o.erase("last")
+		if _opening_fits(o, out):
+			out.append(o)
+	return out
+
+
+func _opening_fits(o: Dictionary, others: Array[Dictionary]) -> bool:
+	if o.head + course() > height + 0.01:
+		return false
+	var side: float = o.half + LINTEL_EAR + PIER * 0.5
+	if not closed and (o.s < side or o.s > length() - side):
+		return false
+	if not corners().all(func(c): return absf(offset(o.s, c)) > side):
+		return false
+	if not live_arches.all(func(a): return absf(offset(o.s, a)) > o.half + LINTEL_EAR + ARCH_HALF + RING):
+		return false
+	return others.all(func(e): return absf(offset(o.s, e.s)) > o.half + e.half + LINTEL_EAR * 2.0 or o.sill > e.head + course() * 0.5 or e.sill > o.head + course() * 0.5)
+
+
+## The opening at a face point, or empty.
+func opening_at(s: float, y: float) -> Dictionary:
+	for o in openings:
+		if absf(offset(s, o.s)) < o.half + 0.05 and y > o.sill - 0.05 and y < o.head + 0.05:
+			return o
+	return {}
+
+
+## Whether a lantern hangs at face point `s`, `y`: on a stone face clear of every opening, or on a fence post.
+func lantern_fits(s: float, y: float) -> bool:
+	if fence:
+		return true
+	if y < 0.9 or y > height - 0.2 or (not closed and (s < PIER or s > length() - PIER)):
+		return false
+	if live_arches.any(func(a): return absf(offset(s, a)) < ARCH_HALF + RING + 0.2):
+		return false
+	return openings.all(func(o): return absf(offset(s, o.s)) > o.half + LINTEL_EAR + 0.15 or y > o.head + course() + 0.3 or y < o.sill - 0.3)
+
+
+func flag_fits(s: float) -> bool:
+	return not fence and not roofed and (closed or (s > PIER * 0.5 and s < length() - PIER * 0.5))
+
+
+func _lay_opening(o: Dictionary, rng: RandomNumberGenerator) -> void:
+	var s: float = o.s
+	var half: float = o.half
+	var tall: float = o.head - o.sill
+	var c := course()
+	_part(s, o.head + c * 0.5, Vector3(half * 2.0 + LINTEL_EAR * 2.0, c, THICKNESS * 1.04), _stone_color(rng) * 1.05, rng, "lintel")
+	if not o.door:
+		_part(s, o.sill + 0.04, Vector3(half * 2.0 + 0.16, 0.08, THICKNESS + 0.1), _stone_color(rng) * 1.05, rng, "sill")
+	for face in [-1.0, 1.0]:
+		for edge in [-1.0, 1.0]:
+			_part(s + edge * (half + 0.09), o.sill + tall * 0.5, Vector3(0.18, tall, 0.03), PLASTER * rng.randf_range(0.94, 1.02), rng, "plaster", face * (THICKNESS * 0.5 + 0.01))
+		if not o.door:
+			_part(s, o.sill - 0.1, Vector3(half * 2.0 + 0.36, 0.14, 0.03), PLASTER * rng.randf_range(0.94, 1.02), rng, "plaster", face * (THICKNESS * 0.5 + 0.01))
+	var n: int = o.lights
+	var light := (half * 2.0 - (n - 1) * MULLION) / n
+	for i in n:
+		var at := s - half + light * (i + 0.5) + MULLION * i
+		if i > 0:
+			_part(at - light * 0.5 - MULLION * 0.5, o.sill + tall * 0.5, Vector3(MULLION, tall, THICKNESS * 0.9), _stone_color(rng), rng, "mullion")
+		if o.door:
+			_lay_door(at, light, tall, rng)
+		else:
+			_lay_window(at, o.sill, light, tall, rng)
+
+
+## A casement: a dark pane in a wooden frame with a cross of glazing bars, set back in the wall.
+func _lay_window(s: float, sill: float, w: float, tall: float, rng: RandomNumberGenerator) -> void:
+	var mid := sill + tall * 0.5
+	var back := -THICKNESS * 0.12
+	_part(s, mid, Vector3(w - 0.02, tall - 0.02, 0.02), GLASS * rng.randf_range(0.9, 1.1), rng, "glass", back)
+	for edge in [-1.0, 1.0]:
+		_part(s + edge * (w * 0.5 - 0.03), mid, Vector3(0.06, tall, 0.08), WOOD * rng.randf_range(0.85, 1.05), rng, "frame", back)
+		_part(s, mid + edge * (tall * 0.5 - 0.03), Vector3(w, 0.06, 0.08), WOOD * rng.randf_range(0.85, 1.05), rng, "frame", back)
+	_part(s, mid, Vector3(0.035, tall, 0.05), WOOD, rng, "frame", back)
+	_part(s, mid + tall * 0.08, Vector3(w, 0.035, 0.05), WOOD, rng, "frame", back)
+
+
+## A plank door with two iron straps, set back in the wall.
+func _lay_door(s: float, w: float, tall: float, rng: RandomNumberGenerator) -> void:
+	var planks := maxi(3, roundi(w / 0.2))
+	var back := -THICKNESS * 0.15
+	for i in planks:
+		var at := s - w * 0.5 + w * (i + 0.5) / planks
+		_part(at, tall * 0.5, Vector3(w / planks - 0.012, tall - 0.02, 0.06), WOOD * rng.randf_range(0.75, 1.1), rng, "door", back)
+	for y: float in [0.4, tall - 0.45]:
+		_part(s, y, Vector3(w - 0.08, 0.06, 0.08), IRON, rng, "iron", back)
+
+
+## A lantern hanging from an iron arm `out` of the face at `at`, or standing on a post where `out` is zero.
+func _lay_lantern(s: float, at: Vector3, out: Vector3, rng: RandomNumberGenerator) -> void:
+	var reach := THICKNESS * 0.5 + LANTERN_OUT
+	var hang := at + out * reach
+	if out.length() > 0.0:
+		var arm := Basis(out, Vector3.UP, out.cross(Vector3.UP))
+		_world(Transform3D(arm.scaled_local(Vector3(reach + 0.04, 0.04, 0.04)), at + out * reach * 0.5 + Vector3.UP * 0.32), IRON, "iron", s)
+		_world(Transform3D(Basis().scaled(Vector3(0.02, 0.1, 0.02)), hang + Vector3.UP * 0.26), IRON, "iron", s)
+	var turn := Basis(Vector3.UP, rng.randf() * TAU)
+	_world(Transform3D(turn.scaled_local(Vector3(0.2, 0.05, 0.2)), hang + Vector3.UP * 0.19), IRON, "iron", s)
+	_world(Transform3D(turn.scaled_local(Vector3(0.16, 0.035, 0.16)), hang - Vector3.UP * 0.07), IRON, "iron", s)
+	flames.append(Transform3D(turn.scaled_local(Vector3(0.12, 0.22, 0.12)), hang + Vector3.UP * 0.055))
+
+
+func _lay_flag(s: float, foot: Vector3, along: Vector3, rng: RandomNumberGenerator) -> void:
+	_world(Transform3D(Basis().scaled(Vector3(0.05, FLAG_POLE, 0.05)), foot + Vector3.UP * FLAG_POLE * 0.5), WOOD * 0.8, "pole", s)
+	_world(Transform3D(Basis().scaled(Vector3.ONE * 0.09), foot + Vector3.UP * (FLAG_POLE + 0.04)), Color(0.7, 0.58, 0.3), "finial", s)
+	var color: Color = FLAG_COLORS[rng.randi() % FLAG_COLORS.size()]
+	cloths.append(flag_cloth(foot + Vector3.UP * (FLAG_POLE - 0.33), along, color))
+
+
+## A flag's cloth hanging off a pole at `at`, streaming along `along`.
+static func flag_cloth(at: Vector3, along: Vector3, color: Color) -> Dictionary:
+	var x := along.normalized()
+	return {"xform": Transform3D(Basis(x, Vector3.UP, x.cross(Vector3.UP)).scaled_local(Vector3(0.9, 0.55, 1.0)), at + x * 0.03), "color": color}
+
+
+## Posts along the ground with two rails between each pair; a gate where a path crosses: two tall posts
+## under a bent wooden arch, the rails cut between them.
+func _build_fence(rng: RandomNumberGenerator) -> void:
+	var total := length()
+	var n := maxi(1, ceili(total / POST_SPACING))
+	var posts: Array[float] = []
+	for i in n + 1:
+		var s := total * i / n
+		if live_arches.all(func(a): return absf(s - a) > ARCH_HALF + 0.4):
+			posts.append(s)
+	var gates: Array[float] = []
+	for a in live_arches:
+		gates.append_array([a - ARCH_HALF - 0.08, a + ARCH_HALF + 0.08])
+	var all := posts + gates
+	all.sort()
+	for i in all.size():
+		var s := all[i]
+		var tall := FENCE_HEIGHT + (GATE_POST - FENCE_HEIGHT if gates.has(s) else 0.0)
+		_part(s, (tall + 0.12) * 0.5, Vector3(0.13, tall + 0.12, 0.13) * rng.randf_range(0.92, 1.08), WOOD * rng.randf_range(0.8, 1.1), rng, "post", 0.0, 0.03)
+		if i == 0:
+			continue
+		var prev := all[i - 1]
+		if live_arches.any(func(a): return a > prev and a < s):
+			continue
+		for y: float in [0.45, 0.85]:
+			var a: Vector3 = frame_at(prev).point + Vector3.UP * (y + 0.12)
+			var b: Vector3 = frame_at(s).point + Vector3.UP * (y + 0.12)
+			var x := (b - a).normalized()
+			var z := x.cross(Vector3.UP).normalized()
+			_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(a.distance_to(b) + 0.06, 0.08, 0.05)), (a + b) * 0.5), WOOD * rng.randf_range(0.8, 1.1), "rail", (prev + s) * 0.5)
+	for a in live_arches:
+		var r := ARCH_HALF + 0.08
+		var squash := 0.5
+		var k := 9
+		for i in k:
+			var t := (i + 0.5) / k * PI
+			var size := Vector3(PI * r / k * 1.2, 0.11, 0.1)
+			stones.append(_stone(a - cos(t) * r, GATE_POST + 0.04 + sin(t) * r * squash, size, rng, "gate", 1.0, 0.0, atan2(cos(t) * squash, sin(t))))
+			stones[-1].color = WOOD * rng.randf_range(0.8, 1.05)
+	if posts.is_empty():
+		return
+	for l in lanterns:
+		var s := posts[0]
+		for p in posts:
+			if absf(p - l.x) < absf(s - l.x):
+				s = p
+		_lay_lantern(s, frame_at(s).point + Vector3.UP * (FENCE_HEIGHT + 0.25), Vector3.ZERO, rng)
+
+
+func _stone_color(rng: RandomNumberGenerator) -> Color:
+	var warm := rng.randf_range(-0.05, 0.05)
+	return Color(0.66 + warm, 0.61, 0.53 - warm * 1.5) * rng.randf_range(0.82, 1.08)
+
+
+## A coloured part on the wall's frame at `s`, `y`, `out` metres off the centre plane toward face +1.
+func _part(s: float, y: float, size: Vector3, color: Color, rng: RandomNumberGenerator, kind: String, out := 0.0, wobble := 0.0) -> void:
+	var st := _stone(s, y, size, rng, kind, 1.0, wobble)
+	st.xform.origin += _normal(s) * out
+	st.color = color
+	stones.append(st)
+
+
+## A coloured part placed in world space, filed at arc length `s`.
+func _world(xform: Transform3D, color: Color, kind: String, s: float) -> void:
+	stones.append({"xform": xform, "color": color, "kind": kind, "s": s, "y": xform.origin.y - frame_at(s).point.y, "size": xform.basis.get_scale(), "ao": 1.0, "variant": stones.size() % 3})
 
 
 ## Removes [lo, hi] from the spans; on a closed loop an opening across the seam is cut at both ends.
@@ -312,6 +598,8 @@ func snapshot() -> WallLayout:
 	w.lengths = lengths.duplicate()
 	w.bounds = bounds
 	w.live_arches = live_arches.duplicate()
+	w.openings = openings.duplicate(true)
+	w.fence = fence
 	return w
 
 

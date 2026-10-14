@@ -3,7 +3,8 @@ extends RefCounted
 
 ## Lays the tiles of a roof resting on a closed wall: a gable over a house's rectangle or a cone over a
 ## round tower. Pitch is the ridge's rise above the wall top; curvature bows the slopes out (positive)
-## or sags them into swept eaves (negative). Pure data, like WallLayout.
+## or sags them into swept eaves (negative). A gable carries chimneys; a cone can fly a flag from its top.
+## Pure data, like WallLayout.
 
 enum Kind { GABLE, CONE }
 
@@ -14,6 +15,7 @@ const TILE := Vector3(0.27, 0.05, 0.36)
 const PITCH := Vector2(0.4, 6.0)
 const CURVE := 1.0
 const PROFILE_STEPS := 8
+const STACK := 0.66
 
 var kind := Kind.GABLE
 ## For a gable, the corners from WallLayout.rectangle: the ridge runs along the first side's direction.
@@ -26,8 +28,13 @@ var base := 0.0
 var pitch := 2.0
 var curve := 0.0
 var seed := 1
+## Chimneys on a gable: metres along the ridge from its middle and across it, toward a slope's eave.
+var chimneys: Array[Vector2] = []
+## A cone flies a flag from its top instead of a finial.
+var flag := false
 
 var tiles: Array[Dictionary] = []
+var cloths: Array[Dictionary] = []
 ## The surface triangles from the last build, kept for pointing.
 var faces := PackedVector3Array()
 var bounds := AABB()
@@ -83,6 +90,7 @@ func build() -> void:
 	for p in faces:
 		bounds = bounds.expand(p)
 	tiles.clear()
+	cloths.clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var hue := rng.randf_range(-0.04, 0.04)
@@ -93,11 +101,52 @@ func build() -> void:
 			_lay_gable_row(row, 0.5 if i % 2 == 1 else 0.0, hue, rng)
 		else:
 			_lay_cone_row(row, hue, rng)
+	var f := frame()
 	if kind == Kind.GABLE:
 		_lay_ridge(hue, rng)
+		for c in chimneys:
+			_lay_chimney(chimney_spot(c), rng)
+	elif flag:
+		var pole := WallLayout.FLAG_POLE
+		_add(Transform3D(Basis().scaled(Vector3(0.05, pole, 0.05)), f.mid + Vector3.UP * (pitch + pole * 0.5)), "pole", WallLayout.WOOD * 0.8, 1.0)
+		_add(Transform3D(Basis().scaled(Vector3.ONE * 0.09), f.mid + Vector3.UP * (pitch + pole + 0.04)), "finial", Color(0.7, 0.58, 0.3), 1.0)
+		cloths.append(WallLayout.flag_cloth(f.mid + Vector3.UP * (pitch + pole - 0.33), Vector3(1, 0, 0.4), WallLayout.FLAG_COLORS[seed % WallLayout.FLAG_COLORS.size()]))
 	else:
-		var f := frame()
 		_add(Transform3D(Basis().scaled(Vector3(0.16, 0.5, 0.16)), f.mid + Vector3.UP * (pitch + 0.2)), "finial", Color(0.6, 0.56, 0.5), 1.0)
+
+
+## A chimney's place clamped onto the roof, clear of the gable ends and the eaves.
+func chimney_spot(c: Vector2) -> Vector2:
+	var along := maxf(0.0, ridge_length() * 0.5 - STACK)
+	var across := maxf(0.0, half_span() - STACK)
+	return Vector2(clampf(c.x, -along, along), clampf(c.y, -across, across))
+
+
+## Where a point on the roof lies, as a chimney spot: along the ridge and across it.
+func spot_of(p: Vector3) -> Vector2:
+	var f := frame()
+	var d: Vector3 = p - f.mid
+	return Vector2(d.dot(f.along), d.dot(f.across))
+
+
+## A stone stack rising from the slope to clear the ridge, with a cap slab and two clay pots.
+func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
+	var f := frame()
+	var foot: Vector3 = f.mid + f.along * c.x + f.across * c.y
+	var surface := rise(1.0 - absf(c.y) / half_span())
+	var top := maxf(pitch + 0.7, surface + 1.0)
+	var basis := Basis(f.along, Vector3.UP, f.across)
+	var y := surface - 0.3
+	while y < top - 0.05:
+		var h := minf(rng.randf_range(0.26, 0.34), top - y)
+		var warm := rng.randf_range(-0.05, 0.05)
+		var stone := Color(0.66 + warm, 0.61, 0.53 - warm * 1.5) * rng.randf_range(0.82, 1.08)
+		var wobble := Basis.from_euler(Vector3(0.0, rng.randf_range(-0.04, 0.04), 0.0))
+		_add(Transform3D((basis * wobble).scaled_local(Vector3(STACK, h, STACK)), foot + Vector3.UP * (y + h * 0.5)), "chimney", stone, 1.0)
+		y += h
+	_add(Transform3D(basis.scaled_local(Vector3(STACK + 0.14, 0.09, STACK + 0.14)), foot + Vector3.UP * (top + 0.045)), "chimney", Color(0.6, 0.56, 0.5), 1.0)
+	for side in [-1.0, 1.0]:
+		_add(Transform3D(basis.scaled_local(Vector3(0.15, 0.24, 0.15)), foot + f.along * side * STACK * 0.22 + Vector3.UP * (top + 0.21)), "pot", _clay(0.0, rng) * 0.9, 1.0)
 
 
 ## Tile rows as {x, y, slope}, eave first, spaced along the curved slope.

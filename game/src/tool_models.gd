@@ -13,6 +13,12 @@ static func build(tool: Hand.Tool) -> Node3D:
 	match tool:
 		Hand.Tool.WALLS:
 			_wall(root)
+		Hand.Tool.FENCE:
+			_fence(root)
+		Hand.Tool.WINDOWS:
+			_windows(root)
+		Hand.Tool.DECOR:
+			_decor(root)
 		Hand.Tool.PATH:
 			_path(root)
 		Hand.Tool.FLOWERS:
@@ -89,8 +95,51 @@ static func _wall(root: Node3D) -> void:
 	layout.seed = 4
 	layout.height = 1.5
 	layout.points = [Vector3(0, 0, -1.4), Vector3(0, 0, 1.4)]
-	layout.build(func(_x: float, _z: float) -> float: return 0.0)
+	layout.build(_flat)
 	_stones(root, layout.stones, 0.015)
+
+
+static func _fence(root: Node3D) -> void:
+	var layout := WallLayout.new()
+	layout.seed = 6
+	layout.fence = true
+	layout.height = WallLayout.FENCE_HEIGHT
+	layout.points = [Vector3(-1.2, 0, 0), Vector3(1.2, 0, 0)]
+	layout.build(_flat)
+	_stones(root, layout.stones, 0.021)
+
+
+## A short wall pierced by a fused pair of windows, its face toward the eye.
+static func _windows(root: Node3D) -> void:
+	var layout := WallLayout.new()
+	layout.seed = 5
+	layout.height = 2.4
+	layout.top = WallLayout.Top.CAP
+	layout.points = [Vector3(-1.4, 0, 0), Vector3(1.4, 0, 0)]
+	layout.windows = [Vector2(1.1, 1.5), Vector2(1.7, 1.5)]
+	layout.build(_flat)
+	_stones(root, layout.stones, 0.015)
+
+
+## A low wall flying a flag, a lantern hung on its face.
+static func _decor(root: Node3D) -> void:
+	var layout := WallLayout.new()
+	layout.seed = 8
+	layout.height = 1.5
+	layout.top = WallLayout.Top.CAP
+	layout.points = [Vector3(-1.1, 0, 0), Vector3(1.1, 0, 0)]
+	layout.flags = [1.1]
+	layout.lanterns = [Vector3(1.1, 1.0, 1.0), Vector3(1.1, 1.0, -1.0)]
+	layout.build(_flat)
+	_stones(root, layout.stones, 0.015)
+	var fittings := Fittings.new()
+	fittings.lay(layout.flames, layout.cloths)
+	fittings.scale = Vector3.ONE * 0.015
+	root.add_child(fittings)
+
+
+static func _flat(_x: float, _z: float) -> float:
+	return 0.0
 
 
 ## A short bend of paving.

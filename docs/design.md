@@ -200,10 +200,10 @@ Stage numbers refer to the build order at the end.
 | Towers | A loop held down straightens into a circle | Draw a loop and keep holding with the end back near the start: after a moment it snaps to a round tower (radius 1.2–4 m) with a tiled cone roof, standing level on its lowest ground | 4 (done) |
 | Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Two-handed: both grips while pointing at the ground; the two spots are the ends of the ridge, so pulling apart lengthens the house (2.6–14 m, depth following) and twisting turns it. Stone walls with corner piers, a door arch in the front, level on its lowest ground | 4 (done) |
 | Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, plaster gable ends. Grip on a roof with the walls tool: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`) | 4 (done) |
-| Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | Point and click on a wall to place; neighbours fuse; doors at ground level | 6 |
-| Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | Point and click; lanterns as cheap emissive cards plus a few real lights | 6 |
-| Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | Wall drawing with a fence profile | 6 |
-| Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces, wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`) | 3 (done) |
+| Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light | 6 (done) |
+| Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | The decorations tool's trigger places what suits where it points: a stone chimney with two clay pots on a house's roof, rising clear of the ridge; a flag on a tower's roof or a wall's top, waving; a lantern on an iron arm off a wall's face, or on a fence post. Lanterns are emissive bodies in a soft additive halo, and the three nearest the head cast real light. A press on one takes it away | 6 (done) |
+| Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | The fence tool draws like walls (same stroke, merging and junctions) with a wooden profile: posts at most 1.6 m apart and two rails between. A path through a fence, in either order, opens a gate: two tall posts under a bent wooden arch | 6 (done) |
+| Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces, wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`), kept out of windows and doors too | 3 (done), 6 (done) |
 | Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers grow in clumps about 1.3 m across, each one of nine soft colours (white, butter, peach, pinks, lavender, violet, blues), so a stroke paints a few colour patches with nothing to pick | 1 (done), 3 (done) |
 | Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs; the trigger of a hand holding the tree tool plants one where it points | 1 (done), 3 (done) |
 | Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | The terrain tool's trigger grabs the ground where it points and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then rock show on steep slopes | 7 (shaping done) |
@@ -277,12 +277,14 @@ attached to the little controller. I like the minimalist little controller geome
 something, like walls, we could display a representation of the item that we've selected … probably on
 top of the little controller."
 
-Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, paths,
-flowers, grass, trees, teleport and delete. The tool a hand holds stands on top of its controller as a
-small object, built from the same generators as the full-size thing: a short wall of stones, a bend of
-paving, three flowers, a grass tuft, a tree, the air-teleport marker (a ring on a pole over a ring), and
-a spade for delete. A new tool pops up in place of the old one, which shrinks away, in under a fifth
-of a second. The controller's own rounded body is unchanged, and there is no text anywhere.
+Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
+windows, decorations, paths, flowers, grass, trees, terrain, ponds, teleport and delete. The tool a hand
+holds stands on top of its controller as a small object, built from the same generators as the full-size
+thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
+flag with lanterns on it, a bend of paving, three flowers, a grass tuft, a tree, a mound, a pond in a
+sandy dish, the air-teleport marker (a ring on a pole over a ring), and a spade for delete. A new tool
+pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
+rounded body is unchanged, and there is no text anywhere.
 
 One value per hand, `Hand.tool`, is what the input code dispatches on and what the object on top and
 the ring show, so they cannot disagree. The hands start as walls in the right and flowers in the left.
@@ -320,9 +322,12 @@ aiming at the ground is how you come back down.
 | Shape the ground | Trigger held on a hand holding terrain, pointing at the ground: the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it |
 | Dig a pond | Trigger held on a hand holding the pond tool, pointing at the ground: the hollow deepens while held and fills with water on release (see "Water") |
 | Delete | Trigger of a hand holding delete: takes the wall, tower or house it points at, else the tree nearest where it meets the ground, else the painted plants under it; one thing per press, never more |
-| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes, paths, ground shaped, ponds dug) |
+| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes, paths, ground shaped, ponds dug, fences, windows and decorations) |
 | Redo | Tap the left D-pad up (left or right too): one step forward per tap. A new edit after an undo drops what could be redone |
-| Lay a path | Trigger held on a hand holding paths, sweep the pointer over the ground; the ring is the path's width, wider the farther you point. Through a wall it opens an arch or an arcade |
+| Lay a path | Trigger held on a hand holding paths, sweep the pointer over the ground; the ring is the path's width, wider the farther you point. Through a wall it opens an arch or an arcade, through a fence a gate |
+| Draw a fence | Trigger held on a hand holding fences, swept like a wall |
+| Open a window or door | Trigger of a hand holding windows, pointing at a wall: a window where it points, a door if that is low on the wall; beside another window it fuses with it; on a window it closes that light |
+| Decorate | Trigger of a hand holding decorations: a chimney on a house's roof, a flag on a tower's roof or a wall's top, a lantern on a wall's face (on the side the hand is) or a fence; on one already there it takes it away |
 | Later: move the sun | Grip the sun in the sky and drag it |
 
 Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
@@ -351,7 +356,7 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 3. Ivy and flora: ivy over walls and around openings, flower and grass painting, tree placement by pointing. (Done.)
 4. Towers, houses and roofs: loop-to-tower, two-handed footprints, tiled roofs with pull-to-shape, wall-top style per wall. (Done.)
 5. Paths and wall chemistry: path brush; a path through a wall cuts an arch, wide crossings become arcades. (Done.)
-6. Windows, doors, fences, chimneys, lanterns and flags.
+6. Windows, doors, fences, chimneys, lanterns and flags. (Done.)
 7. Terrain shaping and water.
 8. Time of day, seasons and palettes, a colour picker.
 9. Sound and music. (Done.)
@@ -461,7 +466,9 @@ times and saves view captures. `scripts/test.sh` runs the headless layout tests;
 `scripts/render.sh` plays a script on a desktop renderer; `demo/flora.json` paints,
 plants trees and lets the ivy grow; `demo/houses.json` builds a tower, two houses and
 walls in each top style, and shapes the roofs; `demo/paths.json` lays paths through walls (an arch, an
-arcade), draws a wall across a wide path and raises the ground under a path.
+arcade), draws a wall across a wide path and raises the ground under a path; `demo/fittings.json` opens windows
+and doors in a wall, a house and a tower, hangs lanterns, flies flags, builds a chimney and draws a fence a
+path crosses.
 
 ## Sources
 

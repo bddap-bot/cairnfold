@@ -1,7 +1,7 @@
 class_name IvyLayout
 extends RefCounted
 
-## Ivy climbing both faces of a wall, steering around arch openings.
+## Ivy climbing both faces of a wall, steering around arch openings, windows and doors.
 
 const STEP := 0.1
 const RATE := 0.15
@@ -57,8 +57,12 @@ static func bake(wall: WallLayout) -> Dictionary:
 	return {"buffer": buffer, "times": times, "bounds": bounds.grow(0.3)}
 
 
-## Whether the face point `s` along the wall, `y` above its foot, lies in an arch opening or its ring.
+## Whether the face point `s` along the wall, `y` above its foot, lies in an arch opening or its ring, or
+## in a window or door with its sill and lintel.
 static func blocked(wall: WallLayout, s: float, y: float) -> bool:
+	for o in wall.openings:
+		if absf(s - o.s) < o.half + WallLayout.LINTEL_EAR + MARGIN and y > o.sill - 0.15 - MARGIN and y < o.head + wall.course() + MARGIN:
+			return true
 	var w := wall.opening(y, true)
 	if w <= 0.0:
 		return false
@@ -76,7 +80,7 @@ static func _vine(wall: WallLayout, at: Vector2, dir: Vector2, side: float, t: f
 		dir = (dir + Vector2(rng.randf_range(-0.45, 0.45), 0.2)).normalized()
 		var next := at + dir * STEP
 		if blocked(wall, next.x, next.y):
-			dir = Vector2(signf(next.x - _nearest_arch(wall, next.x)), 0.35).normalized()
+			dir = Vector2(signf(next.x - _nearest_opening(wall, next.x)), 0.35).normalized()
 			next = at + dir * STEP
 			if blocked(wall, next.x, next.y):
 				return
@@ -96,9 +100,9 @@ static func _vine(wall: WallLayout, at: Vector2, dir: Vector2, side: float, t: f
 			_vine(wall, at, Vector2(1.0 if rng.randf() < 0.5 else -1.0, 0.7).normalized(), side, t, rng.randf_range(0.6, 1.5), false, rng, leaves)
 
 
-static func _nearest_arch(wall: WallLayout, s: float) -> float:
+static func _nearest_opening(wall: WallLayout, s: float) -> float:
 	var best := INF
-	for a in wall.live_arches:
+	for a in wall.live_arches + wall.openings.map(func(o): return o.s):
 		if absf(a - s) < absf(best - s):
 			best = a
 	return best

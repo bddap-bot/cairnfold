@@ -6,6 +6,7 @@ extends Node3D
 ## fills an arch where a walls hand points or, on a wall's top, changes its style. With walls in both hands,
 ## both grips on the ground lay out a house between them. A path laid across a wall, or a wall drawn across a
 ## path, opens an arch where they cross, or an arcade where the crossing is wide; undoing the path closes them.
+## A hand holding the fence draws fences the same way: posts and rails, a wooden arch where a path crosses.
 
 const POINT_SPACING := 0.45
 const REBUILD_EVERY := 0.06
@@ -81,6 +82,10 @@ func _init(player: Rig, steps: History, plants: Flora, ways: Paths) -> void:
 	_arch_button = Buttons.new(rig.right).watch(["ax_button"])
 
 
+static func draws(hand: Hand) -> bool:
+	return hand.tool == Hand.Tool.WALLS or hand.tool == Hand.Tool.FENCE
+
+
 func mason(hand: Hand) -> Mason:
 	for m in masons:
 		if m.hand == hand:
@@ -103,7 +108,7 @@ func _process(delta: float) -> void:
 	_house_input()
 	if _arch_button.pressed("ax_button"):
 		for m in masons:
-			if not m.pick.is_empty():
+			if not m.pick.is_empty() and m.hand.tool == Hand.Tool.WALLS and not m.pick.wall.layout.fence:
 				var p: Dictionary = m.pick
 				if p.point.y - p.wall.layout.point_at(p.s).y > p.wall.layout.height - TOP_BAND:
 					cycle_top(p.wall)
@@ -121,7 +126,7 @@ func _process(delta: float) -> void:
 func _handle(m: Mason, delta: float) -> void:
 	m.pick = {}
 	m.ground = null
-	if m.hand.tool != Hand.Tool.WALLS or rig.aim_hand == m.hand:
+	if not draws(m.hand) or rig.aim_hand == m.hand:
 		_let_go(m)
 		return
 	if m.buttons.released("trigger_click") and m.stroke != null:
@@ -151,10 +156,12 @@ func _handle(m: Mason, delta: float) -> void:
 	elif m.buttons.held("trigger_click") and m.stroke != null and m.ground != null:
 		extend_stroke(m, m.ground)
 
+	if m.hand.tool == Hand.Tool.FENCE:
+		return
 	if m.buttons.pressed("grip_click") and not busy() and not _other_grip_held(m):
 		if on_roof:
 			begin_roof(m, roof.wall, origin)
-		elif not m.pick.is_empty():
+		elif not m.pick.is_empty() and not m.pick.wall.layout.fence:
 			begin_lift(m, m.pick.wall, origin, m.pick.point)
 	elif m.buttons.held("grip_click") and m.lifting != null:
 		drag_lift(m, origin.y)
@@ -223,6 +230,7 @@ func begin_stroke(m: Mason, p: Vector3) -> void:
 	m.stroke = Stroke.new()
 	m.stroke.points = [p]
 	m.stroke.plan = WallPlan.new(standing, flora.obstacles(), _seed)
+	m.stroke.plan.fence = m.hand.tool == Hand.Tool.FENCE
 	_seed += 64
 	m.loop = {}
 	m.loop_held = 0.0
@@ -240,7 +248,7 @@ func extend_stroke(m: Mason, p: Vector3) -> void:
 		built.emit(&"stone", p + Vector3.UP)
 	m.stroke.planned = false
 	_dirty = true
-	m.loop = WallLayout.fit_loop(pts)
+	m.loop = {} if m.stroke.plan.fence else WallLayout.fit_loop(pts)
 	if m.loop.is_empty():
 		m.loop_held = 0.0
 
@@ -568,15 +576,18 @@ func _top(w: Wall, s: float) -> Vector3:
 	return w.layout.point_at(s) + Vector3.UP * w.layout.height
 
 
+## The wall a ray points at: the nearest along it of those it passes through, else the one it passes closest to.
 func pick_wall(origin: Vector3, dir: Vector3) -> Dictionary:
 	var best := {}
-	var best_d := WALL_PICK
+	var best_key := Vector2(1.0, WALL_PICK)
 	for w in walls:
 		if _held(w):
 			continue
 		var hit := w.ray_distance(origin, dir)
-		if hit.distance < best_d:
-			best_d = hit.distance
+		var through: bool = hit.distance < WallLayout.THICKNESS * 0.5
+		var key := Vector2(0.0, hit.along) if through else Vector2(1.0, hit.distance)
+		if key < best_key:
+			best_key = key
 			best = {"wall": w, "s": hit.s, "point": hit.point, "along": hit.along, "distance": hit.distance}
 	return best
 

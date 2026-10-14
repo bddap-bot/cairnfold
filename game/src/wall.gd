@@ -8,6 +8,7 @@ static var _plaster: StandardMaterial3D
 
 var layout := WallLayout.new()
 var _stones := Stones.new()
+var _fittings := Fittings.new()
 var _ivy := MultiMeshInstance3D.new()
 var _ivy_times := PackedFloat32Array()
 var _ivy_task := -1
@@ -36,6 +37,7 @@ static func leaf_material() -> StandardMaterial3D:
 func _init(seed: int) -> void:
 	layout.seed = seed
 	add_child(_stones)
+	add_child(_fittings)
 	var ivy := MultiMesh.new()
 	ivy.transform_format = MultiMesh.TRANSFORM_3D
 	ivy.use_colors = true
@@ -121,7 +123,9 @@ func rebuild(with_ivy := true) -> void:
 	_stones.lay(layout.stones)
 	if roof != null:
 		rebuild_roof()
-	if finished and with_ivy:
+	else:
+		_fittings.lay(layout.flames, layout.cloths)
+	if finished and with_ivy and not layout.fence:
 		_layout_ivy()
 
 
@@ -137,6 +141,7 @@ func rebuild_roof() -> void:
 		mm.set_instance_transform(i, t.xform)
 		mm.set_instance_color(i, t.color)
 		mm.set_instance_custom_data(i, Color(t.ao, 0, 0, 0))
+	_fittings.lay(layout.flames, layout.cloths + roof.cloths)
 	var tris := roof.gables()
 	if tris.is_empty():
 		_gables.mesh = null
