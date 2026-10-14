@@ -188,6 +188,17 @@ weaker Quest GPU if it shows a gain. With 630 m of walls, ivy cost 1.9 ms, stone
 2.1 ms, the shadow boxes 0.3 ms from the air and 1.0 ms standing among them, and
 mortar 0.2 to 0.4 ms. The stone shader's cost did not register.
 
+What is left grows with what is built: about 0.14 µs of the Frame's GPU time per
+stone laid (`Budget.STONE_US`, ivy, mortar and shadow included), linear from 6,600
+to 40,000 stones and the same for 9 m walls as for 4.5 m ones. Nothing flattens it
+further without dropping detail, so building needs a bound, and the bound counts
+stones: a small plot of tall walls costs as much as a wide one of low walls. On the
+Quest 2 the meadow alone takes 11.8 ms standing and 15.9 ms floating (above) against
+a 12.5 ms budget, so standing leaves room for roughly 2,000 stones (about 75 m of
+2.6 m wall) at the Frame's cost scaled to the Quest's slower GPU, and floating
+leaves none until the meadow's own cost comes down. A Quest run of this scene sets
+the number.
+
 ## Look on a mobile budget
 
 The original's look rests on soft global illumination, warm sun, painterly
