@@ -14,7 +14,11 @@ aiming at; our implementation is our own.
 
 ## Requirements
 
-- Standalone on the Steam Frame, launched from a Steam library shortcut.
+- Standalone on the Steam Frame, launched from a Steam library shortcut, and on
+  Quest 2 and later as a sideloaded APK (`scripts/android.sh`). Every release
+  (`scripts/release.sh`) carries both builds.
+- One graphics configuration for every headset, tuned to the weakest GPU: the
+  Quest 2's XR2 Gen 1 at 72 Hz. No per-device quality tiers.
 - Hold the headset's refresh rate at all times. A frame that misses vsync in VR is
   felt, not seen; every stage is measured on the device before it lands.
 - Original assets only, generated procedurally wherever possible.
@@ -200,7 +204,8 @@ button (Touch right B), D-pad down as Touch left X, and the other D-pad directio
 as Touch left Y. Whatever B does, X and Y do too, so that button only switches
 paint mode; nothing that removes walls sits on a single tap. The table lives in
 `Driver.FRAME_BUTTONS`, and `tests/test_controls.gd` presses every button with walls
-built.
+built. On Quest the same Touch bindings arrive unremapped: left X is the D-pad's
+down, left Y its other directions, and right B alone switches paint mode.
 
 Floating turns the meadow into a diorama: drawing works from any height because
 the pointer ray hits the terrain, so you can lay out a whole castle from above and

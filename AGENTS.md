@@ -15,4 +15,8 @@ controls and the build order.
 - Delete comments that restate code; keep only a why the code cannot show.
 - Edit by subtraction: fix problems by removing code where possible, one
   implementation per thing.
-- `nix-shell --run scripts/test.sh` must pass before landing.
+- `nix-shell --run scripts/test.sh` must pass before landing; a change to the build
+  scripts, `game/project.godot` or `game/export_presets.cfg` also owes a green
+  `nix-shell android.nix --run 'scripts/android.sh out/cairnfold.apk'`.
+- Deploying main is `scripts/release.sh`, which publishes the Frame bundle and the
+  Quest APK together, then `scripts/deploy.sh` with that bundle for the Frame.
