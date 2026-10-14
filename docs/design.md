@@ -276,10 +276,11 @@ Stage numbers refer to the build order at the end.
 | Time of day | Continuous, lockable, sun-angle slider | Reach up and drag the sun across the sky | 8 |
 | Seasons and palettes | Five glade palettes, colour wheel per element | Palette presets; a colour picker held in the left hand | 8 |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
-| Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of the left D-pad down undoes a step, up redoes one (done); a delete tool takes away one wall, tree or painted patch (done); an eraser beam that cuts walls into ruins | 1 (done), 10 |
+| Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of the left D-pad down undoes a step, up redoes one; with others, each player's own steps (done); a delete tool takes away one wall, tree or painted patch (done); an eraser beam that cuts walls into ruins | 1 (done), 10 |
 | Save and load | Autosave after every action, backups, cloud | Autosave the build list (strokes, heights, arches) as JSON after every edit | 10 |
 | Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, a conure perches on a tree or wall (see "Wildlife") | 11 |
 | Photo mode | Camera modes and filters | A hand-held camera that saves the view | 11 |
+| Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network with the visit tool (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
 
 ## Walls meeting walls
 
@@ -341,12 +342,13 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, decorations, paths, stone, flowers, grass, trees, terrain, ponds, teleport and delete. The tool a hand
+windows, decorations, paths, stone, flowers, grass, trees, terrain, ponds, teleport, delete and visit. The tool a hand
 holds stands on top of its controller as a small object, built from the same generators as the full-size
 thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
 flag with lanterns on it, a bend of paving, a disc of turf half
 paved with slabs, three flowers, a grass tuft, a tree, a mound, a pond in a
-sandy dish, the air-teleport marker (a ring on a pole over a ring), and a spade for delete. A new tool
+sandy dish, the air-teleport marker (a ring on a pole over a ring), a spade for delete, and a little avatar
+figure for visit. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
 rounded body is unchanged, and there is no text anywhere.
 
@@ -387,8 +389,9 @@ aiming at the ground is how you come back down.
 | Shape the ground | Trigger held on a hand holding terrain, pointing at the ground: the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it |
 | Dig a pond | Trigger held on a hand holding the pond tool, pointing at the ground: the hollow deepens while held and fills with water on release (see "Water") |
 | Delete | Trigger of a hand holding delete: takes the wall, tower or house it points at, else the tree nearest where it meets the ground, else the painted plants under it; one thing per press, never more |
-| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes, stone ground, paths, ground shaped, ponds dug, fences, windows and decorations) |
+| Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled or deleted, trees, paint strokes, stone ground, paths, ground shaped, ponds dug, fences, windows and decorations). With others, your own steps only, skipping any another player has built on since (see [multiplayer.md](multiplayer.md)) |
 | Redo | Tap the left D-pad up (left or right too): one step forward per tap. A new edit after an undo drops what could be redone |
+| Visit | Trigger of a hand holding visit, pointing at a nearby player's figure: join their garden. Pointing at the small cairn while visiting: go home to your own |
 | Lay a path | Trigger held on a hand holding paths, sweep the pointer over the ground; the ring is the path's width, wider the farther you point. Through a wall it opens an arch or an arcade, through a fence a gate |
 | Draw a fence | Trigger held on a hand holding fences, swept like a wall |
 | Open a window or door | Trigger of a hand holding windows, pointing at a wall: a window where it points, a door if that is low on the wall; beside another window it fuses with it; on a window it closes that light |

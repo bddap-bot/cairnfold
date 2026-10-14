@@ -6,6 +6,10 @@ var failures := 0
 
 
 func _initialize() -> void:
+	_run.call_deferred()
+
+
+func _run() -> void:
 	Ground.install()
 	_stones_pave_the_stroke()
 	_stones_sit_on_the_ground()
@@ -184,7 +188,7 @@ func _the_mask_parts_the_path_only() -> void:
 	for i in 30:
 		paths.extend(Vector3(-10 + i * 0.3, 0, 20), 0.8)
 	var p := paths.end()
-	_check(p != null and paths.layouts.size() == 1, "a 9 m stroke is a path")
+	_check(not p.is_empty() and p.layout.length() > 8.0, "a 9 m stroke is a path")
 	_check(Ground.bare(-5, 20) > 0.99, "the ground under the stones is fully worn (%.2f)" % Ground.bare(-5, 20))
 	_check(Ground.bare(-5, 20.7) > 0.5, "the stones' edge is worn (%.2f)" % Ground.bare(-5, 20.7))
 	_check(Ground.bare(-5, 21.6) == 0.0, "the meadow a metre past the edge is untouched (%.2f)" % Ground.bare(-5, 21.6))
@@ -197,7 +201,7 @@ func _a_short_stroke_leaves_no_trace() -> void:
 	root.add_child(paths)
 	paths.begin(Vector3(30, 0, 30), 1.0)
 	paths.extend(Vector3(30.4, 0, 30), 1.0)
-	_check(paths.end() == null and paths.layouts.is_empty(), "a stroke under a metre is dropped")
+	_check(paths.end().is_empty() and paths.layouts.is_empty(), "a stroke under a metre is dropped")
 	_check(Ground.bare(30, 30) == 0.0, "a dropped stroke unwears the ground (%.2f)" % Ground.bare(30, 30))
 	paths.queue_free()
 
@@ -207,11 +211,10 @@ func _chemistry_works_in_either_order() -> void:
 	var tool: WallTool = nodes[0]
 	var paths: Paths = nodes[1]
 	var first := _draw_wall(tool, Vector3(-8, 0, -12), Vector3(8, 0, -12))
-	first.layout.arches.clear()
-	first.rebuild()
-	_lay(paths, Vector3(2, 0, -18), Vector3(2, 0, -6), 0.6)
+	_reshape(nodes, first, {"arches": PackedFloat32Array()})
+	_lay(nodes, Vector3(2, 0, -18), Vector3(2, 0, -6), 0.6)
 	_check(first.layout.live_arches.size() == 1 and absf(first.layout.live_arches[0] - 10.0) < 0.1, "a path laid through a wall cuts an arch at the crossing: %s" % [first.layout.live_arches])
-	_lay(paths, Vector3(-30, 0, -2), Vector3(-30, 0, 10), 2.5)
+	_lay(nodes, Vector3(-30, 0, -2), Vector3(-30, 0, 10), 2.5)
 	var second := _draw_wall(tool, Vector3(-38, 0, 4), Vector3(-22, 0, 4))
 	_check(second.layout.live_arches.size() >= 2 and second.layout.pillars().size() >= 1, "a wall drawn across a wide path opens an arcade: %s" % [second.layout.live_arches])
 	for a in second.layout.live_arches:
@@ -219,21 +222,25 @@ func _chemistry_works_in_either_order() -> void:
 	_teardown(nodes)
 
 
-## A wall tool, the paths, the history and the rig, idle so a test drives them.
+## A wall tool, the paths, the garden and the rig, idle so a test drives them.
 func _setup() -> Array:
 	var rig := Rig.new()
 	root.add_child(rig)
-	var history := History.new(rig.left)
-	history.set_process(false)
-	root.add_child(history)
+	var world := World.new()
+	root.add_child(world)
 	var paths := Paths.new()
 	root.add_child(paths)
 	var flora := Flora.new()
 	root.add_child(flora)
-	var tool := WallTool.new(rig, history, flora, paths)
+	flora.keep()
+	var tool := WallTool.new(rig, world, flora, paths)
 	tool.set_process(false)
 	root.add_child(tool)
-	return [tool, paths, history, rig, flora]
+	var ground := TerrainTool.new(rig, world)
+	ground.process_mode = Node.PROCESS_MODE_DISABLED
+	root.add_child(ground)
+	world.attach(tool, flora, paths, ground)
+	return [tool, paths, world, rig, flora, ground]
 
 
 func _teardown(nodes: Array) -> void:
@@ -247,10 +254,10 @@ func _a_second_path_beside_an_arch_makes_an_arcade() -> void:
 	var nodes := _setup()
 	var w := _draw_wall(nodes[0], Vector3(-8, 0, 30), Vector3(8, 0, 30))
 	var before := w.layout.live_arches.duplicate()
-	_lay(nodes[1], Vector3(1.5, 0, 24), Vector3(1.5, 0, 36), 0.5)
+	_lay(nodes, Vector3(1.5, 0, 24), Vector3(1.5, 0, 36), 0.5)
 	_check(before.all(func(a): return w.layout.live_arches.has(a)), "a path beside the middle arch closes nothing: %s then %s" % [before, w.layout.live_arches])
 	_check(w.layout.live_arches.size() == before.size() + 1 and w.layout.pillars().size() == 1, "it opens a second arch on a shared pillar: %s" % [w.layout.live_arches])
-	_lay(nodes[1], Vector3(0.2, 0, 24), Vector3(0.2, 0, 36), 0.5)
+	_lay(nodes, Vector3(0.2, 0, 24), Vector3(0.2, 0, 36), 0.5)
 	_check(w.layout.live_arches.size() == before.size() + 1, "a path through an opening that is already there adds none: %s" % [w.layout.live_arches])
 	_teardown(nodes)
 
@@ -259,13 +266,11 @@ func _a_crossing_that_cannot_open_leaves_no_arch() -> void:
 	var nodes := _setup()
 	var w := _draw_wall(nodes[0], Vector3(-8, 0, 40), Vector3(8, 0, 40))
 	var before := w.layout.arches.duplicate()
-	_lay(nodes[1], Vector3(-7.6, 0, 34), Vector3(-7.6, 0, 46), 0.5)
+	_lay(nodes, Vector3(-7.6, 0, 34), Vector3(-7.6, 0, 46), 0.5)
 	_check(w.layout.arches == before, "a crossing at a wall's end records no arch: %s" % [w.layout.arches])
 	var low := _draw_wall(nodes[0], Vector3(-8, 0, 50), Vector3(8, 0, 50))
-	low.layout.height = 1.2
-	low.layout.arches.clear()
-	low.rebuild()
-	_lay(nodes[1], Vector3(0, 0, 44), Vector3(0, 0, 56), 0.5)
+	_reshape(nodes, low, {"height": 1.2, "arches": PackedFloat32Array()})
+	_lay(nodes, Vector3(0, 0, 44), Vector3(0, 0, 56), 0.5)
 	_check(low.layout.arches.is_empty(), "a wall too low to arch records none: %s" % [low.layout.arches])
 	_teardown(nodes)
 
@@ -313,7 +318,7 @@ func _a_long_stroke_freezes_into_chunks() -> void:
 		paths.extend(Vector3(-40 + i * 0.4, 0, -40), 3.0)
 		if i % 5 == 0:
 			paths._relay()
-	var p := paths.end()
+	var p: PathLayout = paths.end().layout
 	var laid := 0
 	var chunks := 0
 	for c in paths.get_children():
@@ -331,12 +336,14 @@ func _painting_skips_a_path() -> void:
 	var flora: Flora = nodes[4]
 	var t := FloraTool.new(nodes[3], flora, nodes[1], nodes[2])
 	t.set_process(false)
-	_lay(nodes[1], Vector3(20, 0, -20), Vector3(30, 0, -20), 1.5)
+	_lay(nodes, Vector3(20, 0, -20), Vector3(30, 0, -20), 1.5)
 	var before := flora.grass.size()
 	var b := t.brushes[0]
 	b.hand.tool = Hand.Tool.GRASS
 	t.paint(b, Terrain.ground(25, -20), 0.8, 1.0)
-	_check(flora.grass.size() == before, "grass painted on a path takes no plants (%d added)" % (flora.grass.size() - before))
+	_check(flora.ghost_grass.size() == 0, "grass painted on a path shows no plants (%d)" % flora.ghost_grass.size())
+	t.end_stroke(b)
+	_check(flora.grass.size() == before, "and grows none in the garden (%d added)" % (flora.grass.size() - before))
 	t.free()
 	_teardown(nodes)
 
@@ -345,10 +352,9 @@ func _undo_lifts_a_path_and_its_arches() -> void:
 	var nodes := _setup()
 	var t := FloraTool.new(nodes[3], nodes[4], nodes[1], nodes[2])
 	t.set_process(false)
-	var history: History = nodes[2]
+	var world: World = nodes[2]
 	var w := _draw_wall(nodes[0], Vector3(-8, 0, 60), Vector3(8, 0, 60))
-	w.layout.arches.clear()
-	w.rebuild()
+	_reshape(nodes, w, {"arches": PackedFloat32Array()})
 	var b := t.brushes[1]
 	b.hand.tool = Hand.Tool.PATH
 	t.begin_path(b, Terrain.ground(2, 54), 0.6)
@@ -357,11 +363,11 @@ func _undo_lifts_a_path_and_its_arches() -> void:
 	t.end_path(b)
 	var paths: Paths = nodes[1]
 	_check(paths.layouts.size() == 1 and w.layout.live_arches.size() == 1, "the path is laid and opens its arch: %s" % [w.layout.live_arches])
-	history.undo()
+	world.undo()
 	_check(paths.layouts.is_empty() and Ground.bare(2, 57) == 0.0, "undo lifts the path and its wear (%.2f)" % Ground.bare(2, 57))
 	_check(w.layout.live_arches.is_empty(), "undo closes the arch the path opened: %s" % [w.layout.live_arches])
 	_check(not paths.get_children().any(func(c): return c is Stones), "undo takes the path's stones away")
-	history.redo()
+	world.redo()
 	_check(paths.layouts.size() == 1 and Ground.bare(2, 57) > 0.99 and w.layout.live_arches.size() == 1, "redo lays it again, arch and all: %s" % [w.layout.live_arches])
 	t.free()
 	_teardown(nodes)
@@ -373,12 +379,20 @@ func _draw_wall(tool: WallTool, a: Vector3, b: Vector3) -> Wall:
 	for i in 41:
 		var p := a.lerp(b, i / 40.0)
 		tool.extend_stroke(m, Terrain.ground(p.x, p.z))
-	return tool.end_stroke(m)[0]
+	tool.end_stroke(m)
+	return tool.walls[-1]
 
 
-func _lay(paths: Paths, a: Vector3, b: Vector3, half: float) -> void:
+## Draws a path and sends it to the garden, as the path tool does.
+func _lay(nodes: Array, a: Vector3, b: Vector3, half: float) -> void:
+	var paths: Paths = nodes[1]
 	paths.begin(Terrain.ground(a.x, a.z), half)
 	for i in 41:
 		var p := a.lerp(b, i / 40.0)
 		paths.extend(Terrain.ground(p.x, p.z), half)
-	paths.end()
+	var ghost := paths.end()
+	(nodes[2] as World).submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
+
+
+func _reshape(nodes: Array, w: Wall, data: Dictionary) -> void:
+	(nodes[2] as World).submit({"op": "reshape", "id": w.id, "data": data})

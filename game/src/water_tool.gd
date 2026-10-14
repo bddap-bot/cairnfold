@@ -3,8 +3,8 @@ extends Node3D
 
 ## Digs ponds, for whichever hand holds the pond tool: a held trigger scoops a hollow where the hand
 ## points, deeper the longer it is held, and on release the hollow fills with water. Digging is the terrain
-## tool's stroke pulled down, so the hollow is ordinary ground, and the seed its water fills from is part of
-## the same undo step.
+## tool's stroke pulled down, so the hollow is ordinary ground, and the seed its water fills from rides on
+## the same build command.
 
 const RADIUS := 2.8
 const DIG_RATE := 0.7
@@ -73,5 +73,4 @@ func deepen(delta: float) -> void:
 func end() -> void:
 	digger = null
 	terrain.pull(-maxf(_depth, MIN_SCOOP))
-	var seed := Terrain.grid_point(_at.x, _at.z)
-	terrain.end_stroke(water.add_seed.bind(seed), water.remove_seed.bind(seed))
+	terrain.end_stroke({"seed": Terrain.grid_point(_at.x, _at.z)})

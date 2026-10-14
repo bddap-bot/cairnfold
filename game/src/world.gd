@@ -1,0 +1,452 @@
+class_name World
+extends Node
+
+## The garden as data, changed only by build commands (docs/multiplayer.md, Commands). Tools `submit` a
+## command; the host checks it, orders it, applies it and broadcasts it, and every machine applies the same
+## commands in the same order. Applying returns the inverse command, which the host keeps on its author's
+## undo stack. A tool shows its own edit as a ghost until the command comes back, the host turns it down
+## or the garden is swapped; then World calls the `done` it was submitted with.
+
+const LIMIT := 200
+## Ground and the meadow's own plants are tracked for undo in square patches of this many metres.
+const PATCH := 8.0
+## Commands a player may send per second, and in one burst.
+const RATE := 20.0
+const BURST := 60.0
+
+signal applied(cmd: Dictionary)
+## The whole garden was swapped (joining or leaving someone's): tools drop what they were doing.
+signal restored
+
+var wall_tool: WallTool
+var flora: Flora
+var paths: Paths
+var terrain_tool: TerrainTool
+var water: Water
+## Standing walls, paths and plant groups by id, as the plain values their commands carry, and the grid
+## points ponds fill from. A group keeps its command's fields, its `size` and the indices of its plants
+## since `hidden`.
+var state := {"walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": []}
+var seq := 0
+var sculpted := false
+## Host only: per player, their undo and redo stacks of {seq, inverse, keys}.
+var stacks := {}
+## Host only: per thing in the garden, the sequence number of each player's last change to it.
+var touched := {}
+var _allowance := {}
+var _next_token := 0
+## True from asking the host for its garden again until it arrives; commands meanwhile are moot.
+var _awaiting := false
+## The ground strokes standing, by id.
+var _strokes := {}
+var _resending := {}
+## What to do when each of our sent commands is settled, by token.
+var _done := {}
+
+
+func _init() -> void:
+	name = "World"
+
+
+func _ready() -> void:
+	multiplayer.peer_disconnected.connect(func(id: int) -> void: _allowance.erase(id))
+
+
+func attach(walls: WallTool, plants: Flora, ways: Paths, ground: TerrainTool, ponds: Water = null) -> void:
+	wall_tool = walls
+	flora = plants
+	paths = ways
+	terrain_tool = ground
+	water = ponds
+	if flora != null and flora.groups.has(0):
+		state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}}
+
+
+func me() -> int:
+	return multiplayer.get_unique_id()
+
+
+## Sends a build command to the host; `done` runs once it is in the garden, turned down, or moot.
+func submit(cmd: Dictionary, done := Callable()) -> void:
+	_next_token += 1
+	cmd.token = _next_token
+	if done.is_valid():
+		_done[_next_token] = done
+	if multiplayer.is_server():
+		_order(cmd, me())
+	else:
+		_propose.rpc_id(1, cmd)
+
+
+func _settle(token: int) -> void:
+	var done: Callable = _done.get(token, Callable())
+	_done.erase(token)
+	if done.is_valid():
+		done.call()
+
+
+func undo() -> void:
+	submit({"op": "undo"})
+
+
+func redo() -> void:
+	submit({"op": "redo"})
+
+
+@rpc("any_peer", "reliable")
+func _propose(cmd: Dictionary) -> void:
+	if not multiplayer.is_server():
+		return
+	var by := multiplayer.get_remote_sender_id()
+	if not _spend(by, 1.0):
+		_refuse(by, cmd.get("token"))
+		return
+	_order(cmd, by)
+
+
+## Takes `cost` from a player's allowance, which refills at RATE a second up to BURST; false if it is short.
+func _spend(by: int, cost: float) -> bool:
+	var now := Time.get_ticks_msec() / 1000.0
+	var a: Array = _allowance.get_or_add(by, [BURST, now])
+	a[0] = minf(BURST, a[0] + (now - a[1]) * RATE)
+	a[1] = now
+	if a[0] < cost:
+		return false
+	a[0] -= cost
+	return true
+
+
+func _order(proposed: Dictionary, by: int) -> void:
+	var kind: Variant = proposed.get("op")
+	var cmd := {}
+	if kind == "undo" or kind == "redo":
+		cmd = _resolve(by, kind)
+		if cmd.is_empty():
+			return
+	else:
+		cmd = Commands.clean(proposed, state, false)
+		if cmd.is_empty():
+			_refuse(by, proposed.get("token"))
+			return
+	seq += 1
+	cmd.seq = seq
+	cmd.by = by
+	if typeof(proposed.get("token")) == TYPE_INT:
+		cmd.token = proposed.token
+	if cmd.op == "wall" and not cmd.has("ids"):
+		cmd.ids = PackedInt32Array(range(seq * Commands.MAX_PIECES, seq * Commands.MAX_PIECES + cmd.walls.size()))
+	elif cmd.op in ["plant", "path", "ground"] and not cmd.has("id"):
+		cmd.id = seq
+	var inverse := _apply(cmd)
+	if cmd.op == "plant" and cmd.kind != "tree":
+		cmd.skip = state.groups[cmd.id].skip
+	_commit.rpc(cmd)
+	var keys := _keys(cmd)
+	for k in keys:
+		touched.get_or_add(k, {})[by] = seq
+	var mine: Dictionary = stacks.get_or_add(by, {"undo": [], "redo": []})
+	var entry := {"seq": seq, "inverse": inverse, "keys": keys}
+	match kind:
+		"undo":
+			_push(mine.redo, entry)
+		"redo":
+			_push(mine.undo, entry)
+		_:
+			_push(mine.undo, entry)
+			mine.redo.clear()
+
+
+func _refuse(by: int, token: Variant) -> void:
+	if typeof(token) != TYPE_INT:
+		return
+	if by == me():
+		_settle(token)
+	else:
+		_refused.rpc_id(by, token)
+
+
+@rpc("authority", "reliable")
+func _refused(token: int) -> void:
+	_settle(token)
+
+
+@rpc("authority", "reliable")
+func _commit(sent: Dictionary) -> void:
+	var cmd := {} if _awaiting else Commands.clean(sent, state, true)
+	if cmd.is_empty():
+		if sent.get("by") == me() and typeof(sent.get("token")) == TYPE_INT:
+			_settle(sent.token)
+		if not _awaiting:
+			push_error("world: the host sent a command this garden cannot apply: %s; asking for the garden again" % sent.get("op"))
+			_awaiting = true
+			_resend.rpc_id(1)
+		return
+	seq = cmd.seq
+	_apply(cmd)
+
+
+## A player whose garden no longer matches the host's asks for it whole.
+@rpc("any_peer", "reliable")
+func _resend() -> void:
+	if multiplayer.is_server():
+		var by := multiplayer.get_remote_sender_id()
+		if _spend(by, BURST * 0.5):
+			welcome(by)
+		elif not _resending.has(by):
+			_resending[by] = true
+			get_tree().create_timer(BURST * 0.5 / RATE).timeout.connect(func() -> void:
+				_resending.erase(by)
+				if by in multiplayer.get_peers():
+					welcome(by))
+
+
+static func _push(stack: Array, entry: Dictionary) -> void:
+	stack.append(entry)
+	if stack.size() > LIMIT:
+		stack.pop_front()
+
+
+## The player's latest undo (or redo) step that nobody else has changed anything of since; steps
+## others built on are dropped on the way.
+func _resolve(by: int, which: String) -> Dictionary:
+	var stack: Array = stacks.get(by, {}).get(which, [])
+	while not stack.is_empty():
+		var e: Dictionary = stack.pop_back()
+		if _untouched_by_others(e, by):
+			return e.inverse.duplicate(true)
+	return {}
+
+
+func _untouched_by_others(e: Dictionary, by: int) -> bool:
+	for k in e.keys:
+		var last: Dictionary = touched.get(k, {})
+		for who in last:
+			if who != by and last[who] > e.seq:
+				return false
+	return true
+
+
+## What a command changes, as keys `touched` tracks: a wall, a painted group, patches of ground and meadow.
+func _keys(cmd: Dictionary) -> Array:
+	match cmd.op:
+		"wall", "unwall":
+			return Array(cmd.ids).map(func(id: int) -> String: return "w%d" % id)
+		"reshape":
+			return ["w%d" % cmd.id]
+		"plant":
+			return ["p%d" % cmd.id]
+		"path", "unpath", "ground", "unground":
+			return ["q%d" % cmd.id]
+		"show":
+			var out := {}
+			for g in cmd.plants:
+				if g != 0:
+					out["p%d" % g] = true
+					continue
+				var meadow: Array = flora.groups[0]
+				for i in cmd.plants[0]:
+					var at: Vector3 = meadow[i].anchor
+					out["m%d,%d" % [floori(at.x / PATCH), floori(at.z / PATCH)]] = true
+			return out.keys()
+		"heights":
+			var r := Terrain.world_rect(cmd.cells)
+			var out := []
+			for j in range(floori(r.position.y / PATCH), floori(r.end.y / PATCH) + 1):
+				for i in range(floori(r.position.x / PATCH), floori(r.end.x / PATCH) + 1):
+					out.append("t%d,%d" % [i, j])
+			return out
+	return []
+
+
+## Changes the garden by one command and returns the command that takes it back. The author's ghost
+## goes first, so a stroke's hump is not counted twice under walls laid on the new ground.
+func _apply(cmd: Dictionary) -> Dictionary:
+	if cmd.get("by") == me() and cmd.has("token"):
+		_settle(cmd.token)
+	var inverse := {}
+	match cmd.op:
+		"wall":
+			for i in cmd.ids.size():
+				state.walls[cmd.ids[i]] = cmd.walls[i].duplicate(true)
+				wall_tool.put(cmd.ids[i])
+			inverse = {"op": "unwall", "ids": cmd.ids}
+		"unwall":
+			inverse = {"op": "wall", "ids": cmd.ids, "walls": Array(cmd.ids).map(func(id: int) -> Dictionary: return state.walls[id])}
+			for id in cmd.ids:
+				state.walls.erase(id)
+				wall_tool.take(id)
+		"reshape":
+			var now: Dictionary = state.walls[cmd.id]
+			var before := {}
+			for k in cmd.data:
+				if k == "roof":
+					before.roof = {}
+					for r in cmd.data.roof:
+						before.roof[r] = now.roof[r]
+						now.roof[r] = cmd.data.roof[r]
+				else:
+					before[k] = now[k]
+					now[k] = cmd.data[k]
+			wall_tool.restyle(cmd.id, cmd.data.keys())
+			inverse = {"op": "reshape", "id": cmd.id, "data": before}
+		"path":
+			state.paths[cmd.id] = cmd.path.duplicate(true)
+			paths.put(cmd.id, state.paths[cmd.id])
+			inverse = {"op": "unpath", "id": cmd.id}
+		"unpath":
+			inverse = {"op": "path", "id": cmd.id, "path": state.paths[cmd.id]}
+			state.paths.erase(cmd.id)
+			paths.take(cmd.id)
+		"ground":
+			state.grounds[cmd.id] = {"kind": cmd.kind, "stamps": cmd.stamps}
+			var stroke := Ground.Stroke.new(cmd.kind as Ground.Kind)
+			stroke.stamps = cmd.stamps
+			_strokes[cmd.id] = stroke
+			Ground.lay(stroke, cmd.id)
+			inverse = {"op": "unground", "id": cmd.id}
+		"unground":
+			inverse = {"op": "ground", "id": cmd.id, "kind": state.grounds[cmd.id].kind, "stamps": state.grounds[cmd.id].stamps}
+			state.grounds.erase(cmd.id)
+			Ground.lift(_strokes[cmd.id])
+			_strokes.erase(cmd.id)
+		"plant":
+			var g := cmd.duplicate(true)
+			for k in ["op", "seq", "by", "token", "id"]:
+				g.erase(k)
+			var plants := flora.grow(cmd.id, g)
+			g.size = plants.size()
+			g.hidden = {}
+			state.groups[cmd.id] = g
+			inverse = {"op": "show", "plants": {cmd.id: PackedInt32Array(range(plants.size()))}, "on": false}
+		"show":
+			var changed := {}
+			for g in cmd.plants:
+				var did := flora.set_shown(g, cmd.plants[g], cmd.on)
+				if did.is_empty():
+					continue
+				changed[g] = did
+				var hidden: Dictionary = state.groups[g].hidden
+				for i in did:
+					if cmd.on:
+						hidden.erase(i)
+					else:
+						hidden[i] = true
+			inverse = {"op": "show", "plants": changed, "on": not cmd.on}
+		"heights":
+			inverse = {"op": "heights", "cells": cmd.cells, "values": Terrain.read(cmd.cells)}
+			terrain_tool.restore(cmd.cells, cmd.values)
+			sculpted = true
+			if cmd.has("seed") and water != null:
+				state.seeds.append(cmd.seed)
+				water.add_seed(cmd.seed)
+				inverse.unseed = cmd.seed
+			if cmd.has("unseed") and water != null:
+				state.seeds.erase(cmd.unseed)
+				water.remove_seed(cmd.unseed)
+				inverse.seed = cmd.unseed
+	applied.emit(cmd)
+	return inverse
+
+
+## Hands a joining player this garden.
+func welcome(id: int) -> void:
+	_welcome.rpc_id(id, snapshot())
+
+
+@rpc("authority", "reliable")
+func _welcome(snap: Dictionary) -> void:
+	if not (snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT):
+		push_error("world: the host sent a garden this one cannot read")
+		return
+	_awaiting = false
+	restore(snap)
+
+
+## Commands that rebuild this garden from an empty meadow, and the sequence number they stand for.
+## Groups regrow in the order they were planted, so every machine's plant pools fill alike.
+func snapshot() -> Dictionary:
+	var cmds := []
+	if sculpted:
+		cmds.append({"op": "heights", "cells": Terrain.ALL, "values": Terrain.read(Terrain.ALL)})
+	for g: Vector2i in state.seeds:
+		var at := Rect2i(g, Vector2i.ONE)
+		cmds.append({"op": "heights", "cells": at, "values": Terrain.read(at), "seed": g})
+	for id in state.paths:
+		cmds.append({"op": "path", "id": id, "path": state.paths[id]})
+	for id in state.grounds:
+		cmds.append({"op": "ground", "id": id, "kind": state.grounds[id].kind, "stamps": state.grounds[id].stamps})
+	for id in state.walls:
+		cmds.append({"op": "wall", "ids": PackedInt32Array([id]), "walls": [state.walls[id]]})
+	for id in state.groups:
+		var g: Dictionary = state.groups[id]
+		if g.kind != "meadow":
+			var c := g.duplicate(true)
+			for k in ["hidden", "size"]:
+				c.erase(k)
+			c.op = "plant"
+			c.id = id
+			cmds.append(c)
+		if not g.hidden.is_empty():
+			cmds.append({"op": "show", "plants": {id: PackedInt32Array(g.hidden.keys())}, "on": false})
+	for c in cmds:
+		c.seq = seq
+		c.by = 1
+	return {"seq": seq, "cmds": cmds}
+
+
+## Back to the empty meadow, then the snapshot's garden. Undo history goes with the old garden.
+func restore(snap: Dictionary) -> void:
+	wall_tool.quiet = true
+	Ground.quiet = true
+	for id in state.walls.keys():
+		wall_tool.take(id)
+	for id in state.paths.keys():
+		paths.take(id)
+	if water != null:
+		water.reset()
+	Ground.clear()
+	_strokes.clear()
+	state = {"walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": []}
+	stacks.clear()
+	touched.clear()
+	flora.reset()
+	state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}}
+	if sculpted:
+		terrain_tool.restore(Terrain.ALL, Terrain.base_heights())
+		sculpted = false
+	for t in _done.keys():
+		_settle(t)
+	restored.emit()
+	for sent in snap.cmds:
+		var cmd := Commands.clean(sent, state, true) if sent is Dictionary else {}
+		if cmd.is_empty():
+			push_error("world: skipped a snapshot command this garden cannot apply")
+			continue
+		cmd.erase("token")
+		_apply(cmd)
+	seq = snap.seq
+	wall_tool.quiet = false
+	Ground.quiet = false
+	Ground.rewear()
+
+
+## What this machine shows of the garden, for comparing machines: every wall's data and laid stones,
+## every plant group's standing plants, and the ground.
+func digest() -> Dictionary:
+	var out := {"seq": seq, "walls": {}, "groups": {}, "ground": hash(Terrain.read(Terrain.ALL))}
+	for w: Wall in wall_tool.walls:
+		out.walls[str(w.id)] = {"data": var_to_str(state.walls[w.id]), "stones": w.layout.stones.size(), "height": w.layout.height}
+	for g in flora.groups:
+		var shown := 0
+		var spot := Vector3.ZERO
+		for p: Flora.Plant in flora.groups[g]:
+			if p != null and p.shown():
+				shown += 1
+				spot += p.anchor
+		out.groups[str(g)] = {"kind": state.groups[g].kind, "plants": flora.groups[g].size(), "shown": shown, "spot": var_to_str(spot.snapped(Vector3.ONE * 0.01))}
+	out.paths = state.paths.keys()
+	out.seeds = state.seeds.map(var_to_str)
+	out.grounds = state.grounds.keys()
+	out.mask = hash(Ground.laid.get_data())
+	out.ponds = water.ponds.size() if water != null else 0
+	return out

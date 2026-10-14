@@ -8,6 +8,7 @@ extends RefCounted
 enum Top { CRENEL, CAP, COPE }
 
 const COURSE := 0.3
+const HEIGHTS := Vector2(0.9, 9.0)
 const THICKNESS := 0.62
 const CAP := 0.14
 const SAMPLE := 0.2

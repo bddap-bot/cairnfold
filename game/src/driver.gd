@@ -201,7 +201,7 @@ func _house(s: Dictionary) -> void:
 func _roof(s: Dictionary) -> void:
 	var w: Wall = main.tool.walls[s.index]
 	main.tool.shape_roof(w, s.get("pitch", w.roof.pitch), s.get("curve", w.roof.curve))
-	w.rebuild()
+	main.world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}})
 
 
 func _top(s: Dictionary) -> void:
@@ -213,9 +213,15 @@ func _top(s: Dictionary) -> void:
 
 
 func _lift_wall(s: Dictionary) -> void:
-	var w: Wall = main.tool.walls[s.index]
-	w.layout.height = s.height
-	w.rebuild()
+	var w := _wall_of(s)
+	main.world.submit({"op": "reshape", "id": w.id, "data": {"height": float(s.height)}})
+
+
+## The wall a step names: by `index` in build order, or the one under the ground point `at` [x, z].
+func _wall_of(s: Dictionary) -> Wall:
+	if s.has("at"):
+		return main.tool.pick_wall(_spot(s, s.at[0], s.at[1]) + Vector3.UP * 2.0, Vector3.DOWN).wall
+	return main.tool.walls[s.index]
 
 
 func _arch(s: Dictionary) -> void:
@@ -336,9 +342,10 @@ func _stress(s: Dictionary) -> void:
 		tool.begin_stroke(m, Terrain.ground(row[0].x, row[0].y))
 		for i in range(1, row.size()):
 			tool.extend_stroke(m, Terrain.ground(row[i].x, row[i].y))
-		for w in tool.end_stroke(m):
-			w.layout.height = s.height
-			w.rebuild()
+		var before := tool.walls.size()
+		tool.end_stroke(m)
+		for w in tool.walls.slice(before):
+			main.world.submit({"op": "reshape", "id": w.id, "data": {"height": float(s.height)}})
 			w.ivy_age = INF
 	var ms := (Time.get_ticks_usec() - start) / 1000.0
 	var stones := 0
@@ -376,24 +383,77 @@ func _village(s: Dictionary) -> void:
 			k += 1
 			if k % 2 == 0:
 				tool.begin_house(Terrain.ground(c.x - step * 0.35, c.y), Terrain.ground(c.x + step * 0.35, c.y))
-				tool.end_house().ivy_age = INF
+				tool.end_house()
+				tool.walls[-1].ivy_age = INF
 			else:
 				var at := Terrain.ground(c.x, c.y)
 				tool.begin_stroke(m, at)
 				tool.snap_tower(m, at, step * 0.25)
-				for w in tool.end_stroke(m):
-					w.ivy_age = INF
+				tool.end_stroke(m)
+				tool.walls[-1].ivy_age = INF
 	print("village: %d buildings in %.0f ms" % [k, (Time.get_ticks_usec() - start) / 1000.0])
 
 
 func _clear(_s: Dictionary) -> void:
 	for w in main.tool.walls.duplicate():
-		main.tool.remove(w)
+		main.world.submit({"op": "unwall", "ids": PackedInt32Array([w.id])})
 	await get_tree().process_frame
 
 
 static func _scatter(rng: RandomNumberGenerator, radius: float) -> Vector3:
 	return FloraLayout.brush(Vector3.ZERO, radius, 1, rng, Terrain.height_at)[0]
+
+
+## The port of the garden a script visits: its `port`, else the --host-port launch argument.
+func _host_port(s: Dictionary) -> int:
+	return int(s.get("port", main.args.get("host-port", Session.PORT)))
+
+
+## Joins the garden hosted at `address` on the host's port, as picking its figure does.
+func _join(s: Dictionary) -> void:
+	main.session.join(s.get("address", "127.0.0.1"), _host_port(s))
+	await get_tree().process_frame
+
+
+## Takes the visit tool in the right hand, points it at the figure of the host's garden (or at the home
+## cairn with "home") and pulls the trigger.
+func _visit(s: Dictionary) -> void:
+	var tool: VisitTool = main.visit_tool
+	var hand := _holding(s, Hand.Tool.VISIT)
+	await _frames(2)
+	var keys := tool.figures.keys()
+	var k: String = VisitTool.HOME if s.get("home", false) else keys.filter(func(x: String) -> bool: return x.ends_with(":%d" % _host_port(s)))[0]
+	var at: Vector3 = tool.figures[k].global_position + Vector3.UP * VisitTool.SIZE * 0.9
+	var from: Vector3 = main.rig.head.global_position + Vector3(0.2, -0.3, 0)
+	hand.global_transform = Transform3D(Basis.looking_at(at - from, Vector3.UP), from)
+	await _frames(1)
+	var key := "%s/trigger_click" % hand.tracker
+	Buttons.injected[key] = true
+	await _frames(2)
+	Buttons.injected.erase(key)
+	await _frames(2)
+
+
+## Waits until the garden has applied command `seq`, `players` share it, or with "heard" the host's beacon is heard, for at most `seconds`.
+func _until(s: Dictionary) -> void:
+	var t := 0.0
+	while t < s.get("seconds", 20.0):
+		var w: World = main.world
+		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
+			return
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	push_error("driver: until %s timed out" % s)
+
+
+## Writes `World.digest`, and how many other players' avatars stand here, to `name`.json in the capture
+## directory, for comparing machines.
+func _digest(s: Dictionary) -> void:
+	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name + ".json")
+	var out: Dictionary = main.world.digest()
+	out.avatars = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.visible).size()
+	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))
+	print("driver: digest ", path)
 
 
 func _music(s: Dictionary) -> void:

@@ -4,9 +4,10 @@ extends Node3D
 ## Walls, for whichever hand holds them: trigger draws a wall along the ground (a loop held closed snaps to a
 ## round tower), grip on a wall pulls its height and on a roof its pitch and curvature, and the right A cuts or
 ## fills an arch where a walls hand points or, on a wall's top, changes its style. With walls in both hands,
-## both grips on the ground lay out a house between them. A path laid across a wall, or a wall drawn across a
-## path, opens an arch where they cross, or an arcade where the crossing is wide; undoing the path closes them.
-## A hand holding the fence draws fences the same way: posts and rails, a wooden arch where a path crosses.
+## both grips on the ground lay out a house between them. A path across a wall opens an arch where they cross,
+## or an arcade where the crossing is wide: those arches follow from the paths standing, so they come and go
+## with the path. A hand holding the fence draws fences the same way: posts and rails, a wooden arch where a
+## path crosses. Every finished edit goes to the garden as a build command; this tool shows it until then.
 
 const POINT_SPACING := 0.45
 const REBUILD_EVERY := 0.06
@@ -53,29 +54,29 @@ class Stroke:
 
 
 var rig: Rig
-var history: History
+var world: World
 var flora: Flora
 var paths: Paths
-## The arches each laid path opened, as [wall, arc length] pairs, so lifting the path closes them.
-var _opened := {}
 var masonry := Masonry.new(Wall.kinds())
 var walls: Array[Wall] = []
 var masons: Array[Mason] = []
 var house: Wall
+## True while the garden is swapped wholesale: walls come and go without a sound.
+var quiet := false
 var _since_rebuild := 0.0
 var _dirty := false
-var _seed := 1
 var _arch_button: Buttons
 
 
-func _init(player: Rig, steps: History, plants: Flora, ways: Paths) -> void:
+func _init(player: Rig, garden: World, plants: Flora, ways: Paths) -> void:
 	rig = player
-	history = steps
+	world = garden
 	flora = plants
 	paths = ways
 	add_child(masonry)
-	paths.laid.connect(open_crossings)
-	paths.taken.connect(close_crossings)
+	paths.laid.connect(relay_crossings)
+	paths.taken.connect(relay_crossings)
+	world.restored.connect(_forget)
 	for h in [rig.right, rig.left]:
 		var m := Mason.new()
 		m.hand = h
@@ -216,8 +217,7 @@ func _flush() -> void:
 
 
 func _new_wall() -> Wall:
-	_seed += 1
-	return _add_wall(Wall.new(_seed - 1, masonry))
+	return _add_wall(Wall.new(randi(), masonry))
 
 
 func _add_wall(w: Wall) -> Wall:
@@ -231,9 +231,8 @@ func begin_stroke(m: Mason, p: Vector3) -> void:
 		standing.append(w.layout)
 	m.stroke = Stroke.new()
 	m.stroke.points = [p]
-	m.stroke.plan = WallPlan.new(standing, flora.obstacles(), _seed)
+	m.stroke.plan = WallPlan.new(standing, flora.obstacles(), randi())
 	m.stroke.plan.fence = m.hand.tool == Hand.Tool.FENCE
-	_seed += 64
 	m.loop = {}
 	m.loop_held = 0.0
 	_dirty = true
@@ -241,7 +240,7 @@ func begin_stroke(m: Mason, p: Vector3) -> void:
 
 func extend_stroke(m: Mason, p: Vector3) -> void:
 	var pts := m.stroke.points
-	if m.stroke.plan == null or pts[-1].is_equal_approx(p):
+	if m.stroke.plan == null or pts[-1].is_equal_approx(p) or Commands.length(pts) >= Commands.STROKE_LENGTH:
 		return
 	if pts.size() >= 2 and pts[-1].distance_to(pts[-2]) < POINT_SPACING:
 		pts[-1] = p
@@ -291,35 +290,33 @@ func snap_tower(m: Mason, center: Vector3, radius: float) -> void:
 	built.emit(&"settle", center + Vector3.UP * TOWER_HEIGHT)
 
 
-func end_stroke(m: Mason) -> Array[Wall]:
+func end_stroke(m: Mason) -> void:
 	_plan(m.stroke)
 	var built_walls := m.stroke.walls
 	m.stroke = null
 	if not built_walls.is_empty():
 		_finish(built_walls)
-	return built_walls
 
 
+## Sends a stroke's walls to the garden as one step; they stand as drawn until the command comes back.
 func _finish(ws: Array[Wall]) -> void:
-	for w in ws:
-		w.finished = true
-		_cross_paths(w)
-		w.rebuild()
-		walls.append(w)
-		built.emit(&"settle", _top(w, w.layout.length() * 0.5))
-	var nodes: Array[Node] = []
-	nodes.assign(ws)
-	history.add(_take_all.bind(ws), _put_all.bind(ws), nodes)
+	world.submit({"op": "wall", "walls": ws.map(func(w: Wall) -> Dictionary: return w.data())}, func() -> void:
+		for w in ws:
+			w.queue_free())
 
 
-func _take_all(ws: Array[Wall]) -> void:
-	for w in ws:
-		_take(w)
-
-
-func _put_all(ws: Array[Wall]) -> void:
-	for w in ws:
-		_put(w)
+## The garden is being swapped: walls in hand belong to the old one.
+func _forget() -> void:
+	for m in masons:
+		if m.stroke != null:
+			for w in m.stroke.walls:
+				w.queue_free()
+		m.stroke = null
+		m.lifting = null
+		m.roofing = null
+	if house != null:
+		house.queue_free()
+		house = null
 
 
 ## A house between two pointed ground spots: they mark the ends of its ridge; its depth follows its length.
@@ -352,11 +349,10 @@ func size_house(a: Vector3, b: Vector3) -> void:
 	_dirty = true
 
 
-func end_house() -> Wall:
+func end_house() -> void:
 	var w := house
 	house = null
 	_finish([w])
-	return w
 
 
 func begin_lift(m: Mason, w: Wall, hand: Vector3, at: Vector3) -> void:
@@ -368,7 +364,7 @@ func begin_lift(m: Mason, w: Wall, hand: Vector3, at: Vector3) -> void:
 
 
 func drag_lift(m: Mason, hand_y: float) -> void:
-	var h := clampf(m.lift_start + (hand_y - m.lift_hand.y) * m.lift_gain, 0.9, 9.0)
+	var h := clampf(m.lift_start + (hand_y - m.lift_hand.y) * m.lift_gain, WallLayout.HEIGHTS.x, WallLayout.HEIGHTS.y)
 	h = snappedf(h, WallLayout.COURSE)
 	if not is_equal_approx(h, m.lifting.layout.height):
 		m.lifting.layout.height = h
@@ -379,9 +375,10 @@ func drag_lift(m: Mason, hand_y: float) -> void:
 func end_lift(m: Mason) -> void:
 	var w := m.lifting
 	m.lifting = null
-	w.rebuild()
-	if not is_equal_approx(w.layout.height, m.lift_start):
-		history.add(_set_height.bind(w, m.lift_start), _set_height.bind(w, w.layout.height), [w])
+	if is_equal_approx(w.layout.height, m.lift_start):
+		_relay(w)
+	else:
+		world.submit({"op": "reshape", "id": w.id, "data": {"height": w.layout.height}}, _settle.bind(w.id))
 
 
 ## Grip on a roof: raising the hand raises the ridge, moving it sideways bows or sags the slopes.
@@ -417,78 +414,64 @@ func shape_roof(w: Wall, pitch: float, curve: float) -> void:
 func end_roof(m: Mason) -> void:
 	var w := m.roofing
 	m.roofing = null
-	w.rebuild_roof()
-	if not is_equal_approx(w.roof.pitch, m.lift_start) or not is_equal_approx(w.roof.curve, m.curve_start):
-		history.add(_set_roof.bind(w, m.lift_start, m.curve_start), _set_roof.bind(w, w.roof.pitch, w.roof.curve), [w])
+	if is_equal_approx(w.roof.pitch, m.lift_start) and is_equal_approx(w.roof.curve, m.curve_start):
+		_relay(w)
+	else:
+		world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, _settle.bind(w.id))
 
 
 func cycle_top(w: Wall) -> void:
-	if w.roof != null:
-		return
-	var before := w.layout.top
-	_set_top(w, ((w.layout.top + 1) % WallLayout.Top.size()) as WallLayout.Top)
-	history.add(_set_top.bind(w, before), _set_top.bind(w, w.layout.top), [w])
+	if w.roof == null:
+		world.submit({"op": "reshape", "id": w.id, "data": {"top": (w.layout.top + 1) % WallLayout.Top.size()}})
 
 
+## Fills the wall's own arch nearest `s`, or cuts one there if it fits among the arches standing.
 func toggle_arch(w: Wall, s: float) -> void:
-	var before := w.layout.arches.duplicate()
-	var arches := w.layout.arches
-	for i in arches.size():
-		if absf(arches[i] - s) < WallLayout.ARCH_HALF * 2.0:
-			arches.remove_at(i)
-			w.rebuild()
-			built.emit(&"settle", _top(w, s))
-			_record_arches(w, before)
+	var own := Array(world.state.walls[w.id].arches)
+	for i in own.size():
+		if absf(w.layout.offset(own[i], s)) < WallLayout.ARCH_HALF * 2.0:
+			own.remove_at(i)
+			_set_arches(w, own)
 			return
-	for a in arches:
-		if absf(a - s) < WallLayout.ARCADE_GAP:
+	for a in w.layout.live_arches:
+		if absf(w.layout.offset(a, s)) < WallLayout.ARCADE_GAP:
 			return
-	arches.append(s)
-	w.rebuild()
-	if not w.layout.live_arches.has(s):
-		arches.pop_back()
-		return
-	built.emit(&"arch", w.layout.point_at(s) + Vector3.UP * w.layout.spring())
-	_record_arches(w, before)
+	if w.layout.can_arch() and w.layout.fits_arch(s, w.layout.live_arches):
+		own.append(s)
+		_set_arches(w, own)
 
 
-## Takes one wall down, as the delete tool does; undo puts it back.
-func remove(w: Wall) -> void:
-	_take(w)
-	history.add(_put.bind(w), _take.bind(w), [w])
+## A pulled height or roof shows as pulled until its command comes back, or goes back if it is turned down.
+func _settle(id: int) -> void:
+	var w := find(id)
+	if w != null and not _held(w):
+		_relay(w)
 
 
-## Wall chemistry: a laid path opens arches in every wall it crosses.
-func open_crossings(path: PathLayout) -> void:
-	_opened[path] = []
-	for w in walls:
-		var cut := _cut_crossings(w, path)
-		if cut.is_empty():
-			continue
-		w.rebuild()
-		for a in cut:
-			_opened[path].append([w, a])
-			built.emit(&"arch", w.layout.point_at(a) + Vector3.UP * w.layout.spring())
+func _set_arches(w: Wall, arches: Array) -> void:
+	world.submit({"op": "reshape", "id": w.id, "data": {"arches": PackedFloat32Array(arches)}})
 
 
-func _cross_paths(w: Wall) -> void:
+## Lays a wall as the garden has it, with the arches the paths standing open in it.
+func _relay(w: Wall, with_ivy := true) -> void:
+	w.set_data(world.state.walls[w.id])
+	w.layout.resample(Terrain.height_at)
 	for p in paths.layouts:
-		for s in _cut_crossings(w, p):
-			_opened[p].append([w, s])
+		_cut_crossings(w, p)
+	w.rebuild(with_ivy)
 
 
-func close_crossings(path: PathLayout) -> void:
-	for pair in _opened.get(path, []):
-		var w: Wall = pair[0]
-		w.layout.arches.erase(pair[1])
-		if walls.has(w):
-			w.rebuild()
-	_opened.erase(path)
+## Wall chemistry: a path laid or lifted opens or closes arches in every wall it crosses.
+func relay_crossings(path: PathLayout) -> void:
+	for w in walls:
+		if not path.crossings(w.layout).is_empty() and not _held(w):
+			_relay(w)
+			_sound(&"arch", _top(w, w.layout.length() * 0.5))
 
 
-## Opens the arches `path` makes in `w` and returns them. A crossing already inside an opening needs none;
-## one whose ring would overlap an arch there stands a pitch from it as an arcade instead, on the crossing's
-## side if that fits, else the other, so no opening closes.
+## Adds the arches `path` makes in `w` and returns them. A crossing already inside an opening needs none; one whose ring
+## would overlap an arch there stands a pitch from it as an arcade instead, on the crossing's side if that
+## fits, else the other, so no opening closes.
 func _cut_crossings(w: Wall, path: PathLayout) -> Array[float]:
 	var opened: Array[float] = []
 	var layout := w.layout
@@ -516,48 +499,52 @@ func _cut_crossings(w: Wall, path: PathLayout) -> Array[float]:
 	return opened
 
 
-func _take(w: Wall) -> void:
-	built.emit(&"crumble", _top(w, w.layout.length() * 0.5))
-	walls.erase(w)
-	w.get_parent().remove_child(w)
+func _sound(kind: StringName, at: Vector3) -> void:
+	if not quiet:
+		built.emit(kind, at)
 
 
-## The ground may have moved while the wall was away, and paths come and gone.
-func _put(w: Wall) -> void:
-	get_parent().add_child(w)
-	_cross_paths(w)
-	w.rebuild()
+## The garden's side of a wall going up, from any player.
+func put(id: int) -> void:
+	var w := _new_wall()
+	w.id = id
+	w.finished = true
 	walls.append(w)
-	built.emit(&"settle", _top(w, w.layout.length() * 0.5))
+	_relay(w)
+	_sound(&"settle", _top(w, w.layout.length() * 0.5))
 
 
-func _set_height(w: Wall, h: float) -> void:
-	w.layout.height = h
-	w.rebuild()
-	built.emit(&"settle", _top(w, w.layout.length() * 0.5))
+func take(id: int) -> void:
+	var w := find(id)
+	for m in masons:
+		if m.lifting == w:
+			m.lifting = null
+		if m.roofing == w:
+			m.roofing = null
+	_sound(&"crumble", _top(w, w.layout.length() * 0.5))
+	walls.erase(w)
+	w.queue_free()
 
 
-func _set_roof(w: Wall, pitch: float, curve: float) -> void:
-	w.roof.pitch = pitch
-	w.roof.curve = curve
-	w.rebuild_roof()
-	built.emit(&"stone", w.roof.frame().mid + Vector3.UP * pitch)
+## A wall someone here is pulling keeps following their hand; it catches up when they let go.
+func restyle(id: int, changed: Array) -> void:
+	var w := find(id)
+	if _held(w):
+		return
+	_relay(w)
+	if "arches" in changed:
+		_sound(&"arch", _top(w, w.layout.length() * 0.5))
+	elif "roof" in changed:
+		_sound(&"stone", w.roof.frame().mid + Vector3.UP * w.roof.pitch)
+	else:
+		_sound(&"settle", _top(w, w.layout.length() * 0.5))
 
 
-func _set_top(w: Wall, top: WallLayout.Top) -> void:
-	w.layout.top = top
-	w.rebuild()
-	built.emit(&"settle", _top(w, w.layout.length() * 0.5))
-
-
-func _record_arches(w: Wall, before: Array[float]) -> void:
-	history.add(_set_arches.bind(w, before), _set_arches.bind(w, w.layout.arches.duplicate()), [w])
-
-
-func _set_arches(w: Wall, arches: Array[float]) -> void:
-	w.layout.arches = arches.duplicate()
-	w.rebuild()
-	built.emit(&"arch", _top(w, w.layout.length() * 0.5))
+func find(id: int) -> Wall:
+	for w in walls:
+		if w.id == id:
+			return w
+	return null
 
 
 func _held(w: Wall) -> bool:
@@ -571,7 +558,10 @@ func _held(w: Wall) -> bool:
 func reground(area: Rect2, settled: bool) -> void:
 	for w in walls:
 		if w.footprint().intersects(area):
-			w.rebuild(settled)
+			if _held(w):
+				w.rebuild(settled)
+			else:
+				_relay(w, settled)
 
 
 func _top(w: Wall, s: float) -> Vector3:

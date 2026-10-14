@@ -2,9 +2,10 @@ class_name TerrainTool
 extends Node3D
 
 ## Shapes the ground, for whichever hand holds it: the trigger grabs the ground where the hand points and
-## the grabbed point follows the hand up into a hill or down into a hollow, made permanent when the
-## trigger lets go. Farther ground grabs a wider hill and rises faster than the hand. One stroke at a
-## time, since the ground carries one live hump.
+## the grabbed point follows the hand up into a hill or down into a hollow, shown as the ground's live
+## hump. Letting go sends the ground's new heights as a build command; the hump shows until it is in.
+## Farther ground grabs a wider hill and rises faster than the hand. One stroke at a time, since the
+## ground carries one live hump.
 
 const MIN_RADIUS := 2.0
 const MAX_RADIUS := 9.0
@@ -20,7 +21,7 @@ const TINT := Color(0.92, 0.85, 0.66, 0.6)
 signal reshaped(area: Rect2, settled: bool)
 
 var rig: Rig
-var history: History
+var world: World
 var _triggers: Array[Buttons] = []
 var _rings: Array[MeshInstance3D] = []
 var _hand: Hand
@@ -33,11 +34,15 @@ var _base_radius := MIN_RADIUS
 var _radius := MIN_RADIUS
 var _moved := Rect2()
 var _since_follow := 0.0
+## Sent strokes whose humps still show, and the ground they moved.
+var _sent := 0
+var _pending := Rect2()
 
 
-func _init(player: Rig, steps: History) -> void:
+func _init(player: Rig, garden: World) -> void:
 	rig = player
-	history = steps
+	world = garden
+	world.restored.connect(drop)
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.97
 	ring.outer_radius = 1.0
@@ -141,35 +146,49 @@ func follow(delta: float) -> void:
 		reshaped.emit(_moved, false)
 
 
-## Makes the stroke permanent and records it as one undo step; a tap that barely moved leaves the ground as it was.
-## A stroke that changed the ground runs `apply` now and on redo and `revert` on undo, so whatever rides on
-## the ground edit (a pond's seed) is undone with it.
-func end_stroke(apply := Callable(), revert := Callable()) -> void:
+## The heights a stroke leaves, as a build command.
+func stroke() -> Dictionary:
 	var g: Vector3 = _grabbed
+	var cells := Terrain.cells_around(g.x, g.z, _radius)
+	return {"op": "heights", "cells": cells, "values": Terrain.raised(cells)}
+
+
+## Sends the stroke to the garden as one step, with `extra` fields riding on it (a pond's seed); a tap
+## that barely moved leaves the ground as it was.
+func end_stroke(extra := {}) -> void:
+	var cmd := stroke()
+	cmd.merge(extra)
 	_grabbed = null
 	_hand = null
 	if absf(_lift) < 0.01:
-		Terrain.set_hump(g.x, g.z, _radius, 0.0)
+		Terrain.clear_hump()
 		reshaped.emit(_moved, true)
 		return
-	var cells := Terrain.cells_around(g.x, g.z, _radius)
-	var before := Terrain.read(cells)
-	Terrain.bake()
-	if apply.is_valid():
-		apply.call()
-	reshaped.emit(_moved, true)
-	history.add(_step.bind(cells, before, revert), _step.bind(cells, Terrain.read(cells), apply))
+	_sent += 1
+	_pending = _pending.merge(_moved) if _pending.has_area() else _moved
+	world.submit(cmd, _settled)
 
 
-func _step(cells: Rect2i, values: PackedFloat32Array, also: Callable) -> void:
-	if also.is_valid():
-		also.call()
-	restore(cells, values)
+## A sent stroke is in the garden or was turned down: the hump goes and what stood on it settles back.
+func _settled() -> void:
+	_sent -= 1
+	if _sent == 0 and _grabbed == null:
+		Terrain.clear_hump()
+		reshaped.emit(_pending, true)
+		_pending = Rect2()
 
 
+## The garden's side of a ground edit, from any player.
 func restore(cells: Rect2i, values: PackedFloat32Array) -> void:
 	Terrain.write(cells, values)
 	reshaped.emit(Terrain.world_rect(cells), true)
+
+
+## Forgets a stroke under way, as when the garden is swapped for another.
+func drop() -> void:
+	_grabbed = null
+	_hand = null
+	Terrain.clear_hump()
 
 
 func _span(r: float) -> Rect2:

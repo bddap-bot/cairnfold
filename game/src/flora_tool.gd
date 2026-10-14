@@ -23,8 +23,13 @@ class Brush:
 	var hand: Hand
 	var buttons: Buttons
 	var ring: MeshInstance3D
-	## What the current trigger hold has painted, one undo step on release.
+	## What the current trigger hold has painted, one build command on release: its ghost plants, and
+	## the seed and dabs every machine grows the same plants from.
 	var stroke: Array[Flora.Plant] = []
+	var kind := ""
+	var dabs := []
+	var count := 0
+	var rng := RandomNumberGenerator.new()
 	## The ground the current hold has painted, stone or meadow.
 	var ground: Ground.Stroke
 	var since_stamp := 0.0
@@ -36,19 +41,20 @@ class Brush:
 var rig: Rig
 var flora: Flora
 var paths: Paths
-var history: History
+var world: World
 var brushes: Array[Brush] = []
 ## Where the grass feels the left hand while it is untracked; desktop scripts hold it in the grass.
 var stand_in := Flora.NO_HAND
-var _rng := RandomNumberGenerator.new()
+## Sent strokes still shown as ghosts.
+var _sent := 0
 
 
-func _init(player: Rig, plants: Flora, ways: Paths, steps: History) -> void:
+func _init(player: Rig, plants: Flora, ways: Paths, garden: World) -> void:
 	rig = player
 	flora = plants
 	paths = ways
-	history = steps
-	_rng.seed = 23
+	world = garden
+	world.restored.connect(_forget)
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.96
 	ring.outer_radius = 1.0
@@ -74,19 +80,11 @@ func _init(player: Rig, plants: Flora, ways: Paths, steps: History) -> void:
 func busy() -> bool:
 	if paths.busy():
 		return true
-	return _ground_held() or brushes.any(func(b: Brush) -> bool: return not b.stroke.is_empty())
+	return _ground_held() or brushes.any(func(b: Brush) -> bool: return not b.dabs.is_empty())
 
 
 func _ground_held() -> bool:
 	return brushes.any(func(b: Brush) -> bool: return b.ground != null)
-
-
-## False for a plant still in a stroke being painted; it becomes undoable when the stroke ends.
-func settled(plant: Flora.Plant) -> bool:
-	for b in brushes:
-		if b.stroke.has(plant):
-			return false
-	return true
 
 
 func brush(hand: Hand) -> Brush:
@@ -154,31 +152,35 @@ func paint(b: Brush, center: Vector3, radius: float, delta: float, meadow := fal
 	if b.hand.tool == Hand.Tool.STONE:
 		_lay_ground(b, Ground.Kind.MEADOW if meadow else Ground.Kind.STONE, center, radius, delta)
 		return
-	var grass := b.hand.tool == Hand.Tool.GRASS
+	var kind := "grass" if b.hand.tool == Hand.Tool.GRASS else "flowers"
 	b.owed += RATES[b.hand.tool] * PI * radius * radius * delta
-	var n := int(b.owed)
-	b.owed -= n
-	for p in FloraLayout.brush(center, radius, n, _rng, Terrain.height_at):
-		# A plant on a path or stone would be parted to nothing and still take a slot in the pool.
-		if Ground.bare(p.x, p.z) > 0.9:
-			continue
-		var plant := flora.add_grass(p, _rng) if grass else flora.add_flower(p, _rng)
-		if plant != null:
-			b.stroke.append(plant)
-	if n > 0:
-		planted.emit()
+	var n := mini(int(b.owed), Commands.MAX_STROKE)
+	b.owed -= int(b.owed)
+	if n == 0:
+		return
+	if b.kind != kind or b.dabs.size() >= Commands.MAX_DABS or b.count + n > Commands.MAX_STROKE:
+		_send_plants(b)
+	if b.dabs.is_empty():
+		b.kind = kind
+		b.count = 0
+		b.rng.seed = randi()
+	b.dabs.append([center, radius, n])
+	b.count += n
+	b.stroke.append_array(flora.dab(kind, center, radius, n, b.rng))
+	planted.emit()
 
 
 ## A live path keeps its own copy of the ground mask, so nothing stamps it while one is drawn. One ground
-## stroke at a time: two interleaved would replay in a different order than they were painted.
+## stroke at a time, so a player's strokes reach the garden in the order they were painted.
 func _lay_ground(b: Brush, kind: Ground.Kind, center: Vector3, radius: float, delta: float) -> void:
-	if b.ground != null and b.ground.kind != kind:
-		end_stroke(b)
+	if b.ground != null and (b.ground.kind != kind or b.ground.stamps.size() >= Commands.MAX_STAMPS):
+		_send_ground(b)
 	b.since_stamp += delta
 	if paths.busy() or (b.ground == null and _ground_held()) or (b.ground != null and b.since_stamp < STAMP_EVERY and center.distance_to(b.last_stamp) < radius * STAMP_MOVE):
 		return
 	if b.ground == null:
 		b.ground = Ground.Stroke.new(kind)
+		Ground.hold(b.ground)
 	b.since_stamp = 0.0
 	b.last_stamp = center
 	if b.ground.add(center.x, center.z, radius * 0.4, radius * 0.8):
@@ -188,16 +190,52 @@ func _lay_ground(b: Brush, kind: Ground.Kind, center: Vector3, radius: float, de
 func end_stroke(b: Brush) -> void:
 	if b.paving:
 		end_path(b)
-	var ground := b.ground
-	b.ground = null
-	if ground != null and ground.stamps.is_empty():
-		ground = null
-	if ground != null:
-		Ground.lay(ground, true)
-	if b.stroke.is_empty() and ground == null:
-		return
-	_record(b.stroke, ground)
+	_send_ground(b)
+	_send_plants(b)
+
+
+func _send_plants(b: Brush) -> void:
+	var cmd := {"op": "plant", "kind": b.kind, "seed": b.rng.seed, "dabs": b.dabs}
+	var ghost := b.stroke
 	b.stroke = []
+	b.dabs = []
+	b.kind = ""
+	if not cmd.dabs.is_empty():
+		_sent += 1
+		world.submit(cmd, _lay.bind(ghost))
+
+
+## A painted stroke of stone (or meadow) goes to the garden; it stays shown until its command comes back.
+func _send_ground(b: Brush) -> void:
+	var stroke := b.ground
+	b.ground = null
+	if stroke == null:
+		return
+	if stroke.stamps.is_empty():
+		Ground.release(stroke)
+		return
+	world.submit({"op": "ground", "kind": int(stroke.kind), "stamps": stroke.stamps}, Ground.release.bind(stroke))
+
+
+## A sent stroke is settled: its plants grow in the garden now, or it was turned down.
+func _lay(ghost: Array[Flora.Plant]) -> void:
+	for p in ghost:
+		if p != null:
+			p.set_shown(false)
+	_sent -= 1
+	if _sent == 0 and not busy():
+		flora.clear_ghosts()
+
+
+func _forget() -> void:
+	for b in brushes:
+		b.stroke = []
+		b.dabs = []
+		b.kind = ""
+		b.ground = null
+		b.paving = false
+	paths.forget()
+	flora.clear_ghosts()
 
 
 func begin_path(b: Brush, at: Vector3, radius: float) -> void:
@@ -211,31 +249,15 @@ func extend_path(at: Vector3, radius: float) -> void:
 	planted.emit()
 
 
+## Sends the drawn path to the garden; its stones and worn ground stay as drawn until the command comes back.
 func end_path(b: Brush) -> void:
 	b.paving = false
-	var path := paths.end()
-	if path != null:
-		history.add(paths.take.bind(path), paths.put.bind(path), paths.chunks(path))
+	var ghost := paths.end()
+	if not ghost.is_empty():
+		world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
 	planted.emit()
 
 
 func plant_tree(at: Vector3) -> void:
-	var parts := flora.add_tree(at, _rng)
-	if parts.is_empty():
-		return
-	_record(parts)
+	world.submit({"op": "plant", "kind": "tree", "seed": randi(), "at": at})
 	planted.emit()
-
-
-func _record(plants: Array[Flora.Plant], ground: Ground.Stroke = null) -> void:
-	history.add(_show.bind(plants, ground, false), _show.bind(plants, ground, true))
-
-
-func _show(plants: Array[Flora.Plant], ground: Ground.Stroke, shown: bool) -> void:
-	flora.set_shown(plants, shown)
-	if ground == null:
-		return
-	if shown:
-		Ground.lay(ground)
-	else:
-		Ground.lift(ground)

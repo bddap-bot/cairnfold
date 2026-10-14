@@ -37,7 +37,17 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_pond(root)
 		Hand.Tool.STONE:
 			_flagstones(root)
+		Hand.Tool.VISIT:
+			_figure(root)
 	return root
+
+
+## A little person: the visit tool goes to see other players.
+static func _figure(root: Node3D) -> void:
+	var a := Avatar.open(Avatar.BUILT_IN[0], Session.COLOURS[0])
+	a.scale = Vector3.ONE * 0.026
+	root.add_child(a)
+	a.stand.call_deferred()
 
 
 ## A disc of meadow paved over half with flat, lumpy slabs.

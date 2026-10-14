@@ -78,13 +78,6 @@ func _run() -> void:
 	_check(walls.size() == before + 1, "a scripted house stands with flowers in the left hand, %d walls" % walls.size())
 	_check(rig.left.tool == Hand.Tool.WALLS, "and the left hand took walls to lay it out")
 
-	var history: History = main.history
-	var doomed: Wall = main.delete_tool.aim(Terrain.ground(0, -4.4) + Vector3.UP * 2.0, Vector3.DOWN).wall
-	await _play([{"op": "delete", "x": 0, "z": -4.4}])
-	_check(not doomed.is_inside_tree(), "delete takes the wall out")
-	for i in History.LIMIT - 1:
-		history.add(func() -> void: pass, func() -> void: pass)
-	_check(is_instance_valid(doomed), "a deleted wall outlives its drawing step falling off the history")
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
 

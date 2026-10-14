@@ -50,6 +50,11 @@ func remove_seed(g: Vector2i) -> void:
 	_dirty = true
 
 
+func reset() -> void:
+	_seeds.clear()
+	_dirty = true
+
+
 func reground(_area: Rect2, settled: bool) -> void:
 	_dirty = _dirty or (settled and not _seeds.is_empty())
 

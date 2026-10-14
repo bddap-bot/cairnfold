@@ -14,6 +14,8 @@ var masonry: Masonry
 ## Lantern flames and flags: few, alive, and drawn by the wall itself.
 var _fittings := Fittings.new()
 var finished := false
+## The id of the build command that put it up; -1 while it is still being drawn.
+var id := -1
 ## The roof on a house or tower, laid again with the walls under it.
 var roof: RoofLayout
 ## Seconds since the wall was finished: how far its ivy has grown.
@@ -81,6 +83,38 @@ func add_roof(r: RoofLayout) -> void:
 	_gables = MeshInstance3D.new()
 	_gables.material_override = _plaster
 	add_child(_gables)
+
+
+## The wall as a build command carries it.
+func data() -> Dictionary:
+	var d := {
+		"points": PackedVector3Array(layout.points), "height": layout.height, "arches": PackedFloat32Array(layout.arches),
+		"seed": layout.seed, "closed": layout.closed, "top": int(layout.top), "fence": layout.fence,
+		"windows": PackedVector2Array(layout.windows), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags),
+	}
+	if roof != null:
+		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "flag": roof.flag}
+	return d
+
+
+func set_data(d: Dictionary) -> void:
+	layout.points.assign(Array(d.points))
+	layout.height = d.height
+	layout.arches.assign(Array(d.arches))
+	layout.seed = d.seed
+	layout.closed = d.closed
+	layout.top = d.top as WallLayout.Top
+	layout.fence = d.fence
+	layout.windows.assign(Array(d.windows))
+	layout.lanterns.assign(Array(d.lanterns))
+	layout.flags.assign(Array(d.flags))
+	if d.has("roof"):
+		if roof == null:
+			add_roof(RoofLayout.new())
+		for k in ["center", "radius", "pitch", "curve", "seed", "flag"]:
+			roof.set(k, d.roof[k])
+		roof.kind = d.roof.kind as RoofLayout.Kind
+		roof.chimneys.assign(Array(d.roof.chimneys))
 
 
 func _ready() -> void:

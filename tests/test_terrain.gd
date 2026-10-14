@@ -50,17 +50,17 @@ func _pull_raises_a_smooth_hill() -> void:
 		steepest = maxf(steepest, absf(Terrain.height_at(x + 0.05, 10) - Terrain.height_at(x - 0.05, 10)) / 0.1)
 	_check(steepest < 0.8, "the hill's flank stays walkable, slope %f" % steepest)
 	var raised := _all()
-	main.history.undo()
+	main.world.undo()
 	_check(_all() == original, "undo takes the hill away exactly")
-	main.history.redo()
+	main.world.redo()
 	_check(_all() == raised, "redo puts it back exactly")
-	main.history.undo()
+	main.world.undo()
 	var d := Terrain.ground(-5, 3)
 	tool.begin(d, 3.0)
 	tool.pull(-2.0)
 	tool.end_stroke()
 	_check(absf(Terrain.height_at(-5, 3) - d.y + 2.0) < 0.01, "a downward pull digs")
-	main.history.undo()
+	main.world.undo()
 	_check(_all() == original, "undo fills the dig")
 
 
@@ -75,7 +75,7 @@ func _baking_a_live_hump_moves_nothing() -> void:
 	for i in 50:
 		worst = maxf(worst, absf(live[i] - Terrain.height_at(-14.0 + i * 0.06, 7.5 + i * 0.013)))
 	_check(worst < 1e-4, "ground under a hump grabbed between grid points stays put when it bakes, worst %f" % worst)
-	main.history.undo()
+	main.world.undo()
 
 
 func _texture_matches_the_heights() -> void:
@@ -89,7 +89,7 @@ func _texture_matches_the_heights() -> void:
 			var h := Terrain.height_at(-Terrain.SIZE * 0.5 + i * Terrain.STEP, -Terrain.SIZE * 0.5 + j * Terrain.STEP)
 			worst = maxf(worst, absf(Terrain._image.get_pixel(i, j).r - h))
 	_check(worst < 0.02, "the GPU's heights match the CPU's after an edit, worst %f" % worst)
-	main.history.undo()
+	main.world.undo()
 
 
 func _height_between_grid_points_is_continuous() -> void:

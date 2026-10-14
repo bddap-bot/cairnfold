@@ -6,6 +6,10 @@ var failures := 0
 
 
 func _initialize() -> void:
+	_run.call_deferred()
+
+
+func _run() -> void:
 	_brush_fills_its_disc()
 	_painting_again_thickens()
 	_brush_grows_with_distance()
@@ -53,13 +57,14 @@ func _tool() -> FloraTool:
 	root.add_child(rig)
 	var flora := Flora.new()
 	root.add_child(flora)
-	var history := History.new(rig.left)
-	root.add_child(history)
+	var world := World.new()
+	root.add_child(world)
 	var paths := Paths.new()
 	root.add_child(paths)
-	var t := FloraTool.new(rig, flora, paths, history)
+	var t := FloraTool.new(rig, flora, paths, world)
 	t.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(t)
+	world.attach(null, flora, paths, null)
 	return t
 
 
@@ -70,15 +75,19 @@ func _painting_again_thickens() -> void:
 	b.hand.tool = Hand.Tool.FLOWERS
 	for i in 60:
 		t.paint(b, at, 1.0, 1.0 / 60.0)
-	var once := t.flora.flowers.size()
+	var once := t.flora.ghost_flowers.size()
 	for i in 60:
 		t.paint(b, at, 1.0, 1.0 / 60.0)
 	_check(once > 0, "a second of painting adds flowers")
-	_check(absf(t.flora.flowers.size() - 2 * once) <= 1, "a second pass doubles them, %d then %d" % [once, t.flora.flowers.size()])
-	_check(t.flora.grass.size() == 0, "the flower brush leaves the grass alone")
+	_check(absf(t.flora.ghost_flowers.size() - 2 * once) <= 1, "a second pass doubles them, %d then %d" % [once, t.flora.ghost_flowers.size()])
+	_check(t.flora.ghost_grass.size() == 0, "the flower brush leaves the grass alone")
+	var painted := t.flora.ghost_flowers.size()
+	t.end_stroke(b)
+	_check(t.flora.flowers.size() - t.flora.flowers.kept == painted, "letting go grows the stroke in the garden, %d of %d" % [t.flora.flowers.size() - t.flora.flowers.kept, painted])
+	_check(t.flora.ghost_flowers.size() == 0, "and clears its ghost, %d left" % t.flora.ghost_flowers.size())
 	b.hand.tool = Hand.Tool.GRASS
 	t.paint(b, at, 1.0, 1.0)
-	_check(t.flora.grass.size() > once, "the grass brush paints grass, denser than flowers")
+	_check(t.flora.ghost_grass.size() > once, "the grass brush paints grass, denser than flowers")
 
 
 func _brush_grows_with_distance() -> void:
@@ -121,14 +130,14 @@ func _full_pools_recycle_only_painted() -> void:
 	var meadow := 0
 	var boxes := []
 	for mmi: MultiMeshInstance3D in t.flora.get_children():
-		if mmi.multimesh != pool.mm and mmi.multimesh.mesh == pool.mm.mesh:
+		if mmi.multimesh != pool.mm and mmi.multimesh != t.flora.ghost_flowers.mm and mmi.multimesh.mesh == pool.mm.mesh:
 			meadow += mmi.multimesh.instance_count
 			boxes.append(mmi.multimesh.custom_aabb)
 	_check(meadow == 100, "the meadow's own flowers are baked into cells: %d" % meadow)
 	var own := pool.plants[0]
-	t.flora.set_shown([own], false)
+	own.set_shown(false)
 	_check(not own.shown(), "a meadow flower can be taken out of its cell")
-	t.flora.set_shown([own], true)
+	own.set_shown(true)
 	_check(own.shown(), "and put back")
 	_check(boxes.size() > 4, "spread over cells the camera can cull: %d" % boxes.size())
 	for p: Vector3 in spots:

@@ -16,16 +16,18 @@ const LIGHT_EVERY := 0.25
 
 var rig: Rig
 var walls: WallTool
-var history: History
+var world: World
 var _buttons: Array[Buttons] = []
+## Fitting lists sent and not yet back, by wall id and key, so a quick second press builds on the first.
+var _sent := {}
 var _lights: Array[OmniLight3D] = []
 var _since_lights := INF
 
 
-func _init(player: Rig, builder: WallTool, steps: History) -> void:
+func _init(player: Rig, builder: WallTool, garden: World) -> void:
 	rig = player
 	walls = builder
-	history = steps
+	world = garden
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["trigger_click"]))
 	for i in LIGHTS:
@@ -83,31 +85,29 @@ static func _height(pick: Dictionary) -> float:
 	return pick.point.y - (pick.wall as Wall).layout.point_at(pick.s).y
 
 
-## Places what `aim` found, or takes away the one already there; one undo step either way.
+## Places what `aim` found, or takes away the one already there, as one build command.
 func fit(target: Dictionary) -> void:
 	var w: Wall = target.wall
 	var layout := w.layout
-	var at := _spot(target)
 	match target.what:
 		"window":
 			var click := Vector2(target.s, target.y)
 			var near := _window_at(layout, click)
-			_edit(w, false, "windows", click, near, near >= 0 or layout.window_fits(click), at)
+			_edit(w, false, "windows", click, near, near >= 0 or layout.window_fits(click))
 		"lantern":
 			var s: float = layout.nearest_post(target.s) if layout.fence else target.s
 			var hang := Vector3(s, target.y, target.side)
 			var near := layout.lanterns.find_custom(func(e): return absf(layout.offset(e.x, s)) < TAKE_REACH and (layout.fence or absf(e.y - hang.y) < TAKE_REACH and e.z == hang.z))
-			_edit(w, false, "lanterns", hang, near, near >= 0 or layout.lantern_fits(s, hang.y), at)
+			_edit(w, false, "lanterns", hang, near, near >= 0 or layout.lantern_fits(s, hang.y))
 		"flag":
 			var near := layout.flags.find_custom(func(e): return absf(layout.offset(e, target.s)) < TAKE_REACH)
-			_edit(w, false, "flags", target.s, near, near >= 0 or layout.flag_fits(target.s), at)
+			_edit(w, false, "flags", target.s, near, near >= 0 or layout.flag_fits(target.s))
 		"chimney":
 			var spot := w.roof.chimney_spot(target.at)
 			var near := w.roof.chimneys.find_custom(func(e): return e.distance_to(spot) < RoofLayout.STACK_WIDTH + 0.3)
-			_edit(w, true, "chimneys", spot, near, true, at)
+			_edit(w, true, "chimneys", spot, near, true)
 		"tower_flag":
-			_assign(w, true, "flag", not w.roof.flag, at)
-			history.add(_assign.bind(w, true, "flag", not w.roof.flag, at), _assign.bind(w, true, "flag", w.roof.flag, at), [w])
+			world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"flag": not w.roof.flag}}})
 
 
 ## The placed window nearest `click` among those in the opening there, or -1 where there is none.
@@ -123,37 +123,30 @@ static func _window_at(layout: WallLayout, click: Vector2) -> int:
 	return near
 
 
-## Where a press landed; a scripted press names no point, so its sound comes from the wall's middle.
-static func _spot(target: Dictionary) -> Vector3:
-	var layout: WallLayout = target.wall.layout
-	return target.get("point", layout.point_at(layout.length() * 0.5) + Vector3.UP * layout.height)
-
-
 ## Takes entry `near` out of the list `key`, or adds `value` if `near` is -1; nothing happens unless `ok`.
-func _edit(w: Wall, on_roof: bool, key: StringName, value: Variant, near: int, ok: bool, at: Vector3) -> void:
+func _edit(w: Wall, on_roof: bool, key: String, value: Variant, near: int, ok: bool) -> void:
 	if not ok:
 		return
 	var host: Object = w.roof if on_roof else w.layout
-	var before: Array = host.get(key).duplicate()
-	var after := before.duplicate()
+	var after: Array = _sent.get(w.id, {}).get(key, host.get(key)).duplicate()
 	if near >= 0:
 		after.remove_at(near)
+	elif after.size() >= (Commands.MAX_CHIMNEYS if key == "chimneys" else Commands.MAX_FITTINGS):
+		return
 	else:
 		after.append(value)
-	_assign(w, on_roof, key, after, at)
-	history.add(_assign.bind(w, on_roof, key, before, at), _assign.bind(w, on_roof, key, after, at), [w])
-
-
-## Sets a fitting list (or the tower's flag) and lays the wall again, with a sound `at` the fitting.
-func _assign(w: Wall, on_roof: bool, key: StringName, value: Variant, at: Vector3) -> void:
-	var host: Object = w.roof if on_roof else w.layout
-	var current: Variant = host.get(key)
-	if current is Array:
-		current.assign(value)
-	else:
-		host.set(key, value)
-	w.rebuild()
-	walls.built.emit(&"stone", at)
+	_sent.get_or_add(w.id, {})[key] = after
+	var packed: Variant
+	match key:
+		"lanterns":
+			packed = PackedVector3Array(after)
+		"flags":
+			packed = PackedFloat32Array(after)
+		_:
+			packed = PackedVector2Array(after)
+	world.submit({"op": "reshape", "id": w.id, "data": {"roof": {key: packed}} if on_roof else {key: packed}}, func() -> void:
+		if _sent.get(w.id, {}).get(key) == after:
+			_sent[w.id].erase(key))
 
 
 ## Moves the few real lights to the lanterns nearest the head.

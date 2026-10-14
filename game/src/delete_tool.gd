@@ -9,18 +9,16 @@ const TINT := Color(1.0, 0.7, 0.62, 0.6)
 
 var rig: Rig
 var walls: WallTool
-var painter: FloraTool
 var flora: Flora
-var history: History
+var world: World
 var _buttons: Array[Buttons] = []
 
 
-func _init(player: Rig, builder: WallTool, plants: FloraTool, steps: History) -> void:
+func _init(player: Rig, builder: WallTool, plants: FloraTool, garden: World) -> void:
 	rig = player
 	walls = builder
-	painter = plants
 	flora = plants.flora
-	history = steps
+	world = garden
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["trigger_click"]))
 
@@ -48,7 +46,7 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	var tree := flora.tree_near(ground, TREE_REACH)
 	if not tree.is_empty():
 		return {"plants": tree}
-	var patch := flora.painted_near(ground, FloraTool.brush_radius(origin, ground)).filter(painter.settled)
+	var patch := flora.painted_near(ground, FloraTool.brush_radius(origin, ground))
 	if not patch.is_empty():
 		return {"plants": patch}
 	return {}
@@ -56,9 +54,11 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 
 func take(target: Dictionary) -> void:
 	if target.has("wall"):
-		walls.remove(target.wall)
+		world.submit({"op": "unwall", "ids": PackedInt32Array([target.wall.id])})
 	elif target.has("plants"):
-		var plants: Array[Flora.Plant] = []
-		plants.assign(target.plants)
-		flora.set_shown(plants, false)
-		history.add(flora.set_shown.bind(plants, true), flora.set_shown.bind(plants, false))
+		var by_group := {}
+		for p: Flora.Plant in target.plants:
+			by_group.get_or_add(p.group, []).append(p.index)
+		for g in by_group:
+			by_group[g] = PackedInt32Array(by_group[g])
+		world.submit({"op": "show", "plants": by_group, "on": false})

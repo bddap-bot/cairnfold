@@ -6,6 +6,10 @@ var failures := 0
 
 
 func _initialize() -> void:
+	_run.call_deferred()
+
+
+func _run() -> void:
 	_a_stroke_lays_stone_with_a_soft_edge()
 	_grass_and_flowers_skip_stone()
 	_a_stone_stroke_is_one_undo_step()
@@ -27,17 +31,31 @@ func _setup() -> Array:
 	Ground.install()
 	var rig := Rig.new()
 	root.add_child(rig)
-	var history := History.new(rig.left)
-	history.set_process(false)
-	root.add_child(history)
+	var world := World.new()
+	root.add_child(world)
 	var paths := Paths.new()
 	root.add_child(paths)
 	var flora := Flora.new()
 	root.add_child(flora)
-	var tool := FloraTool.new(rig, flora, paths, history)
+	flora.keep()
+	var tool := FloraTool.new(rig, flora, paths, world)
 	tool.set_process(false)
 	root.add_child(tool)
-	return [tool, paths, history, flora]
+	world.attach(null, flora, paths, null)
+	return [tool, paths, world, flora]
+
+
+## Draws a path and sends it to the garden, as the path tool does; returns its id.
+func _lay(nodes: Array, a: Vector2, b: Vector2, half: float) -> int:
+	var paths: Paths = nodes[1]
+	var world: World = nodes[2]
+	paths.begin(Terrain.ground(a.x, a.y), half)
+	for i in 41:
+		var p := a.lerp(b, i / 40.0)
+		paths.extend(Terrain.ground(p.x, p.y), half)
+	var ghost := paths.end()
+	world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
+	return world.seq
 
 
 func _teardown(nodes: Array) -> void:
@@ -96,20 +114,20 @@ func _one_ground_stroke_at_a_time() -> void:
 
 func _a_stone_stroke_is_one_undo_step() -> void:
 	var nodes := _setup()
-	var history: History = nodes[2]
-	var steps := history.undo_stack.size()
+	var world: World = nodes[2]
+	var steps: int = world.stacks.get(world.me(), {"undo": []}).undo.size()
 	_stroke(nodes[0], 0, Hand.Tool.STONE, Vector2(-4, 30), Vector2(4, 30), 1.5)
-	_check(history.undo_stack.size() == steps + 1, "a stroke is one history step (%d)" % (history.undo_stack.size() - steps))
-	history.undo()
+	_check(world.stacks[world.me()].undo.size() == steps + 1, "a stroke is one history step (%d)" % (world.stacks[world.me()].undo.size() - steps))
+	world.undo()
 	_check(Ground.stone(0, 30) == 0.0, "undo takes the stone up (%.2f)" % Ground.stone(0, 30))
-	history.redo()
+	world.redo()
 	_check(Ground.stone(0, 30) > 0.99, "redo lays it again (%.2f)" % Ground.stone(0, 30))
 	var under := Ground.Stroke.new(Ground.Kind.STONE)
 	under.add(10, 30, 2.0, 0.5)
-	Ground.lay(under, true)
+	Ground.lay(under, 1000)
 	var over := Ground.Stroke.new(Ground.Kind.STONE)
 	over.add(10, 30, 0.8, 0.5)
-	Ground.lay(over, true)
+	Ground.lay(over, 1001)
 	Ground.lift(under)
 	_check(Ground.stone(10, 30) > 0.99 and Ground.stone(12, 30) == 0.0, "stone laid over stone keeps its own when the stone under it is lifted (%.2f)" % Ground.stone(10, 30))
 	_teardown(nodes)
@@ -118,31 +136,24 @@ func _a_stone_stroke_is_one_undo_step() -> void:
 func _meadow_takes_back_stone_but_not_a_path() -> void:
 	var nodes := _setup()
 	var t: FloraTool = nodes[0]
-	var paths: Paths = nodes[1]
-	var history: History = nodes[2]
-	paths.begin(Terrain.ground(-6, 40), 0.8)
-	for i in 41:
-		paths.extend(Terrain.ground(-6 + i * 0.3, 40), 0.8)
-	paths.end()
+	var world: World = nodes[2]
+	_lay(nodes, Vector2(-6, 40), Vector2(6, 40), 0.8)
 	_stroke(t, 0, Hand.Tool.STONE, Vector2(-4, 40.5), Vector2(4, 40.5), 1.5)
 	_check(Ground.stone(0, 40) > 0.99, "stone laid over the path covers it (%.2f)" % Ground.stone(0, 40))
 	_stroke(t, 0, Hand.Tool.STONE, Vector2(-4, 40.5), Vector2(4, 40.5), 2.5, true)
 	_check(Ground.stone(0, 40.5) == 0.0 and Ground.stone(0, 40) == 0.0, "the grip paints stone back to meadow (%.2f)" % Ground.stone(0, 40.5))
 	_check(Ground.bare(0, 40) > 0.99, "and the path under the stone is still worn (%.2f)" % Ground.bare(0, 40))
-	history.undo()
+	world.undo()
 	_check(Ground.stone(0, 40.5) > 0.99, "undoing the meadow stroke brings the stone back (%.2f)" % Ground.stone(0, 40.5))
 	_teardown(nodes)
 
 
 func _lifting_a_path_keeps_the_stone_laid_after_it() -> void:
 	var nodes := _setup()
-	var paths: Paths = nodes[1]
-	paths.begin(Terrain.ground(-6, 50), 0.8)
-	for i in 41:
-		paths.extend(Terrain.ground(-6 + i * 0.3, 50), 0.8)
-	var path := paths.end()
+	var world: World = nodes[2]
+	var path := _lay(nodes, Vector2(-6, 50), Vector2(6, 50), 0.8)
 	_stroke(nodes[0], 0, Hand.Tool.STONE, Vector2(0, 46), Vector2(0, 54), 1.5)
-	paths.take(path)
+	world._order({"op": "unpath", "id": path}, world.me())
 	_check(Ground.stone(0, 50) > 0.99, "stone laid over a path stays when the path is lifted (%.2f)" % Ground.stone(0, 50))
 	_check(Ground.bare(5, 50) == 0.0, "the path's own wear goes with it (%.2f)" % Ground.bare(5, 50))
 	_teardown(nodes)

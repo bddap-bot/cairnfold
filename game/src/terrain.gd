@@ -12,7 +12,7 @@ const LOWEST := -8.0
 const HIGHEST := 40.0
 const NO_HUMP := Vector4(0, 0, 1, 0)
 
-static var _heights := _base_heights()
+static var _heights := base_heights()
 ## The hump a stroke is pulling, not yet baked into the heights: centre x, z, radius and lift. Shaders add
 ## it through ground_hump, so a stroke moves the ground without rewriting the grid every frame.
 static var _hump := NO_HUMP
@@ -22,7 +22,7 @@ static var _image: Image
 static var _texture: ImageTexture
 
 
-static func _base_heights() -> PackedFloat32Array:
+static func base_heights() -> PackedFloat32Array:
 	var noise := FastNoiseLite.new()
 	noise.seed = 7
 	noise.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
@@ -43,7 +43,12 @@ static func _base_heights() -> PackedFloat32Array:
 
 ## Bilinear between the four grid heights around (x, z), as the GPU's filtered texture reads them; a
 ## live hump is sampled on the same grid points, so baking it moves nothing.
-static func height_at(x: float, z: float) -> float:
+## The ground without a stroke's live hump, which only its own player sees.
+static func base_at(x: float, z: float) -> float:
+	return height_at(x, z, false)
+
+
+static func height_at(x: float, z: float, with_hump := true) -> float:
 	var u := clampf((x + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
 	var v := clampf((z + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
 	var i := int(u)
@@ -53,7 +58,7 @@ static func height_at(x: float, z: float) -> float:
 	var b := _heights[k + 1]
 	var c := _heights[k + VERTS]
 	var d := _heights[k + VERTS + 1]
-	if _hump.w != 0.0:
+	if with_hump and _hump.w != 0.0:
 		a += _hump_at(i, j)
 		b += _hump_at(i + 1, j)
 		c += _hump_at(i, j + 1)
@@ -122,22 +127,28 @@ static func _hump_at(i: int, j: int) -> float:
 	return _hump.w * bell(Vector2(-SIZE * 0.5 + i * STEP - _hump.x, -SIZE * 0.5 + j * STEP - _hump.y).length() / _hump.z)
 
 
+const ALL := Rect2i(0, 0, VERTS, VERTS)
+
+
 static func set_hump(x: float, z: float, radius: float, lift: float) -> void:
 	_hump = Vector4(x, z, maxf(radius, STEP), lift)
 	revision += 1
 	RenderingServer.global_shader_parameter_set(&"ground_hump", _hump)
 
 
-## Writes the live hump into the heights.
-static func bake() -> void:
-	var cells := cells_around(_hump.x, _hump.y, _hump.z)
+static func clear_hump() -> void:
+	set_hump(0, 0, 1, 0)
+
+
+## The heights of `cells` with the live hump added: what the ground under a stroke becomes.
+static func raised(cells: Rect2i) -> PackedFloat32Array:
+	var out := read(cells)
+	var n := 0
 	for j in range(cells.position.y, cells.end.y):
 		for i in range(cells.position.x, cells.end.x):
-			_heights[j * VERTS + i] += _hump_at(i, j)
-	_hump = NO_HUMP
-	revision += 1
-	RenderingServer.global_shader_parameter_set(&"ground_hump", _hump)
-	_sync(cells)
+			out[n] += _hump_at(i, j)
+			n += 1
+	return out
 
 
 static func read(cells: Rect2i) -> PackedFloat32Array:

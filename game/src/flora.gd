@@ -13,6 +13,8 @@ const PLACED_TREES := 64
 const GRASS_REACH := 24.0
 ## Where an untracked hand is, as far as the grass knows.
 const NO_HAND := Vector3(0, -1000, 0)
+## Painted plant kinds, as build commands name them; "tree" is the other kind of group.
+const BRUSHES := ["grass", "flowers"]
 
 
 ## One kind of plant, in numbered slots. Slots filled before `keep()` are the meadow's own: `keep()` bakes them into
@@ -70,7 +72,7 @@ class Pool:
 			i = kept + _next
 			_next = (_next + 1) % mm.instance_count
 		last = i
-		xform.origin.y -= Terrain.height_at(anchor.x, anchor.z)
+		xform.origin.y -= Terrain.base_at(anchor.x, anchor.z)
 		custom.b = anchor.x
 		custom.a = anchor.z
 		mm.set_instance_transform(i - kept, xform)
@@ -120,6 +122,14 @@ class Pool:
 	func size() -> int:
 		return kept + mm.visible_instance_count
 
+	## Back to the kept plants; plants remembered from the rest no longer find their slots.
+	func reset() -> void:
+		for i in range(kept, size()):
+			plants[i] = null
+			stamps[i] += 1
+		mm.visible_instance_count = 0
+		_next = 0
+
 	func place(slot: int, xform: Transform3D) -> void:
 		if slot < kept:
 			_cell_of[slot].set_instance_transform(_index_in_cell[slot], xform)
@@ -157,6 +167,10 @@ class Plant:
 	var stamp: int
 	var xform: Transform3D
 	var anchor: Vector3
+	## Where build commands find it: its group (0 is the meadow's own, else the command that grew it)
+	## and its place in that group.
+	var group := -1
+	var index := -1
 
 	func _init(p: Pool, i: int, x: Transform3D, a: Vector3) -> void:
 		pool = p
@@ -185,17 +199,28 @@ var trunks: Pool
 var foliage: Pool
 ## Each tree's trunk and blobs, by trunk slot.
 var _trees := {}
+var _kept_trees := {}
+## Every plant a build command can name, by group, in the order its command grew them.
+var groups := {}
+## A player's own stroke while it is painted and until its build command comes back, drawn apart from the
+## garden's plants so that those fill their pools in command order on every machine.
+var ghost_grass: Pool
+var ghost_flowers: Pool
 
 
 func _init() -> void:
 	grass_mat.shader = load("res://src/grass.gdshader")
 	part(NO_HAND, NO_HAND)
 	grass_mat.set_shader_parameter(&"draw_reach", GRASS_REACH)
-	grass = Pool.new(self, Meshes.grass_clump(7, 1), Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false, GRASS_REACH)
+	var clump := Meshes.grass_clump(7, 1)
+	var bloom := Meshes.flower(6)
+	grass = Pool.new(self, clump, Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false, GRASS_REACH)
 	var flower_mat := _plant_material("flower", Color.WHITE, 0.8)
 	flower_mat.set_shader_parameter("stalk", Meshes.STALK)
 	flower_mat.set_shader_parameter("eye", Meshes.EYE)
-	flowers = Pool.new(self, Meshes.flower(6), Meadow.FLOWERS + PAINTED_FLOWERS, flower_mat, false)
+	flowers = Pool.new(self, bloom, Meadow.FLOWERS + PAINTED_FLOWERS, flower_mat, false)
+	ghost_grass = Pool.new(self, clump, Commands.MAX_STROKE * 2, grass_mat, false)
+	ghost_flowers = Pool.new(self, bloom, Commands.MAX_STROKE * 2, flower_mat, false)
 	var trunk := CylinderMesh.new()
 	trunk.top_radius = 0.16
 	trunk.bottom_radius = 0.3
@@ -227,14 +252,14 @@ func part(left: Vector3, right: Vector3) -> void:
 	grass_mat.set_shader_parameter(&"hand_right", right)
 
 
-func add_grass(p: Vector3, rng: RandomNumberGenerator) -> Plant:
+func add_grass(p: Vector3, rng: RandomNumberGenerator, pool := grass) -> Plant:
 	var v := rng.randf_range(0.85, 1.1)
 	var c := FloraLayout.clump(p, FloraLayout.GRASS_CLUMP)
-	return grass.add(FloraLayout.grass(p, c, rng), Color(v, v, v), p, Color(FloraLayout.dryness(p), FloraLayout.clump_trait(c, FloraLayout.Trait.TINT, FloraLayout.GRASS_CLUMP), 0, 0))
+	return pool.add(FloraLayout.grass(p, c, rng), Color(v, v, v), p, Color(FloraLayout.dryness(p), FloraLayout.clump_trait(c, FloraLayout.Trait.TINT, FloraLayout.GRASS_CLUMP), 0, 0))
 
 
-func add_flower(p: Vector3, rng: RandomNumberGenerator) -> Plant:
-	return flowers.add(FloraLayout.flower(p, rng), FloraLayout.flower_color(p), p)
+func add_flower(p: Vector3, rng: RandomNumberGenerator, pool := flowers) -> Plant:
+	return pool.add(FloraLayout.flower(p, rng), FloraLayout.flower_color(p), p)
 
 
 func add_tree(at: Vector3, rng: RandomNumberGenerator) -> Array[Plant]:
@@ -257,14 +282,98 @@ func add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 	foliage.add(b[0], b[1], at)
 
 
+## The plants so far are the meadow's own: group 0, which every machine grows alike.
 func keep() -> void:
-	for p in [grass, flowers, trunks, foliage]:
+	var meadow: Array[Plant] = []
+	for p: Pool in [grass, flowers, trunks, foliage]:
+		meadow.append_array(p.plants.slice(0, p.size()))
 		p.keep()
+	_name(0, meadow)
+	_kept_trees = _trees.duplicate()
 
 
-func set_shown(plants: Array[Plant], on: bool) -> void:
-	for p in plants:
-		p.set_shown(on)
+func _name(group: int, plants: Array[Plant]) -> void:
+	for i in plants.size():
+		if plants[i] != null:
+			plants[i].group = group
+			plants[i].index = i
+	groups[group] = plants
+
+
+## Whether a painted plant would land on bare ground (a path or stone) in the garden, where it would be
+## parted to nothing yet take a slot.
+static func on_path(p: Vector3) -> bool:
+	return Ground.laid_bare(p.x, p.z) > 0.9
+
+
+## One dab of a brush into the ghost pools: `count` plants of `kind` spread over a disc, none on bare ground.
+func dab(kind: String, center: Vector3, radius: float, count: int, rng: RandomNumberGenerator) -> Array[Plant]:
+	var out: Array[Plant] = []
+	for p in FloraLayout.brush(center, radius, count, rng, Terrain.base_at):
+		out.append(null if Ground.bare(p.x, p.z) > 0.9 else _paint(kind, p, rng, true))
+	return out
+
+
+func _paint(kind: String, p: Vector3, rng: RandomNumberGenerator, ghost: bool) -> Plant:
+	if kind == "grass":
+		return add_grass(p, rng, ghost_grass if ghost else grass)
+	return add_flower(p, rng, ghost_flowers if ghost else flowers)
+
+
+## Grows a group from its build command: a seeded paint stroke, which grows exactly the plants its
+## author's ghost showed, or a tree. A stroke records in `skip` the plants that fell on bare ground when it
+## grew, so a garden rebuilt later grows the same plants whatever paths and stone stand by then.
+func grow(id: int, g: Dictionary) -> Array[Plant]:
+	var plants: Array[Plant] = []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = g.seed
+	if g.kind == "tree":
+		plants = add_tree(Vector3(g.at.x, Terrain.base_at(g.at.x, g.at.z), g.at.z), rng)
+	else:
+		var record := not g.has("skip")
+		var skip := {}
+		for i in g.get("skip", []):
+			skip[i] = true
+		var skipped := PackedInt32Array()
+		for d in g.dabs:
+			for p in FloraLayout.brush(d[0], d[1], d[2], rng, Terrain.base_at):
+				var i := plants.size()
+				if skip.has(i) or record and on_path(p):
+					skipped.append(i)
+					plants.append(null)
+				else:
+					plants.append(_paint(g.kind, p, rng, false))
+		g.skip = skipped
+	_name(id, plants)
+	return plants
+
+
+func clear_ghosts() -> void:
+	ghost_grass.reset()
+	ghost_flowers.reset()
+
+
+## Shows or hides the plants at `indices` of a group; returns the indices that changed.
+func set_shown(group: int, indices: PackedInt32Array, on: bool) -> PackedInt32Array:
+	var changed := PackedInt32Array()
+	var plants: Array = groups.get(group, [])
+	for i in indices:
+		var p: Plant = plants[i] if i >= 0 and i < plants.size() else null
+		if p != null and p.current() and p.shown() != on:
+			p.set_shown(on)
+			changed.append(i)
+	return changed
+
+
+## Back to the meadow alone, every one of its plants standing.
+func reset() -> void:
+	for p in [grass, flowers, trunks, foliage, ghost_grass, ghost_flowers]:
+		p.reset()
+	var meadow: Array[Plant] = groups[0]
+	groups = {0: meadow}
+	for plant in meadow:
+		plant.set_shown(true)
+	_trees = _kept_trees.duplicate()
 
 
 ## The standing tree whose trunk is nearest `p` across the ground, within `reach`.
@@ -308,5 +417,5 @@ func obstacles() -> PackedVector3Array:
 ## Pools and their plants point at each other; the cycle is cut here so both are freed.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
-		for p in [grass, flowers, trunks, foliage]:
+		for p in [grass, flowers, trunks, foliage, ghost_grass, ghost_flowers]:
 			p.plants.clear()

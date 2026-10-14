@@ -3,7 +3,10 @@ extends Node3D
 var args := {}
 var xr: OpenXRInterface
 var rig: Rig
-var history: History
+var world: World
+var session: Session
+var visit_tool: VisitTool
+var _undo_buttons: Buttons
 var tool: WallTool
 var flora_tool: FloraTool
 var delete_tool: DeleteTool
@@ -26,23 +29,22 @@ func _ready() -> void:
 	add_child(Meadow.new(flora))
 	rig = Rig.new()
 	add_child(rig)
-	history = History.new(rig.left)
-	add_child(history)
+	world = World.new()
+	add_child(world)
 	var builds := Node3D.new()
 	builds.name = "Builds"
 	add_child(builds)
 	var paths := Paths.new()
 	builds.add_child(paths)
-	flora_tool = FloraTool.new(rig, flora, paths, history)
+	flora_tool = FloraTool.new(rig, flora, paths, world)
 	add_child(flora_tool)
-	tool = WallTool.new(rig, history, flora, paths)
+	tool = WallTool.new(rig, world, flora, paths)
 	builds.add_child(tool)
-	fitting_tool = FittingTool.new(rig, tool, history)
+	fitting_tool = FittingTool.new(rig, tool, world)
 	add_child(fitting_tool)
-	delete_tool = DeleteTool.new(rig, tool, flora_tool, history)
+	delete_tool = DeleteTool.new(rig, tool, flora_tool, world)
 	add_child(delete_tool)
-	terrain_tool = TerrainTool.new(rig, history)
-	history.busy = func() -> bool: return tool.busy() or flora_tool.busy() or terrain_tool.busy()
+	terrain_tool = TerrainTool.new(rig, world)
 	terrain_tool.reshaped.connect(tool.reground)
 	terrain_tool.reshaped.connect(rig.reground)
 	add_child(terrain_tool)
@@ -53,6 +55,15 @@ func _ready() -> void:
 	add_child(water)
 	water_tool = WaterTool.new(rig, terrain_tool, water)
 	add_child(water_tool)
+	world.attach(tool, flora, paths, terrain_tool, water)
+	_undo_buttons = Buttons.new(rig.left).watch(["ax_button", "by_button"])
+	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT)))
+	add_child(session)
+	visit_tool = VisitTool.new(rig, session)
+	add_child(visit_tool)
+	if args.has("join"):
+		var at: PackedStringArray = str(args.join).split(":")
+		session.join.call_deferred(at[0], int(at[1]) if at.size() > 1 else Session.PORT)
 	sound = Soundscape.new(tool, flora_tool, water)
 	add_child(sound)
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
@@ -63,6 +74,16 @@ func _ready() -> void:
 		add_child(Driver.new(self, Driver.read(args.script)))
 	if args.has("quit-after"):
 		get_tree().create_timer(float(args["quit-after"])).timeout.connect(finish)
+
+
+## Left D-pad down undoes, up redoes; both wait while an edit is under way.
+func _process(_delta: float) -> void:
+	if not (tool.busy() or flora_tool.busy() or terrain_tool.busy()):
+		if _undo_buttons.pressed("ax_button"):
+			world.undo()
+		if _undo_buttons.pressed("by_button"):
+			world.redo()
+	_undo_buttons.latch()
 
 
 func _start_xr() -> bool:

@@ -11,7 +11,7 @@ build order.
 ## Controls
 
 Each hand holds a tool, shown as a small object on top of its controller: walls,
-paths, flowers, grass, trees, terrain, pond, teleport or delete.
+paths, flowers, grass, trees, terrain, pond, teleport, delete or visit.
 
 - Hold a stick's click, push toward a tool in the ring, let go: that hand takes it.
 - Trigger: use the tool. Draw a wall, lay a path, paint, plant a tree, grab the
@@ -19,6 +19,9 @@ paths, flowers, grass, trees, terrain, pond, teleport or delete.
   (hold to dig deeper, release to fill), aim a teleport (release to go; into the
   sky to float), or delete the one thing you point at. A path through a wall opens
   an arch, a wide one an arcade.
+- Holding visit: a small figure of each player nearby on the same network stands
+  in front of you; point at one and pull the trigger to build in their garden
+  with them. While visiting, pick the little cairn to go home.
 - Holding walls: grip on a wall pulls its height, grip on a roof shapes it; A on a
   wall cuts or fills an arch, A on its top changes its style; a loop held closed
   snaps to a round tower. Both hands on walls, both grips on the ground: lay out a
@@ -26,7 +29,8 @@ paths, flowers, grass, trees, terrain, pond, teleport or delete.
 - Left stick forward: teleport with any tool. While aiming, the other stick up or
   down moves an air target farther or nearer.
 - Right stick left/right: snap turn.
-- Left D-pad down: undo. Up: redo. Every tool shares the one history.
+- Left D-pad down: undo. Up: redo. One history across every tool; with others,
+  each player undoes only their own steps.
 
 On Quest Touch controllers, which have no D-pad: left X undoes, left Y redoes,
 right A cuts arches.

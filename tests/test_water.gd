@@ -148,22 +148,24 @@ func _ponds_in_the_glade() -> void:
 	Terrain.install()
 	var rig := Rig.new()
 	root.add_child(rig)
-	var history := History.new(rig.left)
-	root.add_child(history)
-	var terrain := TerrainTool.new(rig, history)
+	var world := World.new()
+	root.add_child(world)
+	var terrain := TerrainTool.new(rig, world)
 	root.add_child(terrain)
 	var water := Water.new([])
 	terrain.reshaped.connect(water.reground)
 	root.add_child(water)
 	var tool := WaterTool.new(rig, terrain, water)
 	root.add_child(tool)
+	world.attach(null, null, null, terrain, water)
+	await process_frame
 	var fills := [0]
 	water.splashed.connect(func(kind: StringName, _at: Vector3) -> void: fills[0] += int(kind == &"fill"))
 
 	var before := Terrain.height_at(3, -4)
 	await _dig(tool, 3, -4, 120)
 	_check(water.ponds.size() == 1 and fills[0] == 1, "a dug hollow fills once, %d ponds" % water.ponds.size())
-	_check(history.undo_stack.size() == 1, "a dig is one undo step")
+	_check(world.stacks[world.me()].undo.size() == 1, "a dig is one undo step")
 	var pond := water.pond_at(3, -4)
 	_check(pond != null, "its middle is under water")
 	_check(water.pond_at(3 + WaterTool.RADIUS * 3.0, -4) == null, "the meadow beyond stays dry")
@@ -181,16 +183,16 @@ func _ponds_in_the_glade() -> void:
 	terrain.reshaped.emit(Rect2(), false)
 	await process_frame
 	_check(water.ponds.size() == 2, "nothing refills mid-stroke")
-	history.undo()
+	world.undo()
 	await process_frame
 	await process_frame
 	_check(water.ponds.size() == 1 and (not is_instance_valid(other) or other.is_queued_for_deletion()), "undoing a dig drains its pond")
-	history.redo()
+	world.redo()
 	await process_frame
 	_check(water.ponds.size() == 2 and water.pond_at(12, 8) != null, "redo digs and fills it again")
 
 	for step in 3:
-		history.undo()
+		world.undo()
 	await process_frame
 	_check(water.ponds.is_empty() and water.pond_at(3, -4) == null, "undoing every dig drains them all")
 	_check(absf(Terrain.height_at(3, -4) - before) < 1e-4, "and the ground is as it was")
@@ -199,9 +201,9 @@ func _ponds_in_the_glade() -> void:
 	terrain.end_stroke()
 	await process_frame
 	_check(water.ponds.is_empty(), "a hollow pressed where an undone pond was stays dry")
-	history.undo()
+	world.undo()
 	await process_frame
 
 	await _dig(tool, 3, -4, 1)
 	_check(water.ponds.size() == 1, "even a tap scoops enough to hold water")
-	history.undo()
+	world.undo()

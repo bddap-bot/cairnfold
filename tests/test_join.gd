@@ -67,18 +67,34 @@ func _the_preview_over_a_bush_is_the_wall_left_on_release() -> void:
 		await process_frame
 	_check(m.stroke.walls.size() == 1 and m.stroke.walls[0].layout.live_arches.size() == 1, "the preview arches over the bush while drawing")
 	var shown := _stones(m.stroke.walls)
-	var preview := m.stroke.walls.duplicate()
-	var kept := tool.end_stroke(m)
-	_check(kept == preview, "release keeps the preview's walls")
-	_check(shown == _stones(kept), "and their stones are the ones the preview showed")
+	var preview := m.stroke.walls.size()
+	var before := tool.walls.size()
+	tool.end_stroke(m)
+	var kept := tool.walls.slice(before)
+	_check(kept.size() == preview, "release leaves the preview's walls")
+	_check(_alike(shown, _stones(kept)), "and their stones stand where the preview showed them")
 	if kept.size() == 1 and kept[0].layout.live_arches.size() == 1:
-		var at := kept[0].layout.point_at(kept[0].layout.live_arches[0])
+		var at: Vector3 = kept[0].layout.point_at(kept[0].layout.live_arches[0])
 		_check(Vector2(at.x - bush.x, at.z - bush.z).length() < 0.3, "the arch stands over the bush")
+
+
+## Stone buffers equal but for the rounding of the wall's points to the 32-bit floats a build command carries.
+func _alike(a: Array, b: Array) -> bool:
+	if a.size() != b.size():
+		return false
+	for i in a.size():
+		var x: PackedFloat32Array = a[i]
+		var y: PackedFloat32Array = b[i]
+		if x.size() != y.size():
+			return false
+		for k in x.size():
+			if absf(x[k] - y[k]) > 1e-3:
+				return false
+	return true
 
 
 func _stones(ws: Array) -> Array:
 	var out := []
 	for w: Wall in ws:
-		for mmi in w._instances:
-			out.append(mmi.multimesh.buffer)
+		out.append(w._parts[Wall.Part.STONE])
 	return out

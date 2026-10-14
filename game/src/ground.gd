@@ -4,7 +4,9 @@ extends RefCounted
 ## What the ground is made of: one texel per TEXEL over the play area, shared with shaders as the global
 ## ground_mask (ground.gdshaderinc). Red is trodden earth, green is stone, neither is meadow. Every path
 ## and painted stroke is a mark that stamps soft discs onto it, and the mask is those marks replayed in
-## the order they were laid, so lifting any one (undo) leaves exactly what the rest made.
+## the order of their build commands' ids, so lifting any one (undo) leaves exactly what the rest made, and
+## every machine replays them alike. `laid` holds the garden's marks alone, for what build commands read;
+## the shown image adds a player's own strokes still being drawn or on their way.
 
 ## EARTH wears the ground to earth over whatever was there; STONE lays stone over it, earth included, and
 ## MEADOW takes back only stone, so a path under painted-out stone keeps its wear.
@@ -15,7 +17,16 @@ const TEXEL := Terrain.SIZE / SIZE
 
 static var image := Image.create(SIZE, SIZE, false, Image.FORMAT_RG8)
 static var texture := ImageTexture.create_from_image(image)
+static var laid := Image.create(SIZE, SIZE, false, Image.FORMAT_RG8)
+## The garden's marks in id order, with their ids alongside.
 static var _marks: Array[Object] = []
+static var _ids: Array[int] = []
+## Finished strokes on their way to the garden, still shown.
+static var _held: Array[Object] = []
+## Counts rewears, so a path being drawn can tell its wear was wiped.
+static var rewears := 0
+## True while a whole garden is being swapped in: one rewear at the end instead of one per mark.
+static var quiet := false
 static var _brushes := {}
 
 
@@ -42,12 +53,14 @@ class Stroke:
 
 static func install() -> void:
 	_marks.clear()
+	_ids.clear()
+	_held.clear()
 	rewear()
 	RenderingServer.global_shader_parameter_set(&"ground_mask", texture)
 
 
-static func _texel(x: float, z: float) -> Color:
-	return image.get_pixel(clampi(int((x / Terrain.SIZE + 0.5) * SIZE), 0, SIZE - 1), clampi(int((z / Terrain.SIZE + 0.5) * SIZE), 0, SIZE - 1))
+static func _texel(x: float, z: float, from := image) -> Color:
+	return from.get_pixel(clampi(int((x / Terrain.SIZE + 0.5) * SIZE), 0, SIZE - 1), clampi(int((z / Terrain.SIZE + 0.5) * SIZE), 0, SIZE - 1))
 
 
 ## How bare of plants the ground is at a point, 0 meadow to 1 earth or stone, as the plant shaders read it.
@@ -56,27 +69,69 @@ static func bare(x: float, z: float) -> float:
 	return minf(c.r + c.g, 1.0)
 
 
+## The same from the garden's marks alone.
+static func laid_bare(x: float, z: float) -> float:
+	var c := _texel(x, z, laid)
+	return minf(c.r + c.g, 1.0)
+
+
 static func stone(x: float, z: float) -> float:
 	return _texel(x, z).g
 
 
-## Adds a mark already stamped onto the live mask, or stamps it now.
-static func lay(mark: Object, worn := false) -> void:
-	_marks.append(mark)
-	if not worn:
-		mark.wear(image)
-		upload()
+## Adds the garden's mark from build command `id`, in its place by id.
+static func lay(mark: Object, id: int) -> void:
+	var i := _ids.bsearch(id)
+	_ids.insert(i, id)
+	_marks.insert(i, mark)
+	if i == _marks.size() - 1 and not quiet:
+		mark.wear(laid)
+		_show()
+	else:
+		rewear()
 
 
 static func lift(mark: Object) -> void:
-	_marks.erase(mark)
+	var i := _marks.find(mark)
+	if i >= 0:
+		_marks.remove_at(i)
+		_ids.remove_at(i)
 	rewear()
 
 
+## Keeps showing a player's finished stroke until `release`, when its command has landed or been turned down.
+static func hold(mark: Object) -> void:
+	_held.append(mark)
+
+
+static func release(mark: Object) -> void:
+	_held.erase(mark)
+	rewear()
+
+
+## The garden swapped for another: its marks and held strokes go.
+static func clear() -> void:
+	_marks.clear()
+	_ids.clear()
+	_held.clear()
+	rewear()
+
+
+## The garden's marks in order into `laid`, then held strokes over them into the shown image.
 static func rewear() -> void:
-	image.fill(Color(0, 0, 0))
+	if quiet:
+		return
+	laid.fill(Color(0, 0, 0))
 	for m in _marks:
+		m.wear(laid)
+	_show()
+
+
+static func _show() -> void:
+	image.copy_from(laid)
+	for m in _held:
 		m.wear(image)
+	rewears += 1
 	upload()
 
 

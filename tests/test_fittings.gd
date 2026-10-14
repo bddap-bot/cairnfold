@@ -356,7 +356,8 @@ func _fittings_are_deterministic() -> void:
 func _in_the_glade() -> void:
 	var walls: Array[Wall] = main.tool.walls
 	var fit: FittingTool = main.fitting_tool
-	var history: History = main.history
+	var world: World = main.world
+	var steps_now := func() -> int: return world.stacks.get(world.me(), {"undo": []}).undo.size()
 	await _play([
 		{"op": "place", "x": 0, "z": 12},
 		{"op": "wall", "points": [[-8, 0], [-3, 0], [2, 0]], "seconds": 0.3},
@@ -401,23 +402,23 @@ func _in_the_glade() -> void:
 	fit.fit(fit.aim(Hand.Tool.DECORATIONS, beside + post_n * 3.0, -post_n))
 	_check(fence.layout.flames.is_empty() and fence.layout.lanterns.is_empty(), "a press farther along the same post takes it away")
 
-	var steps := history.undo_stack.size()
+	var steps: int = steps_now.call()
 	fit.fit(w_aim)
-	_check(wall.layout.openings.size() == 1 and history.undo_stack.size() == steps + 1, "a press opens a window, one undo step")
+	_check(wall.layout.openings.size() == 1 and steps_now.call() == steps + 1, "a press opens a window, one undo step")
 	fit.fit(fit.aim(Hand.Tool.WINDOWS, on_face + face.tangent * 0.8 + normal * 3.0, -normal))
 	_check(wall.layout.openings.size() == 1 and wall.layout.openings[0].lights == 2, "a press beside it fuses a second light into it")
 	fit.fit(fit.aim(Hand.Tool.WINDOWS, on_face + normal * 3.0, -normal))
 	_check(wall.layout.windows.size() == 1 and wall.layout.openings.size() == 1 and wall.layout.openings[0].lights == 1, "a press on a light closes that light")
 	var on_arch := wall.layout.point_at(wall.layout.live_arches[0]) + Vector3.UP * 1.0
-	var before := history.undo_stack.size()
+	var before: int = steps_now.call()
 	fit.fit(fit.aim(Hand.Tool.WINDOWS, on_arch + normal * 3.0, -normal))
-	_check(history.undo_stack.size() == before and wall.layout.windows.size() == 1, "a window that cannot open in an arch is not placed and leaves no step")
-	history.undo()
+	_check(steps_now.call() == before and wall.layout.windows.size() == 1, "a window that cannot open in an arch is not placed and leaves no step")
+	world.undo()
 	_check(wall.layout.openings[0].lights == 2, "undo brings the closed light back")
-	history.undo()
-	history.undo()
+	world.undo()
+	world.undo()
 	_check(wall.layout.openings.is_empty() and wall.layout.windows.is_empty(), "undo closes the windows")
-	history.redo()
+	world.redo()
 	_check(wall.layout.openings.size() == 1, "redo opens one again")
 
 	fit.fit(t)
@@ -427,7 +428,7 @@ func _in_the_glade() -> void:
 	_check(lit.size() == 1 and lit[0].global_position.is_equal_approx(wall.layout.flames[0].origin), "a real light shines from the lantern")
 	fit.fit(t)
 	_check(wall.layout.flames.is_empty(), "a second press takes the lantern away")
-	history.undo()
+	world.undo()
 	_check(wall.layout.flames.size() == 1, "undo hangs it again")
 
 	fit.fit({"what": "chimney", "wall": house, "at": Vector2(1.0, 1.0)})
@@ -437,12 +438,12 @@ func _in_the_glade() -> void:
 	_check(not _kind(house.roof, "chimney").is_empty() and _kind(house.roof, "chimney").reduce(func(m, s): return maxf(m, s.xform.origin.y), 0.0) > house.roof.base + house.roof.pitch, "raising the house carries its chimney up with the roof")
 	fit.fit({"what": "tower_flag", "wall": tower})
 	_check(tower.roof.flag and tower.roof.cloths.size() == 1, "a flag flies from the tower")
-	history.undo()
+	world.undo()
 	_check(not tower.roof.flag, "undo lowers it")
 
 	await _play([{"op": "pave", "points": [[1.5, 12], [1.5, 4], [1.5, -4]], "radius": 0.6, "seconds": 0.3}])
 	_check(fence.layout.live_arches.size() == 1 and _kind(fence.layout, "gate").size() == 9, "a path through the fence opens a wooden gate")
-	history.undo()
+	world.undo()
 	_check(fence.layout.live_arches.is_empty(), "undoing the path closes the gate")
 	_done()
 
