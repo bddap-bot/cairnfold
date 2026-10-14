@@ -24,10 +24,12 @@ import json, sys
 steps = json.load(open(sys.argv[1]))
 players = int(sys.argv[2])
 if players > 1:
-    steps.insert(0, {"op": "until", "players": players, "seconds": 180})
+    first = next(i for i, step in enumerate(steps) if step.get("op") == "label")
+    steps.insert(first + 1, {"op": "until", "players": players, "seconds": 180})
 print(json.dumps(steps))
 PY
-[ "$players" -eq 1 ] || godot4 --headless --path "$here/../game" --import > "$out/import.log" 2>&1
+[ "$players" -eq 1 ] || godot4 --headless --path "$here/../game" --import > "$out/import.log" 2>&1 ||
+  { echo "bench: the other players' game did not import, see $out/import.log" >&2; exit 1; }
 guests=()
 measured=
 stop() {

@@ -190,10 +190,10 @@ headset's own frame time), GPU milliseconds per frame:
 | Hills, standing | 12.86 | 13.94 | 14.03 |
 
 Each other player adds about 7 draw calls, and an avatar casts no shadow. From the air,
-other players cost under 0.1 ms. Standing among walls and hills, run-to-run differences
-of up to 1.6 ms go both ways: the 25 m disc costs more with 2 players than with 4. That is
-the scene's own variance from run to run, not something that grows with players. The
-phases that go over the Quest's 12.5 ms budget do so alone as well; that budget belongs to
-the stress scene, not to co-op.
+other players cost at most 0.4 ms. Standing phases cost up to 1.2 ms more with players,
+for example hills 12.86, 13.94 and 14.03 ms. That figure is an upper bound. There is one
+run per player count, and the scene itself differs between runs by up to 8% in
+primitives (the village from the ground: 2.73 M, 2.96 M and 2.78 M), so the avatars'
+own cost is not separated from the scene's differences.
 
 The Quest 2 run of the same ladder is the budget check (`bench.sh OUT --android APK`).
