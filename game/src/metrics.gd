@@ -12,6 +12,7 @@ var context: Callable
 var _cpu: PackedFloat32Array = []
 var _gpu: PackedFloat32Array = []
 var _logging_us := 0
+var _last_tick := Time.get_ticks_usec()
 var quality: Quality
 ## The tracked head, whose height above the play area's floor each second records, with where its play
 ## space's origin ended the second and in how many frames it moved: any move the player did not make is a bug.
@@ -45,15 +46,19 @@ func _init(out: String) -> void:
 	path = out
 
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if play_log == null and path.is_empty():
 		return
-	_deltas.append(delta * 1000.0)
+	var now := Time.get_ticks_usec()
+	# Engine delta is capped during stalls.
+	var elapsed := (now - _last_tick) / 1000000.0
+	_last_tick = now
+	_deltas.append(elapsed * 1000.0)
 	_cpu.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
-	var late := is_late(delta * 1000.0)
+	var late := is_late(elapsed * 1000.0)
 	if late and not _was_late:
 		var scripts := Performance.get_monitor(Performance.TIME_PROCESS) + Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
-		print("metrics: late frame %.1f ms, the frame before it %.1f ms in scripts and physics, %.1f ms on the GPU" % [delta * 1000.0, scripts * 1000.0, quality.frame_ms if quality != null else 0.0])
+		print("metrics: late frame %.1f ms, the frame before it %.1f ms in scripts and physics, %.1f ms on the GPU" % [elapsed * 1000.0, scripts * 1000.0, quality.frame_ms if quality != null else 0.0])
 	_was_late = late
 	_draws = maxi(_draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
@@ -67,7 +72,7 @@ func _process(delta: float) -> void:
 		if o != _origin:
 			_origin_moves += 1
 			_origin = o
-	_acc += delta
+	_acc += elapsed
 	if _acc >= 1.0:
 		var begin := Time.get_ticks_usec()
 		var gpu := gpu_ns()

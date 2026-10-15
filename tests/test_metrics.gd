@@ -7,6 +7,7 @@ var failures := 0
 
 func _initialize() -> void:
 	_every_flush_leaves_whole_json_with_every_second()
+	_stalls_are_not_capped_by_engine_delta()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -41,3 +42,11 @@ func _every_flush_leaves_whole_json_with_every_second() -> void:
 	_check(_read(path) == d, "a flush with nothing new changes nothing")
 	m.free()
 	DirAccess.remove_absolute(path)
+
+
+func _stalls_are_not_capped_by_engine_delta() -> void:
+	var m := Metrics.new("user://unused-metrics-test.json")
+	m._last_tick = Time.get_ticks_usec() - 100000
+	m._process(0.05)
+	_check(m._deltas[0] >= 99.0, "a 100 ms stall is recorded even when engine delta is capped to 50 ms")
+	m.free()

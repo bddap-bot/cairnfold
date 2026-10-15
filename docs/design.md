@@ -1564,7 +1564,7 @@ a missing end means interruption, not a measured end time. `latest.json` is an
 atomically replaced sample for local inspection, including head position in garden
 coordinates and normalized view direction (Godot's forward is negative Z).
 
-Frame deltas measure delivered application cadence, not CPU work or compositor
+Monotonic time between frames measures delivered application cadence, not CPU work or compositor
 reprojection. `cpu_ms` summarizes Godot's process-time monitor; `gpu_frame_ms`
 summarizes available viewport GPU timer readings. Unsupported GPU readings are
 null. Runtime dropped/reprojected counts are unavailable through this recorder;
