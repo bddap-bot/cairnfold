@@ -28,7 +28,7 @@
   {"op": "arch", "index": 4, "s": 2.0},
   {"op": "arch", "index": 4, "s": 4.5},
   {"op": "arch", "index": 4, "s": 7.0},
-  {"op": "house", "a": [10, -6], "b": [14, -5], "to_a": [9, -7], "to_b": [15, -4], "seconds": 1.2},
+  {"op": "house", "at": [12, -5.5], "size": [6, 3.6], "turn": 15, "seconds": 1.2},
   {"op": "fit", "what": "window", "index": -1, "s": 2.0, "y": 1.4},
   {"op": "fit", "what": "chimney", "index": -1, "at": [1.0, 0.5]},
   {"op": "fit", "what": "tower_flag", "index": 3},
