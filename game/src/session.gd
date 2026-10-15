@@ -32,6 +32,7 @@ var avatar := 0
 var colour := COLOURS[0]
 var port := 0
 var first_port := PORT
+var beacon_port := BEACON_PORT
 ## Whether beacons reach the network, or only this machine.
 var lan := true
 ## The garden we are visiting, {address, port}, or empty at home.
@@ -50,9 +51,10 @@ var _listen := PacketPeerUDP.new()
 var _targets := {}
 
 
-func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := true) -> void:
+func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := true, from_beacon := BEACON_PORT) -> void:
 	name = "Session"
 	lan = on_lan
+	beacon_port = BEACON_PORT if lan else clampi(from_beacon, 1024, 65536 - BEACON_PORTS)
 	world = garden
 	rig = player
 	first_port = clampi(from_port, PORT, PORT + PORT_RANGE - PORTS)
@@ -66,7 +68,7 @@ func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := t
 
 ## A game a player launched, as opposed to one a script or a test runs. Only it beacons on the network.
 static func played(args: Dictionary, launched: bool) -> bool:
-	return launched and not (args.has("script") or args.has("join") or args.has("port"))
+	return launched and not (args.has("script") or args.has("join") or args.has("port") or args.has("beacon-port"))
 
 
 ## Where beacons go: a script's or a test's stay on this machine, so players never see them.
@@ -81,7 +83,7 @@ func _ready() -> void:
 	multiplayer.connection_failed.connect(go_home, CONNECT_DEFERRED)
 	_beacon.set_broadcast_enabled(true)
 	for p in BEACON_PORTS:
-		if _listen.bind(BEACON_PORT + p, "*" if lan else "127.0.0.1") == OK:
+		if _listen.bind(beacon_port + p, "*" if lan else "127.0.0.1") == OK:
 			break
 	host()
 
@@ -180,7 +182,7 @@ func _announce() -> void:
 	var msg := JSON.stringify({"cairnfold": 1, "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false), "players": players()}).to_utf8_buffer()
 	for dest in beacon_to():
 		for p in BEACON_PORTS:
-			_beacon.set_dest_address(dest, BEACON_PORT + p)
+			_beacon.set_dest_address(dest, beacon_port + p)
 			_beacon.put_packet(msg)
 
 

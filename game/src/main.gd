@@ -72,7 +72,7 @@ func _ready() -> void:
 	add_child(photo_tool)
 	_undo_buttons = Buttons.new(rig.left).watch(["ax_button", "by_button"])
 	var played := Session.played(args, get_tree().current_scene == self)
-	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT)), played)
+	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT)), played, int(args.get("beacon-port", Session.BEACON_PORT)))
 	add_child(session)
 	visit_tool = VisitTool.new(rig, session)
 	add_child(visit_tool)

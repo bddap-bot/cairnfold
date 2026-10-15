@@ -140,6 +140,9 @@ type.
 Only a game a player launched beacons on the network. One started with `--script`,
 `--join` or `--port`, or built inside a test, sends its beacon to this machine's loopback address only
 and listens there only, so a player never sees a scripted or test instance in the arc.
+Scripts can select a private four-port discovery range with `--beacon-port BASE`.
+`coop.sh` reserves a separate range for each run, so unrelated headless instances
+cannot take its listeners. Player launches still use ports 7469–7472.
 Scripts on one machine still find each other by beacon, and scripts that play with another
 machine (the bench's players) connect with `--join`. `tests/test_beacon.gd` fails if a
 scripted or test instance beacons past loopback.

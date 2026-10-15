@@ -4,12 +4,36 @@
 # Fails unless the three gardens match each other and the expected outcome of the scripted session.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
+if [ -z "${2:-}" ]; then
+  exec python3 - "$root/scripts/coop.sh" "$1" <<'PYTHON'
+import random, socket, subprocess, sys
+# Hold the fourth socket for the whole run: other runs cannot select this block
+# while the three players open and close their listeners.
+for base in random.sample(range(20000, 60000, 4), 10000):
+    sockets = []
+    try:
+        for port in range(base, base + 4):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            sockets.append(sock)
+            sock.bind(("127.0.0.1", port))
+    except OSError:
+        for sock in sockets:
+            sock.close()
+        continue
+    for sock in sockets[:3]:
+        sock.close()
+    print(f"coop: beacon ports {base}–{base + 3}", flush=True)
+    sys.exit(subprocess.call(["bash", sys.argv[1], sys.argv[2], str(base)]))
+sys.exit("coop: no free beacon block")
+PYTHON
+fi
+beacon_port=$2
 out=$(realpath -m "$1")
 mkdir -p "$out"
 cd "$out"
 # Ports of their own, so other instances on this machine (another checkout's tests) are not mistaken for the host.
 port=$((7480 + 8 * (RANDOM % 7)))
-run() { timeout 120 stdbuf -oL godot4 --headless --path "$root/game" --xr-mode off -- --desktop --script "$root/demo/coop-$1.json" --quit-after 110 --capture-dir "$out" --host-port "$port" "${@:2}" >"$out/$1.log" 2>&1; }
+run() { timeout 120 stdbuf -oL godot4 --headless --path "$root/game" --xr-mode off -- --desktop --script "$root/demo/coop-$1.json" --quit-after 110 --capture-dir "$out" --host-port "$port" --beacon-port "$beacon_port" "${@:2}" >"$out/$1.log" 2>&1; }
 run host --port "$port" & host=$!
 sleep 2
 run join --avatar 1 --port $((port + 8)) & join=$!

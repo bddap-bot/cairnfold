@@ -25,8 +25,14 @@ func _check(ok: bool, what: String) -> void:
 func _scripts_are_not_players() -> void:
 	_check(Session.played({}, true), "a game launched bare is a player's")
 	_check(Session.played({"avatar": "1"}, true), "and so is one picking an avatar")
-	for args in [{"script": "coop-host.json", "port": "7480", "host-port": "7480"}, {"join": "127.0.0.1:7480", "script": "guest1.json"}, {"join": "192.168.1.2"}, {"port": "7536"}]:
+	for args in [{"script": "coop-host.json", "port": "7480", "host-port": "7480"}, {"join": "127.0.0.1:7480", "script": "guest1.json"}, {"join": "192.168.1.2"}, {"port": "7536"}, {"beacon-port": "22000"}]:
 		_check(not Session.played(args, true), "a game launched with %s is a script's" % args)
+	var scripted := Session.new(null, null, 0, Session.PORT, false, 22000)
+	_check(scripted.beacon_port == 22000, "scripts can select their discovery ports")
+	scripted.free()
+	var player := Session.new(null, null, 0, Session.PORT, true, 22000)
+	_check(player.beacon_port == Session.BEACON_PORT, "LAN players keep the standard discovery ports")
+	player.free()
 	_check(not Session.played({}, false), "a game a test builds is not a player's")
 
 
