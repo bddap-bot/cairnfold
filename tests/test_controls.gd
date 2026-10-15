@@ -78,10 +78,7 @@ func _run() -> void:
 	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(not _painted(flora, patch).is_empty(), "undo brings a deleted patch back")
 
-	var before := walls.size()
-	await _play([{"op": "house", "a": [12, 0], "b": [17, 0], "to_b": [18, 1], "seconds": 0.3}])
-	_check(walls.size() == before + 1, "a scripted house stands with flowers in the left hand, %d walls" % walls.size())
-	_check(rig.left.tool == Hand.Tool.WALLS, "and the left hand took walls to lay it out")
+	await _carry_a_house(rig, walls)
 
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
@@ -113,6 +110,89 @@ func _sweep_by_hand(hand: Hand, at: Vector3) -> void:
 		await process_frame
 		_check(hand.tool == case[0], "sweeping the hand itself picks %s, holding %s" % [Hand.Tool.keys()[case[0]], Hand.Tool.keys()[hand.tool]])
 	hand.global_position = at
+## The house tool in tracked hands: the trigger takes up a square house where it points and carries it; the other
+## hand's grip joins to spread and turn it; letting go builds it.
+func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
+	await _play([{"op": "place", "x": 14, "z": 12}, {"op": "pick", "hand": "right", "tool": "house"}])
+	_check(rig.right.tool == Hand.Tool.HOUSE, "the right ring picks the house")
+	var trackers := {}
+	for side in [&"left_hand", &"right_hand"]:
+		var t := XRPositionalTracker.new()
+		t.type = XRServer.TRACKER_CONTROLLER
+		t.name = side
+		XRServer.add_tracker(t)
+		trackers[side] = t
+	var head := rig.head.global_position
+	var hold := func(side: StringName, offset: Vector3, look: Vector3) -> void:
+		var at := head + offset
+		trackers[side].set_pose(&"aim", rig.global_transform.affine_inverse() * Transform3D(Basis.looking_at(look - at, Vector3.UP), at), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
+	var spot := Terrain.ground(14, 5)
+	hold.call(&"right_hand", Vector3(0.2, -0.4, -0.3), spot)
+	hold.call(&"left_hand", Vector3(-0.2, -0.4, -0.3), spot)
+	await _frames(2)
+	var before := walls.size()
+	trackers[&"right_hand"].set_input(&"trigger_click", true)
+	await _frames(2)
+	var tool: WallTool = main.tool
+	_check(tool.house != null, "the trigger takes up a house")
+	if tool.house == null:
+		return
+	_check(Vector2(tool.house_at.center.x - spot.x, tool.house_at.center.z - spot.z).length() < 0.5, "where the hand points: %s" % tool.house_at.center)
+	_check(tool.house_at.size == WallTool.HOUSE_SIZE and is_equal_approx(tool.house_at.size.x, tool.house_at.size.y), "a square house")
+	for i in 300:
+		if not tool.house.laying() and not tool.house.layout.laid_points.is_empty():
+			break
+		await _frames(1)
+	var laid: int = tool.house.layout.laid
+	var start: Vector3 = tool.house_at.center
+	for i in 10:
+		hold.call(&"right_hand", Vector3(0.2 + 0.03 * (i + 1), -0.4, -0.3), spot)
+		await _frames(1)
+		var stands: Vector3 = tool.house.transform * Vector3(start.x, 0.0, start.z)
+		if Vector2(stands.x - tool.house_at.center.x, stands.z - tool.house_at.center.z).length() > 0.01:
+			_check(false, "frame %d: the laid house stands at %s, carried to %s" % [i, stands, tool.house_at.center])
+			break
+	_check(tool.house_at.center.x > spot.x + 1.0, "moving the hand carries it: %s" % tool.house_at.center)
+	_check(tool.house.layout.laid == laid, "carried, not laid again: walls, roof and all move as one")
+	_check(tool.house.roof.corners == tool.house.layout.laid_points, "the roof stands on the walls as laid")
+	trackers[&"left_hand"].set_input(&"grip_click", true)
+	await _frames(2)
+	var square: Vector2 = tool.house_at.size
+	var askew := 0
+	for i in 20:
+		hold.call(&"left_hand", Vector3(-0.2 - 0.015 * (i + 1), -0.4, -0.3), spot)
+		await _frames(1)
+		if tool.house.roof.corners != tool.house.layout.laid_points:
+			askew += 1
+	_check(askew == 0, "while it stretches the roof stays on the walls as laid, askew on %d frames" % askew)
+	_check(tool.house_at.size.x > square.x * 1.3, "the left grip joins, and spreading the hands stretches it: %s" % tool.house_at.size)
+	_check(rig.left._holding and rig.right._holding and not rig.right._beam.visible and not rig.left._beam.visible, "both hands holding it show no pointer")
+	var yaw: float = tool.house_at.yaw
+	for i in 10:
+		hold.call(&"left_hand", Vector3(-0.5, -0.4, -0.3 + 0.06 * (i + 1)), spot)
+		await _frames(1)
+	_check(absf(angle_difference(yaw, tool.house_at.yaw)) > 0.3, "turning the pair turns it: %f to %f" % [yaw, tool.house_at.yaw])
+	await _frames(4)
+	_check(walls.size() == before, "nothing stands while it is held")
+	trackers[&"right_hand"].set_input(&"trigger_click", false)
+	await _frames(2)
+	_check(tool.house != null, "the left hand alone still holds it")
+	trackers[&"left_hand"].set_input(&"grip_click", false)
+	await _frames(4)
+	_check(tool.house == null and walls.size() == before + 1, "letting go builds it, %d walls" % walls.size())
+	if walls.size() == before + 1:
+		_check(walls[-1].roof != null and walls[-1].layout.closed, "a roofed house")
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(walls.size() == before, "undo takes the house away")
+	await _play([{"op": "press", "button": "dpad_up"}])
+	_check(walls.size() == before + 1, "redo puts it back")
+	for t in trackers.values():
+		XRServer.remove_tracker(t)
+
+
+func _frames(n: int) -> void:
+	for i in n:
+		await process_frame
 
 
 func _painted(flora: Flora, at: Vector3) -> Array:

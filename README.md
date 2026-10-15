@@ -37,8 +37,10 @@ paths, flowers, grass, trees, terrain, pond, colour, camera, delete or visit.
   with them. While visiting, pick the little cairn to go home.
 - Holding walls: grip on a wall pulls its height, grip on a roof shapes it; A on a
   wall cuts or fills an arch, A on its top changes its style; a loop held closed
-  snaps to a round tower. Both hands on walls, both grips on the ground: lay out a
-  house.
+  snaps to a round tower.
+- Holding the house: trigger or grip takes up a house where you point; carry it,
+  add the other grip to turn it and stretch it between your hands; let go to
+  build.
 - Left stick forward: aim a teleport from the left hand, whatever it holds;
   release to go, into the sky to float. While aiming, the other stick up or
   down moves an air target farther or nearer.

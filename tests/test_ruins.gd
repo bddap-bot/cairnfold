@@ -214,7 +214,7 @@ func _the_eraser_sweeps_a_ruin_and_undo_mends_it() -> void:
 	_check(walls.is_empty(), "sweeping the whole wall takes it")
 	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(walls.size() == 1, "undo stands it again")
-	await _play([{"op": "house", "a": [-4, 8], "b": [4, 8], "seconds": 0.3}])
+	await _play([{"op": "house", "at": [0.0, 8.0], "size": [8.0, 5.0], "seconds": 0.3}])
 	var house := walls[-1]
 	await _play([{"op": "delete", "x": house.layout.samples[0].x, "z": house.layout.samples[0].z}])
 	_check(walls.size() == 1, "the eraser takes a house whole")

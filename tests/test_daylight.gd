@@ -205,7 +205,7 @@ func _in_the_glade() -> void:
 	await _play([
 		{"op": "place", "x": 0, "z": 12},
 		{"op": "wall", "points": [[-8, 0], [-3, 0], [2, 0]], "seconds": 0.3},
-		{"op": "house", "a": [8, 0], "b": [14, 0], "seconds": 0.2},
+		{"op": "house", "at": [11.0, 0.0], "size": [6.0, 3.7], "seconds": 0.2},
 		{"op": "fence", "points": [[-8, 6], [-2, 6]], "seconds": 0.3},
 		{"op": "fit", "what": "window", "index": 0, "s": 2.5, "y": 1.5},
 	])

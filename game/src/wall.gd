@@ -323,7 +323,7 @@ func _lay_dressing() -> void:
 func _pack_roof() -> void:
 	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
 	if roof.kind == RoofLayout.Kind.GABLE:
-		roof.corners = layout.points
+		roof.corners = layout.laid_points
 	roof.build()
 	var tile := kinds()[Part.TILE]
 	var shadow := kinds()[Part.TILE_SHADOW]

@@ -18,6 +18,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 	match tool:
 		Hand.Tool.WALLS:
 			_wall(root)
+		Hand.Tool.HOUSE:
+			_house(root)
 		Hand.Tool.FENCE:
 			_fence(root)
 		Hand.Tool.WINDOWS:
@@ -269,6 +271,44 @@ static func _wall(root: Node3D) -> void:
 	layout.points = [Vector3(0, 0, -1.4), Vector3(0, 0, 1.4)]
 	layout.build(_flat)
 	_stones(root, layout.stones, 0.015)
+
+
+## A cottage: stone walls with a door toward the eye under a tiled gable roof.
+static func _house(root: Node3D) -> void:
+	var layout := WallLayout.new()
+	layout.seed = 7
+	layout.height = 2.4
+	layout.top = WallLayout.Top.CAP
+	layout.closed = true
+	layout.cover = WallLayout.Cover.ROOF
+	layout.points = WallLayout.rectangle(Vector3(-1.6, 0, 0), Vector3(1.6, 0, 0), 2.6)
+	layout.arches = [3.2 * 1.5 + 2.6]
+	layout.build(_flat)
+	var roof := RoofLayout.new()
+	roof.seed = 7
+	roof.corners = layout.points
+	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
+	roof.pitch = 1.8
+	roof.build()
+	_stones(root, layout.stones, 0.012)
+	_stones(root, roof.tiles, 0.012)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for p in roof.gable_faces:
+		st.add_vertex(p * 0.012)
+	st.generate_normals()
+	var plaster: StandardMaterial3D = _mats.get("plaster")
+	if plaster == null:
+		plaster = StandardMaterial3D.new()
+		plaster.albedo_color = Color(0.8, 0.73, 0.6)
+		plaster.roughness = 0.9
+		plaster.cull_mode = BaseMaterial3D.CULL_DISABLED
+		_mats["plaster"] = plaster
+	var gables := MeshInstance3D.new()
+	gables.mesh = st.commit()
+	gables.material_override = plaster
+	gables.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(gables)
 
 
 static func _fence(root: Node3D) -> void:

@@ -10,6 +10,8 @@ func _init() -> void:
 	_a_tower_is_a_level_ring_without_end_piers()
 	_a_house_has_corner_piers_and_a_door()
 	_the_footprint_follows_the_hands()
+	_hands_carry_turn_and_stretch_a_house()
+	_the_ridge_runs_the_longer_way()
 	_gable_tiles_cover_the_footprint_under_the_ridge()
 	_pitch_and_curvature_shape_the_slopes()
 	_cone_tiles_ring_the_tower_up_to_the_finial()
@@ -139,6 +141,49 @@ func _the_footprint_follows_the_hands() -> void:
 	var twisted := WallLayout.rectangle(Vector3(-2.5 * cos(0.5), 0, -2.5 * sin(0.5)), Vector3(2.5 * cos(0.5), 0, 2.5 * sin(0.5)), 3.0)
 	var along := twisted[1] - twisted[0]
 	_check(absf(atan2(along.z, along.x) - 0.5) < 1e-4, "twisting the hands turns the ridge")
+
+
+func _hand(at: Vector3, turn := 0.0) -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, turn), at)
+
+
+func _hands_carry_turn_and_stretch_a_house() -> void:
+	var start := {"center": Vector3(10, 0, 0), "yaw": 0.0, "size": Vector2(4.5, 4.5)}
+	var one: Array[Transform3D] = [_hand(Vector3(0, 1, 0))]
+	var moved: Array[Transform3D] = [_hand(Vector3(0.5, 1.3, -0.2), 0.4)]
+	var c := WallTool.carry(start, one, moved, 4.0)
+	_check(c.center.is_equal_approx(Vector3(12, 0, -0.8)), "one hand carries it along the ground, scaled by the gain: %s" % c.center)
+	_check(is_equal_approx(c.yaw, 0.4) and c.size == start.size, "and turns it with its own turn, keeping its size")
+	var pair: Array[Transform3D] = [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.2, 1, 0))]
+	var spread: Array[Transform3D] = [_hand(Vector3(-0.4, 1, 0)), _hand(Vector3(0.4, 1, 0))]
+	c = WallTool.carry(start, pair, spread, 4.0)
+	_check(c.center.is_equal_approx(start.center) and is_zero_approx(c.yaw), "spreading the hands in place neither moves nor turns it")
+	_check(c.size.is_equal_approx(Vector2(9, 4.5)), "it stretches twice as long along the hands' line, not across: %s" % c.size)
+	var circled: Array[Transform3D] = [_hand(Vector3(0, 1, 0.2)), _hand(Vector3(0, 1, -0.2))]
+	c = WallTool.carry(start, pair, circled, 4.0)
+	_check(is_equal_approx(c.yaw, PI * 0.5) and c.size.is_equal_approx(start.size), "moving the hands round a quarter circle turns it a quarter: %f" % c.yaw)
+	var diagonal: Array[Transform3D] = [_hand(Vector3(-0.2, 1, 0.2)), _hand(Vector3(0.2, 1, -0.2))]
+	var wide: Array[Transform3D] = [_hand(Vector3(-0.4, 1, 0.4)), _hand(Vector3(0.4, 1, -0.4))]
+	c = WallTool.carry(start, diagonal, wide, 4.0)
+	_check(is_equal_approx(c.size.x, c.size.y) and c.size.x > 6.0, "spread along the diagonal, a square stays square and grows: %s" % c.size)
+	var far: Array[Transform3D] = [_hand(Vector3(-5, 1, 0)), _hand(Vector3(5, 1, 0))]
+	c = WallTool.carry(start, pair, far, 4.0)
+	_check(c.size.x == WallTool.HOUSE_SIDES.y, "no longer than the longest house: %s" % c.size)
+	var both: Array[Transform3D] = [_hand(Vector3(-5, 1, 5)), _hand(Vector3(5, 1, -5))]
+	c = WallTool.carry(start, diagonal, both, 4.0)
+	_check(minf(c.size.x, c.size.y) == WallTool.HOUSE_DEPTH, "nor deeper under the ridge than the deepest: %s" % c.size)
+	var close: Array[Transform3D] = [_hand(Vector3(0, 1, 0)), _hand(Vector3(0.01, 1, 0))]
+	c = WallTool.carry(start, pair, close, 4.0)
+	_check(c.size.x == WallTool.HOUSE_SIDES.x, "nor shorter than the smallest: %s" % c.size)
+
+
+func _the_ridge_runs_the_longer_way() -> void:
+	var f := WallTool.footprint(Vector3(1, 0, 1), 0.0, Vector2(5, 5))
+	_check(is_equal_approx(f.length, 5.0) and is_equal_approx(f.depth, 5.0), "a square footprint is a square house: %s" % f)
+	f = WallTool.footprint(Vector3.ZERO, 0.0, Vector2(3, 8))
+	_check(is_equal_approx(f.length, 8.0) and is_equal_approx(f.depth, 3.0) and absf(f.a.x - f.b.x) < 1e-4, "a footprint deeper than wide turns its ridge across: %s" % f)
+	f = WallTool.footprint(Vector3.ZERO, PI * 0.5, Vector2(6, 3))
+	_check(absf(f.a.x - f.b.x) < 1e-4 and absf(absf(f.a.z - f.b.z) - 6.0) < 1e-4, "turned a quarter, the ridge runs along z: %s" % f)
 
 
 func _gable(length: float, depth: float, pitch: float, curve: float) -> RoofLayout:

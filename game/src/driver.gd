@@ -206,23 +206,31 @@ func _tower(s: Dictionary) -> void:
 	tool.end_stroke(m)
 
 
-## Both grips: the hands point at `a` and `b`, then move to `to_a` and `to_b` (pulling apart, twisting) over `seconds`.
+## The house tool's carry: a square house taken up at `from` (default `at`) and set down at `at`, `size`
+## [along, across], its front turned `turn` degrees from the x axis (the head's right with "relative"), moving there
+## over `seconds`. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
-	main.rig.left.tool = Hand.Tool.WALLS
-	main.rig.right.tool = Hand.Tool.WALLS
-	var a := _spot(s, s.a[0], s.a[1])
-	var b := _spot(s, s.b[0], s.b[1])
-	var to_a := _spot(s, s.to_a[0], s.to_a[1]) if s.has("to_a") else a
-	var to_b := _spot(s, s.to_b[0], s.to_b[1]) if s.has("to_b") else b
-	tool.begin_house(a, b)
-	var t := 0.0
-	var seconds: float = s.get("seconds", 2.0)
-	while t < seconds:
+	_holding(s, Hand.Tool.HOUSE)
+	var x: float = s.at[0]
+	var z: float = s.at[1]
+	var to := _spot(s, x, z)
+	var from := _spot(s, s.from[0], s.from[1]) if s.has("from") else to
+	var t := deg_to_rad(s.get("turn", 0.0))
+	var yaw := WallTool.angle(_spot(s, x + cos(t), z + sin(t)) - to)
+	var size := Vector2(s.size[0], s.size[1]) if s.has("size") else WallTool.HOUSE_SIZE
+	tool.begin_house(from, yaw)
+	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
+	var shots: int = s.get("shots", 3) if s.has("capture") else 0
+	var taken := 0
+	for f in frames:
 		await get_tree().process_frame
-		t += get_process_delta_time()
-		var k := minf(t / seconds, 1.0)
-		tool.size_house(a.lerp(to_a, k), b.lerp(to_b, k))
+		var k := float(f + 1) / frames
+		tool.place_house(from.lerp(to, k), yaw, WallTool.HOUSE_SIZE.lerp(size, k))
+		if taken < shots and f + 1 >= frames * (taken + 1) / shots:
+			taken += 1
+			await get_tree().create_timer(0.4).timeout
+			await main.capture("%s-%d" % [s.capture, taken])
 	tool.end_house()
 
 
@@ -446,7 +454,8 @@ func _village(s: Dictionary) -> void:
 				continue
 			k += 1
 			if k % 2 == 0:
-				tool.begin_house(Terrain.ground(c.x - step * 0.35, c.y), Terrain.ground(c.x + step * 0.35, c.y))
+				tool.begin_house(Terrain.ground(c.x, c.y), 0.0)
+				tool.place_house(Terrain.ground(c.x, c.y), 0.0, Vector2(0.7, 0.44) * step)
 				tool.end_house()
 				tool.walls[-1].ivy_age = INF
 			else:

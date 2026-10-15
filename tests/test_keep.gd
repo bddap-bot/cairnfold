@@ -91,7 +91,7 @@ func _a_flat_roof_is_kept() -> void:
 	var path := dir.path_join("garden.save")
 	world.restore({"seq": 0, "cmds": []})
 	await _play([
-		{"op": "house", "a": [3, 1], "b": [7, 1], "seconds": 0.3},
+		{"op": "house", "at": [5, 1], "size": [4, 2.5], "seconds": 0.3},
 		{"op": "tower", "points": [[-6, -4], [-4.5, -6], [-2.5, -5.5], [-2, -3.5], [-3.5, -1.8], [-5.6, -2.2], [-6, -4]], "seconds": 0.6, "hold": 0.8},
 		{"op": "roof", "index": 0, "pitch": 0.2},
 		{"op": "roof", "index": 1, "pitch": 0.0},

@@ -87,6 +87,8 @@ var flags: Array[float] = []
 var ruins: Array[Vector2] = []
 # The fields above are what `build` reads (see `inputs`); those below are what it lays (see `adopt`).
 
+## The points the stones were laid along: `points` may have moved on while a worker lays them.
+var laid_points: Array[Vector3] = []
 var samples: Array[Vector3] = []
 var lengths: Array[float] = []
 var bounds := Rect2()
@@ -139,6 +141,7 @@ func opening(y: float, ring: bool) -> float:
 
 func build(ground: Callable) -> void:
 	resample(ground)
+	laid_points = points.duplicate()
 	_laid_count += 1
 	laid = _laid_count
 	stones.clear()
@@ -871,6 +874,7 @@ func same_inputs(other: WallLayout) -> bool:
 
 ## Takes what `built` laid, as if `build` had run here.
 func adopt(built: WallLayout) -> void:
+	laid_points = built.laid_points
 	samples = built.samples
 	lengths = built.lengths
 	bounds = built.bounds

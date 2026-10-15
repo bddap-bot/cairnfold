@@ -5,7 +5,7 @@
   {"op": "wall", "points": [[-2.6, -3], [1, -2.5], [4, -3.5]], "seconds": 1.5},
   {"op": "arch", "index": 1, "s": 2.4},
   {"op": "wall", "points": [[4, -3.5], [5.5, 1.5], [3.5, 5]], "seconds": 1.5},
-  {"op": "house", "a": [7, -1], "b": [11, 0], "to_a": [7, -2], "to_b": [13, 0], "seconds": 1.5},
+  {"op": "house", "at": [10.0, -1.0], "size": [6.3, 3.9], "turn": 18, "seconds": 1.5},
   {"op": "tree", "x": -10, "z": -6},
   {"op": "paint", "tool": "flowers", "points": [[-6, 4], [-2, 3], [2, 3.5]], "radius": 1.2, "seconds": 1.5},
   {"op": "sun", "time": 0.78, "seconds": 1},
