@@ -27,7 +27,7 @@ var seed: int
 var fence := false
 var plaster := false
 ## The builds the stroke is drawn on top of.
-var supports: Array[Solid] = []
+var supports: Array[Massing] = []
 ## Each stroke point's nearest standing wall, kept while the point stays put: only the newest point moves.
 var _hits: Array[Dictionary] = []
 

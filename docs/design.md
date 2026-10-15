@@ -697,7 +697,7 @@ Directive (verbatim): "Being able to build on buildings and combine buildings to
 whole game. er- Well, it... It's core to the inspiration and it'll really make for a fun game when you can... make
 buildings by combining multiple other buildings together"
 
-Every wall, fence, tower and house is one kind of thing, a build, and two rules make them compose (`Solid`,
+Every wall, fence, tower and house is one kind of thing, a build, and two rules make them compose (`Massing`,
 pure data; tests in `tests/test_build_on.gd`, and through the garden in `tests/test_world.gd`):
 
 - A build stands on what it was aimed at. The ray of a hand holding walls, fences or the house stops at the first top it meets: a wall's top, a

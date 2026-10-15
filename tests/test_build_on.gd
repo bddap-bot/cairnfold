@@ -26,7 +26,7 @@ func _flat(_x: float, _z: float) -> float:
 	return 0.0
 
 
-func _house(a: Vector3, b: Vector3, depth: float, on: Array[Solid] = []) -> Dictionary:
+func _house(a: Vector3, b: Vector3, depth: float, on: Array[Massing] = []) -> Dictionary:
 	var w := WallLayout.new()
 	w.points = WallLayout.rectangle(a, b, depth)
 	w.closed = true
@@ -38,7 +38,7 @@ func _house(a: Vector3, b: Vector3, depth: float, on: Array[Solid] = []) -> Dict
 	var r := RoofLayout.new()
 	r.corners = w.points
 	r.pitch = depth * 0.42
-	return {"wall": w, "roof": r, "solid": Solid.of(w, r)}
+	return {"wall": w, "roof": r, "massing": Massing.of(w, r)}
 
 
 func _lay(h: Dictionary) -> void:
@@ -49,7 +49,7 @@ func _lay(h: Dictionary) -> void:
 	w.hide_roof(h.roof)
 
 
-func _tower(center: Vector3, radius: float, on: Array[Solid] = []) -> Dictionary:
+func _tower(center: Vector3, radius: float, on: Array[Massing] = []) -> Dictionary:
 	var w := WallLayout.new()
 	w.points = WallLayout.circle(center, radius)
 	w.closed = true
@@ -63,7 +63,7 @@ func _tower(center: Vector3, radius: float, on: Array[Solid] = []) -> Dictionary
 	r.center = center
 	r.radius = radius
 	r.pitch = 2.4
-	return {"wall": w, "roof": r, "solid": Solid.of(w, r)}
+	return {"wall": w, "roof": r, "massing": Massing.of(w, r)}
 
 
 func _wall(from: Vector3, to: Vector3) -> WallLayout:
@@ -80,26 +80,26 @@ func _wall(from: Vector3, to: Vector3) -> WallLayout:
 
 func _a_wall_top_holds_what_stands_on_it() -> void:
 	var w := _wall(Vector3(-5, 0, 0), Vector3(5, 0, 0))
-	var s := Solid.of(w, null)
+	var s := Massing.of(w, null)
 	var top := -WallLayout.SINK + w.height + WallLayout.CAP
 	_check(is_equal_approx(s.rest(1.0, 0.2), top), "a wall's top holds at %f, not %f" % [s.rest(1.0, 0.2), top])
 	_check(is_nan(s.rest(1.0, 1.2)), "a metre off its face is not on it")
 	var h := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
-	_check(is_equal_approx(h.solid.rest(3.0, 0.5), -WallLayout.SINK + 2.4 + WallLayout.CAP), "a house's top holds anywhere over it")
-	_check(is_nan(h.solid.rest(3.0, 3.0)), "and nowhere beside it")
+	_check(is_equal_approx(h.massing.rest(3.0, 0.5), -WallLayout.SINK + 2.4 + WallLayout.CAP), "a house's top holds anywhere over it")
+	_check(is_nan(h.massing.rest(3.0, 3.0)), "and nowhere beside it")
 
 
 func _an_upper_storey_stands_on_the_house_and_takes_its_roof() -> void:
 	var lower := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
-	var upper := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0, [lower.solid])
-	var top: float = lower.solid.feet[0] + lower.solid.rise
+	var upper := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0, [lower.massing])
+	var top: float = lower.massing.feet[0] + lower.massing.rise
 	_check(absf(upper.wall.samples[0].y - (top - WallLayout.SINK)) < 0.001, "the storey stands on the house's top (%f, top %f)" % [upper.wall.samples[0].y, top])
-	lower.wall.resting.assign([upper.solid])
+	lower.wall.resting.assign([upper.massing])
 	_lay(lower)
 	_lay(upper)
 	var above: Array = lower.wall.stones.filter(func(s: Dictionary) -> bool: return s.xform.origin.y > top)
 	_check(above.is_empty(), "nothing of the house's own stones pokes up into the storey: %d" % above.size())
-	var covered: Array = lower.roof.tiles.filter(func(t: Dictionary) -> bool: return Solid._in(Vector2(t.xform.origin.x, t.xform.origin.z), upper.solid.inner))
+	var covered: Array = lower.roof.tiles.filter(func(t: Dictionary) -> bool: return Massing._in(Vector2(t.xform.origin.x, t.xform.origin.z), upper.massing.inner))
 	_check(covered.is_empty(), "the house's roof is gone under the storey: %d tiles" % covered.size())
 	_check(lower.roof.gable_faces.is_empty(), "and its gable ends with it")
 	_check(upper.roof.tiles.size() > 200, "the storey keeps its roof: %d tiles" % upper.roof.tiles.size())
@@ -108,13 +108,13 @@ func _an_upper_storey_stands_on_the_house_and_takes_its_roof() -> void:
 
 func _a_tower_on_a_wall_stands_on_its_top_and_takes_its_merlons() -> void:
 	var w := _wall(Vector3(-6, 0, 0), Vector3(6, 0, 0))
-	var ws := Solid.of(w, null)
+	var ws := Massing.of(w, null)
 	var t := _tower(Vector3(0, 0, 0), 1.6, [ws])
 	var top: float = ws.feet[0] + ws.rise
 	_check(absf(t.wall.samples[0].y - (top - WallLayout.SINK)) < 0.01, "the tower stands on the wall's top")
 	var bare := _wall(Vector3(-6, 0, 0), Vector3(6, 0, 0))
 	bare.build(_flat)
-	w.resting.assign([t.solid])
+	w.resting.assign([t.massing])
 	w.build(_flat)
 	var merlons := func(l: WallLayout, near: bool) -> int:
 		return l.stones.filter(func(s: Dictionary) -> bool: return s.kind == "merlon" and (absf(s.xform.origin.x) < 1.2 if near else absf(s.xform.origin.x) > 2.3)).size()
@@ -128,14 +128,14 @@ func _two_houses_joined_are_one_room_under_one_roof() -> void:
 	var b := _house(Vector3(4, 0, -1), Vector3(4, 0, 6), 3.6)
 	var lone := _house(Vector3(0, 0, 0), Vector3(7, 0, 0), 4.0)
 	_lay(lone)
-	a.wall.joined.assign([b.solid])
-	b.wall.joined.assign([a.solid])
+	a.wall.joined.assign([b.massing])
+	b.wall.joined.assign([a.massing])
 	_lay(a)
 	_lay(b)
 	for pair in [[a, b], [b, a]]:
-		var inside: Array = pair[0].wall.stones.filter(func(s: Dictionary) -> bool: return pair[1].solid.holds(s.xform.origin))
+		var inside: Array = pair[0].wall.stones.filter(func(s: Dictionary) -> bool: return pair[1].massing.holds(s.xform.origin))
 		_check(inside.is_empty(), "no wall stands inside the other house: %d stones" % inside.size())
-		var tiles: Array = pair[0].roof.tiles.filter(func(t: Dictionary) -> bool: return pair[1].solid.holds(t.xform.origin))
+		var tiles: Array = pair[0].roof.tiles.filter(func(t: Dictionary) -> bool: return pair[1].massing.holds(t.xform.origin))
 		_check(tiles.is_empty(), "no roof tile lies under the other roof: %d" % tiles.size())
 	_check(a.wall.stones.size() < lone.wall.stones.size() * 0.9, "the shared stretch of wall is gone (%d of %d)" % [a.wall.stones.size(), lone.wall.stones.size()])
 	_check(a.wall.stones.size() > lone.wall.stones.size() * 0.5, "the rest stands")
@@ -148,9 +148,9 @@ func _two_houses_joined_are_one_room_under_one_roof() -> void:
 func _a_wall_into_a_tower_stops_inside_it() -> void:
 	var t := _tower(Vector3(0, 0, 0), 2.0)
 	var w := _wall(Vector3(-8, 0, 0), Vector3(0, 0, 0))
-	w.joined.assign([t.solid])
+	w.joined.assign([t.massing])
 	w.build(_flat)
-	var past: Array = w.stones.filter(func(s: Dictionary) -> bool: return s.xform.origin.x > -2.0 + Solid.SLACK + 0.3)
+	var past: Array = w.stones.filter(func(s: Dictionary) -> bool: return s.xform.origin.x > -2.0 + Massing.SLACK + 0.3)
 	_check(past.is_empty(), "the wall ends at the tower's centre line: %d stones inside" % past.size())
 	var reach: Array = w.stones.filter(func(s: Dictionary) -> bool: return s.xform.origin.x > -2.4)
 	_check(not reach.is_empty(), "and runs into its wall, leaving no gap")
@@ -159,7 +159,7 @@ func _a_wall_into_a_tower_stops_inside_it() -> void:
 func _builds_meeting_nothing_lay_as_before() -> void:
 	var a := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
 	var b := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
-	b.wall.joined.assign([_house(Vector3(20, 0, 0), Vector3(26, 0, 0), 4.0).solid])
+	b.wall.joined.assign([_house(Vector3(20, 0, 0), Vector3(26, 0, 0), 4.0).massing])
 	_lay(a)
 	_lay(b)
 	_check(a.wall.stones.size() == b.wall.stones.size() and a.roof.tiles.size() == b.roof.tiles.size(), "a far build takes nothing away")

@@ -1,4 +1,4 @@
-class_name Solid
+class_name Massing
 extends RefCounted
 
 ## The room a standing build takes up, worked out from its laid ground curve: the top another build stands on,
@@ -33,8 +33,8 @@ var _key := []
 
 
 ## The solid of a resampled layout, with the roof on it if any.
-static func of(layout: WallLayout, cover: RoofLayout) -> Solid:
-	var s := Solid.new()
+static func of(layout: WallLayout, cover: RoofLayout) -> Massing:
+	var s := Massing.new()
 	s.closed = layout.closed
 	s.rise = layout.height + WallLayout.CAP
 	var half := WallLayout.THICKNESS * 0.5
@@ -75,7 +75,7 @@ static func of(layout: WallLayout, cover: RoofLayout) -> Solid:
 
 
 ## Whether `other` takes up the same room.
-func same(other: Solid) -> bool:
+func same(other: Massing) -> bool:
 	return other != null and _key == other._key
 
 

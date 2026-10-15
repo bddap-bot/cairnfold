@@ -90,9 +90,9 @@ var flags: Array[float] = []
 var ruins: Array[Vector2] = []
 ## The builds this one stands on, the builds standing on it and the houses and towers it joins
 ## (docs/design.md, "Buildings on buildings").
-var supports: Array[Solid] = []
-var resting: Array[Solid] = []
-var joined: Array[Solid] = []
+var supports: Array[Massing] = []
+var resting: Array[Massing] = []
+var joined: Array[Massing] = []
 # The fields above are what `build` reads (see `inputs`); those below are what it lays (see `adopt`).
 
 ## The points the stones were laid along: `points` may have moved on while a worker lays them.

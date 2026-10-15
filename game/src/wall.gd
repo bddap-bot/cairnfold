@@ -21,7 +21,7 @@ var roof: RoofLayout
 ## The ids of the builds it stands on; empty on the ground.
 var on := PackedInt32Array()
 ## The room it takes up as last laid, for the builds it meets (WallTool).
-var solid: Solid
+var massing: Massing
 ## Seconds since the wall was finished: how far its ivy has grown.
 var ivy_age := 0.0
 ## Encloses every stone, for pointing.

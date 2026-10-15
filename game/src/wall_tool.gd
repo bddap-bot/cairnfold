@@ -684,7 +684,7 @@ func take(id: int) -> void:
 			m.roofing = null
 	_sound(&"crumble", _top(w, w.layout.length() * 0.5))
 	walls.erase(w)
-	_stir(w, w.solid)
+	_stir(w, w.massing)
 	w.queue_free()
 
 
@@ -771,7 +771,7 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	var ground: Variant = Terrain.raycast(origin, dir)
 	var best := {} if ground == null else {"point": ground, "on": -1, "along": origin.distance_to(ground)}
 	for w in walls:
-		if _held(w) or w.solid == null or w.layout.fence:
+		if _held(w) or w.massing == null or w.layout.fence:
 			continue
 		var t := _top_hit(w, origin, dir)
 		if t < best.get("along", INF):
@@ -782,13 +782,13 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 func _top_hit(w: Wall, origin: Vector3, dir: Vector3) -> float:
 	if w.roof != null and not w.roof.flat():
 		return minf(w.roof.ray_hit(origin, dir), w.roof.gable_hit(origin, dir))
-	var top := w.solid.feet[0] + w.solid.rise
+	var top := w.massing.feet[0] + w.massing.rise
 	if not w.layout.closed:
 		if w.pick_bounds.grow(WALL_PICK).intersects_ray(origin, dir) == null:
 			return INF
 		top = w.layout.point_at(w.ray_distance(origin, dir).s).y + w.layout.height + WallLayout.CAP
 	var hit := _at_level(origin, dir, top)
-	if hit.is_empty() or absf(w.solid.rest(hit.point.x, hit.point.z) - top) > TOP_BAND:
+	if hit.is_empty() or absf(w.massing.rest(hit.point.x, hit.point.z) - top) > TOP_BAND:
 		return INF
 	return origin.distance_to(hit.point)
 
@@ -805,18 +805,18 @@ func _rest_on(st: Stroke, p: Vector3) -> void:
 	for w in walls:
 		if st.on.size() >= Commands.MAX_SUPPORTS:
 			return
-		if w.solid != null and not w.layout.fence and not st.on.has(w.id) and absf(w.solid.rest(p.x, p.z) - st.level) < TOP_BAND:
+		if w.massing != null and not w.layout.fence and not st.on.has(w.id) and absf(w.massing.rest(p.x, p.z) - st.level) < TOP_BAND:
 			st.on.append(w.id)
 			st.plan.supports = _solids(st.on)
 			st.planned = false
 
 
-func _solids(ids: PackedInt32Array) -> Array[Solid]:
-	var out: Array[Solid] = []
+func _solids(ids: PackedInt32Array) -> Array[Massing]:
+	var out: Array[Massing] = []
 	for id in ids:
 		var w := find(id)
-		if w != null and w.solid != null:
-			out.append(w.solid)
+		if w != null and w.massing != null:
+			out.append(w.massing)
 	return out
 
 
@@ -837,22 +837,22 @@ func _below(on: PackedInt32Array) -> Dictionary:
 
 ## The builds `w` meets: those it stands on, those standing on it, and the houses and towers it joins.
 func _meet(w: Wall) -> void:
-	var supports: Array[Solid] = []
-	var resting: Array[Solid] = []
-	var joined: Array[Solid] = []
+	var supports: Array[Massing] = []
+	var resting: Array[Massing] = []
+	var joined: Array[Massing] = []
 	var under := _below(w.on)
 	var rect := _reach(w)
 	for o in walls:
-		if o == w or o.solid == null or not o.solid.rect.intersects(rect):
+		if o == w or o.massing == null or not o.massing.rect.intersects(rect):
 			continue
 		if w.on.has(o.id):
-			supports.append(o.solid)
+			supports.append(o.massing)
 		elif under.has(o.id):
 			continue
 		elif w.id >= 0 and _below(o.on).has(w.id):
-			resting.append(o.solid)
-		elif o.solid.closed:
-			joined.append(o.solid)
+			resting.append(o.massing)
+		elif o.massing.closed:
+			joined.append(o.massing)
 	w.layout.supports = supports
 	w.layout.resting = resting
 	w.layout.joined = joined
@@ -862,35 +862,35 @@ static func _reach(w: Wall) -> Rect2:
 	var r := Rect2(Vector2(w.layout.points[0].x, w.layout.points[0].z), Vector2.ZERO)
 	for p in w.layout.points:
 		r = r.expand(Vector2(p.x, p.z))
-	return r.grow(WallLayout.THICKNESS + Solid.REACH + 0.5)
+	return r.grow(WallLayout.THICKNESS + Massing.REACH + 0.5)
 
 
 ## Takes the room `w` takes up as it now stands; if that changed, every build meeting it, before or after, is laid
 ## again at the end of the frame.
 func _reshaped(w: Wall) -> void:
-	var was := w.solid
-	w.solid = Solid.of(w.layout, w.roof)
-	if not w.solid.same(was):
+	var was := w.massing
+	w.massing = Massing.of(w.layout, w.roof)
+	if not w.massing.same(was):
 		_stir(w, was)
-		_stir(w, w.solid)
+		_stir(w, w.massing)
 
 
-func _stir(w: Wall, s: Solid) -> void:
+func _stir(w: Wall, s: Massing) -> void:
 	if s == null:
 		return
 	for o in walls:
-		if o != w and o.solid != null and o.solid.rect.intersects(s.rect) and _related(w, o):
+		if o != w and o.massing != null and o.massing.rect.intersects(s.rect) and _related(w, o):
 			_due[o.id] = true
 
 
 ## Whether two builds meet: one stands on the other, or one of them is a house or tower they join.
 func _related(a: Wall, b: Wall) -> bool:
-	return a.solid.closed or b.solid.closed or _below(a.on).has(b.id) or _below(b.on).has(a.id)
+	return a.massing.closed or b.massing.closed or _below(a.on).has(b.id) or _below(b.on).has(a.id)
 
 
 func _meets_any(w: Wall) -> bool:
 	for o in walls:
-		if o != w and o.solid != null and w.solid != null and o.solid.rect.intersects(w.solid.rect) and _related(w, o):
+		if o != w and o.massing != null and w.massing != null and o.massing.rect.intersects(w.massing.rect) and _related(w, o):
 			return true
 	return false
 

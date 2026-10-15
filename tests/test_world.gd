@@ -110,6 +110,15 @@ func _foot(id: int) -> float:
 	return main.tool.find(id).layout.samples[0].y
 
 
+## Waits out the frame's ripple and the worker laying the build again.
+func _laid(id: int) -> void:
+	await process_frame
+	for i in 300:
+		await process_frame
+		if not main.tool.find(id).laying():
+			return
+
+
 func _a_storey_follows_what_it_stands_on() -> void:
 	world._order({"op": "wall", "walls": [_house_data(PackedInt32Array())]}, 1)
 	var lower := world.seq * Commands.MAX_PIECES
@@ -118,12 +127,10 @@ func _a_storey_follows_what_it_stands_on() -> void:
 	var top := _foot(lower) + 2.6 + WallLayout.CAP
 	_check(absf(_foot(upper) - (top - WallLayout.SINK)) < 0.01, "the storey stands on the house")
 	world._order({"op": "reshape", "id": lower, "data": {"height": 3.5}}, 1)
-	await process_frame
-	await process_frame
+	await _laid(upper)
 	_check(absf(_foot(upper) - (_foot(lower) + 3.5 + WallLayout.CAP - WallLayout.SINK)) < 0.01, "raising the house lifts the storey")
 	world._order({"op": "unwall", "ids": PackedInt32Array([lower])}, 1)
-	await process_frame
-	await process_frame
+	await _laid(upper)
 	_check(_foot(upper) < top - 1.0, "with the house gone the storey stands on the ground")
 	var snap := world.snapshot()
 	world.restore(snap)
