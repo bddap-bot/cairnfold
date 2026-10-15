@@ -376,13 +376,22 @@ func _erase(s: Dictionary) -> void:
 	var path := _path(s) if s.has("points") else _stretch(main.tool.walls[s.index].layout, s.from, s.to)
 	var up: Vector3 = Vector3.UP * float(s.get("height", 6.0))
 	tool.press(self, path[0] + up, Vector3.DOWN)
+	var length := 0.0
+	for i in path.size() - 1:
+		length += path[i].distance_to(path[i + 1])
 	var secs: float = s.get("seconds", 0.5)
 	var t := 0.0
-	while t < secs:
-		tool.hold(self, _along(path, t / secs) + up, Vector3.DOWN)
-		await get_tree().process_frame
-		t += get_process_delta_time()
-	tool.hold(self, path[-1] + up, Vector3.DOWN)
+	for i in path.size() - 1:
+		var duration := secs * path[i].distance_to(path[i + 1]) / maxf(length, 0.001)
+		while t < duration:
+			var point := path[i].lerp(path[i + 1], t / duration)
+			point.y = Terrain.height_at(point.x, point.z)
+			tool.hold(self, point + up, Vector3.DOWN)
+			await get_tree().process_frame
+			t += get_process_delta_time()
+		# A late frame must not skip a turn in the scripted gesture.
+		tool.hold(self, path[i + 1] + up, Vector3.DOWN)
+		t -= duration
 	tool.let_go(self)
 	await get_tree().process_frame
 

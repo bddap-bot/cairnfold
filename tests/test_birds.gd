@@ -147,6 +147,11 @@ func _teardown(g: Glade) -> void:
 
 ## Runs until a flock has come and every bird of it perches, or `seconds` have passed.
 func _until_perched(g: Glade, seconds: float) -> void:
+	var deadline := Time.get_ticks_msec() + 10000
+	for w in g.tool.walls:
+		while (w.laying() or w.perches().is_empty()) and Time.get_ticks_msec() < deadline:
+			await process_frame
+		_check(not w.laying() and not w.perches().is_empty(), "wall perches are ready before advancing bird time")
 	for i in int(seconds / STEP):
 		g.wildlife.tick(STEP)
 		if g.birds().size() >= Birds.FLOCK.x and g.birds().all(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH):
@@ -284,8 +289,15 @@ func _a_perch_taken_away_sends_them_elsewhere() -> void:
 	var g := await _glade(5)
 	g.wildlife.ducks_came = true
 	var first := _draw_wall(g.tool, Vector3(0, 0, -7), Vector3(5, 0, -8))
-	await process_frame
-	_until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
+	# Keep perch work pending until the test yields, independent of machine speed.
+	var ready := Semaphore.new()
+	var out := {"laid": first.layout.laid}
+	first._perch_out = out
+	first._perch_task = WorkerThreadPool.add_task(func():
+		ready.wait()
+		out.points = first.layout.perches())
+	ready.post.call_deferred()
+	await _until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
 	_check(g.birds().size() >= Birds.FLOCK.x and g.birds().all(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH), "conures perch on the only wall")
 	var second := _draw_wall(g.tool, Vector3(-9, 0, -6), Vector3(-4, 0, -8))
 	await process_frame
@@ -356,7 +368,7 @@ func _a_reshape_carries_them_with_their_perch() -> void:
 	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": Terrain.ground(-2.5, -9)})
 	_draw_wall(g.tool, Vector3(0, 0, -7), Vector3(5, 0, -8))
 	await process_frame
-	_until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
+	await _until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
 	_check(g.birds().any(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH), "conures perch")
 	g.terrain.begin(Terrain.ground(1, -8), 8.0)
 	g.terrain.pull(1.5)
