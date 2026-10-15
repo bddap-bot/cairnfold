@@ -88,6 +88,7 @@ func _process(delta: float) -> void:
 	var scale := ladder[-1].scaling_3d if _xr != null and _warm < WARMUP * 0.5 else at.scaling_3d
 	if not is_equal_approx(view.scaling_3d_scale, scale):
 		view.scaling_3d_scale = scale
+		print("quality: 3D resolution %.2f" % scale)
 	_settled = _flora.approach(at, delta)
 
 
