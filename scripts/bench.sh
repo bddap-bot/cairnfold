@@ -221,6 +221,12 @@ fi
 python3 - "$out" "$device" <<'PY'
 import json, os, re, sys
 out, device = sys.argv[1], sys.argv[2]
+for name in ["logcat.txt", "godot.log"]:
+    path = os.path.join(out, name)
+    if os.path.exists(path):
+        with open(path, errors="replace") as log:
+            if any("When supplying a custom region, it must be contained within the framebuffer rectangle" in line for line in log):
+                sys.exit(f"bench: invalid framebuffer region; rendering failed, see {name}")
 d = json.load(open(os.path.join(out, "metrics.json")))
 budget = d["info"]["budget"]
 phases = {}
