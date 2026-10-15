@@ -1570,5 +1570,8 @@ null. Runtime dropped/reprojected counts are unavailable through this recorder;
 `late` is an application-cadence estimate, not a runtime dropped-frame counter.
 Context includes category counts, settled masonry instance counts, tools and
 visit/player state. `logging_us` measures the previous second's sampling and
-local-write work, excluding per-frame sample collection. Explicit `--metrics`
+worker submission work, excluding per-frame sample collection. Disk writes run
+on the engine worker pool, with at most one pending sample; a slow write skips
+samples instead of delaying a frame. `writer_us` measures the previous write
+and `skipped_log_samples` records any skipped samples. Explicit `--metrics`
 benchmark output remains available separately.

@@ -10,6 +10,9 @@ var metadata: Dictionary
 var _file: FileAccess
 var _part := 0
 var _ended := false
+var _task := -1
+var _skipped := 0
+var _write_us := 0
 
 
 static func enabled(args: Dictionary) -> bool:
@@ -62,6 +65,25 @@ func _open() -> void:
 
 
 func sample(row: Dictionary) -> void:
+	if _task != -1 and not WorkerThreadPool.is_task_completed(_task):
+		_skipped += 1
+		return
+	_join()
+	var snapshot := row.duplicate(true)
+	snapshot.skipped_log_samples = _skipped
+	snapshot.writer_us = _write_us
+	_skipped = 0
+	_task = WorkerThreadPool.add_task(_write.bind(snapshot))
+
+
+func _join() -> void:
+	if _task != -1:
+		WorkerThreadPool.wait_for_task_completion(_task)
+		_task = -1
+
+
+func _write(row: Dictionary) -> void:
+	var begin := Time.get_ticks_usec()
 	if _file == null or _ended:
 		return
 	var line := JSON.stringify(row.merged({"event": "frame", "session": session_id}))
@@ -78,8 +100,11 @@ func sample(row: Dictionary) -> void:
 		latest.close()
 		DirAccess.rename_absolute(directory.path_join("latest.new"), directory.path_join("latest.json"))
 
+	_write_us = Time.get_ticks_usec() - begin
+
 
 func finish() -> void:
+	_join()
 	if _ended:
 		return
 	_ended = true

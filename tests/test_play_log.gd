@@ -16,8 +16,10 @@ func _initialize() -> void:
 	var logger := PlayLog.new(folder)
 	for i in 20:
 		logger.sample({"unix": float(i), "head_position": [1, 2, 3], "view_direction": [0, 0, -1]})
+		logger._join()
 		logger._open()
 	logger.sample({"unix": 21.0, "padding": "x".repeat(600000)})
+	logger._join()
 	logger.sample({"unix": 21.0, "padding": "x".repeat(600000)})
 	logger.finish()
 	var files := DirAccess.get_files_at(folder)
