@@ -207,8 +207,8 @@ func _tower(s: Dictionary) -> void:
 
 
 ## The house tool's carry: a square house taken up at `from` (default `at`) and set down at `at`, `size`
-## [along, across], its front turned `turn` degrees from the x axis (the head's right with "relative"), moving there
-## over `seconds`. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
+## [along, across], its front turned `turn` degrees from the x axis (the head's right with "relative"), from
+## `turn_from` (default `turn`), moving there over `seconds`. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	_holding(s, Hand.Tool.HOUSE)
@@ -216,22 +216,27 @@ func _house(s: Dictionary) -> void:
 	var z: float = s.at[1]
 	var to := _spot(s, x, z)
 	var from := _spot(s, s.from[0], s.from[1]) if s.has("from") else to
-	var t := deg_to_rad(s.get("turn", 0.0))
-	var yaw := WallTool.angle(_spot(s, x + cos(t), z + sin(t)) - to)
+	var yaw := _turn(s, x, z, s.get("turn", 0.0))
+	var yaw_from := _turn(s, x, z, s.get("turn_from", s.get("turn", 0.0)))
 	var size := Vector2(s.size[0], s.size[1]) if s.has("size") else WallTool.HOUSE_SIZE
-	tool.begin_house(from, yaw)
+	tool.begin_house(from, yaw_from)
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
 	var shots: int = s.get("shots", 3) if s.has("capture") else 0
 	var taken := 0
 	for f in frames:
 		await get_tree().process_frame
 		var k := float(f + 1) / frames
-		tool.place_house(from.lerp(to, k), yaw, WallTool.HOUSE_SIZE.lerp(size, k))
+		tool.place_house(from.lerp(to, k), lerp_angle(yaw_from, yaw, k), WallTool.HOUSE_SIZE.lerp(size, k))
 		if taken < shots and f + 1 >= frames * (taken + 1) / shots:
 			taken += 1
 			await get_tree().create_timer(0.4).timeout
 			await main.capture("%s-%d" % [s.capture, taken])
 	tool.end_house()
+
+
+func _turn(s: Dictionary, x: float, z: float, degrees: float) -> float:
+	var t := deg_to_rad(degrees)
+	return WallTool.angle(_spot(s, x + cos(t), z + sin(t)) - _spot(s, x, z))
 
 
 func _roof(s: Dictionary) -> void:
