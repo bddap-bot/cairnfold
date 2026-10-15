@@ -26,7 +26,7 @@ func _screen_shows(tool: PhotoTool) -> bool:
 
 
 func _the_screen_shows_the_lens_while_a_hand_holds_the_camera() -> void:
-	_check(Hand.MENU.has(Hand.Tool.CAMERA), "the camera is in the ring")
+	_check(ToolWheel.paths(Hand.TREE).has(Hand.Tool.CAMERA), "the camera is on the wheel")
 	var rig := Rig.new()
 	root.add_child(rig)
 	var tool := PhotoTool.new(rig)
@@ -48,7 +48,7 @@ func _the_screen_shows_the_lens_while_a_hand_holds_the_camera() -> void:
 	rig.right.tool = Hand.Tool.WALLS
 	rig.left.picking = true
 	await process_frame
-	_check(tool.holders().is_empty() and ToolModels.camera_screen().albedo_texture == null, "the screen goes dark while the hand holding it picks from its ring")
+	_check(tool.holders().is_empty() and ToolModels.camera_screen().albedo_texture == null, "the screen goes dark while the hand holding it picks from its wheel")
 	rig.left.picking = false
 	await process_frame
 	_check(_screen_shows(tool), "and shows the view again after")

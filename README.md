@@ -13,7 +13,10 @@ build order.
 Each hand holds a tool, shown as a small object on top of its controller: walls,
 paths, flowers, grass, trees, terrain, pond, colour, camera, delete or visit.
 
-- Hold a stick's click, push toward a tool in the ring, let go: that hand takes it.
+- Hold B (right) or View (left), and a wheel of tools stands up in front of that
+  hand: sweep the hand onto a tool and let go to take it. A slot showing a little
+  cluster opens more tools on its far side: swing back onto one. Picks zig-zag
+  left and right, the same motion every time.
 - Trigger: use the tool. Draw a wall, lay a path, paint, plant a tree, grab the
   ground and lift or lower the hand to pull a hill or press a hollow, dig a pond
   (hold to dig deeper, release to fill), or erase: hold it on a wall and sweep
@@ -46,7 +49,7 @@ paths, flowers, grass, trees, terrain, pond, colour, camera, delete or visit.
 - Your garden is saved after every edit and is back when the game starts again.
 
 On Quest Touch controllers, which have no D-pad: left X undoes, left Y redoes,
-right A cuts arches.
+right A cuts arches, and the wheels open on right B and left ≡.
 
 ## Running
 

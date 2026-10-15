@@ -6,6 +6,8 @@ const GRASS_RADIUS := 36.0
 const FLOWERS := 3200
 const TREES := 46
 const BUSHES := 60
+## The terrain shader's ground colours.
+const GROUND := {&"meadow_dry": Color(0.56, 0.62, 0.22), &"meadow_lush": Color(0.22, 0.46, 0.12), &"earth": Color(0.45, 0.38, 0.27), &"rock": Color(0.64, 0.6, 0.53)}
 
 var flora: Flora
 
@@ -26,6 +28,8 @@ func _ground() -> void:
 	mat.shader = load("res://src/terrain.gdshader")
 	mat.set_shader_parameter("detail", Look.detail_noise())
 	mat.set_shader_parameter("flagstones", Look.flagstones())
+	for k in GROUND:
+		mat.set_shader_parameter(k, GROUND[k])
 	var mi := MeshInstance3D.new()
 	mi.mesh = Terrain.build_mesh()
 	mi.custom_aabb = Terrain.bounds()

@@ -4,7 +4,7 @@ extends Node
 ## Plays a JSON list of steps through the same rig and tool entry points the controllers use.
 
 ## The Steam Frame's buttons as SteamVR delivers them to a game bound through the Touch or Index
-## profiles (its frame_controller remapping): B, X and Y all arrive as right-hand B.
+## profiles (its frame_controller remapping): B, X and Y all arrive as right-hand B, View as left menu.
 const FRAME_BUTTONS := {
 	"A": ["right_hand", "ax_button"],
 	"B": ["right_hand", "by_button"],
@@ -16,6 +16,7 @@ const FRAME_BUTTONS := {
 	"dpad_right": ["left_hand", "by_button"],
 	"left_stick_click": ["left_hand", "primary_click"],
 	"right_stick_click": ["right_hand", "primary_click"],
+	"view": ["left_hand", "menu_button"],
 }
 
 signal finished
@@ -61,24 +62,44 @@ func _press(s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
-## Takes a tool from a hand's ring as a player does: hold the stick click, push toward the tool, let go.
-## "capture" saves a view while the ring is open, "popping" one the frame after the pick.
+## Takes a tool from a hand's wheel as a player does: hold the wheel button, sweep the hand through each
+## level of the tool's path, let go. An untracked hand is moved itself; a tracked one sweeps by injected
+## reach. "capture" saves a view at the opening and at each level reached, as "<capture>-<level>",
+## "popping" one the frame after the pick.
 func _pick(s: Dictionary) -> void:
 	var hand: Hand = _hand(s)
-	var key := "%s/primary_click" % hand.tracker
+	var key := "%s/%s" % [hand.tracker, Hand.WHEEL_BUTTON[hand.tracker]]
+	var path: Array[int] = ToolWheel.paths(Hand.TREE)[Hand.Tool[s.tool.to_upper()]]
+	var start := hand.global_position
+	var reach := func(p: Vector2) -> void:
+		if hand.get_has_tracking_data():
+			Hand.injected_reach[hand.tracker] = p
+		else:
+			hand.global_position = hand.wheel_frame() * Vector3(p.x, p.y, 0)
 	Buttons.injected[key] = true
 	await _frames(3)
-	var i := Hand.MENU.find(Hand.Tool[s.tool.to_upper()])
-	Hand.injected_sticks[hand.tracker] = Hand.ring_dir(i)
-	await _frames(3)
 	if s.has("capture"):
-		await main.capture(s.capture)
+		await _frames(6)
+		await main.capture("%s-0" % s.capture)
+	var from := Vector2.ZERO
+	var level := 0
+	for to in ToolWheel.sweep(Hand.TREE, path):
+		level += 1
+		for f in 6:
+			reach.call(from.lerp(to, (f + 1) / 6.0))
+			await _frames(1)
+		from = to
+		if s.has("capture"):
+			await _frames(6)
+			await main.capture("%s-%d" % [s.capture, level])
 	Buttons.injected.erase(key)
 	await _frames(1)
 	if s.has("popping"):
 		await main.capture(s.popping)
 	await _frames(1)
-	Hand.injected_sticks.erase(hand.tracker)
+	Hand.injected_reach.erase(hand.tracker)
+	if not hand.get_has_tracking_data():
+		hand.global_position = start
 	await _frames(2)
 
 

@@ -151,43 +151,63 @@ static func _figure(root: Node3D) -> void:
 	a.stand.call_deferred()
 
 
-## A disc of meadow paved over half with flat, lumpy slabs.
+## A disc of stone ground as the stone tool lays it: the terrain's own flagstones and colours, fraying
+## toward the rim into meadow as scattered slabs.
 static func _flagstones(root: Node3D) -> void:
 	var turf := CylinderMesh.new()
 	turf.top_radius = 0.026
 	turf.bottom_radius = 0.024
 	turf.height = 0.004
-	turf.radial_segments = 20
+	turf.radial_segments = 24
 	turf.rings = 1
-	var mi := MeshInstance3D.new()
-	mi.mesh = turf
-	mi.position = Vector3(0, 0.002, 0)
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(mi)
-	var slab: StandardMaterial3D = _mats.get("slab")
-	if slab == null:
-		var turf_mat := StandardMaterial3D.new()
-		turf_mat.albedo_color = Color(0.3, 0.52, 0.14)
-		turf_mat.roughness = 1.0
-		_mats["turf"] = turf_mat
-		slab = StandardMaterial3D.new()
-		slab.albedo_color = Color(0.62, 0.59, 0.54)
-		slab.roughness = 0.95
-		_mats["slab"] = slab
-	mi.material_override = _mats["turf"]
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 6
-	for k in 6:
-		var a := TAU * k / 6.0 + rng.randf_range(-0.2, 0.2)
-		var r := 0.0 if k == 0 else 0.014
-		var s := MeshInstance3D.new()
-		s.mesh = Meshes.rounded_box(0.3, 2, 40 + k)
-		s.position = Vector3(cos(a) * r, 0.0048, sin(a) * r)
-		s.rotation.y = rng.randf() * TAU
-		s.scale = Vector3(0.011, 0.0018, 0.009) * rng.randf_range(0.85, 1.1)
-		s.material_override = slab
-		s.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(s)
+	var face := PlaneMesh.new()
+	face.size = Vector2(0.052, 0.052)
+	var mat: StandardMaterial3D = _mats.get("stone_ground")
+	if mat == null:
+		mat = StandardMaterial3D.new()
+		mat.albedo_texture = ImageTexture.create_from_image(_stone_ground_image())
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
+		mat.roughness = 1.0
+		_mats["stone_ground"] = mat
+		var side := StandardMaterial3D.new()
+		side.albedo_color = Meadow.GROUND[&"earth"]
+		side.roughness = 1.0
+		_mats["stone_ground_side"] = side
+	for part in [[turf, Vector3(0, 0.002, 0), _mats["stone_ground_side"]], [face, Vector3(0, 0.0041, 0), mat]]:
+		var mi := MeshInstance3D.new()
+		mi.mesh = part[0]
+		mi.position = part[1]
+		mi.material_override = part[2]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(mi)
+
+
+## The terrain shader's stone-ground colouring (terrain.gdshader), baked once over a disc of flagstones.
+static func _stone_ground_image() -> Image:
+	const SIZE := 96
+	const SPAN := 0.35
+	var slabs := Look.flagstones().get_image()
+	slabs.clear_mipmaps()
+	var rock: Color = Meadow.GROUND[&"rock"]
+	var lush: Color = Meadow.GROUND[&"meadow_lush"]
+	var meadow: Color = Meadow.GROUND[&"meadow_dry"].lerp(lush, 0.5)
+	var joint: Color = Meadow.GROUND[&"earth"].lerp(lush, 0.35) * 0.8
+	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
+	for y in SIZE:
+		for x in SIZE:
+			var r := Vector2(x + 0.5, y + 0.5).distance_to(Vector2(SIZE, SIZE) * 0.5) / (SIZE * 0.5)
+			if r > 1.0:
+				img.set_pixel(x, y, Color(0, 0, 0, 0))
+				continue
+			var slab := slabs.get_pixel(int(x * SPAN * slabs.get_width() / SIZE), int(y * SPAN * slabs.get_height() / SIZE))
+			var stony := 1.0 - smoothstep(0.5, 1.0, r)
+			var lit := rock * (0.8 + slab.g * 0.28) * lerpf(0.8, 1.04, smoothstep(0.03, 0.25, slab.r))
+			var threshold := 0.12 + slab.g * 0.7
+			var laid := smoothstep(threshold - 0.04, threshold + 0.04, stony) * smoothstep(0.02, 0.06, slab.r)
+			var c := meadow.lerp(joint, smoothstep(0.4, 0.95, stony)).lerp(lit, laid)
+			c.a = 1.0
+			img.set_pixel(x, y, c)
+	return img
 
 
 ## A pond in small: a sandy dish holding a disc of glinting water inside a line of foam, pebbles on its bank.

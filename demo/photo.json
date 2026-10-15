@@ -5,7 +5,7 @@
   {"op": "tree", "x": 5, "z": -4},
   {"op": "view", "eye": [0, 1.6, 4], "at": [0, 0.8, -3]},
   {"op": "label", "name": "camera"},
-  {"op": "pick", "hand": "right", "tool": "camera", "capture": "00-ring"},
+  {"op": "pick", "hand": "right", "tool": "camera", "capture": "00-wheel"},
   {"op": "hands", "right": [0.0, -0.12, -0.32], "tip": 0},
   {"op": "wait", "seconds": 1},
   {"op": "capture", "name": "01-viewfinder"},

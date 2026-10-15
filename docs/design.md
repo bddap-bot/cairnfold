@@ -700,23 +700,51 @@ Each hand holds one tool, any tool in either hand, so the two can be dual-wielde
 windows, decorations, paths, stone, flowers, grass, trees, terrain, ponds, colour, camera, delete and visit. The tool a hand
 holds stands on top of its controller as a small object, built from the same generators as the full-size
 thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
-flag with lanterns on it, a bend of paving, a disc of turf half
-paved with slabs, three flowers, a grass tuft, a tree, a mound, a pond in a
+flag with lanterns on it, a bend of paving, a disc of stone ground
+fraying into meadow, three flowers, a grass tuft, a tree, a mound, a pond in a
 sandy dish, a painter's palette with dabs of colour, a small camera, a spade for delete, and a little avatar
 figure for visit. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
 rounded body is unchanged, and there is no text anywhere.
 
 One value per hand, `Hand.tool`, is what the input code dispatches on and what the object on top and
-the ring show, so they cannot disagree. The hands start as walls in the right and flowers in the left.
+the wheel show, so they cannot disagree. The hands start as walls in the right and flowers in the left.
 
-Directive: per hand, clicking the thumbstick opens a small ring of the tool objects around that
-controller; push toward one and release to pick it. Each hand's ring sets that hand's tool.
+Directive (verbatim): "In Half-Life: Alyx, you hold a button down, and then you move your controller
+around a wheel to select an item. Uh, the button to be held down should not be the thumbstick, because
+that's kind of hard to click. … And there should be eight items on the wheel. … And then that opens up
+Um, either item, or it opens up the subtree. Now the subtree, has another four options."
 
-Hold the stick click and the ring opens around that controller; move the stick toward a tool, and it
-grows; let go of the click to take it. Letting go without a push keeps the tool held. The ring's
-contents are a tree (`Hand.MENU`) with one level today. When it grows crowded it becomes multi-step:
-move to a category, the category opens, move on to the item within it.
+Directive (verbatim): "I think it'll be a fun motion if the controller goes left and right, then left
+and right. And so it- then the user will learn those combinations."
+
+Hold a hand's wheel button and a wheel of eight icons stands upright where that hand is, facing the
+head (`Hand.TREE`, `ToolWheel`). Sweeping the hand toward a slot makes it hot, and it grows; letting
+go of the button takes the hot tool, and letting go with nothing hot keeps the tool held. A slot is a
+tool or a subtree, drawn as its tools in miniature; every icon is tipped toward the eye, as a
+controller's top is seen, on a pale disc. Each icon is a miniature of what its tool makes: stone ground's
+is baked from the terrain shader's own flagstones and colours, fraying into meadow at the rim. Reaching a
+subtree hides the rest of the wheel and opens its three or four tools in a column beside it, on the side
+away from the swing that reached it, so a deep pick zig-zags: right onto planting, left onto trees.
+Subtrees sit only on slots reached by a sideways swing, and the slots never move, so each tool is one
+learnable motion:
+
+| Slot | Holds |
+| --- | --- |
+| Top | Colour |
+| Upper right | Camera |
+| Right | Flowers, grass, trees, ponds |
+| Lower right | Visit |
+| Bottom | Delete |
+| Lower left | Paths, stone, terrain |
+| Left | Walls, fences, windows, decorations |
+| Upper left | Empty, kept for the house tool |
+
+The wheel buttons are ones nothing else takes on either controller: right B (the Frame's B, X and Y)
+and left menu (the Frame's View button). Choices made where the directive left room, for a playtest
+to revisit: the wheel is a flat disc standing vertical in front of the hand, 12 cm to a slot, like
+Alyx's; selection is on release, as in Alyx; a subtree opens on reaching its icon; backing out of a
+subtree means letting go and opening the wheel again.
 
 Directive (verbatim): "I think making teleport its own item was- was a mistake for me. And I think we can get rid of it, and keep the- the old teleport"
 
@@ -727,7 +755,7 @@ choice of tools leaves you unable to move, and aiming at the ground is how you c
 
 | Action | Control |
 | --- | --- |
-| Pick a hand's tool | Hold that stick's click, push toward a tool in the ring, let go of the click |
+| Pick a hand's tool | Hold that hand's wheel button (right B, left View), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
 | Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it meets the ground; release to go |
 | Teleport into the air | Aim above the horizon: with no ground within reach (10 m to start), the ray targets the point in the air at its end, a ring on a pole down to the ground below. The other hand's stick up or down while aiming moves that point farther or nearer (2–40 m). Release to arrive, slightly high, then settle gently into a hover with a slow bob |
 | Come back down | Aim the teleport ray at the ground |
@@ -760,9 +788,9 @@ Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
 a D-pad on the left. Godot 4.5 has no Frame interaction profile, so the game binds
 the Touch and Index profiles and SteamVR remaps them: B, X and Y arrive as one
 button (Touch right B), D-pad down as Touch left X, and the other D-pad directions
-as Touch left Y. B, X and Y do nothing for now. The table lives in
+as Touch left Y, View as Touch left menu. B, X and Y open the right hand's wheel and View the left's. The table lives in
 `Driver.FRAME_BUTTONS`, and `tests/test_controls.gd` presses every button with walls
-built, picks every tool from each ring, and walks the history back and forth. On Quest the
+built, picks every tool from the wheels, and walks the history back and forth. On Quest the
 same Touch bindings arrive unremapped: left X undoes and left Y redoes.
 
 Floating turns the meadow into a diorama: drawing works from any height because
@@ -790,7 +818,7 @@ the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
 
 Directive (verbatim): "Definitely gonna need pretty water"
 
-The pond tool sits in each hand's ring as a small sandy dish of water. Holding its trigger scoops a
+The pond tool sits on each hand's wheel as a small sandy dish of water. Holding its trigger scoops a
 hollow where it points (the terrain tool's stroke, pulled down), deeper the longer it is held, from
 0.45 m for a tap to 1.3 m. On release the hollow fills; undo fills the hollow back in. Water is not
 placed: each dig leaves a seed, and after every settled ground edit the basin around each seed
@@ -986,7 +1014,7 @@ squares a pond reaches (`Water.crosses`).
 
 ## Photos
 
-The camera is a tool in the ring (`PhotoTool`). Held, a small camera stands on the controller with
+The camera is a tool on the wheel (`PhotoTool`). Held, a small camera stands on the controller with
 its lens along the aim and a screen on its back toward the eye, showing what the lens sees. The
 lens keeps the horizon level however the wrist rolls, so photos never come out tilted; pointed
 straight up or down, the top of the controller is up. The trigger takes a photo
@@ -1018,7 +1046,7 @@ walls in each top style, and shapes the roofs; `demo/paths.json` lays paths thro
 arcade), draws a wall across a wide path and raises the ground under a path; `demo/fittings.json` opens windows
 and doors in a wall, a house and a tower, hangs lanterns, flies flags, builds a chimney and draws a fence a
 path crosses; `demo/stone.json` paints stone ground into the meadow, paints part of it back and
-walks the history; `demo/photo.json` takes the camera from the ring and takes two photos; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
+walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete; `demo/photo.json` takes the camera from the wheel and takes two photos; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks
 at a perched one from in front and from the side;
 `demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar (`--seed 40` puts sheep in the close views);

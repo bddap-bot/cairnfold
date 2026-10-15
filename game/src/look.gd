@@ -28,6 +28,7 @@ const FOG_BEGIN := 18.0
 const FOG_END := 140.0
 
 static var _detail: NoiseTexture2D
+static var _flagstones: ImageTexture
 
 var sun: DirectionalLight3D
 var env: Environment
@@ -59,6 +60,8 @@ static func detail_noise() -> NoiseTexture2D:
 ## Flagstones for stone ground, tiling: red rises from 0 along the joints between slabs, green is each
 ## slab's own value.
 static func flagstones() -> ImageTexture:
+	if _flagstones != null:
+		return _flagstones
 	var seams := _cells(FastNoiseLite.RETURN_DISTANCE2_SUB).get_data()
 	var cells := _cells(FastNoiseLite.RETURN_CELL_VALUE).get_data()
 	var rg := PackedByteArray()
@@ -68,7 +71,8 @@ static func flagstones() -> ImageTexture:
 		rg[i * 2 + 1] = cells[i]
 	var img := Image.create_from_data(FLAGSTONE_TEXELS, FLAGSTONE_TEXELS, false, Image.FORMAT_RG8, rg)
 	img.generate_mipmaps()
-	return ImageTexture.create_from_image(img)
+	_flagstones = ImageTexture.create_from_image(img)
+	return _flagstones
 
 
 static func _cells(returns: FastNoiseLite.CellularReturnType) -> Image:

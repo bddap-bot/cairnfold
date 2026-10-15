@@ -12,7 +12,7 @@
   {"op": "pick", "hand": "right", "tool": "camera"},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "03-camera-delete"},
-  {"op": "pick", "hand": "right", "tool": "walls", "capture": "04-ring-open", "popping": "05-mid-transition"},
+  {"op": "pick", "hand": "right", "tool": "walls", "capture": "04-wheel-open", "popping": "05-mid-transition"},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "06-walls-delete"},
   {"op": "pick", "hand": "left", "tool": "path"},
@@ -25,7 +25,7 @@
   {"op": "pick", "hand": "right", "tool": "fence"},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "09-fence-windows"},
-  {"op": "pick", "hand": "left", "tool": "decorations", "capture": "10-ring-open-left"},
+  {"op": "pick", "hand": "left", "tool": "decorations", "capture": "10-wheel-open-left"},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "11-fence-decor"},
   {"op": "quit"}

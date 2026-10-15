@@ -72,7 +72,7 @@ func _air_reach_stops_at_nearer_ground(rig: Rig) -> void:
 
 func _no_teleport_tool() -> void:
 	_check(not Hand.Tool.has("TELEPORT"), "teleport is not a tool")
-	_check(Hand.MENU.size() == Hand.Tool.size(), "the ring holds every tool and nothing else")
+	_check(ToolWheel.paths(Hand.TREE).size() == Hand.Tool.size(), "the wheel holds every tool and nothing else")
 
 
 ## Through real frames, as a player: the rig's own _process reads the stick.

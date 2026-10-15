@@ -9,10 +9,11 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 uniform sampler2D flagstones : filter_linear_mipmap, repeat_enable;
 uniform float flagstone_scale = 0.17;
-uniform vec3 meadow_dry : source_color = vec3(0.56, 0.62, 0.22);
-uniform vec3 meadow_lush : source_color = vec3(0.22, 0.46, 0.12);
-uniform vec3 earth : source_color = vec3(0.45, 0.38, 0.27);
-uniform vec3 rock : source_color = vec3(0.64, 0.60, 0.53);
+// Set from Meadow.GROUND, which the stone tool's icon shares.
+uniform vec3 meadow_dry : source_color;
+uniform vec3 meadow_lush : source_color;
+uniform vec3 earth : source_color;
+uniform vec3 rock : source_color;
 uniform vec3 trodden : source_color = vec3(0.52, 0.45, 0.33);
 uniform vec3 bed : source_color = vec3(0.50, 0.44, 0.32);
 

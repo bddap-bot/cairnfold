@@ -4,7 +4,7 @@
   {"op": "view", "eye": [0, 1.65, 12], "at": [0, 0.75, 11.45]},
   {"op": "hands", "left": [-0.075, -0.02, -0.3], "right": [0.075, -0.02, -0.3], "tip": 20},
   {"op": "wait", "seconds": 1},
-  {"op": "pick", "hand": "right", "tool": "terrain", "capture": "01-ring-terrain"},
+  {"op": "pick", "hand": "right", "tool": "terrain", "capture": "01-wheel-terrain"},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "02-terrain-in-hand"},
   {"op": "wall", "points": [[-7, -2], [-3, -4], [2, -4.5], [7, -2.5]], "seconds": 2},
