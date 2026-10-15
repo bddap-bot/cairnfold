@@ -17,7 +17,8 @@ func _initialize() -> void:
 	for i in 20:
 		logger.sample({"unix": float(i), "head_position": [1, 2, 3], "view_direction": [0, 0, -1]})
 		logger._open()
-	logger.sample({"unix": 21.0})
+	logger.sample({"unix": 21.0, "padding": "x".repeat(600000)})
+	logger.sample({"unix": 21.0, "padding": "x".repeat(600000)})
 	logger.finish()
 	var files := DirAccess.get_files_at(folder)
 	check(files.size() == PlayLog.MAX_FILES + 1, "ring retains sixteen chunks and latest")

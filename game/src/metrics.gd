@@ -46,6 +46,8 @@ func _init(out: String) -> void:
 
 
 func _process(delta: float) -> void:
+	if play_log == null and path.is_empty():
+		return
 	_deltas.append(delta * 1000.0)
 	_cpu.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 	var late := is_late(delta * 1000.0)
