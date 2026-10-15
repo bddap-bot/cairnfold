@@ -196,4 +196,30 @@ run per player count, and the scene itself differs between runs by up to 8% in
 primitives (the village from the ground: 2.73 M, 2.96 M and 2.78 M), so the avatars'
 own cost is not separated from the scene's differences.
 
-The Quest 2 run of the same ladder is the budget check (`bench.sh OUT --android APK`).
+On the Quest 2 (`bench.sh OUT --android APK`, in the headset with its clocks held at
+level 4), the game's GPU milliseconds per frame, taken from the runtime's own per-frame
+reading:
+
+| Phase | 1 player | 2 players | 4 players |
+| --- | --- | --- | --- |
+| Meadow, from the air | 27.93 | 27.89 | 28.16 |
+| Meadow, standing | 23.06 | 23.13 | 23.54 |
+| Every flora pool full, standing | 35.04 | 35.34 | 36.96 |
+| Walls on a 25 m disc, from the air | 48.77 | 52.48 | 52.91 |
+| Village, from the air | 51.14 | 51.20 | 50.15 |
+| Village, standing | 36.76 | 40.15 | 40.48 |
+| Hills, standing | 46.08 | 46.21 | 45.16 |
+
+Across the 34 phases, the median change is +0.31 ms with 2 players and +0.43 ms with 4.
+The cleanest reading is the bare meadow standing, where 3 other players add 0.48 ms,
+about 0.16 ms each. Single phases swing by up to 5 ms either way between runs, which is
+more than the players add.
+
+In these runs every phase is over the 12.5 ms budget, the bare meadow included, at about
+twice the cost an earlier run on the same headset measured for the same phases. The
+budget verdict therefore belongs to the stress scene and the headset's state on the day,
+not to co-op, which costs a fraction of a millisecond per player against it.
+
+The Quest build must hold the network permission: without it the game opens no socket,
+hosts nothing, and no one can join. `scripts/android.sh` refuses an APK whose manifest
+lacks it.
