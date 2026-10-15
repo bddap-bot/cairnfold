@@ -69,7 +69,8 @@ def check(cond, what):
 check(d["host"] == d["join"], "host and joiner show the same garden")
 check(d["late"] == d["host"], "the late joiner shows the same garden")
 g = d["host"]
-check(len(g["walls"]) == 3, f"three walls stand (A put back by its deleter's undo, B, C): {len(g['walls'])}")
+check(len(g["walls"]) == 6, f"six walls stand (A put back by its deleter's undo, B, C, the host's house, the joiner's storey on it, the host's wing across it): {len(g['walls'])}")
+check(sum("\"on\": PackedInt32Array(" in w["data"] and "\"on\": PackedInt32Array()" not in w["data"] for w in g["walls"].values()) == 1, "the joiner's storey stands on the host's house")
 check(any(abs(w["height"] - 4.2) < 0.01 for w in g["walls"].values()), "the joiner's raised wall stands 4.2 m high")
 kinds = lambda k: [v for v in g["groups"].values() if v["kind"] == k]
 check(len(kinds("tree")) == 1 and kinds("tree")[0]["shown"] == 0, "the host's undo took its tree away")
