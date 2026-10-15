@@ -34,8 +34,22 @@ cd "$out"
 # Ports of their own, so other instances on this machine (another checkout's tests) are not mistaken for the host.
 port=$((7480 + 8 * (RANDOM % 7)))
 run() { timeout 120 stdbuf -oL godot4 --headless --path "$root/game" --xr-mode off -- --desktop --script "$root/demo/coop-$1.json" --quit-after 110 --capture-dir "$out" --host-port "$port" --beacon-port "$beacon_port" "${@:2}" >"$out/$1.log" 2>&1; }
+: >"$out/host.log"
 run host --port "$port" & host=$!
-sleep 2
+# Session may fall back to another port when the requested one is occupied.
+requested=$port
+port=""
+while kill -0 "$host" 2>/dev/null; do
+  port=$(sed -n 's/^session: hosting on port //p' "$out/host.log" | head -1)
+  [ -z "$port" ] || break
+  sleep 0.1
+done
+if [ -z "$port" ]; then
+  wait "$host" || true
+  echo "coop: host exited before opening a port" >&2
+  exit 1
+fi
+echo "coop: host requested $requested, bound $port"
 run join --avatar 1 --port $((port + 8)) & join=$!
 while [ ! -e "$out/host.json" ] && kill -0 "$host" 2>/dev/null; do sleep 0.5; done
 run late --avatar 2 --port $((port + 8)) & late=$!
