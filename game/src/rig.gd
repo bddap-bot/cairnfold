@@ -34,7 +34,6 @@ var _turned := false
 var _fade_t := -1.0
 var _pending: Variant = null
 
-var _beam: MeshInstance3D
 var _ground_ring: MeshInstance3D
 var _float_ring: MeshInstance3D
 var _pole: MeshInstance3D
@@ -64,12 +63,6 @@ func _build_markers() -> void:
 	glow.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glow.albedo_color = Color(0.85, 0.97, 1.0, 0.75)
 	glow.no_depth_test = false
-	_beam = MeshInstance3D.new()
-	_beam.mesh = ImmediateMesh.new()
-	_beam.material_override = glow
-	_beam.top_level = true
-	_beam.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(_beam)
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.32
 	ring.outer_radius = 0.4
@@ -171,7 +164,8 @@ func aim(from: Transform3D) -> void:
 	var g := Terrain.height_at(target.x, target.z)
 	aim_ground = Vector3(target.x, g, target.z)
 	aim_lift = clampf(target.y - g, 0.0, MAX_LIFT)
-	_draw_beam(origin, target)
+	if aim_hand != null:
+		aim_hand.ray(target, Color(0.85, 0.97, 1.0, 0.75))
 	var g3: Vector3 = aim_ground
 	_ground_ring.visible = true
 	_ground_ring.global_transform = Transform3D(Basis(), g3 + Vector3.UP * 0.03)
@@ -183,19 +177,8 @@ func aim(from: Transform3D) -> void:
 		_pole.global_transform = Transform3D(Basis().scaled(Vector3(1, aim_lift, 1)), g3 + Vector3.UP * aim_lift * 0.5)
 
 
-func _draw_beam(a: Vector3, b: Vector3) -> void:
-	var im: ImmediateMesh = _beam.mesh
-	im.clear_surfaces()
-	var side := (b - a).cross(head.global_position - a).normalized() * 0.012
-	im.surface_begin(Mesh.PRIMITIVE_TRIANGLE_STRIP)
-	for p in [a, b]:
-		im.surface_add_vertex(p - side)
-		im.surface_add_vertex(p + side)
-	im.surface_end()
-
-
 func hide_markers() -> void:
-	(_beam.mesh as ImmediateMesh).clear_surfaces()
+	left.clear_pointer()
 	_ground_ring.visible = false
 	_float_ring.visible = false
 	_pole.visible = false

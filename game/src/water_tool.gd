@@ -35,6 +35,8 @@ func _process(delta: float) -> void:
 	for b in _buttons:
 		_handle(b, delta)
 		b.latch()
+	if digger != null:
+		digger.hold()
 
 
 func _handle(b: Buttons, delta: float) -> void:

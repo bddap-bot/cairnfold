@@ -122,6 +122,8 @@ func _process(delta: float) -> void:
 	if _dirty and _since_rebuild >= REBUILD_EVERY:
 		_flush()
 	for m in masons:
+		if m.lifting != null or m.roofing != null:
+			m.hand.hold()
 		m.buttons.latch()
 	_arch_button.latch()
 

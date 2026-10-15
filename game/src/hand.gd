@@ -41,6 +41,7 @@ var holds_sun := false
 var picking := false
 var _wheel: ToolWheel
 var _wheel_button: String
+var _holding := false
 var _buttons: Buttons
 var _shown := -1
 var _leaving := -1
@@ -168,18 +169,36 @@ static func reach_gain(reach: float) -> float:
 func point(hit: Variant, tint: Color, reach := 20.0) -> void:
 	if not get_has_tracking_data():
 		return
-	var origin := global_position
-	_beam.visible = true
-	_beam.span(origin, hit if hit != null else origin - global_basis.z * reach)
-	(_beam.material_override as StandardMaterial3D).albedo_color = tint
+	if not ray(hit if hit != null else global_position - global_basis.z * reach, tint):
+		return
 	_dot.visible = hit != null
 	if hit != null:
 		_dot.global_position = hit
 
 
-func _process(delta: float) -> void:
+func ray(target: Vector3, tint: Color) -> bool:
+	if _holding:
+		return false
+	_beam.visible = true
+	_beam.span(global_position, target)
+	(_beam.material_override as StandardMaterial3D).albedo_color = tint
+	return true
+
+
+func clear_pointer() -> void:
 	_beam.visible = false
 	_dot.visible = false
+
+
+# A tool renews its hold each frame, so a cancelled gesture cannot leave a stale hidden pointer.
+func hold() -> void:
+	_holding = true
+	clear_pointer()
+
+
+func _process(delta: float) -> void:
+	_holding = false
+	clear_pointer()
 	_select_input(delta)
 	_buttons.latch()
 	_show_tool(delta)

@@ -11,14 +11,16 @@ const BEAM := Color(1.0, 0.9, 0.6, 0.6)
 const LOWEST_HANDLE := deg_to_rad(2.0)
 ## A soft click in the hand every this much of the day dragged past.
 const TICK := 1.0 / 24.0
+const HANDLE_REACH := 1.2
 
 var rig: Rig
 var look: Look
 ## True while a tool is in the middle of an edit, which a grip may have started this frame.
 var editing: Callable
-## The hand holding the sun, and where along the arc its ray stood from the sun when it took it.
 var holder: Hand
 var _offset := 0.0
+var _hand_start := Vector3.ZERO
+var _direction := Vector3.ZERO
 var _ticked := 0
 var _grips: Array[Buttons] = []
 var _lit := false
@@ -41,13 +43,15 @@ func _process(_delta: float) -> void:
 		if hand.get_has_tracking_data() and not hand.picking:
 			var dir := -hand.global_basis.z
 			if holder == hand:
-				drag(Daylight.time_toward(dir) + _offset)
+				drag(Daylight.time_toward(_direction + (hand.global_position - _hand_start) / HANDLE_REACH) + _offset)
 			elif holder == null and aims_at_sun(dir):
 				hover = true
 				if b.pressed("grip_click") and not editing.call():
 					take(hand, dir)
 			if holder == hand or (holder == null and aims_at_sun(dir)):
 				hand.point(null, BEAM, 30.0)
+		if holder == hand:
+			hand.hold()
 		b.latch()
 	var lit := hover or holder != null
 	if lit != _lit:
@@ -65,6 +69,8 @@ func aims_at_sun(dir: Vector3) -> bool:
 func take(hand: Hand, dir: Vector3) -> void:
 	holder = hand
 	hand.holds_sun = true
+	_hand_start = hand.global_position
+	_direction = dir
 	_offset = look.time - Daylight.time_toward(dir)
 	_ticked = floori(look.time / TICK)
 

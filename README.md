@@ -30,7 +30,8 @@ paths, flowers, grass, trees, terrain, pond, colour, camera, delete or visit.
   takes a photo, saved as a PNG in the game's `photos` folder
   (`~/.local/share/godot/app_userdata/Cairnfold/photos` on the Frame; inside the
   app on a Quest).
-- Point any hand at the sun and grip it to drag it across the sky: dawn to dusk.
+- Point any hand at the sun and grip it, then move the hand to drag it across the sky: dawn to dusk.
+- A hand’s pointer disappears while grabbing and returns when released.
 - Holding visit: a small figure of each player nearby on the same network stands
   in front of you; point at one and pull the trigger to build in their garden
   with them. While visiting, pick the little cairn to go home.

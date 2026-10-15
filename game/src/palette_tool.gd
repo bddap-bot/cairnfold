@@ -64,6 +64,7 @@ func _process(_delta: float) -> void:
 				open(hand, target.element)
 		b.latch()
 	for hand in wheels:
+		hand.hold()
 		_place(wheels[hand], hand)
 
 

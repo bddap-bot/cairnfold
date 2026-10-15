@@ -73,6 +73,8 @@ func _process(delta: float) -> void:
 	for i in rig.hands.size():
 		_handle(rig.hands[i], _triggers[i], _rings[i], delta)
 		_triggers[i].latch()
+	if _hand != null:
+		_hand.hold()
 
 
 func _handle(hand: Hand, trigger: Buttons, ring: MeshInstance3D, delta: float) -> void:
