@@ -2,7 +2,7 @@
   {"op": "place", "x": 0, "z": 12},
   {"op": "wall", "points": [[-8, -2], [-2, -4], [4, -3]], "seconds": 0.4},
   {"op": "lift_wall", "index": 0, "height": 3.4},
-  {"op": "house", "a": [6, -6], "b": [11, -6], "seconds": 0.5},
+  {"op": "house", "at": [8.5, -6], "size": [5, 3.5], "seconds": 0.5},
   {"op": "pave", "points": [[0, 8], [0, -1]], "radius": 0.9, "seconds": 0.4},
   {"op": "paint", "tool": "stone", "points": [[-8, 4], [-5, 5]], "radius": 1.5, "seconds": 0.4},
   {"op": "paint", "tool": "flowers", "points": [[3, 3], [6, 4]], "radius": 1.2, "seconds": 0.4},
