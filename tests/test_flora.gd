@@ -266,6 +266,9 @@ func _grass_thins_with_distance() -> void:
 	_check(whole.size() == 1 and absf(whole[0] - near.x) < 1.0, "only the near cell draws every clump: %s" % [whole])
 	_check(few.size() == 1 and absf(few[0][0] - mid) < 1.0 and few[0][1] == 1, "the cell past sparse_from draws its survivor alone: %s" % [few])
 	_check(g.sparse.get_faces().size() < g.mesh.get_faces().size(), "from a mesh with fewer blades")
+	# A dummy renderer keeps no instance transforms, so where taking a plant out writes is checked instead.
+	_check(g._cell_of[1] == g._cell_of[2] and g._index_in_cell[1] != g._index_in_cell[2], "each clump of a cell has its own place in it")
+	_check(g._sparse_cell_of[1] != null and g._sparse_cell_of[2] == null, "and a survivor its place in the sparse cell too")
 	flora.queue_free()
 
 
