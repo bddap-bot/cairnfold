@@ -55,26 +55,38 @@ func _init(player: Rig, plants: Flora, ways: Paths, garden: World) -> void:
 	paths = ways
 	world = garden
 	world.restored.connect(_forget)
-	var ring := TorusMesh.new()
-	ring.inner_radius = 0.96
-	ring.outer_radius = 1.0
-	ring.rings = 32
-	ring.ring_segments = 4
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = Color(1, 1, 1, 0.6)
 	for h in rig.hands:
 		var b := Brush.new()
 		b.hand = h
 		b.buttons = Buttons.new(h).watch(["trigger_click", "grip_click"])
-		b.ring = MeshInstance3D.new()
-		b.ring.mesh = ring
-		b.ring.material_override = mat
-		b.ring.top_level = true
-		b.ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		b.ring = ring(Color(1, 1, 1, 0.6))
 		add_child(b.ring)
 		brushes.append(b)
+
+
+## A brush's ring on the ground, of radius 1 until it is placed with `put_ring`.
+static func ring(tint: Color) -> MeshInstance3D:
+	var torus := TorusMesh.new()
+	torus.inner_radius = 0.96
+	torus.outer_radius = 1.0
+	torus.rings = 32
+	torus.ring_segments = 4
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = tint
+	var out := MeshInstance3D.new()
+	out.mesh = torus
+	out.material_override = mat
+	out.top_level = true
+	out.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	out.visible = false
+	return out
+
+
+static func put_ring(r: MeshInstance3D, at: Vector3, radius: float) -> void:
+	r.visible = true
+	r.global_transform = Transform3D(Basis().scaled(Vector3(radius, 1.0, radius)), at + Vector3.UP * 0.04)
 
 
 func busy() -> bool:
@@ -124,8 +136,7 @@ func _handle(b: Brush, delta: float) -> void:
 	var radius := brush_radius(hand.origin, hit)
 	if held == Hand.Tool.PATH:
 		radius = clampf(radius, PathLayout.HALF_WIDTH.x, PathLayout.HALF_WIDTH.y)
-	b.ring.visible = true
-	b.ring.global_transform = Transform3D(Basis().scaled(Vector3(radius, 1.0, radius)), hit + Vector3.UP * 0.04)
+	put_ring(b.ring, hit, radius)
 	if held == Hand.Tool.PATH:
 		if b.buttons.pressed("trigger_click") and not paths.busy() and not _ground_held():
 			begin_path(b, hit, radius)

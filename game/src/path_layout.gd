@@ -59,6 +59,19 @@ func add(p: Vector3, half_width: float) -> void:
 	half_widths.append(clampf(half_width, HALF_WIDTH.x, HALF_WIDTH.y))
 
 
+## Whether the stones or worn verge reach the ground point (x, z).
+func covers(x: float, z: float) -> bool:
+	var p := Vector2(x, z)
+	for i in samples.size() - 1:
+		var a := _flat(samples[i])
+		var b := _flat(samples[i + 1])
+		var q := Geometry2D.get_closest_point_to_segment(p, a, b)
+		var t := q.distance_to(a) / maxf(a.distance_to(b), 1e-5)
+		if p.distance_to(q) < lerpf(sample_half_widths[i], sample_half_widths[i + 1], t) + VERGE:
+			return true
+	return false
+
+
 func length() -> float:
 	return lengths[-1] if lengths.size() > 0 else 0.0
 

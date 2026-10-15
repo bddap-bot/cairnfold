@@ -362,37 +362,27 @@ func _tree(s: Dictionary) -> void:
 
 ## Points the delete tool straight down at a ground spot from `height` metres up and presses once: a tap.
 func _delete(s: Dictionary) -> void:
-	var at := _spot(s, s.x, s.z)
 	var tool: DeleteTool = main.delete_tool
-	var target := tool.aim(at + Vector3.UP * s.get("height", 2.0), Vector3.DOWN)
-	if target.has("wall"):
-		tool.begin(self, target.wall, target.s)
-		tool.let_go(self)
-	else:
-		tool.take(target)
+	tool.press(self, _spot(s, s.x, s.z) + Vector3.UP * s.get("height", 2.0), Vector3.DOWN)
+	tool.let_go(self)
 	await get_tree().process_frame
 
 
-## Sweeps the delete tool's beam along a wall, pointing straight down from `height` metres over each point of
-## `points` in turn across `seconds`, then lets go. With `index` instead, it sweeps that wall in build order
-## from fraction `from` of its length to `to`, wherever the head stands.
+## Holds the delete tool's trigger, pointing straight down from `height` metres over each point of `points` in turn
+## across `seconds`, then lets go: along a wall it erases, over the ground it mows. With `index` instead, it sweeps
+## that wall in build order from fraction `from` of its length to `to`, wherever the head stands.
 func _erase(s: Dictionary) -> void:
 	var tool: DeleteTool = main.delete_tool
 	var path := _path(s) if s.has("points") else _stretch(main.tool.walls[s.index].layout, s.from, s.to)
 	var up: Vector3 = Vector3.UP * float(s.get("height", 6.0))
-	var target := tool.aim(path[0] + up, Vector3.DOWN)
-	if not target.has("wall"):
-		push_error("driver: erase finds no wall at %s" % path[0])
-		await get_tree().process_frame
-		return
-	tool.begin(self, target.wall, target.s)
+	tool.press(self, path[0] + up, Vector3.DOWN)
 	var secs: float = s.get("seconds", 0.5)
 	var t := 0.0
 	while t < secs:
-		tool.sweep(self, _along(path, t / secs) + up, Vector3.DOWN)
+		tool.hold(self, _along(path, t / secs) + up, Vector3.DOWN)
 		await get_tree().process_frame
 		t += get_process_delta_time()
-	tool.sweep(self, path[-1] + up, Vector3.DOWN)
+	tool.hold(self, path[-1] + up, Vector3.DOWN)
 	tool.let_go(self)
 	await get_tree().process_frame
 

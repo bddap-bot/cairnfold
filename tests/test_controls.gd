@@ -54,7 +54,7 @@ func _run() -> void:
 		{"op": "tree", "x": -9, "z": 9},
 		{"op": "delete", "x": 0, "z": -4.4},
 	])
-	var tree := flora.tree_near(Terrain.ground(-9, 9), 0.5)
+	var tree: Array = flora.planted_trees()[0] if flora.planted_trees().size() == 1 else []
 	_check(not _painted(flora, patch).is_empty(), "painting adds flowers")
 	_check(not tree.is_empty(), "a tree stands where it was planted")
 	var ruined := func() -> int: return walls.filter(func(w: Wall) -> bool: return not w.layout.ruins.is_empty()).size()
@@ -196,7 +196,7 @@ func _frames(n: int) -> void:
 
 
 func _painted(flora: Flora, at: Vector3) -> Array:
-	return flora.painted_near(at, 1.5)
+	return flora.plants_near(at, 1.5).filter(func(p: Flora.Plant) -> bool: return p.group != 0)
 
 
 func _check(ok: bool, what: String) -> void:

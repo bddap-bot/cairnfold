@@ -1,23 +1,28 @@
 class_name DeleteTool
 extends Node3D
 
-## Takes things away, for whichever hand holds it. On a wall the trigger is an eraser: held, its beam
-## sweeps along the wall, and the stretch it swept breaks away into a ruin, stepped down to a gap at its foot
-## with fallen stones; a tap breaks a short gap. The ruin shows as it is swept and goes to the garden when the
-## trigger lets go. A sweep that would leave nothing worth standing, or one on a fence, house or tower, takes
-## the whole of it. Off the walls, one press takes the tree nearest where the beam meets the ground, else the
-## painted plants under the brush ring. Undo puts any of it back.
+## Takes things away, for whichever hand holds it. Its beam strikes the first wall, tree or bush along it, else the
+## ground. On a wall the trigger is an eraser: held, its beam sweeps along the wall, and the stretch it swept breaks
+## away into a ruin, stepped down to a gap at its foot with fallen stones; a tap breaks a short gap. The ruin shows
+## as it is swept and goes to the garden when the trigger lets go. A sweep that would leave nothing worth standing,
+## or one on a fence, house or tower, takes the whole of it. A press on a tree or bush takes it, and one on a path
+## or stone ground takes that path or stroke, giving back the ground under it. Elsewhere on the ground the trigger
+## mows: held, it takes the grass and flowers under the brush ring as it sweeps, the meadow's own as well as
+## painted ones, raggedly at the ring's edge; they go to the garden when the trigger lets go. Undo puts any of it back.
 
-const TREE_REACH := 1.5
 const TINT := Color(1.0, 0.7, 0.62, 0.6)
+const REACH := 80.0
+## How far in from the ring's edge, as a fraction of its radius, mowing may stop short: each plant has its own reach.
+const RAGGED := 0.3
 
 var rig: Rig
 var walls: WallTool
 var flora: Flora
 var world: World
 var _buttons: Array[Buttons] = []
-## Sweeps under way, by whoever is sweeping (a hand, or the driver): {wall, from, to, last}, `from` and `to`
-## unwrapped round a loop.
+var _rings: Array[MeshInstance3D] = []
+## Holds under way, by whoever holds the trigger (a hand, or the driver): a sweep along a wall, {wall, from, to,
+## at, last, whole} with `from` and `to` unwrapped round a loop, or a mow, {mown}, the plants it has taken so far.
 var _cuts := {}
 
 
@@ -29,6 +34,8 @@ func _init(player: Rig, builder: WallTool, plants: FloraTool, garden: World) -> 
 	world.restored.connect(func() -> void: _cuts.clear())
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["trigger_click"]))
+		_rings.append(FloraTool.ring(TINT))
+		add_child(_rings[-1])
 
 
 func busy() -> bool:
@@ -36,55 +43,98 @@ func busy() -> bool:
 
 
 func _process(_delta: float) -> void:
-	for b in _buttons:
+	for k in _buttons.size():
+		var b := _buttons[k]
 		var hand: Hand = b.hand
+		_rings[k].visible = false
 		var live := hand.tool == Hand.Tool.DELETE and rig.aim_hand != hand and hand.get_has_tracking_data()
 		var t := hand.global_transform
 		if _cuts.has(hand):
 			if live and b.held("trigger_click"):
-				hand.point(sweep(hand, t.origin, -t.basis.z), TINT)
+				var at := hold(hand, t.origin, -t.basis.z)
+				hand.point(at, TINT)
+				if _cuts[hand].has("mown"):
+					FloraTool.put_ring(_rings[k], at, FloraTool.brush_radius(t.origin, at))
 			else:
 				let_go(hand)
 		elif live:
-			var pick := walls.pick_wall(t.origin, -t.basis.z)
-			hand.point(pick.point if not pick.is_empty() else Terrain.raycast(t.origin, -t.basis.z), TINT)
 			if b.pressed("trigger_click"):
+				press(hand, t.origin, -t.basis.z)
+			else:
 				var target := aim(t.origin, -t.basis.z)
-				if target.has("wall"):
-					begin(hand, target.wall, target.s)
-				else:
-					take(target)
+				hand.point(target.get("point"), TINT)
+				if target.has("mow"):
+					FloraTool.put_ring(_rings[k], target.point, target.mow)
 		b.latch()
 
 
-## What a ray from `origin` along `dir` takes: its wall and where along it, or plants, if any. Painted plants
-## are searched only on a press.
+## What a ray from `origin` along `dir` takes, with the `point` it meets: a wall and where along it, a tree or
+## bush (`plants`), path or stone ground (`laid`), or the ground to mow with a brush of radius `mow`; {} when it
+## meets nothing.
 func aim(origin: Vector3, dir: Vector3) -> Dictionary:
+	var ground: Variant = Terrain.raycast(origin, dir, REACH)
+	var reach: float = (ground - origin).dot(dir) if ground != null else REACH
 	var pick := walls.pick_wall(origin, dir)
-	if not pick.is_empty():
-		return {"wall": pick.wall, "s": pick.s}
-	var ground: Variant = Terrain.raycast(origin, dir)
+	var solid := flora.solid_hit(origin, dir, reach)
+	if not pick.is_empty() and (solid.is_empty() or pick.along <= solid.along):
+		return {"wall": pick.wall, "s": pick.s, "point": pick.point}
+	if not solid.is_empty():
+		return {"plants": solid.plants, "point": solid.point}
 	if ground == null:
 		return {}
-	var tree := flora.tree_near(ground, TREE_REACH)
-	if not tree.is_empty():
-		return {"plants": tree}
-	var patch := flora.painted_near(ground, FloraTool.brush_radius(origin, ground))
-	if not patch.is_empty():
-		return {"plants": patch}
-	return {}
+	if Ground.laid_bare(ground.x, ground.z) >= 0.5:
+		return {"laid": true, "point": ground}
+	return {"mow": FloraTool.brush_radius(origin, ground), "point": ground}
 
 
-## Takes the plants a press points at.
-func take(target: Dictionary) -> void:
-	if not target.has("plants"):
+func press(who: Object, origin: Vector3, dir: Vector3) -> void:
+	var target := aim(origin, dir)
+	if target.has("wall"):
+		begin(who, target.wall, target.s)
 		return
+	if target.has("plants"):
+		_take(target.plants)
+		return
+	if target.has("laid"):
+		var id := Ground.mark_at(target.point.x, target.point.z)
+		if id >= 0:
+			world.submit({"op": "unpath" if world.state.paths.has(id) else "unground", "id": id})
+			return
+	if target.has("point"):
+		_cuts[who] = {"mown": {}}
+		_mow(_cuts[who], target.point, FloraTool.brush_radius(origin, target.point))
+
+
+## The trigger is still held by `who`, its ray now from `origin` along `dir`; returns where the beam meets what it
+## is taking.
+func hold(who: Object, origin: Vector3, dir: Vector3) -> Vector3:
+	var cut: Dictionary = _cuts.get(who, {})
+	if not cut.has("mown"):
+		return sweep(who, origin, dir)
+	var ground: Variant = Terrain.raycast(origin, dir, REACH)
+	if ground == null:
+		return origin + dir
+	_mow(cut, ground, FloraTool.brush_radius(origin, ground))
+	return ground
+
+
+## Shows the plants under a ring at `at` taken, on this machine only, until the mow's command comes back. Plants
+## parted to nothing by a path or stone are left, so lifting that brings them back.
+func _mow(cut: Dictionary, at: Vector3, radius: float) -> void:
+	for p in flora.plants_near(at, radius):
+		var reach := radius * (1.0 - RAGGED * float(hash(p.anchor) % 1024) / 1024.0)
+		if not cut.mown.has(p) and Vector2(p.anchor.x - at.x, p.anchor.z - at.z).length() < reach and not Flora.on_path(p.anchor):
+			p.draw(false)
+			cut.mown[p] = true
+
+
+func _take(plants: Array, done := Callable()) -> void:
 	var by_group := {}
-	for p: Flora.Plant in target.plants:
+	for p: Flora.Plant in plants:
 		by_group.get_or_add(p.group, []).append(p.index)
 	for g in by_group:
 		by_group[g] = PackedInt32Array(by_group[g])
-	world.submit({"op": "show", "plants": by_group, "on": false})
+	world.submit({"op": "show", "plants": by_group, "on": false}, done)
 
 
 ## Starts erasing wall `w` at arc length `s`. A fence, house or tower is taken whole, so it shows no ruin.
@@ -109,10 +159,18 @@ func sweep(who: Object, origin: Vector3, dir: Vector3) -> Vector3:
 	return hit.point
 
 
-## Sends what was swept: a reshape breaking the stretch away, or the whole wall when nothing would stand.
+## Sends what was taken: the mown plants, or for a wall a reshape breaking the swept stretch away, or the whole
+## wall when nothing would stand. Mown plants are drawn as the garden has them again once their hide is settled.
 func let_go(who: Object) -> void:
 	var cut: Dictionary = _cuts.get(who, {})
 	_cuts.erase(who)
+	if cut.has("mown"):
+		var mown: Array = cut.mown.keys()
+		if not mown.is_empty():
+			_take(mown, func() -> void:
+				for p: Flora.Plant in mown:
+					p.draw(p.shown()))
+		return
 	var w: Wall = cut.get("wall")
 	if w == null or not is_instance_valid(w) or walls.find(w.id) != w:
 		return

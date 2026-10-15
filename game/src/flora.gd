@@ -13,6 +13,7 @@ const PLACED_TREES := 64
 const NO_HAND := Vector3(0, -1000, 0)
 ## Painted plant kinds, as build commands name them; "tree" is the other kind of group.
 const BRUSHES := ["grass", "flowers"]
+const SOLID_CELL := 8.0
 
 
 ## One kind of plant, in numbered slots. Slots filled before `keep()` are the meadow's own: `keep()` bakes them into
@@ -22,6 +23,7 @@ const BRUSHES := ["grass", "flowers"]
 class Pool:
 	const GONE := Vector3(1e9, 0, 1e9)
 	const CELL := 16.0
+	const GRID := 2.0
 	var mm := MultiMesh.new()
 	## The mesh each plant was made with; `draw_with` may draw a simpler one in its place.
 	var mesh: Mesh
@@ -42,6 +44,10 @@ class Pool:
 	var _index_in_cell := PackedInt32Array()
 	var _cells: Array[MultiMeshInstance3D] = []
 	var _centres := PackedVector2Array()
+	## With `indexed`, slots by the GRID square their anchor fell in, for finding plants near a point without a
+	## pass over all.
+	var indexed := false
+	var _grid := {}
 
 	func _init(parent: Node3D, m: Mesh, capacity: int, mat: Material, shadows: bool) -> void:
 		mesh = m
@@ -71,6 +77,8 @@ class Pool:
 			i = kept + _next
 			_next = (_next + 1) % mm.instance_count
 		last = i
+		if indexed and plants[i] != null:
+			_unindex(i)
 		xform.origin.y -= Terrain.base_at(anchor.x, anchor.z)
 		custom.b = anchor.x
 		custom.a = anchor.z
@@ -83,7 +91,29 @@ class Pool:
 		stamps[i] += 1
 		anchors[i] = anchor
 		plants[i] = Plant.new(self, i, xform, anchor)
+		if indexed:
+			_grid.get_or_add(_square(anchor), []).append(i)
 		return plants[i]
+
+	static func _square(at: Vector3) -> Vector2i:
+		return Vector2i(floori(at.x / GRID), floori(at.z / GRID))
+
+	func _unindex(i: int) -> void:
+		_grid[_square(plants[i].anchor)].erase(i)
+
+	## The standing plants within `radius` of `p` across the ground.
+	func near(p: Vector3, radius: float) -> Array[Plant]:
+		var out: Array[Plant] = []
+		var r2 := radius * radius
+		var lo := _square(p - Vector3(radius, 0, radius))
+		var hi := _square(p + Vector3(radius, 0, radius))
+		for j in range(lo.y, hi.y + 1):
+			for i in range(lo.x, hi.x + 1):
+				for slot: int in _grid.get(Vector2i(i, j), []):
+					var q := anchors[slot]
+					if (q.x - p.x) * (q.x - p.x) + (q.z - p.z) * (q.z - p.z) < r2:
+						out.append(plants[slot])
+		return out
 
 	func keep() -> void:
 		kept = mm.visible_instance_count
@@ -124,6 +154,8 @@ class Pool:
 	## Back to the kept plants; plants remembered from the rest no longer find their slots.
 	func reset() -> void:
 		for i in range(kept, size()):
+			if indexed:
+				_unindex(i)
 			plants[i] = null
 			stamps[i] += 1
 		mm.visible_instance_count = 0
@@ -164,6 +196,19 @@ class Pool:
 		return mmi
 
 
+## A tree or bush, as what the delete tool's beam strikes: its parts (a tree's trunk then its blobs), and the
+## circle across the ground that holds them, so a beam is tested against their boxes only when it passes over it.
+class Solid:
+	var parts: Array[Plant]
+	var centre: Vector2
+	var radius: float
+
+	func _init(p: Array[Plant], box: AABB) -> void:
+		parts = p
+		centre = Vector2(box.get_center().x, box.get_center().z)
+		radius = Vector2(box.size.x, box.size.z).length() * 0.5
+
+
 ## One instance in a pool, remembered so it can be taken out and put back.
 class Plant:
 	var pool: Pool
@@ -192,8 +237,13 @@ class Plant:
 	func set_shown(on: bool) -> void:
 		if not current():
 			return
-		pool.place(slot, xform if on else Transform3D(Basis.from_scale(Vector3.ZERO), xform.origin))
+		draw(on)
 		pool.anchors[slot] = anchor if on else Pool.GONE
+
+	## Draws it standing or not without changing whether it stands, for a tool's preview.
+	func draw(on: bool) -> void:
+		if current():
+			pool.place(slot, xform if on else Transform3D(Basis.from_scale(Vector3.ZERO), xform.origin))
 
 
 var grass: Pool
@@ -201,9 +251,12 @@ var grass_mat := ShaderMaterial.new()
 var flowers: Pool
 var trunks: Pool
 var foliage: Pool
-## Each tree's trunk and blobs, by trunk slot.
-var _trees := {}
-var _kept_trees := {}
+## Every tree and bush, meadow's own and planted, by its first part's pool and slot.
+var _solids := {}
+var _kept_solids := {}
+## The keys of the solids whose circles reach into each SOLID_CELL square, so a beam tests only those it passes
+## over; a key may linger where its slot's earlier tree stood.
+var _solid_cells := {}
 ## Every plant a build command can name, by group, in the order its command grew them.
 var groups := {}
 ## A player's own stroke while it is painted and until its build command comes back, drawn apart from the
@@ -244,6 +297,8 @@ func _init() -> void:
 	flower_mat.set_shader_parameter(&"stem", Meshes.FLOWER_HEIGHT)
 	flower_mat.set_shader_parameter(&"draw_reach", flower_reach)
 	flowers = Pool.new(self, bloom, Meadow.FLOWERS + PAINTED_FLOWERS, flower_mat, false)
+	grass.indexed = true
+	flowers.indexed = true
 	ghost_grass = Pool.new(self, clump, Commands.MAX_STROKE * 2, grass_mat, false)
 	ghost_flowers = Pool.new(self, bloom, Commands.MAX_STROKE * 2, flower_mat, false)
 	var trunk := CylinderMesh.new()
@@ -314,13 +369,27 @@ func add_tree(at: Vector3, rng: RandomNumberGenerator) -> Array[Plant]:
 		var blob := foliage.add(b[0], b[1], at)
 		if blob != null:
 			parts.append(blob)
-	_trees[trunk.slot] = parts
+	_solid(Vector2i(0, trunk.slot), parts)
 	return parts
 
 
 func add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 	var b := FloraLayout.bush(at, rng)
-	foliage.add(b[0], b[1], at)
+	var blob := foliage.add(b[0], b[1], at)
+	if blob != null:
+		var parts: Array[Plant] = [blob]
+		_solid(Vector2i(1, blob.slot), parts)
+
+
+func _solid(key: Vector2i, parts: Array[Plant]) -> void:
+	var box: AABB = parts[0].xform * parts[0].pool.mesh.get_aabb()
+	for p in parts:
+		box = box.merge(p.xform * p.pool.mesh.get_aabb())
+	var solid := Solid.new(parts, box)
+	_solids[key] = solid
+	for j in range(floori((solid.centre.y - solid.radius) / SOLID_CELL), floori((solid.centre.y + solid.radius) / SOLID_CELL) + 1):
+		for i in range(floori((solid.centre.x - solid.radius) / SOLID_CELL), floori((solid.centre.x + solid.radius) / SOLID_CELL) + 1):
+			_solid_cells.get_or_add(Vector2i(i, j), {})[key] = true
 
 
 ## The plants so far are the meadow's own: group 0, which every machine grows alike.
@@ -330,7 +399,7 @@ func keep() -> void:
 		meadow.append_array(p.plants.slice(0, p.size()))
 		p.keep()
 	_name(0, meadow)
-	_kept_trees = _trees.duplicate()
+	_kept_solids = _solids.duplicate()
 
 
 func _name(group: int, plants: Array[Plant]) -> void:
@@ -414,43 +483,70 @@ func reset() -> void:
 	groups = {0: meadow}
 	for plant in meadow:
 		plant.set_shown(true)
-	_trees = _kept_trees.duplicate()
+	_solids = _kept_solids.duplicate()
+	_solid_cells.clear()
+	for key: Vector2i in _solids:
+		_solid(key, _solids[key].parts)
 
 
-## The standing tree whose trunk is nearest `p` across the ground, within `reach`.
-func tree_near(p: Vector3, reach: float) -> Array[Plant]:
-	var best: Array[Plant] = []
-	var best_d := reach * reach
-	for parts: Array[Plant] in _trees.values():
-		var trunk := parts[0]
-		if not trunk.shown():
+## The standing tree or bush a ray from `origin` along `dir` strikes first within `reach`: its parts, where it
+## strikes and how far along `dir`, or {} for none. Each part is struck within its mesh's box, set on the ground as
+## its shader sets it.
+func solid_hit(origin: Vector3, dir: Vector3, reach: float) -> Dictionary:
+	var best := {}
+	var best_t := reach
+	var dx := dir.x * reach
+	var dz := dir.z * reach
+	var span := maxf(dx * dx + dz * dz, 1e-9)
+	var keys := {}
+	var steps := ceili(sqrt(span) / (SOLID_CELL * 0.25))
+	for k in steps + 1:
+		var at := Vector2i(floori((origin.x + dx * k / steps) / SOLID_CELL), floori((origin.z + dz * k / steps) / SOLID_CELL))
+		keys.merge(_solid_cells.get(at, {}))
+	for key: Vector2i in keys:
+		var solid: Solid = _solids[key]
+		var cx := solid.centre.x - origin.x
+		var cz := solid.centre.y - origin.z
+		var u := clampf((cx * dx + cz * dz) / span, 0.0, 1.0)
+		cx -= dx * u
+		cz -= dz * u
+		if cx * cx + cz * cz > solid.radius * solid.radius or not solid.parts[0].shown():
 			continue
-		var d := Vector2(trunk.anchor.x - p.x, trunk.anchor.z - p.z).length_squared()
-		if d < best_d:
-			best_d = d
-			best = parts
+		for part in solid.parts:
+			var at := part.xform.translated(Vector3.UP * Terrain.base_at(part.anchor.x, part.anchor.z))
+			var inv := at.affine_inverse()
+			var local: Variant = part.pool.mesh.get_aabb().intersects_ray(inv * origin, inv.basis * dir)
+			if local == null:
+				continue
+			var hit: Vector3 = at * local
+			var t := (hit - origin).dot(dir)
+			if t < best_t:
+				best_t = t
+				best = {"plants": solid.parts, "point": hit, "along": t}
 	return best
+
+
+func solids() -> Array[Array]:
+	var out: Array[Array] = []
+	for solid: Solid in _solids.values():
+		if solid.parts[0].shown():
+			out.append(solid.parts)
+	return out
 
 
 ## The standing trees planted in the garden, each as its trunk then its blobs; the meadow's own are left out.
 func planted_trees() -> Array[Array]:
 	var out: Array[Array] = []
-	for parts: Array[Plant] in _trees.values():
-		if parts[0].slot >= trunks.kept and parts[0].shown():
+	for parts in solids():
+		if parts[0].pool == trunks and parts[0].slot >= trunks.kept:
 			out.append(parts)
 	return out
 
 
-## Painted grass and flowers standing within `radius` of `p` across the ground; the meadow's own stay.
-func painted_near(p: Vector3, radius: float) -> Array[Plant]:
-	var out: Array[Plant] = []
-	var r2 := radius * radius
-	for pool in [grass, flowers]:
-		var anchors: PackedVector3Array = pool.anchors
-		for i in range(pool.kept, pool.size()):
-			var q := anchors[i]
-			if (q.x - p.x) * (q.x - p.x) + (q.z - p.z) * (q.z - p.z) < r2:
-				out.append(pool.plants[i])
+## Grass and flowers standing within `radius` of `p` across the ground.
+func plants_near(p: Vector3, radius: float) -> Array[Plant]:
+	var out := grass.near(p, radius)
+	out.append_array(flowers.near(p, radius))
 	return out
 
 

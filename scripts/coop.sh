@@ -77,6 +77,8 @@ check(len(kinds("flowers")) == 1 and kinds("flowers")[0]["shown"] == kinds("flow
 check(len(g["paths"]) == 1 and len(kinds("grass")) == 1, "the host's path and the grass painted across it stand")
 check(len(g["seeds"]) == 1 and g["ponds"] == 1, f"the joiner's dug pond holds water: {g['ponds']} ponds")
 check(g["palette"][2] == 3, f"the joiner's roof colour is the garden's: {g['palette']}")
+meadow = g["groups"]["0"]
+check(meadow["plants"] - meadow["shown"] > 10, f"the joiner's deletes took a spawned tree, a bush and mown meadow: {meadow['plants'] - meadow['shown']} of the meadow's plants gone")
 check(len(g["grounds"]) == 1 and any("lanterns\": PackedVector3Array(3" in w["data"] for w in g["walls"].values()), "the host's stone ground and lantern stand")
 home = json.load(open(f"{out}/home.json"))
 home.pop("avatars")

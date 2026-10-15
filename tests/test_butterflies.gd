@@ -170,7 +170,7 @@ func _they_leave_when_the_flowers_go() -> void:
 	g.palette.picks[Palette.Element.MEADOW] = Palette.SUMMER
 	_run(g, 60.0)
 	_check(not g.in_state(Butterflies.State.PERCH).is_empty(), "in bloom again, they come back")
-	for p in g.flora.painted_near(Terrain.ground(3, -4), 4.0):
+	for p in g.flora.plants_near(Terrain.ground(3, -4), 4.0).filter(func(p: Flora.Plant) -> bool: return p.group != 0):
 		p.set_shown(false)
 	_run(g, 2.0)
 	_check(g.wildlife.butterflies.patches.is_empty(), "a cleared patch is no longer a patch")

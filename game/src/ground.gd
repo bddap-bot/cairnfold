@@ -50,6 +50,12 @@ class Stroke:
 		for s in stamps:
 			Ground.stamp(onto, s.x, s.y, s.z, s.w, kind)
 
+	func covers(x: float, z: float) -> bool:
+		for s in stamps:
+			if Vector2(s.x - x, s.y - z).length() < s.z + s.w:
+				return true
+		return false
+
 
 static func install() -> void:
 	_marks.clear()
@@ -77,6 +83,18 @@ static func laid_bare(x: float, z: float) -> float:
 
 static func stone(x: float, z: float) -> float:
 	return _texel(x, z).g
+
+
+## The build command id of the topmost path or stone stroke showing at a point, or -1: stone where the garden's
+## ground there reads more stone than earth, else a path.
+static func mark_at(x: float, z: float) -> int:
+	var c := _texel(x, z, laid)
+	var stony := c.g > c.r
+	for i in range(_marks.size() - 1, -1, -1):
+		var m: Object = _marks[i]
+		if (m is Stroke) == stony and (not stony or m.kind == Kind.STONE) and m.covers(x, z):
+			return _ids[i]
+	return -1
 
 
 ## Adds the garden's mark from build command `id`, in its place by id.
