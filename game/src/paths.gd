@@ -26,6 +26,14 @@ var _since_rebuild := 0.0
 var _dirty := false
 ## Ground.rewears when the drawing's settled mask was taken: a rewear since wiped the drawn wear.
 var _seen := -1
+## Laying stones on a worker thread: [path, the copy of it laying them] pairs.
+var _task := -1
+var _jobs: Array[Array] = []
+## Paths whose stones must be laid again, and the ground of paths taken, which later paths paved around.
+var _stale: Array[PathLayout] = []
+var _gone: Array[Rect2] = []
+## Finished strokes' stones, shown until the stones laid from their commands are.
+var _fading: Array[Stones] = []
 
 
 func busy() -> bool:
@@ -35,6 +43,7 @@ func busy() -> bool:
 func begin(p: Vector3, half: float) -> void:
 	drawing = PathLayout.new()
 	drawing.seed = randi()
+	drawing.others = layouts.duplicate()
 	drawing.add(p, half)
 	_chunks = [Stones.new(true)]
 	add_child(_chunks[0])
@@ -66,7 +75,7 @@ func end() -> Dictionary:
 	_settled_mask = null
 	var chunks := _chunks
 	_chunks = []
-	var ghost := {"data": {"points": PackedVector3Array(path.points), "half_widths": PackedFloat32Array(path.half_widths), "seed": path.seed}, "chunks": chunks, "layout": path}
+	var ghost := {"data": path.data(), "chunks": chunks, "layout": path}
 	Ground.hold(path)
 	if path.length() < MIN_LENGTH:
 		drop(ghost)
@@ -76,10 +85,9 @@ func end() -> Dictionary:
 
 ## A ghost from `end` gives way: its command landed, was turned down, or the garden was swapped.
 func drop(ghost: Dictionary) -> void:
-	for c: Stones in ghost.chunks:
-		remove_child(c)
-		c.queue_free()
+	_fading.append_array(ghost.chunks)
 	Ground.release(ghost.layout)
+	_launch()
 
 
 ## A stroke under way belongs to a garden being swapped away.
@@ -94,26 +102,20 @@ func forget() -> void:
 		Ground.rewear()
 
 
-## The garden's side of a path being laid, from any player: built from its data and kept in id order, so
-## the arches paths open in walls and the ground they wear come out alike on every machine.
+## The garden's side of a path being laid, from any player: kept in id order, so the arches paths open in
+## walls, the ground they wear and the stones each lays around those of earlier paths come out alike on every
+## machine. Its stones are laid on a worker thread.
 func put(id: int, data: Dictionary) -> void:
-	var path := PathLayout.new()
-	path.seed = data.seed
-	for i in data.points.size():
-		path.add(data.points[i], data.half_widths[i])
-	path.build()
-	var chunks: Array[Stones] = []
-	for at in range(0, path.stones.size(), CHUNK):
-		var c := Stones.new(true)
-		c.lay(path.stones.slice(at, at + CHUNK))
-		add_child(c)
-		chunks.append(c)
-	_chunks_of[path] = chunks
+	var path := PathLayout.of(data)
+	path.plan()
 	ids[path] = id
 	var i := 0
 	while i < layouts.size() and ids[layouts[i]] < id:
 		i += 1
 	layouts.insert(i, path)
+	_chunks_of[path] = []
+	_stale.append(path)
+	_launch()
 	Ground.lay(path, id)
 	laid.emit(path)
 
@@ -123,16 +125,86 @@ func take(id: int) -> void:
 		if ids[path] == id:
 			layouts.erase(path)
 			ids.erase(path)
-			for c in _chunks_of[path]:
-				remove_child(c)
-				c.queue_free()
+			_unlay(path)
 			_chunks_of.erase(path)
+			_stale.erase(path)
+			_gone.append(path.area)
+			_launch()
 			Ground.lift(path)
 			taken.emit(path)
 			return
 
 
+## Whether stones are still being laid on a worker thread.
+func laying() -> bool:
+	return _task >= 0 or not _stale.is_empty() or not _gone.is_empty()
+
+
+## Lays again, on a worker thread, the stones of the stale paths and of every later path whose ground meets
+## one being laid again or taken, each around the paths before it.
+func _launch() -> void:
+	if _task >= 0:
+		return
+	if not laying():
+		for c in _fading:
+			remove_child(c)
+			c.queue_free()
+		_fading.clear()
+		return
+	var touched := _gone.duplicate()
+	var before: Array[PathLayout] = []
+	var jobs: Array[Array] = []
+	for path in layouts:
+		if _stale.has(path) or touched.any(func(r: Rect2) -> bool: return r.intersects(path.area)):
+			var job := PathLayout.of(path.data())
+			job.others = before.duplicate()
+			jobs.append([path, job])
+			touched.append(path.area)
+			before.append(job)
+		else:
+			before.append(path)
+	_stale.clear()
+	_gone.clear()
+	_jobs = jobs
+	_task = WorkerThreadPool.add_task(func():
+		for j in jobs:
+			j[1].build())
+
+
+func _laid() -> void:
+	WorkerThreadPool.wait_for_task_completion(_task)
+	_task = -1
+	for j in _jobs:
+		var path: PathLayout = j[0]
+		if not ids.has(path):
+			continue
+		path.adopt(j[1])
+		_unlay(path)
+		for at in range(0, path.stones.size(), CHUNK):
+			var c := Stones.new(true)
+			c.lay(path.stones.slice(at, at + CHUNK))
+			add_child(c)
+			_chunks_of[path].append(c)
+	_jobs = []
+	_launch()
+
+
+func _unlay(path: PathLayout) -> void:
+	for c in _chunks_of[path]:
+		remove_child(c)
+		c.queue_free()
+	_chunks_of[path] = []
+
+
+func _exit_tree() -> void:
+	if _task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_task)
+		_task = -1
+
+
 func _process(delta: float) -> void:
+	if _task >= 0 and WorkerThreadPool.is_task_completed(_task):
+		_laid()
 	_since_rebuild += delta
 	if _dirty and drawing != null and _since_rebuild >= WallTool.REBUILD_EVERY:
 		_relay()
@@ -145,7 +217,7 @@ func _relay() -> void:
 		_settled_rows = 0
 		_seen = Ground.rewears
 	drawing.build(drawing.settled())
-	var stable := drawing.row_lengths.bsearch(drawing.settled())
+	var stable := drawing.rows_before(drawing.settled())
 	var settled_stones := drawing.row_starts[stable] if stable < drawing.row_starts.size() else drawing.stones.size()
 	if settled_stones - _frozen >= CHUNK:
 		_chunks[-1].lay(drawing.stones.slice(_frozen, settled_stones))

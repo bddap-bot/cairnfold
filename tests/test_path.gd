@@ -15,6 +15,7 @@ func _run() -> void:
 	_stones_sit_on_the_ground()
 	_paths_are_deterministic()
 	_a_growing_stroke_ends_as_one_build()
+	await _stones_never_overlap()
 	_a_path_across_a_wall_opens_one_arch()
 	_a_wide_or_slanted_crossing_opens_an_arcade()
 	_a_path_beside_a_wall_opens_nothing()
@@ -118,6 +119,74 @@ func _a_growing_stroke_ends_as_one_build() -> void:
 	for i in mini(grown.stones.size(), whole.stones.size()):
 		same = same and grown.stones[i].xform.is_equal_approx(whole.stones[i].xform)
 	_check(same, "a stroke relaid row by row as it grows ends with the stones of one build (%d vs %d)" % [grown.stones.size(), whole.stones.size()])
+
+
+## Stones cover the mesh's lumps: a unit box reaching 0.53 of its scale each way.
+func _footprint(st: Dictionary) -> PackedVector2Array:
+	var b: Basis = st.xform.basis
+	var o: Vector3 = st.xform.origin
+	var u := Vector2(b.x.x, b.x.z) * 0.53
+	var v := Vector2(b.z.x, b.z.z) * 0.53
+	var c := Vector2(o.x, o.z)
+	return PackedVector2Array([c - u - v, c + u - v, c + u + v, c - u + v])
+
+
+func _overlaps(stones: Array[Dictionary]) -> int:
+	var feet := stones.map(_footprint)
+	var n := 0
+	for i in feet.size():
+		for j in range(i + 1, feet.size()):
+			if feet[i][0].distance_to(feet[j][0]) < 2.0 and not Geometry2D.intersect_polygons(feet[i], feet[j]).is_empty():
+				n += 1
+	return n
+
+
+func _stones_never_overlap() -> void:
+	var shapes := {
+		"a straight run": [[[0, 0], [12, 0]], 1.5],
+		"a gentle curve": [[[0, 0], [4, 2], [8, 0], [12, -3]], 1.2],
+		"a tight curve": [[[0, 0], [2, 0], [2.5, 1], [2, 2], [0, 2]], 1.8],
+		"a hairpin": [[[0, 0], [5, 0], [5.6, 0.6], [5, 1.2], [0, 1.2]], 0.9],
+		"a zigzag": [[[0, 0], [1.5, 1.5], [3, 0], [4.5, 1.5], [6, 0]], 1.0],
+		"a loop crossing itself": [[[0, 0], [6, 0], [7, 2], [5, 3], [4, 1], [4, -3]], 1.2],
+	}
+	for name in shapes:
+		var p := _path(shapes[name][0], shapes[name][1])
+		var n := _overlaps(p.stones)
+		_check(n == 0, "%s lays %d overlapping pairs of %d stones" % [name, n, p.stones.size()])
+	var paths := Paths.new()
+	root.add_child(paths)
+	var strokes := [
+		[[[-8, 0], [8, 0]], 1.4],
+		[[[0, -8], [0, 8]], 1.0],
+		[[[-6, -6], [6, 6]], 2.0],
+		[[[-8, 0.3], [8, 0.2]], 1.4],
+		[[[-8, 2], [0, 0], [8, 1]], 0.8],
+	]
+	for i in strokes.size():
+		var pts := PackedVector3Array()
+		var halves := PackedFloat32Array()
+		for q in strokes[i][0]:
+			pts.append(Vector3(q[0], 0, q[1]))
+			halves.append(strokes[i][1])
+		paths.put(i + 1, {"points": pts, "half_widths": halves, "seed": i + 7})
+	while paths.laying():
+		await process_frame
+	var all: Array[Dictionary] = []
+	for p in paths.layouts:
+		all.append_array(p.stones)
+	var n := _overlaps(all)
+	_check(n == 0, "crossing and re-drawn paths lay %d overlapping pairs of %d stones" % [n, all.size()])
+	paths.take(2)
+	paths.put(2, {"points": PackedVector3Array([Vector3(0, 0, -8), Vector3(0, 0, 8)]), "half_widths": PackedFloat32Array([1.0, 1.0]), "seed": 8})
+	while paths.laying():
+		await process_frame
+	all.clear()
+	for p in paths.layouts:
+		all.append_array(p.stones)
+	n = _overlaps(all)
+	_check(n == 0, "a path put back under later ones lays %d overlapping pairs" % n)
+	paths.queue_free()
 
 
 func _a_path_across_a_wall_opens_one_arch() -> void:
