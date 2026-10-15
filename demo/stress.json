@@ -108,7 +108,7 @@
   {"op": "label", "name": "-"},
   {"op": "capture", "name": "r15-tall-ground"},
   {"op": "clear"},
-  {"op": "village", "radius": 20, "spacing": 7},
+  {"op": "village", "radius": 20, "spacing": 7, "storeys": 2, "wings": true},
   {"op": "wait", "seconds": 3},
   {"op": "label", "name": "village/aerial"},
   {"op": "view", "eye": [0, 22, 32], "at": [0, 0, 0]},

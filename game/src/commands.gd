@@ -29,6 +29,8 @@ const MAX_CHIMNEYS := 8
 const MAX_RUINS := 32
 ## Most commands a snapshot holds: per thing one, and per plant group one more for its hidden plants.
 const MAX_SNAPSHOT := MAX_THINGS * 2 + MAX_SEEDS + 64
+## Most builds one build stands on.
+const MAX_SUPPORTS := 8
 
 
 ## Length of a stroke along the ground.
@@ -85,6 +87,12 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 				var ids: Variant = cmd.get("ids")
 				ok = typeof(ids) == TYPE_PACKED_INT32_ARRAY and ids.size() == ws.size() and _unique(ids) and not Array(ids).any(func(id: int) -> bool: return state.walls.has(id))
 				out.ids = ids
+				# A build stands only on older ones, so what stands on what never loops.
+				for i in (ws.size() if ok else 0):
+					ok = ok and Array(out.walls[i].on).all(func(o: int) -> bool: return o < ids[i])
+			elif ok:
+				for w: Dictionary in out.walls:
+					w.on = PackedInt32Array(Array(w.on).filter(func(o: int) -> bool: return state.walls.has(o)))
 		"unwall":
 			var ids: Variant = cmd.get("ids")
 			ok = typeof(ids) == TYPE_PACKED_INT32_ARRAY and ids.size() >= 1 and ids.size() <= MAX_PIECES and _unique(ids) and Array(ids).all(func(id: int) -> bool: return state.walls.has(id))
@@ -171,7 +179,10 @@ static func _wall(d: Variant) -> Variant:
 		return null
 	if not ruins.is_empty() and (d.fence or d.has("roof")):
 		return null
-	var out := {"points": points, "height": d.height, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster}
+	var on: Variant = d.get("on")
+	if typeof(on) != TYPE_PACKED_INT32_ARRAY or on.size() > MAX_SUPPORTS or not _unique(on):
+		return null
+	var out := {"points": points, "height": d.height, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "on": on}
 	if d.has("roof"):
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():

@@ -201,7 +201,8 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 	var tool: WallTool = main.tool
 	var m := tool.mason(_holding(s, held))
 	var path := _path(s)
-	tool.begin_stroke(m, path[0])
+	var first := _target(s, path[0])
+	tool.begin_stroke(m, first.point, first.on)
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
 	var shot := ceili(frames * s.get("capture_at", 0.6)) if s.has("capture") else -1
 	for f in frames:
@@ -217,7 +218,8 @@ func _tower(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var m := tool.mason(_holding(s, Hand.Tool.PLASTER_WALLS if s.get("plaster", false) else Hand.Tool.WALLS))
 	var path := _path(s)
-	tool.begin_stroke(m, path[0])
+	var first := _target(s, path[0])
+	tool.begin_stroke(m, first.point, first.on)
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
 	for f in frames:
 		await get_tree().process_frame
@@ -243,7 +245,8 @@ func _house(s: Dictionary) -> void:
 	var yaw := _turn(s, x, z, s.get("turn", 0.0))
 	var yaw_from := _turn(s, x, z, s.get("turn_from", s.get("turn", 0.0)))
 	var size := Vector2(s.size[0], s.size[1]) if s.has("size") else WallTool.HOUSE_SIZE
-	tool.begin_house(from, yaw_from, s.get("plaster", false))
+	var on: int = _target(s, from).on
+	tool.begin_house(from, yaw_from, s.get("plaster", false), PackedInt32Array([on]) if on >= 0 else PackedInt32Array())
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
 	var shots: int = s.get("shots", 3) if s.has("capture") else 0
 	var taken := 0
@@ -487,7 +490,8 @@ func _fill_flora(s: Dictionary) -> void:
 		flora.add_tree(_scatter(rng, s.radius), rng)
 
 
-## Fills a disc at once with a grid of houses and round towers, `spacing` apart, alternating.
+## Fills a disc at once with a grid of houses and round towers, `spacing` apart, alternating; with `storeys`, each
+## stands that many high, and with `wings`, a wing crosses each house.
 func _village(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var m := tool.mason(_holding(s, Hand.Tool.PLASTER_WALLS if s.get("plaster", false) else Hand.Tool.WALLS))
@@ -502,16 +506,29 @@ func _village(s: Dictionary) -> void:
 				continue
 			k += 1
 			if k % 2 == 0:
-				tool.begin_house(Terrain.ground(c.x, c.y), 0.0, s.get("plaster", false))
-				tool.place_house(Terrain.ground(c.x, c.y), 0.0, Vector2(0.7, 0.44) * step)
-				tool.end_house()
-				tool.walls[-1].ivy_age = INF
+				var at := Terrain.ground(c.x, c.y)
+				var on := PackedInt32Array()
+				for storey in s.get("storeys", 1):
+					tool.begin_house(at, 0.0, s.get("plaster", false), on)
+					tool.place_house(at, 0.0, Vector2(0.7, 0.44) * step)
+					tool.end_house()
+					tool.walls[-1].ivy_age = INF
+					on = PackedInt32Array([tool.walls[-1].id])
+				if s.get("wings", false):
+					var wing := Terrain.ground(c.x + step * 0.2, c.y)
+					tool.begin_house(wing, 0.0, s.get("plaster", false))
+					tool.place_house(wing, 0.0, Vector2(0.3, 0.6) * step)
+					tool.end_house()
+					tool.walls[-1].ivy_age = INF
 			else:
 				var at := Terrain.ground(c.x, c.y)
-				tool.begin_stroke(m, at)
-				tool.snap_tower(m, at, step * 0.25)
-				tool.end_stroke(m)
-				tool.walls[-1].ivy_age = INF
+				var on := -1
+				for storey in s.get("storeys", 1):
+					tool.begin_stroke(m, at, on)
+					tool.snap_tower(m, at, step * 0.25 * (1.0 - storey * 0.15))
+					tool.end_stroke(m)
+					tool.walls[-1].ivy_age = INF
+					on = tool.walls[-1].id
 	print("village: %d buildings in %.0f ms" % [k, (Time.get_ticks_usec() - start) / 1000.0])
 
 
@@ -687,6 +704,16 @@ func _spot(s: Dictionary, x: float, z: float) -> Vector3:
 	var right := fwd.cross(Vector3.UP)
 	var p := head.global_position + right * x + fwd * z
 	return Terrain.ground(p.x, p.z)
+
+
+## What the walls tool builds on at a ground spot: with "on", what a hand pointing straight down from above it
+## hits, a build's top or the ground; else the ground.
+func _target(s: Dictionary, p: Vector3) -> Dictionary:
+	if s.get("on", false):
+		var hit: Dictionary = main.tool.aim(p + Vector3.UP * 60.0, Vector3.DOWN)
+		if not hit.is_empty():
+			return hit
+	return {"point": p, "on": -1}
 
 
 func _path(s: Dictionary) -> Array[Vector3]:

@@ -67,6 +67,14 @@ func rise(u: float) -> float:
 	return pitch * (u + curve * 0.25 * sin(PI * u))
 
 
+## Height of the roof's surface over the ground point (x, z).
+func height_at(x: float, z: float) -> float:
+	var f := frame()
+	var d := Vector3(x, 0.0, z) - Vector3(f.mid.x, 0.0, f.mid.z)
+	var out := d.length() if kind == Kind.CONE else absf(d.dot(f.across))
+	return base + rise(1.0 - out / half_span())
+
+
 ## Distance from the ridge (or axis) out to the walls' outer faces, where the roof rests.
 func half_span() -> float:
 	var inner := radius if kind == Kind.CONE else corners[0].distance_to(corners[3]) * 0.5

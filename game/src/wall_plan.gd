@@ -26,6 +26,8 @@ var seed: int
 ## The stroke draws a fence: low posts and rails, with no arches over plants.
 var fence := false
 var plaster := false
+## The builds the stroke is drawn on top of.
+var supports: Array[Solid] = []
 ## Each stroke point's nearest standing wall, kept while the point stays put: only the newest point moves.
 var _hits: Array[Dictionary] = []
 
@@ -47,6 +49,7 @@ func pieces(stroke: Array[Vector3], ground: Callable) -> Array[WallLayout]:
 		w.plaster = plaster
 		if fence:
 			w.height = WallLayout.FENCE_HEIGHT
+		w.supports = supports.duplicate()
 		w.resample(ground)
 		if w.length() < MIN_LENGTH:
 			continue
@@ -94,7 +97,7 @@ func _steep(stroke: Array[Vector3], i: int, step: int) -> bool:
 	return dir.normalized().dot(at.normalized()) > APPROACH
 
 
-## Arches over the plants the wall stands on; a long wall over open ground opens one at its middle.
+## Arches over the plants the wall stands on; a long wall on open ground opens one at its middle.
 func arches_for(w: WallLayout) -> Array[float]:
 	var out: Array[float] = []
 	if w.fence or not w.can_arch():
@@ -114,7 +117,7 @@ func arches_for(w: WallLayout) -> Array[float]:
 	for s in found:
 		if out.is_empty() or s - out[-1] >= spacing:
 			out.append(s)
-	if out.is_empty() and w.length() >= AUTO_ARCH_LENGTH:
+	if out.is_empty() and w.length() >= AUTO_ARCH_LENGTH and w.supports.is_empty():
 		out.append(w.length() * 0.5)
 	return out
 

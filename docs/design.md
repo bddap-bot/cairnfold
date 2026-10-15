@@ -162,7 +162,7 @@ density, and no build the player can make may bring the frame rate down.
 - `demo/stress.json` is the worst case: the bare meadow, then every flora pool full,
   a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
   over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
-  and towers, eight ponds, and the most ducks there can be at them (`bench.sh`
+  and towers two storeys high, each house crossed by a wing, eight ponds, and the most ducks there can be at them (`bench.sh`
   fixes the seed) and the most sheep at four fences between them (seen too from the ground by a fence), with every butterfly there can be
   over the full flower pool and the most conures there can be among the full pool of planted trees,
   every firefly there can be over the ponds at dusk, and a hill pulled up live under 973 m of walls,
@@ -615,6 +615,7 @@ Stage numbers refer to the build order at the end.
 | Stone ground | Steep terrain turns rocky; paths of dirt and, later, cobblestone blended with them | The stone tool paints flagstone ground where it points, fraying into the meadow slab by slab; its grip paints meadow back (see "Ground materials") | 7 (done) |
 | Towers | A loop held down straightens into a circle | Draw a loop and keep holding with the end back near the start: after a moment it snaps to a round tower (radius 1.2–4 m) with a tiled cone roof, standing level on its lowest ground | 4 (done) |
 | Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Its own tool, a little house in the ring. Its trigger or grip takes up a square house where the hand points and carries it, turning with the hand; the other hand's grip joins to hold it by both hands, which move it by their midpoint, turn it as the pair turns and stretch it along the line between them as they spread (each side 2.4–14 m, at most 7 m across the ridge, which runs the longer way). Letting go builds it. Stone walls with corner piers, a door arch in the front, level on its lowest ground | 4 (done) |
+| Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings") | 4 (done) |
 | Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, plaster gable ends. Grip on a roof with the walls tool: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`). Pushed all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top style then cycles like an open wall's | 4 (done) |
 | Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light | 6 (done) |
 | Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | The decorations tool's trigger places what suits where it points: a stone chimney with two clay pots on a house's roof, rising clear of the ridge; a flag on a tower's roof or a wall's top, waving; a lantern on an iron arm off a wall's face, or on a fence post. Lanterns are emissive bodies in a soft additive halo, and the three nearest the head cast real light. A press on one takes it away | 6 (done) |
@@ -688,7 +689,33 @@ Cairnfold's version, adapted to a pointer swept by hand, where a few centimetres
   standing walls and 470 plants on a desktop CPU.
 - Not adopted: merging two walls into one polyline at their ends and the "continue wall" handle; junctions
   between separate walls give a similar look without rewriting a standing wall's stones. Towers and houses
-  are placed as drawn; only strokes merge.
+  join where they overlap instead (see "Buildings on buildings").
+
+## Buildings on buildings
+
+Directive (verbatim): "Being able to build on buildings and combine buildings together is kinda... core to this
+whole game. er- Well, it... It's core to the inspiration and it'll really make for a fun game when you can... make
+buildings by combining multiple other buildings together"
+
+Every wall, fence, tower and house is one kind of thing, a build, and two rules make them compose (`Solid`,
+pure data; tests in `tests/test_build_on.gd`, and through the garden in `tests/test_world.gd`):
+
+- A build stands on what it was aimed at. The ray of a hand holding walls, fences or the house stops at the first top it meets: a wall's top, a
+  flat roof, or a pitched roof, which counts as the top of the walls under it. What is drawn there stands on that
+  top, and its command carries the ids of the builds under it (`on`). A loop on builds stands level on the
+  highest top under it, an open wall on the top under each of its points, and the ground where it runs off. A
+  stroke begun on a top is drawn on that top's level, so a thin wall top is easy to follow, and it merges only
+  with walls standing on the same build. Nothing on a top opens a door or an arch on its own.
+- Builds that meet lay nothing inside each other. A build's stones, roof tiles and gable ends inside a house or
+  tower it overlaps, between that one's feet and its roof, are not laid; so the shared stretch of two houses'
+  walls goes, the rooms become one, and their roofs meet in valleys, and a wall run into a tower ends inside its
+  wall. A build standing on another takes away what of that one rises above the top it stands on under it: the
+  merlons under a tower on a wall, the roof and gable ends under an upper storey (its eaves stay as a skirt).
+- A build stands only on older ones, so what stands on what never loops. When a build changes or goes, every
+  build it meets is laid again on a worker thread at the end of that frame, oldest first, so a storey rises with
+  the house under it and comes down to the ground if that house is taken away. Builds that meet nothing lay as
+  before, and two open walls never meet this way, so the stress scene's walls cost nothing more; its village
+  stands two storeys high, each house crossed by a wing.
 
 ## Tools in hand
 
@@ -761,13 +788,13 @@ choice of tools leaves you unable to move, and aiming at the ground is how you c
 | Teleport into the air | Aim above the horizon: with no ground within reach (10 m to start), the ray targets the point in the air at its end, a ring on a pole down to the ground below. The other hand's stick up or down while aiming moves that point farther or nearer (2–40 m). Release to arrive, slightly high, then settle gently into a hover with a slow bob |
 | Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick left or right: 30° snap turn |
-| Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground; release to finish. Strokes under 1 m are discarded, and a stroke near a standing wall merges into it |
+| Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground, or along a build's top to build on it; release to finish. Strokes under 1 m are discarded, and a stroke near a standing wall merges into it |
 | Build a tower | Draw a loop and hold the trigger with the end back at the start until it snaps round |
 | Raise or lower a wall | Grip of a hand holding walls while pointing at a wall, move the hand up or down; the gain grows with distance so far walls are easy to adjust |
 | Shape a roof | Grip of a hand holding walls while pointing at a roof: up and down for pitch, sideways for curvature; all the way down snaps it flat |
 | Cut or fill an arch | A while a hand holding walls points at a wall |
 | Change a wall's top | A while a hand holding walls points at its top: merlons, plain capping, coping |
-| Lay out a house | Trigger or grip of a hand holding the house takes up a square house where it points; carry and turn it with that hand, add the other hand's grip to turn it with both hands and stretch it by spreading them; let go to build |
+| Lay out a house | Trigger or grip of a hand holding the house takes up a square house where it points, on the ground or on a build's top for an upper storey; carry and turn it with that hand, add the other hand's grip to turn it with both hands and stretch it by spreading them; let go to build |
 | Paint flowers or grass | Trigger held on a hand holding flowers or grass, pointing at the ground; the ring shows the brush, which widens the farther you point |
 | Paint stone ground | Trigger held on a hand holding stone, pointing at the ground; the grip held instead paints it back to meadow. The ring shows the brush, which widens the farther you point |
 | Plant a tree | Trigger of a hand holding trees, pointing at the ground |

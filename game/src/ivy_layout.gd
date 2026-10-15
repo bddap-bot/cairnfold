@@ -40,7 +40,7 @@ static func grow(wall: WallLayout) -> Array[Dictionary]:
 
 ## The leaves as a MultiMesh buffer (transform and colour per instance), their growth times and their bounds.
 static func bake(wall: WallLayout) -> Dictionary:
-	var leaves := grow(wall)
+	var leaves := grow(wall).filter(func(l: Dictionary) -> bool: return not wall.hides(l.xform.origin))
 	var buffer := PackedFloat32Array()
 	buffer.resize(leaves.size() * 16)
 	var times := PackedFloat32Array()

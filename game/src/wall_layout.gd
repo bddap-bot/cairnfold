@@ -16,6 +16,8 @@ const THICKNESS := 0.62
 const CAP := 0.14
 const PARAPET := 0.34
 const SAMPLE := 0.2
+## How far the stones sink below the ground, or into the top of what they stand on.
+const SINK := 0.12
 const ARCH_HALF := 0.75
 const RING := 0.32
 ## The nearest an arch's centre stands to a wall's end.
@@ -86,6 +88,11 @@ var lanterns: Array[Vector3] = []
 var flags: Array[float] = []
 ## Stretches broken away to the ground, by arc length from and to, each within the wall's length.
 var ruins: Array[Vector2] = []
+## The builds this one stands on, the builds standing on it and the houses and towers it joins
+## (docs/design.md, "Buildings on buildings").
+var supports: Array[Solid] = []
+var resting: Array[Solid] = []
+var joined: Array[Solid] = []
 # The fields above are what `build` reads (see `inputs`); those below are what it lays (see `adopt`).
 
 ## The points the stones were laid along: `points` may have moved on while a worker lays them.
@@ -163,6 +170,7 @@ func build(ground: Callable) -> void:
 				live_arches.append(a)
 	if fence:
 		_build_fence(rng)
+		_hide()
 		return
 	_stone_scale = 1.0
 	if closed and corners().is_empty():
@@ -215,6 +223,30 @@ func build(ground: Callable) -> void:
 			_world(parts.pole, POLE, "pole", f)
 			_world(parts.finial, FINIAL, "finial", f)
 			cloths.append(parts.cloth)
+	_hide()
+
+
+## Takes away the tiles, flag and gable ends of the roof on this wall that lie where a build it meets lays nothing.
+func hide_roof(r: RoofLayout) -> void:
+	if joined.is_empty() and resting.is_empty():
+		return
+	r.tiles.assign(r.tiles.filter(func(t: Dictionary) -> bool: return not hides(t.xform.origin)))
+	r.cloths.assign(r.cloths.filter(func(c: Dictionary) -> bool: return not hides(c.xform.origin)))
+	var kept := PackedVector3Array()
+	for i in range(0, r.gable_faces.size(), 3):
+		var tri := r.gable_faces.slice(i, i + 3)
+		if not hides((tri[0] + tri[1] + tri[2]) / 3.0):
+			kept.append_array(tri)
+	r.gable_faces = kept
+
+
+## Takes away what lies where a build this one meets lays nothing.
+func _hide() -> void:
+	if joined.is_empty() and resting.is_empty():
+		return
+	stones.assign(stones.filter(func(st: Dictionary) -> bool: return not hides(st.xform.origin)))
+	flames.assign(flames.filter(func(x: Transform3D) -> bool: return not hides(x.origin)))
+	cloths.assign(cloths.filter(func(c: Dictionary) -> bool: return not hides(c.xform.origin)))
 
 
 func courses() -> int:
@@ -862,6 +894,9 @@ func inputs() -> WallLayout:
 	w.lanterns = lanterns.duplicate()
 	w.flags = flags.duplicate()
 	w.ruins = ruins.duplicate()
+	w.supports = supports.duplicate()
+	w.resting = resting.duplicate()
+	w.joined = joined.duplicate()
 	return w
 
 
@@ -906,6 +941,8 @@ func snapshot() -> WallLayout:
 	w.breaks = breaks.duplicate()
 	w.fence = fence
 	w.plaster = plaster
+	w.resting = resting.duplicate()
+	w.joined = joined.duplicate()
 	return w
 
 
@@ -961,7 +998,7 @@ func _resample_open(ground: Callable) -> void:
 	var acc := 0.0
 	for i in dense.size():
 		var q := dense[i]
-		q.y = ground.call(q.x, q.z) - 0.12
+		q.y = maxf(ground.call(q.x, q.z), _rest(q.x, q.z)) - SINK
 		if i > 0:
 			acc += Vector2(q.x - samples[-1].x, q.z - samples[-1].z).length()
 		samples.append(q)
@@ -978,16 +1015,43 @@ func _resample_loop(ground: Callable) -> void:
 		for j in seg:
 			dense.append(a.lerp(b, float(j) / seg))
 	dense.append(points[0])
+	# On the ground a loop stands level on its lowest ground; on other builds, on the highest top under it.
 	var foot := INF
+	var held := -INF
 	for q in dense:
 		foot = minf(foot, ground.call(q.x, q.z))
+		held = maxf(held, _rest(q.x, q.z))
+	if held > -INF:
+		foot = held
 	var acc := 0.0
 	for i in dense.size():
-		var q := Vector3(dense[i].x, foot - 0.12, dense[i].z)
+		var q := Vector3(dense[i].x, foot - SINK, dense[i].z)
 		if i > 0:
 			acc += Vector2(q.x - samples[-1].x, q.z - samples[-1].z).length()
 		samples.append(q)
 		lengths.append(acc)
+
+
+## The highest top of the builds under (x, z), or -INF.
+func _rest(x: float, z: float) -> float:
+	var best := -INF
+	for s in supports:
+		var h := s.rest(x, z)
+		if not is_nan(h):
+			best = maxf(best, h)
+	return best
+
+
+## Whether `p` lies where a build this one meets lays nothing: in a house or tower it joins, or under a build
+## standing on it.
+func hides(p: Vector3) -> bool:
+	for s in joined:
+		if s.holds(p):
+			return true
+	for s in resting:
+		if s.covers(p):
+			return true
+	return false
 
 
 ## The centre and radius of the tower a held stroke snaps to, or empty while the stroke is not yet a loop.

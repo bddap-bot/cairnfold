@@ -30,6 +30,7 @@ func _run() -> void:
 	_ghost_paths_never_change_what_grows()
 	_snapshot_rebuilds_the_garden()
 	_restore_forgets_history()
+	await _a_storey_follows_what_it_stands_on()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
 
@@ -41,7 +42,7 @@ func _check(ok: bool, what: String) -> void:
 
 
 func _wall(by: int, x: float) -> int:
-	world._order({"op": "wall", "walls": [{"points": PackedVector3Array([Terrain.ground(x, -5), Terrain.ground(x + 4, -5)]), "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array()}]}, by)
+	world._order({"op": "wall", "walls": [{"points": PackedVector3Array([Terrain.ground(x, -5), Terrain.ground(x + 4, -5)]), "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array()}]}, by)
 	return world.seq * Commands.MAX_PIECES
 
 
@@ -94,7 +95,49 @@ func _redo_waits_on_the_same_condition() -> void:
 
 
 func _wall_data(points: PackedVector3Array) -> Dictionary:
-	return {"points": points, "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array()}
+	return {"points": points, "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array()}
+
+
+func _house_data(on: PackedInt32Array) -> Dictionary:
+	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(-40, 30), Terrain.ground(-34, 30), 4.0)))
+	d.closed = true
+	d.on = on
+	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(-37, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "flag": false}
+	return d
+
+
+func _foot(id: int) -> float:
+	return main.tool.find(id).layout.samples[0].y
+
+
+func _a_storey_follows_what_it_stands_on() -> void:
+	world._order({"op": "wall", "walls": [_house_data(PackedInt32Array())]}, 1)
+	var lower := world.seq * Commands.MAX_PIECES
+	world._order({"op": "wall", "walls": [_house_data(PackedInt32Array([lower]))]}, 1)
+	var upper := world.seq * Commands.MAX_PIECES
+	var top := _foot(lower) + 2.6 + WallLayout.CAP
+	_check(absf(_foot(upper) - (top - WallLayout.SINK)) < 0.01, "the storey stands on the house")
+	world._order({"op": "reshape", "id": lower, "data": {"height": 3.5}}, 1)
+	await process_frame
+	await process_frame
+	_check(absf(_foot(upper) - (_foot(lower) + 3.5 + WallLayout.CAP - WallLayout.SINK)) < 0.01, "raising the house lifts the storey")
+	world._order({"op": "unwall", "ids": PackedInt32Array([lower])}, 1)
+	await process_frame
+	await process_frame
+	_check(_foot(upper) < top - 1.0, "with the house gone the storey stands on the ground")
+	var snap := world.snapshot()
+	world.restore(snap)
+	world._order({"op": "undo"}, 1)
+	_check(world.state.walls.size() == 1, "history went with the restore")
+	var bad := _house_data(PackedInt32Array([upper + 50]))
+	world._order({"op": "wall", "walls": [_with(bad, "on", PackedInt32Array([upper]))]}, 1)
+	var later := world.seq * Commands.MAX_PIECES
+	_check(world.state.walls.has(later) and world.state.walls[later].on == PackedInt32Array([upper]), "a build may stand on one standing")
+	_check(Commands.clean({"op": "wall", "ids": PackedInt32Array([5]), "walls": [_with(bad, "on", PackedInt32Array([9]))], "seq": 1, "by": 1}, world.state, true).is_empty(), "never on a newer one")
+	world._order({"op": "wall", "walls": [_with(bad, "on", PackedInt32Array([123456]))]}, 1)
+	_check(world.state.walls[world.seq * Commands.MAX_PIECES].on.is_empty(), "a proposal on a build since gone stands on the ground")
+	for id in world.state.walls.keys():
+		world._order({"op": "unwall", "ids": PackedInt32Array([id])}, 1)
 
 
 func _bad_commands_are_dropped() -> void:

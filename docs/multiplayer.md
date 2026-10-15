@@ -33,12 +33,14 @@ comes out the same.
   thing. Painted ghosts grow in pools of their own, so the garden's plant pools fill in
   command order on every machine.
 - **Commands carry results, not gestures.** A wall carries its points, height, arches,
-  top and roof. A ground edit carries the heights it leaves. A paint stroke carries its
+  top, roof and the ids of the builds it stands on. A ground edit carries the heights it leaves. A paint stroke carries its
   random seed and its brush dabs, from which every machine grows the same plants, and it
   records which plants fell on a path when it grew, so a garden rebuilt later grows the
   same ones. A command runs from tens of bytes to a few kilobytes and is sent once per
   gesture, so networking costs no frame time.
-- **Derived things are derived everywhere.** The arches a path opens in a wall are not
+- **Derived things are derived everywhere.** How builds meet (what of one lies inside another, how
+  high a storey stands on the house under it) is worked out from the walls standing on every machine.
+  The arches a path opens in a wall are not
   stored. Each machine works them out from the walls and paths standing, taking paths in
   id order, whenever either changes. They therefore come and go with the path, in any
   order and on every machine.

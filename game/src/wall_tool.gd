@@ -9,6 +9,8 @@ extends Node3D
 ## or an arcade where the crossing is wide: those arches follow from the paths standing, so they come and go
 ## with the path. A hand holding the fence draws fences the same way: posts and rails, a wooden arch where a
 ## path crosses. Every finished edit goes to the garden as a build command; this tool shows it until then.
+## A hand points at the ground or at a build's top, and what it builds there stands on that build; builds that
+## meet join (docs/design.md, "Buildings on buildings").
 
 const POINT_SPACING := 0.45
 const REBUILD_EVERY := 0.06
@@ -45,7 +47,9 @@ class Mason:
 	var loop := {}
 	var loop_held := 0.0
 	var pick := {}
+	## Where the hand points to build, and the id of the build it points at, or -1 on the ground.
 	var ground: Variant = null
+	var on := -1
 
 
 ## A stroke being drawn and the walls it builds, shown as it grows and kept on release.
@@ -55,6 +59,9 @@ class Stroke:
 	var plan: WallPlan
 	var walls: Array[Wall] = []
 	var planned := false
+	## The builds it stands on, and the height of the top it is drawn on, or NAN on the ground.
+	var on := PackedInt32Array()
+	var level := NAN
 
 
 var rig: Rig
@@ -79,6 +86,8 @@ var quiet := false
 var _since_rebuild := 0.0
 var _dirty := false
 var _arch_button: Buttons
+## Ids of builds to lay again at the end of the frame for what they meet.
+var _due := {}
 
 
 func _init(player: Rig, garden: World, plants: Flora, ways: Paths) -> void:
@@ -138,6 +147,7 @@ func _process(delta: float) -> void:
 	_since_rebuild += delta
 	if _dirty and _since_rebuild >= REBUILD_EVERY:
 		_flush()
+	_relay_due()
 	for m in masons:
 		if m.lifting != null or m.roofing != null:
 			m.hand.hold()
@@ -167,14 +177,16 @@ func _handle(m: Mason, delta: float) -> void:
 	var hand := m.hand.global_transform
 	var origin := hand.origin
 	var dir := -hand.basis.z
-	m.ground = Terrain.raycast(origin, dir)
+	var aimed := aim(origin, dir) if m.stroke == null or is_nan(m.stroke.level) else _at_level(origin, dir, m.stroke.level)
+	m.ground = aimed.get("point")
+	m.on = aimed.get("on", -1)
 	m.pick = pick_wall(origin, dir)
 	var roof := pick_roof(origin, dir)
 	var on_roof: bool = not roof.is_empty() and (m.pick.is_empty() or m.pick.distance > 0.2 or roof.along < m.pick.along)
 	m.hand.point(roof.point if on_roof else m.ground if m.pick.is_empty() else m.pick.point, TINT)
 
 	if m.buttons.pressed("trigger_click") and m.ground != null and not busy():
-		begin_stroke(m, m.ground)
+		begin_stroke(m, m.ground, m.on)
 	elif m.buttons.held("trigger_click") and m.stroke != null and m.ground != null:
 		extend_stroke(m, m.ground)
 
@@ -226,15 +238,22 @@ func _add_wall(w: Wall) -> Wall:
 	return w
 
 
-func begin_stroke(m: Mason, p: Vector3) -> void:
-	var standing: Array[WallLayout] = []
-	for w in walls:
-		standing.append(w.layout)
+## A stroke from `p`, on the build `on` (-1 the ground): one begun on a build's top is drawn on that top's level,
+## merging only with walls standing on that build as a stroke on the ground merges with walls on the ground.
+func begin_stroke(m: Mason, p: Vector3, on := -1) -> void:
 	m.stroke = Stroke.new()
 	m.stroke.points = [p]
-	m.stroke.plan = WallPlan.new(standing, flora.obstacles(), randi())
+	if on >= 0:
+		m.stroke.on = PackedInt32Array([on])
+		m.stroke.level = p.y
+	var standing: Array[WallLayout] = []
+	for w in walls:
+		if w.on.has(on) or (on < 0 and w.on.is_empty()):
+			standing.append(w.layout)
+	m.stroke.plan = WallPlan.new(standing, flora.obstacles() if on < 0 else PackedVector3Array(), randi())
 	m.stroke.plan.fence = m.hand.tool == Hand.Tool.FENCE
 	m.stroke.plan.plaster = m.hand.tool == Hand.Tool.PLASTER_WALLS
+	m.stroke.plan.supports = _solids(m.stroke.on)
 	m.loop = {}
 	m.loop_held = 0.0
 	_dirty = true
@@ -249,6 +268,8 @@ func extend_stroke(m: Mason, p: Vector3) -> void:
 	else:
 		pts.append(p)
 		built.emit(&"stone", p + Vector3.UP)
+	if not is_nan(m.stroke.level):
+		_rest_on(m.stroke, p)
 	m.stroke.planned = false
 	_dirty = true
 	m.loop = {} if m.stroke.plan.fence else WallLayout.fit_loop(pts)
@@ -267,6 +288,8 @@ func _plan(st: Stroke) -> void:
 		if i == st.walls.size():
 			st.walls.append(_add_wall(Wall.new(layouts[i].seed, masonry)))
 		st.walls[i].layout = layouts[i]
+		st.walls[i].on = st.on
+		_meet(st.walls[i])
 
 
 ## The stroke becomes a round tower with a cone roof; the rest of the stroke is ignored.
@@ -281,6 +304,8 @@ func snap_tower(m: Mason, center: Vector3, radius: float) -> void:
 	layout.closed = true
 	layout.top = WallLayout.Top.CAP
 	layout.height = TOWER_HEIGHT
+	m.stroke.walls[0].on = m.stroke.on
+	_meet(m.stroke.walls[0])
 	var roof := RoofLayout.new()
 	roof.kind = RoofLayout.Kind.CONE
 	roof.center = center
@@ -321,6 +346,7 @@ func _forget() -> void:
 		house.queue_free()
 		house = null
 		_holders.clear()
+	_due.clear()
 
 
 ## Who holds the house: a hand holding the house tool by its trigger or grip takes it up, and once it is up the other
@@ -335,7 +361,7 @@ func _house_input() -> void:
 			holders.append(m)
 			starting = starting or m.buttons.pressed("trigger_click") or m.buttons.pressed("grip_click")
 		elif house == null:
-			m.hand.point(Terrain.raycast(m.hand.global_position, -m.hand.global_basis.z), TINT)
+			m.hand.point(aim(m.hand.global_position, -m.hand.global_basis.z).get("point"), TINT)
 	if house == null and (not starting or busy()):
 		return
 	if not holders.is_empty() or house != null:
@@ -344,12 +370,14 @@ func _house_input() -> void:
 				holders.append(m)
 	if house == null:
 		var lead := holders[0].hand
-		var at: Variant = Terrain.raycast(lead.global_position, -lead.global_basis.z)
+		var aimed := aim(lead.global_position, -lead.global_basis.z)
+		var at: Variant = aimed.get("point")
 		if at == null:
 			var ahead := -rig.head.global_basis.z
 			ahead.y = 0.0
 			at = Terrain.ground(rig.head.global_position.x + ahead.normalized().x * HOUSE_REACH, rig.head.global_position.z + ahead.normalized().z * HOUSE_REACH)
-		begin_house(at, angle(rig.head.global_basis.x), lead.tool == Hand.Tool.PLASTER_HOUSE)
+		var on := aimed.get("on", -1) as int
+		begin_house(at, angle(rig.head.global_basis.x), lead.tool == Hand.Tool.PLASTER_HOUSE, PackedInt32Array([on]) if on >= 0 else PackedInt32Array())
 	if holders.is_empty():
 		if not _holders.is_empty():
 			end_house()
@@ -371,8 +399,9 @@ func _house_input() -> void:
 
 
 ## A square house standing at `at`, its front square to `yaw`, until it is placed and let go.
-func begin_house(at: Vector3, yaw: float, plaster := false) -> void:
+func begin_house(at: Vector3, yaw: float, plaster := false, on := PackedInt32Array()) -> void:
 	house = _new_wall()
+	house.on = on
 	house.layout.plaster = plaster
 	house.layout.closed = true
 	house.layout.top = WallLayout.Top.CAP
@@ -402,7 +431,10 @@ func _lay_house() -> void:
 	house.layout.points = corners
 	# The door goes in the downhill long wall: the house stands level on its lowest ground, so an uphill door would be buried.
 	house.layout.arches = [span.length * 0.5 if Terrain.height_at(front.x, front.z) <= Terrain.height_at(back.x, back.z) else span.length * 1.5 + span.depth]
+	if not house.on.is_empty():
+		house.layout.arches = []
 	house.roof.pitch = span.depth * 0.42
+	_meet(house)
 	_laid_at.append({"points": corners, "center": house_at.center, "yaw": house_at.yaw})
 	_house_dirty = true
 	_dirty = true
@@ -415,7 +447,8 @@ func _carry_laid() -> void:
 		return
 	_laid_at = _laid_at.slice(i)
 	var was: Dictionary = _laid_at[0]
-	var lift := _lowest(footprint(house_at.center, house_at.yaw, house_at.size)) - _lowest(footprint(was.center, was.yaw, house_at.size))
+	# A house on a build keeps that build's top as it is carried; on the ground it rides the ground.
+	var lift := 0.0 if not house.on.is_empty() else _lowest(footprint(house_at.center, house_at.yaw, house_at.size)) - _lowest(footprint(was.center, was.yaw, house_at.size))
 	var from := Transform3D(Basis(Vector3.UP, was.yaw), Vector3(was.center.x, 0.0, was.center.z))
 	var to := Transform3D(Basis(Vector3.UP, house_at.yaw), Vector3(house_at.center.x, lift, house_at.center.z))
 	house.transform = to * from.affine_inverse()
@@ -578,10 +611,12 @@ func _set_arches(w: Wall, arches: Array) -> void:
 	world.submit({"op": "reshape", "id": w.id, "data": {"arches": PackedFloat32Array(arches)}})
 
 
-## Lays a wall as the garden has it, with the arches the paths standing open in it.
+## Lays a wall as the garden has it, with the arches the paths standing open in it, on and among the builds it meets.
 func _relay(w: Wall) -> void:
 	w.set_data(world.state.walls[w.id])
+	_meet(w)
 	w.layout.resample(Terrain.height_at)
+	_reshaped(w)
 	for p in paths.layouts:
 		_cut_crossings(w, p)
 	w.rebuild()
@@ -649,6 +684,7 @@ func take(id: int) -> void:
 			m.roofing = null
 	_sound(&"crumble", _top(w, w.layout.length() * 0.5))
 	walls.erase(w)
+	_stir(w, w.solid)
 	w.queue_free()
 
 
@@ -690,6 +726,9 @@ func reground(area: Rect2, settled: bool) -> void:
 				w.rebuild(settled)
 			else:
 				w.settle_when_laid()
+				if _meets_any(w):
+					w.layout.resample(Terrain.height_at)
+					_reshaped(w)
 
 
 func _top(w: Wall, s: float) -> Vector3:
@@ -723,3 +762,148 @@ func pick_roof(origin: Vector3, dir: Vector3) -> Dictionary:
 		if t < best.get("along", INF):
 			best = {"wall": w, "along": t, "point": origin + dir * t}
 	return best
+
+
+## What a ray from a walls hand builds on: the nearer of the ground and the top of a build, as {point, on}, `on`
+## the build's id or -1 for the ground; {} for neither. A pitched roof counts as its house's top: what is built
+## there stands on the walls under it, in the roof's place.
+func aim(origin: Vector3, dir: Vector3) -> Dictionary:
+	var ground: Variant = Terrain.raycast(origin, dir)
+	var best := {} if ground == null else {"point": ground, "on": -1, "along": origin.distance_to(ground)}
+	for w in walls:
+		if _held(w) or w.solid == null or w.layout.fence:
+			continue
+		var t := _top_hit(w, origin, dir)
+		if t < best.get("along", INF):
+			best = {"point": origin + dir * t, "on": w.id, "along": t}
+	return best
+
+
+func _top_hit(w: Wall, origin: Vector3, dir: Vector3) -> float:
+	if w.roof != null and not w.roof.flat():
+		return minf(w.roof.ray_hit(origin, dir), w.roof.gable_hit(origin, dir))
+	var top := w.solid.feet[0] + w.solid.rise
+	if not w.layout.closed:
+		if w.pick_bounds.grow(WALL_PICK).intersects_ray(origin, dir) == null:
+			return INF
+		top = w.layout.point_at(w.ray_distance(origin, dir).s).y + w.layout.height + WallLayout.CAP
+	var hit := _at_level(origin, dir, top)
+	if hit.is_empty() or absf(w.solid.rest(hit.point.x, hit.point.z) - top) > TOP_BAND:
+		return INF
+	return origin.distance_to(hit.point)
+
+
+## Where a ray meets the level a stroke on a build's top is drawn on.
+static func _at_level(origin: Vector3, dir: Vector3, level: float) -> Dictionary:
+	if dir.y > -1e-3 or origin.y < level:
+		return {}
+	return {"point": origin + dir * ((level - origin.y) / dir.y), "on": -1}
+
+
+## A stroke drawn on a top also stands on every other build whose top it crosses at that level.
+func _rest_on(st: Stroke, p: Vector3) -> void:
+	for w in walls:
+		if st.on.size() >= Commands.MAX_SUPPORTS:
+			return
+		if w.solid != null and not w.layout.fence and not st.on.has(w.id) and absf(w.solid.rest(p.x, p.z) - st.level) < TOP_BAND:
+			st.on.append(w.id)
+			st.plan.supports = _solids(st.on)
+			st.planned = false
+
+
+func _solids(ids: PackedInt32Array) -> Array[Solid]:
+	var out: Array[Solid] = []
+	for id in ids:
+		var w := find(id)
+		if w != null and w.solid != null:
+			out.append(w.solid)
+	return out
+
+
+## The ids of every build under the builds `on`, all the way down.
+func _below(on: PackedInt32Array) -> Dictionary:
+	var out := {}
+	var todo := Array(on)
+	while not todo.is_empty():
+		var id: int = todo.pop_back()
+		if out.has(id):
+			continue
+		out[id] = true
+		var w := find(id)
+		if w != null:
+			todo.append_array(Array(w.on))
+	return out
+
+
+## The builds `w` meets: those it stands on, those standing on it, and the houses and towers it joins.
+func _meet(w: Wall) -> void:
+	var supports: Array[Solid] = []
+	var resting: Array[Solid] = []
+	var joined: Array[Solid] = []
+	var under := _below(w.on)
+	var rect := _reach(w)
+	for o in walls:
+		if o == w or o.solid == null or not o.solid.rect.intersects(rect):
+			continue
+		if w.on.has(o.id):
+			supports.append(o.solid)
+		elif under.has(o.id):
+			continue
+		elif w.id >= 0 and _below(o.on).has(w.id):
+			resting.append(o.solid)
+		elif o.solid.closed:
+			joined.append(o.solid)
+	w.layout.supports = supports
+	w.layout.resting = resting
+	w.layout.joined = joined
+
+
+static func _reach(w: Wall) -> Rect2:
+	var r := Rect2(Vector2(w.layout.points[0].x, w.layout.points[0].z), Vector2.ZERO)
+	for p in w.layout.points:
+		r = r.expand(Vector2(p.x, p.z))
+	return r.grow(WallLayout.THICKNESS + Solid.REACH + 0.5)
+
+
+## Takes the room `w` takes up as it now stands; if that changed, every build meeting it, before or after, is laid
+## again at the end of the frame.
+func _reshaped(w: Wall) -> void:
+	var was := w.solid
+	w.solid = Solid.of(w.layout, w.roof)
+	if not w.solid.same(was):
+		_stir(w, was)
+		_stir(w, w.solid)
+
+
+func _stir(w: Wall, s: Solid) -> void:
+	if s == null:
+		return
+	for o in walls:
+		if o != w and o.solid != null and o.solid.rect.intersects(s.rect) and _related(w, o):
+			_due[o.id] = true
+
+
+## Whether two builds meet: one stands on the other, or one of them is a house or tower they join.
+func _related(a: Wall, b: Wall) -> bool:
+	return a.solid.closed or b.solid.closed or _below(a.on).has(b.id) or _below(b.on).has(a.id)
+
+
+func _meets_any(w: Wall) -> bool:
+	for o in walls:
+		if o != w and o.solid != null and w.solid != null and o.solid.rect.intersects(w.solid.rect) and _related(w, o):
+			return true
+	return false
+
+
+## Lays again the builds due, oldest first, so each stands on its supports as they now stand.
+func _relay_due() -> void:
+	while not _due.is_empty():
+		var id: int = _due.keys().min()
+		_due.erase(id)
+		var w := find(id)
+		if w == null or _held(w):
+			continue
+		_meet(w)
+		w.layout.resample(Terrain.height_at)
+		_reshaped(w)
+		w.settle_when_laid()

@@ -18,6 +18,10 @@ var finished := false
 var id := -1
 ## The roof on a house or tower, laid again with the walls under it.
 var roof: RoofLayout
+## The ids of the builds it stands on; empty on the ground.
+var on := PackedInt32Array()
+## The room it takes up as last laid, for the builds it meets (WallTool).
+var solid: Solid
 ## Seconds since the wall was finished: how far its ivy has grown.
 var ivy_age := 0.0
 ## Encloses every stone, for pointing.
@@ -99,7 +103,7 @@ func data() -> Dictionary:
 		"points": PackedVector3Array(layout.points), "height": layout.height, "arches": PackedFloat32Array(layout.arches),
 		"seed": layout.seed, "closed": layout.closed, "top": int(layout.top), "fence": layout.fence,
 		"windows": PackedVector2Array(layout.windows), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags),
-		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster,
+		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "on": PackedInt32Array(on),
 	}
 	if roof != null:
 		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "flag": roof.flag}
@@ -119,6 +123,7 @@ func set_data(d: Dictionary) -> void:
 	layout.lanterns.assign(Array(d.lanterns))
 	layout.flags.assign(Array(d.flags))
 	layout.ruins.assign(Array(d.ruins))
+	on = d.on
 	if d.has("roof"):
 		if roof == null:
 			add_roof(RoofLayout.new())
@@ -326,6 +331,7 @@ func _pack_roof() -> void:
 	if roof.kind == RoofLayout.Kind.GABLE:
 		roof.corners = layout.laid_points
 	roof.build()
+	layout.hide_roof(roof)
 	var tile := kinds()[Part.TILE]
 	var shadow := kinds()[Part.TILE_SHADOW]
 	var tiles := PackedFloat32Array()
