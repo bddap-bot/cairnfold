@@ -1,0 +1,13 @@
+[
+  {"op": "until", "heard": true, "seconds": 90},
+  {"op": "visit"},
+  {"op": "until", "players": 2, "seconds": 60},
+  {"op": "wait", "seconds": 8},
+  {"op": "view", "eye": [-1.5, 1.65, 2.0], "at": [-4, 0.6, 4.5]},
+  {"op": "hands", "left": [-0.25, -0.5, -0.15], "right": [0.15, -0.25, -0.35], "tip": 30},
+  {"op": "wall", "points": [[-5.4, 5.2], [-2.3, 2.7]], "seconds": 3},
+  {"op": "view", "eye": [-1.5, 1.65, 2.0], "at": [1.6, 1.6, 2.6]},
+  {"op": "hands", "left": [-0.28, -0.55, -0.1], "right": [0.28, -0.4, -0.3], "tip": 20},
+  {"op": "wait", "seconds": 900},
+  {"op": "quit"}
+]

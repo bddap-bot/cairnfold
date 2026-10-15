@@ -58,8 +58,10 @@ right A cuts arches, and the wheels open on right B and left ≡.
 
 - Desktop preview and tests: `nix-shell --run scripts/test.sh`,
   `nix-shell --run 'scripts/render.sh demo/slice.json out'`.
-- Steam library artwork: `nix-shell --run scripts/steam-art.sh` regenerates
-  `steam/` from captures of `demo/steam.json`.
+- Steam store and library art and screenshots: `nix-shell --run 'scripts/steam-art.sh [TITLE]'`
+  regenerates `steam/` from captures of `demo/steam.json` and `demo/steam-coop.json`; the
+  title is its one input. The trailer: `nix-shell --run 'scripts/steam-trailer.sh trailer.mp4'`
+  records `demo/trailer.json`. Store copy: `steam/store.md`.
 - Release builds: `nix-shell --run 'scripts/package.sh TARGET OUT'` exports
   `linux-x64` or `linux-arm64` (a `.tar.gz`) or `windows` (a `.zip`). Each
   unpacks to `cairnfold/` holding the game (`cairnfold` or `Cairnfold.exe`),

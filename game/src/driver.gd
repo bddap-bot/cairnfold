@@ -2,6 +2,7 @@ class_name Driver
 extends Node
 
 ## Plays a JSON list of steps through the same rig and tool entry points the controllers use.
+## A step marked "background" starts and the next one follows at once, as a camera glides while a wall is drawn.
 
 ## The Steam Frame's buttons as SteamVR delivers them to a game bound through the Touch or Index
 ## profiles (its frame_controller remapping): B, X and Y all arrive as right-hand B, View as left menu.
@@ -23,6 +24,8 @@ signal finished
 
 var main: Node
 var steps: Array
+var _eye := Vector3.ZERO
+var _at := Vector3.FORWARD
 
 
 func _init(owner: Node, script: Array) -> void:
@@ -43,7 +46,10 @@ func _ready() -> void:
 func _run() -> void:
 	for step in steps:
 		print("driver: ", step)
-		await call("_" + step.op, step)
+		if step.get("background", false):
+			call("_" + step.op, step)
+		else:
+			await call("_" + step.op, step)
 	print("driver: done")
 	finished.emit()
 
@@ -176,15 +182,19 @@ func _fence(s: Dictionary) -> void:
 	await _stroke(s, Hand.Tool.FENCE)
 
 
+## With `capture`, saves the view `capture_at` of the way through the stroke, the wall half drawn.
 func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 	var tool: WallTool = main.tool
 	var m := tool.mason(_holding(s, held))
 	var path := _path(s)
 	tool.begin_stroke(m, path[0])
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
+	var shot := ceili(frames * s.get("capture_at", 0.6)) if s.has("capture") else -1
 	for f in frames:
 		await get_tree().process_frame
 		tool.extend_stroke(m, _along(path, float(f + 1) / frames))
+		if f == shot:
+			await main.capture(s.capture)
 	tool.end_stroke(m)
 
 
@@ -597,9 +607,37 @@ func _music(s: Dictionary) -> void:
 	main.sound.play_from(s.section)
 
 
-## With "ground", eye and target heights count from the ground under each.
-## With "subject", `eye` and `at` are in the frame of the first node in that group, as it stands now.
 func _view(s: Dictionary) -> void:
+	var pose := _pose(s)
+	if pose.is_empty():
+		return
+	var origin: Vector3 = main.rig.head.global_position if s.get("relative", false) else Vector3.ZERO
+	_eye = pose[0] + origin
+	_at = pose[1] + origin
+	main.view(_eye, _at, false)
+	await get_tree().process_frame
+
+
+## Moves the view from the last `view` or `glide` to this one's `eye` and `at` over `seconds`, easing in and out.
+func _glide(s: Dictionary) -> void:
+	var pose := _pose(s)
+	if pose.is_empty():
+		return
+	var from: Array[Vector3] = [_eye, _at]
+	var seconds: float = s.seconds
+	var t := 0.0
+	while t < seconds:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		var k := smoothstep(0.0, 1.0, minf(t / seconds, 1.0))
+		_eye = from[0].lerp(pose[0], k)
+		_at = from[1].lerp(pose[1], k)
+		main.view(_eye, _at, false)
+
+
+## A step's `eye` and `at`. With "ground", their heights count from the ground under each.
+## With "subject", they are in the frame of the first node in that group, as it stands now.
+func _pose(s: Dictionary) -> Array[Vector3]:
 	var eye := Vector3(s.eye[0], s.eye[1], s.eye[2])
 	var at := Vector3(s.at[0], s.at[1], s.at[2])
 	if s.get("ground", false):
@@ -609,12 +647,11 @@ func _view(s: Dictionary) -> void:
 		var found := get_tree().get_nodes_in_group(s.subject)
 		if found.is_empty():
 			push_error("driver: nothing in %s to view" % s.subject)
-			return
+			return []
 		var frame: Transform3D = found[0].global_transform
 		eye = frame * eye
 		at = frame * at
-	main.view(eye, at, s.get("relative", false))
-	await get_tree().process_frame
+	return [eye, at]
 
 
 func _capture(s: Dictionary) -> void:
