@@ -71,7 +71,8 @@ func _ready() -> void:
 		photo_tool.folder = str(args["capture-dir"]).path_join("photos")
 	add_child(photo_tool)
 	_undo_buttons = Buttons.new(rig.left).watch(["ax_button", "by_button"])
-	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT)))
+	var played := Session.played(args, get_tree().current_scene == self)
+	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT)), played)
 	add_child(session)
 	visit_tool = VisitTool.new(rig, session)
 	add_child(visit_tool)
@@ -92,7 +93,7 @@ func _ready() -> void:
 	metrics.quality = quality
 	metrics.head = rig.head
 	add_child(metrics)
-	var garden: String = args.get("garden", "user://garden.save" if get_tree().current_scene == self and not args.has("script") else "")
+	var garden: String = args.get("garden", "user://garden.save" if played else "")
 	if garden != "":
 		world.load_from(garden)
 	if args.has("script"):

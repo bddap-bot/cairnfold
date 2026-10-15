@@ -137,11 +137,18 @@ type.
 
 `--join ADDRESS[:PORT]` and `--avatar N` are launch arguments for scripts and tests.
 
+Only a game a player launched beacons on the network. One started with `--script`,
+`--join` or `--port`, or built inside a test, sends its beacon to this machine's loopback address only
+and listens there only, so a player never sees a scripted or test instance in the arc.
+Scripts on one machine still find each other by beacon, and scripts that play with another
+machine (the bench's players) connect with `--join`. `tests/test_beacon.gd` fails if a
+scripted or test instance beacons past loopback.
+
 ## Proof
 
 `scripts/coop.sh OUT` plays three headless instances on one machine:
 1. One hosts.
-2. A second finds it by its beacon and joins through the visit tool.
+2. A second finds it by its beacon, on loopback, and joins through the visit tool.
 3. Both build: walls, a tree, flowers, a path, raised ground, a pond and grass across the path.
    Each deletes and undoes, including an undo that has to skip a step the other built on.
 4. A third joins late.

@@ -32,6 +32,8 @@ var avatar := 0
 var colour := COLOURS[0]
 var port := 0
 var first_port := PORT
+## Whether beacons reach the network, or only this machine.
+var lan := true
 ## The garden we are visiting, {address, port}, or empty at home.
 var visiting := {}
 ## Gardens announcing themselves nearby, by "address:port": {address, port, avatar, colour, seen}.
@@ -48,8 +50,9 @@ var _listen := PacketPeerUDP.new()
 var _targets := {}
 
 
-func _init(garden: World, player: Rig, look: int, from_port := PORT) -> void:
+func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := true) -> void:
 	name = "Session"
+	lan = on_lan
 	world = garden
 	rig = player
 	first_port = clampi(from_port, PORT, PORT + PORT_RANGE - PORTS)
@@ -61,6 +64,16 @@ func _init(garden: World, player: Rig, look: int, from_port := PORT) -> void:
 		Avatar.prepare(path)
 
 
+## A game a player launched, as opposed to one a script or a test runs. Only it beacons on the network.
+static func played(args: Dictionary, launched: bool) -> bool:
+	return launched and not (args.has("script") or args.has("join") or args.has("port"))
+
+
+## Where beacons go: a script's or a test's stay on this machine, so players never see them.
+func beacon_to() -> Array:
+	return ["255.255.255.255", "127.0.0.1"] if lan else ["127.0.0.1"]
+
+
 func _ready() -> void:
 	multiplayer.peer_connected.connect(_on_peer)
 	multiplayer.peer_disconnected.connect(_on_gone)
@@ -68,7 +81,7 @@ func _ready() -> void:
 	multiplayer.connection_failed.connect(go_home, CONNECT_DEFERRED)
 	_beacon.set_broadcast_enabled(true)
 	for p in BEACON_PORTS:
-		if _listen.bind(BEACON_PORT + p) == OK:
+		if _listen.bind(BEACON_PORT + p, "*" if lan else "127.0.0.1") == OK:
 			break
 	host()
 
@@ -165,7 +178,7 @@ func _announce() -> void:
 	if port == 0 or not visiting.is_empty():
 		return
 	var msg := JSON.stringify({"cairnfold": 1, "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false), "players": players()}).to_utf8_buffer()
-	for dest in ["255.255.255.255", "127.0.0.1"]:
+	for dest in beacon_to():
 		for p in BEACON_PORTS:
 			_beacon.set_dest_address(dest, BEACON_PORT + p)
 			_beacon.put_packet(msg)
