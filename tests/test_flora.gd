@@ -19,7 +19,7 @@ func _run() -> void:
 	_trees_recycle_whole()
 	_grass_grows_in_clumps()
 	_flowers_vary_by_patch()
-	_grass_out_of_reach_is_not_drawn()
+	_grass_thins_with_distance()
 	_flowers_out_of_reach_are_not_drawn()
 	_blob_detail_changes_only_what_is_drawn()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -234,22 +234,39 @@ func _flowers_vary_by_patch() -> void:
 	_check(same > near * 0.85, "neighbouring flowers mostly share a colour, %d of %d" % [same, near])
 
 
-func _grass_out_of_reach_is_not_drawn() -> void:
+func _grass_thins_with_distance() -> void:
 	var flora := Flora.new()
 	root.add_child(flora)
+	var g := flora.grass
+	_check(g.sparse_from < flora.grass_reach, "grass turns sparse before its reach")
 	var rng := _rng(7)
-	var near := Vector3(flora.grass_reach - 1.0, 0, 0)
-	var far := Vector3(flora.grass_reach + Flora.Pool.CELL * 1.5, 0, 0)
-	flora.add_grass(near, rng)
-	flora.add_grass(far, rng)
+	var near := Vector3(2, 0, 0)
+	var mid := g.sparse_from + g.cell * 2.0
+	var survivor := Vector3(mid, 0, 0.5)
+	while FloraLayout.thin_rank(survivor) >= g.survivors:
+		survivor.z += 0.01
+	var thinned := Vector3(mid, 0, 0.5)
+	while FloraLayout.thin_rank(thinned) < g.survivors:
+		thinned.z += 0.01
+	var far := Vector3(flora.grass_reach + g.cell * 1.5, 0, 0)
+	for p in [near, survivor, thinned, far]:
+		flora.add_grass(p, rng)
 	flora.keep()
-	flora.grass.cull(Vector3.ZERO, flora.grass_reach)
-	var shown := {}
+	g.cull(Vector3.ZERO, flora.grass_reach)
+	var whole := []
+	var few := []
 	for mmi: MultiMeshInstance3D in flora.get_children():
-		if mmi.multimesh != flora.grass.mm and mmi.multimesh.mesh == flora.grass.mm.mesh:
-			shown[mmi.multimesh.custom_aabb.has_point(Vector3(near.x, Terrain.height_at(near.x, near.z) + 0.1, near.z))] = mmi.visible
-	_check(shown.get(true, false), "grass just within reach is drawn")
-	_check(not shown.get(false, true), "grass a cell and a half beyond reach is not")
+		if mmi.multimesh in [g.mm, flora.ghost_grass.mm] or not mmi.visible:
+			continue
+		var at := mmi.multimesh.custom_aabb.get_center()
+		if mmi.multimesh.mesh == g.mesh:
+			whole.append(at.x)
+		elif mmi.multimesh.mesh == g.sparse:
+			few.append([at.x, mmi.multimesh.instance_count])
+	_check(whole.size() == 1 and absf(whole[0] - near.x) < 1.0, "only the near cell draws every clump: %s" % [whole])
+	_check(few.size() == 1 and absf(few[0][0] - mid) < 1.0 and few[0][1] == 1, "the cell past sparse_from draws its survivor alone: %s" % [few])
+	_check(g.sparse.get_faces().size() < g.mesh.get_faces().size(), "from a mesh with fewer blades")
+	flora.queue_free()
 
 
 func _flowers_out_of_reach_are_not_drawn() -> void:
@@ -261,7 +278,7 @@ func _flowers_out_of_reach_are_not_drawn() -> void:
 	_check(flora.flower_mat.get_shader_parameter(&"draw_reach") == flora.flower_reach, "the flowers' shader is told their reach")
 	var rng := _rng(8)
 	flora.add_flower(Vector3(5, 0, 0), rng)
-	flora.add_flower(Vector3(5 + Flora.Pool.CELL * 3, 0, 0), rng)
+	flora.add_flower(Vector3(5 + flora.flowers.cell * 3, 0, 0), rng)
 	flora.keep()
 	flora.flower_reach = 10.0
 	_check(flora.flower_mat.get_shader_parameter(&"draw_reach") == 10.0, "and each new reach")

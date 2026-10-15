@@ -300,18 +300,15 @@ static func _sync(cells: Rect2i) -> void:
 		_water_texture.update(_water_image)
 
 
-## A flat grid the terrain shader lifts onto the heights; vertex colour red is the meadow's lushness.
+## A flat grid the terrain shader lifts onto the heights; vertex colour red is how dry the meadow's grass is there.
 static func build_mesh() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var tint := FastNoiseLite.new()
-	tint.seed = 11
-	tint.frequency = 0.05
 	for j in VERTS:
 		for i in VERTS:
 			var x := -SIZE * 0.5 + i * STEP
 			var z := -SIZE * 0.5 + j * STEP
-			st.set_color(Color(clampf(0.5 + tint.get_noise_2d(x, z) * 0.9, 0.0, 1.0), 0, 0))
+			st.set_color(Color(FloraLayout.dryness(Vector3(x, 0, z)), 0, 0))
 			st.set_normal(Vector3.UP)
 			st.add_vertex(Vector3(x, 0, z))
 	for j in CELLS:

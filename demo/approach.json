@@ -1,0 +1,9 @@
+[
+  {"op": "place", "x": 0, "z": 60},
+  {"op": "view", "eye": [0, 1.65, 60], "at": [0, 0, 50], "ground": true},
+  {"op": "wait", "seconds": 2},
+  {"op": "label", "name": "walk"},
+  {"op": "walk", "from": [0, 1.65, 60], "to": [0, 1.65, 4], "seconds": 20, "ahead": 12, "look": 0},
+  {"op": "label", "name": "done"},
+  {"op": "quit"}
+]

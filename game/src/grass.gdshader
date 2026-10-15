@@ -6,24 +6,23 @@ render_mode world_vertex_coords, cull_disabled, diffuse_lambert_wrap, specular_d
 #include "res://src/palette.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/wind.gdshaderinc"
+#include "res://src/meadow.gdshaderinc"
 
-uniform vec3 root_color : source_color = vec3(0.10, 0.24, 0.06);
-uniform vec3 tip_lush : source_color = vec3(0.45, 0.68, 0.18);
-uniform vec3 tip_dry : source_color = vec3(0.80, 0.78, 0.34);
-uniform vec3 cool_clump : source_color = vec3(0.82, 0.96, 0.90);
-uniform vec3 warm_clump : source_color = vec3(1.10, 1.02, 0.82);
-uniform float root_shade = 0.55;
 uniform float backlight = 1.0;
 uniform float gust_brighten = 0.22;
 uniform float far_begin = 8.0;
 uniform float far_end = 20.0;
-// Blades shrink into the ground over the last stretch before `draw_reach`, past which Flora draws no meadow grass.
+// Past `draw_reach` Flora draws no meadow grass.
 uniform float draw_reach;
-uniform float draw_fade = 8.0;
-// From lod_begin out, over lod_band, a clump draws fewer, wider blades (Meshes.grass_clump): far blades are slivers
-// whose cost is their count, not their pixels.
-uniform float lod_begin = 8.0;
-uniform float lod_band = 4.0;
+// Set from Flora's GRASS_ constants, which say what each does.
+uniform float lod_begin;
+uniform float lod_band;
+uniform float survivors;
+uniform float survivors_from;
+// Each clump sinks into the ground over this distance, at a distance set by its rank.
+uniform float sink = 1.5;
+// Survivors spread wider and stand taller across that band, holding the meadow's cover with a quarter of its clumps.
+uniform vec2 survivor_scale = vec2(2.0, 1.25);
 uniform float hand_radius = 0.35;
 uniform vec3 hand_left;
 uniform vec3 hand_right;
@@ -45,7 +44,7 @@ vec3 parted(vec3 v, vec3 root, vec3 hand) {
 
 void vertex() {
 	tip = UV.y;
-	top = seasoned(mix(tip_lush, tip_dry, INSTANCE_CUSTOM.x) * mix(cool_clump, warm_clump, INSTANCE_CUSTOM.y), season_meadow);
+	top = blade_top(INSTANCE_CUSTOM.x, INSTANCE_CUSTOM.y);
 	float ground = ground_at(INSTANCE_CUSTOM.zw);
 	VERTEX.y += ground;
 	vec3 root = MODEL_MATRIX[3].xyz + vec3(0.0, ground, 0.0);
@@ -58,12 +57,18 @@ void vertex() {
 	float dist = distance(root, CAMERA_POSITION_WORLD);
 	float lod = smoothstep(lod_begin, lod_begin + lod_band, dist);
 	VERTEX = mix(VERTEX + mat3(MODEL_MATRIX) * vec3(CUSTOM0.x, 0.0, CUSTOM0.y) * lod, root, lod * CUSTOM0.z);
+	float rank = COLOR.a;
+	vec2 grown = mix(vec2(1.0), survivor_scale, lod * step(rank, survivors));
+	VERTEX = root + (VERTEX - root) * grown.xyx;
 
 	gust = wind_gust(root.xz);
 	VERTEX = bent(VERTEX, (wind_push(root.xz, gust) + parted(VERTEX, root, hand_left) + parted(VERTEX, root, hand_right)) * size, tip);
 
 	far = smoothstep(far_begin, far_end, dist);
-	VERTEX = mix(VERTEX, root, smoothstep(draw_reach - draw_fade, draw_reach, dist));
+	float gone = rank < survivors
+		? mix(draw_reach, draw_reach * survivors_from, rank / survivors)
+		: mix(lod_begin + lod_band, lod_begin + sink, (rank - survivors) / (1.0 - survivors));
+	VERTEX = mix(VERTEX, root, smoothstep(gone - sink, gone, dist));
 	NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), 0.35 + 0.5 * far));
 	if (drowned(INSTANCE_CUSTOM.zw)) {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);
@@ -73,8 +78,7 @@ void vertex() {
 void fragment() {
 	// Far blades converge on their mid-tone so sub-pixel slivers do not flicker in a headset.
 	float t = mix(tip, 0.6, far);
-	vec3 c = mix(seasoned(root_color, season_meadow), top, t) * mix(root_shade, 1.0, smoothstep(0.0, 0.7, t));
-	ALBEDO = c * COLOR.rgb * (1.0 + gust_brighten * gust * t * (1.0 - far));
+	ALBEDO = blade_color(top, t) * COLOR.rgb * (1.0 + gust_brighten * gust * t * (1.0 - far));
 	// Back faces arrive with the normal flipped, which would turn the up-bent normal downward and shade them dark.
 	vec3 up = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
 	NORMAL -= 2.0 * min(dot(NORMAL, up), 0.0) * up;

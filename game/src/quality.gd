@@ -25,15 +25,15 @@ class Step:
 ## Full quality first, then cheapest loss per millisecond saved. Flowers beyond 60 m are under two pixels across on
 ## the Quest 2.
 static var ladder: Array[Step] = [
+	Step.new(60.0, 60.0, 2, 16.0, 35.0),
+	Step.new(48.0, 60.0, 2, 16.0, 35.0),
+	Step.new(36.0, 60.0, 2, 16.0, 35.0),
+	Step.new(30.0, 60.0, 2, 16.0, 35.0),
 	Step.new(24.0, 60.0, 2, 16.0, 35.0),
 	Step.new(24.0, 60.0, 2, 8.0, 25.0),
-	Step.new(20.0, 60.0, 2, 8.0, 25.0),
-	Step.new(16.0, 60.0, 2, 8.0, 25.0),
-	Step.new(13.0, 60.0, 2, 8.0, 25.0),
-	Step.new(10.0, 60.0, 2, 8.0, 25.0),
-	Step.new(10.0, 20.0, 2, 8.0, 25.0),
-	Step.new(10.0, 20.0, 1, 8.0, 25.0),
-	Step.new(10.0, 20.0, 1, 4.0, 12.0),
+	Step.new(24.0, 20.0, 2, 8.0, 25.0),
+	Step.new(24.0, 20.0, 1, 8.0, 25.0),
+	Step.new(24.0, 20.0, 1, 4.0, 12.0),
 ]
 ## The share of each eye's width and height the Steam Frame renders the 3D scene at, upscaled to it. It is held for the
 ## session rather than on the ladder: changing it reallocates the scene's buffers, and stepping down to it cost a 25 to

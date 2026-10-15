@@ -43,11 +43,17 @@ static func bloom_rank(p: Vector3) -> float:
 	return _hash(floori(p.x * 64.0), floori(p.z * 64.0), Trait.BLOOM)
 
 
+## Where a grass clump stands in the order distance thins the meadow: the higher its rank, the nearer the eye it
+## goes (grass.gdshader reads it from the instance).
+static func thin_rank(p: Vector3) -> float:
+	return _hash(floori(p.x * 64.0), floori(p.z * 64.0), Trait.THIN)
+
+
 static func flowery(p: Vector3) -> bool:
 	return _beds.get_noise_2d(p.z * 1.9, p.x * 1.9) >= 0.05
 
 
-enum Trait { X, Z, HEIGHT, FACING, TINT, COLOUR, BLOOM }
+enum Trait { X, Z, HEIGHT, FACING, TINT, COLOUR, BLOOM, THIN }
 
 
 ## The centre of the clump a ground point belongs to: the nearest of one jittered point per `size` cell.

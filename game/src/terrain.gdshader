@@ -5,20 +5,22 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 #include "res://src/water.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
+#include "res://src/meadow.gdshaderinc"
 
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 uniform sampler2D flagstones : filter_linear_mipmap, repeat_enable;
 uniform float flagstone_scale = 0.17;
 // Set from Meadow.GROUND, which the stone tool's icon shares.
-uniform vec3 meadow_dry : source_color;
-uniform vec3 meadow_lush : source_color;
 uniform vec3 earth : source_color;
 uniform vec3 rock : source_color;
+// Where on a blade, root to tip, the meadow's ground takes its colour: the tone far blades converge on.
+uniform float canopy = 0.6;
 uniform vec3 trodden : source_color = vec3(0.52, 0.45, 0.33);
 uniform vec3 bed : source_color = vec3(0.50, 0.44, 0.32);
 
 varying vec3 world_pos;
 varying vec3 bounce_at;
+varying vec3 meadow;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -26,13 +28,13 @@ void vertex() {
 	world_pos.y = VERTEX.y;
 	NORMAL = ground_normal(world_pos.xz);
 	bounce_at = bounce_on_ground(world_pos.xz);
+	meadow = blade_color(blade_top(COLOR.r, 0.5), canopy);
 }
 
 void fragment() {
 	float d = texture(detail, world_pos.xz * 0.07).r;
 	float fine = texture(detail, world_pos.xz * 0.45).r;
-	vec3 grass = mix(meadow_dry, meadow_lush, clamp(COLOR.r + (d - 0.5) * 0.8, 0.0, 1.0));
-	grass = seasoned(grass * (0.85 + fine * 0.3), season_meadow);
+	vec3 grass = meadow * (0.75 + d * 0.3 + fine * 0.2);
 	// Steepness and depth per fragment: interpolated from the vertices they would follow the 1 m triangles.
 	float s = ground_steepness(world_pos.xz) + (fine - 0.5) * 0.06;
 	vec3 c = mix(grass, earth, smoothstep(0.2, 0.32, s));
@@ -48,7 +50,7 @@ void fragment() {
 		// meadow as scattered stones over earthy joints instead of ending in a line.
 		float threshold = 0.12 + slab.g * 0.7;
 		float laid = smoothstep(threshold - 0.04, threshold + 0.04, stony + (d - 0.5) * 0.25 + (fine - 0.5) * 0.15) * smoothstep(0.02, 0.06, slab.r);
-		vec3 joint = mix(c, mix(earth, meadow_lush, 0.35) * 0.8, smoothstep(0.4, 0.95, stony));
+		vec3 joint = mix(c, mix(earth, meadow, 0.35) * 0.8, smoothstep(0.4, 0.95, stony));
 		c = mix(joint, face, laid);
 		paved = laid * min(cover.g / stony, 1.0);
 	}

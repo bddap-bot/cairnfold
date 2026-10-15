@@ -240,9 +240,8 @@ static func _stone_ground_image() -> Image:
 	var slabs := Look.flagstones().get_image()
 	slabs.clear_mipmaps()
 	var rock: Color = Meadow.GROUND[&"rock"]
-	var lush: Color = Meadow.GROUND[&"meadow_lush"]
-	var meadow: Color = Meadow.GROUND[&"meadow_dry"].lerp(lush, 0.5)
-	var joint: Color = Meadow.GROUND[&"earth"].lerp(lush, 0.35) * 0.8
+	var meadow: Color = Meadow.GRASS[&"root_color"].lerp(Meadow.GRASS[&"tip_lush"].lerp(Meadow.GRASS[&"tip_dry"], 0.5), 0.6)
+	var joint: Color = Meadow.GROUND[&"earth"].lerp(meadow, 0.35) * 0.8
 	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
 	for y in SIZE:
 		for x in SIZE:

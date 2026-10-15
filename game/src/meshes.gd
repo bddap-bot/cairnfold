@@ -65,7 +65,8 @@ static func shadow_box() -> ArrayMesh:
 ## A clump of crossed blades; UV.y runs 0 at the root to 1 at the tip. Far off, grass.gdshader draws only the first
 ## `kept` blades, each widened by its CUSTOM0.xz, so they cover the ground all `blades` did; CUSTOM0.z is 1 on the
 ## blades it drops.
-static func grass_clump(blades: int, seed: int, kept := blades) -> ArrayMesh:
+## With `only_kept`, the blades past `kept` are left out rather than marked to shrink: the clump as it stands far away.
+static func grass_clump(blades: int, seed: int, kept := blades, only_kept := false) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var st := SurfaceTool.new()
@@ -88,6 +89,8 @@ static func grass_clump(blades: int, seed: int, kept := blades) -> ArrayMesh:
 		var rounded := [nrm - side * 0.7, nrm + side * 0.7, nrm - side * 0.7, nrm + side * 0.7, nrm]
 		var widen := [-side * w, side * w, -side * w * 0.7, side * w * 0.7, Vector3.ZERO]
 		var grow := float(blades) / kept - 1.0 if b < kept else 0.0
+		if only_kept and b >= kept:
+			continue
 		for tri in [[0, 2, 1], [1, 2, 3], [2, 4, 3]]:
 			for k in tri:
 				st.set_normal(rounded[k].normalized())

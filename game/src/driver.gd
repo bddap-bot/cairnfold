@@ -798,6 +798,23 @@ func _pose(s: Dictionary) -> Array[Vector3]:
 	return [eye, at]
 
 
+## Moves the eye from `from` to `to` over `seconds`, looking `ahead` metres further along the way at `look` height.
+func _walk(s: Dictionary) -> void:
+	var from := Vector3(s.from[0], s.from[1], s.from[2])
+	var to := Vector3(s.to[0], s.to[1], s.to[2])
+	var dir := (to - from).normalized()
+	var t := 0.0
+	var seconds := float(s.seconds)
+	while t < seconds:
+		var eye := from.lerp(to, t / seconds)
+		var at: Vector3 = eye + dir * float(s.get("ahead", 10.0))
+		at.y = float(s.get("look", 0.0)) + Terrain.height_at(at.x, at.z)
+		eye.y += Terrain.height_at(eye.x, eye.z)
+		main.view(eye, at, false)
+		await get_tree().process_frame
+		t += get_process_delta_time()
+
+
 func _capture(s: Dictionary) -> void:
 	await main.capture(s.name)
 

@@ -7,6 +7,17 @@ extends Node3D
 ## terrain each frame, so reshaping the ground moves no instance.
 
 const PAINTED_GRASS := 12000
+## The meadow's grass cells are small, so a cell turns sparse close to where its clumps do.
+const GRASS_CELL := 4.0
+## From GRASS_LOD_BEGIN out, over GRASS_LOD_BAND, a clump draws fewer, wider blades (Meshes.grass_clump): far blades
+## are slivers whose cost is their count, not their pixels. Over the same band all but the GRASS_SURVIVORS share of
+## clumps (by FloraLayout.thin_rank) sink away, so past it a cell draws its survivors alone, from a mesh of the kept
+## blades only. Survivors sink away in turn from GRASS_SURVIVORS_FROM of the grass reach out to it, each at its own
+## distance: the meadow thins with distance instead of ending at a ring of growing blades.
+const GRASS_LOD_BEGIN := 8.0
+const GRASS_LOD_BAND := 4.0
+const GRASS_SURVIVORS := 0.25
+const GRASS_SURVIVORS_FROM := 0.5
 const PAINTED_FLOWERS := 4000
 const PLACED_TREES := 64
 ## Where an untracked hand is, as far as the grass knows.
@@ -23,13 +34,18 @@ signal grown
 
 
 ## One kind of plant, in numbered slots. Slots filled before `keep()` are the meadow's own: `keep()` bakes them into
-## one MultiMesh per CELL square, so the camera culls those off screen, and they are never recycled. Later slots fill
+## one MultiMesh per `cell` square, so the camera culls those off screen, and they are never recycled. A pool with a
+## `sparse` mesh also bakes, per cell, the plants whose rank (colour alpha) is under `survivors` drawn with it, and
+## draws that instead of the whole cell once the cell lies wholly beyond `sparse_from`. Later slots fill
 ## a fixed-capacity MultiMesh in order and, once it is full, replace the oldest. Every tree has the same number of
 ## blobs, so the trunk and foliage pools recycle in step.
 class Pool:
 	const GONE := Vector3(1e9, 0, 1e9)
-	const CELL := 16.0
 	const GRID := 2.0
+	var cell: float
+	var sparse: Mesh
+	var sparse_from := INF
+	var survivors := 0.0
 	var mm := MultiMesh.new()
 	## The mesh each plant was made with; `draw_with` may draw a simpler one in its place.
 	var mesh: Mesh
@@ -49,14 +65,18 @@ class Pool:
 	var _cell_of: Array[MultiMesh] = []
 	var _index_in_cell := PackedInt32Array()
 	var _cells: Array[MultiMeshInstance3D] = []
+	var _sparse_cells: Array[MultiMeshInstance3D] = []
+	var _sparse_cell_of: Array[MultiMesh] = []
+	var _index_in_sparse := PackedInt32Array()
 	var _centres := PackedVector2Array()
 	## With `indexed`, slots by the GRID square their anchor fell in, for finding plants near a point without a
 	## pass over all.
 	var indexed := false
 	var _grid := {}
 
-	func _init(parent: Node3D, m: Mesh, capacity: int, mat: Material, shadows: bool) -> void:
+	func _init(parent: Node3D, m: Mesh, capacity: int, mat: Material, shadows: bool, size := 16.0) -> void:
 		mesh = m
+		cell = size
 		_parent = parent
 		_mat = mat
 		_shadows = shadows
@@ -126,33 +146,51 @@ class Pool:
 		var cells := {}
 		for i in kept:
 			var o := plants[i].xform.origin
-			cells.get_or_add(Vector2i(floori(o.x / CELL), floori(o.z / CELL)), []).append(i)
+			cells.get_or_add(Vector2i(floori(o.x / cell), floori(o.z / cell)), []).append(i)
 		_cell_of.resize(kept)
 		_index_in_cell.resize(kept)
-		var ground := Terrain.bounds()
+		_sparse_cell_of.resize(kept)
+		_index_in_sparse.resize(kept)
 		for key: Vector2i in cells:
 			var slots: Array = cells[key]
-			var cell := MultiMesh.new()
-			_setup(cell, mm.mesh, slots.size())
-			var box: AABB = plants[slots[0]].xform * mesh.get_aabb()
+			var whole := _bake(slots, mm.mesh)
 			for j in slots.size():
-				var i: int = slots[j]
-				cell.set_instance_transform(j, plants[i].xform)
-				cell.set_instance_color(j, _colors[i])
-				cell.set_instance_custom_data(j, _customs[i])
-				_cell_of[i] = cell
-				_index_in_cell[i] = j
-				box = box.merge(plants[i].xform * mesh.get_aabb())
-			# Heights are kept above the ground, which the shaders add; wind and hands bend blades a little further.
-			box.position.y += ground.position.y
-			box.size.y += ground.size.y
-			cell.custom_aabb = box.grow(0.5)
-			_cells.append(_show(cell))
-			_centres.append((Vector2(key) + Vector2(0.5, 0.5)) * CELL)
+				_cell_of[slots[j]] = whole
+				_index_in_cell[slots[j]] = j
+			_cells.append(_show(whole))
+			_centres.append((Vector2(key) + Vector2(0.5, 0.5)) * cell)
+			if sparse != null:
+				var few := slots.filter(func(i: int) -> bool: return _colors[i].a < survivors)
+				var mmi: MultiMeshInstance3D = null
+				if not few.is_empty():
+					var m := _bake(few, sparse)
+					for j in few.size():
+						_sparse_cell_of[few[j]] = m
+						_index_in_sparse[few[j]] = j
+					mmi = _show(m)
+					mmi.visible = false
+				_sparse_cells.append(mmi)
 		_colors = PackedColorArray()
 		_customs = PackedColorArray()
 		mm.instance_count = mm.instance_count - kept
 		mm.visible_instance_count = 0
+
+	func _bake(slots: Array, drawn: Mesh) -> MultiMesh:
+		var m := MultiMesh.new()
+		_setup(m, drawn, slots.size())
+		var box: AABB = plants[slots[0]].xform * mesh.get_aabb()
+		for j in slots.size():
+			var i: int = slots[j]
+			m.set_instance_transform(j, plants[i].xform)
+			m.set_instance_color(j, _colors[i])
+			m.set_instance_custom_data(j, _customs[i])
+			box = box.merge(plants[i].xform * mesh.get_aabb())
+		# Heights are kept above the ground, which the shaders add; wind and hands bend blades a little further.
+		var ground := Terrain.bounds()
+		box.position.y += ground.position.y
+		box.size.y += ground.size.y
+		m.custom_aabb = box.grow(0.5)
+		return m
 
 	func size() -> int:
 		return kept + mm.visible_instance_count
@@ -170,6 +208,8 @@ class Pool:
 	func place(slot: int, xform: Transform3D) -> void:
 		if slot < kept:
 			_cell_of[slot].set_instance_transform(_index_in_cell[slot], xform)
+			if _sparse_cell_of[slot] != null:
+				_sparse_cell_of[slot].set_instance_transform(_index_in_sparse[slot], xform)
 		else:
 			mm.set_instance_transform(slot - kept, xform)
 
@@ -181,9 +221,13 @@ class Pool:
 	## Not `visibility_range_end`: that measures to the box's centre, which sits high above the ground because a
 	## cell's box spans every height the terrain can be pulled to.
 	func cull(eye: Vector3, reach: float) -> void:
-		var r := reach + CELL * sqrt(0.5)
+		var half := Vector2(cell, cell) * 0.5
 		for i in _cells.size():
-			_cells[i].visible = _centres[i].distance_to(Vector2(eye.x, eye.z)) < r
+			var off := (_centres[i] - Vector2(eye.x, eye.z)).abs() - half
+			var d := Vector2(maxf(off.x, 0.0), maxf(off.y, 0.0)).length()
+			_cells[i].visible = d < minf(sparse_from, reach)
+			if sparse != null and _sparse_cells[i] != null:
+				_sparse_cells[i].visible = d >= sparse_from and d < reach
 
 	func _setup(m: MultiMesh, drawn: Mesh, count: int) -> void:
 		m.transform_format = MultiMesh.TRANSFORM_3D
@@ -298,10 +342,19 @@ var _blobs := {}
 func _init() -> void:
 	grass_mat.shader = load("res://src/grass.gdshader")
 	grass_mat.set_shader_parameter(&"draw_reach", grass_reach)
+	for k in Meadow.GRASS:
+		grass_mat.set_shader_parameter(k, Meadow.GRASS[k])
+	grass_mat.set_shader_parameter(&"lod_begin", GRASS_LOD_BEGIN)
+	grass_mat.set_shader_parameter(&"lod_band", GRASS_LOD_BAND)
+	grass_mat.set_shader_parameter(&"survivors", GRASS_SURVIVORS)
+	grass_mat.set_shader_parameter(&"survivors_from", GRASS_SURVIVORS_FROM)
 	part(NO_HAND, NO_HAND)
 	var clump := Meshes.grass_clump(7, 1, 3)
 	var bloom := Meshes.flower(6)
-	grass = Pool.new(self, clump, Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false)
+	grass = Pool.new(self, clump, Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false, GRASS_CELL)
+	grass.sparse = Meshes.grass_clump(7, 1, 3, true)
+	grass.survivors = GRASS_SURVIVORS
+	grass.sparse_from = GRASS_LOD_BEGIN + GRASS_LOD_BAND
 	flower_mat = _plant_material("flower", Color.WHITE, 0.8)
 	flower_mat.set_shader_parameter("stalk", Meshes.STALK)
 	flower_mat.set_shader_parameter("eye", Meshes.EYE)
@@ -363,7 +416,7 @@ func part(left: Vector3, right: Vector3) -> void:
 func add_grass(p: Vector3, rng: RandomNumberGenerator, pool := grass) -> Plant:
 	var v := rng.randf_range(0.85, 1.1)
 	var c := FloraLayout.clump(p, FloraLayout.GRASS_CLUMP)
-	return pool.add(FloraLayout.grass(p, c, rng), Color(v, v, v), p, Color(FloraLayout.dryness(p), FloraLayout.clump_trait(c, FloraLayout.Trait.TINT, FloraLayout.GRASS_CLUMP), 0, 0))
+	return pool.add(FloraLayout.grass(p, c, rng), Color(v, v, v, FloraLayout.thin_rank(p)), p, Color(FloraLayout.dryness(p), FloraLayout.clump_trait(c, FloraLayout.Trait.TINT, FloraLayout.GRASS_CLUMP), 0, 0))
 
 
 func add_flower(p: Vector3, rng: RandomNumberGenerator, pool := flowers) -> Plant:
