@@ -235,11 +235,17 @@
   {"op": "capture", "name": "camera-ground"},
   {"op": "label", "name": "camera/shutter"},
   {"op": "photo"},
+  {"op": "wait", "seconds": 0.6},
   {"op": "photo"},
+  {"op": "wait", "seconds": 0.6},
   {"op": "photo"},
+  {"op": "wait", "seconds": 0.6},
   {"op": "photo"},
+  {"op": "wait", "seconds": 0.6},
   {"op": "photo"},
-  {"op": "wait", "seconds": 1},
+  {"op": "wait", "seconds": 0.6},
+  {"op": "photo"},
+  {"op": "wait", "seconds": 0.6},
   {"op": "label", "name": "-"},
   {"op": "quit"}
 ]
