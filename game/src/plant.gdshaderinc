@@ -31,7 +31,7 @@ void vertex() {
 	VERTEX.y += ground;
 #ifdef PARTED
 	vec3 root = MODEL_MATRIX[3].xyz + vec3(0.0, ground, 0.0);
-	VERTEX = mix(root, VERTEX, 1.0 - bare(root.xz));
+	VERTEX = mix(root, VERTEX, 1.0 - max(bare(root.xz), bank(water_depth_at(root.xz))));
 #endif
 #ifdef FLOWER
 	if (INSTANCE_CUSTOM.r >= season_bloom) {
@@ -44,7 +44,7 @@ void vertex() {
 	VERTEX = mix(VERTEX, root, smoothstep(draw_reach - draw_fade, draw_reach, dist));
 #endif
 	bounce_at = bounce_coord(VERTEX, NORMAL);
-	if (drowned(INSTANCE_CUSTOM.zw, ground)) {
+	if (drowned(INSTANCE_CUSTOM.zw)) {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);
 	}
 #ifdef BACKLIT

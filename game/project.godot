@@ -58,7 +58,7 @@ ground_mask={
 "type": "sampler2D",
 "value": ""
 }
-water_level={
+water_depth={
 "type": "sampler2D",
 "value": ""
 }

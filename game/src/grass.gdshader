@@ -53,7 +53,7 @@ void vertex() {
 	vec3 at = bounce_on_ground(root.xz);
 	vec4 bounce = textureLod(bounce_volume, at, 0.0);
 	given = vec4(given_back(at, bounce), bounce.a);
-	float worn = bare(root.xz);
+	float worn = max(bare(root.xz), bank(water_depth_at(root.xz)));
 	VERTEX = root + (VERTEX - root) * vec3(1.0 - worn * 0.5, 1.0 - worn, 1.0 - worn * 0.5);
 	float dist = distance(root, CAMERA_POSITION_WORLD);
 	float lod = smoothstep(lod_begin, lod_begin + lod_band, dist);
@@ -65,7 +65,7 @@ void vertex() {
 	far = smoothstep(far_begin, far_end, dist);
 	VERTEX = mix(VERTEX, root, smoothstep(draw_reach - draw_fade, draw_reach, dist));
 	NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), 0.35 + 0.5 * far));
-	if (drowned(INSTANCE_CUSTOM.zw, ground)) {
+	if (drowned(INSTANCE_CUSTOM.zw)) {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);
 	}
 }

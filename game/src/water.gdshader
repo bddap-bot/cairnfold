@@ -23,7 +23,7 @@ void vertex() {
 
 void fragment() {
 	vec2 s = wp.xz;
-	float depth = level - drop - ground_at(s);
+	float depth = level - drop - grid_smooth(ground_height, s);
 	vec2 slope = (texture(waves, s * 0.21 + TIME * vec2(0.019, 0.011)).xy
 		+ texture(waves, s * 0.33 - TIME * vec2(0.012, 0.021)).xy - 1.0) * wave_strength;
 	for (int i = 0; i < 12; i++) {
@@ -43,8 +43,8 @@ void fragment() {
 	float alpha = mix(0.2, 0.93, body);
 
 	float grain = texture(breakup, s * 0.6 + TIME * vec2(0.01, -0.008)).r;
-	// The ground mesh is 1 m triangles while depth here is bilinear, so the surface fades out over the last
-	// few centimetres and the foam line sits just inside where it meets the ground.
+	// The ground mesh is 1 m triangles while depth here is a smooth spline, so the surface fades out over the
+	// last few centimetres and the foam line sits just inside where it meets the ground.
 	float shore = smoothstep(0.03, 0.08, depth) * smoothstep(0.16, 0.09, depth + (grain - 0.5) * 0.05);
 	float lines = smoothstep(0.86, 0.98, sin(depth * 48.0 - TIME * 1.2 + grain * 4.0) * 0.5 + 0.5) * smoothstep(0.3, 0.1, depth);
 	float foam = clamp(max(shore * 0.8, lines * 0.55) * smoothstep(0.35, 0.65, grain + shore * 0.25), 0.0, 1.0);

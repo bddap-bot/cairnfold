@@ -22,6 +22,9 @@ static var revision := 0
 const NO_WATER := -100.0
 ## Each grid point's pond surface (Water), NO_WATER where none reaches.
 static var _water := _no_water()
+## What shaders read where no pond is (water.gdshaderinc): far enough under the shore's own depth that a bank
+## fades out between a shore point and the next.
+const DRY := -0.6
 static var _water_image: Image
 static var _water_texture: ImageTexture
 static var _image: Image
@@ -95,13 +98,15 @@ static func _no_water() -> PackedFloat32Array:
 	return out
 
 
-## Every pond gone: the levels shared with shaders as the global water_level (water.gdshaderinc), one texel per grid point.
+## Every pond gone. Shaders read the water as its depth over the ground (the global water_depth,
+## water.gdshaderinc), one texel per grid point: depth filters smoothly into the dry ground around a pond, where
+## a level would fall off a cliff to NO_WATER.
 static func dry_water() -> void:
 	_water.fill(NO_WATER)
 	_water_image = Image.create_empty(VERTS, VERTS, false, Image.FORMAT_RH)
-	_water_image.fill(Color(NO_WATER, 0, 0))
+	_water_image.fill(Color(DRY, 0, 0))
 	_water_texture = ImageTexture.create_from_image(_water_image)
-	RenderingServer.global_shader_parameter_set(&"water_level", _water_texture)
+	RenderingServer.global_shader_parameter_set(&"water_depth", _water_texture)
 	revision += 1
 
 
@@ -113,12 +118,16 @@ static func water_level(g: Vector2i) -> float:
 static func set_water(changed: Dictionary) -> void:
 	for g: Vector2i in changed:
 		_water[g.y * VERTS + g.x] = changed[g]
-		_water_image.set_pixelv(g, Color(changed[g], 0, 0))
+		_water_image.set_pixelv(g, Color(_depth(g.y * VERTS + g.x), 0, 0))
 	_water_texture.update(_water_image)
 	revision += 1
 
 
-## The pond surface over (x, z) as the shaders' filtered water_level reads it: below the ground where no pond is.
+static func _depth(k: int) -> float:
+	return DRY if _water[k] == NO_WATER else maxf(_water[k] - _heights[k], DRY)
+
+
+## The pond surface over (x, z), bilinear between grid points: far below the ground where no pond is.
 static func water_at(x: float, z: float) -> float:
 	return _bilinear(x, z, _water)
 
@@ -268,6 +277,16 @@ static func _sync(cells: Rect2i) -> void:
 		for i in range(cells.position.x, cells.end.x):
 			_image.set_pixel(i, j, Color(_heights[j * VERTS + i], 0, 0))
 	_texture.update(_image)
+	if _water_image == null:
+		return
+	var wet := false
+	for j in range(cells.position.y, cells.end.y):
+		for i in range(cells.position.x, cells.end.x):
+			if _water[j * VERTS + i] != NO_WATER:
+				_water_image.set_pixel(i, j, Color(_depth(j * VERTS + i), 0, 0))
+				wet = true
+	if wet:
+		_water_texture.update(_water_image)
 
 
 ## A flat grid the terrain shader lifts onto the heights; vertex colour red is the meadow's lushness.

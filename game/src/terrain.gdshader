@@ -18,8 +18,6 @@ uniform vec3 trodden : source_color = vec3(0.52, 0.45, 0.33);
 uniform vec3 bed : source_color = vec3(0.50, 0.44, 0.32);
 
 varying vec3 world_pos;
-varying float steep;
-varying float under;
 varying vec3 bounce_at;
 
 void vertex() {
@@ -27,8 +25,6 @@ void vertex() {
 	VERTEX.y = ground_at(world_pos.xz);
 	world_pos.y = VERTEX.y;
 	NORMAL = ground_normal(world_pos.xz);
-	steep = 1.0 - NORMAL.y;
-	under = water_at(world_pos.xz) - VERTEX.y;
 	bounce_at = bounce_on_ground(world_pos.xz);
 }
 
@@ -37,7 +33,8 @@ void fragment() {
 	float fine = texture(detail, world_pos.xz * 0.45).r;
 	vec3 grass = mix(meadow_dry, meadow_lush, clamp(COLOR.r + (d - 0.5) * 0.8, 0.0, 1.0));
 	grass = seasoned(grass * (0.85 + fine * 0.3), season_meadow);
-	float s = steep + (fine - 0.5) * 0.06;
+	// Steepness and depth per fragment: interpolated from the vertices they would follow the 1 m triangles.
+	float s = 1.0 - ground_normal(world_pos.xz).y + (fine - 0.5) * 0.06;
 	vec3 c = mix(grass, earth, smoothstep(0.2, 0.32, s));
 	vec2 cover = ground_cover(world_pos.xz);
 	// Stone ground is one material however it came: painted, or a slope too steep to hold soil.
@@ -55,10 +52,12 @@ void fragment() {
 		c = mix(joint, face, laid);
 		paved = laid * min(cover.g / stony, 1.0);
 	}
-	if (under > -0.25) {
+	float under = grid_smooth(water_depth, world_pos.xz);
+	float shore = bank(under + (d - 0.5) * 0.12 + (fine - 0.5) * 0.06);
+	if (shore > 0.0) {
 		float pebble = texture(detail, world_pos.xz * 2.3).r;
 		float soaked = mix(1.0, 0.75, smoothstep(-0.1, 0.0, under));
-		c = mix(c, mix(bed * (0.7 + pebble * 0.6), c, paved) * soaked, smoothstep(-0.25, -0.08, under));
+		c = mix(c, mix(bed * (0.7 + pebble * 0.6), c, paved) * soaked, shore);
 		vec2 uv = world_pos.xz * 0.35;
 		float a = texture(detail, uv + TIME * vec2(0.021, 0.013)).r;
 		float b = texture(detail, uv * 1.37 - TIME * vec2(0.017, 0.024)).r;

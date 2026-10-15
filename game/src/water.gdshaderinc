@@ -1,12 +1,18 @@
-// Pond surface heights (Water), one texel per ground grid point; NONE far below the ground where there is no pond.
+// How deep pond water (Water) stands over each ground grid point, one texel per point: negative on a pond's shore,
+// DRY everywhere else. Depth rather than level, so it filters smoothly into the dry ground around a pond.
 // Include after ground.gdshaderinc, whose grid it shares.
-global uniform sampler2D water_level : filter_linear, repeat_disable;
+global uniform sampler2D water_depth : filter_linear, repeat_disable;
 
-float water_at(vec2 xz) {
+float water_depth_at(vec2 xz) {
 	vec2 g = (xz - ground_grid.x) / ground_grid.y;
-	return textureLod(water_level, (g + 0.5) / ground_grid.z, 0.0).r;
+	return textureLod(water_depth, (g + 0.5) / ground_grid.z, 0.0).r;
 }
 
-bool drowned(vec2 xz, float ground) {
-	return water_at(xz) > ground + 0.02;
+bool drowned(vec2 xz) {
+	return water_depth_at(xz) > 0.02;
+}
+
+// 1 on the bare bank and bed of a pond at this depth, 0 on meadow.
+float bank(float depth) {
+	return smoothstep(-0.25, -0.08, depth);
 }

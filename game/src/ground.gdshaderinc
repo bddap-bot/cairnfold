@@ -32,6 +32,23 @@ float ground_at(vec2 xz) {
 	return h;
 }
 
+// A one-texel-per-grid-point texture as a cubic B-spline through the neighbourhood of `xz`, in four filtered
+// taps. Bilinear contours kink at every grid line, so a small hollow's waterline drawn from them is a polygon.
+float grid_smooth(sampler2D t, vec2 xz) {
+	vec2 g = (xz - ground_grid.x) / ground_grid.y;
+	vec2 i = floor(g);
+	vec2 f = g - i;
+	vec2 w0 = (1.0 - f) * (1.0 - f) * (1.0 - f) / 6.0;
+	vec2 w1 = (4.0 - 6.0 * f * f + 3.0 * f * f * f) / 6.0;
+	vec2 w3 = f * f * f / 6.0;
+	vec2 s0 = w0 + w1;
+	vec2 s1 = 1.0 - s0;
+	vec2 t0 = (i - 0.5 + w1 / s0) / ground_grid.z;
+	vec2 t1 = (i + 1.5 + w3 / s1) / ground_grid.z;
+	return s0.y * (s0.x * textureLod(t, t0, 0.0).r + s1.x * textureLod(t, vec2(t1.x, t0.y), 0.0).r)
+		+ s1.y * (s0.x * textureLod(t, vec2(t0.x, t1.y), 0.0).r + s1.x * textureLod(t, t1, 0.0).r);
+}
+
 vec2 ground_cover(vec2 xz) {
 	return textureLod(ground_mask, (xz - ground_grid.x) / (ground_grid.y * (ground_grid.z - 1.0)), 0.0).rg;
 }
