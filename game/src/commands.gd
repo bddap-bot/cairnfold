@@ -273,7 +273,10 @@ static func _path(d: Variant) -> Variant:
 		return null
 	if typeof(halves) != TYPE_PACKED_FLOAT32_ARRAY or halves.size() != points.size() or not Array(halves).all(func(h: float) -> bool: return h >= PathLayout.HALF_WIDTH.x - 0.001 and h <= PathLayout.HALF_WIDTH.y + 0.001):
 		return null
-	return {"points": points, "half_widths": halves, "seed": d.seed}
+	var style: Variant = d.get("style", "cobble")
+	if not style in ["cobble", "dirt"]:
+		return null
+	return {"points": points, "half_widths": halves, "seed": d.seed, "style": style}
 
 
 static func _ground(cmd: Dictionary, out: Dictionary) -> bool:

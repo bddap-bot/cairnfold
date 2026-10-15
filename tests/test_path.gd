@@ -33,6 +33,10 @@ func _run() -> void:
 	_undo_lifts_a_path_and_its_arches()
 	await _a_path_opens_its_arch_before_release()
 	await _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame()
+
+
+	_undo_lifts_a_path_and_its_arches(Hand.Tool.DIRT_PATH)
+	_dirt_wears_without_stones()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -469,7 +473,7 @@ func _painting_skips_a_path() -> void:
 	_teardown(nodes)
 
 
-func _undo_lifts_a_path_and_its_arches() -> void:
+func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.PATH) -> void:
 	var nodes := _setup()
 	var t := FloraTool.new(nodes[3], nodes[4], nodes[1], nodes[2])
 	t.set_process(false)
@@ -477,7 +481,7 @@ func _undo_lifts_a_path_and_its_arches() -> void:
 	var w := _draw_wall(nodes[0], Vector3(-8, 0, 60), Vector3(8, 0, 60))
 	_reshape(nodes, w, {"arches": PackedFloat32Array()})
 	var b := t.brushes[1]
-	b.hand.tool = Hand.Tool.PATH
+	b.hand.tool = kind
 	t.begin_path(b, Terrain.ground(2, 54), 0.6)
 	for i in 41:
 		t.extend_path(Terrain.ground(2, 54 + i * 0.3), 0.6)
@@ -493,6 +497,17 @@ func _undo_lifts_a_path_and_its_arches() -> void:
 	world.redo()
 	_lay_walls(nodes[0])
 	_check(paths.layouts.size() == 1 and Ground.bare(2, 57) > 0.99 and w.layout.live_arches.size() == 1, "redo lays it again, arch and all: %s" % [w.layout.live_arches])
+	var deleter := DeleteTool.new(nodes[3], nodes[0], t, world)
+	var target := deleter.aim(Terrain.ground(2, 57) + Vector3.UP * 2, Vector3.DOWN)
+	_check(target.has("laid"), "Delete selects a path away from its wall crossing")
+	deleter.press(deleter, Terrain.ground(2, 57) + Vector3.UP * 2, Vector3.DOWN)
+	deleter.let_go(deleter)
+	_lay_walls(nodes[0])
+	_check(paths.layouts.is_empty() and w.layout.live_arches.is_empty(), "Delete lifts path and closes its arch")
+	world.undo()
+	_lay_walls(nodes[0])
+	_check(paths.layouts.size() == 1 and w.layout.live_arches.size() == 1, "undo restores deleted path and arch")
+	deleter.free()
 	t.free()
 	_teardown(nodes)
 
@@ -587,3 +602,29 @@ func _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame() -> void
 	_lay(nodes, Vector3(-40, 0, 75), Vector3(-30, 0, 75), 0.8)
 	_check(Ground.laid_bare(-35, 75) > 0.99, "the garden's mask has it as soon as it is read (%.2f)" % Ground.laid_bare(-35, 75))
 	_teardown(nodes)
+
+
+func _dirt_wears_without_stones() -> void:
+	var paths := Paths.new()
+	root.add_child(paths)
+	paths.begin(Vector3(-20, 0, -20), 0.8, "dirt")
+	paths.extend(Vector3(-10, 0, -20), 0.8)
+	var ghost := paths.end()
+	_check(ghost.layout.stones.is_empty() and ghost.chunks.is_empty(), "dirt creates no stones or stone nodes")
+	_check(Ground.bare(-15, -20) > 0.99, "dirt wears the stroke centre")
+	var edge := Ground.bare(-15, -19.1)
+	_check(edge > 0.0 and edge < 1.0, "dirt has a soft edge: %s" % edge)
+	_check(Ground.bare(-15, -18) == 0.0, "ground outside dirt stays meadow")
+	var data: Dictionary = Commands._path(ghost.data)
+	_check(data.style == "dirt", "command validation keeps dirt style")
+	paths.drop(ghost)
+	paths.put(123, data)
+	_check(paths.layouts[0].style == "dirt" and paths.layouts[0].stones.is_empty(), "replayed dirt stays stone-free")
+	_check(Ground.mark_at(-15, -20) == 123 and Ground.mark_at(-15, -18) == -1, "path selection follows the stroke width")
+	paths.take(123)
+	_check(Ground.bare(-15, -20) == 0.0, "taking dirt restores the meadow")
+	data.erase("style")
+	_check(Commands._path(data).style == "cobble", "old gardens default to cobble")
+	data.style = "invalid"
+	_check(Commands._path(data) == null, "unknown path styles are rejected")
+	paths.free()

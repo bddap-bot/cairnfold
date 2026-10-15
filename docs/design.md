@@ -1599,3 +1599,16 @@ on the engine worker pool, with at most one pending sample; a slow write skips
 samples instead of delaying a frame. `writer_us` measures the previous write
 and `skipped_log_samples` records any skipped samples. Explicit `--metrics`
 benchmark output remains available separately.
+
+
+
+## Dirt paths
+
+Directive (verbatim): "Can you give me a path that is not cobblestone"
+
+Dirt path is its own tool choice beside cobblestone. The same trigger stroke wears
+soft-edged earth into the ground mask, with no placed stones. Both path styles open
+arches beneath walls and can be selected with Delete; undo restores the path and
+its crossings. A saved path carries its style, with older paths remaining cobbled.
+`demo/dirt-path.json` shows the two surfaces side by side; the stress scene includes
+both. Dirt reuses the ground material and adds no path draw calls.

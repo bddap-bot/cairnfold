@@ -11,7 +11,7 @@ build order.
 ## Controls
 
 Each hand holds a tool, shown as a small object on top of its controller: walls,
-paths, stone, flowers, grass, trees, pond, colour, camera, seeds, delete or visit.
+cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, camera, seeds, delete or visit.
 
 - Hold B (right) or View (left), and a wheel of tools stands up in front of that
   hand: sweep the hand onto a tool and let go to take it. A slot showing a little

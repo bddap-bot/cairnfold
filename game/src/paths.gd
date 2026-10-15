@@ -42,14 +42,17 @@ func busy() -> bool:
 	return drawing != null
 
 
-func begin(p: Vector3, half: float) -> void:
+func begin(p: Vector3, half: float, style := "cobble") -> void:
 	drawing = PathLayout.new()
 	previews.append(drawing)
 	drawing.seed = randi()
+	drawing.style = style
 	drawing.others = layouts.duplicate()
 	drawing.add(p, half)
-	_chunks = [Stones.new(true)]
-	add_child(_chunks[0])
+	_chunks = []
+	if style == "cobble":
+		_chunks.append(Stones.new(true))
+		add_child(_chunks[0])
 	_frozen = 0
 	Ground.settle()
 	_settled_mask = Ground.image.duplicate()
@@ -240,7 +243,8 @@ func _relay() -> void:
 		_frozen = settled_stones
 		_chunks.append(Stones.new(true))
 		add_child(_chunks[-1])
-	_chunks[-1].lay(drawing.stones.slice(_frozen))
+	if not _chunks.is_empty():
+		_chunks[-1].lay(drawing.stones.slice(_frozen))
 	drawing.wear(_settled_mask, _settled_rows, stable)
 	_settled_rows = stable
 	Ground.image.copy_from(_settled_mask)

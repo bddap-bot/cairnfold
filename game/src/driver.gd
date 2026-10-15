@@ -320,7 +320,7 @@ func _paint(s: Dictionary) -> void:
 func _pave(s: Dictionary) -> void:
 	var flora_tool: FloraTool = main.flora_tool
 	var b := flora_tool.brush(main.rig.left if s.get("hand", "left") == "left" else main.rig.right)
-	b.hand.tool = Hand.Tool.PATH
+	b.hand.tool = Hand.Tool.DIRT_PATH if s.get("style", "cobble") == "dirt" else Hand.Tool.PATH
 	var path := _path(s)
 	flora_tool.begin_path(b, path[0], s.radius)
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))

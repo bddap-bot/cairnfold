@@ -8,7 +8,7 @@ extends Node3D
 
 ## Plants per square metre per second of painting.
 const RATES := {Hand.Tool.FLOWERS: 12.0, Hand.Tool.GRASS: 30.0}
-const TINTS := {Hand.Tool.FLOWERS: Color(1.0, 0.82, 0.9, 0.6), Hand.Tool.GRASS: Color(0.78, 1.0, 0.55, 0.6), Hand.Tool.TREES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.PATH: Color(1.0, 0.9, 0.7, 0.6), Hand.Tool.STONE: Color(0.9, 0.88, 0.82, 0.6)}
+const TINTS := {Hand.Tool.DIRT_PATH: Color(0.78, 0.58, 0.35, 0.6), Hand.Tool.FLOWERS: Color(1.0, 0.82, 0.9, 0.6), Hand.Tool.GRASS: Color(0.78, 1.0, 0.55, 0.6), Hand.Tool.TREES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.PATH: Color(1.0, 0.9, 0.7, 0.6), Hand.Tool.STONE: Color(0.9, 0.88, 0.82, 0.6)}
 const RADIUS_PER_METRE := 0.15
 const MIN_RADIUS := 0.3
 const MAX_RADIUS := 3.0
@@ -139,10 +139,10 @@ func _handle(b: Brush, delta: float) -> void:
 			plant_tree(hit, b.hand)
 		return
 	var radius := brush_radius(hand.origin, hit)
-	if held == Hand.Tool.PATH:
+	if held in [Hand.Tool.PATH, Hand.Tool.DIRT_PATH]:
 		radius = clampf(radius, PathLayout.HALF_WIDTH.x, PathLayout.HALF_WIDTH.y)
 	put_ring(b.ring, hit, radius)
-	if held == Hand.Tool.PATH:
+	if held in [Hand.Tool.PATH, Hand.Tool.DIRT_PATH]:
 		if b.buttons.pressed("trigger_click") and not paths.busy() and not _ground_held():
 			begin_path(b, hit, radius)
 		elif b.buttons.held("trigger_click") and b.paving:
@@ -273,7 +273,7 @@ func _forget() -> void:
 
 func begin_path(b: Brush, at: Vector3, radius: float) -> void:
 	b.paving = true
-	paths.begin(at, radius)
+	paths.begin(at, radius, "dirt" if b.hand.tool == Hand.Tool.DIRT_PATH else "cobble")
 	planted.emit()
 
 

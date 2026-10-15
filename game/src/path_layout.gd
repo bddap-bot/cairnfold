@@ -23,6 +23,7 @@ const CELL := 1.0
 var points: Array[Vector3] = []
 var half_widths: Array[float] = []
 var seed := 1
+var style := "cobble"
 ## The paths laid before this one, whose stones it paves around.
 var others: Array[PathLayout] = []
 
@@ -44,6 +45,7 @@ var _cells := {}
 static func of(data: Dictionary) -> PathLayout:
 	var path := PathLayout.new()
 	path.seed = data.seed
+	path.style = data.get("style", "cobble")
 	for i in data.points.size():
 		path.add(data.points[i], data.half_widths[i])
 	return path
@@ -51,7 +53,7 @@ static func of(data: Dictionary) -> PathLayout:
 
 ## What a build command carries to lay this path again.
 func data() -> Dictionary:
-	return {"points": PackedVector3Array(points), "half_widths": PackedFloat32Array(half_widths), "seed": seed}
+	return {"points": PackedVector3Array(points), "half_widths": PackedFloat32Array(half_widths), "seed": seed, "style": style}
 
 
 func add(p: Vector3, half_width: float) -> void:
@@ -108,6 +110,8 @@ func plan() -> void:
 ## Lays the planned rows' stones, keeping the rows wholly before `keep_before`: each row draws from its own
 ## stream, so a growing stroke relays only its tail and ends with the stones a single build would lay.
 func lay(keep_before := 0.0) -> void:
+	if style == "dirt":
+		return
 	var k := mini(rows_before(keep_before), row_starts.size())
 	if k < row_starts.size():
 		for i in range(row_starts[k], stones.size()):

@@ -37,6 +37,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_decor(root)
 		Hand.Tool.PATH:
 			_path(root)
+		Hand.Tool.DIRT_PATH:
+			_path(root, true)
 		Hand.Tool.FLOWERS:
 			_flowers(root)
 		Hand.Tool.GRASS:
@@ -472,13 +474,32 @@ static func _flat(_x: float, _z: float) -> float:
 
 
 ## A short bend of paving.
-static func _path(root: Node3D) -> void:
+static func _path(root: Node3D, dirt := false) -> void:
 	var layout := PathLayout.new()
 	layout.seed = 3
+	layout.style = "dirt" if dirt else "cobble"
 	for p in [Vector3(-0.3, 0, -1.6), Vector3(0.25, 0, -0.5), Vector3(-0.2, 0, 0.6), Vector3(0.3, 0, 1.6)]:
 		layout.add(p, 0.62)
 	layout.build()
-	_stones(root, layout.stones, 0.024)
+	if not dirt:
+		_stones(root, layout.stones, 0.024)
+		return
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for i in layout.samples.size() - 1:
+		var a := layout.frame_at(layout.lengths[i])
+		var b := layout.frame_at(layout.lengths[i + 1])
+		var across_a: Vector3 = a.along.cross(Vector3.UP) * a.half
+		var across_b: Vector3 = b.along.cross(Vector3.UP) * b.half
+		for v in [a.point - across_a, b.point - across_b, a.point + across_a, a.point + across_a, b.point - across_b, b.point + across_b]:
+			st.set_normal(Vector3.UP)
+			st.set_color(Color(0.48, 0.31, 0.16))
+			st.add_vertex(v * 0.024)
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = _vertex_mat("dirt", 1.0, false)
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
 
 
 static func _stones(root: Node3D, stones: Array[Dictionary], scale: float) -> void:
