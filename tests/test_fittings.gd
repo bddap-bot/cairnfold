@@ -28,6 +28,7 @@ func _initialize() -> void:
 	_a_tower_flies_a_flag()
 	_ivy_keeps_out_of_windows()
 	_fittings_are_deterministic()
+	_each_fitting_stands_alone()
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	_in_the_glade.call_deferred()
@@ -387,6 +388,13 @@ func _in_the_glade() -> void:
 	_check(fit.aim(Hand.Tool.DECORATIONS, near_top + normal * 3.0, -normal).get("what") == "flag", "at a wall's top they fly a flag")
 	var w_aim := fit.aim(Hand.Tool.WINDOWS, on_face + normal * 3.0, -normal)
 	_check(w_aim.get("what") == "window", "windows pointed at a wall open a window")
+	var g := fit.ghost_of(Hand.Tool.WINDOWS, w_aim, on_face + normal * 3.0, -normal, w_aim.get("point"))
+	_check(g.get("what") == "window" and g.fits and g.xform.basis.z.dot(normal) > 0.99 and absf((g.xform.origin - face.point).dot(normal) - WallLayout.THICKNESS * 0.5) < 0.01, "the window's ghost stands on the face toward the hand: %s" % g)
+	var down := (Vector3.DOWN + normal * 0.3).normalized()
+	var ground_aim := fit.aim(Hand.Tool.WINDOWS, on_face + normal * 3.0, down)
+	var astray := fit.ghost_of(Hand.Tool.WINDOWS, ground_aim, on_face + normal * 3.0, down, Terrain.raycast(on_face + normal * 3.0, down))
+	_check(ground_aim.is_empty() and astray.get("what") == "window" and not astray.fits, "aimed at the ground, the window's ghost hangs there unplaced")
+	_check(not fit.fit(ground_aim), "a press at the ground places nothing and says so")
 	var ridge: Vector3 = house.roof.frame().mid + Vector3.UP * (house.roof.pitch * 0.5)
 	_check(fit.aim(Hand.Tool.DECORATIONS, ridge + house.roof.frame().across * 1.2 + Vector3.UP * 6.0, Vector3.DOWN).get("what") == "chimney", "on a house's roof, a chimney")
 	_check(fit.aim(Hand.Tool.DECORATIONS, tower.roof.frame().mid + Vector3.UP * 12.0, Vector3.DOWN).get("what") == "tower_flag", "on a tower's roof, a flag")
@@ -446,6 +454,14 @@ func _in_the_glade() -> void:
 	world.undo()
 	_check(fence.layout.live_arches.is_empty(), "undoing the path closes the gate")
 	_done()
+
+
+func _each_fitting_stands_alone() -> void:
+	for what in ToolModels.FITTING_PARTS:
+		var m := ToolModels.fitting(what)
+		var laid: int = m.find_children("*", "MultiMeshInstance3D", true, false).reduce(func(n, mmi): return n + mmi.multimesh.instance_count, 0)
+		_check(laid > 0, "the %s's model has its parts" % what)
+		m.free()
 
 
 func _done() -> void:

@@ -45,6 +45,7 @@ func lay(flames: Array[Transform3D], cloths: Array[Dictionary]) -> void:
 	hm.instance_count = flames.size()
 	for i in flames.size():
 		fm.set_instance_transform(i, flames[i])
+		fm.set_instance_color(i, _flame.albedo_color)
 		hm.set_instance_transform(i, Transform3D(Basis(), flames[i].origin))
 	var cm := _cloths.multimesh
 	cm.instance_count = cloths.size()
@@ -54,6 +55,14 @@ func lay(flames: Array[Transform3D], cloths: Array[Dictionary]) -> void:
 	_flames.visible = not flames.is_empty()
 	_halos.visible = not flames.is_empty()
 	_cloths.visible = not cloths.is_empty()
+
+
+## Draws every part in `mat`, without the glow round the flames.
+func ghostly(mat: Material) -> void:
+	for mmi in [_flames, _cloths]:
+		mmi.material_override = mat
+	_halos.hide()
+	_halos.multimesh.instance_count = 0
 
 
 static func _instances(mesh: Mesh) -> MultiMeshInstance3D:

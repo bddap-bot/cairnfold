@@ -326,7 +326,7 @@ func _normal(s: float) -> Vector3:
 
 
 ## The opening a placed window makes on its own, before fusing: a door if its sill would be near the ground.
-func _opening_for(w: Vector2) -> Dictionary:
+func opening_for(w: Vector2) -> Dictionary:
 	var c := course_height()
 	if w.y - WINDOW_TALL * 0.5 < DOOR_SILL:
 		return {"s": w.x, "half": DOOR_HALF, "sill": 0.0, "head": roundf(DOOR_TALL / c) * c, "door": true, "lights": 1}
@@ -340,7 +340,7 @@ func _opening_for(w: Vector2) -> Dictionary:
 func openings_for(placed: Array[Vector2]) -> Array[Dictionary]:
 	var courses_of := {}
 	for w in placed:
-		var o := _opening_for(w)
+		var o := opening_for(w)
 		var key := roundi(o.sill * 100.0)
 		if not courses_of.has(key):
 			courses_of[key] = []

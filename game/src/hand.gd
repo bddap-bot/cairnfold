@@ -42,6 +42,8 @@ var picking := false
 var _wheel: ToolWheel
 var _wheel_button: String
 var _holding := false
+## Desktop only: the driver holds this hand where tracking would put it.
+var held_still := false
 var _buttons: Buttons
 var _shown := -1
 var _leaving := -1
@@ -165,9 +167,13 @@ static func reach_gain(reach: float) -> float:
 	return maxf(1.0, reach / 1.2)
 
 
+func tracked() -> bool:
+	return held_still or get_has_tracking_data()
+
+
 ## Tools call this each frame they point; the pointer hides on frames nobody does.
 func point(hit: Variant, tint: Color, reach := 20.0) -> void:
-	if not get_has_tracking_data():
+	if not tracked():
 		return
 	if not ray(hit if hit != null else global_position - global_basis.z * reach, tint):
 		return

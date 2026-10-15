@@ -3,6 +3,9 @@
 
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 uniform vec3 moss : source_color = vec3(0.30, 0.42, 0.14);
+#ifndef RIDES_GROUND
+global uniform float fitting_glow;
+#endif
 
 varying vec3 world_pos;
 varying vec3 world_nrm;
@@ -41,4 +44,12 @@ void fragment() {
 	vec4 bounce = texture(bounce_volume, bounce_at);
 	AO = bounce.a;
 	EMISSION = ALBEDO * bounce.rgb * bounce_light;
+#ifndef RIDES_GROUND
+	if (fitting_glow > 0.0) {
+		// Within arm's reach stays plain: the tool models in the hands are masonry too.
+		float reach = smoothstep(0.6, 1.2, distance(world_pos, CAMERA_POSITION_WORLD));
+		float rim = 1.0 - clamp(dot(NORMAL, VIEW), 0.0, 1.0);
+		EMISSION += vec3(1.0, 0.74, 0.42) * fitting_glow * reach * (0.12 + 0.45 * rim * rim) * (0.8 + 0.2 * sin(TIME * 2.6));
+	}
+#endif
 }

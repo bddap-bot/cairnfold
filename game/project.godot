@@ -18,6 +18,10 @@ textures/vram_compression/import_etc2_astc=true
 
 [shader_globals]
 
+fitting_glow={
+"type": "float",
+"value": 0.0
+}
 bounce_volume={
 "type": "sampler3D",
 "value": ""

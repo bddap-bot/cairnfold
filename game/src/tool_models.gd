@@ -8,6 +8,15 @@ extends RefCounted
 ## The camera model's lens, from the model's origin; PhotoTool takes photos from here.
 const CAMERA_LENS := Vector3(0, 0.024, -0.0302)
 const CAMERA_SCREEN := Vector2(0.048, 0.036)
+## The parts of each fitting, by the kind its generator files them under.
+const FITTING_PARTS := {
+	"window": ["glass", "frame"],
+	"door": ["door", "iron"],
+	"lantern": ["iron"],
+	"post_lantern": ["iron"],
+	"flag": ["pole", "finial"],
+	"chimney": ["chimney", "pot"],
+}
 
 static var _mats := {}
 static var _camera_screen: StandardMaterial3D
@@ -321,33 +330,100 @@ static func _fence(root: Node3D) -> void:
 	_stones(root, layout.stones, 0.021)
 
 
-## A short wall pierced by a fused pair of windows, its face toward the eye.
+## A window on its own: a casement, no wall round it.
 static func _windows(root: Node3D) -> void:
-	var layout := WallLayout.new()
-	layout.seed = 5
-	layout.height = 2.4
-	layout.top = WallLayout.Top.CAP
-	layout.points = [Vector3(-1.4, 0, 0), Vector3(1.4, 0, 0)]
-	layout.windows = [Vector2(1.1, 1.5), Vector2(1.7, 1.5)]
-	layout.build(_flat)
-	_stones(root, layout.stones, 0.015)
+	var w := fitting("window")
+	w.scale = Vector3.ONE * 0.05
+	w.position.y = 0.025
+	root.add_child(w)
 
 
-## A low wall flying a flag, a lantern hung on its face.
+## A lantern on its wall bracket beside a flag on its pole, with nothing to hang from.
 static func _decor(root: Node3D) -> void:
-	var layout := WallLayout.new()
-	layout.seed = 8
-	layout.height = 1.5
-	layout.top = WallLayout.Top.CAP
-	layout.points = [Vector3(-1.1, 0, 0), Vector3(1.1, 0, 0)]
-	layout.flags = [1.1]
-	layout.lanterns = [Vector3(1.1, 1.0, 1.0), Vector3(1.1, 1.0, -1.0)]
-	layout.build(_flat)
-	_stones(root, layout.stones, 0.015)
-	var fittings := Fittings.new()
-	fittings.lay(layout.flames, layout.cloths)
-	fittings.scale = Vector3.ONE * 0.015
-	root.add_child(fittings)
+	var flag := fitting("flag")
+	flag.scale = Vector3.ONE * 0.025
+	flag.position.x = -0.016
+	root.add_child(flag)
+	var lantern := fitting("lantern")
+	lantern.scale = Vector3.ONE * 0.05
+	lantern.position = Vector3(-0.006, 0.006, 0)
+	lantern.rotation.y = PI * 0.5
+	root.add_child(lantern)
+
+
+## A fitting on its own at full size, laid by the generator that lays it on a wall or roof: a key of
+## FITTING_PARTS. Its face looks along +z, and its mount is the origin: the back of a window or door
+## (centred on the window, at the foot of the door), where a lantern's bracket or a flag's pole leaves the
+## wall's centre line, a post lantern's foot, or where a chimney rises through the ridge.
+static func fitting(what: String) -> Node3D:
+	var parts: Array[Dictionary] = []
+	var flames: Array[Transform3D] = []
+	var cloths: Array[Dictionary] = []
+	var mount := Vector3.ZERO
+	if what == "chimney":
+		var roof := RoofLayout.new()
+		roof.corners = [Vector3(-2, 0, -1.5), Vector3(2, 0, -1.5), Vector3(2, 0, 1.5), Vector3(-2, 0, 1.5)]
+		roof._lay_chimney(Vector2.ZERO, RandomNumberGenerator.new())
+		parts = roof.tiles
+		mount = roof.frame().mid + Vector3.UP * roof.rise(1.0)
+	else:
+		var layout := WallLayout.new()
+		layout.seed = 5
+		layout.height = 2.4
+		layout.top = WallLayout.Top.CAP
+		layout.fence = what == "post_lantern"
+		layout.points = [Vector3(-2, 0, 0), Vector3(2, 0, 0)]
+		layout.resample(_flat)
+		var s := layout.nearest_post(2.0) if layout.fence else 2.0
+		match what:
+			"window":
+				layout.windows = [Vector2(s, 1.5)]
+			"door":
+				layout.windows = [Vector2(s, 0.5)]
+			"lantern", "post_lantern":
+				layout.lanterns = [Vector3(s, 1.5, 1.0)]
+			"flag":
+				layout.flags = [s]
+		layout.build(_flat)
+		parts = layout.stones
+		flames = layout.flames
+		cloths = layout.cloths
+		match what:
+			"window", "door":
+				var o := layout.openings[0]
+				mount = Vector3(0, 0.0 if o.door else (o.sill + o.head) * 0.5, INF)
+				for p in parts:
+					if p.kind in FITTING_PARTS[what]:
+						mount.z = minf(mount.z, p.xform.origin.z - p.xform.basis.z.length() * 0.5)
+			"lantern":
+				mount = Vector3(0, 1.5, 0)
+			"post_lantern":
+				mount = layout.frame_at(s).point + Vector3.UP * (WallLayout.FENCE_HEIGHT + 0.25)
+			"flag":
+				mount = Vector3(0, layout.height + WallLayout.CAP, 0)
+	var root := Node3D.new()
+	var kept: Array[Dictionary] = []
+	for p in parts:
+		if p.kind in FITTING_PARTS[what]:
+			var q := p.duplicate()
+			q.xform = Transform3D(p.xform.basis, p.xform.origin - mount)
+			kept.append(q)
+	var stones := Stones.new()
+	stones.lay(kept)
+	root.add_child(stones)
+	if not flames.is_empty() or not cloths.is_empty():
+		var moved_flames: Array[Transform3D] = []
+		for f in flames:
+			moved_flames.append(Transform3D(f.basis, f.origin - mount))
+		var moved_cloths: Array[Dictionary] = []
+		for c in cloths:
+			moved_cloths.append({"xform": Transform3D(c.xform.basis, c.xform.origin - mount), "color": c.color})
+		var lit := Fittings.new()
+		lit.lay(moved_flames, moved_cloths)
+		root.add_child(lit)
+	for g in root.find_children("*", "GeometryInstance3D", true, false):
+		(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return root
 
 
 static func _flat(_x: float, _z: float) -> float:

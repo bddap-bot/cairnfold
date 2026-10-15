@@ -18,6 +18,8 @@ const FRAME_BUTTONS := {
 	"left_stick_click": ["left_hand", "primary_click"],
 	"right_stick_click": ["right_hand", "primary_click"],
 	"view": ["left_hand", "menu_button"],
+	"left_trigger": ["left_hand", "trigger_click"],
+	"right_trigger": ["right_hand", "trigger_click"],
 }
 
 signal finished
@@ -119,7 +121,19 @@ func _hands(s: Dictionary) -> void:
 		var at: Vector3 = head * Vector3(s[side][0], s[side][1], s[side][2])
 		var fwd := -head.basis.z
 		hand.global_transform = Transform3D(Basis.looking_at(fwd, Vector3.UP).rotated(head.basis.x, deg_to_rad(s.get("tip", 35.0))), at)
+		hand.held_still = true
 	await get_tree().process_frame
+
+
+## Desktop only: holds `hand` beside the head, holding `tool`, pointing at `at` in the garden.
+func _point(s: Dictionary) -> void:
+	var hand := _holding(s, Hand.Tool[s.tool.to_upper()])
+	var head: Transform3D = main.rig.head.global_transform
+	var from := head * Vector3(0.18 if s.get("hand", "right") == "right" else -0.18, -0.25, -0.3)
+	var at := Vector3(s.at[0], s.at[1], s.at[2])
+	hand.global_transform = Transform3D(Basis.looking_at(at - from, Vector3.UP), from)
+	hand.held_still = true
+	await _frames(2)
 
 
 func _frames(n: int) -> void:
