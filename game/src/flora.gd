@@ -241,6 +241,7 @@ func _init() -> void:
 	flower_mat = _plant_material("flower", Color.WHITE, 0.8)
 	flower_mat.set_shader_parameter("stalk", Meshes.STALK)
 	flower_mat.set_shader_parameter("eye", Meshes.EYE)
+	flower_mat.set_shader_parameter(&"stem", Meshes.FLOWER_HEIGHT)
 	flower_mat.set_shader_parameter(&"draw_reach", flower_reach)
 	flowers = Pool.new(self, bloom, Meadow.FLOWERS + PAINTED_FLOWERS, flower_mat, false)
 	ghost_grass = Pool.new(self, clump, Commands.MAX_STROKE * 2, grass_mat, false)

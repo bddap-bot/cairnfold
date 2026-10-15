@@ -1,7 +1,10 @@
 shader_type spatial;
 render_mode cull_disabled, specular_disabled, diffuse_lambert_wrap;
 
-// INSTANCE_CUSTOM: x the wingbeat's phase, y its swing and z the angle it swings about, in radians up from flat.
+#include "res://src/wind.gdshaderinc"
+
+// INSTANCE_CUSTOM: x the wingbeat's phase, y its swing and z the angle it swings about, in radians up from flat; w the
+// height scale of the flower it sits on, eased in as it settles, so it rides the head as plant.gdshaderinc sways it.
 uniform vec3 body : source_color = vec3(0.16, 0.13, 0.12);
 
 varying float edge;
@@ -18,6 +21,10 @@ void vertex() {
 		VERTEX.x = side * r * cos(a);
 		VERTEX.y += r * sin(a);
 		NORMAL = vec3(-side * sin(a), cos(a), 0.0);
+	}
+	if (INSTANCE_CUSTOM.w > 0.0) {
+		vec2 at = MODEL_MATRIX[3].xz;
+		VERTEX += inverse(mat3(MODEL_MATRIX)) * bent(vec3(0.0), wind_push(at, wind_gust(at)) * INSTANCE_CUSTOM.w * STALK_GIVE, 1.0);
 	}
 }
 

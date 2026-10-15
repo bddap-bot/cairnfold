@@ -13,6 +13,8 @@ uniform vec3 backlight : source_color = vec3(0.0);
 // Flowers shrink to their roots over the last draw_fade before draw_reach, so the edge Flora culls at shows no pop.
 uniform float draw_reach = 1000.0;
 uniform float draw_fade = 4.0;
+// Stalk length to the head in an unscaled flower (Meshes.FLOWER_HEIGHT).
+uniform float stem;
 #endif
 
 varying vec3 bounce_at;
@@ -28,6 +30,8 @@ void vertex() {
 	if (INSTANCE_CUSTOM.r >= season_bloom) {
 		VERTEX = root;
 	}
+	float size = length(MODEL_MATRIX[1].xyz);
+	VERTEX = bent(VERTEX, wind_push(root.xz, wind_gust(root.xz)) * size * STALK_GIVE, clamp((VERTEX.y - root.y) / (size * stem), 0.0, 1.0));
 	VERTEX = mix(VERTEX, root, smoothstep(draw_reach - draw_fade, draw_reach, distance(root, CAMERA_POSITION_WORLD)));
 #endif
 	bounce_at = bounce_coord(VERTEX, NORMAL);

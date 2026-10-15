@@ -1,7 +1,8 @@
 [
   {"op": "place", "x": 0, "z": 5},
-  {"op": "paint", "mode": "grass", "points": [[-3, 0], [3, 0], [3, 2], [-3, 2], [-3, -2], [3, -2]], "radius": 1.8, "seconds": 6},
-  {"op": "view", "eye": [0, 1.2, 5], "at": [0, 0.2, -3]},
+  {"op": "paint", "tool": "grass", "points": [[-3, 0], [3, 0], [3, 2], [-3, 2], [-3, -2], [3, -2]], "radius": 1.8, "seconds": 6},
+  {"op": "paint", "tool": "flowers", "points": [[-2, 1], [2, 1], [2, -1], [-2, -1]], "radius": 1.2, "seconds": 3},
+  {"op": "view", "eye": [0, 0.9, 3.2], "at": [0, 0.15, -1]},
   {"op": "wait", "seconds": 8},
   {"op": "quit"}
 ]

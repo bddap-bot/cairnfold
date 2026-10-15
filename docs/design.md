@@ -562,7 +562,8 @@ tightest: grass there is mostly vertex work (0.77 M indexed vertices for the
 meadow's own grass, up to 0.42 M more painted, before culling), so per-vertex
 arithmetic is the currency and anything that
 breaks early depth (`discard`, alpha test) is ruled out. Each grass value is
-defined once: tunables as uniforms in `grass.gdshader`, placement in
+defined once: tunables as uniforms in `grass.gdshader` and, for the wind every plant shares,
+`wind.gdshaderinc`; placement in
 `FloraLayout`.
 
 | # | Technique | What it adds | Cost on the Frame | Here |
@@ -571,7 +572,7 @@ defined once: tunables as uniforms in `grass.gdshader`, placement in
 | 2 | Clumping (Ghost of Tsushima: Voronoi clumps share height, facing, lean and tint) | Tufts and bare gaps instead of an even carpet | None per frame: computed on the CPU when a plant is placed (`FloraLayout.clump`) | Done |
 | 3 | Rounded normals (Ghost of Tsushima: edge normals tilt outward) | A flat blade shades as if curved across its width | None: baked into the clump mesh | Done |
 | 4 | Opaque geometry blades, no alpha cards | Stable edges under head motion; alpha-tested cards shimmer in a headset, and standalone-headset developers report alpha to coverage as too expensive for grass | Vertices instead of overdraw; keeps the tiler's early depth | Kept |
-| 5 | Wind as a travelling wave (Ghost of Tsushima, Breath of the Wild) | Gusts visible as bands rolling across the meadow, tips brightening as they bend | A few sines per vertex, no texture fetch | Done (`wind_*`, `gust_*`) |
+| 5 | Wind as a travelling wave (Ghost of Tsushima, Breath of the Wild) | Gusts visible as bands rolling across the meadow, tips brightening as they bend | A few sines per vertex, no texture fetch | Done (`wind.gdshaderinc`): flowers sway in the same field, a perched butterfly with its flower |
 | 6 | Per-clump colour variation | Warm and cool tufts break up large areas | A mix and a multiply per fragment from per-instance data | Done (`warm_clump`, `cool_clump`) |
 | 7 | Backlit translucency | Blades glow when you look toward the sun | One lighting term per fragment | Retuned: stronger, tinted by the blade (`backlight`) |
 | 8 | Distance convergence (inferred from Tsushima's clump-normal blend for specular aliasing) | Far blades fade toward their mid-tone with normals toward up, so sub-pixel slivers do not flicker as the head moves | One distance per vertex | Done (`far_begin`, `far_end`) |

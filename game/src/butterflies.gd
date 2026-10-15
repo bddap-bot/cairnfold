@@ -64,6 +64,9 @@ class Butterfly:
 	var size := 1.0
 	var color := Color.WHITE
 	var yaw := 0.0
+	## The height scale of the flower it makes for, and of the one it sits on, which it sways with.
+	var goal_stalk := 0.0
+	var stalk := 0.0
 	## Drives the wander, so no two flutter alike.
 	var clock := 0.0
 
@@ -113,7 +116,7 @@ func arrive(key: Vector2i, from: Vector3) -> void:
 		b.color = COLORS[rng.randi() % COLORS.size()]
 		b.phase = rng.randf() * TAU
 		b.at = start + Vector3(rng.randf_range(-0.6, 0.6), rng.randf_range(-0.3, 0.3), rng.randf_range(-0.6, 0.6))
-		b.goal = _perch_point(blooms[rng.randi() % blooms.size()])
+		_make_for(b, blooms[rng.randi() % blooms.size()])
 		b.state = State.ARRIVE
 		butterflies.append(b)
 
@@ -171,8 +174,9 @@ func _blooming(b: Butterfly) -> bool:
 	return false
 
 
-func _perch_point(bloom: Vector3) -> Vector3:
-	return Vector3(bloom.x, Terrain.height_at(bloom.x, bloom.z) + bloom.y + 0.01, bloom.z)
+func _make_for(b: Butterfly, bloom: Vector3) -> void:
+	b.goal = Vector3(bloom.x, Terrain.height_at(bloom.x, bloom.z) + bloom.y + 0.01, bloom.z)
+	b.goal_stalk = bloom.y / Meshes.FLOWER_HEIGHT
 
 
 func _think(b: Butterfly, delta: float) -> void:
@@ -195,6 +199,7 @@ func _think(b: Butterfly, delta: float) -> void:
 				b.timer = rng.randf_range(PERCH_FOR.x, PERCH_FOR.y)
 				b.at = b.goal
 				b.vel = Vector3.ZERO
+				b.stalk = b.goal_stalk
 		State.PERCH, State.FLEE:
 			b.timer -= delta
 			if b.timer <= 0.0:
@@ -211,7 +216,7 @@ func _flit(b: Butterfly) -> void:
 			pick = p
 			break
 	b.state = State.FLIT
-	b.goal = _perch_point(pick)
+	_make_for(b, pick)
 
 
 func _leave(b: Butterfly) -> void:
@@ -258,5 +263,5 @@ func _upload() -> void:
 		_buffer[k + 16] = b.phase
 		_buffer[k + 17] = wings.y
 		_buffer[k + 18] = wings.x
-		_buffer[k + 19] = 0.0
+		_buffer[k + 19] = b.stalk * b.settled
 	mm.buffer = _buffer
