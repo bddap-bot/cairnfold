@@ -151,7 +151,11 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	roof.corners = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
 	roof.chimneys = [Vector2(0.3, 0.5)]
 	roof.build()
-	for s in wall.stones + coped.stones + fence.stones + roof.tiles:
+	var deck := RoofLayout.new()
+	deck.corners = roof.corners
+	deck.pitch = 0.0
+	deck.build()
+	for s in wall.stones + coped.stones + fence.stones + roof.tiles + deck.tiles:
 		kinds[s.kind] = true
 	for k in kinds:
 		_check(Palette.KINDS.has(k) != kept.has(k), "a laid %s is either painted with a material or kept on purpose" % k)

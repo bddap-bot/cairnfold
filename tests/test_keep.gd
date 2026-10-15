@@ -22,6 +22,7 @@ func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
 	_check(world.save_path == "", "a test or scripted run keeps no garden unless told to")
 	await _every_edit_is_kept_and_loads_whole()
+	await _a_flat_roof_is_kept()
 	await _a_visited_garden_is_not_kept()
 	_an_unreadable_file_starts_the_meadow()
 	await _a_garden_read_in_part_is_moved_aside()
@@ -84,6 +85,27 @@ func _every_edit_is_kept_and_loads_whole() -> void:
 	var seq := world.seq
 	await _play([{"op": "tree", "x": -8, "z": 8}, {"op": "wait", "seconds": 0.1}])
 	_check(world.seq == seq + 1 and world.state.groups.has(world.seq), "commands go on numbering from the loaded garden")
+
+
+func _a_flat_roof_is_kept() -> void:
+	var path := dir.path_join("garden.save")
+	world.restore({"seq": 0, "cmds": []})
+	await _play([
+		{"op": "house", "a": [3, 1], "b": [7, 1], "seconds": 0.3},
+		{"op": "tower", "points": [[-6, -4], [-4.5, -6], [-2.5, -5.5], [-2, -3.5], [-3.5, -1.8], [-5.6, -2.2], [-6, -4]], "seconds": 0.6, "hold": 0.8},
+		{"op": "roof", "index": 0, "pitch": 0.2},
+		{"op": "roof", "index": 1, "pitch": 0.0},
+		{"op": "wait", "seconds": 0.2},
+	])
+	await _settled()
+	var picture := _picture()
+	world.restore({"seq": 0, "cmds": []})
+	await _settled()
+	world.load_from(path)
+	_check(_picture() == picture, "a garden with flat roofs loads as it was kept")
+	var flat: Array = world.state.walls.values().filter(func(w): return w.has("roof") and w.roof.pitch == 0.0)
+	_check(flat.size() == 2, "both roofs come back flat: %d" % flat.size())
+	_check(main.tool.walls.all(func(w): return w.roof == null or w.layout.cover == WallLayout.Cover.DECK), "and are laid as decks")
 
 
 func _a_visited_garden_is_not_kept() -> void:

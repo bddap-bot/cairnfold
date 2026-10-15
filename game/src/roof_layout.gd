@@ -3,7 +3,8 @@ extends RefCounted
 
 ## Lays the tiles of a roof resting on a closed wall: a gable over a house's rectangle or a cone over a
 ## round tower. Pitch is the ridge's rise above the wall top; curvature bows the slopes out (positive)
-## or sags them into swept eaves (negative). A gable carries chimneys; a cone can fly a flag from its top.
+## or sags them into swept eaves (negative). At pitch 0 the roof is a flat stone deck inside the walls,
+## whose top style rims it. A gable carries chimneys; a cone can fly a flag from its top.
 ## Pure data, like WallLayout.
 
 enum Kind { GABLE, CONE }
@@ -12,7 +13,13 @@ const OVERHANG := 0.3
 const GABLE_OVERHANG := 0.25
 const ROW := 0.24
 const TILE := Vector3(0.27, 0.05, 0.36)
-const PITCH := Vector2(0.4, 6.0)
+const PITCH := Vector2(0.0, 6.0)
+## A pitch pulled below this lands flat.
+const FLAT_SNAP := 0.4
+const SLAB := Vector3(0.7, 0.1, 0.5)
+## How far the deck runs in under the cap's inner lip, and how far below the cap's top it lies.
+const DECK_TUCK := 0.06
+const DECK_DROP := 0.03
 const CURVE := 1.0
 const PROFILE_STEPS := 8
 const STACK_WIDTH := 0.66
@@ -41,6 +48,16 @@ var cloths: Array[Dictionary] = []
 var faces := PackedVector3Array()
 var gable_faces := PackedVector3Array()
 var bounds := AABB()
+
+
+## A pulled pitch as the roof takes it: below FLAT_SNAP it lands flat, else on the nearest `step`.
+static func snap_pitch(p: float, step: float) -> float:
+	p = clampf(p, PITCH.x, PITCH.y)
+	return 0.0 if p < FLAT_SNAP else snappedf(p, step)
+
+
+func flat() -> bool:
+	return pitch <= 0.0
 
 
 ## Rise above the wall top at `u`, 0 at the walls' outer faces and 1 at the ridge; below 0 (the overhang) it carries on straight.
@@ -74,7 +91,11 @@ func frame() -> Dictionary:
 
 ## Horizontal distance out from the ridge (or axis) at which the eave ends.
 func eave() -> float:
-	return half_span() + OVERHANG
+	return half_span() + (0.0 if flat() else OVERHANG)
+
+
+func gable_overhang() -> float:
+	return 0.0 if flat() else GABLE_OVERHANG
 
 
 ## Points down one slope, from the ridge out to the eave: Vector2(distance out, height above base).
@@ -98,6 +119,14 @@ func build() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var hue := rng.randf_range(-0.04, 0.04)
+	var f := frame()
+	if flat():
+		_lay_deck(rng)
+		for c in chimneys:
+			_lay_chimney(chimney_spot(c), rng)
+		if flag:
+			_fly_flag(f.mid)
+		return
 	var rows := _rows()
 	for i in rows.size():
 		var row := rows[i]
@@ -105,18 +134,66 @@ func build() -> void:
 			_lay_gable_row(row, 0.5 if i % 2 == 1 else 0.0, hue, rng)
 		else:
 			_lay_cone_row(row, hue, rng)
-	var f := frame()
 	if kind == Kind.GABLE:
 		_lay_ridge(hue, rng)
 		for c in chimneys:
 			_lay_chimney(chimney_spot(c), rng)
 	elif flag:
-		var parts := WallLayout.flag(f.mid + Vector3.UP * pitch, Vector3(1, 0, 0.4), WallLayout.flag_color(seed, 0.0))
-		_add(parts.pole, "pole", WallLayout.POLE, 1.0)
-		_add(parts.finial, "finial", WallLayout.FINIAL, 1.0)
-		cloths.append(parts.cloth)
+		_fly_flag(f.mid + Vector3.UP * pitch)
 	else:
 		_add(Transform3D(Basis().scaled(Vector3(0.16, 0.5, 0.16)), f.mid + Vector3.UP * (pitch + 0.2)), "finial", Color(0.6, 0.56, 0.5), 1.0)
+
+
+func _fly_flag(foot: Vector3) -> void:
+	var parts := WallLayout.flag(foot, Vector3(1, 0, 0.4), WallLayout.flag_color(seed, 0.0))
+	_add(parts.pole, "pole", WallLayout.POLE, 1.0)
+	_add(parts.finial, "finial", WallLayout.FINIAL, 1.0)
+	cloths.append(parts.cloth)
+
+
+## Stone flags paving the floor inside the walls at the cap's height: running-bond rows across a house,
+## rings round a tower.
+func _lay_deck(rng: RandomNumberGenerator) -> void:
+	var f := frame()
+	var reach := half_span() - WallLayout.THICKNESS + DECK_TUCK
+	var y: float = f.mid.y - DECK_DROP - SLAB.y * 0.5
+	if kind == Kind.CONE:
+		_slab(Vector3(f.mid.x, y, f.mid.z), Basis(), Vector2(SLAB.z, SLAB.z), rng)
+		var r := SLAB.z * 0.5
+		while r < reach - 0.01:
+			var depth := minf(SLAB.z, reach - r)
+			var mid := r + depth * 0.5
+			var n := maxi(6, ceili(TAU * mid / SLAB.x))
+			var twist := rng.randf() * TAU
+			for i in n:
+				var a := twist + TAU * (i + 0.5) / n
+				var out := Vector3(cos(a), 0.0, sin(a))
+				var width := TAU * (r + depth) / n
+				_slab(Vector3(f.mid.x, y, f.mid.z) + out * mid, Basis(Vector3.UP.cross(out), Vector3.UP, out), Vector2(width, depth), rng)
+			r += depth
+		return
+	var long := ridge_length() * 0.5 - WallLayout.THICKNESS * 0.5 + DECK_TUCK
+	var basis := Basis(f.along, Vector3.UP, f.across)
+	var z := -reach
+	var row := 0
+	while z < reach - 0.01:
+		var depth := minf(SLAB.z, reach - z)
+		var x := -long - (SLAB.x * 0.5 if row % 2 == 1 else 0.0)
+		while x < long - 0.01:
+			var a := maxf(x, -long)
+			var b := minf(x + SLAB.x, long)
+			var c := (a + b) * 0.5
+			_slab(Vector3(f.mid.x, y, f.mid.z) + f.along * c + f.across * (z + depth * 0.5), basis, Vector2(b - a, depth), rng)
+			x += SLAB.x
+		z += depth
+		row += 1
+
+
+## One flag of the deck, `size` across its top, a hair smaller for the joint and a hair tilted.
+func _slab(at: Vector3, basis: Basis, size: Vector2, rng: RandomNumberGenerator) -> void:
+	var b := basis * Basis.from_euler(Vector3(rng.randf_range(-0.01, 0.01), rng.randf_range(-0.02, 0.02), rng.randf_range(-0.01, 0.01)))
+	var color := WallLayout.stone_color(rng) * rng.randf_range(0.86, 0.98)
+	_add(Transform3D(b.scaled_local(Vector3(size.x - 0.025, SLAB.y, size.y - 0.025)), at + Vector3.UP * rng.randf_range(-0.006, 0.006)), "deck", color, 0.9)
 
 
 ## A chimney's place clamped onto the roof, clear of the gable ends and the eaves.
@@ -241,7 +318,7 @@ func surface() -> PackedVector3Array:
 			for i in prof.size() - 1:
 				_quad(tris, f.mid, a0, a1, prof[i], prof[i + 1])
 		return tris
-	var half: Vector3 = f.along * (ridge_length() * 0.5 + WallLayout.THICKNESS * 0.5 + GABLE_OVERHANG)
+	var half: Vector3 = f.along * (ridge_length() * 0.5 + WallLayout.THICKNESS * 0.5 + gable_overhang())
 	for side in [-1.0, 1.0]:
 		var out: Vector3 = f.across * side
 		for i in prof.size() - 1:
@@ -256,13 +333,15 @@ static func _quad(tris: PackedVector3Array, mid: Vector3, d0: Vector3, d1: Vecto
 	var b := mid + d1 * p.x + Vector3.UP * p.y
 	var c := mid + d1 * q.x + Vector3.UP * q.y
 	var d := mid + d0 * q.x + Vector3.UP * q.y
-	tris.append_array([a, b, c, a, c, d])
+	if p.x > 0.0:
+		tris.append_array([a, b, c])
+	tris.append_array([a, c, d])
 
 
 ## The two triangular gable ends between the end walls' tops and the slopes, as triangles.
 func gables() -> PackedVector3Array:
 	var tris := PackedVector3Array()
-	if kind != Kind.GABLE:
+	if kind != Kind.GABLE or flat():
 		return tris
 	var f := frame()
 	var prof := profile(PROFILE_STEPS)
@@ -277,7 +356,10 @@ func gables() -> PackedVector3Array:
 				var x1 := minf(prof[i + 1].x, hs)
 				var a: Vector3 = at + out * prof[i].x
 				var b: Vector3 = at + out * x1
-				tris.append_array([a, a + Vector3.UP * prof[i].y, b + Vector3.UP * rise(1.0 - x1 / hs), a, b + Vector3.UP * rise(1.0 - x1 / hs), b])
+				var top := Vector3.UP * rise(1.0 - x1 / hs)
+				tris.append_array([a, a + Vector3.UP * prof[i].y, b + top])
+				if top.y > 0.0:
+					tris.append_array([a, b + top, b])
 	return tris
 
 

@@ -191,6 +191,13 @@ func _undo_restores_exact_values() -> void:
 	world._order({"op": "undo"}, 1)
 	_check(is_equal_approx(world.state.walls[a].roof.pitch, 2.0) and is_equal_approx(world.state.walls[a].roof.curve, 0.0), "undo puts a roof back as it was")
 	_check(is_equal_approx(main.tool.find(a).roof.pitch, 2.0), "and its wall shows it")
+	world._order({"op": "reshape", "id": a, "data": {"roof": {"pitch": 0.0}}}, 1)
+	_check(world.state.walls[a].roof.pitch == 0.0 and main.tool.find(a).layout.cover == WallLayout.Cover.DECK, "a roof pushed flat is taken and laid as a deck")
+	world._order({"op": "reshape", "id": a, "data": {"top": WallLayout.Top.CRENEL}}, 1)
+	_check(main.tool.find(a).layout.stones.any(func(s): return s.kind == "merlon"), "a flat-roofed house's top restyles like an open wall's")
+	world._order({"op": "undo"}, 1)
+	world._order({"op": "undo"}, 1)
+	_check(is_equal_approx(main.tool.find(a).roof.pitch, 2.0) and main.tool.find(a).layout.cover == WallLayout.Cover.ROOF, "undo raises it back into a pitched roof")
 	var sent := {"op": "reshape", "id": a, "data": {"height": 3.0}}
 	world._order(sent, 1)
 	sent.data.height = 7.0

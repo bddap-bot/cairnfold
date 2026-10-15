@@ -401,14 +401,14 @@ func drag_roof(m: Mason, hand: Vector3) -> void:
 
 func shape_roof(w: Wall, pitch: float, curve: float) -> void:
 	var r := w.roof
-	pitch = snappedf(clampf(pitch, RoofLayout.PITCH.x, RoofLayout.PITCH.y), ROOF_STEP)
+	pitch = RoofLayout.snap_pitch(pitch, ROOF_STEP)
 	curve = snappedf(clampf(curve, -RoofLayout.CURVE, RoofLayout.CURVE), ROOF_STEP)
 	if is_equal_approx(pitch, r.pitch) and is_equal_approx(curve, r.curve):
 		return
 	r.pitch = pitch
 	r.curve = curve
 	_dirty = true
-	built.emit(&"stone", r.frame().mid + Vector3.UP * pitch)
+	built.emit(&"settle" if r.flat() else &"stone", r.frame().mid + Vector3.UP * pitch)
 
 
 func end_roof(m: Mason) -> void:
@@ -421,7 +421,7 @@ func end_roof(m: Mason) -> void:
 
 
 func cycle_top(w: Wall) -> void:
-	if w.roof == null:
+	if w.roof == null or w.roof.flat():
 		world.submit({"op": "reshape", "id": w.id, "data": {"top": (w.layout.top + 1) % WallLayout.Top.size()}})
 
 

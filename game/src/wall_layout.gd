@@ -6,11 +6,15 @@ extends RefCounted
 ## fence profile, the posts and rails of a wooden fence. Pure data: no nodes, so tests run headless.
 
 enum Top { CRENEL, CAP, COPE }
+## What rests on a closed wall's top: nothing, a pitched roof (the top stops flush under it) or a flat deck
+## (the top rises round it as a rim, a cap top as a low parapet).
+enum Cover { OPEN, ROOF, DECK }
 
 const COURSE := 0.3
 const HEIGHTS := Vector2(0.9, 9.0)
 const THICKNESS := 0.62
 const CAP := 0.14
+const PARAPET := 0.34
 const SAMPLE := 0.2
 const ARCH_HALF := 0.75
 const RING := 0.32
@@ -70,8 +74,7 @@ var seed := 1
 ## A closed loop runs through its points and back to the first, straight between them.
 var closed := false
 var top := Top.CRENEL
-## A roof rests on the cap, so piers stop flush with it.
-var roofed := false
+var cover := Cover.OPEN
 ## Posts and rails instead of stone; a path through a fence opens a wooden arch.
 var fence := false
 ## Where windows were placed: arc length and the height of the click above the foot.
@@ -426,7 +429,7 @@ func lantern_fits(s: float, y: float) -> bool:
 
 
 func flag_fits(s: float) -> bool:
-	return not fence and not roofed and (closed or (s > PIER * 0.5 and s < length() - PIER * 0.5))
+	return not fence and cover != Cover.ROOF and (closed or (s > PIER * 0.5 and s < length() - PIER * 0.5))
 
 
 func _lay_opening(o: Dictionary, rng: RandomNumberGenerator) -> void:
@@ -725,8 +728,10 @@ func _lay_top(rng: RandomNumberGenerator) -> void:
 		_lay_top_span(span[0], span[1], rng)
 
 
+## Under a pitched roof every top lies flat as a cap.
 func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
-	if top == Top.COPE:
+	var style := Top.CAP if cover == Cover.ROOF else top
+	if style == Top.COPE:
 		var s := a
 		var tall := true
 		while total - s > 0.08:
@@ -743,7 +748,9 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 			l = total - s
 		_add(s + l * 0.5, height + CAP * 0.5, Vector3(l, CAP, THICKNESS + 0.16), rng, "cap", 0.95, 0.02)
 		s += l
-	if top != Top.CRENEL:
+	if style == Top.CAP and cover == Cover.DECK:
+		_lay_parapet(a, total, rng)
+	if style != Top.CRENEL:
 		return
 	var m := a + 0.55
 	while m < total - 0.4:
@@ -751,14 +758,32 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		m += 1.15
 
 
+func _lay_parapet(a: float, total: float, rng: RandomNumberGenerator) -> void:
+	var y := height + CAP
+	var s := a
+	while total - s > 0.05:
+		var l := minf(rng.randf_range(0.4, 0.75), total - s)
+		if total - s - l < 0.2:
+			l = total - s
+		_add(s + l * 0.5, y + PARAPET * 0.5, Vector3(l, PARAPET, THICKNESS * 0.62), rng, "block", 1.0, 0.02)
+		s += l
+	s = a
+	while total - s > 0.05:
+		var l := minf(rng.randf_range(0.6, 1.0), total - s)
+		if total - s - l < 0.3:
+			l = total - s
+		_add(s + l * 0.5, y + PARAPET + CAP * 0.4, Vector3(l, CAP * 0.8, THICKNESS * 0.74), rng, "cap", 0.95, 0.02)
+		s += l
+
+
 func _lay_pier(s: float, rng: RandomNumberGenerator) -> void:
 	var y := 0.0
-	var top_y := height + CAP + (0.0 if roofed else 0.35)
+	var top_y := height + CAP + (0.0 if cover == Cover.ROOF else 0.35)
 	while y < top_y - 0.05:
 		var h := minf(rng.randf_range(0.36, 0.5), top_y - y)
 		_add(s, y + h * 0.5, Vector3(PIER, h, PIER) * rng.randf_range(0.97, 1.03), rng, "pier", 0.97, 0.03)
 		y += h
-	if not roofed:
+	if cover != Cover.ROOF:
 		_add(s, top_y + 0.09, Vector3(PIER + 0.14, 0.18, PIER + 0.14), rng, "pier", 0.92, 0.0)
 
 
@@ -781,7 +806,7 @@ func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind:
 ## overlap; none on a roofed wall, none beside a flag or a lantern.
 func perches() -> PackedVector3Array:
 	var out := PackedVector3Array()
-	if roofed:
+	if cover == Cover.ROOF:
 		return out
 	var tops: Array[Vector3] = []
 	var fittings: Array[Vector3] = []
@@ -825,7 +850,7 @@ func inputs() -> WallLayout:
 	w.seed = seed
 	w.closed = closed
 	w.top = top
-	w.roofed = roofed
+	w.cover = cover
 	w.fence = fence
 	w.windows = windows.duplicate()
 	w.lanterns = lanterns.duplicate()

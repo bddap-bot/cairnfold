@@ -83,7 +83,7 @@ func _init(seed: int, glade: Masonry) -> void:
 ## Puts a roof on this closed wall; its stones then stop flush under the eaves.
 func add_roof(r: RoofLayout) -> void:
 	roof = r
-	layout.roofed = true
+	_cover()
 	if _plaster == null:
 		_plaster = ShaderMaterial.new()
 		_plaster.shader = load("res://src/plaster.gdshader")
@@ -125,6 +125,11 @@ func set_data(d: Dictionary) -> void:
 			roof.set(k, d.roof[k])
 		roof.kind = d.roof.kind as RoofLayout.Kind
 		roof.chimneys.assign(Array(d.roof.chimneys))
+		_cover()
+
+
+func _cover() -> void:
+	layout.cover = WallLayout.Cover.OPEN if roof == null else WallLayout.Cover.DECK if roof.flat() else WallLayout.Cover.ROOF
 
 
 func _ready() -> void:
@@ -194,7 +199,7 @@ func perches() -> PackedVector3Array:
 	if _perch_task < 0 and _perches_laid != layout.laid and not laying():
 		var job := WallLayout.new()
 		job.stones = layout.stones.duplicate()
-		job.roofed = layout.roofed
+		job.cover = layout.cover
 		var out := {"laid": layout.laid}
 		_perch_out = out
 		_perch_task = WorkerThreadPool.add_task(func(): out.points = job.perches())
@@ -291,7 +296,12 @@ func _build_live() -> void:
 
 
 ## Lays the roof again; `live` while its pitch is being pulled, so it stays out of the Masonry until let go.
+## Going flat or back up changes the top the walls lay, so their stones are laid again too.
 func rebuild_roof(live := false) -> void:
+	var cover := layout.cover
+	_cover()
+	if layout.cover != cover:
+		rebuild(false)
 	var was_live := _roof_live
 	_roof_live = live
 	_pack_roof()

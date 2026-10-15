@@ -1,0 +1,19 @@
+[
+  {"op": "label", "name": "roofs"},
+  {"op": "place", "x": 0, "z": 10},
+  {"op": "house", "a": [-7, -2], "b": [-2, -2], "seconds": 0.5},
+  {"op": "house", "a": [1, -2], "b": [6, -2], "seconds": 0.5},
+  {"op": "tower", "points": [[-6, -9], [-4.5, -11], [-2.5, -10.5], [-2, -8.5], [-3.5, -6.8], [-5.6, -7.2], [-6, -9]], "seconds": 1, "hold": 0.8},
+  {"op": "tower", "points": [[2, -9], [3.5, -11], [5.5, -10.5], [6, -8.5], [4.5, -6.8], [2.4, -7.2], [2, -9]], "seconds": 1, "hold": 0.8},
+  {"op": "roof", "index": 1, "pitch": 0.1},
+  {"op": "roof", "index": 3, "pitch": 0.0},
+  {"op": "top", "index": 3, "style": "crenel"},
+  {"op": "wait", "seconds": 2},
+  {"op": "view", "eye": [0, 4.5, 9], "at": [0, 2.5, -5]},
+  {"op": "capture", "name": "01-pitched-and-flat"},
+  {"op": "view", "eye": [4, 8, 4], "at": [3.5, 2.5, -2]},
+  {"op": "capture", "name": "02-flat-house-terrace"},
+  {"op": "view", "eye": [9, 9, -3], "at": [4, 4.5, -9]},
+  {"op": "capture", "name": "03-flat-tower"},
+  {"op": "quit"}
+]

@@ -130,7 +130,7 @@ func _house() -> WallLayout:
 	var w := WallLayout.new()
 	w.points = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(8, 0, 0), 5.0)
 	w.closed = true
-	w.roofed = true
+	w.cover = WallLayout.Cover.ROOF
 	w.top = WallLayout.Top.CAP
 	w.height = 2.4
 	return w

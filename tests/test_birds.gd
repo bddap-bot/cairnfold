@@ -70,7 +70,7 @@ func _wall_tops_are_perches() -> void:
 	var roofed := WallLayout.new()
 	roofed.points.assign([Vector3(0, 0, 0), Vector3(4, 0, 0), Vector3(4, 0, 3), Vector3(0, 0, 3)])
 	roofed.closed = true
-	roofed.roofed = true
+	roofed.cover = WallLayout.Cover.ROOF
 	roofed.build(func(_x: float, _z: float) -> float: return 0.0)
 	_check(roofed.perches().is_empty(), "a roofed house has no perches")
 

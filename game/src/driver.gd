@@ -217,7 +217,7 @@ func _roof(s: Dictionary) -> void:
 
 func _top(s: Dictionary) -> void:
 	var w: Wall = main.tool.walls[s.index]
-	if w.roof != null:
+	if w.roof != null and not w.roof.flat():
 		return
 	while w.layout.top != WallLayout.Top[s.style.to_upper()]:
 		main.tool.cycle_top(w)

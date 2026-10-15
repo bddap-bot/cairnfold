@@ -99,7 +99,7 @@ func _a_copy_built_elsewhere_lays_the_same_stones() -> void:
 	loop.closed = true
 	loop.height = 3.3
 	loop.top = WallLayout.Top.CAP
-	loop.roofed = true
+	loop.cover = WallLayout.Cover.ROOF
 	loop.seed = 9
 	loop.arches.assign([16.1])
 	loop.windows.assign([Vector2(2.2, 1.4)])

@@ -16,6 +16,10 @@ func _init() -> void:
 	_pointing_at_a_roof_hits_it()
 	_top_styles()
 	_roofs_are_deterministic()
+	_pushed_down_a_roof_goes_flat()
+	_a_flat_roof_is_a_deck_inside_the_walls()
+	_a_deck_is_rimmed_by_the_top_style()
+	_roof_surfaces_have_no_degenerate_triangles()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
 
@@ -105,7 +109,7 @@ func _house(length: float, depth: float) -> WallLayout:
 	var w := WallLayout.new()
 	w.points = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(length, 0, 0), depth)
 	w.closed = true
-	w.roofed = true
+	w.cover = WallLayout.Cover.ROOF
 	w.top = WallLayout.Top.CAP
 	w.height = 2.4
 	w.arches = [length * 0.5]
@@ -264,3 +268,91 @@ func _roofs_are_deterministic() -> void:
 		if not a.tiles[i].xform.is_equal_approx(b.tiles[i].xform):
 			_check(false, "tile %d differs" % i)
 			break
+
+
+func _pushed_down_a_roof_goes_flat() -> void:
+	_check(RoofLayout.snap_pitch(-2.0, 0.1) == 0.0, "pushing past the bottom lands flat")
+	_check(RoofLayout.snap_pitch(RoofLayout.FLAT_SNAP - 0.05, 0.1) == 0.0, "just above flat snaps to flat")
+	_check(is_equal_approx(RoofLayout.snap_pitch(RoofLayout.FLAT_SNAP + 0.03, 0.1), RoofLayout.FLAT_SNAP), "the lowest pitch above the snap stays pitched")
+	_check(is_equal_approx(RoofLayout.snap_pitch(2.04, 0.1), 2.0), "pitches step by 0.1")
+
+
+func _flat_cone() -> RoofLayout:
+	var r := RoofLayout.new()
+	r.kind = RoofLayout.Kind.CONE
+	r.center = Vector3(1, 0, 1)
+	r.radius = 2.0
+	r.base = 4.6
+	r.pitch = 0.0
+	r.build()
+	return r
+
+
+func _a_flat_roof_is_a_deck_inside_the_walls() -> void:
+	var r := _gable(6.0, 4.0, 0.0, 0.6)
+	var deck := _of(r, "deck")
+	_check(not deck.is_empty() and deck.size() == r.tiles.size(), "a flat gable is all deck: %d of %d" % [deck.size(), r.tiles.size()])
+	_check(r.gables().is_empty(), "a flat roof has no gable ends")
+	var inner := Vector2(3.0 - WallLayout.THICKNESS * 0.5, 2.0 - WallLayout.THICKNESS * 0.5)
+	var area := 0.0
+	for t in deck:
+		var x: Transform3D = t.xform
+		var top := x.origin.y + x.basis.y.length() * 0.5
+		if absf(x.origin.x - 3.0) > inner.x + RoofLayout.DECK_TUCK or absf(x.origin.z) > inner.y + RoofLayout.DECK_TUCK or top > r.base + 0.01 or top < r.base - 0.1:
+			_check(false, "a deck slab out of place at %s" % x.origin)
+			return
+		area += x.basis.x.length() * x.basis.z.length()
+	_check(area > inner.x * inner.y * 4.0 * 0.85, "the deck covers the floor: %.1f m² of %.1f" % [area, inner.x * inner.y * 4.0])
+	var t := r.ray_hit(Vector3(3, 10, 1), Vector3.DOWN)
+	_check(absf(t - (10.0 - r.base)) < 0.01, "pointing down at the deck hits it at the cap's height: %f" % t)
+	_check(r.ray_hit(Vector3(3, 10, 3.0), Vector3.DOWN) == INF, "a flat roof has no eave beyond the walls")
+	r.chimneys.assign([Vector2(1.0, 1.0)])
+	r.build()
+	_check(not _of(r, "chimney").is_empty(), "a chimney still stands on a flat roof")
+	var cone := _flat_cone()
+	var ring := _of(cone, "deck")
+	_check(ring.size() > 10 and ring.size() == cone.tiles.size(), "a flat tower roof is all deck, no finial: %d" % ring.size())
+	var reach := 2.0 - WallLayout.THICKNESS * 0.5 + RoofLayout.DECK_TUCK
+	_check(ring.all(func(s): return Vector2(s.xform.origin.x - 1, s.xform.origin.z - 1).length() < reach), "the tower's deck stays inside its wall")
+	cone.flag = true
+	cone.build()
+	_check(cone.cloths.size() == 1 and cone.cloths[0].xform.origin.y > cone.base + 1.0, "a flag flies from a flat tower")
+
+
+func _a_deck_is_rimmed_by_the_top_style() -> void:
+	var w := _house(6.0, 4.0)
+	w.cover = WallLayout.Cover.DECK
+	w.build(_flat)
+	var top := w.height + WallLayout.CAP
+	var rim := w.stones.filter(func(s): return s.y > top)
+	_check(rim.any(func(s): return s.kind == "cap" and s.y > top + WallLayout.PARAPET), "a cap top on a deck rises into a coped parapet")
+	_check(rim.filter(func(s): return s.kind == "block").reduce(func(m, s): return m + s.size.x, 0.0) > w.length() - 0.1, "the parapet runs all the way round")
+	var piers := w.stones.filter(func(s): return s.kind == "pier")
+	_check(piers.reduce(func(m, s): return maxf(m, s.y), 0.0) > top + WallLayout.PARAPET, "corner piers rise past the parapet")
+	w.top = WallLayout.Top.CRENEL
+	w.build(_flat)
+	_check(w.stones.any(func(s): return s.kind == "merlon") and not w.stones.any(func(s): return s.kind == "block" and s.y > top), "a crenellated top rims a deck with merlons, no parapet")
+	w.cover = WallLayout.Cover.ROOF
+	w.build(_flat)
+	_check(not w.stones.any(func(s): return s.kind == "merlon"), "under a pitched roof the merlons go")
+
+
+func _degenerate(tris: PackedVector3Array) -> int:
+	var bad := 0
+	for i in range(0, tris.size(), 3):
+		if (tris[i + 1] - tris[i]).cross(tris[i + 2] - tris[i]).length() < 1e-6:
+			bad += 1
+	return bad
+
+
+func _roof_surfaces_have_no_degenerate_triangles() -> void:
+	var cone := _flat_cone()
+	var roofs: Array[RoofLayout] = [_gable(6.0, 4.0, 0.0, 0.0), _gable(6.0, 4.0, 0.0, -1.0), _gable(6.0, 4.0, 2.0, 0.4), cone]
+	var pitched := _flat_cone()
+	pitched.pitch = 3.0
+	pitched.build()
+	roofs.append(pitched)
+	for r in roofs:
+		_check(not r.faces.is_empty() and _degenerate(r.faces) == 0, "pitch %.1f %s: %d of %d surface triangles degenerate" % [r.pitch, RoofLayout.Kind.keys()[r.kind], _degenerate(r.faces), r.faces.size() / 3])
+		_check(_degenerate(r.gable_faces) == 0, "pitch %.1f: gable ends have no degenerate triangles" % r.pitch)
+		_check(r.tiles.all(func(t): return absf(t.xform.basis.determinant()) > 1e-6), "pitch %.1f: no flattened tiles" % r.pitch)

@@ -75,7 +75,7 @@ func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 		return {}
 	var layout: WallLayout = pick.wall.layout
 	var y := _height(pick)
-	if not layout.fence and not layout.roofed and y > layout.height - WallTool.TOP_BAND:
+	if not layout.fence and layout.cover != WallLayout.Cover.ROOF and y > layout.height - WallTool.TOP_BAND:
 		return {"what": "flag", "wall": pick.wall, "s": pick.s, "point": pick.point}
 	var side := signf((origin - pick.point).dot(layout.frame_at(pick.s).tangent.cross(Vector3.UP)))
 	return {"what": "lantern", "wall": pick.wall, "s": pick.s, "y": y, "side": side if side != 0.0 else 1.0, "point": pick.point}
