@@ -33,6 +33,10 @@ const TOWER_RADIUS := Vector2(1.2, 4.0)
 const ARCH_SPACING := (ARCH_HALF + RING) * 2.0
 const ARCADE_GAP := ARCH_SPACING + 0.4
 const ARCADE_PITCH := 2.3
+## Water under the foot deeper than this opens arches over it.
+const WADE_UNDER := 0.1
+## How far a paddling duck keeps from the sides of an arch it swims under.
+const SWIM_CLEAR := 0.25
 const FENCE_HEIGHT := 1.1
 const POST_SPACING := 1.6
 const GATE_POST := 2.1
@@ -99,6 +103,8 @@ var joined: Array[Massing] = []
 var laid_points: Array[Vector3] = []
 var samples: Array[Vector3] = []
 var lengths: Array[float] = []
+## Per sample, how far the ground lies below the foot: a wall over a pond stands at the water and reaches down to its bed.
+var depths := PackedFloat32Array()
 var bounds := Rect2()
 var stones: Array[Dictionary] = []
 ## Stones shorten on a round loop so their outer ends stay closed.
@@ -147,8 +153,9 @@ func opening(y: float, ring: bool) -> float:
 	return sqrt(r * r - dy * dy) if dy < r else -1.0
 
 
-func build(ground: Callable) -> void:
-	resample(ground)
+## `water` gives the pond surface at (x, z), below the ground where there is none; without it the ground is dry.
+func build(ground: Callable, water := Callable()) -> void:
+	resample(ground, water)
 	laid_points = points.duplicate()
 	_laid_count += 1
 	laid = _laid_count
@@ -158,6 +165,9 @@ func build(ground: Callable) -> void:
 	openings.clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
+	# Stones under the foot draw from their own stream, so water coming or going leaves the dry stones as they were.
+	var wet := RandomNumberGenerator.new()
+	wet.seed = hash([seed, "wet"])
 	live_arches.clear()
 	var total := length()
 	if total < 0.3:
@@ -165,9 +175,10 @@ func build(ground: Callable) -> void:
 	if can_arch():
 		var sorted := arches.duplicate()
 		sorted.sort()
-		for a in sorted:
+		for a in sorted + _water_arches():
 			if fits_arch(a, live_arches):
 				live_arches.append(a)
+		live_arches.sort()
 	if fence:
 		_build_fence(rng)
 		_hide()
@@ -179,10 +190,13 @@ func build(ground: Callable) -> void:
 	openings = openings_for(windows)
 	var bays := pillars()
 	var pillar_top := 0.0
-	for k in courses():
+	var sink := 0.0
+	for d in depths:
+		sink = maxf(sink, d)
+	for k in range(-ceili(sink / course_h), courses()):
 		var y0 := k * course_h
 		var yc := y0 + course_h * 0.5
-		var spans := [[0.0, total]]
+		var spans := [[0.0, total]] if k >= 0 else _over_bed(-y0 - course_h)
 		for a in live_arches:
 			var w := opening(yc, true)
 			if w > 0.0:
@@ -196,23 +210,24 @@ func build(ground: Callable) -> void:
 			pillar_top = y0 + course_h
 			for b in bays:
 				spans = _cut(spans, b.s - b.half, b.s + b.half)
-		for b in breaks[k]:
+		for b in breaks[maxi(k, 0)]:
 			spans = _cut(spans, b.x, b.y)
-		var offset := (0.5 if k % 2 == 1 else 0.0) * rng.randf_range(0.3, 0.6)
+		var stream := rng if k >= 0 else wet
+		var offset := (0.5 if posmod(k, 2) == 1 else 0.0) * stream.randf_range(0.3, 0.6)
 		for span in spans:
 			if not plaster or k == 0:
-				_lay_course(span[0], span[1], y0, course_h, offset, rng)
+				_lay_course(span[0], span[1], y0, course_h, offset, stream)
 			_lay_mortar(span[0], span[1], y0, course_h)
 	for a in live_arches:
 		_lay_ring(a, rng)
 	for p in pillars():
-		_lay_pillar(p.s, p.half, pillar_top, rng)
+		_lay_pillar(p.s, p.half, pillar_top, rng, wet)
 	for o in openings:
 		_lay_opening(o, rng)
 	_lay_top(rng)
 	for s in corners():
 		if not broken(s, PIER * 0.5):
-			_lay_pier(s, rng)
+			_lay_pier(s, rng, wet)
 	_lay_rubble()
 	for l in lanterns:
 		if lantern_fits(l.x, l.y):
@@ -298,7 +313,7 @@ func _lay_rubble() -> void:
 		for i in mini(int((r.y - r.x) * RUBBLE * minf(height, 3.0) / 3.0) + 2, 40):
 			var s := rng.randf_range(r.x, r.y)
 			var size := Vector3(rng.randf_range(0.3, 0.6), rng.randf_range(0.16, 0.28), rng.randf_range(0.24, 0.42))
-			var st := _stone(s, size.y * 0.4, size, rng, "rubble", 0.92, 0.45, rng.randf_range(-0.5, 0.5))
+			var st := _stone(s, size.y * 0.4 - depth_at(s), size, rng, "rubble", 0.92, 0.45, rng.randf_range(-0.5, 0.5))
 			st.xform.origin += _normal(s) * rng.randf_range(-0.8, 0.8)
 			stones.append(st)
 
@@ -580,7 +595,8 @@ func _build_fence(rng: RandomNumberGenerator) -> void:
 	for i in all.size():
 		var s := all[i]
 		var tall := FENCE_HEIGHT + (GATE_POST - FENCE_HEIGHT if gates.has(s) else 0.0)
-		_part(s, (tall + 0.12) * 0.5, Vector3(0.13, tall + 0.12, 0.13) * rng.randf_range(0.92, 1.08), WOOD * rng.randf_range(0.8, 1.1), rng, "post", 0.0, 0.03)
+		var d := depth_at(s)
+		_part(s, (tall + 0.12 - d) * 0.5, Vector3(0.13, tall + 0.12 + d, 0.13) * rng.randf_range(0.92, 1.08), WOOD * rng.randf_range(0.8, 1.1), rng, "post", 0.0, 0.03)
 		if i == 0:
 			continue
 		var prev := all[i - 1]
@@ -724,8 +740,10 @@ func pillars() -> Array[Dictionary]:
 	return out
 
 
-func _lay_pillar(s: float, half: float, top_y: float, rng: RandomNumberGenerator) -> void:
+func _lay_pillar(s: float, half: float, top_y: float, rng: RandomNumberGenerator, wet: RandomNumberGenerator) -> void:
 	var w := half * 2.0
+	var bed := maxf(maxf(depth_at(s - half), depth_at(s)), depth_at(s + half))
+	_lay_footing(s, bed, Vector3(w - 0.1, 0.0, THICKNESS - 0.06), "pillar", wet)
 	_add(s, 0.1, Vector3(w + 0.08, 0.2, THICKNESS + 0.1), rng, "pillar", 0.95, 0.02)
 	var y := 0.2
 	while y < top_y - 0.25:
@@ -813,7 +831,8 @@ func _lay_parapet(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		s += l
 
 
-func _lay_pier(s: float, rng: RandomNumberGenerator) -> void:
+func _lay_pier(s: float, rng: RandomNumberGenerator, wet: RandomNumberGenerator) -> void:
+	_lay_footing(s, depth_at(s), Vector3(PIER, 0.0, PIER), "pier", wet)
 	var y := 0.0
 	var top_y := height + CAP + (0.0 if cover == Cover.ROOF else 0.35)
 	while y < top_y - 0.05:
@@ -822,6 +841,15 @@ func _lay_pier(s: float, rng: RandomNumberGenerator) -> void:
 		y += h
 	if cover != Cover.ROOF:
 		_add(s, top_y + 0.09, Vector3(PIER + 0.14, 0.18, PIER + 0.14), rng, "pier", 0.92, 0.0)
+
+
+## Stones from the bed `depth` below the foot up to it, `size` across, under a pillar or pier standing in water.
+func _lay_footing(s: float, depth: float, size: Vector3, kind: String, rng: RandomNumberGenerator) -> void:
+	var y := -depth
+	while y < -0.05:
+		var h := minf(rng.randf_range(0.34, 0.46), -y)
+		_add(s, y + h * 0.5, Vector3(size.x, h, size.z), rng, kind, 0.95, 0.02)
+		y += h
 
 
 func _add(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: String, shade: float, wobble: float) -> void:
@@ -915,6 +943,7 @@ func adopt(built: WallLayout) -> void:
 	laid_points = built.laid_points
 	samples = built.samples
 	lengths = built.lengths
+	depths = built.depths
 	bounds = built.bounds
 	stones = built.stones
 	_stone_scale = built._stone_scale
@@ -935,6 +964,7 @@ func snapshot() -> WallLayout:
 	w.closed = closed
 	w.samples = samples.duplicate()
 	w.lengths = lengths.duplicate()
+	w.depths = depths.duplicate()
 	w.bounds = bounds
 	w.live_arches = live_arches.duplicate()
 	w.openings = openings.duplicate(true)
@@ -961,6 +991,71 @@ func frame_at(s: float) -> Dictionary:
 	return {"point": p, "tangent": tan.normalized() if tan.length() > 1e-5 else Vector3.RIGHT}
 
 
+## How far the ground lies below the foot at arc length `s`.
+func depth_at(s: float) -> float:
+	if depths.size() < 2:
+		return 0.0
+	if closed:
+		s = fposmod(s, length())
+	var i := clampi(lengths.bsearch(s), 1, samples.size() - 1)
+	var l0 := lengths[i - 1]
+	var l1 := lengths[i]
+	return lerpf(depths[i - 1], depths[i], 0.0 if l1 <= l0 else clampf((s - l0) / (l1 - l0), 0.0, 1.0))
+
+
+## The stretches where the ground lies deeper below the foot than `drop`, as spans of arc length.
+func _over_bed(drop: float) -> Array:
+	var out := []
+	var from := -1.0
+	for i in samples.size():
+		if depths[i] > drop and from < 0.0:
+			from = lengths[maxi(i - 1, 0)]
+		elif depths[i] <= drop and from >= 0.0:
+			out.append([from, lengths[i]])
+			from = -1.0
+	if from >= 0.0:
+		out.append([from, length()])
+	return out
+
+
+## An open wall over water opens arches where it crosses: one over a narrow crossing, an arcade on pillars
+## standing in the pond over a wider one.
+func _water_arches() -> Array[float]:
+	var out: Array[float] = []
+	if closed or fence:
+		return out
+	for span in _over_bed(WADE_UNDER):
+		var between: float = maxf(span[1] - span[0] - ARCH_HALF * 2.0, 0.0)
+		var n := floori(between / ARCH_SPACING) + 1
+		var pitch := minf(between / (n - 1), ARCADE_PITCH) if n > 1 else 0.0
+		var first: float = (span[0] + span[1] - pitch * (n - 1)) * 0.5
+		for i in n:
+			out.append(first + pitch * i)
+	return out
+
+
+## Whether a duck paddling straight from `a` to `b` would meet this wall: anywhere along a stone wall but
+## under an arch; a fence's rails stand clear over the water.
+func blocks_swim(a: Vector2, b: Vector2) -> bool:
+	if fence or not bounds.grow(THICKNESS).intersects(Rect2(a, Vector2.ZERO).expand(b).grow(0.01)):
+		return false
+	for i in samples.size() - 1:
+		var p := Vector2(samples[i].x, samples[i].z)
+		var q := Vector2(samples[i + 1].x, samples[i + 1].z)
+		var hit: Variant = Geometry2D.segment_intersects_segment(a, b, p, q)
+		if hit == null:
+			continue
+		if not _swims_through(lengths[i] + p.distance_to(hit)):
+			return true
+	var end := closest_s(Vector3(b.x, 0.0, b.y))
+	var at: Vector3 = frame_at(end).point
+	return Vector2(at.x, at.z).distance_to(b) < THICKNESS * 0.5 + SWIM_CLEAR and not _swims_through(end)
+
+
+func _swims_through(s: float) -> bool:
+	return broken(s, -SWIM_CLEAR) or live_arches.any(func(c): return absf(offset(s, c)) < ARCH_HALF - SWIM_CLEAR)
+
+
 ## Closest arc length on the wall to a world point, measured on the ground plane.
 func closest_s(p: Vector3) -> float:
 	var best := INF
@@ -974,19 +1069,25 @@ func closest_s(p: Vector3) -> float:
 
 
 ## The ground curve, and the ruins' breaks along it, for the inputs as they stand.
-func resample(ground: Callable) -> void:
+func resample(ground: Callable, water := Callable()) -> void:
 	samples.clear()
 	lengths.clear()
+	depths.clear()
 	breaks.clear()
 	bounds = Rect2()
 	if points.size() == 0:
 		return
 	if not fence:
 		_break()
+	var footing := ground
+	if water.is_valid():
+		footing = func(x: float, z: float) -> float: return maxf(ground.call(x, z), water.call(x, z))
 	if closed:
-		_resample_loop(ground)
+		_resample_loop(footing)
 	else:
-		_resample_open(ground)
+		_resample_open(footing)
+	for q in samples:
+		depths.append(maxf(q.y - ground.call(q.x, q.z), 0.0))
 	bounds = Rect2(Vector2(samples[0].x, samples[0].z), Vector2.ZERO)
 	for q in samples:
 		bounds = bounds.expand(Vector2(q.x, q.z))

@@ -623,7 +623,7 @@ func _set_arches(w: Wall, arches: Array) -> void:
 func _relay(w: Wall) -> void:
 	w.set_data(world.state.walls[w.id])
 	_meet(w)
-	w.layout.resample(Terrain.height_at)
+	w.layout.resample(Terrain.height_at, Terrain.water_at)
 	_reshaped(w)
 	for p in paths.layouts:
 		_cut_crossings(w, p)
@@ -757,7 +757,7 @@ func reground(area: Rect2, settled: bool) -> void:
 		if w.footprint().intersects(area):
 			w.rebuild(settled)
 			if settled and not _held(w) and _meets_any(w):
-				w.layout.resample(Terrain.height_at)
+				w.layout.resample(Terrain.height_at, Terrain.water_at)
 				_reshaped(w)
 
 
@@ -942,6 +942,6 @@ func _relay_due() -> void:
 		if w == null or _held(w):
 			continue
 		_meet(w)
-		w.layout.resample(Terrain.height_at)
+		w.layout.resample(Terrain.height_at, Terrain.water_at)
 		_reshaped(w)
 		w.rebuild()

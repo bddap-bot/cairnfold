@@ -1012,6 +1012,23 @@ the frame back, which on a tiled GPU costs a full-frame resolve per eye:
   the tiled-GPU resolve that makes it worse on a headset; it was dropped. Headset numbers belong to the
   on-device run.
 
+### Stone in ponds
+
+Directive (verbatim): "It is not possible to put stone into, a pond. And I would like to be able to put stone in a pond"
+
+Directive (verbatim): "A slightly narrower, I do wanna paint stone into the pond. I think walls in a pond... have, a form that makes sense. Maybe that's pillars down into the pond... or maybe a arch across it"
+
+- **Stone ground:** the stone tool's ray already reached the bed through the water and laid its mark there; the
+  terrain shader then covered every bed with wet sand. Painted slabs now show through on the bed and banks, darkened
+  where wet, under the caustics. A slope's own rock still goes under the sand, so dug banks look as before.
+- **Walls:** pond levels are part of the ground walls are laid on (`Terrain.water_at`, written in place like the
+  heights). Over water a wall stands at the surface, not down the bed, and courses continue under it to the bed.
+  An open stone wall crossing water opens arches over it (`WallLayout._water_arches`), worked out on every build
+  like the rest of the layout rather than stored: one arch over a narrow crossing, an arcade over a wider one whose
+  pillars stand on the bed. A wall too low to arch crosses as a causeway, a fence's posts reach down to the bed.
+  Digging a pond under a standing wall opens its arches once the pond fills (`Water.refilled` lays the walls there
+  again); undoing the dig closes them. Ducks paddle under arches but never through a pillar or a solid stretch.
+
 Sound: each pond laps softly from its middle (slow, low-passed sloshes with rare bubbles), a hand
 dipping in plops, and a filling pond gurgles; all of it sits below 1.8 kHz.
 

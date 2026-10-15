@@ -42,6 +42,8 @@ void fragment() {
 	vec2 cover = ground_cover(world_pos.xz);
 	// Stone ground is one material however it came: painted, or a slope too steep to hold soil.
 	float stony = max(cover.g, smoothstep(0.36, 0.48, s));
+	// Painted slabs line a pond's bed and banks; a slope's own rock goes under the sand like any ground.
+	float paved = 0.0;
 	if (stony > 0.0) {
 		vec2 slab = texture(flagstones, world_pos.xz * flagstone_scale + world_pos.y * 0.05).rg;
 		vec3 face = rock * (0.8 + slab.g * 0.28) * (0.88 + fine * 0.24) * mix(0.8, 1.04, smoothstep(0.03, 0.25, slab.r));
@@ -51,10 +53,12 @@ void fragment() {
 		float laid = smoothstep(threshold - 0.04, threshold + 0.04, stony + (d - 0.5) * 0.25 + (fine - 0.5) * 0.15) * smoothstep(0.02, 0.06, slab.r);
 		vec3 joint = mix(c, mix(earth, meadow_lush, 0.35) * 0.8, smoothstep(0.4, 0.95, stony));
 		c = mix(joint, face, laid);
+		paved = laid * min(cover.g / stony, 1.0);
 	}
 	if (under > -0.25) {
 		float pebble = texture(detail, world_pos.xz * 2.3).r;
-		c = mix(c, bed * (0.7 + pebble * 0.6) * mix(1.0, 0.75, smoothstep(-0.1, 0.0, under)), smoothstep(-0.25, -0.08, under));
+		float soaked = mix(1.0, 0.75, smoothstep(-0.1, 0.0, under));
+		c = mix(c, mix(bed * (0.7 + pebble * 0.6), c, paved) * soaked, smoothstep(-0.25, -0.08, under));
 		vec2 uv = world_pos.xz * 0.35;
 		float a = texture(detail, uv + TIME * vec2(0.021, 0.013)).r;
 		float b = texture(detail, uv * 1.37 - TIME * vec2(0.017, 0.024)).r;

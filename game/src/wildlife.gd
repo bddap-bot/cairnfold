@@ -252,11 +252,12 @@ func _think(f: Family, delta: float) -> void:
 				f.ripple = RIPPLE_EVERY
 				f.pond.ripple(Vector3(lead.position.x, f.pond.surface_y(), lead.position.z), 0.3)
 			if _go(lead, f.goal, delta):
-				if f.timer <= 0.0:
+				var bank := _bank_point(f.pond, lead.position) if f.timer <= 0.0 else Vector3.INF
+				if bank != Vector3.INF:
 					f.state = State.ASHORE
-					f.goal = _bank_point(f.pond)
+					f.goal = bank
 				else:
-					f.goal = _deep_point(f.pond)
+					f.goal = _deep_point(f.pond, lead.position)
 		State.REST:
 			_step(lead, Vector3.ZERO, delta)
 			f.timer -= delta
@@ -270,7 +271,7 @@ func _think(f: Family, delta: float) -> void:
 func _swim(f: Family) -> void:
 	f.state = State.SWIM
 	f.timer = rng.randf_range(SWIM_FOR.x, SWIM_FOR.y)
-	f.goal = _deep_point(f.pond)
+	f.goal = _deep_point(f.pond, f.leader().position)
 	f.home = f.goal
 
 
@@ -386,28 +387,37 @@ static func _face(d: Node3D, dir: Vector3, weight: float) -> void:
 	d.rotation.y = lerp_angle(d.rotation.y, atan2(-dir.x, -dir.z), clampf(weight, 0.0, 1.0))
 
 
-## Deep enough to float a grown duck, else the pond's bottom.
-func _deep_point(p: PondWater) -> Vector3:
+## Deep enough to float a grown duck, and with `from` reached without paddling into a wall; else the pond's
+## bottom, or with `from` where it is.
+func _deep_point(p: PondWater, from := Vector3.INF) -> Vector3:
 	var cells := p.pond.cells
 	for attempt in 12:
 		var xz := Terrain.grid_xz(cells[rng.randi() % cells.size()])
-		if p.pond.level - Terrain.height_at(xz.x, xz.y) > FLOAT_DEPTH * 2.0:
+		if p.pond.level - Terrain.height_at(xz.x, xz.y) > FLOAT_DEPTH * 2.0 and _swims_clear(from, xz):
 			return Vector3(xz.x, p.pond.level, xz.y)
-	var b := Terrain.grid_xz(p.pond.bottom)
+	var b := Terrain.grid_xz(p.pond.bottom) if from == Vector3.INF else Vector2(from.x, from.z)
 	return Vector3(b.x, p.pond.level, b.y)
 
 
-## On the grass a little way up the bank from a shore point.
-func _bank_point(p: PondWater) -> Vector3:
+func _swims_clear(from: Vector3, to: Vector2) -> bool:
+	if walls == null or from == Vector3.INF:
+		return true
+	var a := Vector2(from.x, from.z)
+	return not walls.walls.any(func(w: Wall) -> bool: return w.layout.blocks_swim(a, to))
+
+
+## On the grass a little way up the bank from a shore point, reached from `from` without paddling into a wall;
+## Vector3.INF where none is, as on a stretch of water a wall cuts off from the banks.
+func _bank_point(p: PondWater, from: Vector3) -> Vector3:
 	var mid := Terrain.grid_xz(p.pond.bottom)
 	for attempt in 12:
 		var s := Terrain.grid_xz(p.pond.shore[rng.randi() % p.pond.shore.size()])
 		var out := (s - mid).normalized() if s != mid else Vector2.RIGHT
 		var at := s + out * rng.randf_range(BANK.x, BANK.y)
-		if water.pond_at(at.x, at.y) == null:
+		if water.pond_at(at.x, at.y) == null and _swims_clear(from, at):
 			return Terrain.ground(at.x, at.y)
 	var s := Terrain.grid_xz(p.pond.shore[0])
-	return Terrain.ground(s.x, s.y)
+	return Terrain.ground(s.x, s.y) if _swims_clear(from, s) else Vector3.INF
 
 
 ## Whichever pond is over `at` or within a couple of metres of it.

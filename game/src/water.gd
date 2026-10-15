@@ -6,12 +6,13 @@ extends Node3D
 ## (water.gdshaderinc), so the bed turns to sand and drowned plants go without touching an instance.
 ## Hands that break a surface ripple it.
 
-const NONE := -100.0
 const RIPPLE_MOVE := 0.07
 ## How finely `crosses` looks for water where a pond is near.
 const WADE := 0.1
 
 signal splashed(kind: StringName, at: Vector3)
+## Water came, went or changed level over `area`.
+signal refilled(area: Rect2)
 
 var hands: Array[Node3D] = []
 var ponds: Array[PondWater] = []
@@ -20,8 +21,6 @@ var _dirty := false
 ## Index into `ponds` of the pond over each grid point, wet or shore; -1 elsewhere.
 var _owner := PackedInt32Array()
 var _written: Array[Vector2i] = []
-var _image: Image
-var _texture: ImageTexture
 var _wet := {}
 
 
@@ -36,10 +35,7 @@ func _init(touching: Array[Node3D]) -> void:
 	hands = touching
 	_owner.resize(Terrain.VERTS * Terrain.VERTS)
 	_owner.fill(-1)
-	_image = Image.create_empty(Terrain.VERTS, Terrain.VERTS, false, Image.FORMAT_RH)
-	_image.fill(Color(NONE, 0, 0))
-	_texture = ImageTexture.create_from_image(_image)
-	RenderingServer.global_shader_parameter_set(&"water_level", _texture)
+	Terrain.dry_water()
 
 
 func add_seed(g: Vector2i) -> void:
@@ -116,19 +112,29 @@ func _covering(p: PondLayout.Pond, shown: Array[PondWater]) -> PondWater:
 	return null
 
 
-## Writes each pond's level at its wet and shore grid points, for the shaders and for `pond_at`.
+## Writes each pond's level at its wet and shore grid points, for `pond_at`, the shaders and what stands in it.
 func _publish() -> void:
+	var changed := {}
 	for g in _written:
 		_owner[g.y * Terrain.VERTS + g.x] = -1
-		_image.set_pixelv(g, Color(NONE, 0, 0))
+		changed[g] = Terrain.NO_WATER
 	_written.clear()
 	for i in ponds.size():
 		var p := ponds[i].pond
 		for g in p.cells + p.shore:
 			_owner[g.y * Terrain.VERTS + g.x] = i
-			_image.set_pixelv(g, Color(p.level, 0, 0))
+			changed[g] = p.level
 			_written.append(g)
-	_texture.update(_image)
+	for g in changed.keys():
+		if absf(Terrain.water_level(g) - changed[g]) < 1e-4:
+			changed.erase(g)
+	if changed.is_empty():
+		return
+	Terrain.set_water(changed)
+	var cells := Rect2i(changed.keys()[0], Vector2i.ONE)
+	for g in changed:
+		cells = cells.expand(g)
+	refilled.emit(Terrain.world_rect(cells.grow_individual(0, 0, 1, 1)))
 
 
 ## The pond whose water is over (x, z), or null.

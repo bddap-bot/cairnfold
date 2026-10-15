@@ -16,8 +16,13 @@ static var _heights := base_heights()
 ## The hump a stroke is pulling, not yet baked into the heights: centre x, z, radius and lift. Shaders add
 ## it through ground_hump, so a stroke moves the ground without rewriting the grid every frame.
 static var _hump := NO_HUMP
-## Counts changes to the ground, so work laid on it can tell whether it still stands where it was laid.
+## Counts changes to the ground or the water on it, so work laid on it can tell whether it still stands where it was laid.
 static var revision := 0
+const NO_WATER := -100.0
+## Each grid point's pond surface (Water), NO_WATER where none reaches.
+static var _water := _no_water()
+static var _water_image: Image
+static var _water_texture: ImageTexture
 static var _image: Image
 static var _texture: ImageTexture
 
@@ -64,6 +69,47 @@ static func height_at(x: float, z: float, with_hump := true) -> float:
 		c += _hump_at(i, j + 1)
 		d += _hump_at(i + 1, j + 1)
 	return lerpf(lerpf(a, b, u - i), lerpf(c, d, u - i), v - j)
+
+
+static func _no_water() -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	out.resize(VERTS * VERTS)
+	out.fill(NO_WATER)
+	return out
+
+
+## Every pond gone: the levels shared with shaders as the global water_level (water.gdshaderinc), one texel per grid point.
+static func dry_water() -> void:
+	_water.fill(NO_WATER)
+	_water_image = Image.create_empty(VERTS, VERTS, false, Image.FORMAT_RH)
+	_water_image.fill(Color(NO_WATER, 0, 0))
+	_water_texture = ImageTexture.create_from_image(_water_image)
+	RenderingServer.global_shader_parameter_set(&"water_level", _water_texture)
+	revision += 1
+
+
+## The pond surface at grid point `g`.
+static func water_level(g: Vector2i) -> float:
+	return _water[g.y * VERTS + g.x]
+
+
+## Written in place like the heights, never swapped: a wall laid on a worker thread reads them meanwhile.
+static func set_water(changed: Dictionary) -> void:
+	for g: Vector2i in changed:
+		_water[g.y * VERTS + g.x] = changed[g]
+		_water_image.set_pixelv(g, Color(changed[g], 0, 0))
+	_water_texture.update(_water_image)
+	revision += 1
+
+
+## The pond surface over (x, z) as the shaders' filtered water_level reads it: below the ground where no pond is.
+static func water_at(x: float, z: float) -> float:
+	var u := clampf((x + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
+	var v := clampf((z + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
+	var i := int(u)
+	var j := int(v)
+	var k := j * VERTS + i
+	return lerpf(lerpf(_water[k], _water[k + 1], u - i), lerpf(_water[k + VERTS], _water[k + VERTS + 1], u - i), v - j)
 
 
 static func ground(x: float, z: float) -> Vector3:

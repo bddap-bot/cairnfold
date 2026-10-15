@@ -63,6 +63,7 @@ func _ready() -> void:
 	hands.assign(rig.hands)
 	water = Water.new(hands)
 	terrain_tool.reshaped.connect(water.reground)
+	water.refilled.connect(tool.reground.bind(true))
 	add_child(water)
 	water_tool = WaterTool.new(rig, terrain_tool, water)
 	add_child(water_tool)

@@ -17,6 +17,12 @@ func _init() -> void:
 	_a_long_wall_splits_by_the_ground_under_each_stone()
 	_stone_faces_share_their_borders()
 	_settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach()
+	_a_wall_over_water_stands_on_its_bed()
+	_a_narrow_crossing_takes_one_arch()
+	_a_low_wall_crosses_as_a_causeway()
+	_ducks_pass_only_under_arches()
+	_a_path_arch_beside_a_pond_stays_open()
+	_water_leaves_the_dry_stones_as_they_were()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -201,3 +207,114 @@ func _settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach() -> void:
 	for c in m._chunks.values():
 		_check(c.instances[Wall.Part.STONE].multimesh.instance_count == 0 and c.fars[Wall.Part.STONE].multimesh.instance_count == 0, "a removed owner leaves every chunk it stood in")
 	m.free()
+
+
+## A pond 1 m deep from x = 3 to 9 under a 12 m wall, its surface at 0.
+func _bowl(x: float, _z: float) -> float:
+	return -1.0 if x > 3.0 and x < 9.0 else 0.08
+
+
+func _surface(_x: float, _z: float) -> float:
+	return 0.0
+
+
+func _wet(width: float, height: float) -> WallLayout:
+	var w := WallLayout.new()
+	w.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
+	w.height = height
+	var lo := 6.0 - width * 0.5
+	var hi := 6.0 + width * 0.5
+	w.build(func(x: float, _z: float) -> float: return -1.0 if x > lo and x < hi else 0.08, _surface)
+	return w
+
+
+func _a_wall_over_water_stands_on_its_bed() -> void:
+	var w := _wet(6.0, 2.6)
+	_check(absf(w.point_at(6.0).y - (0.0 - 0.12)) < 1e-3, "over water the foot is at the surface, %f" % w.point_at(6.0).y)
+	_check(absf(w.depth_at(6.0) - 0.88) < 1e-3 and w.depth_at(1.0) == 0.0, "the bed lies 0.88 m under the foot there, none on the bank")
+	_check(w.live_arches.size() >= 2 and w.live_arches.all(func(a): return a > 3.0 and a < 9.0), "the crossing opens an arcade over the water: %s" % [w.live_arches])
+	var bays := w.pillars()
+	_check(bays.size() == w.live_arches.size() - 1, "pillars between its arches")
+	for b in bays:
+		var lowest := INF
+		for st in w.stones:
+			if st.kind == "pillar" and absf(st.s - b.s) < 0.01:
+				lowest = minf(lowest, st.y - st.size.y * 0.5)
+		_check(absf(lowest + 0.88) < 0.02, "a pillar stands on the bed, its foot %f" % lowest)
+	for a in w.live_arches:
+		_check(not w.stones.any(func(st): return st.kind in ["block", "pillar", "mortar"] and absf(st.s - a) < WallLayout.ARCH_HALF - 0.1 and st.y < w.spring()), "water flows under the arch at %f" % a)
+	var footing := w.stones.filter(func(st): return st.y < 0.0)
+	_check(not footing.is_empty() and footing.all(func(st): return st.s > 2.5 and st.s < 9.5), "stones under the foot only over the water")
+	_check(w.live_arches.size() == 3 and w.live_arches[-1] - w.live_arches[0] + WallLayout.ARCH_HALF * 2.0 > 5.5, "the arcade spans the water: %s" % [w.live_arches])
+	var dry := _wall(12.0, 2.6, [])
+	_check(dry.depths.size() == dry.samples.size() and not dry.stones.any(func(st): return st.y < 0.0), "a wall on dry ground lays nothing under its foot")
+	var again := WallLayout.new()
+	again.points = w.points
+	again.build(func(x: float, _z: float) -> float: return -1.0 if x > 3.0 and x < 9.0 else 0.08, _surface)
+	_check(var_to_str(again.stones) == var_to_str(w.stones), "the same ground and water lay the same stones")
+
+
+func _a_narrow_crossing_takes_one_arch() -> void:
+	var w := _wet(1.8, 2.6)
+	_check(w.live_arches.size() == 1 and absf(w.live_arches[0] - 6.0) < 0.3, "a narrow pond takes one arch at its middle: %s" % [w.live_arches])
+	_check(w.pillars().is_empty(), "and no pillars")
+
+
+func _a_low_wall_crosses_as_a_causeway() -> void:
+	var w := _wet(6.0, 1.2)
+	_check(w.live_arches.is_empty(), "a wall too low to arch opens none")
+	var under := w.stones.filter(func(st): return st.kind == "block" and st.y < 0.0)
+	var covered := 0.0
+	for st in under:
+		if absf(st.y - under.map(func(u): return u.y).min()) < 0.01:
+			covered += st.size.x
+	_check(covered > 5.5, "its lowest course runs along the bed, %f m" % covered)
+
+
+func _ducks_pass_only_under_arches() -> void:
+	var w := _wet(6.0, 2.6)
+	var a: float = w.live_arches[0]
+	var x := w.point_at(a).x
+	_check(not w.blocks_swim(Vector2(x, -2), Vector2(x, 2)), "a duck swims under an arch")
+	var pillar: float = w.pillars()[0].s
+	_check(w.blocks_swim(Vector2(pillar, -2), Vector2(pillar, 2)), "but not through a pillar")
+	_check(not w.blocks_swim(Vector2(x, 1), Vector2(x + 1, 2)), "nor is it stopped by a wall it never reaches")
+	_check(w.blocks_swim(Vector2(x + 1.15, -2), Vector2(x + 1.15, 0.1)), "nor stop beside a pillar")
+	var ruin := WallLayout.new()
+	ruin.points = w.points
+	ruin.ruins = [Vector2(4.0, 8.0)]
+	ruin.height = 1.2
+	ruin.build(_bowl, _surface)
+	_check(not ruin.blocks_swim(Vector2(6, -2), Vector2(6, 2)), "a duck swims through a ruin's gap")
+	var f := WallLayout.new()
+	f.points = w.points
+	f.fence = true
+	f.height = WallLayout.FENCE_HEIGHT
+	f.build(_bowl, _surface)
+	_check(not f.blocks_swim(Vector2(pillar, -2), Vector2(pillar, 2)), "a fence's rails stand over the water")
+	var post := f.stones.filter(func(st): return st.kind == "post" and absf(st.s - 6.0) < 1.0)
+	_check(not post.is_empty() and post.all(func(st): return absf(st.y - st.size.y * 0.5 + 0.88) < 0.1), "its posts stand on the bed")
+
+
+func _a_path_arch_beside_a_pond_stays_open() -> void:
+	var w := WallLayout.new()
+	w.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
+	w.arches = [2.6]
+	w.build(_bowl, _surface)
+	_check(w.live_arches.has(2.6), "a path's arch beside the water stays open: %s" % [w.live_arches])
+	_check(w.live_arches.size() >= 3, "and arches still cross the water")
+
+
+func _water_leaves_the_dry_stones_as_they_were() -> void:
+	var dry := WallLayout.new()
+	dry.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
+	dry.height = 1.2
+	dry.build(_bowl)
+	var wet := WallLayout.new()
+	wet.points = dry.points
+	wet.height = 1.2
+	wet.build(_bowl, func(x: float, _z: float) -> float: return 0.0 if x > 3.0 and x < 9.0 else Terrain.NO_WATER)
+	var key := func(st: Dictionary) -> String: return var_to_str([st.xform, st.color])
+	var before := dry.stones.filter(func(st): return st.kind == "block" and st.s < 2.0).map(key)
+	var after := wet.stones.filter(func(st): return st.kind == "block" and st.s < 2.0).map(key)
+	_check(not before.is_empty() and before == after, "water under a causeway leaves its dry end's stones as they were")
