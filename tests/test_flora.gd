@@ -22,7 +22,7 @@ func _run() -> void:
 	_flowers_out_of_reach_are_not_drawn()
 	_blob_detail_changes_only_what_is_drawn()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

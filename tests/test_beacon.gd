@@ -13,7 +13,7 @@ func _run() -> void:
 	_scripts_are_not_players()
 	await _a_test_instance_beacons_on_loopback_only()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

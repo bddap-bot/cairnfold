@@ -11,7 +11,7 @@ func _init() -> void:
 	_every_section_has_its_stems()
 	_every_effect_loads()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

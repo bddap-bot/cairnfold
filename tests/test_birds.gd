@@ -18,7 +18,7 @@ func _initialize() -> void:
 	await _with_no_room_they_leave()
 	await _a_reshape_carries_them_with_their_perch()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

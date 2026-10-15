@@ -43,7 +43,7 @@ func _run() -> void:
 	_check(flora.plants_near(Terrain.ground(4, 3), 0.5).is_empty(), "the mown meadow stays mown in the saved garden")
 	DirAccess.remove_absolute(save)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 ## Every tree and bush the meadow grows, aimed at from beside it at head height, is what the beam strikes, or one

@@ -14,7 +14,7 @@ func _run() -> void:
 		_built_in_reads_as_humanoid(path)
 	_pose_puts_the_eyes_on_the_head()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

@@ -23,4 +23,4 @@ func _initialize() -> void:
 	main.metrics.free()
 	main.free()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)

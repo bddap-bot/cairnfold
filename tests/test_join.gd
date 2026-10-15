@@ -16,7 +16,7 @@ func _run() -> void:
 	await _a_wall_drawn_tight_alongside_another_never_doubles_it()
 	await _the_preview_over_a_bush_is_the_wall_left_on_release()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

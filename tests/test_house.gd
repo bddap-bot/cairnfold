@@ -24,7 +24,7 @@ func _init() -> void:
 	_a_deck_is_rimmed_by_the_top_style()
 	_roof_surfaces_have_no_degenerate_triangles()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

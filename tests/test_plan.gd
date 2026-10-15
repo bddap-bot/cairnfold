@@ -20,7 +20,7 @@ func _init() -> void:
 	_a_wall_arches_over_a_plant()
 	_a_wall_over_open_ground_stays_solid()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

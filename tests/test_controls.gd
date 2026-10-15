@@ -81,7 +81,7 @@ func _run() -> void:
 	await _carry_a_house(rig, walls)
 
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 ## Moves the hand itself, not an injected reach: down onto delete, then right onto planting and back left onto

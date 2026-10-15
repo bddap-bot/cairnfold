@@ -13,7 +13,7 @@ func _init() -> void:
 	_inside_a_subtree_the_swing_side_picks_nothing()
 	_a_deep_pick_zig_zags()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _every_tool_has_one_fixed_path() -> void:

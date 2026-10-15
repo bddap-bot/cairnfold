@@ -23,7 +23,7 @@ func _init() -> void:
 	_masonry_reports_only_what_stands_in_the_light()
 	_floating_stretches_shadows_and_fog()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

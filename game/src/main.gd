@@ -1,4 +1,10 @@
+class_name Main
 extends Node3D
+
+## How long quitting waits for the audio thread to release the sounds that were playing.
+const QUIT_WAIT_MSEC := 1000
+
+static var _quitting := false
 
 var args := {}
 var xr: OpenXRInterface
@@ -100,6 +106,7 @@ func _ready() -> void:
 		add_child(Driver.new(self, Driver.read(args.script)))
 	if args.has("quit-after"):
 		get_tree().create_timer(float(args["quit-after"])).timeout.connect(finish)
+	get_tree().auto_accept_quit = false
 
 
 ## Left D-pad down undoes, up redoes; both wait while an edit is under way.
@@ -183,9 +190,44 @@ func capture(name: String) -> void:
 	print("capture: ", path)
 
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		finish()
+
+
 func finish() -> void:
 	metrics.flush()
-	get_tree().quit()
+	Main.quit(get_tree())
+
+
+## A playback is freed on the main thread only after the audio thread has mixed its stop, so a sound
+## still playing when the tree quits outlives the engine, its streams with it. Playbacks go in the order
+## they were stopped, so a silent marker stopped last also waits out the sounds of nodes already freed.
+## A 3D player hands a new playback to the audio thread on its next physics tick and holds it until then,
+## even through stop().
+static func quit(tree: SceneTree, code := 0) -> void:
+	if _quitting:
+		return
+	_quitting = true
+	var marker := AudioStreamPlayer.new()
+	marker.stream = AudioStreamGenerator.new()
+	tree.root.add_child(marker)
+	marker.play()
+	await tree.physics_frame
+	await tree.process_frame
+	var held: Array[WeakRef] = []
+	for kind in ["AudioStreamPlayer", "AudioStreamPlayer3D"]:
+		for p in tree.root.find_children("*", kind, true, false):
+			if p.has_stream_playback():
+				held.append(weakref(p.get_stream_playback()))
+			p.stop()
+	var playing := func() -> int: return held.filter(func(w: WeakRef) -> bool: return w.get_ref() != null).size()
+	var until := Time.get_ticks_msec() + QUIT_WAIT_MSEC
+	while playing.call() > 0 and Time.get_ticks_msec() < until:
+		await tree.process_frame
+	if playing.call() > 0:
+		push_error("%d sounds still in use at exit" % playing.call())
+	tree.quit(code)
 
 
 static func _parse(raw: PackedStringArray) -> Dictionary:

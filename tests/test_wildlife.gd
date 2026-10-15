@@ -11,7 +11,7 @@ func _initialize() -> void:
 	_no_tool_places_an_animal()
 	await _ducks_come_only_to_ponds()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

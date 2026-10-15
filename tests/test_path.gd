@@ -32,7 +32,7 @@ func _run() -> void:
 	_undo_lifts_a_path_and_its_arches()
 	await _a_path_opens_its_arch_before_release()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

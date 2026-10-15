@@ -13,7 +13,7 @@ func _init() -> void:
 	_a_wall_into_a_tower_stops_inside_it()
 	_builds_meeting_nothing_lay_as_before()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

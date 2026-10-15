@@ -12,7 +12,7 @@ func _initialize() -> void:
 	await _the_screen_shows_the_lens_while_a_hand_holds_the_camera()
 	_the_lens_looks_where_the_hand_points_with_a_level_horizon()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

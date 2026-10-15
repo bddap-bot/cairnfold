@@ -23,7 +23,7 @@ func _initialize() -> void:
 	_a_step_up_waits_for_room_for_what_the_step_down_saved()
 	_a_held_step_reaches_its_knobs()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

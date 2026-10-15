@@ -21,7 +21,7 @@ func _run() -> void:
 	_height_between_grid_points_is_continuous()
 	await _raising_ground_under_a_wall_keeps_it_on_the_ground()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

@@ -280,7 +280,7 @@ func _in_the_glade() -> void:
 
 func _done() -> void:
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _play(steps: Array) -> void:

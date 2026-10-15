@@ -18,7 +18,7 @@ func _initialize() -> void:
 func _finish(rig: Rig) -> void:
 	await _stick_teleports_with_every_tool(rig)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

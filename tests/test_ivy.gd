@@ -16,7 +16,7 @@ func _init() -> void:
 	_raising_a_wall_keeps_its_ivy()
 	_bake_packs_each_leaf()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

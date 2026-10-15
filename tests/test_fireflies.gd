@@ -13,7 +13,7 @@ func _initialize() -> void:
 	_no_tool_places_fireflies()
 	await _they_come_out_at_dusk_over_what_is_made()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

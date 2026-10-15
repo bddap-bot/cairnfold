@@ -17,7 +17,7 @@ func _run() -> void:
 	_meadow_takes_back_stone_but_not_a_path()
 	_lifting_a_path_keeps_the_stone_laid_after_it()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:

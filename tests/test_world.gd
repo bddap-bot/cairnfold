@@ -32,7 +32,7 @@ func _run() -> void:
 	_restore_forgets_history()
 	await _a_storey_follows_what_it_stands_on()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
 
 
 func _check(ok: bool, what: String) -> void:
