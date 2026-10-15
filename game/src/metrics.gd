@@ -8,8 +8,11 @@ extends Node
 var path: String
 var info := {}
 var quality: Quality
-## The tracked head, whose height above the play area's floor each second records.
+## The tracked head, whose height above the play area's floor each second records, with where its play
+## space's origin ended the second and in how many frames it moved: any move the player did not make is a bug.
 var head: Node3D
+var _origin: Vector3
+var _origin_moves := 0
 var _step := 0
 var _viewport_ms := 0.0
 var _viewport_frames := 0
@@ -48,6 +51,11 @@ func _process(delta: float) -> void:
 		_step = maxi(_step, quality.step())
 		_viewport_ms += quality.frame_ms
 		_viewport_frames += 1
+	if head != null:
+		var o := head.get_parent_node_3d().global_position
+		if o != _origin:
+			_origin_moves += 1
+			_origin = o
 	_acc += delta
 	if _acc >= 1.0:
 		var gpu := gpu_ns()
@@ -58,6 +66,9 @@ func _process(delta: float) -> void:
 		row.draws = _draws
 		if head != null:
 			row.head_m = snappedf(head.position.y, 0.01)
+			row.origin = [snappedf(_origin.x, 0.001), snappedf(_origin.y, 0.001), snappedf(_origin.z, 0.001)]
+			row.origin_moves = _origin_moves
+			_origin_moves = 0
 		row.prims = _prims
 		_draws = 0
 		_prims = 0
