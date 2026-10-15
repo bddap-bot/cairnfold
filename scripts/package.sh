@@ -32,6 +32,7 @@ git -C "$root" archive HEAD game | tar -x -C "$stage"
 if [ -n "$steam" ]; then
   unzip -q "$(fetch "${godotsteam[@]}")" addons/godotsteam/godotsteam.gdextension "addons/godotsteam/$steam_dir/*" -d "$stage/game"
 fi
+printf '[gd_resource type="Resource" format=3]\n[resource]\nmetadata/revision = "%s"\n' "$(git -C "$root" rev-parse HEAD)" > "$stage/game/revision.tres"
 mkdir -p "$stage/nestcombe"
 if ! godot4 --headless --path "$stage/game" --export-release "$preset" "$stage/nestcombe/$binary" > "$stage/export.log" 2>&1 ||
   [ ! -f "$stage/nestcombe/$binary" ]; then

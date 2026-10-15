@@ -7,6 +7,11 @@ extends Node
 
 var path: String
 var info := {}
+var play_log: PlayLog
+var context: Callable
+var _cpu: PackedFloat32Array = []
+var _gpu: PackedFloat32Array = []
+var _logging_us := 0
 var quality: Quality
 ## The tracked head, whose height above the play area's floor each second records, with where its play
 ## space's origin ended the second and in how many frames it moved: any move the player did not make is a bug.
@@ -42,6 +47,7 @@ func _init(out: String) -> void:
 
 func _process(delta: float) -> void:
 	_deltas.append(delta * 1000.0)
+	_cpu.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 	var late := is_late(delta * 1000.0)
 	if late and not _was_late:
 		var scripts := Performance.get_monitor(Performance.TIME_PROCESS) + Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
@@ -51,6 +57,7 @@ func _process(delta: float) -> void:
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 	if quality != null and quality.fresh:
 		_step = maxi(_step, quality.step())
+		_gpu.append(quality.frame_ms)
 		_viewport_ms += quality.frame_ms
 		_viewport_frames += 1
 	if head != null:
@@ -60,6 +67,7 @@ func _process(delta: float) -> void:
 			_origin = o
 	_acc += delta
 	if _acc >= 1.0:
+		var begin := Time.get_ticks_usec()
 		var gpu := gpu_ns()
 		var row := summary(_deltas)
 		if gpu >= 0 and _gpu_ns >= 0:
@@ -84,7 +92,25 @@ func _process(delta: float) -> void:
 		_step = quality.step() if quality != null else 0
 		_viewport_ms = 0.0
 		_viewport_frames = 0
-		_seconds.append(row)
+		row.unix = Time.get_unix_time_from_system()
+		row.cpu_ms = distribution(_cpu)
+		row.gpu_frame_ms = distribution(_gpu)
+		row.refresh_hz = info.get("refresh_hz", Budget.REFRESH_HZ)
+		if context.is_valid():
+			row.context = context.call()
+		if head != null:
+			var pos := head.global_position
+			var forward := -head.global_basis.z.normalized()
+			row.head_position = [pos.x, pos.y, pos.z]
+			row.view_direction = [forward.x, forward.y, forward.z]
+		row.logging_us = _logging_us
+		if play_log != null:
+			play_log.sample(row)
+		_cpu.clear()
+		_gpu.clear()
+		if not path.is_empty():
+			_seconds.append(row)
+		_logging_us = Time.get_ticks_usec() - begin
 		_deltas.clear()
 		_acc = 0.0
 		_since_flush += 1.0
@@ -171,3 +197,17 @@ func flush() -> void:
 	_file.store_string("\n], \"info\": %s}\n" % JSON.stringify(info))
 	_file.resize(_file.get_position())
 	_file.flush()
+
+
+static func distribution(samples: PackedFloat32Array) -> Variant:
+	if samples.is_empty():
+		return null
+	var sorted := Array(samples)
+	sorted.sort()
+	return {"p50": _q(sorted, 0.5), "p95": _q(sorted, 0.95), "max": sorted[-1]}
+
+
+func _exit_tree() -> void:
+	flush()
+	if play_log != null:
+		play_log.finish()

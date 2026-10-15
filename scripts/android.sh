@@ -28,6 +28,7 @@ unzip -p "$templates" templates/android_source.zip > "$tdir/android_source.zip"
 echo "$godot_version.stable" > "$tdir/version.txt"
 
 git -C "$root" archive HEAD game | tar -x -C "$stage"
+printf '[gd_resource type="Resource" format=3]\n[resource]\nmetadata/revision = "%s"\n' "$(git -C "$root" rev-parse HEAD)" > "$stage/game/revision.tres"
 unzip -q "$vendors" 'asset/addons/*' -d "$stage/vendors"
 mv "$stage/vendors/asset/addons" "$stage/game/addons"
 if [ "$target" = lepton ]; then

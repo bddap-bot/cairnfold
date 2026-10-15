@@ -1549,3 +1549,26 @@ Grass techniques (public material from other games):
 - Breath of the Wild grass, discussed: https://forums.unrealengine.com/t/botw-grass-style/437647
 - Grass on a standalone headset GPU: https://discussions.unity.com/t/any-clever-trick-for-tall-grass-on-mobile-quest/811738
 - Why `discard` costs early depth on Adreno: https://docs.mesa3d.org/drivers/freedreno/hw/lrz.html
+
+### Local play-session history
+
+Session logging is off by default. Explicit `--record-sessions` opts this device in persistently via
+`user://record-sessions`; `--forget-sessions` or removing that file opts out.
+An optional `--session-directory PATH` with the opt-in chooses another local
+folder for developer inspection (for example app-owned external data on Android). Enabled play records one-second frame summaries in `user://sessions/`, without
+sending them anywhere. Sixteen JSONL chunks of at most 1 MiB retain recent history;
+rotation can discard the beginning of a long session. Each chunk repeats the
+session start, build revision and device model. A clean exit adds an end record;
+a missing end means interruption, not a measured end time. `latest.json` is an
+atomically replaced sample for local inspection, including head position in garden
+coordinates and normalized view direction (Godot's forward is negative Z).
+
+Frame deltas measure delivered application cadence, not CPU work or compositor
+reprojection. `cpu_ms` summarizes Godot's process-time monitor; `gpu_frame_ms`
+summarizes available viewport GPU timer readings. Unsupported GPU readings are
+null. Runtime dropped/reprojected counts are unavailable through this recorder;
+`late` is an application-cadence estimate, not a runtime dropped-frame counter.
+Context includes category counts, settled masonry instance counts, tools and
+visit/player state. `logging_us` measures the previous second's sampling and
+local-write work, excluding per-frame sample collection. Explicit `--metrics`
+benchmark output remains available separately.

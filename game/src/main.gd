@@ -98,7 +98,7 @@ func _ready() -> void:
 	rig.floor_at = tool.floor_at
 	rig.roof_hit = tool.pick_roof
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
-	metrics = Metrics.new(args.get("metrics", "user://metrics.json" if get_tree().current_scene == self else ""))
+	metrics = Metrics.new(args.get("metrics", ""))
 	metrics.info = {"xr": _start_xr(), "label": "", "budget": Budget.info()}
 	quality = Quality.new(xr if metrics.info.xr else null, flora, tool.masonry)
 	if args.has("quality"):
@@ -107,6 +107,15 @@ func _ready() -> void:
 	metrics.quality = quality
 	metrics.head = rig.head
 	metrics.world = world
+	if get_tree().current_scene == self:
+		metrics.play_log = PlayLog.open_enabled(args)
+	metrics.context = func():
+		var counts := {}
+		for category in ["walls", "paths", "grounds", "groups"]:
+			counts[category] = world.state[category].size()
+		return {"garden_counts": counts, "masonry_instances": Array(tool.masonry.counts()),
+			"tools": [Hand.Tool.keys()[rig.hands[0].tool], Hand.Tool.keys()[rig.hands[1].tool]],
+			"visiting": not session.visiting.is_empty(), "players": session.players()}
 	add_child(metrics)
 	var garden: String = args.get("garden", "user://garden.save" if played else "")
 	if garden != "":
