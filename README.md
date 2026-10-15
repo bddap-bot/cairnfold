@@ -78,11 +78,16 @@ right A cuts arches, and the wheels open on right B and left ≡.
 - Steam Frame: unpack the `linux-arm64` package in the headset's home and add
   `nestcombe/nestcombe` as a VR non-Steam shortcut with the art in
   `nestcombe/steam/`.
-- The game keeps its garden, photos, `metrics.json` and logs in Godot's user
+- The game keeps its garden, photos and engine logs in Godot's user
   directory: `~/.local/share/godot/app_userdata/Nestcombe` on Linux,
   `%APPDATA%\Godot\app_userdata\Nestcombe` on Windows.
   Put a VRM avatar (1.0 or 0.x) in its `avatars` folder to wear it: the newest file there
   is yours, and other players see it (see [docs/multiplayer.md](docs/multiplayer.md)).
+
+Session telemetry is off by default and never sent by the game. Launch with
+`--record-sessions` to opt this device into bounded local frame and head-pose
+history under its user-data `sessions/` directory; `--forget-sessions` opts out.
+See [local play-session history](docs/design.md#local-play-session-history).
 
 ## Quest
 

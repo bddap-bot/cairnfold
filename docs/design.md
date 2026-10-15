@@ -97,12 +97,13 @@ over a native run: 457.3 s against 456.5 s.
 
 ### Frame measurements
 
-Every session writes `metrics.json` in Godot's user directory (README, "Running"): per second, frame-time
+Explicit `--metrics PATH` writes a benchmark record to that path: per second, frame-time
 percentiles, frames over 1.5× the refresh period, and `gpu_ms`, the GPU time the
 game process used in that second (summed `drm-engine-*` time from the kernel's
 fdinfo, so it is real on the device whether or not the runtime reports any).
 `info` records the render-target size, the render scale and each eye's field of
-view.
+view. Ordinary play writes no session telemetry unless explicitly opted in (see
+"Local play-session history" below).
 
 `info.eye_gaze` records whether the runtime tracks the eyes for the game
 (XR_EXT_eye_gaze_interaction: the Steam Frame's SteamVR does; the Quest 2 has no eye
