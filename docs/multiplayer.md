@@ -204,22 +204,27 @@ reading:
 | --- | --- | --- | --- |
 | Meadow, from the air | 27.93 | 27.89 | 28.16 |
 | Meadow, standing | 23.06 | 23.13 | 23.54 |
-| Every flora pool full, standing | 35.04 | 35.34 | 36.96 |
 | Walls on a 25 m disc, from the air | 48.77 | 52.48 | 52.91 |
 | Village, from the air | 51.14 | 51.20 | 50.15 |
 | Village, standing | 36.76 | 40.15 | 40.48 |
 | Hills, standing | 46.08 | 46.21 | 45.16 |
 
-Across the 34 phases, the median change is +0.31 ms with 2 players and +0.43 ms with 4.
-The cleanest reading is the bare meadow standing, where 3 other players add 0.48 ms,
-about 0.16 ms each. Single phases swing by up to 5 ms either way between runs, which is
-more than the players add.
+These rows show the same scene in every run (their draw calls and primitives agree).
+In 13 of the 34 phases the runs disagree by about twice in draw calls or primitives, so
+those phases' rows compare different stretches of the scene and are left out here. Over
+all 34 phases, the median change is +0.31 ms with 2 players and +0.43 ms with 4, and
+single phases change by between -5.4 and +17.8 ms. The largest change was taking a
+photo: 46.3, 51.7 and 64.1 ms. Its cause is not known, and one run per player count
+cannot tell it from noise. The cleanest reading is the bare meadow standing, where 3
+other players add 0.48 ms, about 0.16 ms each.
 
-In these runs every phase is over the 12.5 ms budget, the bare meadow included, at about
-twice the cost an earlier run on the same headset measured for the same phases. The
-budget verdict therefore belongs to the stress scene and the headset's state on the day,
-not to co-op, which costs a fraction of a millisecond per player against it.
+In these runs every phase is over the 12.5 ms budget, the bare meadow included. That is
+1.5 to 2 times what an earlier run on the same headset measured for the same phases, so
+the headset's state on the day weighs on every number here. The budget verdict belongs to
+the stress scene and that state. Co-op, from the bare meadow, costs a fraction of a
+millisecond per player against it. The photo phase is the open question.
 
-The Quest build must hold the network permission: without it the game opens no socket,
-hosts nothing, and no one can join. `scripts/android.sh` refuses an APK whose manifest
+The Quest build must hold the network permission. Without it, every socket the game
+opens fails, it hosts nothing, and no one can join. With it, a Quest and a desktop find
+each other by beacon within seconds, both ways. `scripts/android.sh` refuses an APK whose manifest
 lacks it.
