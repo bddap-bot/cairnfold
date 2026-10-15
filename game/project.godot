@@ -86,4 +86,5 @@ season_bloom={
 [xr]
 openxr/enabled=true
 openxr/extensions/eye_gaze_interaction=true
+openxr/extensions/hand_tracking=true
 shaders/enabled=true
