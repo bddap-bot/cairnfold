@@ -118,8 +118,25 @@ cameras, whose load on the shared SoC is not in these numbers, and a tracked gaz
 so foveation follows no eye unworn. A run with the headset worn (Godot 4.5.1 Mobile
 renderer, Turnip Adreno 750, SteamVR 2.18.2, 1728×1728 per eye, 4× MSAA, one drawn
 wall, before the flora stage) rendered at 27.78 ms per frame, every other 72 Hz
-refresh, with about 16 ms of GPU time per frame. Holding
-the refresh rate is open work. The first of each run of late frames is logged
+refresh, with about 16 ms of GPU time per frame.
+
+A 28-minute worn session building a garden on 8c0a52a (before the 0.9 resolution step,
+the governor's line and the worker-thread lays) wrote 1,662 seconds of `metrics.json`.
+Worn, the viewport's GPU timer reads 0.15 ms under fdinfo's (median; correlation 0.999),
+so the governor's signal holds on the head. The runtime still halved the rate whenever
+the GPU time per frame neared the period, and the time followed the primitives drawn:
+
+| Primitives a second's frames drew | Seconds | Viewport GPU per frame (median) | Seconds at half rate |
+| --- | --- | --- | --- |
+| under 0.6 M | 202 | 6.0 ms | 0% |
+| 0.6–0.9 M | 504 | 8.3 ms | 7% |
+| 0.9–1.3 M | 759 | 13.6 ms | 58% |
+| 1.3–2 M | 115 | 15.6 ms | 74% |
+| 2–2.5 M (the finished garden) | 81 | 23.1 ms | 99% |
+
+Over the session 637 seconds ran at half rate and 987 at 72 Hz; the quality ladder at its
+bottom step did not bring the finished garden under the period. Holding the refresh rate
+at a finished garden's density is open work. The first of each run of late frames is logged
 as it happens (`metrics: late frame`), with the time the frame before it took in
 scripts and on the GPU, between the script steps around it.
 
@@ -580,8 +597,8 @@ The play area on the Quest 2 resolves to LOCAL space when no boundary is set, as
 headset lies unworn after a restart; `metrics.json` records it (`info.play_area`) with the
 head's height each second (`head_m`).
 
-Not yet measured worn on the Steam Frame, where the GPU timer's offset from the runtime's
-own time is unknown; the epic tracks that check.
+Worn on the Steam Frame the viewport's GPU timer reads 0.15 ms under the kernel's fdinfo
+time for the game process (see "Frame measurements").
 
 Sources: Alex Vlachos, "Advanced VR Rendering Performance", GDC 2016
 (https://gdcvault.com/play/1023522/Advanced-VR-) and the adaptive quality code it describes
