@@ -39,7 +39,8 @@ func _process(delta: float) -> void:
 	_deltas.append(delta * 1000.0)
 	var late := is_late(delta * 1000.0)
 	if late and not _was_late:
-		print("metrics: late frame %.1f ms" % (delta * 1000.0))
+		var scripts := Performance.get_monitor(Performance.TIME_PROCESS) + Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
+		print("metrics: late frame %.1f ms, the frame before it %.1f ms in scripts and physics, %.1f ms on the GPU" % [delta * 1000.0, scripts * 1000.0, quality.frame_ms if quality != null else 0.0])
 	_was_late = late
 	_draws = maxi(_draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))

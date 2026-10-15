@@ -45,6 +45,8 @@ var _build_out := {}
 ## The preview now shown, with the ground revision it stands on: a settling rebuild with the same inputs
 ## takes it rather than laying the stones again.
 var _shown: WallLayout
+## The roof laid with `_shown` (`pack_roof`), or empty.
+var _shown_roof := {}
 var _shown_ground := -1
 var _settle_when_laid := false
 ## Stones a newer layout replaced. Freeing a long wall's thousands of them takes milliseconds, so the wall's
@@ -151,12 +153,14 @@ func _process(delta: float) -> void:
 			layout.adopt(_build_job)
 			_take(_build_out)
 			_shown = _build_job
+			_shown_roof = _build_out.get("roofed", {})
 			_shown_ground = _build_out.ground
 			if _settle_when_laid and not _build_stale:
 				_shown_ground = Terrain.revision
 				rebuild()
 			else:
-				_lay_dressing()
+				# A roof being pulled is laid as it goes, newer than the one laid with these stones.
+				_lay_dressing({} if _roof_live else _shown_roof)
 				_sync()
 		if _build_stale:
 			_build_live()
@@ -244,14 +248,19 @@ func rebuild(settle := true) -> void:
 		_build_task = -1
 		_take(_build_out)
 		_shown = _build_job
+		_shown_roof = _build_out.get("roofed", {})
 		_shown_ground = Terrain.revision
+	var roofed := {}
 	if _shown != null and _shown_ground == Terrain.revision and _shown.same_inputs(layout):
 		layout.adopt(_shown)
+		if not _shown_roof.is_empty() and _shown_roof.roof.same_inputs(roof):
+			roofed = _shown_roof
 	else:
 		layout.build(Terrain.height_at)
 		_take(pack(layout, kinds()))
 	_shown = null
-	_lay_dressing()
+	_shown_roof = {}
+	_lay_dressing(roofed)
 	if _settled and not layout.fence:
 		_layout_ivy()
 	_sync()
@@ -294,11 +303,14 @@ func _build_live() -> void:
 	out.ground = Terrain.revision
 	var ks := kinds()
 	_build_job = job
+	var roof_job := roof.inputs() if roof != null else null
 	var litter := _sweep()
 	_build_task = WorkerThreadPool.add_task(func():
 		_drop(litter)
 		job.build(Terrain.height_at)
-		out.merge(Wall.pack(job, ks)))
+		out.merge(Wall.pack(job, ks))
+		if roof_job != null:
+			out.roofed = Wall.pack_roof(job, roof_job, ks))
 
 
 ## Lays the roof again; `live` while its pitch is being pulled, so it stays out of the Masonry until let go.
@@ -318,32 +330,43 @@ func rebuild_roof(live := false) -> void:
 		_sync()
 
 
-## The roof, or else the lanterns and flags, laid again over the stones.
-func _lay_dressing() -> void:
+## The roof, or else the lanterns and flags, laid again over the stones; `roofed` is a roof already laid on
+## these stones on a worker thread (`pack_roof`).
+func _lay_dressing(roofed := {}) -> void:
 	if roof != null:
-		_pack_roof()
+		_pack_roof(roofed)
 	else:
 		_fittings.lay(layout.flames, layout.cloths)
 
 
-func _pack_roof() -> void:
-	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
-	if roof.kind == RoofLayout.Kind.GABLE:
-		roof.corners = layout.laid_points
-	roof.build()
-	layout.hide_roof(roof)
-	var tile := kinds()[Part.TILE]
-	var shadow := kinds()[Part.TILE_SHADOW]
+## Lays `r` on a built layout's walls and packs its tiles as instance buffers by Part. Touches nothing but its
+## arguments, so it runs on a worker thread.
+static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind]) -> Dictionary:
+	r.base = built.samples[0].y + built.height + WallLayout.CAP
+	if r.kind == RoofLayout.Kind.GABLE:
+		r.corners = built.laid_points
+	r.build()
+	built.hide_roof(r)
+	var tile := ks[Part.TILE]
+	var shadow := ks[Part.TILE_SHADOW]
 	var tiles := PackedFloat32Array()
-	tiles.resize(roof.tiles.size() * tile.stride())
+	tiles.resize(r.tiles.size() * tile.stride())
 	var shadows := PackedFloat32Array()
-	shadows.resize(roof.tiles.size() * shadow.stride())
-	for i in roof.tiles.size():
-		var t: Dictionary = roof.tiles[i]
+	shadows.resize(r.tiles.size() * shadow.stride())
+	for i in r.tiles.size():
+		var t: Dictionary = r.tiles[i]
 		tile.write(tiles, i, t.xform, t.color, t.ao, Palette.code(t.kind))
 		shadow.write(shadows, i, t.xform)
-	_parts[Part.TILE] = tiles
-	_parts[Part.TILE_SHADOW] = shadows
+	return {"roof": r, "tiles": tiles, "shadows": shadows}
+
+
+func _pack_roof(roofed := {}) -> void:
+	if roofed.is_empty():
+		roofed = pack_roof(layout, roof, kinds())
+	else:
+		roof.adopt(roofed.roof)
+	_parts[Part.TILE] = roofed.tiles
+	_parts[Part.TILE_SHADOW] = roofed.shadows
 	_fittings.lay(layout.flames, layout.cloths + roof.cloths)
 	var tris := roof.gable_faces
 	if tris.is_empty():

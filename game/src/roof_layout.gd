@@ -50,6 +50,40 @@ var gable_faces := PackedVector3Array()
 var bounds := AABB()
 
 
+## What the roof is laid from, copied to lay on another thread.
+func inputs() -> RoofLayout:
+	var r := RoofLayout.new()
+	r.kind = kind
+	r.center = center
+	r.radius = radius
+	r.pitch = pitch
+	r.curve = curve
+	r.seed = seed
+	r.chimneys = chimneys.duplicate()
+	r.flag = flag
+	return r
+
+
+func same_inputs(other: RoofLayout) -> bool:
+	var a := inputs()
+	var b := other.inputs()
+	for p in a.get_property_list():
+		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and a.get(p.name) != b.get(p.name):
+			return false
+	return true
+
+
+## Takes what `built` laid, as if `build` had run here.
+func adopt(built: RoofLayout) -> void:
+	base = built.base
+	corners = built.corners
+	tiles = built.tiles
+	cloths = built.cloths
+	faces = built.faces
+	gable_faces = built.gable_faces
+	bounds = built.bounds
+
+
 ## A pulled pitch as the roof takes it: below FLAT_SNAP it lands flat, else on the nearest `step`.
 static func snap_pitch(p: float, step: float) -> float:
 	p = clampf(p, PITCH.x, PITCH.y)

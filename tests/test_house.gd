@@ -18,6 +18,7 @@ func _init() -> void:
 	_pointing_at_a_roof_hits_it()
 	_top_styles()
 	_roofs_are_deterministic()
+	_a_roof_laid_from_its_inputs_is_the_same_roof()
 	_pushed_down_a_roof_goes_flat()
 	_a_flat_roof_is_a_deck_inside_the_walls()
 	_a_deck_is_rimmed_by_the_top_style()
@@ -313,6 +314,22 @@ func _roofs_are_deterministic() -> void:
 		if not a.tiles[i].xform.is_equal_approx(b.tiles[i].xform):
 			_check(false, "tile %d differs" % i)
 			break
+
+
+func _a_roof_laid_from_its_inputs_is_the_same_roof() -> void:
+	var w := _house(5.0, 3.5)
+	var r := RoofLayout.new()
+	r.seed = 9
+	r.pitch = 1.6
+	r.curve = 0.3
+	r.chimneys = [Vector2(0.8, 0.6)]
+	var copy := r.inputs()
+	_check(copy.same_inputs(r), "a roof's inputs lay the same roof")
+	var here := Wall.pack_roof(w, r, Wall.kinds())
+	var there := Wall.pack_roof(w, copy, Wall.kinds())
+	_check(not here.tiles.is_empty() and here.tiles == there.tiles and here.shadows == there.shadows, "with the same tiles")
+	copy.pitch = 2.0
+	_check(not copy.same_inputs(r), "a pulled pitch is another roof")
 
 
 func _pushed_down_a_roof_goes_flat() -> void:

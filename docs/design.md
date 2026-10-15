@@ -81,7 +81,8 @@ renderer, Turnip Adreno 750, SteamVR 2.18.2, 1728×1728 per eye, 4× MSAA, one d
 wall, before the flora stage) rendered at 27.78 ms per frame, every other 72 Hz
 refresh, with about 16 ms of GPU time per frame. Holding
 the refresh rate is open work. The first of each run of late frames is logged
-as it happens (`metrics: late frame`), between the script steps around it.
+as it happens (`metrics: late frame`), with the time the frame before it took in
+scripts and on the GPU, between the script steps around it.
 
 The runtime's recommended render target is 1728×1728 per eye on a 2160×2160 panel,
 and Valve's foveation layer (`VK_LAYER_VALVE_fdm_injection`) lowers shading density
@@ -100,6 +101,16 @@ GPU time per frame), first three phases:
 A 142 ms frame once seen at the air teleport was the script's capture just before
 it, which encoded its PNG on the main thread; captures now save on a worker
 thread, as the camera's photos do.
+
+The houses phase, governed: from about its 10th second to its end (18 s) every
+frame holds 72 Hz at the ladder's first step (3D resolution 0.9, 9.5 ms of GPU time a
+frame), where before it ran at every other refresh from its 6th second to its end. Its
+first seconds still run late while the tower and the house are built and the roofs
+reshaped: settling a tower or a house, reshaping a roof and changing a wall top each
+take 5 to 18 ms of main-thread script (laying the stones and the roof again in
+`World._apply`), and the runtime keeps the game at every other refresh for a few seconds
+after each. A house being pulled no longer lays its roof on the main thread every frame
+(5 to 8 ms): the roof is laid with its stones on the worker thread.
 
 ### Quest 2 measurements
 
@@ -293,10 +304,12 @@ Directive (verbatim):
 > My motivation for these thoughts are not wanting myself or my players to need to think about or tweak settings, but still see things as pretty as possible but still experience buttery framerate.
 
 **Decision: the one graphics configuration is a ladder of steps, walked by the GPU time of
-every frame.** `Quality` (`game/src/quality.gd`) draws grass to 24, 20, 16, 13 or 10 m; below
-those, flowers to 20 m instead of 60 m, and then foliage from coarser blobs. A governor reads
-each frame's GPU time and steps down the ladder at once when frames run over the refresh
-period, and back up only after a calm spell. Every headset starts at the top and settles on
+every frame.** `Quality` (`game/src/quality.gd`) first renders the 3D scene at 0.9 of the
+render target's width and height, then draws grass to 24, 20, 16, 13 or 10 m; below those,
+flowers to 20 m instead of 60 m, and then foliage from coarser blobs. A governor reads each
+frame's GPU time and steps down the ladder at once when frames run over the refresh period or
+their average over its line, and back up only after a calm spell with room for what the step
+saved. Every headset starts at the top and settles on
 the prettiest step it holds at its own refresh rate. There are no per-headset presets and no
 settings menu.
 
@@ -327,6 +340,30 @@ which blades shrink into the ground over the last 8 m, and it moves toward each 
 because they reallocate or recompile mid-play: MSAA level, shadow atlas size, toggling
 shadows or glow (pipeline variants) and the render-target multiplier (Godot frees and
 recreates the swapchain when it changes).
+
+On the Steam Frame the pixels are the cost. The houses phase of `demo/headset.json` (a tower
+and a house with two roofs 3 to 10 m from a floating eye) took the game's GPU time from 8.3 ms
+a frame to about 12.3 ms of the 13.89 ms period, and the runtime then drops the game to every
+other refresh, where it reads 15.5 ms. Held at each knob, unworn with the standby pause off,
+GPU time per frame (fdinfo), median of each phase:
+
+| Knob, held at | Before the houses | Houses |
+| --- | --- | --- |
+| Full quality | 8.4 ms | 15.5 ms, 36 fps |
+| Stones and tiles unshaded | 8.2 ms | 10.7 ms |
+| Stones and tiles receiving no sun shadow | 8.2 ms | 11.0 ms |
+| Stones and roof tiles as 12-triangle boxes | 8.2 ms | 11.3 ms |
+| 3D resolution 0.9 (`Viewport.scaling_3d_scale`) | 8.0 ms | 9.5 ms |
+| 3D resolution 0.8 | 7.0 ms | 8.5 ms |
+| 3D resolution 0.8, grass to 13 m | 6.4 ms | 8.0 ms |
+| 3D resolution 0.8, the ladder's bottom step | 5.7 ms | 7.3 ms |
+
+A tenth off the 3D resolution saves more there than every reach step together, at a loss of
+sharpness that is hard to see, so it is the ladder's first step. It moves at no frame cost: the
+scene upscales into the same swapchain, and switching it every 4 s for two minutes left no late
+frame at a switch. On the Quest 2 neither this step nor the governor's line at 0.85 of the
+period (below) is measured yet: the render region there left the binned surface as it was,
+while this scale shrinks it.
 
 Each step, measured the same way (`demo/ladder.json`), with the flora changes in "Flora on
 the Quest 2" below:
@@ -416,7 +453,10 @@ The signal is the GPU time of the frame the viewport just rendered
 (`RenderingServer.viewport_get_measured_render_time_gpu`, GPU timestamps around the
 viewport's passes): the same on every headset and blind to CPU hitches, which no graphics
 knob would cure. On the Quest 2 it reads about 1 ms above the runtime's `App=` time, and
-frames hold 72 Hz until it reaches the whole refresh period, so the period is its line. The
+frames hold 72 Hz until it reaches the whole refresh period. On the Steam Frame it reads with
+the fdinfo time, and the runtime drops the game to every other refresh once it nears 0.88 of
+the period, staying there for seconds after the frames have room again, so the line is 0.85 of
+the period. The
 rate is read from the runtime every frame, since it reports the shell's rate for the first
 frames of a session. Any later knob takes its place on the same ladder, cheapest loss per
 millisecond first, so one signal still maps to one position.
@@ -426,9 +466,14 @@ The governor (`Quality.Governor`) is Valve's adaptive quality with slower recove
 - Down fast: two consecutive frames over 105% of the period step down one; frames a
   quarter over step down two. Six frames then pass unjudged while the timer catches up,
   and none is judged until grass and flowers have reached their new step.
-- Up slowly: two seconds with the frame time, averaged over one second, under 96% of the
-  period step up one. Single frames vary by more than a step saves, so they neither make
-  nor break a calm spell.
+- Down before frames run late: the frame time averaged over one second over the line steps
+  down one. The average starts again after each step, and the first second after it only
+  measures what the step saved.
+- Up slowly: two seconds with the frame time, averaged over one second, under the line by
+  what the step down saved step up one, so a step up does not take the frame time back over
+  the line it left. Single frames vary by more than a step saves, so they neither make nor
+  break a calm spell. After 64 seconds under the line the saving is forgotten: the scene has
+  changed since.
 - No oscillation: a step down within ten seconds of the step up that reached it doubles the
   calm needed to step up into that step again, up to 64 seconds, for the session.
 - The first five seconds of rendered frames are not judged: loading's frames are not the
@@ -441,7 +486,7 @@ than frames.
 
 `--quality N` and the driver's `quality` op hold the ladder at step N, for measuring. Each
 second of `metrics.json` records the lowest step the ladder took (`step`), the viewport's
-GPU time per frame (`viewport_gpu_ms`) and the governor's line (`budget_ms`).
+GPU time per frame (`viewport_gpu_ms`) and the refresh period (`budget_ms`).
 
 ### On the Quest 2
 
