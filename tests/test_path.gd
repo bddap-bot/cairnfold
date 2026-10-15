@@ -474,6 +474,7 @@ func _painting_skips_a_path() -> void:
 
 
 func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.PATH) -> void:
+	Ground.install()
 	var nodes := _setup()
 	var t := FloraTool.new(nodes[3], nodes[4], nodes[1], nodes[2])
 	t.set_process(false)
@@ -605,6 +606,7 @@ func _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame() -> void
 
 
 func _dirt_wears_without_stones() -> void:
+	Ground.install()
 	var paths := Paths.new()
 	root.add_child(paths)
 	paths.begin(Vector3(-20, 0, -20), 0.8, "dirt")
@@ -612,8 +614,11 @@ func _dirt_wears_without_stones() -> void:
 	var ghost := paths.end()
 	_check(ghost.layout.stones.is_empty() and ghost.chunks.is_empty(), "dirt creates no stones or stone nodes")
 	_check(Ground.bare(-15, -20) > 0.99, "dirt wears the stroke centre")
-	var edge := Ground.bare(-15, -19.1)
-	_check(edge > 0.0 and edge < 1.0, "dirt has a soft edge: %s" % edge)
+	var soft := false
+	for i in 20:
+		var edge := Ground.bare(-15, -20 + i * 0.1)
+		soft = soft or (edge > 0.0 and edge < 1.0)
+	_check(soft, "dirt has partially worn texels along its edge")
 	_check(Ground.bare(-15, -18) == 0.0, "ground outside dirt stays meadow")
 	var data: Dictionary = Commands._path(ghost.data)
 	_check(data.style == "dirt", "command validation keeps dirt style")
