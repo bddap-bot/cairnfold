@@ -17,6 +17,8 @@ func _initialize() -> void:
 
 func _finish(rig: Rig) -> void:
 	await _stick_teleports_with_every_tool(rig)
+	await _view_holds_after_teleport(rig, 0.0)
+	await _view_holds_after_teleport(rig, 12.0)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -54,8 +56,6 @@ func _air_target(rig: Rig) -> void:
 	var target: Vector3 = rig.aim_ground + Vector3.UP * rig.aim_lift
 	_check(target.distance_to(o + dir * 12.0) < 0.01, "the air target is on the ray at the air reach")
 	_check(rig.aim_lift > 8.0, "an air target lifts the landing above the ground")
-	rig.place(rig.aim_ground, rig.aim_lift)
-	_check(rig.floating, "arriving at an air target floats")
 
 
 func _air_reach_stops_at_nearer_ground(rig: Rig) -> void:
@@ -94,3 +94,20 @@ func _stick_teleports_with_every_tool(rig: Rig) -> void:
 		var moved := Vector2(rig.head.global_position.x - from.x, rig.head.global_position.z - from.z).length()
 		_check(aimed and moved > 2.0, "left stick forward aims and goes holding %s (moved %.1f m)" % [Hand.Tool.keys()[t], moved])
 	Hand.injected_sticks.erase(rig.left.tracker)
+
+
+## With no input, the frames after a teleport change the origin once, the cut, and leave it on the target.
+func _view_holds_after_teleport(rig: Rig, lift_m: float) -> void:
+	var ground := Vector3(6, Terrain.height_at(6, -3), -3)
+	var before := rig.global_position
+	rig.teleport(ground, lift_m)
+	var trace: Array[Vector3] = [before]
+	var start := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start < 1500:
+		await process_frame
+		if rig.global_position != trace[-1]:
+			trace.append(rig.global_position)
+	print("trace %s m: %s over %d ms" % [lift_m, trace, Time.get_ticks_msec() - start])
+	_check(trace.size() == 2, "a %s m teleport moves the origin once, then holds it: %d moves" % [lift_m, trace.size() - 1])
+	var h := rig.head.global_position
+	_check(Vector2(h.x - ground.x, h.z - ground.z).length() < 1e-4 and absf(rig.global_position.y - ground.y - lift_m) < 1e-4, "a %s m teleport lands exactly on its target" % lift_m)

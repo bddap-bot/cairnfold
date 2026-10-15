@@ -917,7 +917,7 @@ choice of tools leaves you unable to move, and aiming at the ground is how you c
 | --- | --- |
 | Pick a hand's tool | Hold that hand's wheel button (right B, left View), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
 | Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it meets the ground; release to go |
-| Teleport into the air | Aim above the horizon: with no ground within reach (10 m to start), the ray targets the point in the air at its end, a ring on a pole down to the ground below. The other hand's stick up or down while aiming moves that point farther or nearer (2–40 m). Release to arrive, slightly high, then settle gently into a hover with a slow bob |
+| Teleport into the air | Aim above the horizon: with no ground within reach (10 m to start), the ray targets the point in the air at its end, a ring on a pole down to the ground below. The other hand's stick up or down while aiming moves that point farther or nearer (2–40 m). Release to arrive there in one cut; the view then stays put until the player moves or acts |
 | Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick left or right: 30° snap turn |
 | Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground, or along a build's top to build on it; release to finish. Strokes under 1 m are discarded, and a stroke near a standing wall merges into it |

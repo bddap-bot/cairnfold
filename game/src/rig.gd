@@ -11,7 +11,6 @@ const REACH_RATE := 12.0
 const MIN_AIR_REACH := 2.0
 const MAX_AIR_REACH := 40.0
 const MAX_LIFT := 40.0
-const ARRIVE_LIFT := 0.45
 const SNAP := deg_to_rad(30.0)
 const FADE := 0.09
 
@@ -21,15 +20,11 @@ var left: Hand
 var right: Hand
 var hands: Array[Hand] = []
 
-var floating := false
 ## The hand whose teleport ray is out, or null.
 var aim_hand: Hand
 var air_reach := AIR_REACH
 var aim_ground: Variant = null
 var aim_lift := 0.0
-var _rest_y := 0.0
-var _vel_y := 0.0
-var _bob := 0.0
 var _turned := false
 var _fade_t := -1.0
 var _pending: Variant = null
@@ -103,19 +98,8 @@ func _marker(mesh: Mesh, mat: Material) -> MeshInstance3D:
 	return mi
 
 
-func ground_under_head() -> float:
-	var h := head.global_position
-	return Terrain.height_at(h.x, h.z)
-
-
-## Lift above the ground of where the player is standing or hovering.
-func lift() -> float:
-	return global_position.y - ground_under_head()
-
-
 func _process(delta: float) -> void:
 	_locomotion_input(delta)
-	_hover(delta)
 	_fade_step(delta)
 
 
@@ -184,7 +168,8 @@ func hide_markers() -> void:
 	_pole.visible = false
 
 
-## Move so the head stands over `ground`, `lift` metres up; any lift above a hand's breadth floats.
+## Move so the head stands over `ground`, `lift` metres up. The rig then stays exactly there: in a headset
+## any view motion the player's head did not make is uncomfortable.
 func teleport(ground: Vector3, lift_m: float) -> void:
 	_pending = [ground, lift_m]
 	_fade_t = 0.0
@@ -193,40 +178,13 @@ func teleport(ground: Vector3, lift_m: float) -> void:
 
 func place(ground: Vector3, lift_m: float) -> void:
 	var h := head.global_position
-	global_position += Vector3(ground.x - h.x, 0, ground.z - h.z)
-	_rest_y = ground.y + lift_m
-	floating = lift_m > 0.15
-	_vel_y = 0.0
-	_bob = 0.0
-	global_position.y = _rest_y + (ARRIVE_LIFT if floating else 0.0)
-
-
-func reground(area: Rect2, _settled: bool) -> void:
-	var h := head.global_position
-	if not floating and area.has_point(Vector2(h.x, h.z)):
-		_rest_y = ground_under_head()
+	global_position = Vector3(global_position.x + ground.x - h.x, ground.y + lift_m, global_position.z + ground.z - h.z)
 
 
 func snap_turn(angle: float) -> void:
 	var pivot := head.global_position
 	var t := Transform3D(Basis(Vector3.UP, angle), Vector3.ZERO)
 	global_transform = Transform3D(t.basis * global_transform.basis, pivot + t.basis * (global_position - pivot))
-
-
-func _hover(delta: float) -> void:
-	if not floating and _rest_y == global_position.y and _vel_y == 0.0:
-		return
-	var target := _rest_y
-	if floating:
-		_bob += delta
-		target += sin(_bob * TAU / 4.5) * 0.025 * smoothstep(1.5, 3.0, _bob)
-	var k := 6.0 if floating else 9.0
-	var damping := 2.0 * sqrt(k) * (0.75 if floating else 1.0)
-	_vel_y += (k * (target - global_position.y) - damping * _vel_y) * delta
-	global_position.y += _vel_y * delta
-	if not floating and absf(global_position.y - target) < 0.002 and absf(_vel_y) < 0.01:
-		global_position.y = target
-		_vel_y = 0.0
 
 
 func _fade_step(delta: float) -> void:

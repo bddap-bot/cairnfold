@@ -141,7 +141,7 @@ func pull(metres: float) -> void:
 	_moved = _moved.merge(_span(_radius))
 
 
-## Lets walls and the player catch up with a stroke, at most every FOLLOW_EVERY.
+## Lets walls catch up with a stroke, at most every FOLLOW_EVERY.
 func follow(delta: float) -> void:
 	_since_follow += delta
 	if _since_follow >= FOLLOW_EVERY:

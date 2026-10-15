@@ -15,7 +15,7 @@ func _initialize() -> void:
 		main.view(eye, Vector3(0, 1, 0), false)
 		var pose: Transform3D = main.rig.head.global_transform
 		for i in 360:
-			main.rig._hover(1.0 / 72.0)
+			main.rig._process(1.0 / 72.0)
 		if not main.rig.head.global_transform.is_equal_approx(pose):
 			failures += 1
 			print("FAIL: scripted view drifts from ", eye, " to ", main.rig.head.global_position)

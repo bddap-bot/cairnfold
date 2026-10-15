@@ -58,7 +58,6 @@ func _ready() -> void:
 	add_child(delete_tool)
 	terrain_tool = TerrainTool.new(rig, world)
 	terrain_tool.reshaped.connect(tool.reground)
-	terrain_tool.reshaped.connect(rig.reground)
 	add_child(terrain_tool)
 	var hands: Array[Node3D] = []
 	hands.assign(rig.hands)
@@ -170,8 +169,6 @@ func view(eye: Vector3, at: Vector3, relative: bool) -> void:
 	var want := Transform3D(Basis.looking_at(at - eye, Vector3.UP), eye)
 	if metrics.info.xr:
 		rig.global_transform = want * rig.head.transform.affine_inverse()
-		# The hover spring must hold the scripted pose instead of returning to its previous height.
-		rig.place(Vector3(eye.x, rig.global_position.y, eye.z), 0.0)
 	else:
 		rig.head.global_transform = want
 
