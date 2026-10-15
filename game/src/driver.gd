@@ -368,6 +368,26 @@ func _delete(s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
+## Holds the delete tool's trigger pointed along `dir` (relative to the head's facing; up at the sky by default) for
+## `seconds`, saving the view as `capture` at `capture_at` seconds; let go short of DeleteTool.WIPE_HOLD, nothing wipes.
+func _wipe(s: Dictionary) -> void:
+	var tool: DeleteTool = main.delete_tool
+	var d: Array = s.get("dir", [0, 2, -1])
+	var t := 0.0
+	var shot := not s.has("capture")
+	while t < s.seconds:
+		var head: Transform3D = main.rig.head.global_transform
+		if not tool.charge(self, head * Vector3(0.2, -0.3, -0.3), head.basis * Vector3(d[0], d[1], d[2]), get_process_delta_time()):
+			break
+		if not shot and t >= s.get("capture_at", 0.0):
+			shot = true
+			await main.capture(s.capture)
+		await get_tree().process_frame
+		t += get_process_delta_time()
+	tool.cancel(self)
+	await get_tree().process_frame
+
+
 ## Holds the delete tool's trigger, pointing straight down from `height` metres over each point of `points` in turn
 ## across `seconds`, then lets go: along a wall it erases, over the ground it mows. With `index` instead, it sweeps
 ## that wall in build order from fraction `from` of its length to `to`, wherever the head stands.

@@ -475,9 +475,9 @@ func set_shown(group: int, indices: PackedInt32Array, on: bool) -> PackedInt32Ar
 	return changed
 
 
-## Back to the meadow alone, every one of its plants standing.
+## Back to the meadow alone, every one of its plants standing. Ghosts stay with the strokes still on their way.
 func reset() -> void:
-	for p in [grass, flowers, trunks, foliage, ghost_grass, ghost_flowers]:
+	for p in [grass, flowers, trunks, foliage]:
 		p.reset()
 	var meadow: Array[Plant] = groups[0]
 	groups = {0: meadow}

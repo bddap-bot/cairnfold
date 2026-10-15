@@ -8,12 +8,20 @@ extends Node3D
 ## or one on a fence, house or tower, takes the whole of it. A press on a tree or bush takes it, and one on a path
 ## or stone ground takes that path or stroke, giving back the ground under it. Elsewhere on the ground the trigger
 ## mows: held, it takes the grass and flowers under the brush ring as it sweeps, the meadow's own as well as
-## painted ones, raggedly at the ring's edge; they go to the garden when the trigger lets go. Undo puts any of it back.
+## painted ones, raggedly at the ring's edge; they go to the garden when the trigger lets go.
+## Held pointed up at the sky, the trigger charges a swelling orb and, once it is full, wipes the whole garden back
+## to bare meadow; letting go or lowering the beam first lets it fade. Only the garden's host can wipe it. Undo puts
+## any of it back, a wipe in one step.
 
 const TINT := Color(1.0, 0.7, 0.62, 0.6)
 const REACH := 80.0
 ## How far in from the ring's edge, as a fraction of its radius, mowing may stop short: each plant has its own reach.
 const RAGGED := 0.3
+const WIPE_HOLD := 2.0
+## A beam this far up (the sine of its elevation) points at the sky.
+const SKY := 0.6
+const ORB_REACH := 5.0
+const ORB_RADIUS := 1.2
 
 var rig: Rig
 var walls: WallTool
@@ -24,6 +32,8 @@ var _rings: Array[MeshInstance3D] = []
 ## Holds under way, by whoever holds the trigger (a hand, or the driver): a sweep along a wall, {wall, from, to,
 ## at, last, whole} with `from` and `to` unwrapped round a loop, or a mow, {mown}, the plants it has taken so far.
 var _cuts := {}
+## Wipes charging, by whoever holds the trigger up: {t, orb}.
+var _charges := {}
 
 
 func _init(player: Rig, builder: WallTool, plants: FloraTool, garden: World) -> void:
@@ -31,7 +41,10 @@ func _init(player: Rig, builder: WallTool, plants: FloraTool, garden: World) -> 
 	walls = builder
 	flora = plants.flora
 	world = garden
-	world.restored.connect(func() -> void: _cuts.clear())
+	world.restored.connect(func() -> void:
+		_cuts.clear()
+		for who in _charges.keys():
+			cancel(who))
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["trigger_click"]))
 		_rings.append(FloraTool.ring(TINT))
@@ -39,10 +52,10 @@ func _init(player: Rig, builder: WallTool, plants: FloraTool, garden: World) -> 
 
 
 func busy() -> bool:
-	return not _cuts.is_empty()
+	return not _cuts.is_empty() or not _charges.is_empty()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	for k in _buttons.size():
 		var b := _buttons[k]
 		var hand: Hand = b.hand
@@ -57,6 +70,14 @@ func _process(_delta: float) -> void:
 					FloraTool.put_ring(_rings[k], at, FloraTool.brush_radius(t.origin, at))
 			else:
 				let_go(hand)
+		elif _charges.has(hand):
+			if live and b.held("trigger_click"):
+				if charge(hand, t.origin, -t.basis.z, delta):
+					hand.point(t.origin - t.basis.z * ORB_REACH, TINT)
+			else:
+				cancel(hand)
+		elif live and b.pressed("trigger_click") and sky(-t.basis.z):
+			charge(hand, t.origin, -t.basis.z, delta)
 		elif live:
 			if b.pressed("trigger_click"):
 				press(hand, t.origin, -t.basis.z)
@@ -66,6 +87,56 @@ func _process(_delta: float) -> void:
 				if target.has("mow"):
 					FloraTool.put_ring(_rings[k], target.point, target.mow)
 		b.latch()
+
+
+func sky(dir: Vector3) -> bool:
+	return dir.normalized().y > SKY
+
+
+## Charges a wipe for `who` pointing from `origin` along `dir`, `delta` seconds more; at WIPE_HOLD it wipes the
+## garden. Pointing below the sky lets the charge go. Whether it is still charging.
+func charge(who: Object, origin: Vector3, dir: Vector3, delta: float) -> bool:
+	if not sky(dir) or not world.multiplayer.is_server():
+		cancel(who)
+		return false
+	if not _charges.has(who):
+		_charges[who] = {"t": 0.0, "orb": _orb()}
+	var c: Dictionary = _charges[who]
+	c.t += delta
+	if c.t >= WIPE_HOLD:
+		cancel(who)
+		world.submit({"op": "wipe"})
+		return false
+	var k: float = c.t / WIPE_HOLD
+	var orb: MeshInstance3D = c.orb
+	orb.global_position = origin + dir.normalized() * ORB_REACH
+	orb.scale = Vector3.ONE * maxf(k * k, 0.01)
+	(orb.material_override as StandardMaterial3D).albedo_color = Color(TINT, lerpf(0.15, 0.85, k))
+	return true
+
+
+func cancel(who: Object) -> void:
+	var c: Dictionary = _charges.get(who, {})
+	_charges.erase(who)
+	if c.has("orb"):
+		c.orb.queue_free()
+
+
+func _orb() -> MeshInstance3D:
+	var sphere := SphereMesh.new()
+	sphere.radius = ORB_RADIUS
+	sphere.height = ORB_RADIUS * 2.0
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = TINT
+	var orb := MeshInstance3D.new()
+	orb.mesh = sphere
+	orb.material_override = mat
+	orb.top_level = true
+	orb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(orb)
+	return orb
 
 
 ## What a ray from `origin` along `dir` takes, with the `point` it meets: a wall and where along it, a tree or

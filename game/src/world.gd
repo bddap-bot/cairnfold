@@ -13,6 +13,8 @@ const PATCH := 8.0
 ## Commands a player may send per second, and in one burst.
 const RATE := 20.0
 const BURST := 60.0
+## The key a wipe, and the undo of one, touches: everything.
+const WIPED := "*"
 
 signal applied(cmd: Dictionary)
 ## The whole garden was swapped (joining or leaving someone's): tools drop what they were doing.
@@ -181,6 +183,9 @@ func _spend(by: int, cost: float) -> bool:
 func _order(proposed: Dictionary, by: int) -> void:
 	var kind: Variant = proposed.get("op")
 	var cmd := {}
+	if kind == "wipe" and by != me():
+		_refuse(by, proposed.get("token"))
+		return
 	if kind == "undo" or kind == "redo":
 		cmd = _resolve(by, kind)
 		if cmd.is_empty():
@@ -269,18 +274,21 @@ static func _push(stack: Array, entry: Dictionary) -> void:
 
 
 ## The player's latest undo (or redo) step that nobody else has changed anything of since; steps
-## others built on are dropped on the way.
+## others built on are dropped on the way. A dropped wipe takes every step below it, all on a garden it took away.
 func _resolve(by: int, which: String) -> Dictionary:
 	var stack: Array = stacks.get(by, {}).get(which, [])
 	while not stack.is_empty():
 		var e: Dictionary = stack.pop_back()
 		if _untouched_by_others(e, by):
 			return e.inverse.duplicate(true)
+		if WIPED in e.keys:
+			stack.clear()
 	return {}
 
 
+## A wipe touches everything, so anyone's later change to anything stands on it, and it stands on every earlier step.
 func _untouched_by_others(e: Dictionary, by: int) -> bool:
-	for k in e.keys:
+	for k in (touched.keys() if WIPED in e.keys else e.keys + [WIPED]):
 		var last: Dictionary = touched.get(k, {})
 		for who in last:
 			if who != by and last[who] > e.seq:
@@ -301,6 +309,8 @@ func _keys(cmd: Dictionary) -> Array:
 			return ["q%d" % cmd.id]
 		"palette":
 			return ["c%d" % cmd.element]
+		"wipe", "garden":
+			return [WIPED]
 		"show":
 			var out := {}
 			for g in cmd.plants:
@@ -412,6 +422,19 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			inverse = {"op": "palette", "element": cmd.element, "index": palette.picks[cmd.element]}
 			palette.picks[cmd.element] = cmd.index
 			palette.apply()
+		"wipe":
+			inverse = {"op": "garden", "cmds": snapshot().cmds}
+			var picks := palette.picks.duplicate()
+			_hushed(func() -> void:
+				_clear()
+				palette.picks = picks
+				palette.apply()
+				_bare_meadow())
+		"garden":
+			inverse = {"op": "wipe"}
+			_hushed(func() -> void:
+				_clear()
+				_rebuild(cmd.cmds))
 	applied.emit(cmd)
 	if save_path != "" and not _keep_due and multiplayer.is_server():
 		_keep_due = true
@@ -472,19 +495,43 @@ func snapshot() -> Dictionary:
 ## Back to the empty meadow, then the snapshot's garden, and how many of its commands applied. Undo history
 ## goes with the old garden.
 func restore(snap: Dictionary) -> int:
+	var applied: int = _hushed(func() -> int:
+		_clear()
+		Ground.clear()
+		flora.clear_ghosts()
+		stacks.clear()
+		touched.clear()
+		for t in _done.keys():
+			_settle(t)
+		restored.emit()
+		return _rebuild(snap.cmds))
+	seq = snap.seq
+	return applied
+
+
+## Runs `change` with the walls' sounds and the ground's rewear held until it has finished; what it returns.
+func _hushed(change: Callable) -> Variant:
 	wall_tool.quiet = true
 	Ground.quiet = true
+	var out: Variant = change.call()
+	wall_tool.quiet = false
+	Ground.quiet = false
+	Ground.rewear()
+	return out
+
+
+## Back to the empty meadow, every one of its plants standing, with the plain colours.
+func _clear() -> void:
 	for id in state.walls.keys():
 		wall_tool.take(id)
 	for id in state.paths.keys():
 		paths.take(id)
 	if water != null:
 		water.reset()
-	Ground.clear()
+	for id in _strokes:
+		Ground.lift(_strokes[id])
 	_strokes.clear()
 	state = {"walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": []}
-	stacks.clear()
-	touched.clear()
 	flora.reset()
 	palette.picks = Palette.new().picks
 	palette.apply()
@@ -492,11 +539,12 @@ func restore(snap: Dictionary) -> int:
 	if sculpted:
 		terrain_tool.restore(Terrain.ALL, Terrain.base_heights())
 		sculpted = false
-	for t in _done.keys():
-		_settle(t)
-	restored.emit()
+
+
+## Applies a snapshot's commands, each checked against the garden as the ones before it left it; how many applied.
+func _rebuild(cmds: Array) -> int:
 	var applied := 0
-	for sent in snap.cmds:
+	for sent in cmds:
 		var cmd := Commands.clean(sent, state, true) if sent is Dictionary else {}
 		if cmd.is_empty():
 			push_error("world: skipped a snapshot command this garden cannot apply")
@@ -504,11 +552,18 @@ func restore(snap: Dictionary) -> int:
 		cmd.erase("token")
 		_apply(cmd)
 		applied += 1
-	seq = snap.seq
-	wall_tool.quiet = false
-	Ground.quiet = false
-	Ground.rewear()
 	return applied
+
+
+## Hides the meadow's own flowers, bushes and trees, leaving its grass.
+func _bare_meadow() -> void:
+	var scenery := PackedInt32Array()
+	for p: Flora.Plant in flora.groups[0]:
+		if p.pool != flora.grass:
+			scenery.append(p.index)
+	var hidden: Dictionary = state.groups[0].hidden
+	for i in flora.set_shown(0, scenery, false):
+		hidden[i] = true
 
 
 ## What this machine shows of the garden, for comparing machines: every wall's data and laid stones,

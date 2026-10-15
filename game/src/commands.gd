@@ -5,7 +5,7 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "heights", "palette"]
+const OPS := ["wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "heights", "palette", "wipe", "garden"]
 ## A stroke builds at most this many walls; their ids follow from the command's sequence number.
 const MAX_PIECES := 8
 const MAX_POINTS := 256
@@ -27,6 +27,8 @@ const MAX_STAMPS := 2000
 const MAX_FITTINGS := 64
 const MAX_CHIMNEYS := 8
 const MAX_RUINS := 32
+## Most commands a snapshot holds: per thing one, and per plant group one more for its hidden plants.
+const MAX_SNAPSHOT := MAX_THINGS * 2 + MAX_SEEDS + 64
 
 
 ## Length of a stroke along the ground.
@@ -117,6 +119,12 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			ok = typeof(e) == TYPE_INT and e >= 0 and e < Palette.Element.size() and typeof(i) == TYPE_INT and i >= 0 and i < Palette.count(e)
 			out.element = e
 			out.index = i
+		"wipe":
+			ok = true
+		"garden":
+			var cmds: Variant = cmd.get("cmds")
+			ok = from_host and cmds is Array and cmds.size() <= MAX_SNAPSHOT
+			out.cmds = cmds
 	return out if ok else {}
 
 
