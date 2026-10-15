@@ -15,7 +15,7 @@ class BenchmarkRendering(unittest.TestCase):
             (out / "metrics.json").write_text(json.dumps({
                 "info": {"budget": {"gpu_ms": 12.5, "refresh_hz": 72}},
                 "seconds": [{"label": "drag", "p50": 13.89, "p99": 13.89,
-                             "draws": 100, "prims": 1000}],
+                             "late": 0, "draws": 100, "prims": 1000}],
             }))
             for log in ["logcat.txt", "godot.log"]:
                 with self.subTest(log=log):

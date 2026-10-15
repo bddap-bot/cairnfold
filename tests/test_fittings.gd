@@ -395,7 +395,7 @@ func _in_the_glade() -> void:
 	var ground_aim := fit.aim(Hand.Tool.WINDOWS, on_face + normal * 3.0, down)
 	var astray := fit.ghost_of(Hand.Tool.WINDOWS, ground_aim, on_face + normal * 3.0, down, Terrain.raycast(on_face + normal * 3.0, down))
 	_check(ground_aim.is_empty() and astray.get("what") == "window" and not astray.fits, "aimed at the ground, the window's ghost hangs there unplaced")
-	_check(not fit.fit(ground_aim), "a press at the ground places nothing and says so")
+	_check(not _fit(fit, ground_aim), "a press at the ground places nothing and says so")
 	var ridge: Vector3 = house.roof.frame().mid + Vector3.UP * (house.roof.pitch * 0.5)
 	_check(fit.aim(Hand.Tool.DECORATIONS, ridge + house.roof.frame().across * 1.2 + Vector3.UP * 6.0, Vector3.DOWN).get("what") == "chimney", "on a house's roof, a chimney")
 	_check(fit.aim(Hand.Tool.DECORATIONS, tower.roof.frame().mid + Vector3.UP * 12.0, Vector3.DOWN).get("what") == "tower_flag", "on a tower's roof, a flag")
@@ -405,56 +405,79 @@ func _in_the_glade() -> void:
 	_check(fit.aim(Hand.Tool.DECORATIONS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).get("what") == "lantern", "on a fence, a lantern")
 	_check(fit.aim(Hand.Tool.WINDOWS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).is_empty(), "no windows in a fence")
 	_check(main.tool.pick_wall(post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).get("wall") == fence, "a ray through the fence and on into the wall behind picks the fence")
-	fit.fit(fit.aim(Hand.Tool.DECORATIONS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n))
+	_fit(fit, fit.aim(Hand.Tool.DECORATIONS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n))
 	_check(fence.layout.flames.size() == 1, "a press hangs a lantern on the fence")
 	var beside: Vector3 = fence.layout.frame_at(3.7).point + Vector3.UP * 0.8
-	fit.fit(fit.aim(Hand.Tool.DECORATIONS, beside + post_n * 3.0, -post_n))
+	_fit(fit, fit.aim(Hand.Tool.DECORATIONS, beside + post_n * 3.0, -post_n))
 	_check(fence.layout.flames.is_empty() and fence.layout.lanterns.is_empty(), "a press farther along the same post takes it away")
 
 	var steps: int = steps_now.call()
-	fit.fit(w_aim)
+	_fit(fit, w_aim)
 	_check(wall.layout.openings.size() == 1 and steps_now.call() == steps + 1, "a press opens a window, one undo step")
-	fit.fit(fit.aim(Hand.Tool.WINDOWS, on_face + face.tangent * 0.8 + normal * 3.0, -normal))
+	_fit(fit, fit.aim(Hand.Tool.WINDOWS, on_face + face.tangent * 0.8 + normal * 3.0, -normal))
 	_check(wall.layout.openings.size() == 1 and wall.layout.openings[0].lights == 2, "a press beside it fuses a second light into it")
-	fit.fit(fit.aim(Hand.Tool.WINDOWS, on_face + normal * 3.0, -normal))
+	_fit(fit, fit.aim(Hand.Tool.WINDOWS, on_face + normal * 3.0, -normal))
 	_check(wall.layout.windows.size() == 1 and wall.layout.openings.size() == 1 and wall.layout.openings[0].lights == 1, "a press on a light closes that light")
 	var on_arch := wall.layout.point_at(wall.layout.live_arches[0]) + Vector3.UP * 1.0
 	var before: int = steps_now.call()
-	fit.fit(fit.aim(Hand.Tool.WINDOWS, on_arch + normal * 3.0, -normal))
+	_fit(fit, fit.aim(Hand.Tool.WINDOWS, on_arch + normal * 3.0, -normal))
 	_check(steps_now.call() == before and wall.layout.windows.size() == 1, "a window that cannot open in an arch is not placed and leaves no step")
-	world.undo()
+	_undo(world)
 	_check(wall.layout.openings[0].lights == 2, "undo brings the closed light back")
-	world.undo()
-	world.undo()
+	_undo(world)
+	_undo(world)
 	_check(wall.layout.openings.is_empty() and wall.layout.windows.is_empty(), "undo closes the windows")
-	world.redo()
+	_redo(world)
 	_check(wall.layout.openings.size() == 1, "redo opens one again")
 
-	fit.fit(t)
+	_fit(fit, t)
 	_check(wall.layout.flames.size() == 1, "a press hangs the lantern")
 	fit.place_lights()
 	var lit := fit.get_children().filter(func(n): return n is OmniLight3D and n.visible)
 	_check(lit.size() == 1 and lit[0].global_position.is_equal_approx(wall.layout.flames[0].origin), "a real light shines from the lantern")
-	fit.fit(t)
+	_fit(fit, t)
 	_check(wall.layout.flames.is_empty(), "a second press takes the lantern away")
-	world.undo()
+	_undo(world)
 	_check(wall.layout.flames.size() == 1, "undo hangs it again")
 
-	fit.fit({"what": "chimney", "wall": house, "at": Vector2(1.0, 1.0)})
+	_fit(fit, {"what": "chimney", "wall": house, "at": Vector2(1.0, 1.0)})
 	_check(house.roof.chimneys.size() == 1 and not _kind(house.roof, "chimney").is_empty(), "a chimney stands on the house")
 	house.layout.height += WallLayout.COURSE * 2.0
 	house.rebuild()
+	house.lay_now()
 	_check(not _kind(house.roof, "chimney").is_empty() and _kind(house.roof, "chimney").reduce(func(m, s): return maxf(m, s.xform.origin.y), 0.0) > house.roof.base + house.roof.pitch, "raising the house carries its chimney up with the roof")
-	fit.fit({"what": "tower_flag", "wall": tower})
+	_fit(fit, {"what": "tower_flag", "wall": tower})
 	_check(tower.roof.flag and tower.roof.cloths.size() == 1, "a flag flies from the tower")
-	world.undo()
+	_undo(world)
 	_check(not tower.roof.flag, "undo lowers it")
 
 	await _play([{"op": "pave", "points": [[1.5, 12], [1.5, 4], [1.5, -4]], "radius": 0.6, "seconds": 0.3}])
 	_check(fence.layout.live_arches.size() == 1 and _kind(fence.layout, "gate").size() == 9, "a path through the fence opens a wooden gate")
-	world.undo()
+	_undo(world)
 	_check(fence.layout.live_arches.is_empty(), "undoing the path closes the gate")
 	_done()
+
+
+## A press of the fitting tool, and the walls it changed laid, for a test reading them at once.
+func _fit(fit: FittingTool, target: Dictionary) -> bool:
+	var placed := fit.fit(target)
+	_lay_walls()
+	return placed
+
+
+func _undo(world: World) -> void:
+	world.undo()
+	_lay_walls()
+
+
+func _redo(world: World) -> void:
+	world.redo()
+	_lay_walls()
+
+
+func _lay_walls() -> void:
+	for w: Wall in main.tool.walls:
+		w.lay_now()
 
 
 func _each_fitting_stands_alone() -> void:

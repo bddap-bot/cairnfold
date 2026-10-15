@@ -89,6 +89,8 @@ var _arch_button: Buttons
 ## Ids of builds to lay again at the end of the frame for what they meet.
 var _due := {}
 var _path_arches := {}
+## The walls in hand of this player's command that last came back, for the garden's walls it puts up (`put`).
+var _handing: Array[Wall] = []
 
 
 func _init(player: Rig, garden: World, plants: Flora, ways: Paths) -> void:
@@ -130,6 +132,7 @@ func busy() -> bool:
 
 
 func _process(delta: float) -> void:
+	_let_go_handed()
 	for m in masons:
 		_handle(m, delta)
 	_house_input()
@@ -223,7 +226,7 @@ func _flush() -> void:
 		if m.lifting != null:
 			m.lifting.rebuild(false)
 		if m.roofing != null:
-			m.roofing.rebuild_roof(true)
+			m.roofing.rebuild(false)
 	if house != null and _house_dirty:
 		house.rebuild(false)
 		_house_dirty = false
@@ -328,15 +331,17 @@ func end_stroke(m: Mason) -> void:
 		_finish(built_walls)
 
 
-## Sends a stroke's walls to the garden as one step; they stand as drawn until the command comes back.
+## Sends a stroke's walls to the garden as one step; they stand as drawn until the garden's walls they become
+## are laid.
 func _finish(ws: Array[Wall]) -> void:
 	world.submit({"op": "wall", "walls": ws.map(func(w: Wall) -> Dictionary: return w.data())}, func() -> void:
-		for w in ws:
-			w.queue_free())
+		_let_go_handed()
+		_handing = ws)
 
 
 ## The garden is being swapped: walls in hand belong to the old one.
 func _forget() -> void:
+	_let_go_handed()
 	_path_arches.clear()
 	for m in masons:
 		if m.stroke != null:
@@ -569,7 +574,7 @@ func shape_roof(w: Wall, pitch: float, curve: float) -> void:
 	r.pitch = pitch
 	r.curve = curve
 	_dirty = true
-	built.emit(&"settle" if r.flat() else &"stone", r.frame().mid + Vector3.UP * pitch)
+	built.emit(&"settle" if r.flat() else &"stone", _ridge(w))
 
 
 func end_roof(m: Mason) -> void:
@@ -637,7 +642,7 @@ func _preview_crossings() -> void:
 		for p in paths.previews:
 			_cut_crossings(w, p)
 		if before != w.layout.arches:
-			w.settle_when_laid()
+			w.rebuild()
 
 
 ## Wall chemistry: a path laid or lifted opens or closes arches in every wall it crosses.
@@ -683,14 +688,23 @@ func _sound(kind: StringName, at: Vector3) -> void:
 		built.emit(kind, at)
 
 
-## The garden's side of a wall going up, from any player.
-func put(id: int) -> void:
+## The garden's side of a wall going up, from any player; `handed` when it is the next of this player's walls in hand.
+func put(id: int, handed: bool) -> void:
 	var w := _new_wall()
 	w.id = id
 	w.finished = true
 	walls.append(w)
+	if handed and not _handing.is_empty():
+		w.stand_in(_handing.pop_front())
 	_relay(w)
 	_sound(&"settle", _top(w, w.layout.length() * 0.5))
+
+
+## Walls in hand whose command was turned down, or whose garden is gone.
+func _let_go_handed() -> void:
+	for w in _handing:
+		w.queue_free()
+	_handing.clear()
 
 
 func take(id: int) -> void:
@@ -718,7 +732,7 @@ func restyle(id: int, changed: Array) -> void:
 	elif "arches" in changed:
 		_sound(&"arch", _top(w, w.layout.length() * 0.5))
 	elif "roof" in changed:
-		_sound(&"stone", w.roof.frame().mid + Vector3.UP * w.roof.pitch)
+		_sound(&"stone", _ridge(w))
 	else:
 		_sound(&"settle", _top(w, w.layout.length() * 0.5))
 
@@ -741,17 +755,22 @@ func _held(w: Wall) -> bool:
 func reground(area: Rect2, settled: bool) -> void:
 	for w in walls:
 		if w.footprint().intersects(area):
-			if not settled or _held(w):
-				w.rebuild(settled)
-			else:
-				w.settle_when_laid()
-				if _meets_any(w):
-					w.layout.resample(Terrain.height_at)
-					_reshaped(w)
+			w.rebuild(settled)
+			if settled and not _held(w) and _meets_any(w):
+				w.layout.resample(Terrain.height_at)
+				_reshaped(w)
 
 
 func _top(w: Wall, s: float) -> Vector3:
 	return w.layout.point_at(s) + Vector3.UP * w.layout.height
+
+
+## Over the middle of a roofed wall's ring at its ridge, from what the garden holds of it, laid yet or not.
+func _ridge(w: Wall) -> Vector3:
+	var mid := Vector3.ZERO
+	for p in w.layout.points:
+		mid += p
+	return mid / w.layout.points.size() + Vector3.UP * (w.layout.height + w.roof.pitch)
 
 
 ## The wall a ray points at: the nearest along it of those it passes through, else the one it passes closest to.
@@ -925,4 +944,4 @@ func _relay_due() -> void:
 		_meet(w)
 		w.layout.resample(Terrain.height_at)
 		_reshaped(w)
-		w.settle_when_laid()
+		w.rebuild()

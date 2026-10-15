@@ -3,6 +3,7 @@ extends Node
 
 ## Plays a JSON list of steps through the same rig and tool entry points the controllers use.
 ## A step marked "background" starts and the next one follows at once, as a camera glides while a wall is drawn.
+## Each step starts once the garden's builds are laid, so it reads them as built.
 
 ## The Steam Frame's buttons as SteamVR delivers them to a game bound through the Touch or Index
 ## profiles (its frame_controller remapping): B, X and Y all arrive as right-hand B, View as left menu.
@@ -47,13 +48,20 @@ func _ready() -> void:
 
 func _run() -> void:
 	for step in steps:
+		await _standing()
 		print("driver: ", step)
 		if step.get("background", false):
 			call("_" + step.op, step)
 		else:
 			await call("_" + step.op, step)
+	await _standing()
 	print("driver: done")
 	finished.emit()
+
+
+func _standing() -> void:
+	while main.tool.walls.any(func(w: Wall) -> bool: return w.laying()):
+		await get_tree().process_frame
 
 
 func _wait(s: Dictionary) -> void:

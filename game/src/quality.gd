@@ -83,8 +83,11 @@ func _process(delta: float) -> void:
 		if pin < 0 and _warm > WARMUP and _settled:
 			governor.step(frame_ms, budget_ms, delta)
 	var at := ladder[step()]
-	if not is_equal_approx(view.scaling_3d_scale, at.scaling_3d):
-		view.scaling_3d_scale = at.scaling_3d
+	# The first frame at a lower 3D resolution takes 30 to 70 ms on the Frame and later switches cost nothing, so the
+	# warm-up, whose frames are not the scene's cost, renders at the lowest first.
+	var scale := ladder[-1].scaling_3d if _xr != null and _warm < WARMUP * 0.5 else at.scaling_3d
+	if not is_equal_approx(view.scaling_3d_scale, scale):
+		view.scaling_3d_scale = scale
 	_settled = _flora.approach(at, delta)
 
 

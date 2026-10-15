@@ -335,14 +335,17 @@ func _keys(cmd: Dictionary) -> Array:
 ## Changes the garden by one command and returns the command that takes it back. The author's ghost
 ## goes first, so a stroke's hump is not counted twice under walls laid on the new ground.
 func _apply(cmd: Dictionary) -> Dictionary:
-	if cmd.get("by") == me() and cmd.has("token"):
+	var mine: bool = cmd.get("by") == me() and cmd.has("token")
+	# An undo or redo carries its own token but no walls in hand.
+	var handed := mine and _done.has(cmd.token)
+	if mine:
 		_settle(cmd.token)
 	var inverse := {}
 	match cmd.op:
 		"wall":
 			for i in cmd.ids.size():
 				state.walls[cmd.ids[i]] = cmd.walls[i].duplicate(true)
-				wall_tool.put(cmd.ids[i])
+				wall_tool.put(cmd.ids[i], handed)
 			inverse = {"op": "unwall", "ids": cmd.ids}
 		"unwall":
 			inverse = {"op": "wall", "ids": cmd.ids, "walls": Array(cmd.ids).map(func(id: int) -> Dictionary: return state.walls[id])}
@@ -566,9 +569,11 @@ func _bare_meadow() -> void:
 		hidden[i] = true
 
 
-## What this machine shows of the garden, for comparing machines: every wall's data and laid stones,
+## What this machine shows of the garden, for comparing machines: every wall's data and laid stones, once laid,
 ## every plant group's standing plants, and the ground.
 func digest() -> Dictionary:
+	for w: Wall in wall_tool.walls:
+		w.lay_now()
 	var out := {"seq": seq, "walls": {}, "groups": {}, "ground": hash(Terrain.read(Terrain.ALL))}
 	for w: Wall in wall_tool.walls:
 		out.walls[str(w.id)] = {"data": var_to_str(state.walls[w.id]), "stones": w.layout.stones.size(), "height": w.layout.height}

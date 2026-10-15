@@ -141,15 +141,25 @@ A 142 ms frame once seen at the air teleport was the script's capture just befor
 it, which encoded its PNG on the main thread; captures now save on a worker
 thread, as the camera's photos do.
 
-The houses phase, governed: from about its 10th second to its end (18 s) every
-frame holds 72 Hz at the ladder's first step (3D resolution 0.9, 9.5 ms of GPU time a
-frame), where before it ran at every other refresh from its 6th second to its end. Its
-first seconds still run late while the tower and the house are built and the roofs
-reshaped: settling a tower or a house, reshaping a roof and changing a wall top each
-take 5 to 18 ms of main-thread script (laying the stones and the roof again in
-`World._apply`), and the runtime keeps the game at every other refresh for a few seconds
-after each. A house being pulled no longer lays its roof on the main thread every frame
-(5 to 8 ms): the roof is laid with its stones on the worker thread.
+Building lays nothing on the main thread. A wall settling after a command, a roof being
+pulled and a wall top changing are laid on a worker thread while the stones standing stay in
+view; the garden's copy of a wall in hand takes the stones the player's preview already laid
+when they were laid from the same inputs. Each edit now costs 1 to 3 ms of main-thread script
+(20 to 30 ms before, headless). The houses phase's edits (a tower, a house, two roofs reshaped,
+a wall top changed), each followed by 10 s, with the ladder held at its first step:
+
+| Build | Frames over 1.5× the refresh period |
+| --- | --- |
+| Before (8de66b6) | 72 (tower 1, roofs 37 and 33, top 1) |
+| After, four runs | 0 each |
+
+Governed, the houses phase of `demo/headset.json` went from 137 late frames to between 1 and
+75 over four runs. Those come from GPU time, not the edits: the tower, the house and their ivy
+take the full-quality step to the runtime's 0.88 line (12 ms a frame) while the house is still
+being carried, and the runtime halves the rate before the governor's one-second average steps
+down. A line at 0.82 instead of 0.85 gave 1 and 75 late frames against 1 and 73, so it stays.
+`scripts/bench.sh` with `CAIRNFOLD_SCENE=demo/headset.json` runs this check on the Frame; its
+`late` column counts every frame of a phase.
 
 ### Quest 2 measurements
 
@@ -398,9 +408,11 @@ GPU time per frame (fdinfo), median of each phase:
 | 3D resolution 0.8, the ladder's bottom step | 5.7 ms | 7.3 ms |
 
 A tenth off the 3D resolution saves more there than every reach step together, at a loss of
-sharpness that is hard to see, so it is the ladder's first step. It moves at no frame cost: the
-scene upscales into the same swapchain, and switching it every 4 s for two minutes left no late
-frame at a switch. On the Quest 2 neither this step nor the governor's line at 0.85 of the
+sharpness that is hard to see, so it is the ladder's first step. The scene upscales into the
+same swapchain. The first frame at the lower resolution in a session took 30 to 70 ms and later
+switches cost nothing (switching every 5 s left no late frame after the first), so the
+governor's warm-up renders at the ladder's lowest resolution. On the Quest 2 neither this step
+nor the governor's line at 0.85 of the
 period (below) is measured yet: the render region there left the binned surface as it was,
 while this scale shrinks it.
 

@@ -10,6 +10,8 @@
 #   bench.sh OUT_DIR --android APK            a Quest over adb (ANDROID_SERIAL picks it), in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
 # On a Quest, exits 1 when a phase the build must hold goes over budget; phases named "sweep/..." only measure.
+# CAIRNFOLD_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
+# frames over 1.5x the refresh period from its first second, where its edits land; the others leave that second out.
 # CAIRNFOLD_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
 # streaming their heads and hands.
 set -euo pipefail
@@ -22,7 +24,7 @@ device=desktop
 players=${CAIRNFOLD_PLAYERS:-1}
 case $players in [1-8]) ;; *) echo "bench: CAIRNFOLD_PLAYERS is 1 to 8" >&2; exit 1 ;; esac
 # With other players the measured instance waits for them all before its first phase.
-python3 - "$here/../demo/stress.json" "$players" > "$out/stress.json" <<'PY'
+python3 - "${CAIRNFOLD_SCENE:-$here/../demo/stress.json}" "$players" > "$out/stress.json" <<'PY'
 import json, sys
 steps = json.load(open(sys.argv[1]))
 players = int(sys.argv[2])
@@ -266,12 +268,13 @@ elif device == "quest":
     if unmeasured:
         sys.exit("bench: no runtime GPU time for " + ", ".join(unmeasured) + "; see logcat.txt")
 print(f"{device}: budget {budget['gpu_ms']:.2f} ms of GPU time a frame at {budget['refresh_hz']:.0f} Hz, held on a Quest")
-print(f"{'phase':18} {'frame p50':>9} {'p99':>7} {'draws':>6} {'prims':>9} {'gpu ms':>7}")
+print(f"{'phase':18} {'frame p50':>9} {'p99':>7} {'late':>5} {'draws':>6} {'prims':>9} {'gpu ms':>7}")
 over = []
 for name, secs in phases.items():
+    late = sum(s["late"] for s in secs)
     secs = secs[1:] or secs
     mid = lambda xs: sorted(xs)[len(xs) // 2] if xs else float("nan")
-    row = f"{name:18} {mid([s['p50'] for s in secs]):9.2f} {max(s['p99'] for s in secs):7.2f} {max(s['draws'] for s in secs):6} {max(s['prims'] for s in secs):9}"
+    row = f"{name:18} {mid([s['p50'] for s in secs]):9.2f} {max(s['p99'] for s in secs):7.2f} {late:5} {max(s['draws'] for s in secs):6} {max(s['prims'] for s in secs):9}"
     if gpu.get(name):
         g = mid(gpu[name])
         row += f" {g:7.2f}"

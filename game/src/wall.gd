@@ -31,24 +31,20 @@ var _parts: Array[PackedFloat32Array] = []
 var _live: Array[MultiMeshInstance3D] = []
 var _gables: MeshInstance3D
 var _settled := false
-var _roof_live := false
 var _ivy_times := PackedFloat32Array()
 var _ivy_task := -1
 var _ivy_baked := {}
 var _ivy_stale := false
 var _build_task := -1
 var _build_stale := false
-## Counts settling rebuilds, so a worker's layout that one overtook is dropped.
-var _build_gen := 0
-var _build_job: WallLayout
-var _build_out := {}
-## The preview now shown, with the ground revision it stands on: a settling rebuild with the same inputs
-## takes it rather than laying the stones again.
-var _shown: WallLayout
-## The roof laid with `_shown` (`pack_roof`), or empty.
-var _shown_roof := {}
-var _shown_ground := -1
-var _settle_when_laid := false
+## A lay: its inputs (`job`, `roof`, the ground's `revision`) and what the worker laid from them (`out`).
+var _build := {}
+## The lay now shown; a settling rebuild from the same inputs takes it rather than laying the stones again.
+var _shown := {}
+## Whether the wall settles once the lay under way lands; `rebuild(false)` clears it.
+var _settle_on_land := false
+## The wall in hand this one is the garden's copy of, shown until this one's stones are laid.
+var _stand_in: Wall
 ## Stones a newer layout replaced. Freeing a long wall's thousands of them takes milliseconds, so the wall's
 ## next worker task does it.
 var _litter: Array[Array] = []
@@ -146,24 +142,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if _build_task >= 0 and WorkerThreadPool.is_task_completed(_build_task):
-		WorkerThreadPool.wait_for_task_completion(_build_task)
-		_build_task = -1
-		if _build_out.gen == _build_gen:
-			_litter.append(layout.stones)
-			layout.adopt(_build_job)
-			_take(_build_out)
-			_shown = _build_job
-			_shown_roof = _build_out.get("roofed", {})
-			_shown_ground = _build_out.ground
-			if _settle_when_laid and not _build_stale:
-				_shown_ground = Terrain.revision
-				rebuild()
-			else:
-				# A roof being pulled is laid as it goes, newer than the one laid with these stones.
-				_lay_dressing({} if _roof_live else _shown_roof)
-				_sync()
-		if _build_stale:
-			_build_live()
+		_land()
 	if finished:
 		ivy_age += delta
 	if _ivy_task >= 0 and WorkerThreadPool.is_task_completed(_ivy_task):
@@ -183,6 +162,26 @@ func _process(delta: float) -> void:
 			_sync()
 
 
+## Waits for the stones being laid and takes them, for a caller that reads them at once.
+func lay_now() -> void:
+	while _build_task >= 0:
+		_land()
+
+
+func _land() -> void:
+	WorkerThreadPool.wait_for_task_completion(_build_task)
+	_build_task = -1
+	_litter.append(layout.stones)
+	_shown = _build
+	if _build_stale:
+		_build_live()
+	if _settle_on_land and _build_task < 0:
+		_settle()
+	else:
+		_put_shown()
+		_sync()
+
+
 func _ivy_growing() -> bool:
 	return _ivy_task >= 0 or (not _ivy_times.is_empty() and ivy_age <= _ivy_times[-1])
 
@@ -195,6 +194,8 @@ func _exit_tree() -> void:
 	_build_task = -1
 	_perch_task = -1
 	masonry.remove(get_instance_id())
+	if _stand_in != null:
+		_stand_in.queue_free()
 
 
 ## Where a bird can stand on the wall's top, as last worked out. Working them out reads every stone, several
@@ -232,46 +233,48 @@ func _layout_ivy() -> void:
 		out.merge(IvyLayout.bake(shape)))
 
 
-## Lays the stones again. With `settle`, at once, and the wall then settles into the Masonry with its ivy.
-## Without, while a stroke, a grip lift or a house footprint is still moving: the stones are laid on a worker
-## thread, since a long wall takes several frames' worth of main-thread time, and appear when ready.
+## Lays the stones again on a worker thread, since a long wall takes several frames' worth of main-thread time;
+## the stones standing show until the new ones are laid. Without `settle` while a stroke, a grip lift, a roof pull
+## or a house footprint is still moving; with it the wall then settles into the Masonry with its ivy.
 func rebuild(settle := true) -> void:
-	_settled = finished and settle
-	_settle_when_laid = false
+	_settle_on_land = settle
 	if not settle:
-		_build_live()
-		return
-	_build_gen += 1
-	_build_stale = false
-	if _build_task >= 0 and _build_out.ground == Terrain.revision and _build_job.same_inputs(layout):
-		WorkerThreadPool.wait_for_task_completion(_build_task)
-		_build_task = -1
-		_take(_build_out)
-		_shown = _build_job
-		_shown_roof = _build_out.get("roofed", {})
-		_shown_ground = Terrain.revision
-	var roofed := {}
-	if _shown != null and _shown_ground == Terrain.revision and _shown.same_inputs(layout):
-		layout.adopt(_shown)
-		if not _shown_roof.is_empty() and _shown_roof.roof.same_inputs(roof):
-			roofed = _shown_roof
+		_settled = false
+	if settle and _build_task < 0 and _laid_from(_shown):
+		_settle()
 	else:
-		layout.build(Terrain.height_at)
-		_take(pack(layout, kinds()))
-	_shown = null
-	_shown_roof = {}
-	_lay_dressing(roofed)
+		_build_live()
+
+
+## Takes the place of `preview`, the wall in hand that this one is the garden's copy of: it shows until this
+## one's stones are laid, which are its own if it laid them from the same inputs on the same ground.
+func stand_in(preview: Wall) -> void:
+	preview.set_process(false)
+	_stand_in = preview
+	if preview._build_task < 0:
+		_shown = preview._shown
+
+
+## Whether lay `b` was laid from this wall's inputs as they stand, on the ground as it stands.
+func _laid_from(b: Dictionary) -> bool:
+	if b.is_empty() or b.revision != Terrain.revision or not b.job.same_inputs(layout) or (b.roof == null) != (roof == null):
+		return false
+	return roof == null or b.roof.same_inputs(roof)
+
+
+func _put_shown() -> void:
+	layout.adopt(_shown.job)
+	_take(_shown.out)
+	_lay_dressing(_shown.out.get("roofed", {}))
+
+
+func _settle() -> void:
+	_settled = finished
+	_settle_on_land = false
+	_put_shown()
 	if _settled and not layout.fence:
 		_layout_ivy()
 	_sync()
-
-
-## Lays the stones again on a worker thread and settles when they are laid, for ground that moved under a wall
-## nobody holds: every rebuild(false) until then is ground still moving under it, so the last preview stands on
-## the ground as it settled.
-func settle_when_laid() -> void:
-	rebuild(false)
-	_settle_when_laid = true
 
 
 func _sweep() -> Array[Array]:
@@ -292,18 +295,17 @@ func laying() -> bool:
 
 func _build_live() -> void:
 	set_process(true)
+	if roof != null:
+		_cover()
 	if _build_task >= 0:
-		_build_stale = true
+		_build_stale = not _laid_from(_build)
 		return
 	_build_stale = false
 	var job := layout.inputs()
-	var out := _build_out
-	out.clear()
-	out.gen = _build_gen
-	out.ground = Terrain.revision
-	var ks := kinds()
-	_build_job = job
 	var roof_job := roof.inputs() if roof != null else null
+	var out := {}
+	_build = {"job": job, "roof": roof_job, "revision": Terrain.revision, "out": out}
+	var ks := kinds()
 	var litter := _sweep()
 	_build_task = WorkerThreadPool.add_task(func():
 		_drop(litter)
@@ -311,23 +313,6 @@ func _build_live() -> void:
 		out.merge(Wall.pack(job, ks))
 		if roof_job != null:
 			out.roofed = Wall.pack_roof(job, roof_job, ks))
-
-
-## Lays the roof again; `live` while its pitch is being pulled, so it stays out of the Masonry until let go.
-## Going flat or back up changes the top the walls lay, so their stones are laid again too.
-func rebuild_roof(live := false) -> void:
-	var cover := layout.cover
-	_cover()
-	if layout.cover != cover:
-		rebuild(false)
-	var was_live := _roof_live
-	_roof_live = live
-	_pack_roof()
-	if live and was_live:
-		_show(Part.TILE)
-		_show(Part.TILE_SHADOW)
-	else:
-		_sync()
 
 
 ## The roof, or else the lanterns and flags, laid again over the stones; `roofed` is a roof already laid on
@@ -423,19 +408,19 @@ func _take(packed: Dictionary) -> void:
 	pick_bounds = packed.bounds
 
 
-## Puts each part where it belongs: with the Masonry once settled (ivy once grown, a roof once let go), else
-## drawn here.
+## Puts each part where it belongs: with the Masonry once settled (ivy once grown), else drawn here.
 func _sync() -> void:
 	var placed: Array[PackedFloat32Array] = []
 	for p in Part.size():
 		var settle := _settled
 		if p == Part.IVY:
 			settle = settle and not _ivy_growing()
-		elif p == Part.TILE or p == Part.TILE_SHADOW:
-			settle = settle and not _roof_live
 		placed.append(_parts[p] if settle else PackedFloat32Array())
 		_show(p, not settle)
 	masonry.place(get_instance_id(), pick_bounds.get_center(), placed)
+	if _stand_in != null:
+		_stand_in.queue_free()
+		_stand_in = null
 
 
 func _show(p: int, live := true) -> void:

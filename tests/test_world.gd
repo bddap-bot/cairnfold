@@ -244,6 +244,7 @@ func _undo_restores_exact_values() -> void:
 	world._order({"op": "reshape", "id": a, "data": {"roof": {"pitch": 0.0}}}, 1)
 	_check(world.state.walls[a].roof.pitch == 0.0 and main.tool.find(a).layout.cover == WallLayout.Cover.DECK, "a roof pushed flat is taken and laid as a deck")
 	world._order({"op": "reshape", "id": a, "data": {"top": WallLayout.Top.CRENEL}}, 1)
+	main.tool.find(a).lay_now()
 	_check(main.tool.find(a).layout.stones.any(func(s): return s.kind == "merlon"), "a flat-roofed house's top restyles like an open wall's")
 	world._order({"op": "undo"}, 1)
 	world._order({"op": "undo"}, 1)

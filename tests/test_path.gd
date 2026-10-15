@@ -432,13 +432,16 @@ func _undo_lifts_a_path_and_its_arches() -> void:
 	for i in 41:
 		t.extend_path(Terrain.ground(2, 54 + i * 0.3), 0.6)
 	t.end_path(b)
+	_lay_walls(nodes[0])
 	var paths: Paths = nodes[1]
 	_check(paths.layouts.size() == 1 and w.layout.live_arches.size() == 1, "the path is laid and opens its arch: %s" % [w.layout.live_arches])
 	world.undo()
+	_lay_walls(nodes[0])
 	_check(paths.layouts.is_empty() and Ground.bare(2, 57) == 0.0, "undo lifts the path and its wear (%.2f)" % Ground.bare(2, 57))
 	_check(w.layout.live_arches.is_empty(), "undo closes the arch the path opened: %s" % [w.layout.live_arches])
 	_check(not paths.get_children().any(func(c): return c is Stones), "undo takes the path's stones away")
 	world.redo()
+	_lay_walls(nodes[0])
 	_check(paths.layouts.size() == 1 and Ground.bare(2, 57) > 0.99 and w.layout.live_arches.size() == 1, "redo lays it again, arch and all: %s" % [w.layout.live_arches])
 	t.free()
 	_teardown(nodes)
@@ -451,7 +454,13 @@ func _draw_wall(tool: WallTool, a: Vector3, b: Vector3) -> Wall:
 		var p := a.lerp(b, i / 40.0)
 		tool.extend_stroke(m, Terrain.ground(p.x, p.z))
 	tool.end_stroke(m)
+	_lay_walls(tool)
 	return tool.walls[-1]
+
+
+func _lay_walls(tool: WallTool) -> void:
+	for w in tool.walls:
+		w.lay_now()
 
 
 ## Draws a path and sends it to the garden, as the path tool does.
@@ -463,10 +472,12 @@ func _lay(nodes: Array, a: Vector3, b: Vector3, half: float) -> void:
 		paths.extend(Terrain.ground(p.x, p.z), half)
 	var ghost := paths.end()
 	(nodes[2] as World).submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
+	_lay_walls(nodes[0])
 
 
 func _reshape(nodes: Array, w: Wall, data: Dictionary) -> void:
 	(nodes[2] as World).submit({"op": "reshape", "id": w.id, "data": data})
+	_lay_walls(nodes[0])
 
 
 func _a_path_opens_its_arch_before_release() -> void:
