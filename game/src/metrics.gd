@@ -75,7 +75,7 @@ func _process(_delta: float) -> void:
 	_acc += elapsed
 	if _acc >= 1.0:
 		var begin := Time.get_ticks_usec()
-		var gpu := gpu_ns()
+		var gpu := gpu_ns() if not path.is_empty() else -1
 		var row := summary(_deltas)
 		if gpu >= 0 and _gpu_ns >= 0:
 			row.gpu_ms = (gpu - _gpu_ns) / 1e6

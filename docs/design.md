@@ -1567,7 +1567,8 @@ coordinates and normalized view direction (Godot's forward is negative Z).
 Monotonic time between frames measures delivered application cadence, not CPU work or compositor
 reprojection. `cpu_ms` summarizes Godot's process-time monitor; `gpu_frame_ms`
 summarizes available viewport GPU timer readings. Unsupported GPU readings are
-null. Runtime dropped/reprojected counts are unavailable through this recorder;
+null. Kernel fdinfo probes run only for explicit benchmark output, so ordinary
+local logging does no filesystem reads on the frame thread. Runtime dropped/reprojected counts are unavailable through this recorder;
 `late` is an application-cadence estimate, not a runtime dropped-frame counter.
 Context includes category counts, settled masonry instance counts, tools and
 visit/player state. `logging_us` measures the previous second's sampling and
