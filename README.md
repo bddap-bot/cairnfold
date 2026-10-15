@@ -11,15 +11,14 @@ build order.
 ## Controls
 
 Each hand holds a tool, shown as a small object on top of its controller: walls,
-paths, flowers, grass, trees, terrain, pond, colour, camera, teleport, delete or visit.
+paths, flowers, grass, trees, terrain, pond, colour, camera, delete or visit.
 
 - Hold a stick's click, push toward a tool in the ring, let go: that hand takes it.
 - Trigger: use the tool. Draw a wall, lay a path, paint, plant a tree, grab the
   ground and lift or lower the hand to pull a hill or press a hollow, dig a pond
-  (hold to dig deeper, release to fill), aim a teleport (release to go; into the
-  sky to float), or erase: hold it on a wall and sweep along it to break that
-  stretch into a ruin (a tap breaks a short gap, sweeping it all takes it all), or
-  press on a tree or painted plants to take them. A path through a wall opens an
+  (hold to dig deeper, release to fill), or erase: hold it on a wall and sweep
+  along it to break that stretch into a ruin (a tap breaks a short gap, sweeping
+  it all takes it all), or press on a tree or painted plants to take them. A path through a wall opens an
   arch, a wide one an arcade.
 - Holding colour: hold the trigger on a wall, roof, gable, fence, window or door, or
   the meadow, and twist your wrist to turn a wheel of swatches for that material, or
@@ -36,7 +35,8 @@ paths, flowers, grass, trees, terrain, pond, colour, camera, teleport, delete or
   wall cuts or fills an arch, A on its top changes its style; a loop held closed
   snaps to a round tower. Both hands on walls, both grips on the ground: lay out a
   house.
-- Left stick forward: teleport with any tool. While aiming, the other stick up or
+- Left stick forward: aim a teleport from the left hand, whatever it holds;
+  release to go, into the sky to float. While aiming, the other stick up or
   down moves an air target farther or nearer.
 - Right stick left/right: snap turn.
 - Left D-pad down: undo. Up: redo. One history across every tool; with others,

@@ -24,8 +24,6 @@ var hands: Array[Hand] = []
 var floating := false
 ## The hand whose teleport ray is out, or null.
 var aim_hand: Hand
-var _aim_by_stick := false
-var _triggers: Array[Buttons] = []
 var air_reach := AIR_REACH
 var aim_ground: Variant = null
 var aim_lift := 0.0
@@ -57,7 +55,6 @@ func _init() -> void:
 	hands = [left, right]
 	for h in hands:
 		add_child(h)
-		_triggers.append(Buttons.new(h).watch(["trigger_click"]))
 	_build_markers()
 
 
@@ -130,27 +127,18 @@ func _process(delta: float) -> void:
 
 
 func _locomotion_input(delta: float) -> void:
-	if aim_hand == null:
-		if left.stick().y > 0.65:
-			aim_hand = left
-			_aim_by_stick = true
-		else:
-			for i in hands.size():
-				if hands[i].tool == Hand.Tool.TELEPORT and _triggers[i].pressed("trigger_click"):
-					aim_hand = hands[i]
-					_aim_by_stick = false
+	if aim_hand == null and left.stick().y > 0.65:
+		aim_hand = left
 	if aim_hand != null and aim_hand.picking:
 		aim_hand = null
 		hide_markers()
 	if aim_hand != null:
-		var rstick := (right if aim_hand == left else left).stick()
+		var rstick := right.stick()
 		if absf(rstick.y) > 0.25:
 			air_reach = clampf(air_reach + signf(rstick.y) * (absf(rstick.y) - 0.25) / 0.75 * REACH_RATE * delta, MIN_AIR_REACH, MAX_AIR_REACH)
 		aim(aim_hand.global_transform)
-		var by_tool := not _aim_by_stick and aim_hand.tool == Hand.Tool.TELEPORT
-		var held := left.stick().length() >= 0.3 if _aim_by_stick else by_tool and _triggers[hands.find(aim_hand)].held("trigger_click")
-		if not held:
-			if aim_ground != null and (_aim_by_stick or by_tool):
+		if left.stick().length() < 0.3:
+			if aim_ground != null:
 				teleport(aim_ground, aim_lift)
 			aim_hand = null
 			hide_markers()
@@ -162,8 +150,6 @@ func _locomotion_input(delta: float) -> void:
 			_turned = true
 		elif absf(x) < 0.3:
 			_turned = false
-	for b in _triggers:
-		b.latch()
 
 
 ## Cast the teleport ray from a pointing pose. It lands on the ground it hits; aimed above the horizon with no ground within `air_reach`, it targets the point in the air at that reach.

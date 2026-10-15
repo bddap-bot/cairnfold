@@ -696,12 +696,12 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, decorations, paths, stone, flowers, grass, trees, terrain, ponds, colour, camera, teleport, delete and visit. The tool a hand
+windows, decorations, paths, stone, flowers, grass, trees, terrain, ponds, colour, camera, delete and visit. The tool a hand
 holds stands on top of its controller as a small object, built from the same generators as the full-size
 thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
 flag with lanterns on it, a bend of paving, a disc of turf half
 paved with slabs, three flowers, a grass tuft, a tree, a mound, a pond in a
-sandy dish, a painter's palette with dabs of colour, a small camera, the air-teleport marker (a ring on a pole over a ring), a spade for delete, and a little avatar
+sandy dish, a painter's palette with dabs of colour, a small camera, a spade for delete, and a little avatar
 figure for visit. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
 rounded body is unchanged, and there is no text anywhere.
@@ -717,16 +717,17 @@ grows; let go of the click to take it. Letting go without a push keeps the tool 
 contents are a tree (`Hand.MENU`) with one level today. When it grows crowded it becomes multi-step:
 move to a category, the category opens, move on to the item within it.
 
-Teleport is a tool: a hand holding it aims with its trigger and goes on release. The left stick pushed
-forward aims from the left hand whatever it holds, so no choice of tools leaves you unable to move, and
-aiming at the ground is how you come back down.
+Directive (verbatim): "I think making teleport its own item was- was a mistake for me. And I think we can get rid of it, and keep the- the old teleport"
+
+Teleport is not a tool. The left stick pushed forward aims from the left hand whatever it holds, so no
+choice of tools leaves you unable to move, and aiming at the ground is how you come back down.
 
 ## VR controls
 
 | Action | Control |
 | --- | --- |
 | Pick a hand's tool | Hold that stick's click, push toward a tool in the ring, let go of the click |
-| Teleport onto the ground | Trigger of a hand holding teleport, or left stick forward with any tool: a straight ray from that hand lands where it meets the ground; release to go |
+| Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it meets the ground; release to go |
 | Teleport into the air | Aim above the horizon: with no ground within reach (10 m to start), the ray targets the point in the air at its end, a ring on a pole down to the ground below. The other hand's stick up or down while aiming moves that point farther or nearer (2–40 m). Release to arrive, slightly high, then settle gently into a hover with a slow bob |
 | Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick left or right: 30° snap turn |

@@ -34,8 +34,6 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_tree(root)
 		Hand.Tool.TERRAIN:
 			_mound(root)
-		Hand.Tool.TELEPORT:
-			_teleport(root)
 		Hand.Tool.DELETE:
 			_spade(root)
 		Hand.Tool.POND:
@@ -408,34 +406,6 @@ static func _mound(root: Node3D) -> void:
 	mi.material_override = _vertex_mat("mound", 1.0, true)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(mi)
-
-
-## A ring on a pole over a ring on the ground: the air-teleport marker in small.
-static func _teleport(root: Node3D) -> void:
-	var glow: StandardMaterial3D = _mats.get("glow")
-	if glow == null:
-		glow = StandardMaterial3D.new()
-		glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		glow.albedo_color = Color(0.8, 0.95, 1.0)
-		_mats["glow"] = glow
-	var ring := TorusMesh.new()
-	ring.inner_radius = 0.012
-	ring.outer_radius = 0.016
-	ring.rings = 20
-	ring.ring_segments = 6
-	var pole := CylinderMesh.new()
-	pole.top_radius = 0.0016
-	pole.bottom_radius = 0.0016
-	pole.height = 0.03
-	pole.radial_segments = 6
-	pole.rings = 1
-	for part in [[ring, 0.002], [pole, 0.017], [ring, 0.034]]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = part[0]
-		mi.position.y = part[1]
-		mi.material_override = glow
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(mi)
 
 
 ## A garden spade, blade down: it digs things up.

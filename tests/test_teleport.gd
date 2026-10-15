@@ -11,6 +11,12 @@ func _initialize() -> void:
 	_ground_target(rig)
 	_air_target(rig)
 	_air_reach_stops_at_nearer_ground(rig)
+	_no_teleport_tool()
+	_finish.call_deferred(rig)
+
+
+func _finish(rig: Rig) -> void:
+	await _stick_teleports_with_every_tool(rig)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
 
@@ -62,3 +68,29 @@ func _air_reach_stops_at_nearer_ground(rig: Rig) -> void:
 		return
 	rig.aim(_pose(o, dir))
 	_check(rig.aim_lift < 0.15 and rig.aim_ground.distance_to(hill) < 0.1, "a rising ray that meets a hillside within reach lands on it")
+
+
+func _no_teleport_tool() -> void:
+	_check(not Hand.Tool.has("TELEPORT"), "teleport is not a tool")
+	_check(Hand.MENU.size() == Hand.Tool.size(), "the ring holds every tool and nothing else")
+
+
+## Through real frames, as a player: the rig's own _process reads the stick.
+func _stick_teleports_with_every_tool(rig: Rig) -> void:
+	for t in Hand.Tool.values():
+		rig.left.tool = t
+		rig.right.tool = t
+		rig.place(Vector3(0, Terrain.height_at(0, 0), 0), 0.0)
+		await process_frame
+		var from := rig.head.global_position
+		rig.left.global_transform = Transform3D(Basis.looking_at(Vector3(0, -0.3, -1), Vector3.UP), from + Vector3(-0.2, -0.4, -0.3))
+		Hand.injected_sticks[rig.left.tracker] = Vector2(0, 1)
+		await process_frame
+		await process_frame
+		var aimed: bool = rig.aim_hand == rig.left and rig.aim_ground != null
+		Hand.injected_sticks[rig.left.tracker] = Vector2.ZERO
+		for f in 30:
+			await process_frame
+		var moved := Vector2(rig.head.global_position.x - from.x, rig.head.global_position.z - from.z).length()
+		_check(aimed and moved > 2.0, "left stick forward aims and goes holding %s (moved %.1f m)" % [Hand.Tool.keys()[t], moved])
+	Hand.injected_sticks.erase(rig.left.tracker)
