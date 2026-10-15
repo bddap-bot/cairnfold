@@ -153,11 +153,25 @@ a wall top changed), each followed by 10 s, with the ladder held at its first st
 | Before (8de66b6) | 72 (tower 1, roofs 37 and 33, top 1) |
 | After, four runs | 0 each |
 
-Governed, the houses phase of `demo/headset.json` went from 137 late frames to between 1 and
-75 over four runs. Those come from GPU time, not the edits: the tower, the house and their ivy
-take the full-quality step to the runtime's 0.88 line (12 ms a frame) while the house is still
-being carried, and the runtime halves the rate before the governor's one-second average steps
-down. A line at 0.82 instead of 0.85 gave 1 and 75 late frames against 1 and 73, so it stays.
+Governed, the late frames left in the houses phase come from GPU time, not the edits. The
+tower, the house and their ivy take full quality to 11.5 to 11.8 ms a frame on the governor's
+timer for two to three seconds while the house is still being carried. That timer reads about
+0.3 ms under the fdinfo time, so this sits at the runtime's 0.88 line (12.2 ms) but not over
+the governor's old line at 0.85 (11.8 ms), and the runtime halved the rate before the governor
+stepped down. The line is now 0.80 of the period:
+
+| Line | Late frames in the houses phase |
+| --- | --- |
+| 0.85 (e988801), the phase up to its capture | 37, 3, 98: the runtime at every other refresh for up to 4 s |
+| 0.80, the phase up to its capture | 1, 1, 1 |
+| 0.80, the whole of `demo/headset.json` | 34, 1 |
+
+Every one of those at 0.80 follows the step to 0.9 resolution itself, which the governor now
+takes before the runtime's line. Switching to 0.9 costs a 25 to 72 ms frame now and then, most
+often after a long spell at full resolution, and once that frame took the runtime to every
+other refresh for half a second (the 34); switching back to full resolution has cost nothing.
+An earlier pair of runs with the line at 0.82 gave 1 and 75 late frames; they were not split
+by cause.
 `scripts/bench.sh` with `CAIRNFOLD_SCENE=demo/headset.json` runs this check on the Frame; its
 `late` column counts every frame of a phase.
 
@@ -412,7 +426,7 @@ sharpness that is hard to see, so it is the ladder's first step. The scene upsca
 same swapchain. The first frame at the lower resolution in a session took 30 to 70 ms and later
 switches cost nothing (switching every 5 s left no late frame after the first), so the
 governor's warm-up renders at the ladder's lowest resolution. On the Quest 2 neither this step
-nor the governor's line at 0.85 of the
+nor the governor's line at 0.80 of the
 period (below) is measured yet: the render region there left the binned surface as it was,
 while this scale shrinks it.
 
@@ -509,10 +523,10 @@ The signal is the GPU time of the frame the viewport just rendered
 (`RenderingServer.viewport_get_measured_render_time_gpu`, GPU timestamps around the
 viewport's passes): the same on every headset and blind to CPU hitches, which no graphics
 knob would cure. On the Quest 2 it reads about 1 ms above the runtime's `App=` time, and
-frames hold 72 Hz until it reaches the whole refresh period. On the Steam Frame it reads with
-the fdinfo time, and the runtime drops the game to every other refresh once it nears 0.88 of
-the period, staying there for seconds after the frames have room again, so the line is 0.85 of
-the period. The
+frames hold 72 Hz until it reaches the whole refresh period. On the Steam Frame it reads about
+0.3 ms under the fdinfo time, and the runtime drops the game to every other refresh once that
+nears 0.88 of the period, staying there for seconds after the frames have room again, so the
+line is 0.80 of the period, under 0.88 by that gap and the average's lag behind a build. The
 rate is read from the runtime every frame, since it reports the shell's rate for the first
 frames of a session. Any later knob takes its place on the same ladder, cheapest loss per
 millisecond first, so one signal still maps to one position.

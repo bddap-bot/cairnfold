@@ -4,6 +4,8 @@ extends SceneTree
 
 const BUDGET := 12.5
 const DT := 1.0 / 72.0
+## A share of the budget just under the governor's line.
+const UNDER_LINE := Quality.Governor.LINE - 0.01
 
 var failures := 0
 
@@ -33,12 +35,21 @@ func _check(ok: bool, what: String) -> void:
 ## Steps down one, then measures what the step saved over a second of frames just under the line.
 func _down(g: Quality.Governor) -> void:
 	_feed(g, BUDGET * 1.1, 2 + Quality.Governor.SETTLE_FRAMES)
-	_feed(g, BUDGET * 0.84, 72)
+	_feed(g, BUDGET * UNDER_LINE, 72)
 
 
 ## Feeds `frames` frames of `ms` and returns the level after.
 func _feed(g: Quality.Governor, ms: float, frames: int) -> int:
 	for i in frames:
+		g.step(ms, BUDGET, DT)
+	return g.level
+
+
+## Feeds up to `frames` frames of `ms`, stopping once the governor reaches `level`, and returns the level after.
+func _feed_until(g: Quality.Governor, ms: float, frames: int, level: int) -> int:
+	for i in frames:
+		if g.level == level:
+			break
 		g.step(ms, BUDGET, DT)
 	return g.level
 
@@ -79,9 +90,9 @@ func _one_late_frame_is_not_enough() -> void:
 func _calm_steps_back_up_after_a_spell() -> void:
 	var g := Quality.Governor.new(10)
 	_down(g)
-	_check(_feed(g, BUDGET * 0.84, 72 * 5) == 1, "near the line it holds its step")
-	_check(_feed(g, BUDGET * 0.1, int(72 * 1.5)) == 1, "a short calm is not enough")
-	_check(_feed(g, BUDGET * 0.1, 72) == 0, "two calm seconds step back up")
+	_check(_feed(g, BUDGET * UNDER_LINE, 72 * 5) == 1, "near the line it holds its step")
+	_check(_feed(g, BUDGET * 0.1, int(72 * 1.7)) == 1, "a short calm is not enough")
+	_check(_feed_until(g, BUDGET * 0.1, 72, 0) == 0, "two calm seconds step back up")
 	_check(_feed(g, BUDGET * 0.9, 6 + 36) == 0, "a step up gets a second's average")
 	_check(_feed(g, BUDGET * 0.9, 50) == 1, "before frames over the line step down again")
 
@@ -101,12 +112,12 @@ func _a_spike_after_a_step_up_slows_only_that_step() -> void:
 	var g := Quality.Governor.new(10)
 	_feed(g, BUDGET * 1.1, 3 * (2 + Quality.Governor.SETTLE_FRAMES))
 	_check(g.level == 3, "three steps down")
-	_feed(g, BUDGET * 0.84, 72)
+	_feed(g, BUDGET * UNDER_LINE, 72)
 	_feed(g, BUDGET * 0.1, 72 * 3)
 	_check(g.level == 2, "one step back up")
 	_feed(g, BUDGET * 1.1, 3 * (2 + Quality.Governor.SETTLE_FRAMES))
 	_check(g.level == 5, "and three down again")
-	_feed(g, BUDGET * 0.84, 72)
+	_feed(g, BUDGET * UNDER_LINE, 72)
 	_check(_feed(g, BUDGET * 0.1, 72 * 3) == 4, "steps the ladder fell through keep their two seconds")
 
 
@@ -130,7 +141,7 @@ func _a_step_up_waits_for_room_for_what_the_step_down_saved() -> void:
 	_feed(g, BUDGET * 1.1, 2 + Quality.Governor.SETTLE_FRAMES)
 	_feed(g, BUDGET * 0.75, 72)
 	_check(_feed(g, BUDGET * 0.75, 72 * 10) == 1, "no step up the saving would take back over the line")
-	_check(_feed(g, BUDGET * 0.55, 72 * 4) == 0, "until the scene leaves room for it")
+	_check(_feed(g, BUDGET * 0.5, 72 * 4) == 0, "until the scene leaves room for it")
 	var h := Quality.Governor.new(10)
 	_feed(h, BUDGET * 1.0, 36)
 	_feed(h, BUDGET * 1.1, 2 + Quality.Governor.SETTLE_FRAMES)

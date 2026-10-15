@@ -103,10 +103,12 @@ class Governor:
 	## Frames ignored after any step while the GPU timer and the grass catch up with the change.
 	const SETTLE_FRAMES := 6
 	## The line, as a share of the budget: the Steam Frame's runtime drops the game to every other refresh once its
-	## GPU time nears 0.88 of the period, and keeps it there for seconds. A calm spell is time spent with the frame time, averaged over
+	## GPU time nears 0.88 of the period, and keeps it there for seconds. This timer reads about 0.3 ms under that
+	## GPU time, so the houses of demo/headset.json sat under a line at 0.85 while the runtime halved the rate.
+	## A calm spell is time spent with the frame time, averaged over
 	## AVERAGE_SECONDS, under the line by what the step down into this level saved: single frames vary by more than a
 	## step saves, so they neither make nor break one.
-	const LINE := 0.85
+	const LINE := 0.8
 	const AVERAGE_SECONDS := 1.0
 	const CALM_SECONDS := 2.0
 	## The longest calm a step up waits for; as long under the line forgets what the step down saved, which the scene
