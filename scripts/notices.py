@@ -42,10 +42,13 @@ def check(package, expected):
              for p in expected.rglob("*") if p.is_file()}
     remaining = set(files)
     if zipfile.is_zipfile(package):
-        assert (expected / "android/DEPENDENCIES.txt").is_file(), "missing Android dependency notices"
+        prefix = "cairnfold/notices/"
+        if str(package).endswith(".apk"):
+            assert (expected / "android/DEPENDENCIES.txt").is_file(), "missing Android dependency notices"
+            prefix = "assets/notices/"
         with zipfile.ZipFile(package) as archive:
             for name, data in files.items():
-                assert archive.read("assets/notices/" + name) == data, f"changed notice: {name}"
+                assert archive.read(prefix + name) == data, f"changed notice: {name}"
                 remaining.remove(name)
     else:
         prefix = "cairnfold/notices/"

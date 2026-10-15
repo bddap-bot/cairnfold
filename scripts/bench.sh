@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Plays the stress scene, demo/stress.json, and holds each phase to the frame budget in game/src/budget.gd:
 #   bench.sh OUT_DIR                          desktop renderer: draw calls and primitives only, its GPU is no target
-#   bench.sh OUT_DIR SSH_HOST BUNDLE.tar.gz   a Steam Frame, from a scratch install that leaves ~/cairnfold alone,
+#   bench.sh OUT_DIR SSH_HOST BUNDLE.tar.gz   a Steam Frame, from a scratch install of the linux-arm64 package that leaves ~/cairnfold alone,
 #                                             in the headset's XR session unworn: SteamVR pauses the game while the
 #                                             headset is in standby, so the run turns power.pauseCompositorOnStandby
 #                                             off and restarts SteamVR, and puts both back on exit. Nothing else may
@@ -174,8 +174,7 @@ if [ "${2:-}" = --android ]; then
   adb pull "$dir/." "$out/" > /dev/null
 elif [ $# -ge 3 ]; then
   device=frame
-  ssh "$2" 'set -e; rm -rf cairnfold-bench; mkdir cairnfold-bench; tar -xz -C cairnfold-bench; cd cairnfold-bench/cairnfold; mkdir log
-    bin/godot --headless --path game --import > log/import.log 2>&1' < "$3"
+  ssh "$2" 'set -e; rm -rf cairnfold-bench; mkdir cairnfold-bench; tar -xz -C cairnfold-bench; mkdir cairnfold-bench/cairnfold/log' < "$3"
   same "$(ssh -n "$2" cat cairnfold-bench/cairnfold/REVISION)"
   scp -q "$out/stress.json" "$2:cairnfold-bench/cairnfold/log/stress.json"
   # standby HOST off|on: SteamVR reads its settings only as it starts.
@@ -198,7 +197,7 @@ elif [ $# -ge 3 ]; then
   standby "$2" off
   ssh -n "$2" 'cd cairnfold-bench/cairnfold
     export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)} DISPLAY=${DISPLAY:-:0}
-    status=0; timeout 900 bin/godot --path game -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --seed '"$seed"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
+    status=0; timeout 900 ./cairnfold -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --seed '"$seed"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
     rm log/pid; echo "bench: $(cat REVISION) exit $status"' &
   remote=$!
   if [ "$players" -gt 1 ]; then

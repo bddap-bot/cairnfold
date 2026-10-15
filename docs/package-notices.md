@@ -7,7 +7,8 @@ texts, supplemented by the upstream license, notice, author and readme files.
 These are a conservative source inventory, including optional components absent
 from some binaries. The engine's OpenXR implementation is covered there.
 
-The Frame archive contains `notices/` next to the launcher. The Quest APK contains
+Each desktop package (`scripts/package.sh`: Windows, Linux x86_64 and the Frame's
+Linux arm64) contains `notices/` next to the game binary. The Quest APK contains
 `assets/notices/`, readable with any ZIP reader without running the game. No game
 screen is needed. Cinzel's OFL is included for the Steam artwork; the font binary
 is not shipped and OFL does not impose its font redistribution terms on images
@@ -24,7 +25,7 @@ under Cairnfold's licenses (§1.2.8). Third-party open-source terms control thei
 components (§3.2): the addon’s Meta flavor actually bundles the Khronos loader
 under Apache-2.0. Its license and the addon/bindings licenses are included.
 
-Steam's Frame bundle contains no vendor addon or Meta SDK, so those SDK-specific
+The desktop and Frame packages contain no vendor addon or Meta SDK, so those SDK-specific
 restrictions do not attach to that bundle. Selling on Steam does not itself
 require Meta attribution. A future Steam build incorporating SDK material would
 need the approved-product restriction and other SDK terms reassessed.
@@ -34,9 +35,23 @@ experimental features (§§1.2, 1.4, 1.6). Notices alone do not establish store
 approval or compliance with those behavioral requirements. SDK use is subject
 to the agreement's update provisions (§7.1).
 
+## Desktop packages
+
+The desktop packages are Godot's official, unmodified export templates at the
+pinned version with the game's data embedded. Linux templates link only
+components in Godot's source tree, so `COPYRIGHT.txt` and the extracted upstream
+files cover them; Godot's embedded OpenXR loader is among them. The official
+Windows template has no `COPYRIGHT.txt` of its own and statically links two
+components outside that tree: Mesa's NIR compiler for the Direct3D 12 driver,
+built by `godot-nir-static` at the version Godot's
+`misc/scripts/install_d3d12_sdk_windows.py` names, and the MinGW-w64 runtime of
+the MinGW toolchain it was built with. The Windows package adds their license
+texts under `notices/windows/`. The template links no WinPixEventRuntime, and the
+export ships no Direct3D 12 Agility SDK library.
+
 ## Building and checking
 
-`scripts/pins.sh` is the source of download versions and hashes. Both builders
+`scripts/pins.sh` is the source of download versions and hashes. Every builder
 call `scripts/notices.sh`, which extracts original upstream text from the matching
 source releases and verified addon ZIP. A changed version with an old hash fails
 closed. When updating the addon, update its godot-cpp submodule license pin too.
@@ -50,9 +65,9 @@ Apache-2.0 text. It fails if a dependency's sources or notices cannot be obtaine
 code linked into Android binaries. Their pinned revision must match both upstream
 build configurations. Build tools are not included in the Maven runtime inventory. Review changed dependency licenses on upgrades.
 
-Both builders compare every expected notice byte-for-byte against the completed
+Every builder compares every expected notice byte-for-byte against the completed
 archive, after APK signing. `scripts/test.sh` also tests rejection of missing and
-truncated notices in both archive formats. To check an existing release, collect
+truncated notices in every archive format. To check an existing release, collect
 its expected notices from the matching revision and run
 `scripts/notices.py check PACKAGE EXPECTED_DIRECTORY`; for APKs the expected tree
 also includes the build's generated Android dependency notices.

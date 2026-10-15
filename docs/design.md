@@ -53,7 +53,7 @@ can move to a GDExtension later without touching the rest.
 
 ### Frame measurements
 
-Every session writes `log/metrics.json` in the install: per second, frame-time
+Every session writes `metrics.json` in Godot's user directory (README, "Running"): per second, frame-time
 percentiles, frames over 1.5× the refresh period, and `gpu_ms`, the GPU time the
 game process used in that second (summed `drm-engine-*` time from the kernel's
 fdinfo, so it is real on the device whether or not the runtime reports any).
@@ -945,11 +945,10 @@ Frame (see "Frame measurements"). A held camera is not yet measured on a headset
 
 ## Verifying on a headset
 
-`scripts/package.sh` builds an aarch64 bundle (the pinned Godot runtime plus the
-game and its library art in `steam/`). Installed as `~/cairnfold` on the headset,
-with Godot's asset import run there once, it starts from a VR shortcut in the
-Steam library that runs `cairnfold/play.sh`. `play.sh --script demo/slice.json
---metrics FILE --capture-dir DIR` plays a scripted session through the same entry
+`scripts/package.sh linux-arm64` exports the aarch64 build (the game binary plus its
+library art in `steam/`). Installed as `~/cairnfold` on the headset, it starts from a
+VR shortcut in the Steam library that runs `cairnfold/cairnfold`. `cairnfold -- --script
+FILE --metrics FILE --capture-dir DIR` plays a scripted session through the same entry
 points as the controllers (teleport, float, draw a wall), logs per-second frame
 times and saves view captures. `scripts/test.sh` runs the headless layout tests;
 `scripts/render.sh` plays a script on a desktop renderer; `demo/flora.json` paints,

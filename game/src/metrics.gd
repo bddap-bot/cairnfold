@@ -22,7 +22,11 @@ var _drm_fds: PackedStringArray = []
 var _drm_scan := 0
 var _draws := 0
 var _prims := 0
+## Seconds not yet written.
 var _seconds: Array = []
+var _file: FileAccess
+var _rows := 0
+var _rows_end := 0
 var _acc := 0.0
 var _since_flush := 0.0
 
@@ -128,9 +132,26 @@ static func _q(a: Array, q: float) -> float:
 	return a[clampi(int(q * (a.size() - 1)), 0, a.size() - 1)] if a.size() > 0 else 0.0
 
 
+## Appends the seconds since the last flush and rewrites only the closing `info`, so a flush costs the same in the
+## second hour as in the first and the file is whole JSON after each one.
 func flush() -> void:
 	_since_flush = 0.0
 	if path.is_empty():
 		return
-	var f := FileAccess.open(path, FileAccess.WRITE)
-	f.store_string(JSON.stringify({"info": info, "seconds": _seconds}, " "))
+	if _file == null:
+		_file = FileAccess.open(path, FileAccess.WRITE)
+		if _file == null:
+			push_error("metrics: cannot write %s" % path)
+			path = ""
+			return
+		_file.store_string("{\"seconds\": [")
+		_rows_end = _file.get_position()
+	_file.seek(_rows_end)
+	for row in _seconds:
+		_file.store_string(("\n" if _rows == 0 else ",\n") + JSON.stringify(row))
+		_rows += 1
+	_seconds.clear()
+	_rows_end = _file.get_position()
+	_file.store_string("\n], \"info\": %s}\n" % JSON.stringify(info))
+	_file.resize(_file.get_position())
+	_file.flush()

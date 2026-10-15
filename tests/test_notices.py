@@ -41,12 +41,12 @@ class PackageNotices(unittest.TestCase):
                 path = expected / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text('Original upstream text: ' + name)
-            for apk in (False, True):
+            for suffix in ('.tar.gz', '.zip', '.apk'):
                 for broken in (None, *files):
                     for truncated in (False, True):
-                        package = root / ('package.apk' if apk else 'package.tar.gz')
-                        prefix = 'assets/notices/' if apk else 'cairnfold/notices/'
-                        if apk:
+                        package = root / ('package' + suffix)
+                        prefix = 'assets/notices/' if suffix == '.apk' else 'cairnfold/notices/'
+                        if suffix != '.tar.gz':
                             with zipfile.ZipFile(package, 'w') as archive:
                                 for name in files:
                                     if name != broken:

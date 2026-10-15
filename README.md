@@ -54,11 +54,16 @@ right A cuts arches.
   `nix-shell --run 'scripts/render.sh demo/slice.json out'`.
 - Steam library artwork: `nix-shell --run scripts/steam-art.sh` regenerates
   `steam/` from captures of `demo/steam.json`.
-- Headset: `scripts/package.sh cairnfold.tar.gz` builds the aarch64 bundle.
-  Unpack it in the headset's home, run
-  `cairnfold/bin/godot --headless --path cairnfold/game --import` once, and add
-  `cairnfold/play.sh` as a VR non-Steam shortcut with the art in
+- Release builds: `nix-shell --run 'scripts/package.sh TARGET OUT'` exports
+  `linux-x64` or `linux-arm64` (a `.tar.gz`) or `windows` (a `.zip`). Each
+  unpacks to `cairnfold/` holding the game (`cairnfold` or `Cairnfold.exe`),
+  which starts in VR on the system's OpenXR runtime, such as SteamVR.
+- Steam Frame: unpack the `linux-arm64` package in the headset's home and add
+  `cairnfold/cairnfold` as a VR non-Steam shortcut with the art in
   `cairnfold/steam/`.
+- The game keeps its garden, photos, `metrics.json` and logs in Godot's user
+  directory: `~/.local/share/godot/app_userdata/Cairnfold` on Linux,
+  `%APPDATA%\Godot\app_userdata\Cairnfold` on Windows.
 
 ## Quest
 
@@ -74,7 +79,7 @@ Each [release](https://github.com/bddap-bot/cairnfold/releases) carries
 
 Build it yourself with `nix-shell android.nix --run 'scripts/android.sh cairnfold.apk'`;
 it signs with a local key, so remove a release install before installing your own.
-`scripts/release.sh` publishes the Frame bundle and the APK together.
+`scripts/release.sh` publishes the desktop and Frame builds and the APK together.
 
 ## License
 

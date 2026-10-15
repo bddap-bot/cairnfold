@@ -82,7 +82,7 @@ func _ready() -> void:
 	sound = Soundscape.new(tool, flora_tool, water)
 	add_child(sound)
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
-	metrics = Metrics.new(args.get("metrics", ""))
+	metrics = Metrics.new(args.get("metrics", "user://metrics.json" if get_tree().current_scene == self else ""))
 	metrics.info = {"xr": _start_xr(), "label": "", "budget": Budget.info()}
 	quality = Quality.new(xr if metrics.info.xr else null, flora)
 	if args.has("quality"):

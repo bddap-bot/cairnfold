@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Publishes HEAD as a GitHub release carrying every headset's build: the Steam Frame bundle and the Quest APK.
+# Publishes HEAD as a GitHub release carrying every build: Windows and Linux (x86_64, and arm64 for the Steam Frame)
+# exports and the Quest APK.
 # Every release signs with the one key in $CAIRNFOLD_KEYSTORE ($CAIRNFOLD_KEYSTORE_PASS), so an installed APK updates in place.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -13,8 +14,9 @@ git merge-base --is-ancestor "$rev" origin/main || { echo "release: $rev is not 
 ! gh release view "$tag" > /dev/null 2>&1 || { echo "release: $tag exists" >&2; exit 1; }
 out=$(mktemp -d)
 trap 'rm -rf "$out"' EXIT
-scripts/package.sh "$out/cairnfold-frame.tar.gz"
+for target in linux-x64 linux-arm64; do nix-shell --run "scripts/package.sh $target '$out/cairnfold-$target.tar.gz'"; done
+nix-shell --run "scripts/package.sh windows '$out/cairnfold-windows.zip'"
 nix-shell android.nix --run "scripts/android.sh '$out/cairnfold-quest.apk'"
 gh release create "$tag" --target "$rev" --title "Cairnfold $tag" \
-  --notes "Built from $rev. Quest: install cairnfold-quest.apk (README, \"Quest\"). Steam Frame: cairnfold-frame.tar.gz (README, \"Running\")." \
-  "$out/cairnfold-quest.apk" "$out/cairnfold-frame.tar.gz"
+  --notes "Built from $rev. PC VR: cairnfold-windows.zip or cairnfold-linux-x64.tar.gz, run Cairnfold.exe or cairnfold/cairnfold with an OpenXR runtime (SteamVR). Steam Frame: cairnfold-linux-arm64.tar.gz (README, \"Running\"). Quest: install cairnfold-quest.apk (README, \"Quest\")." \
+  "$out/cairnfold-quest.apk" "$out/cairnfold-linux-x64.tar.gz" "$out/cairnfold-linux-arm64.tar.gz" "$out/cairnfold-windows.zip"
