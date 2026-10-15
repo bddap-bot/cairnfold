@@ -213,31 +213,42 @@ own cost is not separated from the scene's differences.
 
 On the Quest 2 (`bench.sh OUT --android APK`, in the headset with its clocks held at
 level 4), the game's GPU milliseconds per frame, taken from the runtime's own per-frame
-reading:
+reading, the median of three runs at each player count:
 
-| Phase | 1 player | 2 players | 4 players |
-| --- | --- | --- | --- |
-| Meadow, from the air | 27.93 | 27.89 | 28.16 |
-| Meadow, standing | 23.06 | 23.13 | 23.54 |
-| Walls on a 25 m disc, from the air | 48.77 | 52.48 | 52.91 |
-| Village, from the air | 51.14 | 51.20 | 50.15 |
-| Village, standing | 36.76 | 40.15 | 40.48 |
-| Hills, standing | 46.08 | 46.21 | 45.16 |
+| Phase | 1 player | 4 players |
+| --- | --- | --- |
+| Meadow, from the air | 32.37 | 32.92 |
+| Meadow, standing | 22.73 | 22.96 |
+| Every flora pool full, standing | 31.92 | 31.17 |
+| Walls on a 25 m disc, from the air | 50.77 | 50.91 |
+| Village, from the air | 73.59 | 77.02 |
+| Village, standing | 40.76 | 40.45 |
+| Hills, standing | 52.75 | 50.85 |
+| The camera held up, standing | 57.60 | 57.49 |
 
-These rows show the same scene in every run (their draw calls and primitives agree).
-In 13 of the 34 phases the runs disagree by about twice in draw calls or primitives, so
-those phases' rows compare different stretches of the scene and are left out here. Over
-all 34 phases, the median change is +0.31 ms with 2 players and +0.43 ms with 4, and
-single phases change by between -5.4 and +17.8 ms. The largest change was taking a
-photo: 46.3, 51.7 and 64.1 ms. Its cause is not known, and one run per player count
-cannot tell it from noise. The cleanest reading is the bare meadow standing, where 3
-other players add 0.48 ms, about 0.16 ms each.
+Three other players add a median of 21 draw calls a phase, about 7 each. The primitives of a phase
+agree between runs of one player count to within 15% (the villages) and mostly to a few
+percent. Over the 38 phases the median change with 3 other players is -0.13 ms, and single
+phases move between -7.7 and +3.4 ms. That spread is the headset's, not the players': the
+same phase at the same clocks can differ by more between two runs of one player count. In
+the first run of each count the phases without walls or houses read 13 to 32 ms; in the
+other runs they read 23 to 43 ms.
 
-In these runs every phase is over the 12.5 ms budget, the bare meadow included. That is
-1.5 to 2 times what an earlier run on the same headset measured for the same phases, so
-the headset's state on the day weighs on every number here. The budget verdict belongs to
-the stress scene and that state. Co-op, from the bare meadow, costs a fraction of a
-millisecond per player against it. The photo phase is the open question.
+Other players do not make a photo cost more. Holding the camera up, its screen drawing the
+lens's view, costs the same with and without them: 57.6 and 57.5 ms. The photo phase used to take five photos back to back. The runtime reads GPU time once a
+second, so the photos fell two, three or none to a reading, and on one build the phase read
+71.2, 71.8 and 71.8 ms at 1 player and 57.1, 48.7 and 72.2 ms at 4. It now takes a photo a
+second, and every reading in it holds one. Three runs read 62.4 and 54.0 ms at 1 player
+and 52.4 ms at 4.
+
+Earlier runs disagreed by about twice in draw calls and primitives in 13 of 34 phases.
+Each phase ended with a view capture, which on a headset renders the view again through
+the photo viewport. Whichever second caught that frame doubled the phase's draw calls and
+primitives. The captures now stand outside the phases.
+
+Every phase is over the 12.5 ms budget in these runs, the bare meadow included, so the
+budget verdict belongs to the stress scene and the headset's state. Co-op costs a fraction
+of a millisecond per player against it.
 
 The Quest build must hold the network permission. Without it, every socket the game
 opens fails, it hosts nothing, and no one can join. With it, a Quest and a desktop find

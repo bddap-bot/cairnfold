@@ -166,7 +166,7 @@ density, and no build the player can make may bring the frame rate down.
   fixes the seed) and the most sheep at four fences between them (seen too from the ground by a fence), with every butterfly there can be
   over the full flower pool and the most conures there can be among the full pool of planted trees,
   every firefly there can be over the ponds at dusk, and a hill pulled up live under 973 m of walls,
-  each seen from the air and standing among them, then the camera held up to it and a photo taken.
+  each seen from the air and standing among them, then the camera held up to it and a photo taken each second.
 - `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
   calls, primitives and GPU time; on a Quest it holds each phase to the budget and
   fails when one goes over. A new feature adds itself to the stress scene.
