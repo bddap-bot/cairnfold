@@ -16,7 +16,6 @@ const LEAVE := REACH + 0.4
 ## off straight at it); a shallower one ends free, so a stroke drifting near a wall grows no spur onto it.
 const APPROACH := 0.57
 const MIN_LENGTH := 1.0
-const AUTO_ARCH_LENGTH := 5.0
 ## A plant this near the centre line stands in the wall's way, so the wall arches over it.
 const OBSTACLE_REACH := 0.6
 
@@ -97,7 +96,6 @@ func _steep(stroke: Array[Vector3], i: int, step: int) -> bool:
 	return dir.normalized().dot(at.normalized()) > APPROACH
 
 
-## Arches over the plants the wall stands on; a long wall on open ground opens one at its middle.
 func arches_for(w: WallLayout) -> Array[float]:
 	var out: Array[float] = []
 	if w.fence or not w.can_arch():
@@ -117,8 +115,6 @@ func arches_for(w: WallLayout) -> Array[float]:
 	for s in found:
 		if out.is_empty() or s - out[-1] >= spacing:
 			out.append(s)
-	if out.is_empty() and w.length() >= AUTO_ARCH_LENGTH and w.supports.is_empty():
-		out.append(w.length() * 0.5)
 	return out
 
 

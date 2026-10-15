@@ -1,0 +1,11 @@
+[
+  {"op":"place","x":0,"z":8},
+  {"op":"view","eye":[0,5,11],"at":[0,1,0],"ground":true},
+  {"op":"wall","points":[[-9,0],[9,0]],"seconds":2},
+  {"op":"wait","seconds":1},
+  {"op":"capture","name":"flat-ground-wall"},
+  {"op":"pave","points":[[4,5],[4,-5]],"radius":0.6,"seconds":4,"capture":"path-mid-stroke","capture_at":0.65},
+  {"op":"wait","seconds":0.5},
+  {"op":"capture","name":"path-finished"},
+  {"op":"quit"}
+]

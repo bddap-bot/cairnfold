@@ -11,11 +11,13 @@ const CHUNK := 256
 ## A path was laid in the garden; `taken` when it is lifted.
 signal laid(path: PathLayout)
 signal taken(path: PathLayout)
+signal previewed()
 
 var layouts: Array[PathLayout] = []
 ## Each laid path's build command id; `layouts` keeps id order.
 var ids := {}
 var drawing: PathLayout
+var previews: Array[PathLayout] = []
 ## The drawing stroke's stone chunks; the last is its unsettled tail.
 var _chunks: Array[Stones] = []
 var _chunks_of := {}
@@ -42,6 +44,7 @@ func busy() -> bool:
 
 func begin(p: Vector3, half: float) -> void:
 	drawing = PathLayout.new()
+	previews.append(drawing)
 	drawing.seed = randi()
 	drawing.others = layouts.duplicate()
 	drawing.add(p, half)
@@ -88,11 +91,14 @@ func drop(ghost: Dictionary) -> void:
 	_fading.append_array(ghost.chunks)
 	Ground.release(ghost.layout)
 	_launch()
+	previews.erase(ghost.layout)
+	previewed.emit()
 
 
 ## A stroke under way belongs to a garden being swapped away.
 func forget() -> void:
 	if drawing != null:
+		previews.erase(drawing)
 		drawing = null
 		_settled_mask = null
 		for c in _chunks:
@@ -100,6 +106,7 @@ func forget() -> void:
 			c.queue_free()
 		_chunks = []
 		Ground.rewear()
+		previewed.emit()
 
 
 ## The garden's side of a path being laid, from any player: kept in id order, so the arches paths open in
@@ -232,3 +239,4 @@ func _relay() -> void:
 	Ground.upload()
 	_dirty = false
 	_since_rebuild = 0.0
+	previewed.emit()

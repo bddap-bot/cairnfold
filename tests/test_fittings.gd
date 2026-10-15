@@ -375,7 +375,8 @@ func _in_the_glade() -> void:
 	var tower := walls[2]
 	var fence := walls[3]
 	_check(fence.layout.fence and not wall.layout.fence, "the fence tool drew a fence")
-	_check(fence.layout.live_arches.is_empty() and wall.layout.live_arches.size() == 1, "a fence over open ground opens no arch where a long wall does")
+	_check(fence.layout.live_arches.is_empty() and wall.layout.live_arches.is_empty(), "fences and long walls over open ground stay solid")
+	main.tool.toggle_arch(wall, wall.layout.length() * 0.5)
 
 	var face := wall.layout.frame_at(2.5)
 	var normal: Vector3 = face.tangent.cross(Vector3.UP)

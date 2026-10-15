@@ -332,6 +332,9 @@ func _pave(s: Dictionary) -> void:
 	for f in frames:
 		await get_tree().process_frame
 		flora_tool.extend_path(_along(path, float(f + 1) / frames), s.radius)
+		if s.has("capture") and f == int(frames * s.get("capture_at", 0.5)):
+			await get_tree().create_timer(0.2).timeout
+			await main.capture(s.capture)
 	flora_tool.end_path(b)
 
 

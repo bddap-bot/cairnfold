@@ -88,6 +88,7 @@ var _dirty := false
 var _arch_button: Buttons
 ## Ids of builds to lay again at the end of the frame for what they meet.
 var _due := {}
+var _path_arches := {}
 
 
 func _init(player: Rig, garden: World, plants: Flora, ways: Paths) -> void:
@@ -98,6 +99,7 @@ func _init(player: Rig, garden: World, plants: Flora, ways: Paths) -> void:
 	add_child(masonry)
 	paths.laid.connect(relay_crossings)
 	paths.taken.connect(relay_crossings)
+	paths.previewed.connect(_preview_crossings)
 	world.restored.connect(_forget)
 	for h in [rig.right, rig.left]:
 		var m := Mason.new()
@@ -335,6 +337,7 @@ func _finish(ws: Array[Wall]) -> void:
 
 ## The garden is being swapped: walls in hand belong to the old one.
 func _forget() -> void:
+	_path_arches.clear()
 	for m in masons:
 		if m.stroke != null:
 			for w in m.stroke.walls:
@@ -619,7 +622,22 @@ func _relay(w: Wall) -> void:
 	_reshaped(w)
 	for p in paths.layouts:
 		_cut_crossings(w, p)
+	_path_arches[w.id] = w.layout.arches.duplicate()
+	for p in paths.previews:
+		_cut_crossings(w, p)
 	w.rebuild()
+
+
+func _preview_crossings() -> void:
+	for w in walls:
+		if _held(w) or not _path_arches.has(w.id):
+			continue
+		var before := w.layout.arches.duplicate()
+		w.layout.arches.assign(_path_arches[w.id])
+		for p in paths.previews:
+			_cut_crossings(w, p)
+		if before != w.layout.arches:
+			w.settle_when_laid()
 
 
 ## Wall chemistry: a path laid or lifted opens or closes arches in every wall it crosses.
@@ -676,6 +694,7 @@ func put(id: int) -> void:
 
 
 func take(id: int) -> void:
+	_path_arches.erase(id)
 	var w := find(id)
 	for m in masons:
 		if m.lifting == w:

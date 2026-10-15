@@ -18,7 +18,7 @@ func _init() -> void:
 	_a_merged_stroke_wavering_past_reach_stays_merged()
 	_a_junction_among_crowded_arches_takes_the_widest_pier()
 	_a_wall_arches_over_a_plant()
-	_a_long_wall_over_open_ground_arches_at_its_middle()
+	_a_wall_over_open_ground_stays_solid()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
 
@@ -105,11 +105,10 @@ func _a_wall_arches_over_a_plant() -> void:
 		_check(got[0].live_arches == got[0].arches, "and the layout opens it")
 
 
-func _a_long_wall_over_open_ground_arches_at_its_middle() -> void:
-	var got := _plan(Vector2(-4, 6), Vector2(4, 6))
-	_check(got.size() == 1 and got[0].arches == [got[0].length() * 0.5], "an 8 m wall arches at its middle")
-	got = _plan(Vector2(-1.5, 6), Vector2(1.5, 6))
-	_check(got.size() == 1 and got[0].arches.is_empty(), "a 3 m wall over open ground does not")
+func _a_wall_over_open_ground_stays_solid() -> void:
+	for length in [3.0, 5.0, 8.0, 27.0, 120.0]:
+		var got := _plan(Vector2(-length * 0.5, 6), Vector2(length * 0.5, 6))
+		_check(got.size() == 1 and got[0].arches.is_empty(), "a %s m wall over open ground stays solid" % length)
 
 
 func _a_short_wall_can_meet_another() -> void:

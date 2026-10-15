@@ -30,6 +30,7 @@ func _run() -> void:
 	_a_long_stroke_freezes_into_chunks()
 	_painting_skips_a_path()
 	_undo_lifts_a_path_and_its_arches()
+	await _a_path_opens_its_arch_before_release()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	quit(1 if failures else 0)
 
@@ -322,6 +323,7 @@ func _teardown(nodes: Array) -> void:
 func _a_second_path_beside_an_arch_makes_an_arcade() -> void:
 	var nodes := _setup()
 	var w := _draw_wall(nodes[0], Vector3(-8, 0, 30), Vector3(8, 0, 30))
+	_reshape(nodes, w, {"arches": PackedFloat32Array([8.0])})
 	var before := w.layout.live_arches.duplicate()
 	_lay(nodes, Vector3(1.5, 0, 24), Vector3(1.5, 0, 36), 0.5)
 	_check(before.all(func(a): return w.layout.live_arches.has(a)), "a path beside the middle arch closes nothing: %s then %s" % [before, w.layout.live_arches])
@@ -465,3 +467,47 @@ func _lay(nodes: Array, a: Vector3, b: Vector3, half: float) -> void:
 
 func _reshape(nodes: Array, w: Wall, data: Dictionary) -> void:
 	(nodes[2] as World).submit({"op": "reshape", "id": w.id, "data": data})
+
+
+func _a_path_opens_its_arch_before_release() -> void:
+	var nodes := _setup()
+	var paths: Paths = nodes[1]
+	var world: World = nodes[2]
+	var w := _draw_wall(nodes[0], Vector3(-8, 0, 0), Vector3(8, 0, 0))
+	paths.begin(Terrain.ground(3, 4), 0.6)
+	paths.extend(Terrain.ground(3, 1), 0.6)
+	paths._relay()
+	_check(w.layout.arches.is_empty(), "a path approaching a wall leaves it solid")
+	paths.extend(Terrain.ground(3, -1), 0.6)
+	paths._relay()
+	_check(w.layout.arches.size() == 1 and paths.drawing != null, "crossing opens an arch while the stroke is held")
+	_check(world.state.paths.is_empty() and world.state.walls[w.id].arches.is_empty(), "the preview changes no saved garden data")
+	while w.laying():
+		await process_frame
+	_check(w.layout.live_arches.size() == 1, "the worker renders the arch before release")
+	var laid := w.layout.laid
+	paths.extend(Terrain.ground(3, -2), 0.6)
+	paths._relay()
+	_check(not w.laying() and w.layout.laid == laid, "an unchanged crossing does not rebuild the wall")
+	var ghost := paths.end()
+	_check(w.layout.arches.size() == 1, "the sent ghost keeps its arch while awaiting acceptance")
+	paths.drop(ghost)
+	while w.laying():
+		await process_frame
+	_check(w.layout.live_arches.is_empty(), "a rejected ghost closes its preview arch")
+	paths.begin(Terrain.ground(3, 4), 0.6)
+	paths.extend(Terrain.ground(3, -1), 0.6)
+	paths._relay()
+	paths.forget()
+	while w.laying():
+		await process_frame
+	_check(w.layout.live_arches.is_empty(), "forgetting the stroke closes its preview arch")
+	paths.begin(Terrain.ground(3, 0.1), 0.6)
+	paths.extend(Terrain.ground(3, -0.1), 0.6)
+	paths._relay()
+	_check(w.layout.arches.size() == 1, "a short crossing previews its opening")
+	paths.extend(Terrain.ground(3, 0.3), 0.6)
+	paths._relay()
+	_check(w.layout.arches.is_empty(), "moving the unsettled tip back closes the crossing")
+	_check(paths.end().is_empty() and paths.previews.is_empty(), "a discarded short stroke leaves no preview")
+	_teardown(nodes)
