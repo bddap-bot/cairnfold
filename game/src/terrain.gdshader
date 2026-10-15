@@ -20,7 +20,8 @@ uniform vec3 bed : source_color = vec3(0.50, 0.44, 0.32);
 
 varying vec3 world_pos;
 varying vec3 bounce_at;
-varying vec3 meadow;
+varying vec3 meadow_lush;
+varying vec3 meadow_dry;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -28,13 +29,16 @@ void vertex() {
 	world_pos.y = VERTEX.y;
 	NORMAL = ground_normal(world_pos.xz);
 	bounce_at = bounce_on_ground(world_pos.xz);
-	meadow = blade_color(blade_top(COLOR.r, 0.5), canopy);
+	meadow_lush = blade_color(blade_top(0.0, 0.5), canopy);
+	meadow_dry = blade_color(blade_top(1.0, 0.5), canopy);
 }
 
 void fragment() {
 	float d = texture(detail, world_pos.xz * 0.07).r;
 	float fine = texture(detail, world_pos.xz * 0.45).r;
-	vec3 grass = meadow * (0.75 + d * 0.3 + fine * 0.2);
+	// COLOR.r is the grass's own dryness here; the noise breaks it into patches finer than the blades' clumps show.
+	vec3 meadow = mix(meadow_lush, meadow_dry, clamp(COLOR.r + (d - 0.5) * 0.8, 0.0, 1.0));
+	vec3 grass = meadow * (0.85 + fine * 0.3);
 	// Steepness and depth per fragment: interpolated from the vertices they would follow the 1 m triangles.
 	float s = ground_steepness(world_pos.xz) + (fine - 0.5) * 0.06;
 	vec3 c = mix(grass, earth, smoothstep(0.2, 0.32, s));
