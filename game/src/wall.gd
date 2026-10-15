@@ -99,7 +99,7 @@ func data() -> Dictionary:
 		"points": PackedVector3Array(layout.points), "height": layout.height, "arches": PackedFloat32Array(layout.arches),
 		"seed": layout.seed, "closed": layout.closed, "top": int(layout.top), "fence": layout.fence,
 		"windows": PackedVector2Array(layout.windows), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags),
-		"ruins": PackedVector2Array(layout.ruins),
+		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster,
 	}
 	if roof != null:
 		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "flag": roof.flag}
@@ -114,6 +114,7 @@ func set_data(d: Dictionary) -> void:
 	layout.closed = d.closed
 	layout.top = d.top as WallLayout.Top
 	layout.fence = d.fence
+	layout.plaster = d.get("plaster", false)
 	layout.windows.assign(Array(d.windows))
 	layout.lanterns.assign(Array(d.lanterns))
 	layout.flags.assign(Array(d.flags))
@@ -357,26 +358,31 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind]) -> Dictionary:
 	var mortar := ks[Part.MORTAR]
 	var shadow := ks[Part.STONE_SHADOW]
 	var mortars := 0
+	var plaster := 0
 	for s in built.stones:
-		if s.kind == "mortar":
+		if s.kind in ["mortar", "plaster"]:
 			mortars += 1
+		if s.kind == "plaster":
+			plaster += 1
 	var stones := built.stones.size() - mortars
 	var bufs: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array()]
 	bufs[0].resize(stones * stone.stride())
 	bufs[1].resize(mortars * mortar.stride())
-	bufs[2].resize(stones * shadow.stride())
-	var n := [0, 0]
+	bufs[2].resize((stones + plaster) * shadow.stride())
+	var n := [0, 0, 0]
 	var box := AABB(built.samples[0] if built.samples.size() > 0 else Vector3.ZERO, Vector3.ZERO)
 	for s in built.stones:
 		var x: Transform3D = s.xform
-		if s.kind == "mortar":
+		if s.kind in ["mortar", "plaster"]:
 			mortar.write(bufs[1], n[1], x, s.color, s.ao, Palette.code(s.kind))
 			n[1] += 1
 		else:
 			x.basis = x.basis * Stones.FLIPS[s.variant]
 			stone.write(bufs[0], n[0], x, s.color, s.ao, Palette.code(s.kind))
-			shadow.write(bufs[2], n[0], x)
 			n[0] += 1
+		if s.kind != "mortar":
+			shadow.write(bufs[2], n[2], x)
+			n[2] += 1
 		box = box.expand(x.origin)
 	return {"stone": bufs[0], "mortar": bufs[1], "shadow": bufs[2], "bounds": box.grow(0.6)}
 

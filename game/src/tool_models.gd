@@ -25,10 +25,10 @@ static var _camera_screen: StandardMaterial3D
 static func build(tool: Hand.Tool) -> Node3D:
 	var root := Node3D.new()
 	match tool:
-		Hand.Tool.WALLS:
-			_wall(root)
-		Hand.Tool.HOUSE:
-			_house(root)
+		Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS:
+			_wall(root, tool == Hand.Tool.PLASTER_WALLS)
+		Hand.Tool.HOUSE, Hand.Tool.PLASTER_HOUSE:
+			_house(root, tool == Hand.Tool.PLASTER_HOUSE)
 		Hand.Tool.FENCE:
 			_fence(root)
 		Hand.Tool.WINDOWS:
@@ -57,6 +57,9 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_palette(root)
 		Hand.Tool.CAMERA:
 			_camera(root)
+	if tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS, Hand.Tool.HOUSE, Hand.Tool.PLASTER_HOUSE]:
+		for part in root.get_children():
+			part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22), Vector3.ZERO) * part.transform
 	return root
 
 
@@ -273,18 +276,20 @@ static func _pond(root: Node3D) -> void:
 		root.add_child(mi)
 
 
-static func _wall(root: Node3D) -> void:
+static func _wall(root: Node3D, plastered := false) -> void:
 	var layout := WallLayout.new()
+	layout.plaster = plastered
 	layout.seed = 4
 	layout.height = 1.5
-	layout.points = [Vector3(0, 0, -1.4), Vector3(0, 0, 1.4)]
+	layout.points = [Vector3(-1.4, 0, 0), Vector3(1.4, 0, 0)]
 	layout.build(_flat)
 	_stones(root, layout.stones, 0.015)
 
 
 ## A cottage: stone walls with a door toward the eye under a tiled gable roof.
-static func _house(root: Node3D) -> void:
+static func _house(root: Node3D, plastered := false) -> void:
 	var layout := WallLayout.new()
+	layout.plaster = plastered
 	layout.seed = 7
 	layout.height = 2.4
 	layout.top = WallLayout.Top.CAP
@@ -442,7 +447,19 @@ static func _path(root: Node3D) -> void:
 
 static func _stones(root: Node3D, stones: Array[Dictionary], scale: float) -> void:
 	var node := Stones.new()
-	node.lay(stones)
+	node.lay(stones.filter(func(s: Dictionary) -> bool: return s.get("kind", "") != "plaster"))
+	var panels := stones.filter(func(s: Dictionary) -> bool: return s.get("kind", "") == "plaster")
+	if not panels.is_empty():
+		var kind := Wall.kinds()[Wall.Part.MORTAR]
+		var mi := kind.instance()
+		mi.multimesh.instance_count = panels.size()
+		var buffer := PackedFloat32Array()
+		buffer.resize(panels.size() * kind.stride())
+		for i in panels.size():
+			var panel: Dictionary = panels[i]
+			kind.write(buffer, i, panel.xform, panel.color, panel.ao, Palette.code("plaster"))
+		mi.multimesh.buffer = buffer
+		node.add_child(mi)
 	node.scale = Vector3.ONE * scale
 	for mmi in node.get_children():
 		(mmi as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

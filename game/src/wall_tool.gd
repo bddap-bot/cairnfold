@@ -99,7 +99,7 @@ func _init(player: Rig, garden: World, plants: Flora, ways: Paths) -> void:
 
 
 static func draws(hand: Hand) -> bool:
-	return hand.tool == Hand.Tool.WALLS or hand.tool == Hand.Tool.FENCE
+	return hand.tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS, Hand.Tool.FENCE]
 
 
 func mason(hand: Hand) -> Mason:
@@ -128,7 +128,7 @@ func _process(delta: float) -> void:
 		m.hand.hold()
 	if _arch_button.pressed("ax_button"):
 		for m in masons:
-			if not m.pick.is_empty() and m.hand.tool == Hand.Tool.WALLS and not m.pick.wall.layout.fence:
+			if not m.pick.is_empty() and m.hand.tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS] and not m.pick.wall.layout.fence:
 				var p: Dictionary = m.pick
 				if p.point.y - p.wall.layout.point_at(p.s).y > p.wall.layout.height - TOP_BAND:
 					cycle_top(p.wall)
@@ -234,6 +234,7 @@ func begin_stroke(m: Mason, p: Vector3) -> void:
 	m.stroke.points = [p]
 	m.stroke.plan = WallPlan.new(standing, flora.obstacles(), randi())
 	m.stroke.plan.fence = m.hand.tool == Hand.Tool.FENCE
+	m.stroke.plan.plaster = m.hand.tool == Hand.Tool.PLASTER_WALLS
 	m.loop = {}
 	m.loop_held = 0.0
 	_dirty = true
@@ -275,6 +276,7 @@ func snap_tower(m: Mason, center: Vector3, radius: float) -> void:
 	m.stroke.walls = [_new_wall()]
 	m.stroke.plan = null
 	var layout := m.stroke.walls[0].layout
+	layout.plaster = m.hand.tool == Hand.Tool.PLASTER_WALLS
 	layout.points = WallLayout.circle(center, radius)
 	layout.closed = true
 	layout.top = WallLayout.Top.CAP
@@ -327,7 +329,7 @@ func _house_input() -> void:
 	var holders: Array[Mason] = []
 	var starting := false
 	for m in masons:
-		if m.hand.tool != Hand.Tool.HOUSE or rig.aim_hand == m.hand or not m.hand.get_has_tracking_data():
+		if m.hand.tool not in [Hand.Tool.HOUSE, Hand.Tool.PLASTER_HOUSE] or rig.aim_hand == m.hand or not m.hand.get_has_tracking_data():
 			continue
 		if m.buttons.held("trigger_click") or m.buttons.held("grip_click"):
 			holders.append(m)
@@ -347,7 +349,7 @@ func _house_input() -> void:
 			var ahead := -rig.head.global_basis.z
 			ahead.y = 0.0
 			at = Terrain.ground(rig.head.global_position.x + ahead.normalized().x * HOUSE_REACH, rig.head.global_position.z + ahead.normalized().z * HOUSE_REACH)
-		begin_house(at, angle(rig.head.global_basis.x))
+		begin_house(at, angle(rig.head.global_basis.x), lead.tool == Hand.Tool.PLASTER_HOUSE)
 	if holders.is_empty():
 		if not _holders.is_empty():
 			end_house()
@@ -369,8 +371,9 @@ func _house_input() -> void:
 
 
 ## A square house standing at `at`, its front square to `yaw`, until it is placed and let go.
-func begin_house(at: Vector3, yaw: float) -> void:
+func begin_house(at: Vector3, yaw: float, plaster := false) -> void:
 	house = _new_wall()
+	house.layout.plaster = plaster
 	house.layout.closed = true
 	house.layout.top = WallLayout.Top.CAP
 	house.layout.height = HOUSE_HEIGHT

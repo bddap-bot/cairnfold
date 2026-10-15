@@ -152,6 +152,9 @@ static func _wall(d: Variant) -> Variant:
 		return null
 	if typeof(d.get("fence")) != TYPE_BOOL:
 		return null
+	var plaster: Variant = d.get("plaster", false)
+	if typeof(plaster) != TYPE_BOOL or (plaster and d.fence):
+		return null
 	var windows: Variant = d.get("windows")
 	var lanterns: Variant = d.get("lanterns")
 	var flags: Variant = d.get("flags")
@@ -168,7 +171,7 @@ static func _wall(d: Variant) -> Variant:
 		return null
 	if not ruins.is_empty() and (d.fence or d.has("roof")):
 		return null
-	var out := {"points": points, "height": d.height, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins}
+	var out := {"points": points, "height": d.height, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster}
 	if d.has("roof"):
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():

@@ -1,6 +1,6 @@
 # Cairnfold
 
-A cozy VR building toy, inspired by Tiny Glade. Draw stone walls across a meadow
+A cozy VR building toy, inspired by Tiny Glade. Draw stone or plaster walls across a meadow
 and watch them grow courses of stone, crenellated tops and arches; teleport onto
 the grass to stand beside them, or into the air to float above your build.
 
@@ -35,6 +35,8 @@ paths, flowers, grass, trees, terrain, pond, colour, camera, delete or visit.
 - Holding visit: a small figure of each player nearby on the same network stands
   in front of you; point at one and pull the trigger to build in their garden
   with them. While visiting, pick the little cairn to go home.
+- The wall and house groups offer stone and plaster miniatures. Plaster keeps stone bases,
+  corners and opening trim; either material supports the same roofs and fittings.
 - Holding walls: grip on a wall pulls its height, grip on a roof shapes it; A on a
   wall cuts or fills an arch, A on its top changes its style; a loop held closed
   snaps to a round tower.

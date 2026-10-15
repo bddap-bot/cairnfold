@@ -77,6 +77,7 @@ var top := Top.CRENEL
 var cover := Cover.OPEN
 ## Posts and rails instead of stone; a path through a fence opens a wooden arch.
 var fence := false
+var plaster := false
 ## Where windows were placed: arc length and the height of the click above the foot.
 var windows: Array[Vector2] = []
 ## Lanterns: arc length, height above the foot, and the face they hang from (+1 or -1).
@@ -191,7 +192,8 @@ func build(ground: Callable) -> void:
 			spans = _cut(spans, b.x, b.y)
 		var offset := (0.5 if k % 2 == 1 else 0.0) * rng.randf_range(0.3, 0.6)
 		for span in spans:
-			_lay_course(span[0], span[1], y0, course_h, offset, rng)
+			if not plaster or k == 0:
+				_lay_course(span[0], span[1], y0, course_h, offset, rng)
 			_lay_mortar(span[0], span[1], y0, course_h)
 	for a in live_arches:
 		_lay_ring(a, rng)
@@ -639,8 +641,8 @@ func _lay_mortar(a: float, b: float, y0: float, h: float) -> void:
 		var l := minf(_stone_scale, b - s)
 		var frame := frame_at(s + l * 0.5)
 		var basis := Basis(frame.tangent, Vector3.UP, frame.tangent.cross(Vector3.UP))
-		var size := Vector3(l, h + 0.02, THICKNESS - 0.14)
-		stones.append({"xform": Transform3D(basis.scaled_local(size), frame.point + Vector3.UP * (y0 + h * 0.5)), "color": Color(0.32, 0.29, 0.25), "kind": "mortar", "s": s + l * 0.5, "y": y0 + h * 0.5, "size": size, "ao": 0.8, "variant": 0})
+		var size := Vector3(l, h + 0.02, THICKNESS - (0.04 if plaster and y0 > 0.0 else 0.14))
+		stones.append({"xform": Transform3D(basis.scaled_local(size), frame.point + Vector3.UP * (y0 + h * 0.5)), "color": PLASTER if plaster and y0 > 0.0 else Color(0.32, 0.29, 0.25), "kind": "plaster" if plaster and y0 > 0.0 else "mortar", "s": s + l * 0.5, "y": y0 + h * 0.5, "size": size, "ao": 1.0 if plaster else 0.8, "variant": 0})
 		s += l
 
 
@@ -855,6 +857,7 @@ func inputs() -> WallLayout:
 	w.top = top
 	w.cover = cover
 	w.fence = fence
+	w.plaster = plaster
 	w.windows = windows.duplicate()
 	w.lanterns = lanterns.duplicate()
 	w.flags = flags.duplicate()
@@ -902,6 +905,7 @@ func snapshot() -> WallLayout:
 	w.openings = openings.duplicate(true)
 	w.breaks = breaks.duplicate()
 	w.fence = fence
+	w.plaster = plaster
 	return w
 
 

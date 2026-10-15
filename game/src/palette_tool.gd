@@ -84,7 +84,7 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	if not pick.is_empty():
 		var layout: WallLayout = pick.wall.layout
 		var wood := layout.fence or not layout.opening_at(pick.s, pick.point.y - layout.point_at(pick.s).y).is_empty()
-		return {"element": Palette.Element.WOOD if wood else Palette.Element.STONE, "point": pick.point}
+		return {"element": Palette.Element.WOOD if wood else Palette.Element.PLASTER if layout.plaster else Palette.Element.STONE, "point": pick.point}
 	var ground: Variant = Terrain.raycast(origin, dir)
 	if ground != null:
 		return {"element": Palette.Element.MEADOW, "point": ground}

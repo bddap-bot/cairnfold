@@ -189,7 +189,7 @@ func _aim(s: Dictionary) -> void:
 
 
 func _wall(s: Dictionary) -> void:
-	await _stroke(s, Hand.Tool.WALLS)
+	await _stroke(s, Hand.Tool.PLASTER_WALLS if s.get("plaster", false) else Hand.Tool.WALLS)
 
 
 func _fence(s: Dictionary) -> void:
@@ -215,7 +215,7 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 ## Draws a loop and keeps holding at its end until it snaps to a tower.
 func _tower(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
-	var m := tool.mason(_holding(s, Hand.Tool.WALLS))
+	var m := tool.mason(_holding(s, Hand.Tool.PLASTER_WALLS if s.get("plaster", false) else Hand.Tool.WALLS))
 	var path := _path(s)
 	tool.begin_stroke(m, path[0])
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
@@ -235,7 +235,7 @@ func _tower(s: Dictionary) -> void:
 ## `turn_from` (default `turn`), moving there over `seconds`. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
-	_holding(s, Hand.Tool.HOUSE)
+	_holding(s, Hand.Tool.PLASTER_HOUSE if s.get("plaster", false) else Hand.Tool.HOUSE)
 	var x: float = s.at[0]
 	var z: float = s.at[1]
 	var to := _spot(s, x, z)
@@ -243,7 +243,7 @@ func _house(s: Dictionary) -> void:
 	var yaw := _turn(s, x, z, s.get("turn", 0.0))
 	var yaw_from := _turn(s, x, z, s.get("turn_from", s.get("turn", 0.0)))
 	var size := Vector2(s.size[0], s.size[1]) if s.has("size") else WallTool.HOUSE_SIZE
-	tool.begin_house(from, yaw_from)
+	tool.begin_house(from, yaw_from, s.get("plaster", false))
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
 	var shots: int = s.get("shots", 3) if s.has("capture") else 0
 	var taken := 0
@@ -455,7 +455,7 @@ static func _stretch(layout: WallLayout, from: float, to: float) -> Array[Vector
 ## Fills a disc at once with parallel walls (see StressLayout) of one height, their ivy fully grown.
 func _stress(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
-	var m := tool.mason(_holding(s, Hand.Tool.WALLS))
+	var m := tool.mason(_holding(s, Hand.Tool.PLASTER_WALLS if s.get("plaster", false) else Hand.Tool.WALLS))
 	var rows := StressLayout.walls(s.radius, s.spacing)
 	var start := Time.get_ticks_usec()
 	for row in rows:
@@ -490,7 +490,7 @@ func _fill_flora(s: Dictionary) -> void:
 ## Fills a disc at once with a grid of houses and round towers, `spacing` apart, alternating.
 func _village(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
-	var m := tool.mason(_holding(s, Hand.Tool.WALLS))
+	var m := tool.mason(_holding(s, Hand.Tool.PLASTER_WALLS if s.get("plaster", false) else Hand.Tool.WALLS))
 	var start := Time.get_ticks_usec()
 	var r: float = s.radius
 	var step: float = s.spacing
@@ -502,7 +502,7 @@ func _village(s: Dictionary) -> void:
 				continue
 			k += 1
 			if k % 2 == 0:
-				tool.begin_house(Terrain.ground(c.x, c.y), 0.0)
+				tool.begin_house(Terrain.ground(c.x, c.y), 0.0, s.get("plaster", false))
 				tool.place_house(Terrain.ground(c.x, c.y), 0.0, Vector2(0.7, 0.44) * step)
 				tool.end_house()
 				tool.walls[-1].ivy_age = INF

@@ -25,6 +25,7 @@ var obstacles: PackedVector3Array
 var seed: int
 ## The stroke draws a fence: low posts and rails, with no arches over plants.
 var fence := false
+var plaster := false
 ## Each stroke point's nearest standing wall, kept while the point stays put: only the newest point moves.
 var _hits: Array[Dictionary] = []
 
@@ -43,6 +44,7 @@ func pieces(stroke: Array[Vector3], ground: Callable) -> Array[WallLayout]:
 		w.seed = seed + out.size()
 		w.points = run
 		w.fence = fence
+		w.plaster = plaster
 		if fence:
 			w.height = WallLayout.FENCE_HEIGHT
 		w.resample(ground)
