@@ -365,6 +365,11 @@ frame at a switch. On the Quest 2 neither this step nor the governor's line at 0
 period (below) is measured yet: the render region there left the binned surface as it was,
 while this scale shrinks it.
 
+The Meta plugin's separate dynamic-resolution controller is disabled: its explicit render
+region can exceed the framebuffer after the game's governor shrinks it, making both eyes
+black while timing reports an apparent improvement. The benchmark rejects this framebuffer
+error. Resolution changes must be checked against rendered eye images as well as timings.
+
 Each step, measured the same way (`demo/ladder.json`), with the flora changes in "Flora on
 the Quest 2" below:
 
