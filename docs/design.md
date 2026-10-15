@@ -14,9 +14,10 @@ aiming at; our implementation is our own.
 
 ## Requirements
 
-- Standalone on the Steam Frame, launched from a Steam library shortcut, and on
-  Quest 2 and later as a sideloaded APK (`scripts/android.sh`). Every release
-  (`scripts/release.sh`) carries both builds.
+- Standalone on the Steam Frame, from Steam as an Android depot run by Lepton (see
+  "Steam Frame route") or as the arm64 Linux export from a library shortcut, and on
+  Quest 2 and later as a sideloaded APK (`scripts/android.sh quest`). Every release
+  (`scripts/release.sh`) carries every build.
 - One graphics configuration for every headset: a ladder from full quality down
   that each headset walks by its own GPU time, settling on the prettiest step it
   can hold (see "Automatic quality"). No per-device quality tiers, no settings
@@ -50,6 +51,44 @@ instancing, shadows and fog come built in, the official binary runs on aarch64
 Linux, and GDScript reloads without a compile step. Generators are plain data code
 (`WallLayout` builds stone transforms, nodes only render them), so a hot generator
 can move to a GDExtension later without touching the rest.
+
+### Steam Frame route
+
+**Decision: the Frame gets Cairnfold from Steam as an Android depot,
+`scripts/android.sh lepton`, run by the Frame's Lepton container.** It is the only
+Frame route Steamworks documents (a depot with its OS set to Android and a top-level
+`.apk`); its depot settings name no ARM Linux option. The APK uses the OpenXR vendors
+plugin's Khronos flavor, so no Meta SDK material is in it (docs/package-notices.md).
+The arm64 Linux export stays for direct installs.
+
+Both builds were measured on the Frame from one revision, one stress tour
+(`demo/stress.json`), unworn, at 1728×1728 per eye and 72 Hz. Both ran on the same
+Turnip Adreno 750 driver and SteamVR OpenXR 2.18.2, in the order native, Lepton,
+native. GPU time is per frame, the median of each phase's seconds, from Godot's
+viewport GPU timer in every column.
+
+| | Native arm64, run 1 | Native arm64, run 2 | Lepton APK |
+| --- | --- | --- | --- |
+| Phases holding 72 Hz, of 39 | 18 | 17 | 21 |
+| GPU ms, flora/aerial | 10.83 | 10.82 | 7.43 |
+| GPU ms, r15/aerial (walls) | 18.36 | 20.14 | 15.38 |
+| GPU ms, hills/aerial | 29.26 | 34.78 | 25.42 |
+| Lepton ÷ native GPU time, median over phases | | | 0.84 (vs run 1), 0.77 (vs run 2) |
+
+The APK ran between the two native runs and beat both, so drift over the session
+does not explain the gap; the native runs themselves differ by up to 19% on the
+heaviest phases. Its cause was not measured. Both builds rendered at the same size, through the same driver and
+runtime, with only the fossilize Vulkan layer loaded. Over budget, the APK and
+the second native run dropped to whole fractions of the refresh rate (36 or 24 fps),
+and the first native run to its GPU-bound rate (31 to 67 fps); either way frames are missed. Launched from a
+Steam library entry through the Lepton compatibility tool, the APK opens its XR
+session at 72 Hz and holds it on the opening scene: 73 fps, 4.7 ms of GPU time, no late frames.
+
+Inside Lepton, `metrics.json` has no `gpu_ms`, because the in-game DRM reading
+finds nothing there. The Lepton figures above are the viewport GPU timer, which
+`Quality` steps by and which works there. Phase by phase, it agrees with the
+same DRM counters read from the host (median difference 0.8%, at most 7.6%). That host reading matched the in-game one
+over a native run: 457.3 s against 456.5 s.
 
 ### Frame measurements
 

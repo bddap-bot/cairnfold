@@ -8,8 +8,9 @@ These are a conservative source inventory, including optional components absent
 from some binaries. The engine's OpenXR implementation is covered there.
 
 Each desktop package (`scripts/package.sh`: Windows, Linux x86_64 and the Frame's
-Linux arm64) contains `notices/` next to the game binary. The Quest APK contains
-`assets/notices/`, readable with any ZIP reader without running the game. No game
+Linux arm64) contains `notices/` next to the game binary. The Quest APK and the
+Frame's Android APK (`scripts/android.sh lepton`) contain `assets/notices/`,
+readable with any ZIP reader without running the game. No game
 screen is needed. Cinzel's OFL is included for the Steam artwork; the font binary
 is not shipped and OFL does not impose its font redistribution terms on images
 rendered with it.
@@ -25,8 +26,8 @@ under Cairnfold's licenses (§1.2.8). Third-party open-source terms control thei
 components (§3.2): the addon’s Meta flavor actually bundles the Khronos loader
 under Apache-2.0. Its license and the addon/bindings licenses are included.
 
-The desktop and Frame packages contain no vendor addon or Meta SDK, so those SDK-specific
-restrictions do not attach to that bundle. Selling on Steam does not itself
+The desktop packages, the Frame's Linux export among them, contain no vendor addon or Meta SDK, so those SDK-specific
+restrictions do not attach to them. Selling on Steam does not itself
 require Meta attribution. A future Steam build incorporating SDK material would
 need the approved-product restriction and other SDK terms reassessed.
 
@@ -34,6 +35,15 @@ The agreement also governs privacy/data handling, platform behavior and
 experimental features (§§1.2, 1.4, 1.6). Notices alone do not establish store
 approval or compliance with those behavioral requirements. SDK use is subject
 to the agreement's update provisions (§7.1).
+
+## Frame Android package
+
+The Lepton APK uses the addon's Khronos flavor: its Android library carries only
+the Khronos OpenXR loader (Apache-2.0) and the addon's own GDExtension, built from
+the MIT addon sources against Khronos headers. The build deletes every other
+vendor's Android library before export and refuses a manifest naming Meta, so the Meta SDK agreement does not attach to this package. It ships the
+Godot, Android dependency and NDK runtime notices, the addon and godot-cpp licenses,
+and the Khronos loader license in `openxr-vendors/khronos/LICENSE`.
 
 ## Desktop packages
 

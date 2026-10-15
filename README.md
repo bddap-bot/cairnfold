@@ -87,9 +87,9 @@ Each [release](https://github.com/bddap-bot/cairnfold/releases) carries
    `adb install -r cairnfold-quest.apk`.
 4. In the headset, open the library's Unknown Sources filter and start Cairnfold.
 
-Build it yourself with `nix-shell android.nix --run 'scripts/android.sh cairnfold.apk'`;
+Build it yourself with `nix-shell android.nix --run 'scripts/android.sh quest cairnfold.apk'`;
 it signs with a local key, so remove a release install before installing your own.
-`scripts/release.sh` publishes the desktop and Frame builds and the APK together.
+`scripts/release.sh` publishes the desktop and Frame builds and both APKs together.
 
 ## License
 

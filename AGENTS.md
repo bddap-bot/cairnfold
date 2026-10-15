@@ -18,10 +18,10 @@ controls and the build order.
 - Edit by subtraction: fix problems by removing code where possible, one
   implementation per thing.
 - `nix-shell --run scripts/test.sh` must pass before landing; a change to the build
-  scripts, `game/project.godot` or `game/export_presets.cfg` also owes a green
-  `nix-shell android.nix --run 'scripts/android.sh out/cairnfold.apk'`.
+  scripts, `game/project.godot` or `game/export_presets.cfg` also owes a
+  green `scripts/android.sh quest` and `scripts/android.sh lepton` under `nix-shell android.nix`.
 - Deploying main is `scripts/release.sh`, which publishes the Windows, Linux and
-  Frame exports and the Quest APK together; the Frame's install and library shortcut are kept outside
+  Frame exports and both APKs together; the Frame's install and library shortcut are kept outside
   this repo (README, "Running").
 - Every edit to the garden is a build command applied by `World` (docs/multiplayer.md): a tool never
   changes the garden itself, only shows its ghost until the command comes back. After touching
