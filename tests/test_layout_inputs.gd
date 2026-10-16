@@ -21,7 +21,7 @@ func _init() -> void:
 	})
 	_changes(roof, {
 		"kind": RoofLayout.Kind.CONE, "center": Vector3(1, 0, 1), "radius": 3.0,
-		"pitch": 3.0, "curve": 0.5, "seed": 19, "chimneys": [Vector2(1, 1)], "flag": true,
+		"pitch": 3.0, "curve": 0.5, "seed": 19, "chimneys": [Vector2(1, 1)], "flag": true, "thatch": true,
 	})
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)

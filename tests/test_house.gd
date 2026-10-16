@@ -201,7 +201,7 @@ func _a_resized_house_keeps_its_fittings_and_roof() -> void:
 	var at := {"center": Vector3(0, 0, 0), "yaw": 0.0, "size": Vector2(6, 4), "round": false}
 	var d := {"points": PackedVector3Array(WallTool.outline(at)), "closed": true, "arches": PackedFloat32Array([1.0]), "windows": PackedVector2Array([Vector2(3.0, 1.2), Vector2(8.0, 0.0)]),
 		"lanterns": PackedVector3Array([Vector3(13.0, 2.0, -1.0)]), "flags": PackedFloat32Array([18.0]),
-		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array([Vector2(1.5, 0.8)]), "flag": false}}
+		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array([Vector2(1.5, 0.8)]), "flag": false, "thatch": false}}
 	var from := WallTool.house_of(d)
 	_check(from.center.is_equal_approx(at.center) and from.size.is_equal_approx(at.size) and WallTool.outline(from) == WallTool.outline(at), "a built house's footprint reads back from its corners: %s" % from)
 	var wide := from.duplicate()
@@ -222,7 +222,7 @@ func _a_resized_house_keeps_its_fittings_and_roof() -> void:
 	_check(is_equal_approx(r.windows[0].x, 25.0), "the front window stays in the middle of the front as it moves out: %s" % r.windows[0])
 	var tower := {"points": PackedVector3Array(WallLayout.circle(Vector3(2, 0, 2), 2.0)), "closed": true, "arches": PackedFloat32Array(), "windows": PackedVector2Array([Vector2(TAU * 0.5, 0.0)]),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array([TAU]),
-		"roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3(2, 0, 2), "radius": 2.0, "pitch": 3.2, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": true}}
+		"roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3(2, 0, 2), "radius": 2.0, "pitch": 3.2, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": true, "thatch": false}}
 	var wider := WallTool.house_of(tower)
 	_check(wider.round and wider.size == Vector2(4, 4), "a tower reads back round, 4 m across")
 	wider.size = Vector2(6, 6)
@@ -521,7 +521,7 @@ func _gabled(plaster: bool, curve := 0.0, style := WallLayout.GableEnd.WALL, poi
 func _gable_cases() -> Array:
 	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)), "closed": true, "arches": PackedFloat32Array(), "windows": PackedVector2Array(),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
-		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": false}}
+		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": false, "thatch": false}}
 	var shapes := [[d.points, 2.0], [WallLayout.rectangle(Vector3(0, 0, 0), Vector3(4, 0, 0), 2.4), RoofLayout.PITCH.y]]
 	for size in [Vector2(12, 4), Vector2(6, 8), Vector2(3, 2.4)]:
 		var at := WallTool.house_of(d)
@@ -627,7 +627,7 @@ func _the_budget_counts_each_gable_end_as_laid() -> void:
 		for curve in [0.0, 0.8, -0.8]:
 			for pitch in [0.8, 2.0, 5.0]:
 				var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "fence": false,
-					"plaster": plaster, "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": pitch, "curve": curve, "chimneys": [], "flag": false}}
+					"plaster": plaster, "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": pitch, "curve": curve, "chimneys": [], "flag": false, "thatch": false}}
 				var walls := 20.0 * 2.4
 				var wall := Budget.wall(d)
 				d.gable_end = WallLayout.GableEnd.BOARDS
@@ -699,7 +699,7 @@ func _gable_faces_face_out_of_the_wall() -> void:
 
 func _the_budget_counts_gable_ends() -> void:
 	var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "fence": false,
-		"plaster": false, "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "flag": false}}
+		"plaster": false, "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "flag": false, "thatch": false}}
 	var hs := (4.0 + WallLayout.THICKNESS) * 0.5
 	_check(is_equal_approx(Budget.wall(d).wall_m2, 20.0 * 2.4 + 2.0 * hs * 2.0), "a house counts its two gable ends as wall: %s" % Budget.wall(d))
 	d.roof.pitch = 0.0

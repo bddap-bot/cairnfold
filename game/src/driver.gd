@@ -274,7 +274,7 @@ func _house(s: Dictionary) -> void:
 	if s.get("round", false):
 		await _frames(2)
 		var w: Wall = tool.walls[-1]
-		main.world.submit({"op": "reshape", "id": w.id, "data": WallTool.restyle_roof(main.world.state.walls[w.id], WallTool.RoofStyle.CONE)})
+		main.world.submit({"op": "reshape", "id": w.id, "data": WallTool.restyle_roof(main.world.state.walls[w.id], WallTool.RoofStyle.THATCHED_CONE if main.tool.thatch else WallTool.RoofStyle.CONE)})
 
 
 ## Resizes the built house `index` (or under `at`) where it stands to `size` [along its ridge, across it], or a
@@ -612,7 +612,8 @@ func _fill_flora(s: Dictionary) -> void:
 
 
 ## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter; with `storeys`,
-## each stands that many high, with `wings`, a wing crosses each house, and with `gable`, their gable ends take it.
+## each stands that many high, with `wings`, a wing crosses each house, with `gable`, their gable ends take it, and
+## with `thatch`, their roofs are thatched.
 func _village(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var start := Time.get_ticks_usec()
@@ -620,6 +621,7 @@ func _village(s: Dictionary) -> void:
 	var step: float = s.spacing
 	_lay_gables(s)
 	_lay_plaster(s)
+	main.tool.thatch = s.get("thatch", false)
 	var k := 0
 	for z in range(-int(r / step), int(r / step) + 1):
 		for x in range(-int(r / step), int(r / step) + 1):

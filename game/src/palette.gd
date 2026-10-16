@@ -8,7 +8,7 @@ extends RefCounted
 
 ## Each material's value is also its code in the parts' custom data, which tells a repaint what to scale; the
 ## meadow's 0 doubles as "kept as laid".
-enum Element { MEADOW = 0, STONE = 1, ROOF = 2, WOOD = 3, PLASTER = 4, TIMBER = 5 }
+enum Element { MEADOW = 0, STONE = 1, ROOF = 2, WOOD = 3, PLASTER = 4, TIMBER = 5, THATCH = 6 }
 
 ## The meadow's swatches are the seasons, each a preset for the meadow (grass and ground) and foliage
 ## (trees, bushes, ivy): the colour plants turn toward (rgb) and how far (a); and the share of flowers in bloom.
@@ -28,6 +28,7 @@ const SWATCHES := {
 	Element.WOOD: [WallLayout.WOOD, Color(0.55, 0.53, 0.48), Color(0.44, 0.55, 0.44), Color(0.27, 0.40, 0.56), Color(0.56, 0.20, 0.16), Color(0.2, 0.2, 0.22), Color(0.86, 0.82, 0.70)],
 	Element.TIMBER: [TimberFrame.OAK, Color(0.16, 0.105, 0.075), Color(0.30, 0.20, 0.12), Color(0.25, 0.22, 0.18), Color(0.19, 0.16, 0.13), Color(0.22, 0.12, 0.07)],
 	Element.PLASTER: [WallLayout.PLASTER, Color(0.93, 0.92, 0.89), Color(0.91, 0.72, 0.68), Color(0.89, 0.73, 0.45), Color(0.72, 0.81, 0.87), Color(0.75, 0.81, 0.67)],
+	Element.THATCH: [RoofLayout.STRAW, Color(0.72, 0.56, 0.3), Color(0.78, 0.68, 0.45), Color(0.5, 0.38, 0.24), Color(0.5, 0.48, 0.43), Color(0.34, 0.29, 0.22)],
 }
 
 ## The material each kind of laid part is painted with; kinds not listed (glass, iron, flags) keep their colour.
@@ -36,7 +37,7 @@ const KINDS := {
 	"pillar": Element.STONE, "cope": Element.STONE, "cap": Element.STONE, "merlon": Element.STONE,
 	"pier": Element.STONE, "lintel": Element.STONE, "sill": Element.STONE, "mullion": Element.STONE,
 	"chimney": Element.STONE, "rubble": Element.STONE, "deck": Element.STONE,
-	"tile": Element.ROOF, "ridge": Element.ROOF,
+	"tile": Element.ROOF, "ridge": Element.ROOF, "thatch": Element.THATCH,
 	"post": Element.WOOD, "rail": Element.WOOD, "board": Element.WOOD, "gate": Element.WOOD, "frame": Element.WOOD,
 	"door": Element.WOOD, "pole": Element.WOOD,
 	"plaster": Element.PLASTER, "timber": Element.TIMBER,
@@ -114,7 +115,7 @@ static func preview(index: int) -> void:
 
 
 static func upgraded(paint: Variant) -> Variant:
-	if typeof(paint) == TYPE_PACKED_INT32_ARRAY and paint.size() == Element.size() - 1:
+	if typeof(paint) == TYPE_PACKED_INT32_ARRAY and paint.size() >= Element.TIMBER and paint.size() < Element.size():
 		paint = paint.duplicate()
-		paint.append(0)
+		paint.resize(Element.size())
 	return paint

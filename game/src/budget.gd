@@ -16,10 +16,10 @@ enum Device { QUEST_2, FRAME }
 
 ## What a garden's builds count as, the units COSTS prices: square metres of face of stone walls, plaster walls and
 ## fences (length along the ground by height, and a house's two gable ends: boards, laid as stones are but fewer, count
-## as stone wall), of roof (its circle), and of path;
+## as stone wall), of tiled or flat roof and of thatch (the ground each covers out to its eaves), and of path;
 ## fittings that add a mesh (lanterns, flags, chimneys); painted grass blades and flowers, the meadow's own flowers
 ## included; trees and bushes standing; ponds, one a seed; and easels, each a canvas drawn and simulated.
-const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "path_m2", "fitting", "grass", "flower", "tree", "bush", "pond", "timber", "easel"]
+const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "path_m2", "fitting", "grass", "flower", "tree", "bush", "pond", "timber", "easel"]
 
 ## Per headset, in the governor's signal (the viewport's GPU time per frame, Quality) at step 8, the ladder's last with
 ## the sun's shadows and the full 3D resolution, so a garden within budget keeps both; fitted
@@ -33,9 +33,9 @@ const COSTS := {
 ## Use the largest measured Quest marginal cost for both devices until Frame is calibrated.
 const TIMBER_US := 8.7
 ## The Frame's runtime halves the rate once a frame nears 0.88 of the period: held to the governor's line under it.
-const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 10.804, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": TIMBER_US, "easel": 400.0}
+const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 5.85, "thatch_m2": 5.85, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": TIMBER_US, "easel": 400.0}
 ## Held to the Frame's until `scripts/costs.py` writes the Quest 2's own.
-const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 10.804, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": TIMBER_US, "easel": 400.0}
+const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 5.85, "thatch_m2": 5.85, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": TIMBER_US, "easel": 400.0}
 
 
 static func gpu_ms() -> float:
@@ -104,6 +104,8 @@ static func wall(d: Dictionary) -> Dictionary:
 		out.timber = timber
 	var fittings: int = d.lanterns.size() + d.flags.size()
 	if d.has("roof"):
+		var eave := WallLayout.THICKNESS * 0.5 + RoofLayout.OVERHANG
+		var plan: float = PI * (d.roof.radius + eave) * (d.roof.radius + eave)
 		if d.roof.kind == RoofLayout.Kind.GABLE and d.points.size() == 4:
 			var ends := WallLayout.new()
 			ends.height = d.height
@@ -114,7 +116,9 @@ static func wall(d: Dictionary) -> Dictionary:
 			var half_span: float = (Vector2(d.points[3].x - d.points[0].x, d.points[3].z - d.points[0].z).length() + WallLayout.THICKNESS) * 0.5
 			var units := "wall_m2" if ends.gable_end == WallLayout.GableEnd.BOARDS else face
 			out[units] = out.get(units, 0.0) + 2.0 * ends.gable_face(half_span)
-		out.roof_m2 = PI * d.roof.radius * d.roof.radius
+			var ridge := Vector2(d.points[1].x - d.points[0].x, d.points[1].z - d.points[0].z).length()
+			plan = (ridge + WallLayout.THICKNESS + 2.0 * RoofLayout.GABLE_OVERHANG) * 2.0 * (half_span + RoofLayout.OVERHANG)
+		out["thatch_m2" if d.roof.thatch and d.roof.pitch > 0.0 else "roof_m2"] = plan
 		fittings += d.roof.chimneys.size() + (1 if d.roof.flag else 0)
 	if fittings > 0:
 		out.fitting = fittings

@@ -127,7 +127,7 @@ func _twisting_wraps_round_the_wheel() -> void:
 
 
 func _every_laid_kind_is_painted_or_kept() -> void:
-	var kept := ["glass", "iron", "finial", "pot"]
+	var kept := ["glass", "iron", "finial", "pot", "ligger"]
 	var kinds := {}
 	var wall := WallLayout.new()
 	wall.points = [Vector3(0, 0, 0), Vector3(16, 0, 0)]
@@ -168,7 +168,11 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	timber.plaster = true
 	timber.gable_end = WallLayout.GableEnd.WALL
 	timber.build(_flat)
-	for s in wall.stones + coped.stones + fence.stones + boarded.stones + timber.stones + roof.tiles + deck.tiles:
+	var thatched := RoofLayout.new()
+	thatched.corners = roof.corners
+	thatched.thatch = true
+	thatched.build()
+	for s in wall.stones + coped.stones + fence.stones + boarded.stones + timber.stones + roof.tiles + deck.tiles + thatched.tiles + thatched.slabs:
 		kinds[s.kind] = true
 	for k in kinds:
 		_check(Palette.KINDS.has(k) != kept.has(k), "a laid %s is either painted with a material or kept on purpose" % k)

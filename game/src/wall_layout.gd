@@ -262,12 +262,13 @@ func build(ground: Callable, water := Callable()) -> void:
 	_hide()
 
 
-## Takes away the tiles, flag and gable ends of the roof on this wall that lie where a build it meets lays nothing.
+## Takes away the tiles, coat, flag and gable ends of the roof on this wall that lie where a build it meets lays nothing.
 func hide_roof(r: RoofLayout) -> void:
 	if joined.is_empty() and resting.is_empty():
 		return
 	r.tiles.assign(r.tiles.filter(func(t: Dictionary) -> bool: return not hides(t.xform.origin)))
 	r.cloths.assign(r.cloths.filter(func(c: Dictionary) -> bool: return not hides(c.xform.origin)))
+	r.keep_coat(func(p: Vector3) -> bool: return not hides(p))
 	var kept := PackedVector3Array()
 	for i in range(0, r.gable_faces.size(), 3):
 		var tri := r.gable_faces.slice(i, i + 3)
@@ -974,7 +975,8 @@ func _lay_gables() -> void:
 		match gable_end:
 			GableEnd.BOARDS:
 				_lay_boards(mid, hs, base, rng)
-				_lay_verge(mid, hs, base, rng, "board")
+				if not gable.thatch:
+					_lay_verge(mid, hs, base, rng, "board")
 			GableEnd.STEPS:
 				_lay_crow_steps(mid, hs, base, h, rng)
 			_:
@@ -982,7 +984,7 @@ func _lay_gables() -> void:
 				while not plaster and _under_slope((rows.size() + 1) * h, hs) >= 0.2:
 					rows.append(Vector2(rows.size(), _under_slope((rows.size() + 1) * h, hs)))
 				_lay_gable_rows(mid, hs, base, h, rows, rng)
-				if not TimberFrame.applies(self):
+				if not TimberFrame.applies(self) and not gable.thatch:
 					_lay_verge(mid, hs, base, rng, "cope")
 
 

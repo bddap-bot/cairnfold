@@ -310,7 +310,9 @@ static func _wall(d: Variant) -> Variant:
 		var chimneys: Variant = r.get("chimneys")
 		if typeof(chimneys) != TYPE_PACKED_VECTOR2_ARRAY or chimneys.size() > MAX_CHIMNEYS or not Array(chimneys).all(func(c: Vector2) -> bool: return c.is_finite() and absf(c.x) < 40.0 and absf(c.y) < 40.0) or typeof(r.get("flag")) != TYPE_BOOL:
 			return null
-		out.roof = {"kind": r.kind, "center": r.center, "radius": r.radius, "pitch": r.pitch, "curve": r.curve, "seed": r.seed, "chimneys": chimneys, "flag": r.flag}
+		if typeof(r.get("thatch", false)) != TYPE_BOOL:
+			return null
+		out.roof = {"kind": r.kind, "center": r.center, "radius": r.radius, "pitch": r.pitch, "curve": r.curve, "seed": r.seed, "chimneys": chimneys, "flag": r.flag, "thatch": r.get("thatch", false)}
 	return out
 
 
@@ -330,7 +332,7 @@ static func _reshape(d: Dictionary, now: Dictionary) -> Variant:
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():
 			out[k] = {}
 			for r in d.roof:
-				if typeof(r) != TYPE_STRING or not r in ["kind", "center", "radius", "pitch", "curve", "chimneys", "flag"]:
+				if typeof(r) != TYPE_STRING or not r in ["kind", "center", "radius", "pitch", "curve", "chimneys", "flag", "thatch"]:
 					return null
 				out[k][r] = d.roof[r]
 				trial.roof[r] = d.roof[r]

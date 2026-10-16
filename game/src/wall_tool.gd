@@ -24,7 +24,7 @@ const TOWER_HEIGHT := 4.5
 ## Bounds of a house's sides; the shorter side, under the ridge, stops at HOUSE_DEPTH.
 const HOUSE_SIDES := Vector2(2.4, 14.0)
 const HOUSE_DEPTH := 7.0
-enum RoofStyle { PITCHED, CONE, FLAT }
+enum RoofStyle { PITCHED, CONE, FLAT, THATCHED, THATCHED_CONE }
 const HOUSE_SIZE := Vector2(4.5, 4.5)
 const HOUSE_REACH := 6.0
 const TOP_BAND := 0.4
@@ -78,6 +78,8 @@ var gable_end := WallLayout.GableEnd.WALL
 ## Whether new walls and houses are laid in plaster: the face last turned to on this machine.
 var plaster := false
 var timber_style := 0
+## Whether new houses are thatched: the roof last turned to on this machine.
+var thatch := false
 var masons: Array[Mason] = []
 ## The house the hands are carrying, where it stands, and the hands holding it.
 var house: Wall
@@ -433,6 +435,7 @@ func begin_house(at: Vector3, yaw: float, on := PackedInt32Array()) -> void:
 	house.layout.height = HOUSE_HEIGHT
 	var roof := RoofLayout.new()
 	roof.seed = house.layout.seed
+	roof.thatch = thatch
 	house.add_roof(roof)
 	_holders.clear()
 	_laid_at.clear()
@@ -517,14 +520,17 @@ static func pitch_for(at: Dictionary) -> float:
 static func roof_style(d: Dictionary) -> RoofStyle:
 	if d.roof.pitch <= 0.0:
 		return RoofStyle.FLAT
-	return RoofStyle.CONE if d.roof.kind == RoofLayout.Kind.CONE else RoofStyle.PITCHED
+	if d.roof.kind == RoofLayout.Kind.CONE:
+		return RoofStyle.THATCHED_CONE if d.roof.thatch else RoofStyle.CONE
+	return RoofStyle.THATCHED if d.roof.thatch else RoofStyle.PITCHED
 
 
 ## The `reshape` that gives the house or tower with garden data `d` roof `style`. A cone stands it as a round tower
-## as wide as its shorter side; a pitched or flat roof on a tower stands it as a square house as wide.
+## as wide as its shorter side; a pitched or flat roof on a tower stands it as a square house as wide. A pitched roof
+## or cone is tiled or thatched; a flat one keeps the covering it had for when it is pitched again.
 static func restyle_roof(d: Dictionary, style: RoofStyle) -> Dictionary:
 	var at := house_of(d)
-	var round := style == RoofStyle.CONE
+	var round := style in [RoofStyle.CONE, RoofStyle.THATCHED_CONE]
 	var out := {"roof": {}}
 	if at.round != round:
 		var side := clampf(minf(at.size.x, at.size.y), HOUSE_SIDES.x, HOUSE_DEPTH)
@@ -537,7 +543,9 @@ static func restyle_roof(d: Dictionary, style: RoofStyle) -> Dictionary:
 		out["roof"]["flag"] = false
 	if style == RoofStyle.FLAT:
 		out["roof"]["pitch"] = 0.0
-	elif d.roof.pitch <= 0.0:
+		return out
+	out["roof"]["thatch"] = style in [RoofStyle.THATCHED, RoofStyle.THATCHED_CONE]
+	if d.roof.pitch <= 0.0:
 		out["roof"]["pitch"] = pitch_for(at)
 	return out
 

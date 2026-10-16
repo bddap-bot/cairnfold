@@ -58,7 +58,7 @@ func _lands(rig: Rig, from: Vector3, at: Vector3, surface: Callable, what: Strin
 func _onto_a_pitched_roof(rig: Rig, world: World) -> void:
 	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(-40, 30), Terrain.ground(-34, 30), 4.0)))
 	d.closed = true
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(-37, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "flag": false}
+	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(-37, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "flag": false, "thatch": false}
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()

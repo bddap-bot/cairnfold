@@ -5,10 +5,11 @@ extends Node3D
 ## wall changes by its own Masonry, so far chunks draw coarse stones as settled ones do, and once it settles by the
 ## glade's.
 
-enum Part { STONE, MORTAR, STONE_SHADOW, TILE, TILE_SHADOW, IVY }
+enum Part { STONE, MORTAR, STONE_SHADOW, TILE, TILE_SHADOW, COAT, IVY }
 
 static var _kinds: Array[Masonry.Kind] = []
 static var _plaster: ShaderMaterial
+static var _thatch: ShaderMaterial
 
 var layout := WallLayout.new()
 var masonry: Masonry
@@ -46,6 +47,7 @@ var _drawn: Masonry
 ## Ivy's own MultiMesh while it grows, made when first needed: it shows as much of it as has grown.
 var _ivy: MultiMeshInstance3D
 var _gables: MeshInstance3D
+var _coat: MeshInstance3D
 var _settled := false
 var _ivy_times := PackedFloat32Array()
 var _ivy_task := -1
@@ -72,7 +74,8 @@ var _perch_out := {}
 
 
 ## How each Part is drawn. Stones, roof tiles and the mortar between stones cast no shadow; a plain box per
-## stone or tile does, at a ninth of the triangles. Mortar only shows in the gaps, so it is a plain box too.
+## stone or tile does, at a ninth of the triangles. Mortar only shows in the gaps, so it is a plain box too. A
+## thatched roof's coat is a mesh of its own; its slabs cast its shadow and stand in it for the bounce light.
 static func kinds() -> Array[Masonry.Kind]:
 	if _kinds.is_empty():
 		var box := BoxMesh.new()
@@ -87,6 +90,7 @@ static func kinds() -> Array[Masonry.Kind]:
 		_kinds[Part.STONE_SHADOW] = shadow
 		_kinds[Part.TILE] = Masonry.Kind.new(Meshes.rounded_box(0.22, 2, 41), Stones.shared_material(), true, true, off, true)
 		_kinds[Part.TILE_SHADOW] = shadow
+		_kinds[Part.COAT] = Masonry.Kind.new(Meshes.shadow_box(), null, true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, true)
 		_kinds[Part.IVY] = Masonry.Kind.new(Meshes.sprig(), leaf, true, false, off)
 		_reach(Quality.ladder[0].stone_near_m, Quality.ladder[0].ivy_m)
 	return _kinds
@@ -126,10 +130,18 @@ func add_roof(r: RoofLayout) -> void:
 		_plaster.shader = load("res://src/plaster.gdshader")
 		_plaster.set_shader_parameter("albedo", WallLayout.PLASTER)
 		_plaster.set_shader_parameter("detail", Look.detail_noise())
+	if _thatch == null:
+		_thatch = ShaderMaterial.new()
+		_thatch.shader = load("res://src/thatch.gdshader")
+		_thatch.set_shader_parameter("detail", Look.detail_noise())
 	_gables = MeshInstance3D.new()
 	_gables.material_override = _plaster
 	add_child(_gables)
-	_tint_gables()
+	_coat = MeshInstance3D.new()
+	_coat.material_override = _thatch
+	_coat.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	add_child(_coat)
+	_tint_roof()
 
 
 ## The wall as a build command carries it.
@@ -141,7 +153,7 @@ func data() -> Dictionary:
 		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "gable_end": int(layout.gable_end), "timber_style": layout.timber_style, "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
 	}
 	if roof != null:
-		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "flag": roof.flag}
+		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "flag": roof.flag, "thatch": roof.thatch}
 	return d
 
 
@@ -165,7 +177,7 @@ func set_data(d: Dictionary) -> void:
 	if d.has("roof"):
 		if roof == null:
 			add_roof(RoofLayout.new())
-		for k in ["center", "radius", "pitch", "curve", "seed", "flag"]:
+		for k in ["center", "radius", "pitch", "curve", "seed", "flag", "thatch"]:
 			roof.set(k, d.roof[k])
 		roof.kind = d.roof.kind as RoofLayout.Kind
 		roof.chimneys.assign(Array(d.roof.chimneys))
@@ -404,6 +416,12 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind],
 	for i in r.mortar.size():
 		var m: Dictionary = r.mortar[i]
 		bed.write(mortar, i, m.xform, _painted_as(m, colours), m.ao, Palette.code(m.kind))
+	var slab := ks[Part.COAT]
+	var slabs := PackedFloat32Array()
+	slabs.resize(r.slabs.size() * slab.stride())
+	for i in r.slabs.size():
+		var m: Dictionary = r.slabs[i]
+		slab.write(slabs, i, m.xform, _painted_as(m, colours), m.ao, Palette.code(m.kind))
 	var tiles := PackedFloat32Array()
 	tiles.resize(r.tiles.size() * tile.stride())
 	var shadows := PackedFloat32Array()
@@ -412,7 +430,8 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind],
 		var t: Dictionary = r.tiles[i]
 		tile.write(tiles, i, t.xform, _painted_as(t, colours), t.ao, Palette.code(t.kind))
 		shadow.write(shadows, i, t.xform)
-	return {"roof": r, "tiles": tiles, "shadows": shadows, "chunks": {Part.TILE: Masonry.split(tiles, tile.stride()), Part.TILE_SHADOW: Masonry.split(shadows, shadow.stride())}, "mortar": mortar}
+	var chunks := {Part.TILE: Masonry.split(tiles, tile.stride()), Part.TILE_SHADOW: Masonry.split(shadows, shadow.stride()), Part.COAT: Masonry.split(slabs, slab.stride())}
+	return {"roof": r, "tiles": tiles, "shadows": shadows, "slabs": slabs, "chunks": chunks, "mortar": mortar}
 
 
 func _pack_roof(roofed := {}) -> void:
@@ -422,12 +441,18 @@ func _pack_roof(roofed := {}) -> void:
 		roof.adopt(roofed.roof)
 	_parts[Part.TILE] = roofed.tiles
 	_parts[Part.TILE_SHADOW] = roofed.shadows
+	_parts[Part.COAT] = roofed.slabs
 	for part in roofed.chunks:
 		_chunked[part] = roofed.chunks[part]
 	if not roofed.mortar.is_empty():
 		_parts[Part.MORTAR] = _wall_mortar + roofed.mortar
 		_chunked[Part.MORTAR] = Masonry.split(_parts[Part.MORTAR], kinds()[Part.MORTAR].stride())
 	_fittings.lay(layout.flames, layout.cloths + roof.cloths)
+	_coat.mesh = null
+	if not roof.coat.is_empty() and not roof.coat[Mesh.ARRAY_VERTEX].is_empty():
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, roof.coat)
+		_coat.mesh = mesh
 	var tris := roof.gable_faces
 	if tris.is_empty() or not layout.plaster or layout.gable_end != WallLayout.GableEnd.WALL:
 		_gables.mesh = null
@@ -494,14 +519,16 @@ func repaint(to: PackedInt32Array) -> void:
 	if to == paint:
 		return
 	paint = to.duplicate()
-	_tint_gables()
+	_tint_roof()
 	_recolour()
 
 
-func _tint_gables() -> void:
+func _tint_roof() -> void:
 	if _gables != null:
 		var t := Palette.tint(Palette.Element.PLASTER, paint[Palette.Element.PLASTER])
 		_gables.set_instance_shader_parameter(&"tint", Vector3(t.r, t.g, t.b))
+		var straw := Palette.tint(Palette.Element.THATCH, paint[Palette.Element.THATCH])
+		_coat.set_instance_shader_parameter(&"tint", Vector3(straw.r, straw.g, straw.b))
 
 
 ## Brings the packed parts from `_painted` to `paint` on a worker thread, a pass over every piece being too long for a
@@ -521,7 +548,7 @@ func _recolour() -> void:
 			scale[float(e)] = Vector3(b.r / a.r, b.g / a.g, b.b / a.b)
 	var ks := kinds()
 	var parts := {}
-	for p in [Part.STONE, Part.MORTAR, Part.TILE]:
+	for p in [Part.STONE, Part.MORTAR, Part.TILE, Part.COAT]:
 		parts[p] = [_parts[p], _chunked[p], ks[p].stride()]
 	var out := {"laid": _laid, "to": paint.duplicate()}
 	_recoloured = out
@@ -540,7 +567,7 @@ func _land_recolour() -> void:
 	_recolour_task = -1
 	var out := _recoloured
 	if out.laid == _laid:
-		for p in [Part.STONE, Part.MORTAR, Part.TILE]:
+		for p in [Part.STONE, Part.MORTAR, Part.TILE, Part.COAT]:
 			_parts[p] = out[p][0]
 			_chunked[p] = out[p][1]
 		_painted = out.to

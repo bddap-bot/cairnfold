@@ -7,7 +7,7 @@ extends Node3D
 ## is one undo step. The colour tool's choices are swatches of the material pointed at: a build's stone, roof
 ## tiles, woodwork (fences, window frames, doors) or plaster, as a `reshape` of its paint (builds laid after
 ## take the swatch let go last), or on the meadow the garden's season. The style tool's are miniatures of the
-## styles of what it points at: a gable end's, a roof's (pitched, a tower's cone, flat), a roofless wall's top,
+## styles of what it points at: a gable end's, a roof's (pitched or a tower's cone, each tiled or thatched, or flat), a roofless wall's top,
 ## a wall's face (stone or plaster, plain or arched there; builds laid after take the material let go last), or a
 ## tree's species.
 
@@ -96,7 +96,7 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 		var wood := end.gable_end == WallLayout.GableEnd.BOARDS
 		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if end.plaster else Palette.Element.STONE, gable.point, gable.wall)
 	if along < INF and (pick.is_empty() or pick.distance > 0.2 or along < pick.along):
-		return colour_target(Palette.Element.ROOF, roof.point, roof.wall)
+		return colour_target(Palette.Element.THATCH if roof.wall.roof.thatched() else Palette.Element.ROOF, roof.point, roof.wall)
 	if not pick.is_empty():
 		var layout: WallLayout = pick.wall.layout
 		if _on_timber(layout, pick.point):
@@ -302,6 +302,8 @@ func close(hand: Hand) -> void:
 		walls.paint[w.target.element] = w.pick
 	elif w.wall >= 0 and w.target.restyle == Restyle.GABLE:
 		walls.gable_end = w.pick as WallLayout.GableEnd
+	elif w.wall >= 0 and w.target.restyle == Restyle.ROOF and w.pick != WallTool.RoofStyle.FLAT:
+		walls.thatch = w.pick in [WallTool.RoofStyle.THATCHED, WallTool.RoofStyle.THATCHED_CONE]
 	elif w.wall >= 0 and w.target.restyle == Restyle.FACE:
 		walls.plaster = w.pick >= Face.PLASTER
 		walls.timber_style = w.pick - Face.ALSACE if w.pick >= Face.ALSACE else -1

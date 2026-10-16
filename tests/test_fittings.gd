@@ -502,7 +502,7 @@ static func _tower(center: Vector3, radius: float) -> Dictionary:
 		"points": PackedVector3Array(WallLayout.circle(center, radius)), "height": 4.5, "arches": PackedFloat32Array(), "seed": 5,
 		"closed": true, "top": WallLayout.Top.CAP, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(),
 		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "plaster": false, "on": PackedInt32Array(), "paint": Palette.plain(),
-		"roof": {"kind": RoofLayout.Kind.CONE, "center": center, "radius": radius, "pitch": 3.2, "curve": 0.0, "seed": 5, "chimneys": PackedVector2Array(), "flag": false},
+		"roof": {"kind": RoofLayout.Kind.CONE, "center": center, "radius": radius, "pitch": 3.2, "curve": 0.0, "seed": 5, "chimneys": PackedVector2Array(), "flag": false, "thatch": false},
 	}
 
 

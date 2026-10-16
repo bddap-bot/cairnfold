@@ -96,10 +96,11 @@ static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool) -> Node
 		PaletteTool.Restyle.GABLE:
 			_house(root, plastered, i as WallLayout.GableEnd)
 		PaletteTool.Restyle.ROOF:
-			if i == WallTool.RoofStyle.CONE:
-				_tower(root, plastered)
+			var thatched: bool = i in [WallTool.RoofStyle.THATCHED, WallTool.RoofStyle.THATCHED_CONE]
+			if i in [WallTool.RoofStyle.CONE, WallTool.RoofStyle.THATCHED_CONE]:
+				_tower(root, plastered, thatched)
 			else:
-				_house(root, plastered, WallLayout.GableEnd.WALL, i == WallTool.RoofStyle.FLAT)
+				_house(root, plastered, WallLayout.GableEnd.WALL, i == WallTool.RoofStyle.FLAT, 0, thatched)
 		PaletteTool.Restyle.TOP:
 			_wall(root, plastered, i as WallLayout.Top)
 		PaletteTool.Restyle.FACE:
@@ -448,7 +449,7 @@ static func _wall(root: Node3D, plastered := false, top := WallLayout.Top.CRENEL
 
 
 ## A cottage: stone walls with a door toward the eye under a tiled gable roof, or a flat one.
-static func _house(root: Node3D, plastered := false, gable_end := WallLayout.GableEnd.WALL, flat := false, timber_style := 0) -> void:
+static func _house(root: Node3D, plastered := false, gable_end := WallLayout.GableEnd.WALL, flat := false, timber_style := 0, thatched := false) -> void:
 	var layout := WallLayout.new()
 	layout.timber_style = timber_style
 	layout.plaster = plastered
@@ -465,6 +466,7 @@ static func _house(root: Node3D, plastered := false, gable_end := WallLayout.Gab
 	roof.corners = layout.points
 	roof.pitch = 0.0 if flat else 1.8
 	roof.stepped = gable_end == WallLayout.GableEnd.STEPS
+	roof.thatch = thatched
 	layout.gable = roof
 	layout.build(_flat)
 	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
@@ -473,7 +475,7 @@ static func _house(root: Node3D, plastered := false, gable_end := WallLayout.Gab
 
 
 ## A round tower under a cone roof.
-static func _tower(root: Node3D, plastered := false) -> void:
+static func _tower(root: Node3D, plastered := false, thatched := false) -> void:
 	var layout := WallLayout.new()
 	layout.plaster = plastered
 	layout.seed = 9
@@ -487,6 +489,7 @@ static func _tower(root: Node3D, plastered := false) -> void:
 	roof.kind = RoofLayout.Kind.CONE
 	roof.radius = 1.2
 	roof.pitch = WallTool.pitch_for({"round": true, "size": Vector2(2.4, 2.4)})
+	roof.thatch = thatched
 	layout.gable = roof
 	layout.build(_flat)
 	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
@@ -497,6 +500,21 @@ static func _tower(root: Node3D, plastered := false) -> void:
 static func _roofed(root: Node3D, layout: WallLayout, roof: RoofLayout, plastered: bool) -> void:
 	_stones(root, layout.stones, 0.012)
 	_stones(root, roof.tiles, 0.012)
+	if not roof.coat.is_empty():
+		var coat := ArrayMesh.new()
+		coat.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, roof.coat)
+		var straw: StandardMaterial3D = _mats.get("thatch")
+		if straw == null:
+			straw = StandardMaterial3D.new()
+			straw.vertex_color_use_as_albedo = true
+			straw.roughness = 0.95
+			_mats["thatch"] = straw
+		var mi := MeshInstance3D.new()
+		mi.mesh = coat
+		mi.scale = Vector3.ONE * 0.012
+		mi.material_override = straw
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(mi)
 	if not plastered:
 		return
 	var st := SurfaceTool.new()

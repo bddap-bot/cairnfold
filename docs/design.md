@@ -287,7 +287,7 @@ density, and no build the player can make may bring the frame rate down.
 - `demo/stress.json` is the worst case: the bare meadow, then every flora pool full,
   a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
   over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
-  two storeys high, every other one turned a quarter, each crossed by a wing, eight ponds, and the most ducks there can be at them (`bench.sh`
+  two storeys high, every other one turned a quarter, each crossed by a wing, tiled and then thatched, eight ponds, and the most ducks there can be at them (`bench.sh`
   fixes the seed) and the most sheep at four fences between them (seen too from the ground by a fence), with every butterfly there can be
   over the full flower pool and the most conures there can be among the full pool of planted trees,
   every firefly there can be over the ponds at dusk, and a hill pulled up live under 973 m of walls,
@@ -595,7 +595,7 @@ make it not possible to place so many objects that the game- starts stuttering, 
 wanna make it obvious to the user that there is a limit there"
 
 - What a garden holds counts in units (`Budget.UNITS`): square metres of stone wall,
-  plaster wall, fence, roof and path face; fittings that add a mesh (lanterns, flags,
+  plaster wall, fence and path face, and of the ground a tiled or flat roof and a thatched one cover out to their eaves; fittings that add a mesh (lanterns, flags,
   chimneys); painted grass blades and flowers, the meadow's own flowers too; trees and
   bushes standing; ponds. `World` keeps the count as every command applies, so deleting
   frees exactly what placing took, and undo, wipes and a garden loaded or joined count
@@ -1221,7 +1221,7 @@ Stage numbers refer to the build order at the end.
 | Towers | A loop held down straightens into a circle | A wall drawn into a loop, round or any shape, stays a freestanding wall, roofless. A round tower comes from a house: the style tool's cone on its roof stands it as a tower 4.5 m tall under a cone roof, as wide as the square's shorter side, and a pitched or flat roof squares it again; built, two hands spread it every way at once (2.4–7 m across). No door until one is made, as for a house. `demo/tower.json` builds a stone tower, a plaster one and a house | 4 (done) |
 | Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Circle footprints are the round towers above. Its own tool, a little house in the ring. Its trigger takes up a square house where the hand points and carries it, turning with the hand; the other hand's grip joins to hold it by both hands, which move it by their midpoint, turn it as the pair turns and stretch the side nearest the line between them as they spread (each side 2.4–14 m, at most 7 m across the ridge, which runs the longer way). Letting go builds it. Built, it is resized where it stands: a grip on its wall pulls its height, and the other hand's grip on it too stretches its width or depth (see "Resizing a house"). Stone walls with corner piers and no door, level on its lowest ground; a door comes from the windows tool low on a wall, an arch from the style tool or from a path running in | 4 (done) |
 | Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings") | 4 (done) |
-| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh. A gable end continues the wall below it: a stone house's courses carry on up under the slopes, a plaster house's plaster does, and on both a verge of stones runs up each rake over the courses' ends (European town houses of Cotswold stone or Provençal plaster). The style tool on a gable end picks that house's gable ends, and houses laid after take it: the wall carried up; boarded, upright planks under a barge board up each rake (a barn's end), painted as woodwork; or crow-stepped, the stone courses or plaster climbing past the slopes in capped steps, the roof stopping inside them. The gable ends count against the budget at the face each style lays, as wall (boards as stone wall: laid as stones are, fewer). Grip on a roof, whatever the hand holds: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`). Pushed all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top then takes a style like an open wall's. The style tool on a roof picks pitched, a tower's cone or flat | 4 (done) |
+| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh. A gable end continues the wall below it: a stone house's courses carry on up under the slopes, a plaster house's plaster does, and on both a verge of stones runs up each rake over the courses' ends (European town houses of Cotswold stone or Provençal plaster). The style tool on a gable end picks that house's gable ends, and houses laid after take it: the wall carried up; boarded, upright planks under a barge board up each rake (a barn's end), painted as woodwork; or crow-stepped, the stone courses or plaster climbing past the slopes in capped steps, the roof stopping inside them. The gable ends count against the budget at the face each style lays, as wall (boards as stone wall: laid as stones are, fewer). Grip on a roof, whatever the hand holds: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`). Pushed all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top then takes a style like an open wall's. The style tool on a roof picks pitched, a tower's cone or flat, the pitched ones tiled or thatched (see "Thatch") | 4 (done) |
 | Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. While it points, the wall stands as the press would leave it, laid by the same code. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light | 6 (done) |
 | Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | The decorations tool's trigger places what suits where it points: a stone chimney with two clay pots on a house's roof, rising clear of the ridge; a flag on a tower's roof or a wall's top, waving; a lantern on an iron arm off a wall's face, or on a fence post. Lanterns are emissive bodies in a soft additive halo, and every one lights the ground and walls around it (see "Lantern light"). A press on one takes it away | 6 (done) |
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | The fence tool draws like walls (same stroke, merging and junctions) with a wooden profile: posts at most 1.6 m apart and two rails between. A path through a fence, in either order, opens a gate: two tall posts under a bent wooden arch | 6 (done) |
@@ -1236,7 +1236,7 @@ Stage numbers refer to the build order at the end.
 | Fog | Froxel fog with density and height controls | Depth fog with aerial perspective and sun scatter, thinning as the eye lifts | 1 (done), 2 (done) |
 | Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap and grading (done); glow cut for the Quest 2. No depth of field: in a headset your eyes focus for themselves | 1 (done) |
 | Time of day | Continuous, lockable, sun-angle slider | Grip any hand on open sky to grab it and aim to turn it about the sun's arc, the sun riding on it from under the horizon at dawn, high in front at noon, to under it at dusk; the point grabbed stays under the pointer, and moving the hand without turning its aim leaves the sky be; a soft click in the hand each hour. The sun's colour and strength, sky, fog and ambient follow. Not an edit: undo leaves it be | 8 (done) |
-| Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette on the controller): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. The style tool (a crow-stepped gable on the controller) works the same way with a miniature of each style of what it points at (see "Styles"). On a build its stone, roof tiles, woodwork (fences, window frames, doors) or plaster (plaster walls and their gable ends) each take one of 6–8 curated swatches for that build alone (see "Colour per build"); on the meadow the wheel holds the garden's five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch | 8 (done) |
+| Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette on the controller): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. The style tool (a crow-stepped gable on the controller) works the same way with a miniature of each style of what it points at (see "Styles"). On a build its stone, roof tiles, thatch, woodwork (fences, window frames, doors) or plaster (plaster walls and their gable ends) each take one of 6–8 curated swatches for that build alone (see "Colour per build"); on the meadow the wheel holds the garden's five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch | 8 (done) |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of left X (the Frame's D-pad down) undoes a step, right A redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it, so a process killed mid-write leaves the last one whole (`tests/test_kill.gd`); a quit writes one still due before the sounds wind down. It is loaded at start. Only your own garden is kept, never one you are visiting. A file of another format, or one the game cannot read whole, is moved aside to `garden.save.bad` before the garden is saved again, and the log says which. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
@@ -1371,7 +1371,7 @@ Directive (verbatim): "Same for... buildings"
 Colour belongs to the build, the one kind of thing every wall, fence, house and tower is (see "Buildings on
 buildings"):
 
-- A build carries its `paint`: a swatch for each material (stone, roof tiles, woodwork, plaster). Its roof, gable
+- A build carries its `paint`: a swatch for each material (stone, roof tiles, thatch, woodwork, plaster). Its roof, gable
   ends, window frames, doors and chimneys are part of it and take its paint; flags, glass and iron keep theirs.
   A storey on a house, or a wing across it, is a build of its own and keeps its own colours.
 - The colour tool's wheel on a build opens on that build's swatch, and letting go changes that build alone: a
@@ -1386,6 +1386,51 @@ buildings"):
   build's packed pieces scales each by its material's code from the swatch it has to the new one, and its gable
   ends take their plaster as a per-instance shader value. The wheel shows its swatch on the build live this way
   and sends it on letting go.
+
+## Thatch
+
+Directive (verbatim): "Thatched roofs I want them as an option."
+
+A pitched roof or a tower's cone is tiled or thatched (`RoofLayout.thatch`, part of the build command, so a `reshape`
+changes it, one undo step, and every player, save and joiner sees it; a roof saved before thatch existed loads
+tiled). The style tool's roof wheel offers pitched, cone and flat, then pitched and cone thatched, each as a
+miniature; houses laid after on that machine take the covering last turned to, as they take a wall's material, so a
+thatched village costs one turn. A flat roof stays a stone deck: it is walked on, and keeps the covering it had for
+when it is pitched again. A thatched roof keeps its thatch when it is resized or reshaped.
+
+Thatch is massing, not a texture on a tiled slope. Reed and straw roofs in England (Norfolk water reed, Devon combed
+wheat reed, Cotswold long straw) share a shape that reads across a village: a coat about a third of a metre deep,
+its eaves and verges rounded over well past the walls, and a ridge of its own standing proud, its lower edge
+block-cut into points and pinned by hazel liggers. So a thatched roof lays (`RoofLayout._lay_thatch`, pure data):
+
+- One mesh, the coat: each slope a grid from the ridge to past the eave and past both verges, lifted COAT off the
+  roof's surface with a soft lumpiness, its edges turned under in a half-round onto an underside, so the eaves and
+  verges are thick and round from below as from above. On every pitch the coat goes from the walls' faces to the
+  eaves with no seam, so no wall shows through it (the gable courses rise under it as under tiles; the stone or
+  board verge is left out, the coat rolls over the rakes; a crow-stepped end keeps its steps, the coat stopping inside them).
+- The ridge: each slope's coat carried up to meet the other's over the ridge (on slopes steeper than 2.5 in 1 it
+  stops short), under a roll along the ridge; down each side a band stands proud, its lower edge cut into points,
+  held by two hazel liggers. A cone has a knob at its apex under its finial or flag.
+- Colour: each roof weathers its own way from fresh reed toward grey-brown, its ridge, renewed more often, less;
+  moss gathers on the gentler, upward faces of a weathered coat. The thatch shader stretches the detail noise along
+  the way the straw runs (a vertex's tangent), so the coat reads as reed at arm's length. Thatch has its own swatches
+  on the colour wheel (`Palette.Element.THATCH`): fresh gold, wheat, water reed, silver, aged.
+- Shadows and bounce light read boxes, so slabs inside the coat (`RoofLayout.slabs`, drawn shadow-only as
+  `Wall.Part.COAT`) cast its shadow and stand in for it in the bounce light; the coat itself casts none.
+
+Cost: a thatched roof is one mesh drawn per build (a draw call each, not chunked like tiles) at about a third
+of a tiled roof's triangles. In the stress scene's village two storeys high, tiled and then thatched, on the desktop
+renderer: from the air 429 draws and 2.78 M primitives tiled, 514 and 2.10 M thatched; standing, 201 and 2.65 M
+against 233 and 2.21 M. Both now count the ground they cover out to their eaves (a resized house counts its new
+size; tiles counted a fixed circle before), and `demo/costs.json` fits `thatch_m2` beside `roof_m2`; until it is
+played on a headset both hold the tiled roof's fitted cost rescaled to the new measure.
+
+`tests/test_thatch.gd` casts rays at every roof shape the game builds (gables shallow to 6 m steep, bowed and swept,
+cones) and after resizes: straw a coat deep over every point of the roof, over the ridge, round the eaves and verges
+and under the overhang; no wall stone through it; and the command, budget and swatches. `tests/test_controls.gd`
+turns a house's roof to thatch and to a thatched cone with the style tool in tracked hands and undoes both.
+`demo/thatch.json` thatches a stone and a plaster house with the style tool, then a village around them, close and
+from across it, by day and at dusk.
 
 ## Tools in hand
 
@@ -1604,7 +1649,7 @@ The style tool is the colour tool's picker with styles for swatches (`PaletteToo
 thing opens a wheel of miniatures of that thing's styles, twisting the wrist turns it, showing each on the
 build live, and letting go keeps the one at the top, one undo step. What it offers depends on what it points
 at: a gable end, its house's gable ends (the wall's, boarded, crow-stepped; houses laid after take it); a
-house's or tower's roof, pitched, a cone (standing it as a round tower, see "Towers") or flat; a roofless
+house's or tower's roof, pitched, a cone (standing it as a round tower, see "Towers") or flat, or pitched or a cone thatched (see "Thatch"); a roofless
 wall's top, merlons, plain capping or coping; a wall's face, stone or plaster, each plain or arched there
 (walls and houses laid after take the material turned to last); a tree, its species: an oak's round crown, a
 fir's dark cone, a poplar's column, a birch's pale trunk under a light open crown, a copper beech's low
@@ -1996,7 +2041,7 @@ FILE --metrics FILE --capture-dir DIR` plays a scripted session through the same
 points as the controllers (teleport, float, draw a wall), logs per-second frame
 times and saves view captures. `scripts/test.sh` runs the headless layout tests;
 `scripts/render.sh` plays a script on a desktop renderer; `demo/flora.json` paints,
-plants trees and lets the ivy grow; `demo/round-wall.json` draws a round wall that stays a wall, a house with no door, one with a door added and one a path runs into; `demo/tower.json` rounds a carried house into a tower; `demo/gables.json` looks up at a stone and a plaster house's gable ends and a barn's in each style; `demo/houses.json` draws a round wall, builds two houses and
+plants trees and lets the ivy grow; `demo/round-wall.json` draws a round wall that stays a wall, a house with no door, one with a door added and one a path runs into; `demo/tower.json` rounds a carried house into a tower; `demo/gables.json` looks up at a stone and a plaster house's gable ends and a barn's in each style; `demo/thatch.json` thatches a stone and a plaster house and the village around them; `demo/houses.json` draws a round wall, builds two houses and
 walls in each top style, and shapes the roofs; `demo/paths.json` lays paths through walls (an arch, an
 arcade), draws a wall across a wide path and raises the ground under a path; `demo/fittings.json` opens windows
 and doors in a wall, a house and a round wall, hangs lanterns, flies flags, builds a chimney and draws a fence a
@@ -2029,6 +2074,10 @@ The "how the original does it" column summarises public material only:
 - Players on the terrain tool's slope control and rocky cliffs: https://steamcommunity.com/app/2198150/discussions/0/4842023530179623756/
 - Paths as dirt over grass, with a developer reply: https://steamcommunity.com/app/2198150/discussions/0/597406800761043765/
 - Cobblestone paths blended with dirt: https://80.lv/articles/you-can-finally-make-stairs-easily-in-tiny-glade
+
+Thatch (public material on English thatching: its materials, eaves, verges and block-cut ridges):
+
+- https://en.wikipedia.org/wiki/Thatching
 
 Grass techniques (public material from other games):
 

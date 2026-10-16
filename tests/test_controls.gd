@@ -252,6 +252,16 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 	_check(w.roof.kind == RoofLayout.Kind.CONE, "undo stands the tower again")
 	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(w.roof.kind == RoofLayout.Kind.GABLE and not w.roof.flat() and w.layout.points.size() == 4 and _centre(w).distance_to(c) < 0.1, "and the next the pitched house")
+	var coat := func() -> bool:
+		w.lay_now()
+		return not w.roof.coat.is_empty() and w.roof.tiles.all(func(t: Dictionary) -> bool: return t.kind != "tile")
+	await restyle.call(3)
+	_check(w.roof.thatch and w.roof.kind == RoofLayout.Kind.GABLE and not w.roof.flat() and coat.call(), "Directive (verbatim): \"Thatched roofs I want them as an option.\" A twist on to thatch thatches the pitched roof")
+	_check(main.tool.thatch, "and houses laid after are thatched")
+	await restyle.call(1)
+	_check(w.roof.thatch and w.roof.kind == RoofLayout.Kind.CONE and coat.call(), "the next stands it as a thatched tower")
+	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
+	_check(not w.roof.thatch and w.roof.kind == RoofLayout.Kind.GABLE and not coat.call(), "two undos tile it again")
 	for t in trackers.values():
 		XRServer.remove_tracker(t)
 
