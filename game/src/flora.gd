@@ -574,8 +574,8 @@ func reset() -> void:
 
 ## The standing tree or bush a ray from `origin` along `dir` strikes first within `reach`: its parts, where it
 ## strikes and how far along `dir`, or {} for none. Each part is struck within its mesh's box, set on the ground as
-## its shader sets it.
-func solid_hit(origin: Vector3, dir: Vector3, reach: float) -> Dictionary:
+## its shader sets it. Solids whose parts are keys of `skip` let the ray through.
+func solid_hit(origin: Vector3, dir: Vector3, reach: float, skip := {}) -> Dictionary:
 	var best := {}
 	var best_t := reach
 	var dx := dir.x * reach
@@ -593,7 +593,7 @@ func solid_hit(origin: Vector3, dir: Vector3, reach: float) -> Dictionary:
 		var u := clampf((cx * dx + cz * dz) / span, 0.0, 1.0)
 		cx -= dx * u
 		cz -= dz * u
-		if cx * cx + cz * cz > solid.radius * solid.radius or not solid.parts[0].shown():
+		if cx * cx + cz * cz > solid.radius * solid.radius or not solid.parts[0].shown() or skip.has(solid.parts[0]):
 			continue
 		for part in solid.parts:
 			var at := part.xform.translated(Vector3.UP * Terrain.base_at(part.anchor.x, part.anchor.z))

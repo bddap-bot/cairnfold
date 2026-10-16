@@ -150,12 +150,12 @@ func _orb() -> MeshInstance3D:
 
 ## What a ray from `origin` along `dir` takes, with the `point` it meets: a wall and where along it, a tree or
 ## bush (`plants`), path or stone ground (`laid`), or the ground to mow with a brush of radius `mow`; {} when it
-## meets nothing.
-func aim(origin: Vector3, dir: Vector3) -> Dictionary:
+## meets nothing. It passes through the plants in `taken`, which a stroke has already taken.
+func aim(origin: Vector3, dir: Vector3, taken := {}) -> Dictionary:
 	var ground: Variant = Terrain.raycast(origin, dir, REACH)
 	var reach: float = (ground - origin).dot(dir) if ground != null else REACH
 	var pick := walls.pick_wall(origin, dir)
-	var solid := flora.solid_hit(origin, dir, reach)
+	var solid := flora.solid_hit(origin, dir, reach, taken)
 	if not pick.is_empty() and (solid.is_empty() or pick.along <= solid.along):
 		return {"wall": pick.wall, "s": pick.s, "point": pick.point}
 	if not solid.is_empty():
@@ -167,7 +167,9 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	return {"mow": FloraTool.brush_radius(origin, ground), "point": ground}
 
 
+## Starts `who`'s stroke. Strokes still growing grow at once, so it takes plants not yet grown under it.
 func press(who: Object, origin: Vector3, dir: Vector3) -> void:
+	flora.grow_now()
 	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}}
 	var target := _stroke(_cuts[who], origin, dir)
 	_cuts[who].ray = [origin, dir, target.get("point", origin + dir)]
@@ -181,7 +183,7 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 	if cut.is_empty():
 		return {}
 	var was: Array = cut.ray
-	var far := Vector3(aim(origin, dir).get("point", origin + dir))
+	var far := Vector3(aim(origin, dir, cut.plants).get("point", origin + dir))
 	var n := clampi(ceili(far.distance_to(was[2]) / STEP), 1, MAX_STEPS)
 	var target := {}
 	for i in range(1, n + 1):
@@ -193,7 +195,7 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 
 
 func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
-	var target := aim(origin, dir)
+	var target := aim(origin, dir, cut.plants)
 	var on: Wall = cut.wall.get("wall")
 	if on != null:
 		var hit := sweep(cut, origin, dir)

@@ -71,6 +71,7 @@ func _toward(parts: Array) -> Vector3:
 
 func _takes_solid(parts: Array, what: String) -> void:
 	tool.press(self, _eye(parts), _toward(parts))
+	_check(tool.hold(self, _eye(parts), _toward(parts)).get("plants") != parts, "a held beam passes through %s once it took it" % what)
 	tool.let_go(self)
 	await process_frame
 	_check(not _standing(parts), "delete takes %s it points at" % what)
