@@ -304,6 +304,7 @@ func _appear(look: int, tint: Color) -> void:
 @rpc("any_peer", "reliable", "call_remote", FILE_CHANNEL)
 func _wear(bytes: PackedByteArray) -> void:
 	var id := multiplayer.get_remote_sender_id()
+	print("session: player %d sent %d bytes of avatar%s" % [id, bytes.size(), "" if _looks.has(id) else " before appearing"])
 	if not _looks.has(id) or bytes.size() > Avatar.MAX_BYTES:
 		return
 	_waiting[id] = bytes
