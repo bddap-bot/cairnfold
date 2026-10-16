@@ -472,7 +472,7 @@ static func _stretch(layout: WallLayout, from: float, to: float) -> Array[Vector
 ## Fills a disc at once with parallel walls (see StressLayout) of one height, their ivy fully grown.
 func _stress(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
-	var m := tool.mason(_holding(s, Hand.Tool.PLASTER_WALLS if s.get("plaster", false) else Hand.Tool.WALLS))
+	var m := tool.mason(_holding(s, Hand.Tool.FENCE if s.get("fence", false) else Hand.Tool.PLASTER_WALLS if s.get("plaster", false) else Hand.Tool.WALLS))
 	var rows := StressLayout.walls(s.radius, s.spacing)
 	var start := Time.get_ticks_usec()
 	for row in rows:
@@ -509,16 +509,18 @@ func _lanterns(s: Dictionary) -> void:
 	print("stress: %d lanterns" % hung)
 
 
-## Fills every painted and placed flora pool to capacity within `radius` of the centre.
+## Fills every painted and placed flora pool to capacity within `radius` of the centre, or only those `pools` names
+## (grass, flowers, trees). They are not build commands, so the frame budget does not count them.
 func _fill_flora(s: Dictionary) -> void:
 	var flora: Flora = main.flora_tool.flora
+	var pools: Array = s.get("pools", ["grass", "flowers", "trees"])
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 99
-	for i in Flora.PAINTED_GRASS:
+	for i in Flora.PAINTED_GRASS if "grass" in pools else 0:
 		flora.add_grass(_scatter(rng, s.radius), rng)
-	for i in Flora.PAINTED_FLOWERS:
+	for i in Flora.PAINTED_FLOWERS if "flowers" in pools else 0:
 		flora.add_flower(_scatter(rng, s.radius), rng)
-	for i in Flora.PLACED_TREES:
+	for i in Flora.PLACED_TREES if "trees" in pools else 0:
 		flora.add_tree(_scatter(rng, s.radius), rng)
 
 
@@ -784,3 +786,22 @@ func _quality(s: Dictionary) -> void:
 
 func _label(s: Dictionary) -> void:
 	main.metrics.info.label = s.name
+
+
+## Back to the bare meadow, as a long hold of the delete tool leaves it.
+func _bare(_s: Dictionary) -> void:
+	main.world.submit({"op": "wipe"})
+	await _frames(3)
+
+
+## With `bounded` false the garden takes builds past the frame budget, as the stress scene must; true holds it again.
+func _budget(s: Dictionary) -> void:
+	main.world.bounded = s.bounded
+
+
+## Prints what the garden's builds count as in the frame budget, and the share of it they take on each headset.
+func _units(_s: Dictionary) -> void:
+	var on := {}
+	for d in Budget.Device.size():
+		on[Budget.Device.keys()[d]] = snappedf(Budget.cost_ms(main.world.units, d), 0.01)
+	print("budget: %s units %s ms %s fill %.3f" % [main.metrics.info.label, JSON.stringify(main.world.units), JSON.stringify(on), main.world.fill()])

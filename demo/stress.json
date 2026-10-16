@@ -1,4 +1,5 @@
 [
+  {"op": "budget", "bounded": false},
   {"op": "quality", "step": 0},
   {"op": "label", "name": "-"},
   {"op": "wait", "seconds": 10},

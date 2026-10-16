@@ -191,7 +191,7 @@ func end_stroke(hand: Hand, extra := {}) -> void:
 		return
 	g.sent += 1
 	g.pending = g.pending.merge(g.moved) if g.pending.has_area() else g.moved
-	world.submit(cmd, _settled.bind(g))
+	world.submit(cmd, _settled.bind(g), hand)
 
 
 ## A sent stroke is in the garden or was turned down: its hump goes and what stood on it settles back.

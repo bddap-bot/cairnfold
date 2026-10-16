@@ -69,10 +69,11 @@ func _process(delta: float) -> void:
 			var target := aim(hand.tool, t.origin, -t.basis.z)
 			var hit: Variant = target.point if not target.is_empty() else Terrain.raycast(t.origin, -t.basis.z)
 			hand.point(hit, TINT)
-			if b.pressed("trigger_click") and not walls.busy(hand) and not fit(target):
+			if not target.is_empty():
+				world.preview(hand, world.change_of(command(target)))
+			if b.pressed("trigger_click") and not walls.busy(hand) and not fit(target, hand):
 				_shaken[i] = 0.0
-				hand.trigger_haptic_pulse(&"haptic", 0.0, 0.35, 0.05, 0.0)
-				hand.trigger_haptic_pulse(&"haptic", 0.0, 0.35, 0.05, 0.12)
+				Hand.bump(hand)
 			if not hand.picking:
 				ghost = ghost_of(hand.tool, target, t.origin, -t.basis.z, hit)
 		_show_ghost(i, ghost, delta)
@@ -115,18 +116,34 @@ static func _height(pick: Dictionary) -> float:
 	return pick.point.y - (pick.wall as Wall).layout.point_at(pick.s).y
 
 
-## Places what `aim` found, or takes away the one already there, as one build command; false where the
+## Places what `aim` found, or takes away the one already there, as one build command from `hand`; false where the
 ## press does nothing.
-func fit(target: Dictionary) -> bool:
+func fit(target: Dictionary, hand: XRController3D = null) -> bool:
+	var cmd := command(target)
+	if cmd.is_empty():
+		return false
+	if target.what == "tower_flag":
+		world.submit(cmd, Callable(), hand)
+		return true
+	var w: Wall = target.wall
+	var key: String = cmd.data.roof.keys()[0] if cmd.data.has("roof") else cmd.data.keys()[0]
+	var after: Variant = cmd.data.roof[key] if cmd.data.has("roof") else cmd.data[key]
+	_sent.get_or_add(w.id, {})[key] = Array(after)
+	world.submit(cmd, func() -> void:
+		if _sent.get(w.id, {}).get(key) == Array(after):
+			_sent[w.id].erase(key), hand)
+	return true
+
+
+## The build command a press on `target` sends, or {} where it does nothing.
+func command(target: Dictionary) -> Dictionary:
 	var c := change(target)
 	if not c.ok:
-		return false
+		return {}
 	var w: Wall = target.wall
 	if target.what == "tower_flag":
-		world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"flag": not w.roof.flag}}})
-		return true
+		return {"op": "reshape", "id": w.id, "data": {"roof": {"flag": not w.roof.flag}}}
 	var after: Array = c.after
-	_sent.get_or_add(w.id, {})[c.key] = after
 	var packed: Variant
 	match c.key:
 		"lanterns":
@@ -135,10 +152,7 @@ func fit(target: Dictionary) -> bool:
 			packed = PackedFloat32Array(after)
 		_:
 			packed = PackedVector2Array(after)
-	world.submit({"op": "reshape", "id": w.id, "data": {"roof": {c.key: packed}} if c.on_roof else {c.key: packed}}, func() -> void:
-		if _sent.get(w.id, {}).get(c.key) == after:
-			_sent[w.id].erase(c.key))
-	return true
+	return {"op": "reshape", "id": w.id, "data": {"roof": {c.key: packed}} if c.on_roof else {c.key: packed}}
 
 
 ## What a press on `target` would do: `ok` false where nothing; otherwise the list `key` on the wall (or

@@ -227,6 +227,12 @@ func taken() -> bool:
 	return _holding
 
 
+## The gentle "no" every refused action gives the hand that tried it: two soft knocks.
+static func bump(hand: XRController3D) -> void:
+	hand.trigger_haptic_pulse(&"haptic", 0.0, 0.35, 0.05, 0.0)
+	hand.trigger_haptic_pulse(&"haptic", 0.0, 0.35, 0.05, 0.12)
+
+
 func clear_pointer() -> void:
 	_beam.visible = false
 	_dot.visible = false

@@ -58,6 +58,19 @@ var _done := {}
 var save_path := ""
 var _keep_due := false
 var _keep_task := -1
+## What the garden's builds count as in the frame budget (Budget.UNITS), kept as each command applies; walls and paths
+## by key too, so taking one away takes back what it added.
+var units := {}
+var _units_of := {}
+var _meadow_units := {}
+## False lets the garden take builds past the frame budget, as the stress scene does to find what they cost.
+var bounded := true
+## Every other player's headset by peer id, as they told us; the garden is held to the weakest here.
+var _devices := {}
+## Per hand, what the edit its tool is showing would add, and the frame it said so.
+var _pending := {}
+## The hand each of our sent commands came from, by token, so the one turned down feels it.
+var _hands := {}
 
 
 func _init() -> void:
@@ -66,7 +79,110 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	multiplayer.peer_disconnected.connect(func(id: int) -> void: _allowance.erase(id))
+	multiplayer.peer_connected.connect(func(id: int) -> void: _device.rpc_id(id, Budget.device()))
+	multiplayer.peer_disconnected.connect(func(id: int) -> void:
+		_allowance.erase(id)
+		_devices.erase(id))
+
+
+@rpc("any_peer", "reliable")
+func _device(d: int) -> void:
+	if d >= 0 and d < Budget.Device.size():
+		_devices[multiplayer.get_remote_sender_id()] = d
+
+
+## The headsets this garden is shown on now: ours and every other player's.
+func devices() -> Array:
+	var out := [Budget.device()]
+	for id in multiplayer.get_peers():
+		if _devices.has(id) and not _devices[id] in out:
+			out.append(_devices[id])
+	return out
+
+
+## The share of the frame budget the garden takes on its most loaded headset, with what `hand`'s tool is showing
+## added when one is given.
+func fill(hand: Node = null) -> float:
+	return Budget.fill(Budget.add(units.duplicate(), pending(hand)) if hand != null else units, devices())
+
+
+## Tools say each frame what the edit they show would add, so the bar can show whether it fits.
+func preview(hand: Node, change: Dictionary) -> void:
+	_pending[hand] = [Engine.get_process_frames(), change]
+
+
+func pending(hand: Node) -> Dictionary:
+	var p: Array = _pending.get(hand, [-2, {}])
+	return p[1] if Engine.get_process_frames() - p[0] <= 1 else {}
+
+
+## Whether the garden may take `cmd` within the frame budget of every headset it is shown on.
+func fits(cmd: Dictionary) -> bool:
+	return not bounded or Budget.fits(units, change_of(cmd), devices())
+
+
+## What `cmd` would add to `units`, without applying it: negative for what it takes away. A paint stroke counts every
+## plant its dabs hold, though some may fall on paths.
+func change_of(cmd: Dictionary) -> Dictionary:
+	var out := {}
+	match cmd.get("op"):
+		"wall":
+			for w: Dictionary in cmd.walls:
+				Budget.add(out, Budget.wall(w))
+		"unwall":
+			for id in cmd.ids:
+				Budget.add(out, _units_of.get("w%d" % id, {}), -1.0)
+		"reshape":
+			if state.walls.has(cmd.id):
+				var trial: Dictionary = state.walls[cmd.id].duplicate(true)
+				for k in cmd.data:
+					if k == "roof":
+						trial.roof.merge(cmd.data.roof, true)
+					else:
+						trial[k] = cmd.data[k]
+				Budget.add(Budget.add(out, Budget.wall(trial)), _units_of.get("w%d" % cmd.id, {}), -1.0)
+		"path":
+			Budget.add(out, Budget.path(cmd.path))
+		"unpath":
+			Budget.add(out, _units_of.get("q%d" % cmd.id, {}), -1.0)
+		"plant":
+			var n := 1
+			if cmd.kind != "tree":
+				n = 0
+				for d: Array in cmd.dabs:
+					n += d[2]
+			Budget.add(out, Budget.plants(cmd.kind, n))
+		"show":
+			for g in cmd.plants:
+				var plants: Array = flora.groups.get(g, [])
+				for i in cmd.plants[g]:
+					var p: Flora.Plant = plants[i] if i >= 0 and i < plants.size() else null
+					if p != null and p.current() and p.shown() != cmd.on:
+						Budget.add(out, _unit(g, p), 1.0 if cmd.on else -1.0)
+		"heights":
+			if cmd.has("seed") and not state.seeds.has(cmd.seed):
+				out.pond = 1
+			if cmd.has("unseed"):
+				out.pond = -1
+		"batch":
+			for c: Dictionary in cmd.cmds:
+				Budget.add(out, change_of(c))
+	return out
+
+
+## What one plant counts as: the meadow's own grass is part of the bare meadow.
+func _unit(group: int, p: Flora.Plant) -> Dictionary:
+	var u := flora.unit_of(p)
+	return {} if u == "" or (group == 0 and u == "grass") else {u: 1}
+
+
+func _account(key: String, now: Dictionary) -> void:
+	Budget.add(units, _units_of.get(key, {}), -1.0)
+	Budget.add(units, now)
+	if now.is_empty():
+		_units_of.erase(key)
+	else:
+		_units_of[key] = now
 
 
 func _exit_tree() -> void:
@@ -132,18 +248,28 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 	water = ponds
 	if flora != null and flora.groups.has(0):
 		state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}}
+		for p: Flora.Plant in flora.groups[0]:
+			Budget.add(_meadow_units, _unit(0, p))
+		Budget.add(units, _meadow_units)
 
 
 func me() -> int:
 	return multiplayer.get_unique_id()
 
 
-## Sends a build command to the host; `done` runs once it is in the garden, turned down, or moot.
-func submit(cmd: Dictionary, done := Callable()) -> void:
+## Sends a build command to the host; `done` runs once it is in the garden, turned down, or moot. One that would
+## take the garden past its frame budget is turned down here at once; `hand`, the one whose tool made it, feels a
+## turned-down command.
+func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) -> void:
 	_next_token += 1
 	cmd.token = _next_token
 	if done.is_valid():
 		_done[_next_token] = done
+	if hand != null:
+		_hands[_next_token] = hand
+	if not cmd.get("op") in ["undo", "redo"] and not fits(cmd):
+		_turned_down(_next_token)
+		return
 	if multiplayer.is_server():
 		_order(cmd, me())
 	else:
@@ -153,6 +279,7 @@ func submit(cmd: Dictionary, done := Callable()) -> void:
 func _settle(token: int) -> void:
 	var done: Callable = _done.get(token, Callable())
 	_done.erase(token)
+	_hands.erase(token)
 	if done.is_valid():
 		done.call()
 
@@ -195,12 +322,17 @@ func _order(proposed: Dictionary, by: int) -> void:
 		_refuse(by, proposed.get("token"))
 		return
 	if kind == "undo" or kind == "redo":
-		cmd = _resolve(by, kind)
-		if cmd.is_empty():
+		var step := _resolve(by, kind)
+		if step.is_empty():
+			return
+		cmd = step.inverse.duplicate(true)
+		if not fits(cmd):
+			stacks[by][kind].append(step)
+			_refuse(by, proposed.get("token"))
 			return
 	else:
 		cmd = Commands.clean(proposed, state, false)
-		if cmd.is_empty():
+		if cmd.is_empty() or kind != "wipe" and not fits(cmd):
 			_refuse(by, proposed.get("token"))
 			return
 	seq += 1
@@ -235,13 +367,20 @@ func _refuse(by: int, token: Variant) -> void:
 	if typeof(token) != TYPE_INT:
 		return
 	if by == me():
-		_settle(token)
+		_turned_down(token)
 	else:
 		_refused.rpc_id(by, token)
 
 
 @rpc("authority", "reliable")
 func _refused(token: int) -> void:
+	_turned_down(token)
+
+
+func _turned_down(token: int) -> void:
+	var hand: XRController3D = _hands.get(token)
+	if hand != null and is_instance_valid(hand):
+		Hand.bump(hand)
 	_settle(token)
 
 
@@ -290,14 +429,14 @@ static func _push(stack: Array, entry: Dictionary) -> void:
 		stack.pop_front()
 
 
-## The player's latest undo (or redo) step that nobody else has changed anything of since; steps
+## The player's latest undo (or redo) step that nobody else has changed anything of since, taken off its stack; steps
 ## others built on are dropped on the way. A dropped wipe takes every step below it, all on a garden it took away.
 func _resolve(by: int, which: String) -> Dictionary:
 	var stack: Array = stacks.get(by, {}).get(which, [])
 	while not stack.is_empty():
 		var e: Dictionary = stack.pop_back()
 		if _untouched_by_others(e, by):
-			return e.inverse.duplicate(true)
+			return e
 		if WIPED in e.keys:
 			stack.clear()
 	return {}
@@ -373,12 +512,14 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			for i in cmd.ids.size():
 				state.walls[cmd.ids[i]] = cmd.walls[i].duplicate(true)
 				wall_tool.put(cmd.ids[i], handed)
+				_account("w%d" % cmd.ids[i], Budget.wall(state.walls[cmd.ids[i]]))
 			inverse = {"op": "unwall", "ids": cmd.ids}
 		"unwall":
 			inverse = {"op": "wall", "ids": cmd.ids, "walls": Array(cmd.ids).map(func(id: int) -> Dictionary: return state.walls[id])}
 			for id in cmd.ids:
 				state.walls.erase(id)
 				wall_tool.take(id)
+				_account("w%d" % id, {})
 		"reshape":
 			var now: Dictionary = state.walls[cmd.id]
 			var before := {}
@@ -392,15 +533,18 @@ func _apply(cmd: Dictionary) -> Dictionary:
 					before[k] = now[k]
 					now[k] = cmd.data[k]
 			wall_tool.restyle(cmd.id, cmd.data.keys())
+			_account("w%d" % cmd.id, Budget.wall(now))
 			inverse = {"op": "reshape", "id": cmd.id, "data": before}
 		"path":
 			state.paths[cmd.id] = cmd.path.duplicate(true)
 			paths.put(cmd.id, state.paths[cmd.id])
+			_account("q%d" % cmd.id, Budget.path(state.paths[cmd.id]))
 			inverse = {"op": "unpath", "id": cmd.id}
 		"unpath":
 			inverse = {"op": "path", "id": cmd.id, "path": state.paths[cmd.id]}
 			state.paths.erase(cmd.id)
 			paths.take(cmd.id)
+			_account("q%d" % cmd.id, {})
 		"ground":
 			state.grounds[cmd.id] = {"kind": cmd.kind, "stamps": cmd.stamps}
 			var stroke := Ground.Stroke.new(cmd.kind as Ground.Kind)
@@ -421,6 +565,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			g.size = plants.size()
 			g.hidden = {}
 			state.groups[cmd.id] = g
+			Budget.add(units, Budget.plants(g.kind, 1 if g.kind == "tree" else g.size - g.skip.size()))
 			inverse = {"op": "show", "plants": {cmd.id: PackedInt32Array(range(plants.size()))}, "on": false}
 		"show":
 			var changed := {}
@@ -431,6 +576,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				changed[g] = did
 				var hidden: Dictionary = state.groups[g].hidden
 				for i in did:
+					Budget.add(units, _unit(g, flora.groups[g][i]), 1.0 if cmd.on else -1.0)
 					if cmd.on:
 						hidden.erase(i)
 					else:
@@ -448,6 +594,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				state.seeds.erase(cmd.unseed)
 				water.remove_seed(cmd.unseed)
 				inverse.seed = cmd.unseed
+			_account("seeds", {"pond": state.seeds.size()} if not state.seeds.is_empty() else {})
 		"palette":
 			inverse = {"op": "palette", "element": cmd.element, "index": palette.picks[cmd.element]}
 			palette.picks[cmd.element] = cmd.index
@@ -570,6 +717,8 @@ func _clear() -> void:
 		Ground.lift(_strokes[id])
 	_strokes.clear()
 	state = {"walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": []}
+	units = _meadow_units.duplicate()
+	_units_of.clear()
 	flora.reset()
 	palette.picks = Palette.new().picks
 	palette.apply()
@@ -602,10 +751,11 @@ func _bare_meadow() -> void:
 	var hidden: Dictionary = state.groups[0].hidden
 	for i in flora.set_shown(0, scenery, false):
 		hidden[i] = true
+		Budget.add(units, _unit(0, flora.groups[0][i]), -1.0)
 
 
 ## What this machine shows of the garden, for comparing machines: every wall's data and laid stones, once laid,
-## every plant group's standing plants, and the ground.
+## every plant group's standing plants, the ground, and the garden's share of the frame budget, which its bar shows.
 func digest() -> Dictionary:
 	flora.grow_now()
 	for w: Wall in wall_tool.walls:
@@ -627,4 +777,5 @@ func digest() -> Dictionary:
 	out.mask = hash(Ground.laid.get_data())
 	out.ponds = water.ponds.size() if water != null else 0
 	out.palette = Array(palette.picks)
+	out.budget = snappedf(fill(), 0.001)
 	return out

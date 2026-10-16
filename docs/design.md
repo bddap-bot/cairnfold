@@ -405,9 +405,7 @@ turn at 72 Hz, from the air: walls 2.5 ms, the sun's shadows 2.0 ms, terrain 1.6
 trees 0.6 ms, ivy 0.2 ms; a 3D resolution of 0.7 instead of 0.9 saved 2.4 ms. Standing:
 walls 0.8 ms, shadows 1.3 ms, terrain 0.5 ms.
 
-What is left grows with what is built, so building needs a bound, and the bound
-counts stones (`Budget.STONE_US`, GPU time per stone laid, ivy, mortar and shadow
-included): a small plot of tall walls costs as much as a wide one of low walls.
+What is left grows with what is built, so building needs a bound: "Build budget" below.
 
 Measured on the Quest 2 (`bench.sh OUT --android APK`: in the headset with its
 proximity sensor held closed, the runtime's `App=` GPU time per frame, median of
@@ -435,18 +433,93 @@ what the walls cost over the flora (measured with the headset's shell rendering
 beside the game, so those runs' own times read high): what costs is the vertices each
 stone instance runs, so the stone mesh is the lever.
 
-Over every flora pool full, a stone costs 0.71 to 0.81 µs of the Quest's GPU from the
+Over every flora pool full, a stone cost 0.71 to 0.81 µs of the Quest's GPU from the
 air and 0.60 to 0.63 µs standing, in two runs (fits through zero over the five wall
-phases of each view; the first walls cost the most: 159 m from the air, 8.9 ms).
-`Budget.STONE_US` takes the highest, so a bound holds from either view. Stones allowed
-are the budget less the meadow and flora, divided by that, and come to none at the top
-of the ladder: every flora pool full alone takes 23.7 ms from the air and 19.9 ms
-standing. The ladder's lowest step brings full
-flora to 72 Hz (see "Automatic quality"), but not walls.
+phases of each view; the first walls cost the most: 159 m from the air, 8.9 ms). At the
+top of the ladder every flora pool full alone took 23.7 ms from the air and 19.9 ms
+standing; the ladder's lowest step brings full flora to 72 Hz (see "Automatic quality"),
+but not walls.
 
 The live wall preview, measured with the view turned to the sky so the GPU sits
 idle: every second of two 5 s strokes ran 72 frames with none late, the 99th
 percentile 14.3 ms as with no stroke at all.
+
+## Build budget
+
+Directive (verbatim): "I'd like an indicator somewhere. Uh, I think probably on the- on
+the little hands, on the little controllers, that displays a bar, and that bar should
+represent, how much of the frame budget, you've consumed by placing objects. I want to
+make it not possible to place so many objects that the game- starts stuttering, and I
+wanna make it obvious to the user that there is a limit there"
+
+- What a garden holds counts in units (`Budget.UNITS`): square metres of stone wall,
+  plaster wall, fence, roof and path face; fittings that add a mesh (lanterns, flags,
+  chimneys); painted grass blades and flowers, the meadow's own flowers too; trees and
+  bushes standing; ponds. `World` keeps the count as every command applies, so deleting
+  frees exactly what placing took, and undo, wipes and a garden loaded or joined count
+  alike on every machine.
+- `Budget.COSTS` prices each unit per headset, in the governor's signal (the viewport's
+  GPU time) at the ladder's bottom step, with the bare meadow's time as the base. The
+  room for builds is the headset's `budget_ms` less that base. The ladder walks down
+  as a garden fills, so a full garden is held at the bottom step and anything above it
+  is spare.
+- A garden is held to every headset it is shown on: its own, and each visitor's, which
+  each player tells the others as they meet. The host turns down any command that would
+  take the garden past the room on one of them, and each player's own game turns it down
+  before sending. Taking things away always goes through, even in a garden already
+  over. Undo is held to it too.
+- On each controller, a bar on the back of its top shows the share the garden takes on
+  the most loaded headset: moss green, warming to amber near full. What the hand's tool
+  is showing joins it as a paler stretch, and the whole bar pulses red while that would
+  not fit; letting go then turns it down with the same two soft knocks as any refused
+  action. A paint stroke stops laying plants at the budget and knocks once. Visitors see
+  the host garden's bar.
+- `demo/costs.json`, played by `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT ...`
+  and fitted by `scripts/costs.py OUT`, measures each kind of build alone over the bare
+  meadow at the bottom step, from the air and standing. A unit's cost is the highest any
+  view gives; a phase that fell to half rate is left out, its GPU time not the scene's.
+  Hills and painted stone ground measured within noise of the bare meadow, so terrain
+  counts nothing. Lantern light is baked (`Lamps`); a lantern counts by its meshes.
+- `demo/stress.json`, `demo/ladder.json`, `demo/tour.json` and `demo/costs.json` build past
+  the budget on purpose (`{"op": "budget", "bounded": false}`), to measure what lies
+  beyond it.
+
+On the Steam Frame (`bench.sh OUT SSH_HOST BUNDLE`, unworn, the ladder held at its
+bottom step), viewport GPU milliseconds a frame, from the air and standing, over the bare
+meadow's 5.69 and 4.57 ms; the room is 11.1 ms (the governor's line) less 5.7:
+
+| Phase | Units | From the air | Standing | Fitted cost |
+| --- | --- | --- | --- | --- |
+| Grass pool full | 12,000 blades | 6.29 | 5.34 | 0.061 µs a blade |
+| Flower pool full | 4,000 flowers | 5.83 | 4.89 | 0.072 µs a flower |
+| Tree pool full | 64 trees | 6.25 | 5.96 | 21.3 µs a tree |
+| Walls, 10 m disc | 714 m² | 6.73 | 8.94 | 6.07 µs a m² |
+| Walls, 15 m disc | 1,562 m² | 7.62 | 11.75 | |
+| Plaster walls, 15 m disc | 1,562 m² | 7.12 | 9.15 | 2.92 µs a m² |
+| Fences, 15 m disc | 416 m² | 5.93 | 5.36 | 1.82 µs a m² |
+| Five paths 48 m long | 864 m² | 10.48 | 6.39 | 5.53 µs a m² |
+| Eight ponds | 8 | 5.98 | 4.60 | 35.3 µs a pond |
+| Village, 12 m disc | 225 m² of wall, 54 m² of roof | 7.45 | 6.55 | 10.8 µs a m² of roof |
+| Lanterns on the 10 m disc's walls | 90 | 6.78 | 9.22 | 3.1 µs a lantern |
+| The meadow's own flowers, trees and bushes | 3,200, 46, 60 | 6.44 | 4.96 | bushes nothing over the flowers and trees |
+| Hills | | 5.70 | 4.74 | nothing |
+| Stone ground | | 5.72 | 4.62 | nothing |
+
+Walls cost most per square metre standing among the first ones: each wall near the eye
+is drawn in full, while those further off draw 12-triangle stones. So the fit takes the
+10 m disc standing, and a wide garden fills its bar faster than it fills the frame. The
+meadow's own scenery takes 22% of the room on a fresh garden.
+
+A garden filled to the budget through the tools (`demo/full.json`: six trees, a flower
+stroke, a path, a pond, a house and walls until they were turned down; 100%), played on
+the Frame with the ladder free: standing in the garden, among its walls and by the house,
+every second ran 72 to 73 frames at 7.7 to 8.5 ms (step 2), one late frame in 36 s. From
+the air it held 72 Hz at 10.3 to 10.8 ms at steps 1 and 2, then the governor stepped up
+to the top and the runtime held the game at every other refresh for six seconds before it
+stepped back down: the ladder's own probe for room, not the content, which held at step 2.
+
+The Quest 2 is not measured yet: until it is, a Quest's garden is held to the Frame's
+costs.
 
 ## Automatic quality
 

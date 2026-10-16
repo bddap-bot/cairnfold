@@ -11,6 +11,8 @@ var quality: Quality
 ## The tracked head, whose height above the play area's floor each second records, with where its play
 ## space's origin ended the second and in how many frames it moved: any move the player did not make is a bug.
 var head: Node3D
+## The garden, whose share of the frame budget (World.fill) each second records.
+var world: World
 var _origin: Vector3
 var _origin_moves := 0
 var _step := 0
@@ -70,6 +72,8 @@ func _process(delta: float) -> void:
 			row.origin_moves = _origin_moves
 			_origin_moves = 0
 		row.prims = _prims
+		if world != null:
+			row.fill = snappedf(world.fill(), 0.001)
 		_draws = 0
 		_prims = 0
 		if _viewport_frames > 0:

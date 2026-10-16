@@ -68,6 +68,8 @@ func _ready() -> void:
 	water_tool = WaterTool.new(rig, ground_grab, water)
 	add_child(water_tool)
 	world.attach(tool, flora, paths, ground_grab, water)
+	for h in rig.hands:
+		h.add_child(BudgetBar.new(world, h))
 	palette_tool = PaletteTool.new(rig, tool, world)
 	add_child(palette_tool)
 	sun_tool = SunTool.new(rig, look, _editing)
@@ -104,6 +106,7 @@ func _ready() -> void:
 	add_child(quality)
 	metrics.quality = quality
 	metrics.head = rig.head
+	metrics.world = world
 	add_child(metrics)
 	var garden: String = args.get("garden", "user://garden.save" if played else "")
 	if garden != "":

@@ -48,6 +48,7 @@ func _handle(b: Buttons, delta: float) -> void:
 		return
 	if digger == hand:
 		hand.point(_at, TINT)
+		terrain.world.preview(hand, terrain.world.change_of({"op": "heights", "seed": Terrain.grid_point(_at.x, _at.z)}))
 		if b.held("trigger_click"):
 			deepen(delta)
 		return

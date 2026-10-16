@@ -402,6 +402,19 @@ func _solid(key: Vector2i, parts: Array[Plant]) -> void:
 			_solid_cells.get_or_add(Vector2i(i, j), {})[key] = true
 
 
+## What a plant counts as in the build budget (Budget.UNITS): a tree by its trunk, a bush by its one blob, and
+## nothing for a tree's other blobs.
+func unit_of(p: Plant) -> String:
+	if p.pool == grass:
+		return "grass"
+	if p.pool == flowers:
+		return "flower"
+	if p.pool == trunks:
+		return "tree"
+	var solid: Solid = _solids.get(Vector2i(1, p.slot))
+	return "bush" if p.pool == foliage and solid != null and solid.parts[0] == p else ""
+
+
 ## The plants so far are the meadow's own: group 0, which every machine grows alike.
 func keep() -> void:
 	var meadow: Array[Plant] = []

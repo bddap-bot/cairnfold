@@ -39,6 +39,8 @@ class Brush:
 	var last_stamp := Vector3.INF
 	var owed := 0.0
 	var paving := false
+	## Whether this hold has reached the frame budget, and been told so.
+	var full := false
 
 
 var rig: Rig
@@ -132,8 +134,9 @@ func _handle(b: Brush, delta: float) -> void:
 		end_stroke(b)
 		return
 	if held == Hand.Tool.TREES:
+		world.preview(b.hand, Budget.plants("tree", 1))
 		if b.buttons.pressed("trigger_click"):
-			plant_tree(hit)
+			plant_tree(hit, b.hand)
 		return
 	var radius := brush_radius(hand.origin, hit)
 	if held == Hand.Tool.PATH:
@@ -144,6 +147,8 @@ func _handle(b: Brush, delta: float) -> void:
 			begin_path(b, hit, radius)
 		elif b.buttons.held("trigger_click") and b.paving:
 			extend_path(hit, radius)
+		if b.paving and paths.drawing != null:
+			world.preview(b.hand, Budget.path({"points": paths.drawing.points, "half_widths": paths.drawing.half_widths}))
 	elif b.buttons.held("trigger_click"):
 		if b.buttons.pressed("trigger_click"):
 			b.meadow = paints_meadow(held, hit)
@@ -174,7 +179,13 @@ func paint(b: Brush, center: Vector3, radius: float, delta: float) -> void:
 	b.owed += RATES[b.hand.tool] * PI * radius * radius * delta
 	var n := mini(int(b.owed), Commands.MAX_STROKE)
 	b.owed -= int(b.owed)
-	if n == 0:
+	world.preview(b.hand, Budget.plants(kind, b.count if b.kind == kind else 0))
+	if n == 0 or b.full:
+		return
+	# A hold paints up to the budget and no further: past it, plants stop coming and the hand feels why.
+	if not Budget.fits(world.units, Budget.plants(kind, (b.count if b.kind == kind else 0) + n), world.devices()):
+		b.full = true
+		Hand.bump(b.hand)
 		return
 	if b.kind != kind or b.dabs.size() >= Commands.MAX_DABS or b.count + n > Commands.MAX_STROKE:
 		_send_plants(b)
@@ -207,6 +218,7 @@ func _lay_ground(b: Brush, kind: Ground.Kind, center: Vector3, radius: float, de
 
 
 func end_stroke(b: Brush) -> void:
+	b.full = false
 	if b.paving:
 		end_path(b)
 	_send_ground(b)
@@ -221,7 +233,7 @@ func _send_plants(b: Brush) -> void:
 	b.kind = ""
 	if not cmd.dabs.is_empty():
 		_sent += 1
-		world.submit(cmd, _lay.bind(ghost))
+		world.submit(cmd, _lay.bind(ghost), b.hand)
 
 
 ## A painted stroke of stone (or meadow) goes to the garden; it stays shown until its command comes back.
@@ -275,10 +287,10 @@ func end_path(b: Brush) -> void:
 	b.paving = false
 	var ghost := paths.end()
 	if not ghost.is_empty():
-		world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost))
+		world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost), b.hand)
 	planted.emit()
 
 
-func plant_tree(at: Vector3) -> void:
-	world.submit({"op": "plant", "kind": "tree", "seed": randi(), "at": at})
+func plant_tree(at: Vector3, hand: Hand = null) -> void:
+	world.submit({"op": "plant", "kind": "tree", "seed": randi(), "at": at}, Callable(), hand)
 	planted.emit()

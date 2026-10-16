@@ -159,6 +159,7 @@ func _process(delta: float) -> void:
 	for m in masons:
 		if m.lifting != null or m.roofing != null:
 			m.hand.hold()
+		_preview(m)
 		m.buttons.latch()
 	_arch_button.latch()
 
@@ -216,6 +217,22 @@ func _handle(m: Mason, delta: float) -> void:
 		drag_lift(m, origin.y)
 	elif m.buttons.held("grip_click") and m.roofing != null:
 		drag_roof(m, origin)
+
+
+## Shows the bar what the edit in `m`'s hand would add.
+func _preview(m: Mason) -> void:
+	var change := {}
+	if m.stroke != null:
+		for w in m.stroke.walls:
+			Budget.add(change, Budget.wall(w.data()))
+	elif m.lifting != null:
+		change = world.change_of({"op": "reshape", "id": m.lifting.id, "data": {"height": m.lifting.layout.height}})
+	elif m.roofing != null:
+		change = world.change_of({"op": "reshape", "id": m.roofing.id, "data": {"roof": {"pitch": m.roofing.roof.pitch}}})
+	elif m in _holders and house != null:
+		change = Budget.wall(house.data())
+	if not change.is_empty():
+		world.preview(m.hand, change)
 
 
 ## Whether a hand aimed at both a wall and a roof means the roof.
@@ -343,15 +360,15 @@ func end_stroke(m: Mason) -> void:
 	var built_walls := m.stroke.walls
 	m.stroke = null
 	if not built_walls.is_empty():
-		_finish(built_walls)
+		_finish(built_walls, m.hand)
 
 
 ## Sends a stroke's walls to the garden as one step; they stand as drawn until the garden's walls they become
 ## are laid.
-func _finish(ws: Array[Wall]) -> void:
+func _finish(ws: Array[Wall], hand: Hand = null) -> void:
 	world.submit({"op": "wall", "walls": ws.map(func(w: Wall) -> Dictionary: return w.data())}, func() -> void:
 		_let_go_handed()
-		_handing = ws)
+		_handing = ws, hand)
 
 
 ## The garden is being swapped: walls in hand belong to the old one.
@@ -488,9 +505,10 @@ func end_house() -> void:
 	if house_at.center != _laid_at[-1].center or house_at.yaw != _laid_at[-1].yaw:
 		_lay_house()
 	var w := house
+	var hand: Hand = _holders[0].hand if not _holders.is_empty() else null
 	house = null
 	_holders.clear()
-	_finish([w])
+	_finish([w], hand)
 
 
 ## The ridge's ends `a` and `b`, its `length` and the house's `depth`: `size` is the footprint along `yaw` and
@@ -559,7 +577,7 @@ func end_lift(m: Mason) -> void:
 	if is_equal_approx(w.layout.height, m.lift_start):
 		_relay(w)
 	else:
-		world.submit({"op": "reshape", "id": w.id, "data": {"height": w.layout.height}}, settle.bind(w.id))
+		world.submit({"op": "reshape", "id": w.id, "data": {"height": w.layout.height}}, settle.bind(w.id), m.hand)
 
 
 ## Grip on a roof: raising the hand raises the ridge, moving it sideways bows or sags the slopes.
