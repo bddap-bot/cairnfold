@@ -7,7 +7,7 @@ extends Node3D
 ## curvature. Each hand grabs on its own, so two hands pull two walls or roofs at once; a grip on one the other hand
 ## holds takes nothing. A hand holding the house takes hold of one with its trigger, where it points, and carries it; the
 ## other hand's grip, pressed while it is carried, joins in, whatever it points at, to turn it with the pair and stretch it
-## along their span; letting go builds it. A path across a wall opens an arch where they cross,
+## along their span; the right A, while it is carried, rounds it into a tower or squares it again; letting go builds it. A path across a wall opens an arch where they cross,
 ## or an arcade where the crossing is wide: those arches follow from the paths standing, so they come and go
 ## with the path. A hand holding the fence draws fences the same way: posts and rails, a wooden arch where a
 ## path crosses. Every finished edit goes to the garden as a build command; this tool shows it until then.
@@ -19,6 +19,7 @@ const REBUILD_EVERY := 0.06
 const WALL_PICK := 0.7
 const TINT := Color(1.0, 0.97, 0.9, 0.55)
 const HOUSE_HEIGHT := 2.4
+const TOWER_HEIGHT := 4.5
 ## Bounds of a house's sides; the shorter side, under the ridge, stops at HOUSE_DEPTH.
 const HOUSE_SIDES := Vector2(2.4, 14.0)
 const HOUSE_DEPTH := 7.0
@@ -137,7 +138,9 @@ func _process(delta: float) -> void:
 		_carry_laid()
 	for m in _holders:
 		m.hand.hold()
-	if _arch_button.pressed("ax_button"):
+	if _arch_button.pressed("ax_button") and not _holders.is_empty():
+		round_house(not house_at.round)
+	elif _arch_button.pressed("ax_button"):
 		for m in masons:
 			if not m.pick.is_empty() and m.hand.tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS] and not m.pick.wall.layout.fence:
 				var p: Dictionary = m.pick
@@ -410,25 +413,44 @@ func begin_house(at: Vector3, yaw: float, plaster := false, on := PackedInt32Arr
 	house.add_roof(roof)
 	_holders.clear()
 	_laid_at.clear()
-	house_at = {}
+	house_at = {"round": false}
 	place_house(at, yaw, HOUSE_SIZE)
 
 
 ## Moving or turning the house carries the stones laid as they are, walls, roof and all; only a new size lays them again.
 func place_house(at: Vector3, yaw: float, size: Vector2) -> void:
-	var resized: bool = house_at.is_empty() or not size.is_equal_approx(house_at.size)
-	house_at = {"center": Terrain.ground(at.x, at.z), "yaw": yaw, "size": size}
+	var resized: bool = not house_at.has("size") or not size.is_equal_approx(house_at.size)
+	house_at.center = Terrain.ground(at.x, at.z)
+	house_at.yaw = yaw
+	house_at.size = size
 	if resized:
 		_lay_house()
 
 
+## The carried house as a round tower under a cone roof, as wide as the square's shorter side, or as a square house
+## as wide as the tower.
+func round_house(round: bool) -> void:
+	if round == house_at.round:
+		return
+	house_at.round = round
+	var side := clampf(minf(house_at.size.x, house_at.size.y), HOUSE_SIDES.x, HOUSE_DEPTH)
+	house_at.size = Vector2(side, side)
+	house.roof.kind = RoofLayout.Kind.CONE if round else RoofLayout.Kind.GABLE
+	house.layout.height = TOWER_HEIGHT if round else HOUSE_HEIGHT
+	_lay_house()
+
+
 func _lay_house() -> void:
-	var span := footprint(house_at.center, house_at.yaw, house_at.size)
-	var corners := WallLayout.rectangle(span.a, span.b, span.depth)
-	house.layout.points = corners
-	house.roof.pitch = span.depth * 0.42
+	var outline := WallTool.outline(house_at)
+	house.layout.points = outline
+	if house_at.round:
+		house.roof.center = house_at.center
+		house.roof.radius = house_at.size.x * 0.5
+		house.roof.pitch = clampf(house.roof.radius * 1.6, RoofLayout.PITCH.x, RoofLayout.PITCH.y)
+	else:
+		house.roof.pitch = minf(house_at.size.x, house_at.size.y) * 0.42
 	_meet(house)
-	_laid_at.append({"points": corners, "center": house_at.center, "yaw": house_at.yaw})
+	_laid_at.append({"points": outline, "center": house_at.center, "yaw": house_at.yaw})
 	_house_dirty = true
 	_dirty = true
 
@@ -441,15 +463,15 @@ func _carry_laid() -> void:
 	_laid_at = _laid_at.slice(i)
 	var was: Dictionary = _laid_at[0]
 	# A house on a build keeps that build's top as it is carried; on the ground it rides the ground.
-	var lift := 0.0 if not house.on.is_empty() else _lowest(footprint(house_at.center, house_at.yaw, house_at.size)) - _lowest(footprint(was.center, was.yaw, house_at.size))
+	var lift := 0.0 if not house.on.is_empty() else _lowest(outline(house_at)) - _lowest(outline({"center": was.center, "yaw": was.yaw, "size": house_at.size, "round": house_at.round}))
 	var from := Transform3D(Basis(Vector3.UP, was.yaw), Vector3(was.center.x, 0.0, was.center.z))
 	var to := Transform3D(Basis(Vector3.UP, house_at.yaw), Vector3(house_at.center.x, lift, house_at.center.z))
 	house.transform = to * from.affine_inverse()
 
 
-static func _lowest(span: Dictionary) -> float:
+static func _lowest(points: Array[Vector3]) -> float:
 	var low := INF
-	for c in WallLayout.rectangle(span.a, span.b, span.depth):
+	for c in points:
 		low = minf(low, Terrain.height_at(c.x, c.z))
 	return low
 
@@ -473,9 +495,17 @@ static func footprint(center: Vector3, yaw: float, size: Vector2) -> Dictionary:
 	return {"a": center - ridge * length * 0.5, "b": center + ridge * length * 0.5, "length": length, "depth": minf(size.x, size.y)}
 
 
+## The wall line of a house standing at `at`: a circle `size.x` across if it is round, else its four corners.
+static func outline(at: Dictionary) -> Array[Vector3]:
+	if at.round:
+		return WallLayout.circle(at.center, at.size.x * 0.5)
+	var span := footprint(at.center, at.yaw, at.size)
+	return WallLayout.rectangle(span.a, span.b, span.depth)
+
+
 ## Where a house held from `start` stands once the hands holding it move from poses `from` to `to`: one hand carries
 ## it and turns it with its own turn; two carry it by their midpoint, turn it with the line between them, and
-## stretch it along that line by how far they spread. `gain` scales the carry, so a far house keeps up.
+## stretch it along that line by how far they spread, or a round one every way at once. `gain` scales the carry, so a far house keeps up.
 static func carry(start: Dictionary, from: Array[Transform3D], to: Array[Transform3D], gain: float) -> Dictionary:
 	var out := start.duplicate()
 	if from.size() == 1:
@@ -487,6 +517,9 @@ static func carry(start: Dictionary, from: Array[Transform3D], to: Array[Transfo
 	out.center = start.center + _flat((to[0].origin + to[1].origin - from[0].origin - from[1].origin) * 0.5) * gain
 	out.yaw = start.yaw + angle_difference(angle(span0), angle(span1))
 	var stretch := span1.length() / maxf(span0.length(), 0.05) - 1.0
+	if start.round:
+		out.size = Vector2.ONE * clampf(start.size.x * (1.0 + stretch), HOUSE_SIDES.x, HOUSE_DEPTH)
+		return out
 	var across: float = angle(span0) - start.yaw
 	var size: Vector2 = start.size * Vector2(1.0 + stretch * cos(across) ** 2, 1.0 + stretch * sin(across) ** 2)
 	size = size.clamp(Vector2.ONE * HOUSE_SIDES.x, Vector2.ONE * HOUSE_SIDES.y)

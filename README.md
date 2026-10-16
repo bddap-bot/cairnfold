@@ -48,8 +48,8 @@ paths, stone, flowers, grass, trees, pond, colour, camera, seeds, delete or visi
 - Holding walls: A on a wall cuts or fills an arch, A on its top changes its style; a wall drawn
   round into a loop stays a wall.
 - Holding the house: trigger takes up a house where you point; carry it,
-  add the other grip to turn it and stretch it between your hands; let go to
-  build.
+  add the other grip to turn it and stretch it between your hands; A while
+  carrying rounds it into a tower, or squares it again; let go to build.
 - Left stick forward: aim a teleport from the left hand, whatever it holds;
   release to go, into the sky to float. Ease the stick back to land nearer
   along the aim.

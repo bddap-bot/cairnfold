@@ -120,7 +120,7 @@ func _hand(at: Vector3, turn := 0.0) -> Transform3D:
 
 
 func _hands_carry_turn_and_stretch_a_house() -> void:
-	var start := {"center": Vector3(10, 0, 0), "yaw": 0.0, "size": Vector2(4.5, 4.5)}
+	var start := {"center": Vector3(10, 0, 0), "yaw": 0.0, "size": Vector2(4.5, 4.5), "round": false}
 	var one: Array[Transform3D] = [_hand(Vector3(0, 1, 0))]
 	var moved: Array[Transform3D] = [_hand(Vector3(0.5, 1.3, -0.2), 0.4)]
 	var c := WallTool.carry(start, one, moved, 4.0)
@@ -147,6 +147,15 @@ func _hands_carry_turn_and_stretch_a_house() -> void:
 	var close: Array[Transform3D] = [_hand(Vector3(0, 1, 0)), _hand(Vector3(0.01, 1, 0))]
 	c = WallTool.carry(start, pair, close, 4.0)
 	_check(c.size.x == WallTool.HOUSE_SIDES.x, "nor shorter than the smallest: %s" % c.size)
+	var tower := start.duplicate()
+	tower.round = true
+	c = WallTool.carry(tower, pair, spread, 4.0)
+	_check(c.size.is_equal_approx(Vector2(7, 7)), "a round one spreads every way at once, no wider than the deepest house: %s" % c.size)
+	c = WallTool.carry(tower, pair, circled, 4.0)
+	_check(c.size.is_equal_approx(start.size), "and turning the pair keeps it as wide: %s" % c.size)
+	var ring := WallTool.outline({"center": Vector3(1, 0, 1), "yaw": 0.3, "size": Vector2(5, 5), "round": true})
+	_check(ring.all(func(p: Vector3) -> bool: return absf(Vector2(p.x - 1, p.z - 1).length() - 2.5) < 1e-4), "a round footprint is a circle as wide as its size")
+	_check(WallTool.outline(start).size() == 4, "a square one has four corners")
 
 
 func _the_ridge_runs_the_longer_way() -> void:

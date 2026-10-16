@@ -224,7 +224,8 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 
 ## The house tool's carry: a square house taken up at `from` (default `at`) and set down at `at`, `size`
 ## [along, across], its front turned `turn` degrees from the x axis (the head's right with "relative"), from
-## `turn_from` (default `turn`), moving there over `seconds`. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
+## `turn_from` (default `turn`), moving there over `seconds`; with "round", A rounds it into a tower as it is taken up,
+## `size` [across, across]. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	_holding(s, Hand.Tool.PLASTER_HOUSE if s.get("plaster", false) else Hand.Tool.HOUSE)
@@ -234,16 +235,19 @@ func _house(s: Dictionary) -> void:
 	var from := _spot(s, s.from[0], s.from[1]) if s.has("from") else to
 	var yaw := _turn(s, x, z, s.get("turn", 0.0))
 	var yaw_from := _turn(s, x, z, s.get("turn_from", s.get("turn", 0.0)))
-	var size := Vector2(s.size[0], s.size[1]) if s.has("size") else WallTool.HOUSE_SIZE
 	var on: int = _target(s, from).on
 	tool.begin_house(from, yaw_from, s.get("plaster", false), PackedInt32Array([on]) if on >= 0 else PackedInt32Array())
+	if s.get("round", false):
+		tool.round_house(true)
+	var taken_up: Vector2 = tool.house_at.size
+	var size := Vector2(s.size[0], s.size[1]) if s.has("size") else taken_up
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
 	var shots: int = s.get("shots", 3) if s.has("capture") else 0
 	var taken := 0
 	for f in frames:
 		await get_tree().process_frame
 		var k := float(f + 1) / frames
-		tool.place_house(from.lerp(to, k), lerp_angle(yaw_from, yaw, k), WallTool.HOUSE_SIZE.lerp(size, k))
+		tool.place_house(from.lerp(to, k), lerp_angle(yaw_from, yaw, k), taken_up.lerp(size, k))
 		if taken < shots and f + 1 >= frames * (taken + 1) / shots:
 			taken += 1
 			await get_tree().create_timer(0.4).timeout
