@@ -203,6 +203,7 @@ func build(ground: Callable, water := Callable()) -> void:
 	openings = openings_for(windows)
 	var bays := pillars()
 	var pillar_top := 0.0
+	var bands := []
 	var sink := 0.0
 	for d in depths:
 		sink = maxf(sink, d)
@@ -227,10 +228,11 @@ func build(ground: Callable, water := Callable()) -> void:
 			spans = _cut(spans, b.x, b.y)
 		var stream := rng if k >= 0 else wet
 		var offset := (0.5 if posmod(k, 2) == 1 else 0.0) * stream.randf_range(0.3, 0.6)
-		for span in spans:
-			if not plaster or k == 0:
+		if not plaster or k == 0:
+			for span in spans:
 				_lay_course(span[0], span[1], y0, course_h, offset, stream)
-			_lay_mortar(span[0], span[1], y0, course_h)
+		bands.append([y0, course_h, spans])
+	_lay_mortar(bands)
 	for a in live_arches:
 		_lay_ring(a, rng)
 	for p in pillars():
@@ -724,15 +726,77 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 		s += l
 
 
-func _lay_mortar(a: float, b: float, y0: float, h: float, thick := THICKNESS) -> void:
-	var s := a
-	while b - s > 0.02:
-		var l := minf(_stone_scale, b - s)
-		var frame := frame_at(s + l * 0.5)
-		var basis := Basis(frame.tangent, Vector3.UP, frame.tangent.cross(Vector3.UP))
-		var size := Vector3(l, h + 0.02, thick - (PLASTER_INSET * 2.0 if plaster and y0 > 0.0 else 0.14))
-		stones.append({"xform": Transform3D(basis.scaled_local(size), frame.point + Vector3.UP * (y0 + h * 0.5)), "color": PLASTER if plaster and y0 > 0.0 else MORTAR, "kind": "plaster" if plaster and y0 > 0.0 else "mortar", "s": s + l * 0.5, "y": y0 + h * 0.5, "size": size, "ao": 1.0 if plaster else 0.8, "variant": 0})
-		s += l
+## Mortar, or plaster above the footing, fills each band's spans `[y0, h, spans]` as panels on cells every band shares.
+## A panel runs straight between its cell's ends on the ground, so it climbs a slope rather than stepping, and is
+## mitred into the next cell (`Masonry.Kind.write`'s `ends`), so a curved face stays closed and shades round. A panel
+## with the same ends as the one below grows up instead of stacking on it.
+func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
+	var cells := _cells()
+	var turns := PackedFloat32Array()
+	turns.resize(cells.size() + 1)
+	for i in range(1, cells.size()):
+		turns[i] = cells[i - 1].tangent.signed_angle_to(cells[i].tangent, Vector3.UP) * 0.5
+	if closed and cells.size() > 1:
+		turns[0] = cells[-1].tangent.signed_angle_to(cells[0].tangent, Vector3.UP) * 0.5
+		turns[-1] = turns[0]
+	var total := length()
+	var panels := []
+	var below := {}
+	for band in bands:
+		var y0: float = band[0]
+		var top: float = y0 + band[1] + 0.02
+		var face := plaster and y0 > 0.0
+		var wraps: bool = closed and band[2].any(func(sp): return sp[0] < 0.001) and band[2].any(func(sp): return sp[1] > total - 0.001)
+		var here := {}
+		for span in band[2]:
+			for i in cells.size():
+				var c: Dictionary = cells[i]
+				var a := maxf(span[0], c.a)
+				var b := minf(span[1], c.b)
+				if b - a < 0.02:
+					continue
+				var left: bool = a - c.a < 0.001 and (a - span[0] > 0.001 or wraps and a < 0.001)
+				var right: bool = c.b - b < 0.001 and (span[1] - b > 0.001 or wraps and b > total - 0.001)
+				var ends := Vector2(clampf(-turns[i], -1.0, 1.0) if left else 0.0, clampf(turns[i + 1], -1.0, 1.0) if right else 0.0)
+				var key := "%d %.3f %.3f %s" % [i, a, b, face]
+				var p: Dictionary = below.get(key, {})
+				if p.is_empty() or p.ends != ends:
+					p = {"cell": c, "a": a, "b": b, "y0": y0, "face": face, "ends": ends}
+					panels.append(p)
+				p.top = top
+				here[key] = p
+		below = here
+	for p in panels:
+		var c: Dictionary = p.cell
+		var from: Vector3 = c.from.lerp(c.to, (p.a - c.a) / (c.b - c.a))
+		var to: Vector3 = c.from.lerp(c.to, (p.b - c.a) / (c.b - c.a))
+		var h: float = p.top - p.y0
+		var size := Vector3(p.b - p.a, h, thick - (PLASTER_INSET * 2.0 if p.face else 0.14))
+		var basis := Basis(to - from, Vector3.UP * h, c.tangent.cross(Vector3.UP) * size.z)
+		var y: float = p.y0 + h * 0.5
+		stones.append({"xform": Transform3D(basis, (from + to) * 0.5 + Vector3.UP * y), "color": PLASTER if p.face else MORTAR, "kind": "plaster" if p.face else "mortar", "s": (p.a + p.b) * 0.5, "y": y, "size": size, "ao": 1.0 if plaster else 0.8, "variant": 0, "ends": p.ends})
+
+
+## The run cut into cells of about a stone's length between corners, each with its ends `a`, `b` in arc length,
+## where they stand (`from`, `to`) and its level `tangent`.
+func _cells() -> Array[Dictionary]:
+	var total := length()
+	var stops: Array[float] = [0.0, total]
+	for s in corners():
+		if s > 0.001 and s < total - 0.001:
+			stops.append(s)
+	stops.sort()
+	var out: Array[Dictionary] = []
+	for j in stops.size() - 1:
+		var n := maxi(1, ceili((stops[j + 1] - stops[j]) / _stone_scale - 0.25))
+		for m in n:
+			var a := lerpf(stops[j], stops[j + 1], float(m) / n)
+			var b := lerpf(stops[j], stops[j + 1], float(m + 1) / n)
+			var from: Vector3 = frame_at(a).point
+			var to: Vector3 = frame_at(minf(b, total - 0.0001) if closed else b).point
+			var level := Vector3(to.x - from.x, 0.0, to.z - from.z)
+			out.append({"a": a, "b": b, "from": from, "to": to, "tangent": level.normalized() if level.length() > 1e-5 else frame_at((a + b) * 0.5).tangent})
+	return out
 
 
 func _lay_ring(a: float, rng: RandomNumberGenerator) -> void:
@@ -899,7 +963,7 @@ func _lay_gable_rows(mid: float, hs: float, base: float, h: float, rows: Array[V
 		for span in _standing([[mid - half, mid + half]]):
 			if not plaster:
 				_lay_course(span[0], span[1], y, h, offset, rng)
-			_lay_mortar(span[0] + inset, span[1] - inset, y, h)
+			_lay_mortar([[y, h, [[span[0] + inset, span[1] - inset]]]])
 		if row.y > hs - 0.01:
 			for side in [-1.0, 1.0]:
 				_part(mid + side * edge, y + h * 0.5, Vector3(THICKNESS, h, THICKNESS), PLASTER if plaster else stone_color(rng), rng, "plaster" if plaster else "block")
@@ -1013,7 +1077,7 @@ func _lay_parapet(a: float, total: float, rng: RandomNumberGenerator) -> void:
 			l = total - s
 		_add(s + l * 0.5, y + PARAPET * 0.5, Vector3(l, PARAPET, THICKNESS * 0.62), rng, "block", 1.0, 0.02)
 		s += l
-	_lay_mortar(a, total, y, PARAPET, THICKNESS * 0.62)
+	_lay_mortar([[y, PARAPET, [[a, total]]]], THICKNESS * 0.62)
 	s = a
 	while total - s > 0.05:
 		var l := minf(rng.randf_range(0.6, 1.0), total - s)

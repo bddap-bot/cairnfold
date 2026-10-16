@@ -47,7 +47,7 @@ class Kind:
 		return 12 + (4 if colors else 0) + (4 if custom else 0)
 
 	## Writes instance `n` of `buf`.
-	func write(buf: PackedFloat32Array, n: int, x: Transform3D, color := Color.WHITE, occlusion := 1.0, material := 0.0) -> void:
+	func write(buf: PackedFloat32Array, n: int, x: Transform3D, color := Color.WHITE, occlusion := 1.0, material := 0.0, ends := Vector2.ZERO) -> void:
 		var i := n * stride()
 		var b := x.basis
 		buf[i] = b.x.x
@@ -70,6 +70,8 @@ class Kind:
 		if custom:
 			buf[i + 16] = occlusion
 			buf[i + 17] = material
+			buf[i + 18] = ends.x
+			buf[i + 19] = ends.y
 
 	func instance() -> MultiMeshInstance3D:
 		var mm := MultiMesh.new()

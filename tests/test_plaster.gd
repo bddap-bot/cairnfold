@@ -10,7 +10,39 @@ func _check(ok: bool, what: String) -> void:
 func _flat(_x: float, _z: float) -> float:
 	return 0.0
 
+func _hill(x: float, z: float) -> float:
+	return 0.15 * x + 0.3 * sin(z)
+
+
+## Each plaster panel's mitred end meets the next panel's start edge to edge, turned the same way, on a curve over a slope.
+func _continuous() -> void:
+	var w := WallLayout.new()
+	var arc: Array[Vector3] = []
+	for i in 13:
+		var t := i / 12.0 * PI
+		arc.append(Vector3(cos(t) * 5.0, 0.0, sin(t) * 5.0))
+	w.points.assign(arc)
+	w.height = 3.0
+	w.plaster = true
+	w.build(_hill)
+	var panels := w.stones.filter(func(s): return s.kind == "plaster")
+	_check(panels.size() > 3, "a curved plaster wall lays panels")
+	var joints := 0
+	for a in panels:
+		if a.ends.y == 0.0:
+			continue
+		var x: Transform3D = a.xform
+		var edge := x.origin + x.basis.x * 0.5 - x.basis.y * 0.5
+		var next := panels.filter(func(b): return (b.xform.origin - b.xform.basis.x * 0.5 - b.xform.basis.y * 0.5).distance_to(edge) < 0.001)
+		_check(next.size() == 1, "a panel's end meets the next panel's start at %.2f" % a.s)
+		if next.size() == 1:
+			_check(is_equal_approx(next[0].ends.x, -a.ends.y), "the joint turns both panels to one bisector at %.2f" % a.s)
+			joints += 1
+	_check(joints >= panels.size() - 1, "every panel but the last is mitred into the next")
+
+
 func _init() -> void:
+	_continuous()
 	for closed in [false, true]:
 		for cover in [WallLayout.Cover.OPEN, WallLayout.Cover.ROOF, WallLayout.Cover.DECK]:
 			var stone := WallLayout.new()
@@ -31,7 +63,7 @@ func _init() -> void:
 			var packed := Wall.pack(plaster, Wall.kinds(), Palette.plain())
 			var old := Wall.pack(stone, Wall.kinds(), Palette.plain())
 			_check(packed.stone.size() < old.stone.size() and packed.shadow.size() <= old.shadow.size(), "fewer stone vertices and shadow instances")
-			_check(packed.mortar.size() == old.mortar.size(), "no extra box instances")
+			_check(packed.mortar.size() <= old.mortar.size() * 2, "plaster splits from the footing's mortar, no finer")
 			for panel in plaster.stones.filter(func(s): return s.kind == "plaster"):
 				_check(panel.y > plaster.course_height(), "stone base retained")
 				for o in plaster.openings:

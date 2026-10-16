@@ -459,7 +459,7 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt3
 	for s in built.stones:
 		var x: Transform3D = s.xform
 		if s.kind in ["mortar", "plaster"]:
-			mortar.write(bufs[1], n[1], x, _painted_as(s, colours), s.ao, Palette.code(s.kind))
+			mortar.write(bufs[1], n[1], x, _painted_as(s, colours), s.ao, Palette.code(s.kind), s.get("ends", Vector2.ZERO))
 			n[1] += 1
 		else:
 			x.basis = x.basis * Stones.FLIPS[s.variant]

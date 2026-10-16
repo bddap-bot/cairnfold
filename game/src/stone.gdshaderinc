@@ -19,8 +19,19 @@ void vertex() {
 	world_pos = VERTEX;
 	world_nrm = NORMAL;
 #else
-	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
+	// A wall panel's ends turn by INSTANCE_CUSTOM.zw about the vertical: each end is cut along the bisector with its
+	// neighbour, and its faces' normals turned to that bisector's, so a curved run of panels closes and shades round.
+	float turn = VERTEX.x < 0.0 ? INSTANCE_CUSTOM.z : INSTANCE_CUSTOM.w;
 	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	if (turn != 0.0) {
+		VERTEX.x += VERTEX.z * length(MODEL_MATRIX[2].xyz) * tan(turn) / length(MODEL_MATRIX[0].xz);
+		if (abs(NORMAL.z) > 0.5) {
+			vec3 n = normalize(MODEL_MATRIX[2].xyz) * sign(NORMAL.z);
+			world_nrm = vec3(n.x * cos(turn) + n.z * sin(turn), 0.0, n.z * cos(turn) - n.x * sin(turn));
+			NORMAL = transpose(mat3(MODEL_MATRIX)) * world_nrm;
+		}
+	}
+	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 #endif
 	bounce_at = bounce_coord(world_pos, world_nrm);
 	occlusion = INSTANCE_CUSTOM.x;
