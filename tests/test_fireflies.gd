@@ -124,6 +124,7 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	for i in 90:
 		painter.paint(b, Terrain.ground(-6, 3), 1.0, STEP)
 	painter.end_stroke(b)
+	painter.flora.settle()
 	_run(wildlife, 3.0)
 	var patches := wildlife.butterflies.patches
 	_check(not patches.is_empty(), "the painted flowers make a patch")

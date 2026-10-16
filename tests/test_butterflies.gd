@@ -81,6 +81,7 @@ func _paint(g: Glade, at: Vector3, seconds: float) -> void:
 	for i in int(seconds / STEP):
 		g.tool.paint(b, Terrain.ground(at.x, at.z), 1.0, STEP)
 	g.tool.end_stroke(b)
+	g.tool.flora.settle()
 
 
 func _run(g: Glade, seconds: float, each := Callable()) -> void:

@@ -15,6 +15,10 @@ const RATE := 20.0
 const BURST := 60.0
 ## The key a wipe, and the undo of one, touches: everything.
 const WIPED := "*"
+## Commands that read a growing stroke's plants or change the heights they grow on: the stroke grows whole first.
+const SETTLES := ["show", "heights"]
+## A command applying for longer than this is logged.
+const SLOW_MS := 4.0
 
 signal applied(cmd: Dictionary)
 ## The whole garden was swapped (joining or leaving someone's): tools drop what they were doing.
@@ -204,7 +208,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 		cmd.ids = PackedInt32Array(range(seq * Commands.MAX_PIECES, seq * Commands.MAX_PIECES + cmd.walls.size()))
 	elif cmd.op in ["plant", "path", "ground"] and not cmd.has("id"):
 		cmd.id = seq
-	var inverse := _apply(cmd)
+	var inverse := _timed(cmd)
 	if cmd.op == "plant" and cmd.kind != "tree":
 		cmd.skip = state.groups[cmd.id].skip
 	_commit.rpc(cmd)
@@ -248,7 +252,17 @@ func _commit(sent: Dictionary) -> void:
 			_resend.rpc_id(1)
 		return
 	seq = cmd.seq
-	_apply(cmd)
+	_timed(cmd)
+
+
+## Applies a played command, logging one that takes most of a frame, so a hitch it causes is placed without guessing.
+func _timed(cmd: Dictionary) -> Dictionary:
+	var start := Time.get_ticks_usec()
+	var inverse := _apply(cmd)
+	var ms := (Time.get_ticks_usec() - start) / 1000.0
+	if ms > SLOW_MS:
+		print("world: applying %s took %.1f ms" % [cmd.op, ms])
+	return inverse
 
 
 ## A player whose garden no longer matches the host's asks for it whole.
@@ -338,12 +352,16 @@ func _keys(cmd: Dictionary) -> Array:
 
 
 ## Changes the garden by one command and returns the command that takes it back. The author's ghost
-## goes first, so a stroke's hump is not counted twice under walls laid on the new ground.
+## goes first, so a stroke's hump is not counted twice under walls laid on the new ground; a painted
+## stroke's goes last, to stand until the plants it shows have grown.
 func _apply(cmd: Dictionary) -> Dictionary:
+	var painted: bool = cmd.op == "plant" and cmd.kind != "tree"
+	if flora != null and cmd.op in SETTLES:
+		flora.settle()
 	var mine: bool = cmd.get("by") == me() and cmd.has("token")
 	# An undo or redo carries its own token but no walls in hand.
 	var handed := mine and _done.has(cmd.token)
-	if mine:
+	if mine and not painted:
 		_settle(cmd.token)
 	var inverse := {}
 	match cmd.op:
@@ -448,6 +466,8 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			_hushed(func() -> void:
 				_clear()
 				_rebuild(cmd.cmds))
+	if mine and painted:
+		_settle(cmd.token)
 	applied.emit(cmd)
 	if save_path != "" and not _keep_due and multiplayer.is_server():
 		_keep_due = true
@@ -519,6 +539,7 @@ func restore(snap: Dictionary) -> int:
 		restored.emit()
 		return _rebuild(snap.cmds))
 	seq = snap.seq
+	flora.settle()
 	return applied
 
 
@@ -582,6 +603,7 @@ func _bare_meadow() -> void:
 ## What this machine shows of the garden, for comparing machines: every wall's data and laid stones, once laid,
 ## every plant group's standing plants, and the ground.
 func digest() -> Dictionary:
+	flora.settle()
 	for w: Wall in wall_tool.walls:
 		w.lay_now()
 	var out := {"seq": seq, "walls": {}, "groups": {}, "ground": hash(Terrain.read(Terrain.ALL))}

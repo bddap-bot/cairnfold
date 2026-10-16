@@ -273,8 +273,10 @@ func _a_seed_decides_its_plants() -> void:
 	var flora: Flora = main.flora_tool.flora
 	var dabs := [[Terrain.ground(-15, -15), 1.0, 20]]
 	world._order({"op": "plant", "kind": "grass", "seed": 1, "dabs": dabs}, 1)
+	flora.settle()
 	var one: Array = flora.groups[world.seq].map(func(p: Flora.Plant) -> Vector3: return p.anchor)
 	world._order({"op": "plant", "kind": "grass", "seed": 2, "dabs": dabs}, 1)
+	flora.settle()
 	var two: Array = flora.groups[world.seq].map(func(p: Flora.Plant) -> Vector3: return p.anchor)
 	_check(one != two, "two seeds grow two different strokes")
 	var g := world.seq
@@ -287,12 +289,14 @@ func _ghost_paths_never_change_what_grows() -> void:
 	var flora: Flora = main.flora_tool.flora
 	var dabs := [[Terrain.ground(-25, -30), 2.0, 60]]
 	world._order({"op": "plant", "kind": "grass", "seed": 5, "dabs": dabs}, 1)
+	flora.settle()
 	var clear: int = flora.groups[world.seq].filter(func(p: Variant) -> bool: return p != null).size()
 	paths.begin(Terrain.ground(-28, -30), 2.5)
 	for i in 20:
 		paths.extend(Terrain.ground(-28 + i * 0.4, -30), 2.5)
 	paths._relay()
 	world._order({"op": "plant", "kind": "grass", "seed": 5, "dabs": dabs}, 1)
+	flora.settle()
 	var beside_ghost: int = flora.groups[world.seq].filter(func(p: Variant) -> bool: return p != null).size()
 	paths.forget()
 	_check(beside_ghost == clear, "a path still being drawn changes nothing a build command grows (%d vs %d)" % [beside_ghost, clear])

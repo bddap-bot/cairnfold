@@ -14,6 +14,12 @@ const NO_HAND := Vector3(0, -1000, 0)
 ## Painted plant kinds, as build commands name them; "tree" is the other kind of group.
 const BRUSHES := ["grass", "flowers"]
 const SOLID_CELL := 8.0
+## How long a frame spends growing committed strokes: a stroke of thousands of plants grows over a few frames
+## rather than in the one its command applied in.
+const GROW_USEC := 1500
+
+## When no committed stroke is left growing.
+signal grown
 
 
 ## One kind of plant, in numbered slots. Slots filled before `keep()` are the meadow's own: `keep()` bakes them into
@@ -259,6 +265,9 @@ var _kept_solids := {}
 var _solid_cells := {}
 ## Every plant a build command can name, by group, in the order its command grew them.
 var groups := {}
+## Committed strokes still growing, oldest first. Their spots were fixed as their commands applied, and any
+## other command settles them first, so every machine fills its pools alike.
+var _growing: Array[Growth] = []
 ## A player's own stroke while it is painted and until its build command comes back, drawn apart from the
 ## garden's plants so that those fill their pools in command order on every machine.
 var ghost_grass: Pool
@@ -324,6 +333,7 @@ static func _plant_material(shader: String, albedo: Color, roughness: float) -> 
 
 
 func _process(_delta: float) -> void:
+	_grow(GROW_USEC)
 	var eye := get_viewport().get_camera_3d()
 	if eye != null:
 		grass.cull(eye.global_position, grass_reach)
@@ -416,11 +426,12 @@ static func on_path(p: Vector3) -> bool:
 	return Ground.laid_bare(p.x, p.z) > 0.9
 
 
-## One dab of a brush into the ghost pools: `count` plants of `kind` spread over a disc, none on bare ground.
-func dab(kind: String, center: Vector3, radius: float, count: int, rng: RandomNumberGenerator) -> Array[Plant]:
+## One dab of a brush into the ghost pools: `count` plants of `kind` spread over a disc, none on bare ground,
+## spotted by `rng` and drawn by `look`, as `grow` grows them.
+func dab(kind: String, center: Vector3, radius: float, count: int, rng: RandomNumberGenerator, look: RandomNumberGenerator) -> Array[Plant]:
 	var out: Array[Plant] = []
 	for p in FloraLayout.brush(center, radius, count, rng, Terrain.base_at):
-		out.append(null if Ground.bare(p.x, p.z) > 0.9 else _paint(kind, p, rng, true))
+		out.append(null if Ground.bare(p.x, p.z) > 0.9 else _paint(kind, p, look, true))
 	return out
 
 
@@ -433,29 +444,86 @@ func _paint(kind: String, p: Vector3, rng: RandomNumberGenerator, ghost: bool) -
 ## Grows a group from its build command: a seeded paint stroke, which grows exactly the plants its
 ## author's ghost showed, or a tree. A stroke records in `skip` the plants that fell on bare ground when it
 ## grew, so a garden rebuilt later grows the same plants whatever paths and stone stand by then.
+## A stroke's plants are null until they grow, over the frames that follow (see `settle`).
 func grow(id: int, g: Dictionary) -> Array[Plant]:
 	var plants: Array[Plant] = []
 	var rng := RandomNumberGenerator.new()
 	rng.seed = g.seed
 	if g.kind == "tree":
 		plants = add_tree(Vector3(g.at.x, Terrain.base_at(g.at.x, g.at.z), g.at.z), rng)
-	else:
-		var record := not g.has("skip")
-		var skip := {}
-		for i in g.get("skip", []):
-			skip[i] = true
-		var skipped := PackedInt32Array()
-		for d in g.dabs:
-			for p in FloraLayout.brush(d[0], d[1], d[2], rng, Terrain.base_at):
-				var i := plants.size()
-				if skip.has(i) or record and on_path(p):
-					skipped.append(i)
-					plants.append(null)
-				else:
-					plants.append(_paint(g.kind, p, rng, false))
-		g.skip = skipped
-	_name(id, plants)
+		_name(id, plants)
+		return plants
+	var growth := Growth.new()
+	growth.group = id
+	growth.kind = g.kind
+	growth.looks = looks(g.seed)
+	var record := not g.has("skip")
+	var skip := {}
+	for i in g.get("skip", []):
+		skip[i] = true
+	var skipped := PackedInt32Array()
+	for d in g.dabs:
+		for p in FloraLayout.brush(d[0], d[1], d[2], rng, Terrain.base_at):
+			if skip.has(growth.spots.size()) or record and on_path(p):
+				skipped.append(growth.spots.size())
+				growth.spots.append(null)
+			else:
+				growth.spots.append(p)
+	g.skip = skipped
+	plants.resize(growth.spots.size())
+	growth.plants = plants
+	groups[id] = plants
+	_growing.append(growth)
 	return plants
+
+
+## Where a stroke seeded `seed` draws its plants' looks from, apart from their spots, so the spots can be
+## fixed before the plants grow.
+static func looks(seed: int) -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed ^ 0x1007
+	return rng
+
+
+## A committed stroke growing: its plants' spots (null where one fell on bare ground) and how many have grown.
+class Growth:
+	var group: int
+	var kind: String
+	var spots: Array = []
+	var looks: RandomNumberGenerator
+	var plants: Array[Plant]
+	var next := 0
+
+
+## Grows every committed stroke now.
+func settle() -> void:
+	_grow(-1)
+
+
+func growing() -> bool:
+	return not _growing.is_empty()
+
+
+## Grows the oldest strokes' plants for about `usec` microseconds, or all of them for a negative `usec`.
+func _grow(usec: int) -> void:
+	if _growing.is_empty():
+		return
+	var start := Time.get_ticks_usec()
+	while not _growing.is_empty():
+		var g := _growing[0]
+		while g.next < g.spots.size():
+			var spot: Variant = g.spots[g.next]
+			if spot != null:
+				var p := _paint(g.kind, spot, g.looks, false)
+				if p != null:
+					p.group = g.group
+					p.index = g.next
+				g.plants[g.next] = p
+			g.next += 1
+			if usec >= 0 and Time.get_ticks_usec() - start > usec:
+				return
+		_growing.pop_front()
+	grown.emit()
 
 
 func clear_ghosts() -> void:
@@ -477,6 +545,9 @@ func set_shown(group: int, indices: PackedInt32Array, on: bool) -> PackedInt32Ar
 
 ## Back to the meadow alone, every one of its plants standing. Ghosts stay with the strokes still on their way.
 func reset() -> void:
+	if growing():
+		_growing.clear()
+		grown.emit()
 	for p in [grass, flowers, trunks, foliage]:
 		p.reset()
 	var meadow: Array[Plant] = groups[0]

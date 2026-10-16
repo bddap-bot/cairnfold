@@ -30,6 +30,7 @@ class Brush:
 	var dabs := []
 	var count := 0
 	var rng := RandomNumberGenerator.new()
+	var looks := RandomNumberGenerator.new()
 	## The ground the current hold has painted, stone or meadow.
 	var ground: Ground.Stroke
 	## A stone hold begun on stone paints it back to meadow.
@@ -181,9 +182,10 @@ func paint(b: Brush, center: Vector3, radius: float, delta: float) -> void:
 		b.kind = kind
 		b.count = 0
 		b.rng.seed = randi()
+		b.looks = Flora.looks(b.rng.seed)
 	b.dabs.append([center, radius, n])
 	b.count += n
-	b.stroke.append_array(flora.dab(kind, center, radius, n, b.rng))
+	b.stroke.append_array(flora.dab(kind, center, radius, n, b.rng, b.looks))
 	planted.emit()
 
 
@@ -236,6 +238,8 @@ func _send_ground(b: Brush) -> void:
 
 ## A sent stroke is settled: its plants grow in the garden now, or it was turned down.
 func _lay(ghost: Array[Flora.Plant]) -> void:
+	if flora.growing():
+		await flora.grown
 	for p in ghost:
 		if p != null:
 			p.set_shown(false)
