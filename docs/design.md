@@ -166,7 +166,8 @@ thread, as the camera's photos do.
 A painted stroke grows its plants over the frames after its command, within 1.5 ms of
 script a frame. Grown in the frame its command applied in, the flora phase's 4 s grass
 stroke (about 850 plants) took 24 ms of main-thread script on the Frame and one late frame
-at every release; a full stroke of 4000 would take about 110 ms. The flora phase (flowers,
+at every release; a full stroke of 4000 would take about 110 ms. Its spots are still laid out
+as the command applies: 7.4 ms for a full stroke of 4000 on the Frame, with no late frame. The flora phase (flowers,
 grass, two trees, ivy on the wall), unworn with the standby pause off, and the measured
 phases of `demo/grass.json`:
 
