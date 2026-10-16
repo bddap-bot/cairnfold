@@ -379,7 +379,7 @@ func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 	var eating := func() -> void:
 		each.call()
 		on.assign(g.birds().filter(func(b: Birds.Bird) -> bool: return b.state == Birds.State.FEED))
-		flew[0] = maxi(flew[0], g.birds().filter(func(b: Birds.Bird) -> bool: return b.hand == hand).size())
+		flew[0] = maxi(flew[0], g.birds().filter(func(b: Birds.Bird) -> bool: return b.node.hand == hand).size())
 	for i in int(30.0 / STEP):
 		_run(g, STEP, eating)
 		if not on.is_empty():
@@ -395,13 +395,13 @@ func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 	_check(b.state == Birds.State.FEED and b.node.position.distance_to(hand.global_transform * Wildlife.ON_HAND) < 0.001, "carried slowly, it rides along eating")
 	_move(g, hand, hand.global_position, hand.global_position + Vector3(0.4, 0.3, 0), 3.0, eating)
 	_run(g, STEP * 2, eating)
-	_check(b.state == Birds.State.FLY and b.hand == null, "jerked, the hand sends it off")
+	_check(b.state == Birds.State.FLY and b.node.hand == null, "jerked, the hand sends it off")
 	_run(g, 4.0, each)
 	_check(b in g.birds() and b.state != Birds.State.LEAVE, "to a perch nearby, staying, state %s" % Birds.State.keys()[b.state])
 	_check(not g.wildlife._eaters.has(hand) or g.wildlife._eaters[hand] != b, "and lets the hand go")
 	hand.tool = Hand.Tool.WALLS
 	_run(g, 1.0, each)
-	_check(g.birds().all(func(b: Birds.Bird) -> bool: return b.hand == null), "seeds put away keep nobody")
+	_check(g.birds().all(func(b: Birds.Bird) -> bool: return b.node.hand == null), "seeds put away keep nobody")
 	hand.held_still = false
 	hand.global_position = AWAY
 

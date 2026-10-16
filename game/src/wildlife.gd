@@ -517,12 +517,13 @@ func feeds(h: Node3D, eater: Object) -> bool:
 	return h != null and _eaters.get(h) == eater and offers().has(h)
 
 
-## Where an animal coming from `from` stands to eat from hand `h`: on the controller behind the seeds (`ON_HAND`
-## in the hand's space), or on the ground or water with its mouth under the hand.
+## Where an animal coming from `from` stands to eat from hand `h`: on the hand as seen, behind the seeds (`ON_HAND`
+## in the hand's space), or on the ground or water with its mouth under it.
 func eat_spot(appetite: Appetite, h: Node3D, from: Vector3) -> Vector3:
+	var seen: Node3D = h.body if h is Hand else h
 	if appetite.eat == Eat.ON_HAND:
-		return h.global_transform * ON_HAND
-	var at := h.global_position
+		return seen.global_transform * ON_HAND
+	var at := seen.global_position
 	var off := Vector3(from.x - at.x, 0, from.z - at.z)
 	at += off.normalized() * appetite.mouth if off.length() > 1e-3 else Vector3.ZERO
 	return Vector3(at.x, _floor(at), at.z)

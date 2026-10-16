@@ -249,12 +249,16 @@ func _a_hand_does_not_stop_against_the_bird_it_carries() -> void:
 	main.add_child(bird)
 	bird.global_position = g + Vector3.UP * 1.0
 	var centre := bird.global_transform * bird.mesh.get_aabb().get_center()
-	bird.riding = main.rig.right
+	bird.hand = main.rig.right
 	await _hold(centre + Vector3.UP * 0.3)
 	for k in 10:
 		await _hold(centre + Vector3.UP * (0.3 - 0.06 * (k + 1)))
 	_check(_seen().distance_to(centre - Vector3.UP * 0.3) < 0.01, "a hand passes the bird standing on it")
-	bird.riding = null
+	var hand: Hand = main.rig.right
+	hand.body.position = Vector3(0, 0.1, 0)
+	var spot: Vector3 = main.wildlife.eat_spot(Birds.appetite, hand, Vector3.ZERO)
+	_check(spot.is_equal_approx(hand.body.global_transform * Wildlife.ON_HAND), "a bird eats on the hand as seen")
+	bird.hand = null
 	await _hold(centre + Vector3.UP * 1.5)
 	await _hold(centre + Vector3.UP * 0.3)
 	for k in 10:

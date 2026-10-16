@@ -78,7 +78,7 @@ func _process(delta: float) -> void:
 			from = to
 		var box := AABB(from, Vector3.ZERO).expand(to).grow(RADIUS + STEP)
 		var near := _near_for(i, box)
-		near.focus(box, critters.filter(func(c: Critter) -> bool: return c.riding != hand))
+		near.focus(box, critters.filter(func(c: Critter) -> bool: return c.hand != hand))
 		var at := resolve(from, to, near.solid, near.normal)
 		_held[i] = _rig.global_transform.affine_inverse() * at
 		hand.body.global_position = hand.global_position + (at - to)

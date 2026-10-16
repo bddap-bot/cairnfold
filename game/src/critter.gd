@@ -10,8 +10,8 @@ var mode := Vector4(1, 0, 0, 0)
 var rate := 1.0
 ## What a hand brushing it feels.
 var coat: HandStop.Surface
-## The hand it stands on, if any: that hand does not stop against it.
-var riding: Node3D
+## The hand it flies to or stands on, if any: that hand does not stop against it.
+var hand: Node3D
 
 
 ## `kind` names the mesh `build` makes, once for every animal that shares it.

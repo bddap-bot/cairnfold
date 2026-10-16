@@ -76,8 +76,7 @@ class Bird:
 	var preening := 0.0
 	## Where the next leg goes once a hop or a flight down to the grass ends.
 	var then := State.PERCH
-	## The hand it flies to or eats on, and how long until it goes for seeds again.
-	var hand: Node3D
+	## How long until it goes for seeds again; the hand it flies to or eats on is its node's.
 	var full := 0.0
 
 
@@ -263,7 +262,7 @@ static func _crown(parts: Array[Flora.Plant]) -> PackedVector3Array:
 
 func _think(b: Bird, delta: float) -> void:
 	b.full = maxf(b.full - delta, 0.0)
-	if b.hand != null:
+	if b.node.hand != null:
 		_to_hand(b, delta)
 		return
 	if b.state == State.LEAVE or b.state == State.ARRIVE or b.state == State.FLY:
@@ -279,7 +278,7 @@ func _think(b: Bird, delta: float) -> void:
 		var h := wildlife.offer_for(appetite, at)
 		if h != null:
 			wildlife.claim(h, b)
-			b.hand = h
+			b.node.hand = h
 			_fly_to(b, null, wildlife.eat_spot(appetite, h, at), State.FLY)
 			b.then = State.FEED
 			return
@@ -401,7 +400,7 @@ func _short_flight(b: Bird, from: Vector3) -> bool:
 ## Flying to a hand holding seeds, then standing on it eating while it is held out calmly. A sudden move of it
 ## startles the bird off; seeds put away or eaten send it back to a perch nearby.
 func _to_hand(b: Bird, delta: float) -> void:
-	var h := b.hand
+	var h := b.node.hand
 	if not wildlife.feeds(h, b) or wildlife.sudden(h):
 		_off_hand(b)
 		return
@@ -418,9 +417,9 @@ func _to_hand(b: Bird, delta: float) -> void:
 
 
 func _off_hand(b: Bird) -> void:
-	var from := b.hand.global_position
+	var from := b.node.hand.global_position
 	wildlife.release(b)
-	b.hand = null
+	b.node.hand = null
 	b.full = rng.randf_range(appetite.full_for.x, appetite.full_for.y)
 	if not _short_flight(b, from):
 		_flutter(b)
@@ -490,7 +489,7 @@ func _resettle(b: Bird) -> void:
 
 func _leave(b: Bird) -> void:
 	wildlife.release(b)
-	b.hand = null
+	b.node.hand = null
 	var at := b.node.position
 	b.from = at
 	b.to = wildlife._unseen_point(at, LEAVE_TO, FROM_HEIGHT, Wildlife.LEAVE_SIGHT, rng)
