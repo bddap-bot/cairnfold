@@ -469,6 +469,16 @@ phases fell to every other refresh. The Quest 2 renders at full resolution: ther
 scale is not measured yet, and its render region left the binned surface as it was, while this
 scale shrinks it.
 
+Part of what a tenth off saves on the Frame is the render path, not the pixels. At a scale of
+exactly 1.0 Godot tonemaps in a subpass of the 3D pass; at any other scale, in a pass of its
+own. On the Frame's Turnip driver the subpass is the dearer one: at 1.0001, which renders the
+same 1728 pixels per eye the separate way, the houses phase of `demo/headset.json` took 10.4
+to 10.6 ms a frame on the governor's timer against 11.5 to 11.8 ms at 1.0 (three runs each,
+0 late frames at 1.0001), and compositor captures showed the meadow in both eyes. The Quest
+2's driver goes the other way: the stress scene at 1.0001 took a median 2.75 ms more App time
+a phase than at 1.0, every one of its 34 phases between 1.4 and 3.2 ms more. So a full-resolution
+scale on the Frame is 1.0001, never 1.0, and the Quest 2 stays at exactly 1.0.
+
 The Meta plugin's separate dynamic-resolution controller is disabled: its explicit render
 region can exceed the framebuffer once the 3D scale shrinks it, making both eyes
 black while timing reports an apparent improvement. The benchmark rejects this framebuffer
