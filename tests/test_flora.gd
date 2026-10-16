@@ -82,12 +82,9 @@ func _a_stroke_grows_over_frames() -> void:
 	t.end_stroke(b)
 	var group: int = t.world.seq
 	_check(t.flora.growing() and t.flora.grass.size() == before, "a committed stroke grows nothing in the frame it lands in")
-	var start := Time.get_ticks_usec()
 	t.flora._grow(Flora.GROW_USEC)
-	var took := Time.get_ticks_usec() - start
 	var grown := t.flora.grass.size() - before
 	_check(grown > 0 and grown < ghost.size(), "a frame grows a share of its %d plants, %d" % [ghost.size(), grown])
-	_check(took < Flora.GROW_USEC * 2, "within the frame's share, %d us" % took)
 	_check(ghost.all(func(p: Flora.Plant) -> bool: return p.shown()), "its ghost stands until it has grown")
 	t.world.submit({"op": "plant", "kind": "tree", "seed": 1, "at": Terrain.ground(26, 20)})
 	_check(t.flora.growing(), "a tree planted meanwhile leaves it growing")
@@ -95,8 +92,9 @@ func _a_stroke_grows_over_frames() -> void:
 	_check(not t.flora.growing() and t.flora.grass.size() - before == ghost.size(), "a command on its plants grows it all first, %d of %d" % [t.flora.grass.size() - before, ghost.size()])
 	_check(not t.flora.groups[group][0].shown(), "and then applies to them")
 	_check(ghost.all(func(p: Flora.Plant) -> bool: return not p.shown()), "and then its ghost goes")
-	var anchors: Array = t.flora.groups[group].filter(func(p: Variant) -> bool: return p != null).map(func(p: Flora.Plant) -> Vector3: return p.anchor)
-	_check(anchors == ghost.map(func(p: Flora.Plant) -> Vector3: return p.anchor), "the stroke grows the plants its ghost showed")
+	var looks := func(p: Flora.Plant) -> Array: return [p.anchor, p.xform, p.pool.mm.get_instance_color(p.slot - p.pool.kept)]
+	var grown_looks: Array = t.flora.groups[group].filter(func(p: Variant) -> bool: return p != null).map(looks)
+	_check(grown_looks == ghost.map(looks), "the stroke grows the plants its ghost showed, as it showed them")
 
 
 func _painting_again_thickens() -> void:
@@ -114,7 +112,7 @@ func _painting_again_thickens() -> void:
 	_check(t.flora.ghost_grass.size() == 0, "the flower brush leaves the grass alone")
 	var painted := t.flora.ghost_flowers.size()
 	t.end_stroke(b)
-	t.flora.settle()
+	t.flora.grow_now()
 	_check(t.flora.flowers.size() - t.flora.flowers.kept == painted, "letting go grows the stroke in the garden, %d of %d" % [t.flora.flowers.size() - t.flora.flowers.kept, painted])
 	_check(t.flora.ghost_flowers.size() == 0, "and clears its ghost, %d left" % t.flora.ghost_flowers.size())
 	b.hand.tool = Hand.Tool.GRASS

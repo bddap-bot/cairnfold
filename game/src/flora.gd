@@ -427,7 +427,7 @@ static func on_path(p: Vector3) -> bool:
 
 
 ## One dab of a brush into the ghost pools: `count` plants of `kind` spread over a disc, none on bare ground,
-## spotted by `rng` and drawn by `look`, as `grow` grows them.
+## placed by `rng` and drawn by `look`, the two streams `grow` grows its plants from.
 func dab(kind: String, center: Vector3, radius: float, count: int, rng: RandomNumberGenerator, look: RandomNumberGenerator) -> Array[Plant]:
 	var out: Array[Plant] = []
 	for p in FloraLayout.brush(center, radius, count, rng, Terrain.base_at):
@@ -471,7 +471,6 @@ func grow(id: int, g: Dictionary) -> Array[Plant]:
 				growth.spots.append(p)
 	g.skip = skipped
 	plants.resize(growth.spots.size())
-	growth.plants = plants
 	groups[id] = plants
 	_growing.append(growth)
 	return plants
@@ -491,12 +490,11 @@ class Growth:
 	var kind: String
 	var spots: Array = []
 	var looks: RandomNumberGenerator
-	var plants: Array[Plant]
 	var next := 0
 
 
 ## Grows every committed stroke now.
-func settle() -> void:
+func grow_now() -> void:
 	_grow(-1)
 
 
@@ -518,7 +516,7 @@ func _grow(usec: int) -> void:
 				if p != null:
 					p.group = g.group
 					p.index = g.next
-				g.plants[g.next] = p
+				groups[g.group][g.next] = p
 			g.next += 1
 			if usec >= 0 and Time.get_ticks_usec() - start > usec:
 				return
@@ -533,6 +531,7 @@ func clear_ghosts() -> void:
 
 ## Shows or hides the plants at `indices` of a group; returns the indices that changed.
 func set_shown(group: int, indices: PackedInt32Array, on: bool) -> PackedInt32Array:
+	grow_now()
 	var changed := PackedInt32Array()
 	var plants: Array = groups.get(group, [])
 	for i in indices:

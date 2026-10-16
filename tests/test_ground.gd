@@ -72,7 +72,7 @@ func _stroke(t: FloraTool, hand: int, held: Hand.Tool, a: Vector2, b: Vector2, r
 		var p := a.lerp(b, i / 60.0)
 		t.paint(brush, Terrain.ground(p.x, p.y), radius, 1.0 / 60.0)
 	t.end_stroke(brush)
-	t.flora.settle()
+	t.flora.grow_now()
 
 
 func _a_stroke_lays_stone_with_a_soft_edge() -> void:

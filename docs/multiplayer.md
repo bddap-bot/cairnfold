@@ -38,7 +38,10 @@ comes out the same.
   top, roof and the ids of the builds it stands on. A ground edit carries the heights it leaves. A paint stroke carries its
   random seed and its brush dabs, from which every machine grows the same plants, and it
   records which plants fell on a path when it grew, so a garden rebuilt later grows the
-  same ones. A command runs from tens of bytes to a few kilobytes and is sent once per
+  same ones. Its plants grow over the frames after it applies, a share a frame, so a
+  stroke of thousands costs no frame; a command on plants or on the ground's heights
+  grows them whole first, so every machine still fills its pools in command order.
+  A command runs from tens of bytes to a few kilobytes and is sent once per
   gesture, so networking costs no frame time.
 - **Derived things are derived everywhere.** How builds meet (what of one lies inside another, how
   high a storey stands on the house under it) is worked out from the walls standing on every machine.

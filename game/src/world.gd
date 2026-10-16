@@ -15,8 +15,12 @@ const RATE := 20.0
 const BURST := 60.0
 ## The key a wipe, and the undo of one, touches: everything.
 const WIPED := "*"
-## Commands that read a growing stroke's plants or change the heights they grow on: the stroke grows whole first.
-const SETTLES := ["show", "heights"]
+## A growing plant stands at its spot's height above the ground as it is when it grows, so new heights wait for
+## every stroke to grow.
+const GROWS_FIRST := ["heights"]
+## A saved garden from another format is moved aside rather than rebuilt into a different one: 2 draws
+## a stroke's plants' looks apart from their spots.
+const FORMAT := 2
 ## A command applying for longer than this is logged.
 const SLOW_MS := 4.0
 
@@ -84,7 +88,7 @@ func load_from(path: String) -> void:
 	if not FileAccess.file_exists(path):
 		return
 	var snap: Variant = bytes_to_var(FileAccess.get_file_as_bytes(path))
-	var whole := snap is Dictionary and snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT
+	var whole: bool = snap is Dictionary and snap.get("format") == FORMAT and snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT
 	if whole:
 		whole = restore(snap) == snap.cmds.size()
 	if whole:
@@ -356,8 +360,8 @@ func _keys(cmd: Dictionary) -> Array:
 ## stroke's goes last, to stand until the plants it shows have grown.
 func _apply(cmd: Dictionary) -> Dictionary:
 	var painted: bool = cmd.op == "plant" and cmd.kind != "tree"
-	if flora != null and cmd.op in SETTLES:
-		flora.settle()
+	if flora != null and cmd.op in GROWS_FIRST:
+		flora.grow_now()
 	var mine: bool = cmd.get("by") == me() and cmd.has("token")
 	# An undo or redo carries its own token but no walls in hand.
 	var handed := mine and _done.has(cmd.token)
@@ -522,7 +526,7 @@ func snapshot() -> Dictionary:
 	for c in cmds:
 		c.seq = seq
 		c.by = 1
-	return {"seq": seq, "cmds": cmds}
+	return {"format": FORMAT, "seq": seq, "cmds": cmds}
 
 
 ## Back to the empty meadow, then the snapshot's garden, and how many of its commands applied. Undo history
@@ -539,7 +543,7 @@ func restore(snap: Dictionary) -> int:
 		restored.emit()
 		return _rebuild(snap.cmds))
 	seq = snap.seq
-	flora.settle()
+	flora.grow_now()
 	return applied
 
 
@@ -603,7 +607,7 @@ func _bare_meadow() -> void:
 ## What this machine shows of the garden, for comparing machines: every wall's data and laid stones, once laid,
 ## every plant group's standing plants, and the ground.
 func digest() -> Dictionary:
-	flora.settle()
+	flora.grow_now()
 	for w: Wall in wall_tool.walls:
 		w.lay_now()
 	var out := {"seq": seq, "walls": {}, "groups": {}, "ground": hash(Terrain.read(Terrain.ALL))}

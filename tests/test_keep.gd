@@ -25,6 +25,7 @@ func _run() -> void:
 	await _a_flat_roof_is_kept()
 	await _a_visited_garden_is_not_kept()
 	_an_unreadable_file_starts_the_meadow()
+	_a_garden_of_another_format_is_moved_aside()
 	await _a_garden_read_in_part_is_moved_aside()
 	for f in DirAccess.get_files_at(dir):
 		DirAccess.remove_absolute(dir.path_join(f))
@@ -134,11 +135,23 @@ func _an_unreadable_file_starts_the_meadow() -> void:
 	world.save_path = ""
 
 
+func _a_garden_of_another_format_is_moved_aside() -> void:
+	var path := dir.path_join("old.save")
+	var tree := {"op": "plant", "kind": "tree", "seed": 1, "at": Terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}
+	var bytes := var_to_bytes({"format": World.FORMAT - 1, "seq": 9, "cmds": [tree]})
+	FileAccess.open(path, FileAccess.WRITE).store_buffer(bytes)
+	world.restore({"seq": 0, "cmds": []})
+	world.load_from(path)
+	_check(world.state.groups.keys() == [0], "a garden saved in another format grows nothing")
+	_check(FileAccess.get_file_as_bytes(path + ".bad") == bytes and not FileAccess.file_exists(path), "and is moved aside whole")
+	world.save_path = ""
+
+
 func _a_garden_read_in_part_is_moved_aside() -> void:
 	var path := dir.path_join("part.save")
 	var tree := {"op": "plant", "kind": "tree", "seed": 1, "at": Terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}
 	var odd := {"op": "wall", "ids": PackedInt32Array([8]), "walls": [{"points": "not points"}], "seq": 0, "by": 1}
-	var bytes := var_to_bytes({"seq": 9, "cmds": [tree, odd]})
+	var bytes := var_to_bytes({"format": World.FORMAT, "seq": 9, "cmds": [tree, odd]})
 	FileAccess.open(path, FileAccess.WRITE).store_buffer(bytes)
 	world.load_from(path)
 	await _settled()

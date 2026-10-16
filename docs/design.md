@@ -163,6 +163,22 @@ A 142 ms frame once seen at the air teleport was the script's capture just befor
 it, which encoded its PNG on the main thread; captures now save on a worker
 thread, as the camera's photos do.
 
+A painted stroke grows its plants over the frames after its command, within 1.5 ms of
+script a frame. Grown in the frame its command applied in, the flora phase's 4 s grass
+stroke (about 850 plants) took 24 ms of main-thread script on the Frame and one late frame
+at every release; a full stroke of 4000 would take about 110 ms. The flora phase (flowers,
+grass, two trees, ivy on the wall), unworn with the standby pause off, and the measured
+phases of `demo/grass.json`:
+
+| Run | Flora phase: late frames, frame time p99 | `grass.json` bench-eye, bench-kneel: late frames |
+| --- | --- | --- |
+| Before (d9f8ec7), two runs | 1 (22 ms), 1 (28 ms) | 0, 0 |
+| After | 0, 13.89 ms | 0, 0 |
+
+A command that takes more than 4 ms to apply is logged (`world: applying path took 11.8 ms`):
+the late-frame line's script time leaves out what a demo script's driver runs, and it showed 3 ms
+for the frame the stroke cost 24 ms in.
+
 Building lays nothing on the main thread. A wall settling after a command, a roof being
 pulled and a wall top changing are laid on a worker thread while the stones standing stay in
 view; the garden's copy of a wall in hand takes the stones the player's preview already laid
