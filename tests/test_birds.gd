@@ -15,6 +15,7 @@ func _initialize() -> void:
 	await process_frame
 	_no_tool_places_a_bird()
 	_wall_tops_are_perches()
+	_plumages()
 	await _they_come_after_the_ducks_and_leave_with_the_perches()
 	await _a_perch_taken_away_sends_them_elsewhere()
 	await _with_no_room_they_leave()
@@ -40,6 +41,24 @@ func _no_tool_places_a_bird() -> void:
 	for f in DirAccess.get_files_at("res://src"):
 		if f.ends_with(".gd") and f != "birds.gd" and f != "conure.gd":
 			_check(not FileAccess.get_file_as_string("res://src/" + f).contains("Conure.new("), "%s makes no conure" % f)
+
+
+## Every plumage colours each patch, the first stays iridescent, and a conure wears the one it is given.
+func _plumages() -> void:
+	_check(Conure.PLUMAGES.keys()[0] == "iridescent", "the first plumage is the iridescent one")
+	for name: String in Conure.PLUMAGES:
+		var hexes: Array = Conure.PLUMAGES[name]
+		_check(hexes.size() == Conure.Patch.size(), "%s colours every patch" % name)
+		for i in hexes.size():
+			_check(Color.html_is_valid(hexes[i]) or (name == "iridescent" and i != Conure.Patch.BILL), "%s patch %d is a colour" % [name, i])
+	var image := Conure.palette().get_image()
+	_check(image.get_size() == Vector2i(Conure.Patch.size(), Conure.PLUMAGES.size()), "one palette row per plumage")
+	var seen := {}
+	for seed in 40:
+		var conure := Conure.new(0.0, seed % Conure.PLUMAGES.size())
+		seen[conure.get_instance_shader_parameter("plumage")] = true
+		conure.free()
+	_check(seen.size() == Conure.PLUMAGES.size(), "a conure wears the plumage it is given")
 
 
 ## A wall's perches stand on its top: on the cap, on merlons, on piers, on a fence's top rail and posts; none
@@ -462,7 +481,7 @@ func _with_no_room_they_leave() -> void:
 	_check(b != null and b.state == Birds.State.PERCH, "it perches")
 	if b != null:
 		var lost := Birds.Bird.new()
-		lost.node = Conure.new(0.0)
+		lost.node = Conure.new(0.0, 0)
 		birds.add_child(lost.node)
 		lost.node.position = one.at + Vector3(1, 0, 0)
 		lost.state = Birds.State.PERCH

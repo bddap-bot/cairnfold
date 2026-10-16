@@ -4,6 +4,11 @@ render_mode diffuse_lambert_wrap, specular_schlick_ggx, shadows_disabled;
 // x looking about, y preening, z pecking, w flight: weights scale each motion so blends stay continuous.
 instance uniform vec4 mode = vec4(1.0, 0.0, 0.0, 0.0);
 instance uniform float phase = 0.0;
+// A row of `palette`; row 0 is iridescent, its feathers coloured here. See Conure.PLUMAGES.
+instance uniform int plumage = 0;
+uniform sampler2D palette : filter_nearest;
+const int PATCHES = 9;
+const int BILL = 8;
 
 // The perched body's frame: X across, L along the body (up and forward), D out of the back. Matches conure.gd.
 const vec3 X = vec3(1.0, 0.0, 0.0);
@@ -17,6 +22,7 @@ const vec3 TEAL = vec3(0.02, 0.42, 0.52);
 const vec3 GREEN = vec3(0.16, 0.56, 0.08);
 
 varying vec3 rest;
+varying vec3 tint;
 
 mat3 rot(vec3 axis, float a) {
 	axis = normalize(axis);
@@ -44,6 +50,8 @@ float snap(float t, float rate, float seed) {
 
 void vertex() {
 	rest = VERTEX;
+	int area = COLOR.a > 0.75 ? int(COLOR.b * float(PATCHES) + 0.5) : BILL;
+	tint = texelFetch(palette, ivec2(area, plumage), 0).rgb;
 	int part = int(UV2.x + 0.5);
 	float t = TIME + phase;
 	float idle = mode.x, preen = mode.y, peck = mode.z, fly = mode.w;
@@ -110,14 +118,19 @@ float noise(vec3 p) {
 
 void fragment() {
 	float facing = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
-	float plume = COLOR.a;
+	float plume = step(0.75, COLOR.a);
 	float fluff = noise(rest * 420.0) * 0.6 + noise(rest * 140.0) * 0.4;
-	float g = clamp(1.0 - smoothstep(0.3, 1.0, facing) + (COLOR.g - 0.5) + fluff * 0.08, 0.0, 1.0);
-	vec3 hue = g < 0.5 ? mix(BLUE, TEAL, g * 2.0) : mix(TEAL, GREEN, g * 2.0 - 1.0);
-	vec3 feather = hue * COLOR.r * (0.94 + 0.08 * fluff);
 	float rim = pow(1.0 - facing, 4.0);
-	feather += rim * 0.15 * GREEN;
-	ALBEDO = mix(COLOR.rgb, feather, plume);
+	vec3 feather;
+	if (plumage == 0) {
+		float g = clamp(1.0 - smoothstep(0.3, 1.0, facing) + (COLOR.g - 0.5) + fluff * 0.08, 0.0, 1.0);
+		vec3 hue = g < 0.5 ? mix(BLUE, TEAL, g * 2.0) : mix(TEAL, GREEN, g * 2.0 - 1.0);
+		feather = hue * COLOR.r * (0.94 + 0.08 * fluff) + rim * 0.15 * GREEN;
+	} else {
+		feather = tint * COLOR.r * (0.94 + 0.08 * fluff) * (1.0 + rim * 0.3);
+	}
+	vec3 own = COLOR.a > 0.25 ? tint * COLOR.r : COLOR.rgb;
+	ALBEDO = mix(own, feather, plume);
 	ROUGHNESS = mix(COLOR.r < 0.1 ? 0.15 : 0.55, 0.85, plume);
 	SPECULAR = mix(COLOR.r < 0.1 ? 0.8 : 0.35, 0.25, plume);
 	BACKLIGHT = feather * 0.25 * plume;

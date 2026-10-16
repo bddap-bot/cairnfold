@@ -228,7 +228,7 @@ func _surfaces_come_from_what_is_touched(wall: Wall) -> void:
 
 func _animals_are_solid_in_their_coats() -> void:
 	var g := Terrain.ground(-6.0, 6.0)
-	var critters: Array[Critter] = [Sheep.new(0.0, 1.0, Color.WHITE), Duck.new(false, 0.0), Conure.new(0.0)]
+	var critters: Array[Critter] = [Sheep.new(0.0, 1.0, Color.WHITE), Duck.new(false, 0.0), Conure.new(0.0, 0)]
 	var coats := [HandStop.Surface.WOOL, HandStop.Surface.DOWN, HandStop.Surface.FEATHERS]
 	for k in critters.size():
 		var c := critters[k]
@@ -246,7 +246,7 @@ func _animals_are_solid_in_their_coats() -> void:
 
 func _a_hand_does_not_stop_against_the_bird_it_carries() -> void:
 	var g := Terrain.ground(-8.0, -2.0)
-	var bird := Conure.new(0.0)
+	var bird := Conure.new(0.0, 0)
 	main.add_child(bird)
 	bird.global_position = g + Vector3.UP * 1.0
 	var centre := bird.global_transform * bird.mesh.get_aabb().get_center()

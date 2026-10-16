@@ -177,7 +177,7 @@ func arrive() -> void:
 		if spot == Vector3.INF:
 			break
 		var b := Bird.new()
-		b.node = Conure.new(rng.randf() * 10.0)
+		b.node = Conure.new(rng.randf() * 10.0, rng.randi() % Conure.PLUMAGES.size())
 		add_child(b.node)
 		b.node.position = start + Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.5, 0.5), rng.randf_range(-1, 1))
 		b.node.blend(Conure.FLY, 1.0)

@@ -1905,7 +1905,7 @@ or thrown only draw those already there (see "Feeding").
   or the head coming suddenly within about half a metre sends it darting off away from it,
   slowing back to a cruise. A pond dug wider keeps its fish; a pond filled in takes them with it.
   They are drawn over the water with its own tint, so they show in deep water too.
-- **Conures**, iridescent blue and green, come after the ducks: once a duck has
+- **Conures** come after the ducks: once a duck has
   come to the garden and a planted tree (not the meadow's own) or a finished
   wall or fence stands, a pair or a trio flies in from out of sight 20 to 60
   seconds later (`Birds`), at most three (`Birds.CAP`), and lands on a tree's crown
@@ -1923,12 +1923,19 @@ or thrown only draw those already there (see "Feeding").
   out of sight, as they do once no perch stands. The conure is built in code (`conure.gd`) like
   the duck: about 18 cm of soft, slightly ruffled ellipsoids whose normals lean
   toward the body's as a whole so it shades as one poofy mass, a round head with
-  a pale hooked bill, dark eyes with a pale ring and a white shine, folded wings,
+  a hooked bill, dark eyes with a pale ring and a white shine, folded wings,
   a long tapering tail and small grey feet. Its motion is computed in its vertex
   shader, as the ducks' is: looking about, preening, pecking, wingbeats, and the
-  body levelling out to fly. Its plumage turns per fragment from blue facing
-  the eye to green at grazing angles, with a faint mottle, wrapped diffuse light
-  and a soft rim, and no texture.
+  body levelling out to fly. Each bird wears one plumage for its stay, drawn at
+  random (`Conure.PLUMAGES`): the colourings wild conures come in (sun, jenday,
+  nanday, golden, blue-crowned, red-masked, dusky-headed and Patagonian conures,
+  and the green-cheeked conure with its pineapple and turquoise morphs), coloured
+  by patch (back, chest, belly, crown, face, flight feathers, coverts, tail and
+  bill), or the iridescent one, whose plumage turns per fragment from blue
+  facing the eye to green at grazing angles. All share one mesh and one
+  material: the plumage is an instance parameter selecting a row of a 9-texel
+  palette texture, read once per vertex. Feathers get a faint mottle, wrapped
+  diffuse light and a soft rim.
 - Up close: the eyes' near clip is 2 cm (`Rig.NEAR`). At 5 cm a face leaned in to
   a conure cut its head open, and with its back faces culled from inside, nothing
   of it was left: a bird, not flying, vanished. Godot's reversed depth keeps far
