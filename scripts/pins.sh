@@ -27,7 +27,7 @@ android_key=${NESTCOMBE_ANDROID_KEY:-${XDG_CONFIG_HOME:-$HOME/.config}/nestcombe
 
 # fetch URL SHA256: prints the cached path, downloading and verifying it first if needed.
 fetch() {
-  local file=$cache/${1##*/}
+  local file=$cache/$2-${1##*/}
   if ! { [ -f "$file" ] && echo "$2  $file" | sha256sum -c --quiet; }; then
     curl -fsSL --max-time 1800 -o "$file.part" "$1" &&
       echo "$2  $file.part" | sha256sum -c --quiet &&
