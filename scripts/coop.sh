@@ -32,6 +32,7 @@ beacon_port=$2
 out=$(realpath -m "$1")
 mkdir -p "$out"
 cd "$out"
+rm -f "$out"/*.json
 # Ports of their own, so other instances on this machine (another checkout's tests) are not mistaken for the host.
 port=$((7480 + 8 * (RANDOM % 7)))
 run() { timeout 120 stdbuf -oL godot4 --headless --path "$root/game" --xr-mode off -- --desktop --script "$root/demo/coop-$1.json" --quit-after 110 --capture-dir "$out" --host-port "$port" --beacon-port "$beacon_port" "${@:2}" >"$out/$1.log" 2>&1; }
@@ -59,6 +60,11 @@ while [ ! -e "$out/host.json" ] && kill -0 "$host" 2>/dev/null; do sleep 0.5; do
 run late --avatar 2 --port $((port + 8)) --avatars "$out/avatars-late" & late=$!
 status=0
 for p in "$host" "$join" "$late"; do wait "$p" || status=1; done
+for log in "$out"/*.log; do
+  grep -q "^handle_crash" "$log" || continue
+  echo "coop: $(basename "$log" .log) crashed in:" >&2
+  grep -o 'godot4(+0x[0-9a-f]*)' "$log" | grep -o '0x[0-9a-f]*' | xargs addr2line -f -C -e "$(command -v godot4)" | sed -n 'p;n' >&2
+done
 grep -h "driver: until" "$out"/*.log && status=1
 python3 - "$out" "$root/tests/avatars" <<'PY' || status=1
 import hashlib, json, sys

@@ -22,6 +22,6 @@
   {"op": "digest", "name": "host"},
   {"op": "until", "players": 3, "worn": 2},
   {"op": "digest", "name": "host-late"},
-  {"op": "wait", "seconds": 4},
+  {"op": "until", "digests": ["home"], "seconds": 60},
   {"op": "quit"}
 ]

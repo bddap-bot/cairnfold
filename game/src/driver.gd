@@ -583,14 +583,17 @@ func _visit(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Waits until the garden has applied command `seq`, `players` share it, `worn` of them show their own avatar files, or with
-## "heard" the host's beacon is heard, for at most `seconds`.
+## Waits until the garden has applied command `seq`, `players` share it, `worn` of them show their own avatar files, the
+## `digests` named have been written to the capture directory (by any player), or with "heard" the host's beacon is
+## heard, for at most `seconds`.
 func _until(s: Dictionary) -> void:
+	var dir := str(main.args.get("capture-dir", "user://captures"))
 	var t := 0.0
 	while t < s.get("seconds", 20.0):
 		var w: World = main.world
 		var worn: int = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.source != "").size()
-		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
+		var digested: bool = s.get("digests", []).all(func(n: String) -> bool: return FileAccess.file_exists(dir.path_join(n + ".json")))
+		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
 			return
 		await get_tree().process_frame
 		t += get_process_delta_time()

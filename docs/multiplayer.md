@@ -199,7 +199,10 @@ scripted or test instance beacons past loopback.
 3. Both build: walls, a tree, flowers, a path, raised ground, a pond and grass across the path.
    Each deletes and undoes, including an undo that has to skip a step the other built on.
 4. A third joins late, wearing its own VRM 0.x avatar.
-5. The visitor goes home.
+5. The visitor goes home once the late joiner and the host have recorded their views.
+
+Players wait on each other's progress, never on a timer: `tests/test_coop.py` fails a script
+that leaves or quits right after a fixed wait.
 
 The script fails unless all three gardens match: every wall's data and laid stones,
 every plant group's standing plants, the paths, the ground and the ponds. It also checks the

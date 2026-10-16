@@ -38,7 +38,7 @@
   {"op": "wait", "seconds": 0.5},
   {"op": "digest", "name": "join"},
   {"op": "until", "players": 3},
-  {"op": "wait", "seconds": 3},
+  {"op": "until", "digests": ["late", "host-late"], "seconds": 60},
   {"op": "visit", "home": true},
   {"op": "until", "players": 1, "seconds": 5},
   {"op": "wait", "seconds": 0.5},

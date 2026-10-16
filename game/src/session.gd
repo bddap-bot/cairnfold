@@ -55,7 +55,8 @@ var _looks := {}
 var _wearing := {}
 ## Avatars read from others' files, by hash, while someone here wears one.
 var _scenes := {}
-## Files being read on worker threads: {task, key, peer, bytes, scene, done}; each player's latest file waiting to be.
+## Files being read on worker threads: {task, peer, done, out}, where only the worker writes `out` until the task
+## completes; each player's latest file waiting to be.
 var _jobs: Array[Dictionary] = []
 var _waiting := {}
 var _seen_file := ""
@@ -353,14 +354,14 @@ func _put_on(key: String, bytes: PackedByteArray, scene: PackedScene, seen: Stri
 ## follows on this one, with a null scene if it is not an avatar within the limits. `peer` is whose file it is,
 ## 0 for this player's own.
 func _read(bytes: PackedByteArray, path: String, done: Callable, peer := 0) -> void:
-	var job := {"key": "", "peer": peer, "bytes": bytes, "scene": null, "done": done}
-	job.task = WorkerThreadPool.add_task(func() -> void:
+	var out := {}
+	var task := WorkerThreadPool.add_task(func() -> void:
+		var b := bytes
 		if path != "":
 			var f := FileAccess.open(path, FileAccess.READ)
-			job.bytes = f.get_buffer(f.get_length()) if f != null and f.get_length() <= Avatar.MAX_BYTES else PackedByteArray()
-		job.key = _hash(job.bytes)
-		job.scene = Avatar.read(job.bytes) if not job.bytes.is_empty() else null)
-	_jobs.append(job)
+			b = f.get_buffer(f.get_length()) if f != null and f.get_length() <= Avatar.MAX_BYTES else PackedByteArray()
+		out.merge({"key": _hash(b), "bytes": b, "scene": Avatar.read(b) if not b.is_empty() else null}))
+	_jobs.append({"task": task, "peer": peer, "done": done, "out": out})
 
 
 func _exit_tree() -> void:
@@ -370,11 +371,12 @@ func _exit_tree() -> void:
 
 
 func _finish_jobs() -> void:
-	for job in _jobs.duplicate():
+	for i in range(_jobs.size() - 1, -1, -1):
+		var job := _jobs[i]
 		if WorkerThreadPool.is_task_completed(job.task):
 			WorkerThreadPool.wait_for_task_completion(job.task)
-			_jobs.erase(job)
-			job.done.call(job.key, job.bytes, job.scene)
+			_jobs.remove_at(i)
+			job.done.call(job.out.key, job.out.bytes, job.out.scene)
 			_read_waiting()
 
 
