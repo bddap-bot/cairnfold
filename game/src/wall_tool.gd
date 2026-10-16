@@ -1,8 +1,8 @@
 class_name WallTool
 extends Node3D
 
-## Walls, for whichever hand holds them: trigger draws a wall along the ground (a loop held closed snaps to a
-## round tower), and the right A cuts or fills an arch where a walls hand points or, on a wall's top, changes its
+## Walls, for whichever hand holds them: trigger draws a wall along the ground, a loop as much as a line,
+## and the right A cuts or fills an arch where a walls hand points or, on a wall's top, changes its
 ## style. A grip pointed at a wall, whatever the hand holds, pulls its height, and at a roof its pitch and
 ## curvature. Each hand grabs on its own, so two hands pull two walls or roofs at once; a grip on one the other hand
 ## holds takes nothing. A hand holding the house takes hold of one with its trigger, where it points, and carries it; the
@@ -18,9 +18,6 @@ const POINT_SPACING := 0.45
 const REBUILD_EVERY := 0.06
 const WALL_PICK := 0.7
 const TINT := Color(1.0, 0.97, 0.9, 0.55)
-## Seconds a stroke must stay closed into a loop before it snaps to a tower.
-const LOOP_HOLD := 0.4
-const TOWER_HEIGHT := 4.5
 const HOUSE_HEIGHT := 2.4
 ## Bounds of a house's sides; the shorter side, under the ridge, stops at HOUSE_DEPTH.
 const HOUSE_SIDES := Vector2(2.4, 14.0)
@@ -46,8 +43,6 @@ class Mason:
 	var lift_gain := 1.0
 	var lift_at := Vector3.ZERO
 	var lift_side := Vector3.RIGHT
-	var loop := {}
-	var loop_held := 0.0
 	var pick := {}
 	## Where the hand points to build, and the id of the build it points at, or -1 on the ground.
 	var ground: Variant = null
@@ -57,7 +52,6 @@ class Mason:
 ## A stroke being drawn and the walls it builds, shown as it grows and kept on release.
 class Stroke:
 	var points: Array[Vector3] = []
-	## Null once the stroke has snapped to a tower.
 	var plan: WallPlan
 	var walls: Array[Wall] = []
 	var planned := false
@@ -137,7 +131,7 @@ func busy(hand: Hand = null) -> bool:
 func _process(delta: float) -> void:
 	_let_go_handed()
 	for m in masons:
-		_handle(m, delta)
+		_handle(m)
 	_house_input()
 	if house != null:
 		_carry_laid()
@@ -164,7 +158,7 @@ func _process(delta: float) -> void:
 	_arch_button.latch()
 
 
-func _handle(m: Mason, delta: float) -> void:
+func _handle(m: Mason) -> void:
 	m.pick = {}
 	m.ground = null
 	if rig.aim_hand == m.hand:
@@ -177,10 +171,6 @@ func _handle(m: Mason, delta: float) -> void:
 			end_lift(m)
 		if m.roofing != null:
 			end_roof(m)
-	if m.stroke != null and not m.loop.is_empty():
-		m.loop_held += delta
-		if m.loop_held >= LOOP_HOLD:
-			snap_tower(m, m.loop.center, m.loop.radius)
 	if not m.hand.get_has_tracking_data():
 		return
 	var hand := m.hand.global_transform
@@ -291,14 +281,12 @@ func begin_stroke(m: Mason, p: Vector3, on := -1) -> void:
 	m.stroke.plan.fence = m.hand.tool == Hand.Tool.FENCE
 	m.stroke.plan.plaster = m.hand.tool == Hand.Tool.PLASTER_WALLS
 	m.stroke.plan.supports = _solids(m.stroke.on)
-	m.loop = {}
-	m.loop_held = 0.0
 	_dirty = true
 
 
 func extend_stroke(m: Mason, p: Vector3) -> void:
 	var pts := m.stroke.points
-	if m.stroke.plan == null or pts[-1].is_equal_approx(p) or Commands.length(pts) >= Commands.STROKE_LENGTH:
+	if pts[-1].is_equal_approx(p) or Commands.length(pts) >= Commands.STROKE_LENGTH:
 		return
 	if pts.size() >= 2 and pts[-1].distance_to(pts[-2]) < POINT_SPACING:
 		pts[-1] = p
@@ -309,13 +297,10 @@ func extend_stroke(m: Mason, p: Vector3) -> void:
 		_rest_on(m.stroke, p)
 	m.stroke.planned = false
 	_dirty = true
-	m.loop = {} if m.stroke.plan.fence else WallLayout.fit_loop(pts)
-	if m.loop.is_empty():
-		m.loop_held = 0.0
 
 
 func _plan(st: Stroke) -> void:
-	if st.planned or st.plan == null:
+	if st.planned:
 		return
 	st.planned = true
 	var layouts := st.plan.pieces(st.points, Terrain.height_at)
@@ -327,32 +312,6 @@ func _plan(st: Stroke) -> void:
 		st.walls[i].layout = layouts[i]
 		st.walls[i].on = st.on
 		_meet(st.walls[i])
-
-
-## The stroke becomes a round tower with a cone roof; the rest of the stroke is ignored.
-func snap_tower(m: Mason, center: Vector3, radius: float) -> void:
-	for w in m.stroke.walls:
-		w.queue_free()
-	m.stroke.walls = [_new_wall()]
-	m.stroke.plan = null
-	var layout := m.stroke.walls[0].layout
-	layout.plaster = m.hand.tool == Hand.Tool.PLASTER_WALLS
-	layout.points = WallLayout.circle(center, radius)
-	layout.closed = true
-	layout.top = WallLayout.Top.CAP
-	layout.height = TOWER_HEIGHT
-	m.stroke.walls[0].on = m.stroke.on
-	_meet(m.stroke.walls[0])
-	var roof := RoofLayout.new()
-	roof.kind = RoofLayout.Kind.CONE
-	roof.center = center
-	roof.radius = radius
-	roof.pitch = clampf(radius * 1.6, RoofLayout.PITCH.x, RoofLayout.PITCH.y)
-	roof.seed = layout.seed
-	m.stroke.walls[0].add_roof(roof)
-	m.loop = {}
-	_dirty = true
-	built.emit(&"settle", center + Vector3.UP * TOWER_HEIGHT)
 
 
 func end_stroke(m: Mason) -> void:
@@ -466,13 +425,7 @@ func place_house(at: Vector3, yaw: float, size: Vector2) -> void:
 func _lay_house() -> void:
 	var span := footprint(house_at.center, house_at.yaw, house_at.size)
 	var corners := WallLayout.rectangle(span.a, span.b, span.depth)
-	var front := (corners[0] + corners[1]) * 0.5
-	var back := (corners[2] + corners[3]) * 0.5
 	house.layout.points = corners
-	# The door goes in the downhill long wall: the house stands level on its lowest ground, so an uphill door would be buried.
-	house.layout.arches = [span.length * 0.5 if Terrain.height_at(front.x, front.z) <= Terrain.height_at(back.x, back.z) else span.length * 1.5 + span.depth]
-	if not house.on.is_empty():
-		house.layout.arches = []
 	house.roof.pitch = span.depth * 0.42
 	_meet(house)
 	_laid_at.append({"points": corners, "center": house_at.center, "yaw": house_at.yaw})

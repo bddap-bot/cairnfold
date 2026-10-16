@@ -79,6 +79,7 @@ func _run() -> void:
 	_check(not _painted(flora, patch).is_empty(), "undo brings a deleted patch back")
 
 	await _carry_a_house(rig, walls)
+	await _a_loop_stays_a_wall(walls)
 
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
@@ -182,12 +183,37 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	_check(tool.house == null and walls.size() == before + 1, "letting go builds it, %d walls" % walls.size())
 	if walls.size() == before + 1:
 		_check(walls[-1].roof != null and walls[-1].layout.closed, "a roofed house")
+		_check(walls[-1].layout.arches.is_empty(), "with no door until one is added")
 	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(walls.size() == before, "undo takes the house away")
 	await _play([{"op": "press", "button": "dpad_up"}])
 	_check(walls.size() == before + 1, "redo puts it back")
 	for t in trackers.values():
 		XRServer.remove_tracker(t)
+
+
+## Directive (verbatim): "Sometimes I want to draw a circular wall. Um, In that case, I don't think it makes sense to turn it into a building, when I- didn't want that"
+func _a_loop_stays_a_wall(walls: Array[Wall]) -> void:
+	var tool: WallTool = main.tool
+	main.rig.right.tool = Hand.Tool.WALLS
+	var m := tool.mason(main.rig.right)
+	var before := walls.size()
+	var ring: Array[Vector3] = []
+	for i in 25:
+		var a := TAU * i / 24.0
+		ring.append(Terrain.ground(-14.0 + cos(a) * 2.5, -12.0 + sin(a) * 2.5))
+	tool.begin_stroke(m, ring[0])
+	for p in ring:
+		await _frames(1)
+		tool.extend_stroke(m, p)
+	for i in 90:
+		await _frames(1)
+		tool.extend_stroke(m, ring[-1])
+	tool.end_stroke(m)
+	await _frames(4)
+	_check(walls.size() == before + 1, "a loop drawn and held closed builds one wall: %d" % (walls.size() - before))
+	if walls.size() == before + 1:
+		_check(walls[-1].roof == null and not walls[-1].layout.closed, "and it stays a freestanding wall, roofless")
 
 
 func _frames(n: int) -> void:

@@ -55,7 +55,7 @@ cut arch 1024x1024+1600+820 256x256 | save icon.png 256x256
 cut arch 1024x1024+1600+820 184x184 | save icon.jpg 184x184
 
 n=0
-for shot in stroke tower pond flowers together above dusk; do
+for shot in stroke round pond flowers together above dusk; do
   n=$((n + 1))
   magick "$shots/shot-$shot.png" -resize 1920x1080 miff:- | save "screenshots/$n-$shot.jpg" 1920x1080
 done

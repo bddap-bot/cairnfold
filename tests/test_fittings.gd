@@ -363,7 +363,9 @@ func _in_the_glade() -> void:
 		{"op": "place", "x": 0, "z": 12},
 		{"op": "wall", "points": [[-8, 0], [-3, 0], [2, 0]], "seconds": 0.3},
 		{"op": "house", "at": [11.0, 0.0], "size": [6.0, 3.7], "seconds": 0.2},
-		{"op": "tower", "points": [[-14, 8], [-12.5, 6], [-10.5, 6.5], [-10, 8.5], [-11.5, 10.2], [-13.6, 9.8], [-14, 8]], "seconds": 0.5, "hold": 0.6},
+	])
+	world.submit({"op": "wall", "walls": [_tower(Terrain.ground(-12, 8), 2.0)]})
+	await _play([
 		{"op": "fence", "points": [[-6, 8], [0, 8], [5, 8]], "seconds": 0.3},
 	])
 	_check(walls.size() == 4, "a wall, a house, a tower and a fence stand: %d" % walls.size())
@@ -465,6 +467,16 @@ func _in_the_glade() -> void:
 
 
 ## A press of the fitting tool, and the walls it changed laid, for a test reading them at once.
+## A tower as a garden built before keeps one: no tool draws one any more.
+static func _tower(center: Vector3, radius: float) -> Dictionary:
+	return {
+		"points": PackedVector3Array(WallLayout.circle(center, radius)), "height": 4.5, "arches": PackedFloat32Array(), "seed": 5,
+		"closed": true, "top": WallLayout.Top.CAP, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(),
+		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "plaster": false, "on": PackedInt32Array(),
+		"roof": {"kind": RoofLayout.Kind.CONE, "center": center, "radius": radius, "pitch": 3.2, "curve": 0.0, "seed": 5, "chimneys": PackedVector2Array(), "flag": false},
+	}
+
+
 func _fit(fit: FittingTool, target: Dictionary) -> bool:
 	var placed := fit.fit(target)
 	_lay_walls()

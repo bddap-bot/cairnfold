@@ -45,8 +45,8 @@ paths, stone, flowers, grass, trees, pond, colour, camera, seeds, delete or visi
   with them. While visiting, pick the little cairn to go home.
 - The wall and house groups offer stone and plaster miniatures. Plaster keeps stone bases,
   corners and opening trim; either material supports the same roofs and fittings.
-- Holding walls: A on a wall cuts or fills an arch, A on its top changes its style; a loop held closed
-  snaps to a round tower.
+- Holding walls: A on a wall cuts or fills an arch, A on its top changes its style; a wall drawn
+  round into a loop stays a wall.
 - Holding the house: trigger takes up a house where you point; carry it,
   add the other grip to turn it and stretch it between your hands; let go to
   build.

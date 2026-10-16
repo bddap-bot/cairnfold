@@ -287,7 +287,7 @@ density, and no build the player can make may bring the frame rate down.
 - `demo/stress.json` is the worst case: the bare meadow, then every flora pool full,
   a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
   over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
-  and towers two storeys high, each house crossed by a wing, eight ponds, and the most ducks there can be at them (`bench.sh`
+  two storeys high, every other one turned a quarter, each crossed by a wing, eight ponds, and the most ducks there can be at them (`bench.sh`
   fixes the seed) and the most sheep at four fences between them (seen too from the ground by a fence), with every butterfly there can be
   over the full flower pool and the most conures there can be among the full pool of planted trees,
   every firefly there can be over the ponds at dusk, and a hill pulled up live under 973 m of walls,
@@ -946,8 +946,8 @@ Stage numbers refer to the build order at the end.
 | Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends and at the corners of a house | 1 (done), 4 (done) |
 | Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | The path tool's trigger, swept over the ground: flat stones laid in rows along the smoothed stroke, as wide as the brush ring (`PathLayout`), one to a cell of each row and clear of every stone already laid, so stones never overlap on curves, at junctions or where paths cross: a later path paves around earlier ones; like the plants they ride the ground, so reshaping it carries them along. The stroke wears trodden earth into the ground mask (see "Ground materials") that the terrain shader shows and the grass and flower shaders read to part around the stones | 5 (done) |
 | Stone ground | Steep terrain turns rocky; paths of dirt and, later, cobblestone blended with them | The stone tool paints flagstone ground where it points, fraying into the meadow slab by slab; a stroke begun on stone paints meadow back (see "Ground materials") | 7 (done) |
-| Towers | A loop held down straightens into a circle | Draw a loop and keep holding with the end back near the start: after a moment it snaps to a round tower (radius 1.2–4 m) with a tiled cone roof, standing level on its lowest ground | 4 (done) |
-| Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Its own tool, a little house in the ring. Its trigger takes up a square house where the hand points and carries it, turning with the hand; the other hand's grip joins to hold it by both hands, which move it by their midpoint, turn it as the pair turns and stretch it along the line between them as they spread (each side 2.4–14 m, at most 7 m across the ridge, which runs the longer way). Letting go builds it. Stone walls with corner piers, a door arch in the front, level on its lowest ground | 4 (done) |
+| Towers | A loop held down straightens into a circle | Cut: a wall drawn into a loop, round or any shape, stays a freestanding wall, roofless; a building comes only from the house tool. A round tower with a cone roof still stands where a garden already has one | 4 (cut) |
+| Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Its own tool, a little house in the ring. Its trigger takes up a square house where the hand points and carries it, turning with the hand; the other hand's grip joins to hold it by both hands, which move it by their midpoint, turn it as the pair turns and stretch it along the line between them as they spread (each side 2.4–14 m, at most 7 m across the ridge, which runs the longer way). Letting go builds it. Stone walls with corner piers and no door, level on its lowest ground; a door comes from the windows tool low on a wall, an arch from A or from a path running in | 4 (done) |
 | Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings") | 4 (done) |
 | Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, plaster gable ends. Grip on a roof, whatever the hand holds: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`). Pushed all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top style then cycles like an open wall's | 4 (done) |
 | Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light | 6 (done) |
@@ -1161,7 +1161,6 @@ same hand, or one thing in both, holds a grip back:
 | Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick left or right: 30° snap turn |
 | Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground, or along a build's top to build on it; release to finish. Strokes under 1 m are discarded, and a stroke near a standing wall merges into it |
-| Build a tower | Draw a loop and hold the trigger with the end back at the start until it snaps round |
 | Raise or lower a wall | Grip pointing at a wall, whatever the hand holds, move the hand up or down; the gain grows with distance so far walls are easy to adjust |
 | Shape a roof | Grip pointing at a roof, whatever the hand holds: up and down for pitch, sideways for curvature; all the way down snaps it flat |
 | Cut or fill an arch | A while a hand holding walls points at a wall |
@@ -1206,7 +1205,7 @@ the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
 1. First playable: meadow, sky and fog, teleport and float, walls with stones, cap, merlons, piers and arches. (Done.)
 2. Lighting pass: bounce light from a probe volume rebuilt on edits, contact darkening, shadow split and fog tuning for floating viewpoints, compared side by side with the mood target. (Done.)
 3. Ivy and flora: ivy over walls and around openings, flower and grass painting, tree placement by pointing. (Done.)
-4. Towers, houses and roofs: loop-to-tower, houses carried and stretched in the hands, tiled roofs with pull-to-shape, wall-top style per wall. (Done.)
+4. Towers, houses and roofs: houses carried and stretched in the hands, tiled roofs with pull-to-shape, wall-top style per wall. (Done.)
 5. Paths and wall chemistry: path brush; a path through a wall cuts an arch, wide crossings become arcades. (Done.)
 6. Windows, doors, fences, chimneys, lanterns and flags. (Done.)
 7. Terrain shaping, stone ground and water.
@@ -1509,10 +1508,10 @@ FILE --metrics FILE --capture-dir DIR` plays a scripted session through the same
 points as the controllers (teleport, float, draw a wall), logs per-second frame
 times and saves view captures. `scripts/test.sh` runs the headless layout tests;
 `scripts/render.sh` plays a script on a desktop renderer; `demo/flora.json` paints,
-plants trees and lets the ivy grow; `demo/houses.json` builds a tower, two houses and
+plants trees and lets the ivy grow; `demo/round-wall.json` draws a round wall that stays a wall, a house with no door, one with a door added and one a path runs into; `demo/houses.json` draws a round wall, builds two houses and
 walls in each top style, and shapes the roofs; `demo/paths.json` lays paths through walls (an arch, an
 arcade), draws a wall across a wide path and raises the ground under a path; `demo/fittings.json` opens windows
-and doors in a wall, a house and a tower, hangs lanterns, flies flags, builds a chimney and draws a fence a
+and doors in a wall, a house and a round wall, hangs lanterns, flies flags, builds a chimney and draws a fence a
 path crosses; `demo/stone.json` paints stone ground into the meadow, paints part of it back and
 walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete, then empties the hand; `demo/photo.json` takes the camera from the wheel and takes two photos; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks

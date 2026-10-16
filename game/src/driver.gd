@@ -222,25 +222,6 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 	tool.end_stroke(m)
 
 
-## Draws a loop and keeps holding at its end until it snaps to a tower.
-func _tower(s: Dictionary) -> void:
-	var tool: WallTool = main.tool
-	var m := tool.mason(_holding(s, Hand.Tool.PLASTER_WALLS if s.get("plaster", false) else Hand.Tool.WALLS))
-	var path := _path(s)
-	var first := _target(s, path[0])
-	tool.begin_stroke(m, first.point, first.on)
-	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
-	for f in frames:
-		await get_tree().process_frame
-		tool.extend_stroke(m, _along(path, float(f + 1) / frames))
-	var held := 0.0
-	while held < s.get("hold", 0.6):
-		await get_tree().process_frame
-		held += get_process_delta_time()
-		tool.extend_stroke(m, path[-1])
-	tool.end_stroke(m)
-
-
 ## The house tool's carry: a square house taken up at `from` (default `at`) and set down at `at`, `size`
 ## [along, across], its front turned `turn` degrees from the x axis (the head's right with "relative"), from
 ## `turn_from` (default `turn`), moving there over `seconds`. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
@@ -524,11 +505,10 @@ func _fill_flora(s: Dictionary) -> void:
 		flora.add_tree(_scatter(rng, s.radius), rng)
 
 
-## Fills a disc at once with a grid of houses and round towers, `spacing` apart, alternating; with `storeys`, each
-## stands that many high, and with `wings`, a wing crosses each house.
+## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter; with `storeys`,
+## each stands that many high, and with `wings`, a wing crosses each house.
 func _village(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
-	var m := tool.mason(_holding(s, Hand.Tool.PLASTER_WALLS if s.get("plaster", false) else Hand.Tool.WALLS))
 	var start := Time.get_ticks_usec()
 	var r: float = s.radius
 	var step: float = s.spacing
@@ -539,30 +519,22 @@ func _village(s: Dictionary) -> void:
 			if c.length() > r - step * 0.5:
 				continue
 			k += 1
-			if k % 2 == 0:
-				var at := Terrain.ground(c.x, c.y)
-				var on := PackedInt32Array()
-				for storey in s.get("storeys", 1):
-					tool.begin_house(at, 0.0, s.get("plaster", false), on)
-					tool.place_house(at, 0.0, Vector2(0.7, 0.44) * step)
-					tool.end_house()
-					tool.walls[-1].ivy_age = INF
-					on = PackedInt32Array([tool.walls[-1].id])
-				if s.get("wings", false):
-					var wing := Terrain.ground(c.x + step * 0.2, c.y)
-					tool.begin_house(wing, 0.0, s.get("plaster", false))
-					tool.place_house(wing, 0.0, Vector2(0.3, 0.6) * step)
-					tool.end_house()
-					tool.walls[-1].ivy_age = INF
-			else:
-				var at := Terrain.ground(c.x, c.y)
-				var on := -1
-				for storey in s.get("storeys", 1):
-					tool.begin_stroke(m, at, on)
-					tool.snap_tower(m, at, step * 0.25 * (1.0 - storey * 0.15))
-					tool.end_stroke(m)
-					tool.walls[-1].ivy_age = INF
-					on = tool.walls[-1].id
+			var yaw := PI * 0.5 * (k % 2)
+			var at := Terrain.ground(c.x, c.y)
+			var on := PackedInt32Array()
+			for storey in s.get("storeys", 1):
+				tool.begin_house(at, yaw, s.get("plaster", false), on)
+				tool.place_house(at, yaw, Vector2(0.7, 0.44) * step)
+				tool.end_house()
+				tool.walls[-1].ivy_age = INF
+				on = PackedInt32Array([tool.walls[-1].id])
+			if s.get("wings", false):
+				var wing := at + Vector3.RIGHT.rotated(Vector3.UP, yaw) * step * 0.2
+				wing = Terrain.ground(wing.x, wing.z)
+				tool.begin_house(wing, yaw, s.get("plaster", false))
+				tool.place_house(wing, yaw, Vector2(0.3, 0.6) * step)
+				tool.end_house()
+				tool.walls[-1].ivy_age = INF
 	print("village: %d buildings in %.0f ms" % [k, (Time.get_ticks_usec() - start) / 1000.0])
 
 

@@ -6,7 +6,6 @@ var failures := 0
 
 
 func _init() -> void:
-	_a_closed_loop_snaps_and_an_open_stroke_does_not()
 	_a_tower_is_a_level_ring_without_end_piers()
 	_a_house_has_corner_piers_and_a_door()
 	_the_footprint_follows_the_hands()
@@ -41,36 +40,8 @@ func _flat(_x: float, _z: float) -> float:
 	return 0.0
 
 
-func _stroke(center: Vector3, radius: float, turns: float) -> Array[Vector3]:
-	var out: Array[Vector3] = []
-	var n := int(24 * turns)
-	for i in n + 1:
-		var a := TAU * turns * i / n
-		out.append(center + Vector3(cos(a), 0, sin(a)) * radius * (1.0 + 0.08 * sin(a * 3.0)))
-	return out
-
-
 func _blocks(w: WallLayout) -> Array:
 	return w.stones.filter(func(s): return s.kind == "block")
-
-
-func _a_closed_loop_snaps_and_an_open_stroke_does_not() -> void:
-	var loop := WallLayout.fit_loop(_stroke(Vector3(3, 0, -2), 2.5, 1.0))
-	_check(not loop.is_empty(), "a closed loop is a tower")
-	if not loop.is_empty():
-		_check(loop.center.distance_to(Vector3(3, 0, -2)) < 0.3, "tower centre %s" % loop.center)
-		_check(absf(loop.radius - 2.5) < 0.3, "tower radius %f" % loop.radius)
-	_check(WallLayout.fit_loop(_stroke(Vector3.ZERO, 2.5, 0.7)).is_empty(), "three quarters of a loop is still a wall")
-	var line: Array[Vector3] = []
-	for i in 12:
-		line.append(Vector3(i * 0.5, 0, 0))
-	_check(WallLayout.fit_loop(line).is_empty(), "a straight stroke is a wall")
-	_check(absf(WallLayout.fit_loop(_stroke(Vector3.ZERO, 4.6, 1.0)).radius - WallLayout.TOWER_RADIUS.y) < 0.01, "a loop a little wider than the largest tower is clamped to it")
-	_check(WallLayout.fit_loop(_stroke(Vector3.ZERO, 9.0, 1.0)).is_empty(), "closing a courtyard keeps it a wall")
-	var there_and_back: Array[Vector3] = []
-	for i in 13:
-		there_and_back.append(Vector3(3.0 - absf(i - 6) * 0.5, 0, 0.3 * signf(i - 6)))
-	_check(WallLayout.fit_loop(there_and_back).is_empty(), "out and back along itself is a wall")
 
 
 func _tower(radius: float) -> WallLayout:

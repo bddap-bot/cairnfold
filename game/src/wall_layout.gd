@@ -25,10 +25,6 @@ const ARCH_END := ARCH_HALF + RING + 0.3
 const MIN_ARCH_SPAN := 2.4
 const CORNER_TURN := deg_to_rad(35.0)
 const PIER := THICKNESS + 0.28
-## A stroke at least this long whose end comes back within LOOP_CLOSE of its start is a loop.
-const LOOP_MIN_RUN := 4.0
-const LOOP_CLOSE := 1.2
-const TOWER_RADIUS := Vector2(1.2, 4.0)
 ## Arches whose rings would touch cannot both open; arches nearer than ARCADE_GAP share a pillar.
 const ARCH_SPACING := (ARCH_HALF + RING) * 2.0
 const ARCADE_GAP := ARCH_SPACING + 0.4
@@ -1170,32 +1166,6 @@ func hides(p: Vector3) -> bool:
 	return false
 
 
-## The centre and radius of the tower a held stroke snaps to, or empty while the stroke is not yet a loop.
-static func fit_loop(stroke: Array[Vector3]) -> Dictionary:
-	if stroke.size() < 6:
-		return {}
-	var run := 0.0
-	var center := Vector3.ZERO
-	for i in stroke.size():
-		center += stroke[i]
-		if i > 0:
-			run += _flat_distance(stroke[i - 1], stroke[i])
-	center /= stroke.size()
-	if run < LOOP_MIN_RUN or _flat_distance(stroke[0], stroke[-1]) > LOOP_CLOSE:
-		return {}
-	var radius := 0.0
-	for p in stroke:
-		radius += _flat_distance(p, center)
-	radius /= stroke.size()
-	var spread := 0.0
-	for p in stroke:
-		spread += absf(_flat_distance(p, center) - radius)
-	spread /= stroke.size()
-	if radius < LOOP_CLOSE * 0.5 or radius > TOWER_RADIUS.y * 1.25 or spread > radius * 0.25:
-		return {}
-	return {"center": center, "radius": clampf(radius, TOWER_RADIUS.x, TOWER_RADIUS.y)}
-
-
 static func circle(center: Vector3, radius: float) -> Array[Vector3]:
 	var out: Array[Vector3] = []
 	var n := maxi(12, ceili(TAU * radius / 0.35))
@@ -1210,10 +1180,6 @@ static func rectangle(a: Vector3, b: Vector3, depth: float) -> Array[Vector3]:
 	var along := Vector3(b.x - a.x, 0.0, b.z - a.z)
 	var across := along.cross(Vector3.UP).normalized() * depth * 0.5
 	return [a - across, b - across, b + across, a + across]
-
-
-static func _flat_distance(a: Vector3, b: Vector3) -> float:
-	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
 ## Visits Catmull-Rom samples through an open stroke, SAMPLE apart and ending on its last point, as
