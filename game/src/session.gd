@@ -358,6 +358,14 @@ static func _hash(bytes: PackedByteArray) -> String:
 	return h.finish().hex_encode()
 
 
+## Where a player drops their avatar: in user data, except on Android, whose user data only the game can reach;
+## there it is the app's external files folder, which a file manager or adb can write.
+static func own_folder() -> String:
+	if OS.get_name() == "Android":
+		return "/sdcard/Android/data/%s/files/avatars" % OS.get_user_data_dir().get_base_dir().get_file()
+	return "user://avatars"
+
+
 ## Wears the newest .vrm in the avatar folder once it reads as an avatar; with none there, the built-in one.
 func _look_in_folder() -> void:
 	if folder == "":

@@ -141,8 +141,9 @@ axes). That is all a head-and-hands avatar needs.
   avatar within a few seconds, mid-session included; removing it brings the built-in
   one back. There is nothing to pick in the headset and no text: the folder is the
   choice, and the Steam Workshop is the later way to share and pick avatars from
-  inside the game. On a Quest the folder is inside the app's own storage, so there it
-  waits for the Workshop.
+  inside the game. On a Quest the folder is
+  `/sdcard/Android/data/io.github.bddapbot.nestcombe/files/avatars`, the one place
+  there that both the game and `adb push` or a file manager reach.
 - **Sending it.** The file goes once, reliably, to every player you meet, and again
   whenever it changes. It travels on its own ENet channel, so build commands never
   wait behind it. A receiver reads it on a worker thread, so a file that takes a
