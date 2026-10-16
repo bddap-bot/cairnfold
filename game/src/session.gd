@@ -326,8 +326,12 @@ func _read_waiting() -> void:
 
 
 func _worn_by_peer(key: String, _bytes: PackedByteArray, scene: PackedScene, id: int) -> void:
-	if not _looks.has(id) or scene == null:
+	if not _looks.has(id):
 		return
+	if scene == null:
+		print("session: player %d sent a file that is not an avatar within the limits" % id)
+		return
+	print("session: player %d wears %s" % [id, key])
 	_wearing[id] = key
 	_scenes.get_or_add(key, scene)
 	_dress(id, _scenes[key], key)
