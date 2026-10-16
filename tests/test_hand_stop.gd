@@ -31,6 +31,7 @@ func _run() -> void:
 	_a_trunk_is_solid_and_its_leaves_are_brushed()
 	_surfaces_come_from_what_is_touched(wall)
 	_animals_are_solid_in_their_coats()
+	await _a_hand_does_not_stop_against_the_bird_it_carries()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -238,3 +239,23 @@ func _animals_are_solid_in_their_coats() -> void:
 		var above := centre + Vector3.UP * 0.6
 		_check(HandStop.resolve(above, centre, near.solid, near.normal).y > centre.y + 0.01, "a hand coming down on a %s stops on its back" % HandStop.Surface.keys()[coats[k]])
 		c.queue_free()
+
+
+func _a_hand_does_not_stop_against_the_bird_it_carries() -> void:
+	var g := Terrain.ground(-8.0, -2.0)
+	var bird := Conure.new(0.0)
+	main.add_child(bird)
+	bird.global_position = g + Vector3.UP * 1.0
+	var centre := bird.global_transform * bird.mesh.get_aabb().get_center()
+	bird.riding = main.rig.right
+	await _hold(centre + Vector3.UP * 0.3)
+	for k in 10:
+		await _hold(centre + Vector3.UP * (0.3 - 0.06 * (k + 1)))
+	_check(_seen().distance_to(centre - Vector3.UP * 0.3) < 0.01, "a hand passes the bird standing on it")
+	bird.riding = null
+	await _hold(centre + Vector3.UP * 1.5)
+	await _hold(centre + Vector3.UP * 0.3)
+	for k in 10:
+		await _hold(centre + Vector3.UP * (0.3 - 0.06 * (k + 1)))
+	_check(_seen().y > centre.y, "another's bird stops it")
+	bird.queue_free()

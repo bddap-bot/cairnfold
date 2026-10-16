@@ -70,7 +70,7 @@ func _process(delta: float) -> void:
 		var from := to if _held[i] == Vector3.INF else _rig.global_transform * _held[i]
 		if from.distance_to(to) > BREAK:
 			from = to
-		var near := Near.gather(_walls, _flora, critters, AABB(from, Vector3.ZERO).expand(to).grow(RADIUS + STEP))
+		var near := Near.gather(_walls, _flora, critters.filter(func(c: Critter) -> bool: return c.riding != hand), AABB(from, Vector3.ZERO).expand(to).grow(RADIUS + STEP))
 		var at := resolve(from, to, near.solid, near.normal)
 		_held[i] = _rig.global_transform.affine_inverse() * at
 		hand.body.global_position = hand.global_position + (at - to)
