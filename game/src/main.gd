@@ -78,7 +78,8 @@ func _ready() -> void:
 	add_child(photo_tool)
 	_undo_buttons = Buttons.new(rig.left).watch(["ax_button", "by_button"])
 	var played := Session.played(args, get_tree().current_scene == self)
-	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT)), played, int(args.get("beacon-port", Session.BEACON_PORT)))
+	var me := Persona.new(str(args.get("name", "")), int(args.get("steam-app", OS.get_environment("SteamAppId"))), "user://name" if played else "", hash(OS.get_unique_id()))
+	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT)), played, int(args.get("beacon-port", Session.BEACON_PORT)), me)
 	session.folder = args.get("avatars", "user://avatars" if played else "")
 	if played:
 		DirAccess.make_dir_recursive_absolute(session.folder)

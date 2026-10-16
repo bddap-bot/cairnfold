@@ -14,6 +14,9 @@ godot_cpp_license=(https://raw.githubusercontent.com/godotengine/godot-cpp/269c9
 godot_nir_license=(https://raw.githubusercontent.com/godotengine/godot-nir-static/23.1.9-1/LICENSE.md 26a5b210d90760156ce886267ce9df235787dcc6cebfd7ecd95ef5b6fdcc95bf)
 mesa_license=(https://gitlab.freedesktop.org/mesa/mesa/-/raw/52ab5584b870be041b93f702693ea3f5665df860/docs/license.rst a00275a53178e2645fb65be99a785c110513446a5071ff2c698ed260ad917d75)
 mingw_license=(https://raw.githubusercontent.com/mingw-w64/mingw-w64/v12.0.0/COPYING.MinGW-w64-runtime/COPYING.MinGW-w64-runtime.txt e9b2dc02451ea29092a1f25fa0f3c07207ed421f1807dffb0c4e6dce69dee7bd)
+# The Steam binding, only in Steam packages (docs/package-notices.md, "Steam packages"); never committed.
+godotsteam_version=4.23
+godotsteam=("https://codeberg.org/GodotSteam/GodotSteam/releases/download/v$godotsteam_version-gde/godotsteam-$godotsteam_version-gdextension-plugin-4.4.zip" c1728b4bf330da851a00eaf64dab2e99c506018b1d9f529511b25d7fe7649e97)
 cinzel_license=(https://raw.githubusercontent.com/NDISCOVER/Cinzel/dd598495b0fb2ad84270d5cc75d642d2f1e8eabf/OFL.txt a46624198eeb4c2e442c38b0ff3bd8f52caeefd76675c36f410e2fb69014a239)
 android_ndk_version=28.1.13356709
 android_ndk_notice_sha256=faf0dc52cf6ce9ab09a04b0c074a378dd2565ee1ed9bc1179d83793bcdba012e

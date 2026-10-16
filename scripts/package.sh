@@ -1,16 +1,19 @@
 #!/usr/bin/env bash
-# Exports one release build inside shell.nix: package.sh linux-x64|linux-arm64|windows OUT
+# Exports one release build inside shell.nix: package.sh linux-x64|linux-arm64|windows OUT [steam]
+# A steam package also carries the GodotSteam extension and Valve's steam_api library; the others never do.
 # Linux packages are .tar.gz, Windows a .zip; each holds nestcombe/ with the game binary, notices/ and REVISION.
 # The arm64 package, side-loaded on a Steam Frame, also carries its library art in steam/.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 target=$1
 out=$(realpath -m "$2")
+steam=${3:-}
+case $steam in ""|steam) ;; *) echo "package: third argument is steam or nothing" >&2; exit 1 ;; esac
 mkdir -p "$(dirname "$out")"
 case $target in
-  linux-x64) preset="Linux x86_64" binary=nestcombe template=linux_release.x86_64 ;;
-  linux-arm64) preset="Linux arm64" binary=nestcombe template=linux_release.arm64 ;;
-  windows) preset="Windows x86_64" binary=Nestcombe.exe template=windows_release_x86_64.exe ;;
+  linux-x64) preset="Linux x86_64" binary=nestcombe template=linux_release.x86_64 steam_dir=linux64 ;;
+  linux-arm64) preset="Linux arm64" binary=nestcombe template=linux_release.arm64 steam_dir=linuxarm64 ;;
+  windows) preset="Windows x86_64" binary=Nestcombe.exe template=windows_release_x86_64.exe steam_dir=win64 ;;
   *) echo "package: no target $target" >&2; exit 1 ;;
 esac
 . "$root/scripts/pins.sh"
@@ -26,6 +29,9 @@ unzip -p "$templates" "templates/$template" > "$tdir/$template"
 echo "$godot_version.stable" > "$tdir/version.txt"
 
 git -C "$root" archive HEAD game | tar -x -C "$stage"
+if [ -n "$steam" ]; then
+  unzip -q "$(fetch "${godotsteam[@]}")" addons/godotsteam/godotsteam.gdextension "addons/godotsteam/$steam_dir/*" -d "$stage/game"
+fi
 mkdir -p "$stage/nestcombe"
 if ! godot4 --headless --path "$stage/game" --export-release "$preset" "$stage/nestcombe/$binary" > "$stage/export.log" 2>&1 ||
   [ ! -f "$stage/nestcombe/$binary" ]; then
@@ -34,7 +40,7 @@ if ! godot4 --headless --path "$stage/game" --export-release "$preset" "$stage/n
 fi
 if [ "$target" = linux-arm64 ]; then git -C "$root" archive HEAD steam | tar -x -C "$stage/nestcombe"; fi
 git -C "$root" rev-parse HEAD > "$stage/nestcombe/REVISION"
-"$root/scripts/notices.sh" "$target" "$stage/nestcombe/notices"
+"$root/scripts/notices.sh" "$target" "$stage/nestcombe/notices" "$steam"
 cp "$root"/LICENSE-* "$stage/nestcombe/"
 rm -f "$out"
 if [ "$target" = windows ]; then

@@ -572,7 +572,7 @@ func _visit(s: Dictionary) -> void:
 	await _frames(2)
 	var keys := tool.figures.keys()
 	var k: String = VisitTool.HOME if s.get("home", false) else keys.filter(func(x: String) -> bool: return x.ends_with(":%d" % _host_port(s)))[0]
-	var at: Vector3 = tool.figures[k].global_position + Vector3.UP * VisitTool.SIZE * 0.9
+	var at: Vector3 = tool.figures[k].global_position + VisitTool.AIM
 	var from: Vector3 = main.rig.head.global_position + Vector3(0.2, -0.3, 0)
 	hand.global_transform = Transform3D(Basis.looking_at(at - from, Vector3.UP), from)
 	await _frames(1)

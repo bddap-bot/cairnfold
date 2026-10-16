@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Collect unchanged upstream notices using the same pins as the binaries: notices.sh linux-x64|linux-arm64|windows|quest|lepton DIRECTORY
+# Collect unchanged upstream notices using the same pins as the binaries: notices.sh linux-x64|linux-arm64|windows|quest|lepton DIRECTORY [steam]
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 . "$root/scripts/pins.sh"
@@ -15,6 +15,11 @@ python3 "$root/scripts/notices.py" extract "$(fetch "${godot_source[@]}")" "$out
 cp "$(fetch "${cinzel_license[@]}")" "$out/Cinzel-OFL.txt"
 printf 'Godot %s\n%s\nSHA256 %s\nCinzel OFL\n%s\nSHA256 %s\n' \
   "$godot_version" "${godot_source[@]}" "${cinzel_license[@]}" > "$out/SOURCES.txt"
+if [ "${3:-}" = steam ]; then
+  mkdir -p "$out/godotsteam"
+  unzip -p "$(fetch "${godotsteam[@]}")" addons/godotsteam/license.md > "$out/godotsteam/license.md"
+  printf 'GodotSteam %s\n%s\nSHA256 %s\n' "$godotsteam_version" "${godotsteam[@]}" >> "$out/SOURCES.txt"
+fi
 if [ "$kind" = windows ]; then
   mkdir -p "$out/windows"
   cp "$(fetch "${godot_nir_license[@]}")" "$out/windows/godot-nir-static-LICENSE.md"

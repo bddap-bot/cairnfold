@@ -35,6 +35,7 @@ var world: World
 var rig: Rig
 var avatar := 0
 var colour := COLOURS[0]
+var me: Persona
 var port := 0
 var first_port := PORT
 var beacon_port := BEACON_PORT
@@ -42,7 +43,7 @@ var beacon_port := BEACON_PORT
 var lan := true
 ## The garden we are visiting, {address, port}, or empty at home.
 var visiting := {}
-## Gardens announcing themselves nearby, by "address:port": {address, port, avatar, colour, seen}.
+## Gardens announcing themselves nearby, by "address:port": {address, port, key, avatar, colour, name, seen}.
 var nearby := {}
 ## Remote players' avatars by peer id.
 var avatars := {}
@@ -71,7 +72,7 @@ var _listen := PacketPeerUDP.new()
 var _targets := {}
 
 
-func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := true, from_beacon := BEACON_PORT) -> void:
+func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := true, from_beacon := BEACON_PORT, who: Persona = null) -> void:
 	name = "Session"
 	lan = on_lan
 	beacon_port = BEACON_PORT if lan else clampi(from_beacon, 1024, 65536 - BEACON_PORTS)
@@ -82,6 +83,7 @@ func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := t
 	avatar = posmod(look if look >= 0 else id, Avatar.BUILT_IN.size())
 	colour = COLOURS[posmod(id / 7 + first_port - PORT, COLOURS.size())]
 	_key = randi()
+	me = who if who else Persona.new("", 0, "", id)
 	for i in Avatar.BUILT_IN.size():
 		Avatar.built_in(i)
 
@@ -105,6 +107,7 @@ func _ready() -> void:
 	for p in BEACON_PORTS:
 		if _listen.bind(beacon_port + p, "*" if lan else "127.0.0.1") == OK:
 			break
+	me.offer(_key)
 	host()
 
 
@@ -214,11 +217,33 @@ func _process(delta: float) -> void:
 func _announce() -> void:
 	if port == 0 or not visiting.is_empty():
 		return
-	var msg := JSON.stringify({"nestcombe": 1, "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false), "players": players()}).to_utf8_buffer()
+	var msg := beacon()
 	for dest in beacon_to():
 		for p in BEACON_PORTS:
 			_beacon.set_dest_address(dest, beacon_port + p)
 			_beacon.put_packet(msg)
+
+
+## Every second, to anyone on the network: nothing identifying, unless the player picked a name to show.
+func beacon() -> PackedByteArray:
+	var msg := {"nestcombe": 1, "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false), "players": players()}
+	if me.shared and not me.steam():
+		msg.name = me.name
+	return JSON.stringify(msg).to_utf8_buffer()
+
+
+## A beacon's garden, or empty when the packet is not one.
+static func read_beacon(raw: PackedByteArray) -> Dictionary:
+	var json := JSON.new()
+	if json.parse(raw.slice(0, 512).get_string_from_utf8()) != OK:
+		return {}
+	var msg: Variant = json.data
+	if not (msg is Dictionary and msg.get("nestcombe") == 1.0 and msg.get("key") is float and msg.get("port") is float and msg.get("avatar") is float):
+		return {}
+	var at := int(msg.port)
+	if at < PORT or at >= PORT + PORT_RANGE:
+		return {}
+	return {"key": int(msg.key), "port": at, "avatar": posmod(int(msg.avatar), Avatar.BUILT_IN.size()), "colour": Color.from_string(str(msg.get("colour", "")), COLOURS[0]).clamp(), "name": Persona.clean(str(msg.get("name", "")))}
 
 
 func _hear() -> void:
@@ -226,19 +251,16 @@ func _hear() -> void:
 	for n in HEAR_PER_FRAME:
 		if _listen.get_available_packet_count() <= 0:
 			break
-		var raw := _listen.get_packet()
+		var garden := read_beacon(_listen.get_packet())
 		var ip := _listen.get_packet_ip()
-		var json := JSON.new()
-		if json.parse(raw.slice(0, 512).get_string_from_utf8()) != OK:
+		if garden.is_empty() or garden.key == _key:
 			continue
-		var msg: Variant = json.data
-		if not (msg is Dictionary and msg.get("nestcombe") == 1.0 and msg.get("key") is float and msg.get("port") is float and msg.get("avatar") is float):
+		var where := "%s:%d" % [ip, garden.port]
+		if not (nearby.has(where) or nearby.size() < MAX_NEARBY):
 			continue
-		var at := int(msg.port)
-		var where := "%s:%d" % [ip, at]
-		if int(msg.key) == _key or at < PORT or at >= PORT + PORT_RANGE or not (nearby.has(where) or nearby.size() < MAX_NEARBY):
-			continue
-		nearby[where] = {"address": ip, "port": at, "avatar": posmod(int(msg.avatar), Avatar.BUILT_IN.size()), "colour": Color.from_string(str(msg.get("colour", "")), COLOURS[0]).clamp(), "seen": _clock}
+		garden.address = ip
+		garden.seen = _clock
+		nearby[where] = garden
 	for key in nearby.keys():
 		if _clock - nearby[key].seen > FORGET_AFTER:
 			nearby.erase(key)

@@ -28,6 +28,11 @@ aiming at; our implementation is our own.
 - Original assets only, generated procedurally wherever possible.
 - One input mapping that works on any OpenXR controller with a stick, trigger,
   grip and two face buttons.
+- No text, with one exception: the player's name in the session picker (the visit
+  tool's figures, docs/multiplayer.md "Finding each other"). Nothing else gets text
+  under this exception.
+
+  Directive (verbatim): "in the multiplayer menu... I don't expect this to be solved now, but it was difficult to determine which... session to join... just by the avatar. I think eventually we'll need to break my rule about having no text. And we'll need to... I guess for Steam works, we'll need to display the... user profile... next to their avatar and their name"
 
 ## Engine and target
 

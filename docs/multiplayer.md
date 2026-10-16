@@ -171,14 +171,39 @@ on arrival. Transforms that are not finite are dropped.
 ## Finding each other
 
 Every host announces itself on the local network once a second: a UDP broadcast on ports
-7469–7472 carrying its game port (7480 and up), avatar and colour. Pick the **visit**
-tool from either hand's ring; its model is a little figure. A small figure of each nearby
-garden's host then stands in an arc in front of you, in their avatar and colour. Point at
-one and pull the trigger to join their garden. While you visit, a small cairn of three
-stones stands among them; pick it to go home. There is no text, no menu and no address to
-type.
+7469–7472 carrying its game port (7480 and up), a random key, its avatar and its colour.
+Pick the **visit** tool from either hand's ring; its model is a little figure. A small
+figure of each nearby garden's host then stands in an arc in front of you, in their avatar
+and colour, with their name under it. Point at one and pull the trigger to join their
+garden. While you visit, a small cairn of three stones stands among them; pick it to go
+home. The names are the game's one text (docs/design.md, "Requirements"); there is no
+menu and no address to type.
 
-`--join ADDRESS[:PORT]` and `--avatar N` are launch arguments for scripts and tests.
+### Names
+
+The beacon goes to anyone on the network without the player doing anything, so it carries
+nothing that says who they are. A name reaches others only by a way the player chose:
+
+- **With Steam,** a host's Steam name and picture reach only their Steam friends, through
+  Steam itself. The host puts its beacon's random key in its Steam rich presence; a friend's
+  game, seeing that key in a beacon, shows the friend's Steam picture and Steam name under
+  the figure. Who sees you playing is what you set in Steam. Two games on one Steam account
+  share one rich presence, so only the later one is named. Anyone on the network can copy a
+  friend's key into their own beacon, so when two gardens announce one key neither is named.
+- **Without Steam,** your own figure stands nearer, to your left, under a name the game
+  offers, faint while only you can see it. Pick it and the name joins your beacon; pick it
+  again for another. The game keeps the name you picked for later starts. A host who never
+  picked one stands unnamed.
+
+`Persona` (game/src/persona.gd) holds all of this. Steam is optional: only a Steam package
+(`scripts/package.sh TARGET OUT steam`) carries the GodotSteam extension and Valve's
+`steam_api` library, and the game starts Steam only when Steam launched it (`SteamAppId`
+in its environment) or a script names an app with `--steam-app ID`. Every other build and
+launch plays without Steam on the same code path.
+
+`--join ADDRESS[:PORT]`, `--avatar N`, `--name NAME` (a picked name) and `--steam-app ID`
+are launch arguments for scripts and tests. `demo/picker.json` captures the picker; Valve's
+test app 480 stands in for this game's app in development.
 
 Only a game a player launched beacons on the network. One started with `--script`,
 `--join` or `--port`, or built inside a test, sends its beacon to this machine's loopback address only
