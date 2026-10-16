@@ -15,8 +15,8 @@ uniform vec3 warm_clump : source_color = vec3(1.10, 1.02, 0.82);
 uniform float root_shade = 0.55;
 uniform float backlight = 1.0;
 uniform float gust_brighten = 0.22;
-uniform float far_begin = 10.0;
-uniform float far_end = 30.0;
+uniform float far_begin = 8.0;
+uniform float far_end = 20.0;
 // Blades shrink into the ground over the last stretch before `draw_reach`, past which Flora draws no meadow grass.
 uniform float draw_reach;
 uniform float draw_fade = 8.0;
@@ -72,7 +72,7 @@ void vertex() {
 
 void fragment() {
 	// Far blades converge on their mid-tone so sub-pixel slivers do not flicker in a headset.
-	float t = mix(tip, 0.6, far * 0.7);
+	float t = mix(tip, 0.6, far);
 	vec3 c = mix(seasoned(root_color, season_meadow), top, t) * mix(root_shade, 1.0, smoothstep(0.0, 0.7, t));
 	ALBEDO = c * COLOR.rgb * (1.0 + gust_brighten * gust * t * (1.0 - far));
 	// Back faces arrive with the normal flipped, which would turn the up-bent normal downward and shade them dark.
