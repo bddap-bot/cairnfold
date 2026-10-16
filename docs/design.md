@@ -298,14 +298,19 @@ density, and no build the player can make may bring the frame rate down.
 What makes building cheap:
 
 - Settled walls are drawn by `Masonry` per 16 m ground chunk: one MultiMesh per
-  kind of piece per chunk, culled as a whole, instead of a handful of draws per
-  wall. A wall being drawn or pulled draws itself until it settles.
-- Stones and roof tiles cast no shadow themselves; a plain box per stone does.
-  Mortar, seen only in the gaps, is a plain box.
+  kind of piece per chunk, each piece in the chunk under it, so a chunk is culled
+  and limited by distance by where its pieces stand, however long their wall. A
+  wall being drawn or pulled draws itself until it settles.
+- A chunk wholly beyond the near distance of the quality step draws its stones
+  with `Stones.far_mesh`, the same lumps at the corners alone: 12 triangles to the
+  full stone's 108. Ivy chunks past ivy's reach are not drawn at all.
+- Stones and roof tiles cast no shadow themselves; a box of 8 vertices per stone
+  does. Mortar, seen only in the gaps, is a plain box. A stone's faces share the
+  vertices along their borders.
 - A wall's live preview is laid on a worker thread from a copy of its inputs, so a
   long stroke costs the main thread nothing while it grows.
-- Cost follows instance count more than triangles. A vine lays one three-leaf
-  sprig a step rather than three leaves; sprigs shrink away between 20 and 35 m.
+- A vine lays one three-leaf sprig a step rather than three leaves; sprigs shrink
+  away over the last 15 m of ivy's reach.
 - A path's stone chunks are bounded by their own stones, so they cull.
 - A laid path's stones are packed on a worker thread; the main thread only plans its rows (wear and arches need nothing more) and lays the finished chunks. Packing a 48 m path 6 m wide took about 35 ms on the desktop.
 - Ground moving under walls changes neither their data nor where paths cross them,
@@ -316,52 +321,89 @@ What makes building cheap:
   had frames of 22 to 58 ms at the 99th percentile and two of 117 and 133 ms as
   it settled; now no frame of the stroke or its settling passes 7.1 ms.
 
-Measured on the Steam Frame with an earlier mode of the bench: both eyes' pixels,
-3456×1728, in one flat window, which compares builds but runs about a third of the
-headset's XR cost (walls on a 25 m disc from the air: 14.5 ms flat, 41.6 ms in XR,
-below). GPU milliseconds per frame:
+Measured on the Steam Frame in its XR session unworn (`bench.sh OUT SSH_HOST BUNDLE`,
+see "Frame measurements"), with the GPU clock's floor held at its top (903 MHz) for the
+run so builds compare: the game's GPU time per frame (fdinfo) and the frame time, median
+of each phase, the quality ladder held at its top. Before is the stress scene on the
+build before the wall changes below, after is the build with them; milliseconds:
 
-| Phase | Before | Masonry | + one stone mesh, LOD | + ivy sprigs |
-| --- | --- | --- | --- | --- |
-| Meadow, from the air | 6.70 | 6.73 | 6.72 | 6.71 |
-| Every flora pool full | 8.14 | 8.17 | 8.17 | 8.16 |
-| 159 m of walls | 9.97 | 9.21 | 9.25 | 9.06 |
-| 347 m of walls | 11.93 | 10.40 | 10.48 | 10.03 |
-| 630 m of walls | 15.27 | 12.36 | 12.53 | 11.68 |
-| 973 m of walls | 20.13 | 15.26 | 15.68 | 14.43 |
-| 347 m of 9 m walls | 15.03 | 11.81 | 12.17 | 11.70 |
-| Village of houses and towers | 12.51 | 11.11 | 11.25 | 10.84 |
-
-At 973 m, walls cost 12.0 ms over full flora before and 6.3 ms after. Draw calls
-there fell from 184 to 46 and primitives from 12.6 M to 4.5 M. Levels of detail
-for the stone mesh took 38% of the primitives and no GPU time here, nor on the
-Quest 2 (below), so stones have none. With 630 m of walls, ivy cost 1.9 ms, stones
-2.1 ms, the shadow boxes 0.3 ms from the air and 1.0 ms standing among them, and
-mortar 0.2 to 0.4 ms. The stone shader's cost did not register.
-
-Measured on the Steam Frame in its XR session unworn (`bench.sh OUT SSH_HOST
-BUNDLE`, see "Frame measurements"): the game's GPU time per frame, median of each
-phase, and the median frame time at 72 Hz; the stress scene as it stands:
-
-| Phase | From the air | Standing | Frame time from the air |
+| Phase | View | Before: GPU, frame | After: GPU, frame |
 | --- | --- | --- | --- |
-| Meadow | 9.10 | 5.38 | 13.89 |
-| Every flora pool full | 11.07 | 8.43 | 13.89 |
-| Every butterfly | 11.08 | 8.43 | 13.89 |
-| Walls on a 10 m disc | 17.18 | 17.33 | 27.78 |
-| 15 m | 20.22 | 20.13 | 27.78 |
-| 20 m | 24.45 | 24.03 | 29.10 |
-| 25 m | 34.46 | 33.79 | 41.67 |
-| 9 m walls on a 15 m disc | 23.68 | 23.01 | 27.78 |
-| Village | 20.86 | 19.73 | 27.78 |
-| Ponds | 11.19 | 8.12 | 13.89 |
-| Hills | 34.44 | 33.49 | 41.67 |
-| Camera held up | | 37.26 | |
+| Meadow | from the air | 8.3, 13.9 | 8.3, 13.9 |
+|  | standing | 5.8, 13.9 | 5.9, 13.9 |
+| Every flora pool full | from the air | 10.0, 13.9 | 10.0, 13.9 |
+|  | standing | 9.1, 13.9 | 9.2, 13.9 |
+| Every butterfly | from the air | 9.9, 13.9 | 10.0, 13.9 |
+|  | standing | 9.1, 13.9 | 9.2, 13.9 |
+| A 27 m wall drawn live | while drawn | 11.0, 13.9 | 10.9, 13.9 |
+| Walls on a 10 m disc | from the air | 15.7, 27.8 | 14.5, 27.8 |
+|  | standing | 18.2, 27.8 | 18.4, 27.8 |
+| 15 m | from the air | 18.4, 27.8 | 16.0, 27.8 |
+|  | standing | 20.9, 27.8 | 21.2, 27.8 |
+| 20 m | from the air | 23.6, 27.8 | 19.2, 27.8 |
+|  | standing | 28.6, 41.7 | 24.9, 27.9 |
+| 25 m | from the air | 34.3, 41.7 | 23.6, 27.8 |
+|  | standing | 32.0, 41.7 | 31.9, 41.7 |
+| 9 m walls on a 15 m disc | from the air | 23.1, 27.8 | 17.9, 27.8 |
+|  | standing | 23.7, 28.3 | 28.2, 41.7 |
+| Village | from the air | 30.2, 41.7 | 20.6, 27.8 |
+|  | standing | 28.9, 41.7 | 23.3, 27.8 |
+| Plaster houses | from the air | 22.9, 27.8 | 20.9, 27.8 |
+|  | standing | 23.9, 27.8 | 23.3, 27.8 |
+| Plaster village | from the air | 17.4, 27.8 | 17.1, 27.8 |
+|  | standing | 9.3, 13.9 | 9.3, 13.9 |
+| Ponds | from the air | 10.0, 13.9 | 10.0, 13.9 |
+|  | standing | 8.8, 13.9 | 8.8, 13.9 |
+| Ducks | from the air | 10.0, 13.9 | 10.0, 13.9 |
+|  | standing | 8.8, 13.9 | 8.8, 13.9 |
+| Conures | from the air | 10.0, 13.9 | 10.1, 13.9 |
+|  | standing | 8.8, 13.9 | 8.8, 13.9 |
+| Sheep | standing | 9.5, 13.9 | 9.5, 13.9 |
+| Dusk falling | from the air | 10.2, 13.9 | 10.2, 13.9 |
+| Fireflies | from the air | 9.4, 13.9 | 9.4, 13.9 |
+|  | standing | 8.2, 13.9 | 8.2, 13.9 |
+| A path stroke | while pulled | 36.3, 41.7 | 25.5, 27.8 |
+| Hills | while pulled | 33.3, 41.7 | 29.4, 41.7 |
+|  | from the air | 34.9, 41.7 | 23.8, 27.8 |
+|  | standing | 32.2, 41.7 | 31.6, 31.7 |
+| Camera held up | standing | 35.4, 41.7 | 32.5, 41.7 |
+|  | a photo a second | 32.4, 41.7 | 31.2, 41.7 |
+| A garden as built in play | from the air | 18.8, 27.8 | 17.7, 27.8 |
+|  | standing | 15.3, 27.8 | 15.0, 27.8 |
 
-The budget check stays on the Quest 2, the weaker headset. Against the same scene before
-the flora changes in "Flora on the Quest 2", every phase's frame time is the same or
-shorter, and GPU time is lower in every phase before the walls; the wall and hill phases
-vary by up to 2 ms between runs of one build.
+Two traps in measuring this. A scripted view used to last a second in the headset: the
+rig's hover spring pulled it back to its rest height, so every phase "from the air" was
+measured from the unworn headset's own pose on the ground; views now hold. And GPU time
+read at half rate is not the scene's cost: one phase at one step read 19.4 ms while the
+runtime held the game at every other refresh and 6.8 ms once it returned to 72 Hz, the
+clock floor held at its top throughout. Rows at a frame time of 27.8 ms or more compare
+only roughly; 9 m walls standing read 28.2 ms at a third of the refresh rate after, and
+20.1 to 20.6 ms in three repeats of that scene on a later build with the same walls.
+
+Where the time went among walls on a 25 m disc, measured by hiding each part in turn
+within one run at the ladder's top, before the wall changes, from the unworn headset's own
+pose: on the ground, facing a wall a few metres off:
+
+- Stones: their triangles. Every pixel the same, 3 segments a face to 2 saved 4.6 ms and
+  to 1 (12 triangles) saved 10.2 ms; sharing the vertices along the faces' borders (56
+  instead of 96, the same surface) saved nothing measurable. The cost follows the
+  triangles each stone runs, not its vertices or its pixels.
+- Ivy: 5 to 9 ms, its far leaves shrunk to nothing but
+  still drawn, because a whole wall's ivy sat in the one chunk under the wall's centre.
+- The sun's shadows of the walls: about 3.6 ms; the shadow boxes alone 0.7 ms once they
+  were boxes of 8 vertices.
+- Flora, terrain and the meadow's shadows: the rest, 9 to 14 ms.
+
+So settled pieces now go to the chunk under each, far chunks draw 12-triangle stones,
+ivy chunks past ivy's reach are not drawn, and both distances are on the quality ladder
+("Automatic quality"). From the air the walls cost about a third less; standing among
+them, where the stones are near, about the same.
+
+At the ladder's bottom step, a garden as built in play (`demo/stress.json`'s garden
+phase: about 200 m of walls, two houses, forty planted trees, hills), every part hidden in
+turn at 72 Hz, from the air: walls 2.5 ms, the sun's shadows 2.0 ms, terrain 1.6 ms,
+trees 0.6 ms, ivy 0.2 ms; a 3D resolution of 0.7 instead of 0.9 saved 2.4 ms. Standing:
+walls 0.8 ms, shadows 1.3 ms, terrain 0.5 ms.
 
 What is left grows with what is built, so building needs a bound, and the bound
 counts stones (`Budget.STONE_US`, GPU time per stone laid, ivy, mortar and shadow
@@ -419,7 +461,8 @@ Directive (verbatim):
 **Decision: the one graphics configuration is a ladder of steps, walked by the GPU time of
 every frame.** `Quality` (`game/src/quality.gd`) first draws settled stones in full only to 8 m
 instead of 16 m and ivy to 25 m instead of 35 m, then grass to 24, 20, 16, 13 or 10 m; below those,
-flowers to 20 m instead of 60 m, and then foliage from coarser blobs. A governor reads each
+flowers to 20 m instead of 60 m, then foliage from coarser blobs, and last stones in full to 4 m
+and ivy to 12 m. A governor reads each
 frame's GPU time and steps down the ladder at once when frames run over the refresh period or
 their average over its line, and back up only after a calm spell with room for what the step
 saved. Every headset starts at the top and settles on
@@ -517,9 +560,19 @@ the Quest 2" below:
 Before them the ladder was steps 0 to 4 alone.
 
 From the air the grass beyond 16 m is a few pixels a blade, so the settled steps are hard to
-tell apart from the top. Dense walls are beyond what the ladder can reach: at 973 m of walls
-the Quest 2 took 42 ms a frame and no knob moved it by more than noise. Those are building
-costs, held by the build budget ("Frame budget"), not by the ladder.
+tell apart from the top. On the Quest 2 dense walls were beyond what the ladder reached: at
+973 m of walls it took 42 ms a frame and no knob moved it by more than noise.
+
+On the Steam Frame, the stress scene played governed (unworn, the clock left to itself):
+the ladder holds 72 Hz over walls on a 15 m and a 20 m disc and 9 m walls on a 15 m disc
+from the air, the plaster village, and a garden as built in play seen standing, each
+settling at the bottom step. It does not reach 72 Hz over walls on a 10 m
+disc from the air or standing among any of the wall discs, the village, the hills, the
+camera held up, or the garden from the air: at the bottom step they run at every other
+refresh, at 11 to 22 ms of GPU time a frame, the camera the most (walls on a 10 m disc
+stopped two steps above the bottom). What is left there is
+walls standing near the eye, the sun's shadows, the terrain and the half-rate reading
+above; those are building costs, held by the build budget ("Frame budget").
 
 ### Flora on the Quest 2
 
