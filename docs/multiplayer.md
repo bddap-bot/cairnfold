@@ -184,11 +184,14 @@ garden. While you visit, a small cairn of three stones stands among them; pick i
 home. The names are the game's one text (docs/design.md, "Requirements"); there is no
 menu and no address to type.
 
-Only gardens of a build with the same networked methods stand in the arc. Godot numbers a
+Only gardens of a build with the same networked methods can be joined. Godot numbers a
 node's RPCs by name, so a build with one more or one fewer calls the wrong methods on the
 other: a visitor's digs, ponds and plants never land, and its strokes show and then vanish.
-The beacon carries a fingerprint of `World`'s and `Session`'s RPCs (`Session.protocol`), and
-a game hears only beacons that carry its own. Builds from one revision always match.
+The beacon carries a fingerprint of `World`'s and `Session`'s RPCs (`Session.protocol`).
+A garden whose beacon carries another (or the constant 1 of builds before the fingerprint)
+still stands in the arc, with a small X over it, and pointing at it picks nothing. Builds
+from one revision always match. Builds before the fingerprint drop every beacon but their
+own constant, so they list no newer garden at all.
 
 ### Names
 

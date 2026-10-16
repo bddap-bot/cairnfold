@@ -6,7 +6,8 @@ extends Node3D
 ## While visiting, a small cairn stands among them: picking it goes home. Under each figure its host's name, and
 ## with Steam their Steam picture, are the one text in the game (docs/design.md, "Requirements"). Without Steam
 ## the player's own figure stands nearer under their name, faint until they pick it to show it; picking again
-## offers another.
+## offers another. A garden of a build with other networked methods stands with a small X over it and cannot be
+## picked.
 
 const ARC := 1.3
 const SPREAD := deg_to_rad(22.0)
@@ -22,6 +23,8 @@ const PICTURE := 0.06
 const GAP := 0.012
 const ME_AT := Vector3(-0.42, -0.12, -0.8)
 const ME_SIZE := 0.7
+const CROSS := 0.11
+const CROSS_COLOUR := Color(0.62, 0.2, 0.16)
 
 var rig: Rig
 var session: Session
@@ -87,7 +90,7 @@ func _lay_out() -> void:
 			_tags.erase(k)
 	for k in want:
 		if not figures.has(k):
-			figures[k] = _home() if k == HOME else _figure(session.nearby[k] if k != ME else {"avatar": session.avatar, "colour": session.colour})
+			figures[k] = _home() if k == HOME else _figure(session.nearby[k] if k != ME else {"avatar": session.avatar, "colour": session.colour, "joins": true})
 			add_child(figures[k])
 		if k != HOME:
 			var tag := _tag(k)
@@ -111,6 +114,25 @@ func _figure(garden: Dictionary) -> Node3D:
 	a.scale = Vector3.ONE * SIZE
 	root.add_child(a)
 	a.stand.call_deferred()
+	if not garden.joins:
+		root.add_child(_cross())
+	return root
+
+
+func _cross() -> Node3D:
+	var root := Node3D.new()
+	root.name = "Cross"
+	root.position = AIM + Vector3.FORWARD * SIZE * 0.6
+	var mat := StandardMaterial3D.new()
+	mat.albedo_color = CROSS_COLOUR
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	for z in [PI / 4, -PI / 4]:
+		var bar := MeshInstance3D.new()
+		bar.mesh = Meshes.rounded_box(0.4, 2, 41)
+		bar.material_override = mat
+		bar.scale = Vector3(CROSS, CROSS * 0.18, CROSS * 0.18)
+		bar.rotation.z = z
+		root.add_child(bar)
 	return root
 
 
@@ -195,6 +217,8 @@ func _point(hand: Hand) -> void:
 	picked = ""
 	var best := PICK
 	for k in figures:
+		if not joinable(k):
+			continue
 		var c: Vector3 = figures[k].global_position + AIM
 		var along := (c - origin).dot(dir)
 		var d := (c - (origin + dir * along)).length()
@@ -208,7 +232,13 @@ func _point(hand: Hand) -> void:
 		go(picked)
 
 
+func joinable(k: String) -> bool:
+	return k in [HOME, ME] or session.nearby[k].joins
+
+
 func go(k: String) -> void:
+	if not joinable(k):
+		return
 	if k == HOME:
 		session.go_home()
 	elif k == ME:

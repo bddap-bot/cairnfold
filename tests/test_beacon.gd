@@ -1,6 +1,7 @@
 extends SceneTree
 
-## Scripted and test instances never beacon past loopback, and beacons carry each host's name to the visit picker:
+## Scripted and test instances never beacon past loopback, beacons carry each host's name to the visit picker, and a
+## garden of another build stands there with an X and cannot be joined:
 ## godot4 --headless --path game --script ../tests/test_beacon.gd
 
 var failures := 0
@@ -14,7 +15,7 @@ func _run() -> void:
 	_scripts_are_not_players()
 	_names_are_clean_and_short()
 	_a_picked_name_is_kept()
-	_another_build_is_not_heard()
+	_another_build_is_heard_not_joined()
 	await _a_test_instance_beacons_on_loopback_only()
 	await _the_picker_shows_each_host_s_name()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -86,18 +87,20 @@ func _networked(source: String) -> Script:
 
 ## Report (verbatim): "I'm unable to make a pond". The headset visited a garden hosted by a build without one of
 ## World's RPCs; its proposals reached the host as other methods, so no dig, pond or plant of the visitor's landed.
-func _another_build_is_not_heard() -> void:
+func _another_build_is_heard_not_joined() -> void:
 	var dir := DirAccess.open("res://src")
 	for f in dir.get_files():
 		var s: Variant = load("res://src/" + f) if f.ends_with(".gd") else null
 		if s is Script and not (s as Script).get_rpc_config().is_empty():
 			_check(s in [World, Session], "%s has RPCs, so the protocol fingerprint must cover it" % f)
-	var old := JSON.stringify({"nestcombe": 1, "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer()
-	_check(Session.read_beacon(old).is_empty(), "a garden from a build before the protocol fingerprint is not heard")
-	var other := JSON.stringify({"nestcombe": Session.protocol() + 1, "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer()
-	_check(Session.read_beacon(other).is_empty(), "a garden from a build with other RPCs is not heard")
-	var same := JSON.stringify({"nestcombe": Session.protocol(), "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer()
-	_check(not Session.read_beacon(same).is_empty(), "a garden from this build is heard")
+	var old := Session.read_beacon(JSON.stringify({"nestcombe": 1, "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer())
+	_check(not old.is_empty() and not old.joins, "a garden from a build before the protocol fingerprint is heard, not to be joined: %s" % old)
+	var other := Session.read_beacon(JSON.stringify({"nestcombe": Session.protocol() + 1, "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer())
+	_check(not other.is_empty() and not other.joins, "a garden from a build with other RPCs is heard, not to be joined: %s" % other)
+	var same := Session.read_beacon(JSON.stringify({"nestcombe": Session.protocol(), "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer())
+	_check(not same.is_empty() and same.joins, "a garden from this build is heard and joins: %s" % same)
+	var unversioned := JSON.stringify({"key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer()
+	_check(Session.read_beacon(unversioned).is_empty(), "a packet without the nestcombe field is no garden")
 	var before := _networked("@rpc(\"any_peer\")\nfunc _propose(c): pass\n@rpc(\"any_peer\")\nfunc _resend(): pass\n")
 	var after := _networked("@rpc(\"any_peer\")\nfunc _device(d): pass\n@rpc(\"any_peer\")\nfunc _propose(c): pass\n@rpc(\"any_peer\")\nfunc _resend(): pass\n")
 	var takes := _networked("@rpc(\"any_peer\")\nfunc _propose(c): pass\n@rpc(\"any_peer\")\nfunc _resend(by): pass\n")
@@ -132,14 +135,23 @@ func _the_picker_shows_each_host_s_name() -> void:
 	var tool: VisitTool = main.visit_tool
 	var where := "127.0.0.1:%d" % (Session.PORT + 5)
 	var unnamed := "127.0.0.1:%d" % (Session.PORT + 6)
-	session.nearby[where] = {"address": "127.0.0.1", "port": Session.PORT + 5, "key": 5, "avatar": 2, "colour": Session.COLOURS[1], "name": "Hazel Otter", "seen": INF}
-	session.nearby[unnamed] = {"address": "127.0.0.1", "port": Session.PORT + 6, "key": 6, "avatar": 1, "colour": Session.COLOURS[2], "name": "", "seen": INF}
+	session.nearby[where] = {"address": "127.0.0.1", "port": Session.PORT + 5, "key": 5, "avatar": 2, "colour": Session.COLOURS[1], "name": "Hazel Otter", "joins": true, "seen": INF}
+	session.nearby[unnamed] = {"address": "127.0.0.1", "port": Session.PORT + 6, "key": 6, "avatar": 1, "colour": Session.COLOURS[2], "name": "", "joins": true, "seen": INF}
+	var other := "127.0.0.1:%d" % (Session.PORT + 7)
+	session.nearby[other] = {"address": "127.0.0.1", "port": Session.PORT + 7, "key": 7, "avatar": 3, "colour": Session.COLOURS[3], "name": "Moss Wren", "joins": false, "seen": INF}
 	main.rig.left.tool = Hand.Tool.VISIT
 	await process_frame
 	await process_frame
 	var label := _label(tool, where)
 	_check(label != null and label.text == "Hazel Otter", "the host's name stands under its figure")
 	_check(tool.figures.has(unnamed) and _label(tool, unnamed) == null, "a host who picked no name stands without one")
+	_check(tool.figures.has(other) and tool.figures[other].has_node("Cross") and _label(tool, other).text == "Moss Wren", "a garden of another build stands, named, with an X over it")
+	_check(not tool.figures[where].has_node("Cross") and not tool.figures[unnamed].has_node("Cross"), "a garden of this build stands without one")
+	tool.go(other)
+	_check(session.visiting.is_empty(), "picking a garden of another build joins nothing: %s" % session.visiting)
+	tool.go(where)
+	_check(session.visiting.get("port") == Session.PORT + 5, "picking a garden of this build joins it: %s" % session.visiting)
+	session.go_home()
 	var was := session.me.name
 	_check(_label(tool, VisitTool.ME) != null and _label(tool, VisitTool.ME).text == was, "without Steam your own figure stands under your name")
 	tool.go(VisitTool.ME)
@@ -147,6 +159,7 @@ func _the_picker_shows_each_host_s_name() -> void:
 	_check(_label(tool, VisitTool.ME).text != was and _label(tool, VisitTool.ME).modulate.a == 1.0, "picking it again offers the next name, shown: %s, was %s" % [_label(tool, VisitTool.ME).text, was])
 	session.nearby.erase(where)
 	session.nearby.erase(unnamed)
+	session.nearby.erase(other)
 	main.queue_free()
 
 

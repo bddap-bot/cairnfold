@@ -43,7 +43,7 @@ var beacon_port := BEACON_PORT
 var lan := true
 ## The garden we are visiting, {address, port}, or empty at home.
 var visiting := {}
-## Gardens announcing themselves nearby, by "address:port": {address, port, key, avatar, colour, name, seen}.
+## Gardens announcing themselves nearby, by "address:port": {address, port, key, avatar, colour, name, joins, seen}.
 var nearby := {}
 ## Remote players' avatars by peer id.
 var avatars := {}
@@ -234,7 +234,7 @@ func beacon() -> PackedByteArray:
 
 
 ## Godot numbers a node's RPCs by name, so two builds whose networked methods differ call the wrong methods
-## on each other and every edit a visitor makes is lost: a garden is heard only by builds with the same ones.
+## on each other and every edit a visitor makes is lost: a garden is joined only by builds with the same ones.
 static func protocol() -> int:
 	if _protocol == 0:
 		_protocol = fingerprint([World, Session])
@@ -252,18 +252,18 @@ static func fingerprint(scripts: Array[Script]) -> int:
 	return hash(parts)
 
 
-## A beacon's garden, or empty when the packet is not one from this build's protocol.
+## A beacon's garden, or empty when the packet is not one; `joins` is false for a build with other networked methods.
 static func read_beacon(raw: PackedByteArray) -> Dictionary:
 	var json := JSON.new()
 	if json.parse(raw.slice(0, 512).get_string_from_utf8()) != OK:
 		return {}
 	var msg: Variant = json.data
-	if not (msg is Dictionary and msg.get("nestcombe") == float(protocol()) and msg.get("key") is float and msg.get("port") is float and msg.get("avatar") is float):
+	if not (msg is Dictionary and msg.get("nestcombe") is float and msg.get("key") is float and msg.get("port") is float and msg.get("avatar") is float):
 		return {}
 	var at := int(msg.port)
 	if at < PORT or at >= PORT + PORT_RANGE:
 		return {}
-	return {"key": int(msg.key), "port": at, "avatar": posmod(int(msg.avatar), Avatar.BUILT_IN.size()), "colour": Color.from_string(str(msg.get("colour", "")), COLOURS[0]).clamp(), "name": Persona.clean(str(msg.get("name", "")))}
+	return {"key": int(msg.key), "port": at, "avatar": posmod(int(msg.avatar), Avatar.BUILT_IN.size()), "colour": Color.from_string(str(msg.get("colour", "")), COLOURS[0]).clamp(), "name": Persona.clean(str(msg.get("name", ""))), "joins": msg.nestcombe == float(protocol())}
 
 
 func _hear() -> void:
