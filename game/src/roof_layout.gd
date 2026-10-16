@@ -68,12 +68,9 @@ func inputs() -> RoofLayout:
 
 
 func same_inputs(other: RoofLayout) -> bool:
-	var a := inputs()
-	var b := other.inputs()
-	for p in a.get_property_list():
-		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and a.get(p.name) != b.get(p.name):
-			return false
-	return true
+	return (kind == other.kind and center == other.center and radius == other.radius
+		and pitch == other.pitch and curve == other.curve and seed == other.seed
+		and chimneys == other.chimneys and flag == other.flag)
 
 
 ## Takes what `built` laid, as if `build` had run here.

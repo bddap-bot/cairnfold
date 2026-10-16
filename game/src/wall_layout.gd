@@ -944,12 +944,12 @@ func inputs() -> WallLayout:
 
 ## Whether `other` would lay the same stones on the same ground.
 func same_inputs(other: WallLayout) -> bool:
-	var a := inputs()
-	var b := other.inputs()
-	for p in a.get_property_list():
-		if p.usage & PROPERTY_USAGE_SCRIPT_VARIABLE and a.get(p.name) != b.get(p.name):
-			return false
-	return true
+	return (points == other.points and height == other.height and arches == other.arches
+		and seed == other.seed and closed == other.closed and top == other.top
+		and cover == other.cover and fence == other.fence and plaster == other.plaster
+		and windows == other.windows and lanterns == other.lanterns and flags == other.flags
+		and ruins == other.ruins and supports == other.supports and resting == other.resting
+		and joined == other.joined)
 
 
 ## Takes what `built` laid, as if `build` had run here.
