@@ -20,6 +20,7 @@ func _run() -> void:
 	_texture_matches_the_heights()
 	_height_between_grid_points_is_continuous()
 	await _raising_ground_under_a_wall_keeps_it_on_the_ground()
+	_a_lay_reads_the_ground_it_started_on()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -135,6 +136,49 @@ func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
 	await _play([{"op": "press", "button": "dpad_down"}])
 	await _settles(w, "a wall the ground sank back under settles")
 	_check(_on_ground(w) < 0.01 and absf(w.layout.samples[w.layout.samples.size() / 2].y - mid.y) < 0.01, "undoing the hill sets the wall back down on the ground")
+
+
+## A dig while a wall is being laid: the worker threads are held until the dig is done, and the lay must read
+## the ground as it stood when the lay began, not the live heights the dig rewrote and reallocated (#13).
+func _a_lay_reads_the_ground_it_started_on() -> void:
+	var w: Wall = main.tool.walls[-1]
+	w.lay_now()
+	var laid := w.layout.samples.duplicate()
+	var gate := Semaphore.new()
+	var started := [0]
+	var lock := Mutex.new()
+	var holds := []
+	for t in OS.get_processor_count():
+		holds.append(WorkerThreadPool.add_task(func() -> void:
+			lock.lock()
+			started[0] += 1
+			lock.unlock()
+			gate.wait(), true))
+	var deadline := Time.get_ticks_msec() + 5000
+	while started[0] < holds.size() and Time.get_ticks_msec() < deadline:
+		OS.delay_msec(1)
+	_check(started[0] == holds.size(), "every worker thread is held, %d of %d" % [started[0], holds.size()])
+	w.rebuild(false)
+	var cells := Terrain.cells_around(0, -2.5, 6.0)
+	var before := Terrain.read(cells)
+	var shared := Terrain.read(Terrain.ALL)
+	var dug := before.duplicate()
+	for n in dug.size():
+		dug[n] -= 1.0
+	Terrain.write(cells, dug)
+	shared = PackedFloat32Array()
+	for h in holds:
+		gate.post()
+	for h in holds:
+		WorkerThreadPool.wait_for_task_completion(h)
+	w.lay_now()
+	var worst := 0.0
+	for n in laid.size():
+		worst = maxf(worst, absf(w.layout.samples[n].y - laid[n].y))
+	_check(w.layout.samples.size() == laid.size() and worst < 0.001, "a lay begun before a dig stands on the ground it began on, worst %f" % worst)
+	Terrain.write(cells, before)
+	w.rebuild()
+	w.lay_now()
 
 
 func _play(steps: Array) -> void:

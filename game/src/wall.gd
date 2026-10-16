@@ -334,9 +334,11 @@ func _build_live() -> void:
 	_build = {"job": job, "roof": roof_job, "revision": Terrain.revision, "out": out}
 	var ks := kinds()
 	var litter := _sweep()
+	var height := Terrain.held_height()
+	var water := Terrain.held_water()
 	_build_task = WorkerThreadPool.add_task(func():
 		_drop(litter)
-		job.build(Terrain.height_at, Terrain.water_at)
+		job.build(height, water)
 		out.merge(Wall.pack(job, ks))
 		if roof_job != null:
 			out.roofed = Wall.pack_roof(job, roof_job, ks))

@@ -54,20 +54,35 @@ static func base_at(x: float, z: float) -> float:
 
 
 static func height_at(x: float, z: float, with_hump := true) -> float:
+	return _height(x, z, _heights, _hump if with_hump else NO_HUMP)
+
+
+## The ground and the water as they stand now, for a worker thread to read while this one goes on shaping them.
+## Not the live arrays: a write while a copy shares one moves it to new memory and may free the old under the
+## reader. A duplicate shares the memory until this thread's next write moves the live array off it.
+static func held_height() -> Callable:
+	return _height.bind(_heights.duplicate(), _hump)
+
+
+static func held_water() -> Callable:
+	return _bilinear.bind(_water.duplicate())
+
+
+static func _height(x: float, z: float, heights: PackedFloat32Array, hump: Vector4) -> float:
 	var u := clampf((x + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
 	var v := clampf((z + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
 	var i := int(u)
 	var j := int(v)
 	var k := j * VERTS + i
-	var a := _heights[k]
-	var b := _heights[k + 1]
-	var c := _heights[k + VERTS]
-	var d := _heights[k + VERTS + 1]
-	if with_hump and _hump.w != 0.0:
-		a += _hump_at(i, j)
-		b += _hump_at(i + 1, j)
-		c += _hump_at(i, j + 1)
-		d += _hump_at(i + 1, j + 1)
+	var a := heights[k]
+	var b := heights[k + 1]
+	var c := heights[k + VERTS]
+	var d := heights[k + VERTS + 1]
+	if hump.w != 0.0:
+		a += _lift(hump, i, j)
+		b += _lift(hump, i + 1, j)
+		c += _lift(hump, i, j + 1)
+		d += _lift(hump, i + 1, j + 1)
 	return lerpf(lerpf(a, b, u - i), lerpf(c, d, u - i), v - j)
 
 
@@ -93,7 +108,6 @@ static func water_level(g: Vector2i) -> float:
 	return _water[g.y * VERTS + g.x]
 
 
-## Written in place like the heights, never swapped: a wall laid on a worker thread reads them meanwhile.
 static func set_water(changed: Dictionary) -> void:
 	for g: Vector2i in changed:
 		_water[g.y * VERTS + g.x] = changed[g]
@@ -104,12 +118,16 @@ static func set_water(changed: Dictionary) -> void:
 
 ## The pond surface over (x, z) as the shaders' filtered water_level reads it: below the ground where no pond is.
 static func water_at(x: float, z: float) -> float:
+	return _bilinear(x, z, _water)
+
+
+static func _bilinear(x: float, z: float, grid: PackedFloat32Array) -> float:
 	var u := clampf((x + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
 	var v := clampf((z + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
 	var i := int(u)
 	var j := int(v)
 	var k := j * VERTS + i
-	return lerpf(lerpf(_water[k], _water[k + 1], u - i), lerpf(_water[k + VERTS], _water[k + VERTS + 1], u - i), v - j)
+	return lerpf(lerpf(grid[k], grid[k + 1], u - i), lerpf(grid[k + VERTS], grid[k + VERTS + 1], u - i), v - j)
 
 
 static func ground(x: float, z: float) -> Vector3:
@@ -169,8 +187,8 @@ static func bell(t: float) -> float:
 	return s * s * s
 
 
-static func _hump_at(i: int, j: int) -> float:
-	return _hump.w * bell(Vector2(-SIZE * 0.5 + i * STEP - _hump.x, -SIZE * 0.5 + j * STEP - _hump.y).length() / _hump.z)
+static func _lift(hump: Vector4, i: int, j: int) -> float:
+	return hump.w * bell(Vector2(-SIZE * 0.5 + i * STEP - hump.x, -SIZE * 0.5 + j * STEP - hump.y).length() / hump.z)
 
 
 const ALL := Rect2i(0, 0, VERTS, VERTS)
@@ -192,7 +210,7 @@ static func raised(cells: Rect2i) -> PackedFloat32Array:
 	var n := 0
 	for j in range(cells.position.y, cells.end.y):
 		for i in range(cells.position.x, cells.end.x):
-			out[n] += _hump_at(i, j)
+			out[n] += _lift(_hump, i, j)
 			n += 1
 	return out
 
