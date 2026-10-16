@@ -164,11 +164,11 @@ func _they_leave_when_the_flowers_go() -> void:
 	var g := await _glade(4)
 	_paint(g, Vector3(3, 0, -4), 4.0)
 	_arrived(g)
-	g.palette.picks[Palette.Element.MEADOW] = Palette.SEASONS.size() - 1
+	g.palette.season = Palette.SEASONS.size() - 1
 	_run(g, 2.0)
 	_check(g.wildlife.butterflies.patches.is_empty(), "flowers out of season are no patch")
 	_check(g.in_state(Butterflies.State.LEAVE).size() == g.all().size(), "so they leave")
-	g.palette.picks[Palette.Element.MEADOW] = Palette.SUMMER
+	g.palette.season = Palette.SUMMER
 	_run(g, 60.0)
 	_check(not g.in_state(Butterflies.State.PERCH).is_empty(), "in bloom again, they come back")
 	for p in g.flora.plants_near(Terrain.ground(3, -4), 4.0).filter(func(p: Flora.Plant) -> bool: return p.group != 0):

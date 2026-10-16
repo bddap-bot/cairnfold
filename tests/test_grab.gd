@@ -30,7 +30,7 @@ func _capture(name: String) -> void:
 ## What the garden holds and what any tool has under way, so a grip that made or started something shows.
 func _made() -> String:
 	var busy := [main.tool.busy(), main.flora_tool.busy(), main.palette_tool.busy(), main.delete_tool.busy(), main.water_tool.digger != null, main.tool.house != null]
-	return var_to_str([main.world.state, main.world.palette.picks, busy])
+	return var_to_str([main.world.state, main.world.palette.season, busy])
 
 
 func _grip_lifts_the_wall_whatever_the_hand_holds(hand: Hand) -> void:
