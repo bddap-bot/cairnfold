@@ -28,7 +28,7 @@ const TAIL_SIZE := Vector3(0.018, 0.058, 0.006)
 
 
 func _init(phase: float) -> void:
-	super("conure", build, "res://src/conure.gdshader", BLEND, phase)
+	super("conure", build, "res://src/conure.gdshader", BLEND, phase, HandStop.Surface.FEATHERS)
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 

@@ -47,6 +47,8 @@ var _holding := false
 ## Desktop only: the driver holds this hand where tracking would put it.
 var held_still := false
 var _buttons: Buttons
+## The hand as seen, with the tool on top: HandStop holds it at what the controller pushes into.
+var body := Node3D.new()
 var _shown := -1
 var _leaving := -1
 var _pop_t := POP
@@ -64,6 +66,7 @@ func _init(tracker_name: String, held: Tool) -> void:
 	pose = &"aim"
 	tool = held
 	process_priority = -10
+	add_child(body)
 	var mi := MeshInstance3D.new()
 	mi.mesh = Meshes.rounded_box(0.3, 2, 7)
 	mi.scale = Vector3(0.05, 0.035, 0.11)
@@ -72,13 +75,13 @@ func _init(tracker_name: String, held: Tool) -> void:
 	mat.albedo_color = Color(0.93, 0.9, 0.84)
 	mat.roughness = 0.6
 	mi.material_override = mat
-	add_child(mi)
+	body.add_child(mi)
 	for t in Tool.size():
 		var m := Node3D.new() if t == Tool.HANDS else ToolModels.build(t)
 		m.position = TOP
 		m.scale = Vector3.ZERO
 		m.visible = false
-		add_child(m)
+		body.add_child(m)
 		_models.append(m)
 	_build_wheel()
 	_beam = Beam.new(Color.WHITE)
@@ -215,7 +218,7 @@ func ray(target: Vector3, tint: Color) -> bool:
 	if _holding:
 		return false
 	_beam.visible = true
-	_beam.span(global_position, target)
+	_beam.span(body.global_position, target)
 	(_beam.material_override as StandardMaterial3D).albedo_color = tint
 	return true
 

@@ -291,7 +291,7 @@ density, and no build the player can make may bring the frame rate down.
   fixes the seed) and the most sheep at four fences between them (seen too from the ground by a fence), with every butterfly there can be
   over the full flower pool and the most conures there can be among the full pool of planted trees,
   every firefly there can be over the ponds at dusk, and a hill pulled up live under 973 m of walls,
-  each seen from the air and standing among them, then the camera held up to it and a photo taken each second.
+  each seen from the air and standing among them, then both hands pushed into the walls beside the player, then the camera held up to it and a photo taken each second.
 - `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
   calls, primitives and GPU time; on a Quest it holds each phase to the budget and
   fails when one goes over. A new feature adds itself to the stress scene.
@@ -1290,6 +1290,22 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Turn the sky | Point either hand at open sky, whatever it holds, grip and aim: the sky turns with the pointer, carrying the sun from dawn to dusk |
 | Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window or door, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top on that build (or, on the meadow, the garden's season) |
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
+
+### Hands at surfaces
+
+The hand you see stops where the controller pushes into something solid, as in Half-Life: Alyx: the ground,
+a wall or fence (not its doors, windows or arches), a roof, a trunk or an animal. It slides along the surface
+to the point nearest the controller and is back on the controller as soon as the way is clear; held more than
+1 m away it lets go. Leaves and pond water are passed through and felt. Every tool still aims, points and grabs
+from the controller itself; the pointer's beam starts at the hand you see, and other players see that hand.
+`HandStop` sweeps a ball the size of the hand from where it was to where the controller is each frame, against
+the world near that sweep alone, so no physics bodies exist.
+
+Touch is felt through one table, `HandStop.FEEL`, keyed by the surface touched: a first touch pulses with how
+fast the hand came in and the surface's hardness, and moving along a surface, or through leaves or water,
+plays its grain: stone rough and grainy, plaster smooth, wood and roof tiles ridged, ground soft, bark coarse,
+leaves light, water a steady wash, and the animals' coats gentle (sheep wool, duck down, conure feathers).
+An animal is a `Critter` whose `coat` names its surface.
 
 Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
 a D-pad on the left. Godot 4.5 has no Frame interaction profile, so the game binds

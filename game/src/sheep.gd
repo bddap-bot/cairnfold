@@ -42,7 +42,7 @@ var full := 0.0
 
 
 func _init(phase: float, scale_by: float, tint: Color) -> void:
-	super("sheep", build, "res://src/sheep.gdshader", BLEND, phase)
+	super("sheep", build, "res://src/sheep.gdshader", BLEND, phase, HandStop.Surface.WOOL)
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	size = scale_by
 	scale = Vector3.ONE * size

@@ -8,10 +8,14 @@ static var _shared := {}
 
 var mode := Vector4(1, 0, 0, 0)
 var rate := 1.0
+## What a hand brushing it feels.
+var coat: HandStop.Surface
 
 
 ## `kind` names the mesh `build` makes, once for every animal that shares it.
-func _init(kind: String, build: Callable, shader: String, blend_rate: float, phase: float) -> void:
+func _init(kind: String, build: Callable, shader: String, blend_rate: float, phase: float, feel: HandStop.Surface) -> void:
+	coat = feel
+	add_to_group(HandStop.CRITTERS)
 	if not _shared.has(kind):
 		_shared[kind] = build.call()
 	if not _shared.has(shader):

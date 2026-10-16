@@ -29,7 +29,7 @@ var pecking := 0.0
 
 
 func _init(chick: bool, phase: float) -> void:
-	super("duckling" if chick else "duck", build.bind(chick), "res://src/duck.gdshader", BLEND, phase)
+	super("duckling" if chick else "duck", build.bind(chick), "res://src/duck.gdshader", BLEND, phase, HandStop.Surface.DOWN)
 	size = CHICK_SIZE if chick else 1.0
 	pace = 1.6 if chick else 1.0
 	scale = Vector3.ONE * size

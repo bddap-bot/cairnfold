@@ -30,6 +30,7 @@ var photo_tool: PhotoTool
 var sound: Soundscape
 var metrics: Metrics
 var quality: Quality
+var hand_stop: HandStop
 
 
 func _ready() -> void:
@@ -54,6 +55,8 @@ func _ready() -> void:
 	tool = WallTool.new(rig, world, flora, paths)
 	builds.add_child(tool)
 	tool.masonry.placed.connect(look.bounce.place)
+	hand_stop = HandStop.new(rig, tool, flora)
+	add_child(hand_stop)
 	fitting_tool = FittingTool.new(rig, tool, world)
 	add_child(fitting_tool)
 	delete_tool = DeleteTool.new(rig, tool, flora_tool, world)

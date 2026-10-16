@@ -609,6 +609,20 @@ func solid_hit(origin: Vector3, dir: Vector3, reach: float, skip := {}) -> Dicti
 	return best
 
 
+## The standing trees and bushes whose ground circles reach into `area`, each as its parts.
+func solids_in(area: Rect2) -> Array[Array]:
+	var keys := {}
+	for j in range(floori(area.position.y / SOLID_CELL), floori(area.end.y / SOLID_CELL) + 1):
+		for i in range(floori(area.position.x / SOLID_CELL), floori(area.end.x / SOLID_CELL) + 1):
+			keys.merge(_solid_cells.get(Vector2i(i, j), {}))
+	var out: Array[Array] = []
+	for key: Vector2i in keys:
+		var solid: Solid = _solids[key]
+		if solid.parts[0].shown() and area.grow(solid.radius).has_point(solid.centre):
+			out.append(solid.parts)
+	return out
+
+
 func solids() -> Array[Array]:
 	var out: Array[Array] = []
 	for solid: Solid in _solids.values():
