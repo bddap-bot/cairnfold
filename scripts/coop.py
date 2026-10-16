@@ -10,10 +10,13 @@ import threading
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
+# The one deadline: every peer's --quit-after ends with it, less the time a quit takes, and ends any wait still pending.
+RUN_SECONDS = 180
+QUIT_MARGIN = 10
 
 
 def barrier(names):
-    return {"op": "until", "digests": names, "seconds": 60}
+    return {"op": "until", "digests": names}
 
 
 def sample(name, names, count):
@@ -49,7 +52,7 @@ def scripts(count):
                   barrier([f"{n}-final" for n in names])]
         if name == "join":
             steps += [{"op": "visit", "home": True},
-                      {"op": "until", "players": 1, "seconds": 5},
+                      {"op": "until", "players": 1},
                       {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": "home"}]
         else:
             steps += [barrier(["home"])]
@@ -103,14 +106,16 @@ def run(out, count):
 
     sampler = threading.Thread(target=monitor)
     sampler.start()
-    deadline = time.monotonic() + 180
+    deadline = time.monotonic() + RUN_SECONDS
+    # One of Session's blocks of PORTS = 8 host ports in its PORT_RANGE from 7480, so runs side by side spread out.
+    first = 7480 + 8 * random.randrange(7)
     files = ["crimsom-1.0.vrm", "godette-0.x.vrm", "crimsom-0.x.vrm"]
 
     def launch(name, port):
         args = ["godot4", "--headless", "--path", str(ROOT / "game"), "--xr-mode", "off",
                 "--", "--desktop", "--script", str(out / f"script-{name}.json"),
-                "--quit-after", "170", "--capture-dir", str(out), "--host-port", str(port),
-                "--beacon-port", str(beacon), "--port", str(port if name == "host" else 7480)]
+                "--quit-after", str(max(1, round(deadline - time.monotonic() - QUIT_MARGIN))), "--capture-dir", str(out), "--host-port", str(port),
+                "--beacon-port", str(beacon), "--port", str(port if name == "host" else first)]
         if name != "host":
             i = list(generated).index(name) - 1
             folder = out / f"avatars-{name}"
@@ -130,7 +135,7 @@ def run(out, count):
             time.sleep(0.1)
 
     try:
-        launch("host", 7480)
+        launch("host", first)
         def host_port():
             for line in (out / "host.log").read_text().splitlines():
                 if line.startswith("session: hosting on port "):

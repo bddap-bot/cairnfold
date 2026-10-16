@@ -38,3 +38,12 @@ class CoopPlayers(unittest.TestCase):
                             self.assertNotEqual(before["op"], "wait")
                     samples = [s for s in steps if s["op"] == "network_sample"]
                     self.assertEqual(len(samples), 2 if name in ("host", "join") and count > 2 else 1)
+
+    def test_waits_end_only_with_the_run(self):
+        # A late peer starts, imports and builds after the others, as fast as the machine allows.
+        for count in (2, 4, 8):
+            for name, steps in self.harness().scripts(count).items():
+                for step in steps:
+                    if step["op"] == "until":
+                        with self.subTest(count=count, name=name, step=step):
+                            self.assertNotIn("seconds", step)

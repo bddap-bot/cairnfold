@@ -29,6 +29,7 @@ var main: Node
 var steps: Array
 var _eye := Vector3.ZERO
 var _at := Vector3.FORWARD
+var _waiting := {}
 
 
 func _init(owner: Node, script: Array) -> void:
@@ -57,6 +58,11 @@ func _run() -> void:
 	await _standing()
 	print("driver: done")
 	finished.emit()
+
+
+func _exit_tree() -> void:
+	if not _waiting.is_empty():
+		push_error("driver: until %s timed out" % _waiting)
 
 
 func _standing() -> void:
@@ -602,18 +608,22 @@ func _visit(s: Dictionary) -> void:
 
 ## Waits until the garden has applied command `seq`, `players` share it, `worn` of them show their own avatar files, the
 ## `digests` named have been written to the capture directory (by any player), or with "heard" the host's beacon is
-## heard, for at most `seconds`.
+## heard, for at most `seconds`. Without them only the run's end stops the wait, reported as timed out: how long
+## another player takes to start and catch up is the machine's load, not the script's.
 func _until(s: Dictionary) -> void:
 	var dir := str(main.args.get("capture-dir", "user://captures"))
 	var t := 0.0
-	while t < s.get("seconds", 20.0):
+	_waiting = s
+	while t < s.get("seconds", INF):
 		var w: World = main.world
 		var worn: int = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.source != "").size()
 		var digested: bool = s.get("digests", []).all(func(n: String) -> bool: return FileAccess.file_exists(dir.path_join(n + ".json")))
 		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
+			_waiting = {}
 			return
 		await get_tree().process_frame
 		t += get_process_delta_time()
+	_waiting = {}
 	push_error("driver: until %s timed out" % s)
 
 
