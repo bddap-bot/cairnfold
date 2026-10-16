@@ -798,8 +798,17 @@ func pick_roof(origin: Vector3, dir: Vector3) -> Dictionary:
 			continue
 		var t := w.roof.ray_hit(origin, dir)
 		if t < best.get("along", INF):
-			best = {"wall": w, "along": t, "point": origin + dir * t}
+			best = {"wall": w, "along": t, "point": origin + dir * t, "flat": w.roof.flat()}
 	return best
+
+
+## The ground at (x, z), or the flat roof standing over it.
+func floor_at(x: float, z: float) -> float:
+	var y := Terrain.height_at(x, z)
+	for w in walls:
+		if w.roof != null and w.roof.flat() and w.roof.over(x, z):
+			y = maxf(y, w.roof.base)
+	return y
 
 
 ## What a ray from a walls hand builds on: the nearer of the ground and the top of a build, as {point, on}, `on`

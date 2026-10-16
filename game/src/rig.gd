@@ -25,6 +25,10 @@ var aim_hand: Hand
 var air_reach := AIR_REACH
 var aim_ground: Variant = null
 var aim_lift := 0.0
+## What the player stands on at (x, z): the ground, or a flat roof over it.
+var floor_at := func(x: float, z: float) -> float: return Terrain.height_at(x, z)
+## The nearest roof along a ray, as `WallTool.pick_roof` finds it: {along, point, flat}, or empty.
+var roof_hit := func(_origin: Vector3, _dir: Vector3) -> Dictionary: return {}
 var _turned := false
 var _fade_t := -1.0
 var _pending: Variant = null
@@ -129,13 +133,21 @@ func _locomotion_input(delta: float) -> void:
 			_turned = false
 
 
-## Cast the teleport ray from a pointing pose. It lands on the ground it hits; aimed above the horizon with no ground within `air_reach`, it targets the point in the air at that reach.
+## Cast the teleport ray from a pointing pose. It lands on the ground or flat roof it hits; a pitched roof stops it
+## with no target; aimed above the horizon with nothing within `air_reach`, it targets the point in the air at that reach.
 func aim(from: Transform3D) -> void:
 	var origin := from.origin
 	var dir := -from.basis.z.normalized()
 	var upward := dir.y > 0.0
 	var reach := air_reach if upward else MAX_REACH
 	var hit: Variant = Terrain.raycast(origin, dir, reach)
+	var roof: Dictionary = roof_hit.call(origin, dir)
+	if not roof.is_empty() and roof.along <= reach and (hit == null or roof.along < origin.distance_to(hit)):
+		hit = roof.point if roof.flat else null
+		if hit == null:
+			aim_ground = null
+			hide_markers()
+			return
 	var target: Vector3
 	if hit != null:
 		target = hit
@@ -145,7 +157,7 @@ func aim(from: Transform3D) -> void:
 		aim_ground = null
 		hide_markers()
 		return
-	var g := Terrain.height_at(target.x, target.z)
+	var g: float = floor_at.call(target.x, target.z)
 	aim_ground = Vector3(target.x, g, target.z)
 	aim_lift = clampf(target.y - g, 0.0, MAX_LIFT)
 	if aim_hand != null:

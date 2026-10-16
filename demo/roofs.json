@@ -15,5 +15,14 @@
   {"op": "capture", "name": "02-flat-house-terrace"},
   {"op": "view", "eye": [9, 9, -3], "at": [4, 4.5, -9]},
   {"op": "capture", "name": "03-flat-tower"},
+  {"op": "view", "eye": [3.5, 4.0, 0.4], "at": [3.5, 2.5, -2.6]},
+  {"op": "capture", "name": "04-deck-joints"},
+  {"op": "view", "eye": [-1.5, 8.5, -4.5], "at": [4.2, 4.6, -9]},
+  {"op": "capture", "name": "05-tower-deck-joints"},
+  {"op": "place", "x": 3.5, "z": 7, "lift": 4},
+  {"op": "view", "eye": [0, 0, 0], "at": [0, -3, -4.6], "relative": true},
+  {"op": "aim", "dir": [0.05, -0.3, -1], "seconds": 1.0, "capture": "06-aim-onto-flat-roof"},
+  {"op": "view", "eye": [3.9, 4.2, -1.2], "at": [4.6, 2.9, -3.4]},
+  {"op": "capture", "name": "07-standing-on-flat-roof"},
   {"op": "quit"}
 ]

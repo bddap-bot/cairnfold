@@ -18,6 +18,8 @@ var finished := false
 var id := -1
 ## The roof on a house or tower, laid again with the walls under it.
 var roof: RoofLayout
+## The walls' own mortar, which a deck's bed joins in Part.MORTAR.
+var _wall_mortar := PackedFloat32Array()
 ## The ids of the builds it stands on; empty on the ground.
 var on := PackedInt32Array()
 ## The room it takes up as last laid, for the builds it meets (WallTool).
@@ -359,6 +361,12 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind])
 	built.hide_roof(r)
 	var tile := ks[Part.TILE]
 	var shadow := ks[Part.TILE_SHADOW]
+	var bed := ks[Part.MORTAR]
+	var mortar := PackedFloat32Array()
+	mortar.resize(r.mortar.size() * bed.stride())
+	for i in r.mortar.size():
+		var m: Dictionary = r.mortar[i]
+		bed.write(mortar, i, m.xform, m.color, m.ao, Palette.code(m.kind))
 	var tiles := PackedFloat32Array()
 	tiles.resize(r.tiles.size() * tile.stride())
 	var shadows := PackedFloat32Array()
@@ -367,7 +375,7 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind])
 		var t: Dictionary = r.tiles[i]
 		tile.write(tiles, i, t.xform, t.color, t.ao, Palette.code(t.kind))
 		shadow.write(shadows, i, t.xform)
-	return {"roof": r, "tiles": tiles, "shadows": shadows, "chunks": {Part.TILE: Masonry.split(tiles, tile.stride()), Part.TILE_SHADOW: Masonry.split(shadows, shadow.stride())}}
+	return {"roof": r, "tiles": tiles, "shadows": shadows, "chunks": {Part.TILE: Masonry.split(tiles, tile.stride()), Part.TILE_SHADOW: Masonry.split(shadows, shadow.stride())}, "mortar": mortar}
 
 
 func _pack_roof(roofed := {}) -> void:
@@ -379,6 +387,9 @@ func _pack_roof(roofed := {}) -> void:
 	_parts[Part.TILE_SHADOW] = roofed.shadows
 	for part in roofed.chunks:
 		_chunked[part] = roofed.chunks[part]
+	if not roofed.mortar.is_empty():
+		_parts[Part.MORTAR] = _wall_mortar + roofed.mortar
+		_chunked[Part.MORTAR] = Masonry.split(_parts[Part.MORTAR], kinds()[Part.MORTAR].stride())
 	_fittings.lay(layout.flames, layout.cloths + roof.cloths)
 	var tris := roof.gable_faces
 	if tris.is_empty():
@@ -434,6 +445,7 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind]) -> Dictionary:
 
 func _take(packed: Dictionary) -> void:
 	_parts[Part.STONE] = packed.stone
+	_wall_mortar = packed.mortar
 	_parts[Part.MORTAR] = packed.mortar
 	_parts[Part.STONE_SHADOW] = packed.shadow
 	for part in packed.chunks:

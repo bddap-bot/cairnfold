@@ -368,6 +368,23 @@ func _a_flat_roof_is_a_deck_inside_the_walls() -> void:
 	var t := r.ray_hit(Vector3(3, 10, 1), Vector3.DOWN)
 	_check(absf(t - (10.0 - r.base)) < 0.01, "pointing down at the deck hits it at the cap's height: %f" % t)
 	_check(r.ray_hit(Vector3(3, 10, 3.0), Vector3.DOWN) == INF, "a flat roof has no eave beyond the walls")
+	var open := 0
+	for i in 60:
+		for j in 40:
+			var p := Vector2(3.0 + (i / 59.0 - 0.5) * 2.0 * inner.x, (j / 39.0 - 0.5) * 2.0 * inner.y)
+			if not r.mortar.any(func(m): return _covers(m.xform, p)):
+				open += 1
+	_check(open == 0 and r.mortar.all(func(m): return m.xform.origin.y + m.xform.basis.y.length() * 0.5 < r.base - RoofLayout.DECK_DROP), "a mortar bed under the flags leaves no joint open to the floor: %d of 2400 points open" % open)
+	_check(_gable(6.0, 4.0, 2.0, 0.0).mortar.is_empty(), "a pitched roof lays no bed")
+	var round := _flat_cone()
+	var ring_open := 0
+	for i in 24:
+		for j in 12:
+			var a := TAU * i / 24.0
+			var rho := (2.0 - WallLayout.THICKNESS * 0.5) * j / 12.0
+			if not round.mortar.any(func(m): return _covers(m.xform, Vector2(1 + cos(a) * rho, 1 + sin(a) * rho))):
+				ring_open += 1
+	_check(ring_open == 0, "a tower's deck bed leaves no joint open: %d of 288 points open" % ring_open)
 	r.chimneys.assign([Vector2(1.0, 1.0)])
 	r.build()
 	_check(not _of(r, "chimney").is_empty(), "a chimney still stands on a flat roof")
@@ -388,6 +405,7 @@ func _a_deck_is_rimmed_by_the_top_style() -> void:
 	var top := w.height + WallLayout.CAP
 	var rim := w.stones.filter(func(s): return s.y > top)
 	_check(rim.any(func(s): return s.kind == "cap" and s.y > top + WallLayout.PARAPET), "a cap top on a deck rises into a coped parapet")
+	_check(rim.any(func(s): return s.kind == "mortar"), "the parapet's joints are mortared")
 	_check(rim.filter(func(s): return s.kind == "block").reduce(func(m, s): return m + s.size.x, 0.0) > w.length() - 0.1, "the parapet runs all the way round")
 	var piers := w.stones.filter(func(s): return s.kind == "pier")
 	_check(piers.reduce(func(m, s): return maxf(m, s.y), 0.0) > top + WallLayout.PARAPET, "corner piers rise past the parapet")
@@ -418,3 +436,8 @@ func _roof_surfaces_have_no_degenerate_triangles() -> void:
 		_check(not r.faces.is_empty() and _degenerate(r.faces) == 0, "pitch %.1f %s: %d of %d surface triangles degenerate" % [r.pitch, RoofLayout.Kind.keys()[r.kind], _degenerate(r.faces), r.faces.size() / 3])
 		_check(_degenerate(r.gable_faces) == 0, "pitch %.1f: gable ends have no degenerate triangles" % r.pitch)
 		_check(r.tiles.all(func(t): return absf(t.xform.basis.determinant()) > 1e-6), "pitch %.1f: no flattened tiles" % r.pitch)
+
+
+func _covers(x: Transform3D, p: Vector2) -> bool:
+	var local := x.affine_inverse() * Vector3(p.x, x.origin.y, p.y)
+	return absf(local.x) <= 0.5 and absf(local.z) <= 0.5

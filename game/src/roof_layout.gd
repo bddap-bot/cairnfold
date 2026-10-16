@@ -20,6 +20,7 @@ const SLAB := Vector3(0.7, 0.1, 0.5)
 ## How far the deck runs in under the cap's inner lip, and how far below the cap's top it lies.
 const DECK_TUCK := 0.06
 const DECK_DROP := 0.03
+const BED_LAP := 0.2
 const CURVE := 1.0
 const PROFILE_STEPS := 8
 const STACK_WIDTH := 0.66
@@ -43,6 +44,8 @@ var chimneys: Array[Vector2] = []
 var flag := false
 
 var tiles: Array[Dictionary] = []
+## Plain mortar boxes bedding a deck's flags, so its joints show mortar rather than the floor below.
+var mortar: Array[Dictionary] = []
 var cloths: Array[Dictionary] = []
 ## The surface triangles from the last build, kept for pointing.
 var faces := PackedVector3Array()
@@ -78,6 +81,7 @@ func adopt(built: RoofLayout) -> void:
 	base = built.base
 	corners = built.corners
 	tiles = built.tiles
+	mortar = built.mortar
 	cloths = built.cloths
 	faces = built.faces
 	gable_faces = built.gable_faces
@@ -107,6 +111,15 @@ func height_at(x: float, z: float) -> float:
 	var d := Vector3(x, 0.0, z) - Vector3(f.mid.x, 0.0, f.mid.z)
 	var out := d.length() if kind == Kind.CONE else absf(d.dot(f.across))
 	return base + rise(1.0 - out / half_span())
+
+
+## Whether the ground point (x, z) lies under the roof, between the walls' outer faces.
+func over(x: float, z: float) -> bool:
+	var f := frame()
+	var d := Vector3(x - f.mid.x, 0.0, z - f.mid.z)
+	if kind == Kind.CONE:
+		return d.length() <= half_span()
+	return absf(d.dot(f.across)) <= half_span() and absf(d.dot(f.along)) <= ridge_length() * 0.5 + WallLayout.THICKNESS * 0.5
 
 
 ## Distance from the ridge (or axis) out to the walls' outer faces, where the roof rests.
@@ -157,6 +170,7 @@ func build() -> void:
 	for p in faces + gable_faces:
 		bounds = bounds.expand(p)
 	tiles.clear()
+	mortar.clear()
 	cloths.clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
@@ -231,11 +245,14 @@ func _lay_deck(rng: RandomNumberGenerator) -> void:
 		row += 1
 
 
-## One flag of the deck, `size` across its top, a hair smaller for the joint and a hair tilted.
+## One flag of the deck, `size` across its top, a hair smaller for the joint and a hair tilted, on a mortar bed
+## reaching past it into its neighbours' so no gap, rounded corners' included, opens onto the floor below.
 func _slab(at: Vector3, basis: Basis, size: Vector2, rng: RandomNumberGenerator) -> void:
 	var b := basis * Basis.from_euler(Vector3(rng.randf_range(-0.01, 0.01), rng.randf_range(-0.02, 0.02), rng.randf_range(-0.01, 0.01)))
 	var color := WallLayout.stone_color(rng) * rng.randf_range(0.86, 0.98)
 	_add(Transform3D(b.scaled_local(Vector3(size.x - 0.025, SLAB.y, size.y - 0.025)), at + Vector3.UP * rng.randf_range(-0.006, 0.006)), "deck", color, 0.9)
+	var bed := Vector3(size.x + BED_LAP, SLAB.y * 0.7, size.y + BED_LAP)
+	mortar.append({"xform": Transform3D(basis.scaled_local(bed), at + Vector3.UP * (SLAB.y * 0.2 - bed.y * 0.5)), "color": WallLayout.MORTAR, "kind": "mortar", "ao": 0.8})
 
 
 ## A chimney's place clamped onto the roof, clear of the gable ends and the eaves.

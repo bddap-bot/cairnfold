@@ -16,6 +16,7 @@ func _initialize() -> void:
 
 
 func _finish(rig: Rig) -> void:
+	_a_flat_roof_is_floor_and_a_pitched_one_stops_the_ray(rig)
 	await _stick_teleports_with_every_tool(rig)
 	await _view_holds_after_teleport(rig, 0.0)
 	await _view_holds_after_teleport(rig, 12.0)
@@ -68,6 +69,32 @@ func _air_reach_stops_at_nearer_ground(rig: Rig) -> void:
 		return
 	rig.aim(_pose(o, dir))
 	_check(rig.aim_lift < 0.15 and rig.aim_ground.distance_to(hill) < 0.1, "a rising ray that meets a hillside within reach lands on it")
+
+
+func _a_flat_roof_is_floor_and_a_pitched_one_stops_the_ray(rig: Rig) -> void:
+	var r := RoofLayout.new()
+	var ground := Terrain.height_at(0, -20)
+	r.corners = WallLayout.rectangle(Vector3(-3, ground, -20), Vector3(3, ground, -20), 4.0)
+	r.base = ground + 3.0
+	r.pitch = 0.0
+	r.build()
+	rig.floor_at = func(x: float, z: float) -> float: return maxf(Terrain.height_at(x, z), r.base if r.flat() and r.over(x, z) else -INF)
+	rig.roof_hit = func(o: Vector3, d: Vector3) -> Dictionary:
+		var t := r.ray_hit(o, d)
+		return {} if t == INF else {"along": t, "point": o + d * t, "flat": r.flat()}
+	var o := Vector3(0, r.base + 4.0, -14)
+	rig.aim(_pose(o, Vector3(0, -4.0, -5.0)))
+	_check(rig.aim_ground != null and absf(rig.aim_ground.y - r.base) < 0.01 and rig.aim_lift < 0.15, "a ray onto a flat roof lands on its deck: %s" % [rig.aim_ground])
+	if rig.aim_ground != null:
+		rig.place(rig.aim_ground, rig.aim_lift)
+		_check(absf(rig.global_position.y - r.base) < 0.2, "the player stands on the deck, not inside the house: %.2f for %.2f" % [rig.global_position.y, r.base])
+	r.pitch = 2.0
+	r.build()
+	rig.aim(_pose(o, Vector3(0, -4.0, -5.0)))
+	_check(rig.aim_ground == null, "a pitched roof stops the ray: no landing inside the house beneath it")
+	rig.floor_at = func(x: float, z: float) -> float: return Terrain.height_at(x, z)
+	rig.roof_hit = func(_o: Vector3, _d: Vector3) -> Dictionary: return {}
+	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 
 
 func _no_teleport_tool() -> void:

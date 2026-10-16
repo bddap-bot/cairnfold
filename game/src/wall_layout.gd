@@ -61,6 +61,7 @@ const GLASS := Color(0.12, 0.17, 0.22)
 const PLASTER := Color(0.86, 0.8, 0.68)
 ## The stone walls are laid in, before each stone's variation.
 const STONE := Color(0.66, 0.61, 0.53)
+const MORTAR := Color(0.32, 0.29, 0.25)
 ## A ruin's broken ends lean back by up to this much a course, out to at most RUIN_LEAN, ragged by RUIN_JAG.
 const RUIN_STEP := Vector2(0.03, 0.22)
 const RUIN_LEAN := 1.6
@@ -683,14 +684,14 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 		s += l
 
 
-func _lay_mortar(a: float, b: float, y0: float, h: float) -> void:
+func _lay_mortar(a: float, b: float, y0: float, h: float, thick := THICKNESS) -> void:
 	var s := a
 	while b - s > 0.02:
 		var l := minf(_stone_scale, b - s)
 		var frame := frame_at(s + l * 0.5)
 		var basis := Basis(frame.tangent, Vector3.UP, frame.tangent.cross(Vector3.UP))
-		var size := Vector3(l, h + 0.02, THICKNESS - (0.04 if plaster and y0 > 0.0 else 0.14))
-		stones.append({"xform": Transform3D(basis.scaled_local(size), frame.point + Vector3.UP * (y0 + h * 0.5)), "color": PLASTER if plaster and y0 > 0.0 else Color(0.32, 0.29, 0.25), "kind": "plaster" if plaster and y0 > 0.0 else "mortar", "s": s + l * 0.5, "y": y0 + h * 0.5, "size": size, "ao": 1.0 if plaster else 0.8, "variant": 0})
+		var size := Vector3(l, h + 0.02, thick - (0.04 if plaster and y0 > 0.0 else 0.14))
+		stones.append({"xform": Transform3D(basis.scaled_local(size), frame.point + Vector3.UP * (y0 + h * 0.5)), "color": PLASTER if plaster and y0 > 0.0 else MORTAR, "kind": "plaster" if plaster and y0 > 0.0 else "mortar", "s": s + l * 0.5, "y": y0 + h * 0.5, "size": size, "ao": 1.0 if plaster else 0.8, "variant": 0})
 		s += l
 
 
@@ -822,6 +823,7 @@ func _lay_parapet(a: float, total: float, rng: RandomNumberGenerator) -> void:
 			l = total - s
 		_add(s + l * 0.5, y + PARAPET * 0.5, Vector3(l, PARAPET, THICKNESS * 0.62), rng, "block", 1.0, 0.02)
 		s += l
+	_lay_mortar(a, total, y, PARAPET, THICKNESS * 0.62)
 	s = a
 	while total - s > 0.05:
 		var l := minf(rng.randf_range(0.6, 1.0), total - s)
