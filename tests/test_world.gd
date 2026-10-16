@@ -31,6 +31,7 @@ func _run() -> void:
 	_snapshot_rebuilds_the_garden()
 	_restore_forgets_history()
 	await _a_storey_follows_what_it_stands_on()
+	_a_stroke_painted_out_of_step_stays_shown()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -336,3 +337,37 @@ func _snapshot_rebuilds_the_garden() -> void:
 
 func _picture() -> String:
 	return var_to_str(world.digest())
+
+
+## A visitor whose garden fell out of step with the host's drops what the host sends until the whole garden comes
+## again, its own strokes among it; a stroke painted meanwhile stays shown until then and stands in what comes.
+func _a_stroke_painted_out_of_step_stays_shown() -> void:
+	var flora: Flora = main.flora_tool.flora
+	var tool: FloraTool = main.flora_tool
+	var home := world.snapshot()
+	var real := main.multiplayer.multiplayer_peer
+	var client := ENetMultiplayerPeer.new()
+	client.create_client("127.0.0.1", 9)
+	main.multiplayer.multiplayer_peer = client
+	world._commit({"op": "reshape", "id": 123456, "data": {"height": 3.0}, "seq": world.seq + 1, "by": 1})
+	var b := tool.brushes[0]
+	b.hand.tool = Hand.Tool.FLOWERS
+	for i in 30:
+		tool.paint(b, Terrain.ground(-20 + i * 0.1, 30), 1.0, 1.0 / 30.0)
+	var painted := b.stroke.filter(func(p: Variant) -> bool: return p != null)
+	var cmd := {"op": "plant", "kind": b.kind, "seed": b.rng.seed, "dabs": b.dabs.duplicate(true)}
+	tool.end_stroke(b)
+	var mine := cmd.duplicate(true)
+	mine.merge({"id": world.seq + 2, "seq": world.seq + 2, "by": world.me(), "token": world._next_token})
+	world._commit(mine)
+	_check(not painted.is_empty() and painted.all(func(p: Flora.Plant) -> bool: return p.shown()), "a stroke the out-of-step garden cannot take yet stays shown (%d painted)" % painted.size())
+	var cmds: Array = home.cmds.duplicate(true)
+	cmd.merge({"id": home.seq + 1, "seq": home.seq + 1, "by": world.me()})
+	cmds.append(cmd)
+	world._welcome({"seq": home.seq + 1, "cmds": cmds})
+	var grown: Array = flora.groups.get(home.seq + 1, []).filter(func(p: Variant) -> bool: return p != null and p.shown())
+	_check(grown.size() == painted.size(), "and stands in the garden the host sends: %d of %d" % [grown.size(), painted.size()])
+	_check(flora.ghost_flowers.size() == 0, "its ghost gone once it stands")
+	client.close()
+	main.multiplayer.multiplayer_peer = real
+	world.restore(home)

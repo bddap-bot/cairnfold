@@ -241,8 +241,7 @@ func _refused(token: int) -> void:
 func _commit(sent: Dictionary) -> void:
 	var cmd := {} if _awaiting else Commands.clean(sent, state, true)
 	if cmd.is_empty():
-		if sent.get("by") == me() and typeof(sent.get("token")) == TYPE_INT:
-			_settle(sent.token)
+		# Our own stroke's ghost stays until the garden it is in comes back: `restore` settles it.
 		if not _awaiting:
 			push_error("world: the host sent a command this garden cannot apply: %s; asking for the garden again" % sent.get("op"))
 			_awaiting = true
