@@ -533,10 +533,10 @@ Directive (verbatim):
 > My motivation for these thoughts are not wanting myself or my players to need to think about or tweak settings, but still see things as pretty as possible but still experience buttery framerate.
 
 **Decision: the one graphics configuration is a ladder of steps, walked by the GPU time of
-every frame.** `Quality` (`game/src/quality.gd`) first draws settled stones in full only to 8 m
-instead of 16 m and ivy to 25 m instead of 35 m, then grass to 24, 20, 16, 13 or 10 m; below those,
-flowers to 20 m instead of 60 m, then foliage from coarser blobs, and last stones in full to 4 m
-and ivy to 12 m. A governor reads each
+every frame.** `Quality` (`game/src/quality.gd`) first draws the meadow's sparse far grass to 60,
+48, 36 or 30 m before holding it at 24 m, then settled stones in full only to 8 m instead of 16 m
+and ivy to 25 m instead of 35 m; below those, flowers to 20 m instead of 60 m, then foliage from
+coarser blobs, and last stones in full to 4 m and ivy to 12 m. A governor reads each
 frame's GPU time and steps down the ladder at once when frames run over the refresh period or
 their average over its line, and back up only after a calm spell with room for what the step
 saved. Every headset starts at the top and settles on
@@ -564,9 +564,9 @@ half-millisecond noise. The GPU is bound by vertices, not pixels (see "Flora on 
 below for why the render region does not help), so grass reach is the only one of these that
 buys time; the others would cost looks for nothing and are not on the ladder. A knob joins it
 only with a measured saving. Grass reach changes at no frame cost:
-`Flora.grass_reach` hides whole 16 m grass cells beyond it and sets one shader uniform over
-which blades shrink into the ground over the last 8 m, and it moves toward each new step at
-8 m a second, so the meadow's edge recedes rather than jumps. Ruled out for any later knob
+`Flora.grass_reach` hides whole 8 m grass cells beyond it and sets one shader uniform over
+whose second half the surviving clumps sink into the ground one at a time, and it moves toward
+each new step at 8 m a second, so the meadow thins rather than ends. Ruled out for any later knob
 because they reallocate or recompile mid-play: MSAA level, shadow atlas size, toggling
 shadows or glow (pipeline variants), the render-target multiplier (Godot frees and
 recreates the swapchain when it changes) and `Viewport.scaling_3d_scale` (see "Which knobs
@@ -920,8 +920,8 @@ defined once: tunables as uniforms in `grass.gdshader` and, for the wind every p
 | 9 | Grass parts around the hands | The meadow responds to touch: reaching into it pushes blades aside and down | Two distance tests per vertex; two uniforms set per frame | Done (`hand_radius`) |
 | 10 | Per-blade Bezier curves with more segments | Smooth arcs instead of a two-segment bend | Vertex count grows with segments: about twice today's for a smooth curve | Not yet: needs headroom measured on the device |
 | 11 | View-space thickening (Tsushima: widen blades seen edge-on) | No vanishing slivers; less thin-geometry aliasing | A few vertex operations, but needs each blade's facing per vertex | Not yet |
-| 12 | Distance LOD: fewer, wider blades far away | Larger meadows at the same cost | From 8 m out, over 4 m, a clump keeps 3 of its 7 blades, widened to cover the same ground, and the rest shrink to their roots: one mesh, chosen per vertex (`Meshes.grass_clump`), so nothing pops at a band's edge. The dropped blades' vertices still run, but their slivers are no longer drawn (see "Flora on the Quest 2") | Done |
-| 13 | Draw reach | Beyond `Flora.grass_reach` (24 m at full quality, less down the ladder) the terrain's own colour carries the meadow; blades shrink into the ground over the last `draw_fade` (8 m), so nothing pops | Saves the far, sub-pixel blades that cost the Quest 2 most of its frame: the meadow's grass is baked into 16 m cells, and cells wholly out of reach are not drawn | Done |
+| 12 | Distance LOD: fewer, wider, sparser clumps far away | The meadow reads to its far edge at less cost than a 24 m full-detail reach | From 8 m out, over 4 m (`Flora.GRASS_LOD_BEGIN`, `GRASS_LOD_BAND`), a clump keeps 3 of its 7 blades, widened to cover the same ground, and three clumps in four sink into the ground, each at its own distance by its rank (`FloraLayout.thin_rank`); the survivors spread twice as wide and stand a quarter taller to hold the cover. The meadow's grass is baked into 8 m cells, each also holding its survivors alone in a mesh of only their kept blades: a cell wholly past 12 m draws that instead, so far clumps bin 15 vertices rather than 35 and the sunk three quarters bin none. Nothing pops: by the distance a cell switches, what it stops drawing has already sunk away | Done |
+| 13 | Draw reach and ground | Survivors sink away one at a time from half of `Flora.grass_reach` (60 m at full quality, less down the ladder) out to it, so the meadow thins into the ground instead of ending at a ring of growing blades. The ground takes its colour from the blades' own palette (`meadow.gdshaderinc`, set from `Meadow.GRASS`) at the tone far blades converge on, and its lush and dry patches from the same field as the blades' (`FloraLayout.dryness`, baked into the terrain mesh), so where the blades thin the ground carries on the meadow they were | Cells wholly out of reach are not drawn | Done |
 
 Ruled out on this target: alpha-tested or dithered fades (break early depth on
 the tiler), screen-space or impostor grass shadows, and specular on blades
