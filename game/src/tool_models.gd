@@ -2,7 +2,8 @@ class_name ToolModels
 extends RefCounted
 
 ## The small objects that stand for each tool on a controller: miniatures of what the tool makes,
-## built from the same generators and meshes as the full-size things, standing on y = 0. The meadow's
+## built from the same generators and meshes as the full-size things, standing on y = 0. Their stones are
+## the far stone: a few millimetres across, the full one's triangles cost the Frame milliseconds for nothing. The meadow's
 ## plant shaders lift each instance by the terrain under it, so these carry plain materials of their own.
 
 ## The camera model's lens, from the model's origin; PhotoTool takes photos from here.
@@ -669,8 +670,10 @@ static func _stones(root: Node3D, stones: Array[Dictionary], scale: float) -> vo
 		mi.multimesh.buffer = buffer
 		node.add_child(mi)
 	node.scale = Vector3.ONE * scale
-	for mmi in node.get_children():
-		(mmi as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	for mmi: MultiMeshInstance3D in node.get_children():
+		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		if mmi.multimesh.mesh == Stones.mesh():
+			mmi.multimesh.mesh = Stones.far_mesh()
 	root.add_child(node)
 
 

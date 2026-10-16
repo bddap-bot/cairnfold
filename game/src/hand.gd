@@ -319,6 +319,8 @@ func _show_wheel(delta: float) -> void:
 		var hot: bool = levels[0].hot == i
 		var target := 0.0 if inside and not hot else (HOT if hot and not inside else IDLE)
 		_slots[i].scale = _slots[i].scale.lerp(Vector3.ONE * target, k)
+		# Shrunk to nothing, an icon would still run its vertices.
+		_slots[i].visible = target > 0.0 or _slots[i].scale.x > 0.01
 		for j in _subs[i].size():
 			var item: Node3D = _subs[i][j]
 			item.visible = inside and hot
