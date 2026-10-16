@@ -168,7 +168,8 @@ pulled and a wall top changing are laid on a worker thread while the stones stan
 view; the garden's copy of a wall in hand takes the stones the player's preview already laid
 when they were laid from the same inputs. Each edit now costs 1 to 3 ms of main-thread script
 (20 to 30 ms before, headless). The houses phase's edits (a tower, a house, two roofs reshaped,
-a wall top changed), each followed by 10 s, with the ladder held at its first step:
+a wall top changed), each followed by 10 s, with the ladder held at its first step, then at
+full 3D resolution:
 
 | Build | Frames over 1.5× the refresh period |
 | --- | --- |
@@ -188,10 +189,20 @@ stepped down. The line is now 0.80 of the period:
 | 0.80, the phase up to its capture | 1, 1, 1 |
 | 0.80, the whole of `demo/headset.json` | 34, 1 |
 
-Every one of those at 0.80 follows the step to 0.9 resolution itself, which the governor now
-takes before the runtime's line. Switching to 0.9 costs a 25 to 72 ms frame now and then, most
-often after a long spell at full resolution, and once that frame took the runtime to every
-other refresh for half a second (the 34); switching back to full resolution has cost nothing.
+Every one of those at 0.80 followed the ladder's step to 0.9 resolution itself, which the
+governor took before the runtime's line: switching to 0.9 cost a 25 to 72 ms frame now and
+then, and once that frame took the runtime to every other refresh for half a second (the 34).
+The Frame now renders at 0.9 from launch and the ladder no longer changes the resolution (see
+"Which knobs matter").
+
+`demo/headset.json` on 5a0292a against the same build held at 0.9 from launch, three runs each,
+late frames (over 1.5× the refresh period) and GPU time per frame (fdinfo):
+
+| Phase | Stepping down to 0.9 | Held at 0.9 |
+| --- | --- | --- |
+| Houses | 34, 2, 34; 9.65 ms | 0, 0, 0; 9.6 to 9.7 ms |
+| Paths | 66, 0, 0 | 0, 0, 0 |
+| Erase | 0, 0, 0 | 0, 0, 0 |
 An earlier pair of runs with the line at 0.82 gave 1 and 75 late frames; they were not split
 by cause.
 `scripts/bench.sh` with `NESTCOMBE_SCENE=demo/headset.json` runs this check on the Frame; its
@@ -389,8 +400,8 @@ Directive (verbatim):
 > My motivation for these thoughts are not wanting myself or my players to need to think about or tweak settings, but still see things as pretty as possible but still experience buttery framerate.
 
 **Decision: the one graphics configuration is a ladder of steps, walked by the GPU time of
-every frame.** `Quality` (`game/src/quality.gd`) first renders the 3D scene at 0.9 of the
-render target's width and height, then draws grass to 24, 20, 16, 13 or 10 m; below those,
+every frame.** `Quality` (`game/src/quality.gd`) first draws settled stones in full only to 8 m
+instead of 16 m and ivy to 25 m instead of 35 m, then grass to 24, 20, 16, 13 or 10 m; below those,
 flowers to 20 m instead of 60 m, and then foliage from coarser blobs. A governor reads each
 frame's GPU time and steps down the ladder at once when frames run over the refresh period or
 their average over its line, and back up only after a calm spell with room for what the step
@@ -423,8 +434,9 @@ only with a measured saving. Grass reach changes at no frame cost:
 which blades shrink into the ground over the last 8 m, and it moves toward each new step at
 8 m a second, so the meadow's edge recedes rather than jumps. Ruled out for any later knob
 because they reallocate or recompile mid-play: MSAA level, shadow atlas size, toggling
-shadows or glow (pipeline variants) and the render-target multiplier (Godot frees and
-recreates the swapchain when it changes).
+shadows or glow (pipeline variants), the render-target multiplier (Godot frees and
+recreates the swapchain when it changes) and `Viewport.scaling_3d_scale` (see "Which knobs
+matter" below for the frame it cost on the Frame).
 
 On the Steam Frame the pixels are the cost. The houses phase of `demo/headset.json` (a tower
 and a house with two roofs 3 to 10 m from a floating eye) took the game's GPU time from 8.3 ms
@@ -444,16 +456,21 @@ GPU time per frame (fdinfo), median of each phase:
 | 3D resolution 0.8, the ladder's bottom step | 5.7 ms | 7.3 ms |
 
 A tenth off the 3D resolution saves more there than every reach step together, at a loss of
-sharpness that is hard to see, so it is the ladder's first step. The scene upscales into the
-same swapchain. The first frame at the lower resolution in a session took 30 to 70 ms and later
-switches cost nothing (switching every 5 s left no late frame after the first), so the
-governor's warm-up renders at the ladder's lowest resolution. On the Quest 2 neither this step
-nor the governor's line at 0.80 of the
-period (below) is measured yet: the render region there left the binned surface as it was,
-while this scale shrinks it.
+sharpness that is hard to see, so the Frame renders the 3D scene at 0.9 for the whole session
+(`Quality.FRAME_SCALE_3D`), upscaled into the same swapchain. It was the ladder's first step
+until the step itself proved the cost: changing the scale reallocates the scene's buffers, and
+stepping down to 0.9 mid-play cost a 25 to 72 ms frame now and then, which in the houses phase
+of `demo/headset.json` took the runtime to every other refresh for a second in two of three
+runs (31 late frames each). Switching every 3 s in place gave a late frame at three of six
+switches. Held at 0.9 from launch, the phase had none. The OpenXR render region, which shrinks
+the rendered rectangle inside the full-size eye texture without reallocating, saved nothing on
+the Frame: the houses took 10.7 ms a frame against 9.6 ms at the 0.9 scale, and the later
+phases fell to every other refresh. The Quest 2 renders at full resolution: there the 0.9
+scale is not measured yet, and its render region left the binned surface as it was, while this
+scale shrinks it.
 
 The Meta plugin's separate dynamic-resolution controller is disabled: its explicit render
-region can exceed the framebuffer after the game's governor shrinks it, making both eyes
+region can exceed the framebuffer once the 3D scale shrinks it, making both eyes
 black while timing reports an apparent improvement. The benchmark rejects this framebuffer
 error. Resolution changes must be checked against rendered eye images as well as timings.
 

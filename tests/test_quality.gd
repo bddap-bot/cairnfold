@@ -59,8 +59,8 @@ func _every_step_draws_less() -> void:
 	for i in steps.size() - 1:
 		var a := steps[i]
 		var b := steps[i + 1]
-		_check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.scaling_3d <= a.scaling_3d and b.stone_near_m <= a.stone_near_m and b.ivy_m <= a.ivy_m, "step %d draws no more than step %d" % [i + 1, i])
-		_check(b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail or b.scaling_3d < a.scaling_3d or b.stone_near_m < a.stone_near_m or b.ivy_m < a.ivy_m, "step %d draws less than step %d" % [i + 1, i])
+		_check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.stone_near_m <= a.stone_near_m and b.ivy_m <= a.ivy_m, "step %d draws no more than step %d" % [i + 1, i])
+		_check(b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail or b.stone_near_m < a.stone_near_m or b.ivy_m < a.ivy_m, "step %d draws less than step %d" % [i + 1, i])
 	var q := Quality.new(null, null)
 	_check(q.governor.bottom == steps.size() - 1, "the governor's bottom is the ladder's last step")
 	q.pin = 99
@@ -169,7 +169,6 @@ func _a_held_step_reaches_its_knobs() -> void:
 	q._process(0.1)
 	_check(not q._settled, "a step whose reaches are still moving is not settled")
 	_check(flora.blob_detail == bottom.blob_detail, "blob detail changes at once")
-	_check(is_equal_approx(q.view.scaling_3d_scale, bottom.scaling_3d), "and so does the 3D resolution")
 	for i in 100:
 		q._process(0.1)
 	_check(q._settled, "and settles once they arrive")

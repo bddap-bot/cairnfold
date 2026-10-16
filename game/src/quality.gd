@@ -5,41 +5,40 @@ extends Node
 ## frame takes, so every headset settles on the prettiest step it holds at its refresh rate. A knob is on it only with
 ## a saving measured on a headset (see "Automatic quality" in docs/design.md), and each moves at no frame cost.
 
-## One rung of the ladder. Reaches are in metres; `blob_detail` is `Meshes.blob`'s subdivisions; `scaling_3d` is the
-## share of the render target's width and height the 3D scene renders at, upscaled to it; settled stones beyond
+## One rung of the ladder. Reaches are in metres; `blob_detail` is `Meshes.blob`'s subdivisions; settled stones beyond
 ## `stone_near_m` are drawn with a twelfth of their triangles (Stones.far_mesh), and ivy shrinks away by `ivy_m`.
 class Step:
 	var grass_m: float
 	var flowers_m: float
 	var blob_detail: int
-	var scaling_3d: float
 	var stone_near_m: float
 	var ivy_m: float
 
-	func _init(grass: float, flowers: float, blobs: int, scale: float, stones: float, ivy: float) -> void:
+	func _init(grass: float, flowers: float, blobs: int, stones: float, ivy: float) -> void:
 		grass_m = grass
 		flowers_m = flowers
 		blob_detail = blobs
-		scaling_3d = scale
 		stone_near_m = stones
 		ivy_m = ivy
 
 
-## Full quality first, then cheapest loss per millisecond saved. A tenth off the 3D resolution saves more among
-## buildings on the Steam Frame than every reach step together. Flowers beyond 60 m are under two pixels across on
+## Full quality first, then cheapest loss per millisecond saved. Flowers beyond 60 m are under two pixels across on
 ## the Quest 2.
 static var ladder: Array[Step] = [
-	Step.new(24.0, 60.0, 2, 1.0, 16.0, 35.0),
-	Step.new(24.0, 60.0, 2, 0.9, 16.0, 35.0),
-	Step.new(24.0, 60.0, 2, 0.9, 8.0, 25.0),
-	Step.new(20.0, 60.0, 2, 0.9, 8.0, 25.0),
-	Step.new(16.0, 60.0, 2, 0.9, 8.0, 25.0),
-	Step.new(13.0, 60.0, 2, 0.9, 8.0, 25.0),
-	Step.new(10.0, 60.0, 2, 0.9, 8.0, 25.0),
-	Step.new(10.0, 20.0, 2, 0.9, 8.0, 25.0),
-	Step.new(10.0, 20.0, 1, 0.9, 8.0, 25.0),
-	Step.new(10.0, 20.0, 1, 0.9, 4.0, 12.0),
+	Step.new(24.0, 60.0, 2, 16.0, 35.0),
+	Step.new(24.0, 60.0, 2, 8.0, 25.0),
+	Step.new(20.0, 60.0, 2, 8.0, 25.0),
+	Step.new(16.0, 60.0, 2, 8.0, 25.0),
+	Step.new(13.0, 60.0, 2, 8.0, 25.0),
+	Step.new(10.0, 60.0, 2, 8.0, 25.0),
+	Step.new(10.0, 20.0, 2, 8.0, 25.0),
+	Step.new(10.0, 20.0, 1, 8.0, 25.0),
+	Step.new(10.0, 20.0, 1, 4.0, 12.0),
 ]
+## The share of each eye's width and height the Steam Frame renders the 3D scene at, upscaled to it. It is held for the
+## session rather than on the ladder: changing it reallocates the scene's buffers, and stepping down to it cost a 25 to
+## 72 ms frame there, enough to drop the game to every other refresh for a second. The Quest 2 is not measured at it.
+const FRAME_SCALE_3D := 0.9
 ## Grass and flower reach move toward their step at this many metres a second, so the edge recedes rather than jumps.
 const REACH_RATE := 8.0
 ## Seconds of rendered frames the governor sits out at the start: loading's first frames are not the scene's cost.
@@ -71,6 +70,9 @@ func _init(xr: OpenXRInterface, flora: Flora, masonry: Masonry = null) -> void:
 
 func _ready() -> void:
 	view = get_viewport()
+	if _xr != null and OS.get_name() != "Android":
+		view.scaling_3d_scale = FRAME_SCALE_3D
+		print("quality: 3D resolution %.2f" % FRAME_SCALE_3D)
 	RenderingServer.viewport_set_measure_render_time(view.get_viewport_rid(), true)
 
 
@@ -92,12 +94,6 @@ func _process(delta: float) -> void:
 		if pin < 0 and _warm > WARMUP and _settled:
 			governor.step(frame_ms, budget_ms, delta)
 	var at := ladder[step()]
-	# The first frame at a lower 3D resolution takes 30 to 70 ms on the Frame and later switches cost nothing, so the
-	# warm-up, whose frames are not the scene's cost, renders at the lowest first.
-	var scale := ladder[-1].scaling_3d if _xr != null and _warm < WARMUP * 0.5 else at.scaling_3d
-	if not is_equal_approx(view.scaling_3d_scale, scale):
-		view.scaling_3d_scale = scale
-		print("quality: 3D resolution %.2f" % scale)
 	_settled = _flora.approach(at, delta)
 	if _masonry != null:
 		_settled = Wall.approach(at, delta, _masonry) and _settled
