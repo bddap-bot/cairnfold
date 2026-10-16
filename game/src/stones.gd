@@ -8,6 +8,7 @@ extends Node3D
 const FLIPS: Array[Basis] = [Basis.IDENTITY, Basis(Vector3.UP, PI), Basis(Vector3.RIGHT, PI)]
 
 static var _mesh: ArrayMesh
+static var _far_mesh: ArrayMesh
 static var _material: ShaderMaterial
 static var _paving_material: ShaderMaterial
 
@@ -32,6 +33,13 @@ static func mesh() -> ArrayMesh:
 	if _mesh == null:
 		_mesh = Meshes.rounded_box(0.14, 3, 100)
 	return _mesh
+
+
+## A stone for far off: the same lumps at the corners alone, 12 triangles to `mesh`'s 108.
+static func far_mesh() -> ArrayMesh:
+	if _far_mesh == null:
+		_far_mesh = Meshes.rounded_box(0.14, 1, 100)
+	return _far_mesh
 
 
 func _init(paving := false) -> void:

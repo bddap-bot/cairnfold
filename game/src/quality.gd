@@ -6,32 +6,39 @@ extends Node
 ## a saving measured on a headset (see "Automatic quality" in docs/design.md), and each moves at no frame cost.
 
 ## One rung of the ladder. Reaches are in metres; `blob_detail` is `Meshes.blob`'s subdivisions; `scaling_3d` is the
-## share of the render target's width and height the 3D scene renders at, upscaled to it.
+## share of the render target's width and height the 3D scene renders at, upscaled to it; settled stones beyond
+## `stone_near_m` are drawn with a twelfth of their triangles (Stones.far_mesh), and ivy shrinks away by `ivy_m`.
 class Step:
 	var grass_m: float
 	var flowers_m: float
 	var blob_detail: int
 	var scaling_3d: float
+	var stone_near_m: float
+	var ivy_m: float
 
-	func _init(grass: float, flowers: float, blobs: int, scale: float) -> void:
+	func _init(grass: float, flowers: float, blobs: int, scale: float, stones: float, ivy: float) -> void:
 		grass_m = grass
 		flowers_m = flowers
 		blob_detail = blobs
 		scaling_3d = scale
+		stone_near_m = stones
+		ivy_m = ivy
 
 
 ## Full quality first, then cheapest loss per millisecond saved. A tenth off the 3D resolution saves more among
 ## buildings on the Steam Frame than every reach step together. Flowers beyond 60 m are under two pixels across on
 ## the Quest 2.
 static var ladder: Array[Step] = [
-	Step.new(24.0, 60.0, 2, 1.0),
-	Step.new(24.0, 60.0, 2, 0.9),
-	Step.new(20.0, 60.0, 2, 0.9),
-	Step.new(16.0, 60.0, 2, 0.9),
-	Step.new(13.0, 60.0, 2, 0.9),
-	Step.new(10.0, 60.0, 2, 0.9),
-	Step.new(10.0, 20.0, 2, 0.9),
-	Step.new(10.0, 20.0, 1, 0.9),
+	Step.new(24.0, 60.0, 2, 1.0, 16.0, 35.0),
+	Step.new(24.0, 60.0, 2, 0.9, 16.0, 35.0),
+	Step.new(24.0, 60.0, 2, 0.9, 8.0, 25.0),
+	Step.new(20.0, 60.0, 2, 0.9, 8.0, 25.0),
+	Step.new(16.0, 60.0, 2, 0.9, 8.0, 25.0),
+	Step.new(13.0, 60.0, 2, 0.9, 8.0, 25.0),
+	Step.new(10.0, 60.0, 2, 0.9, 8.0, 25.0),
+	Step.new(10.0, 20.0, 2, 0.9, 8.0, 25.0),
+	Step.new(10.0, 20.0, 1, 0.9, 8.0, 25.0),
+	Step.new(10.0, 20.0, 1, 0.9, 4.0, 12.0),
 ]
 ## Grass and flower reach move toward their step at this many metres a second, so the edge recedes rather than jumps.
 const REACH_RATE := 8.0
@@ -49,15 +56,17 @@ var frame_ms := 0.0
 var fresh := false
 var _xr: OpenXRInterface
 var _flora: Flora
+var _masonry: Masonry
 var view: Viewport
 var _warm := 0.0
 ## Whether the knobs had reached their step last frame: a step still under way is not judged as one that failed.
 var _settled := false
 
 
-func _init(xr: OpenXRInterface, flora: Flora) -> void:
+func _init(xr: OpenXRInterface, flora: Flora, masonry: Masonry = null) -> void:
 	_xr = xr
 	_flora = flora
+	_masonry = masonry
 
 
 func _ready() -> void:
@@ -90,6 +99,8 @@ func _process(delta: float) -> void:
 		view.scaling_3d_scale = scale
 		print("quality: 3D resolution %.2f" % scale)
 	_settled = _flora.approach(at, delta)
+	if _masonry != null:
+		_settled = Wall.approach(at, delta, _masonry) and _settled
 
 
 ## Walks the ladder on one signal, the GPU time of each frame against a line under the budget: down at once when

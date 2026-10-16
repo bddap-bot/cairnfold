@@ -27,6 +27,8 @@ var ivy_age := 0.0
 ## Encloses every stone, for pointing.
 var pick_bounds := AABB()
 var _parts: Array[PackedFloat32Array] = []
+## Each part's buffer split by ground chunk (`Masonry.split`), as the Masonry takes it.
+var _chunked: Array[Dictionary] = []
 ## Each part's own MultiMesh while it is not settled, made when first needed.
 var _live: Array[MultiMeshInstance3D] = []
 var _gables: MeshInstance3D
@@ -63,15 +65,34 @@ static func kinds() -> Array[Masonry.Kind]:
 		var leaf := ShaderMaterial.new()
 		leaf.shader = load("res://src/ivy.gdshader")
 		var off := GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var shadow := Masonry.Kind.new(box, null, false, false, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
+		var shadow := Masonry.Kind.new(Meshes.shadow_box(), null, false, false, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
 		_kinds.resize(Part.size())
 		_kinds[Part.STONE] = Masonry.Kind.new(Stones.mesh(), Stones.shared_material(), true, true, off, true)
+		_kinds[Part.STONE].far = Stones.far_mesh()
 		_kinds[Part.MORTAR] = Masonry.Kind.new(box, Stones.shared_material(), true, true, off)
 		_kinds[Part.STONE_SHADOW] = shadow
 		_kinds[Part.TILE] = Masonry.Kind.new(Meshes.rounded_box(0.22, 2, 41), Stones.shared_material(), true, true, off, true)
 		_kinds[Part.TILE_SHADOW] = shadow
 		_kinds[Part.IVY] = Masonry.Kind.new(Meshes.sprig(), leaf, true, false, off)
+		_reach(Quality.ladder[0].stone_near_m, Quality.ladder[0].ivy_m)
 	return _kinds
+
+
+## Moves ivy's reach toward `step`'s as grass reach moves (Quality.REACH_RATE), and how far stones are drawn whole
+## to it at once, since a chunk's stones change mesh in one frame wherever the line falls; true once there.
+static func approach(step: Quality.Step, delta: float, glade: Masonry) -> bool:
+	var ks := kinds()
+	var ivy := move_toward(ks[Part.IVY].reach, step.ivy_m, Quality.REACH_RATE * delta)
+	if step.stone_near_m != ks[Part.STONE].near or ivy != ks[Part.IVY].reach:
+		_reach(step.stone_near_m, ivy)
+		glade.set_ranges()
+	return ivy == step.ivy_m
+
+
+static func _reach(stone_near: float, ivy: float) -> void:
+	_kinds[Part.STONE].near = stone_near
+	_kinds[Part.IVY].reach = ivy
+	_kinds[Part.IVY].material.set_shader_parameter("reach", ivy)
 
 
 func _init(seed: int, glade: Masonry) -> void:
@@ -79,6 +100,7 @@ func _init(seed: int, glade: Masonry) -> void:
 	masonry = glade
 	add_child(_fittings)
 	_parts.resize(Part.size())
+	_chunked.resize(Part.size())
 	_live.resize(Part.size())
 
 
@@ -149,6 +171,7 @@ func _process(delta: float) -> void:
 		WorkerThreadPool.wait_for_task_completion(_ivy_task)
 		_ivy_task = -1
 		_parts[Part.IVY] = _ivy_baked.buffer
+		_chunked[Part.IVY] = _ivy_baked.chunks
 		_ivy_times = _ivy_baked.times
 		_sync()
 		if _ivy_stale:
@@ -228,9 +251,11 @@ func _layout_ivy() -> void:
 	var out := _ivy_baked
 	out.clear()
 	var litter := _sweep()
+	var stride := kinds()[Part.IVY].stride()
 	_ivy_task = WorkerThreadPool.add_task(func():
 		_drop(litter)
-		out.merge(IvyLayout.bake(shape)))
+		out.merge(IvyLayout.bake(shape))
+		out.chunks = Masonry.split(out.buffer, stride))
 
 
 ## Lays the stones again on a worker thread, since a long wall takes several frames' worth of main-thread time;
@@ -342,7 +367,7 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind])
 		var t: Dictionary = r.tiles[i]
 		tile.write(tiles, i, t.xform, t.color, t.ao, Palette.code(t.kind))
 		shadow.write(shadows, i, t.xform)
-	return {"roof": r, "tiles": tiles, "shadows": shadows}
+	return {"roof": r, "tiles": tiles, "shadows": shadows, "chunks": {Part.TILE: Masonry.split(tiles, tile.stride()), Part.TILE_SHADOW: Masonry.split(shadows, shadow.stride())}}
 
 
 func _pack_roof(roofed := {}) -> void:
@@ -352,6 +377,8 @@ func _pack_roof(roofed := {}) -> void:
 		roof.adopt(roofed.roof)
 	_parts[Part.TILE] = roofed.tiles
 	_parts[Part.TILE_SHADOW] = roofed.shadows
+	for part in roofed.chunks:
+		_chunked[part] = roofed.chunks[part]
 	_fittings.lay(layout.flames, layout.cloths + roof.cloths)
 	var tris := roof.gable_faces
 	if tris.is_empty():
@@ -398,26 +425,32 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind]) -> Dictionary:
 			shadow.write(bufs[2], n[2], x)
 			n[2] += 1
 		box = box.expand(x.origin)
-	return {"stone": bufs[0], "mortar": bufs[1], "shadow": bufs[2], "bounds": box.grow(0.6)}
+	var chunks := {}
+	for i in bufs.size():
+		var part: Part = [Part.STONE, Part.MORTAR, Part.STONE_SHADOW][i]
+		chunks[part] = Masonry.split(bufs[i], ks[part].stride())
+	return {"stone": bufs[0], "mortar": bufs[1], "shadow": bufs[2], "chunks": chunks, "bounds": box.grow(0.6)}
 
 
 func _take(packed: Dictionary) -> void:
 	_parts[Part.STONE] = packed.stone
 	_parts[Part.MORTAR] = packed.mortar
 	_parts[Part.STONE_SHADOW] = packed.shadow
+	for part in packed.chunks:
+		_chunked[part] = packed.chunks[part]
 	pick_bounds = packed.bounds
 
 
 ## Puts each part where it belongs: with the Masonry once settled (ivy once grown), else drawn here.
 func _sync() -> void:
-	var placed: Array[PackedFloat32Array] = []
+	var placed: Array[Dictionary] = []
 	for p in Part.size():
 		var settle := _settled
 		if p == Part.IVY:
 			settle = settle and not _ivy_growing()
-		placed.append(_parts[p] if settle else PackedFloat32Array())
+		placed.append(_chunked[p] if settle else {})
 		_show(p, not settle)
-	masonry.place(get_instance_id(), pick_bounds.get_center(), placed)
+	masonry.place(get_instance_id(), placed)
 	if _stand_in != null:
 		_stand_in.queue_free()
 		_stand_in = null

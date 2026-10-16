@@ -59,8 +59,8 @@ func _every_step_draws_less() -> void:
 	for i in steps.size() - 1:
 		var a := steps[i]
 		var b := steps[i + 1]
-		_check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.scaling_3d <= a.scaling_3d, "step %d draws no more than step %d" % [i + 1, i])
-		_check(b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail or b.scaling_3d < a.scaling_3d, "step %d draws less than step %d" % [i + 1, i])
+		_check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.scaling_3d <= a.scaling_3d and b.stone_near_m <= a.stone_near_m and b.ivy_m <= a.ivy_m, "step %d draws no more than step %d" % [i + 1, i])
+		_check(b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail or b.scaling_3d < a.scaling_3d or b.stone_near_m < a.stone_near_m or b.ivy_m < a.ivy_m, "step %d draws less than step %d" % [i + 1, i])
 	var q := Quality.new(null, null)
 	_check(q.governor.bottom == steps.size() - 1, "the governor's bottom is the ladder's last step")
 	q.pin = 99
@@ -152,7 +152,16 @@ func _a_step_up_waits_for_room_for_what_the_step_down_saved() -> void:
 func _a_held_step_reaches_its_knobs() -> void:
 	var flora := Flora.new()
 	root.add_child(flora)
-	var q := Quality.new(null, flora)
+	var masonry := Masonry.new(Wall.kinds())
+	root.add_child(masonry)
+	var parts: Array[Dictionary] = []
+	for k in Wall.kinds():
+		var buf := PackedFloat32Array()
+		buf.resize(k.stride())
+		parts.append(Masonry.split(buf, k.stride()))
+	masonry.place(1, parts)
+	var chunk: Masonry.Chunk = masonry._chunks.values()[0]
+	var q := Quality.new(null, flora, masonry)
 	root.add_child(q)
 	q.view = SubViewport.new()
 	var bottom: Quality.Step = Quality.ladder[-1]
@@ -165,6 +174,15 @@ func _a_held_step_reaches_its_knobs() -> void:
 		q._process(0.1)
 	_check(q._settled, "and settles once they arrive")
 	_check(flora.grass_reach == bottom.grass_m and flora.flower_reach == bottom.flowers_m, "grass and flowers at the step's reach")
+	var ks := Wall.kinds()
+	_check(ks[Wall.Part.STONE].near == bottom.stone_near_m and ks[Wall.Part.IVY].reach == bottom.ivy_m, "stones and ivy at the step's reach")
+	_check(ks[Wall.Part.IVY].material.get_shader_parameter("reach") == bottom.ivy_m, "and the leaves shrink away by it")
+	_check(is_equal_approx(chunk.instances[Wall.Part.IVY].visibility_range_end, bottom.ivy_m + Masonry.CHUNK_RADIUS) and is_equal_approx(chunk.fars[Wall.Part.STONE].visibility_range_begin, bottom.stone_near_m + Masonry.CHUNK_RADIUS), "a chunk already standing takes the step's reaches")
+	q.pin = 0
+	for i in 100:
+		q._process(0.1)
+	_check(ks[Wall.Part.STONE].near == Quality.ladder[0].stone_near_m and ks[Wall.Part.IVY].reach == Quality.ladder[0].ivy_m, "back at the top, they return")
 	q.view.free()
 	q.free()
+	masonry.free()
 	flora.free()

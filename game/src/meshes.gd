@@ -5,40 +5,60 @@ extends RefCounted
 const ROUND := 0.6
 
 
-## A unit cube (-0.5..0.5) with rounded edges, its surface lumped by `seed` so no two variants match.
+## A unit cube (-0.5..0.5) with rounded edges, its surface lumped by `seed` so no two variants match. Faces share
+## the vertices along their borders: a stone's cost on the GPU follows the vertices it runs.
 static func rounded_box(radius: float, segments: int, seed: int) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var faces := [
-		[Vector3.RIGHT, Vector3.UP, Vector3.BACK],
-		[Vector3.LEFT, Vector3.UP, Vector3.FORWARD],
-		[Vector3.UP, Vector3.BACK, Vector3.RIGHT],
-		[Vector3.DOWN, Vector3.FORWARD, Vector3.RIGHT],
-		[Vector3.BACK, Vector3.UP, Vector3.LEFT],
-		[Vector3.FORWARD, Vector3.UP, Vector3.RIGHT],
+		[Vector3i.RIGHT, Vector3i.UP, Vector3i.BACK],
+		[Vector3i.LEFT, Vector3i.UP, Vector3i.FORWARD],
+		[Vector3i.UP, Vector3i.BACK, Vector3i.RIGHT],
+		[Vector3i.DOWN, Vector3i.FORWARD, Vector3i.RIGHT],
+		[Vector3i.BACK, Vector3i.UP, Vector3i.LEFT],
+		[Vector3i.FORWARD, Vector3i.UP, Vector3i.RIGHT],
 	]
 	var lump := FastNoiseLite.new()
 	lump.seed = seed
 	lump.frequency = 1.6
 	var inner := 1.0 - radius * 2.0
 	var row := segments + 1
-	var start := 0
+	## Lattice point on the cube's surface, in steps of 2 / segments -> vertex index.
+	var made := {}
 	for f in faces:
+		var grid := PackedInt32Array()
 		for j in row:
 			for i in row:
-				var d: Vector3 = f[0] + f[1] * (float(i) / segments * 2.0 - 1.0) + f[2] * (float(j) / segments * 2.0 - 1.0)
-				var core := d.clamp(-Vector3.ONE * inner, Vector3.ONE * inner)
-				var off := (d - core).normalized()
-				var p := core + off * radius * 2.0
-				p += off * lump.get_noise_3dv(p * 1.3) * 0.06
-				st.set_normal(off)
-				st.add_vertex(p * 0.5)
+				var q: Vector3i = f[0] * segments + f[1] * (i * 2 - segments) + f[2] * (j * 2 - segments)
+				if not made.has(q):
+					var d := Vector3(q) / segments
+					var core := d.clamp(-Vector3.ONE * inner, Vector3.ONE * inner)
+					var off := (d - core).normalized()
+					var p := core + off * radius * 2.0
+					p += off * lump.get_noise_3dv(p * 1.3) * 0.06
+					st.set_normal(off)
+					st.add_vertex(p * 0.5)
+					made[q] = made.size()
+				grid.append(made[q])
 		for j in segments:
 			for i in segments:
-				var a := start + j * row + i
-				st.add_index(a); st.add_index(a + row); st.add_index(a + 1)
-				st.add_index(a + 1); st.add_index(a + row); st.add_index(a + row + 1)
-		start += row * row
+				var a := j * row + i
+				st.add_index(grid[a]); st.add_index(grid[a + row]); st.add_index(grid[a + 1])
+				st.add_index(grid[a + 1]); st.add_index(grid[a + row]); st.add_index(grid[a + row + 1])
+	return st.commit()
+
+
+## A unit cube (-0.5..0.5) of 8 vertices, for what only casts a shadow: BoxMesh runs 24.
+static func shadow_box() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for c in 8:
+		var p := Vector3(c & 1, (c >> 1) & 1, (c >> 2) & 1) - Vector3.ONE * 0.5
+		st.set_normal(p.normalized())
+		st.add_vertex(p)
+	for q in [[0, 2, 3, 1], [4, 5, 7, 6], [0, 1, 5, 4], [2, 6, 7, 3], [0, 4, 6, 2], [1, 3, 7, 5]]:
+		for k in [0, 2, 1, 0, 3, 2]:
+			st.add_index(q[k])
 	return st.commit()
 
 

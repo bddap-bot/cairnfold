@@ -6,9 +6,12 @@ extends Node3D
 ## view is culled whole. Pieces still changing (a wall being drawn or pulled, ivy still growing) stay with
 ## their owner until they settle.
 
-## A chunk is also the step of culling and of level of detail: the renderer picks both for a chunk's
-## MultiMesh as a whole, by its bounds.
+## A chunk is also the step of culling and of reach: the renderer culls a chunk's MultiMesh as a whole, by its
+## bounds, so each piece goes to the chunk under it, however long the wall it belongs to.
 const CHUNK_METRES := 16.0
+## How far a chunk's pieces reach from the centre of its bounds, where the renderer measures its distance: half its
+## diagonal, with room for slopes and what stands on them.
+const CHUNK_RADIUS := CHUNK_METRES * 0.8
 
 ## An owner's pieces that stand in the light (`Kind.occludes`) changed: their buffers and strides, empty
 ## once it is gone.
@@ -25,6 +28,11 @@ class Kind:
 	var shadow: GeometryInstance3D.ShadowCastingSetting
 	## Whether its pieces shade the light around them (Bounce); such a kind uses colours.
 	var occludes: bool
+	## Metres beyond which a piece is not seen, so a settled chunk wholly past it is not drawn; 0 for no limit.
+	var reach := 0.0
+	## Drawn instead of `mesh` by a settled chunk wholly beyond `near` metres; null to draw `mesh` at every distance.
+	var far: Mesh
+	var near := 0.0
 
 	func _init(m: Mesh, mat: Material, use_colors: bool, use_custom: bool, cast: GeometryInstance3D.ShadowCastingSetting, occluding := false) -> void:
 		assert(use_colors or not occluding, "occluding pieces carry colours")
@@ -78,6 +86,8 @@ class Kind:
 
 class Chunk:
 	var instances: Array[MultiMeshInstance3D] = []
+	## Each kind's far instance, null for a kind without one.
+	var fars: Array[MultiMeshInstance3D] = []
 	## Owner id -> one buffer per kind.
 	var parts := {}
 
@@ -85,7 +95,7 @@ class Chunk:
 var kinds: Array[Kind]
 var _chunks := {}
 var _dirty := {}
-## Owner id -> the chunk holding its pieces.
+## Owner id -> the chunks holding its pieces.
 var _owners := {}
 
 
@@ -94,25 +104,58 @@ func _init(piece_kinds: Array[Kind]) -> void:
 	set_process(false)
 
 
-## Draws `parts` (one buffer per kind, in `kinds` order) for `owner` in the chunk under `at`, replacing what
-## it had placed before. An owner stays whole in one chunk, so placing it splits no buffer.
-func place(owner: int, at: Vector3, parts: Array[PackedFloat32Array]) -> void:
-	assert(parts.size() == kinds.size(), "one buffer per kind")
+## Splits a buffer of instances `stride` floats long by the chunk under each: chunk key -> buffer. Reads nothing
+## but its arguments, so it runs on a worker thread.
+static func split(buf: PackedFloat32Array, stride: int) -> Dictionary:
+	var out := {}
+	var start := 0
+	var run := Vector2i.ZERO
+	for i in range(0, buf.size(), stride):
+		var key := Vector2i(floori(buf[i + 3] / CHUNK_METRES), floori(buf[i + 11] / CHUNK_METRES))
+		if i > start and key != run:
+			_gather(out, run, buf.slice(start, i))
+			start = i
+		run = key
+	if buf.size() > start:
+		_gather(out, run, buf.slice(start))
+	return out
+
+
+static func _gather(out: Dictionary, key: Vector2i, buf: PackedFloat32Array) -> void:
+	var have: PackedFloat32Array = out.get(key, PackedFloat32Array())
+	have.append_array(buf)
+	out[key] = have
+
+
+## Draws `parts` (per kind, in `kinds` order, a `split` buffer) for `owner`, replacing what it had placed before.
+func place(owner: int, parts: Array[Dictionary]) -> void:
+	assert(parts.size() == kinds.size(), "one split buffer per kind")
 	var had := _drop(owner)
 	var buffers: Array[PackedFloat32Array] = []
 	var strides := PackedInt32Array()
 	for k in kinds.size():
 		if kinds[k].occludes and not parts[k].is_empty():
-			buffers.append(parts[k])
+			var all := PackedFloat32Array()
+			for buf in parts[k].values():
+				all.append_array(buf)
+			buffers.append(all)
 			strides.append(kinds[k].stride())
 	if had or not buffers.is_empty():
 		placed.emit(owner, buffers, strides)
-	if parts.all(func(b: PackedFloat32Array) -> bool: return b.is_empty()):
+	var keys := {}
+	for k in kinds.size():
+		for key in parts[k]:
+			var c := _chunk(key)
+			if not c.parts.has(owner):
+				var bufs: Array[PackedFloat32Array] = []
+				bufs.resize(kinds.size())
+				c.parts[owner] = bufs
+			c.parts[owner][k] = parts[k][key]
+			keys[key] = true
+			_dirty[key] = true
+	if keys.is_empty():
 		return
-	var key := Vector2i(floori(at.x / CHUNK_METRES), floori(at.z / CHUNK_METRES))
-	_chunk(key).parts[owner] = parts
-	_owners[owner] = key
-	_dirty[key] = true
+	_owners[owner] = keys.keys()
 	set_process(true)
 
 
@@ -125,10 +168,10 @@ func remove(owner: int) -> void:
 func _drop(owner: int) -> bool:
 	if not _owners.has(owner):
 		return false
-	var key: Vector2i = _owners[owner]
-	_chunks[key].parts.erase(owner)
+	for key in _owners[owner]:
+		_chunks[key].parts.erase(owner)
+		_dirty[key] = true
 	_owners.erase(owner)
-	_dirty[key] = true
 	set_process(true)
 	return true
 
@@ -151,8 +194,34 @@ func _chunk(key: Vector2i) -> Chunk:
 			var mmi := k.instance()
 			c.instances.append(mmi)
 			add_child(mmi)
+			var far: MultiMeshInstance3D = null
+			if k.far != null:
+				far = k.instance()
+				far.multimesh.mesh = k.far
+				add_child(far)
+			c.fars.append(far)
 		_chunks[key] = c
+		_ranges(c)
 	return _chunks[key]
+
+
+## Puts every chunk's instances of each kind within its reach and its near distance, after either changed.
+func set_ranges() -> void:
+	for c in _chunks.values():
+		_ranges(c)
+
+
+func _ranges(c: Chunk) -> void:
+	for k in kinds.size():
+		var kind := kinds[k]
+		var end := kind.reach + CHUNK_RADIUS if kind.reach > 0.0 else 0.0
+		if c.fars[k] == null:
+			c.instances[k].visibility_range_end = end
+		else:
+			var split := kind.near + CHUNK_RADIUS
+			c.instances[k].visibility_range_end = split
+			c.fars[k].visibility_range_begin = split
+			c.fars[k].visibility_range_end = end
 
 
 func _process(_delta: float) -> void:
@@ -162,9 +231,12 @@ func _process(_delta: float) -> void:
 			var buf := PackedFloat32Array()
 			for parts in c.parts.values():
 				buf.append_array(parts[k])
-			var mm := c.instances[k].multimesh
-			mm.instance_count = buf.size() / kinds[k].stride()
-			if mm.instance_count > 0:
-				mm.buffer = buf
+			for mmi in [c.instances[k], c.fars[k]]:
+				if mmi == null:
+					continue
+				var mm: MultiMesh = mmi.multimesh
+				mm.instance_count = buf.size() / kinds[k].stride()
+				if mm.instance_count > 0:
+					mm.buffer = buf
 	_dirty.clear()
 	set_process(false)

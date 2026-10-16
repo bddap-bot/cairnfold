@@ -143,12 +143,12 @@ func _masonry_reports_only_what_stands_in_the_light() -> void:
 	var m := Masonry.new(Wall.kinds())
 	var got := []
 	m.placed.connect(func(o: int, bufs: Array[PackedFloat32Array], strides: PackedInt32Array) -> void: got.append([o, bufs.size(), strides]))
-	var parts: Array[PackedFloat32Array] = []
+	var parts: Array[Dictionary] = []
 	for k in Wall.Part.size():
 		var buf := PackedFloat32Array()
 		buf.resize(Wall.kinds()[k].stride())
-		parts.append(buf)
-	m.place(7, Vector3.ZERO, parts)
+		parts.append(Masonry.split(buf, Wall.kinds()[k].stride()))
+	m.place(7, parts)
 	_check(got.size() == 1 and got[0][1] == 2, "a wall's stones and tiles shade, not its mortar, shadow boxes or ivy: %s" % [got])
 	m.remove(7)
 	_check(got.size() == 2 and got[1][1] == 0, "and it reports when they go")

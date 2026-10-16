@@ -14,6 +14,9 @@ func _init() -> void:
 	_a_copy_built_elsewhere_lays_the_same_stones()
 	_raising_the_wall_adds_courses()
 	_point_at_follows_the_curve()
+	_a_long_wall_splits_by_the_ground_under_each_stone()
+	_stone_faces_share_their_borders()
+	_settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -141,3 +144,60 @@ func _point_at_follows_the_curve() -> void:
 	var w := _wall(6.0, 2.4, [])
 	_check(w.point_at(3.0).distance_to(Vector3(3, -0.12, 0)) < WallLayout.SAMPLE * 2.0, "point_at(3) is %s" % w.point_at(3.0))
 	_check(w.point_at(99.0) == w.samples[-1], "point_at past the end is the end")
+
+
+func _a_long_wall_splits_by_the_ground_under_each_stone() -> void:
+	var stone := Wall.kinds()[Wall.Part.STONE]
+	var w := _wall(40.0, 1.5, [])
+	var packed := Wall.pack(w, Wall.kinds())
+	var chunks: Dictionary = packed.chunks[Wall.Part.STONE]
+	_check(chunks.size() >= 3, "a 40 m wall spans at least three 16 m chunks, got %d" % chunks.size())
+	var total := 0
+	for key in chunks:
+		var buf: PackedFloat32Array = chunks[key]
+		total += buf.size()
+		for i in range(0, buf.size(), stone.stride()):
+			var at := Vector2i(floori(buf[i + 3] / Masonry.CHUNK_METRES), floori(buf[i + 11] / Masonry.CHUNK_METRES))
+			if at != key:
+				_check(false, "a stone at %s sits in chunk %s" % [at, key])
+				return
+	_check(total == packed.stone.size(), "every stone in exactly one chunk")
+
+
+func _stone_faces_share_their_borders() -> void:
+	for segments in [1, 2, 3]:
+		var a := Meshes.rounded_box(0.14, segments, 100).surface_get_arrays(0)
+		var row: int = segments + 1
+		_check(a[Mesh.ARRAY_VERTEX].size() == 6 * row * row - 12 * row + 8, "%d segments: one vertex per lattice point, got %d" % [segments, a[Mesh.ARRAY_VERTEX].size()])
+		_check(a[Mesh.ARRAY_INDEX].size() == 36 * segments * segments, "%d segments: every face's triangles" % segments)
+
+
+func _settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach() -> void:
+	var ks := Wall.kinds()
+	var m := Masonry.new(ks)
+	var parts: Array[Dictionary] = []
+	for k in ks.size():
+		var buf := PackedFloat32Array()
+		buf.resize(ks[k].stride() * 2)
+		buf[3] = 1.0
+		buf[ks[k].stride() + 3] = 40.0
+		parts.append(Masonry.split(buf, ks[k].stride()))
+	m.place(1, parts)
+	_check(m._chunks.size() == 2, "pieces 39 m apart stand in two chunks")
+	for c in m._chunks.values():
+		var near: MultiMeshInstance3D = c.instances[Wall.Part.STONE]
+		var far: MultiMeshInstance3D = c.fars[Wall.Part.STONE]
+		_check(far != null and far.multimesh.mesh == Stones.far_mesh(), "a chunk draws far stones with the far mesh")
+		_check(far.multimesh.instance_count == 0 and near.multimesh.instance_count == 0, "nothing drawn before the chunk is processed")
+		_check(is_equal_approx(near.visibility_range_end, ks[Wall.Part.STONE].near + Masonry.CHUNK_RADIUS) and is_equal_approx(far.visibility_range_begin, near.visibility_range_end), "near and far stones meet at the near distance")
+		_check(is_equal_approx(c.instances[Wall.Part.IVY].visibility_range_end, ks[Wall.Part.IVY].reach + Masonry.CHUNK_RADIUS), "ivy stops at its reach")
+		_check(c.fars[Wall.Part.MORTAR] == null and c.instances[Wall.Part.MORTAR].visibility_range_end == 0.0, "mortar has no far mesh and no limit")
+	m._process(0.0)
+	for c in m._chunks.values():
+		_check(c.instances[Wall.Part.STONE].multimesh.instance_count == 1 and c.fars[Wall.Part.STONE].multimesh.instance_count == 1, "near and far hold the chunk's one stone")
+	m.place(1, parts)
+	m.remove(1)
+	m._process(0.0)
+	for c in m._chunks.values():
+		_check(c.instances[Wall.Part.STONE].multimesh.instance_count == 0 and c.fars[Wall.Part.STONE].multimesh.instance_count == 0, "a removed owner leaves every chunk it stood in")
+	m.free()
