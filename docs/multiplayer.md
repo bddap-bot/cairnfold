@@ -184,6 +184,12 @@ garden. While you visit, a small cairn of three stones stands among them; pick i
 home. The names are the game's one text (docs/design.md, "Requirements"); there is no
 menu and no address to type.
 
+Only gardens of a build with the same networked methods stand in the arc. Godot numbers a
+node's RPCs by name, so a build with one more or one fewer calls the wrong methods on the
+other: a visitor's digs, ponds and plants never land, and its strokes show and then vanish.
+The beacon carries a fingerprint of `World`'s and `Session`'s RPCs (`Session.protocol`), and
+a game hears only beacons that carry its own. Builds from one revision always match.
+
 ### Names
 
 The beacon goes to anyone on the network without the player doing anything, so it carries

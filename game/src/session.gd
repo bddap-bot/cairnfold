@@ -70,6 +70,7 @@ var _since_pose := 0.0
 var _beacon := PacketPeerUDP.new()
 var _listen := PacketPeerUDP.new()
 var _targets := {}
+static var _protocol := 0
 
 
 func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := true, from_beacon := BEACON_PORT, who: Persona = null) -> void:
@@ -226,19 +227,38 @@ func _announce() -> void:
 
 ## Every second, to anyone on the network: nothing identifying, unless the player picked a name to show.
 func beacon() -> PackedByteArray:
-	var msg := {"nestcombe": 1, "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false), "players": players()}
+	var msg := {"nestcombe": protocol(), "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false), "players": players()}
 	if me.shared and not me.steam():
 		msg.name = me.name
 	return JSON.stringify(msg).to_utf8_buffer()
 
 
-## A beacon's garden, or empty when the packet is not one.
+## Godot numbers a node's RPCs by name, so two builds whose networked methods differ call the wrong methods
+## on each other and every edit a visitor makes is lost: a garden is heard only by builds with the same ones.
+static func protocol() -> int:
+	if _protocol == 0:
+		_protocol = fingerprint([World, Session])
+	return _protocol
+
+
+static func fingerprint(scripts: Array[Script]) -> int:
+	var parts := PackedStringArray()
+	for s in scripts:
+		var rpcs: Dictionary = s.get_rpc_config()
+		for m in s.get_script_method_list():
+			if rpcs.has(m.name):
+				parts.append("%s.%s/%d %s" % [s.get_global_name(), m.name, m.args.size(), rpcs[m.name]])
+	parts.sort()
+	return hash(parts)
+
+
+## A beacon's garden, or empty when the packet is not one from this build's protocol.
 static func read_beacon(raw: PackedByteArray) -> Dictionary:
 	var json := JSON.new()
 	if json.parse(raw.slice(0, 512).get_string_from_utf8()) != OK:
 		return {}
 	var msg: Variant = json.data
-	if not (msg is Dictionary and msg.get("nestcombe") == 1.0 and msg.get("key") is float and msg.get("port") is float and msg.get("avatar") is float):
+	if not (msg is Dictionary and msg.get("nestcombe") == float(protocol()) and msg.get("key") is float and msg.get("port") is float and msg.get("avatar") is float):
 		return {}
 	var at := int(msg.port)
 	if at < PORT or at >= PORT + PORT_RANGE:

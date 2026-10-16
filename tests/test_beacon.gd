@@ -14,6 +14,7 @@ func _run() -> void:
 	_scripts_are_not_players()
 	_names_are_clean_and_short()
 	_a_picked_name_is_kept()
+	_another_build_is_not_heard()
 	await _a_test_instance_beacons_on_loopback_only()
 	await _the_picker_shows_each_host_s_name()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -74,6 +75,36 @@ func _the_beacon_names_nobody_until_they_pick_a_name(s: Session) -> void:
 	var hostile := JSON.stringify({"nestcombe": 1, "key": 3, "port": Session.PORT, "avatar": 0, "name": "\u0000" + "W".repeat(400)}).to_utf8_buffer()
 	heard = Session.read_beacon(hostile)
 	_check(heard.is_empty() or heard.name.length() <= Persona.MAX_NAME, "a hostile beacon is cut down or dropped: %s" % heard)
+
+
+func _networked(source: String) -> Script:
+	var s := GDScript.new()
+	s.source_code = "extends Node\n" + source
+	s.reload()
+	return s
+
+
+## Report (verbatim): "I'm unable to make a pond". The headset visited a garden hosted by a build without one of
+## World's RPCs; its proposals reached the host as other methods, so no dig, pond or plant of the visitor's landed.
+func _another_build_is_not_heard() -> void:
+	var dir := DirAccess.open("res://src")
+	for f in dir.get_files():
+		var s: Variant = load("res://src/" + f) if f.ends_with(".gd") else null
+		if s is Script and not (s as Script).get_rpc_config().is_empty():
+			_check(s in [World, Session], "%s has RPCs, so the protocol fingerprint must cover it" % f)
+	var old := JSON.stringify({"nestcombe": 1, "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer()
+	_check(Session.read_beacon(old).is_empty(), "a garden from a build before the protocol fingerprint is not heard")
+	var other := JSON.stringify({"nestcombe": Session.protocol() + 1, "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer()
+	_check(Session.read_beacon(other).is_empty(), "a garden from a build with other RPCs is not heard")
+	var same := JSON.stringify({"nestcombe": Session.protocol(), "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer()
+	_check(not Session.read_beacon(same).is_empty(), "a garden from this build is heard")
+	var before := _networked("@rpc(\"any_peer\")\nfunc _propose(c): pass\n@rpc(\"any_peer\")\nfunc _resend(): pass\n")
+	var after := _networked("@rpc(\"any_peer\")\nfunc _device(d): pass\n@rpc(\"any_peer\")\nfunc _propose(c): pass\n@rpc(\"any_peer\")\nfunc _resend(): pass\n")
+	var takes := _networked("@rpc(\"any_peer\")\nfunc _propose(c): pass\n@rpc(\"any_peer\")\nfunc _resend(by): pass\n")
+	var plain := _networked("@rpc(\"any_peer\")\nfunc _propose(c): pass\n@rpc(\"any_peer\")\nfunc _resend(): pass\nfunc helper(): pass\n")
+	_check(Session.fingerprint([before]) != Session.fingerprint([after]), "an RPC added changes the fingerprint")
+	_check(Session.fingerprint([before]) != Session.fingerprint([takes]), "an RPC's arguments change it")
+	_check(Session.fingerprint([before]) == Session.fingerprint([plain]), "a method that is not an RPC leaves it")
 
 
 func _a_picked_name_is_kept() -> void:
