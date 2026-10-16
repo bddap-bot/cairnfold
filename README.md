@@ -19,9 +19,10 @@ paths, stone, flowers, grass, trees, pond, colour, camera, delete or visit.
   left and right, the same motion every time.
 - Trigger: use the tool. Draw a wall, lay a path, paint (a stone stroke begun on
   stone paints meadow back), plant a tree, dig a pond
-  (hold to dig deeper, release to fill), or erase: hold it on a wall and sweep
-  along it to break that stretch into a ruin (a tap breaks a short gap, sweeping
-  it all takes it all), or press on a tree or painted plants to take them. A path through a wall opens an
+  (hold to dig deeper, release to fill), or erase: hold it and swipe, and everything
+  the beam passes over goes in one stroke, one undo step: walls break into ruins
+  along the stretch swept (a tap breaks a short gap, sweeping it all takes it
+  all), trees, bushes, paths and stone go, and grass and flowers are mown. A path through a wall opens an
   arch, a wide one an arcade.
 - Holding colour: hold the trigger on a wall, roof, gable, fence, window or door, or
   the meadow, and twist your wrist to turn a wheel of swatches for that material, or
