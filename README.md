@@ -46,8 +46,8 @@ paths, stone, flowers, grass, trees, pond, colour, camera, delete or visit.
   add the other grip to turn it and stretch it between your hands; let go to
   build.
 - Left stick forward: aim a teleport from the left hand, whatever it holds;
-  release to go, into the sky to float. While aiming, the other stick up or
-  down moves an air target farther or nearer.
+  release to go, into the sky to float. Ease the stick back to land nearer
+  along the aim.
 - Right stick left/right: snap turn.
 - Left D-pad down: undo. Up: redo. One history across every tool; with others,
   each player undoes only their own steps.

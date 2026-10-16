@@ -916,6 +916,14 @@ Directive (verbatim): "I think making teleport its own item was- was a mistake f
 Teleport is not a tool. The left stick pushed forward aims from the left hand whatever it holds, so no
 choice of tools leaves you unable to move, and aiming at the ground is how you come back down.
 
+Directive (verbatim): "When I'm teleporting... I'd like to be able to... hold forward on the teleport button... and then... lean my stick back just a little bit... and I'll teleport... less far when I do that. Teleport... For example, into the sky. slowly bring the stick back"
+
+How far the left stick is pushed sets how far along the aim the target lies, so the reach is the
+same stick as the aim. The other stick no longer moves an air target nearer or farther: two controls
+for one distance did not read together, and the air reach is a fixed 30 m to ease back from. A
+released stick springs through every smaller deflection on its way to centre, so the release takes
+the target from 0.1 s before the stick reached its deadzone.
+
 Directive (verbatim): "I'd like to be able to use the grab button to grab the ground so ground terraforming becomes um... not a tool, it's just something that's always available. I just grab something. Grab the ground and push it down or pull it up"
 
 Directive (verbatim): "The grab button should always be grab"
@@ -934,7 +942,8 @@ that claimed the hand that frame.
 | --- | --- |
 | Pick a hand's tool | Hold that hand's wheel button (right B, left View), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
 | Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it meets the ground; release to go |
-| Teleport into the air | Aim above the horizon: with no ground within reach (10 m to start), the ray targets the point in the air at its end, a ring on a pole down to the ground below. The other hand's stick up or down while aiming moves that point farther or nearer (2–40 m). Release to arrive there in one cut; the view then stays put until the player moves or acts |
+| Teleport into the air | Aim above the horizon: with no ground within 30 m, the ray targets the point in the air at its end, a ring on a pole down to the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
+| Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides nearer along the aim as the stick comes back, on the ground or in the air, down to a tenth of the way. Release from there to go there: the snap back to centre does not pull the target in |
 | Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick left or right: 30° snap turn |
 | Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground, or along a build's top to build on it; release to finish. Strokes under 1 m are discarded, and a stroke near a standing wall merges into it |

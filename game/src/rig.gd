@@ -2,14 +2,19 @@ class_name Rig
 extends XROrigin3D
 
 ## The player: head, two hands, and locomotion by teleport — onto the ground or into the air to float.
-## A hand holding the teleport tool aims with its trigger; the left stick pushed forward aims from the
-## left hand whatever it holds, so no choice of tools leaves the player unable to move.
+## The left stick pushed forward aims from the left hand whatever it holds, so no choice of tools leaves the
+## player unable to move; how far forward it is pushed sets how far along the aim the target lies.
 
 const MAX_REACH := 80.0
-const AIR_REACH := 10.0
-const REACH_RATE := 12.0
-const MIN_AIR_REACH := 2.0
-const MAX_AIR_REACH := 40.0
+const AIR_REACH := 30.0
+## Stick forward at or past FULL_STICK aims at the ray's full target; easing back to the deadzone brings it
+## to NEAREST of the way there.
+const FULL_STICK := 0.9
+const DEADZONE := 0.3
+const NEAREST := 0.1
+## A released stick springs through every smaller deflection on its way to centre; the release takes the
+## target from this long before the stick reached its deadzone.
+const RELEASE_LOOKBACK := 0.1
 const MAX_LIFT := 40.0
 const SNAP := deg_to_rad(30.0)
 const FADE := 0.09
@@ -22,7 +27,6 @@ var hands: Array[Hand] = []
 
 ## The hand whose teleport ray is out, or null.
 var aim_hand: Hand
-var air_reach := AIR_REACH
 var aim_ground: Variant = null
 var aim_lift := 0.0
 ## What the player stands on at (x, z): the ground, or a flat roof over it.
@@ -32,6 +36,9 @@ var roof_hit := func(_origin: Vector3, _dir: Vector3) -> Dictionary: return {}
 var _turned := false
 var _fade_t := -1.0
 var _pending: Variant = null
+var _aim_clock := 0.0
+## [time, aim_ground, aim_lift] over the last RELEASE_LOOKBACK of aiming, oldest first.
+var _aim_trail: Array = []
 
 var _ground_ring: MeshInstance3D
 var _float_ring: MeshInstance3D
@@ -111,18 +118,20 @@ func _locomotion_input(delta: float) -> void:
 	if aim_hand == null and left.stick().y > 0.65:
 		aim_hand = left
 	if aim_hand != null and aim_hand.picking:
-		aim_hand = null
-		hide_markers()
+		_end_aim()
 	if aim_hand != null:
-		var rstick := right.stick()
-		if absf(rstick.y) > 0.25:
-			air_reach = clampf(air_reach + signf(rstick.y) * (absf(rstick.y) - 0.25) / 0.75 * REACH_RATE * delta, MIN_AIR_REACH, MAX_AIR_REACH)
-		aim(aim_hand.global_transform)
-		if left.stick().length() < 0.3:
-			if aim_ground != null:
-				teleport(aim_ground, aim_lift)
-			aim_hand = null
-			hide_markers()
+		var stick := left.stick()
+		if stick.length() < DEADZONE:
+			var held: Array = _aim_trail[0] if not _aim_trail.is_empty() else [0.0, null, 0.0]
+			if held[1] != null:
+				teleport(held[1], held[2])
+			_end_aim()
+			return
+		aim(aim_hand.global_transform, reach_scale(stick.y))
+		_aim_clock += delta
+		_aim_trail.append([_aim_clock, aim_ground, aim_lift])
+		while _aim_trail.size() > 1 and _aim_trail[1][0] <= _aim_clock - RELEASE_LOOKBACK:
+			_aim_trail.pop_front()
 	else:
 		var x := right.stick().x
 		if absf(x) > 0.7:
@@ -133,13 +142,26 @@ func _locomotion_input(delta: float) -> void:
 			_turned = false
 
 
-## Cast the teleport ray from a pointing pose. It lands on the ground or flat roof it hits; a pitched roof stops it
-## with no target; aimed above the horizon with nothing within `air_reach`, it targets the point in the air at that reach.
-func aim(from: Transform3D) -> void:
+func _end_aim() -> void:
+	aim_hand = null
+	_aim_clock = 0.0
+	_aim_trail.clear()
+	hide_markers()
+
+
+## The fraction of the way to the ray's full target that a forward stick deflection of `y` reaches.
+static func reach_scale(y: float) -> float:
+	return lerpf(NEAREST, 1.0, clampf((y - DEADZONE) / (FULL_STICK - DEADZONE), 0.0, 1.0))
+
+
+## Cast the teleport ray from a pointing pose. Its full target is the ground or flat roof it hits, or, aimed above the
+## horizon with nothing within AIR_REACH, the point in the air at that reach; a pitched roof stops it with no target.
+## The target lies `fraction` of the way there: on the floor below that point for a ground target, at it for an air one.
+func aim(from: Transform3D, fraction := 1.0) -> void:
 	var origin := from.origin
 	var dir := -from.basis.z.normalized()
 	var upward := dir.y > 0.0
-	var reach := air_reach if upward else MAX_REACH
+	var reach := AIR_REACH if upward else MAX_REACH
 	var hit: Variant = Terrain.raycast(origin, dir, reach)
 	var roof: Dictionary = roof_hit.call(origin, dir)
 	if not roof.is_empty() and roof.along <= reach and (hit == null or roof.along < origin.distance_to(hit)):
@@ -148,15 +170,19 @@ func aim(from: Transform3D) -> void:
 			aim_ground = null
 			hide_markers()
 			return
-	var target: Vector3
-	if hit != null:
-		target = hit
-	elif upward:
-		target = origin + dir * reach
-	else:
+	if hit == null and not upward:
 		aim_ground = null
 		hide_markers()
 		return
+	var full: Vector3 = hit if hit != null else origin + dir * reach
+	var target := origin.lerp(full, fraction)
+	if hit != null and fraction < 1.0:
+		var below: Dictionary = roof_hit.call(target, Vector3.DOWN)
+		if not below.is_empty() and not below.flat:
+			aim_ground = null
+			hide_markers()
+			return
+		target.y = floor_at.call(target.x, target.z)
 	var g: float = floor_at.call(target.x, target.z)
 	aim_ground = Vector3(target.x, g, target.z)
 	aim_lift = clampf(target.y - g, 0.0, MAX_LIFT)

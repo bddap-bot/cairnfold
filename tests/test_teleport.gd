@@ -11,6 +11,9 @@ func _initialize() -> void:
 	_ground_target(rig)
 	_air_target(rig)
 	_air_reach_stops_at_nearer_ground(rig)
+	_stick_deflection_sets_reach()
+	_eased_ground_target(rig)
+	_eased_air_target(rig)
 	_no_teleport_tool()
 	_finish.call_deferred(rig)
 
@@ -18,6 +21,8 @@ func _initialize() -> void:
 func _finish(rig: Rig) -> void:
 	_a_flat_roof_is_floor_and_a_pitched_one_stops_the_ray(rig)
 	await _stick_teleports_with_every_tool(rig)
+	await _eased_stick_lands_nearer(rig, Vector3(0, -0.3, -1), "ground")
+	await _eased_stick_lands_nearer(rig, Vector3(0, 1, -1), "air")
 	await _view_holds_after_teleport(rig, 0.0)
 	await _view_holds_after_teleport(rig, 12.0)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -47,7 +52,6 @@ func _ground_target(rig: Rig) -> void:
 
 
 func _air_target(rig: Rig) -> void:
-	rig.air_reach = 12.0
 	var o := Vector3(0, Terrain.height_at(0, 0) + 1.5, 0)
 	var dir := Vector3(0, 1, -1).normalized()
 	rig.aim(_pose(o, dir))
@@ -55,20 +59,58 @@ func _air_target(rig: Rig) -> void:
 	if rig.aim_ground == null:
 		return
 	var target: Vector3 = rig.aim_ground + Vector3.UP * rig.aim_lift
-	_check(target.distance_to(o + dir * 12.0) < 0.01, "the air target is on the ray at the air reach")
+	_check(target.distance_to(o + dir * Rig.AIR_REACH) < 0.01, "the air target is on the ray at the air reach")
 	_check(rig.aim_lift > 8.0, "an air target lifts the landing above the ground")
 
 
 func _air_reach_stops_at_nearer_ground(rig: Rig) -> void:
-	rig.air_reach = 40.0
 	var o := Vector3(0, Terrain.height_at(0, -50) + 0.3, -50)
 	var dir := Vector3(0, 0.05, -1).normalized()
-	var hill: Variant = Terrain.raycast(o, dir, 40.0)
+	var hill: Variant = Terrain.raycast(o, dir, Rig.AIR_REACH)
 	_check(hill != null, "the rim's slope rises across a shallow ray")
 	if hill == null:
 		return
 	rig.aim(_pose(o, dir))
 	_check(rig.aim_lift < 0.15 and rig.aim_ground.distance_to(hill) < 0.1, "a rising ray that meets a hillside within reach lands on it")
+
+
+func _stick_deflection_sets_reach() -> void:
+	_check(Rig.reach_scale(1.0) == 1.0 and Rig.reach_scale(Rig.FULL_STICK) == 1.0, "full forward reaches the full target")
+	_check(is_equal_approx(Rig.reach_scale(Rig.DEADZONE), Rig.NEAREST), "the stick at its deadzone reaches the nearest")
+	var last := 0.0
+	var rising := true
+	for i in 21:
+		var f := Rig.reach_scale(i / 20.0)
+		rising = rising and f >= last
+		last = f
+	_check(rising, "easing the stick back never pushes the target farther")
+
+
+func _eased_ground_target(rig: Rig) -> void:
+	var o := Vector3(0, Terrain.height_at(0, 0) + 1.5, 0)
+	var pose := _pose(o, Vector3(0, -0.3, -1))
+	rig.aim(pose)
+	var full: Vector3 = rig.aim_ground
+	rig.aim(pose, 0.5)
+	_check(rig.aim_ground != null, "an eased ground aim still finds ground")
+	if rig.aim_ground == null:
+		return
+	var g: Vector3 = rig.aim_ground
+	var full_d := Vector2(full.x - o.x, full.z - o.z).length()
+	var d := Vector2(g.x - o.x, g.z - o.z).length()
+	_check(absf(d - full_d * 0.5) < 0.05, "half deflection lands half as far along the aim: %.2f of %.2f m" % [d, full_d])
+	_check(absf(g.y - Terrain.height_at(g.x, g.z)) < 0.05 and rig.aim_lift < 0.15, "an eased ground target stays on the ground")
+
+
+func _eased_air_target(rig: Rig) -> void:
+	var o := Vector3(0, Terrain.height_at(0, 0) + 1.5, 0)
+	var dir := Vector3(0, 1, -1).normalized()
+	rig.aim(_pose(o, dir), 0.4)
+	_check(rig.aim_ground != null, "an eased air aim still targets the air")
+	if rig.aim_ground == null:
+		return
+	var target: Vector3 = rig.aim_ground + Vector3.UP * rig.aim_lift
+	_check(target.distance_to(o + dir * Rig.AIR_REACH * 0.4) < 0.01, "an eased air target sits nearer along the ray")
 
 
 func _a_flat_roof_is_floor_and_a_pitched_one_stops_the_ray(rig: Rig) -> void:
@@ -121,6 +163,46 @@ func _stick_teleports_with_every_tool(rig: Rig) -> void:
 		var moved := Vector2(rig.head.global_position.x - from.x, rig.head.global_position.z - from.z).length()
 		_check(aimed and moved > 2.0, "left stick forward aims and goes holding %s (moved %.1f m)" % [Hand.Tool.keys()[t], moved])
 	Hand.injected_sticks.erase(rig.left.tracker)
+
+
+## Through real frames: full forward, ease back and hold, then a release whose spring sweeps the stick through
+## smaller deflections. The eased landing is nearer than the full one, and a release straight from full
+## forward still goes the full distance.
+func _eased_stick_lands_nearer(rig: Rig, dir: Vector3, what: String) -> void:
+	var full := await _stick_landing(rig, dir, 0.6)
+	var eased := await _stick_landing(rig, dir, 0.6, 0.45)
+	var ratio := eased / full
+	var expect := Rig.reach_scale(0.45)
+	_check(absf(ratio - expect) < 0.08, "%s: easing back to 0.45 lands %.2f of the full distance (%.1f of %.1f m), want %.2f" % [what, ratio, eased, full, expect])
+	var aimed := rig.head.global_position
+	rig.left.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), aimed + Vector3(-0.2, -0.4, -0.3))
+	rig.aim(rig.left.global_transform)
+	var far: Vector3 = rig.aim_ground
+	var snapped := await _stick_landing(rig, dir, 0.0)
+	_check(absf(snapped - Vector2(far.x - aimed.x, far.z - aimed.z).length()) < 1.0, "%s: a release straight from full forward goes the full distance" % what)
+
+
+## Places the rig at the origin, aims along `dir` with the stick full forward, then at `eased` for `hold`
+## seconds, then lets the stick spring back through 0.6 and 0.35 to centre; returns how far the head moved.
+func _stick_landing(rig: Rig, dir: Vector3, hold: float, eased := 1.0) -> float:
+	rig.place(Vector3(0, Terrain.height_at(0, 0), 0), 0.0)
+	await process_frame
+	var from := rig.head.global_position
+	rig.left.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), from + Vector3(-0.2, -0.4, -0.3))
+	Hand.injected_sticks[rig.left.tracker] = Vector2(0, 1)
+	await process_frame
+	await process_frame
+	Hand.injected_sticks[rig.left.tracker] = Vector2(0, eased)
+	var start := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start < hold * 1000.0:
+		await process_frame
+	for y in [0.6, 0.35, 0.0]:
+		Hand.injected_sticks[rig.left.tracker] = Vector2(0, y)
+		await process_frame
+	Hand.injected_sticks.erase(rig.left.tracker)
+	for f in 30:
+		await process_frame
+	return Vector2(rig.head.global_position.x - from.x, rig.head.global_position.z - from.z).length()
 
 
 ## With no input, the frames after a teleport change the origin once, the cut, and leave it on the target.
