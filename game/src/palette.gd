@@ -1,13 +1,13 @@
 class_name Palette
 extends RefCounted
 
-## The glade's colours: a season for the meadow, and a swatch for each built material. Laid parts keep
-## their own colour variation around the material's first swatch; a pick scales them toward the chosen
-## swatch through one shader global per material, so recolouring relays nothing. Pure data apart from
-## `apply`, so tests run headless.
+## The glade's colours: the garden's season, and the swatches each build is painted in (a wall's `paint`, one
+## swatch per material). Laid parts keep their own colour variation around the material's first swatch; a
+## build's paint scales its parts onto the chosen swatches as they are packed (Wall), so recolouring one build
+## lays no stones. Pure data apart from `apply`, so tests run headless.
 
-## Each material's value is also its code in the parts' custom data, read by `material_tint` in
-## palette.gdshaderinc; the meadow's 0 doubles as "kept as laid".
+## Each material's value is also its code in the parts' custom data, which tells a repaint what to scale; the
+## meadow's 0 doubles as "kept as laid".
 enum Element { MEADOW = 0, STONE = 1, ROOF = 2, WOOD = 3, PLASTER = 4 }
 
 ## The meadow's swatches are the seasons, each a preset for the meadow (grass and ground) and foliage
@@ -42,13 +42,7 @@ const KINDS := {
 }
 const TWIST_STEP := 28.0
 
-## The swatch picked for each element; for the meadow, the season.
-var picks: Array[int] = []
-
-
-func _init() -> void:
-	picks.resize(Element.size())
-	picks[Element.MEADOW] = SUMMER
+var season := SUMMER
 
 
 static func count(element: Element) -> int:
@@ -64,47 +58,60 @@ static func code(kind: String) -> float:
 	return KINDS[kind] if KINDS.has(kind) else 0.0
 
 
+## A build's paint as laid: every material on its first swatch. Indexed by Element; the meadow's entry stays 0.
+static func plain() -> PackedInt32Array:
+	var out := PackedInt32Array()
+	out.resize(Element.size())
+	return out
+
+
+## Whether `paint` is a build's paint: a swatch of each material, the meadow's entry 0.
+static func valid(paint: Variant) -> bool:
+	if typeof(paint) != TYPE_PACKED_INT32_ARRAY or paint.size() != Element.size() or paint[Element.MEADOW] != 0:
+		return false
+	for e: Element in SWATCHES:
+		if paint[e] < 0 or paint[e] >= count(e):
+			return false
+	return true
+
+
+## What scales a part laid in `element`'s first swatch onto its swatch `index`.
+static func tint(element: Element, index: int) -> Color:
+	var base: Color = SWATCHES[element][0]
+	var c: Color = SWATCHES[element][index]
+	return Color(c.r / base.r, c.g / base.g, c.b / base.b)
+
+
 ## The swatch a twist of `degrees` (clockwise positive) from `start` lands on, wrapping round the wheel.
 static func twisted(element: Element, start: int, degrees: float) -> int:
 	return posmod(start + roundi(degrees / TWIST_STEP), count(element))
 
 
-## The shader globals these picks set, by name.
-func globals() -> Dictionary:
+## The shader globals season `index` sets, by name.
+static func globals(index: int) -> Dictionary:
 	var out := {}
-	for e: Element in SWATCHES:
-		var base: Color = SWATCHES[e][0]
-		var c: Color = SWATCHES[e][picks[e]]
-		out["tint_" + Element.keys()[e].to_lower()] = Vector3(c.r / base.r, c.g / base.g, c.b / base.b)
-	var season: Dictionary = SEASONS[picks[Element.MEADOW]]
 	for key in ["meadow", "foliage"]:
-		var t: Color = season[key]
+		var t: Color = SEASONS[index][key]
 		out["season_" + key] = Vector4(t.r, t.g, t.b, t.a)
-	out["season_bloom"] = bloom()
+	out["season_bloom"] = SEASONS[index].bloom
 	return out
 
 
 ## The share of flowers in bloom this season.
 func bloom() -> float:
-	return SEASONS[picks[Element.MEADOW]].bloom
+	return SEASONS[season].bloom
 
 
 func fireflies() -> bool:
-	return SEASONS[picks[Element.MEADOW]].fireflies
+	return SEASONS[season].fireflies
 
 
 func apply() -> void:
-	_set_globals(globals())
+	preview(season)
 
 
-## Shows these picks with `element` at `index` instead, leaving the picks as they are.
-func preview(element: Element, index: int) -> void:
-	var p := Palette.new()
-	p.picks = picks.duplicate()
-	p.picks[element] = index
-	_set_globals(p.globals())
-
-
-static func _set_globals(g: Dictionary) -> void:
+## Shows season `index`, leaving the garden's as it is.
+static func preview(index: int) -> void:
+	var g := globals(index)
 	for name in g:
 		RenderingServer.global_shader_parameter_set(name, g[name])

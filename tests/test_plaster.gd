@@ -28,8 +28,8 @@ func _init() -> void:
 			_check(not plaster.same_inputs(stone), "material invalidates cached layout")
 			_check(plaster.live_arches == stone.live_arches and plaster.openings == stone.openings, "same arches, windows and doors")
 			_check(plaster.stones.size() < stone.stones.size(), "plaster replaces stones instead of overlaying them")
-			var packed := Wall.pack(plaster, Wall.kinds())
-			var old := Wall.pack(stone, Wall.kinds())
+			var packed := Wall.pack(plaster, Wall.kinds(), Palette.plain())
+			var old := Wall.pack(stone, Wall.kinds(), Palette.plain())
 			_check(packed.stone.size() < old.stone.size() and packed.shadow.size() <= old.shadow.size(), "fewer stone vertices and shadow instances")
 			_check(packed.mortar.size() == old.mortar.size(), "no extra box instances")
 			for panel in plaster.stones.filter(func(s): return s.kind == "plaster"):

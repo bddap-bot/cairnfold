@@ -662,14 +662,23 @@ func _sun(s: Dictionary) -> void:
 	hand.held_still = still
 
 
-## The colour picker on `element` (meadow, stone, roof, wood or plaster): opens its wheel on `hand`, twists
+## The colour picker aimed from `from` (the head by default) at `at`, each [x, height above the ground, z], which must
+## land on `element` (meadow, stone, roof, wood or plaster; the meadow needs no aim): opens its wheel on `hand`, twists
 ## to `swatch` over `seconds`, optionally captures the view with the wheel open, then lets go.
 func _colour(s: Dictionary) -> void:
 	var tool: PaletteTool = main.palette_tool
 	var hand := _holding(s, Hand.Tool.COLOUR)
 	var element: Palette.Element = Palette.Element[s.element.to_upper()]
-	tool.open(hand, element)
-	var from: int = main.world.palette.picks[element]
+	var target := {"element": element, "wall": null}
+	if s.has("at"):
+		var at: Vector3 = _spot(s, s.at[0], s.at[2]) + Vector3.UP * s.at[1]
+		var origin: Vector3 = _spot(s, s.from[0], s.from[2]) + Vector3.UP * s.from[1] if s.has("from") else main.rig.head.global_position
+		target = tool.aim(origin, (at - origin).normalized())
+	if target.get("element") != element:
+		push_error("driver: colour aimed at %s, not %s" % [target, s.element])
+		return
+	tool.open(hand, target)
+	var from: int = tool.wheels[hand].start
 	var to: int = s.swatch
 	var turn := (to - from) * Palette.TWIST_STEP
 	var t := 0.0

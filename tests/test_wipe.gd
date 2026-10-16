@@ -101,7 +101,7 @@ func _letting_go_early_wipes_nothing() -> void:
 func _a_wipe_empties_every_layer_and_undo_brings_it_all_back() -> void:
 	var before := _kept()
 	var picture := _picture()
-	var palette := Array(world.palette.picks)
+	var season := world.palette.season
 	var seq := world.seq
 	await _play([{"op": "wipe", "seconds": 2.5}])
 	await _settled()
@@ -117,7 +117,7 @@ func _a_wipe_empties_every_layer_and_undo_brings_it_all_back() -> void:
 	var meadow: Array = flora.groups[0]
 	_check(meadow.all(func(p: Flora.Plant) -> bool: return p.shown() == (p.pool == flora.grass)), "of the meadow's own plants only its grass stands")
 	_check(flora.grass.size() == flora.grass.kept and flora.flowers.size() == flora.flowers.kept and flora.trunks.size() == flora.trunks.kept, "and nothing painted or planted")
-	_check(Array(world.palette.picks) == palette, "the garden keeps its colours")
+	_check(world.palette.season == season, "the garden keeps its season")
 	var wiped := _picture()
 	await _play([{"op": "press", "button": "dpad_down"}, {"op": "wait", "seconds": 0.5}])
 	await _settled()
@@ -150,5 +150,5 @@ func _a_wipe_someone_built_on_stays() -> void:
 
 
 func _wall(by: int) -> int:
-	world._order({"op": "wall", "walls": [{"points": PackedVector3Array([Terrain.ground(0, -5), Terrain.ground(4, -5)]), "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array()}]}, by)
+	world._order({"op": "wall", "walls": [{"points": PackedVector3Array([Terrain.ground(0, -5), Terrain.ground(4, -5)]), "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array(), "paint": Palette.plain()}]}, by)
 	return world.seq * Commands.MAX_PIECES

@@ -155,7 +155,7 @@ func _point_at_follows_the_curve() -> void:
 func _a_long_wall_splits_by_the_ground_under_each_stone() -> void:
 	var stone := Wall.kinds()[Wall.Part.STONE]
 	var w := _wall(40.0, 1.5, [])
-	var packed := Wall.pack(w, Wall.kinds())
+	var packed := Wall.pack(w, Wall.kinds(), Palette.plain())
 	var chunks: Dictionary = packed.chunks[Wall.Part.STONE]
 	_check(chunks.size() >= 3, "a 40 m wall spans at least three 16 m chunks, got %d" % chunks.size())
 	var total := 0

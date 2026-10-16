@@ -18,9 +18,9 @@ const WIPED := "*"
 ## A growing plant stands at its spot's height above the ground as it is when it grows, so new heights wait for
 ## every stroke to grow.
 const GROWS_FIRST := ["heights"]
-## A saved garden from another format is moved aside rather than rebuilt into a different one: 2 draws
-## a stroke's plants' looks apart from their spots.
-const FORMAT := 2
+## A saved garden from another format is moved aside rather than rebuilt into a different one: 3 paints
+## each build its own colours.
+const FORMAT := 3
 ## A command applying for longer than this is logged.
 const SLOW_MS := 4.0
 
@@ -33,7 +33,7 @@ var flora: Flora
 var paths: Paths
 var ground_grab: GroundGrab
 var water: Water
-## The glade's colours: a swatch per material and the season.
+## The garden's season; each build carries its own colours.
 var palette := Palette.new()
 ## Standing walls, paths and plant groups by id, as the plain values their commands carry, and the grid
 ## points ponds fill from. A group keeps its command's fields, its `size` and the indices of its plants
@@ -463,8 +463,8 @@ func _keys(cmd: Dictionary) -> Array:
 			return ["p%d" % cmd.id]
 		"path", "unpath", "ground", "unground":
 			return ["q%d" % cmd.id]
-		"palette":
-			return ["c%d" % cmd.element]
+		"season":
+			return ["season"]
 		"wipe", "garden":
 			return [WIPED]
 		"batch":
@@ -595,16 +595,16 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				water.remove_seed(cmd.unseed)
 				inverse.seed = cmd.unseed
 			_account("seeds", {"pond": state.seeds.size()} if not state.seeds.is_empty() else {})
-		"palette":
-			inverse = {"op": "palette", "element": cmd.element, "index": palette.picks[cmd.element]}
-			palette.picks[cmd.element] = cmd.index
+		"season":
+			inverse = {"op": "season", "index": palette.season}
+			palette.season = cmd.index
 			palette.apply()
 		"wipe":
 			inverse = {"op": "garden", "cmds": snapshot().cmds}
-			var picks := palette.picks.duplicate()
+			var season := palette.season
 			_hushed(func() -> void:
 				_clear()
-				palette.picks = picks
+				palette.season = season
 				palette.apply()
 				_bare_meadow())
 		"batch":
@@ -666,10 +666,8 @@ func snapshot() -> Dictionary:
 			cmds.append(c)
 		if not g.hidden.is_empty():
 			cmds.append({"op": "show", "plants": {id: PackedInt32Array(g.hidden.keys())}, "on": false})
-	var plain := Palette.new()
-	for e in palette.picks.size():
-		if palette.picks[e] != plain.picks[e]:
-			cmds.append({"op": "palette", "element": e, "index": palette.picks[e]})
+	if palette.season != Palette.SUMMER:
+		cmds.append({"op": "season", "index": palette.season})
 	for c in cmds:
 		c.seq = seq
 		c.by = 1
@@ -705,7 +703,7 @@ func _hushed(change: Callable) -> Variant:
 	return out
 
 
-## Back to the empty meadow, every one of its plants standing, with the plain colours.
+## Back to the empty meadow, every one of its plants standing, in summer.
 func _clear() -> void:
 	for id in state.walls.keys():
 		wall_tool.take(id)
@@ -720,7 +718,7 @@ func _clear() -> void:
 	units = _meadow_units.duplicate()
 	_units_of.clear()
 	flora.reset()
-	palette.picks = Palette.new().picks
+	palette.season = Palette.SUMMER
 	palette.apply()
 	state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}}
 	if sculpted:
@@ -777,6 +775,6 @@ func digest() -> Dictionary:
 	Ground.settle()
 	out.mask = hash(Ground.laid.get_data())
 	out.ponds = water.ponds.size() if water != null else 0
-	out.palette = Array(palette.picks)
+	out.season = palette.season
 	out.budget = snappedf(fill(), 0.001)
 	return out

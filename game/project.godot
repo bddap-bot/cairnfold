@@ -58,22 +58,6 @@ water_depth={
 "type": "sampler2D",
 "value": ""
 }
-tint_stone={
-"type": "vec3",
-"value": Vector3(1, 1, 1)
-}
-tint_roof={
-"type": "vec3",
-"value": Vector3(1, 1, 1)
-}
-tint_wood={
-"type": "vec3",
-"value": Vector3(1, 1, 1)
-}
-tint_plaster={
-"type": "vec3",
-"value": Vector3(1, 1, 1)
-}
 season_meadow={
 "type": "vec4",
 "value": Vector4(0, 0, 0, 0)

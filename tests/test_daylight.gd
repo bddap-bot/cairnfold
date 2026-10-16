@@ -95,16 +95,20 @@ func _first_swatches_are_the_laid_colours() -> void:
 
 
 func _the_default_palette_changes_nothing() -> void:
-	var g := Palette.new().globals()
-	for e in ["stone", "roof", "wood", "plaster"]:
-		_check(g["tint_" + e] == Vector3.ONE, "%s keeps its laid colour" % e)
+	for e in Palette.SWATCHES:
+		_check(Palette.tint(e, 0) == Color.WHITE, "%s keeps its laid colour" % Palette.Element.keys()[e])
+	var g := Palette.globals(Palette.new().season)
 	_check(g.season_meadow.w == 0.0 and g.season_foliage.w == 0.0 and g.season_bloom == 1.0, "summer is the meadow as tuned")
-	var p := Palette.new()
-	p.picks[Palette.Element.ROOF] = 1
 	var want: Color = Palette.SWATCHES[Palette.Element.ROOF][1]
 	var base: Color = Palette.SWATCHES[Palette.Element.ROOF][0]
-	var tint: Vector3 = p.globals().tint_roof
-	_check(Vector3(base.r, base.g, base.b) * tint == Vector3(want.r, want.g, want.b), "a pick scales the laid colour onto its swatch")
+	_check((base * Palette.tint(Palette.Element.ROOF, 1)).is_equal_approx(want), "a swatch scales the laid colour onto it")
+	var paint := Palette.plain()
+	_check(Palette.valid(paint), "plain paint is paint")
+	paint[Palette.Element.ROOF] = Palette.count(Palette.Element.ROOF)
+	_check(not Palette.valid(paint), "a swatch off the wheel is not")
+	paint = Palette.plain()
+	paint[Palette.Element.MEADOW] = 1
+	_check(not Palette.valid(paint), "nor is a season in a build's paint")
 
 
 func _five_seasons() -> void:
@@ -170,12 +174,22 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 			_check(Palette.code(k) == e, "a laid %s is painted with %s, got code %s" % [k, Palette.Element.keys()[e], Palette.code(k)])
 	for k in kept:
 		_check(Palette.code(k) == 0.0, "a laid %s keeps its colour" % k)
-	var packed := Wall.pack(wall, Wall.kinds())
+	var packed := Wall.pack(wall, Wall.kinds(), Palette.plain())
 	var stride := Wall.kinds()[Wall.Part.STONE].stride()
 	var codes := {}
 	for i in range(0, packed.stone.size(), stride):
 		codes[packed.stone[i + 17]] = true
-	_check(codes.has(float(Palette.Element.STONE)) and codes.has(float(Palette.Element.WOOD)) and codes.has(0.0), "a wall's packed parts carry their materials' codes for the chunked draw: %s" % [codes.keys()])
+	_check(codes.has(float(Palette.Element.STONE)) and codes.has(float(Palette.Element.WOOD)) and codes.has(0.0), "a wall's packed parts carry their materials' codes, which a repaint scales by: %s" % [codes.keys()])
+	var paint := Palette.plain()
+	paint[Palette.Element.WOOD] = 3
+	var painted := Wall.pack(wall, Wall.kinds(), paint)
+	var tinted := true
+	for i in range(0, packed.stone.size(), stride):
+		var was := Color(packed.stone[i + 12], packed.stone[i + 13], packed.stone[i + 14])
+		var now := Color(painted.stone[i + 12], painted.stone[i + 13], painted.stone[i + 14])
+		var expect := was * Palette.tint(Palette.Element.WOOD, 3) if packed.stone[i + 17] == Palette.Element.WOOD else was
+		tinted = tinted and now.is_equal_approx(expect)
+	_check(tinted and painted.paint == paint, "a wall packed in its paint scales its wood onto the swatch and leaves the rest")
 	var door: Dictionary = wall.stones.filter(func(s): return s.kind == "door")[0]
 	_check(Stones.custom(door) == Color(door.ao, Palette.Element.WOOD, 0, 0), "a laid door carries its occlusion and wood's code to its shader")
 	_check(Stones.custom({"ao": 0.85}) == Color(0.85, 0, 0, 0), "paving, with no kind, keeps its colour")
@@ -183,11 +197,95 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 
 func _shaders_read_the_codes_and_globals_palette_writes() -> void:
 	var inc := FileAccess.get_file_as_string("res://src/palette.gdshaderinc")
-	for e in Palette.SWATCHES:
-		var name: String = Palette.Element.keys()[e].to_lower()
-		_check(inc.contains("c == %d ? tint_%s" % [e, name]), "the stone shader reads code %d as %s's tint" % [e, name])
-	for name in Palette.new().globals():
+	_check(FileAccess.get_file_as_string("res://src/plaster.gdshader").contains("instance uniform vec3 tint"), "a gable takes its build's plaster per instance")
+	for name in Palette.globals(0):
 		_check(ProjectSettings.has_setting("shader_globals/" + name) and inc.contains("global uniform") and inc.contains(" %s;" % name), "%s is a declared shader global" % name)
+
+
+## Directive (verbatim): "If I make one wall somewhere, and then I make another wall elsewhere, and I select the color
+## on the first wall, it changes the color on the other wall too. I'd like color to be per wall instead of global"
+func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
+	var tool: PaletteTool = main.palette_tool
+	var world: World = main.world
+	var first := walls[0]
+	var house := walls[1]
+	var other := walls[3]
+	for w in walls:
+		w.lay_now()
+	var first_was := first._parts[Wall.Part.STONE].duplicate()
+	var other_was := other._parts[Wall.Part.STONE].duplicate()
+	var steps: int = world.stacks.get(world.me(), {"undo": []}).undo.size()
+	var at := face
+	await _play([{"op": "colour", "hand": "left", "element": "stone", "swatch": 2, "seconds": 0.2, "from": _above(at + Vector3(0, 0, 3)), "at": _above(at)}])
+	var stone := Palette.Element.STONE
+	_check(world.state.walls[first.id].paint[stone] == 2 and tool.wheels.is_empty(), "a twist to the third swatch on the first wall keeps it there")
+	_check(world.state.walls[other.id].paint[stone] == 0 and world.state.walls[house.id].paint[stone] == 0, "the other wall and the house keep their stone")
+	_check(world.stacks[world.me()].undo.size() == steps + 1, "a pick is one undo step")
+	_check(_scaled_by(first_was, first._parts[Wall.Part.STONE], Palette.tint(stone, 2)), "the first wall's stones are drawn in the new swatch")
+	_check(other._parts[Wall.Part.STONE] == other_was, "the other wall's stones are drawn as they were")
+	var top: Vector3 = roof.mid
+	await _play([{"op": "colour", "hand": "left", "element": "roof", "swatch": 3, "seconds": 0.2, "from": _above(top + Vector3.UP * 12.0), "at": _above(top)}])
+	_check(world.state.walls[house.id].paint[Palette.Element.ROOF] == 3, "the house's roof takes the fourth swatch")
+	var end: Vector3 = roof.mid + roof.along * (house.roof.ridge_length() * 0.5 + 4.0) + Vector3.UP * house.roof.pitch * 0.35
+	var gable: Vector3 = end - roof.along
+	await _play([{"op": "colour", "hand": "left", "element": "plaster", "swatch": 1, "seconds": 0.2, "from": _above(end), "at": _above(gable)}])
+	var t := Palette.tint(Palette.Element.PLASTER, 1)
+	_check(house._gables.get_instance_shader_parameter(&"tint") == Vector3(t.r, t.g, t.b), "the house's gables take its plaster")
+	await _play([{"op": "colour", "hand": "left", "element": "meadow", "swatch": 4, "seconds": 0.2}])
+	_check(Palette.globals(world.palette.season).season_bloom == 0.0, "winter takes the flowers")
+
+	var snap := world.snapshot().duplicate(true)
+	_check(snap.cmds.filter(func(c: Dictionary) -> bool: return c.op == "season").size() == 1, "a joiner's snapshot carries the season")
+	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
+	_check(world.palette.season == Palette.SUMMER and world.state.walls.values().all(func(d: Dictionary) -> bool: return d.paint == Palette.plain()), "undo takes every pick back")
+	_check(_scaled_by(first_was, first._parts[Wall.Part.STONE], Color.WHITE), "the first wall's stones are drawn as laid again")
+	await _play([{"op": "press", "button": "dpad_up"}])
+	_check(world.state.walls[first.id].paint[stone] == 2 and world.state.walls[other.id].paint[stone] == 0, "redo paints the first wall again, and only it")
+
+	var first_id := first.id
+	world.submit({"op": "unwall", "ids": PackedInt32Array([first_id])})
+	_check(not world.state.walls.has(first_id), "the painted wall is deleted")
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(world.state.walls.get(first_id, {}).get("paint", Palette.plain())[stone] == 2, "undoing the delete brings it back in its colour")
+	var back := main.tool.find(first_id) as Wall
+	back.lay_now()
+	_check(back != null and _scaled_by(first_was, back._parts[Wall.Part.STONE], Palette.tint(stone, 2)), "and draws it so")
+
+	_check(main.tool.paint[stone] == 2 and main.tool.paint[Palette.Element.ROOF] == 3, "the swatches last picked are the ones new builds take")
+	var before: Array = world.state.walls.keys()
+	await _play([{"op": "wall", "points": [[-8, -12], [2, -12]], "seconds": 0.3}])
+	var fresh: Array = world.state.walls.keys().filter(func(id: int) -> bool: return not id in before)
+	_check(fresh.size() == 1 and world.state.walls[fresh[0]].paint[stone] == 2, "a new wall is laid in the stone last picked")
+
+	var left: Hand = main.rig.left
+	tool.open(left, tool.aim(face + Vector3(0, 0, 3), Vector3.FORWARD))
+	tool.twist(left, Palette.TWIST_STEP * 0.0)
+	var steps_now: int = world.stacks[world.me()].undo.size()
+	tool.close(left)
+	_check(world.stacks[world.me()].undo.size() == steps_now, "a wheel let go on the swatch the build already has sends nothing")
+	var house_id := house.id
+	world.restore(snap)
+	_check(world.palette.season == 4 and world.state.walls[first_id].paint[stone] == 2 and world.state.walls[house_id].paint[Palette.Element.ROOF] == 3, "a garden rebuilt from its snapshot keeps each build's colours")
+	var off := Palette.plain()
+	off[Palette.Element.ROOF] = Palette.count(Palette.Element.ROOF)
+	_check(Commands.clean({"op": "reshape", "id": house_id, "data": {"paint": off}}, world.state, false).is_empty(), "a swatch off the wheel is refused")
+
+
+## `p` as a driver step aims at it.
+func _above(p: Vector3) -> Array:
+	return [p.x, p.y - Terrain.height_at(p.x, p.z), p.z]
+
+
+## Whether each piece of `now` is the one in `was` with its stone's colour scaled by `tint`.
+func _scaled_by(was: PackedFloat32Array, now: PackedFloat32Array, tint: Color) -> bool:
+	var stride := Wall.kinds()[Wall.Part.STONE].stride()
+	if was.size() != now.size() or was.is_empty():
+		return false
+	for i in range(0, was.size(), stride):
+		var k := tint if was[i + 17] == Palette.Element.STONE else Color.WHITE
+		if not (Color(was[i + 12], was[i + 13], was[i + 14]) * k).is_equal_approx(Color(now[i + 12], now[i + 13], now[i + 14])):
+			return false
+	return true
 
 
 func _a_clockwise_twist_counts_up() -> void:
@@ -206,6 +304,7 @@ func _in_the_glade() -> void:
 		{"op": "house", "at": [11.0, 0.0], "size": [6.0, 3.7], "seconds": 0.2},
 		{"op": "fence", "points": [[-8, 6], [-2, 6]], "seconds": 0.3},
 		{"op": "fit", "what": "window", "index": 0, "s": 2.5, "y": 1.5},
+		{"op": "wall", "points": [[-8, -6], [2, -6]], "seconds": 0.3},
 	])
 	var wall: WallLayout = walls[0].layout
 	var house: Wall = walls[1]
@@ -226,30 +325,7 @@ func _in_the_glade() -> void:
 	_check(tool.aim(Vector3(0, 20, 22), Vector3.DOWN).get("element") == Palette.Element.MEADOW, "the picker on the meadow picks the season")
 	_check(tool.aim(Vector3(0, 2, 22), Vector3.UP).is_empty(), "the picker on the sky does nothing")
 
-	var world: World = main.world
-	var steps: int = world.stacks.get(world.me(), {"undo": []}).undo.size()
-	await _play([{"op": "colour", "hand": "left", "element": "roof", "swatch": 3, "seconds": 0.2}])
-	_check(world.palette.picks[Palette.Element.ROOF] == 3 and tool.wheels.is_empty(), "a twist to the fourth swatch keeps it")
-	_check(world.stacks[world.me()].undo.size() == steps + 1, "a pick is one undo step")
-	await _play([{"op": "colour", "hand": "left", "element": "meadow", "swatch": 4, "seconds": 0.2}])
-	_check(world.palette.globals().season_bloom == 0.0, "winter takes the flowers")
-	var snap := world.snapshot()
-	var colours: Array = snap.cmds.filter(func(c: Dictionary) -> bool: return c.op == "palette")
-	_check(colours.size() == 2, "a joiner's snapshot carries the two picks: %s" % [colours])
-	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
-	_check(world.palette.picks == Palette.new().picks, "undo takes both picks back: %s" % [world.palette.picks])
-	await _play([{"op": "press", "button": "dpad_up"}])
-	_check(world.palette.picks[Palette.Element.ROOF] == 3, "redo paints the roofs again")
-	var left: Hand = main.rig.left
-	tool.open(left, Palette.Element.STONE)
-	world.submit({"op": "palette", "element": Palette.Element.STONE, "index": 2})
-	tool.twist(left, Palette.TWIST_STEP * 2.0)
-	var before: int = world.stacks[world.me()].undo.size()
-	tool.close(left)
-	_check(world.stacks[world.me()].undo.size() == before and world.palette.picks[Palette.Element.STONE] == 2, "a wheel let go on the swatch the garden already has sends nothing")
-	world.restore(snap)
-	_check(world.palette.picks[Palette.Element.MEADOW] == 4 and world.palette.picks[Palette.Element.ROOF] == 3, "a garden rebuilt from its snapshot keeps its colours")
-	_check(Commands.clean({"op": "palette", "element": Palette.Element.ROOF, "index": Palette.count(Palette.Element.ROOF)}, world.state, false).is_empty(), "a swatch off the wheel is refused")
+	await _per_build(face, walls, f)
 
 	var look: Look = main.look
 	var sky: SkyTool = main.sky_tool

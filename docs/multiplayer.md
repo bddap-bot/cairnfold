@@ -12,10 +12,10 @@ internet comes next and uses the same protocol.
 
 Every finished edit is a **build command**: a small dictionary of plain values. `wall`
 carries the walls a stroke built, `unwall` removes walls, and `reshape` changes a wall's
-height, top, arches, fittings, ruins or roof. `path` and `unpath` lay and lift paths, `plant` grows a
+height, top, arches, fittings, ruins, roof or paint (its colours). `path` and `unpath` lay and lift paths, `plant` grows a
 paint stroke or a tree, `show` hides or restores plants, and `heights` sets an area of
 ground (a dug pond's seed, the point its water fills from, rides on the same command), and
-`palette` sets one material's swatch or the season. `wipe` takes the garden back to bare meadow, and
+`season` sets the garden's season. `wipe` takes the garden back to bare meadow, and
 `garden` (only ever the undo of a wipe) rebuilds it from the snapshot the wipe took. `batch` carries several takings (`unwall`, `reshape`, `unpath`,
 `unground`, `show`) of different things, applied in order as one step: a delete stroke across many things is
 one undo, and its inverse is the batch of their inverses. `World` (game/src/world.gd) applies them, and nothing else changes the garden.
@@ -103,7 +103,7 @@ nobody else ever builds on their steps.
 
 The host tracks, for each thing in the garden, which player last changed it and at which
 sequence number. A thing is a wall, a path, a plant group, an 8 m patch of ground, an
-8 m patch of the meadow's own plants, or one material's colour. A step is still yours if every other player's last
+8 m patch of the meadow's own plants, or the season. A step is still yours if every other player's last
 change to everything it touched came before it. A wipe touches everything: anyone's later change stands on it, it stands on
 every earlier step of the others, and a wipe dropped from your undo takes your older steps with it, since
 the garden they changed is gone. Only the host may wipe its garden. The host does not track one kind of

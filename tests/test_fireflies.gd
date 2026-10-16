@@ -103,12 +103,12 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	look.set_time(0.02)
 	_check(ff.dusk() > 0.9, "and before dawn")
 
-	palette.picks[Palette.Element.MEADOW] = 4
+	palette.season = 4
 	_run(wildlife, 1.5)
 	_check(ff.count() == n and ff.spots.values().all(func(l: Array) -> bool: return l.all(func(s: Vector4) -> bool: return s.w < 0.0)), "in winter they fade out")
 	_run(wildlife, Fireflies.FADE + 1.5)
 	_check(ff.count() == 0 and ff.mm.visible_instance_count == 0, "and are gone once faded")
-	palette.picks[Palette.Element.MEADOW] = Palette.SUMMER
+	palette.season = Palette.SUMMER
 	_run(wildlife, 1.5)
 	_check(ff.count() >= Fireflies.PER_HABITAT.x, "summer brings them back")
 

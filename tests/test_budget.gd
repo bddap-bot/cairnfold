@@ -77,7 +77,7 @@ static func _wall(from: Vector2, to: Vector2, height: float) -> Dictionary:
 		points.append(Terrain.ground(p.x, p.y))
 	return {"points": points, "height": height, "arches": PackedFloat32Array(), "seed": 7, "closed": false, "top": 0,
 		"fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
-		"ruins": PackedVector2Array(), "plaster": false, "on": PackedInt32Array()}
+		"ruins": PackedVector2Array(), "plaster": false, "on": PackedInt32Array(), "paint": Palette.plain()}
 
 
 ## Submits a wall command and waits for it to settle; whether it went into the garden.

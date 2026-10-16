@@ -2,10 +2,11 @@ shader_type spatial;
 render_mode cull_disabled;
 
 #include "res://src/ground.gdshaderinc"
-#include "res://src/palette.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 
 uniform vec3 albedo : source_color;
+// Its build's plaster swatch over the first (Palette.tint).
+instance uniform vec3 tint = vec3(1.0);
 
 varying vec3 bounce_at;
 
@@ -14,7 +15,7 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = albedo * tint_plaster;
+	ALBEDO = albedo * tint;
 	ROUGHNESS = 0.95;
 	vec4 bounce = texture(bounce_volume, bounce_at);
 	AO = bounce.a;

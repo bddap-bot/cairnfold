@@ -371,8 +371,8 @@ func _a_roof_laid_from_its_inputs_is_the_same_roof() -> void:
 	r.chimneys = [Vector2(0.8, 0.6)]
 	var copy := r.inputs()
 	_check(copy.same_inputs(r), "a roof's inputs lay the same roof")
-	var here := Wall.pack_roof(w, r, Wall.kinds())
-	var there := Wall.pack_roof(w, copy, Wall.kinds())
+	var here := Wall.pack_roof(w, r, Wall.kinds(), Palette.plain())
+	var there := Wall.pack_roof(w, copy, Wall.kinds(), Palette.plain())
 	_check(not here.tiles.is_empty() and here.tiles == there.tiles and here.shadows == there.shadows, "with the same tiles")
 	copy.pitch = 2.0
 	_check(not copy.same_inputs(r), "a pulled pitch is another roof")

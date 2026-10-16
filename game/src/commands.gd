@@ -5,7 +5,7 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "heights", "palette", "wipe", "garden", "batch"]
+const OPS := ["wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "heights", "season", "wipe", "garden", "batch"]
 ## What a batch may carry: from a player, takings; from the host, also the undo of them.
 const BATCHED := ["unwall", "reshape", "unpath", "unground", "show"]
 const UNBATCHED := ["wall", "path", "ground"]
@@ -126,11 +126,9 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			out.on = cmd.get("on")
 		"heights":
 			ok = _heights(cmd, state, from_host, out)
-		"palette":
-			var e: Variant = cmd.get("element")
+		"season":
 			var i: Variant = cmd.get("index")
-			ok = typeof(e) == TYPE_INT and e >= 0 and e < Palette.Element.size() and typeof(i) == TYPE_INT and i >= 0 and i < Palette.count(e)
-			out.element = e
+			ok = typeof(i) == TYPE_INT and i >= 0 and i < Palette.SEASONS.size()
 			out.index = i
 		"wipe":
 			ok = true
@@ -224,7 +222,9 @@ static func _wall(d: Variant) -> Variant:
 	var on: Variant = d.get("on")
 	if typeof(on) != TYPE_PACKED_INT32_ARRAY or on.size() > MAX_SUPPORTS or not _unique(on):
 		return null
-	var out := {"points": points, "height": d.height, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "on": on}
+	if not Palette.valid(d.get("paint")):
+		return null
+	var out := {"points": points, "height": d.height, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "on": on, "paint": d.paint}
 	if d.has("roof"):
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():
@@ -249,7 +249,7 @@ static func _reshape(d: Dictionary, now: Dictionary) -> Variant:
 	for k in d:
 		if typeof(k) != TYPE_STRING:
 			return null
-		if k in ["points", "height", "top", "arches", "windows", "lanterns", "flags", "ruins"]:
+		if k in ["points", "height", "top", "arches", "windows", "lanterns", "flags", "ruins", "paint"]:
 			out[k] = d[k]
 			trial[k] = d[k]
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():

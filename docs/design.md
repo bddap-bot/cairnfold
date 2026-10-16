@@ -987,7 +987,7 @@ Stage numbers refer to the build order at the end.
 | Fog | Froxel fog with density and height controls | Depth fog with aerial perspective and sun scatter, thinning as the eye lifts | 1 (done), 2 (done) |
 | Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap and grading (done); glow cut for the Quest 2. No depth of field: in a headset your eyes focus for themselves | 1 (done) |
 | Time of day | Continuous, lockable, sun-angle slider | Grip any hand on open sky to grab it and aim to turn it about the sun's arc, the sun riding on it from under the horizon at dawn, high in front at noon, to under it at dusk; the point grabbed stays under the pointer, and moving the hand without turning its aim leaves the sky be; a soft click in the hand each hour. The sun's colour and strength, sky, fog and ambient follow. Not an edit: undo leaves it be | 8 (done) |
-| Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette on the controller): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. Stone, roof tiles, woodwork (fences, window frames, doors) and plaster (gable ends) each take one of 6–8 curated swatches for the whole glade; on the meadow the wheel holds the five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch through one shader global per material (`Palette`), so recolouring relays nothing | 8 (done) |
+| Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette on the controller): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. On a build its stone, roof tiles, woodwork (fences, window frames, doors) or plaster (plaster walls, gable ends) each take one of 6–8 curated swatches for that build alone (see "Colour per build"); on the meadow the wheel holds the garden's five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch | 8 (done) |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of the left D-pad down undoes a step, up redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it; it is loaded at start. Only your own garden is kept, never one you are visiting. A file the game cannot read whole is moved aside to `garden.save.bad` before the garden is saved again. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
@@ -1110,6 +1110,32 @@ side nearest the hands' line stretches by the ratio of their spread, which is wh
 longer grows both sides of a carried house at once. Taking a built house back up with the trigger and
 carrying it was the other way to reuse the hold; it was not taken because moving a built house strands the
 storeys standing on it and changes what it stands on, and resizing in place keeps both.
+
+## Colour per build
+
+Directive (verbatim): "If I make one wall somewhere, and then I make another wall elsewhere, and I select the color
+on the first wall, it changes the color on the other wall too. I'd like color to be per wall instead of global"
+
+Directive (verbatim): "Same for... buildings"
+
+Colour belongs to the build, the one kind of thing every wall, fence, house and tower is (see "Buildings on
+buildings"):
+
+- A build carries its `paint`: a swatch for each material (stone, roof tiles, woodwork, plaster). Its roof, gable
+  ends, window frames, doors and chimneys are part of it and take its paint; flags, glass and iron keep theirs.
+  A storey on a house, or a wing across it, is a build of its own and keeps its own colours.
+- The colour tool's wheel on a build opens on that build's swatch, and letting go changes that build alone: a
+  `reshape` of its paint, so it is one undo step, every player sees it, saves and joiners' snapshots carry it with
+  the build, and undoing a delete brings the build back in its colours. There is no garden-wide build colour.
+- A new build starts in the swatch last picked on this machine for each material, or the laid colours before any
+  pick, so a village in one colour costs one pick per material and recolouring one house after leaves the rest
+  as they are. What was last picked is the player's own, like the tool in hand: it is neither sent nor saved.
+- The season stays the garden's: the meadow is one thing.
+- A build's colour is baked into its pieces' instance colours as they are packed on the worker thread (`Wall`),
+  so drawing it costs nothing per frame and the bounce light sees it. A repaint lays no stones: one pass over the
+  build's packed pieces scales each by its material's code from the swatch it has to the new one, and its gable
+  ends take their plaster as a per-instance shader value. The wheel shows its swatch on the build live this way
+  and sends it on letting go.
 
 ## Tools in hand
 
@@ -1249,7 +1275,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Shape the ground | Grip held pointing at the ground, whatever the hand holds (a pond's bed too): the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it. Each hand grabs on its own, so both can shape the ground, or one holds it while the other grabs or builds something else |
 | Dig a pond | Trigger held on a hand holding the pond tool, pointing at the ground: the hollow deepens while held and fills with water on release (see "Water") |
 | Delete | Trigger of a hand holding delete: hold it and sweep, and everything the beam passes over goes in that one stroke. Along a wall the stretch swept breaks into a ruin as you sweep; a tap breaks a short gap; a sweep leaving nothing worth standing, or any touch on a fence, house or tower, takes it whole. A tree or bush the beam strikes goes, and so does the path or stone ground it meets, whole; elsewhere on the ground it mows the grass and flowers under the ring, raggedly at its edge. Ruins and taken plants show as it goes, paths and stone go when you let go; the stroke is sent as one command when you let go, so one undo puts all of it back. Held pointed up at the sky, an orb swells at the beam's end for 2 s and then the whole garden is wiped (see Wipe); letting go or lowering the beam first lets the orb go |
-| Wipe | Directive (verbatim): "This world is really full of stuff, and I don't really have a great way to delete it all. I think I need a way to Wipe the whole world". One command (`wipe`) takes the garden back to bare meadow: every wall, path, stone, planted and painted plant, pond and ground edit goes, and so do the meadow's own flowers, bushes and trees; its grass, the season and the colours stay. A fresh garden still starts with the meadow's scenery; a wiped one is kept wiped. It is one undo step: undo rebuilds the garden from the snapshot the wipe took, as a late joiner's is. Only the garden's host can wipe it |
+| Wipe | Directive (verbatim): "This world is really full of stuff, and I don't really have a great way to delete it all. I think I need a way to Wipe the whole world". One command (`wipe`) takes the garden back to bare meadow: every wall, path, stone, planted and painted plant, pond and ground edit goes, and so do the meadow's own flowers, bushes and trees; its grass and the season stay. A fresh garden still starts with the meadow's scenery; a wiped one is kept wiped. It is one undo step: undo rebuilds the garden from the snapshot the wipe took, as a late joiner's is. Only the garden's host can wipe it |
 | Undo | Tap the left D-pad down: one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled, erased into ruins or deleted, trees, paint strokes, stone ground, paths, ground shaped, ponds dug, fences, windows and decorations). With others, your own steps only, skipping any another player has built on since (see [multiplayer.md](multiplayer.md)) |
 | Redo | Tap the left D-pad up (left or right too): one step forward per tap. A new edit after an undo drops what could be redone |
 | Visit | Trigger of a hand holding visit, pointing at a nearby player's figure: join their garden. Pointing at the small cairn while visiting: go home to your own |
@@ -1258,7 +1284,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Open a window or door | Trigger of a hand holding windows, pointing at a wall: a window where it points, a door if that is low on the wall; beside another window it fuses with it; on a window it closes that light |
 | Decorate | Trigger of a hand holding decorations: a chimney on a house's roof, a flag on a tower's roof or a wall's top, a lantern on a wall's face (on the side the hand is) or a fence; on one already there it takes it away |
 | Turn the sky | Point either hand at open sky, whatever it holds, grip and aim: the sky turns with the pointer, carrying the sun from dawn to dusk |
-| Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window or door, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top |
+| Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window or door, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top on that build (or, on the meadow, the garden's season) |
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
 
 Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
@@ -1595,8 +1621,9 @@ walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees
 at a perched one from in front and from the side;
 `demo/feeding.json` builds a pond, trees, a wall and a fence, waits for the animals, then holds seeds out to a conure, the ducks and the sheep;
 `demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar (`--seed 40` puts sheep in the close views);
-`demo/daylight.json` drags the sun from dawn to dusk, opens the colour wheel, recolours roofs, stone, wood
-and plaster, and walks the meadow through the seasons; `demo/stroke.json` takes two trees, a wall stretch, a path and meadow in one held delete stroke and puts them back with one undo; `demo/ruins.json` erases stretches of walls into
+`demo/daylight.json` drags the sun from dawn to dusk, opens the colour wheel, recolours a roof, a wall's stone,
+a fence and a gable, and walks the meadow through the seasons; `demo/paint.json` paints two walls and two houses
+each in colours of their own; `demo/stroke.json` takes two trees, a wall stretch, a path and meadow in one held delete stroke and puts them back with one undo; `demo/ruins.json` erases stretches of walls into
 ruins and walks the history. Run with `--garden FILE`, it keeps its garden there, and `demo/garden.json`
 run with the same `--garden FILE` loads it back and writes a digest equal to the first run's `redone`.
 

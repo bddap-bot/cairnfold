@@ -18,6 +18,10 @@ var finished := false
 var id := -1
 ## The roof on a house or tower, laid again with the walls under it.
 var roof: RoofLayout
+## Its swatch of each material (Palette.plain), for its stones, roof, woodwork and plaster alike.
+var paint := Palette.plain()
+## The paint the packed parts are coloured in, which a lay under way may not have caught up with.
+var _painted := Palette.plain()
 ## The walls' own mortar, which a deck's bed joins in Part.MORTAR.
 var _wall_mortar := PackedFloat32Array()
 ## The ids of the builds it stands on; empty on the ground.
@@ -117,6 +121,7 @@ func add_roof(r: RoofLayout) -> void:
 	_gables = MeshInstance3D.new()
 	_gables.material_override = _plaster
 	add_child(_gables)
+	_tint_gables()
 
 
 ## The wall as a build command carries it.
@@ -125,7 +130,7 @@ func data() -> Dictionary:
 		"points": PackedVector3Array(layout.points), "height": layout.height, "arches": PackedFloat32Array(layout.arches),
 		"seed": layout.seed, "closed": layout.closed, "top": int(layout.top), "fence": layout.fence,
 		"windows": PackedVector2Array(layout.windows), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags),
-		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "on": PackedInt32Array(on),
+		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
 	}
 	if roof != null:
 		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "flag": roof.flag}
@@ -146,6 +151,7 @@ func set_data(d: Dictionary) -> void:
 	layout.flags.assign(Array(d.flags))
 	layout.ruins.assign(Array(d.ruins))
 	on = d.on
+	repaint(d.paint)
 	if d.has("roof"):
 		if roof == null:
 			add_roof(RoofLayout.new())
@@ -301,6 +307,7 @@ func _put_shown() -> void:
 	layout.adopt(_shown.job)
 	_take(_shown.out)
 	_lay_dressing(_shown.out.get("roofed", {}))
+	_recolour()
 
 
 func _settle() -> void:
@@ -344,12 +351,13 @@ func _build_live() -> void:
 	var litter := _sweep()
 	var height := Terrain.held_height()
 	var water := Terrain.held_water()
+	var colours := paint.duplicate()
 	_build_task = WorkerThreadPool.add_task(func():
 		_drop(litter)
 		job.build(height, water)
-		out.merge(Wall.pack(job, ks))
+		out.merge(Wall.pack(job, ks, colours))
 		if roof_job != null:
-			out.roofed = Wall.pack_roof(job, roof_job, ks))
+			out.roofed = Wall.pack_roof(job, roof_job, ks, colours))
 
 
 ## The roof, or else the lanterns and flags, laid again over the stones; `roofed` is a roof already laid on
@@ -363,7 +371,7 @@ func _lay_dressing(roofed := {}) -> void:
 
 ## Lays `r` on a built layout's walls and packs its tiles as instance buffers by Part. Touches nothing but its
 ## arguments, so it runs on a worker thread.
-static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind]) -> Dictionary:
+static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Dictionary:
 	r.base = built.samples[0].y + built.height + WallLayout.CAP
 	if r.kind == RoofLayout.Kind.GABLE:
 		r.corners = built.laid_points
@@ -376,21 +384,21 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind])
 	mortar.resize(r.mortar.size() * bed.stride())
 	for i in r.mortar.size():
 		var m: Dictionary = r.mortar[i]
-		bed.write(mortar, i, m.xform, m.color, m.ao, Palette.code(m.kind))
+		bed.write(mortar, i, m.xform, _painted_as(m, colours), m.ao, Palette.code(m.kind))
 	var tiles := PackedFloat32Array()
 	tiles.resize(r.tiles.size() * tile.stride())
 	var shadows := PackedFloat32Array()
 	shadows.resize(r.tiles.size() * shadow.stride())
 	for i in r.tiles.size():
 		var t: Dictionary = r.tiles[i]
-		tile.write(tiles, i, t.xform, t.color, t.ao, Palette.code(t.kind))
+		tile.write(tiles, i, t.xform, _painted_as(t, colours), t.ao, Palette.code(t.kind))
 		shadow.write(shadows, i, t.xform)
 	return {"roof": r, "tiles": tiles, "shadows": shadows, "chunks": {Part.TILE: Masonry.split(tiles, tile.stride()), Part.TILE_SHADOW: Masonry.split(shadows, shadow.stride())}, "mortar": mortar}
 
 
 func _pack_roof(roofed := {}) -> void:
 	if roofed.is_empty():
-		roofed = pack_roof(layout, roof, kinds())
+		roofed = pack_roof(layout, roof, kinds(), _painted)
 	else:
 		roof.adopt(roofed.roof)
 	_parts[Part.TILE] = roofed.tiles
@@ -415,7 +423,7 @@ func _pack_roof(roofed := {}) -> void:
 
 ## A built layout's stones as instance buffers by Part, and the box enclosing them. Reads nothing but its
 ## arguments, so it runs on a worker thread.
-static func pack(built: WallLayout, ks: Array[Masonry.Kind]) -> Dictionary:
+static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Dictionary:
 	var stone := ks[Part.STONE]
 	var mortar := ks[Part.MORTAR]
 	var shadow := ks[Part.STONE_SHADOW]
@@ -436,11 +444,11 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind]) -> Dictionary:
 	for s in built.stones:
 		var x: Transform3D = s.xform
 		if s.kind in ["mortar", "plaster"]:
-			mortar.write(bufs[1], n[1], x, s.color, s.ao, Palette.code(s.kind))
+			mortar.write(bufs[1], n[1], x, _painted_as(s, colours), s.ao, Palette.code(s.kind))
 			n[1] += 1
 		else:
 			x.basis = x.basis * Stones.FLIPS[s.variant]
-			stone.write(bufs[0], n[0], x, s.color, s.ao, Palette.code(s.kind))
+			stone.write(bufs[0], n[0], x, _painted_as(s, colours), s.ao, Palette.code(s.kind))
 			n[0] += 1
 		if s.kind != "mortar":
 			shadow.write(bufs[2], n[2], x)
@@ -450,10 +458,72 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind]) -> Dictionary:
 	for i in bufs.size():
 		var part: Part = [Part.STONE, Part.MORTAR, Part.STONE_SHADOW][i]
 		chunks[part] = Masonry.split(bufs[i], ks[part].stride())
-	return {"stone": bufs[0], "mortar": bufs[1], "shadow": bufs[2], "chunks": chunks, "bounds": box.grow(0.6)}
+	return {"stone": bufs[0], "mortar": bufs[1], "shadow": bufs[2], "chunks": chunks, "bounds": box.grow(0.6), "paint": colours}
+
+
+## A laid part's colour in `colours`.
+static func _painted_as(part: Dictionary, colours: PackedInt32Array) -> Color:
+	var e := int(Palette.code(part.kind))
+	return part.color * Palette.tint(e, colours[e]) if e != 0 else part.color
+
+
+## Paints the wall in `to`. Its packed parts are scaled from the swatches they carry onto the new ones in place, a pass
+## over its pieces instead of a lay.
+func repaint(to: PackedInt32Array) -> void:
+	if to == paint:
+		return
+	paint = to.duplicate()
+	_tint_gables()
+	if _recolour():
+		_sync()
+
+
+func _tint_gables() -> void:
+	if _gables != null:
+		var t := Palette.tint(Palette.Element.PLASTER, paint[Palette.Element.PLASTER])
+		_gables.set_instance_shader_parameter(&"tint", Vector3(t.r, t.g, t.b))
+
+
+## Brings the packed parts from `_painted` to `paint`; whether any changed. The buffers are shared with the lay they
+## came from, which may be taken again, so they are copied, not scaled in place.
+func _recolour() -> bool:
+	if _painted == paint:
+		return false
+	if _parts[Part.STONE].is_empty() and _parts[Part.MORTAR].is_empty():
+		_painted = paint.duplicate()
+		return false
+	var scale := {}
+	for e in Palette.SWATCHES:
+		if _painted[e] != paint[e]:
+			var a := Palette.tint(e, _painted[e])
+			var b := Palette.tint(e, paint[e])
+			scale[float(e)] = Vector3(b.r / a.r, b.g / a.g, b.b / a.b)
+	_painted = paint.duplicate()
+	var ks := kinds()
+	for p in [Part.STONE, Part.MORTAR, Part.TILE]:
+		var stride := ks[p].stride()
+		_parts[p] = Wall._scaled(_parts[p], stride, scale)
+		var chunks := {}
+		for key in _chunked[p]:
+			chunks[key] = Wall._scaled(_chunked[p][key], stride, scale)
+		_chunked[p] = chunks
+	return true
+
+
+## `buf` (Masonry.Kind: colour at 12, material code at 17) with each piece's colour scaled by its material's `scale`.
+static func _scaled(from: PackedFloat32Array, stride: int, scale: Dictionary) -> PackedFloat32Array:
+	var buf := from.duplicate()
+	for i in range(0, buf.size(), stride):
+		var k: Variant = scale.get(buf[i + 17])
+		if k != null:
+			buf[i + 12] *= k.x
+			buf[i + 13] *= k.y
+			buf[i + 14] *= k.z
+	return buf
 
 
 func _take(packed: Dictionary) -> void:
+	_painted = packed.paint
 	_parts[Part.STONE] = packed.stone
 	_wall_mortar = packed.mortar
 	_parts[Part.MORTAR] = packed.mortar

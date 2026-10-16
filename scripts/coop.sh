@@ -95,14 +95,16 @@ check(len(kinds("tree")) == 1 and kinds("tree")[0]["shown"] == 0, "the host's un
 check(len(kinds("flowers")) == 1 and kinds("flowers")[0]["shown"] == kinds("flowers")[0]["plants"], "the joiner's undo then redo left its flowers standing")
 check(len(g["paths"]) == 1 and len(kinds("grass")) == 1, "the host's path and the grass painted across it stand")
 check(len(g["seeds"]) == 1 and g["ponds"] == 1, f"the joiner's dug pond holds water: {g['ponds']} ponds")
-check(g["palette"][2] == 3, f"the joiner's roof colour is the garden's: {g['palette']}")
+paints = {k: (w["data"].split('"paint": ')[1].split(")")[0] + ")", '"plaster": true' in w["data"], '"on": PackedInt32Array()' not in w["data"]) for k, w in g["walls"].items()}
+picked = "PackedInt32Array(0, 0, 0, 0, 2)"
+check(all((p == picked) == (plaster or on) for p, plaster, on in paints.values()), f"the joiner's plaster on the host's wall, and on the storey it built after, is every machine's; no other wall changes: {paints}")
 meadow = g["groups"]["0"]
 check(meadow["plants"] - meadow["shown"] > 10, f"the joiner's deletes took a spawned tree, a bush and mown meadow: {meadow['plants'] - meadow['shown']} of the meadow's plants gone")
 check(len(g["grounds"]) == 1 and any("lanterns\": PackedVector3Array(3" in w["data"] for w in g["walls"].values()), "the host's stone ground and lantern stand")
 home = json.load(open(f"{out}/home.json"))
 home.pop("avatars")
 home.pop("worn")
-check(len(home["walls"]) == 1 and list(home["groups"]) == ["0"] and not home["paths"] and home["ponds"] == 0 and home["palette"] == [1, 0, 0, 0, 0], "the visitor's own garden, one wall, is back when it goes home")
+check(len(home["walls"]) == 1 and list(home["groups"]) == ["0"] and not home["paths"] and home["ponds"] == 0 and home["season"] == 1, "the visitor's own garden, one wall, is back when it goes home")
 check(seen == {"host": 1, "join": 1, "late": 2}, f"each player sees the others' avatars: {seen}")
 check(worn == {"host": [own["join"]], "join": [], "late": [own["join"]]}, f"the host and the late joiner see the joiner in its own VRM 1.0 avatar: {worn}")
 late = json.load(open(f"{out}/host-late.json"))["worn"]

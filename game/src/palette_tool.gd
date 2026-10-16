@@ -3,19 +3,20 @@ extends Node3D
 
 ## The colour picker, for whichever hand holds it: the trigger on a thing opens a wheel of its material's
 ## swatches over the controller (on the meadow, its seasons), and twisting the wrist turns the wheel like a
-## dial, recolouring the glade live on this machine; letting go sends the swatch at the top to the garden
-## as a `palette` command, so everyone building sees it, and it is one undo step.
-## Stone walls, roof tiles, woodwork (fences, window frames, doors) and plaster (gable ends) each have one
-## colour for the whole glade.
+## dial, recolouring live on this machine; letting go sends the swatch at the top to the garden, so everyone
+## building sees it, and it is one undo step. On a build it paints that build alone: its stone, roof tiles,
+## woodwork (fences, window frames, doors) or plaster, as a `reshape` of its paint; builds laid after take the
+## swatch let go last. On the meadow it sets the garden's season.
 
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
 const WHEEL_RADIUS := 0.07
 ## Where the wheel stands from the controller, in its frame when the trigger went down.
 const WHEEL_AT := Vector3(0, 0.06, -0.05)
 
-## A hand's open wheel: what it paints, the swatch it started on and the one at its top, and the hand's
-## frame when it opened.
+## A hand's open wheel: the build it paints (-1 for the meadow) and which material, the swatch it started on and
+## the one at its top, and the hand's frame when it opened.
 class Wheel:
+	var wall := -1
 	var element: Palette.Element
 	var start := 0
 	var pick := 0
@@ -62,42 +63,47 @@ func _process(_delta: float) -> void:
 			var target := aim(t.origin, -t.basis.z)
 			hand.point(target.get("point", null), BEAM)
 			if b.pressed("trigger_click") and not target.is_empty() and not busy():
-				open(hand, target.element)
+				open(hand, target)
 		b.latch()
 	for hand in wheels:
 		hand.hold()
 		_place(wheels[hand], hand)
 
 
-## What the trigger would recolour from `origin` along `dir`: `element` and `point`, or empty.
+## What the trigger would recolour from `origin` along `dir`: `element`, `point` and the `wall` (null on the meadow), or empty.
 func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	var pick := walls.pick_wall(origin, dir)
 	var roof := walls.pick_roof(origin, dir)
 	var along: float = roof.get("along", INF)
 	var gable := INF
+	var gabled: Wall
 	for w in walls.walls:
-		if w.roof != null:
-			gable = minf(gable, w.roof.gable_hit(origin, dir))
+		if w.roof != null and w.roof.gable_hit(origin, dir) < gable:
+			gable = w.roof.gable_hit(origin, dir)
+			gabled = w
 	if gable < along and (pick.is_empty() or pick.distance > 0.2 or gable < pick.along):
-		return {"element": Palette.Element.PLASTER, "point": origin + dir * gable}
+		return {"element": Palette.Element.PLASTER, "point": origin + dir * gable, "wall": gabled}
 	if along < INF and (pick.is_empty() or pick.distance > 0.2 or along < pick.along):
-		return {"element": Palette.Element.ROOF, "point": roof.point}
+		return {"element": Palette.Element.ROOF, "point": roof.point, "wall": roof.wall}
 	if not pick.is_empty():
 		var layout: WallLayout = pick.wall.layout
 		var wood := layout.fence or not layout.opening_at(pick.s, pick.point.y - layout.point_at(pick.s).y).is_empty()
-		return {"element": Palette.Element.WOOD if wood else Palette.Element.PLASTER if layout.plaster else Palette.Element.STONE, "point": pick.point}
+		return {"element": Palette.Element.WOOD if wood else Palette.Element.PLASTER if layout.plaster else Palette.Element.STONE, "point": pick.point, "wall": pick.wall}
 	var ground: Variant = Terrain.raycast(origin, dir)
 	if ground != null:
-		return {"element": Palette.Element.MEADOW, "point": ground}
+		return {"element": Palette.Element.MEADOW, "point": ground, "wall": null}
 	return {}
 
 
-## Opens `element`'s wheel over `hand`, turning from the garden's swatch. While the trigger is held the
-## hand's twist turns it; the driver, holding no trigger, turns it with `twist`.
-func open(hand: Hand, element: Palette.Element) -> void:
+## Opens the wheel for `target` (as `aim` gives it) over `hand`, turning from its swatch in the garden. While the
+## trigger is held the hand's twist turns it; the driver, holding no trigger, turns it with `twist`.
+func open(hand: Hand, target: Dictionary) -> void:
 	var w := Wheel.new()
+	var element: Palette.Element = target.element
 	w.element = element
-	w.start = world.palette.picks[element]
+	if target.wall != null:
+		w.wall = target.wall.id
+	w.start = _now(w)
 	w.pick = w.start
 	w.basis = hand.global_basis.orthonormalized()
 	w.node = Node3D.new()
@@ -130,19 +136,53 @@ func twist(hand: Hand, degrees: float) -> void:
 	var pick := Palette.twisted(w.element, w.start, degrees)
 	if pick != w.pick:
 		w.pick = pick
-		world.palette.preview(w.element, pick)
+		_show(w, pick)
 		hand.trigger_haptic_pulse(&"haptic", 0.0, 0.25, 0.02, 0.0)
 
 
+## The swatch `w` paints as the garden has it now, or -1 once its build is gone.
+func _now(w: Wheel) -> int:
+	if w.wall < 0:
+		return world.palette.season
+	return world.state.walls[w.wall].paint[w.element] if world.state.walls.has(w.wall) else -1
+
+
+## Shows `w`'s build or the meadow with swatch `pick`, here alone.
+func _show(w: Wheel, pick: int) -> void:
+	if w.wall < 0:
+		Palette.preview(pick)
+		return
+	var built := walls.find(w.wall)
+	if built != null and world.state.walls.has(w.wall):
+		var paint: PackedInt32Array = world.state.walls[w.wall].paint.duplicate()
+		paint[w.element] = pick
+		built.repaint(paint)
+
+
 ## Sends the swatch at the top of `hand`'s wheel to the garden, unless the garden already has it (another
-## player may have picked it meanwhile); until it comes back it shows here alone.
+## player may have picked it meanwhile); until it comes back it shows here alone. A build's swatch becomes the
+## one new builds take.
 func close(hand: Hand) -> void:
 	var w: Wheel = wheels[hand]
 	_drop(hand)
-	if w.pick != world.palette.picks[w.element]:
-		world.submit({"op": "palette", "element": w.element, "index": w.pick}, world.palette.apply)
+	var now := _now(w)
+	if now < 0:
+		return
+	if w.wall >= 0:
+		walls.paint[w.element] = w.pick
+	if w.pick == now:
+		_show(w, now)
+	elif w.wall < 0:
+		world.submit({"op": "season", "index": w.pick}, world.palette.apply)
 	else:
-		world.palette.apply()
+		var paint: PackedInt32Array = world.state.walls[w.wall].paint.duplicate()
+		paint[w.element] = w.pick
+		world.submit({"op": "reshape", "id": w.wall, "data": {"paint": paint}}, _settled.bind(w))
+
+
+## A sent paint is settled before it applies, so the build is shown as the garden has it once it has.
+func _settled(w: Wheel) -> void:
+	(func() -> void: _show(w, _now(w))).call_deferred()
 
 
 func _drop(hand: Hand) -> void:

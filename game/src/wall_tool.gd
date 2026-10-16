@@ -68,6 +68,8 @@ var flora: Flora
 var paths: Paths
 var masonry := Masonry.new(Wall.kinds())
 var walls: Array[Wall] = []
+## The paint new builds are laid in: the swatch last picked on this machine for each material (PaletteTool).
+var paint := Palette.plain()
 var masons: Array[Mason] = []
 ## The house the hands are carrying, where it stands, and the hands holding it.
 var house: Wall
@@ -284,6 +286,7 @@ func _new_wall() -> Wall:
 
 
 func _add_wall(w: Wall) -> Wall:
+	w.paint = paint.duplicate()
 	get_parent().add_child(w)
 	return w
 
@@ -976,6 +979,9 @@ func take(id: int) -> void:
 ## A wall someone here is pulling keeps following their hand; it catches up when they let go.
 func restyle(id: int, changed: Array) -> void:
 	var w := find(id)
+	if changed == ["paint"]:
+		w.repaint(world.state.walls[id].paint)
+		return
 	if _held(w):
 		return
 	_relay(w)
