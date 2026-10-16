@@ -247,25 +247,26 @@ static func _reshape(d: Dictionary, now: Dictionary) -> Variant:
 	var out := {}
 	var trial := now.duplicate(true)
 	for k in d:
+		# A peer re-checks what the host cleaned, so keys stay Strings: `out.roof = ` would store a StringName.
 		if typeof(k) != TYPE_STRING:
 			return null
 		if k in ["points", "height", "top", "arches", "windows", "lanterns", "flags", "ruins"]:
 			out[k] = d[k]
 			trial[k] = d[k]
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():
-			out.roof = {}
+			out[k] = {}
 			for r in d.roof:
 				if typeof(r) != TYPE_STRING or not r in ["center", "radius", "pitch", "curve", "chimneys", "flag"]:
 					return null
-				out.roof[r] = d.roof[r]
+				out[k][r] = d.roof[r]
 				trial.roof[r] = d.roof[r]
 		elif k == "paint" and d.paint is Dictionary and not d.paint.is_empty():
-			out.paint = {}
+			out[k] = {}
 			trial.paint = PackedInt32Array(trial.paint)
 			for e in d.paint:
 				if typeof(e) != TYPE_INT or not Palette.SWATCHES.has(e) or typeof(d.paint[e]) != TYPE_INT:
 					return null
-				out.paint[e] = d.paint[e]
+				out[k][e] = d.paint[e]
 				trial.paint[e] = d.paint[e]
 		else:
 			return null
