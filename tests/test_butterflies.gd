@@ -68,8 +68,8 @@ func _glade(seed: int) -> Glade:
 	hands.assign(g.rig.hands)
 	await process_frame
 	g.wildlife = Wildlife.new(water, g.flora, null, g.palette, g.rig.head, hands, seed)
-	g.wildlife.set_process(false)
 	root.add_child(g.wildlife)
+	g.wildlife.set_process(false)
 	for h in g.rig.hands:
 		h.global_position = AWAY
 	return g

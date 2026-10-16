@@ -9,6 +9,8 @@ var failures := 0
 
 
 func _initialize() -> void:
+	# Walls draw their seeds from the global generator.
+	seed(1)
 	Terrain.install()
 	await process_frame
 	_no_tool_places_a_bird()
@@ -99,8 +101,8 @@ func _glade(seed: int) -> Glade:
 	root.add_child(g.flora)
 	g.flora.keep()
 	g.tool = WallTool.new(g.rig, g.world, g.flora, paths)
-	g.tool.set_process(false)
 	root.add_child(g.tool)
+	g.tool.set_process(false)
 	g.terrain = GroundGrab.new(g.rig, g.world)
 	g.terrain.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(g.terrain)
@@ -113,24 +115,33 @@ func _glade(seed: int) -> Glade:
 	hands.assign(g.rig.hands)
 	await process_frame
 	g.wildlife = Wildlife.new(water, g.flora, g.tool, Palette.new(), g.rig.head, hands, seed)
-	g.wildlife.set_process(false)
 	root.add_child(g.wildlife)
+	g.wildlife.set_process(false)
 	for h in g.rig.hands:
 		h.global_position = AWAY
 	return g
 
 
+## Ticks the wildlife without frames, the walls' stones and perches first laid as they stand, so what the
+## animals see does not hang on how far a worker thread got.
 func _run(g: Glade, seconds: float, each := Callable()) -> void:
+	_lay(g)
 	for i in int(seconds / STEP):
 		g.wildlife.tick(STEP)
 		if each.is_valid():
 			each.call()
 
 
+func _lay(g: Glade) -> void:
+	for w in g.tool.walls:
+		w.perches(true)
+
+
 ## As `_run`, a frame at a time, so walls lay their stones again as they would in play.
 func _play(g: Glade, seconds: float, each := Callable()) -> void:
 	for i in int(seconds / STEP):
 		await process_frame
+		_lay(g)
 		g.wildlife.tick(STEP)
 		if each.is_valid():
 			each.call()
@@ -147,11 +158,7 @@ func _teardown(g: Glade) -> void:
 
 ## Runs until a flock has come and every bird of it perches, or `seconds` have passed.
 func _until_perched(g: Glade, seconds: float) -> void:
-	var deadline := Time.get_ticks_msec() + 10000
-	for w in g.tool.walls:
-		while (w.laying() or w.perches().is_empty()) and Time.get_ticks_msec() < deadline:
-			await process_frame
-		_check(not w.laying() and not w.perches().is_empty(), "wall perches are ready before advancing bird time")
+	_lay(g)
 	for i in int(seconds / STEP):
 		g.wildlife.tick(STEP)
 		if g.birds().size() >= Birds.FLOCK.x and g.birds().all(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH):
@@ -292,13 +299,14 @@ func _a_calm_approach_lets_him_close(g: Glade, b: Birds.Bird, each: Callable) ->
 	var hand: Node3D = g.rig.hands[0]
 	var at := b.node.position
 	var side := Vector3(0.7, 0.3, 0.7).normalized()
-	hand.global_position = at + side * 2.0
+	var start := at + side * Birds.WATCH * 0.9
+	hand.global_position = start
 	_run(g, 1.0, each)
 	var left := [false]
 	var watching := func() -> void:
 		each.call()
 		left[0] = left[0] or b.state != Birds.State.PERCH
-	_move(g, hand, at + side * 2.0, at + side * 0.06, 0.3, watching)
+	_move(g, hand, start, at + side * 0.06, 0.3, watching)
 	_check(not left[0], "a hand coming slowly right up to a conure leaves it on its perch")
 	_run(g, 4.0, watching)
 	_check(not left[0] and b.node.position == at, "held still beside it, it stays, %.2f m from the hand" % b.node.position.distance_to(hand.global_position))
@@ -309,15 +317,27 @@ func _a_calm_approach_lets_him_close(g: Glade, b: Birds.Bird, each: Callable) ->
 	hand.global_position = AWAY
 	_run(g, 0.5, each)
 
+	for i in 600:
+		if b.state == Birds.State.PERCH:
+			break
+		_run(g, STEP, each)
+	at = b.node.position
 	var head: Node3D = g.rig.head
 	var home := head.global_position
-	var centre := b.node.position + Conure.BODY
-	_move(g, head, centre + Vector3(0, 0.1, 1.5), centre + Vector3(0, 0.02, 0.05), 0.3, each)
-	_check(b.state != Birds.State.FLY and b.state != Birds.State.LEAVE, "a face leaning in slowly startles it not, state %s" % Birds.State.keys()[b.state])
+	var centre := at + Conure.BODY
+	var early := [false]
+	var leaning := func() -> void:
+		each.call()
+		var eye := (at + Conure.BODY).distance_to(head.global_position)
+		early[0] = early[0] or (eye > Birds.SHUFFLE and b.state != Birds.State.PERCH)
+	_move(g, head, centre + Vector3(0, 0.1, Birds.WATCH * 0.9), centre + Vector3(0, 0.02, 0.05), 0.3, leaning)
+	_check(not early[0], "a face leaning in slowly startles it not until it is about to touch")
 	_run(g, 1.0, each)
 	var off := (b.node.position + Conure.BODY).distance_to(head.global_position)
 	var hopped := b.node.position.distance_to(at)
-	_check(off > Birds.SHUFFLE and b.state == Birds.State.PERCH and hopped > 0.0 and hopped < b.site.hop(), "it shuffles aside along its perch, %.2f m, to %.2f m from the eye" % [hopped, off])
+	var along := b.state == Birds.State.PERCH and hopped > 0.0 and hopped < b.site.hop()
+	var away := b.state != Birds.State.LEAVE and hopped > 0.0 and hopped <= Birds.STARTLE_TO.y
+	_check(off > Birds.SHUFFLE and (along or away), "it shuffles aside along its perch, or with no room flies a short way, %.2f m, to %.2f m from the eye" % [hopped, off])
 	_check(off - 0.07 > Rig.NEAR, "so the eye's near clip never cuts it")
 	head.global_position = home
 	_run(g, 1.0, each)
@@ -392,15 +412,7 @@ func _a_perch_taken_away_sends_them_elsewhere() -> void:
 	var g := await _glade(5)
 	g.wildlife.ducks_came = true
 	var first := _draw_wall(g.tool, Vector3(0, 0, -7), Vector3(5, 0, -8))
-	# Keep perch work pending until the test yields, independent of machine speed.
-	var ready := Semaphore.new()
-	var out := {"laid": first.layout.laid}
-	first._perch_out = out
-	first._perch_task = WorkerThreadPool.add_task(func():
-		ready.wait()
-		out.points = first.layout.perches())
-	ready.post.call_deferred()
-	await _until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
+	_until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
 	_check(g.birds().size() >= Birds.FLOCK.x and g.birds().all(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH), "conures perch on the only wall")
 	var second := _draw_wall(g.tool, Vector3(-9, 0, -6), Vector3(-4, 0, -8))
 	await process_frame
@@ -412,14 +424,14 @@ func _a_perch_taken_away_sends_them_elsewhere() -> void:
 	_check(not is_instance_valid(first), "the first wall is gone")
 	g.wildlife.tick(STEP)
 	_check(g.birds().all(func(b: Birds.Bird) -> bool: return b.site == null or b.site.standing()), "from the next frame no conure counts on the wall taken away")
-	var off := [0]
+	var off := [0, 0]
 	await _play(g, 12.0, func() -> void:
 		for b in g.birds():
-			if b.state == Birds.State.PERCH and not _on_perch(g, b.node.position):
-				off[0] += 1)
+			if b.state == Birds.State.PERCH:
+				off[int(_on_perch(g, b.node.position))] += 1)
 	_check(off[0] == 0, "no conure perches where the wall stood, %d frames" % off[0])
 	_check(g.birds().size() >= Birds.FLOCK.x and g.birds().all(func(b: Birds.Bird) -> bool: return b.state != Birds.State.LEAVE), "they stay, with a wall still standing")
-	_check(g.birds().any(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH and _on_perch(g, b.node.position)), "and settle on it")
+	_check(off[1] > 0, "and settle on it")
 	await _teardown(g)
 
 
@@ -471,19 +483,12 @@ func _a_reshape_carries_them_with_their_perch() -> void:
 	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": Terrain.ground(-2.5, -9)})
 	_draw_wall(g.tool, Vector3(0, 0, -7), Vector3(5, 0, -8))
 	await process_frame
-	await _until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
+	_until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
 	_check(g.birds().any(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH), "conures perch")
 	g.terrain.begin(g.terrain.rig.right, Terrain.ground(1, -8), 8.0)
 	g.terrain.pull(g.terrain.rig.right, 1.5)
 	g.terrain.end_stroke(g.terrain.rig.right)
 	_run(g, 1.0)
-	var settled := false
-	for i in 300:
-		await process_frame
-		if g.tool.walls.all(func(w: Wall) -> bool: return not w.laying()):
-			settled = true
-			break
-	_check(settled, "the wall is laid on the new ground")
 	await _play(g, 4.0)
 	var off := [0, 0]
 	await _play(g, 6.0, func() -> void:

@@ -70,8 +70,8 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	var no_hands: Array[Node3D] = []
 	await process_frame
 	var wildlife := Wildlife.new(water, flora, null, palette, rig.head, no_hands, 3, look)
-	wildlife.set_process(false)
 	root.add_child(wildlife)
+	wildlife.set_process(false)
 	var ff := wildlife.fireflies
 
 	look.set_time(0.98)

@@ -225,13 +225,12 @@ func _exit_tree() -> void:
 
 ## Where a bird can stand on the wall's top, as last worked out. Working them out reads every stone, several
 ## milliseconds for a long wall, so once the stones are laid again it is done on a worker thread, and not while a
-## newer preview is being laid; until it is done, the old ones stand.
-func perches() -> PackedVector3Array:
-	if _perch_task >= 0 and WorkerThreadPool.is_task_completed(_perch_task):
-		WorkerThreadPool.wait_for_task_completion(_perch_task)
-		_perch_task = -1
-		_perches = _perch_out.points
-		_perches_laid = _perch_out.laid
+## newer preview is being laid; until it is done, the old ones stand. With `now` the stones are laid and their
+## perches worked out before it returns, for a caller stepping time without frames.
+func perches(now := false) -> PackedVector3Array:
+	if now:
+		lay_now()
+	_take_perches(false)
 	if _perch_task < 0 and _perches_laid != layout.laid and not laying():
 		var job := WallLayout.new()
 		job.stones = layout.stones.duplicate()
@@ -239,7 +238,16 @@ func perches() -> PackedVector3Array:
 		var out := {"laid": layout.laid}
 		_perch_out = out
 		_perch_task = WorkerThreadPool.add_task(func(): out.points = job.perches())
+	_take_perches(now)
 	return _perches
+
+
+func _take_perches(wait: bool) -> void:
+	if _perch_task >= 0 and (wait or WorkerThreadPool.is_task_completed(_perch_task)):
+		WorkerThreadPool.wait_for_task_completion(_perch_task)
+		_perch_task = -1
+		_perches = _perch_out.points
+		_perches_laid = _perch_out.laid
 
 
 ## Ivy for a long wall takes longer than a frame to lay out, so it grows on a worker thread from a snapshot.

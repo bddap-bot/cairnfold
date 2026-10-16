@@ -356,8 +356,8 @@ func _setup() -> Array:
 	root.add_child(flora)
 	flora.keep()
 	var tool := WallTool.new(rig, world, flora, paths)
-	tool.set_process(false)
 	root.add_child(tool)
+	tool.set_process(false)
 	var ground := GroundGrab.new(rig, world)
 	ground.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(ground)

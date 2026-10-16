@@ -39,8 +39,8 @@ func _setup() -> Array:
 	root.add_child(flora)
 	flora.keep()
 	var tool := FloraTool.new(rig, flora, paths, world)
-	tool.set_process(false)
 	root.add_child(tool)
+	tool.set_process(false)
 	world.attach(null, flora, paths, null)
 	return [tool, paths, world, flora]
 

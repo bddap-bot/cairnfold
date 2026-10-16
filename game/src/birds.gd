@@ -320,7 +320,7 @@ func _think(b: Bird, delta: float) -> void:
 
 
 ## Someone close and calm: the bird turns to them and looks about, and stays, stepping aside only from a face
-## about to touch it.
+## about to touch it: a hop along its perch, or a short flight where its neighbours leave no room for one.
 func _watch(b: Bird, near: Node3D, delta: float) -> void:
 	var at := near.global_position
 	b.preening = 0.0
@@ -335,6 +335,8 @@ func _watch(b: Bird, near: Node3D, delta: float) -> void:
 			best = p
 	if best != Vector3.INF:
 		_hop(b, best, State.PERCH)
+	else:
+		_startle(b, at)
 
 
 func _hop_spot(b: Bird) -> Vector3:

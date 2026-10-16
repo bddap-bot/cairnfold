@@ -9,6 +9,8 @@ var failures := 0
 
 
 func _initialize() -> void:
+	# Walls draw their seeds from the global generator.
+	seed(1)
 	Terrain.install()
 	Ground.install()
 	await process_frame
@@ -56,8 +58,8 @@ func _glade(seed: int) -> Glade:
 	root.add_child(g.flora)
 	g.flora.keep()
 	g.walls = WallTool.new(g.rig, g.world, g.flora, paths)
-	g.walls.set_process(false)
 	root.add_child(g.walls)
+	g.walls.set_process(false)
 	g.terrain = GroundGrab.new(g.rig, g.world)
 	g.terrain.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(g.terrain)
@@ -72,8 +74,8 @@ func _glade(seed: int) -> Glade:
 	hands.assign(g.rig.hands)
 	await process_frame
 	g.wildlife = Wildlife.new(g.water, g.flora, g.walls, Palette.new(), g.rig.head, hands, seed)
-	g.wildlife.set_process(false)
 	root.add_child(g.wildlife)
+	g.wildlife.set_process(false)
 	for h in g.rig.hands:
 		h.global_position = AWAY
 	return g
@@ -108,17 +110,26 @@ func _dig(g: Glade, x: float, z: float, frames: int) -> void:
 	await process_frame
 
 
+## Ticks the wildlife without frames, the walls' stones and perches first laid as they stand, so what the
+## animals see does not hang on how far a worker thread got.
 func _run(g: Glade, seconds: float, each := Callable()) -> void:
+	_lay(g)
 	for i in int(seconds / STEP):
 		g.wildlife.tick(STEP)
 		if each.is_valid():
 			each.call()
 
 
+func _lay(g: Glade) -> void:
+	for w in g.walls.walls:
+		w.perches(true)
+
+
 ## As `_run`, a frame at a time, so walls lay their stones again as they would in play.
 func _play(g: Glade, seconds: float, each := Callable()) -> void:
 	for i in int(seconds / STEP):
 		await process_frame
+		_lay(g)
 		g.wildlife.tick(STEP)
 		if each.is_valid():
 			each.call()
@@ -482,6 +493,7 @@ func _settled_sheep_follow_their_ground() -> void:
 	for i in 30:
 		g.terrain.pull(g.terrain.rig.right, i * 0.04)
 		await process_frame
+		_lay(g)
 		g.wildlife.tick(STEP)
 		watch.see(self, g)
 	g.terrain.end_stroke(g.terrain.rig.right)

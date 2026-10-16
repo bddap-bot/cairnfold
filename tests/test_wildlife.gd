@@ -123,8 +123,8 @@ func _ducks_come_only_to_ponds() -> void:
 	var no_hands: Array[Node3D] = []
 	await process_frame
 	var wildlife := Wildlife.new(water, flora, null, Palette.new(), rig.head, no_hands, 1)
-	wildlife.set_process(false)
 	root.add_child(wildlife)
+	wildlife.set_process(false)
 
 	_run(wildlife, 600.0)
 	_check(wildlife.ducks().is_empty(), "a meadow without a pond draws no ducks")
