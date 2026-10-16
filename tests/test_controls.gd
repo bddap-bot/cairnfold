@@ -224,25 +224,34 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 		trackers[&"right_hand"].set_input(&"ax_button", true)
 		await _frames(2)
 		trackers[&"right_hand"].set_input(&"ax_button", false)
-		await _frames(2)
-	await press_a.call()
-	_check(tool.house_at.round and tool.house.roof.kind == RoofLayout.Kind.CONE, "A rounds it into a tower under a cone roof")
-	var c: Vector3 = tool.house_at.center
-	var r: float = tool.house_at.size.x * 0.5
-	var off := tool.house.layout.points.filter(func(p: Vector3) -> bool: return absf(Vector2(p.x - c.x, p.z - c.z).length() - r) > 0.01)
-	_check(tool.house.layout.points.size() >= 12 and off.is_empty(), "its wall runs round a circle %.1f m across" % (r * 2.0))
-	_check(tool.house.layout.height > WallTool.HOUSE_HEIGHT, "and stands taller than a house: %.1f m" % tool.house.layout.height)
+		await _frames(4)
+	var spread := func(from: float, step: float) -> void:
+		for i in 20:
+			hold.call(&"left_hand", Vector3(from - step * (i + 1), -0.4, -0.3), spot)
+			await _frames(1)
+	var rounded := func(what: String) -> void:
+		var c: Vector3 = tool.house_at.center
+		var s: Vector2 = tool.house_at.size
+		var off := tool.house.layout.points.filter(func(p: Vector3) -> bool: return absf(Vector2(p.x - c.x, p.z - c.z).length() - s.x * 0.5) > 0.01)
+		_check(tool.house_at.round and tool.house.roof.kind == RoofLayout.Kind.CONE, what)
+		_check(s.x == s.y and s.x >= WallTool.HOUSE_SIDES.x and s.x <= WallTool.HOUSE_DEPTH and is_equal_approx(tool.house.roof.radius, s.x * 0.5), "evenly, %s across, under its cone roof" % s)
+		_check(tool.house.layout.points.size() >= 12 and off.is_empty(), "its wall runs round a circle %.1f m across" % s.x)
+		_check(tool.house.layout.height > WallTool.HOUSE_HEIGHT, "and stands taller than a house: %.1f m" % tool.house.layout.height)
 	trackers[&"left_hand"].set_input(&"grip_click", true)
 	await _frames(2)
+	await spread.call(-0.2, 0.02)
+	_check(tool.house_at.size.x != tool.house_at.size.y, "two hands stretch the square house: %s" % tool.house_at.size)
+	await press_a.call()
+	await rounded.call("A while both hands hold rounds it into a tower")
 	var was: Vector2 = tool.house_at.size
-	for i in 20:
-		hold.call(&"left_hand", Vector3(-0.2 - 0.01 * (i + 1), -0.4, -0.3), spot)
-		await _frames(1)
+	await spread.call(-0.6, 0.01)
 	_check(tool.house_at.size.x > was.x * 1.2 and tool.house_at.size.x == tool.house_at.size.y, "spreading the hands widens it every way: %s" % tool.house_at.size)
 	await press_a.call()
 	_check(not tool.house_at.round and tool.house.roof.kind == RoofLayout.Kind.GABLE and tool.house.layout.points.size() == 4, "A again squares it")
+	await spread.call(-0.8, 0.02)
+	_check(tool.house_at.size.x != tool.house_at.size.y, "and the square stretches again: %s" % tool.house_at.size)
 	await press_a.call()
-	_check(tool.house_at.round, "and again rounds it")
+	await rounded.call("and A again rounds it")
 	_check(walls.size() == before, "nothing stands while it is held")
 	trackers[&"right_hand"].set_input(&"trigger_click", false)
 	trackers[&"left_hand"].set_input(&"grip_click", false)

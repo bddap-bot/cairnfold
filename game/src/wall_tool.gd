@@ -438,6 +438,11 @@ func round_house(round: bool) -> void:
 	house.roof.kind = RoofLayout.Kind.CONE if round else RoofLayout.Kind.GABLE
 	house.layout.height = TOWER_HEIGHT if round else HOUSE_HEIGHT
 	_lay_house()
+	if not _holders.is_empty():
+		_hold_start = house_at.duplicate()
+		_hold_from.clear()
+		for m in _holders:
+			_hold_from.append(m.hand.global_transform)
 
 
 func _lay_house() -> void:
