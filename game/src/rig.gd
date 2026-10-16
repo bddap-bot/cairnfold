@@ -23,12 +23,16 @@ const RELEASE_LOOKBACK := 0.1
 const MAX_LIFT := 40.0
 const SNAP := deg_to_rad(30.0)
 const FADE := 0.09
+## The layer only the camera sees: the player's own avatar, which their eyes would see from inside.
+const SELF_LAYER := 1 << 19
 
 var head: XRCamera3D
 var gaze: Gaze
 var left: Hand
 var right: Hand
 var hands: Array[Hand] = []
+## The player's own avatar, shown only while a camera is held, or null.
+var body: Avatar
 
 ## The hand whose teleport ray is out, or null.
 var aim_hand: Hand
@@ -58,6 +62,7 @@ func _init() -> void:
 	head.position = Vector3(0, EYE, 0)
 	head.near = NEAR
 	head.far = 400.0
+	head.cull_mask &= ~SELF_LAYER
 	add_child(head)
 	gaze = Gaze.new()
 	add_child(gaze)
@@ -104,6 +109,26 @@ func _build_markers() -> void:
 	_fade.material_override = _fade_mat
 	_fade.visible = false
 	head.add_child(_fade)
+
+
+## Wears `a` as the player's own avatar, posed from the head and hands by `pose_body`.
+func wear(a: Avatar) -> void:
+	if body != null:
+		body.queue_free()
+	body = a
+	a.top_level = true
+	a.visible = false
+	for v: VisualInstance3D in a.find_children("*", "VisualInstance3D", true, false):
+		v.layers = SELF_LAYER
+	add_child(a)
+
+
+## Poses the body from the head and hands; a hand in `holding` holds a camera, whose model stands in for it, so its
+## fingers never reach in front of the lens.
+func pose_body(holding: Array[Hand]) -> void:
+	body.pose(head.global_transform, left.global_transform, right.global_transform)
+	for h in holding:
+		body.fold(hands.find(h))
 
 
 func _marker(mesh: Mesh, mat: Material) -> MeshInstance3D:

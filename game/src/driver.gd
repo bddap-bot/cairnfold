@@ -123,7 +123,8 @@ func _pick(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Desktop only: holds both controllers in front of the head, `left` and `right` in head space, tops tipped toward the eye.
+## Desktop only: holds both controllers in front of the head, `left` and `right` in head space, tops tipped toward the eye,
+## then turned `turn` degrees about the vertical (180 points them back at the head) and rolled `roll` degrees.
 func _hands(s: Dictionary) -> void:
 	var head: Transform3D = main.rig.head.global_transform
 	for side in ["left", "right"]:
@@ -132,7 +133,9 @@ func _hands(s: Dictionary) -> void:
 		var hand: Hand = main.rig.left if side == "left" else main.rig.right
 		var at: Vector3 = head * Vector3(s[side][0], s[side][1], s[side][2])
 		var fwd := -head.basis.z
-		hand.global_transform = Transform3D(Basis.looking_at(fwd, Vector3.UP).rotated(head.basis.x, deg_to_rad(s.get("tip", 35.0))), at)
+		var b := Basis.looking_at(fwd, Vector3.UP).rotated(head.basis.x, deg_to_rad(s.get("tip", 35.0)))
+		b = Basis(Vector3.UP, deg_to_rad(s.get("turn", 0.0))) * b
+		hand.global_transform = Transform3D(b * Basis(Vector3.BACK, deg_to_rad(s.get("roll", 0.0))), at)
 		hand.held_still = true
 	await get_tree().process_frame
 

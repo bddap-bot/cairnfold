@@ -31,7 +31,8 @@ cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, style
 - Holding style: the same, with a little model of each style of what you point
   at: a gable end's, a roof's (pitched, a tower's cone, flat), a wall's top, or along
   a wall plain or arched.
-- Holding camera: the screen on its back shows what its lens sees; the trigger
+- Holding camera: the screen on its back shows what its lens sees, tilted as you
+  hold it and with your own avatar in view when you turn it on yourself; the trigger
   takes a photo, saved as a PNG in the game's `photos` folder
   (`~/.local/share/godot/app_userdata/Nestcombe/photos` from the Linux package;
   `/sdcard/Android/data/io.github.bddapbot.nestcombe/files/photos` from an APK, on a

@@ -223,7 +223,7 @@ func capture(name: String) -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
 	var img: Image
 	if metrics.info.xr:
-		img = await photo_tool.render(rig.head.global_transform, 90.0)
+		img = await photo_tool.render(rig.head.global_transform, 90.0, rig.head.cull_mask)
 	else:
 		await RenderingServer.frame_post_draw
 		img = get_viewport().get_texture().get_image()

@@ -110,6 +110,7 @@ func _ready() -> void:
 		if _listen.bind(beacon_port + p, "*" if lan else "127.0.0.1") == OK:
 			break
 	me.offer(_key)
+	rig.wear(Avatar.open(Avatar.built_in(avatar), colour))
 	host()
 
 
@@ -398,6 +399,7 @@ func _put_on(key: String, bytes: PackedByteArray, scene: PackedScene, seen: Stri
 		print("session: %s is not an avatar within the limits" % _seen_file)
 		return
 	worn = bytes
+	rig.wear(Avatar.open(scene if scene != null else Avatar.built_in(avatar), colour, key))
 	print("session: wearing %s" % (key if key != "" else "a built-in avatar"))
 	if not multiplayer.get_peers().is_empty():
 		_wear.rpc(worn)

@@ -328,6 +328,12 @@ func pose(at: Transform3D, l: Transform3D, r: Transform3D) -> void:
 		_place(arm.hand, grip)
 
 
+## Folds hand `side` (0 left, 1 right) and its fingers into the wrist, until the next `pose`.
+func fold(side: int) -> void:
+	var at := _get_joint(_arms[side].hand)
+	_place(_arms[side].hand, Transform3D(at.basis.scaled_local(Vector3.ONE * 0.001), at.origin))
+
+
 func _arm(arm: Arm, to: Vector3, turn: Basis) -> void:
 	var shoulder := _get_joint(arm.upper).origin
 	var a := arm.upper_length

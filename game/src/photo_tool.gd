@@ -3,6 +3,7 @@ extends Node3D
 
 ## For a hand holding the camera: the screen on the back of the camera model (ToolModels._camera) shows what
 ## its lens sees, and the trigger takes the photo, saved as a PNG. The shot stays on the screen a moment after.
+## The player's own avatar stands in the lens's view while a camera is held, and in no other.
 
 const PREVIEW_SIZE := Vector2i(256, 192)
 ## The preview redraws on one frame in this many, a third of the frames paying for a second, small view.
@@ -13,6 +14,7 @@ const FOV := 55.0
 const SHOT_HOLD := 1.2
 const DARK := Color(0.06, 0.06, 0.07)
 const APP_PHOTOS := "user://photos"
+const ALL_LAYERS := (1 << 20) - 1
 
 var rig: Rig
 var folder := Main.player_folder("photos")
@@ -95,6 +97,8 @@ func _process(delta: float) -> void:
 	var held := holders()
 	_shot_left = maxf(_shot_left - delta, 0.0)
 	var screen := ToolModels.camera_screen()
+	if rig.body != null:
+		rig.body.visible = not held.is_empty()
 	if held.is_empty():
 		screen.albedo_texture = null
 		screen.albedo_color = DARK
@@ -108,7 +112,7 @@ func _process(delta: float) -> void:
 		screen.albedo_color = Color.WHITE
 		_frame = (_frame + 1) % PREVIEW_EVERY
 		if _frame == 0:
-			_aim(_preview, lens(_eye if held.has(_eye) else held[0]))
+			_aim(_preview, lens(_eye if held.has(_eye) else held[0]), FOV, ALL_LAYERS)
 			_preview.render_target_update_mode = SubViewport.UPDATE_ONCE
 	for h in held:
 		if _buttons[rig.hands.find(h)].pressed("tool") and not _busy:
@@ -117,22 +121,19 @@ func _process(delta: float) -> void:
 		b.latch()
 
 
-## Where the lens is and which way it looks: along the controller's aim, level side to side so the
-## horizon stays straight however the wrist rolls. Turned almost straight up or down there is no horizon,
-## and the top of the controller takes over as up.
+## Where the lens is and which way it looks: as the controller is turned, roll included, as a camera held in the hand.
 static func lens(hand: Node3D) -> Transform3D:
 	var t := hand.global_transform
-	var fwd := -t.basis.z.normalized()
-	var up := Vector3.UP.lerp(t.basis.y, smoothstep(0.95, 0.999, absf(fwd.y)))
-	if up.cross(fwd).length() < 1e-3:
-		up = t.basis.y
-	return Transform3D(Basis.looking_at(fwd, up), t * (Hand.TOP + ToolModels.CAMERA_LENS))
+	return Transform3D(t.basis.orthonormalized(), t * (Hand.TOP + ToolModels.CAMERA_LENS))
 
 
-func _aim(vp: SubViewport, at: Transform3D, fov := FOV) -> void:
+func _aim(vp: SubViewport, at: Transform3D, fov: float, mask: int) -> void:
 	var cam: Camera3D = vp.get_child(0)
 	cam.global_transform = at
 	cam.fov = fov
+	cam.cull_mask = mask
+	if rig.body != null and rig.body.visible:
+		rig.pose_body(holders())
 
 
 ## Takes a photo through the hand's lens and saves it; the screen holds the shot for a moment. Returns
@@ -172,9 +173,9 @@ func save(img: Image, path: String) -> Error:
 	return saved[0]
 
 
-## The garden seen from `at`, rendered once at photo size, one render at a time. The pixels come back from
+## The garden seen from `at` by a camera seeing `mask`'s layers, rendered once at photo size, one render at a time. The pixels come back from
 ## the GPU a frame or two later instead of stalling the frame that asked for them.
-func render(at: Transform3D, fov := FOV) -> Image:
+func render(at: Transform3D, fov := FOV, mask := ALL_LAYERS) -> Image:
 	var rd := RenderingServer.get_rendering_device()
 	if rd == null or not is_inside_tree():
 		push_error("photo: no renderer to take it with")
@@ -184,7 +185,7 @@ func render(at: Transform3D, fov := FOV) -> Image:
 	_busy = true
 	if _photo == null:
 		_photo = _viewport(PHOTO_SIZE, Viewport.MSAA_4X, 400.0)
-	_aim(_photo, at, fov)
+	_aim(_photo, at, fov, mask)
 	_photo.render_target_update_mode = SubViewport.UPDATE_ONCE
 	await RenderingServer.frame_post_draw
 	var tex := RenderingServer.texture_get_rd_texture(_photo.get_texture().get_rid())
