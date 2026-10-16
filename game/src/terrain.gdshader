@@ -34,7 +34,7 @@ void fragment() {
 	vec3 grass = mix(meadow_dry, meadow_lush, clamp(COLOR.r + (d - 0.5) * 0.8, 0.0, 1.0));
 	grass = seasoned(grass * (0.85 + fine * 0.3), season_meadow);
 	// Steepness and depth per fragment: interpolated from the vertices they would follow the 1 m triangles.
-	float s = 1.0 - ground_normal(world_pos.xz).y + (fine - 0.5) * 0.06;
+	float s = ground_steepness(world_pos.xz) + (fine - 0.5) * 0.06;
 	vec3 c = mix(grass, earth, smoothstep(0.2, 0.32, s));
 	vec2 cover = ground_cover(world_pos.xz);
 	// Stone ground is one material however it came: painted, or a slope too steep to hold soil.
@@ -52,7 +52,11 @@ void fragment() {
 		c = mix(joint, face, laid);
 		paved = laid * min(cover.g / stony, 1.0);
 	}
-	float under = grid_smooth(water_depth, world_pos.xz);
+	float under = water_depth_at(world_pos.xz);
+	// Only near a pond is the depth worth smoothing; elsewhere it is the dry floor, far below any bank.
+	if (under > -0.5) {
+		under = grid_smooth(water_depth, world_pos.xz);
+	}
 	float shore = bank(under + (d - 0.5) * 0.12 + (fine - 0.5) * 0.06);
 	if (shore > 0.0) {
 		float pebble = texture(detail, world_pos.xz * 2.3).r;

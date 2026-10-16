@@ -22,8 +22,8 @@ static var revision := 0
 const NO_WATER := -100.0
 ## Each grid point's pond surface (Water), NO_WATER where none reaches.
 static var _water := _no_water()
-## What shaders read where no pond is (water.gdshaderinc): far enough under the shore's own depth that a bank
-## fades out between a shore point and the next.
+## What shaders read where no pond is (water.gdshaderinc): under the -0.5 the terrain shader smooths from, and far
+## enough under a shore point's own depth that a bank fades out before the next point.
 const DRY := -0.6
 static var _water_image: Image
 static var _water_texture: ImageTexture
@@ -253,11 +253,12 @@ static func write(cells: Rect2i, values: PackedFloat32Array) -> void:
 	_sync(cells)
 
 
-## Shares the heights with shaders (ground.gdshaderinc) as a texture, one texel per grid point. Half
+## Shares the heights with shaders (ground.gdshaderinc) as a texture, one texel per grid point, red the height
+## and green the steepness. Half
 ## floats because only 16-bit float textures are filterable on every Vulkan device; their steps stay
 ## under 3 cm below HIGHEST.
 static func install() -> void:
-	_image = Image.create_empty(VERTS, VERTS, false, Image.FORMAT_RH)
+	_image = Image.create_empty(VERTS, VERTS, false, Image.FORMAT_RGH)
 	_texture = ImageTexture.create_from_image(_image)
 	_sync(Rect2i(0, 0, VERTS, VERTS))
 	RenderingServer.global_shader_parameter_set(&"ground_height", _texture)
@@ -270,12 +271,22 @@ static func bounds() -> AABB:
 	return AABB(Vector3(-SIZE * 0.5, LOWEST - 2.0, -SIZE * 0.5), Vector3(SIZE, HIGHEST - LOWEST + 32.0, SIZE))
 
 
+## 1 - the ground normal's y at grid point (i, j), as ground_normal in ground.gdshaderinc finds it there.
+static func _steepness(i: int, j: int) -> float:
+	var row := j * VERTS
+	var dx := _heights[row + mini(i + 1, CELLS)] - _heights[row + maxi(i - 1, 0)]
+	var dz := _heights[mini(j + 1, CELLS) * VERTS + i] - _heights[maxi(j - 1, 0) * VERTS + i]
+	return 1.0 - 2.0 * STEP / sqrt(dx * dx + dz * dz + 4.0 * STEP * STEP)
+
+
 static func _sync(cells: Rect2i) -> void:
 	if _image == null:
 		return
-	for j in range(cells.position.y, cells.end.y):
-		for i in range(cells.position.x, cells.end.x):
-			_image.set_pixel(i, j, Color(_heights[j * VERTS + i], 0, 0))
+	# Green is each point's steepness, from its neighbours' heights, so it changes a step around the edit too.
+	var around := cells.grow(1).intersection(ALL)
+	for j in range(around.position.y, around.end.y):
+		for i in range(around.position.x, around.end.x):
+			_image.set_pixel(i, j, Color(_heights[j * VERTS + i], _steepness(i, j), 0))
 	_texture.update(_image)
 	if _water_image == null:
 		return
