@@ -12,6 +12,7 @@ const RIPPLE_EVERY := RIPPLE_LIFE * 2.0 / RIPPLES
 
 static var _shader: Shader
 static var _waves: NoiseTexture2D
+static var _lapping: AudioStreamOggVorbis
 
 var pond: PondLayout.Pond
 var _filled := 0.0
@@ -22,21 +23,31 @@ var _live := 0
 var _lap := AudioStreamPlayer3D.new()
 
 
+## Godot compiles a shader when a material first takes it, 10 ms on the Frame and a late frame as the first pond
+## fills, so `Water` calls this before any is dug and `get_rid` compiles it here.
+static func prepare() -> void:
+	if _shader != null:
+		return
+	_shader = load("res://src/water.gdshader")
+	_shader.get_rid()
+	var n := FastNoiseLite.new()
+	n.seed = 31
+	n.frequency = 0.03
+	n.fractal_octaves = 3
+	_waves = NoiseTexture2D.new()
+	_waves.width = 256
+	_waves.height = 256
+	_waves.seamless = true
+	_waves.as_normal_map = true
+	_waves.bump_strength = 6.0
+	_waves.generate_mipmaps = true
+	_waves.noise = n
+	_lapping = load("res://audio/lap.ogg")
+	_lapping.loop = true
+
+
 func _init() -> void:
-	if _shader == null:
-		_shader = load("res://src/water.gdshader")
-		var n := FastNoiseLite.new()
-		n.seed = 31
-		n.frequency = 0.03
-		n.fractal_octaves = 3
-		_waves = NoiseTexture2D.new()
-		_waves.width = 256
-		_waves.height = 256
-		_waves.seamless = true
-		_waves.as_normal_map = true
-		_waves.bump_strength = 6.0
-		_waves.generate_mipmaps = true
-		_waves.noise = n
+	prepare()
 	_mat.shader = _shader
 	_mat.set_shader_parameter("waves", _waves)
 	_mat.set_shader_parameter("breakup", Look.detail_noise())
@@ -45,8 +56,7 @@ func _init() -> void:
 	top_level = true
 	_ripples.resize(RIPPLES)
 	_mat.set_shader_parameter("ripples", _ripples)
-	_lap.stream = load("res://audio/lap.ogg")
-	(_lap.stream as AudioStreamOggVorbis).loop = true
+	_lap.stream = _lapping
 	_lap.unit_size = 2.5
 	_lap.max_distance = 30.0
 	add_child(_lap)

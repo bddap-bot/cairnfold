@@ -36,6 +36,7 @@ func _init(touching: Array[Node3D]) -> void:
 	_owner.resize(Terrain.VERTS * Terrain.VERTS)
 	_owner.fill(-1)
 	Terrain.dry_water()
+	PondWater.prepare()
 
 
 func add_seed(g: Vector2i) -> void:
