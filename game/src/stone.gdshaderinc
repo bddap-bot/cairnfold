@@ -43,7 +43,7 @@ void fragment() {
 	SPECULAR = 0.25;
 	vec4 bounce = texture(bounce_volume, bounce_at);
 	AO = bounce.a;
-	EMISSION = ALBEDO * bounce.rgb * bounce_light;
+	EMISSION = ALBEDO * given_back(bounce_at, bounce);
 #ifndef RIDES_GROUND
 	if (fitting_glow > 0.0) {
 		// Within arm's reach stays plain: the tool models in the hands are masonry too.

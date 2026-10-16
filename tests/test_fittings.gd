@@ -432,9 +432,15 @@ func _in_the_glade() -> void:
 
 	_fit(fit, t)
 	_check(wall.layout.flames.size() == 1, "a press hangs the lantern")
-	fit.place_lights()
-	var lit := fit.get_children().filter(func(n): return n is OmniLight3D and n.visible)
-	_check(lit.size() == 1 and lit[0].global_position.is_equal_approx(wall.layout.flames[0].origin), "a real light shines from the lantern")
+	fit.light_lanterns()
+	fit.lamps.finish()
+	var flame := wall.layout.flames[0].origin
+	_check(fit.lamps.at(flame.x, flame.z, 0) > 0.3, "the lantern lights the ground under it: %.2f" % fit.lamps.at(flame.x, flame.z, 0))
+	_check(fit.lamps.at(flame.x + 12.0, flame.z, 0) == 0.0, "and not beyond its reach")
+	var high := Lamps.shine(PackedVector3Array([Vector3(0.5, 6.0, 0.5)]), Bounce.grounds(Terrain.read(Terrain.ALL)))
+	var under := Bounce.column(0.5, 0.5)
+	var floor_light := high[0][under.y * Bounce.CELLS + under.x] / 255.0 * Lamps.ENCODE
+	_check(floor_light > 0.05, "a lantern hung 6 m up still lights the floor: %.2f" % floor_light)
 	_fit(fit, t)
 	_check(wall.layout.flames.is_empty(), "a second press takes the lantern away")
 	_undo(world)

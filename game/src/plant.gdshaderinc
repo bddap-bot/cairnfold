@@ -60,7 +60,7 @@ void fragment() {
 	ROUGHNESS = roughness;
 	vec4 bounce = texture(bounce_volume, bounce_at);
 	AO = bounce.a;
-	EMISSION = ALBEDO * bounce.rgb * bounce_light;
+	EMISSION = ALBEDO * given_back(bounce_at, bounce);
 #ifdef BACKLIT
 	BACKLIGHT = seasoned(backlight, season_foliage);
 #endif

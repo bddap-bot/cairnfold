@@ -692,6 +692,31 @@ the hills beyond still fade. Still short of the target: its warmer, golden
 late-afternoon light and blue distant haze belong to the time-of-day colours
 (`Daylight`), not to this pass.
 
+### Lantern light
+
+Directive (verbatim): "I am inside of a house right now, and it's dark. So I added lights. But those lights did not illuminate the ground inside of the house, as I would have expected"
+
+Lantern light is baked into a second volume on the bounce probes (`Lamps`, `lamp_volume`): per probe, the
+light of every lantern within 9 m, fading with distance as Godot fades an omni light. Shaders add it with the
+bounce (`given_back` in `bounce.gdshaderinc`), so it costs one more read of a small texture where they already
+read one, and nothing more however many lanterns hang. A worker solves it again when a lantern is hung or taken
+or the ground moves. Walls do not stop it, so a lantern inside a house glows faintly on the roof outside.
+
+Godot's own omni lights were the first try and are gone. Three of them, moved to the lanterns nearest the head,
+reached only 4.5 m, so a lantern hung 3 m up a tall house's wall left its floor dark; given 9 m, they cost the
+Quest 2 milliseconds of GPU time a frame for every surface they touched. Measured on the Quest 2 (`bench.sh`,
+the stress scene's garden walls with 9 lanterns hung, then 123, against none, GPU ms a frame, quality step 0):
+
+| Light | Ground, none | Ground, lit | Aerial, none | Aerial, lit |
+| --- | --- | --- | --- | --- |
+| 3 omni lights, 4.5 m | 52.9 | 71.1 | 70.4 | 84.6 |
+| 3 omni lights, 9 m | 48.8 | 74.5 | 65.9 | 93.2 |
+| Baked (`Lamps`), 9 lanterns | 50.0 | 50.2 | 67.5 | 67.3 |
+| Baked (`Lamps`), 123 lanterns | 49.0 | 49.6 | 67.7 | 68.8 |
+
+Lanterns hung with their light switched off measured 48.8 and 48.9 standing, 66.4 and 66.7 from the air: the
+rest of each delta above is the light. The stress scene's `lanterns` phases hang them along every wall.
+
 ### Grass
 
 What games known for their grass do, ranked by how much each adds to the look
@@ -755,7 +780,7 @@ Stage numbers refer to the build order at the end.
 | Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings") | 4 (done) |
 | Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, plaster gable ends. Grip on a roof, whatever the hand holds: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`). Pushed all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top style then cycles like an open wall's | 4 (done) |
 | Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light | 6 (done) |
-| Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | The decorations tool's trigger places what suits where it points: a stone chimney with two clay pots on a house's roof, rising clear of the ridge; a flag on a tower's roof or a wall's top, waving; a lantern on an iron arm off a wall's face, or on a fence post. Lanterns are emissive bodies in a soft additive halo, and the three nearest the head cast real light. A press on one takes it away | 6 (done) |
+| Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | The decorations tool's trigger places what suits where it points: a stone chimney with two clay pots on a house's roof, rising clear of the ridge; a flag on a tower's roof or a wall's top, waving; a lantern on an iron arm off a wall's face, or on a fence post. Lanterns are emissive bodies in a soft additive halo, and every one lights the ground and walls around it (see "Lantern light"). A press on one takes it away | 6 (done) |
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | The fence tool draws like walls (same stroke, merging and junctions) with a wooden profile: posts at most 1.6 m apart and two rails between. A path through a fence, in either order, opens a gate: two tall posts under a bent wooden arch | 6 (done) |
 | Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces (a house or tower under a roof or deck only its outer one: [inside before and after, outside after](ivy.jpg)), wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`), kept out of windows and doors too | 3 (done), 6 (done) |
 | Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers grow in clumps about 1.3 m across, each one of nine soft colours (white, butter, peach, pinks, lavender, violet, blues), so a stroke paints a few colour patches with nothing to pick | 1 (done), 3 (done) |

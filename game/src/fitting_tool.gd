@@ -5,8 +5,8 @@ extends Node3D
 ## window where the hand points, or a door where that is near the ground; one beside another on its course
 ## fuses with it into a wider opening, and the trigger on one closes it. With decorations, what the hand
 ## points at decides what goes there: a chimney on a house's roof, a flag on a tower's roof or a wall's top,
-## a lantern on a wall's face or a fence; the trigger on one takes it away. The lanterns nearest the head
-## cast real light; the rest glow.
+## a lantern on a wall's face or a fence; the trigger on one takes it away. Every lantern lights what is
+## around it (`Lamps`).
 ##
 ## While held, a ghost of the fitting rides the hand's ray: set on the wall where a press would place it,
 ## faint and hanging in the air where it would not, and a press there shakes it and bumps the hand. The
@@ -15,7 +15,6 @@ extends Node3D
 const TINT := Color(1.0, 0.93, 0.78, 0.6)
 ## A press this near a placed fitting takes it away.
 const TAKE_REACH := 0.6
-const LIGHTS := 3
 const LIGHT_EVERY := 0.25
 ## A ghost with nowhere to go hangs this high over the ground the hand points at, or this far along the
 ## ray where that ground is far or missing.
@@ -33,7 +32,7 @@ var _ghosts: Array[Dictionary] = []
 var _shaken: Array[float] = []
 ## Fitting lists sent and not yet back, by wall id and key, so a quick second press builds on the first.
 var _sent := {}
-var _lights: Array[OmniLight3D] = []
+var lamps := Lamps.new()
 var _since_lights := INF
 var _glow := 0.0
 var _ghost_fits := _ghost_material(Color(1.0, 0.96, 0.88, 0.7), 0.25)
@@ -44,6 +43,7 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 	rig = player
 	walls = builder
 	world = garden
+	lamps.install()
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["trigger_click"]))
 		var ghosts := {}
@@ -55,16 +55,6 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 			ghosts[what] = g
 		_ghosts.append(ghosts)
 		_shaken.append(INF)
-	for i in LIGHTS:
-		var l := OmniLight3D.new()
-		l.light_color = Color(1.0, 0.7, 0.4)
-		l.light_energy = 1.4
-		l.omni_range = 4.5
-		l.omni_attenuation = 1.6
-		l.shadow_enabled = false
-		l.visible = false
-		_lights.append(l)
-		add_child(l)
 
 
 func _process(delta: float) -> void:
@@ -93,7 +83,8 @@ func _process(delta: float) -> void:
 		RenderingServer.global_shader_parameter_set(&"fitting_glow", _glow)
 	_since_lights += delta
 	if _since_lights >= LIGHT_EVERY:
-		place_lights()
+		light_lanterns()
+	lamps.update()
 
 
 ## What a press from `origin` along `dir` would do with `tool`: a dictionary naming `what` and where, or empty.
@@ -293,16 +284,15 @@ func _show_ghost(i: int, ghost: Dictionary, delta: float) -> void:
 		g.visible = true
 
 
-## Moves the few real lights to the lanterns nearest the head.
-func place_lights() -> void:
+## Hands every lantern's flame to the light they cast.
+func light_lanterns() -> void:
 	_since_lights = 0.0
-	var head := rig.head.global_position
-	var lamps: Array[Vector3] = []
+	var flames := PackedVector3Array()
 	for w in walls.walls:
 		for f in w.layout.flames:
-			lamps.append(f.origin)
-	lamps.sort_custom(func(a: Vector3, b: Vector3) -> bool: return a.distance_squared_to(head) < b.distance_squared_to(head))
-	for i in LIGHTS:
-		_lights[i].visible = i < lamps.size()
-		if i < lamps.size():
-			_lights[i].global_position = lamps[i]
+			flames.append(f.origin)
+	lamps.light(flames)
+
+
+func _exit_tree() -> void:
+	lamps.stop()

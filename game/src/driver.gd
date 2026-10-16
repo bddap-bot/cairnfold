@@ -490,6 +490,24 @@ func _stress(s: Dictionary) -> void:
 	print("stress: %d walls, %.0f m, %d stones, laid in %.0f ms" % [tool.walls.size(), StressLayout.length(rows), stones, ms])
 
 
+## Hangs a lantern every `every` metres along each wall within `radius` of the centre, alternating faces.
+func _lanterns(s: Dictionary) -> void:
+	var hung := 0
+	for w: Wall in main.tool.walls:
+		var layout := w.layout
+		var after := PackedVector3Array(layout.lanterns)
+		var t := 0.5
+		while t < layout.length() and after.size() < Commands.MAX_FITTINGS:
+			var p := layout.point_at(t)
+			if Vector2(p.x, p.z).length() < s.radius and layout.lantern_fits(t, 2.0):
+				after.append(Vector3(t, 2.0, 1.0 if hung % 2 == 0 else -1.0))
+				hung += 1
+			t += s.every
+		if after.size() > layout.lanterns.size():
+			main.world.submit({"op": "reshape", "id": w.id, "data": {"lanterns": after}})
+	print("stress: %d lanterns" % hung)
+
+
 ## Fills every painted and placed flora pool to capacity within `radius` of the centre.
 func _fill_flora(s: Dictionary) -> void:
 	var flora: Flora = main.flora_tool.flora

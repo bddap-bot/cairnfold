@@ -333,5 +333,18 @@
   {"op": "wait", "seconds": 6},
   {"op": "label", "name": "-"},
   {"op": "capture", "name": "garden-ground"},
+  {"op": "pick", "hand": "right", "tool": "walls"},
+  {"op": "lanterns", "radius": 40, "every": 1.5},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "lanterns/ground"},
+  {"op": "view", "ground": true, "eye": [0, 1.65, 0], "at": [20, 1.2, 0]},
+  {"op": "wait", "seconds": 6},
+  {"op": "label", "name": "-"},
+  {"op": "capture", "name": "lanterns-ground"},
+  {"op": "label", "name": "lanterns/aerial"},
+  {"op": "view", "eye": [0, 22, 32], "at": [0, 0, 0]},
+  {"op": "wait", "seconds": 6},
+  {"op": "label", "name": "-"},
+  {"op": "capture", "name": "lanterns-aerial"},
   {"op": "quit"}
 ]

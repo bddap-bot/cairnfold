@@ -1,0 +1,15 @@
+[
+  {"op": "label", "name": "build"},
+  {"op": "place", "x": 0, "z": 12},
+  {"op": "house", "at": [0, -2], "size": [7, 5], "seconds": 1},
+  {"op": "sun", "time": 1.0, "seconds": 1},
+  {"op": "wait", "seconds": 3},
+  {"op": "view", "eye": [-2.2, 1.6, -2], "at": [2, 0.4, -2], "ground": true},
+  {"op": "capture", "name": "01-dark"},
+  {"op": "fit", "what": "lantern", "index": 0, "s": 2.0, "y": 1.7, "side": 1},
+  {"op": "wait", "seconds": 2},
+  {"op": "capture", "name": "02-lit"},
+  {"op": "view", "eye": [0, 14, 6], "at": [0, 0, -2]},
+  {"op": "capture", "name": "03-above"},
+  {"op": "quit"}
+]

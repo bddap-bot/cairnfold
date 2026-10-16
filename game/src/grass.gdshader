@@ -79,5 +79,5 @@ void fragment() {
 	BACKLIGHT = top * backlight * t * (1.0 - 0.5 * far);
 	vec4 bounce = texture(bounce_volume, bounce_at);
 	AO = bounce.a;
-	EMISSION = ALBEDO * bounce.rgb * bounce_light;
+	EMISSION = ALBEDO * given_back(bounce_at, bounce);
 }

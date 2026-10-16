@@ -3,6 +3,7 @@ extends RefCounted
 
 ## The frame every build must fit, and what building costs against it: the one source of these numbers.
 ## scripts/bench.sh holds the stress scene to them; a resource the player can see would read them too.
+## Lantern light is baked (`Lamps`) and costs the frame nothing however many hang: a lantern counts by its meshes.
 
 ## One graphics configuration for every headset, held to the weakest: the Quest 2 at 72 Hz.
 const REFRESH_HZ := 72.0
