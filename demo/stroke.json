@@ -1,0 +1,20 @@
+[
+  {"op": "place", "x": 4, "z": -12},
+  {"op": "wall", "points": [[2, -26], [2, -18]], "seconds": 0.6},
+  {"op": "tree", "x": -2, "z": -22},
+  {"op": "tree", "x": 6, "z": -22},
+  {"op": "pave", "points": [[9, -24], [9, -20]], "radius": 0.8, "seconds": 0.4},
+  {"op": "wait", "seconds": 1},
+  {"op": "view", "eye": [4, 4, -12], "at": [4, 0.5, -22]},
+  {"op": "capture", "name": "01-before"},
+  {"op": "digest", "name": "01-before"},
+  {"op": "erase", "points": [[-4, -22], [13, -22]], "height": 14, "seconds": 1.5},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "02-one-stroke"},
+  {"op": "digest", "name": "02-one-stroke"},
+  {"op": "press", "button": "dpad_down"},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "03-one-undo"},
+  {"op": "digest", "name": "03-one-undo"},
+  {"op": "quit"}
+]

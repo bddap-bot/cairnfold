@@ -1255,7 +1255,7 @@ walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees
 at a perched one from in front and from the side;
 `demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar (`--seed 40` puts sheep in the close views);
 `demo/daylight.json` drags the sun from dawn to dusk, opens the colour wheel, recolours roofs, stone, wood
-and plaster, and walks the meadow through the seasons; `demo/ruins.json` erases stretches of walls into
+and plaster, and walks the meadow through the seasons; `demo/stroke.json` takes two trees, a wall stretch, a path and meadow in one held delete stroke and puts them back with one undo; `demo/ruins.json` erases stretches of walls into
 ruins and walks the history. Run with `--garden FILE`, it keeps its garden there, and `demo/garden.json`
 run with the same `--garden FILE` loads it back and writes a digest equal to the first run's `redone`.
 
