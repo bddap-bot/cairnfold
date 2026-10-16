@@ -266,7 +266,7 @@ var _solid_cells := {}
 ## Every plant a build command can name, by group, in the order its command grew them.
 var groups := {}
 ## Committed strokes still growing, oldest first. Their spots were fixed as their commands applied, and any
-## other command settles them first, so every machine fills its pools alike.
+## command on their plants or the ground's heights grows them first, so every machine fills its pools alike.
 var _growing: Array[Growth] = []
 ## A player's own stroke while it is painted and until its build command comes back, drawn apart from the
 ## garden's plants so that those fill their pools in command order on every machine.
@@ -444,7 +444,7 @@ func _paint(kind: String, p: Vector3, rng: RandomNumberGenerator, ghost: bool) -
 ## Grows a group from its build command: a seeded paint stroke, which grows exactly the plants its
 ## author's ghost showed, or a tree. A stroke records in `skip` the plants that fell on bare ground when it
 ## grew, so a garden rebuilt later grows the same plants whatever paths and stone stand by then.
-## A stroke's plants are null until they grow, over the frames that follow (see `settle`).
+## A stroke's plants are null until they grow, over the frames that follow (see `grow_now`).
 func grow(id: int, g: Dictionary) -> Array[Plant]:
 	var plants: Array[Plant] = []
 	var rng := RandomNumberGenerator.new()
