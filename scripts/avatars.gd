@@ -83,11 +83,11 @@ func _eyes(head: Node3D, colour: Color, height: float) -> void:
 		_part(head, _sphere(0.018, 6, 4), _mat(colour), Vector3(x, height, 0.1), Vector3(1, 1.3, 0.6))
 
 
-## Mittens point along +Z, the way the hands are held when the avatar faces forward.
+## Mittens lie along the arms, palms down, as VRM's T-pose holds hands.
 func _mittens(root: Node3D, mat: Material) -> void:
-	for side in ["leftHand", "rightHand"]:
-		var hand: Node3D = root.find_child(side, true, false)
-		_part(hand, Meshes.rounded_box(0.45, 2, 5), mat, Vector3(0, -0.01, -0.03), Vector3(0.07, 0.05, 0.11))
+	for side in [["leftHand", 1.0], ["rightHand", -1.0]]:
+		var hand: Node3D = root.find_child(side[0], true, false)
+		_part(hand, Meshes.rounded_box(0.45, 2, 5), mat, Vector3(-0.03 * side[1], -0.01, 0), Vector3(0.11, 0.05, 0.07))
 
 
 func _smock(root: Node3D, mat: Material) -> void:

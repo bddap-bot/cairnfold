@@ -74,6 +74,8 @@ right A cuts arches, and the wheels open on right B and left ≡.
 - The game keeps its garden, photos, `metrics.json` and logs in Godot's user
   directory: `~/.local/share/godot/app_userdata/Nestcombe` on Linux,
   `%APPDATA%\Godot\app_userdata\Nestcombe` on Windows.
+  Put a VRM avatar (1.0 or 0.x) in its `avatars` folder to wear it: the newest file there
+  is yours, and other players see it (see [docs/multiplayer.md](docs/multiplayer.md)).
 
 ## Quest
 

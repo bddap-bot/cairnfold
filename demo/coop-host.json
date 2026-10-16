@@ -20,7 +20,8 @@
   {"op": "until", "seq": 26},
   {"op": "wait", "seconds": 0.5},
   {"op": "digest", "name": "host"},
-  {"op": "until", "players": 3},
+  {"op": "until", "players": 3, "worn": 2},
+  {"op": "digest", "name": "host-late"},
   {"op": "wait", "seconds": 4},
   {"op": "quit"}
 ]

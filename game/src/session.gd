@@ -3,7 +3,8 @@ extends Node
 
 ## Who shares this garden (docs/multiplayer.md). Every instance hosts its own garden, which alone is
 ## single player, and announces it on the local network; joining someone swaps in their garden until
-## you leave or they go. Each player's head and hands travel to the others as poses.
+## you leave or they go. Each player's head and hands travel to the others as poses, and the newest VRM
+## in their avatar folder travels once to everyone they meet.
 
 const PORT := 7480
 ## A host takes the first free of PORTS ports from its first; beacons may name any in PORT_RANGE from PORT.
@@ -21,6 +22,10 @@ const MAX_PLAYERS := 8
 const POSE_EVERY := 1.0 / 30.0
 ## How fast a remote avatar closes on its latest pose, per second.
 const FOLLOW := 18.0
+## How often the avatar folder is looked at, in seconds.
+const FOLDER_EVERY := 2.0
+## Avatar files travel on a channel of their own, so building commands never wait behind one.
+const FILE_CHANNEL := 1
 const COLOURS: Array[Color] = [Color(0.8, 0.45, 0.32), Color(0.45, 0.62, 0.42), Color(0.86, 0.66, 0.3), Color(0.38, 0.5, 0.72), Color(0.62, 0.4, 0.6), Color(0.3, 0.6, 0.6)]
 
 ## Peers or nearby gardens came or went.
@@ -41,6 +46,20 @@ var visiting := {}
 var nearby := {}
 ## Remote players' avatars by peer id.
 var avatars := {}
+## The folder whose newest .vrm is this player's avatar, or "" for a built-in one.
+var folder := ""
+## That file once it has read as an avatar within the limits; sent to every player met.
+var worn := PackedByteArray()
+## Each remote player's built-in avatar and colour, and the hash of the file they wear ("" for none).
+var _looks := {}
+var _wearing := {}
+## Avatars read from others' files, by hash, while someone here wears one.
+var _scenes := {}
+## Files being read on worker threads: {task, key, peer, bytes, scene, done}; each player's latest file waiting to be.
+var _jobs: Array[Dictionary] = []
+var _waiting := {}
+var _seen_file := ""
+var _since_folder := INF
 var _home := {}
 var _key := 0
 var _clock := 0.0
@@ -62,8 +81,8 @@ func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := t
 	avatar = posmod(look if look >= 0 else id, Avatar.BUILT_IN.size())
 	colour = COLOURS[posmod(id / 7 + first_port - PORT, COLOURS.size())]
 	_key = randi()
-	for path in Avatar.BUILT_IN:
-		Avatar.prepare(path)
+	for i in Avatar.BUILT_IN.size():
+		Avatar.built_in(i)
 
 
 ## A game a player launched, as opposed to one a script or a test runs. Only it beacons on the network.
@@ -140,6 +159,8 @@ func _on_peer(id: int) -> void:
 	if multiplayer.is_server():
 		world.welcome(id)
 	_appear.rpc_id(id, avatar, colour)
+	if not worn.is_empty():
+		_wear.rpc_id(id, worn)
 	changed.emit()
 
 
@@ -148,6 +169,10 @@ func _on_gone(id: int) -> void:
 		avatars[id].queue_free()
 		avatars.erase(id)
 		_targets.erase(id)
+	_looks.erase(id)
+	_wearing.erase(id)
+	_waiting.erase(id)
+	_prune()
 	changed.emit()
 
 
@@ -156,6 +181,10 @@ func _drop_avatars() -> void:
 		a.queue_free()
 	avatars.clear()
 	_targets.clear()
+	_looks.clear()
+	_wearing.clear()
+	_waiting.clear()
+	_prune()
 
 
 func _process(delta: float) -> void:
@@ -165,6 +194,11 @@ func _process(delta: float) -> void:
 		_since_beacon = 0.0
 		_announce()
 	_hear()
+	_since_folder += delta
+	if _since_folder >= FOLDER_EVERY:
+		_since_folder = 0.0
+		_look_in_folder()
+	_finish_jobs()
 	_since_pose += delta
 	if _since_pose >= POSE_EVERY and not multiplayer.get_peers().is_empty():
 		_since_pose = 0.0
@@ -217,10 +251,131 @@ func _appear(look: int, tint: Color) -> void:
 	var id := multiplayer.get_remote_sender_id()
 	if avatars.has(id):
 		return
-	var a := Avatar.open(Avatar.BUILT_IN[posmod(look, Avatar.BUILT_IN.size())], tint.clamp())
-	a.visible = false
+	_looks[id] = [posmod(look, Avatar.BUILT_IN.size()), tint.clamp()]
+	_dress(id, Avatar.built_in(look), "")
+
+
+## A player's own VRM, sent to each player they meet and again whenever it changes; empty for their built-in one.
+## They keep their built-in avatar until the file has been read, on a worker thread, and passes the limits.
+@rpc("any_peer", "reliable", "call_remote", FILE_CHANNEL)
+func _wear(bytes: PackedByteArray) -> void:
+	var id := multiplayer.get_remote_sender_id()
+	if not _looks.has(id) or bytes.size() > Avatar.MAX_BYTES:
+		return
+	_waiting[id] = bytes
+	_read_waiting()
+
+
+## Reads at most one file per player at a time, the latest each sent, so nobody can queue up reads.
+func _read_waiting() -> void:
+	for id in _waiting.keys():
+		if _jobs.any(func(j: Dictionary) -> bool: return j.peer == id):
+			continue
+		var bytes: PackedByteArray = _waiting[id]
+		_waiting.erase(id)
+		if bytes.is_empty():
+			_wearing[id] = ""
+			_dress(id, Avatar.built_in(_looks[id][0]), "")
+			_prune()
+		else:
+			_read(bytes, "", _worn_by_peer.bind(id), id)
+
+
+func _worn_by_peer(key: String, _bytes: PackedByteArray, scene: PackedScene, id: int) -> void:
+	if not _looks.has(id) or scene == null:
+		return
+	_wearing[id] = key
+	_scenes.get_or_add(key, scene)
+	_dress(id, _scenes[key], key)
+	_prune()
+
+
+## Gives player `id` the avatar in `scene`, in their pose.
+func _dress(id: int, scene: PackedScene, key: String) -> void:
+	var a := Avatar.open(scene, _looks[id][1], key)
+	var old: Avatar = avatars.get(id)
+	a.visible = old != null and old.visible
+	if old != null:
+		a.pose(old.eyes, old.hands[0], old.hands[1])
+		old.queue_free()
 	add_child(a)
 	avatars[id] = a
+
+
+func _prune() -> void:
+	for key in _scenes.keys():
+		if not _wearing.values().has(key):
+			_scenes.erase(key)
+
+
+static func _hash(bytes: PackedByteArray) -> String:
+	var h := HashingContext.new()
+	h.start(HashingContext.HASH_SHA256)
+	h.update(bytes)
+	return h.finish().hex_encode()
+
+
+## Wears the newest .vrm in the avatar folder once it reads as an avatar; with none there, the built-in one.
+func _look_in_folder() -> void:
+	if folder == "":
+		return
+	var newest := ""
+	var when := -1
+	for f in DirAccess.get_files_at(folder):
+		var path := folder.path_join(f)
+		if f.get_extension().to_lower() == "vrm" and FileAccess.get_modified_time(path) > when:
+			newest = path
+			when = FileAccess.get_modified_time(path)
+	var seen := "%s %d %d" % [newest, when, FileAccess.get_size(newest) if newest != "" else 0]
+	if seen == _seen_file:
+		return
+	_seen_file = seen
+	if newest == "":
+		_put_on("", PackedByteArray(), null, seen)
+	else:
+		_read(PackedByteArray(), newest, _put_on.bind(seen))
+
+
+## Wears a file read from the folder, unless the folder has changed since.
+func _put_on(key: String, bytes: PackedByteArray, scene: PackedScene, seen: String) -> void:
+	if seen != _seen_file:
+		return
+	if key != "" and scene == null:
+		print("session: %s is not an avatar within the limits" % _seen_file)
+		return
+	worn = bytes
+	print("session: wearing %s" % (key if key != "" else "a built-in avatar"))
+	if not multiplayer.get_peers().is_empty():
+		_wear.rpc(worn)
+
+
+## Reads a VRM, from `bytes` or the file at `path`, and hashes it on a worker thread; `done(hash, bytes, scene)`
+## follows on this one, with a null scene if it is not an avatar within the limits. `peer` is whose file it is,
+## 0 for this player's own.
+func _read(bytes: PackedByteArray, path: String, done: Callable, peer := 0) -> void:
+	var job := {"key": "", "peer": peer, "bytes": bytes, "scene": null, "done": done}
+	job.task = WorkerThreadPool.add_task(func() -> void:
+		if path != "":
+			var f := FileAccess.open(path, FileAccess.READ)
+			job.bytes = f.get_buffer(f.get_length()) if f != null and f.get_length() <= Avatar.MAX_BYTES else PackedByteArray()
+		job.key = _hash(job.bytes)
+		job.scene = Avatar.read(job.bytes) if not job.bytes.is_empty() else null)
+	_jobs.append(job)
+
+
+func _exit_tree() -> void:
+	for job in _jobs:
+		WorkerThreadPool.wait_for_task_completion(job.task)
+	_jobs.clear()
+
+
+func _finish_jobs() -> void:
+	for job in _jobs.duplicate():
+		if WorkerThreadPool.is_task_completed(job.task):
+			WorkerThreadPool.wait_for_task_completion(job.task)
+			_jobs.erase(job)
+			job.done.call(job.key, job.bytes, job.scene)
+			_read_waiting()
 
 
 @rpc("any_peer", "unreliable_ordered")

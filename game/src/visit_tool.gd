@@ -80,7 +80,7 @@ func _lay_out() -> void:
 
 func _figure(garden: Dictionary) -> Node3D:
 	var root := Node3D.new()
-	var a := Avatar.open(Avatar.BUILT_IN[garden.avatar], garden.colour)
+	var a := Avatar.open(Avatar.built_in(garden.avatar), garden.colour)
 	a.scale = Vector3.ONE * SIZE
 	root.add_child(a)
 	a.stand.call_deferred()

@@ -79,6 +79,9 @@ func _ready() -> void:
 	_undo_buttons = Buttons.new(rig.left).watch(["ax_button", "by_button"])
 	var played := Session.played(args, get_tree().current_scene == self)
 	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT)), played, int(args.get("beacon-port", Session.BEACON_PORT)))
+	session.folder = args.get("avatars", "user://avatars" if played else "")
+	if played:
+		DirAccess.make_dir_recursive_absolute(session.folder)
 	add_child(session)
 	visit_tool = VisitTool.new(rig, session)
 	add_child(visit_tool)

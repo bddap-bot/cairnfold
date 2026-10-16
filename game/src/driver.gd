@@ -583,24 +583,27 @@ func _visit(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Waits until the garden has applied command `seq`, `players` share it, or with "heard" the host's beacon is heard, for at most `seconds`.
+## Waits until the garden has applied command `seq`, `players` share it, `worn` of them show their own avatar files, or with
+## "heard" the host's beacon is heard, for at most `seconds`.
 func _until(s: Dictionary) -> void:
 	var t := 0.0
 	while t < s.get("seconds", 20.0):
 		var w: World = main.world
-		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
+		var worn: int = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.source != "").size()
+		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
 			return
 		await get_tree().process_frame
 		t += get_process_delta_time()
 	push_error("driver: until %s timed out" % s)
 
 
-## Writes `World.digest`, and how many other players' avatars stand here, to `name`.json in the capture
+## Writes `World.digest`, how many other players' avatars stand here and the hashes of their own files, to `name`.json in the capture
 ## directory, for comparing machines.
 func _digest(s: Dictionary) -> void:
 	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name + ".json")
 	var out: Dictionary = main.world.digest()
 	out.avatars = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.visible).size()
+	out.worn = main.session.avatars.values().map(func(a: Avatar) -> String: return a.source).filter(func(k: String) -> bool: return k != "")
 	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))
 	print("driver: digest ", path)
 

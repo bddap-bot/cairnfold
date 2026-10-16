@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Two players build together and a third joins late, all headless on this machine: coop.sh OUT_DIR
-# The second finds the first by its beacon and visits through the visit tool, then goes home.
+# The second finds the first by its beacon and visits through the visit tool, then goes home. The second wears a
+# VRM 1.0 avatar of its own and the third a VRM 0.x one, from their avatar folders.
 # Fails unless the three gardens match each other and the expected outcome of the scripted session.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -50,17 +51,22 @@ if [ -z "$port" ]; then
   exit 1
 fi
 echo "coop: host requested $requested, bound $port"
-run join --avatar 1 --port $((port + 8)) & join=$!
+for p in join late; do mkdir -p "$out/avatars-$p"; done
+cp "$root/tests/avatars/crimsom-1.0.vrm" "$out/avatars-join/"
+cp "$root/tests/avatars/godette-0.x.vrm" "$out/avatars-late/"
+run join --avatar 1 --port $((port + 8)) --avatars "$out/avatars-join" & join=$!
 while [ ! -e "$out/host.json" ] && kill -0 "$host" 2>/dev/null; do sleep 0.5; done
-run late --avatar 2 --port $((port + 8)) & late=$!
+run late --avatar 2 --port $((port + 8)) --avatars "$out/avatars-late" & late=$!
 status=0
 for p in "$host" "$join" "$late"; do wait "$p" || status=1; done
 grep -h "driver: until" "$out"/*.log && status=1
-python3 - "$out" <<'PY' || status=1
-import json, sys
+python3 - "$out" "$root/tests/avatars" <<'PY' || status=1
+import hashlib, json, sys
 out = sys.argv[1]
 d = {n: json.load(open(f"{out}/{n}.json")) for n in ("host", "join", "late")}
 seen = {n: g.pop("avatars") for n, g in d.items()}
+worn = {n: sorted(g.pop("worn")) for n, g in d.items()}
+own = {n: hashlib.sha256(open(f"{sys.argv[2]}/{f}", "rb").read()).hexdigest() for n, f in (("join", "crimsom-1.0.vrm"), ("late", "godette-0.x.vrm"))}
 ok = True
 def check(cond, what):
     global ok
@@ -83,8 +89,12 @@ check(meadow["plants"] - meadow["shown"] > 10, f"the joiner's deletes took a spa
 check(len(g["grounds"]) == 1 and any("lanterns\": PackedVector3Array(3" in w["data"] for w in g["walls"].values()), "the host's stone ground and lantern stand")
 home = json.load(open(f"{out}/home.json"))
 home.pop("avatars")
+home.pop("worn")
 check(len(home["walls"]) == 1 and list(home["groups"]) == ["0"] and not home["paths"] and home["ponds"] == 0 and home["palette"] == [1, 0, 0, 0, 0], "the visitor's own garden, one wall, is back when it goes home")
 check(seen == {"host": 1, "join": 1, "late": 2}, f"each player sees the others' avatars: {seen}")
+check(worn == {"host": [own["join"]], "join": [], "late": [own["join"]]}, f"the host and the late joiner see the joiner in its own VRM 1.0 avatar: {worn}")
+late = json.load(open(f"{out}/host-late.json"))["worn"]
+check(sorted(late) == sorted(own.values()), f"the host then sees the late joiner in its own VRM 0.x avatar too: {late}")
 sys.exit(0 if ok else 1)
 PY
 exit "$status"

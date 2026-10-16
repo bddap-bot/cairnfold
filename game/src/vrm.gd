@@ -1,31 +1,65 @@
 class_name Vrm
 extends GLTFDocumentExtension
 
-## The humanoid part of VRM 1.0 (VRMC_vrm): which glTF nodes are the head, hands and the rest of the
-## body, and where the eyes sit relative to the head bone. Export writes it from nodes named after
-## the bones (and the scene root's "eyes" metadata); import records it on the scene root as metadata
-## "humanoid" (bone name to the node's path from the root) and "eyes". Materials, spring bones and
-## expressions are not read.
+## The humanoid part of VRM 1.0 (VRMC_vrm) and VRM 0.x (VRM): which glTF nodes are the head, hands and the rest
+## of the body, where the eyes sit relative to the head bone, and which way the model faces. Export writes VRM
+## 1.0 from nodes named after the bones (and the scene root's "eyes" metadata); import records on the scene root
+## the metadata "humanoid" (bone name to the node's path from the root, with the bone's name as the subname when
+## it is a skeleton's bone), "eyes" and "forward". Materials, spring bones and expressions are not read.
 
 const BONES := ["hips", "spine", "head", "leftUpperArm", "leftLowerArm", "leftHand", "rightUpperArm", "rightLowerArm", "rightHand", "leftUpperLeg", "leftLowerLeg", "leftFoot", "rightUpperLeg", "rightLowerLeg", "rightFoot"]
 
 
 func _get_supported_extensions() -> PackedStringArray:
-	return PackedStringArray(["VRMC_vrm"])
+	return PackedStringArray(["VRMC_vrm", "VRM"])
 
 
+## Files come from other players, so every field is checked for its type before use.
 func _import_post(state: GLTFState, root: Node) -> Error:
-	var vrm: Dictionary = state.json.get("extensions", {}).get("VRMC_vrm", {})
-	var human: Dictionary = vrm.get("humanoid", {}).get("humanBones", {})
+	var exts: Variant = state.json.get("extensions")
+	exts = exts if exts is Dictionary else {}
 	var found := {}
-	for bone in human:
-		var n := state.get_scene_node(int(human[bone].node))
-		if n != null:
-			found[bone] = root.get_path_to(n)
+	var eyes := Vector3(0, 0.06, 0)
+	var forward := Vector3.BACK
+	if exts.get("VRMC_vrm") is Dictionary:
+		var vrm: Dictionary = exts.VRMC_vrm
+		var human: Variant = _field(_field(vrm, "humanoid"), "humanBones")
+		if human is Dictionary:
+			for bone in human:
+				_bind(found, str(bone), _field(human[bone], "node"), state, root)
+		var off: Variant = _field(_field(vrm, "lookAt"), "offsetFromHeadBone")
+		if off is Array and off.size() == 3 and off.all(func(x: Variant) -> bool: return x is float):
+			eyes = Vector3(off[0], off[1], off[2])
+	elif exts.get("VRM") is Dictionary:
+		# VRM 0.x faces -Z, and stores its first-person offset in Unity's axes, whose Z is glTF's reversed.
+		forward = Vector3.FORWARD
+		var human: Variant = _field(_field(exts.VRM, "humanoid"), "humanBones")
+		if human is Array:
+			for b: Variant in human:
+				_bind(found, str(_field(b, "bone")), _field(b, "node"), state, root)
+		var off: Variant = _field(_field(exts.VRM, "firstPerson"), "firstPersonBoneOffset")
+		if off is Dictionary and [off.get("x"), off.get("y"), off.get("z")].all(func(x: Variant) -> bool: return x is float):
+			eyes = Vector3(off.x, off.y, -off.z)
 	root.set_meta("humanoid", found)
-	var eyes: Array = vrm.get("lookAt", {}).get("offsetFromHeadBone", [0.0, 0.06, 0.0])
-	root.set_meta("eyes", Vector3(eyes[0], eyes[1], eyes[2]))
+	root.set_meta("eyes", eyes if eyes.is_finite() and eyes.length() < 1.0 else Vector3(0, 0.06, 0))
+	root.set_meta("forward", forward)
 	return OK
+
+
+static func _field(d: Variant, key: String) -> Variant:
+	return d.get(key) if d is Dictionary else null
+
+
+static func _bind(found: Dictionary, bone: String, node: Variant, state: GLTFState, root: Node) -> void:
+	if not (bone in BONES and node is float and node >= 0 and node < state.get_nodes().size()):
+		return
+	var n := state.get_scene_node(int(node))
+	if n is Skeleton3D:
+		var name := state.get_nodes()[int(node)].resource_name
+		if (n as Skeleton3D).find_bone(name) >= 0:
+			found[bone] = NodePath("%s:%s" % [root.get_path_to(n), name])
+	elif n is Node3D:
+		found[bone] = root.get_path_to(n)
 
 
 func _export_preflight(state: GLTFState, root: Node) -> Error:
@@ -64,13 +98,18 @@ static func _doc() -> GLTFDocument:
 	return GLTFDocument.new()
 
 
-## Reads a .vrm (binary glTF) into a scene whose root carries the "humanoid" metadata.
-static func read(path: String) -> Node3D:
+## Reads a .vrm (binary glTF) into a scene whose root carries the humanoid metadata; `shape`, given the parsed
+## state, may change its meshes, images and materials before the scene is made. Null if the file is not one.
+static func read(bytes: PackedByteArray, shape := Callable()) -> Node3D:
 	var doc := _doc()
 	var state := GLTFState.new()
-	var err := doc.append_from_buffer(FileAccess.get_file_as_bytes(path), path.get_base_dir(), state)
-	assert(err == OK, "vrm: cannot read %s (%s)" % [path, error_string(err)])
-	return doc.generate_scene(state)
+	state.handle_binary_image = GLTFState.HANDLE_BINARY_EMBED_AS_UNCOMPRESSED
+	state.create_animations = false
+	if doc.append_from_buffer(bytes, "", state) != OK:
+		return null
+	if shape.is_valid() and not shape.call(state):
+		return null
+	return doc.generate_scene(state) as Node3D
 
 
 static func write(root: Node3D, path: String) -> void:
