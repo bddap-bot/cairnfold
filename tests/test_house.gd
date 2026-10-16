@@ -24,6 +24,9 @@ func _init() -> void:
 	_a_flat_roof_is_a_deck_inside_the_walls()
 	_a_deck_is_rimmed_by_the_top_style()
 	_roof_surfaces_have_no_degenerate_triangles()
+	_a_gable_continues_the_wall_under_the_slopes()
+	_gable_faces_face_out_of_the_wall()
+	_the_budget_counts_gable_ends()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -487,3 +490,76 @@ func _roof_surfaces_have_no_degenerate_triangles() -> void:
 func _covers(x: Transform3D, p: Vector2) -> bool:
 	var local := x.affine_inverse() * Vector3(p.x, x.origin.y, p.y)
 	return absf(local.x) <= 0.5 and absf(local.z) <= 0.5
+
+
+func _gabled(plaster: bool, curve := 0.0) -> Array:
+	var w := WallLayout.new()
+	w.points = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
+	w.closed = true
+	w.height = 2.4
+	w.plaster = plaster
+	w.cover = WallLayout.Cover.ROOF
+	var r := RoofLayout.new()
+	r.corners = w.points
+	r.pitch = 2.0
+	r.curve = curve
+	w.gable = r
+	w.build(_flat)
+	r.base = w.samples[0].y + w.height + WallLayout.CAP
+	r.build()
+	return [w, r]
+
+
+func _a_gable_continues_the_wall_under_the_slopes() -> void:
+	for curve in [0.0, 0.8, -0.8]:
+		var built := _gabled(false, curve)
+		var w: WallLayout = built[0]
+		var r: RoofLayout = built[1]
+		var above := w.stones.filter(func(s): return s.y > w.height + WallLayout.CAP)
+		var courses := above.filter(func(s): return s.kind == "block")
+		var verge := above.filter(func(s): return s.kind == "cope")
+		_check(courses.size() > 20, "curve %.1f: a stone house's gable ends are laid in courses: %d" % [curve, courses.size()])
+		_check(verge.size() >= 8, "curve %.1f: a verge runs up each rake: %d" % [curve, verge.size()])
+		for s in courses:
+			var x: Transform3D = s.xform
+			var run: Vector3 = x.basis.x * 0.5
+			var top: Vector3 = x.origin + x.basis.y * 0.5
+			for end in [top - run, top + run]:
+				if end.y > r.height_at(end.x, end.z) + 0.03:
+					_check(false, "curve %.1f: a gable stone's top at %s stands above the slope at %.2f" % [curve, end, r.height_at(end.x, end.z)])
+					return
+	var plastered: WallLayout = _gabled(true)[0]
+	var up := plastered.stones.filter(func(s): return s.y > plastered.height + WallLayout.CAP)
+	_check(not up.is_empty() and up.all(func(s): return s.kind == "cope"), "a plaster house's gable ends are plaster under a stone verge")
+	var low := WallLayout.new()
+	low.points = plastered.points
+	low.closed = true
+	low.height = 2.4
+	low.cover = WallLayout.Cover.ROOF
+	low.build(_flat)
+	_check(low.stones.all(func(s): return s.y <= low.height + WallLayout.CAP), "with no gable over it a house's walls stop at the cap")
+
+
+## Each face of a gable end is lit by the air before it, so its normal (Godot's: against the cross product of a
+## triangle's edges) must point out of the wall: outward on the outer face, into the house on the inner.
+func _gable_faces_face_out_of_the_wall() -> void:
+	var r: RoofLayout = _gabled(true)[1]
+	var f := r.frame()
+	var tris := r.gables()
+	_check(not tris.is_empty(), "gable ends have faces")
+	for i in range(0, tris.size(), 3):
+		var n := -(tris[i + 1] - tris[i]).cross(tris[i + 2] - tris[i])
+		var d: float = ((tris[i] + tris[i + 1] + tris[i + 2]) / 3.0 - f.mid).dot(f.along)
+		var away := signf(d) * signf(absf(d) - r.ridge_length() * 0.5)
+		if n.dot(f.along) * away <= 0.0:
+			_check(false, "a gable triangle at %.2f along faces into its wall" % d)
+			return
+
+
+func _the_budget_counts_gable_ends() -> void:
+	var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "fence": false,
+		"plaster": false, "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "flag": false}}
+	var hs := (4.0 + WallLayout.THICKNESS) * 0.5
+	_check(is_equal_approx(Budget.wall(d).wall_m2, 20.0 * 2.4 + 2.0 * hs * 2.0), "a house counts its two gable ends as wall: %s" % Budget.wall(d))
+	d.roof.pitch = 0.0
+	_check(is_equal_approx(Budget.wall(d).wall_m2, 20.0 * 2.4), "a flat-roofed house has none")

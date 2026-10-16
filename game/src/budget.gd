@@ -15,9 +15,9 @@ const GPU_SHARE := 0.9
 enum Device { QUEST_2, FRAME }
 
 ## What a garden's builds count as, the units COSTS prices: square metres of face of stone walls, plaster walls and
-## fences (length along the ground by height), of roof (its circle), and of path; fittings that add a mesh (lanterns,
-## flags, chimneys); painted grass blades and flowers, the meadow's own flowers included; trees and bushes standing;
-## and ponds, one a seed.
+## fences (length along the ground by height, and a house's two gable ends), of roof (its circle), and of path;
+## fittings that add a mesh (lanterns, flags, chimneys); painted grass blades and flowers, the meadow's own flowers
+## included; trees and bushes standing; and ponds, one a seed.
 const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "path_m2", "fitting", "grass", "flower", "tree", "bush", "pond"]
 
 ## Per headset, in the governor's signal (the viewport's GPU time per frame, Quality) at the ladder's bottom step, fitted
@@ -92,9 +92,13 @@ static func wall(d: Dictionary) -> Dictionary:
 	var length := Commands.length(d.points)
 	if d.closed and d.points.size() > 2:
 		length += Vector2(d.points[0].x - d.points[-1].x, d.points[0].z - d.points[-1].z).length()
-	var out := {("fence_m2" if d.fence else ("plaster_m2" if d.get("plaster", false) else "wall_m2")): length * d.height}
+	var face := "fence_m2" if d.fence else ("plaster_m2" if d.get("plaster", false) else "wall_m2")
+	var out := {face: length * d.height}
 	var fittings: int = d.lanterns.size() + d.flags.size()
 	if d.has("roof"):
+		if d.roof.kind == RoofLayout.Kind.GABLE and d.points.size() == 4:
+			var half_span: float = (Vector2(d.points[3].x - d.points[0].x, d.points[3].z - d.points[0].z).length() + WallLayout.THICKNESS) * 0.5
+			out[face] += 2.0 * half_span * d.roof.pitch * (1.0 + d.roof.curve / PI)
 		out.roof_m2 = PI * d.roof.radius * d.roof.radius
 		fittings += d.roof.chimneys.size() + (1 if d.roof.flag else 0)
 	if fittings > 0:

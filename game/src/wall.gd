@@ -122,7 +122,8 @@ func add_roof(r: RoofLayout) -> void:
 	if _plaster == null:
 		_plaster = ShaderMaterial.new()
 		_plaster.shader = load("res://src/plaster.gdshader")
-		_plaster.set_shader_parameter("albedo", Color(0.8, 0.73, 0.6))
+		_plaster.set_shader_parameter("albedo", WallLayout.PLASTER)
+		_plaster.set_shader_parameter("detail", Look.detail_noise())
 	_gables = MeshInstance3D.new()
 	_gables.material_override = _plaster
 	add_child(_gables)
@@ -356,6 +357,7 @@ func _build_live() -> void:
 	_build_stale = false
 	var job := layout.inputs()
 	var roof_job := roof.inputs() if roof != null else null
+	job.gable = roof_job
 	var out := {}
 	_build = {"job": job, "roof": roof_job, "revision": Terrain.revision, "out": out}
 	var ks := kinds()
@@ -421,7 +423,7 @@ func _pack_roof(roofed := {}) -> void:
 		_chunked[Part.MORTAR] = Masonry.split(_parts[Part.MORTAR], kinds()[Part.MORTAR].stride())
 	_fittings.lay(layout.flames, layout.cloths + roof.cloths)
 	var tris := roof.gable_faces
-	if tris.is_empty():
+	if tris.is_empty() or not layout.plaster:
 		_gables.mesh = null
 		return
 	var st := SurfaceTool.new()

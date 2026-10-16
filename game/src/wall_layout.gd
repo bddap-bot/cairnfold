@@ -58,6 +58,10 @@ const PLASTER := Color(0.86, 0.8, 0.68)
 ## The stone walls are laid in, before each stone's variation.
 const STONE := Color(0.66, 0.61, 0.53)
 const MORTAR := Color(0.32, 0.29, 0.25)
+## How far a plaster wall's face stands back from its stones'.
+const PLASTER_INSET := 0.02
+## The stones up a gable's rakes: through the wall, and tall.
+const VERGE := Vector2(THICKNESS + 0.06, 0.24)
 ## A ruin's broken ends lean back by up to this much a course, out to at most RUIN_LEAN, ragged by RUIN_JAG.
 const RUIN_STEP := Vector2(0.03, 0.22)
 const RUIN_LEAN := 1.6
@@ -81,6 +85,8 @@ var cover := Cover.OPEN
 ## Posts and rails instead of stone; a path through a fence opens a wooden arch.
 var fence := false
 var plaster := false
+## The gable roof a house's end walls rise under, course by course, as stone walls do; null for any other.
+var gable: RoofLayout
 ## Where windows were placed: arc length and the height of the click above the foot.
 var windows: Array[Vector2] = []
 ## Lanterns: arc length, height above the foot, and the face they hang from (+1 or -1).
@@ -222,6 +228,7 @@ func build(ground: Callable, water := Callable()) -> void:
 	for o in openings:
 		_lay_opening(o, rng)
 	_lay_top(rng)
+	_lay_gables()
 	for s in corners():
 		if not broken(s, PIER * 0.5):
 			_lay_pier(s, rng, wet)
@@ -713,7 +720,7 @@ func _lay_mortar(a: float, b: float, y0: float, h: float, thick := THICKNESS) ->
 		var l := minf(_stone_scale, b - s)
 		var frame := frame_at(s + l * 0.5)
 		var basis := Basis(frame.tangent, Vector3.UP, frame.tangent.cross(Vector3.UP))
-		var size := Vector3(l, h + 0.02, thick - (0.04 if plaster and y0 > 0.0 else 0.14))
+		var size := Vector3(l, h + 0.02, thick - (PLASTER_INSET * 2.0 if plaster and y0 > 0.0 else 0.14))
 		stones.append({"xform": Transform3D(basis.scaled_local(size), frame.point + Vector3.UP * (y0 + h * 0.5)), "color": PLASTER if plaster and y0 > 0.0 else MORTAR, "kind": "plaster" if plaster and y0 > 0.0 else "mortar", "s": s + l * 0.5, "y": y0 + h * 0.5, "size": size, "ao": 1.0 if plaster else 0.8, "variant": 0})
 		s += l
 
@@ -837,6 +844,68 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		m += 1.15
 
 
+## A house's end walls rise under a gable roof's slopes: a stone wall's courses carry on up, each as wide as fits
+## under them (a plaster wall's face up there is its roof's `gables`), and on both a verge of stones runs up each
+## rake over the courses' stepped ends. They draw from their own stream, so the stones below stay as they were.
+func _lay_gables() -> void:
+	if gable == null or gable.kind != RoofLayout.Kind.GABLE or gable.flat() or cover != Cover.ROOF:
+		return
+	var c := corners()
+	if c.size() != 4:
+		return
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([seed, "gable"])
+	var h := course_height()
+	var base := height + CAP
+	for end in [[c[1], c[2]], [c[3], length()]]:
+		var mid: float = (end[0] + end[1]) * 0.5
+		var hs: float = (end[1] - end[0] + THICKNESS) * 0.5
+		var k := 0
+		while not plaster:
+			var half := _under_slope((k + 1) * h, hs)
+			if half < 0.2:
+				break
+			var offset := (0.5 if k % 2 == 0 else 0.0) * rng.randf_range(0.3, 0.6)
+			for span in _standing([[mid - half, mid + half]]):
+				_lay_course(span[0], span[1], base + k * h, h, offset, rng)
+				_lay_mortar(span[0], span[1], base + k * h, h)
+			k += 1
+		for side in [-1.0, 1.0]:
+			var x := hs
+			while x > 0.05:
+				var x1 := maxf(x - rng.randf_range(0.42, 0.6), 0.0)
+				if x1 < 0.25:
+					x1 = 0.0
+				var lo := Vector2(x, gable.rise(1.0 - x / hs))
+				var hi := Vector2(x1, gable.rise(1.0 - x1 / hs))
+				var run := hi - lo
+				var at := (lo + hi) * 0.5 - run.orthogonal().normalized() * VERGE.y * 0.5
+				if not _standing([[mid + side * at.x - 0.01, mid + side * at.x + 0.01]]).is_empty():
+					var roll := atan(run.y / (run.x * side))
+					stones.append(_stone(mid + side * at.x, base + at.y, Vector3(run.length() + 0.02, VERGE.y, VERGE.x), rng, "cope", 0.97, 0.02, roll))
+				x = x1
+
+
+func _standing(spans: Array) -> Array:
+	if not breaks.is_empty():
+		for b in breaks[-1]:
+			spans = _cut(spans, b.x, b.y)
+	return spans
+
+
+## How far out from the ridge the gable's slope stands `rise` above its foot, `hs` out at the faces.
+func _under_slope(rise: float, hs: float) -> float:
+	var lo := 0.0
+	var hi := hs
+	for i in 20:
+		var x := (lo + hi) * 0.5
+		if gable.rise(1.0 - x / hs) > rise:
+			lo = x
+		else:
+			hi = x
+	return lo
+
+
 func _lay_parapet(a: float, total: float, rng: RandomNumberGenerator) -> void:
 	var y := height + CAP
 	var s := a
@@ -943,6 +1012,7 @@ func inputs() -> WallLayout:
 	w.cover = cover
 	w.fence = fence
 	w.plaster = plaster
+	w.gable = gable
 	w.windows = windows.duplicate()
 	w.lanterns = lanterns.duplicate()
 	w.flags = flags.duplicate()

@@ -402,7 +402,9 @@ static func _quad(tris: PackedVector3Array, mid: Vector3, d0: Vector3, d1: Vecto
 	tris.append_array([a, c, d])
 
 
-## The two triangular gable ends between the end walls' tops and the slopes, as triangles.
+## The gable ends between the end walls' tops and the slopes, as triangles: each end's outer and inner face, flush
+## with a plaster wall's, wound to face out of the wall (Godot's front faces turn clockwise), since a face's lighting
+## reads the air half a metre before it.
 func gables() -> PackedVector3Array:
 	var tris := PackedVector3Array()
 	if kind != Kind.GABLE or flat():
@@ -410,21 +412,28 @@ func gables() -> PackedVector3Array:
 	var f := frame()
 	var prof := profile(PROFILE_STEPS)
 	var hs := half_span()
+	var faces_at := WallLayout.THICKNESS * 0.5 - WallLayout.PLASTER_INSET
 	for end in [-1.0, 1.0]:
-		var at: Vector3 = f.mid + f.along * end * ridge_length() * 0.5
-		for side in [-1.0, 1.0]:
-			var out: Vector3 = f.across * side
-			for i in prof.size() - 1:
-				if prof[i].x >= hs:
-					break
-				var x1 := minf(prof[i + 1].x, hs)
-				var a: Vector3 = at + out * prof[i].x
-				var b: Vector3 = at + out * x1
-				var top := Vector3.UP * rise(1.0 - x1 / hs)
-				tris.append_array([a, a + Vector3.UP * prof[i].y, b + top])
-				if top.y > 0.0:
-					tris.append_array([a, b + top, b])
+		for face in [-1.0, 1.0]:
+			var facing: Vector3 = f.along * end * face
+			var at: Vector3 = f.mid + f.along * end * ridge_length() * 0.5 + facing * faces_at
+			for side in [-1.0, 1.0]:
+				var out: Vector3 = f.across * side
+				for i in prof.size() - 1:
+					if prof[i].x >= hs:
+						break
+					var x1 := minf(prof[i + 1].x, hs)
+					var a: Vector3 = at + out * prof[i].x
+					var b: Vector3 = at + out * x1
+					var top := Vector3.UP * rise(1.0 - x1 / hs)
+					_facing(tris, facing, a, a + Vector3.UP * prof[i].y, b + top)
+					if top.y > 0.0:
+						_facing(tris, facing, a, b + top, b)
 	return tris
+
+
+static func _facing(tris: PackedVector3Array, facing: Vector3, a: Vector3, b: Vector3, c: Vector3) -> void:
+	tris.append_array([a, b, c] if (b - a).cross(c - a).dot(facing) < 0.0 else [a, c, b])
 
 
 ## Nearest distance along a ray to the roof, or INF.
@@ -432,7 +441,7 @@ func ray_hit(origin: Vector3, dir: Vector3) -> float:
 	return _nearest(origin, dir, faces)
 
 
-## Nearest distance along a ray to a plastered gable end, or INF.
+## Nearest distance along a ray to a gable end, or INF.
 func gable_hit(origin: Vector3, dir: Vector3) -> float:
 	return _nearest(origin, dir, gable_faces)
 

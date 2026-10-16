@@ -334,15 +334,18 @@ static func _house(root: Node3D, plastered := false) -> void:
 	layout.cover = WallLayout.Cover.ROOF
 	layout.points = WallLayout.rectangle(Vector3(-1.6, 0, 0), Vector3(1.6, 0, 0), 2.6)
 	layout.arches = [3.2 * 1.5 + 2.6]
-	layout.build(_flat)
 	var roof := RoofLayout.new()
 	roof.seed = 7
 	roof.corners = layout.points
-	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
 	roof.pitch = 1.8
+	layout.gable = roof
+	layout.build(_flat)
+	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
 	roof.build()
 	_stones(root, layout.stones, 0.012)
 	_stones(root, roof.tiles, 0.012)
+	if not plastered:
+		return
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for p in roof.gable_faces:
@@ -351,9 +354,8 @@ static func _house(root: Node3D, plastered := false) -> void:
 	var plaster: StandardMaterial3D = _mats.get("plaster")
 	if plaster == null:
 		plaster = StandardMaterial3D.new()
-		plaster.albedo_color = Color(0.8, 0.73, 0.6)
+		plaster.albedo_color = WallLayout.PLASTER
 		plaster.roughness = 0.9
-		plaster.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_mats["plaster"] = plaster
 	var gables := MeshInstance3D.new()
 	gables.mesh = st.commit()

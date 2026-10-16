@@ -229,9 +229,8 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 	_check(world.state.walls[house.id].paint[Palette.Element.ROOF] == 3, "the house's roof takes the fourth swatch")
 	var end: Vector3 = roof.mid + roof.along * (house.roof.ridge_length() * 0.5 + 4.0) + Vector3.UP * house.roof.pitch * 0.35
 	var gable: Vector3 = end - roof.along
-	await _play([{"op": "colour", "hand": "left", "element": "plaster", "swatch": 1, "seconds": 0.2, "from": _above(end), "at": _above(gable)}])
-	var t := Palette.tint(Palette.Element.PLASTER, 1)
-	_check(house._gables.get_instance_shader_parameter(&"tint") == Vector3(t.r, t.g, t.b), "the house's gables take its plaster")
+	await _play([{"op": "colour", "hand": "left", "element": "stone", "swatch": 2, "seconds": 0.2, "from": _above(end), "at": _above(gable)}])
+	_check(world.state.walls[house.id].paint[stone] == 2, "a stone house's gable paints its stone")
 	await _play([{"op": "colour", "hand": "left", "element": "meadow", "swatch": 4, "seconds": 0.2}])
 	_check(Palette.globals(world.palette.season).season_bloom == 0.0, "winter takes the flowers")
 
@@ -329,7 +328,7 @@ func _in_the_glade() -> void:
 	var f: Dictionary = house.roof.frame()
 	_check(tool.aim(f.mid + Vector3.UP * 12.0, Vector3.DOWN).get("element") == Palette.Element.ROOF, "the picker on a roof paints its tiles")
 	var end: Vector3 = f.mid + f.along * (house.roof.ridge_length() * 0.5 + 4.0) + Vector3.UP * house.roof.pitch * 0.35
-	_check(tool.aim(end, -f.along).get("element") == Palette.Element.PLASTER, "the picker on a gable end paints plaster")
+	_check(tool.aim(end, -f.along).get("element") == Palette.Element.STONE, "the picker on a stone house's gable end paints stone")
 	var post := walls[2].layout.point_at(3.0) + Vector3(0, 0.6, 0)
 	_check(tool.aim(post + Vector3(0, 0, 3), Vector3.FORWARD).get("element") == Palette.Element.WOOD, "the picker on a fence paints woodwork")
 	_check(tool.aim(Vector3(0, 20, 22), Vector3.DOWN).get("element") == Palette.Element.MEADOW, "the picker on the meadow picks the season")

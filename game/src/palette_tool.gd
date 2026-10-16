@@ -83,7 +83,7 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 			gable = t
 			gabled = w
 	if gable < along and (pick.is_empty() or pick.distance > 0.2 or gable < pick.along):
-		return {"element": Palette.Element.PLASTER, "point": origin + dir * gable, "wall": gabled}
+		return {"element": Palette.Element.PLASTER if gabled.layout.plaster else Palette.Element.STONE, "point": origin + dir * gable, "wall": gabled}
 	if along < INF and (pick.is_empty() or pick.distance > 0.2 or along < pick.along):
 		return {"element": Palette.Element.ROOF, "point": roof.point, "wall": roof.wall}
 	if not pick.is_empty():
