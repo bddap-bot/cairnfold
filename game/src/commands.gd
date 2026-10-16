@@ -203,6 +203,9 @@ static func _wall(d: Variant) -> Variant:
 	var plaster: Variant = d.get("plaster", false)
 	if typeof(plaster) != TYPE_BOOL or (plaster and d.fence):
 		return null
+	var gable_end: Variant = d.get("gable_end", WallLayout.GableEnd.WALL)
+	if typeof(gable_end) != TYPE_INT or gable_end < 0 or gable_end >= WallLayout.GableEnd.size():
+		return null
 	var windows: Variant = d.get("windows")
 	var lanterns: Variant = d.get("lanterns")
 	var flags: Variant = d.get("flags")
@@ -224,7 +227,7 @@ static func _wall(d: Variant) -> Variant:
 		return null
 	if not Palette.valid(d.get("paint")):
 		return null
-	var out := {"points": points, "height": d.height, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "on": on, "paint": d.paint}
+	var out := {"points": points, "height": d.height, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "gable_end": gable_end, "on": on, "paint": d.paint}
 	if d.has("roof"):
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():
@@ -250,7 +253,7 @@ static func _reshape(d: Dictionary, now: Dictionary) -> Variant:
 		# A peer re-checks what the host cleaned, so keys stay Strings: `out.roof = ` would store a StringName.
 		if typeof(k) != TYPE_STRING:
 			return null
-		if k in ["points", "height", "top", "arches", "windows", "lanterns", "flags", "ruins"]:
+		if k in ["points", "height", "top", "gable_end", "arches", "windows", "lanterns", "flags", "ruins"]:
 			out[k] = d[k]
 			trial[k] = d[k]
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():

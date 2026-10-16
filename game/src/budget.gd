@@ -15,7 +15,8 @@ const GPU_SHARE := 0.9
 enum Device { QUEST_2, FRAME }
 
 ## What a garden's builds count as, the units COSTS prices: square metres of face of stone walls, plaster walls and
-## fences (length along the ground by height, and a house's two gable ends), of roof (its circle), and of path;
+## fences (length along the ground by height, and a house's two gable ends: boards, laid as stones are but fewer, count
+## as stone wall), of roof (its circle), and of path;
 ## fittings that add a mesh (lanterns, flags, chimneys); painted grass blades and flowers, the meadow's own flowers
 ## included; trees and bushes standing; and ponds, one a seed.
 const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "path_m2", "fitting", "grass", "flower", "tree", "bush", "pond"]
@@ -97,8 +98,15 @@ static func wall(d: Dictionary) -> Dictionary:
 	var fittings: int = d.lanterns.size() + d.flags.size()
 	if d.has("roof"):
 		if d.roof.kind == RoofLayout.Kind.GABLE and d.points.size() == 4:
+			var ends := WallLayout.new()
+			ends.height = d.height
+			ends.gable_end = d.get("gable_end", WallLayout.GableEnd.WALL)
+			ends.gable = RoofLayout.new()
+			ends.gable.pitch = d.roof.pitch
+			ends.gable.curve = d.roof.curve
 			var half_span: float = (Vector2(d.points[3].x - d.points[0].x, d.points[3].z - d.points[0].z).length() + WallLayout.THICKNESS) * 0.5
-			out[face] += 2.0 * half_span * d.roof.pitch * (1.0 + d.roof.curve / PI)
+			var units := "wall_m2" if ends.gable_end == WallLayout.GableEnd.BOARDS else face
+			out[units] = out.get(units, 0.0) + 2.0 * ends.gable_face(half_span)
 		out.roof_m2 = PI * d.roof.radius * d.roof.radius
 		fittings += d.roof.chimneys.size() + (1 if d.roof.flag else 0)
 	if fittings > 0:

@@ -75,15 +75,11 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	var pick := walls.pick_wall(origin, dir)
 	var roof := walls.pick_roof(origin, dir)
 	var along: float = roof.get("along", INF)
-	var gable := INF
-	var gabled: Wall
-	for w in walls.walls:
-		var t := w.roof.gable_hit(origin, dir) if w.roof != null else INF
-		if t < gable:
-			gable = t
-			gabled = w
-	if gable < along and (pick.is_empty() or pick.distance > 0.2 or gable < pick.along):
-		return {"element": Palette.Element.PLASTER if gabled.layout.plaster else Palette.Element.STONE, "point": origin + dir * gable, "wall": gabled}
+	var gable := walls.pick_gable(origin, dir)
+	if gable.get("along", INF) < along and WallTool._on_roof(pick, gable):
+		var end: WallLayout = gable.wall.layout
+		var wood := end.gable_end == WallLayout.GableEnd.BOARDS
+		return {"element": Palette.Element.WOOD if wood else Palette.Element.PLASTER if end.plaster else Palette.Element.STONE, "point": gable.point, "wall": gable.wall}
 	if along < INF and (pick.is_empty() or pick.distance > 0.2 or along < pick.along):
 		return {"element": Palette.Element.ROOF, "point": roof.point, "wall": roof.wall}
 	if not pick.is_empty():

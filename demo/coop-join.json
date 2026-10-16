@@ -33,7 +33,7 @@
   {"op": "delete", "x": -8, "z": -8},
   {"op": "until", "seq": 23},
   {"op": "until", "seq": 24},
-  {"op": "house", "at": [16, -1], "size": [5, 3.7], "seconds": 0.3, "on": true},
+  {"op": "house", "at": [16, -1], "size": [5, 3.7], "seconds": 0.3, "on": true, "gable": "boards"},
   {"op": "until", "seq": 26},
   {"op": "resize", "index": -1, "size": [10, 3.5], "seconds": 0.3},
   {"op": "until", "seq": 27},

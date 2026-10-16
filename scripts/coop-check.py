@@ -25,6 +25,8 @@ def sides(w):
     p = [(v[i], v[i + 2]) for i in range(0, len(v), 3)]
     return sorted(round(math.dist(p[i], p[(i + 1) % len(p)]), 2) for i in range(len(p)))
 check(any("roof" in w["data"] and sides(w) == [3.5, 3.5, 10.0, 10.0] for w in g["walls"].values()), "the joiner stretched the host's wing from 8 m to 10 m long: " + str([sides(w) for w in g["walls"].values() if "roof" in w["data"]]))
+ends = sorted(int(re.search(r'"gable_end": (\d+)', w["data"]).group(1)) for w in g["walls"].values() if "roof" in w["data"])
+check(ends == [0, 1, 2], f"the host's house has the wall's gable ends, the joiner's storey boards and the host's wing crow steps: {ends}")
 kinds = lambda k: [v for v in g["groups"].values() if v["kind"] == k]
 check(len(kinds("tree")) == 1 and kinds("tree")[0]["shown"] == 0, "the host's undo took its tree away")
 check(len(kinds("flowers")) == 1 and kinds("flowers")[0]["shown"] == kinds("flowers")[0]["plants"], "the joiner's undo then redo left its flowers standing")

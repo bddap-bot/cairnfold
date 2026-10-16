@@ -44,6 +44,9 @@ var seed := 1
 var chimneys: Array[Vector2] = []
 ## A cone flies a flag from its top instead of a finial.
 var flag := false
+## Laid from the wall it rests on, like `base`: its gable ends rise past the slopes in crow steps, so the tiles stop
+## inside them.
+var stepped := false
 
 var tiles: Array[Dictionary] = []
 ## Plain mortar boxes bedding a deck's flags, so its joints show mortar rather than the floor below.
@@ -84,6 +87,7 @@ func adopt(built: RoofLayout) -> void:
 	cloths = built.cloths
 	faces = built.faces
 	gable_faces = built.gable_faces
+	stepped = built.stepped
 	bounds = built.bounds
 
 
@@ -155,7 +159,7 @@ func eave() -> float:
 
 
 func gable_overhang() -> float:
-	return 0.0 if flat() else GABLE_OVERHANG
+	return 0.0 if flat() else -WallLayout.THICKNESS * 0.5 if stepped else GABLE_OVERHANG
 
 
 ## Points down one slope, from the ridge out to the eave: Vector2(distance out, height above base).
@@ -310,7 +314,7 @@ func _rows() -> Array[Dictionary]:
 
 func _lay_gable_row(row: Dictionary, stagger: float, hue: float, rng: RandomNumberGenerator) -> void:
 	var f := frame()
-	var length := ridge_length() + WallLayout.THICKNESS + GABLE_OVERHANG * 2.0
+	var length := ridge_length() + WallLayout.THICKNESS + gable_overhang() * 2.0
 	var n := maxi(1, ceili(length / TILE.x))
 	for side in [-1.0, 1.0]:
 		var out: Vector3 = f.across * side
@@ -346,7 +350,7 @@ static func _slope_basis(out: Vector3, slope: float) -> Basis:
 
 func _lay_ridge(hue: float, rng: RandomNumberGenerator) -> void:
 	var f := frame()
-	var length := ridge_length() + WallLayout.THICKNESS + GABLE_OVERHANG * 2.0
+	var length := ridge_length() + WallLayout.THICKNESS + gable_overhang() * 2.0
 	var n := maxi(1, ceili(length / 0.32))
 	for i in n:
 		var t := (i + 0.5) / n - 0.5

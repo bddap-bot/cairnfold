@@ -27,6 +27,10 @@ func _init() -> void:
 	_a_gable_continues_the_wall_under_the_slopes()
 	_gable_faces_face_out_of_the_wall()
 	_the_budget_counts_gable_ends()
+	_every_gable_end_stays_on_its_footprint()
+	_every_gable_end_closes_its_wall()
+	_crow_steps_stand_over_the_roof()
+	_the_budget_counts_each_gable_end_as_laid()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -492,22 +496,159 @@ func _covers(x: Transform3D, p: Vector2) -> bool:
 	return absf(local.x) <= 0.5 and absf(local.z) <= 0.5
 
 
-func _gabled(plaster: bool, curve := 0.0) -> Array:
+func _gabled(plaster: bool, curve := 0.0, style := WallLayout.GableEnd.WALL, points := WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0), pitch := 2.0) -> Array:
 	var w := WallLayout.new()
-	w.points = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
+	w.points.assign(points)
 	w.closed = true
 	w.height = 2.4
 	w.plaster = plaster
+	w.gable_end = style
 	w.cover = WallLayout.Cover.ROOF
 	var r := RoofLayout.new()
 	r.corners = w.points
-	r.pitch = 2.0
+	r.pitch = pitch
 	r.curve = curve
 	w.gable = r
 	w.build(_flat)
 	r.base = w.samples[0].y + w.height + WallLayout.CAP
+	r.stepped = style == WallLayout.GableEnd.STEPS
 	r.build()
 	return [w, r]
+
+
+## Every style on a stone and a plaster house, at each curvature, as built, steepest and narrowest, and stretched by a
+## resize either way.
+func _gable_cases() -> Array:
+	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)), "closed": true, "arches": PackedFloat32Array(), "windows": PackedVector2Array(),
+		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
+		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": false}}
+	var shapes := [[d.points, 2.0], [WallLayout.rectangle(Vector3(0, 0, 0), Vector3(4, 0, 0), 2.4), RoofLayout.PITCH.y]]
+	for size in [Vector2(12, 4), Vector2(6, 8), Vector2(3, 2.4)]:
+		var at := WallTool.house_of(d)
+		at.size = size
+		var r := WallTool.reshape_house(d, at)
+		shapes.append([r.points, r.roof.pitch])
+	var out := []
+	for style in WallLayout.GableEnd.values():
+		for plaster in [false, true]:
+			for curve in [0.0, 0.8, -0.8]:
+				for shape in shapes:
+					out.append({"style": WallLayout.GableEnd.keys()[style], "plaster": plaster, "curve": curve, "built": _gabled(plaster, curve, style, shape[0], shape[1])})
+	return out
+
+
+## A point in the house's frame: x along its first side from the middle, y up, z across.
+func _local(w: WallLayout, p: Vector3) -> Vector3:
+	var along := (w.points[1] - w.points[0]).normalized()
+	var across := (w.points[3] - w.points[0]).normalized()
+	var mid := (w.points[0] + w.points[2]) * 0.5
+	return Vector3((p - mid).dot(along), p.y, (p - mid).dot(across))
+
+
+func _gable_pieces(w: WallLayout) -> Array:
+	return w.stones.filter(func(s): return s.y > w.height + WallLayout.CAP)
+
+
+func _every_gable_end_stays_on_its_footprint() -> void:
+	for c in _gable_cases():
+		var w: WallLayout = c.built[0]
+		var half := Vector2(w.points[0].distance_to(w.points[1]), w.points[0].distance_to(w.points[3])) * 0.5 + Vector2.ONE * (WallLayout.THICKNESS * 0.5 + 0.1)
+		for s in _gable_pieces(w):
+			var x: Transform3D = s.xform
+			for corner in [Vector3(-0.5, 0, -0.5), Vector3(0.5, 0, -0.5), Vector3(-0.5, 0, 0.5), Vector3(0.5, 0, 0.5)]:
+				var p := _local(w, x * corner)
+				if absf(p.x) > half.x or absf(p.z) > half.y:
+					_check(false, "%s %s curve %.1f, %.1f by %.1f: a %s stands off the footprint at %s" % [c.style, "plaster" if c.plaster else "stone", c.curve, half.x * 2.0, half.y * 2.0, s.kind, p])
+					return
+
+
+## No style leaves a gable end open from either side: each piece across its face runs through the wall's thickness,
+## centred on its line, so its outer side faces out of the house and its inner side in.
+func _every_gable_end_closes_its_wall() -> void:
+	for c in _gable_cases():
+		var w: WallLayout = c.built[0]
+		var faced := 0
+		var span := Vector2(w.points[0].distance_to(w.points[1]), w.points[0].distance_to(w.points[3])) * 0.5
+		for s in _gable_pieces(w):
+			if not s.kind in ["block", "mortar", "plaster", "board"]:
+				continue
+			var x: Transform3D = s.xform
+			var p := _local(w, x.origin)
+			var through := x.basis.z.length()
+			var off := minf(absf(absf(p.x) - span.x), absf(absf(p.z) - span.y))
+			if off > 0.05 or through < WallLayout.THICKNESS - WallLayout.PLASTER_INSET * 2.0 - 0.15:
+				_check(false, "%s %s curve %.1f: a %s %.2f off its wall's line, %.2f thick" % [c.style, "plaster" if c.plaster else "stone", c.curve, s.kind, off, through])
+				return
+			faced += 1
+		var mesh: bool = c.plaster and c.style == "WALL"
+		_check(mesh or faced > 10, "%s %s curve %.1f: the gable ends are laid, %d pieces" % [c.style, "plaster" if c.plaster else "stone", c.curve, faced])
+
+
+## Stepped, the gable ends stand over the slopes all the way up and the tiles stop inside them; a boarded gable's
+## planks stay under the slopes as courses do.
+func _crow_steps_stand_over_the_roof() -> void:
+	for c in _gable_cases():
+		var w: WallLayout = c.built[0]
+		var r: RoofLayout = c.built[1]
+		var span := w.points[0].distance_to(w.points[1]) * 0.5
+		var pieces := _gable_pieces(w)
+		if c.style == "BOARDS":
+			for s in pieces.filter(func(s): return s.kind == "board" and s.xform.basis.x.y == 0.0):
+				var x: Transform3D = s.xform
+				var top := x.origin + x.basis.y * 0.5
+				for end in [top - x.basis.x * 0.5, top + x.basis.x * 0.5]:
+					if end.y > r.height_at(end.x, end.z) + 0.03:
+						_check(false, "curve %.1f: a board's top at %s stands above the slope" % [c.curve, end])
+						return
+		if c.style != "STEPS":
+			continue
+		for t in r.tiles:
+			if absf(_local(w, t.xform.origin).x) > span:
+				_check(false, "%s curve %.1f: a tile at %s reaches past a stepped end wall's line" % ["plaster" if c.plaster else "stone", c.curve, _local(w, t.xform.origin)])
+				return
+		var hs := w.points[0].distance_to(w.points[3]) * 0.5 + WallLayout.THICKNESS * 0.5
+		for i in 41:
+			var z := (-hs + 2.0 * hs * i / 40.0) * 0.98
+			var rise := r.base + r.rise(1.0 - absf(z) / hs)
+			var top := -INF
+			for s in pieces:
+				var x: Transform3D = s.xform
+				var p := _local(w, x.origin)
+				if p.x > 0.0 and absf(p.z - z) <= x.basis.x.length() * 0.5:
+					top = maxf(top, x.origin.y + x.basis.y.length() * 0.5)
+			if top < rise:
+				_check(false, "%s curve %.1f: at %.2f across the steps top out at %.2f, under the roof at %.2f" % ["plaster" if c.plaster else "stone", c.curve, z, top, rise])
+				return
+
+
+func _the_budget_counts_each_gable_end_as_laid() -> void:
+	for plaster in [false, true]:
+		var face := "plaster_m2" if plaster else "wall_m2"
+		for curve in [0.0, 0.8, -0.8]:
+			for pitch in [0.8, 2.0, 5.0]:
+				var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "fence": false,
+					"plaster": plaster, "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": pitch, "curve": curve, "chimneys": [], "flag": false}}
+				var walls := 20.0 * 2.4
+				var wall := Budget.wall(d)
+				d.gable_end = WallLayout.GableEnd.BOARDS
+				var boards := Budget.wall(d)
+				_check(is_equal_approx(boards.get("wall_m2", 0.0) + boards.get("plaster_m2", 0.0), wall[face]) and is_equal_approx(boards.get("wall_m2", 0.0) - (0.0 if plaster else walls), wall[face] - walls), "boards count as stone wall over the same face")
+				d.gable_end = WallLayout.GableEnd.STEPS
+				var w: WallLayout = _gabled(plaster, curve, WallLayout.GableEnd.STEPS, d.points, pitch)[0]
+				var h := w.course_height()
+				var spans := {}
+				for s in _gable_pieces(w):
+					if s.kind in ["block", "mortar", "plaster"]:
+						var p := _local(w, s.xform.origin)
+						var row := Vector2i(signi(p.x), floori((s.y - w.height - WallLayout.CAP) / h))
+						var run: float = s.xform.basis.x.length() * 0.5
+						var was: Vector2 = spans.get(row, Vector2(INF, -INF))
+						spans[row] = Vector2(minf(was.x, p.z - run), maxf(was.y, p.z + run))
+				var laid := 0.0
+				for row in spans:
+					laid += (spans[row].y - spans[row].x) * h
+				var counted: float = Budget.wall(d)[face] - walls
+				_check(absf(counted - laid) < laid * 0.08 and counted > wall[face] - walls, "%s pitch %.1f curve %.1f: the steps count their face as laid, %.2f m² for %.2f, more than under the slopes" % [face, pitch, curve, counted, laid])
 
 
 func _a_gable_continues_the_wall_under_the_slopes() -> void:

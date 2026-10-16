@@ -245,6 +245,7 @@ func _house(s: Dictionary) -> void:
 	var yaw := _turn(s, x, z, s.get("turn", 0.0))
 	var yaw_from := _turn(s, x, z, s.get("turn_from", s.get("turn", 0.0)))
 	var on: int = _target(s, from).on
+	_lay_gables(s)
 	tool.begin_house(from, yaw_from, s.get("plaster", false), PackedInt32Array([on]) if on >= 0 else PackedInt32Array())
 	if s.get("round", false):
 		tool.round_house(true)
@@ -296,6 +297,17 @@ func _top(s: Dictionary) -> void:
 		return
 	while w.layout.top != WallLayout.Top[s.style.to_upper()]:
 		main.tool.cycle_top(w)
+
+
+## Turns the gable ends of the house `index` (or under `at`) to `style`: wall, boards or steps.
+func _gable(s: Dictionary) -> void:
+	main.world.submit({"op": "reshape", "id": _wall_of(s).id, "data": {"gable_end": int(WallLayout.GableEnd[s.style.to_upper()])}})
+
+
+## With `gable` (wall, boards or steps), houses laid after take that style of gable end.
+func _lay_gables(s: Dictionary) -> void:
+	if s.has("gable"):
+		main.tool.gable_end = WallLayout.GableEnd[s.gable.to_upper()]
 
 
 func _lift_wall(s: Dictionary) -> void:
@@ -534,12 +546,13 @@ func _fill_flora(s: Dictionary) -> void:
 
 
 ## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter; with `storeys`,
-## each stands that many high, and with `wings`, a wing crosses each house.
+## each stands that many high, with `wings`, a wing crosses each house, and with `gable`, their gable ends take it.
 func _village(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var start := Time.get_ticks_usec()
 	var r: float = s.radius
 	var step: float = s.spacing
+	_lay_gables(s)
 	var k := 0
 	for z in range(-int(r / step), int(r / step) + 1):
 		for x in range(-int(r / step), int(r / step) + 1):

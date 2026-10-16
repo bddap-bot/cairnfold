@@ -12,7 +12,7 @@ internet comes next and uses the same protocol.
 
 Every finished edit is a **build command**: a small dictionary of plain values. `wall`
 carries the walls a stroke built, `unwall` removes walls, and `reshape` changes a wall's
-height, top, arches, fittings, ruins, roof or paint (its colours). `path` and `unpath` lay and lift paths, `plant` grows a
+height, top, gable ends, arches, fittings, ruins, roof or paint (its colours). `path` and `unpath` lay and lift paths, `plant` grows a
 paint stroke or a tree, `show` hides or restores plants, and `heights` sets an area of
 ground (a dug pond's seed, the point its water fills from, rides on the same command), and
 `season` sets the garden's season. `wipe` takes the garden back to bare meadow, and

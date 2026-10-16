@@ -32,6 +32,7 @@ func _run() -> void:
 	_restore_forgets_history()
 	await _a_storey_follows_what_it_stands_on()
 	_a_stroke_painted_out_of_step_stays_shown()
+	_gable_ends_go_through_the_host()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -168,6 +169,8 @@ func _bad_commands_are_dropped() -> void:
 		"wall longer than any stroke": {"op": "wall", "walls": [_with(good, "points", PackedVector3Array(range(200).map(func(i: int) -> Vector3: return Vector3(-70 if i % 2 else 70, 0, 0))))]},
 		"unwall of one wall twice": {"op": "unwall", "ids": PackedInt32Array([a, a])},
 		"dabs whose count overflows": {"op": "plant", "kind": "grass", "seed": 1, "dabs": [[Vector3.ZERO, 1.0, 1 << 62], [Vector3.ZERO, 1.0, 1 << 62], [Vector3.ZERO, 1.0, 1 << 62], [Vector3.ZERO, 1.0, 1 << 62]]},
+		"reshape to no gable end": {"op": "reshape", "id": a, "data": {"gable_end": WallLayout.GableEnd.size()}},
+		"reshape to a named gable end": {"op": "reshape", "id": a, "data": {"gable_end": "steps"}},
 		"reshape keyed by a name": {"op": "reshape", "id": a, "data": {&"height": NAN}},
 		"heights that drain someone's pond": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": Terrain.read(Rect2i(0, 0, 1, 1)), "unseed": Vector2i(0, 0)},
 		"heights seeding a pond outside them": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": Terrain.read(Rect2i(0, 0, 1, 1)), "seed": Vector2i(50, 50)},
@@ -194,6 +197,36 @@ func _bad_commands_are_dropped() -> void:
 	var extra := Commands.clean({"op": "unwall", "ids": PackedInt32Array([a]), "junk": "x".repeat(1000)}, world.state, false)
 	_check(extra.keys().map(str) == ["op", "ids"], "fields a command does not define are dropped: %s" % [extra.keys()])
 	world._order({"op": "unwall", "ids": PackedInt32Array([a])}, 1)
+
+
+## A house's gable ends travel as any other reshape: a player turns them, the host's cleaned command passes a peer's
+## check, the house is laid again with them, saves keep them and an undo puts them back; and the house tool lays its
+## next house with the style last turned to.
+func _gable_ends_go_through_the_host() -> void:
+	world._order({"op": "wall", "walls": [_house_data(PackedInt32Array())]}, 1)
+	var id := world.seq * Commands.MAX_PIECES
+	_check(world.state.walls[id].gable_end == WallLayout.GableEnd.WALL, "a house sent without a gable end has the wall's")
+	var turn := {"op": "reshape", "id": id, "data": {"gable_end": WallLayout.GableEnd.STEPS}}
+	var hosted := Commands.clean(turn, world.state, false)
+	hosted.seq = world.seq + 1
+	hosted.by = 2
+	var relayed := Commands.clean(hosted, world.state, true)
+	_check(relayed.get("data", {}).get("gable_end") == WallLayout.GableEnd.STEPS, "a peer takes the host's turn of a gable end: %s" % relayed)
+	world._order(turn, 2)
+	_check(world.state.walls[id].gable_end == WallLayout.GableEnd.STEPS and main.tool.find(id).layout.gable_end == WallLayout.GableEnd.STEPS, "the house is laid again with crow steps")
+	world._order({"op": "undo"}, 2)
+	_check(world.state.walls[id].gable_end == WallLayout.GableEnd.WALL and main.tool.find(id).layout.gable_end == WallLayout.GableEnd.WALL, "an undo puts the wall's back")
+	main.tool.cycle_gable(main.tool.find(id))
+	_check(world.state.walls[id].gable_end == WallLayout.GableEnd.BOARDS and main.tool.gable_end == WallLayout.GableEnd.BOARDS, "the right A turns them to the next style")
+	world.restore(world.snapshot())
+	_check(world.state.walls[id].gable_end == WallLayout.GableEnd.BOARDS and main.tool.find(id).layout.gable_end == WallLayout.GableEnd.BOARDS, "a save carries them")
+	main.tool.begin_house(Terrain.ground(-20, 30), 0.0)
+	_check(main.tool.house.layout.gable_end == WallLayout.GableEnd.BOARDS, "and the next house is laid with it")
+	main.tool.end_house()
+	_check(world.state.walls[world.seq * Commands.MAX_PIECES].gable_end == WallLayout.GableEnd.BOARDS, "which the garden takes from it")
+	main.tool.gable_end = WallLayout.GableEnd.WALL
+	for wall in world.state.walls.keys():
+		world._order({"op": "unwall", "ids": PackedInt32Array([wall])}, 1)
 
 
 func _with(d: Dictionary, k: String, v: Variant) -> Dictionary:

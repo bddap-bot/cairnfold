@@ -9,6 +9,9 @@ enum Top { CRENEL, CAP, COPE }
 ## What rests on a closed wall's top: nothing, a pitched roof (the top stops flush under it) or a flat deck
 ## (the top rises round it as a rim, a cap top as a low parapet).
 enum Cover { OPEN, ROOF, DECK }
+## How a house's end walls rise under a gable roof: as the wall below, carried up under the slopes; boarded in
+## upright planks under barge boards; or stepped up past the slopes in crow steps.
+enum GableEnd { WALL, BOARDS, STEPS }
 
 const COURSE := 0.3
 const HEIGHTS := Vector2(0.9, 9.0)
@@ -62,6 +65,12 @@ const MORTAR := Color(0.32, 0.29, 0.25)
 const PLASTER_INSET := 0.02
 ## The stones up a gable's rakes: through the wall, and tall.
 const VERGE := Vector2(THICKNESS + 0.06, 0.24)
+## A boarded gable's planks: how wide, and the gap between them.
+const BOARD := Vector2(0.2, 0.012)
+## Courses to a crow step at the least, the least a step's tread, and the narrowest the top step stands.
+const STEP_COURSES := 2
+const TREAD := 0.2
+const TOP_STEP := 0.35
 ## A ruin's broken ends lean back by up to this much a course, out to at most RUIN_LEAN, ragged by RUIN_JAG.
 const RUIN_STEP := Vector2(0.03, 0.22)
 const RUIN_LEAN := 1.6
@@ -85,6 +94,7 @@ var cover := Cover.OPEN
 ## Posts and rails instead of stone; a path through a fence opens a wooden arch.
 var fence := false
 var plaster := false
+var gable_end := GableEnd.WALL
 ## The gable roof a house's end walls rise under, course by course, as stone walls do; null for any other.
 var gable: RoofLayout
 ## Where windows were placed: arc length and the height of the click above the foot.
@@ -844,9 +854,11 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		m += 1.15
 
 
-## A house's end walls rise under a gable roof's slopes: a stone wall's courses carry on up, each as wide as fits
-## under them (a plaster wall's face up there is its roof's `gables`), and on both a verge of stones runs up each
-## rake over the courses' stepped ends. They draw from their own stream, so the stones below stay as they were.
+## A house's end walls rise under a gable roof's slopes, drawing from their own stream so the stones below stay as
+## they were. As the wall (`GableEnd.WALL`), a stone wall's courses carry on up, each as wide as fits under the slopes
+## (a plaster wall's face up there is its roof's `gables`), under a verge of stones up each rake. Stepped, the courses
+## or plaster climb past the slopes in capped crow steps, the roof stopping inside them. Boarded, upright planks stand
+## under the slopes, under a barge board up each rake.
 func _lay_gables() -> void:
 	if gable == null or gable.kind != RoofLayout.Kind.GABLE or gable.flat() or cover != Cover.ROOF:
 		return
@@ -860,30 +872,116 @@ func _lay_gables() -> void:
 	for end in [[c[1], c[2]], [c[3], length()]]:
 		var mid: float = (end[0] + end[1]) * 0.5
 		var hs: float = (end[1] - end[0] + THICKNESS) * 0.5
-		var k := 0
-		while not plaster:
-			var half := _under_slope((k + 1) * h, hs)
-			if half < 0.2:
-				break
-			var offset := (0.5 if k % 2 == 0 else 0.0) * rng.randf_range(0.3, 0.6)
-			for span in _standing([[mid - half, mid + half]]):
-				_lay_course(span[0], span[1], base + k * h, h, offset, rng)
-				_lay_mortar(span[0], span[1], base + k * h, h)
-			k += 1
+		match gable_end:
+			GableEnd.BOARDS:
+				_lay_boards(mid, hs, base, rng)
+				_lay_verge(mid, hs, base, rng, "board")
+			GableEnd.STEPS:
+				_lay_crow_steps(mid, hs, base, h, rng)
+			_:
+				var rows: Array[Vector2] = []
+				while not plaster and _under_slope((rows.size() + 1) * h, hs) >= 0.2:
+					rows.append(Vector2(rows.size(), _under_slope((rows.size() + 1) * h, hs)))
+				_lay_gable_rows(mid, hs, base, h, rows, rng)
+				_lay_verge(mid, hs, base, rng, "cope")
+
+
+## Courses up a gable end `hs` out from the ridge each side, each Vector2(course, half-width) about its middle: stone
+## laid in mortar, or plaster. Courses stop at the corners rather than turn down the side walls, one reaching out to
+## the walls' outer faces on a block filling each corner; the mortar stops short of a course's ends, behind its stones.
+func _lay_gable_rows(mid: float, hs: float, base: float, h: float, rows: Array[Vector2], rng: RandomNumberGenerator) -> void:
+	var edge := hs - THICKNESS * 0.5
+	var inset := 0.0 if plaster else 0.05
+	for row in rows:
+		var y := base + row.x * h
+		var half := minf(row.y, edge)
+		var offset := (0.5 if int(row.x) % 2 == 0 else 0.0) * rng.randf_range(0.3, 0.6)
+		for span in _standing([[mid - half, mid + half]]):
+			if not plaster:
+				_lay_course(span[0], span[1], y, h, offset, rng)
+			_lay_mortar(span[0] + inset, span[1] - inset, y, h)
+		if row.y > hs - 0.01:
+			for side in [-1.0, 1.0]:
+				_part(mid + side * edge, y + h * 0.5, Vector3(THICKNESS, h, THICKNESS), PLASTER if plaster else stone_color(rng), rng, "plaster" if plaster else "block")
+
+
+## A stepped gable end `hs` out from the ridge each side, from the eaves up, as Vector3(half-width, first course,
+## courses): each as wide as the slope at its foot and tall enough to leave a tread, the top one tall enough to stand
+## over the ridge. Steps above the first stand inside the corners, so every cap lies along the end wall.
+func crow_steps(hs: float) -> Array[Vector3]:
+	var h := course_height()
+	var steps: Array[Vector3] = []
+	var k := 0
+	var half := hs
+	while half > TOP_STEP:
+		var top := k + STEP_COURSES
+		while _under_slope(top * h, hs) > minf(half, hs - THICKNESS) - TREAD:
+			top += 1
+		steps.append(Vector3(half, k, top - k))
+		k = top
+		half = _under_slope(k * h, hs)
+	steps.append(Vector3(TOP_STEP, k, maxi(STEP_COURSES, ceili(gable.rise(1.0) / h) + 1 - k)))
+	return steps
+
+
+## The face one gable end `hs` out from the ridge each side stands: under the slopes, or the steps'.
+func gable_face(hs: float) -> float:
+	if gable_end != GableEnd.STEPS:
+		return hs * gable.pitch * (1.0 + gable.curve / PI)
+	var out := 0.0
+	for st in crow_steps(hs):
+		out += 2.0 * st.x * st.z * course_height()
+	return out
+
+
+## Crow steps, each capped where it shows.
+func _lay_crow_steps(mid: float, hs: float, base: float, h: float, rng: RandomNumberGenerator) -> void:
+	var steps := crow_steps(hs)
+	var rows: Array[Vector2] = []
+	for st in steps:
+		for c in range(st.y, st.y + st.z):
+			rows.append(Vector2(c, st.x))
+	_lay_gable_rows(mid, hs, base, h, rows, rng)
+	for i in steps.size():
+		var top := base + (steps[i].y + steps[i].z) * h + CAP * 0.5
+		var outer := steps[i].x + 0.06
+		if i + 1 == steps.size():
+			_add(mid, top, Vector3(outer * 2.0, CAP, THICKNESS + 0.12), rng, "cap", 0.95, 0.0)
+			break
 		for side in [-1.0, 1.0]:
-			var x := hs
-			while x > 0.05:
-				var x1 := maxf(x - rng.randf_range(0.42, 0.6), 0.0)
-				if x1 < 0.25:
-					x1 = 0.0
-				var lo := Vector2(x, gable.rise(1.0 - x / hs))
-				var hi := Vector2(x1, gable.rise(1.0 - x1 / hs))
-				var run := hi - lo
-				var at := (lo + hi) * 0.5 - run.orthogonal().normalized() * VERGE.y * 0.5
-				if not _standing([[mid + side * at.x - 0.01, mid + side * at.x + 0.01]]).is_empty():
-					var roll := atan(run.y / (run.x * side))
-					stones.append(_stone(mid + side * at.x, base + at.y, Vector3(run.length() + 0.02, VERGE.y, VERGE.x), rng, "cope", 0.97, 0.02, roll))
-				x = x1
+			_add(mid + side * (steps[i + 1].x + outer) * 0.5, top, Vector3(outer - steps[i + 1].x, CAP, THICKNESS + 0.12), rng, "cap", 0.95, 0.0)
+
+
+## Upright planks side by side across a gable end, each up to where the slope crosses its outer edge.
+func _lay_boards(mid: float, hs: float, base: float, rng: RandomNumberGenerator) -> void:
+	var x := -hs
+	while x < hs - 0.05:
+		var w := minf(BOARD.x, hs - x)
+		var tall := gable.rise(1.0 - maxf(absf(x), absf(x + w)) / hs)
+		if tall > 0.05 and not _standing([[mid + x, mid + x + w]]).is_empty():
+			_part(mid + x + w * 0.5, base + tall * 0.5, Vector3(w - BOARD.y, tall, THICKNESS - PLASTER_INSET * 2.0), WOOD * rng.randf_range(0.85, 1.1), rng, "board")
+		x += w
+
+
+## Pieces of `kind` up each rake over the gable's stepped edge, as long as its curve allows.
+func _lay_verge(mid: float, hs: float, base: float, rng: RandomNumberGenerator, kind: String) -> void:
+	for side in [-1.0, 1.0]:
+		var x := hs
+		while x > 0.05:
+			var x1 := maxf(x - rng.randf_range(0.42, 0.6), 0.0)
+			if x1 < 0.25:
+				x1 = 0.0
+			var lo := Vector2(x, gable.rise(1.0 - x / hs))
+			var hi := Vector2(x1, gable.rise(1.0 - x1 / hs))
+			var run := hi - lo
+			var at := (lo + hi) * 0.5 - run.orthogonal().normalized() * VERGE.y * 0.5
+			if not _standing([[mid + side * at.x - 0.01, mid + side * at.x + 0.01]]).is_empty():
+				var roll := atan(run.y / (run.x * side))
+				var piece := _stone(mid + side * at.x, base + at.y, Vector3(run.length() + 0.02, VERGE.y, VERGE.x), rng, kind, 0.97, 0.02, roll)
+				if kind == "board":
+					piece.color = WOOD * rng.randf_range(0.8, 0.95)
+				stones.append(piece)
+			x = x1
 
 
 func _standing(spans: Array) -> Array:
@@ -1012,6 +1110,7 @@ func inputs() -> WallLayout:
 	w.cover = cover
 	w.fence = fence
 	w.plaster = plaster
+	w.gable_end = gable_end
 	w.gable = gable
 	w.windows = windows.duplicate()
 	w.lanterns = lanterns.duplicate()
@@ -1027,7 +1126,7 @@ func inputs() -> WallLayout:
 func same_inputs(other: WallLayout) -> bool:
 	return (points == other.points and height == other.height and arches == other.arches
 		and seed == other.seed and closed == other.closed and top == other.top
-		and cover == other.cover and fence == other.fence and plaster == other.plaster
+		and cover == other.cover and fence == other.fence and plaster == other.plaster and gable_end == other.gable_end
 		and windows == other.windows and lanterns == other.lanterns and flags == other.flags
 		and ruins == other.ruins and supports == other.supports and resting == other.resting
 		and joined == other.joined)

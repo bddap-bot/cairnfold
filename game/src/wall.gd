@@ -136,7 +136,7 @@ func data() -> Dictionary:
 		"points": PackedVector3Array(layout.points), "height": layout.height, "arches": PackedFloat32Array(layout.arches),
 		"seed": layout.seed, "closed": layout.closed, "top": int(layout.top), "fence": layout.fence,
 		"windows": PackedVector2Array(layout.windows), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags),
-		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
+		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "gable_end": int(layout.gable_end), "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
 	}
 	if roof != null:
 		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "flag": roof.flag}
@@ -152,6 +152,7 @@ func set_data(d: Dictionary) -> void:
 	layout.top = d.top as WallLayout.Top
 	layout.fence = d.fence
 	layout.plaster = d.get("plaster", false)
+	layout.gable_end = d.get("gable_end", WallLayout.GableEnd.WALL) as WallLayout.GableEnd
 	layout.windows.assign(Array(d.windows))
 	layout.lanterns.assign(Array(d.lanterns))
 	layout.flags.assign(Array(d.flags))
@@ -386,6 +387,7 @@ func _lay_dressing(roofed := {}) -> void:
 ## arguments, so it runs on a worker thread.
 static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Dictionary:
 	r.base = built.samples[0].y + built.height + WallLayout.CAP
+	r.stepped = built.gable_end == WallLayout.GableEnd.STEPS
 	if r.kind == RoofLayout.Kind.GABLE:
 		r.corners = built.laid_points
 	r.build()
@@ -423,7 +425,7 @@ func _pack_roof(roofed := {}) -> void:
 		_chunked[Part.MORTAR] = Masonry.split(_parts[Part.MORTAR], kinds()[Part.MORTAR].stride())
 	_fittings.lay(layout.flames, layout.cloths + roof.cloths)
 	var tris := roof.gable_faces
-	if tris.is_empty() or not layout.plaster:
+	if tris.is_empty() or not layout.plaster or layout.gable_end != WallLayout.GableEnd.WALL:
 		_gables.mesh = null
 		return
 	var st := SurfaceTool.new()

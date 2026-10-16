@@ -3,8 +3,8 @@ extends Node3D
 
 ## Walls, for whichever hand holds them: trigger draws a wall along the ground, a loop as much as a line,
 ## and the right A cuts or fills an arch where a walls hand points or, on a wall's top, changes its
-## style. A grip pointed at a wall, whatever the hand holds, pulls its height, and at a roof its pitch and
-## curvature. Each hand grabs on its own, so two hands pull two walls or roofs at once; a grip on one the other hand
+## style, and on a house's gable end turns it to the next style, which houses laid after take. A grip
+## pointed at a wall, whatever the hand holds, pulls its height, and at a roof its pitch and curvature. Each hand grabs on its own, so two hands pull two walls or roofs at once; a grip on one the other hand
 ## holds takes nothing. A hand holding the house takes hold of one with its trigger, where it points, and carries it; the
 ## other hand's grip, pressed while it is carried, joins in, whatever it points at, to turn it with the pair and stretch it
 ## along their span; the right A, while it is carried, rounds it into a tower or squares it again; letting go builds it. A built
@@ -46,6 +46,8 @@ class Mason:
 	var lift_at := Vector3.ZERO
 	var lift_side := Vector3.RIGHT
 	var pick := {}
+	## The gable end the hand points at before any roof, as `pick_gable` gives it.
+	var gable := {}
 	## Where the hand points to build, and the id of the build it points at, or -1 on the ground.
 	var ground: Variant = null
 	var on := -1
@@ -70,6 +72,8 @@ var masonry := Masonry.new(Wall.kinds())
 var walls: Array[Wall] = []
 ## The paint new builds are laid in: the swatch last picked on this machine for each material (PaletteTool).
 var paint := Palette.plain()
+## The gable ends new houses are laid with: the style last turned to on this machine.
+var gable_end := WallLayout.GableEnd.WALL
 var masons: Array[Mason] = []
 ## The house the hands are carrying, where it stands, and the hands holding it.
 var house: Wall
@@ -156,7 +160,12 @@ func _process(delta: float) -> void:
 		round_house(not house_at.round)
 	elif _arch_button.pressed("ax_button"):
 		for m in masons:
-			if not m.pick.is_empty() and m.hand.tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS] and not m.pick.wall.layout.fence:
+			if not m.hand.tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS]:
+				continue
+			if _on_roof(m.pick, m.gable):
+				cycle_gable(m.gable.wall)
+				break
+			if not m.pick.is_empty() and not m.pick.wall.layout.fence:
 				var p: Dictionary = m.pick
 				if p.point.y - p.wall.layout.point_at(p.s).y > p.wall.layout.height - TOP_BAND:
 					cycle_top(p.wall)
@@ -177,6 +186,7 @@ func _process(delta: float) -> void:
 
 func _handle(m: Mason) -> void:
 	m.pick = {}
+	m.gable = {}
 	m.ground = null
 	if rig.aim_hand == m.hand:
 		_let_go(m)
@@ -201,7 +211,10 @@ func _handle(m: Mason) -> void:
 		m.on = aimed.get("on", -1)
 		m.pick = pick_wall(origin, dir)
 		var roof := pick_roof(origin, dir)
-		m.hand.point(roof.point if _on_roof(m.pick, roof) else m.ground if m.pick.is_empty() else m.pick.point, TINT)
+		var gable := pick_gable(origin, dir)
+		if gable.get("along", INF) < roof.get("along", INF):
+			m.gable = gable
+		m.hand.point(m.gable.point if _on_roof(m.pick, m.gable) else roof.point if _on_roof(m.pick, roof) else m.ground if m.pick.is_empty() else m.pick.point, TINT)
 		if m.buttons.pressed("trigger_click") and m.ground != null and not busy(m.hand):
 			begin_stroke(m, m.ground, m.on)
 		elif m.buttons.held("trigger_click") and m.stroke != null and m.ground != null:
@@ -428,6 +441,7 @@ func begin_house(at: Vector3, yaw: float, plaster := false, on := PackedInt32Arr
 	house = _new_wall()
 	house.on = on
 	house.layout.plaster = plaster
+	house.layout.gable_end = gable_end
 	house.layout.closed = true
 	house.layout.top = WallLayout.Top.CAP
 	house.layout.height = HOUSE_HEIGHT
@@ -821,6 +835,11 @@ func end_roof(m: Mason) -> void:
 		world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id))
 
 
+func cycle_gable(w: Wall) -> void:
+	gable_end = (w.layout.gable_end + 1) % WallLayout.GableEnd.size() as WallLayout.GableEnd
+	world.submit({"op": "reshape", "id": w.id, "data": {"gable_end": int(gable_end)}})
+
+
 func cycle_top(w: Wall) -> void:
 	if w.roof == null or w.roof.flat():
 		world.submit({"op": "reshape", "id": w.id, "data": {"top": (w.layout.top + 1) % WallLayout.Top.size()}})
@@ -989,7 +1008,7 @@ func restyle(id: int, changed: Array) -> void:
 		_sound(&"crumble", _top(w, w.layout.length() * 0.5))
 	elif "arches" in changed:
 		_sound(&"arch", _top(w, w.layout.length() * 0.5))
-	elif "roof" in changed:
+	elif "roof" in changed or "gable_end" in changed:
 		_sound(&"stone", _ridge(w))
 	else:
 		_sound(&"settle", _top(w, w.layout.length() * 0.5))
@@ -1059,6 +1078,18 @@ func pick_roof(origin: Vector3, dir: Vector3, held := false) -> Dictionary:
 		var t := w.roof.ray_hit(origin, dir)
 		if t < best.get("along", INF):
 			best = {"wall": w, "along": t, "point": origin + dir * t, "flat": w.roof.flat()}
+	return best
+
+
+## The nearest gable end of a pitched roof along a ray, as {wall, along, point}, or empty.
+func pick_gable(origin: Vector3, dir: Vector3) -> Dictionary:
+	var best := {}
+	for w in walls:
+		if w.roof == null or _held(w):
+			continue
+		var t := w.roof.gable_hit(origin, dir)
+		if t < best.get("along", INF):
+			best = {"wall": w, "along": t, "point": origin + dir * t}
 	return best
 
 
