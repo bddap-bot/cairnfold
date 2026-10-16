@@ -1,11 +1,11 @@
 class_name ToolWheel
 extends RefCounted
 
-## The tool selector as pure data: a wheel of SLOTS standing upright where the hand opened it, each slot a
+## The tool selector as pure data: a wheel of SLOTS facing the head where the hand opened it, each slot a
 ## leaf, a subtree (an Array) or empty (null). Sweeping the hand onto a slot makes it hot; reaching a
 ## subtree opens its items in a column beside it, on the side away from the swing that reached it, so a
 ## deep pick zig-zags left and right. Positions are metres in the wheel's plane, x to the player's right,
-## y up.
+## y the player's up as seen along the line to the wheel.
 
 const SLOTS := 8
 const RADIUS := 0.12
@@ -21,6 +21,21 @@ var levels: Array[Dictionary] = []
 
 func _init(tree: Array) -> void:
 	levels.append(_level(Vector2.ZERO, tree, ring_dirs()))
+
+
+## The wheel's frame for a hand at `hand` with the head at `head` facing `forward`: z toward the head, so
+## the wheel lies flat with the hand under or over the head and stands upright level with it. Its top
+## tips away from the player under the head and toward them over it, as the view's top does looking there.
+static func facing(hand: Vector3, head: Vector3, forward: Vector3) -> Basis:
+	var z := head - hand
+	z = z.normalized() if z.length() > 1e-3 else Vector3.BACK
+	var ahead := Vector3(forward.x, 0.0, forward.z)
+	ahead = ahead.normalized() if ahead.length() > 1e-3 else Vector3.FORWARD
+	var up := (Vector3.UP + ahead * z.y).slide(z)
+	if up.length() < 1e-3:
+		up = ahead.slide(z)
+	var y := up.normalized()
+	return Basis(y.cross(z), y, z)
 
 
 ## The wheel's slot directions, clockwise from the top as the player sees it.

@@ -12,6 +12,7 @@ func _init() -> void:
 	_a_subtree_opens_away_from_the_swing()
 	_inside_a_subtree_the_swing_side_picks_nothing()
 	_a_deep_pick_zig_zags()
+	_the_wheel_faces_the_head_wherever_the_hand_is()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -104,6 +105,33 @@ func _a_deep_pick_zig_zags() -> void:
 		from = p
 	_check(swings == [1.0, -1.0, 1.0], "the pick swings right, left, right: %s" % [swings])
 	_check(w.levels.size() == 3 and w.chosen() == "e", "and lands on e, got %s" % [w.chosen()])
+
+
+func _the_wheel_faces_the_head_wherever_the_hand_is() -> void:
+	var head := Vector3(0, 1.6, 0)
+	var forward := Vector3(0, -0.3, -1)
+	var prev := Basis()
+	for i in 37:
+		var a := deg_to_rad(-90.0 + i * 5.0)
+		var hand := head + Vector3(0, sin(a), -cos(a)) * 0.5
+		if i == 0:
+			hand.z -= 1e-4
+		var b := ToolWheel.facing(hand, head, forward)
+		var z := (head - hand).normalized()
+		_check(b.z.dot(z) > 0.9999, "at %.0f° the wheel's face points at the head" % rad_to_deg(a))
+		_check(b.is_equal_approx(b.orthonormalized()) and b.determinant() > 0.0, "at %.0f° the frame is a rotation" % rad_to_deg(a))
+		_check(b.x.dot(Vector3.RIGHT) > 0.9999, "at %.0f° x is the player's right" % rad_to_deg(a))
+		if i > 0:
+			_check(b.y.dot(prev.y) > cos(deg_to_rad(6.0)), "the wheel turns smoothly through %.0f°" % rad_to_deg(a))
+		prev = b
+	var below := ToolWheel.facing(head + Vector3(0, -0.6, 0), head, forward)
+	_check(absf(below.z.y) > 0.9999 and below.y.dot(Vector3.FORWARD) > 0.9999, "under the head the wheel lies flat, its top away")
+	var above := ToolWheel.facing(head + Vector3(0, 0.6, 0), head, forward)
+	_check(absf(above.z.y) > 0.9999 and above.y.dot(Vector3.BACK) > 0.9999, "over the head it lies flat, its top toward the player")
+	var ahead := ToolWheel.facing(head + Vector3(0, 0, -0.5), head, forward)
+	_check(ahead.y.dot(Vector3.UP) > 0.9999 and ahead.z.dot(Vector3.BACK) > 0.9999, "level with the head it stands upright")
+	var side := ToolWheel.facing(head + Vector3(0.4, -0.3, -0.3), head, forward)
+	_check(side.z.dot((head - (head + Vector3(0.4, -0.3, -0.3))).normalized()) > 0.9999, "off to one side it still faces the head")
 
 
 func _check(ok: bool, what: String) -> void:

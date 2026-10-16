@@ -152,7 +152,7 @@ func _wheel_icon(model: Node3D, at: Vector2) -> Node3D:
 	return icon
 
 
-## The open wheel's frame: x to the player's right, y up, z toward the head.
+## The open wheel's frame: x to the player's right, y the player's up, z toward the head.
 func wheel_frame() -> Transform3D:
 	return _wheel_root.global_transform
 
@@ -215,7 +215,7 @@ func _process(delta: float) -> void:
 	_show_tool(delta)
 
 
-## Hold the wheel button and the wheel stands upright where the hand is, facing the head; sweep the hand
+## Hold the wheel button and the wheel opens where the hand is, facing the head; sweep the hand
 ## onto a tool, or onto a subtree and on into it; let go to take the tool the hand is on.
 func _select_input(delta: float) -> void:
 	if _wheel == null:
@@ -224,11 +224,9 @@ func _select_input(delta: float) -> void:
 		_wheel = ToolWheel.new(TREE)
 		picking = true
 		var cam := get_viewport().get_camera_3d()
-		var toward := (cam.global_position - global_position) if cam != null else global_basis.z
-		toward.y = 0.0
-		if toward.length() < 1e-3:
-			toward = Vector3.BACK
-		_wheel_root.global_transform = Transform3D(Basis.looking_at(-toward.normalized(), Vector3.UP), global_position)
+		var head := cam.global_position if cam != null else global_position + global_basis.z
+		var forward := -cam.global_basis.z if cam != null else -global_basis.z
+		_wheel_root.global_transform = Transform3D(ToolWheel.facing(global_position, head, forward), global_position)
 		for icon in _wheel_root.get_children():
 			icon.scale = Vector3.ZERO
 		_wheel_root.visible = true
