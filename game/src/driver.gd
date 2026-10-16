@@ -628,6 +628,36 @@ func _digest(s: Dictionary) -> void:
 	print("driver: digest ", path)
 
 
+## Samples a connected, settled session; ENet counters exclude discovery and IP/UDP headers.
+## Frame processing time is Godot's elapsed main-thread time, not whole-process CPU usage.
+func _network_sample(s: Dictionary) -> void:
+	var peer: ENetMultiplayerPeer = multiplayer.multiplayer_peer
+	var connection := peer.host
+	connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA)
+	connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_DATA)
+	var start := Time.get_ticks_usec()
+	var start_unix := Time.get_unix_time_from_system()
+	var frames := 0
+	var process_ms := 0.0
+	var physics_ms := 0.0
+	var players: int = main.session.players()
+	while Time.get_ticks_usec() - start < s.get("seconds", 10.0) * 1000000.0:
+		await get_tree().process_frame
+		assert(main.session.players() == players, "peer left during network sample")
+		process_ms += Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
+		physics_ms += Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS) * 1000.0
+		frames += 1
+	var seconds := (Time.get_ticks_usec() - start) / 1000000.0
+	var out := {"name": s.name, "players": players, "seconds": seconds, "frames": frames,
+		"start_unix": start_unix, "end_unix": Time.get_unix_time_from_system(),
+		"tx_bytes_s": connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA) / seconds,
+		"rx_bytes_s": connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_DATA) / seconds,
+		"process_ms_frame": process_ms / frames, "physics_ms_frame": physics_ms / frames}
+	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name + ".json")
+	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))
+	print("driver: network sample ", path)
+
+
 ## Takes a photo with the camera in `hand` (right by default) wherever that hand points, as pulling its
 ## trigger does, and waits until it is saved.
 func _photo(s: Dictionary) -> void:

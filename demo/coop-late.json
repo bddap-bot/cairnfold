@@ -1,8 +1,0 @@
-[
-  {"op": "place", "x": -2, "z": 9},
-  {"op": "join"},
-  {"op": "until", "players": 3, "seq": 27, "worn": 1},
-  {"op": "wait", "seconds": 1},
-  {"op": "digest", "name": "late"},
-  {"op": "quit"}
-]

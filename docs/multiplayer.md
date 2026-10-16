@@ -232,23 +232,30 @@ scripted or test instance beacons past loopback.
 
 ## Proof
 
-`scripts/coop.sh OUT` plays three headless instances on one machine:
-1. One hosts.
-2. A second finds it by its beacon, on loopback, and joins through the visit tool. It wears
-   its own VRM 1.0 avatar from its avatar folder.
-3. Both build: walls, a tree, flowers, a path, raised ground, a pond and grass across the path.
-   Each deletes and undoes, including an undo that has to skip a step the other built on.
-4. A third joins late, wearing its own VRM 0.x avatar.
-5. The visitor goes home once the late joiner and the host have recorded their views.
+`scripts/coop.sh OUT [N]` plays N headless instances on one machine (four by default,
+two through eight supported):
+1. One hosts; a second discovers its beacon and joins through the visit tool wearing
+   a custom VRM 1.0 avatar.
+2. Both build walls, houses, plants, paths, ground and a pond, and exercise deletion,
+   undo, redo and edits to each other's builds.
+3. The pair samples ten seconds of settled co-op before any late joiner starts.
+4. N-2 players join late with custom VRM 0.x/1.0 files. Each builds and undoes its own
+   wall, in command order. Every player waits for all avatars to load before another
+   ten-second sample of the same settled garden.
+5. Every player records its garden and all remote avatar hashes. Nobody leaves until
+   every view and cost sample exists; the visitor then goes home and records its own
+   garden. A timeout or failed check fails the run; there are no retries.
 
-Players wait on each other's progress, never on a timer: `tests/test_coop.py` fails a script
-that leaves or quits right after a fixed wait.
+The JSON gestures in `demo/coop-host.json` and `demo/coop-join.json` supply the initial
+building sequence through their first digest. `scripts/coop.py` supplies the N-player
+barriers and teardown. `tests/test_coop.py` checks the choreography. The harness reserves
+its discovery range with a socket outside the four listener ports, leaving all four
+available to players.
 
-The script fails unless all three gardens match: every wall's data and laid stones,
-every plant group's standing plants, the paths, the ground and the ponds. It also checks the
-expected outcome, that each player sees the others' avatars, that the host and the late
-joiner see the visitor in its own file and the host sees the late joiner in its own too, and
-that the visitor's own garden comes back. `tests/test_world.gd` covers the undo rule, the
+All N gardens must match the expected build, including laid stones, plants, paths,
+ground and ponds. Every player must see N-1 avatars and the exact multiset of other
+players' custom-file hashes (N-1 on the host, N-2 on each visitor). The returning
+visitor must recover its own garden. `tests/test_world.gd` covers the undo rule, the
 schema and the snapshot round trip. `tests/test_avatar.gd` reads the public sample avatars in
 `tests/avatars/` (VRM 1.0 and 0.x) and checks the limits, the pose, the arms' reach, and that
 one model in both versions stands alike.
@@ -267,6 +274,27 @@ triangles. Frame times with 1, 2 and 4 players in the stress scene are under
 3. A player's own VRM avatar, sent to the others when they join. (Done.)
 
 ## Measurements
+
+### Headless co-op CPU and traffic
+
+`coop.sh` writes `costs.json`, raw `*-cost.json` ENet samples and
+`process-cpu.json` process-counter samples alongside the gardens and logs. Each
+phase lasts ten wall-clock seconds after all peers have loaded the other avatars
+and the garden has settled. The two-player phase precedes the N-player phase in
+the same host and visitor processes; the late joiners build and undo before the
+second phase, leaving the same garden. These samples measure idle pose streaming,
+not initial avatar transfer or peak building traffic.
+
+Traffic is ENet's sent/received byte counters divided by measured elapsed time,
+per process; it excludes discovery and UDP/IP headers. Clients communicate through
+the host, which also relays traffic between visitors, so its load grows faster than
+a visitor's. CPU is the delta of Linux `/proc/PID/stat` user + system CPU ticks over
+the sample window, in milliseconds per second (1000 is one fully occupied core).
+The harness polls at 100 ms and uses the first and last samples inside each window.
+Godot's elapsed process/physics milliseconds per frame are also retained, but those
+include scheduler delays and are not the CPU measurement. Runs share a busy desktop;
+they establish neither headset frame rate nor a device CPU budget.
+
 
 `NESTCOMBE_PLAYERS=N scripts/bench.sh OUT ...` plays the stress scene with N-1 other
 players, headless on the benching machine, who join the measured instance and stand in

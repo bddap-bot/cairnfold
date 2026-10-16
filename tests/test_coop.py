@@ -12,3 +12,29 @@ class CoopChoreography(unittest.TestCase):
                 if op in ("visit", "quit"):
                     with self.subTest(script=script.name, op=op):
                         self.assertNotEqual(before, "wait")
+
+
+class CoopPlayers(unittest.TestCase):
+    @staticmethod
+    def harness():
+        import importlib.util
+        path = Path(__file__).resolve().parents[1] / "scripts/coop.py"
+        spec = importlib.util.spec_from_file_location("coop", path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module
+
+    def test_every_peer_waits_for_every_view_before_leaving(self):
+        for count in (2, 3, 4, 8):
+            scripts = self.harness().scripts(count)
+            expected = {f"{name}-final" for name in scripts}
+            self.assertEqual(len(scripts), count)
+            for name, steps in scripts.items():
+                with self.subTest(count=count, name=name):
+                    own = next(i for i, s in enumerate(steps) if s.get("name") == f"{name}-final")
+                    self.assertEqual(set(steps[own + 1]["digests"]), expected)
+                    for before, step in zip(steps, steps[1:]):
+                        if step["op"] in ("visit", "quit"):
+                            self.assertNotEqual(before["op"], "wait")
+                    samples = [s for s in steps if s["op"] == "network_sample"]
+                    self.assertEqual(len(samples), 2 if name in ("host", "join") and count > 2 else 1)
