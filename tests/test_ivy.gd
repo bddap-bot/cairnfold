@@ -15,6 +15,8 @@ func _init() -> void:
 	_tall_walls_stay_bounded()
 	_raising_a_wall_keeps_its_ivy()
 	_bake_packs_each_leaf()
+	_a_house_grows_ivy_outside_only()
+	_a_tower_keeps_ivy_on_both_faces()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -125,3 +127,41 @@ func _bake_packs_each_leaf() -> void:
 	var x: Transform3D = leaves[i].xform
 	_check(is_equal_approx(b[i * 16 + 3], x.origin.x) and is_equal_approx(b[i * 16 + 1], x.basis.y.x) and is_equal_approx(b[i * 16 + 14], leaves[i].color.b), "rows laid out as the MultiMesh reads them")
 	_check(baked.bounds.has_point(x.origin), "the bounds hold the leaves")
+
+
+func _loop(cover: WallLayout.Cover, reverse: bool) -> WallLayout:
+	var w := WallLayout.new()
+	w.points = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(8, 0, 0), 6.0)
+	if reverse:
+		w.points.reverse()
+	w.closed = true
+	w.cover = cover
+	w.height = 2.7
+	w.seed = 6
+	w.build(_flat)
+	return w
+
+
+func _inside(w: WallLayout, p: Vector3) -> bool:
+	var poly := PackedVector2Array()
+	for q in w.samples:
+		poly.append(Vector2(q.x, q.z))
+	return Geometry2D.is_point_in_polygon(Vector2(p.x, p.z), poly)
+
+
+func _a_house_grows_ivy_outside_only() -> void:
+	for reverse in [false, true]:
+		for cover in [WallLayout.Cover.ROOF, WallLayout.Cover.DECK]:
+			var w := _loop(cover, reverse)
+			var leaves := IvyLayout.grow(w.snapshot())
+			_check(leaves.size() > 100, "a house grows ivy outside, got %d leaves" % leaves.size())
+			_check(not leaves.any(func(l): return _inside(w, l.xform.origin)), "no ivy on a roofed house's inner faces (reversed %s)" % reverse)
+	var open := IvyLayout.grow(_loop(WallLayout.Cover.OPEN, false)).filter(func(l): return not _inside(_loop(WallLayout.Cover.OPEN, false), l.xform.origin))
+	var roofed := IvyLayout.grow(_loop(WallLayout.Cover.ROOF, false))
+	_check(roofed.size() == open.size() and roofed.all(func(l): return open.any(func(o): return o.xform == l.xform)), "roofing a loop leaves its outer ivy where it was")
+
+
+func _a_tower_keeps_ivy_on_both_faces() -> void:
+	var w := _loop(WallLayout.Cover.OPEN, false)
+	var leaves := IvyLayout.grow(w)
+	_check(leaves.any(func(l): return _inside(w, l.xform.origin)) and leaves.any(func(l): return not _inside(w, l.xform.origin)), "an open loop keeps ivy inside and out")

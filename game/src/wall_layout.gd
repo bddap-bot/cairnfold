@@ -375,6 +375,18 @@ func _normal(s: float) -> Vector3:
 	return frame_at(s).tangent.cross(Vector3.UP)
 
 
+## The face (+1 or -1, as `_normal` calls it) that looks into a roofed loop, or 0 where both look out.
+func inner_side() -> float:
+	if not closed or cover == Cover.OPEN:
+		return 0.0
+	var area := 0.0
+	for i in samples.size():
+		var a := samples[i]
+		var b := samples[(i + 1) % samples.size()]
+		area += a.x * b.z - b.x * a.z
+	return signf(area)
+
+
 ## The opening a placed window makes on its own, before fusing: a door if its sill would be near the ground.
 func opening_for(w: Vector2) -> Dictionary:
 	var c := course_height()
@@ -973,6 +985,7 @@ func snapshot() -> WallLayout:
 	w.breaks = breaks.duplicate()
 	w.fence = fence
 	w.plaster = plaster
+	w.cover = cover
 	w.resting = resting.duplicate()
 	w.joined = joined.duplicate()
 	return w

@@ -1,8 +1,8 @@
 class_name IvyLayout
 extends RefCounted
 
-## Ivy climbing both faces of a wall, steering around arch openings, windows and doors. Each leaf here is
-## drawn as a sprig of three (Meshes.sprig).
+## Ivy climbing both faces of a wall, or only the outer face of a roofed loop, steering around arch openings,
+## windows and doors. Each leaf here is drawn as a sprig of three (Meshes.sprig).
 
 const STEP := 0.1
 const RATE := 0.15
@@ -24,6 +24,7 @@ static func grow(wall: WallLayout) -> Array[Dictionary]:
 	var roots := RandomNumberGenerator.new()
 	roots.seed = wall.seed * 7919 + 13
 	var k := 0
+	var inner := wall.inner_side()
 	for side in [-1.0, 1.0]:
 		var s := END + roots.randf_range(0.0, 1.4)
 		while s < total - END:
@@ -31,7 +32,7 @@ static func grow(wall: WallLayout) -> Array[Dictionary]:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = hash([wall.seed, k])
 			k += 1
-			if roots.randf() < 0.85 and not blocked(wall, s, 0.05):
+			if roots.randf() < 0.85 and side != inner and not blocked(wall, s, 0.05):
 				_vine(wall, Vector2(s, 0.02), Vector2.UP, side, rng.randf_range(0.0, 3.0), minf(wall.height - 0.2, MAX_CLIMB) * rng.randf_range(0.55, 1.0), true, rng, leaves)
 			s += roots.randf_range(0.6, 1.4)
 	leaves.sort_custom(func(a, b): return a.t < b.t)
