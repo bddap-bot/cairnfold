@@ -36,7 +36,7 @@ aiming at; our implementation is our own.
 
 ## Engine and target
 
-**Decision: Godot 4.5 (Mobile renderer, OpenXR), running standalone on the Frame.**
+**Decision: Godot 4.6 (Mobile renderer, OpenXR), running standalone on the Frame.**
 
 Two options were considered:
 

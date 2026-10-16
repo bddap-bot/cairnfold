@@ -1,19 +1,19 @@
 # shellcheck shell=bash disable=SC2034
 # Sourced by the build scripts: every pinned download, and the fetch that verifies it.
-godot_version=4.5.1
+godot_version=4.6
 godot_release=https://github.com/godotengine/godot/releases/download/$godot_version-stable
-godot_templates=("$godot_release/Godot_v$godot_version-stable_export_templates.tpz" 1998af37f1387684e2c211cdb483daf492fc64dc6b12096bddcdca25b6910c86)
-openxr_vendors_version=4.3.1-stable
-openxr_vendors=("https://github.com/GodotVR/godot_openxr_vendors/releases/download/$openxr_vendors_version/godotopenxrvendorsaddon.zip" 1620e9a589d205023e008ea27430843f5b8bb2690b62d08bd1fadc87c49b2e3e)
-godot_source=("$godot_release/godot-$godot_version-stable.tar.xz" 559e11bdd85033640d49db67baa6f15be1128b2af38a5acc06e02b53363d8dde)
-openxr_vendors_source=("https://codeload.github.com/GodotVR/godot_openxr_vendors/tar.gz/refs/tags/$openxr_vendors_version" c7536406d3d95f70807e20ef523b2b09ab13495faa393810a776e4dcfb1dde49)
+godot_templates=("$godot_release/Godot_v$godot_version-stable_export_templates.tpz" 3b30ac8c1772f25f5dfa5f65922cab0a90e7b960176891237c5772515ebccc46)
+openxr_vendors_version=5.1.0-stable
+openxr_vendors=("https://github.com/GodotVR/godot_openxr_vendors/releases/download/$openxr_vendors_version/godotopenxrvendorsaddon.zip" 6a838dbdf4115549e4511ebee0da9a5dcc8f9f6258d4cc2f2ee57a907a3e2911)
+godot_source=("$godot_release/godot-$godot_version-stable.tar.xz" 900ad0f6241b8051daa569cee1b07b6e30c4cb4f804471f72256d052334c0550)
+openxr_vendors_source=("https://codeload.github.com/GodotVR/godot_openxr_vendors/tar.gz/refs/tags/$openxr_vendors_version" 60199880ae0eb06565979865f55969f5059cc088c8a7a5065366e2f90bce9653)
 # The godot-cpp submodule at the pinned vendors release.
-godot_cpp_license=(https://raw.githubusercontent.com/godotengine/godot-cpp/269c925c2905b28c03921594d8d1e70cd4ba7beb/LICENSE.md 26a5b210d90760156ce886267ce9df235787dcc6cebfd7ecd95ef5b6fdcc95bf)
+godot_cpp_license=(https://raw.githubusercontent.com/godotengine/godot-cpp/58d1de720b8ffe9f8ffcdfe3a85148582cfd2e74/LICENSE.md 26a5b210d90760156ce886267ce9df235787dcc6cebfd7ecd95ef5b6fdcc95bf)
 # What the official Windows template links beyond Godot's own sources: Mesa's NIR (through godot-nir-static, the
 # version Godot's install_d3d12_sdk_windows.py names) and the MinGW-w64 runtime of its Fedora MinGW toolchain.
-godot_nir_license=(https://raw.githubusercontent.com/godotengine/godot-nir-static/23.1.9-1/LICENSE.md 26a5b210d90760156ce886267ce9df235787dcc6cebfd7ecd95ef5b6fdcc95bf)
-mesa_license=(https://gitlab.freedesktop.org/mesa/mesa/-/raw/52ab5584b870be041b93f702693ea3f5665df860/docs/license.rst a00275a53178e2645fb65be99a785c110513446a5071ff2c698ed260ad917d75)
-mingw_license=(https://raw.githubusercontent.com/mingw-w64/mingw-w64/v12.0.0/COPYING.MinGW-w64-runtime/COPYING.MinGW-w64-runtime.txt e9b2dc02451ea29092a1f25fa0f3c07207ed421f1807dffb0c4e6dce69dee7bd)
+godot_nir_license=(https://raw.githubusercontent.com/godotengine/godot-nir-static/25.3.1-1/LICENSE.md 26a5b210d90760156ce886267ce9df235787dcc6cebfd7ecd95ef5b6fdcc95bf)
+mesa_license=(https://gitlab.freedesktop.org/mesa/mesa/-/raw/5005a50879b11b953ade113fccd13a208f706ba0/docs/license.rst 0d1a0472ecc81830e75c20d59b0ea02841e3db21255e0ebad97ab682c54d6615)
+mingw_license=(https://raw.githubusercontent.com/mingw-w64/mingw-w64/v13.0.0/COPYING.MinGW-w64-runtime/COPYING.MinGW-w64-runtime.txt e9b2dc02451ea29092a1f25fa0f3c07207ed421f1807dffb0c4e6dce69dee7bd)
 # The Steam binding, only in Steam packages (docs/package-notices.md, "Steam packages"); never committed.
 godotsteam_version=4.23
 godotsteam=("https://codeberg.org/GodotSteam/GodotSteam/releases/download/v$godotsteam_version-gde/godotsteam-$godotsteam_version-gdextension-plugin-4.4.zip" c1728b4bf330da851a00eaf64dab2e99c506018b1d9f529511b25d7fe7649e97)

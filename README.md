@@ -4,7 +4,7 @@ A cozy VR building toy, inspired by Tiny Glade. Draw stone or plaster walls acro
 and watch them grow courses of stone, crenellated tops and arches; teleport onto
 the grass to stand beside them, or into the air to float above your build.
 
-Runs standalone on the Steam Frame and on Meta Quest 2 and later (Godot 4.5, OpenXR). All assets are generated
+Runs standalone on the Steam Frame and on Meta Quest 2 and later (Godot 4.6, OpenXR). All assets are generated
 by the code here; see [docs/design.md](docs/design.md) for the full design and
 build order.
 

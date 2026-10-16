@@ -120,7 +120,7 @@ later built on that patch settles onto the restored ground.
 Directive (verbatim): "Yes please" (the answer to building loading your own VRM).
 
 Players appear as **VRM** avatars. VRM is the open VR avatar standard: a glTF 2.0
-file with a humanoid bone map. Godot 4.5 reads the glTF. Nestcombe's `Vrm` extension
+file with a humanoid bone map. Godot 4.6 reads the glTF. Nestcombe's `Vrm` extension
 reads the humanoid bones, the eye offset and which way the model faces, from VRM 1.0
 (`VRMC_vrm`) and from VRM 0.x (`VRM`, which faces -Z and keeps its offset in Unity's
 axes). That is all a head-and-hands avatar needs.
