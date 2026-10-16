@@ -32,4 +32,4 @@ func _initialize() -> void:
 		DirAccess.remove_absolute(folder.path_join(name))
 	DirAccess.remove_absolute(folder)
 	print("tests: %s" % ("FAILED" if failures else "ok"))
-	quit(1 if failures else 0)
+	Main.quit(self, 1 if failures else 0)
