@@ -4,6 +4,9 @@ extends SceneTree
 ## garden of another build stands there with an X and cannot be joined:
 ## godot4 --headless --path game --script ../tests/test_beacon.gd
 
+## A documentation address, which no host answers: joining it reaches no other run's garden.
+const NOBODY := "192.0.2.1"
+
 var failures := 0
 
 
@@ -68,11 +71,14 @@ func _names_are_clean_and_short() -> void:
 
 func _the_beacon_names_nobody_until_they_pick_a_name(s: Session) -> void:
 	_check(not s.me.shared, "a test player starts with no name picked")
+	_check(s.port == 0, "a test's garden opens no port, so test runs side by side never meet: %d" % s.port)
+	s.port = Session.PORT
 	var heard := Session.read_beacon(s.beacon())
 	_check(heard.get("name") == "" and heard.get("port") == s.port and not s.beacon().get_string_from_utf8().contains(s.me.name), "the beacon carries no name nobody picked: %s" % s.beacon().get_string_from_utf8())
 	s.me.pick()
 	heard = Session.read_beacon(s.beacon())
 	_check(heard.get("name") == s.me.name, "a picked name rides the beacon: %s" % heard)
+	s.port = 0
 	var hostile := JSON.stringify({"nestcombe": 1, "key": 3, "port": Session.PORT, "avatar": 0, "name": "\u0000" + "W".repeat(400)}).to_utf8_buffer()
 	heard = Session.read_beacon(hostile)
 	_check(heard.is_empty() or heard.name.length() <= Persona.MAX_NAME, "a hostile beacon is cut down or dropped: %s" % heard)
@@ -133,12 +139,12 @@ func _the_picker_shows_each_host_s_name() -> void:
 	var session: Session = main.session
 	_the_beacon_names_nobody_until_they_pick_a_name(session)
 	var tool: VisitTool = main.visit_tool
-	var where := "127.0.0.1:%d" % (Session.PORT + 5)
-	var unnamed := "127.0.0.1:%d" % (Session.PORT + 6)
-	session.nearby[where] = {"address": "127.0.0.1", "port": Session.PORT + 5, "key": 5, "avatar": 2, "colour": Session.COLOURS[1], "name": "Hazel Otter", "joins": true, "seen": INF}
-	session.nearby[unnamed] = {"address": "127.0.0.1", "port": Session.PORT + 6, "key": 6, "avatar": 1, "colour": Session.COLOURS[2], "name": "", "joins": true, "seen": INF}
-	var other := "127.0.0.1:%d" % (Session.PORT + 7)
-	session.nearby[other] = {"address": "127.0.0.1", "port": Session.PORT + 7, "key": 7, "avatar": 3, "colour": Session.COLOURS[3], "name": "Moss Wren", "joins": false, "seen": INF}
+	var where := "%s:%d" % [NOBODY, Session.PORT + 5]
+	var unnamed := "%s:%d" % [NOBODY, Session.PORT + 6]
+	session.nearby[where] = {"address": NOBODY, "port": Session.PORT + 5, "key": 5, "avatar": 2, "colour": Session.COLOURS[1], "name": "Hazel Otter", "joins": true, "seen": INF}
+	session.nearby[unnamed] = {"address": NOBODY, "port": Session.PORT + 6, "key": 6, "avatar": 1, "colour": Session.COLOURS[2], "name": "", "joins": true, "seen": INF}
+	var other := "%s:%d" % [NOBODY, Session.PORT + 7]
+	session.nearby[other] = {"address": NOBODY, "port": Session.PORT + 7, "key": 7, "avatar": 3, "colour": Session.COLOURS[3], "name": "Moss Wren", "joins": false, "seen": INF}
 	main.rig.left.tool = Hand.Tool.VISIT
 	await process_frame
 	await process_frame

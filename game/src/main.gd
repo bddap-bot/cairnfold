@@ -1,8 +1,10 @@
 class_name Main
 extends Node3D
 
-## How long quitting waits for the audio thread to release the sounds that were playing.
-const QUIT_WAIT_MSEC := 1000
+## How many mixes quitting waits for the audio thread to release the sounds that were playing: counted in mixes,
+## not time, since a loaded machine mixes late. The time is only so a stalled audio driver cannot hold the quit.
+const QUIT_WAIT_MIXES := 20
+const QUIT_WAIT_MSEC := 10000
 
 static var _quitting := false
 
@@ -81,7 +83,7 @@ func _ready() -> void:
 	_undo_buttons = Buttons.new(rig.left).watch(["ax_button", "by_button"])
 	var played := Session.played(args, get_tree().current_scene == self)
 	var me := Persona.new(str(args.get("name", "")), int(args.get("steam-app", OS.get_environment("SteamAppId"))), "user://name" if played else "", hash(OS.get_unique_id()))
-	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT)), played, int(args.get("beacon-port", Session.BEACON_PORT)), me)
+	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT if played else 0)), played, int(args.get("beacon-port", Session.BEACON_PORT)), me)
 	session.folder = args.get("avatars", Session.own_folder() if played else "")
 	if played:
 		DirAccess.make_dir_recursive_absolute(session.folder)
@@ -243,8 +245,14 @@ static func quit(tree: SceneTree, code := 0) -> void:
 			p.stop()
 	var playing := func() -> int: return held.filter(func(w: WeakRef) -> bool: return w.get_ref() != null).size()
 	var until := Time.get_ticks_msec() + QUIT_WAIT_MSEC
-	while playing.call() > 0 and Time.get_ticks_msec() < until:
+	var mixes := 0
+	var since := AudioServer.get_time_since_last_mix()
+	while playing.call() > 0 and mixes < QUIT_WAIT_MIXES and Time.get_ticks_msec() < until:
 		await tree.process_frame
+		var now := AudioServer.get_time_since_last_mix()
+		if now < since:
+			mixes += 1
+		since = now
 	if playing.call() > 0:
 		push_error("%d sounds still in use at exit" % playing.call())
 	tree.quit(code)

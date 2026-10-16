@@ -2,6 +2,10 @@ extends SceneTree
 
 ## Headless checks of the teleport ray: godot4 --headless --path game --script ../tests/test_teleport.gd
 
+## The time each frame steps the rig: a release reads the last Rig.RELEASE_LOOKBACK of aiming, so a frame's real
+## length, long on a loaded machine, would decide where it lands.
+const STEP := 1.0 / 60.0
+
 var failures := 0
 
 
@@ -18,7 +22,10 @@ func _initialize() -> void:
 	_finish.call_deferred(rig)
 
 
+## The rig steps only through _frame from here; disabled in _initialize, it would be enabled again when it is
+## made ready with the root.
 func _finish(rig: Rig) -> void:
+	rig.set_process(false)
 	_a_flat_roof_is_floor_and_a_pitched_one_stops_the_ray(rig)
 	await _stick_teleports_with_every_tool(rig)
 	await _eased_stick_lands_nearer(rig, Vector3(0, -0.3, -1), "ground")
@@ -34,6 +41,11 @@ func _check(ok: bool, what: String) -> void:
 	if not ok:
 		failures += 1
 		print("FAIL: ", what)
+
+
+func _frame(rig: Rig) -> void:
+	await process_frame
+	rig._process(STEP)
 
 
 func _pose(origin: Vector3, dir: Vector3) -> Transform3D:
@@ -177,16 +189,16 @@ func _stick_teleports_with_every_tool(rig: Rig) -> void:
 		rig.left.tool = t
 		rig.right.tool = t
 		rig.place(Vector3(0, Terrain.height_at(0, 0), 0), 0.0)
-		await process_frame
+		await _frame(rig)
 		var from := rig.head.global_position
 		rig.left.global_transform = Transform3D(Basis.looking_at(Vector3(0, -0.3, -1), Vector3.UP), from + Vector3(-0.2, -0.4, -0.3))
 		Hand.injected_sticks[rig.left.tracker] = Vector2(0, 1)
-		await process_frame
-		await process_frame
+		await _frame(rig)
+		await _frame(rig)
 		var aimed: bool = rig.aim_hand == rig.left and rig.aim_ground != null
 		Hand.injected_sticks[rig.left.tracker] = Vector2.ZERO
 		for f in 30:
-			await process_frame
+			await _frame(rig)
 		var moved := Vector2(rig.head.global_position.x - from.x, rig.head.global_position.z - from.z).length()
 		_check(aimed and moved > 2.0, "left stick forward aims and goes holding %s (moved %.1f m)" % [Hand.Tool.keys()[t], moved])
 	Hand.injected_sticks.erase(rig.left.tracker)
@@ -202,7 +214,7 @@ func _eased_stick_lands_nearer(rig: Rig, dir: Vector3, what: String) -> void:
 	var expect := Rig.reach_scale(0.45)
 	_check(absf(ratio - expect) < 0.08, "%s: easing back to 0.45 lands %.2f of the full distance (%.1f of %.1f m), want %.2f" % [what, ratio, eased, full, expect])
 	rig.place(Vector3(0, Terrain.height_at(0, 0), 0), 0.0)
-	await process_frame
+	await _frame(rig)
 	var aimed := rig.head.global_position
 	rig.left.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), aimed + Vector3(-0.2, -0.4, -0.3))
 	rig.aim(rig.left.global_transform)
@@ -216,30 +228,29 @@ func _eased_stick_lands_nearer(rig: Rig, dir: Vector3, what: String) -> void:
 func _ground_pull_back_walks_the_ray(rig: Rig) -> void:
 	var dir := Vector3(0, -0.3, -1).normalized()
 	rig.place(Vector3(0, Terrain.height_at(0, 0), 0), 0.0)
-	await process_frame
+	await _frame(rig)
 	var from := rig.head.global_position
 	rig.left.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), from + Vector3(-0.2, -0.4, -0.3))
 	var o := rig.left.global_position
 	Hand.injected_sticks[rig.left.tracker] = Vector2(0, 1)
-	await process_frame
-	await process_frame
+	await _frame(rig)
+	await _frame(rig)
 	var hit: Vector3 = rig.aim_ground
 	for y in [0.85, 0.7, 0.55, 0.4]:
 		Hand.injected_sticks[rig.left.tracker] = Vector2(0, y)
-		await process_frame
+		await _frame(rig)
 		var target: Vector3 = rig.aim_ground + Vector3.UP * rig.aim_lift
 		var want := o.lerp(hit, Rig.reach_scale(y))
 		_check(target.distance_to(want) < 0.01, "ground, stick at %.2f: the target is on the ray at %s, not %s" % [y, want, target])
 	var eased: Vector3 = rig.aim_ground + Vector3.UP * rig.aim_lift
-	var start := Time.get_ticks_msec()
-	while Time.get_ticks_msec() - start < 300:
-		await process_frame
+	for f in roundi(0.3 / STEP):
+		await _frame(rig)
 	for y in [0.35, 0.0]:
 		Hand.injected_sticks[rig.left.tracker] = Vector2(0, y)
-		await process_frame
+		await _frame(rig)
 	Hand.injected_sticks.erase(rig.left.tracker)
 	for f in 30:
-		await process_frame
+		await _frame(rig)
 	var landed := rig.global_position
 	var h := rig.head.global_position
 	_check(Vector2(h.x - eased.x, h.z - eased.z).length() < 0.05 and absf(landed.y - eased.y) < 0.05, "ground: a slow release lands on the eased point on the ray: %s for %s" % [Vector3(h.x, landed.y, h.z), eased])
@@ -253,22 +264,21 @@ func _ground_pull_back_walks_the_ray(rig: Rig) -> void:
 ## seconds, then lets the stick spring back through 0.6 and 0.35 to centre; returns how far the head moved.
 func _stick_landing(rig: Rig, dir: Vector3, hold: float, eased := 1.0) -> float:
 	rig.place(Vector3(0, Terrain.height_at(0, 0), 0), 0.0)
-	await process_frame
+	await _frame(rig)
 	var from := rig.head.global_position
 	rig.left.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), from + Vector3(-0.2, -0.4, -0.3))
 	Hand.injected_sticks[rig.left.tracker] = Vector2(0, 1)
-	await process_frame
-	await process_frame
+	await _frame(rig)
+	await _frame(rig)
 	Hand.injected_sticks[rig.left.tracker] = Vector2(0, eased)
-	var start := Time.get_ticks_msec()
-	while Time.get_ticks_msec() - start < hold * 1000.0:
-		await process_frame
+	for f in roundi(hold / STEP):
+		await _frame(rig)
 	for y in [0.6, 0.35, 0.0]:
 		Hand.injected_sticks[rig.left.tracker] = Vector2(0, y)
-		await process_frame
+		await _frame(rig)
 	Hand.injected_sticks.erase(rig.left.tracker)
 	for f in 30:
-		await process_frame
+		await _frame(rig)
 	return Vector2(rig.head.global_position.x - from.x, rig.head.global_position.z - from.z).length()
 
 
@@ -278,12 +288,10 @@ func _view_holds_after_teleport(rig: Rig, lift_m: float) -> void:
 	var before := rig.global_position
 	rig.teleport(ground, lift_m)
 	var trace: Array[Vector3] = [before]
-	var start := Time.get_ticks_msec()
-	while Time.get_ticks_msec() - start < 1500:
-		await process_frame
+	for f in roundi(1.5 / STEP):
+		await _frame(rig)
 		if rig.global_position != trace[-1]:
 			trace.append(rig.global_position)
-	print("trace %s m: %s over %d ms" % [lift_m, trace, Time.get_ticks_msec() - start])
-	_check(trace.size() == 2, "a %s m teleport moves the origin once, then holds it: %d moves" % [lift_m, trace.size() - 1])
+	_check(trace.size() == 2, "a %s m teleport moves the origin once, then holds it: %s" % [lift_m, trace])
 	var h := rig.head.global_position
 	_check(Vector2(h.x - ground.x, h.z - ground.z).length() < 1e-4 and absf(rig.global_position.y - ground.y - lift_m) < 1e-4, "a %s m teleport lands exactly on its target" % lift_m)

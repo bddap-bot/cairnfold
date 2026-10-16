@@ -37,6 +37,7 @@ var avatar := 0
 var colour := COLOURS[0]
 var me: Persona
 var port := 0
+## 0 for an instance a test or script made without a port: it opens nothing, so runs side by side never meet.
 var first_port := PORT
 var beacon_port := BEACON_PORT
 ## Whether beacons reach the network, or only this machine.
@@ -79,10 +80,10 @@ func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := t
 	beacon_port = BEACON_PORT if lan else clampi(from_beacon, 1024, 65536 - BEACON_PORTS)
 	world = garden
 	rig = player
-	first_port = clampi(from_port, PORT, PORT + PORT_RANGE - PORTS)
+	first_port = clampi(from_port, PORT, PORT + PORT_RANGE - PORTS) if from_port else 0
 	var id := hash(OS.get_unique_id())
 	avatar = posmod(look if look >= 0 else id, Avatar.BUILT_IN.size())
-	colour = COLOURS[posmod(id / 7 + first_port - PORT, COLOURS.size())]
+	colour = COLOURS[posmod(id / 7 + maxi(first_port - PORT, 0), COLOURS.size())]
 	_key = randi()
 	me = who if who else Persona.new("", 0, "", id)
 	for i in Avatar.BUILT_IN.size():
@@ -105,7 +106,7 @@ func _ready() -> void:
 	multiplayer.server_disconnected.connect(go_home, CONNECT_DEFERRED)
 	multiplayer.connection_failed.connect(go_home, CONNECT_DEFERRED)
 	_beacon.set_broadcast_enabled(true)
-	for p in BEACON_PORTS:
+	for p in (BEACON_PORTS if first_port else 0):
 		if _listen.bind(beacon_port + p, "*" if lan else "127.0.0.1") == OK:
 			break
 	me.offer(_key)
@@ -116,7 +117,7 @@ func _ready() -> void:
 func host() -> void:
 	visiting = {}
 	var peer := ENetMultiplayerPeer.new()
-	for p in range(first_port, first_port + PORTS):
+	for p in (range(first_port, first_port + PORTS) if first_port else []):
 		var probe := PacketPeerUDP.new()
 		if probe.bind(p) != OK:
 			continue
