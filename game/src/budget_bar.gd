@@ -3,7 +3,7 @@ extends MeshInstance3D
 
 ## A bar along the back of a controller's top: how much of the frame budget the garden's builds take (Budget), on the
 ## most loaded headset it is shown on, so visitors see the host garden's. What the hand's tool is showing joins it in a
-## paler stretch; where it would not fit, the whole bar pulses red.
+## paler stretch; where it would not fit, the whole bar pulses red. An empty hand holds nothing to build, so it shows none.
 
 const SIZE := Vector2(0.05, 0.009)
 ## Where it lies on the controller (Hand's body), behind the tool's model.
@@ -49,12 +49,12 @@ void fragment() {
 static var _shader: Shader
 
 var world: World
-var hand: Node
+var hand: Hand
 var _shown := 0.0
 var _mat := ShaderMaterial.new()
 
 
-func _init(garden: World, on: Node) -> void:
+func _init(garden: World, on: Hand) -> void:
 	world = garden
 	hand = on
 	var quad := QuadMesh.new()
@@ -72,6 +72,7 @@ func _init(garden: World, on: Node) -> void:
 
 
 func _process(delta: float) -> void:
+	visible = hand.tool != Hand.Tool.HANDS
 	var now := world.fill()
 	var with := world.fill(hand)
 	_shown = lerpf(_shown, now, 1.0 - exp(-EASE * delta))

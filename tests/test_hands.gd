@@ -45,11 +45,14 @@ func _run() -> void:
 		await process_frame
 		shown += int(hand._beam.visible or hand._dot.visible)
 	_check(shown == 0, "an empty hand over the ground shows no ray, shown on %d of 30 frames" % shown)
+	var bar: BudgetBar = hand.get_children().filter(func(c: Node) -> bool: return c is BudgetBar)[0]
+	_check(not bar.visible, "an empty hand shows no budget bar")
 	var on_top := hand._models[Hand.Tool.HANDS]
 	_check(on_top.get_child_count() == 0, "nothing stands on an empty hand's controller")
 	await _play([{"op": "pick", "hand": "right", "tool": "path"}])
 	await _frames(3)
 	_check(hand._beam.visible, "picking a tool brings its ray back")
+	_check(bar.visible, "picking a tool brings its budget bar back")
 	XRServer.remove_tracker(tracker)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
