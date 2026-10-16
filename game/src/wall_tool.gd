@@ -836,12 +836,12 @@ func pick_roof(origin: Vector3, dir: Vector3, held := false) -> Dictionary:
 	return best
 
 
-## The ground at (x, z), or the flat roof standing over it.
-func floor_at(x: float, z: float) -> float:
-	var y := Terrain.height_at(x, z)
+## What a point stands on: the ground under it, or a flat roof's deck at or below it.
+func floor_under(p: Vector3) -> float:
+	var y := Terrain.height_at(p.x, p.z)
 	for w in walls:
-		if w.roof != null and w.roof.flat() and w.roof.over(x, z):
-			y = maxf(y, w.roof.base)
+		if w.roof != null:
+			y = maxf(y, w.roof.deck_under(p))
 	return y
 
 

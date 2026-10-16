@@ -1186,7 +1186,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Action | Control |
 | --- | --- |
 | Pick a hand's tool | Hold that hand's wheel button (right B, left View), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
-| Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it meets the ground; release to go |
+| Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it meets the ground or a flat roof's deck; aimed under a roof, as through a door or window, it lands on the floor inside; a pitched roof stops it; release to go |
 | Teleport into the air | Aim above the horizon: with no ground within 30 m, the ray targets the point in the air at its end, a ring on a pole down to the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
 | Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides nearer along the aim as the stick comes back, on the ground or in the air, down to a tenth of the way. Release from there to go there: the snap back to centre does not pull the target in |
 | Come back down | Aim the teleport ray at the ground |

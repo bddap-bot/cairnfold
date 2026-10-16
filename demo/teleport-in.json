@@ -1,0 +1,17 @@
+[
+  {"op": "place", "x": 0, "z": 7},
+  {"op": "house", "at": [0, -2], "size": [7, 5], "seconds": 1},
+  {"op": "roof", "index": 0, "pitch": 0},
+  {"op": "fit", "what": "window", "index": 0, "s": 15.5, "y": 0.8},
+  {"op": "fit", "what": "window", "index": 0, "s": 17.7, "y": 1.6},
+  {"op": "fit", "what": "window", "index": 0, "s": 3.5, "y": 1.6},
+  {"op": "fit", "what": "lantern", "index": 0, "s": 5.0, "y": 1.9, "side": 1},
+  {"op": "wait", "seconds": 2},
+  {"op": "view", "eye": [0, 1.65, 7], "at": [0, 0, -3.6], "ground": true},
+  {"op": "aim", "dir": [0, 0, -1], "seconds": 1, "capture": "01-aim-doorway"},
+  {"op": "view", "eye": [0, 0, 0], "at": [0, -0.4, -1], "relative": true},
+  {"op": "capture", "name": "02-landed-inside"},
+  {"op": "view", "eye": [0, 9, 10], "at": [0, 0, -2]},
+  {"op": "capture", "name": "03-house"},
+  {"op": "quit"}
+]

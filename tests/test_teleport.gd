@@ -120,7 +120,7 @@ func _a_flat_roof_is_floor_and_a_pitched_one_stops_the_ray(rig: Rig) -> void:
 	r.base = ground + 3.0
 	r.pitch = 0.0
 	r.build()
-	rig.floor_at = func(x: float, z: float) -> float: return maxf(Terrain.height_at(x, z), r.base if r.flat() and r.over(x, z) else -INF)
+	rig.floor_under = func(p: Vector3) -> float: return maxf(Terrain.height_at(p.x, p.z), r.deck_under(p))
 	rig.roof_hit = func(o: Vector3, d: Vector3) -> Dictionary:
 		var t := r.ray_hit(o, d)
 		return {} if t == INF else {"along": t, "point": o + d * t, "flat": r.flat()}
@@ -130,13 +130,39 @@ func _a_flat_roof_is_floor_and_a_pitched_one_stops_the_ray(rig: Rig) -> void:
 	if rig.aim_ground != null:
 		rig.place(rig.aim_ground, rig.aim_lift)
 		_check(absf(rig.global_position.y - r.base) < 0.2, "the player stands on the deck, not inside the house: %.2f for %.2f" % [rig.global_position.y, r.base])
+	_aims_into_the_house_land_on_its_floor(rig, r, "flat")
 	r.pitch = 2.0
 	r.build()
 	rig.aim(_pose(o, Vector3(0, -4.0, -5.0)))
 	_check(rig.aim_ground == null, "a pitched roof stops the ray: no landing inside the house beneath it")
-	rig.floor_at = func(x: float, z: float) -> float: return Terrain.height_at(x, z)
+	_aims_into_the_house_land_on_its_floor(rig, r, "pitched")
+	rig.floor_under = func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z)
 	rig.roof_hit = func(_o: Vector3, _d: Vector3) -> Dictionary: return {}
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
+
+
+## Rays that pass under the roof: from outside at a doorway's height and a window's, and from inside down at the
+## floor, at full reach and eased. Each lands on the ground inside the walls, under the roof.
+func _aims_into_the_house_land_on_its_floor(rig: Rig, r: RoofLayout, roof: String) -> void:
+	var f := r.frame()
+	var mid := Vector3(f.mid.x, 0.0, f.mid.z)
+	var out: Vector3 = f.across * (r.half_span() + 4.0)
+	var floor := func(p: Vector3) -> Vector3: return Vector3(p.x, Terrain.height_at(p.x, p.z), p.z)
+	var inner: Vector3 = f.across * (r.half_span() - 0.6)
+	var aims := {
+		"through a doorway": [floor.call(mid + out) + Vector3.UP * 1.2, floor.call(mid), 1.0],
+		"through a window": [floor.call(mid + out) + Vector3.UP * 1.8, floor.call(mid - inner), 1.0],
+		"at the floor from inside": [floor.call(mid + inner) + Vector3.UP * 1.2, floor.call(mid - inner), 1.0],
+		"eased, at the floor from inside": [floor.call(mid + inner) + Vector3.UP * 1.2, floor.call(mid - inner), 0.6],
+	}
+	for what: String in aims:
+		var a: Array = aims[what]
+		var from: Vector3 = a[0]
+		rig.aim(_pose(from, a[1] - from), a[2])
+		var g: Variant = rig.aim_ground
+		var inside: bool = g != null and r.over(g.x, g.z)
+		var on_floor: bool = g != null and absf(g.y - Terrain.height_at(g.x, g.z)) < 0.05 and rig.aim_lift < 0.15
+		_check(inside and on_floor, "%s roof, aimed %s: lands on the floor inside, not on the roof: %s for floor %.2f, roof %.2f" % [roof, what, g, Terrain.height_at(g.x, g.z) if g != null else NAN, r.base])
 
 
 func _no_teleport_tool() -> void:

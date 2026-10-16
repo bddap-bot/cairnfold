@@ -95,7 +95,7 @@ func _ready() -> void:
 	add_child(wildlife)
 	sound = Soundscape.new(tool, flora_tool, water)
 	add_child(sound)
-	rig.floor_at = tool.floor_at
+	rig.floor_under = tool.floor_under
 	rig.roof_hit = tool.pick_roof
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 	metrics = Metrics.new(args.get("metrics", ""))

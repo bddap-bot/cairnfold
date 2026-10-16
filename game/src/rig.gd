@@ -32,8 +32,8 @@ var hands: Array[Hand] = []
 var aim_hand: Hand
 var aim_ground: Variant = null
 var aim_lift := 0.0
-## What the player stands on at (x, z): the ground, or a flat roof over it.
-var floor_at := func(x: float, z: float) -> float: return Terrain.height_at(x, z)
+## What a point stands on, as `WallTool.floor_under` finds it: the ground, or a flat roof's deck at or below it.
+var floor_under := func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z)
 ## The nearest roof along a ray, as `WallTool.pick_roof` finds it: {along, point, flat}, or empty.
 var roof_hit := func(_origin: Vector3, _dir: Vector3) -> Dictionary: return {}
 var _turned := false
@@ -185,8 +185,8 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 			aim_ground = null
 			hide_markers()
 			return
-		target.y = floor_at.call(target.x, target.z)
-	var g: float = floor_at.call(target.x, target.z)
+		target.y = floor_under.call(target)
+	var g: float = floor_under.call(target)
 	aim_ground = Vector3(target.x, g, target.z)
 	aim_lift = clampf(target.y - g, 0.0, MAX_LIFT)
 	if aim_hand != null:

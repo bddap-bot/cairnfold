@@ -20,6 +20,8 @@ const SLAB := Vector3(0.7, 0.1, 0.5)
 ## How far the deck runs in under the cap's inner lip, and how far below the cap's top it lies.
 const DECK_TUCK := 0.06
 const DECK_DROP := 0.03
+## A point this near under a deck still stands on it: a ray's hit on the deck can fall a hair short of it.
+const ON_DECK := 0.01
 const BED_LAP := 0.2
 const CURVE := 1.0
 const PROFILE_STEPS := 8
@@ -93,6 +95,12 @@ static func snap_pitch(p: float, step: float) -> float:
 
 func flat() -> bool:
 	return pitch <= 0.0
+
+
+## Height of the deck that `p` stands on, or -INF: a pitched roof, a point beside the house, or one below
+## the deck, inside the house under it.
+func deck_under(p: Vector3) -> float:
+	return base if flat() and p.y >= base - ON_DECK and over(p.x, p.z) else -INF
 
 
 ## Rise above the wall top at `u`, 0 at the walls' outer faces and 1 at the ridge; below 0 (the overhang) it carries on straight.
