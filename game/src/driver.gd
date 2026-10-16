@@ -351,16 +351,17 @@ func _pave(s: Dictionary) -> void:
 ## Grabs the ground at x, z and pulls it `lift` metres over `seconds` (negative digs), as a grip on the ground does.
 func _sculpt(s: Dictionary) -> void:
 	var tool: GroundGrab = main.ground_grab
-	tool.begin(_spot(s, s.x, s.z), s.get("radius", GroundGrab.MIN_RADIUS))
+	var hand := _hand(s)
+	tool.begin(hand, _spot(s, s.x, s.z), s.get("radius", GroundGrab.MIN_RADIUS))
 	var t := 0.0
 	var seconds: float = s.get("seconds", 1.0)
 	while t < seconds:
 		await get_tree().process_frame
 		var dt := get_process_delta_time()
 		t += dt
-		tool.pull(s.lift * smoothstep(0.0, 1.0, minf(t / seconds, 1.0)))
-		tool.follow(dt)
-	tool.end_stroke()
+		tool.pull(hand, s.lift * smoothstep(0.0, 1.0, minf(t / seconds, 1.0)))
+		tool.follow(hand, dt)
+	tool.end_stroke(hand)
 
 
 ## Desktop only, where no hand is tracked: holds a hand `at` [x, height above the ground, z] for `seconds`, optionally capturing the view.

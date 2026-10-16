@@ -196,9 +196,9 @@ func _ponds_in_the_glade() -> void:
 	await process_frame
 	_check(water.ponds.is_empty() and water.pond_at(3, -4) == null, "undoing every dig drains them all")
 	_check(absf(Terrain.height_at(3, -4) - before) < 1e-4, "and the ground is as it was")
-	terrain.begin(Terrain.ground(3, -4), WaterTool.RADIUS)
-	terrain.pull(-1.0)
-	terrain.end_stroke()
+	terrain.begin(terrain.rig.right, Terrain.ground(3, -4), WaterTool.RADIUS)
+	terrain.pull(terrain.rig.right, -1.0)
+	terrain.end_stroke(terrain.rig.right)
 	await process_frame
 	_check(water.ponds.is_empty(), "a hollow pressed where an undone pond was stays dry")
 	world.undo()

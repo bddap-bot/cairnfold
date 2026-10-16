@@ -1,8 +1,9 @@
 // The ground's heights (Terrain.install): grid origin, step and points per side in ground_grid, and the
-// hump a stroke is pulling (Terrain.set_hump), sampled on the grid points as Terrain.height_at does.
+// humps strokes are pulling (Terrain.set_hump), one per hand in the first two columns of ground_humps,
+// sampled on the grid points as Terrain.height_at does.
 global uniform sampler2D ground_height : filter_linear, repeat_disable;
 global uniform vec3 ground_grid;
-global uniform vec4 ground_hump;
+global uniform mat4 ground_humps;
 // What the ground is made of (Ground): red trodden earth, green stone, neither meadow.
 global uniform sampler2D ground_mask : filter_linear, repeat_disable;
 
@@ -11,19 +12,22 @@ float bell(float t) {
 	return s * s * s;
 }
 
-float hump_at(vec2 p) {
-	return ground_hump.w * bell(length(p - ground_hump.xy) / ground_hump.z);
+float hump_at(vec4 hump, vec2 p) {
+	return hump.w * bell(length(p - hump.xy) / hump.z);
 }
 
 float ground_at(vec2 xz) {
 	vec2 g = (xz - ground_grid.x) / ground_grid.y;
 	float h = textureLod(ground_height, (g + 0.5) / ground_grid.z, 0.0).r;
-	if (ground_hump.w != 0.0) {
-		vec2 c = clamp(floor(g), 0.0, ground_grid.z - 2.0);
-		vec2 f = clamp(g - c, 0.0, 1.0);
-		vec2 p = ground_grid.x + c * ground_grid.y;
-		float s = ground_grid.y;
-		h += mix(mix(hump_at(p), hump_at(p + vec2(s, 0.0)), f.x), mix(hump_at(p + vec2(0.0, s)), hump_at(p + vec2(s, s)), f.x), f.y);
+	for (int k = 0; k < 2; k++) {
+		vec4 hump = ground_humps[k];
+		if (hump.w != 0.0) {
+			vec2 c = clamp(floor(g), 0.0, ground_grid.z - 2.0);
+			vec2 f = clamp(g - c, 0.0, 1.0);
+			vec2 p = ground_grid.x + c * ground_grid.y;
+			float s = ground_grid.y;
+			h += mix(mix(hump_at(hump, p), hump_at(hump, p + vec2(s, 0.0)), f.x), mix(hump_at(hump, p + vec2(0.0, s)), hump_at(hump, p + vec2(s, s)), f.x), f.y);
+		}
 	}
 	return h;
 }

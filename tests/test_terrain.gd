@@ -39,11 +39,11 @@ func _pull_raises_a_smooth_hill() -> void:
 	var original := _all()
 	var c := Terrain.ground(10, 10)
 	var far := Terrain.ground(10, 30)
-	tool.begin(c, 4.0)
-	tool.pull(3.0)
+	tool.begin(tool.rig.right, c, 4.0)
+	tool.pull(tool.rig.right, 3.0)
 	_check(absf(Terrain.height_at(10, 10) - c.y - 3.0) < 0.01, "a live pull lifts the grabbed point by the pull")
 	_check(absf(Terrain.height_at(10, 30) - far.y) < 1e-4, "ground beyond the hill stays put")
-	tool.end_stroke()
+	tool.end_stroke(tool.rig.right)
 	_check(absf(Terrain.height_at(10, 10) - c.y - 3.0) < 0.01, "the baked hill keeps its height, %f" % (Terrain.height_at(10, 10) - c.y))
 	var steepest := 0.0
 	for i in 60:
@@ -57,21 +57,21 @@ func _pull_raises_a_smooth_hill() -> void:
 	_check(_all() == raised, "redo puts it back exactly")
 	main.world.undo()
 	var d := Terrain.ground(-5, 3)
-	tool.begin(d, 3.0)
-	tool.pull(-2.0)
-	tool.end_stroke()
+	tool.begin(tool.rig.right, d, 3.0)
+	tool.pull(tool.rig.right, -2.0)
+	tool.end_stroke(tool.rig.right)
 	_check(absf(Terrain.height_at(-5, 3) - d.y + 2.0) < 0.01, "a downward pull digs")
 	main.world.undo()
 	_check(_all() == original, "undo fills the dig")
 
 
 func _baking_a_live_hump_moves_nothing() -> void:
-	tool.begin(Terrain.ground(-12.5, 7.5), 2.0)
-	tool.pull(0.6)
+	tool.begin(tool.rig.right, Terrain.ground(-12.5, 7.5), 2.0)
+	tool.pull(tool.rig.right, 0.6)
 	var live := PackedFloat32Array()
 	for i in 50:
 		live.append(Terrain.height_at(-14.0 + i * 0.06, 7.5 + i * 0.013))
-	tool.end_stroke()
+	tool.end_stroke(tool.rig.right)
 	var worst := 0.0
 	for i in 50:
 		worst = maxf(worst, absf(live[i] - Terrain.height_at(-14.0 + i * 0.06, 7.5 + i * 0.013)))
@@ -80,9 +80,9 @@ func _baking_a_live_hump_moves_nothing() -> void:
 
 
 func _texture_matches_the_heights() -> void:
-	tool.begin(Terrain.ground(20, -20), 3.0)
-	tool.pull(2.0)
-	tool.end_stroke()
+	tool.begin(tool.rig.right, Terrain.ground(20, -20), 3.0)
+	tool.pull(tool.rig.right, 2.0)
+	tool.end_stroke(tool.rig.right)
 	var worst := 0.0
 	var cells := Terrain.cells_around(20, -20, 3.0)
 	for j in range(cells.position.y, cells.end.y):

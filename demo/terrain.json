@@ -28,5 +28,11 @@
   {"op": "press", "button": "dpad_down"},
   {"op": "wait", "seconds": 1},
   {"op": "capture", "name": "07-undone"},
+  {"op": "sculpt", "hand": "left", "x": -5, "z": -9, "lift": 4, "radius": 4, "seconds": 2.5, "background": true},
+  {"op": "sculpt", "hand": "right", "x": 5, "z": 2, "lift": -1.6, "radius": 3.5, "seconds": 2.5, "background": true},
+  {"op": "wait", "seconds": 1.5},
+  {"op": "capture", "name": "08-two-hands-at-once"},
+  {"op": "wait", "seconds": 2},
+  {"op": "capture", "name": "09-both-let-go"},
   {"op": "quit"}
 ]

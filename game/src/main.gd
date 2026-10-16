@@ -115,7 +115,7 @@ func _ready() -> void:
 	get_tree().auto_accept_quit = false
 
 
-## Left D-pad down undoes, up redoes; both wait while an edit is under way.
+## Left D-pad down undoes, up redoes; both wait while any hand's edit is under way.
 func _process(_delta: float) -> void:
 	if not _editing():
 		if _undo_buttons.pressed("ax_button"):
@@ -125,8 +125,9 @@ func _process(_delta: float) -> void:
 	_undo_buttons.latch()
 
 
-func _editing() -> bool:
-	return tool.busy() or flora_tool.busy() or ground_grab.busy() or palette_tool.busy() or delete_tool.busy()
+## Whether `hand`, or with none any hand, has an edit under way: a grip takes nothing from a hand mid-edit.
+func _editing(hand: Hand = null) -> bool:
+	return tool.busy(hand) or flora_tool.busy(hand) or ground_grab.busy(hand) or palette_tool.busy(hand) or delete_tool.busy(hand)
 
 
 func _start_xr() -> bool:

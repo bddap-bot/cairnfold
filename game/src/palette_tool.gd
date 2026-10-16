@@ -43,9 +43,10 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 			_drop(hand))
 
 
-## One wheel at a time, so two hands never pick for one material from stale starts.
-func busy() -> bool:
-	return not wheels.is_empty()
+## Whether `hand`, or with none any hand, holds a wheel open. One wheel at a time, so two hands never pick for one
+## material from stale starts.
+func busy(hand: Hand = null) -> bool:
+	return wheels.has(hand) if hand != null else not wheels.is_empty()
 
 
 func _process(_delta: float) -> void:

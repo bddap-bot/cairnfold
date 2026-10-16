@@ -69,7 +69,7 @@ func _process(delta: float) -> void:
 			var target := aim(hand.tool, t.origin, -t.basis.z)
 			var hit: Variant = target.point if not target.is_empty() else Terrain.raycast(t.origin, -t.basis.z)
 			hand.point(hit, TINT)
-			if b.pressed("trigger_click") and not walls.busy() and not fit(target):
+			if b.pressed("trigger_click") and not walls.busy(hand) and not fit(target):
 				_shaken[i] = 0.0
 				hand.trigger_haptic_pulse(&"haptic", 0.0, 0.35, 0.05, 0.0)
 				hand.trigger_haptic_pulse(&"haptic", 0.0, 0.35, 0.05, 0.12)

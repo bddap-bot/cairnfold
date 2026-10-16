@@ -57,7 +57,10 @@ func _init(player: Rig, builder: WallTool, plants: FloraTool, garden: World) -> 
 		add_child(_rings[-1])
 
 
-func busy() -> bool:
+## Whether `hand`, or with none any hand, has a cut or charge under way.
+func busy(hand: Hand = null) -> bool:
+	if hand != null:
+		return _cuts.has(hand) or _charges.has(hand)
 	return not _cuts.is_empty() or not _charges.is_empty()
 
 

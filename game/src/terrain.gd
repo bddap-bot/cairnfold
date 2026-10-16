@@ -13,9 +13,10 @@ const HIGHEST := 40.0
 const NO_HUMP := Vector4(0, 0, 1, 0)
 
 static var _heights := base_heights()
-## The hump a stroke is pulling, not yet baked into the heights: centre x, z, radius and lift. Shaders add
-## it through ground_hump, so a stroke moves the ground without rewriting the grid every frame.
-static var _hump := NO_HUMP
+## The humps strokes are pulling, one per hand, not yet baked into the heights: centre x, z, radius and lift.
+## Shaders add them through ground_humps' columns, so a stroke moves the ground without rewriting the grid every frame.
+static var _humps: Array[Vector4] = [NO_HUMP, NO_HUMP]
+static var _flat: Array[Vector4] = []
 ## Counts changes to the ground or the water on it, so work laid on it can tell whether it still stands where it was laid.
 static var revision := 0
 const NO_WATER := -100.0
@@ -48,27 +49,27 @@ static func base_heights() -> PackedFloat32Array:
 
 ## Bilinear between the four grid heights around (x, z), as the GPU's filtered texture reads them; a
 ## live hump is sampled on the same grid points, so baking it moves nothing.
-## The ground without a stroke's live hump, which only its own player sees.
+## The ground without strokes' live humps, which only their own player sees.
 static func base_at(x: float, z: float) -> float:
 	return height_at(x, z, false)
 
 
 static func height_at(x: float, z: float, with_hump := true) -> float:
-	return _height(x, z, _heights, _hump if with_hump else NO_HUMP)
+	return _height(x, z, _heights, _humps if with_hump else _flat)
 
 
 ## The ground and the water as they stand now, for a worker thread to read while this one goes on shaping them.
 ## Not the live arrays: a write while a copy shares one moves it to new memory and may free the old under the
 ## reader. A duplicate shares the memory until this thread's next write moves the live array off it.
 static func held_height() -> Callable:
-	return _height.bind(_heights.duplicate(), _hump)
+	return _height.bind(_heights.duplicate(), _humps.duplicate())
 
 
 static func held_water() -> Callable:
 	return _bilinear.bind(_water.duplicate())
 
 
-static func _height(x: float, z: float, heights: PackedFloat32Array, hump: Vector4) -> float:
+static func _height(x: float, z: float, heights: PackedFloat32Array, humps: Array[Vector4]) -> float:
 	var u := clampf((x + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
 	var v := clampf((z + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
 	var i := int(u)
@@ -78,11 +79,12 @@ static func _height(x: float, z: float, heights: PackedFloat32Array, hump: Vecto
 	var b := heights[k + 1]
 	var c := heights[k + VERTS]
 	var d := heights[k + VERTS + 1]
-	if hump.w != 0.0:
-		a += _lift(hump, i, j)
-		b += _lift(hump, i + 1, j)
-		c += _lift(hump, i, j + 1)
-		d += _lift(hump, i + 1, j + 1)
+	for hump in humps:
+		if hump.w != 0.0:
+			a += _lift(hump, i, j)
+			b += _lift(hump, i + 1, j)
+			c += _lift(hump, i, j + 1)
+			d += _lift(hump, i + 1, j + 1)
 	return lerpf(lerpf(a, b, u - i), lerpf(c, d, u - i), v - j)
 
 
@@ -194,23 +196,27 @@ static func _lift(hump: Vector4, i: int, j: int) -> float:
 const ALL := Rect2i(0, 0, VERTS, VERTS)
 
 
-static func set_hump(x: float, z: float, radius: float, lift: float) -> void:
-	_hump = Vector4(x, z, maxf(radius, STEP), lift)
+static func set_hump(slot: int, x: float, z: float, radius: float, lift: float) -> void:
+	_humps[slot] = Vector4(x, z, maxf(radius, STEP), lift)
 	revision += 1
-	RenderingServer.global_shader_parameter_set(&"ground_hump", _hump)
+	_share_humps()
 
 
-static func clear_hump() -> void:
-	set_hump(0, 0, 1, 0)
+static func clear_hump(slot: int) -> void:
+	set_hump(slot, 0, 0, 1, 0)
 
 
-## The heights of `cells` with the live hump added: what the ground under a stroke becomes.
-static func raised(cells: Rect2i) -> PackedFloat32Array:
+static func _share_humps() -> void:
+	RenderingServer.global_shader_parameter_set(&"ground_humps", Projection(_humps[0], _humps[1], NO_HUMP, NO_HUMP))
+
+
+## The heights of `cells` with hump `slot` added, and no other: what the ground under its stroke becomes.
+static func raised(cells: Rect2i, slot: int) -> PackedFloat32Array:
 	var out := read(cells)
 	var n := 0
 	for j in range(cells.position.y, cells.end.y):
 		for i in range(cells.position.x, cells.end.x):
-			out[n] += _lift(_hump, i, j)
+			out[n] += _lift(_humps[slot], i, j)
 			n += 1
 	return out
 
@@ -247,7 +253,7 @@ static func install() -> void:
 	_sync(Rect2i(0, 0, VERTS, VERTS))
 	RenderingServer.global_shader_parameter_set(&"ground_height", _texture)
 	RenderingServer.global_shader_parameter_set(&"ground_grid", Vector3(-SIZE * 0.5, STEP, VERTS))
-	RenderingServer.global_shader_parameter_set(&"ground_hump", _hump)
+	_share_humps()
 
 
 ## A box holding the ground and anything standing on it, for meshes the GPU lifts onto the heights.

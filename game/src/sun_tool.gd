@@ -15,7 +15,7 @@ const HANDLE_REACH := 1.2
 
 var rig: Rig
 var look: Look
-## True while a tool is in the middle of an edit, which a grip may have started this frame.
+## Whether a hand is in the middle of an edit, which its grip may have started this frame.
 var editing: Callable
 var holder: Hand
 var _offset := 0.0
@@ -46,7 +46,7 @@ func _process(_delta: float) -> void:
 				drag(Daylight.time_toward(_direction + (hand.global_position - _hand_start) / HANDLE_REACH) + _offset)
 			elif holder == null and aims_at_sun(dir):
 				hover = true
-				if b.pressed("grip_click") and not editing.call():
+				if b.pressed("grip_click") and not editing.call(hand):
 					take(hand, dir)
 			if holder == hand or (holder == null and aims_at_sun(dir)):
 				hand.point(null, BEAM, 30.0)

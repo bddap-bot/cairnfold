@@ -50,9 +50,9 @@ ground_grid={
 "type": "vec3",
 "value": Vector3(0, 1, 2)
 }
-ground_hump={
-"type": "vec4",
-"value": Vector4(0, 0, 1, 0)
+ground_humps={
+"type": "mat4",
+"value": Projection(0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 0)
 }
 ground_mask={
 "type": "sampler2D",

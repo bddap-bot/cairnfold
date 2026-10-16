@@ -127,6 +127,124 @@ func _grip_on_a_pond_moves_its_bed(hand: Hand) -> void:
 	hand.global_transform = at
 
 
+func _grip(hand: Hand, down: bool) -> void:
+	if down:
+		Buttons.injected[hand.tracker + "/grip_click"] = true
+	else:
+		Buttons.injected.erase(hand.tracker + "/grip_click")
+
+
+func _ground_ahead(hand: Hand, side: float) -> Vector3:
+	hand.global_basis = Basis.looking_at(Vector3(side, -0.6, -1))
+	return Terrain.raycast(hand.global_position, -hand.global_basis.z)
+
+
+## Each hand's grip grabs on its own: two hands pull two pieces of ground at once, one up and one down, and each
+## grab is its own undo step.
+func _two_hands_grab_the_ground_at_once(rig: Rig) -> void:
+	var left_at := rig.left.global_transform
+	var right_at := rig.right.global_transform
+	var a := _ground_ahead(rig.left, -1.0)
+	var b := _ground_ahead(rig.right, 1.0)
+	await _frames()
+	_grip(rig.left, true)
+	await _frames()
+	_grip(rig.right, true)
+	await _frames()
+	_check(main.ground_grab.busy(rig.left) and main.ground_grab.busy(rig.right), "both grips hold the ground")
+	rig.left.position.y += 0.3
+	rig.right.position.y -= 0.3
+	await _frames()
+	var up := Terrain.height_at(a.x, a.z) - a.y
+	var down := Terrain.height_at(b.x, b.z) - b.y
+	_check(up > 0.15 and down < -0.15, "both pieces follow their own hands at once, %+.2f and %+.2f" % [up, down])
+	_grip(rig.left, false)
+	await _frames()
+	_check(not main.ground_grab.busy(rig.left) and main.ground_grab.busy(rig.right), "letting go of one keeps the other")
+	_check(absf(Terrain.height_at(a.x, a.z) - a.y - up) < 0.05 and absf(Terrain.height_at(b.x, b.z) - b.y - down) < 0.05, "and leaves both where they were")
+	_grip(rig.right, false)
+	await _frames()
+	main.world.undo()
+	await _frames()
+	_check(absf(Terrain.height_at(b.x, b.z) - b.y) < 1e-3 and absf(Terrain.height_at(a.x, a.z) - a.y - up) < 0.05, "undo puts back the last grab alone")
+	main.world.undo()
+	await _frames()
+	_check(absf(Terrain.height_at(a.x, a.z) - a.y) < 1e-3, "and undo again the first")
+	rig.left.global_transform = left_at
+	rig.right.global_transform = right_at
+	await _frames()
+
+
+## Holding the ground in one hand while the other pulls a wall up: both move, each its own step.
+func _one_hand_holds_the_ground_while_the_other_lifts_a_wall(rig: Rig) -> void:
+	var left_at := rig.left.global_transform
+	var right_at := rig.right.global_transform
+	var g := _ground_ahead(rig.left, -1.0)
+	await _frames()
+	_grip(rig.left, true)
+	await _frames()
+	var wall: Wall = main.tool.walls[0]
+	var height := wall.layout.height
+	_grip(rig.right, true)
+	await _frames()
+	_check(main.ground_grab.busy(rig.left) and main.tool.mason(rig.right).lifting == wall, "the left grip holds the ground and the right the wall")
+	rig.left.position.y += 0.3
+	rig.right.position.y += 0.3
+	await _frames()
+	var raised := Terrain.height_at(g.x, g.z) - g.y
+	_check(raised > 0.15 and wall.layout.height > height, "both follow their hands, ground %+.2f, wall %.2f to %.2f" % [raised, height, wall.layout.height])
+	_grip(rig.right, false)
+	_grip(rig.left, false)
+	await _frames()
+	main.world.undo()
+	main.world.undo()
+	await _frames()
+	_check(absf(Terrain.height_at(g.x, g.z) - g.y) < 1e-3 and is_equal_approx(main.tool.walls[0].layout.height, height), "two undos put both back")
+	rig.left.global_transform = left_at
+	rig.right.global_transform = right_at
+	await _frames()
+
+
+## A grip on the wall the other hand holds takes nothing, not the wall and not the ground behind it.
+func _a_wall_held_by_one_hand_is_not_taken_by_the_other(rig: Rig) -> void:
+	var wall: Wall = main.tool.walls[0]
+	_grip(rig.right, true)
+	await _frames()
+	_check(main.tool.mason(rig.right).lifting == wall, "the right grip takes the wall")
+	_grip(rig.left, true)
+	await _frames()
+	_check(main.tool.mason(rig.left).lifting == null and not main.ground_grab.busy(rig.left) and main.sun_tool.holder == null, "the left grip on the same wall takes nothing")
+	_check(main.tool.mason(rig.right).lifting == wall, "and the right keeps it")
+	_grip(rig.left, false)
+	_grip(rig.right, false)
+	await _frames()
+
+
+## One hand's grab leaves the other free to use its tool: the left holds the ground while the right draws a wall.
+func _a_grab_leaves_the_other_hand_its_tool(rig: Rig) -> void:
+	var left_at := rig.left.global_transform
+	var right_at := rig.right.global_transform
+	var g := _ground_ahead(rig.left, -1.0)
+	_ground_ahead(rig.right, 1.0)
+	rig.right.tool = Hand.Tool.WALLS
+	await _frames()
+	_grip(rig.left, true)
+	await _frames()
+	rig.left.position.y += 0.3
+	Buttons.injected["right_hand/trigger_click"] = true
+	await _frames()
+	_check(main.ground_grab.busy(rig.left) and main.tool.mason(rig.right).stroke != null, "the right draws a wall while the left holds the ground")
+	Buttons.injected.erase("right_hand/trigger_click")
+	_grip(rig.left, false)
+	await _frames()
+	main.world.undo()
+	await _frames()
+	_check(absf(Terrain.height_at(g.x, g.z) - g.y) < 1e-3, "undo puts the ground back")
+	rig.left.global_transform = left_at
+	rig.right.global_transform = right_at
+	await _frames()
+
+
 func _run() -> void:
 	var d := Driver.new(main, [{"op": "wall", "points": [[-3, 0], [3, 0]], "seconds": 0.2}])
 	main.add_child(d)
@@ -169,6 +287,10 @@ func _run() -> void:
 	await _grip_lifts_the_wall_whatever_the_hand_holds(hand)
 	await _grip_shapes_the_ground_and_makes_nothing(hand)
 	await _grip_on_a_pond_moves_its_bed(hand)
+	await _two_hands_grab_the_ground_at_once(rig)
+	await _one_hand_holds_the_ground_while_the_other_lifts_a_wall(rig)
+	await _a_wall_held_by_one_hand_is_not_taken_by_the_other(rig)
+	await _a_grab_leaves_the_other_hand_its_tool(rig)
 	hand.tool = Hand.Tool.POND
 	hand.global_basis = Basis.looking_at(Vector3(0, -0.6, -1))
 	Buttons.injected["right_hand/trigger_click"] = true

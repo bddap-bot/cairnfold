@@ -473,9 +473,9 @@ func _a_reshape_carries_them_with_their_perch() -> void:
 	await process_frame
 	await _until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
 	_check(g.birds().any(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH), "conures perch")
-	g.terrain.begin(Terrain.ground(1, -8), 8.0)
-	g.terrain.pull(1.5)
-	g.terrain.end_stroke()
+	g.terrain.begin(g.terrain.rig.right, Terrain.ground(1, -8), 8.0)
+	g.terrain.pull(g.terrain.rig.right, 1.5)
+	g.terrain.end_stroke(g.terrain.rig.right)
 	_run(g, 1.0)
 	var settled := false
 	for i in 300:

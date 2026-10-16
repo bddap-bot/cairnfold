@@ -994,6 +994,18 @@ under its water), with the sun, and a house already carried, taken by the grip t
 is therefore no tool (`GroundGrab`); the ground is the last thing a grip takes, after anything else
 that claimed the hand that frame.
 
+Each hand's grip is its own grab, because two grabs at once feel good: one hand can hold a pond's bed
+while the other pulls a roof, a wall or more ground, or uses its tool, and each grab is its own undo step. Only what is already taken in that
+same hand, or one thing in both, holds a grip back:
+
+- Ground in both hands pulls two humps, one per hand; on the same ground they add, and each sets its
+  own heights when let go.
+- A wall or roof the other hand holds: the grip takes nothing, neither it nor the ground behind it.
+- A carried house: the other hand's grip, pressed while it is carried, joins in whatever it points at,
+  to turn and stretch it between the hands; a grip already holding something keeps it.
+- The sun has one holder; the other hand's grip on it takes nothing.
+- Undo and redo wait while either hand has an edit under way.
+
 ## VR controls
 
 | Action | Control |
@@ -1014,7 +1026,7 @@ that claimed the hand that frame.
 | Paint flowers or grass | Trigger held on a hand holding flowers or grass, pointing at the ground; the ring shows the brush, which widens the farther you point |
 | Paint stone ground | Trigger held on a hand holding stone, pointing at the ground; a stroke begun on stone paints it back to meadow instead. The ring shows the brush, which widens the farther you point |
 | Plant a tree | Trigger of a hand holding trees, pointing at the ground |
-| Shape the ground | Grip held pointing at the ground, whatever the hand holds (a pond's bed too): the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it |
+| Shape the ground | Grip held pointing at the ground, whatever the hand holds (a pond's bed too): the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it. Each hand grabs on its own, so both can shape the ground, or one holds it while the other grabs or builds something else |
 | Dig a pond | Trigger held on a hand holding the pond tool, pointing at the ground: the hollow deepens while held and fills with water on release (see "Water") |
 | Delete | Trigger of a hand holding delete: hold it and sweep, and everything the beam passes over goes in that one stroke. Along a wall the stretch swept breaks into a ruin as you sweep; a tap breaks a short gap; a sweep leaving nothing worth standing, or any touch on a fence, house or tower, takes it whole. A tree or bush the beam strikes goes, and so does the path or stone ground it meets, whole; elsewhere on the ground it mows the grass and flowers under the ring, raggedly at its edge. Ruins and taken plants show as it goes, paths and stone go when you let go; the stroke is sent as one command when you let go, so one undo puts all of it back. Held pointed up at the sky, an orb swells at the beam's end for 2 s and then the whole garden is wiped (see Wipe); letting go or lowering the beam first lets the orb go |
 | Wipe | Directive (verbatim): "This world is really full of stuff, and I don't really have a great way to delete it all. I think I need a way to Wipe the whole world". One command (`wipe`) takes the garden back to bare meadow: every wall, path, stone, planted and painted plant, pond and ground edit goes, and so do the meadow's own flowers, bushes and trees; its grass, the season and the colours stay. A fresh garden still starts with the meadow's scenery; a wiped one is kept wiped. It is one undo step: undo rebuilds the garden from the snapshot the wipe took, as a late joiner's is. Only the garden's host can wipe it |

@@ -4,8 +4,10 @@ extends Node3D
 ## Walls, for whichever hand holds them: trigger draws a wall along the ground (a loop held closed snaps to a
 ## round tower), and the right A cuts or fills an arch where a walls hand points or, on a wall's top, changes its
 ## style. A grip pointed at a wall, whatever the hand holds, pulls its height, and at a roof its pitch and
-## curvature. A hand holding the house takes hold of one with its trigger, where it points, and carries it; the other hand's grip joins in to turn it
-## with the pair and stretch it along their span; letting go builds it. A path across a wall opens an arch where they cross,
+## curvature. Each hand grabs on its own, so two hands pull two walls or roofs at once; a grip on one the other hand
+## holds takes nothing. A hand holding the house takes hold of one with its trigger, where it points, and carries it; the
+## other hand's grip, pressed while it is carried, joins in, whatever it points at, to turn it with the pair and stretch it
+## along their span; letting go builds it. A path across a wall opens an arch where they cross,
 ## or an arcade where the crossing is wide: those arches follow from the paths standing, so they come and go
 ## with the path. A hand holding the fence draws fences the same way: posts and rails, a wooden arch where a
 ## path crosses. Every finished edit goes to the garden as a build command; this tool shows it until then.
@@ -122,11 +124,12 @@ func mason(hand: Hand) -> Mason:
 	return null
 
 
-func busy() -> bool:
-	if house != null:
+## Whether `hand`, or with none any hand, has an edit under way.
+func busy(hand: Hand = null) -> bool:
+	if house != null and hand == null:
 		return true
 	for m in masons:
-		if m.stroke != null or m.lifting != null or m.roofing != null:
+		if (hand == null or m.hand == hand) and (m.stroke != null or m.lifting != null or m.roofing != null or m in _holders):
 			return true
 	return false
 
@@ -189,20 +192,26 @@ func _handle(m: Mason, delta: float) -> void:
 		m.pick = pick_wall(origin, dir)
 		var roof := pick_roof(origin, dir)
 		m.hand.point(roof.point if _on_roof(m.pick, roof) else m.ground if m.pick.is_empty() else m.pick.point, TINT)
-		if m.buttons.pressed("trigger_click") and m.ground != null and not busy():
+		if m.buttons.pressed("trigger_click") and m.ground != null and not busy(m.hand):
 			begin_stroke(m, m.ground, m.on)
 		elif m.buttons.held("trigger_click") and m.stroke != null and m.ground != null:
 			extend_stroke(m, m.ground)
 
-	if m.buttons.pressed("grip_click") and not busy():
-		var pick := m.pick if draws(m.hand) else pick_wall(origin, dir)
-		var roof := pick_roof(origin, dir)
+	if m.buttons.pressed("grip_click") and house == null and not busy(m.hand):
+		var pick := pick_wall(origin, dir, true)
+		var roof := pick_roof(origin, dir, true)
 		var ground: Variant = Terrain.raycast(origin, dir)
 		var nearest: float = origin.distance_to(ground) if ground != null else INF
 		if _on_roof(pick, roof) and roof.along < nearest:
-			begin_roof(m, roof.wall, origin)
+			if _held(roof.wall):
+				m.hand.hold()
+			else:
+				begin_roof(m, roof.wall, origin)
 		elif not pick.is_empty() and pick.along < nearest and not pick.wall.layout.fence:
-			begin_lift(m, pick.wall, origin, pick.point)
+			if _held(pick.wall):
+				m.hand.hold()
+			else:
+				begin_lift(m, pick.wall, origin, pick.point)
 	elif m.buttons.held("grip_click") and m.lifting != null:
 		drag_lift(m, origin.y)
 	elif m.buttons.held("grip_click") and m.roofing != null:
@@ -376,12 +385,12 @@ func _house_input() -> void:
 			starting = starting or m.buttons.pressed("trigger_click")
 		elif house == null:
 			m.hand.point(aim(m.hand.global_position, -m.hand.global_basis.z).get("point"), TINT)
-	if house == null and (not starting or busy()):
+	if house == null and (not starting or holders.any(func(m: Mason) -> bool: return busy(m.hand))):
 		return
-	if not holders.is_empty() or house != null:
-		for m in masons:
-			if not m in holders and m.buttons.held("grip_click") and m.hand.get_has_tracking_data() and m.stroke == null and m.lifting == null and m.roofing == null:
-				holders.append(m)
+	for m in masons:
+		var gripping := m.buttons.pressed("grip_click") or (m in _holders and m.buttons.held("grip_click"))
+		if not m in holders and gripping and m.hand.get_has_tracking_data() and m.stroke == null and m.lifting == null and m.roofing == null:
+			holders.append(m)
 	if house == null:
 		var lead := holders[0].hand
 		var aimed := aim(lead.global_position, -lead.global_basis.z)
@@ -780,11 +789,12 @@ func _ridge(w: Wall) -> Vector3:
 
 
 ## The wall a ray points at: the nearest along it of those it passes through, else the one it passes closest to.
-func pick_wall(origin: Vector3, dir: Vector3) -> Dictionary:
+## A `held` pick also sees walls a hand is pulling.
+func pick_wall(origin: Vector3, dir: Vector3, held := false) -> Dictionary:
 	var best := {}
 	var best_key := Vector2(1.0, WALL_PICK)
 	for w in walls:
-		if _held(w):
+		if _held(w) and not held:
 			continue
 		if w.pick_bounds.grow(WALL_PICK).intersects_ray(origin, dir) == null:
 			continue
@@ -797,10 +807,10 @@ func pick_wall(origin: Vector3, dir: Vector3) -> Dictionary:
 	return best
 
 
-func pick_roof(origin: Vector3, dir: Vector3) -> Dictionary:
+func pick_roof(origin: Vector3, dir: Vector3, held := false) -> Dictionary:
 	var best := {}
 	for w in walls:
-		if w.roof == null or _held(w):
+		if w.roof == null or (_held(w) and not held):
 			continue
 		var t := w.roof.ray_hit(origin, dir)
 		if t < best.get("along", INF):

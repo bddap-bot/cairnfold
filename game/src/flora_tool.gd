@@ -91,10 +91,9 @@ static func put_ring(r: MeshInstance3D, at: Vector3, radius: float) -> void:
 	r.global_transform = Transform3D(Basis().scaled(Vector3(radius, 1.0, radius)), at + Vector3.UP * 0.04)
 
 
-func busy() -> bool:
-	if paths.busy():
-		return true
-	return _ground_held() or brushes.any(func(b: Brush) -> bool: return not b.dabs.is_empty())
+## Whether `hand`, or with none any hand, has a stroke under way.
+func busy(hand: Hand = null) -> bool:
+	return brushes.any(func(b: Brush) -> bool: return (hand == null or b.hand == hand) and (b.paving or b.ground != null or not b.dabs.is_empty()))
 
 
 func _ground_held() -> bool:

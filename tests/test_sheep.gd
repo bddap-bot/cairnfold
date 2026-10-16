@@ -478,13 +478,13 @@ func _settled_sheep_follow_their_ground() -> void:
 	var before := {}
 	for s in g.sheep():
 		before[s] = s.state
-	g.terrain.begin(Terrain.ground(middle.x, middle.z), 6.0)
+	g.terrain.begin(g.terrain.rig.right, Terrain.ground(middle.x, middle.z), 6.0)
 	for i in 30:
-		g.terrain.pull(i * 0.04)
+		g.terrain.pull(g.terrain.rig.right, i * 0.04)
 		await process_frame
 		g.wildlife.tick(STEP)
 		watch.see(self, g)
-	g.terrain.end_stroke()
+	g.terrain.end_stroke(g.terrain.rig.right)
 	var changed := {}
 	await _play(g, 60.0, func() -> void:
 		watch.see(self, g)

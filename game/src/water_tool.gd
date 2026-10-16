@@ -16,7 +16,7 @@ const TINT := Color(0.7, 0.92, 1.0, 0.6)
 var rig: Rig
 var terrain: GroundGrab
 var water: Water
-## The hand digging now; the ground grab pulls one stroke at a time.
+## The hand digging now; one pond is dug at a time.
 var digger: Hand
 var _buttons: Array[Buttons] = []
 var _at := Vector3.ZERO
@@ -54,7 +54,7 @@ func _handle(b: Buttons, delta: float) -> void:
 	var t := hand.global_transform
 	var hit: Variant = Terrain.raycast(t.origin, -t.basis.z)
 	hand.point(hit, TINT)
-	if hit != null and b.pressed("trigger_click") and not terrain.busy():
+	if hit != null and b.pressed("trigger_click") and digger == null and not terrain.busy(hand):
 		begin(hand, hit)
 
 
@@ -62,17 +62,18 @@ func begin(hand: Hand, ground: Vector3) -> void:
 	digger = hand
 	_at = ground
 	_depth = 0.0
-	terrain.begin(ground, RADIUS)
+	terrain.begin(hand, ground, RADIUS)
 
 
 func deepen(delta: float) -> void:
 	_depth = minf(_depth + DIG_RATE * delta, MAX_DEPTH)
-	terrain.pull(-maxf(_depth, MIN_SCOOP) * smoothstep(0.0, MIN_SCOOP, _depth))
-	terrain.follow(delta)
+	terrain.pull(digger, -maxf(_depth, MIN_SCOOP) * smoothstep(0.0, MIN_SCOOP, _depth))
+	terrain.follow(digger, delta)
 
 
 ## Makes the hollow permanent and leaves a seed for its water.
 func end() -> void:
+	var hand := digger
 	digger = null
-	terrain.pull(-maxf(_depth, MIN_SCOOP))
-	terrain.end_stroke({"seed": Terrain.grid_point(_at.x, _at.z)})
+	terrain.pull(hand, -maxf(_depth, MIN_SCOOP))
+	terrain.end_stroke(hand, {"seed": Terrain.grid_point(_at.x, _at.z)})
