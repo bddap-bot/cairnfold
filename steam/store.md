@@ -2,26 +2,28 @@
 
 ## Short description
 
-Draw a line across a meadow and a stone wall grows from it, course by course. Nestcombe is a cozy VR building toy with no goals and no timer: raise towers, open arches, dig ponds, plant flowers, and stand inside what you made, alone or with friends on your home network.
+Sweep your hand across a meadow and a stone wall rises along it. Pull it taller. Close the loop: a tower. Run a path through: an arch. Nestcombe is a VR building toy with no goals and no wrong answers, just your two hands and a meadow that comes alive around whatever you build.
 
 ## About this game
 
-**Build with your hands, stand inside what you build.**
+**Draw a wall. Stone follows your hand.**
 
-Nestcombe is a quiet place to make things. Sweep your controller across the grass and a dry-stone wall rises along your stroke, settling course by course, with crenellations along its top. Pull it taller. Close a loop and it becomes a round tower. Lay a path through a wall and an arch opens; lay a wide one and you get an arcade. Lay out four walls with both hands and a cottage appears, roof and all.
+Sweep across the grass and dry stone lays itself along the stroke, course on course, crenellations and all. Pull it taller. Close the loop? Now it's a round tower. Run a path through it? An arch opens. Run a wide one? An arcade. Walk it into a pond and it strides across on arches. Stretch a cottage out between your hands and let go: roof on, ready.
 
-**Shape the land.** Grab the ground and lift your hand to raise a hill, or press down to sink a hollow. Dig a pond and watch it fill. Paint meadows of flowers and long grass, plant trees, and turn the season of the whole meadow with a twist of your wrist.
+**The ground is clay.** Grab it and lift a hill. Push down a hollow. Dig a pond and watch it fill.
 
-**Things find their way in.** Ducks come to your ponds, butterflies to your flowers, fireflies at dusk. Plant a tree or raise a wall and little birds come to settle on it. Grab the sun and drag it across the sky to see your garden at dawn, noon or sunset.
+**Then the meadow moves in.** Ducks find your ponds. Sheep wander up to graze along your fences. Ivy creeps over your walls, parrots perch on them, butterflies work your flowers, and fireflies drift out at dusk.
 
-**Break things beautifully.** Sweep the eraser along a wall and it crumbles into a ruin, gaps and fallen stones and all. Undo and redo are a button away.
+**Grab the sun.** Drag it across the sky and watch your village turn gold.
 
-**Teleport anywhere, even into the sky.** Step beside a wall to see its stones up close, or float above your village to see the whole of it.
+**Wreck it beautifully.** Rub the eraser along a wall and it crumbles into a ruin, gaps and fallen stones and all. Changed your mind? Undo.
 
-**Take pictures.** A camera in your hand shows its view on a little screen; pull the trigger to save a photo.
+**Dress it up.** Punch windows and doors into a wall. Hang lanterns, fly flags from the towers, put a chimney on the cottage. Twist your wrist to recolour stone, roofs, or the season of the whole meadow.
 
-**Build together.** Anyone on your home network can drop into your garden and build alongside you. Each player undoes only their own work.
+**Go anywhere.** Teleport to the foot of a wall, onto a rooftop terrace, or into the sky to float over everything you've made. Take a camera along and snap the view.
 
-No score, no timer, no goals. Your garden saves after every change and is waiting when you come back.
+**Bring friends.** Anyone on your home network can visit your garden and build beside you, or you theirs.
+
+No score. No timer. No goals. Your garden saves with every stone and waits for you to come back.
 
 *Requires a VR headset with tracked motion controllers.*
