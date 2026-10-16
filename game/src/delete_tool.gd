@@ -2,13 +2,13 @@ class_name DeleteTool
 extends Node3D
 
 ## Takes things away, for whichever hand holds it. Its beam strikes the first wall, tree or bush along it, else the
-## ground. On a wall the trigger is an eraser: held, its beam sweeps along the wall, and the stretch it swept breaks
-## away into a ruin, stepped down to a gap at its foot with fallen stones; a tap breaks a short gap. The ruin shows
-## as it is swept and goes to the garden when the trigger lets go. A sweep that would leave nothing worth standing,
-## or one on a fence, house or tower, takes the whole of it. A press on a tree or bush takes it, and one on a path
-## or stone ground takes that path or stroke, giving back the ground under it. Elsewhere on the ground the trigger
-## mows: held, it takes the grass and flowers under the brush ring as it sweeps, the meadow's own as well as
-## painted ones, raggedly at the ring's edge; they go to the garden when the trigger lets go.
+## ground. Held, the trigger is an eraser for everything the beam passes over in one stroke: along a wall, the
+## stretch it swept breaks away into a ruin, stepped down to a gap at its foot with fallen stones (a tap breaks a
+## short gap); a tree or bush it strikes goes, and so does the path or stone ground it meets, giving back the ground
+## under it; elsewhere on the ground it mows the grass and flowers under the brush ring, the meadow's own as well
+## as painted ones, raggedly at the ring's edge. Ruins and taken plants show as the beam passes; the whole stroke
+## goes to the garden as one command when the trigger lets go, so one undo puts it all back. A sweep that would
+## leave a wall nothing worth standing, or one on a fence, house or tower, takes the whole of it.
 ## Held pointed up at the sky, the trigger charges a swelling orb and, once it is full, wipes the whole garden back
 ## to bare meadow; letting go or lowering the beam first lets it fade. Only the garden's host can wipe it. Undo puts
 ## any of it back, a wipe in one step.
@@ -22,6 +22,9 @@ const WIPE_HOLD := 2.0
 const SKY := 0.6
 const ORB_REACH := 5.0
 const ORB_RADIUS := 1.2
+## Between frames a stroke takes what rays this far apart where they strike meet, so a quick swipe skips nothing.
+const STEP := 0.5
+const MAX_STEPS := 32
 
 var rig: Rig
 var walls: WallTool
@@ -29,8 +32,11 @@ var flora: Flora
 var world: World
 var _buttons: Array[Buttons] = []
 var _rings: Array[MeshInstance3D] = []
-## Holds under way, by whoever holds the trigger (a hand, or the driver): a sweep along a wall, {wall, from, to,
-## at, last, whole} with `from` and `to` unwrapped round a loop, or a mow, {mown}, the plants it has taken so far.
+## Strokes under way, by whoever holds the trigger (a hand, or the driver): {walls, wall, moved, plants, marks, ray}.
+## `walls` holds by wall id the stretches swept along it, Vector2(from, to) unwrapped round a loop, and `moved` those
+## walls swept since last shown; `wall` is the sweep along the wall the beam is on, {wall, id, span, at, last};
+## `plants` the plants taken; `marks` the ops taking paths and stone strokes, by id; `ray` the last ray, [origin,
+## dir, where it struck].
 var _cuts := {}
 ## Wipes charging, by whoever holds the trigger up: {t, orb}.
 var _charges := {}
@@ -64,10 +70,10 @@ func _process(delta: float) -> void:
 		var t := hand.global_transform
 		if _cuts.has(hand):
 			if live and b.held("trigger_click"):
-				var at := hold(hand, t.origin, -t.basis.z)
-				hand.point(at, TINT)
-				if _cuts[hand].has("mown"):
-					FloraTool.put_ring(_rings[k], at, FloraTool.brush_radius(t.origin, at))
+				var target := hold(hand, t.origin, -t.basis.z)
+				hand.point(target.get("point"), TINT)
+				if target.has("mow"):
+					FloraTool.put_ring(_rings[k], target.point, target.mow)
 			else:
 				let_go(hand)
 		elif _charges.has(hand):
@@ -159,124 +165,164 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 
 
 func press(who: Object, origin: Vector3, dir: Vector3) -> void:
+	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}}
+	var target := _stroke(_cuts[who], origin, dir)
+	_cuts[who].ray = [origin, dir, target.get("point", origin + dir)]
+	_preview(_cuts[who])
+
+
+## The trigger is still held by `who`, its ray now from `origin` along `dir`: takes what the rays since the last
+## one meet into the stroke and returns what this one aims at (see `aim`).
+func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
+	var cut: Dictionary = _cuts.get(who, {})
+	if cut.is_empty():
+		return {}
+	var was: Array = cut.ray
+	var far := Vector3(aim(origin, dir).get("point", origin + dir))
+	var n := clampi(ceili(far.distance_to(was[2]) / STEP), 1, MAX_STEPS)
+	var target := {}
+	for i in range(1, n + 1):
+		var k := float(i) / n
+		target = _stroke(cut, was[0].lerp(origin, k), was[1].normalized().slerp(dir.normalized(), k))
+	cut.ray = [origin, dir, target.get("point", origin + dir)]
+	_preview(cut)
+	return target
+
+
+func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 	var target := aim(origin, dir)
+	var on: Wall = cut.wall.get("wall")
+	if on != null:
+		var hit := sweep(cut, origin, dir)
+		if target.get("wall") == on:
+			target.point = hit.get("point", target.point)
+		elif hit.get("distance", INF) >= WallTool.WALL_PICK:
+			cut.wall = {}
 	if target.has("wall"):
-		begin(who, target.wall, target.s)
-		return
-	if target.has("plants"):
-		_take(target.plants)
-		return
-	if target.has("laid"):
+		if target.wall != cut.wall.get("wall"):
+			begin(cut, target.wall, target.s)
+	elif target.has("plants"):
+		for p: Flora.Plant in target.plants:
+			p.draw(false)
+			cut.plants[p] = true
+	elif target.has("laid"):
 		var id := Ground.mark_at(target.point.x, target.point.z)
 		if id >= 0:
-			world.submit({"op": "unpath" if world.state.paths.has(id) else "unground", "id": id})
-			return
-	if target.has("point"):
-		_cuts[who] = {"mown": {}}
-		_mow(_cuts[who], target.point, FloraTool.brush_radius(origin, target.point))
+			cut.marks[id] = "unpath" if world.state.paths.has(id) else "unground"
+	elif target.has("mow"):
+		_mow(cut, target.point, target.mow)
+	return target
 
 
-## The trigger is still held by `who`, its ray now from `origin` along `dir`; returns where the beam meets what it
-## is taking.
-func hold(who: Object, origin: Vector3, dir: Vector3) -> Vector3:
-	var cut: Dictionary = _cuts.get(who, {})
-	if not cut.has("mown"):
-		return sweep(who, origin, dir)
-	var ground: Variant = Terrain.raycast(origin, dir, REACH)
-	if ground == null:
-		return origin + dir
-	_mow(cut, ground, FloraTool.brush_radius(origin, ground))
-	return ground
-
-
-## Shows the plants under a ring at `at` taken, on this machine only, until the mow's command comes back. Plants
+## Shows the plants under a ring at `at` taken, on this machine only, until the stroke's command comes back. Plants
 ## parted to nothing by a path or stone are left, so lifting that brings them back.
 func _mow(cut: Dictionary, at: Vector3, radius: float) -> void:
 	for p in flora.plants_near(at, radius):
 		var reach := radius * (1.0 - RAGGED * float(hash(p.anchor) % 1024) / 1024.0)
-		if not cut.mown.has(p) and Vector2(p.anchor.x - at.x, p.anchor.z - at.z).length() < reach and not Flora.on_path(p.anchor):
+		if not cut.plants.has(p) and Vector2(p.anchor.x - at.x, p.anchor.z - at.z).length() < reach and not Flora.on_path(p.anchor):
 			p.draw(false)
-			cut.mown[p] = true
+			cut.plants[p] = true
 
 
-func _take(plants: Array, done := Callable()) -> void:
+func _show(plants: Array) -> Dictionary:
 	var by_group := {}
 	for p: Flora.Plant in plants:
 		by_group.get_or_add(p.group, []).append(p.index)
 	for g in by_group:
 		by_group[g] = PackedInt32Array(by_group[g])
-	world.submit({"op": "show", "plants": by_group, "on": false}, done)
+	return {"op": "show", "plants": by_group, "on": false}
 
 
-## Starts erasing wall `w` at arc length `s`. A fence, house or tower is taken whole, so it shows no ruin.
-func begin(who: Object, w: Wall, s: float) -> void:
-	_cuts[who] = {"wall": w, "from": s, "to": s, "at": s, "last": s, "whole": w.layout.fence or w.roof != null}
-	_preview(_cuts[who])
+## Starts erasing wall `w` at arc length `s`, a stretch of its own beside any the stroke swept before.
+func begin(cut: Dictionary, w: Wall, s: float) -> void:
+	cut.wall = {"wall": w, "id": w.id, "span": cut.walls.get_or_add(w.id, []).size(), "at": s, "last": s}
+	cut.walls[w.id].append(Vector2(s, s))
+	cut.moved[w.id] = true
 
 
-## Follows a ray along the wall being erased and returns the point on it the ray is nearest.
-func sweep(who: Object, origin: Vector3, dir: Vector3) -> Vector3:
-	var cut: Dictionary = _cuts.get(who, {})
-	var w: Wall = cut.get("wall")
-	if w == null or not is_instance_valid(w) or walls.find(w.id) != w:
-		_cuts.erase(who)
-		return origin + dir
+## Follows a ray along the wall being erased; returns where on the wall the ray is nearest and how near (see
+## `Wall.ray_distance`), or {} when the wall is gone.
+func sweep(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
+	var on: Dictionary = cut.wall
+	var w: Wall = on.wall
+	if not _standing(w):
+		cut.walls.erase(on.id)
+		cut.wall = {}
+		return {}
 	var hit := w.ray_distance(origin, dir)
-	cut.at += w.layout.offset(hit.s, cut.last)
-	cut.last = hit.s
-	cut.from = minf(cut.from, cut.at)
-	cut.to = maxf(cut.to, cut.at)
-	_preview(cut)
-	return hit.point
+	on.at += w.layout.offset(hit.s, on.last)
+	on.last = hit.s
+	var span: Vector2 = cut.walls[w.id][on.span]
+	cut.walls[w.id][on.span] = Vector2(minf(span.x, on.at), maxf(span.y, on.at))
+	cut.moved[w.id] = true
+	return hit
 
 
-## Sends what was taken: the mown plants, or for a wall a reshape breaking the swept stretch away, or the whole
-## wall when nothing would stand. Mown plants are drawn as the garden has them again once their hide is settled.
+func _standing(w: Wall) -> bool:
+	return is_instance_valid(w) and walls.find(w.id) == w and world.state.walls.has(w.id)
+
+
+## Sends the stroke as one command: the plants taken, the paths and stone lifted, and per wall a reshape breaking
+## the swept stretches away, or the whole wall when nothing would stand. Walls and plants are drawn as the garden
+## has them again once the command is settled.
 func let_go(who: Object) -> void:
 	var cut: Dictionary = _cuts.get(who, {})
 	_cuts.erase(who)
-	if cut.has("mown"):
-		var mown: Array = cut.mown.keys()
-		if not mown.is_empty():
-			_take(mown, func() -> void:
-				for p: Flora.Plant in mown:
-					p.draw(p.shown()))
+	if cut.is_empty():
 		return
-	var w: Wall = cut.get("wall")
-	if w == null or not is_instance_valid(w) or walls.find(w.id) != w:
-		return
-	var ruins := _ruins(cut)
-	if ruins.is_empty():
-		world.submit({"op": "unwall", "ids": PackedInt32Array([w.id])}, walls.settle.bind(w.id))
-	elif ruins == Array(world.state.walls[w.id].ruins):
-		walls.settle(w.id)
+	var plants: Array = cut.plants.keys()
+	var cmds := [] if plants.is_empty() else [_show(plants)]
+	var swept: Array[int] = []
+	for id: int in cut.walls:
+		if walls.find(id) == null or not world.state.walls.has(id):
+			continue
+		swept.append(id)
+		var ruins := _ruins(id, cut.walls[id])
+		if ruins.is_empty():
+			cmds.append({"op": "unwall", "ids": PackedInt32Array([id])})
+		elif ruins != Array(world.state.walls[id].ruins):
+			cmds.append({"op": "reshape", "id": id, "data": {"ruins": PackedVector2Array(ruins)}})
+	for id: int in cut.marks:
+		cmds.append({"op": cut.marks[id], "id": id})
+	var settle := func() -> void:
+		for id in swept:
+			walls.settle(id)
+		for p: Flora.Plant in plants:
+			p.draw(p.shown())
+	if cmds.is_empty():
+		settle.call()
 	else:
-		world.submit({"op": "reshape", "id": w.id, "data": {"ruins": PackedVector2Array(ruins)}}, walls.settle.bind(w.id))
+		world.submit({"op": "batch", "cmds": cmds.slice(0, Commands.MAX_BATCH)}, settle)
 
 
-## The wall's ruins once the sweep breaks away, or none when the whole wall goes.
-func _ruins(cut: Dictionary) -> Array[Vector2]:
+## Wall `id`'s ruins as the garden has them once the stretches `spans` break away (unwrapped round a loop), or
+## none when the whole wall goes. A fence, house or tower goes whole.
+func _ruins(id: int, spans: Array) -> Array[Vector2]:
 	var out: Array[Vector2] = []
-	if cut.whole:
+	var w := walls.find(id)
+	if w.layout.fence or w.roof != null:
 		return out
-	var w: Wall = cut.wall
-	var standing: Array[Vector2] = []
-	standing.assign(Array(world.state.walls[w.id].ruins))
 	var total := w.layout.length()
-	var left := WallLayout.ruins_after(standing, total, w.layout.closed, cut.from, cut.to)
+	var left: Array[Vector2] = []
+	left.assign(Array(world.state.walls[id].ruins))
+	for span: Vector2 in spans:
+		left = WallLayout.ruins_after(left, total, w.layout.closed, span.x, span.y)
 	if left.size() == 1 and left[0] == Vector2(0.0, total):
 		return out
 	return left
 
 
-## Shows the wall broken as the sweep would leave it, on this machine only, until its command comes back.
+## Shows the walls the stroke moved on broken as it would leave them, on this machine only, until its command
+## comes back: once a frame, however many rays the frame took.
 func _preview(cut: Dictionary) -> void:
-	if cut.whole:
-		return
-	var w: Wall = cut.wall
-	var ruins := _ruins(cut)
-	if ruins.is_empty():
-		ruins.append(Vector2(0.0, w.layout.length()))
-	if ruins != w.layout.ruins:
-		w.layout.ruins = ruins
-		w.rebuild(false)
+	for id: int in cut.moved:
+		var w := walls.find(id)
+		if w == null or not world.state.walls.has(id) or w.layout.fence or w.roof != null:
+			continue
+		var ruins := _ruins(id, cut.walls[id])
+		if ruins.is_empty():
+			ruins.append(Vector2(0.0, w.layout.length()))
+		if ruins != w.layout.ruins:
+			w.layout.ruins = ruins
+			w.rebuild(false)
+	cut.moved.clear()

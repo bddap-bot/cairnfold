@@ -16,7 +16,9 @@ height, top, arches, fittings, ruins or roof. `path` and `unpath` lay and lift p
 paint stroke or a tree, `show` hides or restores plants, and `heights` sets an area of
 ground (a dug pond's seed, the point its water fills from, rides on the same command), and
 `palette` sets one material's swatch or the season. `wipe` takes the garden back to bare meadow, and
-`garden` (only ever the undo of a wipe) rebuilds it from the snapshot the wipe took. `World` (game/src/world.gd) applies them, and nothing else changes the garden.
+`garden` (only ever the undo of a wipe) rebuilds it from the snapshot the wipe took. `batch` carries several takings (`unwall`, `reshape`, `unpath`,
+`unground`, `show`) of different things, applied in order as one step: a delete stroke across many things is
+one undo, and its inverse is the batch of their inverses. `World` (game/src/world.gd) applies them, and nothing else changes the garden.
 The time of day is each player's own view of it: dragging the sun sends nothing.
 Every machine applies the same commands in the same order, so every copy of the garden
 comes out the same.

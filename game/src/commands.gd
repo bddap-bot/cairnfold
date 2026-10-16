@@ -5,7 +5,12 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "heights", "palette", "wipe", "garden"]
+const OPS := ["wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "heights", "palette", "wipe", "garden", "batch"]
+## What a batch may carry: from a player, takings; from the host, also the undo of them.
+const BATCHED := ["unwall", "reshape", "unpath", "unground", "show"]
+const UNBATCHED := ["wall", "path", "ground"]
+## Most commands one batch carries.
+const MAX_BATCH := 128
 ## A stroke builds at most this many walls; their ids follow from the command's sequence number.
 const MAX_PIECES := 8
 const MAX_POINTS := 256
@@ -133,7 +138,44 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			var cmds: Variant = cmd.get("cmds")
 			ok = from_host and cmds is Array and cmds.size() <= MAX_SNAPSHOT
 			out.cmds = cmds
+		"batch":
+			ok = _batch(cmd, state, from_host, out)
 	return out if ok else {}
+
+
+## Each command of a batch is checked against the garden as it stands, so no two may change the same thing, and
+## one batch takes at most MAX_BATCH things and one `show`. From a player, a command that no longer applies (what it
+## takes went meanwhile) is dropped and the rest stand; from the host, every one must apply.
+static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary) -> bool:
+	var cmds: Variant = cmd.get("cmds")
+	if not cmds is Array or cmds.is_empty() or cmds.size() > MAX_BATCH:
+		return false
+	var allowed := BATCHED + (UNBATCHED if from_host else [])
+	var seen := {}
+	out.cmds = []
+	for c: Variant in cmds:
+		if not c is Dictionary or not c.get("op") in allowed:
+			return false
+		var one: Dictionary = c.duplicate()
+		one.erase("token")
+		if from_host:
+			one.seq = cmd.seq
+			one.by = cmd.by
+		var kept := clean(one, state, from_host)
+		if kept.is_empty():
+			if from_host:
+				return false
+			continue
+		for k in ["seq", "by"]:
+			kept.erase(k)
+		var ids: Array = Array(kept.ids) if kept.has("ids") else ([kept.id] if kept.has("id") else [-1])
+		for id: int in ids:
+			var key := "%s%d" % ["w" if kept.op in ["wall", "unwall", "reshape"] else ("q" if id >= 0 else "show"), id]
+			if seen.has(key):
+				return false
+			seen[key] = true
+		out.cmds.append(kept)
+	return not out.cmds.is_empty() and seen.size() <= MAX_BATCH
 
 
 static func _finite(v: Vector3) -> bool:

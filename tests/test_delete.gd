@@ -34,6 +34,7 @@ func _run() -> void:
 	await _no_strike_through_hills()
 	await _takes_marks()
 	await _mows()
+	await _one_stroke()
 	await process_frame
 	world.flush()
 	world.restore(bytes_to_var(FileAccess.get_file_as_bytes(save)))
@@ -120,6 +121,42 @@ func _mows() -> void:
 	_check(not flora.plants_near(meadow, 0.5).is_empty(), "undo stands the mown meadow back up")
 	await _play([{"op": "press", "button": "dpad_up"}])
 	_check(flora.plants_near(meadow, 0.5).is_empty(), "redo mows it again")
+
+
+## One held sweep across two trees, a wall, a path and the meadow takes them all, and one undo puts them all back.
+func _one_stroke() -> void:
+	await _play([
+		{"op": "wall", "points": [[2, -26], [2, -18]], "seconds": 0.6},
+		{"op": "tree", "x": -2, "z": -22},
+		{"op": "tree", "x": 6, "z": -22},
+		{"op": "pave", "points": [[9, -24], [9, -20]], "radius": 0.8, "seconds": 0.4},
+		{"op": "wait", "seconds": 0.2},
+	])
+	var trees := flora.planted_trees()
+	var wall: Wall = main.tool.walls[-1]
+	var grass := Terrain.ground(12, -22)
+	_check(trees.size() == 2 and world.state.paths.size() == 1, "two trees and a path stand in the stroke's way")
+	_check(not flora.plants_near(grass, 0.5).is_empty(), "and the meadow grows at its far end")
+	var steps: int = world.stacks[world.me()].undo.size()
+	await _play([{"op": "erase", "points": [[-4, -22], [13, -22]], "height": 14, "seconds": 1.5}])
+	_check(not trees.any(_standing), "one held sweep takes both trees it passes over")
+	_check(not Array(world.state.walls[wall.id].ruins).is_empty(), "breaks the wall it crosses into a ruin")
+	_check(world.state.paths.is_empty(), "lifts the path")
+	_check(flora.plants_near(grass, 0.5).is_empty(), "and mows the meadow")
+	_check(world.stacks[world.me()].undo.size() == steps + 1, "as one undo step: %d" % (world.stacks[world.me()].undo.size() - steps))
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(trees.all(_standing), "one undo stands both trees back up")
+	_check(Array(world.state.walls[wall.id].ruins).is_empty(), "makes the wall whole")
+	_check(world.state.paths.size() == 1, "lays the path again")
+	_check(not flora.plants_near(grass, 0.5).is_empty(), "and the meadow")
+	await _play([{"op": "press", "button": "dpad_up"}])
+	_check(not trees.any(_standing) and world.state.paths.is_empty(), "redo takes the whole stroke again")
+	var show := {"op": "show", "plants": {}, "on": false}
+	var gone := {"op": "unpath", "id": 999999}
+	_check(Commands.clean({"op": "batch", "cmds": [gone, show]}, world.state, false).get("cmds", []).size() == 1, "a stroke whose path went meanwhile still takes the rest")
+	_check(Commands.clean({"op": "batch", "cmds": [gone]}, world.state, false).is_empty(), "one with nothing left to take is turned down")
+	_check(Commands.clean({"op": "batch", "cmds": [show, show]}, world.state, false).is_empty(), "a batch shows plants once")
+	_check(Commands.clean({"op": "batch", "cmds": [{"op": "wipe"}]}, world.state, false).is_empty(), "a batch carries only takings")
 
 
 func _spawned(pool: Flora.Pool) -> Array:

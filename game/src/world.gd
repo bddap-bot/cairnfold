@@ -311,6 +311,12 @@ func _keys(cmd: Dictionary) -> Array:
 			return ["c%d" % cmd.element]
 		"wipe", "garden":
 			return [WIPED]
+		"batch":
+			var out := {}
+			for c: Dictionary in cmd.cmds:
+				for k in _keys(c):
+					out[k] = true
+			return out.keys()
 		"show":
 			var out := {}
 			for g in cmd.plants:
@@ -433,6 +439,11 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				palette.picks = picks
 				palette.apply()
 				_bare_meadow())
+		"batch":
+			var back := []
+			for c: Dictionary in cmd.cmds:
+				back.push_front(_apply(c))
+			inverse = {"op": "batch", "cmds": back}
 		"garden":
 			inverse = {"op": "wipe"}
 			_hushed(func() -> void:
