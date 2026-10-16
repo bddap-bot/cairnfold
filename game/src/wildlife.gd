@@ -43,6 +43,9 @@ const FAR := 60.0
 const EDGE := Terrain.SIZE * 0.5 - 1.0
 ## Seconds between looks over the walls and trees for where conures may perch and sheep graze.
 const LOOK_EVERY := 0.5
+## Seconds, on average, between a family's quacks and its ducklings' peeps.
+const QUACK_EVERY := 45.0
+const PEEP_EVERY := 30.0
 
 enum State { FLY_IN, ENTER, SWIM, ASHORE, REST, FLY_OUT, WALK_OUT }
 
@@ -57,6 +60,7 @@ var butterflies: Butterflies
 var fireflies: Fireflies
 var birds: Birds
 var herds: Herds
+var calls: Calls
 var rng := RandomNumberGenerator.new()
 ## Whether a duck has ever come: conures come only after.
 var ducks_came := false
@@ -108,6 +112,8 @@ func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes:
 	add_child(birds)
 	herds = Herds.new(self, rng.seed + 4)
 	add_child(herds)
+	calls = Calls.new(eyes, rng.seed + 5)
+	add_child(calls)
 
 
 func ducks() -> Array[Duck]:
@@ -122,6 +128,7 @@ func _process(delta: float) -> void:
 
 
 func tick(delta: float) -> void:
+	calls.tick(delta)
 	_schedule(delta)
 	var room := butterflies.butterflies.size() < Butterflies.CAP
 	for key in _ripe(_due_butterflies, butterflies.empty_patches(), BUTTERFLIES_AFTER, delta, room):
@@ -235,6 +242,10 @@ func _think(f: Family, delta: float) -> void:
 		f.pond = _pond_near(f.home)
 		if f.pond == null:
 			_leave(f)
+	if f.state in [State.SWIM, State.REST]:
+		calls.now_and_then("quack", lead.position, QUACK_EVERY, delta)
+		if f.ducks.size() > 1:
+			calls.now_and_then("peep", f.ducks[1 + calls.rng.randi() % (f.ducks.size() - 1)].position, PEEP_EVERY, delta)
 	match f.state:
 		State.FLY_IN, State.FLY_OUT:
 			_fly(f, delta)
@@ -342,6 +353,7 @@ func _fly(f: Family, delta: float) -> void:
 		var splash := Vector3(at.x, f.pond.surface_y(), at.z)
 		f.pond.ripple(splash, 1.0)
 		water.splashed.emit(&"dip", splash)
+		calls.call_out("quack", splash)
 		_swim(f)
 
 

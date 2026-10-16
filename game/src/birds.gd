@@ -34,6 +34,10 @@ const INSIDE := 0.85
 const CROWN_POINTS := 12
 ## How far below the top of its crown a bird may stand on a tree.
 const CROWN_DEPTH := 1.2
+## Seconds, on average, between one bird's chatter and its chirps while perched, and its chatter while pecking.
+const CHATTER_EVERY := 75.0
+const CHIRP_EVERY := 110.0
+const PECK_CHATTER_EVERY := 40.0
 
 var wildlife: Wildlife
 var rng := RandomNumberGenerator.new()
@@ -252,6 +256,7 @@ func _think(b: Bird, delta: float) -> void:
 		return
 	b.timer -= delta
 	if b.state == State.PECK:
+		wildlife.calls.now_and_then("chatter", b.node.position, PECK_CHATTER_EVERY, delta)
 		if b.timer <= 0.0:
 			_flutter(b)
 		elif rng.randf() < delta * 0.4:
@@ -262,6 +267,8 @@ func _think(b: Bird, delta: float) -> void:
 		return
 	b.preening = maxf(b.preening - delta, 0.0)
 	b.node.blend(Conure.PREEN if b.preening > 0.0 else Conure.IDLE, delta)
+	wildlife.calls.now_and_then("chatter", b.node.position, CHATTER_EVERY, delta)
+	wildlife.calls.now_and_then("chirp", b.node.position, CHIRP_EVERY, delta)
 	if b.timer > 0.0:
 		return
 	b.timer = rng.randf_range(PAUSE.x, PAUSE.y)
@@ -466,3 +473,5 @@ func _land(b: Bird) -> void:
 		b.timer = rng.randf_range(PAUSE.x, PAUSE.y)
 		if flew:
 			b.node.rotation.y += rng.randf_range(-1.2, 1.2)
+			if wildlife.calls.rng.randf() < 0.5 and not wildlife.calls.calm(b.to):
+				wildlife.calls.call_out("chirp", b.to)

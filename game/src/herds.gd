@@ -44,6 +44,8 @@ const BARE := 0.4
 ## How far from the water a sheep stands.
 const SHORE := 0.4
 const TURN := 3.0
+## Seconds, on average, between one settled sheep's bleats.
+const BLEAT_EVERY := 150.0
 
 var wildlife: Wildlife
 var flocks: Array[Flock] = []
@@ -192,6 +194,8 @@ func _think(f: Flock, s: Sheep, delta: float) -> void:
 	var hand: Node3D = wildlife._hand_within(s.position + Vector3.UP * 0.55 * s.size, SCARE) if s.state != State.ENTER and s.state != State.FLEE else null
 	if hand != null:
 		_flee(s, hand.global_position)
+	if _settled(s):
+		wildlife.calls.now_and_then("bleat", s.position, BLEAT_EVERY, delta)
 	match s.state:
 		State.ENTER, State.WALK:
 			if _go(s, s.goal, SPEED[s.state], delta):

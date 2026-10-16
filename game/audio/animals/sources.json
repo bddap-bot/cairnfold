@@ -1,0 +1,85 @@
+[
+ {
+  "page": "https://freesound.org/people/litamedinger/sounds/860519/",
+  "audio": "https://cdn.freesound.org/previews/860/860519_17559342-hq.mp3",
+  "title": "Conure Parrot Sounds",
+  "author": "litamedinger",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "conure",
+  "clips": {
+   "chirp0": [[11.25, 0.3]],
+   "chirp1": [[25.41, 0.42]],
+   "chirp2": [[47.57, 0.36]],
+   "chirp3": [[53.12, 0.38]],
+   "chirp4": [[68.14, 0.34]],
+   "chirp5": [[12.88, 0.3]],
+   "chatter0": [[58.7, 0.2], [23.24, 0.16], [60.01, 0.22]],
+   "chatter1": [[56.37, 0.2], [61.4, 0.2], [26.74, 0.14]],
+   "chatter2": [[38.84, 0.22], [58.7, 0.2], [57.4, 0.17]],
+   "chatter3": [[61.4, 0.2], [14.6, 0.1], [60.01, 0.22], [23.24, 0.16]]
+  }
+ },
+ {
+  "page": "https://freesound.org/people/Mikes-MultiMedia/sounds/418509/",
+  "audio": "https://cdn.freesound.org/previews/418/418509_5632532-hq.mp3",
+  "title": "single quack from a duck (cut from squashy555's ducks1.wav, https://freesound.org/people/squashy555/sounds/244329/, also CC0)",
+  "author": "Mikes-MultiMedia",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "duck",
+  "clips": {"quack0": [[0.0, 0.5]]}
+ },
+ {
+  "page": "https://freesound.org/people/OwennewO/sounds/719114/",
+  "audio": "https://cdn.freesound.org/previews/719/719114_11244040-hq.mp3",
+  "title": "Duck Quacking Loudly Three Times",
+  "author": "OwennewO",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "duck",
+  "clips": {"quack1": [[0.0, 0.6]]}
+ },
+ {
+  "page": "https://freesound.org/people/OwennewO/sounds/719115/",
+  "audio": "https://cdn.freesound.org/previews/719/719115_11244040-hq.mp3",
+  "title": "Ducks Quacking To Each Other",
+  "author": "OwennewO",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "duck",
+  "clips": {"quack2": [[0.1, 0.45]], "quack3": [[0.58, 0.72]]}
+ },
+ {
+  "page": "https://freesound.org/people/LantC/sounds/678061/",
+  "audio": "https://cdn.freesound.org/previews/678/678061_14394624-hq.mp3",
+  "title": "ducklings chirping",
+  "author": "LantC",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "duckling",
+  "clips": {"peep0": [[7.05, 0.9]], "peep1": [[9.85, 0.9]], "peep2": [[10.7, 0.9]], "peep3": [[16.35, 0.75]]}
+ },
+ {
+  "page": "https://freesound.org/people/Sheyvan/sounds/471162/",
+  "audio": "https://cdn.freesound.org/previews/471/471162_3248005-hq.mp3",
+  "title": "Sheep Bleating",
+  "author": "Sheyvan",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "sheep",
+  "clips": {"bleat0": [[0.55, 1.3]], "bleat1": [[2.86, 1.0]], "bleat2": [[9.5, 1.0]], "bleat3": [[15.44, 1.1]], "bleat4": [[17.28, 1.0]]}
+ },
+ {
+  "page": "https://freesound.org/people/Yuval/sounds/210511/",
+  "audio": "https://cdn.freesound.org/previews/210/210511_770707-hq.mp3",
+  "title": "sheep bleat outdoors",
+  "author": "Yuval",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "sheep",
+  "clips": {"bleat5": [[1.27, 1.2]], "bleat6": [[5.99, 1.15]], "bleat7": [[21.56, 1.25]]}
+ },
+ {
+  "page": "https://freesound.org/people/Garuda1982/sounds/428103/",
+  "audio": "https://cdn.freesound.org/previews/428/428103_2061858-hq.mp3",
+  "title": "sheep bleat sound",
+  "author": "Garuda1982",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "sheep",
+  "clips": {"bleat8": [[6.88, 1.3]], "bleat9": [[13.6, 1.3]]}
+ }
+]

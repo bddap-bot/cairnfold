@@ -1128,9 +1128,9 @@ renders.
 
 ## Sound
 
-Every sound is synthesised by `scripts/compose.py` into `game/audio/`; rerun it
-(`nix-shell --run 'python3 scripts/compose.py'`) after changing it, never edit the
-files by hand. The runtime only plays them: Godot mixes on its audio thread, so
+Every sound but the animal calls is synthesised by `scripts/compose.py` into
+`game/audio/`; rerun it (`nix-shell --run 'python3 scripts/compose.py'`) after changing
+it, never edit the files by hand. The runtime only plays them: Godot mixes on its audio thread, so
 sound costs no frame time.
 
 - Music: two short motifs (a B-major call with a pickup into each long note, and a
@@ -1149,6 +1149,24 @@ sound costs no frame time.
 - Effects: stone clacks as a stroke grows and as a wall is pulled up or down, a
   settling rattle when a wall finishes, a gravel trickle for an arch and a tumble for
   undo, each played from a pool of 3D voices at the stones involved.
+- Animal calls: recordings of real conures, ducks, ducklings and sheep, all CC0, cut
+  by `scripts/animals.py` from the recordings `game/audio/animals/sources.json` lists
+  with their page, author and licence (`nix-shell --run 'python3 scripts/animals.py'`).
+  The script filters out rumble and hiss, rolls the highs off from 2.6 to 3.5 kHz,
+  takes the conures three semitones down to sit with the meadow bed's birds, and
+  levels every call alike; `tests/test_animals.py` holds every clip under 2% of its
+  energy above 4 kHz. Conures get soft chirps, beak clicks and murmurs, never their
+  contact calls. `Calls` plays them at the animal, sparse and under the music: each
+  kind waits 8–14 s between calls and any two are 3 s apart, no clip plays twice
+  running, pitch and level vary a little, the voices never get louder than at 2 m,
+  and the distance rolls their highs off further. A duck quacks as it splashes down and
+  now and then while swimming or resting, its ducklings peep; a perched conure
+  chatters and chirps now and then, and chirps on landing, and chatters as it pecks
+  in the grass; a settled sheep bleats every few minutes. An animal within 2.5 m of
+  the head makes no call of its own: it stays calm, and only a duck splashing down
+  still quacks there.
+  `NESTCOMBE_QUIT_AFTER=420 scripts/render.sh demo/animals.json OUT --write-movie
+  OUT/animals.avi --fixed-fps 30` records five minutes of a garden the animals come to.
 - `scripts/render.sh demo/sound.json OUT --write-movie OUT/sound.avi --fixed-fps 30`
   records the game's own mix through an idle stretch, a build and the return.
 

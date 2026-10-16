@@ -1,0 +1,19 @@
+[
+  {"op": "place", "x": 0, "z": 7},
+  {"op": "view", "eye": [0, 1.65, 7], "at": [0, 1.0, -2]},
+  {"op": "label", "name": "building"},
+  {"op": "dig", "x": -6, "z": 1, "seconds": 1.8},
+  {"op": "dig", "x": -4.5, "z": 0.6, "seconds": 1.8},
+  {"op": "tree", "x": 5, "z": -6},
+  {"op": "tree", "x": -5, "z": -7},
+  {"op": "wall", "points": [[-3, -2], [0, -3], [3, -1.5]], "seconds": 2},
+  {"op": "fence", "points": [[-7, 3], [-2.5, 3.5], [2.5, 3.3], [7, 2.7]], "seconds": 2},
+  {"op": "label", "name": "listening"},
+  {"op": "wait", "seconds": 60},
+  {"op": "capture", "name": "00-waiting"},
+  {"op": "wait", "seconds": 150},
+  {"op": "capture", "name": "01-animals"},
+  {"op": "wait", "seconds": 90},
+  {"op": "capture", "name": "02-later"},
+  {"op": "quit"}
+]
