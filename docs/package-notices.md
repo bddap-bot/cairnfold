@@ -47,14 +47,14 @@ and the Khronos loader license in `openxr-vendors/khronos/LICENSE`.
 
 ## Steam packages
 
-`scripts/package.sh TARGET OUT steam` adds the GodotSteam GDExtension (MIT, its
-license in `notices/godotsteam/`) and the `steam_api` library for that platform, which
+`scripts/package.sh TARGET OUT steam` and `scripts/android.sh lepton OUT steam` add the
+GodotSteam GDExtension (MIT, its license in `notices/godotsteam/`) and the `steam_api` library for that platform, which
 Valve's [Steamworks SDK Access Agreement](https://partner.steamgames.com/documentation/sdk_access_agreement)
 lets a game redistribute "along with the Licensee Software in object code form" (§1.1(b)).
 The same agreement licenses the rest of the SDK, its headers included, only to "use and
 locally reproduce", so this repository holds neither: the build fetches GodotSteam's release
 at the version and hash pinned in `scripts/pins.sh`, and `game/addons/godotsteam/` is
-ignored by git. Packages built without `steam` carry no Steam code at all. The agreement's
+ignored by git. Packages built without `steam`, and every Quest APK, carry no Steam code at all. The agreement's
 §5 ("No Exclusivity") leaves the game free to ship the same code elsewhere; Steamworks'
 [key rules](https://partner.steamgames.com/doc/features/keys) govern Steam keys sold
 elsewhere, not builds.

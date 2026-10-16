@@ -196,7 +196,7 @@ nothing that says who they are. A name reaches others only by a way the player c
   picked one stands unnamed.
 
 `Persona` (game/src/persona.gd) holds all of this. Steam is optional: only a Steam package
-(`scripts/package.sh TARGET OUT steam`) carries the GodotSteam extension and Valve's
+(`scripts/package.sh TARGET OUT steam`, or the Frame's `scripts/android.sh lepton OUT steam`) carries the GodotSteam extension and Valve's
 `steam_api` library, and the game starts Steam only when Steam launched it (`SteamAppId`
 in its environment) or a script names an app with `--steam-app ID`. Every other build and
 launch plays without Steam on the same code path.
