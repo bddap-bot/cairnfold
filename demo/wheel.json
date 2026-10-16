@@ -13,5 +13,8 @@
   {"op": "pick", "hand": "right", "tool": "delete", "capture": "05-delete"},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "06-holding-delete"},
+  {"op": "pick", "hand": "right", "tool": "hands", "capture": "07-hands"},
+  {"op": "wait", "seconds": 0.5},
+  {"op": "capture", "name": "08-empty-hands"},
   {"op": "quit"}
 ]

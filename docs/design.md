@@ -872,6 +872,12 @@ figure for visit. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
 rounded body is unchanged, and there is no text anywhere.
 
+A hand can also hold nothing: empty hands, for when the building is done and the player just wants to
+be in the garden. Its wheel icon is an open hand; on the controller nothing stands, and no tool draws a
+ray from it. It still does what every hand does whatever it holds: its grip grabs what it points at, and
+the stick's teleport arc and the sun's handle still show their rays while in use. Picking any tool from
+the wheel brings that tool's ray back. Nothing hides on a timer.
+
 One value per hand, `Hand.tool`, is what the input code dispatches on and what the object on top and
 the wheel show, so they cannot disagree. The hands start as walls in the right and flowers in the left.
 
@@ -897,13 +903,13 @@ learnable motion:
 | Slot | Holds |
 | --- | --- |
 | Top | Colour |
-| Upper right | Camera |
+| Upper right | Empty hands, camera |
 | Right | Flowers, grass, trees, ponds |
 | Lower right | Visit |
 | Bottom | Delete |
 | Lower left | Paths, stone |
-| Left | Walls, fences, windows, decorations |
-| Upper left | Empty, kept for the house tool |
+| Left | Walls, plaster walls, fences, windows |
+| Upper left | House, plaster house, decorations |
 
 The wheel buttons are ones nothing else takes on either controller: right B (the Frame's B, X and Y)
 and left menu (the Frame's View button). Choices made where the directive left room, for a playtest
@@ -1250,7 +1256,7 @@ walls in each top style, and shapes the roofs; `demo/paths.json` lays paths thro
 arcade), draws a wall across a wide path and raises the ground under a path; `demo/fittings.json` opens windows
 and doors in a wall, a house and a tower, hangs lanterns, flies flags, builds a chimney and draws a fence a
 path crosses; `demo/stone.json` paints stone ground into the meadow, paints part of it back and
-walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete; `demo/photo.json` takes the camera from the wheel and takes two photos; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
+walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete, then empties the hand; `demo/photo.json` takes the camera from the wheel and takes two photos; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks
 at a perched one from in front and from the side;
 `demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar (`--seed 40` puts sheep in the close views);
