@@ -913,7 +913,7 @@ defined once: tunables as uniforms in `grass.gdshader` and, for the wind every p
 | 5 | Wind as a travelling wave (Ghost of Tsushima, Breath of the Wild) | Gusts visible as bands rolling across the meadow, tips brightening as they bend | A few sines per vertex, no texture fetch | Done (`wind.gdshaderinc`): flowers sway in the same field, a perched butterfly with its flower |
 | 6 | Per-clump colour variation | Warm and cool tufts break up large areas | A mix and a multiply per fragment from per-instance data | Done (`warm_clump`, `cool_clump`) |
 | 7 | Backlit translucency | Blades glow when you look toward the sun | One lighting term per fragment | Retuned: stronger, tinted by the blade (`backlight`) |
-| 8 | Distance convergence (inferred from Tsushima's clump-normal blend for specular aliasing) | Far blades fade toward their mid-tone with normals toward up, so sub-pixel slivers do not flicker as the head moves | One distance per vertex | Done (`far_begin`, `far_end`) |
+| 8 | Distance convergence (inferred from Tsushima's clump-normal blend for specular aliasing) | Far blades fade toward their mid-tone with normals toward up, so sub-pixel slivers do not flicker as the head moves | One distance per vertex | Done (`far_begin`, `far_end`: tips fully at their mid-tone from 20 m) |
 | 9 | Grass parts around the hands | The meadow responds to touch: reaching into it pushes blades aside and down | Two distance tests per vertex; two uniforms set per frame | Done (`hand_radius`) |
 | 10 | Per-blade Bezier curves with more segments | Smooth arcs instead of a two-segment bend | Vertex count grows with segments: about twice today's for a smooth curve | Not yet: needs headroom measured on the device |
 | 11 | View-space thickening (Tsushima: widen blades seen edge-on) | No vanishing slivers; less thin-geometry aliasing | A few vertex operations, but needs each blade's facing per vertex | Not yet |
@@ -936,6 +936,25 @@ measured on the device (the epic's flora-on-the-headset box).
 held in the grass for the last pair), and records two benchmark stretches;
 `demo/wind.json` holds a view for a wind clip
 (`scripts/render.sh demo/wind.json OUT --write-movie OUT/wind.avi --fixed-fps 30`).
+
+### Anti-aliasing
+
+Directive (verbatim): "I am seeing aliasing in the distance. Do we have anti-aliasing yet"
+
+4× MSAA (`msaa_3d`) is on and works on the Frame: turning it off took a village over full
+flora from 17.6 to 10.9 ms of GPU time a frame. What still shimmers far off was found in a
+render matched to the Frame's eye (1728², 107° vertical), comparing 4× MSAA against a
+16-sample reference while the view moves by a fraction of a pixel: the excess flicker is the
+meadow. Hiding the grass removed 63–80% of it, the flowers most of the rest; walls, roofs,
+ivy and foliage were not the source. The blades there are 2–3 px wide, so widening them
+changed nothing; their bright tips and edge-on flower heads are what four samples cannot
+hold still. So far grass tips settle on the blade's mid-tone by 20 m and flower heads take
+the stalk's green over 10–30 m (`head_fade_begin`, `head_fade_end`): 23–29% less far
+flicker, no change in GPU time on the Frame.
+
+Measured and left out, on the Frame in the same scene: FXAA over MSAA (+1 ms, and it blurs
+walls and roofs) and render scale 1.25, the panel's own size (+3.7 ms). On the desktop 8×
+MSAA left half of 4×'s excess flicker; its sample count is what tiled GPUs pay for per bin.
 
 ## Element inventory
 
