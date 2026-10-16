@@ -1,4 +1,4 @@
-# Cairnfold
+# Nestcombe
 
 A cozy VR building toy, inspired by Tiny Glade. Draw stone or plaster walls across a meadow
 and watch them grow courses of stone, crenellated tops and arches; teleport onto
@@ -28,7 +28,7 @@ paths, flowers, grass, trees, terrain, pond, colour, camera, delete or visit.
   of seasons for the meadow; let go to keep the one at the top.
 - Holding camera: the screen on its back shows what its lens sees; the trigger
   takes a photo, saved as a PNG in the game's `photos` folder
-  (`~/.local/share/godot/app_userdata/Cairnfold/photos` on the Frame; inside the
+  (`~/.local/share/godot/app_userdata/Nestcombe/photos` on the Frame; inside the
   app on a Quest).
 - Point any hand at the sun and grip it, then move the hand to drag it across the sky: dawn to dusk.
 - A hand’s pointer disappears while grabbing and returns when released.
@@ -66,28 +66,28 @@ right A cuts arches, and the wheels open on right B and left ≡.
   records `demo/trailer.json`. Store copy: `steam/store.md`.
 - Release builds: `nix-shell --run 'scripts/package.sh TARGET OUT'` exports
   `linux-x64` or `linux-arm64` (a `.tar.gz`) or `windows` (a `.zip`). Each
-  unpacks to `cairnfold/` holding the game (`cairnfold` or `Cairnfold.exe`),
+  unpacks to `nestcombe/` holding the game (`nestcombe` or `Nestcombe.exe`),
   which starts in VR on the system's OpenXR runtime, such as SteamVR.
 - Steam Frame: unpack the `linux-arm64` package in the headset's home and add
-  `cairnfold/cairnfold` as a VR non-Steam shortcut with the art in
-  `cairnfold/steam/`.
+  `nestcombe/nestcombe` as a VR non-Steam shortcut with the art in
+  `nestcombe/steam/`.
 - The game keeps its garden, photos, `metrics.json` and logs in Godot's user
-  directory: `~/.local/share/godot/app_userdata/Cairnfold` on Linux,
-  `%APPDATA%\Godot\app_userdata\Cairnfold` on Windows.
+  directory: `~/.local/share/godot/app_userdata/Nestcombe` on Linux,
+  `%APPDATA%\Godot\app_userdata\Nestcombe` on Windows.
 
 ## Quest
 
-Each [release](https://github.com/bddap-bot/cairnfold/releases) carries
-`cairnfold-quest.apk`. To install it:
+Each [release](https://github.com/bddap-bot/nestcombe/releases) carries
+`nestcombe-quest.apk`. To install it:
 
 1. Turn on developer mode for the headset in the Meta Horizon phone app
    (Devices, then Developer Mode; it asks you to register as a developer once).
 2. Connect the headset by USB and accept the debugging prompt inside it.
 3. Install with [SideQuest](https://sidequestvr.com) (drag the APK onto it) or
-   `adb install -r cairnfold-quest.apk`.
-4. In the headset, open the library's Unknown Sources filter and start Cairnfold.
+   `adb install -r nestcombe-quest.apk`.
+4. In the headset, open the library's Unknown Sources filter and start Nestcombe.
 
-Build it yourself with `nix-shell android.nix --run 'scripts/android.sh quest cairnfold.apk'`;
+Build it yourself with `nix-shell android.nix --run 'scripts/android.sh quest nestcombe.apk'`;
 it signs with a local key, so remove a release install before installing your own.
 `scripts/release.sh` publishes the desktop and Frame builds and both APKs together.
 

@@ -1,6 +1,6 @@
 # Package notices
 
-Cairnfold's own code and authored assets are MIT OR Apache-2.0; the two project
+Nestcombe's own code and authored assets are MIT OR Apache-2.0; the two project
 license files accompany this document. Third-party material retains its upstream
 terms. Godot's `COPYRIGHT.txt` contains the component inventory and full license
 texts, supplemented by the upstream license, notice, author and readme files.
@@ -22,7 +22,7 @@ permits application distribution with designated SDK materials for approved
 products (§1.1). Quest is the intended target. Preserve terms, links, and copyright
 notices (§§1.2.7, 1.3); the package includes the original SDK notice and link plus
 the required Meta copyright attribution. This does not relicense SDK material
-under Cairnfold's licenses (§1.2.8). Third-party open-source terms control their
+under Nestcombe's licenses (§1.2.8). Third-party open-source terms control their
 components (§3.2): the addon’s Meta flavor actually bundles the Khronos loader
 under Apache-2.0. Its license and the addon/bindings licenses are included.
 

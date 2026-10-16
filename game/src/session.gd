@@ -179,7 +179,7 @@ func _process(delta: float) -> void:
 func _announce() -> void:
 	if port == 0 or not visiting.is_empty():
 		return
-	var msg := JSON.stringify({"cairnfold": 1, "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false), "players": players()}).to_utf8_buffer()
+	var msg := JSON.stringify({"nestcombe": 1, "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false), "players": players()}).to_utf8_buffer()
 	for dest in beacon_to():
 		for p in BEACON_PORTS:
 			_beacon.set_dest_address(dest, beacon_port + p)
@@ -197,7 +197,7 @@ func _hear() -> void:
 		if json.parse(raw.slice(0, 512).get_string_from_utf8()) != OK:
 			continue
 		var msg: Variant = json.data
-		if not (msg is Dictionary and msg.get("cairnfold") == 1.0 and msg.get("key") is float and msg.get("port") is float and msg.get("avatar") is float):
+		if not (msg is Dictionary and msg.get("nestcombe") == 1.0 and msg.get("key") is float and msg.get("port") is float and msg.get("avatar") is float):
 			continue
 		var at := int(msg.port)
 		var where := "%s:%d" % [ip, at]

@@ -1,6 +1,6 @@
-# Cairnfold design
+# Nestcombe design
 
-Cairnfold is a cozy building toy for VR, inspired by Tiny Glade: no goals, no
+Nestcombe is a cozy building toy for VR, inspired by Tiny Glade: no goals, no
 failure, just a meadow and tools that turn rough strokes into stone walls, paths,
 houses and gardens that look hand-made. You draw in the space around you, stand in
 what you built at life size, or teleport into the air and float above it like a
@@ -54,7 +54,7 @@ can move to a GDExtension later without touching the rest.
 
 ### Steam Frame route
 
-**Decision: the Frame gets Cairnfold from Steam as an Android depot,
+**Decision: the Frame gets Nestcombe from Steam as an Android depot,
 `scripts/android.sh lepton`, run by the Frame's Lepton container.** It is the only
 Frame route Steamworks documents (a depot with its OS set to Android and a top-level
 `.apk`); its depot settings name no ARM Linux option. The APK uses the OpenXR vendors
@@ -189,7 +189,7 @@ often after a long spell at full resolution, and once that frame took the runtim
 other refresh for half a second (the 34); switching back to full resolution has cost nothing.
 An earlier pair of runs with the line at 0.82 gave 1 and 75 late frames; they were not split
 by cause.
-`scripts/bench.sh` with `CAIRNFOLD_SCENE=demo/headset.json` runs this check on the Frame; its
+`scripts/bench.sh` with `NESTCOMBE_SCENE=demo/headset.json` runs this check on the Frame; its
 `late` column counts every frame of a phase.
 
 ### Quest 2 measurements
@@ -376,7 +376,7 @@ percentile 14.3 ms as with no stroke at all.
 ## Automatic quality
 
 Directive (verbatim):
-> I expect since cairnfold can measure frame times it could dynamically choose graphics settings to keep players safer from stutter. Limitations/quirks I think:
+> I expect since [Nestcombe] can measure frame times it could dynamically choose graphics settings to keep players safer from stutter. Limitations/quirks I think:
 > - delta in the setting would need to not *cause* a frame pause
 > - not sure which settings are worth making dynamic
 > - multiple settings to tweak but only one signal
@@ -796,7 +796,7 @@ numbers are published):
   ([dev update](https://store.steampowered.com/news/app/2198150/view/5125698536871949230)).
 - Not public: snap distances, whether a crossing becomes a junction, any minimum gap between parallel walls.
 
-Cairnfold's version, adapted to a pointer swept by hand, where a few centimetres of jitter are normal
+Nestcombe's version, adapted to a pointer swept by hand, where a few centimetres of jitter are normal
 (`WallPlan`, pure data; tests in `tests/test_plan.gd` and, through the driver, `tests/test_join.gd`):
 
 - Any part of a stroke within 1.8 m (centre line to centre line) of a standing wall merges into that wall:
@@ -961,7 +961,7 @@ then teleport down to stand in its gate.
 ## Build order
 
 Ordered by what makes it feel like the original soonest. Progress is tracked in
-the epic, https://github.com/bddap-bot/cairnfold/issues/1, in this order:
+the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
 
 1. First playable: meadow, sky and fog, teleport and float, walls with stones, cap, merlons, piers and arches. (Done.)
 2. Lighting pass: bounce light from a probe volume rebuilt on edits, contact darkening, shadow split and fog tuning for floating viewpoints, compared side by side with the mood target. (Done.)
@@ -1181,7 +1181,7 @@ lens keeps the horizon level however the wrist rolls, so photos never come out t
 straight up or down, the top of the controller is up. The trigger takes a photo
 (`PhotoTool.PHOTO_SIZE`), saved as a PNG named by the date and time under `user://photos`, or
 under `photos/` in the `--capture-dir` of a scripted run. On the Frame that is
-`~/.local/share/godot/app_userdata/Cairnfold/photos`; on a Quest the photos stay in the app's
+`~/.local/share/godot/app_userdata/Nestcombe/photos`; on a Quest the photos stay in the app's
 own storage. The screen holds the shot for a moment with a soft flash, and the hand gets a
 short buzz on the press. Either hand can hold a camera; both show the view of the first.
 
@@ -1196,8 +1196,8 @@ Frame (see "Frame measurements"). A held camera is not yet measured on a headset
 ## Verifying on a headset
 
 `scripts/package.sh linux-arm64` exports the aarch64 build (the game binary plus its
-library art in `steam/`). Installed as `~/cairnfold` on the headset, it starts from a
-VR shortcut in the Steam library that runs `cairnfold/cairnfold`. `cairnfold -- --script
+library art in `steam/`). Installed as `~/nestcombe` on the headset, it starts from a
+VR shortcut in the Steam library that runs `nestcombe/nestcombe`. `nestcombe -- --script
 FILE --metrics FILE --capture-dir DIR` plays a scripted session through the same entry
 points as the controllers (teleport, float, draw a wall), logs per-second frame
 times and saves view captures. `scripts/test.sh` runs the headless layout tests;

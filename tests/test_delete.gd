@@ -22,7 +22,7 @@ func _run() -> void:
 	tool = main.delete_tool
 	flora = main.flora_tool.flora
 	world = main.world
-	save = OS.get_temp_dir().path_join("cairnfold-delete-%d.garden" % OS.get_process_id())
+	save = OS.get_temp_dir().path_join("nestcombe-delete-%d.garden" % OS.get_process_id())
 	world.load_from(save)
 	_every_spawned_solid_is_struck()
 	var tree := _spawned(flora.trunks)

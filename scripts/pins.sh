@@ -18,7 +18,7 @@ cinzel_license=(https://raw.githubusercontent.com/NDISCOVER/Cinzel/dd598495b0fb2
 android_ndk_version=28.1.13356709
 android_ndk_notice_sha256=faf0dc52cf6ce9ab09a04b0c074a378dd2565ee1ed9bc1179d83793bcdba012e
 android_ndk_toolchain_sha256=789714a9076571c580cf531bdcebec776a4d889c12c3c1108adafc6e4338710a
-cache=${XDG_CACHE_HOME:-$HOME/.cache}/cairnfold
+cache=${XDG_CACHE_HOME:-$HOME/.cache}/nestcombe
 mkdir -p "$cache"
 
 # fetch URL SHA256: prints the cached path, downloading and verifying it first if needed.

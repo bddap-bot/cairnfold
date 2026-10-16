@@ -3,7 +3,7 @@
 #   quest   the Quest build, OpenXR through the vendors plugin's Meta flavor
 #   lepton  the Steam Frame's Android build, run by its Lepton container, through the Khronos flavor: no Meta SDK
 #           material enters it, so the Meta SDK's approved-product terms stay off a Steam product
-# Signs with $CAIRNFOLD_KEYSTORE (alias cairnfold, store and key password $CAIRNFOLD_KEYSTORE_PASS) when set, otherwise
+# Signs with $NESTCOMBE_KEYSTORE (alias nestcombe, store and key password $NESTCOMBE_KEYSTORE_PASS) when set, otherwise
 # with a key generated once into the cache.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -32,14 +32,14 @@ if [ "$target" = lepton ]; then
 fi
 sed -i "s/^version\/code=.*/version\/code=$number/; s/^version\/name=.*/version\/name=\"$(git -C "$root" rev-parse --short HEAD)\"/" "$stage/game/export_presets.cfg"
 
-if [ -z "${CAIRNFOLD_KEYSTORE:-}" ]; then
-  CAIRNFOLD_KEYSTORE=$cache/local.keystore CAIRNFOLD_KEYSTORE_PASS=cairnfold
-  [ -f "$CAIRNFOLD_KEYSTORE" ] || keytool -genkeypair -keystore "$CAIRNFOLD_KEYSTORE" -storepass "$CAIRNFOLD_KEYSTORE_PASS" \
-    -alias cairnfold -keyalg RSA -keysize 2048 -validity 10000 -dname CN=Cairnfold
+if [ -z "${NESTCOMBE_KEYSTORE:-}" ]; then
+  NESTCOMBE_KEYSTORE=$cache/local.keystore NESTCOMBE_KEYSTORE_PASS=nestcombe
+  [ -f "$NESTCOMBE_KEYSTORE" ] || keytool -genkeypair -keystore "$NESTCOMBE_KEYSTORE" -storepass "$NESTCOMBE_KEYSTORE_PASS" \
+    -alias nestcombe -keyalg RSA -keysize 2048 -validity 10000 -dname CN=Nestcombe
 fi
-[ -f "$CAIRNFOLD_KEYSTORE" ] || { echo "android: no keystore at $CAIRNFOLD_KEYSTORE" >&2; exit 1; }
-export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$CAIRNFOLD_KEYSTORE GODOT_ANDROID_KEYSTORE_RELEASE_USER=cairnfold \
-  GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$CAIRNFOLD_KEYSTORE_PASS
+[ -f "$NESTCOMBE_KEYSTORE" ] || { echo "android: no keystore at $NESTCOMBE_KEYSTORE" >&2; exit 1; }
+export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$NESTCOMBE_KEYSTORE GODOT_ANDROID_KEYSTORE_RELEASE_USER=nestcombe \
+  GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$NESTCOMBE_KEYSTORE_PASS
 
 cd "$stage/game"
 # Install first so notices enter ordinary APK assets before signing.

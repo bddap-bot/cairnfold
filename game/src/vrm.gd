@@ -44,7 +44,7 @@ func _export_post(state: GLTFState) -> Error:
 	var exts: Dictionary = state.json.get_or_add("extensions", {})
 	exts["VRMC_vrm"] = {
 		"specVersion": "1.0",
-		"meta": {"name": state.get_scene_name(), "authors": ["Cairnfold"], "licenseUrl": "https://vrm.dev/licenses/1.0/", "avatarPermission": "everyone", "commercialUsage": "corporation", "modification": "allowModificationRedistribution"},
+		"meta": {"name": state.get_scene_name(), "authors": [ProjectSettings.get_setting("application/config/name")], "licenseUrl": "https://vrm.dev/licenses/1.0/", "avatarPermission": "everyone", "commercialUsage": "corporation", "modification": "allowModificationRedistribution"},
 		"humanoid": {"humanBones": bones},
 		"lookAt": {"offsetFromHeadBone": [eyes.x, eyes.y, eyes.z]},
 	}

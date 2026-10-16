@@ -1,4 +1,4 @@
-# Working on Cairnfold
+# Working on Nestcombe
 
 Read [docs/design.md](docs/design.md) first; it holds the element inventory, the
 controls and the build order.

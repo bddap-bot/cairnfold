@@ -22,7 +22,7 @@ func _read(path: String) -> Variant:
 
 
 func _every_flush_leaves_whole_json_with_every_second() -> void:
-	var path := OS.get_cache_dir().path_join("cairnfold-test-metrics-%d.json" % OS.get_process_id())
+	var path := OS.get_cache_dir().path_join("nestcombe-test-metrics-%d.json" % OS.get_process_id())
 	var m := Metrics.new(path)
 	m.info = {"xr": false, "label": "a long label to shrink later"}
 	m.flush()

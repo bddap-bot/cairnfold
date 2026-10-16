@@ -45,7 +45,7 @@ class PackageNotices(unittest.TestCase):
                 for broken in (None, *files):
                     for truncated in (False, True):
                         package = root / ('package' + suffix)
-                        prefix = 'assets/notices/' if suffix == '.apk' else 'cairnfold/notices/'
+                        prefix = 'assets/notices/' if suffix == '.apk' else 'nestcombe/notices/'
                         if suffix != '.tar.gz':
                             with zipfile.ZipFile(package, 'w') as archive:
                                 for name in files:

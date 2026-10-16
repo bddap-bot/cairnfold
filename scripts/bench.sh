@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Plays the stress scene, demo/stress.json, and holds each phase to the frame budget in game/src/budget.gd:
 #   bench.sh OUT_DIR                          desktop renderer: draw calls and primitives only, its GPU is no target
-#   bench.sh OUT_DIR SSH_HOST BUNDLE.tar.gz   a Steam Frame, from a scratch install of the linux-arm64 package that leaves ~/cairnfold alone,
+#   bench.sh OUT_DIR SSH_HOST BUNDLE.tar.gz   a Steam Frame, from a scratch install of the linux-arm64 package that leaves ~/nestcombe alone,
 #                                             in the headset's XR session unworn: SteamVR pauses the game while the
 #                                             headset is in standby, so the run turns power.pauseCompositorOnStandby
 #                                             off and restarts SteamVR, and puts both back on exit. Nothing else may
@@ -10,9 +10,9 @@
 #   bench.sh OUT_DIR --android APK            a Quest over adb (ANDROID_SERIAL picks it), in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
 # On a Quest, exits 1 when a phase the build must hold goes over budget; phases named "sweep/..." only measure.
-# CAIRNFOLD_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
+# NESTCOMBE_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
 # frames over 1.5x the refresh period from its first second, where its edits land; the others leave that second out.
-# CAIRNFOLD_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
+# NESTCOMBE_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
 # streaming their heads and hands.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -21,10 +21,10 @@ mkdir -p "$out"
 # Which ducks come to the stress scene's ponds: this one brings the most there can be, two families of five.
 seed=25
 device=desktop
-players=${CAIRNFOLD_PLAYERS:-1}
-case $players in [1-8]) ;; *) echo "bench: CAIRNFOLD_PLAYERS is 1 to 8" >&2; exit 1 ;; esac
+players=${NESTCOMBE_PLAYERS:-1}
+case $players in [1-8]) ;; *) echo "bench: NESTCOMBE_PLAYERS is 1 to 8" >&2; exit 1 ;; esac
 # With other players the measured instance waits for them all before its first phase.
-python3 - "${CAIRNFOLD_SCENE:-$here/../demo/stress.json}" "$players" > "$out/stress.json" <<'PY'
+python3 - "${NESTCOMBE_SCENE:-$here/../demo/stress.json}" "$players" > "$out/stress.json" <<'PY'
 import json, sys
 steps = json.load(open(sys.argv[1]))
 players = int(sys.argv[2])
@@ -75,7 +75,7 @@ same() {
 }
 if [ "${2:-}" = --android ]; then
   device=quest
-  pkg=io.github.bddapbot.cairnfold
+  pkg=io.github.bddapbot.nestcombe
   dir=/sdcard/Android/data/$pkg/files/bench
   serial=${ANDROID_SERIAL:-}
   case $serial in *:*) adb connect "$serial" > /dev/null ;; esac
@@ -176,9 +176,9 @@ if [ "${2:-}" = --android ]; then
   adb pull "$dir/." "$out/" > /dev/null
 elif [ $# -ge 3 ]; then
   device=frame
-  ssh "$2" 'set -e; rm -rf cairnfold-bench; mkdir cairnfold-bench; tar -xz -C cairnfold-bench; mkdir cairnfold-bench/cairnfold/log' < "$3"
-  same "$(ssh -n "$2" cat cairnfold-bench/cairnfold/REVISION)"
-  scp -q "$out/stress.json" "$2:cairnfold-bench/cairnfold/log/stress.json"
+  ssh "$2" 'set -e; rm -rf nestcombe-bench; mkdir nestcombe-bench; tar -xz -C nestcombe-bench; mkdir nestcombe-bench/nestcombe/log' < "$3"
+  same "$(ssh -n "$2" cat nestcombe-bench/nestcombe/REVISION)"
+  scp -q "$out/stress.json" "$2:nestcombe-bench/nestcombe/log/stress.json"
   # standby HOST off|on: SteamVR reads its settings only as it starts.
   standby() {
     ssh -n "$1" 'cfg=$HOME/.config/openvr/config/steamvr.vrsettings saved=$cfg.bench
@@ -195,22 +195,22 @@ elif [ $# -ge 3 ]; then
       for _ in $(seq 60); do pgrep -x vrcompositor > /dev/null && exit 0; sleep 1; done
       echo "bench: SteamVR did not come back" >&2; exit 1'
   }
-  trap 'ssh -n "$2" "[ ! -f cairnfold-bench/cairnfold/log/pid ] || kill \$(cat cairnfold-bench/cairnfold/log/pid)" || true; standby "$2" on || true; stop' EXIT
+  trap 'ssh -n "$2" "[ ! -f nestcombe-bench/nestcombe/log/pid ] || kill \$(cat nestcombe-bench/nestcombe/log/pid)" || true; standby "$2" on || true; stop' EXIT
   standby "$2" off
-  ssh -n "$2" 'cd cairnfold-bench/cairnfold
+  ssh -n "$2" 'cd nestcombe-bench/nestcombe
     export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)} DISPLAY=${DISPLAY:-:0}
-    status=0; timeout 900 ./cairnfold -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --seed '"$seed"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
+    status=0; timeout 900 ./nestcombe -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --seed '"$seed"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
     rm log/pid; echo "bench: $(cat REVISION) exit $status"' &
   remote=$!
   if [ "$players" -gt 1 ]; then
-    join ssh -n "$2" cat cairnfold-bench/cairnfold/log/godot.log -- \
+    join ssh -n "$2" cat nestcombe-bench/nestcombe/log/godot.log -- \
       "$(ssh -n "$2" "ip -4 route get 1.1.1.1" | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')"
   fi
   wait "$remote"
-  scp -rq "$2:cairnfold-bench/cairnfold/log/*" "$out/"
+  scp -rq "$2:nestcombe-bench/nestcombe/log/*" "$out/"
   standby "$2" on
 else
-  setsid env CAIRNFOLD_QUIT_AFTER=900 "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" > "$out/godot.log" 2>&1 &
+  setsid env NESTCOMBE_QUIT_AFTER=900 "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" > "$out/godot.log" 2>&1 &
   measured=$!
   [ "$players" -eq 1 ] || join cat "$out/godot.log" -- 127.0.0.1
   wait "$measured"
