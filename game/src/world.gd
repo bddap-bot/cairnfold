@@ -138,7 +138,7 @@ func change_of(cmd: Dictionary) -> Dictionary:
 				for k in cmd.data:
 					if k == "roof":
 						trial.roof.merge(cmd.data.roof, true)
-					else:
+					elif k != "paint":
 						trial[k] = cmd.data[k]
 				Budget.add(Budget.add(out, Budget.wall(trial)), _units_of.get("w%d" % cmd.id, {}), -1.0)
 		"path":
@@ -529,6 +529,13 @@ func _apply(cmd: Dictionary) -> Dictionary:
 					for r in cmd.data.roof:
 						before.roof[r] = now.roof[r]
 						now.roof[r] = cmd.data.roof[r]
+				elif k == "paint":
+					before.paint = {}
+					var paint := PackedInt32Array(now.paint)
+					for e in cmd.data.paint:
+						before.paint[e] = paint[e]
+						paint[e] = cmd.data.paint[e]
+					now.paint = paint
 				else:
 					before[k] = now[k]
 					now[k] = cmd.data[k]

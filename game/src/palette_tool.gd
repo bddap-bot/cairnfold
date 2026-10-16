@@ -78,8 +78,9 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	var gable := INF
 	var gabled: Wall
 	for w in walls.walls:
-		if w.roof != null and w.roof.gable_hit(origin, dir) < gable:
-			gable = w.roof.gable_hit(origin, dir)
+		var t := w.roof.gable_hit(origin, dir) if w.roof != null else INF
+		if t < gable:
+			gable = t
 			gabled = w
 	if gable < along and (pick.is_empty() or pick.distance > 0.2 or gable < pick.along):
 		return {"element": Palette.Element.PLASTER, "point": origin + dir * gable, "wall": gabled}
@@ -175,9 +176,7 @@ func close(hand: Hand) -> void:
 	elif w.wall < 0:
 		world.submit({"op": "season", "index": w.pick}, world.palette.apply)
 	else:
-		var paint: PackedInt32Array = world.state.walls[w.wall].paint.duplicate()
-		paint[w.element] = w.pick
-		world.submit({"op": "reshape", "id": w.wall, "data": {"paint": paint}}, _settled.bind(w))
+		world.submit({"op": "reshape", "id": w.wall, "data": {"paint": {w.element: w.pick}}}, _settled.bind(w))
 
 
 ## A sent paint is settled before it applies, so the build is shown as the garden has it once it has.

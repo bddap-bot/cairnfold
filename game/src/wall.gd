@@ -20,8 +20,13 @@ var id := -1
 var roof: RoofLayout
 ## Its swatch of each material (Palette.plain), for its stones, roof, woodwork and plaster alike.
 var paint := Palette.plain()
-## The paint the packed parts are coloured in, which a lay under way may not have caught up with.
+## The paint the packed parts are coloured in, which a lay or a recolour under way may not have caught up with.
 var _painted := Palette.plain()
+var _recolour_task := -1
+## A recolour's inputs (`laid`, the lay it scales, and the paint it scales `to`) and the parts it scaled.
+var _recoloured := {}
+## Counts the lays taken, so a recolour of parts a newer lay replaced is dropped.
+var _laid := 0
 ## The walls' own mortar, which a deck's bed joins in Part.MORTAR.
 var _wall_mortar := PackedFloat32Array()
 ## The ids of the builds it stands on; empty on the ground.
@@ -167,12 +172,14 @@ func _cover() -> void:
 
 
 func _ready() -> void:
-	set_process(finished or _build_task >= 0)
+	set_process(finished or _build_task >= 0 or _recolour_task >= 0)
 
 
 func _process(delta: float) -> void:
 	if _build_task >= 0 and WorkerThreadPool.is_task_completed(_build_task):
 		_land()
+	if _recolour_task >= 0 and WorkerThreadPool.is_task_completed(_recolour_task):
+		_land_recolour()
 	if finished:
 		ivy_age += delta
 	if _ivy_task >= 0 and WorkerThreadPool.is_task_completed(_ivy_task):
@@ -187,16 +194,19 @@ func _process(delta: float) -> void:
 	if _live[Part.IVY] != null:
 		var mm := _live[Part.IVY].multimesh
 		mm.visible_instance_count = mini(_ivy_times.bsearch(ivy_age), mm.instance_count)
-	if _build_task < 0 and not _ivy_growing():
+	if _build_task < 0 and _recolour_task < 0 and not _ivy_growing():
 		set_process(false)
 		if _settled:
 			_sync()
 
 
-## Waits for the stones being laid and takes them, for a caller that reads them at once.
+## Waits for the stones being laid and coloured and takes them, for a caller that reads them at once.
 func lay_now() -> void:
-	while _build_task >= 0:
-		_land()
+	while _build_task >= 0 or _recolour_task >= 0:
+		if _build_task >= 0:
+			_land()
+		else:
+			_land_recolour()
 
 
 func _land() -> void:
@@ -218,12 +228,13 @@ func _ivy_growing() -> bool:
 
 
 func _exit_tree() -> void:
-	for t in [_ivy_task, _build_task, _perch_task]:
+	for t in [_ivy_task, _build_task, _perch_task, _recolour_task]:
 		if t >= 0:
 			WorkerThreadPool.wait_for_task_completion(t)
 	_ivy_task = -1
 	_build_task = -1
 	_perch_task = -1
+	_recolour_task = -1
 	masonry.remove(get_instance_id())
 	if _stand_in != null:
 		_stand_in.queue_free()
@@ -474,8 +485,7 @@ func repaint(to: PackedInt32Array) -> void:
 		return
 	paint = to.duplicate()
 	_tint_gables()
-	if _recolour():
-		_sync()
+	_recolour()
 
 
 func _tint_gables() -> void:
@@ -484,30 +494,48 @@ func _tint_gables() -> void:
 		_gables.set_instance_shader_parameter(&"tint", Vector3(t.r, t.g, t.b))
 
 
-## Brings the packed parts from `_painted` to `paint`; whether any changed. The buffers are shared with the lay they
-## came from, which may be taken again, so they are copied, not scaled in place.
-func _recolour() -> bool:
-	if _painted == paint:
-		return false
+## Brings the packed parts from `_painted` to `paint` on a worker thread, a pass over every piece being too long for a
+## frame on a big build; the parts as they stand show until it lands. The buffers are shared with the lay they came
+## from, which may be taken again, so they are copied, not scaled in place.
+func _recolour() -> void:
+	if _painted == paint or _recolour_task >= 0:
+		return
 	if _parts[Part.STONE].is_empty() and _parts[Part.MORTAR].is_empty():
 		_painted = paint.duplicate()
-		return false
+		return
 	var scale := {}
 	for e in Palette.SWATCHES:
 		if _painted[e] != paint[e]:
 			var a := Palette.tint(e, _painted[e])
 			var b := Palette.tint(e, paint[e])
 			scale[float(e)] = Vector3(b.r / a.r, b.g / a.g, b.b / a.b)
-	_painted = paint.duplicate()
 	var ks := kinds()
+	var parts := {}
 	for p in [Part.STONE, Part.MORTAR, Part.TILE]:
-		var stride := ks[p].stride()
-		_parts[p] = Wall._scaled(_parts[p], stride, scale)
-		var chunks := {}
-		for key in _chunked[p]:
-			chunks[key] = Wall._scaled(_chunked[p][key], stride, scale)
-		_chunked[p] = chunks
-	return true
+		parts[p] = [_parts[p], _chunked[p], ks[p].stride()]
+	var out := {"laid": _laid, "to": paint.duplicate()}
+	_recoloured = out
+	set_process(true)
+	_recolour_task = WorkerThreadPool.add_task(func():
+		for p in parts:
+			var stride: int = parts[p][2]
+			var chunks := {}
+			for key in parts[p][1]:
+				chunks[key] = Wall._scaled(parts[p][1][key], stride, scale)
+			out[p] = [Wall._scaled(parts[p][0], stride, scale), chunks])
+
+
+func _land_recolour() -> void:
+	WorkerThreadPool.wait_for_task_completion(_recolour_task)
+	_recolour_task = -1
+	var out := _recoloured
+	if out.laid == _laid:
+		for p in [Part.STONE, Part.MORTAR, Part.TILE]:
+			_parts[p] = out[p][0]
+			_chunked[p] = out[p][1]
+		_painted = out.to
+		_sync()
+	_recolour()
 
 
 ## `buf` (Masonry.Kind: colour at 12, material code at 17) with each piece's colour scaled by its material's `scale`.
@@ -523,6 +551,7 @@ static func _scaled(from: PackedFloat32Array, stride: int, scale: Dictionary) ->
 
 
 func _take(packed: Dictionary) -> void:
+	_laid += 1
 	_painted = packed.paint
 	_parts[Part.STONE] = packed.stone
 	_wall_mortar = packed.mortar

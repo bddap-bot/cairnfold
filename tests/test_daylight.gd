@@ -221,6 +221,7 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 	_check(world.state.walls[first.id].paint[stone] == 2 and tool.wheels.is_empty(), "a twist to the third swatch on the first wall keeps it there")
 	_check(world.state.walls[other.id].paint[stone] == 0 and world.state.walls[house.id].paint[stone] == 0, "the other wall and the house keep their stone")
 	_check(world.stacks[world.me()].undo.size() == steps + 1, "a pick is one undo step")
+	first.lay_now()
 	_check(_scaled_by(first_was, first._parts[Wall.Part.STONE], Palette.tint(stone, 2)), "the first wall's stones are drawn in the new swatch")
 	_check(other._parts[Wall.Part.STONE] == other_was, "the other wall's stones are drawn as they were")
 	var top: Vector3 = roof.mid
@@ -238,6 +239,7 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 	_check(snap.cmds.filter(func(c: Dictionary) -> bool: return c.op == "season").size() == 1, "a joiner's snapshot carries the season")
 	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
 	_check(world.palette.season == Palette.SUMMER and world.state.walls.values().all(func(d: Dictionary) -> bool: return d.paint == Palette.plain()), "undo takes every pick back")
+	first.lay_now()
 	_check(_scaled_by(first_was, first._parts[Wall.Part.STONE], Color.WHITE), "the first wall's stones are drawn as laid again")
 	await _play([{"op": "press", "button": "dpad_up"}])
 	_check(world.state.walls[first.id].paint[stone] == 2 and world.state.walls[other.id].paint[stone] == 0, "redo paints the first wall again, and only it")
@@ -266,9 +268,12 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 	var house_id := house.id
 	world.restore(snap)
 	_check(world.palette.season == 4 and world.state.walls[first_id].paint[stone] == 2 and world.state.walls[house_id].paint[Palette.Element.ROOF] == 3, "a garden rebuilt from its snapshot keeps each build's colours")
-	var off := Palette.plain()
-	off[Palette.Element.ROOF] = Palette.count(Palette.Element.ROOF)
-	_check(Commands.clean({"op": "reshape", "id": house_id, "data": {"paint": off}}, world.state, false).is_empty(), "a swatch off the wheel is refused")
+	_check(Commands.clean({"op": "reshape", "id": house_id, "data": {"paint": {Palette.Element.ROOF: Palette.count(Palette.Element.ROOF)}}}, world.state, false).is_empty(), "a swatch off the wheel is refused")
+	_check(Commands.clean({"op": "reshape", "id": house_id, "data": {"paint": {Palette.Element.MEADOW: 1}}}, world.state, false).is_empty(), "a build takes no season")
+	world.submit({"op": "reshape", "id": house_id, "data": {"paint": {stone: 1}}})
+	world.submit({"op": "reshape", "id": house_id, "data": {"paint": {Palette.Element.WOOD: 2}}})
+	var both: PackedInt32Array = world.state.walls[house_id].paint
+	_check(both[stone] == 1 and both[Palette.Element.WOOD] == 2 and both[Palette.Element.ROOF] == 3, "two players' picks of different materials on one build both stand: %s" % [both])
 
 
 ## `p` as a driver step aims at it.

@@ -249,7 +249,7 @@ static func _reshape(d: Dictionary, now: Dictionary) -> Variant:
 	for k in d:
 		if typeof(k) != TYPE_STRING:
 			return null
-		if k in ["points", "height", "top", "arches", "windows", "lanterns", "flags", "ruins", "paint"]:
+		if k in ["points", "height", "top", "arches", "windows", "lanterns", "flags", "ruins"]:
 			out[k] = d[k]
 			trial[k] = d[k]
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():
@@ -259,6 +259,14 @@ static func _reshape(d: Dictionary, now: Dictionary) -> Variant:
 					return null
 				out.roof[r] = d.roof[r]
 				trial.roof[r] = d.roof[r]
+		elif k == "paint" and d.paint is Dictionary and not d.paint.is_empty():
+			out.paint = {}
+			trial.paint = PackedInt32Array(trial.paint)
+			for e in d.paint:
+				if typeof(e) != TYPE_INT or not Palette.SWATCHES.has(e) or typeof(d.paint[e]) != TYPE_INT:
+					return null
+				out.paint[e] = d.paint[e]
+				trial.paint[e] = d.paint[e]
 		else:
 			return null
 	return out if _wall(trial) != null else null
