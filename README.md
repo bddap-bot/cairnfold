@@ -33,10 +33,12 @@ cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, style
   a wall stone or plaster, plain or arched, or a tree's species.
 - Holding camera: the screen on its back shows what its lens sees, tilted as you
   hold it and with your own avatar in view when you turn it on yourself; the trigger
-  takes a photo, saved as a PNG in the game's `photos` folder
+  takes a photo at the game's best quality, saved as a PNG in the game's `photos` folder
   (`~/.local/share/godot/app_userdata/Nestcombe/photos` from the Linux package;
   `Pictures/Nestcombe` in the headset's shared storage from an APK, where they
-  outlive an uninstall and photos an earlier APK kept move on its next start).
+  outlive an uninstall and photos an earlier APK kept move on its next start). The PNG
+  records where and how it was taken and, unless it is very large, the garden itself:
+  `nestcombe -- --photo FILE` opens that garden seen from the photo's lens.
 - Holding seeds: hold the hand out and keep it calm. A conure may fly down and eat
   standing on it; ducks and sheep come to seeds held low by their pond or fence.
   Animals let you come right up if you move slowly; a sudden move startles them.

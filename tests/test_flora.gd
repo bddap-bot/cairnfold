@@ -259,7 +259,7 @@ func _grass_thins_with_distance() -> void:
 	var whole := []
 	var few := []
 	for mmi: MultiMeshInstance3D in flora.get_children():
-		if mmi.multimesh in [g.mm, flora.ghost_grass.mm] or not mmi.visible:
+		if mmi.multimesh in [g.mm, flora.ghost_grass.mm] or not mmi.visible or not mmi.layers & Quality.VIEW_MASK:
 			continue
 		var at := mmi.multimesh.custom_aabb.get_center()
 		if mmi.multimesh.mesh == g.mesh:
@@ -269,6 +269,11 @@ func _grass_thins_with_distance() -> void:
 	_check(whole.size() == 1 and absf(whole[0] - near.x) < 1.0, "only the near cell draws every clump: %s" % [whole])
 	_check(few.size() == 1 and absf(few[0][0] - mid) < 1.0 and few[0][1] == 1, "the cell past sparse_from draws its survivor alone: %s" % [few])
 	_check(g.sparse.get_faces().size() < g.mesh.get_faces().size(), "from a mesh with fewer blades")
+	var photo := []
+	for mmi: MultiMeshInstance3D in flora.get_children():
+		if mmi.multimesh not in [g.mm, flora.ghost_grass.mm] and mmi.multimesh.mesh in [g.mesh, g.sparse] and mmi.visible and mmi.layers & Quality.PHOTO_MASK:
+			photo.append(mmi.multimesh.mesh == g.mesh)
+	_check(photo.size() == 3 and not photo.has(false), "a photo draws every cell with every clump: %s" % [photo])
 	# A dummy renderer keeps no instance transforms, so where taking a plant out writes is checked instead.
 	_check(g._cell_of[1] == g._cell_of[2] and g._index_in_cell[1] != g._index_in_cell[2], "each clump of a cell has its own place in it")
 	_check(g._sparse_cell_of[1] != null and g._sparse_cell_of[2] == null, "and a survivor its place in the sparse cell too")
@@ -292,7 +297,7 @@ func _flowers_out_of_reach_are_not_drawn() -> void:
 	var shown := []
 	for mmi: MultiMeshInstance3D in flora.get_children():
 		if mmi.multimesh != flora.flowers.mm and mmi.multimesh.mesh == flora.flowers.mesh and mmi.multimesh.instance_count == 1:
-			shown.append(mmi.visible)
+			shown.append(mmi.visible and mmi.layers & Quality.VIEW_MASK != 0)
 	_check(shown.count(true) == 1 and shown.count(false) == 1, "of two meadow flowers, the one beyond reach is not drawn: %s" % [shown])
 	eye.queue_free()
 	flora.queue_free()

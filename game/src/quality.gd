@@ -46,6 +46,13 @@ static var ladder: Array[Step] = [
 ## last step. Changing it reallocates the scene's buffers, a 25 to 72 ms frame on the Frame, so only the last step,
 ## reached when every cheaper one has failed, changes it. The Quest 2 starts at its full resolution.
 const FRAME_SCALE_3D := 0.9
+## What the ladder cuts is drawn on LADDER_LAYER, which the headset's views see, and again whole on FULL_LAYER, which
+## only a photo sees (PhotoTool): grass and flowers to the garden's edge, every stone whole, ivy at every distance.
+## Shaders that shrink things with distance take the photo's camera by `full_layer` (full_detail).
+const LADDER_LAYER := 1 << 16
+const FULL_LAYER := 1 << 17
+const VIEW_MASK := 0xFFFFF & ~FULL_LAYER
+const PHOTO_MASK := 0xFFFFF & ~LADDER_LAYER
 ## Grass and flower reach move toward their step at this many metres a second, so the edge recedes rather than jumps.
 const REACH_RATE := 8.0
 ## Seconds of rendered frames the governor sits out at the start: loading's first frames are not the scene's cost.
@@ -96,6 +103,10 @@ static func popping() -> PackedInt32Array:
 		if ladder[i].shadows != ladder[i + 1].shadows or ladder[i].scale_3d != ladder[i + 1].scale_3d:
 			out.append(i)
 	return out
+
+
+static func full_detail(mat: ShaderMaterial) -> void:
+	mat.set_shader_parameter(&"full_layer", FULL_LAYER)
 
 
 ## The step the knobs are heading to.

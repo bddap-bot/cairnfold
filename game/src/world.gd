@@ -223,10 +223,7 @@ func load_from(path: String) -> void:
 	if not FileAccess.file_exists(path):
 		return
 	var snap: Variant = bytes_to_var(FileAccess.get_file_as_bytes(path))
-	var whole: bool = snap is Dictionary and snap.get("format") == FORMAT and snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT
-	if whole:
-		whole = restore(snap) == snap.cmds.size()
-	if whole:
+	if restore_whole(snap):
 		print("world: loaded %s" % path)
 		return
 	var why := "held a garden this game cannot read whole"
@@ -236,6 +233,12 @@ func load_from(path: String) -> void:
 	push_error("world: %s %s; moved it to .bad (%s)" % [path, why, error_string(err)])
 	if err != OK:
 		save_path = ""
+
+
+## Rebuilds the garden from `snap` (snapshot); false if it is not a garden this game can read whole.
+func restore_whole(snap: Variant) -> bool:
+	var whole: bool = snap is Dictionary and snap.get("format") == FORMAT and snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT
+	return whole and restore(snap) == snap.cmds.size()
 
 
 ## The snapshot is taken here, so the garden it describes cannot change under the writer.

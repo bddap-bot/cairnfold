@@ -23,6 +23,8 @@ uniform float survivors_from;
 uniform float sink = 1.5;
 // Survivors spread wider and stand taller across that band, holding the meadow's cover with a quarter of its clumps.
 uniform vec2 survivor_scale = vec2(2.0, 1.25);
+// A camera seeing this layer (Quality.FULL_LAYER) draws every clump whole at every distance.
+uniform uint full_layer;
 uniform float hand_radius = 0.35;
 uniform vec3 hand_left;
 uniform vec3 hand_right;
@@ -55,7 +57,8 @@ void vertex() {
 	float worn = max(bare(root.xz), bank(water_depth_at(root.xz)));
 	VERTEX = root + (VERTEX - root) * vec3(1.0 - worn * 0.5, 1.0 - worn, 1.0 - worn * 0.5);
 	float dist = distance(root, CAMERA_POSITION_WORLD);
-	float lod = smoothstep(lod_begin, lod_begin + lod_band, dist);
+	bool full = (CAMERA_VISIBLE_LAYERS & full_layer) != 0u;
+	float lod = full ? 0.0 : smoothstep(lod_begin, lod_begin + lod_band, dist);
 	VERTEX = mix(VERTEX + mat3(MODEL_MATRIX) * vec3(CUSTOM0.x, 0.0, CUSTOM0.y) * lod, root, lod * CUSTOM0.z);
 	float rank = COLOR.a;
 	vec2 grown = mix(vec2(1.0), survivor_scale, lod * step(rank, survivors));
@@ -65,10 +68,12 @@ void vertex() {
 	VERTEX = bent(VERTEX, (wind_push(root.xz, gust) + parted(VERTEX, root, hand_left) + parted(VERTEX, root, hand_right)) * size, tip);
 
 	far = smoothstep(far_begin, far_end, dist);
-	float gone = rank < survivors
-		? mix(draw_reach, draw_reach * survivors_from, rank / survivors)
-		: mix(lod_begin + lod_band, lod_begin + sink, (rank - survivors) / (1.0 - survivors));
-	VERTEX = mix(VERTEX, root, smoothstep(gone - sink, gone, dist));
+	if (!full) {
+		float gone = rank < survivors
+			? mix(draw_reach, draw_reach * survivors_from, rank / survivors)
+			: mix(lod_begin + lod_band, lod_begin + sink, (rank - survivors) / (1.0 - survivors));
+		VERTEX = mix(VERTEX, root, smoothstep(gone - sink, gone, dist));
+	}
 	NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), 0.35 + 0.5 * far));
 	if (drowned(INSTANCE_CUSTOM.zw)) {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);

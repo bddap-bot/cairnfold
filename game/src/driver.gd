@@ -798,9 +798,13 @@ func _network_sample(s: Dictionary) -> void:
 
 
 ## Takes a photo with the camera in `hand` (right by default) wherever that hand points, as pulling its
-## trigger does, and waits until it is saved.
+## trigger does, and waits until it is saved. With "view", the same lens's view as the headset draws it is captured
+## first under that name, to set beside the photo.
 func _photo(s: Dictionary) -> void:
-	await main.photo_tool.shoot(_holding(s, Hand.Tool.CAMERA))
+	var hand := _holding(s, Hand.Tool.CAMERA)
+	if s.has("view"):
+		await main.capture(s.view, false, PhotoTool.lens(hand))
+	await main.photo_tool.shoot(hand)
 
 
 ## Throws a handful of seeds from the dish in `hand` (right by default) at `velocity`, as pulling its trigger

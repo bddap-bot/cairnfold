@@ -43,10 +43,7 @@ func _init(folder := DIRECTORY) -> void:
 	DirAccess.make_dir_recursive_absolute(directory)
 	var started := Time.get_unix_time_from_system()
 	session_id = "%d-%d-%d" % [started * 1000, OS.get_process_id(), Time.get_ticks_usec()]
-	var revision := "development"
-	if ResourceLoader.exists("res://revision.tres"):
-		revision = str(load("res://revision.tres").get_meta("revision", revision))
-	metadata = {"schema": 1, "session": session_id, "started": started, "revision": revision,
+	metadata = {"schema": 1, "session": session_id, "started": started, "revision": Main.revision(),
 		"os": OS.get_name(), "device": OS.get_model_name()}
 	_open()
 

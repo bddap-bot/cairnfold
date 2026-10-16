@@ -72,7 +72,7 @@ func _init() -> void:
 	head.position = Vector3(0, EYE, 0)
 	head.near = NEAR
 	head.far = FAR
-	head.cull_mask &= ~SELF_LAYER
+	head.cull_mask = Quality.VIEW_MASK & ~SELF_LAYER
 	add_child(head)
 	gaze = Gaze.new()
 	add_child(gaze)

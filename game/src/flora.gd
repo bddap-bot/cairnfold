@@ -169,6 +169,7 @@ class Pool:
 						_index_in_sparse[few[j]] = j
 					mmi = _show(m)
 					mmi.visible = false
+					mmi.layers = Quality.LADDER_LAYER
 				_sparse_cells.append(mmi)
 		_colors = PackedColorArray()
 		_customs = PackedColorArray()
@@ -238,13 +239,13 @@ class Pool:
 			c.multimesh.mesh = m
 
 	## Not `visibility_range_end`: that measures to the box's centre, which sits high above the ground because a
-	## cell's box spans every height the terrain can be pulled to.
+	## cell's box spans every height the terrain can be pulled to. A cell out of reach stays for a photo.
 	func cull(eye: Vector3, reach: float) -> void:
 		var half := Vector2(cell, cell) * 0.5
 		for i in _cells.size():
 			var off := (_centres[i] - Vector2(eye.x, eye.z)).abs() - half
 			var d := Vector2(maxf(off.x, 0.0), maxf(off.y, 0.0)).length()
-			_cells[i].visible = d < minf(sparse_from, reach)
+			_cells[i].layers = 1 if d < minf(sparse_from, reach) else Quality.FULL_LAYER
 			if sparse != null and _sparse_cells[i] != null:
 				_sparse_cells[i].visible = d >= sparse_from and d < reach
 
@@ -376,6 +377,7 @@ func _init() -> void:
 	grass_mat.set_shader_parameter(&"lod_band", GRASS_LOD_BAND)
 	grass_mat.set_shader_parameter(&"survivors", GRASS_SURVIVORS)
 	grass_mat.set_shader_parameter(&"survivors_from", GRASS_SURVIVORS_FROM)
+	Quality.full_detail(grass_mat)
 	part(NO_HAND, NO_HAND)
 	var clump := Meshes.grass_clump(7, 1, 3)
 	var bloom := Meshes.flower(6)
@@ -388,6 +390,7 @@ func _init() -> void:
 	flower_mat.set_shader_parameter("eye", Meshes.EYE)
 	flower_mat.set_shader_parameter(&"stem", Meshes.FLOWER_HEIGHT)
 	flower_mat.set_shader_parameter(&"draw_reach", flower_reach)
+	Quality.full_detail(flower_mat)
 	flowers = Pool.new(self, bloom, Meadow.FLOWERS + PAINTED_FLOWERS, flower_mat, false)
 	grass.indexed = true
 	flowers.indexed = true

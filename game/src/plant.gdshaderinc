@@ -13,6 +13,8 @@ uniform vec3 backlight : source_color = vec3(0.0);
 // Flowers shrink to their roots over the last draw_fade before draw_reach, so the edge Flora culls at shows no pop.
 uniform float draw_reach = 1000.0;
 uniform float draw_fade = 4.0;
+// A camera seeing this layer (Quality.FULL_LAYER) draws flowers at every distance.
+uniform uint full_layer;
 // Heads seen edge-on from afar are sub-pixel specks that 4x MSAA cannot hold still, so over this band they take
 // the stalk's green.
 uniform float head_fade_begin = 10.0;
@@ -42,7 +44,9 @@ void vertex() {
 	VERTEX = bent(VERTEX, wind_push(root.xz, wind_gust(root.xz)) * size * STALK_GIVE, clamp((VERTEX.y - root.y) / (size * stem), 0.0, 1.0));
 	float dist = distance(root, CAMERA_POSITION_WORLD);
 	far_head = smoothstep(head_fade_begin, head_fade_end, dist);
-	VERTEX = mix(VERTEX, root, smoothstep(draw_reach - draw_fade, draw_reach, dist));
+	if ((CAMERA_VISIBLE_LAYERS & full_layer) == 0u) {
+		VERTEX = mix(VERTEX, root, smoothstep(draw_reach - draw_fade, draw_reach, dist));
+	}
 #endif
 	bounce_at = bounce_coord(VERTEX, NORMAL);
 	lamp_at = lamp_coord(VERTEX, NORMAL);

@@ -13,6 +13,7 @@ func _initialize() -> void:
 	await _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not()
 	_the_lens_turns_as_the_hand_turns_roll_included()
 	_player_data_moves_out_of_the_app_without_losing_any()
+	_a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -164,3 +165,53 @@ func _player_data_moves_out_of_the_app_without_losing_any() -> void:
 	for n in DirAccess.get_files_at(moved.get_base_dir()):
 		DirAccess.remove_absolute(moved.get_base_dir().path_join(n))
 	DirAccess.remove_absolute(moved.get_base_dir())
+
+
+func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
+	var rig := Rig.new()
+	root.add_child(rig)
+	var tool := PhotoTool.new(rig)
+	root.add_child(tool)
+	var vp := tool.photo_viewport()
+	_check(vp.size == Vector2i(3200, 2400) and vp.msaa_3d == Viewport.MSAA_8X, "a photo is 3200x2400 at 8x MSAA: %s, %d" % [vp.size, vp.msaa_3d])
+	_check(vp.mesh_lod_threshold == 0.0 and vp.anisotropic_filtering_level == Viewport.ANISOTROPY_16X, "a photo draws every mesh whole and filters textures 16x")
+	_check(Quality.PHOTO_MASK & Quality.FULL_LAYER and not Quality.PHOTO_MASK & Quality.LADDER_LAYER and Quality.PHOTO_MASK & Rig.SELF_LAYER, "a photo sees the whole garden, not the ladder's cut of it, and the player's own avatar")
+	_check(rig.head.cull_mask & Quality.LADDER_LAYER and not rig.head.cull_mask & Quality.FULL_LAYER, "the headset sees the ladder's cut and not the whole")
+	_check(Quality.VIEW_MASK & Quality.LADDER_LAYER and not Quality.VIEW_MASK & Quality.FULL_LAYER and tool._view_viewport().msaa_3d == Viewport.MSAA_4X, "a view capture is drawn as the eyes see it")
+	var flora := Flora.new()
+	root.add_child(flora)
+	flora.blob_detail = Quality.ladder[-1].blob_detail
+	tool.flora = flora
+	var undo := tool.draw_finest()
+	_check(flora.blob_detail == Quality.ladder[0].blob_detail, "a photo's frame draws the finest blobs")
+	undo.call()
+	_check(flora.blob_detail == Quality.ladder[-1].blob_detail, "and puts the headset's back after")
+	_check(flora.grass_mat.get_shader_parameter(&"full_layer") == Quality.FULL_LAYER and flora.flower_mat.get_shader_parameter(&"full_layer") == Quality.FULL_LAYER, "grass and flowers grow to every distance for a photo")
+	var ivy: ShaderMaterial = Wall.kinds()[Wall.Part.IVY].material
+	_check(ivy.get_shader_parameter(&"full_layer") == Quality.FULL_LAYER, "and so does ivy")
+	var parent := Node3D.new()
+	root.add_child(parent)
+	var look := Look.build(parent)
+	var sun := look.photo_sun
+	_check(look.sun.layers == Quality.LADDER_LAYER and sun.layers == Quality.FULL_LAYER, "a photo is lit by its own sun, the headset by the other")
+	_check(sun.directional_shadow_mode == DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS and sun.directional_shadow_max_distance >= Terrain.SIZE * sqrt(2.0), "a photo's shadows reach the garden's far corner in four splits: %.0f m" % sun.directional_shadow_max_distance)
+	look.set_time(0.9)
+	_check(sun.global_basis.is_equal_approx(look.sun.global_basis) and sun.light_color == look.sun.light_color and sun.light_energy == look.sun.light_energy, "and it stands and shines as the sun does")
+	_check(PhotoTool.settings().shadow_atlas == PhotoTool.PHOTO_SHADOWS and PhotoTool.PHOTO_SHADOWS >= 8192, "a photo's frame draws shadows into an 8192 atlas")
+	var glade := Masonry.new(Wall.kinds())
+	root.add_child(glade)
+	var parts: Array[Dictionary] = []
+	for k in Wall.kinds().size():
+		var buf := PackedFloat32Array()
+		buf.resize(Wall.kinds()[k].stride())
+		Wall.kinds()[k].write(buf, 0, Transform3D(Basis(), Vector3(1, 0, 1)))
+		parts.append(Masonry.split(buf, Wall.kinds()[k].stride()))
+	glade.place(1, parts)
+	var chunk: Masonry.Chunk = glade._chunks.values()[0]
+	for k in [Wall.Part.STONE, Wall.Part.IVY]:
+		var full := chunk.fulls[k]
+		_check(full != null and full.multimesh == chunk.instances[k].multimesh and full.layers == Quality.FULL_LAYER and full.visibility_range_end == 0.0, "a photo draws part %d whole at every distance" % k)
+		_check(chunk.instances[k].layers == Quality.LADDER_LAYER and chunk.instances[k].visibility_range_end > 0.0, "the headset draws part %d as the ladder allows" % k)
+	_check(chunk.fulls[Wall.Part.STONE_SHADOW] == null, "what is drawn whole anyway has no second instance")
+	for n in [tool, flora, parent, glade, rig]:
+		n.queue_free()

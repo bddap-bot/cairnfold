@@ -1,6 +1,8 @@
 class_name Meadow
 extends Node3D
 
+## Every meadow grows from this seed, so a garden is its build commands.
+const SEED := 5
 const GRASS_CLUMPS := 22000
 const GRASS_RADIUS := 36.0
 const FLOWERS := 3200
@@ -20,7 +22,7 @@ func _init(plants: Flora) -> void:
 
 func _ready() -> void:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 5
+	rng.seed = SEED
 	_ground()
 	_plants(rng)
 

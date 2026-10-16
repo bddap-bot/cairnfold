@@ -30,6 +30,8 @@ static var _detail: NoiseTexture2D
 static var _flagstones: ImageTexture
 
 var sun: DirectionalLight3D
+## The sun as a photo sees it (Quality.FULL_LAYER); turned with `sun` as its child, lit as it is.
+var photo_sun: DirectionalLight3D
 var env: Environment
 var sky_mat: ShaderMaterial
 var disc: MeshInstance3D
@@ -147,6 +149,13 @@ static func build(parent: Node) -> Look:
 	sun.shadow_normal_bias = 1.2
 	parent.add_child(sun)
 	look.sun = sun
+	look.photo_sun = sun.duplicate()
+	sun.layers = Quality.LADDER_LAYER
+	look.photo_sun.layers = Quality.FULL_LAYER
+	look.photo_sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
+	look.photo_sun.directional_shadow_max_distance = SHADOW_REACH
+	look.photo_sun.directional_shadow_blend_splits = true
+	sun.add_child(look.photo_sun)
 	look.env = env
 	look.sky_mat = sky_mat
 	var quad := QuadMesh.new()
@@ -175,8 +184,9 @@ func set_time(t: float) -> void:
 	time = t
 	var l := Daylight.light(t)
 	sun.basis = Basis.looking_at(-Daylight.toward_sun(t))
-	sun.light_color = l.sun
-	sun.light_energy = l.energy
+	for light in [sun, photo_sun]:
+		light.light_color = l.sun
+		light.light_energy = l.energy
 	disc_mat.set_shader_parameter("tint", l.sun)
 	env.ambient_light_energy = l.ambient
 	env.fog_light_color = l.fog

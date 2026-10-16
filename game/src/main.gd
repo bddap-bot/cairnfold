@@ -95,6 +95,8 @@ func _ready() -> void:
 	sky_tool = SkyTool.new(rig, look, world, _editing)
 	add_child(sky_tool)
 	photo_tool = PhotoTool.new(rig)
+	photo_tool.flora = flora
+	photo_tool.scene = _photo_scene
 	if args.has("capture-dir"):
 		photo_tool.folder = str(args["capture-dir"]).path_join("photos")
 	add_child(photo_tool)
@@ -150,14 +152,45 @@ func _ready() -> void:
 	add_child(metrics)
 	if played:
 		move_to_player_paths()
-	var garden: String = args.get("garden", player_path("garden.save") if played else "")
+	var garden: String = args.get("garden", player_path("garden.save") if played and not args.has("photo") else "")
 	if garden != "":
 		world.load_from(garden)
+	if args.has("photo"):
+		open_photo(args.photo)
 	if args.has("script"):
 		add_child(Driver.new(self, Driver.read(args.script)))
 	if args.has("quit-after"):
 		get_tree().create_timer(float(args["quit-after"])).timeout.connect(finish)
 	get_tree().auto_accept_quit = false
+
+
+## The commit this build was exported from (scripts/package.sh), or "development" when run from the source.
+static func revision() -> String:
+	if ResourceLoader.exists("res://revision.tres"):
+		return str(load("res://revision.tres").get_meta("revision", "development"))
+	return "development"
+
+
+## What a photo records of the garden it is taken in (PhotoTool.scene).
+func _photo_scene() -> Dictionary:
+	var away := not session.visiting.is_empty()
+	var host: String = session.nearby.get("%s:%d" % [session.visiting.address, session.visiting.port], {}).get("name", "") if away else session.me.name
+	return {"about": {"time_of_day": look.time, "garden": {"host": host, "visiting": away,
+		"commands": world.seq, "meadow_seed": Meadow.SEED, "wildlife_seed": str(wildlife.rng.seed)}}, "world": world.snapshot()}
+
+
+## Opens a photo this game took as the garden it shows, if it carries one, at its time of day, seen from its lens;
+## nothing of it is kept. False if the photo holds no garden this game can read whole.
+func open_photo(path: String) -> bool:
+	var got := PhotoMeta.read(FileAccess.get_file_as_bytes(path))
+	if got.is_empty() or not world.restore_whole(got.world):
+		push_error("photo: %s holds no garden this game can open" % path)
+		return false
+	look.set_time(got.about.get("time_of_day", Daylight.DEFAULT))
+	var lens := PhotoTool.lens_of(got.about)
+	view(lens.origin, lens.origin - lens.basis.z, false)
+	print("photo: opened %s" % path)
+	return true
 
 
 func _process(_delta: float) -> void:
@@ -232,13 +265,15 @@ func view(eye: Vector3, at: Vector3, relative: bool) -> void:
 
 
 ## With `screen`, saves the camera screen's view from the eyes instead: a headset's tracked hand points wherever
-## the controller lies.
-func capture(name: String, screen := false) -> void:
+## the controller lies. With `lens`, saves that lens's view as the eyes would see it, to set beside a photo.
+func capture(name: String, screen := false, lens: Variant = null) -> void:
 	var dir: String = args.get("capture-dir", "user://captures")
 	DirAccess.make_dir_recursive_absolute(dir)
 	var img: Image
 	if screen:
 		img = await photo_tool.render_screen(rig.head.global_transform)
+	elif lens != null:
+		img = await photo_tool.render(lens, PhotoTool.FOV, Quality.VIEW_MASK)
 	elif metrics.info.xr:
 		img = await photo_tool.render(rig.head.global_transform, 90.0, rig.head.cull_mask)
 	else:

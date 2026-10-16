@@ -1283,7 +1283,7 @@ Stage numbers refer to the build order at the end.
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of left X (the Frame's D-pad down) undoes a step, right A redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it, so a process killed mid-write leaves the last one whole (`tests/test_kill.gd`); a quit writes one still due before the sounds wind down. It is loaded at start. Only your own garden is kept, never one you are visiting. A file of another format, or one the game cannot read whole, is moved aside to `garden.save.bad` before the garden is saved again, and the log says which. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
 | Wildlife | Sheep, birds, ducks, fireflies, deer, a fox | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, fish swim in it, butterflies gather over painted flowers, fireflies come out over both at dusk, conures perch on a tree or wall, sheep graze beside a fence; deer and a fox come out of the trees round the meadow (see "Wildlife") | 11 |
-| Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 1600×1200 photo with a level horizon, saved as a PNG (see "Photos") | 11 (done) |
+| Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 3200×2400 photo at full quality, saved as a PNG under `user://photos` that records where and how it was taken (see "Photos") | 11 (done) |
 | Painting | None | A big easel set up on the ground, painted with a brush held in the hand in watercolour, oil or charcoal (see "Painting") | done |
 | Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network with the visit tool (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
 
@@ -2070,14 +2070,48 @@ with other bytes keeps its place and the moved one lands beside it as `.user-N`.
 moment with a soft flash, and the hand gets a short buzz on the press. Either hand can hold a
 camera; both show the view of the first.
 
+Directive (verbatim):
+> I'd like to be able to take a super graphics quality photo that just turns everything all the way up, no level of detail or anything; it can take a long time to render that frame. ... I would like to take very fancy photos. Also give a way to embed metadata about where and how the photo was taken, that'd be cool. I don't know if you can embed a whole world in it, but if the world is small enough, then maybe you could.
+
+**Decision: every photo is the fancy one.** One shutter, one rule, no setting: the trigger always
+draws the photo as well as the game can, whatever step of the ladder ("Automatic quality") the
+headset stands on. A photo is 3200×2400 at 8x MSAA, its meshes at full detail
+(`mesh_lod_threshold` 0) and its textures filtered 16x; it sees grass, flowers and ivy to the
+garden's edge, grass blades whole at every distance, every stone with its full mesh and the
+foliage's finest blobs; and its sun casts shadows to the garden's far corner
+(`Look.SHADOW_REACH`) in four blended splits drawn into an 8192 atlas. The eyes' views
+and a scripted run's view captures (`Main.capture`) are drawn as the ladder allows, as before.
+
+How one scene is drawn two ways: what the ladder cuts lives on `Quality.LADDER_LAYER`, which the
+headset's cameras see, and a second, uncut instance of it on `Quality.FULL_LAYER`, which only the
+photo's camera sees. A wall chunk's stones and ivy each get one more `MultiMeshInstance3D` sharing
+the near instance's multimesh with no visibility range; a grass or flower cell out of reach moves
+to the full layer instead of hiding; the sun has a twin on the full layer, a child of it, lit as
+it is. The grass, flower and ivy shaders shrink nothing for a camera seeing the full layer
+(`CAMERA_VISIBLE_LAYERS`). Two things both views share are set for the photo's one frame only,
+after every script has run (`RenderingServer.frame_pre_draw`) and put back after it draws: the
+directional shadow atlas size and which blob mesh the foliage draws. The headset sees that one
+frame drawn so too.
+
 What it costs: nothing until a hand first holds the camera. The screen is then a second view of
 the garden at `PhotoTool.PREVIEW_SIZE` without MSAA, out to the eye's own far clip (`Rig.FAR`, the
 one view range the eye, the screen and the photo share), redrawn on one frame in three:
 that frame pays the scene's draw calls and shadow pass again at a small size. A photo is one
-more render at photo size on the frame after the press, read back from the GPU asynchronously
-and written on a worker thread, so no frame waits on the pixels. A headset run's view captures
-(`Main.capture`) take the same render from the head and cost no late frame on the
-Frame (see "Frame measurements"). A held camera is not yet measured on a headset.
+render on the frame after the press, read back from the GPU asynchronously, then converted,
+encoded and written on a worker thread, so no frame waits on the pixels. Its 8x MSAA view is made
+for the shot and let go once the screen stops showing it. The frame drawing it is long; the
+runtime shows the last frame reprojected meanwhile. PHOTO_COST_LINE
+
+Where and how it was taken (`PhotoMeta`): any PNG reader sees `Software: Nestcombe <rev>`; an
+iTXt chunk keyed `nestcombe` holds JSON with the lens's position, rotation and field of view, the
+time of day, the garden (its host, whether visited, its command count, the meadow's and the
+wildlife's seeds), the build's revision, when it was taken, and the settings above. The garden
+itself, as it is saved (`World.snapshot`), packed with zstd, goes in a private chunk `neSt` when
+it packs to at most `PhotoMeta.WORLD_MAX` (4 MiB); a bigger garden is left out and the JSON's
+`world` says how big it was. A garden of walls, houses and painted plants packs to a few
+kilobytes; ground shaped across the whole meadow adds its heights. `nestcombe -- --photo FILE`
+opens a photo's garden at its time of day, seen from its lens, and keeps nothing of it; a photo
+without one opens nothing.
 
 ## Painting
 
@@ -2132,7 +2166,7 @@ walls in each top style, and shapes the roofs; `demo/paths.json` lays paths thro
 arcade), draws a wall across a wide path and raises the ground under a path; `demo/fittings.json` opens windows
 and doors in a wall, a house and a round wall, hangs lanterns, flies flags, builds a chimney and draws a fence a
 path crosses; `demo/stone.json` paints stone ground into the meadow, paints part of it back and
-walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete, then empties the hand; `demo/photo.json` takes the camera from the wheel and takes two photos; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
+walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete, then empties the hand; `demo/photo.json` takes the camera from the wheel and takes two photos, each beside the view through the same lens as the headset draws it, the second at the ladder's bottom step; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks
 at a perched one from in front and from the side;
 `demo/feeding.json` builds a pond, trees, a wall and a fence, waits for the animals, then holds seeds out to a conure, the ducks and the sheep, throws handfuls to the sheep and onto the pond and watches the uneaten ones sink away;

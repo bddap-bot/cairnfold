@@ -83,6 +83,7 @@ static func kinds() -> Array[Masonry.Kind]:
 		var box := BoxMesh.new()
 		var leaf := ShaderMaterial.new()
 		leaf.shader = load("res://src/ivy.gdshader")
+		Quality.full_detail(leaf)
 		var off := GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var shadow := Masonry.Kind.new(Meshes.shadow_box(), null, false, false, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
 		_kinds.resize(Part.size())

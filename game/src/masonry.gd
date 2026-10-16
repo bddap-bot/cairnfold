@@ -93,6 +93,9 @@ class Chunk:
 	var instances: Array[MultiMeshInstance3D] = []
 	## Each kind's far instance, null for a kind without one.
 	var fars: Array[MultiMeshInstance3D] = []
+	## Each kind's whole instance for a photo, sharing `instances`' multimesh at every distance (Quality.FULL_LAYER),
+	## null for a kind drawn whole anyway.
+	var fulls: Array[MultiMeshInstance3D] = []
 	## Owner id -> one buffer per kind.
 	var parts := {}
 
@@ -207,6 +210,16 @@ func _chunk(key: Vector2i) -> Chunk:
 				far.multimesh.mesh = k.far
 				add_child(far)
 			c.fars.append(far)
+			var full: MultiMeshInstance3D = null
+			if k.far != null or k.reach > 0.0:
+				mmi.layers = Quality.LADDER_LAYER
+				if far != null:
+					far.layers = Quality.LADDER_LAYER
+				full = k.instance()
+				full.multimesh = mmi.multimesh
+				full.layers = Quality.FULL_LAYER
+				add_child(full)
+			c.fulls.append(full)
 		_chunks[key] = c
 		_ranges(c)
 	return _chunks[key]
