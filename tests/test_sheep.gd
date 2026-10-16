@@ -36,7 +36,7 @@ class Glade:
 	var walls: WallTool
 	var water: Water
 	var digger: WaterTool
-	var terrain: TerrainTool
+	var terrain: GroundGrab
 	var flora: Flora
 	var wildlife: Wildlife
 
@@ -58,7 +58,7 @@ func _glade(seed: int) -> Glade:
 	g.walls = WallTool.new(g.rig, g.world, g.flora, paths)
 	g.walls.set_process(false)
 	root.add_child(g.walls)
-	g.terrain = TerrainTool.new(g.rig, g.world)
+	g.terrain = GroundGrab.new(g.rig, g.world)
 	g.terrain.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(g.terrain)
 	g.water = Water.new([])

@@ -1,11 +1,12 @@
-class_name TerrainTool
+class_name GroundGrab
 extends Node3D
 
-## Shapes the ground, for whichever hand holds it: the trigger grabs the ground where the hand points and
-## the grabbed point follows the hand up into a hill or down into a hollow, shown as the ground's live
-## hump. Letting go sends the ground's new heights as a build command; the hump shows until it is in.
-## Farther ground grabs a wider hill and rises faster than the hand. One stroke at a time, since the
-## ground carries one live hump.
+## Shapes the ground, whatever a hand holds: a grip on the ground grabs it where the hand points and the
+## grabbed point follows the hand up into a hill or down into a hollow, shown as the ground's live hump.
+## Letting go sends the ground's new heights as a build command; the hump shows until it is in. Farther
+## ground grabs a wider hill and rises faster than the hand. One stroke at a time, since the ground carries
+## one live hump. The ground is the last thing a grip takes: a wall, roof, carried house or the sun it
+## points at takes it first.
 
 const MIN_RADIUS := 2.0
 const MAX_RADIUS := 9.0
@@ -22,7 +23,8 @@ signal reshaped(area: Rect2, settled: bool)
 
 var rig: Rig
 var world: World
-var _triggers: Array[Buttons] = []
+var editing: Callable
+var _grips: Array[Buttons] = []
 var _rings: Array[MeshInstance3D] = []
 var _hand: Hand
 var _hand_y := 0.0
@@ -40,9 +42,11 @@ var _pending := Rect2()
 var _due := Rect2()
 
 
-func _init(player: Rig, garden: World) -> void:
+func _init(player: Rig, garden: World, busy: Callable = func() -> bool: return false) -> void:
 	rig = player
 	world = garden
+	editing = busy
+	process_priority = 10
 	world.restored.connect(drop)
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.97
@@ -54,7 +58,7 @@ func _init(player: Rig, garden: World) -> void:
 	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	mat.albedo_color = TINT
 	for h in rig.hands:
-		_triggers.append(Buttons.new(h).watch(["trigger_click"]))
+		_grips.append(Buttons.new(h).watch(["grip_click"]))
 		var mi := MeshInstance3D.new()
 		mi.mesh = ring
 		mi.material_override = mat
@@ -71,17 +75,16 @@ func busy() -> bool:
 
 func _process(delta: float) -> void:
 	for i in rig.hands.size():
-		_handle(rig.hands[i], _triggers[i], _rings[i], delta)
-		_triggers[i].latch()
+		_handle(rig.hands[i], _grips[i], _rings[i], delta)
+		_grips[i].latch()
 	if _hand != null:
 		_hand.hold()
 
 
-func _handle(hand: Hand, trigger: Buttons, ring: MeshInstance3D, delta: float) -> void:
+func _handle(hand: Hand, grip: Buttons, ring: MeshInstance3D, delta: float) -> void:
 	ring.visible = false
-	var holding := hand.tool == Hand.Tool.TERRAIN and rig.aim_hand != hand
 	if _hand == hand:
-		if not holding or not trigger.held("trigger_click"):
+		if rig.aim_hand == hand or hand.taken() or not grip.held("grip_click"):
 			end_stroke()
 			return
 		var g: Vector3 = _grabbed
@@ -91,23 +94,20 @@ func _handle(hand: Hand, trigger: Buttons, ring: MeshInstance3D, delta: float) -
 		pull((hand.position.y - _hand_y) * _gain)
 		follow(delta)
 		_tick(hand)
-		hand.point(g + Vector3.UP * _lift, TINT)
 		return
-	if not holding or not hand.get_has_tracking_data():
+	if not grip.pressed("grip_click") or busy() or hand.taken() or hand.picking or rig.aim_hand == hand or not hand.get_has_tracking_data() or editing.call():
 		return
 	var t := hand.global_transform
 	var hit: Variant = Terrain.raycast(t.origin, -t.basis.z)
-	hand.point(hit, TINT)
-	if hit == null or busy():
+	if hit == null:
 		return
 	var reach := t.origin.distance_to(hit)
-	_show_ring(ring, hit, clampf(reach * RADIUS_PER_METRE, MIN_RADIUS, MAX_RADIUS))
-	if trigger.pressed("trigger_click"):
-		_hand = hand
-		_hand_y = hand.position.y
-		_gain = Hand.reach_gain(reach)
-		_ticked = 0.0
-		begin(hit, reach * RADIUS_PER_METRE)
+	_hand = hand
+	_hand_y = hand.position.y
+	_gain = Hand.reach_gain(reach)
+	_ticked = 0.0
+	begin(hit, reach * RADIUS_PER_METRE)
+	_show_ring(ring, hit, _radius)
 
 
 func _show_ring(ring: MeshInstance3D, at: Vector3, radius: float) -> void:

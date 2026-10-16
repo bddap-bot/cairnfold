@@ -78,7 +78,7 @@ func _ducks_come_only_to_ponds() -> void:
 	root.add_child(rig)
 	var world := World.new()
 	root.add_child(world)
-	var terrain := TerrainTool.new(rig, world)
+	var terrain := GroundGrab.new(rig, world)
 	root.add_child(terrain)
 	var water := Water.new([])
 	terrain.reshaped.connect(water.reground)

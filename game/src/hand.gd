@@ -4,7 +4,7 @@ extends XRController3D
 ## A controller and the tool it holds. Every tool's input code dispatches on `tool`, and the object on top
 ## of the controller and the selection wheel show it, so they cannot disagree.
 
-enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, TERRAIN, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, PLASTER_WALLS, PLASTER_HOUSE }
+enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, PLASTER_WALLS, PLASTER_HOUSE }
 
 ## The wheel's contents, clockwise from the top; an Array is a subtree, null an empty slot. Subtrees sit
 ## on slots reached by a sideways swing, so their items open on the other side. Fixed, so every pick is a
@@ -15,7 +15,7 @@ const TREE := [
 	[Tool.FLOWERS, Tool.GRASS, Tool.TREES, Tool.POND],
 	Tool.VISIT,
 	Tool.DELETE,
-	[Tool.PATH, Tool.STONE, Tool.TERRAIN],
+	[Tool.PATH, Tool.STONE],
 	[Tool.WALLS, Tool.PLASTER_WALLS, Tool.FENCE, Tool.WINDOWS],
 	[Tool.HOUSE, Tool.PLASTER_HOUSE, Tool.DECORATIONS],
 ]
@@ -189,6 +189,11 @@ func ray(target: Vector3, tint: Color) -> bool:
 	_beam.span(global_position, target)
 	(_beam.material_override as StandardMaterial3D).albedo_color = tint
 	return true
+
+
+## Whether a tool already holds this hand this frame.
+func taken() -> bool:
+	return _holding
 
 
 func clear_pointer() -> void:

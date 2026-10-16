@@ -4,7 +4,7 @@ extends SceneTree
 
 var failures := 0
 var main: Node
-var tool: TerrainTool
+var tool: GroundGrab
 
 
 func _initialize() -> void:
@@ -14,7 +14,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	tool = main.terrain_tool
+	tool = main.ground_grab
 	_pull_raises_a_smooth_hill()
 	_baking_a_live_hump_moves_nothing()
 	_texture_matches_the_heights()

@@ -63,13 +63,14 @@ func _teardown(nodes: Array) -> void:
 		n.queue_free()
 
 
-## Sweeps the brush of `hand` holding `held` from `a` to `b` over a second and lets go.
-func _stroke(t: FloraTool, hand: int, held: Hand.Tool, a: Vector2, b: Vector2, radius: float, meadow := false) -> void:
+## Sweeps the brush of `hand` holding `held` from `a` to `b` over a second and lets go, as a trigger held does.
+func _stroke(t: FloraTool, hand: int, held: Hand.Tool, a: Vector2, b: Vector2, radius: float) -> void:
 	var brush := t.brushes[hand]
 	brush.hand.tool = held
+	brush.meadow = FloraTool.paints_meadow(held, Terrain.ground(a.x, a.y))
 	for i in 61:
 		var p := a.lerp(b, i / 60.0)
-		t.paint(brush, Terrain.ground(p.x, p.y), radius, 1.0 / 60.0, meadow)
+		t.paint(brush, Terrain.ground(p.x, p.y), radius, 1.0 / 60.0)
 	t.end_stroke(brush)
 
 
@@ -140,8 +141,8 @@ func _meadow_takes_back_stone_but_not_a_path() -> void:
 	_lay(nodes, Vector2(-6, 40), Vector2(6, 40), 0.8)
 	_stroke(t, 0, Hand.Tool.STONE, Vector2(-4, 40.5), Vector2(4, 40.5), 1.5)
 	_check(Ground.stone(0, 40) > 0.99, "stone laid over the path covers it (%.2f)" % Ground.stone(0, 40))
-	_stroke(t, 0, Hand.Tool.STONE, Vector2(-4, 40.5), Vector2(4, 40.5), 2.5, true)
-	_check(Ground.stone(0, 40.5) == 0.0 and Ground.stone(0, 40) == 0.0, "the grip paints stone back to meadow (%.2f)" % Ground.stone(0, 40.5))
+	_stroke(t, 0, Hand.Tool.STONE, Vector2(-4, 40.5), Vector2(4, 40.5), 2.5)
+	_check(Ground.stone(0, 40.5) == 0.0 and Ground.stone(0, 40) == 0.0, "a stone stroke begun on stone paints it back to meadow (%.2f)" % Ground.stone(0, 40.5))
 	_check(Ground.bare(0, 40) > 0.99, "and the path under the stone is still worn (%.2f)" % Ground.bare(0, 40))
 	world.undo()
 	_check(Ground.stone(0, 40.5) > 0.99, "undoing the meadow stroke brings the stone back (%.2f)" % Ground.stone(0, 40.5))

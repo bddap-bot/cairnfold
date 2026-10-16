@@ -11,14 +11,14 @@ build order.
 ## Controls
 
 Each hand holds a tool, shown as a small object on top of its controller: walls,
-paths, flowers, grass, trees, terrain, pond, colour, camera, delete or visit.
+paths, stone, flowers, grass, trees, pond, colour, camera, delete or visit.
 
 - Hold B (right) or View (left), and a wheel of tools stands up in front of that
   hand: sweep the hand onto a tool and let go to take it. A slot showing a little
   cluster opens more tools on its far side: swing back onto one. Picks zig-zag
   left and right, the same motion every time.
-- Trigger: use the tool. Draw a wall, lay a path, paint, plant a tree, grab the
-  ground and lift or lower the hand to pull a hill or press a hollow, dig a pond
+- Trigger: use the tool. Draw a wall, lay a path, paint (a stone stroke begun on
+  stone paints meadow back), plant a tree, dig a pond
   (hold to dig deeper, release to fill), or erase: hold it on a wall and sweep
   along it to break that stretch into a ruin (a tap breaks a short gap, sweeping
   it all takes it all), or press on a tree or painted plants to take them. A path through a wall opens an
@@ -30,17 +30,19 @@ paths, flowers, grass, trees, terrain, pond, colour, camera, delete or visit.
   takes a photo, saved as a PNG in the game's `photos` folder
   (`~/.local/share/godot/app_userdata/Nestcombe/photos` on the Frame; inside the
   app on a Quest).
-- Point any hand at the sun and grip it, then move the hand to drag it across the sky: dawn to dusk.
+- Grip, whatever the hand holds: grab what you point at and drag it. Grab the
+  ground (a pond's bed too) and raise the hand to pull a hill or lower it to press
+  a hollow; grab a wall to pull its height, a roof to shape it, the sun to drag it
+  across the sky. Grip never builds anything.
 - A hand’s pointer disappears while grabbing and returns when released.
 - Holding visit: a small figure of each player nearby on the same network stands
   in front of you; point at one and pull the trigger to build in their garden
   with them. While visiting, pick the little cairn to go home.
 - The wall and house groups offer stone and plaster miniatures. Plaster keeps stone bases,
   corners and opening trim; either material supports the same roofs and fittings.
-- Holding walls: grip on a wall pulls its height, grip on a roof shapes it; A on a
-  wall cuts or fills an arch, A on its top changes its style; a loop held closed
+- Holding walls: A on a wall cuts or fills an arch, A on its top changes its style; a loop held closed
   snaps to a round tower.
-- Holding the house: trigger or grip takes up a house where you point; carry it,
+- Holding the house: trigger takes up a house where you point; carry it,
   add the other grip to turn it and stretch it between your hands; let go to
   build.
 - Left stick forward: aim a teleport from the left hand, whatever it holds;

@@ -23,7 +23,7 @@ signal restored
 var wall_tool: WallTool
 var flora: Flora
 var paths: Paths
-var terrain_tool: TerrainTool
+var ground_grab: GroundGrab
 var water: Water
 ## The glade's colours: a swatch per material and the season.
 var palette := Palette.new()
@@ -116,11 +116,11 @@ static func _write(path: String, bytes: PackedByteArray) -> void:
 		push_error("world: cannot save the garden at %s: %s" % [path, error_string(err)])
 
 
-func attach(walls: WallTool, plants: Flora, ways: Paths, ground: TerrainTool, ponds: Water = null) -> void:
+func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, ponds: Water = null) -> void:
 	wall_tool = walls
 	flora = plants
 	paths = ways
-	terrain_tool = ground
+	ground_grab = ground
 	water = ponds
 	if flora != null and flora.groups.has(0):
 		state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}}
@@ -411,7 +411,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			inverse = {"op": "show", "plants": changed, "on": not cmd.on}
 		"heights":
 			inverse = {"op": "heights", "cells": cmd.cells, "values": Terrain.read(cmd.cells)}
-			terrain_tool.restore(cmd.cells, cmd.values)
+			ground_grab.restore(cmd.cells, cmd.values)
 			sculpted = true
 			if cmd.has("seed") and water != null:
 				state.seeds.append(cmd.seed)
@@ -540,7 +540,7 @@ func _clear() -> void:
 	palette.apply()
 	state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}}
 	if sculpted:
-		terrain_tool.restore(Terrain.ALL, Terrain.base_heights())
+		ground_grab.restore(Terrain.ALL, Terrain.base_heights())
 		sculpted = false
 
 

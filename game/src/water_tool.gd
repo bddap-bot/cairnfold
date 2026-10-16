@@ -14,18 +14,18 @@ const MIN_SCOOP := 0.45
 const TINT := Color(0.7, 0.92, 1.0, 0.6)
 
 var rig: Rig
-var terrain: TerrainTool
+var terrain: GroundGrab
 var water: Water
-## The hand digging now; the terrain tool pulls one stroke at a time.
+## The hand digging now; the ground grab pulls one stroke at a time.
 var digger: Hand
 var _buttons: Array[Buttons] = []
 var _at := Vector3.ZERO
 var _depth := 0.0
 
 
-func _init(player: Rig, terrain_tool: TerrainTool, ponds: Water) -> void:
+func _init(player: Rig, ground_grab: GroundGrab, ponds: Water) -> void:
 	rig = player
-	terrain = terrain_tool
+	terrain = ground_grab
 	water = ponds
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["trigger_click"]))

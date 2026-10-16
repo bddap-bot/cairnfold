@@ -319,13 +319,14 @@ func _paint(s: Dictionary) -> void:
 	var b := flora_tool.brush(main.rig.left if s.get("hand", "left") == "left" else main.rig.right)
 	b.hand.tool = Hand.Tool[s.tool.to_upper()]
 	var path := _path(s)
+	b.meadow = FloraTool.paints_meadow(b.hand.tool, _along(path, 0.0))
 	var t := 0.0
 	var seconds: float = s.get("seconds", 2.0)
 	while t < seconds:
 		await get_tree().process_frame
 		var dt := get_process_delta_time()
 		t += dt
-		flora_tool.paint(b, _along(path, minf(t / seconds, 1.0)), s.radius, dt, s.get("meadow", false))
+		flora_tool.paint(b, _along(path, minf(t / seconds, 1.0)), s.radius, dt)
 	flora_tool.end_stroke(b)
 
 
@@ -346,10 +347,10 @@ func _pave(s: Dictionary) -> void:
 	flora_tool.end_path(b)
 
 
-## Grabs the ground at x, z and pulls it `lift` metres over `seconds` (negative digs), as a hand on the terrain tool does.
+## Grabs the ground at x, z and pulls it `lift` metres over `seconds` (negative digs), as a grip on the ground does.
 func _sculpt(s: Dictionary) -> void:
-	var tool: TerrainTool = main.terrain_tool
-	tool.begin(_spot(s, s.x, s.z), s.get("radius", TerrainTool.MIN_RADIUS))
+	var tool: GroundGrab = main.ground_grab
+	tool.begin(_spot(s, s.x, s.z), s.get("radius", GroundGrab.MIN_RADIUS))
 	var t := 0.0
 	var seconds: float = s.get("seconds", 1.0)
 	while t < seconds:

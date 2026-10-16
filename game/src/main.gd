@@ -17,7 +17,7 @@ var tool: WallTool
 var flora_tool: FloraTool
 var delete_tool: DeleteTool
 var fitting_tool: FittingTool
-var terrain_tool: TerrainTool
+var ground_grab: GroundGrab
 var water: Water
 var water_tool: WaterTool
 var wildlife: Wildlife
@@ -56,18 +56,18 @@ func _ready() -> void:
 	add_child(fitting_tool)
 	delete_tool = DeleteTool.new(rig, tool, flora_tool, world)
 	add_child(delete_tool)
-	terrain_tool = TerrainTool.new(rig, world)
-	terrain_tool.reshaped.connect(tool.reground)
-	add_child(terrain_tool)
+	ground_grab = GroundGrab.new(rig, world, _editing)
+	ground_grab.reshaped.connect(tool.reground)
+	add_child(ground_grab)
 	var hands: Array[Node3D] = []
 	hands.assign(rig.hands)
 	water = Water.new(hands)
-	terrain_tool.reshaped.connect(water.reground)
+	ground_grab.reshaped.connect(water.reground)
 	water.refilled.connect(tool.reground.bind(true))
 	add_child(water)
-	water_tool = WaterTool.new(rig, terrain_tool, water)
+	water_tool = WaterTool.new(rig, ground_grab, water)
 	add_child(water_tool)
-	world.attach(tool, flora, paths, terrain_tool, water)
+	world.attach(tool, flora, paths, ground_grab, water)
 	palette_tool = PaletteTool.new(rig, tool, world)
 	add_child(palette_tool)
 	sun_tool = SunTool.new(rig, look, _editing)
@@ -126,7 +126,7 @@ func _process(_delta: float) -> void:
 
 
 func _editing() -> bool:
-	return tool.busy() or flora_tool.busy() or terrain_tool.busy() or palette_tool.busy() or delete_tool.busy()
+	return tool.busy() or flora_tool.busy() or ground_grab.busy() or palette_tool.busy() or delete_tool.busy()
 
 
 func _start_xr() -> bool:

@@ -80,7 +80,7 @@ class Glade:
 	var world: World
 	var flora: Flora
 	var tool: WallTool
-	var terrain: TerrainTool
+	var terrain: GroundGrab
 	var wildlife: Wildlife
 
 	func birds() -> Array[Birds.Bird]:
@@ -101,7 +101,7 @@ func _glade(seed: int) -> Glade:
 	g.tool = WallTool.new(g.rig, g.world, g.flora, paths)
 	g.tool.set_process(false)
 	root.add_child(g.tool)
-	g.terrain = TerrainTool.new(g.rig, g.world)
+	g.terrain = GroundGrab.new(g.rig, g.world)
 	g.terrain.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(g.terrain)
 	var water := Water.new([])

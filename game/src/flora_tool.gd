@@ -3,8 +3,8 @@ extends Node3D
 
 ## Flowers, grass, stone, trees and paths, for whichever hand holds them: the trigger paints flowers, grass
 ## or stone ground where the hand points, plants a tree there, or lays a path along the stroke. The brush
-## widens with distance; painting a spot again thickens it, and a path is as wide as the brush. The grip
-## of a hand holding stone paints the ground back to meadow, and the plants under it stand up again.
+## widens with distance; painting a spot again thickens it, and a path is as wide as the brush. A stone
+## stroke begun on stone paints the ground back to meadow instead, and the plants under it stand up again.
 
 ## Plants per square metre per second of painting.
 const RATES := {Hand.Tool.FLOWERS: 12.0, Hand.Tool.GRASS: 30.0}
@@ -32,6 +32,8 @@ class Brush:
 	var rng := RandomNumberGenerator.new()
 	## The ground the current hold has painted, stone or meadow.
 	var ground: Ground.Stroke
+	## A stone hold begun on stone paints it back to meadow.
+	var meadow := false
 	var since_stamp := 0.0
 	var last_stamp := Vector3.INF
 	var owed := 0.0
@@ -58,7 +60,7 @@ func _init(player: Rig, plants: Flora, ways: Paths, garden: World) -> void:
 	for h in rig.hands:
 		var b := Brush.new()
 		b.hand = h
-		b.buttons = Buttons.new(h).watch(["trigger_click", "grip_click"])
+		b.buttons = Buttons.new(h).watch(["trigger_click"])
 		b.ring = ring(Color(1, 1, 1, 0.6))
 		add_child(b.ring)
 		brushes.append(b)
@@ -119,7 +121,7 @@ func _handle(b: Brush, delta: float) -> void:
 	if not TINTS.has(held) or rig.aim_hand == b.hand:
 		end_stroke(b)
 		return
-	if b.buttons.released("trigger_click") or (held == Hand.Tool.STONE and b.buttons.released("grip_click")):
+	if b.buttons.released("trigger_click"):
 		end_stroke(b)
 	if not b.hand.get_has_tracking_data():
 		return
@@ -143,13 +145,18 @@ func _handle(b: Brush, delta: float) -> void:
 		elif b.buttons.held("trigger_click") and b.paving:
 			extend_path(hit, radius)
 	elif b.buttons.held("trigger_click"):
+		if b.buttons.pressed("trigger_click"):
+			b.meadow = paints_meadow(held, hit)
 		paint(b, hit, radius, delta)
-	elif held == Hand.Tool.STONE and b.buttons.held("grip_click") and not b.hand.holds_sun:
-		paint(b, hit, radius, delta, true)
 
 
 static func _reach(hand: XRController3D) -> Vector3:
 	return hand.global_position if hand.get_has_tracking_data() else Flora.NO_HAND
+
+
+## A stone stroke begun on stone paints the ground back to meadow.
+static func paints_meadow(tool: Hand.Tool, at: Vector3) -> bool:
+	return tool == Hand.Tool.STONE and Ground.stone(at.x, at.z) > 0.5
 
 
 static func brush_radius(hand: Vector3, hit: Variant) -> float:
@@ -158,10 +165,10 @@ static func brush_radius(hand: Vector3, hit: Variant) -> float:
 	return clampf(hand.distance_to(hit) * RADIUS_PER_METRE, MIN_RADIUS, MAX_RADIUS)
 
 
-## Paints with the hand's tool; `meadow` takes stone ground back to meadow instead of laying it.
-func paint(b: Brush, center: Vector3, radius: float, delta: float, meadow := false) -> void:
+## Paints with the hand's tool.
+func paint(b: Brush, center: Vector3, radius: float, delta: float) -> void:
 	if b.hand.tool == Hand.Tool.STONE:
-		_lay_ground(b, Ground.Kind.MEADOW if meadow else Ground.Kind.STONE, center, radius, delta)
+		_lay_ground(b, Ground.Kind.MEADOW if b.meadow else Ground.Kind.STONE, center, radius, delta)
 		return
 	var kind := "grass" if b.hand.tool == Hand.Tool.GRASS else "flowers"
 	b.owed += RATES[b.hand.tool] * PI * radius * radius * delta

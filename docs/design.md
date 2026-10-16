@@ -749,18 +749,18 @@ Stage numbers refer to the build order at the end.
 | Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | A wall drawn over a tree or bush arches over it, shown live while drawing; one of 5 m or more over open ground opens an arch at the middle; A on a wall cuts or fills an arch there. Wall chemistry, in either order (a path laid through a wall, or a wall drawn across a path): one arch where they cross, or, where the crossing runs 2.8 m or more along the wall (a wide path, or one meeting it at a slant), an arcade of arches 2.3 m apart on stone pillars. A crossing beside an arch already there joins it as an arcade, so no opening closes; undoing the path closes the arches it opened | 1 (done), 5 (done) |
 | Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends and at the corners of a house | 1 (done), 4 (done) |
 | Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | The path tool's trigger, swept over the ground: flat stones laid in rows along the smoothed stroke, as wide as the brush ring (`PathLayout`), one to a cell of each row and clear of every stone already laid, so stones never overlap on curves, at junctions or where paths cross: a later path paves around earlier ones; like the plants they ride the ground, so reshaping it carries them along. The stroke wears trodden earth into the ground mask (see "Ground materials") that the terrain shader shows and the grass and flower shaders read to part around the stones | 5 (done) |
-| Stone ground | Steep terrain turns rocky; paths of dirt and, later, cobblestone blended with them | The stone tool paints flagstone ground where it points, fraying into the meadow slab by slab; its grip paints meadow back (see "Ground materials") | 7 (done) |
+| Stone ground | Steep terrain turns rocky; paths of dirt and, later, cobblestone blended with them | The stone tool paints flagstone ground where it points, fraying into the meadow slab by slab; a stroke begun on stone paints meadow back (see "Ground materials") | 7 (done) |
 | Towers | A loop held down straightens into a circle | Draw a loop and keep holding with the end back near the start: after a moment it snaps to a round tower (radius 1.2–4 m) with a tiled cone roof, standing level on its lowest ground | 4 (done) |
-| Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Its own tool, a little house in the ring. Its trigger or grip takes up a square house where the hand points and carries it, turning with the hand; the other hand's grip joins to hold it by both hands, which move it by their midpoint, turn it as the pair turns and stretch it along the line between them as they spread (each side 2.4–14 m, at most 7 m across the ridge, which runs the longer way). Letting go builds it. Stone walls with corner piers, a door arch in the front, level on its lowest ground | 4 (done) |
+| Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Its own tool, a little house in the ring. Its trigger takes up a square house where the hand points and carries it, turning with the hand; the other hand's grip joins to hold it by both hands, which move it by their midpoint, turn it as the pair turns and stretch it along the line between them as they spread (each side 2.4–14 m, at most 7 m across the ridge, which runs the longer way). Letting go builds it. Stone walls with corner piers, a door arch in the front, level on its lowest ground | 4 (done) |
 | Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings") | 4 (done) |
-| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, plaster gable ends. Grip on a roof with the walls tool: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`). Pushed all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top style then cycles like an open wall's | 4 (done) |
+| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, plaster gable ends. Grip on a roof, whatever the hand holds: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`). Pushed all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top style then cycles like an open wall's | 4 (done) |
 | Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light | 6 (done) |
 | Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | The decorations tool's trigger places what suits where it points: a stone chimney with two clay pots on a house's roof, rising clear of the ridge; a flag on a tower's roof or a wall's top, waving; a lantern on an iron arm off a wall's face, or on a fence post. Lanterns are emissive bodies in a soft additive halo, and the three nearest the head cast real light. A press on one takes it away | 6 (done) |
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | The fence tool draws like walls (same stroke, merging and junctions) with a wooden profile: posts at most 1.6 m apart and two rails between. A path through a fence, in either order, opens a gate: two tall posts under a bent wooden arch | 6 (done) |
 | Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces, wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`), kept out of windows and doors too | 3 (done), 6 (done) |
 | Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers grow in clumps about 1.3 m across, each one of nine soft colours (white, butter, peach, pinks, lavender, violet, blues), so a stroke paints a few colour patches with nothing to pick | 1 (done), 3 (done) |
 | Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs; the trigger of a hand holding the tree tool plants one where it points | 1 (done), 3 (done) |
-| Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | The terrain tool's trigger grabs the ground where it points and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then stone ground show on steep slopes | 7 (shaping done) |
+| Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | Not a tool: a grip on the ground, whatever the hand holds, grabs it where it points (a pond's bed under its water too) and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then stone ground show on steep slopes | 7 (shaping done) |
 | Water | Dug holes with a flat surface and normal-map waves | The pond tool scoops a hollow where it points; it fills to just below its rim with depth-tinted water, shore foam and ripples where a hand breaks it (see "Water") | 7 (water done) |
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, and a one-metre probe volume of sky seen and sunlight bounced off sunlit stone, solved again on a worker when a build settles or the sun moves (see "Bounce light") | 2 (done) |
 | Shadows | Soft sun shadows with temporal filtering, contact shadows | Two-split soft shadows; occlusion darkening at wall feet and corners from the probe volume; splits and reach that follow the eye's height | 1 (done), 2 (done) |
@@ -862,11 +862,11 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, decorations, paths, stone, flowers, grass, trees, terrain, ponds, colour, camera, delete and visit. The tool a hand
+windows, decorations, paths, stone, flowers, grass, trees, ponds, colour, camera, delete and visit. The tool a hand
 holds stands on top of its controller as a small object, built from the same generators as the full-size
 thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
 flag with lanterns on it, a bend of paving, a disc of stone ground
-fraying into meadow, three flowers, a grass tuft, a tree, a mound, a pond in a
+fraying into meadow, three flowers, a grass tuft, a tree, a pond in a
 sandy dish, a painter's palette with dabs of colour, a small camera, a spade for delete, and a little avatar
 figure for visit. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
@@ -901,7 +901,7 @@ learnable motion:
 | Right | Flowers, grass, trees, ponds |
 | Lower right | Visit |
 | Bottom | Delete |
-| Lower left | Paths, stone, terrain |
+| Lower left | Paths, stone |
 | Left | Walls, fences, windows, decorations |
 | Upper left | Empty, kept for the house tool |
 
@@ -916,6 +916,18 @@ Directive (verbatim): "I think making teleport its own item was- was a mistake f
 Teleport is not a tool. The left stick pushed forward aims from the left hand whatever it holds, so no
 choice of tools leaves you unable to move, and aiming at the ground is how you come back down.
 
+Directive (verbatim): "I'd like to be able to use the grab button to grab the ground so ground terraforming becomes um... not a tool, it's just something that's always available. I just grab something. Grab the ground and push it down or pull it up"
+
+Directive (verbatim): "The grab button should always be grab"
+
+Directive (verbatim): "It doesn't grab and drag the tool, it grabs and drags the thing you're pointing at"
+
+The trigger is the held tool's action; the grip grabs what the hand points at, whatever it holds, and
+never builds. It takes the nearest thing its ray meets: a roof, a wall, or the ground (a pond's bed
+under its water), with the sun, and a house already carried, taken by the grip too. Shaping the ground
+is therefore no tool (`GroundGrab`); the ground is the last thing a grip takes, after anything else
+that claimed the hand that frame.
+
 ## VR controls
 
 | Action | Control |
@@ -927,15 +939,15 @@ choice of tools leaves you unable to move, and aiming at the ground is how you c
 | Turn | Right stick left or right: 30° snap turn |
 | Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground, or along a build's top to build on it; release to finish. Strokes under 1 m are discarded, and a stroke near a standing wall merges into it |
 | Build a tower | Draw a loop and hold the trigger with the end back at the start until it snaps round |
-| Raise or lower a wall | Grip of a hand holding walls while pointing at a wall, move the hand up or down; the gain grows with distance so far walls are easy to adjust |
-| Shape a roof | Grip of a hand holding walls while pointing at a roof: up and down for pitch, sideways for curvature; all the way down snaps it flat |
+| Raise or lower a wall | Grip pointing at a wall, whatever the hand holds, move the hand up or down; the gain grows with distance so far walls are easy to adjust |
+| Shape a roof | Grip pointing at a roof, whatever the hand holds: up and down for pitch, sideways for curvature; all the way down snaps it flat |
 | Cut or fill an arch | A while a hand holding walls points at a wall |
 | Change a wall's top | A while a hand holding walls points at its top: merlons, plain capping, coping |
-| Lay out a house | Trigger or grip of a hand holding the house takes up a square house where it points, on the ground or on a build's top for an upper storey; carry and turn it with that hand, add the other hand's grip to turn it with both hands and stretch it by spreading them; let go to build |
+| Lay out a house | Trigger of a hand holding the house takes up a square house where it points, on the ground or on a build's top for an upper storey; carry and turn it with that hand, add the other hand's grip to turn it with both hands and stretch it by spreading them; let go to build |
 | Paint flowers or grass | Trigger held on a hand holding flowers or grass, pointing at the ground; the ring shows the brush, which widens the farther you point |
-| Paint stone ground | Trigger held on a hand holding stone, pointing at the ground; the grip held instead paints it back to meadow. The ring shows the brush, which widens the farther you point |
+| Paint stone ground | Trigger held on a hand holding stone, pointing at the ground; a stroke begun on stone paints it back to meadow instead. The ring shows the brush, which widens the farther you point |
 | Plant a tree | Trigger of a hand holding trees, pointing at the ground |
-| Shape the ground | Trigger held on a hand holding terrain, pointing at the ground: the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it |
+| Shape the ground | Grip held pointing at the ground, whatever the hand holds (a pond's bed too): the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it |
 | Dig a pond | Trigger held on a hand holding the pond tool, pointing at the ground: the hollow deepens while held and fills with water on release (see "Water") |
 | Delete | Trigger of a hand holding delete. On a wall it is an eraser: hold and sweep the beam along the wall, and the stretch swept breaks into a ruin as you sweep, sent when you let go; a tap breaks a short gap; a sweep leaving nothing worth standing, or any press on a fence, house or tower, takes it whole. Off the walls: a press takes the tree or bush the beam strikes, or the path or stone ground it meets, whole; elsewhere on the ground, hold and sweep to mow the grass and flowers under the ring, raggedly at its edge, sent when you let go. Held pointed up at the sky, an orb swells at the beam's end for 2 s and then the whole garden is wiped (see Wipe); letting go or lowering the beam first lets the orb go |
 | Wipe | Directive (verbatim): "This world is really full of stuff, and I don't really have a great way to delete it all. I think I need a way to Wipe the whole world". One command (`wipe`) takes the garden back to bare meadow: every wall, path, stone, planted and painted plant, pond and ground edit goes, and so do the meadow's own flowers, bushes and trees; its grass, the season and the colours stay. A fresh garden still starts with the meadow's scenery; a wiped one is kept wiped. It is one undo step: undo rebuilds the garden from the snapshot the wipe took, as a late joiner's is. Only the garden's host can wipe it |
@@ -985,7 +997,7 @@ the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
 Directive (verbatim): "Definitely gonna need pretty water"
 
 The pond tool sits on each hand's wheel as a small sandy dish of water. Holding its trigger scoops a
-hollow where it points (the terrain tool's stroke, pulled down), deeper the longer it is held, from
+hollow where it points (the ground grab's stroke, pulled down), deeper the longer it is held, from
 0.45 m for a tap to 1.3 m. On release the hollow fills; undo fills the hollow back in. Water is not
 placed: each dig leaves a seed, and after every settled ground edit the basin around each seed
 fills lowest ground first until it would spill over the lowest point of its rim, settling 8 cm
@@ -1048,7 +1060,7 @@ mask is those marks replayed in the order they were laid, so undoing or redoing 
 included, leaves exactly what the others made. Grass and flowers shrink to nothing wherever the mask
 is bare (earth or stone), and the brushes plant nothing there.
 
-- **Painting:** the stone tool's trigger lays stone under the brush; its grip paints meadow back, which
+- **Painting:** the stone tool's trigger lays stone under the brush; a stroke begun on stone paints meadow back, which
   takes away only stone, so a path through the area keeps its wear. The meadow's own grass and flowers
   stand up again where the stone goes. A stroke is one history step.
 - **Slopes:** the terrain shader treats a slope too steep to hold soil as stone ground too: one stone

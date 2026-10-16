@@ -50,7 +50,7 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	root.add_child(rig)
 	var world := World.new()
 	root.add_child(world)
-	var terrain := TerrainTool.new(rig, world)
+	var terrain := GroundGrab.new(rig, world)
 	root.add_child(terrain)
 	var water := Water.new([])
 	terrain.reshaped.connect(water.reground)

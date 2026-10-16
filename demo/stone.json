@@ -18,7 +18,7 @@
   {"op": "view", "eye": [3.5, 1.6, 5.5], "at": [1, 0.2, 2]},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "05-edge"},
-  {"op": "paint", "tool": "stone", "hand": "right", "meadow": true, "points": [[2.5, 2.5], [3.5, 1.5]], "radius": 1.0, "seconds": 1},
+  {"op": "paint", "tool": "stone", "hand": "right", "points": [[2.5, 2.5], [3.5, 1.5]], "radius": 1.0, "seconds": 1},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "06-meadow-back"},
   {"op": "view", "eye": [0, 3.2, 10], "at": [0, 0.3, 1]},
