@@ -8,6 +8,8 @@ extends Node3D
 ## out of the viewer's sight, so nothing pops in or out of being. Butterflies come the same way to the flower
 ## patches painted (`Butterflies`), fireflies at dusk over ponds and flower patches (`Fireflies`), conures,
 ## after the ducks, to planted trees and wall tops (`Birds`), and sheep to the fences built (`Herds`).
+## A hand or the head coming near slowly startles none of them; a sudden one does. A hand holding seeds draws
+## those that eat from it, each kind as its `Appetite` says.
 
 ## How long after its habitat appears a duck, or a flock of conures, comes.
 const ARRIVE_AFTER := Vector2(20.0, 60.0)
@@ -46,8 +48,41 @@ const LOOK_EVERY := 0.5
 ## Seconds, on average, between a family's quacks and its ducklings' peeps.
 const QUACK_EVERY := 45.0
 const PEEP_EVERY := 30.0
+## A hand or the head moving faster than this, in metres a second, startles an animal near it; slower, it may
+## come right up.
+const CALM := 0.7
+## Per second: how quickly the speed an animal sees follows a hand's or the head's, so tracking jitter startles none.
+const SPEED_EASE := 12.0
+## Where an animal eating from a hand stands on it, in the controller's space: on its top, behind the seeds
+## the seed tool shows at `Hand.TOP`, facing them.
+const ON_HAND := Vector3(0, 0.0075, 0.088)
 
-enum State { FLY_IN, ENTER, SWIM, ASHORE, REST, FLY_OUT, WALK_OUT }
+enum State { FLY_IN, ENTER, SWIM, ASHORE, REST, FLY_OUT, WALK_OUT, FEED }
+## Where an animal eats seeds held out to it: standing on the hand, or under it on the ground or water.
+enum Eat { ON_HAND, UNDER_HAND }
+
+## How a kind of animal eats from a hand holding seeds. Every kind that does declares one; `Wildlife` finds the
+## hand, keeps one animal to a hand and says where it eats.
+class Appetite:
+	var eat: Eat
+	## How far off it sees the seeds.
+	var notice: float
+	## How high over the ground or water under it a hand may be for it to reach.
+	var reach: float
+	## From where it stands to its mouth, along the way it faces.
+	var mouth: float
+	var eats_for: Vector2
+	## How long after eating it comes back for more.
+	var full_for: Vector2
+
+	func _init(how: Eat, sees: float, up: float, to_mouth: float, eating: Vector2, full: Vector2) -> void:
+		eat = how
+		notice = sees
+		reach = up
+		mouth = to_mouth
+		eats_for = eating
+		full_for = full
+
 
 var water: Water
 var flora: Flora
@@ -69,6 +104,13 @@ var _due_butterflies := {}
 var _due_birds := {}
 var _due_sheep := {}
 var _since_look := INF
+## Per hand and the head: where it was last tick and how fast it has been moving.
+var _was := {}
+var _speed := {}
+## Per hand holding seeds: whatever is eating from it or on its way to.
+var _eaters := {}
+## A duck paddles or waddles over to peck seeds held low over its pond or the bank.
+static var duck_appetite := Appetite.new(Eat.UNDER_HAND, 3.5, 0.6, 0.16, Vector2(6.0, 12.0), Vector2(8.0, 20.0))
 
 
 class Family:
@@ -85,6 +127,9 @@ class Family:
 	var ripple := 0.0
 	## The level way out, once leaving.
 	var heading := Vector3.ZERO
+	## The hand it feeds from, and how long until it eats again.
+	var hand: Node3D
+	var full := 0.0
 
 	func _init(first: Duck) -> void:
 		ducks.append(first)
@@ -129,6 +174,7 @@ func _process(delta: float) -> void:
 
 func tick(delta: float) -> void:
 	calls.tick(delta)
+	_watch(delta)
 	_schedule(delta)
 	var room := butterflies.butterflies.size() < Butterflies.CAP
 	for key in _ripe(_due_butterflies, butterflies.empty_patches(), BUTTERFLIES_AFTER, delta, room):
@@ -161,6 +207,7 @@ func tick(delta: float) -> void:
 		for j in range(1, f.ducks.size()):
 			_follow(f.ducks[j], f.ducks[j - 1], delta)
 		if _gone(f):
+			release(f)
 			for d in f.ducks:
 				d.queue_free()
 			families.remove_at(i)
@@ -246,6 +293,10 @@ func _think(f: Family, delta: float) -> void:
 		calls.now_and_then("quack", lead.position, QUACK_EVERY, delta)
 		if f.ducks.size() > 1:
 			calls.now_and_then("peep", f.ducks[1 + calls.rng.randi() % (f.ducks.size() - 1)].position, PEEP_EVERY, delta)
+	f.full = maxf(f.full - delta, 0.0)
+	if f.state in [State.SWIM, State.ASHORE, State.REST] and f.full <= 0.0:
+		_come_for_seeds(f)
+	var eating := false
 	match f.state:
 		State.FLY_IN, State.FLY_OUT:
 			_fly(f, delta)
@@ -277,6 +328,60 @@ func _think(f: Family, delta: float) -> void:
 		State.WALK_OUT:
 			if _go(lead, f.goal, delta):
 				f.goal = _onward(f.goal, f.heading)
+		State.FEED:
+			eating = _eat(f, delta)
+	for d in f.ducks:
+		d.peck(1.0 if eating else 0.0, delta)
+
+
+## A duck that sees seeds held low over its pond or its bank heads over to them, its ducklings after it.
+func _come_for_seeds(f: Family) -> void:
+	var lead := f.leader()
+	var h := offer_for(duck_appetite, lead.position)
+	if h == null:
+		return
+	var spot := eat_spot(duck_appetite, h, lead.position)
+	if not _reaches(f, spot):
+		return
+	claim(h, f)
+	f.hand = h
+	f.goal = spot
+	f.state = State.FEED
+	f.timer = rng.randf_range(duck_appetite.eats_for.x, duck_appetite.eats_for.y)
+
+
+## Whether a duck of `f` can get to `spot` from where it is: on its pond or the bank, by water no wall cuts off.
+func _reaches(f: Family, spot: Vector3) -> bool:
+	return _pond_near(spot) == f.pond and _swims_clear(f.leader().position, Vector2(spot.x, spot.z))
+
+
+## Over to the hand and pecking under it while it is held out calmly; true while pecking. A hand snatched
+## away or put down, or the seeds eaten, sends the family back to swimming.
+func _eat(f: Family, delta: float) -> bool:
+	var lead := f.leader()
+	if not feeds(f.hand, f) or sudden(f.hand):
+		_fed(f)
+		return false
+	var spot := eat_spot(duck_appetite, f.hand, lead.position)
+	if Vector2(spot.x - f.goal.x, spot.z - f.goal.z).length() > 0.15:
+		if not _reaches(f, spot):
+			_fed(f)
+			return false
+		f.goal = spot
+	if not _go(lead, f.goal, delta):
+		return false
+	_face(lead, f.hand.global_position - lead.position, delta * 4.0)
+	f.timer -= delta
+	if f.timer <= 0.0:
+		_fed(f)
+	return true
+
+
+func _fed(f: Family) -> void:
+	release(f)
+	f.hand = null
+	f.full = rng.randf_range(duck_appetite.full_for.x, duck_appetite.full_for.y)
+	_swim(f)
 
 
 func _swim(f: Family) -> void:
@@ -288,6 +393,7 @@ func _swim(f: Family) -> void:
 
 ## A lone duck flies off, back along its way in if it had not yet landed; a family walks away.
 func _leave(f: Family) -> void:
+	release(f)
 	var at := f.leader().position
 	if f.ducks.size() == 1:
 		if f.state != State.FLY_IN:
@@ -327,6 +433,106 @@ func _hand_within(p: Vector3, reach: float) -> Node3D:
 		if h.is_inside_tree() and p.distance_to(h.global_position) < reach:
 			return h
 	return null
+
+
+## Eases how fast each hand and the head is moving, and lets go of hands no longer holding seeds out.
+func _watch(delta: float) -> void:
+	if delta <= 0.0:
+		return
+	for n in _watched():
+		var at := n.global_position
+		var moved: float = at.distance_to(_was.get(n, at)) / delta
+		_was[n] = at
+		_speed[n] = lerpf(_speed.get(n, 0.0), moved, 1.0 - exp(-delta * SPEED_EASE))
+	var held := offers()
+	for h in _eaters.keys():
+		if not held.has(h):
+			_eaters.erase(h)
+
+
+func _watched() -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	for n: Node3D in hands + [viewer]:
+		if n != null and n.is_inside_tree():
+			out.append(n)
+	return out
+
+
+func sudden(n: Node3D) -> bool:
+	return _speed.get(n, 0.0) > CALM
+
+
+## The first hand, or the head, within `reach` of `p` and moving suddenly, or null.
+func _startled(p: Vector3, reach: float) -> Node3D:
+	for n in _watched():
+		if p.distance_to(n.global_position) < reach and sudden(n):
+			return n
+	return null
+
+
+## The nearest hand or head within `reach` of `p`, however it moves, or null.
+func _nearest(p: Vector3, reach: float) -> Node3D:
+	var best: Node3D = null
+	for n in _watched():
+		var d := p.distance_to(n.global_position)
+		if d < reach:
+			reach = d
+			best = n
+	return best
+
+
+## The hands holding seeds out.
+func offers() -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	for h in hands:
+		if h is Hand and h.tool == Hand.Tool.SEEDS and h.is_inside_tree() and h.tracked() and not h.picking:
+			out.append(h)
+	return out
+
+
+## A calm hand holding seeds that an animal at `at` sees and can reach and that nothing else eats from, or null.
+func offer_for(appetite: Appetite, at: Vector3) -> Node3D:
+	for h in offers():
+		var p := h.global_position
+		if _eaters.has(h) or sudden(h) or p.distance_to(at) > appetite.notice:
+			continue
+		if appetite.eat == Eat.UNDER_HAND and p.y - _floor(p) > appetite.reach:
+			continue
+		return h
+	return null
+
+
+func claim(h: Node3D, eater: Object) -> void:
+	_eaters[h] = eater
+
+
+func release(eater: Object) -> void:
+	for h in _eaters.keys():
+		if _eaters[h] == eater:
+			_eaters.erase(h)
+
+
+## Whether hand `h` is still held out with seeds for `eater`.
+func feeds(h: Node3D, eater: Object) -> bool:
+	return h != null and _eaters.get(h) == eater and offers().has(h)
+
+
+## Where an animal coming from `from` stands to eat from hand `h`: on the controller behind the seeds (`ON_HAND`
+## in the hand's space), or on the ground or water with its mouth under the hand.
+func eat_spot(appetite: Appetite, h: Node3D, from: Vector3) -> Vector3:
+	if appetite.eat == Eat.ON_HAND:
+		return h.global_transform * ON_HAND
+	var at := h.global_position
+	var off := Vector3(from.x - at.x, 0, from.z - at.z)
+	at += off.normalized() * appetite.mouth if off.length() > 1e-3 else Vector3.ZERO
+	return Vector3(at.x, _floor(at), at.z)
+
+
+## The ground under `p`, or the water over it.
+func _floor(p: Vector3) -> float:
+	var ground := Terrain.height_at(p.x, p.z)
+	var pond := water.pond_at(p.x, p.z)
+	return maxf(ground, pond.surface_y()) if pond != null else ground
 
 
 ## WALK_AWAY further along `heading`, kept on the terrain.

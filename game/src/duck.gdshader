@@ -6,6 +6,8 @@ instance uniform vec4 mode = vec4(1.0, 0.0, 0.0, 0.0);
 instance uniform float phase = 0.0;
 // Steps per second relative to a grown duck's, so short legs keep their feet planted.
 instance uniform float pace = 1.0;
+// Eating from a hand: the head dips again and again toward the seeds.
+instance uniform float peck = 0.0;
 
 mat3 rot(vec3 axis, float a) {
 	axis = normalize(axis);
@@ -38,7 +40,7 @@ void vertex() {
 		vec3 neck = vec3(0.0, 0.22, -0.09);
 		float yaw = idle * (0.5 * sin(t * 0.55) + 0.2 * sin(t * 1.7 + 0.4));
 		float tilt = idle * 0.28 * smoothstep(0.3, 0.9, sin(t * 0.37 + 2.0));
-		float nod = paddle * 0.06 * sin(t * 2.2) + waddle * 0.12 * sin(2.0 * c);
+		float nod = paddle * 0.06 * sin(t * 2.2) + waddle * 0.12 * sin(2.0 * c) - peck * (0.35 + 0.75 * pow(max(sin(t * 5.5), 0.0), 3.0));
 		turn(VERTEX, NORMAL, vec3(0.0, 0.345, -0.13), rot(vec3(0.0, 0.0, 1.0), tilt));
 		turn(VERTEX, NORMAL, neck, rot(vec3(0.0, 1.0, 0.0), yaw) * rot(vec3(1.0, 0.0, 0.0), nod));
 	}

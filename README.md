@@ -11,7 +11,7 @@ build order.
 ## Controls
 
 Each hand holds a tool, shown as a small object on top of its controller: walls,
-paths, stone, flowers, grass, trees, pond, colour, camera, delete or visit.
+paths, stone, flowers, grass, trees, pond, colour, camera, seeds, delete or visit.
 
 - Hold B (right) or View (left), and a wheel of tools stands up in front of that
   hand: sweep the hand onto a tool and let go to take it. A slot showing a little
@@ -31,6 +31,9 @@ paths, stone, flowers, grass, trees, pond, colour, camera, delete or visit.
   takes a photo, saved as a PNG in the game's `photos` folder
   (`~/.local/share/godot/app_userdata/Nestcombe/photos` on the Frame; inside the
   app on a Quest).
+- Holding seeds: hold the hand out and keep it calm. A conure may fly down and eat
+  standing on it; ducks and sheep come to seeds held low by their pond or fence.
+  Animals let you come right up if you move slowly; a sudden move startles them.
 - Grip, whatever the hand holds: grab what you point at and drag it. Grab the
   ground (a pond's bed too) and raise the hand to pull a hill or lower it to press
   a hollow; grab a wall to pull its height, a roof to shape it, the sun to drag it

@@ -904,12 +904,12 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, decorations, paths, stone, flowers, grass, trees, ponds, colour, camera, delete and visit. The tool a hand
+windows, decorations, paths, stone, flowers, grass, trees, ponds, colour, camera, seeds, delete and visit. The tool a hand
 holds stands on top of its controller as a small object, built from the same generators as the full-size
 thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
 flag with lanterns on it, a bend of paving, a disc of stone ground
 fraying into meadow, three flowers, a grass tuft, a tree, a pond in a
-sandy dish, a painter's palette with dabs of colour, a small camera, a spade for delete, and a little avatar
+sandy dish, a painter's palette with dabs of colour, a small camera, a clay dish heaped with bird seed, a spade for delete, and a little avatar
 figure for visit. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
 rounded body is unchanged, and there is no text anywhere.
@@ -945,7 +945,7 @@ learnable motion:
 | Slot | Holds |
 | --- | --- |
 | Top | Colour |
-| Upper right | Empty hands, camera |
+| Upper right | Empty hands, camera, seeds |
 | Right | Flowers, grass, trees, ponds |
 | Lower right | Visit |
 | Bottom | Delete |
@@ -1193,7 +1193,8 @@ Directive (verbatim): "I'd love to get some animals like ducks and stuff, but I.
 
 Wildlife is never placed by the player. Animals show up on their own, as a
 surprise, drawn by what you build: dig a pond and, some time later, a duck may
-fly in and settle on it. There is no tool, menu or button for animals.
+fly in and settle on it. No tool, menu or button places an animal; seeds held out
+only draw those already there (see "Feeding").
 
 - **Ducks** arrive once a pond exists: one flies in from beyond the meadow,
   glides down and splashes onto the water, then paddles about; now and then one
@@ -1230,9 +1231,14 @@ fly in and settle on it. There is no tool, menu or button for animals.
   seconds later (`Birds`), at most three (`Birds.CAP`), and lands on a tree's crown
   or a wall top: the top of its caps, coping, merlons and piers, or a fence's top
   rail and posts (`WallLayout.perches`), never a roof. Perched, a conure looks
-  about with quick head turns and tilts, preens, hops along the top, now and
-  then flutters to another perch or swoops down to peck in the grass, and flushes
-  up to a perch out of reach when a hand comes within 0.8 m. A perch taken away,
+  about with quick head turns and tilts, preens, hops along the top, and now and
+  then flutters to another perch or swoops down to peck in the grass. A hand or
+  face brought up to it slowly (under `Wildlife.CALM`, 0.7 m/s) startles it not:
+  within 1.5 m it turns to watch and keeps to its perch, a slow hand may touch it,
+  and only a face within 12 cm of its body has it shuffle a hop along the perch.
+  A sudden move within 0.8 m startles it a short way, 0.6 to 3 m, to the nearest
+  free perch point out of reach, one in sight where there is one; with none, it
+  flutters up and lands where it was. A startle never sends one away. A perch taken away,
   reshaped or laid again sends them to another, and when none has room they leave,
   out of sight, as they do once no perch stands. The conure is built in code (`conure.gd`) like
   the duck: about 18 cm of soft, slightly ruffled ellipsoids whose normals lean
@@ -1243,12 +1249,16 @@ fly in and settle on it. There is no tool, menu or button for animals.
   body levelling out to fly. Its plumage turns per fragment from blue facing
   the eye to green at grazing angles, with a faint mottle, wrapped diffuse light
   and a soft rim, and no texture.
+- Up close: the eyes' near clip is 2 cm (`Rig.NEAR`). At 5 cm a face leaned in to
+  a conure cut its head open, and with its back faces culled from inside, nothing
+  of it was left: a bird, not flying, vanished. Godot's reversed depth keeps far
+  stone and paving apart at the nearer clip.
 - **Sheep** come to fences. A finished fence standing at least 6 m long (`Herds.MIN_FENCE`) is a
   pasture, and 25 to 60 seconds after one appears a flock of two to four walks in from out of
   sight and grazes the grass along one side of it, 1 to 7 m out. They crop with heads down,
   drifting a step at a time, look about with an ear flick, walk on to fresh grass and now and
-  then lie down for a while; a hand within a metre sends one trotting a few metres off before it
-  settles. They never stand in water, on a path or paving, in a wall, house or tower or against a
+  then lie down for a while; a sudden move within a metre sends one trotting a few metres off before
+  it settles, and a slow hand may come right up to it. They never stand in water, on a path or paving, in a wall, house or tower or against a
   trunk, keep a little apart, and never walk through a wall or into water. A pond dug, a wall drawn
   or ground pulled under them sends them, within a second, to grass they can reach; one that ends up
   beyond its flock's grass walks back. When their fence is erased or broken too short, or no grass
@@ -1259,6 +1269,28 @@ fly in and settle on it. There is no tool, menu or button for animals.
   tuft and a short tail, about 880 triangles, a little varied in size and wool tint per sheep;
   idle, graze, walk and lie are blended in its vertex shader, the legs stepped by the ground
   covered so the hooves stay planted.
+
+### Feeding
+
+The seed tool is a clay dish of bird seed on the controller, beside the camera on the wheel. Held out calmly, it
+draws the animals that eat from a hand, one animal to a hand, through one mechanism in `Wildlife`: each
+kind declares an `Appetite`, whether it eats standing on the hand (`Eat.ON_HAND`) or under it
+(`Eat.UNDER_HAND`), how far off it sees seeds, how high over the ground or water the hand may be, how
+far its mouth reaches ahead of its feet, how long it eats and how long it is full after. `Wildlife`
+finds a calm hand holding seeds for it, keeps one eater to a hand and says where to stand; each kind
+moves there its own way.
+
+- A conure (`Birds.appetite`) flies from its perch to a hand within 6 m, at any height, and stands
+  on the controller behind the seeds (`Wildlife.ON_HAND`), pecking and looking about. It rides a
+  hand carried slowly; the hand it stands on never startles it unless it moves suddenly, which sends
+  it a short way off as any startle does. Seeds eaten or put away, it flies to a perch nearby.
+- A duck (`Wildlife.duck_appetite`) swims or waddles to seeds held within 0.6 m of its pond's
+  water or bank and pecks under the hand, its ducklings pecking with it.
+- A sheep (`Herds.appetite`) walks up to seeds held within 0.9 m of the ground beside its pasture,
+  stands with its muzzle at the hand and nibbles, its head lowered as far as the hand is low.
+
+Butterflies and fireflies eat nothing from a hand. A held seed dish costs what any tool model does;
+each animal's look for a hand holding seeds is a distance check against at most two hands.
 
 Budget: each animal is at most a couple of thousand triangles, skinned or vertex-animated, one
 draw call, and only a handful are ever in view; what that costs a headset is for the stress scene's
@@ -1319,6 +1351,7 @@ path crosses; `demo/stone.json` paints stone ground into the meadow, paints part
 walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete, then empties the hand; `demo/photo.json` takes the camera from the wheel and takes two photos; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks
 at a perched one from in front and from the side;
+`demo/feeding.json` builds a pond, trees, a wall and a fence, waits for the animals, then holds seeds out to a conure, the ducks and the sheep;
 `demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar (`--seed 40` puts sheep in the close views);
 `demo/daylight.json` drags the sun from dawn to dusk, opens the colour wheel, recolours roofs, stone, wood
 and plaster, and walks the meadow through the seasons; `demo/stroke.json` takes two trees, a wall stretch, a path and meadow in one held delete stroke and puts them back with one undo; `demo/ruins.json` erases stretches of walls into

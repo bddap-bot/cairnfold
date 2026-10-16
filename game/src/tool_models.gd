@@ -57,6 +57,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_camera(root)
 		Hand.Tool.HANDS:
 			_open_hand(root)
+		Hand.Tool.SEEDS:
+			_seeds(root)
 	if tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS, Hand.Tool.HOUSE, Hand.Tool.PLASTER_HOUSE]:
 		for part in root.get_children():
 			part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22), Vector3.ZERO) * part.transform
@@ -597,6 +599,48 @@ static func _spade(root: Node3D) -> void:
 		mi.material_override = _mats[part[3]]
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		tilt.add_child(mi)
+
+
+## A small clay dish heaped with bird seed: striped sunflower seeds among round millet.
+static func _seeds(root: Node3D) -> void:
+	var dish := CylinderMesh.new()
+	dish.top_radius = 0.022
+	dish.bottom_radius = 0.016
+	dish.height = 0.007
+	dish.radial_segments = 20
+	dish.rings = 1
+	var clay: StandardMaterial3D = _mats.get("clay")
+	if clay == null:
+		clay = StandardMaterial3D.new()
+		clay.albedo_color = Color(0.72, 0.42, 0.28)
+		clay.roughness = 0.85
+		_mats["clay"] = clay
+	var mi := MeshInstance3D.new()
+	mi.mesh = dish
+	mi.position = Vector3(0, 0.0035, 0)
+	mi.material_override = clay
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 11
+	for i in 34:
+		var r := sqrt(rng.randf()) * 0.018
+		var a := rng.randf() * TAU
+		var at := Vector3(cos(a) * r, 0.0085 + 0.007 * (1.0 - r / 0.018) + rng.randf() * 0.001, sin(a) * r)
+		var turn := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, PI * 0.5 + rng.randf_range(-0.5, 0.5))
+		if i % 3 == 0:
+			Meshes.ellipsoid(st, 0, at, Vector3.ONE * 0.0022, Color(0.93, 0.8, 0.5), 3, 6)
+		else:
+			var dark := Color(0.12, 0.11, 0.1) if i % 2 else Color(0.2, 0.19, 0.17)
+			Meshes.ellipsoid(st, 0, at, Vector3(0.0022, 0.0055, 0.0014), dark, 3, 6, Callable(), turn)
+			Meshes.ellipsoid(st, 0, at + turn * Vector3(0, 0, 0.0009), Vector3(0.0007, 0.0052, 0.0007), Color(0.86, 0.84, 0.78), 2, 4, Callable(), turn)
+	var heap := MeshInstance3D.new()
+	heap.mesh = st.commit()
+	heap.material_override = _vertex_mat("seeds", 0.7, false)
+	heap.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(heap)
 
 
 static func _multimesh(mesh: Mesh, count: int) -> MultiMesh:

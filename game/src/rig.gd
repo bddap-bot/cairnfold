@@ -5,6 +5,9 @@ extends XROrigin3D
 ## The left stick pushed forward aims from the left hand whatever it holds, so no choice of tools leaves the
 ## player unable to move; how far forward it is pushed sets how far along the aim the target lies.
 
+## The eyes' near clip: at 5 cm a face leaned in to a conure cut it open, and its far side, culled from inside,
+## left nothing. Godot's reversed depth keeps far stone and paving apart at this near.
+const NEAR := 0.02
 const MAX_REACH := 80.0
 const AIR_REACH := 30.0
 ## Stick forward at or past FULL_STICK aims at the ray's full target; easing back to the deadzone brings it
@@ -50,7 +53,7 @@ var _fade_mat: StandardMaterial3D
 func _init() -> void:
 	head = XRCamera3D.new()
 	head.position = Vector3(0, 1.65, 0)
-	head.near = 0.05
+	head.near = NEAR
 	head.far = 400.0
 	add_child(head)
 	gaze = Gaze.new()

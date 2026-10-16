@@ -263,14 +263,9 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 			break
 		_run(g, STEP)
 	_check(perched != null, "a conure sits on its perch")
-	var hand: Node3D = g.rig.hands[0]
-	hand.global_position = perched.node.position + Vector3(0.3, 0.1, 0)
-	_run(g, STEP * 2, vanishing)
-	_check(perched.state == Birds.State.FLY, "a hand near it flushes it up")
-	var from := hand.global_position
-	_run(g, 6.0, vanishing)
-	_check(perched.node.position.distance_to(from) > Birds.FLUSH, "to a perch out of reach, %.2f m off" % perched.node.position.distance_to(from))
-	hand.global_position = AWAY
+	await _a_calm_approach_lets_him_close(g, perched, vanishing)
+	await _a_sudden_move_startles_it_a_short_way(g, perched, vanishing)
+	await _seeds_held_out_draw_one_onto_the_hand(g, vanishing)
 
 	g.world.undo()
 	g.world.undo()
@@ -281,6 +276,114 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 	_run(g, 200.0)
 	_check(g.birds().is_empty(), "and none come back without one")
 	await _teardown(g)
+
+
+## A hand or a head moved from `from` to `to` at `speed` metres a second, a tick at a time.
+func _move(g: Glade, n: Node3D, from: Vector3, to: Vector3, speed: float, each := Callable()) -> void:
+	var steps := maxi(int(from.distance_to(to) / speed / STEP), 1)
+	for i in steps + 1:
+		n.global_position = from.lerp(to, float(i) / steps)
+		_run(g, STEP, each)
+
+
+## A hand brought slowly right up to a perched conure, then a face: it stays, turned to watch, and steps aside
+## only from the face, a hop along its perch.
+func _a_calm_approach_lets_him_close(g: Glade, b: Birds.Bird, each: Callable) -> void:
+	var hand: Node3D = g.rig.hands[0]
+	var at := b.node.position
+	var side := Vector3(0.7, 0.3, 0.7).normalized()
+	hand.global_position = at + side * 2.0
+	_run(g, 1.0, each)
+	var left := [false]
+	var watching := func() -> void:
+		each.call()
+		left[0] = left[0] or b.state != Birds.State.PERCH
+	_move(g, hand, at + side * 2.0, at + side * 0.06, 0.3, watching)
+	_check(not left[0], "a hand coming slowly right up to a conure leaves it on its perch")
+	_run(g, 4.0, watching)
+	_check(not left[0] and b.node.position == at, "held still beside it, it stays, %.2f m from the hand" % b.node.position.distance_to(hand.global_position))
+	var facing := -b.node.global_basis.z
+	var to_hand := hand.global_position - at
+	_check(Vector2(facing.x, facing.z).normalized().dot(Vector2(to_hand.x, to_hand.z).normalized()) > 0.9, "and turns to watch it")
+	_move(g, hand, hand.global_position, AWAY.lerp(at, 0.99), 0.4, each)
+	hand.global_position = AWAY
+	_run(g, 0.5, each)
+
+	var head: Node3D = g.rig.head
+	var home := head.global_position
+	var centre := b.node.position + Conure.BODY
+	_move(g, head, centre + Vector3(0, 0.1, 1.5), centre + Vector3(0, 0.02, 0.05), 0.3, each)
+	_check(b.state != Birds.State.FLY and b.state != Birds.State.LEAVE, "a face leaning in slowly startles it not, state %s" % Birds.State.keys()[b.state])
+	_run(g, 1.0, each)
+	var off := (b.node.position + Conure.BODY).distance_to(head.global_position)
+	var hopped := b.node.position.distance_to(at)
+	_check(off > Birds.SHUFFLE and b.state == Birds.State.PERCH and hopped > 0.0 and hopped < b.site.hop(), "it shuffles aside along its perch, %.2f m, to %.2f m from the eye" % [hopped, off])
+	_check(off - 0.07 > Rig.NEAR, "so the eye's near clip never cuts it")
+	head.global_position = home
+	_run(g, 1.0, each)
+
+
+## A hand jerked at a perched conure: it flies off a short way to a perch, in sight, and stays in the garden.
+func _a_sudden_move_startles_it_a_short_way(g: Glade, b: Birds.Bird, each: Callable) -> void:
+	for i in 300:
+		if b.state == Birds.State.PERCH:
+			break
+		_run(g, STEP, each)
+	var hand: Node3D = g.rig.hands[0]
+	var at := b.node.position
+	hand.global_position = at + Vector3(1.2, 0.2, 0)
+	_run(g, 1.0, each)
+	_move(g, hand, hand.global_position, at + Vector3(0.3, 0.1, 0), 3.0, each)
+	_run(g, STEP * 2, each)
+	_check(b.state == Birds.State.FLY, "a sudden hand startles it up, state %s" % Birds.State.keys()[b.state])
+	var from := hand.global_position
+	_run(g, 4.0, each)
+	var moved := b.node.position.distance_to(at)
+	_check(b.state != Birds.State.LEAVE and b in g.birds(), "it stays in the garden")
+	_check(moved <= Birds.STARTLE_TO.y + 0.01 and b.node.position.distance_to(from) > Birds.STARTLE, "a short way off, %.2f m, out of reach" % moved)
+	_check(g.wildlife._in_sight(b.node.position), "and in sight")
+	hand.global_position = AWAY
+	_run(g, 1.0, each)
+
+
+## A hand held out with seeds draws one conure onto it, one at a time; carried slowly it eats on, and a jerk sends it
+## off a short way. Put away, the seeds keep nobody.
+func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
+	var hand: Hand = g.rig.right
+	var perch := g.birds()[0].spot
+	hand.global_transform = Transform3D(Basis(Vector3.UP, 0.4), perch + Vector3(1.5, -0.4, 1.0))
+	hand.held_still = true
+	hand.tool = Hand.Tool.SEEDS
+	var on: Array[Birds.Bird] = []
+	var flew := [0]
+	var eating := func() -> void:
+		each.call()
+		on.assign(g.birds().filter(func(b: Birds.Bird) -> bool: return b.state == Birds.State.FEED))
+		flew[0] = maxi(flew[0], g.birds().filter(func(b: Birds.Bird) -> bool: return b.hand == hand).size())
+	for i in int(30.0 / STEP):
+		_run(g, STEP, eating)
+		if not on.is_empty():
+			break
+	_check(on.size() == 1 and flew[0] == 1, "one conure comes to the seeds, %d" % on.size())
+	if on.is_empty():
+		return
+	var b := on[0]
+	var spot := hand.global_transform * Wildlife.ON_HAND
+	_check(b.node.position.distance_to(spot) < 0.001, "and stands on the hand behind them")
+	var start := hand.global_position
+	_move(g, hand, start, start + Vector3(-0.3, 0.1, 0.2), 0.25, eating)
+	_check(b.state == Birds.State.FEED and b.node.position.distance_to(hand.global_transform * Wildlife.ON_HAND) < 0.001, "carried slowly, it rides along eating")
+	_move(g, hand, hand.global_position, hand.global_position + Vector3(0.4, 0.3, 0), 3.0, eating)
+	_run(g, STEP * 2, eating)
+	_check(b.state == Birds.State.FLY and b.hand == null, "jerked, the hand sends it off")
+	_run(g, 4.0, each)
+	_check(b in g.birds() and b.state != Birds.State.LEAVE, "to a perch nearby, staying, state %s" % Birds.State.keys()[b.state])
+	_check(not g.wildlife._eaters.has(hand) or g.wildlife._eaters[hand] != b, "and lets the hand go")
+	hand.tool = Hand.Tool.WALLS
+	_run(g, 1.0, each)
+	_check(g.birds().all(func(b: Birds.Bird) -> bool: return b.hand == null), "seeds put away keep nobody")
+	hand.held_still = false
+	hand.global_position = AWAY
 
 
 ## A wall taken away under perched conures, with another perch standing: from the next frame none counts on

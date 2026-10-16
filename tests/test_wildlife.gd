@@ -29,6 +29,38 @@ func _run(wildlife: Wildlife, seconds: float, each := Callable()) -> void:
 		t += STEP
 
 
+## Seeds held low over the pond: the mother swims over and pecks under the hand, the ducklings pecking with her;
+## a jerk of the hand sends them back to swimming, and nobody comes again for a while.
+func _seeds_held_low_draw_the_ducks(wildlife: Wildlife, hand: Hand, pond: PondWater) -> void:
+	var f: Wildlife.Family = wildlife.families[0]
+	var mid := Terrain.grid_xz(pond.pond.bottom)
+	var at := Vector3(mid.x, pond.surface_y() + 0.3, mid.y)
+	hand.global_position = at
+	hand.held_still = true
+	hand.tool = Hand.Tool.SEEDS
+	wildlife.hands.assign([hand])
+	var pecked := [0.0]
+	for i in int(40.0 / STEP):
+		_run(wildlife, STEP)
+		pecked[0] = maxf(pecked[0], f.leader().pecking)
+		if f.leader().pecking >= 1.0:
+			break
+	var lead := f.leader()
+	var off := Vector2(lead.position.x - at.x, lead.position.z - at.z).length()
+	_check(f.state == Wildlife.State.FEED and absf(off - Wildlife.duck_appetite.mouth) < 0.05, "a duck comes under the hand, its bill %.2f m from under it" % off)
+	_check(f.ducks.all(func(d: Duck) -> bool: return d.pecking > 0.5), "and pecks there, the ducklings with it")
+	var steps := 4
+	for i in steps:
+		hand.global_position = at + Vector3(0, 0.12 * (i + 1), 0)
+		_run(wildlife, STEP)
+	_check(f.state != Wildlife.State.FEED and f.full > 0.0, "a jerk of the hand sends them back to swimming")
+	_run(wildlife, 2.0)
+	_check(f.state != Wildlife.State.FEED, "fed, they come back only later")
+	hand.tool = Hand.Tool.WALLS
+	hand.held_still = false
+	wildlife.hands.clear()
+
+
 ## No hand tool, no scripted step and nothing but the game's root reaches an animal; Wildlife offers no way
 ## to add one.
 func _no_tool_places_an_animal() -> void:
@@ -40,7 +72,7 @@ func _no_tool_places_an_animal() -> void:
 			_check(not code.contains("Duck") and not code.contains("ildlife"), "%s reaches no animal" % f)
 	_check(FileAccess.get_file_as_string("res://src/main.gd").count("Wildlife.new(") == 1, "main makes one Wildlife")
 	for m in (load("res://src/wildlife.gd") as Script).get_script_method_list():
-		_check(m.name.begins_with("_") or m.name in ["tick", "ducks"], "Wildlife exposes no way to add an animal, found %s" % m.name)
+		_check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "offers", "offer_for", "claim", "release", "feeds", "eat_spot"], "Wildlife exposes no way to add an animal, found %s" % m.name)
 
 
 func _dig(tool: WaterTool, x: float, z: float, frames: int) -> void:
@@ -154,6 +186,7 @@ func _ducks_come_only_to_ponds() -> void:
 	var high := lone.position.y - pond.surface_y()
 	_run(flier, 10.0)
 	_check(high > 5.0 and flier.families[-1].state == Wildlife.State.SWIM and lone.afloat, "it comes down from %.1f m and settles on the water" % high)
+	_seeds_held_low_draw_the_ducks(flier, rig.right, pond)
 	flier.families.clear()
 	lone.free()
 	flier.rng.seed = lone_seed
@@ -175,6 +208,7 @@ func _ducks_come_only_to_ponds() -> void:
 	_check(walker.families.size() == 1 and walker.families[0].ducks.size() > 2, "a mother walks in with ducklings")
 	_run(walker, 90.0)
 	_check(walker.families[0].state in [Wildlife.State.SWIM, Wildlife.State.ASHORE, Wildlife.State.REST], "and they reach the water")
+	_seeds_held_low_draw_the_ducks(walker, rig.right, pond)
 
 	world.undo()
 	world.undo()

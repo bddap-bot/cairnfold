@@ -148,6 +148,54 @@ class Watch:
 
 
 ## A sheep of the flock resting on its spot, preferring the one furthest from the others; null if none rests.
+## Seeds held out low beside a grazing flock: one sheep walks up and nibbles from the hand, head lowered to
+## it, and stops once the seeds are put away.
+func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
+	var near: Sheep = null
+	for s in g.sheep():
+		if s.state in [Herds.State.GRAZE, Herds.State.STAND, Herds.State.WALK, Herds.State.LIE]:
+			near = s
+			break
+	_check(near != null, "a sheep to feed")
+	if near == null:
+		return
+	var hand: Hand = g.rig.right
+	var at := Vector3.INF
+	for k in 8:
+		var p := near.position + Vector3.RIGHT.rotated(Vector3.UP, TAU * k / 8.0) * 1.5
+		if g.wildlife.herds.allowed(p) and g.wildlife.herds._clear_way(near.position, p):
+			at = Terrain.ground(p.x, p.z) + Vector3.UP * 0.45
+			break
+	_check(at != Vector3.INF, "open grass beside it to hold seeds over")
+	if at == Vector3.INF:
+		return
+	hand.global_position = at
+	hand.held_still = true
+	hand.tool = Hand.Tool.SEEDS
+	var eater: Array[Sheep] = []
+	for i in int(40.0 / STEP):
+		_run(g, STEP, each)
+		eater.assign(g.sheep().filter(func(s: Sheep) -> bool: return s.state == Herds.State.FEED))
+		if not eater.is_empty() and Vector2(eater[0].goal.x - eater[0].position.x, eater[0].goal.z - eater[0].position.z).length() < 1e-3:
+			break
+	_check(eater.size() == 1, "one sheep comes to the seeds, %d" % eater.size())
+	if eater.size() == 1:
+		var s := eater[0]
+		_run(g, 1.5, each)
+		var reach := Vector2(at.x - s.position.x, at.z - s.position.z).length()
+		var facing := -s.basis.z
+		var to := Vector2(at.x - s.position.x, at.z - s.position.z).normalized()
+		_check(s.state == Herds.State.FEED and absf(reach - Herds.appetite.mouth) < 0.1, "and stands with its muzzle at the hand, %.2f m off" % reach)
+		_check(Vector2(facing.x, facing.z).normalized().dot(to) > 0.95, "facing it")
+		_check(s.mode.y > 0.2, "its head lowered to the hand, graze %.2f" % s.mode.y)
+		hand.tool = Hand.Tool.WALLS
+		_run(g, 0.5, each)
+		_check(s.state != Herds.State.FEED and s.hand == null, "seeds put away, it stops")
+	hand.held_still = false
+	hand.global_position = AWAY
+	_run(g, 1.0, each)
+
+
 func _a_resting(g: Glade, but: Array = []) -> Sheep:
 	var best: Sheep = null
 	var room := -1.0
@@ -295,9 +343,21 @@ func _fences_draw_a_flock() -> void:
 	if not calm.is_empty():
 		var target: Sheep = calm[0]
 		var hand: Hand = g.rig.right
-		hand.global_position = target.position + Vector3(0.3, 0.6, 0.3)
+		var back := target.position + Vector3(0.3, 0.6, 0.3)
+		hand.global_position = back + Vector3(2.0, 0, 2.0)
+		_run(g, 1.0)
+		var fled := [false]
+		var steps := int(2.0 * sqrt(8.0) / 0.3 / STEP)
+		for i in steps + 1:
+			hand.global_position = (back + Vector3(2.0, 0, 2.0)).lerp(back, float(i) / steps)
+			_run(g, STEP, func() -> void: fled[0] = fled[0] or target.state == Herds.State.FLEE)
+		_run(g, 2.0, func() -> void: fled[0] = fled[0] or target.state == Herds.State.FLEE)
+		_check(not fled[0], "a hand brought slowly to its back leaves a sheep be")
+		hand.global_position = back + Vector3(0.6, 0.2, 0.6)
+		_run(g, STEP)
+		hand.global_position = back
 		_run(g, 0.2)
-		_check(target.state == Herds.State.FLEE, "a hand at its back sends a sheep off, state %d" % target.state)
+		_check(target.state == Herds.State.FLEE, "a sudden hand at its back sends a sheep off, state %d" % target.state)
 		var from := hand.global_position
 		_run(g, 5.0, watch)
 		var off := Vector2(target.position.x - from.x, target.position.z - from.z).length()
@@ -305,6 +365,7 @@ func _fences_draw_a_flock() -> void:
 		hand.global_position = AWAY
 		_run(g, 30.0, watch)
 		_check(worst.crossed == 0 and worst.wet == 0, "fleeing, it keeps out of water and walls")
+		await _seeds_held_low_draw_a_sheep(g, watch)
 
 	g.world.undo()
 	g.world.undo()

@@ -41,7 +41,7 @@ func _viewport(size: Vector2i, msaa: Viewport.MSAA, far: float) -> SubViewport:
 	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	var cam := Camera3D.new()
 	cam.fov = FOV
-	cam.near = 0.05
+	cam.near = Rig.NEAR
 	cam.far = far
 	vp.add_child(cam)
 	add_child(vp)

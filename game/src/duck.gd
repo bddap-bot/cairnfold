@@ -25,6 +25,7 @@ const BLEND := 3.0
 var size := 1.0
 var pace := 1.0
 var afloat := false
+var pecking := 0.0
 
 
 func _init(chick: bool, phase: float) -> void:
@@ -33,6 +34,14 @@ func _init(chick: bool, phase: float) -> void:
 	pace = 1.6 if chick else 1.0
 	scale = Vector3.ONE * size
 	set_instance_shader_parameter("pace", pace)
+
+
+## Eases its pecking at seeds toward `target`, 1 eating and 0 not.
+func peck(target: float, delta: float) -> void:
+	var next := move_toward(pecking, target, delta * 3.0)
+	if next != pecking:
+		pecking = next
+		set_instance_shader_parameter("peck", pecking)
 
 
 func walk_speed() -> float:

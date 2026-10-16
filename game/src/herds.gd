@@ -3,12 +3,12 @@ extends Node3D
 
 ## Sheep at the fences the player has built: some time after a long enough fence stands, a small flock walks in
 ## from out of sight and grazes the grass along one side of it. They crop with heads down, drifting a step at a
-## time, look about, walk to fresh grass and now and then lie down; a hand close by sends one trotting off a few
-## metres before it settles. They keep out of water, off paths and clear of walls, houses, towers and trunks,
+## time, look about, walk to fresh grass and now and then lie down; a sudden move close by sends one trotting off a
+## few metres before it settles, and one that sees seeds held out low walks up and nibbles them from the hand. They keep out of water, off paths and clear of walls, houses, towers and trunks,
 ## never walk through a wall or into water, and leave, out of sight, once their fence is gone or no grass beside
 ## it can be reached. Part of `Wildlife`, which decides when they come and where nobody is looking.
 
-enum State { ENTER, GRAZE, STAND, WALK, LIE, FLEE, LEAVE }
+enum State { ENTER, GRAZE, STAND, WALK, LIE, FLEE, LEAVE, FEED }
 
 const CAP := 8
 const FLOCK := Vector2i(2, 4)
@@ -33,8 +33,12 @@ const WALK_CHANCE := 0.45
 const NIBBLE_STEP := Vector2(0.2, 0.6)
 ## Fresh grass lies this far from where a sheep is.
 const ROAM := Vector2(1.5, 4.5)
-## A hand nearer than this to a sheep's back sends it off this far.
+## A sudden move nearer than this to a sheep's back sends it off this far.
 const SCARE := 1.0
+## How readily a sheep that sees seeds held out goes for them, per second.
+const DRAWN := 0.4
+## A sheep walks up to seeds held out below its head and nibbles them, its muzzle at the hand.
+static var appetite := Wildlife.Appetite.new(Wildlife.Eat.UNDER_HAND, 4.0, 0.9, 0.55, Vector2(6.0, 12.0), Vector2(10.0, 25.0))
 const FLEE := Vector2(2.5, 4.0)
 ## Clearance from a wall's centre line beyond its half thickness, and from a trunk.
 const WALL_CLEAR := 0.55
@@ -98,6 +102,7 @@ func tick(delta: float) -> void:
 		_part(f, delta)
 		if _leaving(f) and _gone(f):
 			for s in f.sheep:
+				wildlife.release(s)
 				s.queue_free()
 			flocks.remove_at(i)
 
@@ -191,9 +196,16 @@ func _think(f: Flock, s: Sheep, delta: float) -> void:
 		elif _go(s, s.goal, SPEED[State.LEAVE], delta):
 			_head_off(s, way.normalized())
 		return
-	var hand: Node3D = wildlife._hand_within(s.position + Vector3.UP * 0.55 * s.size, SCARE) if s.state != State.ENTER and s.state != State.FLEE else null
-	if hand != null:
-		_flee(s, hand.global_position)
+	if s.hand != null and s.state != State.FEED:
+		_fed(s)
+	var fright: Node3D = wildlife._startled(s.position + Vector3.UP * 0.55 * s.size, SCARE) if s.state != State.ENTER and s.state != State.FLEE else null
+	if fright != null:
+		if s.hand != null:
+			_fed(s)
+		_flee(s, fright.global_position)
+	s.full = maxf(s.full - delta, 0.0)
+	if s.state in [State.GRAZE, State.STAND, State.WALK] and s.full <= 0.0 and rng.randf() < delta * DRAWN:
+		_come_for_seeds(s)
 	if _settled(s):
 		wildlife.calls.now_and_then("bleat", s.position, BLEAT_EVERY, delta)
 	match s.state:
@@ -224,12 +236,60 @@ func _think(f: Flock, s: Sheep, delta: float) -> void:
 					_graze(s)
 				else:
 					_walk_on(f, s)
+		State.FEED:
+			_eat(s, delta)
 		State.LIE:
 			s.blend(Sheep.LIE, delta)
 			s.timer -= delta
 			if s.timer <= 0.0:
 				s.state = State.STAND
 				s.timer = rng.randf_range(STAND_FOR.x, STAND_FOR.y)
+
+
+func _come_for_seeds(s: Sheep) -> void:
+	var h := wildlife.offer_for(appetite, s.position)
+	if h == null:
+		return
+	var spot := wildlife.eat_spot(appetite, h, s.position)
+	if not allowed(spot) or not _clear_way(s.position, spot):
+		return
+	wildlife.claim(h, s)
+	s.hand = h
+	s.goal = spot
+	s.state = State.FEED
+	s.timer = rng.randf_range(appetite.eats_for.x, appetite.eats_for.y)
+
+
+## Up to the hand and nibbling from it while it is held out calmly, the head lowered to it. Seeds put away or
+## eaten, or a hand that leads where it may not go, leave it standing.
+func _eat(s: Sheep, delta: float) -> void:
+	if not wildlife.feeds(s.hand, s):
+		_fed(s)
+		return
+	var hand := s.hand.global_position
+	var spot := wildlife.eat_spot(appetite, s.hand, s.position)
+	if Vector2(spot.x - s.goal.x, spot.z - s.goal.z).length() > 0.15:
+		if not allowed(spot) or not _clear_way(s.position, spot):
+			_fed(s)
+			return
+		s.goal = spot
+	var muzzle := Sheep.FACE_AT.y * s.size
+	var nibble := Sheep.IDLE.lerp(Sheep.GRAZE, clampf((muzzle - (hand.y - s.position.y)) / muzzle, 0.0, 1.0))
+	if not _go(s, s.goal, SPEED[State.WALK], delta, nibble if not _off_goal(s) else Sheep.WALK):
+		return
+	Wildlife._face(s, hand - s.position, delta * TURN)
+	s.timer -= delta
+	if s.timer <= 0.0:
+		_fed(s)
+
+
+func _fed(s: Sheep) -> void:
+	wildlife.release(s)
+	s.hand = null
+	s.full = rng.randf_range(appetite.full_for.x, appetite.full_for.y)
+	if s.state == State.FEED:
+		s.state = State.STAND
+		s.timer = rng.randf_range(STAND_FOR.x, STAND_FOR.y)
 
 
 ## Whether a grazing sheep is still stepping to the grass it chose.
@@ -298,6 +358,8 @@ func _leaving(f: Flock) -> bool:
 func _leave(f: Flock) -> void:
 	var heading := wildlife._unseen_direction(f.sheep[0].position, Wildlife.WALK_AWAY, 0.0, Wildlife.LEAVE_SIGHT, rng)
 	for s in f.sheep:
+		wildlife.release(s)
+		s.hand = null
 		s.state = State.LEAVE
 		_head_off(s, heading)
 

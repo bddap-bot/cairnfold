@@ -36,6 +36,9 @@ var gait := 0.0
 var state := Herds.State.ENTER
 var timer := 0.0
 var goal := Vector3.ZERO
+## The hand it eats from, and how long until it goes for seeds again.
+var hand: Node3D
+var full := 0.0
 
 
 func _init(phase: float, scale_by: float, tint: Color) -> void:
