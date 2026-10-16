@@ -145,6 +145,9 @@ func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes:
 	palette = season
 	viewer = eyes
 	hands = near
+	Duck.prepare()
+	Sheep.prepare()
+	Conure.prepare()
 	if seed >= 0:
 		rng.seed = seed
 	else:

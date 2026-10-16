@@ -14,21 +14,27 @@ var coat: HandStop.Surface
 var hand: Node3D
 
 
-## `kind` names the mesh `build` makes, once for every animal that shares it.
 func _init(kind: String, build: Callable, shader: String, blend_rate: float, phase: float, feel: HandStop.Surface) -> void:
 	coat = feel
 	add_to_group(HandStop.CRITTERS)
+	share(kind, build, shader)
+	mesh = _shared[kind]
+	material_override = _shared[shader]
+	rate = blend_rate
+	set_instance_shader_parameter("phase", phase)
+	set_instance_shader_parameter("mode", mode)
+
+
+## `kind` names the mesh `build` makes and `shader` the material, each made once for every animal that shares it.
+## Making them as an animal comes costs a late frame on the Frame (21 ms for the first duck), so `prepare` makes
+## them first.
+static func share(kind: String, build: Callable, shader: String) -> void:
 	if not _shared.has(kind):
 		_shared[kind] = build.call()
 	if not _shared.has(shader):
 		var m := ShaderMaterial.new()
 		m.shader = load(shader)
 		_shared[shader] = m
-	mesh = _shared[kind]
-	material_override = _shared[shader]
-	rate = blend_rate
-	set_instance_shader_parameter("phase", phase)
-	set_instance_shader_parameter("mode", mode)
 
 
 func blend(target: Vector4, delta: float) -> void:

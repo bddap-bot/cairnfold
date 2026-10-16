@@ -19,6 +19,8 @@ const PREEN := Vector4(0, 1, 0, 0)
 const PECK := Vector4(0, 0, 1, 0)
 const FLY := Vector4(0, 0, 0, 1)
 const BLEND := 5.0
+const KIND := "conure"
+const SHADER := "res://src/conure.gdshader"
 ## The body's long axis leans this far forward of upright when perched; the shader pitches it level to fly.
 const LEAN := deg_to_rad(35.0)
 const BODY := Vector3(0, 0.062, 0.012)
@@ -27,8 +29,12 @@ const WING_SIZE := Vector3(0.011, 0.052, 0.025)
 const TAIL_SIZE := Vector3(0.018, 0.058, 0.006)
 
 
+static func prepare() -> void:
+	share(KIND, build, SHADER)
+
+
 func _init(phase: float) -> void:
-	super("conure", build, "res://src/conure.gdshader", BLEND, phase, HandStop.Surface.FEATHERS)
+	super(KIND, build, SHADER, BLEND, phase, HandStop.Surface.FEATHERS)
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 
 

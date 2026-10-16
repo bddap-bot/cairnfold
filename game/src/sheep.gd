@@ -24,6 +24,8 @@ const WALK := Vector4(0, 0, 1, 0)
 const LIE := Vector4(0, 0, 0, 1)
 ## Mode change per second: slow enough that lying down and getting up read as motions.
 const BLEND := 1.6
+const KIND := "sheep"
+const SHADER := "res://src/sheep.gdshader"
 ## From the middle of the fleece to its rim, at size 1: how near two sheep stand.
 const RADIUS := 0.42
 ## The shader turns legs about HIP high, keeping the same number.
@@ -40,8 +42,12 @@ var goal := Vector3.ZERO
 var full := 0.0
 
 
+static func prepare() -> void:
+	share(KIND, build, SHADER)
+
+
 func _init(phase: float, scale_by: float, tint: Color) -> void:
-	super("sheep", build, "res://src/sheep.gdshader", BLEND, phase, HandStop.Surface.WOOL)
+	super(KIND, build, SHADER, BLEND, phase, HandStop.Surface.WOOL)
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	size = scale_by
 	scale = Vector3.ONE * size

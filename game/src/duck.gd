@@ -21,6 +21,7 @@ const PADDLE := Vector4(0, 1, 0, 0)
 const WADDLE := Vector4(0, 0, 1, 0)
 const FLY := Vector4(0, 0, 0, 1)
 const BLEND := 3.0
+const SHADER := "res://src/duck.gdshader"
 
 var size := 1.0
 var pace := 1.0
@@ -28,8 +29,17 @@ var afloat := false
 var pecking := 0.0
 
 
+static func prepare() -> void:
+	for chick in [false, true]:
+		share(_kind(chick), build.bind(chick), SHADER)
+
+
+static func _kind(chick: bool) -> String:
+	return "duckling" if chick else "duck"
+
+
 func _init(chick: bool, phase: float) -> void:
-	super("duckling" if chick else "duck", build.bind(chick), "res://src/duck.gdshader", BLEND, phase, HandStop.Surface.DOWN)
+	super(_kind(chick), build.bind(chick), SHADER, BLEND, phase, HandStop.Surface.DOWN)
 	size = CHICK_SIZE if chick else 1.0
 	pace = 1.6 if chick else 1.0
 	scale = Vector3.ONE * size
