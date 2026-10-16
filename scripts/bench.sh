@@ -156,7 +156,7 @@ if [ "${2:-}" = --android ]; then
     follow
     adb shell am start -n "$pkg/com.godot.game.GodotApp" --esa command_line_params "--,--script,$dir/stress.json,--metrics,$dir/metrics.json,--capture-dir,$dir,--seed,$seed" > /dev/null
     sleep 15
-    shows "activity activities" topResumedActivity "$pkg" && break
+    shows "activity activities" ResumedActivity "$pkg" && break
     [ "$try" -lt 3 ] || { echo "bench: the game would not start; see $out/logcat.txt" >&2; exit 1; }
     echo "bench: launch $try did not hold, restarting the shell" >&2
     fresh_shell
