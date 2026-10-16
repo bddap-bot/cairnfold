@@ -13,15 +13,10 @@ const DISC_SPAN_DEG := 6.5
 const DISC_RADIUS_DEG := 1.8
 
 const FLAGSTONE_TEXELS := 256
-## Shadows and fog follow the eye's height above the ground (`lift`): up to STANDING, the sun's shadows reach
-## SHADOW_REACH metres and the nearer of their two splits covers the first SHADOW_NEAR; floating higher, both
-## stretch with the distance down to the ground, so the near split falls on the ground rather than the empty
-## air around the eye. Fog begins and ends farther out the same way: from above, the ground is seen through
-## the air the eye floats over, and depth fog would grey a garden a standing eye sees clear.
+# A fade or split selected by view depth changes a fixed object's shade when the head turns.
+# One stabilized map covers the garden's diagonal, including its height and floating views.
+const SHADOW_REACH := 256.0
 const STANDING := 2.0
-const SHADOW_REACH := 45.0
-const SHADOW_NEAR := 6.0
-const SHADOW_FARTHEST := 90.0
 const FOG_BEGIN := 18.0
 const FOG_END := 140.0
 
@@ -137,8 +132,10 @@ static func build(parent: Node) -> Look:
 	sun.shadow_enabled = true
 	sun.light_cull_mask &= ~Hand.WHEEL_LAYER
 	sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
-	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
-	sun.shadow_blur = 1.5
+	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
+	sun.directional_shadow_max_distance = SHADOW_REACH
+	sun.directional_shadow_fade_start = 1.0
+	sun.shadow_blur = 0.2
 	sun.shadow_bias = 0.04
 	sun.shadow_normal_bias = 1.2
 	parent.add_child(sun)
@@ -179,13 +176,9 @@ func set_time(t: float) -> void:
 	bounce.set_sun(Daylight.toward_sun(t), l.sun * l.energy)
 
 
-## Fits the sun's shadow splits and the fog to an eye `lift` metres above the ground.
-static func shadow_and_fog(lift: float) -> Dictionary:
+static func fog_at_height(lift: float) -> Dictionary:
 	var up := maxf(lift - STANDING, 0.0)
-	var reach := minf(SHADOW_REACH + up * 1.8, SHADOW_FARTHEST)
 	return {
-		"shadow_reach": reach,
-		"near_split": minf((SHADOW_NEAR + up * 1.3) / reach, 0.5),
 		"fog_begin": FOG_BEGIN + up * 2.2,
 		"fog_end": FOG_END + up * 2.5,
 	}
@@ -196,9 +189,7 @@ func lift_to(lift: float) -> void:
 	if lift == _lift:
 		return
 	_lift = lift
-	var f := shadow_and_fog(lift)
-	sun.directional_shadow_max_distance = f.shadow_reach
-	sun.directional_shadow_split_1 = f.near_split
+	var f := fog_at_height(lift)
 	env.fog_depth_begin = f.fog_begin
 	env.fog_depth_end = f.fog_end
 

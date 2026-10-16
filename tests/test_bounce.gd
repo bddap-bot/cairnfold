@@ -21,7 +21,7 @@ func _init() -> void:
 	_moving_the_sun_relights()
 	_reshaped_ground_solves_again()
 	_masonry_reports_only_what_stands_in_the_light()
-	_floating_stretches_shadows_and_fog()
+	_floating_stretches_fog()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -157,10 +157,8 @@ func _masonry_reports_only_what_stands_in_the_light() -> void:
 	m.free()
 
 
-func _floating_stretches_shadows_and_fog() -> void:
-	var standing := Look.shadow_and_fog(1.65)
-	var floating := Look.shadow_and_fog(25.0)
-	_check(standing.shadow_reach == Look.SHADOW_REACH and standing.fog_begin == Look.FOG_BEGIN, "a standing eye keeps the standing shadows and fog")
-	_check(floating.shadow_reach > standing.shadow_reach and floating.shadow_reach <= Look.SHADOW_FARTHEST, "shadows reach farther from the air, to a bound")
-	_check(floating.shadow_reach * floating.near_split > 25.0, "from 25 m up the near split reaches past the drop to the ground")
+func _floating_stretches_fog() -> void:
+	var standing := Look.fog_at_height(1.65)
+	var floating := Look.fog_at_height(25.0)
+	_check(standing.fog_begin == Look.FOG_BEGIN, "a standing eye keeps the standing fog")
 	_check(floating.fog_begin > 25.0 and floating.fog_end > standing.fog_end, "and fog starts beyond it")

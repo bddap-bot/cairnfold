@@ -797,14 +797,17 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
   diffuse for soft terminators; foliage backlight for the glowing-leaf look.
 - **Atmosphere:** depth fog with aerial perspective and sun scatter, tinted towards
   the sky, so distant hills fade and the near meadow stays saturated.
-- **Floating viewpoints:** shadows and fog follow the eye's height above the
-  ground (`Look.shadow_and_fog`). Standing, the sun's shadows reach 45 m and the
-  nearer of their two splits covers the first 6 m. Floating higher, both stretch
-  with the drop to the ground (to 90 m at most), so the sharp split lands on the
-  garden below instead of the empty air around the eye, and fog begins and ends
-  farther out, so the garden is not greyed by air a standing eye would not look
-  through. Setting them costs only the uniform writes, made each time the height
-  moves by half a metre.
+- **Sun shadows:** one stabilized orthogonal map reaches 256 m, covering the garden
+  without a fade or cascade boundary inside it. Godot's Mobile renderer selects
+  cascades and fades shadows by view depth: a fixed distant tree used to lose its
+  shade when looked at directly, then regain it at the periphery. Removing those
+  transitions keeps its shade under head rotation. The map uses the existing
+  4096 atlas; the blur is 0.2 to retain edges at the larger reach. See
+  [the rendered yaw check](shadows.md).
+- **Floating viewpoints:** fog follows the eye's height above the ground
+  (`Look.fog_at_height`). It begins and ends farther out from above, so the garden
+  is not greyed by air a standing eye would not look through. Shadows keep the same
+  map settings while the head moves or turns.
 - **Grading:** AgX tonemapping, mild saturation and contrast lift. No glow: its
   extra passes cost the Quest 2 9 ms of its 13.9 (see "Quest 2 measurements").
 - **Detail:** everything repeated is a MultiMesh: stones, grass clumps, flowers,
@@ -982,7 +985,7 @@ Stage numbers refer to the build order at the end.
 | Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | Not a tool: a grip on the ground, whatever the hand holds, grabs it where it points (a pond's bed under its water too) and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then stone ground show on steep slopes | 7 (shaping done) |
 | Water | Dug holes with a flat surface and normal-map waves | The pond tool scoops a hollow where it points; it fills to just below its rim with depth-tinted water, shore foam and ripples where a hand breaks it (see "Water") | 7 (water done) |
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, and a one-metre probe volume of sky seen and sunlight bounced off sunlit stone, solved again on a worker when a build settles or the sun moves (see "Bounce light") | 2 (done) |
-| Shadows | Soft sun shadows with temporal filtering, contact shadows | Two-split soft shadows; occlusion darkening at wall feet and corners from the probe volume; splits and reach that follow the eye's height | 1 (done), 2 (done) |
+| Shadows | Soft sun shadows with temporal filtering, contact shadows | One stabilized shadow map across the garden; occlusion darkening at wall feet and corners from the probe volume | 1 (done), 2 (done) |
 | Sky and clouds | Hand-tuned colour timelines per glade; clouds as pre-lit sprites on a cylinder | Sky shader gradient and painted noise clouds; zenith, horizon, sun glow, cloud light and fog colour follow the sun's elevation through one timeline of keys (`Daylight`) | 1 (done), 8 (done) |
 | Fog | Froxel fog with density and height controls | Depth fog with aerial perspective and sun scatter, thinning as the eye lifts | 1 (done), 2 (done) |
 | Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap and grading (done); glow cut for the Quest 2. No depth of field: in a headset your eyes focus for themselves | 1 (done) |
