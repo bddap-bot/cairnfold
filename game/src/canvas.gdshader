@@ -1,5 +1,8 @@
 shader_type spatial;
 
+#include "res://src/ground.gdshaderinc"
+#include "res://src/bounce.gdshaderinc"
+
 // A canvas as paint.glsl leaves it: paper under the pigment laid and the pigment still in the water, darkened and
 // glossy where wet, oil standing up off it in ridges the light catches, charcoal and dry paper matte. The sheet is
 // mounted on a board, so no light comes through it from behind.
@@ -12,6 +15,12 @@ uniform vec2 metres;
 const vec3 SHEET = vec3(0.93, 0.91, 0.86);
 const float IMPASTO = 0.0035;
 const float GRAIN = 0.00025;
+
+varying vec4 given;
+
+void vertex() {
+	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
+}
 
 void fragment() {
 	vec4 w = texture(wet, UV);
@@ -31,4 +40,6 @@ void fragment() {
 	float oil = smoothstep(0.02, 0.2, d.a);
 	ROUGHNESS = mix(mix(0.92, 0.45, oil), 0.18, damp);
 	SPECULAR = mix(0.25, 0.6, max(oil, damp));
+	AO = given.a;
+	EMISSION = ALBEDO * given.rgb;
 }

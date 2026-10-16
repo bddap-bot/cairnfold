@@ -1,6 +1,8 @@
 shader_type spatial;
 render_mode cull_disabled, specular_disabled, diffuse_lambert_wrap;
 
+#include "res://src/ground.gdshaderinc"
+#include "res://src/bounce.gdshaderinc"
 #include "res://src/wind.gdshaderinc"
 
 // INSTANCE_CUSTOM: x the wingbeat's phase, y its swing and z the angle it swings about, in radians up from flat; w the
@@ -8,6 +10,7 @@ render_mode cull_disabled, specular_disabled, diffuse_lambert_wrap;
 uniform vec3 body : source_color = vec3(0.16, 0.13, 0.12);
 
 varying float edge;
+varying vec4 given;
 varying float part;
 
 void vertex() {
@@ -26,6 +29,7 @@ void vertex() {
 		vec2 at = MODEL_MATRIX[3].xz;
 		VERTEX += inverse(mat3(MODEL_MATRIX)) * bent(vec3(0.0), wind_push(at, wind_gust(at)) * INSTANCE_CUSTOM.w * STALK_GIVE, 1.0);
 	}
+	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
 }
 
 void fragment() {
@@ -35,4 +39,6 @@ void fragment() {
 	ALBEDO = is_body ? body : wing;
 	BACKLIGHT = is_body ? vec3(0.0) : wing * 0.6;
 	ROUGHNESS = 0.9;
+	AO = given.a;
+	EMISSION = ALBEDO * given.rgb;
 }

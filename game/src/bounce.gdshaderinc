@@ -29,3 +29,11 @@ vec3 lamp_coord(vec3 p, vec3 n) {
 vec3 given_back(vec3 at, vec3 lamp_at, vec4 bounce) {
 	return bounce.rgb * bounce_light + textureLod(lamp_volume, lamp_at, 0.0).r * lamp_light;
 }
+
+// given_back and the sky seen, read once a vertex for things small or dense enough that the volumes do not vary
+// over a triangle: what lights them where they stand without a read per fragment.
+vec4 given_at(vec3 p, vec3 n) {
+	vec3 at = bounce_coord(p, n);
+	vec4 bounce = textureLod(bounce_volume, at, 0.0);
+	return vec4(given_back(at, lamp_coord(p, n), bounce), bounce.a);
+}

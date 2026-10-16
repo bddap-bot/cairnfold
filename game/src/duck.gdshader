@@ -1,6 +1,11 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, shadows_disabled;
 
+#include "res://src/ground.gdshaderinc"
+#include "res://src/bounce.gdshaderinc"
+
+varying vec4 given;
+
 // x idle, y paddle, z waddle, w fly: weights scale each motion so blends stay continuous.
 instance uniform vec4 mode = vec4(1.0, 0.0, 0.0, 0.0);
 instance uniform float phase = 0.0;
@@ -71,10 +76,13 @@ void vertex() {
 		VERTEX.y += waddle * 0.012 * abs(cos(c));
 		turn(VERTEX, NORMAL, vec3(0.0), rot(vec3(0.0, 0.0, 1.0), waddle * 0.13 * sin(c)) * rot(vec3(0.0, 1.0, 0.0), waddle * 0.08 * sin(c)));
 	}
+	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
 }
 
 void fragment() {
 	ALBEDO = COLOR.rgb;
 	ROUGHNESS = COLOR.r < 0.1 ? 0.25 : 0.75;
 	SPECULAR = COLOR.r < 0.1 ? 0.6 : 0.3;
+	AO = given.a;
+	EMISSION = ALBEDO * given.rgb;
 }

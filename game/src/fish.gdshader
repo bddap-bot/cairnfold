@@ -3,6 +3,7 @@ render_mode blend_mix, depth_draw_never, diffuse_lambert_wrap, specular_disabled
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/water.gdshaderinc"
+#include "res://src/bounce.gdshaderinc"
 
 // Drawn after the pond's surface, which would hide them in deep water: the water's own tint over them stands in
 // for it. INSTANCE_CUSTOM: x its own seed, y its speed over a cruise's, z how far it has faded in.
@@ -12,6 +13,7 @@ uniform vec3 deep : source_color;
 varying float top;
 varying float shown;
 varying vec3 tint;
+varying vec4 given;
 
 void vertex() {
 	float along = UV.y;
@@ -22,6 +24,7 @@ void vertex() {
 	shown = INSTANCE_CUSTOM.z;
 	float body = 1.0 - exp(-max(water_depth_at(MODEL_MATRIX[3].xz), 0.0) * 2.8);
 	tint = mix(shallow, deep, body);
+	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
 }
 
 void fragment() {
@@ -31,4 +34,6 @@ void fragment() {
 	c = mix(c, vec3(0.92, 0.88, 0.8), top * patch * 0.45 * (1.0 - UV.x));
 	ALBEDO = mix(c, tint, 0.25);
 	ALPHA = 0.88 * shown;
+	AO = given.a;
+	EMISSION = ALBEDO * given.rgb;
 }

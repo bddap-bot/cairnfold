@@ -1,6 +1,11 @@
 shader_type spatial;
 render_mode diffuse_lambert_wrap, specular_schlick_ggx, shadows_disabled;
 
+#include "res://src/ground.gdshaderinc"
+#include "res://src/bounce.gdshaderinc"
+
+varying vec4 given;
+
 // x looking about, y preening, z pecking, w flight: weights scale each motion so blends stay continuous.
 instance uniform vec4 mode = vec4(1.0, 0.0, 0.0, 0.0);
 instance uniform float phase = 0.0;
@@ -105,6 +110,7 @@ void vertex() {
 	}
 	turn(VERTEX, NORMAL, BODY, rot(X, -fly * 0.96));
 	VERTEX.y += fly * 0.006 * sin(t * TAU * 8.0 + 1.0);
+	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
 }
 
 float noise(vec3 p) {
@@ -134,4 +140,6 @@ void fragment() {
 	ROUGHNESS = mix(COLOR.r < 0.1 ? 0.15 : 0.55, 0.85, plume);
 	SPECULAR = mix(COLOR.r < 0.1 ? 0.8 : 0.35, 0.25, plume);
 	BACKLIGHT = feather * 0.25 * plume;
+	AO = given.a;
+	EMISSION = ALBEDO * given.rgb;
 }

@@ -1,6 +1,8 @@
 shader_type spatial;
 render_mode cull_disabled;
 
+#include "res://src/ground.gdshaderinc"
+#include "res://src/bounce.gdshaderinc"
 #include "res://src/palette.gdshaderinc"
 
 uniform vec3 backlight : source_color = vec3(0.2, 0.3, 0.06);
@@ -10,16 +12,21 @@ uniform float reach;
 // A camera seeing this layer (Quality.FULL_LAYER) draws every leaf.
 uniform uint full_layer;
 
+varying vec4 given;
+
 void vertex() {
 	vec3 origin = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
 	if ((CAMERA_VISIBLE_LAYERS & full_layer) == 0u) {
 		VERTEX *= 1.0 - smoothstep(max(reach - 15.0, reach * 0.5), reach, distance(origin, CAMERA_POSITION_WORLD));
 	}
 	COLOR.rgb = seasoned(COLOR.rgb, season_foliage);
+	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
 }
 
 void fragment() {
 	ALBEDO = COLOR.rgb;
 	ROUGHNESS = 0.75;
 	BACKLIGHT = seasoned(backlight, season_foliage);
+	AO = given.a;
+	EMISSION = ALBEDO * given.rgb;
 }
