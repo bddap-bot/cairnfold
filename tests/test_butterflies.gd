@@ -199,7 +199,9 @@ func _a_path_over_flowers_takes_them_away() -> void:
 	for x in range(-6, 1):
 		g.tool.extend_path(Terrain.ground(x, -5), 2.5)
 	g.tool.end_path(b)
-	await process_frame
+	# The path's wear shows from the frame after it lands.
+	for i in 2:
+		await process_frame
 	_run(g, 2.0)
 	_check(g.wildlife.butterflies.patches.is_empty(), "flowers a path parts are no patch, %d left" % g.wildlife.butterflies.patches.size())
 

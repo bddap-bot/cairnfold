@@ -278,16 +278,32 @@ func crossings(wall: WallLayout) -> Array[float]:
 	var out: Array[float] = []
 	if samples.size() < 2 or wall.samples.size() < 2:
 		return out
-	var found: Array[float] = []
 	var bounds := Rect2(_flat(wall.samples[0]), Vector2.ZERO)
 	for q in wall.samples:
 		bounds = bounds.expand(_flat(q))
+	bounds = bounds.grow(0.01)
+	if not bounds.intersects(area, true):
+		return out
+	var found: Array[float] = []
+	var grid := {}
 	for i in samples.size() - 1:
 		var a := _flat(samples[i])
 		var b := _flat(samples[i + 1])
-		if not bounds.grow(0.01).intersects(Rect2(a, Vector2.ZERO).expand(b), true):
+		if not bounds.intersects(Rect2(a, Vector2.ZERO).expand(b), true):
 			continue
-		for j in wall.samples.size() - 1:
+		if grid.is_empty():
+			for j in wall.samples.size() - 1:
+				for c in _cells_along(_flat(wall.samples[j]), _flat(wall.samples[j + 1])):
+					if not grid.has(c):
+						grid[c] = []
+					grid[c].append(j)
+		var near := {}
+		for c in _cells_along(a, b):
+			for j: int in grid.get(c, []):
+				near[j] = true
+		var js := near.keys()
+		js.sort()
+		for j: int in js:
 			var c := _flat(wall.samples[j])
 			var d := _flat(wall.samples[j + 1])
 			var hit: Variant = Geometry2D.segment_intersects_segment(a, b, c, d)
@@ -303,6 +319,17 @@ func crossings(wall: WallLayout) -> Array[float]:
 			var n := 1 if span < ARCADE_SPAN else ceili((span - WallLayout.ARCH_HALF * 2.0) / WallLayout.ARCADE_PITCH) + 1
 			for k in n:
 				out.append(s + (k - (n - 1) * 0.5) * WallLayout.ARCADE_PITCH)
+	return out
+
+
+## The grid cells the box around segment a–b reaches, padded so a crossing on a cell edge is found from both sides.
+static func _cells_along(a: Vector2, b: Vector2) -> Array[Vector2i]:
+	var lo := Vector2i(((a.min(b) - Vector2.ONE * 0.01) / CELL).floor())
+	var hi := Vector2i(((a.max(b) + Vector2.ONE * 0.01) / CELL).floor())
+	var out: Array[Vector2i] = []
+	for i in range(lo.x, hi.x + 1):
+		for j in range(lo.y, hi.y + 1):
+			out.append(Vector2i(i, j))
 	return out
 
 

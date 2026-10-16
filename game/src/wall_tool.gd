@@ -644,12 +644,17 @@ func _relay(w: Wall) -> void:
 	_meet(w)
 	w.layout.resample(Terrain.height_at, Terrain.water_at)
 	_reshaped(w)
+	_open_paths(w)
+	w.rebuild()
+
+
+func _open_paths(w: Wall) -> void:
+	w.layout.arches.assign(Array(world.state.walls[w.id].arches))
 	for p in paths.layouts:
 		_cut_crossings(w, p)
 	_path_arches[w.id] = w.layout.arches.duplicate()
 	for p in paths.previews:
 		_cut_crossings(w, p)
-	w.rebuild()
 
 
 func _preview_crossings() -> void:
@@ -664,11 +669,15 @@ func _preview_crossings() -> void:
 			w.rebuild()
 
 
-## Wall chemistry: a path laid or lifted opens or closes arches in every wall it crosses.
+## Wall chemistry: a path laid or lifted opens or closes arches in every wall it crosses. Only the arches change, so the
+## wall is not resampled.
 func relay_crossings(path: PathLayout) -> void:
 	for w in walls:
 		if not path.crossings(w.layout).is_empty() and not _held(w):
-			_relay(w)
+			var before := w.layout.arches.duplicate()
+			_open_paths(w)
+			if before != w.layout.arches:
+				w.rebuild()
 			_sound(&"arch", _top(w, w.layout.length() * 0.5))
 
 

@@ -27,6 +27,12 @@ static var _held: Array[Object] = []
 static var rewears := 0
 ## True while a whole garden is being swapped in: one rewear at the end instead of one per mark.
 static var quiet := false
+## Marks laid last, not yet worn into `laid`: worn on the frame after they are laid, or at once when `laid` is read,
+## so a build's release does not wear its whole path in the frame it lands.
+static var _unworn: Array[Object] = []
+static var _unworn_since := 0
+## A stroke was held or released: the shown image is redrawn when the unworn marks are.
+static var _unshown := false
 static var _brushes := {}
 
 
@@ -66,6 +72,8 @@ static func install() -> void:
 
 
 static func _texel(x: float, z: float, from := image) -> Color:
+	if from == laid:
+		settle()
 	return from.get_pixel(clampi(int((x / Terrain.SIZE + 0.5) * SIZE), 0, SIZE - 1), clampi(int((z / Terrain.SIZE + 0.5) * SIZE), 0, SIZE - 1))
 
 
@@ -103,8 +111,8 @@ static func lay(mark: Object, id: int) -> void:
 	_ids.insert(i, id)
 	_marks.insert(i, mark)
 	if i == _marks.size() - 1 and not quiet:
-		mark.wear(laid)
-		_show()
+		_wait()
+		_unworn.append(mark)
 	else:
 		rewear()
 
@@ -120,11 +128,14 @@ static func lift(mark: Object) -> void:
 ## Keeps showing a player's finished stroke until `release`, when its command has landed or been turned down.
 static func hold(mark: Object) -> void:
 	_held.append(mark)
+	_wait()
+	_unshown = true
 
 
 static func release(mark: Object) -> void:
 	_held.erase(mark)
-	rewear()
+	_wait()
+	_unshown = true
 
 
 ## The garden swapped for another: its marks and held strokes go.
@@ -142,10 +153,32 @@ static func rewear() -> void:
 	laid.fill(Color(0, 0, 0))
 	for m in _marks:
 		m.wear(laid)
+	_unworn.clear()
 	_show()
 
 
+static func settle() -> void:
+	if _unworn.is_empty() and not _unshown:
+		return
+	for m in _unworn:
+		m.wear(laid)
+	_unworn.clear()
+	_show()
+
+
+static func _wait() -> void:
+	if _unworn.is_empty() and not _unshown:
+		_unworn_since = Engine.get_process_frames()
+
+
+## Settles what has waited since an earlier frame; called once a frame.
+static func settle_due() -> void:
+	if Engine.get_process_frames() > _unworn_since:
+		settle()
+
+
 static func _show() -> void:
+	_unshown = false
 	image.copy_from(laid)
 	for m in _held:
 		m.wear(image)

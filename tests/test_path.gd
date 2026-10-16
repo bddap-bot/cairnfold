@@ -19,6 +19,7 @@ func _run() -> void:
 	_a_path_across_a_wall_opens_one_arch()
 	_a_wide_or_slanted_crossing_opens_an_arcade()
 	_a_path_beside_a_wall_opens_nothing()
+	_crossings_test_every_segment_pair_that_meets()
 	_arcades_stand_on_pillars()
 	_overlapping_arches_do_not_both_open()
 	_the_mask_parts_the_path_only()
@@ -31,6 +32,7 @@ func _run() -> void:
 	_painting_skips_a_path()
 	_undo_lifts_a_path_and_its_arches()
 	await _a_path_opens_its_arch_before_release()
+	await _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -221,6 +223,53 @@ func _a_path_beside_a_wall_opens_nothing() -> void:
 	_check(_path([[4, 1.5], [4, 6]], 1.2).crossings(w).is_empty(), "a path that stops short of a wall opens nothing")
 
 
+## Crossings found through the grid match testing every path segment against every wall segment.
+func _crossings_test_every_segment_pair_that_meets() -> void:
+	var tower := WallLayout.new()
+	for k in 7:
+		tower.points.append(Vector3(cos(k * TAU / 7) * 4.0, 0, sin(k * TAU / 7) * 4.0))
+	tower.closed = true
+	tower.height = 3.0
+	tower.build(_flat)
+	var walls: Array[WallLayout] = [_wall([[0, 0], [16, 0]]), _wall([[-6, -5], [-1, 3], [6, 4], [9, -3]]), tower]
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var mismatched := 0
+	for k in 30:
+		var pts := []
+		for i in 4:
+			pts.append([rng.randf_range(-10, 16), rng.randf_range(-8, 8)])
+		var p := _path(pts, rng.randf_range(PathLayout.HALF_WIDTH.x, PathLayout.HALF_WIDTH.y))
+		for w in walls:
+			if p.crossings(w) != _every_pair(p, w):
+				mismatched += 1
+	_check(mismatched == 0, "crossings match every segment pair tested: %d of 90 differ" % mismatched)
+
+
+func _every_pair(path: PathLayout, wall: WallLayout) -> Array[float]:
+	var out: Array[float] = []
+	var found: Array[float] = []
+	for i in path.samples.size() - 1:
+		var a := Vector2(path.samples[i].x, path.samples[i].z)
+		var b := Vector2(path.samples[i + 1].x, path.samples[i + 1].z)
+		for j in wall.samples.size() - 1:
+			var c := Vector2(wall.samples[j].x, wall.samples[j].z)
+			var d := Vector2(wall.samples[j + 1].x, wall.samples[j + 1].z)
+			var hit: Variant = Geometry2D.segment_intersects_segment(a, b, c, d)
+			if hit == null or (c - d).length() < 1e-5:
+				continue
+			var s: float = wall.lengths[j] + c.distance_to(hit)
+			if found.any(func(f): return absf(f - s) < WallLayout.SAMPLE):
+				continue
+			found.append(s)
+			var slant := absf((b - a).normalized().cross((d - c).normalized()))
+			var span := 2.0 * lerpf(path.sample_half_widths[i], path.sample_half_widths[i + 1], a.distance_to(hit) / maxf(a.distance_to(b), 1e-5)) / maxf(slant, 0.4)
+			var n := 1 if span < PathLayout.ARCADE_SPAN else ceili((span - WallLayout.ARCH_HALF * 2.0) / WallLayout.ARCADE_PITCH) + 1
+			for m in n:
+				out.append(s + (m - (n - 1) * 0.5) * WallLayout.ARCADE_PITCH)
+	return out
+
+
 func _arcades_stand_on_pillars() -> void:
 	var w := _wall([[0, 0], [16, 0]], 3.2)
 	w.arches.assign(_path([[8, -6], [8, 6]], 2.5).crossings(w))
@@ -259,6 +308,7 @@ func _the_mask_parts_the_path_only() -> void:
 		paths.extend(Vector3(-10 + i * 0.3, 0, 20), 0.8)
 	var p := paths.end()
 	_check(not p.is_empty() and p.layout.length() > 8.0, "a 9 m stroke is a path")
+	Ground.settle()
 	_check(Ground.bare(-5, 20) > 0.99, "the ground under the stones is fully worn (%.2f)" % Ground.bare(-5, 20))
 	_check(Ground.bare(-5, 20.7) > 0.5, "the stones' edge is worn (%.2f)" % Ground.bare(-5, 20.7))
 	_check(Ground.bare(-5, 21.6) == 0.0, "the meadow a metre past the edge is untouched (%.2f)" % Ground.bare(-5, 21.6))
@@ -521,4 +571,19 @@ func _a_path_opens_its_arch_before_release() -> void:
 	paths._relay()
 	_check(w.layout.arches.is_empty(), "moving the unsettled tip back closes the crossing")
 	_check(paths.end().is_empty() and paths.previews.is_empty(), "a discarded short stroke leaves no preview")
+	_teardown(nodes)
+
+
+## A path's command wears the garden's mask before anything reads it, and the shown mask a frame later, not in the
+## frame it lands.
+func _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame() -> void:
+	Ground.install()
+	var nodes := _setup()
+	_lay(nodes, Vector3(-40, 0, 70), Vector3(-30, 0, 70), 0.8)
+	_check(Ground.bare(-35, 70) == 0.0, "the landing frame leaves the shown mask as it was (%.2f)" % Ground.bare(-35, 70))
+	for i in 2:
+		await process_frame
+	_check(Ground.bare(-35, 70) > 0.99, "the next frame shows the path's wear (%.2f)" % Ground.bare(-35, 70))
+	_lay(nodes, Vector3(-40, 0, 75), Vector3(-30, 0, 75), 0.8)
+	_check(Ground.laid_bare(-35, 75) > 0.99, "the garden's mask has it as soon as it is read (%.2f)" % Ground.laid_bare(-35, 75))
 	_teardown(nodes)

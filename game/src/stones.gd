@@ -22,6 +22,12 @@ static func shared_material() -> ShaderMaterial:
 	return _material
 
 
+static func paving_material() -> ShaderMaterial:
+	if _paving_material == null:
+		_paving_material = _stone_material("paving")
+	return _paving_material
+
+
 static func _stone_material(shader: String) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://src/%s.gdshader" % shader)
@@ -44,15 +50,13 @@ static func far_mesh() -> ArrayMesh:
 
 func _init(paving := false) -> void:
 	_paving = paving
-	if paving and _paving_material == null:
-		_paving_material = _stone_material("paving")
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true
 	mm.use_custom_data = true
 	mm.mesh = mesh()
 	_instance.multimesh = mm
-	_instance.material_override = _paving_material if paving else shared_material()
+	_instance.material_override = paving_material() if paving else shared_material()
 	add_child(_instance)
 
 

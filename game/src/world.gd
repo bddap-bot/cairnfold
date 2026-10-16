@@ -774,6 +774,7 @@ func digest() -> Dictionary:
 	out.paths = state.paths.keys()
 	out.seeds = state.seeds.map(var_to_str)
 	out.grounds = state.grounds.keys()
+	Ground.settle()
 	out.mask = hash(Ground.laid.get_data())
 	out.ponds = water.ponds.size() if water != null else 0
 	out.palette = Array(palette.picks)

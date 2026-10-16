@@ -79,6 +79,7 @@ func _stone_lines_a_pond() -> void:
 	_check(Ground.stone(-29, 30) == 0.0, "undo lifts it off the bed")
 	world.redo()
 	await process_frame
+	Ground.settle()
 	_check(Ground.stone(-29, 30) > 0.99, "redo lays it again")
 
 

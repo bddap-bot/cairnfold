@@ -51,6 +51,7 @@ func begin(p: Vector3, half: float) -> void:
 	_chunks = [Stones.new(true)]
 	add_child(_chunks[0])
 	_frozen = 0
+	Ground.settle()
 	_settled_mask = Ground.image.duplicate()
 	_settled_rows = 0
 	_seen = Ground.rewears
@@ -71,8 +72,9 @@ func extend(p: Vector3, half: float) -> void:
 
 ## Finishes the stroke as a ghost, its stones and wear left standing until `drop`: the path's data for a
 ## build command, its layout, and the stone chunks. A stroke too short to read as a path is dropped at once: {}.
+## The ghost's stones stand as last relaid: the garden's copy lays them whole on a worker, so the release frame does not.
 func end() -> Dictionary:
-	_relay()
+	drawing.plan()
 	var path := drawing
 	drawing = null
 	_settled_mask = null
@@ -203,6 +205,11 @@ func _unlay(path: PathLayout) -> void:
 	_chunks_of[path] = []
 
 
+func _ready() -> void:
+	# Made before the first stroke: its shader compiles for about 7 ms on the Frame, too long for the frame a stroke begins in.
+	Stones.paving_material()
+
+
 func _exit_tree() -> void:
 	if _task >= 0:
 		WorkerThreadPool.wait_for_task_completion(_task)
@@ -210,6 +217,7 @@ func _exit_tree() -> void:
 
 
 func _process(delta: float) -> void:
+	Ground.settle_due()
 	if _task >= 0 and WorkerThreadPool.is_task_completed(_task):
 		_laid()
 	_since_rebuild += delta
@@ -219,6 +227,7 @@ func _process(delta: float) -> void:
 
 ## Lays the stroke's unsettled tail again, freezing settled stones into chunks and settled rows into the ground mask.
 func _relay() -> void:
+	Ground.settle()
 	if _seen != Ground.rewears:
 		_settled_mask = Ground.image.duplicate()
 		_settled_rows = 0
