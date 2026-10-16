@@ -470,12 +470,27 @@ func _opening_in(list: Array[Dictionary], s: float, y: float) -> Dictionary:
 	return {}
 
 
-## Whether a window placed at `at` would open without closing any window open now.
-func window_fits(at: Vector2) -> bool:
-	var after := windows.duplicate()
+## Whether a window placed at `at` among the windows `placed` would open without closing any they open.
+func window_fits(at: Vector2, placed: Array[Vector2]) -> bool:
+	var before := openings_for(placed)
+	var after := placed.duplicate()
 	after.append(at)
 	var now := openings_for(after)
-	return not _opening_in(now, at.x, at.y).is_empty() and windows.all(func(e): return opening_at(e.x, e.y).is_empty() or not _opening_in(now, e.x, e.y).is_empty())
+	return not _opening_in(now, at.x, at.y).is_empty() and placed.all(func(e): return _opening_in(before, e.x, e.y).is_empty() or not _opening_in(now, e.x, e.y).is_empty())
+
+
+## The window among `placed` nearest `click` in the opening they make there, or -1 where they make none.
+func window_at(click: Vector2, placed: Array[Vector2]) -> int:
+	var made := openings_for(placed)
+	var o := _opening_in(made, click.x, click.y)
+	var near := -1
+	if o.is_empty():
+		return near
+	for i in placed.size():
+		var e := placed[i]
+		if _opening_in(made, e.x, e.y) == o and (near < 0 or absf(offset(e.x, click.x)) < absf(offset(placed[near].x, click.x))):
+			near = i
+	return near
 
 
 ## Whether a lantern hangs at face point `s`, `y`: on a stone face clear of every opening, or on a fence post.

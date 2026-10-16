@@ -152,9 +152,9 @@ func _the_lintel_course_is_cut() -> void:
 
 func _a_new_window_never_closes_another() -> void:
 	var w := _wall(8.0, 2.7, [Vector2(4.0, 1.5)])
-	_check(w.window_fits(Vector2(6.0, 1.5)), "a window clear of the first fits")
-	_check(w.window_fits(Vector2(4.8, 1.5)), "a window beside the first fuses with it")
-	_check(not w.window_fits(Vector2(3.4, 1.85)), "a window a course up, overlapping the first, would close it, so it does not fit")
+	_check(w.window_fits(Vector2(6.0, 1.5), w.windows), "a window clear of the first fits")
+	_check(w.window_fits(Vector2(4.8, 1.5), w.windows), "a window beside the first fuses with it")
+	_check(not w.window_fits(Vector2(3.4, 1.85), w.windows), "a window a course up, overlapping the first, would close it, so it does not fit")
 
 
 func _windows_fuse_across_a_loop_seam() -> void:
@@ -391,17 +391,29 @@ func _in_the_glade() -> void:
 	_check(fit.aim(Hand.Tool.DECORATIONS, near_top + normal * 3.0, -normal).get("what") == "flag", "at a wall's top they fly a flag")
 	var w_aim := fit.aim(Hand.Tool.WINDOWS, on_face + normal * 3.0, -normal)
 	_check(w_aim.get("what") == "window", "windows pointed at a wall open a window")
-	var g := fit.ghost_of(Hand.Tool.WINDOWS, w_aim, on_face + normal * 3.0, -normal, w_aim.get("point"))
-	_check(g.get("what") == "window" and g.fits and g.xform.basis.z.dot(normal) > 0.99 and absf((g.xform.origin - face.point).dot(normal) - WallLayout.THICKNESS * 0.5) < 0.01, "the window's ghost stands on the face toward the hand: %s" % g)
 	var down := (Vector3.DOWN + normal * 0.3).normalized()
 	var ground_aim := fit.aim(Hand.Tool.WINDOWS, on_face + normal * 3.0, down)
-	var astray := fit.ghost_of(Hand.Tool.WINDOWS, ground_aim, on_face + normal * 3.0, down, Terrain.raycast(on_face + normal * 3.0, down))
-	_check(ground_aim.is_empty() and astray.get("what") == "window" and not astray.fits, "aimed at the ground, the window's ghost hangs there unplaced")
+	var astray := fit.ghost_of(ground_aim, on_face + normal * 3.0, down, Terrain.raycast(on_face + normal * 3.0, down))
+	_check(ground_aim.is_empty() and not astray.fits, "aimed at the ground, a ghost hangs there unplaced")
 	_check(not _fit(fit, ground_aim), "a press at the ground places nothing and says so")
 	var ridge: Vector3 = house.roof.frame().mid + Vector3.UP * (house.roof.pitch * 0.5)
 	_check(fit.aim(Hand.Tool.DECORATIONS, ridge + house.roof.frame().across * 1.2 + Vector3.UP * 6.0, Vector3.DOWN).get("what") == "chimney", "on a house's roof, a chimney")
 	_check(fit.aim(Hand.Tool.DECORATIONS, tower.roof.frame().mid + Vector3.UP * 12.0, Vector3.DOWN).get("what") == "tower_flag", "on a tower's roof, a flag")
 	_check(fit.aim(Hand.Tool.WINDOWS, ridge + Vector3.UP * 6.0, Vector3.DOWN).is_empty(), "windows do nothing on a roof")
+	var corners := house.layout.points
+	var middle: Vector3 = corners.reduce(func(m, c): return m + c / corners.size(), Vector3.ZERO)
+	var missed := []
+	for k in 41:
+		var side := house.layout.frame_at(corners[0].distance_to(corners[1]) * (0.1 + 0.02 * k))
+		var out: Vector3 = side.tangent.cross(Vector3.UP)
+		out *= signf((side.point - middle).dot(out))
+		for slant in [-3.0, 3.0]:
+			var spot: Vector3 = side.point + Vector3.UP * (1.2 + 0.1 * (k % 6))
+			var from: Vector3 = spot + out * 3.8 + side.tangent * slant - Vector3.UP * 0.1
+			var into := fit.aim(Hand.Tool.WINDOWS, from, (spot - from).normalized())
+			if Vector2(into.point.x - spot.x, into.point.z - spot.z).length() > 0.5:
+				missed.append([spot, into.point])
+	_check(missed.is_empty(), "a hand aimed slantwise at a house's side opens a window in that side, not one behind it: %s" % [missed])
 	var post := fence.layout.frame_at(3.0)
 	var post_n: Vector3 = post.tangent.cross(Vector3.UP)
 	_check(fit.aim(Hand.Tool.DECORATIONS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).get("what") == "lantern", "on a fence, a lantern")
@@ -414,8 +426,25 @@ func _in_the_glade() -> void:
 	_check(fence.layout.flames.is_empty() and fence.layout.lanterns.is_empty(), "a press farther along the same post takes it away")
 
 	var steps: int = steps_now.call()
-	_fit(fit, w_aim)
+	var hand: Hand = main.rig.right
+	hand.tool = Hand.Tool.WINDOWS
+	hand.held_still = true
+	hand.global_transform = Transform3D(Basis.looking_at(-normal), on_face + normal * 3.0)
+	var shown := await _drawn(wall)
+	_check(wall.layout.openings.size() == 1 and Array(world.state.walls[wall.id].windows).is_empty() and steps_now.call() == steps, "a hand holding windows at a wall shows it opened, and the garden has no window yet")
+	hand.global_transform = Transform3D(Basis.looking_at(-normal), on_face + Vector3.UP * 0.05 + normal * 3.0)
+	_check(await _drawn(wall) == shown, "a hand moved within the opening it shows keeps the wall it showed")
+	Buttons.injected["%s/trigger_click" % hand.tracker] = true
+	await process_frame
+	Buttons.injected.erase("%s/trigger_click" % hand.tracker)
 	_check(wall.layout.openings.size() == 1 and steps_now.call() == steps + 1, "a press opens a window, one undo step")
+	_check(await _drawn(wall) == shown, "the opened wall is drawn as it was shown before the press, stone for stone and leaf for leaf")
+	hand.global_transform = Transform3D(Basis.looking_at(-normal), on_face + face.tangent * 0.8 + normal * 3.0)
+	await _drawn(wall)
+	_check(wall.layout.openings.size() == 1 and wall.layout.openings[0].lights == 2 and steps_now.call() == steps + 1, "aimed beside it, the wall shows the two fused")
+	hand.tool = Hand.Tool.WALLS
+	hand.held_still = false
+	_check(await _drawn(wall) == shown and wall.layout.openings[0].lights == 1, "put away, the wall is drawn as the garden has it again, as it was shown before the press")
 	_fit(fit, fit.aim(Hand.Tool.WINDOWS, on_face + face.tangent * 0.8 + normal * 3.0, -normal))
 	_check(wall.layout.openings.size() == 1 and wall.layout.openings[0].lights == 2, "a press beside it fuses a second light into it")
 	_fit(fit, fit.aim(Hand.Tool.WINDOWS, on_face + normal * 3.0, -normal))
@@ -491,6 +520,15 @@ func _undo(world: World) -> void:
 func _redo(world: World) -> void:
 	world.redo()
 	_lay_walls()
+
+
+## Every buffer `w` draws once its stones and ivy are laid.
+func _drawn(w: Wall) -> Array:
+	for f in 3:
+		await process_frame
+	while w.laying() or w._ivy_task >= 0:
+		await process_frame
+	return w._parts.duplicate(true)
 
 
 func _lay_walls() -> void:

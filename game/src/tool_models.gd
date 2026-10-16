@@ -11,7 +11,6 @@ const CAMERA_SCREEN := Vector2(0.048, 0.036)
 ## The parts of each fitting, by the kind its generator files them under.
 const FITTING_PARTS := {
 	"window": ["glass", "frame"],
-	"door": ["door", "iron"],
 	"lantern": ["iron"],
 	"post_lantern": ["iron"],
 	"flag": ["pole", "finial"],
@@ -395,8 +394,8 @@ static func _decor(root: Node3D) -> void:
 
 
 ## A fitting on its own at full size, laid by the generator that lays it on a wall or roof: a key of
-## FITTING_PARTS. Its face looks along +z, and its mount is the origin: the back of a window or door
-## (centred on the window, at the foot of the door), where a lantern's bracket or a flag's pole leaves the
+## FITTING_PARTS. Its face looks along +z, and its mount is the origin: the back of a window
+## (centred on it), where a lantern's bracket or a flag's pole leaves the
 ## wall's centre line, a post lantern's foot, or where a chimney rises through the ridge.
 static func fitting(what: String) -> Node3D:
 	var parts: Array[Dictionary] = []
@@ -421,8 +420,6 @@ static func fitting(what: String) -> Node3D:
 		match what:
 			"window":
 				layout.windows = [Vector2(s, 1.5)]
-			"door":
-				layout.windows = [Vector2(s, 0.5)]
 			"lantern", "post_lantern":
 				layout.lanterns = [Vector3(s, 1.5, 1.0)]
 			"flag":
@@ -432,9 +429,9 @@ static func fitting(what: String) -> Node3D:
 		flames = layout.flames
 		cloths = layout.cloths
 		match what:
-			"window", "door":
+			"window":
 				var o := layout.openings[0]
-				mount = Vector3(0, 0.0 if o.door else (o.sill + o.head) * 0.5, INF)
+				mount = Vector3(0, (o.sill + o.head) * 0.5, INF)
 				for p in parts:
 					if p.kind in FITTING_PARTS[what]:
 						mount.z = minf(mount.z, p.xform.origin.z - p.xform.basis.z.length() * 0.5)

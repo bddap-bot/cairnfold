@@ -643,9 +643,17 @@ func _set_arches(w: Wall, arches: Array) -> void:
 	world.submit({"op": "reshape", "id": w.id, "data": {"arches": PackedFloat32Array(arches)}})
 
 
-## Lays a wall as the garden has it, with the arches the paths standing open in it, on and among the builds it meets.
-func _relay(w: Wall) -> void:
-	w.set_data(world.state.walls[w.id])
+## Lays a wall as a reshape with `data` would leave it, through the path that lays the reshape itself, so what a
+## tool shows of an edit is what the edit builds; `settle` lays it as the garden has it again.
+func show_reshaped(w: Wall, data: Dictionary) -> void:
+	if not _held(w):
+		_relay(w, data)
+
+
+## Lays a wall as the garden has it, with `data` in place of its own fields, with the arches the paths standing open
+## in it, on and among the builds it meets.
+func _relay(w: Wall, data := {}) -> void:
+	w.set_data(world.state.walls[w.id].merged(data, true))
 	_meet(w)
 	w.layout.resample(Terrain.height_at, Terrain.water_at)
 	_reshaped(w)
@@ -817,8 +825,7 @@ func pick_wall(origin: Vector3, dir: Vector3, held := false) -> Dictionary:
 		if w.pick_bounds.grow(WALL_PICK).intersects_ray(origin, dir) == null:
 			continue
 		var hit := w.ray_distance(origin, dir)
-		var through: bool = hit.distance < (0.1 if w.layout.fence else WallLayout.THICKNESS * 0.5)
-		var key := Vector2(0.0, hit.along) if through else Vector2(1.0, hit.distance)
+		var key := Vector2(0.0, hit.along) if hit.through else Vector2(1.0, hit.distance)
 		if key < best_key:
 			best_key = key
 			best = {"wall": w, "s": hit.s, "point": hit.point, "along": hit.along, "distance": hit.distance}

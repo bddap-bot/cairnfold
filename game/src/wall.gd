@@ -495,8 +495,11 @@ func footprint() -> Rect2:
 	return layout.bounds.grow(WallLayout.THICKNESS)
 
 
-## Distance from a ray to this wall's body, with the arc length it is nearest.
+## Distance from a ray to this wall's body, with the arc length it is nearest: the first stretch the ray passes
+## through, so a ray into a house finds the side facing it, or else the stretch it passes nearest.
 func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
+	var reach := 0.1 if layout.fence else WallLayout.THICKNESS * 0.5
+	var best_key := Vector2.INF
 	var best_d := INF
 	var best_i := 0
 	var best_t := 0.0
@@ -511,9 +514,11 @@ func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 		var t := maxf(0.0, ud * sc - dir.dot(w))
 		var p := a + up * sc
 		var d := p.distance_to(origin + dir * t)
-		if d < best_d:
+		var key := Vector2(0.0, t) if d < reach else Vector2(1.0, d)
+		if key < best_key:
+			best_key = key
 			best_d = d
 			best_i = i
 			best_t = t
 			best_p = p
-	return {"distance": best_d, "s": layout.lengths[best_i] if best_d < INF else 0.0, "point": best_p, "along": best_t if best_d < INF else INF}
+	return {"distance": best_d, "s": layout.lengths[best_i] if best_d < INF else 0.0, "point": best_p, "along": best_t if best_d < INF else INF, "through": best_key.x == 0.0}

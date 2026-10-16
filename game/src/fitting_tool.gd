@@ -8,9 +8,11 @@ extends Node3D
 ## a lantern on a wall's face or a fence; the trigger on one takes it away. Every lantern lights what is
 ## around it (`Lamps`).
 ##
-## While held, a ghost of the fitting rides the hand's ray: set on the wall where a press would place it,
-## faint and hanging in the air where it would not, and a press there shakes it and bumps the hand. The
-## masonry it can go on glows meanwhile (the stone shader's `fitting_glow`).
+## While windows are held, the wall pointed at is laid as a press would leave it, through the path that lays the
+## press's command, so what shows is what a press builds. A decoration's ghost rides the hand's ray instead: set on
+## the wall where a press would place it, faint and hanging in the air where it would not, and a press there shakes
+## it. A press that places nothing bumps the hand. The masonry a fitting can go on glows meanwhile (the stone
+## shader's `fitting_glow`).
 
 const TINT := Color(1.0, 0.93, 0.78, 0.6)
 ## A press this near a placed fitting takes it away.
@@ -30,6 +32,10 @@ var _buttons: Array[Buttons] = []
 ## Per hand: each fitting's ghost by ToolModels.FITTING_PARTS key, and how long since a refused press.
 var _ghosts: Array[Dictionary] = []
 var _shaken: Array[float] = []
+## Per hand, the window target its wall was last laid for.
+var _aims: Array[Dictionary] = []
+## Ids of the walls laid with windows the garden does not have yet.
+var _previewed := {}
 ## Fitting lists sent and not yet back, by wall id and key, so a quick second press builds on the first.
 var _sent := {}
 var lamps := Lamps.new()
@@ -48,6 +54,8 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 		_buttons.append(Buttons.new(h).watch(["trigger_click"]))
 		var ghosts := {}
 		for what in ToolModels.FITTING_PARTS:
+			if what == "window":
+				continue
 			var g := ToolModels.fitting(what)
 			g.top_level = true
 			g.visible = false
@@ -55,10 +63,12 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 			ghosts[what] = g
 		_ghosts.append(ghosts)
 		_shaken.append(INF)
+		_aims.append({})
 
 
 func _process(delta: float) -> void:
 	var holding := false
+	var shown := {}
 	for i in _buttons.size():
 		var b := _buttons[i]
 		var hand: Hand = b.hand
@@ -66,18 +76,25 @@ func _process(delta: float) -> void:
 		if (hand.tool == Hand.Tool.WINDOWS or hand.tool == Hand.Tool.DECORATIONS) and rig.aim_hand != hand and hand.tracked():
 			holding = true
 			var t := hand.global_transform
-			var target := aim(hand.tool, t.origin, -t.basis.z)
+			var target := _steady(i, aim(hand.tool, t.origin, -t.basis.z))
 			var hit: Variant = target.point if not target.is_empty() else Terrain.raycast(t.origin, -t.basis.z)
 			hand.point(hit, TINT)
 			if not target.is_empty():
-				world.preview(hand, world.change_of(command(target)))
+				var cmd := command(target)
+				world.preview(hand, world.change_of(cmd))
+				if target.what == "window" and change(target).near < 0 and not cmd.is_empty():
+					shown[cmd.id] = cmd.data.windows
 			if b.pressed("trigger_click") and not walls.busy(hand) and not fit(target, hand):
 				_shaken[i] = 0.0
 				Hand.bump(hand)
-			if not hand.picking:
-				ghost = ghost_of(hand.tool, target, t.origin, -t.basis.z, hit)
+			if not hand.picking and hand.tool == Hand.Tool.DECORATIONS:
+				ghost = ghost_of(target, t.origin, -t.basis.z, hit)
 		_show_ghost(i, ghost, delta)
 		b.latch()
+	for id in _sent:
+		if _sent[id].has("windows") and not shown.has(id):
+			shown[id] = PackedVector2Array(_sent[id].windows)
+	show_windows(shown)
 	var glow := move_toward(_glow, 1.0 if holding else 0.0, delta / GLOW_FADE)
 	if glow != _glow:
 		_glow = glow
@@ -110,6 +127,36 @@ func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 		return {"what": "flag", "wall": pick.wall, "s": pick.s, "point": pick.point}
 	var side := signf((origin - pick.point).dot(layout.frame_at(pick.s).tangent.cross(Vector3.UP)))
 	return {"what": "lantern", "wall": pick.wall, "s": pick.s, "y": y, "side": side if side != 0.0 else 1.0, "point": pick.point}
+
+
+## `target`, or the window target hand `i` last aimed where `target` would make the same opening, so a hand moving
+## within one lays the wall once.
+func _steady(i: int, target: Dictionary) -> Dictionary:
+	var held := _aims[i]
+	if target.get("what") == "window" and held.get("wall") == target.wall:
+		var layout: WallLayout = target.wall.layout
+		if layout.opening_for(Vector2(held.s, held.y)) == layout.opening_for(Vector2(target.s, target.y)):
+			held.point = target.point
+			return held
+	_aims[i] = target
+	return target
+
+
+## Lays each wall in `windows`, by id, with those windows, as the command placing them would; every other wall laid
+## so before is laid as the garden has it again.
+func show_windows(windows: Dictionary) -> void:
+	for id in _previewed.keys():
+		if windows.has(id):
+			continue
+		_previewed.erase(id)
+		var w := walls.find(id)
+		if w != null and PackedVector2Array(w.layout.windows) != PackedVector2Array(world.state.walls[id].windows):
+			walls.settle(id)
+	for id in windows:
+		var w := walls.find(id)
+		if w != null and PackedVector2Array(w.layout.windows) != windows[id]:
+			_previewed[id] = true
+			walls.show_reshaped(w, {"windows": windows[id]})
 
 
 static func _height(pick: Dictionary) -> float:
@@ -166,8 +213,10 @@ func change(target: Dictionary) -> Dictionary:
 	match target.what:
 		"window":
 			var click := Vector2(target.s, target.y)
-			var near := _window_at(layout, click)
-			return _change(w, false, "windows", click, near, near >= 0 or layout.window_fits(click))
+			var placed: Array[Vector2] = []
+			placed.assign(_placed(w, false, "windows"))
+			var near := layout.window_at(click, placed)
+			return _change(w, false, "windows", click, near, near >= 0 or layout.window_fits(click, placed))
 		"lantern":
 			var s: float = layout.nearest_post(target.s) if layout.fence else target.s
 			var hang := Vector3(s, target.y, target.side)
@@ -183,22 +232,15 @@ func change(target: Dictionary) -> Dictionary:
 	return {"ok": true, "near": 0 if w.roof.flag else -1}
 
 
-## The placed window nearest `click` among those in the opening there, or -1 where there is none.
-static func _window_at(layout: WallLayout, click: Vector2) -> int:
-	var o := layout.opening_at(click.x, click.y)
-	var near := -1
-	if o.is_empty():
-		return near
-	for i in layout.windows.size():
-		var e := layout.windows[i]
-		if layout.opening_at(e.x, e.y) == o and (near < 0 or absf(layout.offset(e.x, click.x)) < absf(layout.offset(layout.windows[near].x, click.x))):
-			near = i
-	return near
+## The list `key` on the wall (or its roof) as the garden has it with our sent commands applied, read from the garden
+## rather than the wall, which may be showing windows aimed at.
+func _placed(w: Wall, on_roof: bool, key: String) -> Array:
+	var d: Dictionary = world.state.walls[w.id]
+	return Array(_sent.get(w.id, {}).get(key, (d.roof if on_roof else d)[key]))
 
 
 func _change(w: Wall, on_roof: bool, key: String, value: Variant, near: int, ok: bool) -> Dictionary:
-	var host: Object = w.roof if on_roof else w.layout
-	var after: Array = _sent.get(w.id, {}).get(key, host.get(key)).duplicate()
+	var after := _placed(w, on_roof, key).duplicate()
 	if near >= 0:
 		after.remove_at(near)
 	elif after.size() >= (Commands.MAX_CHIMNEYS if key == "chimneys" else Commands.MAX_FITTINGS):
@@ -208,29 +250,22 @@ func _change(w: Wall, on_roof: bool, key: String, value: Variant, near: int, ok:
 	return {"ok": ok, "on_roof": on_roof, "key": key, "after": after, "near": near, "value": value}
 
 
-## The ghost a hand holding `tool` shows for `target`, pointing from `origin` along `dir` at `hit` (or
+## The ghost a hand holding decorations shows for `target`, pointing from `origin` along `dir` at `hit` (or
 ## nothing): the fitting `what` at `xform`, `fits` where a press would place it. Where the press would
 ## take a fitting away it shows none, the fitting itself being there.
-func ghost_of(tool: Hand.Tool, target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -> Dictionary:
+func ghost_of(target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -> Dictionary:
 	var c := change(target)
 	if c.ok and c.near >= 0:
 		return {}
 	if target.is_empty():
 		var at: Vector3 = hit + Vector3.UP * HANG_OVER if hit != null and origin.distance_to(hit) < HANG * 2.0 else origin + dir * HANG
-		return {"what": "window" if tool == Hand.Tool.WINDOWS else "lantern", "xform": _facing(at, -dir), "fits": false}
+		return {"what": "lantern", "xform": _facing(at, -dir), "fits": false}
 	var w: Wall = target.wall
 	var layout := w.layout
 	var what: String = target.what
 	var at: Vector3
 	var face := Vector3.ZERO
 	match what:
-		"window":
-			var o := layout.opening_for(Vector2(target.s, target.y))
-			var f := layout.frame_at(o.s)
-			face = f.tangent.cross(Vector3.UP)
-			face *= -1.0 if (origin - f.point).dot(face) < 0.0 else 1.0
-			what = "door" if o.door else "window"
-			at = f.point + Vector3.UP * (0.0 if o.door else (o.sill + o.head) * 0.5) + face * WallLayout.THICKNESS * 0.5
 		"lantern":
 			if layout.fence:
 				what = "post_lantern"
