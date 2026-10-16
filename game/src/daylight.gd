@@ -41,12 +41,9 @@ static func elevation(time: float) -> float:
 	return rad_to_deg(asin(toward_sun(time).y))
 
 
-## The time whose sun lies nearest `dir` along the arc: where a ray pointed that way drags the sun.
-static func time_toward(dir: Vector3) -> float:
-	var a := atan2(dir.dot(ARC_UP), dir.dot(RISE))
-	if a < (DAWN + DUSK) * 0.5 - PI:
-		a += TAU
-	return clampf(inverse_lerp(DAWN, DUSK, a), 0.0, 1.0)
+## How far round the arc's axis `dir` stands, on the same scale as `angle`: the sky turns by its change.
+static func turn_of(dir: Vector3) -> float:
+	return atan2(dir.dot(ARC_UP), dir.dot(RISE))
 
 
 ## Every light value for `time`, blended between the keys around the sun's elevation.

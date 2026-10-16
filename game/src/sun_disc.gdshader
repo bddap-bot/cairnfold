@@ -1,7 +1,7 @@
 shader_type spatial;
 render_mode unshaded, blend_add, depth_draw_never, cull_disabled, shadows_disabled, fog_disabled;
 
-// The sun's disc and its tight corona, turned to the eye: drawn apart from the sky so dragging the sun
+// The sun's disc and its tight corona, turned to the eye: drawn apart from the sky so turning the sky
 // moves it every frame without restarting the sky's radiance update.
 
 uniform vec3 tint : source_color = vec3(1.0, 0.95, 0.85);

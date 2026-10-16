@@ -9,7 +9,7 @@ var main: Node
 
 func _initialize() -> void:
 	_the_sun_rises_and_sets()
-	_a_ray_drags_the_sun_to_where_it_points()
+	_the_sky_turns_about_the_arc()
 	_light_follows_the_sun()
 	_the_default_hour_keeps_the_tuned_look()
 	_first_swatches_are_the_laid_colours()
@@ -51,16 +51,14 @@ func _the_sun_rises_and_sets() -> void:
 	_check(Daylight.toward_sun(0.5).z < 0.0, "at noon it stands in front of the starting view")
 
 
-func _a_ray_drags_the_sun_to_where_it_points() -> void:
+func _the_sky_turns_about_the_arc() -> void:
 	for i in 21:
 		var t := i / 20.0
-		_check(absf(Daylight.time_toward(Daylight.toward_sun(t)) - t) < 1e-4, "pointing at the sun at %.2f finds %.2f" % [t, t])
-	var off := (Daylight.toward_sun(0.4) + Vector3(0, 0, 0.3)).normalized()
-	_check(absf(Daylight.time_toward(off) - 0.4) < 0.03, "a ray beside the arc drags the sun to the nearest hour")
-	_check(Daylight.time_toward(Vector3(-1, -0.6, 0).normalized()) == 0.0, "a ray below the rising point holds dawn")
-	_check(Daylight.time_toward(Vector3(1, -0.6, 0).normalized()) == 1.0, "a ray below the setting point holds dusk")
-	var nadir := -Daylight.RISE.cross(Daylight.ARC_UP).cross(Daylight.RISE).normalized()
-	_check(Daylight.time_toward(nadir.rotated(Daylight.RISE.cross(Daylight.ARC_UP), deg_to_rad(5.0))) == 0.0 and Daylight.time_toward(nadir.rotated(Daylight.RISE.cross(Daylight.ARC_UP), deg_to_rad(-5.0))) == 1.0, "under the ground the sun goes to whichever end is nearer")
+		_check(absf(wrapf(Daylight.turn_of(Daylight.toward_sun(t)) - Daylight.angle(t), -PI, PI)) < 1e-4, "the sun at %.2f stands as far round as its hour" % t)
+	var axis := Daylight.RISE.cross(Daylight.ARC_UP)
+	var d := Vector3(0.3, 0.6, -0.5).normalized()
+	_check(absf(Daylight.turn_of(d.rotated(axis, 0.4)) - Daylight.turn_of(d) - 0.4) < 1e-4, "turning a direction about the arc's axis turns it as far round")
+	_check(absf(Daylight.turn_of(d + axis * 0.5) - Daylight.turn_of(d)) < 1e-4, "moving along the axis turns nothing")
 
 
 func _light_follows_the_sun() -> void:
@@ -254,22 +252,28 @@ func _in_the_glade() -> void:
 	_check(Commands.clean({"op": "palette", "element": Palette.Element.ROOF, "index": Palette.count(Palette.Element.ROOF)}, world.state, false).is_empty(), "a swatch off the wheel is refused")
 
 	var look: Look = main.look
-	var sun: SunTool = main.sun_tool
-	_check(sun.aims_at_sun(Daylight.toward_sun(look.time)) and not sun.aims_at_sun(Daylight.toward_sun(look.time).rotated(Vector3.UP, deg_to_rad(15.0))), "only a hand pointed at the sun takes it")
-	var beside := Daylight.toward_sun(look.time).rotated(Vector3.UP, deg_to_rad(4.0))
-	sun.take(main.rig.right, beside)
-	sun.drag(Daylight.time_toward(beside) + sun._offset)
-	_check(absf(look.time - Daylight.DEFAULT) < 1e-4, "taking the sun beside its disc does not jump it")
-	_check(main.rig.right.holds_sun, "the hand holding the sun keeps its grip from other tools")
-	sun.let_go()
-	_check(not main.rig.right.holds_sun, "letting go of the sun frees the grip")
+	var sky: SkyTool = main.sky_tool
+	var grab := Daylight.toward_sun(look.time).rotated(Vector3.UP, deg_to_rad(40.0))
+	sky.take(main.rig.right, grab)
+	sky.aim(grab)
+	_check(absf(look.time - Daylight.DEFAULT) < 1e-4, "grabbing the sky does not jump it")
+	var axis := Daylight.RISE.cross(Daylight.ARC_UP)
+	var sun_at := Daylight.toward_sun(look.time)
+	sky.aim(grab.rotated(axis, 0.3))
+	_check(absf(Daylight.angle(look.time) - Daylight.angle(Daylight.DEFAULT) - 0.3) < 1e-4, "the sky turns as far as the pointer")
+	_check(Daylight.toward_sun(look.time).is_equal_approx(sun_at.rotated(axis, 0.3)), "the sun turns with it")
+	for k in range(1, 8):
+		sky.aim(grab.rotated(axis, k * 0.5))
+	_check(look.time == 1.0, "past dusk the sky waits")
+	for k in range(6, 0, -1):
+		sky.aim(grab.rotated(axis, k * 0.5))
+	sky.aim(grab.rotated(axis, 0.3))
+	_check(absf(Daylight.angle(look.time) - Daylight.angle(Daylight.DEFAULT) - 0.3) < 1e-4, "and the grabbed point is under the pointer again when it comes back")
+	sky.holder = null
 	await _play([{"op": "sun", "time": 0.9, "seconds": 0.2}])
-	_check(absf(look.time - 0.9) < 1e-4, "the sun is dragged to late afternoon")
+	_check(absf(look.time - 0.9) < 1e-4, "the sky is turned to late afternoon")
 	_check((-look.sun.global_basis.z).is_equal_approx(-Daylight.toward_sun(0.9)), "the sunlight shines from where the sun stands")
 	_check(look.sun.light_energy < Daylight.light(0.5).energy, "the evening sun is weaker")
-	look.set_time(1.0)
-	var where := Daylight.toward_sun(1.0)
-	_check(sun.aims_at_sun(Vector3(where.x, 0.02, where.z).normalized()), "a sun gone down is taken where it set")
 	look.set_time(0.9)
 	await create_timer(Look.SKY_EVERY * 2.0).timeout
 	var sky_sun: Vector3 = look.sky_mat.get_shader_parameter("sun_dir")

@@ -986,7 +986,7 @@ Stage numbers refer to the build order at the end.
 | Sky and clouds | Hand-tuned colour timelines per glade; clouds as pre-lit sprites on a cylinder | Sky shader gradient and painted noise clouds; zenith, horizon, sun glow, cloud light and fog colour follow the sun's elevation through one timeline of keys (`Daylight`) | 1 (done), 8 (done) |
 | Fog | Froxel fog with density and height controls | Depth fog with aerial perspective and sun scatter, thinning as the eye lifts | 1 (done), 2 (done) |
 | Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap and grading (done); glow cut for the Quest 2. No depth of field: in a headset your eyes focus for themselves | 1 (done) |
-| Time of day | Continuous, lockable, sun-angle slider | Point any hand at the sun (it swells), grip it and drag it along its arc, from under the horizon at dawn, high in front at noon, to under it at dusk; a soft click in the hand each hour. The sun's colour and strength, sky, fog and ambient follow. Not an edit: undo leaves it be | 8 (done) |
+| Time of day | Continuous, lockable, sun-angle slider | Grip any hand on open sky to grab it and aim to turn it about the sun's arc, the sun riding on it from under the horizon at dawn, high in front at noon, to under it at dusk; the point grabbed stays under the pointer, and moving the hand without turning its aim leaves the sky be; a soft click in the hand each hour. The sun's colour and strength, sky, fog and ambient follow. Not an edit: undo leaves it be | 8 (done) |
 | Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette on the controller): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. Stone, roof tiles, woodwork (fences, window frames, doors) and plaster (gable ends) each take one of 6–8 curated swatches for the whole glade; on the meadow the wheel holds the five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch through one shader global per material (`Palette`), so recolouring relays nothing | 8 (done) |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of the left D-pad down undoes a step, up redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
@@ -1094,7 +1094,7 @@ rounded body is unchanged, and there is no text anywhere.
 A hand can also hold nothing: empty hands, for when the building is done and the player just wants to
 be in the garden. Its wheel icon is an open hand; on the controller nothing stands, and no tool draws a
 ray from it. It still does what every hand does whatever it holds: its grip grabs what it points at, and
-the stick's teleport arc and the sun's handle still show their rays while in use. Picking any tool from
+the stick's teleport arc and a grab of the sky still show their rays while in use. Picking any tool from
 the wheel brings that tool's ray back. Nothing hides on a timer.
 
 One value per hand, `Hand.tool`, is what the input code dispatches on and what the object on top and
@@ -1157,7 +1157,7 @@ Directive (verbatim): "It doesn't grab and drag the tool, it grabs and drags the
 
 The trigger is the held tool's action; the grip grabs what the hand points at, whatever it holds, and
 never builds. It takes the nearest thing its ray meets: a roof, a wall, or the ground (a pond's bed
-under its water), with the sun, and a house already carried, taken by the grip too. Shaping the ground
+under its water), with open sky, and a house already carried, taken by the grip too. Shaping the ground
 is therefore no tool (`GroundGrab`); the ground is the last thing a grip takes, after anything else
 that claimed the hand that frame.
 
@@ -1170,8 +1170,16 @@ same hand, or one thing in both, holds a grip back:
 - A wall or roof the other hand holds: the grip takes nothing, neither it nor the ground behind it.
 - A carried house: the other hand's grip, pressed while it is carried, joins in whatever it points at,
   to turn and stretch it between the hands; a grip already holding something keeps it.
-- The sun has one holder; the other hand's grip on it takes nothing.
+- The sky has one holder; the other hand's grip on it takes nothing.
 - Undo and redo wait while either hand has an edit under way.
+
+Directive (verbatim): "When grabbing and moving the sun... I don't think we should use translational movements of the controller, I think instead, the moving the pointer is appropriate for that. Additionally, I would like to not grab the sun, but just grab the skybox and rotate it"
+
+A grip on open sky (no ground or build on the ray) grabs the sky, not the sun. Held, the sky turns about
+the axis of the sun's arc by however far the pointer turns about it, so the point grabbed stays under the
+pointer as far as the sky can turn; the sun's disc, glow and light ride on it, and the hand's position
+counts for nothing. The pointer stays drawn, since aiming is the control. Past dawn or dusk the sky
+stops and waits for the pointer to come back. The clouds stay put: they are weather, not the dome.
 
 ## VR controls
 
@@ -1203,7 +1211,7 @@ same hand, or one thing in both, holds a grip back:
 | Draw a fence | Trigger held on a hand holding fences, swept like a wall |
 | Open a window or door | Trigger of a hand holding windows, pointing at a wall: a window where it points, a door if that is low on the wall; beside another window it fuses with it; on a window it closes that light |
 | Decorate | Trigger of a hand holding decorations: a chimney on a house's roof, a flag on a tower's roof or a wall's top, a lantern on a wall's face (on the side the hand is) or a fence; on one already there it takes it away |
-| Move the sun | Point either hand at the sun, whatever it holds, grip and drag it across the sky |
+| Turn the sky | Point either hand at open sky, whatever it holds, grip and aim: the sky turns with the pointer, carrying the sun from dawn to dusk |
 | Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window or door, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top |
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
 

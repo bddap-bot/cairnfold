@@ -22,7 +22,7 @@ var water: Water
 var water_tool: WaterTool
 var wildlife: Wildlife
 var look: Look
-var sun_tool: SunTool
+var sky_tool: SkyTool
 var palette_tool: PaletteTool
 var photo_tool: PhotoTool
 var sound: Soundscape
@@ -72,8 +72,8 @@ func _ready() -> void:
 		h.add_child(BudgetBar.new(world, h))
 	palette_tool = PaletteTool.new(rig, tool, world)
 	add_child(palette_tool)
-	sun_tool = SunTool.new(rig, look, _editing)
-	add_child(sun_tool)
+	sky_tool = SkyTool.new(rig, look, _editing)
+	add_child(sky_tool)
 	photo_tool = PhotoTool.new(rig)
 	if args.has("capture-dir"):
 		photo_tool.folder = str(args["capture-dir"]).path_join("photos")

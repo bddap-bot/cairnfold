@@ -616,16 +616,32 @@ func _photo(s: Dictionary) -> void:
 	await main.photo_tool.shoot(_holding(s, Hand.Tool.CAMERA))
 
 
-## Drags the sun from where it stands to `time` (0 dawn, 1 dusk) over `seconds`.
+## Turns the sky as a player does, until the sun stands at `time` (0 dawn, 1 dusk) over `seconds`: `hand`
+## (right by default) beside the head grips open sky high off the sun's arc and turns its aim about the arc.
 func _sun(s: Dictionary) -> void:
-	var tool: SunTool = main.sun_tool
-	var from: float = main.look.time
-	var t := 0.0
+	var hand := _hand(s)
+	var was := hand.global_transform
+	var still := hand.held_still
+	var axis := Daylight.RISE.cross(Daylight.ARC_UP)
+	var grab := Daylight.toward_sun(0.5).rotated(Daylight.RISE, 0.25)
+	var turn := Daylight.angle(s.time) - Daylight.angle(main.look.time)
+	var head: Transform3D = main.rig.head.global_transform
+	hand.held_still = true
+	hand.global_transform = Transform3D(Basis.looking_at(grab), head * Vector3(0.18 if hand == main.rig.right else -0.18, -0.25, -0.3))
+	var grip := "%s/grip_click" % hand.tracker
+	Buttons.injected[grip] = true
+	await _frames(2)
 	var seconds: float = s.get("seconds", 2.0)
+	var t := 0.0
 	while t < seconds:
 		await get_tree().process_frame
-		t += get_process_delta_time()
-		tool.drag(lerpf(from, s.time, smoothstep(0.0, 1.0, minf(t / seconds, 1.0))))
+		t += minf(get_process_delta_time(), seconds / 8.0)
+		hand.global_basis = Basis.looking_at(grab.rotated(axis, turn * smoothstep(0.0, 1.0, minf(t / seconds, 1.0))))
+	await _frames(2)
+	Buttons.injected.erase(grip)
+	await _frames(2)
+	hand.global_transform = was
+	hand.held_still = still
 
 
 ## The colour picker on `element` (meadow, stone, roof, wood or plaster): opens its wheel on `hand`, twists

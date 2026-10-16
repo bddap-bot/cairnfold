@@ -6,7 +6,7 @@ extends Node3D
 ## Letting go sends the ground's new heights as a build command, one step per grab; the hump shows until it
 ## is in. Farther ground grabs a wider hill and rises faster than the hand. Each hand grabs on its own, with
 ## its own hump, so two hands pull two hills at once; on the same ground their humps add. The ground is the
-## last thing a grip takes: a wall, roof, carried house or the sun it points at takes it first.
+## last thing a grip takes: a wall, roof or carried house it points at takes it first; open sky is the sky's.
 
 const MIN_RADIUS := 2.0
 const MAX_RADIUS := 9.0

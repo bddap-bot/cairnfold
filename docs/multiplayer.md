@@ -19,7 +19,7 @@ ground (a dug pond's seed, the point its water fills from, rides on the same com
 `garden` (only ever the undo of a wipe) rebuilds it from the snapshot the wipe took. `batch` carries several takings (`unwall`, `reshape`, `unpath`,
 `unground`, `show`) of different things, applied in order as one step: a delete stroke across many things is
 one undo, and its inverse is the batch of their inverses. `World` (game/src/world.gd) applies them, and nothing else changes the garden.
-The time of day is each player's own view of it: dragging the sun sends nothing.
+The time of day is each player's own view of it: turning the sky sends nothing.
 Every machine applies the same commands in the same order, so every copy of the garden
 comes out the same.
 

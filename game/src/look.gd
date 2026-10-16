@@ -4,15 +4,13 @@ extends Node
 ## Sky, sun, fog and grading, lit for the time of day (Daylight).
 
 ## Each change to the sky restarts its radiance update, which takes several frames and is where the ambient
-## light comes from; so while the sun is dragged the sky changes this often, letting each update finish,
+## light comes from; so while the sky is turned the sky changes this often, letting each update finish,
 ## and the light and the sun's disc, which follow every frame, stay out of the sky.
 const SKY_EVERY := 0.2
 const DISC_DISTANCE := 350.0
-## Degrees from the sun's centre: the quad's half-width, and the disc's radius at rest and while a hand
-## points at it.
+## Degrees from the sun's centre: the quad's half-width and the disc's radius.
 const DISC_SPAN_DEG := 6.5
 const DISC_RADIUS_DEG := 1.8
-const DISC_SWELL_DEG := 3.6
 
 const FLAGSTONE_TEXELS := 256
 ## Shadows and fog follow the eye's height above the ground (`lift`): up to STANDING, the sun's shadows reach
@@ -158,7 +156,7 @@ static func build(parent: Node) -> Look:
 	# The quad turns to the eye in its shader, so its bounds must hold it facing any way.
 	look.disc.custom_aabb = AABB(-Vector3.ONE * half * sqrt(2.0), Vector3.ONE * half * 2.0 * sqrt(2.0))
 	look.add_child(look.disc)
-	look.swell(false)
+	look.disc_mat.set_shader_parameter("radius", DISC_RADIUS_DEG / DISC_SPAN_DEG)
 	look.bounce.install()
 	look.lift_to(0.0)
 	look.set_time(Daylight.DEFAULT)
@@ -207,10 +205,6 @@ func lift_to(lift: float) -> void:
 
 func _exit_tree() -> void:
 	bounce.stop()
-
-
-func swell(on: bool) -> void:
-	disc_mat.set_shader_parameter("radius", (DISC_SWELL_DEG if on else DISC_RADIUS_DEG) / DISC_SPAN_DEG)
 
 
 func _process(delta: float) -> void:

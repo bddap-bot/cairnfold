@@ -40,8 +40,6 @@ static var injected_sticks := {}
 static var injected_reach := {}
 
 var tool := Tool.WALLS
-## While its grip drags the sun (SunTool), the grip is the sun's alone.
-var holds_sun := false
 var picking := false
 var _wheel: ToolWheel
 var _wheel_button: String
