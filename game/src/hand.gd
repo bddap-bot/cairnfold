@@ -29,6 +29,10 @@ const IDLE := 0.8
 ## How far a wheel icon's model tips its top toward the eye.
 const TILT := PI * 0.3
 static var _disc: CylinderMesh
+## The render layer the wheel's icons draw on: the sun skips it and the wheel's own light lights only it,
+## so the icons look as they do on the default day at any hour.
+const WHEEL_LAYER := 1 << 19
+static var _unshaded := {}
 
 ## Stick positions the driver injects, keyed by tracker.
 static var injected_sticks := {}
@@ -122,6 +126,33 @@ func _build_wheel() -> void:
 			_wheel_root.add_child(model)
 		_slots.append(_wheel_icon(model, at) if TREE[k] != null else model)
 		_subs.append(items)
+	for v in _wheel_root.find_children("*", "VisualInstance3D", true, false):
+		(v as VisualInstance3D).layers = WHEEL_LAYER
+		if v is MeshInstance3D:
+			_unshade(v)
+	var day := Daylight.light(Daylight.DEFAULT)
+	var light := DirectionalLight3D.new()
+	light.light_cull_mask = WHEEL_LAYER
+	light.light_color = day.sun
+	light.light_energy = day.energy
+	light.basis = Basis.looking_at(Vector3(0.3, -0.6, -1.0))
+	_wheel_root.add_child(light)
+
+
+## Swaps `mi`'s standard materials for unshaded copies: under the mobile renderer they never took the
+## wheel's light, which reaches only its shader materials.
+static func _unshade(mi: MeshInstance3D) -> void:
+	for i in mi.get_surface_override_material_count():
+		var mat := mi.get_active_material(i) as BaseMaterial3D
+		if mat == null or mat.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
+			continue
+		if not _unshaded.has(mat):
+			_unshaded[mat] = mat.duplicate()
+			_unshaded[mat].shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		if mi.material_override == mat:
+			mi.material_override = _unshaded[mat]
+		else:
+			mi.set_surface_override_material(i, _unshaded[mat])
 
 
 ## A wheel icon at `at`: its model tipped toward the eye, as a controller's top is seen, on a pale disc

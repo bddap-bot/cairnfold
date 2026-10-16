@@ -137,6 +137,7 @@ static func build(parent: Node) -> Look:
 
 	var sun := DirectionalLight3D.new()
 	sun.shadow_enabled = true
+	sun.light_cull_mask &= ~Hand.WHEEL_LAYER
 	sun.sky_mode = DirectionalLight3D.SKY_MODE_LIGHT_ONLY
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 	sun.shadow_blur = 1.5
