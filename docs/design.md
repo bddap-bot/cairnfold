@@ -888,6 +888,10 @@ the stress scene's garden walls with 9 lanterns hung, then 123, against none, GP
 Lanterns hung with their light switched off measured 48.8 and 48.9 standing, 66.4 and 66.7 from the air: the
 rest of each delta above is the light. The stress scene's `lanterns` phases hang them along every wall.
 
+On the Frame (same scene, 94 lanterns, GPU ms a frame) the volume read per pixel cost the meadow 3 ms standing
+(10.7 to 14.2) while lanterns hung with the volume left empty cost 0.6; grass now reads its light once a
+vertex, and with it the meadow drew 9.6 standing with or without lanterns, 17.7 and 17.9 from the air.
+
 ### Grass
 
 What games known for their grass do, ranked by how much each adds to the look
