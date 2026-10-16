@@ -153,7 +153,7 @@ class Watch:
 func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
 	var near: Sheep = null
 	for s in g.sheep():
-		if s.state in [Herds.State.GRAZE, Herds.State.STAND, Herds.State.WALK, Herds.State.LIE]:
+		if s.state in [Herds.State.GRAZE, Herds.State.STAND, Herds.State.WALK]:
 			near = s
 			break
 	_check(near != null, "a sheep to feed")
@@ -178,7 +178,7 @@ func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
 		eater.assign(g.sheep().filter(func(s: Sheep) -> bool: return s.state == Herds.State.FEED))
 		if not eater.is_empty() and Vector2(eater[0].goal.x - eater[0].position.x, eater[0].goal.z - eater[0].position.z).length() < 1e-3:
 			break
-	_check(eater.size() == 1, "one sheep comes to the seeds, %d" % eater.size())
+	_check(eater.size() == 1, "one sheep comes to the seeds, %d; the nearest %s" % [eater.size(), Herds.State.keys()[near.state]])
 	if eater.size() == 1:
 		var s := eater[0]
 		_run(g, 1.5, each)
