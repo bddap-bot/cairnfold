@@ -181,7 +181,8 @@ func _gaze(s: Dictionary) -> void:
 
 
 ## Teleports as a player does with any tool: the left hand points beside the head along `dir` (relative
-## to the head's facing) with its stick pushed `stick` forward for `seconds`, optionally captures the aimed view, then lets go.
+## to the head's facing) with its stick pushed `stick` forward for `seconds`, optionally captures the aimed view, from
+## the `watch` pose (a `view` step's keys) if given, then lets go.
 func _aim(s: Dictionary) -> void:
 	var rig: Rig = main.rig
 	var head := rig.head.global_transform
@@ -191,6 +192,8 @@ func _aim(s: Dictionary) -> void:
 	await get_tree().process_frame
 	Hand.injected_sticks[rig.left.tracker] = Vector2(0, s.get("stick", 1.0))
 	await get_tree().create_timer(s.get("seconds", 1.0)).timeout
+	if s.has("watch"):
+		await _view(s.watch)
 	if s.has("capture"):
 		await main.capture(s.capture)
 	Hand.injected_sticks.erase(rig.left.tracker)

@@ -159,7 +159,7 @@ static func reach_scale(y: float) -> float:
 
 ## Cast the teleport ray from a pointing pose. Its full target is the ground or flat roof it hits, or, aimed above the
 ## horizon with nothing within AIR_REACH, the point in the air at that reach; a pitched roof stops it with no target.
-## The target lies `fraction` of the way there: on the floor below that point for a ground target, at it for an air one.
+## The target lies `fraction` of the way there along the ray, in the air above the floor short of a ground hit.
 func aim(from: Transform3D, fraction := 1.0) -> void:
 	var origin := from.origin
 	var dir := -from.basis.z.normalized()
@@ -179,13 +179,6 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 		return
 	var full: Vector3 = hit if hit != null else origin + dir * reach
 	var target := origin.lerp(full, fraction)
-	if hit != null and fraction < 1.0:
-		var below: Dictionary = roof_hit.call(target, Vector3.DOWN)
-		if not below.is_empty() and not below.flat:
-			aim_ground = null
-			hide_markers()
-			return
-		target.y = floor_under.call(target)
 	var g: float = floor_under.call(target)
 	aim_ground = Vector3(target.x, g, target.z)
 	aim_lift = clampf(target.y - g, 0.0, MAX_LIFT)

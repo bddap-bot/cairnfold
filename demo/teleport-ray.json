@@ -1,0 +1,12 @@
+[
+  {"op": "place", "x": 0, "z": 0},
+  {"op": "view", "eye": [0, 1.65, 0], "at": [0, 0, -8], "ground": true},
+  {"op": "aim", "dir": [0, -0.25, -1], "stick": 1.0, "seconds": 1, "watch": {"eye": [7, 2.5, -2], "at": [0, 0.6, -3], "ground": true}, "capture": "01-full-forward-on-the-ground"},
+  {"op": "place", "x": 0, "z": 0},
+  {"op": "view", "eye": [0, 1.65, 0], "at": [0, 0, -8], "ground": true},
+  {"op": "aim", "dir": [0, -0.25, -1], "stick": 0.6, "seconds": 1, "watch": {"eye": [7, 2.5, -2], "at": [0, 0.6, -3], "ground": true}, "capture": "02-eased-back-along-the-ray"},
+  {"op": "place", "x": 0, "z": 0},
+  {"op": "view", "eye": [0, 1.65, 0], "at": [0, 0, -8], "ground": true},
+  {"op": "aim", "dir": [0, -0.25, -1], "stick": 0.4, "seconds": 1, "watch": {"eye": [7, 2.5, -2], "at": [0, 0.6, -3], "ground": true}, "capture": "03-eased-further"},
+  {"op": "quit"}
+]

@@ -23,6 +23,7 @@ func _finish(rig: Rig) -> void:
 	await _stick_teleports_with_every_tool(rig)
 	await _eased_stick_lands_nearer(rig, Vector3(0, -0.3, -1), "ground")
 	await _eased_stick_lands_nearer(rig, Vector3(0, 1, -1), "air")
+	await _ground_pull_back_walks_the_ray(rig)
 	await _view_holds_after_teleport(rig, 0.0)
 	await _view_holds_after_teleport(rig, 12.0)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -90,16 +91,14 @@ func _eased_ground_target(rig: Rig) -> void:
 	var o := Vector3(0, Terrain.height_at(0, 0) + 1.5, 0)
 	var pose := _pose(o, Vector3(0, -0.3, -1))
 	rig.aim(pose)
-	var full: Vector3 = rig.aim_ground
+	var hit: Vector3 = rig.aim_ground
 	rig.aim(pose, 0.5)
-	_check(rig.aim_ground != null, "an eased ground aim still finds ground")
+	_check(rig.aim_ground != null, "an eased ground aim still has a target")
 	if rig.aim_ground == null:
 		return
-	var g: Vector3 = rig.aim_ground
-	var full_d := Vector2(full.x - o.x, full.z - o.z).length()
-	var d := Vector2(g.x - o.x, g.z - o.z).length()
-	_check(absf(d - full_d * 0.5) < 0.05, "half deflection lands half as far along the aim: %.2f of %.2f m" % [d, full_d])
-	_check(absf(g.y - Terrain.height_at(g.x, g.z)) < 0.05 and rig.aim_lift < 0.15, "an eased ground target stays on the ground")
+	var target: Vector3 = rig.aim_ground + Vector3.UP * rig.aim_lift
+	_check(target.distance_to(o.lerp(hit, 0.5)) < 0.01, "an eased ground target sits halfway along the ray, not on the ground below it: %s for %s" % [target, o.lerp(hit, 0.5)])
+	_check(rig.aim_lift > 0.15, "an eased ground target floats above the ground: %.2f m" % rig.aim_lift)
 
 
 func _eased_air_target(rig: Rig) -> void:
@@ -142,7 +141,8 @@ func _a_flat_roof_is_floor_and_a_pitched_one_stops_the_ray(rig: Rig) -> void:
 
 
 ## Rays that pass under the roof: from outside at a doorway's height and a window's, and from inside down at the
-## floor, at full reach and eased. Each lands on the ground inside the walls, under the roof.
+## floor, at full reach and eased. Each lands inside the walls, under the roof: on the floor at full reach, on the
+## ray over the floor eased.
 func _aims_into_the_house_land_on_its_floor(rig: Rig, r: RoofLayout, roof: String) -> void:
 	var f := r.frame()
 	var mid := Vector3(f.mid.x, 0.0, f.mid.z)
@@ -161,8 +161,9 @@ func _aims_into_the_house_land_on_its_floor(rig: Rig, r: RoofLayout, roof: Strin
 		rig.aim(_pose(from, a[1] - from), a[2])
 		var g: Variant = rig.aim_ground
 		var inside: bool = g != null and r.over(g.x, g.z)
-		var on_floor: bool = g != null and absf(g.y - Terrain.height_at(g.x, g.z)) < 0.05 and rig.aim_lift < 0.15
-		_check(inside and on_floor, "%s roof, aimed %s: lands on the floor inside, not on the roof: %s for floor %.2f, roof %.2f" % [roof, what, g, Terrain.height_at(g.x, g.z) if g != null else NAN, r.base])
+		var on_floor: bool = g != null and absf(g.y - Terrain.height_at(g.x, g.z)) < 0.05
+		var on_ray: bool = g != null and (g + Vector3.UP * rig.aim_lift).distance_to(from.lerp(a[1], a[2])) < 0.05
+		_check(inside and on_floor and on_ray, "%s roof, aimed %s: lands inside over the floor, not on the roof: %s up %.2f for floor %.2f, roof %.2f" % [roof, what, g, rig.aim_lift, Terrain.height_at(g.x, g.z) if g != null else NAN, r.base])
 
 
 func _no_teleport_tool() -> void:
@@ -200,12 +201,52 @@ func _eased_stick_lands_nearer(rig: Rig, dir: Vector3, what: String) -> void:
 	var ratio := eased / full
 	var expect := Rig.reach_scale(0.45)
 	_check(absf(ratio - expect) < 0.08, "%s: easing back to 0.45 lands %.2f of the full distance (%.1f of %.1f m), want %.2f" % [what, ratio, eased, full, expect])
+	rig.place(Vector3(0, Terrain.height_at(0, 0), 0), 0.0)
+	await process_frame
 	var aimed := rig.head.global_position
 	rig.left.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), aimed + Vector3(-0.2, -0.4, -0.3))
 	rig.aim(rig.left.global_transform)
 	var far: Vector3 = rig.aim_ground
 	var snapped := await _stick_landing(rig, dir, 0.0)
 	_check(absf(snapped - Vector2(far.x - aimed.x, far.z - aimed.z).length()) < 1.0, "%s: a release straight from full forward goes the full distance" % what)
+
+
+## Through real frames, aimed at the ground: easing the stick back walks the target back along the ray, a slow
+## release lands there in the air, and only a quick release from full forward lands on the ground the ray hit.
+func _ground_pull_back_walks_the_ray(rig: Rig) -> void:
+	var dir := Vector3(0, -0.3, -1).normalized()
+	rig.place(Vector3(0, Terrain.height_at(0, 0), 0), 0.0)
+	await process_frame
+	var from := rig.head.global_position
+	rig.left.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), from + Vector3(-0.2, -0.4, -0.3))
+	var o := rig.left.global_position
+	Hand.injected_sticks[rig.left.tracker] = Vector2(0, 1)
+	await process_frame
+	await process_frame
+	var hit: Vector3 = rig.aim_ground
+	for y in [0.85, 0.7, 0.55, 0.4]:
+		Hand.injected_sticks[rig.left.tracker] = Vector2(0, y)
+		await process_frame
+		var target: Vector3 = rig.aim_ground + Vector3.UP * rig.aim_lift
+		var want := o.lerp(hit, Rig.reach_scale(y))
+		_check(target.distance_to(want) < 0.01, "ground, stick at %.2f: the target is on the ray at %s, not %s" % [y, want, target])
+	var eased: Vector3 = rig.aim_ground + Vector3.UP * rig.aim_lift
+	var start := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start < 300:
+		await process_frame
+	for y in [0.35, 0.0]:
+		Hand.injected_sticks[rig.left.tracker] = Vector2(0, y)
+		await process_frame
+	Hand.injected_sticks.erase(rig.left.tracker)
+	for f in 30:
+		await process_frame
+	var landed := rig.global_position
+	var h := rig.head.global_position
+	_check(Vector2(h.x - eased.x, h.z - eased.z).length() < 0.05 and absf(landed.y - eased.y) < 0.05, "ground: a slow release lands on the eased point on the ray: %s for %s" % [Vector3(h.x, landed.y, h.z), eased])
+	_check(landed.y - Terrain.height_at(h.x, h.z) > 0.15, "ground: the eased landing floats above the ground")
+	await _stick_landing(rig, dir, 0.0)
+	h = rig.head.global_position
+	_check(Vector2(h.x - hit.x, h.z - hit.z).length() < 1.0 and absf(rig.global_position.y - Terrain.height_at(h.x, h.z)) < 0.05, "ground: a quick release from full forward lands on the ground the ray hit")
 
 
 ## Places the rig at the origin, aims along `dir` with the stick full forward, then at `eased` for `hold`

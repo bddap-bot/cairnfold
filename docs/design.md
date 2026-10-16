@@ -1149,6 +1149,12 @@ for one distance did not read together, and the air reach is a fixed 30 m to eas
 released stick springs through every smaller deflection on its way to centre, so the release takes
 the target from 0.1 s before the stick reached its deadzone.
 
+Directive (verbatim): "I'm testing out the teleport movement, the ability to teleport only a short distance, and in the sky it is what I wanted, but on the ground I would only like to teleport along the ray that I am casting. I don't want to choose a location on the ground that is closer to me. When I pull back on the thumbstick slowly after extending it, I want the teleport location to walk back along the ray that I'm casting, not along the ground. So the only way I would teleport to the ground is if I'm holding the thumbstick straight forward and then I release quickly. Otherwise I should be teleporting to a location along the ray that I have cast."
+
+An eased target is a point on the ray whether the ray ends on the ground or in the air, and the
+landing there is the same float over whatever floor lies below it. Only a release from full forward
+reaches the ground the ray hit.
+
 Directive (verbatim): "I'd like to be able to use the grab button to grab the ground so ground terraforming becomes um... not a tool, it's just something that's always available. I just grab something. Grab the ground and push it down or pull it up"
 
 Directive (verbatim): "The grab button should always be grab"
@@ -1188,7 +1194,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Pick a hand's tool | Hold that hand's wheel button (right B, left View), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
 | Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it meets the ground or a flat roof's deck; aimed under a roof, as through a door or window, it lands on the floor inside; a pitched roof stops it; release to go |
 | Teleport into the air | Aim above the horizon: with no ground within 30 m, the ray targets the point in the air at its end, a ring on a pole down to the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
-| Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides nearer along the aim as the stick comes back, on the ground or in the air, down to a tenth of the way. Release from there to go there: the snap back to centre does not pull the target in |
+| Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the ground even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
 | Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick left or right: 30° snap turn |
 | Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground, or along a build's top to build on it; release to finish. Strokes under 1 m are discarded, and a stroke near a standing wall merges into it |
