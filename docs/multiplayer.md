@@ -203,7 +203,8 @@ nothing that says who they are. A name reaches others only by a way the player c
   Steam itself. The host puts its beacon's random key in its Steam rich presence; a friend's
   game, seeing that key in a beacon, shows the friend's Steam picture and Steam name under
   the figure. Who sees you playing is what you set in Steam. Two games on one Steam account
-  share one rich presence, so only the later one is named. Anyone on the network can copy a
+  on one machine share one rich presence, so only the later one is named; on two machines
+  each reads only its own, so neither is. Anyone on the network can copy a
   friend's key into their own beacon, so when two gardens announce one key neither is named.
 - **Without Steam,** your own figure stands nearer, to your left, under a name the game
   offers, faint while only you can see it. Pick it and the name joins your beacon; pick it
