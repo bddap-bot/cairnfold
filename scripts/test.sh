@@ -14,8 +14,11 @@ scripts/check.sh
 status=0
 if grep -nE "^\s+quit\(" tests/*.gd; then echo "tests exit through Main.quit, which waits for playing sounds"; status=1; fi
 for t in tests/test_*.gd; do
-  out=$(godot4 --headless --path game --script "../$t" 2>&1) || { echo "$t: exited $?"; status=1; }
+  failed=0
+  out=$(godot4 --headless --path game --script "../$t" 2>&1) || { echo "$t: exited $?"; failed=1; }
   grep -E "^(tests|FAIL):|SCRIPT ERROR|still in use at exit|Parameter \"mem" <<<"$out" | sed "s|^|$t: |"
-  if grep -qE "SCRIPT ERROR|still in use at exit|Parameter \"mem" <<<"$out"; then status=1; fi
+  if grep -qE "SCRIPT ERROR|still in use at exit|Parameter \"mem" <<<"$out"; then failed=1; fi
+  # A failure seen once is kept in the run's log, crash backtraces and errors around it included.
+  if [ "$failed" = 1 ]; then tail -n 60 <<<"$out" | sed "s|^|$t: |"; status=1; fi
 done
 exit "$status"
