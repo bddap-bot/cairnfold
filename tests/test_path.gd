@@ -33,8 +33,6 @@ func _run() -> void:
 	_undo_lifts_a_path_and_its_arches()
 	await _a_path_opens_its_arch_before_release()
 	await _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame()
-
-
 	_undo_lifts_a_path_and_its_arches(Hand.Tool.DIRT_PATH)
 	await _dirt_wears_without_stones()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -497,6 +495,7 @@ func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.PATH) -> void:
 	_check(not paths.get_children().any(func(c): return c is Stones), "undo takes the path's stones away")
 	world.redo()
 	_lay_walls(nodes[0])
+	Ground.settle()
 	_check(paths.layouts.size() == 1 and Ground.bare(2, 57) > 0.99 and w.layout.live_arches.size() == 1, "redo lays it again, arch and all: %s" % [w.layout.live_arches])
 	var deleter := DeleteTool.new(nodes[3], nodes[0], t, world)
 	var target := deleter.aim(Terrain.ground(2, 57) + Vector3.UP * 2, Vector3.DOWN)
@@ -613,6 +612,7 @@ func _dirt_wears_without_stones() -> void:
 	paths.extend(Vector3(-10, 0, -20), 0.8)
 	var ghost := paths.end()
 	_check(ghost.layout.stones.is_empty() and ghost.chunks.is_empty(), "dirt creates no stones or stone nodes")
+	Ground.settle()
 	_check(Ground.bare(-15, -20) > 0.99, "dirt wears the stroke centre")
 	var soft := false
 	for i in 20:
