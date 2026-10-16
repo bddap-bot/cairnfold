@@ -214,7 +214,11 @@ static func distribution(samples: PackedFloat32Array) -> Variant:
 	return {"p50": _q(sorted, 0.5), "p95": _q(sorted, 0.95), "max": sorted[-1]}
 
 
-func _exit_tree() -> void:
+func close() -> void:
 	flush()
 	if play_log != null:
 		play_log.finish()
+
+
+func _exit_tree() -> void:
+	close()

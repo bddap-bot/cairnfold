@@ -57,11 +57,20 @@ func _open() -> void:
 	files.sort()
 	while files.size() >= MAX_FILES:
 		DirAccess.remove_absolute(directory.path_join(files.pop_front()))
-	_file = FileAccess.open(directory.path_join("%s-%04d.jsonl" % [session_id, _part]), FileAccess.WRITE)
 	_part += 1
+	# Renamed into place holding its start record, so no reader meets a chunk without one.
+	var fresh := directory.path_join("chunk.new")
+	var start := FileAccess.open(fresh, FileAccess.WRITE)
+	if start == null:
+		return
+	start.store_line(JSON.stringify(metadata.merged({"event": "start", "part": _part})))
+	start.close()
+	var chunk := directory.path_join("%s-%04d.jsonl" % [session_id, _part - 1])
+	if DirAccess.rename_absolute(fresh, chunk) != OK:
+		return
+	_file = FileAccess.open(chunk, FileAccess.READ_WRITE)
 	if _file != null:
-		_file.store_line(JSON.stringify(metadata.merged({"event": "start", "part": _part})))
-		_file.flush()
+		_file.seek_end()
 
 
 func sample(row: Dictionary) -> void:
@@ -111,3 +120,4 @@ func finish() -> void:
 	if _file != null:
 		_file.store_line(JSON.stringify({"event": "end", "session": session_id, "ended": Time.get_unix_time_from_system()}))
 		_file.close()
+		_file = null

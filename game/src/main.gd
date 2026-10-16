@@ -212,8 +212,11 @@ func _notification(what: int) -> void:
 		finish()
 
 
+## The garden and the session log are written before the sounds wind down: a platform that asked us to
+## quit may kill the process soon after.
 func finish() -> void:
-	metrics.flush()
+	world.flush()
+	metrics.close()
 	Main.quit(get_tree())
 
 

@@ -189,8 +189,10 @@ func _exit_tree() -> void:
 	flush()
 
 
-## Waits for the last save to be written.
+## Writes a save still due and waits for the last one to land.
 func flush() -> void:
+	if _keep_due:
+		_keep()
 	if _keep_task >= 0:
 		WorkerThreadPool.wait_for_task_completion(_keep_task)
 		_keep_task = -1
@@ -198,7 +200,8 @@ func flush() -> void:
 
 ## Loads the garden saved at `path`, if there is one, and from then on saves this garden there: rewritten
 ## after every frame in which a command changed it while it was our own (not one we are visiting). A file
-## this game cannot read whole is moved aside to `path`.bad before anything is written over it.
+## of another format, or one this game cannot read whole, is moved aside to `path`.bad before anything is
+## written over it.
 func load_from(path: String) -> void:
 	save_path = path
 	if not FileAccess.file_exists(path):
@@ -210,8 +213,11 @@ func load_from(path: String) -> void:
 	if whole:
 		print("world: loaded %s" % path)
 		return
+	var why := "held a garden this game cannot read whole"
+	if snap is Dictionary and snap.get("format") != FORMAT:
+		why = "was saved in format %s and this game reads format %d" % [snap.get("format"), FORMAT]
 	var err := DirAccess.rename_absolute(ProjectSettings.globalize_path(path), ProjectSettings.globalize_path(path) + ".bad")
-	push_error("world: %s held a garden this game cannot read whole; moved it to .bad (%s)" % [path, error_string(err)])
+	push_error("world: %s %s; moved it to .bad (%s)" % [path, why, error_string(err)])
 	if err != OK:
 		save_path = ""
 
