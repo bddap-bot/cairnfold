@@ -289,6 +289,8 @@ var blob_detail: int = Quality.ladder[0].blob_detail:
 			blob_detail = n
 			foliage.draw_with(_blobs[n])
 var flower_mat: ShaderMaterial
+## Bumped whenever a tree or bush stands up or goes, so what was gathered from them knows it is stale.
+var changes := 0
 ## Foliage blobs at each detail, made up front so a step changes only which one is drawn.
 var _blobs := {}
 
@@ -392,6 +394,7 @@ func add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 
 
 func _solid(key: Vector2i, parts: Array[Plant]) -> void:
+	changes += 1
 	var box: AABB = parts[0].xform * parts[0].pool.mesh.get_aabb()
 	for p in parts:
 		box = box.merge(p.xform * p.pool.mesh.get_aabb())
@@ -545,6 +548,7 @@ func clear_ghosts() -> void:
 ## Shows or hides the plants at `indices` of a group; returns the indices that changed.
 func set_shown(group: int, indices: PackedInt32Array, on: bool) -> PackedInt32Array:
 	grow_now()
+	changes += 1
 	var changed := PackedInt32Array()
 	var plants: Array = groups.get(group, [])
 	for i in indices:
@@ -557,6 +561,7 @@ func set_shown(group: int, indices: PackedInt32Array, on: bool) -> PackedInt32Ar
 
 ## Back to the meadow alone, every one of its plants standing. Ghosts stay with the strokes still on their way.
 func reset() -> void:
+	changes += 1
 	if growing():
 		_growing.clear()
 		grown.emit()

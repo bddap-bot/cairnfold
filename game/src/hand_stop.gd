@@ -31,12 +31,14 @@ const CENTRE := Vector3(0, -0.01, 0.04)
 const RADIUS := 0.03
 ## The sweep samples no coarser than this, finer than any wall, roof, trunk or animal, then bisects to the surface.
 const STEP := 0.04
-const BISECT := 7
+const BISECT := 5
 const SLIDES := 3
 ## How far past a stop the surface's facing is read, well over the bisection's last step.
 const PROBE := 0.002
 ## A hand held further than this from its controller lets go and jumps back to it.
 const BREAK := 1.0
+## How much wider than a frame's sweep the world round a hand is gathered, so a moving hand keeps it a while.
+const SPARE := 0.2
 const ROOF_SHELL := 0.14
 const FENCE_HALF := 0.06
 
@@ -46,6 +48,8 @@ var _flora: Flora
 ## Per hand, where its ball was last frame, in the rig's space so locomotion carries it along.
 var _held: Array[Vector3] = []
 var _feels: Array[Feel] = []
+var _gathered: Array[Near] = []
+var _stamps: Array[Vector3i] = []
 
 
 func _init(player: Rig, walls: WallTool, plants: Flora) -> void:
@@ -55,6 +59,8 @@ func _init(player: Rig, walls: WallTool, plants: Flora) -> void:
 	for h in _rig.hands:
 		_held.append(Vector3.INF)
 		_feels.append(Feel.new())
+		_gathered.append(null)
+		_stamps.append(Vector3i.ZERO)
 
 
 func _process(delta: float) -> void:
@@ -70,7 +76,9 @@ func _process(delta: float) -> void:
 		var from := to if _held[i] == Vector3.INF else _rig.global_transform * _held[i]
 		if from.distance_to(to) > BREAK:
 			from = to
-		var near := Near.gather(_walls, _flora, critters.filter(func(c: Critter) -> bool: return c.riding != hand), AABB(from, Vector3.ZERO).expand(to).grow(RADIUS + STEP))
+		var box := AABB(from, Vector3.ZERO).expand(to).grow(RADIUS + STEP)
+		var near := _near_for(i, box)
+		near.focus(box, critters.filter(func(c: Critter) -> bool: return c.riding != hand))
 		var at := resolve(from, to, near.solid, near.normal)
 		_held[i] = _rig.global_transform.affine_inverse() * at
 		hand.body.global_position = hand.global_position + (at - to)
@@ -78,6 +86,16 @@ func _process(delta: float) -> void:
 		var pulse := _feels[i].step(now, delta, touched, near.passing(at), from.distance_to(to), from.distance_to(at))
 		if pulse.x > 0.0:
 			hand.trigger_haptic_pulse(&"haptic", 0.0, pulse.x, pulse.y, 0.0)
+
+
+## The world round `box` for hand `i`: what was gathered last time while the box stays inside the region it was
+## gathered for and nothing built or planted since, else gathered afresh for a region SPARE wider.
+func _near_for(i: int, box: AABB) -> Near:
+	var stamp := Vector3i(WallLayout._laid_count, _walls.walls.size() if _walls != null else 0, _flora.changes if _flora != null else 0)
+	if _gathered[i] == null or _stamps[i] != stamp or not _gathered[i].region.encloses(box):
+		_gathered[i] = Near.gather(_walls, _flora, box.grow(SPARE))
+		_stamps[i] = stamp
+	return _gathered[i]
 
 
 ## Where a ball moving from `from` toward `to` comes to rest: `to` if the way is clear, else at the first surface it
@@ -95,7 +113,7 @@ static func resolve(from: Vector3, to: Vector3, solid: Callable, normal: Callabl
 		var n: Vector3 = normal.call(at + pushed.normalized() * PROBE)
 		var rest := to - at
 		pushed = rest - n * minf(rest.dot(n), 0.0)
-		if n == Vector3.ZERO or pushed.length_squared() < 1e-8:
+		if n == Vector3.ZERO or pushed.length_squared() < 1e-6:
 			break
 		var target := at + pushed
 		at = _sweep(at, target, solid)
@@ -166,8 +184,10 @@ class Feel:
 ## The world within a box, gathered once a frame per hand so each test along the sweep checks only the few pieces
 ## of wall, roof, tree and animal that can be there.
 class Near:
-	## Per piece of wall: [ground point a, ground point b, arc length at a, at b, layout, half-thickness].
-	var walls: Array[Array] = []
+	## The box gathered round.
+	var region: AABB
+	var walls: Array[Piece] = []
+	var _gathered_walls: Array[Piece] = []
 	var roofs: Array[RoofLayout] = []
 	## Trunks as [world-to-mesh transform, cylinder, scale].
 	var trunks: Array[Array] = []
@@ -176,8 +196,9 @@ class Near:
 	var animals: Array[Array] = []
 	var facing := Vector3.UP
 
-	static func gather(on: WallTool, plants: Flora, critters: Array, box: AABB) -> Near:
+	static func gather(on: WallTool, plants: Flora, box: AABB) -> Near:
 		var near := Near.new()
+		near.region = box
 		var flat := Rect2(box.position.x, box.position.z, box.size.x, box.size.z)
 		if on != null:
 			for w in on.walls:
@@ -186,6 +207,7 @@ class Near:
 				if w.roof != null:
 					near.roofs.append(w.roof)
 				near._add_wall(w.layout, flat)
+		near._gathered_walls = near.walls.duplicate()
 		if plants != null:
 			for parts in plants.solids_in(flat):
 				for part: Flora.Plant in parts:
@@ -194,21 +216,41 @@ class Near:
 						near.trunks.append([at.affine_inverse(), part.pool.mesh, at.basis.get_scale()])
 					else:
 						near.leaves.append([at.affine_inverse(), part.pool.mesh.get_aabb(), Surface.LEAVES])
-		for c: Critter in critters:
-			if c.is_visible_in_tree() and c.mesh != null and (c.global_transform * c.mesh.get_aabb()).grow(RADIUS).intersects(box):
-				near.animals.append([c.global_transform.affine_inverse(), c.mesh.get_aabb(), c.coat])
 		return near
 
+	## Narrows the walls tested to those reaching `box`, a frame's sweep, and gathers the animals there, which move.
+	func focus(box: AABB, critters: Array) -> void:
+		var flat := Rect2(box.position.x, box.position.z, box.size.x, box.size.z)
+		walls.clear()
+		for w in _gathered_walls:
+			if w.reach.intersects(flat):
+				walls.append(w)
+		animals.clear()
+		for c: Critter in critters:
+			if c.is_visible_in_tree() and c.mesh != null and (c.global_transform * c.mesh.get_aabb()).grow(RADIUS).intersects(box):
+				animals.append([c.global_transform.affine_inverse(), c.mesh.get_aabb(), c.coat])
+
+	## The pieces of `l` reaching into `flat`. Arc length bounds how far apart two samples stand, so a sample far
+	## from `flat` skips every one after it that cannot be nearer: a long wall costs a few steps, not one per sample.
 	func _add_wall(l: WallLayout, flat: Rect2) -> void:
 		var half := FENCE_HALF if l.fence else WallLayout.THICKNESS * 0.5
+		var reach := flat.grow(half + RADIUS)
 		var n := l.samples.size()
-		var reach := flat.grow(half)
-		for i in (n if l.closed else n - 1):
-			var j := (i + 1) % n
-			var a := l.samples[i]
-			var b := l.samples[j]
-			if Rect2(Vector2(a.x, a.z), Vector2.ZERO).expand(Vector2(b.x, b.z)).grow(0.01).intersects(reach):
-				walls.append([a, b, l.lengths[i], l.lengths[j] if j > 0 else l.length(), l, half])
+		var lengths := l.lengths
+		var i := 0
+		while i < n - 1:
+			var gap := _off(l.samples[i], reach)
+			if gap <= lengths[i + 1] - lengths[i]:
+				walls.append(Piece.new(l, i, i + 1, half))
+				i += 1
+			else:
+				i = maxi(i + 1, lengths.bsearch(lengths[i] + gap) - 1)
+		if l.closed and n > 1 and _off(l.samples[n - 1], reach) <= Vector2(l.samples[0].x - l.samples[n - 1].x, l.samples[0].z - l.samples[n - 1].z).length():
+			walls.append(Piece.new(l, n - 1, 0, half))
+
+	## How far outside `r` the ground point under `p` lies, along x or z whichever is further.
+	static func _off(p: Vector3, r: Rect2) -> float:
+		return maxf(maxf(r.position.x - p.x, p.x - r.end.x), maxf(maxf(r.position.y - p.z, p.z - r.end.y), 0.0))
 
 	func solid(p: Vector3) -> bool:
 		return touch(p) != Surface.NONE
@@ -225,7 +267,7 @@ class Near:
 			return Surface.STONE if Ground.stone(p.x, p.z) > 0.5 else Surface.GROUND
 		for w in walls:
 			if _in_wall(p, w, with_facing):
-				var l: WallLayout = w[4]
+				var l := w.layout
 				return Surface.WOOD if l.fence else (Surface.PLASTER if l.plaster else Surface.STONE)
 		for r in roofs:
 			var below := p.y - r.height_at(p.x, p.z) + ROOF_SHELL * 0.5
@@ -273,18 +315,17 @@ class Near:
 				return t[2]
 		return Surface.NONE
 
-	func _in_wall(p: Vector3, w: Array, with_facing: bool) -> bool:
-		var a: Vector3 = w[0]
-		var b: Vector3 = w[1]
-		var l: WallLayout = w[4]
-		var half: float = w[5]
-		var ab := Vector2(b.x - a.x, b.z - a.z)
-		var u := clampf(Vector2(p.x - a.x, p.z - a.z).dot(ab) / maxf(ab.length_squared(), 1e-9), 0.0, 1.0)
-		var off := Vector2(p.x - a.x - ab.x * u, p.z - a.z - ab.y * u)
-		if off.length() >= half + RADIUS:
+	func _in_wall(p: Vector3, w: Piece, with_facing: bool) -> bool:
+		if not w.reach.has_point(Vector2(p.x, p.z)):
 			return false
-		var s := lerpf(w[2], w[3], u)
-		var y := p.y - lerpf(a.y, b.y, u) - WallLayout.SINK
+		var u := clampf(((p.x - w.a.x) * w.ab.x + (p.z - w.a.y) * w.ab.y) * w.inv_len2, 0.0, 1.0)
+		var off := Vector2(p.x - w.a.x - w.ab.x * u, p.z - w.a.y - w.ab.y * u)
+		var reach := w.half + RADIUS
+		if off.length_squared() >= reach * reach:
+			return false
+		var l := w.layout
+		var s := lerpf(w.s0, w.s1, u)
+		var y := p.y - lerpf(w.y0, w.y1, u) - WallLayout.SINK
 		var top := WallLayout.FENCE_HEIGHT if l.fence else l.standing(s) + WallLayout.CAP
 		if y > top + RADIUS or y < -WallLayout.SINK - 2.0:
 			return false
@@ -294,6 +335,35 @@ class Near:
 			if absf(l.offset(s, arch)) < l.opening(y, false) - RADIUS:
 				return false
 		if with_facing:
-			var side := off if off.length_squared() > 1e-8 else Vector2(-ab.y, ab.x)
-			facing = Vector3.UP if top + RADIUS - y < half + RADIUS - off.length() else Vector3(side.x, 0.0, side.y).normalized()
+			var side := off if off.length_squared() > 1e-8 else Vector2(-w.ab.y, w.ab.x)
+			facing = Vector3.UP if top + RADIUS - y < reach - off.length() else Vector3(side.x, 0.0, side.y).normalized()
 		return true
+
+
+## A straight piece of a wall's ground curve, between two of its samples.
+class Piece:
+	var layout: WallLayout
+	var a: Vector2
+	var ab: Vector2
+	var inv_len2: float
+	var y0: float
+	var y1: float
+	var s0: float
+	var s1: float
+	var half: float
+	## Where the ground point of a ball touching it can lie.
+	var reach: Rect2
+
+	func _init(l: WallLayout, i: int, j: int, half_thickness: float) -> void:
+		layout = l
+		var p := l.samples[i]
+		var q := l.samples[j]
+		a = Vector2(p.x, p.z)
+		ab = Vector2(q.x - p.x, q.z - p.z)
+		inv_len2 = 1.0 / maxf(ab.length_squared(), 1e-9)
+		y0 = p.y
+		y1 = q.y
+		s0 = l.lengths[i]
+		s1 = l.lengths[j] if j > 0 else l.length()
+		half = half_thickness
+		reach = Rect2(a, Vector2.ZERO).expand(a + ab).grow(half + RADIUS)

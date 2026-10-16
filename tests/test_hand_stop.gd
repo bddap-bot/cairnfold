@@ -208,7 +208,7 @@ func _a_trunk_is_solid_and_its_leaves_are_brushed() -> void:
 	if trunk == null:
 		return
 	var base := Vector3(trunk.anchor.x, Terrain.base_at(trunk.anchor.x, trunk.anchor.z), trunk.anchor.z)
-	var near := HandStop.Near.gather(null, flora, [], AABB(base, Vector3.ZERO).grow(6.0))
+	var near := HandStop.Near.gather(null, flora, AABB(base, Vector3.ZERO).grow(6.0))
 	var mid := base + Vector3.UP * 0.6
 	_check(near.touch(mid) == HandStop.Surface.BARK, "a trunk is solid bark")
 	_check(not near.solid(mid + Vector3(1.2, 0, 0)), "beside it is not")
@@ -219,7 +219,7 @@ func _a_trunk_is_solid_and_its_leaves_are_brushed() -> void:
 
 func _surfaces_come_from_what_is_touched(wall: Wall) -> void:
 	var p := wall.layout.point_at(1.0) + Vector3.UP * (WallLayout.SINK + 1.0)
-	var near := HandStop.Near.gather(main.tool, null, [], AABB(p, Vector3.ZERO).grow(1.0))
+	var near := HandStop.Near.gather(main.tool, null, AABB(p, Vector3.ZERO).grow(1.0))
 	_check(near.touch(p) == HandStop.Surface.STONE, "a stone wall feels of stone")
 	var g := Terrain.ground(10.0, 10.0)
 	_check(near.touch(g) == HandStop.Surface.GROUND, "the meadow feels of ground")
@@ -234,7 +234,9 @@ func _animals_are_solid_in_their_coats() -> void:
 		main.add_child(c)
 		c.global_position = g + Vector3(k * 2.0, 0.5, 0.0)
 		var centre := c.global_transform * c.mesh.get_aabb().get_center()
-		var near := HandStop.Near.gather(null, null, main.get_tree().get_nodes_in_group(HandStop.CRITTERS), AABB(centre, Vector3.ZERO).grow(0.5))
+		var box := AABB(centre, Vector3.ZERO).grow(0.5)
+		var near := HandStop.Near.gather(null, null, box)
+		near.focus(box, main.get_tree().get_nodes_in_group(HandStop.CRITTERS))
 		_check(near.touch(centre) == coats[k], "a %s is solid, in its coat" % HandStop.Surface.keys()[coats[k]])
 		var above := centre + Vector3.UP * 0.6
 		_check(HandStop.resolve(above, centre, near.solid, near.normal).y > centre.y + 0.01, "a hand coming down on a %s stops on its back" % HandStop.Surface.keys()[coats[k]])
