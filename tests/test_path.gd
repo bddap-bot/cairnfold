@@ -36,7 +36,7 @@ func _run() -> void:
 
 
 	_undo_lifts_a_path_and_its_arches(Hand.Tool.DIRT_PATH)
-	_dirt_wears_without_stones()
+	await _dirt_wears_without_stones()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -624,9 +624,12 @@ func _dirt_wears_without_stones() -> void:
 	_check(data.style == "dirt", "command validation keeps dirt style")
 	paths.drop(ghost)
 	paths.put(123, data)
+	while paths.laying():
+		await process_frame
 	_check(paths.layouts[0].style == "dirt" and paths.layouts[0].stones.is_empty(), "replayed dirt stays stone-free")
 	_check(Ground.mark_at(-15, -20) == 123 and Ground.mark_at(-15, -18) == -1, "path selection follows the stroke width")
 	paths.take(123)
+	await process_frame
 	_check(Ground.bare(-15, -20) == 0.0, "taking dirt restores the meadow")
 	data.erase("style")
 	_check(Commands._path(data).style == "cobble", "old gardens default to cobble")

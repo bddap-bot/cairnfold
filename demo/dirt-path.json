@@ -1,82 +1,10 @@
 [
-  {
-    "op": "place",
-    "x": 0,
-    "z": 9
-  },
-  {
-    "op": "view",
-    "eye": [
-      8,
-      9,
-      13
-    ],
-    "at": [
-      0,
-      0,
-      -1
-    ]
-  },
-  {
-    "op": "pave",
-    "points": [
-      [
-        -3,
-        6
-      ],
-      [
-        -3,
-        2
-      ],
-      [
-        -4,
-        -2
-      ],
-      [
-        -3,
-        -7
-      ]
-    ],
-    "radius": 0.85,
-    "seconds": 2
-  },
-  {
-    "op": "pave",
-    "style": "dirt",
-    "points": [
-      [
-        1,
-        6
-      ],
-      [
-        1,
-        2
-      ],
-      [
-        0,
-        -2
-      ],
-      [
-        1,
-        -7
-      ]
-    ],
-    "radius": 0.85,
-    "seconds": 2
-  },
-  {
-    "op": "label",
-    "name": "both-paths"
-  },
-  {
-    "op": "wait",
-    "seconds": 15
-  },
-  {
-    "op": "capture",
-    "name": "dirt-beside-cobble"
-  },
-  {
-    "op": "quit"
-  }
+  {"op": "place", "x": 0, "z": 9},
+  {"op": "view", "eye": [8, 9, 13], "at": [0, 0, -1]},
+  {"op": "pave", "points": [[-3, 6], [-3, 2], [-4, -2], [-3, -7]], "radius": 0.85, "seconds": 2},
+  {"op": "pave", "style": "dirt", "points": [[1, 6], [1, 2], [0, -2], [1, -7]], "radius": 0.85, "seconds": 2},
+  {"op": "label", "name": "both-paths"},
+  {"op": "wait", "seconds": 15},
+  {"op": "capture", "name": "dirt-beside-cobble"},
+  {"op": "quit"}
 ]
