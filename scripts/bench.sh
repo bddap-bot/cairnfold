@@ -5,8 +5,10 @@
 #                                             in the headset's XR session unworn: SteamVR pauses the game while the
 #                                             headset is in standby, so the run turns power.pauseCompositorOnStandby
 #                                             off and restarts SteamVR, and puts both back on exit. Nothing else may
-#                                             use SteamVR meanwhile. The GPU times are the headset's own render path;
-#                                             a worn session's eye tracking and passthrough cameras are not in them
+#                                             use SteamVR meanwhile. The run autosaves every edit to log/garden.save, as
+#                                             play does, so the late column counts each save's frame. The GPU times
+#                                             are the headset's own render path; a worn session's eye tracking and
+#                                             passthrough cameras are not in them
 #   bench.sh OUT_DIR --android APK            a Quest over adb (ANDROID_SERIAL picks it), in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
 # On a Quest, exits 1 when a phase the build must hold goes over budget; phases named "sweep/..." only measure.
@@ -206,7 +208,7 @@ elif [ $# -ge 3 ]; then
   standby "$2" off
   ssh -n "$2" 'cd nestcombe-bench/nestcombe
     export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)} DISPLAY=${DISPLAY:-:0}
-    status=0; timeout 900 ./nestcombe -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --seed '"$seed"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
+    status=0; timeout 900 ./nestcombe -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --garden "$PWD/log/garden.save" --seed '"$seed"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
     rm log/pid; echo "bench: $(cat REVISION) exit $status"' &
   remote=$!
   if [ "$players" -gt 1 ]; then
