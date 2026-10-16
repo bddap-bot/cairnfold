@@ -32,7 +32,8 @@ varying float tip;
 varying vec3 top;
 varying float gust;
 varying float far;
-varying vec3 bounce_at;
+// Bounce and lantern light at the blade's root, read once a vertex: grass is the most overdrawn thing drawn.
+varying vec4 given;
 
 vec3 parted(vec3 v, vec3 root, vec3 hand) {
 	vec2 away = v.xz - hand.xz;
@@ -49,7 +50,9 @@ void vertex() {
 	VERTEX.y += ground;
 	vec3 root = MODEL_MATRIX[3].xyz + vec3(0.0, ground, 0.0);
 	float size = length(MODEL_MATRIX[1].xyz);
-	bounce_at = bounce_on_ground(root.xz);
+	vec3 at = bounce_on_ground(root.xz);
+	vec4 bounce = textureLod(bounce_volume, at, 0.0);
+	given = vec4(given_back(at, bounce), bounce.a);
 	float worn = bare(root.xz);
 	VERTEX = root + (VERTEX - root) * vec3(1.0 - worn * 0.5, 1.0 - worn, 1.0 - worn * 0.5);
 	float dist = distance(root, CAMERA_POSITION_WORLD);
@@ -77,7 +80,6 @@ void fragment() {
 	NORMAL -= 2.0 * min(dot(NORMAL, up), 0.0) * up;
 	ROUGHNESS = 0.9;
 	BACKLIGHT = top * backlight * t * (1.0 - 0.5 * far);
-	vec4 bounce = texture(bounce_volume, bounce_at);
-	AO = bounce.a;
-	EMISSION = ALBEDO * given_back(bounce_at, bounce);
+	AO = given.a;
+	EMISSION = ALBEDO * given.rgb;
 }

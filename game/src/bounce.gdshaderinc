@@ -21,5 +21,5 @@ vec3 bounce_on_ground(vec2 xz) {
 
 // What a surface reading the volumes at `at` adds over its albedo: light off the builds and from lanterns.
 vec3 given_back(vec3 at, vec4 bounce) {
-	return bounce.rgb * bounce_light + texture(lamp_volume, at).r * lamp_light;
+	return bounce.rgb * bounce_light + textureLod(lamp_volume, at, 0.0).r * lamp_light;
 }
