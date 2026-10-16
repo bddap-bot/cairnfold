@@ -262,9 +262,10 @@ one model in both versions stands alike.
 
 ## Budget
 
-Networking adds no per-frame work beyond reading sockets and sending one pose packet
-every other frame. Each remote player adds about seven small draw calls and a few hundred
-triangles. Frame times with 1, 2 and 4 players in the stress scene are under
+Each remote player costs one avatar pose a frame, as their avatar follows their latest pose
+packet, and on the host the relaying of their packets; networking otherwise adds only reading
+sockets and sending one pose packet every other frame. Each remote player adds about seven
+small draw calls and a few hundred triangles. Frame times with 1, 2 and 4 players in the stress scene are under
 "Measurements".
 
 ## Increments
@@ -294,6 +295,14 @@ The harness polls at 100 ms and uses the first and last samples inside each wind
 Godot's elapsed process/physics milliseconds per frame are also retained, but those
 include scheduler delays and are not the CPU measurement. Runs share a busy desktop;
 they establish neither headset frame rate nor a device CPU budget.
+
+Where a player's CPU goes, from main-thread user instructions per frame (`perf stat`, which a
+busy machine does not inflate) with parts of the work removed in turn: at the host, of about
+0.32 million instructions per frame per added player, the avatar follow is about 0.15 million
+(one `Avatar.pose`, about 150 thousand instructions, most of it GDScript), relaying and handling
+pose packets about 0.1 million, and the remaining 0.09 million is within run-to-run noise.
+System time is 3–6% of the process's CPU; the frame loop sleeps between frames rather than
+polling.
 
 
 `NESTCOMBE_PLAYERS=N scripts/bench.sh OUT ...` plays the stress scene with N-1 other

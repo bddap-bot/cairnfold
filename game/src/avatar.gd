@@ -23,6 +23,27 @@ class Joint:
 	var bone := -1
 	## At rest, relative to the model.
 	var rest: Transform3D
+	## Where it is now, relative to the model, while it is a placed node.
+	var at: Transform3D
+	## Its frame (its skeleton, or its node's parent) is `offset` from the nearest placed node above it, or from
+	## the model; nothing between them moves, so a pose finds the frame without walking the tree.
+	var base: Joint
+	var offset: Transform3D
+
+## One arm's joints and what about them never changes. Upper and lower are null on an arm without them.
+class Arm:
+	var upper: Joint
+	var lower: Joint
+	var hand: Joint
+	## The hand's turn from a held controller's.
+	var grip: Basis
+	var upper_length: float
+	var lower_length: float
+	## Where the elbow points, in the body's frame.
+	var elbow: Vector3
+	## Each bone's rest turn from the frame that its length and the body's back make.
+	var upper_bind: Basis
+	var lower_bind: Basis
 
 ## A file's identity: a built-in's path, or the hash of a player's own file.
 var source := ""
@@ -32,9 +53,11 @@ var hands: Array[Transform3D] = [Transform3D.IDENTITY, Transform3D.IDENTITY]
 var _model: Node3D
 var _joints := {}
 var _facing: Basis
-## At rest: the head bone relative to the eyes, and each hand's turn from a held controller's.
+## At rest, the head bone relative to the eyes.
 var _eye_to_head: Transform3D
-var _grip: Array[Basis] = [Basis.IDENTITY, Basis.IDENTITY]
+var _hips: Joint
+var _head: Joint
+var _arms: Array[Arm] = []
 
 
 static var _built_in := {}
@@ -174,20 +197,57 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 			j.rest = _space(j.node, a._model) * (j.node as Skeleton3D).get_bone_global_rest(j.bone)
 		else:
 			j.rest = _space(j.node, a._model)
+		j.at = j.rest
 		a._joints[b] = j
-	var head: Joint = a._joints.head
-	var eye_at := head.rest * (a._model.get_meta("eyes") as Vector3)
-	a._eye_to_head = Transform3D(a._facing, eye_at).affine_inverse() * head.rest
+	a._hips = a._joints.hips
+	a._head = a._joints.head
+	var eye_at := a._head.rest * (a._model.get_meta("eyes") as Vector3)
+	a._eye_to_head = Transform3D(a._facing, eye_at).affine_inverse() * a._head.rest
+	var placed: Array[Joint] = [a._hips, a._head]
 	for s in 2:
 		var side: String = ["left", "right"][s]
-		var hand: Joint = a._joints[side + "Hand"]
+		var arm := Arm.new()
+		arm.hand = a._joints[side + "Hand"]
 		var from_bone: Joint = a._joints.get(side + "LowerArm", a._joints.get(side + "UpperArm"))
-		var along := a._facing * (hand.rest.origin - from_bone.rest.origin) if from_bone else Vector3(1 - 2 * s, 0, 0)
+		var along := a._facing * (arm.hand.rest.origin - from_bone.rest.origin) if from_bone else Vector3(1 - 2 * s, 0, 0)
 		# A VRM rests in T-pose, palms down; a hand holding a controller points along it, palm inward.
 		var held := _frame(Vector3.FORWARD, Vector3(signf(along.x), 0, 0) * -1.0) * _frame(along, Vector3.DOWN).transposed()
-		a._grip[s] = held * a._facing * hand.rest.basis
+		arm.grip = held * a._facing * arm.hand.rest.basis
+		if a._joints.has(side + "UpperArm") and a._joints.has(side + "LowerArm"):
+			arm.upper = a._joints[side + "UpperArm"]
+			arm.lower = a._joints[side + "LowerArm"]
+			var up := arm.upper.rest.origin
+			var low := arm.lower.rest.origin
+			var hand := arm.hand.rest.origin
+			arm.upper_length = low.distance_to(up)
+			arm.lower_length = hand.distance_to(low)
+			arm.elbow = ELBOW * Vector3(signf((a._facing * (hand - up)).x), 1, 1)
+			# The arm's bend is solved in the body's frame, so the body's turn cancels from these.
+			arm.upper_bind = _frame(a._facing * (low - up), Vector3.BACK).transposed() * a._facing * arm.upper.rest.basis
+			arm.lower_bind = _frame(a._facing * (hand - low), Vector3.BACK).transposed() * a._facing * arm.lower.rest.basis
+			placed.append_array([arm.upper, arm.lower])
+		placed.append(arm.hand)
+		a._arms.append(arm)
+	for j: Joint in a._joints.values():
+		a._find_base(j, placed)
 	a._dress(a._model, tint)
 	return a
+
+
+## Finds the placed node nearest above a joint's frame, and the frame's offset from it. A pose places the
+## joints parents first, so each one's base is already where this pose puts it.
+func _find_base(j: Joint, placed: Array[Joint]) -> void:
+	var n := j.node if j.bone >= 0 else j.node.get_parent_node_3d()
+	var t := Transform3D.IDENTITY
+	while n != _model:
+		for p in placed:
+			if p.bone < 0 and p.node == n:
+				j.base = p
+				j.offset = t
+				return
+		t = n.transform * t
+		n = n.get_parent()
+	j.offset = t
 
 
 ## A node's transform relative to `root`, whether or not it is in the tree.
@@ -206,18 +266,24 @@ static func _frame(along: Vector3, toward: Vector3) -> Basis:
 	return Basis(x, y, x.cross(y))
 
 
+## A joint's frame relative to the model.
+static func _frame_of(j: Joint) -> Transform3D:
+	return j.base.at * j.offset if j.base else j.offset
+
+
 func _get_joint(j: Joint) -> Transform3D:
 	if j.bone >= 0:
-		return _space(j.node, _model) * (j.node as Skeleton3D).get_bone_global_pose(j.bone)
-	return _space(j.node, _model)
+		return _frame_of(j) * (j.node as Skeleton3D).get_bone_global_pose(j.bone)
+	return _frame_of(j) * j.node.transform
 
 
 ## Puts a bone at `xform` in this node's space, whatever its parent bones' poses.
 func _place(j: Joint, xform: Transform3D) -> void:
 	if j.bone >= 0:
-		(j.node as Skeleton3D).set_bone_global_pose(j.bone, _space(j.node, _model).affine_inverse() * xform)
+		(j.node as Skeleton3D).set_bone_global_pose(j.bone, _frame_of(j).affine_inverse() * xform)
 	else:
-		j.node.transform = _space(j.node.get_parent_node_3d(), _model).affine_inverse() * xform
+		j.node.transform = _frame_of(j).affine_inverse() * xform
+		j.at = xform
 
 
 ## A bone's transform in the world, by its VRM name.
@@ -245,40 +311,34 @@ func _dress(n: Node, tint: Color) -> void:
 ## bend that joins its shoulder to its hand.
 func pose(at: Transform3D, l: Transform3D, r: Transform3D) -> void:
 	eyes = at
-	hands = [l, r]
+	hands[0] = l
+	hands[1] = r
 	var turn := Basis(Vector3.UP, at.basis.get_euler().y)
 	var head := at * _eye_to_head
 	var body := turn * _facing
-	var hips: Joint = _joints.hips
-	var h: Joint = _joints.head
-	_place(hips, Transform3D(body, head.origin - body * h.rest.origin) * hips.rest)
-	_place(h, head)
+	_place(_hips, Transform3D(body, head.origin - body * _head.rest.origin) * _hips.rest)
+	_place(_head, head)
 	for s in 2:
-		var side: String = ["left", "right"][s]
-		var grip := Transform3D(hands[s].basis * _grip[s], hands[s].origin)
-		_arm(_joints.get(side + "UpperArm"), _joints.get(side + "LowerArm"), _joints[side + "Hand"], grip, turn, body)
-		_place(_joints[side + "Hand"], grip)
+		var arm := _arms[s]
+		var grip := Transform3D(hands[s].basis * arm.grip, hands[s].origin)
+		if arm.upper:
+			_arm(arm, grip.origin, turn)
+		_place(arm.hand, grip)
 
 
-func _arm(upper: Joint, lower: Joint, hand: Joint, to: Transform3D, turn: Basis, body: Basis) -> void:
-	if upper == null or lower == null:
-		return
-	var shoulder := _get_joint(upper).origin
-	var a := lower.rest.origin.distance_to(upper.rest.origin)
-	var b := hand.rest.origin.distance_to(lower.rest.origin)
-	var reach := to.origin - shoulder
+func _arm(arm: Arm, to: Vector3, turn: Basis) -> void:
+	var shoulder := _get_joint(arm.upper).origin
+	var a := arm.upper_length
+	var b := arm.lower_length
+	var reach := to - shoulder
 	var c := clampf(reach.length(), absf(a - b) + 0.001, a + b - 0.0001)
 	var u := reach.normalized() if reach.length() > 0.001 else turn * Vector3.DOWN
-	var out := signf((_facing * (hand.rest.origin - upper.rest.origin)).x)
-	var pole := turn * (ELBOW * Vector3(out, 1, 1))
+	var pole := turn * arm.elbow
 	var p := (pole - u * pole.dot(u)).normalized()
 	var cos_a := (a * a + c * c - b * b) / (2.0 * a * c)
 	var elbow := shoulder + u * a * cos_a + p * a * sqrt(maxf(0.0, 1.0 - cos_a * cos_a))
-	var back := turn * Vector3.BACK
-	var bend := _frame(elbow - shoulder, p) * _frame(body * (lower.rest.origin - upper.rest.origin), back).transposed()
-	_place(upper, Transform3D(bend * body * upper.rest.basis, shoulder))
-	bend = _frame(to.origin - elbow, p) * _frame(body * (hand.rest.origin - lower.rest.origin), back).transposed()
-	_place(lower, Transform3D(bend * body * lower.rest.basis, elbow))
+	_place(arm.upper, Transform3D(_frame(elbow - shoulder, p) * arm.upper_bind, shoulder))
+	_place(arm.lower, Transform3D(_frame(to - elbow, p) * arm.lower_bind, elbow))
 
 
 ## Standing still with the hands at the sides, as a figure.
