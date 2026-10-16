@@ -4,8 +4,8 @@
 #   lepton  the Steam Frame's Android build, run by its Lepton container, through the Khronos flavor: no Meta SDK
 #           material enters it, so the Meta SDK's approved-product terms stay off a Steam product
 # A steam Lepton APK also carries the GodotSteam extension and Valve's steam_api library; a Quest APK never does.
-# Signs with $NESTCOMBE_KEYSTORE (alias nestcombe, store and key password $NESTCOMBE_KEYSTORE_PASS) when set, otherwise
-# with a key generated once into the cache.
+# Every APK, bench or release, signs with the one key in $NESTCOMBE_ANDROID_KEY (AGENTS.md, "Signing"), so any build
+# installs over any other and the garden on the device survives.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 target=$1
@@ -39,14 +39,10 @@ if [ -n "$steam" ]; then
 fi
 sed -i "s/^version\/code=.*/version\/code=$number/; s/^version\/name=.*/version\/name=\"$(git -C "$root" rev-parse --short HEAD)\"/" "$stage/game/export_presets.cfg"
 
-if [ -z "${NESTCOMBE_KEYSTORE:-}" ]; then
-  NESTCOMBE_KEYSTORE=$cache/local.keystore NESTCOMBE_KEYSTORE_PASS=nestcombe
-  [ -f "$NESTCOMBE_KEYSTORE" ] || keytool -genkeypair -keystore "$NESTCOMBE_KEYSTORE" -storepass "$NESTCOMBE_KEYSTORE_PASS" \
-    -alias nestcombe -keyalg RSA -keysize 2048 -validity 10000 -dname CN=Nestcombe
-fi
-[ -f "$NESTCOMBE_KEYSTORE" ] || { echo "android: no keystore at $NESTCOMBE_KEYSTORE" >&2; exit 1; }
-export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$NESTCOMBE_KEYSTORE GODOT_ANDROID_KEYSTORE_RELEASE_USER=nestcombe \
-  GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$NESTCOMBE_KEYSTORE_PASS
+[ -f "$android_key/release.keystore" ] || { echo "android: no signing key in $android_key (AGENTS.md, \"Signing\")" >&2; exit 1; }
+password=$(< "$android_key/password")
+export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$android_key/release.keystore GODOT_ANDROID_KEYSTORE_RELEASE_USER=nestcombe \
+  GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$password
 
 cd "$stage/game"
 # Install first so notices enter ordinary APK assets before signing.

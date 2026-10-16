@@ -1,10 +1,8 @@
 #!/usr/bin/env bash
 # Publishes HEAD as a GitHub release carrying every build: Windows and Linux (x86_64, and arm64 for the Steam Frame)
 # exports, the Frame's Android APK and the Quest APK.
-# Every release signs with the one key in $NESTCOMBE_KEYSTORE ($NESTCOMBE_KEYSTORE_PASS), so an installed APK updates in place.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
-: "${NESTCOMBE_KEYSTORE:?release.sh signs with \$NESTCOMBE_KEYSTORE}" "${NESTCOMBE_KEYSTORE_PASS:?}"
 cd "$root"
 . scripts/pins.sh
 rev=$(git rev-parse HEAD)

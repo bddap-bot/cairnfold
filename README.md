@@ -102,7 +102,7 @@ Each [release](https://github.com/bddap-bot/nestcombe/releases) carries
 4. In the headset, open the library's Unknown Sources filter and start Nestcombe.
 
 Build it yourself with `nix-shell android.nix --run 'scripts/android.sh quest nestcombe.apk'`;
-it signs with a local key, so remove a release install before installing your own.
+it signs with your own key (AGENTS.md, "Signing"), so remove a release install before installing your own.
 `scripts/release.sh` publishes the desktop and Frame builds and both APKs together.
 
 ## License

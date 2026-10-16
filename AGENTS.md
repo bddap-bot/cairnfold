@@ -26,6 +26,15 @@ controls and the build order.
 - Deploying main is `scripts/release.sh`, which publishes the Windows, Linux and
   Frame exports and both APKs together; the Frame's install and library shortcut are kept outside
   this repo (README, "Running").
+- Signing: every APK, bench or release, signs with one key read from the directory
+  `$NESTCOMBE_ANDROID_KEY` (default `~/.config/nestcombe/android-key`), holding
+  `release.keystore` (alias `nestcombe`) and `password`, its store and key password. The key
+  never enters the repo, and `scripts/android.sh` refuses to build without it. Build and deploy
+  with the same key, so a bench build installs over the deployed one and keeps the garden saved
+  on the device; a new key stops every installed APK from updating in place. Without the
+  deploying key, make your own once:
+  `keytool -genkeypair -keystore release.keystore -alias nestcombe -keyalg RSA -keysize 2048 -validity 10000 -dname CN=Nestcombe`
+  with the password you write to `password`.
 - Every edit to the garden is a build command applied by `World` (docs/multiplayer.md): a tool never
   changes the garden itself, only shows its ghost until the command comes back. After touching
   `World`, `Commands` or a tool, `nix-shell --run 'scripts/coop.sh out'` must pass too.

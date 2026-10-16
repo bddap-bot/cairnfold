@@ -95,14 +95,8 @@ if [ "${2:-}" = --android ]; then
     dump=$(adb shell dumpsys "$1")
     grep -m1 "$2" <<< "$dump" | grep -q "${3:-}"
   }
-  if ! failed=$(adb install -r -g "$3" 2>&1); then
-    case $failed in
-      *INSTALL_FAILED_UPDATE_INCOMPATIBLE* | *INSTALL_FAILED_VERSION_DOWNGRADE*)
-        adb uninstall "$pkg" > /dev/null
-        adb install -g "$3" > /dev/null ;;
-      *) echo "$failed" >&2; exit 1 ;;
-    esac
-  fi
+  # Never uninstall to make room: that deletes the garden saved on the device.
+  adb install -r -g "$3" > /dev/null
   same "$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')" --short HEAD
   adb shell "rm -rf $dir; mkdir -p $dir"
   adb push "$out/stress.json" "$dir/stress.json" > /dev/null
