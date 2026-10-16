@@ -8,7 +8,7 @@ extends Node3D
 
 const PAINTED_GRASS := 12000
 ## The meadow's grass cells are small, so a cell turns sparse close to where its clumps do.
-const GRASS_CELL := 4.0
+const GRASS_CELL := 8.0
 ## From GRASS_LOD_BEGIN out, over GRASS_LOD_BAND, a clump draws fewer, wider blades (Meshes.grass_clump): far blades
 ## are slivers whose cost is their count, not their pixels. Over the same band all but the GRASS_SURVIVORS share of
 ## clumps (by FloraLayout.thin_rank) sink away, so past it a cell draws its survivors alone, from a mesh of the kept
