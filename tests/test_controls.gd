@@ -80,6 +80,7 @@ func _run() -> void:
 
 	await _carry_a_house(rig, walls)
 	await _round_a_tower(rig, walls)
+	await _resize_a_built_house(rig, walls)
 	await _a_loop_stays_a_wall(walls)
 
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -266,6 +267,148 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 	_check(walls.size() == before, "undo takes the tower away")
 	for t in trackers.values():
 		XRServer.remove_tracker(t)
+
+
+## Directive (verbatim): "Eventually I'd like to be able to resize a house" / "in each dimension"
+## A built house in tracked hands: one grip pulls its height, the other hand's grip joining stretches the side
+## nearest the line between the hands, and a round tower's diameter; its fittings, roof and a wall it meets follow.
+func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
+	await _play([
+		{"op": "place", "x": 12, "z": -7},
+		{"op": "wall", "points": [[22, -14], [17.5, -14]], "seconds": 0.3},
+		{"op": "house", "at": [12, -14], "size": [6, 4], "seconds": 0.3},
+		{"op": "fit", "what": "window", "index": -1, "s": 3.0, "y": 1.0},
+		{"op": "fit", "what": "lantern", "index": -1, "s": 13.0, "y": 1.6, "side": -1.0},
+		{"op": "fit", "what": "chimney", "index": -1, "at": [1.5, 0.6]},
+		{"op": "wait", "seconds": 0.3},
+	])
+	var tool: WallTool = main.tool
+	var world: World = main.world
+	var house := walls[-1]
+	var side := walls[-2]
+	var data := func() -> Dictionary: return world.state.walls[house.id]
+	var at := func() -> Dictionary: return WallTool.house_of(data.call())
+	_check(at.call().size.is_equal_approx(Vector2(6, 4)) and data.call().windows.size() == 1 and data.call().lanterns.size() == 1 and data.call().roof.chimneys.size() == 1, "a 6 by 4 house with a window, a lantern and a chimney: %s" % at.call())
+	side.lay_now()
+	var side_stones := side.layout.stones.size()
+	rig.right.tool = Hand.Tool.TREES
+	rig.left.tool = Hand.Tool.FLOWERS
+	var trackers := _track_hands()
+	var hold := _holder(rig, trackers)
+	var front := Terrain.ground(12, -12) + Vector3.UP * 1.2
+	var grip := func(s: StringName, on: bool) -> void:
+		trackers[s].set_input(&"grip_click", on)
+		await _frames(3)
+	hold.call(&"right_hand", Vector3(0.2, -0.4, -0.3), front)
+	hold.call(&"left_hand", Vector3(-0.2, -0.4, -0.3), front)
+	await _frames(2)
+	var height: float = house.layout.height
+	await grip.call(&"right_hand", true)
+	for i in 10:
+		hold.call(&"right_hand", Vector3(0.2, -0.4 + 0.03 * (i + 1), -0.3), front)
+		await _frames(1)
+	await grip.call(&"right_hand", false)
+	await _frames(4)
+	_check(data.call().height > height + 0.2 and at.call().size.is_equal_approx(Vector2(6, 4)), "one grip on the house raises it, %.1f to %.1f m, keeping its footprint" % [height, data.call().height])
+	height = data.call().height
+	var before: Dictionary = data.call().duplicate(true)
+
+	hold.call(&"right_hand", Vector3(0.2, -0.4, -0.3), front)
+	await _frames(1)
+	await grip.call(&"right_hand", true)
+	hold.call(&"right_hand", Vector3(0.2, -0.25, -0.3), front)
+	await _frames(2)
+	await grip.call(&"left_hand", true)
+	_check(tool.resizing == house and is_equal_approx(house.layout.height, height), "the other hand's grip on it joins, putting back the first hand's pull: %.1f m" % house.layout.height)
+	for i in 20:
+		hold.call(&"right_hand", Vector3(0.2 + 0.015 * (i + 1), -0.25, -0.3), front)
+		await _frames(1)
+	_check(rig.left._holding and rig.right._holding, "both hands hold it")
+	_check(walls[-1] == house and world.state.walls[house.id].points == before.points, "nothing is sent while it is held")
+	await grip.call(&"left_hand", false)
+	await grip.call(&"right_hand", false)
+	await _frames(4)
+	var wide: Dictionary = at.call()
+	_check(tool.resizing == null and is_equal_approx(wide.size.x, 10.5) and is_equal_approx(wide.size.y, 4.0) and is_equal_approx(data.call().height, height), "spreading the hands across its front stretches only its width: %s, %.1f m high" % [wide.size, data.call().height])
+	_check(absf(wide.center.x - wide.size.x * 0.5 - (12 - 3)) < 0.05, "the still hand's wall stays put; the house grows toward the moving hand: %s" % wide.center)
+	await _laid(house)
+	_check(house.layout.laid_points.size() == 4 and house.roof.corners == house.layout.laid_points, "its roof covers the new walls")
+	var window_at := func(d: Dictionary) -> float:
+		var h := WallTool.house_of(d)
+		var p := WallTool._loop_point(_points(d), d.windows[0].x)
+		return (p - h.center).dot(Vector3.RIGHT.rotated(Vector3.UP, h.yaw)) / h.size.x
+	var lantern_at := func(d: Dictionary) -> float:
+		var h := WallTool.house_of(d)
+		var p := WallTool._loop_point(_points(d), d.lanterns[0].x)
+		return (p - h.center).dot(Vector3.RIGHT.rotated(Vector3.UP, h.yaw)) / h.size.x
+	_check(is_equal_approx(window_at.call(before), window_at.call(data.call())) and is_equal_approx(lantern_at.call(before), lantern_at.call(data.call())), "its window and inside lantern keep their places in proportion")
+	_check(data.call().lanterns[0].z == before.lanterns[0].z and is_equal_approx(data.call().lanterns[0].y, before.lanterns[0].y), "the lantern on its same face, as high")
+	_check(absf(data.call().roof.chimneys[0].x / before.roof.chimneys[0].x - 1.75) < 0.01, "its chimney moves out along the longer ridge: %s" % data.call().roof.chimneys[0])
+	side.lay_now()
+	_check(side.layout.stones.size() < side_stones, "the wall it now meets lays nothing inside it: %d of %d stones" % [side.layout.stones.size(), side_stones])
+
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(at.call().size.is_equal_approx(Vector2(6, 4)) and data.call().windows == before.windows and data.call().roof.chimneys == before.roof.chimneys, "undo puts its width, window and chimney back: %s" % at.call().size)
+	side.lay_now()
+	_check(side.layout.stones.size() == side_stones, "and the wall it met whole again")
+	await _play([{"op": "press", "button": "dpad_up"}])
+	_check(is_equal_approx(at.call().size.x, 10.5), "redo stretches it again: %s" % at.call().size)
+
+	var flank := Terrain.ground(13, -12) + Vector3.UP * 1.2
+	hold.call(&"right_hand", Vector3(0.1, -0.4, -0.25), flank)
+	hold.call(&"left_hand", Vector3(0.12, -0.38, -0.55), flank)
+	await _frames(2)
+	await grip.call(&"right_hand", true)
+	await grip.call(&"left_hand", true)
+	_check(tool.resizing == house, "two grips take it again, the hands one behind the other")
+	for i in 20:
+		hold.call(&"left_hand", Vector3(0.12, -0.38, -0.55 - 0.02 * (i + 1)), flank)
+		await _frames(1)
+	await grip.call(&"right_hand", false)
+	await grip.call(&"left_hand", false)
+	await _frames(4)
+	var deep: Dictionary = at.call()
+	_check(is_equal_approx(deep.size.x, 10.5) and is_equal_approx(deep.size.y, WallTool.HOUSE_DEPTH) and is_equal_approx(data.call().height, height), "hands along its flank stretch only its depth, to the deepest a ridge spans: %s" % deep.size)
+
+	await _play([
+		{"op": "house", "round": true, "at": [4, -15], "size": [3.4, 3.4], "seconds": 0.3},
+		{"op": "wait", "seconds": 0.3},
+	])
+	var tower := walls[-1]
+	var face := Terrain.ground(4, -13.3) + Vector3.UP * 1.5
+	hold.call(&"right_hand", Vector3(0.2, -0.4, -0.3), face)
+	hold.call(&"left_hand", Vector3(-0.2, -0.4, -0.3), face)
+	await _frames(2)
+	var tall := tower.layout.height
+	await grip.call(&"right_hand", true)
+	await grip.call(&"left_hand", true)
+	for i in 20:
+		hold.call(&"left_hand", Vector3(-0.2 - 0.01 * (i + 1), -0.4, -0.3), face)
+		await _frames(1)
+	await grip.call(&"right_hand", false)
+	await grip.call(&"left_hand", false)
+	await _frames(4)
+	var d: Dictionary = world.state.walls[tower.id]
+	var round := WallTool.house_of(d)
+	var off := Array(d.points).filter(func(p: Vector3) -> bool: return absf(Vector2(p.x - round.center.x, p.z - round.center.z).length() - round.size.x * 0.5) > 0.01)
+	_check(round.round and round.size.x > 5.0 and round.size.x <= WallTool.HOUSE_DEPTH and off.is_empty() and is_equal_approx(d.height, tall), "two hands spread a round tower's diameter, round and as tall: %s" % round.size)
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(is_equal_approx(WallTool.house_of(world.state.walls[tower.id]).size.x, 3.4), "undo narrows it back")
+	for t in trackers.values():
+		XRServer.remove_tracker(t)
+
+
+func _points(d: Dictionary) -> Array[Vector3]:
+	var out: Array[Vector3] = []
+	out.assign(Array(d.points))
+	return out
+
+
+func _laid(w: Wall) -> void:
+	for i in 300:
+		if not w.laying() and w.layout.laid_points == w.layout.points:
+			return
+		await _frames(1)
 
 
 ## Directive (verbatim): "Sometimes I want to draw a circular wall. Um, In that case, I don't think it makes sense to turn it into a building, when I- didn't want that"

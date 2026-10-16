@@ -67,7 +67,7 @@ for log in "$out"/*.log; do
 done
 grep -h "driver: until" "$out"/*.log && status=1
 python3 - "$out" "$root/tests/avatars" <<'PY' || status=1
-import hashlib, json, sys
+import hashlib, json, math, re, sys
 out = sys.argv[1]
 d = {n: json.load(open(f"{out}/{n}.json")) for n in ("host", "join", "late")}
 seen = {n: g.pop("avatars") for n, g in d.items()}
@@ -84,6 +84,12 @@ g = d["host"]
 check(len(g["walls"]) == 6, f"six walls stand (A put back by its deleter's undo, B, C, the host's house, the joiner's storey on it, the host's wing across it): {len(g['walls'])}")
 check(sum("\"on\": PackedInt32Array(" in w["data"] and "\"on\": PackedInt32Array()" not in w["data"] for w in g["walls"].values()) == 1, "the joiner's storey stands on the host's house")
 check(any(abs(w["height"] - 4.2) < 0.01 for w in g["walls"].values()), "the joiner's raised wall stands 4.2 m high")
+def sides(w):
+    m = re.search(r'"points": PackedVector3Array\(([^)]*)\)', w["data"])
+    v = [float(x) for x in m.group(1).split(",")]
+    p = [(v[i], v[i + 2]) for i in range(0, len(v), 3)]
+    return sorted(round(math.dist(p[i], p[(i + 1) % len(p)]), 2) for i in range(len(p)))
+check(any("roof" in w["data"] and sides(w) == [3.5, 3.5, 10.0, 10.0] for w in g["walls"].values()), "the joiner stretched the host's wing from 8 m to 10 m long: " + str([sides(w) for w in g["walls"].values() if "roof" in w["data"]]))
 kinds = lambda k: [v for v in g["groups"].values() if v["kind"] == k]
 check(len(kinds("tree")) == 1 and kinds("tree")[0]["shown"] == 0, "the host's undo took its tree away")
 check(len(kinds("flowers")) == 1 and kinds("flowers")[0]["shown"] == kinds("flowers")[0]["plants"], "the joiner's undo then redo left its flowers standing")

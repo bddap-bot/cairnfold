@@ -258,6 +258,21 @@ func _house(s: Dictionary) -> void:
 	tool.end_house()
 
 
+## Resizes the built house `index` (or under `at`) where it stands to `size` [along its ridge, across it], or a
+## tower to `size[0]` across, over `seconds`, as two hands stretching it would.
+func _resize(s: Dictionary) -> void:
+	var tool: WallTool = main.tool
+	tool.begin_resize(_wall_of(s))
+	var start: Dictionary = tool.resized_to.duplicate()
+	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
+	for f in frames:
+		await get_tree().process_frame
+		var to := start.duplicate()
+		to.size = start.size.lerp(Vector2(s.size[0], s.size[0] if start.round else s.size[1]), float(f + 1) / frames)
+		tool.drag_resize(to)
+	tool.end_resize()
+
+
 func _turn(s: Dictionary, x: float, z: float, degrees: float) -> float:
 	var t := deg_to_rad(degrees)
 	return WallTool.angle(_spot(s, x + cos(t), z + sin(t)) - _spot(s, x, z))

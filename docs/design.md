@@ -970,7 +970,7 @@ Stage numbers refer to the build order at the end.
 | Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | The path tool's trigger, swept over the ground: flat stones laid in rows along the smoothed stroke, as wide as the brush ring (`PathLayout`), one to a cell of each row and clear of every stone already laid, so stones never overlap on curves, at junctions or where paths cross: a later path paves around earlier ones; like the plants they ride the ground, so reshaping it carries them along. The stroke wears trodden earth into the ground mask (see "Ground materials") that the terrain shader shows and the grass and flower shaders read to part around the stones | 5 (done) |
 | Stone ground | Steep terrain turns rocky; paths of dirt and, later, cobblestone blended with them | The stone tool paints flagstone ground where it points, fraying into the meadow slab by slab; a stroke begun on stone paints meadow back (see "Ground materials") | 7 (done) |
 | Towers | A loop held down straightens into a circle | A wall drawn into a loop, round or any shape, stays a freestanding wall, roofless. A round tower comes from the house tool: A, while a house is carried, rounds it into a tower 4.5 m tall under a cone roof, as wide as the square's shorter side, and A again squares it; carried in both hands it turns with the pair and spreads every way at once (2.4–7 m across). No door until one is made, as for a house. `demo/tower.json` builds a stone tower, a plaster one and a house | 4 (done) |
-| Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Circle footprints are the round towers above. Its own tool, a little house in the ring. Its trigger takes up a square house where the hand points and carries it, turning with the hand; the other hand's grip joins to hold it by both hands, which move it by their midpoint, turn it as the pair turns and stretch it along the line between them as they spread (each side 2.4–14 m, at most 7 m across the ridge, which runs the longer way). Letting go builds it. Stone walls with corner piers and no door, level on its lowest ground; a door comes from the windows tool low on a wall, an arch from A or from a path running in | 4 (done) |
+| Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Circle footprints are the round towers above. Its own tool, a little house in the ring. Its trigger takes up a square house where the hand points and carries it, turning with the hand; the other hand's grip joins to hold it by both hands, which move it by their midpoint, turn it as the pair turns and stretch the side nearest the line between them as they spread (each side 2.4–14 m, at most 7 m across the ridge, which runs the longer way). Letting go builds it. Built, it is resized where it stands: a grip on its wall pulls its height, and the other hand's grip on it too stretches its width or depth (see "Resizing a house"). Stone walls with corner piers and no door, level on its lowest ground; a door comes from the windows tool low on a wall, an arch from A or from a path running in | 4 (done) |
 | Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings") | 4 (done) |
 | Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, plaster gable ends. Grip on a roof, whatever the hand holds: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`). Pushed all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top style then cycles like an open wall's | 4 (done) |
 | Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. While it points, the wall stands as the press would leave it, laid by the same code. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light | 6 (done) |
@@ -1073,6 +1073,44 @@ pure data; tests in `tests/test_build_on.gd`, and through the garden in `tests/t
   before, and two open walls never meet this way, so the stress scene's walls cost nothing more; its village
   stands two storeys high, each house crossed by a wing.
 
+## Resizing a house
+
+Directive (verbatim): "Eventually I'd like to be able to resize a house" / "in each dimension"
+
+A house or tower standing in the garden is resized where it stands by holding it, as a wall is raised: no
+handles, no menu, nothing drawn but the house itself changing. Each hold changes one dimension.
+
+- Height: a grip on its wall, whatever the hand holds, raises or lowers it as it does any wall, a course
+  (0.3 m) at a time within a wall's heights; the roof rides the new top.
+- Width and depth: while one hand holds the house (by its wall or its roof), the other hand's grip on the same
+  house joins in, and the two hands now hold it by two walls. Spreading or closing them moves those walls out or
+  in along the side nearest the line between the hands, and only that side: hands across its front change its
+  width, hands along its flank its depth. The nearer side wins outright, so a pair held a little askew still
+  changes one dimension. A hand held still keeps its wall where it stands and the moving hand's wall follows
+  that hand, so a house against a wall grows away from it. The joining grip puts back any height or roof
+  pull the first hand had begun, so two hands never change the height.
+- A round tower has one footprint dimension: two hands spread its diameter, and it stays round.
+- The bounds are those of laying out: sides 2.4–14 m, at most 7 m under the ridge, which runs the longer way
+  (stretched across past its length, a house turns its ridge); a tower 2.4–7 m across.
+- Everything on the house follows: the roof covers the new walls, keeping its slope (a gable's rise scales
+  with the depth under its ridge, a cone's with its radius, a flat deck stays flat); doors, windows, arches,
+  lanterns, flags and chimneys keep their place in proportion along their own wall or ridge, so the light a
+  lantern casts inside stays where it hangs; builds joined to the house, or standing on it, are laid again
+  against its new walls, and its ivy regrows.
+- Letting go of either grip sets the house as one `reshape` command (its points, the fittings' places and its
+  roof), one undo step, and every player sees it as they see a raised wall.
+
+`demo/resize.json` widens, deepens and raises a house with doors, a lantern inside and a chimney, widens a
+tower beside it, and looks inside at dusk before and after; `tests/test_controls.gd` does the same in tracked
+hands, and `tests/test_house.gd` checks the rule and the fittings headless.
+
+Why two hands: holding the wall that moves is the most direct handle there is, and it is the gesture that
+already stretches a house being laid out. Laying out and resizing share one rule (`WallTool.stretched`): the
+side nearest the hands' line stretches by the ratio of their spread, which is why a diagonal spread no
+longer grows both sides of a carried house at once. Taking a built house back up with the trigger and
+carrying it was the other way to reuse the hold; it was not taken because moving a built house strands the
+storeys standing on it and changes what it stands on, and resizing in place keeps both.
+
 ## Tools in hand
 
 Directive (verbatim): "I'm thinking we represent each tool as an object in hand, or perhaps an object
@@ -1173,7 +1211,8 @@ same hand, or one thing in both, holds a grip back:
 
 - Ground in both hands pulls two humps, one per hand; on the same ground they add, and each sets its
   own heights when let go.
-- A wall or roof the other hand holds: the grip takes nothing, neither it nor the ground behind it.
+- A wall or roof the other hand holds: the grip takes nothing, neither it nor the ground behind it; on a
+  house or tower it joins in to stretch its width or depth (see "Resizing a house").
 - A carried house: the other hand's grip, pressed while it is carried, joins in whatever it points at,
   to turn and stretch it between the hands; a grip already holding something keeps it.
 - The sky has one holder; the other hand's grip on it takes nothing.
@@ -1202,7 +1241,8 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Shape a roof | Grip pointing at a roof, whatever the hand holds: up and down for pitch, sideways for curvature; all the way down snaps it flat |
 | Cut or fill an arch | A while a hand holding walls points at a wall |
 | Change a wall's top | A while a hand holding walls points at its top: merlons, plain capping, coping |
-| Lay out a house | Trigger of a hand holding the house takes up a square house where it points, on the ground or on a build's top for an upper storey; carry and turn it with that hand, add the other hand's grip to turn it with both hands and stretch it by spreading them; let go to build |
+| Lay out a house | Trigger of a hand holding the house takes up a square house where it points, on the ground or on a build's top for an upper storey; carry and turn it with that hand, add the other hand's grip to turn it with both hands and stretch it by spreading them along the side to stretch; let go to build |
+| Resize a house | Grip on its wall, whatever the hand holds: up or down for height. Keep holding and grip the same house with the other hand: spread or close the hands across its front for width, along its flank for depth, or across a tower for its diameter (see "Resizing a house") |
 | Paint flowers or grass | Trigger held on a hand holding flowers or grass, pointing at the ground; the ring shows the brush, which widens the farther you point |
 | Paint stone ground | Trigger held on a hand holding stone, pointing at the ground; a stroke begun on stone paints it back to meadow instead. The ring shows the brush, which widens the farther you point |
 | Plant a tree | Trigger of a hand holding trees, pointing at the ground |

@@ -10,6 +10,8 @@ func _init() -> void:
 	_a_house_has_corner_piers_and_a_door()
 	_the_footprint_follows_the_hands()
 	_hands_carry_turn_and_stretch_a_house()
+	_two_hands_resize_a_built_house_one_side_at_a_time()
+	_a_resized_house_keeps_its_fittings_and_roof()
 	_the_ridge_runs_the_longer_way()
 	_gable_tiles_cover_the_footprint_under_the_ridge()
 	_pitch_and_curvature_shape_the_slopes()
@@ -134,16 +136,17 @@ func _hands_carry_turn_and_stretch_a_house() -> void:
 	var circled: Array[Transform3D] = [_hand(Vector3(0, 1, 0.2)), _hand(Vector3(0, 1, -0.2))]
 	c = WallTool.carry(start, pair, circled, 4.0)
 	_check(is_equal_approx(c.yaw, PI * 0.5) and c.size.is_equal_approx(start.size), "moving the hands round a quarter circle turns it a quarter: %f" % c.yaw)
-	var diagonal: Array[Transform3D] = [_hand(Vector3(-0.2, 1, 0.2)), _hand(Vector3(0.2, 1, -0.2))]
-	var wide: Array[Transform3D] = [_hand(Vector3(-0.4, 1, 0.4)), _hand(Vector3(0.4, 1, -0.4))]
-	c = WallTool.carry(start, diagonal, wide, 4.0)
-	_check(is_equal_approx(c.size.x, c.size.y) and c.size.x > 6.0, "spread along the diagonal, a square stays square and grows: %s" % c.size)
+	var askew: Array[Transform3D] = [_hand(Vector3(-0.2, 1, 0.07)), _hand(Vector3(0.2, 1, -0.07))]
+	var wide: Array[Transform3D] = [_hand(Vector3(-0.4, 1, 0.14)), _hand(Vector3(0.4, 1, -0.14))]
+	c = WallTool.carry(start, askew, wide, 4.0)
+	_check(is_equal_approx(c.size.x, 9.0) and c.size.y == start.size.y, "spread a little askew, only the nearer side stretches: %s" % c.size)
 	var far: Array[Transform3D] = [_hand(Vector3(-5, 1, 0)), _hand(Vector3(5, 1, 0))]
 	c = WallTool.carry(start, pair, far, 4.0)
 	_check(c.size.x == WallTool.HOUSE_SIDES.y, "no longer than the longest house: %s" % c.size)
-	var both: Array[Transform3D] = [_hand(Vector3(-5, 1, 5)), _hand(Vector3(5, 1, -5))]
-	c = WallTool.carry(start, diagonal, both, 4.0)
-	_check(minf(c.size.x, c.size.y) == WallTool.HOUSE_DEPTH, "nor deeper under the ridge than the deepest: %s" % c.size)
+	var long := start.duplicate()
+	long.size = Vector2(10, 4.5)
+	c = WallTool.carry(long, circled, [_hand(Vector3(0, 1, 5)), _hand(Vector3(0, 1, -5))], 4.0)
+	_check(c.size == Vector2(10, WallTool.HOUSE_DEPTH), "nor deeper under the ridge than the deepest, the length kept: %s" % c.size)
 	var close: Array[Transform3D] = [_hand(Vector3(0, 1, 0)), _hand(Vector3(0.01, 1, 0))]
 	c = WallTool.carry(start, pair, close, 4.0)
 	_check(c.size.x == WallTool.HOUSE_SIDES.x, "nor shorter than the smallest: %s" % c.size)
@@ -156,6 +159,69 @@ func _hands_carry_turn_and_stretch_a_house() -> void:
 	var ring := WallTool.outline({"center": Vector3(1, 0, 1), "yaw": 0.3, "size": Vector2(5, 5), "round": true})
 	_check(ring.all(func(p: Vector3) -> bool: return absf(Vector2(p.x - 1, p.z - 1).length() - 2.5) < 1e-4), "a round footprint is a circle as wide as its size")
 	_check(WallTool.outline(start).size() == 4, "a square one has four corners")
+
+
+## Directive (verbatim): "Eventually I'd like to be able to resize a house" / "in each dimension"
+func _two_hands_resize_a_built_house_one_side_at_a_time() -> void:
+	var start := {"center": Vector3(10, 0, 0), "yaw": 0.0, "size": Vector2(4.5, 4.5), "round": false}
+	var front: Array[Transform3D] = [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.2, 1, 0))]
+	var c := WallTool.resize(start, front, [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.6, 1.1, 0))])
+	_check(c.size.is_equal_approx(Vector2(9, 4.5)), "hands across its front stretch its width only: %s" % c.size)
+	_check(c.center.is_equal_approx(Vector3(12.25, 0, 0)) and c.yaw == 0.0, "toward the moving hand, the still hand's wall staying: %s" % c.center)
+	c = WallTool.resize(start, front, [_hand(Vector3(-0.4, 1, 0)), _hand(Vector3(0.4, 1, 0))])
+	_check(c.center.is_equal_approx(start.center), "both hands spreading grow it about its middle: %s" % c.center)
+	var flank: Array[Transform3D] = [_hand(Vector3(0.05, 1, -0.2)), _hand(Vector3(-0.05, 1, 0.2))]
+	c = WallTool.resize(start, flank, [_hand(Vector3(0.05, 1, -0.2)), _hand(Vector3(-0.025, 1, 0.1))])
+	_check(c.size.is_equal_approx(Vector2(4.5, 3.375)) and is_equal_approx(c.center.z, -0.5625), "hands along its flank, a little askew, close its depth only: %s at %s" % [c.size, c.center])
+	c = WallTool.resize(start, flank, [_hand(Vector3(0, 1, -5)), _hand(Vector3(0, 1, 5))])
+	_check(c.size == Vector2(4.5, WallTool.HOUSE_SIDES.y), "a narrow house's depth runs to the longest side: %s" % c.size)
+	var turned := start.duplicate()
+	turned.yaw = 0.6
+	var along := Vector3.RIGHT.rotated(Vector3.UP, 0.6) * 0.2
+	c = WallTool.resize(turned, [_hand(-along + Vector3.UP), _hand(along + Vector3.UP)], [_hand(-along + Vector3.UP), _hand(along * 3.0 + Vector3.UP)])
+	_check(c.size.is_equal_approx(Vector2(9, 4.5)) and c.yaw == 0.6, "a house turned on the ground stretches along its own sides: %s" % c.size)
+	var tower := start.duplicate()
+	tower.round = true
+	c = WallTool.resize(tower, front, [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.4, 1, 0))])
+	_check(c.size.is_equal_approx(Vector2(6.75, 6.75)) and c.center.is_equal_approx(Vector3(11.125, 0, 0)), "a round tower's diameter spreads, staying round: %s at %s" % [c.size, c.center])
+	c = WallTool.resize(tower, front, [_hand(Vector3(-2, 1, 0)), _hand(Vector3(2, 1, 0))])
+	_check(c.size == Vector2.ONE * WallTool.HOUSE_DEPTH, "no wider than the widest tower: %s" % c.size)
+	c = WallTool.resize(tower, front, [_hand(Vector3(0, 1, 0)), _hand(Vector3(0.01, 1, 0))])
+	_check(c.size == Vector2.ONE * WallTool.HOUSE_SIDES.x, "nor narrower than the narrowest: %s" % c.size)
+
+
+func _a_resized_house_keeps_its_fittings_and_roof() -> void:
+	var at := {"center": Vector3(0, 0, 0), "yaw": 0.0, "size": Vector2(6, 4), "round": false}
+	var d := {"points": PackedVector3Array(WallTool.outline(at)), "closed": true, "arches": PackedFloat32Array([1.0]), "windows": PackedVector2Array([Vector2(3.0, 1.2), Vector2(8.0, 0.0)]),
+		"lanterns": PackedVector3Array([Vector3(13.0, 2.0, -1.0)]), "flags": PackedFloat32Array([18.0]),
+		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array([Vector2(1.5, 0.8)]), "flag": false}}
+	var from := WallTool.house_of(d)
+	_check(from.center.is_equal_approx(at.center) and from.size.is_equal_approx(at.size) and WallTool.outline(from) == WallTool.outline(at), "a built house's footprint reads back from its corners: %s" % from)
+	var wide := from.duplicate()
+	wide.size = Vector2(12, 4)
+	var r := WallTool.reshape_house(d, wide)
+	_check(r.points.size() == 4 and is_equal_approx(r.points[0].distance_to(r.points[1]), 12.0), "the wall line takes the new width")
+	_check(is_equal_approx(r.windows[0].x, 6.0) and is_equal_approx(r.windows[0].y, 1.2), "a window halfway along the front stays halfway along it, as high: %s" % r.windows[0])
+	_check(is_equal_approx(r.windows[1].x, 14.0) and is_equal_approx(r.arches[0], 2.0), "a door on the end wall stays on it, an arch on the front in proportion: %s, %s" % [r.windows[1], r.arches])
+	_check(is_equal_approx(r.lanterns[0].x, 22.0) and r.lanterns[0].z == -1.0 and is_equal_approx(r.flags[0], 30.0), "a lantern inside keeps its face; it and a flag keep their places: %s, %s" % [r.lanterns, r.flags])
+	_check(is_equal_approx(r.roof.pitch, 1.6) and r.roof.chimneys[0].is_equal_approx(Vector2(3.0, 0.8)), "the roof keeps its slope over the same depth; a chimney moves out along the ridge: %s" % r.roof)
+	var deep := from.duplicate()
+	deep.size = Vector2(6, 8)
+	r = WallTool.reshape_house(d, deep)
+	var ridge: Vector3 = r.points[1] - r.points[0]
+	_check(is_equal_approx(ridge.length(), 8.0) and absf(ridge.x) < 1e-4, "stretched deeper than long, its ridge turns the longer way")
+	_check(is_equal_approx(r.roof.pitch, 2.4), "and the rise scales with the depth under the ridge: %f" % r.roof.pitch)
+	_check(r.roof.chimneys[0].is_equal_approx(Vector2(1.6, -1.5)), "a chimney keeps its spot on the house as the ridge turns: %s" % r.roof.chimneys[0])
+	_check(is_equal_approx(r.windows[0].x, 25.0), "the front window stays in the middle of the front as it moves out: %s" % r.windows[0])
+	var tower := {"points": PackedVector3Array(WallLayout.circle(Vector3(2, 0, 2), 2.0)), "closed": true, "arches": PackedFloat32Array(), "windows": PackedVector2Array([Vector2(TAU * 0.5, 0.0)]),
+		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array([TAU]),
+		"roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3(2, 0, 2), "radius": 2.0, "pitch": 3.2, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": true}}
+	var wider := WallTool.house_of(tower)
+	_check(wider.round and wider.size == Vector2(4, 4), "a tower reads back round, 4 m across")
+	wider.size = Vector2(6, 6)
+	r = WallTool.reshape_house(tower, wider)
+	_check(is_equal_approx(r.roof.radius, 3.0) and is_equal_approx(r.roof.pitch, 4.8) and r.roof.center == Vector3(2, 0, 2), "its cone covers the wider wall at the same slope: %s" % r.roof)
+	_check(absf(r.windows[0].x - TAU * 0.75) < 0.05 and absf(r.flags[0] - TAU * 1.5) < 0.05, "its door and flag keep their bearing: %s, %s" % [r.windows, r.flags])
 
 
 func _the_ridge_runs_the_longer_way() -> void:

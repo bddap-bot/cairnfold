@@ -249,13 +249,13 @@ static func _reshape(d: Dictionary, now: Dictionary) -> Variant:
 	for k in d:
 		if typeof(k) != TYPE_STRING:
 			return null
-		if k in ["height", "top", "arches", "windows", "lanterns", "flags", "ruins"]:
+		if k in ["points", "height", "top", "arches", "windows", "lanterns", "flags", "ruins"]:
 			out[k] = d[k]
 			trial[k] = d[k]
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():
 			out.roof = {}
 			for r in d.roof:
-				if typeof(r) != TYPE_STRING or not r in ["pitch", "curve", "chimneys", "flag"]:
+				if typeof(r) != TYPE_STRING or not r in ["center", "radius", "pitch", "curve", "chimneys", "flag"]:
 					return null
 				out.roof[r] = d.roof[r]
 				trial.roof[r] = d.roof[r]
