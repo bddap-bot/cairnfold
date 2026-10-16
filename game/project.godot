@@ -26,10 +26,6 @@ lamp_light={
 "type": "vec3",
 "value": Vector3(0, 0, 0)
 }
-fitting_glow={
-"type": "float",
-"value": 0.0
-}
 bounce_volume={
 "type": "sampler3D",
 "value": ""

@@ -11,8 +11,7 @@ extends Node3D
 ## While windows are held, the wall pointed at is laid as a press would leave it, through the path that lays the
 ## press's command, so what shows is what a press builds. A decoration's ghost rides the hand's ray instead: set on
 ## the wall where a press would place it, faint and hanging in the air where it would not, and a press there shakes
-## it. A press that places nothing bumps the hand. The masonry a fitting can go on glows meanwhile (the stone
-## shader's `fitting_glow`).
+## it. A press that places nothing bumps the hand.
 
 const TINT := Color(1.0, 0.93, 0.78, 0.6)
 ## A press this near a placed fitting takes it away.
@@ -23,7 +22,6 @@ const LIGHT_EVERY := 0.25
 const HANG_OVER := 1.0
 const HANG := 2.5
 const SHAKE := 0.35
-const GLOW_FADE := 0.3
 
 var rig: Rig
 var walls: WallTool
@@ -40,7 +38,6 @@ var _previewed := {}
 var _sent := {}
 var lamps := Lamps.new()
 var _since_lights := INF
-var _glow := 0.0
 var _ghost_fits := _ghost_material(Color(1.0, 0.96, 0.88, 0.7), 0.25)
 var _ghost_astray := _ghost_material(Color(0.72, 0.76, 0.86, 0.5), 0.0)
 
@@ -67,14 +64,12 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 
 
 func _process(delta: float) -> void:
-	var holding := false
 	var shown := {}
 	for i in _buttons.size():
 		var b := _buttons[i]
 		var hand: Hand = b.hand
 		var ghost := {}
 		if (hand.tool == Hand.Tool.WINDOWS or hand.tool == Hand.Tool.DECORATIONS) and rig.aim_hand != hand and hand.tracked():
-			holding = true
 			var t := hand.global_transform
 			var target := _steady(i, aim(hand.tool, t.origin, -t.basis.z))
 			var hit: Variant = target.point if not target.is_empty() else Terrain.raycast(t.origin, -t.basis.z)
@@ -95,10 +90,6 @@ func _process(delta: float) -> void:
 		if _sent[id].has("windows") and not shown.has(id):
 			shown[id] = PackedVector2Array(_sent[id].windows)
 	show_windows(shown)
-	var glow := move_toward(_glow, 1.0 if holding else 0.0, delta / GLOW_FADE)
-	if glow != _glow:
-		_glow = glow
-		RenderingServer.global_shader_parameter_set(&"fitting_glow", _glow)
 	_since_lights += delta
 	if _since_lights >= LIGHT_EVERY:
 		light_lanterns()
