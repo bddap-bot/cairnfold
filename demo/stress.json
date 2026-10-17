@@ -410,5 +410,6 @@
   {"op": "label", "name": "timber-village/ground"},
   {"op": "view", "ground": true, "eye": [0, 1.65, 4.5], "at": [20, 1.2, 4.5]},
   {"op": "wait", "seconds": 6},
+  {"op": "label", "name": "-"},
   {"op": "quit"}
 ]

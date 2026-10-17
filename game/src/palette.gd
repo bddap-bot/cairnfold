@@ -26,7 +26,7 @@ const SWATCHES := {
 	Element.STONE: [WallLayout.STONE, Color(0.84, 0.81, 0.74), Color(0.78, 0.64, 0.42), Color(0.70, 0.46, 0.37), Color(0.48, 0.50, 0.55), Color(0.40, 0.38, 0.36), Color(0.56, 0.59, 0.48)],
 	Element.ROOF: [RoofLayout.CLAY, Color(0.33, 0.38, 0.46), Color(0.38, 0.48, 0.30), Color(0.66, 0.22, 0.19), Color(0.78, 0.58, 0.30), Color(0.24, 0.24, 0.26), Color(0.24, 0.47, 0.50), Color(0.45, 0.28, 0.38)],
 	Element.WOOD: [WallLayout.WOOD, Color(0.55, 0.53, 0.48), Color(0.44, 0.55, 0.44), Color(0.27, 0.40, 0.56), Color(0.56, 0.20, 0.16), Color(0.2, 0.2, 0.22), Color(0.86, 0.82, 0.70)],
-	Element.TIMBER: [TimberFrame.OAK, Color(0.16, 0.105, 0.075), Color(0.30, 0.20, 0.12), Color(0.25, 0.22, 0.18), Color(0.19, 0.16, 0.13)],
+	Element.TIMBER: [TimberFrame.OAK, Color(0.16, 0.105, 0.075), Color(0.30, 0.20, 0.12), Color(0.25, 0.22, 0.18), Color(0.19, 0.16, 0.13), Color(0.22, 0.12, 0.07)],
 	Element.PLASTER: [WallLayout.PLASTER, Color(0.93, 0.92, 0.89), Color(0.91, 0.72, 0.68), Color(0.89, 0.73, 0.45), Color(0.72, 0.81, 0.87), Color(0.75, 0.81, 0.67)],
 }
 

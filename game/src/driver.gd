@@ -580,8 +580,6 @@ func _village(s: Dictionary) -> void:
 				tool.begin_house(at, yaw, on)
 				tool.place_house(at, yaw, Vector2(0.7, 0.44) * step)
 				tool.end_house()
-				if s.has("timber_style"):
-					main.world.submit({"op": "reshape", "id": tool.walls[-1].id, "data": {"timber_style": int(s.timber_style)}})
 				tool.walls[-1].ivy_age = INF
 				on = PackedInt32Array([tool.walls[-1].id])
 			if s.get("wings", false):
@@ -590,8 +588,6 @@ func _village(s: Dictionary) -> void:
 				tool.begin_house(wing, yaw)
 				tool.place_house(wing, yaw, Vector2(0.3, 0.6) * step)
 				tool.end_house()
-				if s.has("timber_style"):
-					main.world.submit({"op": "reshape", "id": tool.walls[-1].id, "data": {"timber_style": int(s.timber_style)}})
 				tool.walls[-1].ivy_age = INF
 	print("village: %d buildings in %.0f ms" % [k, (Time.get_ticks_usec() - start) / 1000.0])
 

@@ -75,6 +75,12 @@ func _init() -> void:
 			other.timber_style = (style + 1) % TimberFrame.PATTERNS.size()
 			other.build(_flat)
 			_check(stone.stones == other.stones, "pattern cannot change stone geometry or colour")
+	var plain := original.duplicate(true)
+	plain.timber_style = -1
+	_check(TimberFrame.count(plain) == 0 and not Budget.wall(plain).has("timber"), "explicit plain plaster has no timber charge")
+	var charge := Budget.wall(original)
+	_check(charge.timber > 0 and Budget.cost_ms({"timber": charge.timber}, Budget.Device.QUEST_2) > 0, "timber is charged separately")
+	_check(not Budget.fits({"timber": Budget.room_ms(Budget.Device.QUEST_2) * 1000.0 / Budget.TIMBER_US}, {"timber": 1}, [Budget.Device.QUEST_2]), "a timber member cannot exceed the remaining frame budget")
 	var paint := Palette.plain()
 	paint[Palette.Element.PLASTER] = 2
 	paint[Palette.Element.TIMBER] = 3

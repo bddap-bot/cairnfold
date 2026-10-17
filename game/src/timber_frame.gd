@@ -166,7 +166,9 @@ static func count(d: Dictionary) -> int:
 	w.timber_style = d.get("timber_style", 0)
 	w.gable_end = d.get("gable_end", WallLayout.GableEnd.WALL)
 	w.resample(func(_x: float, _z: float) -> float: return 0.0)
-	for a: float in d.get("arches", []):
+	var arches: Array = Array(d.get("arches", []))
+	arches.sort()
+	for a: float in arches:
 		if w.can_arch() and w.fits_arch(a, w.live_arches):
 			w.live_arches.append(a)
 	var windows: Array[Vector2] = []

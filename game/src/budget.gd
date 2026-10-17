@@ -29,10 +29,12 @@ const COSTS := {
 	Device.QUEST_2: QUEST_2_COSTS,
 	Device.FRAME: FRAME_COSTS,
 }
+## Use the largest measured Quest marginal cost for both devices until Frame is calibrated.
+const TIMBER_US := 8.7
 ## The Frame's runtime halves the rate once a frame nears 0.88 of the period: held to the governor's line under it.
-const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 10.804, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": 1.0}
+const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 10.804, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": TIMBER_US}
 ## Held to the Frame's until `scripts/costs.py` writes the Quest 2's own.
-const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 10.804, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": 1.0}
+const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 10.804, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": TIMBER_US}
 
 
 static func gpu_ms() -> float:

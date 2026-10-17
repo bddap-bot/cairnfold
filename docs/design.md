@@ -1938,3 +1938,13 @@ packing and distance/shadow system, at two densities and from two views, repeate
 twice. It measures the marginal viewport GPU time over the bare meadow per member;
 the build budget counts members using that same generator. The stress scene adds
 a two-storey plaster village with intersecting wings and Fachwerk framing.
+
+The timber charge is 8.7 GPU microseconds per member: the largest paired
+viewport increase on Quest 2 B, rounded up, from 702 and 1,950 members in two
+views repeated twice at the bottom quality step. The two worst-view estimates
+were 8.63 and 8.51 microseconds. Frame temporarily uses this same charge pending
+its own measurement. The bare meadow already took 20.67–21.98 ms of viewport
+GPU time in this run; this calibration measures marginal cost, not attainment
+of 72 Hz. Runtime GPU medians were 18.28–19.31 ms bare and 20.76–23.96 ms with
+timber, against a 12.5 ms limit. The remainder is existing scene cost, not
+attributed to timber by this experiment.
