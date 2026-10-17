@@ -377,3 +377,43 @@ The Quest build must hold the network permission. Without it, every socket the g
 opens fails, it hosts nothing, and no one can join. With it, a Quest and a desktop find
 each other by beacon within seconds, both ways. `scripts/android.sh` refuses an APK whose manifest
 lacks it.
+
+### A player's own avatar
+
+`NESTCOMBE_GUEST_AVATAR=FILE.vrm` dresses the other players in a VRM, and
+`NESTCOMBE_SCENE=demo/avatars.json` looks at them three ways, three times over: close
+(one of them 3.6 m away, the others behind), across the meadow (all three, 6 to 18 m)
+and away (none in view). The VRM is the CC0 VRoid sample AvatarSample_D (VRM 1.0, 16.6 MB),
+which reads as 15,000 triangles in 17 surfaces.
+
+On the Quest 2, `NESTCOMBE_PLAYERS=4 bench.sh OUT --android APK`, the game's GPU
+milliseconds per frame, median of each phase. "Arrived" counts the other players whose
+file the headset read and wore (the game logs `session: player N wears`). The close view
+reads about 22.6 ms whenever the near player's file did not arrive:
+
+| Other players wear | Arrived | Limits | Close | Across | Away |
+| --- | --- | --- | --- | --- | --- |
+| built-in | | | 22.81 | 24.20 | 23.43 |
+| built-in | | | 22.82 | 24.22 | 23.42 |
+| the VRM | 2 | 20,000 triangles, 1024 px | 25.75 | 27.45 | 23.68 |
+| the VRM | 2 | 20,000 triangles, 1024 px | 25.85 | 27.46 | 23.45 |
+| the VRM | 2 | 20,000 triangles, 1024 px | 25.99 | 26.83 | 23.82 |
+| the VRM | 2 | 20,000 triangles, 1024 px | 22.55 | 26.22 | 23.50 |
+| the VRM | 1 | 20,000 triangles, 1024 px | 25.90 | 26.55 | 23.51 |
+| the VRM | 2 | 5,000 triangles, 512 px | 22.53 | 26.09 | 23.46 |
+| the VRM | 2 | 5,000 triangles, 512 px | 22.56 | 26.08 | 23.58 |
+| the VRM | 1 | 5,000 triangles, 512 px, alpha cut out | 22.62 | 26.04 | 23.53 |
+| the VRM | 1 | 5,000 triangles, 512 px, alpha cut out | 25.46 | 26.31 | 23.45 |
+
+The VRM in view costs the headset 2 to 3 ms a frame: one at 3.6 m adds 2.6 to 3.2 ms,
+and one or two across the meadow add 1.8 to 3.2 ms. Out of view it costs nothing (away:
+23.4 to 23.8 ms against 23.4). The cost does not follow the triangles, the texture size or
+alpha blending: cutting to 5,000 triangles and 512 px, and alpha blending to a cut-out, leave
+it where it was, and one VRM costs about what two do. So lowering these limits would not buy
+the frame back; the limits stay at 20,000 triangles, 20 surfaces and 1024 px until what does
+cost is found. Against a 12.5 ms budget, 2 to 3 ms for the first VRM in view is too much.
+
+Not every file arrives. With the headset hosting over Wi-Fi, one or two of the three
+other players' files arrived, within about 30 s, and the last never did, even after four
+minutes. On one machine all three arrive within seconds. Until that is fixed, a player's
+own avatar can stay unseen by some of the others.
