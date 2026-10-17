@@ -15,8 +15,9 @@ status=0
 if grep -nE "^\s+quit\(" tests/*.gd; then echo "tests exit through Main.quit, which waits for playing sounds"; status=1; fi
 for t in tests/test_*.gd; do
   failed=0
-  # Each frame advances the game a fixed 1/60 s however long it took, so a test counts frames and never races the host.
-  out=$(godot4 --headless --fixed-fps 60 --path game --script "../$t" 2>&1) || { echo "$t: exited $?"; failed=1; }
+  # Each frame advances the game a fixed 1/60 s however long it took, so a test counts frames and never races the host;
+  # the timeout only turns a deadlock into a failure.
+  out=$(timeout 3600 godot4 --headless --fixed-fps 60 --path game --script "../$t" 2>&1) || { echo "$t: exited $?"; failed=1; }
   grep -E "^(tests|FAIL):|SCRIPT ERROR|still in use at exit|Parameter \"mem" <<<"$out" | sed "s|^|$t: |"
   if grep -qE "SCRIPT ERROR|still in use at exit|Parameter \"mem" <<<"$out"; then failed=1; fi
   # A failure seen once is kept in the run's log, crash backtraces and errors around it included.
