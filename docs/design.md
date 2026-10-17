@@ -1676,8 +1676,9 @@ straight up or down, the top of the controller is up. The trigger takes a photo
 under `photos/` in the `--capture-dir` of a scripted run. From the Linux package that is
 `~/.local/share/godot/app_userdata/Nestcombe/photos`. An APK (a Quest, the Frame's Steam build)
 keeps user data where only the app can read it, so it saves to `photos` in the app's external
-files directory (`Main.player_folder`), which adb reads, and on start moves there any photos an
-earlier APK left in `user://photos` (`PhotoTool.move_all`). The screen holds the shot for a
+files directory (`Main.player_path`), which adb reads, and on start moves there any photos an
+earlier APK left in `user://photos` (`Main.move_to_player_paths`). The garden save lives there too,
+so it can be copied off before an uninstall, which erases user data with no way to read it. The screen holds the shot for a
 moment with a soft flash, and the hand gets a short buzz on the press. Either hand can hold a camera; both show the view of the first.
 
 What it costs: nothing until a hand first holds the camera. The screen is then a second view of

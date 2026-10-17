@@ -12,11 +12,10 @@ const PHOTO_SIZE := Vector2i(1600, 1200)
 const FOV := 55.0
 const SHOT_HOLD := 1.2
 const DARK := Color(0.06, 0.06, 0.07)
-const APP_PHOTOS := "user://photos"
 const ALL_LAYERS := (1 << 20) - 1
 
 var rig: Rig
-var folder := Main.player_folder("photos")
+var folder := Main.player_path("photos")
 var _buttons: Array[Buttons] = []
 var _preview: SubViewport
 var _photo: SubViewport
@@ -34,40 +33,6 @@ func _init(player: Rig) -> void:
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["tool"]))
 	ToolModels.camera_screen().albedo_color = DARK
-
-
-func _ready() -> void:
-	var own := Main.player_folder("photos")
-	if own != APP_PHOTOS:
-		print("photo: moved %d from %s to %s" % [move_all(APP_PHOTOS, own), APP_PHOTOS, own])
-
-
-## Moves every file in `from` into `to` and removes `from` once empty. A copy lands under its name only whole, so
-## a move cut short leaves the original to move again; one already there with other bytes stays put, as does its
-## original. Copies rather than renames: the two may sit on different filesystems. Returns how many moved.
-static func move_all(from: String, to: String) -> int:
-	if not DirAccess.dir_exists_absolute(from):
-		return 0
-	DirAccess.make_dir_recursive_absolute(to)
-	var moved := 0
-	for name in DirAccess.get_files_at(from):
-		var src := from.path_join(name)
-		var dst := to.path_join(name)
-		if not FileAccess.file_exists(dst):
-			var part := dst + ".part"
-			if DirAccess.copy_absolute(src, part) != OK or FileAccess.get_size(part) != FileAccess.get_size(src) \
-					or DirAccess.rename_absolute(part, dst) != OK:
-				DirAccess.remove_absolute(part)
-				push_error("photo: could not move %s to %s" % [src, dst])
-				continue
-		if FileAccess.get_md5(dst) != FileAccess.get_md5(src):
-			push_error("photo: %s is already taken by another photo; %s stays" % [dst, src])
-			continue
-		DirAccess.remove_absolute(src)
-		moved += 1
-	if DirAccess.get_files_at(from).is_empty() and DirAccess.get_directories_at(from).is_empty():
-		DirAccess.remove_absolute(from)
-	return moved
 
 
 func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:

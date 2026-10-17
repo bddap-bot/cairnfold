@@ -84,7 +84,9 @@ cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, style
   `nestcombe/steam/`.
 - The game keeps its garden, photos and engine logs in Godot's user
   directory: `~/.local/share/godot/app_userdata/Nestcombe` on Linux,
-  `%APPDATA%\Godot\app_userdata\Nestcombe` on Windows.
+  `%APPDATA%\Godot\app_userdata\Nestcombe` on Windows. An APK keeps the garden
+  (`garden.save`), photos and avatars in `/sdcard/Android/data/io.github.bddapbot.nestcombe/files`,
+  where adb reads them.
   Put a VRM avatar (1.0 or 0.x) in its `avatars` folder to wear it: the newest file there
   is yours, and other players see it (see [docs/multiplayer.md](docs/multiplayer.md)). On a
   Quest the folder is `/sdcard/Android/data/io.github.bddapbot.nestcombe/files/avatars`:
