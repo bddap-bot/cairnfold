@@ -756,6 +756,9 @@ stroke's ghost shrink alike. Both reaches move at 8 m a second. The blob detail 
 swapping the mesh the foliage's MultiMeshes draw, kept for both details from the start:
 switching it back and forth six times over 12 s, from the air, left the slowest frame of
 each second at 14.8 to 16.7 ms, as in the seconds around the switches: switching causes no stall.
+It only ever switches to the coarser blobs within a session: on the Quest 3 a forest of 64
+planted trees settles the governor across that step, and every switch back redrew the crowns
+finer and reshaped the shade under them, which showed as flickering shadows (`demo/forest.json`).
 
 Measured and left out: 16 m chunks for painted plants, so the camera and grass reach could
 cull them (1.5 to 2.2 ms slower at full quality, and at the bottom 0.8 ms faster from the

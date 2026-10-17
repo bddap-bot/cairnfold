@@ -395,8 +395,9 @@ func _process(_delta: float) -> void:
 		flowers.cull(eye.global_position, flower_reach)
 
 
-## Moves grass and flower reach toward `step`'s at Quality.REACH_RATE and draws its blobs; whether both reaches are
-## there, since a step still under way is not yet the step's cost.
+## Moves grass and flower reach toward `step`'s at Quality.REACH_RATE and draws its blobs, coarser only: a governor
+## stepping back and forth across a blob change reshaped every crown and the shade under it, which flickered in a
+## forest. Whether both reaches are there, since a step still under way is not yet the step's cost.
 func approach(step: Quality.Step, delta: float) -> bool:
 	var grass_m := move_toward(grass_reach, step.grass_m, Quality.REACH_RATE * delta)
 	if grass_m != grass_reach:
@@ -404,7 +405,7 @@ func approach(step: Quality.Step, delta: float) -> bool:
 	var flowers_m := move_toward(flower_reach, step.flowers_m, Quality.REACH_RATE * delta)
 	if flowers_m != flower_reach:
 		flower_reach = flowers_m
-	blob_detail = step.blob_detail
+	blob_detail = mini(blob_detail, step.blob_detail)
 	return grass_reach == step.grass_m and flower_reach == step.flowers_m
 
 
