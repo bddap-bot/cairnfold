@@ -44,7 +44,7 @@ func _init(player: Rig, people: Session) -> void:
 	rig = player
 	session = people
 	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["trigger_click"]))
+		_buttons.append(Buttons.new(h).watch(["tool"]))
 
 
 func holder() -> Hand:
@@ -228,7 +228,7 @@ func _point(hand: Hand) -> void:
 	for k in figures:
 		figures[k].scale = Vector3.ONE * (ME_SIZE if k == ME else 1.0) * (1.25 if k == picked else 1.0)
 	hand.point(figures[picked].global_position + AIM if figures.has(picked) else null, TINT, ARC)
-	if figures.has(picked) and _buttons[rig.hands.find(hand)].pressed("trigger_click"):
+	if figures.has(picked) and _buttons[rig.hands.find(hand)].pressed("tool"):
 		go(picked)
 
 

@@ -21,15 +21,15 @@ func _run() -> void:
 		{"op": "wall", "points": [[-6, -1], [-3, -3.5], [1, -4.5], [5, -3]], "seconds": 0.5},
 		{"op": "wall", "points": [[-7, 3], [-6.5, 0]], "seconds": 0.3},
 	])
-	for b in ["A", "B", "X", "Y", "right_stick_down", "right_stick_up", "dpad_left", "dpad_right", "view", "left_stick_click", "right_stick_click", "left_stick_down", "left_stick_left", "left_stick_right"]:
+	for b in ["B", "X", "Y", "dpad_up", "dpad_left", "dpad_right", "view", "left_stick_click", "right_stick_click", "left_stick_down", "left_stick_left", "left_stick_right", "right_stick_up", "right_stick_down"]:
 		await _play([{"op": "press", "button": b}])
-	_check(walls.size() == 2, "a tap of every button, and a flick of the left stick anywhere but forward, leaves %d of 2 walls" % walls.size())
+	_check(walls.size() == 2, "a tap of every button but undo and redo, and a flick of a stick that neither moves nor turns, leaves %d of 2 walls" % walls.size())
 	_check(rig.left.tool == Hand.Tool.FLOWERS and rig.right.tool == Hand.Tool.WALLS, "a tap of a wheel button without a sweep keeps both tools")
 
-	await _play([{"op": "press", "button": "right_stick_down"}])
-	_check(walls.size() == 1, "a flick of the right stick down undoes one wall, leaving %d" % walls.size())
-	await _play([{"op": "press", "button": "right_stick_up"}])
-	_check(walls.size() == 2, "a flick up redoes it, %d walls" % walls.size())
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(walls.size() == 1, "a tap of D-pad down (Quest: left X) undoes one wall, leaving %d" % walls.size())
+	await _play([{"op": "press", "button": "A"}])
+	_check(walls.size() == 2, "a tap of A redoes it, %d walls" % walls.size())
 
 	var stood := rig.global_position
 	var at := rig.head.global_position + Vector3(-0.2, -0.4, -0.3)
@@ -60,14 +60,14 @@ func _run() -> void:
 	var ruined := func() -> int: return walls.filter(func(w: Wall) -> bool: return not w.layout.ruins.is_empty()).size()
 	_check(walls.size() == 2 and ruined.call() == 1, "a tap of delete breaks a gap in the one wall it points at: %d walls, %d ruined" % [walls.size(), ruined.call()])
 
-	await _play([{"op": "press", "button": "right_stick_down"}])
+	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(walls.size() == 2 and ruined.call() == 0, "undo closes the gap")
-	await _play([{"op": "press", "button": "right_stick_down"}, {"op": "press", "button": "right_stick_down"}])
+	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
 	_check(not tree[0].shown(), "the next undo takes the tree away")
 	_check(_painted(flora, patch).is_empty(), "and the next the painted flowers")
-	await _play([{"op": "press", "button": "right_stick_up"}])
+	await _play([{"op": "press", "button": "A"}])
 	_check(not _painted(flora, patch).is_empty(), "redo paints them back")
-	await _play([{"op": "tree", "x": 9, "z": -9}, {"op": "press", "button": "right_stick_up"}])
+	await _play([{"op": "tree", "x": 9, "z": -9}, {"op": "press", "button": "A"}])
 	_check(not tree[0].shown() and walls.size() == 2, "a new edit after an undo drops the redo steps")
 
 	await _play([
@@ -75,7 +75,7 @@ func _run() -> void:
 		{"op": "delete", "x": -9, "z": 9},
 	])
 	_check(_painted(flora, patch).is_empty(), "delete clears the painted patch it points at")
-	await _play([{"op": "press", "button": "right_stick_down"}])
+	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(not _painted(flora, patch).is_empty(), "undo brings a deleted patch back")
 
 	await _carry_a_house(rig, walls)
@@ -177,9 +177,9 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	if walls.size() == before + 1:
 		_check(walls[-1].roof != null and walls[-1].layout.closed, "a roofed house")
 		_check(walls[-1].layout.arches.is_empty(), "with no door until one is added")
-	await _play([{"op": "press", "button": "right_stick_down"}])
+	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(walls.size() == before, "undo takes the house away")
-	await _play([{"op": "press", "button": "right_stick_up"}])
+	await _play([{"op": "press", "button": "A"}])
 	_check(walls.size() == before + 1, "redo puts it back")
 	for t in trackers.values():
 		XRServer.remove_tracker(t)
@@ -205,68 +205,61 @@ func _holder(rig: Rig, trackers: Dictionary) -> Callable:
 
 
 ## Directive (verbatim): "I'd like for round towers to still be possible."
-## The house tool's A, while a house is carried, rounds it into a tower; both hands spread it every way at once.
+## The style tool on a house's roof: a twist to the cone stands it as a round tower, a twist on to flat squares it
+## again under a flat roof, each one undo step.
 func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 	await _play([{"op": "place", "x": -14, "z": 12}, {"op": "pick", "hand": "right", "tool": "house"}])
 	var trackers := _track_hands()
 	var hold := _holder(rig, trackers)
 	var spot := Terrain.ground(-14, 5)
 	hold.call(&"right_hand", Vector3(0.2, -0.4, -0.3), spot)
-	hold.call(&"left_hand", Vector3(-0.2, -0.4, -0.3), spot)
 	await _frames(2)
 	var before := walls.size()
-	var tool: WallTool = main.tool
 	trackers[&"right_hand"].set_input(&"trigger_click", true)
 	await _frames(2)
-	_check(tool.house != null and not tool.house_at.round, "the trigger takes up a square house")
-	if tool.house == null:
-		return
-	var press_a := func() -> void:
-		trackers[&"right_hand"].set_input(&"ax_button", true)
-		await _frames(2)
-		trackers[&"right_hand"].set_input(&"ax_button", false)
-		await _frames(4)
-	var spread := func(from: float, step: float) -> void:
-		for i in 20:
-			hold.call(&"left_hand", Vector3(from - step * (i + 1), -0.4, -0.3), spot)
-			await _frames(1)
-	var rounded := func(what: String) -> void:
-		var c: Vector3 = tool.house_at.center
-		var s: Vector2 = tool.house_at.size
-		var off := tool.house.layout.points.filter(func(p: Vector3) -> bool: return absf(Vector2(p.x - c.x, p.z - c.z).length() - s.x * 0.5) > 0.01)
-		_check(tool.house_at.round and tool.house.roof.kind == RoofLayout.Kind.CONE, what)
-		_check(s.x == s.y and s.x >= WallTool.HOUSE_SIDES.x and s.x <= WallTool.HOUSE_DEPTH and is_equal_approx(tool.house.roof.radius, s.x * 0.5), "evenly, %s across, under its cone roof" % s)
-		_check(tool.house.layout.points.size() >= 12 and off.is_empty(), "its wall runs round a circle %.1f m across" % s.x)
-		_check(tool.house.layout.height > WallTool.HOUSE_HEIGHT, "and stands taller than a house: %.1f m" % tool.house.layout.height)
-	trackers[&"left_hand"].set_input(&"grip_click", true)
-	await _frames(2)
-	await spread.call(-0.2, 0.02)
-	_check(tool.house_at.size.x != tool.house_at.size.y, "two hands stretch the square house: %s" % tool.house_at.size)
-	await press_a.call()
-	await rounded.call("A while both hands hold rounds it into a tower")
-	var was: Vector2 = tool.house_at.size
-	await spread.call(-0.6, 0.01)
-	_check(tool.house_at.size.x > was.x * 1.2 and tool.house_at.size.x == tool.house_at.size.y, "spreading the hands widens it every way: %s" % tool.house_at.size)
-	await press_a.call()
-	_check(not tool.house_at.round and tool.house.roof.kind == RoofLayout.Kind.GABLE and tool.house.layout.points.size() == 4, "A again squares it")
-	await spread.call(-0.8, 0.02)
-	_check(tool.house_at.size.x != tool.house_at.size.y, "and the square stretches again: %s" % tool.house_at.size)
-	await press_a.call()
-	await rounded.call("and A again rounds it")
-	_check(walls.size() == before, "nothing stands while it is held")
 	trackers[&"right_hand"].set_input(&"trigger_click", false)
-	trackers[&"left_hand"].set_input(&"grip_click", false)
 	await _frames(4)
-	_check(tool.house == null and walls.size() == before + 1, "letting go builds it, %d walls" % (walls.size() - before))
-	if walls.size() == before + 1:
-		var w := walls[-1]
-		_check(w.layout.closed and w.roof != null and w.roof.kind == RoofLayout.Kind.CONE, "a round tower with its cone roof")
-		_check(w.layout.arches.is_empty(), "with no door until one is added")
-		_check(absf(Vector2(w.roof.center.x - w.layout.points[0].x, w.roof.center.z - w.layout.points[0].z).length() - w.roof.radius) < 0.01, "its roof centred on its wall")
-	await _play([{"op": "press", "button": "right_stick_down"}])
-	_check(walls.size() == before, "undo takes the tower away")
+	_check(walls.size() == before + 1, "the house tool builds a house")
+	if walls.size() != before + 1:
+		return
+	var w := walls[-1]
+	await _play([{"op": "pick", "hand": "right", "tool": "style"}])
+	var picker: PaletteTool = main.palette_tool
+	var restyle := func(steps: int) -> void:
+		var roof := _centre(w) + Vector3.UP * w.layout.height
+		var at := roof + Vector3(0, 8, 6)
+		var aim := Basis.looking_at(roof - at, Vector3.UP)
+		var pose := func(b: Basis) -> void:
+			trackers[&"right_hand"].set_pose(&"aim", rig.global_transform.affine_inverse() * Transform3D(b, at), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
+		pose.call(aim)
+		await _frames(2)
+		trackers[&"right_hand"].set_input(&"trigger_click", true)
+		await _frames(2)
+		_check(picker.wheels.has(rig.right) and picker.wheels[rig.right].target.get("restyle") == PaletteTool.Restyle.ROOF, "the style tool's trigger on the roof opens its roof styles")
+		pose.call(aim * Basis(Vector3.FORWARD, deg_to_rad(Palette.TWIST_STEP * steps)))
+		await _frames(2)
+		trackers[&"right_hand"].set_input(&"trigger_click", false)
+		await _frames(6)
+	await restyle.call(1)
+	var c := _centre(w)
+	_check(w.roof.kind == RoofLayout.Kind.CONE and w.layout.points.size() >= 12, "a twist to the cone stands it as a round tower: %s roof, %d points" % [RoofLayout.Kind.keys()[w.roof.kind], w.layout.points.size()])
+	_check(w.layout.points.all(func(p: Vector3) -> bool: return absf(Vector2(p.x - w.roof.center.x, p.z - w.roof.center.z).length() - w.roof.radius) < 0.05), "its wall runs round under its roof, %.1f m across" % (w.roof.radius * 2.0))
+	_check(is_equal_approx(w.layout.height, WallTool.TOWER_HEIGHT), "and stands a tower's height: %.1f m" % w.layout.height)
+	await restyle.call(1)
+	_check(w.roof.kind == RoofLayout.Kind.GABLE and w.roof.flat() and w.layout.points.size() == 4, "a twist on squares it under a flat roof")
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(w.roof.kind == RoofLayout.Kind.CONE, "undo stands the tower again")
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(w.roof.kind == RoofLayout.Kind.GABLE and not w.roof.flat() and w.layout.points.size() == 4 and _centre(w).distance_to(c) < 0.1, "and the next the pitched house")
 	for t in trackers.values():
 		XRServer.remove_tracker(t)
+
+
+static func _centre(w: Wall) -> Vector3:
+	var sum := Vector3.ZERO
+	for p in w.layout.points:
+		sum += p
+	return sum / w.layout.points.size()
 
 
 ## Directive (verbatim): "Eventually I'd like to be able to resize a house" / "in each dimension"
@@ -347,11 +340,11 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	side.lay_now()
 	_check(side.layout.stones.size() < side_stones, "the wall it now meets lays nothing inside it: %d of %d stones" % [side.layout.stones.size(), side_stones])
 
-	await _play([{"op": "press", "button": "right_stick_down"}])
+	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(at.call().size.is_equal_approx(Vector2(6, 4)) and data.call().windows == before.windows and data.call().roof.chimneys == before.roof.chimneys, "undo puts its width, window and chimney back: %s" % at.call().size)
 	side.lay_now()
 	_check(side.layout.stones.size() == side_stones, "and the wall it met whole again")
-	await _play([{"op": "press", "button": "right_stick_up"}])
+	await _play([{"op": "press", "button": "A"}])
 	_check(is_equal_approx(at.call().size.x, 10.5), "redo stretches it again: %s" % at.call().size)
 
 	var flank := Terrain.ground(13, -12) + Vector3.UP * 1.2
@@ -392,7 +385,7 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	var round := WallTool.house_of(d)
 	var off := Array(d.points).filter(func(p: Vector3) -> bool: return absf(Vector2(p.x - round.center.x, p.z - round.center.z).length() - round.size.x * 0.5) > 0.01)
 	_check(round.round and round.size.x > 5.0 and round.size.x <= WallTool.HOUSE_DEPTH and off.is_empty() and is_equal_approx(d.height, tall), "two hands spread a round tower's diameter, round and as tall: %s" % round.size)
-	await _play([{"op": "press", "button": "right_stick_down"}])
+	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(is_equal_approx(WallTool.house_of(world.state.walls[tower.id]).size.x, 3.4), "undo narrows it back")
 	for t in trackers.values():
 		XRServer.remove_tracker(t)

@@ -14,7 +14,8 @@ var rig: Rig
 var world: World
 var session: Session
 var visit_tool: VisitTool
-var _undo_buttons: Buttons
+var _undo: Buttons
+var _redo: Buttons
 var tool: WallTool
 var flora_tool: FloraTool
 var delete_tool: DeleteTool
@@ -83,7 +84,8 @@ func _ready() -> void:
 	if args.has("capture-dir"):
 		photo_tool.folder = str(args["capture-dir"]).path_join("photos")
 	add_child(photo_tool)
-	_undo_buttons = Buttons.new(rig.right).watch([Controls.input("undo", rig.right.tracker), Controls.input("redo", rig.right.tracker)])
+	_undo = Buttons.new(rig.left).watch(["undo"])
+	_redo = Buttons.new(rig.right).watch(["redo"])
 	var played := Session.played(args, get_tree().current_scene == self)
 	var me := Persona.new(str(args.get("name", "")), int(args.get("steam-app", OS.get_environment("SteamAppId"))), "user://name" if played else "", hash(OS.get_unique_id()))
 	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT if played else 0)), played, int(args.get("beacon-port", Session.BEACON_PORT)), me)
@@ -132,14 +134,14 @@ func _ready() -> void:
 	get_tree().auto_accept_quit = false
 
 
-## Undo and redo wait while any hand's edit is under way.
 func _process(_delta: float) -> void:
 	if not _editing():
-		if _undo_buttons.pressed(Controls.input("undo", rig.right.tracker)):
+		if _undo.pressed("undo"):
 			world.undo()
-		if _undo_buttons.pressed(Controls.input("redo", rig.right.tracker)):
+		if _redo.pressed("redo"):
 			world.redo()
-	_undo_buttons.latch()
+	_undo.latch()
+	_redo.latch()
 
 
 ## Whether `hand`, or with none any hand, has an edit under way: a grip takes nothing from a hand mid-edit.

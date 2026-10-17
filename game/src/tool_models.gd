@@ -60,9 +60,33 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_open_hand(root)
 		Hand.Tool.SEEDS:
 			_seeds(root)
+		Hand.Tool.STYLE:
+			return style(PaletteTool.Restyle.GABLE, WallLayout.GableEnd.STEPS, false)
 	if tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS, Hand.Tool.HOUSE, Hand.Tool.PLASTER_HOUSE]:
 		for part in root.get_children():
 			part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22), Vector3.ZERO) * part.transform
+	return root
+
+
+## A miniature of choice `i` of a style the style tool sets (`PaletteTool.STYLES`), in stone or plaster; a
+## gable end's turned to face the eye.
+static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool) -> Node3D:
+	var root := Node3D.new()
+	match restyle:
+		PaletteTool.Restyle.GABLE:
+			_house(root, plastered, i as WallLayout.GableEnd)
+		PaletteTool.Restyle.ROOF:
+			if i == WallTool.RoofStyle.CONE:
+				_tower(root, plastered)
+			else:
+				_house(root, plastered, WallLayout.GableEnd.WALL, i == WallTool.RoofStyle.FLAT)
+		PaletteTool.Restyle.TOP:
+			_wall(root, plastered, i as WallLayout.Top)
+		PaletteTool.Restyle.ARCH:
+			_wall(root, plastered, WallLayout.Top.CAP, i == 1)
+	var turn := Basis(Vector3.UP, PI * 0.38) if restyle == PaletteTool.Restyle.GABLE else Basis()
+	for part in root.get_children():
+		part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22) * turn, Vector3.ZERO) * part.transform
 	return root
 
 
@@ -312,35 +336,66 @@ static func _pond(root: Node3D) -> void:
 		root.add_child(mi)
 
 
-static func _wall(root: Node3D, plastered := false) -> void:
+static func _wall(root: Node3D, plastered := false, top := WallLayout.Top.CRENEL, arched := false) -> void:
 	var layout := WallLayout.new()
 	layout.plaster = plastered
 	layout.seed = 4
-	layout.height = 1.5
+	layout.height = 2.1 if arched else 1.5
+	layout.top = top
 	layout.points = [Vector3(-1.4, 0, 0), Vector3(1.4, 0, 0)]
+	if arched:
+		layout.arches = [1.4]
 	layout.build(_flat)
 	_stones(root, layout.stones, 0.015)
 
 
-## A cottage: stone walls with a door toward the eye under a tiled gable roof.
-static func _house(root: Node3D, plastered := false) -> void:
+## A cottage: stone walls with a door toward the eye under a tiled gable roof, or a flat one.
+static func _house(root: Node3D, plastered := false, gable_end := WallLayout.GableEnd.WALL, flat := false) -> void:
 	var layout := WallLayout.new()
 	layout.plaster = plastered
 	layout.seed = 7
 	layout.height = 2.4
 	layout.top = WallLayout.Top.CAP
 	layout.closed = true
-	layout.cover = WallLayout.Cover.ROOF
+	layout.gable_end = gable_end
+	layout.cover = WallLayout.Cover.DECK if flat else WallLayout.Cover.ROOF
 	layout.points = WallLayout.rectangle(Vector3(-1.6, 0, 0), Vector3(1.6, 0, 0), 2.6)
 	layout.arches = [3.2 * 1.5 + 2.6]
 	var roof := RoofLayout.new()
 	roof.seed = 7
 	roof.corners = layout.points
-	roof.pitch = 1.8
+	roof.pitch = 0.0 if flat else 1.8
+	roof.stepped = gable_end == WallLayout.GableEnd.STEPS
 	layout.gable = roof
 	layout.build(_flat)
 	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
 	roof.build()
+	_roofed(root, layout, roof, plastered)
+
+
+## A round tower under a cone roof.
+static func _tower(root: Node3D, plastered := false) -> void:
+	var layout := WallLayout.new()
+	layout.plaster = plastered
+	layout.seed = 9
+	layout.height = 3.2
+	layout.top = WallLayout.Top.CAP
+	layout.closed = true
+	layout.cover = WallLayout.Cover.ROOF
+	layout.points = WallLayout.circle(Vector3.ZERO, 1.2)
+	var roof := RoofLayout.new()
+	roof.seed = 9
+	roof.kind = RoofLayout.Kind.CONE
+	roof.radius = 1.2
+	roof.pitch = WallTool.pitch_for({"round": true, "size": Vector2(2.4, 2.4)})
+	layout.gable = roof
+	layout.build(_flat)
+	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
+	roof.build()
+	_roofed(root, layout, roof, plastered)
+
+
+static func _roofed(root: Node3D, layout: WallLayout, roof: RoofLayout, plastered: bool) -> void:
 	_stones(root, layout.stones, 0.012)
 	_stones(root, roof.tiles, 0.012)
 	if not plastered:

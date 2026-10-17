@@ -121,9 +121,9 @@ func _five_seasons() -> void:
 
 func _twisting_wraps_round_the_wheel() -> void:
 	var n := Palette.count(Palette.Element.ROOF)
-	_check(Palette.twisted(Palette.Element.ROOF, 0, Palette.TWIST_STEP) == 1, "one step clockwise is the next swatch")
-	_check(Palette.twisted(Palette.Element.ROOF, 0, -Palette.TWIST_STEP) == n - 1, "one step back wraps to the last")
-	_check(Palette.twisted(Palette.Element.ROOF, 2, Palette.TWIST_STEP * 0.4) == 2, "a small twist stays put")
+	_check(PaletteTool.twisted(n, 0, Palette.TWIST_STEP) == 1, "one step clockwise is the next swatch")
+	_check(PaletteTool.twisted(n, 0, -Palette.TWIST_STEP) == n - 1, "one step back wraps to the last")
+	_check(PaletteTool.twisted(n, 2, Palette.TWIST_STEP * 0.4) == 2, "a small twist stays put")
 
 
 func _every_laid_kind_is_painted_or_kept() -> void:
@@ -243,17 +243,17 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 
 	var snap := world.snapshot().duplicate(true)
 	_check(snap.cmds.filter(func(c: Dictionary) -> bool: return c.op == "season").size() == 1, "a joiner's snapshot carries the season")
-	await _play([{"op": "press", "button": "right_stick_down"}, {"op": "press", "button": "right_stick_down"}, {"op": "press", "button": "right_stick_down"}, {"op": "press", "button": "right_stick_down"}])
+	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
 	_check(world.palette.season == Palette.SUMMER and world.state.walls.values().all(func(d: Dictionary) -> bool: return d.paint == Palette.plain()), "undo takes every pick back")
 	first.lay_now()
 	_check(_scaled_by(first_was, first._parts[Wall.Part.STONE], Color.WHITE), "the first wall's stones are drawn as laid again")
-	await _play([{"op": "press", "button": "right_stick_up"}])
+	await _play([{"op": "press", "button": "A"}])
 	_check(world.state.walls[first.id].paint[stone] == 2 and world.state.walls[other.id].paint[stone] == 0, "redo paints the first wall again, and only it")
 
 	var first_id := first.id
 	world.submit({"op": "unwall", "ids": PackedInt32Array([first_id])})
 	_check(not world.state.walls.has(first_id), "the painted wall is deleted")
-	await _play([{"op": "press", "button": "right_stick_down"}])
+	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(world.state.walls.get(first_id, {}).get("paint", Palette.plain())[stone] == 2, "undoing the delete brings it back in its colour")
 	var back := main.tool.find(first_id) as Wall
 	back.lay_now()

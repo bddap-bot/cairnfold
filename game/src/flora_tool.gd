@@ -63,7 +63,7 @@ func _init(player: Rig, plants: Flora, ways: Paths, garden: World) -> void:
 	for h in rig.hands:
 		var b := Brush.new()
 		b.hand = h
-		b.buttons = Buttons.new(h).watch(["trigger_click"])
+		b.buttons = Buttons.new(h).watch(["tool"])
 		b.ring = ring(Color(1, 1, 1, 0.6))
 		add_child(b.ring)
 		brushes.append(b)
@@ -123,7 +123,7 @@ func _handle(b: Brush, delta: float) -> void:
 	if not TINTS.has(held) or rig.aim_hand == b.hand:
 		end_stroke(b)
 		return
-	if b.buttons.released("trigger_click"):
+	if b.buttons.released("tool"):
 		end_stroke(b)
 	if not b.hand.get_has_tracking_data():
 		return
@@ -135,7 +135,7 @@ func _handle(b: Brush, delta: float) -> void:
 		return
 	if held == Hand.Tool.TREES:
 		world.preview(b.hand, Budget.plants("tree", 1))
-		if b.buttons.pressed("trigger_click"):
+		if b.buttons.pressed("tool"):
 			plant_tree(hit, b.hand)
 		return
 	var radius := brush_radius(hand.origin, hit)
@@ -143,14 +143,14 @@ func _handle(b: Brush, delta: float) -> void:
 		radius = clampf(radius, PathLayout.HALF_WIDTH.x, PathLayout.HALF_WIDTH.y)
 	put_ring(b.ring, hit, radius)
 	if held in [Hand.Tool.PATH, Hand.Tool.DIRT_PATH]:
-		if b.buttons.pressed("trigger_click") and not paths.busy() and not _ground_held():
+		if b.buttons.pressed("tool") and not paths.busy() and not _ground_held():
 			begin_path(b, hit, radius)
-		elif b.buttons.held("trigger_click") and b.paving:
+		elif b.buttons.held("tool") and b.paving:
 			extend_path(hit, radius)
 		if b.paving and paths.drawing != null:
 			world.preview(b.hand, Budget.path({"points": paths.drawing.points, "half_widths": paths.drawing.half_widths}))
-	elif b.buttons.held("trigger_click"):
-		if b.buttons.pressed("trigger_click"):
+	elif b.buttons.held("tool"):
+		if b.buttons.pressed("tool"):
 			b.meadow = paints_meadow(held, hit)
 		paint(b, hit, radius, delta)
 

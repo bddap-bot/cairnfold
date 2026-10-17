@@ -31,7 +31,7 @@ var _reserved := {}
 func _init(player: Rig) -> void:
 	rig = player
 	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["trigger_click"]))
+		_buttons.append(Buttons.new(h).watch(["tool"]))
 	ToolModels.camera_screen().albedo_color = DARK
 
 
@@ -111,7 +111,7 @@ func _process(delta: float) -> void:
 			_aim(_preview, lens(_eye if held.has(_eye) else held[0]))
 			_preview.render_target_update_mode = SubViewport.UPDATE_ONCE
 	for h in held:
-		if _buttons[rig.hands.find(h)].pressed("trigger_click") and not _busy:
+		if _buttons[rig.hands.find(h)].pressed("tool") and not _busy:
 			shoot(h)
 	for b in _buttons:
 		b.latch()

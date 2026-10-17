@@ -56,14 +56,30 @@ func _wait(s: Dictionary) -> void:
 	await get_tree().create_timer(s.seconds).timeout
 
 
-## Holds a Frame control (see Controls.DEVICES) for `seconds`, through the same edges the controllers feed.
+## Holds a control of `device` (default the Frame; see Controls.DEVICES) for `seconds`, as the controller
+## would feed it.
 func _press(s: Dictionary) -> void:
-	var key := "%s/%s" % Controls.DEVICES.frame[s.button]
-	Buttons.injected[key] = true
+	var control: String = s.button
+	var device: String = s.get("device", "frame")
+	hold(device, control, true)
 	await get_tree().create_timer(s.get("seconds", 0.1)).timeout
-	Buttons.injected.erase(key)
+	hold(device, control, false)
 	await get_tree().process_frame
 	await get_tree().process_frame
+
+
+## Holds or lets go of a device's control: a stick direction moves the stick that way.
+static func hold(device: String, control: String, on: bool) -> void:
+	var to: Array = Controls.DEVICES[device][control]
+	if Hand.FLICKS.has(to[1]):
+		if on:
+			Hand.injected_sticks[to[0]] = Hand.FLICKS[to[1]]
+		else:
+			Hand.injected_sticks.erase(to[0])
+	elif on:
+		Buttons.injected["%s/%s" % to] = true
+	else:
+		Buttons.injected.erase("%s/%s" % to)
 
 
 ## Takes a tool from a hand's wheel as a player does: hold the wheel button, sweep the hand through each
@@ -216,8 +232,8 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 
 ## The house tool's carry: a square house taken up at `from` (default `at`) and set down at `at`, `size`
 ## [along, across], its front turned `turn` degrees from the x axis (the head's right with "relative"), from
-## `turn_from` (default `turn`), moving there over `seconds`; with "round", A rounds it into a tower as it is taken up,
-## `size` [across, across]. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
+## `turn_from` (default `turn`), moving there over `seconds`; with "round", its roof is styled a cone once it
+## stands, making it a round tower `size` [across, across]. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	_holding(s, Hand.Tool.PLASTER_HOUSE if s.get("plaster", false) else Hand.Tool.HOUSE)
@@ -230,8 +246,6 @@ func _house(s: Dictionary) -> void:
 	var on: int = _target(s, from).on
 	_lay_gables(s)
 	tool.begin_house(from, yaw_from, s.get("plaster", false), PackedInt32Array([on]) if on >= 0 else PackedInt32Array())
-	if s.get("round", false):
-		tool.round_house(true)
 	var taken_up: Vector2 = tool.house_at.size
 	var size := Vector2(s.size[0], s.size[1]) if s.has("size") else taken_up
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
@@ -246,6 +260,10 @@ func _house(s: Dictionary) -> void:
 			await get_tree().create_timer(0.4).timeout
 			await main.capture("%s-%d" % [s.capture, taken])
 	tool.end_house()
+	if s.get("round", false):
+		await _frames(2)
+		var w: Wall = tool.walls[-1]
+		main.world.submit({"op": "reshape", "id": w.id, "data": WallTool.restyle_roof(main.world.state.walls[w.id], WallTool.RoofStyle.CONE)})
 
 
 ## Resizes the built house `index` (or under `at`) where it stands to `size` [along its ridge, across it], or a
@@ -276,10 +294,8 @@ func _roof(s: Dictionary) -> void:
 
 func _top(s: Dictionary) -> void:
 	var w: Wall = main.tool.walls[s.index]
-	if w.roof != null and not w.roof.flat():
-		return
-	while w.layout.top != WallLayout.Top[s.style.to_upper()]:
-		main.tool.cycle_top(w)
+	if w.roof == null or w.roof.flat():
+		main.world.submit({"op": "reshape", "id": w.id, "data": {"top": int(WallLayout.Top[s.style.to_upper()])}})
 
 
 ## Turns the gable ends of the house `index` (or under `at`) to `style`: wall, boards or steps.
@@ -595,7 +611,7 @@ func _visit(s: Dictionary) -> void:
 	var from: Vector3 = main.rig.head.global_position + Vector3(0.2, -0.3, 0)
 	hand.global_transform = Transform3D(Basis.looking_at(at - from, Vector3.UP), from)
 	await _frames(1)
-	var key := "%s/trigger_click" % hand.tracker
+	var key := "%s/%s" % [hand.tracker, Controls.input("tool", hand.tracker)]
 	Buttons.injected[key] = true
 	await _frames(2)
 	Buttons.injected.erase(key)
@@ -682,7 +698,7 @@ func _sun(s: Dictionary) -> void:
 	var head: Transform3D = main.rig.head.global_transform
 	hand.held_still = true
 	hand.global_transform = Transform3D(Basis.looking_at(grab), head * Vector3(0.18 if hand == main.rig.right else -0.18, -0.25, -0.3))
-	var grip := "%s/grip_click" % hand.tracker
+	var grip := "%s/%s" % [hand.tracker, Controls.input("grab", hand.tracker)]
 	Buttons.injected[grip] = true
 	await _frames(2)
 	var seconds: float = s.get("seconds", 2.0)
@@ -703,19 +719,40 @@ func _sun(s: Dictionary) -> void:
 ## to `swatch` over `seconds`, optionally captures the view with the wheel open, then lets go.
 func _colour(s: Dictionary) -> void:
 	var tool: PaletteTool = main.palette_tool
-	var hand := _holding(s, Hand.Tool.COLOUR)
 	var element: Palette.Element = Palette.Element[s.element.to_upper()]
-	var target := {"element": element, "wall": null}
+	var target := tool.colour_target(element, Vector3.ZERO, null)
 	if s.has("at"):
-		var at: Vector3 = _spot(s, s.at[0], s.at[2]) + Vector3.UP * s.at[1]
-		var origin: Vector3 = _spot(s, s.from[0], s.from[2]) + Vector3.UP * s.from[1] if s.has("from") else main.rig.head.global_position
-		target = tool.aim(origin, (at - origin).normalized())
+		target = tool.aim(_dial_from(s), _dial_dir(s))
 	if target.get("element") != element:
 		push_error("driver: colour aimed at %s, not %s" % [target, s.element])
 		return
+	await _dial(s, _holding(s, Hand.Tool.COLOUR), target, s.swatch)
+
+
+## The style tool's trigger held on what it finds from `from` toward `at`, as `PaletteTool.aim_style` does
+## (`restyle` names what that must be: gable, roof, top or arch), twisted round to choice `pick` over
+## `seconds` and let go, as `colour` does.
+func _style(s: Dictionary) -> void:
+	var tool: PaletteTool = main.palette_tool
+	var target := tool.aim_style(_dial_from(s), _dial_dir(s))
+	if target.get("restyle") != PaletteTool.Restyle[s.restyle.to_upper()]:
+		push_error("driver: style aimed at %s, not %s" % [target, s.restyle])
+		return
+	await _dial(s, _holding(s, Hand.Tool.STYLE), target, s.pick)
+
+
+func _dial_from(s: Dictionary) -> Vector3:
+	return _spot(s, s.from[0], s.from[2]) + Vector3.UP * s.from[1] if s.has("from") else main.rig.head.global_position
+
+
+func _dial_dir(s: Dictionary) -> Vector3:
+	return (_spot(s, s.at[0], s.at[2]) + Vector3.UP * s.at[1] - _dial_from(s)).normalized()
+
+
+func _dial(s: Dictionary, hand: Hand, target: Dictionary, to: int) -> void:
+	var tool: PaletteTool = main.palette_tool
 	tool.open(hand, target)
 	var from: int = tool.wheels[hand].start
-	var to: int = s.swatch
 	var turn := (to - from) * Palette.TWIST_STEP
 	var t := 0.0
 	var seconds: float = s.get("seconds", 1.0)

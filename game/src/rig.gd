@@ -64,8 +64,8 @@ func _init() -> void:
 	hands = [left, right]
 	for h in hands:
 		add_child(h)
-	_moves = Buttons.new(left).watch([Controls.input("teleport", left.tracker)])
-	_turns = Buttons.new(right).watch([Controls.input("turn_left", right.tracker), Controls.input("turn_right", right.tracker)])
+	_moves = Buttons.new(left).watch(["teleport"])
+	_turns = Buttons.new(right).watch(["turn_left", "turn_right"])
 	_build_markers()
 
 
@@ -123,7 +123,7 @@ func _process(delta: float) -> void:
 
 
 func _locomotion_input(delta: float) -> void:
-	if aim_hand == null and _moves.held(Controls.input("teleport", left.tracker)):
+	if aim_hand == null and _moves.held("teleport"):
 		aim_hand = left
 	if aim_hand != null and aim_hand.picking:
 		_end_aim()
@@ -141,9 +141,9 @@ func _locomotion_input(delta: float) -> void:
 		while _aim_trail.size() > 1 and _aim_trail[1][0] <= _aim_clock - RELEASE_LOOKBACK:
 			_aim_trail.pop_front()
 	else:
-		if _turns.pressed(Controls.input("turn_left", right.tracker)):
+		if _turns.pressed("turn_left"):
 			snap_turn(SNAP)
-		if _turns.pressed(Controls.input("turn_right", right.tracker)):
+		if _turns.pressed("turn_right"):
 			snap_turn(-SNAP)
 
 

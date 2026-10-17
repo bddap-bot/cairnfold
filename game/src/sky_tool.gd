@@ -26,20 +26,20 @@ func _init(player: Rig, sky: Look, busy: Callable) -> void:
 	look = sky
 	editing = busy
 	for h in rig.hands:
-		_grips.append(Buttons.new(h).watch(["grip_click"]))
+		_grips.append(Buttons.new(h).watch(["grab"]))
 
 
 func _process(_delta: float) -> void:
 	for b in _grips:
 		var hand: Hand = b.hand
-		if holder == hand and (b.released("grip_click") or not hand.tracked()):
+		if holder == hand and (b.released("grab") or not hand.tracked()):
 			holder = null
 		if hand.tracked() and not hand.picking:
 			var dir := -hand.global_basis.z
 			if holder == hand:
 				aim(dir)
 				hand.point(null, BEAM, 30.0)
-			elif holder == null and b.pressed("grip_click") and not hand.taken() and not editing.call(hand) and Terrain.raycast(hand.global_position, dir) == null:
+			elif holder == null and b.pressed("grab") and not hand.taken() and not editing.call(hand) and Terrain.raycast(hand.global_position, dir) == null:
 				take(hand, dir)
 				hand.point(null, BEAM, 30.0)
 		b.latch()

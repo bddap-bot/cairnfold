@@ -24,6 +24,7 @@ const TOWER_HEIGHT := 4.5
 ## Bounds of a house's sides; the shorter side, under the ridge, stops at HOUSE_DEPTH.
 const HOUSE_SIDES := Vector2(2.4, 14.0)
 const HOUSE_DEPTH := 7.0
+enum RoofStyle { PITCHED, CONE, FLAT }
 const HOUSE_SIZE := Vector2(4.5, 4.5)
 const HOUSE_REACH := 6.0
 const TOP_BAND := 0.4
@@ -118,7 +119,7 @@ func _init(player: Rig, garden: World, plants: Flora, ways: Paths) -> void:
 	for h in [rig.right, rig.left]:
 		var m := Mason.new()
 		m.hand = h
-		m.buttons = Buttons.new(h).watch(["trigger_click", "grip_click", Controls.input("alternate", h.tracker)])
+		m.buttons = Buttons.new(h).watch(["tool", "grab"])
 		masons.append(m)
 
 
@@ -154,9 +155,6 @@ func _process(delta: float) -> void:
 		_hands_resize()
 	for m in _holders:
 		m.hand.hold()
-	for m in masons:
-		if m.buttons.pressed(Controls.input("alternate", m.hand.tracker)):
-			_alternate(m)
 	_since_rebuild += delta
 	if _dirty and _since_rebuild >= REBUILD_EVERY:
 		_flush()
@@ -168,24 +166,6 @@ func _process(delta: float) -> void:
 		m.buttons.latch()
 
 
-## A hand's alternate: rounds or squares a house being carried, else changes what its walls point at: a
-## gable end's style, a wall's top, or an arch through it.
-func _alternate(m: Mason) -> void:
-	if not _holders.is_empty():
-		round_house(not house_at.round)
-		return
-	if not m.hand.tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS]:
-		return
-	if _on_roof(m.pick, m.gable):
-		cycle_gable(m.gable.wall)
-	elif not m.pick.is_empty() and not m.pick.wall.layout.fence:
-		var p: Dictionary = m.pick
-		if p.point.y - p.wall.layout.point_at(p.s).y > p.wall.layout.height - TOP_BAND:
-			cycle_top(p.wall)
-		else:
-			toggle_arch(p.wall, p.s)
-
-
 func _handle(m: Mason) -> void:
 	m.pick = {}
 	m.gable = {}
@@ -193,9 +173,9 @@ func _handle(m: Mason) -> void:
 	if rig.aim_hand == m.hand:
 		_let_go(m)
 		return
-	if m.stroke != null and (not draws(m.hand) or m.buttons.released("trigger_click")):
+	if m.stroke != null and (not draws(m.hand) or m.buttons.released("tool")):
 		end_stroke(m)
-	if m.buttons.released("grip_click"):
+	if m.buttons.released("grab"):
 		if m.lifting != null:
 			end_lift(m)
 		if m.roofing != null:
@@ -217,12 +197,12 @@ func _handle(m: Mason) -> void:
 		if gable.get("along", INF) < roof.get("along", INF):
 			m.gable = gable
 		m.hand.point(m.gable.point if _on_roof(m.pick, m.gable) else roof.point if _on_roof(m.pick, roof) else m.ground if m.pick.is_empty() else m.pick.point, TINT)
-		if m.buttons.pressed("trigger_click") and m.ground != null and not busy(m.hand):
+		if m.buttons.pressed("tool") and m.ground != null and not busy(m.hand):
 			begin_stroke(m, m.ground, m.on)
-		elif m.buttons.held("trigger_click") and m.stroke != null and m.ground != null:
+		elif m.buttons.held("tool") and m.stroke != null and m.ground != null:
 			extend_stroke(m, m.ground)
 
-	if m.buttons.pressed("grip_click") and house == null and not busy(m.hand):
+	if m.buttons.pressed("grab") and house == null and not busy(m.hand):
 		var pick := pick_wall(origin, dir, true)
 		var roof := pick_roof(origin, dir, true)
 		var ground: Variant = Terrain.raycast(origin, dir)
@@ -237,9 +217,9 @@ func _handle(m: Mason) -> void:
 				_join(m, pick.wall)
 			else:
 				begin_lift(m, pick.wall, origin, pick.point)
-	elif m.buttons.held("grip_click") and m.lifting != null:
+	elif m.buttons.held("grab") and m.lifting != null:
 		drag_lift(m, origin.y)
-	elif m.buttons.held("grip_click") and m.roofing != null:
+	elif m.buttons.held("grab") and m.roofing != null:
 		drag_roof(m, origin)
 
 
@@ -397,15 +377,15 @@ func _house_input() -> void:
 	for m in masons:
 		if m.hand.tool not in [Hand.Tool.HOUSE, Hand.Tool.PLASTER_HOUSE] or rig.aim_hand == m.hand or not m.hand.get_has_tracking_data():
 			continue
-		if m.buttons.held("trigger_click"):
+		if m.buttons.held("tool"):
 			holders.append(m)
-			starting = starting or m.buttons.pressed("trigger_click")
+			starting = starting or m.buttons.pressed("tool")
 		elif house == null:
 			m.hand.point(aim(m.hand.global_position, -m.hand.global_basis.z).get("point"), TINT)
 	if house == null and (not starting or holders.any(func(m: Mason) -> bool: return busy(m.hand))):
 		return
 	for m in masons:
-		var gripping := m.buttons.pressed("grip_click") or (m in _holders and m.buttons.held("grip_click"))
+		var gripping := m.buttons.pressed("grab") or (m in _holders and m.buttons.held("grab"))
 		if not m in holders and gripping and m.hand.get_has_tracking_data() and m.stroke == null and m.lifting == null and m.roofing == null:
 			holders.append(m)
 	if house == null:
@@ -466,33 +446,10 @@ func place_house(at: Vector3, yaw: float, size: Vector2) -> void:
 		_lay_house()
 
 
-## The carried house as a round tower under a cone roof, as wide as the square's shorter side, or as a square house
-## as wide as the tower.
-func round_house(round: bool) -> void:
-	if round == house_at.round:
-		return
-	house_at.round = round
-	var side := clampf(minf(house_at.size.x, house_at.size.y), HOUSE_SIDES.x, HOUSE_DEPTH)
-	house_at.size = Vector2(side, side)
-	house.roof.kind = RoofLayout.Kind.CONE if round else RoofLayout.Kind.GABLE
-	house.layout.height = TOWER_HEIGHT if round else HOUSE_HEIGHT
-	_lay_house()
-	if not _holders.is_empty():
-		_hold_start = house_at.duplicate()
-		_hold_from.clear()
-		for m in _holders:
-			_hold_from.append(m.hand.global_transform)
-
-
 func _lay_house() -> void:
 	var outline := WallTool.outline(house_at)
 	house.layout.points = outline
-	if house_at.round:
-		house.roof.center = house_at.center
-		house.roof.radius = house_at.size.x * 0.5
-		house.roof.pitch = clampf(house.roof.radius * 1.6, RoofLayout.PITCH.x, RoofLayout.PITCH.y)
-	else:
-		house.roof.pitch = minf(house_at.size.x, house_at.size.y) * 0.42
+	house.roof.pitch = pitch_for(house_at)
 	_meet(house)
 	_laid_at.append({"points": outline, "center": house_at.center, "yaw": house_at.yaw})
 	_house_dirty = true
@@ -545,6 +502,39 @@ static func outline(at: Dictionary) -> Array[Vector3]:
 		return WallLayout.circle(at.center, at.size.x * 0.5)
 	var span := footprint(at.center, at.yaw, at.size)
 	return WallLayout.rectangle(span.a, span.b, span.depth)
+
+
+## The pitch a house or tower standing as `at` is laid with.
+static func pitch_for(at: Dictionary) -> float:
+	if at.round:
+		return clampf(at.size.x * 0.8, RoofLayout.PITCH.x, RoofLayout.PITCH.y)
+	return minf(at.size.x, at.size.y) * 0.42
+
+
+static func roof_style(d: Dictionary) -> RoofStyle:
+	if d.roof.kind == RoofLayout.Kind.CONE:
+		return RoofStyle.CONE
+	return RoofStyle.FLAT if d.roof.pitch <= 0.0 else RoofStyle.PITCHED
+
+
+## The `reshape` that gives the house or tower with garden data `d` roof `style`. A cone stands it as a round tower
+## as wide as its shorter side; a pitched or flat roof on a tower stands it as a square house as wide.
+static func restyle_roof(d: Dictionary, style: RoofStyle) -> Dictionary:
+	var at := house_of(d)
+	var round := style == RoofStyle.CONE
+	var out := {"roof": {}}
+	if at.round != round:
+		var side := clampf(minf(at.size.x, at.size.y), HOUSE_SIDES.x, HOUSE_DEPTH)
+		at = {"center": at.center, "yaw": at.yaw, "size": Vector2(side, side), "round": round}
+		out = reshape_house(d, at)
+		out["height"] = TOWER_HEIGHT if round else HOUSE_HEIGHT
+		out["roof"]["kind"] = int(RoofLayout.Kind.CONE if round else RoofLayout.Kind.GABLE)
+		out["roof"]["pitch"] = pitch_for(at)
+	if style == RoofStyle.FLAT:
+		out["roof"]["pitch"] = 0.0
+	elif d.roof.pitch <= 0.0:
+		out["roof"]["pitch"] = pitch_for(at)
+	return out
 
 
 ## Where a built house stands, as `outline` takes it, from its garden data; {} for a build that is no house or tower.
@@ -837,30 +827,31 @@ func end_roof(m: Mason) -> void:
 		world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id))
 
 
-func cycle_gable(w: Wall) -> void:
-	gable_end = (w.layout.gable_end + 1) % WallLayout.GableEnd.size() as WallLayout.GableEnd
-	world.submit({"op": "reshape", "id": w.id, "data": {"gable_end": int(gable_end)}})
+## Whether the wall has an arch of its own at `s`.
+func arched(w: Wall, s: float) -> bool:
+	return Array(world.state.walls[w.id].arches).any(func(a: float) -> bool: return absf(w.layout.offset(a, s)) < WallLayout.ARCH_HALF * 2.0)
 
 
-func cycle_top(w: Wall) -> void:
-	if w.roof == null or w.roof.flat():
-		world.submit({"op": "reshape", "id": w.id, "data": {"top": (w.layout.top + 1) % WallLayout.Top.size()}})
-
-
-## Fills the wall's own arch nearest `s`, or cuts one there if it fits among the arches standing.
-func toggle_arch(w: Wall, s: float) -> void:
+## The wall's own arches with one cut at `s`, or with any there filled; null if an arch cannot stand there.
+func arches_at(w: Wall, s: float, arch: bool) -> Variant:
 	var own := Array(world.state.walls[w.id].arches)
-	for i in own.size():
-		if absf(w.layout.offset(own[i], s)) < WallLayout.ARCH_HALF * 2.0:
-			own.remove_at(i)
-			_set_arches(w, own)
-			return
-	for a in w.layout.live_arches:
-		if absf(w.layout.offset(a, s)) < WallLayout.ARCADE_GAP:
-			return
-	if w.layout.can_arch() and w.layout.fits_arch(s, w.layout.live_arches):
-		own.append(s)
-		_set_arches(w, own)
+	var near := func(a: float) -> bool: return absf(w.layout.offset(a, s)) < WallLayout.ARCH_HALF * 2.0
+	if not arch:
+		return PackedFloat32Array(own.filter(func(a: float) -> bool: return not near.call(a)))
+	if own.any(near):
+		return PackedFloat32Array(own)
+	if w.layout.live_arches.any(func(a: float) -> bool: return absf(w.layout.offset(a, s)) < WallLayout.ARCADE_GAP):
+		return null
+	if not w.layout.can_arch() or not w.layout.fits_arch(s, w.layout.live_arches):
+		return null
+	own.append(s)
+	return PackedFloat32Array(own)
+
+
+func toggle_arch(w: Wall, s: float) -> void:
+	var arches: Variant = arches_at(w, s, not arched(w, s))
+	if arches != null:
+		world.submit({"op": "reshape", "id": w.id, "data": {"arches": arches}})
 
 
 ## A pulled height, roof or erased stretch shows as pulled until its command comes back, or goes back if it is
@@ -869,10 +860,6 @@ func settle(id: int) -> void:
 	var w := find(id)
 	if w != null and not _held(w):
 		_relay(w)
-
-
-func _set_arches(w: Wall, arches: Array) -> void:
-	world.submit({"op": "reshape", "id": w.id, "data": {"arches": PackedFloat32Array(arches)}})
 
 
 ## Lays a wall as a reshape with `data` would leave it, through the path that lays the reshape itself, so what a
@@ -885,7 +872,11 @@ func show_reshaped(w: Wall, data: Dictionary) -> void:
 ## Lays a wall as the garden has it, with `data` in place of its own fields, with the arches the paths standing open
 ## in it, on and among the builds it meets.
 func _relay(w: Wall, data := {}) -> void:
-	w.set_data(world.state.walls[w.id].merged(data, true))
+	var now: Dictionary = world.state.walls[w.id]
+	var d := now.merged(data, true)
+	if data.has("roof"):
+		d.roof = now.roof.merged(data.roof, true)
+	w.set_data(d)
 	_meet(w)
 	w.layout.resample(Terrain.height_at, Terrain.water_at)
 	_reshaped(w)

@@ -52,7 +52,7 @@ func _init(player: Rig, builder: WallTool, plants: FloraTool, garden: World) -> 
 		for who in _charges.keys():
 			cancel(who))
 	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["trigger_click"]))
+		_buttons.append(Buttons.new(h).watch(["tool"]))
 		_rings.append(FloraTool.ring(TINT))
 		add_child(_rings[-1])
 
@@ -72,7 +72,7 @@ func _process(delta: float) -> void:
 		var live := hand.tool == Hand.Tool.DELETE and rig.aim_hand != hand and hand.get_has_tracking_data()
 		var t := hand.global_transform
 		if _cuts.has(hand):
-			if live and b.held("trigger_click"):
+			if live and b.held("tool"):
 				var target := hold(hand, t.origin, -t.basis.z)
 				hand.point(target.get("point"), TINT)
 				if target.has("mow"):
@@ -80,15 +80,15 @@ func _process(delta: float) -> void:
 			else:
 				let_go(hand)
 		elif _charges.has(hand):
-			if live and b.held("trigger_click"):
+			if live and b.held("tool"):
 				if charge(hand, t.origin, -t.basis.z, delta):
 					hand.point(t.origin - t.basis.z * ORB_REACH, TINT)
 			else:
 				cancel(hand)
-		elif live and b.pressed("trigger_click") and sky(-t.basis.z):
+		elif live and b.pressed("tool") and sky(-t.basis.z):
 			charge(hand, t.origin, -t.basis.z, delta)
 		elif live:
-			if b.pressed("trigger_click"):
+			if b.pressed("tool"):
 				press(hand, t.origin, -t.basis.z)
 			else:
 				var target := aim(t.origin, -t.basis.z)

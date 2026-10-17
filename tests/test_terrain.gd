@@ -133,7 +133,7 @@ func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
 		if o.y < Terrain.height_at(o.x, o.z) - 0.6:
 			buried += 1
 	_check(buried == 0, "no stone is left buried under the raised ground, %d are" % buried)
-	await _play([{"op": "press", "button": "right_stick_down"}])
+	await _play([{"op": "press", "button": "dpad_down"}])
 	await _settles(w, "a wall the ground sank back under settles")
 	_check(_on_ground(w) < 0.01 and absf(w.layout.samples[w.layout.samples.size() / 2].y - mid.y) < 0.01, "undoing the hill sets the wall back down on the ground")
 

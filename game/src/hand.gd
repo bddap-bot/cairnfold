@@ -4,7 +4,7 @@ extends XRController3D
 ## A controller and the tool it holds. Every tool's input code dispatches on `tool`, and the object on top
 ## of the controller and the selection wheel show it, so they cannot disagree.
 
-enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, PLASTER_WALLS, PLASTER_HOUSE, HANDS, SEEDS, DIRT_PATH }
+enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, PLASTER_WALLS, PLASTER_HOUSE, HANDS, SEEDS, DIRT_PATH, STYLE }
 
 ## The wheel's contents, clockwise from the top; an Array is a subtree, null an empty slot. Subtrees sit
 ## on slots reached by a sideways swing, so their items open on the other side. Fixed, so every pick is a
@@ -17,7 +17,7 @@ const TREE := [
 	Tool.DELETE,
 	[Tool.PATH, Tool.DIRT_PATH, Tool.STONE],
 	[Tool.WALLS, Tool.PLASTER_WALLS, Tool.FENCE, Tool.WINDOWS],
-	[Tool.HOUSE, Tool.PLASTER_HOUSE, Tool.DECORATIONS],
+	[Tool.HOUSE, Tool.PLASTER_HOUSE, Tool.DECORATIONS, Tool.STYLE],
 ]
 const TOP := Vector3(0, 0.0075, 0.045)
 const POP := 0.18
@@ -31,15 +31,22 @@ static var _disc: CylinderMesh
 const WHEEL_LAYER := 1 << 19
 static var _unshaded := {}
 
+## The stick pushed one way, as the input named for it: past PUSH, along whichever way it is pushed most, it
+## holds that way until it comes back inside LET_GO, so one flick is one input.
+const FLICKS := {"primary_up": Vector2(0, 1), "primary_down": Vector2(0, -1), "primary_left": Vector2(-1, 0), "primary_right": Vector2(1, 0)}
+const PUSH := 0.7
+const LET_GO := 0.3
+
 ## Stick positions the driver injects, keyed by tracker.
 static var injected_sticks := {}
 ## Hand positions in the wheel's plane the driver injects, keyed by tracker, in place of the hand's own.
 static var injected_reach := {}
 
 var tool := Tool.WALLS
+## The way the stick is flicked (a FLICKS key), or "".
+var flick := ""
 var picking := false
 var _wheel: ToolWheel
-var _wheel_button: String
 var _profile := ""
 var _holding := false
 ## Desktop only: the driver holds this hand where tracking would put it.
@@ -93,8 +100,7 @@ func _init(tracker_name: String, held: Tool) -> void:
 	_dot.top_level = true
 	_dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_dot)
-	_wheel_button = Controls.input("wheel", tracker_name)
-	_buttons = Buttons.new(self).watch([_wheel_button])
+	_buttons = Buttons.new(self).watch(["wheel"])
 
 
 ## A subtree's icon is its items in miniature, two by two.
@@ -245,11 +251,25 @@ func hold() -> void:
 
 func _process(delta: float) -> void:
 	_log_profile()
+	_flick_input()
 	_holding = false
 	clear_pointer()
 	_select_input(delta)
 	_buttons.latch()
 	_show_tool(delta)
+
+
+func _flick_input() -> void:
+	var s := stick()
+	if flick != "":
+		if s.length() < LET_GO:
+			flick = ""
+		return
+	if s.length() <= PUSH:
+		return
+	for way in FLICKS:
+		if s.dot(FLICKS[way]) >= s.length() * cos(PI / 4):
+			flick = way
 
 
 ## The interaction profile the runtime bound this hand to, logged with the wheel's input on each change, so a
@@ -259,17 +279,17 @@ func _log_profile() -> void:
 	var profile := t.profile if t != null else ""
 	if profile != _profile:
 		_profile = profile
-		print("controls: %s on %s, wheel %s" % [tracker, profile, _wheel_button])
+		print("controls: %s on %s, wheel %s" % [tracker, profile, Controls.input("wheel", tracker)])
 
 
 ## Hold the wheel button and the wheel opens where the hand is, facing the head; sweep the hand
 ## onto a tool, or onto a subtree and on into it; let go to take the tool the hand is on.
 func _select_input(delta: float) -> void:
 	if _wheel == null:
-		if not _buttons.pressed(_wheel_button):
+		if not _buttons.pressed("wheel"):
 			return
 		_wheel = ToolWheel.new(TREE)
-		print("wheel: %s opened on %s" % [tracker, _wheel_button])
+		print("wheel: %s opened" % tracker)
 		picking = true
 		var cam := get_viewport().get_camera_3d()
 		var head := cam.global_position if cam != null else global_position + global_basis.z
@@ -284,7 +304,7 @@ func _select_input(delta: float) -> void:
 		p = Vector2(local.x, local.y)
 	_wheel.move(p)
 	_show_wheel(delta)
-	if _buttons.released(_wheel_button):
+	if _buttons.released("wheel"):
 		var pick: Variant = _wheel.chosen()
 		if pick != null:
 			tool = pick

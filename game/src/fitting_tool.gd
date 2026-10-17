@@ -48,7 +48,7 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 	world = garden
 	lamps.install()
 	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["trigger_click"]))
+		_buttons.append(Buttons.new(h).watch(["tool"]))
 		var ghosts := {}
 		for what in ToolModels.FITTING_PARTS:
 			if what == "window":
@@ -79,7 +79,7 @@ func _process(delta: float) -> void:
 				world.preview(hand, world.change_of(cmd))
 				if target.what == "window" and change(target).near < 0 and not cmd.is_empty():
 					shown[cmd.id] = cmd.data.windows
-			if b.pressed("trigger_click") and not walls.busy(hand) and not fit(target, hand):
+			if b.pressed("tool") and not walls.busy(hand) and not fit(target, hand):
 				_shaken[i] = 0.0
 				Hand.bump(hand)
 			if not hand.picking and hand.tool == Hand.Tool.DECORATIONS:

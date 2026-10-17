@@ -70,7 +70,7 @@ func _init(player: Rig, garden: World, busy: Callable = func(_hand: Hand) -> boo
 		var g := Grab.new()
 		g.hand = h
 		g.slot = _grabs.size()
-		g.grip = Buttons.new(h).watch(["grip_click"])
+		g.grip = Buttons.new(h).watch(["grab"])
 		g.ring = MeshInstance3D.new()
 		g.ring.mesh = ring
 		g.ring.material_override = mat
@@ -102,7 +102,7 @@ func _handle(g: Grab, delta: float) -> void:
 	var hand := g.hand
 	g.ring.visible = false
 	if g.gripped:
-		if rig.aim_hand == hand or hand.taken() or not g.grip.held("grip_click"):
+		if rig.aim_hand == hand or hand.taken() or not g.grip.held("grab"):
 			end_stroke(hand)
 			return
 		_show_ring(g.ring, g.at, g.radius)
@@ -112,7 +112,7 @@ func _handle(g: Grab, delta: float) -> void:
 		follow(hand, delta)
 		_tick(g)
 		return
-	if not g.grip.pressed("grip_click") or g.at != null or hand.taken() or hand.picking or rig.aim_hand == hand or not hand.get_has_tracking_data() or editing.call(hand):
+	if not g.grip.pressed("grab") or g.at != null or hand.taken() or hand.picking or rig.aim_hand == hand or not hand.get_has_tracking_data() or editing.call(hand):
 		return
 	var t := hand.global_transform
 	var hit: Variant = Terrain.raycast(t.origin, -t.basis.z)

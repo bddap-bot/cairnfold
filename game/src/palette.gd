@@ -82,11 +82,6 @@ static func tint(element: Element, index: int) -> Color:
 	return Color(c.r / base.r, c.g / base.g, c.b / base.b)
 
 
-## The swatch a twist of `degrees` (clockwise positive) from `start` lands on, wrapping round the wheel.
-static func twisted(element: Element, start: int, degrees: float) -> int:
-	return posmod(start + roundi(degrees / TWIST_STEP), count(element))
-
-
 ## The shader globals season `index` sets, by name.
 static func globals(index: int) -> Dictionary:
 	var out := {}

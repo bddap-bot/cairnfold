@@ -18,7 +18,7 @@
   {"op": "view", "eye": [0, 4, 16], "at": [0, 0, -2]},
   {"op": "capture", "name": "03-after"},
   {"op": "digest", "name": "wiped"},
-  {"op": "press", "button": "right_stick_down"},
+  {"op": "press", "button": "dpad_down"},
   {"op": "wait", "seconds": 3},
   {"op": "view", "eye": [0, 4, 16], "at": [0, 0, -2]},
   {"op": "capture", "name": "04-undo"},

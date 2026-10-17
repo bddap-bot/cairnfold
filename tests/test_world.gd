@@ -216,8 +216,11 @@ func _gable_ends_go_through_the_host() -> void:
 	_check(world.state.walls[id].gable_end == WallLayout.GableEnd.STEPS and main.tool.find(id).layout.gable_end == WallLayout.GableEnd.STEPS, "the house is laid again with crow steps")
 	world._order({"op": "undo"}, 2)
 	_check(world.state.walls[id].gable_end == WallLayout.GableEnd.WALL and main.tool.find(id).layout.gable_end == WallLayout.GableEnd.WALL, "an undo puts the wall's back")
-	main.tool.cycle_gable(main.tool.find(id))
-	_check(world.state.walls[id].gable_end == WallLayout.GableEnd.BOARDS and main.tool.gable_end == WallLayout.GableEnd.BOARDS, "the right A turns them to the next style")
+	var picker: PaletteTool = main.palette_tool
+	picker.open(main.rig.right, picker.style_target(PaletteTool.Restyle.GABLE, main.tool.find(id), Vector3.ZERO))
+	picker.twist(main.rig.right, Palette.TWIST_STEP)
+	picker.close(main.rig.right)
+	_check(world.state.walls[id].gable_end == WallLayout.GableEnd.BOARDS and main.tool.gable_end == WallLayout.GableEnd.BOARDS, "a twist of the style tool on them turns them to the next style")
 	world.restore(world.snapshot())
 	_check(world.state.walls[id].gable_end == WallLayout.GableEnd.BOARDS and main.tool.find(id).layout.gable_end == WallLayout.GableEnd.BOARDS, "a save carries them")
 	main.tool.begin_house(Terrain.ground(-20, 30), 0.0)

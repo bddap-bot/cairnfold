@@ -28,7 +28,7 @@ func _init(player: Rig, ground_grab: GroundGrab, ponds: Water) -> void:
 	terrain = ground_grab
 	water = ponds
 	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["trigger_click"]))
+		_buttons.append(Buttons.new(h).watch(["tool"]))
 
 
 func _process(delta: float) -> void:
@@ -42,20 +42,20 @@ func _process(delta: float) -> void:
 func _handle(b: Buttons, delta: float) -> void:
 	var hand: Hand = b.hand
 	var holding := hand.tool == Hand.Tool.POND and rig.aim_hand != hand
-	if digger == hand and (not holding or b.released("trigger_click")):
+	if digger == hand and (not holding or b.released("tool")):
 		end()
 	if not holding or not hand.get_has_tracking_data():
 		return
 	if digger == hand:
 		hand.point(_at, TINT)
 		terrain.world.preview(hand, terrain.world.change_of({"op": "heights", "seed": Terrain.grid_point(_at.x, _at.z)}))
-		if b.held("trigger_click"):
+		if b.held("tool"):
 			deepen(delta)
 		return
 	var t := hand.global_transform
 	var hit: Variant = Terrain.raycast(t.origin, -t.basis.z)
 	hand.point(hit, TINT)
-	if hit != null and b.pressed("trigger_click") and digger == null and not terrain.busy(hand):
+	if hit != null and b.pressed("tool") and digger == null and not terrain.busy(hand):
 		begin(hand, hit)
 
 
