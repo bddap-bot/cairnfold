@@ -221,19 +221,19 @@ func _the_eraser_sweeps_a_ruin_and_undo_mends_it() -> void:
 	main.tool.toggle_arch(w, w.layout.closest_s(Terrain.ground(6.2, -10)))
 	await process_frame
 	_check(world.state.walls[w.id].arches == arches and world.stacks[world.me()].undo.size() == steps, "no arch opens in a ruin")
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await _play([{"op": "press", "button": "right_stick_down"}])
 	_check(world.state.walls[w.id].ruins.size() == 1, "undo mends the last one")
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await _play([{"op": "press", "button": "right_stick_down"}])
 	_check(world.state.walls[w.id].ruins.is_empty() and w.layout.ruins.is_empty(), "and the next the first")
 	await _play([{"op": "erase", "points": [[-6, -10], [-4, -10], [-8, -10]], "seconds": 0.4}])
 	ruins = world.state.walls[w.id].ruins
 	_check(ruins.size() == 1 and ruins[0].y - ruins[0].x > 3.5 and ruins[0].y - ruins[0].x < 4.5, "a sweep that turns back breaks everything it passed over: %s" % ruins)
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await _play([{"op": "press", "button": "right_stick_down"}])
 	# The turn must survive even when the entire gesture fits between two frames.
 	for seconds in [0.4, 0.000001]:
 		await _play([{"op": "erase", "points": [[-9.8, -10], [11, -10], [-11, -10]], "seconds": seconds}])
 		_check(walls.is_empty(), "sweeping the whole wall takes it")
-		await _play([{"op": "press", "button": "dpad_down"}])
+		await _play([{"op": "press", "button": "right_stick_down"}])
 		_check(walls.size() == 1, "undo stands it again")
 	await _play([{"op": "house", "at": [0.0, 8.0], "size": [8.0, 5.0], "seconds": 0.3}])
 	var house := walls[-1]

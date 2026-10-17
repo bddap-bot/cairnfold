@@ -36,7 +36,8 @@ var aim_lift := 0.0
 var floor_under := func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z)
 ## Where a ray first meets something solid short of a reach, the ground aside, as `WallTool.solid_hit` finds it, or null.
 var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Variant: return null
-var _turned := false
+var _moves: Buttons
+var _turns: Buttons
 var _fade_t := -1.0
 var _pending: Variant = null
 var _aim_clock := 0.0
@@ -63,6 +64,8 @@ func _init() -> void:
 	hands = [left, right]
 	for h in hands:
 		add_child(h)
+	_moves = Buttons.new(left).watch([Controls.input("teleport", left.tracker)])
+	_turns = Buttons.new(right).watch([Controls.input("turn_left", right.tracker), Controls.input("turn_right", right.tracker)])
 	_build_markers()
 
 
@@ -114,11 +117,13 @@ func _marker(mesh: Mesh, mat: Material) -> MeshInstance3D:
 
 func _process(delta: float) -> void:
 	_locomotion_input(delta)
+	_moves.latch()
+	_turns.latch()
 	_fade_step(delta)
 
 
 func _locomotion_input(delta: float) -> void:
-	if aim_hand == null and left.stick().y > 0.65:
+	if aim_hand == null and _moves.held(Controls.input("teleport", left.tracker)):
 		aim_hand = left
 	if aim_hand != null and aim_hand.picking:
 		_end_aim()
@@ -136,13 +141,10 @@ func _locomotion_input(delta: float) -> void:
 		while _aim_trail.size() > 1 and _aim_trail[1][0] <= _aim_clock - RELEASE_LOOKBACK:
 			_aim_trail.pop_front()
 	else:
-		var x := right.stick().x
-		if absf(x) > 0.7:
-			if not _turned:
-				snap_turn(-signf(x) * SNAP)
-			_turned = true
-		elif absf(x) < 0.3:
-			_turned = false
+		if _turns.pressed(Controls.input("turn_left", right.tracker)):
+			snap_turn(SNAP)
+		if _turns.pressed(Controls.input("turn_right", right.tracker)):
+			snap_turn(-SNAP)
 
 
 func _end_aim() -> void:

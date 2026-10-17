@@ -13,7 +13,8 @@ build order.
 Each hand holds a tool, shown as a small object on top of its controller: walls,
 cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, camera, seeds, delete or visit.
 
-- Hold B (right) or View (left), and a wheel of tools stands up in front of that
+- Hold the upper face button (B on the right, Y on the left; on the Steam Frame B, X
+  or Y on the right, D-pad up, left or right on the left), and a wheel of tools stands up in front of that
   hand: sweep the hand onto a tool and let go to take it. A slot showing a little
   cluster opens more tools on its far side: swing back onto one. Picks zig-zag
   left and right, the same motion every time.
@@ -48,23 +49,20 @@ cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, camer
   with them. While visiting, pick the little cairn to go home.
 - The wall and house groups offer stone and plaster miniatures. Plaster keeps stone bases,
   corners and opening trim; either material supports the same roofs and fittings.
-- Holding walls: A on a wall cuts or fills an arch, A on its top changes its style; a wall drawn
-  round into a loop stays a wall.
+- Holding walls: the lower face button (A on the right, X on the left; D-pad down
+  on the Frame's left) on a wall cuts or fills an arch, on its top changes its style;
+  a wall drawn round into a loop stays a wall.
 - Holding the house: trigger takes up a house where you point; carry it,
-  add the other grip to turn it and stretch it between your hands; A while
+  add the other grip to turn it and stretch it between your hands; either lower face button while
   carrying rounds it into a tower, or squares it again; let go to build.
 - Left stick forward: aim a teleport from the left hand, whatever it holds;
   release to go, into the sky to float. Ease the stick back to land nearer
   along the aim.
-- Right stick left/right: snap turn.
-- Left D-pad down: undo. Up: redo. One history across every tool; with others,
-  each player undoes only their own steps.
+- Right stick left/right: snap turn. Down: undo. Up: redo. One history across
+  every tool; with others, each player undoes only their own steps.
 - Animals come on their own, drawn by what you make: ducks to a pond, butterflies
   to painted flowers, and fireflies at dusk over both.
 - Your garden is saved after every edit and is back when the game starts again.
-
-On Quest Touch controllers, which have no D-pad: left X undoes, left Y redoes,
-right A cuts arches, and the wheels open on right B and left ≡.
 
 ## Running
 

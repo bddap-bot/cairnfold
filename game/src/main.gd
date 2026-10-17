@@ -83,7 +83,7 @@ func _ready() -> void:
 	if args.has("capture-dir"):
 		photo_tool.folder = str(args["capture-dir"]).path_join("photos")
 	add_child(photo_tool)
-	_undo_buttons = Buttons.new(rig.left).watch(["ax_button", "by_button"])
+	_undo_buttons = Buttons.new(rig.right).watch([Controls.input("undo", rig.right.tracker), Controls.input("redo", rig.right.tracker)])
 	var played := Session.played(args, get_tree().current_scene == self)
 	var me := Persona.new(str(args.get("name", "")), int(args.get("steam-app", OS.get_environment("SteamAppId"))), "user://name" if played else "", hash(OS.get_unique_id()))
 	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT if played else 0)), played, int(args.get("beacon-port", Session.BEACON_PORT)), me)
@@ -132,12 +132,12 @@ func _ready() -> void:
 	get_tree().auto_accept_quit = false
 
 
-## Left D-pad down undoes, up redoes; both wait while any hand's edit is under way.
+## Undo and redo wait while any hand's edit is under way.
 func _process(_delta: float) -> void:
 	if not _editing():
-		if _undo_buttons.pressed("ax_button"):
+		if _undo_buttons.pressed(Controls.input("undo", rig.right.tracker)):
 			world.undo()
-		if _undo_buttons.pressed("by_button"):
+		if _undo_buttons.pressed(Controls.input("redo", rig.right.tracker)):
 			world.redo()
 	_undo_buttons.latch()
 

@@ -5,24 +5,6 @@ extends Node
 ## A step marked "background" starts and the next one follows at once, as a camera glides while a wall is drawn.
 ## Each step starts once the garden's builds are laid, so it reads them as built.
 
-## The Steam Frame's buttons as SteamVR delivers them to a game bound through the Touch or Index
-## profiles (its frame_controller remapping): B, X and Y all arrive as right-hand B, View as left menu.
-const FRAME_BUTTONS := {
-	"A": ["right_hand", "ax_button"],
-	"B": ["right_hand", "by_button"],
-	"X": ["right_hand", "by_button"],
-	"Y": ["right_hand", "by_button"],
-	"dpad_down": ["left_hand", "ax_button"],
-	"dpad_up": ["left_hand", "by_button"],
-	"dpad_left": ["left_hand", "by_button"],
-	"dpad_right": ["left_hand", "by_button"],
-	"left_stick_click": ["left_hand", "primary_click"],
-	"right_stick_click": ["right_hand", "primary_click"],
-	"view": ["left_hand", "menu_button"],
-	"left_trigger": ["left_hand", "trigger_click"],
-	"right_trigger": ["right_hand", "trigger_click"],
-}
-
 signal finished
 
 var main: Node
@@ -74,9 +56,9 @@ func _wait(s: Dictionary) -> void:
 	await get_tree().create_timer(s.seconds).timeout
 
 
-## Holds a Frame button (see FRAME_BUTTONS) for `seconds`, through the same edges the controllers feed.
+## Holds a Frame control (see Controls.DEVICES) for `seconds`, through the same edges the controllers feed.
 func _press(s: Dictionary) -> void:
-	var key := "%s/%s" % FRAME_BUTTONS[s.button]
+	var key := "%s/%s" % Controls.DEVICES.frame[s.button]
 	Buttons.injected[key] = true
 	await get_tree().create_timer(s.get("seconds", 0.1)).timeout
 	Buttons.injected.erase(key)
@@ -90,7 +72,7 @@ func _press(s: Dictionary) -> void:
 ## "popping" one the frame after the pick.
 func _pick(s: Dictionary) -> void:
 	var hand: Hand = _hand(s)
-	var key := "%s/%s" % [hand.tracker, Hand.WHEEL_BUTTON[hand.tracker]]
+	var key := "%s/%s" % [hand.tracker, Controls.input("wheel", hand.tracker)]
 	var path: Array[int] = ToolWheel.paths(Hand.TREE)[Hand.Tool[s.tool.to_upper()]]
 	var start := hand.global_position
 	var reach := func(p: Vector2) -> void:

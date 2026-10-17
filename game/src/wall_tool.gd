@@ -98,7 +98,6 @@ var _resize_step := 0
 var quiet := false
 var _since_rebuild := 0.0
 var _dirty := false
-var _arch_button: Buttons
 ## Ids of builds to lay again at the end of the frame for what they meet.
 var _due := {}
 var _path_arches := {}
@@ -119,9 +118,8 @@ func _init(player: Rig, garden: World, plants: Flora, ways: Paths) -> void:
 	for h in [rig.right, rig.left]:
 		var m := Mason.new()
 		m.hand = h
-		m.buttons = Buttons.new(h).watch(["trigger_click", "grip_click"])
+		m.buttons = Buttons.new(h).watch(["trigger_click", "grip_click", Controls.input("alternate", h.tracker)])
 		masons.append(m)
-	_arch_button = Buttons.new(rig.right).watch(["ax_button"])
 
 
 static func draws(hand: Hand) -> bool:
@@ -156,22 +154,9 @@ func _process(delta: float) -> void:
 		_hands_resize()
 	for m in _holders:
 		m.hand.hold()
-	if _arch_button.pressed("ax_button") and not _holders.is_empty():
-		round_house(not house_at.round)
-	elif _arch_button.pressed("ax_button"):
-		for m in masons:
-			if not m.hand.tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS]:
-				continue
-			if _on_roof(m.pick, m.gable):
-				cycle_gable(m.gable.wall)
-				break
-			if not m.pick.is_empty() and not m.pick.wall.layout.fence:
-				var p: Dictionary = m.pick
-				if p.point.y - p.wall.layout.point_at(p.s).y > p.wall.layout.height - TOP_BAND:
-					cycle_top(p.wall)
-				else:
-					toggle_arch(p.wall, p.s)
-				break
+	for m in masons:
+		if m.buttons.pressed(Controls.input("alternate", m.hand.tracker)):
+			_alternate(m)
 	_since_rebuild += delta
 	if _dirty and _since_rebuild >= REBUILD_EVERY:
 		_flush()
@@ -181,7 +166,24 @@ func _process(delta: float) -> void:
 			m.hand.hold()
 		_preview(m)
 		m.buttons.latch()
-	_arch_button.latch()
+
+
+## A hand's alternate: rounds or squares a house being carried, else changes what its walls point at: a
+## gable end's style, a wall's top, or an arch through it.
+func _alternate(m: Mason) -> void:
+	if not _holders.is_empty():
+		round_house(not house_at.round)
+		return
+	if not m.hand.tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS]:
+		return
+	if _on_roof(m.pick, m.gable):
+		cycle_gable(m.gable.wall)
+	elif not m.pick.is_empty() and not m.pick.wall.layout.fence:
+		var p: Dictionary = m.pick
+		if p.point.y - p.wall.layout.point_at(p.s).y > p.wall.layout.height - TOP_BAND:
+			cycle_top(p.wall)
+		else:
+			toggle_arch(p.wall, p.s)
 
 
 func _handle(m: Mason) -> void:

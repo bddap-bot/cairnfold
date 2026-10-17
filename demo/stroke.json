@@ -12,7 +12,7 @@
   {"op": "wait", "seconds": 1},
   {"op": "capture", "name": "02-one-stroke"},
   {"op": "digest", "name": "02-one-stroke"},
-  {"op": "press", "button": "dpad_down"},
+  {"op": "press", "button": "right_stick_down"},
   {"op": "wait", "seconds": 1},
   {"op": "capture", "name": "03-one-undo"},
   {"op": "digest", "name": "03-one-undo"},

@@ -88,7 +88,7 @@ func _no_strike_through_hills() -> void:
 	await _play([{"op": "sculpt", "x": mid.x, "z": mid.z, "lift": 4.0, "radius": 1.5, "seconds": 0.5}])
 	_check(Terrain.height_at(mid.x, mid.z) > mid.y, "a hill rises between the eye and a tree")
 	_check(not tool.aim(eye, dir).has("plants"), "the beam does not strike the tree behind the hill")
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await _play([{"op": "press", "button": "right_stick_down"}])
 
 
 func _takes_marks() -> void:
@@ -118,9 +118,9 @@ func _mows() -> void:
 	left = flora.plants_near(meadow, 0.5)
 	_check(left.is_empty(), "and the meadow's own grass and flowers: %d left" % left.size())
 	_check(not flora.plants_near(Terrain.ground(4, 6), 0.5).is_empty(), "beyond the ring the meadow stands")
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await _play([{"op": "press", "button": "right_stick_down"}])
 	_check(not flora.plants_near(meadow, 0.5).is_empty(), "undo stands the mown meadow back up")
-	await _play([{"op": "press", "button": "dpad_up"}])
+	await _play([{"op": "press", "button": "right_stick_up"}])
 	_check(flora.plants_near(meadow, 0.5).is_empty(), "redo mows it again")
 
 
@@ -146,12 +146,12 @@ func _one_stroke() -> void:
 	_check(world.state.paths.is_empty(), "lifts the path")
 	_check(flora.plants_near(grass, 0.5).is_empty(), "and mows the meadow")
 	_check(world.stacks[world.me()].undo.size() == steps + 1, "as one undo step: %d" % (world.stacks[world.me()].undo.size() - steps))
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await _play([{"op": "press", "button": "right_stick_down"}])
 	_check(trees.all(_standing), "one undo stands both trees back up")
 	_check(Array(world.state.walls[wall.id].ruins).is_empty(), "makes the wall whole")
 	_check(world.state.paths.size() == 1, "lays the path again")
 	_check(not flora.plants_near(grass, 0.5).is_empty(), "and the meadow")
-	await _play([{"op": "press", "button": "dpad_up"}])
+	await _play([{"op": "press", "button": "right_stick_up"}])
 	_check(not trees.any(_standing) and world.state.paths.is_empty(), "redo takes the whole stroke again")
 	var show := {"op": "show", "plants": {}, "on": false}
 	var gone := {"op": "unpath", "id": 999999}

@@ -19,9 +19,6 @@ const TREE := [
 	[Tool.WALLS, Tool.PLASTER_WALLS, Tool.FENCE, Tool.WINDOWS],
 	[Tool.HOUSE, Tool.PLASTER_HOUSE, Tool.DECORATIONS],
 ]
-## Held to open the wheel: a face button nothing else takes on Touch-style or Frame controllers (left
-## menu arrives as the Frame's View button, right B as its B, X and Y).
-const WHEEL_BUTTON := {"left_hand": "menu_button", "right_hand": "by_button"}
 const TOP := Vector3(0, 0.0075, 0.045)
 const POP := 0.18
 const HOT := 1.4
@@ -43,6 +40,7 @@ var tool := Tool.WALLS
 var picking := false
 var _wheel: ToolWheel
 var _wheel_button: String
+var _profile := ""
 var _holding := false
 ## Desktop only: the driver holds this hand where tracking would put it.
 var held_still := false
@@ -95,7 +93,7 @@ func _init(tracker_name: String, held: Tool) -> void:
 	_dot.top_level = true
 	_dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_dot)
-	_wheel_button = WHEEL_BUTTON[tracker_name]
+	_wheel_button = Controls.input("wheel", tracker_name)
 	_buttons = Buttons.new(self).watch([_wheel_button])
 
 
@@ -246,11 +244,22 @@ func hold() -> void:
 
 
 func _process(delta: float) -> void:
+	_log_profile()
 	_holding = false
 	clear_pointer()
 	_select_input(delta)
 	_buttons.latch()
 	_show_tool(delta)
+
+
+## The interaction profile the runtime bound this hand to, logged with the wheel's input on each change, so a
+## device's log shows which of its controls the controls table landed on.
+func _log_profile() -> void:
+	var t := XRServer.get_tracker(tracker) as XRPositionalTracker
+	var profile := t.profile if t != null else ""
+	if profile != _profile:
+		_profile = profile
+		print("controls: %s on %s, wheel %s" % [tracker, profile, _wheel_button])
 
 
 ## Hold the wheel button and the wheel opens where the hand is, facing the head; sweep the hand
@@ -260,6 +269,7 @@ func _select_input(delta: float) -> void:
 		if not _buttons.pressed(_wheel_button):
 			return
 		_wheel = ToolWheel.new(TREE)
+		print("wheel: %s opened on %s" % [tracker, _wheel_button])
 		picking = true
 		var cam := get_viewport().get_camera_3d()
 		var head := cam.global_position if cam != null else global_position + global_basis.z
