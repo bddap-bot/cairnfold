@@ -146,11 +146,12 @@ if [ "${2:-}" = --android ]; then
   }
   # A Store or Library panel left open keeps the shell rendering beside the game and takes GPU time from it, which
   # no reading of the game's own App= time can subtract. A launch into a waking headset can also meet the shell's
-  # controller check, with the controllers idle, or be paused as it starts, which crashes Godot. A fresh shell, with
-  # the panels closed, starts with neither.
+  # controller check, with the controllers idle, or be paused as it starts, which crashes Godot; and while a
+  # first-time tip (com.oculus.firsttimenux) is up the shell holds every launch. A fresh shell, with the panels and
+  # the tip closed, starts with none of them.
   fresh_shell() {
     local app
-    for app in com.oculus.store com.oculus.panelapp.library com.oculus.vrshell; do adb shell am force-stop "$app"; done
+    for app in com.oculus.store com.oculus.panelapp.library com.oculus.firsttimenux com.oculus.vrshell; do adb shell am force-stop "$app"; done
     sleep 10
   }
   fresh_shell
