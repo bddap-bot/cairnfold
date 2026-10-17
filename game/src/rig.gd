@@ -34,8 +34,8 @@ var aim_ground: Variant = null
 var aim_lift := 0.0
 ## What a point stands on, as `WallTool.floor_under` finds it: the ground, or a flat roof's deck at or below it.
 var floor_under := func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z)
-## The nearest roof along a ray, as `WallTool.pick_roof` finds it: {along, point, flat}, or empty.
-var roof_hit := func(_origin: Vector3, _dir: Vector3) -> Dictionary: return {}
+## Where a ray first meets something solid short of a reach, the ground aside, as `WallTool.solid_hit` finds it, or null.
+var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Variant: return null
 var _turned := false
 var _fade_t := -1.0
 var _pending: Variant = null
@@ -157,29 +157,26 @@ static func reach_scale(y: float) -> float:
 	return lerpf(NEAREST, 1.0, clampf((y - DEADZONE) / (FULL_STICK - DEADZONE), 0.0, 1.0))
 
 
-## Cast the teleport ray from a pointing pose. Its full target is the ground or flat roof it hits, or, aimed above the
-## horizon with nothing within AIR_REACH, the point in the air at that reach; a pitched roof stops it with no target.
-## The target lies `fraction` of the way there along the ray, in the air above the floor short of a ground hit.
+## Cast the teleport ray from a pointing pose. Its full target is the first solid thing it hits, the ground, a roof
+## of any pitch, a wall's top or a tree, where the player then stands; or, aimed above the horizon with nothing within
+## AIR_REACH, the point in the air at that reach. The target lies `fraction` of the way there along the ray, in the
+## air above the floor short of a hit.
 func aim(from: Transform3D, fraction := 1.0) -> void:
 	var origin := from.origin
 	var dir := -from.basis.z.normalized()
 	var upward := dir.y > 0.0
 	var reach := AIR_REACH if upward else MAX_REACH
 	var hit: Variant = Terrain.raycast(origin, dir, reach)
-	var roof: Dictionary = roof_hit.call(origin, dir)
-	if not roof.is_empty() and roof.along <= reach and (hit == null or roof.along < origin.distance_to(hit)):
-		hit = roof.point if roof.flat else null
-		if hit == null:
-			aim_ground = null
-			hide_markers()
-			return
+	var solid: Variant = solid_hit.call(origin, dir, reach if hit == null else origin.distance_to(hit))
+	if solid != null:
+		hit = solid
 	if hit == null and not upward:
 		aim_ground = null
 		hide_markers()
 		return
 	var full: Vector3 = hit if hit != null else origin + dir * reach
 	var target := origin.lerp(full, fraction)
-	var g: float = floor_under.call(target)
+	var g: float = full.y if hit != null and fraction >= 1.0 else floor_under.call(target)
 	aim_ground = Vector3(target.x, g, target.z)
 	aim_lift = clampf(target.y - g, 0.0, MAX_LIFT)
 	if aim_hand != null:

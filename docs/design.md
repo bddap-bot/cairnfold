@@ -1246,6 +1246,13 @@ An eased target is a point on the ray whether the ray ends on the ground or in t
 landing there is the same float over whatever floor lies below it. Only a release from full forward
 reaches the ground the ray hit.
 
+Directive (verbatim): "I just wanna be able to raycast onto a sloped roof for a tree or something and still actually go there, because that's what I would expect as a player"
+
+The ray stops at the first solid thing it meets, the ground, a roof of any pitch or its gable end, the top of
+an open wall, a tree or a bush, and a release from full forward stands the player upright where it hit. There
+is no steepness limit: the player does not walk, so nothing slides off a slope. A wall's face lets the ray
+through, so a door or window still aims at the floor inside.
+
 Directive (verbatim): "I'd like to be able to use the grab button to grab the ground so ground terraforming becomes um... not a tool, it's just something that's always available. I just grab something. Grab the ground and push it down or pull it up"
 
 Directive (verbatim): "The grab button should always be grab"
@@ -1284,7 +1291,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Action | Control |
 | --- | --- |
 | Pick a hand's tool | Hold that hand's wheel button (right B, left View), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
-| Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it meets the ground or a flat roof's deck; aimed under a roof, as through a door or window, it lands on the floor inside; a pitched roof stops it; release to go |
+| Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it first meets something solid: the ground, a roof of any pitch, a wall's top or a tree; aimed under a roof, as through a door or window, it lands on the floor inside; release to go |
 | Teleport into the air | Aim above the horizon: with no ground within 30 m, the ray targets the point in the air at its end, a ring on a pole down to the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
 | Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the ground even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
 | Come back down | Aim the teleport ray at the ground |

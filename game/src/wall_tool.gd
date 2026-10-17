@@ -1077,8 +1077,25 @@ func pick_roof(origin: Vector3, dir: Vector3, held := false) -> Dictionary:
 			continue
 		var t := w.roof.ray_hit(origin, dir)
 		if t < best.get("along", INF):
-			best = {"wall": w, "along": t, "point": origin + dir * t, "flat": w.roof.flat()}
+			best = {"wall": w, "along": t, "point": origin + dir * t}
 	return best
+
+
+## Where a teleport ray from `origin` along `dir` first meets something solid to stand on short of `reach`, the
+## ground aside: a roof of any pitch or its gable end, the top of an unroofed wall, or a tree or bush; null for none.
+func solid_hit(origin: Vector3, dir: Vector3, reach: float) -> Variant:
+	var best := reach
+	for w in walls:
+		if _held(w):
+			continue
+		if w.roof != null:
+			best = minf(best, minf(w.roof.ray_hit(origin, dir), w.roof.gable_hit(origin, dir)))
+		elif w.massing != null and not w.layout.fence:
+			best = minf(best, _top_hit(w, origin, dir))
+	var plant := flora.solid_hit(origin, dir, best)
+	if not plant.is_empty():
+		best = plant.along
+	return origin + dir * best if best < reach else null
 
 
 ## The nearest gable end of a pitched roof along a ray, as {wall, along, point}, or empty.

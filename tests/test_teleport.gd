@@ -26,7 +26,7 @@ func _initialize() -> void:
 ## made ready with the root.
 func _finish(rig: Rig) -> void:
 	rig.set_process(false)
-	_a_flat_roof_is_floor_and_a_pitched_one_stops_the_ray(rig)
+	_a_ray_lands_on_any_roof_it_hits(rig)
 	await _stick_teleports_with_every_tool(rig)
 	await _eased_stick_lands_nearer(rig, Vector3(0, -0.3, -1), "ground")
 	await _eased_stick_lands_nearer(rig, Vector3(0, 1, -1), "air")
@@ -124,7 +124,7 @@ func _eased_air_target(rig: Rig) -> void:
 	_check(target.distance_to(o + dir * Rig.AIR_REACH * 0.4) < 0.01, "an eased air target sits nearer along the ray")
 
 
-func _a_flat_roof_is_floor_and_a_pitched_one_stops_the_ray(rig: Rig) -> void:
+func _a_ray_lands_on_any_roof_it_hits(rig: Rig) -> void:
 	var r := RoofLayout.new()
 	var ground := Terrain.height_at(0, -20)
 	r.corners = WallLayout.rectangle(Vector3(-3, ground, -20), Vector3(3, ground, -20), 4.0)
@@ -132,9 +132,9 @@ func _a_flat_roof_is_floor_and_a_pitched_one_stops_the_ray(rig: Rig) -> void:
 	r.pitch = 0.0
 	r.build()
 	rig.floor_under = func(p: Vector3) -> float: return maxf(Terrain.height_at(p.x, p.z), r.deck_under(p))
-	rig.roof_hit = func(o: Vector3, d: Vector3) -> Dictionary:
+	rig.solid_hit = func(o: Vector3, d: Vector3, reach: float) -> Variant:
 		var t := r.ray_hit(o, d)
-		return {} if t == INF else {"along": t, "point": o + d * t, "flat": r.flat()}
+		return o + d * t if t < reach else null
 	var o := Vector3(0, r.base + 4.0, -14)
 	rig.aim(_pose(o, Vector3(0, -4.0, -5.0)))
 	_check(rig.aim_ground != null and absf(rig.aim_ground.y - r.base) < 0.01 and rig.aim_lift < 0.15, "a ray onto a flat roof lands on its deck: %s" % [rig.aim_ground])
@@ -144,11 +144,29 @@ func _a_flat_roof_is_floor_and_a_pitched_one_stops_the_ray(rig: Rig) -> void:
 	_aims_into_the_house_land_on_its_floor(rig, r, "flat")
 	r.pitch = 2.0
 	r.build()
-	rig.aim(_pose(o, Vector3(0, -4.0, -5.0)))
-	_check(rig.aim_ground == null, "a pitched roof stops the ray: no landing inside the house beneath it")
+	var f := r.frame()
+	var slope: Vector3 = Vector3(f.mid.x, 0.0, f.mid.z) + f.across * r.half_span() * 0.5
+	slope.y = r.height_at(slope.x, slope.z)
+	var aims := {
+		"from the air above it": slope + Vector3(0, 9, 0) + f.across * 6.0,
+		"from the ground below its eaves": Terrain.ground(slope.x, slope.z) + f.across * (r.half_span() + 3.0) + Vector3.UP * 1.2,
+	}
+	for what: String in aims:
+		var from: Vector3 = aims[what]
+		rig.aim(_pose(from, slope - from))
+		var g: Variant = rig.aim_ground
+		var hit: Vector3 = from + (slope - from).normalized() * r.ray_hit(from, (slope - from).normalized())
+		_check(g != null and rig.aim_lift == 0.0 and g.distance_to(hit) < 0.01 and r.over(g.x, g.z), "a ray %s onto a pitched roof lands where it hits: %s for %s" % [what, g, hit])
+		if g == null:
+			continue
+		rig.place(g, rig.aim_lift)
+		var h := rig.head.global_position
+		var stand := rig.global_position
+		_check(absf(stand.y - r.height_at(h.x, h.z)) < 0.3 and stand.y - Terrain.height_at(h.x, h.z) > r.base - ground - 0.3, "aimed %s, the player stands on the slope, not in the air or inside: %.2f for roof %.2f" % [what, stand.y, r.height_at(h.x, h.z)])
+		_check(rig.global_basis.y.is_equal_approx(Vector3.UP), "aimed %s, the player stands upright on the slope" % what)
 	_aims_into_the_house_land_on_its_floor(rig, r, "pitched")
 	rig.floor_under = func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z)
-	rig.roof_hit = func(_o: Vector3, _d: Vector3) -> Dictionary: return {}
+	rig.solid_hit = func(_o: Vector3, _d: Vector3, _reach: float) -> Variant: return null
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 
 
