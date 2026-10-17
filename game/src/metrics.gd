@@ -144,12 +144,14 @@ func is_late(ms: float) -> bool:
 ## GPU time this process has used, summed over its DRM clients, from the kernel's fdinfo; -1 where the driver reports none.
 func gpu_ns() -> int:
 	if _drm_scan % 10 == 0:
-		var dir := DirAccess.open("/proc/self/fdinfo")
+		var dir := DirAccess.open("/proc/self/fd")
 		if dir == null:
 			return -1
 		_drm_fds.clear()
+		# Reading every fd's info held the Steam Frame's main thread for up to 15 ms, enough to drop a second to every
+		# other refresh. A link is read without the kernel writing anything, and a DRM fd's info is read once a second.
 		for fd in dir.get_files():
-			if _fdinfo(fd).contains("drm-client-id:"):
+			if dir.read_link(fd).begins_with("/dev/dri/"):
 				_drm_fds.append(fd)
 	_drm_scan += 1
 	var by_client := {}
