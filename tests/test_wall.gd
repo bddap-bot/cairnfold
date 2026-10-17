@@ -17,6 +17,7 @@ func _init() -> void:
 	_a_long_wall_splits_by_the_ground_under_each_stone()
 	_stone_faces_share_their_borders()
 	_settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach()
+	_full_stones_stand_only_near_the_eye()
 	_a_wall_over_water_stands_on_its_bed()
 	_a_narrow_crossing_takes_one_arch()
 	_a_low_wall_crosses_as_a_causeway()
@@ -157,7 +158,7 @@ func _a_long_wall_splits_by_the_ground_under_each_stone() -> void:
 	var w := _wall(40.0, 1.5, [])
 	var packed := Wall.pack(w, Wall.kinds(), Palette.plain())
 	var chunks: Dictionary = packed.chunks[Wall.Part.STONE]
-	_check(chunks.size() >= 3, "a 40 m wall spans at least three 16 m chunks, got %d" % chunks.size())
+	_check(chunks.size() >= 3, "a 40 m wall spans at least three chunks, got %d" % chunks.size())
 	var total := 0
 	for key in chunks:
 		var buf: PackedFloat32Array = chunks[key]
@@ -226,6 +227,36 @@ func _wet(width: float, height: float) -> WallLayout:
 	var hi := 6.0 + width * 0.5
 	w.build(func(x: float, _z: float) -> float: return -1.0 if x > lo and x < hi else 0.08, _surface)
 	return w
+
+
+## Walls fill the ground around the eye; at the ladder's bottom step only the chunks around the eye's own may draw
+## their stones in full, the rest the far mesh.
+func _full_stones_stand_only_near_the_eye() -> void:
+	var ks := Wall.kinds()
+	var stone := ks[Wall.Part.STONE]
+	var m := Masonry.new(ks)
+	var buf := PackedFloat32Array()
+	buf.resize(64 * 64 * stone.stride())
+	var n := 0
+	for x in range(-32, 32):
+		for z in range(-32, 32):
+			buf[n * stone.stride() + 3] = x + 0.5
+			buf[n * stone.stride() + 11] = z + 0.5
+			n += 1
+	var parts: Array[Dictionary] = []
+	for k in ks.size():
+		parts.append(Masonry.split(buf, stone.stride()) if k == Wall.Part.STONE else {})
+	Wall.approach(Quality.ladder[-1], INF, m)
+	m.place(1, parts)
+	var full := 0.0
+	var eye := Vector3(0.5, 1.65, 0.5)
+	for key in m._chunks:
+		var centre := Vector3(key.x + 0.5, 0.0, key.y + 0.5) * Masonry.CHUNK_METRES + Vector3.UP * WallLayout.HEIGHTS.y * 0.5
+		if eye.distance_to(centre) < m._chunks[key].instances[Wall.Part.STONE].visibility_range_end:
+			full += Masonry.CHUNK_METRES * Masonry.CHUNK_METRES
+	_check(full <= 256.0, "stones drawn in full over at most 256 m² around the eye at the bottom step, got %.0f" % full)
+	Wall.approach(Quality.ladder[0], INF, m)
+	m.free()
 
 
 func _a_wall_over_water_stands_on_its_bed() -> void:

@@ -7,11 +7,14 @@ extends Node3D
 ## their owner until they settle.
 
 ## A chunk is also the step of culling and of reach: the renderer culls a chunk's MultiMesh as a whole, by its
-## bounds, so each piece goes to the chunk under it, however long the wall it belongs to.
-const CHUNK_METRES := 16.0
-## How far a chunk's pieces reach from the centre of its bounds, where the renderer measures its distance: half its
-## diagonal, with room for slopes and what stands on them.
-const CHUNK_RADIUS := CHUNK_METRES * 0.8
+## bounds, so each piece goes to the chunk under it, however long the wall it belongs to. A whole chunk draws its
+## stones in full once any of it is near, so its size bounds how many full stones stand around the eye; a smaller
+## chunk costs draw calls.
+const CHUNK_METRES := 8.0
+## How far a chunk's pieces reach from the centre of its bounds, where the renderer measures its distance: half the
+## diagonal of a chunk holding the tallest wall on flat ground. A roof or slope standing higher can switch its top
+## stones to the far mesh a little inside the near distance, which only the ladder's lowest steps ever bring close.
+const CHUNK_RADIUS := sqrt(CHUNK_METRES * CHUNK_METRES * 2.0 + WallLayout.HEIGHTS.y * WallLayout.HEIGHTS.y) * 0.5
 
 ## An owner's pieces that stand in the light (`Kind.occludes`) changed: their buffers and strides, empty
 ## once it is gone.

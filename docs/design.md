@@ -298,7 +298,7 @@ density, and no build the player can make may bring the frame rate down.
 
 What makes building cheap:
 
-- Settled walls are drawn by `Masonry` per 16 m ground chunk: one MultiMesh per
+- Settled walls are drawn by `Masonry` per 8 m ground chunk: one MultiMesh per
   kind of piece per chunk, each piece in the chunk under it, so a chunk is culled
   and limited by distance by where its pieces stand, however long their wall. A
   wall being drawn or pulled draws itself until it settles.
