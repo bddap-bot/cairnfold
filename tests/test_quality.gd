@@ -1,6 +1,6 @@
 extends SceneTree
 
-## The quality ladder and the governor that walks it: godot4 --headless --path game --script ../tests/test_quality.gd
+## The quality ladder and the governor that walks it: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_quality.gd
 
 const BUDGET := 12.5
 const DT := 1.0 / 72.0

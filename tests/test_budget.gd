@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Headless checks of the frame budget: what the garden counts follows every placement and deletion, an edit that
 ## would take it past the budget is turned down whole, and deleting makes room again:
-## godot4 --headless --path game --script ../tests/test_budget.gd
+## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_budget.gd
 
 var failures := 0
 var main: Node

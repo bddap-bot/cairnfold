@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of the rendered audio against its manifest: godot4 --headless --path game --script ../tests/test_sound.gd
+## Headless checks of the rendered audio against its manifest: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_sound.gd
 
 const TAIL := 3.0
 

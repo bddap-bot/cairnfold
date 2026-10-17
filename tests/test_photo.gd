@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of the camera tool: godot4 --headless --path game --script ../tests/test_photo.gd
+## Headless checks of the camera tool: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_photo.gd
 ## The shot itself needs a renderer; demo/photo.json takes photos on the desktop.
 
 var failures := 0

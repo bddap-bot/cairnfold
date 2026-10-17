@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of builds standing on builds and builds joining: godot4 --headless --path game --script ../tests/test_build_on.gd
+## Headless checks of builds standing on builds and builds joining: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_build_on.gd
 
 var failures := 0
 

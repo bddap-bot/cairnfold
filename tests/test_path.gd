@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of paths and wall chemistry: godot4 --headless --path game --script ../tests/test_path.gd
+## Headless checks of paths and wall chemistry: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_path.gd
 
 var failures := 0
 

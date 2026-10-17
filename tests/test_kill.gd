@@ -2,7 +2,7 @@ extends SceneTree
 
 ## A process killed while it writes leaves the garden it last finished saving and session chunks that each
 ## open with their start record; a quit writes the garden and the end record before anything else:
-## godot4 --headless --path game --script ../tests/test_kill.gd
+## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_kill.gd
 ## Given `-- writer DIR` it is the process that gets killed, saving and logging into DIR until it is.
 
 const ROUNDS := 6
@@ -65,12 +65,13 @@ func _run() -> void:
 	for round in ROUNDS:
 		var before := _read(path)
 		var pid := OS.create_process(OS.get_executable_path(), ["--headless", "--path", ProjectSettings.globalize_path("res://"), "--script", script, "--", "writer", dir])
-		var until := Time.get_ticks_msec() + 30000
+		var until := Time.get_ticks_msec() + 60000
 		while _read(path) == before and Time.get_ticks_msec() < until:
 			OS.delay_msec(5)
 		OS.delay_msec(randi_range(10, 150))
 		OS.kill(pid)
-		OS.delay_msec(50)
+		while OS.is_process_running(pid):
+			OS.delay_msec(1)
 		_check(_read(path) >= 0, "round %d: a kill mid-write leaves a whole garden" % round)
 	_check_chunks()
 	await _quit_writes_first()

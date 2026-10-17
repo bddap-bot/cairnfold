@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Scripted and test instances never beacon past loopback, beacons carry each host's name to the visit picker, and a
 ## garden of another build stands there with an X and cannot be joined:
-## godot4 --headless --path game --script ../tests/test_beacon.gd
+## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_beacon.gd
 
 ## A documentation address, which no host answers: joining it reaches no other run's garden.
 const NOBODY := "192.0.2.1"

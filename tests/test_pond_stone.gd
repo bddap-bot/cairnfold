@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless checks of stone in ponds: stone ground painted on a pond's bed, and walls crossing water on arches
-## whose pillars stand on the bed: godot4 --headless --path game --script ../tests/test_pond_stone.gd
+## whose pillars stand on the bed: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_pond_stone.gd
 
 var failures := 0
 var main: Node
@@ -40,7 +40,7 @@ func _play(steps: Array) -> void:
 
 ## Lets a refill and the walls' rebuilds on worker threads finish.
 func _settle() -> void:
-	await create_timer(1.0).timeout
+	await process_frame
 	for w in main.tool.walls:
 		while w.laying():
 			await process_frame

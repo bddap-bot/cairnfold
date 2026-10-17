@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of shaping the ground: godot4 --headless --path game --script ../tests/test_terrain.gd
+## Headless checks of shaping the ground: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_terrain.gd
 
 var failures := 0
 var main: Node
@@ -145,19 +145,14 @@ func _a_lay_reads_the_ground_it_started_on() -> void:
 	w.lay_now()
 	var laid := w.layout.samples.duplicate()
 	var gate := Semaphore.new()
-	var started := [0]
-	var lock := Mutex.new()
+	var started := Semaphore.new()
 	var holds := []
 	for t in OS.get_processor_count():
 		holds.append(WorkerThreadPool.add_task(func() -> void:
-			lock.lock()
-			started[0] += 1
-			lock.unlock()
+			started.post()
 			gate.wait(), true))
-	var deadline := Time.get_ticks_msec() + 5000
-	while started[0] < holds.size() and Time.get_ticks_msec() < deadline:
-		OS.delay_msec(1)
-	_check(started[0] == holds.size(), "every worker thread is held, %d of %d" % [started[0], holds.size()])
+	for h in holds:
+		started.wait()
 	w.rebuild(false)
 	var cells := Terrain.cells_around(0, -2.5, 6.0)
 	var before := Terrain.read(cells)

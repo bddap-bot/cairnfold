@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless checks of keeping the garden: autosaved after every edit, loaded whole, and unreadable files
-## reported: godot4 --headless --path game --script ../tests/test_keep.gd
+## reported: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_keep.gd
 
 var failures := 0
 var main: Node
@@ -96,7 +96,6 @@ func _a_flat_roof_is_kept() -> void:
 		{"op": "house", "at": [-4, -4], "size": [4, 2.5], "seconds": 0.3},
 		{"op": "roof", "index": 0, "pitch": 0.2},
 		{"op": "roof", "index": 1, "pitch": 0.0},
-		{"op": "wait", "seconds": 0.2},
 	])
 	await _settled()
 	var picture := _picture()

@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of the animals' calls: godot4 --headless --path game --script ../tests/test_calls.gd
+## Headless checks of the animals' calls: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_calls.gd
 
 const STEP := 1.0 / 30.0
 

@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless checks of windows, doors, lanterns, flags, chimneys and fences, as layouts and through the tools:
-## godot4 --headless --path game --script ../tests/test_fittings.gd
+## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_fittings.gd
 
 var failures := 0
 var main: Node

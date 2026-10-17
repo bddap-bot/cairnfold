@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless checks of ruins: the layout of a wall with stretches broken away, the eraser's arithmetic, the
-## schema, and the delete tool's sweep through the garden: godot4 --headless --path game --script ../tests/test_ruins.gd
+## schema, and the delete tool's sweep through the garden: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_ruins.gd
 
 var failures := 0
 var main: Node

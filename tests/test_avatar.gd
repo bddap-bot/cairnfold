@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of the VRM avatars: godot4 --headless --path game --script ../tests/test_avatar.gd
+## Headless checks of the VRM avatars: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_avatar.gd
 
 ## Public sample avatars (tests/avatars/README.md).
 const SAMPLES := ["crimsom-1.0.vrm", "crimsom-0.x.vrm", "godette-0.x.vrm"]

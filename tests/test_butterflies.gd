@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of butterflies: godot4 --headless --path game --script ../tests/test_butterflies.gd
+## Headless checks of butterflies: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_butterflies.gd
 
 const STEP := 1.0 / 30.0
 const AWAY := Vector3(0, -50, 0)

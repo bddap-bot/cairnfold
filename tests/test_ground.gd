@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of the ground mask and stone ground: godot4 --headless --path game --script ../tests/test_ground.gd
+## Headless checks of the ground mask and stone ground: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_ground.gd
 
 var failures := 0
 

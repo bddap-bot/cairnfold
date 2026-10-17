@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of ivy growth: godot4 --headless --path game --script ../tests/test_ivy.gd
+## Headless checks of ivy growth: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_ivy.gd
 
 var failures := 0
 

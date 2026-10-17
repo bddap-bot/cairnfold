@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless checks of time of day, seasons and the colour picker, as data and through the tools:
-## godot4 --headless --path game --script ../tests/test_daylight.gd
+## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_daylight.gd
 
 var failures := 0
 var main: Node

@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless checks of wiping the garden: the delete tool held at the sky empties every layer in one step, undo
-## brings back the garden as it was kept, and only the host may wipe: godot4 --headless --path game --script ../tests/test_wipe.gd
+## brings back the garden as it was kept, and only the host may wipe: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wipe.gd
 
 var failures := 0
 var main: Node
@@ -81,7 +81,6 @@ func _build() -> void:
 		{"op": "dig", "x": 12, "z": 10, "seconds": 1.0},
 		{"op": "colour", "hand": "left", "element": "roof", "swatch": 3, "seconds": 0.3},
 		{"op": "delete", "x": 30, "z": 0},
-		{"op": "wait", "seconds": 0.5},
 	])
 	await _settled()
 	var s := world.state
@@ -119,11 +118,11 @@ func _a_wipe_empties_every_layer_and_undo_brings_it_all_back() -> void:
 	_check(flora.grass.size() == flora.grass.kept and flora.flowers.size() == flora.flowers.kept and flora.trunks.size() == flora.trunks.kept, "and nothing painted or planted")
 	_check(world.palette.season == season, "the garden keeps its season")
 	var wiped := _picture()
-	await _play([{"op": "press", "button": "dpad_down"}, {"op": "wait", "seconds": 0.5}])
+	await _play([{"op": "press", "button": "dpad_down"}])
 	await _settled()
 	_check(world.seq == seq + 2 and _picture() == picture, "one undo brings the whole garden back")
 	_check(_kept() == before, "and keeps it exactly as it was kept before the wipe")
-	await _play([{"op": "press", "button": "dpad_up"}, {"op": "wait", "seconds": 0.5}])
+	await _play([{"op": "press", "button": "dpad_up"}])
 	await _settled()
 	_check(_picture() == wiped, "redo wipes it again")
 	world.restore({"seq": 0, "cmds": []})

@@ -1,6 +1,6 @@
 extends SceneTree
 
-## The metrics file: godot4 --headless --path game --script ../tests/test_metrics.gd
+## The metrics file: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_metrics.gd
 
 var failures := 0
 

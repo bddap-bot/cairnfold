@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of the tool wheel's selection by direction: godot4 --headless --path game --script ../tests/test_wheel.gd
+## Headless checks of the tool wheel's selection by direction: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wheel.gd
 
 var failures := 0
 

@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of towers, houses, roofs and wall tops: godot4 --headless --path game --script ../tests/test_house.gd
+## Headless checks of towers, houses, roofs and wall tops: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_house.gd
 
 var failures := 0
 

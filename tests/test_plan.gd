@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of how a stroke meets standing walls: godot4 --headless --path game --script ../tests/test_plan.gd
+## Headless checks of how a stroke meets standing walls: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_plan.gd
 
 var failures := 0
 

@@ -571,11 +571,11 @@ func growing() -> bool:
 	return not _growing.is_empty()
 
 
-## Grows the oldest strokes' plants for about `usec` microseconds, or all of them for a negative `usec`.
-func _grow(usec: int) -> void:
+## Grows the oldest strokes' plants for about `usec` microseconds of `clock`, or all of them for a negative `usec`.
+func _grow(usec: int, clock := Time.get_ticks_usec) -> void:
 	if _growing.is_empty():
 		return
-	var start := Time.get_ticks_usec()
+	var start: int = clock.call()
 	while not _growing.is_empty():
 		var g := _growing[0]
 		while g.next < g.spots.size():
@@ -587,7 +587,7 @@ func _grow(usec: int) -> void:
 					p.index = g.next
 				groups[g.group][g.next] = p
 			g.next += 1
-			if usec >= 0 and Time.get_ticks_usec() - start > usec:
+			if usec >= 0 and clock.call() - start > usec:
 				return
 		_growing.pop_front()
 	grown.emit()

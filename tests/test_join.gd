@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Walls drawn among standing walls and plants, through the driver: godot4 --headless --path game --script ../tests/test_join.gd
+## Walls drawn among standing walls and plants, through the driver: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_join.gd
 
 var failures := 0
 var main: Node

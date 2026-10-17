@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of empty hands: godot4 --headless --path game --script ../tests/test_hands.gd
+## Headless checks of empty hands: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_hands.gd
 
 var failures := 0
 var main: Node

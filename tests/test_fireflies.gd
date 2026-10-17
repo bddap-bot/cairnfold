@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of fireflies: godot4 --headless --path game --script ../tests/test_fireflies.gd
+## Headless checks of fireflies: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_fireflies.gd
 
 const STEP := 1.0 / 30.0
 

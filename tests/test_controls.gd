@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless checks of the Steam Frame's buttons, the tool wheel and the shared undo history, all pressed
-## through the driver: godot4 --headless --path game --script ../tests/test_controls.gd
+## through the driver: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_controls.gd
 
 var failures := 0
 var main: Node

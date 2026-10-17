@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless checks of hands that stop at what is solid and pulse when they touch:
-## godot4 --headless --path game --script ../tests/test_hand_stop.gd
+## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_hand_stop.gd
 
 var failures := 0
 var main: Node
@@ -19,7 +19,6 @@ func _initialize() -> void:
 func _run() -> void:
 	var d := Driver.new(main, [
 		{"op": "wall", "points": [[-3, -6], [3, -6]], "seconds": 0.2},
-		{"op": "wait", "seconds": 0.5},
 	])
 	main.add_child(d)
 	await d.finished

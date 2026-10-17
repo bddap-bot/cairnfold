@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of flora placement and the flower and grass brushes: godot4 --headless --path game --script ../tests/test_flora.gd
+## Headless checks of flora placement and the flower and grass brushes: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_flora.gd
 
 var failures := 0
 
@@ -82,7 +82,10 @@ func _a_stroke_grows_over_frames() -> void:
 	t.end_stroke(b)
 	var group: int = t.world.seq
 	_check(t.flora.growing() and t.flora.grass.size() == before, "a committed stroke grows nothing in the frame it lands in")
-	t.flora._grow(Flora.GROW_USEC)
+	var ticks := [0]
+	t.flora._grow(Flora.GROW_USEC, func() -> int:
+		ticks[0] += 100
+		return ticks[0])
 	var grown := t.flora.grass.size() - before
 	_check(grown > 0 and grown < ghost.size(), "a frame grows a share of its %d plants, %d" % [ghost.size(), grown])
 	_check(ghost.all(func(p: Flora.Plant) -> bool: return p.shown()), "its ghost stands until it has grown")

@@ -96,7 +96,7 @@ func _grip_on_a_pond_moves_its_bed(hand: Hand) -> void:
 	var water: Water = main.water
 	hand.global_basis = Basis.looking_at(Vector3(1, -0.6, 0.5))
 	var spot: Vector3 = Terrain.raycast(hand.global_position, -hand.global_basis.z)
-	var d := Driver.new(main, [{"op": "dig", "x": spot.x, "z": spot.z, "seconds": 1.5}, {"op": "wait", "seconds": 0.2}])
+	var d := Driver.new(main, [{"op": "dig", "x": spot.x, "z": spot.z, "seconds": 1.5}])
 	main.add_child(d)
 	await d.finished
 	d.queue_free()

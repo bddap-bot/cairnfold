@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless checks that the delete tool takes every kind of thing a garden holds, pointed at as a player points,
-## and that what it took stays gone in the saved garden: godot4 --headless --path game --script ../tests/test_delete.gd
+## and that what it took stays gone in the saved garden: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_delete.gd
 
 var failures := 0
 var main: Node
@@ -131,8 +131,9 @@ func _one_stroke() -> void:
 		{"op": "tree", "x": -2, "z": -22},
 		{"op": "tree", "x": 6, "z": -22},
 		{"op": "pave", "points": [[9, -24], [9, -20]], "radius": 0.8, "seconds": 0.4},
-		{"op": "wait", "seconds": 0.2},
 	])
+	while main.tool.paths.laying():
+		await process_frame
 	var trees := flora.planted_trees()
 	var wall: Wall = main.tool.walls[-1]
 	var grass := Terrain.ground(12, -22)

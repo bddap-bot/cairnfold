@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of the teleport ray: godot4 --headless --path game --script ../tests/test_teleport.gd
+## Headless checks of the teleport ray: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_teleport.gd
 
 ## The time each frame steps the rig: a release reads the last Rig.RELEASE_LOOKBACK of aiming, so a frame's real
 ## length, long on a loaded machine, would decide where it lands.

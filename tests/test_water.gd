@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of ponds: godot4 --headless --path game --script ../tests/test_water.gd
+## Headless checks of ponds: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_water.gd
 
 const SIDE := 21
 const WINDOW := Rect2i(0, 0, SIDE, SIDE)

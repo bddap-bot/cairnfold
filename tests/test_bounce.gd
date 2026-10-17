@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless checks of the light builds give back and of shadows and fog for a floating eye:
-## godot4 --headless --path game --script ../tests/test_bounce.gd
+## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_bounce.gd
 
 const WEST_LOW := Vector3(-0.917, 0.4, 0)
 const EAST_LOW := Vector3(0.917, 0.4, 0)

@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless checks of the garden's command log and per-player undo, with two players' commands fed to the
-## host directly: godot4 --headless --path game --script ../tests/test_world.gd
+## host directly: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_world.gd
 
 var failures := 0
 var main: Node

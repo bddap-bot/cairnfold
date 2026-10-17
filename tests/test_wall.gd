@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of the wall layout: godot4 --headless --path game --script ../tests/test_wall.gd
+## Headless checks of the wall layout: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wall.gd
 
 var failures := 0
 
