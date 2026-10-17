@@ -196,15 +196,14 @@ static func icosphere(subdiv: int) -> Array:
 	return arrays
 
 
-## Three ivy leaf cards around the origin in the XY plane, facing +Z, each folded along its vein with its stem
-## below its tip; a leaf is one unit long. A vine lays one sprig a step rather than three leaves, since the
-## renderer pays most per instance.
+## Three ivy leaf cards around the origin in the XY plane, facing +Z, each folded along its midrib with its stem
+## below its tip; a leaf is one unit long. A leaf is two triangles, one per lobe: on the Quest 2 ivy among walls
+## costs by the triangle it rasterises, not by its area or its instances.
 static func sprig() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var stem := Vector3(0, 0, 0)
 	var tip := Vector3(0, 1, 0)
-	var vein := Vector3(0, 0.45, 0.04)
 	var placed := [
 		[Transform3D(Basis(Vector3.BACK, 0.55), Vector3(-0.45, -0.3, 0.0)), 0.85],
 		[Transform3D(Basis(Vector3.BACK, -0.6), Vector3(0.4, -0.2, 0.02)), 0.95],
@@ -213,14 +212,13 @@ static func sprig() -> ArrayMesh:
 	for leaf in placed:
 		var x: Transform3D = leaf[0]
 		for lobe in [Vector3(-0.5, 0.5, -0.06), Vector3(0.5, 0.5, -0.06)]:
-			for tri in [[stem, lobe, vein], [vein, lobe, tip]]:
-				var n: Vector3 = (tri[1] - tri[0]).cross(tri[2] - tri[0]).normalized()
-				if n.z < 0.0:
-					n = -n
-				for p in tri:
-					st.set_normal(x.basis * n)
-					st.set_color(Color(leaf[1], leaf[1], leaf[1]))
-					st.add_vertex(x * p)
+			var n: Vector3 = (lobe - stem).cross(tip - stem).normalized()
+			if n.z < 0.0:
+				n = -n
+			for p in [stem, lobe, tip]:
+				st.set_normal(x.basis * n)
+				st.set_color(Color(leaf[1], leaf[1], leaf[1]))
+				st.add_vertex(x * p)
 	st.index()
 	return st.commit()
 

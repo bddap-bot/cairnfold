@@ -567,10 +567,18 @@ draw calls (198 to 234) cost about 0.6 ms.
 Standing, a wall's cost no longer grows with the garden past the chunks around the eye, so
 a linear price per m² undercharges the first walls and overcharges a wide garden. Over the
 15 m disc standing, each kind of piece hidden in turn (paired runs, 8 m chunks): ivy 5.3 to
-6.5 ms, full stones 1.7 to 2.5 ms, mortar about 1 ms, the stones' shadow boxes 0.1 ms. Ivy's
-cost does not follow its triangles: sharing each lobe's vertices (24 instead of 36 a sprig)
-saved 0.4 ms, dropping its backlight nothing, and drawing one side 1.4 ms at the cost of the
-leaves vanishing from behind. From the air the stones cost about 8 ms over few primitives,
+6.5 ms, full stones 1.7 to 2.5 ms, mortar about 1 ms, the stones' shadow boxes 0.1 ms.
+
+Ivy there costs by the triangle it rasterises, not by its area, instances or MSAA. Over the
+same scene without ivy, each variant paired in one run (medians of three rounds): ivy 6.8 to
+8.0 ms; its vertices alone, every leaf collapsed to a point, 0.7 to 1.7 ms, and as much again
+with one triangle a sprig, so instances cost nothing; leaves at 0.4 their size still 7.0 ms;
+ivy without MSAA still 5.9 ms; unlit ivy 3.7 ms less; sprigs past its reach dropped 1 ms less;
+vertex lighting, Lambert diffuse and no specular nothing. A leaf drawn as two triangles, one
+per lobe folded along the midrib, instead of four around a raised vein: ivy 6.8 to 4.3 ms
+and 8.0 to 5.4 ms, the leaves' outline and fold unchanged ([before, after](ivy-triangles.jpg)).
+Earlier, sharing each lobe's vertices saved 0.4 ms, dropping its backlight nothing, and
+drawing one side 1.4 ms at the cost of the leaves vanishing from behind. From the air the stones cost about 8 ms over few primitives,
 and one detail-texture read instead of three saved nothing.
 
 `scripts/costs.py` fits nothing on the Quest 2 yet: every phase above runs at half rate, so
