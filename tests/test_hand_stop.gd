@@ -171,7 +171,9 @@ func _a_wall_stops_a_hand_that_catches_up_when_it_comes_back(wall: Wall) -> void
 
 func _a_hand_reaches_through_an_arch(wall: Wall) -> void:
 	main.tool.toggle_arch(wall, 3.0)
-	await _frames(30)
+	await _frames(2)
+	wall.lay_now()
+	await _frames(2)
 	_check(not wall.layout.live_arches.is_empty(), "the wall opened an arch")
 	if wall.layout.live_arches.is_empty():
 		return

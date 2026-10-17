@@ -504,7 +504,6 @@ static func outline(at: Dictionary) -> Array[Vector3]:
 	return WallLayout.rectangle(span.a, span.b, span.depth)
 
 
-## The pitch a house or tower standing as `at` is laid with.
 static func pitch_for(at: Dictionary) -> float:
 	if at.round:
 		return clampf(at.size.x * 0.8, RoofLayout.PITCH.x, RoofLayout.PITCH.y)
@@ -512,9 +511,9 @@ static func pitch_for(at: Dictionary) -> float:
 
 
 static func roof_style(d: Dictionary) -> RoofStyle:
-	if d.roof.kind == RoofLayout.Kind.CONE:
-		return RoofStyle.CONE
-	return RoofStyle.FLAT if d.roof.pitch <= 0.0 else RoofStyle.PITCHED
+	if d.roof.pitch <= 0.0:
+		return RoofStyle.FLAT
+	return RoofStyle.CONE if d.roof.kind == RoofLayout.Kind.CONE else RoofStyle.PITCHED
 
 
 ## The `reshape` that gives the house or tower with garden data `d` roof `style`. A cone stands it as a round tower
@@ -530,6 +529,8 @@ static func restyle_roof(d: Dictionary, style: RoofStyle) -> Dictionary:
 		out["height"] = TOWER_HEIGHT if round else HOUSE_HEIGHT
 		out["roof"]["kind"] = int(RoofLayout.Kind.CONE if round else RoofLayout.Kind.GABLE)
 		out["roof"]["pitch"] = pitch_for(at)
+		out["roof"]["chimneys"] = PackedVector2Array() if round else out["roof"]["chimneys"]
+		out["roof"]["flag"] = false
 	if style == RoofStyle.FLAT:
 		out["roof"]["pitch"] = 0.0
 	elif d.roof.pitch <= 0.0:
@@ -827,7 +828,6 @@ func end_roof(m: Mason) -> void:
 		world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id))
 
 
-## Whether the wall has an arch of its own at `s`.
 func arched(w: Wall, s: float) -> bool:
 	return Array(world.state.walls[w.id].arches).any(func(a: float) -> bool: return absf(w.layout.offset(a, s)) < WallLayout.ARCH_HALF * 2.0)
 
@@ -880,12 +880,12 @@ func _relay(w: Wall, data := {}) -> void:
 	_meet(w)
 	w.layout.resample(Terrain.height_at, Terrain.water_at)
 	_reshaped(w)
-	_open_paths(w)
+	_open_paths(w, d.arches)
 	w.rebuild()
 
 
-func _open_paths(w: Wall) -> void:
-	w.layout.arches.assign(Array(world.state.walls[w.id].arches))
+func _open_paths(w: Wall, own: Variant = null) -> void:
+	w.layout.arches.assign(Array(world.state.walls[w.id].arches if own == null else own))
 	for p in paths.layouts:
 		_cut_crossings(w, p)
 	_path_arches[w.id] = w.layout.arches.duplicate()

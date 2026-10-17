@@ -531,12 +531,12 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			var before := {}
 			for k in cmd.data:
 				if k == "roof":
-					before.roof = {}
+					before["roof"] = {}
 					for r in cmd.data.roof:
 						before.roof[r] = now.roof[r]
 						now.roof[r] = cmd.data.roof[r]
 				elif k == "paint":
-					before.paint = {}
+					before["paint"] = {}
 					var paint := PackedInt32Array(now.paint)
 					for e in cmd.data.paint:
 						before.paint[e] = paint[e]

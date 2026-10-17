@@ -16,7 +16,6 @@ const WHEEL_RADIUS := 0.07
 const WHEEL_AT := Vector3(0, 0.06, -0.05)
 
 enum Restyle { GABLE, ROOF, TOP, ARCH }
-const STYLES := {Restyle.GABLE: 3, Restyle.ROOF: 3, Restyle.TOP: 3, Restyle.ARCH: 2}
 
 ## A hand's open wheel: what it changes (`aim`'s target) on which build (-1 for the meadow), the choice it
 ## started on and the one at its top, and the hand's frame when it opened.
@@ -75,7 +74,8 @@ func _process(_delta: float) -> void:
 		_place(wheels[hand], hand)
 
 
-## What the trigger would recolour from `origin` along `dir`: `element`, `point` and the `wall` (null on the meadow), or empty.
+## What the colour tool's trigger would recolour from `origin` along `dir`: `element`, `point` and the `wall` (null
+## on the meadow), or empty.
 func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	var pick := walls.pick_wall(origin, dir)
 	var roof := walls.pick_roof(origin, dir)
@@ -110,7 +110,7 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var gable := walls.pick_gable(origin, dir)
 	if gable.get("along", INF) < roof.get("along", INF) and WallTool._on_roof(pick, gable):
 		return style_target(Restyle.GABLE, gable.wall, gable.point)
-	if WallTool._on_roof(pick, roof) and not WallTool.house_of(roof.wall.data()).is_empty():
+	if WallTool._on_roof(pick, roof) and not WallTool.house_of(world.state.walls.get(roof.wall.id, {})).is_empty():
 		return style_target(Restyle.ROOF, roof.wall, roof.point)
 	if not pick.is_empty() and not pick.wall.layout.fence:
 		var layout: WallLayout = pick.wall.layout
@@ -120,11 +120,23 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 
 
 func style_target(restyle: Restyle, wall: Wall, point: Vector3, s := 0.0) -> Dictionary:
-	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "count": STYLES[restyle], "point": point, "wall": wall, "s": s}
+	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "count": styles(restyle), "point": point, "wall": wall, "s": s}
 
 
-## Opens the wheel for `target` (as `aim` gives it) over `hand`, turning from its swatch in the garden. While the
-## trigger is held the hand's twist turns it; the driver, holding no trigger, turns it with `twist`.
+## How many styles `restyle` offers; an arch's two are plain and arched.
+static func styles(restyle: Restyle) -> int:
+	match restyle:
+		Restyle.GABLE:
+			return WallLayout.GableEnd.size()
+		Restyle.ROOF:
+			return WallTool.RoofStyle.size()
+		Restyle.TOP:
+			return WallLayout.Top.size()
+	return 2
+
+
+## Opens the wheel for `target` (as `aim` or `aim_style` gives it) over `hand`, turning from its choice in the
+## garden. While the trigger is held the hand's twist turns it; the driver, holding no trigger, turns it with `twist`.
 func open(hand: Hand, target: Dictionary) -> void:
 	var w := Wheel.new()
 	w.target = target
@@ -278,7 +290,6 @@ func _place(w: Wheel, hand: Hand) -> void:
 		w.choices[k].scale = Vector3.ONE * (1.6 if k == w.pick else 1.0)
 
 
-## The choice of `count` a twist of `degrees` from choice `start` stands at the top.
 static func twisted(count: int, start: int, degrees: float) -> int:
 	return posmod(start + roundi(degrees / Palette.TWIST_STEP), count)
 

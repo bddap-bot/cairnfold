@@ -22,6 +22,8 @@ static var _camera_screen: StandardMaterial3D
 
 
 static func build(tool: Hand.Tool) -> Node3D:
+	if tool == Hand.Tool.STYLE:
+		return style(PaletteTool.Restyle.GABLE, WallLayout.GableEnd.STEPS, false)
 	var root := Node3D.new()
 	match tool:
 		Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS:
@@ -60,15 +62,13 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_open_hand(root)
 		Hand.Tool.SEEDS:
 			_seeds(root)
-		Hand.Tool.STYLE:
-			return style(PaletteTool.Restyle.GABLE, WallLayout.GableEnd.STEPS, false)
 	if tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS, Hand.Tool.HOUSE, Hand.Tool.PLASTER_HOUSE]:
 		for part in root.get_children():
 			part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22), Vector3.ZERO) * part.transform
 	return root
 
 
-## A miniature of choice `i` of a style the style tool sets (`PaletteTool.STYLES`), in stone or plaster; a
+## A miniature of choice `i` of a style the style tool sets (`PaletteTool.styles`), in stone or plaster; a
 ## gable end's turned to face the eye.
 static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool) -> Node3D:
 	var root := Node3D.new()
