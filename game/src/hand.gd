@@ -26,9 +26,6 @@ const IDLE := 0.8
 ## How far a wheel icon's model tips its top toward the eye.
 const TILT := PI * 0.3
 static var _disc: CylinderMesh
-## The render layer the wheel's icons draw on: the sun skips it and the wheel's own light lights only it,
-## so the icons look as they do on the default day at any hour.
-const WHEEL_LAYER := 1 << 19
 static var _unshaded := {}
 
 ## The stick pushed one way, as the input named for it: past PUSH, along whichever way it is pushed most, it
@@ -132,12 +129,12 @@ func _build_wheel() -> void:
 		_slots.append(_wheel_icon(model, at) if TREE[k] != null else model)
 		_subs.append(items)
 	for v in _wheel_root.find_children("*", "VisualInstance3D", true, false):
-		(v as VisualInstance3D).layers = WHEEL_LAYER
+		(v as VisualInstance3D).layers = Rig.WHEEL_LAYER
 		if v is MeshInstance3D:
 			_unshade(v)
 	var day := Daylight.light(Daylight.DEFAULT)
 	var light := DirectionalLight3D.new()
-	light.light_cull_mask = WHEEL_LAYER
+	light.light_cull_mask = Rig.WHEEL_LAYER
 	light.light_color = day.sun
 	light.light_energy = day.energy
 	light.basis = Basis.looking_at(Vector3(0.3, -0.6, -1.0))

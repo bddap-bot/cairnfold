@@ -23,8 +23,12 @@ const RELEASE_LOOKBACK := 0.1
 const MAX_LIFT := 40.0
 const SNAP := deg_to_rad(30.0)
 const FADE := 0.09
-## The layer only the camera sees: the player's own avatar, which their eyes would see from inside.
-const SELF_LAYER := 1 << 19
+## The render layers with a private use, one table so no two uses share a bit; everything else draws on layer 1.
+## The tool wheel's icons: the sun skips them and the wheel's own light lights only them, so they look as they do on
+## the default day at any hour.
+const WHEEL_LAYER := 1 << 19
+## The player's own avatar, which only the camera sees: their eyes would see it from inside.
+const SELF_LAYER := 1 << 18
 
 var head: XRCamera3D
 var gaze: Gaze
