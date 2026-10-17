@@ -108,7 +108,7 @@ view. Ordinary play writes no session telemetry unless explicitly opted in (see
 `info.eye_gaze` records whether the runtime tracks the eyes for the game
 (XR_EXT_eye_gaze_interaction: the Steam Frame's SteamVR does; the Quest 2 has no eye
 cameras). The rig's `Gaze` node follows the `/user/eyes_ext` tracker. Nothing in play
-uses it yet; `demo/gaze.json` shows a debug gaze ray and logs the gaze pose twice a
+uses it ("Detail by gaze"); `demo/gaze.json` shows a debug gaze ray and logs the gaze pose twice a
 second, which reads untracked while the headset is off the head.
 
 Off the head SteamVR puts the headset in standby and, by default
@@ -667,6 +667,30 @@ refresh, at 11 to 22 ms of GPU time a frame, the camera the most (walls on a 10 
 stopped two steps above the bottom). What is left there is
 walls standing near the eye, the sun's shadows, the terrain and the half-rate reading
 above; those are building costs, held by the build budget ("Frame budget").
+
+### Detail by gaze
+
+Directive (verbatim): "I am curious about foviated LOD."
+
+Gaze-driven detail is not built: what it can buy on the Frame is under a millisecond.
+Gaze reaches the game on the Frame, natively and under Lepton (`info.eye_gaze` true in
+both), and not on the Quest 2 (false). Measured on the Frame with the stress scene,
+unworn, the ladder held at full quality and the "gaze" held at the view's centre, each
+column one run; two runs of the unchanged build agree to within 0.1 ms on most phases
+(median difference 0.00 ms):
+
+| Outside 30° of the gaze | GPU ms a frame saved, median over phases | Least, most |
+| --- | --- | --- |
+| Nothing instanced drawn: grass, flowers, ivy, trees, bushes, stones, the meadow's cells outside the cone not submitted | 2.0 | 1.0, 7.5 |
+| Grass, flowers and ivy not drawn, meadow cells outside the cone not submitted | 1.4 | 0.5, 4.3 |
+| Grass thinned to its survivors and flowers and ivy shrunk away, fading in from 30° to 45° | 0.3 | 0.0, 1.6 |
+
+Only the first row clears a millisecond everywhere, and it takes the walls and trees
+beside the player out of their peripheral view, which shows. The last row is the one
+a player could not see, and on the heaviest phases (walls on a 25 m disc, the village,
+the hills from the air) it saves 0.0 to 0.3 ms. Peripheral shading is already the
+runtime's foveation layer's; what remains is vertices that are in view whichever way
+the eye turns.
 
 ### Flora on the Quest 2
 
