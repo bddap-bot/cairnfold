@@ -18,12 +18,12 @@ import sys
 
 out, device = sys.argv[1], sys.argv[2]
 # fill_flora is no build command, so the game does not count these; the pools' sizes are Flora's.
-FLORA = {"grass": {"grass": 12000}, "flowers": {"flower": 4000}, "trees": {"tree": 64}}
+FLORA = {"grass": {"grass": 12000}, "flowers": {"flower": 4000}, "trees": {"tree": 64}, "bushes": {"bush": 256}}
 FLORA.update({"flowers-wild": FLORA["flowers"], "trees-wild": FLORA["trees"]})
 # Each phase and the unit it fits, over what earlier phases fitted of its others.
-ORDER = [("grass", "grass"), ("flowers", "flower"), ("trees", "tree"), ("walls-r10", "wall_m2"), ("walls-r15", "wall_m2"),
+ORDER = [("grass", "grass"), ("flowers", "flower"), ("trees", "tree"), ("bushes", "bush"), ("walls-r10", "wall_m2"), ("walls-r15", "wall_m2"),
          ("walls-r20", "wall_m2"), ("plaster", "plaster_m2"), ("fences", "fence_m2"), ("paths", "path_m2"), ("ponds", "pond"),
-         ("village", "roof_m2"), ("floors", "floor_m2"), ("thatch", "thatch_m2"), ("lanterns", "fitting"), ("meadow", "bush"), ("hills", None), ("stone", None), ("easels", "easel")]
+         ("village", "roof_m2"), ("floors", "floor_m2"), ("thatch", "thatch_m2"), ("lanterns", "fitting"), ("meadow", None), ("hills", None), ("stone", None), ("easels", "easel")]
 WILD = ["flowers-wild", "trees-wild", "fences-wild", "ponds-wild"]
 
 units = {}

@@ -63,6 +63,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_grass(root)
 		Hand.Tool.TREES:
 			_tree(root)
+		Hand.Tool.BUSHES:
+			_bush(root)
 		Hand.Tool.DELETE:
 			_spade(root)
 		Hand.Tool.POND:
@@ -876,10 +878,26 @@ static func _tree(root: Node3D, species := FloraLayout.Species.OAK) -> void:
 	for i in t.blobs.size():
 		blobs.set_instance_transform(i, t.blobs[i][0])
 		blobs.set_instance_color(i, t.blobs[i][1])
+	_add(root, blobs, _leaf(), scale)
+
+
+static func _bush(root: Node3D) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 3
+	var spots := [Vector3(0, 0, 0), Vector3(0.7, 0, 0.4), Vector3(-0.6, 0, 0.5)]
+	var blobs := multimesh(Meshes.blob(4), spots.size())
+	for i in spots.size():
+		var b := FloraLayout.bush(spots[i], rng)
+		blobs.set_instance_transform(i, b[0])
+		blobs.set_instance_color(i, b[1])
+	_add(root, blobs, _leaf(), 0.022)
+
+
+static func _leaf() -> StandardMaterial3D:
 	var leaf := _vertex_mat("leaf", 1.0, false)
 	leaf.backlight_enabled = true
 	leaf.backlight = Color(0.25, 0.35, 0.08)
-	_add(root, blobs, leaf, scale)
+	return leaf
 
 
 ## A garden spade, blade down: it digs things up.

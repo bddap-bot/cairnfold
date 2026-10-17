@@ -49,6 +49,8 @@
   {"op": "until", "seq": 33},
   {"op": "grow", "tree": 0, "metres": 3, "seconds": 0.4},
   {"op": "until", "seq": 34},
+  {"op": "bush", "x": -3, "z": 6},
+  {"op": "until", "seq": 35},
   {"op": "wait", "seconds": 0.5},
   {"op": "digest", "name": "join"}
 ]

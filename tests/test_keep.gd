@@ -23,6 +23,7 @@ func _run() -> void:
 	_check(world.save_path == "", "a test or scripted run keeps no garden unless told to")
 	await _every_edit_is_kept_and_loads_whole()
 	await _a_flat_roof_is_kept()
+	await _a_placed_bush_counts_and_is_kept()
 	await _a_visited_garden_is_not_kept()
 	_an_unreadable_file_starts_the_meadow()
 	_a_garden_of_another_format_is_moved_aside()
@@ -109,6 +110,29 @@ func _a_flat_roof_is_kept() -> void:
 	_check(main.tool.walls.all(func(w): return w.roof == null or w.layout.cover == WallLayout.Cover.DECK), "and are laid as decks")
 	var raised: Array = world.state.walls.values().filter(func(w): return is_equal_approx(w.get("rise", 0.0), 0.9))
 	_check(raised.size() == 1, "a house raised onto a plinth comes back raised: %d" % raised.size())
+
+
+func _a_placed_bush_counts_and_is_kept() -> void:
+	var path := dir.path_join("garden.save")
+	world.restore({"seq": 0, "cmds": []})
+	await _settled()
+	var flora: Flora = main.flora_tool.flora
+	var before := world.units.duplicate()
+	await _play([{"op": "bush", "x": 3, "z": -6}, {"op": "bush", "x": 5, "z": -6}, {"op": "wait", "seconds": 0.1}])
+	await _settled()
+	_check(flora.placed("bush").size() == 2, "two placed bushes stand: %d" % flora.placed("bush").size())
+	_check(world.units.get("bush", 0) == before.get("bush", 0) + 2, "each counts one bush: %s" % world.units)
+	_check(Budget.cost_ms(world.units, Budget.Device.FRAME) - Budget.cost_ms(before, Budget.Device.FRAME) > 0.0, "and costs the frame")
+	var picture := _picture()
+	world.restore({"seq": 0, "cmds": []})
+	await _settled()
+	_check(flora.placed("bush").is_empty(), "an empty garden has no placed bushes")
+	world.load_from(path)
+	await _settled()
+	_check(flora.placed("bush").size() == 2 and _picture() == picture, "loading grows the kept bushes where they stood")
+	await _play([{"op": "delete", "x": 3, "z": -6, "height": 2.0}])
+	await _settled()
+	_check(flora.placed("bush").size() == 1 and world.units.get("bush", 0) == before.get("bush", 0) + 1, "deleting a bush frees what it counted: %s" % world.units)
 
 
 func _a_visited_garden_is_not_kept() -> void:

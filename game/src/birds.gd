@@ -218,7 +218,7 @@ func look() -> void:
 			if w.finished and not w.perches().is_empty():
 				var s: Site = old.get(w)
 				_list(w, s if s != null else WallSite.new(w))
-	for parts: Array in wildlife.flora.planted_trees():
+	for parts: Array in wildlife.flora.placed("tree"):
 		var trunk: Flora.Plant = parts[0]
 		if parts.size() > 1 and wildlife.water.pond_at(trunk.anchor.x, trunk.anchor.z) == null:
 			var s: Site = old.get(trunk)

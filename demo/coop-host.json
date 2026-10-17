@@ -28,7 +28,7 @@
   {"op": "wait", "seconds": 0.5},
   {"op": "digest", "name": "host-sun"},
   {"op": "sun", "time": 0.3, "seconds": 0.5},
-  {"op": "until", "seq": 34},
+  {"op": "until", "seq": 35},
   {"op": "wait", "seconds": 0.5},
   {"op": "digest", "name": "host"}
 ]

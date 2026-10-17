@@ -77,7 +77,7 @@ func _onto_a_tree(rig: Rig, world: World) -> void:
 	var flora: Flora = main.flora_tool.flora
 	world._order({"op": "plant", "kind": "tree", "seed": 4, "at": Terrain.ground(-20, 40)}, 1)
 	flora.grow_now()
-	var parts: Array = flora.planted_trees()[-1]
+	var parts: Array = flora.placed("tree")[-1]
 	var crown: Flora.Plant = parts[-1]
 	var top: Vector3 = crown.xform.translated(Vector3.UP * Terrain.base_at(crown.anchor.x, crown.anchor.z)) * crown.pool.mesh.get_aabb().get_center()
 	var from := top + Vector3(0, 6, 8)

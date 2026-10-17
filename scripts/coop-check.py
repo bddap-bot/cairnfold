@@ -18,7 +18,7 @@ check(d["host"] == d["join"], "host and joiner show the same garden")
 for n in names[2:]:
     check(d[n] == d["host"], f"{n} shows the same garden")
 g = d["host"]
-check(g["seq"] == 34 + 2 * (len(names) - 2), "every late joiner built and undid its own wall")
+check(g["seq"] == 35 + 2 * (len(names) - 2), "every late joiner built and undid its own wall")
 check(len(g["walls"]) == 6, f"six walls stand (A put back by its deleter's undo, B, C, the host's house, the joiner's storey on it, the host's wing across it): {len(g['walls'])}")
 check(sum("\"on\": PackedInt32Array(" in w["data"] and "\"on\": PackedInt32Array()" not in w["data"] for w in g["walls"].values()) == 1, "the joiner's storey stands on the host's house")
 check(any(abs(w["height"] - 4.2) < 0.01 for w in g["walls"].values()), "the joiner's raised wall stands 4.2 m high")
@@ -38,6 +38,7 @@ storey = next(w for w in houses if '"on": PackedInt32Array()' not in w["data"])
 check(storey["floors"][0] > min(w["floors"][0] for w in houses if w is not storey) + 2.0, f"the joiner's storey is floored on the host's house's top: {storey['floors']}")
 kinds = lambda k: [v for v in g["groups"].values() if v["kind"] == k]
 check(len(kinds("tree")) == 1 and kinds("tree")[0]["shown"] == 0, "the host's undo took its tree away")
+check(len(kinds("bush")) == 1 and kinds("bush")[0]["shown"] == 1, "the joiner's bush stands")
 check(len(kinds("flowers")) == 1 and kinds("flowers")[0]["shown"] == kinds("flowers")[0]["plants"], "the joiner's undo then redo left its flowers standing")
 check(len(g["paths"]) == 1 and len(kinds("grass")) == 1, "the host's path and the grass painted across it stand")
 check(len(g["pond_levels"]) == 1 and g["ponds"] == 1, f"the joiner's pond holds water in the hollow it pressed: {g['pond_levels']}")

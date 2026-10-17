@@ -214,7 +214,7 @@ func _on_perch(g: Glade, at: Vector3) -> bool:
 		var foot: Vector3 = w.layout.frame_at(s).point
 		if Vector2(at.x - foot.x, at.z - foot.z).length() < WallLayout.THICKNESS and at.y > foot.y + w.layout.height and at.y < foot.y + w.layout.height + 1.0:
 			return true
-	for parts: Array in g.flora.planted_trees():
+	for parts: Array in g.flora.placed("tree"):
 		var trunk: Flora.Plant = parts[0]
 		var ground := Terrain.height_at(trunk.anchor.x, trunk.anchor.z)
 		if Vector2(at.x - trunk.anchor.x, at.z - trunk.anchor.z).length() > 4.0 or at.y < ground + 2.0:
@@ -237,7 +237,7 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": Terrain.ground(-2.5, -9)})
 	var wall := _draw_wall(g.tool, Vector3(0, 0, -7), Vector3(5, 0, -8))
 	await process_frame
-	_check(g.flora.planted_trees().size() == 1 and g.tool.walls.size() == 1 and wall.finished, "a planted tree and a finished wall")
+	_check(g.flora.placed("tree").size() == 1 and g.tool.walls.size() == 1 and wall.finished, "a planted tree and a finished wall")
 	_check(g.rig.head.global_position.direction_to(Terrain.ground(1, -8)).dot(-g.rig.head.global_basis.z) > Wildlife.SIGHT, "the viewer looks at them")
 	_run(g, 200.0)
 	_check(g.birds().is_empty(), "no conure comes before the ducks")
@@ -296,7 +296,7 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 	g.world.undo()
 	g.world.undo()
 	await process_frame
-	_check(g.flora.planted_trees().is_empty() and g.tool.walls.is_empty(), "the tree and the wall are gone")
+	_check(g.flora.placed("tree").is_empty() and g.tool.walls.is_empty(), "the tree and the wall are gone")
 	_run(g, 120.0, vanishing)
 	_check(g.birds().is_empty(), "the conures leave once no perch stands")
 	_run(g, 200.0)

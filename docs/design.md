@@ -689,6 +689,7 @@ meadow's 5.69 and 4.57 ms; the room is 11.1 ms (the governor's line) less 5.7:
 | Grass pool full | 12,000 blades | 6.29 | 5.34 | 0.061 µs a blade |
 | Flower pool full | 4,000 flowers | 5.83 | 4.89 | 0.072 µs a flower |
 | Tree pool full | 64 trees | 6.25 | 5.96 | 21.3 µs a tree |
+| Bush pool full (a later run, over its bare meadow's 7.38 and 5.46 ms) | 256 bushes | 7.84 | 6.19 | 2.85 µs a bush |
 | Walls, 10 m disc | 714 m² | 6.73 | 8.94 | 6.07 µs a m² |
 | Walls, 15 m disc | 1,562 m² | 7.62 | 11.75 | |
 | Plaster walls, 15 m disc | 1,562 m² | 7.12 | 9.15 | 2.92 µs a m² |
@@ -697,7 +698,7 @@ meadow's 5.69 and 4.57 ms; the room is 11.1 ms (the governor's line) less 5.7:
 | Eight ponds | 8 | 5.98 | 4.60 | 35.3 µs a pond |
 | Village, 12 m disc | 225 m² of wall, 54 m² of roof | 7.45 | 6.55 | 10.8 µs a m² of roof |
 | Lanterns on the 10 m disc's walls | 90 | 6.78 | 9.22 | 3.1 µs a lantern |
-| The meadow's own flowers, trees and bushes | 3,200, 46, 60 | 6.44 | 4.96 | bushes nothing over the flowers and trees |
+| The meadow's own flowers, trees and bushes | 3,200, 46, 60 | 6.44 | 4.96 | a check: nothing fitted |
 | Hills | | 5.70 | 4.74 | nothing |
 | Stone ground | | 5.72 | 4.62 | nothing |
 
@@ -1523,7 +1524,7 @@ Stage numbers refer to the build order at the end.
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | The fence tool draws like walls (same stroke, merging and junctions) with a wooden profile: posts at most 1.6 m apart and two rails between. A path through a fence, in either order, opens a gate: two tall posts under a bent wooden arch | 6 (done) |
 | Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces (a house or tower under a roof or deck only its outer one: [inside before and after, outside after](ivy.jpg)), wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`), kept out of windows and doors too | 3 (done), 6 (done) |
 | Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers grow in clumps about 1.3 m across, each one of nine soft colours (white, butter, peach, pinks, lavender, violet, blues), so a stroke paints a few colour patches with nothing to pick | 1 (done), 3 (done) |
-| Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs in five species the style tool picks per tree; the trigger of a hand holding the tree tool plants an oak where it points; a grip on a tree grows or shrinks it, as a grip on a wall raises it | 1 (done), 3 (done) |
+| Trees, bushes | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs in five species the style tool picks per tree; the trigger of a hand holding the tree tool plants an oak where it points. The tree's entry on the wheel opens two, trees and bushes; a bush is one blob like the meadow's own, placed through the same command, save and budget as a tree. Directive (verbatim): "Can you give us a way to place bushes, not just trees"; a grip on a tree grows or shrinks it, as a grip on a wall raises it | 1 (done), 3 (done) |
 | Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | Not a tool: a grip on the ground, whatever the hand holds, grabs it where it points (a pond's bed under its water too) and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then stone ground show on steep slopes | 7 (shaping done) |
 | Water | Dug holes with a flat surface and normal-map waves | The pond tool fills the hollow beside the point it is aimed at up to that point's height, at most to just below its rim, with depth-tinted water, shore foam and ripples where a hand breaks it (see "Water") | 7 (water done) |
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, and a one-metre probe volume of sky seen and sunlight bounced off sunlit stone, solved again on a worker when a build settles or the sun moves (see "Bounce light") | 2 (done) |
@@ -1797,11 +1798,11 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, decorations, paths, stone, flowers, grass, trees, ponds, colour, style, camera, selfie camera, seeds, easel, delete and visit. The tool a hand
+windows, decorations, paths, stone, flowers, grass, trees, bushes, ponds, colour, style, camera, selfie camera, seeds, easel, delete and visit. The tool a hand
 holds stands on top of its controller as a small object, built from the same generators as the full-size
 thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
 flag with lanterns on it, a bend of paving, a disc of stone ground
-fraying into meadow, three flowers, a grass tuft, a tree, a pond in a
+fraying into meadow, three flowers, a grass tuft, a tree, three bushes, a pond in a
 sandy dish, a painter's palette with dabs of colour, a small camera (for the selfie camera, its lens beside the screen on the back), a clay dish heaped with bird seed, a paintbrush reaching past the controller for the easel, a spade for delete, and a little avatar
 figure for visit. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
@@ -1839,7 +1840,7 @@ The slots never move, so each tool is one learnable motion:
 | --- | --- |
 | Top | Colour, style |
 | Upper right | The cameras (camera, selfie camera), seeds, easel |
-| Right | Flowers, grass, trees, ponds |
+| Right | Flowers, grass, the placed plants (trees, bushes), ponds |
 | Lower right | Visit, the picture book |
 | Bottom | Delete |
 | Lower left | Paths, stone |
@@ -1954,7 +1955,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Resize a house | Grip on its wall, whatever the hand holds: up or down for height. Keep holding and grip the same house with the other hand: spread or close the hands across its front for width, along its flank for depth, or across a tower for its diameter (see "Resizing a house") |
 | Paint flowers or grass | Trigger held on a hand holding flowers or grass, pointing at the ground; the ring shows the brush, which widens the farther you point |
 | Paint stone ground | Trigger held on a hand holding stone, pointing at the ground; a stroke begun on stone paints it back to meadow instead. The ring shows the brush, which widens the farther you point |
-| Plant a tree | Trigger of a hand holding trees, pointing at the ground |
+| Plant a tree or bush | Trigger of a hand holding trees or bushes, pointing at the ground |
 | Grow or shrink a tree | Grip pointing at a tree, the meadow's own too, whatever the hand holds: move the hand up or down and the tree's top follows it, from 0.4 to 3 times the size it grew at; the gain grows with distance as a wall's does |
 | Shape the ground | Grip held pointing at the ground, whatever the hand holds (a pond's bed too): the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it. Each hand grabs on its own, so both can shape the ground, or one holds it while the other grabs or builds something else |
 | Fill a pond | Trigger on a hand holding the pond tool, pointing at the ground beside a hollow: the hollow fills to the height of that point, as its pale sheet showed (see "Water") |

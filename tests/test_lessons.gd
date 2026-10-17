@@ -117,7 +117,7 @@ func _read(page: Dictionary) -> Dictionary:
 	effects = {"least_walls": main.tool.walls.size(), "most_book": main.book.at}
 	return {"at": rig.global_position, "walls": main.tool.walls.size(), "time": main.look.time, "book": main.book.at,
 		"ground": ground, "height": Terrain.height_at(ground.x, ground.z) if ground != null else 0.0,
-		"state": var_to_str(main.world.state.walls), "trees": main.flora_tool.flora.planted_trees().size()}
+		"state": var_to_str(main.world.state.walls), "trees": main.flora_tool.flora.placed("tree").size()}
 
 
 func _watch(_page: Dictionary) -> void:
@@ -173,7 +173,7 @@ func _check_house(_page: Dictionary, before: Dictionary) -> void:
 
 func _check_wipe(_page: Dictionary, before: Dictionary) -> void:
 	_check(before.walls == 1 and before.trees == 1, "the wipe page's garden has a wall and a tree")
-	_check(main.tool.walls.is_empty() and main.flora_tool.flora.planted_trees().is_empty(), "the delete trigger held at the sky for its whole hold wipes the garden")
+	_check(main.tool.walls.is_empty() and main.flora_tool.flora.placed("tree").is_empty(), "the delete trigger held at the sky for its whole hold wipes the garden")
 
 
 ## A hand passing a shut book's pages turns nothing; touching its cover opens it.

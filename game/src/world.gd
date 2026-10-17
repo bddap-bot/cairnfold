@@ -160,7 +160,7 @@ func change_of(cmd: Dictionary) -> Dictionary:
 			Budget.add(out, _units_of.get("q%d" % cmd.id, {}), -1.0)
 		"plant":
 			var n := 1
-			if cmd.kind != "tree":
+			if not cmd.kind in Flora.PLACED:
 				n = 0
 				for d: Array in cmd.dabs:
 					n += d[2]
@@ -393,7 +393,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 	elif cmd.op in ["stairs", "plant", "path", "ground", "easel"] and not cmd.has("id"):
 		cmd.id = seq
 	var inverse := _timed(cmd)
-	if cmd.op == "plant" and cmd.kind != "tree":
+	if cmd.op == "plant" and not cmd.kind in Flora.PLACED:
 		cmd.skip = state.groups[cmd.id].skip
 	_commit.rpc(cmd)
 	# Turning the sky is not an edit, so undo leaves it be.
@@ -601,7 +601,7 @@ func _keys(cmd: Dictionary) -> Array:
 ## stroke's goes last, to stand until the plants it shows have grown, and so does a turned sky's, which only shows the
 ## garden's sky again if the host turned it down.
 func _apply(cmd: Dictionary) -> Dictionary:
-	var last: bool = cmd.op == "sky" or cmd.op == "plant" and cmd.kind != "tree"
+	var last: bool = cmd.op == "sky" or cmd.op == "plant" and not cmd.kind in Flora.PLACED
 	if flora != null and cmd.op in GROWS_FIRST:
 		flora.grow_now()
 	var mine: bool = cmd.get("by") == me() and cmd.has("token")
@@ -695,7 +695,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				g.species = {}
 				g.scale = {}
 			state.groups[cmd.id] = g
-			Budget.add(units, Budget.plants(g.kind, 1 if g.kind == "tree" else g.size - g.skip.size()))
+			Budget.add(units, Budget.plants(g.kind, 1 if g.kind in Flora.PLACED else g.size - g.skip.size()))
 			inverse = {"op": "show", "plants": {cmd.id: PackedInt32Array(range(plants.size()))}, "on": false}
 		"show":
 			var changed := {}

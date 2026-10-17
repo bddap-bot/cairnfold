@@ -56,7 +56,7 @@ func _run() -> void:
 		{"op": "tree", "x": -9, "z": 9},
 		{"op": "delete", "x": 0, "z": -4.4},
 	])
-	var tree: Array = flora.planted_trees()[0] if flora.planted_trees().size() == 1 else []
+	var tree: Array = flora.placed("tree")[0] if flora.placed("tree").size() == 1 else []
 	_check(not _painted(flora, patch).is_empty(), "painting adds flowers")
 	_check(not tree.is_empty(), "a tree stands where it was planted")
 	var ruined := func() -> int: return walls.filter(func(w: Wall) -> bool: return not w.layout.ruins.is_empty()).size()
@@ -90,15 +90,15 @@ func _run() -> void:
 
 
 ## Moves the hand itself, not an injected reach: down onto delete, then right onto planting and back left onto
-## trees, in a wheel standing upright and facing the head.
+## grass, in a wheel standing upright and facing the head.
 func _sweep_by_hand(hand: Hand, at: Vector3) -> void:
 	var key := "%s/%s" % [hand.tracker, Controls.input("wheel", hand.tracker)]
 	var toward: Vector3 = main.rig.head.global_position - at
 	toward.y = 0.0
 	var right := Vector3.UP.cross(toward.normalized())
 	var planting: Array = Hand.TREE[2]
-	var back := ToolWheel.fan_dirs(planting.size(), ToolWheel.ring_dirs()[2])[planting.find(Hand.Tool.TREES)]
-	for case in [[Hand.Tool.DELETE, [Vector3.DOWN]], [Hand.Tool.TREES, [right, right * back.x + Vector3.UP * back.y]]]:
+	var back := ToolWheel.fan_dirs(planting.size(), ToolWheel.ring_dirs()[2])[planting.find(Hand.Tool.GRASS)]
+	for case in [[Hand.Tool.DELETE, [Vector3.DOWN]], [Hand.Tool.GRASS, [right, right * back.x + Vector3.UP * back.y]]]:
 		hand.global_position = at
 		Buttons.injected[key] = true
 		await process_frame

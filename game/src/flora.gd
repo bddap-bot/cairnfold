@@ -20,12 +20,14 @@ const GRASS_SURVIVORS := 0.25
 const GRASS_SURVIVORS_FROM := 0.5
 const PAINTED_FLOWERS := 4000
 const PLACED_TREES := 64
+const PLACED_BUSHES := 256
 ## The shade blob's size against the box around a crown's blobs, which their lumps and gaps do not fill.
 const SHADE_FIT := 0.8
 ## Where an untracked hand is, as far as the grass knows.
 const NO_HAND := Vector3(0, -1000, 0)
-## Painted plant kinds, as build commands name them; "tree" is the other kind of group.
+## Plant kinds as build commands name them: painted in strokes, or placed one at a time.
 const BRUSHES := ["grass", "flowers"]
+const PLACED := ["tree", "bush"]
 const SOLID_CELL := 8.0
 ## How long a frame spends growing committed strokes: a stroke of thousands of plants grows over a few frames
 ## rather than in the one its command applied in.
@@ -340,6 +342,7 @@ var grass_mat := ShaderMaterial.new()
 var flowers: Pool
 var trunks: Pool
 var foliage: Pool
+var bushes: Pool
 ## The sun's shade of every standing tree and bush, cast by one coarse blob fitted to its crown instead of by each
 ## blob: the shadow pass draws one low-detail mesh a crown, and the blobs no longer shade one another in patches.
 var crown_shade := MultiMesh.new()
@@ -375,6 +378,7 @@ var blob_detail: int = Quality.ladder[0].blob_detail:
 		if n != blob_detail:
 			blob_detail = n
 			foliage.draw_with(_blobs[n])
+			bushes.draw_with(_blobs[n])
 var flower_mat: ShaderMaterial
 ## Bumped whenever a tree or bush stands up or goes, so what was gathered from them knows it is stale.
 var changes := 0
@@ -424,12 +428,13 @@ func _init() -> void:
 	leaf_mat.set_shader_parameter("crown_lump", Meshes.BLOB_LUMP)
 	for step in Quality.ladder:
 		_blobs.get_or_add(step.blob_detail, Meshes.blob(4, step.blob_detail))
-	foliage = Pool.new(self, _blobs[blob_detail], (Meadow.TREES + PLACED_TREES) * FloraLayout.BLOBS + Meadow.BUSHES, leaf_mat, false)
+	foliage = Pool.new(self, _blobs[blob_detail], (Meadow.TREES + PLACED_TREES) * FloraLayout.BLOBS, leaf_mat, false)
+	bushes = Pool.new(self, _blobs[blob_detail], Meadow.BUSHES + PLACED_BUSHES, leaf_mat, false)
 	crown_shade.transform_format = MultiMesh.TRANSFORM_3D
 	crown_shade.use_colors = true
 	crown_shade.use_custom_data = true
 	crown_shade.mesh = Meshes.blob(4, 1)
-	crown_shade.instance_count = Meadow.TREES + PLACED_TREES + Meadow.BUSHES
+	crown_shade.instance_count = Meadow.TREES + PLACED_TREES + Meadow.BUSHES + PLACED_BUSHES
 	crown_shade.custom_aabb = Terrain.bounds()
 	var shade := MultiMeshInstance3D.new()
 	shade.multimesh = crown_shade
@@ -457,7 +462,7 @@ func _process(_delta: float) -> void:
 
 ## Fits a shade blob to each standing crown's blobs when any tree or bush has changed or been drawn otherwise.
 func _shade_crowns() -> void:
-	var seen := changes + trunks.draws + foliage.draws
+	var seen := changes + trunks.draws + foliage.draws + bushes.draws
 	if seen == _shaded:
 		return
 	_shaded = seen
@@ -563,12 +568,14 @@ func set_look(trunk: Plant, species: FloraLayout.Species, scale: float) -> void:
 	_index(key, solid)
 
 
-func add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
+func add_bush(at: Vector3, rng: RandomNumberGenerator) -> Array[Plant]:
 	var b := FloraLayout.bush(at, rng)
-	var blob := foliage.add(b[0], b[1], at)
+	var parts: Array[Plant] = []
+	var blob := bushes.add(b[0], b[1], at)
 	if blob != null:
-		var parts: Array[Plant] = [blob]
+		parts.append(blob)
 		_solid(Vector2i(1, blob.slot), parts)
+	return parts
 
 
 func _solid(key: Vector2i, parts: Array[Plant]) -> Solid:
@@ -585,23 +592,15 @@ func _index(key: Vector2i, solid: Solid) -> void:
 			_solid_cells.get_or_add(Vector2i(i, j), {})[key] = true
 
 
-## What a plant counts as in the build budget (Budget.UNITS): a tree by its trunk, a bush by its one blob, and
-## nothing for a tree's other blobs.
+## What a plant counts as in the build budget (Budget.UNITS): a tree by its trunk, and nothing for its blobs.
 func unit_of(p: Plant) -> String:
-	if p.pool == grass:
-		return "grass"
-	if p.pool == flowers:
-		return "flower"
-	if p.pool == trunks:
-		return "tree"
-	var solid: Solid = _solids.get(Vector2i(1, p.slot))
-	return "bush" if p.pool == foliage and solid != null and solid.parts[0] == p else ""
+	return {grass: "grass", flowers: "flower", trunks: "tree", bushes: "bush"}.get(p.pool, "")
 
 
 ## The plants so far are the meadow's own: group 0, which every machine grows alike.
 func keep() -> void:
 	var meadow: Array[Plant] = []
-	for p: Pool in [grass, flowers, trunks, foliage]:
+	for p: Pool in [grass, flowers, trunks, foliage, bushes]:
 		meadow.append_array(p.plants.slice(0, p.size()))
 		p.keep()
 	_name(0, meadow)
@@ -647,15 +646,16 @@ func _paint(kind: String, p: Vector3, rng: RandomNumberGenerator, ghost: bool) -
 
 
 ## Grows a group from its build command: a seeded paint stroke, which grows exactly the plants its
-## author's ghost showed, or a tree. A stroke records in `skip` the plants that fell on bare ground when it
+## author's ghost showed, or a placed tree or bush. A stroke records in `skip` the plants that fell on bare ground when it
 ## grew, so a garden rebuilt later grows the same plants whatever paths and stone stand by then.
 ## A stroke's plants are null until they grow, over the frames that follow (see `grow_now`).
 func grow(id: int, g: Dictionary) -> Array[Plant]:
 	var plants: Array[Plant] = []
 	var rng := RandomNumberGenerator.new()
 	rng.seed = g.seed
-	if g.kind == "tree":
-		plants = add_tree(Vector3(g.at.x, Terrain.base_at(g.at.x, g.at.z), g.at.z), g.seed)
+	if g.kind in PLACED:
+		var at := Vector3(g.at.x, Terrain.base_at(g.at.x, g.at.z), g.at.z)
+		plants = add_tree(at, g.seed) if g.kind == "tree" else add_bush(at, rng)
 		_name(id, plants)
 		return plants
 	var growth := Growth.new()
@@ -754,7 +754,7 @@ func reset() -> void:
 	if growing():
 		_growing.clear()
 		grown.emit()
-	for p in [grass, flowers, trunks, foliage]:
+	for p in [grass, flowers, trunks, foliage, bushes]:
 		p.reset()
 	var meadow: Array[Plant] = groups[0]
 	groups = {0: meadow}
@@ -828,11 +828,12 @@ func solids() -> Array[Array]:
 	return out
 
 
-## The standing trees planted in the garden, each as its trunk then its blobs; the meadow's own are left out.
-func planted_trees() -> Array[Array]:
+## The standing trees (each as its trunk then its blobs) or bushes placed in the garden; the meadow's own are left out.
+func placed(kind: String) -> Array[Array]:
+	var pool := trunks if kind == "tree" else bushes
 	var out: Array[Array] = []
 	for parts in solids():
-		if parts[0].pool == trunks and parts[0].slot >= trunks.kept:
+		if parts[0].pool == pool and parts[0].slot >= pool.kept:
 			out.append(parts)
 	return out
 
@@ -847,7 +848,7 @@ func plants_near(p: Vector3, radius: float) -> Array[Plant]:
 ## Where trees and bushes stand: the ground points a wall arches over.
 func obstacles() -> PackedVector3Array:
 	var out := PackedVector3Array()
-	for pool in [trunks, foliage]:
+	for pool in [trunks, bushes]:
 		for i in pool.size():
 			if pool.anchors[i] != Pool.GONE:
 				out.append(pool.anchors[i])
@@ -857,5 +858,5 @@ func obstacles() -> PackedVector3Array:
 ## Pools and their plants point at each other; the cycle is cut here so both are freed.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
-		for p in [grass, flowers, trunks, foliage, ghost_grass, ghost_flowers]:
+		for p in [grass, flowers, trunks, foliage, bushes, ghost_grass, ghost_flowers]:
 			p.plants.clear()

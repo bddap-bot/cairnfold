@@ -427,7 +427,7 @@ static func _plant(cmd: Dictionary, out: Dictionary, from_host: bool) -> bool:
 	out.kind = cmd.get("kind")
 	if typeof(out.kind) != TYPE_STRING:
 		return false
-	if out.kind == "tree":
+	if out.kind in Flora.PLACED:
 		out.at = cmd.get("at")
 		return typeof(out.at) == TYPE_VECTOR3 and _finite(out.at)
 	var dabs: Variant = cmd.get("dabs")

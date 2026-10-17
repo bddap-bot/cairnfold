@@ -543,7 +543,11 @@ func _wade(s: Dictionary) -> void:
 
 
 func _tree(s: Dictionary) -> void:
-	main.flora_tool.plant_tree(_spot(s, s.x, s.z), null, s.get("seed", randi()))
+	main.flora_tool.place("tree", _spot(s, s.x, s.z), null, s.get("seed", randi()))
+
+
+func _bush(s: Dictionary) -> void:
+	main.flora_tool.place("bush", _spot(s, s.x, s.z), null, s.get("seed", randi()))
 
 
 ## Points the delete tool straight down at a ground spot from `height` metres up and presses once: a tap.
@@ -651,11 +655,11 @@ func _lanterns(s: Dictionary) -> void:
 
 
 ## Fills every painted and placed flora pool to capacity within `radius` of `at` (x, z; the centre by default), or only those `pools` names
-## (grass, flowers, trees), the trees taking each species in turn. They are not build commands, so the frame budget
+## (grass, flowers, trees, bushes), the trees taking each species in turn. They are not build commands, so the frame budget
 ## does not count them.
 func _fill_flora(s: Dictionary) -> void:
 	var flora: Flora = main.flora_tool.flora
-	var pools: Array = s.get("pools", ["grass", "flowers", "trees"])
+	var pools: Array = s.get("pools", ["grass", "flowers", "trees", "bushes"])
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 99
 	var at: Array = s.get("at", [0, 0])
@@ -666,6 +670,8 @@ func _fill_flora(s: Dictionary) -> void:
 		flora.add_flower(_scatter(rng, s.radius, centre), rng)
 	for i in Flora.PLACED_TREES if "trees" in pools else 0:
 		flora.add_tree(_scatter(rng, s.radius, centre), rng.randi(), i % FloraLayout.Species.size())
+	for i in Flora.PLACED_BUSHES if "bushes" in pools else 0:
+		flora.add_bush(_scatter(rng, s.radius, centre), rng)
 
 
 ## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter; with `storeys`,

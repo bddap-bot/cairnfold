@@ -1,14 +1,15 @@
 class_name FloraTool
 extends Node3D
 
-## Flowers, grass, stone, trees and paths, for whichever hand holds them: the trigger paints flowers, grass
-## or stone ground where the hand points, plants a tree there, or lays a path along the stroke. The brush
+## Flowers, grass, stone, trees, bushes and paths, for whichever hand holds them: the trigger paints flowers, grass
+## or stone ground where the hand points, plants a tree or bush there, or lays a path along the stroke. The brush
 ## widens with distance; painting a spot again thickens it, and a path is as wide as the brush. A stone
 ## stroke begun on stone paints the ground back to meadow instead, and the plants under it stand up again.
 
 ## Plants per square metre per second of painting.
 const RATES := {Hand.Tool.FLOWERS: 12.0, Hand.Tool.GRASS: 30.0}
-const TINTS := {Hand.Tool.DIRT_PATH: Color(0.78, 0.58, 0.35, 0.6), Hand.Tool.FLOWERS: Color(1.0, 0.82, 0.9, 0.6), Hand.Tool.GRASS: Color(0.78, 1.0, 0.55, 0.6), Hand.Tool.TREES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.PATH: Color(1.0, 0.9, 0.7, 0.6), Hand.Tool.STONE: Color(0.9, 0.88, 0.82, 0.6)}
+const PLACES := {Hand.Tool.TREES: "tree", Hand.Tool.BUSHES: "bush"}
+const TINTS := {Hand.Tool.DIRT_PATH: Color(0.78, 0.58, 0.35, 0.6), Hand.Tool.FLOWERS: Color(1.0, 0.82, 0.9, 0.6), Hand.Tool.GRASS: Color(0.78, 1.0, 0.55, 0.6), Hand.Tool.TREES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.BUSHES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.PATH: Color(1.0, 0.9, 0.7, 0.6), Hand.Tool.STONE: Color(0.9, 0.88, 0.82, 0.6)}
 const RADIUS_PER_METRE := 0.15
 const MIN_RADIUS := 0.3
 const MAX_RADIUS := 3.0
@@ -136,10 +137,10 @@ func _handle(b: Brush, delta: float) -> void:
 	if hit == null:
 		end_stroke(b)
 		return
-	if held == Hand.Tool.TREES:
-		world.preview(b.hand, Budget.plants("tree", 1))
+	if PLACES.has(held):
+		world.preview(b.hand, Budget.plants(PLACES[held], 1))
 		if b.buttons.pressed("tool"):
-			plant_tree(hit, b.hand)
+			place(PLACES[held], hit, b.hand)
 		return
 	var radius := brush_radius(hand.origin, hit)
 	if held in [Hand.Tool.PATH, Hand.Tool.DIRT_PATH]:
@@ -299,8 +300,8 @@ func end_path(b: Brush) -> void:
 	planted.emit()
 
 
-func plant_tree(at: Vector3, hand: Hand = null, shape := randi()) -> void:
-	var cmd := {"op": "plant", "kind": "tree", "seed": shape, "at": at}
+func place(kind: String, at: Vector3, hand: Hand = null, shape := randi()) -> void:
+	var cmd := {"op": "plant", "kind": kind, "seed": shape, "at": at}
 	if world.fits(cmd):
 		Cues.play(Cues.Act.TREE_PLANT, at, hand)
 	world.submit(cmd, Callable(), hand)

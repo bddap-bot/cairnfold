@@ -26,11 +26,11 @@ func _run() -> void:
 	world.load_from(save)
 	_every_spawned_solid_is_struck()
 	var tree := _spawned(flora.trunks)
-	var bush := _spawned(flora.foliage)
+	var bush := _spawned(flora.bushes)
 	await _takes_solid(tree, "a spawned tree")
 	await _takes_solid(bush, "a spawned bush")
 	await _play([{"op": "tree", "x": 6, "z": 6}, {"op": "wait", "seconds": 0.1}])
-	await _takes_solid(flora.planted_trees()[0], "a planted tree")
+	await _takes_solid(flora.placed("tree")[0], "a planted tree")
 	await _no_strike_through_hills()
 	await _takes_marks()
 	await _mows()
@@ -40,7 +40,7 @@ func _run() -> void:
 	world.flush()
 	world.restore(bytes_to_var(FileAccess.get_file_as_bytes(save)))
 	_check(not _standing(tree) and not _standing(bush), "the spawned tree and bush stay gone in the saved garden")
-	_check(flora.planted_trees().is_empty(), "the planted tree stays gone in the saved garden")
+	_check(flora.placed("tree").is_empty(), "the planted tree stays gone in the saved garden")
 	_check(world.state.paths.is_empty() and world.state.grounds.is_empty(), "the path and stone stay gone in the saved garden")
 	_check(flora.plants_near(Terrain.ground(4, 3), 0.5).is_empty(), "the mown meadow stays mown in the saved garden")
 	DirAccess.remove_absolute(save)
@@ -135,7 +135,7 @@ func _one_stroke() -> void:
 	])
 	while main.tool.paths.laying():
 		await process_frame
-	var trees := flora.planted_trees()
+	var trees := flora.placed("tree")
 	var wall: Wall = main.tool.walls[-1]
 	var grass := Terrain.ground(12, -22)
 	_check(trees.size() == 2 and world.state.paths.size() == 1, "two trees and a path stand in the stroke's way")
