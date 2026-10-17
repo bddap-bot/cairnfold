@@ -1,8 +1,9 @@
 class_name Wall
 extends Node3D
 
-## A drawn wall. Its stones and ivy are packed into instance buffers by part; while the wall changes it
-## draws them itself, and once it settles it hands them to the glade's Masonry, which draws them per chunk.
+## A drawn wall. Its stones and ivy are packed into instance buffers by part and drawn per ground chunk: while the
+## wall changes by its own Masonry, so far chunks draw coarse stones as settled ones do, and once it settles by the
+## glade's.
 
 enum Part { STONE, MORTAR, STONE_SHADOW, TILE, TILE_SHADOW, IVY }
 
@@ -40,8 +41,10 @@ var pick_bounds := AABB()
 var _parts: Array[PackedFloat32Array] = []
 ## Each part's buffer split by ground chunk (`Masonry.split`), as the Masonry takes it.
 var _chunked: Array[Dictionary] = []
-## Each part's own MultiMesh while it is not settled, made when first needed.
-var _live: Array[MultiMeshInstance3D] = []
+## Draws the parts while the wall is not settled, made when first needed.
+var _drawn: Masonry
+## Ivy's own MultiMesh while it grows, made when first needed: it shows as much of it as has grown.
+var _ivy: MultiMeshInstance3D
 var _gables: MeshInstance3D
 var _settled := false
 var _ivy_times := PackedFloat32Array()
@@ -112,7 +115,6 @@ func _init(seed: int, glade: Masonry) -> void:
 	add_child(_fittings)
 	_parts.resize(Part.size())
 	_chunked.resize(Part.size())
-	_live.resize(Part.size())
 
 
 ## Puts a roof on this closed wall; its stones then stop flush under the eaves.
@@ -194,8 +196,8 @@ func _process(delta: float) -> void:
 		_sync()
 		if _ivy_stale:
 			_layout_ivy()
-	if _live[Part.IVY] != null:
-		var mm := _live[Part.IVY].multimesh
+	if _ivy != null:
+		var mm := _ivy.multimesh
 		mm.visible_instance_count = mini(_ivy_times.bsearch(ivy_age), mm.instance_count)
 	if _build_task < 0 and _recolour_task < 0 and not _ivy_growing():
 		set_process(false)
@@ -569,30 +571,40 @@ func _take(packed: Dictionary) -> void:
 	pick_bounds = packed.bounds
 
 
-## Puts each part where it belongs: with the Masonry once settled (ivy once grown), else drawn here.
+## Puts each part where it belongs: with the glade's Masonry once settled (ivy once grown), else drawn here.
 func _sync() -> void:
 	var placed: Array[Dictionary] = []
+	var drawn: Array[Dictionary] = []
+	var live := false
 	for p in Part.size():
-		var settle := _settled
-		if p == Part.IVY:
-			settle = settle and not _ivy_growing()
+		var settle := _settled and (p != Part.IVY or not _ivy_growing())
 		placed.append(_chunked[p] if settle else {})
-		_show(p, not settle)
+		drawn.append(_chunked[p] if not settle and p != Part.IVY else {})
+		live = live or not drawn[p].is_empty()
 	masonry.place(get_instance_id(), placed)
+	if live:
+		if _drawn == null:
+			_drawn = Masonry.new(kinds())
+			add_child(_drawn)
+		_drawn.place(get_instance_id(), drawn)
+	elif _drawn != null:
+		_drawn.queue_free()
+		_drawn = null
+	_show_ivy(_settled and _ivy_growing())
 	if _stand_in != null:
 		_stand_in.queue_free()
 		_stand_in = null
 
 
-func _show(p: int, live := true) -> void:
-	var buf := _parts[p] if live and (p != Part.IVY or _settled) else PackedFloat32Array()
-	if _live[p] == null:
+func _show_ivy(growing: bool) -> void:
+	var buf := _parts[Part.IVY] if growing else PackedFloat32Array()
+	if _ivy == null:
 		if buf.is_empty():
 			return
-		_live[p] = kinds()[p].instance()
-		add_child(_live[p])
-	var mm := _live[p].multimesh
-	mm.instance_count = buf.size() / kinds()[p].stride()
+		_ivy = kinds()[Part.IVY].instance()
+		add_child(_ivy)
+	var mm := _ivy.multimesh
+	mm.instance_count = buf.size() / kinds()[Part.IVY].stride()
 	if mm.instance_count > 0:
 		mm.buffer = buf
 

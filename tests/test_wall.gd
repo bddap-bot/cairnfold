@@ -18,6 +18,7 @@ func _init() -> void:
 	_stone_faces_share_their_borders()
 	_settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach()
 	_full_stones_stand_only_near_the_eye()
+	_a_changing_wall_draws_far_stones_by_its_own_chunks()
 	_a_wall_over_water_stands_on_its_bed()
 	_a_narrow_crossing_takes_one_arch()
 	_a_low_wall_crosses_as_a_causeway()
@@ -208,6 +209,34 @@ func _settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach() -> void:
 	for c in m._chunks.values():
 		_check(c.instances[Wall.Part.STONE].multimesh.instance_count == 0 and c.fars[Wall.Part.STONE].multimesh.instance_count == 0, "a removed owner leaves every chunk it stood in")
 	m.free()
+
+
+## A wall still changing, as one over a hill being pulled, draws its own chunks, far ones in coarse stones, and
+## hands them to the glade once it settles. A fence, so no ivy grows: a wall freed with its ivy laid crashes the engine
+## at exit.
+func _a_changing_wall_draws_far_stones_by_its_own_chunks() -> void:
+	var glade := Masonry.new(Wall.kinds())
+	root.add_child(glade)
+	var w := Wall.new(1, glade)
+	root.add_child(w)
+	w.layout.points = [Vector3(0, 0, 0), Vector3(30, 0, 0)]
+	w.layout.height = 2.0
+	w.layout.fence = true
+	w.rebuild(false)
+	w.lay_now()
+	var id := w.get_instance_id()
+	_check(w._drawn != null and w._drawn._owners.has(id) and not glade._owners.has(id), "a changing wall draws its own pieces")
+	if w._drawn != null:
+		_check(w._drawn._chunks.size() >= 4, "by the ground chunk under each, got %d chunks" % w._drawn._chunks.size())
+		for c in w._drawn._chunks.values():
+			var far: MultiMeshInstance3D = c.fars[Wall.Part.STONE]
+			_check(far != null and far.multimesh.mesh == Stones.far_mesh() and is_equal_approx(far.visibility_range_begin, Wall.kinds()[Wall.Part.STONE].near + Masonry.CHUNK_RADIUS), "beyond the near distance in coarse stones")
+	w.finished = true
+	w.rebuild(true)
+	w.lay_now()
+	_check(glade._owners.has(id) and w._drawn == null, "once settled the glade draws them, and the wall's own Masonry goes")
+	w.free()
+	glade.free()
 
 
 ## A pond 1 m deep from x = 3 to 9 under a 12 m wall, its surface at 0.

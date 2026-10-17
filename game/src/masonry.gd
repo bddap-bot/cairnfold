@@ -136,17 +136,18 @@ static func _gather(out: Dictionary, key: Vector2i, buf: PackedFloat32Array) -> 
 func place(owner: int, parts: Array[Dictionary]) -> void:
 	assert(parts.size() == kinds.size(), "one split buffer per kind")
 	var had := _drop(owner)
-	var buffers: Array[PackedFloat32Array] = []
-	var strides := PackedInt32Array()
-	for k in kinds.size():
-		if kinds[k].occludes and not parts[k].is_empty():
-			var all := PackedFloat32Array()
-			for buf in parts[k].values():
-				all.append_array(buf)
-			buffers.append(all)
-			strides.append(kinds[k].stride())
-	if had or not buffers.is_empty():
-		placed.emit(owner, buffers, strides)
+	if not placed.get_connections().is_empty():
+		var buffers: Array[PackedFloat32Array] = []
+		var strides := PackedInt32Array()
+		for k in kinds.size():
+			if kinds[k].occludes and not parts[k].is_empty():
+				var all := PackedFloat32Array()
+				for buf in parts[k].values():
+					all.append_array(buf)
+				buffers.append(all)
+				strides.append(kinds[k].stride())
+		if had or not buffers.is_empty():
+			placed.emit(owner, buffers, strides)
 	var keys := {}
 	for k in kinds.size():
 		for key in parts[k]:
@@ -232,6 +233,7 @@ func _ranges(c: Chunk) -> void:
 func _process(_delta: float) -> void:
 	for key in _dirty:
 		var c: Chunk = _chunks[key]
+		_ranges(c)
 		for k in kinds.size():
 			var buf := PackedFloat32Array()
 			for parts in c.parts.values():
