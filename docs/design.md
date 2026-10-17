@@ -1109,6 +1109,12 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
   diffuse for soft terminators; foliage backlight for the glowing-leaf look.
 - **Atmosphere:** depth fog with aerial perspective and sun scatter, tinted towards
   the sky, so distant hills fade and the near meadow stays saturated.
+- **Horizon:** two rings of stone-faced mountains, 300 to 2100 m out, with a plain from the
+  meadow's edge to their feet (`Mountains`): one flat-shaded mesh of about 5k triangles in one
+  draw, unshaded, lit and hazed in its own shader from the hour's light, casting no shadow.
+  They are real geometry far enough off that both eyes and every step through the garden
+  see them as distant. The ridges dip where the sun crosses them low, so it rises and sets
+  through a pass. The eyes' far clip (`Rig.FAR`) and the sun's disc stand beyond them.
 - **Sun shadows:** one stabilized orthogonal map reaches 256 m, covering the garden
   without a fade or cascade boundary inside it. Godot's Mobile renderer selects
   cascades and fades shadows by view depth: a fixed distant tree used to lose its
@@ -2581,6 +2587,7 @@ walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees
 at a perched one from in front and from the side;
 `demo/feeding.json` builds a pond, trees, a wall and a fence, waits for the animals, then holds seeds out to a conure, the ducks and the sheep, throws handfuls to the sheep and onto the pond and watches the uneaten ones sink away;
 `demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar (`--seed 40` puts sheep in the close views);
+`demo/horizon.json` looks at the mountains from the meadow, the rim and the air, at morning, dusk and dawn;
 `demo/daylight.json` drags the sun from dawn to dusk, opens the colour wheel, recolours a roof, a wall's stone,
 a fence and a gable, and walks the meadow through the seasons; `demo/paint.json` paints two walls and two houses
 each in colours of their own; `demo/stroke.json` takes two trees, a wall stretch, a path and meadow in one held delete stroke and puts them back with one undo; `demo/ruins.json` erases stretches of walls into

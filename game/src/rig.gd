@@ -8,7 +8,8 @@ extends XROrigin3D
 ## The eyes' near clip: at 5 cm a face leaned in to a conure cut it open, and its far side, culled from inside,
 ## left nothing. Godot's reversed depth keeps far stone and paving apart at this near.
 const NEAR := 0.02
-const FAR := 400.0
+## Past the farthest range round the garden (Mountains) and the sun's disc beyond it.
+const FAR := 2600.0
 ## The eyes' height above the floor, standing.
 const EYE := 1.65
 const AIR_REACH := 30.0

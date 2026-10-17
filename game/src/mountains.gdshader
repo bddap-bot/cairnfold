@@ -1,0 +1,30 @@
+shader_type spatial;
+render_mode unshaded, cull_back, shadows_disabled, fog_disabled;
+
+uniform vec3 sun_dir = vec3(0.0, 1.0, 0.0);
+uniform vec3 sun : source_color = vec3(1.0);
+uniform float energy = 1.0;
+uniform vec3 sky : source_color = vec3(0.3, 0.5, 0.85);
+uniform vec3 horizon : source_color = vec3(0.86, 0.88, 0.84);
+uniform float ambient = 0.7;
+uniform vec3 haze : source_color = vec3(0.86, 0.88, 0.84);
+uniform vec3 stone : source_color = vec3(0.56, 0.52, 0.48);
+uniform vec3 slope : source_color = vec3(0.26, 0.38, 0.20);
+uniform vec3 snow : source_color = vec3(0.92, 0.93, 0.96);
+
+varying vec3 world_normal;
+
+void vertex() {
+	world_normal = NORMAL;
+}
+
+void fragment() {
+	vec3 n = normalize(world_normal);
+	float height = COLOR.r;
+	float steep = 1.0 - n.y;
+	vec3 ground = mix(slope, stone, smoothstep(0.22, 0.42, steep + height * 0.35));
+	ground = mix(ground, snow, COLOR.b * smoothstep(COLOR.b * 0.75, COLOR.b, height) * smoothstep(0.62, 0.3, steep));
+	vec3 lit = ground * (sun * energy * max(dot(n, sun_dir), 0.0) * 1.0 + mix(horizon, sky, 0.4 + 0.3 * n.y) * ambient * 0.5);
+	float air = COLOR.g * (1.0 - 0.3 * smoothstep(0.0, 0.8, height));
+	ALBEDO = mix(lit, haze, air);
+}
