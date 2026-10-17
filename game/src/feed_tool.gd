@@ -12,7 +12,6 @@ const HANDFULS := 8
 var rig: Rig
 var handfuls: Array[Handful] = []
 var rng := RandomNumberGenerator.new()
-var _floor: Callable
 var _buttons: Array[Buttons] = []
 ## Per hand: where the dish was last frame and how fast it has been swinging, in the rig's space, so a teleport or a
 ## snap turn throws nothing.
@@ -21,17 +20,17 @@ var _velocity := {}
 var _next := 0
 
 
-func _init(player: Rig, ponds: Water, builds: WallTool) -> void:
+func _init(player: Rig, ponds: Water) -> void:
 	rig = player
-	_floor = func(p: Vector3) -> float: return maxf(ponds.floor_at(p), builds.floor_under(p)) if builds != null else ponds.floor_at(p)
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["trigger_click"]))
 	for i in HANDFULS:
-		handfuls.append(Handful.new(_floor))
+		handfuls.append(Handful.new(ponds.floor_at))
 		add_child(handfuls[i])
 
 
 func _process(delta: float) -> void:
+	tick(delta)
 	for i in rig.hands.size():
 		var h: Hand = rig.hands[i]
 		var at := rig.global_transform.affine_inverse() * dish(h)
@@ -43,7 +42,6 @@ func _process(delta: float) -> void:
 			Hand.bump(h)
 			toss(dish(h), rig.global_basis * _velocity.get(h, Vector3.ZERO))
 		_buttons[i].latch()
-	tick(delta)
 
 
 func dish(h: Hand) -> Vector3:

@@ -257,7 +257,7 @@ func _ducks_come_only_to_ponds() -> void:
 	_run(walker, 90.0)
 	_check(walker.families[0].state in [Wildlife.State.SWIM, Wildlife.State.ASHORE, Wildlife.State.REST], "and they reach the water")
 	_seeds_held_low_draw_the_ducks(walker, rig.right, pond)
-	feed = FeedTool.new(rig, water, null)
+	feed = FeedTool.new(rig, water)
 	root.add_child(feed)
 	feed.set_process(false)
 	walker.handfuls = feed.handfuls

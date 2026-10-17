@@ -1,8 +1,8 @@
 class_name Handful
 extends MultiMeshInstance3D
 
-## A handful of seeds thrown from the seed dish: the grains fly apart, settle where they land on the ground, a roof
-## deck or a pond, and go one by one as an animal pecks at them, or shrink and sink away once they have lain a while.
+## A handful of seeds thrown from the seed dish: the grains fly apart, settle where they land on the ground or float on
+## a pond, and go one by one as an animal pecks at them, or shrink and sink away once they have lain a while.
 
 const GRAINS := 28
 ## Metres a second the grains spread apart from the throw.

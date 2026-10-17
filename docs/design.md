@@ -1758,7 +1758,7 @@ moves there its own way.
 
 The trigger of a hand holding the dish throws a handful (`FeedTool`): its 28 grains leave the dish with the
 hand's eased velocity, each spread a little apart, and come down on the ground or float on a pond where they
-land, or on a roof deck (`Handful`), a handful flung from a swing lying a few tenths of a metre across. The swing
+land (`Handful`), a handful flung from a swing lying a few tenths of a metre across. The swing
 is measured in the rig's space, so a teleport or snap turn just before the trigger throws nothing. A landed
 handful is an offer like a calm hand, so the same appetites find it: a conure flies down to peck at one on dry
 ground, a duck swims to one on its pond, a sheep walks to one beside its pasture, each animal passing over a
