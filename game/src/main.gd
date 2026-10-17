@@ -266,15 +266,16 @@ static func player_path(name: String) -> String:
 	return "user://" + name
 
 
-## Moves the photos and the garden an earlier build kept in user data to `player_path`.
+## Moves the photos and the garden (with any `garden.save.new` or `.bad` beside it) an earlier build kept in user
+## data to `player_path`.
 static func move_to_player_paths() -> void:
-	for name in ["photos", "garden.save"]:
-		var from: String = "user://" + name
-		var to: String = player_path(name)
-		if from == to:
-			continue
-		var moved := move_all(from, to) if DirAccess.dir_exists_absolute(from) else int(move_file(from, to))
-		print("player data: moved %d from %s to %s" % [moved, from, to])
+	if player_path("") == "user://":
+		return
+	var moved := move_all("user://photos", player_path("photos"))
+	for name in DirAccess.get_files_at("user://"):
+		if name.begins_with("garden.save"):
+			moved += int(move_file("user://" + name, player_path(name)))
+	print("player data: moved %d to %s" % [moved, player_path("")])
 
 
 ## Moves every file in `from` into `to` and removes `from` once empty; see `move_file`. Returns how many moved.
@@ -290,12 +291,17 @@ static func move_all(from: String, to: String) -> int:
 	return moved
 
 
-## Moves `src` to `dst`, which lands only whole, so a move cut short leaves the original to move again; a `dst`
-## already there with other bytes stays put, as does `src`. Copies rather than renames: the two may sit on different
-## filesystems.
+## Moves `src` to `dst`, or beside it as `dst.user-N` when `dst` already holds other bytes, so nothing stays behind.
+## The copy lands under its name only whole, so a move cut short leaves the original to move again. Copies rather than
+## renames: the two may sit on different filesystems.
 static func move_file(src: String, dst: String) -> bool:
 	if not FileAccess.file_exists(src):
 		return false
+	var base := dst
+	var n := 0
+	while FileAccess.file_exists(dst) and FileAccess.get_md5(dst) != FileAccess.get_md5(src):
+		n += 1
+		dst = "%s.user-%d" % [base, n]
 	if not FileAccess.file_exists(dst):
 		var part := dst + ".part"
 		if DirAccess.copy_absolute(src, part) != OK or FileAccess.get_size(part) != FileAccess.get_size(src) \
@@ -303,9 +309,6 @@ static func move_file(src: String, dst: String) -> bool:
 			DirAccess.remove_absolute(part)
 			push_error("player data: could not move %s to %s" % [src, dst])
 			return false
-	if FileAccess.get_md5(dst) != FileAccess.get_md5(src):
-		push_error("player data: %s holds other bytes; %s stays" % [dst, src])
-		return false
 	DirAccess.remove_absolute(src)
 	return true
 

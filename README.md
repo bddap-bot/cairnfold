@@ -35,9 +35,8 @@ cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, style
   hold it and with your own avatar in view when you turn it on yourself; the trigger
   takes a photo, saved as a PNG in the game's `photos` folder
   (`~/.local/share/godot/app_userdata/Nestcombe/photos` from the Linux package;
-  `/sdcard/Android/data/io.github.bddapbot.nestcombe/files/photos` from an APK, on a
-  Quest or the Frame's Steam build, where photos an earlier APK kept inside the app
-  move on its next start).
+  `/sdcard/Android/data/io.github.bddapbot.nestcombe/files/photos` from an APK,
+  where photos an earlier APK kept inside the app move on its next start).
 - Holding seeds: hold the hand out and keep it calm. A conure may fly down and eat
   standing on it; ducks and sheep come to seeds held low by their pond or fence.
   Animals let you come right up if you move slowly; a sudden move startles them.
