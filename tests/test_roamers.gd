@@ -253,6 +253,11 @@ func _food_held_still_draws_one_to_eat() -> void:
 			var ran := [false]
 			_run(g, Roamers.appetite[kind].eats_for.y + 3.0, func() -> void: ran[0] = ran[0] or eater.state == Grazers.State.FLEE)
 			_check(eater.state != Grazers.State.FEED and not ran[0], "once fed it stays by the still person, %s" % Grazers.State.keys()[eater.state])
+			var back := Vector3(hand.global_position.x - eater.position.x, 0, hand.global_position.z - eater.position.z).normalized()
+			_run(g, 1.5, func() -> void:
+				hand.global_position += back * 0.3 * STEP
+				ran[0] = ran[0] or eater.state == Grazers.State.FLEE)
+			_check(not ran[0], "nor runs as the hand is drawn back")
 		hand.tool = Hand.Tool.WALLS
 		hand.held_still = false
 		hand.global_position = AWAY

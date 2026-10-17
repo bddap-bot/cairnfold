@@ -1913,7 +1913,7 @@ or thrown only draw those already there (see "Feeding").
   on to fresh grass. Later a fox comes alone and trots about with its nose to the grass.
 
   Both are skittish. A person within `Roamers.WATCH` who comes nearer, or moves suddenly, has them stop and
-  watch, heads up. A person moving within `Roamers.FLIGHT`, or a sudden move within `Roamers.STARTLE`, sends
+  watch, heads up. A person coming toward them within `Roamers.FLIGHT`, or a sudden move within `Roamers.STARTLE`, sends
   them galloping 12 to 20 m off, out toward the trees. A person keeping still for `Roamers.CALM_FOR` lets
   them settle, and each such spell lets one come `Roamers.CLOSER` nearer before it runs, so a patient, quiet
   player is let close; a fright starts that over. A person standing still never sends them off.

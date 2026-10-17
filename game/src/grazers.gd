@@ -287,7 +287,7 @@ func _eat(a: Node3D, delta: float) -> void:
 			_fed(a)
 			return
 		a.goal = spot
-	if not _go(a, a.goal, _speed(a, State.WALK), delta):
+	if _off_goal(a) and not _go(a, a.goal, _speed(a, State.WALK), delta):
 		return
 	a.eat(hand.y - a.position.y, delta)
 	Wildlife._face(a, hand - a.position, delta * TURN)
@@ -456,7 +456,7 @@ func _nudge(b: Band, a: Node3D, by: Vector3) -> void:
 
 
 func _settled(a: Node3D) -> bool:
-	return a.state == State.GRAZE or a.state == State.STAND or a.state == State.LIE or a.state == State.WARY
+	return a.state == State.GRAZE or a.state == State.STAND or a.state == State.LIE
 
 
 ## Ground band `b` keeps to: near `near` (within `reach`, at least `least` off) if given, else anywhere it keeps

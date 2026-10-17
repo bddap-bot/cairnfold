@@ -23,6 +23,8 @@ const STRIDE := {Kind.DEER: {"Walk": 1.05, "Gallop": 2.6}, Kind.FOX: {"Walk": 0.
 ## From the middle of the body to its rim, at size 1: how near two stand.
 const RADIUS := {Kind.DEER: 0.6, Kind.FOX: 0.3}
 const FADE := 0.35
+## Slower than this, in metres a second, it keeps the clip it has rather than walking.
+const SHUFFLE := 0.05
 
 static var _shared := {}
 
@@ -132,7 +134,7 @@ func pose(m: Grazers.Motion, _delta: float) -> void:
 
 ## Moves `distance` this tick showing `m`, a walk or gallop paced to the ground covered so the feet keep their place.
 func walked(m: Grazers.Motion, distance: float, delta: float) -> void:
-	if distance <= 0.0 or delta <= 0.0:
+	if delta <= 0.0 or distance / delta < SHUFFLE:
 		return
 	var clip: String = CLIPS[kind][m]
 	var cycle := player.get_animation(clip).length

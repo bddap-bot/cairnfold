@@ -120,7 +120,7 @@ func _no_tool_places_an_animal() -> void:
 			_check(not code.contains("Duck") and not code.contains("ildlife"), "%s reaches no animal" % f)
 	_check(FileAccess.get_file_as_string("res://src/main.gd").count("Wildlife.new(") == 1, "main makes one Wildlife")
 	for m in (load("res://src/wildlife.gd") as Script).get_script_method_list():
-		_check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble"], "Wildlife exposes no way to add an animal, found %s" % m.name)
+		_check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "still", "approaching", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble"], "Wildlife exposes no way to add an animal, found %s" % m.name)
 
 
 func _dig(tool: WaterTool, x: float, z: float, frames: int) -> void:

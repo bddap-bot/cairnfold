@@ -112,6 +112,7 @@ var _since_look := INF
 ## Per hand and the head: where it was last tick and how fast it has been moving.
 var _was := {}
 var _speed := {}
+var _velocity := {}
 ## Per hand holding seeds or seeds scattered: whatever is eating from it or on its way to.
 var _eaters := {}
 var handfuls: Array[Handful] = []
@@ -456,9 +457,11 @@ func _watch(delta: float) -> void:
 		return
 	for n in _watched():
 		var at := n.global_position
-		var moved: float = at.distance_to(_was.get(n, at)) / delta
+		var moved: Vector3 = (at - _was.get(n, at)) / delta
+		var ease := 1.0 - exp(-delta * SPEED_EASE)
 		_was[n] = at
-		_speed[n] = lerpf(_speed.get(n, 0.0), moved, 1.0 - exp(-delta * SPEED_EASE))
+		_speed[n] = lerpf(_speed.get(n, 0.0), moved.length(), ease)
+		_velocity[n] = _velocity.get(n, Vector3.ZERO).lerp(moved, ease)
 	var held := offers()
 	for h in _eaters.keys():
 		if not held.has(h):
@@ -479,6 +482,13 @@ func sudden(n: Node3D) -> bool:
 
 func still(n: Node3D) -> bool:
 	return _speed.get(n, 0.0) < STILL
+
+
+## Whether `n` is coming toward `p` faster than a still hand or head drifts.
+func approaching(n: Node3D, p: Vector3) -> bool:
+	var to := Vector3(p.x - n.global_position.x, 0, p.z - n.global_position.z)
+	var v: Vector3 = _velocity.get(n, Vector3.ZERO)
+	return to.length() > 1e-3 and Vector3(v.x, 0, v.z).dot(to.normalized()) > STILL
 
 
 ## The first hand, or the head, within `reach` of `p` and moving suddenly, or null.

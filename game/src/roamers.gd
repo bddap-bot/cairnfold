@@ -25,7 +25,7 @@ const STAND_FOR := Vector2(3.0, 9.0)
 const ROAM := Vector2(3.0, 9.0)
 const FLEE := Vector2(12.0, 20.0)
 ## Within WATCH of a person who comes nearer than FLIGHT * NOTICE, or moves suddenly, it stops to watch; within
-## FLIGHT of one who is moving, or STARTLE of a sudden move, it runs.
+## FLIGHT of one coming toward it, or STARTLE of a sudden move, it runs.
 const WATCH := {Beast.Kind.DEER: 12.0, Beast.Kind.FOX: 9.0}
 const FLIGHT := {Beast.Kind.DEER: 5.0, Beast.Kind.FOX: 3.5}
 const NOTICE := 1.8
@@ -89,8 +89,9 @@ func arrive(kind: Beast.Kind) -> void:
 
 
 func _keep(b: Band, delta: float) -> void:
-	b.stay -= delta
-	if b.stay <= 0.0:
+	var v := b as Visit
+	v.stay -= delta
+	if v.stay <= 0.0:
 		_leave(b)
 
 
@@ -100,7 +101,7 @@ static func flight(a: Beast) -> float:
 
 
 func _alarm(b: Band, a: Node3D, _delta: float) -> bool:
-	if a.state == State.FLEE:
+	if a.state == State.ENTER or a.state == State.FLEE:
 		return false
 	var eating: bool = a.state == State.FEED
 	var runs_at := flight(a)
@@ -109,7 +110,7 @@ func _alarm(b: Band, a: Node3D, _delta: float) -> bool:
 		var d := Vector2(at.x - a.position.x, at.z - a.position.z).length()
 		var sudden := wildlife.sudden(n)
 		var startled: bool = sudden and d < STARTLE[a.kind] * (EATING_STARTLE if eating else 1.0)
-		var pressed := not eating and not wildlife.still(n) and d < runs_at
+		var pressed := not eating and wildlife.approaching(n, a.position) and d < runs_at
 		if startled or pressed:
 			if a.hand != null:
 				_fed(a)
@@ -121,7 +122,7 @@ func _alarm(b: Band, a: Node3D, _delta: float) -> bool:
 		if eating or d >= WATCH[a.kind]:
 			continue
 		if a.state == State.WARY:
-			if sudden:
+			if not wildlife.still(n):
 				a.timer = CALM_FOR
 		elif sudden or d < runs_at * NOTICE:
 			_watch(a)
@@ -137,7 +138,13 @@ func _watch(a: Beast) -> void:
 ## once they are far enough off.
 func _other(_b: Band, a: Node3D, delta: float) -> void:
 	a.pose(Motion.IDLE, delta)
-	var near := wildlife._nearest(a.position, WATCH[a.kind])
+	var near: Node3D = null
+	var d: float = WATCH[a.kind]
+	for n in wildlife._watched():
+		var off := Vector2(n.global_position.x - a.position.x, n.global_position.z - a.position.z).length()
+		if off < d:
+			d = off
+			near = n
 	if near != null:
 		Wildlife._face(a, near.global_position - a.position, delta * TURN)
 	a.timer -= delta
@@ -147,7 +154,6 @@ func _other(_b: Band, a: Node3D, delta: float) -> void:
 		_graze(a)
 		return
 	a.calm += 1.0
-	var d := Vector2(near.global_position.x - a.position.x, near.global_position.z - a.position.z).length()
 	if d < flight(a) * NOTICE:
 		a.timer = CALM_FOR
 	else:
