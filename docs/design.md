@@ -25,7 +25,8 @@ aiming at; our implementation is our own.
 - Hold the headset's refresh rate at all times, whatever is built. A frame that
   misses vsync in VR is felt, not seen; every feature is measured at worst-case
   density before it lands (see "Frame budget").
-- Original assets only, generated procedurally wherever possible.
+- Original assets, generated procedurally wherever possible; avatar motion uses
+  licensed human-made recordings (`LICENSE-CMU-WAVE`), never invented animation.
 - One input mapping that works on any OpenXR controller with a stick, trigger,
   grip and two face buttons.
 - No text, with one exception: the player's name in the session picker (the visit
@@ -2074,6 +2075,9 @@ or none, both hands then hanging at its sides, as other players see it.
 | Look | The mouse, once a click in the window takes it; Escape lets it go | Right stick |
 | Take up the camera, the visit tool, or neither, in turn | Tab or the right button | Y |
 | Take a photo, or visit the garden pointed at | Left button | Right trigger or A |
+
+With empty hands, F or gamepad X plays the human-recorded wave. Taking up a tool
+ends it. In VR, wave with the tracked hand.
 
 ### Hands at surfaces
 

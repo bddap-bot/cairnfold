@@ -95,3 +95,17 @@ truncated notices in every archive format. To check an existing release, collect
 its expected notices from the matching revision and run
 `scripts/notices.py check PACKAGE EXPECTED_DIRECTORY`; for APKs the expected tree
 also includes the build's generated Android dependency notices.
+
+## Human-recorded wave
+
+`LICENSE-CMU-WAVE` ships in every package through the existing `LICENSE-*`
+collection. It records the CMU Graphics Lab source, commercial-product terms,
+and the requested acknowledgment for trial 141_16, “Wave Hello”. The original
+ASF/AMC inputs are in `third_party/cmu-wave/`; `scripts/wave.gd` converts them
+without authoring motion. The data is not covered by the game’s code licenses.
+
+VRoid’s official VRMA_02 Greeting was also checked at
+https://vroid.booth.pm/items/5512385. Its commercial license requires attribution
+and prohibits redistributing extractable motion or alterations, so it was not
+selected for this source repository. CMU’s terms explicitly permit inclusion in
+commercially sold products and prohibit selling the data itself.

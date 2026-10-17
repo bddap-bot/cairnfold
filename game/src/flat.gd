@@ -7,6 +7,8 @@ extends Node
 ## raised before the eye, or none, so there is no edit path to keep it from: with none, both hands hang at the sides,
 ## as other players see them.
 
+const WAVE: Animation = preload("res://animations/wave.tres")
+
 const TOOLS: Array[Hand.Tool] = [Hand.Tool.NONE, Hand.Tool.CAMERA, Hand.Tool.VISIT]
 const WALK := 2.5
 ## Radians a second at full stick, and per pixel of mouse.
@@ -31,6 +33,7 @@ var mouse_held := false
 var _taking_click := false
 var _trigger := ""
 var _firing := false
+var _wave_time := -1.0
 
 
 func _init(player: Rig) -> void:
@@ -129,9 +132,20 @@ func _process(delta: float) -> void:
 	if Input.is_action_just_pressed("flat_next_tool") and not _taking_click:
 		rig.right.tool = TOOLS[(TOOLS.find(rig.right.tool) + 1) % TOOLS.size()]
 	var raised := rig.right.tool != Hand.Tool.NONE
+	if raised:
+		_wave_time = -1.0
+	elif Input.is_action_just_pressed("flat_wave") and _wave_time < 0.0:
+		_wave_time = 0.0
+	elif _wave_time >= 0.0:
+		_wave_time += delta
+		if _wave_time > WAVE.length:
+			_wave_time = -1.0
 	for s in 2:
 		var at_side := Transform3D(level, Vector3.UP * Rig.EYE) * Avatar.AT_SIDES[s]
 		rig.hands[s].transform = eyes * Flat.held(rig.right.tool) if raised and s == 1 else at_side
+		if _wave_time >= 0.0:
+			var hand := Transform3D(Basis(WAVE.rotation_track_interpolate(s * 2 + 1, _wave_time)), WAVE.position_track_interpolate(s * 2, _wave_time))
+			rig.hands[s].transform = Transform3D(level, eyes.origin) * hand
 	var firing := raised and Input.is_action_pressed("flat_tool") and not _taking_click
 	if firing != _firing:
 		_firing = firing

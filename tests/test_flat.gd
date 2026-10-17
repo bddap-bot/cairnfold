@@ -20,6 +20,7 @@ func _initialize() -> void:
 	await _keys_and_a_gamepad_walk_and_look()
 	await _the_hands_hang_at_the_sides_until_a_tool_is_raised()
 	await _the_trigger_reaches_only_the_camera_and_the_visit_tool()
+	await _wave_plays_recorded_hands()
 	await _every_control_on_every_tool_sends_no_edit(sent)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
@@ -210,3 +211,31 @@ func _every_control_on_every_tool_sends_no_edit(sent: int) -> void:
 		_check(rig.right.tool == t, "no key changes the tool but the next-tool controls")
 	_check(rig.hands.all(func(h: Hand) -> bool: return Flat.TOOLS.has(h.tool)), "no hand ever holds an edit tool")
 	_check(main.world._next_token == sent, "and no edit command is ever sent: %d sent" % (main.world._next_token - sent))
+
+
+func _wave_plays_recorded_hands() -> void:
+	flat.yaw = 0.7
+	flat.pitch = 0.5
+	main.rig.right.tool = Hand.Tool.NONE
+	for press in [_key.bind(KEY_F), _button.bind(JOY_BUTTON_X)]:
+		await _tap(press, 1)
+		_check(flat._wave_time >= 0.0, "keyboard and gamepad start the recorded wave")
+		var highest := -INF
+		for i in 160:
+			await process_frame
+			if flat._wave_time >= 0.0:
+				var level := Transform3D(Basis(Vector3.UP, flat.yaw), main.rig.head.position)
+				var expected := Transform3D(Basis(Flat.WAVE.rotation_track_interpolate(3, flat._wave_time)), Flat.WAVE.position_track_interpolate(2, flat._wave_time))
+				_check(_near(main.rig.right.transform, level * expected), "wave follows source recording independent of look pitch")
+				highest = maxf(highest, expected.origin.y)
+		_check(highest > -0.2, "the recorded hand rises to head height: %.3f" % highest)
+		_check(flat._wave_time < 0.0, "wave finishes once without looping")
+		var level := Transform3D(Basis(Vector3.UP, flat.yaw), main.rig.head.position)
+		_check(_near(main.rig.right.transform, level * Avatar.AT_SIDES[1]), "hand returns to its side")
+	await _tap(_key.bind(KEY_F), 1)
+	main.rig.right.tool = Hand.Tool.CAMERA
+	await _frames(2)
+	_check(flat._wave_time < 0.0, "taking a tool ends the wave")
+	await _tap(_key.bind(KEY_F))
+	_check(flat._wave_time < 0.0, "wave does not move a held tool")
+	main.rig.right.tool = Hand.Tool.NONE
