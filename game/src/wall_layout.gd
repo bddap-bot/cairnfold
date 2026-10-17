@@ -61,6 +61,8 @@ const PLASTER := Color(0.86, 0.8, 0.68)
 ## The stone walls are laid in, before each stone's variation.
 const STONE := Color(0.66, 0.61, 0.53)
 const MORTAR := Color(0.32, 0.29, 0.25)
+## How far mortar stands back from the stones' faces, ends and tops wherever it would show.
+const JOINT := 0.07
 ## How far a plaster wall's face stands back from its stones'.
 const PLASTER_INSET := 0.02
 ## The stones up a gable's rakes: through the wall, and tall.
@@ -231,7 +233,7 @@ func build(ground: Callable, water := Callable()) -> void:
 		if not plaster or k == 0:
 			for span in spans:
 				_lay_course(span[0], span[1], y0, course_h, offset, stream)
-		bands.append([y0, course_h, spans])
+		bands.append([y0, course_h, spans, breaks[maxi(k, 0)]])
 	_lay_mortar(bands)
 	for a in live_arches:
 		_lay_ring(a, rng)
@@ -726,7 +728,9 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 		s += l
 
 
-## Mortar, or plaster above the footing, fills each band's spans `[y0, h, spans]` as panels on cells every band shares.
+## Mortar, or plaster above the footing, fills each band's spans `[y0, h, spans, broken]` as panels on cells every band
+## shares. Mortar stands JOINT back from the stones at the ends of the stretches `broken` away, and on the broken tops
+## under the next band's.
 ## A panel runs straight between its cell's ends on the ground, so it climbs a slope rather than stepping, and is
 ## mitred into the next cell (`Masonry.Kind.write`'s `ends`), so a curved face stays closed and shades round. A panel
 ## with the same ends as the one below grows up instead of stacking on it.
@@ -742,13 +746,16 @@ func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 	var total := length()
 	var panels := []
 	var below := {}
-	for band in bands:
-		var y0: float = band[0]
-		var top: float = y0 + band[1] + 0.02
+	for j in bands.size():
+		var y0: float = bands[j][0]
 		var face := plaster and y0 > 0.0
-		var wraps: bool = closed and band[2].any(func(sp): return sp[0] < 0.001) and band[2].any(func(sp): return sp[1] > total - 0.001)
+		var spans: Array = bands[j][2]
+		var broken := _round(bands[j][3] if bands[j].size() > 3 and not face else PackedVector2Array())
+		var bare := _round(bands[j + 1][3] if j + 1 < bands.size() and bands[j + 1].size() > 3 and not face else PackedVector2Array())
+		spans = spans.map(func(sp): return [sp[0] + (JOINT if broken.any(func(b): return absf(b.y - sp[0]) < 0.001) else 0.0), sp[1] - (JOINT if broken.any(func(b): return absf(b.x - sp[1]) < 0.001) else 0.0)])
+		var wraps: bool = closed and spans.any(func(sp): return sp[0] < 0.001) and spans.any(func(sp): return sp[1] > total - 0.001)
 		var here := {}
-		for span in band[2]:
+		for span in spans:
 			for i in cells.size():
 				var c: Dictionary = cells[i]
 				var a := maxf(span[0], c.a)
@@ -758,23 +765,53 @@ func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 				var left: bool = a - c.a < 0.001 and (a - span[0] > 0.001 or wraps and a < 0.001)
 				var right: bool = c.b - b < 0.001 and (span[1] - b > 0.001 or wraps and b > total - 0.001)
 				var ends := Vector2(clampf(-turns[i], -1.0, 1.0) if left else 0.0, clampf(turns[i + 1], -1.0, 1.0) if right else 0.0)
-				var key := "%d %.3f %.3f %s" % [i, a, b, face]
-				var p: Dictionary = below.get(key, {})
-				if p.is_empty() or p.ends != ends:
-					p = {"cell": c, "a": a, "b": b, "y0": y0, "face": face, "ends": ends}
-					panels.append(p)
-				p.top = top
-				here[key] = p
+				for piece in _pieces(a, b, bare):
+					var key := "%d %.3f %.3f %s" % [i, piece[0], piece[1], face]
+					var p: Dictionary = below.get(key, {})
+					var e := Vector2(ends.x if piece[0] == a else 0.0, ends.y if piece[1] == b else 0.0)
+					if p.is_empty() or p.ends != e:
+						p = {"cell": c, "a": piece[0], "b": piece[1], "y0": y0, "face": face, "ends": e}
+						panels.append(p)
+					p.top = y0 + bands[j][1] + (-JOINT if piece[2] else 0.02)
+					here[key] = p
 		below = here
 	for p in panels:
 		var c: Dictionary = p.cell
 		var from: Vector3 = c.from.lerp(c.to, (p.a - c.a) / (c.b - c.a))
 		var to: Vector3 = c.from.lerp(c.to, (p.b - c.a) / (c.b - c.a))
 		var h: float = p.top - p.y0
-		var size := Vector3(p.b - p.a, h, thick - (PLASTER_INSET * 2.0 if p.face else 0.14))
+		var size := Vector3(p.b - p.a, h, thick - (PLASTER_INSET if p.face else JOINT) * 2.0)
 		var basis := Basis(to - from, Vector3.UP * h, c.tangent.cross(Vector3.UP) * size.z)
 		var y: float = p.y0 + h * 0.5
 		stones.append({"xform": Transform3D(basis, (from + to) * 0.5 + Vector3.UP * y), "color": PLASTER if p.face else MORTAR, "kind": "plaster" if p.face else "mortar", "s": (p.a + p.b) * 0.5, "y": y, "size": size, "ao": 1.0 if plaster else 0.8, "variant": 0, "ends": p.ends})
+
+
+## The stretches, and round a loop each one a lap either way too, in order.
+func _round(stretches: PackedVector2Array) -> Array:
+	var out := []
+	for b in stretches:
+		for lap in ([-1.0, 0.0, 1.0] if closed else [0.0]):
+			out.append(b + Vector2.ONE * lap * length())
+	out.sort()
+	return out
+
+
+## `a` to `b` split where the stretches `bare` start and stop, each piece `[from, to, is_bare]`.
+static func _pieces(a: float, b: float, bare: Array) -> Array:
+	var out := []
+	var s := a
+	for sp in bare:
+		var lo := clampf(sp.x, s, b)
+		var hi := clampf(sp.y, s, b)
+		if hi - lo < 0.001:
+			continue
+		if lo > s:
+			out.append([s, lo, false])
+		out.append([lo, hi, true])
+		s = hi
+	if b > s:
+		out.append([s, b, false])
+	return out
 
 
 ## The run cut into cells of about a stone's length between corners, each with its ends `a`, `b` in arc length,
@@ -952,10 +989,10 @@ func _lay_gables() -> void:
 
 ## Courses up a gable end `hs` out from the ridge each side, each Vector2(course, half-width) about its middle: stone
 ## laid in mortar, or plaster. Courses stop at the corners rather than turn down the side walls, one reaching out to
-## the walls' outer faces on a block filling each corner; the mortar stops short of a course's ends, behind its stones.
+## the walls' outer faces on a block filling each corner; the mortar stops JOINT short of a course's ends, behind its stones.
 func _lay_gable_rows(mid: float, hs: float, base: float, h: float, rows: Array[Vector2], rng: RandomNumberGenerator) -> void:
 	var edge := hs - THICKNESS * 0.5
-	var inset := 0.0 if plaster else 0.05
+	var inset := 0.0 if plaster else JOINT
 	for row in rows:
 		var y := base + row.x * h
 		var half := minf(row.y, edge)

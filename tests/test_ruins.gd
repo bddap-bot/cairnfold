@@ -10,6 +10,7 @@ var main: Node
 func _initialize() -> void:
 	_a_ruin_leaves_its_gap_clear_to_the_ground()
 	_a_ruins_ends_step_down()
+	_mortar_stays_behind_a_ruins_broken_stones()
 	_a_ruin_drops_what_stood_in_it()
 	_ivy_keeps_to_the_standing_stones()
 	_ruins_are_deterministic_and_keep_their_own_steps()
@@ -83,6 +84,24 @@ func _a_ruins_ends_step_down() -> void:
 	_check(mid > 0.0 and mid < 4.2, "and between on the broken step: %f" % mid)
 	var caps := w.stones.filter(func(s): return s.kind == "cap" or s.kind == "merlon")
 	_check(caps.size() > 0 and caps.all(func(s): return s.s + s.size.x * 0.5 <= prev.x + 0.02 or s.s - s.size.x * 0.5 >= prev.y - 0.02), "no capping over the broken top")
+
+
+func _mortar_stays_behind_a_ruins_broken_stones() -> void:
+	var w := _wall(16.0, 4.2, [Vector2(7.0, 9.0)])
+	var ch := w.course_height()
+	var bad := []
+	for m in w.stones.filter(func(s): return s.kind == "mortar"):
+		var lo: float = m.s - m.size.x * 0.5
+		var hi: float = m.s + m.size.x * 0.5
+		var top: float = m.y + m.size.y * 0.5
+		for k in range(maxi(0, floori((m.y - m.size.y * 0.5) / ch + 0.01)), mini(w.courses(), ceili(top / ch - 0.01))):
+			var b: Vector2 = w.breaks[k][0]
+			var reach := WallLayout.JOINT - 0.001 if top - k * ch > 0.05 else -0.001
+			if hi > b.x - reach and lo < b.y + reach:
+				bad.append([k, lo, hi, top])
+	_check(bad.is_empty(), "mortar stops JOINT behind each course's broken end and under the stones above it: %s" % [bad])
+	var tops := w.stones.filter(func(s): return s.kind == "mortar" and s.s > 3.0 and s.s < 13.0).map(func(s): return s.y + s.size.y * 0.5)
+	_check(tops.any(func(t): return is_equal_approx(fposmod(t + WallLayout.JOINT, ch), 0.0) or is_equal_approx(fposmod(t + WallLayout.JOINT, ch), ch)), "a broken step's mortar sinks JOINT below its stones' tops")
 
 
 func _a_ruin_drops_what_stood_in_it() -> void:
