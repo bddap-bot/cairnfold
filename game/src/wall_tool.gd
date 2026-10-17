@@ -426,6 +426,7 @@ func begin_house(at: Vector3, yaw: float, on := PackedInt32Array()) -> void:
 	house = _new_wall()
 	house.on = on
 	house.layout.plaster = plaster
+	house.layout.timber_style = timber_style
 	house.layout.gable_end = gable_end
 	house.layout.closed = true
 	house.layout.top = WallLayout.Top.CAP

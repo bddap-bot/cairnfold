@@ -216,6 +216,7 @@ func _wall(s: Dictionary) -> void:
 ## Walls and houses a step lays are plaster with `plaster`, else stone, as if the style tool had last turned a face to it.
 func _lay_plaster(s: Dictionary) -> void:
 	main.tool.plaster = s.get("plaster", false)
+	main.tool.timber_style = int(s.get("timber_style", 0))
 
 
 func _fence(s: Dictionary) -> void:

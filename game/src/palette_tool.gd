@@ -136,7 +136,10 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 
 
 func style_target(restyle: Restyle, wall: Wall, point: Vector3, s := 0.0) -> Dictionary:
-	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "count": styles(restyle), "point": point, "wall": wall, "s": s}
+	var count := styles(restyle)
+	if restyle == Restyle.FACE and not (wall.layout.closed and wall.layout.corners().size() == 4):
+		count = Face.ALSACE
+	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "count": count, "point": point, "wall": wall, "s": s}
 
 
 static func styles(restyle: Restyle) -> int:
@@ -235,7 +238,7 @@ func _now(w: Wheel) -> int:
 			return WallTool.roof_style(d)
 		Restyle.TOP:
 			return d.top
-	if TimberFrame.applies(w.target.wall.layout):
+	if d.plaster and d.get("timber_style", 0) >= 0 and d.closed and d.points.size() == 4:
 		return Face.ALSACE + d.get("timber_style", 0)
 	return int(walls.arched(w.target.wall, w.target.s)) + (Face.PLASTER if d.plaster else Face.STONE)
 

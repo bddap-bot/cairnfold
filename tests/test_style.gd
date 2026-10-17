@@ -20,6 +20,7 @@ func _run() -> void:
 	_species_differ()
 	_old_save_loads_as_plaster()
 	_faces_turn_to_plaster()
+	_timber_faces()
 	_trees_take_a_species()
 	_meadow_trees_take_a_species()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -81,7 +82,7 @@ func _old_save_loads_as_plaster() -> void:
 			plastered += 1
 			var picker: PaletteTool = main.palette_tool
 			picker.open(main.rig.right, picker.style_target(PaletteTool.Restyle.FACE, w, Vector3.ZERO, 0.5))
-			_check(picker.wheels[main.rig.right].start == PaletteTool.Face.PLASTER, "the style tool reads a loaded plaster face as plaster")
+			_check(picker.wheels[main.rig.right].start == (PaletteTool.Face.ALSACE if TimberFrame.applies(w.layout) else PaletteTool.Face.PLASTER), "the style tool reads an old plaster house as Alsace and an open wall as plaster")
 			picker.close(main.rig.right)
 		else:
 			stone += 1
@@ -175,4 +176,31 @@ func _meadow_trees_take_a_species() -> void:
 	world._order({"op": "species", "group": 0, "index": i, "species": FloraLayout.Species.FIR}, 2)
 	world._order({"op": "undo"}, 2)
 	_check(flora.species_of(trunk) == FloraLayout.Species.BEECH, "an undo goes back one species")
+	world.restore({"seq": 0, "cmds": []})
+
+
+func _timber_faces() -> void:
+	var data := _wall_data(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
+	data.closed = true
+	world._order({"op": "wall", "walls": [data]}, 1)
+	var id := world.seq * Commands.MAX_PIECES
+	var wall: Wall = main.tool.find(id)
+	wall.lay_now()
+	var picker: PaletteTool = main.palette_tool
+	for style in TimberFrame.PATTERNS.size():
+		var target := picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO, 2.0)
+		_check(target.count == 9, "house face wheel includes the five timber patterns")
+		picker.open(main.rig.right, target)
+		var start: int = picker.wheels[main.rig.right].start
+		picker.twist(main.rig.right, (PaletteTool.Face.ALSACE + style - start) * Palette.TWIST_STEP)
+		picker.close(main.rig.right)
+		_check(world.state.walls[id].plaster and world.state.walls[id].timber_style == style, "face wheel commits timber pattern %d" % style)
+		wall.lay_now()
+		_check(wall.layout.stones.any(func(p): return p.kind == "timber"), "selected timber face is rendered")
+	world._order({"op": "undo"}, world.me())
+	_check(world.state.walls[id].timber_style == 3, "undo restores the preceding timber face")
+	world._order({"op": "redo"}, world.me())
+	_check(world.state.walls[id].timber_style == 4, "redo restores the selected timber face")
+	world.restore(world.snapshot())
+	_check(world.state.walls[id].timber_style == 4, "save retains the pattern")
 	world.restore({"seq": 0, "cmds": []})
