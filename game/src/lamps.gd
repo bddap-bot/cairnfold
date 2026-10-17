@@ -216,7 +216,8 @@ static func _falloff(d: float) -> float:
 
 
 ## Adds to the probes outside every room the light `lit` an opening at `at` facing `out` throws, brightest
-## straight out and gone at SPILL.
+## straight out and gone at SPILL. None goes up: above an opening it would meet only the eaves' underside, and the
+## probes there are what the roof over them reads.
 static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: float, within: PackedInt32Array, ground: PackedFloat32Array) -> void:
 	var n := Bounce.CELLS
 	var r := ceili(SPILL / Terrain.STEP)
@@ -230,7 +231,7 @@ static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: floa
 				var to := Vector3(x, ground[j * n + i] + k + 0.5, z) - at
 				var d := to.length()
 				var facing := to.dot(out)
-				if within[p] == 0 and facing > 0.0 and d < SPILL:
+				if within[p] == 0 and facing > 0.0 and to.y <= 0.0 and d < SPILL:
 					sum[p] += lit * pow(facing / d, 2.0) * pow(1.0 - pow(d / SPILL, 2.0), 2.0)
 
 

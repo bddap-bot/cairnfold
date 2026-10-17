@@ -68,6 +68,7 @@ func _windows_and_doors_let_it_out() -> void:
 	var door := _at(held, 3.5, -4.5, 0)
 	_check(window > 0.1, "light falls on the ground outside a window: %.2f" % window)
 	_check(_at(held, 3.5, 6.5, 0) == 0.0, "and is gone a few metres out")
+	_check(_at(held, 3.5, 4.5, 2) == 0.0, "and none rises toward the eaves over it")
 	_check(door > 0.0 and door < window * 0.5, "a doorway lets a little out: %.2f beside the window's %.2f" % [door, window])
 
 
