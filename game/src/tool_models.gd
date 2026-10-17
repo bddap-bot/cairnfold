@@ -36,6 +36,13 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_windows(root)
 		Hand.Tool.DECORATIONS:
 			_decor(root)
+		Hand.Tool.STAIRS:
+			var layout := StairLayout.new()
+			layout.build({"a": Vector3.ZERO, "b": Vector3(0, 0.8, -1.5), "width": 1.2, "rail": "wood", "seed": 1})
+			var stones := Stones.new()
+			stones.lay(layout.stones)
+			stones.scale = Vector3.ONE * 0.035
+			root.add_child(stones)
 		Hand.Tool.PATH:
 			_path(root)
 		Hand.Tool.DIRT_PATH:

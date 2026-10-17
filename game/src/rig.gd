@@ -32,9 +32,9 @@ var hands: Array[Hand] = []
 var aim_hand: Hand
 var aim_ground: Variant = null
 var aim_lift := 0.0
-## What a point stands on, as `WallTool.floor_under` finds it: the ground, or a flat roof's deck at or below it.
+## What a point stands on: the ground, or a flat roof's deck or a stair's tread at or below it.
 var floor_under := func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z)
-## Where a ray first meets something solid short of a reach, the ground aside, as `WallTool.solid_hit` finds it, or null.
+## Where a ray first meets something solid short of a reach, the ground aside: a build, a plant or stairs; or null.
 var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Variant: return null
 var _moves: Buttons
 var _turns: Buttons

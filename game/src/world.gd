@@ -30,6 +30,7 @@ signal restored
 
 var wall_tool: WallTool
 var flora: Flora
+var stairs: Stairs
 var paths: Paths
 var ground_grab: GroundGrab
 var water: Water
@@ -38,7 +39,7 @@ var palette := Palette.new()
 ## Standing walls, paths and plant groups by id, as the plain values their commands carry, and the grid
 ## points ponds fill from. A group keeps its command's fields, its `size` and the indices of its plants
 ## since `hidden`.
-var state := {"walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": []}
+var state := {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": []}
 var seq := 0
 var sculpted := false
 ## Host only: per player, their undo and redo stacks of {seq, inverse, keys}.
@@ -141,6 +142,10 @@ func change_of(cmd: Dictionary) -> Dictionary:
 					elif k != "paint":
 						trial[k] = cmd.data[k]
 				Budget.add(Budget.add(out, Budget.wall(trial)), _units_of.get("w%d" % cmd.id, {}), -1.0)
+		"stairs":
+			Budget.add(out, Budget.stairs(cmd.stairs))
+		"unstairs":
+			Budget.add(out, _units_of.get("q%d" % cmd.id, {}), -1.0)
 		"path":
 			Budget.add(out, Budget.path(cmd.path))
 		"unpath":
@@ -348,7 +353,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 		cmd.token = proposed.token
 	if cmd.op == "wall" and not cmd.has("ids"):
 		cmd.ids = PackedInt32Array(range(seq * Commands.MAX_PIECES, seq * Commands.MAX_PIECES + cmd.walls.size()))
-	elif cmd.op in ["plant", "path", "ground"] and not cmd.has("id"):
+	elif cmd.op in ["stairs", "plant", "path", "ground"] and not cmd.has("id"):
 		cmd.id = seq
 	var inverse := _timed(cmd)
 	if cmd.op == "plant" and cmd.kind != "tree":
@@ -467,7 +472,7 @@ func _keys(cmd: Dictionary) -> Array:
 			return ["w%d" % cmd.id]
 		"plant":
 			return ["p%d" % cmd.id]
-		"path", "unpath", "ground", "unground":
+		"stairs", "unstairs", "path", "unpath", "ground", "unground":
 			return ["q%d" % cmd.id]
 		"season":
 			return ["season"]
@@ -548,6 +553,16 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			wall_tool.restyle(cmd.id, cmd.data.keys())
 			_account("w%d" % cmd.id, Budget.wall(now))
 			inverse = {"op": "reshape", "id": cmd.id, "data": before}
+		"stairs":
+			state.stairs[cmd.id] = cmd.stairs.duplicate(true)
+			stairs.put(cmd.id, state.stairs[cmd.id])
+			_account("q%d" % cmd.id, Budget.stairs(cmd.stairs))
+			inverse = {"op": "unstairs", "id": cmd.id}
+		"unstairs":
+			inverse = {"op": "stairs", "id": cmd.id, "stairs": state.stairs[cmd.id]}
+			state.stairs.erase(cmd.id)
+			stairs.take(cmd.id)
+			_account("q%d" % cmd.id, {})
 		"path":
 			state.paths[cmd.id] = cmd.path.duplicate(true)
 			paths.put(cmd.id, state.paths[cmd.id])
@@ -662,6 +677,8 @@ func snapshot() -> Dictionary:
 	for g: Vector2i in state.seeds:
 		var at := Rect2i(g, Vector2i.ONE)
 		cmds.append({"op": "heights", "cells": at, "values": Terrain.read(at), "seed": g})
+	for id in state.stairs:
+		cmds.append({"op": "stairs", "id": id, "stairs": state.stairs[id]})
 	for id in state.paths:
 		cmds.append({"op": "path", "id": id, "path": state.paths[id]})
 	for id in state.grounds:
@@ -720,6 +737,8 @@ func _hushed(change: Callable) -> Variant:
 func _clear() -> void:
 	for id in state.walls.keys():
 		wall_tool.take(id)
+	for id in state.stairs.keys():
+		stairs.take(id)
 	for id in state.paths.keys():
 		paths.take(id)
 	if water != null:
@@ -727,7 +746,7 @@ func _clear() -> void:
 	for id in _strokes:
 		Ground.lift(_strokes[id])
 	_strokes.clear()
-	state = {"walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": []}
+	state = {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": []}
 	units = _meadow_units.duplicate()
 	_units_of.clear()
 	flora.reset()
@@ -782,6 +801,7 @@ func digest() -> Dictionary:
 				shown += 1
 				spot += p.anchor
 		out.groups[str(g)] = {"kind": state.groups[g].kind, "plants": flora.groups[g].size(), "shown": shown, "spot": var_to_str(spot.snapped(Vector3.ONE * 0.01))}
+	out.stairs = state.stairs.duplicate(true)
 	out.paths = state.paths.keys()
 	out.seeds = state.seeds.map(var_to_str)
 	out.grounds = state.grounds.keys()

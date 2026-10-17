@@ -1,0 +1,78 @@
+class_name StairTool
+extends Node3D
+
+var rig: Rig
+var walls: WallTool
+var world: World
+var _buttons: Array[Buttons] = []
+var _strokes := {}
+var rail := "stone"
+
+func _init(player: Rig, builder: WallTool, garden: World) -> void:
+	rig = player
+	walls = builder
+	world = garden
+	for h in rig.hands:
+		_buttons.append(Buttons.new(h).watch(["tool"]))
+	world.restored.connect(func():
+		for hand in _strokes.keys():
+			_cancel(hand))
+
+func busy(hand: Hand = null) -> bool:
+	return not _strokes.is_empty() if hand == null else _strokes.has(hand)
+
+func begin(hand: Hand, at: Vector3) -> void:
+	_cancel(hand)
+	var ghost := Stones.new()
+	add_child(ghost)
+	_strokes[hand] = {"data": {"a": at, "b": at, "width": 1.2, "rail": rail, "seed": randi()}, "ghost": ghost}
+
+func extend(hand: Hand, at: Vector3) -> void:
+	if not _strokes.has(hand):
+		return
+	var s: Dictionary = _strokes[hand]
+	var d: Vector3 = at - s.data.a
+	s.data.b = s.data.a + d.limit_length(StairLayout.MAX_LENGTH)
+	s.data.rail = rail
+	var layout := StairLayout.new()
+	layout.build(s.data)
+	s.ghost.lay(layout.stones)
+	world.preview(hand, Budget.stairs(s.data))
+
+func end(hand: Hand) -> void:
+	if not _strokes.has(hand):
+		return
+	var s: Dictionary = _strokes[hand]
+	_strokes.erase(hand)
+	if s.data.a.distance_to(s.data.b) < 0.3:
+		s.ghost.queue_free()
+		return
+	world.submit({"op": "stairs", "stairs": s.data}, func(): s.ghost.queue_free(), hand)
+
+func _cancel(hand: Hand) -> void:
+	if _strokes.has(hand):
+		_strokes[hand].ghost.queue_free()
+		_strokes.erase(hand)
+
+func _process(_delta: float) -> void:
+	for buttons in _buttons:
+		var hand := buttons.hand as Hand
+		if hand.tool != Hand.Tool.STAIRS or rig.aim_hand == hand:
+			_cancel(hand)
+		elif hand.get_has_tracking_data():
+			var t := hand.global_transform
+			var hit := aim(t.origin, -t.basis.z)
+			hand.point(hit.get("point"), WallTool.TINT)
+			if buttons.pressed("tool") and not hit.is_empty():
+				begin(hand, hit.point)
+			if buttons.held("tool") and not hit.is_empty():
+				extend(hand, hit.point)
+			if buttons.released("tool"):
+				end(hand)
+		buttons.latch()
+
+
+func aim(origin: Vector3, direction: Vector3) -> Dictionary:
+	var hit := walls.aim(origin, direction)
+	var stairs := world.stairs.pick(origin, direction, hit.get("along", INF))
+	return stairs if not stairs.is_empty() else hit

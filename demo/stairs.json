@@ -1,0 +1,23 @@
+[
+  {"op": "place", "x": 0, "z": 12},
+  {"op": "wall", "points": [[-4, -4], [-4, 3]], "seconds": 0.5},
+  {"op": "top", "index": 0, "style": "cap"},
+  {"op": "wall", "points": [[3, -4], [3, 3]], "seconds": 0.5},
+  {"op": "top", "index": 1, "style": "cap"},
+  {"op": "dig", "x": -0.5, "z": -0.5, "seconds": 2.5},
+  {"op": "stairs", "a": [-4, 0, -0.5], "b": [3, 0, -0.5], "on": true, "seconds": 1},
+  {"op": "stairs", "a": [-9, 0, 1.5], "b": [-4, 0, 1.5], "on": true, "seconds": 1},
+  {"op": "stairs", "a": [4.3, 0, -3], "b": [3, 0, -3], "on": true, "seconds": 1},
+  {"op": "house", "at": [9, -6], "size": [4, 4], "seconds": 0.5},
+  {"op": "roof", "index": 2, "pitch": 0.0},
+  {"op": "stairs", "a": [9, 0, 0], "b": [9, 0, -5], "on": true, "rail": "wood", "seconds": 1},
+  {"op": "wait", "seconds": 4},
+  {"op": "view", "eye": [9, 7, 13], "at": [0, 1, -1]},
+  {"op": "capture", "name": "stairs-day-a"},
+  {"op": "view", "eye": [-10, 4.5, -10], "at": [0, 1.5, 0]},
+  {"op": "capture", "name": "stairs-day-b"},
+  {"op": "view", "eye": [-0.5, 4.5, 8], "at": [-0.5, 2, -0.5]},
+  {"op": "aim", "dir": [0.0, 0.12, -1], "stick": 1.0, "seconds": 1, "capture": "teleport-onto-bridge", "settle": 2.5},
+  {"op": "capture", "name": "on-the-bridge"},
+  {"op": "quit"}
+]

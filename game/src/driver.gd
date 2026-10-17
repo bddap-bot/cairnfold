@@ -48,7 +48,7 @@ func _exit_tree() -> void:
 
 
 func _standing() -> void:
-	while main.tool.walls.any(func(w: Wall) -> bool: return w.laying()):
+	while main.world.stairs.laying() or main.tool.walls.any(func(w: Wall) -> bool: return w.laying()):
 		await get_tree().process_frame
 
 
@@ -914,3 +914,46 @@ func _units(_s: Dictionary) -> void:
 	for d in Budget.Device.size():
 		on[Budget.Device.keys()[d]] = snappedf(Budget.cost_ms(main.world.units, d), 0.01)
 	print("budget: %s units %s ms %s fill %.3f" % [main.metrics.info.label, JSON.stringify(main.world.units), JSON.stringify(on), main.world.fill()])
+
+
+func _stairs(s: Dictionary) -> void:
+	var hand: Hand = main.rig.right
+	hand.tool = Hand.Tool.STAIRS
+	main.stair_tool.rail = s.get("rail", "stone")
+	var a := Vector3(s.a[0], s.a[1], s.a[2])
+	var b := Vector3(s.b[0], s.b[1], s.b[2])
+	if s.get("ground", false):
+		a.y += Terrain.height_at(a.x, a.z)
+		b.y += Terrain.height_at(b.x, b.z)
+	if s.get("on", false):
+		a = _target(s, Terrain.ground(a.x, a.z)).point
+		b = _target(s, Terrain.ground(b.x, b.z)).point
+	main.stair_tool.begin(hand, a)
+	var frames := maxi(1, int(s.get("seconds", 1.0) * 30.0))
+	for i in frames:
+		main.stair_tool.extend(hand, a.lerp(b, float(i + 1) / frames))
+		await get_tree().create_timer(1.0 / 30.0).timeout
+	main.stair_tool.end(hand)
+
+
+func _stair_field(_s: Dictionary) -> void:
+	main.world.submit({"op": "wipe"})
+	main.world.bounded = true
+	await _sculpt({"x": -18.0, "z": 0.0, "lift": 3.0, "radius": 3.0, "seconds": 0.2})
+	await _pave({"points": [[-18, 4], [-18, 0]], "radius": 0.8, "seconds": 0.2})
+	var placed := 0
+	for row in 9:
+		for col in 9:
+			var a := Terrain.ground((col - 4) * 3.5, (row - 4) * 6.0)
+			var d := {"a": a, "b": a + Vector3(0, 2.4, -4), "width": 1.2, "rail": "stone" if col % 2 == 0 else "wood", "seed": row * 9 + col}
+			if col % 3 == 1:
+				d.b = a + Vector3(0, 3, -1)
+			elif col % 3 == 2:
+				d.b = a + Vector3(0, 0, -4)
+			if not main.world.fits({"op": "stairs", "stairs": d}):
+				print("stairs: budget full at %d builds, fill %.3f" % [placed, main.world.fill()])
+				return
+			main.world.submit({"op": "stairs", "stairs": d})
+			placed += 1
+			await get_tree().process_frame
+	assert(false, "stair field did not fill the budget")

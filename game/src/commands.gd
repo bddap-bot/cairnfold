@@ -5,10 +5,10 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "heights", "season", "wipe", "garden", "batch"]
+const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "heights", "season", "wipe", "garden", "batch"]
 ## What a batch may carry: from a player, takings; from the host, also the undo of them.
-const BATCHED := ["unwall", "reshape", "unpath", "unground", "show"]
-const UNBATCHED := ["wall", "path", "ground"]
+const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show"]
+const UNBATCHED := ["stairs", "wall", "path", "ground"]
 ## Most commands one batch carries.
 const MAX_BATCH := 128
 ## A stroke builds at most this many walls; their ids follow from the command's sequence number.
@@ -48,7 +48,7 @@ static func length(points: Variant) -> float:
 
 ## Walls, paths and plant groups with anything standing.
 static func _things(state: Dictionary) -> int:
-	var n: int = state.walls.size() + state.paths.size() + state.grounds.size()
+	var n: int = state.get("stairs", {}).size() + state.walls.size() + state.paths.size() + state.grounds.size()
 	for g: Dictionary in state.groups.values():
 		if g.kind != "meadow" and g.hidden.size() < g.size:
 			n += 1
@@ -74,14 +74,20 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			out[k] = cmd[k]
 	if typeof(cmd.get("token")) == TYPE_INT:
 		out.token = cmd.token
-	if op in ["plant", "path", "ground"] and from_host:
-		if typeof(cmd.get("id")) != TYPE_INT or state.groups.has(cmd.id) or state.paths.has(cmd.id) or state.grounds.has(cmd.id):
+	if op in ["stairs", "plant", "path", "ground"] and from_host:
+		if typeof(cmd.get("id")) != TYPE_INT or state.groups.has(cmd.id) or state.paths.has(cmd.id) or state.grounds.has(cmd.id) or state.get("stairs", {}).has(cmd.id):
 			return {}
 		out.id = cmd.id
-	if op in ["wall", "path", "ground", "plant"] and not from_host and _things(state) >= MAX_THINGS:
+	if op in ["stairs", "wall", "path", "ground", "plant"] and not from_host and _things(state) >= MAX_THINGS:
 		return {}
 	var ok := false
 	match op:
+		"stairs":
+			out.stairs = _stairs(cmd.get("stairs"))
+			ok = out.stairs != null
+		"unstairs":
+			ok = typeof(cmd.get("id")) == TYPE_INT and state.get("stairs", {}).has(cmd.id)
+			out.id = cmd.get("id")
 		"wall":
 			var ws: Variant = cmd.get("walls")
 			ok = ws is Array and ws.size() >= 1 and ws.size() <= MAX_PIECES
@@ -376,3 +382,17 @@ static func _heights(cmd: Dictionary, state: Dictionary, from_host: bool, out: D
 	if out.has("seed") and not from_host and (state.seeds.has(out.seed) or state.seeds.size() >= MAX_SEEDS):
 		out.erase("seed")
 	return not (out.has("seed") and out.has("unseed"))
+
+
+static func _stairs(d: Variant) -> Variant:
+	if not d is Dictionary:
+		return null
+	for key in ["a", "b"]:
+		if typeof(d.get(key)) != TYPE_VECTOR3 or not _finite(d[key]):
+			return null
+	var length: float = d.a.distance_to(d.b)
+	if length < 0.3 or length > StairLayout.MAX_LENGTH + 0.001 or not _in(d.get("width"), StairLayout.WIDTH):
+		return null
+	if typeof(d.get("seed")) != TYPE_INT or not d.get("rail") in ["none", "stone", "wood"]:
+		return null
+	return {"a": d.a, "b": d.b, "width": d.width, "seed": d.seed, "rail": d.rail}

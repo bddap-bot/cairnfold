@@ -17,6 +17,7 @@ var visit_tool: VisitTool
 var _undo: Buttons
 var _redo: Buttons
 var tool: WallTool
+var stair_tool: StairTool
 var flora_tool: FloraTool
 var delete_tool: DeleteTool
 var fitting_tool: FittingTool
@@ -55,6 +56,10 @@ func _ready() -> void:
 	add_child(flora_tool)
 	tool = WallTool.new(rig, world, flora, paths)
 	builds.add_child(tool)
+	world.stairs = Stairs.new(tool.masonry)
+	builds.add_child(world.stairs)
+	stair_tool = StairTool.new(rig, tool, world)
+	add_child(stair_tool)
 	tool.masonry.placed.connect(look.bounce.place)
 	hand_stop = HandStop.new(rig, tool, flora)
 	add_child(hand_stop)
@@ -102,8 +107,11 @@ func _ready() -> void:
 	add_child(wildlife)
 	sound = Soundscape.new(tool, flora_tool, water)
 	add_child(sound)
-	rig.floor_under = tool.floor_under
-	rig.solid_hit = tool.solid_hit
+	rig.floor_under = func(p: Vector3) -> float: return maxf(tool.floor_under(p), world.stairs.floor_under(p))
+	rig.solid_hit = func(origin: Vector3, dir: Vector3, reach: float) -> Variant:
+		var build: Variant = tool.solid_hit(origin, dir, reach)
+		var stair := world.stairs.pick(origin, dir, reach if build == null else origin.distance_to(build))
+		return build if stair.is_empty() else stair.point
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 	metrics = Metrics.new(args.get("metrics", ""))
 	metrics.info = {"xr": _start_xr(), "label": "", "budget": Budget.info()}
@@ -146,7 +154,7 @@ func _process(_delta: float) -> void:
 
 ## Whether `hand`, or with none any hand, has an edit under way: a grip takes nothing from a hand mid-edit.
 func _editing(hand: Hand = null) -> bool:
-	return tool.busy(hand) or flora_tool.busy(hand) or ground_grab.busy(hand) or palette_tool.busy(hand) or delete_tool.busy(hand)
+	return stair_tool.busy(hand) or tool.busy(hand) or flora_tool.busy(hand) or ground_grab.busy(hand) or palette_tool.busy(hand) or delete_tool.busy(hand)
 
 
 func _start_xr() -> bool:

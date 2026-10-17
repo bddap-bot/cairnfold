@@ -1768,3 +1768,24 @@ arches beneath walls and can be selected with Delete; undo restores the path and
 its crossings. A saved path carries its style, with older paths remaining cobbled.
 `demo/dirt-path.json` shows the two surfaces side by side; the stress scene includes
 both. Dirt reuses the ground material and adds no path draw calls.
+
+## Stairs
+
+Report (verbatim): "I liked the stair slash bridge object that you had in a previous build. It didn't work in that build, but I did like the idea. Um, and I would like to see it in the real game"
+
+The stairs tool lives beside paths on the tool wheel. Hold the trigger at one end,
+point at the other, then release. Either end can be ground, a wall top, a flat roof
+or an existing landing. A level stroke is a landing, so one drawn between two wall
+tops is a bridge; a near-vertical run becomes a wooden ladder. Railings are stone;
+the wooden ones a demo or saved garden names still lay. Stones
+appear in order from the lower end. Delete takes a flight, ladder or landing whole;
+undo, redo, autosave and joining a garden preserve it like other builds.
+
+A flight or landing is walkable: its treads are what a point over it stands on,
+and the teleport ray stops at its stones like any other solid, so a player lands on
+the tread, the bridge's deck or a rung. Stairs stand where they were drawn: they
+carry no supports, take no part in wall arches, and outlive a wall they were drawn
+onto. `demo/stairs.json` shows a bridge over a pond between two walls, a flight up
+to it, a ladder and a flight onto a flat roof, then teleports onto the bridge; the
+stress scene fills the build budget with stairs, ladders and landings for its
+`stairs/*` views.

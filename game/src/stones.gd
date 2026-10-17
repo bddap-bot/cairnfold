@@ -85,3 +85,7 @@ func lay(stones: Array[Dictionary]) -> void:
 ## A laid part's custom data: its occlusion, and the code of the material it is painted with.
 static func custom(part: Dictionary) -> Color:
 	return Color(part.ao, Palette.code(part.get("kind", "")), 0, 0)
+
+
+func reveal(count: int) -> void:
+	_instance.multimesh.visible_instance_count = count

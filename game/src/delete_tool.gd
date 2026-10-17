@@ -156,6 +156,9 @@ func aim(origin: Vector3, dir: Vector3, taken := {}) -> Dictionary:
 	var reach: float = (ground - origin).dot(dir) if ground != null else REACH
 	var pick := walls.pick_wall(origin, dir)
 	var solid := flora.solid_hit(origin, dir, reach, taken)
+	var stair := world.stairs.pick(origin, dir, minf(reach, minf(pick.get("along", INF), solid.get("along", INF)))) if world.stairs != null else {}
+	if not stair.is_empty():
+		return stair
 	if not pick.is_empty() and (solid.is_empty() or pick.along <= solid.along):
 		return {"wall": pick.wall, "s": pick.s, "point": pick.point}
 	if not solid.is_empty():
@@ -210,6 +213,8 @@ func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 		for p: Flora.Plant in target.plants:
 			p.draw(false)
 			cut.plants[p] = true
+	elif target.has("stair"):
+		cut.marks[target.stair] = "unstairs"
 	elif target.has("laid"):
 		var id := Ground.mark_at(target.point.x, target.point.z)
 		if id >= 0:

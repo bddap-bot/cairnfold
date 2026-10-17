@@ -129,3 +129,9 @@ static func plants(kind: String, n: int) -> Dictionary:
 	if n <= 0:
 		return {}
 	return {"tree": n} if kind == "tree" else {("grass" if kind == "grass" else "flower"): n}
+
+
+static func stairs(d: Dictionary) -> Dictionary:
+	var run := d.a.distance_to(d.b) as float
+	# Charge the treads and both rails against the existing stone-face budget.
+	return {"wall_m2": run * (d.width + 2.0 * StairLayout.RAIL_HEIGHT)}
