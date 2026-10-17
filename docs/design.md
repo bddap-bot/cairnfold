@@ -1837,7 +1837,7 @@ path crosses; `demo/stone.json` paints stone ground into the meadow, paints part
 walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete, then empties the hand; `demo/photo.json` takes the camera from the wheel and takes two photos; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks
 at a perched one from in front and from the side;
-`demo/feeding.json` builds a pond, trees, a wall and a fence, waits for the animals, then holds seeds out to a conure, the ducks and the sheep;
+`demo/feeding.json` builds a pond, trees, a wall and a fence, waits for the animals, then holds seeds out to a conure, the ducks and the sheep, throws handfuls to the sheep and onto the pond and watches the uneaten ones sink away;
 `demo/sheep.json` draws a fence, waits for a flock and looks at it close up and from afar (`--seed 40` puts sheep in the close views);
 `demo/daylight.json` drags the sun from dawn to dusk, opens the colour wheel, recolours a roof, a wall's stone,
 a fence and a gable, and walks the meadow through the seasons; `demo/paint.json` paints two walls and two houses
