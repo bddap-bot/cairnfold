@@ -6,11 +6,11 @@
   {"op": "wait", "seconds": 3},
   {"op": "view", "eye": [0, 1.7, 30], "at": [0, 1.7, -60]},
   {"op": "capture", "name": "00-eye"},
+  {"op": "capture", "name": "01-screen", "screen": true},
   {"op": "pick", "hand": "right", "tool": "camera"},
   {"op": "hands", "right": [0.0, -0.08, -0.2], "tip": 0},
   {"op": "wait", "seconds": 1},
-  {"op": "capture", "name": "01-viewfinder"},
-  {"op": "capture", "name": "02-screen", "screen": true},
+  {"op": "capture", "name": "02-viewfinder"},
   {"op": "photo"},
   {"op": "wait", "seconds": 2},
   {"op": "quit"}

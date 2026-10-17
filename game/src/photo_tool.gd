@@ -100,6 +100,17 @@ func _aim(vp: SubViewport, at: Transform3D, fov: float, mask: int) -> void:
 		rig.pose_body(holders())
 
 
+## The view the camera's screen would show from `at`, drawn once by a viewport made as the screen's is.
+func render_screen(at: Transform3D) -> Image:
+	var vp := _viewport(PREVIEW_SIZE, Viewport.MSAA_DISABLED)
+	_aim(vp, at, FOV, ALL_LAYERS)
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	await RenderingServer.frame_post_draw
+	var img := vp.get_texture().get_image()
+	vp.queue_free()
+	return img
+
+
 ## Takes a photo through the hand's lens and saves it; the screen holds the shot for a moment. Returns
 ## where it was saved, or "" if it could not be taken.
 func shoot(hand: Hand) -> String:
