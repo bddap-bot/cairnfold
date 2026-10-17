@@ -519,6 +519,26 @@ the air it held 72 Hz at 10.3 to 10.8 ms at steps 1 and 2, then the governor ste
 to the top and the runtime held the game at every other refresh for six seconds before it
 stepped back down: the ladder's own probe for room, not the content, which held at step 2.
 
+What walls cost the Quest 2 (`NESTCOMBE_SCENE=demo/costs.json bench.sh OUT --android APK`,
+the ladder at its bottom step): GPU milliseconds a frame over the bare meadow of the same run,
+whose own time read 19 to 27 ms here, so only the differences count. Before is 16 m masonry
+chunks, after is 8 m; the bar charges every headset the Frame's 6.07 µs a m²:
+
+| Walls 2 m apart, 4.5 m tall | Units | Bar charges | Standing, before | Standing, after | From the air, before | From the air, after |
+| --- | --- | --- | --- | --- | --- | --- |
+| 10 m disc | 714 m² | 4.33 | 9.69 | 6.59 | 3.32 | 3.76 |
+| 15 m disc | 1,562 m² | 9.48 | 15.15 | 9.67 | 6.42 | 7.16 |
+| 20 m disc | 2,837 m² | 17.23 | 16.51 | 9.34 | 12.00 | 12.37 |
+
+Standing, a wall's cost no longer grows with the garden past the chunks around the eye, so
+a linear price per m² undercharges the first walls and overcharges a wide garden. Over the
+15 m disc standing, each kind of piece hidden in turn (paired runs, 8 m chunks): ivy 5.3 to
+6.5 ms, full stones 1.7 to 2.5 ms, mortar about 1 ms, the stones' shadow boxes 0.1 ms. Ivy's
+cost does not follow its triangles: sharing each lobe's vertices (24 instead of 36 a sprig)
+saved 0.4 ms, dropping its backlight nothing, and drawing one side 1.4 ms at the cost of the
+leaves vanishing from behind. From the air the stones cost about 8 ms over few primitives,
+and one detail-texture read instead of three saved nothing.
+
 The Quest 2 is not measured yet: until it is, a Quest's garden is held to the Frame's
 costs.
 
