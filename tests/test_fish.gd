@@ -38,15 +38,13 @@ func _dig(tool: WaterTool, x: float, z: float) -> void:
 	await process_frame
 
 
-func _all(fish: Fish) -> Array:
-	var out := []
-	for k in fish.schools:
-		out.append_array(fish.schools[k])
-	return out
+func _run(wildlife: Wildlife, seconds: float) -> void:
+	for i in int(seconds / STEP):
+		wildlife.tick(STEP)
 
 
 func _in_water(fish: Fish, water: Water) -> bool:
-	return _all(fish).all(func(f: Fish.One) -> bool:
+	return fish.swimming.all(func(f: Fish.One) -> bool:
 		var p := water.pond_at(f.at.x, f.at.z)
 		return p != null and f.at.y < p.surface_y() and f.at.y > Terrain.height_at(f.at.x, f.at.z))
 
@@ -80,25 +78,26 @@ func _they_swim_in_the_ponds() -> void:
 	var fish := wildlife.fish
 
 	wildlife.tick(STEP)
-	_check(fish.count() == 0 and fish.mm.visible_instance_count == 0, "no pond, no fish")
+	_check(fish.swimming.size() == 0 and fish.mm.visible_instance_count == 0, "no pond, no fish")
 
 	await _dig(tool, 3, -4)
 	await _dig(tool, 4.5, -4)
 	water.ponds[0]._process(PondWater.FILL)
-	wildlife.tick(STEP)
-	var n := fish.count()
-	_check(n >= Fish.PER_POND.x and n <= Fish.PER_POND.y, "a pond has a few fish, %d" % n)
+	_run(wildlife, Fish.FADE + 0.5)
+	var n := fish.swimming.size()
+	_check(n >= 1 and n <= Fish.PER_POND, "a pond has a few fish, %d" % n)
+	_check(fish.swimming.all(func(f: Fish.One) -> bool: return f.shown >= 1.0), "faded in")
 	_check(fish.mm.visible_instance_count == n, "each is drawn")
 	_check(_in_water(fish, water), "under the surface, over the ground")
 
-	var start := _all(fish).map(func(f: Fish.One) -> Vector3: return f.at)
+	var start := fish.swimming.map(func(f: Fish.One) -> Vector3: return f.at)
 	var kept := true
 	for i in int(60.0 / STEP):
 		wildlife.tick(STEP)
 		kept = kept and _in_water(fish, water)
 	_check(kept, "a minute on, every one has stayed in the water")
 	var moved := 0.0
-	var now := _all(fish)
+	var now := fish.swimming
 	for i in now.size():
 		moved += now[i].at.distance_to(start[i])
 	_check(moved / now.size() > 0.3, "and they swim about, %.2f m on average" % (moved / now.size()))
@@ -113,10 +112,24 @@ func _they_swim_in_the_ponds() -> void:
 		wildlife.tick(STEP)
 	_check(one.at.distance_to(hand.global_position) > from.distance_to(hand.global_position), "away from it")
 	_check(_in_water(fish, water), "and still in the water")
+	hand.global_position = one.at + Vector3(0.1, 0.05, 0)
+	_run(wildlife, 0.5)
+	_run(wildlife, 3.0)
+	_check(one.speed < Fish.CRUISE * 1.5, "a hand held still beside one frightens it no more, %.2f m/s" % one.speed)
 	hand.global_position = Vector3(0, 30, 0)
 
+	await _dig(tool, 5.8, -4.2)
+	water.ponds[0]._process(PondWater.FILL)
+	var kept_on := true
+	for i in int(5.0 / STEP):
+		wildlife.tick(STEP)
+		kept_on = kept_on and _in_water(fish, water)
+	_check(kept_on and not fish.swimming.is_empty(), "a pond dug wider keeps its fish in its water")
+
 	await _dig(tool, -6, 5)
+	_check(fish.swimming.all(func(f: Fish.One) -> bool: return f.pond != water.ponds[-1]), "none in a pond still filling")
 	water.ponds[-1]._process(PondWater.FILL)
-	wildlife.tick(STEP)
-	_check(fish.schools.size() == 2, "a second pond has its own fish")
-	_check(fish.count() <= Fish.CAP, "never more than the cap, %d" % fish.count())
+	_run(wildlife, Fish.FADE)
+	_check(fish.swimming.any(func(f: Fish.One) -> bool: return f.pond == water.ponds[-1]), "a second pond has its own fish")
+	_check(_in_water(fish, water), "every fish in water")
+	_check(fish.swimming.size() <= Fish.CAP, "never more than the cap, %d" % fish.swimming.size())

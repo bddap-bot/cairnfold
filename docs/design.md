@@ -1577,11 +1577,13 @@ only draw those already there (see "Feeding").
   faint glow between. The drift and the flashing run in the shader, so the CPU writes their
   spots only when they change, at most once a second, and never by day. One that drifts
   within half a metre of the eyes shrinks away, so none fills the view with overdraw.
-- **Fish** live in every pond deep enough to swim in: one for every five wet grid points, two to
-  seven a pond and 24 in all (`Fish`), in soft koi colours (apricot, cream, gold, coral). Each
-  cruises just under the surface from one deep spot to another, never into shallows or a wall
-  across the water; a hand or the head within about half a metre sends it darting off away from it,
+- **Fish** live in every pond deep enough to swim in: one for every five wet grid points, up to
+  seven a pond, 24 in all shared among the ponds (`Fish`), in soft koi colours (apricot, cream,
+  gold, coral). They fade in once their pond has filled. Each cruises just under the surface
+  straight from one deep spot to another, never into shallows or a wall across the water; a hand
+  or the head coming suddenly within about half a metre sends it darting off away from it,
   slowing back to a cruise. A pond dug wider keeps its fish; a pond filled in takes them with it.
+  They are drawn over the water with its own tint, so they show in deep water too.
 - **Conures**, iridescent blue and green, come after the ducks: once a duck has
   come to the garden and a planted tree (not the meadow's own) or a finished
   wall or fence stands, a pair or a trio flies in from out of sight 20 to 60
