@@ -62,7 +62,7 @@ cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, style
 - Right stick left/right: snap turn.
 - Left X (the Frame's D-pad down): undo. Right A: redo. One history across every
   tool; with others, each player undoes only their own steps.
-- Animals come on their own, drawn by what you make: ducks to a pond, butterflies
+- Animals come on their own, drawn by what you make: ducks and fish to a pond, butterflies
   to painted flowers, and fireflies at dusk over both.
 - Your garden is saved after every edit and is back when the game starts again.
 

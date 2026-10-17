@@ -6,7 +6,7 @@ extends Node3D
 ## ducklings walks in from the meadow with them in a line. They paddle about, now and then waddle up
 ## the bank to rest on the grass, and leave when their pond is gone. Arrivals and departures happen
 ## out of the viewer's sight, so nothing pops in or out of being. Butterflies come the same way to the flower
-## patches painted (`Butterflies`), fireflies at dusk over ponds and flower patches (`Fireflies`), conures,
+## patches painted (`Butterflies`), fireflies at dusk over ponds and flower patches (`Fireflies`), fish to the ponds (`Fish`), conures,
 ## after the ducks, to planted trees and wall tops (`Birds`), and sheep to the fences built (`Herds`).
 ## A hand or the head coming near slowly startles none of them; a sudden one does. A hand holding seeds draws
 ## those that eat from it, each kind as its `Appetite` says.
@@ -93,6 +93,7 @@ var hands: Array[Node3D] = []
 var families: Array[Family] = []
 var butterflies: Butterflies
 var fireflies: Fireflies
+var fish: Fish
 var birds: Birds
 var herds: Herds
 var calls: Calls
@@ -156,6 +157,8 @@ func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes:
 	add_child(butterflies)
 	fireflies = Fireflies.new(self, sky, rng.seed + 3)
 	add_child(fireflies)
+	fish = Fish.new(self, rng.seed + 6)
+	add_child(fish)
 	birds = Birds.new(self, rng.seed + 2)
 	add_child(birds)
 	herds = Herds.new(self, rng.seed + 4)
@@ -188,6 +191,7 @@ func tick(delta: float) -> void:
 		butterflies.arrive(key, from)
 	butterflies.tick(delta)
 	fireflies.tick(delta)
+	fish.tick(delta)
 	_since_look += delta
 	if _since_look >= LOOK_EVERY:
 		_since_look = 0.0

@@ -1018,7 +1018,7 @@ Stage numbers refer to the build order at the end.
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of left X (the Frame's D-pad down) undoes a step, right A redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it, so a process killed mid-write leaves the last one whole (`tests/test_kill.gd`); a quit writes one still due before the sounds wind down. It is loaded at start. Only your own garden is kept, never one you are visiting. A file of another format, or one the game cannot read whole, is moved aside to `garden.save.bad` before the garden is saved again, and the log says which. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
-| Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, butterflies gather over painted flowers, fireflies come out over both at dusk, conures perch on a tree or wall, sheep graze beside a fence (see "Wildlife") | 11 |
+| Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, fish swim in it, butterflies gather over painted flowers, fireflies come out over both at dusk, conures perch on a tree or wall, sheep graze beside a fence (see "Wildlife") | 11 |
 | Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 1600×1200 photo with a level horizon, saved as a PNG under `user://photos` (see "Photos") | 11 (done) |
 | Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network with the visit tool (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
 
@@ -1577,6 +1577,11 @@ only draw those already there (see "Feeding").
   faint glow between. The drift and the flashing run in the shader, so the CPU writes their
   spots only when they change, at most once a second, and never by day. One that drifts
   within half a metre of the eyes shrinks away, so none fills the view with overdraw.
+- **Fish** live in every pond deep enough to swim in: one for every five wet grid points, two to
+  seven a pond and 24 in all (`Fish`), in soft koi colours (apricot, cream, gold, coral). Each
+  cruises just under the surface from one deep spot to another, never into shallows or a wall
+  across the water; a hand or the head within about half a metre sends it darting off away from it,
+  slowing back to a cruise. A pond dug wider keeps its fish; a pond filled in takes them with it.
 - **Conures**, iridescent blue and green, come after the ducks: once a duck has
   come to the garden and a planted tree (not the meadow's own) or a finished
   wall or fence stands, a pair or a trio flies in from out of sight 20 to 60
@@ -1651,7 +1656,9 @@ wildlife phases to show once they run on one. Ducks are capped at two families o
 most, one shared mesh per kind and one material. Butterflies are one MultiMesh capped at 24
 (`Butterflies.CAP`): one draw call of 22 triangles each; the CPU steers them and the
 vertex shader beats their wings. Fireflies are one MultiMesh of camera-facing quads capped at 48
-(`Fireflies.CAP`): one draw call, additive glows that cast no light. Conures are capped at three
+(`Fireflies.CAP`): one draw call, additive glows that cast no light. Fish are one MultiMesh capped at 24
+(`Fish.CAP`): one draw call of 82 triangles each, no shadows; the CPU steers them and the vertex shader
+beats their tails. Conures are capped at three
 (`Birds.CAP`): three draw calls of about 1,560 triangles each, one shared mesh and material, casting
 no shadow. Sheep are capped at eight (`Herds.CAP`, flocks of `Herds.FLOCK`): eight draw calls and
 about 7,000 triangles at most, one shared mesh and one material, no shadows. Every animal of a kind

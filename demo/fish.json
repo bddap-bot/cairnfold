@@ -1,0 +1,21 @@
+[
+  {"op": "place", "x": 0, "z": 6},
+  {"op": "label", "name": "pond"},
+  {"op": "dig", "x": -0.8, "z": -1, "seconds": 1.8},
+  {"op": "dig", "x": 0.9, "z": -1.4, "seconds": 1.8},
+  {"op": "dig", "x": 0.1, "z": -2.6, "seconds": 1.8},
+  {"op": "wait", "seconds": 6},
+  {"op": "view", "eye": [0.4, 2.2, 0.6], "at": [0.1, -0.5, -1.6]},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "00-fish"},
+  {"op": "wait", "seconds": 4},
+  {"op": "capture", "name": "01-fish-later"},
+  {"op": "label", "name": "wade"},
+  {"op": "wade", "points": [[0.1, -1.6], [0.6, -1.4]], "y": -0.05, "seconds": 0.6},
+  {"op": "wait", "seconds": 0.3},
+  {"op": "capture", "name": "02-scatter"},
+  {"op": "view", "eye": [3.5, 3.5, 3.5], "at": [0.1, -0.4, -1.6]},
+  {"op": "wait", "seconds": 2},
+  {"op": "capture", "name": "03-wide"},
+  {"op": "quit"}
+]
