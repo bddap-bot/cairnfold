@@ -25,6 +25,10 @@ uniform float sink = 1.5;
 uniform vec2 survivor_scale = vec2(2.0, 1.25);
 // A camera seeing this layer (Quality.FULL_LAYER) draws every clump whole at every distance.
 uniform uint full_layer;
+// The warmest-tinted clumps, this share of them, stand out as accents: taller, their tips a fresher green.
+uniform float accent_share = 0.05;
+uniform float accent_height = 1.6;
+uniform vec3 accent_tip : source_color = vec3(0.62, 0.82, 0.22);
 uniform float hand_radius = 0.35;
 uniform vec3 hand_left;
 uniform vec3 hand_right;
@@ -46,7 +50,8 @@ vec3 parted(vec3 v, vec3 root, vec3 hand) {
 
 void vertex() {
 	tip = UV.y;
-	top = blade_top(INSTANCE_CUSTOM.x, INSTANCE_CUSTOM.y);
+	float accent = step(1.0 - accent_share, INSTANCE_CUSTOM.y);
+	top = mix(blade_top(INSTANCE_CUSTOM.x, INSTANCE_CUSTOM.y), seasoned(accent_tip, season_meadow), accent);
 	float ground = ground_at(INSTANCE_CUSTOM.zw);
 	VERTEX.y += ground;
 	vec3 root = MODEL_MATRIX[3].xyz + vec3(0.0, ground, 0.0);
@@ -55,7 +60,7 @@ void vertex() {
 	vec4 bounce = textureLod(bounce_volume, at, 0.0);
 	given = vec4(given_back(at, at, bounce), bounce.a);
 	float worn = max(bare(root.xz), bank(water_depth_at(root.xz)));
-	VERTEX = root + (VERTEX - root) * vec3(1.0 - worn * 0.5, 1.0 - worn, 1.0 - worn * 0.5);
+	VERTEX = root + (VERTEX - root) * vec3(1.0 - worn * 0.5, (1.0 - worn) * mix(1.0, accent_height, accent), 1.0 - worn * 0.5);
 	float dist = distance(root, CAMERA_POSITION_WORLD);
 	bool full = (CAMERA_VISIBLE_LAYERS & full_layer) != 0u;
 	float lod = full ? 0.0 : smoothstep(lod_begin, lod_begin + lod_band, dist);

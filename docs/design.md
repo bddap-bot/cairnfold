@@ -1208,6 +1208,8 @@ defined once: tunables as uniforms in `grass.gdshader` and, for the wind every p
 | 11 | View-space thickening (Tsushima: widen blades seen edge-on) | No vanishing slivers; less thin-geometry aliasing | A few vertex operations, but needs each blade's facing per vertex | Not yet |
 | 12 | Distance LOD: fewer, wider, sparser clumps far away | The meadow reads to its far edge at less cost than a 24 m full-detail reach | From 8 m out, over 4 m (`Flora.GRASS_LOD_BEGIN`, `GRASS_LOD_BAND`), a clump keeps 3 of its 7 blades, widened to cover the same ground, and three clumps in four sink into the ground, each at its own distance by its rank (`FloraLayout.thin_rank`); the survivors spread twice as wide and stand a quarter taller to hold the cover. The meadow's grass is baked into 8 m cells, each also holding its survivors alone in a mesh of only their kept blades: a cell wholly past 12 m draws that instead, so far clumps bin 15 vertices rather than 35 and the sunk three quarters bin none. Nothing pops: by the distance a cell switches, what it stops drawing has already sunk away | Done |
 | 13 | Draw reach and ground | Survivors sink away one at a time from half of `Flora.grass_reach` (60 m at full quality, less down the ladder) out to it, so the meadow thins into the ground instead of ending at a ring of growing blades. The ground takes its colour from the blades' own palette (`meadow.gdshaderinc`, set from `Meadow.GRASS`) at the tone far blades converge on, and its lush and dry patches from the same field as the blades' (`FloraLayout.dryness`, baked into the terrain mesh), so where the blades thin the ground carries on the meadow they were | Cells wholly out of reach are not drawn | Done |
+| 14 | Colour patches in a few flat tones | The meadow reads as broad lush, mid and straw patches with soft edges rather than one smooth wash, on the blades and the ground alike | Two saturated ramps on the dryness the blades and ground already share (`patched` in `meadow.gdshaderinc`): per vertex on blades, per fragment on the ground; computing it per vertex on the ground blurred the patches away | Done |
+| 15 | Accent tufts | One clump in twenty, the warmest-tinted, stands 1.6 times as tall with fresher green tips, breaking up the carpet | A step and a mix per vertex from per-instance data already there | Done |
 
 Directive (verbatim): "I don't... love how the grass pops into being. Depending on how far I am from it... I mean, I do love the nice frame rates, but... I wish I could see distant grass and distant shadows"
 
@@ -1232,6 +1234,23 @@ whole meadow is in view: 28.8 ms at 24 m to 40.2 ms at 60 m with 4 m cells, for 
 primitives. Some of that is draws (8 m cells took the 60 m view to 36.7 ms, 16 m cells saved no
 more) and the rest the raster of far slivers; the survivors' widening cost nothing measurable.
 So reach above 24 m is the top of the ladder, taken only with room in the frame.
+
+Rows 14 and 15, on the Quest 2 (`App=` ms, the bare meadow, the ladder at its bottom step, each
+round the old and new shaders swapped in one run, five rounds): standing 20.54 before, a difference
+of +0.10 ms (standard error 0.08); from the air 27.03 before, +0.05 ms (0.13). Both within the
+spread between rounds. Tried over the new look in two runs (arm order reversed in the second), GPU ms
+a frame over it, mean of the two, and left out:
+
+| Tried | Bottom, standing | Bottom, air | Top, standing | Top, air | Why not |
+| --- | --- | --- | --- | --- | --- |
+| Cloud shadows: a drifting noise field dimming the meadow | +0.15 | 0.0 | +0.25 | +0.15 | Only shaders that read it darken, so walls, trees and flowers stay sunlit inside the shade; done for every lit shader it is a lighting change, not a grass one |
+| Wind stepped at 8 frames a second, each clump at its own phase | 0.0 | -0.1 | 0.0 | 0.0 | Reads as dropped frames in a headset |
+| Banded (toon) diffuse with smoothed bands | +0.1 | 0.0 | +0.25 | +0.15 | Darkens the blades and drops the backlight; nothing else in the scene is banded |
+| Alpha-tested blade sprites | +0.75 | +0.35 | +2.65 | +5.05 | Breaks early depth, as row 4 says |
+| Parting by 16 movers instead of two hands | +2.3 | +2.05 | +2.85 | +3.8 | Every vertex runs the loop at binning |
+| Tips widened toward the camera with the wind | +0.1 | -0.1 | +0.15 | +0.2 | A fix for a camera without perspective |
+| Light sampled at each clump's root | +0.05 | 0.0 | -0.05 | 0.0 | No visible change under the sun |
+| Gusts as two crossed waves at diverging angles | 0.0 | -0.1 | +0.1 | -0.2 | The cross-wave of row 5 already breaks the bands |
 
 Ruled out on this target: alpha-tested or dithered fades (break early depth on
 the tiler), screen-space or impostor grass shadows, and specular on blades

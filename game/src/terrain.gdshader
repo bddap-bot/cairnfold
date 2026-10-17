@@ -40,7 +40,7 @@ void fragment() {
 	float d = texture(detail, world_pos.xz * 0.07).r;
 	float fine = texture(detail, world_pos.xz * 0.45).r;
 	// COLOR.r is the grass's own dryness here; the noise breaks it into patches finer than the blades' clumps show.
-	vec3 meadow = mix(meadow_lush, meadow_dry, clamp(COLOR.r + (d - 0.5) * 0.8, 0.0, 1.0));
+	vec3 meadow = mix(meadow_lush, meadow_dry, patched(clamp(COLOR.r + (d - 0.5) * 0.8, 0.0, 1.0)));
 	vec3 grass = meadow * (0.85 + fine * 0.3);
 	float s = ground_steepness(world_pos.xz) + hump_steep + (fine - 0.5) * 0.06;
 	vec3 c = mix(grass, earth, smoothstep(0.2, 0.32, s));
