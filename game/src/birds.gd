@@ -410,6 +410,7 @@ func _to_hand(b: Bird, delta: float) -> void:
 		return
 	b.node.position = b.spot
 	Wildlife._face(b.node, -h.global_basis.z, delta * 6.0)
+	wildlife.nibble(h, delta)
 	b.timer -= delta
 	b.node.blend(Conure.PECK if fmod(b.timer, 3.0) < 1.8 else Conure.IDLE, delta)
 	if b.timer <= 0.0:

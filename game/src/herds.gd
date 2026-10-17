@@ -278,6 +278,7 @@ func _eat(s: Sheep, delta: float) -> void:
 	if not _go(s, s.goal, SPEED[State.WALK], delta, nibble if not _off_goal(s) else Sheep.WALK):
 		return
 	Wildlife._face(s, hand - s.position, delta * TURN)
+	wildlife.nibble(s.hand, delta)
 	s.timer -= delta
 	if s.timer <= 0.0:
 		_fed(s)

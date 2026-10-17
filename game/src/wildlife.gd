@@ -108,8 +108,10 @@ var _since_look := INF
 ## Per hand and the head: where it was last tick and how fast it has been moving.
 var _was := {}
 var _speed := {}
-## Per hand holding seeds: whatever is eating from it or on its way to.
+## Per hand holding seeds or seeds scattered: whatever is eating from it or on its way to.
 var _eaters := {}
+## Seeds thrown from the seed dish (`FeedTool.scatters`).
+var scatters: Array[Scatter] = []
 ## A duck paddles or waddles over to peck seeds held low over its pond or the bank.
 static var duck_appetite := Appetite.new(Eat.UNDER_HAND, 3.5, 0.6, 0.16, Vector2(6.0, 12.0), Vector2(8.0, 20.0))
 
@@ -378,6 +380,7 @@ func _eat(f: Family, delta: float) -> bool:
 	if not _go(lead, f.goal, delta):
 		return false
 	_face(lead, f.hand.global_position - lead.position, delta * 4.0)
+	nibble(f.hand, delta)
 	f.timer -= delta
 	if f.timer <= 0.0:
 		_fed(f)
@@ -488,13 +491,22 @@ func _nearest(p: Vector3, reach: float) -> Node3D:
 	return best
 
 
-## The hands holding seeds out.
+## The hands holding seeds out, and the seeds lying where they were thrown.
 func offers() -> Array[Node3D]:
 	var out: Array[Node3D] = []
 	for h in hands:
 		if h is Hand and h.tool == Hand.Tool.SEEDS and h.is_inside_tree() and h.tracked() and not h.picking:
 			out.append(h)
+	for s in scatters:
+		if s.landed() and not s.gone():
+			out.append(s)
 	return out
+
+
+## An animal eating at `h` takes its share: from scattered seeds, a grain at a time.
+func nibble(h: Node3D, delta: float) -> void:
+	if h is Scatter:
+		h.peck(delta)
 
 
 ## A calm hand holding seeds that an animal at `at` sees and can reach and that nothing else eats from, or null.
@@ -503,7 +515,7 @@ func offer_for(appetite: Appetite, at: Vector3) -> Node3D:
 		var p := h.global_position
 		if _eaters.has(h) or sudden(h) or p.distance_to(at) > appetite.notice:
 			continue
-		if appetite.eat == Eat.UNDER_HAND and p.y - _floor(p) > appetite.reach:
+		if appetite.eat == Eat.UNDER_HAND and h is Hand and p.y - water.floor_at(p) > appetite.reach:
 			continue
 		return h
 	return null
@@ -528,19 +540,12 @@ func feeds(h: Node3D, eater: Object) -> bool:
 ## in the hand's space), or on the ground or water with its mouth under it.
 func eat_spot(appetite: Appetite, h: Node3D, from: Vector3) -> Vector3:
 	var seen: Node3D = h.body if h is Hand else h
-	if appetite.eat == Eat.ON_HAND:
+	if appetite.eat == Eat.ON_HAND and h is Hand:
 		return seen.global_transform * ON_HAND
 	var at := seen.global_position
 	var off := Vector3(from.x - at.x, 0, from.z - at.z)
 	at += off.normalized() * appetite.mouth if off.length() > 1e-3 else Vector3.ZERO
-	return Vector3(at.x, _floor(at), at.z)
-
-
-## The ground under `p`, or the water over it.
-func _floor(p: Vector3) -> float:
-	var ground := Terrain.height_at(p.x, p.z)
-	var pond := water.pond_at(p.x, p.z)
-	return maxf(ground, pond.surface_y()) if pond != null else ground
+	return Vector3(at.x, water.floor_at(at), at.z)
 
 
 ## WALK_AWAY further along `heading`, kept on the terrain.

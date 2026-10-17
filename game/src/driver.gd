@@ -746,6 +746,13 @@ func _photo(s: Dictionary) -> void:
 	await main.photo_tool.shoot(_holding(s, Hand.Tool.CAMERA))
 
 
+## Throws a handful of seeds from the dish in `hand` (right by default) at `velocity`, as pulling its trigger
+## while swinging the hand does.
+func _toss(s: Dictionary) -> void:
+	var v: Array = s.get("velocity", [0, 0, 0])
+	main.feed_tool.toss(main.feed_tool.dish(_holding(s, Hand.Tool.SEEDS)), Vector3(v[0], v[1], v[2]))
+
+
 ## Turns the sky as a player does, until the sun stands at `time` (0 dawn, 1 dusk) over `seconds`: `hand`
 ## (right by default) beside the head grips open sky high off the sun's arc and turns its aim about the arc.
 func _sun(s: Dictionary) -> void:

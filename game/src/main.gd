@@ -29,6 +29,7 @@ var look: Look
 var sky_tool: SkyTool
 var palette_tool: PaletteTool
 var photo_tool: PhotoTool
+var feed_tool: FeedTool
 var sound: Soundscape
 var metrics: Metrics
 var quality: Quality
@@ -106,6 +107,9 @@ func _ready() -> void:
 		session.join.call_deferred(at[0], int(at[1]) if at.size() > 1 else Session.PORT)
 	wildlife = Wildlife.new(water, flora, tool, world.palette, rig.head, hands, int(args.get("seed", -1)), look)
 	add_child(wildlife)
+	feed_tool = FeedTool.new(rig, water)
+	add_child(feed_tool)
+	wildlife.scatters = feed_tool.scatters
 	sound = Soundscape.new(tool, flora_tool, water)
 	add_child(sound)
 	rig.floor_under = func(p: Vector3) -> float: return maxf(tool.floor_under(p), world.stairs.floor_under(p))

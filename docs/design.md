@@ -1415,6 +1415,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Undo | Tap left X (the Frame's D-pad down): one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled, erased into ruins or deleted, trees, paint strokes, stone ground, paths, ground shaped, ponds dug, fences, windows and decorations). With others, your own steps only, skipping any another player has built on since (see [multiplayer.md](multiplayer.md)) |
 | Redo | Tap right A: one step forward per tap. A new edit after an undo drops what could be redone |
 | Visit | Trigger of a hand holding visit, pointing at a nearby player's figure: join their garden. Pointing at the small cairn while visiting: go home to your own |
+| Throw seeds | Trigger of a hand holding seeds: a handful leaves the dish the way the hand is swinging, or falls from a still one, and scatters where it lands (see "Feeding") |
 | Lay a path | Trigger held on a hand holding paths, sweep the pointer over the ground; the ring is the path's width, wider the farther you point. Through a wall it opens an arch or an arcade, through a fence a gate |
 | Draw a fence | Trigger held on a hand holding fences, swept like a wall |
 | Open a window or door | Trigger of a hand holding windows, pointing at a wall: a window where it points, a door if that is low on the wall; beside another window it fuses with it; on a window it closes that light |
@@ -1653,7 +1654,7 @@ Directive (verbatim): "I'd love to get some animals like ducks and stuff, but I.
 Wildlife is never placed by the player. Animals show up on their own, as a
 surprise, drawn by what you build: dig a pond and, some time later, a duck may
 fly in and settle on it. No tool, menu or button places an animal; seeds held out
-only draw those already there (see "Feeding").
+or thrown only draw those already there (see "Feeding").
 
 - **Ducks** arrive once a pond exists: one flies in from beyond the meadow,
   glides down and splashes onto the water, then paddles about; now and then one
@@ -1755,8 +1756,19 @@ moves there its own way.
 - A sheep (`Herds.appetite`) walks up to seeds held within 0.9 m of the ground beside its pasture,
   stands with its muzzle at the hand and nibbles, its head lowered as far as the hand is low.
 
+The trigger of a hand holding the dish throws a handful (`FeedTool`): its 28 grains leave the dish with the
+hand's eased velocity, each spread a little apart, and come down on the ground or float on a pond where they
+land (`Scatter`), a handful flung from a swing lying a few tenths of a metre across. A landed handful is an offer
+like a calm hand, so the same appetites find it: a conure flies down to peck at it, a duck swims to one on its
+pond, a sheep walks to one beside its pasture, each taking a grain every `1 / Scatter.PECKS` seconds while it
+eats, and leaving when its fill is up or nothing is left. Uneaten, a handful lies 50 to 70 seconds and then
+shrinks and sinks away over its last six. At most eight lie about (`FeedTool.SCATTERS`); another throw takes the
+oldest. Thrown seeds are each player's own, as the animals are.
+
 Butterflies and fireflies eat nothing from a hand. A held seed dish costs what any tool model does;
-each animal's look for a hand holding seeds is a distance check against at most two hands.
+each animal's look for a hand holding seeds is a distance check against at most two hands and eight handfuls.
+A handful is one MultiMesh draw call of 28 grains of 20 triangles, casting no shadow: at most eight draw calls
+and about 4,500 triangles, its grains rewritten only while flying, pecked or fading.
 
 Budget: each animal is at most a couple of thousand triangles, skinned or vertex-animated, one
 draw call, and only a handful are ever in view; what that costs a headset is for the stress scene's

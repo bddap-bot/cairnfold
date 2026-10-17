@@ -138,6 +138,13 @@ func _publish() -> void:
 	refilled.emit(Terrain.world_rect(cells.grow_individual(0, 0, 1, 1)))
 
 
+## The ground under `p`, or the water over it.
+func floor_at(p: Vector3) -> float:
+	var ground := Terrain.height_at(p.x, p.z)
+	var pond := pond_at(p.x, p.z)
+	return maxf(ground, pond.surface_y()) if pond != null else ground
+
+
 ## The pond whose water is over (x, z), or null.
 func pond_at(x: float, z: float) -> PondWater:
 	var g := Terrain.grid_point(x, z)

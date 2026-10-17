@@ -5,6 +5,7 @@ extends SceneTree
 const STEP := 1.0 / 30.0
 
 var failures := 0
+var feed: FeedTool
 
 
 func _initialize() -> void:
@@ -24,6 +25,8 @@ func _run(wildlife: Wildlife, seconds: float, each := Callable()) -> void:
 	var t := 0.0
 	while t < seconds:
 		wildlife.tick(STEP)
+		if feed != null:
+			feed.tick(STEP)
 		if each.is_valid():
 			each.call()
 		t += STEP
@@ -61,6 +64,50 @@ func _seeds_held_low_draw_the_ducks(wildlife: Wildlife, hand: Hand, pond: PondWa
 	wildlife.hands.clear()
 
 
+## A handful thrown out over the pond scatters on the water, and the ducks come and peck it up grain by grain.
+func _seeds_thrown_on_the_pond_are_eaten(wildlife: Wildlife, pond: PondWater) -> void:
+	var f: Wildlife.Family = wildlife.families[0]
+	f.full = 0.0
+	var mid := Terrain.grid_xz(pond.pond.bottom)
+	var s := feed.toss(Vector3(mid.x, pond.surface_y() + 1.2, mid.y), Vector3(0.3, 0.5, 0))
+	_run(wildlife, 1.5)
+	_check(s.landed() and absf(s.position.y - pond.surface_y()) < 0.01, "thrown seeds come down on the water")
+	_check(_spread(s) > 0.1, "and scatter, %.2f m across" % _spread(s))
+	var ate := [false]
+	_run(wildlife, 40.0, func() -> void: ate[0] = ate[0] or (f.state == Wildlife.State.FEED and f.hand == s and s.left() < Scatter.GRAINS))
+	_check(ate[0], "a duck comes and pecks them up, %d grains left" % s.left())
+	_run(wildlife, Scatter.LASTS.y + 2.0)
+	_check(not wildlife.scatters.has(s) and wildlife.families[0].state != Wildlife.State.FEED, "eaten or faded, they are gone and the ducks swim again")
+
+
+## Seeds thrown on grass nothing eats sink away after a while.
+func _seeds_thrown_on_the_grass_fade(wildlife: Wildlife) -> void:
+	var at := Terrain.ground(14.0, -14.0)
+	var s := feed.toss(at + Vector3(0, 1.0, 0), Vector3(1.5, 1.0, 0))
+	_run(wildlife, 1.5)
+	_check(s.landed() and absf(s.position.y - Terrain.height_at(s.position.x, s.position.z)) < 0.01, "seeds thrown on grass lie on the ground")
+	_check(s.position.x > at.x + 0.5, "carried the way they were thrown, %.2f m" % (s.position.x - at.x))
+	_run(wildlife, s.lasts - 3.5)
+	_check(wildlife.scatters.has(s) and s.left() == Scatter.GRAINS, "uneaten, they lie a while")
+	_run(wildlife, 4.0)
+	_check(not wildlife.scatters.has(s), "then sink away")
+	var many: Array[Scatter] = []
+	for i in FeedTool.SCATTERS + 2:
+		many.append(feed.toss(at + Vector3(0, 1.0, 0), Vector3.ZERO))
+	_check(wildlife.scatters.size() == FeedTool.SCATTERS and not wildlife.scatters.has(many[0]), "only the latest %d handfuls lie about" % FeedTool.SCATTERS)
+	_run(wildlife, Scatter.LASTS.y + 2.0)
+	_check(wildlife.scatters.is_empty() and feed._spent.is_empty(), "and every handful is let go")
+
+
+func _spread(s: Scatter) -> float:
+	var lo := Vector2.INF
+	var hi := -Vector2.INF
+	for p in s._at:
+		lo = Vector2(minf(lo.x, p.x), minf(lo.y, p.z))
+		hi = Vector2(maxf(hi.x, p.x), maxf(hi.y, p.z))
+	return (hi - lo).length()
+
+
 ## No hand tool, no scripted step and nothing but the game's root reaches an animal; Wildlife offers no way
 ## to add one.
 func _no_tool_places_an_animal() -> void:
@@ -72,7 +119,7 @@ func _no_tool_places_an_animal() -> void:
 			_check(not code.contains("Duck") and not code.contains("ildlife"), "%s reaches no animal" % f)
 	_check(FileAccess.get_file_as_string("res://src/main.gd").count("Wildlife.new(") == 1, "main makes one Wildlife")
 	for m in (load("res://src/wildlife.gd") as Script).get_script_method_list():
-		_check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "offers", "offer_for", "claim", "release", "feeds", "eat_spot"], "Wildlife exposes no way to add an animal, found %s" % m.name)
+		_check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble"], "Wildlife exposes no way to add an animal, found %s" % m.name)
 
 
 func _dig(tool: WaterTool, x: float, z: float, frames: int) -> void:
@@ -209,6 +256,12 @@ func _ducks_come_only_to_ponds() -> void:
 	_run(walker, 90.0)
 	_check(walker.families[0].state in [Wildlife.State.SWIM, Wildlife.State.ASHORE, Wildlife.State.REST], "and they reach the water")
 	_seeds_held_low_draw_the_ducks(walker, rig.right, pond)
+	feed = FeedTool.new(rig, water)
+	root.add_child(feed)
+	feed.set_process(false)
+	walker.scatters = feed.scatters
+	_seeds_thrown_on_the_pond_are_eaten(walker, pond)
+	_seeds_thrown_on_the_grass_fade(walker)
 
 	world.undo()
 	world.undo()
