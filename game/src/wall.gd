@@ -136,7 +136,7 @@ func data() -> Dictionary:
 		"points": PackedVector3Array(layout.points), "height": layout.height, "arches": PackedFloat32Array(layout.arches),
 		"seed": layout.seed, "closed": layout.closed, "top": int(layout.top), "fence": layout.fence,
 		"windows": PackedVector2Array(layout.windows), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags),
-		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "gable_end": int(layout.gable_end), "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
+		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "gable_end": int(layout.gable_end), "timber_style": layout.timber_style, "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
 	}
 	if roof != null:
 		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "flag": roof.flag}
@@ -152,13 +152,14 @@ func set_data(d: Dictionary) -> void:
 	layout.top = d.top as WallLayout.Top
 	layout.fence = d.fence
 	layout.plaster = d.get("plaster", false)
+	layout.timber_style = d.get("timber_style", 0)
 	layout.gable_end = d.get("gable_end", WallLayout.GableEnd.WALL) as WallLayout.GableEnd
 	layout.windows.assign(Array(d.windows))
 	layout.lanterns.assign(Array(d.lanterns))
 	layout.flags.assign(Array(d.flags))
 	layout.ruins.assign(Array(d.ruins))
 	on = d.on
-	repaint(d.paint)
+	repaint(Palette.upgraded(d.paint))
 	if d.has("roof"):
 		if roof == null:
 			add_roof(RoofLayout.new())

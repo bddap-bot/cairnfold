@@ -19,7 +19,7 @@ enum Device { QUEST_2, FRAME }
 ## as stone wall), of roof (its circle), and of path;
 ## fittings that add a mesh (lanterns, flags, chimneys); painted grass blades and flowers, the meadow's own flowers
 ## included; trees and bushes standing; and ponds, one a seed.
-const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "path_m2", "fitting", "grass", "flower", "tree", "bush", "pond"]
+const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "path_m2", "fitting", "grass", "flower", "tree", "bush", "pond", "timber"]
 
 ## Per headset, in the governor's signal (the viewport's GPU time per frame, Quality) at the ladder's bottom step, fitted
 ## by `scripts/costs.py` from `demo/costs.json` played on it (see "Build budget" in docs/design.md): `budget_ms`, the
@@ -30,9 +30,9 @@ const COSTS := {
 	Device.FRAME: FRAME_COSTS,
 }
 ## The Frame's runtime halves the rate once a frame nears 0.88 of the period: held to the governor's line under it.
-const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 10.804, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294}
+const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 10.804, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": 1.0}
 ## Held to the Frame's until `scripts/costs.py` writes the Quest 2's own.
-const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 10.804, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294}
+const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 10.804, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": 1.0}
 
 
 static func gpu_ms() -> float:
@@ -96,6 +96,9 @@ static func wall(d: Dictionary) -> Dictionary:
 		length += Vector2(d.points[0].x - d.points[-1].x, d.points[0].z - d.points[-1].z).length()
 	var face := "fence_m2" if d.fence else ("plaster_m2" if d.get("plaster", false) else "wall_m2")
 	var out := {face: length * d.height}
+	var timber := TimberFrame.count(d)
+	if timber > 0:
+		out.timber = timber
 	var fittings: int = d.lanterns.size() + d.flags.size()
 	if d.has("roof"):
 		if d.roof.kind == RoofLayout.Kind.GABLE and d.points.size() == 4:

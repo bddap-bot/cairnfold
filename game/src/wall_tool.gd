@@ -77,6 +77,7 @@ var paint := Palette.plain()
 var gable_end := WallLayout.GableEnd.WALL
 ## Whether new walls and houses are laid in plaster: the face last turned to on this machine.
 var plaster := false
+var timber_style := 0
 var masons: Array[Mason] = []
 ## The house the hands are carrying, where it stands, and the hands holding it.
 var house: Wall

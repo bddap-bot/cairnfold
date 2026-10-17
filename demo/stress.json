@@ -401,5 +401,14 @@
   {"op": "wait", "seconds": 10},
   {"op": "label", "name": "-"},
   {"op": "capture", "name": "stairs-budget"},
+  {"op": "bare"},
+  {"op": "village", "radius": 20, "spacing": 7, "storeys": 2, "wings": true, "plaster": true, "timber_style": 3},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "timber-village/aerial"},
+  {"op": "view", "eye": [0, 22, 32], "at": [0, 0, 0]},
+  {"op": "wait", "seconds": 6},
+  {"op": "label", "name": "timber-village/ground"},
+  {"op": "view", "ground": true, "eye": [0, 1.65, 4.5], "at": [20, 1.2, 4.5]},
+  {"op": "wait", "seconds": 6},
   {"op": "quit"}
 ]

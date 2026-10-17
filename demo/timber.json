@@ -1,0 +1,17 @@
+[
+ {"op":"place","x":0,"z":14},
+ {"op":"house","at":[0,0],"size":[7,5],"plaster":true,"seconds":0.5},
+ {"op":"fit","what":"window","index":0,"s":1.8,"y":1.5},
+ {"op":"fit","what":"window","index":0,"s":5.2,"y":1.5},
+ {"op":"fit","what":"window","index":0,"s":9.5,"y":1.5},
+ {"op":"fit","what":"lantern","index":0,"s":7.8,"y":1.9,"side":-1},
+ {"op":"wait","seconds":3},
+ {"op":"view","eye":[0,2.4,-10],"at":[0,2,0]},
+ {"op":"capture","name":"front"},
+ {"op":"view","eye":[11,3,-5],"at":[1,2.6,0]},
+ {"op":"capture","name":"gable"},
+ {"op":"sun","time":1.0,"seconds":1},
+ {"op":"wait","seconds":3},
+ {"op":"capture","name":"dusk"},
+ {"op":"quit"}
+]

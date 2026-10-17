@@ -18,7 +18,7 @@ const WHEEL_AT := Vector3(0, 0.06, -0.05)
 
 enum Restyle { GABLE, ROOF, TOP, FACE, TREE }
 ## A face's styles: stone or plaster, each plain or arched where it is pointed at.
-enum Face { STONE, STONE_ARCHED, PLASTER, PLASTER_ARCHED }
+enum Face { STONE, STONE_ARCHED, PLASTER, PLASTER_ARCHED, ALSACE, MAGPIE, RURAL, FACHWERK, COLOMBAGE }
 
 ## A hand's open wheel: what it changes (`aim`'s target) on which build (-1 for none) or tree (its trunk; null for
 ## none), the choice it started on and the one at its top, and the hand's frame when it opened. One on neither is
@@ -90,6 +90,8 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	var along: float = roof.get("along", INF)
 	var gable := walls.pick_gable(origin, dir)
 	if gable.get("along", INF) < along and WallTool._on_roof(pick, gable):
+		if _on_timber(gable.wall.layout, gable.point):
+			return colour_target(Palette.Element.TIMBER, gable.point, gable.wall)
 		var end: WallLayout = gable.wall.layout
 		var wood := end.gable_end == WallLayout.GableEnd.BOARDS
 		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if end.plaster else Palette.Element.STONE, gable.point, gable.wall)
@@ -97,6 +99,8 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 		return colour_target(Palette.Element.ROOF, roof.point, roof.wall)
 	if not pick.is_empty():
 		var layout: WallLayout = pick.wall.layout
+		if _on_timber(layout, pick.point):
+			return colour_target(Palette.Element.TIMBER, pick.point, pick.wall)
 		var wood := layout.fence or not layout.opening_at(pick.s, pick.point.y - layout.point_at(pick.s).y).is_empty()
 		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if layout.plaster else Palette.Element.STONE, pick.point, pick.wall)
 	var ground: Variant = Terrain.raycast(origin, dir)
@@ -231,6 +235,8 @@ func _now(w: Wheel) -> int:
 			return WallTool.roof_style(d)
 		Restyle.TOP:
 			return d.top
+	if TimberFrame.applies(w.target.wall.layout):
+		return Face.ALSACE + d.get("timber_style", 0)
 	return int(walls.arched(w.target.wall, w.target.s)) + (Face.PLASTER if d.plaster else Face.STONE)
 
 
@@ -246,10 +252,13 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 		Restyle.TOP:
 			return {"top": pick}
 	var data := {}
+	var timber_style: int = pick - Face.ALSACE if pick >= Face.ALSACE else -1
+	if timber_style != world.state.walls[w.wall].get("timber_style", 0):
+		data["timber_style"] = timber_style
 	var plaster := pick >= Face.PLASTER
 	if plaster != world.state.walls[w.wall].plaster:
 		data["plaster"] = plaster
-	var arched := pick % 2 == 1
+	var arched := walls.arched(w.target.wall, w.target.s) if pick >= Face.ALSACE else pick % 2 == 1
 	if arched != walls.arched(w.target.wall, w.target.s):
 		var arches: Variant = walls.arches_at(w.target.wall, w.target.s, arched)
 		if arches == null:
@@ -292,6 +301,7 @@ func close(hand: Hand) -> void:
 		walls.gable_end = w.pick as WallLayout.GableEnd
 	elif w.wall >= 0 and w.target.restyle == Restyle.FACE:
 		walls.plaster = w.pick >= Face.PLASTER
+		walls.timber_style = w.pick - Face.ALSACE if w.pick >= Face.ALSACE else -1
 	var data: Dictionary = (w.data[w.pick] if w.target.tool == Hand.Tool.STYLE else _data(w, w.pick)) if w.wall >= 0 else {}
 	if w.pick == now or (w.wall >= 0 and data.is_empty()):
 		_settled(w)
@@ -340,3 +350,12 @@ static func _roll(start: Basis, now: Basis) -> float:
 	var fwd := -start.z
 	var x := now.x - fwd * now.x.dot(fwd)
 	return rad_to_deg(atan2(fwd.dot(start.x.cross(x)), start.x.dot(x)))
+
+
+static func _on_timber(layout: WallLayout, point: Vector3) -> bool:
+	for part in layout.stones:
+		if part.kind == "timber":
+			var local: Vector3 = part.xform.affine_inverse() * point
+			if absf(local.x) <= 0.5 and absf(local.y) <= 0.65 and absf(local.z) <= 3.5:
+				return true
+	return false

@@ -1913,3 +1913,28 @@ onto. `demo/stairs.json` shows a bridge over a pond between two walls, a flight 
 to it, a ladder and a flight onto a flat roof, then teleports onto the bridge; the
 stress scene fills the build budget with stairs, ladders and landings for its
 `stairs/*` views.
+
+## Timbered plaster houses
+
+Directive (verbatim): "I like timbered on plaster houses in general, even the walls of plaster houses."
+
+Rectangular plaster houses have dark oak sole plates, corner posts, opening studs,
+head and sill rails, mid rails and braces. The wall's resolved openings drive the
+frame; resizing moves the openings and regenerates the frame together. Gable
+posts continue the wall's post positions, with rails and rakes following the roof.
+Stone houses retain their existing masonry. Boarded gables retain their boards;
+stepped plaster gables keep their crow steps above the framing.
+
+Alsace is the default. Point the style tool at a plaster house wall to choose
+Alsace, Magpie, rural close studding, Fachwerk crosses or Colombage verticals.
+These are data for one generator, retained in the build's `timber_style` through
+save, undo, visits and resize. Point the colour tool at a beam to choose its dark
+oak colour independently of plaster, window frames and doors. Older gardens
+receive the default pattern and oak colour without changing their plaster tint.
+
+`demo/timber.json` captures the front, gable and lantern-lit dusk view.
+`demo/timber-costs.json` isolates generated timber in the production masonry
+packing and distance/shadow system, at two densities and from two views, repeated
+twice. It measures the marginal viewport GPU time over the bare meadow per member;
+the build budget counts members using that same generator. The stress scene adds
+a two-storey plaster village with intersecting wings and Fachwerk framing.

@@ -579,6 +579,8 @@ func _village(s: Dictionary) -> void:
 				tool.begin_house(at, yaw, on)
 				tool.place_house(at, yaw, Vector2(0.7, 0.44) * step)
 				tool.end_house()
+				if s.has("timber_style"):
+					main.world.submit({"op": "reshape", "id": tool.walls[-1].id, "data": {"timber_style": int(s.timber_style)}})
 				tool.walls[-1].ivy_age = INF
 				on = PackedInt32Array([tool.walls[-1].id])
 			if s.get("wings", false):
@@ -587,6 +589,8 @@ func _village(s: Dictionary) -> void:
 				tool.begin_house(wing, yaw)
 				tool.place_house(wing, yaw, Vector2(0.3, 0.6) * step)
 				tool.end_house()
+				if s.has("timber_style"):
+					main.world.submit({"op": "reshape", "id": tool.walls[-1].id, "data": {"timber_style": int(s.timber_style)}})
 				tool.walls[-1].ivy_age = INF
 	print("village: %d buildings in %.0f ms" % [k, (Time.get_ticks_usec() - start) / 1000.0])
 
@@ -1023,3 +1027,37 @@ func _stair_field(_s: Dictionary) -> void:
 			placed += 1
 			await get_tree().process_frame
 	assert(false, "stair field did not fill the budget")
+
+
+func _timber_cost(s: Dictionary) -> void:
+	var previous := get_node_or_null("TimberCost")
+	if previous != null:
+		previous.free()
+	var glade := Masonry.new(Wall.kinds())
+	glade.name = "TimberCost"
+	add_child(glade)
+	var count := 0
+	var id := 0
+	var radius: float = s.get("radius", 0.0)
+	for z in range(-3, 4):
+		for x in range(-3, 4):
+			var center := Vector3(x * 7.0, 0, z * 7.0)
+			if radius <= 0.0 or center.length() > radius:
+				continue
+			var w := WallLayout.new()
+			w.closed = true
+			w.plaster = true
+			w.cover = WallLayout.Cover.ROOF
+			w.points = WallLayout.rectangle(center - Vector3(2.5, 0, 0), center + Vector3(2.5, 0, 0), 4)
+			w.gable = RoofLayout.new()
+			w.resample(Terrain.height_at)
+			TimberFrame.lay(w)
+			count += w.stones.size()
+			var packed := Wall.pack(w, Wall.kinds(), Palette.plain())
+			var chunks: Array[Dictionary] = []
+			for k in Wall.Part.size():
+				chunks.append(packed.chunks.get(k, {}))
+			glade.place(id, chunks)
+			id += 1
+	print("timber-cost: %d members at radius %.1f" % [count, radius])
+	await _frames(3)

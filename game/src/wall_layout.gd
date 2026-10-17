@@ -97,6 +97,7 @@ var cover := Cover.OPEN
 var fence := false
 var plaster := false
 var gable_end := GableEnd.WALL
+var timber_style := 0
 ## The gable roof a house's end walls rise under, course by course, as stone walls do; null for any other.
 var gable: RoofLayout
 ## Where windows were placed: arc length and the height of the click above the foot.
@@ -241,10 +242,12 @@ func build(ground: Callable, water := Callable()) -> void:
 		_lay_pillar(p.s, p.half, pillar_top, rng, wet)
 	for o in openings:
 		_lay_opening(o, rng)
-	_lay_top(rng)
+	if not TimberFrame.applies(self):
+		_lay_top(rng)
 	_lay_gables()
+	TimberFrame.lay(self)
 	for s in corners():
-		if not broken(s, PIER * 0.5):
+		if not TimberFrame.applies(self) and not broken(s, PIER * 0.5):
 			_lay_pier(s, rng, wet)
 	_lay_rubble()
 	for l in lanterns:
@@ -955,11 +958,6 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		m += 1.15
 
 
-## A house's end walls rise under a gable roof's slopes, drawing from their own stream so the stones below stay as
-## they were. As the wall (`GableEnd.WALL`), a stone wall's courses carry on up, each as wide as fits under the slopes
-## (a plaster wall's face up there is its roof's `gables`), under a verge of stones up each rake. Stepped, the courses
-## or plaster climb past the slopes in capped crow steps, the roof stopping inside them. Boarded, upright planks stand
-## under the slopes, under a barge board up each rake.
 func _lay_gables() -> void:
 	if gable == null or gable.kind != RoofLayout.Kind.GABLE or gable.flat() or cover != Cover.ROOF:
 		return
@@ -984,7 +982,8 @@ func _lay_gables() -> void:
 				while not plaster and _under_slope((rows.size() + 1) * h, hs) >= 0.2:
 					rows.append(Vector2(rows.size(), _under_slope((rows.size() + 1) * h, hs)))
 				_lay_gable_rows(mid, hs, base, h, rows, rng)
-				_lay_verge(mid, hs, base, rng, "cope")
+				if not TimberFrame.applies(self):
+					_lay_verge(mid, hs, base, rng, "cope")
 
 
 ## Courses up a gable end `hs` out from the ridge each side, each Vector2(course, half-width) about its middle: stone
@@ -1212,6 +1211,7 @@ func inputs() -> WallLayout:
 	w.fence = fence
 	w.plaster = plaster
 	w.gable_end = gable_end
+	w.timber_style = timber_style
 	w.gable = gable
 	w.windows = windows.duplicate()
 	w.lanterns = lanterns.duplicate()
@@ -1227,7 +1227,7 @@ func inputs() -> WallLayout:
 func same_inputs(other: WallLayout) -> bool:
 	return (points == other.points and height == other.height and arches == other.arches
 		and seed == other.seed and closed == other.closed and top == other.top
-		and cover == other.cover and fence == other.fence and plaster == other.plaster and gable_end == other.gable_end
+		and cover == other.cover and fence == other.fence and plaster == other.plaster and gable_end == other.gable_end and timber_style == other.timber_style
 		and windows == other.windows and lanterns == other.lanterns and flags == other.flags
 		and ruins == other.ruins and supports == other.supports and resting == other.resting
 		and joined == other.joined)

@@ -671,7 +671,7 @@ func _a_gable_continues_the_wall_under_the_slopes() -> void:
 					return
 	var plastered: WallLayout = _gabled(true)[0]
 	var up := plastered.stones.filter(func(s): return s.y > plastered.height + WallLayout.CAP)
-	_check(not up.is_empty() and up.all(func(s): return s.kind == "cope"), "a plaster house's gable ends are plaster under a stone verge")
+	_check(not up.is_empty() and up.all(func(s): return s.kind == "timber"), "a plaster house's gable ends carry timber framing")
 	var low := WallLayout.new()
 	low.points = plastered.points
 	low.closed = true
