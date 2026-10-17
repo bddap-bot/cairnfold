@@ -233,16 +233,17 @@ func _ivy_growing() -> bool:
 
 
 func _exit_tree() -> void:
-	for t in [_ivy_task, _build_task, _perch_task, _recolour_task]:
-		if t >= 0:
-			WorkerThreadPool.wait_for_task_completion(t)
-	_ivy_task = -1
-	_build_task = -1
-	_perch_task = -1
-	_recolour_task = -1
 	masonry.remove(get_instance_id())
 	if _stand_in != null:
 		_stand_in.queue_free()
+
+
+## A wall freed outside the tree never exits it, and a worker task outliving its wall crashes the engine at exit.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE:
+		for t in [_ivy_task, _build_task, _perch_task, _recolour_task]:
+			if t >= 0:
+				WorkerThreadPool.wait_for_task_completion(t)
 
 
 ## Where a bird can stand on the wall's top, as last worked out. Working them out reads every stone, several
