@@ -247,15 +247,15 @@ func _think(f: Flock, s: Sheep, delta: float) -> void:
 
 
 func _come_for_seeds(s: Sheep) -> void:
-	var h := wildlife.offer_for(appetite, s.position)
+	var reaches := func(o: Node3D) -> bool:
+		var spot := wildlife.eat_spot(appetite, o, s.position)
+		return allowed(spot) and _clear_way(s.position, spot)
+	var h := wildlife.offer_for(appetite, s.position, reaches)
 	if h == null:
-		return
-	var spot := wildlife.eat_spot(appetite, h, s.position)
-	if not allowed(spot) or not _clear_way(s.position, spot):
 		return
 	wildlife.claim(h, s)
 	s.hand = h
-	s.goal = spot
+	s.goal = wildlife.eat_spot(appetite, h, s.position)
 	s.state = State.FEED
 	s.timer = rng.randf_range(appetite.eats_for.x, appetite.eats_for.y)
 

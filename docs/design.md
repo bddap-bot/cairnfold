@@ -1758,17 +1758,19 @@ moves there its own way.
 
 The trigger of a hand holding the dish throws a handful (`FeedTool`): its 28 grains leave the dish with the
 hand's eased velocity, each spread a little apart, and come down on the ground or float on a pond where they
-land (`Scatter`), a handful flung from a swing lying a few tenths of a metre across. A landed handful is an offer
-like a calm hand, so the same appetites find it: a conure flies down to peck at it, a duck swims to one on its
-pond, a sheep walks to one beside its pasture, each taking a grain every `1 / Scatter.PECKS` seconds while it
-eats, and leaving when its fill is up or nothing is left. Uneaten, a handful lies 50 to 70 seconds and then
-shrinks and sinks away over its last six. At most eight lie about (`FeedTool.SCATTERS`); another throw takes the
-oldest. Thrown seeds are each player's own, as the animals are.
+land, or on a roof deck (`Handful`), a handful flung from a swing lying a few tenths of a metre across. The swing
+is measured in the rig's space, so a teleport or snap turn just before the trigger throws nothing. A landed
+handful is an offer like a calm hand, so the same appetites find it: a conure flies down to peck at one on dry
+ground, a duck swims to one on its pond, a sheep walks to one beside its pasture, each animal passing over a
+handful it cannot reach for the next, taking a grain every `1 / Handful.PECKS` seconds while it eats, and leaving
+when its fill is up or nothing is left. Uneaten, a handful is gone 50 to 70 seconds after landing, shrinking and
+sinking away over the last six. Eight handfuls are kept (`FeedTool.HANDFULS`) and reused, another throw taking up
+the oldest. Thrown seeds are each player's own, as the animals are.
 
 Butterflies and fireflies eat nothing from a hand. A held seed dish costs what any tool model does;
 each animal's look for a hand holding seeds is a distance check against at most two hands and eight handfuls.
-A handful is one MultiMesh draw call of 28 grains of 20 triangles, casting no shadow: at most eight draw calls
-and about 4,500 triangles, its grains rewritten only while flying, pecked or fading.
+A handful is one MultiMesh draw call of 28 grains of 10 triangles, casting no shadow: at most eight draw calls
+and 2,240 triangles, its grains rewritten only while flying or fading.
 
 Budget: each animal is at most a couple of thousand triangles, skinned or vertex-animated, one
 draw call, and only a handful are ever in view; what that costs a headset is for the stress scene's

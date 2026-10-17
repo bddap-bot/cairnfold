@@ -159,10 +159,7 @@ func _die(list: Array, i: int) -> void:
 
 func _spot(h: Habitat) -> Vector4:
 	var xz := h.points[rng.randi() % h.points.size()] + Vector2.from_angle(rng.randf() * TAU) * rng.randf() * h.spread
-	var y := Terrain.height_at(xz.x, xz.y)
-	var p := wildlife.water.pond_at(xz.x, xz.y)
-	if p != null:
-		y = maxf(y, p.surface_y())
+	var y := wildlife.water.floor_at(Vector3(xz.x, 0, xz.y))
 	return Vector4(xz.x, y + rng.randf_range(HEIGHT.x, HEIGHT.y), xz.y, maxf(_clock, 1e-3))
 
 

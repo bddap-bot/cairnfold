@@ -51,6 +51,8 @@
   {"op": "toss", "hand": "right", "velocity": [2.2, 1.8, 0.8]},
   {"op": "toss", "hand": "left", "velocity": [4.5, 2.6, -0.9]},
   {"op": "toss", "hand": "right", "velocity": [4.2, 2.5, 1]},
+  {"op": "pick", "hand": "left", "tool": "hands"},
+  {"op": "pick", "hand": "right", "tool": "hands"},
   {"op": "wait", "seconds": 6},
   {"op": "label", "name": "-"},
   {"op": "capture", "name": "butterflies-ground"},

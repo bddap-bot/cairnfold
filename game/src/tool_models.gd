@@ -17,6 +17,8 @@ const FITTING_PARTS := {
 	"chimney": ["chimney", "pot"],
 }
 
+const SEED_COLOURS: Array[Color] = [Color(0.93, 0.8, 0.5), Color(0.12, 0.11, 0.1), Color(0.2, 0.19, 0.17)]
+
 static var _mats := {}
 static var _camera_screen: StandardMaterial3D
 
@@ -629,12 +631,12 @@ static func _tree(root: Node3D, species := FloraLayout.Species.OAK) -> void:
 	trunk.radial_segments = 8
 	trunk.rings = 1
 	var bark := _vertex_mat("bark", 1.0, false)
-	var trunk_mm := _multimesh(trunk, 1)
+	var trunk_mm := multimesh(trunk, 1)
 	trunk_mm.set_instance_transform(0, t.trunk)
 	trunk_mm.set_instance_color(0, t.bark)
 	var scale := 0.006
 	_add(root, trunk_mm, bark, scale)
-	var blobs := _multimesh(Meshes.blob(4), t.blobs.size())
+	var blobs := multimesh(Meshes.blob(4), t.blobs.size())
 	for i in t.blobs.size():
 		blobs.set_instance_transform(i, t.blobs[i][0])
 		blobs.set_instance_color(i, t.blobs[i][1])
@@ -714,19 +716,23 @@ static func _seeds(root: Node3D) -> void:
 		var at := Vector3(cos(a) * r, 0.0085 + 0.007 * (1.0 - r / 0.018) + rng.randf() * 0.001, sin(a) * r)
 		var turn := Basis(Vector3.UP, rng.randf() * TAU) * Basis(Vector3.RIGHT, PI * 0.5 + rng.randf_range(-0.5, 0.5))
 		if i % 3 == 0:
-			Meshes.ellipsoid(st, 0, at, Vector3.ONE * 0.0022, Color(0.93, 0.8, 0.5), 3, 6)
+			Meshes.ellipsoid(st, 0, at, Vector3.ONE * 0.0022, SEED_COLOURS[0], 3, 6)
 		else:
-			var dark := Color(0.12, 0.11, 0.1) if i % 2 else Color(0.2, 0.19, 0.17)
+			var dark := SEED_COLOURS[1] if i % 2 else SEED_COLOURS[2]
 			Meshes.ellipsoid(st, 0, at, Vector3(0.0022, 0.0055, 0.0014), dark, 3, 6, Callable(), turn)
 			Meshes.ellipsoid(st, 0, at + turn * Vector3(0, 0, 0.0009), Vector3(0.0007, 0.0052, 0.0007), Color(0.86, 0.84, 0.78), 2, 4, Callable(), turn)
 	var heap := MeshInstance3D.new()
 	heap.mesh = st.commit()
-	heap.material_override = _vertex_mat("seeds", 0.7, false)
+	heap.material_override = seed_material()
 	heap.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(heap)
 
 
-static func _multimesh(mesh: Mesh, count: int) -> MultiMesh:
+static func seed_material() -> StandardMaterial3D:
+	return _vertex_mat("seeds", 0.7, false)
+
+
+static func multimesh(mesh: Mesh, count: int) -> MultiMesh:
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true

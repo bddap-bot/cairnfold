@@ -74,10 +74,10 @@ func _seeds_thrown_on_the_pond_are_eaten(wildlife: Wildlife, pond: PondWater) ->
 	_check(s.landed() and absf(s.position.y - pond.surface_y()) < 0.01, "thrown seeds come down on the water")
 	_check(_spread(s) > 0.1, "and scatter, %.2f m across" % _spread(s))
 	var ate := [false]
-	_run(wildlife, 40.0, func() -> void: ate[0] = ate[0] or (f.state == Wildlife.State.FEED and f.hand == s and s.left() < Scatter.GRAINS))
+	_run(wildlife, 40.0, func() -> void: ate[0] = ate[0] or (f.state == Wildlife.State.FEED and f.hand == s and s.left() < Handful.GRAINS))
 	_check(ate[0], "a duck comes and pecks them up, %d grains left" % s.left())
-	_run(wildlife, Scatter.LASTS.y + 2.0)
-	_check(not wildlife.scatters.has(s) and wildlife.families[0].state != Wildlife.State.FEED, "eaten or faded, they are gone and the ducks swim again")
+	_run(wildlife, Handful.LASTS.y + 2.0)
+	_check(s.left() == 0 and not wildlife.offers().has(s) and f.state != Wildlife.State.FEED, "eaten or faded, they are gone and the ducks swim again")
 
 
 ## Seeds thrown on grass nothing eats sink away after a while.
@@ -88,18 +88,19 @@ func _seeds_thrown_on_the_grass_fade(wildlife: Wildlife) -> void:
 	_check(s.landed() and absf(s.position.y - Terrain.height_at(s.position.x, s.position.z)) < 0.01, "seeds thrown on grass lie on the ground")
 	_check(s.position.x > at.x + 0.5, "carried the way they were thrown, %.2f m" % (s.position.x - at.x))
 	_run(wildlife, s.lasts - 3.5)
-	_check(wildlife.scatters.has(s) and s.left() == Scatter.GRAINS, "uneaten, they lie a while")
+	_check(wildlife.offers().has(s) and s.left() == Handful.GRAINS, "uneaten, they lie a while")
 	_run(wildlife, 4.0)
-	_check(not wildlife.scatters.has(s), "then sink away")
-	var many: Array[Scatter] = []
-	for i in FeedTool.SCATTERS + 2:
+	_check(not wildlife.offers().has(s) and not s.visible, "then sink away")
+	var many: Array[Handful] = []
+	for i in FeedTool.HANDFULS + 1:
 		many.append(feed.toss(at + Vector3(0, 1.0, 0), Vector3.ZERO))
-	_check(wildlife.scatters.size() == FeedTool.SCATTERS and not wildlife.scatters.has(many[0]), "only the latest %d handfuls lie about" % FeedTool.SCATTERS)
-	_run(wildlife, Scatter.LASTS.y + 2.0)
-	_check(wildlife.scatters.is_empty() and feed._spent.is_empty(), "and every handful is let go")
+	_run(wildlife, 1.5)
+	_check(wildlife.offers().size() == FeedTool.HANDFULS and many[0] == many[-1], "only the latest %d handfuls lie about" % FeedTool.HANDFULS)
+	_run(wildlife, Handful.LASTS.y + 2.0)
+	_check(wildlife.offers().is_empty(), "and they all sink away")
 
 
-func _spread(s: Scatter) -> float:
+func _spread(s: Handful) -> float:
 	var lo := Vector2.INF
 	var hi := -Vector2.INF
 	for p in s._at:
@@ -256,10 +257,10 @@ func _ducks_come_only_to_ponds() -> void:
 	_run(walker, 90.0)
 	_check(walker.families[0].state in [Wildlife.State.SWIM, Wildlife.State.ASHORE, Wildlife.State.REST], "and they reach the water")
 	_seeds_held_low_draw_the_ducks(walker, rig.right, pond)
-	feed = FeedTool.new(rig, water)
+	feed = FeedTool.new(rig, water, null)
 	root.add_child(feed)
 	feed.set_process(false)
-	walker.scatters = feed.scatters
+	walker.handfuls = feed.handfuls
 	_seeds_thrown_on_the_pond_are_eaten(walker, pond)
 	_seeds_thrown_on_the_grass_fade(walker)
 

@@ -110,8 +110,7 @@ var _was := {}
 var _speed := {}
 ## Per hand holding seeds or seeds scattered: whatever is eating from it or on its way to.
 var _eaters := {}
-## Seeds thrown from the seed dish (`FeedTool.scatters`).
-var scatters: Array[Scatter] = []
+var handfuls: Array[Handful] = []
 ## A duck paddles or waddles over to peck seeds held low over its pond or the bank.
 static var duck_appetite := Appetite.new(Eat.UNDER_HAND, 3.5, 0.6, 0.16, Vector2(6.0, 12.0), Vector2(8.0, 20.0))
 
@@ -346,15 +345,12 @@ func _think(f: Family, delta: float) -> void:
 ## A duck that sees seeds held low over its pond or its bank heads over to them, its ducklings after it.
 func _come_for_seeds(f: Family) -> void:
 	var lead := f.leader()
-	var h := offer_for(duck_appetite, lead.position)
+	var h := offer_for(duck_appetite, lead.position, func(o: Node3D) -> bool: return _reaches(f, eat_spot(duck_appetite, o, lead.position)))
 	if h == null:
-		return
-	var spot := eat_spot(duck_appetite, h, lead.position)
-	if not _reaches(f, spot):
 		return
 	claim(h, f)
 	f.hand = h
-	f.goal = spot
+	f.goal = eat_spot(duck_appetite, h, lead.position)
 	f.state = State.FEED
 	f.timer = rng.randf_range(duck_appetite.eats_for.x, duck_appetite.eats_for.y)
 
@@ -497,25 +493,30 @@ func offers() -> Array[Node3D]:
 	for h in hands:
 		if h is Hand and h.tool == Hand.Tool.SEEDS and h.is_inside_tree() and h.tracked() and not h.picking:
 			out.append(h)
-	for s in scatters:
-		if s.landed() and not s.gone():
+	for s in handfuls:
+		if s.landed():
 			out.append(s)
 	return out
 
 
-## An animal eating at `h` takes its share: from scattered seeds, a grain at a time.
-func nibble(h: Node3D, delta: float) -> void:
-	if h is Scatter:
-		h.peck(delta)
+func nibble(offer: Node3D, delta: float) -> void:
+	if offer is Handful:
+		offer.peck(delta)
 
 
-## A calm hand holding seeds that an animal at `at` sees and can reach and that nothing else eats from, or null.
-func offer_for(appetite: Appetite, at: Vector3) -> Node3D:
+## A calm hand holding seeds, or seeds thrown, that an animal at `at` sees and can reach (`fits`, given the offer,
+## where the animal has more to say) and that nothing else eats from, or null. A bird eats thrown seeds only off dry
+## ground.
+func offer_for(appetite: Appetite, at: Vector3, fits := Callable()) -> Node3D:
 	for h in offers():
 		var p := h.global_position
 		if _eaters.has(h) or sudden(h) or p.distance_to(at) > appetite.notice:
 			continue
-		if appetite.eat == Eat.UNDER_HAND and h is Hand and p.y - water.floor_at(p) > appetite.reach:
+		if h is Hand and appetite.eat == Eat.UNDER_HAND and p.y - water.floor_at(p) > appetite.reach:
+			continue
+		if h is Handful and appetite.eat == Eat.ON_HAND and water.pond_at(p.x, p.z) != null:
+			continue
+		if fits.is_valid() and not fits.call(h):
 			continue
 		return h
 	return null

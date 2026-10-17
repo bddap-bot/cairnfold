@@ -138,7 +138,6 @@ func _publish() -> void:
 	refilled.emit(Terrain.world_rect(cells.grow_individual(0, 0, 1, 1)))
 
 
-## The ground under `p`, or the water over it.
 func floor_at(p: Vector3) -> float:
 	var ground := Terrain.height_at(p.x, p.z)
 	var pond := pond_at(p.x, p.z)
