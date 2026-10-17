@@ -21,7 +21,8 @@ enum Device { QUEST_2, FRAME }
 ## included; trees and bushes standing; and ponds, one a seed.
 const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "path_m2", "fitting", "grass", "flower", "tree", "bush", "pond", "timber"]
 
-## Per headset, in the governor's signal (the viewport's GPU time per frame, Quality) at the ladder's bottom step, fitted
+## Per headset, in the governor's signal (the viewport's GPU time per frame, Quality) at step 8, the ladder's last with
+## the sun's shadows and the full 3D resolution, so a garden within budget keeps both; fitted
 ## by `scripts/costs.py` from `demo/costs.json` played on it (see "Build budget" in docs/design.md): `budget_ms`, the
 ## most a frame may take there; `base_ms`, the bare meadow; then GPU microseconds a frame per unit. Hills and painted
 ## stone ground measured within noise of the bare meadow, so terrain counts nothing.

@@ -210,8 +210,8 @@ stepped down. The line is now 0.80 of the period:
 Every one of those at 0.80 followed the ladder's step to 0.9 resolution itself, which the
 governor took before the runtime's line: switching to 0.9 cost a 25 to 72 ms frame now and
 then, and once that frame took the runtime to every other refresh for half a second (the 34).
-The Frame now renders at 0.9 from launch and the ladder no longer changes the resolution (see
-"Which knobs matter").
+The Frame now renders at 0.9 from launch, and only the ladder's last step, below every other,
+changes the resolution (see "Which knobs matter" and "Holding 72 Hz on the Frame").
 
 `demo/headset.json` on 5a0292a against the same build held at 0.9 from launch, three runs each,
 late frames (over 1.5× the refresh period) and GPU time per frame (fdinfo):
@@ -301,7 +301,8 @@ What makes building cheap:
 - Settled walls are drawn by `Masonry` per 8 m ground chunk: one MultiMesh per
   kind of piece per chunk, each piece in the chunk under it, so a chunk is culled
   and limited by distance by where its pieces stand, however long their wall. A
-  wall being drawn or pulled draws itself until it settles.
+  wall being drawn or pulled draws by a `Masonry` of its own, in the same chunks with
+  the same coarse far stones, until it settles into the glade's.
 - A chunk wholly beyond the near distance of the quality step draws its stones
   with `Stones.far_mesh`, the same lumps at the corners alone: 12 triangles to the
   full stone's 108. Ivy chunks past ivy's reach are not drawn at all.
@@ -375,11 +376,8 @@ build before the wall changes below, after is the build with them; milliseconds:
 Two traps in measuring this. A scripted view used to last a second in the headset: the
 rig's hover spring pulled it back to its rest height, so every phase "from the air" was
 measured from the unworn headset's own pose on the ground; views now hold. And GPU time
-read at half rate is not the scene's cost: one phase at one step read 19.4 ms while the
-runtime held the game at every other refresh and 6.8 ms once it returned to 72 Hz, the
-clock floor held at its top throughout. Rows at a frame time of 27.8 ms or more compare
-only roughly; 9 m walls standing read 28.2 ms at a third of the refresh rate after, and
-20.1 to 20.6 ms in three repeats of that scene on a later build with the same walls.
+read at half rate is not the scene's cost (see "Holding 72 Hz on the Frame" below): rows at
+a frame time of 27.8 ms or more compare only roughly.
 
 Where the time went among walls on a 25 m disc, measured by hiding each part in turn
 within one run at the ladder's top, before the wall changes, from the unworn headset's own
@@ -468,6 +466,126 @@ The live wall preview, measured with the view turned to the sky so the GPU sits
 idle: every second of two 5 s strokes ran 72 frames with none late, the 99th
 percentile 14.3 ms as with no stroke at all.
 
+### Holding 72 Hz on the Frame
+
+Through the ladder the stress scene held 72 Hz on the Frame in all but ten of its phases:
+9 m walls standing, the village, the path and hill strokes, the hills from the air, the camera
+and a garden from the air sat at every other refresh at the ladder's bottom step for the whole
+of each phase. Three causes, measured on
+the Frame unworn with its standby pause off, the governor walking the ladder and each phase held
+20 s:
+
+- The runtime's half rate holds itself. Once at every other refresh, the GPU timer reads
+  high by the runtime's own work in between: 9 m walls standing at the bottom step read
+  11.2 ms at 72 Hz entered calm and 14.0 ms held at half rate, the same step and the same
+  1.9 M primitives. The runtime let a scene back only once it read under about 11 ms (a
+  path stroke sat at half rate reading 11.2 to 11.6 ms, and left it once it read 7.9), and the governor's
+  line is 11.1 ms, so it sat there without stepping. Turning SteamVR's motion smoothing off
+  mid-run took 2 ms off that reading and left the half rate as it was. Now the runtime
+  holding the game at every other refresh counts as over budget whatever the timer reads,
+  as long as the timer is above 0.6 of the budget, below which the CPU held the frame.
+- The governor waited for each step to arrive before judging the next, and flowers
+  receding from 60 to 20 m take five seconds: a path stroke walked from step 4 to the bottom
+  over 16 s at half rate. Frames over budget now step on while a step is under way, short of a
+  step that pops.
+- A wall under a moving hill drew itself whole in full stones until it settled: the hill
+  stroke doubled the primitives drawn (0.97 to 2.17 M) at the bottom step. It now draws by
+  its own chunks, far ones in coarse stones.
+
+What the bottom step still costs, every part hidden in turn after the scene had returned to
+72 Hz (GPU ms a frame, fdinfo):
+
+| Phase, bottom step | All | No sun shadows | 3D resolution 0.7 | No walls | No flora |
+| --- | --- | --- | --- | --- | --- |
+| 9 m walls standing | 11.2 | 10.1 | 9.3 | 8.0 | 9.5 |
+| Village standing | 11.4 | 10.3 | 9.4 | 7.9 | 9.4 |
+| Village from the air | at half rate | 12.2 | at half rate | 7.8 | at half rate |
+| A path stroke | 11.4 | 9.8 | 9.3 | 8.6 | 7.6 |
+| Hills from the air | 11.4 | 9.8 | 9.3 | 8.6 | 7.7 |
+| Camera held up | 12.0 | 10.3 | 9.9 | 8.8 | 9.8 |
+| A garden from the air | at half rate | 10.2 | 9.4 | 9.6 | 7.1 |
+
+Hiding the terrain and holding shadows to 64 m instead of 256 m each saved nothing. So the
+ladder gained two steps below the old bottom: the sun's shadows off, then the 3D resolution
+at 0.78 of the headset's own (0.70 on the Frame). Both show at once across the whole view, so
+a step up out of either waits the governor's longest calm (64 s), and one undone is not taken
+again that session. Ending the ladder above a step that saved nothing was tried and cut: the
+village appeared in the same second the resolution step landed, read as a step that cost 1.6 ms,
+and held the governor two steps up for the rest of the run. The Quest 2 has not been measured at
+the resolution step; its driver pays 1.4 to 3.2 ms for any scale off exactly 1.0 (below), so on
+a vertex-bound scene that step may cost it more than it saves. Without the resolution step the village from the air stayed
+at every other refresh at the shadows-off step (14.7 ms). Every step up out of them in a
+governed run of the stress scene cost no late frame (the longest 18.8 ms). A garden within the
+build budget never reaches them: `Budget.COSTS` is fitted at step 8, the last with the sun's
+shadows and the full resolution.
+
+Every phase of the stress scene on the Frame: GPU ms a frame (fdinfo, the median of the
+phase's seconds after its first, or of its last 15 s where governed) and frames a second over
+the whole phase, edits landing in its first second included; governed, the steps held in its
+last 15 s in brackets. Full detail holds the ladder at its top (6 s a phase); governed lets the
+ladder walk (20 s a phase). Before is the build this work started from; after is this work,
+with the ground's steepness read once a fragment (a separate change landed in between):
+
+| Phase | Full detail, before | Full detail, after | Governed, before | Governed, after |
+| --- | --- | --- | --- | --- |
+| `meadow/aerial` | 9.6, 73 Hz | 9.2, 73 Hz | 9.5, 73 Hz (0) | 9.6, 72 Hz (0) |
+| `meadow/ground` | 6.8, 67 Hz | 6.6, 68 Hz | 6.7, 71 Hz (0) | 6.6, 71 Hz (0) |
+| `meadow/edge` | 8.0, 72 Hz | 7.7, 73 Hz | 8.0, 73 Hz (0) | 8.1, 72 Hz (0) |
+| `paths/ground` | 8.1, 72 Hz | 7.8, 73 Hz | 8.1, 73 Hz (0) | 8.1, 72 Hz (0) |
+| `flora/aerial` | 11.4, 73 Hz | 11.1, 72 Hz | 10.9, 73 Hz (0-1) | 11.0, 72 Hz (1-2) |
+| `flora/ground` | 9.1, 73 Hz | 8.9, 72 Hz | 9.1, 73 Hz (0) | 8.8, 73 Hz (1-2) |
+| `butterflies/aerial` | 11.4, 73 Hz | 11.1, 72 Hz | 10.9, 73 Hz (1) | 10.8, 73 Hz (2) |
+| `butterflies/ground` | 9.1, 73 Hz | 8.9, 73 Hz | 9.1, 73 Hz (0-1) | 8.8, 72 Hz (1-2) |
+| `drawing` | 10.8, 72 Hz | 10.5, 73 Hz | 10.7, 72 Hz (0) | 11.0, 72 Hz (1) |
+| `r10/aerial` | 15.1, 36 Hz | 14.8, 36 Hz | 10.6, 65 Hz (4) | 8.6, 70 Hz (7-8) |
+| `r10/ground` | 10.3, 65 Hz | 10.1, 66 Hz | 10.0, 73 Hz (4) | 8.6, 73 Hz (7) |
+| `r15/aerial` | 15.9, 36 Hz | 15.7, 37 Hz | 10.1, 69 Hz (6) | 9.2, 73 Hz (7) |
+| `r15/ground` | 14.5, 36 Hz | 14.3, 36 Hz | 11.2, 73 Hz (7) | 10.2, 73 Hz (7) |
+| `r20/aerial` | 17.6, 36 Hz | 17.3, 36 Hz | 10.2, 72 Hz (6-7) | 8.6, 72 Hz (9) |
+| `r20/ground` | 15.8, 36 Hz | 16.3, 37 Hz | 10.7, 73 Hz (8) | 8.5, 72 Hz (9) |
+| `r25/aerial` | 20.6, 36 Hz | 20.3, 36 Hz | 10.9, 73 Hz (8) | 7.8, 73 Hz (10) |
+| `r25/ground` | 17.2, 36 Hz | 17.1, 37 Hz | 11.2, 73 Hz (8) | 7.3, 73 Hz (10) |
+| `r15-tall/aerial` | 16.5, 36 Hz | 16.2, 36 Hz | 9.6, 73 Hz (6-7) | 6.6, 73 Hz (9-10) |
+| `r15-tall/ground` | 16.2, 36 Hz | 15.7, 36 Hz | 14.0, 38 Hz (8) | 9.3, 73 Hz (9) |
+| `village/aerial` | 21.1, 37 Hz | 20.7, 37 Hz | 16.8, 38 Hz (8) | 11.5, 72 Hz (10) |
+| `village/ground` | 16.4, 36 Hz | 16.3, 36 Hz | 14.3, 37 Hz (8) | 8.2, 71 Hz (10) |
+| `village-boards/aerial` | 21.0, 37 Hz | 20.7, 37 Hz | 16.9, 36 Hz (8) | 11.5, 73 Hz (10) |
+| `village-boards/ground` | 16.6, 35 Hz | 16.4, 35 Hz | 11.4, 52 Hz (8) | 8.0, 72 Hz (10) |
+| `village-steps/aerial` | 20.1, 37 Hz | 19.9, 36 Hz | 15.9, 38 Hz (8) | 10.5, 72 Hz (10) |
+| `village-steps/ground` | 16.4, 44 Hz | 16.3, 33 Hz | 10.3, 70 Hz (7-8) | 6.3, 71 Hz (10) |
+| `plaster/aerial` | 18.5, 38 Hz | 18.3, 38 Hz | 10.7, 73 Hz (7) | 6.8, 72 Hz (10) |
+| `plaster/ground` | 14.5, 37 Hz | 14.3, 35 Hz | 8.8, 72 Hz (6-7) | 7.3, 72 Hz (9-10) |
+| `plaster-village/aerial` | 17.8, 36 Hz | 17.4, 40 Hz | 11.1, 73 Hz (7) | 10.1, 73 Hz (9) |
+| `plaster-village/ground` | 9.5, 72 Hz | 9.0, 70 Hz | 8.5, 73 Hz (6-7) | 6.5, 73 Hz (9) |
+| `ponds/aerial` | 11.4, 73 Hz | 11.2, 73 Hz | 9.1, 73 Hz (6) | 8.1, 72 Hz (6-9) |
+| `ponds/ground` | 9.2, 72 Hz | 9.0, 72 Hz | 8.8, 73 Hz (6) | 7.6, 72 Hz (2-5) |
+| `ducks/aerial` | 11.5, 73 Hz | 11.3, 72 Hz | 11.1, 73 Hz (0-1) | 10.5, 72 Hz (0) |
+| `ducks/ground` | 9.2, 72 Hz | 9.1, 73 Hz | 9.2, 73 Hz (0-1) | 7.8, 73 Hz (0) |
+| `conures/aerial` | 11.5, 72 Hz | 11.3, 72 Hz | 11.1, 72 Hz (1) | 10.5, 72 Hz (0) |
+| `conures/ground` | 9.2, 72 Hz | 9.2, 73 Hz | 9.2, 73 Hz (0-1) | 7.9, 72 Hz (0) |
+| `sheep/ground` | 9.5, 72 Hz | 9.3, 72 Hz | 9.4, 73 Hz (0) | 8.4, 73 Hz (0) |
+| `daylight/aerial` | 14.7, 52 Hz | 11.7, 73 Hz | 10.8, 48 Hz (2) | 10.7, 73 Hz (0) |
+| `fireflies/aerial` | 14.2, 36 Hz | 14.0, 36 Hz | 10.5, 73 Hz (2) | 10.4, 73 Hz (0) |
+| `fireflies/ground` | 9.1, 68 Hz | 9.0, 66 Hz | 9.0, 73 Hz (2) | 7.8, 73 Hz (0) |
+| `paths/stroke` | 21.0, 36 Hz | 20.9, 36 Hz | 14.3, 36 Hz (8) | 8.1, 64 Hz (10) |
+| `hills/stroke` | 24.3, 32 Hz | 20.0, 36 Hz | 14.3, 36 Hz (8) | 8.1, 72 Hz (10) |
+| `hills/aerial` | 20.5, 37 Hz | 20.2, 36 Hz | 14.3, 37 Hz (8) | 10.0, 73 Hz (9-10) |
+| `hills/ground` | 17.6, 37 Hz | 17.2, 36 Hz | 10.8, 70 Hz (7-8) | 8.7, 73 Hz (9) |
+| `hands/walls` | 16.8, 36 Hz | 17.2, 36 Hz | 10.7, 73 Hz (8) | 8.6, 72 Hz (9) |
+| `camera/ground` | 17.9, 35 Hz | 18.9, 34 Hz | 12.5, 38 Hz (8) | 7.7, 71 Hz (10) |
+| `camera/shutter` | 17.2, 36 Hz | 18.1, 37 Hz | 11.6, 64 Hz (7-8) | 9.1, 73 Hz (9-10) |
+| `camera/selfie` | 17.8, 37 Hz | 18.6, 37 Hz | 11.7, 64 Hz (7-8) | 9.2, 73 Hz (7-9) |
+| `garden/aerial` | 19.2, 36 Hz | 19.0, 36 Hz | 14.9, 36 Hz (8) | 10.2, 72 Hz (9) |
+| `garden/ground` | 10.9, 64 Hz | 10.8, 66 Hz | 9.2, 70 Hz (8) | 7.8, 73 Hz (9) |
+| `lanterns/ground` | 10.4, 73 Hz | 10.5, 72 Hz | 8.8, 73 Hz (8) | 7.6, 73 Hz (9) |
+| `lanterns/aerial` | 19.1, 43 Hz | 18.7, 41 Hz | 11.5, 73 Hz (8) | 9.7, 73 Hz (9) |
+| `stairs/aerial` | 8.2, 72 Hz | 8.0, 73 Hz | 7.0, 73 Hz (8) | 6.9, 73 Hz (8) |
+| `stairs/ground` | 7.2, 73 Hz | 7.0, 73 Hz | 6.5, 73 Hz (7-8) | 6.4, 72 Hz (5-8) |
+
+A path stroke over the walls still loses frames for a few seconds with the GPU at 8 ms a
+frame at the bottom step: the main thread spends 12 to 19 ms a frame laying the path, as it
+did before this work, which no quality step reaches.
+
 ## Build budget
 
 Directive (verbatim): "I'd like an indicator somewhere. Uh, I think probably on the- on
@@ -483,10 +601,11 @@ wanna make it obvious to the user that there is a limit there"
   frees exactly what placing took, and undo, wipes and a garden loaded or joined count
   alike on every machine.
 - `Budget.COSTS` prices each unit per headset, in the governor's signal (the viewport's
-  GPU time) at the ladder's bottom step, with the bare meadow's time as the base. The
-  room for builds is the headset's `budget_ms` less that base. The ladder walks down
-  as a garden fills, so a full garden is held at the bottom step and anything above it
-  is spare.
+  GPU time) at step 8, the ladder's last with the sun's shadows and the full 3D
+  resolution, with the bare meadow's time as the base. The room for builds is the
+  headset's `budget_ms` less that base. The ladder walks down as a garden fills, so a full
+  garden is held at step 8, anything above it is spare, and the two steps below it are
+  for what lies past the budget.
 - A garden is held to every headset it is shown on: its own, and each visitor's, which
   each player tells the others as they meet. The host turns down any command that would
   take the garden past the room on one of them, and each player's own game turns it down
@@ -500,7 +619,7 @@ wanna make it obvious to the user that there is a limit there"
   the host garden's bar.
 - `demo/costs.json`, played by `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT ...`
   and fitted by `scripts/costs.py OUT`, measures each kind of build alone over the bare
-  meadow at the bottom step, from the air and standing. A unit's cost is the highest any
+  meadow at step 8, from the air and standing. A unit's cost is the highest any
   view gives; a phase that fell to half rate is left out, its GPU time not the scene's.
   Hills and painted stone ground measured within noise of the bare meadow, so terrain
   counts nothing. Lantern light is baked (`Lamps`); a lantern counts by its meshes.
@@ -508,8 +627,8 @@ wanna make it obvious to the user that there is a limit there"
   the budget on purpose (`{"op": "budget", "bounded": false}`), to measure what lies
   beyond it.
 
-On the Steam Frame (`bench.sh OUT SSH_HOST BUNDLE`, unworn, the ladder held at its
-bottom step), viewport GPU milliseconds a frame, from the air and standing, over the bare
+On the Steam Frame (`bench.sh OUT SSH_HOST BUNDLE`, unworn, the ladder held at step 8,
+then its bottom), viewport GPU milliseconds a frame, from the air and standing, over the bare
 meadow's 5.69 and 4.57 ms; the room is 11.1 ms (the governor's line) less 5.7:
 
 | Phase | Units | From the air | Standing | Fitted cost |
@@ -599,10 +718,13 @@ Directive (verbatim):
 every frame.** `Quality` (`game/src/quality.gd`) first draws the meadow's sparse far grass to 60,
 48, 36 or 30 m before holding it at 24 m, then settled stones in full only to 8 m instead of 16 m
 and ivy to 25 m instead of 35 m; below those, flowers to 20 m instead of 60 m, then foliage from
-coarser blobs, and last stones in full to 4 m and ivy to 12 m. A governor reads each
+coarser blobs, and stones in full to 4 m and ivy to 12 m; last, where nothing else held the
+refresh rate, the sun's shadows off and then the 3D resolution at 0.78 of the headset's own
+(see "Holding 72 Hz on the Frame"). A governor reads each
 frame's GPU time and steps down the ladder at once when frames run over the refresh period or
 their average over its line, and back up only after a calm spell with room for what the step
-saved. Every headset starts at the top and settles on
+saved. The runtime holding the game at every other refresh counts as over budget, and frames
+over budget step on while a step is still arriving. Every headset starts at the top and settles on
 the prettiest step it holds at its own refresh rate. There are no per-headset presets and no
 settings menu.
 
@@ -654,7 +776,8 @@ GPU time per frame (fdinfo), median of each phase:
 
 A tenth off the 3D resolution saves more there than every reach step together, at a loss of
 sharpness that is hard to see, so the Frame renders the 3D scene at 0.9 for the whole session
-(`Quality.FRAME_SCALE_3D`), upscaled into the same swapchain. It was the ladder's first step
+(`Quality.FRAME_SCALE_3D`), upscaled into the same swapchain; the ladder's last step takes it
+lower, once every cheaper step has failed. It was the ladder's first step
 until the step itself proved the cost: changing the scale reallocates the scene's buffers, and
 stepping down to 0.9 mid-play cost a 25 to 72 ms frame now and then, which in the houses phase
 of `demo/headset.json` took the runtime to every other refresh for a second in two of three
@@ -700,16 +823,8 @@ From the air the grass beyond 16 m is a few pixels a blade, so the settled steps
 tell apart from the top. On the Quest 2 dense walls were beyond what the ladder reached: at
 973 m of walls it took 42 ms a frame and no knob moved it by more than noise.
 
-On the Steam Frame, the stress scene played governed (unworn, the clock left to itself):
-the ladder holds 72 Hz over walls on a 15 m and a 20 m disc and 9 m walls on a 15 m disc
-from the air, the plaster village, and a garden as built in play seen standing, each
-settling at the bottom step. It does not reach 72 Hz over walls on a 10 m
-disc from the air or standing among any of the wall discs, the village, the hills, the
-camera held up, or the garden from the air: at the bottom step they run at every other
-refresh, at 11 to 22 ms of GPU time a frame, the camera the most (walls on a 10 m disc
-stopped two steps above the bottom). What is left there is
-walls standing near the eye, the sun's shadows, the terrain and the half-rate reading
-above; those are building costs, held by the build budget ("Frame budget").
+On the Steam Frame, the stress scene played governed holds 72 Hz in every phase: see
+"Holding 72 Hz on the Frame" for what it took and the table.
 
 ### Detail by gaze
 
