@@ -26,10 +26,10 @@ static func build(tool: Hand.Tool) -> Node3D:
 		return style(PaletteTool.Restyle.GABLE, WallLayout.GableEnd.STEPS, false)
 	var root := Node3D.new()
 	match tool:
-		Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS:
-			_wall(root, tool == Hand.Tool.PLASTER_WALLS)
-		Hand.Tool.HOUSE, Hand.Tool.PLASTER_HOUSE:
-			_house(root, tool == Hand.Tool.PLASTER_HOUSE)
+		Hand.Tool.WALLS:
+			_wall(root)
+		Hand.Tool.HOUSE:
+			_house(root)
 		Hand.Tool.FENCE:
 			_fence(root)
 		Hand.Tool.WINDOWS:
@@ -69,16 +69,21 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_open_hand(root)
 		Hand.Tool.SEEDS:
 			_seeds(root)
-	if tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS, Hand.Tool.HOUSE, Hand.Tool.PLASTER_HOUSE]:
+	if tool in [Hand.Tool.WALLS, Hand.Tool.HOUSE]:
 		for part in root.get_children():
 			part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22), Vector3.ZERO) * part.transform
 	return root
 
 
-## A miniature of choice `i` of a style the style tool sets (`PaletteTool.styles`), in stone or plaster; a
-## gable end's turned to face the eye.
+## A miniature of choice `i` of a style the style tool sets (`PaletteTool.styles`), a build's in stone or plaster;
+## a gable end's turned to face the eye.
 static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool) -> Node3D:
 	var root := Node3D.new()
+	if restyle == PaletteTool.Restyle.TREE:
+		_tree(root, i as FloraLayout.Species)
+		for part in root.get_children():
+			part.scale *= 1.8
+		return root
 	match restyle:
 		PaletteTool.Restyle.GABLE:
 			_house(root, plastered, i as WallLayout.GableEnd)
@@ -89,8 +94,8 @@ static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool) -> Node
 				_house(root, plastered, WallLayout.GableEnd.WALL, i == WallTool.RoofStyle.FLAT)
 		PaletteTool.Restyle.TOP:
 			_wall(root, plastered, i as WallLayout.Top)
-		PaletteTool.Restyle.ARCH:
-			_wall(root, plastered, WallLayout.Top.CAP, i == 1)
+		PaletteTool.Restyle.FACE:
+			_wall(root, i >= PaletteTool.Face.PLASTER, WallLayout.Top.CAP, i % 2 == 1)
 	var turn := Basis(Vector3.UP, PI * 0.38) if restyle == PaletteTool.Restyle.GABLE else Basis()
 	for part in root.get_children():
 		part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22) * turn, Vector3.ZERO) * part.transform
@@ -611,25 +616,18 @@ static func _grass(root: Node3D) -> void:
 	root.add_child(mi)
 
 
-static func _tree(root: Node3D) -> void:
-	var rng := RandomNumberGenerator.new()
-	rng.seed = 11
-	var t := FloraLayout.tree(Vector3(0, 0.2, 0), rng)
+static func _tree(root: Node3D, species := FloraLayout.Species.OAK) -> void:
+	var t := FloraLayout.tree(Vector3(0, 0.2, 0), 11, species)
 	var trunk := CylinderMesh.new()
 	trunk.top_radius = 0.16
 	trunk.bottom_radius = 0.3
 	trunk.height = 1.0
 	trunk.radial_segments = 8
 	trunk.rings = 1
-	var bark: StandardMaterial3D = _mats.get("bark")
-	if bark == null:
-		bark = StandardMaterial3D.new()
-		bark.albedo_color = Color(0.36, 0.27, 0.2)
-		bark.roughness = 1.0
-		_mats["bark"] = bark
+	var bark := _vertex_mat("bark", 1.0, false)
 	var trunk_mm := _multimesh(trunk, 1)
 	trunk_mm.set_instance_transform(0, t.trunk)
-	trunk_mm.set_instance_color(0, Color.WHITE)
+	trunk_mm.set_instance_color(0, t.bark)
 	var scale := 0.006
 	_add(root, trunk_mm, bark, scale)
 	var blobs := _multimesh(Meshes.blob(4), t.blobs.size())

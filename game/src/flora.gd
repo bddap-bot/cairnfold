@@ -213,6 +213,25 @@ class Pool:
 		else:
 			mm.set_instance_transform(slot - kept, xform)
 
+	## Moves a plant to `xform` (its height counted as `add` takes it) in `color`, where it stands or not.
+	func repose(p: Plant, xform: Transform3D, color: Color) -> void:
+		if not p.current():
+			return
+		xform.origin.y -= Terrain.base_at(p.anchor.x, p.anchor.z)
+		p.xform = xform
+		if p.shown():
+			place(p.slot, xform)
+		if p.slot < kept:
+			var cell := _cell_of[p.slot]
+			cell.set_instance_color(_index_in_cell[p.slot], color)
+			var ground := Terrain.bounds()
+			var box := xform * mesh.get_aabb()
+			box.position.y += ground.position.y
+			box.size.y += ground.size.y
+			cell.custom_aabb = cell.custom_aabb.merge(box.grow(0.5))
+		else:
+			mm.set_instance_color(p.slot - kept, color)
+
 	func draw_with(m: Mesh) -> void:
 		mm.mesh = m
 		for c in _cells:
@@ -248,13 +267,22 @@ class Pool:
 
 ## A tree or bush, as what the delete tool's beam strikes: its parts (a tree's trunk then its blobs), and the
 ## circle across the ground that holds them, so a beam is tested against their boxes only when it passes over it.
+## A tree also keeps the seed its shape is drawn from and its species; a bush's species is -1.
 class Solid:
 	var parts: Array[Plant]
 	var centre: Vector2
 	var radius: float
+	var seed := 0
+	var species := -1
 
-	func _init(p: Array[Plant], box: AABB) -> void:
+	func _init(p: Array[Plant]) -> void:
 		parts = p
+		fit()
+
+	func fit() -> void:
+		var box: AABB = parts[0].xform * parts[0].pool.mesh.get_aabb()
+		for part in parts:
+			box = box.merge(part.xform * part.pool.mesh.get_aabb())
 		centre = Vector2(box.get_center().x, box.get_center().z)
 		radius = Vector2(box.size.x, box.size.z).length() * 0.5
 
@@ -371,7 +399,7 @@ func _init() -> void:
 	trunk.height = 1.0
 	trunk.radial_segments = 8
 	trunk.rings = 1
-	trunks = Pool.new(self, trunk, Meadow.TREES + PLACED_TREES, _plant_material("plant", Color(0.36, 0.27, 0.2), 1.0), true)
+	trunks = Pool.new(self, trunk, Meadow.TREES + PLACED_TREES, _plant_material("plant", Color.WHITE, 1.0), true)
 	var leaf_mat := _plant_material("leaf", Color.WHITE, 1.0)
 	leaf_mat.set_shader_parameter("backlight", Color(0.25, 0.35, 0.08))
 	for step in Quality.ladder:
@@ -424,10 +452,11 @@ func add_flower(p: Vector3, rng: RandomNumberGenerator, pool := flowers) -> Plan
 	return pool.add(FloraLayout.flower(p, rng), FloraLayout.flower_color(p), p, Color(FloraLayout.bloom_rank(p), 0, 0, 0))
 
 
-func add_tree(at: Vector3, rng: RandomNumberGenerator) -> Array[Plant]:
-	var t := FloraLayout.tree(at, rng)
+## A tree of `species` at `at`, its shape drawn from `seed`.
+func add_tree(at: Vector3, seed: int, species := FloraLayout.Species.OAK) -> Array[Plant]:
+	var t := FloraLayout.tree(at, seed, species)
 	var parts: Array[Plant] = []
-	var trunk := trunks.add(t.trunk, Color.WHITE, at)
+	var trunk := trunks.add(t.trunk, t.bark, at)
 	if trunk == null:
 		return parts
 	parts.append(trunk)
@@ -435,8 +464,33 @@ func add_tree(at: Vector3, rng: RandomNumberGenerator) -> Array[Plant]:
 		var blob := foliage.add(b[0], b[1], at)
 		if blob != null:
 			parts.append(blob)
-	_solid(Vector2i(0, trunk.slot), parts)
+	var solid := _solid(Vector2i(0, trunk.slot), parts)
+	solid.seed = seed
+	solid.species = species
 	return parts
+
+
+## The species of the tree whose trunk is `trunk`, or -1 for none standing in its slot.
+func species_of(trunk: Plant) -> int:
+	var solid: Solid = _solids.get(Vector2i(0, trunk.slot))
+	return solid.species if trunk.pool == trunks and trunk.current() and solid != null and solid.parts[0] == trunk else -1
+
+
+## Grows the tree whose trunk is `trunk` again as `species`, from its own seed, in the slots it holds.
+func set_species(trunk: Plant, species: FloraLayout.Species) -> void:
+	var was := species_of(trunk)
+	if was < 0 or was == species:
+		return
+	var key := Vector2i(0, trunk.slot)
+	var solid: Solid = _solids[key]
+	var t := FloraLayout.tree(trunk.anchor, solid.seed, species)
+	trunks.repose(trunk, t.trunk, t.bark)
+	for i in mini(t.blobs.size(), solid.parts.size() - 1):
+		foliage.repose(solid.parts[i + 1], t.blobs[i][0], t.blobs[i][1])
+	solid.species = species
+	solid.fit()
+	changes += 1
+	_index(key, solid)
 
 
 func add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
@@ -447,13 +501,15 @@ func add_bush(at: Vector3, rng: RandomNumberGenerator) -> void:
 		_solid(Vector2i(1, blob.slot), parts)
 
 
-func _solid(key: Vector2i, parts: Array[Plant]) -> void:
+func _solid(key: Vector2i, parts: Array[Plant]) -> Solid:
 	changes += 1
-	var box: AABB = parts[0].xform * parts[0].pool.mesh.get_aabb()
-	for p in parts:
-		box = box.merge(p.xform * p.pool.mesh.get_aabb())
-	var solid := Solid.new(parts, box)
+	var solid := Solid.new(parts)
 	_solids[key] = solid
+	_index(key, solid)
+	return solid
+
+
+func _index(key: Vector2i, solid: Solid) -> void:
 	for j in range(floori((solid.centre.y - solid.radius) / SOLID_CELL), floori((solid.centre.y + solid.radius) / SOLID_CELL) + 1):
 		for i in range(floori((solid.centre.x - solid.radius) / SOLID_CELL), floori((solid.centre.x + solid.radius) / SOLID_CELL) + 1):
 			_solid_cells.get_or_add(Vector2i(i, j), {})[key] = true
@@ -480,6 +536,15 @@ func keep() -> void:
 		p.keep()
 	_name(0, meadow)
 	_kept_solids = _solids.duplicate()
+
+
+## Where the meadow's own trees' trunks stand in its group.
+func meadow_trees() -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for p: Plant in groups[0]:
+		if p.pool == trunks:
+			out.append(p.index)
+	return out
 
 
 func _name(group: int, plants: Array[Plant]) -> void:
@@ -520,7 +585,7 @@ func grow(id: int, g: Dictionary) -> Array[Plant]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = g.seed
 	if g.kind == "tree":
-		plants = add_tree(Vector3(g.at.x, Terrain.base_at(g.at.x, g.at.z), g.at.z), rng)
+		plants = add_tree(Vector3(g.at.x, Terrain.base_at(g.at.x, g.at.z), g.at.z), g.seed)
 		_name(id, plants)
 		return plants
 	var growth := Growth.new()
@@ -628,7 +693,10 @@ func reset() -> void:
 	_solids = _kept_solids.duplicate()
 	_solid_cells.clear()
 	for key: Vector2i in _solids:
-		_solid(key, _solids[key].parts)
+		var solid: Solid = _solids[key]
+		if solid.species > FloraLayout.Species.OAK:
+			set_species(solid.parts[0], FloraLayout.Species.OAK)
+		_index(key, solid)
 
 
 ## The standing tree or bush a ray from `origin` along `dir` strikes first within `reach`: its parts, where it

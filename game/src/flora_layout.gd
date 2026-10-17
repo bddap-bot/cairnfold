@@ -107,19 +107,72 @@ static func brush(center: Vector3, radius: float, count: int, rng: RandomNumberG
 	return out
 
 
-## A tree on the ground point `at`: a trunk (a unit-height cylinder scaled up) and its foliage blobs as [transform, colour].
-static func tree(at: Vector3, rng: RandomNumberGenerator) -> Dictionary:
+## What a tree grows as: an oak's round crown, a fir's dark cone, a poplar's column, a birch's pale trunk under
+## a light, open crown, a copper beech's low wine-red dome. Every one has BLOBS blobs, so a tree changes species in
+## the slots it holds.
+enum Species { OAK, FIR, POPLAR, BIRCH, BEECH }
+const BARK := {Species.OAK: Color(0.36, 0.27, 0.2), Species.FIR: Color(0.3, 0.21, 0.16), Species.POPLAR: Color(0.42, 0.38, 0.3), Species.BIRCH: Color(0.86, 0.84, 0.79), Species.BEECH: Color(0.47, 0.46, 0.43)}
+const LEAVES := {Species.FIR: Color(0.06, 0.19, 0.12), Species.POPLAR: Color(0.36, 0.5, 0.08), Species.BIRCH: Color(0.46, 0.6, 0.2), Species.BEECH: Color(0.32, 0.09, 0.1)}
+
+
+## A tree of `species` on the ground point `at`, its shape drawn from `seed`: a trunk (a unit-height cylinder
+## scaled up) and its bark colour, and its foliage blobs as [transform, colour].
+static func tree(at: Vector3, seed: int, species := Species.OAK) -> Dictionary:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed
 	var base := at - Vector3.UP * 0.2
-	var h := rng.randf_range(2.6, 4.8)
-	var green: Color = GREENS[rng.randi() % GREENS.size()]
-	var size := h * 0.62
-	var crown := base + Vector3.UP * (h + size * 0.2)
 	var blobs := []
-	for b in BLOBS:
-		var off := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.4, 0.8), rng.randf_range(-1, 1)) * size * 0.6
-		var s := size * rng.randf_range(0.55, 0.85)
-		blobs.append([Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3(s, s * 0.85, s)), crown + off), green * rng.randf_range(0.9, 1.1)])
-	return {"trunk": Transform3D(Basis().scaled(Vector3(1, h, 1)), base + Vector3.UP * h * 0.5), "blobs": blobs}
+	var h: float
+	var girth := 1.0
+	match species:
+		Species.OAK:
+			h = rng.randf_range(2.6, 4.8)
+			var green: Color = GREENS[rng.randi() % GREENS.size()]
+			var size := h * 0.62
+			var crown := base + Vector3.UP * (h + size * 0.2)
+			for b in BLOBS:
+				var off := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.4, 0.8), rng.randf_range(-1, 1)) * size * 0.6
+				var s := size * rng.randf_range(0.55, 0.85)
+				blobs.append(_blob(rng, Vector3(s, s * 0.85, s), crown + off, green))
+		Species.FIR:
+			h = rng.randf_range(4.5, 6.5)
+			girth = 0.75
+			for b in BLOBS:
+				var t := b / float(BLOBS - 1)
+				var r := h * lerpf(0.34, 0.06, t) * rng.randf_range(0.9, 1.1)
+				var off := Vector3(rng.randf_range(-1, 1), 0.0, rng.randf_range(-1, 1)) * r * 0.08
+				blobs.append(_blob(rng, Vector3(r, r * 0.45 + h * 0.04, r), base + Vector3.UP * h * lerpf(0.42, 1.12, t) + off, LEAVES[species]))
+		Species.POPLAR:
+			h = rng.randf_range(5.0, 7.0)
+			girth = 0.6
+			for b in BLOBS:
+				var t := b / float(BLOBS - 1)
+				var r := h * 0.14 * (1.0 - absf(t - 0.4) * 0.7) * rng.randf_range(0.9, 1.1)
+				var off := Vector3(rng.randf_range(-1, 1), 0.0, rng.randf_range(-1, 1)) * r * 0.25
+				blobs.append(_blob(rng, Vector3(r, r * 2.0, r), base + Vector3.UP * h * lerpf(0.35, 1.05, t) + off, LEAVES[species]))
+		Species.BIRCH:
+			h = rng.randf_range(4.0, 5.5)
+			girth = 0.5
+			var crown := base + Vector3.UP * h * 0.95
+			for b in BLOBS:
+				var off := Vector3(rng.randf_range(-1, 1) * 0.55, rng.randf_range(-0.55, 0.4), rng.randf_range(-1, 1) * 0.55) * h
+				var s := h * rng.randf_range(0.14, 0.2)
+				blobs.append(_blob(rng, Vector3(s, s * 1.3, s), crown + off, LEAVES[species]))
+		Species.BEECH:
+			h = rng.randf_range(2.4, 3.4)
+			girth = 1.25
+			var crown := base + Vector3.UP * h * 1.1
+			var reach := h * 0.95
+			for b in BLOBS:
+				var a := (b + rng.randf_range(-0.2, 0.2)) * TAU / (BLOBS - 1)
+				var off := Vector3.ZERO if b == BLOBS - 1 else Vector3(cos(a), 0.0, sin(a)) * reach * rng.randf_range(0.75, 0.95)
+				var s := h * rng.randf_range(0.55, 0.7)
+				blobs.append(_blob(rng, Vector3(s, s * 0.55, s), crown + off + Vector3.UP * (h * 0.35 if b == BLOBS - 1 else 0.0), LEAVES[species]))
+	return {"trunk": Transform3D(Basis().scaled(Vector3(girth, h, girth)), base + Vector3.UP * h * 0.5), "bark": BARK[species], "blobs": blobs}
+
+
+static func _blob(rng: RandomNumberGenerator, scale: Vector3, at: Vector3, green: Color) -> Array:
+	return [Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(scale), at), green * rng.randf_range(0.9, 1.1)]
 
 
 static func bush(at: Vector3, rng: RandomNumberGenerator) -> Array:

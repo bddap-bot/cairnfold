@@ -44,12 +44,12 @@ def scripts(count):
         else:
             i = names.index(name)
             steps = [{"op": "place", "x": -2 * i, "z": 9}, {"op": "join"},
-                     {"op": "until", "seq": 27 + 2 * (i - 2), "players": count},
+                     {"op": "until", "seq": 28 + 2 * (i - 2), "players": count},
                      {"op": "wall", "points": [[2 * i, 16], [2 * i + 1, 16]], "seconds": 0.3},
-                     {"op": "until", "seq": 28 + 2 * (i - 2)},
+                     {"op": "until", "seq": 29 + 2 * (i - 2)},
                      {"op": "press", "button": "dpad_down"}]
         if count > 2:
-            steps += [{"op": "until", "seq": 27 + 2 * (count - 2)}]
+            steps += [{"op": "until", "seq": 28 + 2 * (count - 2)}]
             steps += sample(name, names, count)
         steps += [{"op": "digest", "name": f"{name}-final"},
                   barrier([f"{n}-final" for n in names])]

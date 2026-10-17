@@ -133,7 +133,7 @@ func _brush_grows_with_distance() -> void:
 
 func _tree_stands_on_its_spot() -> void:
 	var at := Vector3(4, Terrain.height_at(4, -3), -3)
-	var tree := FloraLayout.tree(at, _rng(3))
+	var tree := FloraLayout.tree(at, 3)
 	var trunk: Transform3D = tree.trunk
 	_check(Vector2(trunk.origin.x - at.x, trunk.origin.z - at.z).length() < 1e-4, "the trunk stands where the hand pointed")
 	_check(trunk.origin.y - trunk.basis.y.length() * 0.5 < at.y, "the trunk's foot is in the ground")
@@ -181,14 +181,14 @@ func _trees_recycle_whole() -> void:
 	var t := _tool()
 	var rng := _rng(5)
 	for i in Meadow.TREES:
-		t.flora.add_tree(Vector3.ZERO, rng)
+		t.flora.add_tree(Vector3.ZERO, rng.randi())
 	for i in Meadow.BUSHES:
 		t.flora.add_bush(Vector3.ZERO, rng)
 	t.flora.keep()
 	var trunks := t.flora.trunks
 	var foliage := t.flora.foliage
 	for i in Flora.PLACED_TREES * 2 + 3:
-		t.flora.add_tree(Vector3.ZERO, rng)
+		t.flora.add_tree(Vector3.ZERO, rng.randi())
 		var tree := trunks.last - trunks.kept
 		var blob := foliage.last - foliage.kept
 		if blob != (tree + 1) * FloraLayout.BLOBS - 1:
@@ -301,9 +301,9 @@ func _flowers_out_of_reach_are_not_drawn() -> void:
 func _blob_detail_changes_only_what_is_drawn() -> void:
 	var flora := Flora.new()
 	root.add_child(flora)
-	flora.add_tree(Vector3.ZERO, _rng(9))
+	flora.add_tree(Vector3.ZERO, 9)
 	flora.keep()
-	flora.add_tree(Vector3(20, 0, 0), _rng(10))
+	flora.add_tree(Vector3(20, 0, 0), 10)
 	var made := flora.foliage.mesh
 	var foliage: Array[MultiMesh] = []
 	for mmi: MultiMeshInstance3D in flora.get_children():

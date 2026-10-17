@@ -209,7 +209,13 @@ func _aim(s: Dictionary) -> void:
 
 
 func _wall(s: Dictionary) -> void:
-	await _stroke(s, Hand.Tool.PLASTER_WALLS if s.get("plaster", false) else Hand.Tool.WALLS)
+	_lay_plaster(s)
+	await _stroke(s, Hand.Tool.WALLS)
+
+
+## Walls and houses a step lays are plaster with `plaster`, else stone, as if the style tool had last turned a face to it.
+func _lay_plaster(s: Dictionary) -> void:
+	main.tool.plaster = s.get("plaster", false)
 
 
 func _fence(s: Dictionary) -> void:
@@ -239,7 +245,8 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 ## stands, making it a round tower `size` [across, across]. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
-	_holding(s, Hand.Tool.PLASTER_HOUSE if s.get("plaster", false) else Hand.Tool.HOUSE)
+	_holding(s, Hand.Tool.HOUSE)
+	_lay_plaster(s)
 	var x: float = s.at[0]
 	var z: float = s.at[1]
 	var to := _spot(s, x, z)
@@ -248,7 +255,7 @@ func _house(s: Dictionary) -> void:
 	var yaw_from := _turn(s, x, z, s.get("turn_from", s.get("turn", 0.0)))
 	var on: int = _target(s, from).on
 	_lay_gables(s)
-	tool.begin_house(from, yaw_from, s.get("plaster", false), PackedInt32Array([on]) if on >= 0 else PackedInt32Array())
+	tool.begin_house(from, yaw_from, PackedInt32Array([on]) if on >= 0 else PackedInt32Array())
 	var taken_up: Vector2 = tool.house_at.size
 	var size := Vector2(s.size[0], s.size[1]) if s.has("size") else taken_up
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
@@ -495,7 +502,8 @@ static func _stretch(layout: WallLayout, from: float, to: float) -> Array[Vector
 ## Fills a disc at once with parallel walls (see StressLayout) of one height, their ivy fully grown.
 func _stress(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
-	var m := tool.mason(_holding(s, Hand.Tool.FENCE if s.get("fence", false) else Hand.Tool.PLASTER_WALLS if s.get("plaster", false) else Hand.Tool.WALLS))
+	var m := tool.mason(_holding(s, Hand.Tool.FENCE if s.get("fence", false) else Hand.Tool.WALLS))
+	_lay_plaster(s)
 	var rows := StressLayout.walls(s.radius, s.spacing)
 	var start := Time.get_ticks_usec()
 	for row in rows:
@@ -533,7 +541,8 @@ func _lanterns(s: Dictionary) -> void:
 
 
 ## Fills every painted and placed flora pool to capacity within `radius` of the centre, or only those `pools` names
-## (grass, flowers, trees). They are not build commands, so the frame budget does not count them.
+## (grass, flowers, trees), the trees taking each species in turn. They are not build commands, so the frame budget
+## does not count them.
 func _fill_flora(s: Dictionary) -> void:
 	var flora: Flora = main.flora_tool.flora
 	var pools: Array = s.get("pools", ["grass", "flowers", "trees"])
@@ -544,7 +553,7 @@ func _fill_flora(s: Dictionary) -> void:
 	for i in Flora.PAINTED_FLOWERS if "flowers" in pools else 0:
 		flora.add_flower(_scatter(rng, s.radius), rng)
 	for i in Flora.PLACED_TREES if "trees" in pools else 0:
-		flora.add_tree(_scatter(rng, s.radius), rng)
+		flora.add_tree(_scatter(rng, s.radius), rng.randi(), i % FloraLayout.Species.size())
 
 
 ## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter; with `storeys`,
@@ -555,6 +564,7 @@ func _village(s: Dictionary) -> void:
 	var r: float = s.radius
 	var step: float = s.spacing
 	_lay_gables(s)
+	_lay_plaster(s)
 	var k := 0
 	for z in range(-int(r / step), int(r / step) + 1):
 		for x in range(-int(r / step), int(r / step) + 1):
@@ -566,7 +576,7 @@ func _village(s: Dictionary) -> void:
 			var at := Terrain.ground(c.x, c.y)
 			var on := PackedInt32Array()
 			for storey in s.get("storeys", 1):
-				tool.begin_house(at, yaw, s.get("plaster", false), on)
+				tool.begin_house(at, yaw, on)
 				tool.place_house(at, yaw, Vector2(0.7, 0.44) * step)
 				tool.end_house()
 				tool.walls[-1].ivy_age = INF
@@ -574,7 +584,7 @@ func _village(s: Dictionary) -> void:
 			if s.get("wings", false):
 				var wing := at + Vector3.RIGHT.rotated(Vector3.UP, yaw) * step * 0.2
 				wing = Terrain.ground(wing.x, wing.z)
-				tool.begin_house(wing, yaw, s.get("plaster", false))
+				tool.begin_house(wing, yaw)
 				tool.place_house(wing, yaw, Vector2(0.3, 0.6) * step)
 				tool.end_house()
 				tool.walls[-1].ivy_age = INF
@@ -779,11 +789,18 @@ func _colour(s: Dictionary) -> void:
 
 
 ## The style tool's trigger held on what it finds from `from` toward `at`, as `PaletteTool.aim_style` does
-## (`restyle` names what that must be: gable, roof, top or arch), twisted round to choice `pick` over
+## (`restyle` names what that must be: gable, roof, top, face or tree), twisted round to choice `pick` over
 ## `seconds` and let go, as `colour` does.
+## With `tree`, it is aimed instead at the meadow's own tree of that number, across its crown from `side` metres away.
 func _style(s: Dictionary) -> void:
 	var tool: PaletteTool = main.palette_tool
-	var target := tool.aim_style(_dial_from(s), _dial_dir(s))
+	var target := tool.aim_style(_dial_from(s), _dial_dir(s)) if not s.has("tree") else {}
+	if s.has("tree"):
+		var flora: Flora = main.flora_tool.flora
+		var trunk: Flora.Plant = flora.groups[0][flora.meadow_trees()[s.tree]]
+		var crown := trunk.anchor + Vector3.UP * 2.5
+		var from := crown + Vector3(0, 1, s.get("side", 6.0))
+		target = tool.aim_style(from, (crown - from).normalized())
 	if target.get("restyle") != PaletteTool.Restyle[s.restyle.to_upper()]:
 		push_error("driver: style aimed at %s, not %s" % [target, s.restyle])
 		return

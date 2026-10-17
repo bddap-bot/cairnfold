@@ -5,7 +5,7 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "heights", "season", "wipe", "garden", "batch"]
+const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "species", "heights", "season", "wipe", "garden", "batch"]
 ## What a batch may carry: from a player, takings; from the host, also the undo of them.
 const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show"]
 const UNBATCHED := ["stairs", "wall", "path", "ground"]
@@ -130,6 +130,8 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 		"show":
 			ok = typeof(cmd.get("on")) == TYPE_BOOL and cmd.get("plants") is Dictionary and _show(cmd.plants, state, out)
 			out.on = cmd.get("on")
+		"species":
+			ok = _species(cmd, state, out)
 		"heights":
 			ok = _heights(cmd, state, from_host, out)
 		"season":
@@ -259,7 +261,7 @@ static func _reshape(d: Dictionary, now: Dictionary) -> Variant:
 		# A peer re-checks what the host cleaned, so keys stay Strings: `out.roof = ` would store a StringName.
 		if typeof(k) != TYPE_STRING:
 			return null
-		if k in ["points", "height", "top", "gable_end", "arches", "windows", "lanterns", "flags", "ruins"]:
+		if k in ["points", "height", "top", "plaster", "gable_end", "arches", "windows", "lanterns", "flags", "ruins"]:
 			out[k] = d[k]
 			trial[k] = d[k]
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():
@@ -352,6 +354,24 @@ static func _show(plants: Dictionary, state: Dictionary, out: Dictionary) -> boo
 		if at.size() > size or not Array(at).all(func(i: int) -> bool: return i >= 0 and i < size):
 			return false
 		out.plants[g] = at
+	return true
+
+
+## A tree's species: a planted tree is its group's first plant, a meadow tree one of the meadow group's `trees`.
+static func _species(cmd: Dictionary, state: Dictionary, out: Dictionary) -> bool:
+	var g: Variant = cmd.get("group")
+	var i: Variant = cmd.get("index")
+	var species: Variant = cmd.get("species")
+	if typeof(g) != TYPE_INT or typeof(i) != TYPE_INT or typeof(species) != TYPE_INT or not state.groups.has(g):
+		return false
+	if species < 0 or species >= FloraLayout.Species.size():
+		return false
+	var group: Dictionary = state.groups[g]
+	if not (i == 0 if group.kind == "tree" else group.get("trees", PackedInt32Array()).has(i)):
+		return false
+	out.group = g
+	out.index = i
+	out.species = species
 	return true
 
 

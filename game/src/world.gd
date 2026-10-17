@@ -258,10 +258,15 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 	ground_grab = ground
 	water = ponds
 	if flora != null and flora.groups.has(0):
-		state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}}
+		state.groups[0] = _meadow()
 		for p: Flora.Plant in flora.groups[0]:
 			Budget.add(_meadow_units, _unit(0, p))
 		Budget.add(units, _meadow_units)
+
+
+## The meadow's own group as it grows: every plant standing, every tree an oak.
+func _meadow() -> Dictionary:
+	return {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees(), "species": {}}
 
 
 func me() -> int:
@@ -472,6 +477,11 @@ func _keys(cmd: Dictionary) -> Array:
 			return ["w%d" % cmd.id]
 		"plant":
 			return ["p%d" % cmd.id]
+		"species":
+			if cmd.group != 0:
+				return ["p%d" % cmd.group]
+			var at: Vector3 = flora.groups[0][cmd.index].anchor
+			return ["m%d,%d" % [floori(at.x / PATCH), floori(at.z / PATCH)]]
 		"stairs", "unstairs", "path", "unpath", "ground", "unground":
 			return ["q%d" % cmd.id]
 		"season":
@@ -592,6 +602,8 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			var plants := flora.grow(cmd.id, g)
 			g.size = plants.size()
 			g.hidden = {}
+			if g.kind == "tree":
+				g.species = {}
 			state.groups[cmd.id] = g
 			Budget.add(units, Budget.plants(g.kind, 1 if g.kind == "tree" else g.size - g.skip.size()))
 			inverse = {"op": "show", "plants": {cmd.id: PackedInt32Array(range(plants.size()))}, "on": false}
@@ -610,6 +622,14 @@ func _apply(cmd: Dictionary) -> Dictionary:
 					else:
 						hidden[i] = true
 			inverse = {"op": "show", "plants": changed, "on": not cmd.on}
+		"species":
+			var species: Dictionary = state.groups[cmd.group].species
+			inverse = {"op": "species", "group": cmd.group, "index": cmd.index, "species": species.get(cmd.index, FloraLayout.Species.OAK)}
+			if cmd.species == FloraLayout.Species.OAK:
+				species.erase(cmd.index)
+			else:
+				species[cmd.index] = cmd.species
+			flora.set_species(flora.groups[cmd.group][cmd.index], cmd.species)
 		"heights":
 			inverse = {"op": "heights", "cells": cmd.cells, "values": Terrain.read(cmd.cells)}
 			ground_grab.restore(cmd.cells, cmd.values)
@@ -689,13 +709,15 @@ func snapshot() -> Dictionary:
 		var g: Dictionary = state.groups[id]
 		if g.kind != "meadow":
 			var c := g.duplicate(true)
-			for k in ["hidden", "size"]:
+			for k in ["hidden", "size", "species"]:
 				c.erase(k)
 			c.op = "plant"
 			c.id = id
 			cmds.append(c)
 		if not g.hidden.is_empty():
 			cmds.append({"op": "show", "plants": {id: PackedInt32Array(g.hidden.keys())}, "on": false})
+		for i in g.get("species", {}):
+			cmds.append({"op": "species", "group": id, "index": i, "species": g.species[i]})
 	if palette.season != Palette.SUMMER:
 		cmds.append({"op": "season", "index": palette.season})
 	for c in cmds:
@@ -752,7 +774,7 @@ func _clear() -> void:
 	flora.reset()
 	palette.season = Palette.SUMMER
 	palette.apply()
-	state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}}
+	state.groups[0] = _meadow()
 	if sculpted:
 		ground_grab.restore(Terrain.ALL, Terrain.base_heights())
 		sculpted = false
@@ -800,7 +822,11 @@ func digest() -> Dictionary:
 			if p != null and p.shown():
 				shown += 1
 				spot += p.anchor
-		out.groups[str(g)] = {"kind": state.groups[g].kind, "plants": flora.groups[g].size(), "shown": shown, "spot": var_to_str(spot.snapped(Vector3.ONE * 0.01))}
+		var species := []
+		for p: Flora.Plant in flora.groups[g]:
+			if p != null and p.pool == flora.trunks:
+				species.append(flora.species_of(p))
+		out.groups[str(g)] = {"kind": state.groups[g].kind, "plants": flora.groups[g].size(), "shown": shown, "spot": var_to_str(spot.snapped(Vector3.ONE * 0.01)), "species": species}
 	out.stairs = state.stairs.duplicate(true)
 	out.paths = state.paths.keys()
 	out.seeds = state.seeds.map(var_to_str)

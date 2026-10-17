@@ -75,6 +75,8 @@ var walls: Array[Wall] = []
 var paint := Palette.plain()
 ## The gable ends new houses are laid with: the style last turned to on this machine.
 var gable_end := WallLayout.GableEnd.WALL
+## Whether new walls and houses are laid in plaster: the face last turned to on this machine.
+var plaster := false
 var masons: Array[Mason] = []
 ## The house the hands are carrying, where it stands, and the hands holding it.
 var house: Wall
@@ -124,7 +126,7 @@ func _init(player: Rig, garden: World, plants: Flora, ways: Paths) -> void:
 
 
 static func draws(hand: Hand) -> bool:
-	return hand.tool in [Hand.Tool.WALLS, Hand.Tool.PLASTER_WALLS, Hand.Tool.FENCE]
+	return hand.tool in [Hand.Tool.WALLS, Hand.Tool.FENCE]
 
 
 func mason(hand: Hand) -> Mason:
@@ -300,7 +302,7 @@ func begin_stroke(m: Mason, p: Vector3, on := -1) -> void:
 			standing.append(w.layout)
 	m.stroke.plan = WallPlan.new(standing, flora.obstacles() if on < 0 else PackedVector3Array(), randi())
 	m.stroke.plan.fence = m.hand.tool == Hand.Tool.FENCE
-	m.stroke.plan.plaster = m.hand.tool == Hand.Tool.PLASTER_WALLS
+	m.stroke.plan.plaster = plaster and not m.stroke.plan.fence
 	m.stroke.plan.supports = _solids(m.stroke.on)
 	_dirty = true
 
@@ -375,7 +377,7 @@ func _house_input() -> void:
 	var holders: Array[Mason] = []
 	var starting := false
 	for m in masons:
-		if m.hand.tool not in [Hand.Tool.HOUSE, Hand.Tool.PLASTER_HOUSE] or rig.aim_hand == m.hand or not m.hand.get_has_tracking_data():
+		if m.hand.tool != Hand.Tool.HOUSE or rig.aim_hand == m.hand or not m.hand.get_has_tracking_data():
 			continue
 		if m.buttons.held("tool"):
 			holders.append(m)
@@ -397,7 +399,7 @@ func _house_input() -> void:
 			ahead.y = 0.0
 			at = Terrain.ground(rig.head.global_position.x + ahead.normalized().x * HOUSE_REACH, rig.head.global_position.z + ahead.normalized().z * HOUSE_REACH)
 		var on := aimed.get("on", -1) as int
-		begin_house(at, angle(rig.head.global_basis.x), lead.tool == Hand.Tool.PLASTER_HOUSE, PackedInt32Array([on]) if on >= 0 else PackedInt32Array())
+		begin_house(at, angle(rig.head.global_basis.x), PackedInt32Array([on]) if on >= 0 else PackedInt32Array())
 	if holders.is_empty():
 		if not _holders.is_empty():
 			end_house()
@@ -419,7 +421,7 @@ func _house_input() -> void:
 
 
 ## A square house standing at `at`, its front square to `yaw`, until it is placed and let go.
-func begin_house(at: Vector3, yaw: float, plaster := false, on := PackedInt32Array()) -> void:
+func begin_house(at: Vector3, yaw: float, on := PackedInt32Array()) -> void:
 	house = _new_wall()
 	house.on = on
 	house.layout.plaster = plaster

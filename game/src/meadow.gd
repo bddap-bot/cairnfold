@@ -52,7 +52,7 @@ func _plants(rng: RandomNumberGenerator) -> void:
 	for t in TREES:
 		var ang := rng.randf() * TAU
 		var r := rng.randf_range(24.0, 58.0)
-		flora.add_tree(Terrain.ground(cos(ang) * r, sin(ang) * r), rng)
+		flora.add_tree(Terrain.ground(cos(ang) * r, sin(ang) * r), rng.randi())
 	for b in BUSHES:
 		var ang := rng.randf() * TAU
 		var r := rng.randf_range(14.0, 40.0)
