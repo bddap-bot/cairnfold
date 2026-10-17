@@ -78,3 +78,20 @@ static func bound(device: String, action: String, tracker: String) -> Array[Stri
 		if DEVICES[device][name] == [tracker, ACTIONS[action].get(tracker, "")]:
 			out.append(name)
 	return out
+
+
+## The flat-screen controls (`Flat`): each action as the keys, mouse buttons and gamepad inputs that do it, a stick's
+## half axis by its sign. The camera and the visit tool fire on "tool", as a controller's trigger does.
+const FLAT := {
+	"forward": [["key", KEY_W], ["key", KEY_UP], ["axis", JOY_AXIS_LEFT_Y, -1.0]],
+	"back": [["key", KEY_S], ["key", KEY_DOWN], ["axis", JOY_AXIS_LEFT_Y, 1.0]],
+	"left": [["key", KEY_A], ["key", KEY_LEFT], ["axis", JOY_AXIS_LEFT_X, -1.0]],
+	"right": [["key", KEY_D], ["key", KEY_RIGHT], ["axis", JOY_AXIS_LEFT_X, 1.0]],
+	"look_left": [["axis", JOY_AXIS_RIGHT_X, -1.0]],
+	"look_right": [["axis", JOY_AXIS_RIGHT_X, 1.0]],
+	"look_up": [["axis", JOY_AXIS_RIGHT_Y, -1.0]],
+	"look_down": [["axis", JOY_AXIS_RIGHT_Y, 1.0]],
+	"tool": [["mouse", MOUSE_BUTTON_LEFT], ["axis", JOY_AXIS_TRIGGER_RIGHT, 1.0], ["button", JOY_BUTTON_A]],
+	"next_tool": [["key", KEY_TAB], ["mouse", MOUSE_BUTTON_RIGHT], ["button", JOY_BUTTON_Y]],
+	"let_go": [["key", KEY_ESCAPE]],
+}

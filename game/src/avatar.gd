@@ -16,6 +16,8 @@ const FACING := Basis(Vector3.UP, PI)
 const NEEDS: Array[String] = ["hips", "head", "leftHand", "rightHand"]
 ## Where elbows point, in the body's frame (forward -Z): down, out to the side, and a little back.
 const ELBOW := Vector3(0.5, -1.0, 0.4)
+## The left and right hands' aim poses hanging at the sides, from eyes looking level.
+const AT_SIDES: Array[Transform3D] = [Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(-0.3, -0.65, 0.05)), Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(0.3, -0.65, 0.05))]
 
 ## One humanoid bone: a node, or a bone of a skeleton.
 class Joint:
@@ -343,5 +345,5 @@ func _arm(arm: Arm, to: Vector3, turn: Basis) -> void:
 
 ## Standing still with the hands at the sides, as a figure.
 func stand() -> void:
-	var at := Transform3D(Basis.IDENTITY, Vector3(0, 1.65, 0))
-	pose(at, Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(-0.3, 1.0, 0.05)), Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(0.3, 1.0, 0.05)))
+	var at := Transform3D(Basis.IDENTITY, Vector3(0, Rig.EYE, 0))
+	pose(at, at * AT_SIDES[0], at * AT_SIDES[1])

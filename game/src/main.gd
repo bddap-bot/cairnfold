@@ -33,6 +33,7 @@ var sound: Soundscape
 var metrics: Metrics
 var quality: Quality
 var hand_stop: HandStop
+var flat: Flat
 
 
 func _ready() -> void:
@@ -115,6 +116,10 @@ func _ready() -> void:
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 	metrics = Metrics.new(args.get("metrics", ""))
 	metrics.info = {"xr": _start_xr(), "label": "", "budget": Budget.info()}
+	metrics.info.flat = Main.flat_wanted(args, metrics.info.xr, played)
+	if metrics.info.flat:
+		flat = Flat.new(rig)
+		add_child(flat)
 	quality = Quality.new(xr if metrics.info.xr else null, flora, tool.masonry)
 	if args.has("quality"):
 		quality.pin = int(args.quality)
@@ -155,6 +160,11 @@ func _process(_delta: float) -> void:
 ## Whether `hand`, or with none any hand, has an edit under way: a grip takes nothing from a hand mid-edit.
 func _editing(hand: Hand = null) -> bool:
 	return stair_tool.busy(hand) or tool.busy(hand) or flora_tool.busy(hand) or ground_grab.busy(hand) or palette_tool.busy(hand) or delete_tool.busy(hand)
+
+
+## A game played without a headset comes up on the flat screen; a script or test asks for it by --flat.
+static func flat_wanted(launch: Dictionary, in_xr: bool, played: bool) -> bool:
+	return not in_xr and (launch.has("flat") or played and not launch.has("desktop"))
 
 
 func _start_xr() -> bool:
@@ -199,7 +209,10 @@ func view(eye: Vector3, at: Vector3, relative: bool) -> void:
 		eye += rig.head.global_position
 		at += rig.head.global_position
 	var want := Transform3D(Basis.looking_at(at - eye, Vector3.UP), eye)
-	if metrics.info.xr:
+	if flat:
+		rig.global_position += eye - rig.head.global_position
+		flat.face(at)
+	elif metrics.info.xr:
 		rig.global_transform = want * rig.head.transform.affine_inverse()
 	else:
 		rig.head.global_transform = want

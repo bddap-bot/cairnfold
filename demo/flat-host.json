@@ -1,0 +1,17 @@
+[
+  {"op": "place", "x": 0, "z": 8},
+  {"op": "wall", "points": [[-4, -2], [0, -3], [4, -2]], "seconds": 1},
+  {"op": "paint", "tool": "flowers", "points": [[-3, 0], [0, -0.5], [3, 0]], "radius": 1.4, "seconds": 3},
+  {"op": "tree", "x": 5, "z": -4},
+  {"op": "view", "eye": [0, 1.65, 8], "at": [0, 1.0, 0], "ground": true},
+  {"op": "until", "players": 2},
+  {"op": "until", "digests": ["flat-walked"]},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "host-sees-flat"},
+  {"op": "digest", "name": "host-seen"},
+  {"op": "until", "digests": ["flat-photo"]},
+  {"op": "capture", "name": "host-sees-camera"},
+  {"op": "digest", "name": "host-done"},
+  {"op": "until", "players": 1},
+  {"op": "quit"}
+]

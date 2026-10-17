@@ -618,6 +618,31 @@ func _visit(s: Dictionary) -> void:
 	await _frames(2)
 
 
+## Flat mode: holds the flat-screen control `action` (see Controls.FLAT) for `seconds`, as its key or button would.
+func _flat(s: Dictionary) -> void:
+	var action: String = "flat_" + s.action
+	Input.action_press(action)
+	await get_tree().create_timer(s.get("seconds", 0.1)).timeout
+	Input.action_release(action)
+	await _frames(2)
+
+
+## Turns the view to `at`, or to the figure of the host's garden with "figure", or to the eyes of the first other
+## player with "player".
+func _face(s: Dictionary) -> void:
+	var to: Vector3
+	if s.get("figure", false):
+		var tool: VisitTool = main.visit_tool
+		var k: String = tool.figures.keys().filter(func(x: String) -> bool: return x.ends_with(":%d" % _host_port(s)))[0]
+		to = tool.figures[k].global_position + VisitTool.AIM
+	elif s.get("player", false):
+		to = (main.session.avatars.values()[0] as Avatar).eyes.origin
+	else:
+		to = Vector3(s.at[0], s.at[1], s.at[2])
+	main.view(main.rig.head.global_position, to, false)
+	await _frames(2)
+
+
 ## Waits until the garden has applied command `seq`, `players` share it, `worn` of them show their own avatar files, the
 ## `digests` named have been written to the capture directory (by any player), or with "heard" the host's beacon is
 ## heard, for at most `seconds`. Without them only the run's end stops the wait, reported as timed out: how long

@@ -261,6 +261,12 @@ schema and the snapshot round trip. `tests/test_avatar.gd` reads the public samp
 `tests/avatars/` (VRM 1.0 and 0.x) and checks the limits, the pose, the arms' reach, and that
 one model in both versions stands alike.
 
+`scripts/flat.sh OUT` renders a host and a flat-screen player (`--flat`) on one machine:
+the flat-screen player hears the host's beacon, takes up the visit tool with its own
+controls, picks the host's figure, walks up to the host and takes a photo of it into
+`OUT/photos`; the host's captures show it standing in the garden. `tests/test_flat.gd`
+covers its controls, its hands' pose and that none of its controls sends an edit.
+
 ## Budget
 
 Each remote player costs one avatar pose a frame, as their avatar follows their latest pose

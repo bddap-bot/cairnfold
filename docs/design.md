@@ -1323,6 +1323,20 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window or door, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top on that build (or, on the meadow, the garden's season) |
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
 
+## Flat-screen controls
+
+With no headset at start the game comes up on the flat screen (`Flat`, `Controls.FLAT`): a player who walks,
+looks, takes photos and visits, and never edits. Its controls stand in for a controller's through the same tool
+entry points; the only tools it holds are the camera and the visit tool, raised in the right hand before the eye,
+or none, both hands then hanging at its sides, as other players see it.
+
+| Action | Mouse and keyboard | Gamepad |
+| --- | --- | --- |
+| Walk | W, A, S, D or the arrows | Left stick |
+| Look | The mouse, once a click in the window takes it; Escape lets it go | Right stick |
+| Take up the camera, the visit tool, or neither, in turn | Tab or the right button | Y |
+| Take a photo, or visit the garden pointed at | Left button | Right trigger or A |
+
 ### Hands at surfaces
 
 The hand you see stops where the controller pushes into something solid, as in Half-Life: Alyx: the ground,
