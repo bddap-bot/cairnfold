@@ -22,6 +22,7 @@ uniform float stem;
 #endif
 
 varying vec3 bounce_at;
+varying vec3 lamp_at;
 #ifdef FLOWER
 varying float far_head;
 #endif
@@ -44,6 +45,7 @@ void vertex() {
 	VERTEX = mix(VERTEX, root, smoothstep(draw_reach - draw_fade, draw_reach, dist));
 #endif
 	bounce_at = bounce_coord(VERTEX, NORMAL);
+	lamp_at = lamp_coord(VERTEX, NORMAL);
 	if (drowned(INSTANCE_CUSTOM.zw)) {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);
 	}
@@ -69,7 +71,7 @@ void fragment() {
 	ROUGHNESS = roughness;
 	vec4 bounce = texture(bounce_volume, bounce_at);
 	AO = bounce.a;
-	EMISSION = ALBEDO * given_back(bounce_at, bounce);
+	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce);
 #ifdef BACKLIT
 	BACKLIGHT = seasoned(backlight, season_foliage);
 #endif

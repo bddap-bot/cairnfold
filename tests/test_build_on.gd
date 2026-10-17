@@ -99,7 +99,7 @@ func _an_upper_storey_stands_on_the_house_and_takes_its_roof() -> void:
 	_lay(upper)
 	var above: Array = lower.wall.stones.filter(func(s: Dictionary) -> bool: return s.xform.origin.y > top)
 	_check(above.is_empty(), "nothing of the house's own stones pokes up into the storey: %d" % above.size())
-	var covered: Array = lower.roof.tiles.filter(func(t: Dictionary) -> bool: return Massing._in(Vector2(t.xform.origin.x, t.xform.origin.z), upper.massing.inner))
+	var covered: Array = lower.roof.tiles.filter(func(t: Dictionary) -> bool: return Massing.encloses(Vector2(t.xform.origin.x, t.xform.origin.z), upper.massing.inner))
 	_check(covered.is_empty(), "the house's roof is gone under the storey: %d tiles" % covered.size())
 	_check(lower.roof.gable_faces.is_empty(), "and its gable ends with it")
 	_check(upper.roof.tiles.size() > 200, "the storey keeps its roof: %d tiles" % upper.roof.tiles.size())

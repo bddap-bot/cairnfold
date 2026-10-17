@@ -969,7 +969,12 @@ Lantern light is baked into a second volume on the bounce probes (`Lamps`, `lamp
 light of every lantern within 9 m, fading with distance as Godot fades an omni light. Shaders add it with the
 bounce (`given_back` in `bounce.gdshaderinc`), so it costs one more read of a small texture where they already
 read one, and nothing more however many lanterns hang. A worker solves it again when a lantern is hung or taken
-or the ground moves. Walls do not stop it, so a lantern inside a house glows faintly on the roof outside.
+or the ground moves. A house or tower is a room to it: the air inside its walls' inner faces and under its roof.
+A lantern in a room lights only that room, and one outside lights no room, nor what stands behind one, so roofs and
+outer walls stay dark. Each window and doorway shines outward with the light the room has at it, fading over 3 m and
+brightest straight out from a point half a metre before its face, so it lights the ground below more than the wall
+around it; a doorway lets out a fifth. Surfaces read the volume a metre out (`lamp_coord`), so a face of the shell
+reads the air on its own side, and a pane of glass also shows the light a metre behind it.
 
 Godot's own omni lights were the first try and are gone. Three of them, moved to the lanterns nearest the head,
 reached only 4.5 m, so a lantern hung 3 m up a tall house's wall left its floor dark; given 9 m, they cost the

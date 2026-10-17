@@ -12,11 +12,13 @@ uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 
 varying vec3 world_pos;
 varying vec3 bounce_at;
+varying vec3 lamp_at;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	vec3 n = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	bounce_at = bounce_coord(world_pos, n);
+	lamp_at = lamp_coord(world_pos, n);
 }
 
 void fragment() {
@@ -29,5 +31,5 @@ void fragment() {
 	SPECULAR = 0.25;
 	vec4 bounce = texture(bounce_volume, bounce_at);
 	AO = bounce.a;
-	EMISSION = ALBEDO * given_back(bounce_at, bounce);
+	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce);
 }

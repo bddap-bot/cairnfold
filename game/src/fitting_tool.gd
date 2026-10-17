@@ -324,14 +324,10 @@ func _show_ghost(i: int, ghost: Dictionary, delta: float) -> void:
 		g.visible = true
 
 
-## Hands every lantern's flame to the light they cast.
+## Hands every lantern's flame, and the houses holding them, to the light they cast.
 func light_lanterns() -> void:
 	_since_lights = 0.0
-	var flames := PackedVector3Array()
-	for w in walls.walls:
-		for f in w.layout.flames:
-			flames.append(f.origin)
-	lamps.light(flames)
+	lamps.light(walls.walls)
 
 
 func _exit_tree() -> void:

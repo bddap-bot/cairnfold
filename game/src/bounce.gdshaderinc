@@ -19,7 +19,13 @@ vec3 bounce_on_ground(vec2 xz) {
 	return vec3((xz - bounce_grid.x) / bounce_grid.y, 0.5 / bounce_grid.z);
 }
 
-// What a surface reading the volumes at `at` adds over its albedo: light off the builds and from lanterns.
-vec3 given_back(vec3 at, vec4 bounce) {
-	return bounce.rgb * bounce_light + textureLod(lamp_volume, at, 0.0).r * lamp_light;
+// Where a surface reads lantern light: a metre out, so a face of a house's wall or roof reads the air on its own
+// side, the probes either side of the shell being a metre apart.
+vec3 lamp_coord(vec3 p, vec3 n) {
+	return bounce_coord(p + n * 0.5, n);
+}
+
+// What a surface reading bounce at `at` and lantern light at `lamp_at` adds over its albedo.
+vec3 given_back(vec3 at, vec3 lamp_at, vec4 bounce) {
+	return bounce.rgb * bounce_light + textureLod(lamp_volume, lamp_at, 0.0).r * lamp_light;
 }

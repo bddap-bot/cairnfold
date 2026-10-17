@@ -464,7 +464,9 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt3
 			n[1] += 1
 		else:
 			x.basis = x.basis * Stones.FLIPS[s.variant]
-			stone.write(bufs[0], n[0], x, _painted_as(s, colours), s.ao, Palette.code(s.kind))
+			var c := _painted_as(s, colours)
+			c.a = 0.0 if s.kind == "glass" else 1.0
+			stone.write(bufs[0], n[0], x, c, s.ao, Palette.code(s.kind))
 			n[0] += 1
 		if s.kind != "mortar":
 			shadow.write(bufs[2], n[2], x)

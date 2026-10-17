@@ -51,7 +51,7 @@ void vertex() {
 	float size = length(MODEL_MATRIX[1].xyz);
 	vec3 at = bounce_on_ground(root.xz);
 	vec4 bounce = textureLod(bounce_volume, at, 0.0);
-	given = vec4(given_back(at, bounce), bounce.a);
+	given = vec4(given_back(at, at, bounce), bounce.a);
 	float worn = max(bare(root.xz), bank(water_depth_at(root.xz)));
 	VERTEX = root + (VERTEX - root) * vec3(1.0 - worn * 0.5, 1.0 - worn, 1.0 - worn * 0.5);
 	float dist = distance(root, CAMERA_POSITION_WORLD);

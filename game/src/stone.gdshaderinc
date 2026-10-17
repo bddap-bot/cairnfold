@@ -7,6 +7,11 @@ varying vec3 world_pos;
 varying vec3 world_nrm;
 varying float occlusion;
 varying vec3 bounce_at;
+varying vec3 lamp_at;
+// Lantern light a pane of glass (colour alpha 0, Wall.pack) shows from behind it, as bright as the lit stone and
+// plaster it looks onto.
+const float PANE_SHOWS = 0.6;
+varying float pane;
 
 void vertex() {
 #ifdef RIDES_GROUND
@@ -34,6 +39,8 @@ void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 #endif
 	bounce_at = bounce_coord(world_pos, world_nrm);
+	lamp_at = lamp_coord(world_pos, world_nrm);
+	pane = COLOR.a < 0.5 ? textureLod(lamp_volume, lamp_coord(world_pos, -world_nrm), 0.0).r : 0.0;
 	occlusion = INSTANCE_CUSTOM.x;
 }
 
@@ -48,5 +55,5 @@ void fragment() {
 	SPECULAR = 0.25;
 	vec4 bounce = texture(bounce_volume, bounce_at);
 	AO = bounce.a;
-	EMISSION = ALBEDO * given_back(bounce_at, bounce);
+	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce) + pane * lamp_light * PANE_SHOWS;
 }

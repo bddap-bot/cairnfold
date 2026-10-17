@@ -85,7 +85,7 @@ func rest(x: float, z: float) -> float:
 	if not rect.has_point(p):
 		return NAN
 	if closed:
-		return feet[0] + rise if _in(p, outer) else NAN
+		return feet[0] + rise if encloses(p, outer) else NAN
 	var i := _nearest(p, WallLayout.THICKNESS * 0.5 + REACH)
 	return feet[i] + rise if i >= 0 else NAN
 
@@ -96,13 +96,13 @@ func holds(p: Vector3) -> bool:
 	if not closed or not rect.has_point(Vector2(p.x, p.z)) or p.y < feet[0]:
 		return false
 	var ceiling := roof.height_at(p.x, p.z) if roof != null else feet[0] + rise
-	return p.y < ceiling and _in(Vector2(p.x, p.z), inner)
+	return p.y < ceiling and encloses(Vector2(p.x, p.z), inner)
 
 
 ## Whether `p` lies under this build and above the top it stands on: what it stands on lays nothing there.
 func covers(p: Vector3) -> bool:
 	var at := Vector2(p.x, p.z)
-	if not rect.has_point(at) or not _in(at, eaves):
+	if not rect.has_point(at) or not encloses(at, eaves):
 		return false
 	var i := 0 if closed else _nearest(at, WallLayout.THICKNESS)
 	return i >= 0 and p.y > feet[i] + WallLayout.SINK
@@ -124,7 +124,7 @@ func _nearest(p: Vector2, within: float) -> int:
 
 
 ## Holes come back from Geometry2D nested in their outlines, so a point inside an odd count of them is inside.
-static func _in(p: Vector2, polygons: Array[PackedVector2Array]) -> bool:
+static func encloses(p: Vector2, polygons: Array[PackedVector2Array]) -> bool:
 	var n := 0
 	for poly in polygons:
 		if Geometry2D.is_point_in_polygon(p, poly):
