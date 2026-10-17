@@ -21,7 +21,7 @@
 # NESTCOMBE_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
 # frames over 1.5x the refresh period from its first second, where its edits land; the others leave that second out.
 # NESTCOMBE_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
-# streaming their heads and hands. NESTCOMBE_GUEST_AVATAR=FILE.vrm has each of them wear that VRM in place of a
+# streaming their heads and hands. NESTCOMBE_WAVE=1 makes them flat-screen players repeatedly waving. NESTCOMBE_GUEST_AVATAR=FILE.vrm has each of them wear that VRM in place of a
 # built-in avatar, to measure what a player's own avatar costs the others.
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
@@ -79,10 +79,22 @@ join() {
   [ -n "$port" ] || { echo "bench: the measured instance never hosted" >&2; exit 1; }
   for ((g = 1; g < players; g++)); do
     read -r x z <<<"${spots[$((g - 1))]}"
-    cat > "$out/guest$g.json" <<J
-[{"op": "place", "x": $x, "z": $z}, {"op": "until", "players": $players, "seconds": 180}, {"op": "view", "eye": [$x, 1.65, $z], "at": [0, 1.4, 0], "ground": true}, {"op": "hands", "left": [-0.25, -0.35, -0.35], "right": [0.25, -0.3, -0.4]}, {"op": "wait", "seconds": 1200}]
-J
-    (cd "$out" && exec timeout 1500 godot4 --headless --path "$here/../game" --xr-mode off -- --desktop --join "$addr:$port" \
+    python3 - "$x" "$z" "$players" "${NESTCOMBE_WAVE:-0}" > "$out/guest$g.json" <<'PYTHON'
+import json, sys
+x, z, players, wave = map(int, sys.argv[1:])
+steps = [{"op": "place", "x": x, "z": z}, {"op": "until", "players": players, "seconds": 180}]
+if wave:
+    steps += [{"op": "face", "at": [0, 1.4, 0]}]
+    steps += [{"op": "flat", "action": "wave", "seconds": 3}] * 400
+else:
+    steps += [{"op": "view", "eye": [x, 1.65, z], "at": [0, 1.4, 0], "ground": True},
+              {"op": "hands", "left": [-0.25, -0.35, -0.35], "right": [0.25, -0.3, -0.4]},
+              {"op": "wait", "seconds": 1200}]
+print(json.dumps(steps))
+PYTHON
+    local flat=()
+    [ "${NESTCOMBE_WAVE:-0}" != 1 ] || flat=(--flat)
+    (cd "$out" && exec timeout 1500 godot4 --headless --path "$here/../game" --xr-mode off -- --desktop "${flat[@]}" --join "$addr:$port" \
       --port 7536 --avatar "$g" "${guest_avatar[@]}" --script "$out/guest$g.json") > "$out/guest$g.log" 2>&1 < /dev/null &
     guests+=($!)
   done

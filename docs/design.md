@@ -339,6 +339,9 @@ density, and no build the player can make may bring the frame rate down.
 - `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
   calls, primitives and GPU time; on a Quest it holds each phase to the budget and
   fails when one goes over. A new feature adds itself to the stress scene.
+  `NESTCOMBE_PLAYERS=8 NESTCOMBE_WAVE=1` fills the session with flat-screen
+  companions playing the recorded wave throughout the tour, including its final
+  `avatars/wave` view.
 - Each run records its phases under `perf/HEADSET/SCENE/`, named by the build measured; `scripts/trend.py` prints the
   latest run of each beside the one before and the best, marking a rise of a tenth. It only reports.
 

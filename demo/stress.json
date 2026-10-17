@@ -572,5 +572,9 @@
   {"op": "view", "ground": true, "eye": [0, 1.65, 4.5], "at": [20, 1.2, 4.5]},
   {"op": "wait", "seconds": 6},
   {"op": "label", "name": "-"},
+  {"op": "label", "name": "avatars/wave"},
+  {"op": "view", "ground": true, "eye": [0, 1.65, 12], "at": [4, 1.4, 2]},
+  {"op": "wait", "seconds": 10},
+  {"op": "capture", "name": "avatars-wave"},
   {"op": "quit"}
 ]
