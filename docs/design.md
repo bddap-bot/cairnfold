@@ -553,6 +553,17 @@ chunks, after is 8 m; the bar charges every headset the Frame's 6.07 µs a m²:
 | 15 m disc | 1,562 m² | 9.48 | 15.15 | 9.67 | 6.42 | 7.16 |
 | 20 m disc | 2,837 m² | 17.23 | 16.51 | 9.34 | 12.00 | 12.37 |
 
+On main with the ground shading fix (684440f), both chunk sizes in one build and one run,
+twice over (A B A B), over a bare meadow of 18.2 to 19.6 ms:
+
+| Walls 2 m apart, 4.5 m tall | Standing, 16 m | Standing, 8 m | From the air, 16 m | From the air, 8 m |
+| --- | --- | --- | --- | --- |
+| 10 m disc | 14.6, 12.8 | 12.7, 13.3 | 4.7, 4.5 | 5.0, 4.9 |
+| 15 m disc | 17.9, 18.6 | 14.7, 13.6 | 8.4, 8.3 | 9.3, 9.1 |
+
+Standing among the 15 m disc's walls 8 m chunks save about 4 ms; from the air their extra
+draw calls (198 to 234) cost about 0.6 ms.
+
 Standing, a wall's cost no longer grows with the garden past the chunks around the eye, so
 a linear price per m² undercharges the first walls and overcharges a wide garden. Over the
 15 m disc standing, each kind of piece hidden in turn (paired runs, 8 m chunks): ivy 5.3 to
