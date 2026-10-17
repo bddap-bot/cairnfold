@@ -114,14 +114,18 @@ class Governor:
 	## GPU time nears 0.88 of the period, and keeps it there for seconds. This timer reads about 0.3 ms under that
 	## GPU time, so the houses of demo/headset.json sat under a line at 0.85 while the runtime halved the rate.
 	## A calm spell is time spent with the frame time, averaged over
-	## AVERAGE_SECONDS, under the line by what the step down into this level saved: single frames vary by more than a
+	## AVERAGE_SECONDS, under the line by what the step up out of this level costs: single frames vary by more than a
 	## step saves, so they neither make nor break one.
 	const LINE := 0.8
 	const AVERAGE_SECONDS := 1.0
 	const CALM_SECONDS := 2.0
-	## The longest calm a step up waits for; as long under the line forgets what the step down saved, which the scene
-	## may have outgrown, and which reads high when the step left frames already at every other refresh.
+	## The longest calm a step up waits for; as long under the line forgets what the step cost, which the scene may
+	## have outgrown, and which reads high when the step left frames already at every other refresh.
 	const CALM_SECONDS_MAX := 64.0
+	## What a step up not yet measured in this scene is taken to cost, as a share of the budget: half the gap between
+	## the line and the Steam Frame's cliff at 0.88. Taken as nothing, its full garden stepped up from 10.8 ms into a
+	## step that crossed the cliff and held every other refresh for six seconds.
+	const UNMEASURED := 0.04
 	## A step down this soon after the step up that reached it doubles the calm needed to step up again; the
 	## doubling lasts the session.
 	const REGRET_SECONDS := 10.0
@@ -137,19 +141,26 @@ class Governor:
 	var _since_up := INF
 	## Calm seconds needed to step up into each level.
 	var _wait := PackedFloat32Array()
-	## What the step down into each level saved, in milliseconds: the average before it less the average over the
-	## AVERAGE_SECONDS after it settled.
-	var _saved := PackedFloat32Array()
+	## What the step up out of each level costs, in milliseconds, or -1 while unmeasured: the difference between the
+	## average before a step between it and the level above and the average over the AVERAGE_SECONDS after it settled.
+	var _cost := PackedFloat32Array()
 	## Seconds averaged since the last step settled; the average steps down only once a whole one is in.
 	var _averaged := 0.0
-	var _before_down := 0.0
-	var _went_down := false
+	var _before := 0.0
+	## The level whose step up the average after the last step measures, or -1, and whether that step was up.
+	var _measuring := -1
+	var _went_up := false
 
 	func _init(steps: int) -> void:
 		bottom = steps
 		_wait.resize(steps + 1)
 		_wait.fill(CALM_SECONDS)
-		_saved.resize(steps + 1)
+		_cost.resize(steps + 1)
+		_cost.fill(-1.0)
+
+	## What the step up out of `at` is expected to cost, in milliseconds.
+	func cost(at: int, budget_ms: float) -> float:
+		return _cost[at] if _cost[at] >= 0.0 else budget_ms * UNMEASURED
 
 	func step(frame_ms: float, budget_ms: float, dt: float) -> void:
 		_since_up += dt
@@ -160,25 +171,32 @@ class Governor:
 		var averaged := _averaged >= AVERAGE_SECONDS
 		if not averaged:
 			_averaged += dt
-			if _averaged >= AVERAGE_SECONDS and _went_down:
-				_saved[level] = maxf(_before_down - _average, 0.0)
+			if _averaged >= AVERAGE_SECONDS and _measuring >= 0:
+				# A step out of every other refresh reads no saving, so a measurement only raises what a step costs.
+				var change := _average - _before if _went_up else _before - _average
+				_cost[_measuring] = maxf(_cost[_measuring], change)
+				_measuring = -1
 		var line := budget_ms * LINE
 		_hot = _hot + 1 if frame_ms > budget_ms * HOT else 0
 		_quiet = _quiet + dt if _average < line else 0.0
 		if _quiet >= CALM_SECONDS_MAX:
-			_saved[level] = 0.0
-		_calm = _calm + dt if averaged and _average + _saved[level] < line else 0.0
+			_cost[level] = -1.0
+		_calm = _calm + dt if averaged and _average + cost(level, budget_ms) < line else 0.0
 		if (_hot >= HOT_FRAMES or (averaged and _average > line)) and level < bottom:
 			if _since_up < REGRET_SECONDS:
 				_wait[level] = minf(_wait[level] * 2.0, CALM_SECONDS_MAX)
 			_since_up = INF
 			# A step down before the last one's second was in leaves the average from before both.
-			if averaged or not _went_down:
-				_before_down = _average
-			_went_down = true
-			_move(mini(level + (2 if frame_ms > budget_ms * SEVERE else 1), bottom))
+			if averaged or _went_up or _measuring < 0:
+				_before = _average
+			var to := mini(level + (2 if frame_ms > budget_ms * SEVERE else 1), bottom)
+			_measuring = to
+			_went_up = false
+			_move(to)
 		elif level > 0 and _calm >= _wait[level - 1]:
-			_went_down = false
+			_before = _average
+			_measuring = level
+			_went_up = true
 			_move(level - 1)
 			_since_up = 0.0
 

@@ -823,10 +823,15 @@ The governor (`Quality.Governor`) is Valve's adaptive quality with slower recove
   down one. The average starts again after each step, and the first second after it only
   measures what the step saved.
 - Up slowly: two seconds with the frame time, averaged over one second, under the line by
-  what the step down saved step up one, so a step up does not take the frame time back over
-  the line it left. Single frames vary by more than a step saves, so they neither make nor
-  break a calm spell. After 64 seconds under the line the saving is forgotten: the scene has
-  changed since.
+  what the step up costs step up one, so a step up does not take the frame time back over
+  the line it left. A step's cost is the change in that average across a step between the
+  two levels, either way; a step out of every other refresh reads no saving, so a
+  measurement only raises it. A step not yet measured is taken to cost 0.04 of the period,
+  half the gap to the Frame's cliff: taken as nothing, the full garden from the air stepped
+  up from 10.8 ms over the cliff and sat at every other refresh for six seconds. Single
+  frames vary by more than a step saves, so they neither make nor break a calm spell. After
+  64 seconds under the line the cost is forgotten, unmeasured again: the scene has changed
+  since.
 - No oscillation: a step down within ten seconds of the step up that reached it doubles the
   calm needed to step up into that step again, up to 64 seconds, for the session.
 - The first five seconds of rendered frames are not judged: loading's frames are not the

@@ -21,6 +21,8 @@ func _initialize() -> void:
 	_the_ladder_has_ends()
 	_an_average_over_the_line_steps_down_before_frames_run_late()
 	_a_step_up_waits_for_room_for_what_the_step_down_saved()
+	_an_unmeasured_step_up_waits_for_room_for_an_estimate()
+	_a_step_up_into_every_other_refresh_is_not_retried()
 	_a_held_step_reaches_its_knobs()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
@@ -149,6 +151,25 @@ func _a_step_up_waits_for_room_for_what_the_step_down_saved() -> void:
 	_feed(h, BUDGET * 1.1, 2 + Quality.Governor.SETTLE_FRAMES)
 	_feed(h, BUDGET * 0.75, 72)
 	_check(_feed(h, BUDGET * 0.75, int(72 * (Quality.Governor.CALM_SECONDS_MAX + Quality.Governor.CALM_SECONDS + 1.0))) == 0, "or the saving was measured long ago")
+
+
+func _an_unmeasured_step_up_waits_for_room_for_an_estimate() -> void:
+	var g := Quality.Governor.new(10)
+	_down(g)
+	var near := Quality.Governor.LINE - Quality.Governor.UNMEASURED / 2.0
+	_check(_feed(g, BUDGET * near, int(72 * (Quality.Governor.CALM_SECONDS_MAX + 10.0))) == 1, "a cost forgotten is unmeasured, and no step up has less room than the estimate")
+	_check(_feed(g, BUDGET * 0.5, 72 * 4) == 0, "until there is")
+
+
+## The Steam Frame's runtime keeps a game at every other refresh for seconds after a step up crossed its cliff, and its
+## GPU times read high while it does, so the step back down measures nothing saved.
+func _a_step_up_into_every_other_refresh_is_not_retried() -> void:
+	var g := Quality.Governor.new(10)
+	_down(g)
+	_check(_feed_until(g, BUDGET * 0.4, 72 * 4, 0) == 0, "a step up with room for what the step down saved")
+	_check(_feed(g, BUDGET * 0.95, 6 + 72 + 36) == 1, "lands at every other refresh and steps back down")
+	_feed(g, BUDGET * 0.95, 6 + 72)
+	_check(_feed(g, BUDGET * 0.6, 72 * 30) == 1, "which reads no saving, yet the step up is not taken again")
 
 
 func _a_held_step_reaches_its_knobs() -> void:
