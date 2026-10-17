@@ -440,16 +440,20 @@ steps (`App=` ms):
 | fdb33cb | 41.1 | 27.1 | 28.7 | 23.8 |
 | ecef026 | 33.4 | 23.8 | 20.9 | 20.1 |
 
-An earlier table here read the meadow at 14.2 and 12.0 ms on 48029e0 at the top step; on
-this headset that build reads 27.7 and 22.7, so the difference is the measurement, not the
-code. Between 48029e0 and fdb33cb two commits added cost: d353166's sparse far grass to 60 m
-(9 ms from the air at the top step only, the ladder's to give up) and 14753cc, whose
+An earlier table here read the meadow at 14.2 and 12.0 ms on 48029e0 at the top step. That
+build still reads so on the Quest 2 (14.1 and 12.7) while the Meta plugin's dynamic
+resolution runs: the runtime's `SF=` fell to 0.50 and the render region with it. With it
+off, as 737a292 left it (see "Automatic quality"), the same build reads 27.7 and 22.7 at
+`SF=1.00`, so the old table measured half the pixels, not a faster scene.
+
+Between 48029e0 and fdb33cb two commits added cost at full resolution: d353166's sparse
+far grass to 60 m (9 ms from the air at the top step only, the ladder's to give up) and 14753cc, whose
 fragment shader branched into `ground_normal` for live humps and paid it on every ground
 fragment (7.5 ms from the air, 3.5 standing, at every step; ecef026 reads that slope per
 vertex). The scene renders as one 4x MSAA 1440x1584 surface and its render stage now
 dominates (17 ms of it at the bottom step from the air, 1.7 ms binning), so on the Quest 2
 it is fragments, not vertices, that hold 60 fps out of reach: the bare meadow alone needs
-about a third less GPU time.
+about a third less GPU time, which the measurement at `SF=0.50` says fewer pixels buy.
 
 The walls' cost is vertex work on the GPU. Frame time follows the GPU time, the
 live wall preview holds 72 Hz on the CPU (below), and draw calls stay near 150 at
