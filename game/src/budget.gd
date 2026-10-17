@@ -26,12 +26,12 @@ const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "path_m2", "fitt
 ## most a frame may take there; `base_ms`, the bare meadow; then GPU microseconds a frame per unit. Hills and painted
 ## stone ground measured within noise of the bare meadow, so terrain counts nothing.
 const COSTS := {
-	## Not measured yet: held to the Frame's until it is.
-	Device.QUEST_2: FRAME_COSTS,
+	Device.QUEST_2: QUEST_2_COSTS,
 	Device.FRAME: FRAME_COSTS,
 }
 ## The Frame's runtime halves the rate once a frame nears 0.88 of the period: held to the governor's line under it.
 const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 10.804, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294}
+const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 10.804, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294}
 
 
 static func gpu_ms() -> float:

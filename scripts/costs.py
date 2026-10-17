@@ -1,23 +1,28 @@
 #!/usr/bin/env python3
-"""Fits the frame budget's unit costs (Budget.COSTS) from a run of demo/costs.json: costs.py OUT_DIR
+"""Fits the frame budget's unit costs from a run of demo/costs.json and writes them into game/src/budget.gd as the
+headset's line of Budget.COSTS: costs.py OUT_DIR QUEST_2|FRAME
 
-OUT_DIR is what `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT_DIR ...` left on a headset. Each phase is the
+OUT_DIR is what `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT_DIR ...` left on that headset. Each phase is the
 bare meadow plus one kind of build, at the quality ladder's bottom step, from the air and standing; its cost is its
 median viewport GPU time (the governor's signal) over the bare meadow's from the same view. A phase whose frames fell
 to half rate is left out: GPU time read there is not the scene's. A unit's cost is the most any view of any phase
-holding it as the one unknown gives, so the bound holds from every view measured."""
+holding it as the one unknown gives, so the bound holds from every view measured. Wildlife comes to builds in numbers
+its caps bound, however much is built, so what a phase's animals add once they have come, over what its builds were
+fitted to cost, is charged once to the base: the room is what is left with every kind of animal there."""
 import json
 import os
 import re
 import sys
 
-out = sys.argv[1]
+out, device = sys.argv[1], sys.argv[2]
 # fill_flora is no build command, so the game does not count these; the pools' sizes are Flora's.
 FLORA = {"grass": {"grass": 12000}, "flowers": {"flower": 4000}, "trees": {"tree": 64}}
+FLORA.update({"flowers-wild": FLORA["flowers"], "trees-wild": FLORA["trees"]})
 # Each phase and the unit it fits, over what earlier phases fitted of its others.
 ORDER = [("grass", "grass"), ("flowers", "flower"), ("trees", "tree"), ("walls-r10", "wall_m2"), ("walls-r15", "wall_m2"),
          ("walls-r20", "wall_m2"), ("plaster", "plaster_m2"), ("fences", "fence_m2"), ("paths", "path_m2"), ("ponds", "pond"),
          ("village", "roof_m2"), ("lanterns", "fitting"), ("meadow", "bush"), ("hills", None), ("stone", None)]
+WILD = ["flowers-wild", "trees-wild", "fences-wild", "ponds-wild"]
 
 units = {}
 log = next(p for p in ("godot.log", "logcat.txt") if os.path.exists(os.path.join(out, p)))
@@ -41,18 +46,42 @@ for name, secs in phases.items():
     if mid([s["frames"] for s in secs]) < 60:
         halved.add(name)
 
-views = ["aerial", "ground"]
+views = [name.split("/")[1] for name in gpu if name.startswith("base/")]
 base = {v: gpu[f"base/{v}"] for v in views}
 cost = {}
 for phase, unit in ORDER:
     have = units.get(phase, {})
     for v in views:
         name = f"{phase}/{v}"
+        if name in halved:
+            print(f"{name}: half rate, left out", file=sys.stderr)
         if name not in gpu or name in halved:
-            print(f"{name}: {'half rate, left out' if name in halved else 'not measured'}", file=sys.stderr)
             continue
         extra = gpu[name] - base[v] - sum(have[k] * cost[k] for k in have if k != unit) / 1000.0
         print(f"{name:16} {gpu[name]:6.2f} ms, {extra:+6.2f} ms over the base and what is fitted, units {have}", file=sys.stderr)
         if unit is not None:
             cost[unit] = max(cost.get(unit, 0.0), extra * 1000.0 / have[unit])
-print(json.dumps({"base_ms": round(max(base.values()), 2), **{k: round(v, 3) for k, v in cost.items()}}))
+wild = 0.0
+for phase in WILD:
+    have = units.get(phase, {})
+    most = 0.0
+    for v in views:
+        name = f"{phase}/{v}"
+        if name in halved:
+            print(f"{name}: half rate, left out", file=sys.stderr)
+        if name not in gpu or name in halved:
+            continue
+        extra = gpu[name] - base[v] - sum(have[k] * cost.get(k, 0.0) for k in have) / 1000.0
+        print(f"{name:20} {gpu[name]:6.2f} ms, {extra:+6.2f} ms of animals over the base and its builds", file=sys.stderr)
+        most = max(most, extra)
+    wild += most
+line = {"budget_ms": "1000.0 / REFRESH_HZ * Quality.Governor.LINE", "base_ms": round(max(base.values()) + wild, 2),
+        **{k: round(v, 3) for k, v in cost.items()}}
+text = ", ".join(f'"{k}": {v}' for k, v in line.items())
+budget = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../game/src/budget.gd")
+src = open(budget).read()
+src, n = re.subn(rf"^const {device}_COSTS := \{{.*\}}$", f"const {device}_COSTS := {{{text}}}", src, flags=re.M)
+if n != 1:
+    sys.exit(f"costs: no line `const {device}_COSTS := {{...}}` in {budget}")
+open(budget, "w").write(src)
+print(f"costs: {device} {text}")
