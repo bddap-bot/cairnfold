@@ -10,6 +10,7 @@
   {"op": "hands", "right": [0.0, -0.08, -0.2], "tip": 0},
   {"op": "wait", "seconds": 1},
   {"op": "capture", "name": "01-viewfinder"},
+  {"op": "capture", "name": "02-screen", "screen": true},
   {"op": "photo"},
   {"op": "wait", "seconds": 2},
   {"op": "quit"}

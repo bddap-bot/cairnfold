@@ -220,11 +220,19 @@ func view(eye: Vector3, at: Vector3, relative: bool) -> void:
 		rig.head.global_transform = want
 
 
-func capture(name: String) -> void:
+## With `screen`, saves what the held camera's screen shows instead of the eyes' view.
+func capture(name: String, screen := false) -> void:
 	var dir: String = args.get("capture-dir", "user://captures")
 	DirAccess.make_dir_recursive_absolute(dir)
 	var img: Image
-	if metrics.info.xr:
+	if screen:
+		await RenderingServer.frame_post_draw
+		var shown := ToolModels.camera_screen().albedo_texture
+		if shown == null:
+			push_error("capture: no camera is held to show a screen")
+			return
+		img = shown.get_image()
+	elif metrics.info.xr:
 		img = await photo_tool.render(rig.head.global_transform, 90.0, rig.head.cull_mask)
 	else:
 		await RenderingServer.frame_post_draw

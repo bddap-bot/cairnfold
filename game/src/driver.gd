@@ -883,7 +883,7 @@ func _walk(s: Dictionary) -> void:
 
 
 func _capture(s: Dictionary) -> void:
-	await main.capture(s.name)
+	await main.capture(s.name, s.get("screen", false))
 
 
 func _quit(_s: Dictionary) -> void:
