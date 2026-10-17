@@ -67,11 +67,8 @@ vec3 ground_normal(vec2 xz) {
 }
 
 // 1 - the ground normal's y, bilinear between grid points: a fragment's own, not its triangle's. Live humps are
-// not in the texture, so a stroke's ground is measured as ground_normal does.
+// not in the texture.
 float ground_steepness(vec2 xz) {
-	if (ground_humps[0].w != 0.0 || ground_humps[1].w != 0.0) {
-		return 1.0 - ground_normal(xz).y;
-	}
 	vec2 g = (xz - ground_grid.x) / ground_grid.y;
 	return textureLod(ground_height, (g + 0.5) / ground_grid.z, 0.0).g;
 }

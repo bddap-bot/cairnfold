@@ -19,6 +19,7 @@ uniform vec3 trodden : source_color = vec3(0.52, 0.45, 0.33);
 uniform vec3 bed : source_color = vec3(0.50, 0.44, 0.32);
 
 varying vec3 world_pos;
+varying float hump_steep;
 varying vec3 bounce_at;
 varying vec3 meadow_lush;
 varying vec3 meadow_dry;
@@ -28,6 +29,8 @@ void vertex() {
 	VERTEX.y = ground_at(world_pos.xz);
 	world_pos.y = VERTEX.y;
 	NORMAL = ground_normal(world_pos.xz);
+	// Per vertex: as a fragment branch the Quest 2's compiler ran ground_normal on every ground fragment, stroke or not.
+	hump_steep = ground_humps[0].w != 0.0 || ground_humps[1].w != 0.0 ? 1.0 - NORMAL.y - ground_steepness(world_pos.xz) : 0.0;
 	bounce_at = bounce_on_ground(world_pos.xz);
 	meadow_lush = blade_color(blade_top(0.0, 0.5), canopy);
 	meadow_dry = blade_color(blade_top(1.0, 0.5), canopy);
@@ -39,8 +42,7 @@ void fragment() {
 	// COLOR.r is the grass's own dryness here; the noise breaks it into patches finer than the blades' clumps show.
 	vec3 meadow = mix(meadow_lush, meadow_dry, clamp(COLOR.r + (d - 0.5) * 0.8, 0.0, 1.0));
 	vec3 grass = meadow * (0.85 + fine * 0.3);
-	// Steepness and depth per fragment: interpolated from the vertices they would follow the 1 m triangles.
-	float s = ground_steepness(world_pos.xz) + (fine - 0.5) * 0.06;
+	float s = ground_steepness(world_pos.xz) + hump_steep + (fine - 0.5) * 0.06;
 	vec3 c = mix(grass, earth, smoothstep(0.2, 0.32, s));
 	vec2 cover = ground_cover(world_pos.xz);
 	// Stone ground is one material however it came: painted, or a slope too steep to hold soil.
