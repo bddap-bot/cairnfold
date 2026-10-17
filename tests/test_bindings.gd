@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Headless checks that the controls table reaches every action on every device we ship, each control
 ## held through the same path the controller feeds:
-## godot4 --headless --path game --script ../tests/test_bindings.gd
+## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_bindings.gd
 
 const PER_HAND := ["tool", "grab", "wheel"]
 const TOUCH := "/interaction_profiles/oculus/touch_controller"
