@@ -182,12 +182,19 @@ on arrival. Transforms that are not finite are dropped.
 ## Finding each other
 
 Every host announces itself on the local network once a second: a UDP broadcast on ports
-7469–7472 carrying its game port (7480 and up), a random key, its avatar and its colour.
+7469–7472 carrying its game port (7480 and up), a random key, its built-in avatar, its colour,
+and the hash of the player's own VRM if they wear one. Anyone who connects over TCP to the
+game's port number gets that file (its length, then its bytes), the same file every player who
+joins gets anyway, so the picker shows it before anyone joins: a game hearing a hash it lacks
+fetches the file, at most two at a time, reads it on a worker thread like a joined player's,
+and keeps it only if its hash is the one the beacon named.
 Pick the **visit** tool from either hand's ring; its model is a little figure. A small
 figure of each nearby garden's host then stands in an arc in front of you, in their avatar
-and colour, with their name under it. Point at one and pull the trigger to join their
-garden. While you visit, a small cairn of three stones stands among them; pick it to go
-home. The names are the game's one text (docs/design.md, "Requirements"); there is no
+(the built-in one until their own file has arrived) and colour, with their name under it.
+Point at one and pull the trigger to join their garden. While you visit, a small cairn of
+three stones stands among them; pick it to go home. Joining or going home puts
+the tool away, and the arc and its figures go with it; teleporting sets the arc down afresh
+where you arrive. The names are the game's one text (docs/design.md, "Requirements"); there is no
 menu and no address to type.
 
 Only gardens of a build with the same networked methods can be joined. Godot numbers a

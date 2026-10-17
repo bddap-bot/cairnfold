@@ -26,6 +26,14 @@ const FOLLOW := 18.0
 const FOLDER_EVERY := 2.0
 ## Avatar files travel on a channel of their own, so building commands never wait behind one.
 const FILE_CHANNEL := 1
+## At most this many avatar files are handed out, and fetched for the picker, at once; a transfer stalled this
+## many seconds is dropped.
+const SHELF_PEERS := 4
+const FETCHES := 2
+const STALL := 30.0
+const CHUNK := 1 << 16
+## A file that could not be fetched or read is tried again after this many seconds.
+const RETRY := 30.0
 const COLOURS: Array[Color] = [Color(0.8, 0.45, 0.32), Color(0.45, 0.62, 0.42), Color(0.86, 0.66, 0.3), Color(0.38, 0.5, 0.72), Color(0.62, 0.4, 0.6), Color(0.3, 0.6, 0.6)]
 
 ## Peers or nearby gardens came or went.
@@ -44,7 +52,7 @@ var beacon_port := BEACON_PORT
 var lan := true
 ## The garden we are visiting, {address, port}, or empty at home.
 var visiting := {}
-## Gardens announcing themselves nearby, by "address:port": {address, port, key, avatar, colour, name, joins, seen}.
+## Gardens announcing themselves nearby, by "address:port": {address, port, key, avatar, colour, wears, name, joins, seen}.
 var nearby := {}
 ## Remote players' avatars by peer id.
 var avatars := {}
@@ -52,6 +60,10 @@ var avatars := {}
 var folder := ""
 ## That file once it has read as an avatar within the limits; sent to every player met.
 var worn := PackedByteArray()
+## Its hash, which the beacon names so the picker can fetch the file before anyone joins; "" for a built-in avatar.
+var worn_key := ""
+## Avatars by file hash for the picker: this player's own and those nearby gardens' beacons name.
+var previews := {}
 ## Each remote player's built-in avatar and colour, and the hash of the file they wear ("" for none).
 var _looks := {}
 var _wearing := {}
@@ -70,6 +82,15 @@ var _since_beacon := INF
 var _since_pose := 0.0
 var _beacon := PacketPeerUDP.new()
 var _listen := PacketPeerUDP.new()
+## Hands this player's file, after its length, to whoever asks, over TCP on the game's port number:
+## {peer, bytes, sent, opened}.
+var _shelf := TCPServer.new()
+var _shelved := PackedByteArray()
+var _handing: Array[Dictionary] = []
+## Files being fetched from nearby gardens, by hash: {peer, got, since}, then {} while one is read.
+var _fetches := {}
+## When each file last failed to fetch or read, by hash.
+var _failed := {}
 var _targets := {}
 static var _protocol := 0
 
@@ -126,6 +147,7 @@ func host() -> void:
 		if peer.create_server(p, MAX_PLAYERS - 1) == OK:
 			port = p
 			multiplayer.multiplayer_peer = peer
+			_shelf.listen(p, "*" if lan else "127.0.0.1")
 			print("session: hosting on port %d" % p)
 			return
 	port = 0
@@ -133,18 +155,21 @@ func host() -> void:
 
 
 ## Leaves this garden for another's; ours waits in memory until we come back.
-func join(address: String, at_port: int) -> void:
+func join(address: String, at_port: int) -> bool:
 	var peer := ENetMultiplayerPeer.new()
 	if peer.create_client(address, at_port) != OK:
 		push_error("session: could not open a connection to %s:%d" % [address, at_port])
-		return
+		return false
 	if visiting.is_empty():
 		_home = world.snapshot()
+	_shelf.stop()
+	_handing.clear()
 	multiplayer.multiplayer_peer.close()
 	_drop_avatars()
 	multiplayer.multiplayer_peer = peer
 	visiting = {"address": address, "port": at_port}
 	changed.emit()
+	return true
 
 
 func go_home() -> void:
@@ -206,6 +231,8 @@ func _process(delta: float) -> void:
 		_since_beacon = 0.0
 		_announce()
 	_hear()
+	_hand_out()
+	_fetch()
 	_since_folder += delta
 	if _since_folder >= FOLDER_EVERY:
 		_since_folder = 0.0
@@ -237,6 +264,8 @@ func beacon() -> PackedByteArray:
 	var msg := {"nestcombe": protocol(), "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false), "players": players()}
 	if me.shared and not me.steam():
 		msg.name = me.name
+	if worn_key != "" and _shelf.is_listening():
+		msg.wears = worn_key
 	return JSON.stringify(msg).to_utf8_buffer()
 
 
@@ -270,7 +299,10 @@ static func read_beacon(raw: PackedByteArray) -> Dictionary:
 	var at := int(msg.port)
 	if at < PORT or at >= PORT + PORT_RANGE:
 		return {}
-	return {"key": int(msg.key), "port": at, "avatar": posmod(int(msg.avatar), Avatar.BUILT_IN.size()), "colour": Color.from_string(str(msg.get("colour", "")), COLOURS[0]).clamp(), "name": Persona.clean(str(msg.get("name", ""))), "joins": msg.nestcombe == float(protocol())}
+	var wears := str(msg.get("wears", ""))
+	if not (wears.length() == 64 and wears.is_valid_hex_number()):
+		wears = ""
+	return {"key": int(msg.key), "port": at, "avatar": posmod(int(msg.avatar), Avatar.BUILT_IN.size()), "wears": wears, "colour": Color.from_string(str(msg.get("colour", "")), COLOURS[0]).clamp(), "name": Persona.clean(str(msg.get("name", ""))), "joins": msg.nestcombe == float(protocol())}
 
 
 func _hear() -> void:
@@ -293,6 +325,111 @@ func _hear() -> void:
 			nearby.erase(key)
 	if nearby.keys() != before:
 		changed.emit()
+	_prune_previews()
+	for garden in nearby.values():
+		var wears: String = garden.get("wears", "")
+		if wears != "" and not previews.has(wears) and not _fetches.has(wears) and _fetches.size() < FETCHES and _clock - _failed.get(wears, -INF) > RETRY:
+			var peer := StreamPeerTCP.new()
+			if peer.connect_to_host(garden.address, garden.port) == OK:
+				_fetches[wears] = {"peer": peer, "got": PackedByteArray(), "since": _clock}
+			else:
+				_failed[wears] = _clock
+
+
+## The avatar a figure in the picker shows: the file `wears` names once it has been fetched and read, else the
+## built-in one.
+func look(wears: String, built_in: int) -> PackedScene:
+	var scene: PackedScene = previews.get(wears)
+	return scene if scene else Avatar.built_in(built_in)
+
+
+## Whether the picker has fetches or reads still under way.
+func previewing() -> bool:
+	return not _fetches.is_empty()
+
+
+## Keeps only what a nearby garden's beacon names now, so a host changing avatars leaves nothing behind.
+func _prune_previews() -> void:
+	var named := {worn_key: true}
+	for g in nearby.values():
+		named[g.get("wears", "")] = true
+	for key in previews.keys():
+		if not named.has(key):
+			previews.erase(key)
+	for key in _failed.keys():
+		if not named.has(key):
+			_failed.erase(key)
+	for key in _fetches.keys():
+		if not named.has(key) and not _fetches[key].is_empty():
+			_fetches[key].peer.disconnect_from_host()
+			_fetches.erase(key)
+
+
+## Sends this player's file, after its length, to each who connects: it is what any player who joins gets anyway.
+func _hand_out() -> void:
+	while _shelf.is_connection_available():
+		var peer := _shelf.take_connection()
+		if _handing.size() < SHELF_PEERS and worn_key != "":
+			_handing.append({"peer": peer, "bytes": _shelved, "sent": 0, "opened": _clock})
+		else:
+			peer.disconnect_from_host()
+	for i in range(_handing.size() - 1, -1, -1):
+		var h := _handing[i]
+		var peer: StreamPeerTCP = h.peer
+		var bytes: PackedByteArray = h.bytes
+		peer.poll()
+		var status := peer.get_status()
+		while status == StreamPeerTCP.STATUS_CONNECTED and h.sent < bytes.size():
+			var put := peer.put_partial_data(bytes.slice(h.sent, h.sent + CHUNK))
+			if put[0] != OK or put[1] == 0:
+				break
+			h.sent += put[1]
+		if status == StreamPeerTCP.STATUS_ERROR or status == StreamPeerTCP.STATUS_NONE or _clock - h.opened > STALL:
+			peer.disconnect_from_host()
+			_handing.remove_at(i)
+
+
+## Reads what nearby gardens' files have sent; a whole one is read on a worker thread and kept if its hash is the
+## one its beacon named.
+func _fetch() -> void:
+	for key in _fetches.keys():
+		var f: Dictionary = _fetches[key]
+		if f.is_empty():
+			continue
+		var peer: StreamPeerTCP = f.peer
+		peer.poll()
+		var status := peer.get_status()
+		# Taken out of the dictionary while it grows, so appending never copies what has already arrived.
+		var got: PackedByteArray = f.got
+		f.got = PackedByteArray()
+		if status == StreamPeerTCP.STATUS_CONNECTED and peer.get_available_bytes() > 0:
+			var part := peer.get_partial_data(peer.get_available_bytes())
+			if part[0] == OK:
+				got.append_array(part[1])
+		f.got = got
+		var want: int = got.decode_u32(0) + 4 if got.size() >= 4 else -1
+		var whole := got.size() == want
+		var failed: bool = status == StreamPeerTCP.STATUS_ERROR or (status == StreamPeerTCP.STATUS_NONE and not whole) or want > Avatar.MAX_BYTES + 4 or (want >= 0 and got.size() > want) or _clock - f.since > STALL
+		if failed:
+			_failed[key] = _clock
+		if failed or whole:
+			peer.disconnect_from_host()
+			_fetches.erase(key)
+		if whole and not failed:
+			_fetches[key] = {}
+			_read(got.slice(4), "", _previewed.bind(key))
+
+
+func _previewed(key: String, _bytes: PackedByteArray, scene: PackedScene, wanted: String) -> void:
+	_fetches.erase(wanted)
+	if not nearby.values().any(func(g: Dictionary) -> bool: return g.get("wears") == wanted):
+		return
+	if key == wanted and scene:
+		previews[wanted] = scene
+		changed.emit()
+	else:
+		_failed[wanted] = _clock
+	print("session: a nearby garden's host wears %s%s" % [wanted, "" if previews.has(wanted) else ", which did not match or read"])
 
 
 ## A player's avatar and colour, sent once to each player they meet.
@@ -400,6 +537,12 @@ func _put_on(key: String, bytes: PackedByteArray, scene: PackedScene, seen: Stri
 		return
 	worn = bytes
 	rig.wear(Avatar.open(scene if scene != null else Avatar.built_in(avatar), colour, key))
+	previews.erase(worn_key)
+	worn_key = key
+	_shelved = PackedByteArray([0, 0, 0, 0]) + worn
+	_shelved.encode_u32(0, worn.size())
+	if key != "":
+		previews[key] = scene
 	print("session: wearing %s" % (key if key != "" else "a built-in avatar"))
 	if not multiplayer.get_peers().is_empty():
 		_wear.rpc(worn)
@@ -407,7 +550,7 @@ func _put_on(key: String, bytes: PackedByteArray, scene: PackedScene, seen: Stri
 
 ## Reads a VRM, from `bytes` or the file at `path`, and hashes it on a worker thread; `done(hash, bytes, scene)`
 ## follows on this one, with a null scene if it is not an avatar within the limits. `peer` is whose file it is,
-## 0 for this player's own.
+## 0 for this player's own or one the picker fetched.
 func _read(bytes: PackedByteArray, path: String, done: Callable, peer := 0) -> void:
 	var out := {}
 	var task := WorkerThreadPool.add_task(func() -> void:
@@ -420,6 +563,7 @@ func _read(bytes: PackedByteArray, path: String, done: Callable, peer := 0) -> v
 
 
 func _exit_tree() -> void:
+	_shelf.stop()
 	for job in _jobs:
 		WorkerThreadPool.wait_for_task_completion(job.task)
 	_jobs.clear()

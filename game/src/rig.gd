@@ -31,6 +31,9 @@ const WHEEL_LAYER := 1 << 19
 ## The player's own avatar, which only the camera sees: their eyes would see it from inside.
 const SELF_LAYER := 1 << 18
 
+## The player was set down somewhere else.
+signal placed
+
 var head: XRCamera3D
 var gaze: Gaze
 var left: Hand
@@ -244,6 +247,7 @@ func teleport(ground: Vector3, lift_m: float) -> void:
 func place(ground: Vector3, lift_m: float) -> void:
 	var h := head.global_position
 	global_position = Vector3(global_position.x + ground.x - h.x, ground.y + lift_m, global_position.z + ground.z - h.z)
+	placed.emit()
 
 
 func snap_turn(angle: float) -> void:

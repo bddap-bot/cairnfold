@@ -666,7 +666,8 @@ func _face(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Waits until the garden has applied command `seq`, `players` share it, `worn` of them show their own avatar files, the
+## Waits until the garden has applied command `seq`, `players` share it, `worn` of them show their own avatar files,
+## `previewed` avatar files (this player's own included) stand ready for the picker, the
 ## `digests` named have been written to the capture directory (by any player), or with "heard" the host's beacon is
 ## heard, for at most `seconds`. Without `seconds` the wait has no limit: how long another player takes to start and
 ## catch up is the machine's load, not the script's.
@@ -678,7 +679,7 @@ func _until(s: Dictionary) -> void:
 		var w: World = main.world
 		var worn: int = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.source != "").size()
 		var digested: bool = s.get("digests", []).all(func(n: String) -> bool: return FileAccess.file_exists(dir.path_join(n + ".json")))
-		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
+		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
 			_waiting = {}
 			return
 		await get_tree().process_frame

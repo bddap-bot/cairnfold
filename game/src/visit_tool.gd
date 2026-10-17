@@ -1,13 +1,14 @@
 class_name VisitTool
 extends Node3D
 
-## For a hand holding the visit tool: a small figure of each garden announced nearby stands in an arc in
-## front of the player, in its host's avatar and colour; point at one and pull the trigger to go there.
-## While visiting, a small cairn stands among them: picking it goes home. Under each figure its host's name, and
-## with Steam their Steam picture, are the one text in the game (docs/design.md, "Requirements"). Without Steam
-## the player's own figure stands nearer under their name, faint until they pick it to show it; picking again
-## offers another. A garden of a build with other networked methods stands with a small X over it and cannot be
-## picked.
+## For a hand holding the visit tool: a small figure of each garden announced nearby stands in an arc in front of the
+## player, in its host's avatar and colour, their own VRM once it has been fetched; point at one and pull the trigger
+## to go there. While visiting, a small cairn stands among them: picking it goes home. Joining or going home puts the
+## tool away, and the arc and its figures go with it; teleporting sets the arc down afresh where the player arrives.
+## Under each figure its host's name, and with Steam their Steam picture, are the one text in the game
+## (docs/design.md, "Requirements"). Without Steam the player's own figure stands nearer under their name, faint
+## until they pick it to show it; picking again offers another. A garden of a build with other networked methods
+## stands with a small X over it and cannot be picked.
 
 const ARC := 1.3
 const SPREAD := deg_to_rad(22.0)
@@ -36,6 +37,8 @@ var figures := {}
 var picked := ""
 ## What each figure's tag shows, so a tag is rebuilt only when its name or picture changes.
 var _tags := {}
+## The avatar each figure shows, so a figure is rebuilt only when its host's file arrives or changes.
+var _dressed := {}
 var _buttons: Array[Buttons] = []
 var _holding := false
 
@@ -45,6 +48,7 @@ func _init(player: Rig, people: Session) -> void:
 	session = people
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["tool"]))
+	rig.placed.connect(_follow)
 
 
 func holder() -> Hand:
@@ -61,11 +65,29 @@ func _process(_delta: float) -> void:
 		visible = _holding
 		if _holding:
 			_face_player()
+		else:
+			_clear()
 	if _holding:
 		_lay_out()
 		_point(hand)
 	for b in _buttons:
 		b.latch()
+
+
+func _clear() -> void:
+	for k in figures:
+		figures[k].queue_free()
+	figures.clear()
+	_tags.clear()
+	_dressed.clear()
+	picked = ""
+
+
+## A player who teleports leaves no figure standing behind: the arc is set down afresh where they arrive.
+func _follow() -> void:
+	_clear()
+	if _holding:
+		_face_player()
 
 
 ## The arc is set down in front of the player when they take the tool up, and stays put while held.
@@ -84,13 +106,15 @@ func _lay_out() -> void:
 	if not session.me.steam():
 		want.append(ME)
 	for k in figures.keys():
-		if not want.has(k):
+		if not want.has(k) or k != HOME and _dressed[k] != _look(k):
 			figures[k].queue_free()
 			figures.erase(k)
 			_tags.erase(k)
+			_dressed.erase(k)
 	for k in want:
 		if not figures.has(k):
-			figures[k] = _home() if k == HOME else _figure(session.nearby[k] if k != ME else {"avatar": session.avatar, "colour": session.colour, "joins": true})
+			figures[k] = _home() if k == HOME else _figure(_garden(k))
+			_dressed[k] = null if k == HOME else _look(k)
 			add_child(figures[k])
 		if k != HOME:
 			var tag := _tag(k)
@@ -108,9 +132,19 @@ func _lay_out() -> void:
 		f.rotation = Vector3(0, -a + PI, 0)
 
 
+func _garden(k: String) -> Dictionary:
+	return session.nearby[k] if k != ME else {"avatar": session.avatar, "colour": session.colour, "wears": session.worn_key, "joins": true}
+
+
+func _look(k: String) -> PackedScene:
+	var garden := _garden(k)
+	return session.look(garden.get("wears", ""), garden.avatar)
+
+
 func _figure(garden: Dictionary) -> Node3D:
 	var root := Node3D.new()
-	var a := Avatar.open(Avatar.built_in(garden.avatar), garden.colour)
+	var wears: String = garden.get("wears", "")
+	var a := Avatar.open(session.look(wears, garden.avatar), garden.colour, wears if session.previews.get(wears) else "")
 	a.scale = Vector3.ONE * SIZE
 	root.add_child(a)
 	a.stand.call_deferred()
@@ -239,9 +273,17 @@ func joinable(k: String) -> bool:
 func go(k: String) -> void:
 	if not joinable(k):
 		return
-	if k == HOME:
-		session.go_home()
-	elif k == ME:
+	if k == ME:
 		session.me.pick()
-	else:
-		session.join(session.nearby[k].address, session.nearby[k].port)
+	elif k == HOME:
+		session.go_home()
+		put_away()
+	elif session.join(session.nearby[k].address, session.nearby[k].port):
+		put_away()
+
+
+## The hand holding the tool lets it go, so the arc closes once it has been used.
+func put_away() -> void:
+	for h in rig.hands:
+		if h.tool == Hand.Tool.VISIT:
+			h.tool = Hand.Tool.HANDS

@@ -1,7 +1,7 @@
 extends SceneTree
 
-## Scripted and test instances never beacon past loopback, beacons carry each host's name to the visit picker, and a
-## garden of another build stands there with an X and cannot be joined:
+## Scripted and test instances never beacon past loopback, beacons carry each host's name and own avatar to the visit
+## picker, and a garden of another build stands there with an X and cannot be joined:
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_beacon.gd
 
 ## A documentation address, which no host answers: joining it reaches no other run's garden.
@@ -21,6 +21,7 @@ func _run() -> void:
 	_another_build_is_heard_not_joined()
 	await _a_test_instance_beacons_on_loopback_only()
 	await _the_picker_shows_each_host_s_name()
+	await _the_picker_shows_a_host_s_own_avatar_before_joining()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -157,7 +158,13 @@ func _the_picker_shows_each_host_s_name() -> void:
 	_check(session.visiting.is_empty(), "picking a garden of another build joins nothing: %s" % session.visiting)
 	tool.go(where)
 	_check(session.visiting.get("port") == Session.PORT + 5, "picking a garden of this build joins it: %s" % session.visiting)
+	await process_frame
+	await process_frame
+	_check(main.rig.left.tool != Hand.Tool.VISIT and _figures_left(tool) == 0, "joining puts the tool away and its figures go: %d left" % _figures_left(tool))
 	session.go_home()
+	main.rig.left.tool = Hand.Tool.VISIT
+	await process_frame
+	await process_frame
 	var was := session.me.name
 	_check(_label(tool, VisitTool.ME) != null and _label(tool, VisitTool.ME).text == was, "without Steam your own figure stands under your name")
 	tool.go(VisitTool.ME)
@@ -172,3 +179,85 @@ func _the_picker_shows_each_host_s_name() -> void:
 func _label(tool: VisitTool, k: String) -> Label3D:
 	var tag: Node = tool.figures[k].get_node_or_null("Tag") if tool.figures.has(k) else null
 	return tag.find_children("*", "Label3D", false, false)[0] if tag else null
+
+
+## Report (verbatim): "I look at my wife's avatar, and it's just one of the default little pointy wizards, and then I
+## load the game and only then do I see her actual avatar". The beacon carried only a built-in avatar's number.
+func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
+	var main: Node = (load("res://main.tscn") as PackedScene).instantiate()
+	root.add_child(main)
+	await process_frame
+	var folder := "user://test-beacon-avatars"
+	DirAccess.make_dir_recursive_absolute(folder)
+	DirAccess.copy_absolute(ProjectSettings.globalize_path("res://").path_join("../tests/avatars/crimsom-0.x.vrm"), ProjectSettings.globalize_path(folder.path_join("crimsom.vrm")))
+	var beacons := 20000 + randi() % 20000
+	var sessions: Array[Session] = []
+	for i in 2:
+		var branch := Node.new()
+		root.add_child(branch)
+		set_multiplayer(SceneMultiplayer.new(), branch.get_path())
+		var s := Session.new(main.world, main.rig, i, Session.PORT, false, beacons)
+		branch.add_child(s)
+		sessions.append(s)
+	var viewer := sessions[0]
+	var host := sessions[1]
+	host.folder = folder
+	var tool := VisitTool.new(main.rig, viewer)
+	main.add_child(tool)
+	main.rig.left.tool = Hand.Tool.VISIT
+	while host.worn_key == "" and (host._seen_file == "" or not host._jobs.is_empty()):
+		await process_frame
+	_check(host.worn_key != "" and Session.read_beacon(host.beacon()).wears == host.worn_key, "a host wearing its own file names it in the beacon")
+	var where := "127.0.0.1:%d" % host.port
+	for n in 600:
+		if viewer.nearby.has(where) and viewer.nearby[where].wears == host.worn_key:
+			break
+		host._announce()
+		await process_frame
+	var unreachable := "%s:%d" % [NOBODY, Session.PORT + 9]
+	viewer.nearby[unreachable] = viewer.nearby[where].merged({"address": NOBODY, "port": Session.PORT + 9, "wears": "cd".repeat(32), "name": "", "seen": INF}, true)
+	await process_frame
+	await process_frame
+	_check(_worn_by(tool, unreachable) == "", "until a host's file arrives they stand in a built-in avatar")
+	viewer.nearby.erase(unreachable)
+	while viewer.previewing():
+		await process_frame
+	await process_frame
+	_check(viewer.previews.get(host.worn_key) != null, "the viewer fetched and read the host's file without joining")
+	_check(_worn_by(tool, where) == host.worn_key, "the host's figure in the picker wears their own avatar: %s" % _worn_by(tool, where))
+	_check(viewer.visiting.is_empty() and viewer.players() == 1, "and nobody joined anybody")
+	var from: Vector3 = main.rig.head.global_position
+	main.rig.teleport(Terrain.ground(from.x + 12.0, from.z - 9.0), 0.0)
+	while main.rig._pending != null:
+		await process_frame
+	await process_frame
+	await process_frame
+	var head: Vector3 = main.rig.head.global_position
+	var behind := tool.find_children("*", "Avatar", true, false).filter(func(a: Node) -> bool: return not a.is_queued_for_deletion() and (a as Node3D).global_position.distance_to(head) > VisitTool.ARC + 1.0)
+	_check(behind.is_empty(), "teleporting away leaves no figure standing behind: %d" % behind.size())
+	_check(_worn_by(tool, where) == host.worn_key, "and the arc stands again where the player arrived, the host in their own avatar")
+	var forged := "ab".repeat(32)
+	viewer.nearby["127.0.0.1:1"] = viewer.nearby[where].merged({"wears": forged, "seen": INF}, true)
+	await process_frame
+	while viewer.previewing():
+		await process_frame
+	_check(not viewer.previews.has(forged) and viewer._failed.has(forged), "a file whose hash is not the one its beacon names is not shown")
+	viewer.nearby.erase("127.0.0.1:1")
+	for s in sessions:
+		s.get_parent().queue_free()
+	tool.queue_free()
+	main.queue_free()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(folder.path_join("crimsom.vrm")))
+	await process_frame
+
+
+func _worn_by(tool: VisitTool, k: String) -> String:
+	if not tool.figures.has(k):
+		return "no figure"
+	var a: Avatar = tool.figures[k].get_child(0)
+	return a.source
+
+
+## Avatars still standing in the picker, not counting those already let go.
+func _figures_left(tool: VisitTool) -> int:
+	return tool.find_children("*", "Avatar", true, false).filter(func(a: Node) -> bool: return not a.is_queued_for_deletion()).size()
