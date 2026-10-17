@@ -140,26 +140,26 @@ static func flower(petals: int, head := Color.WHITE) -> ArrayMesh:
 
 ## A lumpy foliage blob: an icosphere pushed out by noise, shaded darker underneath. Its vertices are spread evenly,
 ## so it holds the lumps of a latitude-longitude sphere with far fewer of them, which is what the Quest 2 pays for.
+## Its normals stay the sphere's, so light wraps the blob as one soft mass and the lumps show only in its outline.
 static func blob(seed: int, subdiv := 2) -> ArrayMesh:
 	var arrays := icosphere(subdiv)
-	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var sphere: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var verts := PackedVector3Array()
 	var noise := FastNoiseLite.new()
 	noise.seed = seed
 	noise.frequency = 2.2
 	var colors := PackedColorArray()
-	for i in verts.size():
-		var v := verts[i] * (1.0 + noise.get_noise_3dv(verts[i]) * 0.35)
-		verts[i] = v
+	for u in sphere:
+		var v := u * (1.0 + noise.get_noise_3dv(u) * 0.35)
+		verts.append(v)
 		var shade := clampf(0.55 + v.y * 0.45, 0.35, 1.0)
 		colors.append(Color(shade, shade, shade))
 	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = sphere
 	arrays[Mesh.ARRAY_COLOR] = colors
-	var st := SurfaceTool.new()
-	var tmp := ArrayMesh.new()
-	tmp.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	st.create_from(tmp, 0)
-	st.generate_normals()
-	return st.commit()
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
 
 
 static func icosphere(subdiv: int) -> Array:
