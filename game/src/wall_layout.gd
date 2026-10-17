@@ -277,19 +277,24 @@ func build(ground: Callable, water := Callable()) -> void:
 	_hide()
 
 
-## Takes away the tiles, coat, flag and gable ends of the roof on this wall that lie where a build it meets lays nothing.
+## Takes away the tiles, coat, flag, gable ends and torching of the roof on this wall that lie where a build it meets lays nothing.
 func hide_roof(r: RoofLayout) -> void:
 	if joined.is_empty() and resting.is_empty():
 		return
 	r.tiles.assign(r.tiles.filter(func(t: Dictionary) -> bool: return not hides(t.xform.origin)))
 	r.cloths.assign(r.cloths.filter(func(c: Dictionary) -> bool: return not hides(c.xform.origin)))
 	r.keep_coat(func(p: Vector3) -> bool: return not hides(p))
+	r.gable_faces = _unhidden(r.gable_faces)
+	r.torching_faces = _unhidden(r.torching_faces)
+
+
+func _unhidden(tris: PackedVector3Array) -> PackedVector3Array:
 	var kept := PackedVector3Array()
-	for i in range(0, r.gable_faces.size(), 3):
-		var tri := r.gable_faces.slice(i, i + 3)
+	for i in range(0, tris.size(), 3):
+		var tri := tris.slice(i, i + 3)
 		if not hides((tri[0] + tri[1] + tri[2]) / 3.0):
 			kept.append_array(tri)
-	r.gable_faces = kept
+	return kept
 
 
 ## Takes away what lies where a build this one meets lays nothing.

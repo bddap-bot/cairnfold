@@ -23,6 +23,8 @@ func _init() -> void:
 	_reshaped_ground_solves_again()
 	_masonry_reports_only_what_stands_in_the_light()
 	_floating_stretches_fog()
+	_a_roof_overhead_hides_the_sky()
+	_a_doorway_lets_the_sky_in()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -35,14 +37,14 @@ func _check(ok: bool, what: String) -> void:
 
 ## A built wall from `a` to `b` on the ground as Masonry hands it over: a 0.4 m piece every 0.4 m in each
 ## course up to `height`.
-func _wall(a: Vector2, b: Vector2, height := 2.6) -> Array[PackedFloat32Array]:
+func _wall(a: Vector2, b: Vector2, height := 2.6, from := 0.2) -> Array[PackedFloat32Array]:
 	var kind := Wall.kinds()[Wall.Part.STONE]
 	var stones := PackedFloat32Array()
 	var n := 0
 	var steps := ceili(a.distance_to(b) / 0.4)
 	for i in steps + 1:
 		var p := a.lerp(b, float(i) / steps)
-		var y := 0.2
+		var y := from
 		while y < height:
 			stones.resize((n + 1) * kind.stride())
 			kind.write(stones, n, Transform3D(Basis().scaled(Vector3.ONE * 0.4), Vector3(p.x, Terrain.height_at(p.x, p.y) + y, p.y)), Color(0.8, 0.78, 0.72))
@@ -66,6 +68,17 @@ func _ring(at: Vector2, radius: float, foot: float, top: float) -> Array[PackedF
 			n += 1
 			y += 0.4
 	return [stones]
+
+
+## Four walls round x, z in [-3, 3] with a doorway's gap 2 m high at z = 3, x in [-1.4, 1.4], and, with
+## `roofed`, a tiled roof's pieces hanging 2.8 m up over it all.
+func _house(roofed: bool) -> Array:
+	var parts := [_wall(Vector2(-3, -3), Vector2(3, -3)), _wall(Vector2(3, -3), Vector2(3, 3)), _wall(Vector2(-3, -3), Vector2(-3, 3)),
+		_wall(Vector2(-3, 3), Vector2(-1.6, 3)), _wall(Vector2(1.6, 3), Vector2(3, 3)), _wall(Vector2(-1.2, 3), Vector2(1.2, 3), 2.6, 2.2)]
+	if roofed:
+		for z in range(-3, 4):
+			parts.append(_wall(Vector2(-3.4, z), Vector2(3.4, z), 3.2, 3.0))
+	return parts
 
 
 func _built(walls: Array, sun := EAST_LOW) -> Bounce:
@@ -189,3 +202,25 @@ func _floating_stretches_fog() -> void:
 	var floating := Look.fog_at_height(25.0)
 	_check(standing.fog_begin == Look.FOG_BEGIN, "a standing eye keeps the standing fog")
 	_check(floating.fog_begin > 25.0 and floating.fog_end > standing.fog_end, "and fog starts beyond it")
+
+
+func _a_roof_overhead_hides_the_sky() -> void:
+	var open := _built(_house(false))
+	var roofed := _built(_house(true))
+	for layer in 3:
+		var a := open.probe(0.5, -1.5, layer).a
+		var b := roofed.probe(0.5, -1.5, layer).a
+		_check(b < 0.1, "under a roof layer %d sees almost no sky: %.2f" % [layer, b])
+		_check(b < a, "and less than without it: %.2f against %.2f" % [b, a])
+	_check(roofed.probe(0.5, -1.5, 0).r == 0.0, "a roof's shaded underside throws back no sunlight")
+	_check(roofed.probe(10.5, 0.5, 0).a > 0.99, "the garden away from it keeps its sky")
+	var eye := Vector3(0.5, Terrain.height_at(0.5, -1.5) + 1.6, -1.5)
+	_check(roofed.sky_at(eye) < 0.1, "an eye under the roof sees almost no sky, as exposure reads it: %.2f" % roofed.sky_at(eye))
+	_check(roofed.sky_at(Vector3(10.5, Terrain.height_at(10.5, 0.5) + 1.6, 0.5)) > 0.99, "an eye in the garden sees all of it")
+
+
+func _a_doorway_lets_the_sky_in() -> void:
+	var b := _built(_house(true))
+	var by_door := b.probe(0.5, 1.5, 0).a
+	var back := b.probe(0.5, -1.5, 0).a
+	_check(by_door > back, "inside, the floor by the doorway sees more sky than the back: %.3f against %.3f" % [by_door, back])

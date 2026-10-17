@@ -10,6 +10,10 @@ uniform vec3 albedo;
 instance uniform vec3 tint = vec3(1.0);
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 
+// Probes up among a roof's tiles cannot tell a house's inside from its outside, so a gable reads the air a metre
+// before it, no higher than LOW over the ground.
+const float LOW = 1.5;
+
 varying vec3 world_pos;
 varying vec3 bounce_at;
 varying vec3 lamp_at;
@@ -17,7 +21,8 @@ varying vec3 lamp_at;
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	vec3 n = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	bounce_at = bounce_coord(world_pos, n);
+	vec3 q = world_pos + n;
+	bounce_at = vec3((q.xz - bounce_grid.x) / bounce_grid.y, min(q.y - ground_at(q.xz), LOW) / bounce_grid.z);
 	lamp_at = lamp_coord(world_pos, n);
 }
 

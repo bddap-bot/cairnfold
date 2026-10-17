@@ -10,6 +10,7 @@ enum Part { STONE, MORTAR, STONE_SHADOW, TILE, TILE_SHADOW, COAT, IVY }
 static var _kinds: Array[Masonry.Kind] = []
 static var _plaster: ShaderMaterial
 static var _thatch: ShaderMaterial
+static var _lime: ShaderMaterial
 
 var layout := WallLayout.new()
 var masonry: Masonry
@@ -48,6 +49,7 @@ var _drawn: Masonry
 var _ivy: MultiMeshInstance3D
 var _gables: MeshInstance3D
 var _coat: MeshInstance3D
+var _torching: MeshInstance3D
 var _settled := false
 var _ivy_times := PackedFloat32Array()
 var _ivy_task := -1
@@ -141,6 +143,16 @@ func add_roof(r: RoofLayout) -> void:
 	_coat.material_override = _thatch
 	_coat.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_coat)
+	if _lime == null:
+		_lime = ShaderMaterial.new()
+		_lime.shader = load("res://src/torching.gdshader")
+		_lime.set_shader_parameter("albedo", WallLayout.PLASTER)
+		_lime.set_shader_parameter("detail", Look.detail_noise())
+	_torching = MeshInstance3D.new()
+	_torching.material_override = _lime
+	# One face thick and facing down: cast from its front only, it would let the sun through the tiles' gaps.
+	_torching.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
+	add_child(_torching)
 	_tint_roof()
 
 
@@ -453,16 +465,20 @@ func _pack_roof(roofed := {}) -> void:
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, roof.coat)
 		_coat.mesh = mesh
-	var tris := roof.gable_faces
-	if tris.is_empty() or not layout.plaster or layout.gable_end != WallLayout.GableEnd.WALL:
-		_gables.mesh = null
-		return
+	var plastered := layout.plaster and layout.gable_end == WallLayout.GableEnd.WALL
+	_gables.mesh = _faces_mesh(roof.gable_faces if plastered else PackedVector3Array())
+	_torching.mesh = _faces_mesh(roof.torching_faces)
+
+
+static func _faces_mesh(tris: PackedVector3Array) -> ArrayMesh:
+	if tris.is_empty():
+		return null
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for p in tris:
 		st.add_vertex(p)
 	st.generate_normals()
-	_gables.mesh = st.commit()
+	return st.commit()
 
 
 ## A built layout's stones as instance buffers by Part, and the box enclosing them. Reads nothing but its
@@ -529,6 +545,7 @@ func _tint_roof() -> void:
 		_gables.set_instance_shader_parameter(&"tint", Vector3(t.r, t.g, t.b))
 		var straw := Palette.tint(Palette.Element.THATCH, paint[Palette.Element.THATCH])
 		_coat.set_instance_shader_parameter(&"tint", Vector3(straw.r, straw.g, straw.b))
+		_torching.set_instance_shader_parameter(&"tint", Vector3(t.r, t.g, t.b))
 
 
 ## Brings the packed parts from `_painted` to `paint` on a worker thread, a pass over every piece being too long for a

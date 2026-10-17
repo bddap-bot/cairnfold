@@ -1046,6 +1046,10 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
   (`Look.fog_at_height`). It begins and ends farther out from above, so the garden
   is not greyed by air a standing eye would not look through. Shadows keep the same
   map settings while the head moves or turns.
+- **Eye adaptation:** exposure follows the sky the eye sees, read on the CPU from the probe volume
+  (`Bounce.sky_at`, `Look.adapt`): under a roof it rises toward 1.8 times the garden's over about 0.7 s,
+  so a house's inside comes up out of the dark once entered and its doorway glows, and it falls back
+  on the way out. One texel read a frame and no GPU pass.
 - **Grading:** AgX tonemapping, mild saturation and contrast lift. No glow: its
   extra passes cost the Quest 2 9 ms of its 13.9 (see "Quest 2 measurements").
 - **Detail:** everything repeated is a MultiMesh: stones, grass clumps, flowers,
@@ -1074,13 +1078,25 @@ can overhang it, as a tower on a wall does; the air under the overhang keeps its
 sky rather than reading as solid stone down to the ground, which had left the
 shaded foot of such a wall black. A face counts as sunlit when a walk of 12 columns
 toward the sun passes the builds in between at the face's mid-height, over or
-under them. When a build settles,
+under them. A column hanging over a probe, a roof over a floor, is seen as its
+whole box, so a roof's columns close into one, and the probe's own column counts
+where it hangs over it: inside a house the probes see almost no sky except through
+its doorways, and the floor by a door sees more than the back of the room. What
+hangs shows a probe only its shaded underside. When a build settles,
 changes or goes, when the sun moves, or when the ground is reshaped, the probes
 that could see the change are solved again on a worker thread, and the main
 thread only uploads the finished layers. On the desktop the densest stress scene
-(973 m of walls, about 40,000 stones) solves in under 0.7 s. While the sun is
-dragged the bounce follows a solve behind it. Walls still being drawn or pulled
-are left out until they settle.
+(973 m of walls, about 40,000 stones) solves in under 0.7 s. While the sun is dragged the bounce follows a solve behind
+it. Walls still being drawn or pulled are left out until they settle.
+
+Probes up among a roof's tiles cannot tell its inside from its outside, so plaster
+reads lower: the lime torching under a pitched roof's tiles takes the probe on the
+floor below it, and a plaster gable's face the air a metre before it, no higher
+than 1.5 m over the ground. The torching is one face thick and faces down, so it
+casts shadows from both faces; cast from its front only, the sun would come
+through the gaps between the tiles.
+
+![Inside a house with an arched door at four hours, morning to dusk (rows): before and after these, looking along the walls (first two columns) and up at the roof (last two)](interior.jpg)
 
 Its cost on the Quest 2, from `scripts/bench.sh --android` on the stress scene with
 and without this pass (the ladder held at the top, 23 phases from the meadow
@@ -1093,7 +1109,8 @@ Every lit surface built or grown on the ground reads it: stone, roof tiles and
 plaster, the ground, grass, flowers and trees. Each finds its texel in its vertex
 shader and samples once per fragment; the ground and grass take the lowest layer
 without reading the ground's height again. Tested headless in
-`tests/test_bounce.gd`; `demo/lighting.json` renders a tower, walls with an arch
+`tests/test_bounce.gd`; `demo/interior.json` renders the inside of a house with
+an arched door at four hours, and `demo/lighting.json` renders a tower, walls with an arch
 and a house from the ground, from 9 m up and from 25 m up, in late afternoon
 light.
 
@@ -1246,7 +1263,7 @@ Stage numbers refer to the build order at the end.
 | Towers | A loop held down straightens into a circle | A wall drawn into a loop, round or any shape, stays a freestanding wall, roofless. A round tower comes from a house: the style tool's cone on its roof stands it as a tower 4.5 m tall under a cone roof, as wide as the square's shorter side, and a pitched or flat roof squares it again; built, two hands spread it every way at once (2.4–7 m across). No door until one is made, as for a house. `demo/tower.json` builds a stone tower, a plaster one and a house | 4 (done) |
 | Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Circle footprints are the round towers above. Its own tool, a little house in the ring. Its trigger takes up a square house where the hand points and carries it, turning with the hand; the other hand's grip joins to hold it by both hands, which move it by their midpoint, turn it as the pair turns and stretch the side nearest the line between them as they spread (each side 2.4–14 m, at most 7 m across the ridge, which keeps its footprint axis). Letting go builds it. Built, it is resized where it stands: a grip on its wall pulls its height, and the other hand's grip on it too stretches its width or depth (see "Resizing a house"). Stone walls with corner piers and no door, level on its lowest ground; a door comes from the windows tool low on a wall, an arch from the style tool or from a path running in | 4 (done) |
 | Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings") | 4 (done) |
-| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh. A gable end continues the wall below it: a stone house's courses carry on up under the slopes, a plaster house's plaster does, and on both a verge of stones runs up each rake over the courses' ends (European town houses of Cotswold stone or Provençal plaster). The style tool on a gable end picks that house's gable ends, and houses laid after take it: the wall carried up; boarded, upright planks under a barge board up each rake (a barn's end), painted as woodwork; or crow-stepped, the stone courses or plaster climbing past the slopes in capped steps, the roof stopping inside them. The gable ends count against the budget at the face each style lays, as wall (boards as stone wall: laid as stones are, fewer). Grip on a roof, whatever the hand holds: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`). Pushed all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top then takes a style like an open wall's. The style tool on a roof picks pitched, a tower's cone or flat, the pitched ones tiled or thatched (see "Thatch") | 4 (done) |
+| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, with lime torching under the tiles so no sky shows between them from inside. A gable end continues the wall below it: a stone house's courses carry on up under the slopes, a plaster house's plaster does, and on both a verge of stones runs up each rake over the courses' ends (European town houses of Cotswold stone or Provençal plaster). The style tool on a gable end picks that house's gable ends, and houses laid after take it: the wall carried up; boarded, upright planks under a barge board up each rake (a barn's end), painted as woodwork; or crow-stepped, the stone courses or plaster climbing past the slopes in capped steps, the roof stopping inside them. The gable ends count against the budget at the face each style lays, as wall (boards as stone wall: laid as stones are, fewer). Grip on a roof, whatever the hand holds: raise the hand for pitch, move it sideways to bow the slopes out or sweep them into curved eaves (`RoofLayout`). Pushed all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top then takes a style like an open wall's. The style tool on a roof picks pitched, a tower's cone or flat, the pitched ones tiled or thatched (see "Thatch") | 4 (done) |
 | Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. While it points, the wall stands as the press would leave it, laid by the same code. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light | 6 (done) |
 | Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | The decorations tool's trigger places what suits where it points: a stone chimney with two clay pots on a house's roof, rising clear of the ridge; a flag on a tower's roof or a wall's top, waving; a lantern on an iron arm off a wall's face, or on a fence post. Lanterns are emissive bodies in a soft additive halo, and every one lights the ground and walls around it (see "Lantern light"). A press on one takes it away | 6 (done) |
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | The fence tool draws like walls (same stroke, merging and junctions) with a wooden profile: posts at most 1.6 m apart and two rails between. A path through a fence, in either order, opens a gate: two tall posts under a bent wooden arch | 6 (done) |
@@ -1337,11 +1354,11 @@ pure data; tests in `tests/test_build_on.gd`, and through the garden in `tests/t
   highest top under it, an open wall on the top under each of its points, and the ground where it runs off. A
   stroke begun on a top is drawn on that top's level, so a thin wall top is easy to follow, and it merges only
   with walls standing on the same build. Nothing on a top opens a door or an arch on its own.
-- Builds that meet lay nothing inside each other. A build's stones, roof tiles and gable ends inside a house or
+- Builds that meet lay nothing inside each other. A build's stones, roof tiles and plaster inside a house or
   tower it overlaps, between that one's feet and its roof, are not laid; so the shared stretch of two houses'
   walls goes, the rooms become one, and their roofs meet in valleys, and a wall run into a tower ends inside its
   wall. A build standing on another takes away what of that one rises above the top it stands on under it: the
-  merlons under a tower on a wall, the roof and gable ends under an upper storey (its eaves stay as a skirt).
+  merlons under a tower on a wall, the roof and its plaster under an upper storey (its eaves stay as a skirt).
 - A build stands only on older ones, so what stands on what never loops. When a build changes or goes, every
   build it meets is laid again on a worker thread at the end of that frame, oldest first, so a storey rises with
   the house under it and comes down to the ground if that house is taken away. Builds that meet nothing lay as

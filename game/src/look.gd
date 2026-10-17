@@ -19,6 +19,12 @@ const SHADOW_REACH := 256.0
 const STANDING := 2.0
 const FOG_BEGIN := 18.0
 const FOG_END := 140.0
+## The eye adapts to the sky it sees (Bounce.sky_at): under a roof with none, exposure rises this many times
+## over the open garden's, closing most of the gap in ADAPT_SECONDS, so a house's inside reads once entered
+## and its doorway glows.
+const EXPOSURE := 1.05
+const ADAPT_INDOOR := 1.8
+const ADAPT_SECONDS := 0.7
 
 static var _detail: NoiseTexture2D
 static var _flagstones: ImageTexture
@@ -33,6 +39,7 @@ var _lift := -1.0
 var time := -1.0
 var _sky_time := -1.0
 var _since_sky := INF
+var _adapt := 1.0
 
 
 static func detail_noise() -> NoiseTexture2D:
@@ -112,7 +119,7 @@ static func build(parent: Node) -> Look:
 	env.ambient_light_sky_contribution = 1.0
 	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
-	env.tonemap_exposure = 1.05
+	env.tonemap_exposure = EXPOSURE
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_light_energy = 1.0
@@ -194,6 +201,14 @@ func lift_to(lift: float) -> void:
 	env.fog_depth_end = f.fog_end
 
 
+## Moves the exposure toward an eye seeing `sky` of the sky.
+func adapt(sky: float, delta: float) -> void:
+	var to := lerpf(ADAPT_INDOOR, 1.0, sky)
+	_adapt = lerpf(_adapt, to, 1.0 - exp(-delta / ADAPT_SECONDS))
+	if absf(env.tonemap_exposure - EXPOSURE * _adapt) > 0.002:
+		env.tonemap_exposure = EXPOSURE * _adapt
+
+
 func _exit_tree() -> void:
 	bounce.stop()
 
@@ -204,6 +219,7 @@ func _process(delta: float) -> void:
 		var at := eye.global_position
 		disc.global_position = at + Daylight.toward_sun(time) * DISC_DISTANCE
 		lift_to(at.y - Terrain.height_at(at.x, at.z))
+		adapt(bounce.sky_at(at), delta)
 	bounce.update()
 	_since_sky += delta
 	if _sky_time != time and _since_sky >= SKY_EVERY:

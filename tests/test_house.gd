@@ -488,6 +488,14 @@ func _roof_surfaces_have_no_degenerate_triangles() -> void:
 	for r in roofs:
 		_check(not r.faces.is_empty() and _degenerate(r.faces) == 0, "pitch %.1f %s: %d of %d surface triangles degenerate" % [r.pitch, RoofLayout.Kind.keys()[r.kind], _degenerate(r.faces), r.faces.size() / 3])
 		_check(_degenerate(r.gable_faces) == 0, "pitch %.1f: gable ends have no degenerate triangles" % r.pitch)
+		_check(_degenerate(r.torching_faces) == 0, "pitch %.1f %s: torching has no degenerate triangles" % [r.pitch, RoofLayout.Kind.keys()[r.kind]])
+		_check(r.flat() == r.torching_faces.is_empty(), "pitch %.1f %s: torching under a pitched roof only" % [r.pitch, RoofLayout.Kind.keys()[r.kind]])
+		for i in range(0, r.torching_faces.size(), 3):
+			var t := r.torching_faces.slice(i, i + 3)
+			# Godot's front faces turn clockwise, so one facing down winds counter-clockwise seen from below.
+			if (t[1] - t[0]).cross(t[2] - t[0]).y < 0.0:
+				_check(false, "pitch %.1f %s: torching faces down, under the tiles" % [r.pitch, RoofLayout.Kind.keys()[r.kind]])
+				break
 		_check(r.tiles.all(func(t): return absf(t.xform.basis.determinant()) > 1e-6), "pitch %.1f: no flattened tiles" % r.pitch)
 
 

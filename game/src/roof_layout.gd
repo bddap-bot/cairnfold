@@ -25,6 +25,11 @@ const DECK_DROP := 0.03
 const ON_DECK := 0.01
 const BED_LAP := 0.2
 const CURVE := 1.0
+## How far the torching lies under the tiles' bed, and the longest side of its pieces: half the bounce probes'
+## spacing, which it reads per vertex, and short enough that a build joining the roof takes it away where it takes
+## the tiles.
+const TORCHING_DROP := 0.04
+const TORCHING_PIECE := 0.5
 const PROFILE_STEPS := 8
 const STACK_WIDTH := 0.66
 
@@ -82,6 +87,8 @@ var cloths: Array[Dictionary] = []
 ## The surface triangles from the last build, kept for pointing.
 var faces := PackedVector3Array()
 var gable_faces := PackedVector3Array()
+## Under a pitched roof, the lime torching under its tiles that closes the gaps between them, facing down.
+var torching_faces := PackedVector3Array()
 var bounds := AABB()
 
 
@@ -117,6 +124,7 @@ func adopt(built: RoofLayout) -> void:
 	cloths = built.cloths
 	faces = built.faces
 	gable_faces = built.gable_faces
+	torching_faces = built.torching_faces
 	stepped = built.stepped
 	bounds = built.bounds
 
@@ -209,6 +217,7 @@ func profile(steps: int) -> PackedVector2Array:
 func build() -> void:
 	faces = surface()
 	gable_faces = gables()
+	torching_faces = torching()
 	bounds = AABB(faces[0], Vector3.ZERO)
 	for p in faces + gable_faces:
 		bounds = bounds.expand(p)
@@ -802,6 +811,43 @@ func gables() -> PackedVector3Array:
 
 static func _facing(tris: PackedVector3Array, facing: Vector3, a: Vector3, b: Vector3, c: Vector3) -> void:
 	tris.append_array([a, b, c] if (b - a).cross(c - a).dot(facing) < 0.0 else [a, c, b])
+
+
+## The underside of a pitched roof's tiles, as triangles facing down.
+func torching() -> PackedVector3Array:
+	var tris := PackedVector3Array()
+	if flat():
+		return tris
+	var f := frame()
+	var prof := profile(ceili(eave() / TORCHING_PIECE))
+	var mid: Vector3 = f.mid + Vector3.DOWN * TORCHING_DROP
+	var quads: Array[PackedVector3Array] = []
+	if kind == Kind.CONE:
+		var seg := maxi(16, ceili(TAU * eave() / TORCHING_PIECE))
+		for k in seg:
+			var a0 := Vector3(cos(TAU * k / seg), 0, sin(TAU * k / seg))
+			var a1 := Vector3(cos(TAU * (k + 1) / seg), 0, sin(TAU * (k + 1) / seg))
+			for i in prof.size() - 1:
+				var p := prof[i]
+				var q := prof[i + 1]
+				quads.append(PackedVector3Array([mid + a0 * p.x + Vector3.UP * p.y, mid + a1 * p.x + Vector3.UP * p.y, mid + a1 * q.x + Vector3.UP * q.y, mid + a0 * q.x + Vector3.UP * q.y]))
+	else:
+		var length := ridge_length() + WallLayout.THICKNESS + gable_overhang() * 2.0
+		var n := maxi(1, ceili(length / TORCHING_PIECE))
+		for side in [-1.0, 1.0]:
+			var out: Vector3 = f.across * side
+			for i in prof.size() - 1:
+				var a: Vector3 = mid + out * prof[i].x + Vector3.UP * prof[i].y
+				var b: Vector3 = mid + out * prof[i + 1].x + Vector3.UP * prof[i + 1].y
+				for k in n:
+					var p: Vector3 = f.along * length * (float(k) / n - 0.5)
+					var q: Vector3 = f.along * length * (float(k + 1) / n - 0.5)
+					quads.append(PackedVector3Array([a + p, a + q, b + q, b + p]))
+	for c in quads:
+		if not c[0].is_equal_approx(c[1]):
+			_facing(tris, Vector3.DOWN, c[0], c[1], c[2])
+		_facing(tris, Vector3.DOWN, c[0], c[2], c[3])
+	return tris
 
 
 ## Nearest distance along a ray to the roof, or INF.

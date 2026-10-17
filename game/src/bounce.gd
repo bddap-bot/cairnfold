@@ -22,6 +22,8 @@ const SUN_WALK := 12
 const ALBEDO := 0.75
 ## Bounce is stored this many times over, for precision in a byte: it rarely passes a third of the sun.
 const ENCODE := 2.0
+## A probe's own column counts only where its lowest piece stands this far over the ground: a roof over a floor.
+const HANGING := 0.5
 
 ## Owner id -> the columns it fills: column -> [bottom, top, colour]. Worker-side while a solve runs.
 var _owners := {}
@@ -68,6 +70,15 @@ static func column(x: float, z: float) -> Vector2i:
 func probe(x: float, z: float, layer: int) -> Color:
 	var c := column(x, z)
 	return _layers[layer].get_pixel(c.x, c.y)
+
+
+## How much of the sky a point sees, between 0 and 1, from the probe it stands in; all of it outside the play area.
+func sky_at(p: Vector3) -> float:
+	var c := column(p.x, p.z)
+	if not AREA.has_point(c):
+		return 1.0
+	var layer := clampi(floori(p.y - Terrain.height_at(p.x, p.z)), 0, LAYERS - 1)
+	return _layers[layer].get_pixel(c.x, c.y).a
 
 
 ## The columns pieces fill, from instance buffers (Masonry.Kind: origin at 3, 7 and 11, the basis's row of
@@ -241,11 +252,16 @@ static func solve(bottoms: PackedFloat32Array, tops: PackedFloat32Array, colors:
 		for i in area.size.x:
 			var c := area.position + Vector2i(i, j)
 			var base := ground[c.y * CELLS + c.x]
-			# Per direction, each built column passed: how far, its bottom and top and where it is.
+			# Per direction, each built column passed: how far its middle is, its bottom and top and where it is.
+			# The probe's own column comes first: a roof over it hides the sky above.
+			var own := c.y * CELLS + c.x
 			var near := []
-			var found := false
+			var found := tops[own] > -INF
+			var overhead := found and bottoms[own] > base + HANGING
 			for a in AZIMUTHS:
 				var hits := []
+				if overhead:
+					hits.append([0.0, bottoms[own], tops[own], own])
 				var p := c
 				for s in REACH:
 					p += dirs[a]
@@ -275,11 +291,18 @@ static func solve(bottoms: PackedFloat32Array, tops: PackedFloat32Array, colors:
 					var floating := false
 					for hit: Array in near[a]:
 						var rise: float = hit[2] - h
-						if rise <= 0.0:
-							continue
-						var high: float = rise / sqrt(rise * rise + hit[0] * hit[0])
 						var under: float = hit[1] - h
-						var low: float = under / sqrt(under * under + hit[0] * hit[0]) if under > 0.0 else 0.0
+						if rise <= 0.0 or (hit[3] == own and under <= 0.0):
+							continue
+						var d: float = hit[0]
+						var low := 0.0
+						if under > 0.0:
+							# What hangs over the probe is seen as its column's box, from the far foot to the near top,
+							# so a roof's columns close up into one.
+							var far := d + steps[a] * 0.5
+							low = under / sqrt(under * under + far * far)
+							d = maxf(d - steps[a] * 0.5, 0.0)
+						var high: float = rise / sqrt(rise * rise + d * d)
 						var seen := 0.0
 						if low > sin_max:
 							seen = _hide(hidden, Vector2(low, high))
@@ -297,7 +320,8 @@ static func solve(bottoms: PackedFloat32Array, tops: PackedFloat32Array, colors:
 									m = 0
 								else:
 									m += 1
-						if seen > 0.0:
+						# What hangs shows the probe only its shaded underside.
+						if seen > 0.0 and under <= 0.0:
 							bounce += colors[hit[3]] * (seen * facing[a] * lit[hit[3]])
 					var covered := sin_max
 					if floating:
