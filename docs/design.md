@@ -923,6 +923,30 @@ defined once: tunables as uniforms in `grass.gdshader` and, for the wind every p
 | 12 | Distance LOD: fewer, wider, sparser clumps far away | The meadow reads to its far edge at less cost than a 24 m full-detail reach | From 8 m out, over 4 m (`Flora.GRASS_LOD_BEGIN`, `GRASS_LOD_BAND`), a clump keeps 3 of its 7 blades, widened to cover the same ground, and three clumps in four sink into the ground, each at its own distance by its rank (`FloraLayout.thin_rank`); the survivors spread twice as wide and stand a quarter taller to hold the cover. The meadow's grass is baked into 8 m cells, each also holding its survivors alone in a mesh of only their kept blades: a cell wholly past 12 m draws that instead, so far clumps bin 15 vertices rather than 35 and the sunk three quarters bin none. Nothing pops: by the distance a cell switches, what it stops drawing has already sunk away | Done |
 | 13 | Draw reach and ground | Survivors sink away one at a time from half of `Flora.grass_reach` (60 m at full quality, less down the ladder) out to it, so the meadow thins into the ground instead of ending at a ring of growing blades. The ground takes its colour from the blades' own palette (`meadow.gdshaderinc`, set from `Meadow.GRASS`) at the tone far blades converge on, and its lush and dry patches from the same field as the blades' (`FloraLayout.dryness`, baked into the terrain mesh), so where the blades thin the ground carries on the meadow they were | Cells wholly out of reach are not drawn | Done |
 
+Directive (verbatim): "I don't... love how the grass pops into being. Depending on how far I am from it... I mean, I do love the nice frame rates, but... I wish I could see distant grass and distant shadows"
+
+Rows 12 and 13 answer it. GPU time per frame (`bench.sh`, median of each phase) for the meadow and
+every flora pool full, from 22 m up and standing, before (the 24 m full-density reach shrinking
+over its last 8 m, in 16 m cells) and after, at the same ladder positions:
+
+| Phase | Quest 2 before | Quest 2 after | Frame before | Frame after |
+| --- | --- | --- | --- | --- |
+| Meadow from the air, 24 m (top step before) | 29.9 ms | 26.1 ms | 8.4 ms | 8.1 ms |
+| Meadow standing, 24 m | 26.0 ms | 22.1 ms | 5.9 ms | 5.4 ms |
+| Flora from the air, 24 m | 42.1 ms | 37.0 ms | 10.0 ms | 9.8 ms |
+| Flora standing, 24 m | 40.7 ms | 34.3 ms | 9.3 ms | 8.7 ms |
+| Meadow from the air, bottom step | 22.1 ms | 21.0 ms | 6.5 ms | 6.7 ms |
+| Flora from the air, bottom step | 27.7 ms | 26.7 ms | 7.5 ms | 7.7 ms |
+| Flora standing, bottom step | 29.9 ms | 30.1 ms | 6.4 ms | 6.5 ms |
+| Meadow from the air, 60 m (the new top step) | | 32.6 ms | | 8.8 ms |
+| Flora from the air, 60 m | | 46.2 ms | | 10.5 ms |
+
+The Frame held 72 Hz in every phase of both. Far reach costs the Quest 2 from the air, where the
+whole meadow is in view: 28.8 ms at 24 m to 40.2 ms at 60 m with 4 m cells, for 6% more
+primitives. Some of that is draws (8 m cells took the 60 m view to 36.7 ms, 16 m cells saved no
+more) and the rest the raster of far slivers; the survivors' widening cost nothing measurable.
+So reach above 24 m is the top of the ladder, taken only with room in the frame.
+
 Ruled out on this target: alpha-tested or dithered fades (break early depth on
 the tiler), screen-space or impostor grass shadows, and specular on blades
 (Ghost of Tsushima blends blade normals toward the clump's with distance
