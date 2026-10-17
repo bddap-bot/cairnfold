@@ -29,8 +29,8 @@ cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, style
   the meadow, and twist your wrist to turn a wheel of swatches for that material, or
   of seasons for the meadow; let go to keep the one at the top.
 - Holding style: the same, with a little model of each style of what you point
-  at: a gable end's, a roof's (pitched, a tower's cone, flat), a wall's top, or along
-  a wall plain or arched.
+  at: a gable end's, a roof's (pitched, a tower's cone, flat), a wall's top, along
+  a wall stone or plaster, plain or arched, or a tree's species.
 - Holding camera: the screen on its back shows what its lens sees, tilted as you
   hold it and with your own avatar in view when you turn it on yourself; the trigger
   takes a photo, saved as a PNG in the game's `photos` folder
@@ -50,8 +50,8 @@ cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, style
 - Holding visit: a small figure of each player nearby on the same network stands
   in front of you; point at one and pull the trigger to build in their garden
   with them. While visiting, pick the little cairn to go home.
-- The wall and house groups offer stone and plaster miniatures. Plaster keeps stone bases,
-  corners and opening trim; either material supports the same roofs and fittings.
+- Plaster keeps stone bases, corners and opening trim; either material supports the same
+  roofs and fittings.
 - A wall drawn round into a loop stays a wall.
 - Holding the house: trigger takes up a house where you point; carry it,
   add the other grip to turn it and stretch it between your hands; let go to build.

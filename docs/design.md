@@ -1095,7 +1095,7 @@ Stage numbers refer to the build order at the end.
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | The fence tool draws like walls (same stroke, merging and junctions) with a wooden profile: posts at most 1.6 m apart and two rails between. A path through a fence, in either order, opens a gate: two tall posts under a bent wooden arch | 6 (done) |
 | Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces (a house or tower under a roof or deck only its outer one: [inside before and after, outside after](ivy.jpg)), wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`), kept out of windows and doors too | 3 (done), 6 (done) |
 | Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers grow in clumps about 1.3 m across, each one of nine soft colours (white, butter, peach, pinks, lavender, violet, blues), so a stroke paints a few colour patches with nothing to pick | 1 (done), 3 (done) |
-| Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs; the trigger of a hand holding the tree tool plants one where it points | 1 (done), 3 (done) |
+| Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs in five species the style tool picks per tree; the trigger of a hand holding the tree tool plants an oak where it points | 1 (done), 3 (done) |
 | Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | Not a tool: a grip on the ground, whatever the hand holds, grabs it where it points (a pond's bed under its water too) and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then stone ground show on steep slopes | 7 (shaping done) |
 | Water | Dug holes with a flat surface and normal-map waves | The pond tool scoops a hollow where it points; it fills to just below its rim with depth-tinted water, shore foam and ripples where a hand breaks it (see "Water") | 7 (water done) |
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, and a one-metre probe volume of sky seen and sunlight bounced off sunlit stone, solved again on a worker when a build settles or the sun moves (see "Bounce light") | 2 (done) |
@@ -1308,8 +1308,8 @@ learnable motion:
 | Lower right | Visit |
 | Bottom | Delete |
 | Lower left | Paths, stone |
-| Left | Walls, plaster walls, fences, windows |
-| Upper left | House, plaster house, decorations, style |
+| Left | Walls, fences, windows |
+| Upper left | House, decorations, style |
 
 Report (verbatim): "It's not possible to select a tool in your left hand right now". Directive (verbatim): "I'd like you to uh holistically rethink the button mappings. Um. One restriction is, I don't want to have to press the thumbstick down to select a tool"
 
@@ -1389,7 +1389,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the ground even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
 | Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick flicked left or right: 30° snap turn |
-| Restyle | Trigger held on a hand holding the style tool, pointing at a gable end, a roof, a roofless wall's top or along a wall: twist the wrist to turn a wheel of miniatures of that thing's styles, live on the build; let go to keep the one at the top (see "Styles") |
+| Restyle | Trigger held on a hand holding the style tool, pointing at a gable end, a roof, a roofless wall's top, along a wall or at a tree: twist the wrist to turn a wheel of miniatures of that thing's styles, live on the build; let go to keep the one at the top (see "Styles") |
 | Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground, or along a build's top to build on it; release to finish. Strokes under 1 m are discarded, and a stroke near a standing wall merges into it |
 | Raise or lower a wall | Grip pointing at a wall, whatever the hand holds, move the hand up or down; the gain grows with distance so far walls are easy to adjust |
 | Shape a roof | Grip pointing at a roof, whatever the hand holds: up and down for pitch, sideways for curvature; all the way down snaps it flat |
@@ -1468,7 +1468,14 @@ thing opens a wheel of miniatures of that thing's styles, twisting the wrist tur
 build live, and letting go keeps the one at the top, one undo step. What it offers depends on what it points
 at: a gable end, its house's gable ends (the wall's, boarded, crow-stepped; houses laid after take it); a
 house's or tower's roof, pitched, a cone (standing it as a round tower, see "Towers") or flat; a roofless
-wall's top, merlons, plain capping or coping; along a wall, plain or arched there. Fences have no style.
+wall's top, merlons, plain capping or coping; a wall's face, stone or plaster, each plain or arched there
+(walls and houses laid after take the material turned to last); a tree, its species: an oak's round crown, a
+fir's dark cone, a poplar's column, a birch's pale trunk under a light open crown, a copper beech's low
+wine-red dome. Every species is the same trunk and eight foliage blobs placed differently, so a tree changes
+species in the slots it holds and a forest costs what it did: on a Quest 2, `demo/forest.json`'s full tree
+pool drew 24.3 ms of GPU a frame with every species in turn, against 25.2 ms all oaks. Planted trees and the meadow's own are oaks
+until styled. Fences and bushes have no style. Directive (verbatim): "I think plaster is just another style
+btw." Directive (verbatim): "Let's add tree styles. Each tree style is a species."
 
 Floating turns the meadow into a diorama: drawing works from any height because
 the pointer ray hits the terrain, so you can lay out a whole castle from above and
