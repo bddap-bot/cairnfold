@@ -4,15 +4,18 @@ import json
 import os
 from pathlib import Path
 import random
+import re
 import socket
 import subprocess
 import threading
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
-# The one deadline: every peer's --quit-after ends with it, less the time a quit takes, and ends any wait still pending.
-RUN_SECONDS = 180
-QUIT_MARGIN = 10
+# A stuck run is one where no player takes a step while together they spend this much CPU; a busy machine only slows the
+# run in wall time, so no wall-clock limit applies.
+QUIET_CPU = 40
+# Going home before these steps means a player lost the garden it was visiting.
+HOME_CUE = re.compile(r'"home": true|"digests": \["home"\]')
 
 
 def barrier(names):
@@ -106,7 +109,6 @@ def run(out, count):
 
     sampler = threading.Thread(target=monitor)
     sampler.start()
-    deadline = time.monotonic() + RUN_SECONDS
     # One of Session's blocks of PORTS = 8 host ports in its PORT_RANGE from 7480, so runs side by side spread out.
     first = 7480 + 8 * random.randrange(7)
     files = ["crimsom-1.0.vrm", "godette-0.x.vrm", "crimsom-0.x.vrm"]
@@ -114,7 +116,7 @@ def run(out, count):
     def launch(name, port):
         args = ["godot4", "--headless", "--path", str(ROOT / "game"), "--xr-mode", "off",
                 "--", "--desktop", "--script", str(out / f"script-{name}.json"),
-                "--quit-after", str(max(1, round(deadline - time.monotonic() - QUIT_MARGIN))), "--capture-dir", str(out), "--host-port", str(port),
+                "--capture-dir", str(out), "--host-port", str(port),
                 "--beacon-port", str(beacon), "--port", str(port if name == "host" else first)]
         if name != "host":
             i = list(generated).index(name) - 1
@@ -128,10 +130,31 @@ def run(out, count):
         logs.append(log)
         processes[name] = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT)
 
+    progress = {"steps": 0, "cpu": 0.0, "quiet": 0.0}
+
+    def check():
+        last = {}
+        for name, proc in processes.items():
+            if proc.poll():
+                raise RuntimeError(f"{name} exited unsuccessfully")
+            text = (out / f"{name}.log").read_text(errors="replace")
+            if any(s in text for s in ("SCRIPT ERROR", "timed out", "handle_crash")):
+                raise RuntimeError(f"{name} failed; see {out / (name + '.log')}")
+            if "session: home from" in HOME_CUE.split(text, 1)[0]:
+                raise RuntimeError(f"{name} lost the garden it visited; see {out / (name + '.log')}")
+            last[name] = [line for line in text.splitlines() if line.startswith("driver: {")]
+        steps = sum(len(lines) for lines in last.values())
+        spent = sum(samples[-1][1] for samples in list(cpu.values()))
+        if steps > progress["steps"]:
+            progress.update(steps=steps, cpu=spent)
+        progress["quiet"] = max(progress["quiet"], spent - progress["cpu"])
+        if spent - progress["cpu"] > QUIET_CPU:
+            raise RuntimeError(f"no player took a step in {QUIET_CPU} CPU-seconds: "
+                               + "; ".join(f"{n} at {lines[-1] if lines else 'start'}" for n, lines in last.items()))
+
     def until(predicate):
         while not predicate():
-            if time.monotonic() > deadline or any(p.poll() is not None for p in processes.values()):
-                raise RuntimeError("co-op peer exited or timed out before the next barrier")
+            check()
             time.sleep(0.1)
 
     try:
@@ -147,9 +170,8 @@ def run(out, count):
         until(lambda: all((out / f"{n}-2-players-cost.json").exists() for n in ("host", "join")))
         for name in list(generated)[2:]:
             launch(name, port)
-        for name, proc in processes.items():
-            if proc.wait(timeout=max(1, deadline - time.monotonic())):
-                raise RuntimeError(f"{name} exited unsuccessfully")
+        until(lambda: all(p.poll() is not None for p in processes.values()))
+        check()
     finally:
         for proc in processes.values():
             if proc.poll() is None:
@@ -166,10 +188,7 @@ def run(out, count):
         sampler.join()
         (out / "process-cpu.json").write_text(json.dumps(cpu))
         reservation.close()
-    for name in generated:
-        text = (out / f"{name}.log").read_text()
-        if any(s in text for s in ("SCRIPT ERROR", "timed out", "handle_crash")):
-            raise RuntimeError(f"{name} failed; see {out / (name + '.log')}")
+    print(f"coop: longest stretch without a step took {progress['quiet']:.1f} of {QUIET_CPU} CPU-seconds", flush=True)
     subprocess.run(["python3", str(ROOT / "scripts/coop-check.py"), str(out),
                     str(ROOT / "tests/avatars"), str(count)], check=True)
     rows = []

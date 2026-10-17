@@ -135,6 +135,7 @@ func host() -> void:
 func join(address: String, at_port: int) -> void:
 	var peer := ENetMultiplayerPeer.new()
 	if peer.create_client(address, at_port) != OK:
+		push_error("session: could not open a connection to %s:%d" % [address, at_port])
 		return
 	if visiting.is_empty():
 		_home = world.snapshot()
@@ -148,6 +149,7 @@ func join(address: String, at_port: int) -> void:
 func go_home() -> void:
 	if visiting.is_empty() and multiplayer.multiplayer_peer is ENetMultiplayerPeer:
 		return
+	print("session: home from ", visiting)
 	multiplayer.multiplayer_peer.close()
 	_drop_avatars()
 	host()
@@ -171,6 +173,7 @@ func _on_peer(id: int) -> void:
 
 
 func _on_gone(id: int) -> void:
+	print("session: player %d left" % id)
 	if avatars.has(id):
 		avatars[id].queue_free()
 		avatars.erase(id)
@@ -194,6 +197,8 @@ func _drop_avatars() -> void:
 
 
 func _process(delta: float) -> void:
+	if delta > 2.0:
+		print("session: a frame took %.1f s" % delta)
 	_clock += delta
 	_since_beacon += delta
 	if _since_beacon >= BEACON_EVERY:

@@ -245,7 +245,10 @@ two through eight supported):
    ten-second sample of the same settled garden.
 5. Every player records its garden and all remote avatar hashes. Nobody leaves until
    every view and cost sample exists; the visitor then goes home and records its own
-   garden. A timeout or failed check fails the run; there are no retries.
+   garden. A script error, a player losing the garden it visits, a failed check, or a
+   stretch in which no player takes a step while together they spend `QUIET_CPU`
+   CPU-seconds fails the run. There are no retries and no wall-clock limit: a loaded
+   machine only makes the run slower.
 
 The JSON gestures in `demo/coop-host.json` and `demo/coop-join.json` supply the initial
 building sequence through their first digest. `scripts/coop.py` supplies the N-player

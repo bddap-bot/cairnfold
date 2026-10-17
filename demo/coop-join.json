@@ -4,7 +4,6 @@
   {"op": "until", "nearby": 1},
   {"op": "until", "heard": true},
   {"op": "visit"},
-  {"op": "wait", "seconds": 0.5},
   {"op": "wall", "points": [[1, -3], [6, -2]], "seconds": 0.4},
   {"op": "until", "seq": 2},
   {"op": "paint", "tool": "flowers", "points": [[6, 4], [7, 4]], "radius": 1.0, "seconds": 0.5},

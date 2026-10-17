@@ -593,20 +593,39 @@ func _host_port(s: Dictionary) -> int:
 	return int(s.get("port", main.args.get("host-port", Session.PORT)))
 
 
-## Joins the garden hosted at `address` on the host's port, as picking its figure does.
+## Joins the garden hosted at `address` on the host's port, as picking its figure does, until that garden has arrived.
 func _join(s: Dictionary) -> void:
+	var arrived := _arrival()
 	main.session.join(s.get("address", "127.0.0.1"), _host_port(s))
-	await get_tree().process_frame
+	await _arrived(arrived)
+
+
+## Set once the next garden arrives, so a step after a visit works in the garden visited, however late it comes.
+func _arrival() -> Array:
+	var arrived := [false]
+	main.world.restored.connect(func() -> void:
+		if main.session.visiting.is_empty():
+			push_error("driver: went home instead of arriving")
+		else:
+			arrived[0] = true, CONNECT_ONE_SHOT)
+	return arrived
+
+
+func _arrived(arrived: Array) -> void:
+	while not arrived[0]:
+		await get_tree().process_frame
 
 
 ## Takes the visit tool in the right hand, points it at the figure of the host's garden (or at the home
-## cairn with "home") and pulls the trigger.
+## cairn with "home") and pulls the trigger; a visit away ends once the host's garden has arrived.
 func _visit(s: Dictionary) -> void:
+	var home: bool = s.get("home", false)
+	var arrived := [true] if home else _arrival()
 	var tool: VisitTool = main.visit_tool
 	var hand := _holding(s, Hand.Tool.VISIT)
 	await _frames(2)
 	var keys := tool.figures.keys()
-	var k: String = VisitTool.HOME if s.get("home", false) else keys.filter(func(x: String) -> bool: return x.ends_with(":%d" % _host_port(s)))[0]
+	var k: String = VisitTool.HOME if home else keys.filter(func(x: String) -> bool: return x.ends_with(":%d" % _host_port(s)))[0]
 	var at: Vector3 = tool.figures[k].global_position + VisitTool.AIM
 	var from: Vector3 = main.rig.head.global_position + Vector3(0.2, -0.3, 0)
 	hand.global_transform = Transform3D(Basis.looking_at(at - from, Vector3.UP), from)
@@ -616,6 +635,7 @@ func _visit(s: Dictionary) -> void:
 	await _frames(2)
 	Buttons.injected.erase(key)
 	await _frames(2)
+	await _arrived(arrived)
 
 
 ## Flat mode: holds the flat-screen control `action` (see Controls.FLAT) for `seconds`, as its key or button would.
@@ -645,8 +665,8 @@ func _face(s: Dictionary) -> void:
 
 ## Waits until the garden has applied command `seq`, `players` share it, `worn` of them show their own avatar files, the
 ## `digests` named have been written to the capture directory (by any player), or with "heard" the host's beacon is
-## heard, for at most `seconds`. Without them only the run's end stops the wait, reported as timed out: how long
-## another player takes to start and catch up is the machine's load, not the script's.
+## heard, for at most `seconds`. Without `seconds` the wait has no limit: how long another player takes to start and
+## catch up is the machine's load, not the script's.
 func _until(s: Dictionary) -> void:
 	var dir := str(main.args.get("capture-dir", "user://captures"))
 	var t := 0.0
