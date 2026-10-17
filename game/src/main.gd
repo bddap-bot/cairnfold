@@ -87,7 +87,7 @@ func _ready() -> void:
 	var played := Session.played(args, get_tree().current_scene == self)
 	var me := Persona.new(str(args.get("name", "")), int(args.get("steam-app", OS.get_environment("SteamAppId"))), "user://name" if played else "", hash(OS.get_unique_id()))
 	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT if played else 0)), played, int(args.get("beacon-port", Session.BEACON_PORT)), me)
-	session.folder = args.get("avatars", Session.own_folder() if played else "")
+	session.folder = args.get("avatars", Main.player_folder("avatars") if played else "")
 	if played:
 		DirAccess.make_dir_recursive_absolute(session.folder)
 	add_child(session)
@@ -230,6 +230,16 @@ func finish() -> void:
 ## they were stopped, so a silent marker stopped last also waits out the sounds of nodes already freed.
 ## A 3D player hands a new playback to the audio thread on its next physics tick and holds it until then,
 ## even through stop().
+## The folder `name` the player reaches from outside the game: in user data, except on Android, whose user data only
+## the game can read; there it is in the app's external files folder, which a file manager or adb reaches.
+static func player_folder(name: String) -> String:
+	if OS.has_feature("android"):
+		var external := OS.get_system_dir(OS.SYSTEM_DIR_DESKTOP, false)
+		if external != "":
+			return external.path_join(name)
+	return "user://" + name
+
+
 static func quit(tree: SceneTree, code := 0) -> void:
 	if _quitting:
 		return

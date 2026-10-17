@@ -29,8 +29,10 @@ cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, camer
   of seasons for the meadow; let go to keep the one at the top.
 - Holding camera: the screen on its back shows what its lens sees; the trigger
   takes a photo, saved as a PNG in the game's `photos` folder
-  (`~/.local/share/godot/app_userdata/Nestcombe/photos` on the Frame; inside the
-  app on a Quest).
+  (`~/.local/share/godot/app_userdata/Nestcombe/photos` from the Linux package;
+  `/sdcard/Android/data/io.github.bddapbot.nestcombe/files/photos` from an APK, on a
+  Quest or the Frame's Steam build, where photos an earlier APK kept inside the app
+  move on its next start).
 - Holding seeds: hold the hand out and keep it calm. A conure may fly down and eat
   standing on it; ducks and sheep come to seeds held low by their pond or fence.
   Animals let you come right up if you move slowly; a sudden move startles them.
