@@ -195,7 +195,8 @@ func _aim(s: Dictionary) -> void:
 	var dir: Vector3 = head.basis * Vector3(s.dir[0], s.dir[1], s.dir[2])
 	rig.left.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), head * Vector3(-0.2, -0.35, -0.25))
 	Hand.injected_sticks[rig.left.tracker] = Vector2(0, 1)
-	await get_tree().process_frame
+	while rig.aim_hand == null:
+		await get_tree().process_frame
 	Hand.injected_sticks[rig.left.tracker] = Vector2(0, s.get("stick", 1.0))
 	await get_tree().create_timer(s.get("seconds", 1.0)).timeout
 	if s.has("watch"):
