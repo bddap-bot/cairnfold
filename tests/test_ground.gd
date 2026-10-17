@@ -16,6 +16,7 @@ func _run() -> void:
 	_one_ground_stroke_at_a_time()
 	_meadow_takes_back_stone_but_not_a_path()
 	_lifting_a_path_keeps_the_stone_laid_after_it()
+	_lifting_or_slotting_a_mark_wears_only_what_it_met()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -161,3 +162,41 @@ func _lifting_a_path_keeps_the_stone_laid_after_it() -> void:
 	_check(Ground.stone(0, 50) > 0.99, "stone laid over a path stays when the path is lifted (%.2f)" % Ground.stone(0, 50))
 	_check(Ground.bare(5, 50) == 0.0, "the path's own wear goes with it (%.2f)" % Ground.bare(5, 50))
 	_teardown(nodes)
+
+
+## A mark that counts how often it is worn.
+class Counted:
+	extends Ground.Stroke
+	var worn := 0
+
+	func wear(onto: Image) -> void:
+		worn += 1
+		super.wear(onto)
+
+
+## Lifting a mark, or laying one older than the newest, wears again only the marks meeting it, so its cost does not
+## grow with the garden's other paths and stone, and leaves the mask as wearing every mark again would.
+func _lifting_or_slotting_a_mark_wears_only_what_it_met() -> void:
+	Ground.install()
+	var far := Counted.new(Ground.Kind.STONE)
+	far.stamps.append(Vector4(60, 60, 2, 1))
+	Ground.lay(far, 1)
+	var marks := []
+	for i in 12:
+		var m := Ground.Stroke.new(Ground.Kind.STONE if i % 2 else Ground.Kind.EARTH)
+		for j in 8:
+			m.stamps.append(Vector4(-20 + j * 0.8, -20 + i * 0.7, 1.0, 0.6))
+		Ground.lay(m, 10 + i * 2)
+		marks.append(m)
+	Ground.settle()
+	far.worn = 0
+	Ground.lift(marks[5])
+	var older := Ground.Stroke.new(Ground.Kind.STONE)
+	older.stamps.append(Vector4(-17, -16, 1.5, 0.5))
+	Ground.lay(older, 15)
+	Ground.settle()
+	_check(far.worn == 0, "lifting a mark and laying an older one do not wear a mark far from them again: worn %d times" % far.worn)
+	var patched := Ground.laid.get_data()
+	Ground.rewear()
+	_check(Ground.laid.get_data() == patched, "the patched mask is the mask every mark worn again in order makes")
+	Ground.install()

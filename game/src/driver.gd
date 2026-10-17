@@ -325,6 +325,60 @@ func _lift_wall(s: Dictionary) -> void:
 	main.world.submit({"op": "reshape", "id": w.id, "data": {"height": float(s.height)}})
 
 
+## Grips wall `index` (or the one under `at`) on its top, as a hand does, and pulls it `metres` up then down again
+## `times` times, `seconds` a pull: its height, or with "roof" its roof's ridge.
+func _grip(s: Dictionary) -> void:
+	var tool: WallTool = main.tool
+	var w := _wall_of(s)
+	var m := tool.mason(_hand(s))
+	var roof: bool = s.get("roof", false)
+	var at: Vector3 = w.roof.frame().mid + Vector3.UP * w.roof.pitch if roof else w.layout.point_at(w.layout.length() * 0.5) + Vector3.UP * w.layout.height
+	var hand: Vector3 = at + Vector3.BACK
+	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
+	for n in int(s.get("times", 1)):
+		var metres: float = s.get("metres", 1.0) * (1.0 if n % 2 == 0 else -1.0)
+		if roof:
+			tool.begin_roof(m, w, hand)
+		else:
+			tool.begin_lift(m, w, hand, at)
+		for f in frames:
+			await get_tree().process_frame
+			var to: Vector3 = hand + Vector3.UP * metres * smoothstep(0.0, 1.0, float(f + 1) / frames)
+			if roof:
+				tool.drag_roof(m, to)
+			else:
+				tool.drag_lift(m, to.y)
+		if roof:
+			tool.end_roof(m)
+		else:
+			tool.end_lift(m)
+		await _standing()
+
+
+## Every wall standing now again, shifted by `offset` [x, z], one each `every` seconds, applied as the host's commands
+## reach a visitor: checked, then played.
+func _arrive(s: Dictionary) -> void:
+	var world: World = main.world
+	var walls: Array = world.state.walls.values()
+	var shift := Vector3(s.offset[0], 0.0, s.offset[1])
+	var id: int = world.state.walls.keys().max() + 1
+	for d: Dictionary in walls:
+		var w := d.duplicate(true)
+		var points := PackedVector3Array()
+		for p in w.points:
+			points.append(p + shift)
+		w.points = points
+		w.on = PackedInt32Array()
+		if w.has("roof"):
+			w.roof.center += shift
+		var cmd := Commands.clean({"op": "wall", "ids": PackedInt32Array([id]), "walls": [w], "seq": world.seq + 1, "by": 0}, world.state, true)
+		assert(not cmd.is_empty(), "arrive: the shifted wall is not a command a visitor would apply")
+		world.seq = cmd.seq
+		world._timed(cmd)
+		id += 1
+		await get_tree().create_timer(s.get("every", 0.5)).timeout
+
+
 ## The wall a step names: by `index` in build order, or the one under the ground point `at` [x, z].
 func _wall_of(s: Dictionary) -> Wall:
 	if s.has("at"):

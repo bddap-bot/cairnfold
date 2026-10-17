@@ -19,6 +19,7 @@ func _init() -> void:
 	_settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach()
 	_full_stones_stand_only_near_the_eye()
 	_a_changing_wall_draws_far_stones_by_its_own_chunks()
+	_a_chunk_draws_again_only_the_pieces_that_changed()
 	_a_wall_over_water_stands_on_its_bed()
 	_a_narrow_crossing_takes_one_arch()
 	_a_low_wall_crosses_as_a_causeway()
@@ -378,3 +379,32 @@ func _water_leaves_the_dry_stones_as_they_were() -> void:
 	var before := dry.stones.filter(func(st): return st.kind == "block" and st.s < 2.0).map(key)
 	var after := wet.stones.filter(func(st): return st.kind == "block" and st.s < 2.0).map(key)
 	_check(not before.is_empty() and before == after, "water under a causeway leaves its dry end's stones as they were")
+
+
+## A wall's ivy settling after its stones draws its chunk's ivy again and nothing else, and does not stir the light;
+## placing what is already placed draws nothing.
+func _a_chunk_draws_again_only_the_pieces_that_changed() -> void:
+	var ks := Wall.kinds()
+	var m := Masonry.new(ks)
+	var told := [0]
+	m.placed.connect(func(_o: int, _b: Array[PackedFloat32Array], _s: PackedInt32Array) -> void: told[0] += 1)
+	var parts: Array[Dictionary] = []
+	for k in ks.size():
+		var buf := PackedFloat32Array()
+		buf.resize(ks[k].stride())
+		buf[3] = 1.0
+		parts.append(Masonry.split(buf, ks[k].stride()))
+	var bare := parts.duplicate()
+	bare[Wall.Part.IVY] = {}
+	m.place(2, parts)
+	m.place(1, bare)
+	m._process(0.0)
+	told[0] = 0
+	m.place(1, parts)
+	var redrawn: Array = m._dirty.values().map(func(kinds: Dictionary) -> Array: return kinds.keys())
+	_check(redrawn == [[Wall.Part.IVY]], "ivy settling draws the chunk's ivy again, nothing else: %s" % [redrawn])
+	_check(told[0] == 0, "ivy settling does not stir the light")
+	m._process(0.0)
+	m.place(1, parts)
+	_check(m._dirty.is_empty(), "placing the same pieces again draws nothing")
+	m.free()

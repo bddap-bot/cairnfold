@@ -195,8 +195,9 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 	if cut.is_empty():
 		return {}
 	var was: Array = cut.ray
-	var far := Vector3(aim(origin, dir, cut.plants, cut.easels).get("point", origin + dir))
-	var n := clampi(ceili(far.distance_to(was[2]) / STEP), 1, MAX_STEPS)
+	var aimed := aim(origin, dir, cut.plants, cut.easels)
+	var far := Vector3(aimed.get("point", origin + dir))
+	var n := steps(far.distance_to(was[2]), aimed.get("mow", 0.0))
 	var target := {}
 	for i in range(1, n + 1):
 		var k := float(i) / n
@@ -204,6 +205,13 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 	cut.ray = [origin, dir, target.get("point", origin + dir)]
 	_preview(cut)
 	return target
+
+
+## How many rays a stroke takes between two where they strike `metres` apart: STEP apart, or over the ground half a
+## mowing ring of `mow` metres apart, which every plant's ragged reach still covers, so a wide ring is not mown again
+## and again in one swipe.
+static func steps(metres: float, mow := 0.0) -> int:
+	return clampi(ceili(metres / maxf(STEP, mow * 0.5)), 1, MAX_STEPS)
 
 
 func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:

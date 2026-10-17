@@ -34,6 +34,12 @@ static var _unworn_since := 0
 ## A stroke was held or released: the shown image is redrawn when the unworn marks are.
 static var _unshown := false
 static var _brushes := {}
+## The texels each of the garden's marks last wore, so lifting one, or laying one among older ones, wears again only
+## that patch and the marks meeting it.
+static var _areas := {}
+static var _wearing := Rect2i()
+## Where a patch is worn again before it is copied into `laid`: what lies outside the patch is never read.
+static var _patch := Image.create(SIZE, SIZE, false, Image.FORMAT_RG8)
 
 
 ## A painted ground stroke: soft discs of one kind, replayed in order.
@@ -113,16 +119,19 @@ static func lay(mark: Object, id: int) -> void:
 	if i == _marks.size() - 1 and not quiet:
 		_wait()
 		_unworn.append(mark)
-	else:
-		rewear()
+	elif not quiet:
+		_rewear_area(_area_of(mark, _patch))
 
 
 static func lift(mark: Object) -> void:
 	var i := _marks.find(mark)
-	if i >= 0:
-		_marks.remove_at(i)
-		_ids.remove_at(i)
-	rewear()
+	if i < 0:
+		return
+	_marks.remove_at(i)
+	_ids.remove_at(i)
+	if not quiet:
+		_rewear_area(_areas.get(mark, Rect2i(0, 0, SIZE, SIZE)))
+	_areas.erase(mark)
 
 
 ## Keeps showing a player's finished stroke until `release`, when its command has landed or been turned down.
@@ -143,6 +152,7 @@ static func clear() -> void:
 	_marks.clear()
 	_ids.clear()
 	_held.clear()
+	_areas.clear()
 	rewear()
 
 
@@ -152,8 +162,30 @@ static func rewear() -> void:
 		return
 	laid.fill(Color(0, 0, 0))
 	for m in _marks:
-		m.wear(laid)
+		_area_of(m, laid)
 	_unworn.clear()
+	_show()
+
+
+## Wears `mark` onto `onto`, noting the texels it wore; returns them.
+static func _area_of(mark: Object, onto: Image) -> Rect2i:
+	_wearing = Rect2i()
+	mark.wear(onto)
+	_areas[mark] = _wearing
+	return _wearing
+
+
+## Wears again, in order, every mark meeting `area`, and only that patch of `laid`.
+static func _rewear_area(area: Rect2i) -> void:
+	for m in _unworn:
+		_area_of(m, laid)
+	_unworn.clear()
+	if area.has_area():
+		_patch.fill_rect(area, Color(0, 0, 0))
+		for m in _marks:
+			if not _areas.has(m) or _areas[m].intersects(area):
+				_area_of(m, _patch)
+		laid.blit_rect(_patch, area, area.position)
 	_show()
 
 
@@ -161,7 +193,7 @@ static func settle() -> void:
 	if _unworn.is_empty() and not _unshown:
 		return
 	for m in _unworn:
-		m.wear(laid)
+		_area_of(m, laid)
 	_unworn.clear()
 	_show()
 
@@ -201,6 +233,7 @@ static func stamp(onto: Image, x: float, z: float, radius: float, verge: float, 
 	var area := Rect2i(at, Vector2i(side, side)).intersection(Rect2i(0, 0, SIZE, SIZE))
 	if area.size.x <= 0 or area.size.y <= 0:
 		return false
+	_wearing = area if not _wearing.has_area() else _wearing.merge(area)
 	var region := onto.get_region(area)
 	var px := region.get_data()
 	var changed := false

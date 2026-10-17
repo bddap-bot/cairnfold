@@ -140,7 +140,7 @@ def run(out, count):
             if proc.poll():
                 raise RuntimeError(f"{name} exited unsuccessfully")
             text = (out / f"{name}.log").read_text(errors="replace")
-            if any(s in text for s in ("SCRIPT ERROR", "timed out", "handle_crash", "cannot apply")):
+            if any(s in text for s in ("SCRIPT ERROR", "timed out", "handle_crash", "cannot apply", "tree_exited")):
                 raise RuntimeError(f"{name} failed; see {out / (name + '.log')}")
             if "session: home from" in HOME_CUE.split(text, 1)[0]:
                 raise RuntimeError(f"{name} lost the garden it visited; see {out / (name + '.log')}")

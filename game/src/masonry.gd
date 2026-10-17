@@ -132,54 +132,55 @@ static func _gather(out: Dictionary, key: Vector2i, buf: PackedFloat32Array) -> 
 	out[key] = have
 
 
-## Draws `parts` (per kind, in `kinds` order, a `split` buffer) for `owner`, replacing what it had placed before.
+## Draws `parts` (per kind, in `kinds` order, a `split` buffer) for `owner`, replacing what it had placed before. Only
+## the kinds of piece that changed in a chunk are drawn again, and the light is told only when its occluders changed.
 func place(owner: int, parts: Array[Dictionary]) -> void:
 	assert(parts.size() == kinds.size(), "one split buffer per kind")
-	var had := _drop(owner)
-	if not placed.get_connections().is_empty():
-		var buffers: Array[PackedFloat32Array] = []
-		var strides := PackedInt32Array()
-		for k in kinds.size():
-			if kinds[k].occludes and not parts[k].is_empty():
-				var all := PackedFloat32Array()
-				for buf in parts[k].values():
-					all.append_array(buf)
-				buffers.append(all)
-				strides.append(kinds[k].stride())
-		if had or not buffers.is_empty():
-			placed.emit(owner, buffers, strides)
 	var keys := {}
 	for k in kinds.size():
 		for key in parts[k]:
-			var c := _chunk(key)
-			if not c.parts.has(owner):
-				var bufs: Array[PackedFloat32Array] = []
-				bufs.resize(kinds.size())
-				c.parts[owner] = bufs
-			c.parts[owner][k] = parts[k][key]
 			keys[key] = true
-			_dirty[key] = true
+	var occluders := false
+	var none := PackedFloat32Array()
+	for key in keys.keys() + Array(_owners.get(owner, [])):
+		var c := _chunk(key)
+		var had: Array = c.parts.get(owner, [])
+		var now: Array[PackedFloat32Array] = []
+		now.resize(kinds.size())
+		for k in kinds.size():
+			now[k] = parts[k].get(key, none)
+			if now[k] != (had[k] if not had.is_empty() else none):
+				_dirty.get_or_add(key, {})[k] = true
+				occluders = occluders or kinds[k].occludes
+		if keys.has(key):
+			c.parts[owner] = now
+		else:
+			c.parts.erase(owner)
 	if keys.is_empty():
+		_owners.erase(owner)
+	else:
+		_owners[owner] = keys.keys()
+	if not _dirty.is_empty():
+		set_process(true)
+	if not occluders or placed.get_connections().is_empty():
 		return
-	_owners[owner] = keys.keys()
-	set_process(true)
+	var buffers: Array[PackedFloat32Array] = []
+	var strides := PackedInt32Array()
+	for k in kinds.size():
+		if kinds[k].occludes and not parts[k].is_empty():
+			var all := PackedFloat32Array()
+			for buf in parts[k].values():
+				all.append_array(buf)
+			buffers.append(all)
+			strides.append(kinds[k].stride())
+	placed.emit(owner, buffers, strides)
 
 
 func remove(owner: int) -> void:
-	if _drop(owner):
-		placed.emit(owner, [] as Array[PackedFloat32Array], PackedInt32Array())
-
-
-## Takes away what `owner` had placed; false if it had nothing.
-func _drop(owner: int) -> bool:
-	if not _owners.has(owner):
-		return false
-	for key in _owners[owner]:
-		_chunks[key].parts.erase(owner)
-		_dirty[key] = true
-	_owners.erase(owner)
-	set_process(true)
-	return true
+	var none: Array[Dictionary] = []
+	none.resize(kinds.size())
+	none.fill({})
+	place(owner, none)
 
 
 ## Instances placed, by kind: what the build costs to render.
@@ -234,7 +235,7 @@ func _process(_delta: float) -> void:
 	for key in _dirty:
 		var c: Chunk = _chunks[key]
 		_ranges(c)
-		for k in kinds.size():
+		for k: int in _dirty[key]:
 			var buf := PackedFloat32Array()
 			for parts in c.parts.values():
 				buf.append_array(parts[k])

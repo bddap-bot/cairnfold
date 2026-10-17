@@ -34,6 +34,7 @@ func _run() -> void:
 	await _no_strike_through_hills()
 	await _takes_marks()
 	await _mows()
+	_a_wide_swipe_mows_its_band_in_few_rays()
 	await _one_stroke()
 	await process_frame
 	world.flush()
@@ -195,3 +196,22 @@ func _play(steps: Array) -> void:
 	main.add_child(d)
 	await d.finished
 	d.queue_free()
+
+
+## A swipe of a wide ring across the meadow in one frame mows the whole band it crossed, taking rays half a ring
+## apart rather than one every STEP, so a wide sweep does not mow the same plants over and over.
+func _a_wide_swipe_mows_its_band_in_few_rays() -> void:
+	var a := Terrain.ground(-10, -6)
+	var b := Terrain.ground(2, -6)
+	var up := Vector3.UP * 14.0
+	var radius := FloraTool.brush_radius(a + up, a)
+	tool.press(self, a + up, Vector3.DOWN)
+	tool.hold(self, b + up, Vector3.DOWN)
+	var taken: Dictionary = tool._cuts[self].plants
+	var standing := 0
+	for i in 13:
+		var p := a.lerp(b, i / 12.0)
+		standing += flora.plants_near(p, 0.2 * radius).filter(func(q: Flora.Plant) -> bool: return not taken.has(q) and not Flora.on_path(q.anchor)).size()
+	tool.let_go(self)
+	_check(standing == 0, "a wide ring swiped in one frame mows its whole band: %d standing" % standing)
+	_check(DeleteTool.steps(a.distance_to(b), radius) == ceili(a.distance_to(b) / (radius * 0.5)), "a %.1f m ring's swipe takes rays half a ring apart" % radius)
