@@ -873,7 +873,7 @@ func _glide(s: Dictionary) -> void:
 
 
 ## A step's `eye` and `at`. With "ground", their heights count from the ground under each.
-## With "subject", they are in the frame of the first node in that group, as it stands now.
+## With "subject", they are in the frame of the first node in that group (or its `index`th), as it stands now.
 func _pose(s: Dictionary) -> Array[Vector3]:
 	var eye := Vector3(s.eye[0], s.eye[1], s.eye[2])
 	var at := Vector3(s.at[0], s.at[1], s.at[2])
@@ -885,7 +885,7 @@ func _pose(s: Dictionary) -> Array[Vector3]:
 		if found.is_empty():
 			push_error("driver: nothing in %s to view" % s.subject)
 			return []
-		var frame: Transform3D = found[0].global_transform
+		var frame: Transform3D = found[s.get("index", 0)].global_transform
 		eye = frame * eye
 		at = frame * at
 	return [eye, at]
@@ -906,6 +906,135 @@ func _walk(s: Dictionary) -> void:
 		main.view(eye, at, false)
 		await get_tree().process_frame
 		t += get_process_delta_time()
+
+
+## Sets an easel up at `x`, `z`, facing the head (or the ground point `facing`), as the easel tool's trigger does.
+func _easel(s: Dictionary) -> void:
+	var at := _spot(s, s.x, s.z)
+	var toward: Vector3 = _spot(s, s.facing[0], s.facing[1]) if s.has("facing") else main.rig.head.global_position
+	main.easel_tool.place(at, Easels.facing(at, toward), _hand(s))
+	await _frames(2)
+
+
+## The easel a step works at: its `easel`th by age, the newest by default.
+func _easel_of(s: Dictionary) -> Easels.Easel:
+	var ids: Array = main.easels.easels.keys()
+	ids.sort()
+	return main.easels.find(ids[s.get("easel", -1)])
+
+
+## Holds `hand` so its brush's tip is at `tip`, the brush pointing along `along`, turned `roll` about it.
+func _tip_at(hand: Hand, tip: Vector3, along: Vector3, up: Vector3, roll := 0.0) -> void:
+	var basis := Basis.looking_at(along, up).rotated(along.normalized(), roll)
+	hand.global_transform = Transform3D(basis, tip - basis * ToolModels.BRUSH_TIP)
+	hand.held_still = true
+
+
+## A grip at the easel's tray, as a player's hand closing there: takes a brush from the pot ("small", "big",
+## "flat"), the charcoal ("stick"), or the palette ("palette"), which stays in the hand until a `let_go`.
+func _take(s: Dictionary) -> void:
+	var hand := _hand(s)
+	var e := _easel_of(s)
+	var at: Vector3
+	match s.what:
+		"palette":
+			at = e.palette.global_position
+		"stick":
+			at = e.stick.global_transform * (ToolModels.BRUSH_TIP * 0.5)
+		_:
+			at = e.brushes[Brushwork.Brush[s.what.to_upper()]].global_transform * (ToolModels.BRUSH_TIP * 0.5)
+	hand.global_transform = Transform3D(e.global_basis * Basis(Vector3.RIGHT, -0.6), at)
+	hand.held_still = true
+	await _frames(1)
+	var key := "%s/grip_click" % hand.tracker
+	Buttons.injected[key] = true
+	await _frames(2)
+	if s.what != "palette":
+		Buttons.injected.erase(key)
+		await _frames(2)
+
+
+func _let_go(s: Dictionary) -> void:
+	Buttons.injected.erase("%s/grip_click" % _hand(s).tracker)
+	await _frames(2)
+
+
+## Holds the palette-holding hand where a painter holds it: beside the canvas, `at` in the easel's frame.
+func _hold(s: Dictionary) -> void:
+	var e := _easel_of(s)
+	var hand := _hand(s)
+	hand.global_transform = Transform3D(e.global_basis, e.global_transform * Vector3(s.at[0], s.at[1], s.at[2]))
+	hand.held_still = true
+	await _frames(2)
+
+
+## Dips the brush in `hand` into the jar, the tin, or well `index` of the palette, wherever the palette is, and
+## lifts it out.
+func _dip(s: Dictionary) -> void:
+	var hand := _hand(s)
+	var e := _easel_of(s)
+	var into: Vector3
+	match s.what:
+		"jar":
+			into = e.tray(Easels.JAR + Vector3(0, Easels.JAR_SIZE.y * 0.4, 0))
+		"tin":
+			into = e.tray(Easels.TIN + Vector3(0, Easels.TIN_SIZE.y * 0.5, 0))
+		_:
+			into = e.palette.global_transform * Easels.well(s.index)
+	_tip_at(hand, into + Vector3.UP * 0.08, Vector3.DOWN, -e.global_basis.z)
+	await _frames(2)
+	_tip_at(hand, into, Vector3.DOWN, -e.global_basis.z)
+	await _frames(3)
+	_tip_at(hand, into + Vector3.UP * 0.08, Vector3.DOWN, -e.global_basis.z)
+	await _frames(2)
+
+
+## A brushstroke on the canvas through `points` [u, v, pressure] (u across, v down, both 0..1) over `seconds`: the
+## tip comes in from off the canvas, presses as hard as each point says, and lifts off at the end. A flat brush is
+## turned `roll` degrees.
+func _brush(s: Dictionary) -> void:
+	var hand := _hand(s)
+	hand.tool = Hand.Tool.EASEL
+	var e := _easel_of(s)
+	var frame := e.canvas_frame()
+	var roll := deg_to_rad(s.get("roll", 0.0))
+	var on := func(p: Array, out: float) -> Vector3:
+		var depth: float = EaselTool.CONTACT - p[2] * EaselTool.PRESS_DEPTH
+		return frame * Vector3((p[0] - 0.5) * Brushwork.METRES.x, (0.5 - p[1]) * Brushwork.METRES.y, depth + out)
+	var pts: Array = s.points
+	_tip_at(hand, on.call(pts[0], 0.05), -frame.basis.z, frame.basis.y, roll)
+	await _frames(2)
+	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
+	for f in frames + 1:
+		var k := float(f) / frames * (pts.size() - 1)
+		var i := mini(floori(k), pts.size() - 2) if pts.size() > 1 else 0
+		var a: Array = pts[i]
+		var b: Array = pts[mini(i + 1, pts.size() - 1)]
+		var t := k - i
+		_tip_at(hand, on.call([lerpf(a[0], b[0], t), lerpf(a[1], b[1], t), lerpf(a[2], b[2], t)], 0.0), -frame.basis.z, frame.basis.y, roll)
+		await _frames(1)
+	_tip_at(hand, on.call(pts[-1], 0.05), -frame.basis.z, frame.basis.y, roll)
+	await _frames(2)
+
+
+## Takes the canvas's sheet in `hand` and pulls it `pull` metres off (enough tears it away), then lets go.
+func _sheet(s: Dictionary) -> void:
+	var hand := _hand(s)
+	var e := _easel_of(s)
+	var frame := e.canvas_frame()
+	var key := "%s/grip_click" % hand.tracker
+	hand.global_transform = Transform3D(frame.basis, frame * Vector3(0, -0.3, 0.05))
+	hand.held_still = true
+	await _frames(1)
+	Buttons.injected[key] = true
+	var frames := maxi(1, ceili(s.get("seconds", 0.6) * 60.0))
+	for f in frames:
+		hand.global_transform = Transform3D(frame.basis, frame * Vector3(0, -0.3, 0.05 + s.get("pull", 0.4) * (f + 1) / frames))
+		await _frames(1)
+	if s.has("capture"):
+		await main.capture(s.capture)
+	Buttons.injected.erase(key)
+	await _frames(2)
 
 
 func _capture(s: Dictionary) -> void:

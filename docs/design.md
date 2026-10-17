@@ -704,6 +704,9 @@ and one detail-texture read instead of three saved nothing.
 none measures the scene's own cost. Until the bare meadow holds 72 Hz there, a Quest's
 garden is held to the Frame's costs.
 
+An easel is not measured on a headset yet: until `demo/easel-bench.json` is played there and fitted by
+`scripts/costs.py` (its `easels` phases), each counts 0.4 ms.
+
 ## Automatic quality
 
 Directive (verbatim):
@@ -1235,6 +1238,7 @@ Stage numbers refer to the build order at the end.
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it, so a process killed mid-write leaves the last one whole (`tests/test_kill.gd`); a quit writes one still due before the sounds wind down. It is loaded at start. Only your own garden is kept, never one you are visiting. A file of another format, or one the game cannot read whole, is moved aside to `garden.save.bad` before the garden is saved again, and the log says which. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
 | Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, fish swim in it, butterflies gather over painted flowers, fireflies come out over both at dusk, conures perch on a tree or wall, sheep graze beside a fence (see "Wildlife") | 11 |
 | Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 1600×1200 photo with a level horizon, saved as a PNG under `user://photos` (see "Photos") | 11 (done) |
+| Painting | None | A big easel set up on the ground, painted with a brush held in the hand in watercolour, oil or charcoal (see "Painting") | done |
 | Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network with the visit tool (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
 
 ## Walls meeting walls
@@ -1387,12 +1391,12 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, decorations, paths, stone, flowers, grass, trees, ponds, colour, style, camera, seeds, delete and visit. The tool a hand
+windows, decorations, paths, stone, flowers, grass, trees, ponds, colour, style, camera, seeds, easel, delete and visit. The tool a hand
 holds stands on top of its controller as a small object, built from the same generators as the full-size
 thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
 flag with lanterns on it, a bend of paving, a disc of stone ground
 fraying into meadow, three flowers, a grass tuft, a tree, a pond in a
-sandy dish, a painter's palette with dabs of colour, a small camera, a clay dish heaped with bird seed, a spade for delete, and a little avatar
+sandy dish, a painter's palette with dabs of colour, a small camera, a clay dish heaped with bird seed, a paintbrush reaching past the controller for the easel, a spade for delete, and a little avatar
 figure for visit. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
 rounded body is unchanged, and there is no text anywhere.
@@ -1428,7 +1432,7 @@ learnable motion:
 | Slot | Holds |
 | --- | --- |
 | Top | Colour |
-| Upper right | Empty hands, camera, seeds |
+| Upper right | Empty hands, camera, seeds, easel |
 | Right | Flowers, grass, trees, ponds |
 | Lower right | Visit |
 | Bottom | Delete |
@@ -1538,6 +1542,9 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Turn the sky | Point either hand at open sky, whatever it holds, grip and aim: the sky turns with the pointer, carrying the sun from dawn to dusk |
 | Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window or door, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top on that build (or, on the meadow, the garden's season) |
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
+| Set up an easel | Trigger of a hand holding the easel, pointing at open ground with no easel near the hand: it stands there facing the player |
+| Paint | At an easel: grip at the pot for a small round, big round or flat brush, at the tray for charcoal, at the palette to carry it in that hand; dip the brush in a well, the jar or the tin; touch the canvas and push in to press harder (see "Painting") |
+| Fresh sheet | Grip on the canvas's face and pull well away: the sheet tears off, one undo step |
 
 ## Flat-screen controls
 
@@ -1936,6 +1943,45 @@ more render at photo size on the frame after the press, read back from the GPU a
 and written on a worker thread, so no frame waits on the pixels. A headset run's view captures
 (`Main.capture`) take the same render from the head and cost no late frame on the
 Frame (see "Frame measurements"). A held camera is not yet measured on a headset.
+
+## Painting
+
+Directive (verbatim): "There's a feature that I would like. That is a big painting easel that you can place on the ground and paint on. I'd like the painting to be pretty expressive. For example watercolors or just multiple different mediums."
+
+An easel (`Easels`) stands where the easel tool's trigger sets it, its canvas 1.5 by 1.125 m at standing height,
+tilted back 10°, with a tray in front: a pot of brushes, a jar of water, a tin of oil, a stick of charcoal and a
+palette of eight colour wells. Nothing is picked from a menu (`EaselTool`): a grip at the pot takes a small round, a
+big round or a flat brush, and at the tray the charcoal; a grip at the palette carries it in that hand while held, so
+the other hand dips into it; a well loads its pigment, mixing on the brush with what is there already (the palette's
+middle shows the mix), the jar makes the brush watercolour and thins it each dip, the tin makes it oil. The brush
+reaches past the controller; touching the canvas paints, pushing in presses harder and widens the mark, moving fast
+skims the paper's tooth, and the brush runs dry as it paints. A grip on the canvas takes its sheet and pulling it
+well away tears it off for a fresh one. A garden holds four easels at most, 1.4 m apart.
+
+The canvas is simulated on the GPU (`Canvas`, `paint.glsl`), about a millimetre a texel (1536 by 1152), so fine
+strokes hold up at arm's length in the headset. Colours are optical densities, mixed and layered by Beer-Lambert (a
+Kubelka-Munk-like subtractive model without scattering): blue and yellow make green, glazes darken. Watercolour is a
+water and pigment grid after the shallow-water models painting programs use: water flows to lower neighbours, into
+dry paper only past its tooth, so edges stop raggedly where the brush left them; pigment rides the water; water
+dries a share at a time and faster near an edge, so the edge holds and pigment piles into a darker rim; pigment
+settles into the paper's pits (granulation) and the rest as the water thins; a clean wet brush lifts colour; very
+wet paint runs down the tilted canvas. Oil lays opaque paint in bristle streaks, standing up as impasto the light
+catches, picking up the colour under it as the brush empties. Charcoal catches on the paper's peaks, reaching the
+hollows as it is pressed harder.
+
+What it costs: flow runs only on 64-texel tiles a wet brush touched in the last six seconds, two steps a tick at 60
+ticks a second, held to a budget of texel-steps a frame; past it the paint dries slower instead of the frame
+running long. A dry canvas costs its drawing only.
+
+Every stroke is a build command (`paint`, docs/multiplayer.md): the brush's medium, colour, strength and load, and
+its samples (where on the canvas, how hard, the flat brush's angle, at which tick), packed in two ints each.
+`Brushwork.Stroker` turns samples into dabs the same way on every machine, and every dab lands at a known tick of
+the canvas, so replaying a kept painting (loading, joining, or after an undo) lays the same picture the painter saw;
+a replay on this machine's GPU matched the live painting bit for bit. The painter's own canvas lays the stroke as it
+is painted; other players' canvases play it at the pace it was painted. Undo takes the last stroke off.
+
+`demo/easel.json` sets up three easels and paints a landscape on each, one per medium; `demo/easel-bench.json`
+measures easels and painting on a headset.
 
 ## Verifying on a headset
 

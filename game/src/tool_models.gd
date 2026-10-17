@@ -8,6 +8,9 @@ extends RefCounted
 ## The camera model's lens, from the model's origin; PhotoTool takes photos from here.
 const CAMERA_LENS := Vector3(0, 0.024, -0.0302)
 const CAMERA_SCREEN := Vector2(0.048, 0.036)
+## Where a brush's tip is, from the controller it is held in: it reaches past the controller, so painting is done
+## with the brush, not the hand.
+const BRUSH_TIP := Vector3(0, 0.01, -0.27)
 ## The parts of each fitting, by the kind its generator files them under.
 const FITTING_PARTS := {
 	"window": ["glass", "frame"],
@@ -71,6 +74,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_open_hand(root)
 		Hand.Tool.SEEDS:
 			_seeds(root)
+		Hand.Tool.EASEL:
+			_easel(root)
 	if tool in [Hand.Tool.WALLS, Hand.Tool.HOUSE]:
 		for part in root.get_children():
 			part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22), Vector3.ZERO) * part.transform
@@ -139,6 +144,81 @@ static func _palette(root: Node3D) -> void:
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(mi)
+
+
+## A little easel holding a painted canvas.
+static func _easel(root: Node3D) -> void:
+	var wood := _plain("easel_wood", Color(0.62, 0.45, 0.3))
+	var leg := BoxMesh.new()
+	leg.size = Vector3(0.003, 0.06, 0.003)
+	for x in [-0.014, 0.014]:
+		var mi := _piece(root, leg, Transform3D(Basis(Vector3.BACK, -x * 9.0), Vector3(x, 0.028, 0.004)), wood)
+		mi.rotate_x(-0.2)
+	var canvas := BoxMesh.new()
+	canvas.size = Vector3(0.04, 0.03, 0.002)
+	var tilt := Basis(Vector3.RIGHT, -0.17)
+	_piece(root, canvas, Transform3D(tilt, Vector3(0, 0.036, 0.0)), _plain("easel_canvas", Color(0.95, 0.93, 0.88)))
+	var dab := SphereMesh.new()
+	dab.radius = 0.006
+	dab.height = 0.002
+	dab.radial_segments = 10
+	dab.rings = 3
+	for d in [[Vector3(-0.009, 0.042, 0.0), 5], [Vector3(0.007, 0.037, 0.0), 1], [Vector3(-0.002, 0.029, 0.0), 6], [Vector3(0.011, 0.028, 0.0), 4]]:
+		_piece(root, dab, Transform3D(tilt.scaled(Vector3(1, 1, 0.5)), tilt * (d[0] - Vector3(0, 0.036, 0)) + Vector3(0, 0.036, 0.0015)), _plain("easel_dab%d" % d[1], Brushwork.PIGMENTS[d[1]]))
+
+
+## A brush of `kind` along the controller's aim, its tip at BRUSH_TIP; its bristles are the child named "tip", for
+## the paint on it. The stick is charcoal in a holder.
+static func brush(kind: Brushwork.Brush) -> Node3D:
+	var root := Node3D.new()
+	var handle := CylinderMesh.new()
+	handle.top_radius = 0.005
+	handle.bottom_radius = 0.0035
+	handle.height = 0.2
+	handle.radial_segments = 10
+	handle.rings = 1
+	var along := Basis(Vector3.RIGHT, -PI * 0.5)
+	var tip_z := BRUSH_TIP.z
+	var stick := kind == Brushwork.Brush.STICK
+	_piece(root, handle, Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + 0.155)), _plain("brush_handle" if not stick else "holder", Color(0.75, 0.28, 0.2) if not stick else Color(0.3, 0.27, 0.25)))
+	var ferrule := CylinderMesh.new()
+	ferrule.top_radius = 0.0045 if kind == Brushwork.Brush.SMALL else 0.0075
+	ferrule.bottom_radius = 0.005
+	ferrule.height = 0.03
+	ferrule.radial_segments = 10
+	ferrule.rings = 1
+	var flat := Basis().scaled(Vector3(2.2, 1, 0.45)) if kind == Brushwork.Brush.FLAT else Basis()
+	_piece(root, ferrule, Transform3D(along * flat, Vector3(0, BRUSH_TIP.y, tip_z + 0.04)), _plain("ferrule", Color(0.78, 0.76, 0.7)))
+	var hair := CylinderMesh.new()
+	var r: float = {Brushwork.Brush.SMALL: 0.003, Brushwork.Brush.BIG: 0.008, Brushwork.Brush.FLAT: 0.007, Brushwork.Brush.STICK: 0.003}[kind]
+	hair.top_radius = r
+	hair.bottom_radius = r * (0.15 if kind != Brushwork.Brush.FLAT and not stick else 0.9)
+	hair.height = 0.026
+	hair.radial_segments = 10
+	hair.rings = 1
+	var tip := _piece(root, hair, Transform3D(along * flat, Vector3(0, BRUSH_TIP.y, tip_z + 0.013)), _plain("charcoal" if stick else "bristles", Color(0.12, 0.11, 0.11) if stick else Color(0.86, 0.78, 0.62)))
+	tip.name = "tip"
+	return root
+
+
+static func _plain(key: String, colour: Color) -> StandardMaterial3D:
+	var mat: StandardMaterial3D = _mats.get(key)
+	if mat == null:
+		mat = StandardMaterial3D.new()
+		mat.albedo_color = colour
+		mat.roughness = 0.6
+		_mats[key] = mat
+	return mat
+
+
+static func _piece(root: Node3D, mesh: Mesh, at: Transform3D, mat: Material) -> MeshInstance3D:
+	var mi := MeshInstance3D.new()
+	mi.mesh = mesh
+	mi.transform = at
+	mi.material_override = mat
+	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	root.add_child(mi)
+	return mi
 
 
 ## The screen on the back of every camera model, one material PhotoTool shows the lens's view in.

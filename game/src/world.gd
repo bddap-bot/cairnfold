@@ -34,12 +34,13 @@ var stairs: Stairs
 var paths: Paths
 var ground_grab: GroundGrab
 var water: Water
+var easels: Easels
 ## The garden's season; each build carries its own colours.
 var palette := Palette.new()
-## Standing walls, paths and plant groups by id, as the plain values their commands carry, and the grid
+## Standing walls, paths, easels and plant groups by id, as the plain values their commands carry, and the grid
 ## points ponds fill from. A group keeps its command's fields, its `size` and the indices of its plants
-## since `hidden`.
-var state := {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": []}
+## since `hidden`; an easel where it stands, which way it faces and its canvas's strokes, oldest first.
+var state := {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": [], "easels": {}}
 var seq := 0
 var sculpted := false
 ## Host only: per player, their undo and redo stacks of {seq, inverse, keys}.
@@ -169,6 +170,11 @@ func change_of(cmd: Dictionary) -> Dictionary:
 				out.pond = 1
 			if cmd.has("unseed"):
 				out.pond = -1
+		"easel":
+			out.easel = 1
+		"uneasel":
+			if state.easels.has(cmd.id):
+				out.easel = -1
 		"batch":
 			for c: Dictionary in cmd.cmds:
 				Budget.add(out, change_of(c))
@@ -251,12 +257,13 @@ static func _write(path: String, bytes: PackedByteArray) -> void:
 		push_error("world: cannot save the garden at %s: %s" % [path, error_string(err)])
 
 
-func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, ponds: Water = null) -> void:
+func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, ponds: Water = null, stands: Easels = null) -> void:
 	wall_tool = walls
 	flora = plants
 	paths = ways
 	ground_grab = ground
 	water = ponds
+	easels = stands
 	if flora != null and flora.groups.has(0):
 		state.groups[0] = _meadow()
 		for p: Flora.Plant in flora.groups[0]:
@@ -358,7 +365,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 		cmd.token = proposed.token
 	if cmd.op == "wall" and not cmd.has("ids"):
 		cmd.ids = PackedInt32Array(range(seq * Commands.MAX_PIECES, seq * Commands.MAX_PIECES + cmd.walls.size()))
-	elif cmd.op in ["stairs", "plant", "path", "ground"] and not cmd.has("id"):
+	elif cmd.op in ["stairs", "plant", "path", "ground", "easel"] and not cmd.has("id"):
 		cmd.id = seq
 	var inverse := _timed(cmd)
 	if cmd.op == "plant" and cmd.kind != "tree":
@@ -486,6 +493,10 @@ func _keys(cmd: Dictionary) -> Array:
 			return ["q%d" % cmd.id]
 		"season":
 			return ["season"]
+		"easel", "uneasel":
+			return ["e%d" % cmd.id]
+		"paint", "unpaint", "sheet":
+			return ["e%d" % cmd.easel]
 		"wipe", "garden":
 			return [WIPED]
 		"batch":
@@ -665,6 +676,34 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			_hushed(func() -> void:
 				_clear()
 				_rebuild(cmd.cmds))
+		"easel":
+			state.easels[cmd.id] = {"at": cmd.at, "yaw": cmd.yaw, "strokes": cmd.strokes.duplicate()}
+			if easels != null:
+				easels.put(cmd.id, state.easels[cmd.id])
+			_account("e%d" % cmd.id, {"easel": 1})
+			inverse = {"op": "uneasel", "id": cmd.id}
+		"uneasel":
+			var e: Dictionary = state.easels[cmd.id]
+			inverse = {"op": "easel", "id": cmd.id, "at": e.at, "yaw": e.yaw, "strokes": e.strokes}
+			state.easels.erase(cmd.id)
+			if easels != null:
+				easels.take(cmd.id)
+			_account("e%d" % cmd.id, {})
+		"paint":
+			state.easels[cmd.easel].strokes.append(cmd.stroke)
+			if easels != null:
+				easels.painted(cmd.easel, cmd.stroke, handed)
+			inverse = {"op": "unpaint", "easel": cmd.easel}
+		"unpaint":
+			var strokes: Array = state.easels[cmd.easel].strokes
+			inverse = {"op": "paint", "easel": cmd.easel, "stroke": strokes.pop_back()}
+			if easels != null:
+				easels.repaint(cmd.easel, strokes)
+		"sheet":
+			inverse = {"op": "sheet", "easel": cmd.easel, "strokes": state.easels[cmd.easel].strokes}
+			state.easels[cmd.easel].strokes = cmd.strokes.duplicate()
+			if easels != null:
+				easels.repaint(cmd.easel, state.easels[cmd.easel].strokes)
 	if mine and painted:
 		_settle(cmd.token)
 	applied.emit(cmd)
@@ -705,6 +744,9 @@ func snapshot() -> Dictionary:
 		cmds.append({"op": "ground", "id": id, "kind": state.grounds[id].kind, "stamps": state.grounds[id].stamps})
 	for id in state.walls:
 		cmds.append({"op": "wall", "ids": PackedInt32Array([id]), "walls": [state.walls[id]]})
+	for id in state.easels:
+		var e: Dictionary = state.easels[id]
+		cmds.append({"op": "easel", "id": id, "at": e.at, "yaw": e.yaw, "strokes": e.strokes})
 	for id in state.groups:
 		var g: Dictionary = state.groups[id]
 		if g.kind != "meadow":
@@ -763,12 +805,14 @@ func _clear() -> void:
 		stairs.take(id)
 	for id in state.paths.keys():
 		paths.take(id)
+	if easels != null:
+		easels.clear()
 	if water != null:
 		water.reset()
 	for id in _strokes:
 		Ground.lift(_strokes[id])
 	_strokes.clear()
-	state = {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": []}
+	state = {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": [], "easels": {}}
 	units = _meadow_units.duplicate()
 	_units_of.clear()
 	flora.reset()
@@ -835,5 +879,9 @@ func digest() -> Dictionary:
 	out.mask = hash(Ground.laid.get_data())
 	out.ponds = water.ponds.size() if water != null else 0
 	out.season = palette.season
+	out.easels = {}
+	for id in state.easels:
+		var e: Dictionary = state.easels[id]
+		out.easels[str(id)] = {"at": var_to_str(e.at.snapped(Vector3.ONE * 0.01)), "strokes": e.strokes.size(), "paint": hash(var_to_str(e.strokes))}
 	out.budget = snappedf(fill(), 0.001)
 	return out

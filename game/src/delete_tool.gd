@@ -1,10 +1,10 @@
 class_name DeleteTool
 extends Node3D
 
-## Takes things away, for whichever hand holds it. Its beam strikes the first wall, tree or bush along it, else the
-## ground. Held, the trigger is an eraser for everything the beam passes over in one stroke: along a wall, the
+## Takes things away, for whichever hand holds it. Its beam strikes the first wall, easel, tree or bush along it, else
+## the ground. Held, the trigger is an eraser for everything the beam passes over in one stroke: along a wall, the
 ## stretch it swept breaks away into a ruin, stepped down to a gap at its foot with fallen stones (a tap breaks a
-## short gap); a tree or bush it strikes goes, and so does the path or stone ground it meets, giving back the ground
+## short gap); an easel, tree or bush it strikes goes, and so does the path or stone ground it meets, giving back the ground
 ## under it; elsewhere on the ground it mows the grass and flowers under the brush ring, the meadow's own as well
 ## as painted ones, raggedly at the ring's edge. Ruins and taken plants show as the beam passes; the whole stroke
 ## goes to the garden as one command when the trigger lets go, so one undo puts it all back. A sweep that would
@@ -32,11 +32,12 @@ var flora: Flora
 var world: World
 var _buttons: Array[Buttons] = []
 var _rings: Array[MeshInstance3D] = []
-## Strokes under way, by whoever holds the trigger (a hand, or the driver): {walls, wall, moved, plants, marks, ray}.
+## Strokes under way, by whoever holds the trigger (a hand, or the driver): {walls, wall, moved, plants, marks, easels,
+## ray}.
 ## `walls` holds by wall id the stretches swept along it, Vector2(from, to) unwrapped round a loop, and `moved` those
 ## walls swept since last shown; `wall` is the sweep along the wall the beam is on, {wall, id, span, at, last};
-## `plants` the plants taken; `marks` the ops taking paths and stone strokes, by id; `ray` the last ray, [origin,
-## dir, where it struck].
+## `plants` the plants taken; `marks` the ops taking paths and stone strokes, by id; `easels` the easels taken, by id;
+## `ray` the last ray, [origin, dir, where it struck].
 var _cuts := {}
 ## Wipes charging, by whoever holds the trigger up: {t, orb}.
 var _charges := {}
@@ -148,13 +149,19 @@ func _orb() -> MeshInstance3D:
 	return orb
 
 
-## What a ray from `origin` along `dir` takes, with the `point` it meets: a wall and where along it, a tree or
-## bush (`plants`), path or stone ground (`laid`), or the ground to mow with a brush of radius `mow`; {} when it
-## meets nothing. It passes through the plants in `taken`, which a stroke has already taken.
-func aim(origin: Vector3, dir: Vector3, taken := {}) -> Dictionary:
+## What a ray from `origin` along `dir` takes, with the `point` it meets: a wall and where along it, an easel, a tree
+## or bush (`plants`), path or stone ground (`laid`), or the ground to mow with a brush of radius `mow`; {} when it
+## meets nothing. It passes through the plants in `taken`, which a stroke has already taken, and the easels in
+## `gone`.
+func aim(origin: Vector3, dir: Vector3, taken := {}, gone := {}) -> Dictionary:
 	var ground: Variant = Terrain.raycast(origin, dir, REACH)
 	var reach: float = (ground - origin).dot(dir) if ground != null else REACH
 	var pick := walls.pick_wall(origin, dir)
+	var easel := world.easels.pick(origin, dir) if world.easels != null else {}
+	if not easel.is_empty() and (gone.has(easel.easel.id) or easel.along > reach or (not pick.is_empty() and pick.along <= easel.along)):
+		easel = {}
+	if not easel.is_empty():
+		reach = easel.along
 	var solid := flora.solid_hit(origin, dir, reach, taken)
 	var stair := world.stairs.pick(origin, dir, minf(reach, minf(pick.get("along", INF), solid.get("along", INF)))) if world.stairs != null else {}
 	if not stair.is_empty():
@@ -163,6 +170,8 @@ func aim(origin: Vector3, dir: Vector3, taken := {}) -> Dictionary:
 		return {"wall": pick.wall, "s": pick.s, "point": pick.point}
 	if not solid.is_empty():
 		return {"plants": solid.plants, "point": solid.point}
+	if not easel.is_empty():
+		return {"easel": easel.easel, "point": easel.point}
 	if ground == null:
 		return {}
 	if Ground.laid_bare(ground.x, ground.z) >= 0.5:
@@ -173,7 +182,7 @@ func aim(origin: Vector3, dir: Vector3, taken := {}) -> Dictionary:
 ## Starts `who`'s stroke. Strokes still growing grow at once, so it takes plants not yet grown under it.
 func press(who: Object, origin: Vector3, dir: Vector3) -> void:
 	flora.grow_now()
-	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}}
+	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}, "easels": {}}
 	var target := _stroke(_cuts[who], origin, dir)
 	_cuts[who].ray = [origin, dir, target.get("point", origin + dir)]
 	_preview(_cuts[who])
@@ -186,7 +195,7 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 	if cut.is_empty():
 		return {}
 	var was: Array = cut.ray
-	var far := Vector3(aim(origin, dir, cut.plants).get("point", origin + dir))
+	var far := Vector3(aim(origin, dir, cut.plants, cut.easels).get("point", origin + dir))
 	var n := clampi(ceili(far.distance_to(was[2]) / STEP), 1, MAX_STEPS)
 	var target := {}
 	for i in range(1, n + 1):
@@ -198,7 +207,7 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 
 
 func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
-	var target := aim(origin, dir, cut.plants)
+	var target := aim(origin, dir, cut.plants, cut.easels)
 	var on: Wall = cut.wall.get("wall")
 	if on != null:
 		var hit := sweep(cut, origin, dir)
@@ -209,6 +218,9 @@ func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 	if target.has("wall"):
 		if target.wall != cut.wall.get("wall"):
 			begin(cut, target.wall, target.s)
+	elif target.has("easel"):
+		target.easel.visible = false
+		cut.easels[target.easel.id] = target.easel
 	elif target.has("plants"):
 		for p: Flora.Plant in target.plants:
 			p.draw(false)
@@ -294,11 +306,17 @@ func let_go(who: Object) -> void:
 			cmds.append({"op": "reshape", "id": id, "data": {"ruins": PackedVector2Array(ruins)}})
 	for id: int in cut.marks:
 		cmds.append({"op": cut.marks[id], "id": id})
+	for id: int in cut.easels:
+		if world.state.easels.has(id):
+			cmds.append({"op": "uneasel", "id": id})
 	var settle := func() -> void:
 		for id in swept:
 			walls.settle(id)
 		for p: Flora.Plant in plants:
 			p.draw(p.shown())
+		for e: Node3D in cut.easels.values():
+			if is_instance_valid(e):
+				e.visible = true
 	if cmds.is_empty():
 		settle.call()
 	else:

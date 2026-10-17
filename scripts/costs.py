@@ -23,7 +23,7 @@ FLORA.update({"flowers-wild": FLORA["flowers"], "trees-wild": FLORA["trees"]})
 # Each phase and the unit it fits, over what earlier phases fitted of its others.
 ORDER = [("grass", "grass"), ("flowers", "flower"), ("trees", "tree"), ("walls-r10", "wall_m2"), ("walls-r15", "wall_m2"),
          ("walls-r20", "wall_m2"), ("plaster", "plaster_m2"), ("fences", "fence_m2"), ("paths", "path_m2"), ("ponds", "pond"),
-         ("village", "roof_m2"), ("lanterns", "fitting"), ("meadow", "bush"), ("hills", None), ("stone", None)]
+         ("village", "roof_m2"), ("lanterns", "fitting"), ("meadow", "bush"), ("hills", None), ("stone", None), ("easels", "easel")]
 WILD = ["flowers-wild", "trees-wild", "fences-wild", "ponds-wild"]
 
 units = {}

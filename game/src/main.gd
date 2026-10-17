@@ -30,6 +30,8 @@ var sky_tool: SkyTool
 var palette_tool: PaletteTool
 var photo_tool: PhotoTool
 var feed_tool: FeedTool
+var easels: Easels
+var easel_tool: EaselTool
 var sound: Soundscape
 var metrics: Metrics
 var quality: Quality
@@ -69,6 +71,10 @@ func _ready() -> void:
 	add_child(fitting_tool)
 	delete_tool = DeleteTool.new(rig, tool, flora_tool, world)
 	add_child(delete_tool)
+	easels = Easels.new()
+	builds.add_child(easels)
+	easel_tool = EaselTool.new(rig, easels, world)
+	add_child(easel_tool)
 	ground_grab = GroundGrab.new(rig, world, _editing)
 	ground_grab.reshaped.connect(tool.reground)
 	add_child(ground_grab)
@@ -80,7 +86,7 @@ func _ready() -> void:
 	add_child(water)
 	water_tool = WaterTool.new(rig, ground_grab, water)
 	add_child(water_tool)
-	world.attach(tool, flora, paths, ground_grab, water)
+	world.attach(tool, flora, paths, ground_grab, water, easels)
 	for h in rig.hands:
 		h.add_child(BudgetBar.new(world, h))
 	palette_tool = PaletteTool.new(rig, tool, world)
@@ -135,7 +141,7 @@ func _ready() -> void:
 		metrics.play_log = PlayLog.open_enabled(args)
 	metrics.context = func():
 		var counts := {}
-		for category in ["walls", "paths", "grounds", "groups"]:
+		for category in ["walls", "paths", "grounds", "groups", "easels"]:
 			counts[category] = world.state[category].size()
 		return {"garden_counts": counts, "masonry_instances": Array(tool.masonry.counts()),
 			"tools": [Hand.Tool.keys()[rig.hands[0].tool], Hand.Tool.keys()[rig.hands[1].tool]],
@@ -165,7 +171,7 @@ func _process(_delta: float) -> void:
 
 ## Whether `hand`, or with none any hand, has an edit under way: a grip takes nothing from a hand mid-edit.
 func _editing(hand: Hand = null) -> bool:
-	return stair_tool.busy(hand) or tool.busy(hand) or flora_tool.busy(hand) or ground_grab.busy(hand) or palette_tool.busy(hand) or delete_tool.busy(hand)
+	return stair_tool.busy(hand) or tool.busy(hand) or flora_tool.busy(hand) or ground_grab.busy(hand) or palette_tool.busy(hand) or delete_tool.busy(hand) or easel_tool.busy(hand)
 
 
 ## A game played without a headset comes up on the flat screen; a script or test asks for it by --flat.

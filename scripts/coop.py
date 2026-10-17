@@ -15,6 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 # run in wall time, so no wall-clock limit applies.
 QUIET_CPU = 40
 # Going home before these steps means a player lost the garden it was visiting.
+# The host and the joiner end their builds at this command; late joiners build after it.
+SEQ = 31
 HOME_CUE = re.compile(r'"home": true|"digests": \["home"\]')
 
 
@@ -44,12 +46,12 @@ def scripts(count):
         else:
             i = names.index(name)
             steps = [{"op": "place", "x": -2 * i, "z": 9}, {"op": "join"},
-                     {"op": "until", "seq": 28 + 2 * (i - 2), "players": count},
+                     {"op": "until", "seq": SEQ + 2 * (i - 2), "players": count},
                      {"op": "wall", "points": [[2 * i, 16], [2 * i + 1, 16]], "seconds": 0.3},
-                     {"op": "until", "seq": 29 + 2 * (i - 2)},
+                     {"op": "until", "seq": SEQ + 1 + 2 * (i - 2)},
                      {"op": "press", "button": "dpad_down"}]
         if count > 2:
-            steps += [{"op": "until", "seq": 28 + 2 * (count - 2)}]
+            steps += [{"op": "until", "seq": SEQ + 2 * (count - 2)}]
             steps += sample(name, names, count)
         steps += [{"op": "digest", "name": f"{name}-final"},
                   barrier([f"{n}-final" for n in names])]
@@ -138,7 +140,7 @@ def run(out, count):
             if proc.poll():
                 raise RuntimeError(f"{name} exited unsuccessfully")
             text = (out / f"{name}.log").read_text(errors="replace")
-            if any(s in text for s in ("SCRIPT ERROR", "timed out", "handle_crash")):
+            if any(s in text for s in ("SCRIPT ERROR", "timed out", "handle_crash", "cannot apply")):
                 raise RuntimeError(f"{name} failed; see {out / (name + '.log')}")
             if "session: home from" in HOME_CUE.split(text, 1)[0]:
                 raise RuntimeError(f"{name} lost the garden it visited; see {out / (name + '.log')}")

@@ -5,10 +5,10 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "species", "heights", "season", "wipe", "garden", "batch"]
+const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "species", "heights", "season", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "sheet"]
 ## What a batch may carry: from a player, takings; from the host, also the undo of them.
-const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show"]
-const UNBATCHED := ["stairs", "wall", "path", "ground"]
+const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show", "uneasel"]
+const UNBATCHED := ["stairs", "wall", "path", "ground", "easel"]
 ## Most commands one batch carries.
 const MAX_BATCH := 128
 ## A stroke builds at most this many walls; their ids follow from the command's sequence number.
@@ -46,9 +46,9 @@ static func length(points: Variant) -> float:
 	return total
 
 
-## Walls, paths and plant groups with anything standing.
+## Walls, paths, easels and plant groups with anything standing.
 static func _things(state: Dictionary) -> int:
-	var n: int = state.get("stairs", {}).size() + state.walls.size() + state.paths.size() + state.grounds.size()
+	var n: int = state.get("stairs", {}).size() + state.walls.size() + state.paths.size() + state.grounds.size() + state.get("easels", {}).size()
 	for g: Dictionary in state.groups.values():
 		if g.kind != "meadow" and g.hidden.size() < g.size:
 			n += 1
@@ -74,11 +74,11 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			out[k] = cmd[k]
 	if typeof(cmd.get("token")) == TYPE_INT:
 		out.token = cmd.token
-	if op in ["stairs", "plant", "path", "ground"] and from_host:
-		if typeof(cmd.get("id")) != TYPE_INT or state.groups.has(cmd.id) or state.paths.has(cmd.id) or state.grounds.has(cmd.id) or state.get("stairs", {}).has(cmd.id):
+	if op in ["stairs", "plant", "path", "ground", "easel"] and from_host:
+		if typeof(cmd.get("id")) != TYPE_INT or state.groups.has(cmd.id) or state.paths.has(cmd.id) or state.grounds.has(cmd.id) or state.get("stairs", {}).has(cmd.id) or state.get("easels", {}).has(cmd.id):
 			return {}
 		out.id = cmd.id
-	if op in ["stairs", "wall", "path", "ground", "plant"] and not from_host and _things(state) >= MAX_THINGS:
+	if op in ["stairs", "wall", "path", "ground", "plant", "easel"] and not from_host and _things(state) >= MAX_THINGS:
 		return {}
 	var ok := false
 	match op:
@@ -146,7 +146,66 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			out.cmds = cmds
 		"batch":
 			ok = _batch(cmd, state, from_host, out)
+		"easel":
+			ok = _easel(cmd, state, from_host, out)
+		"uneasel":
+			ok = typeof(cmd.get("id")) == TYPE_INT and state.easels.has(cmd.id)
+			out.id = cmd.get("id")
+		"paint":
+			var e: Variant = cmd.get("easel")
+			ok = typeof(e) == TYPE_INT and state.easels.has(e)
+			if ok:
+				out.easel = e
+				out.stroke = Brushwork.clean(cmd.get("stroke"))
+				var strokes: Array = state.easels[e].strokes
+				ok = out.stroke != null and strokes.size() < Brushwork.MAX_STROKES and _samples(strokes) + Brushwork.count(out.stroke) <= Brushwork.MAX_TOTAL
+		"unpaint":
+			var e: Variant = cmd.get("easel")
+			ok = typeof(e) == TYPE_INT and state.easels.has(e) and not state.easels[e].strokes.is_empty()
+			out.easel = e
+		"sheet":
+			var e: Variant = cmd.get("easel")
+			ok = typeof(e) == TYPE_INT and state.easels.has(e)
+			if ok:
+				out.easel = e
+				out.strokes = _strokes(cmd.get("strokes"))
+				ok = out.strokes != null and (from_host or out.strokes.is_empty())
 	return out if ok else {}
+
+
+## A new easel: where it stands and which way it faces, clear of the others; from the host, also the strokes it
+## comes back with when a taking is undone or a garden is rebuilt.
+static func _easel(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary) -> bool:
+	var at: Variant = cmd.get("at")
+	var yaw: Variant = cmd.get("yaw")
+	if typeof(at) != TYPE_VECTOR3 or not _finite(at) or typeof(yaw) != TYPE_FLOAT or not is_finite(yaw) or absf(yaw) > TAU:
+		return false
+	if not from_host and not Easels.room_at(at, state.easels):
+		return false
+	out.at = at
+	out.yaw = yaw
+	out.strokes = _strokes(cmd.get("strokes", []))
+	return out.strokes != null and (from_host or out.strokes.is_empty())
+
+
+## A canvas's strokes, each clean, within what one canvas holds, or null.
+static func _strokes(d: Variant) -> Variant:
+	if not d is Array or d.size() > Brushwork.MAX_STROKES:
+		return null
+	var out := []
+	for s: Variant in d:
+		var kept: Variant = Brushwork.clean(s)
+		if kept == null:
+			return null
+		out.append(kept)
+	return out if _samples(out) <= Brushwork.MAX_TOTAL else null
+
+
+static func _samples(strokes: Array) -> int:
+	var n := 0
+	for s: Dictionary in strokes:
+		n += Brushwork.count(s)
+	return n
 
 
 ## Each command of a batch is checked against the garden as it stands, so no two may change the same thing, and
@@ -176,7 +235,7 @@ static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 			kept.erase(k)
 		var ids: Array = Array(kept.ids) if kept.has("ids") else ([kept.id] if kept.has("id") else [-1])
 		for id: int in ids:
-			var key := "%s%d" % ["w" if kept.op in ["wall", "unwall", "reshape"] else ("q" if id >= 0 else "show"), id]
+			var key := "%s%d" % ["w" if kept.op in ["wall", "unwall", "reshape"] else ("e" if kept.op in ["easel", "uneasel"] else ("q" if id >= 0 else "show")), id]
 			if seen.has(key):
 				return false
 			seen[key] = true

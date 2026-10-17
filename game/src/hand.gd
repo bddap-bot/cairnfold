@@ -4,14 +4,14 @@ extends XRController3D
 ## A controller and the tool it holds. Every tool's input code dispatches on `tool`, and the object on top
 ## of the controller and the selection wheel show it, so they cannot disagree.
 
-enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, HANDS, SEEDS, DIRT_PATH, STYLE, STAIRS }
+enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, HANDS, SEEDS, DIRT_PATH, STYLE, STAIRS, EASEL }
 
 ## The wheel's contents, clockwise from the top; an Array is a subtree, null an empty slot. Subtrees sit
 ## on slots reached by a sideways swing, so their items open on the other side. Fixed, so every pick is a
 ## learnable motion.
 const TREE := [
 	Tool.COLOUR,
-	[Tool.HANDS, Tool.CAMERA, Tool.SEEDS],
+	[Tool.HANDS, Tool.CAMERA, Tool.SEEDS, Tool.EASEL],
 	[Tool.FLOWERS, Tool.GRASS, Tool.TREES, Tool.POND],
 	Tool.VISIT,
 	Tool.DELETE,
@@ -79,7 +79,7 @@ func _init(tracker_name: String, held: Tool) -> void:
 	mi.material_override = mat
 	body.add_child(mi)
 	for t in Tool.size():
-		var m := Node3D.new() if t == Tool.HANDS else ToolModels.build(t)
+		var m := Node3D.new() if t in [Tool.HANDS, Tool.EASEL] else ToolModels.build(t)
 		m.position = TOP
 		m.scale = Vector3.ZERO
 		m.visible = false
