@@ -9,7 +9,7 @@ import unittest
 class BenchmarkRendering(unittest.TestCase):
     def test_failed_rendering_cannot_pass_the_frame_budget(self):
         source = (Path(__file__).resolve().parents[1] / "scripts/bench.sh").read_text()
-        report = source.split('python3 - "$out" "$device" <<\'PY\'\n', 1)[1].rsplit("\nPY", 1)[0]
+        report = source.split('python3 - "$out" "$device" "$record" <<\'PY\'\n', 1)[1].rsplit("\nPY", 1)[0]
         with tempfile.TemporaryDirectory(dir=".") as folder:
             out = Path(folder)
             (out / "metrics.json").write_text(json.dumps({
@@ -21,10 +21,10 @@ class BenchmarkRendering(unittest.TestCase):
                 with self.subTest(log=log):
                     path = out / log
                     path.write_text('ERROR: When supplying a custom region, it must be contained within the framebuffer rectangle\n')
-                    result = subprocess.run([sys.executable, "-c", report, str(out), "desktop"], capture_output=True, text=True)
+                    result = subprocess.run([sys.executable, "-c", report, str(out), "desktop", str(out / "record.json")], capture_output=True, text=True)
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn("invalid framebuffer region; rendering failed", result.stderr)
                     path.unlink()
-            result = subprocess.run([sys.executable, "-c", report, str(out), "desktop"], capture_output=True, text=True)
+            result = subprocess.run([sys.executable, "-c", report, str(out), "desktop", str(out / "record.json")], capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("drag", result.stdout)

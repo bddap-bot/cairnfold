@@ -12,6 +12,7 @@
 #   bench.sh OUT_DIR --android APK            a Quest over adb (ANDROID_SERIAL picks it), in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
 # On a Quest, exits 1 when a phase the build must hold goes over budget; phases named "sweep/..." only measure.
+# Each run's phases are recorded in perf/RIG/SCENE/, RIG the headset's model, for scripts/trend.py to follow.
 # NESTCOMBE_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
 # frames over 1.5x the refresh period from its first second, where its edits land; the others leave that second out.
 # NESTCOMBE_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
@@ -24,6 +25,7 @@ mkdir -p "$out"
 # Which ducks come to the stress scene's ponds: this one brings the most there can be, two families of five.
 seed=25
 device=desktop
+rig=desktop
 players=${NESTCOMBE_PLAYERS:-1}
 case $players in [1-8]) ;; *) echo "bench: NESTCOMBE_PLAYERS is 1 to 8" >&2; exit 1 ;; esac
 # A scripted run hosts only when given a port.
@@ -99,6 +101,7 @@ if [ "${2:-}" = --android ]; then
     grep -m1 "$2" <<< "$dump" | grep -q "${3:-}"
   }
   # Never uninstall to make room: that deletes the garden saved on the device.
+  rig=$(adb shell getprop ro.product.model | tr -d '\r' | tr 'A-Z ' 'a-z-')
   adb install -r -g "$3" > /dev/null
   same "$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')" --short HEAD
   adb shell "rm -rf $dir; mkdir -p $dir"
@@ -182,6 +185,7 @@ if [ "${2:-}" = --android ]; then
   adb pull "$dir/." "$out/" > /dev/null
 elif [ $# -ge 3 ]; then
   device=frame
+  rig=frame
   ssh "$2" 'set -e; rm -rf nestcombe-bench; mkdir nestcombe-bench; tar -xz -C nestcombe-bench; mkdir nestcombe-bench/nestcombe/log' < "$3"
   same "$(ssh -n "$2" cat nestcombe-bench/nestcombe/REVISION)"
   scp -q "$out/stress.json" "$2:nestcombe-bench/nestcombe/log/stress.json"
@@ -226,9 +230,11 @@ if [ "$players" -gt 1 ] && grep -qs "driver: until .* timed out" "$out"/godot.lo
   echo "bench: not all $players players joined" >&2
   exit 1
 fi
-python3 - "$out" "$device" <<'PY'
+scene=$(basename "${NESTCOMBE_SCENE:-stress.json}" .json)
+record=$here/../perf/$rig/$scene/$(date -u +%Y%m%dT%H%MZ)-$(git -C "$here" rev-parse --short HEAD).json
+python3 - "$out" "$device" "$record" <<'PY'
 import json, os, re, sys
-out, device = sys.argv[1], sys.argv[2]
+out, device, record = sys.argv[1], sys.argv[2], sys.argv[3]
 for name in ["logcat.txt", "godot.log"]:
     path = os.path.join(out, name)
     if os.path.exists(path):
@@ -276,13 +282,17 @@ elif device == "quest":
 print(f"{device}: budget {budget['gpu_ms']:.2f} ms of GPU time a frame at {budget['refresh_hz']:.0f} Hz, held on a Quest")
 print(f"{'phase':18} {'frame p50':>9} {'p99':>7} {'late':>5} {'draws':>6} {'prims':>9} {'gpu ms':>7}")
 over = []
+summary = {}
 for name, secs in phases.items():
     late = sum(s["late"] for s in secs)
     secs = secs[1:] or secs
     mid = lambda xs: sorted(xs)[len(xs) // 2] if xs else float("nan")
     row = f"{name:18} {mid([s['p50'] for s in secs]):9.2f} {max(s['p99'] for s in secs):7.2f} {late:5} {max(s['draws'] for s in secs):6} {max(s['prims'] for s in secs):9}"
+    summary[name] = {"p50": mid([s["p50"] for s in secs]), "p99": max(s["p99"] for s in secs), "late": late,
+                     "draws": max(s["draws"] for s in secs), "prims": max(s["prims"] for s in secs)}
     if gpu.get(name):
         g = mid(gpu[name])
+        summary[name]["gpu_ms"] = round(g, 3)
         row += f" {g:7.2f}"
         if device == "quest":
             held = g <= budget["gpu_ms"]
@@ -290,6 +300,10 @@ for name, secs in phases.items():
             if not held and not name.startswith("sweep/"):
                 over.append(name)
     print(row)
+os.makedirs(os.path.dirname(record), exist_ok=True)
+with open(record, "w") as f:
+    json.dump({"budget_gpu_ms": budget["gpu_ms"], "phases": summary}, f, indent=1)
+print(f"recorded {os.path.relpath(record)}")
 if over:
     print("over budget: " + ", ".join(over))
     sys.exit(1)
