@@ -907,7 +907,7 @@ func _view(s: Dictionary) -> void:
 		return
 	var origin: Vector3 = main.rig.head.global_position if s.get("relative", false) else Vector3.ZERO
 	_eye = pose[0] + origin
-	_at = pose[1] + origin
+	_at = pose[1] + (Vector3.ZERO if s.has("toward") else origin)
 	main.view(_eye, _at, false)
 	await get_tree().process_frame
 
@@ -929,22 +929,34 @@ func _glide(s: Dictionary) -> void:
 		main.view(_eye, _at, false)
 
 
-## A step's `eye` and `at`. With "ground", their heights count from the ground under each.
-## With "subject", they are in the frame of the first node in that group (or its `index`th), as it stands now.
+## A step's `eye` and `at`. With "subject", they are in the frame of the first node in that group (or its
+## `index`th), as it stands now. With "ground", their heights count from the ground under each. With "toward",
+## `at` is offset from the node in that group nearest the eye, so a view can turn to an animal that has moved
+## without the eye moving.
 func _pose(s: Dictionary) -> Array[Vector3]:
 	var eye := Vector3(s.eye[0], s.eye[1], s.eye[2])
 	var at := Vector3(s.at[0], s.at[1], s.at[2])
-	if s.get("ground", false):
-		eye.y += Terrain.height_at(eye.x, eye.z)
-		at.y += Terrain.height_at(at.x, at.z)
 	if s.has("subject"):
 		var found := get_tree().get_nodes_in_group(s.subject)
 		if found.is_empty():
 			push_error("driver: nothing in %s to view" % s.subject)
 			return []
 		var frame: Transform3D = found[s.get("index", 0)].global_transform
+		if s.get("ground", false):
+			frame.origin.y = 0.0
 		eye = frame * eye
 		at = frame * at
+	if s.get("ground", false):
+		eye.y += Terrain.height_at(eye.x, eye.z)
+		at.y += Terrain.height_at(at.x, at.z)
+	if s.has("toward"):
+		var found := get_tree().get_nodes_in_group(s.toward)
+		if found.is_empty():
+			push_error("driver: nothing in %s to look toward" % s.toward)
+			return []
+		var eye_at: Vector3 = eye + (main.rig.head.global_position if s.get("relative", false) else Vector3.ZERO)
+		found.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(eye_at) < b.global_position.distance_to(eye_at))
+		at += found[0].global_position
 	return [eye, at]
 
 

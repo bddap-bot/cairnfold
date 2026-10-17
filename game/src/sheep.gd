@@ -22,6 +22,7 @@ const IDLE := Vector4(1, 0, 0, 0)
 const GRAZE := Vector4(0, 1, 0, 0)
 const WALK := Vector4(0, 0, 1, 0)
 const LIE := Vector4(0, 0, 0, 1)
+const POSES := {Grazers.Motion.IDLE: IDLE, Grazers.Motion.GRAZE: GRAZE, Grazers.Motion.STEP: GRAZE + WALK * 0.5, Grazers.Motion.WALK: WALK, Grazers.Motion.RUN: WALK, Grazers.Motion.LIE: LIE}
 ## Mode change per second: slow enough that lying down and getting up read as motions.
 const BLEND := 1.6
 const KIND := "sheep"
@@ -35,11 +36,13 @@ const FACE_AT := Vector3(0, 0.7, -0.47)
 var size := 1.0
 var gait := 0.0
 ## What `Herds` has this sheep doing, until when, and where to.
-var state := Herds.State.ENTER
+var state := Grazers.State.ENTER
 var timer := 0.0
 var goal := Vector3.ZERO
 ## How long until it goes for seeds again; the hand it eats from is `hand`.
 var full := 0.0
+## How long until, cornered, it looks again for a way to run.
+var retry := 0.0
 
 
 static func prepare() -> void:
@@ -55,12 +58,26 @@ func _init(phase: float, scale_by: float, tint: Color) -> void:
 	set_instance_shader_parameter("wool", Vector3(tint.r, tint.g, tint.b))
 
 
-## Advances the legs by `distance` walked.
-func walked(distance: float) -> void:
-	if distance <= 0.0:
-		return
-	gait = fposmod(gait + distance / (STRIDE * size) * TAU, TAU)
-	set_instance_shader_parameter("gait", gait)
+func pose(m: Grazers.Motion, delta: float) -> void:
+	blend(POSES[m], delta)
+
+
+## Advances the legs by `distance` walked, showing `m`.
+func walked(m: Grazers.Motion, distance: float, delta: float) -> void:
+	if distance > 0.0:
+		gait = fposmod(gait + distance / (STRIDE * size) * TAU, TAU)
+		set_instance_shader_parameter("gait", gait)
+	pose(m, delta)
+
+
+## Nibbling from a hand `height` above its hooves, the head lowered as far as the hand is low.
+func eat(height: float, delta: float) -> void:
+	var muzzle := FACE_AT.y * size
+	blend(IDLE.lerp(GRAZE, clampf((muzzle - height) / muzzle, 0.0, 1.0)), delta)
+
+
+func radius() -> float:
+	return RADIUS * size
 
 
 static func build() -> ArrayMesh:

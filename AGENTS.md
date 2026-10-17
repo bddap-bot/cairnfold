@@ -5,8 +5,9 @@ controls and the build order.
 
 - Clean room: never use, inspect or derive anything from Tiny Glade's files.
   Public talks and store material may inform the feel; every asset is generated
-  here or authored for this project, except the animal calls: CC0 recordings of real
-  animals, each listed with its page and author in `game/audio/animals/sources.json`.
+  here or authored for this project, with two exceptions, both CC0 and each listed with its page and author:
+  - the animal calls, recordings of real animals, in `game/audio/animals/sources.json`;
+  - the deer and fox models with their animations, in `game/animals/sources.json`.
 - Holding the headset's refresh rate at worst-case density is a hard, standing
   requirement: see "Frame budget" in the design document. Run `scripts/bench.sh` on
   a Quest before landing anything that adds cost, add new pieces to

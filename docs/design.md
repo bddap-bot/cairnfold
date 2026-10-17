@@ -288,7 +288,7 @@ density, and no build the player can make may bring the frame rate down.
   a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
   over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
   two storeys high, every other one turned a quarter, each crossed by a wing, tiled and then thatched, eight ponds, and the most ducks there can be at them (`bench.sh`
-  fixes the seed) and the most sheep at four fences between them (seen too from the ground by a fence), with every butterfly there can be
+  fixes the seed) and the most sheep at four fences between them (seen too from the ground by a fence), the deer and the fox each seen from a person's height, with every butterfly there can be
   over the full flower pool and the most conures there can be among the full pool of planted trees,
   every firefly there can be over the ponds at dusk, and a hill pulled up live under 973 m of walls,
   each seen from the air and standing among them, then both hands pushed into the walls beside the player, then the camera held up to it and a photo taken each second, then turned on the player, whose own avatar it draws.
@@ -1240,7 +1240,7 @@ Stage numbers refer to the build order at the end.
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of left X (the Frame's D-pad down) undoes a step, right A redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it, so a process killed mid-write leaves the last one whole (`tests/test_kill.gd`); a quit writes one still due before the sounds wind down. It is loaded at start. Only your own garden is kept, never one you are visiting. A file of another format, or one the game cannot read whole, is moved aside to `garden.save.bad` before the garden is saved again, and the log says which. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
-| Wildlife | Sheep, birds, ducks, fireflies | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, fish swim in it, butterflies gather over painted flowers, fireflies come out over both at dusk, conures perch on a tree or wall, sheep graze beside a fence (see "Wildlife") | 11 |
+| Wildlife | Sheep, birds, ducks, fireflies, deer, a fox | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, fish swim in it, butterflies gather over painted flowers, fireflies come out over both at dusk, conures perch on a tree or wall, sheep graze beside a fence; deer and a fox come out of the trees round the meadow (see "Wildlife") | 11 |
 | Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 1600×1200 photo with a level horizon, saved as a PNG under `user://photos` (see "Photos") | 11 (done) |
 | Painting | None | A big easel set up on the ground, painted with a brush held in the hand in watercolour, oil or charcoal (see "Painting") | done |
 | Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network with the visit tool (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
@@ -1907,6 +1907,28 @@ or thrown only draw those already there (see "Feeding").
   tuft and a short tail, about 880 triangles, a little varied in size and wool tint per sheep;
   idle, graze, walk and lie are blended in its vertex shader, the legs stepped by the ground
   covered so the hooves stay planted.
+- **Deer and a fox** come out of the trees round the meadow (`Roamers`). A while after the garden opens
+  (`Roamers.FIRST`), two or three deer walk out of sight from among the trees. They graze along the meadow's
+  rim (`Roamers.RING`), often at a tree's foot, stepping on as they crop, looking up and about, and walking
+  on to fresh grass. Later a fox comes alone and trots about with its nose to the grass.
+
+  Both are skittish. A person within `Roamers.WATCH` who comes nearer, or moves suddenly, has them stop and
+  watch, heads up. A person moving within `Roamers.FLIGHT`, or a sudden move within `Roamers.STARTLE`, sends
+  them galloping 12 to 20 m off, out toward the trees. A person keeping still for `Roamers.CALM_FOR` lets
+  them settle, and each such spell lets one come `Roamers.CLOSER` nearer before it runs, so a patient, quiet
+  player is let close; a fright starts that over. A person standing still never sends them off.
+
+  After a long stay (`Roamers.STAY`) they walk back into the trees and go once out of sight, and others come
+  a few minutes later (`Roamers.AGAIN`). Sheep, deer and the fox share one way of walking in, grazing,
+  running, eating and leaving (`Grazers`), and keep to the same ground: out of water, off paths and paving,
+  clear of walls, houses and trunks, never walking through a wall or into water. A wall drawn or a pond dug
+  under one sends it, within a second, to ground it may stand on.
+
+  Unlike the animals above, the deer and the fox are not built in code. They are Quaternius's CC0 models,
+  rigged and animated by hand (`game/animals/sources.json`, each file's hash checked by
+  `tests/test_animals.py`). Every motion they make is one of the model's own clips (idle, looking about,
+  head low, eating, walk, gallop), with the walk and gallop paced to the ground covered (`Beast.STRIDE`).
+  No motion is made for them here, and a behaviour without a clip is left out: they never lie down.
 
 ### Feeding
 
@@ -1926,6 +1948,9 @@ moves there its own way.
   water or bank and pecks under the hand, its ducklings pecking with it.
 - A sheep (`Herds.appetite`) walks up to seeds held within 0.9 m of the ground beside its pasture,
   stands with its muzzle at the hand and nibbles, its head lowered as far as the hand is low.
+- A deer or the fox (`Roamers.appetite`) sees seeds held low from 12 or 10 m and, once it has calmed from
+  any fright, walks up to them and eats with its head down, however near the person holding them. Eating,
+  only a sudden move close by sends it off.
 
 The trigger of a hand holding the dish throws a handful (`FeedTool`): its 28 grains leave the dish with the
 hand's eased velocity, each spread a little apart, and come down on the ground or float on a pond where they
@@ -1955,8 +1980,11 @@ vertex shader beats their wings. Fireflies are one MultiMesh of camera-facing qu
 beats their tails. Conures are capped at three
 (`Birds.CAP`): three draw calls of about 1,560 triangles each, one shared mesh and material, casting
 no shadow. Sheep are capped at eight (`Herds.CAP`, flocks of `Herds.FLOCK`): eight draw calls and
-about 7,000 triangles at most, one shared mesh and one material, no shadows. Every animal of a kind
-shares its mesh and material through `Critter`.
+about 7,000 triangles at most, one shared mesh and one material, no shadows. Deer come at most three at a time
+(`Roamers.HERD`) and the fox alone: four draw calls of about 2,100 and 1,850 triangles, each kind's surfaces
+merged into one mesh coloured per vertex (`Beast`), shared with one material, no shadows; each animal poses
+its own skeleton of about 50 bones from its clips, with nothing riding the bones. Every animal of a kind
+shares its mesh and material, through `Critter` or, for the deer and fox, `Beast`.
 
 On the CPU, `Wildlife` looks the walls and trees over twice a second for perches and pastures, and
 between looks the animals use what it found. A wall's perch points read every stone, several

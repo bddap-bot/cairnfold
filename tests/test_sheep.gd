@@ -174,7 +174,7 @@ func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
 	var at := Vector3.INF
 	for k in 8:
 		var p := near.position + Vector3.RIGHT.rotated(Vector3.UP, TAU * k / 8.0) * 1.5
-		if g.wildlife.herds.allowed(p) and g.wildlife.herds._clear_way(near.position, p):
+		if g.wildlife.herds.allowed(p) and g.wildlife.herds.clear_way(near.position, p):
 			at = Terrain.ground(p.x, p.z) + Vector3.UP * 0.45
 			break
 	_check(at != Vector3.INF, "open grass beside it to hold seeds over")
@@ -313,7 +313,7 @@ func _fences_draw_a_flock() -> void:
 	_check(g.sheep().is_empty(), "no sheep before its time")
 	_run(g, Wildlife.SHEEP_AFTER.y - Wildlife.SHEEP_AFTER.x + 2.0, first_sight)
 	var herds := g.wildlife.herds
-	_check(herds.flocks.size() == 1 and herds.flocks[0].fence == fence, "a flock comes to the fence some time after it stands")
+	_check(herds.bands.size() == 1 and herds.bands[0].fence == fence, "a flock comes to the fence some time after it stands")
 	var n := g.sheep().size()
 	_check(n >= Herds.FLOCK.x and n <= Herds.FLOCK.y, "two to four sheep, %d" % n)
 
@@ -386,7 +386,7 @@ func _fences_draw_a_flock() -> void:
 	await process_frame
 	_check(not is_instance_valid(fence), "the fence is erased")
 	_run(g, 1.0, vanishing)
-	_check(herds.flocks.size() == 1 and herds.flocks[0].sheep.all(func(s: Sheep) -> bool: return s.state == Herds.State.LEAVE), "the flock sets off")
+	_check(herds.bands.size() == 1 and herds.bands[0].animals.all(func(s: Sheep) -> bool: return s.state == Herds.State.LEAVE), "the flock sets off")
 	_run(g, 400.0, vanishing)
 	_check(g.sheep().is_empty(), "the sheep leave an erased fence")
 	_run(g, 120.0)
@@ -445,7 +445,7 @@ func _settled_sheep_follow_their_ground() -> void:
 	_draw(g, Hand.Tool.FENCE, Vector3(-6, 0, -4), Vector3(6, 0, -4))
 	_run(g, Wildlife.SHEEP_AFTER.y + 90.0)
 	var herds := g.wildlife.herds
-	_check(herds.flocks.size() == 1 and g.sheep().size() >= Herds.FLOCK.x, "a flock grazes by the fence")
+	_check(herds.bands.size() == 1 and g.sheep().size() >= Herds.FLOCK.x, "a flock grazes by the fence")
 	var watch := Watch.new()
 	var see := func() -> void: watch.see(self, g)
 	var some := _a_resting(g)
@@ -535,7 +535,7 @@ func _leaving_sheep_keep_out_of_walls_and_water() -> void:
 	_check(not is_instance_valid(fence), "the fence is erased")
 	_run(g, 1.0, see)
 	var herds := g.wildlife.herds
-	_check(herds.flocks.size() == 1 and herds.flocks[0].sheep.all(func(s: Sheep) -> bool: return s.state == Herds.State.LEAVE), "the flock sets off")
+	_check(herds.bands.size() == 1 and herds.bands[0].animals.all(func(s: Sheep) -> bool: return s.state == Herds.State.LEAVE), "the flock sets off")
 	_run(g, 90.0, see)
 	_check(watch.crossed == 0, "leaving, no sheep walks through a wall, %d steps" % watch.crossed)
 	_check(watch.wet == 0, "or into the water, %d frames" % watch.wet)
@@ -552,12 +552,12 @@ func _a_sheep_off_its_grass_goes_back() -> void:
 	var g := await _glade(4)
 	var fence := _draw(g, Hand.Tool.FENCE, Vector3(-6, 0, -4), Vector3(6, 0, -4))
 	_run(g, Wildlife.SHEEP_AFTER.y + 30.0)
-	var flock: Herds.Flock = g.wildlife.herds.flocks[0] if not g.wildlife.herds.flocks.is_empty() else null
+	var flock: Herds.Flock = g.wildlife.herds.bands[0] if not g.wildlife.herds.bands.is_empty() else null
 	_check(flock != null, "a flock grazes by the fence")
 	if flock == null:
 		await _teardown(g)
 		return
-	var s: Sheep = flock.sheep[0]
+	var s: Sheep = flock.animals[0]
 	var stray := Vector3.ZERO
 	for i in 20:
 		stray = Terrain.ground(-4.0 + i * 0.4, -4.0 + flock.side * 13.0)

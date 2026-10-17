@@ -7,7 +7,8 @@ extends Node3D
 ## the bank to rest on the grass, and leave when their pond is gone. Arrivals and departures happen
 ## out of the viewer's sight, so nothing pops in or out of being. Butterflies come the same way to the flower
 ## patches painted (`Butterflies`), fireflies at dusk over ponds and flower patches (`Fireflies`), fish to the ponds (`Fish`), conures,
-## after the ducks, to planted trees and wall tops (`Birds`), and sheep to the fences built (`Herds`).
+## after the ducks, to planted trees and wall tops (`Birds`), and sheep to the fences built (`Herds`); deer
+## and a fox come out of the trees round the meadow (`Roamers`).
 ## A hand or the head coming near slowly startles none of them; a sudden one does. A hand holding seeds draws
 ## those that eat from it, each kind as its `Appetite` says.
 
@@ -51,6 +52,8 @@ const PEEP_EVERY := 30.0
 ## A hand or the head moving faster than this, in metres a second, startles an animal near it; slower, it may
 ## come right up.
 const CALM := 0.7
+## Slower than this, in metres per second, a hand or the head is still.
+const STILL := 0.25
 ## Per second: how quickly the speed an animal sees follows a hand's or the head's, so tracking jitter startles none.
 const SPEED_EASE := 12.0
 ## Where an animal eating from a hand stands on it, in the controller's space: on its top, behind the seeds
@@ -96,6 +99,7 @@ var fireflies: Fireflies
 var fish: Fish
 var birds: Birds
 var herds: Herds
+var roamers: Roamers
 var calls: Calls
 var rng := RandomNumberGenerator.new()
 ## Whether a duck has ever come: conures come only after.
@@ -150,6 +154,7 @@ func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes:
 	Duck.prepare()
 	Sheep.prepare()
 	Conure.prepare()
+	Beast.prepare()
 	if seed >= 0:
 		rng.seed = seed
 	else:
@@ -164,6 +169,8 @@ func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes:
 	add_child(birds)
 	herds = Herds.new(self, rng.seed + 4)
 	add_child(herds)
+	roamers = Roamers.new(self, rng.seed + 7)
+	add_child(roamers)
 	calls = Calls.new(eyes, rng.seed + 5)
 	add_child(calls)
 
@@ -198,6 +205,7 @@ func tick(delta: float) -> void:
 		_since_look = 0.0
 		birds.look()
 		herds.look()
+		roamers.look()
 	ducks_came = ducks_came or not families.is_empty()
 	var perches := [birds] if ducks_came and birds.birds.is_empty() and not birds.sites.is_empty() else []
 	if not _ripe(_due_birds, perches, ARRIVE_AFTER, delta, true, birds.rng).is_empty():
@@ -209,6 +217,7 @@ func tick(delta: float) -> void:
 		_due_sheep.erase(fence)
 		if herds.count() < Herds.CAP:
 			herds.arrive(fence)
+	roamers.tick(delta)
 	for i in range(families.size() - 1, -1, -1):
 		var f := families[i]
 		_think(f, delta)
@@ -466,6 +475,10 @@ func _watched() -> Array[Node3D]:
 
 func sudden(n: Node3D) -> bool:
 	return _speed.get(n, 0.0) > CALM
+
+
+func still(n: Node3D) -> bool:
+	return _speed.get(n, 0.0) < STILL
 
 
 ## The first hand, or the head, within `reach` of `p` and moving suddenly, or null.
