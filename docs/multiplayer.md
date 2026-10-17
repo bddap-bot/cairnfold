@@ -419,7 +419,21 @@ reads about 22.6 ms whenever the near player's file did not arrive:
 | the VRM | 1 | 5,000 triangles, 512 px, alpha cut out | 22.62 | 26.04 | 23.53 |
 | the VRM | 1 | 5,000 triangles, 512 px, alpha cut out | 25.46 | 26.31 | 23.45 |
 
-The VRM in view costs the headset 2 to 3 ms a frame: one at 3.6 m adds 2.6 to 3.2 ms,
+On the Steam Frame, in its XR session unworn, the same scene and three other players
+from another machine (the measured instance launched with `--port 7480` so they can join),
+the game's GPU milliseconds per frame, two runs each. All three files arrived every time:
+
+| Other players wear | Close | Across | Away |
+| --- | --- | --- | --- |
+| built-in | 6.75 | 7.22 | 6.91 |
+| built-in | 6.75 | 7.20 | 6.90 |
+| the VRM | 7.67 | 7.96 | 6.90 |
+| the VRM | 7.69 | 7.97 | 6.91 |
+
+Three VRMs cost the Frame 0.9 ms close and 0.75 ms across the meadow, and nothing out of
+view: under a millisecond for all three, well inside its frame.
+
+On the Quest 2, the VRM in view costs the headset 2 to 3 ms a frame: one at 3.6 m adds 2.6 to 3.2 ms,
 and one or two across the meadow add 1.8 to 3.2 ms. Out of view it costs nothing (away:
 23.4 to 23.8 ms against 23.4). The cost does not follow the triangles, the texture size or
 alpha blending: cutting to 5,000 triangles and 512 px, and alpha blending to a cut-out, leave
@@ -427,7 +441,7 @@ it where it was, and one VRM costs about what two do. So lowering these limits w
 the frame back; the limits stay at 20,000 triangles, 20 surfaces and 1024 px until what does
 cost is found. Against a 12.5 ms budget, 2 to 3 ms for the first VRM in view is too much.
 
-Not every file arrives. With the headset hosting over Wi-Fi, one or two of the three
+Not every file arrives. With the Quest 2 hosting over Wi-Fi, one or two of the three
 other players' files arrived, within about 30 s, and the last never did, even after four
-minutes. On one machine all three arrive within seconds. Until that is fixed, a player's
+minutes. The Frame and one machine got all three within seconds. Until that is fixed, a player's
 own avatar can stay unseen by some of the others.

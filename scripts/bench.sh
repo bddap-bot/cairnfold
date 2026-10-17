@@ -26,6 +26,9 @@ seed=25
 device=desktop
 players=${NESTCOMBE_PLAYERS:-1}
 case $players in [1-8]) ;; *) echo "bench: NESTCOMBE_PLAYERS is 1 to 8" >&2; exit 1 ;; esac
+# A scripted run hosts only when given a port.
+hosting=
+[ "$players" -eq 1 ] || hosting=7480
 # With other players the measured instance waits for them all before its first phase.
 python3 - "${NESTCOMBE_SCENE:-$here/../demo/stress.json}" "$players" > "$out/stress.json" <<'PY'
 import json, sys
@@ -154,7 +157,7 @@ if [ "${2:-}" = --android ]; then
     adb logcat -c
     : > "$out/logcat.txt"
     follow
-    adb shell am start -n "$pkg/com.godot.game.GodotApp" --esa command_line_params "--,--script,$dir/stress.json,--metrics,$dir/metrics.json,--capture-dir,$dir,--seed,$seed" > /dev/null
+    adb shell am start -n "$pkg/com.godot.game.GodotApp" --esa command_line_params "--,--script,$dir/stress.json,--metrics,$dir/metrics.json,--capture-dir,$dir,--seed,$seed${hosting:+,--port,$hosting}" > /dev/null
     sleep 15
     shows "activity activities" ResumedActivity "$pkg" && break
     [ "$try" -lt 3 ] || { echo "bench: the game would not start; see $out/logcat.txt" >&2; exit 1; }
@@ -202,7 +205,7 @@ elif [ $# -ge 3 ]; then
   standby "$2" off
   ssh -n "$2" 'cd nestcombe-bench/nestcombe
     export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)} DISPLAY=${DISPLAY:-:0}
-    status=0; timeout 900 ./nestcombe -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --garden "$PWD/log/garden.save" --seed '"$seed"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
+    status=0; timeout 900 ./nestcombe -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --garden "$PWD/log/garden.save" --seed '"$seed${hosting:+ --port $hosting}"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
     rm log/pid; echo "bench: $(cat REVISION) exit $status"' &
   remote=$!
   if [ "$players" -gt 1 ]; then
@@ -213,7 +216,7 @@ elif [ $# -ge 3 ]; then
   scp -rq "$2:nestcombe-bench/nestcombe/log/*" "$out/"
   standby "$2" on
 else
-  setsid env NESTCOMBE_QUIT_AFTER=900 "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" > "$out/godot.log" 2>&1 &
+  setsid env NESTCOMBE_QUIT_AFTER=900 "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" ${hosting:+--port "$hosting"} > "$out/godot.log" 2>&1 &
   measured=$!
   [ "$players" -eq 1 ] || join cat "$out/godot.log" -- 127.0.0.1
   wait "$measured"
