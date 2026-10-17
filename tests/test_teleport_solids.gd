@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless checks that the teleport ray lands on whatever solid it meets in the garden, a pitched roof, a tree, a
-## wall's top: godot4 --headless --path game --script ../tests/test_teleport_solids.gd
+## wall's top: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_teleport_solids.gd
 
 var failures := 0
 var main: Node

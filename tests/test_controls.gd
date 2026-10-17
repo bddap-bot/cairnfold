@@ -134,7 +134,8 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	_check(Vector2(tool.house_at.center.x - spot.x, tool.house_at.center.z - spot.z).length() < 0.5, "where the hand points: %s" % tool.house_at.center)
 	_check(tool.house_at.size == WallTool.HOUSE_SIZE and is_equal_approx(tool.house_at.size.x, tool.house_at.size.y), "a square house")
 	for i in 300:
-		if not tool.house.laying() and not tool.house.layout.laid_points.is_empty():
+		tool.house.lay_now()
+		if not tool.house.layout.laid_points.is_empty():
 			break
 		await _frames(1)
 	var laid: int = tool.house.layout.laid
@@ -399,7 +400,8 @@ func _points(d: Dictionary) -> Array[Vector3]:
 
 func _laid(w: Wall) -> void:
 	for i in 300:
-		if not w.laying() and w.layout.laid_points == w.layout.points:
+		w.lay_now()
+		if w.layout.laid_points == w.layout.points:
 			return
 		await _frames(1)
 

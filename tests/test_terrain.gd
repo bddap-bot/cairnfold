@@ -109,11 +109,12 @@ func _on_ground(w: Wall) -> float:
 
 
 func _settles(w: Wall, what: String) -> void:
-	var frames := 0
-	while (w.laying() or not w._settled) and frames < 300:
+	for i in 300:
+		w.lay_now()
+		if w._settled:
+			break
 		await process_frame
-		frames += 1
-	_check(not w.laying() and w._settled, what)
+	_check(w._settled, what)
 
 
 func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
