@@ -1657,7 +1657,7 @@ most, one shared mesh per kind and one material. Butterflies are one MultiMesh c
 (`Butterflies.CAP`): one draw call of 22 triangles each; the CPU steers them and the
 vertex shader beats their wings. Fireflies are one MultiMesh of camera-facing quads capped at 48
 (`Fireflies.CAP`): one draw call, additive glows that cast no light. Fish are one MultiMesh capped at 24
-(`Fish.CAP`): one draw call of 82 triangles each, no shadows; the CPU steers them and the vertex shader
+(`Fish.CAP`): one draw call of 86 triangles each, no shadows; the CPU steers them and the vertex shader
 beats their tails. Conures are capped at three
 (`Birds.CAP`): three draw calls of about 1,560 triangles each, one shared mesh and material, casting
 no shadow. Sheep are capped at eight (`Herds.CAP`, flocks of `Herds.FLOCK`): eight draw calls and

@@ -12,8 +12,8 @@ const PER_POND := Vector2i(2, 7)
 ## Water shallower than this over the ground is not swum through.
 const MIN_DEPTH := 0.16
 ## How far under the surface a fish swims, as a share of the water there, and the least and most.
-const SWIM_AT := 0.35
-const SWIM_DEPTH := Vector2(0.06, 0.22)
+const SWIM_AT := 0.2
+const SWIM_DEPTH := Vector2(0.04, 0.1)
 const CRUISE := 0.14
 const DART := 0.75
 ## Per second, how quickly a dart slows back to cruising.
@@ -23,9 +23,9 @@ const TURN := 1.8
 const SHY := 0.55
 const DART_FOR := 0.9
 const ARRIVED := 0.2
-const LENGTH := 0.15
+const LENGTH := 0.24
 const STRIDE := 20
-const COLOURS: Array[Color] = [Color(0.95, 0.52, 0.22), Color(0.98, 0.86, 0.66), Color(0.93, 0.68, 0.3), Color(0.86, 0.4, 0.26)]
+const COLOURS: Array[Color] = [Color(1.0, 0.47, 0.12), Color(1.0, 0.95, 0.86), Color(1.0, 0.74, 0.18), Color(0.92, 0.3, 0.16)]
 
 var wildlife: Wildlife
 var rng := RandomNumberGenerator.new()
@@ -59,6 +59,7 @@ func _init(home: Wildlife, seed: int) -> void:
 	_buffer.resize(CAP * STRIDE)
 	mat.shader = load("res://src/fish.gdshader")
 	mat.shader.get_rid()
+	mat.render_priority = 1
 	var mmi := MultiMeshInstance3D.new()
 	mmi.multimesh = mm
 	mmi.material_override = mat
@@ -66,14 +67,15 @@ func _init(home: Wildlife, seed: int) -> void:
 	add_child(mmi)
 
 
-## A fish LENGTH long along +z, nose at -z: a round body tapering to the tail, and a forked fin there. UV.y runs
-## 0 at the nose to 1 at the fin's tip, for the shader's tail beat.
+## A fish LENGTH long along +z, nose at -z: a round body tapering to the tail, a tail fanned flat like a koi's
+## and two side fins, so it reads from above. UV.y runs 0 at the nose to past 1 at the tail's tips, for the
+## shader's tail beat; UV.x is 1 on the fins.
 static func body() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var rings := [Vector3(0.0, 0.0, -0.5), Vector3(0.55, 0.42, -0.36), Vector3(0.8, 0.62, -0.12), Vector3(0.7, 0.55, 0.12), Vector3(0.35, 0.3, 0.32), Vector3(0.1, 0.12, 0.42)]
+	var rings := [Vector3(0.0, 0.0, -0.5), Vector3(0.5, 0.55, -0.36), Vector3(0.7, 0.85, -0.12), Vector3(0.62, 0.72, 0.12), Vector3(0.32, 0.36, 0.32), Vector3(0.1, 0.1, 0.42)]
 	var sides := 8
-	var r := LENGTH * 0.16
+	var r := LENGTH * 0.2
 	for i in rings.size() - 1:
 		for s in sides:
 			var quad := []
@@ -87,11 +89,20 @@ static func body() -> ArrayMesh:
 				st.set_uv(Vector2(0.0, quad[t][2]))
 				st.add_vertex(quad[t][0])
 	var root := Vector3(0, 0, 0.4 * LENGTH)
-	for tip: Vector3 in [Vector3(0, 0.55, 0.62), Vector3(0, -0.55, 0.62)]:
-		for v: Vector3 in [root, root + Vector3(0, tip.y * r * 0.3, 0.06 * LENGTH), tip * Vector3(1, r, LENGTH)]:
-			st.set_normal(Vector3.RIGHT)
+	for side in [-1.0, 1.0]:
+		for v: Vector3 in [root, Vector3(side * 0.03, 0.0, 0.5) * LENGTH, Vector3(side * 0.16, 0.0, 0.66) * LENGTH]:
+			st.set_normal(Vector3.UP)
 			st.set_uv(Vector2(1.0, v.z / LENGTH + 0.5))
 			st.add_vertex(v)
+		for v: Vector3 in [Vector3(side * 0.03, 0.0, 0.5) * LENGTH, Vector3(0, 0, 0.56) * LENGTH, Vector3(side * 0.16, 0.0, 0.66) * LENGTH]:
+			st.set_normal(Vector3.UP)
+			st.set_uv(Vector2(1.0, v.z / LENGTH + 0.5))
+			st.add_vertex(v)
+	for side in [-1.0, 1.0]:
+		for v: Vector3 in [Vector3(side * 0.08, -0.02, -0.22), Vector3(side * 0.2, -0.03, -0.12), Vector3(side * 0.08, -0.02, -0.08)]:
+			st.set_normal(Vector3.UP)
+			st.set_uv(Vector2(1.0, v.z + 0.5))
+			st.add_vertex(v * LENGTH)
 	return st.commit()
 
 
