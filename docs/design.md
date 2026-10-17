@@ -408,22 +408,48 @@ walls 0.8 ms, shadows 1.3 ms, terrain 0.5 ms.
 
 What is left grows with what is built, so building needs a bound: "Build budget" below.
 
-Measured on the Quest 2 (`bench.sh OUT --android APK`: in the headset with its
-proximity sensor held closed, the runtime's `App=` GPU time per frame, median of
-each phase, CPU and GPU held at level 4, 525 MHz, the quality ladder at its top, and no
-other process rendering, the headset's own system shell included; "Automatic quality" below measured
-at the top clock and its own views, so its numbers run lower). GPU milliseconds per
-frame against a 12.5 ms budget:
+Measured on a Quest 2 (`NESTCOMBE_SCENE=demo/costs.json bench.sh OUT --android APK` on
+ecef026: in the headset with its proximity sensor held closed, the runtime's `App=` GPU time
+per frame, median of each phase, CPU and GPU held at level 4, 525 MHz, the ladder at its
+bottom step, no other process rendering). GPU milliseconds a frame against a 12.5 ms budget;
+every phase ran at half rate, 36 fps:
 
 | Phase | From the air | Standing |
 | --- | --- | --- |
-| Meadow | 14.2 | 12.0 |
-| Every flora pool full | 23.7 | 19.9 |
-| 159 m of walls (6,650 stones) | 32.6 | 23.1 |
-| 347 m (14,350) | 39.0 | 29.6 |
-| 630 m (25,900) | 43.8 | 36.3 |
-| 973 m (39,850) | 48.0 | 46.0 |
-| 347 m of 9 m walls (28,200) | 43.8 | 36.1 |
+| Bare meadow, its own flora cleared | 18.7 | 17.5 |
+| Meadow | 21.2 | 20.2 |
+| Grass pool full | 21.3 | 22.9 |
+| Flower pool full | 19.6 | 20.8 |
+| Tree pool full | 23.7 | 21.4 |
+| Walls, 10 m disc | 22.8 | 28.1 |
+| Walls, 15 m disc | 26.6 | 29.3 |
+| Walls, 20 m disc | 32.8 | 31.3 |
+| Plaster walls, 15 m disc | 22.1 | 25.6 |
+| Fences, 15 m disc | 20.3 | 20.1 |
+| Five paths 48 m long | 48.6 | 27.8 |
+| Eight ponds | 20.8 | 18.0 |
+| Village, 12 m disc | 28.1 | 20.5 |
+| Lanterns on the 10 m disc's walls | 23.3 | 31.1 |
+
+The meadow alone, from the air (22 m up) and standing, at the ladder's top and bottom
+steps (`App=` ms):
+
+| Build | Top, air | Top, standing | Bottom, air | Bottom, standing |
+| --- | --- | --- | --- | --- |
+| 48029e0 | 27.7 | 22.7 | 21.0 | 18.1 |
+| fdb33cb | 41.1 | 27.1 | 28.7 | 23.8 |
+| ecef026 | 33.4 | 23.8 | 20.9 | 20.1 |
+
+An earlier table here read the meadow at 14.2 and 12.0 ms on 48029e0 at the top step; on
+this headset that build reads 27.7 and 22.7, so the difference is the measurement, not the
+code. Between 48029e0 and fdb33cb two commits added cost: d353166's sparse far grass to 60 m
+(9 ms from the air at the top step only, the ladder's to give up) and 14753cc, whose
+fragment shader branched into `ground_normal` for live humps and paid it on every ground
+fragment (7.5 ms from the air, 3.5 standing, at every step; ecef026 reads that slope per
+vertex). The scene renders as one 4x MSAA 1440x1584 surface and its render stage now
+dominates (17 ms of it at the bottom step from the air, 1.7 ms binning), so on the Quest 2
+it is fragments, not vertices, that hold 60 fps out of reach: the bare meadow alone needs
+about a third less GPU time.
 
 The walls' cost is vertex work on the GPU. Frame time follows the GPU time, the
 live wall preview holds 72 Hz on the CPU (below), and draw calls stay near 150 at
@@ -433,13 +459,6 @@ instead of 96) had about the primitives the levels of detail had and roughly hal
 what the walls cost over the flora (measured with the headset's shell rendering
 beside the game, so those runs' own times read high): what costs is the vertices each
 stone instance runs, so the stone mesh is the lever.
-
-Over every flora pool full, a stone cost 0.71 to 0.81 µs of the Quest's GPU from the
-air and 0.60 to 0.63 µs standing, in two runs (fits through zero over the five wall
-phases of each view; the first walls cost the most: 159 m from the air, 8.9 ms). At the
-top of the ladder every flora pool full alone took 23.7 ms from the air and 19.9 ms
-standing; the ladder's lowest step brings full flora to 72 Hz (see "Automatic quality"),
-but not walls.
 
 The live wall preview, measured with the view turned to the sky so the GPU sits
 idle: every second of two 5 s strokes ran 72 frames with none late, the 99th
@@ -539,8 +558,9 @@ saved 0.4 ms, dropping its backlight nothing, and drawing one side 1.4 ms at the
 leaves vanishing from behind. From the air the stones cost about 8 ms over few primitives,
 and one detail-texture read instead of three saved nothing.
 
-The Quest 2 is not measured yet: until it is, a Quest's garden is held to the Frame's
-costs.
+`scripts/costs.py` fits nothing on the Quest 2 yet: every phase above runs at half rate, so
+none measures the scene's own cost. Until the bare meadow holds 72 Hz there, a Quest's
+garden is held to the Frame's costs.
 
 ## Automatic quality
 
