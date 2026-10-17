@@ -8,7 +8,9 @@ median viewport GPU time (the governor's signal) over the bare meadow's from the
 to half rate is left out: GPU time read there is not the scene's. A unit's cost is the most any view of any phase
 holding it as the one unknown gives, so the bound holds from every view measured. Wildlife comes to builds in numbers
 its caps bound, however much is built, so what a phase's animals add once they have come, over what its builds were
-fitted to cost, is charged once to the base: the room is what is left with every kind of animal there."""
+fitted to cost, is charged once to the base: the room is what is left with every kind of animal there, each phase's
+animals counted whole even where two phases bring the same kind. The base is the bare meadow's dearest view, dusk
+included."""
 import json
 import os
 import re
@@ -49,7 +51,10 @@ for name, secs in phases.items():
 views = [name.split("/")[1] for name in gpu if name.startswith("base/")]
 base = {v: gpu[f"base/{v}"] for v in views}
 cost = {}
-for phase, unit in ORDER:
+
+
+def extras(phase, unit):
+    """What each measured view of `phase` takes over the base and over what is fitted of its units other than `unit`."""
     have = units.get(phase, {})
     for v in views:
         name = f"{phase}/{v}"
@@ -58,23 +63,18 @@ for phase, unit in ORDER:
         if name not in gpu or name in halved:
             continue
         extra = gpu[name] - base[v] - sum(have[k] * cost[k] for k in have if k != unit) / 1000.0
-        print(f"{name:16} {gpu[name]:6.2f} ms, {extra:+6.2f} ms over the base and what is fitted, units {have}", file=sys.stderr)
+        print(f"{name:20} {gpu[name]:6.2f} ms, {extra:+6.2f} ms over the base and what is fitted, units {have}", file=sys.stderr)
+        yield extra, have
+
+
+for phase, unit in ORDER:
+    for extra, have in extras(phase, unit):
         if unit is not None:
             cost[unit] = max(cost.get(unit, 0.0), extra * 1000.0 / have[unit])
-wild = 0.0
-for phase in WILD:
-    have = units.get(phase, {})
-    most = 0.0
-    for v in views:
-        name = f"{phase}/{v}"
-        if name in halved:
-            print(f"{name}: half rate, left out", file=sys.stderr)
-        if name not in gpu or name in halved:
-            continue
-        extra = gpu[name] - base[v] - sum(have[k] * cost.get(k, 0.0) for k in have) / 1000.0
-        print(f"{name:20} {gpu[name]:6.2f} ms, {extra:+6.2f} ms of animals over the base and its builds", file=sys.stderr)
-        most = max(most, extra)
-    wild += most
+missing = [unit for _, unit in ORDER if unit is not None and unit not in cost]
+if missing:
+    sys.exit(f"costs: no view measured {', '.join(missing)}; nothing written")
+wild = sum(max([extra for extra, _ in extras(phase, None)] + [0.0]) for phase in WILD)
 line = {"budget_ms": "1000.0 / REFRESH_HZ * Quality.Governor.LINE", "base_ms": round(max(base.values()) + wild, 2),
         **{k: round(v, 3) for k, v in cost.items()}}
 text = ", ".join(f'"{k}": {v}' for k, v in line.items())

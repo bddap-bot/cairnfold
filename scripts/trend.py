@@ -17,7 +17,10 @@ for rig in sorted(os.listdir(root)) if os.path.isdir(root) else []:
         if len(want) > 1 and scene != want[1]:
             continue
         folder = os.path.join(root, rig, scene)
-        runs = [(name[:-5], json.load(open(os.path.join(folder, name)))["phases"]) for name in sorted(os.listdir(folder))]
+        runs = [(name[:-5], json.load(open(os.path.join(folder, name)))["phases"]) for name in sorted(os.listdir(folder))
+                if name.endswith(".json")]
+        if not runs:
+            continue
         latest_name, latest = runs[-1]
         print(f"{rig} {scene}: {len(runs)} runs, latest {latest_name}")
         print(f"  {'phase':24} {'latest':>7} {'before':>7} {'best':>7}")

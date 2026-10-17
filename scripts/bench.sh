@@ -12,7 +12,8 @@
 #   bench.sh OUT_DIR --android APK            a Quest over adb (ANDROID_SERIAL picks it), in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
 # On a Quest, exits 1 when a phase the build must hold goes over budget; phases named "sweep/..." only measure.
-# Each run's phases are recorded in perf/RIG/SCENE/, RIG the headset's model, for scripts/trend.py to follow.
+# Each run's phases are recorded in perf/RIG/SCENE/, RIG the headset's model; commit the record with the change it
+# measured, for scripts/trend.py to follow.
 # NESTCOMBE_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
 # frames over 1.5x the refresh period from its first second, where its edits land; the others leave that second out.
 # NESTCOMBE_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
@@ -231,7 +232,7 @@ if [ "$players" -gt 1 ] && grep -qs "driver: until .* timed out" "$out"/godot.lo
   exit 1
 fi
 scene=$(basename "${NESTCOMBE_SCENE:-stress.json}" .json)
-record=$here/../perf/$rig/$scene/$(date -u +%Y%m%dT%H%MZ)-$(git -C "$here" rev-parse --short HEAD).json
+record=$here/../perf/$rig/$scene/$(date -u +%Y%m%dT%H%M%SZ)-$(git -C "$here" rev-parse --short HEAD).json
 python3 - "$out" "$device" "$record" <<'PY'
 import json, os, re, sys
 out, device, record = sys.argv[1], sys.argv[2], sys.argv[3]
