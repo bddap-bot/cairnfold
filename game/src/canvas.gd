@@ -57,6 +57,7 @@ func _init() -> void:
 	_tiles.resize(TILES.x * TILES.y * 2)
 	material = ShaderMaterial.new()
 	material.shader = preload("res://src/canvas.gdshader")
+	material.set_shader_parameter("metres", Brushwork.METRES)
 	_rd = RenderingServer.get_rendering_device()
 	for i in 3:
 		_shown.append(Texture2DRD.new())
