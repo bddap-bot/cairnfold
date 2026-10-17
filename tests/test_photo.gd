@@ -44,6 +44,7 @@ func _the_screen_shows_the_lens_while_a_hand_holds_the_camera() -> void:
 		tool._preview.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_check(_screen_shows(tool), "the screen shows the lens's view while the camera is held")
 	_check(drawn == 4, "the preview is drawn on one frame in %d: %d of %d" % [PhotoTool.PREVIEW_EVERY, drawn, PhotoTool.PREVIEW_EVERY * 4])
+	_the_lens_sees_as_far_as_the_eye(rig, tool)
 	rig.left.tool = Hand.Tool.CAMERA
 	await process_frame
 	_check(tool.holders().size() == 2, "both hands can hold a camera")
@@ -57,6 +58,26 @@ func _the_screen_shows_the_lens_while_a_hand_holds_the_camera() -> void:
 	rig.left.tool = Hand.Tool.FLOWERS
 	await process_frame
 	_check(ToolModels.camera_screen().albedo_texture == null, "and goes dark when the camera is put away")
+
+
+func _the_lens_sees_as_far_as_the_eye(rig: Rig, tool: PhotoTool) -> void:
+	var at := Transform3D(Basis.IDENTITY, Vector3(0, 1.6, 0))
+	rig.head.global_transform = at
+	var photo := tool._viewport(PhotoTool.PHOTO_SIZE, Viewport.MSAA_4X)
+	var far := 0.0
+	for d in range(10, 2000, 10):
+		if rig.head.is_position_in_frustum(at * Vector3(0, 0, -d)):
+			far = d
+	_check(far > 100.0, "the eye sees past the meadow: %d m" % far)
+	for lens: SubViewport in [tool._preview, photo]:
+		var cam: Camera3D = lens.get_child(0)
+		cam.global_transform = at
+		var dropped := []
+		for d in range(10, int(far) + 1, 10):
+			if not cam.is_position_in_frustum(at * Vector3(0, 0, -d)):
+				dropped.append(d)
+		_check(dropped.is_empty(), "the %s shows what the eye sees out to %d m; it drops %s m" % [lens.size, far, dropped])
+	photo.queue_free()
 
 
 func _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not() -> void:

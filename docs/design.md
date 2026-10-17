@@ -1681,7 +1681,8 @@ earlier APK left in `user://photos` (`PhotoTool.move_all`). The screen holds the
 moment with a soft flash, and the hand gets a short buzz on the press. Either hand can hold a camera; both show the view of the first.
 
 What it costs: nothing until a hand first holds the camera. The screen is then a second view of
-the garden at `PhotoTool.PREVIEW_SIZE` without MSAA, out to 60 m, redrawn on one frame in three:
+the garden at `PhotoTool.PREVIEW_SIZE` without MSAA, out to the eye's own far clip (`Rig.FAR`, the
+one view range the eye, the screen and the photo share), redrawn on one frame in three:
 that frame pays the scene's draw calls and shadow pass again at a small size. A photo is one
 more render at photo size on the frame after the press, read back from the GPU asynchronously
 and written on a worker thread, so no frame waits on the pixels. A headset run's view captures

@@ -8,7 +8,6 @@ extends Node3D
 const PREVIEW_SIZE := Vector2i(256, 192)
 ## The preview redraws on one frame in this many, a third of the frames paying for a second, small view.
 const PREVIEW_EVERY := 3
-const PREVIEW_FAR := 60.0
 const PHOTO_SIZE := Vector2i(1600, 1200)
 const FOV := 55.0
 const SHOT_HOLD := 1.2
@@ -71,7 +70,7 @@ static func move_all(from: String, to: String) -> int:
 	return moved
 
 
-func _viewport(size: Vector2i, msaa: Viewport.MSAA, far: float) -> SubViewport:
+func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:
 	var vp := SubViewport.new()
 	vp.size = size
 	vp.msaa_3d = msaa
@@ -79,7 +78,7 @@ func _viewport(size: Vector2i, msaa: Viewport.MSAA, far: float) -> SubViewport:
 	var cam := Camera3D.new()
 	cam.fov = FOV
 	cam.near = Rig.NEAR
-	cam.far = far
+	cam.far = Rig.FAR
 	vp.add_child(cam)
 	add_child(vp)
 	return vp
@@ -107,7 +106,7 @@ func _process(delta: float) -> void:
 		screen.albedo_color = Color.WHITE.lerp(Color(2.5, 2.5, 2.5), clampf((_shot_left - SHOT_HOLD + 0.15) / 0.15, 0.0, 1.0))
 	else:
 		if _preview == null:
-			_preview = _viewport(PREVIEW_SIZE, Viewport.MSAA_DISABLED, PREVIEW_FAR)
+			_preview = _viewport(PREVIEW_SIZE, Viewport.MSAA_DISABLED)
 		screen.albedo_texture = _preview.get_texture()
 		screen.albedo_color = Color.WHITE
 		_frame = (_frame + 1) % PREVIEW_EVERY
@@ -184,7 +183,7 @@ func render(at: Transform3D, fov := FOV, mask := ALL_LAYERS) -> Image:
 		await get_tree().process_frame
 	_busy = true
 	if _photo == null:
-		_photo = _viewport(PHOTO_SIZE, Viewport.MSAA_4X, 400.0)
+		_photo = _viewport(PHOTO_SIZE, Viewport.MSAA_4X)
 	_aim(_photo, at, fov, mask)
 	_photo.render_target_update_mode = SubViewport.UPDATE_ONCE
 	await RenderingServer.frame_post_draw

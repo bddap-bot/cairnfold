@@ -1,0 +1,16 @@
+[
+  {"op": "place", "x": 0, "z": 28},
+  {"op": "house", "round": true, "at": [0, -60], "size": [7, 7], "seconds": 0.5},
+  {"op": "house", "at": [-14, -50], "size": [8, 5], "turn": 20, "seconds": 0.5},
+  {"op": "tree", "x": 12, "z": -55},
+  {"op": "wait", "seconds": 3},
+  {"op": "view", "eye": [0, 1.7, 30], "at": [0, 1.7, -60]},
+  {"op": "capture", "name": "00-eye"},
+  {"op": "pick", "hand": "right", "tool": "camera"},
+  {"op": "hands", "right": [0.0, -0.08, -0.2], "tip": 0},
+  {"op": "wait", "seconds": 1},
+  {"op": "capture", "name": "01-viewfinder"},
+  {"op": "photo"},
+  {"op": "wait", "seconds": 2},
+  {"op": "quit"}
+]
