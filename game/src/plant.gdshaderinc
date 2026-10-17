@@ -10,6 +10,8 @@ uniform vec3 backlight : source_color = vec3(0.0);
 // A crown blob gives to the wind this much of what a grass blade of its height above the ground would, all of it
 // moving as one, so the crown sways rather than ripples.
 const float CROWN_GIVE = 0.12;
+// The tint a blob's underside takes, so the shade under a crown reads cool.
+const vec3 CROWN_SHADE = vec3(0.8, 0.92, 1.15);
 #endif
 
 #ifdef FLOWER
@@ -60,7 +62,7 @@ void vertex() {
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);
 	}
 #ifdef BACKLIT
-	COLOR.rgb = seasoned(albedo * COLOR.rgb, season_foliage);
+	COLOR.rgb = seasoned(albedo * COLOR.rgb, season_foliage) * mix(vec3(1.0), CROWN_SHADE, smoothstep(0.2, -0.8, NORMAL.y));
 #endif
 }
 
