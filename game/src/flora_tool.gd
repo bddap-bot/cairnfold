@@ -297,8 +297,8 @@ func end_path(b: Brush) -> void:
 	planted.emit()
 
 
-func plant_tree(at: Vector3, hand: Hand = null) -> void:
-	var cmd := {"op": "plant", "kind": "tree", "seed": randi(), "at": at}
+func plant_tree(at: Vector3, hand: Hand = null, shape := randi()) -> void:
+	var cmd := {"op": "plant", "kind": "tree", "seed": shape, "at": at}
 	if world.fits(cmd):
 		Cues.play(Cues.Act.TREE_PLANT, at, hand)
 	world.submit(cmd, Callable(), hand)

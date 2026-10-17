@@ -490,7 +490,7 @@ func _wade(s: Dictionary) -> void:
 
 
 func _tree(s: Dictionary) -> void:
-	main.flora_tool.plant_tree(_spot(s, s.x, s.z))
+	main.flora_tool.plant_tree(_spot(s, s.x, s.z), null, s.get("seed", randi()))
 
 
 ## Points the delete tool straight down at a ground spot from `height` metres up and presses once: a tap.
