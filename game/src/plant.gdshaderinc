@@ -7,6 +7,9 @@ uniform vec3 albedo : source_color = vec3(1.0);
 uniform float roughness = 1.0;
 #ifdef BACKLIT
 uniform vec3 backlight : source_color = vec3(0.0);
+// A crown blob gives to the wind this much of what a grass blade of its height above the ground would, all of it
+// moving as one, so the crown sways rather than ripples.
+const float CROWN_GIVE = 0.12;
 #endif
 
 #ifdef FLOWER
@@ -32,6 +35,9 @@ varying float far_head;
 void vertex() {
 	float ground = ground_at(INSTANCE_CUSTOM.zw);
 	VERTEX.y += ground;
+#ifdef BACKLIT
+	VERTEX += wind_push(INSTANCE_CUSTOM.zw, wind_gust(INSTANCE_CUSTOM.zw)) * CROWN_GIVE * max(MODEL_MATRIX[3].y, 0.0);
+#endif
 #ifdef PARTED
 	vec3 root = MODEL_MATRIX[3].xyz + vec3(0.0, ground, 0.0);
 	VERTEX = mix(root, VERTEX, 1.0 - max(bare(root.xz), bank(water_depth_at(root.xz))));
