@@ -1,0 +1,12 @@
+[
+ {"op":"view","eye":[8,6,11],"at":[0,1,0]},
+ {"op":"wait","seconds":2},
+ {"op":"label","name":"wall-drag"},
+ {"op":"wall","points":[[-5,0],[-4,0],[-3,0],[-2,0],[-1,0],[0,0],[1,0],[2,0],[3,0],[4,0]],"seconds":2},
+ {"op":"wait","seconds":1},
+ {"op":"view","eye":[8,7,13],"at":[0,1,4]},
+ {"op":"label","name":"building-drag"},
+ {"op":"house","from":[-1,4],"at":[1,4],"size":[7,4.5],"turn_from":-10,"turn":10,"seconds":2},
+ {"op":"wait","seconds":2},
+ {"op":"quit"}
+]

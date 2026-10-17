@@ -21,7 +21,6 @@ const WALL_PICK := 0.7
 const TINT := Color(1.0, 0.97, 0.9, 0.55)
 const HOUSE_HEIGHT := 2.4
 const TOWER_HEIGHT := 4.5
-## Bounds of a house's sides; the shorter side, under the ridge, stops at HOUSE_DEPTH.
 const HOUSE_SIDES := Vector2(2.4, 14.0)
 const HOUSE_DEPTH := 7.0
 enum RoofStyle { PITCHED, CONE, FLAT, THATCHED, THATCHED_CONE }
@@ -494,13 +493,9 @@ func end_house() -> void:
 	_finish([w], hand)
 
 
-## The ridge's ends `a` and `b`, its `length` and the house's `depth`: `size` is the footprint along `yaw` and
-## across it, and the ridge runs the longer way.
 static func footprint(center: Vector3, yaw: float, size: Vector2) -> Dictionary:
 	var along := Vector3.RIGHT.rotated(Vector3.UP, yaw)
-	var ridge := along if size.x >= size.y else along.cross(Vector3.UP)
-	var length := maxf(size.x, size.y)
-	return {"a": center - ridge * length * 0.5, "b": center + ridge * length * 0.5, "length": length, "depth": minf(size.x, size.y)}
+	return {"a": center - along * size.x * 0.5, "b": center + along * size.x * 0.5, "length": size.x, "depth": size.y}
 
 
 ## The wall line of a house standing at `at`: a circle `size.x` across if it is round, else its four corners.
@@ -514,7 +509,7 @@ static func outline(at: Dictionary) -> Array[Vector3]:
 static func pitch_for(at: Dictionary) -> float:
 	if at.round:
 		return clampf(at.size.x * 0.8, RoofLayout.PITCH.x, RoofLayout.PITCH.y)
-	return minf(at.size.x, at.size.y) * 0.42
+	return at.size.y * 0.42
 
 
 static func roof_style(d: Dictionary) -> RoofStyle:
@@ -592,8 +587,7 @@ static func reshape_house(d: Dictionary, to: Dictionary) -> Dictionary:
 		for c: Vector2 in d.roof.chimneys:
 			var o: Vector3 = _scaled(from, to, from.center + r0 * c.x + r0.cross(Vector3.UP) * c.y) - to.center
 			chimneys.append(Vector2(o.dot(r1), o.dot(r1.cross(Vector3.UP))))
-		var depth: float = minf(from.size.x, from.size.y)
-		roof = {"pitch": clampf(d.roof.pitch * minf(to.size.x, to.size.y) / depth, RoofLayout.PITCH.x, RoofLayout.PITCH.y), "chimneys": chimneys}
+		roof = {"pitch": clampf(d.roof.pitch * to.size.y / from.size.y, RoofLayout.PITCH.x, RoofLayout.PITCH.y), "chimneys": chimneys}
 	return {"points": PackedVector3Array(now), "arches": arches, "windows": windows, "lanterns": lanterns, "flags": flags, "roof": roof}
 
 
@@ -665,16 +659,13 @@ static func carry(start: Dictionary, from: Array[Transform3D], to: Array[Transfo
 	return out
 
 
-## The size of a house standing as `start` once hands spread along `span` by `ratio`: the side nearer the span's
-## direction stretches and the other stays, or a round one spreads every way, within the bounds of a house; a side
-## stretched past the other stops at the deepest a ridge spans, unless the other already spans no more.
 static func stretched(start: Dictionary, span: Vector3, ratio: float) -> Vector2:
 	if start.round:
 		return Vector2.ONE * clampf(start.size.x * ratio, HOUSE_SIDES.x, HOUSE_DEPTH)
 	var across: float = angle(span) - start.yaw
 	var i := 0 if absf(cos(across)) >= absf(sin(across)) else 1
 	var size: Vector2 = start.size
-	size[i] = clampf(size[i] * ratio, HOUSE_SIDES.x, HOUSE_SIDES.y if size[1 - i] <= HOUSE_DEPTH else HOUSE_DEPTH)
+	size[i] = clampf(size[i] * ratio, HOUSE_SIDES.x, HOUSE_SIDES.y if i == 0 else HOUSE_DEPTH)
 	return size
 
 
@@ -785,7 +776,6 @@ func begin_lift(m: Mason, w: Wall, hand: Vector3, at: Vector3) -> void:
 
 func drag_lift(m: Mason, hand_y: float) -> void:
 	var h := clampf(m.lift_start + (hand_y - m.lift_hand.y) * m.lift_gain, WallLayout.HEIGHTS.x, WallLayout.HEIGHTS.y)
-	h = snappedf(h, WallLayout.COURSE)
 	if not is_equal_approx(h, m.lifting.layout.height):
 		m.lifting.layout.height = h
 		_dirty = true

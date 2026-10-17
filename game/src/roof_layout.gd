@@ -223,8 +223,9 @@ func build() -> void:
 	var f := frame()
 	if flat():
 		_lay_deck(rng)
-		for c in chimneys:
-			_lay_chimney(chimney_spot(c), rng)
+		for i in chimneys.size():
+			rng.seed = hash([seed, "chimney", i])
+			_lay_chimney(chimney_spot(chimneys[i]), rng)
 		if flag:
 			_fly_flag(f.mid)
 		return
@@ -234,16 +235,19 @@ func build() -> void:
 		var rows := _rows()
 		for i in rows.size():
 			var row := rows[i]
+			rng.seed = hash([seed, "row", i])
 			if kind == Kind.GABLE:
 				_lay_gable_row(row, 0.5 if i % 2 == 1 else 0.0, hue, rng)
 			else:
 				_lay_cone_row(row, hue, rng)
 		if kind == Kind.GABLE:
+			rng.seed = hash([seed, "ridge"])
 			_lay_ridge(hue, rng)
 	var top := pitch + coat_rise()
 	if kind == Kind.GABLE:
-		for c in chimneys:
-			_lay_chimney(chimney_spot(c), rng)
+		for i in chimneys.size():
+			rng.seed = hash([seed, "chimney", i])
+			_lay_chimney(chimney_spot(chimneys[i]), rng)
 	elif flag:
 		_fly_flag(f.mid + Vector3.UP * top)
 	else:
@@ -283,6 +287,7 @@ func _lay_deck(rng: RandomNumberGenerator) -> void:
 	var z := -reach
 	var row := 0
 	while z < reach - 0.01:
+		rng.seed = hash([seed, "deck", row])
 		var depth := minf(SLAB.z, reach - z)
 		var x := -long - (SLAB.x * 0.5 if row % 2 == 1 else 0.0)
 		while x < long - 0.01:
@@ -300,7 +305,7 @@ func _lay_deck(rng: RandomNumberGenerator) -> void:
 func _slab(at: Vector3, basis: Basis, size: Vector2, rng: RandomNumberGenerator) -> void:
 	var b := basis * Basis.from_euler(Vector3(rng.randf_range(-0.01, 0.01), rng.randf_range(-0.02, 0.02), rng.randf_range(-0.01, 0.01)))
 	var color := WallLayout.stone_color(rng) * rng.randf_range(0.86, 0.98)
-	_add(Transform3D(b.scaled_local(Vector3(size.x - 0.025, SLAB.y, size.y - 0.025)), at + Vector3.UP * rng.randf_range(-0.006, 0.006)), "deck", color, 0.9)
+	_add(Transform3D(b.scaled_local(Vector3(maxf(0.001, size.x - 0.025), SLAB.y, maxf(0.001, size.y - 0.025))), at + Vector3.UP * rng.randf_range(-0.006, 0.006)), "deck", color, 0.9)
 	var bed := Vector3(size.x + BED_LAP, SLAB.y * 0.7, size.y + BED_LAP)
 	mortar.append({"xform": Transform3D(basis.scaled_local(bed), at + Vector3.UP * (SLAB.y * 0.2 - bed.y * 0.5)), "color": WallLayout.MORTAR, "kind": "mortar", "ao": 0.8})
 
@@ -369,18 +374,18 @@ func _along(x: float, d: float) -> float:
 func _lay_gable_row(row: Dictionary, stagger: float, hue: float, rng: RandomNumberGenerator) -> void:
 	var f := frame()
 	var length := ridge_length() + WallLayout.THICKNESS + gable_overhang() * 2.0
-	var n := maxi(1, ceili(length / TILE.x))
+	var state := rng.state
 	for side in [-1.0, 1.0]:
+		rng.state = state
 		var out: Vector3 = f.across * side
 		var basis := _slope_basis(out, row.slope)
-		for i in n + (1 if stagger > 0.0 else 0):
-			var t := (i + 0.5 - stagger) / n - 0.5
-			var width := 1.0
-			if absf(t) > 0.5 - 0.5 / n + 1e-4:
-				width = 0.5
-				t = signf(t) * (0.5 - 0.25 / n)
-			var p: Vector3 = f.mid + f.along * t * length + out * row.x + Vector3.UP * (row.y + TILE.y * 0.5)
-			_tile(p, basis, hue, rng, width * length / n / TILE.x)
+		var x := -TILE.x * stagger
+		while x < length - 0.001:
+			var a := maxf(x, 0.0)
+			var b := minf(x + TILE.x, length)
+			var p: Vector3 = f.mid + f.along * ((a + b - length) * 0.5) + out * row.x + Vector3.UP * (row.y + TILE.y * 0.5)
+			_tile(p, basis, hue, rng, (b - a) / TILE.x)
+			x += TILE.x
 
 
 func _lay_cone_row(row: Dictionary, hue: float, rng: RandomNumberGenerator) -> void:
@@ -405,12 +410,13 @@ static func _slope_basis(out: Vector3, slope: float) -> Basis:
 func _lay_ridge(hue: float, rng: RandomNumberGenerator) -> void:
 	var f := frame()
 	var length := ridge_length() + WallLayout.THICKNESS + gable_overhang() * 2.0
-	var n := maxi(1, ceili(length / 0.32))
-	for i in n:
-		var t := (i + 0.5) / n - 0.5
-		var p: Vector3 = f.mid + f.along * t * length + Vector3.UP * (pitch + 0.04)
-		var basis := Basis(f.along, Vector3.UP, f.across).scaled_local(Vector3(length / n * 1.02, 0.14, 0.26))
+	var x := 0.0
+	while x < length - 0.001:
+		var width := minf(0.32, length - x)
+		var p: Vector3 = f.mid + f.along * ((x + width * 0.5) - length * 0.5) + Vector3.UP * (pitch + 0.04)
+		var basis := Basis(f.along, Vector3.UP, f.across).scaled_local(Vector3(width * 1.02, 0.14, 0.26))
 		_add(Transform3D(basis, p), "ridge", _clay(hue, rng) * 0.88, 0.95)
+		x += width
 
 
 func _tile(p: Vector3, basis: Basis, hue: float, rng: RandomNumberGenerator, width := 1.0) -> void:

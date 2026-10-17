@@ -382,7 +382,8 @@ func _in_the_glade() -> void:
 
 	var face := wall.layout.frame_at(2.5)
 	var normal: Vector3 = face.tangent.cross(Vector3.UP)
-	var on_face: Vector3 = face.point + Vector3.UP * 1.5
+	var window_center := WallLayout.COURSE * 4.0 + WallLayout.WINDOW_TALL * 0.5
+	var on_face: Vector3 = face.point + Vector3.UP * window_center
 	var lantern_spot: Vector3 = wall.layout.frame_at(7.6).point + Vector3.UP * 1.5
 	var t := fit.aim(Hand.Tool.DECORATIONS, lantern_spot + normal * 3.0, -normal)
 	_check(t.get("what") == "lantern" and t.wall == wall and t.side == 1.0 and absf(t.s - 7.6) < 0.3 and absf(t.y - 1.5) < 0.15, "decorations pointed at a wall's face hang a lantern there: %s" % t)

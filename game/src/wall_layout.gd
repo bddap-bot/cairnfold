@@ -202,6 +202,7 @@ func build(ground: Callable, water := Callable()) -> void:
 	_stone_scale = 1.0
 	if closed and corners().is_empty():
 		_stone_scale = clampf(total / TAU / 3.0, 0.45, 1.0)
+	var faces := _face_spans()
 	var course_h := course_height()
 	openings = openings_for(windows)
 	var bays := pillars()
@@ -212,7 +213,8 @@ func build(ground: Callable, water := Callable()) -> void:
 		sink = maxf(sink, d)
 	for k in range(-ceili(sink / course_h), courses()):
 		var y0 := k * course_h
-		var yc := y0 + course_h * 0.5
+		var h := minf(course_h, height - y0)
+		var yc := y0 + h * 0.5
 		var spans := [[0.0, total]] if k >= 0 else _over_bed(-y0 - course_h)
 		for a in live_arches:
 			var w := opening(yc, true)
@@ -230,23 +232,36 @@ func build(ground: Callable, water := Callable()) -> void:
 		for b in breaks[maxi(k, 0)]:
 			spans = _cut(spans, b.x, b.y)
 		var stream := rng if k >= 0 else wet
+		stream.seed = hash([seed, "course", k])
 		var offset := (0.5 if posmod(k, 2) == 1 else 0.0) * stream.randf_range(0.3, 0.6)
 		if not plaster or k == 0:
-			for span in spans:
-				_lay_course(span[0], span[1], y0, course_h, offset, stream)
-		bands.append([y0, course_h, spans, breaks[maxi(k, 0)]])
+			for i in spans.size():
+				var span: Array = spans[i]
+				for face in faces.size():
+					var a: float = maxf(span[0], faces[face].x)
+					var b: float = minf(span[1], faces[face].y)
+					stream.seed = hash([seed, "course", k, i, face])
+					_lay_course(a, b, y0, h, offset, stream)
+		bands.append([y0, h, spans, breaks[maxi(k, 0)]])
 	_lay_mortar(bands)
-	for a in live_arches:
-		_lay_ring(a, rng)
-	for p in pillars():
-		_lay_pillar(p.s, p.half, pillar_top, rng, wet)
-	for o in openings:
-		_lay_opening(o, rng)
+	for i in live_arches.size():
+		rng.seed = hash([seed, "arch", i])
+		_lay_ring(live_arches[i], rng)
+	for i in bays.size():
+		rng.seed = hash([seed, "pillar", i])
+		_lay_pillar(bays[i].s, bays[i].half, pillar_top, rng, wet)
+	for i in openings.size():
+		rng.seed = hash([seed, "opening", i])
+		_lay_opening(openings[i], rng)
+	rng.seed = hash([seed, "top"])
 	if not TimberFrame.applies(self):
 		_lay_top(rng)
 	_lay_gables()
 	TimberFrame.lay(self)
-	for s in corners():
+	var turns := corners()
+	for i in turns.size():
+		var s := turns[i]
+		rng.seed = hash([seed, "pier", i])
 		if not TimberFrame.applies(self) and not broken(s, PIER * 0.5):
 			_lay_pier(s, rng, wet)
 	_lay_rubble()
@@ -287,7 +302,7 @@ func _hide() -> void:
 
 
 func courses() -> int:
-	return maxi(1, int(round(height / COURSE)))
+	return maxi(1, ceili(height / COURSE - 0.00001))
 
 
 ## Each ruin's stretch per course, leaning back further every course up so its ends stand as ragged steps.
@@ -386,9 +401,8 @@ static func ruins_after(ruins: Array[Vector2], total: float, closed: bool, lo: f
 	return out
 
 
-## Whole courses fill the wall's height.
 func course_height() -> float:
-	return height / courses()
+	return COURSE
 
 
 ## The face normal at arc length `s`, pointing to the side ivy and lanterns call +1.
@@ -718,14 +732,12 @@ func _cut_span(spans: Array, lo: float, hi: float) -> Array:
 func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: RandomNumberGenerator) -> void:
 	var s := a
 	var first := true
-	while b - s > 0.08:
+	while b - s > 0.001:
 		var want := rng.randf_range(0.42, 0.85) * _stone_scale
 		if first:
 			want = maxf(0.2, want * (1.0 - offset))
 			first = false
 		var l := minf(want, b - s)
-		if b - s - l < 0.25:
-			l = b - s
 		var hj := h * rng.randf_range(0.9, 1.04)
 		var depth := THICKNESS * rng.randf_range(0.92, 1.05)
 		_add(s + l * 0.5, y0 + h * 0.5, Vector3(l, hj, depth), rng, "block", 1.0, 0.035)
@@ -920,13 +932,28 @@ func corners() -> Array[float]:
 	return out
 
 
+func _face_spans() -> Array[Vector2]:
+	var edges := corners()
+	if edges.is_empty() or edges[0] > 0.0:
+		edges.push_front(0.0)
+	if edges[-1] < length():
+		edges.append(length())
+	var spans: Array[Vector2] = []
+	for i in edges.size() - 1:
+		spans.append(Vector2(edges[i], edges[i + 1]))
+	return spans
+
+
 func _lay_top(rng: RandomNumberGenerator) -> void:
-	var spans := [[0.0, length()]]
-	if not breaks.is_empty():
-		for b in breaks[-1]:
-			spans = _cut(spans, b.x, b.y)
-	for span in spans:
-		_lay_top_span(span[0], span[1], rng)
+	var faces := _face_spans()
+	for face in faces.size():
+		var spans := [[faces[face].x, faces[face].y]]
+		if not breaks.is_empty():
+			for b in breaks[-1]:
+				spans = _cut(spans, b.x, b.y)
+		for i in spans.size():
+			rng.seed = hash([seed, "top", face, i])
+			_lay_top_span(spans[i][0], spans[i][1], rng)
 
 
 ## Under a pitched roof every top lies flat as a cap.
@@ -935,7 +962,7 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 	if style == Top.COPE:
 		var s := a
 		var tall := true
-		while total - s > 0.08:
+		while total - s > 0.001:
 			var l := minf(rng.randf_range(0.11, 0.17), total - s)
 			var h := rng.randf_range(0.34, 0.42) if tall else rng.randf_range(0.22, 0.28)
 			_add(s + l * 0.5, height + h * 0.5, Vector3(l, h, THICKNESS * 0.86), rng, "cope", 0.97, 0.06)
@@ -943,20 +970,20 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 			s += l + 0.012
 		return
 	var s := a
-	while total - s > 0.05:
+	while total - s > 0.001:
 		var l := minf(rng.randf_range(0.5, 0.95), total - s)
-		if total - s - l < 0.3:
-			l = total - s
 		_add(s + l * 0.5, height + CAP * 0.5, Vector3(l, CAP, THICKNESS + 0.16), rng, "cap", 0.95, 0.02)
 		s += l
 	if style == Top.CAP and cover == Cover.DECK:
 		_lay_parapet(a, total, rng)
 	if style != Top.CRENEL:
 		return
-	var m := a + 0.55
-	while m < total - 0.4:
-		_add(m, height + CAP + 0.24, Vector3(0.5, 0.48, THICKNESS * 0.8), rng, "merlon", 1.0, 0.03)
-		m += 1.15
+	rng.seed = hash([rng.seed, "merlon"])
+	var edge := a + 0.3
+	while edge < total - 0.001:
+		var width := minf(0.5, total - edge)
+		_add(edge + width * 0.5, height + CAP + 0.24, Vector3(width, 0.48, THICKNESS * 0.8), rng, "merlon", 1.0, 0.03)
+		edge += 1.15
 
 
 func _lay_gables() -> void:
@@ -1107,20 +1134,18 @@ func _under_slope(rise: float, hs: float) -> float:
 
 
 func _lay_parapet(a: float, total: float, rng: RandomNumberGenerator) -> void:
+	rng.seed = hash([rng.seed, "parapet"])
 	var y := height + CAP
 	var s := a
-	while total - s > 0.05:
+	while total - s > 0.001:
 		var l := minf(rng.randf_range(0.4, 0.75), total - s)
-		if total - s - l < 0.2:
-			l = total - s
 		_add(s + l * 0.5, y + PARAPET * 0.5, Vector3(l, PARAPET, THICKNESS * 0.62), rng, "block", 1.0, 0.02)
 		s += l
 	_lay_mortar([[y, PARAPET, [[a, total]]]], THICKNESS * 0.62)
+	rng.seed = hash([rng.seed, "parapet-cap"])
 	s = a
-	while total - s > 0.05:
+	while total - s > 0.001:
 		var l := minf(rng.randf_range(0.6, 1.0), total - s)
-		if total - s - l < 0.3:
-			l = total - s
 		_add(s + l * 0.5, y + PARAPET + CAP * 0.4, Vector3(l, CAP * 0.8, THICKNESS * 0.74), rng, "cap", 0.95, 0.02)
 		s += l
 

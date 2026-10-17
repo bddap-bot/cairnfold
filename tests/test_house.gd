@@ -12,7 +12,7 @@ func _init() -> void:
 	_hands_carry_turn_and_stretch_a_house()
 	_two_hands_resize_a_built_house_one_side_at_a_time()
 	_a_resized_house_keeps_its_fittings_and_roof()
-	_the_ridge_runs_the_longer_way()
+	_the_ridge_keeps_its_axis()
 	_gable_tiles_cover_the_footprint_under_the_ridge()
 	_pitch_and_curvature_shape_the_slopes()
 	_cone_tiles_ring_the_tower_up_to_the_finial()
@@ -181,7 +181,7 @@ func _two_hands_resize_a_built_house_one_side_at_a_time() -> void:
 	c = WallTool.resize(start, flank, [_hand(Vector3(0.05, 1, -0.2)), _hand(Vector3(-0.025, 1, 0.1))])
 	_check(c.size.is_equal_approx(Vector2(4.5, 3.375)) and is_equal_approx(c.center.z, -0.5625), "hands along its flank, a little askew, close its depth only: %s at %s" % [c.size, c.center])
 	c = WallTool.resize(start, flank, [_hand(Vector3(0, 1, -5)), _hand(Vector3(0, 1, 5))])
-	_check(c.size == Vector2(4.5, WallTool.HOUSE_SIDES.y), "a narrow house's depth runs to the longest side: %s" % c.size)
+	_check(c.size == Vector2(4.5, WallTool.HOUSE_DEPTH), "a narrow house keeps the depth bound under its ridge: %s" % c.size)
 	var turned := start.duplicate()
 	turned.yaw = 0.6
 	var along := Vector3.RIGHT.rotated(Vector3.UP, 0.6) * 0.2
@@ -216,10 +216,10 @@ func _a_resized_house_keeps_its_fittings_and_roof() -> void:
 	deep.size = Vector2(6, 8)
 	r = WallTool.reshape_house(d, deep)
 	var ridge: Vector3 = r.points[1] - r.points[0]
-	_check(is_equal_approx(ridge.length(), 8.0) and absf(ridge.x) < 1e-4, "stretched deeper than long, its ridge turns the longer way")
-	_check(is_equal_approx(r.roof.pitch, 2.4), "and the rise scales with the depth under the ridge: %f" % r.roof.pitch)
-	_check(r.roof.chimneys[0].is_equal_approx(Vector2(1.6, -1.5)), "a chimney keeps its spot on the house as the ridge turns: %s" % r.roof.chimneys[0])
-	_check(is_equal_approx(r.windows[0].x, 25.0), "the front window stays in the middle of the front as it moves out: %s" % r.windows[0])
+	_check(is_equal_approx(ridge.length(), 6.0) and absf(ridge.z) < 1e-4, "stretched deeper than long, its ridge keeps its axis")
+	_check(is_equal_approx(r.roof.pitch, 3.2), "and the rise scales with the depth under the ridge: %f" % r.roof.pitch)
+	_check(r.roof.chimneys[0].is_equal_approx(Vector2(1.5, 1.6)), "a chimney keeps its spot on the house as the depth grows: %s" % r.roof.chimneys[0])
+	_check(is_equal_approx(r.windows[0].x, 3.0), "the front window stays in the middle of the front as it moves out: %s" % r.windows[0])
 	var tower := {"points": PackedVector3Array(WallLayout.circle(Vector3(2, 0, 2), 2.0)), "closed": true, "arches": PackedFloat32Array(), "windows": PackedVector2Array([Vector2(TAU * 0.5, 0.0)]),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array([TAU]),
 		"roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3(2, 0, 2), "radius": 2.0, "pitch": 3.2, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": true, "thatch": false}}
@@ -231,11 +231,11 @@ func _a_resized_house_keeps_its_fittings_and_roof() -> void:
 	_check(absf(r.windows[0].x - TAU * 0.75) < 0.05 and absf(r.flags[0] - TAU * 1.5) < 0.05, "its door and flag keep their bearing: %s, %s" % [r.windows, r.flags])
 
 
-func _the_ridge_runs_the_longer_way() -> void:
+func _the_ridge_keeps_its_axis() -> void:
 	var f := WallTool.footprint(Vector3(1, 0, 1), 0.0, Vector2(5, 5))
 	_check(is_equal_approx(f.length, 5.0) and is_equal_approx(f.depth, 5.0), "a square footprint is a square house: %s" % f)
 	f = WallTool.footprint(Vector3.ZERO, 0.0, Vector2(3, 8))
-	_check(is_equal_approx(f.length, 8.0) and is_equal_approx(f.depth, 3.0) and absf(f.a.x - f.b.x) < 1e-4, "a footprint deeper than wide turns its ridge across: %s" % f)
+	_check(is_equal_approx(f.length, 3.0) and is_equal_approx(f.depth, 8.0) and absf(f.a.z - f.b.z) < 1e-4, "a footprint deeper than wide keeps its ridge: %s" % f)
 	f = WallTool.footprint(Vector3.ZERO, PI * 0.5, Vector2(6, 3))
 	_check(absf(f.a.x - f.b.x) < 1e-4 and absf(absf(f.a.z - f.b.z) - 6.0) < 1e-4, "turned a quarter, the ridge runs along z: %s" % f)
 
