@@ -124,7 +124,7 @@ func _ready() -> void:
 	if metrics.info.flat:
 		flat = Flat.new(rig)
 		add_child(flat)
-	quality = Quality.new(xr if metrics.info.xr else null, flora, tool.masonry)
+	quality = Quality.new(xr if metrics.info.xr else null, flora, tool.masonry, look.sun)
 	if args.has("quality"):
 		quality.pin = int(args.quality)
 	add_child(quality)

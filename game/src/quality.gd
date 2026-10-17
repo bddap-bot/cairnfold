@@ -7,19 +7,24 @@ extends Node
 
 ## One rung of the ladder. Reaches are in metres; `blob_detail` is `Meshes.blob`'s subdivisions; settled stones beyond
 ## `stone_near_m` are drawn with a twelfth of their triangles (Stones.far_mesh), and ivy shrinks away by `ivy_m`.
+## `shadows` is whether the sun casts them; `scale_3d` is the share of the headset's own 3D resolution drawn.
 class Step:
 	var grass_m: float
 	var flowers_m: float
 	var blob_detail: int
 	var stone_near_m: float
 	var ivy_m: float
+	var shadows: bool
+	var scale_3d: float
 
-	func _init(grass: float, flowers: float, blobs: int, stones: float, ivy: float) -> void:
+	func _init(grass: float, flowers: float, blobs: int, stones: float, ivy: float, sun := true, scale := 1.0) -> void:
 		grass_m = grass
 		flowers_m = flowers
 		blob_detail = blobs
 		stone_near_m = stones
 		ivy_m = ivy
+		shadows = sun
+		scale_3d = scale
 
 
 ## Full quality first, then cheapest loss per millisecond saved. Flowers beyond 60 m are under two pixels across on
@@ -34,17 +39,19 @@ static var ladder: Array[Step] = [
 	Step.new(24.0, 20.0, 2, 8.0, 25.0),
 	Step.new(24.0, 20.0, 1, 8.0, 25.0),
 	Step.new(24.0, 20.0, 1, 4.0, 12.0),
+	Step.new(24.0, 20.0, 1, 4.0, 12.0, false),
+	Step.new(24.0, 20.0, 1, 4.0, 12.0, false, 0.78),
 ]
-## The share of each eye's width and height the Steam Frame renders the 3D scene at, upscaled to it. It is held for the
-## session rather than on the ladder: changing it reallocates the scene's buffers, and stepping down to it cost a 25 to
-## 72 ms frame there, enough to drop the game to every other refresh for a second. The Quest 2 is not measured at it.
+## The share of each eye's width and height the Steam Frame renders the 3D scene at, upscaled to it, above the ladder's
+## last step. Changing it reallocates the scene's buffers, a 25 to 72 ms frame on the Frame, so only the last step,
+## reached when every cheaper one has failed, changes it. The Quest 2 starts at its full resolution.
 const FRAME_SCALE_3D := 0.9
 ## Grass and flower reach move toward their step at this many metres a second, so the edge recedes rather than jumps.
 const REACH_RATE := 8.0
 ## Seconds of rendered frames the governor sits out at the start: loading's first frames are not the scene's cost.
 const WARMUP := 5.0
 
-var governor := Governor.new(ladder.size() - 1)
+var governor := Governor.new(ladder.size() - 1, popping())
 ## The step held instead of the governor's, for measuring; -1 while governed.
 var pin := -1:
 	set(n):
@@ -56,24 +63,39 @@ var fresh := false
 var _xr: OpenXRInterface
 var _flora: Flora
 var _masonry: Masonry
+var _sun: DirectionalLight3D
 var view: Viewport
+## The headset's own 3D resolution, which each step's `scale_3d` is a share of.
+var _scale := 1.0
 var _warm := 0.0
 ## Whether the knobs had reached their step last frame: a step still under way is not judged as one that failed.
 var _settled := false
 
 
-func _init(xr: OpenXRInterface, flora: Flora, masonry: Masonry = null) -> void:
+func _init(xr: OpenXRInterface, flora: Flora, masonry: Masonry = null, sun: DirectionalLight3D = null) -> void:
 	_xr = xr
 	_flora = flora
 	_masonry = masonry
+	_sun = sun
 
 
 func _ready() -> void:
 	view = get_viewport()
 	if _xr != null and OS.get_name() != "Android":
-		view.scaling_3d_scale = FRAME_SCALE_3D
-		print("quality: 3D resolution %.2f" % FRAME_SCALE_3D)
+		_scale = FRAME_SCALE_3D
+		view.scaling_3d_scale = _scale
+		print("quality: 3D resolution %.2f" % _scale)
 	RenderingServer.viewport_set_measure_render_time(view.get_viewport_rid(), true)
+
+
+## The levels a step up into would switch the sun's shadows or the 3D resolution back, which shows at once across the
+## whole view: a governor crossing that line back and forth would flicker every shadow.
+static func popping() -> PackedInt32Array:
+	var out := PackedInt32Array()
+	for i in ladder.size() - 1:
+		if ladder[i].shadows != ladder[i + 1].shadows or ladder[i].scale_3d != ladder[i + 1].scale_3d:
+			out.append(i)
+	return out
 
 
 ## The step the knobs are heading to.
@@ -91,17 +113,25 @@ func _process(delta: float) -> void:
 		var hz := _xr.display_refresh_rate if _xr.display_refresh_rate > 0.0 else Budget.REFRESH_HZ
 		budget_ms = 1000.0 / hz
 		_warm += delta
-		if pin < 0 and _warm > WARMUP and _settled:
-			governor.step(frame_ms, budget_ms, delta)
+		if pin < 0 and _warm > WARMUP:
+			governor.step(frame_ms, budget_ms, delta, _settled)
 	var at := ladder[step()]
 	_settled = _flora.approach(at, delta)
+	if _sun != null and _sun.shadow_enabled != at.shadows:
+		_sun.shadow_enabled = at.shadows
+	var scale := _scale * at.scale_3d
+	if not is_equal_approx(view.scaling_3d_scale, scale):
+		view.scaling_3d_scale = scale
 	if _masonry != null:
 		_settled = Wall.approach(at, delta, _masonry) and _settled
 
 
 ## Walks the ladder on one signal, the GPU time of each frame against a line under the budget: down at once when
 ## frames run over the budget or their average over the line, up only after a calm spell when the step up is
-## expected to stay under it, and slower each time a step up had to be undone.
+## expected to stay under it, and slower each time a step up had to be undone. The runtime holding the game at every
+## other refresh counts as over budget whatever the timer reads: there it reads high by the runtime's own work in
+## between, and on the Steam Frame the runtime let a scene back to 72 Hz only once it read under about 11 ms, which
+## the line alone never asked of it.
 class Governor:
 	## Consecutive frames this far over budget take a step down.
 	const HOT := 1.05
@@ -110,6 +140,11 @@ class Governor:
 	const SEVERE := 1.25
 	## Frames ignored after any step while the GPU timer and the grass catch up with the change.
 	const SETTLE_FRAMES := 6
+	## Frames this far apart on average, as a share of the refresh period, are the runtime's every other refresh.
+	const HALVED := 1.5
+	## Every other refresh counts only with the timer above this share of the budget: lower, the CPU held the frame.
+	const HALVED_GPU := 0.6
+	const PAUSE := 4.0
 	## The line, as a share of the budget: the Steam Frame's runtime drops the game to every other refresh once its
 	## GPU time nears 0.88 of the period, and keeps it there for seconds. This timer reads about 0.3 ms under that
 	## GPU time, so the houses of demo/headset.json sat under a line at 0.85 while the runtime halved the rate.
@@ -138,6 +173,7 @@ class Governor:
 	var _calm := 0.0
 	var _quiet := 0.0
 	var _average := 0.0
+	var _interval := 0.0
 	var _since_up := INF
 	## Calm seconds needed to step up into each level.
 	var _wait := PackedFloat32Array()
@@ -150,24 +186,39 @@ class Governor:
 	## The level whose step up the average after the last step measures, or -1, and whether that step was up.
 	var _measuring := -1
 	var _went_up := false
+	var _sticky := PackedInt32Array()
+	## The lowest level reached without a pop.
+	var _unpopped: int
 
-	func _init(steps: int) -> void:
+	## A step up into a level of `sticky` waits the longest calm, and once undone is not taken again in the session.
+	func _init(steps: int, sticky := PackedInt32Array()) -> void:
 		bottom = steps
 		_wait.resize(steps + 1)
 		_wait.fill(CALM_SECONDS)
 		_cost.resize(steps + 1)
 		_cost.fill(-1.0)
+		_sticky = sticky
+		_unpopped = steps
+		for i in sticky:
+			_wait[i] = CALM_SECONDS_MAX
+			_unpopped = mini(_unpopped, i)
 
 	## What the step up out of `at` is expected to cost, in milliseconds.
 	func cost(at: int, budget_ms: float) -> float:
 		return _cost[at] if _cost[at] >= 0.0 else budget_ms * UNMEASURED
 
-	func step(frame_ms: float, budget_ms: float, dt: float) -> void:
+	## `settled` is whether the knobs have reached the step: only frames over the budget or at every other refresh
+	## judge a step still under way.
+	func step(frame_ms: float, budget_ms: float, dt: float, settled := true) -> void:
 		_since_up += dt
 		if _settle > 0:
 			_settle -= 1
 			return
 		_average = frame_ms if _average == 0.0 else _average + (frame_ms - _average) * minf(dt / AVERAGE_SECONDS, 1.0)
+		# A longer gap is a pause, as with the headset off the head, not a rate the runtime holds.
+		var dt_ms := dt * 1000.0
+		if dt_ms < budget_ms * PAUSE:
+			_interval = dt_ms if _interval == 0.0 else _interval + (dt_ms - _interval) * minf(dt / AVERAGE_SECONDS, 1.0)
 		var averaged := _averaged >= AVERAGE_SECONDS
 		if not averaged:
 			_averaged += dt
@@ -181,15 +232,18 @@ class Governor:
 		_quiet = _quiet + dt if _average < line else 0.0
 		if _quiet >= CALM_SECONDS_MAX:
 			_cost[level] = -1.0
-		_calm = _calm + dt if averaged and _average + cost(level, budget_ms) < line else 0.0
-		if (_hot >= HOT_FRAMES or (averaged and _average > line)) and level < bottom:
+		var halved := averaged and _interval > budget_ms * HALVED and _average > budget_ms * HALVED_GPU
+		# A step still under way has not shown what it saves, so it may not be followed into one that pops.
+		var floor := bottom if settled else mini(_unpopped, bottom)
+		_calm = _calm + dt if settled and averaged and not halved and _average + cost(level, budget_ms) < line else 0.0
+		if (_hot >= HOT_FRAMES or halved or (settled and averaged and _average > line)) and level < floor:
 			if _since_up < REGRET_SECONDS:
-				_wait[level] = minf(_wait[level] * 2.0, CALM_SECONDS_MAX)
+				_wait[level] = INF if _sticky.has(level) else minf(_wait[level] * 2.0, CALM_SECONDS_MAX)
 			_since_up = INF
 			# A step down before the last one's second was in leaves the average from before both.
 			if averaged or _went_up or _measuring < 0:
 				_before = _average
-			var to := mini(level + (2 if frame_ms > budget_ms * SEVERE else 1), bottom)
+			var to := mini(level + (2 if frame_ms > budget_ms * SEVERE else 1), floor)
 			_measuring = to
 			_went_up = false
 			_move(to)
@@ -206,5 +260,6 @@ class Governor:
 		_calm = 0.0
 		_quiet = 0.0
 		_average = 0.0
+		_interval = 0.0
 		_averaged = 0.0
 		_settle = SETTLE_FRAMES

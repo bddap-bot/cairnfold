@@ -24,6 +24,12 @@ func _initialize() -> void:
 	_an_unmeasured_step_up_waits_for_room_for_an_estimate()
 	_a_step_up_into_every_other_refresh_is_not_retried()
 	_a_held_step_reaches_its_knobs()
+	_every_other_refresh_steps_down_whatever_the_timer_reads()
+	_a_step_under_way_is_judged_only_by_frames_over_budget()
+	_a_pause_is_not_every_other_refresh()
+	_every_other_refresh_held_by_the_cpu_steps_nothing_down()
+	_an_unsettled_step_is_not_followed_into_one_that_pops()
+	_a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -61,8 +67,8 @@ func _every_step_draws_less() -> void:
 	for i in steps.size() - 1:
 		var a := steps[i]
 		var b := steps[i + 1]
-		_check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.stone_near_m <= a.stone_near_m and b.ivy_m <= a.ivy_m, "step %d draws no more than step %d" % [i + 1, i])
-		_check(b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail or b.stone_near_m < a.stone_near_m or b.ivy_m < a.ivy_m, "step %d draws less than step %d" % [i + 1, i])
+		_check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.stone_near_m <= a.stone_near_m and b.ivy_m <= a.ivy_m and (a.shadows or not b.shadows) and b.scale_3d <= a.scale_3d, "step %d draws no more than step %d" % [i + 1, i])
+		_check(b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail or b.stone_near_m < a.stone_near_m or b.ivy_m < a.ivy_m or (a.shadows and not b.shadows) or b.scale_3d < a.scale_3d, "step %d draws less than step %d" % [i + 1, i])
 	for i in steps.size():
 		_check(steps[i].grass_m * Flora.GRASS_SURVIVORS_FROM >= Flora.GRASS_LOD_BEGIN + Flora.GRASS_LOD_BAND, "step %d keeps its survivors until the rest have sunk away" % i)
 	var q := Quality.new(null, null)
@@ -184,7 +190,9 @@ func _a_held_step_reaches_its_knobs() -> void:
 		parts.append(Masonry.split(buf, k.stride()))
 	masonry.place(1, parts)
 	var chunk: Masonry.Chunk = masonry._chunks.values()[0]
-	var q := Quality.new(null, flora, masonry)
+	var sun := DirectionalLight3D.new()
+	sun.shadow_enabled = true
+	var q := Quality.new(null, flora, masonry, sun)
 	root.add_child(q)
 	q.view = SubViewport.new()
 	var bottom: Quality.Step = Quality.ladder[-1]
@@ -199,13 +207,79 @@ func _a_held_step_reaches_its_knobs() -> void:
 	var ks := Wall.kinds()
 	_check(ks[Wall.Part.STONE].near == bottom.stone_near_m and ks[Wall.Part.IVY].reach == bottom.ivy_m, "stones and ivy at the step's reach")
 	_check(ks[Wall.Part.IVY].material.get_shader_parameter("reach") == bottom.ivy_m, "and the leaves shrink away by it")
+	_check(sun.shadow_enabled == bottom.shadows and is_equal_approx(q.view.scaling_3d_scale, bottom.scale_3d), "the sun's shadows and the 3D resolution at the step's")
 	_check(is_equal_approx(chunk.instances[Wall.Part.IVY].visibility_range_end, bottom.ivy_m + Masonry.CHUNK_RADIUS) and is_equal_approx(chunk.fars[Wall.Part.STONE].visibility_range_begin, bottom.stone_near_m + Masonry.CHUNK_RADIUS), "a chunk already standing takes the step's reaches")
 	q.pin = 0
 	for i in 100:
 		q._process(0.1)
 	_check(ks[Wall.Part.STONE].near == Quality.ladder[0].stone_near_m and ks[Wall.Part.IVY].reach == Quality.ladder[0].ivy_m, "back at the top, they return")
 	_check(flora.blob_detail == bottom.blob_detail, "but the crowns keep their coarser blobs, so their shade never flips back and forth")
+	_check(sun.shadow_enabled and q.view.scaling_3d_scale == 1.0, "and so do the shadows and the full 3D resolution")
+	sun.free()
 	q.view.free()
 	q.free()
 	masonry.free()
 	flora.free()
+
+
+func _every_other_refresh_steps_down_whatever_the_timer_reads() -> void:
+	var g := Quality.Governor.new(10)
+	for i in 40:
+		g.step(BUDGET * 0.7, BUDGET, DT * 2.0)
+	_check(g.level == 1, "a second at every other refresh, the timer under the line, steps down")
+	for i in 36 * 15:
+		g.step(BUDGET * 0.7, BUDGET, DT * 2.0)
+	_check(g.level == 10, "and it keeps stepping down, never up, while the runtime holds that rate")
+
+
+func _every_other_refresh_held_by_the_cpu_steps_nothing_down() -> void:
+	var g := Quality.Governor.new(10)
+	_check(_feed_dt(g, BUDGET * 0.4, 36 * 5, DT * 2.0) == 0, "with the timer low the CPU held the frame, which no step fixes")
+
+
+func _feed_dt(g: Quality.Governor, ms: float, frames: int, dt: float) -> int:
+	for i in frames:
+		g.step(ms, BUDGET, dt)
+	return g.level
+
+
+func _an_unsettled_step_is_not_followed_into_one_that_pops() -> void:
+	var g := Quality.Governor.new(10, PackedInt32Array([3]))
+	for i in 72 * 3:
+		g.step(BUDGET * 1.5, BUDGET, DT, false)
+	_check(g.level == 3, "frames far over budget walk down to the pop and wait there while the knobs move, got %d" % g.level)
+	_feed(g, BUDGET * 1.5, 2 + Quality.Governor.SETTLE_FRAMES)
+	_check(g.level > 3, "and once they arrive, step past it")
+
+
+func _a_step_under_way_is_judged_only_by_frames_over_budget() -> void:
+	var g := Quality.Governor.new(10)
+	for i in 72 * 3:
+		g.step(BUDGET * (Quality.Governor.LINE + 0.05), BUDGET, DT, false)
+	_check(g.level == 0, "an average over the line while the knobs still move leaves the step alone")
+	for i in 2:
+		g.step(BUDGET * 1.1, BUDGET, DT, false)
+	_check(g.level == 1, "frames over budget step down even so")
+	_feed(g, BUDGET * 1.1, Quality.Governor.SETTLE_FRAMES)
+	for i in 72 * 5:
+		g.step(BUDGET * 0.1, BUDGET, DT, false)
+	_check(g.level == 1, "and a calm while the knobs still move does not step up")
+
+
+func _a_pause_is_not_every_other_refresh() -> void:
+	var g := Quality.Governor.new(10)
+	_feed(g, BUDGET * 0.5, 72 * 2)
+	g.step(BUDGET * 0.5, BUDGET, 2.0)
+	_check(_feed(g, BUDGET * 0.5, 72 * 2) == 0, "a two-second gap, as with the headset off the head, steps nothing down")
+
+
+func _a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds() -> void:
+	var pops := Quality.popping()
+	_check(pops == PackedInt32Array([Quality.ladder.size() - 3, Quality.ladder.size() - 2]), "the steps into shadows off and a lower resolution pop, got %s" % [pops])
+	var g := Quality.Governor.new(10, PackedInt32Array([0]))
+	_down(g)
+	_check(_feed(g, BUDGET * 0.1, 72 * 30) == 1, "a step up that pops waits more than a calm spell")
+	_check(_feed_until(g, BUDGET * 0.1, 72 * 40, 0) == 0, "and is taken after the longest calm")
+	_down(g)
+	_check(g.level == 1, "undone at once")
+	_check(_feed(g, BUDGET * 0.1, 72 * 300) == 1, "it is not taken again")
