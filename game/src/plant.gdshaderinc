@@ -10,6 +10,9 @@ uniform vec3 backlight : source_color = vec3(0.0);
 // A crown blob gives to the wind this much of what a grass blade of its height above the ground would, all of it
 // moving as one, so the crown sways rather than ripples.
 const float CROWN_GIVE = 0.12;
+// How far a blob's normals lean out from its trunk, so the faces between a crown's blobs light as its outside does
+// and the crown shades as one mass.
+const float CROWN_ROUND = 0.8;
 // The tint a blob's underside takes, so the shade under a crown reads cool.
 const vec3 CROWN_SHADE = vec3(0.8, 0.92, 1.15);
 #endif
@@ -38,6 +41,8 @@ void vertex() {
 	float ground = ground_at(INSTANCE_CUSTOM.zw);
 	VERTEX.y += ground;
 #ifdef BACKLIT
+	vec2 out_of_crown = VERTEX.xz - INSTANCE_CUSTOM.zw;
+	NORMAL = normalize(NORMAL + CROWN_ROUND * vec3(out_of_crown.x, 0.0, out_of_crown.y) / max(length(out_of_crown), 0.3));
 	VERTEX += wind_push(INSTANCE_CUSTOM.zw, wind_gust(INSTANCE_CUSTOM.zw)) * CROWN_GIVE * max(MODEL_MATRIX[3].y, 0.0);
 #endif
 #ifdef PARTED
