@@ -23,7 +23,7 @@ var _next := 0
 func _init(player: Rig, ponds: Water) -> void:
 	rig = player
 	for h in rig.hands:
-		_buttons.append(Buttons.new(h).watch(["trigger_click"]))
+		_buttons.append(Buttons.new(h).watch(["tool"]))
 	for i in HANDFULS:
 		handfuls.append(Handful.new(ponds.floor_at))
 		add_child(handfuls[i])
@@ -38,7 +38,7 @@ func _process(delta: float) -> void:
 			var moved: Vector3 = (at - _was.get(h, at)) / delta
 			_velocity[h] = _velocity.get(h, Vector3.ZERO).lerp(moved, 1.0 - exp(-delta * EASE))
 		_was[h] = at
-		if _buttons[i].pressed("trigger_click") and h.tool == Hand.Tool.SEEDS and h.tracked() and rig.aim_hand != h and not h.picking:
+		if _buttons[i].pressed("tool") and h.tool == Hand.Tool.SEEDS and h.tracked() and rig.aim_hand != h and not h.picking:
 			Hand.bump(h)
 			toss(dish(h), rig.global_basis * _velocity.get(h, Vector3.ZERO))
 		_buttons[i].latch()

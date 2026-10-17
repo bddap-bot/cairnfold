@@ -1,7 +1,8 @@
 class_name Handful
 extends MultiMeshInstance3D
 
-## A handful of seeds thrown from the seed dish: the grains fly apart, settle where they land on the ground or float on
+## A handful of seeds thrown from the seed dish, grains larger and paler than the dish's so they read on grass and water
+## from a few metres: the grains fly apart, settle where they land on the ground or float on
 ## a pond, and go one by one as an animal pecks at them, or shrink and sink away once they have lain a while.
 
 const GRAINS := 28
@@ -32,7 +33,7 @@ func _init(floor_at: Callable) -> void:
 	if _grain == null:
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
-		Meshes.ellipsoid(st, 0, Vector3.ZERO, Vector3(0.0035, 0.0075, 0.0025), Color.WHITE, 2, 5)
+		Meshes.ellipsoid(st, 0, Vector3.ZERO, Vector3(0.008, 0.016, 0.006), Color.WHITE, 2, 5)
 		_grain = st.commit()
 	multimesh = ToolModels.multimesh(_grain, GRAINS)
 	material_override = ToolModels.seed_material()
@@ -54,7 +55,7 @@ func toss(from: Vector3, velocity: Vector3, rng: RandomNumberGenerator) -> void:
 		_at[i] = from + Vector3(rng.randf_range(-0.012, 0.012), 0, rng.randf_range(-0.012, 0.012))
 		_vel[i] = velocity + Vector3(rng.randfn(), rng.randfn() * 0.5, rng.randfn()) * SPREAD
 		_turn[i] = Basis.from_euler(Vector3(rng.randf(), rng.randf(), rng.randf()) * TAU)
-		multimesh.set_instance_color(i, ToolModels.SEED_COLOURS[rng.randi() % ToolModels.SEED_COLOURS.size()])
+		multimesh.set_instance_color(i, ToolModels.SEED_COLOURS[0].lightened(rng.randf() * 0.5))
 	visible = true
 	_place()
 
@@ -97,7 +98,7 @@ func _fly(delta: float) -> void:
 		var p := _at[i] + v * delta
 		var under: float = _floor.call(p)
 		if p.y <= under:
-			p.y = under + 0.0025
+			p.y = under + 0.004
 			v = Vector3.ZERO
 		else:
 			flying += 1
@@ -114,6 +115,6 @@ func _fly(delta: float) -> void:
 
 func _place() -> void:
 	var size := clampf((lasts - age) / FADE, 0.0, 1.0)
-	var sink := Vector3.DOWN * (1.0 - size) * 0.006
+	var sink := Vector3.DOWN * (1.0 - size) * 0.01
 	for i in GRAINS:
 		multimesh.set_instance_transform(i, Transform3D(_turn[i].scaled(Vector3.ONE * size), _at[i] - position + sink))
