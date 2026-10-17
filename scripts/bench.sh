@@ -12,6 +12,7 @@
 #   bench.sh OUT_DIR --android APK            a Quest over adb (ANDROID_SERIAL picks it), in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
 # On a Quest, exits 1 when a phase the build must hold goes over budget; phases named "sweep/..." only measure.
+# On a Frame, exits 1 when the game exits non-zero, a crash at quit included; the desktop run stops with its status.
 # Each run's phases are recorded in perf/RIG/SCENE/, RIG the headset's model; commit the record with the change it
 # measured, for scripts/trend.py to follow.
 # NESTCOMBE_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
@@ -26,6 +27,7 @@ mkdir -p "$out"
 # Which ducks come to the stress scene's ponds: this one brings the most there can be, two families of five.
 seed=25
 device=desktop
+game=0
 rig=desktop
 players=${NESTCOMBE_PLAYERS:-1}
 case $players in [1-8]) ;; *) echo "bench: NESTCOMBE_PLAYERS is 1 to 8" >&2; exit 1 ;; esac
@@ -212,13 +214,13 @@ elif [ $# -ge 3 ]; then
   ssh -n "$2" 'cd nestcombe-bench/nestcombe
     export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)} DISPLAY=${DISPLAY:-:0}
     status=0; timeout 900 ./nestcombe -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --garden "$PWD/log/garden.save" --seed '"$seed${hosting:+ --port $hosting}"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
-    rm log/pid; echo "bench: $(cat REVISION) exit $status"' &
+    rm log/pid; echo "bench: $(cat REVISION) exit $status"; exit $status' &
   remote=$!
   if [ "$players" -gt 1 ]; then
     join ssh -n "$2" cat nestcombe-bench/nestcombe/log/godot.log -- \
       "$(ssh -n "$2" "ip -4 route get 1.1.1.1" | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')"
   fi
-  wait "$remote"
+  wait "$remote" || game=$?
   scp -rq "$2:nestcombe-bench/nestcombe/log/*" "$out/"
   standby "$2" on
 else
@@ -310,3 +312,4 @@ if over:
     print("over budget: " + ", ".join(over))
     sys.exit(1)
 PY
+[ "$game" = 0 ] || { echo "bench: the game exited $game; see $out/godot.log" >&2; exit 1; }
