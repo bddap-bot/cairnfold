@@ -18,6 +18,7 @@ func _initialize() -> void:
 	_a_new_window_never_closes_another()
 	_windows_fuse_across_a_loop_seam()
 	_flags_keep_their_colour()
+	_every_flag_triangle_faces_its_normal()
 	_a_house_takes_windows()
 	_lanterns_hang_off_the_face()
 	_flags_fly_from_open_tops()
@@ -555,3 +556,16 @@ func _play(steps: Array) -> void:
 	main.add_child(d)
 	await d.finished
 	d.queue_free()
+
+
+func _every_flag_triangle_faces_its_normal() -> void:
+	var a := Fittings._flag_mesh().surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var n: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+	var against := 0
+	for t in range(0, v.size(), 3):
+		var front := (v[t + 2] - v[t]).cross(v[t + 1] - v[t])
+		for k in 3:
+			if front.dot(n[t + k]) <= 0.0:
+				against += 1
+	_check(v.size() == 48 and against == 0, "every flag triangle winds as its normal faces, so none is drawn as its back face")

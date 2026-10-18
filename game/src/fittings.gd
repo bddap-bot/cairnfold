@@ -75,7 +75,8 @@ static func _instances(mesh: Mesh) -> MultiMeshInstance3D:
 	return mmi
 
 
-## A cloth strip from the pole (x = 0) out to x = 1, y from -0.5 to 0.5, cut into columns so it can wave.
+## A cloth strip from the pole (x = 0) out to x = 1, y from -0.5 to 0.5, cut into columns so it can wave. Each triangle
+## winds as its normal faces: one wound against it is drawn as its back face, its normal flipped away, hard black on the Quest.
 static func _flag_mesh() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -83,7 +84,7 @@ static func _flag_mesh() -> ArrayMesh:
 	for i in cols:
 		var x0 := float(i) / cols
 		var x1 := float(i + 1) / cols
-		for p in [Vector2(x0, -0.5), Vector2(x1, -0.5), Vector2(x1, 0.5), Vector2(x0, -0.5), Vector2(x1, 0.5), Vector2(x0, 0.5)]:
+		for p in [Vector2(x0, -0.5), Vector2(x1, 0.5), Vector2(x1, -0.5), Vector2(x0, -0.5), Vector2(x0, 0.5), Vector2(x1, 0.5)]:
 			st.set_normal(Vector3.BACK)
 			st.set_uv(Vector2(p.x, 0.5 - p.y))
 			st.add_vertex(Vector3(p.x, p.y, 0.0))
