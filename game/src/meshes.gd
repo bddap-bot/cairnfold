@@ -212,10 +212,14 @@ static func sprig() -> ArrayMesh:
 	for leaf in placed:
 		var x: Transform3D = leaf[0]
 		for lobe in [Vector3(-0.5, 0.5, -0.06), Vector3(0.5, 0.5, -0.06)]:
-			var n: Vector3 = (lobe - stem).cross(tip - stem).normalized()
+			# Godot's front face winds clockwise. A lobe wound against its normal is drawn as its back face, whose
+			# normal the renderer turns into the wall, and on the Quest that lobe showed black.
+			var corners := [stem, lobe, tip]
+			var n: Vector3 = (tip - stem).cross(lobe - stem).normalized()
 			if n.z < 0.0:
+				corners = [stem, tip, lobe]
 				n = -n
-			for p in [stem, lobe, tip]:
+			for p in corners:
 				st.set_normal(x.basis * n)
 				st.set_color(Color(leaf[1], leaf[1], leaf[1]))
 				st.add_vertex(x * p)

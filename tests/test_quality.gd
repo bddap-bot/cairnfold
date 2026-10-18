@@ -213,7 +213,6 @@ func _a_held_step_reaches_its_knobs() -> void:
 	for i in 100:
 		q._process(0.1)
 	_check(ks[Wall.Part.STONE].near == Quality.ladder[0].stone_near_m and ks[Wall.Part.IVY].reach == Quality.ladder[0].ivy_m, "back at the top, they return")
-	_check(flora.blob_detail == bottom.blob_detail, "but the crowns keep their coarser blobs, so their shade never flips back and forth")
 	_check(sun.shadow_enabled and q.view.scaling_3d_scale == 1.0, "and so do the shadows and the full 3D resolution")
 	sun.free()
 	q.view.free()

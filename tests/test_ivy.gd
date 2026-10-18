@@ -15,6 +15,7 @@ func _init() -> void:
 	_tall_walls_stay_bounded()
 	_raising_a_wall_keeps_its_ivy()
 	_bake_packs_each_leaf()
+	_every_lobe_faces_its_normal()
 	_a_house_grows_ivy_outside_only()
 	_a_tower_keeps_ivy_on_both_faces()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -127,6 +128,20 @@ func _bake_packs_each_leaf() -> void:
 	var x: Transform3D = leaves[i].xform
 	_check(is_equal_approx(b[i * 16 + 3], x.origin.x) and is_equal_approx(b[i * 16 + 1], x.basis.y.x) and is_equal_approx(b[i * 16 + 14], leaves[i].color.b), "rows laid out as the MultiMesh reads them")
 	_check(baked.bounds.has_point(x.origin), "the bounds hold the leaves")
+
+
+func _every_lobe_faces_its_normal() -> void:
+	var a := Meshes.sprig().surface_get_arrays(0)
+	var v: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
+	var n: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
+	var idx: PackedInt32Array = a[Mesh.ARRAY_INDEX]
+	var against := 0
+	for t in range(0, idx.size(), 3):
+		var front := (v[idx[t + 2]] - v[idx[t]]).cross(v[idx[t + 1]] - v[idx[t]])
+		for k in 3:
+			if front.dot(n[idx[t + k]]) <= 0.0:
+				against += 1
+	_check(idx.size() == 18 and against == 0, "every lobe winds as its normal faces, so none is drawn as its back face")
 
 
 func _loop(cover: WallLayout.Cover, reverse: bool) -> WallLayout:
