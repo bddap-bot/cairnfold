@@ -37,6 +37,9 @@ var water: Water
 var easels: Easels
 ## The garden's season; each build carries its own colours.
 var palette := Palette.new()
+## Where the sun stands (Daylight), shown on `look` once the sky tool lets the sky go.
+var time := Daylight.DEFAULT
+var look: Look
 ## Standing walls, paths, easels and plant groups by id, as the plain values their commands carry, and the grid
 ## points ponds fill from. A group keeps its command's fields, its `size` and the indices of its plants
 ## since `hidden`; an easel where it stands, which way it faces and its canvas's strokes, oldest first.
@@ -378,6 +381,9 @@ func _order(proposed: Dictionary, by: int) -> void:
 	if cmd.op == "plant" and cmd.kind != "tree":
 		cmd.skip = state.groups[cmd.id].skip
 	_commit.rpc(cmd)
+	# Turning the sky is not an edit, so undo leaves it be.
+	if cmd.op == "sky":
+		return
 	var keys := _keys(cmd)
 	for k in keys:
 		touched.get_or_add(k, {})[by] = seq
@@ -537,15 +543,16 @@ func _keys(cmd: Dictionary) -> Array:
 
 ## Changes the garden by one command and returns the command that takes it back. The author's ghost
 ## goes first, so a stroke's hump is not counted twice under walls laid on the new ground; a painted
-## stroke's goes last, to stand until the plants it shows have grown.
+## stroke's goes last, to stand until the plants it shows have grown, and so does a turned sky's, which only shows the
+## garden's sky again if the host turned it down.
 func _apply(cmd: Dictionary) -> Dictionary:
-	var painted: bool = cmd.op == "plant" and cmd.kind != "tree"
+	var last: bool = cmd.op == "sky" or cmd.op == "plant" and cmd.kind != "tree"
 	if flora != null and cmd.op in GROWS_FIRST:
 		flora.grow_now()
 	var mine: bool = cmd.get("by") == me() and cmd.has("token")
 	# An undo or redo carries its own token but no walls in hand.
 	var handed := mine and _done.has(cmd.token)
-	if mine and not painted:
+	if mine and not last:
 		_settle(cmd.token)
 	var inverse := {}
 	match cmd.op:
@@ -667,13 +674,18 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			inverse = {"op": "season", "index": palette.season}
 			palette.season = cmd.index
 			palette.apply()
+		"sky":
+			inverse = {"op": "sky", "time": time}
+			_show_sky(cmd.time)
 		"wipe":
 			inverse = {"op": "garden", "cmds": snapshot().cmds}
 			var season := palette.season
+			var sun := time
 			_hushed(func() -> void:
 				_clear()
 				palette.season = season
 				palette.apply()
+				_show_sky(sun)
 				_bare_meadow())
 		"batch":
 			var back := []
@@ -713,13 +725,19 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			state.easels[cmd.easel].strokes = cmd.strokes.duplicate()
 			if easels != null:
 				easels.repaint(cmd.easel, state.easels[cmd.easel].strokes)
-	if mine and painted:
+	if mine and last:
 		_settle(cmd.token)
 	applied.emit(cmd)
 	if save_path != "" and not _keep_due and multiplayer.is_server():
 		_keep_due = true
 		_keep.call_deferred()
 	return inverse
+
+
+func _show_sky(t: float) -> void:
+	time = t
+	if look != null:
+		look.set_time(t)
 
 
 ## Hands a joining player this garden.
@@ -771,6 +789,8 @@ func snapshot() -> Dictionary:
 			cmds.append({"op": "species", "group": id, "index": i, "species": g.species[i]})
 	if palette.season != Palette.SUMMER:
 		cmds.append({"op": "season", "index": palette.season})
+	if time != Daylight.DEFAULT:
+		cmds.append({"op": "sky", "time": time})
 	for c in cmds:
 		c.seq = seq
 		c.by = 1
@@ -806,7 +826,7 @@ func _hushed(change: Callable) -> Variant:
 	return out
 
 
-## Back to the empty meadow, every one of its plants standing, in summer.
+## Back to the empty meadow, every one of its plants standing, in summer, the sun where a garden starts.
 func _clear() -> void:
 	for id in state.walls.keys():
 		wall_tool.take(id)
@@ -827,6 +847,7 @@ func _clear() -> void:
 	flora.reset()
 	palette.season = Palette.SUMMER
 	palette.apply()
+	_show_sky(Daylight.DEFAULT)
 	state.groups[0] = _meadow()
 	if sculpted:
 		ground_grab.restore(Terrain.ALL, Terrain.base_heights())

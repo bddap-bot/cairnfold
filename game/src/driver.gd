@@ -755,11 +755,12 @@ func _until(s: Dictionary) -> void:
 	push_error("driver: until %s timed out" % s)
 
 
-## Writes `World.digest`, how many other players' avatars stand here and the hashes of their own files, to `name`.json in the capture
+## Writes `World.digest`, where the sun stands, how many other players' avatars stand here and the hashes of their own files, to `name`.json in the capture
 ## directory, for comparing machines.
 func _digest(s: Dictionary) -> void:
 	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name + ".json")
 	var out: Dictionary = main.world.digest()
+	out.sun = main.look.time
 	out.avatars = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.visible).size()
 	out.worn = main.session.avatars.values().map(func(a: Avatar) -> String: return a.source).filter(func(k: String) -> bool: return k != "")
 	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))

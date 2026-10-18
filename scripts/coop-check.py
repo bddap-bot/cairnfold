@@ -15,7 +15,7 @@ check(d["host"] == d["join"], "host and joiner show the same garden")
 for n in names[2:]:
     check(d[n] == d["host"], f"{n} shows the same garden")
 g = d["host"]
-check(g["seq"] == 31 + 2 * (len(names) - 2), "every late joiner built and undid its own wall")
+check(g["seq"] == 33 + 2 * (len(names) - 2), "every late joiner built and undid its own wall")
 check(len(g["walls"]) == 6, f"six walls stand (A put back by its deleter's undo, B, C, the host's house, the joiner's storey on it, the host's wing across it): {len(g['walls'])}")
 check(sum("\"on\": PackedInt32Array(" in w["data"] and "\"on\": PackedInt32Array()" not in w["data"] for w in g["walls"].values()) == 1, "the joiner's storey stands on the host's house")
 check(any(abs(w["height"] - 4.2) < 0.01 for w in g["walls"].values()), "the joiner's raised wall stands 4.2 m high")
@@ -41,6 +41,9 @@ check(meadow["plants"] - meadow["shown"] > 10, f"the joiner's deletes took a spa
 check(len(g["grounds"]) == 1 and any("lanterns\": PackedVector3Array(3" in w["data"] for w in g["walls"].values()), "the host's stone ground and lantern stand")
 easels = list(g["easels"].values())
 check(len(easels) == 1 and easels[0]["strokes"] == 2, f"the host's easel holds the joiner's watercolour stroke and the host's oil one: {easels}")
+turned = json.load(open(f"{out}/host-sun.json"))["sun"]
+check(abs(turned - 0.8) < 0.02, f"the host sees the sun where the joiner turned it: {turned:.3f}")
+check(abs(g["sun"] - 0.3) < 0.02, f"every peer sees the sun where the host turned it back: {g['sun']:.3f}")
 home = json.load(open(f"{out}/home.json"))
 home.pop("avatars")
 home.pop("worn")

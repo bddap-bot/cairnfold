@@ -2,8 +2,8 @@ class_name SkyTool
 extends Node
 
 ## Time of day, whatever a hand holds: grip with the hand pointed at open sky to grab the sky, and it turns
-## about the sun's arc with the pointer, the sun riding on it, until the grip lets go. Not an edit, so undo
-## leaves it be.
+## about the sun's arc with the pointer, the sun riding on it, until the grip lets go and every player's sky
+## turns to it (World's `sky`). Not an edit, so undo leaves it be.
 
 const BEAM := Color(1.0, 0.9, 0.6, 0.6)
 ## A soft click in the hand every this much of the day turned past.
@@ -11,6 +11,7 @@ const TICK := 1.0 / 24.0
 
 var rig: Rig
 var look: Look
+var world: World
 ## Whether a hand is in the middle of an edit, which its grip may have started this frame.
 var editing: Callable
 var holder: Hand
@@ -21,9 +22,10 @@ var _ticked := 0
 var _grips: Array[Buttons] = []
 
 
-func _init(player: Rig, sky: Look, busy: Callable) -> void:
+func _init(player: Rig, sky: Look, garden: World, busy: Callable) -> void:
 	rig = player
 	look = sky
+	world = garden
 	editing = busy
 	for h in rig.hands:
 		_grips.append(Buttons.new(h).watch(["grab"]))
@@ -34,6 +36,7 @@ func _process(_delta: float) -> void:
 		var hand: Hand = b.hand
 		if holder == hand and (b.released("grab") or not hand.tracked()):
 			holder = null
+			world.submit({"op": "sky", "time": look.time}, func() -> void: look.set_time(world.time))
 		if hand.tracked() and not hand.picking:
 			var dir := -hand.global_basis.z
 			if holder == hand:

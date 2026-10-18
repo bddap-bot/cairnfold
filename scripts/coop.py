@@ -15,8 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 # run in wall time, so no wall-clock limit applies.
 QUIET_CPU = 40
 # Going home before these steps means a player lost the garden it was visiting.
-# The host and the joiner end their builds at this command; late joiners build after it.
-SEQ = 31
+# The host and the joiner end their builds and turns of the sky at this command; late joiners build after it.
+SEQ = 33
 HOME_CUE = re.compile(r'"home": true|"digests": \["home"\]')
 
 

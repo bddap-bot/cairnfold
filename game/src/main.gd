@@ -50,6 +50,7 @@ func _ready() -> void:
 	rig = Rig.new()
 	add_child(rig)
 	world = World.new()
+	world.look = look
 	add_child(world)
 	var builds := Node3D.new()
 	builds.name = "Builds"
@@ -91,7 +92,7 @@ func _ready() -> void:
 		h.add_child(BudgetBar.new(world, h))
 	palette_tool = PaletteTool.new(rig, tool, world)
 	add_child(palette_tool)
-	sky_tool = SkyTool.new(rig, look, _editing)
+	sky_tool = SkyTool.new(rig, look, world, _editing)
 	add_child(sky_tool)
 	photo_tool = PhotoTool.new(rig)
 	if args.has("capture-dir"):

@@ -5,7 +5,7 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "species", "heights", "season", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "sheet"]
+const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "species", "heights", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "sheet"]
 ## What a batch may carry: from a player, takings; from the host, also the undo of them.
 const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show", "uneasel"]
 const UNBATCHED := ["stairs", "wall", "path", "ground", "easel"]
@@ -138,6 +138,10 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			var i: Variant = cmd.get("index")
 			ok = typeof(i) == TYPE_INT and i >= 0 and i < Palette.SEASONS.size()
 			out.index = i
+		"sky":
+			var t: Variant = cmd.get("time")
+			ok = typeof(t) == TYPE_FLOAT and t >= 0.0 and t <= 1.0
+			out.time = t
 		"wipe":
 			ok = true
 		"garden":

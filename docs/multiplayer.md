@@ -21,7 +21,8 @@ player's only ever a fresh, empty sheet). `wipe` takes the garden back to bare m
 `garden` (only ever the undo of a wipe) rebuilds it from the snapshot the wipe took. `batch` carries several takings (`unwall`, `reshape`, `unpath`,
 `unground`, `show`, `uneasel`) of different things, applied in order as one step: a delete stroke across many things is
 one undo, and its inverse is the batch of their inverses. `World` (game/src/world.gd) applies them, and nothing else changes the garden.
-The time of day is each player's own view of it: turning the sky sends nothing.
+`sky` sets where the sun stands, sent once the sky tool lets the sky go; it is not an edit, so it
+goes on nobody's undo stack, and a wipe leaves it be.
 Every machine applies the same commands in the same order, so every copy of the garden
 comes out the same.
 
@@ -73,6 +74,7 @@ commands that rebuild it from an empty meadow:
 - each path and wall
 - each plant group, in the order it was planted, with the plants since hidden
 - each material whose swatch, or the season, was changed
+- the sky, if it was turned
 
 A joiner clears its own garden, applies that snapshot, and then applies the log from the
 snapshot's sequence number on. ENet delivers reliable messages in order, so nothing
