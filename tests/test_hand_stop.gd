@@ -11,6 +11,7 @@ func _initialize() -> void:
 	_a_sweep_stops_at_the_surface_and_slides_along_it()
 	_a_ball_started_inside_is_let_go()
 	_a_touch_pulses_with_its_speed_and_sliding_ticks_softly()
+	_water_is_soft_and_still_water_is_quiet()
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	_run.call_deferred()
@@ -103,8 +104,6 @@ func _a_touch_pulses_with_its_speed_and_sliding_ticks_softly() -> void:
 			hi = maxf(hi, t.x)
 		return hi - lo
 	_check(spread.call(ticks) > spread.call(rows) * 2.0, "stone is rough, tiles are even")
-	var wash := _slide(HandStop.Surface.NONE, HandStop.Surface.WATER, 0.3)
-	_check(wash.size() >= 10 and wash[0].y >= 0.04, "water is a steady wash of long soft pulses: %d" % wash.size())
 	_check(not _slide(HandStop.Surface.NONE, HandStop.Surface.LEAVES, 0.5).is_empty(), "brushing leaves ticks")
 	for s in HandStop.Surface.values():
 		_check(s == HandStop.Surface.NONE or HandStop.FEEL.has(s), "every surface has a feel: %s" % HandStop.Surface.keys()[s])
@@ -118,6 +117,51 @@ func _a_touch_pulses_with_its_speed_and_sliding_ticks_softly() -> void:
 	f.step(0.0, 1.0 / 72.0, stone, HandStop.Surface.NONE, 0.01, 0.0)
 	f.step(0.05, 1.0 / 72.0, HandStop.Surface.NONE, HandStop.Surface.NONE, 0.0, 0.0)
 	_check(f.step(0.3, 1.0 / 72.0, stone, HandStop.Surface.NONE, 0.01, 0.0).x > 0.0, "a touch after a clear moment pulses again")
+
+
+## The strongest a hand in water ever feels: a fast plunge, a fast stroke or pulling out.
+const WATER_CEILING := 0.06
+
+
+func _water_is_soft_and_still_water_is_quiet() -> void:
+	var water := HandStop.Surface.WATER
+	var none := HandStop.Surface.NONE
+	var dt := 1.0 / 72.0
+	var f := HandStop.Feel.new()
+	var plunge := f.step(0.0, dt, none, water, 4.0 * dt, 4.0 * dt)
+	_check(plunge.x > 0.0 and plunge.x <= WATER_CEILING, "a hand plunged into water splashes softly: %.3f" % plunge.x)
+	var quiet := 0
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	for k in range(1, 72 * 5):
+		var jitter := rng.randf_range(0.0, 0.003)
+		if f.step(k * dt, dt, none, water, jitter, jitter).x > 0.0:
+			quiet += 1
+	_check(quiet == 0, "a hand held still under water, tracking jitter and all, feels nothing for five seconds: %d pulses" % quiet)
+	var leave := f.step(5.0, dt, none, none, 0.0, 0.0)
+	_check(leave.x > 0.0 and leave.x <= WATER_CEILING, "pulling the hand out pulses once, gently: %.3f" % leave.x)
+	var g := HandStop.Feel.new()
+	g.step(0.0, dt, none, water, 0.0, 0.0)
+	var bobs := 0
+	for k in range(1, 144):
+		if g.step(k * dt, dt, none, water if k % 2 == 0 else none, 0.001, 0.001).x > 0.0:
+			bobs += 1
+	_check(bobs == 1, "a hand bobbing at the surface pulses on leaving once, not %d times" % bobs)
+	for speed in [0.1, 0.3, 0.45]:
+		var drift := _slide(none, water, speed)
+		_check(drift.is_empty(), "moving slowly under water, %.2f m/s, feels nothing: %d pulses" % [speed, drift.size()])
+	var stroke := _slide(none, water, 1.0)
+	var swipe := _slide(none, water, 3.0)
+	var top := 0.0
+	var mean := func(ts: Array[Vector2]) -> float:
+		var sum := 0.0
+		for t in ts:
+			sum += t.x
+		return sum / maxf(ts.size(), 1)
+	for t in stroke + swipe:
+		top = maxf(top, t.x)
+	_check(stroke.size() >= 3 and top <= WATER_CEILING * 0.5, "a quick stroke through water is a faint texture: %d ticks, at most %.3f" % [stroke.size(), top])
+	_check(mean.call(_slide(none, water, 0.7)) < mean.call(swipe), "quicker strokes feel a little stronger")
 
 
 ## Holds the right hand so its ball sits at `ball`, as tracking would put it.

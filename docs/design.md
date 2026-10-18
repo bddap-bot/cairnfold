@@ -1688,7 +1688,7 @@ the world near that sweep alone, so no physics bodies exist.
 Touch is felt through one table, `HandStop.FEEL`, keyed by the surface touched: a first touch pulses with how
 fast the hand came in and the surface's hardness, and moving along a surface, or through leaves or water,
 plays its grain: stone rough and grainy, plaster smooth, wood and roof tiles ridged, ground soft, bark coarse,
-leaves light, water a steady wash, and the animals' coats gentle (sheep wool, duck down, conure feathers).
+leaves light, water quiet until a quick stroke ticks it faintly, and the animals' coats gentle (sheep wool, duck down, conure feathers).
 An animal is a `Critter` whose `coat` names its surface.
 
 Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,

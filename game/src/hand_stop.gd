@@ -9,20 +9,22 @@ extends Node
 
 enum Surface { NONE, GROUND, STONE, PLASTER, WOOD, TILE, BARK, LEAVES, WATER, WOOL, DOWN, FEATHERS }
 
-## Per surface: `hard`, the first touch's strength; `grain`, metres moved between ticks, 0 for a steady wash; `amp`,
-## a tick's amplitude, varied by up to `rough` of itself; `tick`, a tick's seconds.
+## Per surface: `hard`, the first touch's strength; `leave`, the pulse on leaving it; `grain`, metres moved between
+## ticks; `amp`, a tick's amplitude, varied by up to `rough` of itself; `tick`, a tick's seconds; `still`, the speed in
+## m/s below which moving along or through it plays no grain. Water asks for a quick stroke before it ticks, so a hand
+## resting or drifting under the surface feels nothing.
 const FEEL := {
-	Surface.GROUND: {"hard": 0.5, "grain": 0.06, "amp": 0.035, "rough": 0.4, "tick": 0.008},
-	Surface.STONE: {"hard": 1.0, "grain": 0.025, "amp": 0.07, "rough": 0.7, "tick": 0.005},
-	Surface.PLASTER: {"hard": 0.9, "grain": 0.06, "amp": 0.03, "rough": 0.15, "tick": 0.005},
-	Surface.WOOD: {"hard": 0.8, "grain": 0.08, "amp": 0.08, "rough": 0.1, "tick": 0.01},
-	Surface.TILE: {"hard": 0.9, "grain": 0.13, "amp": 0.1, "rough": 0.05, "tick": 0.014},
-	Surface.BARK: {"hard": 0.8, "grain": 0.04, "amp": 0.08, "rough": 0.5, "tick": 0.008},
-	Surface.LEAVES: {"hard": 0.25, "grain": 0.05, "amp": 0.025, "rough": 0.6, "tick": 0.008},
-	Surface.WATER: {"hard": 0.3, "grain": 0.0, "amp": 0.03, "rough": 0.0, "tick": 0.05},
-	Surface.WOOL: {"hard": 0.2, "grain": 0.07, "amp": 0.03, "rough": 0.3, "tick": 0.025},
-	Surface.DOWN: {"hard": 0.15, "grain": 0.04, "amp": 0.02, "rough": 0.3, "tick": 0.015},
-	Surface.FEATHERS: {"hard": 0.15, "grain": 0.025, "amp": 0.015, "rough": 0.5, "tick": 0.008},
+	Surface.GROUND: {"hard": 0.5, "leave": 0.0, "grain": 0.06, "amp": 0.035, "rough": 0.4, "tick": 0.008, "still": 0.05},
+	Surface.STONE: {"hard": 1.0, "leave": 0.0, "grain": 0.025, "amp": 0.07, "rough": 0.7, "tick": 0.005, "still": 0.05},
+	Surface.PLASTER: {"hard": 0.9, "leave": 0.0, "grain": 0.06, "amp": 0.03, "rough": 0.15, "tick": 0.005, "still": 0.05},
+	Surface.WOOD: {"hard": 0.8, "leave": 0.0, "grain": 0.08, "amp": 0.08, "rough": 0.1, "tick": 0.01, "still": 0.05},
+	Surface.TILE: {"hard": 0.9, "leave": 0.0, "grain": 0.13, "amp": 0.1, "rough": 0.05, "tick": 0.014, "still": 0.05},
+	Surface.BARK: {"hard": 0.8, "leave": 0.0, "grain": 0.04, "amp": 0.08, "rough": 0.5, "tick": 0.008, "still": 0.05},
+	Surface.LEAVES: {"hard": 0.25, "leave": 0.0, "grain": 0.05, "amp": 0.025, "rough": 0.6, "tick": 0.008, "still": 0.05},
+	Surface.WATER: {"hard": 0.12, "leave": 0.025, "grain": 0.1, "amp": 0.012, "rough": 0.3, "tick": 0.012, "still": 0.5},
+	Surface.WOOL: {"hard": 0.2, "leave": 0.0, "grain": 0.07, "amp": 0.03, "rough": 0.3, "tick": 0.025, "still": 0.05},
+	Surface.DOWN: {"hard": 0.15, "leave": 0.0, "grain": 0.04, "amp": 0.02, "rough": 0.3, "tick": 0.015, "still": 0.05},
+	Surface.FEATHERS: {"hard": 0.15, "leave": 0.0, "grain": 0.025, "amp": 0.015, "rough": 0.5, "tick": 0.008, "still": 0.05},
 }
 ## Animals join this group, each with its `coat`.
 const CRITTERS := &"critters"
@@ -140,20 +142,20 @@ static func _sweep(from: Vector3, to: Vector3, solid: Callable) -> Vector3:
 
 
 ## A hand's pulses from what it touches each frame: the surface it is held at, or else the one it passes through. A
-## touch after the hand has been clear a moment pulses with its approach speed and the surface's hardness; moving
-## on plays the surface's grain. Each pulse is [amplitude, seconds], 0 for none.
+## touch after the hand has been clear a moment pulses with its approach speed and the surface's hardness, and leaving
+## it pulses its `leave` once; moving on plays the surface's grain. Each pulse is [amplitude, seconds], 0 for none.
 class Feel:
 	## Clear this long before a contact counts as a new touch, so a hand resting at a surface does not buzz.
 	const CLEAR := 0.12
 	## The closest two ticks come, so a fast slide stays a texture.
 	const GAP := 0.025
 	const SPEED_FULL := 1.5
-	## Moving slower than this plays no grain.
-	const STILL := 0.05
 	var _on := Surface.NONE
 	var _clear_since := -INF
 	var _last := -INF
 	var _travel := 0.0
+	## What leaving the surface last touched still owes, paid once so a hand bobbing at a pond's top pulses once.
+	var _leave := 0.0
 	var _rng := RandomNumberGenerator.new()
 
 	## `approach` is how far the controller moved this frame, `slid` how far the hand you see did.
@@ -164,15 +166,18 @@ class Feel:
 		if on == Surface.NONE:
 			if _on != Surface.NONE:
 				_clear_since = now
+				if _leave > 0.0:
+					out = Vector2(_leave, 0.02)
+					_leave = 0.0
 		elif _on == Surface.NONE and now - _clear_since >= CLEAR:
 			out = Vector2(lerpf(0.08, 0.5, clampf(approach / dt / SPEED_FULL, 0.0, 1.0)) * FEEL[on].hard, 0.02)
 			_travel = 0.0
-		elif slid / dt > STILL:
+			_leave = FEEL[on].leave
+		elif slid / dt > FEEL[on].still:
 			var feel: Dictionary = FEEL[on]
 			_travel += slid
-			var due: bool = (_travel >= feel.grain if feel.grain > 0.0 else now - _last >= feel.tick) and now - _last >= GAP
-			if due:
-				_travel = fmod(_travel, feel.grain) if feel.grain > 0.0 else 0.0
+			if _travel >= feel.grain and now - _last >= GAP:
+				_travel = fmod(_travel, feel.grain)
 				var k := clampf(slid / dt / SPEED_FULL, 0.4, 1.0)
 				out = Vector2(feel.amp * k * (1.0 + feel.rough * _rng.randf_range(-1.0, 1.0)), feel.tick)
 		_on = on
