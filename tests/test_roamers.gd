@@ -19,6 +19,7 @@ func _initialize() -> void:
 	await _a_sudden_move_sends_a_deer_off_and_stillness_lets_it_near()
 	await _food_held_still_draws_one_to_eat()
 	await _a_wall_drawn_under_one_moves_it()
+	await _thrown_seeds_draw_them_to_eat()
 	await _they_leave_out_of_sight_and_come_again()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
@@ -39,6 +40,7 @@ class Glade:
 	var paths: Paths
 	var terrain: GroundGrab
 	var wildlife: Wildlife
+	var feed: FeedTool
 
 	func beasts(kind: Beast.Kind) -> Array[Beast]:
 		var out: Array[Beast] = []
@@ -72,6 +74,10 @@ func _glade(seed: int) -> Glade:
 	g.wildlife = Wildlife.new(g.water, g.flora, g.walls, Palette.new(), g.rig.head, hands, seed)
 	root.add_child(g.wildlife)
 	g.wildlife.set_process(false)
+	g.feed = FeedTool.new(g.rig, g.water)
+	root.add_child(g.feed)
+	g.feed.set_process(false)
+	g.wildlife.handfuls = g.feed.handfuls
 	for h in g.rig.hands:
 		h.global_position = AWAY
 	return g
@@ -81,7 +87,7 @@ func _teardown(g: Glade) -> void:
 	g.wildlife.free()
 	for w in g.walls.walls:
 		w.free()
-	for n: Node in [g.terrain, g.water, g.walls, g.flora, g.paths, g.world, g.rig]:
+	for n: Node in [g.feed, g.terrain, g.water, g.walls, g.flora, g.paths, g.world, g.rig]:
 		n.queue_free()
 	await process_frame
 
@@ -89,6 +95,7 @@ func _teardown(g: Glade) -> void:
 func _run(g: Glade, seconds: float, each := Callable()) -> void:
 	for i in int(seconds / STEP):
 		g.wildlife.tick(STEP)
+		g.feed.tick(STEP)
 		if each.is_valid():
 			each.call()
 
@@ -301,4 +308,32 @@ func _they_leave_out_of_sight_and_come_again() -> void:
 	_check(gone[0], "the deer leave after their stay")
 	_run(g, Roamers.AGAIN.y + 60.0, each)
 	_check(not g.beasts(Beast.Kind.DEER).is_empty(), "and others come later")
+	await _teardown(g)
+
+
+## Seeds thrown onto the grass a little way off draw a deer, and the fox, to eat them up off the ground.
+func _thrown_seeds_draw_them_to_eat() -> void:
+	var g := await _glade(23)
+	await _arrived(g)
+	for kind in [Beast.Kind.DEER, Beast.Kind.FOX]:
+		var near := g.beasts(kind)[0]
+		var at := Vector3.INF
+		for k in 12:
+			var p := near.position + Vector3.RIGHT.rotated(Vector3.UP, TAU * k / 12.0) * 5.0
+			if g.wildlife.roamers.allowed(p) and g.wildlife.roamers.clear_way(near.position, p):
+				at = Terrain.ground(p.x, p.z)
+				break
+		_check(at != Vector3.INF, "open grass to throw seeds onto")
+		if at == Vector3.INF:
+			continue
+		var away := Vector3(at.x - near.position.x, 0, at.z - near.position.z).normalized()
+		g.rig.head.global_position = at + away * (Roamers.WATCH[kind] + 2.0) + Vector3.UP * 1.6
+		_run(g, 1.0)
+		for b in g.wildlife.roamers.all():
+			b.full = 0.0
+		var seeds := g.feed.toss(at + Vector3.UP * 0.8, Vector3.ZERO)
+		var ate := [false]
+		_run(g, 40.0, func() -> void: ate[0] = ate[0] or g.wildlife.roamers.all().any(func(b: Beast) -> bool: return b.kind == kind and b.state == Grazers.State.FEED and b.hand == seeds and seeds.left() < Handful.GRAINS))
+		_check(ate[0], "a %s comes to thrown seeds and eats them, %d grains left" % [Beast.Kind.keys()[kind], seeds.left()])
+		_run(g, Handful.LASTS.y + 2.0)
 	await _teardown(g)
