@@ -28,6 +28,7 @@ func _run() -> void:
 	await _a_fresh_sheet_clears_and_undo_brings_the_painting_back()
 	await _a_deleted_easel_comes_back_with_its_painting()
 	await _the_tray_loads_the_brush()
+	await _the_trigger_sets_one_up_or_says_why_not()
 	_easels_keep_their_distance_and_number()
 	_bad_strokes_are_dropped()
 	for f in DirAccess.get_files_at(dir):
@@ -168,6 +169,39 @@ func _the_tray_loads_the_brush() -> void:
 	_check(p.medium == Brushwork.Medium.OIL, "the tin makes it oil")
 	await _play([{"op": "take", "what": "stick"}])
 	_check(p.brush == Brushwork.Brush.STICK and p.medium == Brushwork.Medium.CHARCOAL, "the stick is charcoal")
+
+
+## The trigger path a headset player uses: the easel tool taken from the wheel, the hand pointed at the ground, the
+## trigger pressed; on either hand and either headset's controls. A press that sets none up says why.
+func _the_trigger_sets_one_up_or_says_why_not() -> void:
+	world.restore({"seq": 0, "cmds": []})
+	await _settled()
+	var why: Array[String] = []
+	main.easel_tool.declined.connect(func(w: String) -> void: why.append(w))
+	var press := func(hand: String, device: String, at: Array) -> void:
+		why.clear()
+		await _play([
+			{"op": "pick", "tool": "easel", "hand": hand},
+			{"op": "point", "tool": "easel", "hand": hand, "at": at},
+			{"op": "press", "button": hand + "_trigger", "device": device},
+		])
+		await _settled()
+	await _play([{"op": "place", "x": 0, "z": 6}, {"op": "wait", "seconds": 0.05}])
+	for t in [["right", "quest", [-6, 0, 0]], ["left", "quest", [6, 0, 0]], ["right", "frame", [0, 0, -2]], ["left", "frame", [-3, 0, -6]]]:
+		var before: int = world.state.easels.size()
+		await press.call(t[0], t[1], t[2])
+		_check(world.state.easels.size() == before + 1 and why.is_empty(), "the %s trigger on the %s sets an easel up from the wheel: %d easels, %s" % [t[0], t[1], world.state.easels.size(), why])
+	await press.call("right", "quest", [3, 0, 10])
+	_check(world.state.easels.size() == Easels.MAX and why.size() == 1 and why[0].contains("holds its"), "past the garden's easels a press sets none up and says so: %s" % [why])
+	await _play([{"op": "press", "button": "dpad_down"}])
+	await press.call("right", "quest", [-6.5, 0, 0.3])
+	_check(world.state.easels.size() == Easels.MAX - 1 and why.size() == 1 and why[0].contains("another easel"), "nor beside another easel: %s" % [why])
+	await press.call("right", "quest", [0, 30, -10])
+	_check(why.size() == 1 and why[0].contains("no ground"), "nor at the sky: %s" % [why])
+	var first: Vector3 = world.state.easels.values()[0].at
+	await _play([{"op": "place", "x": first.x, "z": first.z + 1.0}, {"op": "wait", "seconds": 0.05}])
+	await press.call("right", "quest", [first.x, 0, first.z - 8])
+	_check(world.state.easels.size() == Easels.MAX - 1 and why.size() == 1 and why[0].contains("of an easel"), "nor from a hand at an easel: %s" % [why])
 
 
 func _frames(n: int) -> void:

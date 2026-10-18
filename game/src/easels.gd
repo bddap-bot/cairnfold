@@ -150,7 +150,16 @@ static func _flat(a: Vector3, b: Vector3) -> float:
 
 ## Whether an easel may stand at `at` among `standing` ({at, ...} by id).
 static func room_at(at: Vector3, standing: Dictionary) -> bool:
-	return standing.size() < MAX and standing.values().all(func(d: Dictionary) -> bool: return _flat(d.at, at) >= SPACING)
+	return crowded(at, standing).is_empty()
+
+
+## Why no easel may stand at `at` among `standing`, or "" if one may.
+static func crowded(at: Vector3, standing: Dictionary) -> String:
+	if standing.size() >= MAX:
+		return "the garden holds its %d easels" % MAX
+	if not standing.values().all(func(d: Dictionary) -> bool: return _flat(d.at, at) >= SPACING):
+		return "another easel stands within %.1f m" % SPACING
+	return ""
 
 
 ## The yaw that turns an easel at `at` to face `toward`.

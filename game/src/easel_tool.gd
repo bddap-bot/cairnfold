@@ -51,6 +51,9 @@ class Painter:
 	var shown := 0.0
 
 
+## A trigger that set no easel up, and why; the log carries it too.
+signal declined(why: String)
+
 var rig: Rig
 var easels: Easels
 var world: World
@@ -132,6 +135,8 @@ func _handle(p: Painter, delta: float) -> void:
 		hand.hold()
 	var holding := hand.tool == Hand.Tool.EASEL
 	_show_brush(p, holding, delta)
+	if holding and not live and p.buttons.pressed("tool"):
+		_decline(hand, "the hand is %s" % ("untracked" if not hand.tracked() else "aiming a teleport" if rig.aim_hand == hand else "picking a tool"))
 	if not holding or not live or p.palette != null or p.peel != null:
 		end_stroke(p)
 		return
@@ -144,6 +149,8 @@ func _handle(p: Painter, delta: float) -> void:
 			return
 	if e == null or Easels._flat(e.global_position, hand.global_position) > PLACE_CLEAR:
 		_aim_ground(p)
+	elif p.buttons.pressed("tool"):
+		_decline(hand, "the hand is within %.1f m of an easel" % PLACE_CLEAR)
 
 
 ## Sets an easel up where the hand points, facing the player, on the trigger.
@@ -151,7 +158,10 @@ func _aim_ground(p: Painter) -> void:
 	var t := p.hand.global_transform
 	var hit: Variant = Terrain.raycast(t.origin, -t.basis.z)
 	p.hand.point(hit, TINT)
-	if hit == null or not Easels.room_at(hit, world.state.easels):
+	var why := "it points at no ground" if hit == null else Easels.crowded(hit, world.state.easels)
+	if not why.is_empty():
+		if p.buttons.pressed("tool"):
+			_decline(p.hand, why)
 		return
 	var yaw := Easels.facing(hit, rig.head.global_position)
 	p.ghost.visible = true
@@ -162,10 +172,17 @@ func _aim_ground(p: Painter) -> void:
 
 
 func place(at: Vector3, yaw: float, hand: Hand = null) -> void:
-	if Easels.room_at(at, world.state.easels):
+	var why := Easels.crowded(at, world.state.easels)
+	if why.is_empty():
 		world.submit({"op": "easel", "at": at, "yaw": yaw}, Callable(), hand)
 	elif hand != null:
-		Hand.bump(hand)
+		_decline(hand, why)
+
+
+func _decline(hand: Hand, why: String) -> void:
+	print("easel: none set up: %s" % why)
+	Hand.bump(hand)
+	declined.emit(why)
 
 
 ## What a grip at the hand takes: the nearest brush in a pot, charcoal, palette or canvas sheet within reach.

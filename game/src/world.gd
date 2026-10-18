@@ -73,6 +73,8 @@ var _devices := {}
 var _pending := {}
 ## The hand each of our sent commands came from, by token, so the one turned down feels it.
 var _hands := {}
+## The op of each of our sent commands, by token, for the log line when one is turned down.
+var _ops := {}
 
 
 func _init() -> void:
@@ -290,8 +292,9 @@ func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) ->
 		_done[_next_token] = done
 	if hand != null:
 		_hands[_next_token] = hand
+	_ops[_next_token] = cmd.get("op")
 	if not cmd.get("op") in ["undo", "redo"] and not fits(cmd):
-		_turned_down(_next_token)
+		_turned_down(_next_token, "over the frame budget")
 		return
 	if multiplayer.is_server():
 		_order(cmd, me())
@@ -303,6 +306,7 @@ func _settle(token: int) -> void:
 	var done: Callable = _done.get(token, Callable())
 	_done.erase(token)
 	_hands.erase(token)
+	_ops.erase(token)
 	if done.is_valid():
 		done.call()
 
@@ -321,7 +325,7 @@ func _propose(cmd: Dictionary) -> void:
 		return
 	var by := multiplayer.get_remote_sender_id()
 	if not _spend(by, 1.0):
-		_refuse(by, cmd.get("token"))
+		_refuse(by, cmd, "more commands a second than it takes")
 		return
 	_order(cmd, by)
 
@@ -342,7 +346,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 	var kind: Variant = proposed.get("op")
 	var cmd := {}
 	if kind == "wipe" and by != me():
-		_refuse(by, proposed.get("token"))
+		_refuse(by, proposed, "only the host wipes")
 		return
 	if kind == "undo" or kind == "redo":
 		var step := _resolve(by, kind)
@@ -351,12 +355,15 @@ func _order(proposed: Dictionary, by: int) -> void:
 		cmd = step.inverse.duplicate(true)
 		if not fits(cmd):
 			stacks[by][kind].append(step)
-			_refuse(by, proposed.get("token"))
+			_refuse(by, proposed, "over the frame budget")
 			return
 	else:
 		cmd = Commands.clean(proposed, state, false)
-		if cmd.is_empty() or kind != "wipe" and not fits(cmd):
-			_refuse(by, proposed.get("token"))
+		if cmd.is_empty():
+			_refuse(by, proposed, "no such command in this build" if not kind in Commands.OPS else "it does not fit the garden as it stands")
+			return
+		if kind != "wipe" and not fits(cmd):
+			_refuse(by, proposed, "over the frame budget")
 			return
 	seq += 1
 	cmd.seq = seq
@@ -386,21 +393,23 @@ func _order(proposed: Dictionary, by: int) -> void:
 			mine.redo.clear()
 
 
-func _refuse(by: int, token: Variant) -> void:
-	if typeof(token) != TYPE_INT:
+func _refuse(by: int, proposed: Dictionary, why: String) -> void:
+	var token: Variant = proposed.get("token")
+	if by == me() and typeof(token) == TYPE_INT:
+		_turned_down(token, why)
 		return
-	if by == me():
-		_turned_down(token)
-	else:
+	print("world: refused %s from player %d: %s" % [str(proposed.get("op")).left(16), by, why])
+	if typeof(token) == TYPE_INT:
 		_refused.rpc_id(by, token)
 
 
 @rpc("authority", "reliable")
 func _refused(token: int) -> void:
-	_turned_down(token)
+	_turned_down(token, "the host refused it")
 
 
-func _turned_down(token: int) -> void:
+func _turned_down(token: int, why: String) -> void:
+	print("world: %s turned down: %s" % [_ops.get(token), why])
 	var hand: XRController3D = _hands.get(token)
 	if hand != null and is_instance_valid(hand):
 		Hand.bump(hand)
