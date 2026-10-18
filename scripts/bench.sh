@@ -105,9 +105,8 @@ if [ "${2:-}" = --android ]; then
     dump=$(adb shell dumpsys "$1")
     grep -m1 "$2" <<< "$dump" | grep -q "${3:-}"
   }
-  # Never uninstall to make room: that deletes the garden saved on the device.
   rig=$(adb shell getprop ro.product.model | tr -d '\r' | tr 'A-Z ' 'a-z-')
-  adb install -r -g "$3" > /dev/null
+  "$here/quest-install.sh" "$3"
   same "$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')" --short HEAD
   adb shell "rm -rf $dir"
   adb push "$out/stress.json" "$files/bench.json" > /dev/null

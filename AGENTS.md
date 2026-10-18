@@ -36,6 +36,9 @@ controls and the build order.
   deploying key, make your own once:
   `keytool -genkeypair -keystore release.keystore -alias nestcombe -keyalg RSA -keysize 2048 -validity 10000 -dname CN=Nestcombe`
   with the password you write to `password`.
+- Put an APK on a Quest only with `scripts/quest-install.sh APK`, never a bare `adb install` or
+  `adb uninstall`: an install that needs an uninstall erases the players' garden and avatars, and
+  that script alone copies them off first and puts them back.
 - Every edit to the garden is a build command applied by `World` (docs/multiplayer.md): a tool never
   changes the garden itself, only shows its ghost until the command comes back. After touching
   `World`, `Commands` or a tool, `nix-shell --run 'scripts/coop.sh out'` must pass too.
