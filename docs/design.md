@@ -1252,7 +1252,9 @@ ivy and foliage were not the source. The blades there are 2–3 px wide, so wide
 changed nothing; their bright tips and edge-on flower heads are what four samples cannot
 hold still. So far grass tips settle on the blade's mid-tone by 20 m and flower heads take
 the stalk's green over 10–30 m (`head_fade_begin`, `head_fade_end`): 23–29% less far
-flicker, no change in GPU time on the Frame.
+flicker, no change in GPU time on the Frame, nor on the Quest 2, where the same scene took
+55.6 → 56.0, 47.3 → 47.4 and 42.2 → 42.0 ms of App= GPU time a frame on the ground, at the
+edge and in the air, inside the 0.9 ms one build varies between runs.
 
 Measured and left out, on the Frame in the same scene: FXAA over MSAA (+1 ms, and it blurs
 walls and roofs) and render scale 1.25, the panel's own size (+3.7 ms). On the desktop 8×
