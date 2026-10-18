@@ -17,6 +17,7 @@ func _init() -> void:
 	_a_long_wall_splits_by_the_ground_under_each_stone()
 	_stone_faces_share_their_borders()
 	_settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach()
+	_far_stones_draw_by_coarse_chunks()
 	_far_pieces_reach_the_near_pieces_faces()
 	_full_stones_stand_only_near_the_eye()
 	_a_changing_wall_draws_far_stones_by_its_own_chunks()
@@ -169,7 +170,7 @@ func _a_long_wall_splits_by_the_ground_under_each_stone() -> void:
 		var buf: PackedFloat32Array = chunks[key]
 		total += buf.size()
 		for i in range(0, buf.size(), stone.stride()):
-			var at := Vector2i(floori(buf[i + 3] / Masonry.CHUNK_METRES), floori(buf[i + 11] / Masonry.CHUNK_METRES))
+			var at := Vector2i(floori(buf[i + 3] / stone.cell()), floori(buf[i + 11] / stone.cell()))
 			if at != key:
 				_check(false, "a stone at %s sits in chunk %s" % [at, key])
 				return
@@ -193,25 +194,57 @@ func _settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach() -> void:
 		buf.resize(ks[k].stride() * 2)
 		buf[3] = 1.0
 		buf[ks[k].stride() + 3] = 40.0
-		parts.append(Masonry.split(buf, ks[k].stride()))
+		parts.append(Masonry.split(buf, ks[k]))
 	m.place(1, parts)
-	_check(m._chunks.size() == 2, "pieces 39 m apart stand in two chunks")
-	for c in m._chunks.values():
-		var near: MultiMeshInstance3D = c.instances[Wall.Part.STONE]
-		var far: MultiMeshInstance3D = c.fars[Wall.Part.STONE]
-		_check(far != null and far.multimesh.mesh == Stones.far_mesh(), "a chunk draws far stones with the far mesh")
-		_check(far.multimesh.instance_count == 0 and near.multimesh.instance_count == 0, "nothing drawn before the chunk is processed")
-		_check(is_equal_approx(near.visibility_range_end, ks[Wall.Part.STONE].near + Masonry.CHUNK_RADIUS) and is_equal_approx(far.visibility_range_begin, near.visibility_range_end), "near and far stones meet at the near distance")
-		_check(is_equal_approx(c.instances[Wall.Part.IVY].visibility_range_end, ks[Wall.Part.IVY].reach + Masonry.CHUNK_RADIUS), "ivy stops at its reach")
-		_check(c.fars[Wall.Part.MORTAR] == null and c.instances[Wall.Part.MORTAR].visibility_range_end == 0.0, "mortar has no far mesh and no limit")
+	var stones := m._chunks.keys().filter(func(key: Vector3i) -> bool: return key.z == Wall.Part.STONE)
+	_check(stones.size() == 2, "stones 39 m apart stand in two chunks")
+	for key: Vector3i in m._chunks:
+		var c: Masonry.Chunk = m._chunks[key]
+		match key.z:
+			Wall.Part.STONE:
+				_check(c.far != null and c.far.multimesh.mesh == Stones.far_mesh(), "a chunk draws far stones with the far mesh")
+				_check(c.far.multimesh.instance_count == 0 and c.instance.multimesh.instance_count == 0, "nothing drawn before the chunk is processed")
+				_check(is_equal_approx(c.instance.visibility_range_end, ks[Wall.Part.STONE].near + ks[Wall.Part.STONE].radius()) and is_equal_approx(c.far.visibility_range_begin, c.instance.visibility_range_end), "near and far stones meet at the near distance")
+			Wall.Part.IVY:
+				_check(is_equal_approx(c.instance.visibility_range_end, ks[Wall.Part.IVY].reach + ks[Wall.Part.IVY].radius()), "ivy stops at its reach")
+			Wall.Part.MORTAR:
+				_check(c.far == null and c.instance.visibility_range_end == 0.0, "mortar has no far mesh and no limit")
+	_check(ks[Wall.Part.STONE].cell() < ks[Wall.Part.MORTAR].cell(), "what is cut by distance stands in finer chunks than what is drawn at every distance")
 	m._process(0.0)
-	for c in m._chunks.values():
-		_check(c.instances[Wall.Part.STONE].multimesh.instance_count == 1 and c.fars[Wall.Part.STONE].multimesh.instance_count == 1, "near and far hold the chunk's one stone")
+	for key in stones:
+		var c: Masonry.Chunk = m._chunks[key]
+		_check(c.instance.multimesh.instance_count == 1 and c.far.multimesh.instance_count == 1, "near and far hold the chunk's one stone")
 	m.place(1, parts)
 	m.remove(1)
 	m._process(0.0)
-	for c in m._chunks.values():
-		_check(c.instances[Wall.Part.STONE].multimesh.instance_count == 0 and c.fars[Wall.Part.STONE].multimesh.instance_count == 0, "a removed owner leaves every chunk it stood in")
+	for c: Masonry.Chunk in m._chunks.values():
+		_check(c.instance.multimesh.instance_count == 0, "a removed owner leaves every chunk it stood in")
+	m.free()
+
+
+## From afar the far stones of every 8 m chunk in a 16 m one draw as one; nearer, each chunk's own near or far stones
+## draw instead, never both.
+func _far_stones_draw_by_coarse_chunks() -> void:
+	var ks := Wall.kinds()
+	var stone := ks[Wall.Part.STONE]
+	var m := Masonry.new(ks)
+	root.add_child(m)
+	var buf := PackedFloat32Array()
+	buf.resize(stone.stride() * 3)
+	for i in 3:
+		buf[i * stone.stride() + 3] = [1.0, 9.0, 17.0][i]
+	var parts: Array[Dictionary] = []
+	for k in ks.size():
+		parts.append(Masonry.split(buf, stone) if k == Wall.Part.STONE else {})
+	m.place(1, parts)
+	m._process(0.0)
+	_check(m._chunks.size() == 3 and m._coarse.size() == 2, "three 8 m chunks under two 16 m ones, got %d and %d" % [m._chunks.size(), m._coarse.size()])
+	var coarse: MultiMeshInstance3D = m._coarse.get(Vector3i(0, 0, Wall.Part.STONE))
+	_check(coarse != null and coarse.multimesh.instance_count == 2 and coarse.multimesh.mesh == Stones.far_mesh(), "the 16 m chunk draws both its 8 m chunks' stones far")
+	_check(is_equal_approx(coarse.visibility_range_begin, stone.near + Masonry.radius(Masonry.COARSE)), "once the whole 16 m chunk is past the near distance")
+	for x in [0, 1]:
+		var c: Masonry.Chunk = m._chunks[Vector3i(x, 0, Wall.Part.STONE)]
+		_check(c.far.get_node(c.far.visibility_parent) == coarse and c.instance.get_node(c.instance.visibility_parent) == coarse, "chunk %d draws only while its 16 m chunk does not" % x)
 	m.free()
 
 
@@ -253,10 +286,11 @@ func _a_changing_wall_draws_far_stones_by_its_own_chunks() -> void:
 	var id := w.get_instance_id()
 	_check(w._drawn != null and w._drawn._owners.has(id) and not glade._owners.has(id), "a changing wall draws its own pieces")
 	if w._drawn != null:
-		_check(w._drawn._chunks.size() >= 4, "by the ground chunk under each, got %d chunks" % w._drawn._chunks.size())
-		for c in w._drawn._chunks.values():
-			var far: MultiMeshInstance3D = c.fars[Wall.Part.STONE]
-			_check(far != null and far.multimesh.mesh == Stones.far_mesh() and is_equal_approx(far.visibility_range_begin, Wall.kinds()[Wall.Part.STONE].near + Masonry.CHUNK_RADIUS), "beyond the near distance in coarse stones")
+		var stones := w._drawn._chunks.keys().filter(func(key: Vector3i) -> bool: return key.z == Wall.Part.STONE)
+		_check(stones.size() >= 4, "by the ground chunk under each, got %d chunks" % stones.size())
+		for key in stones:
+			var far: MultiMeshInstance3D = w._drawn._chunks[key].far
+			_check(far != null and far.multimesh.mesh == Stones.far_mesh() and is_equal_approx(far.visibility_range_begin, Wall.kinds()[Wall.Part.STONE].near + Wall.kinds()[Wall.Part.STONE].radius()), "beyond the near distance in coarse stones")
 	w.finished = true
 	w.rebuild(true)
 	w.lay_now()
@@ -300,15 +334,15 @@ func _full_stones_stand_only_near_the_eye() -> void:
 			n += 1
 	var parts: Array[Dictionary] = []
 	for k in ks.size():
-		parts.append(Masonry.split(buf, stone.stride()) if k == Wall.Part.STONE else {})
+		parts.append(Masonry.split(buf, stone) if k == Wall.Part.STONE else {})
 	Wall.approach(Quality.ladder[-1], INF, m)
 	m.place(1, parts)
 	var full := 0.0
 	var eye := Vector3(0.5, 1.65, 0.5)
-	for key in m._chunks:
-		var centre := Vector3(key.x + 0.5, 0.0, key.y + 0.5) * Masonry.CHUNK_METRES + Vector3.UP * WallLayout.HEIGHTS.y * 0.5
-		if eye.distance_to(centre) < m._chunks[key].instances[Wall.Part.STONE].visibility_range_end:
-			full += Masonry.CHUNK_METRES * Masonry.CHUNK_METRES
+	for key: Vector3i in m._chunks:
+		var centre := Vector3(key.x + 0.5, 0.0, key.y + 0.5) * stone.cell() + Vector3.UP * WallLayout.HEIGHTS.y * 0.5
+		if eye.distance_to(centre) < m._chunks[key].instance.visibility_range_end:
+			full += stone.cell() * stone.cell()
 	_check(full <= 256.0, "stones drawn in full over at most 256 m² around the eye at the bottom step, got %.0f" % full)
 	Wall.approach(Quality.ladder[0], INF, m)
 	m.free()
@@ -418,7 +452,7 @@ func _a_chunk_draws_again_only_the_pieces_that_changed() -> void:
 		var buf := PackedFloat32Array()
 		buf.resize(ks[k].stride())
 		buf[3] = 1.0
-		parts.append(Masonry.split(buf, ks[k].stride()))
+		parts.append(Masonry.split(buf, ks[k]))
 	var bare := parts.duplicate()
 	bare[Wall.Part.IVY] = {}
 	m.place(2, parts)
@@ -426,8 +460,8 @@ func _a_chunk_draws_again_only_the_pieces_that_changed() -> void:
 	m._process(0.0)
 	told[0] = 0
 	m.place(1, parts)
-	var redrawn: Array = m._dirty.values().map(func(kinds: Dictionary) -> Array: return kinds.keys())
-	_check(redrawn == [[Wall.Part.IVY]], "ivy settling draws the chunk's ivy again, nothing else: %s" % [redrawn])
+	var redrawn: Array = m._dirty.keys()
+	_check(redrawn == [Vector3i(0, 0, Wall.Part.IVY)], "ivy settling draws the chunk's ivy again, nothing else: %s" % [redrawn])
 	_check(told[0] == 0, "ivy settling does not stir the light")
 	m._process(0.0)
 	m.place(1, parts)

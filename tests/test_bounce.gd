@@ -187,7 +187,7 @@ func _masonry_reports_only_what_stands_in_the_light() -> void:
 	for k in Wall.Part.size():
 		var buf := PackedFloat32Array()
 		buf.resize(Wall.kinds()[k].stride())
-		parts.append(Masonry.split(buf, Wall.kinds()[k].stride()))
+		parts.append(Masonry.split(buf, Wall.kinds()[k]))
 	m.place(7, parts)
 	_check(got.size() == 1 and got[0][1] == 4, "a wall's stones, tiles, thatch slabs and timbers shade, not its mortar, shadow boxes or ivy: %s" % [got])
 	m.remove(7)

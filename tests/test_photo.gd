@@ -172,13 +172,12 @@ func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
 		var buf := PackedFloat32Array()
 		buf.resize(Wall.kinds()[k].stride())
 		Wall.kinds()[k].write(buf, 0, Transform3D(Basis(), Vector3(1, 0, 1)))
-		parts.append(Masonry.split(buf, Wall.kinds()[k].stride()))
+		parts.append(Masonry.split(buf, Wall.kinds()[k]))
 	glade.place(1, parts)
-	var chunk: Masonry.Chunk = glade._chunks.values()[0]
 	for k in [Wall.Part.STONE, Wall.Part.IVY]:
-		var full := chunk.fulls[k]
-		_check(full != null and full.multimesh == chunk.instances[k].multimesh and full.layers == Quality.FULL_LAYER and full.visibility_range_end == 0.0, "a photo draws part %d whole at every distance" % k)
-		_check(chunk.instances[k].layers == Quality.LADDER_LAYER and chunk.instances[k].visibility_range_end > 0.0, "the headset draws part %d as the ladder allows" % k)
-	_check(chunk.fulls[Wall.Part.STONE_SHADOW] == null, "what is drawn whole anyway has no second instance")
+		var chunk: Masonry.Chunk = glade._chunks[Vector3i(0, 0, k)]
+		_check(chunk.full != null and chunk.full.multimesh == chunk.instance.multimesh and chunk.full.layers == Quality.FULL_LAYER and chunk.full.visibility_range_end == 0.0, "a photo draws part %d whole at every distance" % k)
+		_check(chunk.instance.layers == Quality.LADDER_LAYER and chunk.instance.visibility_range_end > 0.0, "the headset draws part %d as the ladder allows" % k)
+	_check(glade._chunks[Vector3i(0, 0, Wall.Part.STONE_SHADOW)].full == null, "what is drawn whole anyway has no second instance")
 	for n in [tool, flora, parent, glade, rig]:
 		n.queue_free()

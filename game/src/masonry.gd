@@ -8,13 +8,12 @@ extends Node3D
 
 ## A chunk is also the step of culling and of reach: the renderer culls a chunk's MultiMesh as a whole, by its
 ## bounds, so each piece goes to the chunk under it, however long the wall it belongs to. A whole chunk draws its
-## stones in full once any of it is near, so its size bounds how many full stones stand around the eye; a smaller
-## chunk costs draw calls.
-const CHUNK_METRES := 8.0
-## How far a chunk's pieces reach from the centre of its bounds, where the renderer measures its distance: half the
-## diagonal of a chunk holding the tallest wall on flat ground. A roof or slope standing higher can switch its top
-## stones to the far mesh a little inside the near distance, which only the ladder's lowest steps ever bring close.
-const CHUNK_RADIUS := sqrt(CHUNK_METRES * CHUNK_METRES * 2.0 + WallLayout.HEIGHTS.y * WallLayout.HEIGHTS.y) * 0.5
+## stones in full once any of it is near, so its size bounds how many full stones stand around the eye, and every
+## chunk drawn costs a draw call. So a kind cut by distance (`Kind.ranged`) is chunked by FINE, and its far mesh is
+## drawn by COARSE chunks once a whole one is past the near distance; the rest, drawn at every distance, by COARSE
+## (see "What walls cost the Quest 2" in docs/design.md).
+const FINE := 8.0
+const COARSE := 16.0
 
 ## An owner's pieces that stand in the light (`Kind.occludes`) changed: their buffers and strides, empty
 ## once it is gone.
@@ -50,6 +49,21 @@ class Kind:
 
 	func stride() -> int:
 		return 12 + (4 if colors else 0) + (4 if custom else 0)
+
+	## Whether it is drawn only so far, or coarser beyond a distance.
+	func ranged() -> bool:
+		return far != null or reach > 0.0
+
+	## The side of its chunks, in metres.
+	func cell() -> float:
+		return FINE if ranged() else COARSE
+
+	## How far its pieces reach from the centre of a chunk's bounds, where the renderer measures its distance: half
+	## the diagonal of a chunk holding the tallest wall on flat ground. A roof or slope standing higher can switch its
+	## top stones to the far mesh a little inside the near distance, which only the ladder's lowest steps ever bring
+	## close.
+	func radius() -> float:
+		return Masonry.radius(cell())
 
 	## Writes instance `n` of `buf`.
 	func write(buf: PackedFloat32Array, n: int, x: Transform3D, color := Color.WHITE, occlusion := 1.0, material := 0.0, ends := Vector2.ZERO) -> void:
@@ -91,22 +105,28 @@ class Kind:
 		return mmi
 
 
+## One kind's pieces in one chunk.
 class Chunk:
-	var instances: Array[MultiMeshInstance3D] = []
-	## Each kind's far instance, null for a kind without one.
-	var fars: Array[MultiMeshInstance3D] = []
-	## Each kind's whole instance for a photo, sharing `instances`' multimesh at every distance (Quality.FULL_LAYER),
-	## null for a kind drawn whole anyway.
-	var fulls: Array[MultiMeshInstance3D] = []
-	## Owner id -> one buffer per kind.
+	var instance: MultiMeshInstance3D
+	## Its far instance, null for a kind without one.
+	var far: MultiMeshInstance3D
+	## Its whole instance for a photo, sharing `instance`'s multimesh at every distance (Quality.FULL_LAYER), null
+	## for a kind drawn whole anyway.
+	var full: MultiMeshInstance3D
+	## Owner id -> its buffer.
 	var parts := {}
 
 
 var kinds: Array[Kind]
+## (chunk x, chunk z, kind) -> Chunk.
 var _chunks := {}
 var _dirty := {}
 ## Owner id -> the chunks holding its pieces.
 var _owners := {}
+## (COARSE chunk x, z, kind) -> the far instance of the FINE chunks under it of a kind with a far mesh, drawn in their
+## place once the whole COARSE chunk is past the near distance. Each FINE chunk's near and far instances draw only
+## while it is not (`visibility_parent`), so no piece is drawn twice or missed.
+var _coarse := {}
 
 
 func _init(piece_kinds: Array[Kind]) -> void:
@@ -114,14 +134,16 @@ func _init(piece_kinds: Array[Kind]) -> void:
 	set_process(false)
 
 
-## Splits a buffer of instances `stride` floats long by the chunk under each: chunk key -> buffer. Reads nothing
-## but its arguments, so it runs on a worker thread.
-static func split(buf: PackedFloat32Array, stride: int) -> Dictionary:
+## Splits a buffer of `kind`'s instances by the chunk under each: chunk key -> buffer. Reads nothing but its
+## arguments, so it runs on a worker thread.
+static func split(buf: PackedFloat32Array, kind: Kind) -> Dictionary:
 	var out := {}
+	var stride := kind.stride()
+	var cell := kind.cell()
 	var start := 0
 	var run := Vector2i.ZERO
 	for i in range(0, buf.size(), stride):
-		var key := Vector2i(floori(buf[i + 3] / CHUNK_METRES), floori(buf[i + 11] / CHUNK_METRES))
+		var key := Vector2i(floori(buf[i + 3] / cell), floori(buf[i + 11] / cell))
 		if i > start and key != run:
 			_gather(out, run, buf.slice(start, i))
 			start = i
@@ -138,25 +160,21 @@ static func _gather(out: Dictionary, key: Vector2i, buf: PackedFloat32Array) -> 
 
 
 ## Draws `parts` (per kind, in `kinds` order, a `split` buffer) for `owner`, replacing what it had placed before. Only
-## the kinds of piece that changed in a chunk are drawn again, and the light is told only when its occluders changed.
+## the chunks whose pieces changed are drawn again, and the light is told only when its occluders changed.
 func place(owner: int, parts: Array[Dictionary]) -> void:
 	assert(parts.size() == kinds.size(), "one split buffer per kind")
 	var keys := {}
 	for k in kinds.size():
-		for key in parts[k]:
-			keys[key] = true
+		for key: Vector2i in parts[k]:
+			keys[Vector3i(key.x, key.y, k)] = true
 	var occluders := false
 	var none := PackedFloat32Array()
-	for key in keys.keys() + Array(_owners.get(owner, [])):
+	for key: Vector3i in keys.keys() + Array(_owners.get(owner, [])):
 		var c := _chunk(key)
-		var had: Array = c.parts.get(owner, [])
-		var now: Array[PackedFloat32Array] = []
-		now.resize(kinds.size())
-		for k in kinds.size():
-			now[k] = parts[k].get(key, none)
-			if now[k] != (had[k] if not had.is_empty() else none):
-				_dirty.get_or_add(key, {})[k] = true
-				occluders = occluders or kinds[k].occludes
+		var now: PackedFloat32Array = parts[key.z].get(Vector2i(key.x, key.y), none)
+		if now != c.parts.get(owner, none):
+			_dirty[key] = true
+			occluders = occluders or kinds[key.z].occludes
 		if keys.has(key):
 			c.parts[owner] = now
 		else:
@@ -188,80 +206,125 @@ func remove(owner: int) -> void:
 	place(owner, none)
 
 
+static func radius(cell: float) -> float:
+	return sqrt(cell * cell * 2.0 + WallLayout.HEIGHTS.y * WallLayout.HEIGHTS.y) * 0.5
+
+
+static func _coarse_key(key: Vector3i) -> Vector3i:
+	var n := roundi(COARSE / FINE)
+	return Vector3i(floori(float(key.x) / n), floori(float(key.y) / n), key.z)
+
+
 ## Instances placed, by kind: what the build costs to render.
 func counts() -> PackedInt32Array:
 	var out := PackedInt32Array()
 	out.resize(kinds.size())
-	for c in _chunks.values():
-		for parts in c.parts.values():
-			for k in kinds.size():
-				out[k] += parts[k].size() / kinds[k].stride()
+	for key: Vector3i in _chunks:
+		for buf: PackedFloat32Array in _chunks[key].parts.values():
+			out[key.z] += buf.size() / kinds[key.z].stride()
 	return out
 
 
-func _chunk(key: Vector2i) -> Chunk:
+func _chunk(key: Vector3i) -> Chunk:
 	if not _chunks.has(key):
+		var k := kinds[key.z]
 		var c := Chunk.new()
-		for k in kinds:
-			var mmi := k.instance()
-			c.instances.append(mmi)
-			add_child(mmi)
-			var far: MultiMeshInstance3D = null
-			if k.far != null:
-				far = k.instance()
-				far.multimesh.mesh = k.far
-				if k.far_material != null:
-					far.material_override = k.far_material
-				add_child(far)
-			c.fars.append(far)
-			var full: MultiMeshInstance3D = null
-			if k.far != null or k.reach > 0.0:
-				mmi.layers = Quality.LADDER_LAYER
-				if far != null:
-					far.layers = Quality.LADDER_LAYER
-				full = k.instance()
-				full.multimesh = mmi.multimesh
-				full.layers = Quality.FULL_LAYER
-				add_child(full)
-			c.fulls.append(full)
+		c.instance = k.instance()
+		add_child(c.instance)
+		if k.far != null:
+			c.far = k.instance()
+			c.far.multimesh.mesh = k.far
+			if k.far_material != null:
+				c.far.material_override = k.far_material
+			add_child(c.far)
+			var parent := _coarse_far(_coarse_key(key))
+			c.far.visibility_parent = NodePath("../" + parent.name)
+			c.instance.visibility_parent = c.far.visibility_parent
+		if k.ranged():
+			c.instance.layers = Quality.LADDER_LAYER
+			if c.far != null:
+				c.far.layers = Quality.LADDER_LAYER
+			c.full = k.instance()
+			c.full.multimesh = c.instance.multimesh
+			c.full.layers = Quality.FULL_LAYER
+			add_child(c.full)
 		_chunks[key] = c
-		_ranges(c)
+		_ranges(key)
 	return _chunks[key]
 
 
-## Puts every chunk's instances of each kind within its reach and its near distance, after either changed.
+func _coarse_far(key: Vector3i) -> MultiMeshInstance3D:
+	if not _coarse.has(key):
+		var k := kinds[key.z]
+		var far := k.instance()
+		far.multimesh.mesh = k.far
+		if k.far_material != null:
+			far.material_override = k.far_material
+		far.layers = Quality.LADDER_LAYER
+		far.name = "Far_%d_%d_%d" % [key.x, key.y, key.z]
+		add_child(far)
+		_coarse[key] = far
+		_coarse_ranges(key)
+	return _coarse[key]
+
+
+## Puts every chunk's instances within its kind's reach and near distance, after either changed.
 func set_ranges() -> void:
-	for c in _chunks.values():
-		_ranges(c)
+	for key: Vector3i in _chunks:
+		_ranges(key)
+	for key: Vector3i in _coarse:
+		_coarse_ranges(key)
 
 
-func _ranges(c: Chunk) -> void:
-	for k in kinds.size():
-		var kind := kinds[k]
-		var end := kind.reach + CHUNK_RADIUS if kind.reach > 0.0 else 0.0
-		if c.fars[k] == null:
-			c.instances[k].visibility_range_end = end
-		else:
-			var split := kind.near + CHUNK_RADIUS
-			c.instances[k].visibility_range_end = split
-			c.fars[k].visibility_range_begin = split
-			c.fars[k].visibility_range_end = end
+func _coarse_ranges(key: Vector3i) -> void:
+	var kind := kinds[key.z]
+	_coarse[key].visibility_range_begin = kind.near + radius(COARSE)
+	_coarse[key].visibility_range_end = kind.reach + radius(COARSE) if kind.reach > 0.0 else 0.0
+
+
+func _ranges(key: Vector3i) -> void:
+	var c: Chunk = _chunks[key]
+	var kind := kinds[key.z]
+	var end := kind.reach + kind.radius() if kind.reach > 0.0 else 0.0
+	if c.far == null:
+		c.instance.visibility_range_end = end
+	else:
+		var split := kind.near + kind.radius()
+		c.instance.visibility_range_end = split
+		c.far.visibility_range_begin = split
+		c.far.visibility_range_end = end
 
 
 func _process(_delta: float) -> void:
-	for key in _dirty:
+	var coarse := {}
+	for key: Vector3i in _dirty:
 		var c: Chunk = _chunks[key]
-		_ranges(c)
-		for k: int in _dirty[key]:
-			var buf := PackedFloat32Array()
-			for parts in c.parts.values():
-				buf.append_array(parts[k])
-			for mmi in [c.instances[k], c.fars[k]]:
-				if mmi == null:
-					continue
-				var mm: MultiMesh = mmi.multimesh
-				mm.instance_count = buf.size() / kinds[k].stride()
-				if mm.instance_count > 0:
-					mm.buffer = buf
+		_ranges(key)
+		var buf := PackedFloat32Array()
+		for part: PackedFloat32Array in c.parts.values():
+			buf.append_array(part)
+		for mmi: MultiMeshInstance3D in [c.instance, c.far]:
+			if mmi == null:
+				continue
+			var mm := mmi.multimesh
+			mm.instance_count = buf.size() / kinds[key.z].stride()
+			if mm.instance_count > 0:
+				mm.buffer = buf
+		if c.far != null:
+			coarse[_coarse_key(key)] = true
+	var n := roundi(COARSE / FINE)
+	for key: Vector3i in coarse:
+		var buf := PackedFloat32Array()
+		for x in n:
+			for z in n:
+				var c: Chunk = _chunks.get(Vector3i(key.x * n + x, key.y * n + z, key.z))
+				if c != null:
+					for part: PackedFloat32Array in c.parts.values():
+						buf.append_array(part)
+		var mm: MultiMesh = _coarse[key].multimesh
+		mm.instance_count = buf.size() / kinds[key.z].stride()
+		if mm.instance_count > 0:
+			mm.buffer = buf
 	_dirty.clear()
 	set_process(false)
+

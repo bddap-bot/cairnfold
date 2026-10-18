@@ -320,11 +320,11 @@ func _layout_ivy() -> void:
 	var out := _ivy_baked
 	out.clear()
 	var litter := _sweep()
-	var stride := kinds()[Part.IVY].stride()
+	var ivy := kinds()[Part.IVY]
 	_ivy_task = WorkerThreadPool.add_task(func():
 		_drop(litter)
 		out.merge(IvyLayout.bake(shape))
-		out.chunks = Masonry.split(out.buffer, stride))
+		out.chunks = Masonry.split(out.buffer, ivy))
 
 
 ## Lays the stones again on a worker thread, since a long wall takes several frames' worth of main-thread time;
@@ -454,7 +454,7 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind],
 		var t: Dictionary = r.tiles[i]
 		tile.write(tiles, i, t.xform, _painted_as(t, colours), t.ao, Palette.code(t.kind))
 		shadow.write(shadows, i, t.xform)
-	var chunks := {Part.TILE: Masonry.split(tiles, tile.stride()), Part.TILE_SHADOW: Masonry.split(shadows, shadow.stride()), Part.COAT: Masonry.split(slabs, slab.stride())}
+	var chunks := {Part.TILE: Masonry.split(tiles, tile), Part.TILE_SHADOW: Masonry.split(shadows, shadow), Part.COAT: Masonry.split(slabs, slab)}
 	return {"roof": r, "tiles": tiles, "shadows": shadows, "slabs": slabs, "chunks": chunks, "mortar": mortar}
 
 
@@ -470,7 +470,7 @@ func _pack_roof(roofed := {}) -> void:
 		_chunked[part] = roofed.chunks[part]
 	if not roofed.mortar.is_empty():
 		_parts[Part.MORTAR] = _wall_mortar + roofed.mortar
-		_chunked[Part.MORTAR] = Masonry.split(_parts[Part.MORTAR], kinds()[Part.MORTAR].stride())
+		_chunked[Part.MORTAR] = Masonry.split(_parts[Part.MORTAR], kinds()[Part.MORTAR])
 	_fittings.lay(layout.flames, layout.cloths + roof.cloths)
 	_coat.mesh = null
 	if not roof.coat.is_empty() and not roof.coat[Mesh.ARRAY_VERTEX].is_empty():
@@ -534,7 +534,7 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt3
 	var chunks := {}
 	var parts: Array[Part] = [Part.STONE, Part.MORTAR, Part.STONE_SHADOW, Part.TIMBER]
 	for i in bufs.size():
-		chunks[parts[i]] = Masonry.split(bufs[i], ks[parts[i]].stride())
+		chunks[parts[i]] = Masonry.split(bufs[i], ks[parts[i]])
 	return {"stone": bufs[0], "mortar": bufs[1], "shadow": bufs[2], "timber": bufs[3], "chunks": chunks, "bounds": box.grow(0.6), "paint": colours}
 
 

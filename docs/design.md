@@ -719,6 +719,37 @@ The same build and scene on the Quest 3, whose bare meadow held 72 Hz at 8.6 to 
 There 8 m chunks save 2.3 to 3.4 ms standing among the 15 m disc's walls and nothing among
 the 10 m disc's; from the air they cost 0.2 to 0.5 ms.
 
+**Decision: pieces cut by distance (stones, timber, ivy) stand in 8 m chunks, and so do their
+near and far meshes; past the near distance a whole 16 m chunk draws the far meshes of the 8 m
+ones under it in their place; everything drawn at every distance (mortar, tiles, coats, shadow
+boxes) stands in 16 m chunks.** `Masonry` makes each 16 m far instance the `visibility_parent`
+of its 8 m chunks' near and far instances, so the renderer draws either the one or the others,
+never both and never neither. Standing among walls a garden pays 8 m chunks' full stones;
+from the air, 16 m chunks' draw calls. The extra draw calls of 8 m chunks were what cost from
+the air: their primitives matched 16 m chunks' to under 1%.
+
+Measured on the Quest 3, the ladder at its bottom step, every variant in one build and one
+run, twice over (A B C, C B A), GPU milliseconds over each pass's own bare meadow (9.8 to
+11.1 ms). First 8 m chunks for pieces cut by distance only, their far meshes too
+([record](../perf/quest-3/chunks/20261019T044920Z-b8ce193.json)):
+
+| Walls 2 m apart, 4.5 m tall | Standing, 16 m | Standing, 8 m | Standing, 8 m cut pieces | From the air, 16 m | From the air, 8 m | From the air, 8 m cut pieces |
+| --- | --- | --- | --- | --- | --- | --- |
+| 15 m disc | 7.8, 7.8 | 5.3, 5.1 | 5.3, 5.2 | 4.1, 4.0 | 4.6, 4.5 | 4.3, 4.3 |
+| 20 m disc | 10.2, 10.3 | 6.5, 6.4 | 6.5, 6.3 | 7.7, 7.6 | 8.5, 8.3 | 8.2, 7.9 |
+
+Then the far meshes by 16 m chunks, as decided
+([record](../perf/quest-3/chunks2/20261019T050450Z-359736d.json); draw calls from the air over
+the 20 m disc 202 to 204 against 16 m chunks' 202 to 203 and 8 m chunks' 262 to 264):
+
+| Walls 2 m apart, 4.5 m tall | Standing, 16 m | Standing, 8 m | Standing, decided | From the air, 16 m | From the air, 8 m | From the air, decided |
+| --- | --- | --- | --- | --- | --- | --- |
+| 15 m disc | 7.8, 7.5 | 5.9, 5.5 | 5.3, 5.1 | 3.9, 4.8 | 4.3, 5.0 | 4.2, 4.2 |
+| 20 m disc | 10.0, 10.2 | 6.5, 6.3 | 7.3, 6.2 | 8.1, 7.6 | 8.6, 8.3 | 7.8, 7.9 |
+
+Among the 20 m disc's walls, the densest measured, standing costs 3 to 4 ms less than with
+16 m chunks, as much as with 8 m chunks, and from the air no more than with 16 m chunks.
+
 Standing, a wall's cost no longer grows with the garden past the chunks around the eye, so
 a linear price per m² undercharges the first walls and overcharges a wide garden. Over the
 15 m disc standing, each kind of piece hidden in turn (paired runs, 8 m chunks): ivy 5.3 to

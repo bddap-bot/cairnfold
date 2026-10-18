@@ -187,9 +187,8 @@ func _a_held_step_reaches_its_knobs() -> void:
 	for k in Wall.kinds():
 		var buf := PackedFloat32Array()
 		buf.resize(k.stride())
-		parts.append(Masonry.split(buf, k.stride()))
+		parts.append(Masonry.split(buf, k))
 	masonry.place(1, parts)
-	var chunk: Masonry.Chunk = masonry._chunks.values()[0]
 	var sun := DirectionalLight3D.new()
 	sun.shadow_enabled = true
 	var q := Quality.new(null, flora, masonry, sun)
@@ -208,7 +207,9 @@ func _a_held_step_reaches_its_knobs() -> void:
 	_check(ks[Wall.Part.STONE].near == bottom.stone_near_m and ks[Wall.Part.IVY].reach == bottom.ivy_m, "stones and ivy at the step's reach")
 	_check(ks[Wall.Part.IVY].material.get_shader_parameter("reach") == bottom.ivy_m, "and the leaves shrink away by it")
 	_check(sun.shadow_enabled == bottom.shadows and is_equal_approx(q.view.scaling_3d_scale, bottom.scale_3d), "the sun's shadows and the 3D resolution at the step's")
-	_check(is_equal_approx(chunk.instances[Wall.Part.IVY].visibility_range_end, bottom.ivy_m + Masonry.CHUNK_RADIUS) and is_equal_approx(chunk.fars[Wall.Part.STONE].visibility_range_begin, bottom.stone_near_m + Masonry.CHUNK_RADIUS), "a chunk already standing takes the step's reaches")
+	var ivy: Masonry.Chunk = masonry._chunks[Vector3i(0, 0, Wall.Part.IVY)]
+	var stone: Masonry.Chunk = masonry._chunks[Vector3i(0, 0, Wall.Part.STONE)]
+	_check(is_equal_approx(ivy.instance.visibility_range_end, bottom.ivy_m + ks[Wall.Part.IVY].radius()) and is_equal_approx(stone.far.visibility_range_begin, bottom.stone_near_m + ks[Wall.Part.STONE].radius()), "a chunk already standing takes the step's reaches")
 	q.pin = 0
 	for i in 100:
 		q._process(0.1)
