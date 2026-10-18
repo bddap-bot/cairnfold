@@ -750,8 +750,8 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 
 
 ## Mortar, or plaster above the footing, fills each band's spans `[y0, h, spans, broken]` as panels on cells every band
-## shares. Mortar stands JOINT back from the stones at the ends of the stretches `broken` away, and on the broken tops
-## under the next band's.
+## shares. Mortar stands JOINT back from the stones at every end a span leaves open, a ruin's, a doorway's or the wall's
+## own, and on the broken tops under the next band's.
 ## A panel runs straight between its cell's ends on the ground, so it climbs a slope rather than stepping, and is
 ## mitred into the next cell (`Masonry.Kind.write`'s `ends`), so a curved face stays closed and shades round. A panel
 ## with the same ends as the one below grows up instead of stacking on it.
@@ -771,9 +771,9 @@ func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 		var y0: float = bands[j][0]
 		var face := plaster and y0 > 0.0
 		var spans: Array = bands[j][2]
-		var broken := _round(bands[j][3] if bands[j].size() > 3 and not face else PackedVector2Array())
 		var bare := _round(bands[j + 1][3] if j + 1 < bands.size() and bands[j + 1].size() > 3 and not face else PackedVector2Array())
-		spans = spans.map(func(sp): return [sp[0] + (JOINT if broken.any(func(b): return absf(b.y - sp[0]) < 0.001) else 0.0), sp[1] - (JOINT if broken.any(func(b): return absf(b.x - sp[1]) < 0.001) else 0.0)])
+		if not face:
+			spans = spans.map(func(sp): return [sp[0] + (0.0 if closed and sp[0] < 0.001 else JOINT), sp[1] - (0.0 if closed and sp[1] > total - 0.001 else JOINT)])
 		var wraps: bool = closed and spans.any(func(sp): return sp[0] < 0.001) and spans.any(func(sp): return sp[1] > total - 0.001)
 		var here := {}
 		for span in spans:
@@ -916,12 +916,12 @@ func _lay_pillar(s: float, half: float, top_y: float, rng: RandomNumberGenerator
 	_add(s, top_y - 0.09, Vector3(w + 0.1, 0.18, THICKNESS + 0.1), rng, "pillar", 0.95, 0.0)
 
 
-## Where piers stand: the two ends of an open wall, the sharp corners of a loop.
+## Where piers stand: the two ends and the sharp bends of an open wall, the sharp corners of a loop.
 func corners() -> Array[float]:
 	var out: Array[float] = []
 	if not closed:
 		if length() > 0.0:
-			out.assign([0.0, length()])
+			out.assign([0.0] + _bends() + [length()])
 		return out
 	var n := points.size()
 	var s := 0.0
@@ -934,6 +934,25 @@ func corners() -> Array[float]:
 		if into.length() > 1e-4 and out_of.length() > 1e-4 and absf(into.angle_to(out_of)) > CORNER_TURN:
 			out.append(s)
 		s += out_of.length()
+	return out
+
+
+## Where an open wall turns sharply, as a hand draws a corner: the sharpest turn over half a pier either side,
+## clear of the ends and of each other by a pier.
+func _bends() -> Array[float]:
+	var out: Array[float] = []
+	var reach := PIER * 0.5
+	var turns := PackedFloat32Array()
+	for s in lengths:
+		var p: Vector3 = frame_at(s).point
+		var into: Vector3 = p - frame_at(s - reach).point
+		var out_of: Vector3 = frame_at(s + reach).point - p
+		var ok := s > PIER and s < length() - PIER
+		turns.append(absf(Vector2(into.x, into.z).angle_to(Vector2(out_of.x, out_of.z))) if ok else 0.0)
+	for i in range(1, turns.size() - 1):
+		if turns[i] > CORNER_TURN and turns[i] >= turns[i - 1] and turns[i] > turns[i + 1]:
+			if out.is_empty() or lengths[i] - out[-1] > PIER:
+				out.append(lengths[i])
 	return out
 
 

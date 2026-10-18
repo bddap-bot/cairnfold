@@ -26,6 +26,8 @@ func _init() -> void:
 	_ducks_pass_only_under_arches()
 	_a_path_arch_beside_a_pond_stays_open()
 	_water_leaves_the_dry_stones_as_they_were()
+	_mortar_stops_short_of_a_doorway_and_the_ends()
+	_a_drawn_bend_is_a_corner()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -408,3 +410,55 @@ func _a_chunk_draws_again_only_the_pieces_that_changed() -> void:
 	m.place(1, parts)
 	_check(m._dirty.is_empty(), "placing the same pieces again draws nothing")
 	m.free()
+
+
+func _mortar_stops_short_of_a_doorway_and_the_ends() -> void:
+	var w := WallLayout.new()
+	w.points = [Vector3(0, 0, 0), Vector3(9, 0, 0)]
+	w.height = 3.0
+	w.windows = [Vector2(3.0, 0.3)]
+	w.build(_flat)
+	var o: Dictionary = w.openings[0]
+	var reach := WallLayout.JOINT - 0.001
+	var bad := []
+	for m in w.stones.filter(func(s): return s.kind == "mortar"):
+		var lo: float = m.s - m.size.x * 0.5
+		var hi: float = m.s + m.size.x * 0.5
+		var through: bool = m.y - m.size.y * 0.5 < o.head - 0.05 and hi > o.s - o.half - reach and lo < o.s + o.half + reach
+		if through or lo < reach or hi > w.length() - reach:
+			bad.append([lo, hi, m.y])
+	_check(bad.is_empty(), "mortar stops JOINT behind a doorway's jambs and the wall's ends: %s" % [bad])
+
+
+## A hand draws a corner as a tight bend in an open wall: it stands a pier there, and no mortar runs on straight
+## past it and out of the other wall's face.
+func _a_drawn_bend_is_a_corner() -> void:
+	var loop: Array[Vector3] = [Vector3(0, 0, 0), Vector3(4.3, 0, 0), Vector3(4.3, 0, 3.7), Vector3(0, 0, 3.7)]
+	var w := WallLayout.new()
+	for i in loop.size():
+		var a := loop[i]
+		var b := loop[(i + 1) % loop.size()]
+		var n := ceili(a.distance_to(b) / 0.45)
+		for j in n:
+			w.points.append(a.lerp(b, float(j) / n))
+	w.points.append(loop[0])
+	w.height = 3.6
+	w.build(_flat)
+	_check(w.corners().size() == 5, "a pier at each end and each of the 3 bends: %s" % [w.corners()])
+	var off := 0.0
+	for m in w.stones.filter(func(s): return s.kind == "mortar"):
+		var x: Transform3D = m.xform
+		for p in [x.origin - x.basis.x * 0.5, x.origin, x.origin + x.basis.x * 0.5]:
+			off = maxf(off, _off_line(w, p))
+	_check(off < 0.05, "mortar keeps to the wall's line round its bends: %.3f off" % off)
+
+
+func _off_line(w: WallLayout, p: Vector3) -> float:
+	var best := INF
+	for i in w.samples.size() - 1:
+		var a := Vector2(w.samples[i].x, w.samples[i].z)
+		var b := Vector2(w.samples[i + 1].x, w.samples[i + 1].z)
+		var q := Vector2(p.x, p.z)
+		var t := clampf((q - a).dot(b - a) / maxf((b - a).length_squared(), 1e-9), 0.0, 1.0)
+		best = minf(best, q.distance_to(a.lerp(b, t)))
+	return best
