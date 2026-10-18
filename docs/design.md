@@ -1959,8 +1959,8 @@ or thrown only draw those already there (see "Feeding").
 
   Directive (verbatim): "lets not count teleport as sudden movement where animal ai is concerned. players cant really help but teleport because of limited play space"
 
-  Every animal judges a head or hand by how it moves in the player's own room (`Wildlife._watch`): a teleport,
-  a snap turn or a flat player's walk carries nobody toward them, while a real step or swing does as before.
+  A teleport or a snap turn moves nobody toward an animal (`Rig.jumped`): no animal takes the cut for a move. Every
+  other motion counts as before, a real step or swing in the headset and a flat player's walk alike.
 
   After a long stay (`Roamers.STAY`) they walk back into the trees and go once out of sight, and others come
   a few minutes later (`Roamers.AGAIN`). Sheep, deer and the fox share one way of walking in, grazing,

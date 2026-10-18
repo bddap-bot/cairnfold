@@ -125,8 +125,9 @@ func _no_tool_places_an_animal() -> void:
 
 
 ## A teleport or a snap turn moves the head and hands across the garden in a frame; no animal takes that for a
-## sudden move or an approach. A hand swung within the player's space still is one.
+## sudden move or an approach. A hand swung out, or a flat player walking up, still is one.
 func _teleport_is_no_motion() -> void:
+	Terrain.install()
 	var rig := Rig.new()
 	root.add_child(rig)
 	var water := Water.new([])
@@ -142,7 +143,8 @@ func _teleport_is_no_motion() -> void:
 	rig.right.position = Vector3(0.3, 1.2, -0.4)
 	_run(wildlife, 1.0)
 	var ahead := Vector3(0, 0, -12)
-	rig.place(Vector3(0, 0, -6), 0.0)
+	rig.teleport(Terrain.ground(0, -6), 0.0)
+	rig._fade_step(Rig.FADE)
 	wildlife.tick(STEP)
 	rig.snap_turn(Rig.SNAP)
 	wildlife.tick(STEP)
@@ -153,7 +155,15 @@ func _teleport_is_no_motion() -> void:
 		wildlife.tick(STEP)
 	var toward := rig.right.global_position + rig.global_basis * Vector3(0, 0, -5)
 	_check(wildlife.sudden(rig.right) and wildlife.approaching(rig.right, toward), "a hand swung out still does, at %.2f m/s" % wildlife._speed[rig.right])
-	for n: Node in [wildlife, flora, water, rig]:
+	_run(wildlife, 1.0)
+	var flat := Flat.new(rig)
+	var deer := rig.head.global_position + Vector3(0, 0, -8)
+	for i in int(1.0 / STEP):
+		var to := deer - rig.head.global_position
+		flat._walk(Vector3(to.x, 0, to.z).normalized() * Flat.WALK * STEP)
+		wildlife.tick(STEP)
+	_check(wildlife.approaching(rig.head, deer) and wildlife.sudden(rig.head), "a flat player walking up to a deer still comes at it, at %.2f m/s" % wildlife._speed[rig.head])
+	for n: Node in [flat, wildlife, flora, water, rig]:
 		n.free()
 
 

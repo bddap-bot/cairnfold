@@ -33,6 +33,8 @@ const SELF_LAYER := 1 << 18
 
 ## The player was set down somewhere else.
 signal placed
+## The player was moved in one cut, by a teleport or a snap turn, not by any step of their own.
+signal jumped
 
 var head: XRCamera3D
 var gaze: Gaze
@@ -254,6 +256,7 @@ func snap_turn(angle: float) -> void:
 	var pivot := head.global_position
 	var t := Transform3D(Basis(Vector3.UP, angle), Vector3.ZERO)
 	global_transform = Transform3D(t.basis * global_transform.basis, pivot + t.basis * (global_position - pivot))
+	jumped.emit()
 
 
 func _fade_step(delta: float) -> void:
@@ -264,6 +267,7 @@ func _fade_step(delta: float) -> void:
 	if _pending != null and _fade_t >= FADE:
 		place(_pending[0], _pending[1])
 		_pending = null
+		jumped.emit()
 	_fade_mat.albedo_color = Color(0, 0, 0, clampf(a, 0.0, 1.0))
 	if _fade_t >= FADE * 2.0:
 		_fade_t = -1.0
