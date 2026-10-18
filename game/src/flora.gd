@@ -20,6 +20,8 @@ const GRASS_SURVIVORS := 0.25
 const GRASS_SURVIVORS_FROM := 0.5
 const PAINTED_FLOWERS := 4000
 const PLACED_TREES := 64
+## The shade blob's size against the box around a crown's blobs, which their lumps and gaps do not fill.
+const SHADE_FIT := 0.8
 ## Where an untracked hand is, as far as the grass knows.
 const NO_HAND := Vector3(0, -1000, 0)
 ## Painted plant kinds, as build commands name them; "tree" is the other kind of group.
@@ -47,6 +49,8 @@ class Pool:
 	var sparse_from := INF
 	var survivors := 0.0
 	var mm := MultiMesh.new()
+	## Bumped by every `Plant.draw`, so the crowns' shade can follow a tool's preview.
+	var draws := 0
 	## The mesh each plant was made with; `draw_with` may draw a simpler one in its place.
 	var mesh: Mesh
 	var kept := 0
@@ -299,6 +303,7 @@ class Plant:
 	## and its place in that group.
 	var group := -1
 	var index := -1
+	var drawn := true
 
 	func _init(p: Pool, i: int, x: Transform3D, a: Vector3) -> void:
 		pool = p
@@ -322,6 +327,8 @@ class Plant:
 	## Draws it standing or not without changing whether it stands, for a tool's preview.
 	func draw(on: bool) -> void:
 		if current():
+			drawn = on
+			pool.draws += 1
 			pool.place(slot, xform if on else Transform3D(Basis.from_scale(Vector3.ZERO), xform.origin))
 
 
@@ -330,6 +337,10 @@ var grass_mat := ShaderMaterial.new()
 var flowers: Pool
 var trunks: Pool
 var foliage: Pool
+## The sun's shade of every standing tree and bush, cast by one coarse blob fitted to its crown instead of by each
+## blob: the shadow pass draws one low-detail mesh a crown, and the blobs no longer shade one another in patches.
+var crown_shade := MultiMesh.new()
+var _shaded := -1
 ## Every tree and bush, meadow's own and planted, by its first part's pool and slot.
 var _solids := {}
 var _kept_solids := {}
@@ -407,7 +418,18 @@ func _init() -> void:
 	leaf_mat.set_shader_parameter("backlight", Color(0.25, 0.35, 0.08))
 	for step in Quality.ladder:
 		_blobs.get_or_add(step.blob_detail, Meshes.blob(4, step.blob_detail))
-	foliage = Pool.new(self, _blobs[blob_detail], (Meadow.TREES + PLACED_TREES) * FloraLayout.BLOBS + Meadow.BUSHES, leaf_mat, true)
+	foliage = Pool.new(self, _blobs[blob_detail], (Meadow.TREES + PLACED_TREES) * FloraLayout.BLOBS + Meadow.BUSHES, leaf_mat, false)
+	crown_shade.transform_format = MultiMesh.TRANSFORM_3D
+	crown_shade.use_colors = true
+	crown_shade.use_custom_data = true
+	crown_shade.mesh = Meshes.blob(4, 1)
+	crown_shade.instance_count = Meadow.TREES + PLACED_TREES + Meadow.BUSHES
+	crown_shade.custom_aabb = Terrain.bounds()
+	var shade := MultiMeshInstance3D.new()
+	shade.multimesh = crown_shade
+	shade.material_override = leaf_mat
+	shade.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY
+	add_child(shade)
 
 
 static func _plant_material(shader: String, albedo: Color, roughness: float) -> ShaderMaterial:
@@ -420,10 +442,36 @@ static func _plant_material(shader: String, albedo: Color, roughness: float) -> 
 
 func _process(_delta: float) -> void:
 	_grow(GROW_USEC)
+	_shade_crowns()
 	var eye := get_viewport().get_camera_3d()
 	if eye != null:
 		grass.cull(eye.global_position, grass_reach)
 		flowers.cull(eye.global_position, flower_reach)
+
+
+## Fits a shade blob to each standing crown's blobs when any tree or bush has changed or been drawn otherwise.
+func _shade_crowns() -> void:
+	var seen := changes + trunks.draws + foliage.draws
+	if seen == _shaded:
+		return
+	_shaded = seen
+	var n := 0
+	for parts in solids():
+		if not parts[0].drawn or n == crown_shade.instance_count:
+			continue
+		crown_shade.set_instance_transform(n, shade_of(parts))
+		crown_shade.set_instance_custom_data(n, Color(0, 0, parts[0].anchor.x, parts[0].anchor.z))
+		n += 1
+	crown_shade.visible_instance_count = n
+
+
+## Where the shade blob of a tree or bush (its parts) stands, fitted to the box around its blobs.
+func shade_of(parts: Array) -> Transform3D:
+	var blobs: Array = parts.slice(1) if parts[0].pool == trunks else parts
+	var box: AABB = blobs[0].xform * foliage.mesh.get_aabb()
+	for b: Plant in blobs:
+		box = box.merge(b.xform * foliage.mesh.get_aabb())
+	return Transform3D(Basis.from_scale(box.size * SHADE_FIT / crown_shade.mesh.get_aabb().size), box.get_center())
 
 
 ## Moves grass and flower reach toward `step`'s at Quality.REACH_RATE and draws its blobs; whether both reaches are

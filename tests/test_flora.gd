@@ -22,6 +22,7 @@ func _run() -> void:
 	_grass_thins_with_distance()
 	_flowers_out_of_reach_are_not_drawn()
 	_blob_detail_changes_only_what_is_drawn()
+	_crowns_cast_one_shade_each()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -322,4 +323,32 @@ func _blob_detail_changes_only_what_is_drawn() -> void:
 	_check(flora.foliage.mesh == made, "birds still find crowns on the blobs as made")
 	flora.blob_detail = Quality.ladder[0].blob_detail
 	_check(flora.foliage.mm.mesh == made, "and full quality draws them as made again")
+	flora.queue_free()
+
+
+func _crowns_cast_one_shade_each() -> void:
+	var flora := Flora.new()
+	root.add_child(flora)
+	var tree := flora.add_tree(Vector3.ZERO, 9)
+	flora.add_bush(Vector3(6, 0, 0), _rng(11))
+	flora._shade_crowns()
+	_check(flora.crown_shade.visible_instance_count == 2, "one shade blob for the tree and one for the bush: %d" % flora.crown_shade.visible_instance_count)
+	var centre := flora.shade_of(tree).origin
+	var lowest := INF
+	for b in tree.slice(1):
+		lowest = minf(lowest, b.xform.origin.y)
+	_check(Vector2(centre.x, centre.z).length() < 2.0 and centre.y > lowest - 1.0, "the tree's shade blob sits in its crown, at %s" % centre)
+	for mmi: MultiMeshInstance3D in flora.get_children():
+		if mmi.multimesh.mesh == flora.foliage.mesh:
+			_check(mmi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "foliage blobs cast no shade of their own")
+		elif mmi.multimesh == flora.crown_shade:
+			_check(mmi.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, "the shade blobs are never drawn, only cast")
+	for p in tree:
+		p.draw(false)
+	flora._shade_crowns()
+	_check(flora.crown_shade.visible_instance_count == 1, "a tree a tool shows taken casts no shade")
+	for p in tree:
+		p.draw(true)
+	flora._shade_crowns()
+	_check(flora.crown_shade.visible_instance_count == 2, "and casts it again when shown back")
 	flora.queue_free()
