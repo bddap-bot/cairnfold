@@ -269,6 +269,31 @@ Floating misses. What it costs there: the grass 3.2 ms, trees and bushes 2.1 ms,
 shadows 2.0 ms, flowers 1.0 ms; one shadow split instead of two, or 30 m of shadow
 instead of 45 m, saved nothing.
 
+The animals on the stress scene (`bench.sh OUT --android APK`, the ladder at its top, median of each
+phase; frames are over the budget's 12.5 ms everywhere at the top, the bare meadow standing included at
+26.5 ms):
+
+| Phase | GPU per frame | Draw calls | Primitives |
+| --- | --- | --- | --- |
+| `meadow/ground` | 26.5 ms | 114 | 369,126 |
+| `sheep/ground` | 41.7 ms | 310 | 1,107,236 |
+| `deer/ground` | 31.1 ms | 157 | 944,983 |
+| `fox/ground` | 31.1 ms | 162 | 949,479 |
+
+The deer and fox views look over the meadow's edge at the trees, which take the rest of their time.
+What the animals themselves cost, on the meadow alone, the same view with them shown and then hidden,
+twice each (GPU ms a frame):
+
+| View | Shown | Hidden | Difference |
+| --- | --- | --- | --- |
+| Deer, first | 32.25 | 32.50 | -0.25 |
+| Deer, second | 33.80 | 33.83 | -0.03 |
+| Fox, first | 31.50 | 31.33 | +0.17 |
+| Fox, second | 33.22 | 32.67 | +0.55 |
+
+They cost 2 to 3 draw calls and 2,000 to 6,000 primitives in view, within the run's half-millisecond
+noise, so nothing about them is made cheaper.
+
 ## Frame budget
 
 Directive (verbatim): "The-the only reason I could see for adding a resource to this

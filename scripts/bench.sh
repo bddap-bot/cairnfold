@@ -174,16 +174,20 @@ if [ "${2:-}" = --android ]; then
   if [ "$players" -gt 1 ]; then
     join cat "$out/logcat.txt" -- "$(adb shell ip -4 -o addr show wlan0 | awk '{print $4}' | cut -d/ -f1)"
   fi
-  # The host's adb server can drop the headset mid-run: reconnect and follow the log again.
-  for _ in $(seq 900); do
+  # The host's adb server can drop the headset mid-run: reconnect and follow the log again. The stress scene runs
+  # past 15 minutes on a Quest 2, so the run is given an hour.
+  ended=
+  SECONDS=0
+  while [ "$SECONDS" -lt 3600 ]; do
     sleep 1
     if ! adb get-state > /dev/null 2>&1; then
       case $serial in *:*) adb connect "$serial" > /dev/null 2>&1 || true ;; esac
       continue
     fi
     kill -0 "$logcat_pid" 2> /dev/null || follow
-    adb shell pidof "$pkg" > /dev/null || ! adb get-state > /dev/null 2>&1 || break
+    adb shell pidof "$pkg" > /dev/null || ! adb get-state > /dev/null 2>&1 || { ended=1; break; }
   done
+  [ -n "$ended" ] || { echo "bench: the game was still running after an hour; see $out/logcat.txt" >&2; exit 1; }
   kill "$logcat_pid" 2> /dev/null || true
   logcat_pid=
   adb pull "$dir/." "$out/" > /dev/null
