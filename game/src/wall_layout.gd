@@ -287,6 +287,53 @@ func build(ground: Callable, water := Callable()) -> void:
 	_hide()
 
 
+## A stone's corners, before its transform.
+const BOX: Array[Vector3] = [Vector3(-0.5, -0.5, -0.5), Vector3(0.5, -0.5, -0.5), Vector3(-0.5, 0.5, -0.5), Vector3(0.5, 0.5, -0.5),
+	Vector3(-0.5, -0.5, 0.5), Vector3(0.5, -0.5, 0.5), Vector3(-0.5, 0.5, 0.5), Vector3(0.5, 0.5, 0.5)]
+## How far under a roof's tiles `fit_under` leaves a cut stone's top, and the thinnest stone it leaves.
+const FIT_CLEAR := 0.005
+const MIN_FIT := 0.06
+
+
+## Lowers the tops of the stones up to the wall's top that `r`'s tiles would cut, keeping their feet, and takes away
+## those left too thin: a steep slope falls fast past the faces, below a proud stone's outer edge. A gable end, carried
+## up under the slopes to its verge, is left as laid.
+func fit_under(r: RoofLayout) -> void:
+	if r.flat():
+		return
+	var kept: Array[Dictionary] = []
+	for st in stones:
+		var fitted := st
+		if st.y + st.size.y * 0.5 <= height + CAP + FIT_CLEAR:
+			for i in 4:
+				var cut := _cut_under(r, fitted.xform)
+				if cut <= 0.0:
+					break
+				var k := 1.0 - cut
+				if k * fitted.size.y < MIN_FIT:
+					fitted = {}
+					break
+				var x: Transform3D = fitted.xform
+				fitted = fitted.duplicate()
+				fitted.xform = Transform3D(Basis(x.basis.x, x.basis.y * k, x.basis.z), x.origin - x.basis.y * (1.0 - k) * 0.5)
+				fitted.y -= fitted.size.y * (1.0 - k) * 0.5
+				fitted.size = Vector3(fitted.size.x, fitted.size.y * k, fitted.size.z)
+		if not fitted.is_empty():
+			kept.append(fitted)
+	stones = kept
+
+
+## The share of a stone's height to take off its top to bring it under `r`, or 1 where its foot already pokes through.
+static func _cut_under(r: RoofLayout, x: Transform3D) -> float:
+	var cut := 0.0
+	for c in BOX:
+		var p := x * c
+		var over := p.y - r.height_at(p.x, p.z) + FIT_CLEAR
+		if over > 0.0:
+			cut = maxf(cut, 1.0 if c.y < 0.0 else over / x.basis.y.y)
+	return cut
+
+
 ## Takes away the tiles, coat, flag, gable ends and torching of the roof on this wall that lie where a build it meets lays nothing.
 func hide_roof(r: RoofLayout) -> void:
 	if joined.is_empty() and resting.is_empty():
@@ -990,7 +1037,7 @@ func _lay_top(rng: RandomNumberGenerator) -> void:
 			_lay_top_span(spans[i][0], spans[i][1], rng)
 
 
-## Under a pitched roof every top lies flat as a cap.
+## Under a pitched roof every top lies flat as a cap, flush with the faces, so the roof rests on its outer edges.
 func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 	var style := Top.CAP if cover == Cover.ROOF else top
 	if style == Top.COPE:
@@ -1006,7 +1053,7 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 	var s := a
 	while total - s > 0.001:
 		var l := minf(rng.randf_range(0.5, 0.95), total - s)
-		_add(s + l * 0.5, height + CAP * 0.5, Vector3(l, CAP, THICKNESS + 0.16), rng, "cap", 0.95, 0.02)
+		_add(s + l * 0.5, height + CAP * 0.5, Vector3(l, CAP, THICKNESS + (0.0 if cover == Cover.ROOF else 0.16)), rng, "cap", 0.95, 0.02)
 		s += l
 	if style == Top.CAP and cover == Cover.DECK:
 		_lay_parapet(a, total, rng)

@@ -520,6 +520,7 @@ static func _house(root: Node3D, plastered := false, gable_end := WallLayout.Gab
 	layout.build(_flat)
 	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
 	roof.build()
+	layout.fit_under(roof)
 	_roofed(root, layout, roof, plastered)
 
 
@@ -543,6 +544,7 @@ static func _tower(root: Node3D, plastered := false, thatched := false, flat := 
 	layout.build(_flat)
 	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
 	roof.build()
+	layout.fit_under(roof)
 	_roofed(root, layout, roof, plastered)
 
 

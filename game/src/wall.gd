@@ -409,9 +409,9 @@ func _build_live() -> void:
 	_build_task = WorkerThreadPool.add_task(func():
 		_drop(litter)
 		job.build(height, water)
-		out.merge(Wall.pack(job, ks, colours))
 		if roof_job != null:
-			out.roofed = Wall.pack_roof(job, roof_job, ks, colours))
+			out.roofed = Wall.pack_roof(job, roof_job, ks, colours)
+		out.merge(Wall.pack(job, ks, colours)))
 
 
 ## The roof, or else the lanterns and flags, laid again over the stones; `roofed` is a roof already laid on
@@ -432,6 +432,7 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind],
 		r.corners = built.laid_points
 	r.build()
 	built.hide_roof(r)
+	built.fit_under(r)
 	var tile := ks[Part.TILE]
 	var shadow := ks[Part.TILE_SHADOW]
 	var bed := ks[Part.MORTAR]

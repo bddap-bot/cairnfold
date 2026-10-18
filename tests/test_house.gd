@@ -26,6 +26,8 @@ func _init() -> void:
 	_a_flat_roof_is_a_deck_inside_the_walls()
 	_a_deck_is_rimmed_by_the_top_style()
 	_roof_surfaces_have_no_degenerate_triangles()
+	_no_wall_rises_through_a_steep_roof()
+	_every_tile_joint_has_a_tile_under_it()
 	_a_gable_continues_the_wall_under_the_slopes()
 	_gable_faces_face_out_of_the_wall()
 	_the_budget_counts_gable_ends()
@@ -785,3 +787,132 @@ func _the_budget_counts_gable_ends() -> void:
 	_check(is_equal_approx(Budget.wall(d).wall_m2, 20.0 * 2.4 + 2.0 * hs * 2.0), "a house counts its two gable ends as wall: %s" % Budget.wall(d))
 	d.roof.pitch = 0.0
 	_check(is_equal_approx(Budget.wall(d).wall_m2, 20.0 * 2.4), "a flat-roofed house has none")
+
+
+const PITCHES: Array[float] = [0.4, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+const CURVES: Array[float] = [-1.0, 0.0, 1.0]
+
+
+## Every house and tower shape, gable end and pitch the roof tool offers, sagged, straight and bowed: no stone of
+## the wall up to its top rises through the tiles' bed. A gable end stands above the top, carried up to its verge.
+func _no_wall_rises_through_a_steep_roof() -> void:
+	var shapes: Array[Dictionary] = []
+	for size in [Vector2(3.0, 2.0), Vector2(5.0, 3.1), Vector2(6.0, 5.0)]:
+		for end in WallLayout.GableEnd.values():
+			shapes.append({"points": WallLayout.rectangle(Vector3.ZERO, Vector3(size.x, 0, 0), size.y), "end": end, "kind": RoofLayout.Kind.GABLE, "radius": 0.0})
+	for radius in [1.2, 2.5]:
+		shapes.append({"points": WallLayout.circle(Vector3(1, 0, 1), radius), "end": WallLayout.GableEnd.WALL, "kind": RoofLayout.Kind.CONE, "radius": radius})
+	for shape in shapes:
+		for pitch in PITCHES:
+			for curve in CURVES:
+				var r := RoofLayout.new()
+				r.kind = shape.kind
+				r.center = Vector3(1, 0, 1)
+				r.radius = shape.radius
+				r.pitch = pitch
+				r.curve = curve
+				var w := WallLayout.new()
+				w.points.assign(shape.points)
+				w.closed = true
+				w.cover = WallLayout.Cover.ROOF
+				w.height = 2.4
+				w.gable_end = shape.end
+				w.gable = r
+				w.build(_flat)
+				Wall.pack_roof(w, r, Wall.kinds(), Palette.plain())
+				var worst := -INF
+				var what := ""
+				for st in w.stones:
+					if st.y + st.size.y * 0.5 > w.height + WallLayout.CAP + WallLayout.FIT_CLEAR:
+						continue
+					for c in WallLayout.BOX:
+						var p: Vector3 = st.xform * c
+						var over := p.y - r.height_at(p.x, p.z)
+						if over > worst:
+							worst = over
+							what = st.kind
+				_check(worst <= 0.0, "%s %s pitch %.1f curve %+.0f: a %s stone rises %.3f m through the roof" % [RoofLayout.Kind.keys()[r.kind], WallLayout.GableEnd.keys()[shape.end], pitch, curve, what, worst])
+
+
+## Houses and towers to roof, each with its roof's footprint set: a narrow and a wide house and two towers.
+func _roofed() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	for size in [Vector2(3.0, 2.0), Vector2(5.0, 3.1), Vector2(6.0, 5.0)]:
+		var r := RoofLayout.new()
+		out.append({"wall": _house(size.x, size.y), "roof": r})
+	for radius in [1.2, 2.5]:
+		var w := WallLayout.new()
+		w.points = WallLayout.circle(Vector3(1, 0, 1), radius)
+		w.closed = true
+		w.cover = WallLayout.Cover.ROOF
+		w.height = 3.0
+		w.build(_flat)
+		var r := RoofLayout.new()
+		r.kind = RoofLayout.Kind.CONE
+		r.center = Vector3(1, 0, 1)
+		r.radius = radius
+		out.append({"wall": w, "roof": r})
+	return out
+
+
+## A tile hides what lies under the square inside its rounded, lumpy edges.
+const SOLID := 0.41
+
+
+func _every_tile_joint_has_a_tile_under_it() -> void:
+	for h in _roofed():
+		var r: RoofLayout = (h.roof as RoofLayout)
+		if r.kind == RoofLayout.Kind.GABLE:
+			r.corners = (h.wall as WallLayout).laid_points
+		r.base = 2.54
+		for pitch in PITCHES:
+			for curve in CURVES:
+				r.pitch = pitch
+				r.curve = curve
+				r.build()
+				var open := _uncovered(r)
+				_check(open.is_empty(), "%s pitch %.1f curve %+.0f: nothing covers the roof at %d points, first %s" % [RoofLayout.Kind.keys()[r.kind], pitch, curve, open.size(), open[0] if open.size() > 0 else null])
+
+
+## Points on the slopes, from the eaves up to the ridge cap or finial, that no tile covers.
+func _uncovered(r: RoofLayout) -> PackedVector3Array:
+	var cells := {}
+	for t in r.tiles:
+		if t.kind == "tile":
+			var o: Vector3 = t.xform.origin
+			cells.get_or_add(Vector2i(floori(o.x * 2.0), floori(o.z * 2.0)), []).append(t.xform.affine_inverse())
+	var f := r.frame()
+	var points := PackedVector3Array()
+	var top := 0.2
+	if r.kind == RoofLayout.Kind.CONE:
+		for k in 72:
+			var out := Vector3(cos(TAU * k / 72.0), 0.0, sin(TAU * k / 72.0))
+			for i in 60:
+				var x := lerpf(top, r.eave() - 0.05, i / 59.0)
+				points.append(f.mid + out * x + Vector3.UP * r.rise(1.0 - x / r.half_span()))
+	else:
+		var half := r.ridge_length() * 0.5 + WallLayout.THICKNESS * 0.5
+		for side in [-1.0, 1.0]:
+			for k in 60:
+				var along: Vector3 = f.along * lerpf(-half, half, k / 59.0)
+				for i in 60:
+					var x := lerpf(top, r.eave() - 0.05, i / 59.0)
+					points.append(f.mid + along + f.across * side * x + Vector3.UP * r.rise(1.0 - x / r.half_span()))
+	var open := PackedVector3Array()
+	for p in points:
+		var c := Vector2i(floori(p.x * 2.0), floori(p.z * 2.0))
+		var covered := false
+		for dz in range(-2, 3):
+			for dx in range(-2, 3):
+				for inv: Transform3D in cells.get(c + Vector2i(dx, dz), []):
+					var l := inv * p
+					if absf(l.x) <= SOLID and absf(l.z) <= SOLID and absf(l.y) <= 6.0:
+						covered = true
+						break
+				if covered:
+					break
+			if covered:
+				break
+		if not covered:
+			open.append(p)
+	return open

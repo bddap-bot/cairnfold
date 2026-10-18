@@ -13,7 +13,12 @@ enum Kind { GABLE, CONE }
 const OVERHANG := 0.3
 const GABLE_OVERHANG := 0.25
 const ROW := 0.24
-const TILE := Vector3(0.27, 0.05, 0.36)
+## A tile's full size. Its lower edge hangs NOSE below its row's line and it runs on up under the two rows above,
+## past the lower edge of the second, so the joint between two tiles has a tile under it: a roof seen from outside
+## shows clay through every joint, never the walls or the room beneath. The torching closes them only from below.
+const TILE := Vector3(0.27, 0.05, 0.6)
+const NOSE := 0.18
+const CONE_LAP := 0.25
 const PITCH := Vector2(0.0, 6.0)
 ## A pitch pulled below this lands flat.
 const FLAT_SNAP := 0.4
@@ -246,6 +251,9 @@ func build() -> void:
 			var row := rows[i]
 			rng.seed = hash([seed, "row", i])
 			if kind == Kind.GABLE:
+				if i == 0:
+					_lay_gable_row(row, 0.5, hue, rng, TILE.y * 0.5)
+					rng.seed = hash([seed, "row", i])
 				_lay_gable_row(row, 0.5 if i % 2 == 1 else 0.0, hue, rng)
 			else:
 				_lay_cone_row(row, hue, rng)
@@ -352,7 +360,7 @@ func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
 		_add(Transform3D(basis.scaled_local(Vector3(0.15, 0.24, 0.15)), foot + f.along * side * STACK_WIDTH * 0.22 + Vector3.UP * (top + 0.21)), "pot", _clay(0.0, rng) * 0.9, 1.0)
 
 
-## Tile rows as {x, y, slope}, eave first, spaced along the curved slope.
+## Tile rows as {x, y, slope}, eave first, ROW apart along the curved slope.
 func _rows() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	var hs := half_span()
@@ -361,7 +369,7 @@ func _rows() -> Array[Dictionary]:
 	while x > stop:
 		var slope := slope_at(x)
 		out.append({"x": x, "y": rise(1.0 - x / hs), "slope": slope})
-		x -= ROW * cos(slope)
+		x -= ROW * cos(slope_at(x - ROW * cos(slope) * 0.5))
 	return out
 
 
@@ -380,7 +388,9 @@ func _along(x: float, d: float) -> float:
 	return x
 
 
-func _lay_gable_row(row: Dictionary, stagger: float, hue: float, rng: RandomNumberGenerator) -> void:
+## A row of tiles down both slopes, `under` beneath its line: the eave row lies on an under-course staggered
+## against it, as nothing else lies under its joints.
+func _lay_gable_row(row: Dictionary, stagger: float, hue: float, rng: RandomNumberGenerator, under := 0.0) -> void:
 	var f := frame()
 	var length := ridge_length() + WallLayout.THICKNESS + gable_overhang() * 2.0
 	var state := rng.state
@@ -392,11 +402,13 @@ func _lay_gable_row(row: Dictionary, stagger: float, hue: float, rng: RandomNumb
 		while x < length - 0.001:
 			var a := maxf(x, 0.0)
 			var b := minf(x + TILE.x, length)
-			var p: Vector3 = f.mid + f.along * ((a + b - length) * 0.5) + out * row.x + Vector3.UP * (row.y + TILE.y * 0.5)
-			_tile(p, basis, hue, rng, (b - a) / TILE.x)
+			var p: Vector3 = f.mid + f.along * ((a + b - length) * 0.5) + out * row.x + Vector3.UP * (row.y + TILE.y * 0.5) - basis.y * under
+			_tile(p, basis, hue, rng, (b - a) / TILE.x, _run(row))
 			x += TILE.x
 
 
+## A ring of tiles. Its count changes ring to ring, so no ring's joints can sit over the tiles below: each tile
+## laps its neighbours by CONE_LAP of its width instead.
 func _lay_cone_row(row: Dictionary, hue: float, rng: RandomNumberGenerator) -> void:
 	var f := frame()
 	var n := maxi(4, ceili(TAU * row.x / TILE.x))
@@ -405,8 +417,7 @@ func _lay_cone_row(row: Dictionary, hue: float, rng: RandomNumberGenerator) -> v
 		var a := twist + TAU * i / n
 		var out := Vector3(cos(a), 0.0, sin(a))
 		var basis := _slope_basis(out, row.slope)
-		var width := minf(1.0, TAU * row.x / n / TILE.x * 1.08)
-		_tile(f.mid + out * row.x + Vector3.UP * (row.y + TILE.y * 0.5), basis, hue, rng, width)
+		_tile(f.mid + out * row.x + Vector3.UP * (row.y + TILE.y * 0.5), basis, hue, rng, TAU * row.x / n / TILE.x * (1.0 + CONE_LAP), _run(row))
 
 
 ## A tile's frame on a slope facing `out`: x along the row, y off the roof, z down the slope.
@@ -428,9 +439,15 @@ func _lay_ridge(hue: float, rng: RandomNumberGenerator) -> void:
 		x += width
 
 
-func _tile(p: Vector3, basis: Basis, hue: float, rng: RandomNumberGenerator, width := 1.0) -> void:
+## How far up the slope a row's tiles run from their lower edge: their full length, short of the ridge or the cone's top.
+func _run(row: Dictionary) -> float:
+	var edge := Vector2(row.x + NOSE * cos(row.slope), row.y - NOSE * sin(row.slope))
+	return clampf(edge.distance_to(Vector2(0.0, pitch)), NOSE * 2.0, TILE.z)
+
+
+func _tile(p: Vector3, basis: Basis, hue: float, rng: RandomNumberGenerator, width: float, run: float) -> void:
 	var b := basis.rotated(basis.x, -0.05) * Basis.from_euler(Vector3(0.0, rng.randf_range(-0.04, 0.04), rng.randf_range(-0.03, 0.03)))
-	_add(Transform3D(b.scaled_local(Vector3(TILE.x * width, TILE.y, TILE.z)), p), "tile", _clay(hue, rng), 1.0)
+	_add(Transform3D(b.scaled_local(Vector3(TILE.x * width, TILE.y, run)), p + basis.z * (NOSE - run * 0.5)), "tile", _clay(hue, rng), 1.0)
 
 
 ## How far the thatch's outer face stands above the ridge: the coat and its band, measured square to the slopes there.
