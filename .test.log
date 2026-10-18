@@ -1,0 +1,132 @@
+..........
+----------------------------------------------------------------------
+Ran 10 tests in 17.718s
+
+OK
+notices: 7 files match upstream in package.tar.gz
+notices: 7 files match upstream in package.tar.gz
+notices: 7 files match upstream in package.zip
+notices: 7 files match upstream in package.zip
+notices: 7 files match upstream in package.apk
+notices: 7 files match upstream in package.apk
+check: scripts compile
+tests/test_avatar.gd: tests: ok
+tests/test_avatar_worker.gd: tests: ok
+tests/test_beacon.gd: tests: ok
+tests/test_bindings.gd: tests: ok
+tests/test_birds.gd: tests: ok
+tests/test_bounce.gd: tests: ok
+tests/test_budget.gd: tests: ok
+tests/test_build_on.gd: tests: ok
+tests/test_butterflies.gd: tests: ok
+tests/test_calls.gd: tests: ok
+tests/test_coherence.gd: tests: ok
+tests/test_controls.gd: tests: ok
+tests/test_daylight.gd: tests: ok
+tests/test_delete.gd: tests: ok
+tests/test_easel.gd: tests: ok
+tests/test_fireflies.gd: tests: ok
+tests/test_fish.gd: tests: ok
+tests/test_fittings.gd: tests: ok
+tests/test_flat.gd: tests: ok
+tests/test_flora.gd: tests: ok
+tests/test_grab.gd: tests: ok
+tests/test_ground.gd: tests: ok
+tests/test_hands.gd: tests: ok
+tests/test_hand_stop.gd: tests: ok
+tests/test_house.gd: tests: ok
+tests/test_ivy.gd: tests: ok
+tests/test_join.gd: tests: ok
+tests/test_keep.gd: tests: ok
+tests/test_kill.gd: tests: ok
+tests/test_lamps.gd: tests: ok
+tests/test_layout_inputs.gd: tests: ok
+tests/test_metrics.gd: tests: ok
+tests/test_path.gd: tests: ok
+tests/test_photo.gd: tests: ok
+tests/test_plan.gd: tests: ok
+tests/test_plaster.gd: tests: ok
+tests/test_play_log.gd: tests: ok
+tests/test_pond_stone.gd: tests: ok
+tests/test_quality.gd: tests: ok
+tests/test_roamers.gd: exited 1
+tests/test_roamers.gd: FAIL: a FOX comes to thrown seeds and eats them, 28 grains left
+tests/test_roamers.gd: tests: FAILED 1
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 68: invalid attribute 'xsi:nil'
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 69: invalid constant used : 
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 72: invalid constant used : serif
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 88: invalid attribute 'xsi:nil'
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 89: invalid constant used : 
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 92: invalid constant used : emoji
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 108: invalid attribute 'xsi:nil'
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 109: invalid constant used : 
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 112: invalid constant used : math
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 120: invalid attribute 'xsi:nil'
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 121: invalid constant used : 
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 124: invalid constant used : system-ui
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 132: invalid attribute 'xsi:nil'
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 133: invalid constant used : 
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 136: invalid constant used : cursive
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 144: invalid attribute 'xsi:nil'
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 145: invalid constant used : 
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 148: invalid constant used : fantasy
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 156: invalid attribute 'xsi:nil'
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 157: invalid constant used : 
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 160: invalid constant used : ui-sans-serif
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 168: invalid attribute 'xsi:nil'
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 169: invalid constant used : 
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 172: invalid constant used : ui-serif
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 180: invalid attribute 'xsi:nil'
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 181: invalid constant used : 
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 184: invalid constant used : ui-monospace
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 192: invalid attribute 'xsi:nil'
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 193: invalid constant used : 
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 196: invalid constant used : ui-rounded
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 204: invalid attribute 'xsi:nil'
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 205: invalid constant used : 
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/48-guessfamily.conf", line 208: invalid constant used : fangsong
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/49-sansserif.conf", line 10: invalid constant used : serif
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/49-sansserif.conf", line 18: invalid constant used : sans-serif
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/49-sansserif.conf", line 26: invalid constant used : monospace
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/49-sansserif.conf", line 34: invalid constant used : emoji
+tests/test_roamers.gd: Fontconfig warning: "/etc/fonts/conf.d/49-sansserif.conf", line 42: invalid constant used : math
+tests/test_roamers.gd: Godot Engine v4.5.1.stable.nixpkgs.f62fdbde1 - https://godotengine.org
+tests/test_roamers.gd: Error [GENERAL | xrEnumerateInstanceExtensionProperties | OpenXR-Loader] : RuntimeManifestFile::FindManifestFiles - failed to determine active runtime file path for this environment
+tests/test_roamers.gd: Error [GENERAL | xrEnumerateInstanceExtensionProperties | OpenXR-Loader] : RuntimeInterface::LoadRuntimes - unknown error
+tests/test_roamers.gd: Error [GENERAL | xrEnumerateInstanceExtensionProperties | OpenXR-Loader] : RuntimeInterface::LoadRuntimes - failed to load a runtime
+tests/test_roamers.gd: Error [GENERAL | xrEnumerateInstanceExtensionProperties | OpenXR-Loader] : Failed to find default runtime with RuntimeInterface::LoadRuntime()
+tests/test_roamers.gd: Error [GENERAL | xrEnumerateInstanceExtensionProperties | OpenXR-Loader] : Failed querying extension properties
+tests/test_roamers.gd: ERROR: OpenXR: Failed to enumerate number of extension properties
+tests/test_roamers.gd:    at: load_supported_extensions (modules/openxr/openxr_api.cpp:414)
+tests/test_roamers.gd: WARNING: OpenXR was requested but failed to start.
+tests/test_roamers.gd: Please check if your HMD is connected.
+tests/test_roamers.gd: Godot will start in normal mode.
+tests/test_roamers.gd: 
+tests/test_roamers.gd:      at: initialize_openxr_module (modules/openxr/register_types.cpp:203)
+tests/test_roamers.gd: OpenXR was requested but failed to start.
+tests/test_roamers.gd: Please check if your HMD is connected.
+tests/test_roamers.gd: Godot will start in normal mode.
+tests/test_roamers.gd: 
+tests/test_roamers.gd: 
+tests/test_roamers.gd: FAIL: a FOX comes to thrown seeds and eats them, 28 grains left
+tests/test_roamers.gd: tests: FAILED 1
+tests/test_roamers.gd: WARNING: ObjectDB instances leaked at exit (run with --verbose for details).
+tests/test_roamers.gd:      at: cleanup (core/object/object.cpp:2514)
+tests/test_ruins.gd: tests: ok
+tests/test_sheep.gd: tests: ok
+tests/test_sound.gd: tests: ok
+tests/test_stairs.gd: tests: ok
+tests/test_style.gd: tests: ok
+tests/test_teleport.gd: tests: ok
+tests/test_teleport_solids.gd: tests: ok
+tests/test_terrain.gd: tests: ok
+tests/test_thatch.gd: tests: ok
+tests/test_timber.gd: tests: ok
+tests/test_view.gd: tests: ok
+tests/test_wall_free.gd: tests: ok
+tests/test_wall.gd: tests: ok
+tests/test_water.gd: tests: ok
+tests/test_wheel.gd: tests: ok
+tests/test_wildlife.gd: tests: ok
+tests/test_wipe.gd: tests: ok
+tests/test_world.gd: tests: ok

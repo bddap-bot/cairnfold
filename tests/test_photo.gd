@@ -129,26 +129,38 @@ func _the_lens_turns_as_the_hand_turns_roll_included() -> void:
 
 
 func _player_data_moves_out_of_the_app_without_losing_any() -> void:
-	_check(Main.player_path("photos") == "user://photos" and Main.player_path("garden.save") == "user://garden.save", "off Android, photos and the garden stay in user data")
+	_check(Main.photos_folder() == "user://photos" and Main.photos_folder(false) == "user://photos" and Main.player_path("garden.save") == "user://garden.save", "off Android, photos and the garden stay in user data")
+	var pictures := OS.get_system_dir(OS.SYSTEM_DIR_PICTURES, true)
+	_check(pictures.is_absolute_path() and Main.photos_folder(true) == pictures.path_join("Nestcombe"), "on Android, photos go to Nestcombe in the shared Pictures folder: %s" % Main.photos_folder(true))
 	var from := "user://test_photos_from"
-	var to := "user://test_photos_to"
+	var to := Main.photos_folder()
 	DirAccess.make_dir_recursive_absolute(from)
 	DirAccess.make_dir_recursive_absolute(to)
 	for n in ["a.png", "b.png", "c.png"]:
 		FileAccess.open(from.path_join(n), FileAccess.WRITE).store_string(n.repeat(1000))
 	FileAccess.open(to.path_join("c.png"), FileAccess.WRITE).store_string("already here")
-	FileAccess.open(to.path_join("c.png.user-1"), FileAccess.WRITE).store_string("also already here")
 	FileAccess.open(from.path_join("d.png"), FileAccess.WRITE).store_string("moved once, its original left behind")
 	FileAccess.open(to.path_join("d.png"), FileAccess.WRITE).store_string("moved once, its original left behind")
-	FileAccess.open(to.path_join("a.png.part"), FileAccess.WRITE).store_string("a move cut short")
-	_check(Main.move_all(from, to) == 4, "every photo moves")
-	_check(FileAccess.get_file_as_string(to.path_join("a.png")) == "a.png".repeat(1000), "a moved photo keeps its bytes")
-	_check(not FileAccess.file_exists(to.path_join("a.png.part")), "a move cut short is finished")
-	_check(FileAccess.get_file_as_string(to.path_join("c.png")) == "already here" and FileAccess.get_file_as_string(to.path_join("c.png.user-1")) == "also already here", "a file already there with other bytes is not overwritten")
-	_check(FileAccess.get_file_as_string(to.path_join("c.png.user-2")) == "c.png".repeat(1000), "the one it would have overwritten lands beside it")
-	_check(FileAccess.get_file_as_string(to.path_join("d.png")) == "moved once, its original left behind" and not FileAccess.file_exists(to.path_join("d.png.user-1")), "and one already there whole is not doubled")
-	_check(not DirAccess.dir_exists_absolute(from), "the emptied folder is removed")
-	_check(Main.move_all(from, to) == 0, "and moving from a missing folder moves nothing")
+	_check(Main.move_photos(from) == 3, "every photo whose name is free moves")
+	_check(FileAccess.get_file_as_string(to.path_join("a.png")) == "a.png".repeat(1000) and not FileAccess.file_exists(from.path_join("a.png")), "a moved photo keeps its bytes")
+	_check(FileAccess.get_file_as_string(to.path_join("c.png")) == "already here" and FileAccess.get_file_as_string(from.path_join("c.png")) == "c.png".repeat(1000), "a photo already there with other bytes is not overwritten, and the one moving stays")
+	_check(not FileAccess.file_exists(from.path_join("d.png")), "one already there whole is left there")
+	DirAccess.remove_absolute(to.path_join("c.png"))
+	_check(Main.move_photos(from) == 1 and not DirAccess.dir_exists_absolute(from), "the emptied folder is removed")
+	_check(Main.move_photos(from) == 0, "and moving from a missing folder moves nothing")
 	for n in DirAccess.get_files_at(to):
 		DirAccess.remove_absolute(to.path_join(n))
-	DirAccess.remove_absolute(to)
+	var save := "user://test_garden.save"
+	var moved := "user://test_moved/garden.save"
+	DirAccess.make_dir_recursive_absolute(moved.get_base_dir())
+	FileAccess.open(save, FileAccess.WRITE).store_string("a garden")
+	FileAccess.open(moved, FileAccess.WRITE).store_string("another garden")
+	FileAccess.open(moved + ".user-1.part", FileAccess.WRITE).store_string("a move cut short")
+	_check(Main.move_file(save, moved) and not FileAccess.file_exists(save), "the garden moves")
+	_check(FileAccess.get_file_as_string(moved) == "another garden" and FileAccess.get_file_as_string(moved + ".user-1") == "a garden", "beside one already there with other bytes")
+	_check(not FileAccess.file_exists(moved + ".user-1.part"), "and a move cut short is finished")
+	FileAccess.open(save, FileAccess.WRITE).store_string("a garden")
+	_check(Main.move_file(save, moved) and not FileAccess.file_exists(moved + ".user-2"), "one already there whole is not doubled")
+	for n in DirAccess.get_files_at(moved.get_base_dir()):
+		DirAccess.remove_absolute(moved.get_base_dir().path_join(n))
+	DirAccess.remove_absolute(moved.get_base_dir())

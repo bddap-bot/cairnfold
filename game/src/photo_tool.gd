@@ -15,7 +15,7 @@ const DARK := Color(0.06, 0.06, 0.07)
 const ALL_LAYERS := (1 << 20) - 1
 
 var rig: Rig
-var folder := Main.player_path("photos")
+var folder := Main.photos_folder()
 var _buttons: Array[Buttons] = []
 var _preview: SubViewport
 var _photo: SubViewport
@@ -141,7 +141,7 @@ func shoot(hand: Hand) -> String:
 func save(img: Image, path: String) -> Error:
 	var file := ProjectSettings.globalize_path(path)
 	var saved := [ERR_BUG]
-	var task := WorkerThreadPool.add_task(func() -> void: saved[0] = img.save_png(file))
+	var task := WorkerThreadPool.add_task(func() -> void: saved[0] = Main.write_bytes(file, img.save_png_to_buffer()))
 	while not WorkerThreadPool.is_task_completed(task):
 		await get_tree().process_frame
 	WorkerThreadPool.wait_for_task_completion(task)

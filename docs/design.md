@@ -1283,7 +1283,7 @@ Stage numbers refer to the build order at the end.
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of left X (the Frame's D-pad down) undoes a step, right A redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it, so a process killed mid-write leaves the last one whole (`tests/test_kill.gd`); a quit writes one still due before the sounds wind down. It is loaded at start. Only your own garden is kept, never one you are visiting. A file of another format, or one the game cannot read whole, is moved aside to `garden.save.bad` before the garden is saved again, and the log says which. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
 | Wildlife | Sheep, birds, ducks, fireflies, deer, a fox | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, fish swim in it, butterflies gather over painted flowers, fireflies come out over both at dusk, conures perch on a tree or wall, sheep graze beside a fence; deer and a fox come out of the trees round the meadow (see "Wildlife") | 11 |
-| Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 1600×1200 photo with a level horizon, saved as a PNG under `user://photos` (see "Photos") | 11 (done) |
+| Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 1600×1200 photo with a level horizon, saved as a PNG (see "Photos") | 11 (done) |
 | Painting | None | A big easel set up on the ground, painted with a brush held in the hand in watercolour, oil or charcoal (see "Painting") | done |
 | Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network with the visit tool (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
 
@@ -2050,12 +2050,16 @@ lens keeps the horizon level however the wrist rolls, so photos never come out t
 straight up or down, the top of the controller is up. The trigger takes a photo
 (`PhotoTool.PHOTO_SIZE`), saved as a PNG named by the date and time under `user://photos`, or
 under `photos/` in the `--capture-dir` of a scripted run. From the Linux package that is
-`~/.local/share/godot/app_userdata/Nestcombe/photos`. An APK keeps user data where only the app can
-read it, so it saves to `photos` in the app's external files directory (`Main.player_path`), which
-adb reads, and on start moves there any photos an earlier APK left in `user://photos`
-(`Main.move_to_player_paths`). The garden save lives there too, so it can be copied off before an
-uninstall, which erases user data with no way to read it; a file already there with other bytes
-keeps its place and the moved one lands beside it as `.user-N`. The screen holds the shot for a
+`~/.local/share/godot/app_userdata/Nestcombe/photos`. An uninstall erases an APK's user data and
+its external files directory, so an APK saves photos to `Pictures/Nestcombe` in shared storage
+(`Main.photos_folder`), which outlives an uninstall and shows in the headset's own gallery. Godot's
+own file access reaches shared storage only in Download and Documents, so a photo goes through
+java.io (`Main.write_bytes`), which scoped storage lets write the app's own pictures with no
+permission. On start it
+moves there any photos an earlier APK left in `user://photos` or in `photos` in the external files
+directory (`Main.move_to_player_paths`). The garden save moves from user data to the external files
+directory (`Main.player_path`), where it can be copied off before an uninstall; a file already there
+with other bytes keeps its place and the moved one lands beside it as `.user-N`. The screen holds the shot for a
 moment with a soft flash, and the hand gets a short buzz on the press. Either hand can hold a
 camera; both show the view of the first.
 

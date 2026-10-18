@@ -265,11 +265,12 @@ func finish() -> void:
 	Main.quit(get_tree())
 
 
-## A playback is freed on the main thread only after the audio thread has mixed its stop, so a sound
-## still playing when the tree quits outlives the engine, its streams with it. Playbacks go in the order
-## they were stopped, so a silent marker stopped last also waits out the sounds of nodes already freed.
-## A 3D player hands a new playback to the audio thread on its next physics tick and holds it until then,
-## even through stop().
+## Where photos go: in user data, except on Android, where an uninstall erases user data and the app's own folders;
+## there they go to Pictures/Nestcombe in shared storage, which an uninstall leaves and the device's gallery shows.
+static func photos_folder(android := OS.has_feature("android")) -> String:
+	return OS.get_system_dir(OS.SYSTEM_DIR_PICTURES, true).path_join("Nestcombe") if android else "user://photos"
+
+
 ## Where the player's `name` (a file or a folder) lives: in user data, except on Android, whose user data only the
 ## game can read and an uninstall erases with no way to copy it off; there it is in the app's external files folder,
 ## which a file manager or adb reaches.
@@ -281,26 +282,58 @@ static func player_path(name: String) -> String:
 	return "user://" + name
 
 
-## Moves the photos and the garden (with any `garden.save.new` or `.bad` beside it) an earlier build kept in user
-## data to `player_path`.
+## Writes `bytes` to `path`. On Android Godot's own files reach shared storage only in Download and Documents, so a
+## photo is written through java.io, as scoped storage lets an app write its own pictures without a permission.
+static func write_bytes(path: String, bytes: PackedByteArray) -> Error:
+	if OS.has_feature("android") and path.begins_with(photos_folder()):
+		var out: JavaObject = JavaClassWrapper.wrap("java.io.FileOutputStream").FileOutputStream(path)
+		if out == null or JavaClassWrapper.get_exception() != null:
+			return ERR_FILE_CANT_OPEN
+		out.write(bytes)
+		var failed := JavaClassWrapper.get_exception() != null
+		out.close()
+		return ERR_FILE_CANT_WRITE if failed or JavaClassWrapper.get_exception() != null else OK
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return FileAccess.get_open_error()
+	var stored := file.store_buffer(bytes)
+	file.close()
+	return OK if stored else ERR_FILE_CANT_WRITE
+
+
+## Moves the photos an earlier Android build kept in user data or the app's external files folder to `photos_folder`,
+## and the garden (with any `garden.save.new` or `.bad` beside it) from user data to `player_path`.
 static func move_to_player_paths() -> void:
 	if player_path("") == "user://":
 		return
-	var moved := move_all("user://photos", player_path("photos"))
+	var moved := move_photos("user://photos") + move_photos(player_path("photos"))
 	for name in DirAccess.get_files_at("user://"):
 		if name.begins_with("garden.save"):
 			moved += int(move_file("user://" + name, player_path(name)))
-	print("player data: moved %d to %s" % [moved, player_path("")])
+	print("player data: moved %d" % moved)
 
 
-## Moves every file in `from` into `to` and removes `from` once empty; see `move_file`. Returns how many moved.
-static func move_all(from: String, to: String) -> int:
+## Moves every photo in `from` into `photos_folder` and removes `from` once empty. One whose name is taken there by
+## other bytes stays where it is. Returns how many moved.
+static func move_photos(from: String) -> int:
 	if not DirAccess.dir_exists_absolute(from):
 		return 0
+	var to := photos_folder()
 	DirAccess.make_dir_recursive_absolute(to)
 	var moved := 0
 	for name in DirAccess.get_files_at(from):
-		moved += int(move_file(from.path_join(name), to.path_join(name)))
+		var src := from.path_join(name)
+		var dst := to.path_join(name)
+		var md5 := FileAccess.get_md5(src)
+		if FileAccess.file_exists(dst) and FileAccess.get_md5(dst) != md5:
+			push_error("photo: %s is taken, %s stays" % [dst, src])
+			continue
+		if not FileAccess.file_exists(dst) and (write_bytes(dst, FileAccess.get_file_as_bytes(src)) != OK or FileAccess.get_md5(dst) != md5):
+			DirAccess.remove_absolute(dst)
+			push_error("photo: could not move %s to %s" % [src, dst])
+			continue
+		DirAccess.remove_absolute(src)
+		moved += 1
 	if DirAccess.get_files_at(from).is_empty() and DirAccess.get_directories_at(from).is_empty():
 		DirAccess.remove_absolute(from)
 	return moved
@@ -328,6 +361,11 @@ static func move_file(src: String, dst: String) -> bool:
 	return true
 
 
+## A playback is freed on the main thread only after the audio thread has mixed its stop, so a sound
+## still playing when the tree quits outlives the engine, its streams with it. Playbacks go in the order
+## they were stopped, so a silent marker stopped last also waits out the sounds of nodes already freed.
+## A 3D player hands a new playback to the audio thread on its next physics tick and holds it until then,
+## even through stop().
 static func quit(tree: SceneTree, code := 0) -> void:
 	if _quitting:
 		return
