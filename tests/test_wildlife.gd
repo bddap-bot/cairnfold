@@ -10,6 +10,7 @@ var feed: FeedTool
 
 func _initialize() -> void:
 	_no_tool_places_an_animal()
+	await _teleport_is_no_motion()
 	await _ducks_come_only_to_ponds()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
@@ -121,6 +122,39 @@ func _no_tool_places_an_animal() -> void:
 	_check(FileAccess.get_file_as_string("res://src/main.gd").count("Wildlife.new(") == 1, "main makes one Wildlife")
 	for m in (load("res://src/wildlife.gd") as Script).get_script_method_list():
 		_check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "still", "approaching", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble"], "Wildlife exposes no way to add an animal, found %s" % m.name)
+
+
+## A teleport or a snap turn moves the head and hands across the garden in a frame; no animal takes that for a
+## sudden move or an approach. A hand swung within the player's space still is one.
+func _teleport_is_no_motion() -> void:
+	var rig := Rig.new()
+	root.add_child(rig)
+	var water := Water.new([])
+	root.add_child(water)
+	var flora := Flora.new()
+	root.add_child(flora)
+	var watched: Array[Node3D] = []
+	watched.assign(rig.hands)
+	var wildlife := Wildlife.new(water, flora, null, Palette.new(), rig.head, watched, 1)
+	root.add_child(wildlife)
+	wildlife.set_process(false)
+	await process_frame
+	rig.right.position = Vector3(0.3, 1.2, -0.4)
+	_run(wildlife, 1.0)
+	var ahead := Vector3(0, 0, -12)
+	rig.place(Vector3(0, 0, -6), 0.0)
+	wildlife.tick(STEP)
+	rig.snap_turn(Rig.SNAP)
+	wildlife.tick(STEP)
+	for n: Node3D in [rig.head, rig.right]:
+		_check(not wildlife.sudden(n) and not wildlife.approaching(n, ahead), "a teleport and a snap turn startle nothing, %s at %.2f m/s" % [n.name, wildlife._speed[n]])
+	for i in 4:
+		rig.right.position += Vector3(0, 0, -0.12)
+		wildlife.tick(STEP)
+	var toward := rig.right.global_position + rig.global_basis * Vector3(0, 0, -5)
+	_check(wildlife.sudden(rig.right) and wildlife.approaching(rig.right, toward), "a hand swung out still does, at %.2f m/s" % wildlife._speed[rig.right])
+	for n: Node in [wildlife, flora, water, rig]:
+		n.free()
 
 
 func _dig(tool: WaterTool, x: float, z: float, frames: int) -> void:

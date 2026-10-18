@@ -109,7 +109,8 @@ var _due_butterflies := {}
 var _due_birds := {}
 var _due_sheep := {}
 var _since_look := INF
-## Per hand and the head: where it was last tick and how fast it has been moving.
+## Per hand and the head: where it was last tick and how fast it has been moving, in the player's space, so a
+## teleport or a snap turn is no motion to an animal; a player in a small room cannot help teleporting.
 var _was := {}
 var _speed := {}
 var _velocity := {}
@@ -455,9 +456,10 @@ func _hand_within(p: Vector3, reach: float) -> Node3D:
 func _watch(delta: float) -> void:
 	if delta <= 0.0:
 		return
+	var room := _room()
 	for n in _watched():
-		var at := n.global_position
-		var moved: Vector3 = (at - _was.get(n, at)) / delta
+		var at := room.affine_inverse() * n.global_position
+		var moved: Vector3 = room.basis * (at - _was.get(n, at)) / delta
 		var ease := 1.0 - exp(-delta * SPEED_EASE)
 		_was[n] = at
 		_speed[n] = lerpf(_speed.get(n, 0.0), moved.length(), ease)
@@ -466,6 +468,11 @@ func _watch(delta: float) -> void:
 	for h in _eaters.keys():
 		if not held.has(h):
 			_eaters.erase(h)
+
+
+func _room() -> Transform3D:
+	var player := viewer.get_parent_node_3d() if viewer != null and viewer.is_inside_tree() else null
+	return player.global_transform if player != null else Transform3D.IDENTITY
 
 
 func _watched() -> Array[Node3D]:
