@@ -2149,12 +2149,26 @@ Directive (verbatim): "There's a feature that I would like. That is a big painti
 An easel (`Easels`) stands where the easel tool's trigger sets it, its canvas 1.5 by 1.125 m at standing height,
 tilted back 10°, with a tray in front: a pot of brushes, a jar of water, a tin of oil, a stick of charcoal and a
 palette of eight colour wells. Nothing is picked from a menu (`EaselTool`): a grip at the pot takes a small round, a
-big round or a flat brush, and at the tray the charcoal; a grip at the palette carries it in that hand while held, so
-the other hand dips into it; a well loads its pigment, mixing on the brush with what is there already (the palette's
+big round or a flat brush, and at the tray the charcoal; a grip at the palette takes it by its thumb hole, paint up and
+reaching toward the other hand, and it stays in that hand as a brush does, so the other hand dips into it, until a grip
+at its place on the tray sets it down; a tip anywhere over a well's paint, or pushed on through the board under it,
+loads its pigment, mixing on the brush with what is there already (the palette's
 middle shows the mix), the jar makes the brush watercolour and thins it each dip, the tin makes it oil. The brush
 reaches past the controller; touching the canvas paints, pushing in presses harder and widens the mark, moving fast
 skims the paper's tooth, and the brush runs dry as it paints. A grip on the canvas takes its sheet and pulling it
 well away tears it off for a fresh one. A garden holds four easels at most, 1.4 m apart.
+
+Report (verbatim): "Okay, I'm looking at the easel and I have a few feedbacks. Um ,one, they're, the planks that support the easel are clipping through the the canvas. So, they're covering the canvas at a piece
+Um, when I go to grab the paints, I'm grabbing in by the wrong side, I'm holding the little paint uh- palette by the painty part. Should be grabbing it by another part"
+
+Report (verbatim): "It doesn't seem like I'm able to select different colors by putting the paintbrush inside of the the paint on the palette
+It just stays gray"
+
+Directive (verbatim): "Um, so I like it how you can grab the paintbrush and it sticks in your hand, but I would like to be able to stick the palette in your hand as well. Right now if you grab the palette, it doesn't stay in your hand. If you let go, it gets put back down"
+
+The stand's legs run parallel to the canvas a few centimetres behind its backing, so no plank crosses the painting
+from anywhere a player stands. A well counts as reached over its whole footprint and through the board, because no
+hand stops at a surface it cannot feel.
 
 The canvas is simulated on the GPU (`Canvas`, `paint.glsl`), about a millimetre a texel (1536 by 1152), so fine
 strokes hold up at arm's length in the headset. Colours are optical densities, mixed and layered by Beer-Lambert (a

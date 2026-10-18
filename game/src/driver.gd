@@ -1004,7 +1004,7 @@ func _tip_at(hand: Hand, tip: Vector3, along: Vector3, up: Vector3, roll := 0.0)
 
 
 ## A grip at the easel's tray, as a player's hand closing there: takes a brush from the pot ("small", "big",
-## "flat"), the charcoal ("stick"), or the palette ("palette"), which stays in the hand until a `let_go`.
+## "flat"), the charcoal ("stick"), or the palette ("palette"), which stays in the hand until a `set_down`.
 func _take(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var e := _easel_of(s)
@@ -1022,13 +1022,21 @@ func _take(s: Dictionary) -> void:
 	var key := "%s/grip_click" % hand.tracker
 	Buttons.injected[key] = true
 	await _frames(2)
-	if s.what != "palette":
-		Buttons.injected.erase(key)
-		await _frames(2)
+	Buttons.injected.erase(key)
+	await _frames(2)
 
 
-func _let_go(s: Dictionary) -> void:
-	Buttons.injected.erase("%s/grip_click" % _hand(s).tracker)
+## A grip at the palette's place on the tray, by the hand holding it, sets it down there.
+func _set_down(s: Dictionary) -> void:
+	var hand := _hand(s)
+	var e := _easel_of(s)
+	hand.global_transform = Transform3D(e.global_basis, e.tray(Easels.PALETTE))
+	hand.held_still = true
+	await _frames(1)
+	var key := "%s/grip_click" % hand.tracker
+	Buttons.injected[key] = true
+	await _frames(2)
+	Buttons.injected.erase(key)
 	await _frames(2)
 
 
@@ -1041,8 +1049,8 @@ func _hold(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Dips the brush in `hand` into the jar, the tin, or well `index` of the palette, wherever the palette is, and
-## lifts it out.
+## Dips the brush in `hand` into the jar, the tin, or well `index` of the palette, wherever the palette is, pushed
+## `depth` metres on through it, and lifts it out.
 func _dip(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var e := _easel_of(s)
@@ -1053,7 +1061,7 @@ func _dip(s: Dictionary) -> void:
 		"tin":
 			into = e.tray(Easels.TIN + Vector3(0, Easels.TIN_SIZE.y * 0.5, 0))
 		_:
-			into = e.palette.global_transform * Easels.well(s.index)
+			into = e.palette.global_transform * (Easels.well(s.index) - Vector3(0, s.get("depth", 0.0), 0))
 	_tip_at(hand, into + Vector3.UP * 0.08, Vector3.DOWN, -e.global_basis.z)
 	await _frames(2)
 	_tip_at(hand, into, Vector3.DOWN, -e.global_basis.z)

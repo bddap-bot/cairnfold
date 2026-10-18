@@ -19,9 +19,17 @@ const JAR_SIZE := Vector2(0.045, 0.11)
 const TIN_SIZE := Vector2(0.05, 0.055)
 ## The brushes standing in the pot, by kind: where each one's tip stands above the pot.
 const BRUSH_TIPS := {Brushwork.Brush.SMALL: Vector3(-0.022, 0.3, -0.012), Brushwork.Brush.BIG: Vector3(0.02, 0.32, -0.008), Brushwork.Brush.FLAT: Vector3(0.0, 0.28, 0.024)}
-## The palette's wells, in its own frame, one per pigment, round its far edge; the brush's own mix shows in the middle.
+## The palette, in its own frame: a thumb hole at its -x end, where a hand holds it, and a well of each pigment round
+## the far, +x end; the brush's own mix shows between them.
 const PALETTE_SIZE := Vector2(0.36, 0.24)
-const MIX_AT := Vector3(0.02, 0.006, 0.02)
+const THUMB := Vector3(-0.12, 0, 0)
+const MIX_AT := Vector3(0.02, 0.006, 0)
+const WELL_RADIUS := 0.018
+## A tip is in a well anywhere over its paint or pushed on through the board, which nothing stops a hand doing.
+const WELL_REACH := 0.025
+const WELL_DEPTH := Vector2(-0.05, 0.03)
+## The stand's legs run this far behind the canvas's face, clear of its backing, so none crosses the painting.
+const LEG_BACK := 0.07
 ## Easels stand at least this far apart, and a garden holds at most so many: each canvas is a few tens of MB on the GPU.
 const SPACING := 1.4
 const MAX := 4
@@ -38,8 +46,23 @@ func _init() -> void:
 
 
 static func well(i: int) -> Vector3:
-	var a := lerpf(-2.5, -0.64, float(i) / (Brushwork.PIGMENTS.size() - 1))
-	return Vector3(cos(a) * PALETTE_SIZE.x * 0.38, 0.006, -sin(a) * PALETTE_SIZE.y * 0.36 + 0.03)
+	var a := lerpf(-1.5, 1.5, float(i) / (Brushwork.PIGMENTS.size() - 1))
+	return Vector3(cos(a) * PALETTE_SIZE.x * 0.38, 0.006, sin(a) * PALETTE_SIZE.y * 0.36)
+
+
+## The well a tip at `local`, in the palette's frame, is in, or -1.
+static func well_at(local: Vector3) -> int:
+	if local.y < WELL_DEPTH.x or local.y > WELL_DEPTH.y:
+		return -1
+	var best := -1
+	var near := WELL_REACH
+	for i in Brushwork.PIGMENTS.size():
+		var w := well(i)
+		var d := Vector2(local.x - w.x, local.z - w.z).length()
+		if d < near:
+			near = d
+			best = i
+	return best
 
 
 class Easel:
@@ -215,13 +238,16 @@ func _build(e: Easel) -> void:
 	var wood := _mat("wood", Color(0.62, 0.45, 0.3))
 	var dark := _mat("dark_wood", Color(0.42, 0.3, 0.2))
 	var frame := canvas_local()
-	var top := frame * Vector3(0, Brushwork.METRES.y * 0.5 + 0.08, -0.03)
+	var stand := Node3D.new()
+	stand.name = "stand"
+	e.add_child(stand)
+	var top := Brushwork.METRES.y * 0.5 + 0.08
 	for side in [-1.0, 1.0]:
-		_beam(e, Vector3(side * 0.62, 0, 0.22), top + Vector3(side * 0.1, 0, 0), 0.045, wood)
-	_beam(e, Vector3(0, 0, -0.7), top + Vector3(0, -0.04, -0.02), 0.04, wood)
-	_part(e, _box(Vector3(1.64, 0.03, 0.27)), Transform3D(Basis(), Vector3(0, TRAY_Y - 0.015, 0.17)), wood)
-	_part(e, _box(Vector3(1.64, 0.035, 0.012)), Transform3D(Basis(), Vector3(0, TRAY_Y + 0.0175, 0.3)), dark)
-	_part(e, _box(Vector3(0.3, 0.05, 0.06)), frame * Transform3D(Basis(), Vector3(0, Brushwork.METRES.y * 0.5 + 0.02, -0.01)), dark)
+		_beam(stand, _foot(side * 0.62), frame * Vector3(side * 0.1, top, -LEG_BACK), 0.045, wood)
+	_beam(stand, Vector3(0, 0, -0.7), frame * Vector3(0, top - 0.04, -LEG_BACK - 0.04), 0.04, wood)
+	_part(stand, _box(Vector3(1.64, 0.03, 0.27)), Transform3D(Basis(), Vector3(0, TRAY_Y - 0.015, 0.17)), wood)
+	_part(stand, _box(Vector3(1.64, 0.035, 0.012)), Transform3D(Basis(), Vector3(0, TRAY_Y + 0.0175, 0.3)), dark)
+	_part(stand, _box(Vector3(0.3, 0.05, 0.03)), frame * Transform3D(Basis(), Vector3(0, Brushwork.METRES.y * 0.5 + 0.02, -0.048)), dark)
 	_part(e, _box(Vector3(Brushwork.METRES.x + 0.03, Brushwork.METRES.y + 0.03, 0.03)), frame * Transform3D(Basis(), Vector3(0, 0, -0.017)), _mat("linen", Color(0.86, 0.82, 0.74), 0.9))
 	var face := QuadMesh.new()
 	face.size = Brushwork.METRES
@@ -248,15 +274,22 @@ func _build(e: Easel) -> void:
 	e.add_child(e.palette)
 
 
-## A palette: a wooden board with a well of each pigment round its far edge and a thumb hole, its middle showing
-## the brush's mix.
+## Where a leg standing `x` along the canvas, LEG_BACK behind it, meets the ground.
+static func _foot(x: float) -> Vector3:
+	var frame := canvas_local()
+	var at := frame * Vector3(x, 0, -LEG_BACK)
+	return at - frame.basis.y * (at.y / frame.basis.y.y)
+
+
+## A palette: a wooden board with a well of each pigment round its far end and a thumb hole at its near one, its
+## middle showing the brush's mix.
 static func palette() -> Node3D:
 	var root := Node3D.new()
 	var board := _cylinder(0.5, 0.008, 32)
 	_part(root, board, Transform3D(Basis().scaled(Vector3(PALETTE_SIZE.x, 1.0, PALETTE_SIZE.y)), Vector3.ZERO), _mat("palette", Color(0.7, 0.52, 0.34), 0.5), false)
-	_part(root, _cylinder(0.016, 0.0085, 12), Transform3D(Basis(), Vector3(-PALETTE_SIZE.x * 0.36, 0.0003, 0.06)), _mat("hole", Color(0.3, 0.22, 0.16)), false)
+	_part(root, _cylinder(0.016, 0.0085, 12), Transform3D(Basis(), THUMB + Vector3(0, 0.0003, 0)), _mat("hole", Color(0.3, 0.22, 0.16)), false)
 	var blob := SphereMesh.new()
-	blob.radius = 0.018
+	blob.radius = WELL_RADIUS
 	blob.height = 0.01
 	blob.radial_segments = 12
 	blob.rings = 4

@@ -4,7 +4,8 @@ extends Node3D
 ## Painting at an easel, with nothing to pick from a menu. A hand holding the easel tool holds a brush, reaching past
 ## the controller. Its trigger, pointed at open ground away from any easel, sets an easel up there facing the player.
 ## At an easel everything is picked up or touched: a grip at the pot takes a small round, a big round or a flat brush,
-## and at the tray the charcoal; a grip at the palette carries it in that hand until let go; the brush dipped in a
+## and at the tray the charcoal; a grip at the palette takes it by its thumb hole, and it stays in that hand, as a
+## brush does, until a grip sets it back on its tray, takes a brush, or another tool is picked; the brush dipped in a
 ## colour well loads that pigment, mixing with what is on it already, in the jar it takes water (watercolour, thinner
 ## each dip) and in the tin oil. Touching the canvas paints: pushing in presses harder, and moving fast skims. A grip
 ## on the canvas's face takes its sheet, and pulling it well away tears it off for a fresh one.
@@ -17,16 +18,16 @@ const REACH := 0.12
 const CONTACT := 0.006
 const PRESS_DEPTH := 0.035
 const LIFT_OFF := 0.015
-## The tip dips into a well within this of it.
-const DIP := 0.026
 ## A sheet pulled this far off the canvas tears away when let go.
 const PEEL := 0.3
 ## The trigger sets an easel up only with none this near the hand.
 const PLACE_CLEAR := 2.5
 ## A brush held still on the canvas keeps laying paint this often, in ticks.
 const STILL_TICKS := 6
-## The palette in the hand that holds it, from the controller.
-const HOLD := Transform3D(Basis(Vector3.UP, -0.5), Vector3(0.12, -0.05, -0.05))
+## The palette's thumb hole in the hand holding it, from the controller, the palette reaching forward and inward,
+## turned this far off the hand's right.
+const GRIP := Vector3(0, -0.035, 0.02)
+const GRIP_YAW := 0.5
 const TINT := Color(0.95, 0.86, 0.72, 0.6)
 
 ## One hand's brush and what it is doing.
@@ -46,6 +47,8 @@ class Painter:
 	## What the tip is in, so a dip happens once on going in.
 	var dipped := ""
 	var palette: Easels.Easel
+	## The hand's tool when it took the palette, back in hand when the palette is set down.
+	var before := Hand.Tool.EASEL
 	var peel: Easels.Easel
 	var ghost: Node3D
 	var shown := 0.0
@@ -113,7 +116,7 @@ func busy(hand: Hand = null) -> bool:
 func _forget() -> void:
 	for p in painters:
 		p.stroke = {}
-		p.palette = null
+		_set_down(p)
 		p.peel = null
 
 
@@ -127,17 +130,17 @@ func _handle(p: Painter, delta: float) -> void:
 	var hand := p.hand
 	var live := hand.tracked() and rig.aim_hand != hand and not hand.picking
 	p.ghost.visible = false
-	_hold_palette(p, live)
+	_hold_palette(p)
 	_pull_sheet(p, live)
-	if live and p.buttons.pressed("grab") and not hand.taken() and p.palette == null and p.peel == null:
+	if live and p.buttons.pressed("grab") and not hand.taken() and p.peel == null:
 		grab(p)
 	if p.palette != null or p.peel != null:
 		hand.hold()
-	var holding := hand.tool == Hand.Tool.EASEL
+	var holding := hand.tool == Hand.Tool.EASEL and p.palette == null
 	_show_brush(p, holding, delta)
 	if holding and not live and p.buttons.pressed("tool"):
 		_decline(hand, "the hand is %s" % ("untracked" if not hand.tracked() else "aiming a teleport" if rig.aim_hand == hand else "picking a tool"))
-	if not holding or not live or p.palette != null or p.peel != null:
+	if not holding or not live or p.peel != null:
 		end_stroke(p)
 		return
 	var tip := hand.global_transform * ToolModels.BRUSH_TIP
@@ -185,7 +188,8 @@ func _decline(hand: Hand, why: String) -> void:
 	declined.emit(why)
 
 
-## What a grip at the hand takes: the nearest brush in a pot, charcoal, palette or canvas sheet within reach.
+## What a grip at the hand takes: the nearest brush in a pot, charcoal, palette or canvas sheet within reach; a hand
+## holding the palette sets it down at its place on the tray.
 func grab(p: Painter) -> void:
 	var at := p.hand.global_position
 	var best := REACH
@@ -200,13 +204,18 @@ func grab(p: Painter) -> void:
 		if d < best:
 			best = d
 			take = _take_brush.bind(p, Brushwork.Brush.STICK)
-		if not painters.any(func(o: Painter) -> bool: return o.palette == e):
+		if p.palette == e:
+			d = at.distance_to(e.tray(Easels.PALETTE))
+			if d < maxf(best, Easels.PALETTE_SIZE.x * 0.5):
+				best = d
+				take = _set_down.bind(p, true)
+		elif not painters.any(func(o: Painter) -> bool: return o.palette == e):
 			d = at.distance_to(e.palette.global_position)
 			if d < maxf(best, Easels.PALETTE_SIZE.x * 0.5):
 				best = d
-				take = func() -> void: p.palette = e
+				take = _take_palette.bind(p, e)
 		var c := e.on_canvas(at)
-		if c.x >= 0.0 and c.x <= 1.0 and c.y >= 0.0 and c.y <= 1.0 and c.z > -0.02 and c.z < REACH and c.z < best:
+		if p.palette == null and c.x >= 0.0 and c.x <= 1.0 and c.y >= 0.0 and c.y <= 1.0 and c.z > -0.02 and c.z < REACH and c.z < best:
 			best = c.z
 			take = func() -> void: p.peel = e
 	if take.is_valid():
@@ -216,6 +225,7 @@ func grab(p: Painter) -> void:
 
 func _take_brush(p: Painter, kind: Brushwork.Brush) -> void:
 	end_stroke(p)
+	_set_down(p)
 	p.hand.tool = Hand.Tool.EASEL
 	p.brush = kind
 	p.medium = Brushwork.medium_of(kind, p.medium)
@@ -225,19 +235,45 @@ func _take_brush(p: Painter, kind: Brushwork.Brush) -> void:
 	_show_paint(p)
 
 
-func _hold_palette(p: Painter, live: bool) -> void:
+func _take_palette(p: Painter, e: Easels.Easel) -> void:
+	if p.palette == null:
+		p.before = p.hand.tool
+	_set_down(p)
+	end_stroke(p)
+	p.hand.tool = Hand.Tool.EASEL
+	p.palette = e
+	_hold_palette(p)
+
+
+func _hold_palette(p: Painter) -> void:
 	var e := p.palette
 	if e == null:
 		return
-	if not is_instance_valid(e) or not e.is_inside_tree() or not live or not p.buttons.held("grab"):
-		if is_instance_valid(e):
-			e.palette.top_level = false
-			e.palette.position = Easels.PALETTE
-			e.palette.rotation = Vector3.ZERO
-		p.palette = null
+	if not is_instance_valid(e) or not e.is_inside_tree() or p.hand.tool != Hand.Tool.EASEL:
+		_set_down(p)
 		return
 	e.palette.top_level = true
-	e.palette.global_transform = p.hand.global_transform * HOLD
+	e.palette.global_transform = p.hand.global_transform * held(p.hand)
+
+
+## The palette in `hand`, from the controller: held by its thumb hole, its paint up and reaching forward and toward the
+## other hand.
+static func held(hand: Hand) -> Transform3D:
+	var b := Basis(Vector3.UP, GRIP_YAW if hand.tracker == &"left_hand" else PI - GRIP_YAW)
+	return Transform3D(b, GRIP - b * Easels.THUMB)
+
+
+## Puts the palette in `p`'s hand back on its tray, and with `restore` gives the hand back what it held before.
+func _set_down(p: Painter, restore := false) -> void:
+	var e := p.palette
+	p.palette = null
+	if e == null:
+		return
+	if restore:
+		p.hand.tool = p.before
+	if is_instance_valid(e):
+		e.palette.top_level = false
+		e.palette.transform = Transform3D(Basis(), Easels.PALETTE)
 
 
 func _pull_sheet(p: Painter, live: bool) -> void:
@@ -271,10 +307,9 @@ func _dip(p: Painter, tip: Vector3) -> void:
 	for e: Easels.Easel in easels.easels.values():
 		if tip.distance_to(e.global_position) > 3.0:
 			continue
-		var on_palette := e.palette.global_transform.affine_inverse() * tip
-		for i in Brushwork.PIGMENTS.size():
-			if on_palette.distance_to(Easels.well(i)) < DIP:
-				into = "well%d" % i
+		var well := Easels.well_at(e.palette.global_transform.affine_inverse() * tip)
+		if well >= 0:
+			into = "well%d" % well
 		if _inside(e.global_transform.affine_inverse() * tip, Easels.JAR, Easels.JAR_SIZE):
 			into = "jar"
 		if _inside(e.global_transform.affine_inverse() * tip, Easels.TIN, Easels.TIN_SIZE):

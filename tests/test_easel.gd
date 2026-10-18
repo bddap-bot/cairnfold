@@ -28,6 +28,9 @@ func _run() -> void:
 	await _a_fresh_sheet_clears_and_undo_brings_the_painting_back()
 	await _a_deleted_easel_comes_back_with_its_painting()
 	await _the_tray_loads_the_brush()
+	_no_plank_crosses_the_canvas()
+	await _the_palette_stays_in_the_hand_by_its_thumb_hole()
+	await _a_tip_in_each_well_loads_its_colour()
 	await _the_trigger_sets_one_up_or_says_why_not()
 	_easels_keep_their_distance_and_number()
 	_bad_strokes_are_dropped()
@@ -74,7 +77,7 @@ func _paint_some() -> void:
 		{"op": "dip", "what": "tin"},
 		{"op": "dip", "what": "well", "index": 1},
 		{"op": "brush", "roll": 90, "points": [[0.1, 0.6, 1.0], [0.5, 0.65, 0.7], [0.9, 0.6, 1.0]], "seconds": 0.3},
-		{"op": "let_go", "hand": "left"},
+		{"op": "set_down", "hand": "left"},
 		{"op": "take", "what": "stick"},
 		{"op": "brush", "points": [[0.2, 0.8, 0.3], [0.8, 0.85, 0.9]], "seconds": 0.3},
 		{"op": "wait", "seconds": 0.1},
@@ -169,6 +172,93 @@ func _the_tray_loads_the_brush() -> void:
 	_check(p.medium == Brushwork.Medium.OIL, "the tin makes it oil")
 	await _play([{"op": "take", "what": "stick"}])
 	_check(p.brush == Brushwork.Brush.STICK and p.medium == Brushwork.Medium.CHARCOAL, "the stick is charcoal")
+
+
+## Every part of the stand lies wholly behind the canvas's face, or wholly below its bottom edge, so from anywhere a
+## player stands none covers any of the painting.
+func _no_plank_crosses_the_canvas() -> void:
+	var e: Easels.Easel = main.easels.easels.values()[-1]
+	var face := e.canvas_frame()
+	var bottom := (face * Vector3(0, -Brushwork.METRES.y * 0.5, 0)).y
+	var planks := e.get_node("stand").get_children()
+	_check(planks.size() >= 5, "the stand has its legs, tray and rail: %d parts" % planks.size())
+	for mi: MeshInstance3D in planks:
+		var box := mi.get_aabb()
+		var behind := true
+		var below := true
+		for k in 8:
+			var corner := mi.global_transform * box.get_endpoint(k)
+			behind = behind and (face.affine_inverse() * corner).z < 0.0
+			below = below and corner.y < bottom
+		_check(behind or below, "a plank at %s stays behind the canvas's face or below it" % (e.global_transform.affine_inverse() * mi.global_position))
+
+
+## Taken by a grip, the palette stays in either hand after the grip lets go, as a brush does, held by its thumb hole with
+## its paint up and reaching toward the other hand, clear of the controller; a grip at the tray sets it down and gives
+## the hand back what it held.
+func _the_palette_stays_in_the_hand_by_its_thumb_hole() -> void:
+	var e: Easels.Easel = main.easels.easels.values()[-1]
+	for side in ["left", "right"]:
+		var hand: Hand = main.rig.left if side == "left" else main.rig.right
+		var p: EaselTool.Painter = main.easel_tool.painter(hand)
+		var held := EaselTool.held(hand)
+		_check((held * Easels.THUMB).distance_to(EaselTool.GRIP) < 1e-5, "the %s hand holds the palette at its thumb hole" % side)
+		_check((held.basis * Vector3.UP).dot(Vector3.UP) > 0.99, "the %s hand holds its paint up" % side)
+		var controller := held.affine_inverse() * Vector3.ZERO
+		var grip := held.affine_inverse() * EaselTool.GRIP
+		for i in Brushwork.PIGMENTS.size():
+			var w := Easels.well(i)
+			for at: Vector3 in [controller, grip]:
+				_check(Vector2(at.x - w.x, at.z - w.z).length() > Easels.WELL_REACH + 0.04, "the %s hand's grip is clear of well %d" % [side, i])
+			_check((held * w).x * (1.0 if side == "left" else -1.0) > 0.0, "well %d lies toward the other hand from the %s hand" % [i, side])
+		_check((held * Easels.MIX_AT).z < 0.0, "the %s hand's palette reaches forward" % side)
+		_check(Easels.THUMB.x < Easels.MIX_AT.x - 0.08, "the thumb hole is at the end away from the paint")
+		var tool := hand.tool
+		await _play([{"op": "take", "what": "palette", "hand": side}, {"op": "hold", "hand": side, "at": [-0.5 if side == "left" else 0.5, 1.0, 0.5]}])
+		await _frames(10)
+		_check(p.palette == e and e.palette.global_transform.is_equal_approx(hand.global_transform * held), "the palette stays in the %s hand once the grip lets go" % side)
+		await _play([{"op": "hold", "hand": side, "at": [0.0, 1.1, 0.6]}])
+		_check(e.palette.global_transform.is_equal_approx(hand.global_transform * held), "and goes where that hand goes")
+		await _play([{"op": "set_down", "hand": side}])
+		_check(p.palette == null and e.palette.transform.is_equal_approx(Transform3D(Basis(), Easels.PALETTE)) and hand.tool == tool, "a grip at the tray sets it down and gives the %s hand back its %s" % [side, Hand.Tool.keys()[tool]])
+	await _play([{"op": "take", "what": "palette", "hand": "left"}, {"op": "take", "what": "big", "hand": "left"}])
+	var left: EaselTool.Painter = main.easel_tool.painter(main.rig.left)
+	_check(left.palette == null and e.palette.transform.is_equal_approx(Transform3D(Basis(), Easels.PALETTE)) and left.brush == Brushwork.Brush.BIG, "taking a brush puts the palette back")
+
+
+## A brush whose tip goes in anywhere over a well's paint, or on through the board under it, comes out in that well's
+## colour, from a palette in the other hand or on the tray, and paints in it.
+func _a_tip_in_each_well_loads_its_colour() -> void:
+	var e: Easels.Easel = main.easels.easels.values()[-1]
+	var tool: EaselTool = main.easel_tool
+	var hand: Hand = main.rig.right
+	var p := tool.painter(hand)
+	var along := Vector3(0.3, -1.0, -0.4).normalized()
+	var tip_at := func(at: Vector3) -> void:
+		var basis := Basis.looking_at(along, Vector3.UP)
+		hand.global_transform = Transform3D(basis, at - basis * ToolModels.BRUSH_TIP)
+		hand.held_still = true
+	for held in [true, false]:
+		if held:
+			await _play([{"op": "take", "what": "palette", "hand": "left"}, {"op": "hold", "hand": "left", "at": [-0.5, 1.0, 0.5]}])
+		for i in Brushwork.PIGMENTS.size():
+			var w := Easels.well(i)
+			for spot: Vector3 in [Vector3.ZERO, Vector3(Easels.WELL_RADIUS * 0.9, 0.005, 0), Vector3(0, -0.03, -Easels.WELL_RADIUS * 0.9), Vector3(-0.01, -0.045, 0.01)]:
+				tool._take_brush(p, Brushwork.Brush.BIG)
+				var into: Vector3 = e.palette.global_transform * (w + spot)
+				tip_at.call(into - along * 0.1)
+				await _frames(2)
+				tip_at.call(into)
+				await _frames(2)
+				var shown := p.tip.albedo_color
+				_check(p.colour.distance_to(Brushwork.absorbance(Brushwork.PIGMENTS[i])) < 1e-4 and p.load > 0.5, "a tip at %s in well %d of a palette %s loads its colour" % [spot, i, "in hand" if held else "on the tray"])
+				_check(shown.is_equal_approx(tool._paint_colour(p)), "the bristles show well %d's colour" % i)
+		if held:
+			await _play([{"op": "set_down", "hand": "left"}])
+	await _play([{"op": "brush", "points": [[0.3, 0.3, 0.8], [0.6, 0.32, 0.9]], "seconds": 0.2}])
+	await _settled()
+	var strokes: Array = world.state.easels[e.id].strokes
+	_check(not strokes.is_empty() and Vector3(strokes[-1].colour).distance_to(Brushwork.absorbance(Brushwork.PIGMENTS[-1])) < 1e-4, "the stroke after paints in the last well's colour")
 
 
 ## The trigger path a headset player uses: the easel tool taken from the wheel, the hand pointed at the ground, the
