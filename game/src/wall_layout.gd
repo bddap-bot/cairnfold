@@ -996,7 +996,10 @@ func _lay_gables() -> void:
 	rng.seed = hash([seed, "gable"])
 	var h := course_height()
 	var base := height + CAP
-	for end in [[c[1], c[2]], [c[3], length()]]:
+	var ends := [[c[1], c[2]], [c[3], length()]]
+	for i in ends.size():
+		var end: Array = ends[i]
+		rng.seed = hash([seed, "gable", i])
 		var mid: float = (end[0] + end[1]) * 0.5
 		var hs: float = (end[1] - end[0] + THICKNESS) * 0.5
 		match gable_end:

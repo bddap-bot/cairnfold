@@ -245,8 +245,8 @@ func _a_thatched_gable_has_no_stone_verge() -> void:
 	var thatched: WallLayout = _gabled(6.0, 4.0, 2.0)[0]
 	var verge := func(w: WallLayout) -> int: return w.stones.filter(func(s): return s.kind == "cope" and s.y > w.height + WallLayout.CAP).size()
 	_check(verge.call(tiled) >= 8 and verge.call(thatched) == 0, "the thatch rolls over the gable's rakes in place of a stone verge: %d tiled, %d thatched" % [verge.call(tiled), verge.call(thatched)])
-	var courses := func(w: WallLayout) -> int: return w.stones.filter(func(s): return s.kind == "block" and s.y > w.height + WallLayout.CAP).size()
-	_check(courses.call(thatched) == courses.call(tiled), "and the gable's courses rise under it as under tiles")
+	var courses := func(w: WallLayout) -> Array: return w.stones.filter(func(s): return s.kind == "block" and s.y > w.height + WallLayout.CAP)
+	_check(courses.call(thatched) == courses.call(tiled), "and the gable's stones stay the same beneath either covering")
 
 
 func _thatch_is_part_of_the_build_command() -> void:
