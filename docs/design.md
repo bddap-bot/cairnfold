@@ -708,6 +708,17 @@ twice over (A B A B), over a bare meadow of 18.2 to 19.6 ms:
 Standing among the 15 m disc's walls 8 m chunks save about 4 ms; from the air their extra
 draw calls (198 to 234) cost about 0.6 ms.
 
+The same build and scene on the Quest 3, whose bare meadow held 72 Hz at 8.6 to 9.3 ms
+([record](../perf/quest-3/wall-cost-short/20261018T203359Z-31703e7.json)):
+
+| Walls 2 m apart, 4.5 m tall | Standing, 16 m | Standing, 8 m | From the air, 16 m | From the air, 8 m |
+| --- | --- | --- | --- | --- |
+| 10 m disc | 4.1, 4.2 | 4.0, 4.3 | 1.1, 1.1 | 1.4, 1.3 |
+| 15 m disc | 7.4, 7.3 | 5.0, 4.0 | 2.1, 2.0 | 2.5, 2.5 |
+
+There 8 m chunks save 2.3 to 3.4 ms standing among the 15 m disc's walls and nothing among
+the 10 m disc's; from the air they cost 0.2 to 0.5 ms.
+
 Standing, a wall's cost no longer grows with the garden past the chunks around the eye, so
 a linear price per m² undercharges the first walls and overcharges a wide garden. Over the
 15 m disc standing, each kind of piece hidden in turn (paired runs, 8 m chunks): ivy 5.3 to
