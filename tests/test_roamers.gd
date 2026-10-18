@@ -332,8 +332,19 @@ func _thrown_seeds_draw_them_to_eat() -> void:
 		for b in g.wildlife.roamers.all():
 			b.full = 0.0
 		var seeds := g.feed.toss(at + Vector3.UP * 0.8, Vector3.ZERO)
-		var ate := [false]
-		_run(g, 40.0, func() -> void: ate[0] = ate[0] or g.wildlife.roamers.all().any(func(b: Beast) -> bool: return b.kind == kind and b.state == Grazers.State.FEED and b.hand == seeds and seeds.left() < Handful.GRAINS))
-		_check(ate[0], "a %s comes to thrown seeds and eats them, %d grains left" % [Beast.Kind.keys()[kind], seeds.left()])
+		var eater: Beast = null
+		for i in int(40.0 / STEP):
+			_run(g, STEP)
+			for b in g.wildlife.roamers.all():
+				if b.kind == kind and b.state == Grazers.State.FEED and b.hand == seeds and seeds.left() < Handful.GRAINS:
+					eater = b
+			if eater != null:
+				break
+		_check(eater != null, "a %s comes to thrown seeds and eats them, %d grains left" % [Beast.Kind.keys()[kind], seeds.left()])
+		if eater != null:
+			eater.timer = 60.0
+			var side := Vector3(g.rig.head.global_position.x - eater.position.x, 0, g.rig.head.global_position.z - eater.position.z).normalized()
+			g.rig.head.global_position = eater.position + side * (Roamers.FLIGHT[kind] + 1.5) + Vector3.UP * 1.6
+			_check(not _walk_up(g, eater, 0.6, 1.0), "but a person coming up to it there still sends it off")
 		_run(g, Handful.LASTS.y + 2.0)
 	await _teardown(g)

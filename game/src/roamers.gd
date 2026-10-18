@@ -30,7 +30,7 @@ const WATCH := {Beast.Kind.DEER: 12.0, Beast.Kind.FOX: 9.0}
 const FLIGHT := {Beast.Kind.DEER: 5.0, Beast.Kind.FOX: 3.5}
 const NOTICE := 1.8
 const STARTLE := {Beast.Kind.DEER: 10.0, Beast.Kind.FOX: 7.0}
-## Eating, a sudden move startles it only this much nearer.
+## Eating from a hand, a sudden move startles it only this much nearer.
 const EATING_STARTLE := 0.4
 ## A watched person keeping still for CALM_FOR lets it settle, and each such spell lets one come CLOSER nearer
 ## before it runs, down to NEAREST of FLIGHT.
@@ -103,7 +103,7 @@ static func flight(a: Beast) -> float:
 func _alarm(b: Band, a: Node3D, _delta: float) -> bool:
 	if a.state == State.ENTER or a.state == State.FLEE:
 		return false
-	var eating: bool = a.state == State.FEED
+	var eating: bool = a.state == State.FEED and a.hand is Hand
 	var runs_at := flight(a)
 	for n in wildlife._watched():
 		var at := n.global_position
