@@ -67,15 +67,22 @@ func _within_limits(scene: PackedScene, what: String) -> void:
 	var triangles := 0
 	var surfaces := 0
 	var skinned := 0
+	var textures := {}
 	for mi: MeshInstance3D in a.find_children("*", "MeshInstance3D", true, false):
 		surfaces += mi.mesh.get_surface_count()
 		skinned += 1 if mi.skin != null else 0
 		for s in mi.mesh.get_surface_count():
+			var m := mi.mesh.surface_get_material(s) as BaseMaterial3D
+			if m != null and m.albedo_texture != null:
+				textures[m.albedo_texture] = true
 			triangles += mi.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX].size() / 3
 			_check(mi.mesh.surface_get_blend_shape_arrays(s).is_empty(), "%s drops its expressions" % what)
 	_check(triangles > 0 and triangles <= Avatar.MAX_TRIANGLES, "%s keeps to the triangle limit (%d)" % [what, triangles])
 	_check(surfaces <= Avatar.MAX_SURFACES, "%s keeps to the draw limit (%d)" % [what, surfaces])
 	_check(skinned > 0 and a._joints.head.bone >= 0, "%s is skinned to a skeleton's bones" % what)
+	_check(not textures.is_empty(), "%s keeps its textures" % what)
+	for tex: Texture2D in textures:
+		_check(maxi(tex.get_width(), tex.get_height()) <= Avatar.MAX_TEXTURE and tex.get_image().has_mipmaps(), "%s keeps its textures to the size limit, mipmapped (%dx%d)" % [what, tex.get_width(), tex.get_height()])
 	a.free()
 
 

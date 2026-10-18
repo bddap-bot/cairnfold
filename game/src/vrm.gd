@@ -46,6 +46,26 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 	return OK
 
 
+## Decodes each image as Godot's glTF reader does and hands it to the read's `image` before it becomes a texture:
+## reading a texture back calls the rendering server, which answers a worker thread only from the main thread, so a
+## game quitting mid-read would wait on the read forever.
+func _parse_image_data(state: GLTFState, data: PackedByteArray, mime: String, out: Image) -> Error:
+	var image: Variant = state.get_additional_data(&"vrm_image")
+	if not (image is Callable and image.is_valid()):
+		return OK
+	if mime == "image/png":
+		out.load_png_from_buffer(data)
+	elif mime == "image/jpeg":
+		out.load_jpg_from_buffer(data)
+	if out.is_empty():
+		out.load_png_from_buffer(data)
+	if out.is_empty():
+		out.load_jpg_from_buffer(data)
+	if not out.is_empty():
+		image.call(out)
+	return OK
+
+
 static func _field(d: Variant, key: String) -> Variant:
 	return d.get(key) if d is Dictionary else null
 
@@ -98,11 +118,13 @@ static func _doc() -> GLTFDocument:
 	return GLTFDocument.new()
 
 
-## Reads a .vrm (binary glTF) into a scene whose root carries the humanoid metadata; `shape`, given the parsed
-## state, may change its meshes, images and materials before the scene is made. Null if the file is not one.
-static func read(bytes: PackedByteArray, shape := Callable()) -> Node3D:
+## Reads a .vrm (binary glTF) into a scene whose root carries the humanoid metadata; `image` may change each image
+## as it is decoded, and `shape`, given the parsed state, its meshes and materials before the scene is made. Null if
+## the file is not one.
+static func read(bytes: PackedByteArray, shape := Callable(), image := Callable()) -> Node3D:
 	var doc := _doc()
 	var state := GLTFState.new()
+	state.set_additional_data(&"vrm_image", image)
 	state.handle_binary_image = GLTFState.HANDLE_BINARY_EMBED_AS_UNCOMPRESSED
 	state.create_animations = false
 	if doc.append_from_buffer(bytes, "", state) != OK:

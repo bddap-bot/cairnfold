@@ -79,7 +79,7 @@ static func built_in(i: int) -> PackedScene:
 static func read(bytes: PackedByteArray) -> PackedScene:
 	if bytes.size() > MAX_BYTES:
 		return null
-	var model := Vrm.read(bytes, _shape)
+	var model := Vrm.read(bytes, _shape, _shrink)
 	if model == null:
 		return null
 	var bones: Dictionary = model.get_meta("humanoid")
@@ -109,16 +109,6 @@ static func _shape(state: GLTFState) -> bool:
 	var keep := minf(1.0, float(MAX_TRIANGLES) / maxi(triangles, 1))
 	for im in meshes:
 		_simplify(im, keep)
-	for tex in state.get_images():
-		var img := tex.get_image() if tex is ImageTexture else null
-		if img == null:
-			continue
-		var big := maxi(img.get_width(), img.get_height())
-		if big > MAX_TEXTURE:
-			img.resize(maxi(1, img.get_width() * MAX_TEXTURE / big), maxi(1, img.get_height() * MAX_TEXTURE / big), Image.INTERPOLATE_CUBIC)
-		if not img.has_mipmaps():
-			img.generate_mipmaps()
-		(tex as ImageTexture).set_image(img)
 	# Avatars stand in the garden's light: an unlit (toon) surface would glow at night.
 	for m in state.get_materials():
 		if m is BaseMaterial3D and m.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
@@ -126,6 +116,14 @@ static func _shape(state: GLTFState) -> bool:
 			m.roughness = 1.0
 			m.metallic = 0.0
 	return true
+
+
+static func _shrink(img: Image) -> void:
+	var big := maxi(img.get_width(), img.get_height())
+	if big > MAX_TEXTURE:
+		img.resize(maxi(1, img.get_width() * MAX_TEXTURE / big), maxi(1, img.get_height() * MAX_TEXTURE / big), Image.INTERPOLATE_CUBIC)
+	if not img.has_mipmaps():
+		img.generate_mipmaps()
 
 
 ## One indexed triangle surface per material, without blend shapes: each surface is a draw call.
