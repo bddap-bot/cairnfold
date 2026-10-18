@@ -1040,12 +1040,16 @@ sunlit ground keeps its sun. RGB is sunlight thrown back by the sunlit stone fac
 a probe sees, added as emission: the surface's own colour times the sun's colour
 and strength (`bounce_light`). A shaded face across from a sunlit one warms up.
 
-The builds are read as a height field: per one-metre column, the top of the
-stones and roof tiles over it and their mean colour, taken from the pieces each
-build places (`Masonry`, kinds marked `occludes`). Walls, towers and houses stand
-straight up, so a probe's view becomes a horizon in each of 8 directions, walked 6
-columns out. A face counts as sunlit when a walk of 12 columns toward the sun
-passes over the builds in between at the face's mid-height. When a build settles,
+The builds are read as a height field: per one-metre column, the bottom and top
+of the stones and roof tiles over it and their mean colour, taken from the pieces
+each build places (`Masonry`, kinds marked `occludes`). Walls, towers and houses
+stand straight up, so a probe's view becomes, in each of 8 directions walked 6
+columns out, the bands of elevation the columns hide. A build standing on another
+can overhang it, as a tower on a wall does; the air under the overhang keeps its
+sky rather than reading as solid stone down to the ground, which had left the
+shaded foot of such a wall black. A face counts as sunlit when a walk of 12 columns
+toward the sun passes the builds in between at the face's mid-height, over or
+under them. When a build settles,
 changes or goes, when the sun moves, or when the ground is reshaped, the probes
 that could see the change are solved again on a worker thread, and the main
 thread only uploads the finished layers. On the desktop the densest stress scene

@@ -6,9 +6,10 @@ extends RefCounted
 ## much of the sky a probe sees past the builds around it, darkening ambient light at wall feet and in
 ## corners; RGB is sunlight thrown back by the sunlit stone faces it sees, added to what it lights.
 ##
-## The builds are read as a height field: per column the top of the pieces over it and their mean colour.
-## Walls, towers and houses stand straight up, so a height field holds them, and it makes a probe's view a
-## horizon per direction: REACH columns walked in each of AZIMUTHS directions.
+## The builds are read as a height field: per column the bottom and top of the pieces over it and their mean
+## colour. Walls, towers and houses stand straight up, so a span per column holds them, a tower on a wall
+## included, whose overhang leaves the air under it open; it makes a probe's view a run of occluded bands per
+## direction: REACH columns walked in each of AZIMUTHS directions.
 
 const LAYERS := 12
 const CELLS := Terrain.CELLS
@@ -22,8 +23,9 @@ const ALBEDO := 0.75
 ## Bounce is stored this many times over, for precision in a byte: it rarely passes a third of the sun.
 const ENCODE := 2.0
 
-## Owner id -> the columns it fills: column -> Vector4(top, colour). Worker-side while a solve runs.
+## Owner id -> the columns it fills: column -> [bottom, top, colour]. Worker-side while a solve runs.
 var _owners := {}
+var _bottoms := PackedFloat32Array()
 var _tops := PackedFloat32Array()
 var _colors := PackedColorArray()
 ## Owner id -> its pieces' instance buffers and their strides, placed since the last solve began.
@@ -41,6 +43,8 @@ var texture := ImageTexture3D.new()
 
 
 func _init() -> void:
+	_bottoms.resize(CELLS * CELLS)
+	_bottoms.fill(INF)
 	_tops.resize(CELLS * CELLS)
 	_tops.fill(-INF)
 	_colors.resize(CELLS * CELLS)
@@ -76,19 +80,20 @@ static func columns(buffers: Array[PackedFloat32Array], strides: PackedInt32Arra
 			var c := column(buf[i + 3], buf[i + 11])
 			if not AREA.has_point(c):
 				continue
-			var top := buf[i + 7] + 0.5 * (absf(buf[i + 4]) + absf(buf[i + 5]) + absf(buf[i + 6]))
+			var half := 0.5 * (absf(buf[i + 4]) + absf(buf[i + 5]) + absf(buf[i + 6]))
 			var color := Color(buf[i + 12], buf[i + 13], buf[i + 14])
 			if out.has(c):
 				var e: Array = out[c]
-				e[0] = maxf(e[0], top)
-				e[1] += color
-				e[2] += 1
+				e[0] = minf(e[0], buf[i + 7] - half)
+				e[1] = maxf(e[1], buf[i + 7] + half)
+				e[2] += color
+				e[3] += 1
 			else:
-				out[c] = [top, color, 1]
+				out[c] = [buf[i + 7] - half, buf[i + 7] + half, color, 1]
 	var cols := {}
 	for c in out:
 		var e: Array = out[c]
-		cols[c] = Vector4(e[0], e[1].r / e[2], e[1].g / e[2], e[1].b / e[2])
+		cols[c] = [e[0], e[1], e[2] / e[3]]
 	return cols
 
 
@@ -177,20 +182,23 @@ func _work(job: Dictionary) -> Dictionary:
 	for c in changed:
 		area = area.expand(c).expand(c + Vector2i.ONE)
 	area = area.grow(REACH + SUN_WALK).intersection(AREA)
-	return solve(_tops, _colors, grounds(job.heights), job.sun, area)
+	return solve(_bottoms, _tops, _colors, grounds(job.heights), job.sun, area)
 
 
 func _refill(c: Vector2i) -> void:
+	var bottom := INF
 	var top := -INF
 	var sum := Color(0, 0, 0)
 	var n := 0
 	for o in _owners.values():
 		if o.has(c):
-			var v: Vector4 = o[c]
-			top = maxf(top, v.x)
-			sum += Color(v.y, v.z, v.w)
+			var v: Array = o[c]
+			bottom = minf(bottom, v[0])
+			top = maxf(top, v[1])
+			sum += v[2]
 			n += 1
 	var i := c.y * CELLS + c.x
+	_bottoms[i] = bottom
 	_tops[i] = top
 	_colors[i] = sum / n if n > 0 else Color(0, 0, 0)
 
@@ -207,9 +215,9 @@ static func grounds(heights: PackedFloat32Array) -> PackedFloat32Array:
 	return g
 
 
-## The probes over `area`, one byte array per layer, from the builds' `tops` and `colors` per column, the
-## ground under each and the sun.
-static func solve(tops: PackedFloat32Array, colors: PackedColorArray, ground: PackedFloat32Array, sun: Vector3, area: Rect2i) -> Dictionary:
+## The probes over `area`, one byte array per layer, from the builds' `bottoms`, `tops` and `colors` per column,
+## the ground under each and the sun.
+static func solve(bottoms: PackedFloat32Array, tops: PackedFloat32Array, colors: PackedColorArray, ground: PackedFloat32Array, sun: Vector3, area: Rect2i) -> Dictionary:
 	var sun_flat := Vector2(sun.x, sun.z)
 	var sun_rise := sun.y / maxf(sun_flat.length(), 0.05)
 	sun_flat = sun_flat.normalized() if sun_flat.length() > 0.0 else Vector2.ZERO
@@ -222,7 +230,8 @@ static func solve(tops: PackedFloat32Array, colors: PackedColorArray, ground: Pa
 		steps.append(Vector2(dirs[a]).length() * Terrain.STEP)
 		# A face seen looking along d faces back along -d.
 		facing.append(maxf(-Vector2(dirs[a]).normalized().dot(sun_flat), 0.0) * clampf(sun.y * 4.0, 0.0, 1.0))
-	var lit := _lit(tops, ground, sun_flat, sun_rise, area)
+	var lit := _lit(bottoms, tops, sun_flat, sun_rise, area)
+	var hidden := PackedVector2Array()
 	var layers := []
 	for k in LAYERS:
 		var px := PackedByteArray()
@@ -232,7 +241,7 @@ static func solve(tops: PackedFloat32Array, colors: PackedColorArray, ground: Pa
 		for i in area.size.x:
 			var c := area.position + Vector2i(i, j)
 			var base := ground[c.y * CELLS + c.x]
-			# Per direction, each built column passed: how far, its top and where it is.
+			# Per direction, each built column passed: how far, its bottom and top and where it is.
 			var near := []
 			var found := false
 			for a in AZIMUTHS:
@@ -244,7 +253,7 @@ static func solve(tops: PackedFloat32Array, colors: PackedColorArray, ground: Pa
 						break
 					var at := p.y * CELLS + p.x
 					if tops[at] > -INF:
-						hits.append([steps[a] * (s + 1), tops[at], at])
+						hits.append([steps[a] * (s + 1), bottoms[at], tops[at], at])
 						found = true
 				near.append(hits)
 			var o := (j * area.size.x + i) * 4
@@ -260,16 +269,42 @@ static func solve(tops: PackedFloat32Array, colors: PackedColorArray, ground: Pa
 				var sky := 0.0
 				var bounce := Color(0, 0, 0)
 				for a in AZIMUTHS:
+					# Hidden from the horizon up to sin_max, and in `hidden` the bands of sine of elevation above it
+					# hidden by builds whose bottom is above the probe; a nearer column hides what lies behind it.
 					var sin_max := 0.0
+					var floating := false
 					for hit: Array in near[a]:
-						var rise: float = hit[1] - h
+						var rise: float = hit[2] - h
 						if rise <= 0.0:
 							continue
-						var sn: float = rise / sqrt(rise * rise + hit[0] * hit[0])
-						if sn > sin_max:
-							bounce += colors[hit[2]] * ((sn - sin_max) * facing[a] * lit[hit[2]])
-							sin_max = sn
-					sky += 1.0 - sin_max
+						var high: float = rise / sqrt(rise * rise + hit[0] * hit[0])
+						var under: float = hit[1] - h
+						var low: float = under / sqrt(under * under + hit[0] * hit[0]) if under > 0.0 else 0.0
+						var seen := 0.0
+						if low > sin_max:
+							seen = _hide(hidden, Vector2(low, high))
+							floating = true
+						elif high > sin_max:
+							seen = high - sin_max
+							sin_max = high
+							var m := 0
+							while floating and m < hidden.size():
+								var b := hidden[m]
+								if b.x <= sin_max:
+									seen -= maxf(minf(b.y, high) - b.x, 0.0)
+									sin_max = maxf(sin_max, b.y)
+									hidden.remove_at(m)
+									m = 0
+								else:
+									m += 1
+						if seen > 0.0:
+							bounce += colors[hit[3]] * (seen * facing[a] * lit[hit[3]])
+					var covered := sin_max
+					if floating:
+						for b in hidden:
+							covered += b.y - b.x
+						hidden.clear()
+					sky += 1.0 - covered
 				sky /= AZIMUTHS
 				# Each direction's slice of the upper hemisphere, weighted toward the horizon it was seen at.
 				bounce *= ALBEDO * ENCODE * 255.0 * 2.0 / AZIMUTHS
@@ -280,9 +315,26 @@ static func solve(tops: PackedFloat32Array, colors: PackedColorArray, ground: Pa
 	return {"area": area, "layers": layers}
 
 
+## Adds `band` to the disjoint `hidden` bands and returns how much of it was not hidden already.
+static func _hide(hidden: PackedVector2Array, band: Vector2) -> float:
+	var seen := band.y - band.x
+	var merged := band
+	var i := 0
+	while i < hidden.size():
+		var b := hidden[i]
+		if b.y < merged.x or b.x > merged.y:
+			i += 1
+			continue
+		seen -= minf(b.y, band.y) - maxf(b.x, band.x)
+		merged = Vector2(minf(b.x, merged.x), maxf(b.y, merged.y))
+		hidden.remove_at(i)
+	hidden.append(merged)
+	return maxf(seen, 0.0)
+
+
 ## Per built column a probe in `area` can see, whether the sun reaches its faces at their middle height
 ## past the builds between it and the sun.
-static func _lit(tops: PackedFloat32Array, ground: PackedFloat32Array, sun_flat: Vector2, sun_rise: float, area: Rect2i) -> PackedFloat32Array:
+static func _lit(bottoms: PackedFloat32Array, tops: PackedFloat32Array, sun_flat: Vector2, sun_rise: float, area: Rect2i) -> PackedFloat32Array:
 	var lit := PackedFloat32Array()
 	lit.resize(CELLS * CELLS)
 	var reach := area.grow(REACH).intersection(AREA)
@@ -291,14 +343,15 @@ static func _lit(tops: PackedFloat32Array, ground: PackedFloat32Array, sun_flat:
 			var at := j * CELLS + i
 			if tops[at] == -INF:
 				continue
-			var mid := (tops[at] + ground[at]) * 0.5
+			var mid := (tops[at] + bottoms[at]) * 0.5
 			lit[at] = 1.0
 			for s in range(1, SUN_WALK + 1):
 				var p := Vector2(i + 0.5, j + 0.5) + sun_flat * s
 				var q := Vector2i(floori(p.x), floori(p.y))
 				if not AREA.has_point(q):
 					break
-				if tops[q.y * CELLS + q.x] > mid + sun_rise * s * Terrain.STEP:
+				var ray := mid + sun_rise * s * Terrain.STEP
+				if tops[q.y * CELLS + q.x] > ray and bottoms[q.y * CELLS + q.x] < ray:
 					lit[at] = 0.0
 					break
 	return lit

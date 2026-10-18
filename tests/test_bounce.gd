@@ -13,6 +13,7 @@ func _init() -> void:
 	_open_meadow_sees_the_whole_sky()
 	_wall_feet_are_darker_than_the_open()
 	_corners_are_darker_than_a_wall_face()
+	_air_under_a_tower_on_a_wall_sees_the_sky()
 	_tiles_shade_too()
 	_sunlit_faces_bounce_light()
 	_shaded_faces_bounce_none()
@@ -50,6 +51,23 @@ func _wall(a: Vector2, b: Vector2, height := 2.6) -> Array[PackedFloat32Array]:
 	return [stones]
 
 
+## A tower `radius` round `at` laid as on a wall's top: courses from `foot` above the ground up to `top`.
+func _ring(at: Vector2, radius: float, foot: float, top: float) -> Array[PackedFloat32Array]:
+	var kind := Wall.kinds()[Wall.Part.STONE]
+	var stones := PackedFloat32Array()
+	var n := 0
+	var steps := ceili(TAU * radius / 0.4)
+	for i in steps:
+		var p := at + Vector2.from_angle(TAU * i / steps) * radius
+		var y := foot + 0.2
+		while y < top:
+			stones.resize((n + 1) * kind.stride())
+			kind.write(stones, n, Transform3D(Basis().scaled(Vector3.ONE * 0.4), Vector3(p.x, Terrain.height_at(p.x, p.y) + y, p.y)), Color(0.8, 0.78, 0.72))
+			n += 1
+			y += 0.4
+	return [stones]
+
+
 func _built(walls: Array, sun := EAST_LOW) -> Bounce:
 	var b := Bounce.new()
 	b.set_sun(sun, Color.WHITE)
@@ -79,6 +97,15 @@ func _corners_are_darker_than_a_wall_face() -> void:
 	var corner := b.probe(1.5, -4.5, 0).a
 	var face := b.probe(1.5, 3.5, 0).a
 	_check(corner < face, "an inner corner is darker than a straight wall's foot: %.2f against %.2f" % [corner, face])
+
+
+func _air_under_a_tower_on_a_wall_sees_the_sky() -> void:
+	var wall := _wall(Vector2(0, -6), Vector2(0, 6), 3.6)
+	var plain := _built([wall]).probe(1.5, 0, 0).a
+	var overhung := _built([wall, _ring(Vector2.ZERO, 1.8, 3.6, 8.0)]).probe(1.5, 0, 0).a
+	var grounded := _built([wall, _ring(Vector2.ZERO, 1.8, 0.0, 8.0)]).probe(1.5, 0, 0).a
+	_check(overhung > plain * 0.8, "the foot of a wall under a tower standing on it sees the sky past the tower's overhang: %.2f against %.2f bare" % [overhung, plain])
+	_check(grounded < overhung, "a tower standing on the ground there hides more of it: %.2f against %.2f" % [grounded, overhung])
 
 
 func _tiles_shade_too() -> void:
