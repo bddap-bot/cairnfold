@@ -2100,7 +2100,12 @@ that frame pays the scene's draw calls and shadow pass again at a small size. A 
 render on the frame after the press, read back from the GPU asynchronously, then converted,
 encoded and written on a worker thread, so no frame waits on the pixels. Its 8x MSAA view is made
 for the shot and let go once the screen stops showing it. The frame drawing it is long; the
-runtime shows the last frame reprojected meanwhile. PHOTO_COST_LINE
+runtime shows the last frame reprojected meanwhile. Measured on a Quest 2 at 72 Hz (`NESTCOMBE_SCENE=demo/photo.json
+bench.sh OUT --android APK`), four photos in one session, which ran on: the first photo of a session drew a 310 ms
+frame and the second after it ran at 13 frames instead of about 39, as the 8x MSAA pipelines were first built; each
+later photo cost one frame of 76 to 148 ms and the runtime's App GPU time rose for that second only (42.6 ms against
+about 25). Converting, encoding and writing the 3200×2400 PNG took about 8 s on a worker thread there, with no
+frame waiting on it.
 
 Where and how it was taken (`PhotoMeta`): any PNG reader sees `Software: Nestcombe <rev>`; an
 iTXt chunk keyed `nestcombe` holds JSON with the lens's position, rotation and field of view, the
