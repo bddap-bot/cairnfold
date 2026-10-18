@@ -1137,6 +1137,9 @@ and brightest straight out from a point half a metre before its face, so it ligh
 wall around it and never the eaves; a doorway lets out a fifth. Surfaces read the volume a metre out (`lamp_coord`), so a face of the shell
 reads the air on its own side, and a pane of glass also shows the light a metre behind it.
 
+Holding the light in rooms cost the Frame nothing measurable (stress scene, GPU ms a frame, before and after):
+9.43 and 9.46 with lanterns hung standing, 19.18 and 19.20 from the air, 9.39 and 9.40 on the bare meadow.
+
 Godot's own omni lights were the first try and are gone. Three of them, moved to the lanterns nearest the head,
 reached only 4.5 m, so a lantern hung 3 m up a tall house's wall left its floor dark; given 9 m, they cost the
 Quest 2 milliseconds of GPU time a frame for every surface they touched. Measured on the Quest 2 (`bench.sh`,
