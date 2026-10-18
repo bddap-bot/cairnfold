@@ -9,7 +9,7 @@
 #                                             play does, so the late column counts each save's frame. The GPU times
 #                                             are the headset's own render path; a worn session's eye tracking and
 #                                             passthrough cameras are not in them
-#   bench.sh OUT_DIR --android APK            a Quest over adb (ANDROID_SERIAL picks it), in the headset proper, its
+#   bench.sh OUT_DIR --android APK            the one Quest adb reaches, in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
 # On a Quest, exits 1 when a phase the build must hold goes over budget; phases named "sweep/..." only measure.
 # On a Frame, exits 1 when the game exits non-zero, a crash at quit included; the desktop run stops with its status.
@@ -93,9 +93,11 @@ same() {
 if [ "${2:-}" = --android ]; then
   device=quest
   pkg=io.github.bddapbot.nestcombe
-  dir=/sdcard/Android/data/$pkg/files/bench
-  serial=${ANDROID_SERIAL:-}
-  case $serial in *:*) adb connect "$serial" > /dev/null ;; esac
+  # The game makes its own output dir: on a Quest 3 it cannot write into one the shell made.
+  files=/sdcard/Android/data/$pkg/files
+  dir=$files/bench
+  # A host-side logcat over wireless adb stalls with no sign, so the headset records its own.
+  log=/data/local/tmp/nestcombe-bench.log
   # shows SERVICE PATTERN [TEXT]: whether the first line of `dumpsys SERVICE` matching PATTERN holds TEXT. The
   # dump is read whole, since a grep stopping early would fail the pipe under pipefail.
   shows() {
@@ -107,8 +109,8 @@ if [ "${2:-}" = --android ]; then
   rig=$(adb shell getprop ro.product.model | tr -d '\r' | tr 'A-Z ' 'a-z-')
   adb install -r -g "$3" > /dev/null
   same "$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')" --short HEAD
-  adb shell "rm -rf $dir; mkdir -p $dir"
-  adb push "$out/stress.json" "$dir/stress.json" > /dev/null
+  adb shell "rm -rf $dir"
+  adb push "$out/stress.json" "$files/bench.json" > /dev/null
   # Off the head the headset loses tracking, and its Guardian then puts up a dialog the shell keeps drawing beside
   # the game, at the cost of the game's GPU time, so the Guardian is held paused. The clocks are held at level 4,
   # the highest the headset sustains warm, so runs compare: left free it moves the GPU between 525 and 587 MHz as
@@ -118,7 +120,7 @@ if [ "${2:-}" = --android ]; then
   restore_headset() {
     local kv
     set +e
-    [ -z "$logcat_pid" ] || kill "$logcat_pid" 2> /dev/null
+    [ -z "$logcat_pid" ] || adb shell kill "$logcat_pid"
     adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable > /dev/null
     for kv in $saved_props; do adb shell "setprop debug.oculus.${kv%%=*} '${kv#*=}'"; done
     adb shell am force-stop "$pkg"
@@ -134,62 +136,46 @@ if [ "${2:-}" = --android ]; then
     sleep 1
   done
   shows vrpowermanager 'State: HEADSET_MOUNTED' || { echo "bench: the headset did not wake" >&2; exit 1; }
-  # Streams logcat to the file, from where it left off after a drop: the headset's ring holds a minute or two.
-  follow() {
-    [ -z "$logcat_pid" ] || kill "$logcat_pid" 2> /dev/null || true
-    local since
-    since=$(grep -aE '^[0-9]{2}-[0-9]{2} [0-9:.]{12} ' "$out/logcat.txt" | tail -1 | cut -c1-18 || true)
-    if [ -n "$since" ]; then
-      adb logcat -T "$since" >> "$out/logcat.txt" &
-    else
-      adb logcat > "$out/logcat.txt" &
-    fi
-    logcat_pid=$!
-  }
   # A Store or Library panel left open keeps the shell rendering beside the game and takes GPU time from it, which
   # no reading of the game's own App= time can subtract. A launch into a waking headset can also meet the shell's
   # controller check, with the controllers idle, or be paused as it starts, which crashes Godot; and while a
-  # first-time tip (com.oculus.firsttimenux) is up the shell holds every launch. A fresh shell, with the panels and
-  # the tip closed, starts with none of them.
+  # first-time tip (com.oculus.firsttimenux) is up the shell holds every launch. The Quest 3's guidebook posts tips
+  # as toasts the shell draws beside the game. A fresh shell, with the panels, the tip and the guidebook closed,
+  # starts with none of them.
   fresh_shell() {
     local app
-    for app in com.oculus.store com.oculus.panelapp.library com.oculus.firsttimenux com.oculus.vrshell; do adb shell am force-stop "$app"; done
+    for app in com.oculus.store com.oculus.panelapp.library com.oculus.firsttimenux com.oculus.guidebook com.oculus.vrshell; do
+      adb shell am force-stop "$app"
+    done
     sleep 10
   }
   fresh_shell
   for try in 1 2 3; do
     adb shell am force-stop "$pkg"
-    [ -z "$logcat_pid" ] || kill "$logcat_pid" 2> /dev/null || true
-    logcat_pid=
+    [ -z "$logcat_pid" ] || adb shell kill "$logcat_pid"
     adb logcat -c
-    : > "$out/logcat.txt"
-    follow
-    adb shell am start -n "$pkg/com.godot.game.GodotApp" --esa command_line_params "--,--script,$dir/stress.json,--metrics,$dir/metrics.json,--capture-dir,$dir,--seed,$seed${hosting:+,--port,$hosting}" > /dev/null
+    logcat_pid=$(adb shell "rm -f $log; nohup logcat -v threadtime -f $log > /dev/null 2>&1 < /dev/null & echo \$!" | tr -d '\r')
+    adb shell am start -n "$pkg/com.godot.game.GodotApp" --esa command_line_params "--,--script,$files/bench.json,--metrics,$dir/metrics.json,--capture-dir,$dir,--seed,$seed${hosting:+,--port,$hosting}" > /dev/null
     sleep 15
     shows "activity activities" ResumedActivity "$pkg" && break
-    [ "$try" -lt 3 ] || { echo "bench: the game would not start; see $out/logcat.txt" >&2; exit 1; }
+    [ "$try" -lt 3 ] || { adb pull "$log" "$out/logcat.txt" > /dev/null; echo "bench: the game would not start; see $out/logcat.txt" >&2; exit 1; }
     echo "bench: launch $try did not hold, restarting the shell" >&2
     fresh_shell
   done
   if [ "$players" -gt 1 ]; then
-    join cat "$out/logcat.txt" -- "$(adb shell ip -4 -o addr show wlan0 | awk '{print $4}' | cut -d/ -f1)"
+    join adb shell cat "$log" -- "$(adb shell ip -4 -o addr show wlan0 | awk '{print $4}' | cut -d/ -f1)"
   fi
-  # The host's adb server can drop the headset mid-run: reconnect and follow the log again. The stress scene runs
-  # past 15 minutes on a Quest 2, so the run is given an hour.
+  # The stress scene runs past 15 minutes on a Quest 2, so the run is given an hour. A dropped connection is no end.
   ended=
   SECONDS=0
   while [ "$SECONDS" -lt 3600 ]; do
     sleep 1
-    if ! adb get-state > /dev/null 2>&1; then
-      case $serial in *:*) adb connect "$serial" > /dev/null 2>&1 || true ;; esac
-      continue
-    fi
-    kill -0 "$logcat_pid" 2> /dev/null || follow
-    adb shell pidof "$pkg" > /dev/null || ! adb get-state > /dev/null 2>&1 || { ended=1; break; }
+    adb shell pidof "$pkg" > /dev/null 2>&1 || ! adb get-state > /dev/null 2>&1 || { ended=1; break; }
   done
-  [ -n "$ended" ] || { echo "bench: the game was still running after an hour; see $out/logcat.txt" >&2; exit 1; }
-  kill "$logcat_pid" 2> /dev/null || true
+  adb shell kill "$logcat_pid"
   logcat_pid=
+  adb pull "$log" "$out/logcat.txt" > /dev/null
+  [ -n "$ended" ] || { echo "bench: the game was still running after an hour; see $out/logcat.txt" >&2; exit 1; }
   adb pull "$dir/." "$out/" > /dev/null
 elif [ $# -ge 3 ]; then
   device=frame

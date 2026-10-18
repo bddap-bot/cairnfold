@@ -190,6 +190,7 @@ func flush() -> void:
 	if path.is_empty():
 		return
 	if _file == null:
+		DirAccess.make_dir_recursive_absolute(path.get_base_dir())
 		_file = FileAccess.open(path, FileAccess.WRITE)
 		if _file == null:
 			push_error("metrics: cannot write %s" % path)
