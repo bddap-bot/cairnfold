@@ -12,6 +12,9 @@ var steps: Array
 var _eye := Vector3.ZERO
 var _at := Vector3.FORWARD
 var _waiting := {}
+## The share of their area the builds a `sized` step lays take: walls farther apart, a village over a smaller disc,
+## paths shorter.
+var _area := 1.0
 
 
 func _init(owner: Node, script: Array) -> void:
@@ -420,6 +423,9 @@ func _pave(s: Dictionary) -> void:
 	var b := flora_tool.brush(main.rig.left if s.get("hand", "left") == "left" else main.rig.right)
 	b.hand.tool = Hand.Tool.DIRT_PATH if s.get("style", "cobble") == "dirt" else Hand.Tool.PATH
 	var path := _path(s)
+	var mid := path[0].lerp(path[-1], 0.5)
+	for i in path.size():
+		path[i] = Terrain.ground(lerpf(mid.x, path[i].x, _area), lerpf(mid.z, path[i].z, _area))
 	flora_tool.begin_path(b, path[0], s.radius)
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
 	for f in frames:
@@ -561,7 +567,7 @@ func _stress(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var m := tool.mason(_holding(s, Hand.Tool.FENCE if s.get("fence", false) else Hand.Tool.WALLS))
 	_lay_plaster(s)
-	var rows := StressLayout.walls(s.radius, s.spacing)
+	var rows := StressLayout.walls(s.radius, s.spacing / sqrt(_area))
 	var start := Time.get_ticks_usec()
 	for row in rows:
 		tool.begin_stroke(m, Terrain.ground(row[0].x, row[0].y))
@@ -619,7 +625,7 @@ func _fill_flora(s: Dictionary) -> void:
 func _village(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var start := Time.get_ticks_usec()
-	var r: float = s.radius
+	var r: float = s.radius * sqrt(_area)
 	var step: float = s.spacing
 	_lay_gables(s)
 	_lay_plaster(s)
@@ -1278,6 +1284,48 @@ func _quality(s: Dictionary) -> void:
 
 func _label(s: Dictionary) -> void:
 	main.metrics.info.label = s.name
+
+
+## Lays the `build` steps over the bare meadow as large as this headset holds them: while the dearest of `views` reads
+## over the governor's line (Budget.COSTS), the meadow is bared and they are laid again over the share of their area that
+## would bring it under, so every phase of demo/costs.json is measured at the refresh rate, on any headset, from one
+## script.
+func _sized(s: Dictionary) -> void:
+	var line: float = Budget.COSTS[Budget.device()].budget_ms * 0.95
+	var base: Array[float] = []
+	for v: Dictionary in s.views:
+		base.append(await _gpu_ms(v))
+	for attempt in 4:
+		for b: Dictionary in s.build:
+			await call("_" + b.op, b)
+		await _standing()
+		var share := 1.0
+		var read: Array[float] = []
+		for i in s.views.size():
+			read.append(await _gpu_ms(s.views[i]))
+			if read[i] > line:
+				share = minf(share, maxf(line - base[i], 0.0) / (read[i] - base[i]))
+		print("sized: area %.3f, %s ms over the bare %s" % [_area, read, base])
+		if share == 1.0 or attempt == 3:
+			break
+		_area *= clampf(share * 0.9, 0.1, 0.9)
+		await _bare({})
+	_area = 1.0
+
+
+## The viewport's mean GPU time a frame from `view`, once it has settled.
+func _gpu_ms(view: Dictionary) -> float:
+	await _view(view)
+	await get_tree().create_timer(1.5).timeout
+	var sum := 0.0
+	var n := 0
+	var until := Time.get_ticks_msec() + 1000
+	while Time.get_ticks_msec() < until:
+		await get_tree().process_frame
+		if main.quality.fresh:
+			sum += main.quality.frame_ms
+			n += 1
+	return sum / n if n > 0 else 0.0
 
 
 ## Back to the bare meadow, as a long hold of the delete tool leaves it.

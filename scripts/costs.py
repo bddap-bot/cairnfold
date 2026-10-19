@@ -4,8 +4,8 @@ headset's line of Budget.COSTS: costs.py OUT_DIR QUEST_2|FRAME
 
 OUT_DIR is what `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT_DIR ...` left on that headset. Each phase is the
 bare meadow plus one kind of build, at the step the headset's budget is fitted at (Budget.fit_step), from the air and standing; its cost is its
-median viewport GPU time (the governor's signal) over the bare meadow's from the same view. A phase whose frames fell
-to half rate is left out: GPU time read there is not the scene's. A unit's cost is the most any view of any phase
+median viewport GPU time (the governor's signal) over the bare meadow's from the same view. A view whose frames fell
+below the refresh rate is left out: GPU time read there is not the scene's. A unit's cost is the most any view of any phase
 holding it as the one unknown gives, so the bound holds from every view measured. Wildlife comes to builds in numbers
 its caps bound, however much is built, so what a phase's animals add once they have come, over what its builds were
 fitted to cost, is charged once to the base: the room is what is left with every kind of animal there, each phase's
@@ -45,7 +45,7 @@ gpu, halved = {}, set()
 for name, secs in phases.items():
     secs = secs[1:] or secs
     gpu[name] = mid([s["viewport_gpu_ms"] for s in secs])
-    if mid([s["frames"] for s in secs]) < 60:
+    if mid([s["frames"] for s in secs]) < round(d["info"]["refresh_hz"]) - 1:
         halved.add(name)
 
 views = [name.split("/")[1] for name in gpu if name.startswith("base/")]
@@ -59,7 +59,7 @@ def extras(phase, unit):
     for v in views:
         name = f"{phase}/{v}"
         if name in halved:
-            print(f"{name}: half rate, left out", file=sys.stderr)
+            print(f"{name}: below the refresh rate, left out", file=sys.stderr)
         if name not in gpu or name in halved:
             continue
         extra = gpu[name] - base[v] - sum(have[k] * cost[k] for k in have if k != unit) / 1000.0

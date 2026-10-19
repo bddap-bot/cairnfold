@@ -666,8 +666,14 @@ wanna make it obvious to the user that there is a limit there"
   the host garden's bar.
 - `demo/costs.json`, played by `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT ...`
   and fitted by `scripts/costs.py OUT`, measures each kind of build alone over the bare
-  meadow at the headset's `Budget.fit_step`, from the air and standing. A unit's cost is the highest any
-  view gives; a phase that fell to half rate is left out, its GPU time not the scene's.
+  meadow at the headset's `Budget.fit_step`, from the air and standing. Each phase of walls, a
+  village or paths is laid by a `sized` step: while either view reads over the governor's line,
+  the meadow is bared and the builds laid again over the share of their area that would bring
+  it under (walls farther apart, the village on a smaller disc, paths shorter), so one script
+  is measured at the refresh rate on every headset. It opens on 30 s of the bare meadow unmeasured: a
+  Quest's shell draws a tip beside a freshly launched game for its first 30 s, at the cost of the
+  game's GPU time. A unit's cost is the highest any
+  view gives; a view whose frames fell below the refresh rate is left out, its GPU time not the scene's.
   Hills and painted stone ground measured within noise of the bare meadow, so terrain
   counts nothing. Lantern light is baked (`Lamps`); a lantern counts by its meshes.
 - `demo/stress.json`, `demo/ladder.json`, `demo/tour.json` and `demo/costs.json` build past
@@ -789,15 +795,35 @@ Earlier, sharing each lobe's vertices saved 0.4 ms, dropping its backlight nothi
 drawing one side 1.4 ms at the cost of the leaves vanishing from behind. From the air the stones cost about 8 ms over few primitives,
 and one detail-texture read instead of three saved nothing.
 
-`scripts/costs.py` fits nothing on the Quest 2 yet. With its 0.7 swapchain the bare meadow
-holds 72 Hz at the bottom step, but in the governor's signal it reads 12.3 ms from the air and
-10.5 standing, over the 11.1 ms line, so no garden would have room there; and walls, plaster,
-paths, grass and lanterns in `demo/costs.json` still fall to half rate there (walls on a 10 m
-disc 15.7 and 18.3 ms), so their units have no view to fit. Until both change, a Quest's
-garden is held to the Frame's costs.
+On the Quest 2 (`bench.sh OUT --android APK`, the bottom step, 0.7 swapchain, 2x MSAA), viewport
+GPU milliseconds a frame over the bare meadow's 6.93 and 6.72, every view at 72 frames a second;
+each `sized` phase was laid over the share of its area shown, the first that read under the line or the
+fourth tried. With the wildlife the base is 7.34 ms and the room 3.8 ms:
 
-An easel is not measured on a headset yet: until `demo/easel-bench.json` is played there and fitted by
-`scripts/costs.py` (its `easels` phases), each counts 0.4 ms.
+| Phase | Area laid | Units | From the air | Standing | Fitted cost |
+| --- | --- | --- | --- | --- | --- |
+| Grass pool full | | 12,000 blades | 10.10 | 10.88 | 0.35 µs a blade |
+| Flower pool full | | 4,000 flowers | 7.40 | 7.85 | 0.28 µs a flower |
+| Tree pool full | | 64 trees | 10.44 | 8.01 | 54.7 µs a tree |
+| Walls, 10 m disc | 0.25 | 319 m² | 8.09 | 11.26 | 14.2 µs a m² |
+| Walls, 15 m disc | 0.18 | 673 m² | 10.48 | 11.53 | |
+| Walls, 20 m disc | 0.09 | 861 m² | 11.35 | 11.08 | |
+| Plaster walls, 15 m disc | 0.41 | 1,033 m² | 8.03 | 10.78 | 3.9 µs a m² |
+| Fences, 15 m disc | 1 | 416 m² | 7.33 | 7.63 | 2.2 µs a m² |
+| Five paths | 0.13 | 108 m² | 7.49 | 9.32 | 24.1 µs a m² |
+| Six ponds | | 6 | 7.29 | 7.02 | 60.1 µs a pond |
+| Village | 0.44 | 43 m² of wall, 26 m² of roof | 9.94 | 7.65 | 92.6 µs a m² of roof |
+| Thatched village | 0.62 | 43 m² of wall, 26 m² of thatch | 7.70 | 7.39 | 5.9 µs a m² of thatch |
+| Lanterns on the 10 m disc's walls | 0.19 | 40 | 8.21 | 11.43 | 9.1 µs a lantern |
+| The meadow's own flowers, trees and bushes | | 3,200, 46, 60 | 9.16 | 8.21 | bushes nothing over the flowers and trees |
+| Four easels, a stroke on each | | 4 | 7.89 | 11.13 | 1.1 ms an easel |
+
+Walls cost little more spread wide than close: standing in a field of them the nearest rows
+fill the view however far apart they stand, so the sparsest field gives the dearest square
+metre. A tiled roof costs the Quest 2 sixteen times thatch, from the air.
+
+Four easels, each with a stroke on its canvas, are the `easels` phase of `demo/costs.json`; until a Frame
+run fits them, each counts 0.4 ms there.
 
 ## Automatic quality
 
@@ -917,6 +943,33 @@ bare meadow at the ladder's bottom step, `App=` ms a frame and the frame time's 
 governor still walks the ladder. The render region is not used, so the eyes cannot go black as
 they did under the plugin's controller; the game's view captures at each eye's pixel count show
 grass blades softer at 0.7 and the scene otherwise unchanged.
+
+For the session the Quest 2 also draws 2x MSAA instead of 4x and takes no reflected light from
+the sky (`Quality.QUEST_2`), and the ground reads the light builds give back once a vertex, the
+probes lying a grid cell apart as its vertices do. At the ladder's bottom the bare meadow went
+from 12.3 ms from the air and 10.5 standing to 6.9 and 6.7 in the governor's signal, so a garden
+has 3.8 ms of room under the 11.1 ms line (`Budget.QUEST_2_COSTS`) where it had none. Found by hiding each part of the bare
+meadow in turn, each against the unchanged meadow measured between (`bench.sh --android`, step
+10): the ground's mesh took 8.7 ms from the air and 4.1 standing, the meadow's plants 1.0 and
+3.7, the sun's light 1.1 and 2.0, the mountains, the sun's disc, the hands and the book nothing
+measurable. Settings switched while running, from the air and standing:
+
+| Change | From the air | Standing |
+| --- | --- | --- |
+| 4x MSAA to 2x | -2.5 ms | -2.5 ms |
+| MSAA off | -3.5 ms | -2.2 ms |
+| No reflected sky light | -0.7 ms | -1.9 ms |
+| Ambient light a flat colour instead of the sky's | -0.2 ms | -0.4 to -1.4 ms |
+| Fog off | -0.2 ms | -0.2 ms |
+| With 2x MSAA and no reflections: the ground a flat colour | -1.5 ms | -0.8 ms |
+| ... the ground's paint and pond reads skipped | -0.6 ms | -0.3 ms |
+| ... its bounce and lantern reads skipped | -0.35 ms | -0.2 ms |
+| ... its detail noise skipped | 0 | 0 |
+
+Nearly every surface is rough, so the sky's reflections only lifted them a little toward its blue:
+the view captures show the meadow a shade more saturated and edges a little harder at 2x, and
+otherwise the same ([before, after](quest-2-session.jpg)). Ambient light stays the sky's and MSAA
+stays on, where the look would change more for the time.
 
 Each step, measured the same way (`demo/ladder.json`), with the flora changes in "Flora on
 the Quest 2" below:
@@ -2662,7 +2715,7 @@ a replay on this machine's GPU matched the live painting bit for bit. The painte
 is painted; other players' canvases play it at the pace it was painted. Undo takes the last stroke off.
 
 `demo/easel.json` sets up three easels and paints a landscape on each, one per medium; `demo/easel-bench.json`
-measures easels and painting on a headset.
+measures painting on a headset, and `demo/costs.json` what an easel costs a frame.
 
 ## Verifying on a headset
 

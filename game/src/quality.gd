@@ -50,7 +50,7 @@ const FRAME_SCALE_3D := 0.9
 ## (render_target_size_multiplier), its MSAA, and where surfaces take reflected light from. The Quest 2's scene is bound
 ## by fragments: a smaller swapchain draws the same single pass, which the 3D scale does not on its driver, and the
 ## compositor stretches it to the display; 4x MSAA over 2x, and the sky's reflections on surfaces nearly all rough,
-## cost its bare meadow 2.5 and 0.7 to 1.9 ms a frame at the ladder's bottom (see "Quest 2 measurements" in
+## cost its bare meadow 2.5 and 0.7 to 1.9 ms a frame at the ladder's bottom (see "Which knobs matter" in
 ## docs/design.md).
 const QUEST_2 := {"render_scale": 0.7, "msaa": Viewport.MSAA_2X, "reflections": Environment.REFLECTION_SOURCE_DISABLED}
 const HEADSET := {"render_scale": 1.0, "msaa": Viewport.MSAA_4X, "reflections": Environment.REFLECTION_SOURCE_SKY}

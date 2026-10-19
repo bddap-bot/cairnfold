@@ -37,8 +37,7 @@ const TIMBER_US := 1.2
 const BOOK_OPEN_MS := 1.2
 ## The Frame's runtime halves the rate once a frame nears 0.88 of the period: held to the governor's line under it.
 const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 5.85, "thatch_m2": 5.85, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": TIMBER_US, "easel": 400.0}
-## Held to the Frame's until `scripts/costs.py` writes the Quest 2's own.
-const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 5.85, "thatch_m2": 5.85, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": TIMBER_US, "easel": 400.0}
+const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 7.34, "grass": 0.347, "flower": 0.281, "tree": 54.725, "wall_m2": 14.195, "plaster_m2": 3.923, "fence_m2": 2.179, "path_m2": 24.092, "pond": 60.062, "roof_m2": 92.626, "thatch_m2": 5.944, "fitting": 9.134, "bush": 0.0, "easel": 1101.524, "timber": TIMBER_US}
 
 
 ## The ladder step `on`'s COSTS are fitted at (demo/costs.json), so a garden within its budget holds 72 Hz there: the
