@@ -1297,6 +1297,31 @@ shader to reading it; water, which mirrors the sky, is the one exception. `demo/
 on a wall at night and looks at its ivy, at a wall out of their reach, and at the conure, ducks and sheep fed
 beside them.
 
+Ivy pays most for it, being thousands of sprigs of a dozen and more vertices on every wall: `given_at` reads the
+ground twice and both volumes at each vertex. A sprig instead reads them once at its root, facing out of the wall,
+over the ground height at its wall's foot that its bake carries in the colour's alpha (`given_over`), and a sprig
+shrunk away past its reach reads nothing. Measured on the Quest 2 (`bench.sh`, the stress scene, GPU ms a frame,
+quality step 0), against the same build without any of these reads; "ivy lit by a constant" keeps ivy's fragment
+work and reads nothing, so what it adds is the cost of using the light rather than of reading it:
+
+| Phase | No reads (2 runs) | Read once a vertex (2 runs) | Ivy lit by a constant | Ivy read once a sprig |
+| --- | --- | --- | --- | --- |
+| r10/ground | 38.3 | 40.3 | 37.7 | 38.7 |
+| r15/ground | 40.3 | 44.1 | 42.1 | 41.9 |
+| r20/ground | 43.8 | 48.2 | 46.0 | 45.9 |
+| r25/ground | 49.6 | 51.6 | 48.8 | 52.7 |
+| r15-tall/ground | 47.1 | 50.2 | 45.5 | 48.1 |
+| plaster/ground | 41.5 | 45.7 | 41.4 | 42.6 |
+| hands/walls | 45.6 | 47.1 | 44.3 | 44.7 |
+| Mean of these | 43.7 | 46.7 | 43.7 | 44.9 |
+| meadow/ground | 28.6 | 28.7 | 28.8 | 28.2 |
+
+Reading at the root alone, still through `given_at`, left the walls where reading once a vertex had them (r15 44.7,
+r20 48.9, plaster 45.0): a vertex's four reads cost the same whether or not its neighbours share the texels, and it
+is the two ground reads that go. The animals, flags and canvases read once a vertex still; no phase that holds them
+rose beyond the 2.5 ms the same build varies by between runs. No phase was within budget before the change, so none
+went over by it.
+
 ### Grass
 
 What games known for their grass do, ranked by how much each adds to the look

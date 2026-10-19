@@ -8,10 +8,15 @@ global uniform vec3 bounce_light;
 global uniform sampler3D lamp_volume : filter_linear, repeat_disable;
 global uniform vec3 lamp_light;
 
+// Where the volume holds a point `p` standing over ground at height `ground`.
+vec3 volume_coord(vec3 p, float ground) {
+	return vec3((p.xz - bounce_grid.x) / bounce_grid.y, (p.y - ground) / bounce_grid.z);
+}
+
 // Where a surface at `p` facing `n` reads the volume: half a metre out, so a wall reads the air before it.
 vec3 bounce_coord(vec3 p, vec3 n) {
 	p += n * 0.5;
-	return vec3((p.xz - bounce_grid.x) / bounce_grid.y, (p.y - ground_at(p.xz)) / bounce_grid.z);
+	return volume_coord(p, ground_at(p.xz));
 }
 
 // The same for what lies on the ground or rises from it, whose height there is known: the lowest layer.
@@ -36,4 +41,12 @@ vec4 given_at(vec3 p, vec3 n) {
 	vec3 at = bounce_coord(p, n);
 	vec4 bounce = textureLod(bounce_volume, at, 0.0);
 	return vec4(given_back(at, lamp_coord(p, n), bounce), bounce.a);
+}
+
+// given_at for a thing whose ground height is known where it stands, as a leaf knows its wall's foot: no ground
+// read, which a vertex shader pays for twice in given_at.
+vec4 given_over(vec3 p, vec3 n, float ground) {
+	vec3 at = volume_coord(p + n * 0.5, ground);
+	vec4 bounce = textureLod(bounce_volume, at, 0.0);
+	return vec4(given_back(at, volume_coord(p + n, ground), bounce), bounce.a);
 }

@@ -16,11 +16,18 @@ varying vec4 given;
 
 void vertex() {
 	vec3 origin = (MODEL_MATRIX * vec4(0.0, 0.0, 0.0, 1.0)).xyz;
+	float shown = 1.0;
 	if ((CAMERA_VISIBLE_LAYERS & full_layer) == 0u) {
-		VERTEX *= 1.0 - smoothstep(max(reach - 15.0, reach * 0.5), reach, distance(origin, CAMERA_POSITION_WORLD));
+		shown = 1.0 - smoothstep(max(reach - 15.0, reach * 0.5), reach, distance(origin, CAMERA_POSITION_WORLD));
 	}
-	COLOR.rgb = seasoned(COLOR.rgb, season_foliage);
-	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
+	VERTEX *= shown;
+	// A sprig's colour carries the ground height at its wall's foot (IvyLayout.bake) in its alpha.
+	float foot = COLOR.a;
+	COLOR = vec4(seasoned(COLOR.rgb, season_foliage), 1.0);
+	given = vec4(0.0);
+	if (shown > 0.0) {
+		given = given_over(origin, normalize(mat3(MODEL_MATRIX) * vec3(0.0, 0.0, 1.0)), foot);
+	}
 }
 
 void fragment() {

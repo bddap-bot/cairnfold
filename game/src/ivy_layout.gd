@@ -39,7 +39,9 @@ static func grow(wall: WallLayout) -> Array[Dictionary]:
 	return leaves
 
 
-## The leaves as a MultiMesh buffer (transform and colour per instance), their growth times and their bounds.
+## The leaves as a MultiMesh buffer (transform and colour per instance, the colour's alpha the ground height at the
+## leaf's wall foot, for ivy.gdshader to read the light volumes without reading the ground), their growth times and
+## their bounds.
 static func bake(wall: WallLayout) -> Dictionary:
 	var leaves := grow(wall).filter(func(l: Dictionary) -> bool: return not wall.hides(l.xform.origin))
 	var buffer := PackedFloat32Array()
@@ -51,7 +53,7 @@ static func bake(wall: WallLayout) -> Dictionary:
 		var x: Transform3D = leaves[i].xform
 		var c: Color = leaves[i].color
 		var b := x.basis
-		var row := [b.x.x, b.y.x, b.z.x, x.origin.x, b.x.y, b.y.y, b.z.y, x.origin.y, b.x.z, b.y.z, b.z.z, x.origin.z, c.r, c.g, c.b, c.a]
+		var row := [b.x.x, b.y.x, b.z.x, x.origin.x, b.x.y, b.y.y, b.z.y, x.origin.y, b.x.z, b.y.z, b.z.z, x.origin.z, c.r, c.g, c.b, leaves[i].foot]
 		for j in 16:
 			buffer[i * 16 + j] = row[j]
 		times[i] = leaves[i].t
@@ -118,4 +120,4 @@ static func _leaf(wall: WallLayout, at: Vector2, side: float, t: float, young: f
 	var size := rng.randf_range(0.12, 0.2) * lerpf(1.0, 0.65, young)
 	var origin: Vector3 = frame.point + Vector3.UP * at.y + out * (FACE + rng.randf_range(0.0, 0.03))
 	var green: Color = GREENS[rng.randi() % GREENS.size()].lerp(YOUNG, young * 0.8) * rng.randf_range(0.85, 1.15)
-	return {"xform": Transform3D(basis.scaled_local(Vector3.ONE * size), origin), "color": green, "t": t, "s": at.x, "y": at.y, "side": side}
+	return {"xform": Transform3D(basis.scaled_local(Vector3.ONE * size), origin), "color": green, "t": t, "s": at.x, "y": at.y, "side": side, "foot": frame.point.y}

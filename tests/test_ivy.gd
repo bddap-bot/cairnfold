@@ -126,7 +126,7 @@ func _bake_packs_each_leaf() -> void:
 	var i := leaves.size() / 2
 	var b: PackedFloat32Array = baked.buffer
 	var x: Transform3D = leaves[i].xform
-	_check(is_equal_approx(b[i * 16 + 3], x.origin.x) and is_equal_approx(b[i * 16 + 1], x.basis.y.x) and is_equal_approx(b[i * 16 + 14], leaves[i].color.b), "rows laid out as the MultiMesh reads them")
+	_check(is_equal_approx(b[i * 16 + 3], x.origin.x) and is_equal_approx(b[i * 16 + 1], x.basis.y.x) and is_equal_approx(b[i * 16 + 14], leaves[i].color.b) and is_equal_approx(b[i * 16 + 15], x.origin.y - leaves[i].y), "rows laid out as the MultiMesh reads them, the alpha the ground at the wall's foot")
 	_check(baked.bounds.has_point(x.origin), "the bounds hold the leaves")
 
 
