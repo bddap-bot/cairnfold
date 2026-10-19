@@ -11,8 +11,13 @@ const NEAR := 0.02
 const FAR := 400.0
 ## The eyes' height above the floor, standing.
 const EYE := 1.65
-const MAX_REACH := 80.0
 const AIR_REACH := 30.0
+## A target across the map moves metres for a fraction of a degree of hand tremor. The aim follows the hand at
+## STEADY_HZ, plus STEADY_HZ_PER_RAD for each radian it lags, so a held hand stays still and a sweep catches up.
+const STEADY_HZ := 0.5
+const STEADY_HZ_PER_RAD := 60.0
+## Past MARKER_NEAR from the eyes the markers grow with distance, so they look as big as they do there.
+const MARKER_NEAR := 15.0
 ## Stick forward at or past FULL_STICK aims at the ray's full target; easing back to the deadzone brings it
 ## to NEAREST of the way there.
 const FULL_STICK := 0.9
@@ -59,6 +64,7 @@ var _pending: Variant = null
 var _aim_clock := 0.0
 ## [time, aim_ground, aim_lift] over the last RELEASE_LOOKBACK of aiming, oldest first.
 var _aim_trail: Array = []
+var _steady_dir := Vector3.ZERO
 
 var _ground_ring: MeshInstance3D
 var _float_ring: MeshInstance3D
@@ -92,6 +98,7 @@ func _build_markers() -> void:
 	glow.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glow.albedo_color = Color(0.85, 0.97, 1.0, 0.75)
 	glow.no_depth_test = false
+	glow.disable_fog = true
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.32
 	ring.outer_radius = 0.4
@@ -172,7 +179,7 @@ func _locomotion_input(delta: float) -> void:
 				teleport(held[1], held[2])
 			_end_aim()
 			return
-		aim(aim_hand.global_transform, reach_scale(stick.y))
+		aim(_steadied(aim_hand.global_transform, delta), reach_scale(stick.y))
 		_aim_clock += delta
 		_aim_trail.append([_aim_clock, aim_ground, aim_lift])
 		while _aim_trail.size() > 1 and _aim_trail[1][0] <= _aim_clock - RELEASE_LOOKBACK:
@@ -188,7 +195,19 @@ func _end_aim() -> void:
 	aim_hand = null
 	_aim_clock = 0.0
 	_aim_trail.clear()
+	_steady_dir = Vector3.ZERO
 	hide_markers()
+
+
+## `pose` turned from the hand's own direction to the steadied one.
+func _steadied(pose: Transform3D, delta: float) -> Transform3D:
+	var dir := -pose.basis.z.normalized()
+	if _steady_dir == Vector3.ZERO:
+		_steady_dir = dir
+		return pose
+	var hz := STEADY_HZ + STEADY_HZ_PER_RAD * _steady_dir.angle_to(dir)
+	_steady_dir = _steady_dir.slerp(dir, 1.0 - exp(-TAU * hz * delta)).normalized()
+	return Transform3D(Basis(Quaternion(dir, _steady_dir)) * pose.basis, pose.origin)
 
 
 ## The fraction of the way to the ray's full target that a forward stick deflection of `y` reaches.
@@ -196,15 +215,15 @@ static func reach_scale(y: float) -> float:
 	return lerpf(NEAREST, 1.0, clampf((y - DEADZONE) / (FULL_STICK - DEADZONE), 0.0, 1.0))
 
 
-## Cast the teleport ray from a pointing pose. Its full target is the first solid thing it hits, the ground, a roof
-## of any pitch, a wall's top or a tree, where the player then stands; or, aimed above the horizon with nothing within
-## AIR_REACH, the point in the air at that reach. The target lies `fraction` of the way there along the ray, in the
-## air above the floor short of a hit.
+## Cast the teleport ray from a pointing pose. Its full target is the first solid thing it hits anywhere on the map,
+## the ground, a roof of any pitch, a wall's top or a tree, where the player then stands; or, aimed above the horizon
+## with nothing on the map to hit, the point in the air AIR_REACH along it. The target lies `fraction` of the way
+## there along the ray, in the air above the floor short of a hit.
 func aim(from: Transform3D, fraction := 1.0) -> void:
 	var origin := from.origin
 	var dir := -from.basis.z.normalized()
 	var upward := dir.y > 0.0
-	var reach := AIR_REACH if upward else MAX_REACH
+	var reach := Terrain.exit_along(origin, dir)
 	var hit: Variant = Terrain.raycast(origin, dir, reach)
 	var solid: Variant = solid_hit.call(origin, dir, reach if hit == null else origin.distance_to(hit))
 	if solid != null:
@@ -213,7 +232,7 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 		aim_ground = null
 		hide_markers()
 		return
-	var full: Vector3 = hit if hit != null else origin + dir * reach
+	var full: Vector3 = hit if hit != null else origin + dir * AIR_REACH
 	var target := origin.lerp(full, fraction)
 	var g: float = full.y if hit != null and fraction >= 1.0 else floor_under.call(target)
 	aim_ground = Vector3(target.x, g, target.z)
@@ -221,14 +240,15 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 	if aim_hand != null:
 		aim_hand.ray(target, Color(0.85, 0.97, 1.0, 0.75))
 	var g3: Vector3 = aim_ground
+	var size := maxf(1.0, head.global_position.distance_to(target) / MARKER_NEAR)
 	_ground_ring.visible = true
-	_ground_ring.global_transform = Transform3D(Basis(), g3 + Vector3.UP * 0.03)
+	_ground_ring.global_transform = Transform3D(Basis().scaled(Vector3.ONE * size), g3 + Vector3.UP * 0.03 * size)
 	var lifted := aim_lift > 0.15
 	_float_ring.visible = lifted
 	_pole.visible = lifted
 	if lifted:
-		_float_ring.global_transform = Transform3D(Basis(), g3 + Vector3.UP * aim_lift)
-		_pole.global_transform = Transform3D(Basis().scaled(Vector3(1, aim_lift, 1)), g3 + Vector3.UP * aim_lift * 0.5)
+		_float_ring.global_transform = Transform3D(Basis().scaled(Vector3.ONE * size), g3 + Vector3.UP * aim_lift)
+		_pole.global_transform = Transform3D(Basis().scaled(Vector3(size, aim_lift, size)), g3 + Vector3.UP * aim_lift * 0.5)
 
 
 func hide_markers() -> void:

@@ -19,6 +19,11 @@ static var _humps: Array[Vector4] = [NO_HUMP, NO_HUMP]
 static var _flat: Array[Vector4] = []
 ## Counts changes to the ground or the water on it, so work laid on it can tell whether it still stands where it was laid.
 static var revision := 0
+## The highest grid height in each BLOCK by BLOCK of cells, its edge vertices shared with the next, so a ray can pass
+## over a block it stays above without sampling it.
+const BLOCK := 8
+const BLOCKS := ceili(float(CELLS) / BLOCK)
+static var _tops := _block_tops()
 const NO_WATER := -100.0
 ## Each grid point's pond surface (Water), NO_WATER where none reaches.
 static var _water := _no_water()
@@ -147,25 +152,91 @@ static func ground(x: float, z: float) -> Vector3:
 
 ## First hit of a ray with the ground, or null.
 static func raycast(origin: Vector3, dir: Vector3, max_dist := 80.0) -> Variant:
+	var lift := maxf(0.0, maxf(_humps[0].w, _humps[1].w))
 	var step := 0.25
 	var prev := 0.0
 	var t := 0.0
-	while t <= max_dist:
-		var p := origin + dir * t
-		if p.y <= height_at(p.x, p.z):
-			var lo := prev
-			var hi := t
-			for i in 12:
-				var mid := (lo + hi) * 0.5
-				var q := origin + dir * mid
-				if q.y <= height_at(q.x, q.z):
-					hi = mid
-				else:
-					lo = mid
-			return origin + dir * hi
-		prev = t
-		t += step * (1.0 + t * 0.03)
+	while true:
+		var end := minf(t + BLOCK * STEP, max_dist)
+		if _above(origin + dir * t, origin + dir * end, lift):
+			prev = end
+			t = end
+		else:
+			while true:
+				var p := origin + dir * t
+				if p.y <= height_at(p.x, p.z):
+					var lo := prev
+					var hi := t
+					for i in 12:
+						var mid := (lo + hi) * 0.5
+						var q := origin + dir * mid
+						if q.y <= height_at(q.x, q.z):
+							hi = mid
+						else:
+							lo = mid
+					return origin + dir * hi
+				prev = t
+				if t >= end:
+					break
+				t = minf(t + step * (1.0 + t * 0.03), end)
+		if t >= max_dist:
+			return null
 	return null
+
+
+## Whether the segment from `a` to `b` stays above every block under it, raised by `lift`.
+static func _above(a: Vector3, b: Vector3, lift: float) -> bool:
+	var lo := _block_of(minf(a.x, b.x), minf(a.z, b.z))
+	var hi := _block_of(maxf(a.x, b.x), maxf(a.z, b.z))
+	var top := -INF
+	for j in range(lo.y, hi.y + 1):
+		for i in range(lo.x, hi.x + 1):
+			top = maxf(top, _tops[j * BLOCKS + i])
+	return minf(a.y, b.y) > top + lift
+
+
+static func _block_of(x: float, z: float) -> Vector2i:
+	var u := clampf((x + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
+	var v := clampf((z + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
+	return Vector2i(int(u) / BLOCK, int(v) / BLOCK)
+
+
+static func _block_tops() -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	out.resize(BLOCKS * BLOCKS)
+	for bj in BLOCKS:
+		for bi in BLOCKS:
+			out[bj * BLOCKS + bi] = _top(bi, bj)
+	return out
+
+
+## Recomputes the tops of the blocks holding any vertex of `cells`.
+static func _raise_tops(cells: Rect2i) -> void:
+	var lo := Vector2i(maxi(cells.position.x - 1, 0), maxi(cells.position.y - 1, 0)) / BLOCK
+	var hi := Vector2i(mini(cells.end.x - 1, CELLS - 1), mini(cells.end.y - 1, CELLS - 1)) / BLOCK
+	for bj in range(lo.y, hi.y + 1):
+		for bi in range(lo.x, hi.x + 1):
+			_tops[bj * BLOCKS + bi] = _top(bi, bj)
+
+
+static func _top(bi: int, bj: int) -> float:
+	var top := -INF
+	for j in range(bj * BLOCK, mini(bj * BLOCK + BLOCK, CELLS) + 1):
+		for i in range(bi * BLOCK, mini(bi * BLOCK + BLOCK, CELLS) + 1):
+			top = maxf(top, _heights[j * VERTS + i])
+	return top
+
+
+## How far along `dir` from `origin` the ray leaves `bounds()`; 0 if it is past it already.
+static func exit_along(origin: Vector3, dir: Vector3) -> float:
+	var box := bounds()
+	var t := INF
+	for axis in 3:
+		if dir[axis] > 0.0:
+			t = minf(t, (box.end[axis] - origin[axis]) / dir[axis])
+		elif dir[axis] < 0.0:
+			t = minf(t, (box.position[axis] - origin[axis]) / dir[axis])
+	return maxf(t, 0.0)
 
 
 ## The grid cells within `radius` of (x, z), clipped to the play area.
@@ -249,6 +320,7 @@ static func write(cells: Rect2i, values: PackedFloat32Array) -> void:
 		for i in range(cells.position.x, cells.end.x):
 			_heights[j * VERTS + i] = values[n]
 			n += 1
+	_raise_tops(cells)
 	revision += 1
 	_sync(cells)
 

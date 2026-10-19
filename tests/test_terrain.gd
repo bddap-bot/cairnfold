@@ -21,6 +21,7 @@ func _run() -> void:
 	_height_between_grid_points_is_continuous()
 	await _raising_ground_under_a_wall_keeps_it_on_the_ground()
 	_a_lay_reads_the_ground_it_started_on()
+	_raycast_skips_only_open_air()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -29,6 +30,58 @@ func _check(ok: bool, what: String) -> void:
 	if not ok:
 		failures += 1
 		print("FAIL: ", what)
+
+
+## The ray passes over blocks it stays above without sampling them, and finds the same ground as one that samples
+## the whole way: on the ground as shaped, after a write raises a spike, and under a live hump.
+func _raycast_skips_only_open_air() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var spike := Rect2i(Terrain.grid_point(30, -30), Vector2i(2, 2))
+	var before := Terrain.read(spike)
+	var raised := before.duplicate()
+	for n in raised.size():
+		raised[n] += 25.0
+	for phase in ["as shaped", "after a raise", "under a hump"]:
+		if phase == "after a raise":
+			Terrain.write(spike, raised)
+		if phase == "under a hump":
+			Terrain.set_hump(0, -20, 20, 12, 15)
+		var wrong := 0
+		for k in 200:
+			var h := Terrain.SIZE * 0.5
+			var o := Vector3(rng.randf_range(-h, h), 0, rng.randf_range(-h, h))
+			o.y = Terrain.height_at(o.x, o.z) + rng.randf_range(0.5, 40.0)
+			var dir := Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.4, 0.05), rng.randf_range(-1, 1)).normalized()
+			var reach := Terrain.exit_along(o, dir)
+			var got: Variant = Terrain.raycast(o, dir, reach)
+			var want: Variant = _sampled_raycast(o, dir, reach)
+			if (got == null) != (want == null) or (got != null and got.distance_to(want) > 0.05):
+				wrong += 1
+		_check(wrong == 0, "%s, %d of 200 rays find other ground than a ray sampling all the way" % [phase, wrong])
+	Terrain.clear_hump(0)
+	Terrain.write(spike, before)
+
+
+func _sampled_raycast(origin: Vector3, dir: Vector3, reach: float) -> Variant:
+	var prev := 0.0
+	var t := 0.0
+	while t <= reach:
+		var p := origin + dir * t
+		if p.y <= Terrain.height_at(p.x, p.z):
+			var lo := prev
+			var hi := t
+			for i in 30:
+				var mid := (lo + hi) * 0.5
+				var q := origin + dir * mid
+				if q.y <= Terrain.height_at(q.x, q.z):
+					hi = mid
+				else:
+					lo = mid
+			return origin + dir * hi
+		prev = t
+		t += 0.05
+	return null
 
 
 func _all() -> PackedFloat32Array:

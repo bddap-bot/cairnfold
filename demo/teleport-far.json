@@ -1,0 +1,13 @@
+[
+  {"op": "place", "x": -72, "z": 72},
+  {"op": "view", "eye": [-72, 1.65, 72], "at": [72, 0, -72], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "aim", "dir": [0, 0, -1], "stick": 1.0, "seconds": 1.5, "capture": "01-aimed-across-the-map", "settle": 3.0},
+  {"op": "view", "eye": [0, 0, 0], "at": [-1, -0.08, 1], "relative": true},
+  {"op": "wait", "seconds": 2},
+  {"op": "capture", "name": "02-arrived-looking-back"},
+  {"op": "place", "x": -72, "z": 72},
+  {"op": "view", "eye": [-72, 1.65, 72], "at": [72, 0, -72], "ground": true},
+  {"op": "aim", "dir": [0, 0, -1], "stick": 1.0, "seconds": 1.5, "watch": {"eye": [-95, 60, 95], "at": [0, 0, 0], "ground": true}, "capture": "03-the-ray-from-above", "settle": 0.0},
+  {"op": "quit"}
+]

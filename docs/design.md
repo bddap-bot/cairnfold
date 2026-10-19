@@ -1638,6 +1638,16 @@ an open wall, a tree or a bush, and a release from full forward stands the playe
 is no steepness limit: the player does not walk, so nothing slides off a slope. A wall's face lets the ray
 through, so a door or window still aims at the floor inside.
 
+Directive (verbatim): "I see that there's a distance limit on my teleport raycast. I can't teleport all the way across the map right now, but I would like to be able to do that"
+
+The ray reaches as far as the map does: anything on it the player can see, one teleport reaches. An upward ray
+also looks for ground across the map and floats only when it meets none. Hand tremor of a fraction of a degree
+moves a target 200 m away by metres, so the aim follows the hand through a filter that holds still against small
+wobble and catches up with a deliberate turn. Past 15 m the rings and pole grow with distance and ignore the fog,
+so they look the same size far away as they do nearby. The march along the ray skips each 8 m block of ground
+it stays above, so a ray across the whole map costs less than the old 80 m one did. `demo/teleport-far.json` aims
+from one corner of the map to the other.
+
 Directive (verbatim): "I'd like to be able to use the grab button to grab the ground so ground terraforming becomes um... not a tool, it's just something that's always available. I just grab something. Grab the ground and push it down or pull it up"
 
 Directive (verbatim): "The grab button should always be grab"
@@ -1677,7 +1687,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | --- | --- |
 | Pick a hand's tool | Hold that hand's upper face button (right B, left Y; on the Frame right B, X or Y, left D-pad up, left or right), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
 | Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it first meets something solid: the ground, a roof of any pitch, a wall's top or a tree; aimed under a roof, as through a door or window, it lands on the floor inside; release to go |
-| Teleport into the air | Aim above the horizon: with no ground within 30 m, the ray targets the point in the air at its end, a ring on a pole down to the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
+| Teleport into the air | Aim above the horizon: with nothing on the map for the ray to hit, it targets the point in the air 30 m along it, a ring on a pole down to the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
 | Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the ground even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
 | Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick flicked left or right: 30° snap turn |

@@ -27,10 +27,12 @@ func _initialize() -> void:
 func _finish(rig: Rig) -> void:
 	rig.set_process(false)
 	_a_ray_lands_on_any_roof_it_hits(rig)
+	_reaches_across_the_map(rig)
 	await _stick_teleports_with_every_tool(rig)
 	await _eased_stick_lands_nearer(rig, Vector3(0, -0.3, -1), "ground")
 	await _eased_stick_lands_nearer(rig, Vector3(0, 1, -1), "air")
 	await _ground_pull_back_walks_the_ray(rig)
+	await _far_aim_holds_against_tremor(rig)
 	await _view_holds_after_teleport(rig, 0.0)
 	await _view_holds_after_teleport(rig, 12.0)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -85,6 +87,23 @@ func _air_reach_stops_at_nearer_ground(rig: Rig) -> void:
 		return
 	rig.aim(_pose(o, dir))
 	_check(rig.aim_lift < 0.15 and rig.aim_ground.distance_to(hill) < 0.1, "a rising ray that meets a hillside within reach lands on it")
+
+
+## From one corner of the map, high enough to see it, the ray lands on the far corner's ground, and a ring there
+## looks as big as one nearby.
+func _reaches_across_the_map(rig: Rig) -> void:
+	var half := Terrain.SIZE * 0.5 - 4.0
+	var o := Vector3(-half, Terrain.height_at(-half, half) + 30.0, half)
+	var dir := (Terrain.ground(half, -half) - o).normalized()
+	var far: Vector3 = Terrain.raycast(o, dir, INF)
+	rig.place(Vector3(o.x, o.y - Rig.EYE, o.z), 0.0)
+	rig.aim(_pose(o, dir))
+	var g: Variant = rig.aim_ground
+	_check(o.distance_to(far) > 200.0 and g != null and g.distance_to(far) < 0.1 and rig.aim_lift < 0.15, "a ray %.0f m across the map lands where it hits: %s for %s" % [o.distance_to(far), g, far])
+	var ring := rig._ground_ring.global_transform
+	_check(rig._ground_ring.visible and ring.basis.get_scale().x > o.distance_to(far) / Rig.MARKER_NEAR * 0.9, "the far ring grows with its distance: %.1f" % ring.basis.get_scale().x)
+	rig.hide_markers()
+	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 
 
 func _stick_deflection_sets_reach() -> void:
@@ -276,6 +295,50 @@ func _ground_pull_back_walks_the_ray(rig: Rig) -> void:
 	await _stick_landing(rig, dir, 0.0)
 	h = rig.head.global_position
 	_check(Vector2(h.x - hit.x, h.z - hit.z).length() < 1.0 and absf(rig.global_position.y - Terrain.height_at(h.x, h.z)) < 0.05, "ground: a quick release from full forward lands on the ground the ray hit")
+
+
+## Through real frames, aimed at ground 130 m out: a hand trembling half a degree at 9 Hz moves the target well under
+## what the same tremor moves the bare ray, and a deliberate turn of 10 degrees is followed within a quarter second.
+func _far_aim_holds_against_tremor(rig: Rig) -> void:
+	rig.place(Vector3(0, Terrain.height_at(0, 60) + 20.0, 60), 0.0)
+	await _frame(rig)
+	var from := rig.head.global_position + Vector3(-0.2, -0.4, -0.3)
+	var far := Terrain.ground(0, -70)
+	var aim := (far - from).normalized()
+	var side := aim.cross(Vector3.UP).normalized()
+	var pose := func(a: float) -> Transform3D: return Transform3D(Basis.looking_at(aim.rotated(Vector3.UP, a), Vector3.UP), from)
+	rig.left.global_transform = pose.call(0.0)
+	Hand.injected_sticks[rig.left.tracker] = Vector2(0, 1)
+	await _frame(rig)
+	await _frame(rig)
+	var steady: Array[Vector3] = []
+	var bare: Array[Vector3] = []
+	for f in 120:
+		var wobble := deg_to_rad(0.5) * sin(TAU * 9.0 * f * STEP)
+		rig.left.global_transform = pose.call(wobble)
+		await _frame(rig)
+		if f >= 30:
+			steady.append(rig.aim_ground)
+			bare.append(Terrain.raycast(from, -rig.left.global_basis.z, 400.0))
+	var spread := func(ps: Array[Vector3]) -> float:
+		var most := 0.0
+		for p in ps:
+			most = maxf(most, absf((p - ps[0]).dot(side)))
+		return most
+	var held: float = spread.call(steady)
+	var shaken: float = spread.call(bare)
+	_check(far.distance_to(from) > 120.0 and held < shaken * 0.25, "a trembling hand moves a %.0f m target %.2f m, the bare ray %.2f m" % [far.distance_to(from), held, shaken])
+	var turn := deg_to_rad(10.0)
+	rig.left.global_transform = pose.call(turn)
+	for f in roundi(0.25 / STEP):
+		await _frame(rig)
+	var turned: Vector3 = rig.aim_ground - from
+	var wanted := aim.rotated(Vector3.UP, turn)
+	var off := Vector2(turned.x, turned.z).angle_to(Vector2(wanted.x, wanted.z))
+	_check(absf(off) < deg_to_rad(0.5), "a 10 degree turn is followed within a quarter second: %.2f degrees off" % rad_to_deg(off))
+	Hand.injected_sticks.erase(rig.left.tracker)
+	for f in 30:
+		await _frame(rig)
 
 
 ## Places the rig at the origin, aims along `dir` with the stick full forward, then at `eased` for `hold`
