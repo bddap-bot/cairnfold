@@ -137,7 +137,7 @@ func _ready() -> void:
 		return build if stair.is_empty() else stair.point
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 	metrics = Metrics.new(args.get("metrics", ""))
-	metrics.info = {"xr": _start_xr(), "label": "", "budget": Budget.info()}
+	metrics.info = {"xr": _start_xr(), "label": "-", "budget": Budget.info()}
 	metrics.info.flat = Main.flat_wanted(args, metrics.info.xr, played)
 	if metrics.info.flat:
 		flat = Flat.new(rig)
