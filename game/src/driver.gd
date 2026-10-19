@@ -1269,9 +1269,11 @@ static func _along(path: Array[Vector3], fraction: float) -> Vector3:
 	return path[-1]
 
 
-## Holds the quality ladder at `step`; without one, the governor walks it again.
+## Holds the quality ladder at `step`, or with "fit" at the step this headset's budget is fitted at (Budget.fit_step);
+## without one, the governor walks it again.
 func _quality(s: Dictionary) -> void:
-	main.quality.pin = int(s.get("step", -1))
+	var step: Variant = s.get("step", -1)
+	main.quality.pin = Budget.fit_step(Budget.device()) if step is String and step == "fit" else int(step)
 
 
 func _label(s: Dictionary) -> void:

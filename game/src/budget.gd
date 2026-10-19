@@ -21,8 +21,7 @@ enum Device { QUEST_2, FRAME }
 ## included; trees and bushes standing; ponds, one a seed; and easels, each a canvas drawn and simulated.
 const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "path_m2", "fitting", "grass", "flower", "tree", "bush", "pond", "timber", "easel"]
 
-## Per headset, in the governor's signal (the viewport's GPU time per frame, Quality) at step 8, the ladder's last with
-## the sun's shadows and the full 3D resolution, so a garden within budget keeps both; fitted
+## Per headset, in the governor's signal (the viewport's GPU time per frame, Quality) at its fit_step; fitted
 ## by `scripts/costs.py` from `demo/costs.json` played on it (see "Build budget" in docs/design.md): `budget_ms`, the
 ## most a frame may take there; `base_ms`, the bare meadow; then GPU microseconds a frame per unit. Hills and painted
 ## stone ground measured within noise of the bare meadow, so terrain counts nothing.
@@ -37,6 +36,19 @@ const TIMBER_US := 1.2
 const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 5.85, "thatch_m2": 5.85, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": TIMBER_US, "easel": 400.0}
 ## Held to the Frame's until `scripts/costs.py` writes the Quest 2's own.
 const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 5.85, "thatch_m2": 5.85, "path_m2": 5.534, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 0.0, "pond": 35.294, "timber": TIMBER_US, "easel": 400.0}
+
+
+## The ladder step `on`'s COSTS are fitted at (demo/costs.json), so a garden within its budget holds 72 Hz there: the
+## Frame's last with the sun's shadows and the full 3D resolution, keeping both; the Quest 2's bottom, the only one its
+## bare meadow holds 72 Hz at.
+static func fit_step(on: Device) -> int:
+	if on == Device.QUEST_2:
+		return Quality.ladder.size() - 1
+	var last := 0
+	for i in Quality.ladder.size():
+		if Quality.ladder[i].shadows and Quality.ladder[i].scale_3d == 1.0:
+			last = i
+	return last
 
 
 static func gpu_ms() -> float:

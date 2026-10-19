@@ -23,8 +23,17 @@ func _run() -> void:
 	await _a_capped_edit_is_heard_felt_and_shown()
 	await _painting_stops_at_the_budget()
 	await _the_bar_shows_the_share()
+	_each_headset_is_fitted_where_its_budget_holds()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
+
+
+func _each_headset_is_fitted_where_its_budget_holds() -> void:
+	var frame := Quality.ladder[Budget.fit_step(Budget.Device.FRAME)]
+	_check(frame.shadows and frame.scale_3d == 1.0, "the Frame is fitted on a step with shadows at full resolution")
+	var below := Quality.ladder[Budget.fit_step(Budget.Device.FRAME) + 1]
+	_check(not below.shadows or below.scale_3d != 1.0, "and on the last such step")
+	_check(Budget.fit_step(Budget.Device.QUEST_2) == Quality.ladder.size() - 1, "the Quest 2 is fitted at the bottom")
 
 
 func _check(ok: bool, what: String) -> void:
