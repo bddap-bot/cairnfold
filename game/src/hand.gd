@@ -47,8 +47,12 @@ var capped := false
 var _wheel: ToolWheel
 var _profile := ""
 var _holding := false
-## Desktop only: the driver holds this hand where tracking would put it.
-var held_still := false
+## The driver holds this hand where tracking would put it. In a headset it names a pose the runtime does not have, so
+## the controller's own pose stops moving the hand.
+var held_still := false:
+	set(v):
+		held_still = v
+		pose = &"held" if v else &"aim"
 var _buttons: Buttons
 ## The hand as seen, with the tool on top: HandStop holds it at what the controller pushes into.
 var body := Node3D.new()

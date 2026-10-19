@@ -123,7 +123,7 @@ func _pick(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Desktop only: holds both controllers in front of the head, `left` and `right` in head space, tops tipped toward the eye,
+## Holds both controllers in front of the head, `left` and `right` in head space, tops tipped toward the eye,
 ## then turned `turn` degrees about the vertical (180 points them back at the head) and rolled `roll` degrees.
 func _hands(s: Dictionary) -> void:
 	var head: Transform3D = main.rig.head.global_transform
@@ -140,7 +140,7 @@ func _hands(s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
-## Desktop only: holds `hand` beside the head, holding `tool`, pointing at `at` in the garden.
+## Holds `hand` beside the head, holding `tool`, pointing at `at` in the garden.
 func _point(s: Dictionary) -> void:
 	var hand := _holding(s, Hand.Tool[s.tool.to_upper()])
 	var head: Transform3D = main.rig.head.global_transform
