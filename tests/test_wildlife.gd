@@ -70,7 +70,7 @@ func _seeds_thrown_on_the_pond_are_eaten(wildlife: Wildlife, pond: PondWater) ->
 	var f: Wildlife.Family = wildlife.families[0]
 	f.full = 0.0
 	var mid := Terrain.grid_xz(pond.pond.bottom)
-	var s := feed.toss(Vector3(mid.x, pond.surface_y() + 1.2, mid.y), Vector3(0.3, 0.5, 0))
+	var s := feed.throw(Vector3(mid.x, pond.surface_y() + 1.2, mid.y), Vector3(0.3, 0.5, 0))
 	_run(wildlife, 1.5)
 	_check(s.landed() and absf(s.position.y - pond.surface_y()) < 0.01, "thrown seeds come down on the water")
 	_check(_spread(s) > 0.1, "and scatter, %.2f m across" % _spread(s))
@@ -84,7 +84,7 @@ func _seeds_thrown_on_the_pond_are_eaten(wildlife: Wildlife, pond: PondWater) ->
 ## Seeds thrown on grass nothing eats sink away after a while.
 func _seeds_thrown_on_the_grass_fade(wildlife: Wildlife) -> void:
 	var at := Terrain.ground(14.0, -14.0)
-	var s := feed.toss(at + Vector3(0, 1.0, 0), Vector3(1.5, 1.0, 0))
+	var s := feed.throw(at + Vector3(0, 1.0, 0), Vector3(1.5, 1.0, 0))
 	_run(wildlife, 1.5)
 	_check(s.landed() and absf(s.position.y - Terrain.height_at(s.position.x, s.position.z)) < 0.01, "seeds thrown on grass lie on the ground")
 	_check(s.position.x > at.x + 0.5, "carried the way they were thrown, %.2f m" % (s.position.x - at.x))
@@ -94,7 +94,7 @@ func _seeds_thrown_on_the_grass_fade(wildlife: Wildlife) -> void:
 	_check(not wildlife.offers().has(s) and not s.visible, "then sink away")
 	var many: Array[Handful] = []
 	for i in FeedTool.HANDFULS + 1:
-		many.append(feed.toss(at + Vector3(0, 1.0, 0), Vector3.ZERO))
+		many.append(feed.throw(at + Vector3(0, 1.0, 0), Vector3.ZERO))
 	_run(wildlife, 1.5)
 	_check(wildlife.offers().size() == FeedTool.HANDFULS and many[0] == many[-1], "only the latest %d handfuls lie about" % FeedTool.HANDFULS)
 	_run(wildlife, Handful.LASTS.y + 2.0)

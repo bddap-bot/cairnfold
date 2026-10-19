@@ -34,6 +34,9 @@ const STALL := 30.0
 const CHUNK := 1 << 16
 ## A file that could not be fetched or read is tried again after this many seconds.
 const RETRY := 30.0
+## A thrown handful flies slower than this, in metres a second; a player's throws come at most this often, in seconds.
+const MAX_THROW := 20.0
+const THROW_EVERY := 0.1
 const COLOURS: Array[Color] = [Color(0.8, 0.45, 0.32), Color(0.45, 0.62, 0.42), Color(0.86, 0.66, 0.3), Color(0.38, 0.5, 0.72), Color(0.62, 0.4, 0.6), Color(0.3, 0.6, 0.6)]
 
 ## Peers or nearby gardens came or went.
@@ -41,6 +44,13 @@ signal changed
 
 var world: World
 var rig: Rig
+## Where every player's thrown seeds land, so each sees the same handfuls and what comes to eat them.
+var feed: FeedTool:
+	set(f):
+		feed = f
+		feed.threw.connect(func(from: Vector3, velocity: Vector3, seed: int) -> void:
+			if not multiplayer.get_peers().is_empty():
+				_threw.rpc(from, velocity, seed))
 var avatar := 0
 var colour := COLOURS[0]
 var me: Persona
@@ -92,6 +102,8 @@ var _fetches := {}
 ## When each file last failed to fetch or read, by hash.
 var _failed := {}
 var _targets := {}
+## When each remote player last threw.
+var _thrown := {}
 static var _protocol := 0
 
 
@@ -207,6 +219,7 @@ func _on_gone(id: int) -> void:
 	_looks.erase(id)
 	_wearing.erase(id)
 	_waiting.erase(id)
+	_thrown.erase(id)
 	_prune()
 	changed.emit()
 
@@ -577,6 +590,17 @@ func _finish_jobs() -> void:
 			_jobs.remove_at(i)
 			job.done.call(job.out.key, job.out.bytes, job.out.scene)
 			_read_waiting()
+
+
+@rpc("any_peer", "reliable")
+func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
+	var id := multiplayer.get_remote_sender_id()
+	if feed == null or not avatars.has(id) or _clock - _thrown.get(id, -INF) < THROW_EVERY:
+		return
+	if not (from.is_finite() and Terrain.bounds().grow(40.0).has_point(from) and velocity.is_finite() and velocity.length() < MAX_THROW):
+		return
+	_thrown[id] = _clock
+	feed.toss(from, velocity, seed)
 
 
 @rpc("any_peer", "unreliable_ordered")

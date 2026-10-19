@@ -1962,7 +1962,9 @@ sound costs no frame time.
   that way: no stacked high registers and almost no energy above 2 kHz.
 - Effects: stone clacks as a stroke grows and as a wall is pulled up or down, a
   settling rattle when a wall finishes, a gravel trickle for an arch and a tumble for
-  undo, each played from a pool of 3D voices at the stones involved.
+  undo, each played from a pool of 3D voices at the stones involved. Water has a dip, a
+  filling pond's gurgle, a plop of small bubbles for seeds landing on it and a soft nibble
+  for a fish taking a grain, played the same way.
 - Animal calls: recordings of real conures, ducks, ducklings and sheep, all CC0, cut
   by `scripts/animals.py` from the recordings `game/audio/animals/sources.json` lists
   with their page, author and licence (`nix-shell --run 'python3 scripts/animals.py'`).
@@ -2024,11 +2026,23 @@ or thrown only draw those already there (see "Feeding").
   within half a metre of the eyes shrinks away, so none fills the view with overdraw.
 - **Fish** live in every pond deep enough to swim in: one for every five wet grid points, up to
   seven a pond, 24 in all shared among the ponds (`Fish`), in soft koi colours (apricot, cream,
-  gold, coral). They fade in once their pond has filled. Each cruises just under the surface
+  gold, coral). They come 20 to 60 seconds after their pond has filled, on the ducks' wait
+  (`Wildlife.ARRIVE_AFTER`), and fade in. Each cruises just under the surface
   straight from one deep spot to another, never into shallows or a wall across the water; a hand
-  or the head coming suddenly within about half a metre sends it darting off away from it,
-  slowing back to a cruise. A pond dug wider keeps its fish; a pond filled in takes them with it.
-  They are drawn over the water with its own tint, so they show in deep water too.
+  or the head coming suddenly within about half a metre sends it darting off away from it, turning
+  along the bank when cornered, slowing back to a cruise. A pond dug wider keeps its fish; a pond
+  filled in takes them with it. They are drawn over the water with its own tint, so they show in
+  deep water too.
+
+  Directive (verbatim): "Can you make fish swarm the food when it's flown on top of the thrown on top of the pond? Like make it like a feeding frenzy type thing. They all swarm in and try and eat"
+
+  Seeds thrown on a pond plop down and ripple it, and every fish in that pond goes into a frenzy
+  (`Fish.FRENZY`): each darts at the nearest grain over water deep enough to swim, its way wobbling as
+  the fish jostle, comes up under the surface and, every 0.35 to 0.9 seconds, tilts its nose up through
+  the surface to take the grain at its mouth, with a small ripple, a soft nibble and a light tick in a
+  hand within 0.6 m. More seeds keep the frenzy going; once none is left that a fish can reach, the fish
+  dart off to deep spots and slow back to cruising. A pond's few fish clear a handful in a few seconds.
+  `demo/fish.json` ends with a throw seen from the pond's edge at standing eye height.
 - **Conures** come after the ducks: once a duck has
   come to the garden and a planted tree (not the meadow's own) or a finished
   wall or fence stands, a pair or a trio flies in from out of sight 20 to 60
@@ -2139,9 +2153,15 @@ ground, a duck swims to one on its pond, a sheep walks to one beside its pasture
 handful it cannot reach for the next, taking a grain every `1 / Handful.PECKS` seconds while it eats, and leaving
 when its fill is up or nothing is left. Uneaten, a handful is gone 50 to 70 seconds after landing, shrinking and
 sinking away over the last six. Eight handfuls are kept (`FeedTool.HANDFULS`) and reused, another throw taking up
-the oldest. Thrown seeds are each player's own, as the animals are.
+the oldest. A throw is where it left the dish, its velocity and a random seed for its spread, and goes to every
+other player (`Session`), whose game throws the same handful, so every player sees the same seeds land in the same
+places and the fish swarm them; a player's throws reach the others at most ten a second. The animals are each
+player's own, so which grain each fish takes, and when, can differ a little from one player to the next.
+`scripts/coop.sh` checks that a handful the host throws on the joiner's pond lands within 3 cm alike for every
+player and draws every fish of that pond on each.
 
-Butterflies and fireflies eat nothing from a hand. A held seed dish costs what any tool model does;
+Butterflies and fireflies eat nothing from a hand. Fish eat only thrown seeds lying on their water. A held seed dish
+costs what any tool model does;
 each animal's look for a hand holding seeds is a distance check against at most two hands and eight handfuls.
 A handful is one MultiMesh draw call of 28 grains of 10 triangles, casting no shadow: at most eight draw calls
 and 2,240 triangles, its grains rewritten only while flying or fading.
@@ -2155,7 +2175,8 @@ most, one shared mesh per kind and one material. Butterflies are one MultiMesh c
 vertex shader beats their wings. Fireflies are one MultiMesh of camera-facing quads capped at 48
 (`Fireflies.CAP`): one draw call, additive glows that cast no light. Fish are one MultiMesh capped at 24
 (`Fish.CAP`): one draw call of 86 triangles each, no shadows; the CPU steers them and the vertex shader
-beats their tails. Conures are capped at three
+beats their tails. With no seeds on the water a frenzy costs a check of the eight handfuls a frame; in one, a fish
+looks over the grains only when it picks the next. Conures are capped at three
 (`Birds.CAP`): three draw calls of about 1,560 triangles each, one shared mesh and material, casting
 no shadow. Sheep are capped at eight (`Herds.CAP`, flocks of `Herds.FLOCK`): eight draw calls and
 about 7,000 triangles at most, one shared mesh and one material, no shadows. Deer come at most three at a time

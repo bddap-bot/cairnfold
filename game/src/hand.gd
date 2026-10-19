@@ -234,6 +234,11 @@ static func bump(hand: XRController3D) -> void:
 	hand.trigger_haptic_pulse(&"haptic", 0.0, 0.35, 0.05, 0.12)
 
 
+## A fish taking a grain near the hand: one tick, lighter and shorter than a bump.
+static func nibble(hand: XRController3D) -> void:
+	hand.trigger_haptic_pulse(&"haptic", 0.0, 0.12, 0.025, 0.0)
+
+
 func clear_pointer() -> void:
 	_beam.visible = false
 	_dot.visible = false

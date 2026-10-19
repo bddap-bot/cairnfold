@@ -4,6 +4,9 @@ names = ["host", "join"] + [f"late-{i}" for i in range(2, int(sys.argv[3]))]
 d = {n: json.load(open(f"{out}/{n}-final.json")) for n in names}
 seen = {n: g.pop("avatars") for n, g in d.items()}
 worn = {n: sorted(g.pop("worn")) for n, g in d.items()}
+for g in d.values():
+    g.pop("handfuls")
+    g.pop("frenzy")
 files = ["crimsom-1.0.vrm", "godette-0.x.vrm", "crimsom-0.x.vrm"]
 own = {n: hashlib.sha256(open(f"{sys.argv[2]}/{files[i % len(files)]}", "rb").read()).hexdigest() for i, n in enumerate(names[1:])}
 ok = True
@@ -46,9 +49,15 @@ check(len(easels) == 1 and easels[0]["strokes"] == 2, f"the host's easel holds t
 turned = json.load(open(f"{out}/host-sun.json"))["sun"]
 check(abs(turned - 0.8) < 0.02, f"the host sees the sun where the joiner turned it: {turned:.3f}")
 check(abs(g["sun"] - 0.3) < 0.02, f"every peer sees the sun where the host turned it back: {g['sun']:.3f}")
+fed = {n: json.load(open(f"{out}/{n}-fed.json")) for n in names}
+landed = {n: f["handfuls"] for n, f in fed.items()}
+check(all(len(h) == 1 for h in landed.values()) and all(math.dist(h[0], landed["host"][0]) < 0.03 for h in landed.values()),
+      f"the host's thrown seeds land alike for every player: {landed}")
+frenzy = {n: f["frenzy"] for n, f in fed.items()}
+check(all(f[1] > 0 and f[0] == f[1] for f in frenzy.values()), f"and every player sees every fish of the pond swarm them: {frenzy}")
 home = json.load(open(f"{out}/home.json"))
-home.pop("avatars")
-home.pop("worn")
+for k in ("avatars", "worn", "handfuls", "frenzy"):
+    home.pop(k)
 check(len(home["walls"]) == 1 and list(home["groups"]) == ["0"] and not home["paths"] and home["ponds"] == 0 and home["season"] == 1, "the visitor's own garden, one wall, is back when it goes home")
 check(seen == {n: len(names) - 1 for n in names}, f"each player sees all other avatars: {seen}")
 for n in names:

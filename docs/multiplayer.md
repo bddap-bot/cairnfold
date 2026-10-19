@@ -182,7 +182,9 @@ only the ~60 lines of humanoid reading it already has.
 
 Each player's avatar and colour go to every other player once, reliably. After that a
 pose packet carries three transforms, sent unreliable and ordered at 30 Hz and smoothed
-on arrival. Transforms that are not finite are dropped.
+on arrival. Transforms that are not finite are dropped. A thrown handful of seeds goes to every other player once, reliably:
+where it left the dish, its velocity and the seed of its spread, from which each game throws the same handful
+(docs/design.md, "Feeding").
 
 ## Finding each other
 

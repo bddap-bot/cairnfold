@@ -12,7 +12,7 @@ extends Node3D
 ## A hand or the head coming near slowly startles none of them; a sudden one does. A hand holding seeds draws
 ## those that eat from it, each kind as its `Appetite` says.
 
-## How long after its habitat appears a duck, or a flock of conures, comes.
+## How long after its habitat appears a duck, a pond's fish, or a flock of conures, comes.
 const ARRIVE_AFTER := Vector2(20.0, 60.0)
 const BUTTERFLIES_AFTER := Vector2(8.0, 25.0)
 const SHEEP_AFTER := Vector2(25.0, 60.0)

@@ -3,7 +3,8 @@ extends MultiMeshInstance3D
 
 ## A handful of seeds thrown from the seed dish, grains larger and paler than the dish's so they read on grass and water
 ## from a few metres: the grains fly apart, settle where they land on the ground or float on
-## a pond, and go one by one as an animal pecks at them, or shrink and sink away once they have lain a while.
+## a pond, and go one by one as an animal pecks at them or a fish takes the one at its mouth, or shrink and sink away
+## once they have lain a while. A throw is its start, its velocity and a seed, so every player's copy lands alike.
 
 const GRAINS := 28
 ## Metres a second the grains spread apart from the throw.
@@ -16,6 +17,8 @@ const FADE := 6.0
 const PECKS := 1.6
 
 static var _grain: Mesh
+
+signal settled(handful: Handful)
 
 var age := 0.0
 var lasts := LASTS.x
@@ -43,8 +46,11 @@ func _init(floor_at: Callable) -> void:
 	visible = false
 
 
-## Throws the grains from `from` at `velocity`, each spread a little apart; whatever was left of an earlier throw goes.
-func toss(from: Vector3, velocity: Vector3, rng: RandomNumberGenerator) -> void:
+## Throws the grains from `from` at `velocity`, each spread a little apart as `seed` draws; whatever was left of an
+## earlier throw goes.
+func toss(from: Vector3, velocity: Vector3, seed: int) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed
 	position = from
 	age = 0.0
 	lasts = rng.randf_range(LASTS.x, LASTS.y)
@@ -66,6 +72,37 @@ func landed() -> bool:
 
 func left() -> int:
 	return multimesh.visible_instance_count if visible else 0
+
+
+## Where the grains still there lie.
+func grains() -> PackedVector3Array:
+	return _at.slice(0, left())
+
+
+## Takes the grain nearest `p` within `reach` of it, across the water; false if none is that near.
+func take_near(p: Vector3, reach: float) -> bool:
+	var best := -1
+	for i in left():
+		var d := Vector2(_at[i].x - p.x, _at[i].z - p.z).length()
+		if d < reach:
+			reach = d
+			best = i
+	if best < 0:
+		return false
+	var last := left() - 1
+	var colour := multimesh.get_instance_color(best)
+	multimesh.set_instance_color(best, multimesh.get_instance_color(last))
+	multimesh.set_instance_color(last, colour)
+	var at := _at[best]
+	_at[best] = _at[last]
+	_at[last] = at
+	var turn := _turn[best]
+	_turn[best] = _turn[last]
+	_turn[last] = turn
+	multimesh.set_instance_transform(best, multimesh.get_instance_transform(last))
+	multimesh.visible_instance_count = last
+	visible = last > 0
+	return true
 
 
 func peck(delta: float) -> void:
@@ -110,6 +147,9 @@ func _fly(delta: float) -> void:
 			mid += p
 		mid /= GRAINS
 		position = Vector3(mid.x, _floor.call(mid), mid.z)
+		_place()
+		settled.emit(self)
+		return
 	_place()
 
 

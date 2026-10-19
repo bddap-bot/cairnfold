@@ -25,6 +25,8 @@ var ground_grab: GroundGrab
 var water: Water
 var water_tool: WaterTool
 var wildlife: Wildlife
+## What scripts read of the fish (Driver), which may not reach the animals themselves.
+var fish: Fish
 var look: Look
 var sky_tool: SkyTool
 var palette_tool: PaletteTool
@@ -118,6 +120,8 @@ func _ready() -> void:
 	feed_tool = FeedTool.new(rig, water)
 	add_child(feed_tool)
 	wildlife.handfuls = feed_tool.handfuls
+	fish = wildlife.fish
+	session.feed = feed_tool
 	sound = Soundscape.new(tool, flora_tool, water)
 	add_child(sound)
 	add_child(Underwater.new(water, look))

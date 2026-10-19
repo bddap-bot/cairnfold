@@ -9,7 +9,7 @@ const STEMS := ["bed", "lead", "orn"]
 const IDLE := [0.0, 0.0, 0.0]
 const BUILDING := [-3.0, -14.0, -40.0]
 const QUIET_AFTER := 4.0
-const FX := {"stone": 5, "settle": 3, "arch": 2, "crumble": 2, "dip": 3, "fill": 2}
+const FX := {"stone": 5, "settle": 3, "arch": 2, "crumble": 2, "dip": 3, "fill": 2, "plop": 3, "nibble": 4}
 const VOICES := 10
 
 var tool: WallTool

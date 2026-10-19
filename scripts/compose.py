@@ -447,6 +447,21 @@ def water():
             s = int(wrng.uniform(0.05, seconds - 0.4) ** 1.3 / seconds**0.3 * SR)
             x[s : s + len(b)] += b[: len(x) - s]
         fx[f"fill{i}"] = x
+    for i in range(3):
+        seconds = 0.45
+        x = _slosh(seconds, 600) * 0.15
+        for k in range(wrng.integers(6, 10)):
+            b = _bubble(wrng.uniform(420, 760), wrng.uniform(0.02, 0.045), 0.6) * wrng.uniform(0.2, 0.5)
+            s = int(wrng.uniform(0.0, 0.25) * SR)
+            x[s : s + len(b)] += b[: len(x) - s]
+        fx[f"plop{i}"] = x
+    for i in range(4):
+        seconds = 0.22
+        x = _slosh(seconds, 500) * 0.25
+        b = _bubble(wrng.uniform(260, 420), wrng.uniform(0.05, 0.08), 0.8) * 0.8
+        s = int(wrng.uniform(0.01, 0.04) * SR)
+        x[s : s + len(b)] += b[: len(x) - s]
+        fx[f"nibble{i}"] = x
     return {k: _fft_lowpass(v, 1800) for k, v in fx.items()}
 
 

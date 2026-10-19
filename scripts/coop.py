@@ -53,6 +53,14 @@ def scripts(count):
         if count > 2:
             steps += [{"op": "until", "seq": SEQ + 2 * (count - 2)}]
             steps += sample(name, names, count)
+        # Once every player's fish have come to the joiner's pond, the host throws seeds on it; every player sees them
+        # land alike and the fish swarm them.
+        steps += [{"op": "until", "swimming": 1}, {"op": "digest", "name": f"{name}-fish"}]
+        if name == "host":
+            steps += [barrier([f"{n}-fish" for n in names]),
+                      {"op": "toss", "from": [12, 1.2, 10], "velocity": [0.2, 0.5, 0.1]}, {"op": "digest", "name": "host-threw"}]
+        steps += [barrier(["host-threw"]), {"op": "wait", "seconds": 1.5}, {"op": "digest", "name": f"{name}-fed"},
+                  barrier([f"{n}-fed" for n in names])]
         steps += [{"op": "digest", "name": f"{name}-final"},
                   barrier([f"{n}-final" for n in names])]
         if name == "join":

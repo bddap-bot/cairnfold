@@ -739,7 +739,7 @@ func _face(s: Dictionary) -> void:
 
 
 ## Waits until the garden has applied command `seq`, `players` share it, `worn` of them show their own avatar files,
-## `previewed` avatar files (this player's own included) stand ready for the picker, the
+## `previewed` avatar files (this player's own included) stand ready for the picker, `swimming` fish have come, the
 ## `digests` named have been written to the capture directory (by any player), or with "heard" the host's beacon is
 ## heard, for at most `seconds`. Without `seconds` the wait has no limit: how long another player takes to start and
 ## catch up is the machine's load, not the script's.
@@ -751,7 +751,7 @@ func _until(s: Dictionary) -> void:
 		var w: World = main.world
 		var worn: int = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.source != "").size()
 		var digested: bool = s.get("digests", []).all(func(n: String) -> bool: return FileAccess.file_exists(dir.path_join(n + ".json")))
-		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
+		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.fish.swimming.size() >= s.get("swimming", 0) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
 			_waiting = {}
 			return
 		await get_tree().process_frame
@@ -768,6 +768,8 @@ func _digest(s: Dictionary) -> void:
 	out.sun = main.look.time
 	out.avatars = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.visible).size()
 	out.worn = main.session.avatars.values().map(func(a: Avatar) -> String: return a.source).filter(func(k: String) -> bool: return k != "")
+	out.handfuls = main.feed_tool.handfuls.filter(func(h: Handful) -> bool: return h.landed()).map(func(h: Handful) -> Array: return [h.position.x, h.position.y, h.position.z])
+	out.frenzy = main.fish.frenzy()
 	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))
 	print("driver: digest ", path)
 
@@ -812,11 +814,13 @@ func _photo(s: Dictionary) -> void:
 	await main.photo_tool.shoot(hand)
 
 
-## Throws a handful of seeds from the dish in `hand` (right by default) at `velocity`, as pulling its trigger
-## while swinging the hand does.
+## Throws a handful of seeds from the dish in `hand` (right by default), or from `from` ([x, height over the ground, z]),
+## at `velocity`, as pulling its trigger while swinging the hand does.
 func _toss(s: Dictionary) -> void:
 	var v: Array = s.get("velocity", [0, 0, 0])
-	main.feed_tool.toss(main.feed_tool.dish(_holding(s, Hand.Tool.SEEDS)), Vector3(v[0], v[1], v[2]))
+	var f: Array = s.get("from", [])
+	var from: Vector3 = Vector3(f[0], f[1] + Terrain.height_at(f[0], f[2]), f[2]) if f.size() == 3 else main.feed_tool.dish(_holding(s, Hand.Tool.SEEDS))
+	main.feed_tool.throw(from, Vector3(v[0], v[1], v[2]))
 
 
 ## Turns the sky as a player does, until the sun stands at `time` (0 dawn, 1 dusk) over `seconds`: `hand`

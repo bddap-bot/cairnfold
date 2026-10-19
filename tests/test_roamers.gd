@@ -353,7 +353,7 @@ func _thrown_seeds_draw_them_to_eat() -> void:
 		_run(g, 1.0)
 		for b in g.wildlife.roamers.all():
 			b.full = 0.0
-		var seeds := g.feed.toss(at + Vector3.UP * 0.8, Vector3.ZERO)
+		var seeds := g.feed.throw(at + Vector3.UP * 0.8, Vector3.ZERO)
 		var eater: Beast = null
 		for i in int(40.0 / STEP):
 			_run(g, STEP)
