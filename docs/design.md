@@ -2026,15 +2026,16 @@ One look, no options. Nothing blurs or sways: in a headset both read as bad eyes
   follows the broad swell, so it wavers as a circle.
 - **Fog and tint:** while the head is under, `Look` swaps its depth fog for blue-green that has taken the view
   within 7 m, thickest close in, and a colour correction keeps 55% of the displayed red and 92% of the green.
-- **Caustics:** the bed's drifting caustics (`caustic` in `water.gdshaderinc`) also play on sunken stone, seen from
-  under the water; from above the water's tint hides them, so stone skips them there.
+- **Caustics:** the bed's drifting caustics (`caustic` in `water.gdshaderinc`). Sunken stone has none: even
+  waiting on a global, the branch for them cost every stone fragment, 18 ms a frame over the village from the air on
+  the Quest 2 (147 to 129 ms; standing 50 to 48).
 - **Shafts, motes and bubbles:** `Underwater` draws 30 ribbons of sunlight, 24 to 74 cm across, bent down through
   the surface and fading toward the bed, and 320 soft motes up to 5 cm across, one in eight a rising bubble, each held
   still in the world and wrapped into a box about the head. Shafts and motes are lit from the water's own colour
   as well as the sun, so they stand out against it at any hour; the ones closest to the head fade out.
 - **Sound:** the mix goes through a low-pass at 650 Hz and 4 dB down.
 - **Cost:** above water nothing is drawn and no effect runs; the surface's back face is never rasterized from
-  above, stone's caustics wait on a global, and the fog and colour correction are the ones already applied.
+  above, and the fog and colour correction are the ones already applied.
 
 ### Stone in ponds
 

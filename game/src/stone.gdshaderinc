@@ -1,5 +1,4 @@
 #include "res://src/bounce.gdshaderinc"
-#include "res://src/water.gdshaderinc"
 
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 uniform vec3 moss : source_color = vec3(0.30, 0.42, 0.14);
@@ -57,9 +56,4 @@ void fragment() {
 	vec4 bounce = texture(bounce_volume, bounce_at);
 	AO = bounce.a;
 	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce) + pane * lamp_light * PANE_SHOWS;
-	// From above, the water's tint hides what the waves throw on sunken stone.
-	if (eye_under > 0.0) {
-		float wet = water_depth_at(world_pos.xz);
-		EMISSION += caustic(detail, world_pos.xz) * 0.3 * step(0.02, wet) * smoothstep(0.0, 0.1, ground_at(world_pos.xz) + wet - world_pos.y);
-	}
 }

@@ -17,8 +17,6 @@ float bank(float depth) {
 	return smoothstep(-0.25, -0.08, depth);
 }
 
-global uniform float eye_under;
-
 // Sunlight the waves overhead focus into bright lines, where two drifting noises cross.
 vec3 caustic(sampler2D noise, vec2 xz) {
 	vec2 uv = xz * 0.35;

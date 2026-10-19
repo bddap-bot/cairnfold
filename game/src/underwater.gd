@@ -2,8 +2,8 @@ class_name Underwater
 extends MeshInstance3D
 
 ## What an eye under a pond's surface sees and hears besides the surface itself, which the water shader draws from
-## below: Look's fog closes in blue-green with red gone first, sunken stone takes the caustics, shafts of sunlight come
-## down through the surface, motes and a few bubbles drift about the head, and the whole mix is muffled. Above water
+## below: Look's fog closes in blue-green with red gone first, shafts of sunlight come down
+## through the surface, motes and a few bubbles drift about the head, and the whole mix is muffled. Above water
 ## none of it is drawn or run.
 
 const MOTES := 320
@@ -84,7 +84,6 @@ static func into_water(way: Vector3) -> Vector3:
 func _submerge(on: bool) -> void:
 	visible = on
 	look.submerge(on)
-	RenderingServer.global_shader_parameter_set("eye_under", 1.0 if on else 0.0)
 	var i := _muffle_index()
 	if i >= 0:
 		AudioServer.set_bus_effect_enabled(0, i, on)
