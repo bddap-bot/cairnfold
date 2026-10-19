@@ -41,7 +41,7 @@
   {"op": "until", "seq": 29},
   {"op": "take", "what": "big"},
   {"op": "dip", "what": "jar"},
-  {"op": "dip", "what": "well", "index": 5},
+  {"op": "dip", "what": "pan", "index": 5},
   {"op": "brush", "points": [[0.1, 0.2, 0.9], [0.9, 0.25, 0.9]], "seconds": 0.4},
   {"op": "until", "seq": 31},
   {"op": "sun", "time": 0.8, "seconds": 0.5},

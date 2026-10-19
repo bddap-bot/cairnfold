@@ -1917,7 +1917,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window or door, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top on that build (or, on the meadow, the garden's season) |
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
 | Set up an easel | Trigger of a hand holding the easel, pointing at open ground with no easel near the hand: it stands there facing the player |
-| Paint | At an easel: grip at the pot for a small round, big round or flat brush, at the tray for charcoal, at the palette to carry it in that hand; dip the brush in a well, the jar or the tin; touch the canvas and push in to press harder (see "Painting") |
+| Paint | At an easel: grip at the pot for a small round, big round or flat brush, at the sticks for charcoal, at the watercolour box or the oil palette to carry it in that hand; dip the brush in a pan or an oil colour for that medium, in the glass to wet it; touch the canvas and push in to press harder (see "Painting") |
 | Fresh sheet | Grip on the canvas's face and pull well away: the sheet tears off, one undo step |
 
 ## Picture book
@@ -2669,13 +2669,16 @@ without one opens nothing.
 Directive (verbatim): "There's a feature that I would like. That is a big painting easel that you can place on the ground and paint on. I'd like the painting to be pretty expressive. For example watercolors or just multiple different mediums."
 
 An easel (`Easels`) stands where the easel tool's trigger sets it, its canvas 1.5 by 1.125 m at standing height,
-tilted back 10°, with a tray in front: a pot of brushes, a jar of water, a tin of oil, a stick of charcoal and a
-palette of eight colour wells. Nothing is picked from a menu (`EaselTool`): a grip at the pot takes a small round, a
-big round or a flat brush, and at the tray the charcoal; a grip at the palette takes it by its thumb hole, paint up and
-reaching toward the other hand, and it stays in that hand as a brush does, so the other hand dips into it, until a grip
-at its place on the tray sets it down; a tip anywhere over a well's paint, or pushed on through the board under it,
-loads its pigment, mixing on the brush with what is there already (the palette's
-middle shows the mix), the jar makes the brush watercolour and thins it each dip, the tin makes it oil. The brush
+tilted back 10°, with a tray in front holding a painter's kit for each medium: a pot of brushes; a black box of
+watercolour pans beside a glass of water; a wooden oil palette with its eight colours squeezed out round the edge; and
+a few sticks of willow charcoal. Nothing is picked from a menu (`EaselTool`): a grip at the pot takes a small round, a
+big round or a flat brush, and at the charcoal a stick; a grip at either palette takes it by its thumb hole, paint up
+and reaching toward the other hand, and it stays in that hand as a brush does, so the other hand dips into it, until
+a grip at its place on the tray sets it down. The palette a brush dips into is its medium: a tip anywhere over a pan
+or an oil colour, or pushed on through the palette under it, loads that pigment in that medium, mixing on the brush
+with what is there already of the same medium and wiping off the other (each palette shows the mix); the glass wets
+the brush for watercolour, thinner each dip, and its water clouds with what is rinsed off. Charcoal takes no paint.
+The brush
 reaches past the controller; touching the canvas paints, pushing in presses harder and widens the mark, moving fast
 skims the paper's tooth, and the brush runs dry as it paints. A grip on the canvas takes its sheet and pulling it
 well away tears it off for a fresh one. A garden holds four easels at most, 1.4 m apart.
@@ -2687,6 +2690,16 @@ Report (verbatim): "It doesn't seem like I'm able to select different colors by 
 It just stays gray"
 
 Directive (verbatim): "Um, so I like it how you can grab the paintbrush and it sticks in your hand, but I would like to be able to stick the palette in your hand as well. Right now if you grab the palette, it doesn't stay in your hand. If you let go, it gets put back down"
+
+Directive (verbatim): "Can we try to get that more intuitive for an artist. For example normally oil paints would be a separate pallet from watercolor paints. In for a physically inspired workflow. Also I was unable to read that the cylinder on the left was a cup of water until you told me. Might need a little work on making those items more interpretable."
+
+Report (verbatim): "I think I may have gotten stuck at one point using what looked like a paintbrush but was actually charcoal. That may not have been exactly what happened though."
+
+Each kit reads at a glance from standing height at arm's length, judged on renders at headset scale
+(`demo/easel-kit.json`) by a reader given only the pictures: the glass holds blue water under a bright rim, the pans
+sit in a white box, the oil colours stand up as glossy dollops, and the charcoal is bare crooked grey-black sticks with
+no handle or ferrule, so it is never taken for a brush. Each palette is one or two baked meshes coloured by vertex,
+so the kits add a few draw calls an easel.
 
 The stand's legs run parallel to the canvas a few centimetres behind its backing, so no plank crosses the painting
 from anywhere a player stands. A well counts as reached over its whole footprint and through the board, because no

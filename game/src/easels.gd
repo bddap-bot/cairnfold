@@ -1,35 +1,42 @@
 class_name Easels
 extends Node3D
 
-## The garden's easels, each a big canvas on an A-frame with a tray in front: a pot of brushes, a jar of water, a tin of
-## oil, a stick of charcoal and a palette of colour wells. `World` puts and takes them and hands them their strokes;
-## `EaselTool` paints on them. An easel's local frame stands on the ground under it, the canvas facing +z.
+## The garden's easels, each a big canvas on an A-frame with a tray in front holding a painter's kit for each medium: a
+## box of watercolour pans beside a glass of water, a wooden oil palette with its paint squeezed out round the edge,
+## sticks of charcoal, and a pot of brushes. `World` puts and takes them and hands them their strokes; `EaselTool`
+## paints on them. An easel's local frame stands on the ground under it, the canvas facing +z.
 
 ## The canvas tilts its top back from the painter this far.
 const TILT := deg_to_rad(10.0)
 const CANVAS_AT := Vector3(0, 1.32, 0)
 const TRAY_Y := 0.72
-const TRAY := AABB(Vector3(-0.82, TRAY_Y - 0.03, 0.035), Vector3(1.64, 0.03, 0.27))
+const TRAY := AABB(Vector3(-0.82, TRAY_Y - 0.03, 0.035), Vector3(1.64, 0.03, 0.31))
 ## The rail along the tray's front edge: height and thickness.
 const LIP := Vector2(0.035, 0.012)
 ## Where each thing on the tray sits, on the tray's top.
-const POT := Vector3(-0.64, TRAY_Y, 0.2)
-const JAR := Vector3(-0.47, TRAY_Y, 0.2)
-const TIN := Vector3(-0.33, TRAY_Y, 0.2)
-const STICK := Vector3(-0.2, TRAY_Y, 0.22)
-## The palette lies in the tray's far corner, inside its lip and clear of the leg crossing the tray behind it.
-const PALETTE := Vector3(TRAY.end.x - PALETTE_SIZE.x * 0.5 - CLEAR, TRAY_Y + 0.006, TRAY.end.z - LIP.y - PALETTE_SIZE.y * 0.5 - CLEAR)
+const POT := Vector3(-0.68, TRAY_Y, 0.2)
+const JAR := Vector3(-0.54, TRAY_Y, 0.23)
+const STICK := Vector3(-0.14, TRAY_Y, 0.29)
+## Each medium's palette where it rests: the watercolour box beside its water, the oil palette in the tray's far
+## corner, inside its lip and clear of the leg crossing the tray behind it.
+const KITS := {
+	Brushwork.Medium.WATER: Vector3(-0.32, TRAY_Y + 0.0105, 0.21),
+	Brushwork.Medium.OIL: Vector3(TRAY.end.x - PALETTE_SIZE.x * 0.5 - CLEAR, TRAY_Y + 0.006, TRAY.end.z - LIP.y - PALETTE_SIZE.y * 0.5 - CLEAR),
+}
+## How near its rest a grip takes or sets down each palette.
+const KIT_REACH := {Brushwork.Medium.WATER: 0.1, Brushwork.Medium.OIL: PALETTE_SIZE.x * 0.5}
 const CLEAR := 0.01
-const JAR_SIZE := Vector2(0.045, 0.11)
-const TIN_SIZE := Vector2(0.05, 0.055)
+const JAR_SIZE := Vector2(0.042, 0.1)
 ## The brushes standing in the pot, by kind: where each one's tip stands above the pot.
 const BRUSH_TIPS := {Brushwork.Brush.SMALL: Vector3(-0.022, 0.3, -0.012), Brushwork.Brush.BIG: Vector3(0.02, 0.32, -0.008), Brushwork.Brush.FLAT: Vector3(0.0, 0.28, 0.024)}
-## The palette, in its own frame: a thumb hole at its -x end, where a hand holds it, and a well of each pigment round
-## the far, +x end; the brush's own mix shows between them.
+## Each palette, in its own frame: a thumb hole at its -x end, where a hand holds it, and its paint toward the +x end;
+## the brush's own mix shows on it. The oil palette's paint lies round its far edge, the box's pans in two rows.
 const PALETTE_SIZE := Vector2(0.36, 0.24)
 const THUMB := Vector3(-0.12, 0, 0)
-const MIX_AT := Vector3(0.02, 0.006, 0)
+const MIX_AT := {Brushwork.Medium.WATER: Vector3(0.1, 0.0075, 0), Brushwork.Medium.OIL: Vector3(0.02, 0.006, 0)}
 const WELL_RADIUS := 0.018
+const PAN := Vector2(0.024, 0.035)
+const PAN_TOP := 0.0105
 ## A tip is in a well anywhere over its paint or pushed on through the board, which nothing stops a hand doing.
 const WELL_REACH := 0.025
 const WELL_DEPTH := Vector2(-0.05, 0.03)
@@ -41,6 +48,9 @@ const MAX := 4
 ## The easel's bounds in its own frame, for the delete tool's beam.
 const BOUNDS := AABB(Vector3(-0.82, 0.0, -0.75), Vector3(1.64, 2.0, 1.1))
 
+## Clean water in the jar.
+const WATER := Color(0.38, 0.62, 0.86, 0.75)
+
 static var _mats := {}
 
 var easels := {}
@@ -50,19 +60,22 @@ func _init() -> void:
 	name = "Easels"
 
 
-static func well(i: int) -> Vector3:
+## Where pigment `i` lies on `kit`'s palette, in its frame.
+static func well(kit: Brushwork.Medium, i: int) -> Vector3:
+	if kit == Brushwork.Medium.WATER:
+		return Vector3(-0.035 + (i % 4) * 0.029, PAN_TOP, (i / 4 - 0.5) * 0.044)
 	var a := lerpf(-1.5, 1.5, float(i) / (Brushwork.PIGMENTS.size() - 1))
 	return Vector3(cos(a) * PALETTE_SIZE.x * 0.38, 0.006, sin(a) * PALETTE_SIZE.y * 0.36)
 
 
-## The well a tip at `local`, in the palette's frame, is in, or -1.
-static func well_at(local: Vector3) -> int:
+## The well a tip at `local`, in `kit`'s palette's frame, is in, or -1.
+static func well_at(kit: Brushwork.Medium, local: Vector3) -> int:
 	if local.y < WELL_DEPTH.x or local.y > WELL_DEPTH.y:
 		return -1
 	var best := -1
 	var near := WELL_REACH
 	for i in Brushwork.PIGMENTS.size():
-		var w := well(i)
+		var w := well(kit, i)
 		var d := Vector2(local.x - w.x, local.z - w.z).length()
 		if d < near:
 			near = d
@@ -76,9 +89,12 @@ class Easel:
 	var id := -1
 	var canvas: Canvas
 	var canvas_mesh: MeshInstance3D
-	## The palette as it rests on the tray; a hand holding it carries it off (EaselTool) and it comes back when let go.
-	var palette: Node3D
-	var mix: StandardMaterial3D
+	## Each medium's palette (by Brushwork.Medium) as it rests on the tray; a hand holding one carries it off
+	## (EaselTool) and it comes back when let go. Each shows the brush's mix.
+	var palettes := {}
+	var mixes := {}
+	## The water in the jar, clouded by each rinse.
+	var water: StandardMaterial3D
 	var brushes := {}
 	var stick: Node3D
 
@@ -260,13 +276,26 @@ func _build(e: Easel) -> void:
 	var implements := Node3D.new()
 	implements.name = "implements"
 	e.add_child(implements)
-	var glass := _mat("glass", Color(0.78, 0.86, 0.9, 0.35), 0.1)
+	var glass := _mat("glass", Color(0.86, 0.93, 0.96, 0.22), 0.04)
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_part(implements, _cylinder(JAR_SIZE.x, JAR_SIZE.y), Transform3D(Basis(), JAR + Vector3(0, JAR_SIZE.y * 0.5, 0)), glass, false)
-	_part(implements, _cylinder(JAR_SIZE.x * 0.94, JAR_SIZE.y * 0.7), Transform3D(Basis(), JAR + Vector3(0, JAR_SIZE.y * 0.35, 0)), _mat("water", Color(0.62, 0.74, 0.8), 0.15), false)
-	_part(implements, _cylinder(TIN_SIZE.x, TIN_SIZE.y), Transform3D(Basis(), TIN + Vector3(0, TIN_SIZE.y * 0.5, 0)), _mat("tin", Color(0.7, 0.7, 0.72), 0.35))
-	_part(implements, _cylinder(TIN_SIZE.x * 0.9, 0.004), Transform3D(Basis(), TIN + Vector3(0, TIN_SIZE.y - 0.006, 0)), _mat("oil", Color(0.72, 0.56, 0.22), 0.2), false)
+	glass.rim_enabled = true
+	glass.rim = 0.6
+	glass.render_priority = 1
+	var rim := TorusMesh.new()
+	rim.inner_radius = JAR_SIZE.x - 0.003
+	rim.outer_radius = JAR_SIZE.x + 0.002
+	rim.rings = 16
+	rim.ring_segments = 6
+	_part(implements, _cylinder(JAR_SIZE.x, JAR_SIZE.y, 20), Transform3D(Basis(), JAR + Vector3(0, JAR_SIZE.y * 0.5, 0)), glass, false)
+	_part(implements, rim, Transform3D(Basis(), JAR + Vector3(0, JAR_SIZE.y, 0)), _mat("glass_rim", Color(0.9, 0.95, 0.97), 0.05), false)
+	e.water = StandardMaterial3D.new()
+	e.water.albedo_color = WATER
+	e.water.roughness = 0.02
+	e.water.metallic_specular = 0.9
+	e.water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_part(implements, _cylinder(JAR_SIZE.x - 0.003, JAR_SIZE.y * 0.72, 20), Transform3D(Basis(), JAR + Vector3(0, 0.002 + JAR_SIZE.y * 0.36, 0)), e.water, false)
 	_part(implements, _cylinder(0.055, 0.12), Transform3D(Basis(), POT + Vector3(0, 0.06, 0)), _mat("pot", Color(0.66, 0.36, 0.26)))
+	_part(implements, _cylinder(0.047, 0.002), Transform3D(Basis(), POT + Vector3(0, 0.12, 0)), _mat("pot_inside", Color(0.24, 0.13, 0.1)), false)
 	for kind in BRUSH_TIPS:
 		var b := ToolModels.brush(kind)
 		var tip: Vector3 = POT + BRUSH_TIPS[kind]
@@ -274,13 +303,20 @@ func _build(e: Easel) -> void:
 		implements.add_child(b)
 		e.brushes[kind] = b
 	e.stick = ToolModels.brush(Brushwork.Brush.STICK)
-	e.stick.transform = Transform3D(Basis(Vector3.UP, -PI * 0.5), STICK + Vector3(0, 0.007, 0))
+	e.stick.transform = Transform3D(Basis(Vector3.UP, -PI * 0.5), STICK + Vector3(0, ToolModels.CHARCOAL_RADIUS - ToolModels.BRUSH_TIP.y, 0))
 	implements.add_child(e.stick)
-	e.palette = palette()
-	e.palette.name = "palette"
-	e.mix = e.palette.get_meta("mix")
-	e.palette.position = PALETTE
-	implements.add_child(e.palette)
+	var sticks: Array = []
+	for piece: Array in [[0.05, -0.021, 0.17], [0.02, -0.04, 0.12], [0.07, -0.06, 0.09]]:
+		var along := Basis(Vector3.UP, piece[0] - 0.04) * Basis(Vector3.BACK, -PI * 0.5)
+		sticks.append([ToolModels.charcoal(piece[2]), Transform3D(along, Vector3(STICK.x + piece[0] + piece[2] * 0.5, TRAY_Y + ToolModels.CHARCOAL_RADIUS, STICK.z + piece[1])), null])
+	_part(implements, ToolModels.bake(sticks), Transform3D(), ToolModels.charcoal_material())
+	for kit in KITS:
+		var palette := watercolours() if kit == Brushwork.Medium.WATER else oils()
+		palette.name = Brushwork.Medium.keys()[kit].to_lower()
+		palette.position = KITS[kit]
+		implements.add_child(palette)
+		e.palettes[kit] = palette
+		e.mixes[kit] = palette.get_meta("mix")
 
 
 ## Where a leg standing `x` along the canvas, LEG_BACK behind it, meets the ground.
@@ -290,28 +326,72 @@ static func _foot(x: float) -> Vector3:
 	return at - frame.basis.y * (at.y / frame.basis.y.y)
 
 
-## A palette: a wooden board with a well of each pigment round its far end and a thumb hole at its near one, its
-## middle showing the brush's mix.
-static func palette() -> Node3D:
+## An oil palette: a wooden board with its eight colours squeezed out round its far end and a thumb hole at its near
+## one, its middle showing the brush's mix.
+static func oils() -> Node3D:
 	var root := Node3D.new()
-	var board := _cylinder(0.5, 0.008, 32)
-	_part(root, board, Transform3D(Basis().scaled(Vector3(PALETTE_SIZE.x, 1.0, PALETTE_SIZE.y)), Vector3.ZERO), _mat("palette", Color(0.7, 0.52, 0.34), 0.5), false)
-	_part(root, _cylinder(0.016, 0.0085, 12), Transform3D(Basis(), THUMB + Vector3(0, 0.0003, 0)), _mat("hole", Color(0.3, 0.22, 0.16)), false)
+	var wood := Color(0.86, 0.68, 0.46)
+	var board: Array = [
+		[_cylinder(0.5, 0.008, 32), Transform3D(Basis().scaled(Vector3(PALETTE_SIZE.x, 1.0, PALETTE_SIZE.y)), Vector3.ZERO), wood],
+		[_cylinder(0.016, 0.0085, 12), Transform3D(Basis(), THUMB + Vector3(0, 0.0003, 0)), Color(0.3, 0.22, 0.16)],
+	]
+	_part(root, ToolModels.bake(board), Transform3D(), _baked("oil_board", 0.45), false)
 	var blob := SphereMesh.new()
-	blob.radius = WELL_RADIUS
-	blob.height = 0.01
+	blob.radius = 0.015
+	blob.height = 0.012
 	blob.radial_segments = 12
-	blob.rings = 4
+	blob.rings = 5
+	var curl := SphereMesh.new()
+	curl.radius = 0.007
+	curl.height = 0.009
+	curl.radial_segments = 8
+	curl.rings = 4
+	var paint: Array = []
 	for i in Brushwork.PIGMENTS.size():
-		_part(root, blob, Transform3D(Basis(), well(i)), _mat("pigment%d" % i, Brushwork.PIGMENTS[i], 0.35), false)
+		var w := well(Brushwork.Medium.OIL, i)
+		paint.append([blob, Transform3D(Basis(Vector3.UP, i * 1.3).scaled(Vector3(1.15, 1, 0.9)), w), Brushwork.PIGMENTS[i]])
+		paint.append([curl, Transform3D(Basis(Vector3.UP, i * 1.3), w + Vector3(0.003, 0.006, -0.002)), Brushwork.PIGMENTS[i]])
+	_part(root, ToolModels.bake(paint), Transform3D(), _baked("oil_paint", 0.12), false)
+	return _with_mix(root, Brushwork.Medium.OIL, wood, 0.035)
+
+
+## A box of watercolour pans: black enamel outside, white inside, two rows of pans of dry colour and a white mixing
+## field, with a thumb ring at its near end.
+static func watercolours() -> Node3D:
+	var root := Node3D.new()
+	var black := Color(0.08, 0.08, 0.09)
+	var white := Color(0.95, 0.95, 0.93)
+	var parts: Array = [
+		[_box(Vector3(0.19, 0.016, 0.11)), Transform3D(Basis(), Vector3(0.035, -0.002, 0)), black],
+		[_box(Vector3(0.08, 0.006, 0.05)), Transform3D(Basis(), Vector3(-0.1, -0.007, 0)), black],
+		[_box(Vector3(0.182, 0.002, 0.102)), Transform3D(Basis(), Vector3(0.035, 0.0065, 0)), white],
+		[_cylinder(0.012, 0.0065, 12), Transform3D(Basis(), THUMB + Vector3(0, -0.0068, 0)), Color(0.3, 0.3, 0.3)],
+	]
+	for i in Brushwork.PIGMENTS.size():
+		var w := well(Brushwork.Medium.WATER, i)
+		parts.append([_box(Vector3(PAN.x + 0.004, 0.003, PAN.y + 0.004)), Transform3D(Basis(), w - Vector3(0, 0.0025, 0)), white.darkened(0.06)])
+		parts.append([_box(Vector3(PAN.x, 0.002, PAN.y)), Transform3D(Basis(), w - Vector3(0, 0.001, 0)), Brushwork.PIGMENTS[i].darkened(0.12)])
+	_part(root, ToolModels.bake(parts), Transform3D(), _baked("watercolours", 0.7), false)
+	return _with_mix(root, Brushwork.Medium.WATER, white, 0.022)
+
+
+## Adds `kit`'s mix, a smear of the brush's colour starting as the `ground` it lies on.
+static func _with_mix(root: Node3D, kit: Brushwork.Medium, ground: Color, radius: float) -> Node3D:
 	var mix := StandardMaterial3D.new()
-	mix.albedo_color = Color(0.7, 0.52, 0.34)
+	mix.albedo_color = ground
 	mix.roughness = 0.35
 	var smear := SphereMesh.new()
-	smear.radius = 0.035
+	smear.radius = radius
 	smear.height = 0.006
 	smear.radial_segments = 16
 	smear.rings = 4
-	_part(root, smear, Transform3D(Basis().scaled(Vector3(1.3, 1, 0.9)), MIX_AT), mix, false)
+	_part(root, smear, Transform3D(Basis().scaled(Vector3(1.3, 1, 0.9)), MIX_AT[kit]), mix, false)
 	root.set_meta("mix", mix)
 	return root
+
+
+static func _baked(key: String, roughness: float) -> StandardMaterial3D:
+	var m := _mat(key, Color.WHITE, roughness)
+	m.vertex_color_use_as_albedo = true
+	m.vertex_color_is_srgb = true
+	return m

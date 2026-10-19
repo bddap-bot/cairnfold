@@ -12,6 +12,8 @@ const CAMERA_SCREEN := Vector2(0.048, 0.036)
 ## Where a brush's tip is, from the controller it is held in: it reaches past the controller, so painting is done
 ## with the brush, not the hand.
 const BRUSH_TIP := Vector3(0, 0.01, -0.27)
+const CHARCOAL_LENGTH := 0.25
+const CHARCOAL_RADIUS := 0.0065
 ## The parts of each fitting, by the kind its generator files them under.
 const FITTING_PARTS := {
 	"window": ["glass", "frame"],
@@ -219,19 +221,22 @@ static func _easel(root: Node3D) -> void:
 
 
 ## A brush of `kind` along the controller's aim, its tip at BRUSH_TIP; its bristles are the child named "tip", for
-## the paint on it. The stick is charcoal in a holder.
+## the paint on it. The stick is a bare stick of charcoal, black from end to end.
 static func brush(kind: Brushwork.Brush) -> Node3D:
 	var root := Node3D.new()
+	var along := Basis(Vector3.RIGHT, -PI * 0.5)
+	var tip_z := BRUSH_TIP.z
+	if kind == Brushwork.Brush.STICK:
+		var stick := _piece(root, charcoal(CHARCOAL_LENGTH), Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + CHARCOAL_LENGTH * 0.5)), charcoal_material())
+		stick.name = "tip"
+		return root
 	var handle := CylinderMesh.new()
 	handle.top_radius = 0.005
 	handle.bottom_radius = 0.0035
 	handle.height = 0.2
 	handle.radial_segments = 10
 	handle.rings = 1
-	var along := Basis(Vector3.RIGHT, -PI * 0.5)
-	var tip_z := BRUSH_TIP.z
-	var stick := kind == Brushwork.Brush.STICK
-	_piece(root, handle, Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + 0.155)), _plain("brush_handle" if not stick else "holder", Color(0.75, 0.28, 0.2) if not stick else Color(0.3, 0.27, 0.25)))
+	_piece(root, handle, Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + 0.155)), _plain("brush_handle", Color(0.75, 0.28, 0.2)))
 	var ferrule := CylinderMesh.new()
 	ferrule.top_radius = 0.0045 if kind == Brushwork.Brush.SMALL else 0.0075
 	ferrule.bottom_radius = 0.005
@@ -241,15 +246,84 @@ static func brush(kind: Brushwork.Brush) -> Node3D:
 	var flat := Basis().scaled(Vector3(2.2, 1, 0.45)) if kind == Brushwork.Brush.FLAT else Basis()
 	_piece(root, ferrule, Transform3D(along * flat, Vector3(0, BRUSH_TIP.y, tip_z + 0.04)), _plain("ferrule", Color(0.78, 0.76, 0.7)))
 	var hair := CylinderMesh.new()
-	var r: float = {Brushwork.Brush.SMALL: 0.003, Brushwork.Brush.BIG: 0.008, Brushwork.Brush.FLAT: 0.007, Brushwork.Brush.STICK: 0.003}[kind]
+	var r: float = {Brushwork.Brush.SMALL: 0.003, Brushwork.Brush.BIG: 0.008, Brushwork.Brush.FLAT: 0.007}[kind]
 	hair.top_radius = r
-	hair.bottom_radius = r * (0.15 if kind != Brushwork.Brush.FLAT and not stick else 0.9)
+	hair.bottom_radius = r * (0.15 if kind != Brushwork.Brush.FLAT else 0.9)
 	hair.height = 0.026
 	hair.radial_segments = 10
 	hair.rings = 1
-	var tip := _piece(root, hair, Transform3D(along * flat, Vector3(0, BRUSH_TIP.y, tip_z + 0.013)), _plain("charcoal" if stick else "bristles", Color(0.12, 0.11, 0.11) if stick else Color(0.86, 0.78, 0.62)))
+	var tip := _piece(root, hair, Transform3D(along * flat, Vector3(0, BRUSH_TIP.y, tip_z + 0.013)), _plain("bristles", Color(0.86, 0.78, 0.62)))
 	tip.name = "tip"
 	return root
+
+
+## Charcoal's matte black, which no sky glints off, coloured by vertex.
+static func charcoal_material() -> StandardMaterial3D:
+	var mat: StandardMaterial3D = _mats.get("charcoal")
+	if mat == null:
+		mat = _plain("charcoal", Color.WHITE)
+		mat.roughness = 1.0
+		mat.metallic_specular = 0.0
+		mat.vertex_color_use_as_albedo = true
+		mat.vertex_color_is_srgb = true
+	return mat
+
+
+## A stick of willow charcoal `length` long along y, centred on its middle: six-sided and uneven, crooked toward z as
+## the twig grew, so lying on its side it lies flat, mottled grey-black, its +y end worn grey.
+static func charcoal(length: float) -> ArrayMesh:
+	var parts: Array = []
+	var at := Vector3(0, -length * 0.5, 0)
+	var bends := [0.0, 0.09, -0.07, 0.06, -0.05]
+	var widths := [1.0, 0.86, 1.08, 0.94, 0.9, 0.6]
+	var greys := [0.19, 0.23, 0.17, 0.22, 0.3]
+	var seg := length / bends.size()
+	for i in bends.size():
+		var b := Basis(Vector3.RIGHT, bends[i])
+		var c := CylinderMesh.new()
+		c.bottom_radius = CHARCOAL_RADIUS * widths[i]
+		c.top_radius = CHARCOAL_RADIUS * widths[i + 1]
+		c.height = seg + 0.002
+		c.radial_segments = 6
+		c.rings = 1
+		var grey: float = greys[i]
+		parts.append([c, Transform3D(b.scaled(Vector3(1.0, 1.0, 0.8)), at + b.y * seg * 0.5), Color(grey, grey * 0.96, grey * 0.92)])
+		at += b.y * seg
+	return bake(parts)
+
+
+## `parts` ([mesh, transform, colour] each, a null colour keeping the mesh's own) as one mesh coloured by vertex, drawn
+## in one call.
+static func bake(parts: Array) -> ArrayMesh:
+	var verts := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var colours := PackedColorArray()
+	var index := PackedInt32Array()
+	for part: Array in parts:
+		var arrays := (part[0] as Mesh).surface_get_arrays(0)
+		var t: Transform3D = part[1]
+		var normal := t.basis.inverse().transposed()
+		var base := verts.size()
+		for v: Vector3 in arrays[Mesh.ARRAY_VERTEX]:
+			verts.append(t * v)
+		if part[2] == null:
+			colours.append_array(arrays[Mesh.ARRAY_COLOR])
+		else:
+			for v in arrays[Mesh.ARRAY_VERTEX].size():
+				colours.append(part[2])
+		for n: Vector3 in arrays[Mesh.ARRAY_NORMAL]:
+			normals.append((normal * n).normalized())
+		for i: int in arrays[Mesh.ARRAY_INDEX]:
+			index.append(base + i)
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	arrays[Mesh.ARRAY_COLOR] = colours
+	arrays[Mesh.ARRAY_INDEX] = index
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
 
 
 static func _plain(key: String, colour: Color) -> StandardMaterial3D:

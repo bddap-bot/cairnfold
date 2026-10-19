@@ -4,11 +4,12 @@ extends Node3D
 ## Painting at an easel, with nothing to pick from a menu. A hand holding the easel tool holds a brush, reaching past
 ## the controller. Its trigger, pointed at open ground away from any easel, sets an easel up there facing the player.
 ## At an easel everything is picked up or touched: a grip at the pot takes a small round, a big round or a flat brush,
-## and at the tray the charcoal; a grip at the palette takes it by its thumb hole, and it stays in that hand, as a
-## brush does, until a grip sets it back on its tray, takes a brush, or another tool is picked; the brush dipped in a
-## colour well loads that pigment, mixing with what is on it already, in the jar it takes water (watercolour, thinner
-## each dip) and in the tin oil. Touching the canvas paints: pushing in presses harder, and moving fast skims. A grip
-## on the canvas's face takes its sheet, and pulling it well away tears it off for a fresh one.
+## and at the tray the charcoal; a grip at either palette, the watercolour box or the oil palette, takes it by its
+## thumb hole, and it stays in that hand, as a brush does, until a grip sets it back on its tray, takes a brush, or
+## another tool is picked. The palette a brush is dipped into is its medium: a watercolour pan or an oil colour loads
+## that pigment, mixing with what is on it already in the same medium; the jar wets the brush for watercolour, thinner
+## each dip, and the water clouds with what it rinses off. Touching the canvas paints: pushing in presses harder, and
+## moving fast skims. A grip on the canvas's face takes its sheet, and pulling it well away tears it off for a fresh one.
 ## Strokes go to the garden as build commands (`paint`) when the brush leaves the canvas, laid on this machine's
 ## canvas as they are painted and played on everyone else's as they were.
 
@@ -29,6 +30,8 @@ const STILL_TICKS := 6
 const GRIP := Vector3(0, -0.035, 0.02)
 const GRIP_YAW := 0.5
 const TINT := Color(0.95, 0.86, 0.72, 0.6)
+## What a dip into each medium's palette is called, before the pigment's index.
+const PAINTS := {Brushwork.Medium.WATER: "pan", Brushwork.Medium.OIL: "oil"}
 
 ## One hand's brush and what it is doing.
 class Painter:
@@ -46,7 +49,9 @@ class Painter:
 	var stroke := {}
 	## What the tip is in, so a dip happens once on going in.
 	var dipped := ""
+	## The easel whose palette of medium `kit` this hand holds.
 	var palette: Easels.Easel
+	var kit := Brushwork.Medium.OIL
 	## The hand's tool when it took the palette, back in hand when the palette is set down.
 	var before := Hand.Tool.EASEL
 	var peel: Easels.Easel
@@ -77,7 +82,8 @@ func _init(player: Rig, stands: Easels, garden: World) -> void:
 		for kind in Brushwork.Brush.values():
 			var m := ToolModels.brush(kind)
 			m.visible = false
-			(m.get_node("tip") as MeshInstance3D).material_override = p.tip if kind != Brushwork.Brush.STICK else null
+			if kind != Brushwork.Brush.STICK:
+				(m.get_node("tip") as MeshInstance3D).material_override = p.tip
 			h.add_child(m)
 			p.models[kind] = m
 		p.ghost = _ghost()
@@ -191,7 +197,7 @@ func _decline(hand: Hand, why: String) -> void:
 
 
 ## What a grip at the hand takes: the nearest brush in a pot, charcoal, palette or canvas sheet within reach; a hand
-## holding the palette sets it down at its place on the tray.
+## holding a palette sets it down at its place on the tray.
 func grab(p: Painter) -> void:
 	var at := p.hand.global_position
 	var best := REACH
@@ -206,16 +212,17 @@ func grab(p: Painter) -> void:
 		if d < best:
 			best = d
 			take = _take_brush.bind(p, Brushwork.Brush.STICK)
-		if p.palette == e:
-			d = at.distance_to(e.tray(Easels.PALETTE))
-			if d < maxf(best, Easels.PALETTE_SIZE.x * 0.5):
-				best = d
-				take = _set_down.bind(p, true)
-		elif not painters.any(func(o: Painter) -> bool: return o.palette == e):
-			d = at.distance_to(e.palette.global_position)
-			if d < maxf(best, Easels.PALETTE_SIZE.x * 0.5):
-				best = d
-				take = _take_palette.bind(p, e)
+		for kit: Brushwork.Medium in e.palettes:
+			if p.palette == e and p.kit == kit:
+				d = at.distance_to(e.tray(Easels.KITS[kit]))
+				if d < maxf(best, Easels.KIT_REACH[kit]):
+					best = d
+					take = _set_down.bind(p, true)
+			elif not painters.any(func(o: Painter) -> bool: return o.palette == e and o.kit == kit):
+				d = at.distance_to(e.palettes[kit].global_position)
+				if d < maxf(best, Easels.KIT_REACH[kit]):
+					best = d
+					take = _take_palette.bind(p, e, kit)
 		var c := e.on_canvas(at)
 		if p.palette == null and c.x >= 0.0 and c.x <= 1.0 and c.y >= 0.0 and c.y <= 1.0 and c.z > -0.02 and c.z < REACH and c.z < best:
 			best = c.z
@@ -235,16 +242,19 @@ func _take_brush(p: Painter, kind: Brushwork.Brush) -> void:
 	p.strength = 0.0
 	p.load = 1.0 if kind == Brushwork.Brush.STICK else 0.0
 	_show_paint(p)
+	_log(p, "takes the %s" % Brushwork.Brush.keys()[kind].to_lower())
 
 
-func _take_palette(p: Painter, e: Easels.Easel) -> void:
+func _take_palette(p: Painter, e: Easels.Easel, kit: Brushwork.Medium) -> void:
 	if p.palette == null:
 		p.before = p.hand.tool
 	_set_down(p)
 	end_stroke(p)
 	p.hand.tool = Hand.Tool.EASEL
 	p.palette = e
+	p.kit = kit
 	_hold_palette(p)
+	_log(p, "takes the %s palette" % Brushwork.Medium.keys()[kit].to_lower())
 
 
 func _hold_palette(p: Painter) -> void:
@@ -254,8 +264,14 @@ func _hold_palette(p: Painter) -> void:
 	if not is_instance_valid(e) or not e.is_inside_tree() or p.hand.tool != Hand.Tool.EASEL:
 		_set_down(p)
 		return
-	e.palette.top_level = true
-	e.palette.global_transform = p.hand.global_transform * held(p.hand)
+	var node: Node3D = e.palettes[p.kit]
+	node.top_level = true
+	node.global_transform = p.hand.global_transform * held(p.hand)
+
+
+## A hand's held things changing, for a log that shows what each hand held when a player found it stuck.
+func _log(p: Painter, what: String) -> void:
+	print("easel: %s hand %s (tool %s, brush %s, %s, palette %s)" % [p.hand.tracker, what, Hand.Tool.keys()[p.hand.tool], Brushwork.Brush.keys()[p.brush], Brushwork.Medium.keys()[p.medium], Brushwork.Medium.keys()[p.kit] if p.palette != null else "none"])
 
 
 ## The palette in `hand`, from the controller: held by its thumb hole, its paint up and reaching forward and toward the
@@ -274,8 +290,10 @@ func _set_down(p: Painter, restore := false) -> void:
 	if restore:
 		p.hand.tool = p.before
 	if is_instance_valid(e):
-		e.palette.top_level = false
-		e.palette.transform = Transform3D(Basis(), Easels.PALETTE)
+		var node: Node3D = e.palettes[p.kit]
+		node.top_level = false
+		node.transform = Transform3D(Basis(), Easels.KITS[p.kit])
+	_log(p, "sets the %s palette down" % Brushwork.Medium.keys()[p.kit].to_lower())
 
 
 func _pull_sheet(p: Painter, live: bool) -> void:
@@ -304,50 +322,60 @@ func fresh_sheet(id: int, hand: Hand = null) -> void:
 	world.submit({"op": "sheet", "easel": id, "strokes": []}, Callable(), hand)
 
 
-## Dips the brush into whatever the tip has just gone into: a well, the jar or the tin, on any easel's tray or a
+## Dips the brush into whatever the tip has just gone into: a pan, an oil colour or the jar, on any easel's tray or a
 ## palette in a hand.
 func _dip(p: Painter, tip: Vector3) -> void:
 	var into := ""
 	for e: Easels.Easel in easels.easels.values():
 		if tip.distance_to(e.global_position) > 3.0:
 			continue
-		var well := Easels.well_at(e.palette.global_transform.affine_inverse() * tip)
-		if well >= 0:
-			into = "well%d" % well
+		for kit: Brushwork.Medium in e.palettes:
+			var well := Easels.well_at(kit, e.palettes[kit].global_transform.affine_inverse() * tip)
+			if well >= 0:
+				into = "%s%d" % [PAINTS[kit], well]
 		if _inside(e.global_transform.affine_inverse() * tip, Easels.JAR, Easels.JAR_SIZE):
 			into = "jar"
-		if _inside(e.global_transform.affine_inverse() * tip, Easels.TIN, Easels.TIN_SIZE):
-			into = "tin"
 		if into != "":
-			if into != p.dipped:
+			if into != p.dipped and p.brush != Brushwork.Brush.STICK:
+				if into == "jar":
+					_rinse(e, p)
 				dip(p, into)
-				e.mix.albedo_color = _paint_colour(p)
+				if into != "jar":
+					e.mixes[p.medium].albedo_color = _paint_colour(p)
 			break
 	p.dipped = into
+
+
+## The jar's water takes on some of the paint a brush rinses off in it.
+func _rinse(e: Easels.Easel, p: Painter) -> void:
+	if p.load > 0.02:
+		e.water.albedo_color = e.water.albedo_color.lerp(Color(Brushwork.colour(p.colour), Easels.WATER.a), 0.25 * p.strength)
 
 
 static func _inside(local: Vector3, base: Vector3, size: Vector2) -> bool:
 	return Vector2(local.x - base.x, local.z - base.z).length() < size.x and local.y > base.y and local.y < base.y + size.y + 0.01
 
 
-## Loads the brush from `what`: "jar", "tin", or "well<i>".
+## Loads the brush from `what`: "jar", or a pigment as "pan<i>" or "oil<i>". Paint of the other medium on the brush is
+## wiped off first.
 func dip(p: Painter, what: String) -> void:
 	if p.brush == Brushwork.Brush.STICK:
 		return
-	match what:
-		"jar":
-			p.medium = Brushwork.Medium.WATER
-			p.load = 1.0
-			p.strength *= 0.4
-		"tin":
-			p.medium = Brushwork.Medium.OIL
-			p.load = 1.0
+	if what == "jar":
+		p.medium = Brushwork.Medium.WATER
+		p.load = 1.0
+		p.strength *= 0.4
+	else:
+		var kit: Brushwork.Medium = PAINTS.find_key(what.rstrip("0123456789"))
+		var a := Brushwork.absorbance(Brushwork.PIGMENTS[int(what.trim_prefix(PAINTS[kit]))])
+		var clean := p.strength < 0.05 or p.load < 0.05 or p.medium != kit
+		p.medium = kit
+		p.colour = a if clean else p.colour.lerp(a, 0.5)
+		if kit == Brushwork.Medium.OIL:
 			p.strength = 1.0
-		_:
-			var a := Brushwork.absorbance(Brushwork.PIGMENTS[int(what.trim_prefix("well"))])
-			var clean := p.strength < 0.05 or p.load < 0.05
-			p.colour = a if clean else p.colour.lerp(a, 0.5)
-			p.strength = 1.0 if p.medium == Brushwork.Medium.OIL else minf(1.0, p.strength + 0.6)
+			p.load = 1.0
+		else:
+			p.strength = minf(1.0, p.strength + 0.6) if not clean else 0.6
 			p.load = maxf(p.load, 0.6)
 	Cues.play(Cues.Act.BRUSH_DIP, p.hand.global_position, p.hand)
 	_show_paint(p)
