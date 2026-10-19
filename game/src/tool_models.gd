@@ -41,6 +41,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_fence(root)
 		Hand.Tool.WINDOWS:
 			_windows(root)
+		Hand.Tool.ARCH:
+			_wall(root, false, WallLayout.Top.CAP, true)
 		Hand.Tool.DECORATIONS:
 			_decor(root)
 		Hand.Tool.STAIRS:
@@ -80,7 +82,7 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_seeds(root)
 		Hand.Tool.EASEL:
 			_easel(root)
-	if tool in [Hand.Tool.WALLS, Hand.Tool.HOUSE, Hand.Tool.TOWER]:
+	if tool in [Hand.Tool.WALLS, Hand.Tool.HOUSE, Hand.Tool.TOWER, Hand.Tool.ARCH]:
 		for part in root.get_children():
 			part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22), Vector3.ZERO) * part.transform
 	return root
@@ -111,7 +113,7 @@ static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round :
 			if i >= PaletteTool.Face.ALSACE:
 				_house(root, true, WallLayout.GableEnd.WALL, false, i - PaletteTool.Face.ALSACE)
 			else:
-				_wall(root, i >= PaletteTool.Face.PLASTER, WallLayout.Top.CAP, i % 2 == 1)
+				_wall(root, i == PaletteTool.Face.PLASTER, WallLayout.Top.CAP)
 	var turn := Basis(Vector3.UP, PI * 0.38) if restyle == PaletteTool.Restyle.GABLE else Basis()
 	for part in root.get_children():
 		part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22) * turn, Vector3.ZERO) * part.transform
@@ -484,7 +486,7 @@ static func _wall(root: Node3D, plastered := false, top := WallLayout.Top.CRENEL
 	var layout := WallLayout.new()
 	layout.plaster = plastered
 	layout.seed = 4
-	layout.height = 2.1 if arched else 1.5
+	layout.height = 2.4 if arched else 1.5
 	layout.top = top
 	layout.points = [Vector3(-1.4, 0, 0), Vector3(1.4, 0, 0)]
 	if arched:

@@ -214,7 +214,7 @@ func _a_wall_stops_a_hand_that_catches_up_when_it_comes_back(wall: Wall) -> void
 
 
 func _a_hand_reaches_through_an_arch(wall: Wall) -> void:
-	main.tool.toggle_arch(wall, 3.0)
+	main.fitting_tool.fit({"what": "arch", "wall": wall, "s": 3.0})
 	await _frames(2)
 	wall.lay_now()
 	await _frames(2)

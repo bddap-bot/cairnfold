@@ -385,7 +385,7 @@ func _wall_of(s: Dictionary) -> Wall:
 
 
 func _arch(s: Dictionary) -> void:
-	main.tool.toggle_arch(main.tool.walls[s.index], s.s)
+	main.fitting_tool.fit({"what": "arch", "wall": main.tool.walls[s.index], "s": s.s})
 
 
 ## A press of the windows or decorations tool on wall `index` (-1 the last drawn), as `FittingTool.aim`

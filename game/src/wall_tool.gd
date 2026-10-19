@@ -2,9 +2,7 @@ class_name WallTool
 extends Node3D
 
 ## Walls, for whichever hand holds them: trigger draws a wall along the ground, a loop as much as a line,
-## and the right A cuts or fills an arch where a walls hand points or, on a wall's top, changes its
-## style, and on a house's gable end turns it to the next style, which houses laid after take. A grip
-## pointed at a wall, whatever the hand holds, pulls its height, and at a roof its pitch and curvature. Each hand grabs on its own, so two hands pull two walls or roofs at once; a grip on one the other hand
+## and a grip pointed at a wall, whatever the hand holds, pulls its height, and at a roof its pitch and curvature. Each hand grabs on its own, so two hands pull two walls or roofs at once; a grip on one the other hand
 ## holds takes nothing. A hand holding the house or the tower takes hold of one with its trigger, where it points, and carries it; the
 ## other hand's grip, pressed while it is carried, joins in, whatever it points at, to turn it with the pair and stretch it
 ## along their span, a tower every way at once; letting go builds it. A built
@@ -846,30 +844,15 @@ func end_roof(m: Mason) -> void:
 		world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id))
 
 
-func arched(w: Wall, s: float) -> bool:
-	return Array(world.state.walls[w.id].arches).any(func(a: float) -> bool: return absf(w.layout.offset(a, s)) < WallLayout.ARCH_HALF * 2.0)
-
-
-## The wall's own arches with one cut at `s`, or with any there filled; null if an arch cannot stand there.
-func arches_at(w: Wall, s: float, arch: bool) -> Variant:
-	var own := Array(world.state.walls[w.id].arches)
-	var near := func(a: float) -> bool: return absf(w.layout.offset(a, s)) < WallLayout.ARCH_HALF * 2.0
-	if not arch:
-		return PackedFloat32Array(own.filter(func(a: float) -> bool: return not near.call(a)))
-	if own.any(near):
-		return PackedFloat32Array(own)
-	if w.layout.live_arches.any(func(a: float) -> bool: return absf(w.layout.offset(a, s)) < WallLayout.ARCADE_GAP):
-		return null
-	if not w.layout.can_arch() or not w.layout.fits_arch(s, w.layout.live_arches):
-		return null
-	own.append(s)
-	return PackedFloat32Array(own)
-
-
-func toggle_arch(w: Wall, s: float) -> void:
-	var arches: Variant = arches_at(w, s, not arched(w, s))
-	if arches != null:
-		world.submit({"op": "reshape", "id": w.id, "data": {"arches": arches}})
+## The arches that would stand in `w` with `own` its own, with those the paths standing open, whatever it shows.
+func standing_arches(w: Wall, own: Array) -> Array[float]:
+	var shown := w.layout.arches.duplicate()
+	w.layout.arches.assign(own)
+	for p in paths.layouts:
+		_cut_crossings(w, p)
+	var standing := w.layout.arches.duplicate()
+	w.layout.arches = shown
+	return standing
 
 
 ## A pulled height, roof or erased stretch shows as pulled until its command comes back, or goes back if it is
@@ -895,6 +878,7 @@ func _relay(w: Wall, data := {}) -> void:
 	if data.has("roof"):
 		d.roof = now.roof.merged(data.roof, true)
 	w.set_data(d)
+	w.reshaped = data
 	_meet(w)
 	w.layout.resample(Terrain.height_at, Terrain.water_at)
 	_reshaped(w)
@@ -903,7 +887,7 @@ func _relay(w: Wall, data := {}) -> void:
 
 
 func _open_paths(w: Wall, own: Variant = null) -> void:
-	w.layout.arches.assign(Array(world.state.walls[w.id].arches if own == null else own))
+	w.layout.arches.assign(Array(w.reshaped.get("arches", world.state.walls[w.id].arches) if own == null else own))
 	for p in paths.layouts:
 		_cut_crossings(w, p)
 	_path_arches[w.id] = w.layout.arches.duplicate()

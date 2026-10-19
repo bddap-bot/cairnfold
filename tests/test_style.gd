@@ -20,6 +20,7 @@ func _run() -> void:
 	_species_differ()
 	_old_save_loads_as_plaster()
 	_faces_turn_to_plaster()
+	_faces_cut_no_opening()
 	_timber_faces()
 	_trees_take_a_species()
 	_meadow_trees_take_a_species()
@@ -81,7 +82,7 @@ func _old_save_loads_as_plaster() -> void:
 		if w.layout.plaster:
 			plastered += 1
 			var picker: PaletteTool = main.palette_tool
-			picker.open(main.rig.right, picker.style_target(PaletteTool.Restyle.FACE, w, Vector3.ZERO, 0.5))
+			picker.open(main.rig.right, picker.style_target(PaletteTool.Restyle.FACE, w, Vector3.ZERO))
 			_check(picker.wheels[main.rig.right].start == (PaletteTool.Face.ALSACE if TimberFrame.applies(w.layout) else PaletteTool.Face.PLASTER), "the style tool reads an old plaster house as Alsace and an open wall as plaster")
 			picker.close(main.rig.right)
 		else:
@@ -95,12 +96,12 @@ func _old_save_loads_as_plaster() -> void:
 func _faces_turn_to_plaster() -> void:
 	world._order({"op": "wall", "walls": [_wall_data(PackedVector3Array([Terrain.ground(-30, 20), Terrain.ground(-24, 20)]))]}, 1)
 	var id := world.seq * Commands.MAX_PIECES
-	var target: Dictionary = main.palette_tool.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO, 3.0)
-	_check(target.count == 4, "a face offers stone and plaster, each plain or arched")
+	var target: Dictionary = main.palette_tool.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO)
+	_check(target.count == 2, "an open wall's face offers stone and plaster")
 	var relayed := _relayed({"op": "reshape", "id": id, "data": {"plaster": true}}, 2)
 	_check(relayed.get("data", {}).get("plaster") == true, "a peer takes the host's turn of a face to plaster: %s" % relayed)
 	_turn(target, PaletteTool.Face.PLASTER)
-	_check(world.state.walls[id].plaster and main.tool.find(id).layout.plaster, "two twists of the style tool turn the face to plaster")
+	_check(world.state.walls[id].plaster and main.tool.find(id).layout.plaster, "a twist of the style tool turns the face to plaster")
 	main.tool.find(id).lay_now()
 	_check(main.tool.find(id).layout.stones.any(func(s): return s.kind == "plaster"), "and it is laid in plaster panels")
 	_check(main.tool.plaster, "walls laid after are plaster")
@@ -110,15 +111,32 @@ func _faces_turn_to_plaster() -> void:
 	_check(world.state.walls[id].plaster, "a redo brings the plaster again")
 	world.restore(world.snapshot())
 	_check(main.tool.find(id).layout.plaster, "a save carries it")
-	_turn(main.palette_tool.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO, 3.0), -2)
-	_check(not world.state.walls[id].plaster and not main.tool.plaster, "two twists back turn it, and the walls after, to stone")
+	_turn(main.palette_tool.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO), -1)
+	_check(not world.state.walls[id].plaster and not main.tool.plaster, "a twist back turns it, and the walls after, to stone")
+	world.restore({"seq": 0, "cmds": []})
+
+
+## The style tool only restyles: turned through every face of an open wall and of a house, shown and sent, it
+## neither cuts an opening nor fills the arch standing.
+func _faces_cut_no_opening() -> void:
+	var open := _wall_data(PackedVector3Array([Terrain.ground(-30, 20), Terrain.ground(-22, 20)]))
+	open.arches = PackedFloat32Array([2.0])
+	var house := _wall_data(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
+	house.closed = true
+	world._order({"op": "wall", "walls": [open, house]}, 1)
 	var picker: PaletteTool = main.palette_tool
-	picker.open(main.rig.right, picker.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO, 3.0))
-	picker.twist(main.rig.right, Palette.TWIST_STEP * PaletteTool.Face.STONE_ARCHED)
-	picker.wheels[main.rig.right].target.wall.lay_now()
-	picker.twist(main.rig.right, Palette.TWIST_STEP * PaletteTool.Face.PLASTER_ARCHED)
-	picker.close(main.rig.right)
-	_check(world.state.walls[id].plaster and world.state.walls[id].arches.size() == 1, "an arch shown on the way stands in the way of none: the face turns plaster, arched: %s" % world.state.walls[id].arches)
+	_check(world.state.walls.size() == 2, "an open wall and a house stand")
+	for id: int in world.state.walls:
+		var before := PackedFloat32Array(world.state.walls[id].arches)
+		var wall: Wall = main.tool.find(id)
+		for at in [0.5, 2.0, 5.0]:
+			var target := picker.style_target(PaletteTool.Restyle.FACE, wall, wall.layout.point_at(at))
+			for pick in target.count:
+				picker.open(main.rig.right, target)
+				picker.twist(main.rig.right, (pick - picker.wheels[main.rig.right].start) * Palette.TWIST_STEP)
+				_check(PackedFloat32Array(wall.layout.arches) == before, "face %d shown at %.1f m keeps the arches: %s" % [pick, at, wall.layout.arches])
+				picker.close(main.rig.right)
+				_check(PackedFloat32Array(world.state.walls[id].arches) == before, "face %d sent at %.1f m keeps the arches: %s" % [pick, at, world.state.walls[id].arches])
 	world.restore({"seq": 0, "cmds": []})
 
 
@@ -188,8 +206,8 @@ func _timber_faces() -> void:
 	wall.lay_now()
 	var picker: PaletteTool = main.palette_tool
 	for style in TimberFrame.PATTERNS.size():
-		var target := picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO, 2.0)
-		_check(target.count == 9, "house face wheel includes the five timber patterns")
+		var target := picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO)
+		_check(target.count == 7, "a house's face wheel offers stone, plaster and the five timber patterns")
 		picker.open(main.rig.right, target)
 		var start: int = picker.wheels[main.rig.right].start
 		picker.twist(main.rig.right, (PaletteTool.Face.ALSACE + style - start) * Palette.TWIST_STEP)

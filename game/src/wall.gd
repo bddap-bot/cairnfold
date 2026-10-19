@@ -17,6 +17,8 @@ var masonry: Masonry
 ## Lantern flames and flags: few, alive, and drawn by the wall itself.
 var _fittings := Fittings.new()
 var finished := false
+## The reshape data it is laid with in place of the garden's own, empty when laid as the garden has it.
+var reshaped := {}
 ## The id of the build command that put it up; -1 while it is still being drawn.
 var id := -1
 ## The roof on a house or tower, laid again with the walls under it.
@@ -171,6 +173,7 @@ func data() -> Dictionary:
 
 
 func set_data(d: Dictionary) -> void:
+	reshaped = {}
 	layout.points.assign(Array(d.points))
 	layout.height = d.height
 	layout.rise = d.get("rise", 0.0)

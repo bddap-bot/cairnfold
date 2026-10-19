@@ -1,14 +1,15 @@
 class_name FittingTool
 extends Node3D
 
-## Windows and decorations, for whichever hand holds them. With windows, the trigger on a wall opens a
+## Windows, arches and decorations, for whichever hand holds them. With windows, the trigger on a wall opens a
 ## window where the hand points, or a door where that is near the ground; one beside another on its course
-## fuses with it into a wider opening, and the trigger on one closes it. With decorations, what the hand
+## fuses with it into a wider opening, and the trigger on one closes it. With the arch, the trigger on a wall cuts
+## an archway through it where the hand points, and on one of the wall's own fills it. With decorations, what the hand
 ## points at decides what goes there: a chimney on a house's roof, a flag on a tower's roof or a wall's top,
 ## a lantern on a wall's face or a fence; the trigger on one takes it away. Every lantern lights what is
 ## around it (`Lamps`).
 ##
-## While windows are held, the wall pointed at is laid as a press would leave it, through the path that lays the
+## While windows or the arch are held, the wall pointed at is laid as a press would leave it, through the path that lays the
 ## press's command, so what shows is what a press builds. A decoration's ghost rides the hand's ray instead: set on
 ## the wall where a press would place it, faint and hanging in the air where it would not, and a press there shakes
 ## it. A press that places nothing bumps the hand.
@@ -30,9 +31,9 @@ var _buttons: Array[Buttons] = []
 ## Per hand: each fitting's ghost by ToolModels.FITTING_PARTS key, and how long since a refused press.
 var _ghosts: Array[Dictionary] = []
 var _shaken: Array[float] = []
-## Per hand, the window target its wall was last laid for.
+## Per hand, the window or arch target its wall was last laid for.
 var _aims: Array[Dictionary] = []
-## Ids of the walls laid with windows the garden does not have yet.
+## The reshape data each wall is laid with that the garden does not have yet, by id.
 var _previewed := {}
 ## Fitting lists sent and not yet back, by wall id and key, so a quick second press builds on the first.
 var _sent := {}
@@ -69,16 +70,17 @@ func _process(delta: float) -> void:
 		var b := _buttons[i]
 		var hand: Hand = b.hand
 		var ghost := {}
-		if (hand.tool == Hand.Tool.WINDOWS or hand.tool == Hand.Tool.DECORATIONS) and rig.aim_hand != hand and hand.tracked():
+		if hand.tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH, Hand.Tool.DECORATIONS] and rig.aim_hand != hand and hand.tracked():
 			var t := hand.global_transform
 			var target := _steady(i, aim(hand.tool, t.origin, -t.basis.z))
 			var hit: Variant = target.point if not target.is_empty() else Terrain.raycast(t.origin, -t.basis.z)
 			hand.point(hit, TINT)
 			if not target.is_empty():
-				var cmd := command(target)
+				var c := change(target)
+				var cmd := _command(target, c)
 				world.preview(hand, world.change_of(cmd))
-				if target.what == "window" and change(target).near < 0 and not cmd.is_empty():
-					shown[cmd.id] = cmd.data.windows
+				if target.what in ["window", "arch"] and c.near < 0 and not cmd.is_empty():
+					shown.get_or_add(cmd.id, {}).merge(cmd.data, true)
 			if b.pressed("tool") and not walls.busy(hand) and not fit(target, hand):
 				_shaken[i] = 0.0
 				Hand.bump(hand)
@@ -87,9 +89,11 @@ func _process(delta: float) -> void:
 		_show_ghost(i, ghost, delta)
 		b.latch()
 	for id in _sent:
-		if _sent[id].has("windows") and not shown.has(id):
-			shown[id] = PackedVector2Array(_sent[id].windows)
-	show_windows(shown)
+		if _sent[id].has("windows") and not shown.get(id, {}).has("windows"):
+			shown.get_or_add(id, {}).windows = PackedVector2Array(_sent[id].windows)
+		if _sent[id].has("arches") and not shown.get(id, {}).has("arches"):
+			shown.get_or_add(id, {}).arches = PackedFloat32Array(_sent[id].arches)
+	show_reshaped(shown)
 	_since_lights += delta
 	if _since_lights >= LIGHT_EVERY:
 		light_lanterns()
@@ -105,6 +109,10 @@ func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 		if on_roof or pick.is_empty() or pick.wall.layout.fence:
 			return {}
 		return {"what": "window", "wall": pick.wall, "s": pick.s, "y": _height(pick), "point": pick.point}
+	if tool == Hand.Tool.ARCH:
+		if on_roof or pick.is_empty() or pick.wall.layout.fence:
+			return {}
+		return {"what": "arch", "wall": pick.wall, "s": pick.s, "point": pick.point}
 	if on_roof:
 		var w: Wall = roof.wall
 		if w.roof.kind == RoofLayout.Kind.CONE:
@@ -120,34 +128,40 @@ func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 	return {"what": "lantern", "wall": pick.wall, "s": pick.s, "y": y, "side": side if side != 0.0 else 1.0, "point": pick.point}
 
 
-## `target`, or the window target hand `i` last aimed where `target` would make the same opening, so a hand moving
-## within one lays the wall once.
+## `target`, or the window or arch target hand `i` last aimed where `target` would make the same opening, so a hand
+## moving within one lays the wall once.
 func _steady(i: int, target: Dictionary) -> Dictionary:
 	var held := _aims[i]
-	if target.get("what") == "window" and held.get("wall") == target.wall:
+	if target.get("what") in ["window", "arch"] and target.what == held.get("what") and held.wall == target.wall:
 		var layout: WallLayout = target.wall.layout
-		if layout.opening_for(Vector2(held.s, held.y)) == layout.opening_for(Vector2(target.s, target.y)):
+		var same := false
+		match target.what:
+			"window":
+				same = layout.opening_for(Vector2(held.s, held.y)) == layout.opening_for(Vector2(target.s, target.y))
+			"arch":
+				same = absf(layout.offset(held.s, target.s)) < WallLayout.ARCH_HALF
+		if same:
 			held.point = target.point
 			return held
 	_aims[i] = target
 	return target
 
 
-## Lays each wall in `windows`, by id, with those windows, as the command placing them would; every other wall laid
+## Lays each wall in `shown`, by id, with its reshape data, as the command sending it would; every other wall laid
 ## so before is laid as the garden has it again.
-func show_windows(windows: Dictionary) -> void:
+func show_reshaped(shown: Dictionary) -> void:
 	for id in _previewed.keys():
-		if windows.has(id):
+		if shown.has(id):
 			continue
-		_previewed.erase(id)
 		var w := walls.find(id)
-		if w != null and PackedVector2Array(w.layout.windows) != PackedVector2Array(world.state.walls[id].windows):
+		if w != null and w.reshaped == _previewed[id]:
 			walls.settle(id)
-	for id in windows:
+		_previewed.erase(id)
+	for id in shown:
 		var w := walls.find(id)
-		if w != null and PackedVector2Array(w.layout.windows) != windows[id]:
-			_previewed[id] = true
-			walls.show_reshaped(w, {"windows": windows[id]})
+		if w != null and w.reshaped != shown[id]:
+			_previewed[id] = shown[id]
+			walls.show_reshaped(w, shown[id])
 
 
 static func _height(pick: Dictionary) -> float:
@@ -175,7 +189,10 @@ func fit(target: Dictionary, hand: XRController3D = null) -> bool:
 
 ## The build command a press on `target` sends, or {} where it does nothing.
 func command(target: Dictionary) -> Dictionary:
-	var c := change(target)
+	return _command(target, change(target))
+
+
+func _command(target: Dictionary, c: Dictionary) -> Dictionary:
 	if not c.ok:
 		return {}
 	var w: Wall = target.wall
@@ -186,7 +203,7 @@ func command(target: Dictionary) -> Dictionary:
 	match c.key:
 		"lanterns":
 			packed = PackedVector3Array(after)
-		"flags":
+		"flags", "arches":
 			packed = PackedFloat32Array(after)
 		_:
 			packed = PackedVector2Array(after)
@@ -216,6 +233,12 @@ func change(target: Dictionary) -> Dictionary:
 		"flag":
 			var near := layout.flags.find_custom(func(e): return absf(layout.offset(e, target.s)) < TAKE_REACH)
 			return _change(w, false, "flags", target.s, near, near >= 0 or layout.flag_fits(target.s))
+		"arch":
+			var own := _placed(w, false, "arches")
+			var near := own.find_custom(func(a): return absf(layout.offset(a, target.s)) < WallLayout.ARCH_HALF * 2.0)
+			var standing := walls.standing_arches(w, own)
+			var clear := not standing.any(func(a): return absf(layout.offset(a, target.s)) < WallLayout.ARCADE_GAP)
+			return _change(w, false, "arches", target.s, near, near >= 0 or (clear and layout.can_arch() and layout.fits_arch(target.s, standing)))
 		"chimney":
 			var spot := w.roof.chimney_spot(target.at)
 			var near := w.roof.chimneys.find_custom(func(e): return e.distance_to(spot) < RoofLayout.STACK_WIDTH + 0.3)
@@ -224,7 +247,7 @@ func change(target: Dictionary) -> Dictionary:
 
 
 ## The list `key` on the wall (or its roof) as the garden has it with our sent commands applied, read from the garden
-## rather than the wall, which may be showing windows aimed at.
+## rather than the wall, which may be showing windows or an arch aimed at.
 func _placed(w: Wall, on_roof: bool, key: String) -> Array:
 	var d: Dictionary = world.state.walls[w.id]
 	return Array(_sent.get(w.id, {}).get(key, (d.roof if on_roof else d)[key]))
@@ -234,7 +257,7 @@ func _change(w: Wall, on_roof: bool, key: String, value: Variant, near: int, ok:
 	var after := _placed(w, on_roof, key).duplicate()
 	if near >= 0:
 		after.remove_at(near)
-	elif after.size() >= (Commands.MAX_CHIMNEYS if key == "chimneys" else Commands.MAX_FITTINGS):
+	elif after.size() >= {"chimneys": Commands.MAX_CHIMNEYS, "arches": Commands.MAX_ARCHES}.get(key, Commands.MAX_FITTINGS):
 		ok = false
 	else:
 		after.append(value)

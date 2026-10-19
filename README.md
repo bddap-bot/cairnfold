@@ -30,7 +30,8 @@ cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, style
   of seasons for the meadow; let go to keep the one at the top.
 - Holding style: the same, with a little model of each style of what you point
   at: a gable end's, a roof's (pitched, a tower's cone, flat), a wall's top, along
-  a wall stone or plaster, plain or arched, or a tree's species.
+  a wall stone or plaster (a house's timber framings too), or a tree's species.
+- Holding the arch: the trigger on a wall cuts an archway there; on an arch, it fills it.
 - Holding camera: the screen on its back shows what its lens sees, tilted as you
   hold it and with your own avatar in view when you turn it on yourself; the trigger
   takes a photo at the game's best quality, saved as a PNG in the game's `photos` folder

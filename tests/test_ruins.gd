@@ -218,7 +218,7 @@ func _the_eraser_sweeps_a_ruin_and_undo_mends_it() -> void:
 	await _play([{"op": "delete", "x": 0, "z": -10}])
 	_check(world.stacks[world.me()].undo.size() == steps and world.state.walls[w.id].ruins == ruins, "a tap inside a ruin changes nothing and takes no step")
 	var arches: PackedFloat32Array = world.state.walls[w.id].arches
-	main.tool.toggle_arch(w, w.layout.closest_s(Terrain.ground(6.2, -10)))
+	main.fitting_tool.fit({"what": "arch", "wall": w, "s": w.layout.closest_s(Terrain.ground(6.2, -10))})
 	await process_frame
 	_check(world.state.walls[w.id].arches == arches and world.stacks[world.me()].undo.size() == steps, "no arch opens in a ruin")
 	await _play([{"op": "press", "button": "dpad_down"}])

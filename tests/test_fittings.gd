@@ -379,7 +379,31 @@ func _in_the_glade() -> void:
 	var fence := walls[3]
 	_check(fence.layout.fence and not wall.layout.fence, "the fence tool drew a fence")
 	_check(fence.layout.live_arches.is_empty() and wall.layout.live_arches.is_empty(), "fences and long walls over open ground stay solid")
-	main.tool.toggle_arch(wall, wall.layout.length() * 0.5)
+	var middle_s := wall.layout.length() * 0.5
+	var mid := wall.layout.frame_at(middle_s)
+	var mid_n: Vector3 = mid.tangent.cross(Vector3.UP)
+	var in_arch: Vector3 = mid.point + Vector3.UP * 1.0
+	var arch_hand: Hand = main.rig.right
+	arch_hand.tool = Hand.Tool.ARCH
+	arch_hand.held_still = true
+	arch_hand.global_transform = Transform3D(Basis.looking_at(-mid_n), in_arch + mid_n * 3.0)
+	await _drawn(wall)
+	var arch_steps: int = steps_now.call()
+	_check(wall.layout.live_arches.size() == 1 and Array(world.state.walls[wall.id].arches).is_empty() and steps_now.call() == arch_steps, "a hand holding the arch at a wall shows an archway cut there, and the garden has none yet")
+	Buttons.injected["%s/trigger_click" % arch_hand.tracker] = true
+	await process_frame
+	Buttons.injected.erase("%s/trigger_click" % arch_hand.tracker)
+	await _drawn(wall)
+	_check(world.state.walls[wall.id].arches.size() == 1 and wall.layout.live_arches.size() == 1 and steps_now.call() == arch_steps + 1, "a press cuts the archway, one undo step")
+	_check(fit.command(fit.aim(Hand.Tool.ARCH, in_arch + mid_n * 3.0, -mid_n)).data.keys() == ["arches"], "the arch changes the arches alone, so the wall keeps its material")
+	arch_hand.tool = Hand.Tool.WALLS
+	arch_hand.held_still = false
+	await _drawn(wall)
+	var crowding: Vector3 = wall.layout.frame_at(middle_s + 2.0).point + Vector3.UP * 1.0
+	_check(not _fit(fit, fit.aim(Hand.Tool.ARCH, crowding + mid_n * 3.0, -mid_n)) and steps_now.call() == arch_steps + 1, "an arch too near another is not cut and leaves no step")
+	_check(_fit(fit, fit.aim(Hand.Tool.ARCH, in_arch + mid_n * 3.0, -mid_n)) and Array(world.state.walls[wall.id].arches).is_empty() and wall.layout.live_arches.is_empty(), "a press on the arch fills it")
+	_undo(world)
+	_check(world.state.walls[wall.id].arches.size() == 1 and wall.layout.live_arches.size() == 1, "undo opens it again")
 
 	var face := wall.layout.frame_at(2.5)
 	var normal: Vector3 = face.tangent.cross(Vector3.UP)
@@ -420,6 +444,7 @@ func _in_the_glade() -> void:
 	var post_n: Vector3 = post.tangent.cross(Vector3.UP)
 	_check(fit.aim(Hand.Tool.DECORATIONS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).get("what") == "lantern", "on a fence, a lantern")
 	_check(fit.aim(Hand.Tool.WINDOWS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).is_empty(), "no windows in a fence")
+	_check(fit.aim(Hand.Tool.ARCH, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).is_empty() and fit.aim(Hand.Tool.ARCH, ridge + Vector3.UP * 6.0, Vector3.DOWN).is_empty(), "the arch cuts nothing in a fence or a roof")
 	_check(main.tool.pick_wall(post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).get("wall") == fence, "a ray through the fence and on into the wall behind picks the fence")
 	_fit(fit, fit.aim(Hand.Tool.DECORATIONS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n))
 	_check(fence.layout.flames.size() == 1, "a press hangs a lantern on the fence")
@@ -492,8 +517,15 @@ func _in_the_glade() -> void:
 
 	await _play([{"op": "pave", "points": [[1.5, 12], [1.5, 4], [1.5, -4]], "radius": 0.6, "seconds": 0.3}])
 	_check(fence.layout.live_arches.size() == 1 and _kind(fence.layout, "gate").size() == 9, "a path through the fence opens a wooden gate")
+	var gate: Vector3 = fence.layout.point_at(fence.layout.live_arches[0]) + Vector3.UP * 0.8
+	_check(not _fit(fit, {"what": "arch", "wall": fence, "s": fence.layout.live_arches[0], "point": gate}) and fence.layout.live_arches.size() == 1, "the arch leaves a path's gate to the path")
 	_undo(world)
 	_check(fence.layout.live_arches.is_empty(), "undoing the path closes the gate")
+	var cut := PackedFloat32Array(world.state.walls[wall.id].arches)
+	world.restore(world.snapshot())
+	_lay_walls()
+	var reloaded: Wall = main.tool.find(wall.id)
+	_check(cut.size() == 1 and PackedFloat32Array(world.state.walls[wall.id].arches) == cut and reloaded.layout.live_arches.size() == 1, "a save keeps the cut arch")
 	_done()
 
 

@@ -86,7 +86,7 @@ func _init() -> void:
 	paint[Palette.Element.TIMBER] = 3
 	var timber := {"kind": "timber", "color": TimberFrame.OAK}
 	_check(Wall._painted_as(timber, paint).is_equal_approx(Palette.swatch(Palette.Element.TIMBER, 3)), "timber uses its own oak family")
-	_check(PaletteTool.styles(PaletteTool.Restyle.FACE) == 9, "all five patterns are selectable")
+	_check(PaletteTool.styles(PaletteTool.Restyle.FACE) == 7, "all five patterns are selectable")
 	wall.free()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)

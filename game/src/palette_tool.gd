@@ -8,8 +8,8 @@ extends Node3D
 ## tiles, woodwork (fences, window frames, doors) or plaster, as a `reshape` of its paint (builds laid after
 ## take the swatch let go last), or on the meadow the garden's season. The style tool's are miniatures of the
 ## styles of what it points at: a gable end's, a roof's (tiled, thatched or flat, a house's or a tower's), a roofless wall's top,
-## a wall's face (stone or plaster, plain or arched there; builds laid after take the material let go last), or a
-## tree's species.
+## a wall's face (stone, plaster or a house's timber framing; builds laid after take the material let go last), or a
+## tree's species. It only restyles: openings are the windows' and the arch's.
 
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
 const WHEEL_RADIUS := 0.07
@@ -17,8 +17,7 @@ const WHEEL_RADIUS := 0.07
 const WHEEL_AT := Vector3(0, 0.06, -0.05)
 
 enum Restyle { GABLE, ROOF, TOP, FACE, TREE }
-## A face's styles: stone or plaster, each plain or arched where it is pointed at.
-enum Face { STONE, STONE_ARCHED, PLASTER, PLASTER_ARCHED, ALSACE, MAGPIE, RURAL, FACHWERK, COLOMBAGE }
+enum Face { STONE, PLASTER, ALSACE, MAGPIE, RURAL, FACHWERK, COLOMBAGE }
 
 ## A hand's open wheel: what it changes (`aim`'s target) on which build (-1 for none) or tree (its trunk; null for
 ## none), the choice it started on and the one at its top, and the hand's frame when it opened. One on neither is
@@ -33,8 +32,7 @@ class Wheel:
 	var basis := Basis()
 	var node: Node3D
 	var choices: Array[Node3D] = []
-	## Per choice, the `reshape` data that gives the build it, worked out from the build as the garden laid it: a
-	## shown choice lays the build again, and an arch it shows would stand in the way of the one it sends.
+	## Per choice, the `reshape` data that gives the build it, worked out from the build as the garden laid it.
 	var data: Array[Dictionary] = []
 
 
@@ -114,7 +112,7 @@ func colour_target(element: Palette.Element, point: Vector3, wall: Wall) -> Dict
 
 
 ## What the style tool would restyle from `origin` along `dir`, as `aim` gives it, with `restyle` in place of an
-## element (and `s` along a wall for its face), or empty: the tree, gable end, roof or wall it meets first, a
+## element, or empty: the tree, gable end, roof or wall it meets first, a
 ## roofless wall's top near it; fences and bushes have no style.
 func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var pick := walls.pick_wall(origin, dir)
@@ -131,15 +129,15 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	if not pick.is_empty() and not pick.wall.layout.fence:
 		var layout: WallLayout = pick.wall.layout
 		var top: bool = layout.cover != WallLayout.Cover.ROOF and pick.point.y - layout.point_at(pick.s).y > layout.height - WallTool.TOP_BAND
-		return style_target(Restyle.TOP if top else Restyle.FACE, pick.wall, pick.point, pick.s)
+		return style_target(Restyle.TOP if top else Restyle.FACE, pick.wall, pick.point)
 	return {}
 
 
-func style_target(restyle: Restyle, wall: Wall, point: Vector3, s := 0.0) -> Dictionary:
+func style_target(restyle: Restyle, wall: Wall, point: Vector3) -> Dictionary:
 	var count := styles(restyle)
 	if restyle == Restyle.FACE and not (wall.layout.closed and wall.layout.corners().size() == 4):
 		count = Face.ALSACE
-	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "count": count, "point": point, "wall": wall, "s": s}
+	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "count": count, "point": point, "wall": wall}
 
 
 static func styles(restyle: Restyle) -> int:
@@ -240,7 +238,7 @@ func _now(w: Wheel) -> int:
 			return d.top
 	if d.plaster and d.get("timber_style", 0) >= 0 and d.closed and d.points.size() == 4:
 		return Face.ALSACE + d.get("timber_style", 0)
-	return int(walls.arched(w.target.wall, w.target.s)) + (Face.PLASTER if d.plaster else Face.STONE)
+	return Face.PLASTER if d.plaster else Face.STONE
 
 
 ## The `reshape` data that gives `w`'s build choice `pick`; empty for one that cannot stand.
@@ -261,12 +259,6 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 	var plaster := pick >= Face.PLASTER
 	if plaster != world.state.walls[w.wall].plaster:
 		data["plaster"] = plaster
-	var arched := walls.arched(w.target.wall, w.target.s) if pick >= Face.ALSACE else pick % 2 == 1
-	if arched != walls.arched(w.target.wall, w.target.s):
-		var arches: Variant = walls.arches_at(w.target.wall, w.target.s, arched)
-		if arches == null:
-			return {}
-		data["arches"] = arches
 	return data
 
 
