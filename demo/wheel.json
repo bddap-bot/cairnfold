@@ -16,5 +16,10 @@
   {"op": "pick", "hand": "right", "tool": "hands", "capture": "07-hands"},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "08-empty-hands"},
+  {"op": "pick", "hand": "right", "tool": "colour", "capture": "09-colour"},
+  {"op": "wait", "seconds": 0.5},
+  {"op": "pick", "hand": "right", "tool": "style", "capture": "10-style", "popping": "11-style-taken"},
+  {"op": "wait", "seconds": 0.5},
+  {"op": "capture", "name": "12-holding-style"},
   {"op": "quit"}
 ]

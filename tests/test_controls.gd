@@ -95,7 +95,7 @@ func _sweep_by_hand(hand: Hand, at: Vector3) -> void:
 	toward.y = 0.0
 	var right := Vector3.UP.cross(toward.normalized())
 	var planting: Array = Hand.TREE[2]
-	var back := ToolWheel.fan_dirs(planting.size(), -1.0)[planting.find(Hand.Tool.TREES)]
+	var back := ToolWheel.fan_dirs(planting.size(), ToolWheel.ring_dirs()[2])[planting.find(Hand.Tool.TREES)]
 	for case in [[Hand.Tool.DELETE, [Vector3.DOWN]], [Hand.Tool.TREES, [right, right * back.x + Vector3.UP * back.y]]]:
 		hand.global_position = at
 		Buttons.injected[key] = true

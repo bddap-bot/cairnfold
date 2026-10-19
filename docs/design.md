@@ -1321,7 +1321,7 @@ Stage numbers refer to the build order at the end.
 | Fog | Froxel fog with density and height controls | Depth fog with aerial perspective and sun scatter, thinning as the eye lifts | 1 (done), 2 (done) |
 | Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap and grading (done); glow cut for the Quest 2. No depth of field: in a headset your eyes focus for themselves | 1 (done) |
 | Time of day | Continuous, lockable, sun-angle slider | Grip any hand on open sky to grab it and aim to turn it about the sun's arc, the sun riding on it from under the horizon at dawn, high in front at noon, to under it at dusk; the point grabbed stays under the pointer, and moving the hand without turning its aim leaves the sky be; a soft click in the hand each hour. The sun's colour and strength, sky, fog and ambient follow. Letting go turns every player's sky to it. Not an edit: undo leaves it be | 8 (done) |
-| Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette on the controller): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. The style tool (a crow-stepped gable on the controller) works the same way with a miniature of each style of what it points at (see "Styles"). On a build its stone, roof tiles, thatch, woodwork (fences, window frames, doors) or plaster (plaster walls and their gable ends) each take one of 6–8 curated swatches for that build alone (see "Colour per build"); on the meadow the wheel holds the garden's five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch | 8 (done) |
+| Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette on the controller): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. The style tool (a wand with a star at its tip on the controller) works the same way with a miniature of each style of what it points at (see "Styles"). On a build its stone, roof tiles, thatch, woodwork (fences, window frames, doors) or plaster (plaster walls and their gable ends) each take one of 6–8 curated swatches for that build alone (see "Colour per build"); on the meadow the wheel holds the garden's five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch | 8 (done) |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of left X (the Frame's D-pad down) undoes a step, right A redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it, so a process killed mid-write leaves the last one whole (`tests/test_kill.gd`); a quit writes one still due before the sounds wind down. It is loaded at start. Only your own garden is kept, never one you are visiting. A file of another format, or one the game cannot read whole, is moved aside to `garden.save.bad` before the garden is saved again, and the log says which. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
@@ -1587,21 +1587,25 @@ go of the button takes the hot tool, and letting go with nothing hot keeps the t
 tool or a subtree, drawn as its tools in miniature; every icon is tipped toward the eye, as a
 controller's top is seen, on a pale disc. Each icon is a miniature of what its tool makes: stone ground's
 is baked from the terrain shader's own flagstones and colours, fraying into meadow at the rim. Reaching a
-subtree hides the rest of the wheel and opens its three or four tools in a column beside it, on the side
-away from the swing that reached it, so a deep pick zig-zags: right onto planting, left onto trees.
-Subtrees sit only on slots reached by a sideways swing, and the slots never move, so each tool is one
-learnable motion:
+subtree hides the rest of the wheel and opens its tools beside it. Reached by a sideways swing, three or
+four stand in a column on the side away from that swing, so a deep pick zig-zags: right onto planting, left
+onto trees. The top slot holds two, opening one to each side: up, then left for colour or right for style.
+The slots never move, so each tool is one learnable motion:
 
 | Slot | Holds |
 | --- | --- |
-| Top | Colour |
+| Top | Colour, style |
 | Upper right | Empty hands, camera, seeds, easel |
 | Right | Flowers, grass, trees, ponds |
 | Lower right | Visit |
 | Bottom | Delete |
 | Lower left | Paths, stone |
 | Left | Walls, fences, windows |
-| Upper left | House, decorations, style |
+| Upper left | House, decorations |
+
+Directive (verbatim): "Okay, two things regarding the style menu. The style icon, it just looks like another house, so it seems like to a player, it'll seem like you just pick the style icon to make a different style of house. But no, that's not it. Second, the style icon should be in the same grouping as the color selector icon. You go, right now it's up. So you would go up and then you'd select the co-, select color, or you'd select, select style"
+
+The style tool's icon is a wand with a star at its tip, which no build resembles.
 
 Report (verbatim): "It's not possible to select a tool in your left hand right now". Directive (verbatim): "I'd like you to uh holistically rethink the button mappings. Um. One restriction is, I don't want to have to press the thumbstick down to select a tool"
 
@@ -2267,7 +2271,7 @@ walls in each top style, and shapes the roofs; `demo/paths.json` lays paths thro
 arcade), draws a wall across a wide path and raises the ground under a path; `demo/fittings.json` opens windows
 and doors in a wall, a house and a round wall, hangs lanterns, flies flags, builds a chimney and draws a fence a
 path crosses; `demo/stone.json` paints stone ground into the meadow, paints part of it back and
-walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete, then empties the hand; `demo/photo.json` takes the camera from the wheel and takes two photos, each beside the view through the same lens as the headset draws it, the second at the ladder's bottom step; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
+walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete, empties the hand, then goes up to colour and style; `demo/photo.json` takes the camera from the wheel and takes two photos, each beside the view through the same lens as the headset draws it, the second at the ladder's bottom step; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks
 at a perched one from in front and from the side;
 `demo/feeding.json` builds a pond, trees, a wall and a fence, waits for the animals, then holds seeds out to a conure, the ducks and the sheep, throws handfuls to the sheep and onto the pond and watches the uneaten ones sink away;

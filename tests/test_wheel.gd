@@ -11,6 +11,7 @@ func _init() -> void:
 	_a_sweep_picks_the_slot_it_heads_for()
 	_a_subtree_opens_away_from_the_swing()
 	_inside_a_subtree_the_swing_side_picks_nothing()
+	_colour_and_style_are_one_swing_up()
 	_a_deep_pick_zig_zags()
 	_the_wheel_faces_the_head_wherever_the_hand_is()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -29,8 +30,8 @@ func _every_tool_has_one_fixed_path() -> void:
 	for k in Hand.TREE.size():
 		var d := ToolWheel.ring_dirs()[k]
 		if Hand.TREE[k] is Array:
-			_check(absf(d.x) > 0.5, "subtree slot %d is reached by a sideways swing" % k)
-			_check(Hand.TREE[k].size() <= 4, "subtree slot %d holds at most four" % k)
+			var most := 4 if absf(d.x) > 0.5 else 2
+			_check(Hand.TREE[k].size() <= most, "subtree slot %d holds at most %d" % [k, most])
 
 
 func _the_wheel_opens_with_nothing_hot() -> void:
@@ -51,7 +52,7 @@ func _a_sweep_picks_the_slot_it_heads_for() -> void:
 			w.move(dirs[k].rotated(deg_to_rad(off)) * ToolWheel.DEAD * 1.3)
 			_check(w.levels[0].hot == k, "a short sweep %+.0f° off slot %d heads for it, got %d" % [off, k, w.levels[0].hot])
 	var w := ToolWheel.new(Hand.TREE)
-	w.move(dirs[0] * ToolWheel.RADIUS)
+	w.move(dirs[3] * ToolWheel.RADIUS)
 	w.move(dirs[4] * ToolWheel.RADIUS)
 	_check(w.chosen() == Hand.TREE[4], "sweeping on to another slot moves the pick")
 	var empty := Hand.TREE.find(null)
@@ -70,8 +71,12 @@ func _a_subtree_opens_away_from_the_swing() -> void:
 		_check(w.levels.size() == 1 and w.chosen() == null, "heading for subtree %d marks it without opening it" % k)
 		w.move(dirs[k] * ToolWheel.RADIUS)
 		_check(w.levels.size() == 2 and w.chosen() == null, "reaching subtree %d opens it, with nothing in it hot" % k)
-		for d in w.levels[1].dirs.slice(0, Hand.TREE[k].size()):
-			_check(signf(d.x) == -signf(dirs[k].x), "subtree %d's items open on the side away from the swing" % k)
+		var fan: Array = w.levels[1].dirs.slice(0, Hand.TREE[k].size())
+		if absf(dirs[k].x) > 0.01:
+			for d in fan:
+				_check(signf(d.x) == -signf(dirs[k].x), "subtree %d's items open on the side away from the swing" % k)
+		else:
+			_check(fan[0].x < -0.99 and fan[1].x > 0.99, "subtree %d's two items open one to each side" % k)
 		var items: Array = Hand.TREE[k]
 		for j in items.size():
 			var v := ToolWheel.new(Hand.TREE)
@@ -88,6 +93,15 @@ func _inside_a_subtree_the_swing_side_picks_nothing() -> void:
 	w.move(at)
 	w.move(at + Vector2(ToolWheel.RADIUS, 0))
 	_check(w.levels.size() == 2 and w.chosen() == null, "overshooting a subtree picks nothing")
+	var up := ToolWheel.new(Hand.TREE)
+	up.move(ToolWheel.ring_dirs()[0] * ToolWheel.RADIUS)
+	up.move(ToolWheel.ring_dirs()[0] * ToolWheel.RADIUS * 2.0)
+	_check(up.levels.size() == 2 and up.chosen() == null, "overshooting the top subtree upward picks nothing")
+
+
+func _colour_and_style_are_one_swing_up() -> void:
+	_check(ToolWheel.paths(Hand.TREE)[Hand.Tool.COLOUR] == [0, 0], "colour is up, then left")
+	_check(ToolWheel.paths(Hand.TREE)[Hand.Tool.STYLE] == [0, 1], "style is up, then right")
 
 
 func _a_deep_pick_zig_zags() -> void:

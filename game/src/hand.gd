@@ -6,18 +6,17 @@ extends XRController3D
 
 enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, HANDS, SEEDS, DIRT_PATH, STYLE, STAIRS, EASEL }
 
-## The wheel's contents, clockwise from the top; an Array is a subtree, null an empty slot. Subtrees sit
-## on slots reached by a sideways swing, so their items open on the other side. Fixed, so every pick is a
-## learnable motion.
+## The wheel's contents, clockwise from the top; an Array is a subtree, null an empty slot. Fixed, so every
+## pick is a learnable motion.
 const TREE := [
-	Tool.COLOUR,
+	[Tool.COLOUR, Tool.STYLE],
 	[Tool.HANDS, Tool.CAMERA, Tool.SEEDS, Tool.EASEL],
 	[Tool.FLOWERS, Tool.GRASS, Tool.TREES, Tool.POND],
 	Tool.VISIT,
 	Tool.DELETE,
 	[Tool.PATH, Tool.DIRT_PATH, Tool.STONE, Tool.STAIRS],
 	[Tool.WALLS, Tool.FENCE, Tool.WINDOWS],
-	[Tool.HOUSE, Tool.DECORATIONS, Tool.STYLE],
+	[Tool.HOUSE, Tool.DECORATIONS],
 ]
 const TOP := Vector3(0, 0.0075, 0.045)
 const POP := 0.18
@@ -113,7 +112,7 @@ func _build_wheel() -> void:
 		var model := Node3D.new()
 		if TREE[k] is Array:
 			var sub: Array = TREE[k]
-			var fan := ToolWheel.fan_dirs(sub.size(), ToolWheel.side_after(dirs[k]))
+			var fan := ToolWheel.fan_dirs(sub.size(), dirs[k])
 			for j in sub.size():
 				var mini := ToolModels.build(sub[j])
 				mini.scale = Vector3.ONE * 0.5

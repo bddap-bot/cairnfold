@@ -24,12 +24,11 @@ const FITTING_PARTS := {
 const SEED_COLOURS: Array[Color] = [Color(0.93, 0.8, 0.5), Color(0.12, 0.11, 0.1), Color(0.2, 0.19, 0.17)]
 
 static var _mats := {}
+static var _stars := {}
 static var _camera_screen: StandardMaterial3D
 
 
 static func build(tool: Hand.Tool) -> Node3D:
-	if tool == Hand.Tool.STYLE:
-		return style(PaletteTool.Restyle.GABLE, WallLayout.GableEnd.STEPS, false)
 	var root := Node3D.new()
 	match tool:
 		Hand.Tool.WALLS:
@@ -69,6 +68,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_figure(root)
 		Hand.Tool.COLOUR:
 			_palette(root)
+		Hand.Tool.STYLE:
+			_wand(root)
 		Hand.Tool.CAMERA:
 			_camera(root)
 		Hand.Tool.HANDS:
@@ -146,6 +147,47 @@ static func _palette(root: Node3D) -> void:
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(mi)
+
+
+## A wand lying flat with a star at its tip and two sparkles off it: it turns what it points at into another
+## of its kind, and it is no build, so the icon cannot read as a thing it builds.
+static func _wand(root: Node3D) -> void:
+	var along := Vector3(1, 0, -1).normalized()
+	var stick := CylinderMesh.new()
+	stick.top_radius = 0.0022
+	stick.bottom_radius = 0.003
+	stick.height = 0.042
+	stick.radial_segments = 8
+	stick.rings = 1
+	_piece(root, stick, Transform3D(Basis(Quaternion(Vector3.UP, along)), along * -0.004 + Vector3(0, 0.0025, 0)), _plain("wand", Color(0.32, 0.2, 0.13)))
+	var gold := _plain("star", Color(1.0, 0.82, 0.3))
+	_piece(root, _star(5, 0.012, 0.005), Transform3D(Basis(), along * 0.019 + Vector3(0, 0.003, 0)), gold)
+	for spark in [[Vector3(0.02, 0.003, 0.007), 0.004], [Vector3(-0.002, 0.003, -0.029), 0.003]]:
+		_piece(root, _star(4, spark[1], spark[1] * 0.35), Transform3D(Basis(), spark[0]), gold)
+
+
+## A flat star of `points` points, `outer` to their tips and `inner` to the notches between, 3 mm thick.
+static func _star(points: int, outer: float, inner: float) -> ArrayMesh:
+	var key := "%d_%s_%s" % [points, outer, inner]
+	if _stars.has(key):
+		return _stars[key]
+	var rim: Array[Vector3] = []
+	for i in points * 2:
+		var a := PI * i / points
+		rim.append(Vector3(sin(a), 0, -cos(a)) * (outer if i % 2 == 0 else inner))
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var up := Vector3(0, 0.0015, 0)
+	for i in rim.size():
+		var a := rim[i]
+		var b := rim[(i + 1) % rim.size()]
+		for tri in [[up, a + up, b + up], [-up, b - up, a - up], [a + up, b - up, b + up], [a + up, a - up, b - up]]:
+			for v in tri:
+				st.add_vertex(v)
+	st.generate_normals()
+	var mesh := st.commit()
+	_stars[key] = mesh
+	return mesh
 
 
 ## A little easel holding a painted canvas.

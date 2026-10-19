@@ -3,8 +3,7 @@ extends RefCounted
 
 ## The tool selector as pure data: a wheel of SLOTS facing the head where the hand opened it, each slot a
 ## leaf, a subtree (an Array) or empty (null). Sweeping the hand onto a slot makes it hot; reaching a
-## subtree opens its items in a column beside it, on the side away from the swing that reached it, so a
-## deep pick zig-zags left and right. Positions are metres in the wheel's plane, x to the player's right,
+## subtree opens its items beside it (`fan_dirs`), so a deep pick zig-zags left and right. Positions are metres in the wheel's plane, x to the player's right,
 ## y the player's up as seen along the line to the wheel.
 
 const SLOTS := 8
@@ -46,19 +45,21 @@ static func ring_dirs() -> Array[Vector2]:
 	return out
 
 
-## A subtree's item directions from its slot: a column bowed outward on `side` (+1 right, -1 left), top first.
-static func fan_dirs(count: int, side: float) -> Array[Vector2]:
+## A subtree's item directions from the slot at `dir`. Reached by a sideways swing, they stand in a column bowed
+## outward on the side away from that swing, top first; reached by an upward or downward one, they are two, one to
+## each side, left first.
+static func fan_dirs(count: int, dir: Vector2) -> Array[Vector2]:
 	var out: Array[Vector2] = []
+	if absf(dir.x) < 0.01:
+		assert(count == 2, "a subtree reached by an upward or downward swing holds two")
+		out.append(Vector2.LEFT)
+		out.append(Vector2.RIGHT)
+		return out
+	var side := -signf(dir.x)
 	for j in count:
 		var a := (j - (count - 1) * 0.5) * SPACING
 		out.append(Vector2(side * cos(a), -sin(a)))
 	return out
-
-
-## Where the subtree at `dir` from a level's centre opens its items: away from the swing's sideways part.
-static func side_after(dir: Vector2) -> float:
-	assert(absf(dir.x) > 0.01, "a subtree needs a slot reached by a sideways swing")
-	return -signf(dir.x)
 
 
 ## The hand at `p` in the wheel's plane: updates what is hot and opens any subtree it reaches.
@@ -80,7 +81,7 @@ func move(p: Vector2) -> void:
 			return
 		var dir: Vector2 = top.dirs[top.hot]
 		var items: Array = top.items[top.hot]
-		levels.append(_level(top.centre + dir * RADIUS, items, fan_dirs(items.size(), side_after(dir))))
+		levels.append(_level(top.centre + dir * RADIUS, items, fan_dirs(items.size(), dir)))
 
 
 ## The leaf the hand is on, or null.
@@ -115,7 +116,7 @@ static func sweep(tree: Array, path: Array[int]) -> Array[Vector2]:
 		out.append(at)
 		if items[k] is Array:
 			items = items[k]
-			dirs = fan_dirs(items.size(), side_after(dirs[k]))
+			dirs = fan_dirs(items.size(), dirs[k])
 			centre = at
 	return out
 
