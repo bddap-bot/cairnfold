@@ -1133,9 +1133,9 @@ func _hold_pose(s: Dictionary) -> void:
 
 
 ## Renders page `page`'s live picture alone at `size`, stepping it at 30 Hz and saving it at each of `times` as
-## "<name>-<time>", so its loop can be read frame by frame.
+## "<name>-<time>", so its loop can be read frame by frame; with "see_through", its controllers' shells half clear.
 func _lesson_frames(s: Dictionary) -> void:
-	var scene := LessonScene.new(int(s.page))
+	var scene := LessonScene.new(int(s.page), s.get("see_through", false))
 	scene.size = Vector2i(s.get("size", [768, 576])[0], s.get("size", [768, 576])[1])
 	scene.manual = true
 	add_child(scene)

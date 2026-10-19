@@ -60,7 +60,7 @@ const PAGES := [
 			{"t": 2.4, "right": {"at": [0.2, -0.25, -0.35], "aim": [0.7, 1.0, -0.8]}},
 		], "press": [{"hand": "right", "action": "grab", "from": 0.5, "to": 2.8}]},
 	{"effect": "colour", "length": 3.8, "setup": [{"op": "house", "at": [0, 5.5], "size": [4.5, 4.5], "relative": true, "seconds": 0.3}], "tools": {"right": "colour"},
-		"view": {"look": "side", "back": 0.4},
+		"view": {"look": "side", "back": 0.58},
 		"keys": [
 			{"t": 0.0, "right": {"at": [0.2, -0.32, -0.36], "aim": [-0.07, -0.3, -1.0]}},
 			{"t": 0.9, "right": {"at": [0.2, -0.32, -0.36], "aim": [-0.07, -0.3, -1.0]}},

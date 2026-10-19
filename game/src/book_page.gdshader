@@ -12,12 +12,14 @@ render_mode cull_disabled, diffuse_lambert_wrap;
 uniform float width = 0.15;
 uniform float angle = 0.0;
 uniform float bend = 0.0;
+// How high a resting leaf bows up out of the gutter, as a bound page does.
+uniform float gutter_bow = 0.0;
 uniform sampler2D front_picture : source_color, filter_linear, repeat_disable;
 uniform sampler2D back_picture : source_color, filter_linear, repeat_disable;
 uniform bool front_drawn = false;
 uniform bool back_drawn = false;
-uniform vec3 front_wash : source_color = vec3(0.72, 0.84, 0.92);
-uniform vec3 back_wash : source_color = vec3(0.72, 0.84, 0.92);
+uniform vec3 front_wash : source_color = vec3(0.8, 0.86, 0.86);
+uniform vec3 back_wash : source_color = vec3(0.8, 0.86, 0.86);
 uniform float front_fade = 0.0;
 uniform float back_fade = 0.0;
 uniform float front_seed = 0.0;
@@ -59,8 +61,11 @@ void vertex() {
 	float k = bend * sin(angle) / width;
 	float a = angle - k * x;
 	vec2 at = abs(k) < 1e-4 ? vec2(cos(angle), sin(angle)) * x : vec2(sin(angle) - sin(a), cos(a) - cos(angle)) / k;
-	VERTEX = vec3(at.x, at.y + VERTEX.y, VERTEX.z);
-	NORMAL = vec3(-sin(a), cos(a), 0.0);
+	float rise = gutter_bow * sin(min(x / (width * 0.3), 1.0) * PI * 0.5) * (1.0 - 0.35 * smoothstep(0.3, 1.0, x / width));
+	float slope = gutter_bow * cos(min(x / (width * 0.3), 1.0) * PI * 0.5) * PI * 0.5 / (width * 0.3) * step(x, width * 0.3);
+	vec2 up_ = vec2(-sin(angle), cos(angle)) * (angle > PI * 0.5 ? -1.0 : 1.0);
+	VERTEX = vec3(at.x + up_.x * rise, at.y + up_.y * rise + VERTEX.y, VERTEX.z);
+	NORMAL = normalize(vec3(-sin(a), cos(a), 0.0) - vec3(cos(angle), sin(angle), 0.0) * slope);
 	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
 }
 
@@ -99,7 +104,7 @@ vec4 sprig(vec2 p, vec2 root, float dir, float seed, vec3 bloom) {
 vec3 page(vec2 p, bool drawn, sampler2D picture, vec3 wash, float fade, float seed, float spine_dist) {
 	float grain = fbm(p * 140.0 + seed);
 	vec3 c = paper * (0.95 + 0.06 * grain);
-	c *= mix(0.62, 1.0, smoothstep(0.0, 0.16, spine_dist));
+	c *= mix(0.5, 1.0, smoothstep(0.0, 0.2, spine_dist)) * mix(0.85, 1.0, smoothstep(0.0, 0.06, spine_dist));
 	float edge_dist = min(min(p.x, 1.0 - p.x), min(p.y, 1.0 - p.y));
 	c *= mix(0.86, 1.0, smoothstep(0.0, 0.025 + 0.01 * noise(p * 40.0), edge_dist));
 	if (!drawn) {
@@ -122,16 +127,21 @@ vec3 page(vec2 p, bool drawn, sampler2D picture, vec3 wash, float fade, float se
 	vec4 shot = texture(picture, clamp(uv, vec2(0.0), vec2(1.0)));
 	vec3 sky = mix(paper, wash, 0.45 * (1.0 - smoothstep(0.0, 0.85, uv.y)));
 	sky = mix(sky, paper, clamp((fbm(uv * vec2(5.0, 9.0) + seed) - 0.45) * 0.6, 0.0, 1.0));
-	vec3 pic = mix(sky, shot.rgb, shot.a * (1.0 - fade));
+	vec3 ink_shot = mix(vec3(dot(shot.rgb, vec3(0.3, 0.55, 0.15))), shot.rgb, 1.25) * 0.95;
+	vec3 pic = mix(sky, ink_shot, shot.a * (1.0 - fade));
 	pic = mix(pic, sky, fade * 0.3);
 	pic *= 0.97 + 0.05 * grain;
 	float pool = smoothstep(-0.018, 0.0, d) * inside;
 	pic *= 1.0 - pool * 0.18;
 	c = mix(c, pic, inside);
-	float frame_d = d - 0.022 + (noise(p * 60.0 + seed) - 0.5) * 0.003;
-	float line = 1.0 - smoothstep(0.0007, 0.0018, abs(frame_d));
-	line *= 0.6 + 0.4 * noise(p * 90.0);
-	c = mix(c, ink, line * 0.75);
+	float shade = smoothstep(0.03, 0.0, d - 0.004) * (1.0 - inside);
+	c *= 1.0 - shade * 0.22;
+	float frame_d = d - 0.02 + (noise(p * 60.0 + seed) - 0.5) * 0.003;
+	float line = 1.0 - smoothstep(0.0012, 0.0028, abs(frame_d));
+	line *= 0.7 + 0.3 * noise(p * 90.0);
+	c = mix(c, ink, line * 0.85);
+	float rim = 1.0 - smoothstep(0.0, 0.004, abs(d + 0.001));
+	c = mix(c, mix(ink, leaf, 0.4), rim * 0.55);
 	vec3 bloom = mix(vec3(0.93, 0.6, 0.66), vec3(0.98, 0.84, 0.45), hash(vec2(seed, 2.0)));
 	vec4 s1 = sprig(p, vec2(0.085, 0.8), -0.75 + seed * 0.1, seed, bloom);
 	vec4 s2 = sprig(p, vec2(0.915, 0.12), 2.35, seed + 1.0, mix(bloom, vec3(0.7, 0.75, 0.95), 0.5));

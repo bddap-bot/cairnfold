@@ -8,7 +8,7 @@ extends SubViewport
 
 const SIZE := Vector2i(384, 288)
 const REST := 0.7
-const FADE_S := 0.35
+const FADE_S := 0.25
 ## The picture's meadow lies this far under the eye, a diorama between the hands and the ground, so the hands and
 ## what they act on share one frame; its builds stand at K of the size of a tool model's PROP-fold.
 const GROUND := -0.95
@@ -37,7 +37,8 @@ var _sun_light := DirectionalLight3D.new()
 var _fx := {}
 
 
-func _init(i: int) -> void:
+## `see_through` draws the ghost controllers' shells half clear, so a pressed trigger shows through them.
+func _init(i: int, see_through := false) -> void:
 	index = i
 	page = Lessons.PAGES[i]
 	size = SIZE
@@ -71,7 +72,7 @@ func _init(i: int) -> void:
 	camera.current = true
 	_build_dish()
 	for side in Lessons.hands(page):
-		var pad := Pad.new(side == "right")
+		var pad := Pad.new(side == "right", see_through)
 		pad.scale = Vector3.ONE * GHOST
 		pad.hold(Lessons.tool(page.tools.get(side, "hands")))
 		stage.add_child(pad)
@@ -160,7 +161,7 @@ func advance(delta: float) -> void:
 		t = 0.0
 		if has_method("_reset_" + page.effect):
 			call("_reset_" + page.effect)
-	fade = 1.0 - minf(smoothstep(0.0, FADE_S, t), 1.0 - smoothstep(page.length + REST - FADE_S, page.length + REST, t))
+	fade = 0.7 * (1.0 - minf(smoothstep(0.0, FADE_S, t), 1.0 - smoothstep(page.length + REST - FADE_S, page.length + REST, t)))
 	_pose(minf(t, page.length))
 
 
@@ -393,7 +394,7 @@ func _play_teleport(at: float) -> void:
 
 # Undo and redo: the left hand's lower face button takes the last build away, the right's puts it back.
 func _build_undo() -> void:
-	_fx.wall = _prop(Hand.Tool.WALLS, _dish_at() + K * Vector3(0, 0, 0.1), 1.2)
+	_fx.wall = _prop(Hand.Tool.WALLS, _dish_at() + K * Vector3(0, 0, 0.1), 1.7)
 
 
 func _play_undo(at: float) -> void:
@@ -435,7 +436,7 @@ func _play_hill(at: float) -> void:
 		_mark.position = hit + Vector3.UP * 0.02
 		return
 	var point: Vector3 = _fx.point
-	var lift: float = (y - _fx.from) * Hand.reach_gain(point.distance_to(pads.right.position)) * K * 1.6 if holding else mat.get_shader_parameter("hill_height")
+	var lift: float = (y - _fx.from) * Hand.reach_gain(point.distance_to(pads.right.position)) * K * 2.6 if holding else mat.get_shader_parameter("hill_height")
 	mat.set_shader_parameter("hill_at", Vector2(point.x - dish.position.x, point.z - dish.position.z) / K)
 	mat.set_shader_parameter("hill_height", maxf(lift, 0.0))
 	if holding:

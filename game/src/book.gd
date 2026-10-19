@@ -11,7 +11,7 @@ extends Node3D
 
 const W := 0.15
 const H := 0.15
-const LEAF_T := 0.0022
+const LEAF_T := 0.0028
 const COVER_T := 0.0042
 const OVER := 0.005
 const TILT := deg_to_rad(80.0)
@@ -95,7 +95,7 @@ static func miniature() -> Node3D:
 ## from the controller's top, the hand under its lower edge, under the spine once open.
 static func local(open_k: float) -> Transform3D:
 	var b := Basis(Vector3.RIGHT, TILT)
-	return Transform3D(b, Vector3(0, 0.03, 0.01) + b * Vector3(lerpf(-W * 0.5, 0.0, open_k), 0.0, -H * 0.55))
+	return Transform3D(b, Vector3(0, 0.018, 0.01) + b * Vector3(lerpf(-W * 0.5, 0.0, open_k), 0.0, -H * 0.47))
 
 
 ## Opens the book at its first page.
@@ -252,9 +252,9 @@ func _lay() -> void:
 		(_sheets[2].material_override as ShaderMaterial).set_shader_parameter("bend", 0.55)
 	else:
 		_sheets[2].visible = false
-	_ribbon.visible = at == 0 and _turn.is_empty()
-	_ribbon.position = Vector3(W * 0.62, _stack_top() * 0.5, H * 0.5 - 0.002)
-	_ribbon_mat.set_shader_parameter("glow", 1.0 if live else 0.0)
+	var shut := at == 0 and _turn.is_empty()
+	_ribbon.position = Vector3(W * 0.62, _stack_top() * 0.5, H * 0.5 - 0.002) if shut else Vector3(0.004, _stack_top() * 0.5 + 0.002, H * 0.5 - 0.002)
+	_ribbon_mat.set_shader_parameter("glow", 1.0 if live and shut else 0.0)
 
 
 func _place_block(block: MeshInstance3D, n: int, side: float) -> void:
@@ -263,6 +263,7 @@ func _place_block(block: MeshInstance3D, n: int, side: float) -> void:
 	block.scale = Vector3(W - 0.002, t, H - 0.002)
 	block.position = Vector3(side * W * 0.5, t * 0.5 - 0.0002, 0)
 	(block.material_override as ShaderMaterial).set_shader_parameter("size", block.scale)
+	(block.material_override as ShaderMaterial).set_shader_parameter("fore_side", side)
 
 
 ## Lays `sheet` as leaf `leaf` (leaves + 1: the back cover's inside) at `a`, on a stack `under` leaves deep.
@@ -274,6 +275,7 @@ func _show_sheet(sheet: MeshInstance3D, leaf: int, a: float, under: float) -> vo
 	var mat := sheet.material_override as ShaderMaterial
 	mat.set_shader_parameter("angle", a)
 	mat.set_shader_parameter("bend", 0.0)
+	mat.set_shader_parameter("gutter_bow", 0.006 if sheet != _sheets[2] else 0.0)
 	_set_face(sheet, true, _face(leaf, false))
 	_set_face(sheet, false, _face(leaf, true))
 

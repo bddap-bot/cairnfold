@@ -25,11 +25,12 @@ void fragment() {
 	if (notch > 0.5) {
 		discard;
 	}
-	float sheen = 0.75 + 0.25 * sin(UV.x * 18.0);
+	float sheen = 0.7 + 0.3 * pow(abs(sin(UV.x * 3.14159)), 0.5) + 0.12 * sin(UV.y * 60.0 + UV.x * 9.0);
 	ALBEDO = colour * sheen;
-	ROUGHNESS = 0.4;
-	SPECULAR = 0.5;
+	ROUGHNESS = 0.28;
+	SPECULAR = 0.65;
+	ANISOTROPY = 0.6;
 	float pulse = 0.55 + 0.45 * sin(TIME * 2.4);
 	AO = given.a;
-	EMISSION = ALBEDO * given.rgb + mix(colour, vec3(1.0, 0.42, 0.3), 0.3) * glow * pulse * 1.1;
+	EMISSION = ALBEDO * given.rgb + mix(colour, vec3(1.0, 0.7, 0.35), 0.35) * glow * pulse * 0.75;
 }
