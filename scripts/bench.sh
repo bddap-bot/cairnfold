@@ -258,7 +258,8 @@ if device == "frame":
 elif device == "quest":
     # Only the game's process counts, the one printing the labels. Another process rendering during a phase, as the
     # shell does under an open panel, shares the GPU with the game, so that phase's times are not the game's.
-    label, game_pid = "-", None
+    # A game that dies hands the compositor to the shell, which then renders in its phase: the death is the finding.
+    label, phase, game_pid, crash, done = "-", "-", None, None, False
     shared = {}
     for line in open(os.path.join(out, "logcat.txt"), errors="replace"):
         fields = line.split()
@@ -266,11 +267,20 @@ elif device == "quest":
         m = re.search(r'"op": "label", "name": "([^"]*)"', line)
         if m:
             label, game_pid = m.group(1), pid
+            if label != "-":
+                phase = label
+        if pid == game_pid and "driver: done" in line:
+            done = True
+        m = re.search(r"Fatal signal \d+ \(\w+\).*", line)
+        if m and pid == game_pid and crash is None:
+            crash = f"bench: the game crashed during {phase}: {m.group(0).strip()}; see logcat.txt"
         m = re.search(r"VrApi.*FPS=(\d+)/\d+.*App=([\d.]+)ms", line)
         if m and label != "-" and pid == game_pid:
             gpu.setdefault(label, []).append(float(m.group(2)))
         elif m and label != "-":
             shared.setdefault(label, set()).add(pid)
+    if crash or (game_pid and not done):
+        sys.exit(crash or f"bench: the game died during {phase} before its script ended; see logcat.txt")
     if shared:
         sys.exit("bench: another process rendered during " + ", ".join(f"{k} (pid {', '.join(sorted(v))})" for k, v in shared.items()) + "; see logcat.txt")
     for v in gpu.values():
