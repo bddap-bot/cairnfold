@@ -63,16 +63,18 @@ func begin(p: Vector3, half: float, style := "cobble") -> void:
 	_dirty = true
 
 
-func extend(p: Vector3, half: float) -> void:
+## Carries the drawn stroke on to `p`; whether that laid a new point.
+func extend(p: Vector3, half: float) -> bool:
 	var pts := drawing.points
 	if Commands.length(pts) >= Commands.STROKE_LENGTH or pts.size() >= Commands.MAX_PATH_POINTS:
-		return
+		return false
+	_dirty = true
 	if pts.size() >= 2 and pts[-1].distance_to(pts[-2]) < WallTool.POINT_SPACING:
 		pts[-1] = p
 		drawing.half_widths[-1] = maxf(drawing.half_widths[-1], clampf(half, PathLayout.HALF_WIDTH.x, PathLayout.HALF_WIDTH.y))
-	else:
-		drawing.add(p, half)
-	_dirty = true
+		return false
+	drawing.add(p, half)
+	return true
 
 
 ## Finishes the stroke as a ghost, its stones and wear left standing until `drop`: the path's data for a

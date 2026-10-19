@@ -284,10 +284,9 @@ func begin_path(b: Brush, at: Vector3, radius: float) -> void:
 
 
 func extend_path(at: Vector3, radius: float, hand: Hand = null) -> void:
-	var laid := paths.drawing.points.size()
-	paths.extend(at, radius)
+	var laid := paths.extend(at, radius)
 	planted.emit()
-	if paths.drawing.points.size() > laid:
+	if laid:
 		Cues.play(Cues.Act.PATH_LAY, at, hand)
 
 
