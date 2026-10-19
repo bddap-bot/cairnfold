@@ -1904,14 +1904,25 @@ the real hands and tools in a garden and checks the effect the page shows (the w
 input builds a stretched house, and so on), and that every action it presses is still in `Controls.ACTIONS` on that
 hand. A control changed or removed turns `scripts/test.sh` red until its page is redrawn.
 
-Only faces of an open book in view render, each every other frame; a shut or tucked book renders no page. On the
+Only faces of an open book render, each every other frame, and only while the book lies within 60° of where the head
+faces; a shut or tucked book renders no page. On the
 desktop renderer (RTX 2080, 1600×1200, `demo/book-cost.json`, the renderer's timestamps around each viewport), a page
 renders in 0.28 ms at 384×288, so an open spread costs its pages 0.17 ms a frame; the garden's own view rose from 6.85 ms
 with the book tucked to 7.16 ms with it shut in the hand and 7.5 to 8.0 ms open, the paper's shading over its pixels.
 The painted pages (384×358) cost no more: run beside the earlier build, four times each under the same load, the garden
 view read 8.07 ms against 8.14 open on the first spread and 8.13 against 8.40 on a later one, its pages 0.21 ms a frame
 in both; the backdrop is painted only where the picture leaves paper showing, and the paper's grain lost an octave and
-the ink line reads the picture's alpha by its screen derivative to pay for it. The Quest 2 has not measured it yet.
+the ink line reads the picture's alpha by its screen derivative to pay for it.
+
+On a Quest 2 (`scripts/bench.sh`; App GPU time with the book open on its first spread, paired against it tucked away in
+the same run, six pairs a run, `book/` phases in the stress scene) these pages cost 2.4 ms a frame (2.36 and 2.48 ms in
+two runs), a fifth of the budget: the paper's procedural paint and the cover's stamp, evaluated for every pixel of both
+eyes each frame, and the layers under the leaves shaded before the leaves covered them. Now each page face and the
+front cover's top are painted once into textures as the game starts (`book_paint.gdshader`, `Book._bake`); the page
+shader reads its paint and paints only the picture's backdrop live, where the picture leaves it showing. The book draws
+its top layer first (`Book.Layer`), its page blocks have no top or bottom, its boards' insides are only the margin
+around the pages and the endpaper hides under a leaf. The open book now costs 0.8 ms (0.90 and 0.76 ms), the page's own
+render about 0.3 ms of it. `Budget.BOOK_OPEN_MS` keeps the figure.
 
 ## Flat-screen controls
 
