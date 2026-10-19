@@ -1972,20 +1972,26 @@ sound costs no frame time.
   melodies in octaves 3–5, harmonics cut off below 3 kHz, a dark reverb. Keep it
   that way: no stacked high registers and almost no energy above 2 kHz.
 - Effects: every player action's sound and feel come from one table (see "Action feedback").
-- Animal calls: recordings of real conures, ducks, ducklings and sheep, all CC0, cut
+- Animal calls: recordings of real conures, ducks, ducklings, sheep, deer and foxes, all CC0, cut
   by `scripts/animals.py` from the recordings `game/audio/animals/sources.json` lists
   with their page, author and licence (`nix-shell --run 'python3 scripts/animals.py'`).
   The script filters out rumble and hiss, rolls the highs off from 2.6 to 3.5 kHz,
-  takes the conures three semitones down to sit with the meadow bed's birds, and
+  takes the conures and the fox three semitones down to sit with the meadow bed's birds, and
   levels every call alike; `tests/test_animals.py` holds every clip under 2% of its
   energy above 4 kHz. Conures get soft chirps, beak clicks and murmurs, never their
   contact calls. `Calls` plays them at the animal, sparse and under the music: each
   kind waits 8–14 s between calls and any two are 3 s apart, no clip plays twice
-  running, pitch and level vary a little, the voices never get louder than at 2 m,
-  and the distance rolls their highs off further. A duck quacks as it splashes down and
+  running, pitch and level vary a little, the voices fall off from 6 m and never pass
+  full level, and the distance takes up to 12 dB off above 3 kHz. Report (verbatim): "I am not
+  hearing any sound coming from these animals right now. Is there supposed to be sound in the game right now".
+  At 2 m and 6 dB lower, with the distance taking 24 dB off above 3 kHz, a call from an animal 5 to 10 m off
+  reached the player 18 to 28 dB under the music, which a render of `demo/animals.json` could not tell from
+  no call at all. A duck quacks as it splashes down and
   now and then while swimming or resting, its ducklings peep; a perched conure
   chatters and chirps now and then, and chirps on landing, and chatters as it pecks
-  in the grass; a settled sheep bleats every few minutes. An animal within 2.5 m of
+  in the grass; a settled sheep bleats about once a minute and a quarter, a settled deer
+  mews about every minute and a half, and a fox yips about every two and a half. Fish make
+  no call: their nibbles are water sounds. An animal within 2.5 m of
   the head makes no call of its own: it stays calm, and only a duck splashing down
   still quacks there.
   `NESTCOMBE_QUIT_AFTER=420 scripts/render.sh demo/animals.json OUT --write-movie
@@ -2045,7 +2051,7 @@ Every player action, from the code:
 | `HOUSE_STRETCH` | A house in hand is stretched between two hands | wooden bow creak, higher as it goes | a pulse tightening with it |
 | `STAIRS_LAY` | A stair being drawn gains a step | stone clack | tick |
 | `STAIRS_SET` | A stair is let go and fits | settling rattle | two knocks |
-| `FITTING` | A window, door, chimney, flag or lantern goes in | wooden knock | knock |
+| `FITTING` | A window, door, arch, chimney, flag or lantern goes in | wooden knock | knock |
 | `FITTING_OFF` | One is taken away | lower wooden knock | lighter knock |
 | `FLORA_PAINT` | Flowers or grass are painted | leaf rustle | light grain |
 | `STONE_PAINT` | Stone ground is painted, or painted back to meadow | gravel crunch | light grain |
@@ -2097,7 +2103,7 @@ Every player action, from the code:
 | Opening the colour or style wheel | Trigger held on a build | its first step is the first `DIAL_TURN` |
 | Aiming a teleport | Holding the left stick forward | the arc and rings show it; only the jump itself is heard |
 | Walking (flat) | Stick or keys | footsteps on every frame of a walk would tire; the flat build has no controller to feel |
-| Animals fleeing, a duck paddling off, fish scattering | Wildlife reacting to a person nearby | each animal's own calls stay theirs (see "Sound"); a grazer running on grass and fish under water make no sound worth adding |
+| Animals fleeing, a duck paddling off, fish scattering | Wildlife reacting to a person nearby | each animal's own calls (see "Sound") are what is heard of it; a grazer running on grass and fish under water make no sound worth adding, and nothing touches the hand |
 
 ## Wildlife
 

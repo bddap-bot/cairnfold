@@ -33,7 +33,7 @@ const FLEE := Vector2(2.5, 4.0)
 ## A sheep walks up to seeds held out below its head and nibbles them, its muzzle at the hand.
 static var appetite := Wildlife.Appetite.new(Wildlife.Eat.UNDER_HAND, 4.0, 0.9, 0.55, Vector2(6.0, 12.0), Vector2(10.0, 25.0))
 ## Seconds, on average, between one settled sheep's bleats.
-const BLEAT_EVERY := 150.0
+const BLEAT_EVERY := 75.0
 
 ## Fences long enough to graze beside, as of the last look.
 var pastures: Array[Wall] = []

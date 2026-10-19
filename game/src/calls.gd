@@ -6,12 +6,16 @@ extends Node3D
 ## any two calls are a little apart, no clip plays twice running, and an animal near the head stays calm.
 
 ## Clips per call, and the least time between two calls of it.
-const CLIPS := {"chirp": 6, "chatter": 4, "quack": 4, "peep": 4, "bleat": 10}
-const GAP := {"chirp": 8.0, "chatter": 10.0, "quack": 8.0, "peep": 12.0, "bleat": 14.0}
-## Level at UNIT metres, before the distance falls it off: the conures' softest, as their calls are the highest.
-const LEVEL := {"chirp": -15.0, "chatter": -14.0, "quack": -9.0, "peep": -16.0, "bleat": -10.0}
+const CLIPS := {"chirp": 6, "chatter": 4, "quack": 4, "peep": 4, "bleat": 10, "mew": 6, "yip": 4}
+const GAP := {"chirp": 8.0, "chatter": 10.0, "quack": 8.0, "peep": 12.0, "bleat": 14.0, "mew": 12.0, "yip": 20.0}
+## Level at UNIT metres, before the distance falls it off: the conures' softest, as their calls are the highest. At 2 m
+## and 6 dB lower, an animal 5 to 10 m off called 18 to 28 dB under the music, which no one heard.
+const LEVEL := {"chirp": -9.0, "chatter": -8.0, "quack": -3.0, "peep": -10.0, "bleat": -4.0, "mew": -6.0, "yip": -9.0}
 const ANY_GAP := 3.0
-const UNIT := 2.0
+const UNIT := 6.0
+## How much the distance takes off above CUTOFF Hz; the clips are already rolled off there.
+const FAR_SHELF := -12.0
+const CUTOFF := 3000.0
 ## An animal nearer the head than this makes no call of its own, only those its doings bring.
 const CALM := 2.5
 const VOICES := 4
@@ -40,7 +44,8 @@ func _init(eyes: Node3D, seed: int) -> void:
 		v.unit_size = UNIT
 		v.max_db = 0.0
 		v.max_distance = 45.0
-		v.attenuation_filter_cutoff_hz = 3000.0
+		v.attenuation_filter_cutoff_hz = CUTOFF
+		v.attenuation_filter_db = FAR_SHELF
 		_voices.append(v)
 		add_child(v)
 

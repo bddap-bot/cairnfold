@@ -35,6 +35,8 @@ const EATING_STARTLE := 0.4
 ## A watched person keeping still for CALM_FOR lets it settle, and each such spell lets one come CLOSER nearer
 ## before it runs, down to NEAREST of FLIGHT.
 const CALM_FOR := 6.0
+## A settled deer mews, and a fox yips, about once in this many seconds.
+const CALLS := {Beast.Kind.DEER: ["mew", 90.0], Beast.Kind.FOX: ["yip", 150.0]}
 const CLOSER := 0.12
 const NEAREST := 0.35
 static var appetite := {
@@ -163,6 +165,10 @@ func _other(_b: Band, a: Node3D, delta: float) -> void:
 		a.timer = CALM_FOR
 	else:
 		_graze(a)
+
+
+func _settled_tick(a: Node3D, delta: float) -> void:
+	wildlife.calls.now_and_then(CALLS[a.kind][0], a.position, CALLS[a.kind][1], delta)
 
 
 func _after_flight(a: Node3D) -> void:

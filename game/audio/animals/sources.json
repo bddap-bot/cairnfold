@@ -81,5 +81,23 @@
   "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
   "kind": "sheep",
   "clips": {"bleat8": [[6.88, 1.3]], "bleat9": [[13.6, 1.3]]}
+ },
+ {
+  "page": "https://freesound.org/people/msantoro11/sounds/351113/",
+  "audio": "https://cdn.freesound.org/previews/351/351113_4790684-hq.mp3",
+  "title": "Deer Meewing 01.wav",
+  "author": "msantoro11",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "deer",
+  "clips": {"mew0": [[4.49, 0.49]], "mew1": [[5.35, 0.47]], "mew2": [[6.43, 0.53]], "mew3": [[7.55, 0.57]], "mew4": [[10.93, 0.55]], "mew5": [[12.65, 0.55]]}
+ },
+ {
+  "page": "https://freesound.org/people/naturenotesuk/sounds/530123/",
+  "audio": "https://cdn.freesound.org/previews/530/530123_7455632-hq.mp3",
+  "title": "Quarrelling Foxes",
+  "author": "naturenotesuk",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "kind": "fox",
+  "clips": {"yip0": [[8.51, 0.28]], "yip1": [[13.11, 0.24]], "yip2": [[45.23, 0.24]], "yip3": [[48.79, 0.24]]}
  }
 ]
