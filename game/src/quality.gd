@@ -44,8 +44,13 @@ static var ladder: Array[Step] = [
 ]
 ## The share of each eye's width and height the Steam Frame renders the 3D scene at, upscaled to it, above the ladder's
 ## last step. Changing it reallocates the scene's buffers, a 25 to 72 ms frame on the Frame, so only the last step,
-## reached when every cheaper one has failed, changes it. The Quest 2 starts at its full resolution.
+## reached when every cheaper one has failed, changes it.
 const FRAME_SCALE_3D := 0.9
+## The share of each eye's width and height the Quest 2's runtime is asked for (render_target_size_multiplier), held
+## for the session: its scene is bound by fragments, and at its full size the bare meadow took 16.5 ms a frame at the
+## ladder's bottom against 12.5. A smaller swapchain draws the same single pass, which the 3D scale does not on the
+## Quest 2's driver; the compositor stretches it to the display.
+const QUEST_2_RENDER_SCALE := 0.7
 ## What the ladder cuts is drawn on LADDER_LAYER, which the headset's views see, and again whole on FULL_LAYER, which
 ## only a photo sees (PhotoTool): grass and flowers to the garden's edge, every stone whole, ivy at every distance.
 ## Shaders that shrink things with distance take the photo's camera by `full_layer` (full_detail).
@@ -93,6 +98,11 @@ func _ready() -> void:
 		view.scaling_3d_scale = _scale
 		print("quality: 3D resolution %.2f" % _scale)
 	RenderingServer.viewport_set_measure_render_time(view.get_viewport_rid(), true)
+
+
+## What share of the runtime's eye size a headset of `model` (OS.get_model_name) is drawn at.
+static func render_scale(model: String) -> float:
+	return QUEST_2_RENDER_SCALE if model == "Quest 2" else 1.0
 
 
 ## The levels a step up into would switch the sun's shadows or the 3D resolution back, which shows at once across the

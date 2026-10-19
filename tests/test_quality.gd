@@ -28,6 +28,7 @@ func _initialize() -> void:
 	_a_step_under_way_is_judged_only_by_frames_over_budget()
 	_a_pause_is_not_every_other_refresh()
 	_every_other_refresh_held_by_the_cpu_steps_nothing_down()
+	_only_the_quest_2_draws_a_smaller_swapchain()
 	_an_unsettled_step_is_not_followed_into_one_that_pops()
 	_a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -230,6 +231,12 @@ func _every_other_refresh_steps_down_whatever_the_timer_reads() -> void:
 	for i in 36 * 15:
 		g.step(BUDGET * 0.7, BUDGET, DT * 2.0)
 	_check(g.level == 10, "and it keeps stepping down, never up, while the runtime holds that rate")
+
+
+func _only_the_quest_2_draws_a_smaller_swapchain() -> void:
+	_check(Quality.render_scale("Quest 2") == Quality.QUEST_2_RENDER_SCALE, "the Quest 2 draws its smaller swapchain")
+	_check(Quality.render_scale("Quest 3") == 1.0, "a Quest 3 draws the runtime's own size")
+	_check(Quality.render_scale("") == 1.0, "a machine with no model name draws the runtime's own size")
 
 
 func _every_other_refresh_held_by_the_cpu_steps_nothing_down() -> void:

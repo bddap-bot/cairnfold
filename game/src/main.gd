@@ -226,8 +226,7 @@ func _start_xr() -> bool:
 	xr = XRServer.find_interface("OpenXR")
 	if args.has("desktop") or xr == null or not xr.is_initialized():
 		return false
-	if args.has("render-scale"):
-		xr.render_target_size_multiplier = float(args["render-scale"])
+	xr.render_target_size_multiplier = float(args.get("render-scale", Quality.render_scale(OS.get_model_name())))
 	var vp := get_viewport()
 	vp.use_xr = true
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
