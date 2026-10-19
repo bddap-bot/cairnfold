@@ -187,6 +187,11 @@ func _shut_book_turns_nothing() -> void:
 	rig.right.global_transform = Transform3D(Basis.IDENTITY, cover)
 	await _frames(int(Book.OPEN_S * 60) + 10)
 	_check(book.at == 1, "the right hand touching the cover opens the book at its first page: leaf %d" % book.at)
+	_check(not book.faces_in_view().is_empty(), "the open book in view renders its pages")
+	var facing := rig.head.global_transform
+	rig.head.global_basis = facing.basis.rotated(Vector3.UP, PI)
+	_check(book.faces_in_view().is_empty(), "the head looking away from the book stops its pages")
+	rig.head.global_transform = facing
 	rig.left.tool = Hand.Tool.WALLS
 	await _frames(30)
 	_check(not book.visible and book.faces_in_view().is_empty(), "taking another tool tucks the book away and stops its pages")

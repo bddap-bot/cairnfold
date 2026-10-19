@@ -22,7 +22,22 @@ const TUCK_S := 0.2
 const NEAR := 0.07
 const SWEEP := 0.06
 const TOUCH := 0.05
+const BOARD := Vector3(W + OVER, COVER_T, H + OVER * 2.0)
 const PAGE_HZ_DIVIDER := 2
+## Opaque draws go in ascending render_priority, so the book, after the garden at 0, draws its top layer first and
+## what lies under it, the blocks under the leaves, the endpaper and the boards, fails the depth test unshaded: drawn
+## in any order they cost the open book about a millisecond of a Quest 2's frame.
+enum Layer { SHEET = 1, BLOCK, INSIDE, BOARD }
+## Pages render only while the book lies within this angle's cosine of where the head faces.
+const LOOK_COS := 0.5
+## Each face's fixed paint bakes once at this many pixels a side.
+const PAINT_PX := 512
+
+## Per face, (page, 0 for a leaf's front or 1 its back) with -1 the endpaper, its baked paint and grain, and under
+## COVER the front cover's top (book_paint.gdshader), filled by the first live book.
+const COVER := "cover"
+static var _paint := {}
+static var _baking := false
 
 var leaves := ceili(Lessons.PAGES.size() / 2.0)
 ## Leaves turned, the cover the first of them: 0 shut, 1 open at the first page.
@@ -40,6 +55,8 @@ var _left_block: MeshInstance3D
 var _right_block: MeshInstance3D
 var _back_cover: MeshInstance3D
 var _sheets: Array[MeshInstance3D] = []
+var _inside: MeshInstance3D
+var _front: ShaderMaterial
 var _ribbon: MeshInstance3D
 var _ribbon_mat: ShaderMaterial
 var _frame := 0
@@ -54,13 +71,13 @@ func _init(live_pages := true) -> void:
 	_cover = Node3D.new()
 	add_child(_cover)
 	var front := _board(true)
+	_front = front.material_override
 	front.position = Vector3(W * 0.5 + OVER * 0.5, COVER_T * 0.5, 0)
 	_cover.add_child(front)
-	var inside := _sheet()
-	inside.transform = Transform3D(Basis(Vector3.RIGHT, PI), Vector3(0, -0.0003, 0))
-	_set_face(inside, true, -1)
-	_set_face(inside, false, -1)
-	_cover.add_child(inside)
+	_inside = _sheet()
+	_inside.material_override.render_priority = Layer.INSIDE
+	_inside.transform = Transform3D(Basis(Vector3.RIGHT, PI), Vector3(0, -0.0003, 0))
+	_cover.add_child(_inside)
 	_left_block = _block()
 	_right_block = _block()
 	for i in 3:
@@ -78,6 +95,49 @@ func _init(live_pages := true) -> void:
 	_ribbon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_ribbon)
 	_lay()
+
+
+func _ready() -> void:
+	if live and not _baking and RenderingServer.get_rendering_device() != null:
+		_baking = true
+		_bake()
+
+
+## Paints each face, and the front cover's top, once into textures, one a frame, rather than every pixel every frame.
+## With no renderer (headless) they stay unpainted.
+func _bake() -> void:
+	var vp := SubViewport.new()
+	vp.disable_3d = true
+	vp.transparent_bg = true
+	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
+	var rect := ColorRect.new()
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://src/book_paint.gdshader")
+	mat.set_shader_parameter("board", BOARD)
+	rect.material = mat
+	vp.size = Vector2i.ONE * PAINT_PX
+	rect.size = vp.size
+	vp.add_child(rect)
+	add_child(vp)
+	var parts := {COVER: [2, 3]}
+	for page in range(-1, Lessons.PAGES.size()):
+		for back in ([0, 1] if page < 0 else [page % 2]):
+			parts[Vector2i(page, back)] = [0, 1]
+	for key in parts:
+		if key is Vector2i:
+			mat.set_shader_parameter("face_seed", float(key.x) * 1.7 + 0.3)
+			mat.set_shader_parameter("face_drawn", key.x >= 0)
+			mat.set_shader_parameter("back_face", key.y == 1)
+		var art: Array[Texture2D] = []
+		for part: int in parts[key]:
+			mat.set_shader_parameter("part", part)
+			vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+			await RenderingServer.frame_post_draw
+			var img := vp.get_texture().get_image()
+			img.generate_mipmaps()
+			art.append(ImageTexture.create_from_image(img))
+		_paint[key] = art
+	vp.queue_free()
 
 
 ## A shut book a few centimetres across, for the wheel and for a ghost hand that holds it.
@@ -141,10 +201,12 @@ func feel(tip: Vector3) -> void:
 		turn(-1)
 
 
-## The page indices whose faces are in view, each rendering.
+## The page indices whose faces are in view, each rendering: none while the head looks away from the book.
 func faces_in_view() -> Array[int]:
 	var out: Array[int] = []
 	if not visible or _shown_k < 0.99:
+		return out
+	if rig != null and (global_position - rig.head.global_position).normalized().dot(-rig.head.global_basis.z) < LOOK_COS:
 		return out
 	for f in [_sheets[0].get_meta("back", -1) if _sheets[0].visible else -1, _sheets[1].get_meta("front", -1) if _sheets[1].visible else -1,
 			_sheets[2].get_meta("front", -1) if _sheets[2].visible else -1, _sheets[2].get_meta("back", -1) if _sheets[2].visible else -1]:
@@ -252,6 +314,13 @@ func _lay() -> void:
 		(_sheets[2].material_override as ShaderMaterial).set_shader_parameter("bend", 0.55)
 	else:
 		_sheets[2].visible = false
+	_inside.visible = left_n == 0
+	_set_face(_inside, true, -1)
+	_set_face(_inside, false, -1)
+	if not _front.get_shader_parameter("baked") and _paint.has(COVER):
+		_front.set_shader_parameter("cover_paint", _paint[COVER][0])
+		_front.set_shader_parameter("cover_rough", _paint[COVER][1])
+		_front.set_shader_parameter("baked", true)
 	var shut := at == 0 and _turn.is_empty()
 	_ribbon.position = Vector3(W * 0.62, _stack_top() * 0.5, H * 0.5 - 0.002) if shut else Vector3(0.004, _stack_top() * 0.5 + 0.002, H * 0.5 - 0.002)
 	_ribbon_mat.set_shader_parameter("glow", 1.0 if live and shut else 0.0)
@@ -290,14 +359,18 @@ func _face(leaf: int, back: bool) -> int:
 
 func _set_face(sheet: MeshInstance3D, front: bool, page: int) -> void:
 	var key := "front" if front else "back"
-	if sheet.get_meta(key, -2) == page:
-		return
-	sheet.set_meta(key, page)
 	var mat := sheet.material_override as ShaderMaterial
-	mat.set_shader_parameter(key + "_drawn", page >= 0 and live)
-	mat.set_shader_parameter(key + "_seed", float(page) * 1.7 + 0.3)
-	if page >= 0 and live:
-		mat.set_shader_parameter(key + "_picture", _scene(page).get_texture())
+	if sheet.get_meta(key, -2) != page:
+		sheet.set_meta(key, page)
+		sheet.set_meta(key + "_painted", false)
+		mat.set_shader_parameter(key + "_seed", float(page) * 1.7 + 0.3)
+		if page >= 0 and live:
+			mat.set_shader_parameter(key + "_picture", _scene(page).get_texture())
+	var art := Vector2i(page if live else -1, 0 if front else 1)
+	if not sheet.get_meta(key + "_painted") and _paint.has(art):
+		sheet.set_meta(key + "_painted", true)
+		mat.set_shader_parameter(key + "_paint", _paint[art][0])
+		mat.set_shader_parameter(key + "_grain", _paint[art][1])
 
 
 func _scene(page: int) -> LessonScene:
@@ -328,8 +401,10 @@ func _render_pages() -> void:
 
 
 static var _page_mesh: PlaneMesh
-static var _board_mesh: BoxMesh
-static var _block_mesh: BoxMesh
+## Per board (front or back), its box with the inside cut to the margin left around the pages.
+static var _boards := {}
+## A block's top lies under the leaf on it and its bottom on a board, so it has neither.
+static var _block_mesh: ArrayMesh
 
 
 func _sheet() -> MeshInstance3D:
@@ -343,33 +418,92 @@ func _sheet() -> MeshInstance3D:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/book_page.gdshader")
 	mat.set_shader_parameter("width", W)
+	mat.render_priority = Layer.SHEET
 	mi.material_override = mat
 	mi.extra_cull_margin = W
 	return mi
 
 
 func _board(front: bool) -> MeshInstance3D:
-	if _board_mesh == null:
-		_board_mesh = BoxMesh.new()
-		_board_mesh.size = Vector3(W + OVER, COVER_T, H + OVER * 2.0)
+	if not _boards.has(front):
+		_boards[front] = _framed_board(-1.0 if front else 1.0)
 	var mi := MeshInstance3D.new()
-	mi.mesh = _board_mesh
+	mi.mesh = _boards[front]
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/book.gdshader")
-	mat.set_shader_parameter("size", _board_mesh.size)
+	mat.set_shader_parameter("size", BOARD)
 	mat.set_shader_parameter("front", front)
+	mat.render_priority = Layer.BOARD
 	mi.material_override = mat
 	return mi
 
 
 func _block() -> MeshInstance3D:
 	if _block_mesh == null:
-		_block_mesh = BoxMesh.new()
+		_block_mesh = _sides()
 	var mi := MeshInstance3D.new()
 	mi.mesh = _block_mesh
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/book.gdshader")
 	mat.set_shader_parameter("kind", 1)
+	mat.render_priority = Layer.BLOCK
 	mi.material_override = mat
 	add_child(mi)
 	return mi
+
+
+## A unit box's four sides.
+static func _sides() -> ArrayMesh:
+	var box := BoxMesh.new()
+	var arrays := box.get_mesh_arrays()
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var all: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var kept := PackedInt32Array()
+	for i in range(0, all.size(), 3):
+		if absf(normals[all[i]].y) < 0.5:
+			kept.append_array([all[i], all[i + 1], all[i + 2]])
+	arrays[Mesh.ARRAY_INDEX] = kept
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
+
+
+## A board whose inside, the face with normal y `inside`, is only the margin around the pages: under the pages it is
+## never seen.
+static func _framed_board(inside: float) -> ArrayMesh:
+	var box := BoxMesh.new()
+	box.size = BOARD
+	var arrays := box.get_mesh_arrays()
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
+	var all: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+	var from := PackedInt32Array()
+	var at := PackedVector3Array()
+	var face := PackedInt32Array()
+	for i in range(0, all.size(), 3):
+		for j in all.slice(i, i + 3):
+			if roundf(normals[all[i]].y) == inside:
+				face.append(j)
+			else:
+				from.append(j)
+				at.append(verts[j])
+	var h := BOARD * 0.5
+	var fore := W - h.x
+	for strip: Array in [[fore, h.x, -h.z, h.z], [-h.x, fore, -h.z, -H * 0.5], [-h.x, fore, H * 0.5, h.z]]:
+		for j in face:
+			from.append(j)
+			at.append(Vector3(strip[1] if verts[j].x > 0.0 else strip[0], verts[j].y, strip[3] if verts[j].z > 0.0 else strip[2]))
+	var out := []
+	out.resize(Mesh.ARRAY_MAX)
+	out[Mesh.ARRAY_VERTEX] = at
+	out[Mesh.ARRAY_NORMAL] = PackedVector3Array(Array(from).map(func(j: int) -> Vector3: return normals[j]))
+	out[Mesh.ARRAY_TEX_UV] = PackedVector2Array(Array(from).map(func(j: int) -> Vector2: return uvs[j]))
+	var t := PackedFloat32Array()
+	for j in from:
+		t.append_array(tangents.slice(j * 4, j * 4 + 4))
+	out[Mesh.ARRAY_TANGENT] = t
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out)
+	return mesh
