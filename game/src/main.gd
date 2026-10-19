@@ -136,6 +136,9 @@ func _ready() -> void:
 		var stair := world.stairs.pick(origin, dir, reach if build == null else origin.distance_to(build))
 		return build if stair.is_empty() else stair.point
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
+	var drawn := Quality.session(OS.get_model_name())
+	get_viewport().msaa_3d = drawn.msaa
+	look.env.reflected_light_source = drawn.reflections
 	metrics = Metrics.new(args.get("metrics", ""))
 	metrics.info = {"xr": _start_xr(), "label": "-", "budget": Budget.info()}
 	metrics.info.flat = Main.flat_wanted(args, metrics.info.xr, played)
@@ -226,7 +229,7 @@ func _start_xr() -> bool:
 	xr = XRServer.find_interface("OpenXR")
 	if args.has("desktop") or xr == null or not xr.is_initialized():
 		return false
-	xr.render_target_size_multiplier = float(args.get("render-scale", Quality.render_scale(OS.get_model_name())))
+	xr.render_target_size_multiplier = float(args.get("render-scale", Quality.session(OS.get_model_name()).render_scale))
 	var vp := get_viewport()
 	vp.use_xr = true
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)

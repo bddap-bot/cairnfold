@@ -75,7 +75,7 @@ func photo_viewport() -> SubViewport:
 
 func _view_viewport() -> SubViewport:
 	if _view == null:
-		_view = _viewport(VIEW_SIZE, Viewport.MSAA_4X)
+		_view = _viewport(VIEW_SIZE, get_viewport().msaa_3d)
 	return _view
 
 

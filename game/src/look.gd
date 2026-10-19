@@ -128,7 +128,7 @@ static func build(parent: Node) -> Look:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_sky_contribution = 1.0
-	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
+	env.reflected_light_source = Quality.HEADSET.reflections
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
 	env.tonemap_exposure = EXPOSURE
 	env.fog_enabled = true

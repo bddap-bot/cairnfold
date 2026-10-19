@@ -20,7 +20,10 @@ uniform vec3 bed : source_color = vec3(0.50, 0.44, 0.32);
 
 varying vec3 world_pos;
 varying float steep;
-varying vec3 bounce_at;
+// What the builds give back and the sky seen, read per vertex: the volumes hold a probe a grid cell, as the vertices
+// lie, and the Quest 2 is bound by ground fragments.
+varying vec3 given;
+varying float sky_seen;
 varying vec3 meadow_lush;
 varying vec3 meadow_dry;
 
@@ -31,7 +34,10 @@ void vertex() {
 	NORMAL = ground_normal(world_pos.xz);
 	// Per vertex: the height grid's texels are these vertices, and the Quest 2 is bound by ground fragments.
 	steep = ground_humps[0].w != 0.0 || ground_humps[1].w != 0.0 ? 1.0 - NORMAL.y : ground_steepness(world_pos.xz);
-	bounce_at = bounce_on_ground(world_pos.xz);
+	vec3 bounce_at = bounce_on_ground(world_pos.xz);
+	vec4 bounce = textureLod(bounce_volume, bounce_at, 0.0);
+	given = given_back(bounce_at, bounce_at, bounce);
+	sky_seen = bounce.a;
 	meadow_lush = blade_color(blade_top(0.0, 0.5), canopy);
 	meadow_dry = blade_color(blade_top(1.0, 0.5), canopy);
 }
@@ -74,7 +80,6 @@ void fragment() {
 	}
 	ALBEDO = mix(c, trodden * (0.85 + fine * 0.3), smoothstep(0.1, 0.7, cover.r * (1.0 - cover.g) + (d - 0.5) * 0.3));
 	ROUGHNESS = 1.0;
-	vec4 bounce = texture(bounce_volume, bounce_at);
-	AO = bounce.a;
-	EMISSION = ALBEDO * given_back(bounce_at, bounce_at, bounce);
+	AO = sky_seen;
+	EMISSION = ALBEDO * given;
 }

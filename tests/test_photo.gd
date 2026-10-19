@@ -144,7 +144,7 @@ func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
 	_check(vp.mesh_lod_threshold == 0.0 and vp.anisotropic_filtering_level == Viewport.ANISOTROPY_16X, "a photo draws every mesh whole and filters textures 16x")
 	_check(Quality.PHOTO_MASK & Quality.FULL_LAYER and not Quality.PHOTO_MASK & Quality.LADDER_LAYER and Quality.PHOTO_MASK & Rig.SELF_LAYER, "a photo sees the whole garden, not the ladder's cut of it, and the player's own avatar")
 	_check(rig.head.cull_mask & Quality.LADDER_LAYER and not rig.head.cull_mask & Quality.FULL_LAYER, "the headset sees the ladder's cut and not the whole")
-	_check(Quality.VIEW_MASK & Quality.LADDER_LAYER and not Quality.VIEW_MASK & Quality.FULL_LAYER and tool._view_viewport().msaa_3d == Viewport.MSAA_4X, "a view capture is drawn as the eyes see it")
+	_check(Quality.VIEW_MASK & Quality.LADDER_LAYER and not Quality.VIEW_MASK & Quality.FULL_LAYER and tool._view_viewport().msaa_3d == tool.get_viewport().msaa_3d, "a view capture is drawn as the eyes see it")
 	var flora := Flora.new()
 	root.add_child(flora)
 	flora.blob_detail = Quality.ladder[-1].blob_detail
