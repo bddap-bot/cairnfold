@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes every sound in game/audio: the music sections as three synchronized stems
-each, the meadow bed, the stone sounds and the water sounds. Deterministic; run under nix-shell."""
+each, the meadow bed, the stone sounds, the water sounds and the other action sounds. Deterministic; run under nix-shell."""
 
 import json
 import pathlib
@@ -77,7 +77,7 @@ def hz(m):
     return 440.0 * 2 ** ((m - 69) / 12)
 
 
-def pluck(m, dur, vel):
+def pluck(m, dur, vel, g=rng):
     f = hz(m)
     t = _t(dur + 2.0)
     out = np.zeros_like(t)
@@ -86,7 +86,7 @@ def pluck(m, dur, vel):
         if fk > 3000:
             break
         decay = (1.0 + 1.7 * (k - 1)) * (f / 300) ** 0.35
-        out += k ** -1.9 * np.exp(-t * decay) * np.sin(2 * np.pi * fk * t + rng.uniform(0, 6.28))
+        out += k ** -1.9 * np.exp(-t * decay) * np.sin(2 * np.pi * fk * t + g.uniform(0, 6.28))
     out *= 1 - np.exp(-t / 0.005)
     out *= np.where(t > dur, np.exp(-(t - dur) / 0.35), 1.0)
     return vel * out
@@ -321,21 +321,21 @@ def sections():
 
 # ---------------------------------------------------------------- effects
 
-def _clack(fund, decay, bright):
+def _clack(fund, decay, bright, g=rng):
     t = _t(0.35)
     out = np.zeros_like(t)
     for ratio, amp in ((1.0, 1.0), (2.32, 0.5), (3.71, 0.25 * bright), (5.4, 0.1 * bright)):
-        out += amp * np.exp(-t * decay * ratio**0.6) * np.sin(2 * np.pi * fund * ratio * t + rng.uniform(0, 6.28))
+        out += amp * np.exp(-t * decay * ratio**0.6) * np.sin(2 * np.pi * fund * ratio * t + g.uniform(0, 6.28))
     thud = np.exp(-t * 40) * np.sin(2 * np.pi * 95 * t)
-    grit = _fft_lowpass(rng.standard_normal(len(t)) * np.exp(-t * 90), 1800)
+    grit = _fft_lowpass(g.standard_normal(len(t)) * np.exp(-t * 90), 1800)
     return out * 0.5 + thud * 0.7 + grit * 0.15
 
 
-def _rattle(seconds, count, low):
+def _rattle(seconds, count, low, g=rng):
     out = np.zeros(int(seconds * SR))
-    times = np.sort(rng.uniform(0, seconds - 0.35, count) ** 1.6 / seconds**0.6)
+    times = np.sort(g.uniform(0, seconds - 0.35, count) ** 1.6 / seconds**0.6)
     for i, x in enumerate(times):
-        c = _clack(rng.uniform(380, 900) * low, rng.uniform(25, 45), 0.4) * rng.uniform(0.2, 1.0) * (1 - i / count) ** 0.8
+        c = _clack(g.uniform(380, 900) * low, g.uniform(25, 45), 0.4, g) * g.uniform(0.2, 1.0) * (1 - i / count) ** 0.8
         start = int(x * SR)
         end = min(len(out), start + len(c))
         out[start:end] += c[: end - start]
@@ -465,6 +465,158 @@ def water():
     return {k: _fft_lowpass(v, 1800) for k, v in fx.items()}
 
 
+# ---------------------------------------------------------------- actions
+
+# Its own generator too: the action sounds Cues plays (game/src/cues.gd), soft like the stones and the music, nothing
+# bright above the low kHz.
+crng = np.random.default_rng(59)
+
+
+def _decay(seconds, rate):
+    return np.exp(-_t(seconds) * rate)
+
+
+def _band(x, lo, hi, order=2):
+    return _fft_lowpass(x, hi, order) - _fft_lowpass(x, lo, order)
+
+
+def _convolve(x, ir):
+    n = len(x) + len(ir)
+    size = 1 << (n - 1).bit_length()
+    return np.fft.irfft(np.fft.rfft(x, size) * np.fft.rfft(ir, size), size)[: len(x)]
+
+
+def _body(modes, seconds=0.4):
+    """A small wooden body: decaying modes, as (Hz, decay per second, level)."""
+    t = _t(seconds)
+    return sum(a * np.exp(-t * d) * np.sin(2 * np.pi * f * t + crng.uniform(0, 6.28)) for f, d, a in modes)
+
+
+def _knock(fund, seconds=0.25, decay=38.0):
+    t = _t(seconds)
+    out = _body([(fund, decay, 1.0), (fund * 2.57, decay * 1.6, 0.35), (fund * 4.1, decay * 2.4, 0.12)], seconds)
+    thud = np.exp(-t * 55) * np.sin(2 * np.pi * fund * 0.38 * t)
+    return (out + 0.6 * thud) * (1 - np.exp(-t / 0.0015))
+
+
+def _grains(seconds, count, length, lo, hi, shape=1.0):
+    out = np.zeros(int(seconds * SR))
+    for k in range(count):
+        g = _band(crng.standard_normal(int(length * SR)), lo, hi) * np.hanning(int(length * SR)) * crng.uniform(0.3, 1.0)
+        at = int(crng.uniform(0, 1) ** shape * (seconds - length) * SR)
+        out[at : at + len(g)] += g
+    return out
+
+
+def _creak(seconds, f0, rise):
+    """A cartoon wooden bow drawn tight: stick-slip pulses whose rate climbs, ringing a small wooden body."""
+    out = np.zeros(int(seconds * SR))
+    at = 0.0
+    while at < seconds - 0.01:
+        k = at / seconds
+        period = 1.0 / (f0 * (1 + rise * k) * crng.uniform(0.94, 1.06))
+        out[int(at * SR)] += crng.uniform(0.6, 1.0) * np.sin(np.pi * min(k * 4, 1)) * (1 - 0.5 * k)
+        at += period
+    body = _body([(crng.uniform(230, 270), 30, 1.0), (crng.uniform(470, 530), 45, 0.6), (crng.uniform(880, 960), 70, 0.3),
+                  (crng.uniform(1350, 1500), 110, 0.12)], 0.25)
+    x = _convolve(out, body)
+    return x * np.sin(np.pi * np.minimum(_t(seconds) / seconds, 1.0)) ** 0.6
+
+
+def _notes(midis, gap):
+    out = np.zeros(int((gap * (len(midis) - 1) + 1.2) * SR))
+    for i, m in enumerate(midis):
+        n = pluck(m, 0.25, 1.0, crng)[: int(1.2 * SR)]
+        at = int(i * gap * SR)
+        out[at : at + len(n)] += n[: len(out) - at]
+    return out
+
+
+def _grunt(seconds, f0, fall):
+    """A soft cartoon "hmph": a breathy glottal buzz falling in pitch through two low vowel formants."""
+    t = _t(seconds)
+    f = f0 * (1 - fall * t / seconds)
+    phase = np.cumsum(f) / SR
+    buzz = sum(np.sin(2 * np.pi * k * phase) / k**1.4 for k in range(1, 16))
+    breath = _band(crng.standard_normal(len(t)), 300, 1500) * 0.15
+    x = buzz + breath
+    voice = sum(a * _band(x, c * 0.8, c * 1.25) for c, a in ((480, 1.0), (1050, 0.45)))
+    env = np.clip(t / 0.03, 0, 1) * np.exp(-t * 3.5) * np.sin(np.pi * np.minimum(t / seconds, 1.0)) ** 0.3
+    return voice * env
+
+
+def actions():
+    fx = {}
+    for i in range(3):
+        fx[f"bow{i}"] = _creak(0.42, crng.uniform(55, 70), crng.uniform(0.25, 0.45))
+    for i in range(2):
+        lift = _rattle(0.6, 6, 0.6, crng) * 0.5
+        lift[: int(0.3 * SR)] += np.exp(-_t(0.3) * 18) * np.sin(2 * np.pi * 72 * _t(0.3)) * 0.8
+        fx[f"lift{i}"] = lift
+    for i in range(4):
+        fx[f"scrape{i}"] = _grains(0.22, 14, 0.025, 100, 650, 1.0) * np.hanning(int(0.22 * SR))
+    for i in range(3):
+        fx[f"wood{i}"] = _knock(crng.uniform(260, 340))
+    for i in range(3):
+        fx[f"tock{i}"] = _knock(crng.uniform(520, 600), 0.15, 60.0) * 0.8
+    for i in range(4):
+        fx[f"rustle{i}"] = _grains(0.3, 22, 0.02, 280, 900, 0.8)
+    for i in range(4):
+        x = np.zeros(int(0.25 * SR))
+        for k in range(10):
+            c = _clack(crng.uniform(450, 750), crng.uniform(60, 90), 0.2, crng)[: int(0.06 * SR)] * crng.uniform(0.1, 0.5)
+            at = int(crng.uniform(0, 0.18) * SR)
+            x[at : at + len(c)] += c
+        fx[f"gravel{i}"] = x + _grains(0.25, 10, 0.02, 150, 800) * 0.5
+    for i in range(3):
+        t = _t(0.35)
+        thump = np.exp(-t * 16) * np.sin(2 * np.pi * crng.uniform(65, 85) * t * (1 - 0.3 * t))
+        fx[f"soil{i}"] = thump + _fft_lowpass(crng.standard_normal(len(t)) * np.exp(-t * 22), 600) * 0.4
+    sweep = _band(crng.standard_normal(int(2.6 * SR)), 80, 900) * np.sin(np.pi * _t(2.6) / 2.6) ** 2
+    sweep[int(0.9 * SR) :] += _rattle(1.7, 26, 0.55, crng)[: len(sweep) - int(0.9 * SR)] * 0.5
+    fx["sweep0"] = sweep
+    for i, m in enumerate((59, 63, 66)):
+        fx[f"pick{i}"] = _notes([m], 0.0)
+    fx["undo0"] = _notes([66, 59], 0.11)
+    fx["redo0"] = _notes([59, 66], 0.11)
+    fx["hello0"] = _notes([59, 63, 66], 0.12)
+    fx["bye0"] = _notes([66, 63, 59], 0.12)
+    for i in range(4):
+        fx[f"brush{i}"] = _band(crng.standard_normal(int(0.09 * SR)), 220, 900) * np.hanning(int(0.09 * SR))
+    for i in range(2):
+        n = int(0.4 * SR)
+        crackle = (crng.random(n) < 0.004) * crng.uniform(0.3, 1.0, n)
+        crackle = _convolve(crackle, np.exp(-_t(0.004) * 900))
+        tear = _band(crng.standard_normal(n), 220, 900) * (0.3 + crackle * 4) * np.linspace(1, 0.3, n)
+        fx[f"tear{i}"] = tear * (1 - np.exp(-_t(0.4) / 0.01))
+    for i in range(2):
+        x = np.zeros(int(0.25 * SR))
+        a, b = _knock(crng.uniform(380, 420), 0.1, 80.0), _knock(crng.uniform(300, 330), 0.12, 70.0) * 0.7
+        x[: len(a)] += a
+        x[int(0.07 * SR) : int(0.07 * SR) + len(b)] += b
+        fx[f"shutter{i}"] = x
+    for i in range(3):
+        fx[f"scatter{i}"] = _grains(0.4, 18, 0.008, 320, 880, 1.6) + _band(crng.standard_normal(int(0.4 * SR)), 150, 600) * np.exp(-_t(0.4) * 9) * 0.3
+    for i in range(2):
+        n = int(0.5 * SR)
+        noise = crng.standard_normal(n)
+        cut = 250 + 650 * np.sin(np.pi * _t(0.5) / 0.5) ** 2
+        lo, hi = _fft_lowpass(noise, 250), _fft_lowpass(noise, 900)
+        mix = (cut - 250) / 650
+        fx[f"whoosh{i}"] = (lo * (1 - mix) + hi * mix) * np.sin(np.pi * _t(0.5) / 0.5) ** 1.5
+    for i in range(3):
+        x = np.zeros(int(0.75 * SR))
+        rate = crng.uniform(12, 16)
+        for k in range(8):
+            f = _band(crng.standard_normal(int(0.045 * SR)), 180, 800) * np.hanning(int(0.045 * SR)) * (1 - k / 9)
+            at = int(k / rate * SR)
+            x[at : at + len(f)] += f
+        fx[f"flutter{i}"] = x
+    for i, (f0, fall) in enumerate(((140, 0.3), (120, 0.25))):
+        fx[f"grunt{i}"] = _grunt(0.32, f0, fall)
+    return {k: _fft_lowpass(v, 1800, 4) for k, v in fx.items()}
+
+
 # ---------------------------------------------------------------- output
 
 def write_ogg(path, x, quality=3):
@@ -502,6 +654,8 @@ def main():
         write_ogg(fx / f"{name}.ogg", x / np.abs(x).max() * 0.8)
     for name, x in water().items():
         write_ogg(fx / f"{name}.ogg", x / np.abs(x).max() * 0.6)
+    for name, x in actions().items():
+        write_ogg(fx / f"{name}.ogg", x / np.abs(x).max() * 0.7)
     lap = lapping()
     write_ogg(ROOT / "lap.ogg", lap / np.abs(lap).max() * 0.6, 2)
     print(f"audio: {ROOT}")

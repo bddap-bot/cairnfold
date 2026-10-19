@@ -197,6 +197,10 @@ func go_home() -> void:
 	changed.emit()
 
 
+func _here() -> Vector3:
+	return rig.head.global_position if rig != null else Vector3.ZERO
+
+
 func players() -> int:
 	return multiplayer.get_peers().size() + 1
 
@@ -205,6 +209,7 @@ func _on_peer(id: int) -> void:
 	if multiplayer.is_server():
 		world.welcome(id)
 	_appear.rpc_id(id, avatar, colour)
+	Cues.play(Cues.Act.PLAYER_JOINS, _here())
 	if not worn.is_empty():
 		_wear.rpc_id(id, worn)
 	changed.emit()
@@ -212,6 +217,7 @@ func _on_peer(id: int) -> void:
 
 func _on_gone(id: int) -> void:
 	print("session: player %d left" % id)
+	Cues.play(Cues.Act.PLAYER_LEAVES, avatars[id].global_position if avatars.has(id) else _here())
 	if avatars.has(id):
 		avatars[id].queue_free()
 		avatars.erase(id)

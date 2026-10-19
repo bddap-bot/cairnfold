@@ -42,9 +42,8 @@ const NOSE_UP := 0.75
 ## Radians either side its way wobbles while it jostles, and how often a second.
 const JOSTLE := 0.6
 const JOSTLE_RATE := 7.0
-## A hand this near a bite feels it; nibbles sound at most this often, in seconds.
+## A hand this near a bite feels it.
 const FEEL := 0.6
-const NIBBLE_EVERY := 0.12
 const COLOURS: Array[Color] = [Color(1.0, 0.47, 0.12), Color(1.0, 0.95, 0.86), Color(1.0, 0.74, 0.18), Color(0.92, 0.3, 0.16)]
 
 var wildlife: Wildlife
@@ -59,7 +58,6 @@ var _came := {}
 var _due := {}
 var _layouts := []
 var _buffer := PackedFloat32Array()
-var _since_nibble := INF
 
 
 class One:
@@ -148,7 +146,6 @@ func tick(delta: float) -> void:
 		_layouts = layouts
 		_rehome()
 	var food := _food()
-	_since_nibble += delta
 	var startling: Array[Vector3] = []
 	for n in wildlife._watched():
 		if wildlife.sudden(n):
@@ -264,12 +261,10 @@ func _take(f: One, meal: Array) -> void:
 			f.pitch = NOSE_UP
 			f.at.y = f.pond.pond.level - NIBBLE_AT
 			f.pond.ripple(mouth, 0.25)
-			if _since_nibble >= NIBBLE_EVERY:
-				_since_nibble = 0.0
-				wildlife.water.splashed.emit(&"nibble", mouth)
+			Cues.play(Cues.Act.NIBBLE, mouth)
 			for n in wildlife.hands:
 				if n is XRController3D and n.is_inside_tree() and n.global_position.distance_to(mouth) < FEEL:
-					Hand.nibble(n)
+					Cues.felt(Cues.Act.NIBBLE, n)
 			return
 
 

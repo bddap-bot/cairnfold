@@ -45,7 +45,7 @@ func _process(delta: float) -> void:
 			_velocity[h] = _velocity.get(h, Vector3.ZERO).lerp(moved, 1.0 - exp(-delta * EASE))
 		_was[h] = at
 		if _buttons[i].pressed("tool") and h.tool == Hand.Tool.SEEDS and h.tracked() and rig.aim_hand != h and not h.picking:
-			Hand.bump(h)
+			Cues.play(Cues.Act.SEEDS_THROW, dish(h), h)
 			throw(dish(h), rig.global_basis * _velocity.get(h, Vector3.ZERO))
 		_buttons[i].latch()
 
@@ -72,7 +72,7 @@ func _settled(handful: Handful) -> void:
 	var pond := ponds.pond_at(handful.position.x, handful.position.z)
 	if pond != null:
 		pond.ripple(handful.position, 0.4)
-		ponds.splashed.emit(&"plop", handful.position)
+		Cues.play(Cues.Act.PLOP, handful.position)
 
 
 func tick(delta: float) -> void:

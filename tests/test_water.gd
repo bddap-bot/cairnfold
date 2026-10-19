@@ -233,8 +233,7 @@ func _ponds_in_the_glade() -> void:
 	root.add_child(tool)
 	world.attach(null, null, null, terrain, water)
 	await process_frame
-	var fills := [0]
-	water.splashed.connect(func(kind: StringName, _at: Vector3) -> void: fills[0] += int(kind == &"fill"))
+	var fills: int = Cues.asked.get(Cues.Act.POND_FILL, 0)
 	var hand := rig.right
 
 	var meadow := Terrain.height_at(3, -4)
@@ -244,7 +243,7 @@ func _ponds_in_the_glade() -> void:
 	var steps: int = world.stacks[world.me()].undo.size()
 	tool.fill(hand, rim)
 	await process_frame
-	_check(water.ponds.size() == 1 and fills[0] == 1 and world.state.ponds.size() == 1, "pointing at the rim fills the hollow once, %d ponds" % water.ponds.size())
+	_check(water.ponds.size() == 1 and Cues.asked.get(Cues.Act.POND_FILL, 0) - fills == 1 and world.state.ponds.size() == 1, "pointing at the rim fills the hollow once, %d ponds" % water.ponds.size())
 	_check(world.stacks[world.me()].undo.size() == steps + 1, "a fill is one undo step")
 	var pond := water.pond_at(3, -4)
 	_check(pond != null, "its middle is under water")

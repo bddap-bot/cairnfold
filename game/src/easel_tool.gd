@@ -177,6 +177,8 @@ func _aim_ground(p: Painter) -> void:
 func place(at: Vector3, yaw: float, hand: Hand = null) -> void:
 	var why := Easels.crowded(at, world.state.easels)
 	if why.is_empty():
+		if world.fits({"op": "easel", "at": at, "yaw": yaw}):
+			Cues.play(Cues.Act.EASEL_PLACE, at, hand)
 		world.submit({"op": "easel", "at": at, "yaw": yaw}, Callable(), hand)
 	elif hand != null:
 		_decline(hand, why)
@@ -184,7 +186,7 @@ func place(at: Vector3, yaw: float, hand: Hand = null) -> void:
 
 func _decline(hand: Hand, why: String) -> void:
 	print("easel: none set up: %s" % why)
-	Hand.bump(hand)
+	Cues.play(Cues.Act.REFUSED, hand.global_position, hand)
 	declined.emit(why)
 
 
@@ -220,7 +222,7 @@ func grab(p: Painter) -> void:
 			take = func() -> void: p.peel = e
 	if take.is_valid():
 		take.call()
-		p.hand.trigger_haptic_pulse(&"haptic", 0.0, 0.3, 0.03, 0.0)
+		Cues.play(Cues.Act.BRUSH_TAKE, at, p.hand)
 
 
 func _take_brush(p: Painter, kind: Brushwork.Brush) -> void:
@@ -297,6 +299,8 @@ func _pull_sheet(p: Painter, live: bool) -> void:
 
 
 func fresh_sheet(id: int, hand: Hand = null) -> void:
+	if hand != null:
+		Cues.play(Cues.Act.SHEET_TEAR, hand.global_position, hand)
 	world.submit({"op": "sheet", "easel": id, "strokes": []}, Callable(), hand)
 
 
@@ -345,7 +349,7 @@ func dip(p: Painter, what: String) -> void:
 			p.colour = a if clean else p.colour.lerp(a, 0.5)
 			p.strength = 1.0 if p.medium == Brushwork.Medium.OIL else minf(1.0, p.strength + 0.6)
 			p.load = maxf(p.load, 0.6)
-	p.hand.trigger_haptic_pulse(&"haptic", 0.0, 0.2, 0.02, 0.0)
+	Cues.play(Cues.Act.BRUSH_DIP, p.hand.global_position, p.hand)
 	_show_paint(p)
 
 
@@ -394,7 +398,6 @@ func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: flo
 			return
 		var data := {"medium": p.medium, "brush": p.brush, "colour": p.colour, "strength": p.strength, "load": p.load, "gap": clampi(canvas.ticks - canvas.last_end, 0, Brushwork.DRY_TICKS), "samples": PackedInt32Array()}
 		p.stroke = {"easel": e, "data": data, "stroker": Brushwork.Stroker.new(data), "last": [], "at": canvas.ticks}
-		p.hand.trigger_haptic_pulse(&"haptic", 0.0, 0.15, 0.02, 0.0)
 	var s := p.stroke
 	if not s.last.is_empty():
 		var r: float = Brushwork.RADII[p.brush].y * pressure
@@ -406,6 +409,7 @@ func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: flo
 	s.at = canvas.ticks
 	s.last = [uv, pressure]
 	canvas.lay(s.data, s.stroker.add(Brushwork.unpack(packed, 0)))
+	Cues.play(Cues.Act.CHARCOAL_STROKE if p.brush == Brushwork.Brush.STICK else Cues.Act.CANVAS_STROKE, p.hand.global_position, p.hand, pressure)
 	if Brushwork.count(s.data) >= Brushwork.MAX_SAMPLES:
 		end_stroke(p)
 

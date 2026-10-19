@@ -42,6 +42,8 @@ var tool := Tool.WALLS
 ## The way the stick is flicked (a FLICKS key), or "".
 var flick := ""
 var picking := false
+## What the hand's tool shows would not fit the frame budget: its pointer shows it refused (BudgetBar).
+var capped := false
 var _wheel: ToolWheel
 var _profile := ""
 var _holding := false
@@ -219,24 +221,13 @@ func ray(target: Vector3, tint: Color) -> bool:
 		return false
 	_beam.visible = true
 	_beam.span(body.global_position, target)
-	(_beam.material_override as StandardMaterial3D).albedo_color = tint
+	(_beam.material_override as StandardMaterial3D).albedo_color = BudgetBar.REFUSED if capped else tint
 	return true
 
 
 ## Whether a tool already holds this hand this frame.
 func taken() -> bool:
 	return _holding
-
-
-## The gentle "no" every refused action gives the hand that tried it: two soft knocks.
-static func bump(hand: XRController3D) -> void:
-	hand.trigger_haptic_pulse(&"haptic", 0.0, 0.35, 0.05, 0.0)
-	hand.trigger_haptic_pulse(&"haptic", 0.0, 0.35, 0.05, 0.12)
-
-
-## A fish taking a grain near the hand: one tick, lighter and shorter than a bump.
-static func nibble(hand: XRController3D) -> void:
-	hand.trigger_haptic_pulse(&"haptic", 0.0, 0.12, 0.025, 0.0)
 
 
 func clear_pointer() -> void:
@@ -299,16 +290,21 @@ func _select_input(delta: float) -> void:
 		for icon in _wheel_root.get_children():
 			icon.scale = Vector3.ZERO
 		_wheel_root.visible = true
+		Cues.play(Cues.Act.WHEEL_OPEN, global_position, self)
 	var p: Vector2 = injected_reach.get(tracker, Vector2.INF)
 	if p == Vector2.INF:
 		var local := _wheel_root.global_transform.affine_inverse() * global_position
 		p = Vector2(local.x, local.y)
+	var was: Array = [_wheel.levels.size(), _wheel.levels[-1].hot]
 	_wheel.move(p)
+	if _wheel.levels[-1].hot >= 0 and [_wheel.levels.size(), _wheel.levels[-1].hot] != was:
+		Cues.play(Cues.Act.WHEEL_HOVER, global_position, self)
 	_show_wheel(delta)
 	if _buttons.released("wheel"):
 		var pick: Variant = _wheel.chosen()
 		if pick != null:
 			tool = pick
+			Cues.play(Cues.Act.WHEEL_PICK, global_position, self)
 		_wheel = null
 		picking = false
 		_wheel_root.visible = false

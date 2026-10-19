@@ -212,7 +212,7 @@ func twist(hand: Hand, degrees: float) -> void:
 	if pick != w.pick:
 		w.pick = pick
 		_show(w, pick)
-		hand.trigger_haptic_pulse(&"haptic", 0.0, 0.25, 0.02, 0.0)
+		Cues.play(Cues.Act.DIAL_TURN, hand.global_position, hand)
 
 
 ## The choice `w` would send as the garden has it now, or -1 once its build or tree is gone.
@@ -302,12 +302,14 @@ func close(hand: Hand) -> void:
 	var data: Dictionary = (w.data[w.pick] if w.target.tool == Hand.Tool.STYLE else _data(w, w.pick)) if w.wall >= 0 else {}
 	if w.pick == now or (w.wall >= 0 and data.is_empty()):
 		_settled(w)
-	elif w.tree != null:
-		world.submit({"op": "species", "group": w.tree.group, "index": w.tree.index, "species": w.pick}, _settled.bind(w))
+		return
+	Cues.play(Cues.Act.DIAL_SET, hand.global_position, hand)
+	if w.tree != null:
+		world.submit({"op": "species", "group": w.tree.group, "index": w.tree.index, "species": w.pick}, _settled.bind(w), hand)
 	elif w.wall < 0:
-		world.submit({"op": "season", "index": w.pick}, world.palette.apply)
+		world.submit({"op": "season", "index": w.pick}, world.palette.apply, hand)
 	else:
-		world.submit({"op": "reshape", "id": w.wall, "data": data}, _settled.bind(w))
+		world.submit({"op": "reshape", "id": w.wall, "data": data}, _settled.bind(w), hand)
 
 
 ## A sent choice is settled before it applies, so the build is shown as the garden has it once it has.

@@ -268,6 +268,7 @@ func hide_markers() -> void:
 ## Move so the head stands over `ground`, `lift` metres up. The rig then stays exactly there: in a headset
 ## any view motion the player's head did not make is uncomfortable.
 func teleport(ground: Vector3, lift_m: float) -> void:
+	Cues.play(Cues.Act.TELEPORT, ground + Vector3.UP * (lift_m + head.position.y), left)
 	_pending = [ground, lift_m]
 	_fade_t = 0.0
 	_fade.visible = true
@@ -284,6 +285,7 @@ func snap_turn(angle: float) -> void:
 	var t := Transform3D(Basis(Vector3.UP, angle), Vector3.ZERO)
 	global_transform = Transform3D(t.basis * global_transform.basis, pivot + t.basis * (global_position - pivot))
 	jumped.emit()
+	Cues.play(Cues.Act.TURN, pivot, right)
 
 
 func _fade_step(delta: float) -> void:

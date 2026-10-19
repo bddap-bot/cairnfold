@@ -33,6 +33,10 @@ func extend(hand: Hand, at: Vector3) -> void:
 	var s: Dictionary = _strokes[hand]
 	var d: Vector3 = at - s.data.a
 	s.data.b = s.data.a + d.limit_length(StairLayout.MAX_LENGTH)
+	var steps := floori(s.data.a.distance_to(s.data.b) / WallLayout.COURSE)
+	if steps != s.get("steps", 0):
+		s.steps = steps
+		Cues.play(Cues.Act.STAIRS_LAY, s.data.b, hand)
 	s.data.rail = rail
 	var layout := StairLayout.new()
 	layout.build(s.data)
@@ -47,6 +51,8 @@ func end(hand: Hand) -> void:
 	if s.data.a.distance_to(s.data.b) < 0.3:
 		s.ghost.queue_free()
 		return
+	if world.fits({"op": "stairs", "stairs": s.data}):
+		Cues.play(Cues.Act.STAIRS_SET, s.data.b, hand)
 	world.submit({"op": "stairs", "stairs": s.data}, func(): s.ghost.queue_free(), hand)
 
 func _cancel(hand: Hand) -> void:

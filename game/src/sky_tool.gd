@@ -65,5 +65,5 @@ func aim(dir: Vector3) -> void:
 	look.set_time(inverse_lerp(Daylight.DAWN, Daylight.DUSK, _start + _turned))
 	var tick := floori(look.time / TICK)
 	if tick != _ticked:
-		holder.trigger_haptic_pulse(&"haptic", 0.0, 0.2, 0.02, 0.0)
+		Cues.play(Cues.Act.SKY_TURN, holder.global_position, holder)
 	_ticked = tick

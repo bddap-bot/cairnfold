@@ -59,14 +59,13 @@ func _seeds_on_the_water_draw_every_fish(wildlife: Wildlife, feed: FeedTool, wat
 	var mine := fish.swimming.filter(func(f: Fish.One) -> bool: return f.pond == pond)
 	var mid := Terrain.grid_xz(pond.pond.bottom)
 	var s := feed.toss(Vector3(mid.x, pond.surface_y() + 1.2, mid.y), Vector3(0.2, 0.5, 0.1), 11)
-	var heard := {}
-	water.splashed.connect(func(kind: StringName, _at: Vector3) -> void: heard[kind] = heard.get(kind, 0) + 1)
+	var heard := Cues.asked.duplicate()
 	var fed := {}
 	var rose := [false]
 	var fast := [0.0]
 	_run(wildlife, 1.5, feed)
 	_check(s.landed() and pond == water.pond_at(s.position.x, s.position.z), "the seeds come down on the pond")
-	_check(heard.get(&"plop", 0) == 1, "with a plop")
+	_check(Cues.asked.get(Cues.Act.PLOP, 0) - heard.get(Cues.Act.PLOP, 0) == 1, "with a plop")
 	_run(wildlife, 20.0, feed, func() -> void:
 		for f: Fish.One in mine:
 			if f.feeding:
@@ -77,7 +76,7 @@ func _seeds_on_the_water_draw_every_fish(wildlife: Wildlife, feed: FeedTool, wat
 	_check(fast[0] > Fish.CRUISE * 3.0, "darting in, %.2f m/s" % fast[0])
 	_check(rose[0], "and rising to the surface to take them")
 	_check(s.left() == 0, "the seeds are eaten, %d left" % s.left())
-	_check(heard.get(&"nibble", 0) > 0, "with a nibble as they are taken")
+	_check(Cues.asked.get(Cues.Act.NIBBLE, 0) > heard.get(Cues.Act.NIBBLE, 0), "with a nibble as they are taken")
 	_check(fish.swimming.all(func(f: Fish.One) -> bool: return not f.feeding), "then the fish scatter back to cruising")
 	_check(_in_water(fish, water), "every fish still in the water")
 	_run(wildlife, 4.0, feed)

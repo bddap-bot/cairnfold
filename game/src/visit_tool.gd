@@ -248,6 +248,7 @@ func _point(hand: Hand) -> void:
 	var t := hand.global_transform
 	var origin := t.origin
 	var dir := -t.basis.z
+	var was := picked
 	picked = ""
 	var best := PICK
 	for k in figures:
@@ -262,17 +263,20 @@ func _point(hand: Hand) -> void:
 	for k in figures:
 		figures[k].scale = Vector3.ONE * (ME_SIZE if k == ME else 1.0) * (1.25 if k == picked else 1.0)
 	hand.point(figures[picked].global_position + AIM if figures.has(picked) else null, TINT, ARC)
+	if figures.has(picked) and picked != was:
+		Cues.play(Cues.Act.VISIT_HOVER, figures[picked].global_position + AIM, hand)
 	if figures.has(picked) and _buttons[rig.hands.find(hand)].pressed("tool"):
-		go(picked)
+		go(picked, hand)
 
 
 func joinable(k: String) -> bool:
 	return k in [HOME, ME] or session.nearby[k].joins
 
 
-func go(k: String) -> void:
+func go(k: String, hand: Hand = null) -> void:
 	if not joinable(k):
 		return
+	Cues.play(Cues.Act.VISIT_GO, figures[k].global_position + AIM if figures.has(k) else rig.head.global_position, hand)
 	if k == ME:
 		session.me.pick()
 	elif k == HOME:

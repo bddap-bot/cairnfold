@@ -377,6 +377,7 @@ func _open(site: Site) -> bool:
 ## Off a short way from something sudden at `from`, and never away: see `_short_flight`, else up and back down
 ## where it was.
 func _startle(b: Bird, from: Vector3) -> void:
+	Cues.play(Cues.Act.BIRDS_STARTLE, b.node.global_position)
 	var was := b.state
 	if not _short_flight(b, from):
 		_fly_to(b, b.site, b.node.position, State.FLY)

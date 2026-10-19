@@ -3,13 +3,23 @@ extends MeshInstance3D
 
 ## A bar along the back of a controller's top: how much of the frame budget the garden's builds take (Budget), on the
 ## most loaded headset it is shown on, so visitors see the host garden's. What the hand's tool is showing joins it in a
-## paler stretch; where it would not fit, the whole bar pulses red. An empty hand holds nothing to build, so it shows none.
+## paler stretch; where it would not fit, the whole bar pulses red and swells and the hand's pointer shows it refused,
+## and when the budget turns an edit down the bar jumps up and shakes (World.cap). An empty hand holds nothing to
+## build, so it shows none.
 
 const SIZE := Vector2(0.05, 0.009)
 ## Where it lies on the controller (Hand's body), behind the tool's model.
 const AT := Vector3(0, 0.027, 0.078)
 ## How fast the shown fill closes on the garden's, per second.
 const EASE := 12.0
+## How much bigger the bar grows while what the tool shows would not fit, and at a turned-down edit's jolt.
+const SWELL := 0.6
+const JOLT := 2.5
+## How long a jolt lasts in seconds, how fast it shakes a second, and how far, in metres.
+const JOLT_SECONDS := 0.6
+const SHAKE_RATE := 34.0
+const SHAKE := 0.006
+const REFUSED := Color(0.92, 0.3, 0.26, 0.75)
 const SHADER := """
 shader_type spatial;
 render_mode unshaded, cull_disabled, shadows_disabled, fog_disabled;
@@ -52,6 +62,8 @@ var world: World
 var hand: Hand
 var _shown := 0.0
 var _mat := ShaderMaterial.new()
+var _jolt := 0.0
+var _swell := 0.0
 
 
 func _init(garden: World, on: Hand) -> void:
@@ -69,6 +81,9 @@ func _init(garden: World, on: Hand) -> void:
 	material_override = _mat
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	position = AT
+	world.capped.connect(func(h: XRController3D) -> void:
+		if h == hand:
+			_jolt = 1.0)
 
 
 func _process(delta: float) -> void:
@@ -78,4 +93,10 @@ func _process(delta: float) -> void:
 	_shown = lerpf(_shown, now, 1.0 - exp(-EASE * delta))
 	_mat.set_shader_parameter("fill", _shown)
 	_mat.set_shader_parameter("pending", maxf(with - now, 0.0))
-	_mat.set_shader_parameter("over", 1.0 if with > 1.0 and with > now + 0.0001 else 0.0)
+	var over := with > 1.0 and with > now + 0.0001
+	_mat.set_shader_parameter("over", 1.0 if over or _jolt > 0.0 else 0.0)
+	hand.capped = over and visible
+	_jolt = move_toward(_jolt, 0.0, delta / JOLT_SECONDS)
+	_swell = lerpf(_swell, 1.0 if over else 0.0, 1.0 - exp(-EASE * delta))
+	scale = Vector3.ONE * (1.0 + SWELL * _swell + JOLT * _jolt * _jolt)
+	position = AT + Vector3.RIGHT * sin(Time.get_ticks_msec() * 0.001 * SHAKE_RATE) * SHAKE * (_jolt + 0.25 * _swell)

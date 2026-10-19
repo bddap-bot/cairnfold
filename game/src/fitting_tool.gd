@@ -83,7 +83,7 @@ func _process(delta: float) -> void:
 					shown.get_or_add(cmd.id, {}).merge(cmd.data, true)
 			if b.pressed("tool") and not walls.busy(hand) and not fit(target, hand):
 				_shaken[i] = 0.0
-				Hand.bump(hand)
+				Cues.play(Cues.Act.REFUSED, hand.global_position, hand)
 			if not hand.picking and hand.tool == Hand.Tool.DECORATIONS:
 				ghost = ghost_of(target, t.origin, -t.basis.z, hit)
 		_show_ghost(i, ghost, delta)
@@ -174,12 +174,17 @@ func fit(target: Dictionary, hand: XRController3D = null) -> bool:
 	var cmd := command(target)
 	if cmd.is_empty():
 		return false
-	if target.what == "tower_flag":
-		world.submit(cmd, Callable(), hand)
-		return true
 	var w: Wall = target.wall
 	var key: String = cmd.data.roof.keys()[0] if cmd.data.has("roof") else cmd.data.keys()[0]
 	var after: Variant = cmd.data.roof[key] if cmd.data.has("roof") else cmd.data[key]
+	if world.fits(cmd):
+		var garden: Dictionary = world.state.walls.get(w.id, {})
+		var had: Variant = (garden.get("roof", {}) if cmd.data.has("roof") else garden).get(key)
+		var off: bool = (not after) if after is bool else (had != null and Array(after).size() < Array(had).size())
+		Cues.play(Cues.Act.FITTING_OFF if off else Cues.Act.FITTING, target.get("point", w.global_position), hand)
+	if target.what == "tower_flag":
+		world.submit(cmd, Callable(), hand)
+		return true
 	_sent.get_or_add(w.id, {})[key] = Array(after)
 	world.submit(cmd, func() -> void:
 		if _sent.get(w.id, {}).get(key) == Array(after):

@@ -155,9 +155,9 @@ func render_screen(at: Transform3D) -> Image:
 ## Takes a photo through the hand's lens and saves it; the screen holds the shot for a moment. Returns
 ## where it was saved, or "" if it could not be taken.
 func shoot(hand: Hand) -> String:
-	hand.trigger_haptic_pulse(&"haptic", 0.0, 0.4, 0.04, 0.0)
 	_eye = hand
 	var at := lens(hand)
+	Cues.play(Cues.Act.PHOTO, at.origin, hand)
 	var around: Dictionary = scene.call()
 	var img := await render(at, FOV, Quality.PHOTO_MASK)
 	if img == null:

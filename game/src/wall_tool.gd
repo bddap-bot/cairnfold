@@ -28,9 +28,11 @@ const TOWER_SIZE := Vector2(3.4, 3.4)
 const HOUSE_REACH := 6.0
 const TOP_BAND := 0.4
 const ROOF_STEP := 0.1
+## How far a carried house goes, in metres, between two scrapes.
+const CARRY_STEP := 0.12
 
-## A stone event for the soundscape, at the stones it moved.
-signal built(kind: StringName, at: Vector3)
+## Something was built, moved or pulled here: the music makes room.
+signal built
 
 
 class Mason:
@@ -110,6 +112,9 @@ var _due := {}
 var _path_arches := {}
 ## The walls in hand of this player's command that last came back, for the garden's walls it puts up (`put`).
 var _handing: Array[Wall] = []
+var _handing_hand: Hand
+## How far the house in hand has been carried since its last scrape.
+var _carried := 0.0
 
 
 func _init(player: Rig, garden: World, plants: Flora, ways: Paths) -> void:
@@ -319,7 +324,7 @@ func extend_stroke(m: Mason, p: Vector3) -> void:
 		pts[-1] = p
 	else:
 		pts.append(p)
-		built.emit(&"stone", p + Vector3.UP)
+		_cue(Cues.Act.WALL_LAY, p + Vector3.UP, m.hand)
 	if not is_nan(m.stroke.level):
 		_rest_on(m.stroke, p)
 	m.stroke.planned = false
@@ -354,7 +359,8 @@ func end_stroke(m: Mason) -> void:
 func _finish(ws: Array[Wall], hand: Hand = null) -> void:
 	world.submit({"op": "wall", "walls": ws.map(func(w: Wall) -> Dictionary: return w.data())}, func() -> void:
 		_let_go_handed()
-		_handing = ws, hand)
+		_handing = ws
+		_handing_hand = hand, hand)
 
 
 ## The garden is being swapped: walls in hand belong to the old one.
@@ -404,6 +410,7 @@ func _house_input() -> void:
 			at = Terrain.ground(rig.head.global_position.x + ahead.normalized().x * HOUSE_REACH, rig.head.global_position.z + ahead.normalized().z * HOUSE_REACH)
 		var on := aimed.get("on", -1) as int
 		begin_house(at, angle(rig.head.global_basis.x), PackedInt32Array([on]) if on >= 0 else PackedInt32Array(), lead.tool == Hand.Tool.TOWER)
+		Cues.play(Cues.Act.HOUSE_TAKE, house_at.center, lead)
 	if holders.is_empty():
 		if not _holders.is_empty():
 			end_house()
@@ -421,7 +428,14 @@ func _house_input() -> void:
 		_hold_gain = Hand.reach_gain(mid.distance_to(house_at.center))
 	var to := carry(_hold_start, _hold_from, now, _hold_gain)
 	if not to.center.is_equal_approx(house_at.center) or not is_equal_approx(to.yaw, house_at.yaw) or not to.size.is_equal_approx(house_at.size) or to.rise != house_at.rise:
+		var stretched: bool = not to.size.is_equal_approx(house_at.size)
+		_carried += to.center.distance_to(house_at.center) + absf(angle_difference(to.yaw, house_at.yaw)) * to.size.x * 0.5
 		place_house(to.center, to.yaw, to.size, to.rise)
+		if stretched:
+			_cue(Cues.Act.HOUSE_STRETCH, to.center, holders[-1].hand, Cues.stretch(_hold_start.size.length(), to.size.length()))
+		elif _carried > CARRY_STEP:
+			_carried = 0.0
+			_cue(Cues.Act.HOUSE_MOVE, to.center, holders[0].hand)
 
 
 ## A square house, or a round tower under a cone, standing at `at`, its front square to `yaw`, until it is placed and let go.
@@ -765,9 +779,12 @@ func drag_resize(to: Dictionary) -> void:
 	_meet(resizing)
 	_dirty = true
 	var step := _steps(to)
+	var top := resizing.layout.points[0] + Vector3.UP * resizing.layout.height
+	var hand: Hand = _resize_hands[-1].hand if not _resize_hands.is_empty() else null
+	_cue(Cues.Act.WALL_STRETCH, top, hand, Cues.stretch(_steps(_resize_start), step))
 	if step != _resize_step:
 		_resize_step = step
-		built.emit(&"stone", resizing.layout.points[0] + Vector3.UP * resizing.layout.height)
+		_cue(Cues.Act.WALL_LIFT, top, hand)
 
 
 func end_resize(hand: Hand = null) -> void:
@@ -791,9 +808,13 @@ func begin_lift(m: Mason, w: Wall, hand: Vector3, at: Vector3) -> void:
 func drag_lift(m: Mason, hand_y: float) -> void:
 	var h := clampf(m.lift_start + (hand_y - m.lift_hand.y) * m.lift_gain, WallLayout.HEIGHTS.x, WallLayout.HEIGHTS.y)
 	if not is_equal_approx(h, m.lifting.layout.height):
+		var course := roundi(h / WallLayout.COURSE) != roundi(m.lifting.layout.height / WallLayout.COURSE)
 		m.lifting.layout.height = h
 		_dirty = true
-		built.emit(&"stone", Vector3(m.lift_at.x, Terrain.height_at(m.lift_at.x, m.lift_at.z) + h, m.lift_at.z))
+		var at := Vector3(m.lift_at.x, Terrain.height_at(m.lift_at.x, m.lift_at.z) + h, m.lift_at.z)
+		_cue(Cues.Act.WALL_STRETCH, at, m.hand, Cues.stretch(m.lift_start, h))
+		if course:
+			_cue(Cues.Act.WALL_LIFT, at, m.hand)
 
 
 func end_lift(m: Mason) -> void:
@@ -820,10 +841,10 @@ func begin_roof(m: Mason, w: Wall, hand: Vector3) -> void:
 
 func drag_roof(m: Mason, hand: Vector3) -> void:
 	var move := (hand - m.lift_hand) * m.lift_gain
-	shape_roof(m.roofing, m.lift_start + move.y, m.curve_start + move.dot(m.lift_side) * 0.8)
+	shape_roof(m.roofing, m.lift_start + move.y, m.curve_start + move.dot(m.lift_side) * 0.8, m.hand)
 
 
-func shape_roof(w: Wall, pitch: float, curve: float) -> void:
+func shape_roof(w: Wall, pitch: float, curve: float, hand: Hand = null) -> void:
 	var r := w.roof
 	pitch = RoofLayout.snap_pitch(pitch, ROOF_STEP)
 	curve = snappedf(clampf(curve, -RoofLayout.CURVE, RoofLayout.CURVE), ROOF_STEP)
@@ -832,7 +853,7 @@ func shape_roof(w: Wall, pitch: float, curve: float) -> void:
 	r.pitch = pitch
 	r.curve = curve
 	_dirty = true
-	built.emit(&"settle" if r.flat() else &"stone", _ridge(w))
+	_cue(Cues.Act.ROOF_FLAT if r.flat() else Cues.Act.ROOF_SHAPE, _ridge(w), hand)
 
 
 func end_roof(m: Mason) -> void:
@@ -841,7 +862,7 @@ func end_roof(m: Mason) -> void:
 	if is_equal_approx(w.roof.pitch, m.lift_start) and is_equal_approx(w.roof.curve, m.curve_start):
 		_relay(w)
 	else:
-		world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id))
+		world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id), m.hand)
 
 
 ## The arches that would stand in `w` with `own` its own, with those the paths standing open, whatever it shows.
@@ -916,7 +937,7 @@ func relay_crossings(path: PathLayout) -> void:
 			_open_paths(w)
 			if before != w.layout.arches:
 				w.rebuild()
-			_sound(&"arch", _top(w, w.layout.length() * 0.5))
+			_sound(Cues.Act.ARCH, _top(w, w.layout.length() * 0.5))
 
 
 ## Adds the arches `path` makes in `w` and returns them. A crossing already inside an opening needs none; one whose ring
@@ -949,9 +970,14 @@ func _cut_crossings(w: Wall, path: PathLayout) -> Array[float]:
 	return opened
 
 
-func _sound(kind: StringName, at: Vector3) -> void:
+func _sound(act: Cues.Act, at: Vector3, hand: Hand = null) -> void:
 	if not quiet:
-		built.emit(kind, at)
+		Cues.play(act, at, hand)
+
+
+func _cue(act: Cues.Act, at: Vector3, hand: Hand = null, tension := 0.0) -> void:
+	built.emit()
+	Cues.play(act, at, hand, tension)
 
 
 ## The garden's side of a wall going up, from any player; `handed` when it is the next of this player's walls in hand.
@@ -963,7 +989,7 @@ func put(id: int, handed: bool) -> void:
 	if handed and not _handing.is_empty():
 		w.stand_in(_handing.pop_front())
 	_relay(w)
-	_sound(&"settle", _top(w, w.layout.length() * 0.5))
+	_sound(Cues.Act.WALL_SETTLE, _top(w, w.layout.length() * 0.5), _handing_hand if handed else null)
 
 
 ## Walls in hand whose command was turned down, or whose garden is gone.
@@ -984,7 +1010,7 @@ func take(id: int) -> void:
 			m.lifting = null
 		if m.roofing == w:
 			m.roofing = null
-	_sound(&"crumble", _top(w, w.layout.length() * 0.5))
+	_sound(Cues.Act.WALL_CRUMBLE, _top(w, w.layout.length() * 0.5))
 	walls.erase(w)
 	_stir(w, w.massing)
 	w.queue_free()
@@ -1000,13 +1026,13 @@ func restyle(id: int, changed: Array) -> void:
 		return
 	_relay(w)
 	if "ruins" in changed:
-		_sound(&"crumble", _top(w, w.layout.length() * 0.5))
+		_sound(Cues.Act.WALL_CRUMBLE, _top(w, w.layout.length() * 0.5))
 	elif "arches" in changed:
-		_sound(&"arch", _top(w, w.layout.length() * 0.5))
+		_sound(Cues.Act.ARCH, _top(w, w.layout.length() * 0.5))
 	elif "roof" in changed or "gable_end" in changed:
-		_sound(&"stone", _ridge(w))
+		_sound(Cues.Act.WALL_LAY, _ridge(w))
 	else:
-		_sound(&"settle", _top(w, w.layout.length() * 0.5))
+		_sound(Cues.Act.WALL_RESTYLE, _top(w, w.layout.length() * 0.5))
 
 
 func find(id: int) -> Wall:

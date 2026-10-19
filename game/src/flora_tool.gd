@@ -146,7 +146,7 @@ func _handle(b: Brush, delta: float) -> void:
 		if b.buttons.pressed("tool") and not paths.busy() and not _ground_held():
 			begin_path(b, hit, radius)
 		elif b.buttons.held("tool") and b.paving:
-			extend_path(hit, radius)
+			extend_path(hit, radius, b.hand)
 		if b.paving and paths.drawing != null:
 			world.preview(b.hand, Budget.path({"points": paths.drawing.points, "half_widths": paths.drawing.half_widths}))
 	elif b.buttons.held("tool"):
@@ -185,7 +185,7 @@ func paint(b: Brush, center: Vector3, radius: float, delta: float) -> void:
 	# A hold paints up to the budget and no further: past it, plants stop coming and the hand feels why.
 	if not Budget.fits(world.units, Budget.plants(kind, (b.count if b.kind == kind else 0) + n), world.devices()):
 		b.full = true
-		Hand.bump(b.hand)
+		world.cap(b.hand)
 		return
 	if b.kind != kind or b.dabs.size() >= Commands.MAX_DABS or b.count + n > Commands.MAX_STROKE:
 		_send_plants(b)
@@ -198,6 +198,7 @@ func paint(b: Brush, center: Vector3, radius: float, delta: float) -> void:
 	b.count += n
 	b.stroke.append_array(flora.dab(kind, center, radius, n, b.rng, b.looks))
 	planted.emit()
+	Cues.play(Cues.Act.FLORA_PAINT, center, b.hand)
 
 
 ## A live path keeps its own copy of the ground mask, so nothing stamps it while one is drawn. One ground
@@ -215,6 +216,7 @@ func _lay_ground(b: Brush, kind: Ground.Kind, center: Vector3, radius: float, de
 	b.last_stamp = center
 	if b.ground.add(center.x, center.z, radius * 0.4, radius * 0.8):
 		planted.emit()
+		Cues.play(Cues.Act.STONE_PAINT, center, b.hand)
 
 
 func end_stroke(b: Brush) -> void:
@@ -245,7 +247,7 @@ func _send_ground(b: Brush) -> void:
 	if stroke.stamps.is_empty():
 		Ground.release(stroke)
 		return
-	world.submit({"op": "ground", "kind": int(stroke.kind), "stamps": stroke.stamps}, Ground.release.bind(stroke))
+	world.submit({"op": "ground", "kind": int(stroke.kind), "stamps": stroke.stamps}, Ground.release.bind(stroke), b.hand)
 
 
 ## A sent stroke is settled: its plants grow in the garden now, or it was turned down.
@@ -275,11 +277,15 @@ func begin_path(b: Brush, at: Vector3, radius: float) -> void:
 	b.paving = true
 	paths.begin(at, radius, "dirt" if b.hand.tool == Hand.Tool.DIRT_PATH else "cobble")
 	planted.emit()
+	Cues.play(Cues.Act.PATH_LAY, at, b.hand)
 
 
-func extend_path(at: Vector3, radius: float) -> void:
+func extend_path(at: Vector3, radius: float, hand: Hand = null) -> void:
+	var laid := paths.drawing.points.size()
 	paths.extend(at, radius)
 	planted.emit()
+	if paths.drawing.points.size() > laid:
+		Cues.play(Cues.Act.PATH_LAY, at, hand)
 
 
 ## Sends the drawn path to the garden; its stones and worn ground stay as drawn until the command comes back.
@@ -292,5 +298,8 @@ func end_path(b: Brush) -> void:
 
 
 func plant_tree(at: Vector3, hand: Hand = null) -> void:
-	world.submit({"op": "plant", "kind": "tree", "seed": randi(), "at": at}, Callable(), hand)
+	var cmd := {"op": "plant", "kind": "tree", "seed": randi(), "at": at}
+	if world.fits(cmd):
+		Cues.play(Cues.Act.TREE_PLANT, at, hand)
+	world.submit(cmd, Callable(), hand)
 	planted.emit()

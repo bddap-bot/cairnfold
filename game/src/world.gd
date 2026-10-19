@@ -23,10 +23,13 @@ const GROWS_FIRST := ["heights"]
 const FORMAT := 3
 ## A command applying for longer than this is logged.
 const SLOW_MS := 4.0
+const OVER := "over the frame budget"
 
 signal applied(cmd: Dictionary)
 ## The whole garden was swapped (joining or leaving someone's): tools drop what they were doing.
 signal restored
+## The frame budget turned down what `hand` tried (null for a hand we cannot tell).
+signal capped(hand: XRController3D)
 
 var wall_tool: WallTool
 var flora: Flora
@@ -305,7 +308,7 @@ func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) ->
 		_hands[_next_token] = hand
 	_ops[_next_token] = cmd.get("op")
 	if not cmd.get("op") in ["undo", "redo"] and not fits(cmd):
-		_turned_down(_next_token, "over the frame budget")
+		_turned_down(_next_token, OVER)
 		return
 	if multiplayer.is_server():
 		_order(cmd, me())
@@ -366,7 +369,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 		cmd = step.inverse.duplicate(true)
 		if not fits(cmd):
 			stacks[by][kind].append(step)
-			_refuse(by, proposed, "over the frame budget")
+			_refuse(by, proposed, OVER)
 			return
 	else:
 		cmd = Commands.clean(proposed, state, false)
@@ -374,7 +377,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 			_refuse(by, proposed, "no such command in this build" if not kind in Commands.OPS else "it does not fit the garden as it stands")
 			return
 		if kind != "wipe" and not fits(cmd):
-			_refuse(by, proposed, "over the frame budget")
+			_refuse(by, proposed, OVER)
 			return
 	seq += 1
 	cmd.seq = seq
@@ -414,7 +417,10 @@ func _refuse(by: int, proposed: Dictionary, why: String) -> void:
 		return
 	print("world: refused %s from player %d: %s" % [str(proposed.get("op")).left(16), by, why])
 	if typeof(token) == TYPE_INT:
-		_refused.rpc_id(by, token)
+		if why == OVER:
+			_capped.rpc_id(by, token)
+		else:
+			_refused.rpc_id(by, token)
 
 
 @rpc("authority", "reliable")
@@ -422,12 +428,28 @@ func _refused(token: int) -> void:
 	_turned_down(token, "the host refused it")
 
 
+@rpc("authority", "reliable")
+func _capped(token: int) -> void:
+	_turned_down(token, OVER)
+
+
 func _turned_down(token: int, why: String) -> void:
 	print("world: %s turned down: %s" % [_ops.get(token), why])
 	var hand: XRController3D = _hands.get(token)
-	if hand != null and is_instance_valid(hand):
-		Hand.bump(hand)
+	if hand != null and not is_instance_valid(hand):
+		hand = null
+	if why == OVER:
+		cap(hand)
+	elif hand != null:
+		Cues.play(Cues.Act.REFUSED, hand.global_position, hand)
 	_settle(token)
+
+
+## The frame budget turns down what `hand` tried: its budget bar grows and shakes, it grunts, and the hand feels it.
+func cap(hand: XRController3D) -> void:
+	if hand != null:
+		Cues.play(Cues.Act.CAPPED, hand.global_position, hand)
+	capped.emit(hand)
 
 
 @rpc("authority", "reliable")

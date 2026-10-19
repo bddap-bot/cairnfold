@@ -25,6 +25,8 @@ const ORB_RADIUS := 1.2
 ## Between frames a stroke takes what rays this far apart where they strike meet, so a quick swipe skips nothing.
 const STEP := 0.5
 const MAX_STEPS := 32
+## A beam on a wall whose end moves this far in a frame is breaking it, and is heard to.
+const SWEEPING := 0.005
 
 var rig: Rig
 var walls: WallTool
@@ -107,18 +109,22 @@ func sky(dir: Vector3) -> bool:
 ## garden. Pointing below the sky lets the charge go. Whether it is still charging.
 func charge(who: Object, origin: Vector3, dir: Vector3, delta: float) -> bool:
 	if not sky(dir) or not world.multiplayer.is_server():
+		if not world.multiplayer.is_server() and not _charges.has(who) and who is XRController3D:
+			Cues.play(Cues.Act.REFUSED, who.global_position, who)
 		cancel(who)
 		return false
 	if not _charges.has(who):
 		_charges[who] = {"t": 0.0, "orb": _orb()}
 	var c: Dictionary = _charges[who]
 	c.t += delta
+	var k: float = c.t / WIPE_HOLD
+	var orb: MeshInstance3D = c.orb
 	if c.t >= WIPE_HOLD:
+		Cues.play(Cues.Act.WIPE, orb.global_position, who as XRController3D)
 		cancel(who)
 		world.submit({"op": "wipe"})
 		return false
-	var k: float = c.t / WIPE_HOLD
-	var orb: MeshInstance3D = c.orb
+	Cues.play(Cues.Act.WIPE_CHARGE, orb.global_position, who as XRController3D, k)
 	orb.global_position = origin + dir.normalized() * ORB_REACH
 	orb.scale = Vector3.ONE * maxf(k * k, 0.01)
 	(orb.material_override as StandardMaterial3D).albedo_color = Color(TINT, lerpf(0.15, 0.85, k))
@@ -186,6 +192,8 @@ func press(who: Object, origin: Vector3, dir: Vector3) -> void:
 	var target := _stroke(_cuts[who], origin, dir)
 	_cuts[who].ray = [origin, dir, target.get("point", origin + dir)]
 	_preview(_cuts[who])
+	if _taken(_cuts[who]) > 0 or not _cuts[who].wall.is_empty():
+		Cues.play(Cues.Act.DELETE_SWEEP, _cuts[who].ray[2], who as XRController3D)
 
 
 ## The trigger is still held by `who`, its ray now from `origin` along `dir`: takes what the rays since the last
@@ -199,12 +207,20 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 	var far := Vector3(aimed.get("point", origin + dir))
 	var n := steps(far.distance_to(was[2]), aimed.get("mow", 0.0))
 	var target := {}
+	var taken := _taken(cut)
 	for i in range(1, n + 1):
 		var k := float(i) / n
 		target = _stroke(cut, was[0].lerp(origin, k), was[1].normalized().slerp(dir.normalized(), k))
 	cut.ray = [origin, dir, target.get("point", origin + dir)]
 	_preview(cut)
+	if _taken(cut) > taken or (not cut.wall.is_empty() and cut.ray[2].distance_to(was[2]) > SWEEPING):
+		Cues.play(Cues.Act.DELETE_SWEEP, cut.ray[2], who as XRController3D)
 	return target
+
+
+
+static func _taken(cut: Dictionary) -> int:
+	return cut.walls.size() + cut.plants.size() + cut.marks.size() + cut.easels.size()
 
 
 ## How many rays a stroke takes between two where they strike `metres` apart: STEP apart, or over the ground half a

@@ -598,7 +598,7 @@ func _fly(f: Family, delta: float) -> void:
 	if arriving and f.flight >= 1.0:
 		var splash := Vector3(at.x, f.pond.surface_y(), at.z)
 		f.pond.ripple(splash, 1.0)
-		water.splashed.emit(&"dip", splash)
+		Cues.play(Cues.Act.DIP, splash)
 		calls.call_out("quack", splash)
 		_swim(f)
 

@@ -109,6 +109,7 @@ func fill(hand: Hand, hit: Vector3) -> void:
 	var at: Vector3 = _at[i] if shown else hit
 	var p: PondLayout.Pond = _ponds[i] if shown else Water.pointed(hit)
 	if p == null:
-		Hand.bump(hand)
+		Cues.play(Cues.Act.REFUSED, hand.global_position, hand)
 		return
+	Cues.play(Cues.Act.POND_POUR, at, hand)
 	world.submit({"op": "ponds", "put": {p.at: at.y}}, Callable(), hand)

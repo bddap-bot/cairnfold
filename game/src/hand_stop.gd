@@ -87,7 +87,7 @@ func _process(delta: float) -> void:
 		var touched := near.touch(at.move_toward(to, 0.01)) if at.distance_to(to) > 1e-3 else Surface.NONE
 		var pulse := _feels[i].step(now, delta, touched, near.passing(at), from.distance_to(to), from.distance_to(at))
 		if pulse.x > 0.0:
-			hand.trigger_haptic_pulse(&"haptic", 0.0, pulse.x, pulse.y, 0.0)
+			Cues.feel(hand, [pulse.x, pulse.y, 1, 0.0])
 
 
 ## The world round `box` for hand `i`: what was gathered last time while the box stays inside the region it was

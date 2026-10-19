@@ -35,7 +35,7 @@ func _every_section_has_its_stems() -> void:
 
 
 func _every_effect_loads() -> void:
-	for kind in Soundscape.FX:
-		for i in Soundscape.FX[kind]:
+	for kind in Cues.SOUNDS:
+		for i in Cues.SOUNDS[kind]:
 			_check(load("res://audio/fx/%s%d.ogg" % [kind, i]) != null, "effect %s%d" % [kind, i])
 	_check(load("res://audio/meadow.ogg") != null, "meadow bed")

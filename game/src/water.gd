@@ -8,7 +8,6 @@ const RIPPLE_MOVE := 0.07
 ## How finely `crosses` looks for water where a pond is near.
 const WADE := 0.1
 
-signal splashed(kind: StringName, at: Vector3)
 ## Water came, went or changed level over `area`.
 signal refilled(area: Rect2)
 
@@ -100,7 +99,7 @@ func show_ponds(found: Array[PondLayout.Pond]) -> void:
 			w = PondWater.new()
 			add_child(w)
 			var mid := Terrain.grid_xz(p.bottom)
-			splashed.emit(&"fill", Vector3(mid.x, p.level, mid.y))
+			Cues.play(Cues.Act.POND_FILL, Vector3(mid.x, p.level, mid.y))
 		if w.pond != p:
 			w.show_pond(p)
 		ponds.append(w)
@@ -207,7 +206,7 @@ func _wade(hand: Node3D, delta: float) -> void:
 		var at := Vector3(p.x, now.surface_y(), p.z)
 		if not is_instance_valid(w.pond) or w.pond != now:
 			now.ripple(at, 1.0)
-			splashed.emit(&"dip", at)
+			Cues.play(Cues.Act.DIP, at)
 			w.at = p
 			w.since = 0.0
 		elif w.at.distance_to(p) > RIPPLE_MOVE and w.since >= PondWater.RIPPLE_EVERY:

@@ -135,7 +135,7 @@ func _show_ring(ring: MeshInstance3D, at: Vector3, radius: float) -> void:
 func _tick(g: Grab) -> void:
 	if absf(g.lift - g.ticked) >= TICK:
 		g.ticked = snappedf(g.lift, TICK)
-		g.hand.trigger_haptic_pulse(&"haptic", 0.0, 0.25, 0.02, 0.0)
+		Cues.play(Cues.Act.GROUND_SHAPE, (g.at as Vector3) + Vector3.UP * g.lift, g.hand)
 
 
 func begin(hand: Hand, ground: Vector3, radius: float) -> void:

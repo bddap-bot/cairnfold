@@ -1971,11 +1971,7 @@ sound costs no frame time.
 - Comfort in a headset: soft felt plucks, a low breathy flute, mallets and pads,
   melodies in octaves 3–5, harmonics cut off below 3 kHz, a dark reverb. Keep it
   that way: no stacked high registers and almost no energy above 2 kHz.
-- Effects: stone clacks as a stroke grows and as a wall is pulled up or down, a
-  settling rattle when a wall finishes, a gravel trickle for an arch and a tumble for
-  undo, each played from a pool of 3D voices at the stones involved. Water has a dip, a
-  filling pond's gurgle, a plop of small bubbles for seeds landing on it and a soft nibble
-  for a fish taking a grain, played the same way.
+- Effects: every player action's sound and feel come from one table (see "Action feedback").
 - Animal calls: recordings of real conures, ducks, ducklings and sheep, all CC0, cut
   by `scripts/animals.py` from the recordings `game/audio/animals/sources.json` lists
   with their page, author and licence (`nix-shell --run 'python3 scripts/animals.py'`).
@@ -1996,6 +1992,111 @@ sound costs no frame time.
   OUT/animals.avi --fixed-fps 30` records five minutes of a garden the animals come to.
 - `scripts/render.sh demo/sound.json OUT --write-movie OUT/sound.avi --fixed-fps 30`
   records the game's own mix through an idle stretch, a build and the return.
+
+## Action feedback
+
+Directive (verbatim): "Let's find or create satisfying sounds for as many player actions as are applicable. During playtests I found players do enjoy the sound sound effects. From placing walls and splashing water. As well as the controller vibrations. Let us extend that to other interactions."
+
+Directive (verbatim): "Id like moving buildings around to have audible and tactile feedback. For stretching go for "cartoony wooden bow" as inspiration."
+
+Directive (verbatim): "Easle art painting/drawing should have tactile feedback too."
+
+Directive (verbatim): "When something doesn't work because of the frame cap, I think it should be obvious to the player. I think maybe we can do that by embiggening the little bar that represents frame cap and shaking it around and making a little sound, like a [grunt ]sound"
+
+One table, `Cues.TABLE`, keyed by `Cues.Act`, gives each player action its sound and its pulse in the hand that
+did it: the sound's family of clips, its level, its pitch and how far that varies each play, how far a stretch's
+tension bends the pitch up, the pulse as amplitude, seconds, count and gap, how much tension strengthens it, and
+the least time between two plays from one hand. A call site names only the action, where it happened and the
+hand, so no level or pulse lives anywhere else; touching a surface is felt through `HandStop.FEEL` instead, and
+both send their pulses through `Cues.feel`. Sounds play from a pool of twelve 3D voices at the action's place, the
+oldest started giving way, so a burst of actions costs nothing more. Every play varies its pitch and level a
+little, and the frequent actions have three or four clips each. A continuous action calls each step it makes,
+and the table's `every` thins those into a texture: the stroke of a wall clacks every 0.45 m it grows, a dragged
+house scrapes every 0.12 m it moves, painting rustles at most seven times a second.
+
+The new sounds are synthesised beside the stones and water by `actions()` in `scripts/compose.py`, from noise,
+small wooden bodies and the music's own felt pluck in B major, and low-passed at 1.8 kHz. `tests/test_cues.py`
+holds every clip's energy above 2, 3 and 4 kHz to no more than the stone and water sounds' (`Cues.REFERENCE`)
+and its spectral centroid to under one and a half times theirs. Stretching a building creaks like a cartoon wooden bow:
+stick-slip pulses quickening through a small wooden body, its pitch rising with how far the stretch has gone
+(`Cues.stretch`: doubling is all the way), and the pulse in the hand tightening with it.
+
+What the frame budget turns down is plain: the hand's budget bar jumps up to three and a half times its size,
+shakes and settles, a soft cartoon grunt sounds, and the hand feels two knocks (`World.cap`). Before that, while
+what the tool shows would not fit, the bar swells and trembles in red and the hand's pointer turns red, so a
+preview that will be refused already looks refused. `tests/test_budget.gd` checks both. Anything else turned down
+(a crowded easel, no hollow to fill, the host refusing) gets the plain `REFUSED` knock.
+
+Every player action, from the code:
+
+| Action | What it is | Sound | Feel |
+| --- | --- | --- | --- |
+| `WALL_LAY` | A wall or fence stroke grows by a point; a gable or roof style changes | stone clack | light tick |
+| `WALL_SETTLE` | A wall stroke, house or tower stands in the garden (any player's) | settling rattle | two soft knocks in the hand that built it |
+| `WALL_LIFT` | A wall pulled up or down, or a house resized, crosses a course | stone clack | tick |
+| `WALL_STRETCH` | A wall's height, or a built house's size between two grips, being pulled | wooden bow creak, higher as it goes | a pulse tightening with it |
+| `WALL_CRUMBLE` | A wall comes down or breaks into a ruin (any player's) | tumble | none: it lands after the delete stroke, whose sweep is felt |
+| `WALL_RESTYLE` | A wall's top, face or arches change (any player's) | settling rattle | none: the dial that set it was felt |
+| `ARCH` | A path opens or closes arches in a wall | gravel trickle | none: the path being laid is felt |
+| `ROOF_SHAPE` | A roof's pitch or curve steps | wooden knock | tick |
+| `ROOF_FLAT` | A roof pulled all the way down snaps flat | settling rattle | knock |
+| `HOUSE_TAKE` | The house tool takes up a new house | low lift thump | knock |
+| `HOUSE_MOVE` | A house in hand is carried or turned | stone scrape, every 0.12 m | light grain |
+| `HOUSE_STRETCH` | A house in hand is stretched between two hands | wooden bow creak, higher as it goes | a pulse tightening with it |
+| `STAIRS_LAY` | A stair being drawn gains a step | stone clack | tick |
+| `STAIRS_SET` | A stair is let go and fits | settling rattle | two knocks |
+| `FITTING` | A window, door, chimney, flag or lantern goes in | wooden knock | knock |
+| `FITTING_OFF` | One is taken away | lower wooden knock | lighter knock |
+| `FLORA_PAINT` | Flowers or grass are painted | leaf rustle | light grain |
+| `STONE_PAINT` | Stone ground is painted, or painted back to meadow | gravel crunch | light grain |
+| `PATH_LAY` | A path grows by a point | gravel crunch | grain |
+| `TREE_PLANT` | A tree is planted | soft earth thump | knock |
+| `GROUND_SHAPE` | The ground in a grip rises or sinks a quarter metre | soft earth thump | click |
+| `POND_POUR` | The pond tool lets water in | none: the pond's gurgle (`POND_FILL`) plays as the water comes | long soft pulse |
+| `POND_FILL` | A new pond fills (any player's) | gurgle | none: `POND_POUR` is felt |
+| `DIP` | A hand, or a duck coming down, enters a pond | water dip | none: `HandStop.FEEL`'s water is felt |
+| `PLOP` | Thrown seeds land on a pond | bubble plop | none: the seeds left the hand already |
+| `NIBBLE` | A fish takes a grain | soft nibble, at most every 0.12 s | tick in a hand within 0.6 m |
+| `DELETE_SWEEP` | The delete beam takes something, or breaks along a wall | low gravel crunch | grain |
+| `WIPE_CHARGE` | The orb swells while delete points at the sky | none: one sustained sound would be the game's only drone; the orb shows it | pulses quickening with it |
+| `WIPE` | The garden is wiped | long soft gust and rattle | two strong pulses |
+| `DIAL_TURN` | The colour or style wheel turns to the next swatch | wooden tock | click |
+| `DIAL_SET` | Letting go of the wheel sends a new choice | felt pluck | knock |
+| `SKY_TURN` | The grabbed sky turns past an hour | low tock | click |
+| `EASEL_PLACE` | An easel is set up | low wooden knock | knock |
+| `BRUSH_TAKE` | A grip takes a brush, charcoal, the palette or the sheet's corner | tock | knock |
+| `BRUSH_DIP` | A brush dips into paint, the jar or the tin | quiet dip | tick |
+| `CANVAS_STROKE` | A brush lays paint on the canvas | soft bristle swish, at most 28 a second | grain, stronger the harder it is pressed |
+| `CHARCOAL_STROKE` | Charcoal draws on the canvas | lower, grittier swish | finer grain, stronger the harder it is pressed |
+| `SHEET_TEAR` | The sheet is torn off | paper tear | pulse |
+| `PHOTO` | The camera takes a photo (flat players too) | wooden shutter | knock |
+| `SEEDS_THROW` | A handful of seeds leaves the dish | soft scatter | knock |
+| `WHEEL_OPEN` | The tool wheel opens | low tock | tick |
+| `WHEEL_HOVER` | The hand moves onto another slot or into a subtree | quiet high tock | light tick |
+| `WHEEL_PICK` | Letting go takes the tool | felt pluck | knock |
+| `UNDO` | One step back | two plucks falling | tick |
+| `REDO` | One step forward | two plucks rising | tick |
+| `TELEPORT` | A teleport is let go | soft whoosh where the player lands | pulse in the aiming hand |
+| `TURN` | A snap turn | none: the most frequent motion, a sound on each would become a tic | light tick |
+| `VISIT_HOVER` | The visit pointer moves onto a garden's figure | quiet tock | light tick |
+| `VISIT_GO` | Visiting a garden or going home (flat players too) | three plucks rising | knock |
+| `PLAYER_JOINS` | Another player joins the garden | three plucks rising | none: no hand did it |
+| `PLAYER_LEAVES` | Another player leaves | three plucks falling | none: no hand did it |
+| `BIRDS_STARTLE` | A conure takes off from someone coming near | wing flutter | none: nothing touched the hand |
+| `REFUSED` | Something other than the frame budget turns an action down | low tock | two knocks |
+| `CAPPED` | The frame budget turns an action down | soft grunt | two knocks, and the bar jumps and shakes |
+
+| Action | What it is | Why it has no entry |
+| --- | --- | --- |
+| Touching a surface | A hand pressing on or sliding along walls, ground, roofs, trunks, leaves, water or an animal | felt through `HandStop.FEEL`, by surface (see "Hands at surfaces"); its pulses go out through `Cues.feel` |
+| Grabbing a wall or roof, a house's second grip | A grip takes a build | the pull that follows is heard and felt (`WALL_STRETCH`, `ROOF_SHAPE`, `HOUSE_STRETCH`) |
+| Releasing a grab | A grip lets go of a wall, roof, the ground or the sky | the garden's answer is heard (`WALL_SETTLE`, `WALL_RESTYLE`); a sound of its own would double it |
+| Grabbing the sky or the ground | A grip takes the sky or the ground | it turns or gives way at once, heard and felt in steps |
+| Opening the colour or style wheel | Trigger held on a build | its first step is the first `DIAL_TURN` |
+| Aiming a teleport | Holding the left stick forward | the arc and rings show it; only the jump itself is heard |
+| Walking (flat) | Stick or keys | footsteps on every frame of a walk would tire; the flat build has no controller to feel |
+| Animals fleeing, a duck paddling off, fish scattering | Wildlife reacting to a person nearby | each animal's own calls stay theirs (see "Sound"); a grazer running on grass and fish under water make no sound worth adding |
+| Animals eating from a hand | A duck, conure or grazer taking seeds from the dish | the dish's seeds are taken in view; `NIBBLE` is the fish's |
 
 ## Wildlife
 

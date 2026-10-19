@@ -122,7 +122,8 @@ func _ready() -> void:
 	wildlife.handfuls = feed_tool.handfuls
 	fish = wildlife.fish
 	session.feed = feed_tool
-	sound = Soundscape.new(tool, flora_tool, water)
+	sound = Soundscape.new(tool, flora_tool)
+	add_child(Cues.new())
 	add_child(sound)
 	add_child(Underwater.new(water, look))
 	rig.floor_under = func(p: Vector3) -> float: return maxf(tool.floor_under(p), world.stairs.floor_under(p))
@@ -200,8 +201,10 @@ func open_photo(path: String) -> bool:
 func _process(_delta: float) -> void:
 	if not _editing():
 		if _undo.pressed("undo"):
+			Cues.play(Cues.Act.UNDO, rig.left.global_position, rig.left)
 			world.undo()
 		if _redo.pressed("redo"):
+			Cues.play(Cues.Act.REDO, rig.right.global_position, rig.right)
 			world.redo()
 	_undo.latch()
 	_redo.latch()
