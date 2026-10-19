@@ -107,7 +107,8 @@ if [ "${2:-}" = --android ]; then
   }
   rig=$(adb shell getprop ro.product.model | tr -d '\r' | tr 'A-Z ' 'a-z-')
   "$here/quest-install.sh" "$3"
-  same "$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')" --short HEAD
+  build=$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')
+  same "$build" --short HEAD
   adb shell "rm -rf $dir"
   adb push "$out/stress.json" "$files/bench.json" > /dev/null
   # Off the head the headset loses tracking, and its Guardian then puts up a dialog the shell keeps drawing beside
@@ -183,7 +184,8 @@ elif [ $# -ge 3 ]; then
   device=frame
   rig=frame
   ssh "$2" 'set -e; rm -rf nestcombe-bench; mkdir nestcombe-bench; tar -xz -C nestcombe-bench; mkdir nestcombe-bench/nestcombe/log' < "$3"
-  same "$(ssh -n "$2" cat nestcombe-bench/nestcombe/REVISION)"
+  build=$(ssh -n "$2" cat nestcombe-bench/nestcombe/REVISION)
+  same "$build"
   scp -q "$out/stress.json" "$2:nestcombe-bench/nestcombe/log/stress.json"
   # standby HOST off|on: SteamVR reads its settings only as it starts.
   standby() {
@@ -227,7 +229,7 @@ if [ "$players" -gt 1 ] && grep -qs "driver: until .* timed out" "$out"/godot.lo
   exit 1
 fi
 scene=$(basename "${NESTCOMBE_SCENE:-stress.json}" .json)
-record=$here/../perf/$rig/$scene/$(date -u +%Y%m%dT%H%M%SZ)-$(git -C "$here" rev-parse --short HEAD).json
+record=$here/../perf/$rig/$scene/$(date -u +%Y%m%dT%H%M%SZ)-${build:0:7}.json
 python3 - "$out" "$device" "$record" <<'PY'
 import json, os, re, sys
 out, device, record = sys.argv[1], sys.argv[2], sys.argv[3]
