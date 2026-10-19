@@ -4,6 +4,9 @@ extends SceneTree
 
 const SIDE := 21
 const WINDOW := Rect2i(0, 0, SIDE, SIDE)
+const RADIUS := 2.8
+## Just past the edge of a hollow pressed a metre deep, which widens to GroundGrab.SPREAD metres.
+const RIM := GroundGrab.SPREAD + 0.2
 
 var failures := 0
 
@@ -12,6 +15,7 @@ func _initialize() -> void:
 	_bowl_fills_to_below_its_rim()
 	_water_spills_at_the_lowest_rim_point()
 	_seed_off_the_bottom_still_fills()
+	_a_level_below_the_rim_fills_shallower()
 	_neighbouring_hollows_fill_as_one()
 	_spilling_into_a_draining_hollow_stops_at_the_rim()
 	_shore_is_the_dry_ring_around_the_water()
@@ -68,6 +72,18 @@ func _water_spills_at_the_lowest_rim_point() -> void:
 		return minf(_bowl(i, j), 0.9) if i < 16 else 0.5
 	var p := PondLayout.fill(_grid(notched), WINDOW, Vector2i(10, 10))
 	_check(p != null and absf(p.level - (0.9 - PondLayout.FREEBOARD)) < 1e-4, "a notch in the rim sets the level, %s" % (p.level if p else "no pond"))
+
+
+func _a_level_below_the_rim_fills_shallower() -> void:
+	var g := _grid(_bowl)
+	var full := PondLayout.fill(g, WINDOW, Vector2i(10, 10))
+	var side := Vector2i(13, 10)
+	var p := PondLayout.fill(g, WINDOW, side, g[side.y * SIDE + side.x])
+	_check(p != null and is_equal_approx(p.level, 0.9) and p.bottom == Vector2i(10, 10), "a point on the bowl's side fills it to that point's height, %s" % (p.level if p else "no pond"))
+	_check(p != null and p.cells.size() < full.cells.size() and p.cells.all(func(c: Vector2i) -> bool: return g[c.y * SIDE + c.x] < 0.9), "covering less of it")
+	var over := PondLayout.fill(g, WINDOW, side, 9.0)
+	_check(over != null and is_equal_approx(over.level, full.level), "a level over the rim fills only to where it would spill")
+	_check(PondLayout.fill(g, WINDOW, side, PondLayout.MIN_DEPTH * 0.5) == null, "a level just over the bottom holds nothing")
 
 
 func _seed_off_the_bottom_still_fills() -> void:
@@ -135,12 +151,31 @@ func _shallow_basin_holds_no_pond() -> void:
 	_check(PondLayout.fill(_grid(enough), WINDOW, Vector2i(10, 10)) != null, "a slightly deeper one does")
 
 
-func _dig(tool: WaterTool, x: float, z: float, frames: int) -> void:
-	tool.begin(tool.rig.right, Terrain.ground(x, z))
-	for i in frames:
-		tool.deepen(1.0 / 60.0)
-	tool.end()
+## Presses a hollow `depth` deep at x, z as a grip does; the rim it leaves is `rim` from x, z.
+func _press(terrain: GroundGrab, x: float, z: float, depth: float) -> void:
+	terrain.begin(terrain.rig.right, Terrain.ground(x, z), RADIUS)
+	terrain.pull(terrain.rig.right, -depth)
+	terrain.end_stroke(terrain.rig.right)
 	await process_frame
+
+
+## Points the tool's first hand at `at` until its preview has caught up.
+func _preview(tool: WaterTool, at: Vector3) -> void:
+	tool._show(0, at)
+	while tool._tasks[0] >= 0:
+		await process_frame
+		tool._show(0, at)
+
+
+## The ground back as it first lay around x, z, as one ground edit.
+func _fill_in(world: World, x: float, z: float) -> void:
+	var cells := Terrain.cells_around(x, z, RADIUS * 3.0)
+	var base := Terrain.base_heights()
+	var flat := PackedFloat32Array()
+	for j in range(cells.position.y, cells.end.y):
+		for i in range(cells.position.x, cells.end.x):
+			flat.append(base[j * Terrain.VERTS + i])
+	world.submit({"op": "heights", "cells": cells, "values": flat})
 	await process_frame
 
 
@@ -193,58 +228,100 @@ func _ponds_in_the_glade() -> void:
 	var terrain := GroundGrab.new(rig, world)
 	root.add_child(terrain)
 	var water := Water.new([])
-	terrain.reshaped.connect(water.reground)
 	root.add_child(water)
-	var tool := WaterTool.new(rig, terrain, water)
+	var tool := WaterTool.new(rig, world)
 	root.add_child(tool)
 	world.attach(null, null, null, terrain, water)
 	await process_frame
 	var fills := [0]
 	water.splashed.connect(func(kind: StringName, _at: Vector3) -> void: fills[0] += int(kind == &"fill"))
+	var hand := rig.right
 
-	var before := Terrain.height_at(3, -4)
-	await _dig(tool, 3, -4, 120)
-	_check(water.ponds.size() == 1 and fills[0] == 1, "a dug hollow fills once, %d ponds" % water.ponds.size())
-	_check(world.stacks[world.me()].undo.size() == 1, "a dig is one undo step")
+	var meadow := Terrain.height_at(3, -4)
+	await _press(terrain, 3, -4, 1.0)
+	_check(water.ponds.is_empty(), "a pressed hollow holds no water until the pond tool fills it")
+	var rim := Terrain.ground(3 + RIM, -4)
+	var steps: int = world.stacks[world.me()].undo.size()
+	tool.fill(hand, rim)
+	await process_frame
+	_check(water.ponds.size() == 1 and fills[0] == 1 and world.state.ponds.size() == 1, "pointing at the rim fills the hollow once, %d ponds" % water.ponds.size())
+	_check(world.stacks[world.me()].undo.size() == steps + 1, "a fill is one undo step")
 	var pond := water.pond_at(3, -4)
 	_check(pond != null, "its middle is under water")
-	_check(water.pond_at(3 + WaterTool.RADIUS * 3.0, -4) == null, "the meadow beyond stays dry")
+	var brim := pond.pond.level if pond != null else 0.0
+	_check(brim <= rim.y + 1e-4 and brim > meadow - 0.3, "it fills to the brim, %.2f against the rim at %.2f" % [brim, rim.y])
+	_check(water.pond_at(3 + RADIUS * 3.0, -4) == null, "the meadow beyond stays dry")
 	var shore := Terrain.grid_xz(pond.pond.shore[0])
 	_check(water.pond_at(shore.x, shore.y) == null, "a shore point stands above the water")
 	await _head_under(water, rig, pond)
 
-	await _dig(tool, 4, -4, 1)
-	_check(water.ponds.size() == 1 and water.ponds[0] == pond and fills[0] == 1, "a second dig in the same pond keeps its surface")
+	var lower := Terrain.ground(3 + RIM * 0.3, -4)
+	_check(lower.y < brim - 0.2, "a point down the side stands below the brim, %.2f against %.2f, meadow %.2f, bottom %.2f" % [lower.y, brim, meadow, Terrain.height_at(3, -4)])
+	tool.fill(hand, lower)
+	await process_frame
+	_check(water.ponds.size() == 1 and world.state.ponds.size() == 1 and water.ponds[0] == pond, "pointing lower keeps the one pond and its surface")
+	_check(absf(pond.pond.level - lower.y) < 1e-4 and pond.pond.cells.size() > 0, "and fills it shallower, to %.2f" % pond.pond.level)
+	var shallow := pond.pond.cells.size()
+	tool.fill(hand, rim)
+	await process_frame
+	_check(water.ponds.size() == 1 and absf(pond.pond.level - brim) < 1e-4 and pond.pond.cells.size() > shallow, "pointing at the rim again fills it to the brim")
 
-	await _dig(tool, 12, 8, 120)
-	_check(water.ponds.size() == 2, "a dig elsewhere makes a second pond")
+	tool.fill(hand, rim + Vector3.UP * 5.0)
+	await process_frame
+	_check(water.ponds.size() == 1 and pond.pond.level <= brim + PondLayout.FREEBOARD and pond.pond.level < meadow + 0.3, "a level over the rim fills only to where it would spill, %.2f" % pond.pond.level)
+	tool.fill(hand, rim)
+	await process_frame
+
+	var again: int = world.stacks[world.me()].undo.size()
+	tool.fill(hand, rim)
+	await process_frame
+	world.undo()
+	await process_frame
+	_check(world.stacks[world.me()].undo.size() == again and water.ponds.size() == 1 and absf(pond.pond.level - brim) < 1e-4, "undoing a fill to the level it already had leaves the pond be")
+	tool.set_process(false)
+	await _preview(tool, rim)
+	_check(tool._ghosts[0].visible and absf(tool._ghosts[0].position.y - brim) < 0.05, "the tool shows the water pointing at the rim would hold")
+	await _preview(tool, Terrain.ground(-30, 30))
+	_check(not tool._ghosts[0].visible and tool._ponds[0] == null, "and nothing where no hollow holds any")
+	tool.set_process(true)
+	var seq := world.seq
+	_check(Water.pointed(Terrain.ground(-30, 30)) == null, "open meadow holds no water")
+	tool.fill(hand, Terrain.ground(-30, 30))
+	await process_frame
+	_check(world.seq == seq, "and the pond tool sends nothing there")
+	_check(Water.pointed(Terrain.ground(3, -4) + Vector3.UP * 0.05) == null, "nor at a point just over the hollow's bottom")
+
+	var depth := pond.pond.depth
+	await _press(terrain, 3, -4, 0.6)
+	_check(water.ponds.size() == 1 and absf(pond.pond.level - brim) < 0.01 and pond.pond.depth > depth + 0.2, "digging its bed deeper keeps its level and deepens it")
+	world.undo()
+	await process_frame
+
+	await _press(terrain, 12, 8, 1.0)
+	tool.fill(hand, Terrain.ground(12 + RIM, 8))
+	await process_frame
+	_check(water.ponds.size() == 2 and world.state.ponds.size() == 2, "a hollow elsewhere holds a second pond")
 	var other := water.pond_at(12, 8)
 	_check(other != null and other != pond and water.pond_at(3, -4) == pond, "each place finds its own pond")
 
-	terrain.reshaped.emit(Rect2(), false)
-	await process_frame
-	_check(water.ponds.size() == 2, "nothing refills mid-stroke")
+	await _fill_in(world, 12, 8)
+	_check(water.ponds.size() == 1 and world.state.ponds.size() == 1 and water.pond_at(12, 8) == null, "filling a pond's hollow in erases it")
+	_check(not world.snapshot().cmds.any(func(c: Dictionary) -> bool: return c.op == "ponds" and c.put.size() != 1), "and the garden saves without it")
 	world.undo()
 	await process_frame
-	await process_frame
-	_check(water.ponds.size() == 1 and (not is_instance_valid(other) or other.is_queued_for_deletion()), "undoing a dig drains its pond")
+	_check(water.ponds.size() == 2 and world.state.ponds.size() == 2 and water.pond_at(12, 8) != null, "undoing the filling in brings the pond back")
 	world.redo()
 	await process_frame
-	_check(water.ponds.size() == 2 and water.pond_at(12, 8) != null, "redo digs and fills it again")
-
-	for step in 3:
-		world.undo()
-	await process_frame
-	_check(water.ponds.is_empty() and water.pond_at(3, -4) == null, "undoing every dig drains them all")
-	_check(absf(Terrain.height_at(3, -4) - before) < 1e-4, "and the ground is as it was")
-	terrain.begin(terrain.rig.right, Terrain.ground(3, -4), WaterTool.RADIUS)
-	terrain.pull(terrain.rig.right, -1.0)
-	terrain.end_stroke(terrain.rig.right)
-	await process_frame
-	_check(water.ponds.is_empty(), "a hollow pressed where an undone pond was stays dry")
+	_check(water.ponds.size() == 1 and world.state.ponds.size() == 1, "redo fills it in again")
 	world.undo()
 	await process_frame
 
-	await _dig(tool, 3, -4, 1)
-	_check(water.ponds.size() == 1, "even a tap scoops enough to hold water")
 	world.undo()
+	await process_frame
+	_check(water.ponds.size() == 1 and water.pond_at(12, 8) == null and water.pond_at(3, -4) == pond, "undoing a fill drains only its pond")
+	world.redo()
+	await process_frame
+	_check(water.ponds.size() == 2 and water.pond_at(12, 8) != null, "redo fills it again")
+
+	var saved: Array = world.snapshot().cmds.filter(func(c: Dictionary) -> bool: return c.op == "ponds")
+	_check(saved.size() == 1 and saved[0].put == world.state.ponds and world.state.ponds.values().has(rim.y), "the garden saves each pond's level: %s" % [saved])

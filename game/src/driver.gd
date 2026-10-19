@@ -459,17 +459,21 @@ func _touch(s: Dictionary) -> void:
 	main.flora_tool.stand_in = Flora.NO_HAND
 
 
-## Holds the pond tool's trigger on the ground at x, z for `seconds`, as a hand digging there does.
+## Digs a hollow at x, z, deeper the more `seconds` (as a grip pressing the ground), and fills it to the brim with
+## the pond tool pointed at its rim.
 func _dig(s: Dictionary) -> void:
-	var tool: WaterTool = main.water_tool
-	tool.begin(_holding(s, Hand.Tool.POND), _spot(s, s.x, s.z))
-	var t := 0.0
-	while t < s.get("seconds", 1.5):
-		await get_tree().process_frame
-		var dt := get_process_delta_time()
-		t += dt
-		tool.deepen(dt)
-	tool.end()
+	var depth := clampf(0.7 * s.get("seconds", 1.5), 0.45, 1.3)
+	var radius := maxf(2.8, depth * GroundGrab.SPREAD)
+	await _sculpt({"x": s.x, "z": s.z, "lift": -depth, "radius": 2.8, "seconds": 0.3, "relative": s.get("relative", false), "hand": s.get("hand", "right")})
+	await get_tree().process_frame
+	await _pond({"x": s.x + radius, "z": s.z, "relative": s.get("relative", false), "hand": s.get("hand", "right")})
+
+
+## Pulls the trigger of the pond tool pointed at the ground at x, z: the hollow beside it fills to that height.
+func _pond(s: Dictionary) -> void:
+	main.water_tool.fill(_holding(s, Hand.Tool.POND), _spot(s, s.x, s.z))
+	await get_tree().process_frame
+	await get_tree().process_frame
 
 
 ## Sweeps the right hand along `points` at `y` metres above the pond at the first point, as if trailing it through.

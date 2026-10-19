@@ -68,7 +68,7 @@ func _ready() -> void:
 
 func show_pond(p: PondLayout.Pond) -> void:
 	pond = p
-	mesh = _sheet(p)
+	mesh = sheet(p)
 	position = Vector3(0, p.level, 0)
 	var mid := Terrain.grid_xz(p.bottom)
 	_lap.position = Vector3(mid.x, 0, mid.y)
@@ -80,7 +80,7 @@ func show_pond(p: PondLayout.Pond) -> void:
 
 ## Quads over every grid cell with a wet corner and the rest on its shore: they reach each shore and no
 ## further, and never over a hollow that only touches the pond at a corner.
-static func _sheet(p: PondLayout.Pond) -> ArrayMesh:
+static func sheet(p: PondLayout.Pond) -> ArrayMesh:
 	var ours := {}
 	for g in p.cells + p.shore:
 		ours[g] = true

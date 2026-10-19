@@ -167,11 +167,14 @@ func _teleport_is_no_motion() -> void:
 		n.free()
 
 
+## Presses a hollow at x, z as a grip does, then fills it to the brim with the pond tool pointed at its rim.
 func _dig(tool: WaterTool, x: float, z: float, frames: int) -> void:
-	tool.begin(tool.rig.right, Terrain.ground(x, z))
-	for i in frames:
-		tool.deepen(1.0 / 60.0)
-	tool.end()
+	var depth := clampf(0.7 * frames / 60.0, 0.45, 1.3)
+	var hand := tool.world.ground_grab.rig.right
+	tool.world.ground_grab.begin(hand, Terrain.ground(x, z), 2.8)
+	tool.world.ground_grab.pull(hand, -depth)
+	tool.world.ground_grab.end_stroke(hand)
+	tool.fill(hand, Terrain.ground(x + maxf(2.8, depth * GroundGrab.SPREAD), z))
 	await process_frame
 	await process_frame
 
@@ -205,9 +208,8 @@ func _ducks_come_only_to_ponds() -> void:
 	var terrain := GroundGrab.new(rig, world)
 	root.add_child(terrain)
 	var water := Water.new([])
-	terrain.reshaped.connect(water.reground)
 	root.add_child(water)
-	var tool := WaterTool.new(rig, terrain, water)
+	var tool := WaterTool.new(rig, world)
 	root.add_child(tool)
 	world.attach(null, null, null, terrain, water)
 	var flora := Flora.new()
@@ -308,8 +310,8 @@ func _ducks_come_only_to_ponds() -> void:
 	_seeds_thrown_on_the_pond_are_eaten(walker, pond)
 	_seeds_thrown_on_the_grass_fade(walker)
 
-	world.undo()
-	world.undo()
+	for step in 4:
+		world.undo()
 	await process_frame
 	await process_frame
 	_check(water.ponds.is_empty(), "the pond drains")

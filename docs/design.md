@@ -1314,7 +1314,7 @@ Stage numbers refer to the build order at the end.
 | Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers grow in clumps about 1.3 m across, each one of nine soft colours (white, butter, peach, pinks, lavender, violet, blues), so a stroke paints a few colour patches with nothing to pick | 1 (done), 3 (done) |
 | Trees | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs in five species the style tool picks per tree; the trigger of a hand holding the tree tool plants an oak where it points | 1 (done), 3 (done) |
 | Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | Not a tool: a grip on the ground, whatever the hand holds, grabs it where it points (a pond's bed under its water too) and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then stone ground show on steep slopes | 7 (shaping done) |
-| Water | Dug holes with a flat surface and normal-map waves | The pond tool scoops a hollow where it points; it fills to just below its rim with depth-tinted water, shore foam and ripples where a hand breaks it (see "Water") | 7 (water done) |
+| Water | Dug holes with a flat surface and normal-map waves | The pond tool fills the hollow beside the point it is aimed at up to that point's height, at most to just below its rim, with depth-tinted water, shore foam and ripples where a hand breaks it (see "Water") | 7 (water done) |
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, and a one-metre probe volume of sky seen and sunlight bounced off sunlit stone, solved again on a worker when a build settles or the sun moves (see "Bounce light") | 2 (done) |
 | Shadows | Soft sun shadows with temporal filtering, contact shadows | One stabilized shadow map across the garden; occlusion darkening at wall feet and corners from the probe volume | 1 (done), 2 (done) |
 | Sky and clouds | Hand-tuned colour timelines per glade; clouds as pre-lit sprites on a cylinder | Sky shader gradient and painted noise clouds; zenith, horizon, sun glow, cloud light and fog colour follow the sun's elevation through one timeline of keys (`Daylight`) | 1 (done), 8 (done) |
@@ -1705,7 +1705,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Paint stone ground | Trigger held on a hand holding stone, pointing at the ground; a stroke begun on stone paints it back to meadow instead. The ring shows the brush, which widens the farther you point |
 | Plant a tree | Trigger of a hand holding trees, pointing at the ground |
 | Shape the ground | Grip held pointing at the ground, whatever the hand holds (a pond's bed too): the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it. Each hand grabs on its own, so both can shape the ground, or one holds it while the other grabs or builds something else |
-| Dig a pond | Trigger held on a hand holding the pond tool, pointing at the ground: the hollow deepens while held and fills with water on release (see "Water") |
+| Fill a pond | Trigger on a hand holding the pond tool, pointing at the ground beside a hollow: the hollow fills to the height of that point, as its pale sheet showed (see "Water") |
 | Delete | Trigger of a hand holding delete: hold it and sweep, and everything the beam passes over goes in that one stroke. Along a wall the stretch swept breaks into a ruin as you sweep; a tap breaks a short gap; a sweep leaving nothing worth standing, or any touch on a fence, house or tower, takes it whole. A tree or bush the beam strikes goes, and so does the path or stone ground it meets, whole; elsewhere on the ground it mows the grass and flowers under the ring, raggedly at its edge. Ruins and taken plants show as it goes, paths and stone go when you let go; the stroke is sent as one command when you let go, so one undo puts all of it back. Held pointed up at the sky, an orb swells at the beam's end for 2 s and then the whole garden is wiped (see Wipe); letting go or lowering the beam first lets the orb go |
 | Wipe | Directive (verbatim): "This world is really full of stuff, and I don't really have a great way to delete it all. I think I need a way to Wipe the whole world". One command (`wipe`) takes the garden back to bare meadow: every wall, path, stone, planted and painted plant, pond and ground edit goes, and so do the meadow's own flowers, bushes and trees; its grass and the season stay. A fresh garden still starts with the meadow's scenery; a wiped one is kept wiped. It is one undo step: undo rebuilds the garden from the snapshot the wipe took, as a late joiner's is. Only the garden's host can wipe it |
 | Undo | Tap left X (the Frame's D-pad down): one step back per tap, across every tool (walls, towers and houses drawn, raised, arched, roofed, restyled, erased into ruins or deleted, trees, paint strokes, stone ground, paths, ground shaped, ponds dug, fences, windows and decorations). With others, your own steps only, skipping any another player has built on since (see [multiplayer.md](multiplayer.md)) |
@@ -1812,14 +1812,28 @@ the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
 
 Directive (verbatim): "Definitely gonna need pretty water"
 
-The pond tool sits on each hand's wheel as a small sandy dish of water. Holding its trigger scoops a
-hollow where it points (the ground grab's stroke, pulled down), deeper the longer it is held, from
-0.45 m for a tap to 1.3 m. On release the hollow fills; undo fills the hollow back in. Water is not
-placed: each dig leaves a seed, and after every settled ground edit the basin around each seed
-fills lowest ground first until it would spill over the lowest point of its rim, settling 8 cm
-below that (`PondLayout`). So digs beside each other become one pond, a hill raised through a pond
-drains it, and undoing a dig empties it. Basins shallower than 12 cm, or wider than 24 m from the
-seed, hold nothing.
+Directive (verbatim): "Let's change the semantics of the pond tool. Um, we'll change it so that you select, you shoot at a point. And that sets the water level of the pond. So you select a point and it will fill the pond up to that water level. So for example, you dig a hole, then select a point on the edge of the hole, and the pond fills up to that level. If you want the pond to be more shallow, then you can also select a lower down point"
+
+Directive (verbatim): "When a pond is filled in, it should disappear. It should be erased. Yeah"
+
+The pond tool sits on each hand's wheel as a small sandy dish of water. It digs nothing: hollows are
+pressed with the grip, like any ground. Pointed at the ground, the tool shows as a pale sheet the water
+that would stand at the height of the point it hits, in the hollow beside that point; the trigger lets
+it in, one command and one undo step. Pointing at the rim of a hole fills it to the brim; pointing
+lower down its side fills it shallower; pointing into a pond sets its level anew. Where no hollow
+would hold water the ray turns grey, nothing shows and the trigger bumps the hand.
+
+A pond is its grid point and its level (`World.state.ponds`). From the grid point water runs downhill
+to the bottom of its hollow, then fills it lowest ground first up to that level, or, if the rim is
+lower than the level anywhere, to 8 cm below the lowest point of the rim it would spill over
+(`PondLayout`); spilling into another enclosed hollow fills that too. Of the grid points around the
+pointed spot, the one whose hollow holds the most water names the pond, so a point on a rim between a
+hole and the meadow fills the hole. After every ground edit each pond fills again at its own level:
+digging its bed deeper deepens it, cutting its rim lowers it to the new rim, and mending the rim
+brings it back up. A pond whose hollow holds no water any more, filled in or shallower than 12 cm or
+open to ground wider than 24 m from its grid point, is erased, water, fish and all, as part of the
+ground edit that did it, so undoing that edit brings it back. Two ponds whose water meets become the
+higher one.
 
 The look follows the usual recipe for stylised water (Sea of Thieves' blend of deep and shallow
 colour, the common stylised-water shaders' depth bands and shore foam), adapted so nothing reads

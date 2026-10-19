@@ -251,6 +251,20 @@ static func grid_point(x: float, z: float) -> Vector2i:
 	return Vector2i(clampi(roundi((x + SIZE * 0.5) / STEP), 0, CELLS), clampi(roundi((z + SIZE * 0.5) / STEP), 0, CELLS))
 
 
+## The grid point water at `g` runs down to over the ground, steepest way first, without humps.
+static func downhill(g: Vector2i) -> Vector2i:
+	while true:
+		var next := g
+		for o in [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]:
+			var n: Vector2i = g + o
+			if n.x >= 0 and n.y >= 0 and n.x < VERTS and n.y < VERTS and _heights[n.y * VERTS + n.x] < _heights[next.y * VERTS + next.x]:
+				next = n
+		if next == g:
+			return g
+		g = next
+	return g
+
+
 ## The world position of grid point `g` across the ground.
 static func grid_xz(g: Vector2i) -> Vector2:
 	return Vector2(g) * STEP - Vector2.ONE * SIZE * 0.5

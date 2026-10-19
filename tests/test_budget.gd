@@ -58,8 +58,8 @@ func _recount() -> Dictionary:
 				var u := world.flora.unit_of(p)
 				if u != "" and not (g == 0 and u == "grass"):
 					Budget.add(out, {u: 1})
-	if not world.state.seeds.is_empty():
-		out.pond = world.state.seeds.size()
+	if not world.state.ponds.is_empty():
+		out.pond = world.state.ponds.size()
 	return out
 
 

@@ -1,10 +1,8 @@
 class_name Water
 extends Node3D
 
-## Every pond. Each dig leaves a seed; after any settled edit to the ground the basin below each seed
-## fills to just under its spill point (PondLayout). Pond levels are shared with shaders
-## (water.gdshaderinc), so the bed turns to sand and drowned plants go without touching an instance.
-## Hands that break a surface ripple it.
+## Every pond, as `World` fills them (`show`). Pond levels are shared with shaders (water.gdshaderinc), so the
+## bed turns to sand and drowned plants go without touching an instance. Hands that break a surface ripple it.
 
 const RIPPLE_MOVE := 0.07
 ## How finely `crosses` looks for water where a pond is near.
@@ -16,8 +14,6 @@ signal refilled(area: Rect2)
 
 var hands: Array[Node3D] = []
 var ponds: Array[PondWater] = []
-var _seeds: Array[Vector2i] = []
-var _dirty := false
 ## Index into `ponds` of the pond over each grid point, wet or shore; -1 elsewhere.
 var _owner := PackedInt32Array()
 var _written: Array[Vector2i] = []
@@ -39,53 +35,61 @@ func _init(touching: Array[Node3D]) -> void:
 	PondWater.prepare()
 
 
-func add_seed(g: Vector2i) -> void:
-	_seeds.append(g)
-	_dirty = true
+## The pond grid point `at` fills over the ground as it stands, with water no higher than `level`, or null.
+static func fill(at: Vector2i, level: float) -> PondLayout.Pond:
+	var c := _around(at)
+	return PondLayout.fill(c[1], c[0], at, level)
 
 
-func remove_seed(g: Vector2i) -> void:
-	_seeds.erase(g)
-	_dirty = true
+## The pond that filling to the height of ground point `point` makes: of the hollows the grid points around it
+## run down into, the one holding the most water. Null when none holds any.
+static func pointed(point: Vector3) -> PondLayout.Pond:
+	return deepest(candidates(point), point.y)
+
+
+## What `deepest` fills from for a point: per hollow the grid points around it run down into, one of those
+## points and the ground around it, as [grid point, window, heights].
+static func candidates(point: Vector3) -> Array:
+	var g := Terrain.grid_point(point.x, point.z)
+	var out := []
+	var bottoms := {}
+	for o in [Vector2i.ZERO] + PondLayout.NEIGHBOURS:
+		var at: Vector2i = (g + o).clamp(Vector2i.ZERO, Vector2i.ONE * Terrain.CELLS)
+		var bottom := Terrain.downhill(at)
+		if not bottoms.has(bottom):
+			bottoms[bottom] = true
+			out.append([at] + _around(at))
+	return out
+
+
+## Of `candidates`, the pond holding the most water up to `level`; reads no shared state, so any thread may run it.
+static func deepest(candidates: Array, level: float) -> PondLayout.Pond:
+	var best: PondLayout.Pond = null
+	for c: Array in candidates:
+		var p := PondLayout.fill(c[2], c[1], c[0], level)
+		if p != null and (best == null or p.cells.size() > best.cells.size()):
+			best = p
+	return best
+
+
+## The window of ground a pond at `at` fills within, and its heights.
+static func _around(at: Vector2i) -> Array:
+	var window := Rect2i(at - Vector2i.ONE * PondLayout.REACH, Vector2i.ONE * (PondLayout.REACH * 2 + 1)).intersection(Terrain.ALL)
+	return [window, Terrain.read(window)]
 
 
 func reset() -> void:
-	_seeds.clear()
-	_dirty = true
-
-
-func reground(_area: Rect2, settled: bool) -> void:
-	_dirty = _dirty or (settled and not _seeds.is_empty())
+	show_ponds([])
 
 
 func _process(delta: float) -> void:
-	if _dirty:
-		refill()
 	if not ponds.is_empty():
 		for h in hands:
 			_wade(h, delta)
 
 
-## Fills the basin below every seed. A pond that covers water already shown keeps that surface and its water.
-func refill() -> void:
-	_dirty = false
-	var filled: Array[PondLayout.Pond] = []
-	for g in _seeds:
-		var window := Rect2i(g - Vector2i.ONE * PondLayout.REACH, Vector2i.ONE * (PondLayout.REACH * 2 + 1)).intersection(Rect2i(0, 0, Terrain.VERTS, Terrain.VERTS))
-		var p := PondLayout.fill(Terrain.read(window), window, g)
-		if p != null:
-			filled.append(p)
-	# Seeds see the ground through their own windows, so two may disagree on whether a neighbouring hollow
-	# drains; the higher, fuller pond wins and nothing is covered twice.
-	filled.sort_custom(func(a: PondLayout.Pond, b: PondLayout.Pond) -> bool: return a.level > b.level)
-	var found: Array[PondLayout.Pond] = []
-	var taken := {}
-	for p in filled:
-		if p.cells.any(func(c: Vector2i) -> bool: return taken.has(c)):
-			continue
-		for c in p.cells:
-			taken[c] = true
-		found.append(p)
+## Shows `found` as the ponds. A pond that covers water already shown keeps that surface and its water.
+func show_ponds(found: Array[PondLayout.Pond]) -> void:
 	var shown := ponds
 	var old := ponds.duplicate()
 	ponds = []
@@ -97,7 +101,8 @@ func refill() -> void:
 			add_child(w)
 			var mid := Terrain.grid_xz(p.bottom)
 			splashed.emit(&"fill", Vector3(mid.x, p.level, mid.y))
-		w.show_pond(p)
+		if w.pond != p:
+			w.show_pond(p)
 		ponds.append(w)
 	for w in old:
 		w.queue_free()

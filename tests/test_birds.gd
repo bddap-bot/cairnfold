@@ -126,7 +126,6 @@ func _glade(seed: int) -> Glade:
 	g.terrain.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(g.terrain)
 	var water := Water.new([])
-	g.terrain.reshaped.connect(water.reground)
 	g.terrain.reshaped.connect(g.tool.reground)
 	root.add_child(water)
 	g.world.attach(g.tool, g.flora, paths, g.terrain, water)

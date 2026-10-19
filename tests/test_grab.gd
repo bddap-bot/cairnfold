@@ -29,7 +29,7 @@ func _capture(name: String) -> void:
 
 ## What the garden holds and what any tool has under way, so a grip that made or started something shows.
 func _made() -> String:
-	var busy := [main.tool.busy(), main.flora_tool.busy(), main.palette_tool.busy(), main.delete_tool.busy(), main.water_tool.digger != null, main.tool.house != null]
+	var busy := [main.tool.busy(), main.flora_tool.busy(), main.palette_tool.busy(), main.delete_tool.busy(), main.tool.house != null]
 	return var_to_str([main.world.state, main.world.palette.season, busy])
 
 
@@ -293,15 +293,14 @@ func _run() -> void:
 	await _a_grab_leaves_the_other_hand_its_tool(rig)
 	hand.tool = Hand.Tool.POND
 	hand.global_basis = Basis.looking_at(Vector3(0, -0.6, -1))
+	var made := _made()
+	var heights := Terrain.read(Terrain.ALL)
 	Buttons.injected["right_hand/trigger_click"] = true
 	await _frames()
-	_check(main.water_tool.digger == hand and main.ground_grab.busy(), "the pond tool's trigger digs the ground")
-	_check(not hand._beam.visible and not hand._dot.visible, "digging hides the pointer")
-	hand.tool = Hand.Tool.WALLS
-	await _frames()
-	_check(main.water_tool.digger == null and not main.ground_grab.busy(), "tool switch ends the dig")
-	_check(hand._beam.visible, "tool switch restores pointer")
+	_check(_made() == made and Terrain.read(Terrain.ALL) == heights, "the pond tool's trigger on open meadow neither digs nor fills")
+	_check(hand._beam.visible and hand._dot.visible, "the pond tool keeps its pointer")
 	Buttons.injected.erase("right_hand/trigger_click")
+	hand.tool = Hand.Tool.WALLS
 	await _frames()
 	var sky: SkyTool = main.sky_tool
 	var time: float = main.look.time

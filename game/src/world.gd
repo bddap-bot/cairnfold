@@ -40,10 +40,10 @@ var palette := Palette.new()
 ## Where the sun stands (Daylight), shown on `look` once the sky tool lets the sky go.
 var time := Daylight.DEFAULT
 var look: Look
-## Standing walls, paths, easels and plant groups by id, as the plain values their commands carry, and the grid
-## points ponds fill from. A group keeps its command's fields, its `size` and the indices of its plants
+## Standing walls, paths, easels and plant groups by id, as the plain values their commands carry, and each
+## pond's level by the grid point it fills from. A group keeps its command's fields, its `size` and the indices of its plants
 ## since `hidden`; an easel where it stands, which way it faces and its canvas's strokes, oldest first.
-var state := {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": [], "easels": {}}
+var state := {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}, "easels": {}}
 var seq := 0
 var sculpted := false
 ## Host only: per player, their undo and redo stacks of {seq, inverse, keys}.
@@ -72,6 +72,8 @@ var _meadow_units := {}
 var bounded := true
 ## Every other player's headset by peer id, as they told us; the garden is held to the weakest here.
 var _devices := {}
+## Each pond's level and how it last filled, by its grid point.
+var _fills := {}
 ## Per hand, what the edit its tool is showing would add, and the frame it said so.
 var _pending := {}
 ## The hand each of our sent commands came from, by token, so the one turned down feels it.
@@ -170,11 +172,14 @@ func change_of(cmd: Dictionary) -> Dictionary:
 					var p: Flora.Plant = plants[i] if i >= 0 and i < plants.size() else null
 					if p != null and p.current() and p.shown() != cmd.on:
 						Budget.add(out, _unit(g, p), 1.0 if cmd.on else -1.0)
-		"heights":
-			if cmd.has("seed") and not state.seeds.has(cmd.seed):
-				out.pond = 1
-			if cmd.has("unseed"):
-				out.pond = -1
+		"heights", "ponds":
+			var n := 0
+			for g in cmd.get("put", {}):
+				n += int(not state.ponds.has(g))
+			for g in cmd.get("drop", []):
+				n -= int(state.ponds.has(g))
+			if n != 0:
+				out.pond = n
 		"easel":
 			out.easel = 1
 		"uneasel":
@@ -513,6 +518,8 @@ func _keys(cmd: Dictionary) -> Array:
 			return ["season"]
 		"easel", "uneasel":
 			return ["e%d" % cmd.id]
+		"ponds":
+			return (cmd.get("put", {}).keys() + cmd.get("drop", [])).map(func(g: Vector2i) -> String: return "o%d,%d" % [g.x, g.y])
 		"paint", "unpaint", "sheet":
 			return ["e%d" % cmd.easel]
 		"wipe", "garden":
@@ -662,17 +669,13 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			flora.set_species(flora.groups[cmd.group][cmd.index], cmd.species)
 		"heights":
 			inverse = {"op": "heights", "cells": cmd.cells, "values": Terrain.read(cmd.cells)}
+			var before: Dictionary = state.ponds.duplicate()
 			ground_grab.restore(cmd.cells, cmd.values)
 			sculpted = true
-			if cmd.has("seed") and water != null:
-				state.seeds.append(cmd.seed)
-				water.add_seed(cmd.seed)
-				inverse.unseed = cmd.seed
-			if cmd.has("unseed") and water != null:
-				state.seeds.erase(cmd.unseed)
-				water.remove_seed(cmd.unseed)
-				inverse.seed = cmd.unseed
-			_account("seeds", {"pond": state.seeds.size()} if not state.seeds.is_empty() else {})
+			_set_ponds(cmd, before, inverse, cmd.cells)
+		"ponds":
+			inverse = {"op": "ponds"}
+			_set_ponds(cmd, state.ponds.duplicate(), inverse, Rect2i())
 		"season":
 			inverse = {"op": "season", "index": palette.season}
 			palette.season = cmd.index
@@ -737,6 +740,55 @@ func _apply(cmd: Dictionary) -> Dictionary:
 	return inverse
 
 
+## Takes `cmd`'s ponds out and puts its new ones in, then fills every pond over the ground as it stands. A pond that
+## holds no water any more, or whose water another's covers, goes: the ones `cmd` puts win, then the higher.
+## What brings back the ponds as they were `before` goes on `inverse`. Only ponds within reach of the `ground`
+## the command changed, or at a new level, fill again.
+func _set_ponds(cmd: Dictionary, before: Dictionary, inverse: Dictionary, ground: Rect2i) -> void:
+	for g in cmd.get("drop", []):
+		state.ponds.erase(g)
+	var put: Dictionary = cmd.get("put", {})
+	state.ponds.merge(put, true)
+	var filled := {}
+	for g in state.ponds:
+		var was: Array = _fills.get(g, [])
+		var reach := Rect2i(g - Vector2i.ONE * PondLayout.REACH, Vector2i.ONE * (PondLayout.REACH * 2 + 1))
+		filled[g] = was[1] if not was.is_empty() and was[0] == state.ponds[g] and not reach.intersects(ground) else Water.fill(g, state.ponds[g])
+	var order: Array = state.ponds.keys()
+	order.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
+		if put.has(a) != put.has(b):
+			return put.has(a)
+		var la: float = filled[a].level if filled[a] != null else -INF
+		var lb: float = filled[b].level if filled[b] != null else -INF
+		return la > lb if la != lb else a.y < b.y or a.y == b.y and a.x < b.x)
+	var taken := {}
+	for g in order:
+		var p: PondLayout.Pond = filled[g]
+		if p == null or p.cells.any(func(c: Vector2i) -> bool: return taken.has(c)):
+			state.ponds.erase(g)
+			continue
+		for c in p.cells:
+			taken[c] = true
+	_fills.clear()
+	for g in state.ponds:
+		_fills[g] = [state.ponds[g], filled[g]]
+	if water != null:
+		var found: Array[PondLayout.Pond] = []
+		for g in state.ponds:
+			found.append(filled[g])
+		water.show_ponds(found)
+	var back := {}
+	for g in before:
+		if not state.ponds.has(g) or state.ponds[g] != before[g]:
+			back[g] = before[g]
+	var gone: Array = state.ponds.keys().filter(func(g: Vector2i) -> bool: return not before.has(g))
+	if not back.is_empty():
+		inverse.put = back
+	if not gone.is_empty():
+		inverse.drop = gone
+	_account("ponds", {"pond": state.ponds.size()} if not state.ponds.is_empty() else {})
+
+
 func _show_sky(t: float) -> void:
 	time = t
 	if look != null:
@@ -763,9 +815,8 @@ func snapshot() -> Dictionary:
 	var cmds := []
 	if sculpted:
 		cmds.append({"op": "heights", "cells": Terrain.ALL, "values": Terrain.read(Terrain.ALL)})
-	for g: Vector2i in state.seeds:
-		var at := Rect2i(g, Vector2i.ONE)
-		cmds.append({"op": "heights", "cells": at, "values": Terrain.read(at), "seed": g})
+	if not state.ponds.is_empty():
+		cmds.append({"op": "ponds", "put": state.ponds.duplicate()})
 	for id in state.stairs:
 		cmds.append({"op": "stairs", "id": id, "stairs": state.stairs[id]})
 	for id in state.paths:
@@ -844,7 +895,8 @@ func _clear() -> void:
 	for id in _strokes:
 		Ground.lift(_strokes[id])
 	_strokes.clear()
-	state = {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "seeds": [], "easels": {}}
+	state = {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}, "easels": {}}
+	_fills.clear()
 	units = _meadow_units.duplicate()
 	_units_of.clear()
 	flora.reset()
@@ -906,7 +958,7 @@ func digest() -> Dictionary:
 		out.groups[str(g)] = {"kind": state.groups[g].kind, "plants": flora.groups[g].size(), "shown": shown, "spot": var_to_str(spot.snapped(Vector3.ONE * 0.01)), "species": species}
 	out.stairs = state.stairs.duplicate(true)
 	out.paths = state.paths.keys()
-	out.seeds = state.seeds.map(var_to_str)
+	out.pond_levels = state.ponds.keys().map(func(g: Vector2i) -> String: return "%s %.3f" % [g, state.ponds[g]])
 	out.grounds = state.grounds.keys()
 	Ground.settle()
 	out.mask = hash(Ground.laid.get_data())

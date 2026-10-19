@@ -13,8 +13,9 @@ internet comes next and uses the same protocol.
 Every finished edit is a **build command**: a small dictionary of plain values. `wall`
 carries the walls a stroke built, `unwall` removes walls, and `reshape` changes a wall's
 height, top, gable ends, arches, fittings, ruins, roof or paint (its colours). `path` and `unpath` lay and lift paths, `plant` grows a
-paint stroke or a tree, `show` hides or restores plants, and `heights` sets an area of
-ground (a dug pond's seed, the point its water fills from, rides on the same command), and
+paint stroke or a tree, `show` hides or restores plants, `heights` sets an area of
+ground, `ponds` puts a pond at its level by the grid point it fills from (from a player, one; from the
+host, undoing or rebuilding, any, and it may take ponds out, as a `heights` from the host may too), and
 `season` sets the garden's season. `easel` sets an easel up (from the host, with its strokes) and `uneasel` takes it
 away; `paint` adds a stroke to its canvas, `unpaint` takes the last one off and `sheet` sets its strokes whole (a
 player's only ever a fresh, empty sheet). `wipe` takes the garden back to bare meadow, and
@@ -70,7 +71,7 @@ comes out the same.
 
 The garden is data (`World.state`), so the host can describe it as a short list of
 commands that rebuild it from an empty meadow:
-- the ground, if it was ever shaped, and the seeds ponds fill from
+- the ground, if it was ever shaped, and each pond's level
 - each path and wall
 - each plant group, in the order it was planted, with the plants since hidden
 - each material whose swatch, or the season, was changed

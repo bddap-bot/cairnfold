@@ -84,7 +84,7 @@ func _build() -> void:
 	])
 	await _settled()
 	var s := world.state
-	_check(s.walls.size() == 1 and s.paths.size() == 1 and s.grounds.size() == 1 and s.groups.size() == 3 and s.seeds.size() == 1 and world.sculpted, "the garden holds a wall, a path, stone, a tree, flowers, shaped ground and a pond: %s" % [s.keys().map(func(k: String) -> int: return s[k].size())])
+	_check(s.walls.size() == 1 and s.paths.size() == 1 and s.grounds.size() == 1 and s.groups.size() == 3 and s.ponds.size() == 1 and world.sculpted, "the garden holds a wall, a path, stone, a tree, flowers, shaped ground and a pond: %s" % [s.keys().map(func(k: String) -> int: return s[k].size())])
 
 
 func _letting_go_early_wipes_nothing() -> void:
@@ -110,7 +110,7 @@ func _a_wipe_empties_every_layer_and_undo_brings_it_all_back() -> void:
 	_check(s.paths.is_empty() and s.grounds.is_empty(), "no paths or stone are laid")
 	_check(Ground.laid.get_data().count(0) == Ground.laid.get_data().size(), "and the ground shows no wear from them")
 	_check(s.groups.keys() == [0], "no planted groups are left")
-	_check(s.seeds.is_empty() and main.water.ponds.is_empty(), "no ponds hold water")
+	_check(s.ponds.is_empty() and main.water.ponds.is_empty(), "no ponds hold water")
 	_check(not world.sculpted and Terrain.read(Terrain.ALL) == Terrain.base_heights(), "the ground lies as it first did")
 	var flora: Flora = main.flora_tool.flora
 	var meadow: Array = flora.groups[0]

@@ -117,13 +117,13 @@ func _a_pond_dug_under_a_wall_opens_its_arches() -> void:
 	_check(main.water.pond_at(-30.5, -30) != null, "a pond under the wall")
 	_check(w.layout.live_arches.any(func(a): return absf(a - w.layout.closest_s(Vector3(-30.5, 0, -30))) < 2.0), "the water under it opens an arch: %s" % [w.layout.live_arches])
 	_check(w.layout.stones.any(func(st): return st.y < -0.3), "and its stones reach the bed")
-	world.undo()
-	world.undo()
+	for step in 4:
+		world.undo()
 	await _settle()
 	_check(main.water.pond_at(-30.5, -30) == null, "undoing the digs drains it")
 	_check(var_to_str(w.layout.stones) == dry, "and the wall stands as it was on dry ground")
-	world.redo()
-	world.redo()
+	for step in 4:
+		world.redo()
 	await _settle()
 	_check(w.layout.stones.any(func(st): return st.y < -0.3), "redo puts it back in the water")
 

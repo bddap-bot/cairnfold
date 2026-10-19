@@ -36,11 +36,14 @@ func _no_tool_places_fireflies() -> void:
 	_check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Fireflies.new(") == 1, "Wildlife alone makes fireflies")
 
 
-func _dig(tool: WaterTool, x: float, z: float) -> void:
-	tool.begin(tool.rig.right, Terrain.ground(x, z))
-	for i in 90:
-		tool.deepen(1.0 / 60.0)
-	tool.end()
+## Presses a hollow at x, z as a grip does, then fills it to the brim with the pond tool pointed at its rim.
+func _dig(tool: WaterTool, x: float, z: float, frames := 90) -> void:
+	var depth := clampf(0.7 * frames / 60.0, 0.45, 1.3)
+	var hand := tool.world.ground_grab.rig.right
+	tool.world.ground_grab.begin(hand, Terrain.ground(x, z), 2.8)
+	tool.world.ground_grab.pull(hand, -depth)
+	tool.world.ground_grab.end_stroke(hand)
+	tool.fill(hand, Terrain.ground(x + maxf(2.8, depth * GroundGrab.SPREAD), z))
 	await process_frame
 	await process_frame
 
@@ -53,9 +56,8 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	var terrain := GroundGrab.new(rig, world)
 	root.add_child(terrain)
 	var water := Water.new([])
-	terrain.reshaped.connect(water.reground)
 	root.add_child(water)
-	var tool := WaterTool.new(rig, terrain, water)
+	var tool := WaterTool.new(rig, world)
 	root.add_child(tool)
 	var flora := Flora.new()
 	root.add_child(flora)
@@ -140,8 +142,12 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	_check(by_blooms, "they hover over the blooms")
 	_check(ff.count() <= Fireflies.CAP, "never more than the cap")
 
-	water.remove_seed(water._seeds[0])
-	water.remove_seed(water._seeds[0])
-	water.refill()
+	var cells := Terrain.cells_around(3.6, -4, 9.0)
+	var base := Terrain.base_heights()
+	var flat := PackedFloat32Array()
+	for j in range(cells.position.y, cells.end.y):
+		for i in range(cells.position.x, cells.end.x):
+			flat.append(base[j * Terrain.VERTS + i])
+	world.submit({"op": "heights", "cells": cells, "values": flat})
 	_run(wildlife, Fireflies.FADE + 2.5)
 	_check(water.ponds.is_empty() and not ff.spots.keys().any(func(k: Variant) -> bool: return k is int), "filling the pond in takes its fireflies away")

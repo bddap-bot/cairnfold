@@ -82,10 +82,9 @@ func _ready() -> void:
 	var hands: Array[Node3D] = []
 	hands.assign(rig.hands)
 	water = Water.new(hands)
-	ground_grab.reshaped.connect(water.reground)
 	water.refilled.connect(tool.reground.bind(true))
 	add_child(water)
-	water_tool = WaterTool.new(rig, ground_grab, water)
+	water_tool = WaterTool.new(rig, world)
 	add_child(water_tool)
 	world.attach(tool, flora, paths, ground_grab, water, easels)
 	for h in rig.hands:

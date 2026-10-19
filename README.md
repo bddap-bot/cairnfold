@@ -19,8 +19,8 @@ cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, style
   cluster opens more tools on its far side: swing back onto one. Picks zig-zag
   left and right, the same motion every time.
 - Trigger: use the tool. Draw a wall, lay a path, paint (a stone stroke begun on
-  stone paints meadow back), plant a tree, dig a pond
-  (hold to dig deeper, release to fill), or erase: hold it and swipe, and everything
+  stone paints meadow back), plant a tree, fill a pond (press a hollow with the grip,
+  then point at its rim to fill it to the brim, or lower down its side for shallower water), or erase: hold it and swipe, and everything
   the beam passes over goes in one stroke, one undo step: walls break into ruins
   along the stretch swept (a tap breaks a short gap, sweeping it all takes it
   all), trees, bushes, paths and stone go, and grass and flowers are mown. A path through a wall opens an

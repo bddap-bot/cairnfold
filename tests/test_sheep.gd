@@ -64,10 +64,9 @@ func _glade(seed: int) -> Glade:
 	g.terrain.process_mode = Node.PROCESS_MODE_DISABLED
 	root.add_child(g.terrain)
 	g.water = Water.new([])
-	g.terrain.reshaped.connect(g.water.reground)
 	g.terrain.reshaped.connect(g.walls.reground)
 	root.add_child(g.water)
-	g.digger = WaterTool.new(g.rig, g.terrain, g.water)
+	g.digger = WaterTool.new(g.rig, g.world)
 	root.add_child(g.digger)
 	g.world.attach(g.walls, g.flora, paths, g.terrain, g.water)
 	var hands: Array[Node3D] = []
@@ -101,11 +100,14 @@ func _draw(g: Glade, tool: Hand.Tool, a: Vector3, b: Vector3) -> Wall:
 	return g.walls.walls[-1]
 
 
+## Presses a hollow at x, z as a grip does, then fills it to the brim with the pond tool pointed at its rim.
 func _dig(g: Glade, x: float, z: float, frames: int) -> void:
-	g.digger.begin(g.digger.rig.right, Terrain.ground(x, z))
-	for i in frames:
-		g.digger.deepen(1.0 / 60.0)
-	g.digger.end()
+	var depth := clampf(0.7 * frames / 60.0, 0.45, 1.3)
+	var hand := g.terrain.rig.right
+	g.terrain.begin(hand, Terrain.ground(x, z), 2.8)
+	g.terrain.pull(hand, -depth)
+	g.terrain.end_stroke(hand)
+	g.digger.fill(hand, Terrain.ground(x + maxf(2.8, depth * GroundGrab.SPREAD), z))
 	await process_frame
 	await process_frame
 
@@ -378,10 +380,8 @@ func _fences_draw_a_flock() -> void:
 		_check(worst.crossed == 0 and worst.wet == 0, "fleeing, it keeps out of water and walls")
 		await _seeds_held_low_draw_a_sheep(g, watch)
 
-	g.world.undo()
-	g.world.undo()
-	g.world.undo()
-	g.world.undo()
+	for step in 6:
+		g.world.undo()
 	await process_frame
 	await process_frame
 	_check(not is_instance_valid(fence), "the fence is erased")

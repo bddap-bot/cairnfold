@@ -5,7 +5,7 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "species", "heights", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "sheet"]
+const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "species", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "sheet"]
 ## What a batch may carry: from a player, takings; from the host, also the undo of them.
 const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show", "uneasel"]
 const UNBATCHED := ["stairs", "wall", "path", "ground", "easel"]
@@ -27,13 +27,13 @@ const MAX_LENGTH := 240.0
 const STROKE_LENGTH := MAX_LENGTH - 16.0
 ## Most walls, paths and plant groups one garden holds.
 const MAX_THINGS := 4000
-const MAX_SEEDS := 256
+const MAX_PONDS := 256
 const MAX_STAMPS := 2000
 const MAX_FITTINGS := 64
 const MAX_CHIMNEYS := 8
 const MAX_RUINS := 32
 ## Most commands a snapshot holds: per thing one, and per plant group one more for its hidden plants.
-const MAX_SNAPSHOT := MAX_THINGS * 2 + MAX_SEEDS + 64
+const MAX_SNAPSHOT := MAX_THINGS * 2 + 64
 ## Most builds one build stands on.
 const MAX_SUPPORTS := 8
 
@@ -133,7 +133,9 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 		"species":
 			ok = _species(cmd, state, out)
 		"heights":
-			ok = _heights(cmd, state, from_host, out)
+			ok = _heights(cmd, from_host, out) and _ponds(cmd, state, from_host, out)
+		"ponds":
+			ok = _ponds(cmd, state, from_host, out) and (from_host or out.has("put") and _pointed(out.put, state))
 		"season":
 			var i: Variant = cmd.get("index")
 			ok = typeof(i) == TYPE_INT and i >= 0 and i < Palette.SEASONS.size()
@@ -447,7 +449,7 @@ static func _species(cmd: Dictionary, state: Dictionary, out: Dictionary) -> boo
 	return true
 
 
-static func _heights(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary) -> bool:
+static func _heights(cmd: Dictionary, from_host: bool, out: Dictionary) -> bool:
 	var cells: Variant = cmd.get("cells")
 	var values: Variant = cmd.get("values")
 	if typeof(cells) != TYPE_RECT2I or typeof(values) != TYPE_PACKED_FLOAT32_ARRAY:
@@ -461,19 +463,36 @@ static func _heights(cmd: Dictionary, state: Dictionary, from_host: bool, out: D
 			return false
 	out.cells = cells
 	out.values = values
-	if cmd.has("unseed") and not from_host:
+	return true
+
+
+## Ponds a command puts at their levels, by the grid point each fills from, and ponds it takes out: only the host's
+## commands, which undo or rebuild, carry them, except a player's one pond put by the pond tool.
+static func _ponds(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary) -> bool:
+	var put: Variant = cmd.get("put", {})
+	var drop: Variant = cmd.get("drop", [])
+	if not put is Dictionary or not drop is Array or put.size() > MAX_PONDS or drop.size() > MAX_PONDS:
 		return false
-	for k in ["seed", "unseed"]:
-		if cmd.has(k):
-			var g: Variant = cmd[k]
-			if typeof(g) != TYPE_VECTOR2I or not cells.has_point(g):
-				return false
-			out[k] = g
-	if out.has("unseed") and not state.seeds.has(out.unseed):
+	if not from_host and (not drop.is_empty() or put.size() > int(cmd.op == "ponds")):
 		return false
-	if out.has("seed") and not from_host and (state.seeds.has(out.seed) or state.seeds.size() >= MAX_SEEDS):
-		out.erase("seed")
-	return not (out.has("seed") and out.has("unseed"))
+	for g: Variant in put:
+		var level: Variant = put[g]
+		if typeof(g) != TYPE_VECTOR2I or not Terrain.ALL.has_point(g) or typeof(level) != TYPE_FLOAT or not (level >= Terrain.LOWEST and level <= Terrain.HIGHEST):
+			return false
+	for g: Variant in drop:
+		if typeof(g) != TYPE_VECTOR2I or not state.ponds.has(g) or put.has(g):
+			return false
+	if not put.is_empty():
+		out.put = put.duplicate()
+	if not drop.is_empty():
+		out.drop = drop.duplicate()
+	return true
+
+
+## Whether a player's pond holds water over the ground as it stands, and the garden has room for it.
+static func _pointed(put: Dictionary, state: Dictionary) -> bool:
+	var g: Vector2i = put.keys()[0]
+	return (state.ponds.has(g) or state.ponds.size() < MAX_PONDS) and Water.fill(g, put[g]) != null
 
 
 static func _stairs(d: Variant) -> Variant:
