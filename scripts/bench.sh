@@ -174,7 +174,7 @@ if [ "${2:-}" = --android ]; then
   SECONDS=0
   while [ "$SECONDS" -lt 3600 ]; do
     sleep 1
-    adb shell pidof "$pkg" > /dev/null 2>&1 || ! adb get-state > /dev/null 2>&1 || { ended=1; break; }
+    [ "$(adb shell "pidof $pkg > /dev/null || echo gone" 2> /dev/null | tr -d '\r')" != gone ] || { ended=1; break; }
   done
   adb shell kill "$logcat_pid"
   logcat_pid=
