@@ -78,6 +78,7 @@ func _glade(seed: int) -> Glade:
 	g.feed = FeedTool.new(g.rig, g.water)
 	root.add_child(g.feed)
 	g.feed.set_process(false)
+	g.feed.rng.seed = seed
 	g.wildlife.handfuls = g.feed.handfuls
 	for h in g.rig.hands:
 		h.global_position = AWAY
@@ -121,7 +122,11 @@ func _arrived(g: Glade) -> void:
 		g.wildlife.tick(STEP)
 		if not g.beasts(Beast.Kind.FOX).is_empty() and not g.beasts(Beast.Kind.DEER).is_empty():
 			break
-	for b in g.wildlife.roamers.all():
+	_settle(g.wildlife.roamers.all())
+
+
+func _settle(beasts: Array[Beast]) -> void:
+	for b in beasts:
 		b.goal = b.position
 		b.state = Grazers.State.GRAZE
 		b.timer = 30.0
@@ -353,6 +358,7 @@ func _thrown_seeds_draw_them_to_eat() -> void:
 		_run(g, 1.0)
 		for b in g.wildlife.roamers.all():
 			b.full = 0.0
+		_settle(g.beasts(kind))
 		var seeds := g.feed.throw(at + Vector3.UP * 0.8, Vector3.ZERO)
 		var eater: Beast = null
 		for i in int(40.0 / STEP):
