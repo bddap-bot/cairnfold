@@ -16,12 +16,14 @@ const CLIPS := {
 	Kind.DEER: {Grazers.Motion.GRAZE: "Eating", Grazers.Motion.STEP: "Walk", Grazers.Motion.WALK: "Walk", Grazers.Motion.RUN: "Gallop"},
 	Kind.FOX: {Grazers.Motion.GRAZE: "Idle_2_HeadLow", Grazers.Motion.STEP: "Walk", Grazers.Motion.WALK: "Walk", Grazers.Motion.RUN: "Gallop"},
 }
-## Scale of the imported model for an animal of size 1, which stands a doe 1.4 m to the ears and a fox 0.5 m.
-const SCALE := {Kind.DEER: 0.32, Kind.FOX: 0.13}
-## Ground covered in one cycle of the walk and of the gallop at size 1, so the hooves and paws keep their place.
-const STRIDE := {Kind.DEER: {"Walk": 1.05, "Gallop": 2.6}, Kind.FOX: {"Walk": 0.62, "Gallop": 1.5}}
-## From the middle of the body to its rim, at size 1: how near two stand.
-const RADIUS := {Kind.DEER: 0.6, Kind.FOX: 0.3}
+## Scale of the imported model for an animal of size 1, which stands a doe 1.4 m to the ears and a fox 0.41 m at
+## the shoulder, 1.06 m nose to tail tip. Every other length of the body is in the model's own units, made metres
+## by this and `size`.
+const SCALE := {Kind.DEER: 0.32, Kind.FOX: 0.18}
+## Ground covered in one cycle of the walk and of the gallop, so the hooves and paws keep their place.
+const STRIDE := {Kind.DEER: {"Walk": 3.28125, "Gallop": 8.125}, Kind.FOX: {"Walk": 4.8, "Gallop": 11.5}}
+## From the middle of the body to its rim: how near two stand.
+const RADIUS := {Kind.DEER: 1.875, Kind.FOX: 2.3}
 const FADE := 0.35
 ## Slower than this, in metres a second, it keeps the clip it has rather than walking.
 const SHUFFLE := 0.05
@@ -107,7 +109,7 @@ func _init(of: Kind, scale_by: float, phase: float) -> void:
 	mi.mesh = shared.mesh
 	mi.material_override = shared.material
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	model.scale = Vector3.ONE * SCALE[kind] * size
+	model.scale = Vector3.ONE * metres(kind, size)
 	model.rotation.y = PI
 	add_child(model)
 	player = model.find_children("*", "AnimationPlayer")[0]
@@ -138,7 +140,7 @@ func walked(m: Grazers.Motion, distance: float, delta: float) -> void:
 		return
 	var clip: String = CLIPS[kind][m]
 	var cycle := player.get_animation(clip).length
-	_play(clip, clampf(distance / delta * cycle / (STRIDE[kind][clip] * size), 0.3, 2.0))
+	_play(clip, clampf(distance / delta * cycle / metres(kind, STRIDE[kind][clip] * size), 0.3, 2.0))
 
 
 func eat(_height: float, _delta: float) -> void:
@@ -146,4 +148,8 @@ func eat(_height: float, _delta: float) -> void:
 
 
 func radius() -> float:
-	return RADIUS[kind] * size
+	return metres(kind, RADIUS[kind] * size)
+
+
+static func metres(k: Kind, units: float) -> float:
+	return units * SCALE[k]

@@ -38,8 +38,8 @@ const CALM_FOR := 6.0
 const CLOSER := 0.12
 const NEAREST := 0.35
 static var appetite := {
-	Beast.Kind.DEER: Wildlife.Appetite.new(Wildlife.Eat.UNDER_HAND, 12.0, 1.1, 0.75, Vector2(6.0, 12.0), Vector2(15.0, 30.0)),
-	Beast.Kind.FOX: Wildlife.Appetite.new(Wildlife.Eat.UNDER_HAND, 10.0, 0.6, 0.32, Vector2(4.0, 8.0), Vector2(15.0, 30.0)),
+	Beast.Kind.DEER: _appetite_of(Beast.Kind.DEER, 12.0, 3.4375, 2.34375, Vector2(6.0, 12.0)),
+	Beast.Kind.FOX: _appetite_of(Beast.Kind.FOX, 10.0, 4.6, 2.5, Vector2(4.0, 8.0)),
 }
 
 ## Per kind with no band here: seconds until one comes.
@@ -48,6 +48,11 @@ var due := {}
 
 class Visit extends Band:
 	var stay := 0.0
+
+
+## Eating from under a hand, its reach and mouth in the model's units (`Beast.SCALE`).
+static func _appetite_of(kind: Beast.Kind, sees: float, up: float, to_mouth: float, eating: Vector2) -> Wildlife.Appetite:
+	return Wildlife.Appetite.new(Wildlife.Eat.UNDER_HAND, sees, Beast.metres(kind, up), Beast.metres(kind, to_mouth), eating, Vector2(15.0, 30.0))
 
 
 func _init(home: Wildlife, seed: int) -> void:

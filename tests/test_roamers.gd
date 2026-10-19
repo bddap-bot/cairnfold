@@ -15,6 +15,7 @@ func _initialize() -> void:
 	await process_frame
 	_no_tool_places_a_deer_or_a_fox()
 	_each_is_one_draw_call()
+	await _a_fox_and_a_doe_stand_true_to_life()
 	await _deer_then_a_fox_come_out_of_sight()
 	await _a_sudden_move_sends_a_deer_off_and_stillness_lets_it_near()
 	await _food_held_still_draws_one_to_eat()
@@ -145,6 +146,27 @@ func _no_tool_places_a_deer_or_a_fox() -> void:
 			var code := FileAccess.get_file_as_string("res://src/" + f)
 			_check(not code.contains("Beast") and not code.contains("Roamers"), "%s reaches no deer or fox" % f)
 	_check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Roamers.new(") == 1, "Wildlife alone makes them")
+
+
+## A grown red fox stands about 0.4 m at the shoulder and 1.1 m nose to tail tip; a doe about 1 m at the shoulder.
+func _a_fox_and_a_doe_stand_true_to_life() -> void:
+	for want in [[Beast.Kind.FOX, 0.40, 1.1], [Beast.Kind.DEER, 0.99, 1.41]]:
+		var b := Beast.new(want[0], 1.0, 0.0)
+		root.add_child(b)
+		await process_frame
+		var mi: MeshInstance3D = b.find_children("*", "MeshInstance3D", true, false)[0]
+		var skeleton: Skeleton3D = b.find_children("*", "Skeleton3D", true, false)[0]
+		var shoulder := (skeleton.global_transform * skeleton.get_bone_global_rest(skeleton.find_bone("FrontShoulder.L"))).origin
+		var bounds: AABB = mi.global_transform * mi.mesh.get_aabb()
+		var withers := 0.0
+		for v in mi.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]:
+			var at: Vector3 = mi.global_transform * v
+			if absf(at.z - shoulder.z) < 0.03 * bounds.size.z:
+				withers = maxf(withers, at.y)
+		var kind: String = Beast.Kind.keys()[want[0]]
+		_check(absf(withers - want[1]) < 0.04, "a %s stands %.2f m at the shoulder" % [kind, withers])
+		_check(absf(bounds.size.z - want[2]) < 0.06, "a %s is %.2f m nose to tail" % [kind, bounds.size.z])
+		b.free()
 
 
 func _each_is_one_draw_call() -> void:
