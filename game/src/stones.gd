@@ -15,11 +15,10 @@ static var _paving_material: ShaderMaterial
 var _instance := MultiMeshInstance3D.new()
 var _paving := false
 ## Paving only: the same stones drawn with `far_mesh` once the whole chunk is past the near distance, and whole on
-## Quality.FULL_LAYER for a photo, as Masonry draws a wall's.
+## Quality.FULL_LAYER for a photo, as Masonry draws a wall's. The whole stones alone cast the shadows, as they always did.
 var _far: MultiMeshInstance3D
 var _full: MultiMeshInstance3D
 var _radius := 0.0
-var _ground := Vector2.ZERO
 
 
 static func shared_material() -> ShaderMaterial:
@@ -67,6 +66,7 @@ func _init(paving := false) -> void:
 	add_child(_instance)
 	if paving:
 		_instance.layers = Quality.LADDER_LAYER
+		_instance.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_far = MultiMeshInstance3D.new()
 		_far.multimesh = mm.duplicate()
 		_far.multimesh.mesh = far_mesh()
@@ -93,7 +93,6 @@ func lay(stones: Array[Dictionary]) -> void:
 			area = area.expand(Vector2(s.xform.origin.x, s.xform.origin.z))
 		area = area.grow(1.0)
 		_radius = area.size.length() * 0.5
-		_ground = area.get_center()
 		var t := Terrain.bounds()
 		Terrain.lift(mm, AABB(Vector3(area.position.x, t.position.y, area.position.y), Vector3(area.size.x, t.size.y, area.size.y)))
 	for i in stones.size():
@@ -103,7 +102,7 @@ func lay(stones: Array[Dictionary]) -> void:
 		mm.set_instance_transform(i, x)
 		mm.set_instance_color(i, s.color)
 		mm.set_instance_custom_data(i, custom(s))
-	if _far != null:
+	if _far != null and mm.instance_count > 0:
 		_far.multimesh.instance_count = mm.instance_count
 		Terrain.lift(_far.multimesh, mm.custom_aabb)
 		_far.multimesh.buffer = mm.buffer
@@ -112,10 +111,9 @@ func lay(stones: Array[Dictionary]) -> void:
 
 
 ## Paving only: draws the stones whole up to `metres` from the eye. The renderer measures to the centre of the
-## lifted bounds, which stands above the stones by up to the terrain's whole span, so that rise counts as reach too.
+## lifted bounds, which span the terrain's whole height, so half that height counts as reach too.
 func near(metres: float) -> void:
-	var rise := absf(_instance.multimesh.custom_aabb.get_center().y - Terrain.height_at(_ground.x, _ground.y))
-	var split := metres + _radius + rise
+	var split := metres + _radius + _instance.multimesh.custom_aabb.size.y * 0.5
 	_instance.visibility_range_end = split
 	_far.visibility_range_begin = split
 

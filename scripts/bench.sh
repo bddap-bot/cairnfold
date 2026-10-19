@@ -29,6 +29,7 @@ seed=25
 device=desktop
 game=0
 rig=desktop
+build=$(git -C "$here" rev-parse HEAD)
 players=${NESTCOMBE_PLAYERS:-1}
 case $players in [1-8]) ;; *) echo "bench: NESTCOMBE_PLAYERS is 1 to 8" >&2; exit 1 ;; esac
 # A scripted run hosts only when given a port.
