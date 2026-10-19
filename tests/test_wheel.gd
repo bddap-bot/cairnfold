@@ -52,7 +52,7 @@ func _a_sweep_picks_the_slot_it_heads_for() -> void:
 			w.move(dirs[k].rotated(deg_to_rad(off)) * ToolWheel.DEAD * 1.3)
 			_check(w.levels[0].hot == k, "a short sweep %+.0f° off slot %d heads for it, got %d" % [off, k, w.levels[0].hot])
 	var w := ToolWheel.new(Hand.TREE)
-	w.move(dirs[3] * ToolWheel.RADIUS)
+	w.move(dirs[3] * ToolWheel.DEAD * 1.3)
 	w.move(dirs[4] * ToolWheel.RADIUS)
 	_check(w.chosen() == Hand.TREE[4], "sweeping on to another slot moves the pick")
 	var empty := Hand.TREE.find(null)

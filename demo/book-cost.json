@@ -1,0 +1,196 @@
+[
+ {
+  "op": "place",
+  "x": 0,
+  "z": 6
+ },
+ {
+  "op": "wall",
+  "points": [
+   [
+    -6,
+    -3
+   ],
+   [
+    -2,
+    -5
+   ],
+   [
+    3,
+    -4.5
+   ]
+  ],
+  "seconds": 0.4
+ },
+ {
+  "op": "house",
+  "at": [
+   4.5,
+   -6
+  ],
+  "size": [
+   5,
+   4
+  ],
+  "seconds": 0.4
+ },
+ {
+  "op": "tree",
+  "x": -5,
+  "z": 0
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "view",
+  "eye": [
+   0,
+   1.65,
+   6
+  ],
+  "at": [
+   0,
+   1.2,
+   4
+  ],
+  "ground": true
+ },
+ {
+  "op": "pick",
+  "hand": "left",
+  "tool": "walls"
+ },
+ {
+  "op": "hold_pose",
+  "hand": "left",
+  "at": [
+   -0.06,
+   -0.3,
+   -0.34
+  ],
+  "aim": [
+   0.15,
+   -0.55,
+   -1.0
+  ]
+ },
+ {
+  "op": "hold_pose",
+  "hand": "right",
+  "at": [
+   0.3,
+   -0.55,
+   -0.15
+  ],
+  "aim": [
+   0,
+   -1,
+   -0.3
+  ]
+ },
+ {
+  "op": "label",
+  "name": "tucked"
+ },
+ {
+  "op": "page_cost",
+  "seconds": 10
+ },
+ {
+  "op": "pick",
+  "hand": "left",
+  "tool": "book"
+ },
+ {
+  "op": "hold_pose",
+  "hand": "left",
+  "at": [
+   -0.06,
+   -0.3,
+   -0.34
+  ],
+  "aim": [
+   0.15,
+   -0.55,
+   -1.0
+  ]
+ },
+ {
+  "op": "label",
+  "name": "shut"
+ },
+ {
+  "op": "page_cost",
+  "seconds": 10
+ },
+ {
+  "op": "book",
+  "do": "open",
+  "seconds": 1.5
+ },
+ {
+  "op": "label",
+  "name": "open"
+ },
+ {
+  "op": "page_cost",
+  "seconds": 10
+ },
+ {
+  "op": "book",
+  "do": "turn",
+  "seconds": 1.2
+ },
+ {
+  "op": "book",
+  "do": "turn",
+  "seconds": 1.2
+ },
+ {
+  "op": "label",
+  "name": "open-later"
+ },
+ {
+  "op": "page_cost",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "turning"
+ },
+ {
+  "op": "book",
+  "do": "turn",
+  "seconds": 0.8
+ },
+ {
+  "op": "book",
+  "do": "turn",
+  "seconds": 0.8
+ },
+ {
+  "op": "book",
+  "do": "back",
+  "seconds": 0.8
+ },
+ {
+  "op": "book",
+  "do": "back",
+  "seconds": 0.8
+ },
+ {
+  "op": "book",
+  "do": "turn",
+  "seconds": 0.8
+ },
+ {
+  "op": "book",
+  "do": "turn",
+  "seconds": 0.8
+ },
+ {
+  "op": "quit"
+ }
+]

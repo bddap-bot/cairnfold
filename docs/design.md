@@ -1639,7 +1639,7 @@ the stick's teleport arc and a grab of the sky still show their rays while in us
 the wheel brings that tool's ray back. Nothing hides on a timer.
 
 One value per hand, `Hand.tool`, is what the input code dispatches on and what the object on top and
-the wheel show, so they cannot disagree. The hands start as walls in the right and flowers in the left.
+the wheel show, so they cannot disagree. The hands start as walls in the right and the picture book in the left (see "Picture book").
 
 Directive (verbatim): "In Half-Life: Alyx, you hold a button down, and then you move your controller
 around a wheel to select an item. Uh, the button to be held down should not be the thumbstick, because
@@ -1665,7 +1665,7 @@ The slots never move, so each tool is one learnable motion:
 | Top | Colour, style |
 | Upper right | Empty hands, camera, seeds, easel |
 | Right | Flowers, grass, trees, ponds |
-| Lower right | Visit |
+| Lower right | Visit, the picture book |
 | Bottom | Delete |
 | Lower left | Paths, stone |
 | Left | Walls, fences, windows, arches |
@@ -1791,6 +1791,63 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Set up an easel | Trigger of a hand holding the easel, pointing at open ground with no easel near the hand: it stands there facing the player |
 | Paint | At an easel: grip at the pot for a small round, big round or flat brush, at the tray for charcoal, at the palette to carry it in that hand; dip the brush in a well, the jar or the tin; touch the canvas and push in to press harder (see "Painting") |
 | Fresh sheet | Grip on the canvas's face and pull well away: the sheet tears off, one undo step |
+
+## Picture book
+
+Report (verbatim): "a picture book does sound kind of fun. It could be really cute. Maybe a picture book of little videos"
+
+Report (verbatim): "When a When a player spawns in, they spawn in with the book in their hand with the page open. They can turn the page with their other controller."
+
+Report (verbatim): "It spawns in in the left hand. Tutorials will prefer to use the right hand when possible. So the player can be looking at the book and trying the things in the tutorials"
+
+Report (verbatim): "Just for a little artistic flourish, let's actually spawn in with the book closed, and we'll have some visual indicator that the player should use their other hand to open the first page"
+
+Every player, a co-op joiner too, starts holding a small cloth-bound book shut in the left hand (`Book`, the tool
+`Hand.Tool.BOOK`). Its ribbon bookmark hangs from between the pages, swaying and glowing softly; the right hand touching
+the cover or the ribbon swings the cover open onto the first page, the board overshooting a little and settling. A sweep
+of the other hand across an open page, toward the spine, turns it; a sweep back turns back, and back from the first page
+shuts the book. No button is pressed, so the right hand's tool never acts while it reads, and the left hand's grip still
+grabs and its stick still teleports. Picking another tool for the hand tucks the book away (it shrinks into the hand in
+a fifth of a second); the wheel's lower-right slot holds it beside visit, and taking it brings it back at the page it
+was left on. The book is each player's own and is never sent to others.
+
+Each page is one control a player would not guess from the tool in hand, shown as a little live picture with no words:
+ghost controllers act it out on a loop over a patch of meadow set with the game's own tool models (`LessonScene`), so the
+pictures always show the game as it is built and no image or video is kept in the repository. The controller is generic,
+with only what every supported controller shares: a trigger under the index finger, a grip under the middle finger, a
+thumbstick and two face buttons (`Pad`). A pressed part sinks and glows and a soft ring pulses out of it; a held part's
+ring fills as the hold is timed, so the sky wipe's two seconds can be seen. A trigger or grip page looks from beside and
+under the hand, so the pull shows; a button or stick page looks from over it. A page uses the right hand wherever the
+control allows, so the player can hold the book in the left and try the move with the right while looking at it.
+
+| Page | What the hands do | Why it is not obvious |
+| --- | --- | --- |
+| Turn the page | Right hand sweeps across the page toward the spine | The book's own gesture, on its first page |
+| Pick a tool | Hold the right upper face button, move the hand onto a slot, let go | The wheel opens only while its button is held |
+| Teleport | Left stick forward, the ray lands on a ring, let go to go there | Left only; movement is not a tool |
+| Undo, redo | Tap the left lower face button, then the right one | Two hands, no tool shows it |
+| Shape the ground | Right grip on the meadow, raise the hand | The grip shapes the ground whatever the hand holds |
+| Turn the sky | Right grip on open sky, sweep the pointer | The sky is grabbable and carries the sun |
+| Twist to choose | Hold the right trigger on a build with the colour tool, twist the wrist | A wheel turned by the wrist |
+| Stretch a house | Right trigger takes up a house, left grip joins, spread the hands | A two-hand move |
+| Wipe the garden | Hold the right trigger with delete pointed up at the sky for its whole two seconds | A hidden hold on the sky |
+
+Left out on purpose, as fun to find or plain from the tool on top: petting, feeding and calling animals, wildlife
+arriving, throwing seeds, painting at the easel and tearing off a sheet, a path opening an arch or gate through a wall,
+windows fusing, lanterns, photos, visiting, snap turning, each tool's ordinary trigger action, and the colour wheel on the
+meadow turning the season.
+
+The pages are one table, `Lessons.PAGES`: each page a script of both hands' poses and of the actions held, and the
+garden it starts from. The same script drives the page's ghost hands and `tests/test_lessons.gd`, which plays it through
+the real hands and tools in a garden and checks the effect the page shows (the wipe page's input wipes, the house page's
+input builds a stretched house, and so on), and that every action it presses is still in `Controls.ACTIONS` on that
+hand. A control changed or removed turns `scripts/test.sh` red until its page is redrawn.
+
+Only faces of an open book in view render, each every other frame; a shut or tucked book renders no page. On the
+desktop renderer (RTX 2080, 1600×1200, `demo/book-cost.json`, the renderer's timestamps around each viewport), a page
+renders in 0.28 ms at 384×288, so an open spread costs its pages 0.17 ms a frame; the garden's own view rose from 6.85 ms
+with the book tucked to 7.16 ms with it shut in the hand and 7.5 to 8.0 ms open, the paper's shading over its pixels. The
+Quest 2 has not measured it yet.
 
 ## Flat-screen controls
 

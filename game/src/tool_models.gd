@@ -82,6 +82,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_seeds(root)
 		Hand.Tool.EASEL:
 			_easel(root)
+		Hand.Tool.BOOK:
+			root.add_child(Book.miniature())
 	if tool in [Hand.Tool.WALLS, Hand.Tool.HOUSE, Hand.Tool.TOWER, Hand.Tool.ARCH]:
 		for part in root.get_children():
 			part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22), Vector3.ZERO) * part.transform

@@ -251,6 +251,7 @@ func _run() -> void:
 	await d.finished
 	d.queue_free()
 	var rig: Rig = main.rig
+	rig.left.tool = Hand.Tool.FLOWERS
 	for hand in rig.hands:
 		var tracker := XRControllerTracker.new()
 		tracker.name = hand.tracker

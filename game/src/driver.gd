@@ -1124,6 +1124,86 @@ func _sheet(s: Dictionary) -> void:
 	await _frames(2)
 
 
+## Desktop only: holds `hand` at `at`, pointing along `aim`, rolled `roll` degrees, all in head space, as a lesson poses it.
+func _hold_pose(s: Dictionary) -> void:
+	var hand := _hand(s)
+	hand.global_transform = main.rig.head.global_transform * Lessons.frame({"at": Lessons._v(s.at), "aim": Lessons._v(s.aim).normalized(), "roll": s.get("roll", 0.0)})
+	hand.held_still = true
+	await _frames(2)
+
+
+## Renders page `page`'s live picture alone at `size`, stepping it at 30 Hz and saving it at each of `times` as
+## "<name>-<time>", so its loop can be read frame by frame.
+func _lesson_frames(s: Dictionary) -> void:
+	var scene := LessonScene.new(int(s.page))
+	scene.size = Vector2i(s.get("size", [768, 576])[0], s.get("size", [768, 576])[1])
+	scene.manual = true
+	add_child(scene)
+	scene.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	var dir: String = main.args.get("capture-dir", "user://captures")
+	for at in s.times:
+		while scene.t + 1.0 / 30.0 <= at:
+			scene.advance(1.0 / 30.0)
+		await RenderingServer.frame_post_draw
+		await RenderingServer.frame_post_draw
+		var path := dir.path_join("%s-%04.1f.png" % [s.name, at])
+		scene.get_texture().get_image().save_png(path)
+		print("capture: ", path)
+	scene.queue_free()
+
+
+## Prints what the held book's live pages cost the GPU over `seconds`, from the renderer's timestamps around each
+## viewport: each page's render and their share of a frame, beside the garden's own view.
+func _page_cost(s: Dictionary) -> void:
+	var b: Book = main.book
+	var rd := RenderingServer.get_rendering_device()
+	var pages := {}
+	for page in b.scenes:
+		RenderingServer.viewport_set_measure_render_time(b.scenes[page].get_viewport_rid(), true)
+		pages[str(b.scenes[page].get_viewport_rid().get_id())] = page
+	var main_id := str(get_viewport().get_viewport_rid().get_id())
+	RenderingServer.viewport_set_measure_render_time(get_viewport().get_viewport_rid(), true)
+	var renders: Array[float] = []
+	var views: Array[float] = []
+	var total := 0.0
+	var frames := 0
+	var t := 0.0
+	while t < s.seconds:
+		await RenderingServer.frame_post_draw
+		frames += 1
+		var begin := {}
+		for i in rd.get_captured_timestamps_count():
+			var n := rd.get_captured_timestamp_name(i)
+			var id := n.trim_prefix("vp_begin_").trim_prefix("vp_end_")
+			if n.begins_with("vp_begin_"):
+				begin[id] = rd.get_captured_timestamp_gpu_time(i)
+			elif begin.has(id):
+				var ms: float = (rd.get_captured_timestamp_gpu_time(i) - begin[id]) / 1e6
+				if pages.has(id):
+					renders.append(ms)
+					total += ms
+				elif id == main_id:
+					views.append(ms)
+		t += get_process_delta_time()
+	renders.sort()
+	views.sort()
+	print("page_cost: %d frames, %d page renders, %.3f ms GPU a page render (median), %.3f ms a frame for the pages, the garden's view %.3f ms (median)" % [frames, renders.size(),
+		renders[renders.size() / 2] if not renders.is_empty() else 0.0, total / maxi(frames, 1), views[views.size() / 2] if not views.is_empty() else 0.0])
+
+
+## The picture book in the hand holding it: "open" it, "turn" a leaf on or "back", then wait `seconds`.
+func _book(s: Dictionary) -> void:
+	var b: Book = main.book
+	match s.do:
+		"open":
+			b.open()
+		"turn":
+			b.turn(1)
+		"back":
+			b.turn(-1)
+	await get_tree().create_timer(s.get("seconds", 1.0)).timeout
+
+
 func _capture(s: Dictionary) -> void:
 	await main.capture(s.name, s.get("screen", false))
 

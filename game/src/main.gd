@@ -39,6 +39,7 @@ var metrics: Metrics
 var quality: Quality
 var hand_stop: HandStop
 var flat: Flat
+var book: Book
 
 
 func _ready() -> void:
@@ -51,6 +52,9 @@ func _ready() -> void:
 	add_child(Meadow.new(flora))
 	rig = Rig.new()
 	add_child(rig)
+	book = Book.new()
+	book.rig = rig
+	add_child(book)
 	world = World.new()
 	world.look = look
 	add_child(world)

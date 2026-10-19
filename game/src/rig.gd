@@ -82,7 +82,7 @@ func _init() -> void:
 	add_child(head)
 	gaze = Gaze.new()
 	add_child(gaze)
-	left = Hand.new("left_hand", Hand.Tool.FLOWERS)
+	left = Hand.new("left_hand", Hand.Tool.BOOK)
 	right = Hand.new("right_hand", Hand.Tool.WALLS)
 	hands = [left, right]
 	for h in hands:
