@@ -124,6 +124,10 @@ static func custom(part: Dictionary) -> Color:
 	return Color(part.ao, Palette.code(part.get("kind", "")), 0, 0)
 
 
+func count() -> int:
+	return _instance.multimesh.instance_count
+
+
 func reveal(count: int) -> void:
 	_instance.multimesh.visible_instance_count = count
 	if _far != null:

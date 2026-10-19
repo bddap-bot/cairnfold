@@ -29,6 +29,7 @@ func _run() -> void:
 	_a_crossing_that_cannot_open_leaves_no_arch()
 	_a_tower_opens_a_doorway_across_its_seam()
 	_a_long_stroke_freezes_into_chunks()
+	_far_paving_draws_far_stones_and_the_whole_stones_shade()
 	_painting_skips_a_path()
 	_undo_lifts_a_path_and_its_arches()
 	await _a_path_opens_its_arch_before_release()
@@ -447,11 +448,33 @@ func _a_long_stroke_freezes_into_chunks() -> void:
 	for c in paths.get_children():
 		if c is Stones:
 			chunks += 1
-			for mmi in c.get_children():
-				laid += (mmi as MultiMeshInstance3D).multimesh.instance_count
+			laid += c.count()
 	_check(chunks >= 3, "a 48 m wide stroke settles into %d chunks" % chunks)
 	_check(p != null and laid == p.stones.size(), "the chunks hold every stone once: %d of %d" % [laid, p.stones.size() if p else -1])
 	paths.queue_free()
+
+
+func _far_paving_draws_far_stones_and_the_whole_stones_shade() -> void:
+	var p := _path([[0, 0], [12, 0]], 1.2)
+	p.build()
+	var c := Stones.new(true)
+	root.add_child(c)
+	c.lay(p.stones)
+	var mmis: Array[MultiMeshInstance3D] = []
+	for n in c.get_children():
+		mmis.append(n)
+	var near := mmis.filter(func(m): return m.multimesh.mesh == Stones.mesh() and m.layers == Quality.LADDER_LAYER)
+	var far := mmis.filter(func(m): return m.multimesh.mesh == Stones.far_mesh())
+	var full := mmis.filter(func(m): return m.layers == Quality.FULL_LAYER)
+	_check(near.size() == 1 and far.size() == 1 and full.size() == 1, "paving draws whole stones near, far stones past them, and whole stones for a photo")
+	if far.size() == 1 and near.size() == 1 and full.size() == 1:
+		var split: float = near[0].visibility_range_end
+		_check(split >= Wall.kinds()[Wall.Part.STONE].near and is_equal_approx(far[0].visibility_range_begin, split), "far paving begins where the whole stones end, past the near distance: %.1f" % split)
+		_check(far[0].multimesh.instance_count == p.stones.size(), "the far stones are the laid stones")
+		_check(near[0].cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and far[0].cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and full[0].cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "only the whole stones cast paving's shadow")
+		c.lay([])
+		_check(far[0].multimesh.instance_count == 0, "an emptied chunk draws no far stones")
+	c.free()
 
 
 func _painting_skips_a_path() -> void:
