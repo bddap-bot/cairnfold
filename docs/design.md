@@ -320,6 +320,8 @@ density, and no build the player can make may bring the frame rate down.
 - `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
   calls, primitives and GPU time; on a Quest it holds each phase to the budget and
   fails when one goes over. A new feature adds itself to the stress scene.
+- Each run records its phases under `perf/HEADSET/SCENE/`, named by the build measured; `scripts/trend.py` prints the
+  latest run of each beside the one before and the best, marking a rise of a tenth. It only reports.
 
 What makes building cheap:
 
@@ -338,7 +340,9 @@ What makes building cheap:
   long stroke costs the main thread nothing while it grows.
 - A vine lays one three-leaf sprig a step rather than three leaves; sprigs shrink
   away over the last 15 m of ivy's reach.
-- A path's stone chunks are bounded by their own stones, so they cull.
+- A path's stone chunks are bounded by their own stones, so they cull. A chunk wholly past the near distance draws
+  `Stones.far_mesh` too, counting half its lifted bounds' height as reach; whole stones still cast its shadows. From
+  the air the five-path phase of `demo/costs.json` went from 14.35 to 11.15 ms on the Quest 3 with no late frame.
 - A laid path's stones are packed on a worker thread; the main thread only plans its rows (wear and arches need nothing more) and lays the finished chunks. Packing a 48 m path 6 m wide took about 35 ms on the desktop.
 - Ground moving under walls changes neither their data nor where paths cross them,
   so a stroke only lays their stones again on a worker thread, and a wall settles
