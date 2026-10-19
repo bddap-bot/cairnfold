@@ -46,6 +46,13 @@ check(meadow["plants"] - meadow["shown"] > 10, f"the joiner's deletes took a spa
 check(len(g["grounds"]) == 1 and any("lanterns\": PackedVector3Array(3" in w["data"] for w in g["walls"].values()), "the host's stone ground and lantern stand")
 easels = list(g["easels"].values())
 check(len(easels) == 1 and easels[0]["strokes"] == 2, f"the host's easel holds the joiner's watercolour stroke and the host's oil one: {easels}")
+for shape, reach in [("peak", lambda h: h[1] > 450), ("pit", lambda h: h[0] < -450)]:
+    seen_shape = {n: json.load(open(f"{out}/{n}-{shape}.json")) for n in names}
+    for v in seen_shape.values():
+        for k in ("avatars", "worn", "handfuls", "frenzy"):
+            v.pop(k)
+    check(all(v == seen_shape["host"] for v in seen_shape.values()), f"every peer shows the joiner's {shape} the same")
+    check(reach(seen_shape["host"]["heights"]), f"the joiner's one stroke {shape} reaches past 450 m: {seen_shape['host']['heights']}")
 turned = json.load(open(f"{out}/host-sun.json"))["sun"]
 check(abs(turned - 0.8) < 0.02, f"the host sees the sun where the joiner turned it: {turned:.3f}")
 check(abs(g["sun"] - 0.3) < 0.02, f"every peer sees the sun where the host turned it back: {g['sun']:.3f}")

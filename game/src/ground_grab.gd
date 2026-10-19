@@ -13,7 +13,6 @@ const MAX_RADIUS := 9.0
 const RADIUS_PER_METRE := 0.3
 ## Hills widen with height so their flanks stay walkable and walls on them stay standing.
 const SPREAD := 3.0
-const MAX_LIFT := 6.0
 const FOLLOW_EVERY := 0.06
 const TICK := 0.25
 const TINT := Color(0.92, 0.85, 0.66, 0.6)
@@ -154,7 +153,7 @@ func begin(hand: Hand, ground: Vector3, radius: float) -> void:
 func pull(hand: Hand, metres: float) -> void:
 	var g := _grab(hand)
 	var at: Vector3 = g.at
-	g.lift = clampf(metres, clampf(Terrain.LOWEST - at.y, -MAX_LIFT, 0.0), clampf(Terrain.HIGHEST - at.y, 0.0, MAX_LIFT))
+	g.lift = metres
 	g.radius = maxf(g.base_radius, absf(g.lift) * SPREAD)
 	Terrain.set_hump(g.slot, at.x, at.z, g.radius, g.lift)
 	g.moved = g.moved.merge(_span(g, g.radius))

@@ -77,7 +77,7 @@ func _init() -> void:
 	head = XRCamera3D.new()
 	head.position = Vector3(0, EYE, 0)
 	head.near = NEAR
-	head.far = FAR
+	head.far = far()
 	head.cull_mask = Quality.VIEW_MASK & ~SELF_LAYER
 	add_child(head)
 	gaze = Gaze.new()
@@ -159,7 +159,14 @@ func _marker(mesh: Mesh, mat: Material) -> MeshInstance3D:
 	return mi
 
 
+## The eyes' far clip: at least FAR, and the whole ground from anywhere a player can stand or float over it,
+## however high or deep it is pulled.
+static func far() -> float:
+	return maxf(FAR, Terrain.bounds().size.length() + AIR_REACH + MAX_LIFT)
+
+
 func _process(delta: float) -> void:
+	head.far = far()
 	_locomotion_input(delta)
 	_moves.latch()
 	_turns.latch()

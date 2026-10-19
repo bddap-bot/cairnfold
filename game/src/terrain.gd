@@ -8,8 +8,6 @@ const SIZE := 160.0
 const STEP := 1.0
 const CELLS := int(SIZE / STEP)
 const VERTS := CELLS + 1
-const LOWEST := -8.0
-const HIGHEST := 40.0
 const NO_HUMP := Vector4(0, 0, 1, 0)
 
 static var _heights := base_heights()
@@ -34,6 +32,14 @@ static var _water_image: Image
 static var _water_texture: ImageTexture
 static var _image: Image
 static var _texture: ImageTexture
+## The lowest and highest the ground has been, and the span bounds() gives, which grows past them in strides so the
+## boxes lifted onto it are refitted seldom while a stroke pulls the ground ever further.
+static var _floor: float = Array(_heights).min()
+static var _crest: float = Array(_heights).max()
+static var _low := _floor
+static var _high := _crest
+static var _lifted := {}
+static var _half := PackedByteArray([0, 0])
 
 
 static func base_heights() -> PackedFloat32Array:
@@ -151,8 +157,9 @@ static func ground(x: float, z: float) -> Vector3:
 
 
 ## First hit of a ray with the ground, or null.
-static func raycast(origin: Vector3, dir: Vector3, max_dist := 80.0) -> Variant:
-	var lift := maxf(0.0, maxf(_humps[0].w, _humps[1].w))
+static func raycast(origin: Vector3, dir: Vector3, max_dist := INF) -> Variant:
+	max_dist = minf(max_dist, exit_along(origin, dir))
+	var lift := maxf(_humps[0].w, 0.0) + maxf(_humps[1].w, 0.0)
 	var step := 0.25
 	var prev := 0.0
 	var t := 0.0
@@ -293,6 +300,7 @@ const ALL := Rect2i(0, 0, VERTS, VERTS)
 static func set_hump(slot: int, x: float, z: float, radius: float, lift: float) -> void:
 	_humps[slot] = Vector4(x, z, maxf(radius, STEP), lift)
 	revision += 1
+	_fit()
 	_share_humps()
 
 
@@ -333,18 +341,21 @@ static func write(cells: Rect2i, values: PackedFloat32Array) -> void:
 	for j in range(cells.position.y, cells.end.y):
 		for i in range(cells.position.x, cells.end.x):
 			_heights[j * VERTS + i] = values[n]
+			_floor = minf(_floor, values[n])
+			_crest = maxf(_crest, values[n])
 			n += 1
 	_raise_tops(cells)
 	revision += 1
+	_fit()
 	_sync(cells)
 
 
-## Shares the heights with shaders (ground.gdshaderinc) as a texture, one texel per grid point, red the height
-## and green the steepness. Half
-## floats because only 16-bit float textures are filterable on every Vulkan device; their steps stay
-## under 3 cm below HIGHEST.
+## Shares the heights with shaders (ground.gdshaderinc) as a texture, one texel per grid point: red the height
+## to half precision, blue what that rounding left, green the steepness. Half floats because only 16-bit float
+## textures are filterable on every Vulkan device; filtering is linear, so red plus blue filters to the height
+## itself, true to a fraction of a millimetre on ground a kilometre high.
 static func install() -> void:
-	_image = Image.create_empty(VERTS, VERTS, false, Image.FORMAT_RGH)
+	_image = Image.create_empty(VERTS, VERTS, false, Image.FORMAT_RGBAH)
 	_texture = ImageTexture.create_from_image(_image)
 	_sync(Rect2i(0, 0, VERTS, VERTS))
 	RenderingServer.global_shader_parameter_set(&"ground_height", _texture)
@@ -354,7 +365,39 @@ static func install() -> void:
 
 ## A box holding the ground and anything standing on it, for meshes the GPU lifts onto the heights.
 static func bounds() -> AABB:
-	return AABB(Vector3(-SIZE * 0.5, LOWEST - 2.0, -SIZE * 0.5), Vector3(SIZE, HIGHEST - LOWEST + 32.0, SIZE))
+	return AABB(Vector3(-SIZE * 0.5, _low - 2.0, -SIZE * 0.5), Vector3(SIZE, _high - _low + 32.0, SIZE))
+
+
+## Sets `target`'s custom_aabb (a GeometryInstance3D's or a MultiMesh's) to `box`, which spans bounds()' heights,
+## and keeps it spanning them as they grow.
+static func lift(target: Object, box: AABB) -> void:
+	target.custom_aabb = box
+	_lifted[target.get_instance_id()] = weakref(target)
+
+
+## Grows bounds() to the ground and its live humps, a stride past them, and every lifted box with it.
+static func _fit() -> void:
+	var low := _floor
+	var high := _crest
+	for hump in _humps:
+		low += minf(hump.w, 0.0)
+		high += maxf(hump.w, 0.0)
+	if low >= _low and high <= _high:
+		return
+	var stride := maxf(8.0, (high - low) * 0.5)
+	var down := low - stride - _low if low < _low else 0.0
+	var up := high + stride - _high if high > _high else 0.0
+	_low += down
+	_high += up
+	for id: int in _lifted.keys():
+		var target: Object = _lifted[id].get_ref()
+		if target == null:
+			_lifted.erase(id)
+			continue
+		var box: AABB = target.custom_aabb
+		box.position.y += down
+		box.size.y += up - down
+		target.custom_aabb = box
 
 
 ## 1 - the ground normal's y at grid point (i, j), as ground_normal in ground.gdshaderinc finds it there.
@@ -372,7 +415,10 @@ static func _sync(cells: Rect2i) -> void:
 	var around := cells.grow(1).intersection(ALL)
 	for j in range(around.position.y, around.end.y):
 		for i in range(around.position.x, around.end.x):
-			_image.set_pixel(i, j, Color(_heights[j * VERTS + i], _steepness(i, j), 0))
+			var h := _heights[j * VERTS + i]
+			_half.encode_half(0, h)
+			var hi := _half.decode_half(0)
+			_image.set_pixel(i, j, Color(hi, _steepness(i, j), h - hi))
 	_texture.update(_image)
 	if _water_image == null:
 		return

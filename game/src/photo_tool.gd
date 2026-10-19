@@ -56,7 +56,7 @@ func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:
 	var cam := Camera3D.new()
 	cam.fov = FOV
 	cam.near = Rig.NEAR
-	cam.far = Rig.FAR
+	cam.far = Rig.far()
 	vp.add_child(cam)
 	add_child(vp)
 	return vp

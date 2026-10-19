@@ -19,6 +19,9 @@ func _run() -> void:
 	_baking_a_live_hump_moves_nothing()
 	_texture_matches_the_heights()
 	_height_between_grid_points_is_continuous()
+	_pulls_go_as_far_as_the_hand()
+	_a_guest_may_reshape_the_whole_ground()
+	_a_ray_reaches_ground_across_the_garden()
 	await _raising_ground_under_a_wall_keeps_it_on_the_ground()
 	_a_lay_reads_the_ground_it_started_on()
 	_raycast_skips_only_open_air()
@@ -141,9 +144,62 @@ func _texture_matches_the_heights() -> void:
 	for j in range(cells.position.y, cells.end.y):
 		for i in range(cells.position.x, cells.end.x):
 			var h := Terrain.height_at(-Terrain.SIZE * 0.5 + i * Terrain.STEP, -Terrain.SIZE * 0.5 + j * Terrain.STEP)
-			worst = maxf(worst, absf(Terrain._image.get_pixel(i, j).r - h))
+			var t := Terrain._image.get_pixel(i, j)
+			worst = maxf(worst, absf(t.r + t.b - h))
 	_check(worst < 0.02, "the GPU's heights match the CPU's after an edit, worst %f" % worst)
 	main.world.undo()
+
+
+## The texture's height against the CPU's at every grid point.
+func _texture_error() -> float:
+	var worst := 0.0
+	for j in Terrain.VERTS:
+		for i in Terrain.VERTS:
+			var t := Terrain._image.get_pixel(i, j)
+			worst = maxf(worst, absf(t.r + t.b - Terrain._heights[j * Terrain.VERTS + i]))
+	return worst
+
+
+func _pulls_go_as_far_as_the_hand() -> void:
+	var original := _all()
+	var clean: Variant = bytes_to_var(var_to_bytes(main.world.snapshot()))
+	var c := Terrain.ground(-30, 25)
+	var ground: Node = main.get_children().filter(func(n: Node) -> bool: return n is Meadow)[0]
+	var meadow: MeshInstance3D = ground.get_children().filter(func(n: Node) -> bool: return n is MeshInstance3D and n.mesh is ArrayMesh)[0]
+	for lift in [600.0, -900.0]:
+		tool.begin(tool.rig.right, c, 4.0)
+		tool.pull(tool.rig.right, lift)
+		_check(absf(Terrain.height_at(c.x, c.z) - c.y - lift) < 0.01, "a live pull of %d m moves the grabbed point all the way, %f" % [lift, Terrain.height_at(c.x, c.z) - c.y])
+		_check(meadow.custom_aabb.has_point(Terrain.ground(c.x, c.z)), "the ground's box holds a live pull of %d m" % lift)
+		tool.end_stroke(tool.rig.right)
+		var h := Terrain.height_at(c.x, c.z)
+		_check(absf(h - c.y - lift) < 0.01, "a stroke of %d m bakes all the way, %f" % [lift, h - c.y])
+		_check(_texture_error() < 0.001, "the GPU's heights match the CPU's to a millimetre %d m off, worst %f" % [lift, _texture_error()])
+		_check(Terrain.bounds().has_point(Terrain.ground(c.x, c.z)) and meadow.custom_aabb.has_point(Terrain.ground(c.x, c.z)), "the ground's box holds a %d m stroke" % lift)
+		_check(Rig.far() > Terrain.bounds().size.length(), "the eyes see the whole ground %d m off" % lift)
+		var kept: Variant = bytes_to_var(var_to_bytes(main.world.snapshot()))
+		main.world.undo()
+		_check(_all() == original, "undo takes a %d m stroke away exactly" % lift)
+		_check(main.world.restore_whole(kept) and absf(Terrain.height_at(c.x, c.z) - h) < 1e-4, "a saved garden keeps a %d m stroke" % lift)
+		_check(main.world.restore_whole(bytes_to_var(var_to_bytes(clean))) and _all() == original, "the garden as it was comes back after a %d m stroke" % lift)
+
+
+func _a_guest_may_reshape_the_whole_ground() -> void:
+	var values := _all()
+	for n in values.size():
+		values[n] += 2000.0 if n % 2 else -2000.0
+	var cmd := {"op": "heights", "cells": Terrain.ALL, "values": values}
+	_check(not Commands.clean(cmd, main.world.state, false).is_empty(), "a guest's stroke may cover the whole ground and reach 2 km either way")
+	values[7] = NAN
+	_check(Commands.clean(cmd, main.world.state, false).is_empty(), "a guest's stroke with no height is turned down")
+
+
+func _a_ray_reaches_ground_across_the_garden() -> void:
+	var from := Terrain.ground(-70, 0) + Vector3.UP * 20.0
+	var to := Terrain.ground(70, 0)
+	var hit: Variant = Terrain.raycast(from, (to - from).normalized())
+	_check(hit != null and (hit as Vector3).distance_to(to) < 1.0, "a hand reaches ground across the whole garden, %s for %s" % [hit, to])
+	_check(Terrain.raycast(from, Vector3(1, 0.2, 0).normalized()) == null, "a ray into the sky still meets nothing")
 
 
 func _height_between_grid_points_is_continuous() -> void:

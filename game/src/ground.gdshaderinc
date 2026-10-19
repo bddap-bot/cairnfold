@@ -18,7 +18,8 @@ float hump_at(vec4 hump, vec2 p) {
 
 float ground_at(vec2 xz) {
 	vec2 g = (xz - ground_grid.x) / ground_grid.y;
-	float h = textureLod(ground_height, (g + 0.5) / ground_grid.z, 0.0).r;
+	vec4 t = textureLod(ground_height, (g + 0.5) / ground_grid.z, 0.0);
+	float h = t.r + t.b;
 	for (int k = 0; k < 2; k++) {
 		vec4 hump = ground_humps[k];
 		if (hump.w != 0.0) {
@@ -33,7 +34,8 @@ float ground_at(vec2 xz) {
 }
 
 // A one-texel-per-grid-point texture as a cubic B-spline through the neighbourhood of `xz`, in four filtered
-// taps. Bilinear contours kink at every grid line, so a small hollow's waterline drawn from them is a polygon.
+// taps, of red plus blue: ground_height's blue holds what rounding red to half precision left, and a texture
+// without blue reads 0 there. Bilinear contours kink at every grid line, so a small hollow's waterline drawn from them is a polygon.
 float grid_smooth(sampler2D t, vec2 xz) {
 	vec2 g = (xz - ground_grid.x) / ground_grid.y;
 	vec2 i = floor(g);
@@ -45,8 +47,8 @@ float grid_smooth(sampler2D t, vec2 xz) {
 	vec2 s1 = 1.0 - s0;
 	vec2 t0 = (i - 0.5 + w1 / s0) / ground_grid.z;
 	vec2 t1 = (i + 1.5 + w3 / s1) / ground_grid.z;
-	return s0.y * (s0.x * textureLod(t, t0, 0.0).r + s1.x * textureLod(t, vec2(t1.x, t0.y), 0.0).r)
-		+ s1.y * (s0.x * textureLod(t, vec2(t0.x, t1.y), 0.0).r + s1.x * textureLod(t, t1, 0.0).r);
+	return s0.y * (s0.x * dot(textureLod(t, t0, 0.0).rb, vec2(1.0)) + s1.x * dot(textureLod(t, vec2(t1.x, t0.y), 0.0).rb, vec2(1.0)))
+		+ s1.y * (s0.x * dot(textureLod(t, vec2(t0.x, t1.y), 0.0).rb, vec2(1.0)) + s1.x * dot(textureLod(t, t1, 0.0).rb, vec2(1.0)));
 }
 
 vec2 ground_cover(vec2 xz) {

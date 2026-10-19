@@ -18,8 +18,6 @@ const MAX_PATH_POINTS := 2048
 const MAX_ARCHES := 16
 const MAX_DABS := 2000
 const MAX_STROKE := 4000
-## A tool's ground edit covers at most this many cells a side; the host's own snapshot covers the whole grid.
-const MAX_CELLS := 64
 const ROOF_RADIUS := Vector2(0.5, 8.0)
 ## Longest stroke a wall or a path may run, end to end along the ground; the tools stop growing one there.
 const MAX_LENGTH := 240.0
@@ -456,10 +454,8 @@ static func _heights(cmd: Dictionary, from_host: bool, out: Dictionary) -> bool:
 		return false
 	if cells.size.x < 1 or cells.size.y < 1 or not Rect2i(0, 0, Terrain.VERTS, Terrain.VERTS).encloses(cells) or values.size() != cells.get_area():
 		return false
-	if not from_host and (cells.size.x > MAX_CELLS or cells.size.y > MAX_CELLS):
-		return false
 	for v in values:
-		if not (v >= Terrain.LOWEST - 1.0 and v <= Terrain.HIGHEST + 1.0):
+		if not is_finite(v):
 			return false
 	out.cells = cells
 	out.values = values
@@ -477,7 +473,7 @@ static func _ponds(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 		return false
 	for g: Variant in put:
 		var level: Variant = put[g]
-		if typeof(g) != TYPE_VECTOR2I or not Terrain.ALL.has_point(g) or typeof(level) != TYPE_FLOAT or not (level >= Terrain.LOWEST and level <= Terrain.HIGHEST):
+		if typeof(g) != TYPE_VECTOR2I or not Terrain.ALL.has_point(g) or typeof(level) != TYPE_FLOAT or not is_finite(level):
 			return false
 	for g: Variant in drop:
 		if typeof(g) != TYPE_VECTOR2I or not state.ponds.has(g) or put.has(g):

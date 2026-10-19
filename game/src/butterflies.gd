@@ -80,7 +80,7 @@ func _init(home: Wildlife, seed: int) -> void:
 	mm.mesh = Meshes.butterfly()
 	mm.instance_count = CAP
 	mm.visible_instance_count = 0
-	mm.custom_aabb = Terrain.bounds()
+	Terrain.lift(mm, Terrain.bounds())
 	_buffer.resize(CAP * STRIDE)
 	var mmi := MultiMeshInstance3D.new()
 	mmi.multimesh = mm

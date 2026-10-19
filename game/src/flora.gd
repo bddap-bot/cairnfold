@@ -88,7 +88,7 @@ class Pool:
 		_colors.resize(capacity)
 		_customs.resize(capacity)
 		# Painting changes the instance list every frame; a fixed box spares a bounds pass over every plant.
-		mm.custom_aabb = Terrain.bounds()
+		Terrain.lift(mm, Terrain.bounds())
 		_show(mm)
 
 	## `custom`'s blue and alpha are taken for `anchor`.
@@ -190,7 +190,7 @@ class Pool:
 		var ground := Terrain.bounds()
 		box.position.y += ground.position.y
 		box.size.y += ground.size.y
-		m.custom_aabb = box.grow(0.5)
+		Terrain.lift(m, box.grow(0.5))
 		return m
 
 	func size() -> int:

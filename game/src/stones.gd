@@ -73,7 +73,7 @@ func lay(stones: Array[Dictionary]) -> void:
 			area = area.expand(Vector2(s.xform.origin.x, s.xform.origin.z))
 		area = area.grow(1.0)
 		var t := Terrain.bounds()
-		mm.custom_aabb = AABB(Vector3(area.position.x, t.position.y, area.position.y), Vector3(area.size.x, t.size.y, area.size.y))
+		Terrain.lift(mm, AABB(Vector3(area.position.x, t.position.y, area.position.y), Vector3(area.size.x, t.size.y, area.size.y)))
 	for i in stones.size():
 		var s: Dictionary = stones[i]
 		var x: Transform3D = s.xform

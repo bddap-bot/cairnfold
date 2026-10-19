@@ -941,7 +941,8 @@ func digest() -> Dictionary:
 	flora.grow_now()
 	for w: Wall in wall_tool.walls:
 		w.lay_now()
-	var out := {"seq": seq, "walls": {}, "groups": {}, "ground": hash(Terrain.read(Terrain.ALL))}
+	var heights := Array(Terrain.read(Terrain.ALL))
+	var out := {"seq": seq, "walls": {}, "groups": {}, "ground": hash(heights), "heights": [heights.min(), heights.max()]}
 	for w: Wall in wall_tool.walls:
 		out.walls[str(w.id)] = {"data": var_to_str(state.walls[w.id]), "stones": w.layout.stones.size(), "height": w.layout.height}
 	for g in flora.groups:

@@ -12,11 +12,15 @@ import time
 
 ROOT = Path(__file__).resolve().parents[1]
 # A stuck run is one where no player takes a step while together they spend this much CPU; a busy machine only slows the
-# run in wall time, so no wall-clock limit applies.
-QUIET_CPU = 40
+# run in wall time, so no wall-clock limit applies. The joiner's strokes across the whole garden re-lay everything on it
+# on every peer, one step that has taken 65 CPU-seconds together on a loaded machine.
+QUIET_CPU = 150
 # Going home before these steps means a player lost the garden it was visiting.
 # The host and the joiner end their builds and turns of the sky at this command; late joiners build after it.
 SEQ = 33
+# After the final digest the joiner pulls the ground this far up in one stroke and then twice as far down, each
+# step digested on every peer: one stroke of a guest's spans the whole ground.
+EXTREME = 500
 HOME_CUE = re.compile(r'"home": true|"digests": \["home"\]')
 
 
@@ -63,6 +67,12 @@ def scripts(count):
                   barrier([f"{n}-fed" for n in names])]
         steps += [{"op": "digest", "name": f"{name}-final"},
                   barrier([f"{n}-final" for n in names])]
+        last = SEQ + 2 * (count - 2)
+        for k, (shape, lift) in enumerate([("peak", EXTREME), ("pit", -2 * EXTREME)]):
+            if name == "join":
+                steps += [{"op": "sculpt", "x": -50, "z": 50, "lift": lift, "seconds": 0.5}]
+            steps += [{"op": "until", "seq": last + 1 + k}, {"op": "digest", "name": f"{name}-{shape}"},
+                      barrier([f"{n}-{shape}" for n in names])]
         if name == "join":
             steps += [{"op": "visit", "home": True},
                       {"op": "until", "players": 1},

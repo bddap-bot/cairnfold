@@ -187,7 +187,6 @@ func _bad_commands_are_dropped() -> void:
 		"dab of two fields": {"op": "plant", "kind": "grass", "seed": 1, "dabs": [[Vector3.ZERO, 1.0]]},
 		"stroke past its size": {"op": "plant", "kind": "grass", "seed": 1, "dabs": [[Vector3.ZERO, 1.0, Commands.MAX_STROKE + 1]]},
 		"dab of a huge brush": {"op": "plant", "kind": "grass", "seed": 1, "dabs": [[Vector3.ZERO, 1000.0, 3]]},
-		"heights too wide from a player": {"op": "heights", "cells": Rect2i(0, 0, 100, 100), "values": Terrain.read(Rect2i(0, 0, 100, 100))},
 		"heights off the grid": {"op": "heights", "cells": Rect2i(-5, 0, 10, 10), "values": PackedFloat32Array()},
 		"heights of NaN": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": PackedFloat32Array([NAN])},
 	}
