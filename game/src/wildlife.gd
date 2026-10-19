@@ -528,6 +528,8 @@ func offers() -> Array[Node3D]:
 func nibble(offer: Node3D, delta: float) -> void:
 	if offer is Handful:
 		offer.peck(delta)
+	elif offer is Hand:
+		Cues.play(Cues.Act.HAND_PECK, offer.global_position, offer)
 
 
 ## A calm hand holding seeds, or seeds thrown, that an animal at `at` sees and can reach (`fits`, given the offer,

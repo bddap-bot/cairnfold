@@ -619,6 +619,8 @@ func _land(b: Bird) -> void:
 	b.then = State.PERCH
 	if b.state == State.FEED:
 		b.timer = rng.randf_range(appetite.eats_for.x, appetite.eats_for.y)
+		if b.node.hand is Hand:
+			Cues.play(Cues.Act.HAND_PERCH, b.node.global_position, b.node.hand)
 	elif b.state == State.PECK:
 		if flew:
 			b.timer = rng.randf_range(PECK_FOR.x, PECK_FOR.y)

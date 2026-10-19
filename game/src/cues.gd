@@ -25,7 +25,7 @@ enum Act {
 	TELEPORT, TURN,
 	VISIT_HOVER, VISIT_GO,
 	PLAYER_JOINS, PLAYER_LEAVES,
-	BIRDS_STARTLE,
+	BIRDS_STARTLE, HAND_PERCH, HAND_PECK,
 	REFUSED, CAPPED,
 }
 
@@ -87,6 +87,8 @@ const TABLE := {
 	Act.PLAYER_JOINS: {"sound": "hello", "db": -12.0, "spread": 0.0, "every": 2.0},
 	Act.PLAYER_LEAVES: {"sound": "bye", "db": -12.0, "spread": 0.0, "every": 2.0},
 	Act.BIRDS_STARTLE: {"sound": "flutter", "db": -8.0, "spread": 0.12, "every": 0.5},
+	Act.HAND_PERCH: {"sound": "", "feel": [0.2, 0.04, 2, 0.09]},
+	Act.HAND_PECK: {"sound": "", "feel": [0.06, 0.01, 1, 0.0], "every": 0.4},
 	Act.REFUSED: {"sound": "tock", "db": -12.0, "spread": 0.03, "tune": 0.6, "feel": [0.35, 0.05, 2, 0.12]},
 	Act.CAPPED: {"sound": "grunt", "db": -8.0, "spread": 0.05, "feel": [0.4, 0.05, 2, 0.15]},
 }

@@ -2083,6 +2083,8 @@ Every player action, from the code:
 | `PLAYER_JOINS` | Another player joins the garden | three plucks rising | none: no hand did it |
 | `PLAYER_LEAVES` | Another player leaves | three plucks falling | none: no hand did it |
 | `BIRDS_STARTLE` | A conure takes off from someone coming near | wing flutter | none: nothing touched the hand |
+| `HAND_PERCH` | A conure lands on a hand holding seeds | none: it chirps on landing (see "Sound") | two light steps |
+| `HAND_PECK` | An animal eats from the seeds in a hand | none: pecks at a dish are too small to hear over the meadow | a light peck, at most every 0.4 s |
 | `REFUSED` | Something other than the frame budget turns an action down | low tock | two knocks |
 | `CAPPED` | The frame budget turns an action down | soft grunt | two knocks, and the bar jumps and shakes |
 
@@ -2096,7 +2098,6 @@ Every player action, from the code:
 | Aiming a teleport | Holding the left stick forward | the arc and rings show it; only the jump itself is heard |
 | Walking (flat) | Stick or keys | footsteps on every frame of a walk would tire; the flat build has no controller to feel |
 | Animals fleeing, a duck paddling off, fish scattering | Wildlife reacting to a person nearby | each animal's own calls stay theirs (see "Sound"); a grazer running on grass and fish under water make no sound worth adding |
-| Animals eating from a hand | A duck, conure or grazer taking seeds from the dish | the dish's seeds are taken in view; `NIBBLE` is the fish's |
 
 ## Wildlife
 
