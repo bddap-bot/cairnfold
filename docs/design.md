@@ -1845,6 +1845,30 @@ the frame back, which on a tiled GPU costs a full-frame resolve per eye:
   the tiled-GPU resolve that makes it worse on a headset; it was dropped. Headset numbers belong to the
   on-device run.
 
+### Under water
+
+Directive (verbatim): "What options do we have for shader effects while you're underwater? We make it swimmy and blurry, maybe? Maybe not blurry, just what could we do to make it seem like you're underwater
+And what can we do to make it so you can view the surface, look up and see the surface of the water"
+
+Directive (verbatim): "I don't really like giving the user choice about what water looks like from below. Um, I think it should just be something that just water is always this water from underneath. Don't need to overcomplicate it"
+
+One look, no options. Nothing blurs or sways: in a headset both read as bad eyesight or nausea.
+
+- **The surface from below:** the water shader draws its back face, which only an eye under the surface sees, so
+  each eye of a head halfway in sees its own side of it; everything below switches on the head's centre. Within 48.6° of straight up it shows the sky overhead, brighter
+  toward the middle with a bright rim (Snell's window); past that it mirrors the water below (total internal
+  reflection). The window is the sky's colour alone: the banks and trees above do not show through it. Its edge
+  follows the broad swell, so it wavers as a circle.
+- **Fog and tint:** while the head is under, `Look` swaps its depth fog for blue-green that has taken the view
+  within 7 m, thickest close in, and a colour correction keeps 55% of the displayed red and 92% of the green.
+- **Caustics:** the bed's drifting caustics (`caustic` in `water.gdshaderinc`) also play on sunken stone, seen from
+  under the water; from above the water's tint hides them, so stone skips them there.
+- **Shafts, motes and bubbles:** `Underwater` draws ten ribbons of sunlight bent down through the surface, motes
+  and a few rising bubbles, each held still in the world and wrapped into a box about the head.
+- **Sound:** the mix goes through a low-pass at 650 Hz and 4 dB down.
+- **Cost:** above water nothing is drawn and no effect runs; the surface's back face is never rasterized from
+  above, stone's caustics wait on a global, and the fog and colour correction are the ones already applied.
+
 ### Stone in ponds
 
 Directive (verbatim): "It is not possible to put stone into, a pond. And I would like to be able to put stone in a pond"

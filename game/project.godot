@@ -67,6 +67,14 @@ season_foliage={
 "type": "vec4",
 "value": Vector4(0, 0, 0, 0)
 }
+eye_under={
+"type": "float",
+"value": 0.0
+}
+sky_overhead={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
 season_bloom={
 "type": "float",
 "value": 1.0

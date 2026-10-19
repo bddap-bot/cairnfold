@@ -200,8 +200,8 @@ func _masonry_reports_only_what_stands_in_the_light() -> void:
 func _floating_stretches_fog() -> void:
 	var standing := Look.fog_at_height(1.65)
 	var floating := Look.fog_at_height(25.0)
-	_check(standing.fog_begin == Look.FOG_BEGIN, "a standing eye keeps the standing fog")
-	_check(floating.fog_begin > 25.0 and floating.fog_end > standing.fog_end, "and fog starts beyond it")
+	_check(standing.fog_depth_begin == Look.FOG_BEGIN, "a standing eye keeps the standing fog")
+	_check(floating.fog_depth_begin > 25.0 and floating.fog_depth_end > standing.fog_depth_end, "and fog starts beyond it")
 
 
 func _a_roof_overhead_hides_the_sky() -> void:

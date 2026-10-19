@@ -121,6 +121,7 @@ func _ready() -> void:
 	wildlife.handfuls = feed_tool.handfuls
 	sound = Soundscape.new(tool, flora_tool, water)
 	add_child(sound)
+	add_child(Underwater.new(water, look))
 	rig.floor_under = func(p: Vector3) -> float: return maxf(tool.floor_under(p), world.stairs.floor_under(p))
 	rig.solid_hit = func(origin: Vector3, dir: Vector3, reach: float) -> Variant:
 		var build: Variant = tool.solid_hit(origin, dir, reach)

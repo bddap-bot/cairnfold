@@ -16,3 +16,13 @@ bool drowned(vec2 xz) {
 float bank(float depth) {
 	return smoothstep(-0.25, -0.08, depth);
 }
+
+global uniform float eye_under;
+
+// Sunlight the waves overhead focus into bright lines, where two drifting noises cross.
+vec3 caustic(sampler2D noise, vec2 xz) {
+	vec2 uv = xz * 0.35;
+	float a = texture(noise, uv + TIME * vec2(0.021, 0.013)).r;
+	float b = texture(noise, uv * 1.37 - TIME * vec2(0.017, 0.024)).r;
+	return vec3(0.85, 0.95, 0.8) * smoothstep(0.045, 0.0, abs(a - b));
+}

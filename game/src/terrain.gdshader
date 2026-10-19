@@ -70,10 +70,7 @@ void fragment() {
 		float pebble = texture(detail, world_pos.xz * 2.3).r;
 		float soaked = mix(1.0, 0.75, smoothstep(-0.1, 0.0, under));
 		c = mix(c, mix(bed * (0.7 + pebble * 0.6), c, paved) * soaked, shore);
-		vec2 uv = world_pos.xz * 0.35;
-		float a = texture(detail, uv + TIME * vec2(0.021, 0.013)).r;
-		float b = texture(detail, uv * 1.37 - TIME * vec2(0.017, 0.024)).r;
-		c += vec3(0.85, 0.95, 0.8) * smoothstep(0.045, 0.0, abs(a - b)) * 0.35 * smoothstep(0.05, 0.3, under);
+		c += caustic(detail, world_pos.xz) * 0.35 * smoothstep(0.05, 0.3, under);
 	}
 	ALBEDO = mix(c, trodden * (0.85 + fine * 0.3), smoothstep(0.1, 0.7, cover.r * (1.0 - cover.g) + (d - 0.5) * 0.3));
 	ROUGHNESS = 1.0;

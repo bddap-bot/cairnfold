@@ -19,6 +19,12 @@ const SHADOW_REACH := 256.0
 const STANDING := 2.0
 const FOG_BEGIN := 18.0
 const FOG_END := 140.0
+const AIR_FOG := {"fog_depth_curve": 1.6, "fog_density": 0.55, "fog_aerial_perspective": 0.8, "fog_sun_scatter": 0.35}
+## Under a pond the view is gone to the water's blue-green within a few metres, thickest close in.
+const WATER_FOG := {"fog_depth_begin": 0.0, "fog_depth_end": 7.0, "fog_depth_curve": 0.6, "fog_density": 1.0, "fog_aerial_perspective": 0.0, "fog_sun_scatter": 0.0}
+const UNDER_FOG := Color(0.07, 0.25, 0.27)
+## Water takes red first, then green: what reaches the eye through it keeps this much of each.
+const UNDER_KEEPS := Color(0.55, 0.92, 1.0)
 ## The eye adapts to the sky it sees (Bounce.sky_at): under a roof with none, exposure rises this many times
 ## over the open garden's, closing most of the gap in ADAPT_SECONDS, so a house's inside reads once entered
 ## and its doorway glows.
@@ -28,6 +34,7 @@ const ADAPT_SECONDS := 0.7
 
 static var _detail: NoiseTexture2D
 static var _flagstones: ImageTexture
+static var _absorb: GradientTexture1D
 
 var sun: DirectionalLight3D
 ## The sun as a photo sees it (Quality.FULL_LAYER); turned with `sun` as its child, lit as it is.
@@ -42,6 +49,7 @@ var time := -1.0
 var _sky_time := -1.0
 var _since_sky := INF
 var _adapt := 1.0
+var under := false
 
 
 static func detail_noise() -> NoiseTexture2D:
@@ -125,10 +133,8 @@ static func build(parent: Node) -> Look:
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_light_energy = 1.0
-	env.fog_sun_scatter = 0.35
-	env.fog_depth_curve = 1.6
-	env.fog_density = 0.55
-	env.fog_aerial_perspective = 0.8
+	for k in AIR_FOG:
+		env.set(k, AIR_FOG[k])
 	env.fog_sky_affect = 0.15
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.12
@@ -189,16 +195,37 @@ func set_time(t: float) -> void:
 		light.light_energy = l.energy
 	disc_mat.set_shader_parameter("tint", l.sun)
 	env.ambient_light_energy = l.ambient
-	env.fog_light_color = l.fog
+	env.fog_light_color = UNDER_FOG * under_light(l) if under else l.fog
 	bounce.set_sun(Daylight.toward_sun(t), l.sun * l.energy)
 
 
 static func fog_at_height(lift: float) -> Dictionary:
 	var up := maxf(lift - STANDING, 0.0)
 	return {
-		"fog_begin": FOG_BEGIN + up * 2.2,
-		"fog_end": FOG_END + up * 2.5,
+		"fog_depth_begin": FOG_BEGIN + up * 2.2,
+		"fog_depth_end": FOG_END + up * 2.5,
 	}
+
+
+## How bright the water around an eye under it is at this hour's `l` (Daylight.light).
+static func under_light(l: Dictionary) -> float:
+	return 0.25 + 0.45 * l.energy
+
+
+func submerge(on: bool) -> void:
+	if on == under:
+		return
+	under = on
+	if on and _absorb == null:
+		var g := Gradient.new()
+		g.set_color(0, Color.BLACK)
+		g.set_color(1, UNDER_KEEPS)
+		_absorb = GradientTexture1D.new()
+		_absorb.gradient = g
+	_set_fog(WATER_FOG if on else AIR_FOG.merged(fog_at_height(_lift)))
+	env.adjustment_color_correction = _absorb if on else null
+	var l := Daylight.light(time)
+	env.fog_light_color = UNDER_FOG * under_light(l) if on else l.fog
 
 
 func lift_to(lift: float) -> void:
@@ -206,9 +233,13 @@ func lift_to(lift: float) -> void:
 	if lift == _lift:
 		return
 	_lift = lift
-	var f := fog_at_height(lift)
-	env.fog_depth_begin = f.fog_begin
-	env.fog_depth_end = f.fog_end
+	if not under:
+		_set_fog(fog_at_height(lift))
+
+
+func _set_fog(fog: Dictionary) -> void:
+	for k in fog:
+		env.set(k, fog[k])
 
 
 ## Moves the exposure toward an eye seeing `sky` of the sky.
@@ -245,3 +276,5 @@ func _paint_sky() -> void:
 	sky_mat.set_shader_parameter("horizon", l.horizon)
 	sky_mat.set_shader_parameter("sun_glow", l.glow)
 	sky_mat.set_shader_parameter("cloud_light", l.clouds)
+	var overhead: Color = l.zenith.lerp(l.horizon, 0.3)
+	RenderingServer.global_shader_parameter_set("sky_overhead", Vector3(overhead.r, overhead.g, overhead.b))

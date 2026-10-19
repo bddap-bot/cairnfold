@@ -144,6 +144,46 @@ func _dig(tool: WaterTool, x: float, z: float, frames: int) -> void:
 	await process_frame
 
 
+## Only a head under the surface turns the view and the mix underwater, and coming up undoes every part of it.
+func _head_under(water: Water, rig: Rig, pond: PondWater) -> void:
+	var holder := Node.new()
+	root.add_child(holder)
+	var look := Look.build(holder)
+	var under := Underwater.new(water, look)
+	holder.add_child(under)
+	var effects := AudioServer.get_bus_effect_count(0)
+	var fog_keys: Array = Look.WATER_FOG.keys() + ["fog_light_color", "adjustment_color_correction"]
+	rig.head.global_position = Vector3(3, pond.surface_y() + 0.1, -4)
+	await process_frame
+	await process_frame
+	var air := {}
+	for k in fog_keys:
+		air[k] = look.env.get(k)
+	_check(not under.visible and not look.under and air.adjustment_color_correction == null, "a head just above the surface sees open air")
+	_check(not AudioServer.is_bus_effect_enabled(0, effects - 1) and AudioServer.get_bus_volume_db(0) == 0.0, "and hears it unmuffled")
+
+	rig.head.global_position.y = pond.surface_y() - 0.1
+	await process_frame
+	_check(under.visible and look.under, "a head just under it is underwater")
+	_check(look.env.fog_depth_end == Look.WATER_FOG.fog_depth_end and look.env.adjustment_color_correction != null, "its view closes in and loses red")
+	_check(AudioServer.is_bus_effect_enabled(0, effects - 1) and AudioServer.get_bus_volume_db(0) < 0.0, "its mix is muffled")
+
+	rig.head.global_position.y = pond.surface_y() + 0.1
+	await process_frame
+	await process_frame
+	_check(not under.visible and not look.under, "coming up leaves the water")
+	for k in fog_keys:
+		_check(look.env.get(k) == air[k], "coming up restores %s" % k)
+	_check(not AudioServer.is_bus_effect_enabled(0, effects - 1) and AudioServer.get_bus_volume_db(0) == 0.0, "and the open mix")
+
+	var low := Daylight.toward_sun(Daylight.DEFAULT)
+	var bent := Underwater.into_water(-low)
+	_check(bent.y < (-low.normalized()).y and is_equal_approx(sin(bent.angle_to(Vector3.DOWN)) * Underwater.WATER_IOR, sin((-low).angle_to(Vector3.DOWN))), "sunlight bends toward straight down entering the water, by Snell's law")
+	holder.free()
+	await process_frame
+	_check(AudioServer.get_bus_effect_count(0) == effects - 1, "the muffle leaves the mix with the water's view")
+
+
 func _ponds_in_the_glade() -> void:
 	Terrain.install()
 	var rig := Rig.new()
@@ -171,6 +211,7 @@ func _ponds_in_the_glade() -> void:
 	_check(water.pond_at(3 + WaterTool.RADIUS * 3.0, -4) == null, "the meadow beyond stays dry")
 	var shore := Terrain.grid_xz(pond.pond.shore[0])
 	_check(water.pond_at(shore.x, shore.y) == null, "a shore point stands above the water")
+	await _head_under(water, rig, pond)
 
 	await _dig(tool, 4, -4, 1)
 	_check(water.ponds.size() == 1 and water.ponds[0] == pond and fills[0] == 1, "a second dig in the same pond keeps its surface")
