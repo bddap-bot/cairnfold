@@ -234,8 +234,8 @@ a second to logcat (`VrApi`): `FPS=` delivered/refresh and `App=`, the game's GP
 time per frame. With the proximity sensor held closed
 (`adb shell am broadcast -a com.oculus.vrpowermanager.prox_close`) the headset
 renders the game off the head, so those numbers are real; `--script` and the other
-game arguments reach it through the launch intent's `command_line_params` string
-array. Off the head, with no floor known, the tracked head sits at ground level, so
+game arguments reach it through `launch.args` in its external files folder, one a
+line, since Godot drops a launch intent's arguments on an exported activity. Off the head, with no floor known, the tracked head sits at ground level, so
 a script lifts the view with `place`'s `lift`. Godot 4.5.1 Mobile renderer, 4×
 MSAA, the runtime's default render size, median of 20 seconds after two walls are
 drawn.

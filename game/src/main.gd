@@ -43,7 +43,7 @@ var book: Book
 
 
 func _ready() -> void:
-	args = _parse(OS.get_cmdline_user_args())
+	args = _parse(launch_args())
 	Terrain.install()
 	Ground.install()
 	look = Look.build(self)
@@ -313,6 +313,17 @@ func finish() -> void:
 ## there they go to Pictures/Nestcombe in shared storage, which an uninstall leaves and the device's gallery shows.
 static func photos_folder(android := OS.has_feature("android")) -> String:
 	return OS.get_system_dir(OS.SYSTEM_DIR_PICTURES, true).path_join("Nestcombe") if android else "user://photos"
+
+
+## A run's arguments. Godot drops a launch intent's arguments on an exported activity, so on Android they come from
+## `launch.args` beside the player's files, one a line, which the run deletes so the next launch starts plain.
+static func launch_args() -> PackedStringArray:
+	var path := player_path("launch.args")
+	if not OS.has_feature("android") or not FileAccess.file_exists(path):
+		return OS.get_cmdline_user_args()
+	var lines := FileAccess.get_file_as_string(path).strip_edges().split("\n", false)
+	DirAccess.remove_absolute(path)
+	return lines
 
 
 ## Where the player's `name` (a file or a folder) lives: in user data, except on Android, whose user data only the

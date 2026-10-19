@@ -154,7 +154,10 @@ if [ "${2:-}" = --android ]; then
     [ -z "$logcat_pid" ] || adb shell kill "$logcat_pid"
     adb logcat -c
     logcat_pid=$(adb shell "rm -f $log; nohup logcat -v threadtime -f $log > /dev/null 2>&1 < /dev/null & echo \$!" | tr -d '\r')
-    adb shell am start -n "$pkg/com.godot.game.GodotAppLauncher" --esa command_line_params "--,--script,$files/bench.json,--metrics,$dir/metrics.json,--capture-dir,$dir,--seed,$seed${hosting:+,--port,$hosting}" > /dev/null
+    printf '%s\n' --script "$files/bench.json" --metrics "$dir/metrics.json" --capture-dir "$dir" --seed "$seed" \
+      ${hosting:+--port "$hosting"} > "$out/launch.args"
+    adb push "$out/launch.args" "$files/launch.args" > /dev/null
+    adb shell am start -n "$pkg/com.godot.game.GodotAppLauncher" > /dev/null
     sleep 15
     shows "activity activities" ResumedActivity "$pkg" && break
     [ "$try" -lt 3 ] || { adb pull "$log" "$out/logcat.txt" > /dev/null; echo "bench: the game would not start; see $out/logcat.txt" >&2; exit 1; }
