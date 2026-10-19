@@ -1914,15 +1914,16 @@ view read 8.07 ms against 8.14 open on the first spread and 8.13 against 8.40 on
 in both; the backdrop is painted only where the picture leaves paper showing, and the paper's grain lost an octave and
 the ink line reads the picture's alpha by its screen derivative to pay for it.
 
-On a Quest 2 (`scripts/bench.sh`; App GPU time with the book open on its first spread, paired against it tucked away in
-the same run, six pairs a run, `book/` phases in the stress scene) these pages cost 2.4 ms a frame (2.36 and 2.48 ms in
-two runs), a fifth of the budget: the paper's procedural paint and the cover's stamp, evaluated for every pixel of both
-eyes each frame, and the layers under the leaves shaded before the leaves covered them. Now each page face and the
-front cover's top are painted once into textures as the game starts (`book_paint.gdshader`, `Book._bake`); the page
-shader reads its paint and paints only the picture's backdrop live, where the picture leaves it showing. The book draws
-its top layer first (`Book.Layer`), its page blocks have no top or bottom, its boards' insides are only the margin
-around the pages and the endpaper hides under a leaf. The open book now costs 0.8 ms (0.90 and 0.76 ms), the page's own
-render about 0.3 ms of it. `Budget.BOOK_OPEN_MS` keeps the figure.
+On a Quest 2 (`scripts/bench.sh`, App GPU time with the book open on its first spread paired against it tucked away in
+the same run) these pages cost 2.4 ms a frame (2.36 and 2.48 ms in two runs of six pairs over a bare meadow), a fifth of
+the budget: the paper's procedural paint and the cover's stamp, evaluated for every pixel of both eyes each frame, and
+the layers under the leaves shaded before the leaves covered them. Now each page face and the front cover's top are
+painted once into textures as the game starts (`book_paint.gdshader`, `Book._bake`); the page shader reads its paint
+and paints only the picture's backdrop live, where the picture leaves it showing. The book draws its top layer first
+(`Book.Layer`), its page blocks have no top or bottom, its boards' insides are only the margin around the pages and the
+endpaper hides under a leaf. The same pairs now read 0.90 and 0.76 ms; in the stress scene's `book/` phases
+(`perf/quest-2/stress/20261019T163748Z-10ca290.json`) the open book costs 1.2 ms over tucked, shut 0.4 ms and mid-turn
+1.7 ms, the page's own render about 0.3 ms of the open book's. `Budget.BOOK_OPEN_MS` keeps the figure.
 
 ## Flat-screen controls
 
