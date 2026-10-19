@@ -5,7 +5,8 @@ extends SceneTree
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_bindings.gd
 
 const PER_HAND := ["tool", "grab", "wheel"]
-const TOUCH := "/interaction_profiles/oculus/touch_controller"
+## The interaction profile each device's controls arrive through.
+const PROFILES := {"frame": "/interaction_profiles/valve/frame_controller_valve", "quest": "/interaction_profiles/oculus/touch_controller"}
 
 var failures := 0
 
@@ -18,7 +19,7 @@ func _run() -> void:
 	_every_action_is_reachable_on_every_device()
 	_no_two_actions_share_an_input()
 	_a_tool_is_picked_without_a_stick_click()
-	_the_touch_profile_binds_every_device_input()
+	_each_device_profile_binds_its_controls()
 	await _each_control_does_its_action_alone()
 	await _a_flick_is_one_way()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -50,19 +51,27 @@ func _a_tool_is_picked_without_a_stick_click() -> void:
 				_check(Controls.DEVICES[device][name][1] != "primary_click", "%s opens the wheel with %s, a stick click" % [device, name])
 
 
-func _the_touch_profile_binds_every_device_input() -> void:
+func _each_device_profile_binds_its_controls() -> void:
 	var map: OpenXRActionMap = load("res://openxr_action_map.tres")
-	var bound := {}
-	for profile in map.interaction_profiles:
-		if profile.interaction_profile_path != TOUCH:
-			continue
-		for b in profile.bindings:
-			bound["%s_hand/%s" % [b.binding_path.split("/")[3], b.action.resource_name]] = true
 	for device in Controls.DEVICES:
+		var bound := {}
+		for profile in map.interaction_profiles:
+			if profile.interaction_profile_path == PROFILES[device]:
+				for b in profile.bindings:
+					bound[b.binding_path] = bound.get(b.binding_path, []) + [b.action.resource_name]
 		for name in Controls.DEVICES[device]:
 			var to: Array = Controls.DEVICES[device][name]
 			var input: String = "primary" if Hand.FLICKS.has(to[1]) else to[1]
-			_check(bound.has("%s/%s" % [to[0], input]), "%s's %s arrives as %s/%s, which the Touch profile binds" % [device, name, to[0], input])
+			var path := _path(name, to[0])
+			_check(input in bound.get(path, []), "%s's %s (%s) arrives as %s/%s: bound to %s" % [device, name, path, to[0], input, bound.get(path, [])])
+
+
+## The OpenXR path of a control named as in `Controls.DEVICES`, on the hand `tracker`.
+func _path(name: String, tracker: String) -> String:
+	var input := name.trim_prefix("left_").trim_prefix("right_")
+	var parts: Dictionary = {"trigger": "trigger/value", "grip": "squeeze/value", "stick_click": "thumbstick/click"}
+	var leaf: String = parts.get(input, "thumbstick" if input.begins_with("stick_") else input.to_lower() + "/click")
+	return "/user/hand/%s/input/%s" % [tracker.trim_suffix("_hand"), leaf]
 
 
 func _hands() -> Dictionary:

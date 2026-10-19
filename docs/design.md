@@ -2092,10 +2092,10 @@ leaves light, water quiet until a quick stroke ticks it faintly, and the animals
 An animal is a `Critter` whose `coat` names its surface.
 
 Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
-a D-pad on the left. The action map binds no Frame interaction profile, so the game binds
-the Touch and Index profiles and SteamVR remaps them: B, X and Y arrive as one
-button (Touch right B), D-pad down as Touch left X, and the other D-pad directions
-as Touch left Y, View as Touch left menu. On Quest the Touch bindings arrive unremapped.
+a D-pad on the left. The Frame binds its own interaction profile (Godot 4.6's
+`frame_controller_valve`) onto the inputs SteamVR's Touch remapping gave it before: B, X and Y
+arrive as one button (right B), D-pad down as left X, and the other D-pad directions
+as left Y, View as left menu. On Quest the Touch bindings arrive unremapped.
 
 One table, `Controls.ACTIONS`, says what each hand's inputs do, and both hands are alike: trigger for the
 tool, grip to grab, upper face button held for the wheel. The lower face buttons walk the history: left X
@@ -2103,7 +2103,7 @@ undoes, right A redoes. The sticks move the body: left forward teleports, right 
 flick reads as a button (`Hand.FLICKS`). `Controls.DEVICES` lists what each shipped device's controls arrive
 as, so each device's bindings derive from the one table; `tests/test_bindings.gd` holds every control of
 every device and checks it does its action alone, that every action reaches a control on every hand it
-names, that no wheel opens on a stick click, and that the Touch profile binds every input. View, the
+names, that no wheel opens on a stick click, and that each device's profile binds every control. View, the
 Quest's left menu button, both stick clicks and the right stick's up and down do nothing. Changing how a
 thing looks is a tool, not a button: every style change lives in the style tool. `tests/test_controls.gd`
 taps every Frame button with walls built, picks every tool from the wheels, and walks the history back

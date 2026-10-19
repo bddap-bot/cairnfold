@@ -14,10 +14,10 @@ const ACTIONS := {
 	"turn_right": {"right_hand": "primary_right"},
 }
 
-## What each shipped device's controls arrive as. Every one binds the Touch profile. The action map binds no Frame
-## profile, so SteamVR remaps the Frame's onto it: B, X and Y arrive as one button, D-pad down as Touch
-## left X, its other directions as left Y, View as left menu. The Quest's left menu button is left out:
-## held, it did not open the wheel on a Quest 3.
+## What each shipped device's controls arrive as. The Frame binds its own profile onto the inputs SteamVR's
+## Touch remapping gave its controls: B, X and Y arrive as one button, D-pad down as left X, its other
+## directions as left Y, View as left menu. The Quest binds the Touch profile. The Quest's left menu
+## button is left out: held, it did not open the wheel on a Quest 3.
 const DEVICES := {
 	"frame": {
 		"A": ["right_hand", "ax_button"],
@@ -79,18 +79,20 @@ const TOUCHES := {
 }
 const GRIP_TOUCH := 0.05
 
-## Where each touch's control lies on an interaction profile's right controller, in metres in its aim pose (x right,
-## y up, -z ahead); the left controller mirrors it in x. Each is the control's centre on Meta's Quest 2 controller
-## model for WebXR, carried from its grip pose to the aim pose by the offset measured on the Quest; the Quest 3's lie
-## within 5 mm of them. A profile not listed shows no hints.
+## Where each touch's control lies on the Touch profile's right controller, in metres in its aim pose (x right, y up,
+## -z ahead); the left controller mirrors it in x. Each is the control's centre on Meta's Quest 2 controller model for
+## WebXR, carried from its grip pose to the aim pose by the offset measured on the Quest; the Quest 3's lie within 5 mm
+## of them. The Frame shows its hints there too until its own controls are placed. A profile not listed shows no hints.
+const TOUCH_PLACES := {
+	"ax_touch": Vector3(0.001, 0.0, 0.044),
+	"by_touch": Vector3(-0.005, 0.0, 0.029),
+	"trigger_touch": Vector3(0.005, -0.020, 0.012),
+	"primary_touch": Vector3(0.016, 0.004, 0.030),
+	"grip_touch": Vector3(0.001, -0.028, 0.054),
+}
 const PLACES := {
-	"/interaction_profiles/oculus/touch_controller": {
-		"ax_touch": Vector3(0.001, 0.0, 0.044),
-		"by_touch": Vector3(-0.005, 0.0, 0.029),
-		"trigger_touch": Vector3(0.005, -0.020, 0.012),
-		"primary_touch": Vector3(0.016, 0.004, 0.030),
-		"grip_touch": Vector3(0.001, -0.028, 0.054),
-	},
+	"/interaction_profiles/oculus/touch_controller": TOUCH_PLACES,
+	"/interaction_profiles/valve/frame_controller_valve": TOUCH_PLACES,
 }
 
 
