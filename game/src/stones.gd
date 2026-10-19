@@ -14,6 +14,12 @@ static var _paving_material: ShaderMaterial
 
 var _instance := MultiMeshInstance3D.new()
 var _paving := false
+## Paving only: the same stones drawn with `far_mesh` once the whole chunk is past the near distance, and whole on
+## Quality.FULL_LAYER for a photo, as Masonry draws a wall's.
+var _far: MultiMeshInstance3D
+var _full: MultiMeshInstance3D
+var _radius := 0.0
+var _ground := Vector2.ZERO
 
 
 static func shared_material() -> ShaderMaterial:
@@ -59,6 +65,20 @@ func _init(paving := false) -> void:
 	_instance.multimesh = mm
 	_instance.material_override = paving_material() if paving else shared_material()
 	add_child(_instance)
+	if paving:
+		_instance.layers = Quality.LADDER_LAYER
+		_far = MultiMeshInstance3D.new()
+		_far.multimesh = mm.duplicate()
+		_far.multimesh.mesh = far_mesh()
+		_far.material_override = _instance.material_override
+		_far.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		_far.layers = Quality.LADDER_LAYER
+		add_child(_far)
+		_full = MultiMeshInstance3D.new()
+		_full.multimesh = mm
+		_full.material_override = _instance.material_override
+		_full.layers = Quality.FULL_LAYER
+		add_child(_full)
 
 
 ## `stones` are dictionaries with `xform`, `color`, `ao` (occlusion), `variant` (0–2) and, painted with
@@ -72,6 +92,8 @@ func lay(stones: Array[Dictionary]) -> void:
 		for s in stones:
 			area = area.expand(Vector2(s.xform.origin.x, s.xform.origin.z))
 		area = area.grow(1.0)
+		_radius = area.size.length() * 0.5
+		_ground = area.get_center()
 		var t := Terrain.bounds()
 		Terrain.lift(mm, AABB(Vector3(area.position.x, t.position.y, area.position.y), Vector3(area.size.x, t.size.y, area.size.y)))
 	for i in stones.size():
@@ -81,6 +103,21 @@ func lay(stones: Array[Dictionary]) -> void:
 		mm.set_instance_transform(i, x)
 		mm.set_instance_color(i, s.color)
 		mm.set_instance_custom_data(i, custom(s))
+	if _far != null:
+		_far.multimesh.instance_count = mm.instance_count
+		Terrain.lift(_far.multimesh, mm.custom_aabb)
+		_far.multimesh.buffer = mm.buffer
+		_far.multimesh.visible_instance_count = mm.visible_instance_count
+		near(Wall.kinds()[Wall.Part.STONE].near)
+
+
+## Paving only: draws the stones whole up to `metres` from the eye. The renderer measures to the centre of the
+## lifted bounds, which stands above the stones by up to the terrain's whole span, so that rise counts as reach too.
+func near(metres: float) -> void:
+	var rise := absf(_instance.multimesh.custom_aabb.get_center().y - Terrain.height_at(_ground.x, _ground.y))
+	var split := metres + _radius + rise
+	_instance.visibility_range_end = split
+	_far.visibility_range_begin = split
 
 
 ## A laid part's custom data: its occlusion, and the code of the material it is painted with.
@@ -90,3 +127,5 @@ static func custom(part: Dictionary) -> Color:
 
 func reveal(count: int) -> void:
 	_instance.multimesh.visible_instance_count = count
+	if _far != null:
+		_far.multimesh.visible_instance_count = count

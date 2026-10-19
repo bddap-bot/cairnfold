@@ -36,6 +36,8 @@ var _stale: Array[PathLayout] = []
 var _gone: Array[Rect2] = []
 ## Finished strokes' stones, shown until the stones laid from their commands are.
 var _fading: Array[Stones] = []
+var _near := -1.0
+var _bounds := AABB()
 
 
 func busy() -> bool:
@@ -221,6 +223,13 @@ func _exit_tree() -> void:
 
 func _process(delta: float) -> void:
 	Ground.settle_due()
+	var near: float = Wall.kinds()[Wall.Part.STONE].near
+	if near != _near or Terrain.bounds() != _bounds:
+		_near = near
+		_bounds = Terrain.bounds()
+		for c in get_children():
+			if c is Stones:
+				c.near(near)
 	if _task >= 0 and WorkerThreadPool.is_task_completed(_task):
 		_laid()
 	_since_rebuild += delta
