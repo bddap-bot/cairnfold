@@ -102,8 +102,9 @@ func lay(stones: Array[Dictionary]) -> void:
 		mm.set_instance_transform(i, x)
 		mm.set_instance_color(i, s.color)
 		mm.set_instance_custom_data(i, custom(s))
-	if _far != null and mm.instance_count > 0:
+	if _far != null:
 		_far.multimesh.instance_count = mm.instance_count
+	if _far != null and mm.instance_count > 0:
 		Terrain.lift(_far.multimesh, mm.custom_aabb)
 		_far.multimesh.buffer = mm.buffer
 		_far.multimesh.visible_instance_count = mm.visible_instance_count
