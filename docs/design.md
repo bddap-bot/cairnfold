@@ -536,13 +536,13 @@ at 0.78 of the headset's own (0.70 on the Frame). Both show at once across the w
 a step up out of either waits the governor's longest calm (64 s), and one undone is not taken
 again that session. Ending the ladder above a step that saved nothing was tried and cut: the
 village appeared in the same second the resolution step landed, read as a step that cost 1.6 ms,
-and held the governor two steps up for the rest of the run. The Quest 2 has not been measured at
-the resolution step; its driver pays 1.4 to 3.2 ms for any scale off exactly 1.0 (below), so on
-a vertex-bound scene that step may cost it more than it saves. Without the resolution step the village from the air stayed
+and held the governor two steps up for the rest of the run. On the Quest 2 the bottom step's bare
+meadow took 16.5 ms of App GPU time from the air and 14.2 standing at full swapchain size, so
+the Quest 2 draws a smaller swapchain for the whole session (below). Without the resolution step the village from the air stayed
 at every other refresh at the shadows-off step (14.7 ms). Every step up out of them in a
 governed run of the stress scene cost no late frame (the longest 18.8 ms). A garden within the
-build budget never reaches them: `Budget.COSTS` is fitted at step 8, the last with the sun's
-shadows and the full resolution.
+build budget never reaches them on the Frame: its `Budget.COSTS` are fitted at step 8, the last
+with the sun's shadows and the full resolution (`Budget.fit_step`).
 
 Every phase of the stress scene on the Frame: GPU ms a frame (fdinfo, the median of the
 phase's seconds after its first, or of its last 15 s where governed) and frames a second over
@@ -626,11 +626,11 @@ wanna make it obvious to the user that there is a limit there"
   frees exactly what placing took, and undo, wipes and a garden loaded or joined count
   alike on every machine.
 - `Budget.COSTS` prices each unit per headset, in the governor's signal (the viewport's
-  GPU time) at step 8, the ladder's last with the sun's shadows and the full 3D
-  resolution, with the bare meadow's time as the base. The room for builds is the
-  headset's `budget_ms` less that base. The ladder walks down as a garden fills, so a full
-  garden is held at step 8, anything above it is spare, and the two steps below it are
-  for what lies past the budget.
+  GPU time) at its `Budget.fit_step`, with the bare meadow's time as the base: on the Frame
+  step 8, the ladder's last with the sun's shadows and the full 3D resolution, so a full
+  garden is held there, anything above it is spare, and the two steps below it are for what
+  lies past the budget; on the Quest 2 the bottom step, the only one its bare meadow holds
+  72 Hz at. The room for builds is the headset's `budget_ms` less that base.
 - A garden is held to every headset it is shown on: its own, and each visitor's, which
   each player tells the others as they meet. The host turns down any command that would
   take the garden past the room on one of them, and each player's own game turns it down
@@ -644,7 +644,7 @@ wanna make it obvious to the user that there is a limit there"
   the host garden's bar.
 - `demo/costs.json`, played by `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT ...`
   and fitted by `scripts/costs.py OUT`, measures each kind of build alone over the bare
-  meadow at step 8, from the air and standing. A unit's cost is the highest any
+  meadow at the headset's `Budget.fit_step`, from the air and standing. A unit's cost is the highest any
   view gives; a phase that fell to half rate is left out, its GPU time not the scene's.
   Hills and painted stone ground measured within noise of the bare meadow, so terrain
   counts nothing. Lantern light is baked (`Lamps`); a lantern counts by its meshes.
@@ -767,8 +767,11 @@ Earlier, sharing each lobe's vertices saved 0.4 ms, dropping its backlight nothi
 drawing one side 1.4 ms at the cost of the leaves vanishing from behind. From the air the stones cost about 8 ms over few primitives,
 and one detail-texture read instead of three saved nothing.
 
-`scripts/costs.py` fits nothing on the Quest 2 yet: every phase above runs at half rate, so
-none measures the scene's own cost. Until the bare meadow holds 72 Hz there, a Quest's
+`scripts/costs.py` fits nothing on the Quest 2 yet. With its 0.7 swapchain the bare meadow
+holds 72 Hz at the bottom step, but in the governor's signal it reads 12.3 ms from the air and
+10.5 standing, over the 11.1 ms line, so no garden would have room there; and walls, plaster,
+paths, grass and lanterns in `demo/costs.json` still fall to half rate there (walls on a 10 m
+disc 15.7 and 18.3 ms), so their units have no view to fit. Until both change, a Quest's
 garden is held to the Frame's costs.
 
 An easel is not measured on a headset yet: until `demo/easel-bench.json` is played there and fitted by
@@ -855,9 +858,7 @@ runs (31 late frames each). Switching every 3 s in place gave a late frame at th
 switches. Held at 0.9 from launch, the phase had none. The OpenXR render region, which shrinks
 the rendered rectangle inside the full-size eye texture without reallocating, saved nothing on
 the Frame: the houses took 10.7 ms a frame against 9.6 ms at the 0.9 scale, and the later
-phases fell to every other refresh. The Quest 2 renders at full resolution: there the 0.9
-scale is not measured yet, and its render region left the binned surface as it was, while this
-scale shrinks it.
+phases fell to every other refresh. The Quest 2 shrinks the swapchain instead (below).
 
 Part of what a tenth off saves on the Frame is the render path, not the pixels. At a scale of
 exactly 1.0 Godot tonemaps in a subpass of the 3D pass; at any other scale, in a pass of its
@@ -873,6 +874,27 @@ The Meta plugin's separate dynamic-resolution controller is disabled: its explic
 region can exceed the framebuffer once the 3D scale shrinks it, making both eyes
 black while timing reports an apparent improvement. The benchmark rejects this framebuffer
 error. Resolution changes must be checked against rendered eye images as well as timings.
+
+The Quest 2 asks its runtime for a swapchain 0.7 of its own size a side
+(`Quality.QUEST_2_RENDER_SCALE`, OpenXR's render target size multiplier), held for the
+session: 1008x1108 an eye instead of 1440x1584. Its scene is bound by fragments, and a smaller
+swapchain is drawn in the same single pass, where a 3D scale off 1.0 adds the tonemap pass this
+driver pays for; the compositor stretches it to the display. Measured on a Quest 2 with the
+bare meadow at the ladder's bottom step, `App=` ms a frame and the frame time's median:
+
+| Swapchain | From the air | Standing | Frame p50, from the air |
+| --- | --- | --- | --- |
+| 1.0 | 16.5 | 14.2 | 21.2 ms (every other refresh) |
+| 0.8 | 13.3 | 10.6 | 15.6 ms |
+| 0.75 | 12.2 | 10.0 | 14.3 ms, 71 late frames |
+| 0.7 | 11.2 | 9.3 | 13.9 ms, 12 late frames |
+| 1.0 with a 3D scale of 0.8 | 13.6 | 11.2 | 17.0 ms |
+
+0.7 is the largest that holds 72 Hz. At the top step the bare meadow takes 19.4 ms from the air
+(28.1 at full size) and every flora pool full 40.4 at the top and 17.8 at the bottom, so the
+governor still walks the ladder. The render region is not used, so the eyes cannot go black as
+they did under the plugin's controller; the game's view captures at each eye's pixel count show
+grass blades softer at 0.7 and the scene otherwise unchanged.
 
 Each step, measured the same way (`demo/ladder.json`), with the flora changes in "Flora on
 the Quest 2" below:
