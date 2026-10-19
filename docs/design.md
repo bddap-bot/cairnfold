@@ -1826,6 +1826,17 @@ ring fills as the hold is timed, so the sky wipe's two seconds can be seen. A tr
 under the hand, so the pull shows; a button or stick page looks from over it. A page uses the right hand wherever the
 control allows, so the player can hold the book in the left and try the move with the right while looking at it.
 
+Directive (verbatim): "Let's make the book pretty"
+
+Each picture fills its page inside a deckled, inked frame with sprigs over its corners, and is painted rather than
+pasted on blank paper: the page's shader (`book_page.gdshader`) lays a watercolour world behind the live render (a sky
+of the page's own hour of the morning with soft clouds, two bands of far hills on the horizon the picture's camera
+sees, and a brushed straw-and-green meadow running to its foot) and inks a line around everything the render draws.
+The ghost controllers are drawn 1.7 times life size, a pressed part swells and its rings are wide enough to read at
+arm's length, and each camera frames the controllers' whole bodies. The undo page leaves a pale ghost where the build
+stood until redo brings it back, the wipe takes each build away in a puff, and the sky page's sun crosses a sky of the
+hour it sets. `demo/book-view.json` renders every spread from the player's own eye with the book held to read.
+
 | Page | What the hands do | Why it is not obvious |
 | --- | --- | --- |
 | Turn the page | Right hand sweeps across the page toward the spine | The book's own gesture, on its first page |
@@ -1852,8 +1863,11 @@ hand. A control changed or removed turns `scripts/test.sh` red until its page is
 Only faces of an open book in view render, each every other frame; a shut or tucked book renders no page. On the
 desktop renderer (RTX 2080, 1600×1200, `demo/book-cost.json`, the renderer's timestamps around each viewport), a page
 renders in 0.28 ms at 384×288, so an open spread costs its pages 0.17 ms a frame; the garden's own view rose from 6.85 ms
-with the book tucked to 7.16 ms with it shut in the hand and 7.5 to 8.0 ms open, the paper's shading over its pixels. The
-Quest 2 has not measured it yet.
+with the book tucked to 7.16 ms with it shut in the hand and 7.5 to 8.0 ms open, the paper's shading over its pixels.
+The painted pages (384×358) cost no more: run beside the earlier build, four times each under the same load, the garden
+view read 8.07 ms against 8.14 open on the first spread and 8.13 against 8.40 on a later one, its pages 0.21 ms a frame
+in both; the backdrop is painted only where the picture leaves paper showing, and the paper's grain lost an octave and
+the ink line reads the picture's alpha by its screen derivative to pay for it. The Quest 2 has not measured it yet.
 
 ## Flat-screen controls
 

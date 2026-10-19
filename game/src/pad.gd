@@ -3,12 +3,14 @@ extends Node3D
 
 ## A soft, rounded controller with only what every supported controller shares: a trigger under the index finger,
 ## a grip under the middle finger, a thumbstick and two face buttons. The picture book's ghost hands hold it; a
-## pressed part sinks and glows, a soft ring pulses out from it, and a held part's ring fills as the hold is timed.
+## pressed part sinks, swells and glows, a soft ring pulses out from it, and a held part's ring fills as the hold is
+## timed, all drawn large enough to read on a page at arm's length.
 
 const SHELL := Color(0.7, 0.77, 0.86)
 const PART := Color(0.3, 0.34, 0.42)
 const GLOW := Color(1.0, 0.55, 0.12)
 const PULSE := 0.9
+const SWELL := 1.6
 const TOOL_AT := Vector3(0, 0.02, 0.07)
 
 var side := 1.0
@@ -84,12 +86,14 @@ func show_input(input: String, held_s: float, hold_s := 0.0) -> void:
 			part.transform = Transform3D(Basis(Vector3(d.y, 0, d.x * side).normalized() if d != Vector2.ZERO else Vector3.RIGHT, -0.45 * d.length()), rest.origin) * Transform3D(rest.basis, Vector3.ZERO)
 		_:
 			part.transform = rest.translated(Vector3(0, -0.0025, 0) if on else Vector3.ZERO)
+	if on:
+		part.transform = part.transform.scaled_local(Vector3.ONE * SWELL)
 	var pulse: MeshInstance3D = _pulses[key]
 	pulse.visible = on
 	if on:
 		var k := fposmod(held_s, PULSE) / PULSE
 		var m: ShaderMaterial = pulse.material_override
-		m.set_shader_parameter("radius", lerpf(0.014, 0.055, k))
+		m.set_shader_parameter("radius", lerpf(0.02, 0.075, k))
 		m.set_shader_parameter("alpha", (1.0 - k) * 1.0)
 		pulse.global_position = part.global_position
 	var ring: MeshInstance3D = _rings[key]
@@ -109,19 +113,20 @@ func _part(key: String, parent: Node3D, size: Vector3, at: Transform3D, seed: in
 	_mats[key] = mi.material_override
 	_pulses[key] = _ring(0.9, 1.0, 0.0)
 	_rings[key] = _ring(1.0, 0.0, 0.35)
-	_rings[key].material_override.set_shader_parameter("radius", 0.032)
-	_rings[key].material_override.set_shader_parameter("width", 0.008)
-	_pulses[key].material_override.set_shader_parameter("width", 0.006)
+	_rings[key].material_override.set_shader_parameter("radius", 0.04)
+	_rings[key].material_override.set_shader_parameter("width", 0.013)
+	_pulses[key].material_override.set_shader_parameter("width", 0.011)
 
 
 func _ring(alpha: float, fill: float, track: float) -> MeshInstance3D:
 	var quad := QuadMesh.new()
-	quad.size = Vector2(0.12, 0.12)
+	quad.size = Vector2(0.18, 0.18)
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/pad_ring.gdshader")
 	mat.set_shader_parameter("alpha", alpha)
 	mat.set_shader_parameter("fill", fill)
 	mat.set_shader_parameter("track", track)
+	mat.set_shader_parameter("half_size", quad.size.x * 0.5)
 	mat.render_priority = 2
 	var mi := MeshInstance3D.new()
 	mi.mesh = quad

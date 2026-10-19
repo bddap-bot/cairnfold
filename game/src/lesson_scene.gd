@@ -4,9 +4,10 @@ extends SubViewport
 ## One page's live picture: ghost controllers (Pad) act out the page's script (Lessons.PAGES) on a loop over a
 ## patch of meadow set with the game's own tool models, so the picture always shows the game as it is built.
 ## Its own small world, lit apart from the garden; the book renders it only while its page is in view. `wash` is
-## the painted sky behind it and `fade` how far its loop has faded out, both for the page's paper (book_page.gdshader).
+## the painted sky behind it, `horizon` where that sky meets the land (0 the picture's top, 1 its foot) and `fade` how
+## far its loop has faded out, all for the page's paper (book_page.gdshader), which paints them.
 
-const SIZE := Vector2i(384, 288)
+const SIZE := Vector2i(384, 358)
 const REST := 0.7
 const FADE_S := 0.25
 ## The picture's meadow lies this far under the eye, a diorama between the hands and the ground, so the hands and
@@ -14,17 +15,23 @@ const FADE_S := 0.25
 const GROUND := -0.95
 const K := 0.5
 const PROP := 14.0 * K
-## The ghost controllers are drawn this much larger than life, so their buttons read on a page.
-const GHOST := 1.3
+## The ghost controllers are drawn this much larger than life, so their buttons read on a page, or as the page's
+## view says.
+const GHOST := 1.7
 ## How far the sun stands from the sky page's meadow.
 const SUN := 1.4
+## Each page is painted at its own hour of the morning, up to this far either side of the garden's, so neighbouring
+## pages do not share a sky.
+const HOURS := 0.06
 
 var page: Dictionary
+var ghost := GHOST
 var index := 0
 var t := 0.0
 ## Stepped by its owner rather than by the frame, as a capture steps it.
 var manual := false
-var wash := Color(0.72, 0.84, 0.92)
+var wash := Color(0.6, 0.77, 0.93)
+var horizon := 0.5
 var fade := 1.0
 var stage := Node3D.new()
 var camera := Camera3D.new()
@@ -41,6 +48,7 @@ var _fx := {}
 func _init(i: int, see_through := false) -> void:
 	index = i
 	page = Lessons.PAGES[i]
+	ghost = page.view.get("ghost", GHOST)
 	size = SIZE
 	own_world_3d = true
 	transparent_bg = true
@@ -60,9 +68,10 @@ func _init(i: int, see_through := false) -> void:
 	var we := WorldEnvironment.new()
 	we.environment = env
 	stage.add_child(we)
-	var day := Daylight.light(Daylight.DEFAULT)
+	var day := Daylight.light(Daylight.DEFAULT + HOURS * (2.0 * fposmod(index * 0.618, 1.0) - 1.0))
 	_sun_light.light_color = day.sun
 	_sun_light.light_energy = day.energy * 1.15
+	wash = (day.zenith as Color).lerp(day.horizon, 0.4)
 	_sun_light.basis = Basis.looking_at(Vector3(-0.4, -0.75, -0.55))
 	stage.add_child(_sun_light)
 	camera.near = 0.01
@@ -73,11 +82,12 @@ func _init(i: int, see_through := false) -> void:
 	_build_dish()
 	for side in Lessons.hands(page):
 		var pad := Pad.new(side == "right", see_through)
-		pad.scale = Vector3.ONE * GHOST
+		pad.scale = Vector3.ONE * ghost
 		pad.hold(Lessons.tool(page.tools.get(side, "hands")))
 		stage.add_child(pad)
 		pads[side] = pad
-	_beam = Beam.new(Color(1, 1, 1, 0.65))
+	_beam = Beam.new(Color(1, 1, 1, 0.85))
+	_beam.thick = 2.5
 	stage.add_child(_beam)
 	_beam.visible = false
 	_mark = MeshInstance3D.new()
@@ -110,8 +120,11 @@ func _frame() -> void:
 	var t := 0.0
 	while t <= page.length:
 		for side in Lessons.hands(page):
-			var at: Vector3 = Lessons.pose(page, side, t).at
-			hands.append(Lessons.frame(Lessons.pose(page, "left", t)) * Book.local(1.0) * at if side in page.get("book", []) else at)
+			var f := Lessons.frame(Lessons.pose(page, side, t))
+			if side in page.get("book", []):
+				f = Lessons.frame(Lessons.pose(page, "left", t)) * Book.local(1.0) * f
+			for c in [Vector3.ZERO] if page.view.has("eye") else [Vector3.ZERO, Vector3(0, -0.13, 0.11), Vector3(0, 0.05, 0.07)]:
+				hands.append(f * (c * ghost))
 		t += 0.25
 	var mid := Vector3.ZERO
 	for h in hands:
@@ -123,10 +136,10 @@ func _frame() -> void:
 	var eye: Vector3 = Lessons._v(page.view.eye) if page.view.has("eye") else mid + (-along + lift).normalized() * page.view.back
 	for h in hands:
 		for c in [Vector3(-1, -1, -1), Vector3(1, 1, 1), Vector3(-1, 1, 1), Vector3(1, -1, -1), Vector3(1, -1, 1), Vector3(-1, 1, -1)]:
-			points.append(h + c * 0.06 * GHOST)
+			points.append(h + c * 0.06 * ghost)
 	if page.effect != "page":
 		for c in [Vector3(-0.42, 0, 0), Vector3(0.42, 0, 0), Vector3(0, 0, -0.35), Vector3(0, 0, 0.35)]:
-			points.append(_dish_at() + c)
+			points.append(_dish_at() + c * 0.7)
 	var look := Vector3.ZERO
 	for p in points:
 		look += (p - eye).normalized()
@@ -143,7 +156,7 @@ func _frame() -> void:
 		look = camera.basis * Vector3(mid_a.x, mid_a.y, -1.0)
 		var half := (hi - lo) * 0.5
 		var aspect := float(SIZE.x) / SIZE.y
-		camera.fov = clampf(rad_to_deg(2.0 * atan(maxf(half.y, half.x / aspect) * 1.18)), 24.0, 84.0)
+		camera.fov = clampf(rad_to_deg(2.0 * atan(maxf(half.y, half.x / aspect) * 1.1)), 24.0, 84.0)
 
 
 func _ready() -> void:
@@ -172,7 +185,7 @@ func _pose(at: float) -> void:
 		var f := Lessons.frame(p)
 		if side in page.get("book", []):
 			f = _book_frame() * f
-		pad.transform = f.scaled_local(Vector3.ONE * GHOST)
+		pad.transform = f.scaled_local(Vector3.ONE * ghost)
 		var tracker: String = side + "_hand"
 		for press in page.press:
 			if press.hand != side:
@@ -182,6 +195,8 @@ func _pose(at: float) -> void:
 	_beam.visible = false
 	_mark.visible = false
 	call("_play_" + page.effect, at)
+	var pitch := asin(clampf(-camera.global_basis.z.y, -1.0, 1.0))
+	horizon = 0.5 + 0.5 * tan(pitch) / tan(deg_to_rad(camera.fov) * 0.5) if pitch > -1.4 else -1.0
 
 
 ## Where `side`'s pad points, along its aim to the meadow (y = GROUND) or `reach` metres.
@@ -204,6 +219,9 @@ func _ray(side: String, to: Vector3) -> void:
 func _dish_at() -> Vector3:
 	if _fx.has("dish"):
 		return _fx.dish
+	if page.view.has("dish"):
+		_fx.dish = Lessons._v(page.view.dish)
+		return _fx.dish
 	var side: String = page.press[0].hand if not page.press.is_empty() else Lessons.hands(page)[-1]
 	var f := Lessons.frame(Lessons.pose(page, side, page.press[0].from if not page.press.is_empty() else 0.0))
 	var d := -f.basis.z
@@ -217,9 +235,9 @@ func _dish_at() -> Vector3:
 
 func _build_dish() -> void:
 	var plane := PlaneMesh.new()
-	plane.size = Vector2(2.8, 2.8)
-	plane.subdivide_width = 28
-	plane.subdivide_depth = 28
+	plane.size = Vector2(4.4, 4.4)
+	plane.subdivide_width = 40
+	plane.subdivide_depth = 40
 	dish = MeshInstance3D.new()
 	dish.mesh = plane
 	var mat := ShaderMaterial.new()
@@ -227,20 +245,22 @@ func _build_dish() -> void:
 	for k in Meadow.GRASS:
 		mat.set_shader_parameter(k, Meadow.GRASS[k])
 	mat.set_shader_parameter("earth", Meadow.GROUND[&"earth"])
+	mat.set_shader_parameter("radius", plane.size.x * 0.5)
 	dish.material_override = mat
 	dish.position = _dish_at()
 	dish.scale = Vector3(K, 1.0, K)
 	stage.add_child(dish)
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7 + index
-	for i in 14:
+	for i in 20:
 		var a := rng.randf() * TAU
-		var r := sqrt(rng.randf()) * 1.15 * K
+		var r := sqrt(rng.randf()) * 1.7 * K
 		var tuft := ToolModels.build(Hand.Tool.GRASS if i % 3 else Hand.Tool.FLOWERS)
 		tuft.scale = Vector3.ONE * rng.randf_range(5.0, 8.0) * K
 		tuft.position = dish.position + Vector3(cos(a) * r, 0, sin(a) * r)
 		tuft.rotation.y = rng.randf() * TAU
 		stage.add_child(tuft)
+		_fx.get_or_add("tufts", []).append(tuft)
 
 
 func _prop(tool: Hand.Tool, at: Vector3, scale_k := 1.0, yaw := 0.0) -> Node3D:
@@ -265,6 +285,8 @@ static func _pop(k: float) -> float:
 # The page that teaches turning the page: a little open book in the left hand, turned by the right's sweep.
 func _build_page() -> void:
 	dish.visible = false
+	for tuft in _fx.tufts:
+		tuft.visible = false
 	pads.left.visible = false
 	var b := Book.new(false)
 	b.at = 1
@@ -392,9 +414,23 @@ func _play_teleport(at: float) -> void:
 	fade = maxf(fade, 1.0 - absf(at - press.to - 0.05) / 0.12)
 
 
-# Undo and redo: the left hand's lower face button takes the last build away, the right's puts it back.
+# Undo and redo: the left hand's lower face button takes the last build away, leaving its pale ghost where it
+# stood, and the right's puts it back.
 func _build_undo() -> void:
-	_fx.wall = _prop(Hand.Tool.WALLS, _dish_at() + K * Vector3(0, 0, 0.1), 1.7)
+	_fx.wall = _prop(Hand.Tool.WALLS, _dish_at() + K * Vector3(0, 0, 0.1), 2.4)
+	var ghost := ToolModels.build(Hand.Tool.WALLS)
+	ghost.transform = _fx.wall.transform
+	for part in _fx.wall.get_children():
+		if part is Node3D:
+			ghost.get_child(part.get_index()).transform = part.transform
+	var pale := StandardMaterial3D.new()
+	pale.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	pale.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	pale.albedo_color = Color(1.0, 0.98, 0.92, 0.35)
+	for c in ghost.find_children("*", "GeometryInstance3D", true, false):
+		(c as GeometryInstance3D).material_override = pale
+	stage.add_child(ghost)
+	_fx.ghost = ghost
 
 
 func _play_undo(at: float) -> void:
@@ -408,6 +444,7 @@ func _play_undo(at: float) -> void:
 		k = 1.0 - smoothstep(0.0, 0.15, at - undo.from)
 	w.scale = Vector3.ONE * w.get_meta("scale") * maxf(k, 0.001)
 	w.visible = k > 0.002
+	_fx.ghost.visible = k < 0.98
 
 
 # Shaping the ground: the grip takes the meadow where the hand points, and the hand raised pulls a hill.
@@ -447,8 +484,8 @@ func _play_hill(at: float) -> void:
 func _build_sky() -> void:
 	var sun := MeshInstance3D.new()
 	var ball := SphereMesh.new()
-	ball.radius = 0.16
-	ball.height = 0.32
+	ball.radius = 0.19
+	ball.height = 0.38
 	sun.mesh = ball
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -456,6 +493,17 @@ func _build_sky() -> void:
 	sun.material_override = m
 	stage.add_child(sun)
 	_fx.sun = sun
+	var halo := MeshInstance3D.new()
+	var glow := SphereMesh.new()
+	glow.radius = 0.3
+	glow.height = 0.6
+	halo.mesh = glow
+	var h := StandardMaterial3D.new()
+	h.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	h.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	h.albedo_color = Color(1.0, 0.95, 0.7, 0.35)
+	halo.material_override = h
+	sun.add_child(halo)
 	_prop(Hand.Tool.HOUSE, _dish_at() + K * Vector3(0.3, 0, 0.2), 1.0, 0.4)
 	_prop(Hand.Tool.TREES, _dish_at() + K * Vector3(-0.5, 0, -0.1), 1.0)
 
@@ -483,7 +531,7 @@ func _play_sky(at: float) -> void:
 	_sun_light.light_color = l.sun
 	_sun_light.light_energy = l.energy
 	_sun_light.basis = Basis.looking_at(-to_sun)
-	(sun.get("material_override") as StandardMaterial3D).albedo_color = (l.glow as Color).lerp(Color(1.0, 0.85, 0.45), 0.5)
+	(sun.get("material_override") as StandardMaterial3D).albedo_color = (l.glow as Color).lerp(Color(1.0, 0.66, 0.12), 0.75)
 	wash = (l.zenith as Color).lerp(l.horizon, 0.45)
 	if Lessons.held(page, "right", "grab", at):
 		_ray("right", sun.position)
@@ -584,7 +632,8 @@ func _play_house(at: float) -> void:
 		h.scale.y = s * lerpf(0.9, 1.0, k)
 
 
-# The wipe: the delete tool held up at the sky for its whole hold swells an orb, then takes the garden away.
+# The wipe: the delete tool held up at the sky for its whole hold swells an orb, then takes the garden away, each
+# build going in a puff.
 func _build_wipe() -> void:
 	_prop(Hand.Tool.HOUSE, _dish_at() + K * Vector3(0.35, 0, 0.1), 1.0, 0.5)
 	_prop(Hand.Tool.WALLS, _dish_at() + K * Vector3(-0.4, 0, 0.3), 0.9, -0.3)
@@ -592,8 +641,8 @@ func _build_wipe() -> void:
 	_prop(Hand.Tool.TREES, _dish_at() + K * Vector3(0.6, 0, -0.5), 0.8)
 	var orb := MeshInstance3D.new()
 	var ball := SphereMesh.new()
-	ball.radius = 0.22
-	ball.height = 0.44
+	ball.radius = 0.3
+	ball.height = 0.6
 	orb.mesh = ball
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -601,6 +650,22 @@ func _build_wipe() -> void:
 	orb.material_override = m
 	stage.add_child(orb)
 	_fx.orb = orb
+	_fx.puffs = []
+	for p in props:
+		var puff := MeshInstance3D.new()
+		var cloud := SphereMesh.new()
+		cloud.radius = 0.12
+		cloud.height = 0.24
+		puff.mesh = cloud
+		var pm := StandardMaterial3D.new()
+		pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		pm.albedo_color = Color(1.0, 0.95, 0.88, 0.0)
+		puff.material_override = pm
+		puff.position = p.position + Vector3.UP * 0.08
+		puff.visible = false
+		stage.add_child(puff)
+		_fx.puffs.append(puff)
 
 
 func _reset_wipe() -> void:
@@ -624,7 +689,7 @@ func _play_wipe(at: float) -> void:
 	if orb.visible:
 		orb.position = pads.right.position + aim * 0.5
 		orb.scale = Vector3.ONE * maxf(k * k, 0.02)
-		(orb.material_override as StandardMaterial3D).albedo_color = Color(DeleteTool.TINT, lerpf(0.15, 0.85, k))
+		(orb.material_override as StandardMaterial3D).albedo_color = Color(DeleteTool.TINT, lerpf(0.45, 0.95, k))
 		_ray("right", orb.position)
 	var gone: float = at - (page.press[0].from + DeleteTool.WIPE_HOLD)
 	for i in props.size():
@@ -632,3 +697,10 @@ func _play_wipe(at: float) -> void:
 		var s := 1.0 - smoothstep(0.0, 0.18, gone - i * 0.06) if gone >= 0.0 else 1.0
 		p.scale = Vector3.ONE * p.get_meta("scale") * maxf(s, 0.001)
 		p.visible = s > 0.002
+		var since := gone - i * 0.06
+		var puff: MeshInstance3D = _fx.puffs[i]
+		puff.visible = since > 0.0 and since < 0.6
+		if puff.visible:
+			var age := since / 0.6
+			puff.scale = Vector3.ONE * lerpf(0.5, 1.4, sqrt(age))
+			(puff.material_override as StandardMaterial3D).albedo_color.a = 0.8 * (1.0 - age)

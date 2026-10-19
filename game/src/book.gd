@@ -294,7 +294,7 @@ func _set_face(sheet: MeshInstance3D, front: bool, page: int) -> void:
 		return
 	sheet.set_meta(key, page)
 	var mat := sheet.material_override as ShaderMaterial
-	mat.set_shader_parameter(key + "_drawn", page >= 0)
+	mat.set_shader_parameter(key + "_drawn", page >= 0 and live)
 	mat.set_shader_parameter(key + "_seed", float(page) * 1.7 + 0.3)
 	if page >= 0 and live:
 		mat.set_shader_parameter(key + "_picture", _scene(page).get_texture())
@@ -323,6 +323,7 @@ func _render_pages() -> void:
 			var page: int = sheet.get_meta(key, -1)
 			if scenes.has(page):
 				mat.set_shader_parameter(key + "_wash", scenes[page].wash)
+				mat.set_shader_parameter(key + "_horizon", scenes[page].horizon)
 				mat.set_shader_parameter(key + "_fade", scenes[page].fade)
 
 

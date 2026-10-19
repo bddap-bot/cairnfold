@@ -3,8 +3,9 @@ render_mode cull_disabled, diffuse_lambert_wrap;
 
 // A leaf of the picture book, hinged at the spine (x 0) and `width` wide: turned `angle` (0 on the right, PI on the
 // left), its free edge lagging as paper does by `bend`. Each face is an illustrated page: warm paper, a picture
-// (`*_picture`, a live LessonScene) set in a deckled watercolour window with an inked frame and painted sprigs,
-// or, with no picture, an endpaper of little leaves. `wash_*` is the picture's painted sky, `fade` its loop's fade.
+// (`*_picture`, a live LessonScene) inked over a painted backdrop in a deckled window with an inked frame and sprigs,
+// or, with no picture, an endpaper of little leaves. `wash_*` is the picture's sky, `horizon_*` where its horizon
+// lies, `fade` its loop's fade.
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
@@ -20,6 +21,8 @@ uniform bool front_drawn = false;
 uniform bool back_drawn = false;
 uniform vec3 front_wash : source_color = vec3(0.8, 0.86, 0.86);
 uniform vec3 back_wash : source_color = vec3(0.8, 0.86, 0.86);
+uniform float front_horizon = 0.5;
+uniform float back_horizon = 0.5;
 uniform float front_fade = 0.0;
 uniform float back_fade = 0.0;
 uniform float front_seed = 0.0;
@@ -30,8 +33,11 @@ uniform vec3 leaf : source_color = vec3(0.47, 0.6, 0.41);
 
 varying vec4 given;
 
+// Sine-free, so it stays smooth at the mobile renderer's precision.
 float hash(vec2 p) {
-	return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+	vec3 q = fract(vec3(p.xyx) * 0.1031);
+	q += dot(q, q.yzx + 33.33);
+	return fract((q.x + q.y) * q.z);
 }
 
 float noise(vec2 p) {
@@ -101,8 +107,42 @@ vec4 sprig(vec2 p, vec2 root, float dir, float seed, vec3 bloom) {
 	return vec4(c, max(paint, max(petals, heart)));
 }
 
-vec3 page(vec2 p, bool drawn, sampler2D picture, vec3 wash, float fade, float seed, float spine_dist) {
-	float grain = fbm(p * 140.0 + seed);
+// The painted world behind a page's picture: a watercolour sky of the page's `wash` over the horizon at `horizon`
+// (0 the picture's top, 1 its foot), soft clouds, two bands of far hills and a brushed meadow running to the
+// picture's foot, which a camera looking down sees all of.
+vec3 backdrop(vec2 uv, vec3 wash, float horizon, float seed, float grain) {
+	float h = uv.y - horizon;
+	float far = horizon - 0.07 - 0.05 * noise(vec2(uv.x * 2.5 + seed, 0.0)) + 0.025 * sin(uv.x * 5.0 + seed);
+	vec3 c;
+	if (uv.y < far + 0.01) {
+		vec3 glow = vec3(1.0, 0.84, 0.56);
+		c = mix(wash * vec3(0.78, 0.88, 1.0), mix(wash, glow, 0.75), smoothstep(-0.8, 0.0, h));
+		float billow = noise(uv * vec2(3.2, 7.0) + vec2(seed * 2.3, 0.0));
+		float cloud = smoothstep(0.52, 0.72, billow) * smoothstep(0.0, -0.18, h);
+		c = mix(c, vec3(1.0, 0.97, 0.9) * mix(1.0, 0.93, smoothstep(0.66, 0.72, billow)), cloud * 0.75);
+	} else {
+		vec3 meadow = vec3(0.7, 0.8, 0.36);
+		float patch_ = noise(uv * 6.0 + seed);
+		c = mix(meadow * 0.9, meadow * 1.12 + vec3(0.04, 0.03, 0.0), noise(vec2(uv.x * 9.0, uv.y * 55.0) + seed));
+		c = mix(c, vec3(0.9, 0.8, 0.46), smoothstep(0.5, 0.8, patch_) * 0.6);
+		c = mix(c, paper, smoothstep(0.3, 0.12, patch_) * 0.5);
+		c *= mix(0.82, 1.0, smoothstep(1.0, horizon + 0.1, uv.y));
+		float near = horizon - 0.02 - 0.06 * noise(vec2(uv.x * 3.7 + seed * 1.3, 4.0));
+		vec3 hills_far = vec3(0.66, 0.74, 0.74);
+		vec3 hills_near = vec3(0.56, 0.7, 0.36);
+		vec3 hills = mix(hills_far * (0.92 + 0.12 * grain), hills_far * 0.8, smoothstep(0.008, 0.0, abs(uv.y - far)) * 0.4);
+		hills = mix(hills, hills_near * (0.92 + 0.14 * grain), smoothstep(near, near + 0.006, uv.y));
+		hills = mix(hills, hills_near * 0.78, smoothstep(0.008, 0.0, abs(uv.y - near)) * 0.45);
+		c = mix(hills, c, smoothstep(horizon + 0.02, horizon + 0.06, uv.y));
+		if (uv.y < far + 0.006) {
+			c = mix(wash, c, smoothstep(far, far + 0.006, uv.y));
+		}
+	}
+	return max(mix(vec3(dot(c, vec3(0.3, 0.55, 0.15))), c, 1.8), vec3(0.0));
+}
+
+vec3 page(vec2 p, bool drawn, sampler2D picture, vec3 wash, float horizon, float fade, float seed, float spine_dist) {
+	float grain = noise(p * 140.0 + seed) * 0.7 + noise(p * 300.0 + seed) * 0.3;
 	vec3 c = paper * (0.95 + 0.06 * grain);
 	c *= mix(0.5, 1.0, smoothstep(0.0, 0.2, spine_dist)) * mix(0.85, 1.0, smoothstep(0.0, 0.06, spine_dist));
 	float edge_dist = min(min(p.x, 1.0 - p.x), min(p.y, 1.0 - p.y));
@@ -118,19 +158,23 @@ vec3 page(vec2 p, bool drawn, sampler2D picture, vec3 wash, float fade, float se
 		c = mix(c, vec3(0.82, 0.48, 0.42), dot_ * 0.8);
 		return c;
 	}
-	vec2 centre = vec2(0.5, 0.455);
-	vec2 half_ = vec2(0.415, 0.315);
+	vec2 centre = vec2(0.5, 0.48);
+	vec2 half_ = vec2(0.44, 0.41);
 	float wob = (fbm(p * 26.0 + seed * 3.0) - 0.5) * 0.026 + (noise(p * 120.0 + seed) - 0.5) * 0.006;
 	float d = box(p, centre, half_ - 0.02) - 0.02 + wob;
 	float inside = 1.0 - smoothstep(-0.002, 0.002, d);
 	vec2 uv = (p - (centre - half_)) / (2.0 * half_);
-	vec4 shot = texture(picture, clamp(uv, vec2(0.0), vec2(1.0)));
-	vec3 sky = mix(paper, wash, 0.45 * (1.0 - smoothstep(0.0, 0.85, uv.y)));
-	sky = mix(sky, paper, clamp((fbm(uv * vec2(5.0, 9.0) + seed) - 0.45) * 0.6, 0.0, 1.0));
-	vec3 ink_shot = mix(vec3(dot(shot.rgb, vec3(0.3, 0.55, 0.15))), shot.rgb, 1.25) * 0.95;
-	vec3 pic = mix(sky, ink_shot, shot.a * (1.0 - fade));
-	pic = mix(pic, sky, fade * 0.3);
-	pic *= 0.97 + 0.05 * grain;
+	vec3 pic = c;
+	if (inside > 0.0) {
+		vec4 shot = texture(picture, clamp(uv, vec2(0.0), vec2(1.0)));
+		float outline = clamp(fwidth(shot.a) * 1.8, 0.0, 1.0);
+		vec3 ink_shot = max(mix(vec3(dot(shot.rgb, vec3(0.3, 0.55, 0.15))), shot.rgb, 1.7), vec3(0.0)) * 0.9;
+		float shown = 1.0 - fade;
+		float cover = shot.a * shown;
+		pic = cover > 0.99 ? ink_shot : mix(backdrop(uv, wash, horizon, seed, grain), ink_shot, cover);
+		pic = mix(pic, ink * 0.8, outline * 0.8 * shown);
+		pic *= 0.96 + 0.07 * grain;
+	}
 	float pool = smoothstep(-0.018, 0.0, d) * inside;
 	pic *= 1.0 - pool * 0.18;
 	c = mix(c, pic, inside);
@@ -143,9 +187,9 @@ vec3 page(vec2 p, bool drawn, sampler2D picture, vec3 wash, float fade, float se
 	float rim = 1.0 - smoothstep(0.0, 0.004, abs(d + 0.001));
 	c = mix(c, mix(ink, leaf, 0.4), rim * 0.55);
 	vec3 bloom = mix(vec3(0.93, 0.6, 0.66), vec3(0.98, 0.84, 0.45), hash(vec2(seed, 2.0)));
-	vec4 s1 = sprig(p, vec2(0.085, 0.8), -0.75 + seed * 0.1, seed, bloom);
-	vec4 s2 = sprig(p, vec2(0.915, 0.12), 2.35, seed + 1.0, mix(bloom, vec3(0.7, 0.75, 0.95), 0.5));
-	vec4 s3 = sprig(p, vec2(0.62, 0.9), 3.3, seed + 2.0, bloom);
+	vec4 s1 = sprig(p, vec2(0.035, 0.95), -0.8 + seed * 0.1, seed, bloom);
+	vec4 s2 = sprig(p, vec2(0.975, 0.045), 2.3, seed + 1.0, mix(bloom, vec3(0.7, 0.75, 0.95), 0.5));
+	vec4 s3 = sprig(p, vec2(0.66, 0.955), 3.2, seed + 2.0, bloom);
 	c = mix(c, s1.rgb, s1.a * 0.85);
 	c = mix(c, s2.rgb, s2.a * 0.85);
 	c = mix(c, s3.rgb, s3.a * 0.7);
@@ -156,8 +200,8 @@ void fragment() {
 	bool up = FRONT_FACING;
 	vec2 p = up ? UV : vec2(1.0 - UV.x, UV.y);
 	float spine_dist = UV.x;
-	vec3 c = up ? page(p, front_drawn, front_picture, front_wash, front_fade, front_seed, spine_dist)
-		: page(p, back_drawn, back_picture, back_wash, back_fade, back_seed, spine_dist);
+	vec3 c = up ? page(p, front_drawn, front_picture, front_wash, front_horizon, front_fade, front_seed, spine_dist)
+		: page(p, back_drawn, back_picture, back_wash, back_horizon, back_fade, back_seed, spine_dist);
 	ALBEDO = c;
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.15;
