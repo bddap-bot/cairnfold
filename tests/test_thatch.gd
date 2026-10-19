@@ -218,7 +218,7 @@ func _under_the_coat(w: WallLayout, r: RoofLayout, what: String) -> void:
 
 func _thatch_follows_a_resized_house() -> void:
 	var at := {"center": Vector3(0, 0, 0), "yaw": 0.0, "size": Vector2(6, 4), "round": false}
-	var d := {"points": PackedVector3Array(WallTool.outline(at)), "closed": true, "arches": PackedFloat32Array(), "windows": PackedVector2Array(),
+	var d := {"points": PackedVector3Array(WallTool.outline(at)), "closed": true, "rise": 0.0, "arches": PackedFloat32Array(), "windows": PackedVector2Array(),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
 		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.68, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": false, "thatch": true}}
 	for size in [Vector2(12, 4), Vector2(6, 8), Vector2(2.4, 2.4), Vector2(14, 7)]:
@@ -231,7 +231,7 @@ func _thatch_follows_a_resized_house() -> void:
 		points.assign(Array(change.points))
 		var built := _built(points, RoofLayout.Kind.GABLE, roof.pitch, roof.curve, 2.0, roof.thatch)
 		_covered(built[1], "a house resized to %s" % size)
-	var tower := {"points": PackedVector3Array(WallLayout.circle(Vector3(2, 0, 2), 2.0)), "closed": true, "arches": PackedFloat32Array(), "windows": PackedVector2Array(),
+	var tower := {"points": PackedVector3Array(WallLayout.circle(Vector3(2, 0, 2), 2.0)), "closed": true, "rise": 0.0, "arches": PackedFloat32Array(), "windows": PackedVector2Array(),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
 		"roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3(2, 0, 2), "radius": 2.0, "pitch": 3.2, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": false, "thatch": true}}
 	var wider := WallTool.house_of(tower)
@@ -256,7 +256,7 @@ func _thatch_is_part_of_the_build_command() -> void:
 	_check(not copy.same_inputs(r), "a thatched roof is another roof")
 	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "height": 2.4, "arches": PackedFloat32Array(),
 		"seed": 3, "closed": true, "top": int(WallLayout.Top.CAP), "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(),
-		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "plaster": false, "on": PackedInt32Array(), "paint": Palette.plain(),
+		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "plaster": false, "rise": 0.0, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain(),
 		"roof": {"kind": int(RoofLayout.Kind.GABLE), "center": Vector3.ZERO, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 3, "chimneys": PackedVector2Array(), "flag": false, "thatch": false}}
 	_check(Commands._wall(d) != null, "a tiled house is a valid build")
 	d.roof.thatch = true
@@ -265,11 +265,11 @@ func _thatch_is_part_of_the_build_command() -> void:
 	d.roof.thatch = 1
 	_check(Commands._wall(d) == null, "a covering that is not a yes or no is refused")
 	d.roof.erase("thatch")
-	_check(Commands._wall(d) != null and Commands._wall(d).roof.thatch == false, "a roof saved before thatch existed is tiled")
+	_check(Commands._wall(d) == null, "a roof without a covering is refused")
 
 
 func _the_budget_counts_thatch() -> void:
-	var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "fence": false, "plaster": false,
+	var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "plaster": false, "gable_end": 0,
 		"lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "flag": false, "thatch": true}}
 	var plan := (6.0 + WallLayout.THICKNESS + 2.0 * RoofLayout.GABLE_OVERHANG) * (4.0 + WallLayout.THICKNESS + 2.0 * RoofLayout.OVERHANG)
 	var thatched := Budget.wall(d)

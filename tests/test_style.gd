@@ -18,7 +18,6 @@ func _run() -> void:
 	await process_frame
 	world = main.world
 	_species_differ()
-	_old_save_loads_as_plaster()
 	_faces_turn_to_plaster()
 	_faces_cut_no_opening()
 	_timber_faces()
@@ -67,28 +66,6 @@ func _species_differ() -> void:
 			var shape: float = absf(looks[a][0] - looks[b][0]) + absf(looks[a][2] - looks[b][2]) * 0.2
 			var hue := Vector3(looks[a][1].r - looks[b][1].r, looks[a][1].g - looks[b][1].g, looks[a][1].b - looks[b][1].b).length()
 			_check(shape > 0.25 and hue > 0.05, "%s and %s differ in silhouette (%.2f) and leaf colour (%.2f)" % [FloraLayout.Species.keys()[a], FloraLayout.Species.keys()[b], shape, hue])
-
-
-## A garden saved by the build that laid plaster with its own wall and house tools loads with them plaster, and the
-## style tool reads their faces as plaster.
-func _old_save_loads_as_plaster() -> void:
-	var path := "user://plaster-before-style.save"
-	DirAccess.copy_absolute(ProjectSettings.globalize_path("res://").path_join("../tests/saves/plaster-before-style.save"), ProjectSettings.globalize_path(path))
-	world.load_from(path)
-	world.save_path = ""
-	var plastered := 0
-	var stone := 0
-	for w: Wall in main.tool.walls:
-		if w.layout.plaster:
-			plastered += 1
-			var picker: PaletteTool = main.palette_tool
-			picker.open(main.rig.right, picker.style_target(PaletteTool.Restyle.FACE, w, Vector3.ZERO))
-			_check(picker.wheels[main.rig.right].start == (PaletteTool.Face.ALSACE if TimberFrame.applies(w.layout) else PaletteTool.Face.PLASTER), "the style tool reads an old plaster house as Alsace and an open wall as plaster")
-			picker.close(main.rig.right)
-		else:
-			stone += 1
-	_check(plastered == 2 and stone == 1, "the old save's plaster wall and plaster house load as plaster, its stone wall as stone: %d, %d" % [plastered, stone])
-	world.restore({"seq": 0, "cmds": []})
 
 
 ## The style tool turns a stone face to plaster through the host, which a peer takes, an undo puts back, a redo
@@ -141,7 +118,7 @@ func _faces_cut_no_opening() -> void:
 
 
 func _wall_data(points: PackedVector3Array) -> Dictionary:
-	return {"points": points, "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array(), "paint": Palette.plain()}
+	return {"points": points, "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain()}
 
 
 ## A planted tree grows an oak; the style tool aimed at it offers each species and turns it to one through the host,

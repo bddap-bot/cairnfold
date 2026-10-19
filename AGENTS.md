@@ -21,6 +21,10 @@ controls and the build order.
 - Delete comments that restate code; keep only a why the code cannot show.
 - Edit by subtraction: fix problems by removing code where possible, one
   implementation per thing.
+- Nestcombe is unreleased, so code carries no backwards compatibility. Save, network and
+  config formats change freely: no migrations, version branches, aliases for old names or
+  compat shims. An old save that no longer loads fails loudly, and nothing is added to rescue it.
+  Directive (verbatim): "remember we haven't released yet so don't sacrifice maintainability for backwards compatibility"
 - `nix-shell --run scripts/test.sh` must pass before landing; a change to the build
   scripts, `game/project.godot` or `game/export_presets.cfg` also owes a
   green `scripts/android.sh quest` and `scripts/android.sh lepton` under `nix-shell android.nix`.

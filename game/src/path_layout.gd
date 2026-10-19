@@ -45,7 +45,7 @@ var _cells := {}
 static func of(data: Dictionary) -> PathLayout:
 	var path := PathLayout.new()
 	path.seed = data.seed
-	path.style = data.get("style", "cobble")
+	path.style = data.style
 	for i in data.points.size():
 		path.add(data.points[i], data.half_widths[i])
 	return path

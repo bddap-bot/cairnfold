@@ -79,7 +79,7 @@ func _init() -> void:
 	restored.set_data(clean)
 	_check(restored.layout.plaster, "saved plaster restores")
 	data.erase("plaster")
-	_check(not Commands._wall(data).plaster, "old gardens remain stone")
+	_check(Commands._wall(data) == null, "a wall without a material is rejected")
 	data.plaster = "yes"
 	_check(Commands._wall(data) == null, "reject malformed material")
 	wall.free()

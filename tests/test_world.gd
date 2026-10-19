@@ -44,7 +44,7 @@ func _check(ok: bool, what: String) -> void:
 
 
 func _wall(by: int, x: float) -> int:
-	world._order({"op": "wall", "walls": [{"points": PackedVector3Array([Terrain.ground(x, -5), Terrain.ground(x + 4, -5)]), "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array(), "paint": Palette.plain()}]}, by)
+	world._order({"op": "wall", "walls": [{"points": PackedVector3Array([Terrain.ground(x, -5), Terrain.ground(x + 4, -5)]), "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain()}]}, by)
 	return world.seq * Commands.MAX_PIECES
 
 
@@ -97,7 +97,7 @@ func _redo_waits_on_the_same_condition() -> void:
 
 
 func _wall_data(points: PackedVector3Array) -> Dictionary:
-	return {"points": points, "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array(), "paint": Palette.plain()}
+	return {"points": points, "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain()}
 
 
 func _house_data(on: PackedInt32Array) -> Dictionary:
@@ -179,7 +179,7 @@ func _bad_commands_are_dropped() -> void:
 		"no pond": {"op": "ponds", "put": {}},
 		"a pond taking another out": {"op": "ponds", "put": {Vector2i(80, 80): 1.0}, "drop": [Vector2i(81, 80)]},
 		"heights of a backwards box": {"op": "heights", "cells": Rect2i(160, 160, -160, -160), "values": PackedFloat32Array()},
-		"path longer than any stroke": {"op": "path", "path": {"points": PackedVector3Array(range(100).map(func(i: int) -> Vector3: return Vector3(-70 if i % 2 else 70, 0, 0))), "half_widths": PackedFloat32Array(range(100).map(func(_i: int) -> float: return 1.0)), "seed": 1}},
+		"path longer than any stroke": {"op": "path", "path": {"points": PackedVector3Array(range(100).map(func(i: int) -> Vector3: return Vector3(-70 if i % 2 else 70, 0, 0))), "half_widths": PackedFloat32Array(range(100).map(func(_i: int) -> float: return 1.0)), "seed": 1, "style": "cobble"}},
 		"show of no group": {"op": "show", "plants": {9999: PackedInt32Array([0])}, "on": false},
 		"show past a group's end": {"op": "show", "plants": {0: PackedInt32Array([999999])}, "on": false},
 		"plant of a rock": {"op": "plant", "kind": "rock", "seed": 1, "dabs": [[Vector3.ZERO, 1.0, 3]]},

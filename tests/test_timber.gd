@@ -19,11 +19,6 @@ func _init() -> void:
 	wall.layout.windows = [Vector2(1.8, 1.5), Vector2(5, 0.4), Vector2(9.5, 1.5), Vector2(14, 3), Vector2(14.7, 3)]
 	wall.roof = RoofLayout.new()
 	var original := wall.data()
-	var old := original.duplicate(true)
-	old.erase("timber_style")
-	old.paint.resize(5)
-	var upgraded: Variant = Commands._wall(old)
-	_check(upgraded != null and upgraded.timber_style == 0 and upgraded.paint.size() == Palette.Element.size(), "old gardens default to Alsace with unchanged plaster colour")
 	for style in TimberFrame.PATTERNS.size():
 		for size in [Vector2(7, 5), Vector2(12, 4), Vector2(4, 9)]:
 			var shape := WallTool.house_of(original)

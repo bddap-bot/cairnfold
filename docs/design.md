@@ -1544,8 +1544,7 @@ buildings"):
 Directive (verbatim): "Thatched roofs I want them as an option."
 
 A pitched roof or a tower's cone is tiled or thatched (`RoofLayout.thatch`, part of the build command, so a `reshape`
-changes it, one undo step, and every player, save and joiner sees it; a roof saved before thatch existed loads
-tiled). The style tool's roof wheel offers pitched, cone and flat, then pitched and cone thatched, each as a
+changes it, one undo step, and every player, save and joiner sees it). The style tool's roof wheel offers pitched, cone and flat, then pitched and cone thatched, each as a
 miniature; houses laid after on that machine take the covering last turned to, as they take a wall's material, so a
 thatched village costs one turn. A flat roof stays a stone deck: it is walked on, and keeps the covering it had for
 when it is pitched again. A thatched roof keeps its thatch when it is resized or reshaped.
@@ -2369,11 +2368,8 @@ its external files directory, so an APK saves photos to `Pictures/Nestcombe` in 
 (`Main.photos_folder`), which outlives an uninstall and shows in the headset's own gallery. Godot's
 own file access reaches shared storage only in Download and Documents, so a photo goes through
 java.io (`Main.write_bytes`), which scoped storage lets write the app's own pictures with no
-permission. On start it
-moves there any photos an earlier APK left in `user://photos` or in `photos` in the external files
-directory (`Main.move_to_player_paths`). The garden save moves from user data to the external files
-directory (`Main.player_path`), where it can be copied off before an uninstall; a file already there
-with other bytes keeps its place and the moved one lands beside it as `.user-N`. The screen holds the shot for a
+permission. The garden save lives in the external files directory (`Main.player_path`), where it
+can be copied off before an uninstall. The screen holds the shot for a
 moment with a soft flash, and the hand gets a short buzz on the press. Either hand can hold a
 camera; both show the view of the first.
 
@@ -2573,7 +2569,7 @@ Directive (verbatim): "Can you give me a path that is not cobblestone"
 Dirt path is its own tool choice beside cobblestone. The same trigger stroke wears
 soft-edged earth into the ground mask, with no placed stones. Both path styles open
 arches beneath walls and can be selected with Delete; undo restores the path and
-its crossings. A saved path carries its style, with older paths remaining cobbled.
+its crossings. A saved path carries its style.
 `demo/dirt-path.json` shows the two surfaces side by side; the stress scene includes
 both. Dirt reuses the ground material and adds no path draw calls.
 
@@ -2613,8 +2609,7 @@ Alsace is the default. The Style tool's existing face wheel offers plain stone a
 Alsace, Magpie, rural close studding, Fachwerk crosses or Colombage verticals.
 Plain plaster switches the framing off explicitly. The timber patterns are data for one generator, retained in the build's `timber_style` through
 save, undo, visits and resize. Point the colour tool at a beam to choose its dark
-oak colour independently of plaster, window frames and doors. Older gardens
-receive the default pattern and oak colour without changing their plaster tint.
+oak colour independently of plaster, window frames and doors.
 
 `demo/timber.json` captures the front, gable and lantern-lit dusk view.
 

@@ -37,7 +37,7 @@ cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, style
   takes a photo at the game's best quality, saved as a PNG in the game's `photos` folder
   (`~/.local/share/godot/app_userdata/Nestcombe/photos` from the Linux package;
   `Pictures/Nestcombe` in the headset's shared storage from an APK, where they
-  outlive an uninstall and photos an earlier APK kept move on its next start). The PNG
+  outlive an uninstall). The PNG
   records where and how it was taken and, unless it is very large, the garden itself:
   `nestcombe -- --photo FILE` opens that garden seen from the photo's lens.
 - Holding seeds: hold the hand out and keep it calm. A conure may fly down and eat

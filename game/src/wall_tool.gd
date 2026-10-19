@@ -555,11 +555,11 @@ static func house_of(d: Dictionary) -> Dictionary:
 	if not d.has("roof") or not d.closed:
 		return {}
 	if d.roof.kind == RoofLayout.Kind.CONE:
-		return {"center": d.roof.center, "yaw": 0.0, "size": Vector2.ONE * d.roof.radius * 2.0, "round": true, "rise": d.get("rise", 0.0)}
+		return {"center": d.roof.center, "yaw": 0.0, "size": Vector2.ONE * d.roof.radius * 2.0, "round": true, "rise": d.rise}
 	var p: PackedVector3Array = d.points
 	if p.size() != 4:
 		return {}
-	return {"center": (p[0] + p[2]) * 0.5, "yaw": angle(p[1] - p[0]), "size": Vector2(_flat(p[1] - p[0]).length(), _flat(p[3] - p[0]).length()), "round": false, "rise": d.get("rise", 0.0)}
+	return {"center": (p[0] + p[2]) * 0.5, "yaw": angle(p[1] - p[0]), "size": Vector2(_flat(p[1] - p[0]).length(), _flat(p[3] - p[0]).length()), "round": false, "rise": d.rise}
 
 
 ## The `reshape` that stands the house with garden data `d` as `to`: its wall line, every fitting and arch kept in

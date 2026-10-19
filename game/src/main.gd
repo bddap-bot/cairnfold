@@ -155,8 +155,6 @@ func _ready() -> void:
 			"tools": [Hand.Tool.keys()[rig.hands[0].tool], Hand.Tool.keys()[rig.hands[1].tool]],
 			"visiting": not session.visiting.is_empty(), "players": session.players()}
 	add_child(metrics)
-	if played:
-		move_to_player_paths()
 	var garden: String = args.get("garden", player_path("garden.save") if played and not args.has("photo") else "")
 	if garden != "":
 		world.load_from(garden)
@@ -341,66 +339,6 @@ static func write_bytes(path: String, bytes: PackedByteArray) -> Error:
 	var stored := file.store_buffer(bytes)
 	file.close()
 	return OK if stored else ERR_FILE_CANT_WRITE
-
-
-## Moves the photos an earlier Android build kept in user data or the app's external files folder to `photos_folder`,
-## and the garden (with any `garden.save.new` or `.bad` beside it) from user data to `player_path`.
-static func move_to_player_paths() -> void:
-	if player_path("") == "user://":
-		return
-	var moved := move_photos("user://photos") + move_photos(player_path("photos"))
-	for name in DirAccess.get_files_at("user://"):
-		if name.begins_with("garden.save"):
-			moved += int(move_file("user://" + name, player_path(name)))
-	print("player data: moved %d" % moved)
-
-
-## Moves every photo in `from` into `photos_folder` and removes `from` once empty. One whose name is taken there by
-## other bytes stays where it is. Returns how many moved.
-static func move_photos(from: String) -> int:
-	if not DirAccess.dir_exists_absolute(from):
-		return 0
-	var to := photos_folder()
-	DirAccess.make_dir_recursive_absolute(to)
-	var moved := 0
-	for name in DirAccess.get_files_at(from):
-		var src := from.path_join(name)
-		var dst := to.path_join(name)
-		var md5 := FileAccess.get_md5(src)
-		if FileAccess.file_exists(dst) and FileAccess.get_md5(dst) != md5:
-			push_error("photo: %s is taken, %s stays" % [dst, src])
-			continue
-		if not FileAccess.file_exists(dst) and (write_bytes(dst, FileAccess.get_file_as_bytes(src)) != OK or FileAccess.get_md5(dst) != md5):
-			DirAccess.remove_absolute(dst)
-			push_error("photo: could not move %s to %s" % [src, dst])
-			continue
-		DirAccess.remove_absolute(src)
-		moved += 1
-	if DirAccess.get_files_at(from).is_empty() and DirAccess.get_directories_at(from).is_empty():
-		DirAccess.remove_absolute(from)
-	return moved
-
-
-## Moves `src` to `dst`, or beside it as `dst.user-N` when `dst` already holds other bytes, so nothing stays behind.
-## The copy lands under its name only whole, so a move cut short leaves the original to move again. Copies rather than
-## renames: the two may sit on different filesystems.
-static func move_file(src: String, dst: String) -> bool:
-	if not FileAccess.file_exists(src):
-		return false
-	var base := dst
-	var n := 0
-	while FileAccess.file_exists(dst) and FileAccess.get_md5(dst) != FileAccess.get_md5(src):
-		n += 1
-		dst = "%s.user-%d" % [base, n]
-	if not FileAccess.file_exists(dst):
-		var part := dst + ".part"
-		if DirAccess.copy_absolute(src, part) != OK or FileAccess.get_size(part) != FileAccess.get_size(src) \
-				or DirAccess.rename_absolute(part, dst) != OK:
-			DirAccess.remove_absolute(part)
-			push_error("player data: could not move %s to %s" % [src, dst])
-			return false
-	DirAccess.remove_absolute(src)
-	return true
 
 
 ## A playback is freed on the main thread only after the audio thread has mixed its stop, so a sound

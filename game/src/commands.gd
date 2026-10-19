@@ -46,7 +46,7 @@ static func length(points: Variant) -> float:
 
 ## Walls, paths, easels and plant groups with anything standing.
 static func _things(state: Dictionary) -> int:
-	var n: int = state.get("stairs", {}).size() + state.walls.size() + state.paths.size() + state.grounds.size() + state.get("easels", {}).size()
+	var n: int = state.stairs.size() + state.walls.size() + state.paths.size() + state.grounds.size() + state.easels.size()
 	for g: Dictionary in state.groups.values():
 		if g.kind != "meadow" and g.hidden.size() < g.size:
 			n += 1
@@ -73,7 +73,7 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 	if typeof(cmd.get("token")) == TYPE_INT:
 		out.token = cmd.token
 	if op in ["stairs", "plant", "path", "ground", "easel"] and from_host:
-		if typeof(cmd.get("id")) != TYPE_INT or state.groups.has(cmd.id) or state.paths.has(cmd.id) or state.grounds.has(cmd.id) or state.get("stairs", {}).has(cmd.id) or state.get("easels", {}).has(cmd.id):
+		if typeof(cmd.get("id")) != TYPE_INT or state.groups.has(cmd.id) or state.paths.has(cmd.id) or state.grounds.has(cmd.id) or state.stairs.has(cmd.id) or state.easels.has(cmd.id):
 			return {}
 		out.id = cmd.id
 	if op in ["stairs", "wall", "path", "ground", "plant", "easel"] and not from_host and _things(state) >= MAX_THINGS:
@@ -84,7 +84,7 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			out.stairs = _stairs(cmd.get("stairs"))
 			ok = out.stairs != null
 		"unstairs":
-			ok = typeof(cmd.get("id")) == TYPE_INT and state.get("stairs", {}).has(cmd.id)
+			ok = typeof(cmd.get("id")) == TYPE_INT and state.stairs.has(cmd.id)
 			out.id = cmd.get("id")
 		"wall":
 			var ws: Variant = cmd.get("walls")
@@ -266,7 +266,7 @@ static func _wall(d: Variant) -> Variant:
 		return null
 	if not _in(d.get("height"), WallLayout.HEIGHTS) or typeof(d.get("seed")) != TYPE_INT or typeof(d.get("closed")) != TYPE_BOOL:
 		return null
-	var rise: Variant = d.get("rise", 0.0)
+	var rise: Variant = d.get("rise")
 	if not _in(rise, WallLayout.RISE) or (rise > 0.0 and not d.closed):
 		return null
 	var top: Variant = d.get("top")
@@ -274,13 +274,13 @@ static func _wall(d: Variant) -> Variant:
 		return null
 	if typeof(d.get("fence")) != TYPE_BOOL:
 		return null
-	var plaster: Variant = d.get("plaster", false)
+	var plaster: Variant = d.get("plaster")
 	if typeof(plaster) != TYPE_BOOL or (plaster and d.fence):
 		return null
-	var timber_style: Variant = d.get("timber_style", 0)
+	var timber_style: Variant = d.get("timber_style")
 	if typeof(timber_style) != TYPE_INT or timber_style < -1 or timber_style >= TimberFrame.PATTERNS.size():
 		return null
-	var gable_end: Variant = d.get("gable_end", WallLayout.GableEnd.WALL)
+	var gable_end: Variant = d.get("gable_end")
 	if typeof(gable_end) != TYPE_INT or gable_end < 0 or gable_end >= WallLayout.GableEnd.size():
 		return null
 	var windows: Variant = d.get("windows")
@@ -302,7 +302,7 @@ static func _wall(d: Variant) -> Variant:
 	var on: Variant = d.get("on")
 	if typeof(on) != TYPE_PACKED_INT32_ARRAY or on.size() > MAX_SUPPORTS or not _unique(on):
 		return null
-	var paint: Variant = Palette.upgraded(d.get("paint"))
+	var paint: Variant = d.get("paint")
 	if not Palette.valid(paint):
 		return null
 	var out := {"points": points, "height": d.height, "rise": rise, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "gable_end": gable_end, "timber_style": timber_style, "on": on, "paint": paint}
@@ -317,9 +317,9 @@ static func _wall(d: Variant) -> Variant:
 		var chimneys: Variant = r.get("chimneys")
 		if typeof(chimneys) != TYPE_PACKED_VECTOR2_ARRAY or chimneys.size() > MAX_CHIMNEYS or not Array(chimneys).all(func(c: Vector2) -> bool: return c.is_finite() and absf(c.x) < 40.0 and absf(c.y) < 40.0) or typeof(r.get("flag")) != TYPE_BOOL:
 			return null
-		if typeof(r.get("thatch", false)) != TYPE_BOOL:
+		if typeof(r.get("thatch")) != TYPE_BOOL:
 			return null
-		out.roof = {"kind": r.kind, "center": r.center, "radius": r.radius, "pitch": r.pitch, "curve": r.curve, "seed": r.seed, "chimneys": chimneys, "flag": r.flag, "thatch": r.get("thatch", false)}
+		out.roof = {"kind": r.kind, "center": r.center, "radius": r.radius, "pitch": r.pitch, "curve": r.curve, "seed": r.seed, "chimneys": chimneys, "flag": r.flag, "thatch": r.thatch}
 	return out
 
 
@@ -365,7 +365,7 @@ static func _path(d: Variant) -> Variant:
 		return null
 	if typeof(halves) != TYPE_PACKED_FLOAT32_ARRAY or halves.size() != points.size() or not Array(halves).all(func(h: float) -> bool: return h >= PathLayout.HALF_WIDTH.x - 0.001 and h <= PathLayout.HALF_WIDTH.y + 0.001):
 		return null
-	var style: Variant = d.get("style", "cobble")
+	var style: Variant = d.get("style")
 	if not style in ["cobble", "dirt"]:
 		return null
 	return {"points": points, "half_widths": halves, "seed": d.seed, "style": style}

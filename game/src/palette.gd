@@ -112,10 +112,3 @@ static func preview(index: int) -> void:
 	var g := globals(index)
 	for name in g:
 		RenderingServer.global_shader_parameter_set(name, g[name])
-
-
-static func upgraded(paint: Variant) -> Variant:
-	if typeof(paint) == TYPE_PACKED_INT32_ARRAY and paint.size() >= Element.TIMBER and paint.size() < Element.size():
-		paint = paint.duplicate()
-		paint.resize(Element.size())
-	return paint

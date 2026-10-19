@@ -159,23 +159,23 @@ static func lay(w: WallLayout) -> void:
 
 
 static func count(d: Dictionary) -> int:
-	if not d.get("plaster", false) or not d.closed or d.fence or d.points.size() != 4:
+	if not d.plaster or not d.closed or d.fence or d.points.size() != 4:
 		return 0
 	var w := WallLayout.new()
 	w.points.assign(Array(d.points))
 	w.closed = true
 	w.plaster = true
 	w.height = d.height
-	w.timber_style = d.get("timber_style", 0)
-	w.gable_end = d.get("gable_end", WallLayout.GableEnd.WALL)
+	w.timber_style = d.timber_style
+	w.gable_end = d.gable_end
 	w.resample(func(_x: float, _z: float) -> float: return 0.0)
-	var arches: Array = Array(d.get("arches", []))
+	var arches: Array = Array(d.arches)
 	arches.sort()
 	for a: float in arches:
 		if w.can_arch() and w.fits_arch(a, w.live_arches):
 			w.live_arches.append(a)
 	var windows: Array[Vector2] = []
-	windows.assign(Array(d.get("windows", [])))
+	windows.assign(Array(d.windows))
 	w.openings = w.openings_for(windows)
 	if d.has("roof"):
 		w.cover = WallLayout.Cover.ROOF

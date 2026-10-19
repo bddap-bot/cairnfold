@@ -183,21 +183,21 @@ func set_data(d: Dictionary) -> void:
 	reshaped = {}
 	layout.points.assign(Array(d.points))
 	layout.height = d.height
-	layout.rise = d.get("rise", 0.0)
+	layout.rise = d.rise
 	layout.arches.assign(Array(d.arches))
 	layout.seed = d.seed
 	layout.closed = d.closed
 	layout.top = d.top as WallLayout.Top
 	layout.fence = d.fence
-	layout.plaster = d.get("plaster", false)
-	layout.timber_style = d.get("timber_style", 0)
-	layout.gable_end = d.get("gable_end", WallLayout.GableEnd.WALL) as WallLayout.GableEnd
+	layout.plaster = d.plaster
+	layout.timber_style = d.timber_style
+	layout.gable_end = d.gable_end as WallLayout.GableEnd
 	layout.windows.assign(Array(d.windows))
 	layout.lanterns.assign(Array(d.lanterns))
 	layout.flags.assign(Array(d.flags))
 	layout.ruins.assign(Array(d.ruins))
 	on = d.on
-	repaint(Palette.upgraded(d.paint))
+	repaint(d.paint)
 	if d.has("roof"):
 		if roof == null:
 			add_roof(RoofLayout.new())

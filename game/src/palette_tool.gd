@@ -236,8 +236,8 @@ func _now(w: Wheel) -> int:
 			return WallTool.roof_style(d)
 		Restyle.TOP:
 			return d.top
-	if d.plaster and d.get("timber_style", 0) >= 0 and d.closed and d.points.size() == 4:
-		return Face.ALSACE + d.get("timber_style", 0)
+	if d.plaster and d.timber_style >= 0 and d.closed and d.points.size() == 4:
+		return Face.ALSACE + d.timber_style
 	return Face.PLASTER if d.plaster else Face.STONE
 
 
@@ -254,7 +254,7 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 			return {"top": pick}
 	var data := {}
 	var timber_style: int = pick - Face.ALSACE if pick >= Face.ALSACE else -1
-	if timber_style != world.state.walls[w.wall].get("timber_style", 0):
+	if timber_style != world.state.walls[w.wall].timber_style:
 		data["timber_style"] = timber_style
 	var plaster := pick >= Face.PLASTER
 	if plaster != world.state.walls[w.wall].plaster:

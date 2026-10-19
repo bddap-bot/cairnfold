@@ -174,7 +174,7 @@ func _stones_never_overlap() -> void:
 		for q in strokes[i][0]:
 			pts.append(Vector3(q[0], 0, q[1]))
 			halves.append(strokes[i][1])
-		paths.put(i + 1, {"points": pts, "half_widths": halves, "seed": i + 7})
+		paths.put(i + 1, {"points": pts, "half_widths": halves, "seed": i + 7, "style": "cobble"})
 	while paths.laying():
 		await process_frame
 	var all: Array[Dictionary] = []
@@ -183,7 +183,7 @@ func _stones_never_overlap() -> void:
 	var n := _overlaps(all)
 	_check(n == 0, "crossing and re-drawn paths lay %d overlapping pairs of %d stones" % [n, all.size()])
 	paths.take(2)
-	paths.put(2, {"points": PackedVector3Array([Vector3(0, 0, -8), Vector3(0, 0, 8)]), "half_widths": PackedFloat32Array([1.0, 1.0]), "seed": 8})
+	paths.put(2, {"points": PackedVector3Array([Vector3(0, 0, -8), Vector3(0, 0, 8)]), "half_widths": PackedFloat32Array([1.0, 1.0]), "seed": 8, "style": "cobble"})
 	while paths.laying():
 		await process_frame
 	all.clear()
@@ -632,7 +632,7 @@ func _dirt_wears_without_stones() -> void:
 	await process_frame
 	_check(Ground.bare(-15, -20) == 0.0, "taking dirt restores the meadow")
 	data.erase("style")
-	_check(Commands._path(data).style == "cobble", "old gardens default to cobble")
+	_check(Commands._path(data) == null, "a path without a style is rejected")
 	data.style = "invalid"
 	_check(Commands._path(data) == null, "unknown path styles are rejected")
 	paths.free()
