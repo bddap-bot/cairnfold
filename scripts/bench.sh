@@ -93,7 +93,7 @@ same() {
 }
 if [ "${2:-}" = --android ]; then
   device=quest
-  pkg=io.github.bddapbot.nestcombe
+  pkg=$("$here/quest-install.sh" --package "$3")
   # The game makes its own output dir: on a Quest 3 it cannot write into one the shell made.
   files=/sdcard/Android/data/$pkg/files
   dir=$files/bench

@@ -1,19 +1,22 @@
 import os
 from pathlib import Path
+import struct
 import subprocess
 import tempfile
 import textwrap
 import unittest
+import zipfile
 
 script = Path(__file__).resolve().parents[1] / 'scripts/quest-install.sh'
 
 # A Quest as adb shows it: /sdcard is a folder on the host. An install of an older version is refused, an uninstall
-# erases the app's external files folder, a push makes no folder, and only the game's start makes the folders it uses.
+# erases that package's external files folder, a push makes no folder, and only the game's start makes the folders it
+# uses.
 FAKE_ADB = textwrap.dedent('''\
     #!/usr/bin/env python3
     import os, shutil, subprocess, sys
     root = os.environ['FAKE_QUEST']
-    files = root + '/sdcard/Android/data/io.github.bddapbot.nestcombe/files'
+    files_of = lambda pkg: root + '/sdcard/Android/data/' + pkg + '/files'
     on_device = lambda path: root + path
     args = sys.argv[1:]
     fail = os.environ.get('FAKE_FAIL', '')
@@ -26,7 +29,7 @@ FAKE_ADB = textwrap.dedent('''\
         open(root + '/installed', 'w').close()
     elif args[0] == 'uninstall':
         os.remove(root + '/installed')
-        shutil.rmtree(files, ignore_errors=True)
+        shutil.rmtree(files_of(args[1]), ignore_errors=True)
     elif args[0] == 'pull':
         if fail == 'pull':
             sys.exit(1)
@@ -36,6 +39,7 @@ FAKE_ADB = textwrap.dedent('''\
             sys.exit(1)
         shutil.copy(args[1], on_device(args[2]))
     elif args[0] == 'shell' and args[1:3] == ['am', 'start']:
+        files = files_of(args[4].split('/')[0])
         os.makedirs(files + '/avatars', exist_ok=True)
         with open(files + '/garden.save', 'w') as f:
             f.write('a fresh garden')
@@ -46,6 +50,26 @@ FAKE_ADB = textwrap.dedent('''\
     else:
         sys.exit('fake adb: ' + ' '.join(args))
     ''')
+
+
+def apk(path, package):
+    """A zip holding only an AndroidManifest.xml in Android's binary XML: <manifest package=...>."""
+    strings = ['manifest', 'package', package]
+    offsets, data = [], b''
+    for t in strings:
+        offsets.append(len(data))
+        data += struct.pack('<H', len(t)) + t.encode('utf-16le') + b'\0\0'
+    data += b'\0' * (-len(data) % 4)
+    start = 28 + 4 * len(strings)
+    pool = struct.pack('<HHIIIIII', 0x0001, 28, start + len(data), len(strings), 0, 0, start, 0)
+    pool += b''.join(struct.pack('<I', o) for o in offsets) + data
+    attr = struct.pack('<IIIHBBI', 0xFFFFFFFF, 1, 2, 8, 0, 0x03, 2)
+    tag = struct.pack('<IIIIHHHHHH', 0, 0xFFFFFFFF, 0xFFFFFFFF, 0, 20, 20, 1, 0, 0, 0) + attr
+    tag = struct.pack('<HHI', 0x0102, 16, 8 + len(tag)) + tag
+    body = pool + tag
+    with zipfile.ZipFile(path, 'w') as z:
+        z.writestr('AndroidManifest.xml', struct.pack('<HHI', 0x0003, 8, 8 + len(body)) + body)
+    return path
 
 
 class QuestInstallKeepsSaves(unittest.TestCase):
@@ -71,8 +95,21 @@ class QuestInstallKeepsSaves(unittest.TestCase):
     def tearDown(self):
         self.temporary.cleanup()
 
-    def install(self, **env):
-        return subprocess.run([str(script), 'old.apk'], env=dict(self.env, **env), capture_output=True, text=True)
+    def install(self, package='io.github.bddapbot.nestcombe', **env):
+        path = apk(self.root / 'old.apk', package)
+        return subprocess.run([str(script), str(path)], env=dict(self.env, **env), capture_output=True, text=True)
+
+    def test_a_build_installed_as_another_package_never_touches_the_game(self):
+        run = self.install(package='io.github.bddapbot.nestbisect')
+        self.assertEqual(run.returncode, 0, run.stderr)
+        log = (self.quest / 'adb.log').read_text()
+        self.assertIn('uninstall io.github.bddapbot.nestbisect', log)
+        self.assertNotIn('nestcombe', log)
+        self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
+
+    def test_the_package_is_read_from_the_apk(self):
+        run = subprocess.run([str(script), '--package', str(apk(self.root / 'x.apk', 'a.b.c'))], capture_output=True, text=True)
+        self.assertEqual(run.stdout.strip(), 'a.b.c', run.stderr)
 
     def test_an_install_that_uninstalls_puts_the_saves_back(self):
         run = self.install()
