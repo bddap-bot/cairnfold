@@ -294,6 +294,24 @@ twice each (GPU ms a frame):
 They cost 2 to 3 draw calls and 2,000 to 6,000 primitives in view, within the run's half-millisecond
 noise, so nothing about them is made cheaper.
 
+The fish's feeding frenzy, from one stress-scene run with the 0.7 swapchain
+(`perf/quest-2/stress/20261019T153539Z-16f670e.json`): `fish-frenzy/ground` looks down on the pond at
+radius 14 a second after three handfuls land on it, with its fish feeding, and `deer/ground`, the next phase,
+draws nearly the same frame with the pond calm:
+
+| Phase | GPU per frame | Frame p50 | Draw calls | Primitives |
+| --- | --- | --- | --- | --- |
+| `ponds/ground` | 25.37 ms | 28.06 ms | 189 | 789,916 |
+| `sheep/ground` | 30.31 ms | 32.83 ms | 212 | 809,936 |
+| `fish-frenzy/ground` | 25.38 ms | 27.78 ms | 177 | 758,434 |
+| `deer/ground` | 25.18 ms | 27.72 ms | 177 | 758,184 |
+
+The frenzy reads +0.01 ms against `ponds/ground`, -4.93 ms against `sheep/ground` and +0.20 ms against
+the calm `deer/ground` view, inside the 0.6 ms spread of the pond phases with nothing added
+(`ponds`, `ducks`, `conures` on the ground: 25.37 to 25.98 ms). The record before it
+(`20261019T071201Z-6f3dc2d.json`, the full-size swapchain) read the same order: 41.82 ms against 44.81 ms
+and 44.87 ms. The frenzy costs nothing measurable, so `Fish.tick` is left as it is.
+
 ## Frame budget
 
 Directive (verbatim): "The-the only reason I could see for adding a resource to this
