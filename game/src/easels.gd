@@ -9,12 +9,17 @@ extends Node3D
 const TILT := deg_to_rad(10.0)
 const CANVAS_AT := Vector3(0, 1.32, 0)
 const TRAY_Y := 0.72
+const TRAY := AABB(Vector3(-0.82, TRAY_Y - 0.03, 0.035), Vector3(1.64, 0.03, 0.27))
+## The rail along the tray's front edge: height and thickness.
+const LIP := Vector2(0.035, 0.012)
 ## Where each thing on the tray sits, on the tray's top.
 const POT := Vector3(-0.64, TRAY_Y, 0.2)
 const JAR := Vector3(-0.47, TRAY_Y, 0.2)
 const TIN := Vector3(-0.33, TRAY_Y, 0.2)
 const STICK := Vector3(-0.2, TRAY_Y, 0.22)
-const PALETTE := Vector3(0.48, TRAY_Y + 0.006, 0.2)
+## The palette lies in the tray's far corner, inside its lip and clear of the leg crossing the tray behind it.
+const PALETTE := Vector3(TRAY.end.x - PALETTE_SIZE.x * 0.5 - CLEAR, TRAY_Y + 0.006, TRAY.end.z - LIP.y - PALETTE_SIZE.y * 0.5 - CLEAR)
+const CLEAR := 0.01
 const JAR_SIZE := Vector2(0.045, 0.11)
 const TIN_SIZE := Vector2(0.05, 0.055)
 ## The brushes standing in the pot, by kind: where each one's tip stands above the pot.
@@ -245,33 +250,37 @@ func _build(e: Easel) -> void:
 	for side in [-1.0, 1.0]:
 		_beam(stand, _foot(side * 0.62), frame * Vector3(side * 0.1, top, -LEG_BACK), 0.045, wood)
 	_beam(stand, Vector3(0, 0, -0.7), frame * Vector3(0, top - 0.04, -LEG_BACK - 0.04), 0.04, wood)
-	_part(stand, _box(Vector3(1.64, 0.03, 0.27)), Transform3D(Basis(), Vector3(0, TRAY_Y - 0.015, 0.17)), wood)
-	_part(stand, _box(Vector3(1.64, 0.035, 0.012)), Transform3D(Basis(), Vector3(0, TRAY_Y + 0.0175, 0.3)), dark)
+	_part(stand, _box(TRAY.size), Transform3D(Basis(), TRAY.get_center()), wood)
+	_part(stand, _box(Vector3(TRAY.size.x, LIP.x, LIP.y)), Transform3D(Basis(), Vector3(0, TRAY_Y + LIP.x * 0.5, TRAY.end.z - LIP.y * 0.5)), dark)
 	_part(stand, _box(Vector3(0.3, 0.05, 0.03)), frame * Transform3D(Basis(), Vector3(0, Brushwork.METRES.y * 0.5 + 0.02, -0.048)), dark)
 	_part(e, _box(Vector3(Brushwork.METRES.x + 0.03, Brushwork.METRES.y + 0.03, 0.03)), frame * Transform3D(Basis(), Vector3(0, 0, -0.017)), _mat("linen", Color(0.86, 0.82, 0.74), 0.9))
 	var face := QuadMesh.new()
 	face.size = Brushwork.METRES
 	e.canvas_mesh = _part(e, face, frame, e.canvas.material, false)
+	var implements := Node3D.new()
+	implements.name = "implements"
+	e.add_child(implements)
 	var glass := _mat("glass", Color(0.78, 0.86, 0.9, 0.35), 0.1)
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	_part(e, _cylinder(JAR_SIZE.x, JAR_SIZE.y), Transform3D(Basis(), JAR + Vector3(0, JAR_SIZE.y * 0.5, 0)), glass, false)
-	_part(e, _cylinder(JAR_SIZE.x * 0.94, JAR_SIZE.y * 0.7), Transform3D(Basis(), JAR + Vector3(0, JAR_SIZE.y * 0.35, 0)), _mat("water", Color(0.62, 0.74, 0.8), 0.15), false)
-	_part(e, _cylinder(TIN_SIZE.x, TIN_SIZE.y), Transform3D(Basis(), TIN + Vector3(0, TIN_SIZE.y * 0.5, 0)), _mat("tin", Color(0.7, 0.7, 0.72), 0.35))
-	_part(e, _cylinder(TIN_SIZE.x * 0.9, 0.004), Transform3D(Basis(), TIN + Vector3(0, TIN_SIZE.y - 0.006, 0)), _mat("oil", Color(0.72, 0.56, 0.22), 0.2), false)
-	_part(e, _cylinder(0.055, 0.12), Transform3D(Basis(), POT + Vector3(0, 0.06, 0)), _mat("pot", Color(0.66, 0.36, 0.26)))
+	_part(implements, _cylinder(JAR_SIZE.x, JAR_SIZE.y), Transform3D(Basis(), JAR + Vector3(0, JAR_SIZE.y * 0.5, 0)), glass, false)
+	_part(implements, _cylinder(JAR_SIZE.x * 0.94, JAR_SIZE.y * 0.7), Transform3D(Basis(), JAR + Vector3(0, JAR_SIZE.y * 0.35, 0)), _mat("water", Color(0.62, 0.74, 0.8), 0.15), false)
+	_part(implements, _cylinder(TIN_SIZE.x, TIN_SIZE.y), Transform3D(Basis(), TIN + Vector3(0, TIN_SIZE.y * 0.5, 0)), _mat("tin", Color(0.7, 0.7, 0.72), 0.35))
+	_part(implements, _cylinder(TIN_SIZE.x * 0.9, 0.004), Transform3D(Basis(), TIN + Vector3(0, TIN_SIZE.y - 0.006, 0)), _mat("oil", Color(0.72, 0.56, 0.22), 0.2), false)
+	_part(implements, _cylinder(0.055, 0.12), Transform3D(Basis(), POT + Vector3(0, 0.06, 0)), _mat("pot", Color(0.66, 0.36, 0.26)))
 	for kind in BRUSH_TIPS:
 		var b := ToolModels.brush(kind)
 		var tip: Vector3 = POT + BRUSH_TIPS[kind]
 		b.transform = Transform3D(Basis.looking_at(Vector3.UP, Vector3.BACK), tip + Vector3.UP * ToolModels.BRUSH_TIP.z)
-		e.add_child(b)
+		implements.add_child(b)
 		e.brushes[kind] = b
 	e.stick = ToolModels.brush(Brushwork.Brush.STICK)
 	e.stick.transform = Transform3D(Basis(Vector3.UP, -PI * 0.5), STICK + Vector3(0, 0.007, 0))
-	e.add_child(e.stick)
+	implements.add_child(e.stick)
 	e.palette = palette()
+	e.palette.name = "palette"
 	e.mix = e.palette.get_meta("mix")
 	e.palette.position = PALETTE
-	e.add_child(e.palette)
+	implements.add_child(e.palette)
 
 
 ## Where a leg standing `x` along the canvas, LEG_BACK behind it, meets the ground.

@@ -29,6 +29,7 @@ func _run() -> void:
 	await _a_deleted_easel_comes_back_with_its_painting()
 	await _the_tray_loads_the_brush()
 	_no_plank_crosses_the_canvas()
+	_no_implement_crosses_the_easel()
 	await _the_palette_stays_in_the_hand_by_its_thumb_hole()
 	await _a_tip_in_each_well_loads_its_colour()
 	await _the_trigger_sets_one_up_or_says_why_not()
@@ -191,6 +192,28 @@ func _no_plank_crosses_the_canvas() -> void:
 			behind = behind and (face.affine_inverse() * corner).z < 0.0
 			below = below and corner.y < bottom
 		_check(behind or below, "a plank at %s stays behind the canvas's face or below it" % (e.global_transform.affine_inverse() * mi.global_position))
+
+
+func _no_implement_crosses_the_easel() -> void:
+	var e: Easels.Easel = main.easels.easels.values()[-1]
+	var parts: Array[MeshInstance3D] = []
+	for n in e.get_node("stand").get_children() + e.get_children():
+		if n is MeshInstance3D:
+			parts.append(n)
+	_check(parts.size() >= 7, "the easel has its stand, backing and face: %d parts" % parts.size())
+	var implements := e.get_node("implements").find_children("*", "MeshInstance3D", true, false)
+	_check(implements.size() >= 10, "the tray holds its pot, jar, tin, brushes, charcoal and palette: %d meshes" % implements.size())
+	for mi: MeshInstance3D in implements:
+		for part in parts:
+			var into := part.global_transform.affine_inverse() * mi.global_transform
+			_check(not _inside(part.get_aabb()).intersects(into * mi.get_aabb()), "%s on the tray stays clear of %s" % [e.get_node("implements").get_path_to(mi), e.get_path_to(part)])
+
+
+## `box` less a millimetre each way, so things resting on it do not count as crossing it; a face keeps a millimetre.
+func _inside(box: AABB) -> AABB:
+	var size := box.size - Vector3.ONE * 0.002
+	size = Vector3(maxf(size.x, 0.001), maxf(size.y, 0.001), maxf(size.z, 0.001))
+	return AABB(box.get_center() - size * 0.5, size)
 
 
 ## Taken by a grip, the palette stays in either hand after the grip lets go, as a brush does, held by its thumb hole with
