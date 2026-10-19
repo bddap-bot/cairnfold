@@ -2576,18 +2576,27 @@ oak colour independently of plaster, window frames and doors. Older gardens
 receive the default pattern and oak colour without changing their plaster tint.
 
 `demo/timber.json` captures the front, gable and lantern-lit dusk view.
-`demo/timber-costs.json` isolates generated timber in the production masonry
-packing and distance/shadow system, at two densities and from two views, repeated
-twice. It measures the marginal viewport GPU time over the bare meadow per member;
-the build budget counts members using that same generator. The stress scene adds
-a two-storey plaster village with intersecting wings and Fachwerk framing.
 
-The timber charge is 8.7 GPU microseconds per member: the largest paired
-viewport increase on Quest 2 B, rounded up, from 702 and 1,950 members in two
-views repeated twice at the bottom quality step. The two worst-view estimates
-were 8.63 and 8.51 microseconds. Frame temporarily uses this same charge pending
-its own measurement. The bare meadow already took 20.67–21.98 ms of viewport
-GPU time in this run; this calibration measures marginal cost, not attainment
-of 72 Hz. Runtime GPU medians were 18.28–19.31 ms bare and 20.76–23.96 ms with
-timber, against a 12.5 ms limit. The remainder is existing scene cost, not
-attributed to timber by this experiment.
+A timber is its own masonry part. Near, it is a plain box: the lumpy stone mesh it used to borrow cost nine
+times the triangles and read no different on a planed beam. Far, it is the coarse stone in `timber_far.gdshader`,
+which reads its bounce and lantern light once a vertex and no detail texture, which a few pixels wide averages to
+the beam's own colour. It casts its shadow with the stones. A roofed wall's top rail sits 4 cm under the eaves so
+the box's square edge stays under the tiles. The captures match the earlier framing at all three views, near and
+from 20 to 40 m.
+
+Its cost was measured on Quest 2 B at the bottom quality step in the stress scene's densest village (21 two-storey
+houses with wings, radius 20, 3,906 Alsace or 4,914 Fachwerk members), swapping the frame's drawing at runtime
+between the earlier path, this one and none, three times over in alternating order, GPU ms per frame over none:
+
+| | Alsace aerial | Alsace ground | Fachwerk aerial | Fachwerk ground |
+|---|---|---|---|---|
+| lumpy stone part (before) | +4.8 | +0.9 to +1.0 | +6.1 to +6.3 | +1.1 to +1.8 |
+| box near, coarse stone far | +5.6 | +0.9 | +7.6 | 0.0 |
+| box near, `timber_far` far | +3.5 to +3.8 | +0.4 | +4.8 to +5.6 | -0.4 to +0.1 |
+| box near, nothing far | +0.1 | -0.3 | +0.8 | -0.7 |
+
+Shadows, draw calls and triangles cost nothing measurable; turning the beams' shadows off left the totals within
+0.5 ms. What remains is the far beams' pixels: a beam a few pixels wide is shaded once for itself and once for the
+plaster under its edges. A flat-lit far beam still cost +2.2 to +2.6 ms, and drawing them first changed nothing,
+so the floor for beams drawn as geometry is about 1 µs a member from above. Below it the far frame would have to
+be painted into the plaster it lies on. The budget charges 1.2 µs a member, the worst measured, rounded up.

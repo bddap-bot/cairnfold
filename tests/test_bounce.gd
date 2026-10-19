@@ -189,7 +189,7 @@ func _masonry_reports_only_what_stands_in_the_light() -> void:
 		buf.resize(Wall.kinds()[k].stride())
 		parts.append(Masonry.split(buf, Wall.kinds()[k].stride()))
 	m.place(7, parts)
-	_check(got.size() == 1 and got[0][1] == 3, "a wall's stones, tiles and thatch slabs shade, not its mortar, shadow boxes or ivy: %s" % [got])
+	_check(got.size() == 1 and got[0][1] == 4, "a wall's stones, tiles, thatch slabs and timbers shade, not its mortar, shadow boxes or ivy: %s" % [got])
 	m.remove(7)
 	_check(got.size() == 2 and got[1][1] == 0, "and it reports when they go")
 	m.remove(7)

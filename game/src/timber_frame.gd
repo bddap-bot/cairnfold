@@ -3,6 +3,8 @@ extends RefCounted
 
 const WIDTH := 0.16
 const DEPTH := 0.10
+## How far a roofed wall's top rail sits under its eaves, so its square edge stays under the tiles.
+const EAVE_DROP := 0.04
 const OAK := Color(0.12, 0.075, 0.045)
 const PATTERNS := [
 	{"name": "Alsace", "spacing": 1.6, "rails": [0.5], "braces": [Vector4(0, 0, 1, 1), Vector4(1, 0, 0, 1)], "brace_rows": [0]},
@@ -53,7 +55,8 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 			ys.append(lerpf(foot, eaves, y))
 		ys.append(eaves)
 		for y in ys:
-			_emit(out, Vector2(lo - corner, y), Vector2(hi + corner, y), mid, holes)
+			var rail := y - EAVE_DROP if y == eaves and side % 2 == 0 and w.cover == WallLayout.Cover.ROOF else y
+			_emit(out, Vector2(lo - corner, rail), Vector2(hi + corner, rail), mid, holes)
 		for x in xs:
 			_emit(out, Vector2(x, foot), Vector2(x, eaves), mid, holes)
 		for o in w.openings:

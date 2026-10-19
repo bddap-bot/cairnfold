@@ -35,6 +35,8 @@ class Kind:
 	var reach := 0.0
 	## Drawn instead of `mesh` by a settled chunk wholly beyond `near` metres; null to draw `mesh` at every distance.
 	var far: Mesh
+	## What `far` is drawn in; null to draw it in `material`.
+	var far_material: Material
 	var near := 0.0
 
 	func _init(m: Mesh, mat: Material, use_colors: bool, use_custom: bool, cast: GeometryInstance3D.ShadowCastingSetting, occluding := false) -> void:
@@ -208,6 +210,8 @@ func _chunk(key: Vector2i) -> Chunk:
 			if k.far != null:
 				far = k.instance()
 				far.multimesh.mesh = k.far
+				if k.far_material != null:
+					far.material_override = k.far_material
 				add_child(far)
 			c.fars.append(far)
 			var full: MultiMeshInstance3D = null
