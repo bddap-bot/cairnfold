@@ -31,6 +31,7 @@ func _run() -> void:
 	_a_long_stroke_freezes_into_chunks()
 	_far_paving_draws_far_stones_and_the_whole_stones_shade()
 	_painting_skips_a_path()
+	_a_scripted_stroke_outlasts_the_hand()
 	_undo_lifts_a_path_and_its_arches()
 	await _a_path_opens_its_arch_before_release()
 	await _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame()
@@ -490,6 +491,24 @@ func _painting_skips_a_path() -> void:
 	_check(flora.ghost_grass.size() == 0, "grass painted on a path shows no plants (%d)" % flora.ghost_grass.size())
 	t.end_stroke(b)
 	_check(flora.grass.size() == before, "and grows none in the garden (%d added)" % (flora.grass.size() - before))
+	t.free()
+	_teardown(nodes)
+
+
+func _a_scripted_stroke_outlasts_the_hand() -> void:
+	var nodes := _setup()
+	var rig: Rig = nodes[3]
+	var t := FloraTool.new(rig, nodes[4], nodes[1], nodes[2])
+	t.set_process(false)
+	var paths: Paths = nodes[1]
+	var b := t.brushes[0]
+	b.hand.tool = Hand.Tool.PATH
+	t.begin_path(b, Terrain.ground(-30, 20), 0.6)
+	rig.aim_hand = b.hand
+	t._handle(b, 1.0 / 60.0)
+	rig.aim_hand = null
+	_check(paths.drawing != null, "a stroke no button holds outlasts the hand's own frame")
+	t.end_path(b)
 	t.free()
 	_teardown(nodes)
 

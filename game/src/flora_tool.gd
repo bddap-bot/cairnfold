@@ -120,6 +120,9 @@ func _process(delta: float) -> void:
 func _handle(b: Brush, delta: float) -> void:
 	var held := b.hand.tool
 	b.ring.visible = false
+	# A stroke no button holds is a demo script's: the hand's own aim neither extends nor ends it.
+	if busy(b.hand) and not b.buttons.held("tool") and not b.buttons.released("tool"):
+		return
 	if not TINTS.has(held) or rig.aim_hand == b.hand:
 		end_stroke(b)
 		return
