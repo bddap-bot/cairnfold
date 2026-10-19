@@ -96,6 +96,7 @@ func _a_flat_roof_is_kept() -> void:
 		{"op": "house", "at": [-4, -4], "size": [4, 2.5], "seconds": 0.3},
 		{"op": "roof", "index": 0, "pitch": 0.2},
 		{"op": "roof", "index": 1, "pitch": 0.0},
+		{"op": "resize", "index": 0, "size": [4, 2.5], "rise": 0.9, "seconds": 0.2},
 	])
 	await _settled()
 	var picture := _picture()
@@ -106,6 +107,8 @@ func _a_flat_roof_is_kept() -> void:
 	var flat: Array = world.state.walls.values().filter(func(w): return w.has("roof") and w.roof.pitch == 0.0)
 	_check(flat.size() == 2, "both roofs come back flat: %d" % flat.size())
 	_check(main.tool.walls.all(func(w): return w.roof == null or w.layout.cover == WallLayout.Cover.DECK), "and are laid as decks")
+	var raised: Array = world.state.walls.values().filter(func(w): return is_equal_approx(w.get("rise", 0.0), 0.9))
+	_check(raised.size() == 1, "a house raised onto a plinth comes back raised: %d" % raised.size())
 
 
 func _a_visited_garden_is_not_kept() -> void:

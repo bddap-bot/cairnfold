@@ -160,7 +160,7 @@ func add_roof(r: RoofLayout) -> void:
 ## The wall as a build command carries it.
 func data() -> Dictionary:
 	var d := {
-		"points": PackedVector3Array(layout.points), "height": layout.height, "arches": PackedFloat32Array(layout.arches),
+		"points": PackedVector3Array(layout.points), "height": layout.height, "rise": layout.rise, "arches": PackedFloat32Array(layout.arches),
 		"seed": layout.seed, "closed": layout.closed, "top": int(layout.top), "fence": layout.fence,
 		"windows": PackedVector2Array(layout.windows), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags),
 		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "gable_end": int(layout.gable_end), "timber_style": layout.timber_style, "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
@@ -173,6 +173,7 @@ func data() -> Dictionary:
 func set_data(d: Dictionary) -> void:
 	layout.points.assign(Array(d.points))
 	layout.height = d.height
+	layout.rise = d.get("rise", 0.0)
 	layout.arches.assign(Array(d.arches))
 	layout.seed = d.seed
 	layout.closed = d.closed
@@ -668,11 +669,12 @@ func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 	var best_i := 0
 	var best_t := 0.0
 	var best_p := Vector3.ZERO
-	var up := Vector3.UP * (layout.height + WallLayout.CAP)
-	var ud := up.dot(dir)
-	var denom := up.dot(up) - ud * ud
 	for i in layout.samples.size():
-		var a := layout.samples[i]
+		var under := layout.depths[i] if i < layout.depths.size() else 0.0
+		var a := layout.samples[i] + Vector3.DOWN * under
+		var up := Vector3.UP * (layout.height + WallLayout.CAP + under)
+		var ud := up.dot(dir)
+		var denom := up.dot(up) - ud * ud
 		var w := origin - a
 		var sc := 0.0 if absf(denom) < 1e-6 else clampf((up.dot(w) - ud * dir.dot(w)) / denom, 0.0, 1.0)
 		var t := maxf(0.0, ud * sc - dir.dot(w))

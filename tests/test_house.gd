@@ -11,6 +11,8 @@ func _init() -> void:
 	_the_footprint_follows_the_hands()
 	_hands_carry_turn_and_stretch_a_house()
 	_two_hands_resize_a_built_house_one_side_at_a_time()
+	_both_hands_raise_a_built_house()
+	_a_raised_house_stands_on_a_plinth()
 	_a_resized_house_keeps_its_fittings_and_roof()
 	_the_ridge_keeps_its_axis()
 	_gable_tiles_cover_the_footprint_under_the_ridge()
@@ -129,12 +131,20 @@ func _hand(at: Vector3, turn := 0.0) -> Transform3D:
 
 
 func _hands_carry_turn_and_stretch_a_house() -> void:
-	var start := {"center": Vector3(10, 0, 0), "yaw": 0.0, "size": Vector2(4.5, 4.5), "round": false}
+	var start := {"center": Vector3(10, 0, 0), "yaw": 0.0, "size": Vector2(4.5, 4.5), "round": false, "rise": 0.0, "grounded": true}
 	var one: Array[Transform3D] = [_hand(Vector3(0, 1, 0))]
 	var moved: Array[Transform3D] = [_hand(Vector3(0.5, 1.3, -0.2), 0.4)]
 	var c := WallTool.carry(start, one, moved, 4.0)
 	_check(c.center.is_equal_approx(Vector3(12, 0, -0.8)), "one hand carries it along the ground, scaled by the gain: %s" % c.center)
 	_check(is_equal_approx(c.yaw, 0.4) and c.size == start.size, "and turns it with its own turn, keeping its size")
+	# Directive (verbatim): "When placing a building, you should be able to raise it higher up by raising your controller up"
+	_check(is_equal_approx(c.rise, 1.2), "and raises it as the hand rises, scaled by the gain: %.2f" % c.rise)
+	c = WallTool.carry(start, one, [_hand(Vector3(0, 0.2, 0))], 4.0)
+	_check(c.rise == 0.0, "lowered, it stays on its ground: %.2f" % c.rise)
+	var on_build := start.duplicate()
+	on_build.grounded = false
+	c = WallTool.carry(on_build, one, moved, 4.0)
+	_check(c.rise == 0.0, "one carried on a build stays on its top")
 	var pair: Array[Transform3D] = [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.2, 1, 0))]
 	var spread: Array[Transform3D] = [_hand(Vector3(-0.4, 1, 0)), _hand(Vector3(0.4, 1, 0))]
 	c = WallTool.carry(start, pair, spread, 4.0)
@@ -170,7 +180,7 @@ func _hands_carry_turn_and_stretch_a_house() -> void:
 
 ## Directive (verbatim): "Eventually I'd like to be able to resize a house" / "in each dimension"
 func _two_hands_resize_a_built_house_one_side_at_a_time() -> void:
-	var start := {"center": Vector3(10, 0, 0), "yaw": 0.0, "size": Vector2(4.5, 4.5), "round": false}
+	var start := {"center": Vector3(10, 0, 0), "yaw": 0.0, "size": Vector2(4.5, 4.5), "round": false, "rise": 0.0}
 	var front: Array[Transform3D] = [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.2, 1, 0))]
 	var c := WallTool.resize(start, front, [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.6, 1.1, 0))])
 	_check(c.size.is_equal_approx(Vector2(9, 4.5)), "hands across its front stretch its width only: %s" % c.size)
@@ -195,6 +205,69 @@ func _two_hands_resize_a_built_house_one_side_at_a_time() -> void:
 	_check(c.size == Vector2.ONE * WallTool.HOUSE_DEPTH, "no wider than the widest tower: %s" % c.size)
 	c = WallTool.resize(tower, front, [_hand(Vector3(0, 1, 0)), _hand(Vector3(0.01, 1, 0))])
 	_check(c.size == Vector2.ONE * WallTool.HOUSE_SIDES.x, "nor narrower than the narrowest: %s" % c.size)
+
+
+## Directive (verbatim): "If I grab a house or a building with two hands, I would like to be able to lift it up, raise it a little higher"
+func _both_hands_raise_a_built_house() -> void:
+	var start := {"center": Vector3(10, 0, 0), "yaw": 0.0, "size": Vector2(4.5, 4.5), "round": false, "rise": 0.0}
+	var front: Array[Transform3D] = [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.2, 1, 0))]
+	var c := WallTool.resize(start, front, [_hand(Vector3(-0.2, 1.6, 0)), _hand(Vector3(0.2, 1.6, 0))], 1.0)
+	_check(is_equal_approx(c.rise, 0.6) and c.size.is_equal_approx(start.size) and c.center.is_equal_approx(start.center), "both hands rising 0.6 m raise it 0.6 m, in place and as large: %s" % c)
+	c = WallTool.resize(start, front, [_hand(Vector3(-0.2, 1.6, 0)), _hand(Vector3(0.2, 1.3, 0))], 1.0)
+	_check(is_equal_approx(c.rise, 0.3), "by as far as the lower hand rose: %.2f" % c.rise)
+	c = WallTool.resize(start, front, [_hand(Vector3(-0.2, 1.6, 0)), _hand(Vector3(0.2, 1, 0))], 1.0)
+	_check(c.rise == 0.0, "one hand rising alone leaves it on the ground: %.2f" % c.rise)
+	c = WallTool.resize(start, front, [_hand(Vector3(-0.2, 1.6, 0)), _hand(Vector3(0.6, 1.6, 0))], 1.0)
+	_check(is_equal_approx(c.rise, 0.6) and c.size.is_equal_approx(Vector2(9, 4.5)), "spreading as they rise stretches and raises it at once: %s, %.2f" % [c.size, c.rise])
+	c = WallTool.resize(start, front, [_hand(Vector3(-0.2, 1.4, 0)), _hand(Vector3(0.2, 1.4, 0))], 3.0)
+	_check(is_equal_approx(c.rise, 1.2), "a far house rises by the reach gain, a course at a time: %.2f" % c.rise)
+	c = WallTool.resize(start, front, [_hand(Vector3(-0.2, 9, 0)), _hand(Vector3(0.2, 9, 0))], 1.0)
+	_check(c.rise == WallLayout.RISE.y, "no higher than the highest plinth: %.2f" % c.rise)
+	var raised := start.duplicate()
+	raised.rise = 0.9
+	c = WallTool.resize(raised, front, [_hand(Vector3(-0.2, 0.7, 0)), _hand(Vector3(0.2, 0.7, 0))], 1.0)
+	_check(is_equal_approx(c.rise, 0.6), "both hands lowering set it down: %.2f" % c.rise)
+	c = WallTool.resize(raised, front, [_hand(Vector3(-0.2, -2, 0)), _hand(Vector3(0.2, -2, 0))], 1.0)
+	_check(c.rise == 0.0, "no lower than its ground: %.2f" % c.rise)
+	c = WallTool.resize(start, front, [_hand(Vector3(-0.2, 2, 0)), _hand(Vector3(0.2, 2, 0))])
+	_check(c.rise == 0.0, "without a gain, a house standing on a build, it stays on its top")
+
+
+func _a_raised_house_stands_on_a_plinth() -> void:
+	var low := _house(6.0, 4.0)
+	var w := _house(6.0, 4.0)
+	w.rise = 1.2
+	w.build(_slope)
+	low.build(_slope)
+	_check(is_equal_approx(w.samples[0].y, low.samples[0].y + 1.2), "its foot stands 1.2 m above its lowest ground: %.2f" % (w.samples[0].y - low.samples[0].y))
+	var gap := 0.0
+	for i in w.samples.size():
+		var q := w.samples[i]
+		if absf(w.lengths[i] - w.live_arches[0]) < WallLayout.ARCH_HALF + 0.3:
+			continue
+		var under := w.stones.filter(func(st: Dictionary) -> bool: return st.kind in ["block", "pier"] and absf(st.s - w.lengths[i]) < 0.4)
+		var lowest := INF
+		for st: Dictionary in under:
+			lowest = minf(lowest, st.xform.origin.y - st.size.y * 0.5)
+		gap = maxf(gap, lowest - _slope(q.x, q.z))
+	_check(gap <= 0.0, "its courses reach the ground all round, nowhere floating: %.2f m at most above it" % gap)
+	_check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind == "block" and absf(st.s - w.live_arches[0]) < WallLayout.ARCH_HALF - 0.05 and st.y < w.spring()), "its doorway opens down to the ground")
+	_check(w.stones.size() > low.stones.size(), "the plinth is laid in stones: %d against %d" % [w.stones.size(), low.stones.size()])
+	var plaster := _house(6.0, 4.0)
+	plaster.plaster = true
+	plaster.rise = 1.2
+	plaster.build(_flat)
+	_check(plaster.stones.any(func(st: Dictionary) -> bool: return st.kind == "block" and st.y < 0.0), "a plaster house stands on a stone plinth")
+	var supported := _house(6.0, 4.0)
+	supported.rise = 1.2
+	var under := Massing.of(low, null)
+	supported.supports = [under]
+	supported.build(_slope)
+	_check(is_equal_approx(supported.samples[0].y, under.rest(supported.points[0].x, supported.points[0].z) - WallLayout.SINK), "a house standing on a build stays on its top")
+	var d := {"points": PackedVector3Array(w.points), "height": 2.4, "rise": 1.2, "closed": true, "fence": false, "lanterns": PackedVector3Array(), "flags": PackedFloat32Array()}
+	var flat := d.duplicate()
+	flat.rise = 0.0
+	_check(is_equal_approx(Budget.wall(d).wall_m2 - Budget.wall(flat).wall_m2, 20.0 * 1.2), "the budget counts the plinth as stone wall")
 
 
 func _a_resized_house_keeps_its_fittings_and_roof() -> void:

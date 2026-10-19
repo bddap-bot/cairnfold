@@ -8,7 +8,8 @@ extends Node3D
 ## holds takes nothing. A hand holding the house takes hold of one with its trigger, where it points, and carries it; the
 ## other hand's grip, pressed while it is carried, joins in, whatever it points at, to turn it with the pair and stretch it
 ## along their span; the right A, while it is carried, rounds it into a tower or squares it again; letting go builds it. A built
-## house held by one hand's grip takes the other's too, and the pair stretch its width or depth where it stands. A path across a wall opens an arch where they cross,
+## house held by one hand's grip takes the other's too, and the pair stretch its width or depth where it stands, and
+## raised or lowered together raise it onto a plinth or set it back down. A path across a wall opens an arch where they cross,
 ## or an arcade where the crossing is wide: those arches follow from the paths standing, so they come and go
 ## with the path. A hand holding the fence draws fences the same way: posts and rails, a wooden arch where a
 ## path crosses. Every finished edit goes to the garden as a build command; this tool shows it until then.
@@ -99,6 +100,8 @@ var _resize_start := {}
 var _resize_data := {}
 var resized_to := {}
 var _resize_step := 0
+## How far the house rises for each metre both hands rise; 0 for one standing on a build, which stays on its top.
+var _resize_gain := 0.0
 ## True while the garden is swapped wholesale: walls come and go without a sound.
 var quiet := false
 var _since_rebuild := 0.0
@@ -418,8 +421,8 @@ func _house_input() -> void:
 			mid += t.origin / now.size()
 		_hold_gain = Hand.reach_gain(mid.distance_to(house_at.center))
 	var to := carry(_hold_start, _hold_from, now, _hold_gain)
-	if not to.center.is_equal_approx(house_at.center) or not is_equal_approx(to.yaw, house_at.yaw) or not to.size.is_equal_approx(house_at.size):
-		place_house(to.center, to.yaw, to.size)
+	if not to.center.is_equal_approx(house_at.center) or not is_equal_approx(to.yaw, house_at.yaw) or not to.size.is_equal_approx(house_at.size) or to.rise != house_at.rise:
+		place_house(to.center, to.yaw, to.size, to.rise)
 
 
 ## A square house standing at `at`, its front square to `yaw`, until it is placed and let go.
@@ -438,16 +441,17 @@ func begin_house(at: Vector3, yaw: float, on := PackedInt32Array()) -> void:
 	house.add_roof(roof)
 	_holders.clear()
 	_laid_at.clear()
-	house_at = {"round": false}
+	house_at = {"round": false, "rise": 0.0, "grounded": on.is_empty()}
 	place_house(at, yaw, HOUSE_SIZE)
 
 
-## Moving or turning the house carries the stones laid as they are, walls, roof and all; only a new size lays them again.
-func place_house(at: Vector3, yaw: float, size: Vector2) -> void:
-	var resized: bool = not house_at.has("size") or not size.is_equal_approx(house_at.size)
+## Moving, turning or raising the house carries the stones laid as they are, walls, roof and all; a new size or plinth lays them again.
+func place_house(at: Vector3, yaw: float, size: Vector2, rise := 0.0) -> void:
+	var resized: bool = not house_at.has("size") or not size.is_equal_approx(house_at.size) or rise != house_at.rise
 	house_at.center = Terrain.ground(at.x, at.z)
 	house_at.yaw = yaw
 	house_at.size = size
+	house_at.rise = rise
 	if resized:
 		_lay_house()
 
@@ -455,22 +459,23 @@ func place_house(at: Vector3, yaw: float, size: Vector2) -> void:
 func _lay_house() -> void:
 	var outline := WallTool.outline(house_at)
 	house.layout.points = outline
+	house.layout.rise = house_at.rise
 	house.roof.pitch = pitch_for(house_at)
 	_meet(house)
-	_laid_at.append({"points": outline, "center": house_at.center, "yaw": house_at.yaw})
+	_laid_at.append({"points": outline, "center": house_at.center, "yaw": house_at.yaw, "rise": house_at.rise})
 	_house_dirty = true
 	_dirty = true
 
 
 func _carry_laid() -> void:
 	var laid := house.layout.laid_points
-	var i := _laid_at.find_custom(func(e: Dictionary) -> bool: return e.points == laid)
+	var i := _laid_at.find_custom(func(e: Dictionary) -> bool: return e.points == laid and e.rise == house.layout.laid_rise)
 	if i < 0:
 		return
 	_laid_at = _laid_at.slice(i)
 	var was: Dictionary = _laid_at[0]
 	# A house on a build keeps that build's top as it is carried; on the ground it rides the ground.
-	var lift := 0.0 if not house.on.is_empty() else _lowest(outline(house_at)) - _lowest(outline({"center": was.center, "yaw": was.yaw, "size": house_at.size, "round": house_at.round}))
+	var lift: float = 0.0 if not house.on.is_empty() else _lowest(outline(house_at)) - _lowest(outline({"center": was.center, "yaw": was.yaw, "size": house_at.size, "round": house_at.round})) + house_at.rise - was.rise
 	var from := Transform3D(Basis(Vector3.UP, was.yaw), Vector3(was.center.x, 0.0, was.center.z))
 	var to := Transform3D(Basis(Vector3.UP, house_at.yaw), Vector3(house_at.center.x, lift, house_at.center.z))
 	house.transform = to * from.affine_inverse()
@@ -550,11 +555,11 @@ static func house_of(d: Dictionary) -> Dictionary:
 	if not d.has("roof") or not d.closed:
 		return {}
 	if d.roof.kind == RoofLayout.Kind.CONE:
-		return {"center": d.roof.center, "yaw": 0.0, "size": Vector2.ONE * d.roof.radius * 2.0, "round": true}
+		return {"center": d.roof.center, "yaw": 0.0, "size": Vector2.ONE * d.roof.radius * 2.0, "round": true, "rise": d.get("rise", 0.0)}
 	var p: PackedVector3Array = d.points
 	if p.size() != 4:
 		return {}
-	return {"center": (p[0] + p[2]) * 0.5, "yaw": angle(p[1] - p[0]), "size": Vector2(_flat(p[1] - p[0]).length(), _flat(p[3] - p[0]).length()), "round": false}
+	return {"center": (p[0] + p[2]) * 0.5, "yaw": angle(p[1] - p[0]), "size": Vector2(_flat(p[1] - p[0]).length(), _flat(p[3] - p[0]).length()), "round": false, "rise": d.get("rise", 0.0)}
 
 
 ## The `reshape` that stands the house with garden data `d` as `to`: its wall line, every fitting and arch kept in
@@ -588,7 +593,7 @@ static func reshape_house(d: Dictionary, to: Dictionary) -> Dictionary:
 			var o: Vector3 = _scaled(from, to, from.center + r0 * c.x + r0.cross(Vector3.UP) * c.y) - to.center
 			chimneys.append(Vector2(o.dot(r1), o.dot(r1.cross(Vector3.UP))))
 		roof = {"pitch": clampf(d.roof.pitch * to.size.y / from.size.y, RoofLayout.PITCH.x, RoofLayout.PITCH.y), "chimneys": chimneys}
-	return {"points": PackedVector3Array(now), "arches": arches, "windows": windows, "lanterns": lanterns, "flags": flags, "roof": roof}
+	return {"points": PackedVector3Array(now), "rise": to.get("rise", from.rise), "arches": arches, "windows": windows, "lanterns": lanterns, "flags": flags, "roof": roof}
 
 
 static func _ridge_of(at: Dictionary) -> Vector3:
@@ -645,8 +650,10 @@ static func _loop_s(points: Array[Vector3], p: Vector3) -> float:
 ## Where a house held from `start` stands once the hands holding it move from poses `from` to `to`: one hand carries
 ## it and turns it with its own turn; two carry it by their midpoint, turn it with the line between them, and
 ## stretch it along that line by how far they spread, or a round one every way at once. `gain` scales the carry, so a far house keeps up.
+## One on the ground rises as `lifted` has it.
 static func carry(start: Dictionary, from: Array[Transform3D], to: Array[Transform3D], gain: float) -> Dictionary:
 	var out := start.duplicate()
+	out.rise = lifted(start.rise, from, to, gain if start.grounded else 0.0)
 	if from.size() == 1:
 		out.center = start.center + _flat(to[0].origin - from[0].origin) * gain
 		out.yaw = start.yaw + angle_difference(angle(from[0].basis.x), angle(to[0].basis.x))
@@ -671,8 +678,10 @@ static func stretched(start: Dictionary, span: Vector3, ratio: float) -> Vector2
 
 ## Where a built house held from `start` stands once two hands move from poses `from` to `to`: it keeps its place
 ## and turn and stretches as `stretched` has it, toward the hand that moved, so a hand held still keeps its wall.
-static func resize(start: Dictionary, from: Array[Transform3D], to: Array[Transform3D]) -> Dictionary:
+## It rises as `lifted` has it.
+static func resize(start: Dictionary, from: Array[Transform3D], to: Array[Transform3D], gain := 0.0) -> Dictionary:
 	var out := start.duplicate()
+	out.rise = lifted(start.rise, from, to, gain)
 	var span0 := _flat(from[1].origin - from[0].origin)
 	out.size = stretched(start, span0, _flat(to[1].origin - to[0].origin).length() / maxf(span0.length(), 0.05))
 	var axis := span0.normalized()
@@ -688,6 +697,17 @@ static func resize(start: Dictionary, from: Array[Transform3D], to: Array[Transf
 	var toward := clampf((d0 + d1) / (d1 - d0), -1.0, 1.0) if absf(d1 - d0) > 1e-4 else 0.0
 	out.center = start.center + axis * grown * 0.5 * toward
 	return out
+
+
+## How high above its ground a house raised `rise` stands once the hands holding it move from poses `from` to `to`:
+## `gain` times as far as one hand rises, or as two rise together, the lesser of the two; a course at a time, from
+## its ground up to the highest plinth. A `gain` of 0, for a house standing on a build, leaves it on that top.
+static func lifted(rise: float, from: Array[Transform3D], to: Array[Transform3D], gain: float) -> float:
+	var up := to[0].origin.y - from[0].origin.y
+	if from.size() > 1:
+		var other := to[1].origin.y - from[1].origin.y
+		up = signf(up) * minf(absf(up), absf(other)) if signf(up) == signf(other) else 0.0
+	return clampf(snappedf(rise + up * gain, WallLayout.COURSE), WallLayout.RISE.x, WallLayout.RISE.y)
 
 
 static func _flat(v: Vector3) -> Vector3:
@@ -714,13 +734,16 @@ func _join(m: Mason, w: Wall) -> void:
 	begin_resize(w)
 	_resize_hands = [first, m]
 	_resize_from = [first.hand.global_transform, m.hand.global_transform]
+	if w.on.is_empty():
+		var mid := (_resize_from[0].origin + _resize_from[1].origin) * 0.5
+		_resize_gain = Hand.reach_gain(mid.distance_to(_resize_start.center + Vector3.UP * w.layout.height * 0.5))
 
 
 func _hands_resize() -> void:
 	if _resize_hands.size() < 2:
 		return
 	var to: Array[Transform3D] = [_resize_hands[0].hand.global_transform, _resize_hands[1].hand.global_transform]
-	drag_resize(resize(_resize_start, _resize_from, to))
+	drag_resize(resize(_resize_start, _resize_from, to, _resize_gain))
 
 
 ## Starts resizing built house `w` from the garden's copy of it, dropping any pull on it not yet sent.
@@ -730,14 +753,19 @@ func begin_resize(w: Wall) -> void:
 	_resize_data = world.state.walls[w.id].duplicate(true)
 	_resize_start = house_of(_resize_data)
 	resized_to = _resize_start
-	_resize_step = roundi((resized_to.size.x + resized_to.size.y) / WallLayout.COURSE)
+	_resize_gain = 0.0
+	_resize_step = _steps(resized_to)
 	w.set_data(_resize_data)
 	_dirty = true
 
 
-## Shows the house being resized standing as `to`, with a stone sound every course's width it grows or shrinks.
+static func _steps(at: Dictionary) -> int:
+	return roundi((at.size.x + at.size.y + at.rise) / WallLayout.COURSE)
+
+
+## Shows the house being resized standing as `to`, with a stone sound every course it grows, shrinks, rises or sinks.
 func drag_resize(to: Dictionary) -> void:
-	if to.size.is_equal_approx(resized_to.size) and to.center.is_equal_approx(resized_to.center):
+	if to.size.is_equal_approx(resized_to.size) and to.center.is_equal_approx(resized_to.center) and is_equal_approx(to.rise, resized_to.rise):
 		return
 	resized_to = to
 	var d := _resize_data.duplicate(true)
@@ -750,7 +778,7 @@ func drag_resize(to: Dictionary) -> void:
 	resizing.set_data(d)
 	_meet(resizing)
 	_dirty = true
-	var step := roundi((to.size.x + to.size.y) / WallLayout.COURSE)
+	var step := _steps(to)
 	if step != _resize_step:
 		_resize_step = step
 		built.emit(&"stone", resizing.layout.points[0] + Vector3.UP * resizing.layout.height)
@@ -760,7 +788,7 @@ func end_resize(hand: Hand = null) -> void:
 	var w := resizing
 	resizing = null
 	_resize_hands.clear()
-	if resized_to.size.is_equal_approx(_resize_start.size):
+	if resized_to.size.is_equal_approx(_resize_start.size) and is_equal_approx(resized_to.rise, _resize_start.rise):
 		_relay(w)
 	else:
 		world.submit({"op": "reshape", "id": w.id, "data": reshape_house(_resize_data, resized_to)}, settle.bind(w.id), hand)

@@ -34,7 +34,7 @@
   {"op": "until", "seq": 24},
   {"op": "house", "at": [16, -1], "size": [5, 3.7], "seconds": 0.3, "on": true, "gable": "boards"},
   {"op": "until", "seq": 26},
-  {"op": "resize", "index": -1, "size": [10, 3.5], "seconds": 0.3},
+  {"op": "resize", "index": -1, "size": [10, 3.5], "rise": 0.9, "seconds": 0.3},
   {"op": "until", "seq": 27},
   {"op": "style", "hand": "right", "restyle": "tree", "tree": 0, "pick": 2, "seconds": 0.3},
   {"op": "until", "seq": 29},

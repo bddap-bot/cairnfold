@@ -15,6 +15,11 @@ enum GableEnd { WALL, BOARDS, STEPS }
 
 const COURSE := 0.3
 const HEIGHTS := Vector2(0.9, 9.0)
+## How far a house or tower on the ground may stand raised above its lowest ground, on a plinth of its own courses.
+const RISE := Vector2(0.0, 3.0)
+## The courses under a wall's foot, its plinth, stand this far proud of each face, in stone this much darker, so a
+## raised house reads as standing on them.
+const PLINTH := Vector2(0.05, 0.86)
 const THICKNESS := 0.62
 const CAP := 0.14
 const PARAPET := 0.34
@@ -87,6 +92,9 @@ const PERCH_STEP := 0.16
 
 var points: Array[Vector3] = []
 var height := 2.6
+## How far a loop on the ground stands raised above its lowest ground; the courses under its foot reach down to
+## the ground as its plinth.
+var rise := 0.0
 var arches: Array[float] = []
 var seed := 1
 ## A closed loop runs through its points and back to the first, straight between them.
@@ -115,8 +123,9 @@ var resting: Array[Massing] = []
 var joined: Array[Massing] = []
 # The fields above are what `build` reads (see `inputs`); those below are what it lays (see `adopt`).
 
-## The points the stones were laid along: `points` may have moved on while a worker lays them.
+## The points and plinth the stones were laid along: `points` and `rise` may have moved on while a worker lays them.
 var laid_points: Array[Vector3] = []
+var laid_rise := 0.0
 var samples: Array[Vector3] = []
 var lengths: Array[float] = []
 ## Per sample, how far the ground lies below the foot: a wall over a pond stands at the water and reaches down to its bed.
@@ -173,6 +182,7 @@ func opening(y: float, ring: bool) -> float:
 func build(ground: Callable, water := Callable()) -> void:
 	resample(ground, water)
 	laid_points = points.duplicate()
+	laid_rise = rise
 	_laid_count += 1
 	laid = _laid_count
 	stones.clear()
@@ -234,7 +244,7 @@ func build(ground: Callable, water := Callable()) -> void:
 		var stream := rng if k >= 0 else wet
 		stream.seed = hash([seed, "course", k])
 		var offset := (0.5 if posmod(k, 2) == 1 else 0.0) * stream.randf_range(0.3, 0.6)
-		if not plaster or k == 0:
+		if not plaster or k <= 0:
 			for i in spans.size():
 				var span: Array = spans[i]
 				for face in faces.size():
@@ -744,8 +754,8 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 			first = false
 		var l := minf(want, b - s)
 		var hj := h * rng.randf_range(0.9, 1.04)
-		var depth := THICKNESS * rng.randf_range(0.92, 1.05)
-		_add(s + l * 0.5, y0 + h * 0.5, Vector3(l, hj, depth), rng, "block", 1.0, 0.035)
+		var depth := THICKNESS * rng.randf_range(0.92, 1.05) + (PLINTH.x * 2.0 if y0 < 0.0 else 0.0)
+		_add(s + l * 0.5, y0 + h * 0.5, Vector3(l, hj, depth), rng, "block", PLINTH.y if y0 < 0.0 else 1.0, 0.035)
 		s += l
 
 
@@ -1257,6 +1267,7 @@ func inputs() -> WallLayout:
 	var w := WallLayout.new()
 	w.points = points.duplicate()
 	w.height = height
+	w.rise = rise
 	w.arches = arches.duplicate()
 	w.seed = seed
 	w.closed = closed
@@ -1279,7 +1290,7 @@ func inputs() -> WallLayout:
 
 ## Whether `other` would lay the same stones on the same ground.
 func same_inputs(other: WallLayout) -> bool:
-	return (points == other.points and height == other.height and arches == other.arches
+	return (points == other.points and height == other.height and rise == other.rise and arches == other.arches
 		and seed == other.seed and closed == other.closed and top == other.top
 		and cover == other.cover and fence == other.fence and plaster == other.plaster and gable_end == other.gable_end and timber_style == other.timber_style
 		and windows == other.windows and lanterns == other.lanterns and flags == other.flags
@@ -1290,6 +1301,7 @@ func same_inputs(other: WallLayout) -> bool:
 ## Takes what `built` laid, as if `build` had run here.
 func adopt(built: WallLayout) -> void:
 	laid_points = built.laid_points
+	laid_rise = built.laid_rise
 	samples = built.samples
 	lengths = built.lengths
 	depths = built.depths
@@ -1466,7 +1478,7 @@ func _resample_loop(ground: Callable) -> void:
 		for j in seg:
 			dense.append(a.lerp(b, float(j) / seg))
 	dense.append(points[0])
-	# On the ground a loop stands level on its lowest ground; on other builds, on the highest top under it.
+	# On the ground a loop stands level on its lowest ground, raised by `rise`; on other builds, on the highest top under it.
 	var foot := INF
 	var held := -INF
 	for q in dense:
@@ -1474,6 +1486,8 @@ func _resample_loop(ground: Callable) -> void:
 		held = maxf(held, _rest(q.x, q.z))
 	if held > -INF:
 		foot = held
+	else:
+		foot += rise
 	var acc := 0.0
 	for i in dense.size():
 		var q := Vector3(dense[i].x, foot - SINK, dense[i].z)

@@ -266,6 +266,9 @@ static func _wall(d: Variant) -> Variant:
 		return null
 	if not _in(d.get("height"), WallLayout.HEIGHTS) or typeof(d.get("seed")) != TYPE_INT or typeof(d.get("closed")) != TYPE_BOOL:
 		return null
+	var rise: Variant = d.get("rise", 0.0)
+	if not _in(rise, WallLayout.RISE) or (rise > 0.0 and not d.closed):
+		return null
 	var top: Variant = d.get("top")
 	if typeof(top) != TYPE_INT or top < 0 or top >= WallLayout.Top.size():
 		return null
@@ -302,7 +305,7 @@ static func _wall(d: Variant) -> Variant:
 	var paint: Variant = Palette.upgraded(d.get("paint"))
 	if not Palette.valid(paint):
 		return null
-	var out := {"points": points, "height": d.height, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "gable_end": gable_end, "timber_style": timber_style, "on": on, "paint": paint}
+	var out := {"points": points, "height": d.height, "rise": rise, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "gable_end": gable_end, "timber_style": timber_style, "on": on, "paint": paint}
 	if d.has("roof"):
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():
@@ -330,7 +333,7 @@ static func _reshape(d: Dictionary, now: Dictionary) -> Variant:
 		# A peer re-checks what the host cleaned, so keys stay Strings: `out.roof = ` would store a StringName.
 		if typeof(k) != TYPE_STRING:
 			return null
-		if k in ["points", "height", "top", "plaster", "gable_end", "timber_style", "arches", "windows", "lanterns", "flags", "ruins"]:
+		if k in ["points", "height", "rise", "top", "plaster", "gable_end", "timber_style", "arches", "windows", "lanterns", "flags", "ruins"]:
 			out[k] = d[k]
 			trial[k] = d[k]
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():

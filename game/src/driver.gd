@@ -242,7 +242,7 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 
 ## The house tool's carry: a square house taken up at `from` (default `at`) and set down at `at`, `size`
 ## [along, across], its front turned `turn` degrees from the x axis (the head's right with "relative"), from
-## `turn_from` (default `turn`), moving there over `seconds`; with "round", its roof is styled a cone once it
+## `turn_from` (default `turn`), moving there over `seconds` and rising `rise` metres; with "round", its roof is styled a cone once it
 ## stands, making it a round tower `size` [across, across]. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
@@ -265,7 +265,7 @@ func _house(s: Dictionary) -> void:
 	for f in frames:
 		await get_tree().process_frame
 		var k := float(f + 1) / frames
-		tool.place_house(from.lerp(to, k), lerp_angle(yaw_from, yaw, k), taken_up.lerp(size, k))
+		tool.place_house(from.lerp(to, k), lerp_angle(yaw_from, yaw, k), taken_up.lerp(size, k), snappedf(s.get("rise", 0.0) * k, WallLayout.COURSE))
 		if taken < shots and f + 1 >= frames * (taken + 1) / shots:
 			taken += 1
 			await get_tree().create_timer(0.4).timeout
@@ -278,7 +278,7 @@ func _house(s: Dictionary) -> void:
 
 
 ## Resizes the built house `index` (or under `at`) where it stands to `size` [along its ridge, across it], or a
-## tower to `size[0]` across, over `seconds`, as two hands stretching it would.
+## tower to `size[0]` across, and raised `rise` metres above its ground, over `seconds`, as two hands would.
 func _resize(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	tool.begin_resize(_wall_of(s))
@@ -288,6 +288,7 @@ func _resize(s: Dictionary) -> void:
 		await get_tree().process_frame
 		var to := start.duplicate()
 		to.size = start.size.lerp(Vector2(s.size[0], s.size[0] if start.round else s.size[1]), float(f + 1) / frames)
+		to.rise = lerpf(start.rise, s.get("rise", start.rise), float(f + 1) / frames)
 		tool.drag_resize(to)
 	tool.end_resize()
 
