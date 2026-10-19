@@ -6,10 +6,10 @@ extends MeshInstance3D
 ## down through the surface, motes and a few bubbles drift about the head, and the whole mix is muffled. Above water
 ## none of it is drawn or run.
 
-const MOTES := 160
+const MOTES := 320
 ## One mote in this many is a bubble, rising.
 const BUBBLE_EVERY := 8
-const SHAFTS := 10
+const SHAFTS := 30
 ## Motes fill a box this many metres either way of the head; shafts stand over a box half again as wide.
 const REACH := 3.0
 const MUFFLE_HZ := 650.0
