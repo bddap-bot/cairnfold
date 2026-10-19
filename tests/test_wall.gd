@@ -17,6 +17,7 @@ func _init() -> void:
 	_a_long_wall_splits_by_the_ground_under_each_stone()
 	_stone_faces_share_their_borders()
 	_settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach()
+	_far_pieces_reach_the_near_pieces_faces()
 	_full_stones_stand_only_near_the_eye()
 	_a_changing_wall_draws_far_stones_by_its_own_chunks()
 	_a_chunk_draws_again_only_the_pieces_that_changed()
@@ -212,6 +213,28 @@ func _settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach() -> void:
 	for c in m._chunks.values():
 		_check(c.instances[Wall.Part.STONE].multimesh.instance_count == 0 and c.fars[Wall.Part.STONE].multimesh.instance_count == 0, "a removed owner leaves every chunk it stood in")
 	m.free()
+
+
+## Neighbouring pieces meet face to face, so a far mesh whose faces stand inside its near mesh's opens gaps between
+## them past the near distance: boards and tiles show what is behind them.
+func _far_pieces_reach_the_near_pieces_faces() -> void:
+	for k in Wall.kinds():
+		if k.far == null:
+			continue
+		var near: PackedVector3Array = k.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		var normals: PackedVector3Array = k.mesh.surface_get_arrays(0)[Mesh.ARRAY_NORMAL]
+		var far: PackedVector3Array = k.far.surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+		for axis in [Vector3.RIGHT, Vector3.LEFT, Vector3.UP, Vector3.DOWN, Vector3.BACK, Vector3.FORWARD]:
+			var face := 0.0
+			var n := 0
+			for i in near.size():
+				if normals[i].dot(axis) > 0.999:
+					face += near[i].dot(axis)
+					n += 1
+			var reach := -INF
+			for v in far:
+				reach = maxf(reach, v.dot(axis))
+			_check(n > 0 and reach >= face / n - 0.01, "the far mesh reaches the near face toward %s: %.3f, near %.3f" % [axis, reach, face / maxi(n, 1)])
 
 
 ## A wall still changing, as one over a hill being pulled, draws its own chunks, far ones in coarse stones, and

@@ -48,8 +48,9 @@ static func rounded_box(radius: float, segments: int, seed: int) -> ArrayMesh:
 	return st.commit()
 
 
-## A unit cube (-0.5..0.5) of 8 vertices, for what only casts a shadow: BoxMesh runs 24.
-static func shadow_box() -> ArrayMesh:
+## A unit cube (-0.5..0.5) of 8 vertices, its normals leaning out at the corners: for what only casts a shadow
+## (BoxMesh runs 24), and for a stone far off, whose faces must stand where `rounded_box`'s flat faces do.
+static func plain_box() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for c in 8:

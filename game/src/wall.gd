@@ -85,7 +85,7 @@ static func kinds() -> Array[Masonry.Kind]:
 		leaf.shader = load("res://src/ivy.gdshader")
 		Quality.full_detail(leaf)
 		var off := GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		var shadow := Masonry.Kind.new(Meshes.shadow_box(), null, false, false, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
+		var shadow := Masonry.Kind.new(Meshes.plain_box(), null, false, false, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
 		_kinds.resize(Part.size())
 		_kinds[Part.STONE] = Masonry.Kind.new(Stones.mesh(), Stones.shared_material(), true, true, off, true)
 		_kinds[Part.STONE].far = Stones.far_mesh()
@@ -93,7 +93,7 @@ static func kinds() -> Array[Masonry.Kind]:
 		_kinds[Part.STONE_SHADOW] = shadow
 		_kinds[Part.TILE] = Masonry.Kind.new(Meshes.rounded_box(0.22, 2, 41), Stones.shared_material(), true, true, off, true)
 		_kinds[Part.TILE_SHADOW] = shadow
-		_kinds[Part.COAT] = Masonry.Kind.new(Meshes.shadow_box(), null, true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, true)
+		_kinds[Part.COAT] = Masonry.Kind.new(Meshes.plain_box(), null, true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, true)
 		_kinds[Part.IVY] = Masonry.Kind.new(Meshes.sprig(), leaf, true, false, off)
 		_reach(Quality.ladder[0].stone_near_m, Quality.ladder[0].ivy_m)
 	return _kinds

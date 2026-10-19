@@ -41,10 +41,11 @@ static func mesh() -> ArrayMesh:
 	return _mesh
 
 
-## A stone for far off: the same lumps at the corners alone, 12 triangles to `mesh`'s 108.
+## A stone for far off, 12 triangles to `mesh`'s 108. Its faces stand where `mesh`'s do, so a piece that meets its
+## neighbours up close still meets them far off; corners alone, as a coarse `rounded_box` is, pull every face in.
 static func far_mesh() -> ArrayMesh:
 	if _far_mesh == null:
-		_far_mesh = Meshes.rounded_box(0.14, 1, 100)
+		_far_mesh = Meshes.plain_box()
 	return _far_mesh
 
 
