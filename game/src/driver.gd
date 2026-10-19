@@ -242,11 +242,12 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 
 ## The house tool's carry: a square house taken up at `from` (default `at`) and set down at `at`, `size`
 ## [along, across], its front turned `turn` degrees from the x axis (the head's right with "relative"), from
-## `turn_from` (default `turn`), moving there over `seconds` and rising `rise` metres; with "round", its roof is styled a cone once it
-## stands, making it a round tower `size` [across, across]. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
+## `turn_from` (default `turn`), moving there over `seconds` and rising `rise` metres; with "round", the tower tool's, a
+## round tower `size` [across, across]. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
-	_holding(s, Hand.Tool.HOUSE)
+	var round: bool = s.get("round", false)
+	_holding(s, Hand.Tool.TOWER if round else Hand.Tool.HOUSE)
 	_lay_plaster(s)
 	var x: float = s.at[0]
 	var z: float = s.at[1]
@@ -256,7 +257,7 @@ func _house(s: Dictionary) -> void:
 	var yaw_from := _turn(s, x, z, s.get("turn_from", s.get("turn", 0.0)))
 	var on: int = _target(s, from).on
 	_lay_gables(s)
-	tool.begin_house(from, yaw_from, PackedInt32Array([on]) if on >= 0 else PackedInt32Array())
+	tool.begin_house(from, yaw_from, PackedInt32Array([on]) if on >= 0 else PackedInt32Array(), round)
 	var taken_up: Vector2 = tool.house_at.size
 	var size := Vector2(s.size[0], s.size[1]) if s.has("size") else taken_up
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
@@ -271,10 +272,6 @@ func _house(s: Dictionary) -> void:
 			await get_tree().create_timer(0.4).timeout
 			await main.capture("%s-%d" % [s.capture, taken])
 	tool.end_house()
-	if s.get("round", false):
-		await _frames(2)
-		var w: Wall = tool.walls[-1]
-		main.world.submit({"op": "reshape", "id": w.id, "data": WallTool.restyle_roof(main.world.state.walls[w.id], WallTool.RoofStyle.THATCHED_CONE if main.tool.thatch else WallTool.RoofStyle.CONE)})
 
 
 ## Resizes the built house `index` (or under `at`) where it stands to `size` [along its ridge, across it], or a

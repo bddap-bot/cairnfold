@@ -222,10 +222,13 @@ func _holder(rig: Rig, trackers: Dictionary) -> Callable:
 
 
 ## Directive (verbatim): "I'd like for round towers to still be possible."
-## The style tool on a house's roof: a twist to the cone stands it as a round tower, a twist on to flat squares it
-## again under a flat roof, each one undo step.
+## Report (verbatim): "I don't think there's a way to make those rounded buildings anymore. Is that right"
+## Directive (verbatim): "Let's um add a rounded building that you can place. It's another tool"
+## The tower tool in tracked hands takes up a round tower under a cone and sets it down; the style tool on its roof
+## thatches it or lays it flat and keeps it round, each one undo step.
 func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
-	await _play([{"op": "place", "x": -14, "z": 12}, {"op": "pick", "hand": "right", "tool": "house"}])
+	await _play([{"op": "place", "x": -14, "z": 12}, {"op": "pick", "hand": "right", "tool": "tower"}])
+	_check(rig.right.tool == Hand.Tool.TOWER, "the right ring picks the tower")
 	var trackers := _track_hands()
 	var hold := _holder(rig, trackers)
 	var spot := Terrain.ground(-14, 5)
@@ -234,12 +237,19 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 	var before := walls.size()
 	trackers[&"right_hand"].set_input(&"trigger_click", true)
 	await _frames(2)
+	var tool: WallTool = main.tool
+	_check(tool.house != null and tool.house_at.round and tool.house.roof.kind == RoofLayout.Kind.CONE, "the trigger takes up a round tower under a cone")
 	trackers[&"right_hand"].set_input(&"trigger_click", false)
 	await _frames(4)
-	_check(walls.size() == before + 1, "the house tool builds a house")
+	_check(walls.size() == before + 1, "letting go builds it")
 	if walls.size() != before + 1:
 		return
 	var w := walls[-1]
+	var round := func() -> bool:
+		return w.roof.kind == RoofLayout.Kind.CONE and w.layout.points.size() >= 12 and w.layout.points.all(func(p: Vector3) -> bool: return absf(Vector2(p.x - w.roof.center.x, p.z - w.roof.center.z).length() - w.roof.radius) < 0.05)
+	_check(round.call(), "its wall runs round under its cone, %.1f m across" % (w.roof.radius * 2.0))
+	_check(is_equal_approx(w.roof.radius * 2.0, WallTool.TOWER_SIZE.x) and Vector2(w.roof.center.x - spot.x, w.roof.center.z - spot.z).length() < 0.5, "where the hand pointed, %.1f m across" % (w.roof.radius * 2.0))
+	_check(is_equal_approx(w.layout.height, WallTool.TOWER_HEIGHT), "and stands a tower's height: %.1f m" % w.layout.height)
 	await _play([{"op": "pick", "hand": "right", "tool": "style"}])
 	var picker: PaletteTool = main.palette_tool
 	var restyle := func(steps: int) -> void:
@@ -257,27 +267,18 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 		await _frames(2)
 		trackers[&"right_hand"].set_input(&"trigger_click", false)
 		await _frames(6)
-	await restyle.call(1)
-	var c := _centre(w)
-	_check(w.roof.kind == RoofLayout.Kind.CONE and w.layout.points.size() >= 12, "a twist to the cone stands it as a round tower: %s roof, %d points" % [RoofLayout.Kind.keys()[w.roof.kind], w.layout.points.size()])
-	_check(w.layout.points.all(func(p: Vector3) -> bool: return absf(Vector2(p.x - w.roof.center.x, p.z - w.roof.center.z).length() - w.roof.radius) < 0.05), "its wall runs round under its roof, %.1f m across" % (w.roof.radius * 2.0))
-	_check(is_equal_approx(w.layout.height, WallTool.TOWER_HEIGHT), "and stands a tower's height: %.1f m" % w.layout.height)
-	await restyle.call(1)
-	_check(w.roof.kind == RoofLayout.Kind.GABLE and w.roof.flat() and w.layout.points.size() == 4, "a twist on squares it under a flat roof")
-	await _play([{"op": "press", "button": "dpad_down"}])
-	_check(w.roof.kind == RoofLayout.Kind.CONE, "undo stands the tower again")
-	await _play([{"op": "press", "button": "dpad_down"}])
-	_check(w.roof.kind == RoofLayout.Kind.GABLE and not w.roof.flat() and w.layout.points.size() == 4 and _centre(w).distance_to(c) < 0.1, "and the next the pitched house")
 	var coat := func() -> bool:
 		w.lay_now()
 		return not w.roof.coat.is_empty() and w.roof.tiles.all(func(t: Dictionary) -> bool: return t.kind != "tile")
-	await restyle.call(3)
-	_check(w.roof.thatch and w.roof.kind == RoofLayout.Kind.GABLE and not w.roof.flat() and coat.call(), "Directive (verbatim): \"Thatched roofs I want them as an option.\" A twist on to thatch thatches the pitched roof")
-	_check(main.tool.thatch, "and houses laid after are thatched")
-	await restyle.call(1)
-	_check(w.roof.thatch and w.roof.kind == RoofLayout.Kind.CONE and coat.call(), "the next stands it as a thatched tower")
-	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
-	_check(not w.roof.thatch and w.roof.kind == RoofLayout.Kind.GABLE and not coat.call(), "two undos tile it again")
+	await restyle.call(2)
+	_check(w.roof.thatch and not w.roof.flat() and round.call() and coat.call(), "Directive (verbatim): \"Thatched roofs I want them as an option.\" A twist on to thatch thatches the cone, still round")
+	_check(main.tool.thatch, "and builds laid after are thatched")
+	await restyle.call(-1)
+	_check(w.roof.flat() and round.call(), "a twist back lays it flat, still round")
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(w.roof.thatch and not w.roof.flat() and round.call(), "undo stands the thatched cone again")
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(not w.roof.thatch and not coat.call() and round.call(), "and the next tiles it again")
 	for t in trackers.values():
 		XRServer.remove_tracker(t)
 

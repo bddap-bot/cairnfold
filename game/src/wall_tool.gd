@@ -5,9 +5,9 @@ extends Node3D
 ## and the right A cuts or fills an arch where a walls hand points or, on a wall's top, changes its
 ## style, and on a house's gable end turns it to the next style, which houses laid after take. A grip
 ## pointed at a wall, whatever the hand holds, pulls its height, and at a roof its pitch and curvature. Each hand grabs on its own, so two hands pull two walls or roofs at once; a grip on one the other hand
-## holds takes nothing. A hand holding the house takes hold of one with its trigger, where it points, and carries it; the
+## holds takes nothing. A hand holding the house or the tower takes hold of one with its trigger, where it points, and carries it; the
 ## other hand's grip, pressed while it is carried, joins in, whatever it points at, to turn it with the pair and stretch it
-## along their span; the right A, while it is carried, rounds it into a tower or squares it again; letting go builds it. A built
+## along their span, a tower every way at once; letting go builds it. A built
 ## house held by one hand's grip takes the other's too, and the pair stretch its width or depth where it stands, and
 ## raised or lowered together raise it onto a plinth or set it back down. A path across a wall opens an arch where they cross,
 ## or an arcade where the crossing is wide: those arches follow from the paths standing, so they come and go
@@ -24,8 +24,9 @@ const HOUSE_HEIGHT := 2.4
 const TOWER_HEIGHT := 4.5
 const HOUSE_SIDES := Vector2(2.4, 14.0)
 const HOUSE_DEPTH := 7.0
-enum RoofStyle { PITCHED, CONE, FLAT, THATCHED, THATCHED_CONE }
+enum RoofStyle { PITCHED, FLAT, THATCHED }
 const HOUSE_SIZE := Vector2(4.5, 4.5)
+const TOWER_SIZE := Vector2(3.4, 3.4)
 const HOUSE_REACH := 6.0
 const TOP_BAND := 0.4
 const ROOF_STEP := 0.1
@@ -382,7 +383,7 @@ func _house_input() -> void:
 	var holders: Array[Mason] = []
 	var starting := false
 	for m in masons:
-		if m.hand.tool != Hand.Tool.HOUSE or rig.aim_hand == m.hand or not m.hand.get_has_tracking_data():
+		if not m.hand.tool in [Hand.Tool.HOUSE, Hand.Tool.TOWER] or rig.aim_hand == m.hand or not m.hand.get_has_tracking_data():
 			continue
 		if m.buttons.held("tool"):
 			holders.append(m)
@@ -404,7 +405,7 @@ func _house_input() -> void:
 			ahead.y = 0.0
 			at = Terrain.ground(rig.head.global_position.x + ahead.normalized().x * HOUSE_REACH, rig.head.global_position.z + ahead.normalized().z * HOUSE_REACH)
 		var on := aimed.get("on", -1) as int
-		begin_house(at, angle(rig.head.global_basis.x), PackedInt32Array([on]) if on >= 0 else PackedInt32Array())
+		begin_house(at, angle(rig.head.global_basis.x), PackedInt32Array([on]) if on >= 0 else PackedInt32Array(), lead.tool == Hand.Tool.TOWER)
 	if holders.is_empty():
 		if not _holders.is_empty():
 			end_house()
@@ -425,8 +426,8 @@ func _house_input() -> void:
 		place_house(to.center, to.yaw, to.size, to.rise)
 
 
-## A square house standing at `at`, its front square to `yaw`, until it is placed and let go.
-func begin_house(at: Vector3, yaw: float, on := PackedInt32Array()) -> void:
+## A square house, or a round tower under a cone, standing at `at`, its front square to `yaw`, until it is placed and let go.
+func begin_house(at: Vector3, yaw: float, on := PackedInt32Array(), round := false) -> void:
 	house = _new_wall()
 	house.on = on
 	house.layout.plaster = plaster
@@ -434,15 +435,16 @@ func begin_house(at: Vector3, yaw: float, on := PackedInt32Array()) -> void:
 	house.layout.gable_end = gable_end
 	house.layout.closed = true
 	house.layout.top = WallLayout.Top.CAP
-	house.layout.height = HOUSE_HEIGHT
+	house.layout.height = TOWER_HEIGHT if round else HOUSE_HEIGHT
 	var roof := RoofLayout.new()
+	roof.kind = RoofLayout.Kind.CONE if round else RoofLayout.Kind.GABLE
 	roof.seed = house.layout.seed
 	roof.thatch = thatch
 	house.add_roof(roof)
 	_holders.clear()
 	_laid_at.clear()
-	house_at = {"round": false, "rise": 0.0, "grounded": on.is_empty()}
-	place_house(at, yaw, HOUSE_SIZE)
+	house_at = {"round": round, "rise": 0.0, "grounded": on.is_empty()}
+	place_house(at, yaw, TOWER_SIZE if round else HOUSE_SIZE)
 
 
 ## Moving, turning or raising the house carries the stones laid as they are, walls, roof and all; a new size or plinth lays them again.
@@ -461,6 +463,8 @@ func _lay_house() -> void:
 	house.layout.points = outline
 	house.layout.rise = house_at.rise
 	house.roof.pitch = pitch_for(house_at)
+	house.roof.center = house_at.center
+	house.roof.radius = house_at.size.x * 0.5
 	_meet(house)
 	_laid_at.append({"points": outline, "center": house_at.center, "yaw": house_at.yaw, "rise": house_at.rise})
 	_house_dirty = true
@@ -520,33 +524,17 @@ static func pitch_for(at: Dictionary) -> float:
 static func roof_style(d: Dictionary) -> RoofStyle:
 	if d.roof.pitch <= 0.0:
 		return RoofStyle.FLAT
-	if d.roof.kind == RoofLayout.Kind.CONE:
-		return RoofStyle.THATCHED_CONE if d.roof.thatch else RoofStyle.CONE
 	return RoofStyle.THATCHED if d.roof.thatch else RoofStyle.PITCHED
 
 
-## The `reshape` that gives the house or tower with garden data `d` roof `style`. A cone stands it as a round tower
-## as wide as its shorter side; a pitched or flat roof on a tower stands it as a square house as wide. A pitched roof
-## or cone is tiled or thatched; a flat one keeps the covering it had for when it is pitched again.
+## The `reshape` that gives the house or tower with garden data `d` roof `style`. A flat roof keeps the covering it
+## had for when it is pitched again.
 static func restyle_roof(d: Dictionary, style: RoofStyle) -> Dictionary:
-	var at := house_of(d)
-	var round := style in [RoofStyle.CONE, RoofStyle.THATCHED_CONE]
-	var out := {"roof": {}}
-	if at.round != round:
-		var side := clampf(minf(at.size.x, at.size.y), HOUSE_SIDES.x, HOUSE_DEPTH)
-		at = {"center": at.center, "yaw": at.yaw, "size": Vector2(side, side), "round": round}
-		out = reshape_house(d, at)
-		out["height"] = TOWER_HEIGHT if round else HOUSE_HEIGHT
-		out["roof"]["kind"] = int(RoofLayout.Kind.CONE if round else RoofLayout.Kind.GABLE)
-		out["roof"]["pitch"] = pitch_for(at)
-		out["roof"]["chimneys"] = PackedVector2Array() if round else out["roof"]["chimneys"]
-		out["roof"]["flag"] = false
 	if style == RoofStyle.FLAT:
-		out["roof"]["pitch"] = 0.0
-		return out
-	out["roof"]["thatch"] = style in [RoofStyle.THATCHED, RoofStyle.THATCHED_CONE]
+		return {"roof": {"pitch": 0.0}}
+	var out := {"roof": {"thatch": style == RoofStyle.THATCHED}}
 	if d.roof.pitch <= 0.0:
-		out["roof"]["pitch"] = pitch_for(at)
+		out.roof.pitch = pitch_for(house_of(d))
 	return out
 
 

@@ -35,6 +35,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_wall(root)
 		Hand.Tool.HOUSE:
 			_house(root)
+		Hand.Tool.TOWER:
+			_tower(root)
 		Hand.Tool.FENCE:
 			_fence(root)
 		Hand.Tool.WINDOWS:
@@ -78,15 +80,15 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_seeds(root)
 		Hand.Tool.EASEL:
 			_easel(root)
-	if tool in [Hand.Tool.WALLS, Hand.Tool.HOUSE]:
+	if tool in [Hand.Tool.WALLS, Hand.Tool.HOUSE, Hand.Tool.TOWER]:
 		for part in root.get_children():
 			part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22), Vector3.ZERO) * part.transform
 	return root
 
 
-## A miniature of choice `i` of a style the style tool sets (`PaletteTool.styles`), a build's in stone or plaster;
-## a gable end's turned to face the eye.
-static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool) -> Node3D:
+## A miniature of choice `i` of a style the style tool sets (`PaletteTool.styles`), a build's in stone or plaster,
+## a roof's over a house or a round tower; a gable end's turned to face the eye.
+static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round := false) -> Node3D:
 	var root := Node3D.new()
 	if restyle == PaletteTool.Restyle.TREE:
 		_tree(root, i as FloraLayout.Species)
@@ -97,11 +99,12 @@ static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool) -> Node
 		PaletteTool.Restyle.GABLE:
 			_house(root, plastered, i as WallLayout.GableEnd)
 		PaletteTool.Restyle.ROOF:
-			var thatched: bool = i in [WallTool.RoofStyle.THATCHED, WallTool.RoofStyle.THATCHED_CONE]
-			if i in [WallTool.RoofStyle.CONE, WallTool.RoofStyle.THATCHED_CONE]:
-				_tower(root, plastered, thatched)
+			var thatched := i == WallTool.RoofStyle.THATCHED
+			var flat := i == WallTool.RoofStyle.FLAT
+			if round:
+				_tower(root, plastered, thatched, flat)
 			else:
-				_house(root, plastered, WallLayout.GableEnd.WALL, i == WallTool.RoofStyle.FLAT, 0, thatched)
+				_house(root, plastered, WallLayout.GableEnd.WALL, flat, 0, thatched)
 		PaletteTool.Restyle.TOP:
 			_wall(root, plastered, i as WallLayout.Top)
 		PaletteTool.Restyle.FACE:
@@ -516,21 +519,21 @@ static func _house(root: Node3D, plastered := false, gable_end := WallLayout.Gab
 	_roofed(root, layout, roof, plastered)
 
 
-## A round tower under a cone roof.
-static func _tower(root: Node3D, plastered := false, thatched := false) -> void:
+## A round tower under a cone roof, or a flat one.
+static func _tower(root: Node3D, plastered := false, thatched := false, flat := false) -> void:
 	var layout := WallLayout.new()
 	layout.plaster = plastered
 	layout.seed = 9
 	layout.height = 3.2
 	layout.top = WallLayout.Top.CAP
 	layout.closed = true
-	layout.cover = WallLayout.Cover.ROOF
+	layout.cover = WallLayout.Cover.DECK if flat else WallLayout.Cover.ROOF
 	layout.points = WallLayout.circle(Vector3.ZERO, 1.2)
 	var roof := RoofLayout.new()
 	roof.seed = 9
 	roof.kind = RoofLayout.Kind.CONE
 	roof.radius = 1.2
-	roof.pitch = WallTool.pitch_for({"round": true, "size": Vector2(2.4, 2.4)})
+	roof.pitch = 0.0 if flat else WallTool.pitch_for({"round": true, "size": Vector2(2.4, 2.4)})
 	roof.thatch = thatched
 	layout.gable = roof
 	layout.build(_flat)

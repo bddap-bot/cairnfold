@@ -7,7 +7,7 @@ extends Node3D
 ## is one undo step. The colour tool's choices are swatches of the material pointed at: a build's stone, roof
 ## tiles, woodwork (fences, window frames, doors) or plaster, as a `reshape` of its paint (builds laid after
 ## take the swatch let go last), or on the meadow the garden's season. The style tool's are miniatures of the
-## styles of what it points at: a gable end's, a roof's (pitched or a tower's cone, each tiled or thatched, or flat), a roofless wall's top,
+## styles of what it points at: a gable end's, a roof's (tiled, thatched or flat, a house's or a tower's), a roofless wall's top,
 ## a wall's face (stone or plaster, plain or arched there; builds laid after take the material let go last), or a
 ## tree's species.
 
@@ -172,7 +172,7 @@ func open(hand: Hand, target: Dictionary) -> void:
 	w.node = Node3D.new()
 	w.node.top_level = true
 	for i in target.count:
-		var choice := _swatch(target.element, i) if target.tool == Hand.Tool.COLOUR else _style(target.restyle, i, target.wall != null and target.wall.layout.plaster)
+		var choice := _swatch(target.element, i) if target.tool == Hand.Tool.COLOUR else _style(target.restyle, i, target.wall)
 		w.node.add_child(choice)
 		w.choices.append(choice)
 	add_child(w.node)
@@ -181,9 +181,9 @@ func open(hand: Hand, target: Dictionary) -> void:
 
 
 ## A style's miniature smaller than it stands on a controller, so the wheel's choices stay apart.
-static func _style(restyle: Restyle, i: int, plastered: bool) -> Node3D:
+static func _style(restyle: Restyle, i: int, wall: Wall) -> Node3D:
 	var holder := Node3D.new()
-	var model := ToolModels.style(restyle, i, plastered)
+	var model := ToolModels.style(restyle, i, wall != null and wall.layout.plaster, wall != null and wall.roof != null and wall.roof.kind == RoofLayout.Kind.CONE)
 	model.scale = Vector3.ONE * 0.7
 	holder.add_child(model)
 	return holder
@@ -303,7 +303,7 @@ func close(hand: Hand) -> void:
 	elif w.wall >= 0 and w.target.restyle == Restyle.GABLE:
 		walls.gable_end = w.pick as WallLayout.GableEnd
 	elif w.wall >= 0 and w.target.restyle == Restyle.ROOF and w.pick != WallTool.RoofStyle.FLAT:
-		walls.thatch = w.pick in [WallTool.RoofStyle.THATCHED, WallTool.RoofStyle.THATCHED_CONE]
+		walls.thatch = w.pick == WallTool.RoofStyle.THATCHED
 	elif w.wall >= 0 and w.target.restyle == Restyle.FACE:
 		walls.plaster = w.pick >= Face.PLASTER
 		walls.timber_style = w.pick - Face.ALSACE if w.pick >= Face.ALSACE else -1

@@ -4,7 +4,7 @@ extends XRController3D
 ## A controller and the tool it holds. Every tool's input code dispatches on `tool`, and the object on top
 ## of the controller and the selection wheel show it, so they cannot disagree.
 
-enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, HANDS, SEEDS, DIRT_PATH, STYLE, STAIRS, EASEL }
+enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, HANDS, SEEDS, DIRT_PATH, STYLE, STAIRS, EASEL, TOWER }
 
 ## The wheel's contents, clockwise from the top; an Array is a subtree, null an empty slot. Fixed, so every
 ## pick is a learnable motion.
@@ -16,7 +16,7 @@ const TREE := [
 	Tool.DELETE,
 	[Tool.PATH, Tool.DIRT_PATH, Tool.STONE, Tool.STAIRS],
 	[Tool.WALLS, Tool.FENCE, Tool.WINDOWS],
-	[Tool.HOUSE, Tool.DECORATIONS],
+	[Tool.HOUSE, Tool.TOWER, Tool.DECORATIONS],
 ]
 const TOP := Vector3(0, 0.0075, 0.045)
 const POP := 0.18

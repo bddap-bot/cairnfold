@@ -21,5 +21,8 @@
   {"op": "pick", "hand": "right", "tool": "style", "capture": "10-style", "popping": "11-style-taken"},
   {"op": "wait", "seconds": 0.5},
   {"op": "capture", "name": "12-holding-style"},
+  {"op": "pick", "hand": "right", "tool": "tower", "capture": "13-tower", "popping": "14-tower-taken"},
+  {"op": "wait", "seconds": 0.5},
+  {"op": "capture", "name": "15-holding-tower"},
   {"op": "quit"}
 ]
