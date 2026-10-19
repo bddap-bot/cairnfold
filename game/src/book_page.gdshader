@@ -22,7 +22,7 @@ uniform float front_fade = 0.0;
 uniform float back_fade = 0.0;
 uniform float front_seed = 0.0;
 uniform float back_seed = 1.0;
-uniform vec3 paper : source_color = vec3(0.96, 0.92, 0.81);
+uniform vec3 paper : source_color = vec3(0.97, 0.91, 0.78);
 uniform vec3 ink : source_color = vec3(0.33, 0.3, 0.24);
 uniform vec3 leaf : source_color = vec3(0.47, 0.6, 0.41);
 
@@ -99,7 +99,7 @@ vec4 sprig(vec2 p, vec2 root, float dir, float seed, vec3 bloom) {
 vec3 page(vec2 p, bool drawn, sampler2D picture, vec3 wash, float fade, float seed, float spine_dist) {
 	float grain = fbm(p * 140.0 + seed);
 	vec3 c = paper * (0.95 + 0.06 * grain);
-	c *= mix(0.8, 1.0, smoothstep(0.0, 0.14, spine_dist));
+	c *= mix(0.62, 1.0, smoothstep(0.0, 0.16, spine_dist));
 	float edge_dist = min(min(p.x, 1.0 - p.x), min(p.y, 1.0 - p.y));
 	c *= mix(0.86, 1.0, smoothstep(0.0, 0.025 + 0.01 * noise(p * 40.0), edge_dist));
 	if (!drawn) {
@@ -109,22 +109,22 @@ vec3 page(vec2 p, bool drawn, sampler2D picture, vec3 wash, float fade, float se
 		float a = hash(id + seed) * TAU;
 		float l = 1.0 - smoothstep(-0.2, 0.15, ellipse(f, vec2(0.0), vec2(0.28, 0.12), a));
 		float dot_ = 1.0 - smoothstep(0.04, 0.07, length(fract(cell + 0.5) - 0.5));
-		c = mix(c, mix(leaf, paper, 0.35), l * 0.75);
-		c = mix(c, vec3(0.86, 0.6, 0.55), dot_ * 0.6);
+		c = mix(c, leaf * 0.9, l * 0.85);
+		c = mix(c, vec3(0.82, 0.48, 0.42), dot_ * 0.8);
 		return c;
 	}
-	vec2 centre = vec2(0.5, 0.45);
-	vec2 half_ = vec2(0.39, 0.29);
+	vec2 centre = vec2(0.5, 0.455);
+	vec2 half_ = vec2(0.415, 0.315);
 	float wob = (fbm(p * 26.0 + seed * 3.0) - 0.5) * 0.026 + (noise(p * 120.0 + seed) - 0.5) * 0.006;
 	float d = box(p, centre, half_ - 0.02) - 0.02 + wob;
 	float inside = 1.0 - smoothstep(-0.002, 0.002, d);
 	vec2 uv = (p - (centre - half_)) / (2.0 * half_);
 	vec4 shot = texture(picture, clamp(uv, vec2(0.0), vec2(1.0)));
-	vec3 sky = mix(wash, paper, smoothstep(0.1, 0.95, uv.y) * 0.75);
-	sky = mix(sky, paper, (fbm(uv * vec2(5.0, 9.0) + seed) - 0.4) * 0.5);
+	vec3 sky = mix(paper, wash, 0.45 * (1.0 - smoothstep(0.0, 0.85, uv.y)));
+	sky = mix(sky, paper, clamp((fbm(uv * vec2(5.0, 9.0) + seed) - 0.45) * 0.6, 0.0, 1.0));
 	vec3 pic = mix(sky, shot.rgb, shot.a * (1.0 - fade));
 	pic = mix(pic, sky, fade * 0.3);
-	pic *= 0.94 + 0.08 * grain;
+	pic *= 0.97 + 0.05 * grain;
 	float pool = smoothstep(-0.018, 0.0, d) * inside;
 	pic *= 1.0 - pool * 0.18;
 	c = mix(c, pic, inside);

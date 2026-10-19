@@ -1191,6 +1191,17 @@ func _page_cost(s: Dictionary) -> void:
 		renders[renders.size() / 2] if not renders.is_empty() else 0.0, total / maxi(frames, 1), views[views.size() / 2] if not views.is_empty() else 0.0])
 
 
+## Looks at the held book's middle from `eye`, metres from it along the player's right, up and back.
+func _view_book(s: Dictionary) -> void:
+	var b: Book = main.book
+	var shut := b.at == 0 and b._turn.is_empty()
+	var mid := b.global_transform * Vector3(Book.W * 0.5 if shut else 0.0, 0.0, 0.0)
+	_eye = mid + main.rig.global_basis * Lessons._v(s.eye)
+	_at = mid
+	main.view(_eye, _at, false)
+	await get_tree().process_frame
+
+
 ## The picture book in the hand holding it: "open" it, "turn" a leaf on or "back", then wait `seconds`.
 func _book(s: Dictionary) -> void:
 	var b: Book = main.book

@@ -36,7 +36,7 @@ const PAGES := [
 			{"t": 3.0, "right": {"at": [0.2, -0.3, -0.42], "aim": [0.0, -0.35, -1.0]}},
 		], "press": [{"hand": "right", "action": "wheel", "from": 0.4, "to": 1.8}]},
 	{"effect": "teleport", "length": 3.6, "tools": {"left": "hands"},
-		"view": {"look": "top", "back": 0.4},
+		"view": {"look": "top", "back": 0.55},
 		"keys": [
 			{"t": 0.0, "left": {"at": [-0.2, -0.35, -0.32], "aim": [0.0, -0.35, -1.0]}},
 		], "press": [{"hand": "left", "action": "teleport", "from": 0.5, "to": 2.0}]},
@@ -53,7 +53,7 @@ const PAGES := [
 			{"t": 2.0, "right": {"at": [0.2, -0.14, -0.36], "aim": [0.0, -0.4, -1.0]}},
 		], "press": [{"hand": "right", "action": "grab", "from": 0.5, "to": 2.6}]},
 	{"effect": "sky", "length": 3.8, "tools": {"right": "walls"},
-		"view": {"look": "side", "back": 0.4},
+		"view": {"look": "side", "back": 0.85},
 		"keys": [
 			{"t": 0.0, "right": {"at": [0.2, -0.25, -0.35], "aim": [-0.7, 1.0, -0.8]}},
 			{"t": 0.8, "right": {"at": [0.2, -0.25, -0.35], "aim": [-0.7, 1.0, -0.8]}},
@@ -67,14 +67,14 @@ const PAGES := [
 			{"t": 2.3, "right": {"at": [0.2, -0.32, -0.36], "aim": [-0.07, -0.3, -1.0], "roll": -75.0}},
 		], "press": [{"hand": "right", "action": "tool", "from": 0.5, "to": 2.7}]},
 	{"effect": "house", "length": 4.2, "tools": {"left": "hands", "right": "house"},
-		"view": {"look": "side", "back": 0.5},
+		"view": {"look": "top", "back": 0.42},
 		"keys": [
 			{"t": 0.0, "left": {"at": [-0.12, -0.36, -0.36], "aim": [0.0, -0.5, -1.0]}, "right": {"at": [0.12, -0.36, -0.36], "aim": [0.0, -0.5, -1.0]}},
 			{"t": 1.4, "left": {"at": [-0.12, -0.36, -0.36], "aim": [0.0, -0.5, -1.0]}, "right": {"at": [0.12, -0.36, -0.36], "aim": [0.0, -0.5, -1.0]}},
 			{"t": 2.5, "left": {"at": [-0.3, -0.36, -0.36], "aim": [0.0, -0.5, -1.0]}, "right": {"at": [0.3, -0.36, -0.36], "aim": [0.0, -0.5, -1.0]}},
 		], "press": [{"hand": "right", "action": "tool", "from": 0.4, "to": 3.0}, {"hand": "left", "action": "grab", "from": 1.0, "to": 3.0}]},
 	{"effect": "wipe", "length": 4.6, "setup": [{"op": "wall", "points": [[-3, 4], [3, 4]], "relative": true, "seconds": 0.3}, {"op": "tree", "x": 4, "z": 5, "relative": true}], "tools": {"right": "delete"},
-		"view": {"look": "side", "back": 0.45},
+		"view": {"look": "side", "back": 0.75},
 		"keys": [
 			{"t": 0.0, "right": {"at": [0.2, -0.32, -0.32], "aim": [0.0, -0.3, -1.0]}},
 			{"t": 0.4, "right": {"at": [0.2, -0.32, -0.32], "aim": [0.0, -0.3, -1.0]}},

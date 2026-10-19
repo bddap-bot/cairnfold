@@ -12,7 +12,7 @@ extends Node3D
 const W := 0.15
 const H := 0.15
 const LEAF_T := 0.0022
-const COVER_T := 0.003
+const COVER_T := 0.0042
 const OVER := 0.005
 const TILT := deg_to_rad(80.0)
 const OPEN_S := 0.85
@@ -68,9 +68,9 @@ func _init(live_pages := true) -> void:
 		add_child(_sheets[i])
 	_ribbon = MeshInstance3D.new()
 	var strip := PlaneMesh.new()
-	strip.size = Vector2(0.008, 0.11)
+	strip.size = Vector2(0.009, 0.07)
 	strip.subdivide_depth = 10
-	strip.center_offset = Vector3(0, 0, 0.055)
+	strip.center_offset = Vector3(0, 0, 0.035)
 	_ribbon.mesh = strip
 	_ribbon_mat = ShaderMaterial.new()
 	_ribbon_mat.shader = preload("res://src/book_ribbon.gdshader")

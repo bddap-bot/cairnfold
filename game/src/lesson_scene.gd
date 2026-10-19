@@ -14,6 +14,10 @@ const FADE_S := 0.35
 const GROUND := -0.95
 const K := 0.5
 const PROP := 14.0 * K
+## The ghost controllers are drawn this much larger than life, so their buttons read on a page.
+const GHOST := 1.3
+## How far the sun stands from the sky page's meadow.
+const SUN := 1.4
 
 var page: Dictionary
 var index := 0
@@ -46,18 +50,18 @@ func _init(i: int) -> void:
 	env.background_mode = Environment.BG_CLEAR_COLOR
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	env.ambient_light_color = Color(0.78, 0.84, 0.92)
-	env.ambient_light_energy = 0.55
+	env.ambient_light_energy = 0.5
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
 	env.tonemap_exposure = Look.EXPOSURE
 	env.adjustment_enabled = true
-	env.adjustment_saturation = 1.12
-	env.adjustment_contrast = 1.04
+	env.adjustment_saturation = 1.3
+	env.adjustment_contrast = 1.1
 	var we := WorldEnvironment.new()
 	we.environment = env
 	stage.add_child(we)
 	var day := Daylight.light(Daylight.DEFAULT)
 	_sun_light.light_color = day.sun
-	_sun_light.light_energy = day.energy
+	_sun_light.light_energy = day.energy * 1.15
 	_sun_light.basis = Basis.looking_at(Vector3(-0.4, -0.75, -0.55))
 	stage.add_child(_sun_light)
 	camera.near = 0.01
@@ -68,6 +72,7 @@ func _init(i: int) -> void:
 	_build_dish()
 	for side in Lessons.hands(page):
 		var pad := Pad.new(side == "right")
+		pad.scale = Vector3.ONE * GHOST
 		pad.hold(Lessons.tool(page.tools.get(side, "hands")))
 		stage.add_child(pad)
 		pads[side] = pad
@@ -115,16 +120,29 @@ func _frame() -> void:
 	var outward := along.cross(Vector3.UP).normalized() * (1.0 if acting == "right" else -1.0)
 	var lift := Vector3(0, 0.6, 0) if page.view.get("look", "top") == "top" else Vector3(0, -0.25, 0) + outward * 0.55
 	var eye: Vector3 = Lessons._v(page.view.eye) if page.view.has("eye") else mid + (-along + lift).normalized() * page.view.back
-	points.append_array(hands)
+	for h in hands:
+		for c in [Vector3(-1, -1, -1), Vector3(1, 1, 1), Vector3(-1, 1, 1), Vector3(1, -1, -1), Vector3(1, -1, 1), Vector3(-1, 1, -1)]:
+			points.append(h + c * 0.06 * GHOST)
+	if page.effect != "page":
+		for c in [Vector3(-0.42, 0, 0), Vector3(0.42, 0, 0), Vector3(0, 0, -0.35), Vector3(0, 0, 0.35)]:
+			points.append(_dish_at() + c)
 	var look := Vector3.ZERO
 	for p in points:
 		look += (p - eye).normalized()
-	look = look.normalized()
-	var wide := 0.0
-	for p in points:
-		wide = maxf(wide, look.angle_to(p - eye))
-	camera.look_at_from_position(eye, eye + look, Vector3.UP if absf(look.y) < 0.95 else Vector3.BACK)
-	camera.fov = clampf(rad_to_deg(wide) * 2.0 * 1.15 + 4.0, 30.0, 80.0)
+	for pass_ in 2:
+		camera.transform = Transform3D(Basis.looking_at(look, Vector3.UP if absf(look.normalized().y) < 0.95 else Vector3.BACK), eye)
+		var lo := Vector2.INF
+		var hi := -Vector2.INF
+		for p in points:
+			var q := camera.transform.affine_inverse() * p
+			var a := Vector2(q.x, q.y) / maxf(-q.z, 0.05)
+			lo = lo.min(a)
+			hi = hi.max(a)
+		var mid_a := (lo + hi) * 0.5
+		look = camera.basis * Vector3(mid_a.x, mid_a.y, -1.0)
+		var half := (hi - lo) * 0.5
+		var aspect := float(SIZE.x) / SIZE.y
+		camera.fov = clampf(rad_to_deg(2.0 * atan(maxf(half.y, half.x / aspect) * 1.18)), 24.0, 84.0)
 
 
 func _ready() -> void:
@@ -153,7 +171,7 @@ func _pose(at: float) -> void:
 		var f := Lessons.frame(p)
 		if side in page.get("book", []):
 			f = _book_frame() * f
-		pad.transform = f
+		pad.transform = f.scaled_local(Vector3.ONE * GHOST)
 		var tracker: String = side + "_hand"
 		for press in page.press:
 			if press.hand != side:
@@ -188,7 +206,7 @@ func _dish_at() -> Vector3:
 	var side: String = page.press[0].hand if not page.press.is_empty() else Lessons.hands(page)[-1]
 	var f := Lessons.frame(Lessons.pose(page, side, page.press[0].from if not page.press.is_empty() else 0.0))
 	var d := -f.basis.z
-	var at := Vector3(f.origin.x * 0.5, GROUND, -1.3)
+	var at := Vector3(f.origin.x * 0.5, GROUND, -1.0)
 	if d.y < -0.05:
 		at = f.origin + d * minf((GROUND - f.origin.y) / d.y, 2.2)
 		at.y = GROUND
@@ -246,10 +264,16 @@ static func _pop(k: float) -> float:
 # The page that teaches turning the page: a little open book in the left hand, turned by the right's sweep.
 func _build_page() -> void:
 	dish.visible = false
+	pads.left.visible = false
 	var b := Book.new(false)
 	b.at = 1
 	stage.add_child(b)
 	_fx.book = b
+
+
+func _focus_page() -> Array[Vector3]:
+	var f := Lessons.frame(Lessons.pose(page, "left", 0.0)) * Book.local(1.0)
+	return [f * Vector3(-Book.W, 0, -Book.H * 0.5), f * Vector3(Book.W, 0, -Book.H * 0.5), f * Vector3(-Book.W, 0, Book.H * 0.5), f * Vector3(Book.W, 0, Book.H * 0.5)]
 
 
 func _book_frame() -> Transform3D:
@@ -411,7 +435,7 @@ func _play_hill(at: float) -> void:
 		_mark.position = hit + Vector3.UP * 0.02
 		return
 	var point: Vector3 = _fx.point
-	var lift: float = (y - _fx.from) * Hand.reach_gain(point.distance_to(pads.right.position)) * K if holding else mat.get_shader_parameter("hill_height")
+	var lift: float = (y - _fx.from) * Hand.reach_gain(point.distance_to(pads.right.position)) * K * 1.6 if holding else mat.get_shader_parameter("hill_height")
 	mat.set_shader_parameter("hill_at", Vector2(point.x - dish.position.x, point.z - dish.position.z) / K)
 	mat.set_shader_parameter("hill_height", maxf(lift, 0.0))
 	if holding:
@@ -440,7 +464,10 @@ func _focus_sky() -> Array[Vector3]:
 	var start: Vector3 = Lessons.pose(page, "right", 0.0).aim
 	var end: Vector3 = Lessons.pose(page, "right", page.length).aim
 	var up := _dish_at() + Vector3.UP * 0.2
-	return [up + from * 2.0, up + Quaternion(start.normalized(), end.normalized()) * from * 2.0]
+	var out: Array[Vector3] = []
+	for p in [up + from * SUN, up + Quaternion(start.normalized(), end.normalized()) * from * SUN]:
+		out.append_array([p + Vector3.UP * 0.2, p + Vector3.RIGHT * 0.2, p - Vector3.RIGHT * 0.2])
+	return out
 
 
 func _play_sky(at: float) -> void:
@@ -449,7 +476,7 @@ func _play_sky(at: float) -> void:
 	var from := Vector3(-0.35, 0.75, -0.55).normalized()
 	var to_sun := Quaternion(start.normalized(), aim.normalized()) * from
 	var sun: Node3D = _fx.sun
-	sun.position = _dish_at() + Vector3.UP * 0.2 + to_sun * 2.0
+	sun.position = _dish_at() + Vector3.UP * 0.2 + to_sun * SUN
 	var time := Daylight.DEFAULT + 0.12 * (to_sun.x + 0.35)
 	var l := Daylight.light(time)
 	_sun_light.light_color = l.sun
@@ -583,7 +610,8 @@ func _reset_wipe() -> void:
 
 func _focus_wipe() -> Array[Vector3]:
 	var f := Lessons.frame(Lessons.pose(page, "right", page.length))
-	return [f.origin - f.basis.z * 0.95]
+	var orb := f.origin - f.basis.z * 0.5
+	return [orb + Vector3.UP * 0.24, orb + Vector3.RIGHT * 0.24, orb - Vector3.RIGHT * 0.24]
 
 
 func _play_wipe(at: float) -> void:
@@ -593,7 +621,7 @@ func _play_wipe(at: float) -> void:
 	orb.visible = held >= 0.0 and k < 1.0
 	var aim: Vector3 = -pads.right.transform.basis.z
 	if orb.visible:
-		orb.position = pads.right.position + aim * 0.75
+		orb.position = pads.right.position + aim * 0.5
 		orb.scale = Vector3.ONE * maxf(k * k, 0.02)
 		(orb.material_override as StandardMaterial3D).albedo_color = Color(DeleteTool.TINT, lerpf(0.15, 0.85, k))
 		_ray("right", orb.position)

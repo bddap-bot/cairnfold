@@ -3,7 +3,7 @@ render_mode unshaded, cull_disabled, depth_draw_never, shadows_disabled, blend_m
 
 // A soft ring that always faces the eye: a press's pulse (`fill` 1) or a held button's timer, its arc filled to `fill`
 // clockwise from the top over a faint track.
-uniform vec4 colour : source_color = vec4(1.0, 0.86, 0.5, 1.0);
+uniform vec4 colour : source_color = vec4(1.0, 0.62, 0.2, 1.0);
 uniform float radius = 0.02;
 uniform float width = 0.0035;
 uniform float fill = 1.0;

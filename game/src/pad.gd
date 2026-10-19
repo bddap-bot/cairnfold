@@ -5,9 +5,9 @@ extends Node3D
 ## a grip under the middle finger, a thumbstick and two face buttons. The picture book's ghost hands hold it; a
 ## pressed part sinks and glows, a soft ring pulses out from it, and a held part's ring fills as the hold is timed.
 
-const SHELL := Color(0.95, 0.92, 0.86)
-const PART := Color(0.6, 0.57, 0.55)
-const GLOW := Color(1.0, 0.8, 0.42)
+const SHELL := Color(0.7, 0.77, 0.86)
+const PART := Color(0.3, 0.34, 0.42)
+const GLOW := Color(1.0, 0.55, 0.12)
 const PULSE := 0.9
 const TOOL_AT := Vector3(0, 0.02, 0.07)
 
@@ -70,8 +70,8 @@ func show_input(input: String, held_s: float, hold_s := 0.0) -> void:
 	mat.emission_enabled = on
 	if on:
 		var breathe := 0.75 + 0.25 * cos(held_s * TAU / PULSE)
-		mat.emission = GLOW * breathe * 1.6
-		mat.albedo_color = PART.lerp(GLOW, 0.65)
+		mat.emission = GLOW * breathe * 3.0
+		mat.albedo_color = GLOW
 	else:
 		mat.albedo_color = PART
 	match key:
@@ -89,8 +89,8 @@ func show_input(input: String, held_s: float, hold_s := 0.0) -> void:
 	if on:
 		var k := fposmod(held_s, PULSE) / PULSE
 		var m: ShaderMaterial = pulse.material_override
-		m.set_shader_parameter("radius", lerpf(0.012, 0.05, k))
-		m.set_shader_parameter("alpha", (1.0 - k) * (1.0 - k) * 0.9)
+		m.set_shader_parameter("radius", lerpf(0.014, 0.055, k))
+		m.set_shader_parameter("alpha", (1.0 - k) * 1.0)
 		pulse.global_position = part.global_position
 	var ring: MeshInstance3D = _rings[key]
 	ring.visible = on and hold_s > 0.0
@@ -109,8 +109,9 @@ func _part(key: String, parent: Node3D, size: Vector3, at: Transform3D, seed: in
 	_mats[key] = mi.material_override
 	_pulses[key] = _ring(0.9, 1.0, 0.0)
 	_rings[key] = _ring(1.0, 0.0, 0.35)
-	_rings[key].material_override.set_shader_parameter("radius", 0.03)
-	_rings[key].material_override.set_shader_parameter("width", 0.005)
+	_rings[key].material_override.set_shader_parameter("radius", 0.032)
+	_rings[key].material_override.set_shader_parameter("width", 0.008)
+	_pulses[key].material_override.set_shader_parameter("width", 0.006)
 
 
 func _ring(alpha: float, fill: float, track: float) -> MeshInstance3D:

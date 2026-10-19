@@ -1,0 +1,330 @@
+[
+ {
+  "op": "place",
+  "x": 0,
+  "z": 6
+ },
+ {
+  "op": "wall",
+  "points": [
+   [
+    -6,
+    -3
+   ],
+   [
+    -2,
+    -5
+   ],
+   [
+    3,
+    -4.5
+   ]
+  ],
+  "seconds": 0.4
+ },
+ {
+  "op": "house",
+  "at": [
+   4.5,
+   -6
+  ],
+  "size": [
+   5,
+   4
+  ],
+  "seconds": 0.4
+ },
+ {
+  "op": "tree",
+  "x": -5,
+  "z": 0
+ },
+ {
+  "op": "tree",
+  "x": 7,
+  "z": -1
+ },
+ {
+  "op": "paint",
+  "tool": "flowers",
+  "points": [
+   [
+    -2,
+    2
+   ],
+   [
+    2,
+    2.5
+   ]
+  ],
+  "radius": 1.4,
+  "seconds": 0.4
+ },
+ {
+  "op": "wait",
+  "seconds": 2
+ },
+ {
+  "op": "pick",
+  "hand": "left",
+  "tool": "book"
+ },
+ {
+  "op": "view",
+  "eye": [
+   0,
+   1.65,
+   6
+  ],
+  "at": [
+   0,
+   1.25,
+   5.3
+  ],
+  "ground": true
+ },
+ {
+  "op": "hold_pose",
+  "hand": "left",
+  "at": [
+   -0.04,
+   -0.33,
+   -0.36
+  ],
+  "aim": [
+   0.1,
+   -0.35,
+   -1.0
+  ]
+ },
+ {
+  "op": "hold_pose",
+  "hand": "right",
+  "at": [
+   0.3,
+   -0.6,
+   -0.15
+  ],
+  "aim": [
+   0,
+   -1,
+   -0.3
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1.5
+ },
+ {
+  "op": "capture",
+  "name": "00-held-shut"
+ },
+ {
+  "op": "wait",
+  "seconds": 0.3
+ },
+ {
+  "op": "view_book",
+  "eye": [
+   0.07,
+   0.1,
+   0.2
+  ]
+ },
+ {
+  "op": "capture",
+  "name": "01-shut-close"
+ },
+ {
+  "op": "wait",
+  "seconds": 0.3
+ },
+ {
+  "op": "view_book",
+  "eye": [
+   0.03,
+   0.22,
+   0.3
+  ]
+ },
+ {
+  "op": "capture",
+  "name": "02-shut"
+ },
+ {
+  "op": "book",
+  "do": "open",
+  "seconds": 0.2
+ },
+ {
+  "op": "capture",
+  "name": "03-opening-a"
+ },
+ {
+  "op": "wait",
+  "seconds": 0.25
+ },
+ {
+  "op": "capture",
+  "name": "03-opening-b"
+ },
+ {
+  "op": "wait",
+  "seconds": 0.25
+ },
+ {
+  "op": "capture",
+  "name": "03-opening-c"
+ },
+ {
+  "op": "wait",
+  "seconds": 1.0
+ },
+ {
+  "op": "capture",
+  "name": "04-spread1-a"
+ },
+ {
+  "op": "wait",
+  "seconds": 0.9
+ },
+ {
+  "op": "capture",
+  "name": "04-spread1-b"
+ },
+ {
+  "op": "wait",
+  "seconds": 0.9
+ },
+ {
+  "op": "capture",
+  "name": "04-spread1-c"
+ },
+ {
+  "op": "book",
+  "do": "turn",
+  "seconds": 0.35
+ },
+ {
+  "op": "capture",
+  "name": "05-turn1"
+ },
+ {
+  "op": "wait",
+  "seconds": 0.8
+ },
+ {
+  "op": "capture",
+  "name": "06-spread2-a"
+ },
+ {
+  "op": "wait",
+  "seconds": 1.0
+ },
+ {
+  "op": "capture",
+  "name": "06-spread2-b"
+ },
+ {
+  "op": "wait",
+  "seconds": 1.0
+ },
+ {
+  "op": "capture",
+  "name": "06-spread2-c"
+ },
+ {
+  "op": "book",
+  "do": "turn",
+  "seconds": 1.1
+ },
+ {
+  "op": "capture",
+  "name": "07-spread3-a"
+ },
+ {
+  "op": "wait",
+  "seconds": 1.0
+ },
+ {
+  "op": "capture",
+  "name": "07-spread3-b"
+ },
+ {
+  "op": "wait",
+  "seconds": 1.0
+ },
+ {
+  "op": "capture",
+  "name": "07-spread3-c"
+ },
+ {
+  "op": "book",
+  "do": "turn",
+  "seconds": 1.1
+ },
+ {
+  "op": "capture",
+  "name": "08-spread4-a"
+ },
+ {
+  "op": "wait",
+  "seconds": 1.0
+ },
+ {
+  "op": "capture",
+  "name": "08-spread4-b"
+ },
+ {
+  "op": "wait",
+  "seconds": 1.0
+ },
+ {
+  "op": "capture",
+  "name": "08-spread4-c"
+ },
+ {
+  "op": "book",
+  "do": "turn",
+  "seconds": 1.1
+ },
+ {
+  "op": "capture",
+  "name": "09-spread5-a"
+ },
+ {
+  "op": "wait",
+  "seconds": 1.0
+ },
+ {
+  "op": "capture",
+  "name": "09-spread5-b"
+ },
+ {
+  "op": "wait",
+  "seconds": 1.4
+ },
+ {
+  "op": "capture",
+  "name": "09-spread5-c"
+ },
+ {
+  "op": "wait",
+  "seconds": 0.3
+ },
+ {
+  "op": "view_book",
+  "eye": [
+   0.05,
+   0.14,
+   0.18
+  ]
+ },
+ {
+  "op": "capture",
+  "name": "10-page-close"
+ },
+ {
+  "op": "quit"
+ }
+]

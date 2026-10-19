@@ -11,11 +11,12 @@ render_mode diffuse_lambert_wrap;
 uniform int kind = 0;
 uniform vec3 size = vec3(0.16, 0.003, 0.16);
 uniform bool front = false;
-uniform vec3 cloth : source_color = vec3(0.32, 0.44, 0.33);
+uniform vec3 cloth : source_color = vec3(0.27, 0.42, 0.33);
+uniform vec3 leather : source_color = vec3(0.36, 0.21, 0.12);
 uniform vec3 foil : source_color = vec3(0.86, 0.71, 0.44);
 uniform vec3 egg : source_color = vec3(0.72, 0.84, 0.86);
-uniform vec3 paper : source_color = vec3(0.95, 0.9, 0.79);
-uniform vec3 edge_paint : source_color = vec3(0.86, 0.55, 0.5);
+uniform vec3 paper : source_color = vec3(0.96, 0.9, 0.77);
+uniform vec3 edge_paint : source_color = vec3(0.86, 0.6, 0.32);
 
 varying vec3 local;
 varying vec3 local_n;
@@ -83,12 +84,16 @@ void fragment() {
 		float grain = noise(xz * vec2(2600.0, 300.0)) * 0.5 + noise(xz * vec2(300.0, 2600.0)) * 0.5;
 		float mottle = noise(xz * 90.0 + float(front) * 7.0);
 		vec3 c = cloth * (0.86 + 0.14 * grain) * (0.92 + 0.12 * mottle);
-		float worn = clamp(corner * corner * 1.4 + edge * 0.6 + (1.0 - abs(n.y)) * 0.25, 0.0, 1.0) * (0.55 + 0.45 * noise(xz * 700.0));
-		c = mix(c, mix(cloth, vec3(0.86, 0.8, 0.66), 0.55), worn);
-		float spine = 1.0 - smoothstep(0.012, 0.016, local.x + h.x);
-		c *= mix(1.0, 0.82, spine);
+		float worn = clamp(edge * 0.5 + (1.0 - abs(n.y)) * 0.2, 0.0, 1.0) * (0.5 + 0.5 * noise(xz * 700.0));
+		c = mix(c, mix(cloth, vec3(0.8, 0.74, 0.6), 0.4), worn * 0.6);
+		float spine = 1.0 - smoothstep(0.022, 0.024, local.x + h.x + (noise(xz * 400.0) - 0.5) * 0.001);
+		vec2 out_ = vec2(h.x - local.x, h.z - abs(local.z));
+		float cap = 1.0 - smoothstep(0.024, 0.026, out_.x + out_.y + (noise(xz * 400.0) - 0.5) * 0.001);
+		float hide = max(spine, cap);
+		vec3 hidec = leather * (0.8 + 0.3 * noise(xz * 260.0)) * mix(1.0, 1.35, edge * (0.5 + 0.5 * noise(xz * 900.0)));
+		c = mix(c, hidec, hide);
 		float metal = 0.0;
-		ROUGHNESS = mix(0.85, 0.95, worn);
+		ROUGHNESS = mix(mix(0.85, 0.95, worn), 0.55, hide);
 		if (front && n.y > 0.5) {
 			vec2 p = vec2(local.x - 0.004, local.z) / size.x;
 			float eggs;
@@ -97,8 +102,10 @@ void fragment() {
 			c = mix(c, foil, s);
 			metal = s * 0.7;
 			ROUGHNESS = mix(ROUGHNESS, 0.38, s);
-			float bands = 1.0 - smoothstep(0.0006, 0.0012, abs(abs(local.z) - h.z + 0.012));
+			float bands = 1.0 - smoothstep(0.0006, 0.0012, abs(abs(local.z) - h.z + 0.014));
 			c = mix(c, foil, bands * spine);
+			float rule = 1.0 - smoothstep(0.0004, 0.0009, abs(local.x + h.x - 0.026));
+			c = mix(c, foil, rule * (1.0 - cap) * 0.8);
 		}
 		ALBEDO = c;
 		METALLIC = metal;
