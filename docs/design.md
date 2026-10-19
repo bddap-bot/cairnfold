@@ -2892,4 +2892,21 @@ Shadows, draw calls and triangles cost nothing measurable; turning the beams' sh
 0.5 ms. What remains is the far beams' pixels: a beam a few pixels wide is shaded once for itself and once for the
 plaster under its edges. A flat-lit far beam still cost +2.2 to +2.6 ms, and drawing them first changed nothing,
 so the floor for beams drawn as geometry is about 1 µs a member from above. Below it the far frame would have to
-be painted into the plaster it lies on. The budget charges 1.2 µs a member, the worst measured, rounded up.
+be painted into the plaster it lies on.
+
+Since the Quest 2 draws 2x MSAA (above), the same village costs less, and painting the far frame into the wall was
+tried and not kept. Six rounds of paired runtime swaps on Quest 2 B, from the air at the bottom step, GPU ms over no
+timber (mean of the six, its standard error):
+
+| | Alsace aerial | Fachwerk aerial |
+|---|---|---|
+| box near, `timber_far` far | +1.9 (0.6) | +2.2 (0.7) |
+| far frame painted into the wall | +1.5 (0.9) | +1.5 (0.5) |
+
+The no-timber baseline itself moved 3 ms between rounds. The painted frame cut the wall's plaster, mortar and the
+stones under each member along the members' lines and drew those on their edges and diagonals in a far shader, and
+the gables carried theirs as distances in their mesh; the near view and the frame's far look matched. It saved
+0.4 to 0.7 ms, within a standard error, for some 800 lines: in this village most members cannot be painted, since a
+lower storey's face stands behind the courses its upper storey lays down over it, and a joined wing's wall stands in
+front of the house's, so those members stay boxes and keep most of the cost. The budget charges 0.5 µs a member, the
+worst measured with the box path (2.2 ms over 4,914 Fachwerk members), rounded up.

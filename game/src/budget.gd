@@ -31,7 +31,7 @@ const COSTS := {
 }
 ## The largest paired Quest 2 cost per timber member in the dense village (docs/design.md), rounded up; the Frame
 ## shares it until measured.
-const TIMBER_US := 1.2
+const TIMBER_US := 0.5
 ## The open picture book's paired Quest 2 GPU cost a frame over it tucked away in the stress scene, in milliseconds
 ## (docs/design.md, "Picture book"). A garden's room does not reserve it: the book is read between builds.
 const BOOK_OPEN_MS := 1.2
