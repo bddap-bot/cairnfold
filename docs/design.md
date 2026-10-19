@@ -1235,10 +1235,13 @@ primitives. Some of that is draws (8 m cells took the 60 m view to 36.7 ms, 16 m
 more) and the rest the raster of far slivers; the survivors' widening cost nothing measurable.
 So reach above 24 m is the top of the ladder, taken only with room in the frame.
 
-Rows 14 and 15, on the Quest 2 (`App=` ms, the bare meadow, the ladder at its bottom step, each
-round the old and new shaders swapped in one run, five rounds): standing 20.54 before, a difference
-of +0.10 ms (standard error 0.08); from the air 27.03 before, +0.05 ms (0.13). Both within the
-spread between rounds. Tried over the new look in two runs (arm order reversed in the second), GPU ms
+Rows 14 and 15 cost the ground a little per fragment, paid back by reading its steepness per vertex
+(`terrain.gdshader`: the height grid's texels are its vertices, so nothing changes on screen). On
+the Quest 2 (`App=` ms, the bare meadow, each round main's shaders and these swapped in one run,
+five rounds), against main: at the ladder's bottom step standing 20.67, +0.03 ms (standard error
+0.08), from the air 26.75, -0.01 ms (0.17); at its top step standing 28.15, +0.16 ms (0.10), from
+the air 47.68, +0.14 ms (0.10). Without that steepness move the bottom step standing was +0.14 ms
+(0.05). Tried over the new look in two runs (arm order reversed in the second), GPU ms
 a frame over it, mean of the two, and left out:
 
 | Tried | Bottom, standing | Bottom, air | Top, standing | Top, air | Why not |
