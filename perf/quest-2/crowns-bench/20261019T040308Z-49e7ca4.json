@@ -1,0 +1,29 @@
+{
+ "budget_gpu_ms": 12.5,
+ "phases": {
+  "sweep/trees-aerial-bottom": {
+   "p50": 49.9990005493164,
+   "p99": 51.0530014038086,
+   "late": 309,
+   "draws": 150,
+   "prims": 349547,
+   "gpu_ms": 41.95
+  },
+  "sweep/trees-ground-bottom": {
+   "p50": 38.693000793457,
+   "p99": 40.064998626709,
+   "late": 390,
+   "draws": 96,
+   "prims": 334924,
+   "gpu_ms": 28.9
+  },
+  "sweep/trees-ground-top": {
+   "p50": 41.7630004882812,
+   "p99": 42.9150009155273,
+   "late": 361,
+   "draws": 112,
+   "prims": 702890,
+   "gpu_ms": 33.22
+  }
+ }
+}

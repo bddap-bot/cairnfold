@@ -951,6 +951,41 @@ Guardian's dialog is up, taking GPU time the game's own `App=` line does not sho
 `bench.sh --android` closes the panels, restarts the shell and holds the Guardian paused
 before each run, and fails if another process renders during a measured phase.
 
+### Crowns
+
+A crown is lit and shaded as one soft mass, at no measured cost
+([before, then each step in turn](crowns.jpg)):
+
+- Each foliage blob keeps its sphere's normals, so light wraps the blob and its lumps show
+  only in its outline (`Meshes.blob`).
+- Normals then lean out from the trunk (`CROWN_ROUND` in `plant.gdshaderinc`), so the faces
+  between a crown's blobs light as its outside does.
+- A blob's underside takes a cool tint (`CROWN_SHADE`), so the shade under a crown reads cool.
+- Each blob sways as one in the wind every plant shares, by its height above the ground
+  (`CROWN_GIVE`), so the crown sways rather than ripples.
+- The blobs cast no shadow. Each standing tree or bush casts its shade through one
+  once-split icosphere fitted to the box around its blobs (`Flora.crown_shade`), drawn only
+  into the shadow map. The ground keeps the crown's shade ([before, after](crown-shade.jpg)),
+  blobs no longer shade one another in patches, and the shade stays the same shape when the
+  ladder changes blob detail.
+
+GPU time a frame on the Quest 2 (`demo/crowns-bench.json`: the meadow and the tree pool
+filled to 20 m, ladder pinned; two passes of each build in one session, mean of the two),
+each build adding one step to the last:
+
+| Build | Bottom step, from the air | Bottom step, standing | Top step, standing |
+| --- | --- | --- | --- |
+| Before | 41.9 ms | 29.0 ms | 33.2 ms |
+| Sphere normals and sway | 41.2 | 28.7 | 32.8 |
+| Cool undersides | 41.1 | 28.7 | 33.0 |
+| Normals out from the trunk | 41.5 | 28.9 | 32.8 |
+| One shadow caster a crown | 41.2 | 28.6 | 32.1 |
+
+Runs of one build differed by up to 0.5 ms, so the shading steps cost nothing measurable.
+The shade casters cut what the shadow pass draws: 117 draws instead of 150 and 291k
+primitives instead of 350k from the air at the bottom step, 467k instead of 703k standing
+at the top, about 1 ms there.
+
 ### One signal, many knobs
 
 The signal is the GPU time of the frame the viewport just rendered
