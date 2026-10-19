@@ -182,6 +182,9 @@ func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
 	_check(at != Vector3.INF, "open grass beside it to hold seeds over")
 	if at == Vector3.INF:
 		return
+	# A conure on the hand would keep it as long as the seeds are held out.
+	for b in g.wildlife.birds.birds:
+		b.full = INF
 	hand.global_position = at
 	hand.held_still = true
 	hand.tool = Hand.Tool.SEEDS

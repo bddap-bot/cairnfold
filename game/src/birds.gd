@@ -5,11 +5,12 @@ extends Node3D
 ## trio flies in from out of sight and lands on a crown or a wall top. Perched, they look about, preen,
 ## hop along, now and then flutter to another perch or swoop down to peck in the grass. One the player comes
 ## up to slowly turns to watch and stays, shuffling aside only from a face about to touch it; a sudden
-## move startles it a short way to a perch still in view. One sees seeds held out, flies to the hand, perches on
-## it and eats. They leave, out of sight, once no perch stands. Part of `Wildlife`, which decides when they come
+## move startles it a short way to a perch still in view. One that sees seeds held out looks at whoever holds them
+## and at the hand a while, and then flies to it, or thinks better of it; on the hand it eats as long as the seeds are
+## held out, and each hand holding seeds has its own. They leave, out of sight, once no perch stands. Part of `Wildlife`, which decides when they come
 ## and knows where nobody is looking.
 
-enum State { ARRIVE, PERCH, HOP, FLY, PECK, LEAVE, FEED }
+enum State { ARRIVE, PERCH, HOP, FLY, PECK, LEAVE, DECIDE, FEED }
 
 const CAP := 3
 const FLOCK := Vector2i(2, 3)
@@ -32,6 +33,11 @@ const WATCH := 1.5
 const SHUFFLE := 0.12
 ## How readily a perched bird that sees seeds held out goes for them, per second.
 const DRAWN := 0.6
+## How long one looks over seeds held out before it goes for them or not, how likely it goes, and how long one that
+## did not waits before looking again.
+const DECIDE_FOR := Vector2(1.5, 5.0)
+const TAKES := 0.75
+const PUT_OFF := Vector2(2.0, 6.0)
 ## A conure flies to seeds held out anywhere near and eats them standing on the hand.
 static var appetite := Wildlife.Appetite.new(Wildlife.Eat.ON_HAND, 6.0, INF, 0.0, Vector2(8.0, 16.0), Vector2(10.0, 25.0))
 const PAUSE := Vector2(1.5, 5.0)
@@ -153,6 +159,7 @@ func tick(delta: float) -> void:
 		var b := birds[i]
 		_think(b, delta)
 		_move(b, delta)
+		b.node.look(delta)
 		if b.state == State.LEAVE and wildlife._let_go(b.node.position, LET_GO):
 			wildlife.release(b)
 			b.node.queue_free()
@@ -214,7 +221,7 @@ func look() -> void:
 			_leave(b)
 		elif b.site != null and not b.site.listed:
 			_flutter(b)
-		elif b.state in [State.PERCH, State.HOP] and b.site != null:
+		elif b.state in [State.PERCH, State.HOP, State.DECIDE] and b.site != null:
 			_resettle(b)
 
 
@@ -279,8 +286,10 @@ func _think(b: Bird, delta: float) -> void:
 		if h != null:
 			wildlife.claim(h, b)
 			b.node.hand = h
-			_fly_to(b, null, wildlife.eat_spot(appetite, h, at), State.FLY)
-			b.then = State.FEED
+			b.then = b.state
+			b.state = State.DECIDE
+			b.duration = rng.randf_range(DECIDE_FOR.x, DECIDE_FOR.y)
+			b.timer = b.duration
 			return
 	var near := wildlife._nearest(at, WATCH) if b.state == State.PERCH else null
 	if near != null:
@@ -325,6 +334,7 @@ func _watch(b: Bird, near: Node3D, delta: float) -> void:
 	b.preening = 0.0
 	b.node.blend(Conure.IDLE, delta)
 	Wildlife._face(b.node, at - b.node.position, delta * 3.0)
+	b.node.looking = at
 	if near != wildlife.viewer or (b.node.position + Conure.BODY).distance_to(at) >= SHUFFLE:
 		return
 	var best := Vector3.INF
@@ -397,10 +407,14 @@ func _short_flight(b: Bird, from: Vector3) -> bool:
 	return true
 
 
-## Flying to a hand holding seeds, then standing on it eating while it is held out calmly. A sudden move of it
-## startles the bird off; seeds put away or eaten send it back to a perch nearby.
+## Looking the seeds over, flying to them, then standing on the hand eating for as long as it is held out calmly
+## with them. A sudden move of it startles the bird off; seeds put away send it back to a perch nearby, and thrown
+## seeds keep it only until it has had its fill.
 func _to_hand(b: Bird, delta: float) -> void:
 	var h := b.node.hand
+	if b.state == State.DECIDE:
+		_decide(b, h, delta)
+		return
 	if not wildlife.feeds(h, b) or wildlife.sudden(h):
 		_off_hand(b)
 		return
@@ -413,9 +427,47 @@ func _to_hand(b: Bird, delta: float) -> void:
 		Wildlife._face(b.node, -h.global_basis.z, delta * 6.0)
 	wildlife.nibble(h, delta)
 	b.timer -= delta
-	b.node.blend(Conure.PECK if fmod(b.timer, 3.0) < 1.8 else Conure.IDLE, delta)
-	if b.timer <= 0.0:
+	b.node.blend(Conure.PECK if fposmod(b.timer, 3.0) < 1.8 else Conure.IDLE, delta)
+	if h is Handful and b.timer <= 0.0:
 		_off_hand(b)
+
+
+## Where it stands, turned to the seeds: it looks at whoever holds them out, then at the hand, and goes or does not.
+## A sudden move near it startles it as on its perch; seeds put away or held out suddenly leave it where it is.
+func _decide(b: Bird, h: Node3D, delta: float) -> void:
+	var fright := wildlife._startled(b.node.position, STARTLE)
+	if fright != null:
+		_put_off(b)
+		_startle(b, fright.global_position)
+		return
+	if not wildlife.feeds(h, b) or wildlife.sudden(h):
+		_put_off(b)
+		return
+	var seeds := h.global_position
+	var you := wildlife.viewer
+	var at := you.global_position if you != null and you.is_inside_tree() and b.timer > b.duration * 0.5 else seeds
+	b.preening = 0.0
+	b.node.blend(Conure.IDLE, delta)
+	Wildlife._face(b.node, seeds - b.node.position, delta * 3.0)
+	b.node.looking = at
+	b.timer -= delta
+	if b.timer > 0.0:
+		return
+	if rng.randf() < TAKES:
+		_fly_to(b, null, wildlife.eat_spot(appetite, h, b.node.position), State.FLY)
+		b.then = State.FEED
+	else:
+		_put_off(b)
+		b.full = rng.randf_range(PUT_OFF.x, PUT_OFF.y)
+
+
+## Back to what it was doing before it saw the seeds, the hand let go.
+func _put_off(b: Bird) -> void:
+	wildlife.release(b)
+	b.node.hand = null
+	b.state = b.then
+	b.then = State.PERCH
+	b.timer = rng.randf_range(PAUSE.x, PAUSE.y)
 
 
 func _off_hand(b: Bird) -> void:
@@ -430,6 +482,8 @@ func _off_hand(b: Bird) -> void:
 ## Flies to a perch elsewhere: another site now and then, else further along this one. With no free point
 ## there, a perched bird whose site still stands stays put, and any other leaves.
 func _flutter(b: Bird) -> void:
+	if b.state == State.DECIDE:
+		_put_off(b)
 	if sites.is_empty():
 		_leave(b)
 		return
@@ -484,7 +538,7 @@ func _resettle(b: Bird) -> void:
 			best = p
 	if best == Vector3.INF or best.distance_to(b.spot) > 0.4:
 		_flutter(b)
-	elif best != b.spot and b.state == State.PERCH:
+	elif best != b.spot and b.state in [State.PERCH, State.DECIDE]:
 		b.spot = best
 		b.node.position = best
 
@@ -527,7 +581,7 @@ func _clear(p: Vector3, me: Bird) -> bool:
 func _move(b: Bird, delta: float) -> void:
 	var n := b.node
 	match b.state:
-		State.PERCH:
+		State.PERCH, State.DECIDE:
 			if not n.is_in_group(&"perched"):
 				n.add_to_group(&"perched")
 			return

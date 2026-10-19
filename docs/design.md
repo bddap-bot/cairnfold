@@ -2135,10 +2135,18 @@ far its mouth reaches ahead of its feet, how long it eats and how long it is ful
 finds a calm hand holding seeds for it, keeps one eater to a hand and says where to stand; each kind
 moves there its own way.
 
-- A conure (`Birds.appetite`) flies from its perch to a hand within 6 m, at any height, and stands
-  on the controller behind the seeds (`Wildlife.ON_HAND`), pecking and looking about. It rides a
-  hand carried slowly; the hand it stands on never startles it unless it moves suddenly, which sends
-  it a short way off as any startle does. Seeds eaten or put away, it flies to a perch nearby.
+- A conure (`Birds.appetite`) that sees seeds in a hand within 6 m, at any height, first makes up its
+  mind where it stands: it turns to the hand, holds its head on whoever holds the seeds and then on the
+  hand for 1.5 to 5 s (`Birds.DECIDE_FOR`), and goes three times in four (`Birds.TAKES`); one that does
+  not looks again a few seconds later. The look is the head's own turn in the vertex shader, aimed by an
+  instance parameter (`Conure.look`), no new pose. Going, it flies to the hand and stands on the
+  controller behind the seeds (`Wildlife.ON_HAND`), pecking and looking about, for as long as that hand
+  holds the seeds out: no timer sends it off. It rides a hand carried slowly; the hand it stands on never
+  startles it unless it moves suddenly, which sends it a short way off as any startle does. Seeds put
+  away, it flies to a perch nearby. Each hand is its own offer, so seeds in both hands hold a conure on
+  each at once.
+
+  Directive (verbatim): "Let's make it so conures look at you and take a little while to decide whether they're going to hop on your hand before immediately hopping on your hand. And let's also make it so they stay on your hand as long as you want, as long as you've got the food, then the conure will stay on your hand. And let us also make sure you can feed two conures at a time by having two having food in each hand"
 - A duck (`Wildlife.duck_appetite`) swims or waddles to seeds held within 0.6 m of its pond's
   water or bank and pecks under the hand, its ducklings pecking with it.
 - A sheep (`Herds.appetite`) walks up to seeds held within 0.9 m of the ground beside its pasture,

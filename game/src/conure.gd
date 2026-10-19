@@ -45,6 +45,14 @@ const BODY := Vector3(0, 0.062, 0.012)
 const BILL_SIZE := Vector3(0.009, 0.0105, 0.0125)
 const WING_SIZE := Vector3(0.011, 0.052, 0.025)
 const TAIL_SIZE := Vector3(0.018, 0.058, 0.006)
+const NECK := Vector3(0, 0.098, -0.012)
+## How far round and up or down the head turns to look at something, in radians.
+const GAZE_TURN := Vector2(1.7, 0.9)
+const GAZE_EASE := 4.0
+
+## What it looks at this tick, Vector3.INF to look about; `look` eases the head there.
+var looking := Vector3.INF
+var _gaze := Vector3.ZERO
 
 
 static func prepare() -> void:
@@ -60,6 +68,19 @@ func _init(phase: float, plumage: int) -> void:
 	prepare()
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	set_instance_shader_parameter("plumage", plumage)
+
+
+func look(delta: float) -> void:
+	var to := _gaze
+	to.z = move_toward(to.z, 0.0 if looking == Vector3.INF else 1.0, delta * GAZE_EASE)
+	if looking != Vector3.INF:
+		var l := transform.affine_inverse() * looking - NECK
+		to.x = clampf(atan2(-l.x, -l.z), -GAZE_TURN.x, GAZE_TURN.x)
+		to.y = clampf(atan2(l.y, Vector2(l.x, l.z).length()), -GAZE_TURN.y, GAZE_TURN.y)
+	looking = Vector3.INF
+	if to != _gaze:
+		_gaze = to
+		set_instance_shader_parameter("gaze", _gaze)
 
 
 ## One row per plumage, one linear texel per patch, so a bird's colouring is one instance parameter on the shared

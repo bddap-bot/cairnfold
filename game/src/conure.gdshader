@@ -11,6 +11,9 @@ instance uniform vec4 mode = vec4(1.0, 0.0, 0.0, 0.0);
 instance uniform float phase = 0.0;
 // A row of `palette`; row 0 is iridescent, its feathers coloured here. See Conure.PLUMAGES.
 instance uniform int plumage = 0;
+// Where the head is held to look at something, in the bird's own space: yaw, pitch, and how far it holds there
+// rather than looking about.
+instance uniform vec3 gaze = vec3(0.0);
 uniform sampler2D palette : filter_nearest;
 const int PATCHES = 9;
 const int BILL = 8;
@@ -73,9 +76,9 @@ void vertex() {
 	}
 
 	if (part == 1) {
-		float yaw = idle * 1.1 * snap(t, 0.9, 3.0) + preen * 2.5 * shoulder_side;
-		float cock = idle * 0.45 * snap(t, 0.7, 11.0) + preen * 0.35 * sin(t * 9.0);
-		float nod = preen * (0.75 + 0.12 * sin(t * 14.0)) + peck * (0.25 + 0.9 * pow(max(sin(t * 4.2), 0.0), 6.0)) - fly * 0.4;
+		float yaw = mix(idle * 1.1 * snap(t, 0.9, 3.0) + preen * 2.5 * shoulder_side, gaze.x, gaze.z);
+		float cock = idle * 0.45 * snap(t, 0.7, 11.0) * (1.0 - 0.6 * gaze.z) + preen * 0.35 * sin(t * 9.0);
+		float nod = mix(preen * (0.75 + 0.12 * sin(t * 14.0)) + peck * (0.25 + 0.9 * pow(max(sin(t * 4.2), 0.0), 6.0)) - fly * 0.4, -gaze.y, gaze.z);
 		turn(VERTEX, NORMAL, NECK + vec3(0.0, 0.016, -0.012), rot(vec3(0.0, 0.0, 1.0), cock));
 		turn(VERTEX, NORMAL, NECK, rot(vec3(0.0, 1.0, 0.0), yaw) * rot(X, -nod));
 	}

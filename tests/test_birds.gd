@@ -291,6 +291,7 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 	await _a_calm_approach_lets_him_close(g, perched, vanishing)
 	await _a_sudden_move_startles_it_a_short_way(g, perched, vanishing)
 	await _seeds_held_out_draw_one_onto_the_hand(g, vanishing)
+	_two_hands_with_seeds_feed_two(g, vanishing)
 
 	g.world.undo()
 	g.world.undo()
@@ -384,21 +385,35 @@ func _a_sudden_move_startles_it_a_short_way(g: Glade, b: Birds.Bird, each: Calla
 	_run(g, 1.0, each)
 
 
-## A hand held out with seeds draws one conure onto it, one at a time; carried slowly it eats on, and a jerk sends it
+## A hand held out with seeds draws one conure onto it, one at a time, once it has stood looking at whoever holds
+## them and at the hand a while; it eats on as long as the hand holds them out, carried slowly too, and a jerk sends it
 ## off a short way. Put away, the seeds keep nobody.
 func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 	var hand: Hand = g.rig.right
+	var head: Node3D = g.rig.head
 	var perch := g.birds()[0].spot
 	hand.global_transform = Transform3D(Basis(Vector3.UP, 0.4), perch + Vector3(1.5, -0.4, 1.0))
 	hand.held_still = true
 	hand.tool = Hand.Tool.SEEDS
 	var on: Array[Birds.Bird] = []
 	var flew := [0]
+	var decided := {}
 	var eating := func() -> void:
 		each.call()
 		on.assign(g.birds().filter(func(b: Birds.Bird) -> bool: return b.state == Birds.State.FEED))
 		flew[0] = maxi(flew[0], g.birds().filter(func(b: Birds.Bird) -> bool: return b.node.hand == hand).size())
-	for i in int(30.0 / STEP):
+		for b in g.birds():
+			if b.state != Birds.State.DECIDE:
+				continue
+			var d: Dictionary = decided.get_or_add(b, {"at": b.node.position, "for": 0.0, "moved": 0.0, "head": 0.0, "hand": 0.0})
+			d["for"] += STEP
+			d.moved = maxf(d.moved, b.node.position.distance_to(d.at))
+			if b.node._gaze.z > 0.9:
+				var aim := b.node.transform.basis * (Basis(Vector3.UP, b.node._gaze.x) * Basis(Vector3.RIGHT, b.node._gaze.y) * Vector3.FORWARD)
+				var eye := b.node.position + b.node.transform.basis * Conure.NECK
+				d.head = maxf(d.head, aim.dot(eye.direction_to(head.global_position)))
+				d.hand = maxf(d.hand, aim.dot(eye.direction_to(hand.global_position)))
+	for i in int(40.0 / STEP):
 		_run(g, STEP, eating)
 		if not on.is_empty():
 			break
@@ -406,8 +421,17 @@ func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 	if on.is_empty():
 		return
 	var b := on[0]
+	var d: Dictionary = decided.get(b, {})
+	_check(d.get("for", 0.0) >= Birds.DECIDE_FOR.x - STEP and d.get("for", 0.0) <= Birds.DECIDE_FOR.y + STEP, "it stood deciding a while first, %.2f s" % d.get("for", 0.0))
+	_check(d.get("moved", 1.0) < 0.001, "where it stood")
+	_check(d.get("head", 0.0) > 0.95 and d.get("hand", 0.0) > 0.95, "looking at whoever holds the seeds and at the hand, %.2f and %.2f" % [d.get("head", 0.0), d.get("hand", 0.0)])
 	var spot := hand.global_transform * Wildlife.ON_HAND
 	_check(b.node.position.distance_to(spot) < 0.001, "and stands on the hand behind them")
+	var stayed := [true]
+	_run(g, Birds.appetite.eats_for.y * 3.0, func() -> void:
+		eating.call()
+		stayed[0] = stayed[0] and b.state == Birds.State.FEED)
+	_check(stayed[0], "it stays on the hand while the seeds are held out, %.0f s" % (Birds.appetite.eats_for.y * 3.0))
 	var start := hand.global_position
 	_move(g, hand, start, start + Vector3(-0.3, 0.1, 0.2), 0.25, eating)
 	_check(b.state == Birds.State.FEED and b.node.position.distance_to(hand.global_transform * Wildlife.ON_HAND) < 0.001, "carried slowly, it rides along eating")
@@ -422,6 +446,34 @@ func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 	_check(g.birds().all(func(b: Birds.Bird) -> bool: return b.node.hand == null), "seeds put away keep nobody")
 	hand.held_still = false
 	hand.global_position = AWAY
+
+
+## Seeds held out in both hands: a conure stands on each, both at once, and both stay.
+func _two_hands_with_seeds_feed_two(g: Glade, each: Callable) -> void:
+	var perch := g.birds()[0].spot
+	var sides := [Vector3(1.0, -0.4, 1.0), Vector3(-1.0, -0.4, 1.0)]
+	for i in 2:
+		var hand: Hand = g.rig.hands[i]
+		hand.global_transform = Transform3D(Basis(Vector3.UP, 0.4), perch + sides[i])
+		hand.held_still = true
+		hand.tool = Hand.Tool.SEEDS
+	var on := func() -> Array:
+		return g.rig.hands.map(func(h: Hand) -> int: return g.birds().filter(func(b: Birds.Bird) -> bool: return b.state == Birds.State.FEED and b.node.hand == h).size())
+	for i in int(120.0 / STEP):
+		_run(g, STEP, each)
+		if on.call() == [1, 1]:
+			break
+	_check(on.call() == [1, 1], "a conure on each hand at once, %s" % [on.call()])
+	var both := [true]
+	_run(g, 30.0, func() -> void:
+		each.call()
+		both[0] = both[0] and on.call() == [1, 1])
+	_check(both[0], "and both stay")
+	for h: Hand in g.rig.hands:
+		h.tool = Hand.Tool.WALLS
+		h.held_still = false
+		h.global_position = AWAY
+	_run(g, 4.0, each)
 
 
 ## A wall taken away under perched conures, with another perch standing: from the next frame none counts on
