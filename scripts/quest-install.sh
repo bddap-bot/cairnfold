@@ -30,7 +30,7 @@ restore() {
   [ -n "$(ls -A "$dir" 2> /dev/null)" ] || return 0
   folders=$(cd "$dir" && find . -mindepth 1 -type d | sed "s|^\.|$files|" | tr '\n' ' ')
   if ! adb shell "for d in $files $folders; do [ -d \$d ] || exit 1; done"; then
-    adb shell am start -n "$pkg/com.godot.game.GodotApp" > /dev/null
+    adb shell am start -n "$pkg/com.godot.game.GodotAppLauncher" > /dev/null
     for _ in $(seq 60); do
       adb shell "for d in $files $folders; do [ -d \$d ] || exit 1; done" && break
       sleep 1
