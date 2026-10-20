@@ -2411,6 +2411,15 @@ surprise, drawn by what you build: dig a pond and, some time later, a duck may
 fly in and settle on it. No tool, menu or button places an animal; seeds held out
 or thrown only draw those already there (see "Feeding").
 
+- **Pond snails** arrive through `Wildlife` after a filled pond has settled, sharing
+  its arrival scheduler. Each pond gets one per eight wet grid points, up to seven,
+  with an equal share of a global cap of 24. They glide at 1.2 cm/s along the bed,
+  turn at the bank and walls, and follow the bed slope as it changes. A removed or
+  drained pond removes its snails. One shared mesh has a rounded amber shell with
+  raised spiral whorls on both sides, a soft green foot and two waving tentacles;
+  all motion is procedural. One MultiMesh draws the population without shadows
+  or physics bodies. `demo/snails.json` gives two close underwater views four
+  seconds apart; the stress scene includes a snail view after the ponds mature.
 - **Ducks** arrive once a pond exists: one flies in from beyond the meadow,
   glides down and splashes onto the water, then paddles about; now and then one
   waddles up the bank to rest on the grass, and ducklings follow their mother in

@@ -96,6 +96,7 @@ var hands: Array[Node3D] = []
 var families: Array[Family] = []
 var butterflies: Butterflies
 var fireflies: Fireflies
+var snails: Snails
 var fish: Fish
 var birds: Birds
 var herds: Herds
@@ -167,6 +168,8 @@ func _init(ponds: Water, plants: Flora, builds: WallTool, season: Palette, eyes:
 	add_child(butterflies)
 	fireflies = Fireflies.new(self, sky, rng.seed + 3)
 	add_child(fireflies)
+	snails = Snails.new(self, rng.seed + 8)
+	add_child(snails)
 	fish = Fish.new(self, rng.seed + 6)
 	add_child(fish)
 	birds = Birds.new(self, rng.seed + 2)
@@ -204,6 +207,7 @@ func tick(delta: float) -> void:
 	butterflies.tick(delta)
 	fireflies.tick(delta)
 	fish.tick(delta)
+	snails.tick(delta)
 	_since_look += delta
 	if _since_look >= LOOK_EVERY:
 		_since_look = 0.0
