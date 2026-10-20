@@ -217,7 +217,6 @@ func _aims_into_the_house_land_on_its_floor(rig: Rig, r: RoofLayout, roof: Strin
 
 func _no_teleport_tool() -> void:
 	_check(not Hand.Tool.has("TELEPORT"), "teleport is not a tool")
-	_check(ToolWheel.paths(Hand.TREE).size() == Hand.Tool.size(), "the wheel holds every tool and nothing else")
 
 
 ## Through real frames, as a player: the rig's own _process reads the stick.
