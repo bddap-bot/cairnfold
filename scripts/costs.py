@@ -9,8 +9,9 @@ below the refresh rate is left out: GPU time read there is not the scene's. A un
 holding it as the one unknown gives, so the bound holds from every view measured. Wildlife comes to builds in numbers
 its caps bound, however much is built, so what a phase's animals add once they have come, over what its builds were
 fitted to cost, is charged once to the base: the room is what is left with every kind of animal there, each phase's
-animals counted whole even where two phases bring the same kind. The base is the bare meadow's dearest view, dusk
-included."""
+animals counted whole even where two phases bring the same kind. The base is the dearest view of the meadow with its
+own plants standing or of the bare meadow, dusk included: the meadow's plants spread far wider than a pool-full phase
+packs them, so it is measured whole rather than counted at their prices."""
 import json
 import os
 import re
@@ -75,7 +76,8 @@ missing = [unit for _, unit in ORDER if unit is not None and unit not in cost]
 if missing:
     sys.exit(f"costs: no view measured {', '.join(missing)}; nothing written")
 wild = sum(max([extra for extra, _ in extras(phase, None)] + [0.0]) for phase in WILD)
-line = {"budget_ms": "1000.0 / REFRESH_HZ * Quality.Governor.LINE", "base_ms": round(max(base.values()) + wild, 2),
+meadow = [gpu[f"meadow/{v}"] for v in views if f"meadow/{v}" in gpu and f"meadow/{v}" not in halved]
+line = {"budget_ms": "1000.0 / REFRESH_HZ * Quality.Governor.LINE", "base_ms": round(max([*base.values(), *meadow]) + wild, 2),
         **{k: round(v, 3) for k, v in cost.items()}, "timber": "TIMBER_US"}
 text = ", ".join(f'"{k}": {v}' for k, v in line.items())
 budget = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../game/src/budget.gd")

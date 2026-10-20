@@ -19,15 +19,15 @@ enum Device { QUEST_2, FRAME }
 ## What a garden's builds count as, the units COSTS prices: square metres of face of stone walls, plaster walls and
 ## fences (length along the ground by height, and a house's two gable ends: boards, laid as stones are but fewer, count
 ## as stone wall), of tiled or flat roof and of thatch (laid along its slopes out to its eaves);
-## fittings that add a mesh (lanterns, flags, chimneys); painted grass blades and flowers, the meadow's own flowers
-## included; trees and bushes standing; ponds, one a seed; easels, each a canvas drawn and simulated; and boulders, a
-## metre-wide one a unit (`boulder`).
+## fittings that add a mesh (lanterns, flags, chimneys); painted grass blades and flowers; trees and bushes standing;
+## ponds, one a seed; easels, each a canvas drawn and simulated; and boulders, a metre-wide one a unit (`boulder`).
 const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "floor_m2", "fitting", "grass", "flower", "tree", "bush", "pond", "timber", "easel", "boulder", "moss"]
 
 ## Per headset, in the governor's signal (the viewport's GPU time per frame, Quality) at its fit_step; fitted
 ## by `scripts/costs.py` from `demo/costs.json` played on it (see "Build budget" in docs/design.md): `budget_ms`, the
-## most a frame may take there; `base_ms`, the bare meadow; then GPU microseconds a frame per unit. Hills and painted
-## stone ground measured within noise of the bare meadow, so terrain counts nothing.
+## most a frame may take there; `base_ms`, the meadow with its own plants standing, whose wide spread costs far less
+## than its count at the pool-full prices; then GPU microseconds a frame per unit. Hills and painted stone ground
+## measured within noise of the bare meadow, so terrain counts nothing.
 const COSTS := {
 	Device.QUEST_2: QUEST_2_COSTS,
 	Device.FRAME: FRAME_COSTS,
@@ -44,8 +44,8 @@ const BOULDER_LEAST := 0.25
 ## A moss patch spans roughly four flower widths: reserve sixteen flower allowances for its pixels.
 ## This is conservative accounting until moss is measured on a headset.
 ## Each opaque patch is twelve triangles, with no shadow pass or CPU animation.
-const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 4.794, "thatch_m2": 4.794, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 2.852, "pond": 35.294, "timber": TIMBER_US, "easel": 615.312, "floor_m2": 5.534, "boulder": 6.2, "moss": 0.072 * 16.0}
-const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 7.28, "grass": 0.449, "flower": 0.678, "tree": 70.711, "wall_m2": 19.054, "plaster_m2": 6.46, "fence_m2": 4.348, "pond": 89.764, "roof_m2": 30.465, "thatch_m2": 51.347, "fitting": 21.346, "bush": 0.0, "easel": 1091.208, "timber": TIMBER_US, "floor_m2": 22.809, "boulder": 20.6, "moss": 0.678 * 16.0}
+const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 6.44, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 4.794, "thatch_m2": 4.794, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 2.852, "pond": 35.294, "timber": TIMBER_US, "easel": 615.312, "floor_m2": 5.534, "boulder": 6.2, "moss": 0.072 * 16.0}
+const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.1, "grass": 0.449, "flower": 0.678, "tree": 70.711, "wall_m2": 19.054, "plaster_m2": 6.46, "fence_m2": 4.348, "pond": 89.764, "roof_m2": 30.465, "thatch_m2": 51.347, "fitting": 21.346, "bush": 0.0, "easel": 1091.208, "timber": TIMBER_US, "floor_m2": 22.809, "boulder": 20.6, "moss": 0.678 * 16.0}
 
 
 ## The ladder step `on`'s COSTS are fitted at (demo/costs.json), so a garden within its budget holds 72 Hz there: the

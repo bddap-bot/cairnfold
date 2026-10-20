@@ -641,13 +641,14 @@ wanna make it obvious to the user that there is a limit there"
 
 - What a garden holds counts in units (`Budget.UNITS`): square metres of stone wall,
   plaster wall, fence and path face, and of a tiled or flat roof and a thatched one laid along their slopes out to their eaves; fittings that add a mesh (lanterns, flags,
-  chimneys); painted grass blades and flowers, the meadow's own flowers too; trees and
-  bushes standing; ponds. `World` keeps the count as every command applies, so deleting
+  chimneys); painted grass blades and flowers; trees and bushes standing; ponds. The
+  meadow's own plants are part of the base and count nothing; one of its trees grown
+  counts only its growth. `World` keeps the count as every command applies, so deleting
   frees exactly what placing took, and undo, wipes and a garden loaded or joined count
   alike on every machine.
 - `Budget.COSTS` prices each unit per headset, in the governor's signal (the viewport's
-  GPU time) at its `Budget.fit_step`, with the bare meadow's time as the base: on the Frame
-  step 8, the ladder's last with the sun's shadows and the full 3D resolution, so a full
+  GPU time) at its `Budget.fit_step`, with the meadow's time, its own plants standing, as the
+  base: on the Frame step 8, the ladder's last with the sun's shadows and the full 3D resolution, so a full
   garden is held there, anything above it is spare, and the two steps below it are for what
   lies past the budget; on the Quest 2 the bottom step, the only one its bare meadow holds
   72 Hz at. The room for builds is the headset's `budget_ms` less that base.
@@ -701,14 +702,20 @@ meadow's 5.69 and 4.57 ms; the room is 11.1 ms (the governor's line) less 5.7:
 | Eight ponds | 8 | 5.98 | 4.60 | 35.3 µs a pond |
 | Village, 12 m disc | 225 m² of wall, 54 m² of roof | 7.45 | 6.55 | 10.8 µs a m² of roof |
 | Lanterns on the 10 m disc's walls | 90 | 6.78 | 9.22 | 3.1 µs a lantern |
-| The meadow's own flowers, trees and bushes | 3,200, 46, 60 | 6.44 | 4.96 | a check: nothing fitted |
+| The meadow's own flowers, trees and bushes | 3,200, 46, 60 | 6.44 | 4.96 | the base, 6.44 ms |
 | Hills | | 5.70 | 4.74 | nothing |
 | Stone ground | | 5.72 | 4.62 | nothing |
 
 Walls cost most per square metre standing among the first ones: each wall near the eye
 is drawn in full, while those further off draw 12-triangle stones. So the fit takes the
-10 m disc standing, and a wide garden fills its bar faster than it fills the frame. The
-meadow's own scenery takes 22% of the room on a fresh garden.
+10 m disc standing, and a wide garden fills its bar faster than it fills the frame.
+
+The meadow's own scenery is the base, measured whole, not counted at the pool-full prices:
+its plants stand spread across the whole meadow, where a pool-full phase packs as many
+into a 20 m disc. Counted, its 3,200 flowers and 46 trees charged the Frame 1.38 ms against
+the 0.74 measured, and the Quest 2, once refitted at 0.68 µs a flower and 70.7 µs a tree
+(81105e0), 5.42 ms against the 2.09 measured: 141.5% of the room before anything was built,
+so every build was turned down on a Quest.
 
 A garden filled to the budget through the tools (`demo/full.json`: six trees, a flower
 stroke, a path, a pond, a house and walls until they were turned down; 100%), played on
@@ -802,7 +809,7 @@ and one detail-texture read instead of three saved nothing.
 On the Quest 2 (`bench.sh OUT --android APK`, the bottom step, 0.7 swapchain, 2x MSAA), viewport
 GPU milliseconds a frame over the bare meadow's 6.92 and 6.71, every view at 72 frames a second;
 each `sized` phase was laid over the share of its area shown, the first that read under the line or the
-fourth tried. With the wildlife the base is 7.28 ms and the room 3.8 ms:
+fourth tried. With the wildlife the base, the meadow's own plants standing, is 9.10 ms and the room 2.0 ms:
 
 | Phase | Area laid | Units | From the air | Standing | Fitted cost |
 | --- | --- | --- | --- | --- | --- |
@@ -818,7 +825,7 @@ fourth tried. With the wildlife the base is 7.28 ms and the room 3.8 ms:
 | Village | 0.66 | 43 m² of wall, 26 m² of roof | 8.70 | 8.31 | 37.2 µs a m² of roof |
 | Thatched village | 0.51 | 43 m² of wall, 26 m² of thatch | 9.36 | 8.03 | 62.7 µs a m² of thatch |
 | Lanterns on the 10 m disc's walls | 0.10 | 28 | 9.72 | 11.62 | 21.3 µs a lantern |
-| The meadow's own flowers, trees and bushes | | 3,200, 46, 60 | 9.01 | 8.17 | bushes nothing over the flowers and trees |
+| The meadow's own flowers, trees and bushes | | 3,200, 46, 60 | 9.01 | 8.17 | the base, 9.10 ms with the wildlife |
 | Four easels, a stroke on each | | 4 | 7.93 | 11.08 | 1.1 ms an easel |
 
 Walls cost little more spread wide than close: standing in a field of them the nearest rows

@@ -77,7 +77,6 @@ var _keep_task := -1
 ## by key too, so taking one away takes back what it added.
 var units := {}
 var _units_of := {}
-var _meadow_units := {}
 ## False lets the garden take builds past the frame budget, as the stress scene does to find what they cost.
 var bounded := true
 ## Every other player's headset by peer id, as they told us; the garden is held to the weakest here.
@@ -209,13 +208,13 @@ func change_of(cmd: Dictionary) -> Dictionary:
 	return out
 
 
-## What one plant counts as: the meadow's own grass is part of the bare meadow, and a tree counts by the ground its
-## crown covers, as its scale squared.
+## What one plant counts as: the meadow's own plants are part of the base (Budget.COSTS), so one of its trees counts
+## only what it has grown; a tree counts by the ground its crown covers, as its scale squared.
 func _unit(group: int, p: Flora.Plant) -> Dictionary:
 	var u := flora.unit_of(p)
 	if u == "tree":
-		return {u: state.groups[group].scale.get(p.index, 1.0) ** 2}
-	return {} if u == "" or (group == 0 and u == "grass") else {u: 1}
+		return {u: state.groups[group].scale.get(p.index, 1.0) ** 2 - (1.0 if group == 0 else 0.0)}
+	return {} if u == "" or group == 0 else {u: 1}
 
 
 func _account(key: String, now: Dictionary) -> void:
@@ -301,9 +300,6 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 	boulders = rocks
 	if flora != null and flora.groups.has(0):
 		state.groups[0] = _meadow()
-		for p: Flora.Plant in flora.groups[0]:
-			Budget.add(_meadow_units, _unit(0, p))
-		Budget.add(units, _meadow_units)
 
 
 ## The meadow's own group as it grows: every plant standing, every tree an oak.
@@ -1058,7 +1054,7 @@ func _clear() -> void:
 	_floor_marks.clear()
 	state = blank()
 	_fills.clear()
-	units = _meadow_units.duplicate()
+	units = {}
 	_units_of.clear()
 	flora.reset()
 	palette.season = Palette.SUMMER

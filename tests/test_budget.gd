@@ -67,7 +67,7 @@ func _recount() -> Dictionary:
 		for p: Flora.Plant in world.flora.groups[g]:
 			if p != null and not world.state.groups[g].hidden.has(p.index):
 				var u := world.flora.unit_of(p)
-				if u != "" and not (g == 0 and u == "grass"):
+				if u != "" and g != 0:
 					Budget.add(out, {u: 1})
 	if not world.state.ponds.is_empty():
 		out.pond = world.state.ponds.size()
@@ -103,8 +103,14 @@ func _build(walls: Array) -> bool:
 
 func _counts_follow_placements_and_deletions() -> void:
 	var meadow := world.units.duplicate()
-	_check(meadow.get("flower", 0) > 0 and meadow.get("tree", 0) > 0, "the meadow's own flowers and trees count: %s" % meadow)
+	_check(meadow.is_empty(), "the meadow's own plants are the base and count nothing: %s" % meadow)
+	for on: Budget.Device in Budget.COSTS:
+		_check(Budget.room_ms(on) > 0.0 and Budget.fits(meadow, {"wall_m2": 1.0}, [on]), "a fresh garden has room to build on %s" % Budget.Device.keys()[on])
 	_check(_same(world.units, _recount()), "a fresh garden counts what it holds")
+	world._order({"op": "tree", "group": 0, "index": world.flora.meadow_trees()[0], "scale": 2.0}, world.me())
+	_check(is_equal_approx(world.units.get("tree", 0.0), 3.0), "a meadow tree grown counts only its growth: %s" % world.units)
+	world._order({"op": "undo"}, world.me())
+	_check(world.units.is_empty(), "and shrunk back counts nothing again: %s" % world.units)
 	await _play([
 		{"op": "place", "x": 0, "z": 8},
 		{"op": "wall", "points": [[-6, -2], [-1, -3]], "seconds": 0.3},
@@ -115,7 +121,7 @@ func _counts_follow_placements_and_deletions() -> void:
 	])
 	await _settled()
 	_check(world.units.get("wall_m2", 0.0) > 0.0 and not world.units.has("path_m2") and world.units.get("pond", 0) == 1, "walls, ponds and reserved path steps count: %s" % world.units)
-	_check(world.units.get("tree", 0) == meadow.tree + 1 and world.units.get("flower", 0) > meadow.flower, "a planted tree and painted flowers count: %s" % world.units)
+	_check(world.units.get("tree", 0) == 1 and world.units.get("flower", 0) > 0, "a planted tree and painted flowers count: %s" % world.units)
 	_check(_same(world.units, _recount()), "what the garden counts matches what it holds: %s against %s" % [world.units, _recount()])
 	var wall_id: int = world.state.walls.keys()[0]
 	var wall_units := Budget.wall(world.state.walls[wall_id])
@@ -125,7 +131,7 @@ func _counts_follow_placements_and_deletions() -> void:
 	_check(is_equal_approx(world.units.get("wall_m2", 0.0), with_wall.wall_m2 - wall_units.wall_m2), "deleting a wall frees what it counted")
 	await _play([{"op": "delete", "x": -6, "z": 4, "height": 3.0}])
 	await _settled()
-	_check(world.units.get("tree", 0) == meadow.tree, "deleting the tree frees it: %s" % world.units)
+	_check(not world.units.has("tree"), "deleting the tree frees it: %s" % world.units)
 	_check(_same(world.units, _recount()), "after deletions the count still matches the garden")
 	for i in 8:
 		world.undo()
