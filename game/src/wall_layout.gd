@@ -1032,8 +1032,8 @@ static func stone_color(rng: RandomNumberGenerator) -> Color:
 
 
 ## A coloured part on the wall's frame at `s`, `y`, `out` metres off the centre plane toward face +1.
-func _part(s: float, y: float, size: Vector3, color: Color, rng: RandomNumberGenerator, kind: String, out := 0.0, wobble := 0.0) -> void:
-	var st := _stone(s, y, size, rng, kind, 1.0, wobble)
+func _part(s: float, y: float, size: Vector3, color: Color, rng: RandomNumberGenerator, kind: String, out := 0.0, wobble := 0.0, face := INF) -> void:
+	var st := _stone(s, y, size, rng, kind, 1.0, wobble, 0.0, 0.015, face)
 	st.xform.origin += _normal(s) * out
 	st.color = color
 	stones.append(st)
@@ -1431,7 +1431,7 @@ func _lay_gable_rows(mid: float, hs: float, base: float, h: float, rows: Array[V
 			_lay_mortar([[y, h, [[span[0] + inset, span[1] - inset]]]])
 		if row.y > hs - 0.01:
 			for side in [-1.0, 1.0]:
-				_part(mid + side * edge, y + h * 0.5, Vector3(THICKNESS, h, THICKNESS), PLASTER if plaster else stone_color(rng), rng, "plaster" if plaster else "block")
+				_part(mid + side * edge, y + h * 0.5, Vector3(THICKNESS, h, THICKNESS), PLASTER if plaster else stone_color(rng), rng, "plaster" if plaster else "block", 0.0, 0.0, mid)
 
 
 ## A stepped gable end `hs` out from the ridge each side, from the eaves up, as Vector3(half-width, first course,
@@ -1488,32 +1488,38 @@ func _lay_boards(mid: float, hs: float, base: float, rng: RandomNumberGenerator)
 		var w := minf(BOARD.x, hs - x)
 		var tall := gable.rise(1.0 - maxf(absf(x), absf(x + w)) / hs)
 		if tall > 0.05 and not _standing([[mid + x, mid + x + w]]).is_empty():
-			_part(mid + x + w * 0.5, base + tall * 0.5, Vector3(w - BOARD.y, tall, THICKNESS - PLASTER_INSET * 2.0), WOOD * rng.randf_range(0.85, 1.1), rng, "board")
+			_part(mid + x + w * 0.5, base + tall * 0.5, Vector3(w - BOARD.y, tall, THICKNESS - PLASTER_INSET * 2.0), WOOD * rng.randf_range(0.85, 1.1), rng, "board", 0.0, 0.0, mid)
 		x += w
 
 
-## Pieces of `kind` up each rake over the gable's stepped edge, each about half a metre along it however steep.
+## Pieces of `kind` up each rake over the gable's stepped edge, each about half a metre along it however steep, up to the
+## ridge, or on a slope too steep for the top one's foot to reach past the ridge under the far slope, to where it meets
+## the ridge's plane.
 func _lay_verge(mid: float, hs: float, base: float, rng: RandomNumberGenerator, kind: String) -> void:
+	var ridge := Vector2(0.0, gable.rise(1.0))
+	var up := Vector2(-0.01, gable.rise(1.0) - gable.rise(1.0 - 0.01 / hs)).normalized()
+	var foot := ridge + up * 0.01 - up.orthogonal() * VERGE.y
+	var apex := -foot.x if foot.x < 0.0 and foot.y > gable.rise(1.0 + foot.x / hs) else 0.0
 	for side in [-1.0, 1.0]:
 		var x := hs
-		while x > 0.05:
+		while x > apex + 0.05:
 			var x1 := x
 			var walked := 0.0
 			var length := rng.randf_range(0.42, 0.6)
-			while walked < length and x1 > 0.0:
-				var next := maxf(x1 - 0.01, 0.0)
+			while walked < length and x1 > apex:
+				var next := maxf(x1 - 0.01, apex)
 				walked += Vector2(x1 - next, gable.rise(1.0 - next / hs) - gable.rise(1.0 - x1 / hs)).length()
 				x1 = next
 			var hi := Vector2(x1, gable.rise(1.0 - x1 / hs))
-			if hi.distance_to(Vector2(0.0, gable.rise(1.0))) < 0.25:
-				x1 = 0.0
-				hi = Vector2(0.0, gable.rise(1.0))
+			if hi.distance_to(Vector2(apex, gable.rise(1.0 - apex / hs))) < 0.25:
+				x1 = apex
+				hi = Vector2(apex, gable.rise(1.0 - apex / hs))
 			var lo := Vector2(x, gable.rise(1.0 - x / hs))
 			var run := hi - lo
 			var at := (lo + hi) * 0.5 - run.orthogonal().normalized() * VERGE.y * 0.5
 			if not _standing([[mid + side * at.x - 0.01, mid + side * at.x + 0.01]]).is_empty():
 				var roll := atan(run.y / (run.x * side))
-				var piece := _stone(mid + side * at.x, base + at.y, Vector3(run.length() + 0.02, VERGE.y, VERGE.x), rng, kind, 0.97, 0.02, roll)
+				var piece := _stone(mid + side * at.x, base + at.y, Vector3(run.length() + 0.02, VERGE.y, VERGE.x), rng, kind, 0.97, 0.02, roll, 0.015, mid)
 				if kind == "board":
 					piece.color = WOOD * rng.randf_range(0.8, 0.95)
 				stones.append(piece)
@@ -1582,8 +1588,13 @@ func _add(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: S
 	stones.append(_stone(s, y, size, rng, kind, shade, wobble))
 
 
-func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: String, shade: float, wobble: float, roll := 0.0, jitter := 0.015) -> Dictionary:
+## A stone at arc length `s`; one given the arc length of a straight `face` it belongs to, such as a gable end's middle,
+## lies on that face's line carried on past its corners, rather than turning onto the next side.
+func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: String, shade: float, wobble: float, roll := 0.0, jitter := 0.015, face := INF) -> Dictionary:
 	var frame := frame_at(s)
+	if is_finite(face):
+		var line := frame_at(face)
+		frame = {"point": line.point + line.tangent * (s - face), "tangent": line.tangent}
 	var basis := Basis(frame.tangent, Vector3.UP, frame.tangent.cross(Vector3.UP)) * Basis(Vector3.BACK, roll)
 	basis = basis * Basis.from_euler(Vector3(rng.randf_range(-wobble, wobble), rng.randf_range(-wobble, wobble) * 2.0, rng.randf_range(-wobble, wobble)))
 	var origin: Vector3 = frame.point + Vector3.UP * y

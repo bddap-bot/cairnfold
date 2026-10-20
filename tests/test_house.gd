@@ -27,6 +27,7 @@ func _init() -> void:
 	_a_deck_is_rimmed_by_the_top_style()
 	_roof_surfaces_have_no_degenerate_triangles()
 	_no_wall_rises_through_a_steep_roof()
+	_gable_ends_keep_to_their_wall_under_the_roof()
 	_every_tile_joint_has_a_tile_under_it()
 	_a_gable_continues_the_wall_under_the_slopes()
 	_gable_faces_face_out_of_the_wall()
@@ -846,6 +847,45 @@ func _no_wall_rises_through_a_steep_roof() -> void:
 							worst = over
 							what = st.kind
 				_check(worst <= 0.0, "%s %s pitch %.1f curve %+.0f: a %s stone rises %.3f m through the roof" % [RoofLayout.Kind.keys()[r.kind], WallLayout.GableEnd.keys()[shape.end], pitch, curve, what, worst])
+
+
+## Every piece of a gable end, the lowest copes, bargeboards, planks and blocks beside its corners too, lies in its end
+## wall's plane rather than turning onto the side wall, and up to a pitch of 2 the copes and boards stay under the tiles.
+func _gable_ends_keep_to_their_wall_under_the_roof() -> void:
+	for size in [Vector2(3.0, 2.0), Vector2(5.0, 4.0), Vector2(6.0, 8.0)]:
+		for end in WallLayout.GableEnd.values():
+			for plaster in [false, true]:
+				for pitch in PITCHES:
+					for curve in CURVES:
+						var w := WallLayout.new()
+						w.points.assign(WallLayout.rectangle(Vector3.ZERO, Vector3(size.x, 0, 0), size.y))
+						w.closed = true
+						w.cover = WallLayout.Cover.ROOF
+						w.height = 2.4
+						w.plaster = plaster
+						w.gable_end = end
+						var r := RoofLayout.new()
+						r.pitch = pitch
+						r.curve = curve
+						w.gable = r
+						w.build(_flat)
+						Wall.pack_roof(w, r, Wall.kinds(), Palette.plain())
+						var f := r.frame()
+						var turned := 0
+						var worst := -INF
+						for st in w.stones:
+							if st.xform.origin.y < r.base + 0.02:
+								continue
+							if absf(st.xform.basis.z.normalized().dot(f.across)) > 0.2:
+								turned += 1
+							if pitch > 2.0 or st.kind != "cope" and st.kind != "board":
+								continue
+							for c in WallLayout.BOX:
+								var p: Vector3 = st.xform * c
+								worst = maxf(worst, p.y - r.height_at(p.x, p.z))
+						var what := "%s %s %s pitch %.1f curve %+.1f" % [size, WallLayout.GableEnd.keys()[end], "plaster" if plaster else "stone", pitch, curve]
+						_check(turned == 0, "%s: %d gable pieces turn off their end wall" % [what, turned])
+						_check(worst <= 0.05, "%s: a cope or board rises %.3f m through the roof" % [what, worst])
 
 
 ## Houses and towers to roof, each with its roof's footprint set: a narrow and a wide house and two towers.
