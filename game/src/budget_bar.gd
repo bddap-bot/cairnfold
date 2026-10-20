@@ -87,7 +87,7 @@ func _init(garden: World, on: Hand) -> void:
 
 
 func _process(delta: float) -> void:
-	visible = hand.tool != Hand.Tool.HANDS
+	visible = hand.tool != Hand.Tool.NONE
 	var now := world.fill()
 	var with := world.fill(hand)
 	_shown = lerpf(_shown, now, 1.0 - exp(-EASE * delta))

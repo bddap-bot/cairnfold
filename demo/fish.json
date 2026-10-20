@@ -25,7 +25,7 @@
   {"op": "hands", "right": [0.2, -0.3, -0.35], "tip": 0},
   {"op": "capture", "name": "04-frenzy-before"},
   {"op": "toss", "velocity": [-0.1, 1.0, -2.4]},
-  {"op": "pick", "hand": "right", "tool": "hands"},
+  {"op": "pick", "hand": "right", "tool": "none"},
   {"op": "hands", "right": [0.3, -1.5, 0.3], "tip": 0},
   {"op": "wait", "seconds": 1.2},
   {"op": "capture", "name": "05-frenzy-seeds-land"},

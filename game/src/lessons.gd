@@ -40,12 +40,12 @@ const PAGES := [
 			{"t": 2.2, "right": {"at": [0.2, -0.44, -0.42], "aim": [0.0, -0.35, -1.0]}},
 			{"t": 3.0, "right": {"at": [0.2, -0.3, -0.42], "aim": [0.0, -0.35, -1.0]}},
 		], "press": [{"hand": "right", "action": "wheel", "from": 0.4, "to": 1.8}]},
-	{"effect": "teleport", "length": 3.6, "tools": {"left": "hands"},
+	{"effect": "teleport", "length": 3.6, "tools": {"left": "none"},
 		"view": {"look": "top", "back": 0.55},
 		"keys": [
 			{"t": 0.0, "left": {"at": [-0.2, -0.35, -0.32], "aim": [0.0, -0.35, -1.0]}},
 		], "press": [{"hand": "left", "action": "teleport", "from": 0.5, "to": 2.0}]},
-	{"effect": "undo", "length": 3.8, "setup": [{"op": "wall", "points": [[-2, 3], [2, 3]], "relative": true, "seconds": 0.3}], "tools": {"left": "hands", "right": "hands"},
+	{"effect": "undo", "length": 3.8, "setup": [{"op": "wall", "points": [[-2, 3], [2, 3]], "relative": true, "seconds": 0.3}], "tools": {"left": "none", "right": "none"},
 		"view": {"look": "top", "back": 0.36},
 		"keys": [
 			{"t": 0.0, "left": {"at": [-0.16, -0.32, -0.36], "aim": [0.1, -0.4, -1.0], "roll": 20.0}, "right": {"at": [0.16, -0.32, -0.36], "aim": [-0.1, -0.4, -1.0], "roll": -20.0}},
@@ -71,7 +71,7 @@ const PAGES := [
 			{"t": 0.9, "right": {"at": [0.2, -0.32, -0.36], "aim": [-0.07, -0.3, -1.0]}},
 			{"t": 2.3, "right": {"at": [0.2, -0.32, -0.36], "aim": [-0.07, -0.3, -1.0], "roll": -75.0}},
 		], "press": [{"hand": "right", "action": "tool", "from": 0.5, "to": 2.7}]},
-	{"effect": "house", "length": 4.2, "tools": {"left": "hands", "right": "house"},
+	{"effect": "house", "length": 4.2, "tools": {"left": "none", "right": "house"},
 		"view": {"look": "top", "back": 0.42},
 		"keys": [
 			{"t": 0.0, "left": {"at": [-0.12, -0.36, -0.36], "aim": [0.0, -0.5, -1.0]}, "right": {"at": [0.12, -0.36, -0.36], "aim": [0.0, -0.5, -1.0]}},

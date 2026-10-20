@@ -15,7 +15,7 @@ cobblestone paths, dirt paths, stone, flowers, grass, trees, pond, colour, style
 
 - Hold the upper face button (B on the right, Y on the left; on the Steam Frame B, X
   or Y on the right, D-pad up, left or right on the left), and a wheel of tools stands up in front of that
-  hand: sweep the hand onto a tool and let go to take it. A slot showing a little
+  hand: sweep the hand onto a tool and let go to take it, or let go on none to hold nothing. A slot showing a little
   cluster opens more tools on its far side: swing back onto one. Picks zig-zag
   left and right, the same motion every time.
 - Trigger: use the tool. Draw a wall, lay a path, paint (a stone stroke begun on

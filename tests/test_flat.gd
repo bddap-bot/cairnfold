@@ -136,7 +136,7 @@ func _near(a: Transform3D, b: Transform3D) -> bool:
 
 func _the_hands_hang_at_the_sides_until_a_tool_is_raised() -> void:
 	var rig := main.rig
-	_check(rig.hands.all(func(h: Hand) -> bool: return h.tool == Hand.Tool.HANDS), "flat mode starts with empty hands")
+	_check(rig.hands.all(func(h: Hand) -> bool: return h.tool == Hand.Tool.NONE), "flat mode starts with empty hands")
 	flat.pitch = -0.6
 	await _frames(2)
 	var level := Transform3D(Basis(Vector3.UP, rig.head.global_basis.get_euler().y), rig.head.global_position)
@@ -156,7 +156,7 @@ func _the_hands_hang_at_the_sides_until_a_tool_is_raised() -> void:
 	await _tap(_button.bind(JOY_BUTTON_Y))
 	_check(rig.right.tool == Hand.Tool.VISIT, "the gamepad's Y takes up the visit tool")
 	await _tap(_mouse.bind(MOUSE_BUTTON_RIGHT))
-	_check(rig.right.tool == Hand.Tool.HANDS, "and the right mouse button puts it away")
+	_check(rig.right.tool == Hand.Tool.NONE, "and the right mouse button puts it away")
 	await _frames(1)
 	_check(_near(rig.right.body.global_transform, level * Avatar.AT_SIDES[1]), "the hand dropping back to the side")
 	flat.pitch = 0.0
@@ -184,7 +184,7 @@ func _the_trigger_reaches_only_the_camera_and_the_visit_tool() -> void:
 	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.0)
 	await _frames(2)
 	_check(not Buttons.injected.has(trigger), "and lets go with it")
-	rig.right.tool = Hand.Tool.HANDS
+	rig.right.tool = Hand.Tool.NONE
 	await _frames(1)
 
 

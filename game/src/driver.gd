@@ -101,13 +101,13 @@ func _rest(s: Dictionary) -> void:
 
 
 ## Takes a tool from a hand's wheel as a player does: hold the wheel button, sweep the hand through each
-## level of the tool's path, let go. An untracked hand is moved itself; a tracked one sweeps by injected
+## level of the tool's path, let go; "none" lets go at the centre, emptying the hand. An untracked hand is moved itself; a tracked one sweeps by injected
 ## reach. "capture" saves a view at the opening and at each level reached, as "<capture>-<level>",
 ## "popping" one the frame after the pick.
 func _pick(s: Dictionary) -> void:
 	var hand: Hand = _hand(s)
 	var key := "%s/%s" % [hand.tracker, Controls.input("wheel", hand.tracker)]
-	var path: Array[int] = ToolWheel.paths(Hand.TREE)[Hand.Tool[s.tool.to_upper()]]
+	var path: Array[int] = ToolWheel.paths(Hand.TREE).get(Hand.Tool[s.tool.to_upper()], [] as Array[int])
 	var start := hand.global_position
 	var reach := func(p: Vector2) -> void:
 		if hand.get_has_tracking_data():

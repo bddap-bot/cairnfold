@@ -4,13 +4,13 @@ extends XRController3D
 ## A controller and the tool it holds. Every tool's input code dispatches on `tool`, and the object on top
 ## of the controller and the selection wheel show it, so they cannot disagree.
 
-enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, HANDS, SEEDS, DIRT_PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK }
+enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, NONE, SEEDS, DIRT_PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK }
 
 ## The wheel's contents, clockwise from the top; an Array is a subtree, null an empty slot. Fixed, so every
 ## pick is a learnable motion.
 const TREE := [
 	[Tool.COLOUR, Tool.STYLE],
-	[Tool.HANDS, Tool.CAMERA, Tool.SEEDS, Tool.EASEL],
+	[Tool.CAMERA, Tool.SEEDS, Tool.EASEL],
 	[Tool.FLOWERS, Tool.GRASS, Tool.TREES, Tool.POND],
 	[Tool.VISIT, Tool.BOOK],
 	Tool.DELETE,
@@ -87,7 +87,7 @@ func _init(tracker_name: String, held: Tool) -> void:
 	mi.material_override = mat
 	body.add_child(mi)
 	for t in Tool.size():
-		var m := Node3D.new() if t in [Tool.HANDS, Tool.EASEL, Tool.BOOK] else ToolModels.build(t)
+		var m := Node3D.new() if t in [Tool.NONE, Tool.EASEL, Tool.BOOK] else ToolModels.build(t)
 		m.position = TOP
 		m.scale = Vector3.ZERO
 		m.visible = false
@@ -288,7 +288,7 @@ func _log_profile() -> void:
 
 
 ## Hold the wheel button and the wheel opens where the hand is, facing the head; sweep the hand
-## onto a tool, or onto a subtree and on into it; let go to take the tool the hand is on.
+## onto a tool, or onto a subtree and on into it; let go to take the tool the hand is on, or, on none, to hold nothing.
 func _select_input(delta: float) -> void:
 	if _wheel == null:
 		if not _buttons.pressed("wheel"):
@@ -315,9 +315,8 @@ func _select_input(delta: float) -> void:
 	_show_wheel(delta)
 	if _buttons.released("wheel"):
 		var pick: Variant = _wheel.chosen()
-		if pick != null:
-			tool = pick
-			Cues.play(Cues.Act.WHEEL_PICK, global_position, self)
+		tool = pick if pick != null else Tool.NONE
+		Cues.play(Cues.Act.WHEEL_PICK, global_position, self)
 		_wheel = null
 		picking = false
 		_wheel_root.visible = false

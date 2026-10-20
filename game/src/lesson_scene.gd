@@ -83,7 +83,7 @@ func _init(i: int, see_through := false) -> void:
 	for side in Lessons.hands(page):
 		var pad := Pad.new(side == "right", see_through)
 		pad.scale = Vector3.ONE * ghost
-		pad.hold(Lessons.tool(page.tools.get(side, "hands")))
+		pad.hold(Lessons.tool(page.tools.get(side, "none")))
 		stage.add_child(pad)
 		pads[side] = pad
 	_beam = Beam.new(Color(1, 1, 1, 0.85))

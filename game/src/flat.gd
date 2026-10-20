@@ -7,7 +7,7 @@ extends Node
 ## raised before the eye, or none, so there is no edit path to keep it from: with none, both hands hang at the sides,
 ## as other players see them.
 
-const TOOLS: Array[Hand.Tool] = [Hand.Tool.HANDS, Hand.Tool.CAMERA, Hand.Tool.VISIT]
+const TOOLS: Array[Hand.Tool] = [Hand.Tool.NONE, Hand.Tool.CAMERA, Hand.Tool.VISIT]
 const WALK := 2.5
 ## Radians a second at full stick, and per pixel of mouse.
 const STICK_LOOK := 2.6
@@ -39,7 +39,7 @@ func _init(player: Rig) -> void:
 	process_priority = -20
 	_trigger = "%s/%s" % [rig.right.tracker, Controls.input("tool", rig.right.tracker)]
 	for h in rig.hands:
-		h.tool = Hand.Tool.HANDS
+		h.tool = Hand.Tool.NONE
 		h.held_still = true
 	for action in Controls.FLAT:
 		var named: String = "flat_" + action
@@ -128,7 +128,7 @@ func _process(delta: float) -> void:
 		_walk(rig.global_basis * level * Vector3(move.x, 0.0, move.y) * WALK * delta)
 	if Input.is_action_just_pressed("flat_next_tool") and not _taking_click:
 		rig.right.tool = TOOLS[(TOOLS.find(rig.right.tool) + 1) % TOOLS.size()]
-	var raised := rig.right.tool != Hand.Tool.HANDS
+	var raised := rig.right.tool != Hand.Tool.NONE
 	for s in 2:
 		var at_side := Transform3D(level, Vector3.UP * Rig.EYE) * Avatar.AT_SIDES[s]
 		rig.hands[s].transform = eyes * Flat.held(rig.right.tool) if raised and s == 1 else at_side

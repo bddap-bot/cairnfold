@@ -290,4 +290,4 @@ func go(k: String, hand: Hand = null) -> void:
 func put_away() -> void:
 	for h in rig.hands:
 		if h.tool == Hand.Tool.VISIT:
-			h.tool = Hand.Tool.HANDS
+			h.tool = Hand.Tool.NONE

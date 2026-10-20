@@ -73,8 +73,6 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_wand(root)
 		Hand.Tool.CAMERA:
 			_camera(root)
-		Hand.Tool.HANDS:
-			_open_hand(root)
 		Hand.Tool.SEEDS:
 			_seeds(root)
 		Hand.Tool.EASEL:
@@ -411,40 +409,6 @@ static func _camera(root: Node3D) -> void:
 	screen.material_override = camera_screen()
 	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(screen)
-
-
-## An open hand, palm up and fingers spread: the hand holds nothing.
-static func _open_hand(root: Node3D) -> void:
-	var skin: StandardMaterial3D = _mats.get("skin")
-	if skin == null:
-		skin = StandardMaterial3D.new()
-		skin.albedo_color = Color(0.93, 0.78, 0.66)
-		skin.roughness = 0.8
-		_mats["skin"] = skin
-	var hand := Node3D.new()
-	hand.scale = Vector3.ONE * 1.7
-	root.add_child(hand)
-	var palm := MeshInstance3D.new()
-	palm.mesh = Meshes.rounded_box(0.3, 2, 7)
-	palm.scale = Vector3(0.026, 0.007, 0.024)
-	palm.position = Vector3(0, 0.0035, 0)
-	palm.material_override = skin
-	palm.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	hand.add_child(palm)
-	# Base on the palm's rim, splay about the up axis, length: four fingers, then the thumb.
-	for f in [[Vector3(-0.009, 0.0045, -0.011), 0.22, 0.017], [Vector3(-0.003, 0.0045, -0.012), 0.07, 0.020], [Vector3(0.003, 0.0045, -0.012), -0.07, 0.019], [Vector3(0.009, 0.0045, -0.011), -0.22, 0.015], [Vector3(-0.012, 0.004, 0.002), 1.0, 0.015]]:
-		var capsule := CapsuleMesh.new()
-		capsule.radius = 0.0033
-		capsule.height = f[2]
-		capsule.radial_segments = 8
-		capsule.rings = 2
-		var along := Vector3.FORWARD.rotated(Vector3.UP, f[1])
-		var mi := MeshInstance3D.new()
-		mi.mesh = capsule
-		mi.transform = Transform3D(Basis(Vector3.UP, f[1]) * Basis(Vector3.RIGHT, -PI * 0.5), f[0] + along * f[2] * 0.5)
-		mi.material_override = skin
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		hand.add_child(mi)
 
 
 ## A little person: the visit tool goes to see other players.

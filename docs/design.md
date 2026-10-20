@@ -1764,9 +1764,9 @@ figure for visit. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
 rounded body is unchanged, and there is no text anywhere.
 
-A hand can also hold nothing: empty hands, for when the building is done and the player just wants to
-be in the garden. Its wheel icon is an open hand; on the controller nothing stands, and no tool draws a
-ray from it. It still does what every hand does whatever it holds: its grip grabs what it points at, and
+A hand can also hold nothing, for when the building is done and the player just wants to be in the garden.
+No slot holds that: opening the wheel and letting go with nothing picked empties the hand (`Hand.Tool.NONE`).
+On the controller nothing stands, and no tool draws a ray from it. It still does what every hand does whatever it holds: its grip grabs what it points at, and
 the stick's teleport arc and a grab of the sky still show their rays while in use. Picking any tool from
 the wheel brings that tool's ray back. Nothing hides on a timer.
 
@@ -1783,7 +1783,7 @@ and right. And so it- then the user will learn those combinations."
 
 Hold a hand's wheel button and a wheel of eight icons stands upright where that hand is, facing the
 head (`Hand.TREE`, `ToolWheel`). Sweeping the hand toward a slot makes it hot, and it grows; letting
-go of the button takes the hot tool, and letting go with nothing hot keeps the tool held. A slot is a
+go of the button takes the hot tool, and letting go with nothing hot empties the hand. A slot is a
 tool or a subtree, drawn as its tools in miniature; every icon is tipped toward the eye, as a
 controller's top is seen, on a pale disc. Each icon is a miniature of what its tool makes: stone ground's
 is baked from the terrain shader's own flagstones and colours, fraying into meadow at the rim. Reaching a
@@ -1795,7 +1795,7 @@ The slots never move, so each tool is one learnable motion:
 | Slot | Holds |
 | --- | --- |
 | Top | Colour, style |
-| Upper right | Empty hands, camera, seeds, easel |
+| Upper right | Camera, seeds, easel |
 | Right | Flowers, grass, trees, ponds |
 | Lower right | Visit, the picture book |
 | Bottom | Delete |

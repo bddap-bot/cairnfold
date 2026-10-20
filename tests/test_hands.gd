@@ -34,12 +34,12 @@ func _run() -> void:
 	var spot := Terrain.ground(2, 2)
 	tracker.set_pose(&"aim", rig.global_transform.affine_inverse() * Transform3D(Basis.looking_at(spot - at, Vector3.UP), at), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
 	var hand := rig.right
-	_check(ToolWheel.paths(Hand.TREE).has(Hand.Tool.HANDS), "empty hands are on the wheel")
+	_check(not ToolWheel.paths(Hand.TREE).has(Hand.Tool.NONE), "the wheel holds no empty-hand slot")
 	hand.tool = Hand.Tool.FLOWERS
 	await _frames(3)
 	_check(hand._beam.visible, "a hand holding flowers over the ground shows its ray")
-	await _play([{"op": "pick", "hand": "right", "tool": "hands"}])
-	_check(hand.tool == Hand.Tool.HANDS, "the wheel picks empty hands")
+	await _play([{"op": "pick", "hand": "right", "tool": "none"}])
+	_check(hand.tool == Hand.Tool.NONE, "opening the wheel and letting go with nothing picked empties the hand")
 	var shown := 0
 	for i in 30:
 		await process_frame
@@ -47,7 +47,7 @@ func _run() -> void:
 	_check(shown == 0, "an empty hand over the ground shows no ray, shown on %d of 30 frames" % shown)
 	var bar: BudgetBar = hand.get_children().filter(func(c: Node) -> bool: return c is BudgetBar)[0]
 	_check(not bar.visible, "an empty hand shows no budget bar")
-	var on_top := hand._models[Hand.Tool.HANDS]
+	var on_top := hand._models[Hand.Tool.NONE]
 	_check(on_top.get_child_count() == 0, "nothing stands on an empty hand's controller")
 	await _play([{"op": "pick", "hand": "right", "tool": "path"}])
 	await _frames(3)
