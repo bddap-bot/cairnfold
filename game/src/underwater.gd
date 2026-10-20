@@ -63,6 +63,8 @@ func _process(_delta: float) -> void:
 	var under := pond != null and eye.global_position.y < pond.surface_y()
 	if under != visible:
 		_submerge(under)
+		if eye.get_parent() is Rig:
+			eye.get_parent().under = under
 	if under:
 		global_position = eye.global_position
 		var l := Daylight.light(look.time)

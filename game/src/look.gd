@@ -18,9 +18,9 @@ const SHADOW_REACH := 256.0
 const STANDING := 2.0
 const FOG_BEGIN := 18.0
 const FOG_END := 140.0
-const AIR_FOG := {"fog_depth_curve": 1.6, "fog_density": 0.55, "fog_aerial_perspective": 0.8, "fog_sun_scatter": 0.35}
+const AIR_FOG := {"fog_depth_curve": 1.6, "fog_density": 0.55, "fog_aerial_perspective": 0.8, "fog_sun_scatter": 0.35, "fog_sky_affect": 0.15}
 ## Under a pond the view is gone to the water's blue-green within a few metres, thickest close in.
-const WATER_FOG := {"fog_depth_begin": 0.0, "fog_depth_end": 7.0, "fog_depth_curve": 0.6, "fog_density": 1.0, "fog_aerial_perspective": 0.0, "fog_sun_scatter": 0.0}
+const WATER_FOG := {"fog_depth_begin": 0.0, "fog_depth_end": 7.0, "fog_depth_curve": 0.6, "fog_density": 1.0, "fog_aerial_perspective": 0.0, "fog_sun_scatter": 0.0, "fog_sky_affect": 1.0}
 const UNDER_FOG := Color(0.07, 0.25, 0.27)
 ## Water takes red first, then green: what reaches the eye through it keeps this much of each.
 const UNDER_KEEPS := Color(0.55, 0.92, 1.0)
@@ -107,7 +107,6 @@ static func build(parent: Node) -> Look:
 	env.fog_light_energy = 1.0
 	for k in AIR_FOG:
 		env.set(k, AIR_FOG[k])
-	env.fog_sky_affect = 0.15
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.12
 	env.adjustment_contrast = 1.04

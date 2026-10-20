@@ -157,6 +157,11 @@ func _marker(mesh: Mesh, mat: Material) -> MeshInstance3D:
 	return mi
 
 
+## Whether the head is under a pond, where the water's fog takes everything past its end: the eyes clip there, so
+## the garden beyond is not drawn.
+var under := false
+
+
 ## The eyes' far clip: at least FAR, and the whole ground from anywhere a player can stand or float over it,
 ## however high or deep it is pulled.
 static func far() -> float:
@@ -164,7 +169,7 @@ static func far() -> float:
 
 
 func _process(delta: float) -> void:
-	head.far = far()
+	head.far = Look.WATER_FOG.fog_depth_end if under else far()
 	_locomotion_input(delta)
 	_moves.latch()
 	_turns.latch()
