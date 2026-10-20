@@ -66,7 +66,10 @@ func _run() -> void:
 	var cmd := {"op": "unwall", "ids": PackedInt32Array([id])}
 	_check(not Commands.clean(cmd, main.world.state, false).is_empty(), "host accepts rubble removal through existing unwall")
 	main.world._order(cmd, 42)
+	await process_frame
+	await process_frame
 	seq = main.world.seq
+	_check(tool.hold(self, eye, Vector3.DOWN).is_empty(), "peer removal clears the held hover target")
 	tool.let_go(self)
 	_check(main.world.seq == seq, "peer removal during held delete does not retarget or add a command")
 	main.world._order({"op": "undo"}, 42)

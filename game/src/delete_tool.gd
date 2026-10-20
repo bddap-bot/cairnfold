@@ -218,7 +218,7 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 	if cut.is_empty():
 		return {}
 	if cut.has("single"):
-		return cut.single
+		return cut.single if is_instance_valid(cut.single.wall) else {}
 	var was: Array = cut.ray
 	var aimed := aim(origin, dir, cut.plants, _gone(cut))
 	var far := Vector3(aimed.get("point", origin + dir))
@@ -356,7 +356,7 @@ func let_go(who: Object) -> void:
 		var target: Dictionary = cut.single
 		var cmd := {}
 		if target.get("rubble", false):
-			if _standing(target.wall):
+			if is_instance_valid(target.wall) and _standing(target.wall):
 				cmd = {"op": "unwall", "ids": PackedInt32Array([target.wall.id])}
 		else:
 			cmd = FittingTool.removal(world.state, target)
