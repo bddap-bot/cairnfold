@@ -91,9 +91,13 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	var roof := pick if pick.get("surface") == "roof" else {}
 	var gable := pick if pick.get("surface") == "gable" else {}
 	var ground: Variant = Terrain.raycast(origin, dir)
-	var stair := world.stairs.pick(origin, dir, minf(pick.get("along", INF), origin.distance_to(ground) if ground != null else INF))
+	var nearest := minf(pick.get("along", INF), origin.distance_to(ground) if ground != null else INF)
+	var rock := world.boulders.pick(origin, dir, nearest) if world.boulders != null else {}
+	var stair := world.stairs.pick(origin, dir, minf(nearest, rock.get("along", INF)))
 	if not stair.is_empty():
 		return colour_target(Palette.KINDS[stair.kind], stair.point, "stairs", stair.stair)
+	if not rock.is_empty():
+		return colour_target(Palette.Element.STONE, rock.point, "boulders", rock.boulder.id)
 	if not gable.is_empty():
 		if _on_timber(gable.wall.layout, gable.point):
 			return colour_target(Palette.Element.TIMBER, gable.point, "walls", gable.wall.id)
@@ -315,7 +319,7 @@ func _show(w: Wheel, pick: int) -> void:
 
 ## What lays the builds of the garden's table `of`: each shows a reshape before it is sent and `settle`s back.
 func _builder(of: String) -> Object:
-	return walls if of == "walls" else world.stairs
+	return {"walls": walls, "stairs": world.stairs, "boulders": world.boulders}[of]
 
 
 ## Sends the choice at the top of `hand`'s wheel to the garden, unless the garden already has it (another

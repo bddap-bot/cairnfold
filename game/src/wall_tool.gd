@@ -3,7 +3,7 @@ extends Node3D
 
 ## Walls, for whichever hand holds them: trigger draws a wall along the ground, a loop as much as a line,
 ## and a grip pointed at a wall, whatever the hand holds, pulls its height, at a roof its pitch and curvature, and at a
-## tree its size, its top following the hand. Each hand grabs on its own, so two hands pull two walls, roofs or trees at once; a grip on one the other hand
+## tree or boulder its size, its top following the hand. Each hand grabs on its own, so two hands pull two walls, roofs, trees or boulders at once; a grip on one the other hand
 ## holds takes nothing. A hand holding the house or the tower takes hold of one with its trigger, where it points, and carries it; the
 ## other hand's grip, pressed while it is carried, joins in, whatever it points at, to turn it with the pair and stretch it
 ## along their span, a tower every way at once; letting go builds it. A built
@@ -41,14 +41,28 @@ const CARRY_STEP := 0.12
 signal built
 
 
+## A thing a grip grows and shrinks, its top following the hand: how to read and show its scale, the range it may
+## take, and the command that sets it in the garden.
+class Sizing:
+	var scale: Callable
+	var top: Callable
+	var limits: Vector2
+	var current: Callable
+	var show: Callable
+	var command: Callable
+	var settle: Callable
+
+
 class Mason:
 	var hand: Hand
 	var buttons: Buttons
 	var stroke: Stroke
 	var lifting: Wall
 	var roofing: Wall
-	## The trunk of the tree the grip is sizing, and its top's height over the ground at its scale `lift_start`.
-	var growing: Flora.Plant
+	## What the grip is sizing (a tree's trunk or a boulder), how, and its top's height over the ground at its scale
+	## `lift_start`.
+	var growing: Object
+	var sizing: Sizing
 	var grow_top := 0.0
 	var lift_start := 0.0
 	var curve_start := 0.0
@@ -235,7 +249,11 @@ func _handle(m: Mason) -> void:
 		var nearest: float = origin.distance_to(ground) if ground != null else INF
 		var tree := flora.solid_hit(origin, dir, nearest)
 		var trunk: Flora.Plant = tree.plants[0] if not tree.is_empty() and tree.plants[0].pool == flora.trunks else null
-		if trunk != null and tree.along < pick.get("along", INF):
+		var rock := world.boulders.pick(origin, dir, minf(nearest, minf(pick.get("along", INF), tree.get("along", INF)))) if world.boulders != null else {}
+		if not rock.is_empty():
+			if not masons.any(func(o: Mason) -> bool: return o.growing == rock.boulder):
+				begin_grow(m, rock.boulder, origin, rock.point)
+		elif trunk != null and tree.along < pick.get("along", INF):
 			if not masons.any(func(o: Mason) -> bool: return o.growing == trunk):
 				begin_grow(m, trunk, origin, tree.point)
 		elif not roof.is_empty() and roof.along < nearest:
@@ -266,8 +284,8 @@ func _preview(m: Mason) -> void:
 		change = world.change_of({"op": "reshape", "of": "walls", "id": m.lifting.id, "data": {"height": m.lifting.layout.height}})
 	elif m.roofing != null:
 		change = world.change_of({"op": "reshape", "of": "walls", "id": m.roofing.id, "data": {"roof": {"pitch": m.roofing.roof.pitch}}})
-	elif m.growing != null and m.growing.current():
-		change = world.change_of({"op": "tree", "group": m.growing.group, "index": m.growing.index, "scale": flora.scale_of(m.growing)})
+	elif m.growing != null and m.sizing.current.call():
+		change = world.change_of(m.sizing.command.call(m.sizing.scale.call()))
 	elif m in _holders and house != null:
 		change = Budget.wall(house.data())
 	elif not _resize_hands.is_empty() and m == _resize_hands[0]:
@@ -889,40 +907,69 @@ func end_roof(m: Mason) -> void:
 		world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id), m.hand)
 
 
-## Grip on a tree at `at`: the hand raised grows it and lowered shrinks it, its top rising and falling with the hand.
-func begin_grow(m: Mason, trunk: Flora.Plant, hand: Vector3, at: Vector3) -> void:
-	m.growing = trunk
-	m.lift_start = flora.scale_of(trunk)
+## Grip on a tree or a boulder at `at`: the hand raised grows it and lowered shrinks it, its top rising and falling with
+## the hand.
+func begin_grow(m: Mason, target: Object, hand: Vector3, at: Vector3) -> void:
+	m.growing = target
+	m.sizing = _sizing(target)
+	m.lift_start = m.sizing.scale.call()
 	m.lift_hand = hand
 	m.lift_at = at
 	m.lift_gain = Hand.reach_gain(hand.distance_to(at))
-	m.grow_top = flora.top_of(trunk)
+	m.grow_top = m.sizing.top.call()
 
 
 func drag_grow(m: Mason, hand_y: float) -> void:
-	var trunk := m.growing
-	if not trunk.current():
+	var s := m.sizing
+	if not s.current.call():
 		return
-	var scale := clampf(snappedf(m.lift_start * (m.grow_top + (hand_y - m.lift_hand.y) * m.lift_gain) / m.grow_top, 0.01), FloraLayout.SCALES.x, FloraLayout.SCALES.y)
-	if not is_equal_approx(scale, flora.scale_of(trunk)):
-		flora.set_look(trunk, flora.species_of(trunk) as FloraLayout.Species, scale)
+	var scale := clampf(snappedf(m.lift_start * (m.grow_top + (hand_y - m.lift_hand.y) * m.lift_gain) / m.grow_top, 0.01), s.limits.x, s.limits.y)
+	if not is_equal_approx(scale, s.scale.call()):
+		s.show.call(scale)
 		_cue(Cues.Act.WALL_STRETCH, m.lift_at, [m.hand], Cues.stretch(m.lift_start, scale))
 
 
 func end_grow(m: Mason) -> void:
-	var trunk := m.growing
+	var s := m.sizing
 	m.growing = null
-	if not trunk.current() or is_equal_approx(flora.scale_of(trunk), m.lift_start):
-		_settle_tree(trunk)
+	m.sizing = null
+	if not s.current.call() or is_equal_approx(s.scale.call(), m.lift_start):
+		s.settle.call()
 	else:
-		world.submit({"op": "tree", "group": trunk.group, "index": trunk.index, "scale": flora.scale_of(trunk)}, _settle_tree.bind(trunk), m.hand)
+		world.submit(s.command.call(s.scale.call()), s.settle, m.hand)
 
 
-## Shows a tree as the garden has it, once its sizing has come back or been turned down.
-func _settle_tree(trunk: Flora.Plant) -> void:
-	var g: Dictionary = world.state.groups.get(trunk.group, {})
-	if trunk.current() and not g.is_empty() and not masons.any(func(o: Mason) -> bool: return o.growing == trunk):
-		flora.set_look(trunk, g.species.get(trunk.index, FloraLayout.Species.OAK), g.scale.get(trunk.index, 1.0))
+## How a grip sizes `target`, a tree's trunk or a boulder; either shows as the garden has it once its sizing has come
+## back or been turned down, unless a hand holds it again.
+func _sizing(target: Object) -> Sizing:
+	var s := Sizing.new()
+	var held := func() -> bool: return masons.any(func(o: Mason) -> bool: return o.growing == target)
+	if target is Boulders.Boulder:
+		var b: Boulders.Boulder = target
+		var rocks := world.boulders
+		var standing := func() -> bool: return is_instance_valid(b) and rocks.find(b.id) == b
+		s.scale = func() -> float: return b.size
+		s.top = b.top
+		s.limits = BoulderLayout.SCALES
+		s.current = standing
+		s.show = func(scale: float) -> void: rocks.show_reshaped(b.id, {"scale": scale})
+		s.command = func(scale: float) -> Dictionary: return {"op": "reshape", "of": "boulders", "id": b.id, "data": {"scale": scale}}
+		s.settle = func() -> void:
+			if standing.call() and not held.call():
+				rocks.settle(b.id)
+		return s
+	var trunk: Flora.Plant = target
+	s.scale = flora.scale_of.bind(trunk)
+	s.top = flora.top_of.bind(trunk)
+	s.limits = FloraLayout.SCALES
+	s.current = trunk.current
+	s.show = func(scale: float) -> void: flora.set_look(trunk, flora.species_of(trunk) as FloraLayout.Species, scale)
+	s.command = func(scale: float) -> Dictionary: return {"op": "tree", "group": trunk.group, "index": trunk.index, "scale": scale}
+	s.settle = func() -> void:
+		var g: Dictionary = world.state.groups.get(trunk.group, {})
+		if trunk.current() and not g.is_empty() and not held.call():
+			flora.set_look(trunk, g.species.get(trunk.index, FloraLayout.Species.OAK), g.scale.get(trunk.index, 1.0))
+	return s
 
 
 ## The arches that would stand in `w` with `own` its own, with those the paths standing open, whatever it shows.

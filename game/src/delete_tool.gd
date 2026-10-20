@@ -1,10 +1,10 @@
 class_name DeleteTool
 extends Node3D
 
-## Takes things away, for whichever hand holds it. Its beam strikes the first wall, easel, tree or bush along it, else
+## Takes things away, for whichever hand holds it. Its beam strikes the first wall, easel, boulder, tree or bush along it, else
 ## the ground. Held, the trigger is an eraser for everything the beam passes over in one stroke: along a wall, the
 ## stretch it swept breaks away into a ruin, stepped down to a gap at its foot with fallen stones (a tap breaks a
-## short gap); an easel, tree or bush it strikes goes, and so does the path or stone ground it meets, giving back the ground
+## short gap); an easel, boulder, tree or bush it strikes goes, and so does the path or stone ground it meets, giving back the ground
 ## under it; elsewhere on the ground it mows the grass and flowers under the brush ring, the meadow's own as well
 ## as painted ones, raggedly at the ring's edge. Ruins and taken plants show as the beam passes; the whole stroke
 ## goes to the garden as one command when the trigger lets go, so one undo puts it all back. A sweep that would
@@ -35,10 +35,10 @@ var world: World
 var _buttons: Array[Buttons] = []
 var _rings: Array[MeshInstance3D] = []
 ## Strokes under way, by whoever holds the trigger (a hand, or the driver): {walls, wall, moved, plants, marks, easels,
-## ray}.
+## boulders, ray}.
 ## `walls` holds by wall id the stretches swept along it, Vector2(from, to) unwrapped round a loop, and `moved` those
 ## walls swept since last shown; `wall` is the sweep along the wall the beam is on, {wall, id, span, at, last};
-## `plants` the plants taken; `marks` the ops taking paths and stone strokes, by id; `easels` the easels taken, by id;
+## `plants` the plants taken; `marks` the ops taking paths and stone strokes, by id; `easels` and `boulders` those taken, by id;
 ## `ray` the last ray, [origin, dir, where it struck].
 var _cuts := {}
 ## Wipes charging, by whoever holds the trigger up: {t, orb}.
@@ -154,9 +154,9 @@ func _orb() -> MeshInstance3D:
 
 
 ## What a ray from `origin` along `dir` takes, with the `point` it meets: a wall and where along it, an easel, a tree
-## or bush (`plants`), path or stone ground (`laid`), or the ground to mow with a brush of radius `mow`; {} when it
-## meets nothing. It passes through the plants in `taken`, which a stroke has already taken, and the easels in
-## `gone`.
+## or bush (`plants`), a boulder, path or stone ground (`laid`), or the ground to mow with a brush of radius `mow`; {}
+## when it meets nothing. It passes through the plants in `taken`, which a stroke has already taken, and the easels and
+## boulders by id in `gone`.
 func aim(origin: Vector3, dir: Vector3, taken := {}, gone := {}) -> Dictionary:
 	var ground: Variant = Terrain.raycast(origin, dir, REACH)
 	var reach: float = (ground - origin).dot(dir) if ground != null else REACH
@@ -168,6 +168,15 @@ func aim(origin: Vector3, dir: Vector3, taken := {}, gone := {}) -> Dictionary:
 		easel = {}
 	if not easel.is_empty():
 		reach = easel.along
+	if not pick.is_empty():
+		reach = minf(reach, pick.along)
+	var rock := world.boulders.pick(origin, dir, reach) if world.boulders != null else {}
+	if not rock.is_empty() and gone.has(rock.boulder.id):
+		rock = {}
+	if not rock.is_empty():
+		reach = rock.along
+		pick = {}
+		easel = {}
 	var solid := flora.solid_hit(origin, dir, reach, taken)
 	var stair := world.stairs.pick(origin, dir, minf(reach, minf(pick.get("along", INF), solid.get("along", INF)))) if world.stairs != null else {}
 	if not stair.is_empty():
@@ -178,6 +187,8 @@ func aim(origin: Vector3, dir: Vector3, taken := {}, gone := {}) -> Dictionary:
 		return {"plants": solid.plants, "point": solid.point}
 	if not easel.is_empty():
 		return {"easel": easel.easel, "point": easel.point}
+	if not rock.is_empty():
+		return {"boulder": rock.boulder, "point": rock.point}
 	if ground == null:
 		return {}
 	if Ground.laid_bare(ground.x, ground.z) >= 0.5:
@@ -192,7 +203,7 @@ func press(who: Object, origin: Vector3, dir: Vector3) -> void:
 		_cuts[who] = {"single": target}
 		return
 	flora.grow_now()
-	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}, "easels": {}, "fittings": {}}
+	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}, "easels": {}, "fittings": {}, "boulders": {}}
 	target = _stroke(_cuts[who], origin, dir)
 	_cuts[who].ray = [origin, dir, target.get("point", origin + dir)]
 	_preview(_cuts[who])
@@ -209,7 +220,7 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 	if cut.has("single"):
 		return cut.single
 	var was: Array = cut.ray
-	var aimed := aim(origin, dir, cut.plants, cut.easels)
+	var aimed := aim(origin, dir, cut.plants, _gone(cut))
 	var far := Vector3(aimed.get("point", origin + dir))
 	var n := steps(far.distance_to(was[2]), aimed.get("mow", 0.0))
 	var target := {}
@@ -226,7 +237,11 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 
 
 static func _taken(cut: Dictionary) -> int:
-	return cut.walls.size() + cut.plants.size() + cut.marks.size() + cut.easels.size() + cut.fittings.size()
+	return cut.walls.size() + cut.plants.size() + cut.marks.size() + cut.easels.size() + cut.fittings.size() + cut.boulders.size()
+
+
+static func _gone(cut: Dictionary) -> Dictionary:
+	return cut.easels.merged(cut.boulders)
 
 
 ## How many rays a stroke takes between two where they strike `metres` apart: STEP apart, or over the ground half a
@@ -237,7 +252,7 @@ static func steps(metres: float, mow := 0.0) -> int:
 
 
 func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
-	var target := aim(origin, dir, cut.plants, cut.easels)
+	var target := aim(origin, dir, cut.plants, _gone(cut))
 	if target.has("fitting"):
 		cut.wall = {}
 		var items: Array = cut.fittings.get_or_add(target.wall.id, [])
@@ -257,6 +272,9 @@ func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 	elif target.has("easel"):
 		target.easel.visible = false
 		cut.easels[target.easel.id] = target.easel
+	elif target.has("boulder"):
+		target.boulder.visible = false
+		cut.boulders[target.boulder.id] = target.boulder
 	elif target.has("plants"):
 		for p: Flora.Plant in target.plants:
 			p.draw(false)
@@ -372,12 +390,15 @@ func let_go(who: Object) -> void:
 			cmds[existing].data.merge(changed, true)
 		else:
 			cmds.append({"op": "reshape", "of": "walls", "id": id, "data": changed})
+	for id: int in cut.boulders:
+		if world.state.boulders.has(id):
+			cmds.append({"op": "unboulder", "id": id})
 	var settle := func() -> void:
 		for id in swept:
 			walls.settle(id)
 		for p: Flora.Plant in plants:
 			p.draw(p.shown())
-		for e: Node3D in cut.easels.values():
+		for e: Node3D in cut.easels.values() + cut.boulders.values():
 			if is_instance_valid(e):
 				e.visible = true
 	if cmds.is_empty():

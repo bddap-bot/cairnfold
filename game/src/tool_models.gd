@@ -63,6 +63,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_tree(root)
 		Hand.Tool.BUSHES:
 			_bush(root)
+		Hand.Tool.BOULDER:
+			_boulders(root)
 		Hand.Tool.DELETE:
 			_spade(root)
 		Hand.Tool.POND:
@@ -875,6 +877,26 @@ static func _leaf() -> StandardMaterial3D:
 	leaf.backlight_enabled = true
 	leaf.backlight = Color(0.25, 0.35, 0.08)
 	return leaf
+
+
+## A boulder with a pebble beside it, in wall stone.
+static func _boulders(root: Node3D) -> void:
+	var stone: StandardMaterial3D = _mats.get("boulder")
+	if stone == null:
+		stone = StandardMaterial3D.new()
+		stone.albedo_color = WallLayout.STONE
+		stone.roughness = 0.9
+		_mats["boulder"] = stone
+	for b in [[7, Vector3(-0.004, 0, 0), 0.042], [3, Vector3(0.024, 0, 0.008), 0.016]]:
+		var shape := BoulderLayout.shape(b[0])
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, BoulderLayout.arrays(shape, BoulderLayout.FAR + 1))
+		var m := MeshInstance3D.new()
+		m.mesh = mesh
+		m.material_override = stone
+		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		m.transform = BoulderLayout.xform(shape, b[1], b[2])
+		root.add_child(m)
 
 
 ## A garden spade, blade down: it digs things up.

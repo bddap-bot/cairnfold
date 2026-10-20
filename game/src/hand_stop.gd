@@ -47,22 +47,24 @@ const FENCE_HALF := 0.06
 var _rig: Rig
 var _walls: WallTool
 var _flora: Flora
+var _boulders: Boulders
 ## Per hand, where its ball was last frame, in the rig's space so locomotion carries it along.
 var _held: Array[Vector3] = []
 var _feels: Array[Feel] = []
 var _gathered: Array[Near] = []
-var _stamps: Array[Vector3i] = []
+var _stamps: Array[Vector4i] = []
 
 
-func _init(player: Rig, walls: WallTool, plants: Flora) -> void:
+func _init(player: Rig, walls: WallTool, plants: Flora, rocks: Boulders = null) -> void:
 	_rig = player
 	_walls = walls
 	_flora = plants
+	_boulders = rocks
 	for h in _rig.hands:
 		_held.append(Vector3.INF)
 		_feels.append(Feel.new())
 		_gathered.append(null)
-		_stamps.append(Vector3i.ZERO)
+		_stamps.append(Vector4i.ZERO)
 
 
 func _process(delta: float) -> void:
@@ -93,9 +95,9 @@ func _process(delta: float) -> void:
 ## The world round `box` for hand `i`: what was gathered last time while the box stays inside the region it was
 ## gathered for and nothing built or planted since, else gathered afresh for a region SPARE wider.
 func _near_for(i: int, box: AABB) -> Near:
-	var stamp := Vector3i(WallLayout._laid_count, _walls.walls.size() if _walls != null else 0, _flora.changes if _flora != null else 0)
+	var stamp := Vector4i(WallLayout._laid_count, _walls.walls.size() if _walls != null else 0, _flora.changes if _flora != null else 0, _boulders.changes if _boulders != null else 0)
 	if _gathered[i] == null or _stamps[i] != stamp or not _gathered[i].region.encloses(box):
-		_gathered[i] = Near.gather(_walls, _flora, box.grow(SPARE))
+		_gathered[i] = Near.gather(_walls, _flora, box.grow(SPARE), _boulders)
 		_stamps[i] = stamp
 	return _gathered[i]
 
@@ -199,9 +201,10 @@ class Near:
 	## Foliage and animals as [world-to-mesh transform, mesh box, surface].
 	var leaves: Array[Array] = []
 	var animals: Array[Array] = []
+	var boulders: Array[Boulders.Boulder] = []
 	var facing := Vector3.UP
 
-	static func gather(on: WallTool, plants: Flora, box: AABB) -> Near:
+	static func gather(on: WallTool, plants: Flora, box: AABB, rocks: Boulders = null) -> Near:
 		var near := Near.new()
 		near.region = box
 		var flat := Rect2(box.position.x, box.position.z, box.size.x, box.size.z)
@@ -221,6 +224,10 @@ class Near:
 						near.trunks.append([at.affine_inverse(), part.pool.mesh, at.basis.get_scale()])
 					else:
 						near.leaves.append([at.affine_inverse(), part.pool.mesh.get_aabb(), Surface.LEAVES])
+		if rocks != null:
+			for b: Boulders.Boulder in rocks.boulders.values():
+				if AABB(b.transform.origin, Vector3.ZERO).grow(b.shape.reach() * b.size + RADIUS).intersects(box):
+					near.boulders.append(b)
 		return near
 
 	## Narrows the walls tested to those reaching `box`, a frame's sweep, and gathers the animals there, which move.
@@ -292,6 +299,13 @@ class Near:
 				if with_facing:
 					facing = (inv.basis.transposed() * Vector3(local.x, 0.0, local.z)).normalized()
 				return Surface.BARK
+		for b in boulders:
+			var local := b.transform.affine_inverse() * p
+			var l := local.length()
+			if l < 1e-6 or l < b.shape.radius(local / l) + RADIUS / b.size:
+				if with_facing:
+					facing = Boulders.facing(b, p)
+				return Surface.STONE
 		return _in_ellipsoids(p, animals, with_facing)
 
 	## Up from a height field at (p.x, p.z), tipped with its slope.

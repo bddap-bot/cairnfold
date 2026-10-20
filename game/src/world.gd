@@ -40,16 +40,18 @@ var paths: Paths
 var ground_grab: GroundGrab
 var water: Water
 var easels: Easels
+var boulders: Boulders
 ## The garden's season; each build carries its own colours.
 var palette := Palette.new()
 ## Where the sun stands (Daylight), shown on `look` once the sky tool lets the sky go.
 var time := Daylight.DEFAULT
 var look: Look
-## Standing walls, paths, easels and plant groups by id, as the plain values their commands carry, and each
+## Standing walls, paths, easels, boulders and plant groups by id, as the plain values their commands carry, and each
 ## pond's level by the grid point it fills from. A group keeps its command's fields, its `size` and the indices of its plants
 ## since `hidden`; an easel where it stands, which way it faces, its canvas's strokes, oldest first, and its oil
-## palette's mixing field (`Mixing.bytes`, empty when clean).
-var state := {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}, "easels": {}}
+## palette's mixing field (`Mixing.bytes`, empty when clean); a boulder the ground point under it, its seed, scale
+## and paint.
+var state := blank()
 var seq := 0
 var sculpted := false
 ## Host only: per player, their undo and redo stacks of {seq, inverse, keys}.
@@ -88,6 +90,11 @@ var _pending := {}
 var _hands := {}
 ## The op of each of our sent commands, by token, for the log line when one is turned down.
 var _ops := {}
+
+
+## A garden with nothing in it.
+static func blank() -> Dictionary:
+	return {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}, "easels": {}, "boulders": {}}
 
 
 func _init() -> void:
@@ -188,6 +195,10 @@ func change_of(cmd: Dictionary) -> Dictionary:
 		"uneasel":
 			if state.easels.has(cmd.id):
 				out.easel = -1
+		"boulder":
+			out.boulder = Budget.boulder(cmd.scale)
+		"unboulder":
+			Budget.add(out, _units_of.get("b%d" % cmd.id, {}), -1.0)
 		"batch":
 			for c: Dictionary in cmd.cmds:
 				Budget.add(out, change_of(c))
@@ -276,13 +287,14 @@ static func _write(path: String, bytes: PackedByteArray) -> void:
 		push_error("world: cannot save the garden at %s: %s" % [path, error_string(err)])
 
 
-func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, ponds: Water = null, stands: Easels = null) -> void:
+func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, ponds: Water = null, stands: Easels = null, rocks: Boulders = null) -> void:
 	wall_tool = walls
 	flora = plants
 	paths = ways
 	ground_grab = ground
 	water = ponds
 	easels = stands
+	boulders = rocks
 	if flora != null and flora.groups.has(0):
 		state.groups[0] = _meadow()
 		for p: Flora.Plant in flora.groups[0]:
@@ -389,7 +401,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 		cmd.token = proposed.token
 	if cmd.op == "wall" and not cmd.has("ids"):
 		cmd.ids = PackedInt32Array(range(seq * Commands.MAX_PIECES, seq * Commands.MAX_PIECES + cmd.walls.size()))
-	elif cmd.op in ["stairs", "plant", "path", "ground", "easel"] and not cmd.has("id"):
+	elif cmd.op in ["stairs", "plant", "path", "ground", "easel", "boulder"] and not cmd.has("id"):
 		cmd.id = seq
 	var inverse := _timed(cmd)
 	if cmd.op == "plant" and not cmd.kind in Flora.PLACED:
@@ -537,7 +549,12 @@ static func reshaped(now: Dictionary, data: Dictionary) -> Dictionary:
 
 ## What a build from the garden's table `of` counts as in the frame budget.
 static func _units(of: String, d: Dictionary) -> Dictionary:
-	return Budget.wall(d) if of == "walls" else Budget.stairs(d)
+	match of:
+		"walls":
+			return Budget.wall(d)
+		"stairs":
+			return Budget.stairs(d)
+	return {"boulder": Budget.boulder(d.scale)}
 
 
 ## A ground stroke as the garden keeps it, from its command; given its `id`, the command that lays it again.
@@ -556,7 +573,7 @@ func _keys(cmd: Dictionary) -> Array:
 		"wall", "unwall":
 			return Array(cmd.ids).map(func(id: int) -> String: return "w%d" % id)
 		"reshape":
-			return ["%s%d" % ["w" if cmd.of == "walls" else "q", cmd.id]]
+			return ["%s%d" % [{"walls": "w", "stairs": "q", "boulders": "b"}[cmd.of], cmd.id]]
 		"plant":
 			return ["p%d" % cmd.id]
 		"tree":
@@ -570,6 +587,9 @@ func _keys(cmd: Dictionary) -> Array:
 			return ["season"]
 		"easel", "uneasel":
 			return ["e%d" % cmd.id]
+		"boulder", "unboulder":
+			return ["b%d" % cmd.id]
+
 		"ponds":
 			return (cmd.get("put", {}).keys() + cmd.get("drop", [])).map(func(g: Vector2i) -> String: return "o%d,%d" % [g.x, g.y])
 		"paint", "unpaint", "sheet":
@@ -655,8 +675,10 @@ func _apply(cmd: Dictionary) -> Dictionary:
 					now[k] = cmd.data[k]
 			if cmd.of == "walls":
 				wall_tool.restyle(cmd.id, cmd.data.keys())
-			else:
+			elif cmd.of == "stairs":
 				stairs.settle(cmd.id)
+			elif boulders != null:
+				boulders.put(cmd.id, now)
 			_account(_keys(cmd)[0], _units(cmd.of, now))
 			if cmd.of == "walls":
 				_floor_mark(cmd.id)
@@ -807,6 +829,19 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			state.easels[cmd.easel].strokes = cmd.strokes.duplicate()
 			if easels != null:
 				easels.repaint(cmd.easel, state.easels[cmd.easel].strokes)
+		"boulder":
+			state.boulders[cmd.id] = {"at": cmd.at, "seed": cmd.seed, "scale": cmd.scale, "paint": cmd.paint}
+			if boulders != null:
+				boulders.put(cmd.id, state.boulders[cmd.id])
+			_account("b%d" % cmd.id, {"boulder": Budget.boulder(cmd.scale)})
+			inverse = {"op": "unboulder", "id": cmd.id}
+		"unboulder":
+			var b: Dictionary = state.boulders[cmd.id]
+			inverse = {"op": "boulder", "id": cmd.id, "at": b.at, "seed": b.seed, "scale": b.scale, "paint": b.paint}
+			state.boulders.erase(cmd.id)
+			if boulders != null:
+				boulders.take(cmd.id)
+			_account("b%d" % cmd.id, {})
 	if mine and last:
 		_settle(cmd.token)
 	applied.emit(cmd)
@@ -924,6 +959,9 @@ func snapshot() -> Dictionary:
 	for id in state.easels:
 		var e: Dictionary = state.easels[id]
 		cmds.append({"op": "easel", "id": id, "at": e.at, "yaw": e.yaw, "strokes": e.strokes, "mix": e.mix})
+	for id in state.boulders:
+		var b: Dictionary = state.boulders[id]
+		cmds.append({"op": "boulder", "id": id, "at": b.at, "seed": b.seed, "scale": b.scale, "paint": b.paint})
 	for id in state.groups:
 		var g: Dictionary = state.groups[id]
 		if g.kind != "meadow":
@@ -1000,6 +1038,8 @@ func _clear() -> void:
 		paths.take(id)
 	if easels != null:
 		easels.clear()
+	if boulders != null:
+		boulders.clear()
 	if water != null:
 		water.reset()
 	for id in _strokes:
@@ -1008,7 +1048,7 @@ func _clear() -> void:
 	for id in _floor_marks:
 		Ground.lift(_floor_marks[id])
 	_floor_marks.clear()
-	state = {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}, "easels": {}}
+	state = blank()
 	_fills.clear()
 	units = _meadow_units.duplicate()
 	_units_of.clear()
@@ -1084,5 +1124,10 @@ func digest() -> Dictionary:
 	for id in state.easels:
 		var e: Dictionary = state.easels[id]
 		out.easels[str(id)] = {"at": var_to_str(e.at.snapped(Vector3.ONE * 0.01)), "strokes": e.strokes.size(), "paint": hash(var_to_str(e.strokes)), "mix": hash(e.mix)}
+	out.boulders = {}
+	for id in state.boulders:
+		var b: Dictionary = state.boulders[id]
+		var shown: Boulders.Boulder = boulders.find(id) if boulders != null else null
+		out.boulders[str(id)] = {"seed": b.seed, "scale": b.scale, "paint": b.paint, "at": var_to_str(shown.transform.origin.snapped(Vector3.ONE * 0.01)) if shown != null else ""}
 	out.budget = snappedf(fill(), 0.001)
 	return out

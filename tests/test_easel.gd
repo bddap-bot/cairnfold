@@ -535,7 +535,7 @@ func _frames(n: int) -> void:
 
 
 func _easels_keep_their_distance_and_number() -> void:
-	var state := {"stairs": {}, "easels": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}}
+	var state := World.blank()
 	var at := Terrain.ground(10, 10)
 	var cmd := {"op": "easel", "at": at, "yaw": 0.5}
 	_check(not Commands.clean(cmd, state, false).is_empty(), "an easel may stand on open ground")
@@ -544,7 +544,7 @@ func _easels_keep_their_distance_and_number() -> void:
 	for i in Easels.MAX - 1:
 		state.easels[i + 2] = {"at": Terrain.ground(-20 + i * 5, -20), "yaw": 0.0, "strokes": []}
 	_check(Commands.clean({"op": "easel", "at": Terrain.ground(20, 20), "yaw": 0.0}, state, false).is_empty(), "nor one more than a garden holds")
-	_check(Commands.clean({"op": "easel", "at": Terrain.ground(20, 20), "yaw": 0.0, "strokes": [{}]}, {"stairs": {}, "easels": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}}, false).is_empty(), "a player's new easel brings no painting with it")
+	_check(Commands.clean({"op": "easel", "at": Terrain.ground(20, 20), "yaw": 0.0, "strokes": [{}]}, World.blank(), false).is_empty(), "a player's new easel brings no painting with it")
 
 
 func _bad_strokes_are_dropped() -> void:

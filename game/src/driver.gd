@@ -371,25 +371,34 @@ func _grip(s: Dictionary) -> void:
 		await _standing()
 
 
-## Grips the meadow's tree `tree`, or with `x`, `z` the tree standing nearest there, on its crown, as a hand does, and
-## raises the hand `metres` over `seconds` (negative lowers it), sizing the tree; "capture" saves the view at the top
-## of the pull.
+## Grips the meadow's tree `tree`, with `boulder` the boulder placed that many before the last (0 the last), or with
+## `x`, `z` the tree standing nearest there, near its top, as a hand does, and raises the hand `metres` over `seconds`
+## (negative lowers it), sizing it; "capture" saves the view at the top of the pull.
 func _grow(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var flora: Flora = main.flora_tool.flora
-	var trunk: Flora.Plant
-	if s.has("tree"):
-		trunk = flora.groups[0][flora.meadow_trees()[s.tree]]
+	var target: Object
+	var at: Vector3
+	if s.has("boulder"):
+		var ids: Array = main.world.state.boulders.keys()
+		var b: Boulders.Boulder = main.boulders.find(ids[ids.size() - 1 - int(s.boulder)])
+		target = b
+		at = b.ground + Vector3.UP * b.top() * 0.8
 	else:
-		var spot := Vector3(s.x, 0.0, s.z)
-		for parts in flora.solids():
-			var p: Flora.Plant = parts[0]
-			if p.pool == flora.trunks and (trunk == null or Vector3(p.anchor.x, 0, p.anchor.z).distance_to(spot) < Vector3(trunk.anchor.x, 0, trunk.anchor.z).distance_to(spot)):
-				trunk = p
+		var trunk: Flora.Plant
+		if s.has("tree"):
+			trunk = flora.groups[0][flora.meadow_trees()[s.tree]]
+		else:
+			var spot := Vector3(s.x, 0.0, s.z)
+			for parts in flora.solids():
+				var p: Flora.Plant = parts[0]
+				if p.pool == flora.trunks and (trunk == null or Vector3(p.anchor.x, 0, p.anchor.z).distance_to(spot) < Vector3(trunk.anchor.x, 0, trunk.anchor.z).distance_to(spot)):
+					trunk = p
+		target = trunk
+		at = trunk.anchor + Vector3.UP * flora.top_of(trunk) * 0.8
 	var m := tool.mason(_hand(s))
-	var at := trunk.anchor + Vector3.UP * flora.top_of(trunk) * 0.8
 	var hand: Vector3 = at + Vector3.BACK * 2.0
-	tool.begin_grow(m, trunk, hand, at)
+	tool.begin_grow(m, target, hand, at)
 	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
 	for f in frames:
 		await get_tree().process_frame
@@ -551,6 +560,11 @@ func _tree(s: Dictionary) -> void:
 
 func _bush(s: Dictionary) -> void:
 	main.flora_tool.place("bush", _spot(s, s.x, s.z), null, s.get("seed", randi()))
+
+
+## Sets a boulder down at `x`, `z`, of shape `seed` (a new one without) and `scale` (1 without).
+func _boulder(s: Dictionary) -> void:
+	main.flora_tool.place_boulder(_spot(s, s.x, s.z), null, int(s.get("seed", randi())), float(s.get("scale", 1.0)))
 
 
 ## Points the delete tool straight down at a ground spot from `height` metres up and presses once: a tap.

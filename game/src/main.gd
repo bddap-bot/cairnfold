@@ -34,6 +34,7 @@ var photo_tool: PhotoTool
 var feed_tool: FeedTool
 var easels: Easels
 var easel_tool: EaselTool
+var boulders: Boulders
 var sound: Soundscape
 var metrics: Metrics
 var quality: Quality
@@ -72,7 +73,9 @@ func _ready() -> void:
 	stair_tool = StairTool.new(rig, tool, world)
 	add_child(stair_tool)
 	tool.masonry.placed.connect(look.bounce.place)
-	hand_stop = HandStop.new(rig, tool, flora)
+	boulders = Boulders.new()
+	builds.add_child(boulders)
+	hand_stop = HandStop.new(rig, tool, flora, boulders)
 	add_child(hand_stop)
 	fitting_tool = FittingTool.new(rig, tool, world)
 	add_child(fitting_tool)
@@ -84,6 +87,7 @@ func _ready() -> void:
 	add_child(easel_tool)
 	ground_grab = GroundGrab.new(rig, world, _editing)
 	ground_grab.reshaped.connect(tool.reground)
+	ground_grab.reshaped.connect(boulders.reseat)
 	add_child(ground_grab)
 	var hands: Array[Node3D] = []
 	hands.assign(rig.hands)
@@ -92,7 +96,7 @@ func _ready() -> void:
 	add_child(water)
 	water_tool = WaterTool.new(rig, world)
 	add_child(water_tool)
-	world.attach(tool, flora, paths, ground_grab, water, easels)
+	world.attach(tool, flora, paths, ground_grab, water, easels, boulders)
 	for h in rig.hands:
 		h.add_child(BudgetBar.new(world, h))
 	palette_tool = PaletteTool.new(rig, tool, world)
@@ -134,7 +138,9 @@ func _ready() -> void:
 	rig.solid_hit = func(origin: Vector3, dir: Vector3, reach: float) -> Variant:
 		var build: Variant = tool.solid_hit(origin, dir, reach)
 		var stair := world.stairs.pick(origin, dir, reach if build == null else origin.distance_to(build))
-		return build if stair.is_empty() else stair.point
+		var near: Variant = build if stair.is_empty() else stair.point
+		var rock := boulders.pick(origin, dir, reach if near == null else origin.distance_to(near))
+		return near if rock.is_empty() else rock.point
 	world.loaded.connect(rig.respawn)
 	rig.respawn()
 	var drawn := Quality.session(OS.get_model_name())
@@ -159,7 +165,7 @@ func _ready() -> void:
 		metrics.play_log = PlayLog.open_enabled(args)
 	metrics.context = func():
 		var counts := {}
-		for category in ["walls", "paths", "grounds", "groups", "easels"]:
+		for category in ["walls", "paths", "grounds", "groups", "easels", "boulders"]:
 			counts[category] = world.state[category].size()
 		return {"garden_counts": counts, "masonry_instances": Array(tool.masonry.counts()),
 			"tools": [Hand.Tool.keys()[rig.hands[0].tool], Hand.Tool.keys()[rig.hands[1].tool]],
