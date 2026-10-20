@@ -3,6 +3,7 @@ extends RefCounted
 
 ## Dirt strokes wear the ground and open arches where they cross walls. Pure data.
 
+const CELL := 1.0
 const ROW := 0.42
 const HALF_WIDTH := Vector2(0.45, 3.0)
 ## A crossing at least this long along the wall opens an arcade instead of a single arch.

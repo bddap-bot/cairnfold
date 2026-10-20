@@ -151,8 +151,6 @@ func _handle(b: Brush, delta: float) -> void:
 			begin_path(b, hit, radius)
 		elif b.buttons.held("tool") and b.drawing_path:
 			extend_path(hit, radius, b.hand)
-		if b.drawing_path and paths.drawing != null:
-			world.preview(b.hand, Budget.path({"points": paths.drawing.points, "half_widths": paths.drawing.half_widths}))
 	elif b.buttons.held("tool"):
 		if b.buttons.pressed("tool"):
 			b.meadow = paints_meadow(held, hit)

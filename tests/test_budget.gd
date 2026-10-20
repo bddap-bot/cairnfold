@@ -61,8 +61,6 @@ func _recount() -> Dictionary:
 	var out := {}
 	for d: Dictionary in world.state.walls.values():
 		Budget.add(out, Budget.wall(d))
-	for p: Dictionary in world.state.paths.values():
-		Budget.add(out, Budget.path(p))
 	for g in world.state.groups:
 		for p: Flora.Plant in world.flora.groups[g]:
 			if p != null and not world.state.groups[g].hidden.has(p.index):
@@ -114,7 +112,7 @@ func _counts_follow_placements_and_deletions() -> void:
 		{"op": "dig", "x": 10, "z": -8, "seconds": 0.5},
 	])
 	await _settled()
-	_check(world.units.get("wall_m2", 0.0) > 0.0 and world.units.get("path_m2", 0.0) > 0.0 and world.units.get("pond", 0) == 1, "walls, paths and ponds count: %s" % world.units)
+	_check(world.units.get("wall_m2", 0.0) > 0.0 and not world.units.has("path_m2") and world.units.get("pond", 0) == 1, "walls and ponds count; dirt adds no geometry: %s" % world.units)
 	_check(world.units.get("tree", 0) == meadow.tree + 1 and world.units.get("flower", 0) > meadow.flower, "a planted tree and painted flowers count: %s" % world.units)
 	_check(_same(world.units, _recount()), "what the garden counts matches what it holds: %s against %s" % [world.units, _recount()])
 	var wall_id: int = world.state.walls.keys()[0]
