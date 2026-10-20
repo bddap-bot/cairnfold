@@ -657,13 +657,13 @@ wanna make it obvious to the user that there is a limit there"
   garden is held there, anything above it is spare, and the two steps below it are for what
   lies past the budget; on the Quest 2 the bottom step, the only one its bare meadow holds
   72 Hz at. The room for builds is the headset's `budget_ms` less that base.
-- The host owns the garden's build allowance and sends its budget profile to visitors.
-  Joining or leaving does not reprice existing builds or change what another build costs.
-  Every player's bar, previews and local command checks use that same host allowance;
-  the host also checks submitted commands. Taking things away always goes through,
-  even in a garden already over. Undo is held to the host allowance too.
+- A garden is held to every headset it is shown on: its own, and each visitor's, which
+  each player tells the others as they meet. The host turns down any command that would
+  take the garden past the room on one of them, and each player's own game turns it down
+  before sending. Taking things away always goes through, even in a garden already
+  over. Undo is held to it too.
 - On each controller, a bar on the back of its top shows the share the garden takes on
-  the host headset: moss green, warming to amber near full. What the hand's tool
+  the most loaded headset: moss green, warming to amber near full. What the hand's tool
   is showing joins it as a paler stretch, and the whole bar pulses red while that would
   not fit; letting go then turns it down with the same two soft knocks as any refused
   action. A paint stroke stops laying plants at the budget and knocks once. Visitors see

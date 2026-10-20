@@ -18,7 +18,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await process_frame
 	world = main.world
-	await _quest_3_join_keeps_the_house_budget()
+	await _a_joined_quest_2_holds_the_garden_to_its_own_budget()
 	await _counts_follow_placements_and_deletions()
 	await _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room()
 	await _a_capped_edit_is_heard_felt_and_shown()
@@ -235,7 +235,7 @@ func _the_bar_shows_the_share() -> void:
 		_check(absf(shown - world.fill()) < 0.01, "the bar shows the garden's share: %.3f against %.3f" % [shown, world.fill()])
 
 
-func _quest_3_join_keeps_the_house_budget() -> void:
+func _a_joined_quest_2_holds_the_garden_to_its_own_budget() -> void:
 	var meadow := world.units.duplicate()
 	await _play([{"op": "place", "x": 0, "z": 8}, {"op": "house", "at": [0, 0], "size": [2.4, 2.4], "seconds": 0.3}])
 	_check(world.state.walls.size() == 1, "the solo host can place a small stone house")
@@ -248,7 +248,6 @@ func _quest_3_join_keeps_the_house_budget() -> void:
 		root.add_child(branch)
 		set_multiplayer(SceneMultiplayer.new(), branch.get_path())
 		var w := World.new()
-		w._local_device = Budget.Device.FRAME if i == 0 else Budget.Device.QUEST_2
 		branch.add_child(w)
 		w.units = world.units.duplicate()
 		branches.append(branch)
@@ -256,29 +255,34 @@ func _quest_3_join_keeps_the_house_budget() -> void:
 		peers.append(ENetMultiplayerPeer.new())
 	var host := worlds[0]
 	var guest := worlds[1]
+	var own := Budget.device()
 	var solo := host.fill()
-	var fits_solo := Budget.fits(host.units, house, host.devices())
+	_check(host.devices() == [own], "a solo garden is held to its own headset")
 	_check(peers[0].create_server(0) == OK, "the budget test host opens ENet")
 	host.multiplayer.multiplayer_peer = peers[0]
-	_check(peers[1].create_client("127.0.0.1", peers[0].host.get_local_port()) == OK, "the Quest 3-class client connects")
+	_check(peers[1].create_client("127.0.0.1", peers[0].host.get_local_port()) == OK, "the visitor connects")
 	guest.multiplayer.multiplayer_peer = peers[1]
 	for i in 600:
 		await process_frame
 		if host.multiplayer.get_peers().size() == 1 and guest.multiplayer.get_peers().size() == 1:
 			break
-	for i in 60:
+	for i in 30:
 		await process_frame
-	_check(host.multiplayer.get_peers().size() == 1 and guest.multiplayer.get_peers().size() == 1, "the Quest 3-class client joined over ENet")
-	print("budget-coop: house %s; solo %.9f joined %.9f; second house fits %s -> %s" % [house, solo, host.fill(), fits_solo, Budget.fits(host.units, house, host.devices())])
-	_check(is_equal_approx(solo, host.fill()), "a Quest 3 joining does not inflate the house's budget share")
-	_check(fits_solo and Budget.fits(host.units, house, host.devices()), "the second house still fits after joining")
-	_check(is_equal_approx(guest.fill(), host.fill()), "the visitor uses the same budget bar as the host")
-	_check(Budget.fits(guest.units, house, guest.devices()), "the visitor can also place the second house")
-	_check(host.units == world.units, "joining does not duplicate the house or reset the counted units")
+	guest._device.rpc_id(1, Budget.Device.QUEST_2)
+	for i in 30:
+		await process_frame
+	var both := [own, Budget.Device.QUEST_2]
+	print("budget-coop: house %s; meadow %.6f -> %.6f; house %.6f -> %.6f; garden %.6f -> %.6f" % [house,
+		Budget.fill(meadow, [own]), Budget.fill(meadow, both), Budget.fill(house, [own]), Budget.fill(house, both), solo, host.fill()])
+	_check(Budget.Device.QUEST_2 in host.devices(), "the host holds the garden to the Quest 2 that joined: %s" % [host.devices()])
+	_check(is_equal_approx(host.fill(), Budget.fill(host.units, both)), "the bar prices the garden against the visitor's table")
+	_check(Budget.fits(host.units, house, host.devices()) == Budget.fits(host.units, house, both),
+		"a second house fits only if it fits the visitor's headset too")
 	for peer in peers:
 		peer.close()
+	host.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	guest.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
-	_check(guest.devices() == [Budget.Device.QUEST_2], "going home restores the visitor's own allowance")
+	_check(host.devices() == [own], "once the visitor leaves, the garden is held to the host's headset alone")
 	for branch in branches:
 		branch.queue_free()
 	world.undo()

@@ -78,9 +78,8 @@ var _units_of := {}
 var _meadow_units := {}
 ## False lets the garden take builds past the frame budget, as the stress scene does to find what they cost.
 var bounded := true
-## A visitor keeps the host's allowance: joining cannot reprice an existing garden.
-var _local_device := Budget.device()
-var _host_device := Budget.device()
+## Every other player's headset by peer id, as they told us; the garden is held to the weakest here.
+var _devices := {}
 ## Each pond's level and how it last filled, by its grid point.
 var _fills := {}
 ## Per hand, what the edit its tool is showing would add, and the frame it said so.
@@ -97,24 +96,28 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	multiplayer.peer_connected.connect(func(id: int) -> void:
-		if multiplayer.is_server():
-			_device.rpc_id(id, _local_device))
-	multiplayer.peer_disconnected.connect(func(id: int) -> void: _allowance.erase(id))
+	multiplayer.peer_connected.connect(func(id: int) -> void: _device.rpc_id(id, Budget.device()))
+	multiplayer.peer_disconnected.connect(func(id: int) -> void:
+		_allowance.erase(id)
+		_devices.erase(id))
 
 
-@rpc("authority", "reliable")
+@rpc("any_peer", "reliable")
 func _device(d: int) -> void:
 	if d >= 0 and d < Budget.Device.size():
-		_host_device = d
+		_devices[multiplayer.get_remote_sender_id()] = d
 
 
-## The host prices the garden for every player, including their local previews and command checks.
+## The headsets this garden is shown on now: ours and every other player's.
 func devices() -> Array:
-	return [_local_device if multiplayer.is_server() else _host_device]
+	var out := [Budget.device()]
+	for id in multiplayer.get_peers():
+		if _devices.has(id) and not _devices[id] in out:
+			out.append(_devices[id])
+	return out
 
 
-## The share of the frame budget the garden takes on its host headset, with what `hand`'s tool is showing
+## The share of the frame budget the garden takes on its most loaded headset, with what `hand`'s tool is showing
 ## added when one is given.
 func fill(hand: Node = null) -> float:
 	return Budget.fill(Budget.add(units.duplicate(), pending(hand)) if hand != null else units, devices())
@@ -130,7 +133,7 @@ func pending(hand: Node) -> Dictionary:
 	return p[1] if Engine.get_process_frames() - p[0] <= 1 else {}
 
 
-## Whether the garden may take `cmd` within the host garden's frame budget.
+## Whether the garden may take `cmd` within the frame budget of every headset it is shown on.
 func fits(cmd: Dictionary) -> bool:
 	return not bounded or Budget.fits(units, change_of(cmd), devices())
 
