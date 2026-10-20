@@ -31,6 +31,7 @@ func _run() -> void:
 	_no_plank_crosses_the_canvas()
 	_no_implement_crosses_the_easel()
 	await _the_palette_stays_in_the_hand_by_its_thumb_hole()
+	await _every_held_change_logs_a_line()
 	await _a_tip_in_each_well_loads_its_colour()
 	await _the_trigger_sets_one_up_or_says_why_not()
 	_easels_keep_their_distance_and_number()
@@ -272,6 +273,47 @@ func _the_palette_stays_in_the_hand_by_its_thumb_hole() -> void:
 	var right: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
 	_check(right.kit == Brushwork.Medium.WATER and right.palette == e, "while the other hand takes the box")
 	await _play([{"op": "set_down", "hand": "left"}, {"op": "set_down", "hand": "right"}])
+
+
+class Lines:
+	extends Logger
+	var lines: PackedStringArray = []
+
+	func _log_message(message: String, _error: bool) -> void:
+		lines.append_array(message.split("\n", false))
+
+
+## Each change in what a hand holds, and each grip that takes something, prints one line saying what it holds now: a
+## brush, the charcoal or a palette taken, a palette set down, the sheet gripped and let go, and another tool picked
+## and the easel tool picked back.
+func _every_held_change_logs_a_line() -> void:
+	var log := Lines.new()
+	OS.add_logger(log)
+	var transitions := [
+		["right", "stick", [{"op": "take", "what": "stick"}]],
+		["right", "big", [{"op": "take", "what": "big"}]],
+		["right", "stick", [{"op": "take", "what": "stick"}]],
+		["right", "stick", [{"op": "take", "what": "stick"}]],
+		["right", "oil palette", [{"op": "take", "what": "palette"}]],
+		["right", "stick", [{"op": "set_down"}]],
+		["right", "seeds", [{"op": "pick", "tool": "seeds"}]],
+		["right", "stick", [{"op": "pick", "tool": "easel"}]],
+		["right", "sheet", [{"op": "sheet", "pull": 0.1, "seconds": 0.1}, {"op": "hold", "at": [0.4, 1.0, 0.5]}]],
+		["left", "water palette", [{"op": "take", "what": "box", "hand": "left"}]],
+		["left", "walls", [{"op": "pick", "hand": "left", "tool": "walls"}]],
+		["right", "flat", [{"op": "take", "what": "flat"}]],
+		["right", "camera", [{"op": "pick", "tool": "camera"}]],
+	]
+	for t: Array in transitions:
+		var tracker := "%s_hand " % t[0]
+		var from := log.lines.size()
+		await _play(t[2])
+		await _frames(2)
+		var said := Array(log.lines.slice(from)).filter(func(l: String) -> bool: return l.begins_with("easel: " + tracker))
+		_check(said.size() == (2 if t[1] == "sheet" else 1) and said[0].contains("holds %s," % t[1]), "%s to %s logs one line: %s" % [t[2], t[1], said])
+		if t[1] == "sheet":
+			_check(said.size() == 2 and said[1].contains("holds stick,"), "letting the sheet go logs one line: %s" % [said])
+	OS.remove_logger(log)
 
 
 ## A brush whose tip goes in anywhere over a pan's or an oil colour's paint, or on through the palette under it, comes

@@ -53,6 +53,12 @@ for shape, reach in [("peak", lambda h: h[1] > 450), ("pit", lambda h: h[0] < -4
             v.pop(k)
     check(all(v == seen_shape["host"] for v in seen_shape.values()), f"every peer shows the joiner's {shape} the same")
     check(reach(seen_shape["host"]["heights"]), f"the joiner's one stroke {shape} reaches past 450 m: {seen_shape['host']['heights']}")
+painted = {n: json.load(open(f"{out}/{n}-easel.json")) for n in names}
+for v in painted.values():
+    for k in ("avatars", "worn", "handfuls", "frenzy"):
+        v.pop(k)
+check(all(v == painted["host"] for v in painted.values()), "every peer shows the easel alike after the host and the joiner took charcoal, switched, set down and tore there together")
+check([e["strokes"] for e in painted["host"]["easels"].values()] == [2], f"the joiner's sheet tore off both first strokes; its charcoal stroke and the host's after stand: {painted['host']['easels']}")
 turned = json.load(open(f"{out}/host-sun.json"))["sun"]
 check(abs(turned - 0.8) < 0.02, f"the host sees the sun where the joiner turned it: {turned:.3f}")
 check(abs(g["sun"] - 0.3) < 0.02, f"every peer sees the sun where the host turned it back: {g['sun']:.3f}")

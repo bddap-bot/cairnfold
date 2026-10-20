@@ -57,6 +57,8 @@ class Painter:
 	var peel: Easels.Easel
 	var ghost: Node3D
 	var shown := 0.0
+	## What the hand held when last logged (`holding`).
+	var held := ""
 
 
 ## A trigger that set no easel up, and why; the log carries it too.
@@ -88,6 +90,7 @@ func _init(player: Rig, stands: Easels, garden: World) -> void:
 			p.models[kind] = m
 		p.ghost = _ghost()
 		add_child(p.ghost)
+		p.held = holding(p)
 		painters.append(p)
 	_show_paint.call_deferred(painters[0])
 	_show_paint.call_deferred(painters[1])
@@ -129,6 +132,7 @@ func _forget() -> void:
 func _process(delta: float) -> void:
 	for p in painters:
 		_handle(p, delta)
+		_note(p)
 		p.buttons.latch()
 
 
@@ -229,6 +233,7 @@ func grab(p: Painter) -> void:
 			take = func() -> void: p.peel = e
 	if take.is_valid():
 		take.call()
+		_note(p, true)
 		Cues.play(Cues.Act.BRUSH_TAKE, at, p.hand)
 
 
@@ -242,7 +247,6 @@ func _take_brush(p: Painter, kind: Brushwork.Brush) -> void:
 	p.strength = 0.0
 	p.load = 1.0 if kind == Brushwork.Brush.STICK else 0.0
 	_show_paint(p)
-	_log(p, "takes the %s" % Brushwork.Brush.keys()[kind].to_lower())
 
 
 func _take_palette(p: Painter, e: Easels.Easel, kit: Brushwork.Medium) -> void:
@@ -254,7 +258,6 @@ func _take_palette(p: Painter, e: Easels.Easel, kit: Brushwork.Medium) -> void:
 	p.palette = e
 	p.kit = kit
 	_hold_palette(p)
-	_log(p, "takes the %s palette" % Brushwork.Medium.keys()[kit].to_lower())
 
 
 func _hold_palette(p: Painter) -> void:
@@ -269,9 +272,26 @@ func _hold_palette(p: Painter) -> void:
 	node.global_transform = p.hand.global_transform * held(p.hand)
 
 
-## A hand's held things changing, for a log that shows what each hand held when a player found it stuck.
-func _log(p: Painter, what: String) -> void:
-	print("easel: %s hand %s (tool %s, brush %s, %s, palette %s)" % [p.hand.tracker, what, Hand.Tool.keys()[p.hand.tool], Brushwork.Brush.keys()[p.brush], Brushwork.Medium.keys()[p.medium], Brushwork.Medium.keys()[p.kit] if p.palette != null else "none"])
+## What `p`'s hand holds: a palette ("oil palette", "water palette"), the canvas's sheet, the brush or charcoal
+## ("stick") while it holds the easel tool, or else its tool.
+static func holding(p: Painter) -> String:
+	if p.palette != null:
+		return "%s palette" % Brushwork.Medium.keys()[p.kit].to_lower()
+	if p.peel != null:
+		return "sheet"
+	if p.hand.tool == Hand.Tool.EASEL:
+		return Brushwork.Brush.keys()[p.brush].to_lower()
+	return Hand.Tool.keys()[p.hand.tool].to_lower()
+
+
+## One line each time a hand's held thing changes, and on every grip that takes something even if it is the same
+## again, for a log that shows what each hand held when a player found it stuck.
+func _note(p: Painter, grip := false) -> void:
+	var now := holding(p)
+	if now == p.held and not grip:
+		return
+	print("easel: %s %s %s, held %s (%s)" % [p.hand.tracker, "grips and holds" if grip else "holds", now, p.held, Brushwork.Medium.keys()[p.medium]])
+	p.held = now
 
 
 ## The palette in `hand`, from the controller: held by its thumb hole, its paint up and reaching forward and toward the
@@ -293,7 +313,6 @@ func _set_down(p: Painter, restore := false) -> void:
 		var node: Node3D = e.palettes[p.kit]
 		node.top_level = false
 		node.transform = Transform3D(Basis(), Easels.KITS[p.kit])
-	_log(p, "sets the %s palette down" % Brushwork.Medium.keys()[p.kit].to_lower())
 
 
 func _pull_sheet(p: Painter, live: bool) -> void:

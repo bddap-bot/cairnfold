@@ -40,6 +40,47 @@ def sample(name, names, count):
     ]
 
 
+# The host and the joiner, at the host's easel together, take the charcoal and switch, set down, tear and pick tools
+# while the other paints or holds the same palette; after each step the hand must hold what it should. They lay five
+# commands: a stroke each, the joiner's fresh sheet, the joiner's stroke on it, the host's.
+EASEL_PHASES = {
+    "host": [
+        [{"op": "take", "what": "stick"}, {"op": "holds", "what": "stick"},
+         {"op": "brush", "points": [[0.2, 0.3, 0.8], [0.5, 0.35, 0.8]], "seconds": 0.3},
+         {"op": "take", "what": "palette"}, {"op": "holds", "what": "oil palette"}],
+        [{"op": "set_down"}, {"op": "holds", "what": "stick"},
+         {"op": "pick", "tool": "seeds"}, {"op": "holds", "what": "seeds"},
+         {"op": "pick", "tool": "easel"}, {"op": "holds", "what": "stick"}],
+        [{"op": "brush", "points": [[0.2, 0.7, 0.8], [0.5, 0.75, 0.8]], "seconds": 0.3}, {"op": "holds", "what": "stick"},
+         {"op": "take", "what": "box", "hand": "left"}, {"op": "holds", "hand": "left", "what": "water palette"},
+         {"op": "take", "what": "big"}, {"op": "holds", "what": "big"},
+         {"op": "set_down", "hand": "left"}],
+    ],
+    "join": [
+        [{"op": "take", "what": "stick"}, {"op": "holds", "what": "stick"},
+         {"op": "brush", "points": [[0.6, 0.3, 0.8], [0.9, 0.35, 0.8]], "seconds": 0.3},
+         {"op": "take", "what": "palette"}, {"op": "holds", "what": "oil palette"}],
+        [{"op": "take", "what": "stick"}, {"op": "holds", "what": "stick"},
+         {"op": "sheet", "pull": 0.5}, {"op": "holds", "what": "stick"},
+         {"op": "brush", "points": [[0.6, 0.5, 0.8], [0.9, 0.55, 0.8]], "seconds": 0.3}],
+        [{"op": "pick", "tool": "seeds"}, {"op": "holds", "what": "seeds"},
+         {"op": "pick", "tool": "easel"}, {"op": "holds", "what": "stick"},
+         {"op": "take", "what": "flat"}, {"op": "holds", "what": "flat"},
+         {"op": "take", "what": "stick"}, {"op": "holds", "what": "stick"},
+         {"op": "pick", "tool": "camera"}, {"op": "holds", "what": "camera"}],
+    ],
+}
+EASEL_COMMANDS = 5
+
+
+def easel_steps(name, names, seq):
+    steps = []
+    for i, phase in enumerate(EASEL_PHASES.get(name, [])):
+        steps += phase + [{"op": "digest", "name": f"{name}-easel-{i}"}, barrier([f"{n}-easel-{i}" for n in EASEL_PHASES])]
+    return steps + [{"op": "until", "seq": seq + EASEL_COMMANDS}, {"op": "wait", "seconds": 0.5},
+                    {"op": "digest", "name": f"{name}-easel"}, barrier([f"{n}-easel" for n in names])]
+
+
 def scripts(count):
     names = ["host", "join"] + [f"late-{i}" for i in range(2, count)]
     result = {}
@@ -68,6 +109,8 @@ def scripts(count):
         steps += [{"op": "digest", "name": f"{name}-final"},
                   barrier([f"{n}-final" for n in names])]
         last = SEQ + 2 * (count - 2)
+        steps += easel_steps(name, names, last)
+        last += EASEL_COMMANDS
         for k, (shape, lift) in enumerate([("peak", EXTREME), ("pit", -2 * EXTREME)]):
             if name == "join":
                 steps += [{"op": "sculpt", "x": -50, "z": 50, "lift": lift, "seconds": 0.5}]

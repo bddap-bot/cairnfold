@@ -1070,6 +1070,19 @@ func _set_down(s: Dictionary) -> void:
 	await _frames(2)
 
 
+## Checks that `hand` holds `what` (as EaselTool.holding names it) once its brush has had time to show, and that
+## the brush it shows is the one it holds.
+func _holds(s: Dictionary) -> void:
+	var hand := _hand(s)
+	await get_tree().create_timer(Hand.POP * 2.0).timeout
+	var p: EaselTool.Painter = main.easel_tool.painter(hand)
+	var now := EaselTool.holding(p)
+	assert(now == s.what, "driver: %s holds %s, not %s" % [hand.tracker, now, s.what])
+	var shown: Array = p.models.keys().filter(func(k: Brushwork.Brush) -> bool: return p.models[k].visible)
+	var brush := hand.tool == Hand.Tool.EASEL and p.palette == null
+	assert(shown == ([p.brush] if brush else []), "driver: %s holding %s shows brushes %s" % [hand.tracker, now, shown])
+
+
 ## Holds the palette-holding hand where a painter holds it: beside the canvas, `at` in the easel's frame.
 func _hold(s: Dictionary) -> void:
 	var e := _easel_of(s)
