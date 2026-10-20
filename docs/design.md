@@ -2503,8 +2503,12 @@ Every player action, from the code:
 | `PLAYER_JOINS` | Another player joins the garden | three plucks rising | none: no hand did it |
 | `PLAYER_LEAVES` | Another player leaves | three plucks falling | none: no hand did it |
 | `BIRDS_STARTLE` | A conure takes off from someone coming near | wing flutter | none: nothing touched the hand |
-| `HAND_PERCH` | A conure lands on a hand holding seeds | none: it murmurs and cracks seeds there (see "Sound") | two light steps |
-| `HAND_PECK` | An animal eats from the seeds in a hand | none: pecks at a dish are too small to hear over the meadow | a light peck, at most every 0.4 s |
+| `HAND_PERCH` | A conure lands on a hand holding seeds | none | one 0.025 pulse, 12 ms |
+| `HAND_PECK` | A conure reaches the bottom of its visible peck | none | one 0.012 pulse, 6 ms |
+| `HAND_FLIT` | The perched wing flit and tail shake begin together | none | one 0.015 pulse, 9 ms |
+| `HAND_HOP` | A hop or shuffle touches down | none | one 0.018 pulse, 8 ms |
+| `HAND_PREEN` | A preening stroke reaches its shoulder | none | one 0.008 pulse, 5 ms |
+| `HAND_LOOK` | An idle head turn begins | none | one 0.005 pulse, 4 ms |
 | `REFUSED` | Something other than the frame budget turns an action down | low tock | two knocks |
 | `CAPPED` | The frame budget turns an action down | soft grunt | two knocks, and the bar jumps and shakes |
 

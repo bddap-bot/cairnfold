@@ -8,6 +8,8 @@ extends Critter
 ## their patch in blue and 1 in alpha; the bill carries its shade with alpha 0.5; the rest carry their colour with
 ## alpha 0.
 
+signal animation_event(act: Cues.Act)
+
 enum Part { BODY, HEAD, WING_L, WING_R, TAIL, FEET }
 enum Patch { BACK, CHEST, BELLY, CROWN, FACE, FLIGHT, COVERTS, TAIL, BILL }
 
@@ -49,10 +51,12 @@ const NECK := Vector3(0, 0.098, -0.012)
 ## How far round and up or down the head turns to look at something, in radians.
 const GAZE_TURN := Vector2(1.7, 0.9)
 const GAZE_EASE := 4.0
+const GAZE_TURN_EASE := 22.0
 
 ## What it looks at this tick, Vector3.INF to look about; `look` eases the head there.
 var looking := Vector3.INF
 var _gaze := Vector3.ZERO
+var animation_time := 0.0
 
 
 static func prepare() -> void:
@@ -66,6 +70,8 @@ static func prepare() -> void:
 func _init(phase: float, plumage: int) -> void:
 	super(KIND, build, SHADER, BLEND, phase, HandStop.Surface.FEATHERS)
 	prepare()
+	animation_time = phase
+	set_instance_shader_parameter("animation_time", animation_time)
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	set_instance_shader_parameter("plumage", plumage)
 
@@ -77,10 +83,37 @@ func look(delta: float) -> void:
 		var l := transform.affine_inverse() * looking - NECK
 		to.x = clampf(atan2(-l.x, -l.z), -GAZE_TURN.x, GAZE_TURN.x)
 		to.y = clampf(atan2(l.y, Vector2(l.x, l.z).length()), -GAZE_TURN.y, GAZE_TURN.y)
+	to.x = lerpf(_gaze.x, to.x, 1.0 - exp(-delta * GAZE_TURN_EASE))
+	to.y = lerpf(_gaze.y, to.y, 1.0 - exp(-delta * GAZE_TURN_EASE))
 	looking = Vector3.INF
 	if to != _gaze:
 		_gaze = to
 		set_instance_shader_parameter("gaze", _gaze)
+
+
+## The shader and event crossings use this clock, including in fixed-step replays.
+func animate(delta: float) -> void:
+	var before := animation_time
+	animation_time += delta
+	set_instance_shader_parameter("animation_time", animation_time)
+	if mode.z > 0.5 and _crossed(before, animation_time, 4.2, PI * 0.5):
+		event(Cues.Act.HAND_PECK)
+	if mode.x > 0.5:
+		# Both wings flit and the tail shakes in the same fluff-up.
+		if _crossed(before, animation_time, 0.45, PI * 0.5 - 2.1 - 0.18):
+			event(Cues.Act.HAND_FLIT)
+		if _gaze.z < 0.5 and _crossed(before, animation_time, TAU * 0.9, 0.0):
+			event(Cues.Act.HAND_LOOK)
+	if mode.y > 0.5 and _crossed(before, animation_time, 14.0, PI * 0.5):
+		event(Cues.Act.HAND_PREEN)
+
+
+static func _crossed(before: float, after: float, rate_hz: float, offset: float) -> bool:
+	return floor((before * rate_hz - offset) / TAU) < floor((after * rate_hz - offset) / TAU)
+
+
+func event(act: Cues.Act) -> void:
+	animation_event.emit(act)
 
 
 ## One row per plumage, one linear texel per patch, so a bird's colouring is one instance parameter on the shared

@@ -25,6 +25,8 @@ const HOP := Vector2(0.12, 0.5)
 const HOP_TREE := 0.9
 ## A hand or the head moving suddenly within this startles a bird.
 const STARTLE := 0.8
+## Smoothed controller speed in m/s; carrying a bird tolerates more motion than approaching one.
+const HAND_FLICK := 2.0
 ## A startled bird makes for a perch this far off, out of reach of what startled it.
 const STARTLE_TO := Vector2(0.6, 3.0)
 ## A hand or the head within this has a bird turn to watch it, and keep to its perch.
@@ -171,6 +173,7 @@ func tick(delta: float) -> void:
 		_think(b, delta)
 		_move(b, delta)
 		b.node.look(delta)
+		b.node.animate(delta)
 		if b.state == State.LEAVE and wildlife._let_go(b.node.position, LET_GO):
 			wildlife.release(b)
 			b.node.queue_free()
@@ -196,6 +199,7 @@ func arrive() -> void:
 			break
 		var b := Bird.new()
 		b.node = Conure.new(rng.randf() * 10.0, rng.randi() % Conure.PLUMAGES.size())
+		b.node.animation_event.connect(_animation_event.bind(b))
 		add_child(b.node)
 		b.node.position = start + Vector3(rng.randf_range(-1, 1), rng.randf_range(-0.5, 0.5), rng.randf_range(-1, 1))
 		b.node.blend(Conure.FLY, 1.0)
@@ -435,7 +439,7 @@ func _to_hand(b: Bird, delta: float) -> void:
 	if b.state == State.DECIDE:
 		_decide(b, h, delta)
 		return
-	if not wildlife.feeds(h, b) or wildlife.sudden(h):
+	if not wildlife.feeds(h, b) or wildlife._speed.get(h, 0.0) > HAND_FLICK:
 		_off_hand(b)
 		return
 	b.spot = wildlife.eat_spot(appetite, h, b.node.position)
@@ -638,8 +642,6 @@ func _land(b: Bird) -> void:
 	b.then = State.PERCH
 	if b.state == State.FEED:
 		b.timer = rng.randf_range(appetite.eats_for.x, appetite.eats_for.y)
-		if b.node.hand is Hand:
-			Cues.play(Cues.Act.HAND_PERCH, b.node.global_position, b.node.hand)
 	elif b.state == State.PECK:
 		if flew:
 			b.timer = rng.randf_range(PECK_FOR.x, PECK_FOR.y)
@@ -647,5 +649,12 @@ func _land(b: Bird) -> void:
 		b.timer = rng.randf_range(PAUSE.x, PAUSE.y)
 		if flew:
 			b.node.rotation.y += rng.randf_range(-1.2, 1.2)
-			if wildlife.calls.rng.randf() < 0.5 and not wildlife.calls.calm(b.to):
-				wildlife.calls.call_out("chirp", b.to)
+	b.node.event(Cues.Act.HAND_PERCH if flew else Cues.Act.HAND_HOP)
+
+
+func _animation_event(act: Cues.Act, b: Bird) -> void:
+	if b.state == State.FEED and b.node.hand is Hand:
+		Cues.play(act, b.node.global_position, b.node.hand)
+	if act == Cues.Act.HAND_PERCH and b.state == State.PERCH:
+		if wildlife.calls.rng.randf() < 0.5 and not wildlife.calls.calm(b.to):
+			wildlife.calls.call_out("chirp", b.to)

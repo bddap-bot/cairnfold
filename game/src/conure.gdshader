@@ -8,7 +8,7 @@ varying vec4 given;
 
 // x looking about, y preening, z pecking, w flight: weights scale each motion so blends stay continuous.
 instance uniform vec4 mode = vec4(1.0, 0.0, 0.0, 0.0);
-instance uniform float phase = 0.0;
+instance uniform float animation_time = 0.0;
 // A row of `palette`; row 0 is iridescent, its feathers coloured here. See Conure.PLUMAGES.
 instance uniform int plumage = 0;
 // Where the head is held to look at something, in the bird's own space: yaw, pitch, and how far it holds there
@@ -61,7 +61,7 @@ void vertex() {
 	int area = COLOR.a > 0.75 ? int(COLOR.b * float(PATCHES) + 0.5) : BILL;
 	tint = texelFetch(palette, ivec2(area, plumage), 0).rgb;
 	int part = int(UV2.x + 0.5);
-	float t = TIME + phase;
+	float t = animation_time;
 	float idle = mode.x, preen = mode.y, peck = mode.z, fly = mode.w;
 	bool wing = part == 2 || part == 3;
 	float side = part == 2 ? -1.0 : 1.0;

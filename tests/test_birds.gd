@@ -425,6 +425,15 @@ func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 	_check(d.get("for", 0.0) >= Birds.DECIDE_FOR.x - STEP and d.get("for", 0.0) <= Birds.DECIDE_FOR.y + STEP, "it stood deciding a while first, %.2f s" % d.get("for", 0.0))
 	_check(d.get("moved", 1.0) < 0.001, "where it stood")
 	_check(d.get("head", 0.0) > 0.95 and d.get("hand", 0.0) > 0.95, "looking at whoever holds the seeds and at the hand, %.2f and %.2f" % [d.get("head", 0.0), d.get("hand", 0.0)])
+	var pecks := [0]
+	var watch_peck := func(act: Cues.Act) -> void:
+		if act == Cues.Act.HAND_PECK:
+			pecks[0] += 1
+	b.node.animation_event.connect(watch_peck)
+	var pecks_before: int = Cues.asked.get(Cues.Act.HAND_PECK, 0)
+	_run(g, 6.0, eating)
+	_check(pecks[0] > 0 and Cues.asked.get(Cues.Act.HAND_PECK, 0) - pecks_before == pecks[0], "mounted pecks each produce one cue, without a second feeding timer")
+	b.node.animation_event.disconnect(watch_peck)
 	var spot := hand.global_transform * Wildlife.ON_HAND
 	_check(b.node.position.distance_to(spot) < 0.001, "and stands on the hand behind them")
 	var stayed := [true]
@@ -435,7 +444,25 @@ func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 	var start := hand.global_position
 	_move(g, hand, start, start + Vector3(-0.3, 0.1, 0.2), 0.25, eating)
 	_check(b.state == Birds.State.FEED and b.node.position.distance_to(hand.global_transform * Wildlife.ON_HAND) < 0.001, "carried slowly, it rides along eating")
-	_move(g, hand, hand.global_position, hand.global_position + Vector3(0.4, 0.3, 0), 3.0, eating)
+	for speed in [0.5, 1.0, 1.5]:
+		var peak := [0.0]
+		_move(g, hand, hand.global_position, hand.global_position + Vector3(0.4, 0, 0), speed, func() -> void:
+			eating.call()
+			peak[0] = maxf(peak[0], g.wildlife._speed.get(hand, 0.0)))
+		_check(b.state == Birds.State.FEED, "normal gesture/light flick %.1f m/s keeps the bird" % speed)
+		print("motion: %.1f m/s gesture, smoothed peak %.3f, old release=%s new release=%s" % [speed, peak[0], peak[0] > Wildlife.CALM, b.state != Birds.State.FEED])
+		_run(g, 0.5, eating)
+	var pivot := hand.global_position - Vector3(0.4, 0, 0)
+	for i in 30:
+		hand.global_transform = Transform3D(Basis(Vector3.UP, i * PI / 60.0), pivot + Vector3(0.4, 0, 0).rotated(Vector3.UP, i * PI / 60.0))
+		_run(g, STEP, eating)
+	_check(b.state == Birds.State.FEED, "90 degree turn with arm extended keeps the bird")
+	print("motion: 90 degree turn in 1 s, new release=", b.state != Birds.State.FEED)
+	var flick_peak := [0.0]
+	_move(g, hand, hand.global_position, hand.global_position + Vector3(0.4, 0.3, 0), 3.0, func() -> void:
+		eating.call()
+		flick_peak[0] = maxf(flick_peak[0], g.wildlife._speed.get(hand, 0.0)))
+	print("motion: 3.0 m/s deliberate flick, smoothed peak %.3f, old release=%s new release=%s" % [flick_peak[0], flick_peak[0] > Wildlife.CALM, b.state != Birds.State.FEED])
 	_run(g, STEP * 2, eating)
 	_check(b.state == Birds.State.FLY and b.node.hand == null, "jerked, the hand sends it off")
 	_run(g, 4.0, each)
