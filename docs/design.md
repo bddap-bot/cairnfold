@@ -349,8 +349,8 @@ What makes building cheap:
   wall being drawn or pulled draws by a `Masonry` of its own, in the same chunks with
   the same coarse far stones, until it settles into the glade's.
 - A chunk wholly beyond the near distance of the quality step draws its stones
-  with `Stones.far_mesh`, the same lumps at the corners alone: 12 triangles to the
-  full stone's 108. Ivy chunks past ivy's reach are not drawn at all.
+  and roof tiles with `Stones.far_mesh`, the same lumps at the corners alone: 12
+  triangles to the full stone's 108 and the full tile's 48. Ivy chunks past ivy's reach are not drawn at all.
 - Stones and roof tiles cast no shadow themselves; a box of 8 vertices per stone
   does. Mortar, seen only in the gaps, is a plain box. A stone's faces share the
   vertices along their borders.
@@ -796,31 +796,33 @@ drawing one side 1.4 ms at the cost of the leaves vanishing from behind. From th
 and one detail-texture read instead of three saved nothing.
 
 On the Quest 2 (`bench.sh OUT --android APK`, the bottom step, 0.7 swapchain, 2x MSAA), viewport
-GPU milliseconds a frame over the bare meadow's 6.93 and 6.72, every view at 72 frames a second;
+GPU milliseconds a frame over the bare meadow's 6.92 and 6.71, every view at 72 frames a second;
 each `sized` phase was laid over the share of its area shown, the first that read under the line or the
-fourth tried. With the wildlife the base is 7.34 ms and the room 3.8 ms:
+fourth tried. With the wildlife the base is 7.28 ms and the room 3.8 ms:
 
 | Phase | Area laid | Units | From the air | Standing | Fitted cost |
 | --- | --- | --- | --- | --- | --- |
-| Grass pool full | | 12,000 blades | 10.10 | 10.88 | 0.35 µs a blade |
-| Flower pool full | | 4,000 flowers | 7.40 | 7.85 | 0.28 µs a flower |
-| Tree pool full | | 64 trees | 10.44 | 8.01 | 54.7 µs a tree |
-| Walls, 10 m disc | 0.25 | 319 m² | 8.09 | 11.26 | 14.2 µs a m² |
-| Walls, 15 m disc | 0.18 | 673 m² | 10.48 | 11.53 | |
-| Walls, 20 m disc | 0.09 | 861 m² | 11.35 | 11.08 | |
-| Plaster walls, 15 m disc | 0.41 | 1,033 m² | 8.03 | 10.78 | 3.9 µs a m² |
-| Fences, 15 m disc | 1 | 416 m² | 7.33 | 7.63 | 2.2 µs a m² |
-| Five paths | 0.13 | 108 m² | 7.49 | 9.32 | 24.1 µs a m² |
-| Six ponds | | 6 | 7.29 | 7.02 | 60.1 µs a pond |
-| Village | 0.44 | 43 m² of wall, 26 m² of roof | 9.94 | 7.65 | 92.6 µs a m² of roof |
-| Thatched village | 0.62 | 43 m² of wall, 26 m² of thatch | 7.70 | 7.39 | 5.9 µs a m² of thatch |
-| Lanterns on the 10 m disc's walls | 0.19 | 40 | 8.21 | 11.43 | 9.1 µs a lantern |
-| The meadow's own flowers, trees and bushes | | 3,200, 46, 60 | 9.16 | 8.21 | bushes nothing over the flowers and trees |
-| Four easels, a stroke on each | | 4 | 7.89 | 11.13 | 1.1 ms an easel |
+| Grass pool full | | 12,000 blades | 10.10 | 12.10 | 0.45 µs a blade |
+| Flower pool full | | 4,000 flowers | 8.22 | 9.43 | 0.68 µs a flower |
+| Tree pool full | | 64 trees | 11.45 | 9.63 | 70.7 µs a tree |
+| Walls, 10 m disc | 0.12 | 260 m² | 9.80 | 11.67 | 19.1 µs a m² |
+| Walls, 15 m disc | 0.11 | 476 m² | 10.83 | 12.08 | |
+| Walls, 20 m disc | 0.05 | 614 m² | 11.53 | 11.57 | |
+| Plaster walls, 15 m disc | 0.20 | 688 m² | 8.74 | 11.16 | 6.5 µs a m² |
+| Fences, 15 m disc | 1 | 416 m² | 8.29 | 8.52 | 4.3 µs a m² |
+| Five paths | 0.10 | 88 m² | 7.60 | 8.73 | 22.8 µs a m² |
+| Six ponds | | 6 | 7.46 | 7.05 | 89.8 µs a pond |
+| Village | 0.66 | 43 m² of wall, 26 m² of roof | 8.70 | 8.31 | 37.2 µs a m² of roof |
+| Thatched village | 0.51 | 43 m² of wall, 26 m² of thatch | 9.36 | 8.03 | 62.7 µs a m² of thatch |
+| Lanterns on the 10 m disc's walls | 0.10 | 28 | 9.72 | 11.62 | 21.3 µs a lantern |
+| The meadow's own flowers, trees and bushes | | 3,200, 46, 60 | 9.01 | 8.17 | bushes nothing over the flowers and trees |
+| Four easels, a stroke on each | | 4 | 7.93 | 11.08 | 1.1 ms an easel |
 
 Walls cost little more spread wide than close: standing in a field of them the nearest rows
 fill the view however far apart they stand, so the sparsest field gives the dearest square
-metre. A tiled roof costs the Quest 2 sixteen times thatch, from the air.
+metre. Roof tiles past the ladder's near distance are plain boxes, as far stones are: drawn whole, five tiled houses
+took 14.0 ms from the air against 9.3 with them plain and 9.4 with no tiles at all (bare 6.3), and a house's roof
+fitted 92.6 µs a m². Thatch costs more than tiles from the air: five thatched houses read 11.4 ms.
 
 Four easels, each with a stroke on its canvas, are the `easels` phase of `demo/costs.json`; until a Frame
 run fits them, each counts 0.4 ms there.

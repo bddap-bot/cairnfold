@@ -78,7 +78,8 @@ var _perch_out := {}
 
 
 ## How each Part is drawn. Stones, roof tiles and the mortar between stones cast no shadow; a plain box per
-## stone or tile does, at a ninth of the triangles. Mortar only shows in the gaps, so it is a plain box too. A
+## stone or tile does, at a ninth of the triangles. Far off, a tile is a plain box too: from the air a roof's rounded
+## tiles cost the Quest 2 ten times what plain ones do. Mortar only shows in the gaps, so it is a plain box too. A
 ## thatched roof's coat is a mesh of its own; its slabs cast its shadow and stand in it for the bounce light. A
 ## timber is a plain box near, where a stone's lumps would cost it nine times the triangles; far it is the coarse
 ## stone in a shader that reads nothing per pixel, since a few pixels wide its shading is what it costs.
@@ -96,6 +97,7 @@ static func kinds() -> Array[Masonry.Kind]:
 		_kinds[Part.MORTAR] = Masonry.Kind.new(box, Stones.shared_material(), true, true, off)
 		_kinds[Part.STONE_SHADOW] = shadow
 		_kinds[Part.TILE] = Masonry.Kind.new(Meshes.rounded_box(0.22, 2, 41), Stones.shared_material(), true, true, off, true)
+		_kinds[Part.TILE].far = Stones.far_mesh()
 		_kinds[Part.TILE_SHADOW] = shadow
 		_kinds[Part.COAT] = Masonry.Kind.new(Meshes.plain_box(), null, true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, true)
 		_kinds[Part.IVY] = Masonry.Kind.new(Meshes.sprig(), leaf, true, false, off)
@@ -121,6 +123,7 @@ static func approach(step: Quality.Step, delta: float, glade: Masonry) -> bool:
 static func _reach(stone_near: float, ivy: float) -> void:
 	_kinds[Part.STONE].near = stone_near
 	_kinds[Part.TIMBER].near = stone_near
+	_kinds[Part.TILE].near = stone_near
 	_kinds[Part.IVY].reach = ivy
 	_kinds[Part.IVY].material.set_shader_parameter("reach", ivy)
 
