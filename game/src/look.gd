@@ -120,7 +120,6 @@ static func build(parent: Node) -> Look:
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = SHADOW_REACH
 	sun.directional_shadow_fade_start = 1.0
-	sun.shadow_blur = 0.2
 	sun.shadow_bias = 0.04
 	sun.shadow_normal_bias = 1.2
 	parent.add_child(sun)
