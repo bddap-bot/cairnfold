@@ -850,11 +850,12 @@ func _no_wall_rises_through_a_steep_roof() -> void:
 
 
 ## Every piece of a gable end, the lowest copes, bargeboards, planks and blocks beside its corners too, lies in its end
-## wall's plane rather than turning onto the side wall, and up to a pitch of 2 the copes and boards stay under the tiles.
+## wall's plane rather than turning onto the side wall; at every pitch and curve no cope, board, timber or course
+## stone shows through the tiles. Crow steps stand over the roof.
 func _gable_ends_keep_to_their_wall_under_the_roof() -> void:
 	for size in [Vector2(3.0, 2.0), Vector2(5.0, 4.0), Vector2(6.0, 8.0)]:
 		for end in WallLayout.GableEnd.values():
-			for plaster in [false, true]:
+			for finish in [[false, -1], [true, -1], [true, 0]]:
 				for pitch in PITCHES:
 					for curve in CURVES:
 						var w := WallLayout.new()
@@ -862,7 +863,8 @@ func _gable_ends_keep_to_their_wall_under_the_roof() -> void:
 						w.closed = true
 						w.cover = WallLayout.Cover.ROOF
 						w.height = 2.4
-						w.plaster = plaster
+						w.plaster = finish[0]
+						w.timber_style = finish[1]
 						w.gable_end = end
 						var r := RoofLayout.new()
 						r.pitch = pitch
@@ -873,19 +875,31 @@ func _gable_ends_keep_to_their_wall_under_the_roof() -> void:
 						var f := r.frame()
 						var turned := 0
 						var worst := -INF
+						var what := ""
 						for st in w.stones:
-							if st.xform.origin.y < r.base + 0.02:
-								continue
-							if absf(st.xform.basis.z.normalized().dot(f.across)) > 0.2:
+							var gable: bool = st.xform.origin.y >= r.base + 0.02
+							if gable and absf(st.xform.basis.z.normalized().dot(f.across)) > 0.2:
 								turned += 1
-							if pitch > 2.0 or st.kind != "cope" and st.kind != "board":
+							if not gable and st.kind != "timber":
+								continue
+							if end == WallLayout.GableEnd.STEPS and st.kind != "timber":
 								continue
 							for c in WallLayout.BOX:
-								var p: Vector3 = st.xform * c
-								worst = maxf(worst, p.y - r.height_at(p.x, p.z))
-						var what := "%s %s %s pitch %.1f curve %+.1f" % [size, WallLayout.GableEnd.keys()[end], "plaster" if plaster else "stone", pitch, curve]
-						_check(turned == 0, "%s: %d gable pieces turn off their end wall" % [what, turned])
-						_check(worst <= 0.05, "%s: a cope or board rises %.3f m through the roof" % [what, worst])
+								var through := _through_tiles(r, st.xform * c)
+								if through > worst:
+									worst = through
+									what = st.kind
+						var house := "%s %s %s pitch %.1f curve %+.1f" % [size, WallLayout.GableEnd.keys()[end], "timbered" if finish[1] >= 0 else "plaster" if finish[0] else "stone", pitch, curve]
+						_check(turned == 0, "%s: %d gable pieces turn off their end wall" % [house, turned])
+						_check(worst <= 0.0, "%s: a %s stands %.3f m out through the tiles" % [house, what, worst])
+
+
+## How far `p` stands out past the outer face of the tiles over it, square to the slope: they lie on the roof's bed
+## with their middles TILE.y/2 straight above it, so on a steep slope their face is nearer the bed.
+static func _through_tiles(r: RoofLayout, p: Vector3) -> float:
+	var f := r.frame()
+	var steep := cos(r.slope_at(absf((p - f.mid).dot(f.across))))
+	return (p.y - r.height_at(p.x, p.z)) * steep - RoofLayout.TILE.y * 0.5 * (1.0 + steep)
 
 
 ## Houses and towers to roof, each with its roof's footprint set: a narrow and a wide house and two towers.

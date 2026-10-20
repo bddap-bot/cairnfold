@@ -68,27 +68,39 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 			xs.append(mid)
 			xs.sort()
 		for x in xs:
-			var top := base + w.gable.rise(1.0 - (absf(x - mid) + WIDTH * 0.5) / hs) - WIDTH
-			_emit(out, Vector2(x, eaves), Vector2(x, top), mid, [])
+			_emit(out, Vector2(x, eaves), Vector2(x, base + rake(w, hs, absf(x - mid) + WIDTH * 0.5)), mid, [])
 		var y := w.gable.rise(1.0) * 0.5
-		var half := w._under_slope(y + WIDTH, hs)
-		_emit(out, Vector2(mid - half, base + y), Vector2(mid + half, base + y), mid, [])
+		var reach := 0.0
+		var past := hs
+		for i in 20:
+			if rake(w, hs, (reach + past) * 0.5) > y:
+				reach = (reach + past) * 0.5
+			else:
+				past = (reach + past) * 0.5
+		_emit(out, Vector2(mid - reach, base + y), Vector2(mid + reach, base + y), mid, [])
 		for sign_x in [-1.0, 1.0]:
-			var last := Vector2(mid + sign_x * hs, base - WIDTH)
+			var last := Vector2(mid + sign_x * hs, base + rake(w, hs, hs))
 			var segments := maxi(1, ceili(absf(w.gable.curve) * 12.0))
 			for i in range(1, segments + 1):
 				var x := hs * (1.0 - float(i) / segments)
-				var next := Vector2(mid + sign_x * x, base + w.gable.rise(1.0 - x / hs) - WIDTH)
+				var next := Vector2(mid + sign_x * x, base + rake(w, hs, x))
 				_emit(out, last, next, mid, [])
 				last = next
 		for i in xs.size() - 1:
-			var top := base + w.gable.rise(1.0 - (maxf(absf(xs[i] - mid), absf(xs[i + 1] - mid)) + WIDTH) / hs) - WIDTH
+			var top := base + rake(w, hs, maxf(absf(xs[i] - mid), absf(xs[i + 1] - mid)) + WIDTH)
 			if top - eaves < 0.35 or xs[i + 1] - xs[i] < 0.5:
 				continue
 			var panel := Rect2(Vector2(xs[i], eaves), Vector2(xs[i + 1] - xs[i], top - eaves))
 			for brace: Vector4 in BRACES:
 				_emit(out, panel.position + panel.size * Vector2(brace.x, brace.y), panel.position + panel.size * Vector2(brace.z, brace.w), mid, [])
 	return out
+
+
+## The height over the wall top of a gable end's rake beam's centre line `x` out from the ridge, `hs` out at the faces:
+## a beam's width square off the slope rather than straight under it, so its upper edge stays under a steep slope.
+static func rake(w: WallLayout, hs: float, x: float) -> float:
+	var slope := (w.gable.rise(1.0 - (x - 0.01) / hs) - w.gable.rise(1.0 - (x + 0.01) / hs)) / 0.02
+	return w.gable.rise(1.0 - x / hs) - WIDTH * sqrt(1.0 + slope * slope)
 
 
 static func _emit(out: Array[Dictionary], a: Vector2, b: Vector2, face: float, holes: Array[Rect2]) -> void:
