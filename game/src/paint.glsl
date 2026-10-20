@@ -206,10 +206,11 @@ void lay(ivec2 p) {
 			float height = (0.35 + 0.65 * pressure) * load * (0.55 + 0.45 * streak);
 			laid.a = mix(laid.a, max(laid.a * 0.6, height), cover);
 		} else {
-			// Charcoal catches on the paper's peaks; pressing harder reaches into the hollows. Each pass darkens what it
-			// catches less than the one before, so a line builds up to soft black rather than flat black at once.
-			float bite = 1.0 - pressure * 0.9;
-			float take = f * smoothstep(bite - 0.08, bite + 0.08, fine * 0.65 + lump * 0.35) * (0.08 + 0.17 * pressure);
+			// Charcoal catches on the paper's peaks, its tooth as much as its grain so the grain reads at arm's length.
+			// Pressing harder reaches lower but never into the deepest pits: a hard line closed into a smooth band
+			// reads as a wash. Each pass darkens what it catches less than the one before.
+			float bite = 0.86 - pressure * 0.44;
+			float take = f * smoothstep(bite - 0.04, bite + 0.04, fine * 0.5 + lump * 0.5) * (0.12 + 0.2 * pressure);
 			laid.rgb += density * take * exp(-laid.g * 0.6);
 		}
 	}
