@@ -2312,7 +2312,20 @@ One look, no options. Nothing blurs or sways: in a headset both read as bad eyes
   as well as the sun, so they stand out against it at any hour; the ones closest to the head fade out.
 - **Sound:** the mix goes through a low-pass at 650 Hz and 4 dB down.
 - **Cost:** above water nothing is drawn and no effect runs; the surface's back face is never rasterized from
-  above, and the fog and colour correction are the ones already applied.
+  above, and the fog and colour correction are the ones already applied. Under water the eyes clip where the
+  water's fog ends (`Rig.under`) and the fog takes the sky whole, so nothing past 7 m is drawn and none could be
+  seen. `demo/underwater.json` plays a pond at the ladder's fit step (`Budget.fit_step`), the step play holds;
+  GPU ms a frame, 12.5 the budget at 72 Hz, no late frame under water past the first second on either headset:
+
+  | | above | under, level | under, looking up | under, straight up |
+  |---|---|---|---|---|
+  | Quest 2 (`perf/quest-2/underwater`) | 7.6 | 6.8 | 6.6 | 4.2 |
+  | Frame (`perf/frame/underwater`) | 7.2 | 6.9 | 7.6 | 7.7 |
+
+  In the stress scene at full quality the Frame's view level from a pond's bed fell from 14.3 to 7.4 ms with the
+  clip, back to 72 Hz (`perf/frame/stress`); looking up there is 15.8 ms, the garden round that pond rather than
+  the look, which in a bare pond takes 7.5 at full quality beside 7.8 above. A fresh install's first dip waits
+  about a third of a second on the Frame for its pipelines; the shader cache keeps them after.
 
 ### Stone in ponds
 
