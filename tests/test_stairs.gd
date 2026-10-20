@@ -54,6 +54,9 @@ func _run() -> void:
 	check(Commands._stairs(long) != null, "a sixty-metre bridge is a valid command")
 	stairs.build(long)
 	check(stairs.kind == StairLayout.Kind.LANDING and is_equal_approx(stairs.surface(Vector3(0, 3, -59.5)), 2.0), "a sixty-metre bridge is walkable to its far end")
+	long.b.y = 2.15
+	stairs.build(long)
+	check(stairs.kind == StairLayout.Kind.FLIGHT and stairs.treads.size() == ceili(60.0 / StairLayout.TREAD), "a gently sloped long bridge climbs in shallow treads, not a few long ones: %d" % stairs.treads.size())
 	var main := (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	await process_frame

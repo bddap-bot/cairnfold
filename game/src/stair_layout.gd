@@ -4,6 +4,8 @@ extends RefCounted
 enum Kind { FLIGHT, LADDER, LANDING }
 const WIDTH := Vector2(0.6, 3.0)
 const RISE := 0.2
+## The deepest a tread runs, so a long, gentle flight climbs in many low steps rather than a few long ones.
+const TREAD := 0.45
 const LADDER_SLOPE := 1.5
 const LEVEL := 0.08
 const RAIL_HEIGHT := 0.85
@@ -64,7 +66,7 @@ func build(d: Dictionary) -> void:
 			_beam(a + side * width * sign_x * 0.5, b + side * width * sign_x * 0.5 + (b - a).normalized() * 0.5, 0.11, "wood", rng)
 		_bound()
 		return
-	var n := maxi(1, ceili(rise / RISE)) if kind == Kind.FLIGHT else maxi(1, ceili(run / 0.45))
+	var n := maxi(maxi(1, ceili(run / TREAD)), ceili(rise / RISE) if kind == Kind.FLIGHT else 0)
 	var depth := run / n
 	_depth = depth
 	var height := maxf(rise / n, 0.12)
