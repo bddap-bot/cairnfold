@@ -1778,6 +1778,10 @@ Every house and tower is floored (`WallLayout.floors`; tests in `tests/test_floo
   house four.
   Houses laid after take the choice let go last. An upper floor is charged against the budget by its area
   (`floor_m2`); the floor at the foot is charged with the roof over it, since every roofed build has one (`roof_m2`).
+  On a Quest 2 (`demo/costs.json`, `perf/quest-2/costs/20261020T184905Z-9ccae17.json`) the village floored at every
+  storey, 7.2 m tall with 30.2 m² of upper floors, took 10.77 and 10.47 ms from the air and standing against 10.10 and
+  10.26 ms for the village of 2.4 m houses, its taller walls included: at most 22.2 µs a m² of upper floor were it all
+  the floors', which the 22.8 µs `floor_m2` charges covers; `costs.py` fits the floors nothing over the walls.
 - A floor is stood on: the teleport ray lands on the first floor it meets, and a point inside stands on the highest
   floor at or below it, so a raised house is stood in on its floor, not on the ground under it.
 - Nothing grows through it: the meadow under a house or tower on the ground is worn bare, out to inside its walls,
