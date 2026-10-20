@@ -37,9 +37,9 @@ uniform vec3 hand_right;
 // Only the weed_keep share of clumps (by rank) grows, so a ribbon several times a blade's size costs no more than one.
 instance uniform float planted = 0.0;
 uniform float weed_reach = 0.7;
-uniform float weed_stretch = 3.5;
-uniform float weed_narrow = 0.6;
-uniform float weed_keep = 0.5;
+uniform float weed_stretch = 2.5;
+uniform float weed_narrow = 0.5;
+uniform float weed_keep = 0.25;
 uniform float current_period = 6.0;
 uniform float current_sway = 0.06;
 uniform vec3 weed_root : source_color = vec3(0.09, 0.16, 0.06);

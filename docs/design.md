@@ -2253,13 +2253,19 @@ deep water and irises in the shallows.
   back up as grass and flowers. Nothing is stored or rewritten, so undo, co-op and saves need nothing new.
 - **Only placed plants:** Flora's painted and ghost pools carry the `planted` instance uniform; the meadow's own grass
   and flowers drown as before, so a freshly dug pond keeps its bare sand bed and planting it is a choice.
-- **Pondweed:** half the grass clumps under water grow, each stretching toward the surface (to 70% of the depth, at
-  most 3.5 times its height), narrowing, and leaning in a slow current instead of the wind: a 6 s swell that runs up each ribbon, its tip
+- **Pondweed:** a quarter of the grass clumps under water grow (by the rank distance thins the meadow by), each
+  stretching toward the surface (to 70% of the depth, at most 2.5 times its height), half as wide, and leaning in a slow current instead of the wind: a 6 s swell that runs up each ribbon, its tip
   behind its middle, with a slower cross-current. Its colour runs from a dark olive root to a green tip that turns
   blue-green with depth.
 - **Lilies and irises:** a flower deeper than 35 cm opens its head into a pad 2.6 times as wide, floating just on the
   surface and drifting a few centimetres, its bloom raised in the pad's middle on a stem from the bed. Shallower, it
   stands 30 cm out of the water, its stalk widened at the foot into sword leaves.
+- **Cost:** desktop renderer (RTX 2080, 1600×1200, `demo/pondweed.json`, median viewport GPU time, the host shared
+  with other work), the painted grass pool full (12,000 clumps) in a 1.8 m disc: in a pond, seen from above, 11.3 ms,
+  against 12.2 ms for the same disc on land and 7.3 ms with the pond's grass drowned; from the bed beside it 21.2 ms,
+  against 5.0 ms drowned and 14.5 ms for the land disc from the same height. Growing every clump under water cost
+  28.4 ms from the bed, half of them 22.1 ms; the shorter, narrower ribbons saved 0.9 ms more. The budget charges a
+  pondweed clump as a grass clump. Headset numbers belong to the on-device run.
 
 Sound: each pond laps softly from its middle (slow, low-passed sloshes with rare bubbles), a hand
 dipping in plops, and a filling pond gurgles; all of it sits below 1.8 kHz.
