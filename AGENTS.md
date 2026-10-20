@@ -21,6 +21,8 @@ controls and the build order.
   timbres soft (see "Sound" in the design document).
 - Generators stay pure data (like `WallLayout`), tested headless in `tests/`.
 - Delete comments that restate code; keep only a why the code cannot show.
+- A `##` doc block heads the function it describes: a new function goes above the preceding
+  function's doc block, never between a doc block and its function.
 - Edit by subtraction: fix problems by removing code where possible, one
   implementation per thing.
 - Nestcombe is unreleased, so code carries no backwards compatibility. Save, network and

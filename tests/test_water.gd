@@ -196,7 +196,6 @@ func _shallow_basin_holds_no_pond() -> void:
 	_check(PondLayout.fill(_grid(enough), WINDOW, Vector2i(10, 10)) != null, "a slightly deeper one does")
 
 
-## Presses a hollow `depth` deep at x, z as a grip does; the rim it leaves is `rim` from x, z.
 ## Ground dug further down than NO_WATER once read as under water, so a wall over it stood at that level and laid
 ## footings hundreds of metres down to it.
 func _ground_dug_deep_stays_dry() -> void:
@@ -215,6 +214,7 @@ func _ground_dug_deep_stays_dry() -> void:
 	Terrain.write(cells, before)
 
 
+## Presses a hollow `depth` deep at x, z as a grip does; the rim it leaves is `rim` from x, z.
 func _press(terrain: GroundGrab, x: float, z: float, depth: float) -> void:
 	terrain.begin(terrain.rig.right, Terrain.ground(x, z), RADIUS)
 	terrain.pull(terrain.rig.right, -depth)
