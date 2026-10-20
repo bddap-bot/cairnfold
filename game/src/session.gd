@@ -111,6 +111,8 @@ static var _protocol := 0
 
 func _init(garden: World, player: Rig, look: int, from_port := PORT, on_lan := true, from_beacon := BEACON_PORT, who: Persona = null) -> void:
 	name = "Session"
+	# A system overlay pauses the garden, not the connection to its visitors.
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	lan = on_lan
 	beacon_port = BEACON_PORT if lan else clampi(from_beacon, 1024, 65536 - BEACON_PORTS)
 	world = garden

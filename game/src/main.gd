@@ -240,10 +240,27 @@ func _start_xr() -> bool:
 	if args.has("refresh"):
 		xr.display_refresh_rate = float(args.refresh)
 	xr.session_begun.connect(_note_session)
-	xr.session_stopping.connect(finish)
+	_watch_xr()
 	xr.instance_exiting.connect(finish)
 	print("xr: rates ", rates, " requested ", args.get("refresh", "runtime default"))
 	return true
+
+
+func _watch_xr() -> void:
+	xr.session_begun.connect(_xr_state.bind(OpenXRInterface.SESSION_STATE_READY))
+	xr.session_synchronized.connect(_xr_state.bind(OpenXRInterface.SESSION_STATE_SYNCHRONIZED))
+	xr.session_visible.connect(_xr_state.bind(OpenXRInterface.SESSION_STATE_VISIBLE))
+	xr.session_focussed.connect(_xr_state.bind(OpenXRInterface.SESSION_STATE_FOCUSED))
+	xr.session_stopping.connect(_xr_state.bind(OpenXRInterface.SESSION_STATE_STOPPING))
+	_xr_state(xr.get_session_state())
+
+
+func _xr_state(state: int) -> void:
+	var pause := state != OpenXRInterface.SESSION_STATE_FOCUSED
+	if get_tree().paused == pause:
+		return
+	get_tree().paused = pause
+	print("xr: %s state=%d peers=%s" % ["paused" if pause else "resumed", state, session.multiplayer.get_peers()])
 
 
 func _note_session() -> void:
