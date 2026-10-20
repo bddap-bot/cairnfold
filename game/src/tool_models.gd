@@ -26,6 +26,7 @@ const FITTING_PARTS := {
 const SEED_COLOURS: Array[Color] = [Color(0.93, 0.8, 0.5), Color(0.12, 0.11, 0.1), Color(0.2, 0.19, 0.17)]
 
 static var _mats := {}
+static var _meshes := {}
 static var _stars := {}
 static var _camera_screen: StandardMaterial3D
 
@@ -235,28 +236,12 @@ static func brush(kind: Brushwork.Brush) -> Node3D:
 		var stick := _piece(root, charcoal(CHARCOAL_LENGTH), Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + CHARCOAL_LENGTH * 0.5)), charcoal_material())
 		stick.name = "tip"
 		return root
-	var handle := CylinderMesh.new()
-	handle.top_radius = 0.005
-	handle.bottom_radius = 0.0035
-	handle.height = 0.2
-	handle.radial_segments = 10
-	handle.rings = 1
-	_piece(root, handle, Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + 0.155)), _plain("brush_handle", Color(0.75, 0.28, 0.2)))
-	var ferrule := CylinderMesh.new()
-	ferrule.top_radius = 0.0045 if kind == Brushwork.Brush.SMALL else 0.0075
-	ferrule.bottom_radius = 0.005
-	ferrule.height = 0.03
-	ferrule.radial_segments = 10
-	ferrule.rings = 1
+	_piece(root, cylinder(0.005, 0.0035, 0.2, 10), Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + 0.155)), _plain("brush_handle", Color(0.75, 0.28, 0.2)))
 	var flat := Basis().scaled(Vector3(2.2, 1, 0.45)) if kind == Brushwork.Brush.FLAT else Basis()
+	var ferrule := cylinder(0.0045 if kind == Brushwork.Brush.SMALL else 0.0075, 0.005, 0.03, 10)
 	_piece(root, ferrule, Transform3D(along * flat, Vector3(0, BRUSH_TIP.y, tip_z + 0.04)), _plain("ferrule", Color(0.78, 0.76, 0.7)))
-	var hair := CylinderMesh.new()
 	var r: float = {Brushwork.Brush.SMALL: 0.003, Brushwork.Brush.BIG: 0.008, Brushwork.Brush.FLAT: 0.007}[kind]
-	hair.top_radius = r
-	hair.bottom_radius = r * (0.15 if kind != Brushwork.Brush.FLAT else 0.9)
-	hair.height = 0.026
-	hair.radial_segments = 10
-	hair.rings = 1
+	var hair := cylinder(r, r * (0.15 if kind != Brushwork.Brush.FLAT else 0.9), 0.026, 10)
 	var tip := _piece(root, hair, Transform3D(along * flat, Vector3(0, BRUSH_TIP.y, tip_z + 0.013)), _plain("bristles", Color(0.86, 0.78, 0.62)))
 	tip.name = "tip"
 	return root
@@ -277,6 +262,10 @@ static func charcoal_material() -> StandardMaterial3D:
 ## A stick of willow charcoal `length` long along y, centred on its middle: six-sided and uneven, crooked toward z as
 ## the twig grew, so lying on its side it lies flat, mottled grey-black, its +y end worn grey.
 static func charcoal(length: float) -> ArrayMesh:
+	return shared("charcoal %s" % length, _charcoal.bind(length))
+
+
+static func _charcoal(length: float) -> ArrayMesh:
 	var parts: Array = []
 	var at := Vector3(0, -length * 0.5, 0)
 	var bends := [0.0, 0.09, -0.07, 0.06, -0.05]
@@ -285,12 +274,7 @@ static func charcoal(length: float) -> ArrayMesh:
 	var seg := length / bends.size()
 	for i in bends.size():
 		var b := Basis(Vector3.RIGHT, bends[i])
-		var c := CylinderMesh.new()
-		c.bottom_radius = CHARCOAL_RADIUS * widths[i]
-		c.top_radius = CHARCOAL_RADIUS * widths[i + 1]
-		c.height = seg + 0.002
-		c.radial_segments = 6
-		c.rings = 1
+		var c := cylinder(CHARCOAL_RADIUS * widths[i + 1], CHARCOAL_RADIUS * widths[i], seg + 0.002, 6)
 		var grey: float = greys[i]
 		parts.append([c, Transform3D(b.scaled(Vector3(1.0, 1.0, 0.8)), at + b.y * seg * 0.5), Color(grey, grey * 0.96, grey * 0.92)])
 		at += b.y * seg
@@ -329,6 +313,34 @@ static func bake(parts: Array) -> ArrayMesh:
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	return mesh
+
+
+## The mesh `make` builds, built once under `key`: every easel and hand holding the same kit shares its geometry, so
+## setting one up in play builds and uploads none.
+static func shared(key: String, make: Callable) -> Mesh:
+	var m: Mesh = _meshes.get(key)
+	if m == null:
+		m = make.call()
+		_meshes[key] = m
+	return m
+
+
+static func cylinder(top: float, bottom: float, height: float, segments: int) -> CylinderMesh:
+	return shared("cylinder %s %s %s %d" % [top, bottom, height, segments], func() -> CylinderMesh:
+		var c := CylinderMesh.new()
+		c.top_radius = top
+		c.bottom_radius = bottom
+		c.height = height
+		c.radial_segments = segments
+		c.rings = 1
+		return c)
+
+
+static func box(size: Vector3) -> BoxMesh:
+	return shared("box %s" % size, func() -> BoxMesh:
+		var b := BoxMesh.new()
+		b.size = size
+		return b)
 
 
 static func _plain(key: String, colour: Color) -> StandardMaterial3D:

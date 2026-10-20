@@ -33,6 +33,8 @@ var _ks := PackedFloat32Array()
 var _amount := PackedFloat32Array()
 static var _open := PackedByteArray()
 static var _to_ks := PackedFloat32Array()
+## A clean board's bytes, K/S and amounts, worked out once: every easel set up starts from it.
+static var _clean := []
 
 
 func _init() -> void:
@@ -76,7 +78,13 @@ static func density_of(k: Vector3) -> Vector3:
 ## The field as `data`, as `bytes` holds it; empty for a clean board.
 func load_bytes(data: PackedByteArray) -> void:
 	var n := SIZE.x * SIZE.y
-	if data.size() != n * 4:
+	var clean := data.size() != n * 4
+	if clean and not _clean.is_empty():
+		bytes = _clean[0].duplicate()
+		_ks = _clean[1].duplicate()
+		_amount = _clean[2].duplicate()
+		return
+	if clean:
 		data = PackedByteArray()
 		data.resize(n * 4)
 		for i in n:
@@ -91,6 +99,8 @@ func load_bytes(data: PackedByteArray) -> void:
 		_ks[i * 3 + 1] = _to_ks[bytes[i * 4 + 1]]
 		_ks[i * 3 + 2] = _to_ks[bytes[i * 4 + 2]]
 		_amount[i] = bytes[i * 4 + 3] / 255.0
+	if clean:
+		_clean = [bytes.duplicate(), _ks.duplicate(), _amount.duplicate()]
 
 
 func empty() -> bool:

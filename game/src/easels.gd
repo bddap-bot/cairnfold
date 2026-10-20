@@ -51,6 +51,8 @@ const MAX := 4
 ## The easel's bounds in its own frame, for the delete tool's beam.
 const BOUNDS := AABB(Vector3(-0.82, 0.0, -0.75), Vector3(1.64, 2.0, 1.1))
 
+## The watercolour box's white enamel, which its mixing field starts as.
+const BOX_WHITE := Color(0.95, 0.95, 0.93)
 ## Clean water in the jar.
 const WATER := Color(0.38, 0.62, 0.86, 0.75)
 
@@ -61,6 +63,17 @@ var easels := {}
 
 func _init() -> void:
 	name = "Easels"
+	# The shared geometry, the paint pipeline and the easel's draw pipelines are built as the game loads, by an easel
+	# that stands hidden for its first frame, so not even the first placement in a session builds any of them.
+	var warm := Easel.new()
+	_build(warm)
+	var look := ShaderMaterial.new()
+	look.shader = preload("res://src/canvas.gdshader")
+	warm.canvas_mesh.material_override = look
+	warm.visible = false
+	add_child(warm)
+	warm.queue_free()
+	Canvas.warm()
 
 
 ## Where pigment `i` lies on `kit`'s palette, in its frame.
@@ -139,6 +152,7 @@ func put(id: int, data: Dictionary) -> Easel:
 	e.canvas = Canvas.new()
 	e.add_child(e.canvas)
 	_build(e)
+	e.canvas_mesh.material_override = e.canvas.material
 	add_child(e)
 	easels[id] = e
 	e.canvas.rebuild(data.strokes)
@@ -251,20 +265,8 @@ static func _part(root: Node3D, mesh: Mesh, at: Transform3D, mat: Material, shad
 	return mi
 
 
-static func _box(size: Vector3) -> BoxMesh:
-	var b := BoxMesh.new()
-	b.size = size
-	return b
-
-
 static func _cylinder(radius: float, height: float, segments := 16) -> CylinderMesh:
-	var c := CylinderMesh.new()
-	c.top_radius = radius
-	c.bottom_radius = radius
-	c.height = height
-	c.radial_segments = segments
-	c.rings = 1
-	return c
+	return ToolModels.cylinder(radius, radius, height, segments)
 
 
 ## A square beam `thickness` across from `from` to `to`.
@@ -272,7 +274,7 @@ static func _beam(root: Node3D, from: Vector3, to: Vector3, thickness: float, ma
 	var along := to - from
 	var y := along.normalized()
 	var x := y.cross(Vector3.FORWARD if absf(y.z) < 0.9 else Vector3.RIGHT).normalized()
-	_part(root, _box(Vector3(thickness, along.length(), thickness)), Transform3D(Basis(x, y, x.cross(y)), (from + to) * 0.5), mat)
+	_part(root, ToolModels.box(Vector3(thickness, along.length(), thickness)), Transform3D(Basis(x, y, x.cross(y)), (from + to) * 0.5), mat)
 
 
 func _build(e: Easel) -> void:
@@ -286,13 +288,11 @@ func _build(e: Easel) -> void:
 	for side in [-1.0, 1.0]:
 		_beam(stand, _foot(side * 0.62), frame * Vector3(side * 0.1, top, -LEG_BACK), 0.045, wood)
 	_beam(stand, Vector3(0, 0, -0.7), frame * Vector3(0, top - 0.04, -LEG_BACK - 0.04), 0.04, wood)
-	_part(stand, _box(TRAY.size), Transform3D(Basis(), TRAY.get_center()), wood)
-	_part(stand, _box(Vector3(TRAY.size.x, LIP.x, LIP.y)), Transform3D(Basis(), Vector3(0, TRAY_Y + LIP.x * 0.5, TRAY.end.z - LIP.y * 0.5)), dark)
-	_part(stand, _box(Vector3(0.3, 0.05, 0.03)), frame * Transform3D(Basis(), Vector3(0, Brushwork.METRES.y * 0.5 + 0.02, -0.048)), dark)
-	_part(e, _box(Vector3(Brushwork.METRES.x + 0.03, Brushwork.METRES.y + 0.03, 0.03)), frame * Transform3D(Basis(), Vector3(0, 0, -0.017)), _mat("linen", Color(0.86, 0.82, 0.74), 0.9))
-	var face := QuadMesh.new()
-	face.size = Brushwork.METRES
-	e.canvas_mesh = _part(e, face, frame, e.canvas.material, false)
+	_part(stand, ToolModels.box(TRAY.size), Transform3D(Basis(), TRAY.get_center()), wood)
+	_part(stand, ToolModels.box(Vector3(TRAY.size.x, LIP.x, LIP.y)), Transform3D(Basis(), Vector3(0, TRAY_Y + LIP.x * 0.5, TRAY.end.z - LIP.y * 0.5)), dark)
+	_part(stand, ToolModels.box(Vector3(0.3, 0.05, 0.03)), frame * Transform3D(Basis(), Vector3(0, Brushwork.METRES.y * 0.5 + 0.02, -0.048)), dark)
+	_part(e, ToolModels.box(Vector3(Brushwork.METRES.x + 0.03, Brushwork.METRES.y + 0.03, 0.03)), frame * Transform3D(Basis(), Vector3(0, 0, -0.017)), _mat("linen", Color(0.86, 0.82, 0.74), 0.9))
+	e.canvas_mesh = _part(e, _quad("canvas", Brushwork.METRES), frame, null, false)
 	var implements := Node3D.new()
 	implements.name = "implements"
 	e.add_child(implements)
@@ -301,18 +301,16 @@ func _build(e: Easel) -> void:
 	glass.rim_enabled = true
 	glass.rim = 0.6
 	glass.render_priority = 1
-	var rim := TorusMesh.new()
-	rim.inner_radius = JAR_SIZE.x - 0.003
-	rim.outer_radius = JAR_SIZE.x + 0.002
-	rim.rings = 16
-	rim.ring_segments = 6
+	var rim := ToolModels.shared("jar_rim", func() -> TorusMesh:
+		var t := TorusMesh.new()
+		t.inner_radius = JAR_SIZE.x - 0.003
+		t.outer_radius = JAR_SIZE.x + 0.002
+		t.rings = 16
+		t.ring_segments = 6
+		return t)
 	_part(implements, _cylinder(JAR_SIZE.x, JAR_SIZE.y, 20), Transform3D(Basis(), JAR + Vector3(0, JAR_SIZE.y * 0.5, 0)), glass, false)
 	_part(implements, rim, Transform3D(Basis(), JAR + Vector3(0, JAR_SIZE.y, 0)), _mat("glass_rim", Color(0.9, 0.95, 0.97), 0.05), false)
-	e.water = StandardMaterial3D.new()
-	e.water.albedo_color = WATER
-	e.water.roughness = 0.02
-	e.water.metallic_specular = 0.9
-	e.water.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	e.water = _clean_water().duplicate()
 	_part(implements, _cylinder(JAR_SIZE.x - 0.003, JAR_SIZE.y * 0.72, 20), Transform3D(Basis(), JAR + Vector3(0, 0.002 + JAR_SIZE.y * 0.36, 0)), e.water, false)
 	_part(implements, _cylinder(0.055, 0.12), Transform3D(Basis(), POT + Vector3(0, 0.06, 0)), _mat("pot", Color(0.66, 0.36, 0.26)))
 	_part(implements, _cylinder(0.047, 0.002), Transform3D(Basis(), POT + Vector3(0, 0.12, 0)), _mat("pot_inside", Color(0.24, 0.13, 0.1)), false)
@@ -325,11 +323,7 @@ func _build(e: Easel) -> void:
 	e.stick = ToolModels.brush(Brushwork.Brush.STICK)
 	e.stick.transform = Transform3D(Basis(Vector3.UP, -PI * 0.5), STICK + Vector3(0, ToolModels.CHARCOAL_RADIUS - ToolModels.BRUSH_TIP.y, 0))
 	implements.add_child(e.stick)
-	var sticks: Array = []
-	for piece: Array in [[0.05, -0.021, 0.17], [0.02, -0.04, 0.12], [0.07, -0.06, 0.09]]:
-		var along := Basis(Vector3.UP, piece[0] - 0.04) * Basis(Vector3.BACK, -PI * 0.5)
-		sticks.append([ToolModels.charcoal(piece[2]), Transform3D(along, Vector3(STICK.x + piece[0] + piece[2] * 0.5, TRAY_Y + ToolModels.CHARCOAL_RADIUS, STICK.z + piece[1])), null])
-	_part(implements, ToolModels.bake(sticks), Transform3D(), ToolModels.charcoal_material())
+	_part(implements, ToolModels.shared("tray_charcoal", _tray_charcoal), Transform3D(), ToolModels.charcoal_material())
 	for kit in KITS:
 		var palette := watercolours() if kit == Brushwork.Medium.WATER else oils()
 		palette.name = Brushwork.Medium.keys()[kit].to_lower()
@@ -341,9 +335,22 @@ func _build(e: Easel) -> void:
 	var film := ShaderMaterial.new()
 	film.shader = preload("res://src/mixing.gdshader")
 	film.set_shader_parameter("field", e.field)
-	var board := QuadMesh.new()
-	board.size = PALETTE_SIZE
-	_part(e.palettes[Brushwork.Medium.OIL], board, Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(0, BOARD_TOP + 0.0003, 0)), film, false)
+	_part(e.palettes[Brushwork.Medium.OIL], _quad("oil_field", PALETTE_SIZE), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(0, BOARD_TOP + 0.0003, 0)), film, false)
+
+
+static func _quad(key: String, size: Vector2) -> QuadMesh:
+	return ToolModels.shared(key, func() -> QuadMesh:
+		var q := QuadMesh.new()
+		q.size = size
+		return q)
+
+
+static func _tray_charcoal() -> ArrayMesh:
+	var sticks: Array = []
+	for piece: Array in [[0.05, -0.021, 0.17], [0.02, -0.04, 0.12], [0.07, -0.06, 0.09]]:
+		var along := Basis(Vector3.UP, piece[0] - 0.04) * Basis(Vector3.BACK, -PI * 0.5)
+		sticks.append([ToolModels.charcoal(piece[2]), Transform3D(along, Vector3(STICK.x + piece[0] + piece[2] * 0.5, TRAY_Y + ToolModels.CHARCOAL_RADIUS, STICK.z + piece[1])), null])
+	return ToolModels.bake(sticks)
 
 
 ## Where a leg standing `x` along the canvas, LEG_BACK behind it, meets the ground.
@@ -357,12 +364,19 @@ static func _foot(x: float) -> Vector3:
 ## one; its mixing field is laid on it per easel.
 static func oils() -> Node3D:
 	var root := Node3D.new()
-	var wood := Color(0.86, 0.68, 0.46)
-	var board: Array = [
-		[_cylinder(0.5, 0.008, 32), Transform3D(Basis().scaled(Vector3(PALETTE_SIZE.x, 1.0, PALETTE_SIZE.y)), Vector3.ZERO), wood],
+	_part(root, ToolModels.shared("oil_board", _oil_board), Transform3D(), _baked("oil_board", 0.45), false)
+	_part(root, ToolModels.shared("oil_paint", _oil_paint), Transform3D(), _baked("oil_paint", 0.12), false)
+	return root
+
+
+static func _oil_board() -> ArrayMesh:
+	return ToolModels.bake([
+		[_cylinder(0.5, 0.008, 32), Transform3D(Basis().scaled(Vector3(PALETTE_SIZE.x, 1.0, PALETTE_SIZE.y)), Vector3.ZERO), Color(0.86, 0.68, 0.46)],
 		[_cylinder(0.016, 0.0085, 12), Transform3D(Basis(), THUMB + Vector3(0, 0.0003, 0)), Color(0.3, 0.22, 0.16)],
-	]
-	_part(root, ToolModels.bake(board), Transform3D(), _baked("oil_board", 0.45), false)
+	])
+
+
+static func _oil_paint() -> ArrayMesh:
 	var blob := SphereMesh.new()
 	blob.radius = 0.015
 	blob.height = 0.012
@@ -378,38 +392,55 @@ static func oils() -> Node3D:
 		var w := well(Brushwork.Medium.OIL, i)
 		paint.append([blob, Transform3D(Basis(Vector3.UP, i * 1.3).scaled(Vector3(1.15, 1, 0.9)), w), Brushwork.PIGMENTS[i]])
 		paint.append([curl, Transform3D(Basis(Vector3.UP, i * 1.3), w + Vector3(0.003, 0.006, -0.002)), Brushwork.PIGMENTS[i]])
-	_part(root, ToolModels.bake(paint), Transform3D(), _baked("oil_paint", 0.12), false)
-	return root
+	return ToolModels.bake(paint)
 
 
 ## A box of watercolour pans: black enamel outside, white inside, two rows of pans of dry colour and a white mixing
 ## field, with a thumb ring at its near end.
 static func watercolours() -> Node3D:
 	var root := Node3D.new()
+	_part(root, ToolModels.shared("watercolours", _watercolours), Transform3D(), _baked("watercolours", 0.7), false)
+	var mix := StandardMaterial3D.new()
+	mix.albedo_color = BOX_WHITE
+	mix.roughness = 0.35
+	var smear := ToolModels.shared("smear", func() -> SphereMesh:
+		var m := SphereMesh.new()
+		m.radius = 0.022
+		m.height = 0.006
+		m.radial_segments = 16
+		m.rings = 4
+		return m)
+	_part(root, smear, Transform3D(Basis().scaled(Vector3(1.3, 1, 0.9)), MIX_AT), mix, false)
+	root.set_meta("mix", mix)
+	return root
+
+
+static func _watercolours() -> ArrayMesh:
 	var black := Color(0.08, 0.08, 0.09)
-	var white := Color(0.95, 0.95, 0.93)
 	var parts: Array = [
-		[_box(Vector3(0.19, 0.016, 0.11)), Transform3D(Basis(), Vector3(0.035, -0.002, 0)), black],
-		[_box(Vector3(0.08, 0.006, 0.05)), Transform3D(Basis(), Vector3(-0.1, -0.007, 0)), black],
-		[_box(Vector3(0.182, 0.002, 0.102)), Transform3D(Basis(), Vector3(0.035, 0.0065, 0)), white],
+		[ToolModels.box(Vector3(0.19, 0.016, 0.11)), Transform3D(Basis(), Vector3(0.035, -0.002, 0)), black],
+		[ToolModels.box(Vector3(0.08, 0.006, 0.05)), Transform3D(Basis(), Vector3(-0.1, -0.007, 0)), black],
+		[ToolModels.box(Vector3(0.182, 0.002, 0.102)), Transform3D(Basis(), Vector3(0.035, 0.0065, 0)), BOX_WHITE],
 		[_cylinder(0.012, 0.0065, 12), Transform3D(Basis(), THUMB + Vector3(0, -0.0068, 0)), Color(0.3, 0.3, 0.3)],
 	]
 	for i in Brushwork.PIGMENTS.size():
 		var w := well(Brushwork.Medium.WATER, i)
-		parts.append([_box(Vector3(PAN.x + 0.004, 0.003, PAN.y + 0.004)), Transform3D(Basis(), w - Vector3(0, 0.0025, 0)), white.darkened(0.06)])
-		parts.append([_box(Vector3(PAN.x, 0.002, PAN.y)), Transform3D(Basis(), w - Vector3(0, 0.001, 0)), Brushwork.PIGMENTS[i].darkened(0.12)])
-	_part(root, ToolModels.bake(parts), Transform3D(), _baked("watercolours", 0.7), false)
-	var mix := StandardMaterial3D.new()
-	mix.albedo_color = white
-	mix.roughness = 0.35
-	var smear := SphereMesh.new()
-	smear.radius = 0.022
-	smear.height = 0.006
-	smear.radial_segments = 16
-	smear.rings = 4
-	_part(root, smear, Transform3D(Basis().scaled(Vector3(1.3, 1, 0.9)), MIX_AT), mix, false)
-	root.set_meta("mix", mix)
-	return root
+		parts.append([ToolModels.box(Vector3(PAN.x + 0.004, 0.003, PAN.y + 0.004)), Transform3D(Basis(), w - Vector3(0, 0.0025, 0)), BOX_WHITE.darkened(0.06)])
+		parts.append([ToolModels.box(Vector3(PAN.x, 0.002, PAN.y)), Transform3D(Basis(), w - Vector3(0, 0.001, 0)), Brushwork.PIGMENTS[i].darkened(0.12)])
+	return ToolModels.bake(parts)
+
+
+## The jar's water as it starts, which each easel's water copies. Kept for the game's life: Godot frees a material's
+## shader with its last material, and compiling it again for each easel's water stalled every placement made while
+## no easel stood.
+static func _clean_water() -> StandardMaterial3D:
+	var m: StandardMaterial3D = _mats.get("water")
+	if m == null:
+		m = _mat("water", WATER, 0.02)
+		m.metallic_specular = 0.9
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		m.get_rid()
+	return m
 
 
 static func _baked(key: String, roughness: float) -> StandardMaterial3D:

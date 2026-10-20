@@ -49,6 +49,8 @@ var _dabs := PackedFloat32Array()
 var _batch_start := 0
 var _shown: Array[Texture2DRD] = []
 var _frozen: Array[RID] = []
+## Whether nothing has been laid since the sheet was last cleared: a blank sheet has nothing to keep on show.
+var _blank := true
 
 
 func _init() -> void:
@@ -69,11 +71,22 @@ func _init() -> void:
 		material.set_shader_parameter(["wet", "dry", "paper"][i], _shown[i])
 
 
-func _create() -> void:
+## Compiles the paint pipeline ahead of the first canvas, which would otherwise wait on it.
+static func warm() -> void:
+	var rd := RenderingServer.get_rendering_device()
+	if rd != null:
+		RenderingServer.call_on_render_thread(_compile.bind(rd))
+
+
+static func _compile(rd: RenderingDevice) -> void:
 	if not _shader.is_valid():
 		var file: RDShaderFile = preload("res://src/paint.glsl")
-		_shader = _rd.shader_create_from_spirv(file.get_spirv())
-		_pipeline = _rd.compute_pipeline_create(_shader)
+		_shader = rd.shader_create_from_spirv(file.get_spirv())
+		_pipeline = rd.compute_pipeline_create(_shader)
+
+
+func _create() -> void:
+	_compile(_rd)
 	var fmt := RDTextureFormat.new()
 	fmt.width = Brushwork.SIZE.x
 	fmt.height = Brushwork.SIZE.y
@@ -165,6 +178,7 @@ func play(stroke: Dictionary, gap: int) -> void:
 ## until the replay has caught up.
 func rebuild(strokes: Array) -> void:
 	_freeze()
+	_blank = true
 	_queue.clear()
 	_queued_ticks = 0
 	_owed = 0.0
@@ -269,6 +283,7 @@ func _lay(stroke: Dictionary, dabs: PackedFloat32Array) -> void:
 	if _dabs.size() + dabs.size() > DAB_ROOM * Brushwork.DAB:
 		_close_batch()
 	var first := _dabs.size() / Brushwork.DAB
+	_blank = false
 	_dabs.append_array(dabs)
 	_ops.append(["dabs", stroke, first, dabs.size() / Brushwork.DAB, rect])
 
@@ -333,7 +348,7 @@ func _run(batches: Array) -> void:
 
 ## Shows a copy of the canvas as it stands while a replay catches up behind it.
 func _freeze() -> void:
-	if _rd == null or not _frozen.is_empty():
+	if _rd == null or _blank or not _frozen.is_empty():
 		return
 	RenderingServer.call_on_render_thread(func() -> void:
 		var fmt := _rd.texture_get_format(_dry)

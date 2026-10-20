@@ -30,6 +30,7 @@ func _run() -> void:
 	await _the_tray_loads_the_brush()
 	_no_plank_crosses_the_canvas()
 	_no_implement_crosses_the_easel()
+	_easels_share_their_geometry()
 	await _the_palette_stays_in_the_hand_by_its_thumb_hole()
 	await _every_held_change_logs_a_line()
 	await _a_tip_in_each_well_loads_its_colour()
@@ -227,6 +228,19 @@ func _no_implement_crosses_the_easel() -> void:
 		for part in parts:
 			var into := part.global_transform.affine_inverse() * mi.global_transform
 			_check(not _inside(part.get_aabb()).intersects(into * mi.get_aabb()), "%s on the tray stays clear of %s at %s %s" % [e.get_node("implements").get_path_to(mi), e.get_path_to(part), e.global_transform.affine_inverse() * part.global_position, part.get_aabb()])
+
+
+## Setting an easel up builds no geometry: every mesh it shows is the one the easel before it shows, so a placement
+## costs its nodes and its canvas, not a bake.
+func _easels_share_their_geometry() -> void:
+	var stands := Easels.new()
+	main.add_child(stands)
+	var meshes := []
+	for id in 2:
+		var e := stands.put(id, {"at": Vector3(id * 2.0, 0, 0), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()})
+		meshes.append(e.find_children("*", "MeshInstance3D", true, false).map(func(mi: MeshInstance3D) -> Mesh: return mi.mesh))
+	_check(meshes[0].size() >= 17 and meshes[0] == meshes[1], "a second easel shows the first one's %d meshes" % meshes[0].size())
+	stands.free()
 
 
 ## `box` less a millimetre each way, so things resting on it do not count as crossing it; a face keeps a millimetre.
