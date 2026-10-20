@@ -54,6 +54,7 @@ var feed: FeedTool:
 			if not multiplayer.get_peers().is_empty():
 				_threw.rpc(from, velocity, seed))
 var avatar := 0
+var avatar_file := {}
 var colour := COLOURS[0]
 var me: Persona
 var port := 0
@@ -570,6 +571,26 @@ static func _hash(bytes: PackedByteArray) -> String:
 	return h.finish().hex_encode()
 
 
+func choose_avatar(choice: String) -> void:
+	if choice == "file" and avatar_file.is_empty():
+		return
+	if choice != "file":
+		avatar = posmod(choice.to_int(), Avatar.BUILT_IN.size())
+	if not multiplayer.get_peers().is_empty():
+		_select_avatar.rpc(avatar)
+	if choice == "file":
+		_set_look(avatar_file.key, avatar_file.bytes, avatar_file.scene)
+	else:
+		_set_look("", PackedByteArray(), null)
+
+
+@rpc("any_peer", "reliable", "call_remote", FILE_CHANNEL)
+func _select_avatar(look: int) -> void:
+	var id := multiplayer.get_remote_sender_id()
+	if _looks.has(id):
+		_looks[id][0] = posmod(look, Avatar.BUILT_IN.size())
+
+
 ## Wears the newest .vrm in the avatar folder once it reads as an avatar; with none there, the built-in one.
 func _look_in_folder() -> void:
 	if folder == "":
@@ -598,6 +619,11 @@ func _put_on(key: String, bytes: PackedByteArray, scene: PackedScene, seen: Stri
 	if key != "" and scene == null:
 		print("session: %s is not an avatar within the limits" % _seen_file)
 		return
+	avatar_file = {"key": key, "bytes": bytes, "scene": scene} if scene != null else {}
+	_set_look(key, bytes, scene)
+
+
+func _set_look(key: String, bytes: PackedByteArray, scene: PackedScene) -> void:
 	worn = bytes
 	rig.wear(Avatar.open(scene if scene != null else Avatar.built_in(avatar), colour, key))
 	previews.erase(worn_key)

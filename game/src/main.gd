@@ -6,7 +6,6 @@ var xr: OpenXRInterface
 var rig: Rig
 var world: World
 var session: Session
-var visit_tool: VisitTool
 var _undo: Buttons
 var _redo: Buttons
 var tool: WallTool
@@ -113,8 +112,11 @@ func _ready() -> void:
 	if played:
 		DirAccess.make_dir_recursive_absolute(session.folder)
 	add_child(session)
-	visit_tool = VisitTool.new(rig, session)
-	add_child(visit_tool)
+	for hand in rig.hands:
+		hand.people = SessionWheel.new(session)
+	rig.placed.connect(func() -> void:
+		for hand in rig.hands:
+			hand.close_wheel())
 	if args.has("join"):
 		var at: PackedStringArray = str(args.join).split(":")
 		session.join.call_deferred(at[0], int(at[1]) if at.size() > 1 else Session.PORT)

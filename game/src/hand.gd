@@ -4,7 +4,7 @@ extends XRController3D
 ## A controller and the tool it holds. Every tool's input code dispatches on `tool`, and the object on top
 ## of the controller and the selection wheel show it, so they cannot disagree.
 
-enum Tool { WALLS, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, NONE, SEEDS, DIRT_PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK, SELFIE, BUSHES, BOULDER, MOSS }
+enum Tool { WALLS, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, COLOUR, CAMERA, HOUSE, NONE, SEEDS, DIRT_PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK, SELFIE, BUSHES, BOULDER, MOSS }
 
 ## The wheel's contents, clockwise from the top; an Array is a subtree, null an empty slot. Fixed, so every
 ## pick is a learnable motion.
@@ -12,7 +12,7 @@ const TREE := [
 	[Tool.COLOUR, Tool.STYLE],
 	[[Tool.CAMERA, Tool.SELFIE], Tool.SEEDS, Tool.EASEL],
 	[Tool.FLOWERS, [Tool.GRASS, Tool.MOSS], [Tool.TREES, Tool.BUSHES], Tool.POND],
-	[Tool.VISIT, Tool.BOOK],
+	["avatars", "friends", Tool.BOOK],
 	Tool.DELETE,
 	[Tool.DIRT_PATH, Tool.STONE, Tool.STAIRS],
 	[Tool.WALLS, Tool.FENCE, Tool.WINDOWS, Tool.ARCH],
@@ -40,7 +40,11 @@ static var injected_reach := {}
 ## The interaction profile the driver gives the hands in place of the runtime's, or "".
 static var injected_profile := ""
 
-var tool := Tool.WALLS
+var tool := Tool.WALLS:
+	set(value):
+		if tool != value and picking:
+			close_wheel()
+		tool = value
 ## The way the stick is flicked (a FLICKS key), or "".
 var flick := ""
 var picking := false
@@ -53,7 +57,10 @@ func model(t: Tool) -> Node3D:
 
 ## The interaction profile the runtime bound this hand to (Controls.PLACES), or "".
 var profile := ""
+var flat_only := false
+var people: SessionWheel
 var _wheel: ToolWheel
+var _drawn_levels := 0
 var _holding := false
 ## The driver holds this hand where tracking would put it. In a headset it names a pose the runtime does not have, so
 ## the controller's own pose stops moving the hand.
@@ -118,10 +125,6 @@ func _build_wheel() -> void:
 	_wheel_root.top_level = true
 	_wheel_root.visible = false
 	add_child(_wheel_root)
-	_build_icons(TREE, Vector2.ZERO, ToolWheel.ring_dirs(), [])
-	# The sun lights the icons: a light of the wheel's own cost the Frame about 4 ms a frame while it was open.
-	for v in _wheel_root.find_children("*", "MeshInstance3D", true, false):
-		unshade(v)
 
 
 ## Swaps `mi`'s standard materials for unshaded copies, so those icons read the same at any hour.
@@ -139,6 +142,29 @@ static func unshade(mi: MeshInstance3D) -> void:
 			mi.set_surface_override_material(i, _unshaded[mat])
 
 
+func inventory() -> Array:
+	var tree := TREE.duplicate(true)
+	if people != null:
+		tree[3] = [people.avatars(), people.friends(), Tool.BOOK]
+	if flat_only:
+		return [null, [Tool.CAMERA, Tool.SEEDS], null, tree[3], null, null, null, null]
+	return tree
+
+
+func close_wheel() -> void:
+	_wheel = null
+	picking = false
+	_wheel_root.visible = false
+	_clear_icons()
+
+
+func _clear_icons() -> void:
+	for child in _wheel_root.get_children():
+		child.free()
+	_icons.clear()
+	_drawn_levels = 0
+
+
 func _build_icons(items: Array, centre: Vector2, dirs: Array[Vector2], prefix: Array[int]) -> void:
 	for k in items.size():
 		if items[k] == null:
@@ -146,22 +172,31 @@ func _build_icons(items: Array, centre: Vector2, dirs: Array[Vector2], prefix: A
 		var at := centre + dirs[k] * ToolWheel.RADIUS
 		var path := prefix.duplicate()
 		path.append(k)
-		var i := icon(miniature(items[k]))
+		var action: bool = items[k] is String and people != null
+		var model := people.figure(items[k]) if action else miniature(items[k])
+		var i := icon(model)
+		if action:
+			model.transform = Transform3D(Basis.IDENTITY, Vector3(0, -0.027, 0))
+		else:
+			for mesh in i.find_children("*", "MeshInstance3D", true, false):
+				unshade(mesh)
 		i.position = Vector3(at.x, at.y, 0)
-		i.visible = false
+		i.scale = Vector3.ZERO
 		_wheel_root.add_child(i)
 		_icons.append({"path": path, "node": i})
-		if items[k] is Array:
-			_build_icons(items[k], at, ToolWheel.fan_dirs(items[k].size(), dirs[k]), path)
 
 
 ## A tool's model, or a subtree's items in miniature, two by two.
 static func miniature(item: Variant) -> Node3D:
+	if item is String:
+		var figure := Node3D.new()
+		ToolModels._figure(figure)
+		return figure
 	if not item is Array:
 		return ToolModels.build(item)
 	var model := Node3D.new()
-	for j in item.size():
-		var mini := miniature(item[j])
+	for j in mini(item.size(), 4):
+		var mini := miniature("friends" if item[j] is Array else item[j])
 		mini.scale = Vector3.ONE * 0.5
 		mini.position = Vector3((j % 2 - 0.5) * 0.03, 0, (floorf(j * 0.5) - 0.5) * 0.03)
 		model.add_child(mini)
@@ -293,7 +328,7 @@ func _select_input(delta: float) -> void:
 	if _wheel == null:
 		if not _buttons.pressed("wheel"):
 			return
-		_wheel = ToolWheel.new(TREE)
+		_wheel = ToolWheel.new(inventory())
 		print("wheel: %s opened" % tracker)
 		picking = true
 		var cam := get_viewport().get_camera_3d()
@@ -315,16 +350,33 @@ func _select_input(delta: float) -> void:
 	_show_wheel(delta)
 	if _buttons.released("wheel"):
 		var pick: Variant = _wheel.chosen()
-		tool = pick if pick != null else Tool.NONE
+		if pick is String and people != null:
+			people.activate(pick)
+		else:
+			tool = pick if pick != null else Tool.NONE
 		Cues.play(Cues.Act.WHEEL_PICK, global_position, self)
-		_wheel = null
-		picking = false
-		_wheel_root.visible = false
+		close_wheel()
 
 
 ## Hot icons grow; inside a subtree only the subtrees opened on the way to it and its items stay.
 func _show_wheel(delta: float) -> void:
 	var levels := _wheel.levels
+	if _drawn_levels != levels.size():
+		_clear_icons()
+		var prefix: Array[int] = []
+		for l in levels.size():
+			if l < levels.size() - 2:
+				prefix.append(levels[l].hot)
+				continue
+			var level: Dictionary = levels[l]
+			var items: Array = level.items.duplicate()
+			if l < levels.size() - 1:
+				for j in items.size():
+					if j != level.hot:
+						items[j] = null
+			_build_icons(items, level.centre, level.dirs, prefix)
+			prefix.append(level.hot)
+		_drawn_levels = levels.size()
 	var k := 1.0 - exp(-delta * 20.0)
 	var opened: Array[int] = []
 	for l in levels.size() - 1:

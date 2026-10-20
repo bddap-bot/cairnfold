@@ -161,9 +161,8 @@ its offset in Unity's axes). That is all a head-and-hands avatar needs.
   `%APPDATA%\Godot\app_userdata\Nestcombe\avatars` on Windows). The game creates
   the folder and looks at it every two seconds, so dropping a file in changes your
   avatar within a few seconds, mid-session included; removing it brings the built-in
-  one back. There is nothing to pick in the headset and no text: the folder is the
-  choice, and the Steam Workshop is the later way to share and pick avatars from
-  inside the game. On a Quest the folder is
+  one back. The inventory wheel lets you switch between the built-in figures and
+  that loaded file without removing it. On a Quest the folder is
   `/sdcard/Android/data/io.github.bddapbot.nestcombe/files/avatars`, the one place
   there that both the game and `adb push` or a file manager reach.
 - **Seeing yourself.** Your own avatar is opened by the same `Avatar` path as everyone
@@ -217,21 +216,21 @@ game's port number gets that file (its length, then its bytes), the same file ev
 joins gets anyway, so the picker shows it before anyone joins: a game hearing a hash it lacks
 fetches the file, at most two at a time, reads it on a worker thread like a joined player's,
 and keeps it only if its hash is the one the beacon named.
-Pick the **visit** tool from either hand's ring; its model is a little figure. A small
-figure of each nearby garden's host then stands in an arc in front of you, in their avatar
-(the built-in one until their own file has arrived) and colour, with their name under it.
-Point at one and pull the trigger to join their garden. While you visit, a small cairn of
-three stones stands among them; pick it to go home. Joining or going home puts
-the tool away, and the arc and its figures go with it; teleporting sets the arc down afresh
-where you arrive. The names are the game's one text (docs/design.md, "Requirements"); there is no
-menu and no address to type.
+Hold the inventory wheel and enter its people branch. The avatar page offers the
+built-in figures and the loaded VRM; releasing on one wears it and updates every peer.
+The friends page shows nearby hosts in their avatars, with names and Steam pictures
+where available. Each page holds at most four slots; its nested fan continues to more
+friends. An empty ring marks no gardens available. Release on a host to join, or the
+cairn to go home. Closing the wheel, changing tools or teleporting frees its figures.
+Flat players hold Q or the left shoulder button, move the mouse or right stick through
+the same wheel, and release to select. Names remain the game's one text exception.
 
 Only gardens of a build with the same networked methods can be joined. Godot numbers a
 node's RPCs by name, so a build with one more or one fewer calls the wrong methods on the
 other: a visitor's digs, ponds and plants never land, and its strokes show and then vanish.
 The beacon carries a fingerprint of `World`'s and `Session`'s RPCs (`Session.protocol`).
 A garden whose beacon carries another (or the constant 1 of builds before the fingerprint)
-still stands in the arc, with a small X over it, and pointing at it picks nothing. Builds
+still appears on the wheel, with a small X over it, and selecting it joins nothing. Builds
 from one revision always match. Builds before the fingerprint drop every beacon but their
 own constant, so they list no newer garden at all.
 

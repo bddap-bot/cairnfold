@@ -107,13 +107,12 @@ func _rest(s: Dictionary) -> void:
 func _pick(s: Dictionary) -> void:
 	var hand: Hand = _hand(s)
 	var key := "%s/%s" % [hand.tracker, Controls.input("wheel", hand.tracker)]
-	var path: Array[int] = ToolWheel.paths(Hand.TREE).get(Hand.Tool[s.tool.to_upper()], [] as Array[int])
+	var tree := hand.inventory()
+	var leaf: Variant = s.get("action", Hand.Tool.get(str(s.get("tool", "none")).to_upper(), Hand.Tool.NONE))
+	var path: Array[int] = ToolWheel.paths(tree).get(leaf, [] as Array[int])
 	var start := hand.global_position
 	var reach := func(p: Vector2) -> void:
-		if hand.get_has_tracking_data():
-			Hand.injected_reach[hand.tracker] = p
-		else:
-			hand.global_position = hand.wheel_frame() * Vector3(p.x, p.y, 0)
+		Hand.injected_reach[hand.tracker] = p
 	Buttons.injected[key] = true
 	await _frames(3)
 	if s.has("capture"):
@@ -121,7 +120,7 @@ func _pick(s: Dictionary) -> void:
 		await main.capture("%s-0" % s.capture)
 	var from := Vector2.ZERO
 	var level := 0
-	for to in ToolWheel.sweep(Hand.TREE, path):
+	for to in ToolWheel.sweep(tree, path):
 		level += 1
 		for f in 6:
 			reach.call(from.lerp(to, (f + 1) / 6.0))
@@ -130,6 +129,8 @@ func _pick(s: Dictionary) -> void:
 		if s.has("capture"):
 			await _frames(6)
 			await main.capture("%s-%d" % [s.capture, level])
+	if s.get("seconds", 0.0) > 0.0:
+		await get_tree().create_timer(s.seconds).timeout
 	Buttons.injected.erase(key)
 	await _frames(1)
 	if s.has("popping"):
@@ -818,25 +819,16 @@ func _arrived(arrived: Array) -> void:
 		await get_tree().process_frame
 
 
-## Takes the visit tool in the right hand, points it at the figure of the host's garden (or at the home
-## cairn with "home") and pulls the trigger; a visit away ends once the host's garden has arrived.
+## Joins through the same wheel sweep and release as a player.
 func _visit(s: Dictionary) -> void:
 	var home: bool = s.get("home", false)
 	var arrived := [true] if home else _arrival()
-	var tool: VisitTool = main.visit_tool
-	var hand := _holding(s, Hand.Tool.VISIT)
-	await _frames(2)
-	var keys := tool.figures.keys()
-	var k: String = VisitTool.HOME if home else keys.filter(func(x: String) -> bool: return x.ends_with(":%d" % _host_port(s)))[0]
-	var at: Vector3 = tool.figures[k].global_position + VisitTool.AIM
-	var from: Vector3 = main.rig.head.global_position + Vector3(0.2, -0.3, 0)
-	hand.global_transform = Transform3D(Basis.looking_at(at - from, Vector3.UP), from)
-	await _frames(1)
-	var key := "%s/%s" % [hand.tracker, Controls.input("tool", hand.tracker)]
-	Buttons.injected[key] = true
-	await _frames(2)
-	Buttons.injected.erase(key)
-	await _frames(2)
+	var key := "home"
+	if not home:
+		var keys: Array = main.session.nearby.keys().filter(func(x: String) -> bool: return x.ends_with(":%d" % _host_port(s)))
+		assert(not keys.is_empty(), "the requested garden has not been discovered")
+		key = "join:" + str(keys[0])
+	await _pick({"action": key})
 	await _arrived(arrived)
 
 
@@ -855,11 +847,7 @@ func _flat(s: Dictionary) -> void:
 ## player with "player".
 func _face(s: Dictionary) -> void:
 	var to: Vector3
-	if s.get("figure", false):
-		var tool: VisitTool = main.visit_tool
-		var k: String = tool.figures.keys().filter(func(x: String) -> bool: return x.ends_with(":%d" % _host_port(s)))[0]
-		to = tool.figures[k].global_position + VisitTool.AIM
-	elif s.get("player", false):
+	if s.get("player", false):
 		to = (main.session.avatars.values()[0] as Avatar).eyes.origin
 	else:
 		to = Vector3(s.at[0], s.at[1], s.at[2])
@@ -900,6 +888,9 @@ func _digest(s: Dictionary) -> void:
 		out.ground = {"feet": main.rig.global_position.y, "terrain": Terrain.height_at(h.x, h.z), "head": h.y, "x": h.x, "z": h.z}
 	out.sun = main.look.time
 	out.avatars = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.visible).size()
+	out.avatar_choices = main.session._looks.values().map(func(v: Array) -> int: return v[0])
+	out.avatar_choices.append(main.session.avatar)
+	out.avatar_choices.sort()
 	out.worn = main.session.avatars.values().map(func(a: Avatar) -> String: return a.source).filter(func(k: String) -> bool: return k != "")
 	out.fed = {"hand": main.fed(false), "dish": main.fed(true)}
 	out.handfuls = main.feed_tool.handfuls.filter(func(h: Handful) -> bool: return h.landed()).map(func(h: Handful) -> Array: return [h.position.x, h.position.y, h.position.z])

@@ -79,8 +79,6 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_pond(root)
 		Hand.Tool.STONE:
 			_stone_ground(root, 0)
-		Hand.Tool.VISIT:
-			_figure(root)
 		Hand.Tool.COLOUR:
 			_palette(root)
 		Hand.Tool.STYLE:

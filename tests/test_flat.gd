@@ -19,7 +19,8 @@ func _initialize() -> void:
 	var sent := main.world._next_token
 	await _keys_and_a_gamepad_walk_and_look()
 	await _the_hands_hang_at_the_sides_until_a_tool_is_raised()
-	await _the_trigger_reaches_only_the_camera_and_the_visit_tool()
+	await _the_flat_wheel_selects_an_avatar()
+	await _the_trigger_reaches_only_the_camera_and_the_seed_dish()
 	await _wave_plays_recorded_hands()
 	await _the_seed_dish_is_held_out_level_and_low_looking_down()
 	await _every_control_on_every_tool_sends_no_edit(sent)
@@ -156,9 +157,7 @@ func _the_hands_hang_at_the_sides_until_a_tool_is_raised() -> void:
 	_mouse(false, MOUSE_BUTTON_LEFT)
 	await _frames(2)
 	await _tap(_button.bind(JOY_BUTTON_Y))
-	_check(rig.right.tool == Hand.Tool.VISIT, "the gamepad's Y takes up the visit tool")
-	await _tap(_mouse.bind(MOUSE_BUTTON_RIGHT))
-	_check(rig.right.tool == Hand.Tool.SEEDS, "the right mouse button takes up the seed dish")
+	_check(rig.right.tool == Hand.Tool.SEEDS, "the gamepad's Y takes up the seed dish")
 	await _tap(_key.bind(KEY_TAB))
 	_check(rig.right.tool == Hand.Tool.NONE, "and Tab puts it away")
 	await _frames(1)
@@ -173,18 +172,18 @@ func _the_hands_hang_at_the_sides_until_a_tool_is_raised() -> void:
 	rig.solid_hit = solid
 
 
-func _the_trigger_reaches_only_the_camera_and_the_visit_tool() -> void:
+func _the_trigger_reaches_only_the_camera_and_the_seed_dish() -> void:
 	var rig := main.rig
 	var trigger := "right_hand/" + Controls.input("tool", "right_hand")
 	_mouse(true, MOUSE_BUTTON_LEFT)
 	await _frames(2)
 	_check(not Buttons.injected.has(trigger), "with empty hands a click pulls no trigger")
 	_mouse(false, MOUSE_BUTTON_LEFT)
-	rig.right.tool = Hand.Tool.VISIT
+	rig.right.tool = Hand.Tool.SEEDS
 	await _frames(2)
 	_axis(JOY_AXIS_TRIGGER_RIGHT, 1.0)
 	await _frames(2)
-	_check(Buttons.new(rig.right).held("tool"), "holding the visit tool, the right trigger pulls the hand's")
+	_check(Buttons.new(rig.right).held("tool"), "holding the seed dish, the right trigger pulls the hand's")
 	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.0)
 	await _frames(2)
 	_check(not Buttons.injected.has(trigger), "and lets go with it")
@@ -277,3 +276,19 @@ func _wave_plays_recorded_hands() -> void:
 	await _tap(_key.bind(KEY_F))
 	_check(flat._wave_time < 0.0, "wave does not move a held tool")
 	main.rig.right.tool = Hand.Tool.NONE
+
+
+func _the_flat_wheel_selects_an_avatar() -> void:
+	var hand: Hand = main.rig.right
+	var tree := hand.inventory()
+	_check(not ToolWheel.paths(tree).has(Hand.Tool.WALLS), "flat wheel offers no building tools")
+	_key(true, KEY_Q)
+	await _frames(3)
+	_check(hand.picking, "Q opens the shared inventory wheel")
+	for at in ToolWheel.sweep(tree, ToolWheel.paths(tree)["avatar:2"]):
+		flat._reach = at
+		await _frames(3)
+	_key(false, KEY_Q)
+	await _frames(3)
+	_check(main.session.avatar == 2 and not hand.picking, "releasing Q selects the avatar through the shared wheel")
+	_check(hand._wheel_root.get_child_count() == 0, "flat wheel release leaves no figures")

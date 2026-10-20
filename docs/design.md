@@ -2175,15 +2175,15 @@ endpaper hides under a leaf. The same pairs now read 0.90 and 0.76 ms; in the st
 
 With no headset at start the game comes up on the flat screen (`Flat`, `Controls.FLAT`): a player who walks,
 looks, takes photos, visits and feeds the animals, and never edits. Its controls stand in for a controller's through
-the same tool entry points; the only tools it holds are the camera, the visit tool and the seed dish, raised in the
+the same tool entry points; the only tools it holds are the camera and the seed dish, raised in the
 right hand before the eye, or none, both hands then hanging at its sides, as other players see it.
 
 | Action | Mouse and keyboard | Gamepad |
 | --- | --- | --- |
 | Walk | W, A, S, D or the arrows | Left stick |
 | Look | The mouse, once a click in the window takes it; Escape lets it go | Right stick |
-| Take up the camera, the visit tool, the seed dish, or none, in turn | Tab or the right button | Y |
-| Take a photo, visit the garden pointed at, or throw a handful of seeds | Left button | Right trigger or A |
+| Take up the camera, the seed dish, or none, in turn | Tab or the right button | Y |
+| Take a photo or throw a handful of seeds | Left button | Right trigger or A |
 
 With empty hands, F or gamepad X plays the human-recorded wave. Taking up a tool
 ends it. In VR, wave with the tracked hand.
@@ -2657,8 +2657,6 @@ Every player action, from the code:
 | `TELEPORT` | A teleport is let go | quick cloth swish where the player lands | pulse in the aiming hand |
 | `TELEPORT_ONTO` | A teleport past `Rig.MARKER_NEAR` (15 m) from the eyes lets go standing on something: the ground, a roof, a wall's top, a tree; one into the air is a `TELEPORT` | cloth rustle landing | pulse in the aiming hand |
 | `TURN` | A snap turn | none: the most frequent motion, a sound on each would become a tic | light tick |
-| `VISIT_HOVER` | The visit pointer moves onto a garden's figure | quiet tock | light tick |
-| `VISIT_GO` | Visiting a garden or going home (flat players too) | three plucks rising | knock |
 | `PLAYER_JOINS` | Another player joins the garden | three plucks rising | none: no hand did it |
 | `PLAYER_LEAVES` | Another player leaves | three plucks falling | none: no hand did it |
 | `BIRDS_STARTLE` | A conure takes off from someone coming near | wing flutter | none: nothing touched the hand |
@@ -3351,3 +3349,11 @@ stay fixed. Wall consumers linearly sample those same stored points, so rebuildi
 saving or sharing a wall does not smooth it again. Paths retain their own interpolated
 curve. `tests/test_wall_smoothing.gd` checks jitter, sharp corners, endpoints and the
 longest stroke's command size.
+
+Avatar choice and joining a garden use the inventory wheel's people branch. Its
+avatar slots show the built-in figures and the loaded VRM; its friends slots show
+nearby gardens, with deeper pages when they exceed four slots. With no gardens,
+one empty ring is shown. Figures use the normal avatar lighting and exist only
+on the open page. In flat mode hold Q or the left shoulder button, sweep with the
+mouse or right stick, and release on a slot. The same wheel handles selection,
+sound and haptics in both modes.

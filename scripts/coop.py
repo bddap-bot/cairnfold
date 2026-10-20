@@ -125,6 +125,12 @@ def scripts(count):
             steps += [{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "A"}]
         steps += [{"op": "until", "seq": last + 13}, {"op": "digest", "name": f"{name}-decorations"},
                   barrier([f"{n}-decorations" for n in names])]
+        steps += [{"op": "pick", "action": "avatar:2"},
+                  {"op": "digest", "name": f"{name}-avatar-picked"},
+                  barrier([f"{n}-avatar-picked" for n in names]),
+                  {"op": "wait", "seconds": 2},
+                  {"op": "digest", "name": f"{name}-avatar-seen"},
+                  barrier([f"{n}-avatar-seen" for n in names])]
         if name == "join":
             steps += [{"op": "visit", "home": True},
                       {"op": "until", "players": 1},
@@ -255,6 +261,13 @@ def run(out, count, spawn=False, capture=False):
 
     def check():
         last = {}
+        if not spawn:
+            for name in generated:
+                picked = out / f"{name}-avatar-seen.json"
+                if picked.exists():
+                    state = json.loads(picked.read_text())
+                    if state.get("avatar_choices") != [2] * count or state.get("worn"):
+                        fail(name, "wheel avatar selection did not replicate to every peer")
         for name, proc in processes.items():
             if proc.poll():
                 fail(name, f"exited {proc.returncode}")

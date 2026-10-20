@@ -124,3 +124,7 @@ The game collects nothing about you: [PRIVACY.md](PRIVACY.md).
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
 [MIT license](LICENSE-MIT) at your option.
+
+Avatar and multiplayer choices share the inventory wheel. Its people branch contains
+avatar figures and paged gardens to join. In flat mode, hold Q or the gamepad left
+shoulder button, move the mouse or right stick through the wheel, and release to pick.

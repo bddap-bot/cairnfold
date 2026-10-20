@@ -38,6 +38,8 @@ func _run() -> void:
 	var at := rig.head.global_position + Vector3(-0.2, -0.4, -0.3)
 	rig.left.global_transform = Transform3D(Basis.looking_at(Vector3(0, -0.4, -1), Vector3.UP), at)
 	for t in ToolWheel.paths(Hand.TREE):
+		if t is String:
+			continue
 		await _play([{"op": "pick", "hand": "left", "tool": Hand.Tool.keys()[t].to_lower()}])
 		_check(rig.left.tool == t, "the left wheel picks %s, holding %s" % [Hand.Tool.keys()[t], Hand.Tool.keys()[rig.left.tool]])
 	_check(rig.right.tool == Hand.Tool.WALLS, "the left wheel leaves the right hand's tool alone")

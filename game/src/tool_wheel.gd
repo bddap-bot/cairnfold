@@ -50,12 +50,11 @@ static func ring_dirs() -> Array[Vector2]:
 ## each side, left first.
 static func fan_dirs(count: int, dir: Vector2) -> Array[Vector2]:
 	var out: Array[Vector2] = []
-	if absf(dir.x) < 0.01:
-		assert(count == 2, "a subtree reached by an upward or downward swing holds two")
+	if absf(dir.x) < 0.01 and count == 2:
 		out.append(Vector2.LEFT)
 		out.append(Vector2.RIGHT)
 		return out
-	var side := -signf(dir.x)
+	var side := -signf(dir.x) if absf(dir.x) >= 0.01 else 1.0
 	for j in count:
 		var a := (j - (count - 1) * 0.5) * SPACING
 		out.append(Vector2(side * cos(a), -sin(a)))

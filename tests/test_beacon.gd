@@ -139,46 +139,25 @@ func _the_picker_shows_each_host_s_name() -> void:
 	await process_frame
 	var session: Session = main.session
 	_the_beacon_names_nobody_until_they_pick_a_name(session)
-	var tool: VisitTool = main.visit_tool
+	var wheel := SessionWheel.new(session)
 	var where := "%s:%d" % [NOBODY, Session.PORT + 5]
-	var unnamed := "%s:%d" % [NOBODY, Session.PORT + 6]
-	session.nearby[where] = {"address": NOBODY, "port": Session.PORT + 5, "key": 5, "avatar": 2, "colour": Session.COLOURS[1], "name": "Hazel Otter", "joins": true, "seen": INF}
-	session.nearby[unnamed] = {"address": NOBODY, "port": Session.PORT + 6, "key": 6, "avatar": 1, "colour": Session.COLOURS[2], "name": "", "joins": true, "seen": INF}
-	var other := "%s:%d" % [NOBODY, Session.PORT + 7]
-	session.nearby[other] = {"address": NOBODY, "port": Session.PORT + 7, "key": 7, "avatar": 3, "colour": Session.COLOURS[3], "name": "Moss Wren", "joins": false, "seen": INF}
-	main.rig.left.tool = Hand.Tool.VISIT
-	await process_frame
-	await process_frame
-	var label := _label(tool, where)
-	_check(label != null and label.text == "Hazel Otter", "the host's name stands under its figure")
-	_check(tool.figures.has(unnamed) and _label(tool, unnamed) == null, "a host who picked no name stands without one")
-	_check(tool.figures.has(other) and tool.figures[other].has_node("Cross") and _label(tool, other).text == "Moss Wren", "a garden of another build stands, named, with an X over it")
-	_check(not tool.figures[where].has_node("Cross") and not tool.figures[unnamed].has_node("Cross"), "a garden of this build stands without one")
-	tool.go(other)
-	_check(session.visiting.is_empty(), "picking a garden of another build joins nothing: %s" % session.visiting)
-	tool.go(where)
-	_check(session.visiting.get("port") == Session.PORT + 5, "picking a garden of this build joins it: %s" % session.visiting)
-	await process_frame
-	await process_frame
-	_check(main.rig.left.tool != Hand.Tool.VISIT and _figures_left(tool) == 0, "joining puts the tool away and its figures go: %d left" % _figures_left(tool))
+	session.nearby[where] = {"address": NOBODY, "port": Session.PORT + 5, "key": 5, "avatar": 2, "colour": Session.COLOURS[1], "name": "Hazel Otter", "joins": false, "seen": INF}
+	var figure := wheel.figure("join:" + where)
+	var labels := figure.find_children("*", "Label3D", true, false)
+	_check(labels.any(func(n: Label3D) -> bool: return n.text == "Hazel Otter"), "the wheel figure carries the host name")
+	_check(labels.any(func(n: Label3D) -> bool: return n.text == "×"), "an incompatible garden has a cross")
+	figure.free()
+	wheel.activate("join:" + where)
+	_check(session.visiting.is_empty(), "an incompatible garden cannot be joined")
+	session.nearby[where].joins = true
+	wheel.activate("join:" + where)
+	_check(session.visiting.get("port") == Session.PORT + 5, "the wheel action joins a compatible garden")
 	session.go_home()
-	main.rig.left.tool = Hand.Tool.VISIT
-	await process_frame
-	await process_frame
 	var was := session.me.name
-	_check(_label(tool, VisitTool.ME) != null and _label(tool, VisitTool.ME).text == was, "without Steam your own figure stands under your name")
-	tool.go(VisitTool.ME)
-	await process_frame
-	_check(_label(tool, VisitTool.ME).text != was and _label(tool, VisitTool.ME).modulate.a == 1.0, "picking it again offers the next name, shown: %s, was %s" % [_label(tool, VisitTool.ME).text, was])
-	session.nearby.erase(where)
-	session.nearby.erase(unnamed)
-	session.nearby.erase(other)
+	wheel.activate("name")
+	_check(session.me.name != was and session.me.shared, "name choice remains an explicit wheel action")
 	main.queue_free()
-
-
-func _label(tool: VisitTool, k: String) -> Label3D:
-	var tag: Node = tool.figures[k].get_node_or_null("Tag") if tool.figures.has(k) else null
-	return tag.find_children("*", "Label3D", false, false)[0] if tag else null
+	await process_frame
 
 
 ## Report (verbatim): "I look at my wife's avatar, and it's just one of the default little pointy wizards, and then I
@@ -202,9 +181,7 @@ func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
 	var viewer := sessions[0]
 	var host := sessions[1]
 	host.folder = folder
-	var tool := VisitTool.new(main.rig, viewer)
-	main.add_child(tool)
-	main.rig.left.tool = Hand.Tool.VISIT
+	var tool := SessionWheel.new(viewer)
 	while host.worn_key == "" and (host._seen_file == "" or not host._jobs.is_empty()):
 		await process_frame
 	_check(host.worn_key != "" and Session.read_beacon(host.beacon()).wears == host.worn_key, "a host wearing its own file names it in the beacon")
@@ -226,16 +203,6 @@ func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
 	_check(viewer.previews.get(host.worn_key) != null, "the viewer fetched and read the host's file without joining")
 	_check(_worn_by(tool, where) == host.worn_key, "the host's figure in the picker wears their own avatar: %s" % _worn_by(tool, where))
 	_check(viewer.visiting.is_empty() and viewer.players() == 1, "and nobody joined anybody")
-	var from: Vector3 = main.rig.head.global_position
-	main.rig.teleport(Terrain.ground(from.x + 12.0, from.z - 9.0), 0.0)
-	while main.rig._pending != null:
-		await process_frame
-	await process_frame
-	await process_frame
-	var head: Vector3 = main.rig.head.global_position
-	var behind := tool.find_children("*", "Avatar", true, false).filter(func(a: Node) -> bool: return not a.is_queued_for_deletion() and (a as Node3D).global_position.distance_to(head) > VisitTool.ARC + 1.0)
-	_check(behind.is_empty(), "teleporting away leaves no figure standing behind: %d" % behind.size())
-	_check(_worn_by(tool, where) == host.worn_key, "and the arc stands again where the player arrived, the host in their own avatar")
 	var forged := "ab".repeat(32)
 	viewer.nearby["127.0.0.1:1"] = viewer.nearby[where].merged({"wears": forged, "seen": INF}, true)
 	await process_frame
@@ -245,19 +212,14 @@ func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
 	viewer.nearby.erase("127.0.0.1:1")
 	for s in sessions:
 		s.get_parent().queue_free()
-	tool.queue_free()
 	main.queue_free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(folder.path_join("crimsom.vrm")))
 	await process_frame
 
 
-func _worn_by(tool: VisitTool, k: String) -> String:
-	if not tool.figures.has(k):
-		return "no figure"
-	var a: Avatar = tool.figures[k].get_child(0)
-	return a.source
-
-
-## Avatars still standing in the picker, not counting those already let go.
-func _figures_left(tool: VisitTool) -> int:
-	return tool.find_children("*", "Avatar", true, false).filter(func(a: Node) -> bool: return not a.is_queued_for_deletion()).size()
+func _worn_by(tool: SessionWheel, k: String) -> String:
+	var figure := tool.figure("join:" + k)
+	var a: Avatar = figure.get_node("Figure")
+	var source := a.source
+	figure.free()
+	return source

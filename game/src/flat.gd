@@ -3,13 +3,13 @@ extends Node
 
 ## A player without a headset, on a flat screen with mouse and keyboard or a gamepad (`Controls.FLAT`). It walks the
 ## ground instead of teleporting and looks with the mouse or the right stick; its input stands in for the controllers
-## through the same tool entry points. The only tools it holds are the camera, the visit tool and the seed dish, in the
+## through the same tool entry points. The only tools it holds are the camera and the seed dish, in the
 ## right hand raised before the eye, or none, so there is no edit path to keep it from: with none, both hands hang at
 ## the sides, as other players see them.
 
 const WAVE: Animation = preload("res://animations/wave.tres")
 
-const TOOLS: Array[Hand.Tool] = [Hand.Tool.NONE, Hand.Tool.CAMERA, Hand.Tool.VISIT, Hand.Tool.SEEDS]
+const TOOLS: Array[Hand.Tool] = [Hand.Tool.NONE, Hand.Tool.CAMERA, Hand.Tool.SEEDS]
 const WALK := 2.5
 ## Radians a second at full stick, and per pixel of mouse.
 const STICK_LOOK := 2.6
@@ -17,8 +17,7 @@ const MOUSE_LOOK := 0.003
 const PITCH := deg_to_rad(85.0)
 ## The camera is held on the line of sight, its screen the viewfinder, so the photo frames what the view shows.
 const CAMERA_HELD := Vector3(0.0, 0.0, -0.32)
-## The visit tool is held low, out of the way of the figures, its beam crossing the line of sight where they stand.
-const VISIT_HELD := Vector3(0.0, -0.13, -0.32)
+const WHEEL_HELD := Vector3(0.0, -0.13, -0.45)
 ## The seed dish is held out low in the view and kept level, for an animal to stand on or eat under.
 const DISH_HELD := Vector3(0.08, -0.22, -0.42)
 ## Holding the dish, looking down stoops the player by up to this many metres, so the dish reaches the animals that
@@ -38,6 +37,9 @@ var mouse_held := false
 ## The click that took the mouse, held: it neither fires nor changes tools.
 var _taking_click := false
 var _trigger := ""
+var _wheel_button := ""
+var _reach := Vector2.ZERO
+var _wheeling := false
 var _firing := false
 var _wave_time := -1.0
 var stoop := 0.0
@@ -47,8 +49,10 @@ func _init(player: Rig) -> void:
 	name = "Flat"
 	rig = player
 	process_priority = -20
+	_wheel_button = "%s/%s" % [rig.right.tracker, Controls.input("wheel", rig.right.tracker)]
 	_trigger = "%s/%s" % [rig.right.tracker, Controls.input("tool", rig.right.tracker)]
 	for h in rig.hands:
+		h.flat_only = true
 		h.tool = Hand.Tool.NONE
 		h.held_still = true
 	for action in Controls.FLAT:
@@ -83,6 +87,8 @@ static func _event(spec: Array) -> InputEvent:
 
 func _exit_tree() -> void:
 	Buttons.injected.erase(_trigger)
+	Buttons.injected.erase(_wheel_button)
+	Hand.injected_reach.erase(rig.right.tracker)
 
 
 func _input(event: InputEvent) -> void:
@@ -91,6 +97,9 @@ func _input(event: InputEvent) -> void:
 		_taking_click = true
 		Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	elif event is InputEventMouseMotion and mouse_held:
+		if rig.right.picking:
+			_reach += Vector2(event.relative.x, -event.relative.y) * 0.0005
+			return
 		turn(-event.relative.x * MOUSE_LOOK, -event.relative.y * MOUSE_LOOK)
 
 
@@ -115,7 +124,7 @@ static func held(tool: Hand.Tool, pitch: float) -> Transform3D:
 		return Transform3D(Basis.IDENTITY, CAMERA_HELD)
 	if tool == Hand.Tool.SEEDS:
 		return Transform3D(Basis(Vector3.RIGHT, -pitch), DISH_HELD)
-	return Transform3D(Basis.looking_at(Vector3(0, 0, -VisitTool.ARC) - VISIT_HELD), VISIT_HELD)
+	return Transform3D(Basis.IDENTITY, WHEEL_HELD)
 
 
 ## Turns the view to look at `at`.
@@ -131,7 +140,20 @@ func _process(delta: float) -> void:
 	if _taking_click and Input.get_mouse_button_mask() == 0:
 		_taking_click = false
 	var stick := Input.get_vector("flat_look_left", "flat_look_right", "flat_look_down", "flat_look_up")
-	turn(-stick.x * STICK_LOOK * delta, stick.y * STICK_LOOK * delta)
+	var wheel := Input.is_action_pressed("flat_wheel")
+	if wheel:
+		if not Buttons.injected.has(_wheel_button):
+			_reach = Vector2.ZERO
+		Buttons.injected[_wheel_button] = true
+		_reach += stick * delta * 0.25
+		Hand.injected_reach[rig.right.tracker] = _reach
+	else:
+		if _wheeling:
+			Buttons.injected.erase(_wheel_button)
+		if not rig.right.picking:
+			Hand.injected_reach.erase(rig.right.tracker)
+		turn(-stick.x * STICK_LOOK * delta, stick.y * STICK_LOOK * delta)
+	_wheeling = wheel
 	var low := STOOP * maxf(0.0, -sin(pitch)) if rig.right.tool == Hand.Tool.SEEDS else 0.0
 	stoop = move_toward(stoop, low, STOOP_SPEED * delta)
 	var level := Basis(Vector3.UP, yaw)
@@ -140,9 +162,9 @@ func _process(delta: float) -> void:
 	var move := Input.get_vector("flat_left", "flat_right", "flat_forward", "flat_back")
 	if move != Vector2.ZERO:
 		_walk(rig.global_basis * level * Vector3(move.x, 0.0, move.y) * WALK * delta)
-	if Input.is_action_just_pressed("flat_next_tool") and not _taking_click:
+	if Input.is_action_just_pressed("flat_next_tool") and not _taking_click and not wheel:
 		rig.right.tool = TOOLS[(TOOLS.find(rig.right.tool) + 1) % TOOLS.size()]
-	var raised := rig.right.tool != Hand.Tool.NONE
+	var raised := rig.right.tool != Hand.Tool.NONE or wheel or rig.right.picking
 	if raised:
 		_wave_time = -1.0
 	elif Input.is_action_just_pressed("flat_wave") and _wave_time < 0.0:
@@ -153,11 +175,11 @@ func _process(delta: float) -> void:
 			_wave_time = -1.0
 	for s in 2:
 		var at_side := Transform3D(level, eyes.origin) * Avatar.AT_SIDES[s]
-		rig.hands[s].transform = eyes * Flat.held(rig.right.tool, pitch) if raised and s == 1 else at_side
+		rig.hands[s].transform = eyes * (Transform3D(Basis.IDENTITY, WHEEL_HELD) if wheel or rig.right.picking else Flat.held(rig.right.tool, pitch)) if raised and s == 1 else at_side
 		if _wave_time >= 0.0:
 			var hand := Transform3D(Basis(WAVE.rotation_track_interpolate(s * 2 + 1, _wave_time)), WAVE.position_track_interpolate(s * 2, _wave_time))
 			rig.hands[s].transform = Transform3D(level, eyes.origin) * hand
-	var firing := raised and Input.is_action_pressed("flat_tool") and not _taking_click
+	var firing := raised and not wheel and not rig.right.picking and Input.is_action_pressed("flat_tool") and not _taking_click
 	if firing != _firing:
 		_firing = firing
 		if firing:
