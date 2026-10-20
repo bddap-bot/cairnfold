@@ -80,6 +80,7 @@ func _run() -> void:
 				OS.delay_msec(10)
 			print("tests: co-op paused for %d ms with normal ENet timeouts" % (Time.get_ticks_msec() - started))
 		_check(paused and sim.frames == frames and audio.stream_paused, "%s pauses simulation and audio" % signal_name)
+		_check(not guest.rig.left.visible and not guest.rig.right.visible, "%s hides the player's hands" % signal_name)
 		_check(cue_voice.stream_paused and cues._clock == cue_clock, "%s pauses action sounds and queued haptics" % signal_name)
 		_check(guest.session._clock > network_clock, "%s keeps networking processing" % signal_name)
 		_check(not root.get_node("AudioLifetime")._quitting and is_instance_valid(guest), "%s never quits" % signal_name)
@@ -89,6 +90,7 @@ func _run() -> void:
 	for frame in 12:
 		await process_frame
 	_check(not paused and sim.frames > before and not audio.stream_paused, "focus return resumes simulation and audio")
+	_check(guest.rig.left.visible and guest.rig.right.visible, "focus return shows the player's hands")
 	_check(not root.get_node("AudioLifetime")._quitting and host.multiplayer.get_peers() == ids and guest.multiplayer.multiplayer_peer == peer, "return retains the game and co-op connection")
 	guest.args["script"] = "demo/costs.json"
 	guest.xr.session_visible.emit()

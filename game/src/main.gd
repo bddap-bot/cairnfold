@@ -268,6 +268,9 @@ func _xr_state(state: int) -> void:
 	if get_tree().paused == pause:
 		return
 	get_tree().paused = pause
+	# Paused hands stop following their controllers; the system menu draws its own.
+	rig.left.visible = not pause
+	rig.right.visible = not pause
 	print("xr: %s state=%d peers=%s" % ["paused" if pause else "resumed", state, session.multiplayer.get_peers()])
 
 

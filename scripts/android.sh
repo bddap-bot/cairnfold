@@ -50,6 +50,11 @@ mkdir -p android/build
 unzip -q "$tdir/android_source.zip" -d android/build
 printf '%s.stable\n' "$godot_version" > android/.build_version
 touch android/build/.gdignore
+# The vendors plugin declares head tracking optional; the Horizon Store requires an immersive app to require it.
+if [ "$target" = quest ]; then
+  sed -i 's|^\( *\)<application|\1<uses-feature tools:node="replace" android:name="android.hardware.vr.headtracking" android:required="true" android:version="1" />\n&|' \
+    android/build/src/main/AndroidManifest.xml
+fi
 "$root/scripts/notices.sh" "$target" "$stage/game/android/build/noticeAssets/notices" "$steam"
 cp "$root/scripts/android-notices.gradle" "$stage/game/android/build/"
 printf '\napply from: "android-notices.gradle"\n' >> "$stage/game/android/build/build.gradle"
@@ -68,6 +73,11 @@ wants=(org.khronos.openxr.intent.category.IMMERSIVE_HMD android.hardware.vr.head
 for want in "${wants[@]}"; do
   grep -q "\"$want\"" <<<"$manifest" || { echo "android: manifest lacks $want" >&2; exit 1; }
 done
+if [ "$target" = quest ]; then
+  attribute() { awk -v n="$1" -v a="$2" '$0 ~ n { f = 1 } f && $0 ~ a { sub(/.*\)/, ""); print; exit }' <<<"$manifest"; }
+  [ "$(attribute '"android.hardware.vr.headtracking"' android:required)" = 0xffffffff ] || { echo "android: the Quest manifest does not require head tracking" >&2; exit 1; }
+  [ "$(attribute uses-sdk android:targetSdkVersion)" = 0x22 ] || { echo "android: the Quest manifest does not target SDK 34" >&2; exit 1; }
+fi
 if [ "$target" = lepton ] && grep -q -i -E 'oculus|horizonos|com\.meta\.' <<<"$manifest"; then
   echo "android: the Lepton manifest names Meta" >&2
   exit 1

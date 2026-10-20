@@ -116,6 +116,10 @@ it signs with your own key (AGENTS.md, "Signing"), so a release install must go 
 `scripts/quest-install.sh nestcombe.apk` uninstalls it when it must and puts your garden and avatars back.
 `scripts/release.sh` publishes the desktop and Frame builds and both APKs together.
 
+## Privacy
+
+The game collects nothing about you: [PRIVACY.md](PRIVACY.md).
+
 ## License
 
 Licensed under either of [Apache License, Version 2.0](LICENSE-APACHE) or
