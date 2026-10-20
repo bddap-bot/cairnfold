@@ -54,6 +54,8 @@ func install() -> void:
 ## its openings. Pure data, made on the main thread and read by the solve.
 class Room:
 	var inside: Array[PackedVector2Array] = []
+	var massing: Massing
+	var joined: Array[Massing] = []
 	var rect := Rect2()
 	var floor := 0.0
 	## Under a flat deck or a wall's top; a loop without a cover is open to the sky.
@@ -64,6 +66,8 @@ class Room:
 
 	static func of(layout: WallLayout, massing: Massing) -> Room:
 		var r := Room.new()
+		r.massing = massing
+		r.joined = layout.joined.duplicate()
 		var line := PackedVector2Array()
 		for p in layout.points:
 			line.append(Vector2(p.x, p.z))
@@ -91,7 +95,27 @@ class Room:
 		if p.y < floor or not rect.has_point(Vector2(p.x, p.z)):
 			return false
 		var ceiling := roof.height_at(p.x, p.z) if roof != null else top
-		return p.y < ceiling and Massing.encloses(Vector2(p.x, p.z), inside)
+		if p.y >= ceiling:
+			return false
+		if Massing.encloses(Vector2(p.x, p.z), inside):
+			return true
+		# The inner half of a removed wall belongs to the joined room too.
+		return massing.holds(p) and joined.any(func(s: Massing) -> bool: return s.holds(p))
+
+	func connects(other: Room) -> bool:
+		if not joined.any(func(s: Massing) -> bool: return s.same(other.massing)):
+			return false
+		for a in massing.inner:
+			for b in other.massing.inner:
+				for overlap in Geometry2D.intersect_polygons(a, b):
+					var middle := Vector2.ZERO
+					for p in overlap:
+						middle += p
+					middle /= overlap.size()
+					var at := Vector3(middle.x, maxf(floor, other.floor) + 0.01, middle.y)
+					if massing.holds(at) and other.massing.holds(at):
+						return true
+		return false
 
 
 ## The lanterns hung on `walls` and the rooms of the houses and towers among them, wherever they stand now.
@@ -168,17 +192,18 @@ static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms:
 	var n := Bounce.CELLS
 	var sum := PackedFloat32Array()
 	sum.resize(n * n * Bounce.LAYERS)
-	var within := _rooms_at(rooms, ground)
-	var glow := PackedFloat32Array()
-	glow.resize(rooms.size())
+	var groups := _groups(rooms)
+	var within := _rooms_at(rooms, ground, groups)
+	var homes := PackedInt32Array()
 	var r := ceili(REACH / Terrain.STEP)
 	for f in flames:
 		var home := 0
 		var near := false
 		for k in rooms.size():
 			if rooms[k].holds(f):
-				home = k + 1
+				home = groups[k]
 			near = near or rooms[k].rect.grow(REACH).has_point(Vector2(f.x, f.z))
+		homes.append(home)
 		var c := Bounce.column(f.x, f.z)
 		for j in range(maxi(c.y - r, 0), mini(c.y + r + 1, n)):
 			for i in range(maxi(c.x - r, 0), mini(c.x + r + 1, n)):
@@ -197,9 +222,9 @@ static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms:
 		for o in rooms[k].openings:
 			var inner: Vector3 = o.at - o.out * (WallLayout.THICKNESS + OUT)
 			var lit := 0.0
-			for f in flames:
-				if rooms[k].holds(f):
-					lit += _falloff(f.distance_to(inner))
+			for f in flames.size():
+				if homes[f] == groups[k]:
+					lit += _falloff(flames[f].distance_to(inner))
 			if lit > 0.0:
 				_spill(sum, o.at, o.out, lit * o.gives, within, ground)
 	var layers: Array[PackedByteArray] = []
@@ -210,6 +235,23 @@ static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms:
 			px[p] = clampi(roundi(sum[k * n * n + p] / ENCODE * 255.0), 0, 255)
 		layers.append(px)
 	return layers
+
+
+## Transitive rooms come from the same joined masses that remove their internal walls.
+static func _groups(rooms: Array[Room]) -> PackedInt32Array:
+	var groups := PackedInt32Array()
+	for i in rooms.size():
+		groups.append(i + 1)
+	for i in rooms.size():
+		for j in i:
+			if groups[i] == groups[j] or not rooms[i].connects(rooms[j]):
+				continue
+			var old := groups[i]
+			var to := groups[j]
+			for k in groups.size():
+				if groups[k] == old:
+					groups[k] = to
+	return groups
 
 
 static func _falloff(d: float) -> float:
@@ -239,8 +281,8 @@ static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: floa
 					sum[p] += lit * pow(facing / d, 2.0) * pow(1.0 - pow(d / SPILL, 2.0), 2.0)
 
 
-## Per probe, 1 + the index of the room it stands in, or 0 outside every room.
-static func _rooms_at(rooms: Array[Room], ground: PackedFloat32Array) -> PackedInt32Array:
+## Per probe, its connected room group, or 0 outside every room.
+static func _rooms_at(rooms: Array[Room], ground: PackedFloat32Array, groups: PackedInt32Array) -> PackedInt32Array:
 	var n := Bounce.CELLS
 	var within := PackedInt32Array()
 	within.resize(n * n * Bounce.LAYERS)
@@ -253,7 +295,7 @@ static func _rooms_at(rooms: Array[Room], ground: PackedFloat32Array) -> PackedI
 				var z := -Terrain.SIZE * 0.5 + (j + 0.5) * Terrain.STEP
 				for k in Bounce.LAYERS:
 					if rooms[r].holds(Vector3(x, ground[j * n + i] + k + 0.5, z)):
-						within[(k * n + j) * n + i] = r + 1
+						within[(k * n + j) * n + i] = groups[r]
 	return within
 
 

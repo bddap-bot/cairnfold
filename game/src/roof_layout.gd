@@ -90,6 +90,9 @@ var slabs: Array[Dictionary] = []
 ## Plain mortar boxes bedding a deck's flags, so its joints show mortar rather than the floor below.
 var mortar: Array[Dictionary] = []
 var cloths: Array[Dictionary] = []
+## The exclusions used when this roof was laid, shared by its surface picks.
+var joined: Array[Massing] = []
+var resting: Array[Massing] = []
 ## The surface triangles from the last build, kept for pointing.
 var faces := PackedVector3Array()
 var gable_faces := PackedVector3Array()
@@ -129,6 +132,8 @@ func adopt(built: RoofLayout) -> void:
 	slabs = built.slabs
 	mortar = built.mortar
 	cloths = built.cloths
+	joined = built.joined
+	resting = built.resting
 	faces = built.faces
 	gable_faces = built.gable_faces
 	torching_faces = built.torching_faces
@@ -959,7 +964,7 @@ func _nearest(origin: Vector3, dir: Vector3, tris: PackedVector3Array) -> float:
 		return best
 	for i in range(0, tris.size(), 3):
 		var hit: Variant = Geometry3D.ray_intersects_triangle(origin, dir, tris[i], tris[i + 1], tris[i + 2])
-		if hit != null:
+		if hit != null and not WallLayout.hidden(hit, joined, resting):
 			best = minf(best, origin.distance_to(hit))
 	return best
 

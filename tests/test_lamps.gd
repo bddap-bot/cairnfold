@@ -8,6 +8,7 @@ var ground := PackedFloat32Array()
 
 func _init() -> void:
 	ground.resize(Bounce.CELLS * Bounce.CELLS)
+	_merged_rooms_share_light()
 	_a_house_keeps_its_light_in()
 	_windows_and_doors_let_it_out()
 	_window_strength_does_not_brighten_the_room()
@@ -104,3 +105,42 @@ func _an_open_loop_lets_light_up() -> void:
 	var held := Lamps.shine(PackedVector3Array([Vector3(1.0, 1.8, 0.0)]), ground, [yard])
 	_check(_at(held, 3.5, 0.5, 4) > 0.0, "over a loop without a roof the light goes up")
 	_check(_at(held, -1.5, 0.5, 1) == 0.0, "its walls still hold it in")
+
+
+func _merged_rooms_share_light() -> void:
+	var layouts: Array[WallLayout] = []
+	var masses: Array[Massing] = []
+	for x in [0.0, 3.0, 6.0]:
+		var w := WallLayout.new()
+		w.points = WallLayout.rectangle(Vector3(x, 0, 0), Vector3(x + 5, 0, 0), 5)
+		w.closed = true
+		w.cover = WallLayout.Cover.DECK
+		w.height = 3.0
+		w.build(_flat)
+		layouts.append(w)
+		masses.append(Massing.of(w, null))
+	var rooms: Array[Lamps.Room] = []
+	for i in layouts.size():
+		for j in layouts.size():
+			if i != j:
+				layouts[i].joined.append(masses[j])
+		rooms.append(Lamps.Room.of(layouts[i], Massing.of(layouts[i], null)))
+	var flame := PackedVector3Array([Vector3(1.5, 1.8, 0.5)])
+	var open := Lamps.shine(flame, ground)
+	var merged := Lamps.shine(flame, ground, rooms)
+	for x in [4.5, 5.5, 7.5]:
+		print("merge light x=%.1f: %.6f; unobstructed %.6f" % [x, _at(merged, x, 0.5, 1), _at(open, x, 0.5, 1)])
+		_check(_at(open, x, 0.5, 1) > 0.0 and _at(merged, x, 0.5, 1) == _at(open, x, 0.5, 1), "light crosses both old seams, including the third room")
+	_check(_at(merged, 5.5, 3.5, 1) == 0.0, "merged outer walls keep their light in")
+
+	rooms.reverse()
+	var reversed := Lamps.shine(flame, ground, rooms)
+	_check(reversed == merged, "merged light does not depend on building order")
+	layouts[1].joined.clear()
+	layouts[2].joined.clear()
+	layouts[0].joined.clear()
+	rooms.clear()
+	for i in layouts.size():
+		rooms.append(Lamps.Room.of(layouts[i], Massing.of(layouts[i], null)))
+	var apart := Lamps.shine(flame, ground, rooms)
+	_check(_at(apart, 7.5, 0.5, 1) == 0.0, "overlapping outlines alone do not connect rooms without removed walls")

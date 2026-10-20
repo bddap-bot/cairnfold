@@ -412,6 +412,8 @@ static func _cut_under(r: RoofLayout, x: Transform3D) -> float:
 
 ## Takes away the tiles, coat, flag, gable ends and torching of the roof on this wall that lie where a build it meets lays nothing.
 func hide_roof(r: RoofLayout) -> void:
+	r.joined = joined.duplicate()
+	r.resting = resting.duplicate()
 	if joined.is_empty() and resting.is_empty():
 		return
 	r.tiles.assign(r.tiles.filter(func(t: Dictionary) -> bool: return not hides(t.xform.origin)))
@@ -1929,10 +1931,14 @@ func _rest(x: float, z: float) -> float:
 ## Whether `p` lies where a build this one meets lays nothing: in a house or tower it joins, or under a build
 ## standing on it.
 func hides(p: Vector3) -> bool:
-	for s in joined:
+	return hidden(p, joined, resting)
+
+
+static func hidden(p: Vector3, joins: Array[Massing], rests: Array[Massing]) -> bool:
+	for s in joins:
 		if s.holds(p):
 			return true
-	for s in resting:
+	for s in rests:
 		if s.covers(p):
 			return true
 	return false

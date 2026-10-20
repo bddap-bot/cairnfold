@@ -724,6 +724,8 @@ func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 		var sc := 0.0 if absf(denom) < 1e-6 else clampf((up.dot(w) - ud * dir.dot(w)) / denom, 0.0, 1.0)
 		var t := maxf(0.0, ud * sc - dir.dot(w))
 		var p := a + up * sc
+		if layout.hides(p):
+			continue
 		var d := p.distance_to(origin + dir * t)
 		var key := Vector2(0.0, t) if d < reach else Vector2(1.0, d)
 		if key < best_key:
