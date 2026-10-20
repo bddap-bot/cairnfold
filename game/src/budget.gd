@@ -165,7 +165,8 @@ static func wall(d: Dictionary) -> Dictionary:
 					out.roof_m2 = out.get("roof_m2", 0.0) + area.y
 		var covering := "thatch_m2" if d.roof.thatch and d.roof.pitch > 0.0 else "roof_m2"
 		out[covering] = out.get(covering, 0.0) + plan * slopes.stretch()
-		out.timber = out.get("timber", 0) + slopes.ceiling_units()
+		if slopes.flat():
+			out.timber = out.get("timber", 0) + slopes.ceiling_units()
 		fittings += d.roof.chimneys.size() + (1 if d.roof.flag else 0)
 	if fittings > 0:
 		out.fitting = fittings
