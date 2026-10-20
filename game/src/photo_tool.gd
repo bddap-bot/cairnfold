@@ -48,6 +48,19 @@ func _init(player: Rig) -> void:
 		_buttons.append(Buttons.new(h).watch(["tool"]))
 
 
+## Godot draws a frame whose pipelines are still compiling without the photo sun's shadows, and the photo sun lights
+## no other view, so a session's first photo came out shadowless (docs/shadows.md). A photo's view is drawn once as
+## the game loads to compile them.
+func _ready() -> void:
+	if RenderingServer.get_rendering_device() == null:
+		return
+	var vp := _viewport(PREVIEW_SIZE, PHOTO_MSAA)
+	_aim(vp, rig.head.global_transform, FOV, Quality.PHOTO_MASK)
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	await RenderingServer.frame_post_draw
+	vp.queue_free()
+
+
 func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:
 	var vp := SubViewport.new()
 	vp.size = size

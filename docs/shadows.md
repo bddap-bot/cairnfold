@@ -57,3 +57,14 @@ place, time of day and quality step, turned in 0.15° and 0.5° steps or moved i
 camera preview re-rendering the shadow every third frame and the governor's step
 logged per second (its highest), which stays on a shadowed step through such a
 report.
+
+## A photo's sun
+
+A photo is lit by its own sun (`Look.photo_sun`, four blended splits), which no
+other view sees. The first frame drawn with it asks for seven new pipeline
+specializations, and Godot draws that frame while they compile, without that
+sun's shadows. That first photo of a session lost every shadow, while every later
+photo, after a three-second gap or a new time of day, cast them with no further
+compiles. Neither the shadow atlas resize nor the foliage detail swap in
+`PhotoTool.draw_finest` changes this. `PhotoTool._ready` draws one small photo
+view as the game loads, so the pipelines are built before the first shot.
