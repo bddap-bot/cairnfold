@@ -56,5 +56,7 @@ is found.
 The initial normal corpus records one cap-band escape in seed `8756` and five
 floor-join escapes in seed `31`. These remain report cases pending their
 geometry fixes; the other twelve seeds are in `SEALED_SEEDS`. A repaired case
-belongs in that list, keeping the same generator and rays. `--leak-strict`
+belongs in that list, keeping the same generator and rays. An escape only the larger sweep finds is
+kept as a fixed origin and direction in `SEALED_RAYS`, checked on every run, since the normal sphere
+would not meet it again. `--leak-strict`
 turns both report cases into failures without changing what is measured.

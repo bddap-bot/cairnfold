@@ -3,6 +3,16 @@ extends SceneTree
 const Probe = preload("res://../tests/support/house_leaks.gd")
 const SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 60]
 const SEALED_SEEDS := [24, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 60]
+## Escapes the dense sweep found, as [origin, direction]: the normal sphere is too sparse to meet them again.
+const SEALED_RAYS := {
+	31: [
+		# Past lintel ends and over a lintel's top, where the joint had no mortar behind it.
+		[Vector3(-0.5, 2.10659718513489, -20.5), Vector3(0.0616170428693295, -0.008544921875, -0.998063266277313)],
+		[Vector3(0.5, 2.10659718513489, -19.5), Vector3(-0.284503400325775, -0.004638671875, -0.958663821220398)],
+		[Vector3(0.0, 1.91231036186218, -17.3493766784668), Vector3(0.0930395945906639, 0.034912109375, -0.995050132274628)],
+		[Vector3(0.5, 1.80514013767242, -14.1987533569336), Vector3(0.995217204093933, -0.061279296875, 0.0760760083794594)],
+	],
+}
 var started := Time.get_ticks_msec()
 var failures := 0
 var main: Main
@@ -209,6 +219,9 @@ func _house(seed_value: int, count: int) -> void:
 							var origin: Vector3 = target - direction * 0.8
 							if w.massing.holds(origin) and origin.y < w.roof.height_at(origin.x, origin.z) - RoofLayout.TORCHING_DROP:
 								_trace(probe, origin, direction, room, w, record)
+	for ray: Array in SEALED_RAYS.get(seed_value, []):
+		var sealed: Dictionary = probe.probe(ray[0], ray[1], room)
+		_check(sealed.status == "shell", "seed %d ray from %s along %s is sealed: %s" % [seed_value, ray[0], ray[1], sealed])
 	if seed_value in SEALED_SEEDS:
 		_check(record.totals.leak == 0, "sealed seed %d has %d escapes" % [seed_value, record.totals.leak])
 	inventory.append(record)

@@ -303,6 +303,7 @@ func build(ground: Callable, water := Callable()) -> void:
 		var h := minf(course_h, height - y0)
 		var yc := y0 + h * 0.5
 		var spans := [[0.0, total]] if k >= 0 else _over_bed(-y0 - course_h)
+		var lintels := PackedVector2Array()
 		for o in apertures:
 			if o.style == DoorStyle.ARCHWAY:
 				# Cut to the narrowest the arch's outline reaches across the band, so the band's stones meet it everywhere.
@@ -312,13 +313,18 @@ func build(ground: Callable, water := Callable()) -> void:
 			elif yc > o.sill and yc < o.head:
 				spans = _cut(spans, o.s - o.half, o.s + o.half)
 			elif yc > o.head and yc < o.head + course_h:
-				spans = _cut(spans, o.s - o.half - LINTEL_EAR, o.s + o.half + LINTEL_EAR)
+				lintels.append(Vector2(o.s - o.half, o.s + o.half))
+		var filled := spans
+		for l in lintels:
+			spans = _cut(spans, l.x - LINTEL_EAR, l.y + LINTEL_EAR)
 		for i in bays.size():
 			if yc < bays[i].top:
 				pillar_tops[i] = y0 + course_h
 				spans = _cut(spans, bays[i].s - bays[i].half, bays[i].s + bays[i].half)
+				filled = _cut(filled, bays[i].s - bays[i].half, bays[i].s + bays[i].half)
 		for b in breaks[maxi(k, 0)]:
 			spans = _cut(spans, b.x, b.y)
+			filled = _cut(filled, b.x, b.y)
 		var stream := rng if k >= 0 else wet
 		stream.seed = hash([seed, "course", k])
 		var offset := (0.5 if posmod(k, 2) == 1 else 0.0) * stream.randf_range(0.3, 0.6)
@@ -330,7 +336,7 @@ func build(ground: Callable, water := Callable()) -> void:
 					var b: float = minf(span[1], faces[face].y)
 					stream.seed = hash([seed, "course", k, i, face])
 					_lay_course(a, b, y0, h, offset, stream)
-		bands.append([y0, h, spans, breaks[maxi(k, 0)]])
+		bands.append([y0, h, filled, breaks[maxi(k, 0)], lintels])
 	_lay_mortar(bands)
 	for i in bays.size():
 		rng.seed = hash([seed, "pillar", i])
@@ -1086,9 +1092,10 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 		s += l
 
 
-## Mortar, or the selected plaster face, fills each band's spans `[y0, h, spans, broken]` as panels on cells every band
-## shares. Mortar stands JOINT back from the stones at every end a span leaves open, a ruin's, a doorway's or the wall's
-## own, and on the broken tops under the next band's.
+## Mortar, or the selected plaster face, fills each band's spans `[y0, h, spans, broken, lintels]` as panels on cells
+## every band shares. Mortar stands JOINT back from the stones at every end a span leaves open, a ruin's, a doorway's or
+## the wall's own, and on the broken tops under the next band's; it runs on behind a lintel, standing up off the head
+## under it.
 ## A panel runs straight between its cell's ends on the ground, so it climbs a slope rather than stepping, and is
 ## mitred into the next cell (`Masonry.Kind.write`'s `ends`), so a curved face stays closed and shades round. A panel
 ## with the same ends as the one below grows up instead of stacking on it.
@@ -1109,6 +1116,10 @@ func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 		var face := plaster_at(y0)
 		var spans: Array = bands[j][2]
 		var bare := _round(bands[j + 1][3] if j + 1 < bands.size() and bands[j + 1].size() > 3 and not face else PackedVector2Array())
+		var heads := PackedVector2Array()
+		for l: Vector2 in bands[j][4] if bands[j].size() > 4 else []:
+			heads.append(l + Vector2(-JOINT, JOINT) * (0.0 if face else 1.0))
+		heads = _round(heads)
 		if not face:
 			spans = spans.map(func(sp): return [sp[0] + (0.0 if closed and sp[0] < 0.001 else JOINT), sp[1] - (0.0 if closed and sp[1] > total - 0.001 else JOINT)])
 		var wraps: bool = closed and spans.any(func(sp): return sp[0] < 0.001) and spans.any(func(sp): return sp[1] > total - 0.001)
@@ -1123,15 +1134,16 @@ func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 				var left: bool = a - c.a < 0.001 and (a - span[0] > 0.001 or wraps and a < 0.001)
 				var right: bool = c.b - b < 0.001 and (span[1] - b > 0.001 or wraps and b > total - 0.001)
 				var ends := Vector2(clampf(-turns[i], -1.0, 1.0) if left else 0.0, clampf(turns[i + 1], -1.0, 1.0) if right else 0.0)
-				for piece in _pieces(a, b, bare):
-					var key := "%d %.3f %.3f %s" % [i, piece[0], piece[1], face]
-					var p: Dictionary = below.get(key, {})
-					var e := Vector2(ends.x if piece[0] == a else 0.0, ends.y if piece[1] == b else 0.0)
-					if p.is_empty() or p.ends != e:
-						p = {"cell": c, "a": piece[0], "b": piece[1], "y0": y0, "face": face, "ends": e}
-						panels.append(p)
-					p.top = y0 + bands[j][1] + (-JOINT if piece[2] else 0.02)
-					here[key] = p
+				for top in _pieces(a, b, bare):
+					for piece in _pieces(top[0], top[1], heads):
+						var key := "%d %.3f %.3f %s" % [i, piece[0], piece[1], face]
+						var p: Dictionary = below.get(key, {})
+						var e := Vector2(ends.x if piece[0] == a else 0.0, ends.y if piece[1] == b else 0.0)
+						if p.is_empty() or p.ends != e or piece[2]:
+							p = {"cell": c, "a": piece[0], "b": piece[1], "y0": y0 + (JOINT if piece[2] else 0.0), "face": face, "ends": e}
+							panels.append(p)
+						p.top = y0 + bands[j][1] + (-JOINT if top[2] else 0.02)
+						here[key] = p
 		below = here
 	for p in panels:
 		var c: Dictionary = p.cell
