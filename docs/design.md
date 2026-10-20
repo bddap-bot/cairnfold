@@ -2104,7 +2104,7 @@ of the other hand leftward across the open pages turns to the next page and righ
 spread it starts; one sweep turns one leaf, so the hand lifts off the pages before the next, and the stroke back from a
 turn never undoes it. Back from the first page shuts the book. No button is pressed, so the right hand's tool never acts while it reads, and the left hand's grip still
 grabs and its stick still teleports. Picking another tool for the hand tucks the book away (it shrinks into the hand in
-a fifth of a second); the wheel's lower-right slot holds it beside visit, and taking it brings it back at the page it
+a fifth of a second); the wheel's lower-right slot holds it beside the people pages, and taking it brings it back at the page it
 was left on. The book is each player's own and is never sent to others.
 
 Each page is one control a player would not guess from the tool in hand, shown as a little live picture with no words:

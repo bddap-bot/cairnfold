@@ -213,7 +213,7 @@ Every host announces itself on the local network once a second: a UDP broadcast 
 7469–7472 carrying its game port (7480 and up), a random key, its built-in avatar, its colour,
 and the hash of the player's own VRM if they wear one. Anyone who connects over TCP to the
 game's port number gets that file (its length, then its bytes), the same file every player who
-joins gets anyway, so the picker shows it before anyone joins: a game hearing a hash it lacks
+joins gets anyway, so the wheel shows it before anyone joins: a game hearing a hash it lacks
 fetches the file, at most two at a time, reads it on a worker thread like a joined player's,
 and keeps it only if its hash is the one the beacon named.
 Hold the inventory wheel and enter its people branch. The avatar page offers the
@@ -246,7 +246,7 @@ nothing that says who they are. A name reaches others only by a way the player c
   on one machine share one rich presence, so only the later one is named; on two machines
   each reads only its own, so neither is. Anyone on the network can copy a
   friend's key into their own beacon, so when two gardens announce one key neither is named.
-- **Without Steam,** your own figure stands nearer, to your left, under a name the game
+- **Without Steam,** the avatar page includes your own figure under a name the game
   offers, faint while only you can see it. Pick it and the name joins your beacon; pick it
   again for another. The game keeps the name you picked for later starts. A host who never
   picked one stands unnamed.
@@ -258,12 +258,12 @@ in its environment) or a script names an app with `--steam-app ID`. Every other 
 launch plays without Steam on the same code path.
 
 `--join ADDRESS[:PORT]`, `--avatar N`, `--name NAME` (a picked name) and `--steam-app ID`
-are launch arguments for scripts and tests. `demo/picker.json` captures the picker; Valve's
+are launch arguments for scripts and tests. `demo/avatar-wheel.json` captures the wheel; Valve's
 test app 480 stands in for this game's app in development.
 
 Only a game a player launched beacons on the network. One started with `--script`,
 `--join` or `--port`, or built inside a test, sends its beacon to this machine's loopback address only
-and listens there only, so a player never sees a scripted or test instance in the arc.
+and listens there only, so a player never sees a scripted or test instance on the wheel.
 Scripts can select a private four-port discovery range with `--beacon-port BASE`.
 `coop.sh` reserves a separate range for each run, so unrelated headless instances
 cannot take its listeners. Player launches still use ports 7469–7472.
@@ -275,7 +275,7 @@ scripted or test instance beacons past loopback.
 
 `scripts/coop.sh OUT [N]` plays N headless instances on one machine (four by default,
 two through eight supported):
-1. One hosts; a second discovers its beacon and joins through the visit tool wearing
+1. One hosts; a second discovers its beacon and joins through the inventory wheel wearing
    a custom VRM 1.0 avatar.
 2. Both build walls, houses, plants, paths, ground and a pond, and exercise deletion,
    undo, redo and edits to each other's builds.
@@ -306,7 +306,7 @@ one model in both versions stands alike.
 
 `scripts/flat.sh OUT` renders a host and a flat-screen player (`--flat`) on one machine,
 each wearing a sample avatar from its own avatars folder: the flat-screen player hears the
-host's beacon, takes up the visit tool with its own controls, picks the host's figure (in
+host's beacon, opens the shared inventory wheel and picks the host's figure (in
 the host's file), walks up to the host and takes a photo of it into `OUT/photos`; the
 host's captures show it standing in the garden in its own file. `tests/test_flat.gd`
 covers its controls, its hands' pose and that none of its controls sends an edit.

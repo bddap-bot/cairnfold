@@ -1,9 +1,0 @@
-[
-  {"op": "place", "x": 0, "z": 6},
-  {"op": "view", "eye": [0, 1.65, 6], "at": [0, 1.2, 4.7]},
-  {"op": "until", "heard": true, "seconds": 60},
-  {"op": "point", "tool": "visit", "hand": "right", "at": [0, 1.52, 4.7]},
-  {"op": "wait", "seconds": 4},
-  {"op": "capture", "name": "picker"},
-  {"op": "quit"}
-]

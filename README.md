@@ -50,9 +50,8 @@ dirt paths, stone, flowers, grass, trees, boulders, pond, colour, style, camera,
   a pond's bed in one hand while the other pulls a roof, or shape two hills at once.
 - A hand’s pointer disappears while grabbing and returns when released, except
   on the sky, where aiming is what turns it.
-- Holding visit: a small figure of each player nearby on the same network stands
-  in front of you; point at one and pull the trigger to build in their garden
-  with them. While visiting, pick the little cairn to go home.
+- On the inventory wheel, enter the people branch to pick your avatar or a nearby
+  garden. Release on a host figure to join; while visiting, pick the cairn to go home.
 - Plaster keeps stone bases, corners and opening trim; either material supports the same
   roofs and fittings.
 - A wall drawn round into a loop stays a wall.
