@@ -37,6 +37,7 @@ func _run() -> void:
 		await _frames(30)
 		call("_check_" + page.effect, page, before)
 	await _shut_book_turns_nothing()
+	await _sweeps_turn_one_leaf_each_way()
 	for t in trackers:
 		XRServer.remove_tracker(t)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -113,7 +114,7 @@ func _read(page: Dictionary) -> Dictionary:
 	var rig: Rig = main.rig
 	var f := rig.head.global_transform * Lessons.frame(Lessons.pose(page, "right", 0.0)) if "right" in Lessons.hands(page) else Transform3D.IDENTITY
 	var ground: Variant = Terrain.raycast(f.origin, -f.basis.z)
-	effects = {"least_walls": main.tool.walls.size()}
+	effects = {"least_walls": main.tool.walls.size(), "most_book": main.book.at}
 	return {"at": rig.global_position, "walls": main.tool.walls.size(), "time": main.look.time, "book": main.book.at,
 		"ground": ground, "height": Terrain.height_at(ground.x, ground.z) if ground != null else 0.0,
 		"state": var_to_str(main.world.state.walls), "trees": main.flora_tool.flora.planted_trees().size()}
@@ -121,11 +122,13 @@ func _read(page: Dictionary) -> Dictionary:
 
 func _watch(_page: Dictionary) -> void:
 	effects.least_walls = mini(effects.least_walls, main.tool.walls.size())
+	effects.most_book = maxi(effects.most_book, main.book.at)
 
 
 func _check_page(_page: Dictionary, before: Dictionary) -> void:
 	_check(before.book == 1, "the book opened at its first page before the sweep")
-	_check(main.book.at == before.book + 1, "the right hand swept across the page turns it: leaf %d to %d" % [before.book, main.book.at])
+	_check(effects.most_book == before.book + 1, "the right hand swept leftward across the pages turns to the next: leaf %d to %d" % [before.book, effects.most_book])
+	_check(main.book.at == before.book, "swept rightward it turns back: leaf %d" % main.book.at)
 
 
 func _check_tool(page: Dictionary, _before: Dictionary) -> void:
@@ -198,6 +201,37 @@ func _shut_book_turns_nothing() -> void:
 	rig.left.tool = Hand.Tool.BOOK
 	await _frames(30)
 	_check(book.visible and book.at == 1, "the wheel's book brings it back where it was left")
+
+
+## Either hand's sweep turns by its direction wherever it starts on the spread, one leaf a sweep: the stroke back
+## from a turn, the hand still on the pages, leaves it turned. Back from the first page shuts the book.
+func _sweeps_turn_one_leaf_each_way() -> void:
+	var book: Book = main.book
+	var rig: Rig = main.rig
+	rig.right.global_position = rig.head.global_position + Vector3(1, 1, 1)
+	await _fresh()
+	rig.left.global_transform = rig.head.global_transform * Lessons.frame(Lessons.pose(Lessons.PAGES[0], "left", 0.0))
+	book.at = 3
+	await _sweep([[0.2, 0.12], [0.12, 0.03], [-0.05, 0.03], [0.12, 0.03], [0.2, 0.12]])
+	_check(book.at == 4, "a leftward sweep and the stroke back over the pages turn one leaf on: leaf %d" % book.at)
+	await _sweep([[-0.2, 0.12], [-0.12, 0.03], [0.05, 0.03], [0.06, 0.12]])
+	_check(book.at == 3, "a rightward sweep from the left page turns back: leaf %d" % book.at)
+	book.at = 1
+	await _sweep([[0.02, 0.12], [0.03, 0.03], [0.14, 0.03], [0.16, 0.12]])
+	await _frames(int(Book.TURN_S * 60) + 10)
+	_check(book.at == 0, "a rightward sweep on the first page shuts the book: leaf %d" % book.at)
+
+
+## Moves the right hand through `xy` in the open book's frame (x across the spread, y off the page), half a second a
+## leg, then lets the turn finish.
+func _sweep(xy: Array) -> void:
+	var rig: Rig = main.rig
+	for i in xy.size() - 1:
+		for f in 30:
+			var p := Vector2(xy[i][0], xy[i][1]).lerp(Vector2(xy[i + 1][0], xy[i + 1][1]), f / 30.0)
+			rig.right.global_transform = Transform3D(Basis.IDENTITY, rig.left.global_transform * Book.local(1.0) * Vector3(p.x, p.y, 0.0))
+			await process_frame
+	await _frames(int(Book.TURN_S * 60) + 10)
 
 
 func _frames(n: int) -> void:

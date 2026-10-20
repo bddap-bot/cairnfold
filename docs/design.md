@@ -1935,8 +1935,9 @@ Report (verbatim): "Just for a little artistic flourish, let's actually spawn in
 Every player, a co-op joiner too, starts holding a small cloth-bound book shut in the left hand (`Book`, the tool
 `Hand.Tool.BOOK`). Its ribbon bookmark hangs from between the pages, swaying and glowing softly; the right hand touching
 the cover or the ribbon swings the cover open onto the first page, the board overshooting a little and settling. A sweep
-of the other hand across an open page, toward the spine, turns it; a sweep back turns back, and back from the first page
-shuts the book. No button is pressed, so the right hand's tool never acts while it reads, and the left hand's grip still
+of the other hand leftward across the open pages turns to the next page and rightward to the one before, wherever on the
+spread it starts; one sweep turns one leaf, so the hand lifts off the pages before the next, and the stroke back from a
+turn never undoes it. Back from the first page shuts the book. No button is pressed, so the right hand's tool never acts while it reads, and the left hand's grip still
 grabs and its stick still teleports. Picking another tool for the hand tucks the book away (it shrinks into the hand in
 a fifth of a second); the wheel's lower-right slot holds it beside visit, and taking it brings it back at the page it
 was left on. The book is each player's own and is never sent to others.
@@ -1963,7 +1964,7 @@ hour it sets. `demo/book-view.json` renders every spread from the player's own e
 
 | Page | What the hands do | Why it is not obvious |
 | --- | --- | --- |
-| Turn the page | Right hand sweeps across the page toward the spine | The book's own gesture, on its first page |
+| Turn the page | Right hand sweeps leftward across the pages, then rightward to turn back | The book's own gesture, on its first page |
 | Pick a tool | Hold the right upper face button, move the hand onto a slot, let go | The wheel opens only while its button is held |
 | Teleport | Left stick forward, the ray lands on a ring, let go to go there | Left only; movement is not a tool |
 | Undo, redo | Tap the left lower face button, then the right one | Two hands, no tool shows it |

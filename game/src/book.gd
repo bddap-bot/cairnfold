@@ -3,8 +3,8 @@ extends Node3D
 
 ## The picture book: a small cloth-bound book held in a hand that holds Hand.Tool.BOOK, whose pages teach the
 ## controls a player would not guess (Lessons). It comes shut, its ribbon glowing; the other hand touching the cover
-## or the ribbon opens it, and a sweep of that hand across a page turns it, toward the spine for the next page and
-## back for the one before. No button is pressed, so no tool acts. Picking another tool tucks it away; the wheel's
+## or the ribbon opens it, and a sweep of that hand across the pages turns one, leftward for the next page and
+## rightward for the one before. No button is pressed, so no tool acts. Picking another tool tucks it away; the wheel's
 ## book brings it back where it was left. Each page is a live LessonScene, and only the faces in view render.
 ##
 ## Its frame (`local`): the spine along z at x 0, the right page over +x, y out of the page, z toward the reader.
@@ -14,7 +14,7 @@ const H := 0.15
 const LEAF_T := 0.0028
 const COVER_T := 0.0042
 const OVER := 0.005
-const TILT := deg_to_rad(80.0)
+const TILT := deg_to_rad(68.0)
 const OPEN_S := 0.85
 const TURN_S := 0.7
 const TUCK_S := 0.2
@@ -175,11 +175,9 @@ func turn(way: int) -> void:
 
 
 ## Reads a fingertip at `tip` (global) touching the book: on the shut cover or the ribbon it opens it; swept
-## across an open page it turns it.
+## leftward across the open pages it turns to the next, rightward to the one before. A sweep turns one leaf: the hand
+## leaves the pages before it turns another, so the stroke back from a turn never undoes it.
 func feel(tip: Vector3) -> void:
-	if not _turn.is_empty():
-		_sweep_from = INF
-		return
 	var p := global_transform.affine_inverse() * tip
 	if at == 0:
 		var on_cover := p.x > -0.01 and p.x < W + 0.01 and absf(p.z) < H * 0.5 + 0.01 and absf(p.y - _stack_top()) < TOUCH
@@ -190,15 +188,11 @@ func feel(tip: Vector3) -> void:
 	var near := absf(p.z) < H * 0.5 + 0.02 and p.y > -0.01 and p.y < NEAR and absf(p.x) < W + 0.02
 	if not near:
 		_sweep_from = INF
-		return
-	if _sweep_from == INF:
+	elif _sweep_from == INF:
 		_sweep_from = p.x
-	if _sweep_from > W * 0.3 and p.x < _sweep_from - SWEEP:
-		_sweep_from = INF
-		turn(1)
-	elif _sweep_from < -W * 0.3 and p.x > _sweep_from + SWEEP:
-		_sweep_from = INF
-		turn(-1)
+	elif _turn.is_empty() and absf(p.x - _sweep_from) > SWEEP:
+		turn(1 if p.x < _sweep_from else -1)
+		_sweep_from = NAN
 
 
 ## The page indices whose faces are in view, each rendering: none while the head looks away from the book.
