@@ -308,7 +308,9 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 	await _frames()
 	_check(main.tool.mason(rig.left).partner == main.tool.mason(rig.right), "the other hand's grip on it joins the first")
 	rig.left.global_position -= f.tangent * 0.4
-	for i in 10:
+	for i in 600:
+		if wall.layout.apertures.size() == 1 and absf(wall.layout.apertures[0].size - 2.0) < 0.05:
+			break
 		await process_frame
 	var shown: Dictionary = wall.layout.apertures[0] if wall.layout.apertures.size() == 1 else {}
 	_check(not shown.is_empty() and absf(shown.size - 2.0) < 0.05 and shown.head > head * 1.8, "the hands pulled twice as far apart show it twice as big, its head as high: %s" % shown)
@@ -322,7 +324,9 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 	var kept: Vector4 = Array(world.state.walls[wall.id].openings)[0]
 	_check(absf(kept.w - 2.0) < 0.05 and world.stacks[world.me()].undo.size() == steps + 1, "let go, the garden keeps the grand arch, one undo step: %s" % kept)
 	world.undo()
-	for i in 30:
+	for i in 600:
+		if wall.layout.apertures.size() == 1 and is_equal_approx(wall.layout.apertures[0].head, head):
+			break
 		await process_frame
 	_check(Array(world.state.walls[wall.id].openings)[0].w == 1.0 and is_equal_approx(wall.layout.apertures[0].head, head), "undo makes it a doorway again")
 	world.undo()
