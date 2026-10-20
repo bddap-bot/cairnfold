@@ -80,10 +80,12 @@ static func held_height() -> Callable:
 
 
 static func held_water() -> Callable:
-	return _bilinear.bind(_water.duplicate())
+	return _height.bind(_heights.duplicate(), _humps.duplicate(), _water.duplicate())
 
 
-static func _height(x: float, z: float, heights: PackedFloat32Array, humps: Array[Vector4]) -> float:
+## With `water`, the pond surface instead: at a grid point no pond reaches, NO_WATER under that point's own ground, so
+## ground dug however deep never stands under water.
+static func _height(x: float, z: float, heights: PackedFloat32Array, humps: Array[Vector4], water := PackedFloat32Array()) -> float:
 	var u := clampf((x + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
 	var v := clampf((z + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
 	var i := int(u)
@@ -99,7 +101,16 @@ static func _height(x: float, z: float, heights: PackedFloat32Array, humps: Arra
 			b += _lift(hump, i + 1, j)
 			c += _lift(hump, i, j + 1)
 			d += _lift(hump, i + 1, j + 1)
+	if not water.is_empty():
+		a = _wet(water[k], a)
+		b = _wet(water[k + 1], b)
+		c = _wet(water[k + VERTS], c)
+		d = _wet(water[k + VERTS + 1], d)
 	return lerpf(lerpf(a, b, u - i), lerpf(c, d, u - i), v - j)
+
+
+static func _wet(level: float, ground: float) -> float:
+	return ground + NO_WATER if level == NO_WATER else level
 
 
 static func _no_water() -> PackedFloat32Array:
@@ -140,16 +151,7 @@ static func _depth(k: int) -> float:
 
 ## The pond surface over (x, z), bilinear between grid points: far below the ground where no pond is.
 static func water_at(x: float, z: float) -> float:
-	return _bilinear(x, z, _water)
-
-
-static func _bilinear(x: float, z: float, grid: PackedFloat32Array) -> float:
-	var u := clampf((x + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
-	var v := clampf((z + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
-	var i := int(u)
-	var j := int(v)
-	var k := j * VERTS + i
-	return lerpf(lerpf(grid[k], grid[k + 1], u - i), lerpf(grid[k + VERTS], grid[k + VERTS + 1], u - i), v - j)
+	return _height(x, z, _heights, _humps, _water)
 
 
 static func ground(x: float, z: float) -> Vector3:

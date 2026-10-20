@@ -25,6 +25,7 @@ func _initialize() -> void:
 	_shallow_basin_holds_no_pond()
 	_check((load("res://src/water.gdshader") as Shader).code.contains("ripples[%d]" % PondWater.RIPPLES), "the shader takes every ripple slot")
 	await _ponds_in_the_glade()
+	_ground_dug_deep_stays_dry()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -196,6 +197,24 @@ func _shallow_basin_holds_no_pond() -> void:
 
 
 ## Presses a hollow `depth` deep at x, z as a grip does; the rim it leaves is `rim` from x, z.
+## Ground dug further down than NO_WATER once read as under water, so a wall over it stood at that level and laid
+## footings hundreds of metres down to it.
+func _ground_dug_deep_stays_dry() -> void:
+	var cells := Terrain.cells_around(40.0, 40.0, 6.0)
+	var before := Terrain.read(cells)
+	var dug := before.duplicate()
+	for i in dug.size():
+		dug[i] -= 500.0
+	Terrain.write(cells, dug)
+	_check(Terrain.water_at(40.0, 40.0) < Terrain.height_at(40.0, 40.0), "ground dug 500 m down stands under no water")
+	Terrain.set_hump(0, 40.0, 40.0, 6.0, -300.0)
+	var held_water := Terrain.held_water()
+	var held_height := Terrain.held_height()
+	_check(Terrain.water_at(40.0, 40.0) < Terrain.height_at(40.0, 40.0) and held_water.call(40.0, 40.0) < held_height.call(40.0, 40.0), "nor while a stroke digs it further")
+	Terrain.clear_hump(0)
+	Terrain.write(cells, before)
+
+
 func _press(terrain: GroundGrab, x: float, z: float, depth: float) -> void:
 	terrain.begin(terrain.rig.right, Terrain.ground(x, z), RADIUS)
 	terrain.pull(terrain.rig.right, -depth)
