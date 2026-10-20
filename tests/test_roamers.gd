@@ -297,6 +297,12 @@ func _food_held_still_draws_one_to_eat() -> void:
 				hand.global_position += back * 0.3 * STEP
 				ran[0] = ran[0] or eater.state == Grazers.State.FLEE)
 			_check(not ran[0], "nor runs as the hand is drawn back")
+			g.wildlife.claim(hand, eater)
+			eater.hand = hand
+			eater.state = Grazers.State.FEED
+			hand.global_position.y += 3.0
+			g.wildlife.roamers._eat(eater, STEP)
+			_check(eater.hand == null and eater.state != Grazers.State.FEED, "a hand raised beyond the neck reach releases contact and backs off")
 		hand.tool = Hand.Tool.WALLS
 		hand.held_still = false
 		hand.global_position = AWAY
