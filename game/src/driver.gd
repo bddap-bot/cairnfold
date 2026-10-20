@@ -1134,7 +1134,7 @@ func _tip_at(hand: Hand, tip: Vector3, along: Vector3, up: Vector3, roll := 0.0)
 
 ## A grip at the easel's tray, as a player's hand closing there: takes a brush from the pot ("small", "big",
 ## "flat"), the charcoal ("stick"), or a palette, the watercolour box ("box") or the oil palette ("palette"), which
-## stays in the hand until a `set_down`.
+## stays in the hand until a `set_down`. With `preview`, approaches the handle without closing the grip.
 func _take(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var e := _easel_of(s)
@@ -1149,6 +1149,12 @@ func _take(s: Dictionary) -> void:
 		_:
 			var kind: Brushwork.Brush = Brushwork.Brush[s.what.to_upper()]
 			at = e.brushes[kind].global_transform * Easels.grip(kind)
+	if s.get("preview", false):
+		var offset := e.global_basis * Vector3(0, 0.04, 0.07)
+		hand.global_transform = Transform3D(Basis.looking_at(-offset), at + offset)
+		hand.held_still = true
+		await _frames(2)
+		return
 	hand.global_transform = Transform3D(e.global_basis * Basis(Vector3.RIGHT, -0.6), at)
 	hand.held_still = true
 	await _frames(1)

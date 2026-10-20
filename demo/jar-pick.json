@@ -1,0 +1,101 @@
+[
+  {
+    "op": "budget",
+    "bounded": false
+  },
+  {
+    "op": "quality",
+    "step": "fit"
+  },
+  {
+    "op": "bare"
+  },
+  {
+    "op": "place",
+    "x": 0,
+    "z": 3
+  },
+  {
+    "op": "easel",
+    "x": 0,
+    "z": 0,
+    "facing": [
+      0,
+      3
+    ]
+  },
+  {
+    "op": "easel",
+    "x": -2,
+    "z": 0,
+    "facing": [
+      -2,
+      3
+    ]
+  },
+  {
+    "op": "easel",
+    "x": 2,
+    "z": 0,
+    "facing": [
+      2,
+      3
+    ]
+  },
+  {
+    "op": "easel",
+    "x": 0,
+    "z": -2,
+    "facing": [
+      0,
+      1
+    ]
+  },
+  {
+    "op": "view",
+    "subject": "easel",
+    "eye": [
+      -0.62,
+      1.16,
+      0.95
+    ],
+    "at": [
+      -0.67,
+      0.91,
+      0.2
+    ]
+  },
+  {
+    "op": "take",
+    "what": "small",
+    "hand": "left",
+    "preview": true,
+    "easel": 0
+  },
+  {
+    "op": "take",
+    "what": "big",
+    "hand": "right",
+    "preview": true,
+    "easel": 0
+  },
+  {
+    "op": "label",
+    "name": "easels/preview"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "capture",
+    "name": "jar-highlight"
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "quit"
+  }
+]

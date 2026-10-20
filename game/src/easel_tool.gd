@@ -79,11 +79,16 @@ var rig: Rig
 var easels: Easels
 var world: World
 var painters: Array[Painter] = []
+var highlighted: Array[Node3D] = []
+var highlight := StandardMaterial3D.new()
 ## Each palette on its way back to its tray, by its node: [easel, kit, where it set off from, how far along (0..1)].
 var returning := {}
 
 
 func _init(player: Rig, stands: Easels, garden: World) -> void:
+	highlight.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	highlight.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	highlight.albedo_color = Color(1.0, 0.8, 0.3, 0.45)
 	rig = player
 	easels = stands
 	world = garden
@@ -146,6 +151,7 @@ func _forget() -> void:
 
 func _process(delta: float) -> void:
 	_return(delta)
+	_preview()
 	for p in painters:
 		_handle(p, delta)
 		_note(p)
@@ -217,7 +223,7 @@ func _decline(hand: Hand, why: String) -> void:
 	declined.emit(why)
 
 
-## What a grip at the hand takes: the nearest brush in a pot, charcoal, palette or canvas sheet within reach; a hand
+## What a grip at the hand takes: the previewed implement, palette or canvas sheet within reach; a hand
 ## holding a palette sends it back to its tray, wherever the hand is, and takes nothing.
 func grab(p: Painter) -> void:
 	var at := p.hand.global_position
@@ -226,32 +232,70 @@ func grab(p: Painter) -> void:
 		_note(p, true)
 		Cues.play(Cues.Act.BRUSH_TAKE, at, p.hand)
 		return
+	var choice := candidate(p)
+	if not choice.is_empty():
+		choice.take.call()
+		_note(p, true)
+		Cues.play(Cues.Act.BRUSH_TAKE, at, p.hand)
+
+
+## Touching a handle wins by proximity; approaching it distinguishes neighbours by the hand's pointing line.
+static func pick_distance(hand: Transform3D, target: Vector3) -> float:
+	var offset := target - hand.origin
+	var distance := offset.length()
+	if distance >= REACH:
+		return INF
+	if distance <= 0.05:
+		return distance
+	var forward := -hand.basis.z.normalized()
+	var along := maxf(0.0, offset.dot(forward))
+	return 0.05 + distance * 0.2 + (offset - forward * along).length()
+
+
+## Preview and grip use this same winner, including palettes and the sheet that could otherwise steal a brush grab.
+func candidate(p: Painter) -> Dictionary:
+	if p.palette != null or p.peel != null:
+		return {}
+	var at := p.hand.global_position
 	var best := REACH
-	var take := Callable()
+	var choice := {}
 	for e: Easels.Easel in easels.easels.values():
-		for kind in e.brushes:
-			var d := at.distance_to(e.brushes[kind].global_transform * Easels.grip(kind))
+		for kind: Brushwork.Brush in Brushwork.Brush.values():
+			var node: Node3D = e.stick if kind == Brushwork.Brush.STICK else e.brushes[kind]
+			var d := pick_distance(p.hand.global_transform, node.global_transform * Easels.grip(kind))
 			if d < best:
 				best = d
-				take = _take_brush.bind(p, kind)
-		var d := at.distance_to(e.stick.global_transform * Easels.grip(Brushwork.Brush.STICK))
-		if d < best:
-			best = d
-			take = _take_brush.bind(p, Brushwork.Brush.STICK)
+				choice = {"take": _take_brush.bind(p, kind), "node": node}
 		for kit: Brushwork.Medium in e.palettes:
 			if not painters.any(func(o: Painter) -> bool: return o.palette == e and o.kit == kit):
-				d = at.distance_to(e.palettes[kit].global_position)
-				if d < maxf(best, Easels.KIT_REACH[kit]):
+				var d := at.distance_to(e.palettes[kit].global_position)
+				if d < maxf(REACH, Easels.KIT_REACH[kit]) and (choice.is_empty() or d < best):
 					best = d
-					take = _take_palette.bind(p, e, kit)
+					choice = {"take": _take_palette.bind(p, e, kit)}
 		var c := e.on_canvas(at)
 		if c.x >= 0.0 and c.x <= 1.0 and c.y >= 0.0 and c.y <= 1.0 and c.z > -0.02 and c.z < REACH and c.z < best:
 			best = c.z
-			take = func() -> void: p.peel = e
-	if take.is_valid():
-		take.call()
-		_note(p, true)
-		Cues.play(Cues.Act.BRUSH_TAKE, at, p.hand)
+			choice = {"take": func() -> void: p.peel = e}
+	return choice
+
+
+func _preview() -> void:
+	var next: Array[Node3D] = []
+	for p in painters:
+		var h := p.hand
+		if h.tracked() and rig.aim_hand != h and not h.picking and not h.taken():
+			var choice := candidate(p)
+			if choice.has("node") and not next.has(choice.node):
+				next.append(choice.node)
+	for node in highlighted:
+		if is_instance_valid(node) and not next.has(node):
+			for mesh: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+				mesh.material_overlay = null
+	for node in next:
+		if not highlighted.has(node):
+			for mesh: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+				mesh.material_overlay = highlight
+	highlighted = next
 
 
 func _take_brush(p: Painter, kind: Brushwork.Brush) -> void:

@@ -29,6 +29,8 @@ func _run() -> void:
 	await _a_deleted_easel_comes_back_with_its_painting()
 	await _the_tray_loads_the_brush()
 	_each_brush_in_the_pot_is_taken_alone()
+	_reaches_for_each_implement()
+	await _preview_matches_the_grip()
 	_no_plank_crosses_the_canvas()
 	_no_implement_crosses_the_easel()
 	_easels_share_their_geometry()
@@ -601,3 +603,52 @@ func _many(n: int) -> PackedInt32Array:
 	for i in n:
 		out.append_array(Brushwork.pack(Vector2(0.5, 0.5), 0.5, 0.0, 1))
 	return out
+
+
+func _reaches_for_each_implement() -> void:
+	var e: Easels.Easel = main.easels.easels.values()[-1]
+	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
+	_check(is_inf(EaselTool.pick_distance(Transform3D.IDENTITY, Vector3.FORWARD * 0.13)), "pointing does not extend grab reach")
+	var hits := 0
+	var total := 0
+	for kind: Brushwork.Brush in Brushwork.Brush.values():
+		var node: Node3D = e.stick if kind == Brushwork.Brush.STICK else e.brushes[kind]
+		var target := node.global_transform * Easels.grip(kind)
+		var correct := 0
+		for yaw in [-60.0, -30.0, 0.0, 30.0, 60.0]:
+			for height in [0.2, 0.8]:
+				var approach := e.global_basis * Vector3(sin(deg_to_rad(yaw)), height, cos(deg_to_rad(yaw))).normalized()
+				for distance in [0.04, 0.08, 0.11]:
+					for noise in [-0.008, 0.0, 0.008]:
+						var at: Vector3 = target + approach * distance + e.global_basis.x * noise
+						main.easel_tool._set_down(p)
+						p.peel = null
+						p.hand.tool = Hand.Tool.EASEL
+						p.brush = Brushwork.Brush.BIG if kind == Brushwork.Brush.STICK else Brushwork.Brush.STICK
+						p.hand.global_transform = Transform3D(Basis.looking_at(-approach), at)
+						main.easel_tool.grab(p)
+						var hit := p.hand.tool == Hand.Tool.EASEL and p.palette == null and p.peel == null and p.brush == kind
+						correct += int(hit)
+						total += 1
+		print("pick-rate: %s %d/90" % [Brushwork.Brush.keys()[kind], correct])
+		hits += correct
+	print("pick-rate: total %d/%d (%.2f%%)" % [hits, total, 100.0 * hits / total])
+	_check(hits >= 338, "aimed reaches take the intended implement at least 338/360 times")
+	main.easel_tool._set_down(p)
+	p.peel = null
+
+
+func _preview_matches_the_grip() -> void:
+	var e: Easels.Easel = main.easels.easels.values()[-1]
+	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
+	for kind: Brushwork.Brush in Brushwork.Brush.values():
+		await _play([{"op": "take", "what": Brushwork.Brush.keys()[kind].to_lower(), "preview": true}])
+		var node: Node3D = e.stick if kind == Brushwork.Brush.STICK else e.brushes[kind]
+		_check(main.easel_tool.highlighted.has(node), "the approached %s is highlighted before grip" % Brushwork.Brush.keys()[kind])
+		for mesh: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
+			_check(mesh.material_overlay == main.easel_tool.highlight, "the preview visibly highlights its meshes")
+		main.easel_tool.grab(p)
+		_check(p.brush == kind and p.palette == null, "grip takes the highlighted implement")
+	p.hand.global_position += Vector3.UP * 2.0
+	await _settled()
+	_check(main.easel_tool.highlighted.is_empty(), "moving away clears the highlight")
