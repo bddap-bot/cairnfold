@@ -108,6 +108,8 @@ const UNIT := 3.0
 static var _live: Cues
 ## Plays asked for per action since start, for tests.
 static var asked := {}
+## Pulses per action per hand's instance id since start, for tests.
+static var pulsed := {}
 
 var _clips := {}
 var _voices: Array[AudioStreamPlayer3D] = []
@@ -155,18 +157,28 @@ func _exit_tree() -> void:
 ## `act` happened at `at`, done by `hand` if a hand did it, `tension` of the way to its stretch's end. Calls closer
 ## together than the action's `every` from one hand come to nothing, so a site can call each step it makes.
 static func play(act: Act, at: Vector3, hand: XRController3D = null, tension := 0.0) -> void:
+	play_in(act, at, [hand] if hand != null else [], tension)
+
+
+## `act` done by every hand in `hands` at once, as two hands stretching one house: one sound, a pulse in each hand.
+static func play_in(act: Act, at: Vector3, hands: Array, tension := 0.0) -> void:
 	var cue: Dictionary = TABLE[act]
 	asked[act] = asked.get(act, 0) + 1
 	if _live == null:
 		return
 	var now := _live._clock
-	var key := [act, hand.get_instance_id() if hand != null else 0]
+	var key := [act]
+	for h: XRController3D in hands:
+		key.append(h.get_instance_id())
 	if now - _live._last.get(key, -INF) < cue.get("every", 0.0):
 		return
 	_live._last[key] = now
 	_live._sound(cue, at, clampf(tension, 0.0, 1.0))
-	if hand != null and is_instance_valid(hand):
-		feel(hand, cue.get("feel", []), 1.0 + cue.get("tighten", 0.0) * clampf(tension, 0.0, 1.0))
+	for h: XRController3D in hands:
+		if is_instance_valid(h):
+			feel(h, cue.get("feel", []), 1.0 + cue.get("tighten", 0.0) * clampf(tension, 0.0, 1.0))
+			var by: Dictionary = pulsed.get_or_add(act, {})
+			by[h.get_instance_id()] = by.get(h.get_instance_id(), 0) + 1
 
 
 ## A pulse as the table writes one, `louder` times as strong.

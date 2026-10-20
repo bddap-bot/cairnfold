@@ -2306,11 +2306,11 @@ Directive (verbatim): "Easle art painting/drawing should have tactile feedback t
 
 Directive (verbatim): "When something doesn't work because of the frame cap, I think it should be obvious to the player. I think maybe we can do that by embiggening the little bar that represents frame cap and shaking it around and making a little sound, like a [grunt ]sound"
 
-One table, `Cues.TABLE`, keyed by `Cues.Act`, gives each player action its sound and its pulse in the hand that
-did it: the sound's family of clips, its level, its pitch and how far that varies each play, how far a stretch's
+One table, `Cues.TABLE`, keyed by `Cues.Act`, gives each player action its sound and its pulse in each hand that
+did it (both hands carrying, stretching, resizing or raising a house pulse together, one sound for the pair): the sound's family of clips, its level, its pitch and how far that varies each play, how far a stretch's
 tension bends the pitch up, the pulse as amplitude, seconds, count and gap, how much tension strengthens it, and
-the least time between two plays from one hand. A call site names only the action, where it happened and the
-hand, so no level or pulse lives anywhere else; touching a surface is felt through `HandStop.FEEL` instead, and
+the least time between two plays from one hand or pair. A call site names only the action, where it happened and the
+hands, so no level or pulse lives anywhere else; touching a surface is felt through `HandStop.FEEL` instead, and
 both send their pulses through `Cues.feel`. Sounds play from a pool of twelve 3D voices at the action's place, the
 oldest started giving way, so a burst of actions costs nothing more. Every play varies its pitch and level a
 little, and the frequent actions have three or four clips each. A continuous action calls each step it makes,

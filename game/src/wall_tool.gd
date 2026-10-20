@@ -324,7 +324,7 @@ func extend_stroke(m: Mason, p: Vector3) -> void:
 		pts[-1] = p
 	else:
 		pts.append(p)
-		_cue(Cues.Act.WALL_LAY, p + Vector3.UP, m.hand)
+		_cue(Cues.Act.WALL_LAY, p + Vector3.UP, [m.hand])
 	if not is_nan(m.stroke.level):
 		_rest_on(m.stroke, p)
 	m.stroke.planned = false
@@ -432,10 +432,10 @@ func _house_input() -> void:
 		_carried += to.center.distance_to(house_at.center) + absf(angle_difference(to.yaw, house_at.yaw)) * to.size.x * 0.5
 		place_house(to.center, to.yaw, to.size, to.rise)
 		if stretched:
-			_cue(Cues.Act.HOUSE_STRETCH, to.center, holders[-1].hand, Cues.stretch(_hold_start.size.length(), to.size.length()))
+			_cue(Cues.Act.HOUSE_STRETCH, to.center, _hands_of(holders), Cues.stretch(_hold_start.size.length(), to.size.length()))
 		elif _carried > CARRY_STEP:
 			_carried = 0.0
-			_cue(Cues.Act.HOUSE_MOVE, to.center, holders[0].hand)
+			_cue(Cues.Act.HOUSE_MOVE, to.center, _hands_of(holders))
 
 
 ## A square house, or a round tower under a cone, standing at `at`, its front square to `yaw`, until it is placed and let go.
@@ -780,11 +780,11 @@ func drag_resize(to: Dictionary) -> void:
 	_dirty = true
 	var step := _steps(to)
 	var top := resizing.layout.points[0] + Vector3.UP * resizing.layout.height
-	var hand: Hand = _resize_hands[-1].hand if not _resize_hands.is_empty() else null
-	_cue(Cues.Act.WALL_STRETCH, top, hand, Cues.stretch(_steps(_resize_start), step))
+	var hands := _hands_of(_resize_hands)
+	_cue(Cues.Act.WALL_STRETCH, top, hands, Cues.stretch(_steps(_resize_start), step))
 	if step != _resize_step:
 		_resize_step = step
-		_cue(Cues.Act.WALL_LIFT, top, hand)
+		_cue(Cues.Act.WALL_LIFT, top, hands)
 
 
 func end_resize(hand: Hand = null) -> void:
@@ -812,9 +812,9 @@ func drag_lift(m: Mason, hand_y: float) -> void:
 		m.lifting.layout.height = h
 		_dirty = true
 		var at := Vector3(m.lift_at.x, Terrain.height_at(m.lift_at.x, m.lift_at.z) + h, m.lift_at.z)
-		_cue(Cues.Act.WALL_STRETCH, at, m.hand, Cues.stretch(m.lift_start, h))
+		_cue(Cues.Act.WALL_STRETCH, at, [m.hand], Cues.stretch(m.lift_start, h))
 		if course:
-			_cue(Cues.Act.WALL_LIFT, at, m.hand)
+			_cue(Cues.Act.WALL_LIFT, at, [m.hand])
 
 
 func end_lift(m: Mason) -> void:
@@ -853,7 +853,7 @@ func shape_roof(w: Wall, pitch: float, curve: float, hand: Hand = null) -> void:
 	r.pitch = pitch
 	r.curve = curve
 	_dirty = true
-	_cue(Cues.Act.ROOF_FLAT if r.flat() else Cues.Act.ROOF_SHAPE, _ridge(w), hand)
+	_cue(Cues.Act.ROOF_FLAT if r.flat() else Cues.Act.ROOF_SHAPE, _ridge(w), [hand] if hand != null else [])
 
 
 func end_roof(m: Mason) -> void:
@@ -977,9 +977,13 @@ func _sound(act: Cues.Act, at: Vector3, hand: Hand = null) -> void:
 		Cues.play(act, at, hand)
 
 
-func _cue(act: Cues.Act, at: Vector3, hand: Hand = null, tension := 0.0) -> void:
+func _cue(act: Cues.Act, at: Vector3, hands: Array, tension := 0.0) -> void:
 	built.emit()
-	Cues.play(act, at, hand, tension)
+	Cues.play_in(act, at, hands, tension)
+
+
+static func _hands_of(ms: Array[Mason]) -> Array:
+	return ms.map(func(m: Mason) -> Hand: return m.hand)
 
 
 ## The garden's side of a wall going up, from any player; `handed` when it is the next of this player's walls in hand.

@@ -167,6 +167,7 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	_check(is_equal_approx(foot, ground + rise - WallLayout.SINK), "and shows it standing that high: foot %.2f over ground %.2f" % [foot, ground])
 	trackers[&"left_hand"].set_input(&"grip_click", true)
 	await _frames(2)
+	Cues.pulsed.clear()
 	var square: Vector2 = tool.house_at.size
 	var askew := 0
 	for i in 20:
@@ -176,6 +177,7 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 			askew += 1
 	_check(askew == 0, "while it stretches the roof stays on the walls as laid, askew on %d frames" % askew)
 	_check(tool.house_at.size.x > square.x * 1.3, "the left grip joins, and spreading the hands stretches it: %s" % tool.house_at.size)
+	_check(_pulsed_both(Cues.Act.HOUSE_STRETCH, rig), "the stretch pulses in both hands: %s" % Cues.pulsed)
 	_check(rig.left._holding and rig.right._holding and not rig.right._beam.visible and not rig.left._beam.visible, "both hands holding it show no pointer")
 	var yaw: float = tool.house_at.yaw
 	for i in 10:
@@ -341,9 +343,11 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	await _frames(2)
 	await grip.call(&"left_hand", true)
 	_check(tool.resizing == house and is_equal_approx(house.layout.height, height), "the other hand's grip on it joins, putting back the first hand's pull: %.1f m" % house.layout.height)
+	Cues.pulsed.clear()
 	for i in 20:
 		hold.call(&"right_hand", Vector3(0.2 + 0.015 * (i + 1), -0.25, -0.3), front)
 		await _frames(1)
+	_check(_pulsed_both(Cues.Act.WALL_STRETCH, rig), "resizing it pulses in both hands, the still one too: %s" % Cues.pulsed)
 	_check(rig.left._holding and rig.right._holding, "both hands hold it")
 	_check(walls[-1] == house and world.state.walls[house.id].points == before.points, "nothing is sent while it is held")
 	await grip.call(&"left_hand", false)
@@ -421,6 +425,12 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 		XRServer.remove_tracker(t)
 
 
+## Whether `act` has pulsed in both of the rig's hands since `Cues.pulsed` was cleared.
+func _pulsed_both(act: Cues.Act, rig: Rig) -> bool:
+	var by: Dictionary = Cues.pulsed.get(act, {})
+	return by.get(rig.left.get_instance_id(), 0) > 0 and by.get(rig.right.get_instance_id(), 0) > 0
+
+
 ## Directive (verbatim): "If I grab a house or a building with two hands, I would like to be able to lift it up, raise it a little higher"
 func _raise_by_both_hands(house: Wall, trackers: Dictionary, hold: Callable, grip: Callable, front: Vector3) -> void:
 	var world: World = main.world
@@ -435,9 +445,11 @@ func _raise_by_both_hands(house: Wall, trackers: Dictionary, hold: Callable, gri
 	await _frames(2)
 	await grip.call(&"right_hand", true)
 	await grip.call(&"left_hand", true)
+	Cues.pulsed.clear()
 	for i in 20:
 		both.call(0.03 * (i + 1))
 		await _frames(1)
+	_check(_pulsed_both(Cues.Act.WALL_STRETCH, main.rig), "raising it pulses in both hands: %s" % Cues.pulsed)
 	_check(data.call().get("rise", 0.0) == 0.0, "nothing is sent while it is raised")
 	await grip.call(&"left_hand", false)
 	await grip.call(&"right_hand", false)
