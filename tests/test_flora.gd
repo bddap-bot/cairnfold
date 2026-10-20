@@ -24,6 +24,7 @@ func _run() -> void:
 	_grass_thins_with_distance()
 	_flowers_out_of_reach_are_not_drawn()
 	_far_plants_follow_the_pool()
+	_ground_paints_far_grass()
 	_blob_detail_changes_only_what_is_drawn()
 	_crowns_cast_one_shade_each()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -430,7 +431,7 @@ func _far_plants_follow_the_pool() -> void:
 	var flora := Flora.new()
 	root.add_child(flora)
 	var rng := _rng(91)
-	for pool: Flora.Pool in [flora.grass, flora.flowers, flora.ghost_grass, flora.ghost_flowers]:
+	for pool: Flora.Pool in [flora.flowers, flora.ghost_flowers]:
 		var near := pool.mm
 		var far: MultiMeshInstance3D = pool.far_live
 		_check(far.layers == Quality.LADDER_LAYER, "the far representation leaves full-detail photos alone")
@@ -454,6 +455,42 @@ func _far_plants_follow_the_pool() -> void:
 		pool.reset()
 		_check_far_buffers(pool)
 		_check(far.multimesh.visible_instance_count == pool.kept, "reset leaves only the kept far plants")
+	flora.queue_free()
+
+
+func _ground_paints_far_grass() -> void:
+	var flora := Flora.new()
+	root.add_child(flora)
+	var rng := _rng(92)
+	var pool := flora.grass
+	var cover := pool.cover
+	var at := Vector3(4.1, 0, 5.1)
+	var t := cover.texel_of(at)
+	var p := flora.add_grass(at, rng)
+	cover.flush(pool)
+	_check(cover.image.get_pixelv(t) == cover.looks[p.slot] and cover.looks[p.slot].a == 1.0, "a clump paints its square")
+	p.set_shown(false)
+	cover.flush(pool)
+	_check(cover.image.get_pixelv(t).a == 0.0, "a mown clump leaves its square bare")
+	p.set_shown(true)
+	cover.flush(pool)
+	_check(cover.image.get_pixelv(t).a == 1.0, "and paints it again shown back")
+	p.draw(false)
+	cover.flush(pool)
+	_check(cover.image.get_pixelv(t).a == 0.0, "a clump a tool's preview hides is hidden far off too")
+	p.draw(true)
+	var twin := flora.add_grass(at + Vector3(0.01, 0, 0.01), rng)
+	twin.set_shown(false)
+	cover.flush(pool)
+	_check(cover.image.get_pixelv(t) == cover.looks[p.slot], "a square shows whichever clump there still stands")
+	pool.reset()
+	cover.flush(pool)
+	_check(cover.image.get_pixelv(t).a == 0.0, "reset leaves only the kept clumps painted")
+	var kept := flora.add_grass(at, rng)
+	pool.keep()
+	pool.reset()
+	cover.flush(pool)
+	_check(cover.image.get_pixelv(t) == cover.looks[kept.slot], "kept clumps stay painted through a reset")
 	flora.queue_free()
 
 

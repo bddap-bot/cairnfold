@@ -12,7 +12,15 @@ uniform float backlight = 1.0;
 uniform float gust_brighten = 0.22;
 uniform float far_begin = 8.0;
 uniform float far_end = 20.0;
-#include "res://src/flora_lod.gdshaderinc"
+// Past `draw_reach` Flora draws no meadow grass.
+uniform float draw_reach;
+// Set from Flora's GRASS_ constants, which say what each does.
+uniform float lod_begin;
+uniform float lod_band;
+uniform float survivors;
+uniform float survivors_from;
+// Each clump sinks into the ground over this distance, at a distance set by its rank.
+uniform float sink = 1.5;
 // Survivors spread wider and stand taller across that band, holding the meadow's cover with a quarter of its clumps.
 uniform vec2 survivor_scale = vec2(2.0, 1.25);
 // A camera seeing this layer (Quality.FULL_LAYER) draws every clump whole at every distance.
@@ -26,6 +34,7 @@ uniform vec3 hand_left;
 uniform vec3 hand_right;
 // Placed grass (Flora's painted and ghost pools) rooted under a pond grows as pondweed: tall ribbons reaching this share of
 // the way to the surface, leaning in a slow current and darkening toward blue-green with depth. The meadow's own drowns.
+// Only the weed_keep share of clumps (by rank) grows, so a ribbon several times a blade's size costs no more than one.
 instance uniform float planted = 0.0;
 uniform float weed_reach = 0.7;
 uniform float weed_stretch = 2.5;
@@ -89,7 +98,10 @@ void vertex() {
 
 	far = smoothstep(far_begin, far_end, dist);
 	if (!full) {
-		VERTEX = mix(VERTEX, root, flora_fade(dist, grass_end(rank), sink));
+		float gone = rank < survivors
+			? mix(draw_reach, draw_reach * survivors_from, rank / survivors)
+			: mix(lod_begin + lod_band, lod_begin + sink, (rank - survivors) / (1.0 - survivors));
+		VERTEX = mix(VERTEX, root, smoothstep(gone - sink, gone, dist));
 	}
 	NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), 0.35 + 0.5 * far));
 	if (depth > 0.02 && (weed == 0.0 || rank >= weed_keep)) {

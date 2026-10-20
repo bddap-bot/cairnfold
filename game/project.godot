@@ -54,6 +54,10 @@ ground_mask={
 "type": "sampler2D",
 "value": ""
 }
+flora_grass={
+"type": "sampler2D",
+"value": ""
+}
 water_depth={
 "type": "sampler2D",
 "value": ""

@@ -1,4 +1,5 @@
-// The near mesh and its far patch use the same transition, including each grass clump's thinning rank.
+// A plant's near mesh and what stands in for it far off share these transitions: a flower's and its far patch's
+// reach, and the grass's LOD band, survivors and sink (grass.gdshader), which the ground paints the grass by.
 uniform float draw_reach = 18.0;
 uniform float draw_fade = 4.0;
 uniform float lod_begin = 8.0;
@@ -9,10 +10,4 @@ uniform float sink = 1.5;
 
 float flora_fade(float dist, float end, float band) {
 	return smoothstep(end - band, end, dist);
-}
-
-float grass_end(float rank) {
-	return rank < survivors
-		? mix(draw_reach, draw_reach * survivors_from, rank / survivors)
-		: mix(lod_begin + lod_band, lod_begin + sink, (rank - survivors) / (1.0 - survivors));
 }

@@ -7,14 +7,21 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/meadow.gdshaderinc"
 #include "res://src/stone_ground.gdshaderinc"
+#include "res://src/flora_lod.gdshaderinc"
 
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 // Set from Meadow.GROUND.
 uniform vec3 earth : source_color;
-// Where on a blade, root to tip, the meadow's ground takes its colour: the tone far blades converge on.
-uniform float canopy = 0.6;
+// Set from Meadow.CANOPY.
+uniform float canopy;
 uniform vec3 trodden : source_color = vec3(0.52, 0.45, 0.33);
 uniform vec3 bed : source_color = vec3(0.50, 0.44, 0.32);
+// The grass past its clumps' reach (FloraCover): a clump at each vertex as half the factor it makes of the meadow's
+// colour, over its presence in alpha, painted in as the clumps there sink away.
+global uniform sampler2D flora_grass : filter_nearest, repeat_disable;
+uniform bool far_grass = true;
+// A camera seeing this layer (Quality.FULL_LAYER) draws every clump whole, so the ground paints none.
+uniform uint full_layer;
 
 varying vec3 world_pos;
 varying float steep;
@@ -36,8 +43,14 @@ void vertex() {
 	vec4 bounce = textureLod(bounce_volume, bounce_at, 0.0);
 	given = given_back(bounce_at, bounce_at, bounce);
 	sky_seen = bounce.a;
-	meadow_lush = blade_color(blade_top(0.0, 0.5), canopy);
-	meadow_dry = blade_color(blade_top(1.0, 0.5), canopy);
+	float dist = distance(world_pos, CAMERA_POSITION_WORLD);
+	bool painted = far_grass && (CAMERA_VISIBLE_LAYERS & full_layer) == 0u;
+	// The share of clumps sunk away here (grass.gdshader's `gone`): all but the survivors over the LOD band, then they.
+	float sunk = painted ? (1.0 - survivors) * smoothstep(lod_begin, lod_begin + lod_band, dist) + survivors * smoothstep(draw_reach * survivors_from - sink, draw_reach, dist) : 0.0;
+	vec4 clump = textureLod(flora_grass, ((world_pos.xz - ground_grid.x) / ground_grid.y + 0.5) / ground_grid.z, 0.0);
+	vec3 tuft = 1.0 + (2.0 * clump.rgb - clump.a) * sunk;
+	meadow_lush = blade_color(blade_top(0.0, 0.5), canopy) * tuft;
+	meadow_dry = blade_color(blade_top(1.0, 0.5), canopy) * tuft;
 }
 
 void fragment() {

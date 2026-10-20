@@ -1025,42 +1025,42 @@ the eye turns.
 
 ### Distant grass and flowers
 
-Grass and flowers each have a one-triangle colour patch per plant: flowers face
-the camera, while grass patches follow the terrain.
-`Flora.Pool` derives both representations from the same placement, colour and custom
-attributes; painting, recycling, mowing, undo and ghost clearing write both. No
-plant list is rebuilt each frame. Near meadow cells retain spatial culling; the far layer uses one batch per pool, and
-full-detail photos omit the patches and draw the original meshes.
+Past their meshes' reach flowers draw as one camera-facing triangle each, in their
+petal colour, and grass as the ground's own colour. `Flora.Pool` derives the far
+flowers from the same placement, colour and custom attributes as the near ones;
+painting, recycling, mowing, undo and ghost clearing write both, and the far layer is
+one batch per pool. `FloraCover` keeps, for each ground vertex, a clump standing in the
+square around it, as the factor its tint and shade make of the ground's grass colour;
+`terrain.gdshader` reads it once a vertex and multiplies it into the meadow colours
+the vertex hands its fragments, as far in as the clumps there have sunk away by
+`grass.gdshader`'s LOD band and survivors. Mown, hidden and recycled clumps reach it
+within a quarter second; a reset or a filled disc repaints it whole. Full-detail
+photos omit both and draw the original meshes.
 
-`flora_lod.gdshaderinc` shares each transition between the near mesh and its patch.
-Grass retains its rank-based thinning and surviving blades. A patch grows as its
-clump sinks away. Land flowers hand off over the last four metres before 18 m (or
-the quality reach if nearer), preserving their petal colour rather than fading it
-to green. Far petals widen gently with distance to remain legible. Patches use
-opaque geometry without textures, alpha blending, fragment discard or shadows.
-Their shaders share terrain, wear, season and grass-palette inputs with the plants.
-Aquatic variants retain their existing reach; land patches disappear underwater.
+Measured on the Quest 2 against the bare meadow from the air (6.91 ms with no far
+layer, the same run toggling it off and on, or five samples of a phase a build):
 
-`demo/flora-cost.json` interleaves off, one-triangle and two-triangle far layers
-in the same scene; `flora_far` is a measurement command, not a player setting.
-`demo/flora-lod.json` fills the painted grass and flower pools and views the field
-from far away, at grass height and nearby. The existing full-pool aerial phase in
-`demo/stress.json` covers the same added representation.
+| Far grass | Bare meadow | Full grass pool |
+| --- | --- | --- |
+| Triangle per clump, lit | 8.89 ms | 13.87 ms, misses 72 Hz |
+| Triangle per clump, unshaded | 8.06 ms | 13.15 ms |
+| Clump, rank and colour painted per fragment | 9.32 ms | 14.16 ms |
+| Colour factor read per fragment | 7.25 ms | 12.06 ms, misses 72 Hz |
+| Colour factor read per vertex | 7.05 ms | 11.57 ms |
 
-The desktop comparison in `perf/flora-lod/desktop.json` uses 34,000 grass clumps
-and 7,200 flowers. One far triangle per plant adds 41,200 submitted triangles and
-four draw calls in the measured views; the two-triangle alternative adds 82,400.
-The single triangle was selected for that lower submission cost and its lower
-observed distant-view median (4.68 ms versus 5.78 ms for two triangles).
+22,000 meadow clump triangles cost 1.9 ms and the 3,200 flower triangles 0.1; with
+the far grass shader's output pinned to a point its vertices alone cost 0.5 ms. The
+ground's fragments bound the Quest 2, so anything they do costs: the factor read once
+a fragment cost 0.2 ms bare and 0.4 under the full pool. A vertex is a metre apart, so
+the distant meadow takes each clump's tint a metre across rather than in its own
+patch. Writing the grass's sink as a shared include function cost the full pool a
+further 0.25 ms (11.57 against 11.29 ms with every far layer off), so `grass.gdshader`
+computes it inline.
 
-With far patches off/on, viewport GPU medians were 3.44/4.68 ms from afar,
-2.99/2.62 ms at grass height and 5.28/5.29 ms nearby. Individual samples span
-0.69–9.70 ms, so variation is too large to attribute the full frame-time differences
-to LOD or claim a GPU saving. Headless, the flora update alone took 0.058/0.063 ms
-before/after (14 trials each, 5,000 updates per trial); filling the painted pools
-at once took 409/445 ms. Ordinary strokes retain their bounded per-frame growth.
-These desktop and headless measurements do not establish Quest frame rate, and
-no headset budget coefficient was refitted from them.
+`demo/flora-cost.json` interleaves the far layer off and on in the same scene;
+`flora_far` is a measurement command, not a player setting. `demo/flora-lod.json`
+fills the painted grass and flower pools and views the field from far away, at
+grass height and nearby.
 
 ### Flora on the Quest 2
 
