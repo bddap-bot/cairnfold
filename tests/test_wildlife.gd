@@ -65,15 +65,39 @@ func _seeds_held_low_draw_the_ducks(wildlife: Wildlife, hand: Hand, pond: PondWa
 	wildlife.hands.clear()
 
 
-## A handful thrown out over the pond scatters on the water, and the ducks come and peck it up grain by grain.
+## A handful thrown out over the pond plunges in, spreads apart under the water, rises slowly and bobs on the surface,
+## and the ducks come and peck it up grain by grain.
 func _seeds_thrown_on_the_pond_are_eaten(wildlife: Wildlife, pond: PondWater) -> void:
 	var f: Wildlife.Family = wildlife.families[0]
 	f.full = 0.0
 	var mid := Terrain.grid_xz(pond.pond.bottom)
 	var s := feed.throw(Vector3(mid.x, pond.surface_y() + 1.2, mid.y), Vector3(0.3, 0.5, 0))
-	_run(wildlife, 1.5)
-	_check(s.landed() and absf(s.position.y - pond.surface_y()) < 0.01, "thrown seeds come down on the water")
-	_check(_spread(s) > 0.1, "and scatter, %.2f m across" % _spread(s))
+	var deep := [0.0, 0.0]
+	_run(wildlife, 1.0, func() -> void:
+		var now := s.grains()
+		for i in now.size():
+			deep[0] = maxf(deep[0], pond.surface_y() - now[i].y)
+			if now[i].y < pond.surface_y() - 0.02:
+				deep[1] = maxf(deep[1], s._vel[i].y))
+	var under := _spread(s)
+	_check(deep[0] > 0.1 and not s.landed(), "thrown seeds plunge into the water, %.2f m under" % deep[0])
+	_run(wildlife, 8.0, func() -> void:
+		var now := s.grains()
+		for i in now.size():
+			if now[i].y < pond.surface_y() - 0.02:
+				deep[1] = maxf(deep[1], s._vel[i].y))
+	_check(deep[1] > 0.0 and deep[1] < Handful.RISE * 1.1, "rising slowly, %.2f m/s at most" % deep[1])
+	var off := 0.0
+	for p in s.grains():
+		off = maxf(off, absf(p.y - pond.surface_y()))
+	_check(s.landed() and s.left() > 0 and off < 0.01, "to float on the surface, %d still under, %.3f m off it at most" % [s.flying, off])
+	_check(under > 0.3 and _spread(s) >= under, "spread apart under it, %.2f m across" % under)
+	var heights := range(s.left()).map(func(i: int) -> float: return s.drawn(i).y)
+	_run(wildlife, 0.5)
+	var bob := 0.0
+	for i in s.left():
+		bob = maxf(bob, absf(s.drawn(i).y - heights[i]))
+	_check(bob > 1e-4 and bob <= 2.0 * Handful.BOB, "bobbing there, %.4f m in half a second" % bob)
 	var ate := [false]
 	_run(wildlife, 40.0, func() -> void: ate[0] = ate[0] or (f.state == Wildlife.State.FEED and f.hand == s and s.left() < Handful.GRAINS))
 	_check(ate[0], "a duck comes and pecks them up, %d grains left" % s.left())

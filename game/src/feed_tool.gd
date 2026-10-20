@@ -1,11 +1,15 @@
 class_name FeedTool
 extends Node3D
 
-## For a hand holding the seed dish: the trigger throws a handful of seeds the way the hand is swinging, or lets it
-## fall from a still hand, to lie where it lands until it is eaten or sinks away. Seeds landing on a pond plop and ripple it.
+## For a hand holding the seed dish: the trigger tosses a handful of seeds a little way along the hand's aim, farther
+## the way the hand is swinging, to lie where it lands until it is eaten or sinks away. Seeds landing on a pond plop and
+## ripple it, then rise through it to float.
 
 ## Per second: how quickly the throw follows the hand, so tracking jitter does not fling the seeds.
 const EASE := 20.0
+## Metres a second a handful leaves along the hand's aim on top of the hand's swing: from a still hand it lands about a
+## metre off, near enough to feed what stands by.
+const LAUNCH := 2.0
 ## Handfuls lying about at once; another throw takes up the oldest.
 const HANDFULS := 8
 
@@ -30,8 +34,8 @@ func _init(player: Rig, water: Water) -> void:
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["tool"]))
 	for i in HANDFULS:
-		handfuls.append(Handful.new(ponds.floor_at))
-		handfuls[i].settled.connect(_settled)
+		handfuls.append(Handful.new(ponds))
+		handfuls[i].splashed.connect(_splashed)
 		add_child(handfuls[i])
 
 
@@ -46,12 +50,17 @@ func _process(delta: float) -> void:
 		_was[h] = at
 		if _buttons[i].pressed("tool") and h.tool == Hand.Tool.SEEDS and h.tracked() and rig.aim_hand != h and not h.picking:
 			Cues.play(Cues.Act.SEEDS_THROW, dish(h), h)
-			throw(dish(h), rig.global_basis * _velocity.get(h, Vector3.ZERO))
+			throw(dish(h), launch(h, rig.global_basis * _velocity.get(h, Vector3.ZERO)))
 		_buttons[i].latch()
 
 
 func dish(h: Hand) -> Vector3:
 	return h.body.global_transform * Hand.TOP
+
+
+## How fast a handful leaves the dish in `h` swinging at `swing`.
+func launch(h: Hand, swing: Vector3) -> Vector3:
+	return -h.global_basis.z * LAUNCH + swing
 
 
 ## This player's throw, shared with the others.
@@ -68,11 +77,9 @@ func toss(from: Vector3, velocity: Vector3, seed: int) -> Handful:
 	return handful
 
 
-func _settled(handful: Handful) -> void:
-	var pond := ponds.pond_at(handful.position.x, handful.position.z)
-	if pond != null:
-		pond.ripple(handful.position, 0.4)
-		Cues.play(Cues.Act.PLOP, handful.position)
+func _splashed(pond: PondWater, at: Vector3) -> void:
+	pond.ripple(at, 0.4)
+	Cues.play(Cues.Act.PLOP, at)
 
 
 func tick(delta: float) -> void:

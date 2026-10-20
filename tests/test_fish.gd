@@ -63,7 +63,7 @@ func _seeds_on_the_water_draw_every_fish(wildlife: Wildlife, feed: FeedTool, wat
 	var fed := {}
 	var rose := [false]
 	var fast := [0.0]
-	_run(wildlife, 1.5, feed)
+	_run(wildlife, 8.0, feed)
 	_check(s.landed() and pond == water.pond_at(s.position.x, s.position.z), "the seeds come down on the pond")
 	_check(Cues.asked.get(Cues.Act.PLOP, 0) - heard.get(Cues.Act.PLOP, 0) == 1, "with a plop")
 	_run(wildlife, 20.0, feed, func() -> void:
@@ -81,15 +81,19 @@ func _seeds_on_the_water_draw_every_fish(wildlife: Wildlife, feed: FeedTool, wat
 	_check(_in_water(fish, water), "every fish still in the water")
 	_run(wildlife, 4.0, feed)
 	_check(mine.all(func(f: Fish.One) -> bool: return f.speed < Fish.CRUISE * 1.5 and f.pitch == 0.0), "and calm, swimming level")
-	var a := Handful.new(water.floor_at)
-	var b := Handful.new(water.floor_at)
+	var a := Handful.new(water)
+	var b := Handful.new(water)
 	root.add_child(a)
 	root.add_child(b)
 	a.toss(Vector3(mid.x, pond.surface_y() + 1.2, mid.y), Vector3(0.4, 1.0, 0.2), 5)
 	b.toss(Vector3(mid.x, pond.surface_y() + 1.2, mid.y), Vector3(0.4, 1.0, 0.2), 5)
-	for i in int(2.0 / STEP):
+	for i in int(8.0 / STEP):
 		a.tick(STEP)
-		b.tick(1.0 / 72.0 if i % 2 else 1.0 / 90.0)
+	var t := 0.0
+	while t < 8.0:
+		var dt := 1.0 / 72.0 if is_equal_approx(fmod(t * 162.0, 2.0), 0.0) else 1.0 / 90.0
+		b.tick(dt)
+		t += dt
 	var apart := 0.0
 	for i in Handful.GRAINS:
 		apart = maxf(apart, a._at[i].distance_to(b._at[i]))

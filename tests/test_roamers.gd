@@ -338,7 +338,8 @@ func _they_leave_out_of_sight_and_come_again() -> void:
 	await _teardown(g)
 
 
-## Seeds thrown onto the grass a little way off draw a deer, and the fox, to eat them up off the ground.
+## Seeds tossed from a still hand land a little way along its aim on the grass, and draw a deer, and the fox, to eat
+## them up off the ground.
 func _thrown_seeds_draw_them_to_eat() -> void:
 	var g := await _glade(23)
 	await _arrived(g)
@@ -359,7 +360,16 @@ func _thrown_seeds_draw_them_to_eat() -> void:
 		for b in g.wildlife.roamers.all():
 			b.full = 0.0
 		_settle(g.beasts(kind))
-		var seeds := g.feed.throw(at + Vector3.UP * 0.8, Vector3.ZERO)
+		var hand: Hand = g.rig.right
+		var aim := Vector3(near.position.x - at.x, -0.4, near.position.z - at.z).normalized()
+		hand.global_transform = Transform3D(Basis.looking_at(aim), at + Vector3.UP * 0.9)
+		var launch := g.feed.launch(hand, Vector3.ZERO)
+		_check(launch.dot(aim) > 0.9 * FeedTool.LAUNCH, "seeds fed from a still hand leave along its aim, %.2f m/s" % launch.dot(aim))
+		var seeds := g.feed.throw(g.feed.dish(hand), launch)
+		hand.global_position = AWAY
+		_run(g, 1.0)
+		var out := Vector2(seeds.position.x - at.x, seeds.position.z - at.z)
+		_check(seeds.landed() and out.dot(Vector2(aim.x, aim.z).normalized()) > 0.4, "and land %.2f m out along it" % out.length())
 		var eater: Beast = null
 		for i in int(40.0 / STEP):
 			_run(g, STEP)
