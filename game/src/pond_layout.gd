@@ -10,8 +10,6 @@ extends RefCounted
 const FREEBOARD := 0.08
 ## Shallower basins than this hold no pond.
 const MIN_DEPTH := 0.12
-## A basin wider than this many grid points from its grid point is open ground, not a pond.
-const REACH := 24
 const NEIGHBOURS := [Vector2i(-1, 0), Vector2i(1, 0), Vector2i(0, -1), Vector2i(0, 1)]
 const AROUND := [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(1, -1), Vector2i(-1, 0), Vector2i(1, 0), Vector2i(-1, 1), Vector2i(0, 1), Vector2i(1, 1)]
 
@@ -27,116 +25,205 @@ class Pond:
 	## Dry grid points touching the water: the shaders read the level there too, so it is exact to the shore.
 	var shore: Array[Vector2i] = []
 	var box := Rect2i()
+	## The ground the fill read: an edit outside it leaves this pond as it is.
+	var ground := Rect2i()
 	## Water over the bottom.
 	var depth := 0.0
 
 
-## The pond in the basin below grid point `at` with water no higher than `cap`, or null when it is open ground
-## or too shallow. `heights` holds the grid points of `window`, row by row.
-static func fill(heights: PackedFloat32Array, window: Rect2i, at: Vector2i, cap := INF) -> Pond:
-	var h := func(g: Vector2i) -> float: return heights[(g.y - window.position.y) * window.size.x + g.x - window.position.x]
-	var inner := window.grow(-1)
-	var bottom := at
-	while inner.has_point(bottom):
-		var next := bottom
-		for o in NEIGHBOURS:
-			if h.call(bottom + o) < h.call(next):
-				next = bottom + o
-		if next == bottom:
+## The pond in the basin below grid point `at` with water no higher than `cap`, or null when it drains to the
+## edge of `window` or is too shallow. `heights` holds the grid points of `window`, row by row. `near` is a level the
+## water is likely to reach, as the pond's before an edit: the ground below it is checked and filled at once.
+## A lake can be the whole world, tens of thousands of points: the fill keeps indices and flags in packed arrays,
+## and floods lowest first, a heap's work a point, only above the ground known to hold water.
+static func fill(heights: PackedFloat32Array, window: Rect2i, at: Vector2i, cap := INF, near := -INF) -> Pond:
+	var w := window.size.x
+	var rows := window.size.y
+	var steps := PackedInt32Array([-1, 1, -w, w])
+	var around := PackedInt32Array([-w - 1, -w, -w + 1, -1, 1, w - 1, w, w + 1])
+	var flags := PackedByteArray()
+	flags.resize(heights.size())
+	var marks := PackedInt32Array()
+	marks.resize(heights.size())
+	var k := (at.y - window.position.y) * w + at.x - window.position.x
+	var lo := Vector2i(k % w, k / w)
+	var hi := lo
+	while _inner(k, w, rows):
+		var next := k
+		for s in steps:
+			if heights[k + s] < heights[next]:
+				next = k + s
+		if next == k:
 			break
-		bottom = next
-	var start := bottom
-	var seen := {bottom: true}
-	var heap := MinHeap.new()
-	heap.push(h.call(bottom), bottom)
+		k = next
+		lo = lo.min(Vector2i(k % w, k / w))
+		hi = hi.max(Vector2i(k % w, k / w))
+	var start := k
 	var spill := -INF
-	var basin := {}
-	var enclosed := {}
-	while true:
+	var heap := MinHeap.new()
+	var basin := PackedInt32Array()
+	if cap < INF and _held(heights, w, rows, start, cap, flags, basin):
+		spill = INF
+	else:
+		flags.fill(0)
+		basin.clear()
+		if near > -INF and near < cap and _held(heights, w, rows, start, near, flags, basin):
+			for g in basin:
+				spill = maxf(spill, heights[g])
+				flags[g] |= SEEN
+			for g in basin:
+				for s in steps:
+					if not flags[g + s] & SEEN:
+						flags[g + s] |= SEEN
+						heap.push(heights[g + s], g + s)
+		else:
+			flags.fill(0)
+			basin.clear()
+			flags[start] |= SEEN
+			heap.push(heights[start], start)
+	for g in basin:
+		lo = lo.min(Vector2i(g % w, g / w) - Vector2i.ONE)
+		hi = hi.max(Vector2i(g % w, g / w) + Vector2i.ONE)
+	var hollows := 0
+	while spill < INF:
 		if heap.empty():
 			return null
 		var g := heap.pop()
-		var gh: float = h.call(g)
+		var gh := heights[g]
 		if gh - FREEBOARD >= cap:
 			spill = gh
 			break
-		if gh < spill and not enclosed.has(g):
-			var hollow := _hollow(h, inner, g, spill, basin)
-			if hollow.is_empty():
+		if gh < spill and not flags[g] & ENCLOSED:
+			hollows += 1
+			var hollow := _hollow(heights, w, rows, g, spill, flags, marks, hollows)
+			for c in hollow[1]:
+				lo = lo.min(Vector2i(c % w, c / w))
+				hi = hi.max(Vector2i(c % w, c / w))
+			if not hollow[0]:
 				break
-			enclosed.merge(hollow)
-		if not inner.has_point(g):
+			for c in hollow[1]:
+				flags[c] |= ENCLOSED
+		if not _inner(g, w, rows):
 			return null
 		spill = maxf(spill, gh)
-		basin[g] = true
-		for o in NEIGHBOURS:
-			if not seen.has(g + o):
-				seen[g + o] = true
-				heap.push(h.call(g + o), g + o)
+		flags[g] |= BASIN
+		lo = lo.min(Vector2i(g % w, g / w) - Vector2i.ONE)
+		hi = hi.max(Vector2i(g % w, g / w) + Vector2i.ONE)
+		for s in steps:
+			var n := g + s
+			if not flags[n] & SEEN:
+				flags[n] |= SEEN
+				heap.push(heights[n], n)
 	var pond := Pond.new()
 	pond.at = at
 	pond.level = minf(cap, spill - FREEBOARD)
-	if h.call(start) >= pond.level:
+	if heights[start] >= pond.level:
 		return null
-	var wet := {start: true}
-	var todo: Array[Vector2i] = [start]
+	var wet := PackedInt32Array([start])
+	flags[start] |= WET
+	var todo := PackedInt32Array([start])
+	var bottom := start
 	while not todo.is_empty():
-		var g: Vector2i = todo.pop_back()
-		pond.cells.append(g)
-		var low: float = h.call(bottom)
-		if h.call(g) < low or h.call(g) == low and (g.y < bottom.y or g.y == bottom.y and g.x < bottom.x):
+		var g := todo[todo.size() - 1]
+		todo.resize(todo.size() - 1)
+		if g != start:
+			wet.append(g)
+		if heights[g] < heights[bottom] or heights[g] == heights[bottom] and g < bottom:
 			bottom = g
-		for o in NEIGHBOURS:
-			var n: Vector2i = g + o
-			if basin.has(n) and not wet.has(n) and h.call(n) < pond.level:
-				wet[n] = true
+		for s in steps:
+			var n := g + s
+			if flags[n] & BASIN and not flags[n] & WET and heights[n] < pond.level:
+				flags[n] |= WET
 				todo.append(n)
-	pond.bottom = bottom
-	pond.depth = pond.level - h.call(bottom)
+	pond.depth = pond.level - heights[bottom]
 	if pond.depth < MIN_DEPTH:
 		return null
-	var lo := bottom
-	var hi := bottom
-	var dry := {}
-	for g in pond.cells:
-		lo = Vector2i(mini(lo.x, g.x), mini(lo.y, g.y))
-		hi = Vector2i(maxi(hi.x, g.x), maxi(hi.y, g.y))
-		for o in AROUND:
-			var n: Vector2i = g + o
-			if not wet.has(n) and not dry.has(n) and h.call(n) >= pond.level:
-				dry[n] = true
-				pond.shore.append(n)
-	pond.box = Rect2i(lo, hi - lo + Vector2i.ONE)
+	pond.ground = Rect2i(lo + window.position, hi - lo + Vector2i.ONE).grow(1)
+	lo = Vector2i(bottom % w, bottom / w)
+	hi = lo
+	for g in wet:
+		var c := Vector2i(g % w, g / w)
+		pond.cells.append(c + window.position)
+		lo = lo.min(c)
+		hi = hi.max(c)
+		for s in around:
+			var n := g + s
+			if not flags[n] & (WET | DRY) and heights[n] >= pond.level:
+				flags[n] |= DRY
+				pond.shore.append(Vector2i(n % w, n / w) + window.position)
+	pond.bottom = Vector2i(bottom % w, bottom / w) + window.position
+	pond.box = Rect2i(lo + window.position, hi - lo + Vector2i.ONE)
 	return pond
 
 
-## The ground below `level` reachable from `from` outside the pond so far, if it is enclosed: water spilling
-## there fills it rather than running away. Empty when it reaches the window's edge, where water drains to
-## open ground.
-static func _hollow(h: Callable, inner: Rect2i, from: Vector2i, level: float, pond: Dictionary) -> Dictionary:
-	var seen := {from: true}
-	var todo: Array[Vector2i] = [from]
+const SEEN := 1
+const BASIN := 2
+const ENCLOSED := 4
+const WET := 8
+const DRY := 16
+
+
+## Whether all the ground water up to `cap` would reach from `from` is enclosed, marked as the basin and listed in
+## `basin`: then the pond is that ground at `cap`, and the lowest-first flood, a heap's work a point, is not needed
+## below it. False when the water would reach the window's edge.
+static func _held(heights: PackedFloat32Array, w: int, rows: int, from: int, cap: float, flags: PackedByteArray, basin: PackedInt32Array) -> bool:
+	var steps := PackedInt32Array([-1, 1, -w, w])
+	if heights[from] - FREEBOARD >= cap:
+		return false
+	flags[from] |= BASIN
+	basin.append(from)
+	var todo := PackedInt32Array([from])
 	while not todo.is_empty():
-		var g: Vector2i = todo.pop_back()
-		if not inner.has_point(g):
-			return {}
-		for o in NEIGHBOURS:
-			var n: Vector2i = g + o
-			if not seen.has(n) and not pond.has(n) and h.call(n) < level:
-				seen[n] = true
+		var g := todo[todo.size() - 1]
+		todo.resize(todo.size() - 1)
+		if not _inner(g, w, rows):
+			return false
+		for s in steps:
+			var n := g + s
+			if not flags[n] & BASIN and heights[n] - FREEBOARD < cap:
+				flags[n] |= BASIN
+				basin.append(n)
 				todo.append(n)
-	return seen
+	return true
 
 
-## Grid points, lowest first.
+static func _inner(k: int, w: int, rows: int) -> bool:
+	var x := k % w
+	var y := k / w
+	return x > 0 and y > 0 and x < w - 1 and y < rows - 1
+
+
+## The ground below `level` reachable from `from` outside the pond so far, as [whether it is enclosed, the points
+## it took in]: water spilling there fills it rather than running away, unless it reaches the window's edge, where
+## water drains to open ground. `marks` holds `id` at the points this call took in.
+static func _hollow(heights: PackedFloat32Array, w: int, rows: int, from: int, level: float, flags: PackedByteArray, marks: PackedInt32Array, id: int) -> Array:
+	var steps := PackedInt32Array([-1, 1, -w, w])
+	marks[from] = id
+	var seen := PackedInt32Array([from])
+	var todo := PackedInt32Array([from])
+	while not todo.is_empty():
+		var g := todo[todo.size() - 1]
+		todo.resize(todo.size() - 1)
+		if not _inner(g, w, rows):
+			return [false, seen]
+		for s in steps:
+			var n := g + s
+			if marks[n] != id and not flags[n] & BASIN and heights[n] < level:
+				marks[n] = id
+				seen.append(n)
+				todo.append(n)
+	return [true, seen]
+
+
+## Indices of grid points, lowest first.
 class MinHeap:
 	var keys := PackedFloat32Array()
-	var values: Array[Vector2i] = []
+	var values := PackedInt32Array()
 
 	func empty() -> bool:
 		return keys.is_empty()
 
-	func push(k: float, v: Vector2i) -> void:
+	func push(k: float, v: int) -> void:
 		keys.append(k)
 		values.append(v)
 		var i := keys.size() - 1
@@ -147,7 +234,7 @@ class MinHeap:
 			_swap(i, p)
 			i = p
 
-	func pop() -> Vector2i:
+	func pop() -> int:
 		var top := values[0]
 		var last := keys.size() - 1
 		_swap(0, last)

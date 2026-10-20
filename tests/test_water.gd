@@ -19,6 +19,8 @@ func _initialize() -> void:
 	_neighbouring_hollows_fill_as_one()
 	_spilling_into_a_draining_hollow_stops_at_the_rim()
 	_shore_is_the_dry_ring_around_the_water()
+	_ground_beyond_what_a_fill_read_leaves_it_be()
+	_a_level_it_is_near_changes_nothing()
 	_open_ground_holds_no_pond()
 	_shallow_basin_holds_no_pond()
 	_check((load("res://src/water.gdshader") as Shader).code.contains("ripples[%d]" % PondWater.RIPPLES), "the shader takes every ripple slot")
@@ -133,6 +135,48 @@ func _shore_is_the_dry_ring_around_the_water() -> void:
 			if not wet.has(c + o) and not ring.has(c + o):
 				_check(false, "dry point %s beside the water is not shore" % (c + o))
 				return
+
+
+## `World` fills a pond again only after an edit to the ground it read: raising or lowering everything beyond that
+## leaves the same pond.
+func _ground_beyond_what_a_fill_read_leaves_it_be() -> void:
+	var leaky := func(i: int, j: int) -> float:
+		var b := minf(_bowl(i, j, 7, 10), _bowl(i, j, 13, 10) - 0.2)
+		return minf(b, 0.4) if j == 10 and i >= 13 else b
+	var notched := func(i: int, j: int) -> float: return _bowl(i, j, 8, 9, 0.3, 4.0) if j != 9 or i < 11 else minf(_bowl(i, j, 8, 9, 0.3, 4.0), 0.7 - (i - 11) * 0.05)
+	for shape: Callable in [_bowl, leaky, notched]:
+		for cap in [INF, 1.0, 0.5]:
+			_beyond_leaves_it_be(_grid(shape), cap)
+
+
+func _beyond_leaves_it_be(g: PackedFloat32Array, cap: float) -> void:
+	var p := PondLayout.fill(g, WINDOW, Vector2i(9, 10), cap)
+	_check(p != null, "the shape holds a pond")
+	if p == null:
+		return
+	for lift in [3.0, -3.0]:
+		var moved := g.duplicate()
+		for j in SIDE:
+			for i in SIDE:
+				if not p.ground.has_point(Vector2i(i, j)):
+					moved[j * SIDE + i] += lift
+		var q := PondLayout.fill(moved, WINDOW, Vector2i(9, 10), cap)
+		_check(q != null and q.level == p.level and q.cells == p.cells and q.shore == p.shore, "ground %+.0f m beyond %s leaves the pond at %.1f be" % [lift, p.ground, cap])
+
+
+## What `near` is, right or wrong, the pond comes out the same.
+func _a_level_it_is_near_changes_nothing() -> void:
+	var two := func(i: int, j: int) -> float: return minf(_bowl(i, j, 7, 10), _bowl(i, j, 13, 10) - 0.2)
+	var leaky := func(i: int, j: int) -> float:
+		var b := minf(_bowl(i, j, 7, 10), _bowl(i, j, 13, 10) - 0.2)
+		return minf(b, 0.4) if j == 10 and i >= 13 else b
+	for shape: Callable in [_bowl, two, leaky]:
+		var g := _grid(shape)
+		for cap in [INF, 1.0]:
+			var p := PondLayout.fill(g, WINDOW, Vector2i(8, 10), cap)
+			for near in [0.1, 0.5, 0.9, 1.3, 1.6, 3.0]:
+				var q := PondLayout.fill(g, WINDOW, Vector2i(8, 10), cap, near)
+				_check(p != null and q != null and q.level == p.level and q.cells.size() == p.cells.size() and q.shore.size() == p.shore.size() and q.bottom == p.bottom and q.ground.encloses(p.box), "a fill near %.1f to %.1f comes out as without" % [near, cap])
 
 
 func _open_ground_holds_no_pond() -> void:
@@ -265,11 +309,13 @@ func _ponds_in_the_glade() -> void:
 	await process_frame
 	_check(water.ponds.size() == 1 and absf(pond.pond.level - brim) < 1e-4 and pond.pond.cells.size() > shallow, "pointing at the rim again fills it to the brim")
 
+	var cells := pond.pond.cells.size()
 	tool.fill(hand, rim + Vector3.UP * 5.0)
 	await process_frame
-	_check(water.ponds.size() == 1 and pond.pond.level <= brim + PondLayout.FREEBOARD and pond.pond.level < meadow + 0.3, "a level over the rim fills only to where it would spill, %.2f" % pond.pond.level)
+	_check(water.ponds.size() == 1 and absf(pond.pond.level - (rim.y + 5.0)) < 1e-4 and pond.pond.box.size.x > 100 and pond.pond.cells.size() > cells * 3, "a level over the rim spills into the meadow's own basin and fills it as one pond, %d by %d" % [pond.pond.box.size.x, pond.pond.box.size.y])
 	tool.fill(hand, rim)
 	await process_frame
+	_check(water.ponds.size() == 1 and absf(pond.pond.level - brim) < 1e-4, "and pointing at the rim takes it back to the hollow")
 
 	var again: int = world.stacks[world.me()].undo.size()
 	tool.fill(hand, rim)
@@ -280,15 +326,15 @@ func _ponds_in_the_glade() -> void:
 	tool.set_process(false)
 	await _preview(tool, rim)
 	_check(tool._ghosts[0].visible and absf(tool._ghosts[0].position.y - brim) < 0.05, "the tool shows the water pointing at the rim would hold")
-	await _preview(tool, Terrain.ground(-30, 30))
+	var dry := Terrain.ground(3, -4) + Vector3.UP * 0.05
+	await _preview(tool, dry)
 	_check(not tool._ghosts[0].visible and tool._ponds[0] == null, "and nothing where no hollow holds any")
 	tool.set_process(true)
 	var seq := world.seq
-	_check(Water.pointed(Terrain.ground(-30, 30)) == null, "open meadow holds no water")
-	tool.fill(hand, Terrain.ground(-30, 30))
+	_check(Water.pointed(dry) == null, "a point just over the hollow's bottom holds no water")
+	tool.fill(hand, dry)
 	await process_frame
 	_check(world.seq == seq, "and the pond tool sends nothing there")
-	_check(Water.pointed(Terrain.ground(3, -4) + Vector3.UP * 0.05) == null, "nor at a point just over the hollow's bottom")
 
 	var depth := pond.pond.depth
 	await _press(terrain, 3, -4, 0.6)
@@ -297,7 +343,7 @@ func _ponds_in_the_glade() -> void:
 	await process_frame
 
 	await _press(terrain, 12, 8, 1.0)
-	tool.fill(hand, Terrain.ground(12 + RIM, 8))
+	tool.fill(hand, Terrain.ground(12 + RIM * 0.3, 8))
 	await process_frame
 	_check(water.ponds.size() == 2 and world.state.ponds.size() == 2, "a hollow elsewhere holds a second pond")
 	var other := water.pond_at(12, 8)
@@ -324,3 +370,29 @@ func _ponds_in_the_glade() -> void:
 
 	var saved: Array = world.snapshot().cmds.filter(func(c: Dictionary) -> bool: return c.op == "ponds")
 	_check(saved.size() == 1 and saved[0].put == world.state.ponds and world.state.ponds.values().has(rim.y), "the garden saves each pond's level: %s" % [saved])
+
+	var mid := Vector2(-20, 10)
+	var wide := 40.0
+	var dish := Terrain.cells_around(mid.x, mid.y, wide + 1.0)
+	var was := Terrain.read(dish)
+	var brink := INF
+	for j in dish.size.y:
+		for i in dish.size.x:
+			var r := (Terrain.grid_xz(dish.position + Vector2i(i, j)) - mid).length()
+			if r >= wide and r < wide + 1.0:
+				brink = minf(brink, was[j * dish.size.x + i])
+	var dug := PackedFloat32Array()
+	for j in dish.size.y:
+		for i in dish.size.x:
+			var r := (Terrain.grid_xz(dish.position + Vector2i(i, j)) - mid).length()
+			var bowl := brink - 2.0 + 2.0 * (r / wide) ** 2
+			dug.append(minf(was[j * dish.size.x + i], bowl) if r < wide else was[j * dish.size.x + i])
+	world.submit({"op": "heights", "cells": dish, "values": dug})
+	await process_frame
+	tool.fill(hand, Vector3(mid.x, brink - 0.01, mid.y))
+	await process_frame
+	var lake := water.pond_at(mid.x, mid.y)
+	_check(lake != null and world.state.ponds.size() == 1 and water.ponds.size() == 1, "a basin %d m wide, dug over both ponds, fills as one pond" % int(wide * 2.0))
+	for o in [Vector2(1, 0), Vector2(-1, 0), Vector2(0, 1), Vector2(0, -1)]:
+		var at: Vector2 = mid + o * wide * 0.95
+		_check(lake != null and water.pond_at(at.x, at.y) == lake, "and covers it out to %s" % at)

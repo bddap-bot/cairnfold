@@ -79,22 +79,35 @@ func show_pond(p: PondLayout.Pond) -> void:
 
 
 ## Quads over every grid cell with a wet corner and the rest on its shore: they reach each shore and no
-## further, and never over a hollow that only touches the pond at a corner.
+## further, and never over a hollow that only touches the pond at a corner. Each run of such cells along a row is
+## one quad, so a lake's mesh grows with its rows, not its area.
 static func sheet(p: PondLayout.Pond) -> ArrayMesh:
-	var ours := {}
+	var area := p.box.grow(1)
+	var w := area.size.x
+	var ours := PackedByteArray()
+	ours.resize(w * area.size.y)
 	for g in p.cells + p.shore:
-		ours[g] = true
-	var squares := {}
+		ours[(g.y - area.position.y) * w + g.x - area.position.x] = 1
+	var squares := PackedByteArray()
+	squares.resize(ours.size())
 	for g in p.cells:
-		for o in [Vector2i(-1, -1), Vector2i(0, -1), Vector2i(-1, 0), Vector2i(0, 0)]:
-			var s: Vector2i = g + o
-			if ours.has(s) and ours.has(s + Vector2i(1, 0)) and ours.has(s + Vector2i(0, 1)) and ours.has(s + Vector2i.ONE):
-				squares[s] = true
+		var k := (g.y - area.position.y) * w + g.x - area.position.x
+		for s in [-w - 1, -w, -1, 0]:
+			if ours[k + s] and ours[k + s + 1] and ours[k + s + w] and ours[k + s + w + 1]:
+				squares[k + s] = 1
 	var verts := PackedVector3Array()
-	for s: Vector2i in squares:
-		var a := Terrain.grid_xz(s)
-		var b := a + Vector2.ONE * Terrain.STEP
-		verts.append_array([Vector3(a.x, 0, a.y), Vector3(b.x, 0, a.y), Vector3(a.x, 0, b.y), Vector3(b.x, 0, a.y), Vector3(b.x, 0, b.y), Vector3(a.x, 0, b.y)])
+	for j in area.size.y:
+		var i := 0
+		while i < w:
+			if not squares[j * w + i]:
+				i += 1
+				continue
+			var from := i
+			while i < w and squares[j * w + i]:
+				i += 1
+			var a := Terrain.grid_xz(area.position + Vector2i(from, j))
+			var b := Terrain.grid_xz(area.position + Vector2i(i, j + 1))
+			verts.append_array([Vector3(a.x, 0, a.y), Vector3(b.x, 0, a.y), Vector3(a.x, 0, b.y), Vector3(b.x, 0, a.y), Vector3(b.x, 0, b.y), Vector3(a.x, 0, b.y)])
 	var normals := PackedVector3Array()
 	normals.resize(verts.size())
 	normals.fill(Vector3.UP)

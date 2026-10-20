@@ -804,8 +804,8 @@ func _apply(cmd: Dictionary) -> Dictionary:
 
 ## Takes `cmd`'s ponds out and puts its new ones in, then fills every pond over the ground as it stands. A pond that
 ## holds no water any more, or whose water another's covers, goes: the ones `cmd` puts win, then the higher.
-## What brings back the ponds as they were `before` goes on `inverse`. Only ponds within reach of the `ground`
-## the command changed, or at a new level, fill again.
+## What brings back the ponds as they were `before` goes on `inverse`. Only ponds whose fill read the `ground` the
+## command changed, or at a new level, fill again.
 func _set_ponds(cmd: Dictionary, before: Dictionary, inverse: Dictionary, ground: Rect2i) -> void:
 	for g in cmd.get("drop", []):
 		state.ponds.erase(g)
@@ -814,8 +814,10 @@ func _set_ponds(cmd: Dictionary, before: Dictionary, inverse: Dictionary, ground
 	var filled := {}
 	for g in state.ponds:
 		var was: Array = _fills.get(g, [])
-		var reach := Rect2i(g - Vector2i.ONE * PondLayout.REACH, Vector2i.ONE * (PondLayout.REACH * 2 + 1))
-		filled[g] = was[1] if not was.is_empty() and was[0] == state.ponds[g] and not reach.intersects(ground) else Water.fill(g, state.ponds[g])
+		if not was.is_empty() and was[0] == state.ponds[g] and not was[1].ground.intersects(ground):
+			filled[g] = was[1]
+		else:
+			filled[g] = Water.fill(g, state.ponds[g], was[1].level if not was.is_empty() else -INF)
 	var order: Array = state.ponds.keys()
 	order.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
 		if put.has(a) != put.has(b):

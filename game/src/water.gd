@@ -34,10 +34,10 @@ func _init(touching: Array[Node3D]) -> void:
 	PondWater.prepare()
 
 
-## The pond grid point `at` fills over the ground as it stands, with water no higher than `level`, or null.
-static func fill(at: Vector2i, level: float) -> PondLayout.Pond:
-	var c := _around(at)
-	return PondLayout.fill(c[1], c[0], at, level)
+## The pond grid point `at` fills over the ground as it stands, with water no higher than `level`, or null; `near`
+## as `PondLayout.fill` takes it.
+static func fill(at: Vector2i, level: float, near := -INF) -> PondLayout.Pond:
+	return PondLayout.fill(Terrain.read(Terrain.ALL), Terrain.ALL, at, level, near)
 
 
 ## The pond that filling to the height of ground point `point` makes: of the hollows the grid points around it
@@ -50,6 +50,7 @@ static func pointed(point: Vector3) -> PondLayout.Pond:
 ## points and the ground around it, as [grid point, window, heights].
 static func candidates(point: Vector3) -> Array:
 	var g := Terrain.grid_point(point.x, point.z)
+	var heights := Terrain.read(Terrain.ALL)
 	var out := []
 	var bottoms := {}
 	for o in [Vector2i.ZERO] + PondLayout.NEIGHBOURS:
@@ -57,7 +58,7 @@ static func candidates(point: Vector3) -> Array:
 		var bottom := Terrain.downhill(at)
 		if not bottoms.has(bottom):
 			bottoms[bottom] = true
-			out.append([at] + _around(at))
+			out.append([at, Terrain.ALL, heights])
 	return out
 
 
@@ -70,11 +71,6 @@ static func deepest(candidates: Array, level: float) -> PondLayout.Pond:
 			best = p
 	return best
 
-
-## The window of ground a pond at `at` fills within, and its heights.
-static func _around(at: Vector2i) -> Array:
-	var window := Rect2i(at - Vector2i.ONE * PondLayout.REACH, Vector2i.ONE * (PondLayout.REACH * 2 + 1)).intersection(Terrain.ALL)
-	return [window, Terrain.read(window)]
 
 
 func reset() -> void:

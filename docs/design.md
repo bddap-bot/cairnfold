@@ -2152,9 +2152,24 @@ pointed spot, the one whose hollow holds the most water names the pond, so a poi
 hole and the meadow fills the hole. After every ground edit each pond fills again at its own level:
 digging its bed deeper deepens it, cutting its rim lowers it to the new rim, and mending the rim
 brings it back up. A pond whose hollow holds no water any more, filled in or shallower than 12 cm or
-open to ground wider than 24 m from its grid point, is erased, water, fish and all, as part of the
-ground edit that did it, so undoing that edit brings it back. Two ponds whose water meets become the
-higher one.
+open to the world's edge, is erased, water, fish and all, as part of the ground edit that did it, so
+undoing that edit brings it back. Two ponds whose water meets become the higher one.
+
+A pond has no size limit: water fills whatever the ground holds, so pointing high on the meadow's rim
+fills the meadow's whole bowl, 135 by 147 m (13,158 grid points under water, `demo/lake.json`). What a
+lake costs is bounded where it arises, not by its size. Its surface is one quad per run of wet squares
+along a row, so its mesh grows with its rows: 390 triangles for that lake, where a 39 m pond took 2,632
+as a quad a square. The fill works on indices and flags in packed arrays; it skips the lowest-first
+flood when the water is held below the level asked; and a refill after a ground edit starts from the
+pond's level before, which the fill checks against the new ground. A fill reads only the ground it
+needs (`Pond.ground`), and only an edit there fills that pond again. Measured headless on a desktop
+CPU (`demo/lake.json`'s lake against the largest pond the 24-point limit allowed before, a 46 m dish:
+1,237 wet points then, 2,439 now): frames stay at 0.2 ms of script with either; filling the bowl
+takes 50 to 100 ms held under its rim and 230 to 320 ms pointed over it; putting it as a command
+takes 320 to 580 ms against 60 to 200 ms for the old largest; a ground edit inside it 160 ms against
+30 to 40 ms. Fish (`Fish.CAP`), ripples and the lapping sound are capped per garden or per pond already.
+`Budget` prices a pond whatever its size: its fragments are bounded by the view and the lake's mesh is
+smaller than the old largest pond's, but a lake filling the view is not yet measured on a headset.
 
 The look follows the usual recipe for stylised water (Sea of Thieves' blend of deep and shallow
 colour, the common stylised-water shaders' depth bands and shore foam), adapted so nothing reads

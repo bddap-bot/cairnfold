@@ -1,0 +1,19 @@
+[
+  {"op": "view", "eye": [0, 95, 120], "at": [0, 0, -5]},
+  {"op": "wait", "seconds": 3},
+  {"op": "capture", "name": "00-meadow"},
+  {"op": "sculpt", "x": -27, "z": 0, "lift": -2.5, "radius": 9, "seconds": 0.4},
+  {"op": "sculpt", "x": -9, "z": 0, "lift": -2.5, "radius": 9, "seconds": 0.4},
+  {"op": "sculpt", "x": 9, "z": 0, "lift": -2.5, "radius": 9, "seconds": 0.4},
+  {"op": "sculpt", "x": 27, "z": 0, "lift": -2.5, "radius": 9, "seconds": 0.4},
+  {"op": "pond", "x": 37, "z": 0},
+  {"op": "wait", "seconds": 3},
+  {"op": "capture", "name": "01-dug-basin"},
+  {"op": "pond", "x": 0, "z": -72},
+  {"op": "wait", "seconds": 3},
+  {"op": "capture", "name": "02-world-lake"},
+  {"op": "view", "ground": true, "eye": [0, 9, 60], "at": [0, 6, 0]},
+  {"op": "wait", "seconds": 2},
+  {"op": "capture", "name": "03-world-lake-shore"},
+  {"op": "quit"}
+]
