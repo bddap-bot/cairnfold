@@ -62,6 +62,26 @@
     "seconds": 3
   },
   {
+    "op": "style",
+    "restyle": "face",
+    "pick": 0,
+    "from": [
+      -4,
+      0.7,
+      2
+    ],
+    "at": [
+      -4,
+      0.7,
+      -3
+    ],
+    "seconds": 0.3
+  },
+  {
+    "op": "wait",
+    "seconds": 20
+  },
+  {
     "op": "label",
     "name": "sweep/foundation-stone"
   },
