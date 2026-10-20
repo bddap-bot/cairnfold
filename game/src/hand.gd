@@ -11,7 +11,7 @@ enum Tool { WALLS, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATI
 const TREE := [
 	[Tool.COLOUR, Tool.STYLE],
 	[[Tool.CAMERA, Tool.SELFIE], Tool.SEEDS, Tool.EASEL],
-	[Tool.FLOWERS, [Tool.GRASS, Tool.MOSS], [Tool.TREES, Tool.BUSHES], Tool.POND],
+	[Tool.FLOWERS, Tool.GRASS, [Tool.TREES, Tool.BUSHES], Tool.POND, Tool.MOSS],
 	[Tool.VISIT, Tool.BOOK],
 	Tool.DELETE,
 	[Tool.DIRT_PATH, Tool.STONE, Tool.STAIRS],

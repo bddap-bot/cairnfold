@@ -19,7 +19,7 @@ const GRASS_LOD_BAND := 4.0
 const GRASS_SURVIVORS := 0.25
 const GRASS_SURVIVORS_FROM := 0.5
 const FLOWER_NEAR := 18.0
-const PAINTED_MOSS := 4000
+const PAINTED_MOSS := 256
 const PAINTED_FLOWERS := 4000
 const PLACED_TREES := 64
 const PLACED_BUSHES := 256
@@ -467,7 +467,7 @@ func _init() -> void:
 	moss_mat.set_shader_parameter("detail", Look.detail_noise())
 	moss = Pool.new(self, Meshes.moss(), PAINTED_MOSS, moss_mat, false)
 	moss.indexed = true
-	ghost_moss = Pool.new(self, moss.mesh, Commands.MAX_STROKE * 2, moss_mat, false)
+	ghost_moss = Pool.new(self, moss.mesh, PAINTED_MOSS, moss_mat, false)
 	var trunk := CylinderMesh.new()
 	trunk.top_radius = 0.16
 	trunk.bottom_radius = 0.3

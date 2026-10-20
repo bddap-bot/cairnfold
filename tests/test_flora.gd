@@ -209,7 +209,7 @@ func _only_placed_plants_grow_under_water() -> void:
 func _planted_flowers_take_their_water_form_by_depth() -> void:
 	var t := _tool()
 	var code := (load("res://src/plant.gdshaderinc") as ShaderInclude).code
-	var pick := RegEx.create_from_string("float water_form\\(float (\\w+), float (\\w+)\\) \{\\s*return ([^;]+);\\s*\}").search(code)
+	var pick := RegEx.create_from_string("float water_form\\(float (\\w+), float (\\w+)\\) {\\s*return ([^;]+);\\s*}").search(code)
 	var lily_depth := RegEx.create_from_string("uniform float lily_depth = ([0-9.]+);").search(code)
 	_check(pick != null and lily_depth != null, "the flower shader picks its water form in one expression")
 	if pick == null or lily_depth == null:
