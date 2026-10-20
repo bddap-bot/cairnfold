@@ -68,6 +68,7 @@ func _ready() -> void:
 	add_child(flora_tool)
 	tool = WallTool.new(rig, world, flora, paths)
 	builds.add_child(tool)
+	paths.masonry = tool.masonry
 	world.stairs = Stairs.new(tool.masonry)
 	builds.add_child(world.stairs)
 	stair_tool = StairTool.new(rig, tool, world)
@@ -87,6 +88,7 @@ func _ready() -> void:
 	add_child(easel_tool)
 	ground_grab = GroundGrab.new(rig, world, _editing)
 	ground_grab.reshaped.connect(tool.reground)
+	ground_grab.reshaped.connect(paths.reground)
 	ground_grab.reshaped.connect(boulders.reseat)
 	add_child(ground_grab)
 	var hands: Array[Node3D] = []

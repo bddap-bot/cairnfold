@@ -19,5 +19,9 @@
   {"op": "view", "eye": [-0.5, 4.5, 8], "at": [-0.5, 2, -0.5]},
   {"op": "aim", "dir": [0.0, 0.12, -1], "stick": 1.0, "seconds": 1, "capture": "teleport-onto-bridge", "settle": 2.5},
   {"op": "capture", "name": "on-the-bridge"},
+  {"op": "sculpt", "x": -18, "z": 0, "lift": 3, "radius": 3, "seconds": 0.5},
+  {"op": "pave", "points": [[-18, 4], [-18, 0]], "radius": 0.8, "seconds": 0.5},
+  {"op": "view", "eye": [-14, 4, 7], "at": [-18, 1, 0]},
+  {"op": "capture", "name": "stepped-path"},
   {"op": "quit"}
 ]

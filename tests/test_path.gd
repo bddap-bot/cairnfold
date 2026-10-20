@@ -11,6 +11,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	Ground.install()
+	_steep_paths_lay_level_treads()
 	_a_path_across_a_wall_opens_one_arch()
 	_a_wide_or_slanted_crossing_opens_an_arcade()
 	_a_path_beside_a_wall_opens_nothing()
@@ -493,3 +494,31 @@ func _dirt_wears_without_stones() -> void:
 	data.style = "invalid"
 	_check(Commands._path(data) == null, "extra path fields are rejected")
 	paths.free()
+
+
+func _steep_paths_lay_level_treads() -> void:
+	var path := PathLayout.new()
+	path.add(Vector3.ZERO, 0.8)
+	path.add(Vector3(0, 0, -4), 0.8)
+	path.plan()
+	var flat := func(_x: float, _z: float) -> float: return 0.0
+	var slope := func(_x: float, z: float) -> float: return -z * 0.8
+	_check(path.steps(flat).is_empty(), "flat dirt has no treads")
+	var pieces := path.steps(slope)
+	_check(pieces.size() > 30, "steep dirt lays a flight of stone treads")
+	for piece in pieces:
+		var x: Transform3D = piece.xform
+		_check(x.basis.y.normalized().is_equal_approx(Vector3.UP), "tread top is horizontal")
+		var back := x.origin + x.basis.z * 0.5
+		var front := x.origin - x.basis.z * 0.5
+		var top := x.origin.y + x.basis.y.length() * 0.5
+		_check(top >= maxf(slope.call(back.x, back.z), slope.call(front.x, front.z)) - 0.01, "tread is above its sloping ground")
+	var extreme := path.steps(func(_x: float, z: float) -> float: return -z * 100.0)
+	_check(extreme.size() == pieces.size(), "raising terrain cannot multiply reserved geometry")
+	for piece in extreme:
+		var x: Transform3D = piece.xform
+		var uphill := x.origin - x.basis.z * 0.5
+		_check(x.origin.y + x.basis.y.length() * 0.5 >= -uphill.z * 100.0, "the full tread footprint clears very steep ground")
+	_check(path.steps(slope) == pieces, "steps rebuild deterministically")
+	_check(path.steps(flat).is_empty(), "flattening a path removes its steps")
+	_check(Budget.path(path.data()).wall_m2 >= pieces.size() * 0.1, "flat paths reserve their possible steps before terrain is raised")

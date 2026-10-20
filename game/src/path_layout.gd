@@ -208,3 +208,44 @@ static func _cells_along(a: Vector2, b: Vector2) -> Array[Vector2i]:
 
 static func _flat(p: Vector3) -> Vector2:
 	return Vector2(p.x, p.z)
+
+
+## Horizontal treads on steep rows; height is supplied so the layout stays pure data.
+func steps(height: Callable) -> Array[Dictionary]:
+	var pieces: Array[Dictionary] = []
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed
+	for row in row_ends.size():
+		var start := row_ends[row - 1] if row > 0 else 0.0
+		var end := minf(row_ends[row], length())
+		var a := frame_at(start).point as Vector3
+		var b := frame_at(end).point as Vector3
+		var run := Vector2(b.x - a.x, b.z - a.z).length()
+		if run < 0.001:
+			continue
+		var rise: float = height.call(b.x, b.z) - height.call(a.x, a.z)
+		if absf(rise) / run <= 0.5:
+			continue
+		var count := Budget.PATH_TREADS_PER_ROW
+		for i in count:
+			var from := lerpf(start, end, float(i) / count)
+			var to := lerpf(start, end, float(i + 1) / count)
+			var f := frame_at((from + to) * 0.5)
+			var along := Vector3(f.along.x, 0, f.along.z).normalized()
+			var side := along.cross(Vector3.UP)
+			var columns := maxi(1, ceili(f.half * 2.0 / 0.5))
+			var top := -INF
+			var low := INF
+			for k in columns + 1:
+				for edge in [-1.0, 1.0]:
+					var at: Vector3 = f.point + side * (float(k) / columns - 0.5) * f.half * 2.0 + along * (to - from + 0.02) * edge * 0.5
+					var y: float = height.call(at.x, at.z)
+					top = maxf(top, y)
+					low = minf(low, y)
+			var thick := maxf(0.12, top - low + 0.04)
+			for col in columns:
+				var at: Vector3 = f.point + side * ((col + 0.5) / columns - 0.5) * f.half * 2.0
+				at.y = top + 0.025 - thick * 0.5
+				var size := Vector3(f.half * 2.0 / columns - 0.015, thick, to - from + 0.02)
+				pieces.append({"xform": Transform3D(Basis(side, Vector3.UP, -along).scaled_local(size), at), "color": Color(0.62, 0.58, 0.5) * rng.randf_range(0.88, 1.05), "ao": 0.9, "variant": 0, "kind": "block"})
+	return pieces

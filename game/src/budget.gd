@@ -8,6 +8,8 @@ extends RefCounted
 
 ## One graphics configuration for every headset, held to the weakest: the Quest 2 at 72 Hz.
 const REFRESH_HZ := 72.0
+## Fixed tread density keeps raising terrain from multiplying a path's geometry.
+const PATH_TREADS_PER_ROW := 2
 ## The share of each refresh period the game's GPU work may take; the compositor's warp needs the rest.
 const GPU_SHARE := 0.9
 
@@ -184,3 +186,18 @@ static func stairs(d: Dictionary) -> Dictionary:
 	var run := d.a.distance_to(d.b) as float
 	# Charge the treads and both rails against the existing stone-face budget.
 	return {"wall_m2": run * (d.width + 2.0 * StairLayout.RAIL_HEIGHT)}
+
+
+## Reserve the whole path for treads, so raising ground cannot exceed the build budget.
+static func path(d: Dictionary) -> Dictionary:
+	var layout := PathLayout.of(d)
+	layout.plan()
+	var stones := 0
+	for row in layout.row_ends.size():
+		var start := layout.row_ends[row - 1] if row > 0 else 0.0
+		var end := minf(layout.row_ends[row], layout.length())
+		for i in PATH_TREADS_PER_ROW:
+			var f := layout.frame_at(lerpf(start, end, (i + 0.5) / PATH_TREADS_PER_ROW))
+			stones += maxi(1, ceili(f.half * 2.0 / 0.5))
+	# Wall courses lay roughly ten blocks per square metre.
+	return {"wall_m2": stones * 0.1}

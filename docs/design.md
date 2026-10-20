@@ -3118,7 +3118,10 @@ benchmark output remains available separately.
 The dirt path tool wears soft-edged earth into the ground mask. Paths open arches
 beneath walls and can be selected with Delete; undo restores the path and its
 crossings. `demo/dirt-path.json` shows the surface. Dirt reuses the ground material
-and adds no path draw calls.
+and adds no path draw calls on gentle ground. Where the path rises more than one metre in two,
+horizontal stone treads cover the slope. They follow the terrain when a ground edit settles,
+and disappear when it is flattened. Paths reserve their whole surface as stone face in the
+build budget, so shaping the ground cannot add unbudgeted steps.
 
 ## Stairs
 

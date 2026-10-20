@@ -9,6 +9,7 @@ signal laid(path: PathLayout)
 signal taken(path: PathLayout)
 signal previewed()
 
+var masonry: Masonry
 var layouts: Array[PathLayout] = []
 ## Each laid path's build command id; `layouts` keeps id order.
 var ids := {}
@@ -93,6 +94,7 @@ func put(id: int, data: Dictionary) -> void:
 		i += 1
 	layouts.insert(i, path)
 	Ground.lay(path, id)
+	_steps(path)
 	laid.emit(path)
 
 
@@ -102,6 +104,8 @@ func take(id: int) -> void:
 			layouts.erase(path)
 			ids.erase(path)
 			Ground.lift(path)
+			if masonry != null:
+				masonry.remove(-2000000 - id)
 			taken.emit(path)
 			return
 
@@ -130,3 +134,22 @@ func _relay() -> void:
 	_dirty = false
 	_since_rebuild = 0.0
 	previewed.emit()
+
+
+func reground(area: Rect2, settled: bool) -> void:
+	if settled:
+		for path in layouts:
+			if path.area.intersects(area):
+				_steps(path)
+
+
+func _steps(path: PathLayout) -> void:
+	if masonry == null:
+		return
+	var wall := WallLayout.new()
+	wall.stones = path.steps(Terrain.held_height())
+	var packed := Wall.pack(wall, Wall.kinds(), Palette.plain())
+	var parts: Array[Dictionary] = []
+	for k in Wall.Part.size():
+		parts.append(packed.chunks.get(k, {}))
+	masonry.place(-2000000 - ids[path], parts)

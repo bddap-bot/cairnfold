@@ -61,6 +61,7 @@ func _run() -> void:
 	root.add_child(main)
 	await process_frame
 	var world: World = main.world
+	_path_steps_follow_terrain(main)
 	main.stair_tool.begin(main.rig.left, long.a)
 	main.stair_tool.extend(main.rig.left, long.b)
 	check(is_equal_approx(main.stair_tool._strokes[main.rig.left].data.b.z, -60.0), "the tool draws a bridge past twenty-four metres")
@@ -197,3 +198,31 @@ func _painted_and_styled(main: Node) -> void:
 	var facing := ladder + Vector3(0.6, 1.5, 3)
 	check(not world.stairs.pick(facing, Vector3.FORWARD, 10.0).is_empty() and picker.aim_style(facing, Vector3.FORWARD).is_empty(), "a ladder has no style")
 	hand.tool = Hand.Tool.WALLS
+
+
+func _path_steps_follow_terrain(main: Node3D) -> void:
+	var world: World = main.world
+	var before := world.units.duplicate()
+	var cells := Terrain.cells_around(-25, -20, 6)
+	var original := Terrain.read(cells)
+	var flat := original.duplicate()
+	flat.fill(0.0)
+	world.submit({"op": "heights", "cells": cells, "values": flat})
+	world.submit({"op": "path", "path": {"points": PackedVector3Array([Vector3(-28, 0, -20), Vector3(-22, 0, -20)]), "half_widths": PackedFloat32Array([0.8, 0.8]), "seed": 42}})
+	var id: int = world.state.paths.keys().max()
+	var owner := -2000000 - id
+	check(world.units != before, "paths reserve steps through World")
+	check(not main.tool.masonry._owners.has(owner), "flat path has no masonry")
+	var slope := flat.duplicate()
+	for j in cells.size.y:
+		for i in cells.size.x:
+			slope[j * cells.size.x + i] = Terrain.grid_xz(cells.position + Vector2i(i, j)).x * 0.8
+	world.submit({"op": "heights", "cells": cells, "values": slope})
+	check(main.tool.masonry._owners.has(owner), "terrain command builds steps on an existing path")
+	world.submit({"op": "heights", "cells": cells, "values": flat})
+	check(not main.tool.masonry._owners.has(owner), "flattening removes the old treads")
+	world.submit({"op": "heights", "cells": cells, "values": slope})
+	world.submit({"op": "unpath", "id": id})
+	check(not main.tool.masonry._owners.has(owner), "deleting steep path removes its masonry")
+	check(world.units == before, "deleting path refunds its steps")
+	world.submit({"op": "heights", "cells": cells, "values": original})
