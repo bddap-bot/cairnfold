@@ -462,7 +462,9 @@ func _init() -> void:
 		pool.far_with(flower_far)
 	for pool in [grass, ghost_grass, flowers, ghost_flowers]:
 		pool.live.set_instance_shader_parameter(&"planted", 1.0)
-	var moss_mat := _plant_material("moss", Color.WHITE, 1.0)
+	var moss_mat := ShaderMaterial.new()
+	moss_mat.shader = load("res://src/moss.gdshader")
+	moss_mat.set_shader_parameter("detail", Look.detail_noise())
 	moss = Pool.new(self, Meshes.moss(), PAINTED_MOSS, moss_mat, false)
 	moss.indexed = true
 	ghost_moss = Pool.new(self, moss.mesh, Commands.MAX_STROKE * 2, moss_mat, false)
@@ -720,7 +722,7 @@ func dab(kind: String, center: Vector3, radius: float, count: int, rng: RandomNu
 func add_moss(p: Vector3, rng: RandomNumberGenerator, pool: Pool = null) -> Plant:
 	var size := rng.randf_range(0.65, 1.1)
 	var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * size)
-	return (moss if pool == null else pool).add(Transform3D(basis, p), Color(0.25, 0.4, 0.07).lightened(rng.randf_range(0.0, 0.12)), p)
+	return (moss if pool == null else pool).add(Transform3D(basis, p), Color(0.055, 0.13, 0.015) * rng.randf_range(0.8, 1.3), p)
 
 
 func set_moss(trunk: Plant, on: bool) -> void:

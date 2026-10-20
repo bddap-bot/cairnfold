@@ -13,8 +13,8 @@ static func moss() -> ArrayMesh:
 	st.add_vertex(Vector3(0, 0.045, 0))
 	for i in 12:
 		var angle := TAU * i / 12.0
-		var p := Vector3(cos(angle), 0, sin(angle)) * (0.44 + 0.06 * sin(i * 7.0))
-		st.set_normal(Vector3(p.x * 0.3, 1, p.z * 0.3).normalized())
+		var p := Vector3(cos(angle), 0, sin(angle)) * (0.4 + 0.1 * sin(i * 7.0))
+		st.set_normal(Vector3(p.x * 1.5, 1, p.z * 1.5).normalized())
 		st.set_uv(Vector2(p.x, p.z) + Vector2.ONE * 0.5)
 		st.add_vertex(p)
 	for i in 12:

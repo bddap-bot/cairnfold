@@ -27,7 +27,7 @@
   {"op": "capture", "name": "04-algae-bed"},
   {"op": "wait", "seconds": 2},
   {"op": "capture", "name": "05-algae-sway"},
-  {"op": "label", "name": "moss/empty"},
+  {"op": "label", "name": "moss/painted"},
   {"op": "wait", "seconds": 6},
   {"op": "fill_flora", "pools": ["moss"], "radius": 2},
   {"op": "label", "name": "moss/full"},
