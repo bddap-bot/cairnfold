@@ -324,7 +324,7 @@ func _build_tool() -> void:
 	var dirs := ToolWheel.ring_dirs()
 	for k in Hand.TREE.size():
 		var item: Variant = Hand.TREE[k]
-		var icon := Hand.icon(ToolModels.build(item[0] if item is Array else item))
+		var icon := Hand.icon(Hand.miniature(item))
 		icon.position = Vector3(dirs[k].x, dirs[k].y, 0) * ToolWheel.RADIUS
 		wheel.add_child(icon)
 		_fx.icons.append(icon)
