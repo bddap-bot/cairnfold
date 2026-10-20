@@ -99,26 +99,24 @@ static func grass_clump(blades: int, seed: int, kept := blades, only_kept := fal
 		var side := Vector3(-dir.z, 0, dir.x)
 		var root := Vector3(rng.randf_range(-0.12, 0.12), 0, rng.randf_range(-0.12, 0.12))
 		var h := rng.randf_range(0.12, 0.27)
-		var w := rng.randf_range(0.012, 0.02)
+		var w := rng.randf_range(0.016, 0.026)
 		var lean := dir * rng.randf_range(0.04, 0.14)
-		var mid := root + Vector3.UP * h * 0.55 + lean * 0.4
 		var top := root + Vector3.UP * h + lean
 		var nrm := side.cross(top - root).normalized()
-		var pts := [root - side * w, root + side * w, mid - side * w * 0.7, mid + side * w * 0.7, top]
-		var uvs := [Vector2(0, 0), Vector2(1, 0), Vector2(0, 0.55), Vector2(1, 0.55), Vector2(0.5, 1)]
+		# One triangle a blade: on the Quest 2 the meadow costs by the triangles it rasterises.
+		var pts := [root - side * w, top, root + side * w]
+		var uvs := [Vector2(0, 0), Vector2(0.5, 1), Vector2(1, 0)]
 		# Edge normals tilt outward, so a flat blade shades as if rounded across its width.
-		var rounded := [nrm - side * 0.7, nrm + side * 0.7, nrm - side * 0.7, nrm + side * 0.7, nrm]
-		var widen := [-side * w, side * w, -side * w * 0.7, side * w * 0.7, Vector3.ZERO]
+		var rounded := [nrm - side * 0.7, nrm, nrm + side * 0.7]
+		var widen := [-side * w, Vector3.ZERO, side * w]
 		var grow := float(blades) / kept - 1.0 if b < kept else 0.0
 		if only_kept and b >= kept:
 			continue
-		for tri in [[0, 2, 1], [1, 2, 3], [2, 4, 3]]:
-			for k in tri:
-				st.set_normal(rounded[k].normalized())
-				st.set_uv(uvs[k])
-				st.set_custom(0, Color(widen[k].x * grow, widen[k].z * grow, float(b >= kept)))
-				st.add_vertex(pts[k])
-	st.index()
+		for k in 3:
+			st.set_normal(rounded[k].normalized())
+			st.set_uv(uvs[k])
+			st.set_custom(0, Color(widen[k].x * grow, widen[k].z * grow, float(b >= kept)))
+			st.add_vertex(pts[k])
 	return st.commit()
 
 

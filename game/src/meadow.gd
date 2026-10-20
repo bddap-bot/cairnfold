@@ -10,10 +10,11 @@ const TREES := 46
 const BUSHES := 60
 ## The terrain shader's ground colours.
 const GROUND := {&"earth": Color(0.45, 0.38, 0.27)}
-## Where on a blade, root to tip, the meadow's ground takes its colour (terrain.gdshader): the tone far blades converge on.
+## Where on a blade, root to tip, the meadow's ground takes its colour (terrain.gdshader): the tone blades rise from, so
+## their roots melt into the ground through thin grass instead of reading as dark tufts, and far blades converge on.
 const CANOPY := 0.6
 ## The grass's colours (meadow.gdshaderinc), which the meadow's ground takes too.
-const GRASS := {&"root_color": Color(0.10, 0.24, 0.06), &"tip_lush": Color(0.45, 0.68, 0.18), &"tip_dry": Color(0.80, 0.78, 0.34), &"cool_clump": Color(0.82, 0.96, 0.90), &"warm_clump": Color(1.10, 1.02, 0.82)}
+const GRASS := {&"root_color": Color(0.10, 0.24, 0.06), &"tip_lush": Color(0.45, 0.68, 0.18), &"tip_dry": Color(0.80, 0.78, 0.34), &"cool_clump": Color(0.82, 0.96, 0.90), &"warm_clump": Color(1.10, 1.02, 0.82), &"canopy": CANOPY}
 
 var flora: Flora
 
@@ -38,7 +39,6 @@ func _ground() -> void:
 		mat.set_shader_parameter(k, GROUND[k])
 	for k in GRASS:
 		mat.set_shader_parameter(k, GRASS[k])
-	mat.set_shader_parameter(&"canopy", CANOPY)
 	var mi := MeshInstance3D.new()
 	mi.mesh = Terrain.build_mesh()
 	Terrain.lift(mi, Terrain.bounds())

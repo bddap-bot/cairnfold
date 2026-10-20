@@ -6,6 +6,8 @@ uniform vec3 tip_dry : source_color;
 uniform vec3 cool_clump : source_color;
 uniform vec3 warm_clump : source_color;
 uniform float root_shade = 0.55;
+// Where on a blade, root to tip, the ground takes its colour: the tone blades rise from and far blades converge on.
+uniform float canopy;
 // Dryness settles on three tones, lush, mid and straw, each step a ramp this steep, so the meadow lies in patches
 // with soft edges rather than a smooth wash. Two saturated ramps: the ground runs this on every fragment.
 const float PATCH_SLOPE = 6.67;

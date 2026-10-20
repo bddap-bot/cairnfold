@@ -12,8 +12,6 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 // Set from Meadow.GROUND.
 uniform vec3 earth : source_color;
-// Set from Meadow.CANOPY.
-uniform float canopy;
 uniform vec3 trodden : source_color = vec3(0.52, 0.45, 0.33);
 uniform vec3 bed : source_color = vec3(0.50, 0.44, 0.32);
 // The grass past its clumps' reach (FloraCover): a clump at each vertex as half the factor it makes of the meadow's

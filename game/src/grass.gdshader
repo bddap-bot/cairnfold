@@ -112,7 +112,9 @@ void vertex() {
 void fragment() {
 	// Far blades converge on their mid-tone so sub-pixel slivers do not flicker in a headset.
 	float t = mix(tip, 0.6, far);
-	ALBEDO = mix(blade_color(top, t), mix(weed_root, top, t), weed) * COLOR.rgb * (1.0 + gust_brighten * gust * t * (1.0 - far));
+	// A blade rises from the ground's own tone, so through thin grass its root melts into the ground, not a dark tuft.
+	float c = mix(mix(canopy, 1.0, tip), canopy, far);
+	ALBEDO = mix(blade_color(top, c), mix(weed_root, top, t), weed) * COLOR.rgb * (1.0 + gust_brighten * gust * t * (1.0 - far));
 	// Back faces arrive with the normal flipped, which would turn the up-bent normal downward and shade them dark.
 	vec3 up = (VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz;
 	NORMAL -= 2.0 * min(dot(NORMAL, up), 0.0) * up;
