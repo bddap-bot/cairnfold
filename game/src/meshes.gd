@@ -3,6 +3,8 @@ extends RefCounted
 
 ## How far `ellipsoid` leans normals toward its `round` point.
 const ROUND := 0.6
+## How far a blob's noise pushes its surface in or out of its sphere, in blob radii.
+const BLOB_LUMP := 0.35
 
 
 static func moss() -> ArrayMesh:
@@ -180,10 +182,6 @@ static func flower(petals: int, head := Color.WHITE, leaves := false) -> ArrayMe
 ## A lumpy foliage blob: an icosphere pushed out by noise, shaded darker underneath. Its vertices are spread evenly,
 ## so it holds the lumps of a latitude-longitude sphere with far fewer of them, which is what the Quest 2 pays for.
 ## Its normals stay the sphere's, so light wraps the blob as one soft mass and the lumps show only in its outline.
-## How far a blob's noise pushes its surface in or out of its sphere, in blob radii.
-const BLOB_LUMP := 0.35
-
-
 static func blob(seed: int, subdiv := 2) -> ArrayMesh:
 	var arrays := icosphere(subdiv)
 	var sphere: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
