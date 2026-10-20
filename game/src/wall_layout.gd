@@ -1950,6 +1950,9 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 ## mitred into the next cell (`Masonry.Kind.write`'s `ends`), so a curved face stays closed and shades round. A panel
 ## with the same ends as the one below grows up instead of stacking on it.
 func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
+	var gable_ends: Array[Vector2] = []
+	if plaster and gable_end == GableEnd.WALL:
+		gable_ends = gable_spans()
 	var cells := _cells()
 	var turns := PackedFloat32Array()
 	turns.resize(cells.size() + 1)
@@ -1999,6 +2002,10 @@ func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 								p = {"cell": c, "a": patch[0], "b": patch[1], "y0": y0 + (JOINT if piece[2] else 0.0), "face": plain, "worn": face and patch[2], "ends": e}
 								panels.append(p)
 							p.top = y0 + bands[j][1] + (-JOINT if top[2] else 0.02)
+							# Infill seals the cap band; the gable mesh owns it on end walls.
+							if cover != Cover.OPEN and is_equal_approx(y0 + bands[j][1], height):
+								var mid: float = (patch[0] + patch[1]) * 0.5
+								p.top = height if gable_ends.any(func(end: Vector2) -> bool: return mid >= end.x and mid <= end.y) else height + CAP
 							here[key] = p
 		below = here
 	for p in panels:
@@ -2460,19 +2467,23 @@ func _lay_walk(rng: RandomNumberGenerator) -> void:
 			_part(s, height + CAP * 0.5, Vector3(wide, CAP, wide), WOOD * rng.randf_range(0.85, 1.1), rng, "board")
 
 
-func _lay_gables() -> void:
+func gable_spans() -> Array[Vector2]:
 	if gable == null or gable.kind != RoofLayout.Kind.GABLE or gable.flat() or cover != Cover.ROOF:
-		return
+		return []
 	var c := corners()
 	if c.size() != 4:
-		return
+		return []
+	return [Vector2(c[1], c[2]), Vector2(c[3], length())]
+
+
+func _lay_gables() -> void:
+	var ends := gable_spans()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([seed, "gable"])
 	var h := course_height()
 	var base := height + CAP
-	var ends := [[c[1], c[2]], [c[3], length()]]
 	for i in ends.size():
-		var end: Array = ends[i]
+		var end: Vector2 = ends[i]
 		rng.seed = hash([seed, "gable", i])
 		var mid: float = (end[0] + end[1]) * 0.5
 		var hs: float = (end[1] - end[0] + THICKNESS) * 0.5
@@ -2493,8 +2504,8 @@ func _lay_gables() -> void:
 
 
 ## Courses up a gable end `hs` out from the ridge each side, each Vector2(course, half-width) about its middle: stone
-## laid in mortar, or plaster. Courses stop at the corners rather than turn down the side walls, one reaching out to
-## the walls' outer faces on a block filling each corner; the mortar stops JOINT short of a course's ends, behind its stones.
+## backed by the roof's continuous infill. Stepped ends keep their mortar panels above the roof instead. Courses
+## stop at the corners rather than turn down the side walls, filling each corner through its thickness.
 func _lay_gable_rows(mid: float, hs: float, base: float, h: float, rows: Array[Vector2], rng: RandomNumberGenerator) -> void:
 	var edge := hs - THICKNESS * 0.5
 	var inset := 0.0 if plastered() else JOINT
@@ -2505,7 +2516,8 @@ func _lay_gable_rows(mid: float, hs: float, base: float, h: float, rows: Array[V
 		for span in _standing([[mid - half, mid + half]]):
 			if not plastered():
 				_lay_course(span[0], span[1], y, h, offset, rng)
-			_lay_mortar([[y, h, [[span[0] + inset, span[1] - inset]]]])
+			if gable_end != GableEnd.WALL:
+				_lay_mortar([[y, h, [[span[0] + inset, span[1] - inset]]]])
 		if row.y > hs - 0.01:
 			for side in [-1.0, 1.0]:
 				_part(mid + side * edge, y + h * 0.5, Vector3(THICKNESS, h, THICKNESS), PLASTER if plastered() else stone_color(rng), rng, "plaster" if plastered() else "block", 0.0, 0.0, mid)

@@ -334,9 +334,9 @@ func stretch() -> float:
 	return turned / (e * e) if kind == Kind.CONE else run / e
 
 
-func build() -> void:
+func build(gable_inset := WallLayout.PLASTER_INSET) -> void:
 	faces = surface()
-	gable_faces = gables()
+	gable_faces = gables(gable_inset)
 	torching_faces = torching()
 	timber_faces = PackedVector3Array()
 	bounds = AABB(faces[0], Vector3.ZERO)
@@ -1361,17 +1361,16 @@ static func _quad(tris: PackedVector3Array, mid: Vector3, d0: Vector3, d1: Vecto
 	tris.append_array([a, c, d])
 
 
-## The gable ends between the end walls' tops and the slopes, as triangles: each end's outer and inner face, flush
-## with a plaster wall's, wound to face out of the wall (Godot's front faces turn clockwise), since a face's lighting
-## reads the air half a metre before it.
-func gables() -> PackedVector3Array:
+## The lining and gables share a profile, including the cap band down to the wall body: fitting the caps under
+## the eaves can shave them below the roof base. Both gable faces point out of the wall, into the air they read for light.
+func gables(inset := WallLayout.PLASTER_INSET) -> PackedVector3Array:
 	var tris := PackedVector3Array()
 	if kind != Kind.GABLE or flat():
 		return tris
 	var f := frame()
-	var prof := profile(PROFILE_STEPS)
+	var prof := profile(ceili(eave() / TORCHING_PIECE))
 	var hs := half_span()
-	var faces_at := WallLayout.THICKNESS * 0.5 - WallLayout.PLASTER_INSET
+	var faces_at := WallLayout.THICKNESS * 0.5 - inset
 	for end in [-1.0, 1.0]:
 		for face in [-1.0, 1.0]:
 			var facing: Vector3 = f.along * end * face
@@ -1382,10 +1381,10 @@ func gables() -> PackedVector3Array:
 					if prof[i].x >= hs:
 						break
 					var x1 := minf(prof[i + 1].x, hs)
-					var a: Vector3 = at + out * prof[i].x
-					var b: Vector3 = at + out * x1
-					var top := Vector3.UP * rise(1.0 - x1 / hs)
-					_facing(tris, facing, a, a + Vector3.UP * prof[i].y, b + top)
+					var a: Vector3 = at + out * prof[i].x + Vector3.DOWN * WallLayout.CAP
+					var b: Vector3 = at + out * x1 + Vector3.DOWN * WallLayout.CAP
+					var top := Vector3.UP * (WallLayout.CAP + rise(1.0 - x1 / hs))
+					_facing(tris, facing, a, a + Vector3.UP * (WallLayout.CAP + prof[i].y), b + top)
 					if top.y > 0.0:
 						_facing(tris, facing, a, b + top, b)
 	return tris

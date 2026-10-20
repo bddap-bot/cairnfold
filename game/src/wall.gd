@@ -494,7 +494,7 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind],
 	r.stepped = built.gable_kind() == WallLayout.GableEnd.STEPS
 	if r.kind == RoofLayout.Kind.GABLE:
 		r.corners = built.laid_points
-	r.build()
+	r.build(WallLayout.PLASTER_INSET if built.plaster and built.gable_end == WallLayout.GableEnd.WALL else WallLayout.THICKNESS * 0.5)
 	built.hide_roof(r)
 	built.fit_under(r)
 	var mortar: PackedFloat32Array = _pack_parts(r.mortar, func(_m: Dictionary) -> Array: return [Part.MORTAR], ks, colours)[Part.MORTAR]
@@ -521,8 +521,7 @@ func _pack_roof(roofed := {}) -> void:
 		_chunked[Part.MORTAR] = Masonry.split(_parts[Part.MORTAR], kinds()[Part.MORTAR])
 	_fittings.lay(layout.flames, layout.cloths + roof.cloths, paint[Palette.Element.LANTERN])
 	_smoke.lay(roof.vents)
-	var plastered := layout.plastered() and layout.gable_end == WallLayout.GableEnd.WALL
-	var faces := [roof.coat, roof.gable_faces if plastered else PackedVector3Array(), roof.torching_faces, roof.timber_faces]
+	var faces := [roof.coat, roof.gable_faces, roof.torching_faces, roof.timber_faces]
 	if faces == _faced:
 		return
 	_faced = faces.duplicate(true)
@@ -641,7 +640,13 @@ func repaint(to: PackedInt32Array) -> void:
 func _tint_roof() -> void:
 	if _gables != null:
 		var t := Palette.tint(Palette.Element.PLASTER, paint[Palette.Element.PLASTER])
-		_gables.set_instance_shader_parameter(&"tint", Vector3(t.r, t.g, t.b))
+		# The shared lining material starts with plaster RGB; tint converts the backing as well as its swatch.
+		var g := t
+		if layout.gable_end == WallLayout.GableEnd.BOARDS:
+			g = Palette.tint(Palette.Element.WOOD, paint[Palette.Element.WOOD]) * WallLayout.WOOD / WallLayout.PLASTER
+		elif not layout.plaster:
+			g = Palette.tint(Palette.Element.STONE, paint[Palette.Element.STONE]) * WallLayout.MORTAR * 0.8 / WallLayout.PLASTER
+		_gables.set_instance_shader_parameter(&"tint", Vector3(g.r, g.g, g.b))
 		var straw := Palette.tint(Palette.Element.THATCH, paint[Palette.Element.THATCH])
 		for coat in [_coat, _coat_far]:
 			coat.set_instance_shader_parameter(&"tint", Vector3(straw.r, straw.g, straw.b))
