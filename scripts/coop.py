@@ -41,8 +41,9 @@ def sample(name, names, count):
 
 
 # The host and the joiner, at the host's easel together, take the charcoal and switch, set down, tear and pick tools
-# while the other paints or holds the same palette; after each step the hand must hold what it should. They lay five
-# commands: a stroke each, the joiner's fresh sheet, the joiner's stroke on it, the host's.
+# while the other paints or holds the same palette; after each step the hand must hold what it should. They lay six
+# commands: a stroke each, the joiner's fresh sheet, the joiner's stroke on it, the host's, and the host's blue painted
+# onto the oil palette, which every peer's digest must show.
 EASEL_PHASES = {
     "host": [
         [{"op": "take", "what": "stick"}, {"op": "holds", "what": "stick"},
@@ -54,6 +55,7 @@ EASEL_PHASES = {
         [{"op": "brush", "points": [[0.2, 0.7, 0.8], [0.5, 0.75, 0.8]], "seconds": 0.3}, {"op": "holds", "what": "stick"},
          {"op": "take", "what": "box", "hand": "left"}, {"op": "holds", "hand": "left", "what": "water palette"},
          {"op": "take", "what": "big"}, {"op": "holds", "what": "big"},
+         {"op": "dip", "what": "oil", "index": 5}, {"op": "mix", "points": [[-0.2, 0.0, 0.7], [0.1, 0.05, 0.7]], "seconds": 0.3},
          {"op": "set_down", "hand": "left"}],
     ],
     "join": [
@@ -70,7 +72,7 @@ EASEL_PHASES = {
          {"op": "pick", "tool": "camera"}, {"op": "holds", "what": "camera"}],
     ],
 }
-EASEL_COMMANDS = 5
+EASEL_COMMANDS = 6
 
 
 def easel_steps(name, names, seq):

@@ -17,9 +17,10 @@ named by its table in the garden (`of`) and id: a wall's height, top, gable ends
 paint stroke or a tree, `show` hides or restores plants, `heights` sets an area of
 ground, `ponds` puts a pond at its level by the grid point it fills from (from a player, one; from the
 host, undoing or rebuilding, any, and it may take ponds out, as a `heights` from the host may too), and
-`season` sets the garden's season. `easel` sets an easel up (from the host, with its strokes) and `uneasel` takes it
-away; `paint` adds a stroke to its canvas, `unpaint` takes the last one off and `sheet` sets its strokes whole (a
-player's only ever a fresh, empty sheet). `wipe` takes the garden back to bare meadow, and
+`season` sets the garden's season. `easel` sets an easel up (from the host, with its strokes and its oil palette's
+mixing field) and `uneasel` takes it away; `paint` adds a stroke to its canvas, `unpaint` takes the last one off,
+`mix` sets its oil palette's mixing field whole and `sheet` sets its strokes whole (a player's only ever a fresh,
+empty sheet). `wipe` takes the garden back to bare meadow, and
 `garden` (only ever the undo of a wipe) rebuilds it from the snapshot the wipe took. `batch` carries several takings (`unwall`, `reshape`, `unpath`,
 `unground`, `show`, `uneasel`) of different things, applied in order as one step: a delete stroke across many things is
 one undo, and its inverse is the batch of their inverses. `World` (game/src/world.gd) applies them, and nothing else changes the garden.

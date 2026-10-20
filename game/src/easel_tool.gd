@@ -6,8 +6,9 @@ extends Node3D
 ## At an easel everything is picked up or touched: a grip at the pot takes a small round, a big round or a flat brush,
 ## and at the tray the charcoal; a grip at either palette, the watercolour box or the oil palette, takes it by its
 ## thumb hole, and it stays in that hand, as a brush does, until a grip sets it back on its tray, takes a brush, or
-## another tool is picked. The palette a brush is dipped into is its medium: a watercolour pan or an oil colour loads
-## that pigment, mixing with what is on it already in the same medium; the jar wets the brush for watercolour, thinner
+## another tool is picked. The palette a brush is dipped into is its medium: a watercolour pan loads that pigment,
+## mixing with what is on the brush already; an oil colour loads it pure, and oils mix on the oil palette's open board,
+## painted onto it and picked up from it by touching it (`Mixing`); the jar wets the brush for watercolour, thinner
 ## each dip, and the water clouds with what it rinses off. Touching the canvas paints: pushing in presses harder, and
 ## moving fast skims. A grip on the canvas's face takes its sheet, and pulling it well away tears it off for a fresh one.
 ## Strokes go to the garden as build commands (`paint`) when the brush leaves the canvas, laid on this machine's
@@ -25,6 +26,9 @@ const PEEL := 0.3
 const PLACE_CLEAR := 2.5
 ## A brush held still on the canvas keeps laying paint this often, in ticks.
 const STILL_TICKS := 6
+## On the mixing field a brush touches a disc whose radius, pressed fully, is its reach on the canvas in texels
+## (`Brushwork.RADII`) times this, in metres.
+const MIX_RADIUS := 0.0006
 ## The palette's thumb hole in the hand holding it, from the controller, the palette reaching forward and inward,
 ## turned this far off the hand's right.
 const GRIP := Vector3(0, -0.035, 0.02)
@@ -49,6 +53,11 @@ class Painter:
 	var stroke := {}
 	## What the tip is in, so a dip happens once on going in.
 	var dipped := ""
+	## The easel whose mixing field the tip is working, whether it changed it, and the microseconds each frame of it
+	## took.
+	var board: Easels.Easel
+	var mixed := false
+	var mix_cost := PackedInt32Array()
 	## The easel whose palette of medium `kit` this hand holds.
 	var palette: Easels.Easel
 	var kit := Brushwork.Medium.OIL
@@ -125,6 +134,8 @@ func busy(hand: Hand = null) -> bool:
 func _forget() -> void:
 	for p in painters:
 		p.stroke = {}
+		p.board = null
+		p.mix_cost.clear()
 		_set_down(p)
 		p.peel = null
 
@@ -152,12 +163,13 @@ func _handle(p: Painter, delta: float) -> void:
 		_decline(hand, "the hand is %s" % ("untracked" if not hand.tracked() else "aiming a teleport" if rig.aim_hand == hand else "picking a tool"))
 	if not holding or not live or p.peel != null:
 		end_stroke(p)
+		_lift(p)
 		return
 	var tip := hand.global_transform * ToolModels.BRUSH_TIP
 	var e := easels.nearest(tip)
 	if e != null:
 		_dip(p, tip)
-		if _touch(p, e, tip):
+		if _mix(p, tip, delta) or _touch(p, e, tip):
 			hand.hold()
 			return
 	if e == null or Easels._flat(e.global_position, hand.global_position) > PLACE_CLEAR:
@@ -359,8 +371,8 @@ func _dip(p: Painter, tip: Vector3) -> void:
 				if into == "jar":
 					_rinse(e, p)
 				dip(p, into)
-				if into != "jar":
-					e.mixes[p.medium].albedo_color = _paint_colour(p)
+				if into.begins_with(PAINTS[Brushwork.Medium.WATER]):
+					e.wash.albedo_color = _paint_colour(p)
 			break
 	p.dipped = into
 
@@ -375,8 +387,8 @@ static func _inside(local: Vector3, base: Vector3, size: Vector2) -> bool:
 	return Vector2(local.x - base.x, local.z - base.z).length() < size.x and local.y > base.y and local.y < base.y + size.y + 0.01
 
 
-## Loads the brush from `what`: "jar", or a pigment as "pan<i>" or "oil<i>". Paint of the other medium on the brush is
-## wiped off first.
+## Loads the brush from `what`: "jar", or a pigment as "pan<i>" or "oil<i>". A pan's mixes with the watercolour on the
+## brush; an oil colour replaces what is on it. Paint of the other medium on the brush is wiped off first.
 func dip(p: Painter, what: String) -> void:
 	if p.brush == Brushwork.Brush.STICK:
 		return
@@ -387,7 +399,7 @@ func dip(p: Painter, what: String) -> void:
 	else:
 		var kit: Brushwork.Medium = PAINTS.find_key(what.rstrip("0123456789"))
 		var a := Brushwork.absorbance(Brushwork.PIGMENTS[int(what.trim_prefix(PAINTS[kit]))])
-		var clean := p.strength < 0.05 or p.load < 0.05 or p.medium != kit
+		var clean := p.strength < 0.05 or p.load < 0.05 or p.medium != kit or kit == Brushwork.Medium.OIL
 		p.medium = kit
 		p.colour = a if clean else p.colour.lerp(a, 0.5)
 		if kit == Brushwork.Medium.OIL:
@@ -418,6 +430,54 @@ func _show_brush(p: Painter, holding: bool, delta: float) -> void:
 		var m: Node3D = p.models[kind]
 		m.visible = kind == p.brush and p.shown > 0.0
 		m.scale = Vector3.ONE * maxf(p.shown, 0.001)
+
+
+## Works an oil palette's mixing field while the tip touches its open board, on the tray or in a hand: the brush and
+## the board trade paint, so painting onto it lays and blends paint and touching it picks the paint there up. A
+## watercolour brush leaves its water behind and takes up oil. Whether the tip touches a field.
+func _mix(p: Painter, tip: Vector3, delta: float) -> bool:
+	var on: Easels.Easel = null
+	var local := Vector3.ZERO
+	if p.brush != Brushwork.Brush.STICK:
+		for e: Easels.Easel in easels.easels.values():
+			local = e.palettes[Brushwork.Medium.OIL].global_transform.affine_inverse() * tip
+			if local.y < Easels.BOARD_TOP + CONTACT and local.y > Easels.WELL_DEPTH.x and Mixing.open_at(Vector2(local.x, local.z)) and Easels.well_at(Brushwork.Medium.OIL, local) < 0:
+				on = e
+				break
+	if p.board != on:
+		_lift(p)
+	if on == null:
+		return false
+	p.board = on
+	var start := Time.get_ticks_usec()
+	var pressure := clampf((Easels.BOARD_TOP + CONTACT - local.y) / PRESS_DEPTH, 0.05, 1.0)
+	var radius: float = Brushwork.RADII[p.brush].y * MIX_RADIUS * (0.5 + 0.5 * pressure)
+	var oil := p.medium == Brushwork.Medium.OIL
+	var got := on.mixing.touch({"ks": Mixing.ks_of(p.colour), "load": p.load if oil else 0.0}, Vector2(local.x, local.z), radius, delta)
+	if got[1]:
+		on.show_mixing()
+		p.mixed = true
+		p.medium = Brushwork.Medium.OIL
+		p.colour = Mixing.density_of(got[0].ks)
+		p.strength = 1.0
+		p.load = got[0].load
+		_show_paint(p)
+	p.mix_cost.append(Time.get_ticks_usec() - start)
+	return true
+
+
+## The tip has left the mixing field it was working: what it changed goes to the garden, and what it cost to the log.
+func _lift(p: Painter) -> void:
+	var e := p.board
+	p.board = null
+	if p.mix_cost.is_empty():
+		return
+	var cost := Array(p.mix_cost)
+	print("easel: mixed %d frames, %.0f us a frame, %d us at most" % [cost.size(), cost.reduce(func(a: int, b: int) -> int: return a + b) / float(cost.size()), cost.max()])
+	p.mix_cost.clear()
+	if p.mixed and is_instance_valid(e) and e.is_inside_tree():
+		world.submit({"op": "mix", "easel": e.id, "mix": e.mixing.bytes.duplicate()}, Callable(), p.hand)
+	p.mixed = false
 
 
 ## Paints while the tip touches easel `e`'s canvas; whether it does.

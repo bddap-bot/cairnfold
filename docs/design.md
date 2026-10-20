@@ -2695,9 +2695,12 @@ a few sticks of willow charcoal. Nothing is picked from a menu (`EaselTool`): a 
 big round or a flat brush, and at the charcoal a stick; a grip at either palette takes it by its thumb hole, paint up
 and reaching toward the other hand, and it stays in that hand as a brush does, so the other hand dips into it, until
 a grip at its place on the tray sets it down. The palette a brush dips into is its medium: a tip anywhere over a pan
-or an oil colour, or pushed on through the palette under it, loads that pigment in that medium, mixing on the brush
-with what is there already of the same medium and wiping off the other (each palette shows the mix); the glass wets
-the brush for watercolour, thinner each dip, and its water clouds with what is rinsed off. Charcoal takes no paint.
+or an oil colour, or pushed on through the palette under it, loads that pigment in that medium, wiping off the other.
+A pan's mixes on the brush with the watercolour there already, and the box shows the mix; the glass wets the brush
+for watercolour, thinner each dip, and its water clouds with what is rinsed off. Oils mix as a painter mixes them, on
+the oil palette's open board (`Mixing`): an oil colour loads the brush with that colour alone; painting onto the board
+lays the paint there, painting over wet paint blends the two, and touching the board loads the brush with the paint
+under it. Charcoal takes no paint.
 The brush
 reaches past the controller; touching the canvas paints, pushing in presses harder and widens the mark, moving fast
 skims the paper's tooth, and the brush runs dry as it paints. A grip on the canvas takes its sheet and pulling it
@@ -2721,6 +2724,22 @@ sit in a white box, the oil colours stand up as glossy dollops, and the charcoal
 no handle or ferrule, so it is never taken for a brush. Each palette is one or two baked meshes coloured by vertex.
 On a Quest 2 (`demo/easel-kit-bench.json`, `perf/quest-2/easel-kit-bench/`) the kits drew 6 to 30 fewer calls than
 the one palette, tin and jar before them, with GPU time within 0.11 ms in every easel view.
+
+Directive (paraphrased): oil mixing should work like real life: paint taken on the brush is painted onto the mixing
+surface, which is how colours mix, and touching that part of the surface with the brush picks up the paint there.
+
+The board is a grid of 48 by 32 texels, 7.5 mm each, over the palette's oval clear of its thumb hole, each holding an
+amount of paint and its colour. A brush touching it trades paint with every texel under it: it gives where it holds
+more than the board under it and takes where the board holds more, until its load is 1.5 times the paint there, and
+smears the two colours into each other either way, so stirring mixes and a clean brush comes away loaded. Colours mix
+by Kubelka-Munk with one constant: a colour is its absorption over scattering (K/S) per channel, which mixes in
+proportion to the amounts, so blue and yellow make a dull green and white lightens without greying. A touch's working
+of the board goes to the garden as one command (`mix`, docs/multiplayer.md) carrying the board whole, 6 KB, when the
+brush lifts off it, so every player sees the palette as it was left, and undo takes a working back. The board draws
+as one texture over the palette's wood, the paint's amount as its alpha.
+
+What it costs: the board's work runs only while a brush touches it, about 0.1 ms a frame on a desktop CPU under a
+big brush; one draw call and one texture per easel, updated only on frames a brush changes it.
 
 The stand's legs run parallel to the canvas a few centimetres behind its backing, so no plank crosses the painting
 from anywhere a player stands. A well counts as reached over its whole footprint and through the board, because no
@@ -2748,7 +2767,8 @@ the canvas, so replaying a kept painting (loading, joining, or after an undo) la
 a replay on this machine's GPU matched the live painting bit for bit. The painter's own canvas lays the stroke as it
 is painted; other players' canvases play it at the pace it was painted. Undo takes the last stroke off.
 
-`demo/easel.json` sets up three easels and paints a landscape on each, one per medium; `demo/easel-bench.json`
+`demo/easel.json` sets up three easels and paints a landscape on each, one per medium; `demo/oil-mixing.json` paints
+blue and then yellow onto the oil palette, stirs them green, picks the green up and paints with it; `demo/easel-bench.json`
 measures painting on a headset, and `demo/costs.json` what an easel costs a frame.
 
 ## Verifying on a headset

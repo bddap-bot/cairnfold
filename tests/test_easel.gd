@@ -33,6 +33,8 @@ func _run() -> void:
 	await _the_palette_stays_in_the_hand_by_its_thumb_hole()
 	await _every_held_change_logs_a_line()
 	await _a_tip_in_each_well_loads_its_colour()
+	await _oil_mixes_by_painting_onto_the_board_and_picking_up_from_it()
+	_mixing_trades_paint_as_pigment()
 	await _the_trigger_sets_one_up_or_says_why_not()
 	_easels_keep_their_distance_and_number()
 	_bad_strokes_are_dropped()
@@ -78,6 +80,7 @@ func _paint_some() -> void:
 		{"op": "hold", "hand": "left", "at": [-0.9, 1.0, 0.4]},
 		{"op": "take", "what": "flat"},
 		{"op": "dip", "what": "oil", "index": 1},
+		{"op": "mix", "points": [[-0.1, 0.1, 0.6], [0.3, 0.1, 0.6]], "seconds": 0.2},
 		{"op": "brush", "roll": 90, "points": [[0.1, 0.6, 1.0], [0.5, 0.65, 0.7], [0.9, 0.6, 1.0]], "seconds": 0.3},
 		{"op": "set_down", "hand": "left"},
 		{"op": "take", "what": "stick"},
@@ -121,12 +124,14 @@ func _strokes_are_kept_and_load_whole() -> void:
 	_check(media == [Brushwork.Medium.WATER, Brushwork.Medium.OIL, Brushwork.Medium.CHARCOAL], "a watercolour, an oil and a charcoal stroke are on the canvas: %s" % [media])
 	_check(e.strokes.all(func(s: Dictionary) -> bool: return Brushwork.count(s) >= 2), "each stroke kept its samples")
 	_check(main.easels.easels.size() == 1 and main.easels.easels.values()[0].canvas.ticks > 0, "the easel stands and its canvas has run")
+	_check(not e.mix.is_empty() and e.mix == main.easels.easels.values()[0].mixing.bytes, "the oil painted onto the palette held in a hand is kept as the palette shows it")
 	var picture := var_to_str(world.digest())
 	world.restore({"seq": 0, "cmds": []})
 	await _settled()
 	_check(world.state.easels.is_empty() and main.easels.easels.is_empty(), "an empty garden holds no easel")
 	world.load_from(path)
-	_check(var_to_str(world.digest()) == picture, "loading puts the easel back where it stood with every stroke as painted")
+	_check(var_to_str(world.digest()) == picture, "loading puts the easel back where it stood with every stroke as painted and its palette as mixed")
+	_check(main.easels.easels.values()[0].mixing.bytes == e.mix, "and the palette shows its paint again")
 	_check(main.easels.easels.size() == 1 and main.easels.easels.values()[0].canvas.catching_up(), "and replays its painting")
 
 
@@ -172,14 +177,14 @@ func _the_tray_loads_the_brush() -> void:
 	var red := Brushwork.absorbance(Brushwork.PIGMENTS[3])
 	_check(p.brush == Brushwork.Brush.SMALL and p.medium == Brushwork.Medium.WATER and main.rig.right.tool == Hand.Tool.EASEL, "a grip at the pot takes a brush; the watercolour pans make it watercolour")
 	_check(p.colour.distance_to((blue + lemon) * 0.5) < 1e-3, "two pans mix on the brush")
-	_check(e.mixes[Brushwork.Medium.WATER].albedo_color.is_equal_approx(main.easel_tool._paint_colour(p)), "the box's mixing field shows the mix")
+	_check(e.wash.albedo_color.is_equal_approx(main.easel_tool._paint_colour(p)), "the box's mixing field shows the mix")
 	var clear := e.water.albedo_color
 	await _play([{"op": "dip", "what": "jar"}])
 	_check(e.water.albedo_color != clear and p.medium == Brushwork.Medium.WATER, "rinsing in the jar clouds its water: %s from %s" % [e.water.albedo_color, clear])
 	await _play([{"op": "dip", "what": "oil", "index": 3}])
 	_check(p.medium == Brushwork.Medium.OIL and p.colour.distance_to(red) < 1e-4 and p.strength == 1.0 and p.load == 1.0, "the oil palette's paint makes it oil, its own colour, not the watercolour's")
 	await _play([{"op": "dip", "what": "oil", "index": 1}])
-	_check(p.colour.distance_to((red + lemon) * 0.5) < 1e-3, "two oil colours mix on the brush")
+	_check(p.colour.distance_to(lemon) < 1e-4, "a second oil colour replaces the first: oils mix on the palette's board, not in the paint")
 	await _play([{"op": "dip", "what": "pan", "index": 5}])
 	_check(p.medium == Brushwork.Medium.WATER and p.colour.distance_to(blue) < 1e-4, "and a pan makes it watercolour again, clean of the oil")
 	await _play([{"op": "take", "what": "stick"}])
@@ -240,7 +245,8 @@ func _the_palette_stays_in_the_hand_by_its_thumb_hole() -> void:
 		var name: String = {Brushwork.Medium.WATER: "box", Brushwork.Medium.OIL: "palette"}[kit]
 		var node: Node3D = e.palettes[kit]
 		var rest := Transform3D(Basis(), Easels.KITS[kit])
-		_check(Easels.THUMB.x < Easels.MIX_AT[kit].x - 0.08, "the %s's thumb hole is at the end away from the paint" % name)
+		var paint := Easels.MIX_AT if kit == Brushwork.Medium.WATER else Vector3.ZERO
+		_check(Easels.THUMB.x < paint.x - 0.08, "the %s's thumb hole is at the end away from the paint" % name)
 		for side in ["left", "right"]:
 			var hand: Hand = main.rig.left if side == "left" else main.rig.right
 			var p: EaselTool.Painter = main.easel_tool.painter(hand)
@@ -254,7 +260,7 @@ func _the_palette_stays_in_the_hand_by_its_thumb_hole() -> void:
 				for at: Vector3 in [controller, grip]:
 					_check(Vector2(at.x - w.x, at.z - w.z).length() > Easels.WELL_REACH + 0.04, "the %s hand's grip is clear of the %s's colour %d" % [side, name, i])
 				_check((held * w).x * (1.0 if side == "left" else -1.0) > 0.0, "the %s's colour %d lies toward the other hand from the %s hand" % [name, i, side])
-			_check((held * Easels.MIX_AT[kit]).z < 0.0, "the %s hand's %s reaches forward" % [side, name])
+			_check((held * paint).z < 0.0, "the %s hand's %s reaches forward" % [side, name])
 			var tool := hand.tool
 			await _play([{"op": "take", "what": name, "hand": side}, {"op": "hold", "hand": side, "at": [-0.5 if side == "left" else 0.5, 1.0, 0.5]}])
 			await _frames(10)
@@ -351,6 +357,70 @@ func _a_tip_in_each_well_loads_its_colour() -> void:
 	await _settled()
 	var strokes: Array = world.state.easels[e.id].strokes
 	_check(not strokes.is_empty() and Vector3(strokes[-1].colour).distance_to(Brushwork.absorbance(Brushwork.PIGMENTS[-1])) < 1e-4 and strokes[-1].medium == Brushwork.Medium.OIL, "the stroke after paints in the last oil colour")
+
+
+## Blue painted onto the oil palette's board and yellow painted over it and stirred make green there, which a clean
+## brush touching it takes up and paints onto the canvas; each working of the board is a command undo takes back.
+func _oil_mixes_by_painting_onto_the_board_and_picking_up_from_it() -> void:
+	world.restore({"seq": 0, "cmds": []})
+	await _settled()
+	await _play([{"op": "place", "x": 0, "z": 6}, {"op": "easel", "x": 0, "z": 3}, {"op": "take", "what": "big"}, {"op": "dip", "what": "oil", "index": 5}])
+	var e: Easels.Easel = main.easels.easels.values()[-1]
+	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
+	var spot := Vector2(0.0, 0.0)
+	var colour := func() -> Color: return Brushwork.colour(Mixing.density_of(e.mixing.at(spot).ks))
+	_check(e.mixing.empty(), "a new easel's palette has a clean board")
+	await _play([{"op": "mix", "points": [[-0.3, 0.0, 0.7], [0.1, 0.0, 0.7]], "seconds": 0.3}])
+	var blue: Color = colour.call()
+	_check(e.mixing.at(spot).amount > 0.05 and blue.b > blue.g and blue.b > blue.r, "blue painted onto the board lies there: %s, %.2f" % [blue, e.mixing.at(spot).amount])
+	_check(p.load < 1.0 and p.load > 0.2, "and leaves the brush: %.2f left" % p.load)
+	await _settled()
+	var after_blue: PackedByteArray = _easel().mix
+	_check(after_blue == e.mixing.bytes, "the garden has the board as it was left")
+	await _play([{"op": "dip", "what": "oil", "index": 1}, {"op": "mix", "points": [[0.1, -0.1, 0.7], [-0.1, 0.1, 0.8], [0.1, 0.1, 0.8], [-0.1, -0.1, 0.8], [0.0, 0.0, 0.8], [0.1, -0.1, 0.8], [-0.1, 0.1, 0.8]], "seconds": 1.5}])
+	var green: Color = colour.call()
+	_check(green.g > green.r and green.g > green.b and green.g < 0.7, "yellow stirred into the blue makes green: %s" % green)
+	await _play([{"op": "take", "what": "small"}])
+	_check(p.load == 0.0, "a fresh brush is clean")
+	await _play([{"op": "mix", "points": [[0.0, 0.0, 0.6], [0.02, 0.0, 0.6]], "seconds": 0.3}])
+	var tip := Brushwork.colour(p.colour)
+	_check(p.medium == Brushwork.Medium.OIL and p.load > 0.1 and tip.g > tip.r and tip.g > tip.b, "touching the green picks it up: %s, load %.2f" % [tip, p.load])
+	await _play([{"op": "brush", "points": [[0.3, 0.3, 0.8], [0.4, 0.32, 0.8]], "seconds": 0.2}])
+	await _settled()
+	var strokes: Array = _easel().strokes
+	_check(strokes.size() == 1 and strokes[0].medium == Brushwork.Medium.OIL and Vector3(strokes[0].colour).distance_to(p.colour) < 0.2, "and paints with it on the canvas")
+	var mixed: PackedByteArray = _easel().mix
+	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
+	_check(_easel().strokes.is_empty() and _easel().mix != mixed and e.mixing.bytes == _easel().mix, "undo takes the stroke off, then the pick-up's working of the board")
+	await _play([{"op": "press", "button": "A"}, {"op": "press", "button": "A"}])
+	_check(_easel().mix == mixed and e.mixing.bytes == mixed and _easel().strokes.size() == 1, "and redo puts both back")
+	var state := {"stairs": {}, "easels": {7: {"at": Vector3.ZERO, "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}}
+	_check(not Commands.clean({"op": "mix", "easel": 7, "mix": mixed}, state, false).is_empty(), "a board as the palette holds it is a command")
+	_check(Commands.clean({"op": "mix", "easel": 7, "mix": mixed.slice(4)}, state, false).is_empty(), "a board of the wrong size is not")
+	_check(Commands.clean({"op": "mix", "easel": 8, "mix": mixed}, state, false).is_empty(), "nor one for an easel that is not there")
+
+
+## Mixing on the board, without the game: paint trades both ways, the amounts hold, and the colours mix as pigments.
+func _mixing_trades_paint_as_pigment() -> void:
+	var m := Mixing.new()
+	var blue := Mixing.ks_of(Brushwork.absorbance(Brushwork.PIGMENTS[5]))
+	var white := Mixing.ks_of(Brushwork.absorbance(Brushwork.PIGMENTS[0]))
+	var brush := {"ks": blue, "load": 1.0}
+	for f in 60:
+		brush = m.touch(brush, Vector2.ZERO, 0.02, 1.0 / 60.0)[0]
+	var laid: float = m.at(Vector2.ZERO).amount
+	_check(laid > 0.2 and brush.load < 0.8 and brush.load > laid, "a full brush held on a clean board lays paint and keeps more than it laid: %.2f laid, %.2f kept" % [laid, brush.load])
+	brush = {"ks": white, "load": 1.0}
+	for f in 60:
+		brush = m.touch(brush, Vector2.ZERO, 0.02, 1.0 / 60.0)[0]
+	var tint := Brushwork.colour(Mixing.density_of(m.at(Vector2.ZERO).ks))
+	var pure := Brushwork.PIGMENTS[5]
+	_check(tint.b > pure.b and tint.r > pure.r and tint.b > tint.r, "white worked into blue lightens it and keeps it blue: %s from %s" % [tint, pure])
+	var back := PackedByteArray(m.bytes)
+	var again := Mixing.new()
+	again.load_bytes(back)
+	_check(again.bytes == m.bytes and absf(again.at(Vector2.ZERO).amount - m.at(Vector2.ZERO).amount) < 0.01, "the board loads back from what the garden keeps")
+	_check(not Mixing.open_at(Vector2(Easels.THUMB.x, Easels.THUMB.z)) and not Mixing.open_at(Easels.PALETTE_SIZE * 0.5) and Mixing.open_at(Vector2.ZERO), "paint lies on the open board, not over the thumb hole or off its edge")
 
 
 ## The trigger path a headset player uses: the easel tool taken from the wheel, the hand pointed at the ground, the

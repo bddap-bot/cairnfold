@@ -5,7 +5,7 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "species", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "sheet"]
+const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "species", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "mix", "sheet"]
 ## What a batch may carry: from a player, takings; from the host, also the undo of them.
 const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show", "uneasel"]
 const UNBATCHED := ["stairs", "wall", "path", "ground", "easel"]
@@ -170,6 +170,12 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 				out.stroke = Brushwork.clean(cmd.get("stroke"))
 				var strokes: Array = state.easels[e].strokes
 				ok = out.stroke != null and strokes.size() < Brushwork.MAX_STROKES and _samples(strokes) + Brushwork.count(out.stroke) <= Brushwork.MAX_TOTAL
+		"mix":
+			var e: Variant = cmd.get("easel")
+			var mix: Variant = cmd.get("mix")
+			ok = typeof(e) == TYPE_INT and state.easels.has(e) and _mix(mix)
+			out.easel = e
+			out.mix = mix
 		"unpaint":
 			var e: Variant = cmd.get("easel")
 			ok = typeof(e) == TYPE_INT and state.easels.has(e) and not state.easels[e].strokes.is_empty()
@@ -184,8 +190,8 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 	return out if ok else {}
 
 
-## A new easel: where it stands and which way it faces, clear of the others; from the host, also the strokes it
-## comes back with when a taking is undone or a garden is rebuilt.
+## A new easel: where it stands and which way it faces, clear of the others; from the host, also the strokes and
+## mixing field it comes back with when a taking is undone or a garden is rebuilt.
 static func _easel(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary) -> bool:
 	var at: Variant = cmd.get("at")
 	var yaw: Variant = cmd.get("yaw")
@@ -196,7 +202,13 @@ static func _easel(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 	out.at = at
 	out.yaw = yaw
 	out.strokes = _strokes(cmd.get("strokes", []))
-	return out.strokes != null and (from_host or out.strokes.is_empty())
+	out.mix = cmd.get("mix", PackedByteArray())
+	return out.strokes != null and _mix(out.mix) and (from_host or (out.strokes.is_empty() and out.mix.is_empty()))
+
+
+## An oil palette's mixing field: empty, or one as `Mixing.bytes` holds it.
+static func _mix(d: Variant) -> bool:
+	return d is PackedByteArray and (d.is_empty() or d.size() == Mixing.SIZE.x * Mixing.SIZE.y * 4)
 
 
 ## A canvas's strokes, each clean, within what one canvas holds, or null.

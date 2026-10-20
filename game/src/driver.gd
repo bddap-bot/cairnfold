@@ -1112,6 +1112,32 @@ func _dip(s: Dictionary) -> void:
 	await _frames(2)
 
 
+## A brushstroke on the oil palette's open board, wherever the palette is, through `points` [x, z, pressure] (x toward
+## the paint, z across, both -1..1 of the board's half size) over `seconds`: the tip comes down onto the first, presses
+## as hard as each point says, and lifts off the last.
+func _mix(s: Dictionary) -> void:
+	var hand := _hand(s)
+	var e := _easel_of(s)
+	var board: Transform3D = e.palettes[Brushwork.Medium.OIL].global_transform
+	var on := func(p: Array, up: float) -> Vector3:
+		var depth: float = Easels.BOARD_TOP + EaselTool.CONTACT - p[2] * EaselTool.PRESS_DEPTH
+		return board * Vector3(p[0] * Easels.PALETTE_SIZE.x * 0.5, depth + up, p[1] * Easels.PALETTE_SIZE.y * 0.5)
+	var pts: Array = s.points
+	_tip_at(hand, on.call(pts[0], 0.06), -board.basis.y, -board.basis.x)
+	await _frames(2)
+	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
+	for f in frames + 1:
+		var k := float(f) / frames * (pts.size() - 1)
+		var i := mini(floori(k), pts.size() - 2) if pts.size() > 1 else 0
+		var a: Array = pts[i]
+		var b: Array = pts[mini(i + 1, pts.size() - 1)]
+		var t := k - i
+		_tip_at(hand, on.call([lerpf(a[0], b[0], t), lerpf(a[1], b[1], t), lerpf(a[2], b[2], t)], 0.0), -board.basis.y, -board.basis.x)
+		await _frames(1)
+	_tip_at(hand, on.call(pts[-1], 0.06), -board.basis.y, -board.basis.x)
+	await _frames(2)
+
+
 ## A brushstroke on the canvas through `points` [u, v, pressure] (u across, v down, both 0..1) over `seconds`: the
 ## tip comes in from off the canvas, presses as hard as each point says, and lifts off at the end. A flat brush is
 ## turned `roll` degrees.

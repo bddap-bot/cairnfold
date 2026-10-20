@@ -45,7 +45,8 @@ var time := Daylight.DEFAULT
 var look: Look
 ## Standing walls, paths, easels and plant groups by id, as the plain values their commands carry, and each
 ## pond's level by the grid point it fills from. A group keeps its command's fields, its `size` and the indices of its plants
-## since `hidden`; an easel where it stands, which way it faces and its canvas's strokes, oldest first.
+## since `hidden`; an easel where it stands, which way it faces, its canvas's strokes, oldest first, and its oil
+## palette's mixing field (`Mixing.bytes`, empty when clean).
 var state := {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}, "easels": {}}
 var seq := 0
 var sculpted := false
@@ -556,6 +557,8 @@ func _keys(cmd: Dictionary) -> Array:
 			return (cmd.get("put", {}).keys() + cmd.get("drop", [])).map(func(g: Vector2i) -> String: return "o%d,%d" % [g.x, g.y])
 		"paint", "unpaint", "sheet":
 			return ["e%d" % cmd.easel]
+		"mix":
+			return ["x%d" % cmd.easel]
 		"wipe", "garden":
 			return [WIPED]
 		"batch":
@@ -741,14 +744,14 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				_clear()
 				_rebuild(cmd.cmds))
 		"easel":
-			state.easels[cmd.id] = {"at": cmd.at, "yaw": cmd.yaw, "strokes": cmd.strokes.duplicate()}
+			state.easels[cmd.id] = {"at": cmd.at, "yaw": cmd.yaw, "strokes": cmd.strokes.duplicate(), "mix": cmd.mix}
 			if easels != null:
 				easels.put(cmd.id, state.easels[cmd.id])
 			_account("e%d" % cmd.id, {"easel": 1})
 			inverse = {"op": "uneasel", "id": cmd.id}
 		"uneasel":
 			var e: Dictionary = state.easels[cmd.id]
-			inverse = {"op": "easel", "id": cmd.id, "at": e.at, "yaw": e.yaw, "strokes": e.strokes}
+			inverse = {"op": "easel", "id": cmd.id, "at": e.at, "yaw": e.yaw, "strokes": e.strokes, "mix": e.mix}
 			state.easels.erase(cmd.id)
 			if easels != null:
 				easels.take(cmd.id)
@@ -763,6 +766,11 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			inverse = {"op": "paint", "easel": cmd.easel, "stroke": strokes.pop_back()}
 			if easels != null:
 				easels.repaint(cmd.easel, strokes)
+		"mix":
+			inverse = {"op": "mix", "easel": cmd.easel, "mix": state.easels[cmd.easel].mix}
+			state.easels[cmd.easel].mix = cmd.mix
+			if easels != null:
+				easels.mixed(cmd.easel, cmd.mix, handed)
 		"sheet":
 			inverse = {"op": "sheet", "easel": cmd.easel, "strokes": state.easels[cmd.easel].strokes}
 			state.easels[cmd.easel].strokes = cmd.strokes.duplicate()
@@ -864,7 +872,7 @@ func snapshot() -> Dictionary:
 		cmds.append({"op": "wall", "ids": PackedInt32Array([id]), "walls": [state.walls[id]]})
 	for id in state.easels:
 		var e: Dictionary = state.easels[id]
-		cmds.append({"op": "easel", "id": id, "at": e.at, "yaw": e.yaw, "strokes": e.strokes})
+		cmds.append({"op": "easel", "id": id, "at": e.at, "yaw": e.yaw, "strokes": e.strokes, "mix": e.mix})
 	for id in state.groups:
 		var g: Dictionary = state.groups[id]
 		if g.kind != "meadow":
@@ -1005,6 +1013,6 @@ func digest() -> Dictionary:
 	out.easels = {}
 	for id in state.easels:
 		var e: Dictionary = state.easels[id]
-		out.easels[str(id)] = {"at": var_to_str(e.at.snapped(Vector3.ONE * 0.01)), "strokes": e.strokes.size(), "paint": hash(var_to_str(e.strokes))}
+		out.easels[str(id)] = {"at": var_to_str(e.at.snapped(Vector3.ONE * 0.01)), "strokes": e.strokes.size(), "paint": hash(var_to_str(e.strokes)), "mix": hash(e.mix)}
 	out.budget = snappedf(fill(), 0.001)
 	return out

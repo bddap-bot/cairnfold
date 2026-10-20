@@ -29,11 +29,14 @@ const CLEAR := 0.01
 const JAR_SIZE := Vector2(0.042, 0.1)
 ## The brushes standing in the pot, by kind: where each one's tip stands above the pot.
 const BRUSH_TIPS := {Brushwork.Brush.SMALL: Vector3(-0.022, 0.3, -0.012), Brushwork.Brush.BIG: Vector3(0.02, 0.32, -0.008), Brushwork.Brush.FLAT: Vector3(0.0, 0.28, 0.024)}
-## Each palette, in its own frame: a thumb hole at its -x end, where a hand holds it, and its paint toward the +x end;
-## the brush's own mix shows on it. The oil palette's paint lies round its far edge, the box's pans in two rows.
+## Each palette, in its own frame: a thumb hole at its -x end, where a hand holds it, and its paint toward the +x end.
+## The oil palette's paint lies round its far edge with its open board, the mixing field (`Mixing`), inside it; the
+## box's pans lie in two rows beside a field showing the brush's own mix.
 const PALETTE_SIZE := Vector2(0.36, 0.24)
 const THUMB := Vector3(-0.12, 0, 0)
-const MIX_AT := {Brushwork.Medium.WATER: Vector3(0.1, 0.0075, 0), Brushwork.Medium.OIL: Vector3(0.02, 0.006, 0)}
+const MIX_AT := Vector3(0.1, 0.0075, 0)
+## The oil palette's board top, where its mixing field lies.
+const BOARD_TOP := 0.004
 const WELL_RADIUS := 0.018
 const PAN := Vector2(0.024, 0.035)
 const PAN_TOP := 0.0105
@@ -90,9 +93,12 @@ class Easel:
 	var canvas: Canvas
 	var canvas_mesh: MeshInstance3D
 	## Each medium's palette (by Brushwork.Medium) as it rests on the tray; a hand holding one carries it off
-	## (EaselTool) and it comes back when let go. Each shows the brush's mix.
+	## (EaselTool) and it comes back when let go.
 	var palettes := {}
-	var mixes := {}
+	## The watercolour box's field showing the brush's mix, and the oil palette's mixing field and what draws it.
+	var wash: StandardMaterial3D
+	var mixing := Mixing.new()
+	var field: ImageTexture
 	## The water in the jar, clouded by each rinse.
 	var water: StandardMaterial3D
 	var brushes := {}
@@ -109,6 +115,10 @@ class Easel:
 
 	func tray(at: Vector3) -> Vector3:
 		return global_transform * at
+
+	## Draws the mixing field as `mixing` holds it now.
+	func show_mixing() -> void:
+		field.update(Image.create_from_data(Mixing.SIZE.x, Mixing.SIZE.y, false, Image.FORMAT_RGBA8, mixing.bytes))
 
 
 static func canvas_local() -> Transform3D:
@@ -132,6 +142,7 @@ func put(id: int, data: Dictionary) -> Easel:
 	add_child(e)
 	easels[id] = e
 	e.canvas.rebuild(data.strokes)
+	mixed(id, data.mix, false)
 	return e
 
 
@@ -155,6 +166,15 @@ func painted(id: int, stroke: Dictionary, own: bool) -> void:
 	var e := find(id)
 	if e != null and not own:
 		e.canvas.play(stroke, 0)
+
+
+## Easel `id`'s oil palette's mixing field as `bytes` (`Mixing.bytes`), from the garden; the painter's own is on the
+## palette already.
+func mixed(id: int, bytes: PackedByteArray, own: bool) -> void:
+	var e := find(id)
+	if e != null and not own:
+		e.mixing.load_bytes(bytes)
+		e.show_mixing()
 
 
 ## Lays easel `id`'s painting again from its strokes, after one is taken back or a fresh sheet goes up.
@@ -316,7 +336,14 @@ func _build(e: Easel) -> void:
 		palette.position = KITS[kit]
 		implements.add_child(palette)
 		e.palettes[kit] = palette
-		e.mixes[kit] = palette.get_meta("mix")
+	e.wash = e.palettes[Brushwork.Medium.WATER].get_meta("mix")
+	e.field = ImageTexture.create_from_image(Image.create_from_data(Mixing.SIZE.x, Mixing.SIZE.y, false, Image.FORMAT_RGBA8, e.mixing.bytes))
+	var film := ShaderMaterial.new()
+	film.shader = preload("res://src/mixing.gdshader")
+	film.set_shader_parameter("field", e.field)
+	var board := QuadMesh.new()
+	board.size = PALETTE_SIZE
+	_part(e.palettes[Brushwork.Medium.OIL], board, Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(0, BOARD_TOP + 0.0003, 0)), film, false)
 
 
 ## Where a leg standing `x` along the canvas, LEG_BACK behind it, meets the ground.
@@ -327,7 +354,7 @@ static func _foot(x: float) -> Vector3:
 
 
 ## An oil palette: a wooden board with its eight colours squeezed out round its far end and a thumb hole at its near
-## one, its middle showing the brush's mix.
+## one; its mixing field is laid on it per easel.
 static func oils() -> Node3D:
 	var root := Node3D.new()
 	var wood := Color(0.86, 0.68, 0.46)
@@ -352,7 +379,7 @@ static func oils() -> Node3D:
 		paint.append([blob, Transform3D(Basis(Vector3.UP, i * 1.3).scaled(Vector3(1.15, 1, 0.9)), w), Brushwork.PIGMENTS[i]])
 		paint.append([curl, Transform3D(Basis(Vector3.UP, i * 1.3), w + Vector3(0.003, 0.006, -0.002)), Brushwork.PIGMENTS[i]])
 	_part(root, ToolModels.bake(paint), Transform3D(), _baked("oil_paint", 0.12), false)
-	return _with_mix(root, Brushwork.Medium.OIL, wood, 0.035)
+	return root
 
 
 ## A box of watercolour pans: black enamel outside, white inside, two rows of pans of dry colour and a white mixing
@@ -372,20 +399,15 @@ static func watercolours() -> Node3D:
 		parts.append([_box(Vector3(PAN.x + 0.004, 0.003, PAN.y + 0.004)), Transform3D(Basis(), w - Vector3(0, 0.0025, 0)), white.darkened(0.06)])
 		parts.append([_box(Vector3(PAN.x, 0.002, PAN.y)), Transform3D(Basis(), w - Vector3(0, 0.001, 0)), Brushwork.PIGMENTS[i].darkened(0.12)])
 	_part(root, ToolModels.bake(parts), Transform3D(), _baked("watercolours", 0.7), false)
-	return _with_mix(root, Brushwork.Medium.WATER, white, 0.022)
-
-
-## Adds `kit`'s mix, a smear of the brush's colour starting as the `ground` it lies on.
-static func _with_mix(root: Node3D, kit: Brushwork.Medium, ground: Color, radius: float) -> Node3D:
 	var mix := StandardMaterial3D.new()
-	mix.albedo_color = ground
+	mix.albedo_color = white
 	mix.roughness = 0.35
 	var smear := SphereMesh.new()
-	smear.radius = radius
+	smear.radius = 0.022
 	smear.height = 0.006
 	smear.radial_segments = 16
 	smear.rings = 4
-	_part(root, smear, Transform3D(Basis().scaled(Vector3(1.3, 1, 0.9)), MIX_AT[kit]), mix, false)
+	_part(root, smear, Transform3D(Basis().scaled(Vector3(1.3, 1, 0.9)), MIX_AT), mix, false)
 	root.set_meta("mix", mix)
 	return root
 
