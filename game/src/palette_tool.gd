@@ -280,7 +280,7 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 ## Shows `w`'s build, tree or the meadow with choice `pick`, here alone.
 func _show(w: Wheel, pick: int) -> void:
 	if w.tree != null:
-		walls.flora.set_species(w.tree, pick as FloraLayout.Species)
+		walls.flora.set_look(w.tree, pick as FloraLayout.Species, walls.flora.scale_of(w.tree))
 		return
 	if w.id < 0:
 		Palette.preview(pick)
@@ -320,7 +320,7 @@ func close(hand: Hand) -> void:
 		return
 	Cues.play(Cues.Act.DIAL_SET, hand.global_position, hand)
 	if w.tree != null:
-		world.submit({"op": "species", "group": w.tree.group, "index": w.tree.index, "species": w.pick}, _settled.bind(w), hand)
+		world.submit({"op": "tree", "group": w.tree.group, "index": w.tree.index, "species": w.pick}, _settled.bind(w), hand)
 	elif w.id < 0:
 		world.submit({"op": "season", "index": w.pick}, world.palette.apply, hand)
 	else:

@@ -56,6 +56,37 @@ func _grip_lifts_the_wall_whatever_the_hand_holds(hand: Hand) -> void:
 	hand.global_transform = at
 
 
+## Grip on a tree, whatever the hand holds, takes the tree, not the ground behind it: raised, it grows the tree; let
+## go, the garden has it.
+func _grip_grows_a_tree_whatever_the_hand_holds(hand: Hand) -> void:
+	var at := hand.global_transform
+	var flora: Flora = main.flora_tool.flora
+	var spot := Terrain.ground(9, 8)
+	main.world.submit({"op": "plant", "kind": "tree", "seed": 4, "at": spot})
+	var g: int = main.world.seq
+	var trunk: Flora.Plant = flora.groups[g][0]
+	var crown := spot + Vector3.UP * flora.top_of(trunk) * 0.7
+	for t in [Hand.Tool.TREES, Hand.Tool.WALLS, Hand.Tool.DELETE]:
+		hand.tool = t
+		hand.global_transform = Transform3D(Basis.looking_at(Vector3.FORWARD), crown + Vector3.BACK * 3.0)
+		await _frames()
+		Buttons.injected["right_hand/grip_click"] = true
+		await _frames()
+		_check(main.tool.mason(hand).growing == trunk and not main.ground_grab.busy(), "grip on a tree takes the tree, holding %s" % Hand.Tool.keys()[t])
+		hand.position.y += 2.0
+		await _frames()
+		Buttons.injected.erase("right_hand/grip_click")
+		await _frames()
+		_check(main.tool.mason(hand).growing == null and main.world.state.groups[g].scale.get(0, 1.0) > 1.1, "raised and let go, it grows, holding %s" % Hand.Tool.keys()[t])
+		main.world.undo()
+		await _frames()
+		_check(flora.scale_of(trunk) == 1.0, "an undo shrinks it back, holding %s" % Hand.Tool.keys()[t])
+	main.world.undo()
+	await _frames()
+	hand.tool = Hand.Tool.WALLS
+	hand.global_transform = at
+
+
 ## Grip on open ground, whatever the hand holds, takes the ground: up pulls a hill, down presses a hollow, and
 ## nothing the held tool makes is made or started.
 func _grip_shapes_the_ground_and_makes_nothing(hand: Hand) -> void:
@@ -286,6 +317,7 @@ func _run() -> void:
 	_check(hand._beam.visible, "pointer returns on release")
 	await _capture("released")
 	await _grip_lifts_the_wall_whatever_the_hand_holds(hand)
+	await _grip_grows_a_tree_whatever_the_hand_holds(hand)
 	await _grip_shapes_the_ground_and_makes_nothing(hand)
 	await _grip_on_a_pond_moves_its_bed(hand)
 	await _two_hands_grab_the_ground_at_once(rig)

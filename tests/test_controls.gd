@@ -411,6 +411,11 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	hold.call(&"right_hand", Vector3(0.2, -0.4, -0.3), face)
 	hold.call(&"left_hand", Vector3(-0.2, -0.4, -0.3), face)
 	await _frames(2)
+	var left: Transform3D = main.rig.left.global_transform
+	var tree: Dictionary = main.flora_tool.flora.solid_hit(left.origin, -left.basis.z, left.origin.distance_to(face) + 2.0)
+	if not tree.is_empty():
+		var trunk: Flora.Plant = tree.plants[0]
+		world._order({"op": "show", "plants": {trunk.group: PackedInt32Array(tree.plants.map(func(p: Flora.Plant) -> int: return p.index))}, "on": false}, world.me())
 	var tall := tower.layout.height
 	await grip.call(&"right_hand", true)
 	await grip.call(&"left_hand", true)

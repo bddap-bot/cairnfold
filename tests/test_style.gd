@@ -24,6 +24,8 @@ func _run() -> void:
 	_towers_keep_stone()
 	_trees_take_a_species()
 	_meadow_trees_take_a_species()
+	_trees_grow_by_the_grip()
+	_meadow_trees_grow()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -137,10 +139,10 @@ func _trees_take_a_species() -> void:
 	var models := ToolModels.style(PaletteTool.Restyle.TREE, FloraLayout.Species.FIR, false)
 	_check(models.get_child_count() == 2, "each species has its miniature")
 	models.free()
-	var relayed := _relayed({"op": "species", "group": g, "index": 0, "species": FloraLayout.Species.BIRCH}, 2)
+	var relayed := _relayed({"op": "tree", "group": g, "index": 0, "species": FloraLayout.Species.BIRCH}, 2)
 	_check(relayed.get("species") == FloraLayout.Species.BIRCH and relayed.get("group") == g, "a peer takes the host's species: %s" % relayed)
-	_check(Commands.clean({"op": "species", "group": g, "index": 1, "species": 1}, world.state, false).is_empty(), "only a tree's trunk names it")
-	_check(Commands.clean({"op": "species", "group": g, "index": 0, "species": FloraLayout.Species.size()}, world.state, false).is_empty(), "no species past the last")
+	_check(Commands.clean({"op": "tree", "group": g, "index": 1, "species": 1}, world.state, false).is_empty(), "only a tree's trunk names it")
+	_check(Commands.clean({"op": "tree", "group": g, "index": 0, "species": FloraLayout.Species.size()}, world.state, false).is_empty(), "no species past the last")
 	var oak_top: float = flora.groups[g][1].xform.origin.y
 	_turn(target, FloraLayout.Species.POPLAR)
 	_check(world.state.groups[g].species.get(0) == FloraLayout.Species.POPLAR and flora.species_of(trunk) == FloraLayout.Species.POPLAR, "a twist of the wheel turns the tree a poplar")
@@ -162,16 +164,85 @@ func _meadow_trees_take_a_species() -> void:
 	var flora: Flora = main.flora_tool.flora
 	var i: int = flora.meadow_trees()[3]
 	var trunk: Flora.Plant = flora.groups[0][i]
-	world._order({"op": "species", "group": 0, "index": i, "species": FloraLayout.Species.BEECH}, 2)
+	world._order({"op": "tree", "group": 0, "index": i, "species": FloraLayout.Species.BEECH}, 2)
 	_check(flora.species_of(trunk) == FloraLayout.Species.BEECH, "a meadow tree turns a copper beech")
 	var snap := world.snapshot()
 	world.restore({"seq": 0, "cmds": []})
 	_check(flora.species_of(trunk) == FloraLayout.Species.OAK, "an empty garden has it an oak again")
 	world.restore(snap)
 	_check(flora.species_of(trunk) == FloraLayout.Species.BEECH, "and its save a beech")
-	world._order({"op": "species", "group": 0, "index": i, "species": FloraLayout.Species.FIR}, 2)
+	world._order({"op": "tree", "group": 0, "index": i, "species": FloraLayout.Species.FIR}, 2)
 	world._order({"op": "undo"}, 2)
 	_check(flora.species_of(trunk) == FloraLayout.Species.BEECH, "an undo goes back one species")
+	world.restore({"seq": 0, "cmds": []})
+
+
+## A grip on a planted tree raised grows it and lowered shrinks it, within FloraLayout.SCALES, through the host,
+## which a peer takes; what it strikes, its shade and its share of the budget grow with it; an undo, a redo, a
+## species and a snapshot keep it.
+func _trees_grow_by_the_grip() -> void:
+	var flora: Flora = main.flora_tool.flora
+	var tool: WallTool = main.tool
+	var at := Terrain.ground(-6, 18)
+	world._order({"op": "plant", "kind": "tree", "seed": 7, "at": at}, world.me())
+	var g := world.seq
+	var trunk: Flora.Plant = flora.groups[g][0]
+	var top := flora.top_of(trunk)
+	var shade := flora.shade_of(flora.groups[g]).basis.get_scale()
+	var trees: float = world.units.tree
+	var m := tool.mason(main.rig.right)
+	var grip := at + Vector3.UP * top * 0.8
+	var hand := grip + Vector3.BACK * 2.0
+	tool.begin_grow(m, trunk, hand, grip)
+	_check(tool.busy(main.rig.right), "a grip on a tree holds it")
+	tool.drag_grow(m, hand.y + 1.5)
+	var grown := flora.scale_of(trunk)
+	_check(grown > 1.3 and absf(flora.top_of(trunk) - (top + 1.5 * Hand.reach_gain(2.0))) < 0.1, "its top follows the raised hand: %.2f, top %.2f from %.2f" % [grown, flora.top_of(trunk), top])
+	_check(world.state.groups[g].scale.is_empty(), "shown here alone while held")
+	tool.end_grow(m)
+	_check(world.state.groups[g].scale.get(0) == grown and is_equal_approx(flora.scale_of(trunk), grown), "letting go sends it")
+	_check(is_equal_approx(world.units.tree, trees - 1.0 + grown * grown), "it counts by its crown's ground: %.2f" % (world.units.tree - trees))
+	_check(flora.shade_of(flora.groups[g]).basis.get_scale().is_equal_approx(shade * grown), "its shade grows with it")
+	var high := at + Vector3(0, top * grown * 0.9, 6)
+	_check(not flora.solid_hit(high, Vector3.FORWARD, 12.0).is_empty(), "and what strikes it, high on its new crown")
+	var relayed := _relayed({"op": "tree", "group": g, "index": 0, "scale": 2.5}, 2)
+	_check(relayed.get("scale") == 2.5 and not relayed.has("species"), "a peer takes the host's scale: %s" % relayed)
+	for bad in [FloraLayout.SCALES.x - 0.01, FloraLayout.SCALES.y + 0.01, 2, NAN]:
+		_check(Commands.clean({"op": "tree", "group": g, "index": 0, "scale": bad}, world.state, false).is_empty(), "no scale %s" % bad)
+	_check(Commands.clean({"op": "tree", "group": g, "index": 0}, world.state, false).is_empty(), "a tree command changes something")
+	tool.begin_grow(m, trunk, hand, grip)
+	tool.drag_grow(m, hand.y - 50.0)
+	tool.end_grow(m)
+	_check(is_equal_approx(flora.scale_of(trunk), FloraLayout.SCALES.x), "lowered all the way it shrinks to the least")
+	world._order({"op": "undo"}, world.me())
+	_check(is_equal_approx(flora.scale_of(trunk), grown), "an undo grows it back")
+	world._order({"op": "undo"}, world.me())
+	_check(flora.scale_of(trunk) == 1.0 and world.state.groups[g].scale.is_empty() and is_equal_approx(flora.top_of(trunk), top), "and another to the tree it was planted")
+	_check(is_equal_approx(world.units.tree, trees), "costing what it did")
+	world._order({"op": "redo"}, world.me())
+	_check(is_equal_approx(flora.scale_of(trunk), grown), "a redo grows it again")
+	var crown: Vector3 = flora.groups[g][1].xform.origin + Vector3.UP * Terrain.base_at(at.x, at.z)
+	_turn(main.palette_tool.aim_style(crown + Vector3(0, 1, 12), (crown - (crown + Vector3(0, 1, 12))).normalized()), FloraLayout.Species.FIR)
+	_check(flora.species_of(trunk) == FloraLayout.Species.FIR and is_equal_approx(flora.scale_of(trunk), grown), "a new species keeps its size")
+	var picture := var_to_str(world.digest())
+	world.restore(world.snapshot())
+	trunk = flora.groups[g][0]
+	_check(var_to_str(world.digest()) == picture and is_equal_approx(flora.scale_of(trunk), grown) and flora.species_of(trunk) == FloraLayout.Species.FIR, "a snapshot carries both")
+	world.restore({"seq": 0, "cmds": []})
+
+
+## The meadow's own trees grow as planted ones do, and go back to their size with a swapped garden.
+func _meadow_trees_grow() -> void:
+	var flora: Flora = main.flora_tool.flora
+	var trunk: Flora.Plant = flora.groups[0][flora.meadow_trees()[2]]
+	var top := flora.top_of(trunk)
+	world._order({"op": "tree", "group": 0, "index": trunk.index, "scale": 2.0}, 2)
+	_check(is_equal_approx(flora.top_of(trunk), top * 2.0), "a meadow tree grows twice as tall")
+	var snap := world.snapshot()
+	world.restore({"seq": 0, "cmds": []})
+	_check(flora.scale_of(trunk) == 1.0 and is_equal_approx(flora.top_of(trunk), top), "an empty garden has it as it grew")
+	world.restore(snap)
+	_check(flora.scale_of(trunk) == 2.0, "and its snapshot grown")
 	world.restore({"seq": 0, "cmds": []})
 
 

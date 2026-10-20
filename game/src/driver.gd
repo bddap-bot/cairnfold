@@ -371,6 +371,34 @@ func _grip(s: Dictionary) -> void:
 		await _standing()
 
 
+## Grips the meadow's tree `tree`, or with `x`, `z` the tree standing nearest there, on its crown, as a hand does, and
+## raises the hand `metres` over `seconds` (negative lowers it), sizing the tree; "capture" saves the view at the top
+## of the pull.
+func _grow(s: Dictionary) -> void:
+	var tool: WallTool = main.tool
+	var flora: Flora = main.flora_tool.flora
+	var trunk: Flora.Plant
+	if s.has("tree"):
+		trunk = flora.groups[0][flora.meadow_trees()[s.tree]]
+	else:
+		var spot := Vector3(s.x, 0.0, s.z)
+		for parts in flora.solids():
+			var p: Flora.Plant = parts[0]
+			if p.pool == flora.trunks and (trunk == null or Vector3(p.anchor.x, 0, p.anchor.z).distance_to(spot) < Vector3(trunk.anchor.x, 0, trunk.anchor.z).distance_to(spot)):
+				trunk = p
+	var m := tool.mason(_hand(s))
+	var at := trunk.anchor + Vector3.UP * flora.top_of(trunk) * 0.8
+	var hand: Vector3 = at + Vector3.BACK * 2.0
+	tool.begin_grow(m, trunk, hand, at)
+	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
+	for f in frames:
+		await get_tree().process_frame
+		tool.drag_grow(m, hand.y + s.metres * smoothstep(0.0, 1.0, float(f + 1) / frames))
+	if s.has("capture"):
+		await main.capture(s.capture)
+	tool.end_grow(m)
+
+
 ## Every wall standing now again, shifted by `offset` [x, z], one each `every` seconds, applied as the host's commands
 ## reach a visitor: checked, then played.
 func _arrive(s: Dictionary) -> void:

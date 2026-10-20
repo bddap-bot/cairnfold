@@ -272,13 +272,14 @@ class Pool:
 
 ## A tree or bush, as what the delete tool's beam strikes: its parts (a tree's trunk then its blobs), and the
 ## circle across the ground that holds them, so a beam is tested against their boxes only when it passes over it.
-## A tree also keeps the seed its shape is drawn from and its species; a bush's species is -1.
+## A tree also keeps the seed its shape is drawn from, its species and its scale; a bush's species is -1.
 class Solid:
 	var parts: Array[Plant]
 	var centre: Vector2
 	var radius: float
 	var seed := 0
 	var species := -1
+	var scale := 1.0
 
 	func _init(p: Array[Plant]) -> void:
 		parts = p
@@ -526,18 +527,32 @@ func species_of(trunk: Plant) -> int:
 	return solid.species if trunk.pool == trunks and trunk.current() and solid != null and solid.parts[0] == trunk else -1
 
 
-## Grows the tree whose trunk is `trunk` again as `species`, from its own seed, in the slots it holds.
-func set_species(trunk: Plant, species: FloraLayout.Species) -> void:
+## The scale of the tree whose trunk is `trunk`, or 0 for none standing in its slot.
+func scale_of(trunk: Plant) -> float:
+	return _solids[Vector2i(0, trunk.slot)].scale if species_of(trunk) >= 0 else 0.0
+
+
+## How high over the ground the tree whose trunk is `trunk` reaches.
+func top_of(trunk: Plant) -> float:
+	var top := 0.0
+	for p in _solids[Vector2i(0, trunk.slot)].parts:
+		top = maxf(top, (p.xform * p.pool.mesh.get_aabb()).end.y)
+	return top
+
+
+## Grows the tree whose trunk is `trunk` again as `species` at `scale`, from its own seed, in the slots it holds.
+func set_look(trunk: Plant, species: FloraLayout.Species, scale: float) -> void:
 	var was := species_of(trunk)
-	if was < 0 or was == species:
+	if was < 0 or was == species and is_equal_approx(scale_of(trunk), scale):
 		return
 	var key := Vector2i(0, trunk.slot)
 	var solid: Solid = _solids[key]
-	var t := FloraLayout.tree(trunk.anchor, solid.seed, species)
+	var t := FloraLayout.tree(trunk.anchor, solid.seed, species, scale)
 	trunks.repose(trunk, t.trunk, t.bark)
 	for i in mini(t.blobs.size(), solid.parts.size() - 1):
 		foliage.repose(solid.parts[i + 1], t.blobs[i][0], t.blobs[i][1])
 	solid.species = species
+	solid.scale = scale
 	solid.fit()
 	changes += 1
 	_index(key, solid)
@@ -744,8 +759,8 @@ func reset() -> void:
 	_solid_cells.clear()
 	for key: Vector2i in _solids:
 		var solid: Solid = _solids[key]
-		if solid.species > FloraLayout.Species.OAK:
-			set_species(solid.parts[0], FloraLayout.Species.OAK)
+		if solid.species > FloraLayout.Species.OAK or solid.scale != 1.0:
+			set_look(solid.parts[0], FloraLayout.Species.OAK, 1.0)
 		_index(key, solid)
 
 

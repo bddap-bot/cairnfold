@@ -5,7 +5,7 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "species", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "mix", "sheet"]
+const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "mix", "sheet"]
 ## What a batch may carry: from a player, takings; from the host, also the undo of them.
 const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show", "uneasel"]
 const UNBATCHED := ["stairs", "wall", "path", "ground", "easel"]
@@ -135,8 +135,8 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 		"show":
 			ok = typeof(cmd.get("on")) == TYPE_BOOL and cmd.get("plants") is Dictionary and _show(cmd.plants, state, out)
 			out.on = cmd.get("on")
-		"species":
-			ok = _species(cmd, state, out)
+		"tree":
+			ok = _tree(cmd, state, out)
 		"heights":
 			ok = _heights(cmd, from_host, out) and _ponds(cmd, state, from_host, out)
 		"ponds":
@@ -460,22 +460,29 @@ static func _show(plants: Dictionary, state: Dictionary, out: Dictionary) -> boo
 	return true
 
 
-## A tree's species: a planted tree is its group's first plant, a meadow tree one of the meadow group's `trees`.
-static func _species(cmd: Dictionary, state: Dictionary, out: Dictionary) -> bool:
+## A tree's species, its scale or both: a planted tree is its group's first plant, a meadow tree one of the meadow
+## group's `trees`.
+static func _tree(cmd: Dictionary, state: Dictionary, out: Dictionary) -> bool:
 	var g: Variant = cmd.get("group")
 	var i: Variant = cmd.get("index")
-	var species: Variant = cmd.get("species")
-	if typeof(g) != TYPE_INT or typeof(i) != TYPE_INT or typeof(species) != TYPE_INT or not state.groups.has(g):
-		return false
-	if species < 0 or species >= FloraLayout.Species.size():
+	if typeof(g) != TYPE_INT or typeof(i) != TYPE_INT or not state.groups.has(g):
 		return false
 	var group: Dictionary = state.groups[g]
 	if not (i == 0 if group.kind == "tree" else group.get("trees", PackedInt32Array()).has(i)):
 		return false
+	if cmd.has("species"):
+		var species: Variant = cmd.species
+		if typeof(species) != TYPE_INT or species < 0 or species >= FloraLayout.Species.size():
+			return false
+		out.species = species
+	if cmd.has("scale"):
+		var scale: Variant = cmd.scale
+		if typeof(scale) != TYPE_FLOAT or not (scale >= FloraLayout.SCALES.x and scale <= FloraLayout.SCALES.y):
+			return false
+		out.scale = scale
 	out.group = g
 	out.index = i
-	out.species = species
-	return true
+	return out.has("species") or out.has("scale")
 
 
 static func _heights(cmd: Dictionary, from_host: bool, out: Dictionary) -> bool:

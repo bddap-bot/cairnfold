@@ -2,7 +2,8 @@ class_name WallTool
 extends Node3D
 
 ## Walls, for whichever hand holds them: trigger draws a wall along the ground, a loop as much as a line,
-## and a grip pointed at a wall, whatever the hand holds, pulls its height, and at a roof its pitch and curvature. Each hand grabs on its own, so two hands pull two walls or roofs at once; a grip on one the other hand
+## and a grip pointed at a wall, whatever the hand holds, pulls its height, at a roof its pitch and curvature, and at a
+## tree its size, its top following the hand. Each hand grabs on its own, so two hands pull two walls, roofs or trees at once; a grip on one the other hand
 ## holds takes nothing. A hand holding the house or the tower takes hold of one with its trigger, where it points, and carries it; the
 ## other hand's grip, pressed while it is carried, joins in, whatever it points at, to turn it with the pair and stretch it
 ## along their span, a tower every way at once; letting go builds it. A built
@@ -40,6 +41,9 @@ class Mason:
 	var stroke: Stroke
 	var lifting: Wall
 	var roofing: Wall
+	## The trunk of the tree the grip is sizing, and its top's height over the ground at its scale `lift_start`.
+	var growing: Flora.Plant
+	var grow_top := 0.0
 	var lift_start := 0.0
 	var curve_start := 0.0
 	var lift_hand := Vector3.ZERO
@@ -149,7 +153,7 @@ func busy(hand: Hand = null) -> bool:
 	if house != null and hand == null:
 		return true
 	for m in masons:
-		if (hand == null or m.hand == hand) and (m.stroke != null or m.lifting != null or m.roofing != null or m in _holders or m in _resize_hands):
+		if (hand == null or m.hand == hand) and (m.stroke != null or m.lifting != null or m.roofing != null or m.growing != null or m in _holders or m in _resize_hands):
 			return true
 	return false
 
@@ -170,7 +174,7 @@ func _process(delta: float) -> void:
 		_flush()
 	_relay_due()
 	for m in masons:
-		if m.lifting != null or m.roofing != null or m in _resize_hands:
+		if m.lifting != null or m.roofing != null or m.growing != null or m in _resize_hands:
 			m.hand.hold()
 		_preview(m)
 		m.buttons.latch()
@@ -190,6 +194,8 @@ func _handle(m: Mason) -> void:
 			end_lift(m)
 		if m.roofing != null:
 			end_roof(m)
+		if m.growing != null:
+			end_grow(m)
 		if m in _resize_hands:
 			end_resize(m.hand)
 	if not m.hand.get_has_tracking_data():
@@ -214,7 +220,12 @@ func _handle(m: Mason) -> void:
 		var roof := pick if pick.get("surface") == "roof" else {}
 		var ground: Variant = Terrain.raycast(origin, dir)
 		var nearest: float = origin.distance_to(ground) if ground != null else INF
-		if not roof.is_empty() and roof.along < nearest:
+		var tree := flora.solid_hit(origin, dir, nearest)
+		var trunk: Flora.Plant = tree.plants[0] if not tree.is_empty() and tree.plants[0].pool == flora.trunks else null
+		if trunk != null and tree.along < pick.get("along", INF):
+			if not masons.any(func(o: Mason) -> bool: return o.growing == trunk):
+				begin_grow(m, trunk, origin, tree.point)
+		elif not roof.is_empty() and roof.along < nearest:
 			if _held(roof.wall):
 				_join(m, roof.wall)
 			else:
@@ -228,6 +239,8 @@ func _handle(m: Mason) -> void:
 		drag_lift(m, origin.y)
 	elif m.buttons.held("grab") and m.roofing != null:
 		drag_roof(m, origin)
+	elif m.buttons.held("grab") and m.growing != null:
+		drag_grow(m, origin.y)
 
 
 ## Shows the bar what the edit in `m`'s hand would add.
@@ -240,6 +253,8 @@ func _preview(m: Mason) -> void:
 		change = world.change_of({"op": "reshape", "of": "walls", "id": m.lifting.id, "data": {"height": m.lifting.layout.height}})
 	elif m.roofing != null:
 		change = world.change_of({"op": "reshape", "of": "walls", "id": m.roofing.id, "data": {"roof": {"pitch": m.roofing.roof.pitch}}})
+	elif m.growing != null and m.growing.current():
+		change = world.change_of({"op": "tree", "group": m.growing.group, "index": m.growing.index, "scale": flora.scale_of(m.growing)})
 	elif m in _holders and house != null:
 		change = Budget.wall(house.data())
 	elif not _resize_hands.is_empty() and m == _resize_hands[0]:
@@ -255,6 +270,8 @@ func _let_go(m: Mason) -> void:
 		end_lift(m)
 	if m.roofing != null:
 		end_roof(m)
+	if m.growing != null:
+		end_grow(m)
 	if m in _resize_hands:
 		end_resize(m.hand)
 
@@ -365,6 +382,7 @@ func _forget() -> void:
 		m.stroke = null
 		m.lifting = null
 		m.roofing = null
+		m.growing = null
 	if house != null:
 		house.queue_free()
 		house = null
@@ -854,6 +872,42 @@ func end_roof(m: Mason) -> void:
 		_relay(w)
 	else:
 		world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id), m.hand)
+
+
+## Grip on a tree at `at`: the hand raised grows it and lowered shrinks it, its top rising and falling with the hand.
+func begin_grow(m: Mason, trunk: Flora.Plant, hand: Vector3, at: Vector3) -> void:
+	m.growing = trunk
+	m.lift_start = flora.scale_of(trunk)
+	m.lift_hand = hand
+	m.lift_at = at
+	m.lift_gain = Hand.reach_gain(hand.distance_to(at))
+	m.grow_top = flora.top_of(trunk)
+
+
+func drag_grow(m: Mason, hand_y: float) -> void:
+	var trunk := m.growing
+	if not trunk.current():
+		return
+	var scale := clampf(snappedf(m.lift_start * (m.grow_top + (hand_y - m.lift_hand.y) * m.lift_gain) / m.grow_top, 0.01), FloraLayout.SCALES.x, FloraLayout.SCALES.y)
+	if not is_equal_approx(scale, flora.scale_of(trunk)):
+		flora.set_look(trunk, flora.species_of(trunk) as FloraLayout.Species, scale)
+		_cue(Cues.Act.WALL_STRETCH, m.lift_at, [m.hand], Cues.stretch(m.lift_start, scale))
+
+
+func end_grow(m: Mason) -> void:
+	var trunk := m.growing
+	m.growing = null
+	if not trunk.current() or is_equal_approx(flora.scale_of(trunk), m.lift_start):
+		_settle_tree(trunk)
+	else:
+		world.submit({"op": "tree", "group": trunk.group, "index": trunk.index, "scale": flora.scale_of(trunk)}, _settle_tree.bind(trunk), m.hand)
+
+
+## Shows a tree as the garden has it, once its sizing has come back or been turned down.
+func _settle_tree(trunk: Flora.Plant) -> void:
+	var g: Dictionary = world.state.groups.get(trunk.group, {})
+	if trunk.current() and not g.is_empty() and not masons.any(func(o: Mason) -> bool: return o.growing == trunk):
+		flora.set_look(trunk, g.species.get(trunk.index, FloraLayout.Species.OAK), g.scale.get(trunk.index, 1.0))
 
 
 ## The arches that would stand in `w` with `own` its own, with those the paths standing open, whatever it shows.

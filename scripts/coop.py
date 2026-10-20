@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 QUIET_CPU = 150
 # Going home before these steps means a player lost the garden it was visiting.
 # The host and the joiner end their builds and turns of the sky at this command; late joiners build after it.
-SEQ = 33
+SEQ = 34
 # After the final digest the joiner pulls the ground this far up in one stroke and then twice as far down, each
 # step digested on every peer: one stroke of a guest's spans the whole ground.
 EXTREME = 500

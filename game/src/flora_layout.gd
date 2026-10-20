@@ -111,13 +111,16 @@ static func brush(center: Vector3, radius: float, count: int, rng: RandomNumberG
 ## a light, open crown, a copper beech's low wine-red dome. Every one has BLOBS blobs, so a tree changes species in
 ## the slots it holds.
 enum Species { OAK, FIR, POPLAR, BIRCH, BEECH }
+## How far a tree's size goes from the size it grows at: below it a crown sinks into the grass, past it a blob's
+## facets read as flat plates.
+const SCALES := Vector2(0.4, 3.0)
 const BARK := {Species.OAK: Color(0.36, 0.27, 0.2), Species.FIR: Color(0.3, 0.21, 0.16), Species.POPLAR: Color(0.42, 0.38, 0.3), Species.BIRCH: Color(0.86, 0.84, 0.79), Species.BEECH: Color(0.47, 0.46, 0.43)}
 const LEAVES := {Species.FIR: Color(0.06, 0.19, 0.12), Species.POPLAR: Color(0.36, 0.5, 0.08), Species.BIRCH: Color(0.46, 0.6, 0.2), Species.BEECH: Color(0.32, 0.09, 0.1)}
 
 
-## A tree of `species` on the ground point `at`, its shape drawn from `seed`: a trunk (a unit-height cylinder
-## scaled up) and its bark colour, and its foliage blobs as [transform, colour].
-static func tree(at: Vector3, seed: int, species := Species.OAK) -> Dictionary:
+## A tree of `species` on the ground point `at`, its shape drawn from `seed` and grown `scale` times about `at`: a
+## trunk (a unit-height cylinder scaled up) and its bark colour, and its foliage blobs as [transform, colour].
+static func tree(at: Vector3, seed: int, species := Species.OAK, scale := 1.0) -> Dictionary:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var base := at - Vector3.UP * 0.2
@@ -168,7 +171,10 @@ static func tree(at: Vector3, seed: int, species := Species.OAK) -> Dictionary:
 				var off := Vector3.ZERO if b == BLOBS - 1 else Vector3(cos(a), 0.0, sin(a)) * reach * rng.randf_range(0.75, 0.95)
 				var s := h * rng.randf_range(0.55, 0.7)
 				blobs.append(_blob(rng, Vector3(s, s * 0.55, s), crown + off + Vector3.UP * (h * 0.35 if b == BLOBS - 1 else 0.0), LEAVES[species]))
-	return {"trunk": Transform3D(Basis().scaled(Vector3(girth, h, girth)), base + Vector3.UP * h * 0.5), "bark": BARK[species], "blobs": blobs}
+	var grown := Transform3D(Basis.from_scale(Vector3.ONE * scale), at * (1.0 - scale))
+	for b in blobs:
+		b[0] = grown * b[0]
+	return {"trunk": grown * Transform3D(Basis().scaled(Vector3(girth, h, girth)), base + Vector3.UP * h * 0.5), "bark": BARK[species], "blobs": blobs}
 
 
 static func _blob(rng: RandomNumberGenerator, scale: Vector3, at: Vector3, green: Color) -> Array:
