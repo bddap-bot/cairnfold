@@ -3,6 +3,9 @@ extends SceneTree
 ## Headless checks of windows, doors, lanterns, flags, chimneys and fences, as layouts and through the tools:
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_fittings.gd
 
+## A wall lays in under a hundred frames; seventy times that is a wall that never settles.
+const SETTLE_FRAMES := 3600
+
 var failures := 0
 var main: Node
 
@@ -387,18 +390,18 @@ func _in_the_glade() -> void:
 	arch_hand.tool = Hand.Tool.ARCH
 	arch_hand.held_still = true
 	arch_hand.global_transform = Transform3D(Basis.looking_at(-mid_n), in_arch + mid_n * 3.0)
-	await _drawn(wall)
+	await _drawn(wall, "an arch held at the wall")
 	var arch_steps: int = steps_now.call()
 	_check(wall.layout.live_arches.size() == 1 and Array(world.state.walls[wall.id].arches).is_empty() and steps_now.call() == arch_steps, "a hand holding the arch at a wall shows an archway cut there, and the garden has none yet")
 	Buttons.injected["%s/trigger_click" % arch_hand.tracker] = true
 	await process_frame
 	Buttons.injected.erase("%s/trigger_click" % arch_hand.tracker)
-	await _drawn(wall)
+	await _drawn(wall, "an arch pressed into the wall")
 	_check(world.state.walls[wall.id].arches.size() == 1 and wall.layout.live_arches.size() == 1 and steps_now.call() == arch_steps + 1, "a press cuts the archway, one undo step")
 	_check(fit.command(fit.aim(Hand.Tool.ARCH, in_arch + mid_n * 3.0, -mid_n)).data.keys() == ["arches"], "the arch changes the arches alone, so the wall keeps its material")
 	arch_hand.tool = Hand.Tool.WALLS
 	arch_hand.held_still = false
-	await _drawn(wall)
+	await _drawn(wall, "the arch put away")
 	var crowding: Vector3 = wall.layout.frame_at(middle_s + 2.0).point + Vector3.UP * 1.0
 	_check(not _fit(fit, fit.aim(Hand.Tool.ARCH, crowding + mid_n * 3.0, -mid_n)) and steps_now.call() == arch_steps + 1, "an arch too near another is not cut and leaves no step")
 	_check(_fit(fit, fit.aim(Hand.Tool.ARCH, in_arch + mid_n * 3.0, -mid_n)) and Array(world.state.walls[wall.id].arches).is_empty() and wall.layout.live_arches.is_empty(), "a press on the arch fills it")
@@ -457,21 +460,21 @@ func _in_the_glade() -> void:
 	hand.tool = Hand.Tool.WINDOWS
 	hand.held_still = true
 	hand.global_transform = Transform3D(Basis.looking_at(-normal), on_face + normal * 3.0)
-	var shown := await _drawn(wall)
+	var shown := await _drawn(wall, "windows held at the wall")
 	_check(wall.layout.openings.size() == 1 and Array(world.state.walls[wall.id].windows).is_empty() and steps_now.call() == steps, "a hand holding windows at a wall shows it opened, and the garden has no window yet")
 	hand.global_transform = Transform3D(Basis.looking_at(-normal), on_face + Vector3.UP * 0.05 + normal * 3.0)
-	_check(await _drawn(wall) == shown, "a hand moved within the opening it shows keeps the wall it showed")
+	_check(await _drawn(wall, "windows moved within the opening") == shown, "a hand moved within the opening it shows keeps the wall it showed")
 	Buttons.injected["%s/trigger_click" % hand.tracker] = true
 	await process_frame
 	Buttons.injected.erase("%s/trigger_click" % hand.tracker)
 	_check(wall.layout.openings.size() == 1 and steps_now.call() == steps + 1, "a press opens a window, one undo step")
-	_check(await _drawn(wall) == shown, "the opened wall is drawn as it was shown before the press, stone for stone and leaf for leaf")
+	_check(await _drawn(wall, "a window pressed into the wall") == shown, "the opened wall is drawn as it was shown before the press, stone for stone and leaf for leaf")
 	hand.global_transform = Transform3D(Basis.looking_at(-normal), on_face + face.tangent * 0.8 + normal * 3.0)
-	await _drawn(wall)
+	await _drawn(wall, "windows aimed beside the window")
 	_check(wall.layout.openings.size() == 1 and wall.layout.openings[0].lights == 2 and steps_now.call() == steps + 1, "aimed beside it, the wall shows the two fused")
 	hand.tool = Hand.Tool.WALLS
 	hand.held_still = false
-	_check(await _drawn(wall) == shown and wall.layout.openings[0].lights == 1, "put away, the wall is drawn as the garden has it again, as it was shown before the press")
+	_check(await _drawn(wall, "windows put away") == shown and wall.layout.openings[0].lights == 1, "put away, the wall is drawn as the garden has it again, as it was shown before the press")
 	_fit(fit, fit.aim(Hand.Tool.WINDOWS, on_face + face.tangent * 0.8 + normal * 3.0, -normal))
 	_check(wall.layout.openings.size() == 1 and wall.layout.openings[0].lights == 2, "a press beside it fuses a second light into it")
 	_fit(fit, fit.aim(Hand.Tool.WINDOWS, on_face + normal * 3.0, -normal))
@@ -556,13 +559,20 @@ func _redo(world: World) -> void:
 	_lay_walls()
 
 
-## Every buffer `w` draws once its stones and ivy are laid.
-func _drawn(w: Wall) -> Array:
+## Every buffer `w` draws once its stones and ivy are laid. A wall that lays on and on, as one a hand's preview keeps
+## reshaping does, fails `step` and ends the run where it stalled.
+func _drawn(w: Wall, step: String) -> Array:
 	for f in 3:
 		await process_frame
-	while w.laying() or w._ivy_task >= 0:
+	for f in SETTLE_FRAMES:
+		if not w.laying() and w._ivy_task < 0:
+			return w._parts.duplicate(true)
 		await process_frame
-	return w._parts.duplicate(true)
+	_check(false, "%s: the wall still lays %d frames on" % [step, SETTLE_FRAMES])
+	_done()
+	while true:
+		await process_frame
+	return []
 
 
 func _lay_walls() -> void:
