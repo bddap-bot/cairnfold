@@ -1599,7 +1599,7 @@ func _neck_cost(s: Dictionary) -> void:
 		add_child(dish)
 		dish.visible = true
 		var at := Terrain.ground(12.0 + i * 1.8, 0)
-		dish.position = at + Vector3(0, 0.4 if i == 3 else 0.8, 0)
+		dish.position = at + Vector3(0, 0.25 if i == 3 else [0.4, 0.8, 1.05][i], 0)
 		animal.position = at
 		animal.position.z += Hand.TOP.z + animal.neck.stand_off(animal, dish)
 		animal.eat(dish.position.y - at.y, 0.0)
