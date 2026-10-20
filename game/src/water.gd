@@ -40,6 +40,15 @@ static func fill(at: Vector2i, level: float, near := -INF) -> PondLayout.Pond:
 	return PondLayout.fill(Terrain.read(Terrain.ALL), Terrain.ALL, at, level, near)
 
 
+## The level a hollow pressed at (x, z) out to `radius` holds to its brim, 8 cm under the lowest point of its rim,
+## as if what spilled over ran away; -INF when it holds none. On ground lower all round, water filled higher spills
+## into the ground around and fills that too.
+static func brim(x: float, z: float, radius: float) -> float:
+	var cells := Terrain.cells_around(x, z, radius + Terrain.STEP * 2.0)
+	var p := PondLayout.fill(Terrain.read(cells), cells, Terrain.grid_point(x, z))
+	return p.level if p != null else -INF
+
+
 ## The pond that filling to the height of ground point `point` makes: of the hollows the grid points around it
 ## run down into, the one holding the most water. Null when none holds any.
 static func pointed(point: Vector3) -> PondLayout.Pond:

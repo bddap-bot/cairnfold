@@ -505,14 +505,17 @@ func _touch(s: Dictionary) -> void:
 	main.flora_tool.stand_in = Flora.NO_HAND
 
 
-## Digs a hollow at x, z, deeper the more `seconds` (as a grip pressing the ground), and fills it to the brim with
-## the pond tool pointed at its rim.
+## Digs a hollow at x, z, deeper the more `seconds` (as a grip pressing the ground), and fills it to its brim
+## (`Water.brim`), so the pond stays in it.
 func _dig(s: Dictionary) -> void:
 	var depth := clampf(0.7 * s.get("seconds", 1.5), 0.45, 1.3)
 	var radius := maxf(2.8, depth * GroundGrab.SPREAD)
 	await _sculpt({"x": s.x, "z": s.z, "lift": -depth, "radius": 2.8, "seconds": 0.3, "relative": s.get("relative", false), "hand": s.get("hand", "right")})
 	await get_tree().process_frame
-	await _pond({"x": s.x + radius, "z": s.z, "relative": s.get("relative", false), "hand": s.get("hand", "right")})
+	var mid := _spot(s, s.x, s.z)
+	main.water_tool.fill(_holding(s, Hand.Tool.POND), Vector3(mid.x, Water.brim(mid.x, mid.z, radius), mid.z))
+	await get_tree().process_frame
+	await get_tree().process_frame
 
 
 ## Pulls the trigger of the pond tool pointed at the ground at x, z: the hollow beside it fills to that height.

@@ -100,14 +100,14 @@ func _draw(g: Glade, tool: Hand.Tool, a: Vector3, b: Vector3) -> Wall:
 	return g.walls.walls[-1]
 
 
-## Presses a hollow at x, z as a grip does, then fills it to the brim with the pond tool pointed at its rim.
+## Presses a hollow at x, z as a grip does, then fills it to its brim with the pond tool.
 func _dig(g: Glade, x: float, z: float, frames: int) -> void:
 	var depth := clampf(0.7 * frames / 60.0, 0.45, 1.3)
 	var hand := g.terrain.rig.right
 	g.terrain.begin(hand, Terrain.ground(x, z), 2.8)
 	g.terrain.pull(hand, -depth)
 	g.terrain.end_stroke(hand)
-	g.digger.fill(hand, Terrain.ground(x + maxf(2.8, depth * GroundGrab.SPREAD), z))
+	g.digger.fill(hand, Vector3(x, Water.brim(x, z, maxf(2.8, depth * GroundGrab.SPREAD)), z))
 	await process_frame
 	await process_frame
 

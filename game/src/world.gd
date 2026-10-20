@@ -816,6 +816,8 @@ func _set_ponds(cmd: Dictionary, before: Dictionary, inverse: Dictionary, ground
 		var was: Array = _fills.get(g, [])
 		if not was.is_empty() and was[0] == state.ponds[g] and not was[1].ground.intersects(ground):
 			filled[g] = was[1]
+		elif not was.is_empty() and was[0] == state.ponds[g]:
+			filled[g] = _refilled(g, state.ponds[g], was[1])
 		else:
 			filled[g] = Water.fill(g, state.ponds[g], was[1].level if not was.is_empty() else -INF)
 	var order: Array = state.ponds.keys()
@@ -851,6 +853,22 @@ func _set_ponds(cmd: Dictionary, before: Dictionary, inverse: Dictionary, ground
 	if not gone.is_empty():
 		inverse.drop = gone
 	_account("ponds", {"pond": state.ponds.size()} if not state.ponds.is_empty() else {})
+
+
+## Pond `was`, at `level`, filled again over the ground as it stands, or null when none of its water is left where it
+## stood: filled in, it is gone, rather than running downhill into whatever hollow holds its level.
+static func _refilled(g: Vector2i, level: float, was: PondLayout.Pond) -> PondLayout.Pond:
+	var p := Water.fill(g, level, was.level)
+	if p == null:
+		return null
+	var wet := PackedByteArray()
+	wet.resize(Terrain.VERTS * Terrain.VERTS)
+	for c in p.cells:
+		wet[c.y * Terrain.VERTS + c.x] = 1
+	for c in was.cells:
+		if wet[c.y * Terrain.VERTS + c.x]:
+			return p
+	return null
 
 
 func _show_sky(t: float) -> void:

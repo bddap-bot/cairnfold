@@ -191,14 +191,14 @@ func _teleport_is_no_motion() -> void:
 		n.free()
 
 
-## Presses a hollow at x, z as a grip does, then fills it to the brim with the pond tool pointed at its rim.
+## Presses a hollow at x, z as a grip does, then fills it to its brim with the pond tool.
 func _dig(tool: WaterTool, x: float, z: float, frames: int) -> void:
 	var depth := clampf(0.7 * frames / 60.0, 0.45, 1.3)
 	var hand := tool.world.ground_grab.rig.right
 	tool.world.ground_grab.begin(hand, Terrain.ground(x, z), 2.8)
 	tool.world.ground_grab.pull(hand, -depth)
 	tool.world.ground_grab.end_stroke(hand)
-	tool.fill(hand, Terrain.ground(x + maxf(2.8, depth * GroundGrab.SPREAD), z))
+	tool.fill(hand, Vector3(x, Water.brim(x, z, maxf(2.8, depth * GroundGrab.SPREAD)), z))
 	await process_frame
 	await process_frame
 

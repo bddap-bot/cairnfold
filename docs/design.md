@@ -2146,13 +2146,16 @@ would hold water the ray turns grey, nothing shows and the trigger bumps the han
 
 A pond is its grid point and its level (`World.state.ponds`). From the grid point water runs downhill
 to the bottom of its hollow, then fills it lowest ground first up to that level, or, if the rim is
-lower than the level anywhere, to 8 cm below the lowest point of the rim it would spill over
-(`PondLayout`); spilling into another enclosed hollow fills that too. Of the grid points around the
+lower than the level anywhere, to 8 cm below the lowest point of the rim it would spill over onto
+ground that runs off the world's edge (`PondLayout`); spilling into another enclosed hollow fills that
+too. The meadow is a bowl, so water pointed over a hole's rim runs down into the meadow's own hollows
+and fills them to that level as one pond; the pale sheet shows it before the trigger. Of the grid points around the
 pointed spot, the one whose hollow holds the most water names the pond, so a point on a rim between a
 hole and the meadow fills the hole. After every ground edit each pond fills again at its own level:
 digging its bed deeper deepens it, cutting its rim lowers it to the new rim, and mending the rim
 brings it back up. A pond whose hollow holds no water any more, filled in or shallower than 12 cm or
-open to the world's edge, is erased, water, fish and all, as part of the ground edit that did it, so
+open to the world's edge, or whose water would cover none of the ground it covered, running off into
+another hollow below its level, is erased, water, fish and all, as part of the ground edit that did it, so
 undoing that edit brings it back. Two ponds whose water meets become the higher one.
 
 A pond has no size limit: water fills whatever the ground holds, so pointing high on the meadow's rim

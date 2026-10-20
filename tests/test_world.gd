@@ -173,7 +173,7 @@ func _bad_commands_are_dropped() -> void:
 		"reshape keyed by a name": {"op": "reshape", "of": "walls", "id": a, "data": {&"height": NAN}},
 		"heights that put a pond": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": Terrain.read(Rect2i(0, 0, 1, 1)), "put": {Vector2i(0, 0): 1.0}},
 		"heights that drain someone's pond": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": Terrain.read(Rect2i(0, 0, 1, 1)), "drop": [Vector2i(0, 0)]},
-		"a pond on open meadow": {"op": "ponds", "put": {Vector2i(80, 80): Terrain.ground(0, 0).y}},
+		"a pond at the world's edge, where water runs off": {"op": "ponds", "put": {Vector2i(0, 80): 50.0}},
 		"two ponds at once": {"op": "ponds", "put": {Vector2i(80, 80): 1.0, Vector2i(10, 10): 1.0}},
 		"a pond off the map": {"op": "ponds", "put": {Vector2i(-1, 0): 1.0}},
 		"a pond at a NaN level": {"op": "ponds", "put": {Vector2i(80, 80): NAN}},
