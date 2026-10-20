@@ -220,7 +220,6 @@ late frames (over 1.5× the refresh period) and GPU time per frame (fdinfo):
 | Phase | Stepping down to 0.9 | Held at 0.9 |
 | --- | --- | --- |
 | Houses | 34, 2, 34; 9.65 ms | 0, 0, 0; 9.6 to 9.7 ms |
-| Paths | Dirt strokes and wall crossings | Dirt strokes wear soft-edged earth into the ground mask and open arches or gates through walls and fences | 5 (done) |
 | Erase | 0, 0, 0 | 0, 0, 0 |
 An earlier pair of runs with the line at 0.82 gave 1 and 75 late frames; they were not split
 by cause.
@@ -471,7 +470,6 @@ every phase ran at half rate, 36 fps:
 | Walls, 20 m disc | 32.8 | 31.3 |
 | Plaster walls, 15 m disc | 22.1 | 25.6 |
 | Fences, 15 m disc | 20.3 | 20.1 |
-| Five paths 48 m long | 48.6 | 27.8 |
 | Eight ponds | 20.8 | 18.0 |
 | Village, 12 m disc | 28.1 | 20.5 |
 | Lanterns on the 10 m disc's walls | 23.3 | 31.1 |
@@ -694,7 +692,6 @@ meadow's 5.69 and 4.57 ms; the room is 11.1 ms (the governor's line) less 5.7:
 | Walls, 15 m disc | 1,562 m² | 7.62 | 11.75 | |
 | Plaster walls, 15 m disc | 1,562 m² | 7.12 | 9.15 | 2.92 µs a m² |
 | Fences, 15 m disc | 416 m² | 5.93 | 5.36 | 1.82 µs a m² |
-| Five paths 48 m long | 864 m² | 10.48 | 6.39 | 5.53 µs a m² |
 | Eight ponds | 8 | 5.98 | 4.60 | 35.3 µs a pond |
 | Village, 12 m disc | 225 m² of wall, 54 m² of roof | 7.45 | 6.55 | 10.8 µs a m² of roof |
 | Lanterns on the 10 m disc's walls | 90 | 6.78 | 9.22 | 3.1 µs a lantern |
@@ -811,7 +808,6 @@ fourth tried. With the wildlife the base is 7.28 ms and the room 3.8 ms:
 | Walls, 20 m disc | 0.05 | 614 m² | 11.53 | 11.57 | |
 | Plaster walls, 15 m disc | 0.20 | 688 m² | 8.74 | 11.16 | 6.5 µs a m² |
 | Fences, 15 m disc | 1 | 416 m² | 8.29 | 8.52 | 4.3 µs a m² |
-| Five paths | 0.10 | 88 m² | 7.60 | 8.73 | 22.8 µs a m² |
 | Six ponds | | 6 | 7.46 | 7.05 | 89.8 µs a pond |
 | Village | 0.66 | 43 m² of wall, 26 m² of roof | 8.70 | 8.31 | 37.2 µs a m² of roof |
 | Thatched village | 0.51 | 43 m² of wall, 26 m² of thatch | 9.36 | 8.03 | 62.7 µs a m² of thatch |
