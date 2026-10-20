@@ -205,14 +205,17 @@ func _gaze(s: Dictionary) -> void:
 		t += 0.5
 
 
+static func aim_pose(head: Transform3D, dir: Array) -> Transform3D:
+	var along: Vector3 = head.basis * Vector3(dir[0], dir[1], dir[2])
+	return Transform3D(Basis.looking_at(along, Vector3.UP), head * Vector3(-0.2, -0.35, -0.25))
+
+
 ## Teleports as a player does with any tool: the left hand points beside the head along `dir` (relative
 ## to the head's facing) with its stick pushed `stick` forward for `seconds`, optionally captures the aimed view, from
 ## the `watch` pose (a `view` step's keys) if given, then lets go.
 func _aim(s: Dictionary) -> void:
 	var rig: Rig = main.rig
-	var head := rig.head.global_transform
-	var dir: Vector3 = head.basis * Vector3(s.dir[0], s.dir[1], s.dir[2])
-	rig.left.global_transform = Transform3D(Basis.looking_at(dir, Vector3.UP), head * Vector3(-0.2, -0.35, -0.25))
+	rig.left.global_transform = aim_pose(rig.head.global_transform, s.dir)
 	Hand.injected_sticks[rig.left.tracker] = Vector2(0, 1)
 	while rig.aim_hand == null:
 		await get_tree().process_frame
