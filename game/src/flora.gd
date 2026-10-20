@@ -421,6 +421,7 @@ func _init() -> void:
 	trunks = Pool.new(self, trunk, Meadow.TREES + PLACED_TREES, _plant_material("plant", Color.WHITE, 1.0), true)
 	var leaf_mat := _plant_material("leaf", Color.WHITE, 1.0)
 	leaf_mat.set_shader_parameter("backlight", Color(0.25, 0.35, 0.08))
+	leaf_mat.set_shader_parameter("crown_lump", Meshes.BLOB_LUMP)
 	for step in Quality.ladder:
 		_blobs.get_or_add(step.blob_detail, Meshes.blob(4, step.blob_detail))
 	foliage = Pool.new(self, _blobs[blob_detail], (Meadow.TREES + PLACED_TREES) * FloraLayout.BLOBS + Meadow.BUSHES, leaf_mat, false)

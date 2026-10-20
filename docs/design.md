@@ -1098,6 +1098,14 @@ A crown is lit and shaded as one soft mass, at no measured cost
   into the shadow map. The ground keeps the crown's shade ([before, after](crown-shade.jpg)),
   blobs no longer shade one another in patches, and the shade stays the same shape when the
   ladder changes blob detail.
+- That blob casts from a lump's depth (`Meshes.BLOB_LUMP`) behind its sunlit surface, along
+  the sun's rays. Its lumps are not the drawn blobs' lumps, and cast where they stand they laid
+  hatching and stair-steps a shadow-map texel wide across the crown's lit side, changing as the
+  head moved. Moved along the rays, the shade on the ground keeps its shape. On the Steam Frame
+  (fixed head, wind stilled, shadows-off control) this removed the stair-steps and about 40% of
+  the shadow-made hatching on a side-lit crown; fainter hatching remains in the crown's shaded
+  half. GPU time a frame: 7.69 ms both before and after close under a crown, 6.79 then 6.87 ms
+  looking over the meadow.
 
 GPU time a frame on the Quest 2 (`demo/crowns-bench.json`: the meadow and the tree pool
 filled to 20 m, ladder pinned; two passes of each build in one session, mean of the two),

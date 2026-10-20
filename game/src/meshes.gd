@@ -141,6 +141,10 @@ static func flower(petals: int, head := Color.WHITE) -> ArrayMesh:
 ## A lumpy foliage blob: an icosphere pushed out by noise, shaded darker underneath. Its vertices are spread evenly,
 ## so it holds the lumps of a latitude-longitude sphere with far fewer of them, which is what the Quest 2 pays for.
 ## Its normals stay the sphere's, so light wraps the blob as one soft mass and the lumps show only in its outline.
+## How far a blob's noise pushes its surface in or out of its sphere, in blob radii.
+const BLOB_LUMP := 0.35
+
+
 static func blob(seed: int, subdiv := 2) -> ArrayMesh:
 	var arrays := icosphere(subdiv)
 	var sphere: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
@@ -150,7 +154,7 @@ static func blob(seed: int, subdiv := 2) -> ArrayMesh:
 	noise.frequency = 2.2
 	var colors := PackedColorArray()
 	for u in sphere:
-		var v := u * (1.0 + noise.get_noise_3dv(u) * 0.35)
+		var v := u * (1.0 + noise.get_noise_3dv(u) * BLOB_LUMP)
 		verts.append(v)
 		var shade := clampf(0.55 + v.y * 0.45, 0.35, 1.0)
 		colors.append(Color(shade, shade, shade))

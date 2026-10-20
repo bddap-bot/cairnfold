@@ -13,6 +13,8 @@ const float CROWN_GIVE = 0.12;
 // How far a blob's normals lean out from its trunk, so the faces between a crown's blobs light as its outside does
 // and the crown shades as one mass.
 const float CROWN_ROUND = 0.8;
+// Meshes.BLOB_LUMP: how far a blob's surface strays from its sphere, in blob radii.
+uniform float crown_lump;
 // The tint a blob's underside takes, so the shade under a crown reads cool.
 const vec3 CROWN_SHADE = vec3(0.8, 0.92, 1.15);
 #endif
@@ -56,6 +58,12 @@ void vertex() {
 	vec2 out_of_crown = VERTEX.xz - INSTANCE_CUSTOM.zw;
 	NORMAL = normalize(NORMAL + CROWN_ROUND * vec3(out_of_crown.x, 0.0, out_of_crown.y) / max(length(out_of_crown), 0.3));
 	VERTEX += wind_push(INSTANCE_CUSTOM.zw, wind_gust(INSTANCE_CUSTOM.zw)) * CROWN_GIVE * max(MODEL_MATRIX[3].y, 0.0);
+	if (IN_SHADOW_PASS) {
+		// A crown's coarse shadow blob (Flora.crown_shade) casts from a lump's depth behind its sunlit surface: its
+		// lumps, which the drawn blobs do not share, lay no stripes across the crown's lit side, and moved along the
+		// sun's rays, its shade on the ground keeps its shape.
+		VERTEX -= INV_VIEW_MATRIX[2].xyz * crown_lump * length(MODEL_MATRIX[0].xyz);
+	}
 #endif
 #ifdef PARTED
 	vec3 root = MODEL_MATRIX[3].xyz + vec3(0.0, ground, 0.0);
