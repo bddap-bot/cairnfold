@@ -18,6 +18,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await process_frame
 	world = main.world
+	await _quest_3_join_keeps_the_house_budget()
 	await _counts_follow_placements_and_deletions()
 	await _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room()
 	await _a_capped_edit_is_heard_felt_and_shown()
@@ -232,3 +233,53 @@ func _the_bar_shows_the_share() -> void:
 	for b: BudgetBar in bars:
 		var shown: float = b.material_override.get_shader_parameter("fill")
 		_check(absf(shown - world.fill()) < 0.01, "the bar shows the garden's share: %.3f against %.3f" % [shown, world.fill()])
+
+
+func _quest_3_join_keeps_the_house_budget() -> void:
+	var meadow := world.units.duplicate()
+	await _play([{"op": "place", "x": 0, "z": 8}, {"op": "house", "at": [0, 0], "size": [2.4, 2.4], "seconds": 0.3}])
+	_check(world.state.walls.size() == 1, "the solo host can place a small stone house")
+	var house := Budget.add(world.units.duplicate(), meadow, -1.0)
+	var branches: Array[Node] = []
+	var peers: Array[ENetMultiplayerPeer] = []
+	var worlds: Array[World] = []
+	for i in 2:
+		var branch := Node.new()
+		root.add_child(branch)
+		set_multiplayer(SceneMultiplayer.new(), branch.get_path())
+		var w := World.new()
+		w._local_device = Budget.Device.FRAME if i == 0 else Budget.Device.QUEST_2
+		branch.add_child(w)
+		w.units = world.units.duplicate()
+		branches.append(branch)
+		worlds.append(w)
+		peers.append(ENetMultiplayerPeer.new())
+	var host := worlds[0]
+	var guest := worlds[1]
+	var solo := host.fill()
+	var fits_solo := Budget.fits(host.units, house, host.devices())
+	_check(peers[0].create_server(0) == OK, "the budget test host opens ENet")
+	host.multiplayer.multiplayer_peer = peers[0]
+	_check(peers[1].create_client("127.0.0.1", peers[0].host.get_local_port()) == OK, "the Quest 3-class client connects")
+	guest.multiplayer.multiplayer_peer = peers[1]
+	for i in 600:
+		await process_frame
+		if host.multiplayer.get_peers().size() == 1 and guest.multiplayer.get_peers().size() == 1:
+			break
+	for i in 60:
+		await process_frame
+	_check(host.multiplayer.get_peers().size() == 1 and guest.multiplayer.get_peers().size() == 1, "the Quest 3-class client joined over ENet")
+	print("budget-coop: house %s; solo %.9f joined %.9f; second house fits %s -> %s" % [house, solo, host.fill(), fits_solo, Budget.fits(host.units, house, host.devices())])
+	_check(is_equal_approx(solo, host.fill()), "a Quest 3 joining does not inflate the house's budget share")
+	_check(fits_solo and Budget.fits(host.units, house, host.devices()), "the second house still fits after joining")
+	_check(is_equal_approx(guest.fill(), host.fill()), "the visitor uses the same budget bar as the host")
+	_check(Budget.fits(guest.units, house, guest.devices()), "the visitor can also place the second house")
+	_check(host.units == world.units, "joining does not duplicate the house or reset the counted units")
+	for peer in peers:
+		peer.close()
+	guest.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
+	_check(guest.devices() == [Budget.Device.QUEST_2], "going home restores the visitor's own allowance")
+	for branch in branches:
+		branch.queue_free()
+	world.undo()
+	await _settled()
