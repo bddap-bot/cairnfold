@@ -259,8 +259,10 @@ elif device == "quest":
     # Only the game's process counts, the one printing the labels. Another process rendering during a phase, as the
     # shell does under an open panel, shares the GPU with the game, so that phase's times are not the game's.
     # A game that dies hands the compositor to the shell, which then renders in its phase: the death is the finding.
+    # A hand the headset's cameras track, someone's near it, is drawn by the game with its tool and the tool's
+    # preview, so a phase it shows in measures more than its scene.
     label, phase, game_pid, crash, done = "-", "-", None, None, False
-    shared = {}
+    shared, hands, handed = {}, set(), set()
     for line in open(os.path.join(out, "logcat.txt"), errors="replace"):
         fields = line.split()
         pid = fields[2] if len(fields) > 2 else None
@@ -269,6 +271,11 @@ elif device == "quest":
             label, game_pid = m.group(1), pid
             if label != "-":
                 phase = label
+        m = re.search(r"HANDTRACKING hand (\d+) status set to (\w+)", line)
+        if m:
+            (hands.add if m.group(2) == "Tracked" else hands.discard)(m.group(1))
+        if hands and label != "-":
+            handed.add(label)
         if pid == game_pid and "driver: done" in line:
             done = True
         m = re.search(r"Fatal signal \d+ \(\w+\).*", line)
@@ -283,6 +290,8 @@ elif device == "quest":
         sys.exit(crash or f"bench: the game died during {phase} before its script ended; see logcat.txt")
     if shared:
         sys.exit("bench: another process rendered during " + ", ".join(f"{k} (pid {', '.join(sorted(v))})" for k, v in shared.items()) + "; see logcat.txt")
+    if handed:
+        sys.exit("bench: the headset tracked a hand during " + ", ".join(sorted(handed)) + ", which the game drew; see logcat.txt")
     for v in gpu.values():
         v.pop(0)
     unmeasured = [name for name in phases if not gpu.get(name) and not name.startswith("sweep/")]
