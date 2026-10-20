@@ -13,6 +13,10 @@ window/size/viewport_width=1280
 window/size/viewport_height=720
 window/vsync/vsync_mode=0
 
+[editor]
+
+import/use_multiple_threads=false
+
 [rendering]
 renderer/rendering_method="mobile"
 lights_and_shadows/directional_shadow/size=4096
