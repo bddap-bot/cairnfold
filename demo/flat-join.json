@@ -1,6 +1,6 @@
 [
   {"op": "place", "x": 0, "z": 1},
-  {"op": "until", "heard": true},
+  {"op": "until", "heard": true, "previewed": 2},
   {"op": "flat", "action": "next_tool"},
   {"op": "flat", "action": "next_tool"},
   {"op": "wait", "seconds": 0.5},
