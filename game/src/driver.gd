@@ -822,11 +822,11 @@ func _network_sample(s: Dictionary) -> void:
 	print("driver: network sample ", path)
 
 
-## Takes a photo with the camera in `hand` (right by default) wherever that hand points, as pulling its
-## trigger does, and waits until it is saved. With "view", the same lens's view as the headset draws it is captured
+## Takes a photo with the camera in `hand` (right by default), or with `tool` "selfie" the selfie camera, wherever its lens
+## points, as pulling its trigger does, and waits until it is saved. With "view", the same lens's view as the headset draws it is captured
 ## first under that name, to set beside the photo.
 func _photo(s: Dictionary) -> void:
-	var hand := _holding(s, Hand.Tool.CAMERA)
+	var hand := _holding(s, Hand.Tool[str(s.get("tool", "camera")).to_upper()])
 	if s.has("view"):
 		await main.capture(s.view, false, PhotoTool.lens(hand))
 	await main.photo_tool.shoot(hand)

@@ -29,10 +29,12 @@
   {"op": "photo"},
   {"op": "wait", "seconds": 1},
   {"op": "label", "name": "selfie"},
-  {"op": "hands", "right": [0.15, 0.0, -0.6], "tip": 0, "turn": 180},
+  {"op": "pick", "hand": "right", "tool": "selfie", "capture": "05-wheel-selfie"},
+  {"op": "hands", "right": [0.15, 0.0, -0.6], "tip": 0},
   {"op": "wait", "seconds": 0.5},
-  {"op": "capture", "name": "03-selfie-eye"},
-  {"op": "photo"},
+  {"op": "capture", "name": "06-selfie-held"},
+  {"op": "photo", "tool": "selfie"},
+  {"op": "capture", "name": "07-selfie-shot"},
   {"op": "wait", "seconds": 1},
   {"op": "quit"}
 ]

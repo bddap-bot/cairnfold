@@ -9,6 +9,10 @@ extends RefCounted
 ## The camera model's lens, from the model's origin; PhotoTool takes photos from here.
 const CAMERA_LENS := Vector3(0, 0.024, -0.0302)
 const CAMERA_SCREEN := Vector2(0.048, 0.036)
+## The selfie camera's lens, beside its screen and looking out of the back toward the holder.
+const SELFIE_LENS := Vector3(0.02, 0.024, 0.0167)
+const SELFIE_SCREEN := Vector2(0.036, 0.027)
+const _SELFIE_SCREEN_X := -0.011
 ## Where a brush's tip is, from the controller it is held in: it reaches past the controller, so painting is done
 ## with the brush, not the hand.
 const BRUSH_TIP := Vector3(0, 0.01, -0.27)
@@ -73,7 +77,9 @@ static func build(tool: Hand.Tool) -> Node3D:
 		Hand.Tool.STYLE:
 			_wand(root)
 		Hand.Tool.CAMERA:
-			_camera(root)
+			_camera(root, false)
+		Hand.Tool.SELFIE:
+			_camera(root, true)
 		Hand.Tool.SEEDS:
 			_seeds(root)
 		Hand.Tool.EASEL:
@@ -371,17 +377,18 @@ static func camera_screen() -> StandardMaterial3D:
 	return _camera_screen
 
 
-## A small camera, its lens along the controller's aim and its screen toward the eye.
-static func _camera(root: Node3D) -> void:
+## A small camera, its screen toward the eye and its lens along the controller's aim, or for a selfie beside the
+## screen, looking back at the holder.
+static func _camera(root: Node3D, selfie: bool) -> void:
 	var lens := CylinderMesh.new()
-	lens.top_radius = 0.012
-	lens.bottom_radius = 0.013
-	lens.height = 0.018
+	lens.top_radius = 0.008 if selfie else 0.012
+	lens.bottom_radius = 0.008 if selfie else 0.013
+	lens.height = 0.006 if selfie else 0.018
 	lens.radial_segments = 16
 	lens.rings = 1
 	var glass := CylinderMesh.new()
-	glass.top_radius = 0.009
-	glass.bottom_radius = 0.009
+	glass.top_radius = 0.006 if selfie else 0.009
+	glass.bottom_radius = glass.top_radius
 	glass.height = 0.001
 	glass.radial_segments = 16
 	glass.rings = 1
@@ -392,11 +399,13 @@ static func _camera(root: Node3D) -> void:
 	button.radial_segments = 10
 	button.rings = 1
 	var facing := Basis(Vector3.RIGHT, PI * 0.5)
+	var size := SELFIE_SCREEN if selfie else CAMERA_SCREEN
+	var screen_x := _SELFIE_SCREEN_X if selfie else 0.0
 	var parts := [
 		[Meshes.rounded_box(0.25, 2, 41), Transform3D(Basis().scaled(Vector3(0.064, 0.046, 0.026)), Vector3(0, 0.024, 0)), Color(0.84, 0.76, 0.62)],
-		[Meshes.rounded_box(0.2, 2, 42), Transform3D(Basis().scaled(Vector3(0.054, 0.042, 0.002)), Vector3(0, 0.024, 0.013)), Color(0.16, 0.14, 0.13)],
-		[lens, Transform3D(facing, Vector3(0, 0.024, -0.021)), Color(0.22, 0.2, 0.19)],
-		[glass, Transform3D(facing, CAMERA_LENS), Color(0.08, 0.1, 0.16)],
+		[Meshes.rounded_box(0.2, 2, 42), Transform3D(Basis().scaled(Vector3(size.x + 0.006, size.y + 0.006, 0.002)), Vector3(screen_x, 0.024, 0.013)), Color(0.16, 0.14, 0.13)],
+		[lens, Transform3D(facing, SELFIE_LENS - Vector3(0, 0, 0.0035) if selfie else Vector3(0, 0.024, -0.021)), Color(0.22, 0.2, 0.19)],
+		[glass, Transform3D(facing, SELFIE_LENS if selfie else CAMERA_LENS), Color(0.08, 0.1, 0.16)],
 		[button, Transform3D(Basis(), Vector3(0.019, 0.048, 0.002)), Color(0.72, 0.56, 0.3)],
 	]
 	for part in parts:
@@ -414,10 +423,10 @@ static func _camera(root: Node3D) -> void:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(mi)
 	var quad := QuadMesh.new()
-	quad.size = CAMERA_SCREEN
+	quad.size = size
 	var screen := MeshInstance3D.new()
 	screen.mesh = quad
-	screen.position = Vector3(0, 0.024, 0.0141)
+	screen.position = Vector3(screen_x, 0.024, 0.0141)
 	screen.material_override = camera_screen()
 	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(screen)

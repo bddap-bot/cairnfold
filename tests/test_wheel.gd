@@ -82,7 +82,10 @@ func _a_subtree_opens_away_from_the_swing() -> void:
 			var v := ToolWheel.new(Hand.TREE)
 			v.move(dirs[k] * ToolWheel.RADIUS)
 			v.move(w.levels[1].centre + w.levels[1].dirs[j] * ToolWheel.RADIUS)
-			_check(v.chosen() == items[j], "swinging back onto item %d of subtree %d picks it" % [j, k])
+			if items[j] is Array:
+				_check(v.levels.size() == 3 and v.chosen() == null, "swinging back onto item %d of subtree %d opens it" % [j, k])
+			else:
+				_check(v.chosen() == items[j], "swinging back onto item %d of subtree %d picks it" % [j, k])
 
 
 func _inside_a_subtree_the_swing_side_picks_nothing() -> void:

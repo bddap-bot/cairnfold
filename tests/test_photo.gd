@@ -12,6 +12,7 @@ func _initialize() -> void:
 	await _the_screen_shows_the_lens_while_a_hand_holds_the_camera()
 	await _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not()
 	_the_lens_turns_as_the_hand_turns_roll_included()
+	await _the_selfie_camera_looks_back_at_its_holder()
 	_player_data_lives_outside_the_app()
 	_a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -127,6 +128,35 @@ func _the_lens_turns_as_the_hand_turns_roll_included() -> void:
 			_check(lens.basis.is_equal_approx(b), "the lens turns with the hand at roll %d, pitch %d" % [roll, pitch])
 			_check(lens.origin.is_equal_approx(hand.global_transform * (Hand.TOP + ToolModels.CAMERA_LENS)), "the lens sits on the camera at roll %d, pitch %d" % [roll, pitch])
 	hand.free()
+
+
+func _the_selfie_camera_looks_back_at_its_holder() -> void:
+	var paths := ToolWheel.paths(Hand.TREE)
+	_check(paths[Hand.Tool.SELFIE].size() == 3 and paths[Hand.Tool.SELFIE].slice(0, -1) == paths[Hand.Tool.CAMERA].slice(0, -1), "the selfie camera opens from the camera's own entry on the wheel: %s, %s" % [paths[Hand.Tool.SELFIE], paths[Hand.Tool.CAMERA]])
+	var rig := Rig.new()
+	root.add_child(rig)
+	var tool := PhotoTool.new(rig)
+	root.add_child(tool)
+	rig.wear(Avatar.open(Avatar.built_in(0), Color.RED))
+	rig.head.position = Vector3(0, 1.6, 0)
+	rig.right.transform = Transform3D(Basis(Vector3.RIGHT, 0.2), Vector3(0.15, 1.5, -0.55))
+	rig.right.tool = Hand.Tool.SELFIE
+	for i in PhotoTool.PREVIEW_EVERY:
+		await process_frame
+	var lens := PhotoTool.lens(rig.right)
+	var to_head := (rig.head.global_position - lens.origin).normalized()
+	_check(to_head.dot(-lens.basis.z) > 0.8, "held out, its lens looks back at the holder's head: %.2f" % to_head.dot(-lens.basis.z))
+	_check(lens.basis.y.dot(rig.right.global_basis.y) > 0.999, "its view is upright as the camera is")
+	var cam: Camera3D = tool._preview.get_child(0)
+	_check(_screen_shows(tool) and cam.global_transform.is_equal_approx(lens), "its screen shows what its lens sees")
+	_check(rig.body.visible and cam.cull_mask & Rig.SELF_LAYER != 0 and cam.is_position_in_frustum(rig.body.bone("head").origin), "which is the holder's own avatar, head and all")
+	var screen := ToolModels.camera_screen()
+	_check(screen.uv1_scale.x == -1.0 and screen.uv1_offset.x == 1.0, "shown as a mirror would")
+	rig.right.tool = Hand.Tool.CAMERA
+	await process_frame
+	_check(screen.uv1_scale == Vector3.ONE and screen.uv1_offset == Vector3.ZERO, "and the camera's own screen is not mirrored")
+	rig.queue_free()
+	tool.queue_free()
 
 
 func _player_data_lives_outside_the_app() -> void:

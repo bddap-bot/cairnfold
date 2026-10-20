@@ -2,7 +2,7 @@ class_name PhotoTool
 extends Node3D
 
 ## For a hand holding the camera: the screen on the back of the camera model (ToolModels._camera) shows what
-## its lens sees, and the trigger takes the photo, saved as a PNG that says where and how it was taken (PhotoMeta).
+## its lens sees, mirrored for the selfie camera whose lens looks back at the holder, and the trigger takes the photo, saved as a PNG that says where and how it was taken (PhotoMeta).
 ## The shot stays on the screen a moment after. The player's own avatar stands in the lens's view while a camera is
 ## held, and in no other.
 ##
@@ -21,6 +21,7 @@ const VIEW_SIZE := Vector2i(1600, 1200)
 const FOV := 55.0
 const SHOT_HOLD := 1.2
 const DARK := Color(0.06, 0.06, 0.07)
+const CAMERAS: Array[Hand.Tool] = [Hand.Tool.CAMERA, Hand.Tool.SELFIE]
 
 var rig: Rig
 var folder := Main.photos_folder()
@@ -89,7 +90,7 @@ static func settings() -> Dictionary:
 func holders() -> Array[Hand]:
 	var out: Array[Hand] = []
 	for h in rig.hands:
-		if h.tool == Hand.Tool.CAMERA and rig.aim_hand != h and not h.picking:
+		if h.tool in CAMERAS and rig.aim_hand != h and not h.picking:
 			out.append(h)
 	return out
 
@@ -104,6 +105,8 @@ func _process(delta: float) -> void:
 		screen.albedo_texture = null
 		_photo.queue_free()
 		_photo = null
+	var eye: Hand = _eye if held.has(_eye) else null if held.is_empty() else held[0]
+	_mirror(screen, eye != null and eye.tool == Hand.Tool.SELFIE and _shot_left == 0.0)
 	if held.is_empty():
 		screen.albedo_texture = null
 		screen.albedo_color = DARK
@@ -117,7 +120,7 @@ func _process(delta: float) -> void:
 		screen.albedo_color = Color.WHITE
 		_frame = (_frame + 1) % PREVIEW_EVERY
 		if _frame == 0:
-			_aim(_preview, lens(_eye if held.has(_eye) else held[0]), FOV, Quality.VIEW_MASK)
+			_aim(_preview, lens(eye), FOV, Quality.VIEW_MASK)
 			_preview.render_target_update_mode = SubViewport.UPDATE_ONCE
 	for h in held:
 		if _buttons[rig.hands.find(h)].pressed("tool") and not _busy:
@@ -126,10 +129,21 @@ func _process(delta: float) -> void:
 		b.latch()
 
 
-## Where the lens is and which way it looks: as the controller is turned, roll included, as a camera held in the hand.
+## A selfie's screen shows the holder as a mirror would, so leaning left moves them left on it; the photo is not
+## mirrored.
+static func _mirror(screen: StandardMaterial3D, on: bool) -> void:
+	screen.uv1_scale = Vector3(-1, 1, 1) if on else Vector3.ONE
+	screen.uv1_offset = Vector3(1, 0, 0) if on else Vector3.ZERO
+
+
+## Where the lens is and which way it looks: as the controller is turned, roll included, as a camera held in the hand;
+## a selfie camera's looks back along the controller at the holder.
 static func lens(hand: Node3D) -> Transform3D:
 	var t := hand.global_transform
-	return Transform3D(t.basis.orthonormalized(), t * (Hand.TOP + ToolModels.CAMERA_LENS))
+	var basis := t.basis.orthonormalized()
+	if hand is Hand and (hand as Hand).tool == Hand.Tool.SELFIE:
+		return Transform3D(basis * Basis(Vector3.UP, PI), t * (Hand.TOP + ToolModels.SELFIE_LENS))
+	return Transform3D(basis, t * (Hand.TOP + ToolModels.CAMERA_LENS))
 
 
 func _aim(vp: SubViewport, at: Transform3D, fov: float, mask: int) -> void:

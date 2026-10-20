@@ -334,7 +334,7 @@ density, and no build the player can make may bring the frame rate down.
   fixes the seed) and the most sheep at four fences between them (seen too from the ground by a fence), the deer and the fox each seen from a person's height, with every butterfly there can be
   over the full flower pool and the most conures there can be among the full pool of planted trees,
   every firefly there can be over the ponds at dusk, and a hill pulled up live under 973 m of walls,
-  each seen from the air and standing among them, then both hands pushed into the walls beside the player, then the camera held up to it and a photo taken each second, then turned on the player, whose own avatar it draws.
+  each seen from the air and standing among them, then both hands pushed into the walls beside the player, then the camera held up to it and a photo taken each second, then the selfie camera held out at the player, whose own avatar it draws.
 - `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
   calls, primitives and GPU time; on a Quest it holds each phase to the budget and
   fails when one goes over. A new feature adds itself to the stress scene.
@@ -1757,12 +1757,12 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, decorations, paths, stone, flowers, grass, trees, ponds, colour, style, camera, seeds, easel, delete and visit. The tool a hand
+windows, decorations, paths, stone, flowers, grass, trees, ponds, colour, style, camera, selfie camera, seeds, easel, delete and visit. The tool a hand
 holds stands on top of its controller as a small object, built from the same generators as the full-size
 thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
 flag with lanterns on it, a bend of paving, a disc of stone ground
 fraying into meadow, three flowers, a grass tuft, a tree, a pond in a
-sandy dish, a painter's palette with dabs of colour, a small camera, a clay dish heaped with bird seed, a paintbrush reaching past the controller for the easel, a spade for delete, and a little avatar
+sandy dish, a painter's palette with dabs of colour, a small camera (for the selfie camera, its lens beside the screen on the back), a clay dish heaped with bird seed, a paintbrush reaching past the controller for the easel, a spade for delete, and a little avatar
 figure for visit. A new tool
 pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
 rounded body is unchanged, and there is no text anywhere.
@@ -1798,7 +1798,7 @@ The slots never move, so each tool is one learnable motion:
 | Slot | Holds |
 | --- | --- |
 | Top | Colour, style |
-| Upper right | Camera, seeds, easel |
+| Upper right | The cameras (camera, selfie camera), seeds, easel |
 | Right | Flowers, grass, trees, ponds |
 | Lower right | Visit, the picture book |
 | Bottom | Delete |
@@ -2647,6 +2647,17 @@ permission. The garden save lives in the external files directory (`Main.player_
 can be copied off before an uninstall. The screen holds the shot for a
 moment with a soft flash, and the hand gets a short buzz on the press. Either hand can hold a
 camera; both show the view of the first.
+
+Directive (paraphrased): a turned-around version of the camera that acts as a selfie cam; while using it you can
+preview what it sees, so you can hold it out and take a picture of yourself. Placement (paraphrased): it goes in a
+subtree of the camera's entry on the wheel, not a new top-level slot.
+
+The selfie camera is the same tool on the same code path: the camera's entry on the wheel opens two, the camera and
+the selfie camera, whose lens sits beside a smaller screen on the back and looks back along the controller at the
+holder (`PhotoTool.lens`). Held out, its screen shows the holder as a mirror would, so leaning left moves them left on
+it; the photo, taken on the trigger as the camera's is, is not mirrored. The player's own avatar, which the eyes never
+see, stands in its view as in the camera's, its holding hand folded into the wrist. Its screen is the camera's one
+preview viewport, the same size and rate, so it costs what the camera does (`camera/selfie` in the table above).
 
 Directive (verbatim):
 > I'd like to be able to take a super graphics quality photo that just turns everything all the way up, no level of detail or anything; it can take a long time to render that frame. ... I would like to take very fancy photos. Also give a way to embed metadata about where and how the photo was taken, that'd be cool. I don't know if you can embed a whole world in it, but if the world is small enough, then maybe you could.

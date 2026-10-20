@@ -4,13 +4,13 @@ extends XRController3D
 ## A controller and the tool it holds. Every tool's input code dispatches on `tool`, and the object on top
 ## of the controller and the selection wheel show it, so they cannot disagree.
 
-enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, NONE, SEEDS, DIRT_PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK }
+enum Tool { WALLS, PATH, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, VISIT, COLOUR, CAMERA, HOUSE, NONE, SEEDS, DIRT_PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK, SELFIE }
 
 ## The wheel's contents, clockwise from the top; an Array is a subtree, null an empty slot. Fixed, so every
 ## pick is a learnable motion.
 const TREE := [
 	[Tool.COLOUR, Tool.STYLE],
-	[Tool.CAMERA, Tool.SEEDS, Tool.EASEL],
+	[[Tool.CAMERA, Tool.SELFIE], Tool.SEEDS, Tool.EASEL],
 	[Tool.FLOWERS, Tool.GRASS, Tool.TREES, Tool.POND],
 	[Tool.VISIT, Tool.BOOK],
 	Tool.DELETE,
@@ -64,9 +64,8 @@ var _leaving := -1
 var _pop_t := POP
 var _models: Array[Node3D] = []
 var _wheel_root: Node3D
-## Per wheel slot: its icon, and for a subtree the icons of its items.
-var _slots: Array[Node3D] = []
-var _subs: Array[Array] = []
+## Every wheel icon with the slot-index path to it (ToolWheel.paths), subtrees and their items alike.
+var _icons: Array[Dictionary] = []
 var _beam: Beam
 var _dot: MeshInstance3D
 
@@ -109,34 +108,12 @@ func _init(tracker_name: String, held: Tool) -> void:
 	_buttons = Buttons.new(self).watch(["wheel"])
 
 
-## A subtree's icon is its items in miniature, two by two.
 func _build_wheel() -> void:
 	_wheel_root = Node3D.new()
 	_wheel_root.top_level = true
 	_wheel_root.visible = false
 	add_child(_wheel_root)
-	var dirs := ToolWheel.ring_dirs()
-	for k in TREE.size():
-		var at := dirs[k] * ToolWheel.RADIUS
-		var items: Array[Node3D] = []
-		var model := Node3D.new()
-		if TREE[k] is Array:
-			var sub: Array = TREE[k]
-			var fan := ToolWheel.fan_dirs(sub.size(), dirs[k])
-			for j in sub.size():
-				var mini := ToolModels.build(sub[j])
-				mini.scale = Vector3.ONE * 0.5
-				mini.position = Vector3((j % 2 - 0.5) * 0.03, 0, (floorf(j * 0.5) - 0.5) * 0.03)
-				model.add_child(mini)
-				var item := _wheel_icon(ToolModels.build(sub[j]), at + fan[j] * ToolWheel.RADIUS)
-				item.visible = false
-				items.append(item)
-		elif TREE[k] != null:
-			model = ToolModels.build(TREE[k])
-		else:
-			_wheel_root.add_child(model)
-		_slots.append(_wheel_icon(model, at) if TREE[k] != null else model)
-		_subs.append(items)
+	_build_icons(TREE, Vector2.ZERO, ToolWheel.ring_dirs(), [])
 	for v in _wheel_root.find_children("*", "VisualInstance3D", true, false):
 		(v as VisualInstance3D).layers = Rig.WHEEL_LAYER
 		if v is MeshInstance3D:
@@ -166,11 +143,33 @@ static func unshade(mi: MeshInstance3D) -> void:
 			mi.set_surface_override_material(i, _unshaded[mat])
 
 
-func _wheel_icon(model: Node3D, at: Vector2) -> Node3D:
-	var i := icon(model)
-	i.position = Vector3(at.x, at.y, 0)
-	_wheel_root.add_child(i)
-	return i
+func _build_icons(items: Array, centre: Vector2, dirs: Array[Vector2], prefix: Array[int]) -> void:
+	for k in items.size():
+		if items[k] == null:
+			continue
+		var at := centre + dirs[k] * ToolWheel.RADIUS
+		var path := prefix.duplicate()
+		path.append(k)
+		var i := icon(miniature(items[k]))
+		i.position = Vector3(at.x, at.y, 0)
+		i.visible = false
+		_wheel_root.add_child(i)
+		_icons.append({"path": path, "node": i})
+		if items[k] is Array:
+			_build_icons(items[k], at, ToolWheel.fan_dirs(items[k].size(), dirs[k]), path)
+
+
+## A tool's model, or a subtree's items in miniature, two by two.
+static func miniature(item: Variant) -> Node3D:
+	if not item is Array:
+		return ToolModels.build(item)
+	var model := Node3D.new()
+	for j in item.size():
+		var mini := miniature(item[j])
+		mini.scale = Vector3.ONE * 0.5
+		mini.position = Vector3((j % 2 - 0.5) * 0.03, 0, (floorf(j * 0.5) - 0.5) * 0.03)
+		model.add_child(mini)
+	return model
 
 
 ## A wheel icon: `model` tipped toward the eye, as a controller's top is seen, on a pale disc facing the eye (+z) so
@@ -322,22 +321,26 @@ func _select_input(delta: float) -> void:
 		_wheel_root.visible = false
 
 
-## Hot icons grow; inside a subtree only it and its items stay.
+## Hot icons grow; inside a subtree only the subtrees opened on the way to it and its items stay.
 func _show_wheel(delta: float) -> void:
 	var levels := _wheel.levels
 	var k := 1.0 - exp(-delta * 20.0)
-	var inside: bool = levels.size() > 1
-	for i in _slots.size():
-		var hot: bool = levels[0].hot == i
-		var target := 0.0 if inside and not hot else (HOT if hot and not inside else IDLE)
-		_slots[i].scale = _slots[i].scale.lerp(Vector3.ONE * target, k)
+	var opened: Array[int] = []
+	for l in levels.size() - 1:
+		opened.append(levels[l].hot)
+	for e in _icons:
+		var path: Array[int] = e.path
+		var node: Node3D = e.node
+		var target := 0.0
+		if path.size() == levels.size() and path.slice(0, -1) == opened:
+			target = HOT if levels[-1].hot == path[-1] else IDLE
+		elif path.size() < levels.size() and path == opened.slice(0, path.size()):
+			target = IDLE
+		node.scale = node.scale.lerp(Vector3.ONE * target, k)
 		# Shrunk to nothing, an icon would still run its vertices.
-		_slots[i].visible = target > 0.0 or _slots[i].scale.x > 0.01
-		for j in _subs[i].size():
-			var item: Node3D = _subs[i][j]
-			item.visible = inside and hot
-			var s := (HOT if levels[1].hot == j else IDLE) if item.visible else 0.0
-			item.scale = item.scale.lerp(Vector3.ONE * s, k) if item.visible else Vector3.ZERO
+		node.visible = target > 0.0 or node.scale.x > 0.01
+		if not node.visible:
+			node.scale = Vector3.ZERO
 
 
 func _show_tool(delta: float) -> void:
