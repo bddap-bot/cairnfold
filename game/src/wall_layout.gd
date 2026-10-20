@@ -1854,6 +1854,58 @@ func segment_cells() -> Dictionary:
 	return _segment_cells
 
 
+## Commit the drawn line once. Piers choose the anchors; corner cutting only touches the spans between them.
+func finish_stroke() -> void:
+	if points.size() < 3:
+		return
+	var anchors: Array[int] = [0]
+	for s in _bends():
+		var p: Vector3 = frame_at(s).point
+		var best := anchors[-1]
+		var distance := INF
+		for i in range(anchors[-1] + 1, points.size() - 1):
+			var d := Vector2(points[i].x - p.x, points[i].z - p.z).length_squared()
+			if d < distance:
+				distance = d
+				best = i
+		if best > anchors[-1]:
+			anchors.append(best)
+	anchors.append(points.size() - 1)
+	var result: Array[Vector3] = []
+	for k in anchors.size() - 1:
+		var span: Array[Vector3] = points.slice(anchors[k], anchors[k + 1] + 1)
+		for pass_index in 2:
+			var filtered := span.duplicate()
+			for i in range(1, span.size() - 1):
+				filtered[i] = span[i - 1] * 0.25 + span[i] * 0.5 + span[i + 1] * 0.25
+			span = filtered
+		for pass_index in 3:
+			var cut: Array[Vector3] = [span[0]]
+			for i in span.size() - 1:
+				cut.append(span[i].lerp(span[i + 1], 0.25))
+				cut.append(span[i].lerp(span[i + 1], 0.75))
+			cut.append(span[-1])
+			span = cut
+		# Uniform arc-length spacing keeps the stored curve small and independent of hand speed.
+		result.append(span[0])
+		var remaining := SAMPLE
+		for i in span.size() - 1:
+			var a := span[i]
+			var b := span[i + 1]
+			var distance := a.distance_to(b)
+			while distance >= remaining:
+				a = a.lerp(b, remaining / distance)
+				result.append(a)
+				distance -= remaining
+				remaining = SAMPLE
+			remaining -= distance
+		if result[-1].distance_to(span[-1]) < SAMPLE * 0.25:
+			result.pop_back()
+	# Each span starts at its corner; keep the final endpoint exactly too.
+	result.append(points[-1])
+	points = result
+
+
 ## The ground curve, and the ruins' breaks along it, for the inputs as they stand.
 func resample(ground: Callable, water := Callable()) -> void:
 	var key := [points.duplicate(), height, rise, seed, closed, top, fence, lanterns.duplicate(), ruins.duplicate(), supports.duplicate(), Terrain.revision, ground, water]
@@ -1890,7 +1942,12 @@ func resample(ground: Callable, water := Callable()) -> void:
 
 func _resample_open(ground: Callable) -> void:
 	var dense: Array[Vector3] = []
-	smooth(points, func(q: Vector3, _i: int, _t: float): dense.append(q))
+	for i in points.size() - 1:
+		var count := maxi(1, ceili(points[i].distance_to(points[i + 1]) / SAMPLE))
+		for j in count:
+			dense.append(points[i].lerp(points[i + 1], float(j) / count))
+	if not points.is_empty():
+		dense.append(points[-1])
 	var acc := 0.0
 	for i in dense.size():
 		var q := dense[i]

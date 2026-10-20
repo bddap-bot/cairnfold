@@ -13,7 +13,7 @@ const UNBATCHED := ["stairs", "wall", "path", "ground", "easel", "boulder", "dec
 const MAX_BATCH := 128
 ## A stroke builds at most this many walls; their ids follow from the command's sequence number.
 const MAX_PIECES := 8
-const MAX_POINTS := 256
+const MAX_POINTS := 2048
 const MAX_PATH_POINTS := 2048
 const MAX_DABS := 2000
 const MAX_STROKE := 4000

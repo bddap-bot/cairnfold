@@ -386,11 +386,11 @@ func extend_stroke(m: Mason, p: Vector3) -> void:
 	_dirty = true
 
 
-func _plan(st: Stroke) -> void:
-	if st.planned:
+func _plan(st: Stroke, commit := false) -> void:
+	if st.planned and not commit:
 		return
 	st.planned = true
-	var layouts := st.plan.pieces(st.points, Terrain.height_at)
+	var layouts := st.plan.pieces(st.points, Terrain.height_at, commit)
 	while st.walls.size() > layouts.size():
 		st.walls.pop_back().queue_free()
 	for i in layouts.size():
@@ -402,7 +402,7 @@ func _plan(st: Stroke) -> void:
 
 
 func end_stroke(m: Mason) -> void:
-	_plan(m.stroke)
+	_plan(m.stroke, true)
 	var built_walls := m.stroke.walls
 	m.stroke = null
 	if not built_walls.is_empty():

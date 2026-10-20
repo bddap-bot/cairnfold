@@ -1654,9 +1654,9 @@ Nestcombe's version, adapted to a pointer swept by hand, where a few centimetres
   arch over plants.
 - A finished wall arches over any tree or bush it stands on; with none, a wall of 5 m or more arches at its
   middle.
-- The preview is the result: the same call lays out the walls shown while drawing and the walls left on
-  release, so merged stretches vanish from the preview, and junction piers and arches appear in it as the
-  hand moves. One stroke is one undo step, however many walls it built. The plan reruns only when the stroke
+- The preview uses the same merging plan as release: merged stretches vanish, and junction piers and
+  arches appear as the hand moves. Release smooths each kept span between its fixed endpoints and sharp
+  corners before the command is sent. One stroke is one undo step, however many walls it built. The plan reruns only when the stroke
   moves, and each stroke point's nearest wall is found once, so a rerun costs about 0.1 ms beside 120
   standing walls and 470 plants on a desktop CPU.
 - Not adopted: merging two walls into one polyline at their ends and the "continue wall" handle; junctions
@@ -3311,3 +3311,13 @@ The shared building picker intersects a ruin's remaining masonry and rubble,
 so an empty gap no longer behaves as a full-height wall. The fitting-delete
 highlight also encloses rubble's owning wall. `demo/rubble.json` exercises the
 picker across dense ruined walls; the same phases are in the stress scene.
+
+### Drawn wall curves
+
+Releasing a drawn wall filters hand jitter and cuts corners within each smooth span,
+then stores the resulting curve in the wall command. The existing pier bend selector
+chooses the sharp vertices that remain fixed; endpoints and snapped junctions also
+stay fixed. Wall consumers linearly sample those same stored points, so rebuilding,
+saving or sharing a wall does not smooth it again. Paths retain their own interpolated
+curve. `tests/test_wall_smoothing.gd` checks jitter, sharp corners, endpoints and the
+longest stroke's command size.

@@ -38,7 +38,7 @@ func _init(walls: Array[WallLayout], plants: PackedVector3Array, first_seed: int
 
 
 ## The walls `stroke` builds, traced on the ground with their arches set; `build` lays their stones.
-func pieces(stroke: Array[Vector3], ground: Callable) -> Array[WallLayout]:
+func pieces(stroke: Array[Vector3], ground: Callable, commit := false) -> Array[WallLayout]:
 	var out: Array[WallLayout] = []
 	for run in _runs(stroke):
 		var w := WallLayout.new()
@@ -50,6 +50,9 @@ func pieces(stroke: Array[Vector3], ground: Callable) -> Array[WallLayout]:
 			w.height = WallLayout.FENCE_HEIGHT
 		w.supports = supports.duplicate()
 		w.resample(ground)
+		if commit:
+			w.finish_stroke()
+			w.resample(ground)
 		if w.length() < MIN_LENGTH:
 			continue
 		w.openings.assign(arches_for(w).map(WallLayout.archway))
