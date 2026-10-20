@@ -48,6 +48,8 @@ if players > 1:
     steps.insert(first + 1, {"op": "until", "players": players, "seconds": 180})
 print(json.dumps(steps))
 PY
+# The game is stopped this long after it starts: twice the scene's own seconds, so no scene outgrows it.
+limit=$(python3 -c 'import json, sys; print(300 + 2 * round(sum(s.get("seconds", 0) for s in json.load(open(sys.argv[1])))))' "$out/stress.json")
 [ "$players" -eq 1 ] || godot4 --headless --path "$here/../game" --import > "$out/import.log" 2>&1 ||
   { echo "bench: the other players' game did not import, see $out/import.log" >&2; exit 1; }
 guest_avatar=()
@@ -207,7 +209,7 @@ elif [ $# -ge 4 ]; then
   # shellcheck disable=SC2016 # expanded on the headset
   "${@:4}" 'cd ~/nestcombe-bench/nestcombe
     export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)} DISPLAY=${DISPLAY:-:0}
-    status=0; timeout 900 ./nestcombe -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --garden "$PWD/log/garden.save" --seed '"$seed${hosting:+ --port $hosting}"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
+    status=0; timeout '"$limit"' ./nestcombe -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --garden "$PWD/log/garden.save" --seed '"$seed${hosting:+ --port $hosting}"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
     rm log/pid; echo "bench: $(cat REVISION) exit $status"; exit $status' &
   remote=$!
   if [ "$players" -gt 1 ]; then
@@ -217,7 +219,7 @@ elif [ $# -ge 4 ]; then
   wait "$remote" || game=$?
   scp -rq "$2:nestcombe-bench/nestcombe/log/*" "$out/"
 else
-  setsid env NESTCOMBE_QUIT_AFTER=900 "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" ${hosting:+--port "$hosting"} > "$out/godot.log" 2>&1 &
+  setsid env NESTCOMBE_QUIT_AFTER="$limit" "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" ${hosting:+--port "$hosting"} > "$out/godot.log" 2>&1 &
   measured=$!
   [ "$players" -eq 1 ] || join cat "$out/godot.log" -- 127.0.0.1
   wait "$measured"

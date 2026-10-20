@@ -8,11 +8,9 @@ extends Node
 ## dab lands at a known tick, so a replay lays the same painting the painter saw.
 ## Without a RenderingDevice (headless runs) it keeps its ticks and does nothing on the GPU.
 
-## GPU work a frame may take, in texel-steps (one texel through one flow step), while painting and while catching up.
-const LIVE_STEPS := 3.0e6
-const CATCH_UP_STEPS := 8.0e6
-## Most dabs laid in one frame while catching up.
-const CATCH_UP_DABS := 4000
+## GPU work a frame may take, in texel-steps (one texel through one flow step, or under one dab). A painter's own
+## dabs land whatever they cost; a catching-up replay's are charged.
+const STEPS := 3.0e6
 ## Ticks owed beyond this are let go: past its budget the paint dries slower instead of stalling the frame.
 const MAX_OWED := 3.0
 const TILES := Vector2i(Brushwork.SIZE.x / Brushwork.TILE, Brushwork.SIZE.y / Brushwork.TILE)
@@ -205,25 +203,25 @@ func _process(delta: float) -> void:
 		_owed = minf(_owed + delta * Brushwork.TICK_HZ, MAX_OWED)
 	else:
 		_owed = 0.0
-	var budget := CATCH_UP_STEPS if _catching_up else LIVE_STEPS
-	var dabs_left := CATCH_UP_DABS
+	var budget := STEPS
 	while true:
 		if not _queue.is_empty() and _queue[0][0] != "wait":
 			var e: Array = _queue.pop_front()
 			if e[0] == "end":
 				last_end = ticks
 				continue
-			if _catching_up and dabs_left <= 0:
+			if _catching_up and budget <= 0.0:
 				_queue.push_front(e)
 				break
-			dabs_left -= e[2].size() / Brushwork.DAB
 			if not e[2].is_empty():
-				_lay(e[1], e[2])
+				var laid := _lay(e[1], e[2])
+				if _catching_up:
+					budget -= laid
 			continue
 		if _owed < 1.0:
 			break
 		var cost := _tick_cost()
-		if cost > budget and budget < (CATCH_UP_STEPS if _catching_up else LIVE_STEPS):
+		if cost > budget and budget < STEPS:
 			break
 		budget -= cost
 		_owed -= 1.0
@@ -267,7 +265,8 @@ func _tick() -> void:
 			_wet_tiles.erase(t)
 
 
-func _lay(stroke: Dictionary, dabs: PackedFloat32Array) -> void:
+## Lays `dabs` and returns their cost in texel-steps: the shader runs every dab over every texel of their rectangle.
+func _lay(stroke: Dictionary, dabs: PackedFloat32Array) -> float:
 	var lo := Vector2(INF, INF)
 	var hi := Vector2(-INF, -INF)
 	for i in range(0, dabs.size(), Brushwork.DAB):
@@ -276,7 +275,7 @@ func _lay(stroke: Dictionary, dabs: PackedFloat32Array) -> void:
 		hi = Vector2(maxf(hi.x, dabs[i] + r), maxf(hi.y, dabs[i + 1] + r))
 	var rect := Rect2i(Vector2i(lo.floor()), Vector2i((hi - lo).ceil()) + Vector2i.ONE).intersection(Rect2i(Vector2i.ZERO, Brushwork.SIZE))
 	if rect.size == Vector2i.ZERO:
-		return
+		return 0.0
 	if stroke.medium == Brushwork.Medium.WATER:
 		var wet_rect := rect.grow_individual(Brushwork.MARGIN, Brushwork.MARGIN, Brushwork.MARGIN, Brushwork.RUN)
 		_wetten(wet_rect.intersection(Rect2i(Vector2i.ZERO, Brushwork.SIZE)))
@@ -286,6 +285,7 @@ func _lay(stroke: Dictionary, dabs: PackedFloat32Array) -> void:
 	_blank = false
 	_dabs.append_array(dabs)
 	_ops.append(["dabs", stroke, first, dabs.size() / Brushwork.DAB, rect])
+	return float(rect.get_area()) * dabs.size() / Brushwork.DAB
 
 
 ## Wets the tiles under `rect` from now until DRY_TICKS from now. A tile dry again since this frame's batch began

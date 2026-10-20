@@ -827,8 +827,9 @@ metre. Roof tiles past the ladder's near distance are plain boxes, as far stones
 took 14.0 ms from the air against 9.3 with them plain and 9.4 with no tiles at all (bare 6.3), and a house's roof
 fitted 92.6 µs a m². Thatch costs more than tiles from the air: five thatched houses read 11.4 ms.
 
-Four easels, each with a stroke on its canvas, are the `easels` phase of `demo/costs.json`; until a Frame
-run fits them, each counts 0.4 ms there.
+Four easels, each with a stroke on its canvas, are the `easels` phase of `demo/costs.json`. On the Frame a later run
+fitted them alone (`perf/frame/costs/`), its bare meadow 7.62 ms from the air and 5.67 standing: the easels read 8.05
+and 7.91 ms, 0.62 ms an easel.
 
 ## Automatic quality
 
@@ -2951,8 +2952,27 @@ catches, picking up the colour under it as the brush empties. Charcoal catches o
 hollows as it is pressed harder.
 
 What it costs: flow runs only on 64-texel tiles a wet brush touched in the last six seconds, two steps a tick at 60
-ticks a second, held to a budget of texel-steps a frame; past it the paint dries slower instead of the frame
-running long. A dry canvas costs its drawing only.
+ticks a second, held to a budget of 3 million texel-steps a frame (`Canvas.STEPS`); past it the paint dries slower
+instead of the frame running long. A dab costs a texel-step for every texel of its rectangle. The painter's own dabs
+land whatever they cost; a replay catching up charges its dabs to the same budget, so it lays a painting no faster
+than the frame holds. A dry canvas costs its drawing only.
+
+On the Steam Frame (`demo/easel-bench.json`, 72 Hz, the build budget 12.5 ms of GPU time), frame milliseconds at the
+median and 99th percentile, late frames, and viewport GPU milliseconds, for the canvas's budget before (8 million
+texel-steps a frame catching up, at most 4,000 dabs) and after (one budget of 3 million, dabs charged):
+
+| Phase | Before: p50, p99 | Late | GPU | After: p50, p99 | Late | GPU |
+| --- | --- | --- | --- | --- | --- | --- |
+| Watercolour | 13.91, 16.66 | 0 | 10.02 | 13.86, 16.16 | 0 | 10.02 |
+| Drying | 13.88, 15.94 | 0 | 9.03 | 13.90, 15.21 | 0 | 9.05 |
+| Oil | 13.88, 17.34 | 0 | 7.98 | 13.89, 16.82 | 0 | 7.99 |
+| Charcoal | 13.87, 17.65 | 0 | 7.96 | 13.86, 16.94 | 0 | 7.95 |
+| Replay after an undo | 27.77, 55.44 | 274 | 15.95 | 13.84, 16.27 | 1 | 9.30 |
+
+Catching up at 8 million texel-steps the replay ran at half rate throughout, its flow taking 5.5 to 7.9 million a
+frame and its dabs up to 1.1 million more; five more runs before the change read 58 to 279 late frames. The one late
+frame after is the undo itself, 33 ms applying the command. The replay now takes longer: eight seconds in, about half
+the bench's strokes are back on the canvas.
 
 Every stroke is a build command (`paint`, docs/multiplayer.md): the brush's medium, colour, strength and load, and
 its samples (where on the canvas, how hard, the flat brush's angle, at which tick), packed in two ints each.
