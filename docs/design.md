@@ -2242,6 +2242,25 @@ Directive (verbatim): "A slightly narrower, I do wanna paint stone into the pond
   Digging a pond under a standing wall opens its arches once the pond fills (`Water.refilled` lays the walls there
   again); undoing the dig closes them. Ducks paddle under arches but never through a pillar or a solid stretch.
 
+### Water plants
+
+Under water is a place to stay, so what the brushes plant grows there too: grass as pondweed, flowers as lilies in
+deep water and irises in the shallows.
+
+- **One brush, the water picks:** grass and flower strokes plant exactly as on land; the shaders read the pond depth
+  under each plant's root every frame (`water_depth_at`), so a placed plant is a water plant while water stands over
+  it. Filling a pond over placed grass or flowers turns them into water plants as it rises; draining it stands them
+  back up as grass and flowers. Nothing is stored or rewritten, so undo, co-op and saves need nothing new.
+- **Only placed plants:** Flora's painted and ghost pools carry the `planted` instance uniform; the meadow's own grass
+  and flowers drown as before, so a freshly dug pond keeps its bare sand bed and planting it is a choice.
+- **Pondweed:** half the grass clumps under water grow, each stretching toward the surface (to 70% of the depth, at
+  most 3.5 times its height), narrowing, and leaning in a slow current instead of the wind: a 6 s swell that runs up each ribbon, its tip
+  behind its middle, with a slower cross-current. Its colour runs from a dark olive root to a green tip that turns
+  blue-green with depth.
+- **Lilies and irises:** a flower deeper than 35 cm opens its head into a pad 2.6 times as wide, floating just on the
+  surface and drifting a few centimetres, its bloom raised in the pad's middle on a stem from the bed. Shallower, it
+  stands 30 cm out of the water, its stalk widened at the foot into sword leaves.
+
 Sound: each pond laps softly from its middle (slow, low-passed sloshes with rare bubbles), a hand
 dipping in plops, and a filling pond gurgles; all of it sits below 1.8 kHz.
 

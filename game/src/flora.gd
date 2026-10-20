@@ -49,6 +49,8 @@ class Pool:
 	var sparse_from := INF
 	var survivors := 0.0
 	var mm := MultiMesh.new()
+	## What draws `mm`, the slots after the kept ones.
+	var live: MultiMeshInstance3D
 	## Bumped by every `Plant.draw`, so the crowns' shade can follow a tool's preview.
 	var draws := 0
 	## The mesh each plant was made with; `draw_with` may draw a simpler one in its place.
@@ -93,7 +95,7 @@ class Pool:
 		_customs.resize(capacity)
 		# Painting changes the instance list every frame; a fixed box spares a bounds pass over every plant.
 		Terrain.lift(mm, Terrain.bounds())
-		_show(mm)
+		live = _show(mm)
 
 	## `custom`'s blue and alpha are taken for `anchor`.
 	func add(xform: Transform3D, color: Color, anchor: Vector3, custom := Color()) -> Plant:
@@ -408,6 +410,8 @@ func _init() -> void:
 	flowers.indexed = true
 	ghost_grass = Pool.new(self, clump, Commands.MAX_STROKE * 2, grass_mat, false)
 	ghost_flowers = Pool.new(self, bloom, Commands.MAX_STROKE * 2, flower_mat, false)
+	for pool in [grass, ghost_grass, flowers, ghost_flowers]:
+		pool.live.set_instance_shader_parameter(&"planted", 1.0)
 	var trunk := CylinderMesh.new()
 	trunk.top_radius = 0.16
 	trunk.bottom_radius = 0.3

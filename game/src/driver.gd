@@ -650,7 +650,7 @@ func _lanterns(s: Dictionary) -> void:
 	print("stress: %d lanterns" % hung)
 
 
-## Fills every painted and placed flora pool to capacity within `radius` of the centre, or only those `pools` names
+## Fills every painted and placed flora pool to capacity within `radius` of `at` (x, z; the centre by default), or only those `pools` names
 ## (grass, flowers, trees), the trees taking each species in turn. They are not build commands, so the frame budget
 ## does not count them.
 func _fill_flora(s: Dictionary) -> void:
@@ -658,12 +658,14 @@ func _fill_flora(s: Dictionary) -> void:
 	var pools: Array = s.get("pools", ["grass", "flowers", "trees"])
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 99
+	var at: Array = s.get("at", [0, 0])
+	var centre := Vector3(at[0], 0, at[1])
 	for i in Flora.PAINTED_GRASS if "grass" in pools else 0:
-		flora.add_grass(_scatter(rng, s.radius), rng)
+		flora.add_grass(_scatter(rng, s.radius, centre), rng)
 	for i in Flora.PAINTED_FLOWERS if "flowers" in pools else 0:
-		flora.add_flower(_scatter(rng, s.radius), rng)
+		flora.add_flower(_scatter(rng, s.radius, centre), rng)
 	for i in Flora.PLACED_TREES if "trees" in pools else 0:
-		flora.add_tree(_scatter(rng, s.radius), rng.randi(), i % FloraLayout.Species.size())
+		flora.add_tree(_scatter(rng, s.radius, centre), rng.randi(), i % FloraLayout.Species.size())
 
 
 ## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter; with `storeys`,
@@ -709,8 +711,8 @@ func _clear(_s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
-static func _scatter(rng: RandomNumberGenerator, radius: float) -> Vector3:
-	return FloraLayout.brush(Vector3.ZERO, radius, 1, rng, Terrain.height_at)[0]
+static func _scatter(rng: RandomNumberGenerator, radius: float, centre := Vector3.ZERO) -> Vector3:
+	return FloraLayout.brush(centre, radius, 1, rng, Terrain.height_at)[0]
 
 
 ## The port of the garden a script visits: its `port`, else the --host-port launch argument.

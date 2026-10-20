@@ -16,6 +16,7 @@ func _run() -> void:
 	_brush_grows_with_distance()
 	_tree_stands_on_its_spot()
 	_full_pools_recycle_only_painted()
+	_only_placed_plants_grow_under_water()
 	_trees_recycle_whole()
 	_grass_grows_in_clumps()
 	_flowers_vary_by_patch()
@@ -176,6 +177,29 @@ func _full_pools_recycle_only_painted() -> void:
 	_check(boxes.size() > 4, "spread over cells the camera can cull: %d" % boxes.size())
 	for p: Vector3 in spots:
 		_check(boxes.any(func(b: AABB) -> bool: return b.has_point(Vector3(p.x, Terrain.height_at(p.x, p.z) + 0.1, p.z))), "a meadow flower at %s lies in a cell's box" % p)
+
+
+## The grass and flower shaders grow placed plants under a pond as water plants and drown the meadow's own, told apart
+## by `planted`.
+func _only_placed_plants_grow_under_water() -> void:
+	var t := _tool()
+	var rng := _rng(9)
+	for i in 50:
+		t.flora.add_grass(Vector3(rng.randf_range(-30, 30), 0, rng.randf_range(-30, 30)), rng)
+		t.flora.add_flower(Vector3(rng.randf_range(-30, 30), 0, rng.randf_range(-30, 30)), rng)
+	t.flora.keep()
+	var placed := [t.flora.grass.mm, t.flora.ghost_grass.mm, t.flora.flowers.mm, t.flora.ghost_flowers.mm]
+	var cells := 0
+	for mmi: MultiMeshInstance3D in t.flora.get_children():
+		if mmi.material_override not in [t.flora.grass_mat, t.flora.flower_mat]:
+			continue
+		var flag: Variant = mmi.get_instance_shader_parameter(&"planted")
+		if mmi.multimesh in placed:
+			_check(flag == 1.0, "placed grass and flowers draw as planted")
+		else:
+			cells += 1
+			_check(flag == null or flag == 0.0, "the meadow's own grass and flowers draw as meadow")
+	_check(cells > 1, "the meadow's plants are baked into cells: %d" % cells)
 
 
 func _trees_recycle_whole() -> void:
