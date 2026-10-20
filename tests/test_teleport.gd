@@ -28,6 +28,7 @@ func _finish(rig: Rig) -> void:
 	rig.set_process(false)
 	_a_ray_lands_on_any_roof_it_hits(rig)
 	_reaches_across_the_map(rig)
+	_backdrop_stops_no_ray(rig)
 	await _stick_teleports_with_every_tool(rig)
 	await _eased_stick_lands_nearer(rig, Vector3(0, -0.3, -1), "ground")
 	await _eased_stick_lands_nearer(rig, Vector3(0, 1, -1), "air")
@@ -91,6 +92,32 @@ func _air_reach_stops_at_nearer_ground(rig: Rig) -> void:
 
 ## From one corner of the map, high enough to see it, the ray lands on the far corner's ground, and a ring there
 ## looks as big as one nearby.
+## The mountains and everything round the map are scenery: a ray toward them from anywhere on it, level, a little
+## down or up at a ridge, lands on the map's own floor where it leaves, or at the air reach short of that; never on
+## nothing, nor in the air past the map.
+func _backdrop_stops_no_ray(rig: Rig) -> void:
+	var half := Terrain.SIZE * 0.5
+	var ranges: Dictionary = Mountains.RANGES[0]
+	for side: Vector2 in [Vector2(0, -1), Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0)]:
+		var az := atan2(side.y, side.x)
+		var ridge: Vector3 = Vector3(side.x, 0, side.y) * ranges.radius + Vector3.UP * Mountains.ridge(ranges, Mountains.noise_for(ranges), az)
+		for from in [40.0, 65.0, half - 6.0]:
+			var o := Vector3(side.x * from, Terrain.height_at(side.x * from, side.y * from) + Rig.EYE, side.y * from)
+			for dir: Vector3 in [Vector3(side.x, 0, side.y), Vector3(side.x, -0.02, side.y), Vector3(side.x, 0.2, side.y), ridge - o]:
+				rig.aim(_pose(o, dir.normalized()))
+				var g: Variant = rig.aim_ground
+				var what := "a ray from %.0f m toward the mountains along %s" % [from, dir.normalized()]
+				_check(g != null, what + " has a target")
+				if g == null:
+					continue
+				_check(maxf(absf(g.x), absf(g.z)) <= half + 0.01, what + " lands on the map: %s" % g)
+				var on_floor: bool = rig.aim_lift < 0.15 and absf(g.y - Terrain.height_at(g.x, g.z)) < 0.05
+				var air: bool = (g + Vector3.UP * rig.aim_lift).distance_to(o + dir.normalized() * Rig.AIR_REACH) < 0.01
+				_check(on_floor or air, what + " stands on the floor or at the air reach: %s, lift %.2f" % [g, rig.aim_lift])
+				_check(Vector2(g.x - o.x, g.z - o.z).length() > 4.0, what + " goes out toward them: %s" % g)
+	rig.hide_markers()
+
+
 func _reaches_across_the_map(rig: Rig) -> void:
 	var half := Terrain.SIZE * 0.5 - 4.0
 	var o := Vector3(-half, Terrain.height_at(-half, half) + 30.0, half)

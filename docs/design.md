@@ -1857,6 +1857,14 @@ so they look the same size far away as they do nearby. The march along the ray s
 it stays above, so a ray across the whole map costs less than the old 80 m one did. `demo/teleport-far.json` aims
 from one corner of the map to the other.
 
+Report: with the mountains in place, teleporting far horizontally no longer worked; the ray seemed to hit the mountains.
+
+Everything past the map's side, the mountains and the ground before them, is scenery nobody stands on, and the ray
+never meets it: it ends where it leaves the map. A ray that leaves through the side before it hits anything or,
+aimed upward, before the 30 m air reach, stands the player on the floor at the map's edge where it left, so a long
+level aim toward the mountains carries as far as the map goes. Before, a level ray off the edge had no target and
+an upward one floated the player in the air past the map.
+
 Directive (verbatim): "I'd like to be able to use the grab button to grab the ground so ground terraforming becomes um... not a tool, it's just something that's always available. I just grab something. Grab the ground and push it down or pull it up"
 
 Directive (verbatim): "The grab button should always be grab"

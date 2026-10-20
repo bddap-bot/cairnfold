@@ -225,8 +225,9 @@ static func reach_scale(y: float) -> float:
 
 ## Cast the teleport ray from a pointing pose. Its full target is the first solid thing it hits anywhere on the map,
 ## the ground, a roof of any pitch, a wall's top or a tree, where the player then stands; or, aimed above the horizon
-## with nothing on the map to hit, the point in the air AIR_REACH along it. The target lies `fraction` of the way
-## there along the ray, in the air above the floor short of a hit.
+## with nothing on the map to hit, the point in the air AIR_REACH along it. A ray leaving the map's side first, toward
+## the scenery round it that nobody stands on, stands the player on the floor where it leaves. The target lies
+## `fraction` of the way there along the ray, in the air above the floor short of a hit.
 func aim(from: Transform3D, fraction := 1.0) -> void:
 	var origin := from.origin
 	var dir := -from.basis.z.normalized()
@@ -236,6 +237,9 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 	var solid: Variant = solid_hit.call(origin, dir, reach if hit == null else origin.distance_to(hit))
 	if solid != null:
 		hit = solid
+	var leaves := origin + dir * reach
+	if hit == null and (not upward or reach < AIR_REACH) and Terrain.on_side(leaves):
+		hit = Vector3(leaves.x, floor_under.call(leaves), leaves.z)
 	if hit == null and not upward:
 		aim_ground = null
 		hide_markers()
