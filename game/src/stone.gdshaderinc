@@ -1,4 +1,5 @@
 #include "res://src/bounce.gdshaderinc"
+#include "res://src/plaster.gdshaderinc"
 
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 uniform vec3 moss : source_color = vec3(0.30, 0.42, 0.14);
@@ -53,21 +54,25 @@ void vertex() {
 }
 
 void fragment() {
-	vec3 p = world_pos * 1.7;
-	vec3 an = abs(world_nrm);
-	float tri = texture(detail, p.yz).r * an.x + texture(detail, p.xz).r * an.y + texture(detail, p.xy).r * an.z;
-	vec3 base = COLOR.rgb * (0.78 + tri * 0.45);
 	vec4 bounce = texture(bounce_volume, bounce_at);
-	// Moss takes stone out under the sky: a floor under its roof and woodwork (Palette.Element WOOD, TIMBER) stay bare.
-	float wood = step(abs(material - 3.0), 0.5) + step(abs(material - 5.0), 0.5);
-	float patch = texture(detail, world_pos.xz * 0.3).r;
-	float mossy = smoothstep(0.55, 0.9, world_nrm.y) * smoothstep(0.45, 0.7, patch) * smoothstep(0.35, 0.7, bounce.a) * (1.0 - wood);
-	if (style >= 0) {
-		// The styles' tones are linear where stone's own colours are not, so they come back to stone's before its
-		// paint tints them (Boulders: the swatch over the one stone is laid in) and its shade darkens them.
-		base = pow(stone_rock(style, world_pos, normalize(world_nrm), tone, moss, patch, tri), vec3(1.0 / 2.2)) * COLOR.rgb;
+	if (abs(material - 4.0) < 0.5) {
+		ALBEDO = COLOR.rgb * occlusion * plaster_surface(detail, world_pos, world_nrm, world_pos.y - ground_at(world_pos.xz));
+	} else {
+		vec3 p = world_pos * 1.7;
+		vec3 an = abs(world_nrm);
+		float tri = texture(detail, p.yz).r * an.x + texture(detail, p.xz).r * an.y + texture(detail, p.xy).r * an.z;
+		vec3 base = COLOR.rgb * (0.78 + tri * 0.45);
+		// Moss takes stone out under the sky: a floor under its roof and woodwork (Palette.Element WOOD, TIMBER) stay bare.
+		float wood = step(abs(material - 3.0), 0.5) + step(abs(material - 5.0), 0.5);
+		float patch = texture(detail, world_pos.xz * 0.3).r;
+		float mossy = smoothstep(0.55, 0.9, world_nrm.y) * smoothstep(0.45, 0.7, patch) * smoothstep(0.35, 0.7, bounce.a) * (1.0 - wood);
+		if (style >= 0) {
+			// The styles' tones are linear where stone's own colours are not, so they come back to stone's before its
+			// paint tints them (Boulders: the swatch over the one stone is laid in) and its shade darkens them.
+			base = pow(stone_rock(style, world_pos, normalize(world_nrm), tone, moss, patch, tri), vec3(1.0 / 2.2)) * COLOR.rgb;
+		}
+		ALBEDO = mix(base, moss, mossy * 0.8) * occlusion;
 	}
-	ALBEDO = mix(base, moss, mossy * 0.8) * occlusion;
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.25;
 	AO = bounce.a;

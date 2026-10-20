@@ -3,6 +3,7 @@ render_mode diffuse_lambert_wrap;
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
+#include "res://src/plaster.gdshaderinc"
 
 // Raw like the stones' instance colours, so a gable matches the wall it continues.
 uniform vec3 albedo;
@@ -15,23 +16,21 @@ uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 const float LOW = 1.5;
 
 varying vec3 world_pos;
+varying vec3 world_nrm;
 varying vec3 bounce_at;
 varying vec3 lamp_at;
 
 void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	vec3 n = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	world_nrm = n;
 	vec3 q = world_pos + n;
 	bounce_at = vec3((q.xz - bounce_grid.x) / bounce_grid.y, min(q.y - ground_at(q.xz), LOW) / bounce_grid.z);
 	lamp_at = lamp_coord(world_pos, n);
 }
 
 void fragment() {
-	// The plaster panels' grain (stone.gdshaderinc) on a vertical face, so a gable reads as the wall below it.
-	vec3 p = world_pos * 1.7;
-	vec3 n = abs((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	float grain = n.x > n.z ? texture(detail, p.yz).r : texture(detail, p.xy).r;
-	ALBEDO = albedo * tint * (0.78 + grain * 0.45);
+	ALBEDO = albedo * tint * plaster_surface(detail, world_pos, world_nrm, world_pos.y - ground_at(world_pos.xz));
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.25;
 	vec4 bounce = texture(bounce_volume, bounce_at);

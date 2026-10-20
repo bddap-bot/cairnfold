@@ -1,0 +1,218 @@
+[
+  {
+    "op": "budget",
+    "bounded": false
+  },
+  {
+    "op": "quality",
+    "step": 0
+  },
+  {
+    "op": "place",
+    "x": 0,
+    "z": 12
+  },
+  {
+    "op": "wall",
+    "points": [
+      [
+        -18,
+        0
+      ],
+      [
+        18,
+        0
+      ]
+    ],
+    "plaster": true,
+    "seconds": 0.5
+  },
+  {
+    "op": "lift_wall",
+    "index": 0,
+    "height": 4
+  },
+  {
+    "op": "wait",
+    "seconds": 4
+  },
+  {
+    "op": "label",
+    "name": "sweep/plaster-close"
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      2,
+      3
+    ],
+    "at": [
+      0,
+      2,
+      0
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 30
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "capture",
+    "name": "close"
+  },
+  {
+    "op": "label",
+    "name": "sweep/plaster-far"
+  },
+  {
+    "op": "view",
+    "eye": [
+      8,
+      6,
+      23
+    ],
+    "at": [
+      0,
+      2,
+      0
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 30
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "capture",
+    "name": "far"
+  },
+  {
+    "op": "clear"
+  },
+  {
+    "op": "stress",
+    "radius": 25,
+    "spacing": 2,
+    "height": 4.5,
+    "plaster": true
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "label",
+    "name": "plaster/aerial"
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      22,
+      32
+    ],
+    "at": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 20
+  },
+  {
+    "op": "label",
+    "name": "plaster/ground"
+  },
+  {
+    "op": "view",
+    "ground": true,
+    "eye": [
+      0,
+      1.65,
+      0
+    ],
+    "at": [
+      20,
+      1.2,
+      0
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 20
+  },
+  {
+    "op": "clear"
+  },
+  {
+    "op": "village",
+    "radius": 20,
+    "spacing": 7,
+    "plaster": true,
+    "gable": "wall"
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "label",
+    "name": "plaster-village/aerial"
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      22,
+      32
+    ],
+    "at": [
+      0,
+      0,
+      0
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 20
+  },
+  {
+    "op": "label",
+    "name": "plaster-village/ground"
+  },
+  {
+    "op": "view",
+    "ground": true,
+    "eye": [
+      0,
+      1.65,
+      0
+    ],
+    "at": [
+      20,
+      1.2,
+      0
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 20
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "quit"
+  }
+]
