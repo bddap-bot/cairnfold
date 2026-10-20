@@ -447,7 +447,7 @@ func _to_hand(b: Bird, delta: float) -> void:
 		b.to = b.spot
 		return
 	b.node.position = b.spot
-	if h is Hand:
+	if h is not Handful:
 		Wildlife._face(b.node, -h.global_basis.z, delta * 6.0)
 	wildlife.nibble(h, delta)
 	b.timer -= delta
@@ -469,7 +469,8 @@ func _decide(b: Bird, h: Node3D, delta: float) -> void:
 		return
 	var seeds := h.global_position
 	var you := wildlife.viewer
-	var at := you.global_position if you != null and you.is_inside_tree() and b.timer > b.duration * 0.5 else seeds
+	var holder: Vector3 = h.eyes if h is Dish else you.global_position if you != null and you.is_inside_tree() else seeds
+	var at := holder if b.timer > b.duration * 0.5 else seeds
 	b.preening = 0.0
 	b.node.blend(Conure.IDLE, delta)
 	Wildlife._face(b.node, seeds - b.node.position, delta * 3.0)
@@ -653,8 +654,8 @@ func _land(b: Bird) -> void:
 
 
 func _animation_event(act: Cues.Act, b: Bird) -> void:
-	if b.state == State.FEED and b.node.hand is Hand:
-		Cues.play(act, b.node.global_position, b.node.hand)
+	if b.state == State.FEED and b.node.hand is not Handful:
+		Cues.play(act, b.node.global_position, b.node.hand as Hand)
 		if act == Cues.Act.HAND_PECK:
 			wildlife.calls.call_out("click", b.node.position)
 	if act == Cues.Act.HAND_PERCH and b.state == State.PERCH:

@@ -21,6 +21,7 @@ func _initialize() -> void:
 	await _the_hands_hang_at_the_sides_until_a_tool_is_raised()
 	await _the_trigger_reaches_only_the_camera_and_the_visit_tool()
 	await _wave_plays_recorded_hands()
+	await _the_seed_dish_is_held_out_level_and_low_looking_down()
 	await _every_control_on_every_tool_sends_no_edit(sent)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
@@ -145,7 +146,7 @@ func _the_hands_hang_at_the_sides_until_a_tool_is_raised() -> void:
 		_check(_near(rig.hands[s].body.global_transform, level * Avatar.AT_SIDES[s]), "the %s hand hangs at the side as others see it, however the head tips" % ["left", "right"][s])
 	await _tap(_key.bind(KEY_TAB))
 	_check(rig.right.tool == Hand.Tool.CAMERA, "Tab takes up the camera")
-	_check(_near(rig.right.global_transform, rig.head.global_transform * Flat.held(Hand.Tool.CAMERA)), "raised before the eye")
+	_check(_near(rig.right.global_transform, rig.head.global_transform * Flat.held(Hand.Tool.CAMERA, flat.pitch)), "raised before the eye")
 	_check(PhotoTool.lens(rig.right).basis.z.dot(rig.head.global_basis.z) > 0.999, "its lens looking where the view does")
 	_check(_near(rig.left.body.global_transform, level * Avatar.AT_SIDES[0]), "the other hand still at its side")
 	var trigger := "right_hand/" + Controls.input("tool", "right_hand")
@@ -157,7 +158,9 @@ func _the_hands_hang_at_the_sides_until_a_tool_is_raised() -> void:
 	await _tap(_button.bind(JOY_BUTTON_Y))
 	_check(rig.right.tool == Hand.Tool.VISIT, "the gamepad's Y takes up the visit tool")
 	await _tap(_mouse.bind(MOUSE_BUTTON_RIGHT))
-	_check(rig.right.tool == Hand.Tool.NONE, "and the right mouse button puts it away")
+	_check(rig.right.tool == Hand.Tool.SEEDS, "the right mouse button takes up the seed dish")
+	await _tap(_key.bind(KEY_TAB))
+	_check(rig.right.tool == Hand.Tool.NONE, "and Tab puts it away")
 	await _frames(1)
 	_check(_near(rig.right.body.global_transform, level * Avatar.AT_SIDES[1]), "the hand dropping back to the side")
 	flat.pitch = 0.0
@@ -211,6 +214,38 @@ func _every_control_on_every_tool_sends_no_edit(sent: int) -> void:
 		_check(rig.right.tool == t, "no key changes the tool but the next-tool controls")
 	_check(rig.hands.all(func(h: Hand) -> bool: return Flat.TOOLS.has(h.tool)), "no hand ever holds an edit tool")
 	_check(main.world._next_token == sent, "and no edit command is ever sent: %d sent" % (main.world._next_token - sent))
+
+
+## The dish is held out before the eye, level for an animal to stand on, and an offer to the animals. Looking down
+## stoops the player, never faster than a calm move, until the dish is within every appetite's reach of the ground;
+## put away, the player stands again.
+func _the_seed_dish_is_held_out_level_and_low_looking_down() -> void:
+	var rig := main.rig
+	flat.pitch = -0.3
+	rig.right.tool = Hand.Tool.SEEDS
+	await _frames(2)
+	_check(_near(rig.right.global_transform, rig.head.global_transform * Flat.held(Hand.Tool.SEEDS, flat.pitch)), "the dish is held out before the eye")
+	_check(rig.right.body.global_basis.y.dot(Vector3.UP) > 0.999, "level however the head tips")
+	_check(main.wildlife.offers().has(rig.right), "an offer to the animals")
+	var ground := func() -> float: return rig.right.body.global_position.y - Terrain.height_at(rig.right.body.global_position.x, rig.right.body.global_position.z)
+	var standing: float = ground.call()
+	flat.pitch = -1.2
+	var head := rig.head.global_position.y
+	var fastest := 0.0
+	for i in 150:
+		await process_frame
+		fastest = maxf(fastest, (head - rig.head.global_position.y) * 60.0)
+		head = rig.head.global_position.y
+	_check(fastest <= Flat.STOOP_SPEED + 1e-3 and fastest < Wildlife.CALM, "looking down stoops no faster than a calm move: %.2f m/s" % fastest)
+	var low: float = ground.call()
+	_check(low < standing - 0.5 and low < Wildlife.duck_appetite.reach, "the dish comes low enough for a duck: %.2f m from %.2f" % [low, standing])
+	_check(rig.right.body.global_basis.y.dot(Vector3.UP) > 0.999, "still level")
+	rig.right.tool = Hand.Tool.NONE
+	for i in 150:
+		await process_frame
+	_check(flat.stoop == 0.0 and absf(rig.head.position.y - Rig.EYE) < 1e-4, "put away, the player stands again")
+	flat.pitch = 0.0
+	await _frames(1)
 
 
 func _wave_plays_recorded_hands() -> void:

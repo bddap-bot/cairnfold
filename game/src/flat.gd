@@ -3,13 +3,13 @@ extends Node
 
 ## A player without a headset, on a flat screen with mouse and keyboard or a gamepad (`Controls.FLAT`). It walks the
 ## ground instead of teleporting and looks with the mouse or the right stick; its input stands in for the controllers
-## through the same tool entry points. The only tools it holds are the camera and the visit tool, in the right hand
-## raised before the eye, or none, so there is no edit path to keep it from: with none, both hands hang at the sides,
-## as other players see them.
+## through the same tool entry points. The only tools it holds are the camera, the visit tool and the seed dish, in the
+## right hand raised before the eye, or none, so there is no edit path to keep it from: with none, both hands hang at
+## the sides, as other players see them.
 
 const WAVE: Animation = preload("res://animations/wave.tres")
 
-const TOOLS: Array[Hand.Tool] = [Hand.Tool.NONE, Hand.Tool.CAMERA, Hand.Tool.VISIT]
+const TOOLS: Array[Hand.Tool] = [Hand.Tool.NONE, Hand.Tool.CAMERA, Hand.Tool.VISIT, Hand.Tool.SEEDS]
 const WALK := 2.5
 ## Radians a second at full stick, and per pixel of mouse.
 const STICK_LOOK := 2.6
@@ -19,6 +19,12 @@ const PITCH := deg_to_rad(85.0)
 const CAMERA_HELD := Vector3(0.0, 0.0, -0.32)
 ## The visit tool is held low, out of the way of the figures, its beam crossing the line of sight where they stand.
 const VISIT_HELD := Vector3(0.0, -0.13, -0.32)
+## The seed dish is held out low in the view and kept level, for an animal to stand on or eat under.
+const DISH_HELD := Vector3(0.08, -0.22, -0.42)
+## Holding the dish, looking down stoops the player by up to this many metres, so the dish reaches the animals that
+## eat low; no faster than STOOP_SPEED, metres a second, below what startles them (`Wildlife.CALM`).
+const STOOP := 0.8
+const STOOP_SPEED := 0.5
 ## How far ahead of the head a step must be clear of builds, at the knees and at the eyes.
 const BODY := 0.3
 const DEADZONE := 0.2
@@ -34,6 +40,7 @@ var _taking_click := false
 var _trigger := ""
 var _firing := false
 var _wave_time := -1.0
+var stoop := 0.0
 
 
 func _init(player: Rig) -> void:
@@ -102,10 +109,12 @@ func turn(by_yaw: float, by_pitch: float) -> void:
 	pitch = clampf(pitch + by_pitch, -PITCH, PITCH)
 
 
-## The right hand's aim pose from the eyes while it holds `tool`.
-static func held(tool: Hand.Tool) -> Transform3D:
+## The right hand's aim pose from the eyes, tipped by `pitch`, while it holds `tool`.
+static func held(tool: Hand.Tool, pitch: float) -> Transform3D:
 	if tool == Hand.Tool.CAMERA:
 		return Transform3D(Basis.IDENTITY, CAMERA_HELD)
+	if tool == Hand.Tool.SEEDS:
+		return Transform3D(Basis(Vector3.RIGHT, -pitch), DISH_HELD)
 	return Transform3D(Basis.looking_at(Vector3(0, 0, -VisitTool.ARC) - VISIT_HELD), VISIT_HELD)
 
 
@@ -123,8 +132,10 @@ func _process(delta: float) -> void:
 		_taking_click = false
 	var stick := Input.get_vector("flat_look_left", "flat_look_right", "flat_look_down", "flat_look_up")
 	turn(-stick.x * STICK_LOOK * delta, stick.y * STICK_LOOK * delta)
+	var low := STOOP * maxf(0.0, -sin(pitch)) if rig.right.tool == Hand.Tool.SEEDS else 0.0
+	stoop = move_toward(stoop, low, STOOP_SPEED * delta)
 	var level := Basis(Vector3.UP, yaw)
-	var eyes := Transform3D(level * Basis(Vector3.RIGHT, pitch), Vector3.UP * Rig.EYE)
+	var eyes := Transform3D(level * Basis(Vector3.RIGHT, pitch), Vector3.UP * (Rig.EYE - stoop))
 	rig.head.transform = eyes
 	var move := Input.get_vector("flat_left", "flat_right", "flat_forward", "flat_back")
 	if move != Vector2.ZERO:
@@ -141,8 +152,8 @@ func _process(delta: float) -> void:
 		if _wave_time > WAVE.length:
 			_wave_time = -1.0
 	for s in 2:
-		var at_side := Transform3D(level, Vector3.UP * Rig.EYE) * Avatar.AT_SIDES[s]
-		rig.hands[s].transform = eyes * Flat.held(rig.right.tool) if raised and s == 1 else at_side
+		var at_side := Transform3D(level, eyes.origin) * Avatar.AT_SIDES[s]
+		rig.hands[s].transform = eyes * Flat.held(rig.right.tool, pitch) if raised and s == 1 else at_side
 		if _wave_time >= 0.0:
 			var hand := Transform3D(Basis(WAVE.rotation_track_interpolate(s * 2 + 1, _wave_time)), WAVE.position_track_interpolate(s * 2, _wave_time))
 			rig.hands[s].transform = Transform3D(level, eyes.origin) * hand

@@ -292,6 +292,7 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 	await _a_sudden_move_startles_it_a_short_way(g, perched, vanishing)
 	await _seeds_held_out_draw_one_onto_the_hand(g, vanishing)
 	_two_hands_with_seeds_feed_two(g, vanishing)
+	_another_players_dish_draws_one(g, vanishing)
 
 	g.world.undo()
 	g.world.undo()
@@ -507,6 +508,40 @@ func _two_hands_with_seeds_feed_two(g: Glade, each: Callable) -> void:
 		h.tool = Hand.Tool.WALLS
 		h.held_still = false
 		h.global_position = AWAY
+	_run(g, 4.0, each)
+
+
+## Another player's dish held out, as `Session` shows it in their avatar's hand, draws a conure onto it as a hand here
+## does; hidden again, it keeps nobody.
+func _another_players_dish_draws_one(g: Glade, each: Callable) -> void:
+	var dish := Dish.new()
+	root.add_child(dish)
+	g.wildlife.dishes.append(dish)
+	dish.visible = true
+	dish.global_transform = Transform3D(Basis(Vector3.UP, 0.4), g.birds()[0].spot + Vector3(1.5, -0.4, 1.0))
+	dish.eyes = dish.global_position + Vector3(0.3, 0.5, 0.4)
+	var on := func() -> Array[Birds.Bird]:
+		return g.birds().filter(func(b: Birds.Bird) -> bool: return b.state == Birds.State.FEED and b.node.hand == dish)
+	var looked := [0.0]
+	for i in int(120.0 / STEP):
+		_run(g, STEP, each)
+		for b in g.birds():
+			if b.state == Birds.State.DECIDE and b.node.hand == dish and b.node._gaze.z > 0.9:
+				var aim := b.node.transform.basis * (Basis(Vector3.UP, b.node._gaze.x) * Basis(Vector3.RIGHT, b.node._gaze.y) * Vector3.FORWARD)
+				looked[0] = maxf(looked[0], aim.dot((b.node.position + b.node.transform.basis * Conure.NECK).direction_to(dish.eyes)))
+		if not on.call().is_empty():
+			break
+	_check(on.call().size() == 1, "a conure comes to another player's dish, %d" % on.call().size())
+	_check(looked[0] > 0.95, "having looked at that player first, %.2f" % looked[0])
+	_run(g, 2.0, each)
+	if not on.call().is_empty():
+		var b: Birds.Bird = on.call()[0]
+		_check(b.node.position.distance_to(dish.global_transform * Wildlife.ON_HAND) < 0.001, "and stands on that hand behind the seeds")
+	dish.visible = false
+	_run(g, 1.0, each)
+	_check(g.birds().all(func(b: Birds.Bird) -> bool: return b.node.hand != dish), "hidden, the dish keeps nobody")
+	g.wildlife.dishes.erase(dish)
+	dish.free()
 	_run(g, 4.0, each)
 
 

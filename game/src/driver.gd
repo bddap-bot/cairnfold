@@ -826,10 +826,12 @@ func _visit(s: Dictionary) -> void:
 	await _arrived(arrived)
 
 
-## Flat mode: holds the flat-screen control `action` (see Controls.FLAT) for `seconds`, as its key or button would.
+## Flat mode: holds the flat-screen control `action` (see Controls.FLAT) for `seconds`, and at least two frames so a slow
+## frame cannot swallow the press, as its key or button would.
 func _flat(s: Dictionary) -> void:
 	var action: String = "flat_" + s.action
 	Input.action_press(action)
+	await _frames(2)
 	await get_tree().create_timer(s.get("seconds", 0.1)).timeout
 	Input.action_release(action)
 	await _frames(2)
@@ -852,7 +854,8 @@ func _face(s: Dictionary) -> void:
 
 
 ## Waits until the garden has applied command `seq`, `players` share it, `worn` of them show their own avatar files,
-## `previewed` avatar files (this player's own included) stand ready for the picker, `swimming` fish have come, the
+## `previewed` avatar files (this player's own included) stand ready for the picker, `swimming` fish have come, with `fed`
+## something eats from a held dish (`Main.fed`: "hand" this player's, "dish" another player's as shown here), the
 ## `digests` named have been written to the capture directory (by any player), or with "heard" the host's beacon is
 ## heard, for at most `seconds`. Without `seconds` the wait has no limit: how long another player takes to start and
 ## catch up is the machine's load, not the script's.
@@ -864,7 +867,7 @@ func _until(s: Dictionary) -> void:
 		var w: World = main.world
 		var worn: int = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.source != "").size()
 		var digested: bool = s.get("digests", []).all(func(n: String) -> bool: return FileAccess.file_exists(dir.path_join(n + ".json")))
-		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.fish.swimming.size() >= s.get("swimming", 0) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
+		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.fish.swimming.size() >= s.get("swimming", 0) and (not s.has("fed") or main.fed(s.fed) > 0) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
 			_waiting = {}
 			return
 		await get_tree().process_frame
@@ -873,7 +876,7 @@ func _until(s: Dictionary) -> void:
 	push_error("driver: until %s timed out" % s)
 
 
-## Writes `World.digest`, where the sun stands, how many other players' avatars stand here and the hashes of their own files, to `name`.json in the capture
+## Writes `World.digest`, where the sun stands, how many other players' avatars stand here and the hashes of their own files, and how many eat from held dishes, to `name`.json in the capture
 ## directory, for comparing machines.
 func _digest(s: Dictionary) -> void:
 	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name + ".json")
@@ -884,6 +887,7 @@ func _digest(s: Dictionary) -> void:
 	out.sun = main.look.time
 	out.avatars = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.visible).size()
 	out.worn = main.session.avatars.values().map(func(a: Avatar) -> String: return a.source).filter(func(k: String) -> bool: return k != "")
+	out.fed = {"hand": main.fed("hand"), "dish": main.fed("dish")}
 	out.handfuls = main.feed_tool.handfuls.filter(func(h: Handful) -> bool: return h.landed()).map(func(h: Handful) -> Array: return [h.position.x, h.position.y, h.position.z])
 	out.frenzy = main.fish.frenzy()
 	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))

@@ -213,6 +213,11 @@ func tracked() -> bool:
 	return held_still or get_has_tracking_data()
 
 
+## Whether it holds the seed dish out: animals eat from it, here and, through `Session`, in every other player's game.
+func holds_seeds() -> bool:
+	return tool == Tool.SEEDS and tracked() and not picking
+
+
 ## Tools call this each frame they point; the pointer hides on frames nobody does.
 func point(hit: Variant, tint: Color, reach := 20.0) -> void:
 	if not tracked():

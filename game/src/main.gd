@@ -130,6 +130,7 @@ func _ready() -> void:
 	feed_tool = FeedTool.new(rig, water)
 	add_child(feed_tool)
 	wildlife.handfuls = feed_tool.handfuls
+	wildlife.dishes = session.dishes
 	fish = wildlife.fish
 	session.feed = feed_tool
 	sound = Soundscape.new(tool, flora_tool)
@@ -229,6 +230,11 @@ func _process(_delta: float) -> void:
 ## Whether `hand`, or with none any hand, has an edit under way: a grip takes nothing from a hand mid-edit.
 func _editing(hand: Hand = null) -> bool:
 	return stair_tool.busy(hand) or tool.busy(hand) or flora_tool.busy(hand) or ground_grab.busy(hand) or palette_tool.busy(hand) or delete_tool.busy(hand) or easel_tool.busy(hand)
+
+
+## Conures eating from a dish held out in this player's hand ("hand") or another player's ("dish"), for a script to wait on.
+func fed(on: String) -> int:
+	return wildlife.birds.birds.filter(func(b: Birds.Bird) -> bool: return b.state == Birds.State.FEED and (b.node.hand is Dish if on == "dish" else b.node.hand is Hand)).size()
 
 
 ## A game played without a headset comes up on the flat screen; a script or test asks for it by --flat.

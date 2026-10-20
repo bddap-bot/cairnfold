@@ -93,6 +93,8 @@ var walls: WallTool
 var palette: Palette
 var viewer: Node3D
 var hands: Array[Node3D] = []
+## Other players' seed dishes as this game shows them (`Session`): one held out is an offer as a hand here is.
+var dishes: Array[Dish] = []
 var families: Array[Family] = []
 var butterflies: Butterflies
 var fireflies: Fireflies
@@ -477,7 +479,7 @@ func _watch(delta: float) -> void:
 
 func _watched() -> Array[Node3D]:
 	var out: Array[Node3D] = []
-	for n: Node3D in hands + [viewer]:
+	for n: Node3D in hands + dishes + [viewer]:
 		if n != null and n.is_inside_tree():
 			out.append(n)
 	return out
@@ -517,12 +519,15 @@ func _nearest(p: Vector3, reach: float) -> Node3D:
 	return best
 
 
-## The hands holding seeds out, and the seeds lying where they were thrown.
+## The hands holding seeds out, this player's and others', and the seeds lying where they were thrown.
 func offers() -> Array[Node3D]:
 	var out: Array[Node3D] = []
 	for h in hands:
-		if h is Hand and h.tool == Hand.Tool.SEEDS and h.is_inside_tree() and h.tracked() and not h.picking:
+		if h is Hand and h.is_inside_tree() and h.holds_seeds():
 			out.append(h)
+	for d in dishes:
+		if d.is_visible_in_tree():
+			out.append(d)
 	for s in handfuls:
 		if s.landed():
 			out.append(s)
@@ -542,7 +547,7 @@ func offer_for(appetite: Appetite, at: Vector3, fits := Callable()) -> Node3D:
 		var p := h.global_position
 		if _eaters.has(h) or sudden(h) or p.distance_to(at) > appetite.notice:
 			continue
-		if h is Hand and appetite.eat == Eat.UNDER_HAND and p.y - water.floor_at(p) > appetite.reach:
+		if h is not Handful and appetite.eat == Eat.UNDER_HAND and p.y - water.floor_at(p) > appetite.reach:
 			continue
 		if h is Handful and appetite.eat == Eat.ON_HAND and water.pond_at(p.x, p.z) != null:
 			continue
@@ -571,7 +576,7 @@ func feeds(h: Node3D, eater: Object) -> bool:
 ## in the hand's space), or on the ground or water with its mouth under it.
 func eat_spot(appetite: Appetite, h: Node3D, from: Vector3) -> Vector3:
 	var seen: Node3D = h.body if h is Hand else h
-	if appetite.eat == Eat.ON_HAND and h is Hand:
+	if appetite.eat == Eat.ON_HAND and h is not Handful:
 		return seen.global_transform * ON_HAND
 	var at := seen.global_position
 	var off := Vector3(from.x - at.x, 0, from.z - at.z)

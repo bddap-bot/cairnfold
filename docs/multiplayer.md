@@ -199,9 +199,11 @@ every avatar every frame. The addon is also a large editor import plugin, and th
 only the ~60 lines of humanoid reading it already has.
 
 Each player's avatar and colour go to every other player once, reliably. After that a
-pose packet carries three transforms and the look, a direction in the head's frame, sent
-unreliable and ordered at 30 Hz and smoothed on arrival; the look adds 12 bytes to a
-packet already sent, which costs less than any packet of its own at a lower rate. Values
+pose packet carries three transforms, the look, a direction in the head's frame, and which
+hands hold the seed dish out, sent unreliable and ordered at 30 Hz and smoothed on arrival; the
+look adds 12 bytes to a packet already sent, which costs less than any packet of its own at a
+lower rate. The others show a dish held out in that avatar's hand, and their own animals eat
+from it (docs/design.md, "Feeding"). Values
 that are not finite are dropped. A thrown handful of seeds goes to every other player once, reliably:
 where it left the dish, its velocity and the seed of its spread, from which each game throws the same handful
 (docs/design.md, "Feeding").

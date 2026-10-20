@@ -2,7 +2,8 @@
 # A flat-screen player joins a VR host's garden through the visit tool's figures, walks up and takes a photo; both
 # games render under one virtual display: flat.sh OUT_DIR. Each wears its own VRM from its avatars folder: the
 # flat-screen player's picker shows the host's, the host's captures show the flat-screen player's standing in its
-# garden, and the photo lands in OUT_DIR/photos.
+# garden, and the photo lands in OUT_DIR/photos. Then the flat-screen player holds out the seed dish by the host's
+# wall: a conure comes to stand on it in its own game, and in the host's another stands on the dish its avatar holds.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 out=$(realpath -m "$1")
@@ -23,8 +24,8 @@ game() {
   rm -rf "$out/avatars-$name"
   mkdir -p "$out/avatars-$name"
   cp "$root/tests/avatars/$vrm" "$out/avatars-$name/"
-  timeout 300 godot4 --path "$root/game" --resolution 1200x900 --xr-mode off -- --desktop --script "$root/demo/flat-$name.json" \
-    --capture-dir "$out" --beacon-port "$beacon" --port "$first" --quit-after 240 --avatars "$out/avatars-$name" "$@" >"$out/$name.log" 2>&1 &
+  timeout 660 godot4 --path "$root/game" --resolution 1200x900 --xr-mode off -- --desktop --script "$root/demo/flat-$name.json" \
+    --capture-dir "$out" --beacon-port "$beacon" --port "$first" --quit-after 600 --avatars "$out/avatars-$name" "$@" >"$out/$name.log" 2>&1 &
   pids+=($!)
 }
 game host godette-0.x.vrm
@@ -42,5 +43,7 @@ for name in host join; do
 done
 worn=$(python3 -c 'import json, sys; print(*json.load(open(sys.argv[1]))["worn"])' "$out/host-seen.json" 2>/dev/null || true)
 [ "$worn" = "$(sha256sum "$out/avatars-join/crimsom-1.0.vrm" | cut -d' ' -f1)" ] || { echo "flat: the host does not see the flat-screen player's own avatar"; status=1; }
+fed=$(python3 -c 'import json, sys; print(json.load(open(sys.argv[1]))["fed"]["dish"])' "$out/host-fed.json" 2>/dev/null || true)
+[ "${fed:-0}" -ge 1 ] || { echo "flat: the host sees no animal eating at the flat-screen player's dish"; status=1; }
 ls "$out"/photos/*.png >/dev/null 2>&1 || { echo "flat: no photo in $out/photos"; status=1; }
 exit "$status"

@@ -3,6 +3,8 @@
   {"op": "wall", "points": [[-4, -2], [0, -3], [4, -2]], "seconds": 1},
   {"op": "paint", "tool": "flowers", "points": [[-3, 0], [0, -0.5], [3, 0]], "radius": 1.4, "seconds": 3},
   {"op": "tree", "x": 5, "z": -4},
+  {"op": "dig", "x": -6, "z": 3, "seconds": 1.8},
+  {"op": "dig", "x": -4.5, "z": 2.6, "seconds": 1.8},
   {"op": "view", "eye": [0, 1.65, 8], "at": [0, 1.0, 0], "ground": true},
   {"op": "until", "players": 2, "worn": 1},
   {"op": "until", "digests": ["flat-walked"]},
@@ -38,6 +40,13 @@
   {"op": "until", "digests": ["flat-photo"]},
   {"op": "capture", "name": "host-sees-camera"},
   {"op": "digest", "name": "host-done"},
+  {"op": "until", "digests": ["flat-feeding"]},
+  {"op": "until", "fed": "dish"},
+  {"op": "wait", "seconds": 2},
+  {"op": "capture", "name": "host-sees-feeding"},
+  {"op": "view", "subject": "dishes", "index": 1, "eye": [0.3, 0.35, -1.3], "at": [0, 0.08, 0]},
+  {"op": "capture", "name": "host-sees-feeding-close"},
+  {"op": "digest", "name": "host-fed"},
   {"op": "until", "players": 1},
   {"op": "quit"}
 ]

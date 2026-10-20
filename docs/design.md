@@ -2114,19 +2114,24 @@ endpaper hides under a leaf. The same pairs now read 0.90 and 0.76 ms; in the st
 ## Flat-screen controls
 
 With no headset at start the game comes up on the flat screen (`Flat`, `Controls.FLAT`): a player who walks,
-looks, takes photos and visits, and never edits. Its controls stand in for a controller's through the same tool
-entry points; the only tools it holds are the camera and the visit tool, raised in the right hand before the eye,
-or none, both hands then hanging at its sides, as other players see it.
+looks, takes photos, visits and feeds the animals, and never edits. Its controls stand in for a controller's through
+the same tool entry points; the only tools it holds are the camera, the visit tool and the seed dish, raised in the
+right hand before the eye, or none, both hands then hanging at its sides, as other players see it.
 
 | Action | Mouse and keyboard | Gamepad |
 | --- | --- | --- |
 | Walk | W, A, S, D or the arrows | Left stick |
 | Look | The mouse, once a click in the window takes it; Escape lets it go | Right stick |
-| Take up the camera, the visit tool, or neither, in turn | Tab or the right button | Y |
-| Take a photo, or visit the garden pointed at | Left button | Right trigger or A |
+| Take up the camera, the visit tool, the seed dish, or none, in turn | Tab or the right button | Y |
+| Take a photo, visit the garden pointed at, or throw a handful of seeds | Left button | Right trigger or A |
 
 With empty hands, F or gamepad X plays the human-recorded wave. Taking up a tool
 ends it. In VR, wave with the tracked hand.
+
+The seed dish is held out low in the view and kept level (`Flat.DISH_HELD`), an offer to the animals as a
+controller's is (see "Feeding"). Holding it, looking down stoops the player by up to 0.8 m (`Flat.STOOP`), no faster
+than 0.5 m/s, a calm move, so the dish comes within a duck's or a sheep's reach of the ground and nothing is startled
+by the stoop.
 
 ### Hands at surfaces
 
@@ -2769,7 +2774,10 @@ kind declares an `Appetite`, whether it eats standing on the hand (`Eat.ON_HAND`
 (`Eat.UNDER_HAND`), how far off it sees seeds, how high over the ground or water the hand may be, how
 far its mouth reaches ahead of its feet, how long it eats and how long it is full after. `Wildlife`
 finds a calm hand holding seeds for it, keeps one eater to a hand and says where to stand; each kind
-moves there its own way.
+moves there its own way. A dish another player holds out, a flat-screen player's or one in VR, is an offer too: the
+pose each player sends says which hands hold seeds out (`Hand.holds_seeds`), `Session` shows the dish in that hand of
+their avatar (`Dish`), and this player's own animals come to it as to a hand of their own, a conure deciding looking at
+that player, so every player sees an animal at that hand.
 
 - A conure (`Birds.appetite`) that sees seeds in a hand within 6 m, at any height, first makes up its
   mind where it stands: it turns to the hand, holds its head on whoever holds the seeds and then on the
@@ -2809,7 +2817,8 @@ player and draws every fish of that pond on each.
 
 Butterflies and fireflies eat nothing from a hand. Fish eat only thrown seeds lying on their water. A held seed dish
 costs what any tool model does;
-each animal's look for a hand holding seeds is a distance check against at most two hands and eight handfuls.
+each animal's look for a hand holding seeds is a distance check against at most two hands, the other players' dishes held out
+and eight handfuls.
 A handful is one MultiMesh draw call of 28 grains of 10 triangles, casting no shadow: at most eight draw calls
 and 2,240 triangles, its grains rewritten only while flying or fading.
 

@@ -68,6 +68,9 @@ var visiting := {}
 var nearby := {}
 ## Remote players' avatars by peer id.
 var avatars := {}
+## Their seed dishes, two to a player, each shown in its hand while held out; `Wildlife` feeds from them.
+var dishes: Array[Dish] = []
+var _dishes := {}
 ## The folder whose newest .vrm is this player's avatar, or "" for a built-in one.
 var folder := ""
 ## That file once it has read as an avatar within the limits; sent to every player met.
@@ -231,6 +234,7 @@ func _on_gone(id: int) -> void:
 		avatars[id].queue_free()
 		avatars.erase(id)
 		_targets.erase(id)
+	_drop_dishes(id)
 	_looks.erase(id)
 	_wearing.erase(id)
 	_waiting.erase(id)
@@ -244,6 +248,8 @@ func _drop_avatars() -> void:
 		a.queue_free()
 	avatars.clear()
 	_targets.clear()
+	for id in _dishes.keys():
+		_drop_dishes(id)
 	_looks.clear()
 	_wearing.clear()
 	_waiting.clear()
@@ -274,12 +280,18 @@ func _process(delta: float) -> void:
 	_since_pose += delta
 	if _since_pose >= POSE_EVERY and not multiplayer.get_peers().is_empty():
 		_since_pose = 0.0
-		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look)
+		var seeds := int(rig.left.holds_seeds()) | int(rig.right.holds_seeds()) << 1
+		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look, seeds)
 	var k := 1.0 - exp(-FOLLOW * delta)
 	for id in _targets:
 		var a: Avatar = avatars[id]
 		var t: Array = _targets[id]
 		a.pose(a.eyes.interpolate_with(t[0], k), a.hands[0].interpolate_with(t[1], k), a.hands[1].interpolate_with(t[2], k), a.look.slerp(t[3], k))
+		for s in 2:
+			var dish: Dish = _dishes[id][s]
+			dish.transform = a.hands[s]
+			dish.eyes = a.eyes.origin
+			dish.visible = a.visible and t[4] & 1 << s
 
 
 func _announce() -> void:
@@ -473,6 +485,20 @@ func _appear(look: int, tint: Color) -> void:
 		return
 	_looks[id] = [posmod(look, Avatar.BUILT_IN.size()), tint.clamp()]
 	_dress(id, Avatar.built_in(look), "")
+	var pair: Array[Dish] = []
+	for s in 2:
+		var dish := Dish.new()
+		add_child(dish)
+		pair.append(dish)
+	_dishes[id] = pair
+	dishes.append_array(pair)
+
+
+func _drop_dishes(id: int) -> void:
+	for dish: Dish in _dishes.get(id, []):
+		dishes.erase(dish)
+		dish.queue_free()
+	_dishes.erase(id)
 
 
 ## A player's own VRM, sent to each player they meet and again whenever it changes; empty for their built-in one.
@@ -623,9 +649,10 @@ func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
 	feed.toss(from, velocity, seed)
 
 
-## A player's head, hands and where their eyes look, in their head's frame.
+## A player's head, hands and where their eyes look, in their head's frame, and which hands hold seeds out (bit 0 the
+## left, bit 1 the right).
 @rpc("any_peer", "unreliable_ordered")
-func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3) -> void:
+func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3, seeds: int) -> void:
 	var id := multiplayer.get_remote_sender_id()
 	var room := Terrain.bounds().grow(40.0)
 	for t in [eyes, left, right]:
@@ -633,7 +660,7 @@ func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vecto
 			return
 	if not (avatars.has(id) and look.is_finite() and look.length() > 0.1):
 		return
-	var target := [eyes.orthonormalized(), left.orthonormalized(), right.orthonormalized(), look.normalized()]
+	var target := [eyes.orthonormalized(), left.orthonormalized(), right.orthonormalized(), look.normalized(), seeds & 3]
 	var a: Avatar = avatars[id]
 	if not a.visible:
 		a.visible = true
