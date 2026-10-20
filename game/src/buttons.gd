@@ -38,7 +38,11 @@ func watch(actions: Array) -> Buttons:
 
 
 func _down(action: String) -> bool:
-	var input := Controls.input(action, hand.tracker)
-	if injected.has("%s/%s" % [hand.tracker, input]):
+	return down(hand, Controls.input(action, hand.tracker))
+
+
+## Whether `controller`'s `input` is held: a button pressed or touched, or the stick flicked that way.
+static func down(controller: Hand, input: String) -> bool:
+	if injected.has("%s/%s" % [controller.tracker, input]):
 		return true
-	return hand.flick == input if Hand.FLICKS.has(input) else hand.is_button_pressed(input)
+	return controller.flick == input if Hand.FLICKS.has(input) else controller.is_button_pressed(input)

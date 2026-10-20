@@ -85,6 +85,21 @@ static func hold(device: String, control: String, on: bool) -> void:
 		Buttons.injected.erase("%s/%s" % to)
 
 
+## Rests a finger on a control of `device` (default the Frame) for `seconds` without pressing it, as on a controller of
+## `profile` (default the Touch's) whatever the runtime binds; "capture" saves the view before lifting it.
+func _rest(s: Dictionary) -> void:
+	var to: Array = Controls.DEVICES[s.get("device", "frame")][s.button]
+	var touch: String = Controls.TOUCHES.keys().filter(func(t: String) -> bool: return to[1] in Controls.TOUCHES[t])[0]
+	var key := "%s/%s" % [to[0], touch]
+	Hand.injected_profile = s.get("profile", "/interaction_profiles/oculus/touch_controller")
+	Buttons.injected[key] = true
+	await get_tree().create_timer(s.get("seconds", 1.0)).timeout
+	if s.has("capture"):
+		await main.capture(s.capture)
+	Buttons.injected.erase(key)
+	await _frames(2)
+
+
 ## Takes a tool from a hand's wheel as a player does: hold the wheel button, sweep the hand through each
 ## level of the tool's path, let go. An untracked hand is moved itself; a tracked one sweeps by injected
 ## reach. "capture" saves a view at the opening and at each level reached, as "<capture>-<level>",

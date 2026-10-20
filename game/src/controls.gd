@@ -67,6 +67,44 @@ const DEVICES := {
 }
 
 
+## The capacitive touches the action map binds, each with the inputs of the control it lies on. A finger resting on
+## one unpressed previews what those inputs do (TouchHints).
+const TOUCHES := {
+	"ax_touch": ["ax_button"],
+	"by_touch": ["by_button"],
+	"trigger_touch": ["trigger_click"],
+	"primary_touch": ["primary_click", "primary_up", "primary_down", "primary_left", "primary_right"],
+}
+
+## Where each touch's control lies on an interaction profile's right controller, in metres in its aim pose (x right,
+## y up, -z ahead); the left controller mirrors it in x. Each is the control's centre on Meta's Quest 2 controller
+## model for WebXR, carried from its grip pose to the aim pose by the offset measured on the Quest; the Quest 3's lie
+## within 5 mm of them. A profile not listed shows no hints.
+const PLACES := {
+	"/interaction_profiles/oculus/touch_controller": {
+		"ax_touch": Vector3(0.001, 0.0, 0.044),
+		"by_touch": Vector3(-0.005, 0.0, 0.029),
+		"trigger_touch": Vector3(0.005, -0.020, 0.012),
+		"primary_touch": Vector3(0.016, 0.004, 0.030),
+	},
+}
+
+
+## The actions the control under `touch` does on the hand `tracker`.
+static func touched(touch: String, tracker: String) -> Array[String]:
+	var out: Array[String] = []
+	for action in ACTIONS:
+		if ACTIONS[action].get(tracker, "") in TOUCHES[touch]:
+			out.append(action)
+	return out
+
+
+## Where `touch`'s control lies on `profile`'s controller held in `tracker`, in its aim pose, or Vector3.INF.
+static func place(profile: String, touch: String, tracker: String) -> Vector3:
+	var at: Vector3 = PLACES.get(profile, {}).get(touch, Vector3.INF)
+	return at * Vector3(-1, 1, 1) if tracker == "left_hand" and at != Vector3.INF else at
+
+
 static func input(action: String, tracker: String) -> String:
 	return ACTIONS[action][tracker]
 

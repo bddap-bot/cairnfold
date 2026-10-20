@@ -2051,6 +2051,20 @@ thing looks is a tool, not a button: every style change lives in the style tool.
 taps every Frame button with walls built, picks every tool from the wheels, and walks the history back
 and forth.
 
+A thumb or finger resting on a face button, the trigger or a stick without pressing it shows, after half a
+second, what that control does on that hand: a small wheel icon beside where the control lies on the controller,
+facing the eye and tracking the hand (`TouchHints`). The trigger shows the held tool's own wheel icon; the upper
+face button the wheel's eight slots; the lower ones an undo or redo arrow; the left stick the teleport ring ahead
+of it, the right stick a turning arrow to each side. Lifting or pressing takes it away, and a control pressed stays
+quiet until the finger lifts. Directive (verbatim): "Worth a try. Might be easier for our monkey brains if the icon
+shows next to where the button is physically located." The touches are the action map's capacitive inputs
+(`Controls.TOUCHES`), what they show comes from `Controls.ACTIONS`, and where each control lies from
+`Controls.PLACES`, per interaction profile: the Touch profile's places are Meta's Quest 2 controller model for WebXR
+carried into the aim pose by the grip-to-aim offset measured on the Quest; the Frame, remapped onto the Touch
+profile, takes them too. A profile without places shows none.
+`tests/test_touch_hints.gd` rests on every bound control of each hand and checks its icons show beside it and go on
+lifting and pressing.
+
 ### Styles
 
 The style tool is the colour tool's picker with styles for swatches (`PaletteTool`): its trigger held on a

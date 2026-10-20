@@ -324,23 +324,7 @@ func _build_tool() -> void:
 	var dirs := ToolWheel.ring_dirs()
 	for k in Hand.TREE.size():
 		var item: Variant = Hand.TREE[k]
-		var icon := Node3D.new()
-		var disc := MeshInstance3D.new()
-		var cyl := CylinderMesh.new()
-		cyl.top_radius = 0.034
-		cyl.bottom_radius = 0.034
-		cyl.height = 0.002
-		disc.mesh = cyl
-		var m := StandardMaterial3D.new()
-		m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		m.albedo_color = Color(1.0, 0.98, 0.92, 0.5)
-		disc.material_override = m
-		disc.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0, -0.025))
-		icon.add_child(disc)
-		var model := ToolModels.build(item[0] if item is Array else item)
-		model.transform = Transform3D(Basis(Vector3.RIGHT, Hand.TILT), Vector3(0, -0.012, 0))
-		icon.add_child(model)
+		var icon := Hand.icon(ToolModels.build(item[0] if item is Array else item))
 		icon.position = Vector3(dirs[k].x, dirs[k].y, 0) * ToolWheel.RADIUS
 		wheel.add_child(icon)
 		_fx.icons.append(icon)

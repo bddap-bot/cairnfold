@@ -37,6 +37,8 @@ const LET_GO := 0.3
 static var injected_sticks := {}
 ## Hand positions in the wheel's plane the driver injects, keyed by tracker, in place of the hand's own.
 static var injected_reach := {}
+## The interaction profile the driver gives the hands in place of the runtime's, or "".
+static var injected_profile := ""
 
 var tool := Tool.WALLS
 ## The way the stick is flicked (a FLICKS key), or "".
@@ -44,8 +46,9 @@ var flick := ""
 var picking := false
 ## What the hand's tool shows would not fit the frame budget: its pointer shows it refused (BudgetBar).
 var capped := false
+## The interaction profile the runtime bound this hand to (Controls.PLACES), or "".
+var profile := ""
 var _wheel: ToolWheel
-var _profile := ""
 var _holding := false
 ## The driver holds this hand where tracking would put it. In a headset it names a pose the runtime does not have, so
 ## the controller's own pose stops moving the hand.
@@ -102,6 +105,7 @@ func _init(tracker_name: String, held: Tool) -> void:
 	_dot.top_level = true
 	_dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_dot)
+	add_child(TouchHints.new(self))
 	_buttons = Buttons.new(self).watch(["wheel"])
 
 
@@ -136,7 +140,7 @@ func _build_wheel() -> void:
 	for v in _wheel_root.find_children("*", "VisualInstance3D", true, false):
 		(v as VisualInstance3D).layers = Rig.WHEEL_LAYER
 		if v is MeshInstance3D:
-			_unshade(v)
+			unshade(v)
 	var day := Daylight.light(Daylight.DEFAULT)
 	var light := DirectionalLight3D.new()
 	light.light_cull_mask = Rig.WHEEL_LAYER
@@ -148,7 +152,7 @@ func _build_wheel() -> void:
 
 ## Swaps `mi`'s standard materials for unshaded copies: under the mobile renderer they never took the
 ## wheel's light, which reaches only its shader materials.
-static func _unshade(mi: MeshInstance3D) -> void:
+static func unshade(mi: MeshInstance3D) -> void:
 	for i in mi.get_surface_override_material_count():
 		var mat := mi.get_active_material(i) as BaseMaterial3D
 		if mat == null or mat.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
@@ -162,9 +166,16 @@ static func _unshade(mi: MeshInstance3D) -> void:
 			mi.set_surface_override_material(i, _unshaded[mat])
 
 
-## A wheel icon at `at`: its model tipped toward the eye, as a controller's top is seen, on a pale disc
-## facing the eye so it reads against the meadow.
 func _wheel_icon(model: Node3D, at: Vector2) -> Node3D:
+	var i := icon(model)
+	i.position = Vector3(at.x, at.y, 0)
+	_wheel_root.add_child(i)
+	return i
+
+
+## A wheel icon: `model` tipped toward the eye, as a controller's top is seen, on a pale disc facing the eye (+z) so
+## it reads against the meadow.
+static func icon(model: Node3D) -> Node3D:
 	if _disc == null:
 		_disc = CylinderMesh.new()
 		_disc.top_radius = 0.034
@@ -177,17 +188,15 @@ func _wheel_icon(model: Node3D, at: Vector2) -> Node3D:
 		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 		mat.albedo_color = Color(1.0, 0.98, 0.92, 0.45)
 		_disc.material = mat
-	var icon := Node3D.new()
-	icon.position = Vector3(at.x, at.y, 0)
+	var out := Node3D.new()
 	var back := MeshInstance3D.new()
 	back.mesh = _disc
 	back.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	back.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.5), Vector3(0, 0, -0.025))
-	icon.add_child(back)
+	out.add_child(back)
 	model.transform = Transform3D(Basis(Vector3.RIGHT, TILT), Vector3(0, -0.012, 0))
-	icon.add_child(model)
-	_wheel_root.add_child(icon)
-	return icon
+	out.add_child(model)
+	return out
 
 
 ## The open wheel's frame: x to the player's right, y the player's up, z toward the head.
@@ -272,9 +281,9 @@ func _flick_input() -> void:
 ## device's log shows which of its controls the controls table landed on.
 func _log_profile() -> void:
 	var t := XRServer.get_tracker(tracker) as XRPositionalTracker
-	var profile := t.profile if t != null else ""
-	if profile != _profile:
-		_profile = profile
+	var bound := injected_profile if injected_profile != "" else t.profile if t != null else ""
+	if bound != profile:
+		profile = bound
 		print("controls: %s on %s, wheel %s" % [tracker, profile, Controls.input("wheel", tracker)])
 
 
