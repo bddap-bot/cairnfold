@@ -5,7 +5,8 @@ extends Node3D
 ## and a grip pointed at a wall, whatever the hand holds, pulls its height, at a roof its pitch, and at a
 ## tree its size, its top following the hand; a grip on a boulder carries it, turning with the hand every way, and sets it
 ## down on the ground when let go. Each hand grabs on its own, so two hands pull two walls, roofs, trees or boulders at
-## once; a grip on one the other hand holds takes nothing, except on a tree, boulder or opening, which the pair then size. A hand holding the house or the tower takes hold of one with its trigger, where it points, and carries it; the
+## once; a grip on one the other hand holds takes nothing, except on a tree, boulder or opening, which the pair then size.
+## A hand holding the house or the tower takes hold of one with its trigger, where it points, and carries it; the
 ## other hand's grip, pressed while it is carried, joins in, whatever it points at, to turn it with the pair and stretch it
 ## along their span, a tower every way at once; letting go builds it. A built
 ## house held by one hand's grip takes the other's too, and the pair stretch its width or depth where it stands, and
