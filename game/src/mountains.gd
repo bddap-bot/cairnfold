@@ -41,15 +41,35 @@ const CRAG := 0.08
 ## Faces meeting at a sharper fold than this, in degrees, keep a hard edge between them: the ridges and crags stay
 ## crisp while the slopes between them shade smoothly.
 const CREASE := 40.0
+## How many times finer than the range's columns each row is cut: the skyline carries the crags, the slope below
+## stays coarse.
+const DETAIL := [1, 1, 1, 1, 1, 2, 4]
+## How tall the skyline's crags stand, as a share of the range's highest, and how much finer they are than its peaks.
+const JAG := 0.05
+const TEETH := 10.0
+## How much of the crags each row carries.
+const CRAGGED := [0.0, 0.0, 0.0, 0.0, 0.0, 0.3, 1.0]
 
 
 ## Where the ridge stands above the foot at `azimuth` (radians from +x toward +z), from `noise` sampled on a circle.
 static func ridge(r: Dictionary, noise: FastNoiseLite, azimuth: float) -> float:
+	return _body(r, noise, azimuth) + _crags(r, noise, azimuth)
+
+
+## The range's broad shape under its crags.
+static func _body(r: Dictionary, noise: FastNoiseLite, azimuth: float) -> float:
 	var on: Vector2 = Vector2(cos(azimuth), sin(azimuth)) * r.radius * 0.01
 	var peaks := 1.0 - absf(noise.get_noise_2dv(on))
 	peaks = pow(clampf(peaks, 0.0, 1.0), 1.6)
 	var h: float = lerpf(r.low, r.high, peaks)
 	return h * (1.0 - PASS_DEPTH * passes(azimuth))
+
+
+## The jagged teeth along the skyline, sampled from a far slice of the same noise.
+static func _crags(r: Dictionary, noise: FastNoiseLite, azimuth: float) -> float:
+	var on: Vector2 = Vector2(cos(azimuth), sin(azimuth)) * r.radius * 0.01 * TEETH
+	var tooth := 1.0 - absf(noise.get_noise_3d(on.x, on.y, 50.0))
+	return JAG * r.high * pow(tooth, 3.0) * (1.0 - passes(azimuth))
 
 
 ## 1 in the middle of a pass toward the rising or setting sun, 0 away from both.
@@ -145,23 +165,32 @@ static func _range(corners: PackedVector3Array, colors: PackedColorArray, r: Dic
 	var crag := noise_for(r)
 	crag.seed += 100
 	crag.frequency = 2.4
-	var cols: int = r.columns
 	var grid: Array[PackedVector3Array] = []
-	for c in cols:
-		var a := TAU * c / cols
-		var h := ridge(r, noise, a)
-		var out := Vector2(cos(a), sin(a))
+	for k in ROWS.size():
+		var n: int = r.columns * DETAIL[k]
 		var row := PackedVector3Array()
-		for k in ROWS.size():
-			var jut: float = crag.get_noise_2d(c % cols * 0.7, k * 1.3) * CRAG * r.depth * (1.0 - absf(ROWS[k] * 2.0 - 1.0))
+		for c in n:
+			var a := TAU * c / n
+			var h: float = _body(r, noise, a) * ROWS[k] + _crags(r, noise, a) * CRAGGED[k]
+			var jut: float = crag.get_noise_2d(c * 0.7 / DETAIL[k], k * 1.3) * CRAG * r.depth * (1.0 - absf(ROWS[k] * 2.0 - 1.0))
 			var dist: float = r.radius - r.depth * (1.0 - REACH[k]) + jut
-			row.append(Vector3(out.x * dist, foot + h * ROWS[k], out.y * dist))
+			row.append(Vector3(cos(a) * dist, foot + h, sin(a) * dist))
 		grid.append(row)
-	for c in cols:
-		var next := grid[(c + 1) % cols]
-		for k in ROWS.size() - 1:
-			_face(corners, colors, r, [grid[c][k], grid[c][k + 1], next[k]], foot)
-			_face(corners, colors, r, [next[k], grid[c][k + 1], next[k + 1]], foot)
+	for k in ROWS.size() - 1:
+		_strip(corners, colors, r, grid[k], grid[k + 1], foot)
+
+
+## Joins two rings of points round the range, each fanning to the other where it is cut finer.
+static func _strip(corners: PackedVector3Array, colors: PackedColorArray, r: Dictionary, lo: PackedVector3Array, hi: PackedVector3Array, foot: float) -> void:
+	var i := 0
+	var j := 0
+	while i < lo.size() or j < hi.size():
+		if j == hi.size() or (i < lo.size() and (i + 1) * hi.size() <= (j + 1) * lo.size()):
+			_face(corners, colors, r, [lo[i], hi[j % hi.size()], lo[(i + 1) % lo.size()]], foot)
+			i += 1
+		else:
+			_face(corners, colors, r, [lo[i % lo.size()], hi[j], hi[(j + 1) % hi.size()]], foot)
+			j += 1
 
 
 ## Where every range's foot stands: under the `lake`, or on the plain.

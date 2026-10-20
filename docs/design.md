@@ -1712,8 +1712,8 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
 - **Atmosphere:** depth fog with aerial perspective and sun scatter, tinted towards
   the sky, so distant hills fade and the near meadow stays saturated.
 - **Horizon:** two rings of stone-faced mountains, 300 to 2100 m out, with a plain from the
-  meadow's edge to their feet (`Mountains`): one indexed mesh of about 5k triangles in one
-  draw, its normals smoothed across every fold gentler than `Mountains.CREASE` so the slopes
+  meadow's edge to their feet (`Mountains`): one indexed mesh of about 7k triangles in one
+  draw, its top rows cut finer (`Mountains.DETAIL`) so the skyline breaks into crags, its normals smoothed across every fold gentler than `Mountains.CREASE` so the slopes
   shade softly while ridges and crags keep their edge, unshaded, lit and hazed in its own
   shader from the hour's light, casting no shadow.
   They are real geometry far enough off that both eyes and every step through the garden
