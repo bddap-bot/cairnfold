@@ -395,8 +395,11 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	await grip.call(&"left_hand", false)
 	await _frames(4)
 	var deep: Dictionary = at.call()
-	_check(is_equal_approx(deep.size.x, 10.5) and is_equal_approx(deep.size.y, WallTool.HOUSE_DEPTH) and is_equal_approx(data.call().height, height), "hands along its flank stretch only its depth, to the deepest a ridge spans: %s" % deep.size)
+	_check(is_equal_approx(deep.size.x, 10.5) and deep.size.y > 7.0 and is_equal_approx(data.call().height, height), "hands along its flank stretch only its depth, past the 7 m it once stopped at: %s" % deep.size)
 
+	await _play([{"op": "press", "button": "dpad_down"}])
+	await _frames(4)
+	_check(is_equal_approx(at.call().size.y, 4.0), "undo takes the depth back, leaving the frame budget room to raise it: %s" % at.call().size)
 	await _raise_by_both_hands(house, trackers, hold, grip, front)
 
 	await _play([
@@ -420,7 +423,7 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	var d: Dictionary = world.state.walls[tower.id]
 	var round := WallTool.house_of(d)
 	var off := Array(d.points).filter(func(p: Vector3) -> bool: return absf(Vector2(p.x - round.center.x, p.z - round.center.z).length() - round.size.x * 0.5) > 0.01)
-	_check(round.round and round.size.x > 5.0 and round.size.x <= WallTool.HOUSE_DEPTH and off.is_empty() and is_equal_approx(d.height, tall), "two hands spread a round tower's diameter, round and as tall: %s" % round.size)
+	_check(round.round and round.size.x > 5.0 and off.is_empty() and is_equal_approx(d.height, tall), "two hands spread a round tower's diameter, round and as tall: %s" % round.size)
 	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(is_equal_approx(WallTool.house_of(world.state.walls[tower.id]).size.x, 3.4), "undo narrows it back")
 	for t in trackers.values():
@@ -457,7 +460,7 @@ func _raise_by_both_hands(house: Wall, trackers: Dictionary, hold: Callable, gri
 	await grip.call(&"right_hand", false)
 	await _frames(4)
 	var rise: float = data.call().rise
-	_check(rise >= 0.6 and rise <= WallLayout.RISE.y and data.call().points == before.points and data.call().height == before.height, "both hands rising raise it %.1f m, as large and as tall" % rise)
+	_check(rise >= 0.6 and data.call().points == before.points and data.call().height == before.height, "both hands rising raise it %.1f m, as large and as tall" % rise)
 	await _laid(house)
 	_check(is_equal_approx(house.layout.samples[0].y, foot + rise), "it is laid that much higher: %.2f to %.2f" % [foot, house.layout.samples[0].y])
 	both.call(0.0)

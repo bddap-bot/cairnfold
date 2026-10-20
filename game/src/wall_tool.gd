@@ -20,8 +20,7 @@ const WALL_PICK := 0.7
 const TINT := Color(1.0, 0.97, 0.9, 0.55)
 const HOUSE_HEIGHT := 2.4
 const TOWER_HEIGHT := 4.5
-const HOUSE_SIDES := Vector2(2.4, 14.0)
-const HOUSE_DEPTH := 7.0
+const HOUSE_SIDE := 2.4
 enum RoofStyle { PITCHED, FLAT, THATCHED }
 const HOUSE_SIZE := Vector2(4.5, 4.5)
 const TOWER_SIZE := Vector2(3.4, 3.4)
@@ -660,11 +659,11 @@ static func carry(start: Dictionary, from: Array[Transform3D], to: Array[Transfo
 
 static func stretched(start: Dictionary, span: Vector3, ratio: float) -> Vector2:
 	if start.round:
-		return Vector2.ONE * clampf(start.size.x * ratio, HOUSE_SIDES.x, HOUSE_DEPTH)
+		return Vector2.ONE * maxf(start.size.x * ratio, HOUSE_SIDE)
 	var across: float = angle(span) - start.yaw
 	var i := 0 if absf(cos(across)) >= absf(sin(across)) else 1
 	var size: Vector2 = start.size
-	size[i] = clampf(size[i] * ratio, HOUSE_SIDES.x, HOUSE_SIDES.y if i == 0 else HOUSE_DEPTH)
+	size[i] = maxf(size[i] * ratio, HOUSE_SIDE)
 	return size
 
 
@@ -693,13 +692,13 @@ static func resize(start: Dictionary, from: Array[Transform3D], to: Array[Transf
 
 ## How high above its ground a house raised `rise` stands once the hands holding it move from poses `from` to `to`:
 ## `gain` times as far as one hand rises, or as two rise together, the lesser of the two; a course at a time, from
-## its ground up to the highest plinth. A `gain` of 0, for a house standing on a build, leaves it on that top.
+## never below its ground. A `gain` of 0, for a house standing on a build, leaves it on that top.
 static func lifted(rise: float, from: Array[Transform3D], to: Array[Transform3D], gain: float) -> float:
 	var up := to[0].origin.y - from[0].origin.y
 	if from.size() > 1:
 		var other := to[1].origin.y - from[1].origin.y
 		up = signf(up) * minf(absf(up), absf(other)) if signf(up) == signf(other) else 0.0
-	return clampf(snappedf(rise + up * gain, WallLayout.COURSE), WallLayout.RISE.x, WallLayout.RISE.y)
+	return maxf(snappedf(rise + up * gain, WallLayout.COURSE), 0.0)
 
 
 static func _flat(v: Vector3) -> Vector3:
@@ -798,7 +797,7 @@ func begin_lift(m: Mason, w: Wall, hand: Vector3, at: Vector3) -> void:
 
 
 func drag_lift(m: Mason, hand_y: float) -> void:
-	var h := clampf(m.lift_start + (hand_y - m.lift_hand.y) * m.lift_gain, WallLayout.HEIGHTS.x, WallLayout.HEIGHTS.y)
+	var h := maxf(m.lift_start + (hand_y - m.lift_hand.y) * m.lift_gain, WallLayout.MIN_HEIGHT)
 	if not is_equal_approx(h, m.lifting.layout.height):
 		var course := roundi(h / WallLayout.COURSE) != roundi(m.lifting.layout.height / WallLayout.COURSE)
 		m.lifting.layout.height = h

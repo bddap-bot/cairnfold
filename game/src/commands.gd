@@ -18,9 +18,8 @@ const MAX_PATH_POINTS := 2048
 const MAX_ARCHES := 16
 const MAX_DABS := 2000
 const MAX_STROKE := 4000
-const ROOF_RADIUS := Vector2(0.5, 8.0)
-## Longest stroke a wall, a path or a flight of stairs may run, and highest a house may stand raised; the tools stop
-## growing one there.
+const MIN_ROOF_RADIUS := 0.5
+## Longest stroke a wall, a path or a flight of stairs may run; the tools stop growing one there.
 const MAX_LENGTH := 240.0
 ## Where the tools stop a stroke: short of MAX_LENGTH by more than a stroke's last moves and joins add.
 const STROKE_LENGTH := MAX_LENGTH - 16.0
@@ -275,6 +274,10 @@ static func _in(x: Variant, range: Vector2) -> bool:
 	return typeof(x) == TYPE_FLOAT and x >= range.x and x <= range.y
 
 
+static func _at_least(x: Variant, low: float) -> bool:
+	return typeof(x) == TYPE_FLOAT and is_finite(x) and x >= low
+
+
 static func _wall(d: Variant) -> Variant:
 	if not d is Dictionary:
 		return null
@@ -284,10 +287,10 @@ static func _wall(d: Variant) -> Variant:
 		return null
 	if typeof(arches) != TYPE_PACKED_FLOAT32_ARRAY or arches.size() > MAX_ARCHES or not Array(arches).all(func(a: float) -> bool: return is_finite(a) and a >= 0.0 and a < 4000.0):
 		return null
-	if not _in(d.get("height"), WallLayout.HEIGHTS) or typeof(d.get("seed")) != TYPE_INT or typeof(d.get("closed")) != TYPE_BOOL:
+	if not _at_least(d.get("height"), WallLayout.MIN_HEIGHT) or typeof(d.get("seed")) != TYPE_INT or typeof(d.get("closed")) != TYPE_BOOL:
 		return null
 	var rise: Variant = d.get("rise")
-	if not _in(rise, WallLayout.RISE) or (rise > 0.0 and not d.closed):
+	if not _at_least(rise, 0.0) or (rise > 0.0 and not d.closed):
 		return null
 	var top: Variant = d.get("top")
 	if typeof(top) != TYPE_INT or top < 0 or top >= WallLayout.Top.size():
@@ -306,9 +309,9 @@ static func _wall(d: Variant) -> Variant:
 	var windows: Variant = d.get("windows")
 	var lanterns: Variant = d.get("lanterns")
 	var flags: Variant = d.get("flags")
-	if typeof(windows) != TYPE_PACKED_VECTOR2_ARRAY or windows.size() > MAX_FITTINGS or not Array(windows).all(func(w: Vector2) -> bool: return w.is_finite() and w.x >= 0.0 and w.x < 4000.0 and w.y >= 0.0 and w.y <= WallLayout.HEIGHTS.y):
+	if typeof(windows) != TYPE_PACKED_VECTOR2_ARRAY or windows.size() > MAX_FITTINGS or not Array(windows).all(func(w: Vector2) -> bool: return w.is_finite() and w.x >= 0.0 and w.x < 4000.0 and w.y >= 0.0):
 		return null
-	if typeof(lanterns) != TYPE_PACKED_VECTOR3_ARRAY or lanterns.size() > MAX_FITTINGS or not Array(lanterns).all(func(l: Vector3) -> bool: return l.is_finite() and l.x >= 0.0 and l.x < 4000.0 and l.y >= 0.0 and l.y <= WallLayout.HEIGHTS.y and absf(l.z) == 1.0):
+	if typeof(lanterns) != TYPE_PACKED_VECTOR3_ARRAY or lanterns.size() > MAX_FITTINGS or not Array(lanterns).all(func(l: Vector3) -> bool: return l.is_finite() and l.x >= 0.0 and l.x < 4000.0 and l.y >= 0.0 and absf(l.z) == 1.0):
 		return null
 	if typeof(flags) != TYPE_PACKED_FLOAT32_ARRAY or flags.size() > MAX_FITTINGS or not Array(flags).all(func(f: float) -> bool: return is_finite(f) and f >= 0.0 and f < 4000.0):
 		return null
@@ -330,7 +333,7 @@ static func _wall(d: Variant) -> Variant:
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():
 			return null
-		if typeof(r.get("center")) != TYPE_VECTOR3 or not _finite(r.center) or not _in(r.get("radius"), ROOF_RADIUS) or typeof(r.get("seed")) != TYPE_INT:
+		if typeof(r.get("center")) != TYPE_VECTOR3 or not _finite(r.center) or not _at_least(r.get("radius"), MIN_ROOF_RADIUS) or typeof(r.get("seed")) != TYPE_INT:
 			return null
 		if not _in(r.get("pitch"), RoofLayout.PITCH) or not _in(r.get("curve"), Vector2(-RoofLayout.CURVE, RoofLayout.CURVE)):
 			return null

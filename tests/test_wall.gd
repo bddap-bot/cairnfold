@@ -340,7 +340,7 @@ func _full_stones_stand_only_near_the_eye() -> void:
 	var full := 0.0
 	var eye := Vector3(0.5, 1.65, 0.5)
 	for key: Vector3i in m._chunks:
-		var centre := Vector3(key.x + 0.5, 0.0, key.y + 0.5) * stone.cell() + Vector3.UP * WallLayout.HEIGHTS.y * 0.5
+		var centre := Vector3(key.x + 0.5, 0.0, key.y + 0.5) * stone.cell() + Vector3.UP * Masonry.TALL * 0.5
 		if eye.distance_to(centre) < m._chunks[key].instance.visibility_range_end:
 			full += stone.cell() * stone.cell()
 	_check(full <= 256.0, "stones drawn in full over at most 256 m² around the eye at the bottom step, got %.0f" % full)

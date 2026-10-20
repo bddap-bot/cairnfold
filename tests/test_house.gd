@@ -161,18 +161,18 @@ func _hands_carry_turn_and_stretch_a_house() -> void:
 	_check(is_equal_approx(c.size.x, 9.0) and c.size.y == start.size.y, "spread a little askew, only the nearer side stretches: %s" % c.size)
 	var far: Array[Transform3D] = [_hand(Vector3(-5, 1, 0)), _hand(Vector3(5, 1, 0))]
 	c = WallTool.carry(start, pair, far, 4.0)
-	_check(c.size.x == WallTool.HOUSE_SIDES.y, "no longer than the longest house: %s" % c.size)
+	_check(c.size.x >= 28.0, "spread far, it runs past twice the 14 m a house once stopped at: %s" % c.size)
 	var long := start.duplicate()
 	long.size = Vector2(10, 4.5)
 	c = WallTool.carry(long, circled, [_hand(Vector3(0, 1, 5)), _hand(Vector3(0, 1, -5))], 4.0)
-	_check(c.size == Vector2(10, WallTool.HOUSE_DEPTH), "nor deeper under the ridge than the deepest, the length kept: %s" % c.size)
+	_check(c.size.x == 10.0 and c.size.y >= 14.0, "deeper under the ridge than twice the 7 m it once stopped at, the length kept: %s" % c.size)
 	var close: Array[Transform3D] = [_hand(Vector3(0, 1, 0)), _hand(Vector3(0.01, 1, 0))]
 	c = WallTool.carry(start, pair, close, 4.0)
-	_check(c.size.x == WallTool.HOUSE_SIDES.x, "nor shorter than the smallest: %s" % c.size)
+	_check(is_equal_approx(c.size.x, WallTool.HOUSE_SIDE), "no shorter than the smallest: %s" % c.size)
 	var tower := start.duplicate()
 	tower.round = true
 	c = WallTool.carry(tower, pair, spread, 4.0)
-	_check(c.size.is_equal_approx(Vector2(7, 7)), "a round one spreads every way at once, no wider than the deepest house: %s" % c.size)
+	_check(c.size.x > 7.0 and c.size.x == c.size.y, "a round one spreads every way at once, past the 7 m a tower once stopped at: %s" % c.size)
 	c = WallTool.carry(tower, pair, circled, 4.0)
 	_check(c.size.is_equal_approx(start.size), "and turning the pair keeps it as wide: %s" % c.size)
 	var ring := WallTool.outline({"center": Vector3(1, 0, 1), "yaw": 0.3, "size": Vector2(5, 5), "round": true})
@@ -193,7 +193,7 @@ func _two_hands_resize_a_built_house_one_side_at_a_time() -> void:
 	c = WallTool.resize(start, flank, [_hand(Vector3(0.05, 1, -0.2)), _hand(Vector3(-0.025, 1, 0.1))])
 	_check(c.size.is_equal_approx(Vector2(4.5, 3.375)) and is_equal_approx(c.center.z, -0.5625), "hands along its flank, a little askew, close its depth only: %s at %s" % [c.size, c.center])
 	c = WallTool.resize(start, flank, [_hand(Vector3(0, 1, -5)), _hand(Vector3(0, 1, 5))])
-	_check(c.size == Vector2(4.5, WallTool.HOUSE_DEPTH), "a narrow house keeps the depth bound under its ridge: %s" % c.size)
+	_check(c.size.x == 4.5 and c.size.y >= 14.0, "a narrow house deepens under its ridge past twice the old 7 m: %s" % c.size)
 	var turned := start.duplicate()
 	turned.yaw = 0.6
 	var along := Vector3.RIGHT.rotated(Vector3.UP, 0.6) * 0.2
@@ -204,9 +204,9 @@ func _two_hands_resize_a_built_house_one_side_at_a_time() -> void:
 	c = WallTool.resize(tower, front, [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.4, 1, 0))])
 	_check(c.size.is_equal_approx(Vector2(6.75, 6.75)) and c.center.is_equal_approx(Vector3(11.125, 0, 0)), "a round tower's diameter spreads, staying round: %s at %s" % [c.size, c.center])
 	c = WallTool.resize(tower, front, [_hand(Vector3(-2, 1, 0)), _hand(Vector3(2, 1, 0))])
-	_check(c.size == Vector2.ONE * WallTool.HOUSE_DEPTH, "no wider than the widest tower: %s" % c.size)
+	_check(c.size.x >= 14.0 and c.size.x == c.size.y, "a tower spreads past twice the 7 m it once stopped at: %s" % c.size)
 	c = WallTool.resize(tower, front, [_hand(Vector3(0, 1, 0)), _hand(Vector3(0.01, 1, 0))])
-	_check(c.size == Vector2.ONE * WallTool.HOUSE_SIDES.x, "nor narrower than the narrowest: %s" % c.size)
+	_check(c.size.is_equal_approx(Vector2.ONE * WallTool.HOUSE_SIDE), "no narrower than the narrowest: %s" % c.size)
 
 
 ## Directive (verbatim): "If I grab a house or a building with two hands, I would like to be able to lift it up, raise it a little higher"
@@ -226,7 +226,7 @@ func _both_hands_raise_a_built_house() -> void:
 	c = WallTool.resize(start, front, [_hand(Vector3(-0.2, 9, 0)), _hand(Vector3(0.2, 9, 0))], 1.0)
 	_check(is_equal_approx(c.rise, 8.1), "raised 8 m, past where a plinth once stopped at 3 m: %.2f" % c.rise)
 	c = WallTool.resize(start, front, [_hand(Vector3(-0.2, 1000, 0)), _hand(Vector3(0.2, 1000, 0))], 1.0)
-	_check(c.rise == WallLayout.RISE.y, "no higher than the longest build: %.2f" % c.rise)
+	_check(c.rise > 900.0, "nothing caps the rise; the budget is what stops it: %.2f" % c.rise)
 	var raised := start.duplicate()
 	raised.rise = 0.9
 	c = WallTool.resize(raised, front, [_hand(Vector3(-0.2, 0.7, 0)), _hand(Vector3(0.2, 0.7, 0))], 1.0)

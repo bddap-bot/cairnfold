@@ -14,6 +14,9 @@ extends Node3D
 ## (see "What walls cost the Quest 2" in docs/design.md).
 const FINE := 8.0
 const COARSE := 16.0
+## How tall a chunk's pieces are taken to stand when its draw distances allow for its size; a taller build's top
+## swaps to its far mesh a little early.
+const TALL := 9.0
 
 ## An owner's pieces that stand in the light (`Kind.occludes`) changed: their buffers and strides, empty
 ## once it is gone.
@@ -207,7 +210,7 @@ func remove(owner: int) -> void:
 
 
 static func radius(cell: float) -> float:
-	return sqrt(cell * cell * 2.0 + WallLayout.HEIGHTS.y * WallLayout.HEIGHTS.y) * 0.5
+	return sqrt(cell * cell * 2.0 + TALL * TALL) * 0.5
 
 
 static func _coarse_key(key: Vector3i) -> Vector3i:
