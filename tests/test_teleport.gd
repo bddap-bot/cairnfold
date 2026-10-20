@@ -90,8 +90,6 @@ func _air_reach_stops_at_nearer_ground(rig: Rig) -> void:
 	_check(rig.aim_lift < 0.15 and rig.aim_ground.distance_to(hill) < 0.1, "a rising ray that meets a hillside within reach lands on it")
 
 
-## From one corner of the map, high enough to see it, the ray lands on the far corner's ground, and a ring there
-## looks as big as one nearby.
 ## The mountains and everything round the map are scenery: a ray toward them from anywhere on it, level, a little
 ## down or up at a ridge, lands on the map's own floor where it leaves, or at the air reach short of that; never on
 ## nothing, nor in the air past the map.
@@ -118,6 +116,8 @@ func _backdrop_stops_no_ray(rig: Rig) -> void:
 	rig.hide_markers()
 
 
+## From one corner of the map, high enough to see it, the ray lands on the far corner's ground, and a ring there
+## looks as big as one nearby.
 func _reaches_across_the_map(rig: Rig) -> void:
 	var half := Terrain.SIZE * 0.5 - 4.0
 	var o := Vector3(-half, Terrain.height_at(-half, half) + 30.0, half)
