@@ -460,6 +460,11 @@ func _paint(s: Dictionary) -> void:
 	var flora_tool: FloraTool = main.flora_tool
 	var b := flora_tool.brush(main.rig.left if s.get("hand", "left") == "left" else main.rig.right)
 	b.hand.tool = Hand.Tool[s.tool.to_upper()]
+	if s.has("tree") and b.hand.tool == Hand.Tool.MOSS:
+		var flora := flora_tool.flora
+		var trees := flora.planted_trees()
+		flora_tool.coat_tree(trees[int(s.tree)][0], b.hand)
+		return
 	var path := _path(s)
 	b.meadow = FloraTool.paints_meadow(b.hand.tool, _along(path, 0.0))
 	var t := 0.0
@@ -676,7 +681,7 @@ func _lanterns(s: Dictionary) -> void:
 ## does not count them.
 func _fill_flora(s: Dictionary) -> void:
 	var flora: Flora = main.flora_tool.flora
-	var pools: Array = s.get("pools", ["grass", "flowers", "trees", "bushes"])
+	var pools: Array = s.get("pools", ["grass", "flowers", "trees", "bushes", "moss"])
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 99
 	var at: Array = s.get("at", [0, 0])
@@ -685,6 +690,8 @@ func _fill_flora(s: Dictionary) -> void:
 		flora.add_grass(_scatter(rng, s.radius, centre), rng)
 	for i in Flora.PAINTED_FLOWERS if "flowers" in pools else 0:
 		flora.add_flower(_scatter(rng, s.radius, centre), rng)
+	for i in Flora.PAINTED_MOSS if "moss" in pools else 0:
+		flora.add_moss(_scatter(rng, s.radius, centre), rng)
 	for i in Flora.PLACED_TREES if "trees" in pools else 0:
 		flora.add_tree(_scatter(rng, s.radius, centre), rng.randi(), i % FloraLayout.Species.size())
 	for i in Flora.PLACED_BUSHES if "bushes" in pools else 0:

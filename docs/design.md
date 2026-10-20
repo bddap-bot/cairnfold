@@ -3172,3 +3172,28 @@ the gables carried theirs as distances in their mesh; the near view and the fram
 lower storey's face stands behind the courses its upper storey lays down over it, and a joined wing's wall stands in
 front of the house's, so those members stay boxes and keep most of the cost. The budget charges 0.5 µs a member, the
 worst measured with the box path (2.2 ms over 4,914 Fachwerk members), rounded up.
+
+
+## Moss
+
+Moss shares the grass branch of the garden wheel. Hold the trigger to paint a low,
+opaque carpet on the ground, including painted stone. Its twelve-triangle patches
+sample the ground at each vertex, so they follow slopes and later sculpting. The
+same `planted_water` / `water_depth_at` path as grass and flowers turns a submerged
+patch into a thinner, darker algae film that sways gently along the pond bed.
+No second water query is maintained on the CPU.
+
+Point at a tree and press the moss trigger to coat its bark. The tree command
+stores the coating alongside species and scale; its shader uses local bark UVs,
+so the coat stays with the trunk through resizing and species changes. Undo,
+redo and saved or shared gardens retain it. Ground moss uses the normal seeded
+plant strokes, ghost pool and delete brush. Other raised surfaces are not coated.
+
+The painted moss pool holds 4,000 patches (48,000 triangles), in one draw with no
+shadows, plus a separate transient ghost pool while painting. Growth uses the
+existing 1.5 ms work slice. `Budget` conservatively charges the existing flower
+allowance per patch (2.712 ms for the full pool on Quest 2); this is a reservation,
+not a moss-specific device measurement. `demo/moss.json` shows painted stone,
+coated and resized trunks, and algae below water. The flora stress phase fills
+moss alongside the other plants. `tests/test_moss.gd` measures headless pool fill
+cost and checks placement, budgets, tree resizing, undo and restore.

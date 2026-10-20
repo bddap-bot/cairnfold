@@ -57,6 +57,14 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_path(root)
 		Hand.Tool.FLOWERS:
 			_flowers(root)
+		Hand.Tool.MOSS:
+			var mi := MeshInstance3D.new()
+			mi.mesh = Meshes.moss()
+			mi.scale = Vector3.ONE * 0.14
+			var mat := StandardMaterial3D.new()
+			mat.albedo_color = Color(0.3, 0.5, 0.08)
+			mi.material_override = mat
+			root.add_child(mi)
 		Hand.Tool.GRASS:
 			_grass(root)
 		Hand.Tool.TREES:

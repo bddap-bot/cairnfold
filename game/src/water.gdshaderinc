@@ -8,6 +8,10 @@ float water_depth_at(vec2 xz) {
 	return textureLod(water_depth, (g + 0.5) / ground_grid.z, 0.0).r;
 }
 
+float planted_water(float planted, float depth) {
+	return planted * step(0.02, depth);
+}
+
 bool drowned(vec2 xz) {
 	return water_depth_at(xz) > 0.02;
 }

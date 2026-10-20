@@ -49,10 +49,14 @@ uniform vec3 pad_green : source_color = vec3(0.16, 0.36, 0.1);
 
 // The water plant a flower rooted `depth` under a pond grows as: 0 none, 1 an iris, 2 a lily.
 float water_form(float placed, float depth) {
-	return placed * (step(0.02, depth) + step(lily_depth, depth));
+	return planted_water(placed, depth) + placed * step(lily_depth, depth);
 }
 #endif
 
+#ifdef BARK
+varying float moss_coat;
+varying vec2 bark_uv;
+#endif
 varying vec3 bounce_at;
 varying vec3 lamp_at;
 #ifdef FLOWER
@@ -61,6 +65,10 @@ varying float lily;
 #endif
 
 void vertex() {
+#ifdef BARK
+	moss_coat = INSTANCE_CUSTOM.r;
+	bark_uv = UV;
+#endif
 	float ground = ground_at(INSTANCE_CUSTOM.zw);
 	VERTEX.y += ground;
 #ifdef BACKLIT
@@ -141,6 +149,13 @@ void fragment() {
 	ALBEDO = COLOR.rgb;
 #else
 	ALBEDO = albedo * COLOR.rgb;
+#endif
+#ifdef BARK
+	if (moss_coat > 0.0) {
+		float patches = sin(bark_uv.x * 37.0 + sin(bark_uv.y * 28.0)) * sin(bark_uv.y * 49.0 + bark_uv.x * 16.0);
+		float coat = moss_coat * smoothstep(-0.5, 0.3, patches + 0.7 - bark_uv.y * 0.6);
+		ALBEDO = mix(ALBEDO, vec3(0.23, 0.37, 0.065) * (0.85 + 0.3 * patches), coat);
+	}
 #endif
 	ROUGHNESS = roughness;
 	vec4 bounce = texture(bounce_volume, bounce_at);

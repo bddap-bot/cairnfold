@@ -56,7 +56,7 @@ vec3 parted(vec3 v, vec3 root, vec3 hand) {
 void vertex() {
 	tip = UV.y;
 	float depth = water_depth_at(INSTANCE_CUSTOM.zw);
-	weed = planted * step(0.02, depth);
+	weed = planted_water(planted, depth);
 	float accent = step(1.0 - accent_share, INSTANCE_CUSTOM.y);
 	top = mix(blade_top(INSTANCE_CUSTOM.x, INSTANCE_CUSTOM.y), seasoned(accent_tip, season_meadow), accent);
 	top = mix(top, mix(weed_tip, weed_deep, smoothstep(0.1, 1.2, depth)) * mix(0.8, 1.2, INSTANCE_CUSTOM.y), weed);

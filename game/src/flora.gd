@@ -19,6 +19,7 @@ const GRASS_LOD_BAND := 4.0
 const GRASS_SURVIVORS := 0.25
 const GRASS_SURVIVORS_FROM := 0.5
 const FLOWER_NEAR := 18.0
+const PAINTED_MOSS := 4000
 const PAINTED_FLOWERS := 4000
 const PLACED_TREES := 64
 const PLACED_BUSHES := 256
@@ -27,7 +28,7 @@ const SHADE_FIT := 0.8
 ## Where an untracked hand is, as far as the grass knows.
 const NO_HAND := Vector3(0, -1000, 0)
 ## Plant kinds as build commands name them: painted in strokes, or placed one at a time.
-const BRUSHES := ["grass", "flowers"]
+const BRUSHES := ["grass", "flowers", "moss"]
 const PLACED := ["tree", "bush"]
 const SOLID_CELL := 8.0
 ## How long a frame spends growing committed strokes: a stroke of thousands of plants grows over a few frames
@@ -363,6 +364,8 @@ class Plant:
 			pool.place(slot, xform if on else Transform3D(Basis.from_scale(Vector3.ZERO), xform.origin))
 
 
+var moss: Pool
+var ghost_moss: Pool
 var grass: Pool
 var grass_mat := ShaderMaterial.new()
 var flowers: Pool
@@ -459,6 +462,10 @@ func _init() -> void:
 		pool.far_with(flower_far)
 	for pool in [grass, ghost_grass, flowers, ghost_flowers]:
 		pool.live.set_instance_shader_parameter(&"planted", 1.0)
+	var moss_mat := _plant_material("moss", Color.WHITE, 1.0)
+	moss = Pool.new(self, Meshes.moss(), PAINTED_MOSS, moss_mat, false)
+	moss.indexed = true
+	ghost_moss = Pool.new(self, moss.mesh, Commands.MAX_STROKE * 2, moss_mat, false)
 	var trunk := CylinderMesh.new()
 	trunk.top_radius = 0.16
 	trunk.bottom_radius = 0.3
@@ -665,13 +672,13 @@ func _index(key: Vector2i, solid: Solid) -> void:
 
 ## What a plant counts as in the build budget (Budget.UNITS): a tree by its trunk, and nothing for its blobs.
 func unit_of(p: Plant) -> String:
-	return {grass: "grass", flowers: "flower", trunks: "tree", bushes: "bush"}.get(p.pool, "")
+	return {grass: "grass", flowers: "flower", trunks: "tree", bushes: "bush", moss: "moss"}.get(p.pool, "")
 
 
 ## The plants so far are the meadow's own: group 0, which every machine grows alike.
 func keep() -> void:
 	var meadow: Array[Plant] = []
-	for p: Pool in [grass, flowers, trunks, foliage, bushes]:
+	for p: Pool in [grass, flowers, trunks, foliage, bushes, moss]:
 		meadow.append_array(p.plants.slice(0, p.size()))
 		p.keep()
 	_name(0, meadow)
@@ -706,11 +713,29 @@ static func on_path(p: Vector3) -> bool:
 func dab(kind: String, center: Vector3, radius: float, count: int, rng: RandomNumberGenerator, look: RandomNumberGenerator) -> Array[Plant]:
 	var out: Array[Plant] = []
 	for p in FloraLayout.brush(center, radius, count, rng, Terrain.base_at):
-		out.append(null if Ground.bare(p.x, p.z) > 0.9 else _paint(kind, p, look, true))
+		out.append(null if kind != "moss" and Ground.bare(p.x, p.z) > 0.9 else _paint(kind, p, look, true))
 	return out
 
 
+func add_moss(p: Vector3, rng: RandomNumberGenerator, pool: Pool = null) -> Plant:
+	var size := rng.randf_range(0.65, 1.1)
+	var basis := Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * size)
+	return (moss if pool == null else pool).add(Transform3D(basis, p), Color(0.25, 0.4, 0.07).lightened(rng.randf_range(0.0, 0.12)), p)
+
+
+func set_moss(trunk: Plant, on: bool) -> void:
+	if species_of(trunk) < 0:
+		return
+	var custom := Color(1.0 if on else 0.0, 0, trunk.anchor.x, trunk.anchor.z)
+	if trunk.slot < trunks.kept:
+		trunks._cell_of[trunk.slot].set_instance_custom_data(trunks._index_in_cell[trunk.slot], custom)
+	else:
+		trunks.mm.set_instance_custom_data(trunk.slot - trunks.kept, custom)
+
+
 func _paint(kind: String, p: Vector3, rng: RandomNumberGenerator, ghost: bool) -> Plant:
+	if kind == "moss":
+		return add_moss(p, rng, ghost_moss if ghost else moss)
 	if kind == "grass":
 		return add_grass(p, rng, ghost_grass if ghost else grass)
 	return add_flower(p, rng, ghost_flowers if ghost else flowers)
@@ -740,7 +765,7 @@ func grow(id: int, g: Dictionary) -> Array[Plant]:
 	var skipped := PackedInt32Array()
 	for d in g.dabs:
 		for p in FloraLayout.brush(d[0], d[1], d[2], rng, Terrain.base_at):
-			if skip.has(growth.spots.size()) or record and on_path(p):
+			if skip.has(growth.spots.size()) or record and g.kind != "moss" and on_path(p):
 				skipped.append(growth.spots.size())
 				growth.spots.append(null)
 			else:
@@ -803,6 +828,7 @@ func _grow(usec: int, clock := Time.get_ticks_usec) -> void:
 func clear_ghosts() -> void:
 	ghost_grass.reset()
 	ghost_flowers.reset()
+	ghost_moss.reset()
 
 
 ## Shows or hides the plants at `indices` of a group; returns the indices that changed.
@@ -825,12 +851,14 @@ func reset() -> void:
 	if growing():
 		_growing.clear()
 		grown.emit()
-	for p in [grass, flowers, trunks, foliage, bushes]:
+	for p in [grass, flowers, trunks, foliage, bushes, moss]:
 		p.reset()
 	var meadow: Array[Plant] = groups[0]
 	groups = {0: meadow}
 	for plant in meadow:
 		plant.set_shown(true)
+		if plant.pool == trunks:
+			set_moss(plant, false)
 	_solids = _kept_solids.duplicate()
 	_solid_cells.clear()
 	for key: Vector2i in _solids:
@@ -913,6 +941,7 @@ func placed(kind: String) -> Array[Array]:
 func plants_near(p: Vector3, radius: float) -> Array[Plant]:
 	var out := grass.near(p, radius)
 	out.append_array(flowers.near(p, radius))
+	out.append_array(moss.near(p, radius))
 	return out
 
 
@@ -929,5 +958,5 @@ func obstacles() -> PackedVector3Array:
 ## Pools and their plants point at each other; the cycle is cut here so both are freed.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
-		for p in [grass, flowers, trunks, foliage, bushes, ghost_grass, ghost_flowers]:
+		for p in [grass, flowers, trunks, foliage, bushes, moss, ghost_grass, ghost_flowers, ghost_moss]:
 			p.plants.clear()

@@ -238,6 +238,14 @@ func _planted_flowers_take_their_water_form_by_depth() -> void:
 	Terrain.dry_water()
 
 
+func planted_water(placed: float, depth: float) -> float:
+	var code := (load("res://src/water.gdshaderinc") as ShaderInclude).code
+	var pick := RegEx.create_from_string("float planted_water\\(float (\\w+), float (\\w+)\\) \{\\s*return ([^;]+);\\s*\}").search(code)
+	var wet := Expression.new()
+	wet.parse(pick.get_string(3), [pick.get_string(1), pick.get_string(2)])
+	return float(wet.execute([placed, depth], self))
+
+
 func step(edge: float, x: float) -> float:
 	return 0.0 if x < edge else 1.0
 

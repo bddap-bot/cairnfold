@@ -7,9 +7,9 @@ extends Node3D
 ## stroke begun on stone paints the ground back to meadow instead, and the plants under it stand up again.
 
 ## Plants per square metre per second of painting.
-const RATES := {Hand.Tool.FLOWERS: 12.0, Hand.Tool.GRASS: 30.0}
+const RATES := {Hand.Tool.FLOWERS: 12.0, Hand.Tool.GRASS: 30.0, Hand.Tool.MOSS: 12.0}
 const PLACES := {Hand.Tool.TREES: "tree", Hand.Tool.BUSHES: "bush"}
-const TINTS := {Hand.Tool.DIRT_PATH: Color(0.78, 0.58, 0.35, 0.6), Hand.Tool.FLOWERS: Color(1.0, 0.82, 0.9, 0.6), Hand.Tool.GRASS: Color(0.78, 1.0, 0.55, 0.6), Hand.Tool.TREES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.BUSHES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.BOULDER: Color(0.9, 0.88, 0.82, 0.6), Hand.Tool.STONE: Color(0.9, 0.88, 0.82, 0.6)}
+const TINTS := {Hand.Tool.MOSS: Color(0.4, 0.65, 0.15, 0.6), Hand.Tool.DIRT_PATH: Color(0.78, 0.58, 0.35, 0.6), Hand.Tool.FLOWERS: Color(1.0, 0.82, 0.9, 0.6), Hand.Tool.GRASS: Color(0.78, 1.0, 0.55, 0.6), Hand.Tool.TREES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.BUSHES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.BOULDER: Color(0.9, 0.88, 0.82, 0.6), Hand.Tool.STONE: Color(0.9, 0.88, 0.82, 0.6)}
 const RADIUS_PER_METRE := 0.15
 const MIN_RADIUS := 0.3
 const MAX_RADIUS := 3.0
@@ -133,6 +133,14 @@ func _handle(b: Brush, delta: float) -> void:
 		return
 	var hand := b.hand.global_transform
 	var hit: Variant = Terrain.raycast(hand.origin, -hand.basis.z)
+	if held == Hand.Tool.MOSS:
+		var solid := flora.solid_hit(hand.origin, -hand.basis.z, hand.origin.distance_to(hit) if hit != null else 30.0)
+		if not solid.is_empty() and solid.plants[0].pool == flora.trunks:
+			b.hand.point(solid.point, TINTS[held])
+			end_stroke(b)
+			if b.buttons.pressed("tool"):
+				coat_tree(solid.plants[0], b.hand)
+			return
 	b.hand.point(hit, TINTS[held])
 	if hit == null:
 		end_stroke(b)
@@ -182,7 +190,7 @@ func paint(b: Brush, center: Vector3, radius: float, delta: float) -> void:
 	if b.hand.tool == Hand.Tool.STONE:
 		_lay_ground(b, Ground.Kind.MEADOW if b.meadow else Ground.Kind.STONE, center, radius, delta)
 		return
-	var kind := "grass" if b.hand.tool == Hand.Tool.GRASS else "flowers"
+	var kind := "moss" if b.hand.tool == Hand.Tool.MOSS else "grass" if b.hand.tool == Hand.Tool.GRASS else "flowers"
 	b.owed += RATES[b.hand.tool] * PI * radius * radius * delta
 	var n := mini(int(b.owed), Commands.MAX_STROKE)
 	b.owed -= int(b.owed)
@@ -304,6 +312,10 @@ func end_path(b: Brush) -> void:
 	if not ghost.is_empty():
 		world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost), b.hand)
 	planted.emit()
+
+
+func coat_tree(trunk: Flora.Plant, hand: Hand = null) -> void:
+	world.submit({"op": "tree", "group": trunk.group, "index": trunk.index, "moss": true}, Callable(), hand)
 
 
 ## Sets a metre-wide boulder of a new shape down at `at`.

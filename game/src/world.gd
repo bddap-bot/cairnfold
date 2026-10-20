@@ -304,7 +304,7 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 
 ## The meadow's own group as it grows: every plant standing, every tree an oak.
 func _meadow() -> Dictionary:
-	return {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees(), "species": {}, "scale": {}}
+	return {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees(), "species": {}, "scale": {}, "moss": {}}
 
 
 func me() -> int:
@@ -727,6 +727,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			if g.kind == "tree":
 				g.species = {}
 				g.scale = {}
+				g.moss = {}
 			state.groups[cmd.id] = g
 			Budget.add(units, Budget.plants(g.kind, 1 if g.kind in Flora.PLACED else g.size - g.skip.size()))
 			inverse = {"op": "show", "plants": {cmd.id: PackedInt32Array(range(plants.size()))}, "on": false}
@@ -749,17 +750,18 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			var g: Dictionary = state.groups[cmd.group]
 			var trunk: Flora.Plant = flora.groups[cmd.group][cmd.index]
 			inverse = {"op": "tree", "group": cmd.group, "index": cmd.index}
-			for k: String in ["species", "scale"]:
+			for k: String in ["species", "scale", "moss"]:
 				if not cmd.has(k):
 					continue
-				inverse[k] = g[k].get(cmd.index, FloraLayout.Species.OAK if k == "species" else 1.0)
-				if cmd[k] == (FloraLayout.Species.OAK if k == "species" else 1.0):
+				inverse[k] = g[k].get(cmd.index, FloraLayout.Species.OAK if k == "species" else false if k == "moss" else 1.0)
+				if cmd[k] == (FloraLayout.Species.OAK if k == "species" else false if k == "moss" else 1.0):
 					g[k].erase(cmd.index)
 				else:
 					g[k][cmd.index] = cmd[k]
 			if trunk.shown() and cmd.has("scale"):
 				Budget.add(units, {"tree": cmd.scale * cmd.scale - inverse.scale ** 2})
 			flora.set_look(trunk, g.species.get(cmd.index, FloraLayout.Species.OAK), g.scale.get(cmd.index, 1.0))
+			flora.set_moss(trunk, g.moss.get(cmd.index, false))
 		"heights":
 			inverse = {"op": "heights", "cells": cmd.cells, "values": Terrain.read(cmd.cells)}
 			var before: Dictionary = state.ponds.duplicate()
@@ -966,15 +968,15 @@ func snapshot() -> Dictionary:
 		var g: Dictionary = state.groups[id]
 		if g.kind != "meadow":
 			var c := g.duplicate(true)
-			for k in ["hidden", "size", "species", "scale"]:
+			for k in ["hidden", "size", "species", "scale", "moss"]:
 				c.erase(k)
 			c.op = "plant"
 			c.id = id
 			cmds.append(c)
 		if not g.hidden.is_empty():
 			cmds.append({"op": "show", "plants": {id: PackedInt32Array(g.hidden.keys())}, "on": false})
-		for i in g.get("species", {}).merged(g.get("scale", {})):
-			cmds.append({"op": "tree", "group": id, "index": i, "species": g.species.get(i, FloraLayout.Species.OAK), "scale": g.scale.get(i, 1.0)})
+		for i in g.get("species", {}).merged(g.get("scale", {})).merged(g.get("moss", {})):
+			cmds.append({"op": "tree", "group": id, "index": i, "species": g.species.get(i, FloraLayout.Species.OAK), "scale": g.scale.get(i, 1.0), "moss": g.moss.get(i, false)})
 	if palette.season != Palette.SUMMER:
 		cmds.append({"op": "season", "index": palette.season})
 	if time != Daylight.DEFAULT:

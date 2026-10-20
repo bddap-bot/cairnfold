@@ -516,9 +516,13 @@ static func _tree(cmd: Dictionary, state: Dictionary, out: Dictionary) -> bool:
 		if typeof(scale) != TYPE_FLOAT or not (scale >= FloraLayout.SCALES.x and scale <= FloraLayout.SCALES.y):
 			return false
 		out.scale = scale
+	if cmd.has("moss"):
+		if typeof(cmd.moss) != TYPE_BOOL:
+			return false
+		out.moss = cmd.moss
 	out.group = g
 	out.index = i
-	return out.has("species") or out.has("scale")
+	return out.has("species") or out.has("scale") or out.has("moss")
 
 
 static func _heights(cmd: Dictionary, from_host: bool, out: Dictionary) -> bool:

@@ -5,6 +5,26 @@ extends RefCounted
 const ROUND := 0.6
 
 
+static func moss() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	st.set_normal(Vector3.UP)
+	st.set_uv(Vector2(0.5, 0.5))
+	st.add_vertex(Vector3(0, 0.045, 0))
+	for i in 12:
+		var angle := TAU * i / 12.0
+		var p := Vector3(cos(angle), 0, sin(angle)) * (0.44 + 0.06 * sin(i * 7.0))
+		st.set_normal(Vector3(p.x * 0.3, 1, p.z * 0.3).normalized())
+		st.set_uv(Vector2(p.x, p.z) + Vector2.ONE * 0.5)
+		st.add_vertex(p)
+	for i in 12:
+		st.add_index(0)
+		st.add_index(i + 1)
+		st.add_index((i + 1) % 12 + 1)
+	return st.commit()
+
+
+
 ## A unit cube (-0.5..0.5) with rounded edges, its surface lumped by `seed` so no two variants match. Faces share
 ## the vertices along their borders: a stone's cost on the GPU follows the vertices it runs.
 static func rounded_box(radius: float, segments: int, seed: int) -> ArrayMesh:
