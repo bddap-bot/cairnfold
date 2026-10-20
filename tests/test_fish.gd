@@ -91,13 +91,13 @@ func _seeds_on_the_water_draw_every_fish(wildlife: Wildlife, feed: FeedTool, wat
 		a.tick(STEP)
 	var t := 0.0
 	while t < 8.0:
-		var dt := 1.0 / 72.0 if is_equal_approx(fmod(t * 162.0, 2.0), 0.0) else 1.0 / 90.0
+		var dt := 0.1 if int(t * 10.0) % 2 else 0.23
 		b.tick(dt)
 		t += dt
-	var apart := 0.0
+	var apart := a.position.distance_to(b.position)
 	for i in Handful.GRAINS:
 		apart = maxf(apart, a._at[i].distance_to(b._at[i]))
-	_check(a.landed() and b.landed() and apart < 0.03, "one throw lands the same grains at frame rates apart, %.3f m at most" % apart)
+	_check(a.landed() and b.landed() and apart < 0.001, "one throw lands the same grains however a loaded machine's frames fall, %.4f m at most" % apart)
 	a.queue_free()
 	b.queue_free()
 

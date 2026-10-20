@@ -23,6 +23,8 @@ const LASTS := Vector2(50.0, 70.0)
 const FADE := 6.0
 ## Grains a feeding animal takes a second.
 const PECKS := 1.6
+## A flight advances in steps this long, so every player's grains land alike however their frames fall.
+const STEP := 1.0 / 240.0
 
 static var _grain: Mesh
 
@@ -37,6 +39,7 @@ var _splashed := false
 var _afloat := false
 var _at := PackedVector3Array()
 var _vel := PackedVector3Array()
+var _carry := 0.0
 var _turn: Array[Basis] = []
 var _eat_next := 0.0
 
@@ -66,6 +69,7 @@ func toss(from: Vector3, velocity: Vector3, seed: int) -> void:
 	age = 0.0
 	lasts = rng.randf_range(LASTS.x, LASTS.y)
 	flying = GRAINS
+	_carry = 0.0
 	_eat_next = 0.0
 	_splashed = false
 	_afloat = false
@@ -140,6 +144,14 @@ func tick(delta: float) -> void:
 
 
 func _fly(delta: float) -> void:
+	_carry += delta
+	while flying > 0 and _carry >= STEP:
+		_carry -= STEP
+		_step(STEP)
+	_place()
+
+
+func _step(delta: float) -> void:
 	flying = 0
 	for i in GRAINS:
 		if _vel[i] == Vector3.ZERO:
@@ -182,7 +194,6 @@ func _fly(delta: float) -> void:
 		mid /= GRAINS
 		position = Vector3(mid.x, _water.floor_at(mid), mid.z)
 		_afloat = _splashed
-	_place()
 
 
 ## Where grain `i` is drawn: bobbing if it floats, sinking as it fades.
