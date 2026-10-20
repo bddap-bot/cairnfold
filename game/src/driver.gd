@@ -462,7 +462,7 @@ func _paint(s: Dictionary) -> void:
 	b.hand.tool = Hand.Tool[s.tool.to_upper()]
 	if s.has("tree") and b.hand.tool == Hand.Tool.MOSS:
 		var flora := flora_tool.flora
-		var trees := flora.planted_trees()
+		var trees := flora.placed("tree")
 		flora_tool.coat_tree(trees[int(s.tree)][0], b.hand)
 		return
 	var path := _path(s)
