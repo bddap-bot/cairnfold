@@ -109,31 +109,3 @@ func lantern(at: Vector3) -> void:
 func flame(at: Vector3, size: Vector3) -> void:
 	flames.append(Transform3D(Basis().scaled(size), at))
 	bounds = bounds.merge(AABB(at - size * 0.5, size))
-
-
-func model(seed: int) -> Node3D:
-	var root := Node3D.new()
-	var stones := Stones.new()
-	stones.lay(parts)
-	root.add_child(stones)
-	if not flames.is_empty():
-		var fire := Fittings.new()
-		fire.lay(flames, [])
-		var glow := ShaderMaterial.new()
-		glow.shader = preload("res://src/flame.gdshader")
-		fire._flames.material_override = glow
-		root.add_child(fire)
-	if not flowers.is_empty():
-		var surface := SurfaceTool.new()
-		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-		for i in flowers.size():
-			var mesh := Meshes.flower(6, FloraLayout.FLOWER_COLORS[posmod(seed + i, FloraLayout.FLOWER_COLORS.size())])
-			surface.append_from(mesh, 0, flowers[i])
-		var flower := MeshInstance3D.new()
-		flower.mesh = surface.commit()
-		var mat := StandardMaterial3D.new()
-		mat.vertex_color_use_as_albedo = true
-		mat.roughness = 0.8
-		flower.material_override = mat
-		root.add_child(flower)
-	return root

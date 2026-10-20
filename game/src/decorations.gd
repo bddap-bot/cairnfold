@@ -36,7 +36,7 @@ func sync() -> void:
 		if wall != null:
 			for part in layout.parts:
 				part.color = Wall._painted_as(part, wall.paint)
-		var n := layout.model(d.seed)
+		var n := ToolModels.decoration(layout, d.seed)
 		n.transform = x
 		n.set_meta(&"bounds", layout.bounds)
 		add_child(n)

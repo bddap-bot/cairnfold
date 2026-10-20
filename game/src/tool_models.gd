@@ -108,7 +108,7 @@ static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round :
 	if restyle == PaletteTool.Restyle.DECORATION:
 		var layout := DecorationLayout.new()
 		layout.build(i, 0)
-		var model := layout.model(0)
+		var model := decoration(layout, 0)
 		model.scale = Vector3.ONE * 0.035
 		root.add_child(model)
 		return root
@@ -1028,3 +1028,31 @@ static func _vertex_mat(key: String, roughness: float, two_sided: bool) -> Stand
 			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
 		_mats[key] = mat
 	return mat
+
+
+static func decoration(layout: DecorationLayout, seed: int) -> Node3D:
+	var root := Node3D.new()
+	var stones := Stones.new()
+	stones.lay(layout.parts)
+	root.add_child(stones)
+	if not layout.flames.is_empty():
+		var fire := Fittings.new()
+		fire.lay(layout.flames, [])
+		var glow := ShaderMaterial.new()
+		glow.shader = preload("res://src/flame.gdshader")
+		fire._flames.material_override = glow
+		root.add_child(fire)
+	if not layout.flowers.is_empty():
+		var surface := SurfaceTool.new()
+		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
+		for i in layout.flowers.size():
+			var mesh := Meshes.flower(6, FloraLayout.FLOWER_COLORS[posmod(seed + i, FloraLayout.FLOWER_COLORS.size())])
+			surface.append_from(mesh, 0, layout.flowers[i])
+		var flower := MeshInstance3D.new()
+		flower.mesh = surface.commit()
+		var mat := StandardMaterial3D.new()
+		mat.vertex_color_use_as_albedo = true
+		mat.roughness = 0.8
+		flower.material_override = mat
+		root.add_child(flower)
+	return root

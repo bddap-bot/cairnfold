@@ -344,7 +344,7 @@ func _show_ghost(i: int, ghost: Dictionary, delta: float) -> void:
 			_ghosts[i].decoration.free()
 		var layout := DecorationLayout.new()
 		layout.build(ghost.style, ghost.seed, ghost.rise)
-		var n := layout.model(ghost.seed)
+		var n := ToolModels.decoration(layout, ghost.seed)
 		n.top_level = true
 		n.set_meta(&"shape", [ghost.style, ghost.seed, ghost.rise])
 		add_child(n)

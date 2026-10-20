@@ -1,2346 +1,341 @@
 [
-  {
-    "op": "budget",
-    "bounded": false
-  },
-  {
-    "op": "quality",
-    "step": "fit"
-  },
-  {
-    "op": "pick",
-    "hand": "left",
-    "tool": "none"
-  },
-  {
-    "op": "pick",
-    "hand": "right",
-    "tool": "none"
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "bare"
-  },
-  {
-    "op": "house",
-    "at": [
-      0,
-      0
-    ],
-    "size": [
-      30,
-      4
-    ],
-    "rise": 0.6,
-    "seconds": 0.2
-  },
-  {
-    "op": "pick",
-    "tool": "none"
-  },
-  {
-    "op": "sun",
-    "time": 1.0,
-    "seconds": 0.1
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      3,
-      -16
-    ],
-    "at": [
-      0,
-      0.6,
-      -2
-    ],
-    "ground": true
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/base-0"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 0.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 1.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 3.0999999999999996,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 4.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 5.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 6.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 7.8999999999999995,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 9.1,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 10.299999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 11.499999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 12.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 13.899999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 15.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 16.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 17.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 18.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 19.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 21.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 22.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 23.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 24.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 25.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 27.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 0,
-    "index": 0,
-    "s": 28.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/style-0"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "bare"
-  },
-  {
-    "op": "house",
-    "at": [
-      0,
-      0
-    ],
-    "size": [
-      30,
-      4
-    ],
-    "rise": 0.6,
-    "seconds": 0.2
-  },
-  {
-    "op": "pick",
-    "tool": "none"
-  },
-  {
-    "op": "sun",
-    "time": 1.0,
-    "seconds": 0.1
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      3,
-      -16
-    ],
-    "at": [
-      0,
-      0.6,
-      -2
-    ],
-    "ground": true
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/base-1"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 0.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 1.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 3.0999999999999996,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 4.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 5.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 6.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 7.8999999999999995,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 9.1,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 10.299999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 11.499999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 12.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 13.899999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 15.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 16.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 17.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 18.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 19.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 21.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 22.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 23.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 24.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 25.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 27.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 1,
-    "index": 0,
-    "s": 28.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/style-1"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "bare"
-  },
-  {
-    "op": "house",
-    "at": [
-      0,
-      0
-    ],
-    "size": [
-      30,
-      4
-    ],
-    "rise": 0.6,
-    "seconds": 0.2
-  },
-  {
-    "op": "pick",
-    "tool": "none"
-  },
-  {
-    "op": "sun",
-    "time": 1.0,
-    "seconds": 0.1
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      3,
-      -16
-    ],
-    "at": [
-      0,
-      0.6,
-      -2
-    ],
-    "ground": true
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/base-2"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 0.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 1.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 3.0999999999999996,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 4.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 5.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 6.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 7.8999999999999995,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 9.1,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 10.299999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 11.499999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 12.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 13.899999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 15.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 16.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 17.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 18.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 19.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 21.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 22.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 23.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 24.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 25.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 27.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 2,
-    "index": 0,
-    "s": 28.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/style-2"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "bare"
-  },
-  {
-    "op": "house",
-    "at": [
-      0,
-      0
-    ],
-    "size": [
-      30,
-      4
-    ],
-    "rise": 0.6,
-    "seconds": 0.2
-  },
-  {
-    "op": "pick",
-    "tool": "none"
-  },
-  {
-    "op": "sun",
-    "time": 1.0,
-    "seconds": 0.1
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      3,
-      -16
-    ],
-    "at": [
-      0,
-      0.6,
-      -2
-    ],
-    "ground": true
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/base-3"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 0.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 1.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 3.0999999999999996,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 4.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 5.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 6.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 7.8999999999999995,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 9.1,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 10.299999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 11.499999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 12.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 13.899999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 15.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 16.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 17.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 18.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 19.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 21.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 22.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 23.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 24.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 25.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 27.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 3,
-    "index": 0,
-    "s": 28.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/style-3"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "bare"
-  },
-  {
-    "op": "house",
-    "at": [
-      0,
-      0
-    ],
-    "size": [
-      30,
-      4
-    ],
-    "rise": 0.6,
-    "seconds": 0.2
-  },
-  {
-    "op": "pick",
-    "tool": "none"
-  },
-  {
-    "op": "sun",
-    "time": 1.0,
-    "seconds": 0.1
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      3,
-      -16
-    ],
-    "at": [
-      0,
-      0.6,
-      -2
-    ],
-    "ground": true
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/base-4"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 0.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 1.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 3.0999999999999996,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 4.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 5.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 6.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 7.8999999999999995,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 9.1,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 10.299999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 11.499999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 12.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 13.899999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 15.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 16.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 17.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 18.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 19.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 21.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 22.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 23.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 24.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 25.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 27.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 4,
-    "index": 0,
-    "s": 28.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/style-4"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "bare"
-  },
-  {
-    "op": "house",
-    "at": [
-      0,
-      0
-    ],
-    "size": [
-      30,
-      4
-    ],
-    "rise": 0.6,
-    "seconds": 0.2
-  },
-  {
-    "op": "pick",
-    "tool": "none"
-  },
-  {
-    "op": "sun",
-    "time": 1.0,
-    "seconds": 0.1
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      3,
-      -16
-    ],
-    "at": [
-      0,
-      0.6,
-      -2
-    ],
-    "ground": true
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/base-5"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 0.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 1.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 3.0999999999999996,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 4.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 5.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 6.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 7.8999999999999995,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 9.1,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 10.299999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 11.499999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 12.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 13.899999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 15.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 16.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 17.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 18.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 19.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 21.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 22.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 23.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 24.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 25.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 27.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 5,
-    "index": 0,
-    "s": 28.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/style-5"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "bare"
-  },
-  {
-    "op": "house",
-    "at": [
-      0,
-      0
-    ],
-    "size": [
-      30,
-      4
-    ],
-    "rise": 0.6,
-    "seconds": 0.2
-  },
-  {
-    "op": "pick",
-    "tool": "none"
-  },
-  {
-    "op": "sun",
-    "time": 1.0,
-    "seconds": 0.1
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      3,
-      -16
-    ],
-    "at": [
-      0,
-      0.6,
-      -2
-    ],
-    "ground": true
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/base-6"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 0.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 1.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 3.0999999999999996,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 4.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 5.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 6.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 7.8999999999999995,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 9.1,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 10.299999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 11.499999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 12.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 13.899999999999999,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 15.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 16.3,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 17.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 18.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 19.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 21.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 22.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 23.5,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 24.7,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 25.9,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 27.099999999999998,
-    "side": -1
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 6,
-    "index": 0,
-    "s": 28.299999999999997,
-    "side": -1
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/style-6"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "bare"
-  },
-  {
-    "op": "house",
-    "at": [
-      0,
-      0
-    ],
-    "size": [
-      30,
-      4
-    ],
-    "rise": 0.6,
-    "seconds": 0.2
-  },
-  {
-    "op": "pick",
-    "tool": "none"
-  },
-  {
-    "op": "sun",
-    "time": 1.0,
-    "seconds": 0.1
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      3,
-      -16
-    ],
-    "at": [
-      0,
-      0.6,
-      -2
-    ],
-    "ground": true
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/base-7"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": -14.0,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": -12.8,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": -11.6,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": -10.4,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": -9.2,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": -8.0,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": -6.800000000000001,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": -5.6,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": -4.4,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": -3.200000000000001,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": -2.0,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": -0.8000000000000007,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": 0.3999999999999986,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": 1.5999999999999996,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": 2.8000000000000007,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": 4.0,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": 5.199999999999999,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": 6.399999999999999,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": 7.599999999999998,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": 8.8,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": 10.0,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": 11.2,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": 12.399999999999999,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 7,
-    "x": 13.599999999999998,
-    "z": -3
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/style-7"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "bare"
-  },
-  {
-    "op": "house",
-    "at": [
-      0,
-      0
-    ],
-    "size": [
-      30,
-      4
-    ],
-    "rise": 0.6,
-    "seconds": 0.2
-  },
-  {
-    "op": "pick",
-    "tool": "none"
-  },
-  {
-    "op": "sun",
-    "time": 1.0,
-    "seconds": 0.1
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      3,
-      -16
-    ],
-    "at": [
-      0,
-      0.6,
-      -2
-    ],
-    "ground": true
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/base-8"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": -14.0,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": -12.8,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": -11.6,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": -10.4,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": -9.2,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": -8.0,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": -6.800000000000001,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": -5.6,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": -4.4,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": -3.200000000000001,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": -2.0,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": -0.8000000000000007,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": 0.3999999999999986,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": 1.5999999999999996,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": 2.8000000000000007,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": 4.0,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": 5.199999999999999,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": 6.399999999999999,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": 7.599999999999998,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": 8.8,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": 10.0,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": 11.2,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": 12.399999999999999,
-    "z": -3
-  },
-  {
-    "op": "fit",
-    "what": "decoration",
-    "style": 8,
-    "x": 13.599999999999998,
-    "z": -3
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "sweep/style-8"
-  },
-  {
-    "op": "wait",
-    "seconds": 8
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "quit"
-  }
+  {"op": "budget", "bounded": false},
+  {"op": "quality", "step": "fit"},
+  {"op": "pick", "hand": "left", "tool": "none"},
+  {"op": "pick", "hand": "right", "tool": "none"},
+  {"op": "label", "name": "-"},
+  {"op": "bare"},
+  {"op": "house", "at": [0, 0], "size": [30, 4], "rise": 0.6, "seconds": 0.2},
+  {"op": "pick", "tool": "none"},
+  {"op": "sun", "time": 1.0, "seconds": 0.1},
+  {"op": "view", "eye": [0, 3, -16], "at": [0, 0.6, -2], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/base-0"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 0.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 1.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 3.0999999999999996, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 4.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 5.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 6.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 7.8999999999999995, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 9.1, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 10.299999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 11.499999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 12.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 13.899999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 15.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 16.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 17.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 18.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 19.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 21.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 22.299999999999997, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 23.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 24.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 25.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 27.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 0, "index": 0, "s": 28.299999999999997, "side": -1},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/style-0"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "bare"},
+  {"op": "house", "at": [0, 0], "size": [30, 4], "rise": 0.6, "seconds": 0.2},
+  {"op": "pick", "tool": "none"},
+  {"op": "sun", "time": 1.0, "seconds": 0.1},
+  {"op": "view", "eye": [0, 3, -16], "at": [0, 0.6, -2], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/base-1"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 0.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 1.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 3.0999999999999996, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 4.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 5.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 6.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 7.8999999999999995, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 9.1, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 10.299999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 11.499999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 12.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 13.899999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 15.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 16.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 17.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 18.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 19.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 21.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 22.299999999999997, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 23.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 24.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 25.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 27.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 1, "index": 0, "s": 28.299999999999997, "side": -1},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/style-1"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "bare"},
+  {"op": "house", "at": [0, 0], "size": [30, 4], "rise": 0.6, "seconds": 0.2},
+  {"op": "pick", "tool": "none"},
+  {"op": "sun", "time": 1.0, "seconds": 0.1},
+  {"op": "view", "eye": [0, 3, -16], "at": [0, 0.6, -2], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/base-2"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 0.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 1.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 3.0999999999999996, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 4.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 5.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 6.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 7.8999999999999995, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 9.1, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 10.299999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 11.499999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 12.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 13.899999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 15.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 16.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 17.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 18.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 19.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 21.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 22.299999999999997, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 23.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 24.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 25.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 27.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 2, "index": 0, "s": 28.299999999999997, "side": -1},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/style-2"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "bare"},
+  {"op": "house", "at": [0, 0], "size": [30, 4], "rise": 0.6, "seconds": 0.2},
+  {"op": "pick", "tool": "none"},
+  {"op": "sun", "time": 1.0, "seconds": 0.1},
+  {"op": "view", "eye": [0, 3, -16], "at": [0, 0.6, -2], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/base-3"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 0.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 1.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 3.0999999999999996, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 4.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 5.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 6.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 7.8999999999999995, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 9.1, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 10.299999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 11.499999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 12.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 13.899999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 15.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 16.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 17.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 18.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 19.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 21.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 22.299999999999997, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 23.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 24.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 25.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 27.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 3, "index": 0, "s": 28.299999999999997, "side": -1},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/style-3"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "bare"},
+  {"op": "house", "at": [0, 0], "size": [30, 4], "rise": 0.6, "seconds": 0.2},
+  {"op": "pick", "tool": "none"},
+  {"op": "sun", "time": 1.0, "seconds": 0.1},
+  {"op": "view", "eye": [0, 3, -16], "at": [0, 0.6, -2], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/base-4"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 0.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 1.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 3.0999999999999996, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 4.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 5.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 6.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 7.8999999999999995, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 9.1, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 10.299999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 11.499999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 12.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 13.899999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 15.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 16.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 17.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 18.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 19.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 21.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 22.299999999999997, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 23.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 24.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 25.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 27.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 4, "index": 0, "s": 28.299999999999997, "side": -1},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/style-4"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "bare"},
+  {"op": "house", "at": [0, 0], "size": [30, 4], "rise": 0.6, "seconds": 0.2},
+  {"op": "pick", "tool": "none"},
+  {"op": "sun", "time": 1.0, "seconds": 0.1},
+  {"op": "view", "eye": [0, 3, -16], "at": [0, 0.6, -2], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/base-5"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 0.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 1.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 3.0999999999999996, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 4.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 5.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 6.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 7.8999999999999995, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 9.1, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 10.299999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 11.499999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 12.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 13.899999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 15.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 16.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 17.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 18.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 19.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 21.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 22.299999999999997, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 23.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 24.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 25.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 27.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 5, "index": 0, "s": 28.299999999999997, "side": -1},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/style-5"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "bare"},
+  {"op": "house", "at": [0, 0], "size": [30, 4], "rise": 0.6, "seconds": 0.2},
+  {"op": "pick", "tool": "none"},
+  {"op": "sun", "time": 1.0, "seconds": 0.1},
+  {"op": "view", "eye": [0, 3, -16], "at": [0, 0.6, -2], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/base-6"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 0.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 1.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 3.0999999999999996, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 4.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 5.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 6.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 7.8999999999999995, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 9.1, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 10.299999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 11.499999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 12.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 13.899999999999999, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 15.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 16.3, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 17.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 18.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 19.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 21.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 22.299999999999997, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 23.5, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 24.7, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 25.9, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 27.099999999999998, "side": -1},
+  {"op": "fit", "what": "decoration", "style": 6, "index": 0, "s": 28.299999999999997, "side": -1},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/style-6"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "bare"},
+  {"op": "house", "at": [0, 0], "size": [30, 4], "rise": 0.6, "seconds": 0.2},
+  {"op": "pick", "tool": "none"},
+  {"op": "sun", "time": 1.0, "seconds": 0.1},
+  {"op": "view", "eye": [0, 3, -16], "at": [0, 0.6, -2], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/base-7"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "fit", "what": "decoration", "style": 7, "x": -14.0, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": -12.8, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": -11.6, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": -10.4, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": -9.2, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": -8.0, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": -6.800000000000001, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": -5.6, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": -4.4, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": -3.200000000000001, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": -2.0, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": -0.8000000000000007, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": 0.3999999999999986, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": 1.5999999999999996, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": 2.8000000000000007, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": 4.0, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": 5.199999999999999, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": 6.399999999999999, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": 7.599999999999998, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": 8.8, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": 10.0, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": 11.2, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": 12.399999999999999, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 7, "x": 13.599999999999998, "z": -3},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/style-7"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "bare"},
+  {"op": "house", "at": [0, 0], "size": [30, 4], "rise": 0.6, "seconds": 0.2},
+  {"op": "pick", "tool": "none"},
+  {"op": "sun", "time": 1.0, "seconds": 0.1},
+  {"op": "view", "eye": [0, 3, -16], "at": [0, 0.6, -2], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/base-8"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "fit", "what": "decoration", "style": 8, "x": -14.0, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": -12.8, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": -11.6, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": -10.4, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": -9.2, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": -8.0, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": -6.800000000000001, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": -5.6, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": -4.4, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": -3.200000000000001, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": -2.0, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": -0.8000000000000007, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": 0.3999999999999986, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": 1.5999999999999996, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": 2.8000000000000007, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": 4.0, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": 5.199999999999999, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": 6.399999999999999, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": 7.599999999999998, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": 8.8, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": 10.0, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": 11.2, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": 12.399999999999999, "z": -3},
+  {"op": "fit", "what": "decoration", "style": 8, "x": 13.599999999999998, "z": -3},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sweep/style-8"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "quit"}
 ]
