@@ -35,6 +35,7 @@ func _run() -> void:
 	await _the_trigger_sets_one_up_or_says_why_not()
 	_easels_keep_their_distance_and_number()
 	_bad_strokes_are_dropped()
+	_every_demo_dips_into_something_on_the_tray()
 	for f in DirAccess.get_files_at(dir):
 		DirAccess.remove_absolute(dir.path_join(f))
 	DirAccess.remove_absolute(dir)
@@ -396,6 +397,18 @@ func _bad_strokes_are_dropped() -> void:
 	full.append(rest)
 	state.easels[4].strokes = full
 	_check(Commands.clean({"op": "paint", "easel": 4, "stroke": good}, state, false).is_empty(), "a full canvas takes no more")
+
+
+## Each demo script's dips name the jar or a palette's paint, so none plays a dip the driver cannot place.
+func _every_demo_dips_into_something_on_the_tray() -> void:
+	var known: Array = EaselTool.PAINTS.values() + ["jar"]
+	var demos := ProjectSettings.globalize_path("res://").path_join("../demo")
+	for f in DirAccess.get_files_at(demos):
+		if not f.ends_with(".json"):
+			continue
+		for step: Dictionary in JSON.parse_string(FileAccess.get_file_as_string(demos.path_join(f))):
+			if step.get("op") == "dip":
+				_check(step.what in known, "%s dips into %s, which is on no tray" % [f, step.what])
 
 
 func _many(n: int) -> PackedInt32Array:
