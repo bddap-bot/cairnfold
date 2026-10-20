@@ -438,6 +438,9 @@ static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 	var cleaned: Variant = _whole(of, trial)
 	if cleaned == null:
 		return null
+	# A decoration's `at` means a different thing on each mount, so a restyle keeps the surface it was placed on.
+	if of == "decorations" and DecorationLayout.mount_of(cleaned.style) != DecorationLayout.mount_of(now.style):
+		return null
 	if of == "walls" and cleaned.plaster != trial.plaster:
 		out["plaster"] = cleaned.plaster
 	return out

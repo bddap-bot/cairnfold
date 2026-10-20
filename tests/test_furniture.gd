@@ -64,6 +64,11 @@ func _run() -> void:
 
 	var bad: Dictionary = main.world.state.decorations[chair].merged({"op": "decoration", "wall": -1}, true)
 	check(Commands.clean(bad, main.world.state, false).is_empty(), "indoor style refused on open ground")
+	for style in [DecorationLayout.options("deck")[0], DecorationLayout.options("foundation")[0]]:
+		var across := {"op": "reshape", "of": "decorations", "id": chair, "data": {"style": style}}
+		check(Commands.clean(across, main.world.state, false).is_empty(), "restyle to %s refused across mounts" % DecorationLayout.STYLES[style].name)
+	var within := {"op": "reshape", "of": "decorations", "id": chair, "data": {"style": DecorationLayout.options("floor")[1]}}
+	check(not Commands.clean(within, main.world.state, false).is_empty(), "restyle within the floor table accepted")
 
 	n = _node(chair)
 	var r0 := house.roof.frame()
