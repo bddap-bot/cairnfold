@@ -2878,6 +2878,10 @@ holder (`PhotoTool.lens`). Held out, its screen shows the holder as a mirror wou
 it; the photo, taken on the trigger as the camera's is, is not mirrored. The player's own avatar, which the eyes never
 see, stands in its view as in the camera's, its holding hand folded into the wrist. Its screen's view is drawn as
 the camera's is, the same size and rate, so it costs what the camera does (`camera/selfie` in the table above).
+Measured on a Quest 2 in the stress run, GPU time a frame: the scene with no camera held 27.7 ms
+(`hands/walls`), one camera held 30.3 (`camera/ground`), the selfie camera held out 30.7 (`camera/selfie`),
+and a camera in each hand 33.2 (`camera/two`): each held camera's view adds about 2.7 ms averaged over
+the frames, the selfie camera no more than the camera.
 
 Directive (verbatim):
 > I'd like to be able to take a super graphics quality photo that just turns everything all the way up, no level of detail or anything; it can take a long time to render that frame. ... I would like to take very fancy photos. Also give a way to embed metadata about where and how the photo was taken, that'd be cool. I don't know if you can embed a whole world in it, but if the world is small enough, then maybe you could.
