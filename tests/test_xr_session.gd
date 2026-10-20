@@ -50,6 +50,10 @@ func _run() -> void:
 	audio.stream = load("res://audio/lap.ogg")
 	guest.add_child(audio)
 	audio.play()
+	var cues := Cues._live
+	var cue_voice: AudioStreamPlayer3D = cues._voices[0]
+	cue_voice.stream = audio.stream
+	cue_voice.play()
 	guest.xr = OpenXRInterface.new()
 	guest._watch_xr()
 	guest.xr.session_focussed.emit()
@@ -62,9 +66,11 @@ func _run() -> void:
 			guest.xr.emit_signal(signal_name)
 		var frames := sim.frames
 		var network_clock := guest.session._clock
+		var cue_clock := cues._clock
 		for frame in 12:
 			await process_frame
 		_check(paused and sim.frames == frames and audio.stream_paused, "%s pauses simulation and audio" % signal_name)
+		_check(cue_voice.stream_paused and cues._clock == cue_clock, "%s pauses action sounds and queued haptics" % signal_name)
 		_check(guest.session._clock > network_clock, "%s keeps networking processing" % signal_name)
 		_check(not Main._quitting and is_instance_valid(guest), "%s never quits" % signal_name)
 		_check(host.multiplayer.get_peers() == ids and guest.multiplayer.multiplayer_peer == peer and guest.session.avatars.has(1), "%s preserves the same co-op peer" % signal_name)

@@ -128,7 +128,6 @@ var _due: Array[Array] = []
 
 func _init() -> void:
 	name = "Cues"
-	process_mode = Node.PROCESS_MODE_ALWAYS
 	for kind in SOUNDS:
 		_clips[kind] = []
 		for i in SOUNDS[kind]:
