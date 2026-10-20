@@ -1,0 +1,117 @@
+{
+ "budget_gpu_ms": 12.5,
+ "phases": {
+  "sweep/edge-plain-1-ground": {
+   "p50": 13.9429998397827,
+   "p99": 23.6060009002686,
+   "late": 6,
+   "draws": 100,
+   "prims": 292750,
+   "gpu_ms": 11.24
+  },
+  "sweep/edge-plain-1-aerial": {
+   "p50": 16.1509990692139,
+   "p99": 25.9740009307861,
+   "late": 91,
+   "draws": 146,
+   "prims": 352263,
+   "gpu_ms": 13.29
+  },
+  "sweep/edge-foothills-1-ground": {
+   "p50": 13.9289999008179,
+   "p99": 14.7670001983643,
+   "late": 15,
+   "draws": 100,
+   "prims": 295310,
+   "gpu_ms": 11.39
+  },
+  "sweep/edge-foothills-1-aerial": {
+   "p50": 16.4589996337891,
+   "p99": 26.1119995117188,
+   "late": 98,
+   "draws": 146,
+   "prims": 354823,
+   "gpu_ms": 13.45
+  },
+  "sweep/edge-shore-1-ground": {
+   "p50": 13.9580001831055,
+   "p99": 14.5459995269775,
+   "late": 15,
+   "draws": 100,
+   "prims": 295566,
+   "gpu_ms": 11.32
+  },
+  "sweep/edge-shore-1-aerial": {
+   "p50": 16.8099994659424,
+   "p99": 26.1340007781982,
+   "late": 101,
+   "draws": 146,
+   "prims": 355079,
+   "gpu_ms": 13.44
+  },
+  "sweep/edge-plain-2-ground": {
+   "p50": 13.9390001296997,
+   "p99": 14.6969995498657,
+   "late": 13,
+   "draws": 100,
+   "prims": 292750,
+   "gpu_ms": 11.29
+  },
+  "sweep/edge-plain-2-aerial": {
+   "p50": 16.6110000610352,
+   "p99": 26.5450000762939,
+   "late": 96,
+   "draws": 148,
+   "prims": 356455,
+   "gpu_ms": 13.9
+  },
+  "sweep/edge-foothills-2-ground": {
+   "p50": 13.9130001068115,
+   "p99": 14.7279996871948,
+   "late": 13,
+   "draws": 100,
+   "prims": 295310,
+   "gpu_ms": 11.41
+  },
+  "sweep/edge-foothills-2-aerial": {
+   "p50": 17.2569999694824,
+   "p99": 26.5830001831055,
+   "late": 111,
+   "draws": 148,
+   "prims": 359015,
+   "gpu_ms": 14.19
+  },
+  "sweep/edge-shore-2-ground": {
+   "p50": 13.9200000762939,
+   "p99": 14.7290000915527,
+   "late": 17,
+   "draws": 102,
+   "prims": 299758,
+   "gpu_ms": 11.62
+  },
+  "sweep/edge-shore-2-aerial": {
+   "p50": 17.1870002746582,
+   "p99": 26.0820007324219,
+   "late": 113,
+   "draws": 148,
+   "prims": 359271,
+   "gpu_ms": 13.5
+  },
+  "sweep/edge-treeline-1-ground": {
+   "p50": 16.2870006561279,
+   "p99": 25.0349998474121,
+   "late": 94,
+   "draws": 102,
+   "prims": 472046,
+   "gpu_ms": 13.7
+  },
+  "sweep/edge-treeline-1-aerial": {
+   "p50": 19.5,
+   "p99": 28.4580001831055,
+   "late": 129,
+   "draws": 148,
+   "prims": 531559,
+   "gpu_ms": 16.04
+  }
+ }
+}
