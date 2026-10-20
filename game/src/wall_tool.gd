@@ -115,6 +115,11 @@ var _dirty := false
 ## Ids of builds to lay again at the end of the frame for what they meet.
 var _due := {}
 var _path_arches := {}
+var _walls_at := {}
+var _walls_at_from: Array = []
+## Wall → the segment grid and inputs its preview arches were last cut from: a wall the stroke's moving end is not
+## near keeps them.
+var _previewed := {}
 ## The walls in hand of this player's command that last came back, for the garden's walls it puts up (`put`).
 var _handing: Array[Wall] = []
 var _handing_hand: Hand
@@ -377,6 +382,7 @@ func _finish(ws: Array[Wall], hand: Hand = null) -> void:
 func _forget() -> void:
 	_let_go_handed()
 	_path_arches.clear()
+	_previewed.clear()
 	for m in masons:
 		if m.stroke != null:
 			for w in m.stroke.walls:
@@ -966,16 +972,51 @@ func _open_paths(w: Wall, own: Variant = null) -> void:
 		_cut_crossings(w, p)
 
 
+## Cuts the paths in hand into the walls, looking only in the grid cells each shares with a wall, so a long stroke
+## over many walls costs what its crossings do rather than its length times the walls.
 func _preview_crossings() -> void:
+	var walls_at := _walls_by_cell()
+	var met := {}
+	for p in paths.previews:
+		var cells := p.segment_cells()
+		for c in cells:
+			for w: Wall in walls_at.get(c, []):
+				if not met.has(w):
+					met[w] = {}
+				if not met[w].has(p):
+					met[w][p] = []
+				met[w][p].append(c)
 	for w in walls:
 		if _held(w) or not _path_arches.has(w.id):
 			continue
+		var meeting: Dictionary = met.get(w, {})
+		var cut_from := [_path_arches[w.id]]
+		for p in meeting:
+			cut_from.append_array([p, p.segments_in(meeting[p])])
+		var last: Array = _previewed.get(w, [])
+		if not last.is_empty() and is_same(last[0], w.layout.segment_cells()) and last[1] == cut_from:
+			continue
+		_previewed[w] = [w.layout.segment_cells(), cut_from]
 		var before := w.layout.arches.duplicate()
 		w.layout.arches.assign(_path_arches[w.id])
-		for p in paths.previews:
-			_cut_crossings(w, p)
+		for p in meeting:
+			_cut_crossings(w, p, meeting[p])
 		if before != w.layout.arches:
 			w.rebuild()
+
+
+## Grid cell → the walls whose samples reach it (WallLayout.segment_cells), made again once any wall's samples change.
+func _walls_by_cell() -> Dictionary:
+	var grids := walls.map(func(w: Wall) -> Dictionary: return w.layout.segment_cells())
+	if grids.size() != _walls_at_from.size() or range(grids.size()).any(func(k: int) -> bool: return not is_same(grids[k], _walls_at_from[k])):
+		_walls_at = {}
+		for k in walls.size():
+			for c in grids[k]:
+				if not _walls_at.has(c):
+					_walls_at[c] = []
+				_walls_at[c].append(walls[k])
+		_walls_at_from = grids
+	return _walls_at
 
 
 ## Wall chemistry: a path laid or lifted opens or closes arches in every wall it crosses. Only the arches change, so the
@@ -993,13 +1034,13 @@ func relay_crossings(path: PathLayout) -> void:
 ## Adds the arches `path` makes in `w` and returns them. A crossing already inside an opening needs none; one whose ring
 ## would overlap an arch there stands a pitch from it as an arcade instead, on the crossing's side if that
 ## fits, else the other, so no opening closes.
-func _cut_crossings(w: Wall, path: PathLayout) -> Array[float]:
+func _cut_crossings(w: Wall, path: PathLayout, cells: Array = []) -> Array[float]:
 	var opened: Array[float] = []
 	var layout := w.layout
 	if not layout.can_arch():
 		return opened
 	var arches := layout.arches.duplicate()
-	for a in path.crossings(layout):
+	for a in path.crossings(layout, cells):
 		a = layout.wrap(a)
 		var past := INF
 		for e in arches:
@@ -1056,6 +1097,7 @@ func _let_go_handed() -> void:
 func take(id: int) -> void:
 	_path_arches.erase(id)
 	var w := find(id)
+	_previewed.erase(w)
 	if w == resizing:
 		resizing = null
 		_resize_hands.clear()

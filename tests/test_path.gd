@@ -245,7 +245,8 @@ func _crossings_test_every_segment_pair_that_meets() -> void:
 			pts.append([rng.randf_range(-10, 16), rng.randf_range(-8, 8)])
 		var p := _path(pts, rng.randf_range(PathLayout.HALF_WIDTH.x, PathLayout.HALF_WIDTH.y))
 		for w in walls:
-			if p.crossings(w) != _every_pair(p, w):
+			var shared := p.segment_cells().keys().filter(func(c: Vector2i) -> bool: return w.segment_cells().has(c))
+			if p.crossings(w) != _every_pair(p, w) or (not shared.is_empty() and p.crossings(w, shared) != _every_pair(p, w)):
 				mismatched += 1
 	_check(mismatched == 0, "crossings match every segment pair tested: %d of 90 differ" % mismatched)
 

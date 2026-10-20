@@ -157,6 +157,8 @@ var grounds := PackedFloat32Array()
 ## build's top. A wall's ivy roots there.
 var plinths := PackedFloat32Array()
 var bounds := Rect2()
+## PathLayout.segment_grid of `samples`, made when a path first asks for it.
+var _segment_cells := {}
 var stones: Array[Dictionary] = []
 ## Stones shorten on a round loop so their outer ends stay closed.
 var _stone_scale := 1.0
@@ -1556,6 +1558,8 @@ func same_inputs(other: WallLayout) -> bool:
 func adopt(built: WallLayout) -> void:
 	laid_points = built.laid_points
 	laid_rise = built.laid_rise
+	if built.samples != samples:
+		_segment_cells = built._segment_cells
 	samples = built.samples
 	lengths = built.lengths
 	depths = built.depths
@@ -1704,6 +1708,12 @@ func closest_s(p: Vector3) -> float:
 	return best_s
 
 
+func segment_cells() -> Dictionary:
+	if _segment_cells.is_empty() and samples.size() > 1:
+		_segment_cells = PathLayout.segment_grid(samples)
+	return _segment_cells
+
+
 ## The ground curve, and the ruins' breaks along it, for the inputs as they stand.
 func resample(ground: Callable, water := Callable()) -> void:
 	var key := [points.duplicate(), height, rise, seed, closed, top, fence, lanterns.duplicate(), ruins.duplicate(), supports.duplicate(), Terrain.revision, ground, water]
@@ -1717,6 +1727,7 @@ func resample(ground: Callable, water := Callable()) -> void:
 	grounds.clear()
 	breaks.clear()
 	bounds = Rect2()
+	_segment_cells = {}
 	if points.size() == 0:
 		return
 	if not fence:

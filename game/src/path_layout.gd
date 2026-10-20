@@ -40,6 +40,8 @@ var row_starts: Array[int] = []
 var area := Rect2()
 ## Grid cell → indices of the stones whose footprints reach into it.
 var _cells := {}
+## Grid cell → indices of the sample segments whose boxes reach into it, made when first asked for.
+var _segment_cells := {}
 
 
 static func of(data: Dictionary) -> PathLayout:
@@ -274,38 +276,36 @@ func _resample() -> void:
 	for q in samples:
 		area = area.expand(_flat(q))
 	area = area.grow(HALF_WIDTH.y + GAP)
+	_segment_cells = {}
 
 
 ## Arc lengths along `wall` where this path opens arches: one where it crosses, or an arcade where the
-## crossing runs long along the wall (a wide path, or one meeting the wall at a slant).
-func crossings(wall: WallLayout) -> Array[float]:
+## crossing runs long along the wall (a wide path, or one meeting the wall at a slant). Looks only in `cells` of
+## `segment_cells`, by default all of them; a cell the wall does not reach holds no crossing.
+func crossings(wall: WallLayout, cells: Array = []) -> Array[float]:
 	var out: Array[float] = []
 	if samples.size() < 2 or wall.samples.size() < 2:
 		return out
-	var bounds := Rect2(_flat(wall.samples[0]), Vector2.ZERO)
-	for q in wall.samples:
-		bounds = bounds.expand(_flat(q))
-	bounds = bounds.grow(0.01)
-	if not bounds.intersects(area, true):
+	if not wall.bounds.grow(0.01).intersects(area, true):
 		return out
+	var theirs := wall.segment_cells()
+	var meets := {}
+	for c in cells if not cells.is_empty() else segment_cells().keys():
+		var js: Variant = theirs.get(c)
+		if js == null:
+			continue
+		for i: int in segment_cells()[c]:
+			if not meets.has(i):
+				meets[i] = {}
+			for j: int in js:
+				meets[i][j] = true
 	var found: Array[float] = []
-	var grid := {}
-	for i in samples.size() - 1:
+	var near := meets.keys()
+	near.sort()
+	for i: int in near:
 		var a := _flat(samples[i])
 		var b := _flat(samples[i + 1])
-		if not bounds.intersects(Rect2(a, Vector2.ZERO).expand(b), true):
-			continue
-		if grid.is_empty():
-			for j in wall.samples.size() - 1:
-				for c in _cells_along(_flat(wall.samples[j]), _flat(wall.samples[j + 1])):
-					if not grid.has(c):
-						grid[c] = []
-					grid[c].append(j)
-		var near := {}
-		for c in _cells_along(a, b):
-			for j: int in grid.get(c, []):
-				near[j] = true
-		var js := near.keys()
+		var js: Array = meets[i].keys()
 		js.sort()
 		for j: int in js:
 			var c := _flat(wall.samples[j])
@@ -324,6 +324,34 @@ func crossings(wall: WallLayout) -> Array[float]:
 			for k in n:
 				out.append(s + (k - (n - 1) * 0.5) * WallLayout.ARCADE_PITCH)
 	return out
+
+
+func segment_cells() -> Dictionary:
+	if _segment_cells.is_empty() and samples.size() > 1:
+		_segment_cells = segment_grid(samples)
+	return _segment_cells
+
+
+## The ends and half-widths of the segments in `cells` of `segment_cells`: all `crossings` reads of this path there.
+func segments_in(cells: Array) -> Array:
+	var ends := PackedVector3Array()
+	var halves := PackedFloat32Array()
+	for c in cells:
+		for i: int in segment_cells()[c]:
+			ends.append_array([samples[i], samples[i + 1]])
+			halves.append_array([sample_half_widths[i], sample_half_widths[i + 1]])
+	return [ends, halves]
+
+
+## Grid cell → indices of the segments between consecutive `points` whose boxes reach into it.
+static func segment_grid(points: Array[Vector3]) -> Dictionary:
+	var grid := {}
+	for i in points.size() - 1:
+		for c in _cells_along(_flat(points[i]), _flat(points[i + 1])):
+			if not grid.has(c):
+				grid[c] = []
+			grid[c].append(i)
+	return grid
 
 
 ## The grid cells the box around segment a–b reaches, padded so a crossing on a cell edge is found from both sides.
