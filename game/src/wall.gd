@@ -143,7 +143,9 @@ func add_roof(r: RoofLayout) -> void:
 	if _plaster == null:
 		_plaster = ShaderMaterial.new()
 		_plaster.shader = load("res://src/plaster.gdshader")
-		_plaster.set_shader_parameter("albedo", WallLayout.PLASTER)
+		# Color uniforms convert to linear; the wall instance buffer carries raw RGB.
+		var c := WallLayout.PLASTER
+		_plaster.set_shader_parameter("albedo", Vector3(c.r, c.g, c.b))
 		_plaster.set_shader_parameter("detail", Look.detail_noise())
 	if _thatch == null:
 		_thatch = ShaderMaterial.new()
