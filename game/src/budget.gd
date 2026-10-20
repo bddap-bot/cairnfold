@@ -16,7 +16,7 @@ enum Device { QUEST_2, FRAME }
 
 ## What a garden's builds count as, the units COSTS prices: square metres of face of stone walls, plaster walls and
 ## fences (length along the ground by height, and a house's two gable ends: boards, laid as stones are but fewer, count
-## as stone wall), of tiled or flat roof and of thatch (the ground each covers out to its eaves);
+## as stone wall), of tiled or flat roof and of thatch (laid along its slopes out to its eaves);
 ## fittings that add a mesh (lanterns, flags, chimneys); painted grass blades and flowers, the meadow's own flowers
 ## included; trees and bushes standing; ponds, one a seed; and easels, each a canvas drawn and simulated.
 const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "floor_m2", "fitting", "grass", "flower", "tree", "bush", "pond", "timber", "easel"]
@@ -36,8 +36,8 @@ const TIMBER_US := 0.5
 ## (docs/design.md, "Picture book"). A garden's room does not reserve it: the book is read between builds.
 const BOOK_OPEN_MS := 1.2
 ## The Frame's runtime halves the rate once a frame nears 0.88 of the period: held to the governor's line under it.
-const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 5.85, "thatch_m2": 5.85, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 2.852, "pond": 35.294, "timber": TIMBER_US, "easel": 400.0, "floor_m2": 5.534}
-const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 7.28, "grass": 0.449, "flower": 0.678, "tree": 70.711, "wall_m2": 19.054, "plaster_m2": 6.46, "fence_m2": 4.348, "pond": 89.764, "roof_m2": 37.174, "thatch_m2": 62.655, "fitting": 21.346, "bush": 0.0, "easel": 1091.208, "timber": TIMBER_US, "floor_m2": 22.809}
+const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 5.7, "wall_m2": 6.073, "plaster_m2": 2.915, "fence_m2": 1.82, "roof_m2": 4.794, "thatch_m2": 4.794, "fitting": 3.111, "grass": 0.061, "flower": 0.072, "tree": 21.275, "bush": 2.852, "pond": 35.294, "timber": TIMBER_US, "easel": 400.0, "floor_m2": 5.534}
+const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 7.28, "grass": 0.449, "flower": 0.678, "tree": 70.711, "wall_m2": 19.054, "plaster_m2": 6.46, "fence_m2": 4.348, "pond": 89.764, "roof_m2": 30.465, "thatch_m2": 51.347, "fitting": 21.346, "bush": 0.0, "easel": 1091.208, "timber": TIMBER_US, "floor_m2": 22.809}
 
 
 ## The ladder step `on`'s COSTS are fitted at (demo/costs.json), so a garden within its budget holds 72 Hz there: the
@@ -123,7 +123,14 @@ static func wall(d: Dictionary) -> Dictionary:
 	if d.has("roof"):
 		var eave := WallLayout.THICKNESS * 0.5 + RoofLayout.OVERHANG
 		var plan: float = PI * (d.roof.radius + eave) * (d.roof.radius + eave)
+		var slopes := RoofLayout.new()
+		slopes.kind = RoofLayout.Kind.CONE
+		slopes.radius = d.roof.radius
+		slopes.pitch = d.roof.pitch
+		slopes.curve = d.roof.curve
 		if d.roof.kind == RoofLayout.Kind.GABLE and d.points.size() == 4:
+			slopes.kind = RoofLayout.Kind.GABLE
+			slopes.corners.assign(Array(d.points))
 			var ends := WallLayout.new()
 			ends.height = d.height
 			ends.gable_end = d.gable_end
@@ -135,7 +142,7 @@ static func wall(d: Dictionary) -> Dictionary:
 			out[units] = out.get(units, 0.0) + 2.0 * ends.gable_face(half_span)
 			var ridge := Vector2(d.points[1].x - d.points[0].x, d.points[1].z - d.points[0].z).length()
 			plan = (ridge + WallLayout.THICKNESS + 2.0 * RoofLayout.GABLE_OVERHANG) * 2.0 * (half_span + RoofLayout.OVERHANG)
-		out["thatch_m2" if d.roof.thatch and d.roof.pitch > 0.0 else "roof_m2"] = plan
+		out["thatch_m2" if d.roof.thatch and d.roof.pitch > 0.0 else "roof_m2"] = plan * slopes.stretch()
 		fittings += d.roof.chimneys.size() + (1 if d.roof.flag else 0)
 		var upper := WallLayout.upper_floors(d.height) if d.storey_floors else 0
 		if upper > 0:

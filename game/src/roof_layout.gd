@@ -19,7 +19,6 @@ const ROW := 0.24
 const TILE := Vector3(0.27, 0.05, 0.6)
 const NOSE := 0.18
 const CONE_LAP := 0.25
-const PITCH := Vector2(0.0, 6.0)
 ## A pitch pulled below this lands flat.
 const FLAT_SNAP := 0.4
 const SLAB := Vector3(0.7, 0.1, 0.5)
@@ -138,7 +137,6 @@ func adopt(built: RoofLayout) -> void:
 
 ## A pulled pitch as the roof takes it: below FLAT_SNAP it lands flat, else on the nearest `step`.
 static func snap_pitch(p: float, step: float) -> float:
-	p = clampf(p, PITCH.x, PITCH.y)
 	return 0.0 if p < FLAT_SNAP else snappedf(p, step)
 
 
@@ -219,6 +217,22 @@ func profile(steps: int) -> PackedVector2Array:
 		var x := eave() * i / steps
 		out.append(Vector2(x, rise(1.0 - x / hs)))
 	return out
+
+
+## The roof's area along its slopes over its plan out to the eave: how much tile or straw it lays per square metre
+## of ground it covers.
+func stretch() -> float:
+	if flat():
+		return 1.0
+	var p := profile(PROFILE_STEPS * 4)
+	var run := 0.0
+	var turned := 0.0
+	for i in range(1, p.size()):
+		var ds := p[i].distance_to(p[i - 1])
+		run += ds
+		turned += (p[i].x + p[i - 1].x) * ds
+	var e := eave()
+	return turned / (e * e) if kind == Kind.CONE else run / e
 
 
 func build() -> void:

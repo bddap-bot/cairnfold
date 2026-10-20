@@ -342,7 +342,7 @@ static func _wall(d: Variant) -> Variant:
 			return null
 		if typeof(r.get("center")) != TYPE_VECTOR3 or not _finite(r.center) or not _at_least(r.get("radius"), MIN_ROOF_RADIUS) or typeof(r.get("seed")) != TYPE_INT:
 			return null
-		if not _in(r.get("pitch"), RoofLayout.PITCH) or not _in(r.get("curve"), Vector2(-RoofLayout.CURVE, RoofLayout.CURVE)):
+		if not _at_least(r.get("pitch"), 0.0) or not _in(r.get("curve"), Vector2(-RoofLayout.CURVE, RoofLayout.CURVE)):
 			return null
 		var chimneys: Variant = r.get("chimneys")
 		if typeof(chimneys) != TYPE_PACKED_VECTOR2_ARRAY or chimneys.size() > MAX_CHIMNEYS or not Array(chimneys).all(func(c: Vector2) -> bool: return c.is_finite() and absf(c.x) < 40.0 and absf(c.y) < 40.0) or typeof(r.get("flag")) != TYPE_BOOL:

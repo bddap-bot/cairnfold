@@ -547,7 +547,7 @@ static func outline(at: Dictionary) -> Array[Vector3]:
 
 static func pitch_for(at: Dictionary) -> float:
 	if at.round:
-		return clampf(at.size.x * 0.8, RoofLayout.PITCH.x, RoofLayout.PITCH.y)
+		return at.size.x * 0.8
 	return at.size.y * 0.42
 
 
@@ -602,7 +602,7 @@ static func reshape_house(d: Dictionary, to: Dictionary) -> Dictionary:
 		flags.append(moved.call(f))
 	var roof := {}
 	if to.round:
-		roof = {"center": to.center, "radius": to.size.x * 0.5, "pitch": clampf(d.roof.pitch * to.size.x / from.size.x, RoofLayout.PITCH.x, RoofLayout.PITCH.y)}
+		roof = {"center": to.center, "radius": to.size.x * 0.5, "pitch": d.roof.pitch * to.size.x / from.size.x}
 	else:
 		var chimneys := PackedVector2Array()
 		var r0 := _ridge_of(from)
@@ -610,7 +610,7 @@ static func reshape_house(d: Dictionary, to: Dictionary) -> Dictionary:
 		for c: Vector2 in d.roof.chimneys:
 			var o: Vector3 = _scaled(from, to, from.center + r0 * c.x + r0.cross(Vector3.UP) * c.y) - to.center
 			chimneys.append(Vector2(o.dot(r1), o.dot(r1.cross(Vector3.UP))))
-		roof = {"pitch": clampf(d.roof.pitch * to.size.y / from.size.y, RoofLayout.PITCH.x, RoofLayout.PITCH.y), "chimneys": chimneys}
+		roof = {"pitch": d.roof.pitch * to.size.y / from.size.y, "chimneys": chimneys}
 	return {"points": PackedVector3Array(now), "rise": to.get("rise", from.rise), "arches": arches, "windows": windows, "lanterns": lanterns, "flags": flags, "roof": roof}
 
 

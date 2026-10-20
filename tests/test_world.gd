@@ -162,7 +162,7 @@ func _bad_commands_are_dropped() -> void:
 		"wall of one point": {"op": "wall", "walls": [_with(good, "points", PackedVector3Array([Vector3.ZERO]))]},
 		"wall off the map": {"op": "wall", "walls": [_with(good, "points", PackedVector3Array([Vector3.ZERO, Vector3(1e9, 0, 0)]))]},
 		"wall through NaN": {"op": "wall", "walls": [_with(good, "points", PackedVector3Array([Vector3.ZERO, Vector3(NAN, 0, 0)]))]},
-		"wall with a bad roof": {"op": "wall", "walls": [_with(good, "roof", {"kind": 0, "center": Vector3.ZERO, "radius": 2.0, "pitch": 900.0, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": false, "thatch": false})]},
+		"wall with a bad roof": {"op": "wall", "walls": [_with(good, "roof", {"kind": 0, "center": Vector3.ZERO, "radius": 2.0, "pitch": -1.0, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": false, "thatch": false})]},
 		"stroke of too many walls": {"op": "wall", "walls": range(Commands.MAX_PIECES + 1).map(func(_i: int) -> Dictionary: return good)},
 		"no walls": {"op": "wall", "walls": []},
 		"wall longer than any stroke": {"op": "wall", "walls": [_with(good, "points", PackedVector3Array(range(200).map(func(i: int) -> Vector3: return Vector3(-70 if i % 2 else 70, 0, 0))))]},

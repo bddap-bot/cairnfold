@@ -262,6 +262,16 @@ func _thatch_is_part_of_the_build_command() -> void:
 	d.roof.thatch = true
 	_check(Commands._wall(d) != null and Commands._wall(d).roof.thatch, "and a thatched one")
 	_check(Commands._reshape("walls", {"roof": {"thatch": false}}, Commands._wall(d)).roof == {"thatch": false}, "a reshape tiles it again")
+	d.roof.pitch = 9.0
+	_check(Commands._wall(d) != null, "a roof rising 9 m is a valid build")
+	d.roof.pitch = INF
+	_check(Commands._wall(d) == null, "an endless one is refused")
+	d.roof.pitch = -1.0
+	_check(Commands._wall(d) == null, "and one below flat")
+	d.roof.pitch = 2.0
+	var deeper := WallTool.house_of(d)
+	deeper.size.y = 20.0
+	_check(is_equal_approx(WallTool.reshape_house(d, deeper).roof.pitch, 10.0), "deepened, its rise scales past 6 m with the depth")
 	d.roof.thatch = 1
 	_check(Commands._wall(d) == null, "a covering that is not a yes or no is refused")
 	d.roof.erase("thatch")
@@ -272,10 +282,20 @@ func _the_budget_counts_thatch() -> void:
 	var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "plaster": false, "gable_end": 0, "storey_floors": false,
 		"lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "flag": false, "thatch": true}}
 	var plan := (6.0 + WallLayout.THICKNESS + 2.0 * RoofLayout.GABLE_OVERHANG) * (4.0 + WallLayout.THICKNESS + 2.0 * RoofLayout.OVERHANG)
+	var hs := 2.0 + WallLayout.THICKNESS * 0.5
+	var sloped := plan * sqrt(1.0 + pow(2.0 / hs, 2.0))
 	var thatched := Budget.wall(d)
-	_check(is_equal_approx(thatched.get("thatch_m2", 0.0), plan) and not thatched.has("roof_m2"), "a thatched house counts the ground its roof covers as thatch: %s" % thatched)
+	_check(is_equal_approx(thatched.get("thatch_m2", 0.0), sloped) and not thatched.has("roof_m2"), "a thatched house counts its roof's slopes out to the eaves as thatch: %s" % thatched)
 	d.roof.thatch = false
-	_check(is_equal_approx(Budget.wall(d).get("roof_m2", 0.0), plan) and not Budget.wall(d).has("thatch_m2"), "a tiled one as roof")
+	_check(is_equal_approx(Budget.wall(d).get("roof_m2", 0.0), sloped) and not Budget.wall(d).has("thatch_m2"), "a tiled one as roof")
+	d.roof.pitch = 9.0
+	var steep: float = Budget.wall(d).get("roof_m2", 0.0)
+	_check(is_equal_approx(steep, plan * sqrt(1.0 + pow(9.0 / hs, 2.0))) and steep > plan * 4.0, "a 9 m rise counts its long slopes, over four times its plan: %.1f m² over %.1f" % [steep, plan])
+	var tower := {"points": WallLayout.circle(Vector3.ZERO, 2.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "plaster": false, "gable_end": 0, "storey_floors": false,
+		"lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.CONE, "radius": 2.0, "pitch": 9.0, "curve": 0.0, "chimneys": [], "flag": false, "thatch": false}}
+	var disc := PI * pow(hs + RoofLayout.OVERHANG, 2.0)
+	_check(is_equal_approx(Budget.wall(tower).roof_m2, disc * sqrt(1.0 + pow(9.0 / hs, 2.0))), "a cone counts its surface, not its disc: %s" % Budget.wall(tower))
+	d.roof.pitch = 2.0
 	d.roof.thatch = true
 	d.points = WallLayout.rectangle(Vector3.ZERO, Vector3(12, 0, 0), 4.0)
 	_check(Budget.wall(d).thatch_m2 > thatched.thatch_m2 * 1.8, "a house twice as long counts nearly twice the thatch")

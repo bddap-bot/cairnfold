@@ -640,7 +640,7 @@ make it not possible to place so many objects that the game- starts stuttering, 
 wanna make it obvious to the user that there is a limit there"
 
 - What a garden holds counts in units (`Budget.UNITS`): square metres of stone wall,
-  plaster wall, fence and path face, and of the ground a tiled or flat roof and a thatched one cover out to their eaves; fittings that add a mesh (lanterns, flags,
+  plaster wall, fence and path face, and of a tiled or flat roof and a thatched one laid along their slopes out to their eaves; fittings that add a mesh (lanterns, flags,
   chimneys); painted grass blades and flowers, the meadow's own flowers too; trees and
   bushes standing; ponds. `World` keeps the count as every command applies, so deleting
   frees exactly what placing took, and undo, wipes and a garden loaded or joined count
@@ -674,6 +674,12 @@ wanna make it obvious to the user that there is a limit there"
   view gives; a view whose frames fell below the refresh rate is left out, its GPU time not the scene's.
   Hills and painted stone ground measured within noise of the bare meadow, so terrain
   counts nothing. Lantern light is baked (`Lamps`); a lantern counts by its meshes.
+- A roof counts the area along its slopes: its plan out to the eaves times `RoofLayout.stretch`, the slope's length
+  over its run for a gable, the cone's surface over its disc for a tower, 1 for a flat deck. Tiles and straw courses
+  are laid a fixed distance apart along the slope, so they grow with that area, not the plan. `roof_m2` and
+  `thatch_m2` were fitted per square metre of plan, on the costs scene's village alone, whose houses are all one
+  shape (4.9 by 3.08 m, rise 1.29 m, straight slopes; stretch 1.22022): each headset's fitted cost was divided by
+  that stretch, which is the cost the same runs give counted by slope, until they are measured again.
 - `demo/stress.json`, `demo/ladder.json`, `demo/tour.json` and `demo/costs.json` build past
   the budget on purpose (`{"op": "budget", "bounded": false}`), to measure what lies
   beyond it.
@@ -1634,8 +1640,9 @@ handles, no menu, nothing drawn but the house itself changing. Each hold changes
   pull the first hand had begun, so two hands never change the height.
 - A round tower has one footprint dimension: two hands spread its diameter, and it stays round.
 - The bounds are those of laying out: sides and a tower's diameter from 2.4 m. No side, height or plinth has a
-  greatest: the build budget, which charges walls and plinths by the square metre and roofs by their plan, is what
-  stops a house growing. A gable's rise alone stops at 6 m (`RoofLayout.PITCH`), since the budget charges a roof by its plan, not its slope.
+  greatest: the build budget, which charges walls, plinths and roofs by the square metre they lay, is what stops a
+  house growing. A roof's pitch has no greatest either: a steeper roof lays more tile along its slopes, and the
+  budget charges it so (`RoofLayout.stretch`).
 - Everything on the house follows: the roof covers the new walls, keeping its slope (a gable's rise scales
   with the depth under its ridge, a cone's with its radius, a flat deck stays flat); doors, windows, arches,
   lanterns, flags and chimneys keep their place in proportion along their own wall or ridge, so the light a

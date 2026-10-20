@@ -478,6 +478,7 @@ func _pushed_down_a_roof_goes_flat() -> void:
 	_check(RoofLayout.snap_pitch(RoofLayout.FLAT_SNAP - 0.05, 0.1) == 0.0, "just above flat snaps to flat")
 	_check(is_equal_approx(RoofLayout.snap_pitch(RoofLayout.FLAT_SNAP + 0.03, 0.1), RoofLayout.FLAT_SNAP), "the lowest pitch above the snap stays pitched")
 	_check(is_equal_approx(RoofLayout.snap_pitch(2.04, 0.1), 2.0), "pitches step by 0.1")
+	_check(is_equal_approx(RoofLayout.snap_pitch(12.04, 0.1), 12.0), "pulled up it rises past the 6 m it once stopped at")
 
 
 func _flat_cone() -> RoofLayout:
@@ -618,7 +619,7 @@ func _gable_cases() -> Array:
 	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)), "closed": true, "rise": 0.0, "arches": PackedFloat32Array(), "windows": PackedVector2Array(),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
 		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": false, "thatch": false}}
-	var shapes := [[d.points, 2.0], [WallLayout.rectangle(Vector3(0, 0, 0), Vector3(4, 0, 0), 2.4), RoofLayout.PITCH.y]]
+	var shapes := [[d.points, 2.0], [WallLayout.rectangle(Vector3(0, 0, 0), Vector3(4, 0, 0), 2.4), 9.0]]
 	for size in [Vector2(12, 4), Vector2(6, 8), Vector2(3, 2.4)]:
 		var at := WallTool.house_of(d)
 		at.size = size
@@ -802,7 +803,7 @@ func _the_budget_counts_gable_ends() -> void:
 	_check(is_equal_approx(Budget.wall(d).wall_m2, 20.0 * 2.4), "a flat-roofed house has none")
 
 
-const PITCHES: Array[float] = [0.4, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]
+const PITCHES: Array[float] = [0.4, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 9.0]
 const CURVES: Array[float] = [-1.0, 0.0, 1.0]
 
 

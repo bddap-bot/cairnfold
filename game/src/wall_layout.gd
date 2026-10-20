@@ -1457,16 +1457,23 @@ func _lay_boards(mid: float, hs: float, base: float, rng: RandomNumberGenerator)
 		x += w
 
 
-## Pieces of `kind` up each rake over the gable's stepped edge, as long as its curve allows.
+## Pieces of `kind` up each rake over the gable's stepped edge, each about half a metre along it however steep.
 func _lay_verge(mid: float, hs: float, base: float, rng: RandomNumberGenerator, kind: String) -> void:
 	for side in [-1.0, 1.0]:
 		var x := hs
 		while x > 0.05:
-			var x1 := maxf(x - rng.randf_range(0.42, 0.6), 0.0)
-			if x1 < 0.25:
-				x1 = 0.0
-			var lo := Vector2(x, gable.rise(1.0 - x / hs))
+			var x1 := x
+			var walked := 0.0
+			var length := rng.randf_range(0.42, 0.6)
+			while walked < length and x1 > 0.0:
+				var next := maxf(x1 - 0.01, 0.0)
+				walked += Vector2(x1 - next, gable.rise(1.0 - next / hs) - gable.rise(1.0 - x1 / hs)).length()
+				x1 = next
 			var hi := Vector2(x1, gable.rise(1.0 - x1 / hs))
+			if hi.distance_to(Vector2(0.0, gable.rise(1.0))) < 0.25:
+				x1 = 0.0
+				hi = Vector2(0.0, gable.rise(1.0))
+			var lo := Vector2(x, gable.rise(1.0 - x / hs))
 			var run := hi - lo
 			var at := (lo + hi) * 0.5 - run.orthogonal().normalized() * VERGE.y * 0.5
 			if not _standing([[mid + side * at.x - 0.01, mid + side * at.x + 0.01]]).is_empty():
