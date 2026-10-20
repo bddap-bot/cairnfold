@@ -21,7 +21,7 @@ func _init() -> void:
 func _every_tool_has_one_fixed_path() -> void:
 	var paths := ToolWheel.paths(Hand.TREE)
 	_check(Hand.TREE.size() == ToolWheel.SLOTS, "the wheel has %d slots, not %d" % [Hand.TREE.size(), ToolWheel.SLOTS])
-	_check(paths.size() == Hand.Tool.size(), "%d of %d tools are on the wheel" % [paths.size(), Hand.Tool.size()])
+	_check(paths.size() == Hand.Tool.size() - 1 and not paths.has(Hand.Tool.NONE), "%d of %d tools, every one but none, are on the wheel" % [paths.size(), Hand.Tool.size()])
 	for t in paths:
 		var w := ToolWheel.new(Hand.TREE)
 		for p in ToolWheel.sweep(Hand.TREE, paths[t]):
