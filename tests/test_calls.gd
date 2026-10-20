@@ -9,6 +9,7 @@ var failures := 0
 
 func _initialize() -> void:
 	_every_clip_is_sourced()
+	_every_conure_doing_has_its_calls()
 	await _calls_are_sparse_and_varied()
 	await _animals_near_the_head_stay_calm()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -45,6 +46,20 @@ func _every_clip_is_sourced() -> void:
 			_check(played.has(f.get_basename()), "%s is played" % f)
 
 
+## Whatever a conure is doing, it has calls of its own for it, and each is a call with clips.
+func _every_conure_doing_has_its_calls() -> void:
+	var doings: Array = Birds.State.keys() + ["PREEN", "WATCH"]
+	_check(Birds.VOICE.keys().all(func(d: String) -> bool: return d in doings), "every voiced doing is one a conure does")
+	var kinds := {}
+	for doing: String in doings:
+		var calls: Array = Birds.VOICE.get(doing, [])
+		_check(not calls.is_empty(), "a conure says something while %s" % doing)
+		for call: Array in calls:
+			_check(Calls.CLIPS.has(call[0]) and call[1] > 0.0, "%s's %s is a call with clips" % [doing, call[0]])
+			kinds[call[0]] = true
+	_check(kinds.size() >= 6, "conures have %d kinds of call" % kinds.size())
+
+
 func _calls(far := true) -> Calls:
 	var eyes := Node3D.new()
 	root.add_child(eyes)
@@ -64,6 +79,10 @@ func _calls_are_sparse_and_varied() -> void:
 	for i in int(Calls.ANY_GAP / STEP) + 1:
 		c.tick(STEP)
 	_check(c.call_out("bleat", at), "another kind calls once the calls are apart")
+	for i in int(Calls.ANY_GAP / STEP) + 1:
+		c.tick(STEP)
+	_check(c.call_out("murmur", at), "a murmur calls")
+	_check(c.call_out("quack", at), "and holds off no other call")
 	var heard := 0
 	var last: AudioStream = null
 	var repeats := 0
@@ -87,4 +106,8 @@ func _animals_near_the_head_stay_calm() -> void:
 		c.tick(STEP)
 		heard += int(c.now_and_then("chatter", near, 10.0, STEP))
 	_check(heard == 0, "a conure beside the head chattered %d times" % heard)
+	for i in int(60.0 / STEP):
+		c.tick(STEP)
+		heard += int(c.now_and_then("murmur", near, 10.0, STEP))
+	_check(heard > 0, "a conure beside the head murmurs")
 	_check(c.call_out("quack", near), "a duck landing beside the head still quacks")

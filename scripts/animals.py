@@ -16,10 +16,12 @@ from compose import SR, _fft_lowpass, write_ogg
 ROOT = pathlib.Path(__file__).resolve().parent.parent / "game" / "audio" / "animals"
 CACHE = pathlib.Path(__file__).resolve().parent / ".animals-cache"
 # Per kind: high-pass and low-pass corners in Hz and pitch ratio. A conure's chirps sit at 3–5 kHz, so they are
-# taken down three semitones, near the meadow bed's birds, and rolled off from 2.6 kHz with a steeper slope than the others.
+# taken down three semitones, near the meadow bed's birds, and rolled off from 2.6 kHz with a steeper slope than the others;
+# their contact calls, loud and ringing to 8 kHz, keep only their lowest two harmonics.
 # A fox is taken down three semitones too, out of the bright bark its quarrels have.
 SHAPE = {
     "conure": (500, 2600, 3, 2 ** (-3 / 12)),
+    "conure contact": (600, 1800, 6, 2 ** (-3 / 12)),
     "duck": (250, 3500, 2, 1.0),
     "duckling": (900, 3000, 2, 1.0),
     "sheep": (150, 3500, 2, 1.0),

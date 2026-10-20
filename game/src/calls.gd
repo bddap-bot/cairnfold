@@ -3,22 +3,35 @@ extends Node3D
 
 ## The animals' voices: short recordings (scripts/animals.py, game/audio/animals/sources.json) played at the
 ## animal that calls. Calls stay rare and quiet under the music: each kind waits its own while between calls,
-## any two calls are a little apart, no clip plays twice running, and an animal near the head stays calm.
+## any two calls but the soft ones are a little apart, no clip plays twice running, and an animal near the head makes
+## only its soft calls.
 
 ## Clips per call, and the least time between two calls of it.
-const CLIPS := {"chirp": 6, "chatter": 4, "quack": 4, "peep": 4, "bleat": 10, "mew": 6, "yip": 4}
-const GAP := {"chirp": 8.0, "chatter": 10.0, "quack": 8.0, "peep": 12.0, "bleat": 14.0, "mew": 12.0, "yip": 20.0}
-## Level at UNIT metres, before the distance falls it off: the conures' softest, as their calls are the highest. At 2 m
-## and 6 dB lower, an animal 5 to 10 m off called 18 to 28 dB under the music, which no one heard.
-const LEVEL := {"chirp": -9.0, "chatter": -8.0, "quack": -3.0, "peep": -10.0, "bleat": -4.0, "mew": -6.0, "yip": -9.0}
+const CLIPS := {
+	"murmur": 8, "grind": 4, "click": 4, "chatter": 5, "chirp": 8, "contact": 4,
+	"quack": 4, "peep": 4, "bleat": 10, "mew": 6, "yip": 4,
+}
+const GAP := {
+	"murmur": 4.0, "grind": 3.0, "click": 2.5, "chatter": 8.0, "chirp": 6.0, "contact": 15.0,
+	"quack": 8.0, "peep": 12.0, "bleat": 14.0, "mew": 12.0, "yip": 20.0,
+}
+## Level at UNIT metres, before the distance falls it off: the conures' contact call softest, as it is their
+## loudest. At 2 m and 6 dB lower, an animal 5 to 10 m off called 18 to 28 dB under the music, which no one heard.
+const LEVEL := {
+	"murmur": -8.0, "grind": -10.0, "click": -12.0, "chatter": -8.0, "chirp": -9.0, "contact": -15.0,
+	"quack": -3.0, "peep": -10.0, "bleat": -4.0, "mew": -6.0, "yip": -9.0,
+}
+## Calls quiet and close enough for beside the head, which no other call waits on: a conure on the hand or watching a
+## face up close murmurs and works its beak.
+const SOFT := ["murmur", "grind", "click"]
 const ANY_GAP := 3.0
 const UNIT := 6.0
 ## How much the distance takes off above CUTOFF Hz; the clips are already rolled off there.
 const FAR_SHELF := -12.0
 const CUTOFF := 3000.0
-## An animal nearer the head than this makes no call of its own, only those its doings bring.
+## An animal nearer the head than this makes no call of its own but its SOFT ones, and those its doings bring.
 const CALM := 2.5
-const VOICES := 4
+const VOICES := 6
 
 var viewer: Node3D
 var rng := RandomNumberGenerator.new()
@@ -58,10 +71,12 @@ func tick(delta: float) -> void:
 
 ## `kind` from `at` now, unless one was too lately. True if it called.
 func call_out(kind: String, at: Vector3) -> bool:
-	if _since[kind] < GAP[kind] or _since_any < ANY_GAP:
+	var soft := kind in SOFT
+	if _since[kind] < GAP[kind] or (_since_any < ANY_GAP and not soft):
 		return false
 	_since[kind] = 0.0
-	_since_any = 0.0
+	if not soft:
+		_since_any = 0.0
 	var options: Array = _clips[kind]
 	var pick := rng.randi() % (options.size() - 1)
 	if pick >= _last[kind]:
@@ -80,7 +95,7 @@ func call_out(kind: String, at: Vector3) -> bool:
 ## `kind` from `at` about once every `every` seconds of an animal's doing something, while the head keeps its
 ## distance.
 func now_and_then(kind: String, at: Vector3, every: float, delta: float) -> bool:
-	if rng.randf() >= delta / every or calm(at):
+	if rng.randf() >= delta / every or (calm(at) and kind not in SOFT):
 		return false
 	return call_out(kind, at)
 

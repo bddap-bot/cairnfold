@@ -2334,21 +2334,27 @@ sound costs no frame time.
   The script filters out rumble and hiss, rolls the highs off from 2.6 to 3.5 kHz,
   takes the conures and the fox three semitones down to sit with the meadow bed's birds, and
   levels every call alike; `tests/test_animals.py` holds every clip under 2% of its
-  energy above 4 kHz. Conures get soft chirps, beak clicks and murmurs, never their
-  contact calls. `Calls` plays them at the animal, sparse and under the music: each
-  kind waits 8–14 s between calls and any two are 3 s apart, no clip plays twice
+  energy above 4 kHz. Conures get six kinds of call, the soft ones most: murmurs, beak grinding, beak
+  clicks, grumbled chatter, chirps, and their contact calls cut down to the two lowest harmonics.
+  `Calls` plays them at the animal, sparse and under the music: each
+  kind waits its own while between calls and any two but the soft ones (murmurs, grinding, clicks) are 3 s apart, no clip plays twice
   running, pitch and level vary a little, the voices fall off from 6 m and never pass
   full level, and the distance takes up to 12 dB off above 3 kHz. Report (verbatim): "I am not
   hearing any sound coming from these animals right now. Is there supposed to be sound in the game right now".
   At 2 m and 6 dB lower, with the distance taking 24 dB off above 3 kHz, a call from an animal 5 to 10 m off
   reached the player 18 to 28 dB under the music, which a render of `demo/animals.json` could not tell from
   no call at all. A duck quacks as it splashes down and
-  now and then while swimming or resting, its ducklings peep; a perched conure
-  chatters and chirps now and then, and chirps on landing, and chatters as it pecks
-  in the grass; a settled sheep bleats about once a minute and a quarter, a settled deer
+  now and then while swimming or resting, its ducklings peep. A conure says what it is doing
+  (`Birds.VOICE`): perched it murmurs, grumbles and chirps now and then, preening it grinds its beak,
+  watching someone close it murmurs, looking over seeds held out it murmurs, on the hand it cracks
+  seeds and murmurs, pecking in the grass it clicks and chatters, it chirps on landing and hopping,
+  and gives its contact call, rarely and softest of all, flying in, about and away. A playtest heard
+  no conure at all: in the five minutes `demo/feeding.json` runs with the conures there,
+  they had made 19 calls, each a 0.3 to 1 s chirp or chatter 3 to 15 m off and none while on the hand,
+  watching, preening or flying; now about 60. A settled sheep bleats about once a minute and a quarter, a settled deer
   mews about every minute and a half, and a fox yips about every two and a half. Fish make
   no call: their nibbles are water sounds. An animal within 2.5 m of
-  the head makes no call of its own: it stays calm, and only a duck splashing down
+  the head makes none but its soft calls: it stays calm, and only a duck splashing down
   still quacks there.
   `NESTCOMBE_QUIT_AFTER=420 scripts/render.sh demo/animals.json OUT --write-movie
   OUT/animals.avi --fixed-fps 30` records five minutes of a garden the animals come to.
@@ -2445,7 +2451,7 @@ Every player action, from the code:
 | `PLAYER_JOINS` | Another player joins the garden | three plucks rising | none: no hand did it |
 | `PLAYER_LEAVES` | Another player leaves | three plucks falling | none: no hand did it |
 | `BIRDS_STARTLE` | A conure takes off from someone coming near | wing flutter | none: nothing touched the hand |
-| `HAND_PERCH` | A conure lands on a hand holding seeds | none: it chirps on landing (see "Sound") | two light steps |
+| `HAND_PERCH` | A conure lands on a hand holding seeds | none: it murmurs and cracks seeds there (see "Sound") | two light steps |
 | `HAND_PECK` | An animal eats from the seeds in a hand | none: pecks at a dish are too small to hear over the meadow | a light peck, at most every 0.4 s |
 | `REFUSED` | Something other than the frame budget turns an action down | low tock | two knocks |
 | `CAPPED` | The frame budget turns an action down | soft grunt | two knocks, and the bar jumps and shakes |

@@ -52,10 +52,21 @@ const INSIDE := 0.85
 const CROWN_POINTS := 12
 ## How far below the top of its crown a bird may stand on a tree.
 const CROWN_DEPTH := 1.2
-## Seconds, on average, between one bird's chatter and its chirps while perched, and its chatter while pecking.
-const CHATTER_EVERY := 75.0
-const CHIRP_EVERY := 110.0
-const PECK_CHATTER_EVERY := 40.0
+## What one bird says while doing each thing, by its `State`, or PREEN or WATCH while perched: calls, each with the
+## seconds on average between two of them. Murmurs and beak sounds near, grumbles and chirps further off, and contact
+## calls only on the wing.
+const VOICE := {
+	"PERCH": [["murmur", 20.0], ["chatter", 40.0], ["chirp", 80.0]],
+	"PREEN": [["grind", 8.0], ["murmur", 20.0]],
+	"WATCH": [["murmur", 9.0], ["grind", 30.0]],
+	"HOP": [["chirp", 8.0]],
+	"PECK": [["click", 12.0], ["chatter", 25.0]],
+	"DECIDE": [["murmur", 4.0]],
+	"FEED": [["click", 4.0], ["murmur", 10.0], ["grind", 30.0]],
+	"FLY": [["contact", 20.0]],
+	"ARRIVE": [["contact", 8.0]],
+	"LEAVE": [["contact", 12.0]],
+}
 
 var wildlife: Wildlife
 var rng := RandomNumberGenerator.new()
@@ -270,9 +281,11 @@ static func _crown(parts: Array[Flora.Plant]) -> PackedVector3Array:
 func _think(b: Bird, delta: float) -> void:
 	b.full = maxf(b.full - delta, 0.0)
 	if b.node.hand != null:
+		_voice(b, State.keys()[b.state], delta)
 		_to_hand(b, delta)
 		return
 	if b.state == State.LEAVE or b.state == State.ARRIVE or b.state == State.FLY:
+		_voice(b, State.keys()[b.state], delta)
 		return
 	var at := b.node.position
 	var fright := wildlife._startled(at, STARTLE)
@@ -280,6 +293,7 @@ func _think(b: Bird, delta: float) -> void:
 		_startle(b, fright.global_position)
 		return
 	if b.state == State.HOP:
+		_voice(b, "HOP", delta)
 		return
 	if b.full <= 0.0 and rng.randf() < delta * DRAWN:
 		var h := wildlife.offer_for(appetite, at)
@@ -293,11 +307,12 @@ func _think(b: Bird, delta: float) -> void:
 			return
 	var near := wildlife._nearest(at, WATCH) if b.state == State.PERCH else null
 	if near != null:
+		_voice(b, "WATCH", delta)
 		_watch(b, near, delta)
 		return
 	b.timer -= delta
 	if b.state == State.PECK:
-		wildlife.calls.now_and_then("chatter", b.node.position, PECK_CHATTER_EVERY, delta)
+		_voice(b, "PECK", delta)
 		if b.timer <= 0.0:
 			_flutter(b)
 		elif rng.randf() < delta * 0.4:
@@ -308,8 +323,7 @@ func _think(b: Bird, delta: float) -> void:
 		return
 	b.preening = maxf(b.preening - delta, 0.0)
 	b.node.blend(Conure.PREEN if b.preening > 0.0 else Conure.IDLE, delta)
-	wildlife.calls.now_and_then("chatter", b.node.position, CHATTER_EVERY, delta)
-	wildlife.calls.now_and_then("chirp", b.node.position, CHIRP_EVERY, delta)
+	_voice(b, "PREEN" if b.preening > 0.0 else "PERCH", delta)
 	if b.timer > 0.0:
 		return
 	b.timer = rng.randf_range(PAUSE.x, PAUSE.y)
@@ -325,6 +339,11 @@ func _think(b: Bird, delta: float) -> void:
 		_flutter(b)
 	elif roll < 0.84:
 		_swoop(b)
+
+
+func _voice(b: Bird, doing: String, delta: float) -> void:
+	for call: Array in VOICE[doing]:
+		wildlife.calls.now_and_then(call[0], b.node.position, call[1], delta)
 
 
 ## Someone close and calm: the bird turns to them and looks about, and stays, stepping aside only from a face
