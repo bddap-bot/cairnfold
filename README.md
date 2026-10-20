@@ -73,8 +73,8 @@ dirt paths, stone, flowers, grass, trees, boulders, pond, colour, style, camera,
 
 - Desktop preview and tests: `nix-shell --run scripts/test.sh`,
   `nix-shell --run 'scripts/render.sh demo/slice.json out'`.
-- Steam store and library art and screenshots: `nix-shell --run 'scripts/steam-art.sh [TITLE]'`
-  regenerates `steam/` from captures of `demo/steam.json` and `demo/steam-coop.json`; the
+- Steam and Horizon Store art and screenshots: `nix-shell --run scripts/store-art.sh`
+  regenerates `steam/` and `meta/` from captures of `demo/steam.json` and `demo/steam-coop.json`; the
   title is its one input. The trailer: `nix-shell --run 'scripts/steam-trailer.sh trailer.mp4'`
   records `demo/trailer.json`. Store copy: `steam/store.md`.
 - Release builds: `nix-shell --run 'scripts/package.sh TARGET OUT'` exports
