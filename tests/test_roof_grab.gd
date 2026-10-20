@@ -52,12 +52,15 @@ func _run() -> void:
 	Buttons.injected["right_hand/grip_click"] = true
 	await _frames()
 	_check(tool.resizing == w and tool._resize_roof, "second roof grip selects curvature in the building grab")
+	Cues.pulsed.clear()
 	var start := rig.right.position
 	for spread in [0.3, 0.0, -0.3, -0.301]:
 		rig.right.position = start + Vector3(spread, 0, 0)
 		await _frames()
 		_check(absf(w.roof.curve - spread * 2.0) < 0.0001, "separation drives continuous signed curvature: %s" % spread)
 		_check(w.roof.pitch == pitch and w.layout.points == points, "bowing keeps pitch and footprint")
+	for hand in rig.hands:
+		_check(Cues.pulsed.get(Cues.Act.WALL_STRETCH, {}).get(hand.get_instance_id(), 0) > 0, "roof stretch pulses both hands")
 	var curve := w.roof.curve
 	Buttons.injected.erase("left_hand/grip_click")
 	await _frames()
@@ -68,6 +71,10 @@ func _run() -> void:
 	main.world.undo()
 	await _frames()
 	_check(main.world.state.walls[w.id].roof.curve == 0.0, "one undo restores the original roof")
+	for limit in [-RoofLayout.CURVE, RoofLayout.CURVE]:
+		main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"curve": limit}}})
+		await _frames()
+		_check(main.world.state.walls[w.id].roof.curve == limit, "curvature limit survives command validation and round trip")
 	for tracker in trackers:
 		XRServer.remove_tracker(tracker)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))

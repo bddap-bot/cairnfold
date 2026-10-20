@@ -18,7 +18,7 @@ var line := PackedVector2Array()
 var feet := PackedFloat32Array()
 ## From the feet to the top another build stands on.
 var rise := 0.0
-## A pitched roof, whose surface is the ceiling of the room under it.
+## The roof surface is the ceiling of the room under it.
 var roof: RoofLayout
 ## The centre line shrunk by SLACK: inside it lies a joined build's room.
 var inner: Array[PackedVector2Array] = []
@@ -45,7 +45,7 @@ static func of(layout: WallLayout, cover: RoofLayout) -> Massing:
 		s.inner = Geometry2D.offset_polygon(s.line, -SLACK)
 		s.outer = Geometry2D.offset_polygon(s.line, half)
 		s.eaves = Geometry2D.offset_polygon(s.line, half + RoofLayout.OVERHANG)
-		if cover != null and not cover.flat():
+		if cover != null and (not cover.flat() or cover.curve != 0.0):
 			s.roof = RoofLayout.new()
 			s.roof.kind = cover.kind
 			s.roof.corners = layout.points.duplicate()

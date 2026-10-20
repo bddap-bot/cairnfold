@@ -28,7 +28,8 @@ const DECK_DROP := 0.03
 ## A point this near under a deck still stands on it: a ray's hit on the deck can fall a hair short of it.
 const ON_DECK := 0.01
 const BED_LAP := 0.2
-const CURVE := 1.0
+## Beyond this the pitched profile reverses at the ridge or eave and cuts through its supporting wall.
+const CURVE := 4.0 / PI
 ## How far the torching lies under the tiles' bed, and the longest side of its pieces: half the bounce probes'
 ## spacing, which it reads per vertex, and short enough that a build joining the roof takes it away where it takes
 ## the tiles.
@@ -147,7 +148,8 @@ func flat() -> bool:
 ## Height of the deck that `p` stands on, or -INF: a pitched roof, a point beside the house, or one below
 ## the deck, inside the house under it.
 func deck_under(p: Vector3) -> float:
-	return base if flat() and p.y >= base - ON_DECK and over(p.x, p.z) else -INF
+	var y := height_at(p.x, p.z)
+	return y if flat() and p.y >= y - ON_DECK and over(p.x, p.z) else -INF
 
 
 ## Rise above the wall top at `u`, 0 at the walls' outer faces and 1 at the ridge; below 0 (the overhang) it carries on straight.
@@ -162,6 +164,14 @@ func height_at(x: float, z: float) -> float:
 	var f := frame()
 	var d := Vector3(x, 0.0, z) - Vector3(f.mid.x, 0.0, f.mid.z)
 	var out := d.length() if kind == Kind.CONE else absf(d.dot(f.across))
+	if flat():
+		var reach := half_span() - WallLayout.THICKNESS + DECK_TUCK
+		var across := maxf(0.0, 1.0 - pow(out / reach, 2.0))
+		var along := 1.0
+		if kind == Kind.GABLE:
+			var length := ridge_length() * 0.5 - WallLayout.THICKNESS * 0.5 + DECK_TUCK
+			along = maxf(0.0, 1.0 - pow(d.dot(f.along) / length, 2.0))
+		return base + curve * reach * 0.25 * across * along
 	return base + rise(1.0 - out / half_span())
 
 
@@ -337,6 +347,13 @@ func _lay_deck(rng: RandomNumberGenerator) -> void:
 ## One flag of the deck, `size` across its top, a hair smaller for the joint and a hair tilted, on a mortar bed
 ## reaching past it into its neighbours' so no gap, rounded corners' included, opens onto the floor below.
 func _slab(at: Vector3, basis: Basis, size: Vector2, rng: RandomNumberGenerator) -> void:
+	if curve != 0.0:
+		at.y += height_at(at.x, at.z) - base
+		var dx := (height_at(at.x + 0.01, at.z) - height_at(at.x - 0.01, at.z)) / 0.02
+		var dz := (height_at(at.x, at.z + 0.01) - height_at(at.x, at.z - 0.01)) / 0.02
+		var normal := Vector3(-dx, 1.0, -dz).normalized()
+		var across := (basis.x - normal * basis.x.dot(normal)).normalized()
+		basis = Basis(across, normal, across.cross(normal))
 	var b := basis * Basis.from_euler(Vector3(rng.randf_range(-0.01, 0.01), rng.randf_range(-0.02, 0.02), rng.randf_range(-0.01, 0.01)))
 	var color := WallLayout.stone_color(rng) * rng.randf_range(0.86, 0.98)
 	_add(Transform3D(b.scaled_local(Vector3(maxf(0.001, size.x - 0.025), SLAB.y, maxf(0.001, size.y - 0.025))), at + Vector3.UP * rng.randf_range(-0.006, 0.006)), "deck", color, 0.9)
@@ -698,6 +715,8 @@ func _coat_slabs(mid: Vector3, out: Vector3, along: Vector3, width: float, c: Co
 		var basis := Basis(along.normalized(), out * sin(s) + Vector3.UP * cos(s), out * cos(s) - Vector3.UP * sin(s))
 		var length := (xs[i + 1] - xs[i]) / cos(s)
 		var at := mid + out * x + Vector3.UP * rise(1.0 - x / half_span()) + basis.y * COAT * 0.4
+		var crown := at + basis.y * COAT * 0.4
+		at.y = minf(at.y, height_at(crown.x, crown.z) + COAT - LUMPS - basis.y.y * COAT * 0.4)
 		slabs.append({"xform": Transform3D(basis.scaled_local(Vector3(width, COAT * 0.8, length)), at), "color": c.straw, "kind": "thatch", "ao": 1.0})
 
 
@@ -784,6 +803,8 @@ func _add(xform: Transform3D, what: String, color: Color, ao: float) -> void:
 
 ## The roof's surface as triangles, eave to ridge, for pointing at it.
 func surface() -> PackedVector3Array:
+	if flat() and curve != 0.0:
+		return _deck_surface()
 	var tris := PackedVector3Array()
 	var f := frame()
 	var prof := profile(PROFILE_STEPS)
@@ -803,6 +824,39 @@ func surface() -> PackedVector3Array:
 			var b: Vector3 = f.mid + out * prof[i + 1].x + Vector3.UP * prof[i + 1].y
 			tris.append_array([a - half, a + half, b + half, a - half, b + half, b - half])
 	return tris
+
+
+func _deck_surface() -> PackedVector3Array:
+	var tris := PackedVector3Array()
+	var f := frame()
+	var n := PROFILE_STEPS
+	if kind == Kind.CONE:
+		for i in 16:
+			var a := Vector3(cos(TAU * i / 16.0), 0, sin(TAU * i / 16.0))
+			var b := Vector3(cos(TAU * (i + 1) / 16.0), 0, sin(TAU * (i + 1) / 16.0))
+			for j in n:
+				var x := half_span() * j / n
+				var y := half_span() * (j + 1) / n
+				var points: Array[Vector3] = [f.mid + a * x, f.mid + b * x, f.mid + b * y, f.mid + a * y]
+				_deck_quad(tris, points)
+	else:
+		var reach := Vector2(ridge_length() * 0.5 + WallLayout.THICKNESS * 0.5, half_span())
+		for i in n:
+			for j in n:
+				var points: Array[Vector3] = []
+				for corner in [Vector2(i, j), Vector2(i + 1, j), Vector2(i + 1, j + 1), Vector2(i, j + 1)]:
+					var p: Vector2 = (corner * 2.0 / n - Vector2.ONE) * reach
+					points.append(f.mid + f.along * p.x + f.across * p.y)
+				_deck_quad(tris, points)
+	return tris
+
+
+func _deck_quad(tris: PackedVector3Array, points: Array[Vector3]) -> void:
+	for i in points.size():
+		points[i].y = height_at(points[i].x, points[i].z)
+	if not points[0].is_equal_approx(points[1]):
+		_facing(tris, Vector3.UP, points[0], points[1], points[2])
+	_facing(tris, Vector3.UP, points[0], points[2], points[3])
 
 
 static func _quad(tris: PackedVector3Array, mid: Vector3, d0: Vector3, d1: Vector3, p: Vector2, q: Vector2) -> void:

@@ -502,13 +502,13 @@ func _a_flat_roof_is_a_deck_inside_the_walls() -> void:
 	for t in deck:
 		var x: Transform3D = t.xform
 		var top := x.origin.y + x.basis.y.length() * 0.5
-		if absf(x.origin.x - 3.0) > inner.x + RoofLayout.DECK_TUCK or absf(x.origin.z) > inner.y + RoofLayout.DECK_TUCK or top > r.base + 0.01 or top < r.base - 0.1:
+		if absf(x.origin.x - 3.0) > inner.x + RoofLayout.DECK_TUCK or absf(x.origin.z) > inner.y + RoofLayout.DECK_TUCK or top > r.height_at(x.origin.x, x.origin.z) + 0.01 or top < r.height_at(x.origin.x, x.origin.z) - 0.1:
 			_check(false, "a deck slab out of place at %s" % x.origin)
 			return
 		area += x.basis.x.length() * x.basis.z.length()
 	_check(area > inner.x * inner.y * 4.0 * 0.85, "the deck covers the floor: %.1f m² of %.1f" % [area, inner.x * inner.y * 4.0])
 	var t := r.ray_hit(Vector3(3, 10, 1), Vector3.DOWN)
-	_check(absf(t - (10.0 - r.base)) < 0.01, "pointing down at the deck hits it at the cap's height: %f" % t)
+	_check(absf(t - (10.0 - r.height_at(3, 1))) < 0.01, "pointing down at the deck hits its curved surface: %f" % t)
 	_check(r.ray_hit(Vector3(3, 10, 3.0), Vector3.DOWN) == INF, "a flat roof has no eave beyond the walls")
 	var open := 0
 	for i in 60:
@@ -516,7 +516,7 @@ func _a_flat_roof_is_a_deck_inside_the_walls() -> void:
 			var p := Vector2(3.0 + (i / 59.0 - 0.5) * 2.0 * inner.x, (j / 39.0 - 0.5) * 2.0 * inner.y)
 			if not r.mortar.any(func(m): return _covers(m.xform, p)):
 				open += 1
-	_check(open == 0 and r.mortar.all(func(m): return m.xform.origin.y + m.xform.basis.y.length() * 0.5 < r.base - RoofLayout.DECK_DROP), "a mortar bed under the flags leaves no joint open to the floor: %d of 2400 points open" % open)
+	_check(open == 0 and r.mortar.all(func(m): return m.xform.origin.y + m.xform.basis.y.length() * 0.5 < r.height_at(m.xform.origin.x, m.xform.origin.z) - RoofLayout.DECK_DROP), "a mortar bed under the flags leaves no joint open to the floor: %d of 2400 points open" % open)
 	_check(_gable(6.0, 4.0, 2.0, 0.0).mortar.is_empty(), "a pitched roof lays no bed")
 	var round := _flat_cone()
 	var ring_open := 0
@@ -589,8 +589,8 @@ func _roof_surfaces_have_no_degenerate_triangles() -> void:
 
 
 func _covers(x: Transform3D, p: Vector2) -> bool:
-	var local := x.affine_inverse() * Vector3(p.x, x.origin.y, p.y)
-	return absf(local.x) <= 0.5 and absf(local.z) <= 0.5
+	var inverse := x.affine_inverse()
+	return AABB(Vector3.ONE * -0.5, Vector3.ONE).intersects_ray(inverse * Vector3(p.x, x.origin.y + 10.0, p.y), inverse.basis * Vector3.DOWN) != null
 
 
 func _gabled(plaster: bool, curve := 0.0, style := WallLayout.GableEnd.WALL, points := WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0), pitch := 2.0) -> Array:
@@ -804,7 +804,7 @@ func _the_budget_counts_gable_ends() -> void:
 
 
 const PITCHES: Array[float] = [0.4, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 9.0]
-const CURVES: Array[float] = [-1.0, 0.0, 1.0]
+const CURVES: Array[float] = [-RoofLayout.CURVE, 0.0, RoofLayout.CURVE]
 
 
 ## Every house and tower shape, gable end and pitch the roof tool offers, sagged, straight and bowed: no stone of

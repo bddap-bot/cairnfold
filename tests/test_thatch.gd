@@ -177,11 +177,11 @@ func _covered(r: RoofLayout, what: String) -> void:
 
 
 func _thatch_covers_every_roof_shape() -> void:
-	for g in [[6.0, 4.0, 1.68, 0.0], [6.0, 4.0, 5.0, 0.0], [6.0, 4.0, 2.0, 0.8], [6.0, 4.0, 2.0, -0.8], [2.4, 2.4, 1.0, 0.0], [3.0, 2.4, 6.0, 0.0], [14.0, 7.0, 6.0, 0.0], [14.0, 7.0, 0.5, 0.0]]:
+	for g in [[6.0, 4.0, 1.68, 0.0], [6.0, 4.0, 5.0, 0.0], [6.0, 4.0, 2.0, RoofLayout.CURVE], [6.0, 4.0, 2.0, -RoofLayout.CURVE], [2.4, 2.4, 1.0, 0.0], [3.0, 2.4, 6.0, 0.0], [14.0, 7.0, 6.0, 0.0], [14.0, 7.0, 0.5, 0.0]]:
 		var built := _gabled(g[0], g[1], g[2], g[3])
 		_covered(built[1], "a %.1f×%.1f gable at pitch %.2f, curve %.1f" % g)
 		_under_the_coat(built[0], built[1], "the %.1f×%.1f gable at pitch %.2f" % [g[0], g[1], g[2]])
-	for c in [[1.2, 1.9, 0.0], [3.5, 6.0, 0.0], [2.0, 3.2, -0.6], [2.0, 3.2, 0.8]]:
+	for c in [[1.2, 1.9, 0.0], [3.5, 6.0, 0.0], [2.0, 3.2, -RoofLayout.CURVE], [2.0, 3.2, RoofLayout.CURVE]]:
 		var built := _towered(c[0], c[1], c[2])
 		_covered(built[1], "a %.1f m cone at pitch %.1f, curve %.1f" % c)
 		_under_the_coat(built[0], built[1], "the %.1f m cone" % c[0])

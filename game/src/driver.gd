@@ -729,6 +729,8 @@ func _village(s: Dictionary) -> void:
 				tool.begin_house(at, yaw, on)
 				tool.place_house(at, yaw, Vector2(0.7, 0.44) * step)
 				tool.house.layout.height = s.get("height", WallTool.HOUSE_HEIGHT)
+				tool.house.roof.curve = s.get("curve", 0.0)
+				tool.house.roof.pitch = s.get("pitch", tool.house.roof.pitch)
 				tool.end_house()
 				tool.walls[-1].ivy_age = INF
 				on = PackedInt32Array([tool.walls[-1].id])
@@ -737,6 +739,8 @@ func _village(s: Dictionary) -> void:
 				wing = Terrain.ground(wing.x, wing.z)
 				tool.begin_house(wing, yaw)
 				tool.place_house(wing, yaw, Vector2(0.3, 0.6) * step)
+				tool.house.roof.curve = s.get("curve", 0.0)
+				tool.house.roof.pitch = s.get("pitch", tool.house.roof.pitch)
 				tool.end_house()
 				tool.walls[-1].ivy_age = INF
 	print("village: %d buildings in %.0f ms" % [k, (Time.get_ticks_usec() - start) / 1000.0])
