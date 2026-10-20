@@ -22,7 +22,6 @@
   {"op": "until", "digests": ["host-done"]},
   {"op": "place", "x": 0, "z": 1},
   {"op": "flat", "action": "next_tool"},
-  {"op": "flat", "action": "next_tool"},
   {"op": "face", "at": [0, 1.0, -2.5]},
   {"op": "digest", "name": "flat-feeding"},
   {"op": "until", "fed": "hand"},
