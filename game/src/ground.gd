@@ -2,7 +2,8 @@ class_name Ground
 extends RefCounted
 
 ## What the ground is made of: one texel per TEXEL over the play area, shared with shaders as the global
-## ground_mask (ground.gdshaderinc). Red is trodden earth, green is stone, neither is meadow. Every path
+## ground_mask (ground.gdshaderinc). Red is trodden earth, green is stone, neither is meadow, and blue is the
+## stone's style (StoneStyles), the last stroke's that laid most of the stone there. Every path
 ## and painted stroke is a mark that stamps soft discs onto it, and the mask is those marks replayed in
 ## the order of their build commands' ids, so lifting any one (undo) leaves exactly what the rest made, and
 ## every machine replays them alike. `laid` holds the garden's marks alone, for what build commands read;
@@ -15,9 +16,9 @@ enum Kind { MEADOW, EARTH, STONE }
 const SIZE := 512
 const TEXEL := Terrain.SIZE / SIZE
 
-static var image := Image.create(SIZE, SIZE, false, Image.FORMAT_RG8)
+static var image := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
 static var texture := ImageTexture.create_from_image(image)
-static var laid := Image.create(SIZE, SIZE, false, Image.FORMAT_RG8)
+static var laid := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
 ## The garden's marks in id order, with their ids alongside.
 static var _marks: Array[Object] = []
 static var _ids: Array[int] = []
@@ -38,21 +39,25 @@ static var _brushes := {}
 ## that patch and the marks meeting it.
 static var _areas := {}
 static var _wearing := Rect2i()
+## The style this machine's player lays stone in: the one they last turned the style wheel to.
+static var style := 0
 ## Where a patch is worn again before it is copied into `laid`: what lies outside the patch is never read.
-static var _patch := Image.create(SIZE, SIZE, false, Image.FORMAT_RG8)
+static var _patch := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
 
 
-## A painted ground stroke: soft discs of one kind, replayed in order.
+## A painted ground stroke: soft discs of one kind, replayed in order, its stone in one style.
 class Stroke:
 	var kind: Kind
+	var style := 0
 	## x, z, full radius and the width of the fade past it.
 	var stamps := PackedVector4Array()
 
-	func _init(m: Kind) -> void:
+	func _init(m: Kind, look := 0) -> void:
 		kind = m
+		style = look
 
 	func add(x: float, z: float, radius: float, verge: float) -> bool:
-		if not Ground.stamp(Ground.image, x, z, radius, verge, kind):
+		if not Ground.stamp(Ground.image, x, z, radius, verge, kind, style):
 			return false
 		stamps.append(Vector4(x, z, radius, verge))
 		Ground.upload()
@@ -60,7 +65,7 @@ class Stroke:
 
 	func wear(onto: Image) -> void:
 		for s in stamps:
-			Ground.stamp(onto, s.x, s.y, s.z, s.w, kind)
+			Ground.stamp(onto, s.x, s.y, s.z, s.w, kind, style)
 
 	func covers(x: float, z: float) -> bool:
 		for s in stamps:
@@ -134,6 +139,16 @@ static func lift(mark: Object) -> void:
 	_areas.erase(mark)
 
 
+## Gives the garden's stone stroke from build command `id` style `look`, as it wears.
+static func restyle(id: int, look: int) -> void:
+	var i := _ids.find(id)
+	if i < 0 or _marks[i].style == look:
+		return
+	_marks[i].style = look
+	if not quiet:
+		_rewear_area(_areas.get(_marks[i], Rect2i(0, 0, SIZE, SIZE)))
+
+
 ## Keeps showing a player's finished stroke until `release`, when its command has landed or been turned down.
 static func hold(mark: Object) -> void:
 	_held.append(mark)
@@ -160,7 +175,7 @@ static func clear() -> void:
 static func rewear() -> void:
 	if quiet:
 		return
-	laid.fill(Color(0, 0, 0))
+	laid.fill(Color(0, 0, 0, 0))
 	for m in _marks:
 		_area_of(m, laid)
 	_unworn.clear()
@@ -181,7 +196,7 @@ static func _rewear_area(area: Rect2i) -> void:
 		_area_of(m, laid)
 	_unworn.clear()
 	if area.has_area():
-		_patch.fill_rect(area, Color(0, 0, 0))
+		_patch.fill_rect(area, Color(0, 0, 0, 0))
 		for m in _marks:
 			if not _areas.has(m) or _areas[m].intersects(area):
 				_area_of(m, _patch)
@@ -222,10 +237,11 @@ static func upload() -> void:
 	texture.update(image)
 
 
-## Blends a disc of `kind` onto `onto`: full out to `radius`, fading to nothing over `verge` past it.
+## Blends a disc of `kind` onto `onto`: full out to `radius`, fading to nothing over `verge` past it. Stone takes
+## the texels it lays most of, or that held little stone, for `look`.
 ## False if it fell off the mask, or was meadow that found no stone to take: a stamp that changes nothing
 ## now may still matter on a replay once an earlier mark is lifted.
-static func stamp(onto: Image, x: float, z: float, radius: float, verge: float, kind: Kind) -> bool:
+static func stamp(onto: Image, x: float, z: float, radius: float, verge: float, kind: Kind, look := 0) -> bool:
 	var fade := _brush(radius, verge)
 	var side := int(sqrt(fade.size()))
 	var r := (side - 1) / 2
@@ -243,20 +259,23 @@ static func stamp(onto: Image, x: float, z: float, radius: float, verge: float, 
 			var a := fade[row + i]
 			if a == 0:
 				continue
-			var k := (j * area.size.x + i) * 2
+			var k := (j * area.size.x + i) * 4
 			var e := px[k]
 			var g := px[k + 1]
+			var b := px[k + 2]
 			match kind:
 				Kind.EARTH:
 					px[k] = e + ((255 - e) * a + 127) / 255
 					px[k + 1] = g - (g * a + 127) / 255
 				Kind.STONE:
 					px[k + 1] = g + ((255 - g) * a + 127) / 255
+					if a >= 128 or g < 128:
+						px[k + 2] = look
 				Kind.MEADOW:
 					px[k + 1] = g - (g * a + 127) / 255
-			changed = changed or px[k] != e or px[k + 1] != g
+			changed = changed or px[k] != e or px[k + 1] != g or px[k + 2] != b
 	if changed:
-		region.set_data(area.size.x, area.size.y, false, Image.FORMAT_RG8, px)
+		region.set_data(area.size.x, area.size.y, false, Image.FORMAT_RGBA8, px)
 		onto.blit_rect(region, Rect2i(Vector2i.ZERO, area.size), area.position)
 	return changed or kind != Kind.MEADOW
 

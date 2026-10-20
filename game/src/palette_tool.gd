@@ -10,24 +10,25 @@ extends Node3D
 ## miniatures of the styles of what it points at: a gable end's, a roof's (tiled, thatched or flat, a house's or a
 ## tower's), a roofless wall's top, a wall's face (stone, plaster or a house's timber framing; builds laid after take
 ## the material let go last), a flight's or landing's railings (stairs laid after take them), a house's or tower's floor (at its foot alone, or at
-## every storey), or a tree's species. It
-## only restyles: openings are the windows' and the arch's.
+## every storey), a tree's species, or a stroke of painted
+## stone ground's (StoneStyles; stone painted after takes the style let go last). It only restyles: openings are the windows' and the arch's.
 
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
 const WHEEL_RADIUS := 0.07
 ## Where the wheel stands from the controller, in its frame when the trigger went down.
 const WHEEL_AT := Vector3(0, 0.06, -0.05)
 
-enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, FLOOR }
+enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, FLOOR, STONE }
 enum Face { STONE, PLASTER, TIMBER }
 
 ## A hand's open wheel: what it changes (`aim`'s target) on which build (its garden table `of` and `id`; "" and -1 for
-## none) or tree (its trunk; null for none), the choice it started on and the one at its top, and the hand's frame when it
-## opened. One on neither is on the meadow.
+## none), tree (its trunk; null for none) or stone stroke (-1 for none), the choice it started on and the one at its top,
+## and the hand's frame when it opened. One on none of them is on the meadow.
 class Wheel:
 	var of := ""
 	var id := -1
 	var tree: Flora.Plant
+	var stroke := -1
 	var target: Dictionary
 	var start := 0
 	var pick := 0
@@ -117,8 +118,8 @@ func colour_target(element: Palette.Element, point: Vector3, of := "", id := -1)
 
 
 ## What the style tool would restyle from `origin` along `dir`, as `aim` gives it, with `restyle` in place of an
-## element, or empty: the tree, stairs, floor, gable end, roof or wall it meets first, a
-## roofless wall's top near it; fences, ladders and bushes have no style.
+## element, or empty: the tree, stairs, floor, gable end, roof, wall or painted stone it meets first, a
+## roofless wall's top near it; fences, ladders, bushes and unpaved ground have no style.
 func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var pick := walls.pick_building(origin, dir)
 	var roof := pick if pick.get("surface") == "roof" else {}
@@ -126,7 +127,11 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var solid := walls.flora.solid_hit(origin, dir, DeleteTool.REACH)
 	var floor := walls.pick_floor(origin, dir)
 	var nearest: float = pick.get("along", INF)
+	var ground: Variant = Terrain.raycast(origin, dir)
+	var stroke := Ground.mark_at(ground.x, ground.z) if ground != null and Ground.stone(ground.x, ground.z) > 0.5 else -1
 	var stair := world.stairs.pick(origin, dir, minf(minf(nearest, solid.get("along", INF)), floor.get("along", INF)))
+	if world.state.grounds.has(stroke) and origin.distance_to(ground) < minf(minf(minf(nearest, solid.get("along", INF)), floor.get("along", INF)), stair.get("along", INF)):
+		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.STONE, "count": styles(Restyle.STONE), "point": ground, "of": "", "id": -1, "wall": null, "stroke": stroke}
 	if not stair.is_empty():
 		if world.stairs.layouts[stair.stair].kind == StairLayout.Kind.LADDER:
 			return {}
@@ -167,6 +172,8 @@ static func styles(restyle: Restyle) -> int:
 			return StairLayout.RAILS.size()
 		Restyle.FLOOR:
 			return 2
+		Restyle.STONE:
+			return StoneStyles.STYLES.size()
 	return Face.size()
 
 
@@ -178,6 +185,7 @@ func open(hand: Hand, target: Dictionary) -> void:
 	w.of = target.of
 	w.id = target.id
 	w.tree = target.get("tree")
+	w.stroke = target.get("stroke", -1)
 	w.start = _now(w)
 	w.pick = w.start
 	if w.id >= 0 and target.tool == Hand.Tool.STYLE:
@@ -239,6 +247,8 @@ func _now(w: Wheel) -> int:
 		if walls.flora.species_of(w.tree) < 0 or group.is_empty():
 			return -1
 		return group.species.get(w.tree.index, FloraLayout.Species.OAK)
+	if w.stroke >= 0:
+		return world.state.grounds.get(w.stroke, {}).get("style", -1)
 	if w.id < 0:
 		return world.palette.season
 	if not world.state[w.of].has(w.id):
@@ -292,6 +302,9 @@ func _show(w: Wheel, pick: int) -> void:
 	if w.tree != null:
 		walls.flora.set_look(w.tree, pick as FloraLayout.Species, walls.flora.scale_of(w.tree))
 		return
+	if w.stroke >= 0:
+		Ground.restyle(w.stroke, pick)
+		return
 	if w.id < 0:
 		Palette.preview(pick)
 		return
@@ -331,7 +344,10 @@ func close(hand: Hand) -> void:
 		_settled(w)
 		return
 	Cues.play(Cues.Act.DIAL_SET, hand.global_position, hand)
-	if w.tree != null:
+	if w.stroke >= 0:
+		Ground.style = w.pick
+		world.submit({"op": "restone", "id": w.stroke, "style": w.pick}, _settled.bind(w), hand)
+	elif w.tree != null:
 		world.submit({"op": "tree", "group": w.tree.group, "index": w.tree.index, "species": w.pick}, _settled.bind(w), hand)
 	elif w.id < 0:
 		world.submit({"op": "season", "index": w.pick}, world.palette.apply, hand)
@@ -342,7 +358,7 @@ func close(hand: Hand) -> void:
 ## A sent choice is settled before it applies, so the build is shown as the garden has it once it has.
 func _settled(w: Wheel) -> void:
 	(func() -> void:
-		if w.tree != null:
+		if w.tree != null or w.stroke >= 0:
 			if _now(w) >= 0:
 				_show(w, _now(w))
 		elif w.id < 0 or w.target.tool == Hand.Tool.COLOUR:

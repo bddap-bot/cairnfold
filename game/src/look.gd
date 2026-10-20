@@ -12,7 +12,6 @@ const DISC_DISTANCE := 2400.0
 const DISC_SPAN_DEG := 6.5
 const DISC_RADIUS_DEG := 1.8
 
-const FLAGSTONE_TEXELS := 256
 # A fade or split selected by view depth changes a fixed object's shade when the head turns.
 # One stabilized map covers the garden's diagonal, including its height and floating views.
 const SHADOW_REACH := 256.0
@@ -33,7 +32,6 @@ const ADAPT_INDOOR := 1.8
 const ADAPT_SECONDS := 0.7
 
 static var _detail: NoiseTexture2D
-static var _flagstones: ImageTexture
 static var _absorb: GradientTexture1D
 
 var sun: DirectionalLight3D
@@ -70,33 +68,6 @@ static func detail_noise() -> NoiseTexture2D:
 
 ## Flagstones for stone ground, tiling: red rises from 0 along the joints between slabs, green is each
 ## slab's own value.
-static func flagstones() -> ImageTexture:
-	if _flagstones != null:
-		return _flagstones
-	var seams := _cells(FastNoiseLite.RETURN_DISTANCE2_SUB).get_data()
-	var cells := _cells(FastNoiseLite.RETURN_CELL_VALUE).get_data()
-	var rg := PackedByteArray()
-	rg.resize(seams.size() * 2)
-	for i in seams.size():
-		rg[i * 2] = seams[i]
-		rg[i * 2 + 1] = cells[i]
-	var img := Image.create_from_data(FLAGSTONE_TEXELS, FLAGSTONE_TEXELS, false, Image.FORMAT_RG8, rg)
-	img.generate_mipmaps()
-	_flagstones = ImageTexture.create_from_image(img)
-	return _flagstones
-
-
-static func _cells(returns: FastNoiseLite.CellularReturnType) -> Image:
-	var n := FastNoiseLite.new()
-	n.seed = 31
-	n.noise_type = FastNoiseLite.TYPE_CELLULAR
-	n.frequency = 0.05
-	n.fractal_type = FastNoiseLite.FRACTAL_NONE
-	n.cellular_jitter = 0.85
-	n.cellular_return_type = returns
-	return n.get_seamless_image(FLAGSTONE_TEXELS, FLAGSTONE_TEXELS)
-
-
 static func cloud_noise() -> NoiseTexture2D:
 	var n := FastNoiseLite.new()
 	n.seed = 21

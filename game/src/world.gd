@@ -541,6 +541,16 @@ static func _units(of: String, d: Dictionary) -> Dictionary:
 	return Budget.wall(d) if of == "walls" else Budget.stairs(d)
 
 
+## A ground stroke as the garden keeps it, from its command; given its `id`, the command that lays it again.
+static func _ground(d: Dictionary, id := -1) -> Dictionary:
+	var out := {"kind": d.kind, "stamps": d.stamps}
+	if d.has("style"):
+		out.style = d.style
+	if id >= 0:
+		out.merge({"op": "ground", "id": id})
+	return out
+
+
 ## What a command changes, as keys `touched` tracks: a wall, a painted group, patches of ground and meadow.
 func _keys(cmd: Dictionary) -> Array:
 	match cmd.op:
@@ -555,7 +565,7 @@ func _keys(cmd: Dictionary) -> Array:
 				return ["p%d" % cmd.group]
 			var at: Vector3 = flora.groups[0][cmd.index].anchor
 			return ["m%d,%d" % [floori(at.x / PATCH), floori(at.z / PATCH)]]
-		"stairs", "unstairs", "path", "unpath", "ground", "unground":
+		"stairs", "unstairs", "path", "unpath", "ground", "unground", "restone":
 			return ["q%d" % cmd.id]
 		"season":
 			return ["season"]
@@ -673,17 +683,21 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			paths.take(cmd.id)
 			_account("q%d" % cmd.id, {})
 		"ground":
-			state.grounds[cmd.id] = {"kind": cmd.kind, "stamps": cmd.stamps}
-			var stroke := Ground.Stroke.new(cmd.kind as Ground.Kind)
+			state.grounds[cmd.id] = _ground(cmd)
+			var stroke := Ground.Stroke.new(cmd.kind as Ground.Kind, cmd.get("style", 0))
 			stroke.stamps = cmd.stamps
 			_strokes[cmd.id] = stroke
 			Ground.lay(stroke, cmd.id)
 			inverse = {"op": "unground", "id": cmd.id}
 		"unground":
-			inverse = {"op": "ground", "id": cmd.id, "kind": state.grounds[cmd.id].kind, "stamps": state.grounds[cmd.id].stamps}
+			inverse = _ground(state.grounds[cmd.id], cmd.id)
 			state.grounds.erase(cmd.id)
 			Ground.lift(_strokes[cmd.id])
 			_strokes.erase(cmd.id)
+		"restone":
+			inverse = {"op": "restone", "id": cmd.id, "style": state.grounds[cmd.id].style}
+			state.grounds[cmd.id].style = cmd.style
+			Ground.restyle(cmd.id, cmd.style)
 		"plant":
 			var g := cmd.duplicate(true)
 			for k in ["op", "seq", "by", "token", "id"]:
@@ -907,7 +921,7 @@ func snapshot() -> Dictionary:
 	for id in state.paths:
 		cmds.append({"op": "path", "id": id, "path": state.paths[id]})
 	for id in state.grounds:
-		cmds.append({"op": "ground", "id": id, "kind": state.grounds[id].kind, "stamps": state.grounds[id].stamps})
+		cmds.append(_ground(state.grounds[id], id))
 	for id in state.walls:
 		cmds.append({"op": "wall", "ids": PackedInt32Array([id]), "walls": [state.walls[id]]})
 	for id in state.easels:

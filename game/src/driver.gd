@@ -444,7 +444,10 @@ func _fit(s: Dictionary) -> void:
 	main.fitting_tool.fit(target)
 
 
+## A stroke of `tool` along `points`; stone in `style` (StoneStyles' index) when given, as if the style wheel last let go there.
 func _paint(s: Dictionary) -> void:
+	if s.has("style"):
+		Ground.style = s.style
 	var flora_tool: FloraTool = main.flora_tool
 	var b := flora_tool.brush(main.rig.left if s.get("hand", "left") == "left" else main.rig.right)
 	b.hand.tool = Hand.Tool[s.tool.to_upper()]

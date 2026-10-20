@@ -9,7 +9,7 @@ const FLOWERS := 3200
 const TREES := 46
 const BUSHES := 60
 ## The terrain shader's ground colours.
-const GROUND := {&"earth": Color(0.45, 0.38, 0.27), &"rock": Color(0.64, 0.6, 0.53)}
+const GROUND := {&"earth": Color(0.45, 0.38, 0.27)}
 ## The grass's colours (meadow.gdshaderinc), which the meadow's ground takes too.
 const GRASS := {&"root_color": Color(0.10, 0.24, 0.06), &"tip_lush": Color(0.45, 0.68, 0.18), &"tip_dry": Color(0.80, 0.78, 0.34), &"cool_clump": Color(0.82, 0.96, 0.90), &"warm_clump": Color(1.10, 1.02, 0.82)}
 
@@ -31,7 +31,7 @@ func _ground() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://src/terrain.gdshader")
 	mat.set_shader_parameter("detail", Look.detail_noise())
-	mat.set_shader_parameter("flagstones", Look.flagstones())
+	StoneStyles.apply(mat)
 	for k in GROUND:
 		mat.set_shader_parameter(k, GROUND[k])
 	for k in GRASS:

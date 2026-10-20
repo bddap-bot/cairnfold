@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of the style tool's plaster faces and tree species, through the host as a player's turn of the
+## Headless checks of the style tool's plaster faces, tree species and painted stone's styles, through the host as a player's turn of the
 ## wheel goes: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_style.gd
 
 var failures := 0
@@ -27,6 +27,7 @@ func _run() -> void:
 	_meadow_trees_take_a_species()
 	_trees_grow_by_the_grip()
 	_meadow_trees_grow()
+	_stone_takes_a_style()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -339,3 +340,46 @@ func _towers_keep_stone() -> void:
 		_turn(target, 1)
 		_check(not world.state.walls[id].plaster, "turning the tower face wheel keeps stone")
 	world.restore({"seq": 0, "cmds": []})
+
+
+## Painted stone aimed at offers every style in StoneStyles' table and turns its stroke to one through the host, which a
+## peer takes; the mask carries it where that stroke lies, stone painted after takes it, and an undo, a redo and a save
+## follow it. A later stroke's style takes the ground it covers most.
+func _stone_takes_a_style() -> void:
+	var r := FloraTool.MAX_RADIUS * 0.4
+	var stamps := PackedVector4Array([Vector4(30, 30, r, r * 2.0), Vector4(31.5, 30, r, r * 2.0)])
+	_check(Commands.clean({"op": "ground", "kind": Ground.Kind.STONE, "stamps": stamps}, world.state, false).is_empty(), "stone names its style")
+	_check(Commands.clean({"op": "ground", "kind": Ground.Kind.STONE, "stamps": stamps, "style": StoneStyles.STYLES.size()}, world.state, false).is_empty(), "no style past the last")
+	world._order({"op": "ground", "kind": Ground.Kind.STONE, "stamps": stamps, "style": 0}, world.me())
+	var id := world.seq
+	Ground.settle()
+	var at := Terrain.ground(30.5, 30)
+	var target: Dictionary = main.palette_tool.aim_style(at + Vector3(0, 3, 3), Vector3(0, -3, -3).normalized())
+	_check(target.get("restyle") == PaletteTool.Restyle.STONE and target.get("stroke") == id and target.get("count") == StoneStyles.STYLES.size(), "the style tool aimed at painted stone offers its styles: %s" % [target])
+	_check(main.palette_tool.aim_style(Terrain.ground(-40, -40) + Vector3(0, 3, 3), Vector3(0, -3, -3).normalized()).is_empty(), "bare meadow has no style")
+	for i in StoneStyles.STYLES.size():
+		var model := ToolModels.style(PaletteTool.Restyle.STONE, i, false)
+		_check(model.get_child_count() == 2, "%s has its miniature" % StoneStyles.STYLES[i].name)
+		model.free()
+	var relayed := _relayed({"op": "restone", "id": id, "style": 3}, 2)
+	_check(relayed.get("style") == 3 and relayed.get("id") == id, "a peer takes the host's style: %s" % relayed)
+	_check(Commands.clean({"op": "restone", "id": id + 100, "style": 1}, world.state, false).is_empty(), "only a standing stroke is restyled")
+	_turn(target, 3)
+	_check(world.state.grounds[id].style == 3 and _style_at(30.5, 30) == 3, "a twist of the wheel turns the stone the fourth style: %d" % _style_at(30.5, 30))
+	_check(Ground.style == 3, "stone painted after takes it")
+	world._order({"op": "undo"}, world.me())
+	_check(world.state.grounds[id].style == 0 and _style_at(30.5, 30) == 0, "an undo puts the first style back")
+	world._order({"op": "redo"}, world.me())
+	_check(_style_at(30.5, 30) == 3, "a redo brings the fourth again")
+	world.restore(world.snapshot())
+	Ground.settle()
+	_check(world.state.grounds[id].style == 3 and _style_at(30.5, 30) == 3, "a save carries it")
+	world._order({"op": "ground", "kind": Ground.Kind.STONE, "stamps": PackedVector4Array([Vector4(33, 30, r, r * 2.0)]), "style": 1}, world.me())
+	Ground.settle()
+	_check(_style_at(33, 30) == 1 and _style_at(30, 30) == 3, "a later stroke's style takes what it covers most, the first keeps the rest: %d, %d" % [_style_at(33, 30), _style_at(30, 30)])
+	Ground.style = 0
+	world.restore({"seq": 0, "cmds": []})
+
+
+func _style_at(x: float, z: float) -> int:
+	return Ground._texel(x, z, Ground.laid).b8

@@ -1514,7 +1514,7 @@ Stage numbers refer to the build order at the end.
 | Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | A wall drawn over a tree or bush arches over it, shown live while drawing; one of 5 m or more over open ground opens an arch at the middle; the arch tool (its icon a wall with an archway through it) cuts an archway where it points on a wall, in the wall's own stone or plaster, and on an arch of the wall's own (not a path's) fills it again, one undo step either way. Wall chemistry, in either order (a path laid through a wall, or a wall drawn across a path): one arch where they cross, or, where the crossing runs 2.8 m or more along the wall (a wide path, or one meeting it at a slant), an arcade of arches 2.3 m apart on stone pillars. A crossing beside an arch already there joins it as an arcade, so no opening closes; undoing the path closes the arches it opened | 1 (done), 5 (done) |
 | Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends and at the corners of a house | 1 (done), 4 (done) |
 | Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | The path tool's trigger, swept over the ground: flat stones laid in rows along the smoothed stroke, as wide as the brush ring (`PathLayout`), one to a cell of each row and clear of every stone already laid, so stones never overlap on curves, at junctions or where paths cross: a later path paves around earlier ones; like the plants they ride the ground, so reshaping it carries them along. The stroke wears trodden earth into the ground mask (see "Ground materials") that the terrain shader shows and the grass and flower shaders read to part around the stones | 5 (done) |
-| Stone ground | Steep terrain turns rocky; paths of dirt and, later, cobblestone blended with them | The stone tool paints flagstone ground where it points, fraying into the meadow slab by slab; a stroke begun on stone paints meadow back (see "Ground materials") | 7 (done) |
+| Stone ground | Steep terrain turns rocky; paths of dirt and, later, cobblestone blended with them | The stone tool paints stone ground where it points, in the style the style tool last set (fieldstone, cobblestone, flagstone, river cobble, mossy, ashlar), fraying into the meadow stone by stone; a stroke begun on stone paints meadow back (see "Ground materials") | 7 (done) |
 | Towers | A loop held down straightens into a circle | A wall drawn into a loop, round or any shape, stays a freestanding wall, roofless. A round tower is its own tool beside the house, a little tower under a cone in the ring, carried and set down as a house is: 4.5 m tall under a cone roof, 3.4 m across, spread every way at once by two hands while carried or once built (from 2.4 m across, no widest). No door until one is made, as for a house. `demo/tower.json` builds a stone tower, a plaster one and a house | 4 (done) |
 | Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Circle footprints are the round towers above. Its own tool, a little house in the ring. Its trigger takes up a square house where the hand points and carries it, turning with the hand; the other hand's grip joins to hold it by both hands, which move it by their midpoint, turn it as the pair turns and stretch the side nearest the line between them as they spread (each side from 2.4 m, with no longest or deepest). Raising the hand as it carries raises it onto a plinth. Letting go builds it. Built, it is resized where it stands: a grip on its wall pulls its height, and the other hand's grip on it too stretches its width or depth, and both hands raised together raise it (see "Resizing a house" and "Raising a house"). Stone walls with corner piers and no door, level on its lowest ground; a door comes from the windows tool low on a wall, an arch from the arch tool or from a path running in | 4 (done) |
 | Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings") | 4 (done) |
@@ -1830,7 +1830,7 @@ head (`Hand.TREE`, `ToolWheel`). Sweeping the hand toward a slot makes it hot, a
 go of the button takes the hot tool, and letting go with nothing hot empties the hand. A slot is a
 tool or a subtree, drawn as its tools in miniature; every icon is tipped toward the eye, as a
 controller's top is seen, on a pale disc. Each icon is a miniature of what its tool makes: stone ground's
-is baked from the terrain shader's own flagstones and colours, fraying into meadow at the rim. Reaching a
+is a disc of fieldstone shaded by the ground's own stone code, fraying into meadow at the rim. Reaching a
 subtree hides the rest of the wheel and opens its tools beside it. Reached by a sideways swing, three or
 four stand in a column on the side away from that swing, so a deep pick zig-zags: right onto planting, left
 onto trees. The top slot holds two, opening one to each side: up, then left for colour or right for style.
@@ -1947,7 +1947,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the ground even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
 | Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick flicked left or right: 30° snap turn |
-| Restyle | Trigger held on a hand holding the style tool, pointing at a gable end, a roof, a roofless wall's top, along a wall or at a tree: twist the wrist to turn a wheel of miniatures of that thing's styles, live on the build; let go to keep the one at the top (see "Styles") |
+| Restyle | Trigger held on a hand holding the style tool, pointing at a gable end, a roof, a roofless wall's top, along a wall, at a tree or at painted stone: twist the wrist to turn a wheel of miniatures of that thing's styles, live on the build; let go to keep the one at the top (see "Styles") |
 | Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground, or along a build's top to build on it; release to finish. Strokes under 1 m are discarded, and a stroke near a standing wall merges into it |
 | Raise or lower a wall | Grip pointing at a wall, whatever the hand holds, move the hand up or down; the gain grows with distance so far walls are easy to adjust |
 | Shape a roof | Grip pointing at a roof, whatever the hand holds: up and down for pitch, sideways for curvature; all the way down snaps it flat |
@@ -2133,7 +2133,7 @@ at: a gable end, its house's gable ends (the wall's, boarded, crow-stepped; hous
 house's or tower's roof, pitched, a cone (standing it as a round tower, see "Towers") or flat, or pitched or a cone thatched (see "Thatch"); a house's or tower's floor, at its foot alone or at every storey (see "Floors"); a roofless
 wall's top, merlons, plain capping or coping; a wall's face, stone or plaster, and on a house the timber framings
 (walls and houses laid after take the material turned to last); a flight or landing, its railings, stone, wooden or
-none (stairs laid after take them); a tree, its species: an oak's round crown, a
+none (stairs laid after take them); painted stone, its stroke's style (see "Ground materials"; stone painted after takes it); a tree, its species: an oak's round crown, a
 fir's dark cone, a poplar's column, a birch's pale trunk under a light open crown, a copper beech's low
 wine-red dome. Every species is the same trunk and eight foliage blobs placed differently, so a tree changes
 species in the slots it holds and a forest costs what it did: on a Quest 2, `demo/forest.json`'s full tree
@@ -2325,18 +2325,31 @@ is bare (earth or stone), and the brushes plant nothing there.
   stand up again where the stone goes. A stroke is one history step.
 - **Slopes:** the terrain shader treats a slope too steep to hold soil as stone ground too: one stone
   look, fed by the mask's green channel or by the slope, whichever is higher.
-- **Look:** flagstones from a tiling cellular-noise texture (`Look.flagstones`: distance to the joint,
-  and one value per slab), in a warm grey with a lighter middle on each slab and earthy green joints.
-  Toward the edge of stone ground whole slabs drop out, the lowest-valued first, so it frays into the
-  meadow as scattered stepping stones rather than ending in a line, while the grass thins over the
-  same fade.
+- **Styles:** each stroke of stone carries a style from one table (`StoneStyles`): fieldstone (the
+  default), cobblestone (the earlier flagstone pattern, kept as a style), flagstone, river cobble, mossy and
+  ashlar. The mask's blue channel holds the style of the stroke that laid most of the stone at each texel, read
+  nearest-texel at a jittered spot so two styles meet along a ragged line. The style tool on painted stone
+  opens a wheel of the table's styles, each a disc of that stone shaded as the ground shades it; letting go
+  restyles that stroke (`restone`, one undo step), and stone painted after takes the style let go last.
+- **Look:** each style's pattern tiles a square of ground, baked once at load on the GPU (`stone_bake.glsl`,
+  512² a layer of one `Texture2DArray`, mipmapped): height from the joint to each stone's crown, one value
+  per stone, and the face's normal. Irregular stones are a tiling Voronoi with warped cells and corners
+  rounded by a soft minimum over the joints, pebbles are domed ellipses, ashlar is cut blocks in courses.
+  The normal tilts the lit surface, so stones read raised from their joints; each stone takes a tone between
+  its style's dark and light stones, darkens where it dips into its joint, and carries grain, a little lichen
+  and its style's moss. Joints are shaded soil, grassed in patches. Toward the edge of stone ground whole
+  stones drop out, the lowest-valued first, so it frays into the meadow as scattered stones rather than
+  ending in a line, while the grass thins over the same fade.
 - **Cost:** the terrain and plant shaders read the mask once per fragment or vertex; only stone ground
-  adds one texture read, behind a branch. Desktop RTX 2080 at
-  1600×1200, a meadow with a path and painted flowers in view (`render.sh`, Godot's viewport GPU timer,
-  median of 23–24 one-second samples, two interleaved runs each, on a GPU busy with other processes):
-  11.16 and 11.27 ms before, 11.10 and 9.97 ms after with a stone patch in view. Run-to-run spread on
-  that GPU is over a millisecond, so the lower run is noise, not a gain. Headset cost is not yet
-  measured.
+  adds its reads, behind a branch: the style's texel, the pattern layer and one more noise tap. Desktop
+  RTX 2080 at 1600×1200, standing over a strip of stone that fills the view (`render.sh`, Godot's viewport
+  GPU timer, median of 15 one-second samples, four meadow/stone pairs a run, two runs each tree,
+  alternated): the flat flagstones read 4.31–4.40 ms against the meadow's 4.36–4.48 (nothing), the styled,
+  normal-mapped stone 4.72–4.80 against 4.38–4.48, so about 0.35 ms a frame when stone fills the screen.
+  Memory: the pattern array is 6 × 512² RGBA8 with mipmaps, 8.4 MB, and the mask grows from RG8 to RGBA8
+  (+0.5 MB). The bake at load takes 0.4–1.4 s on that desktop (a local RenderingDevice, ~0.3 s; the
+  dispatch, 20 ms; mipmaps, 10 ms; the first run on a machine also compiles the compute pipeline, 2.7 s
+  once). Headset cost is not yet measured.
 
 What Tiny Glade does, from public material only: grass and rocky terrain are separate surface kinds
 (beta 1.16.0 notes fix "terrain cracks and 'astroturf' popping on top of grass and rocky terrain"); rock

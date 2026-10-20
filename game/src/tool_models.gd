@@ -70,7 +70,7 @@ static func build(tool: Hand.Tool) -> Node3D:
 		Hand.Tool.POND:
 			_pond(root)
 		Hand.Tool.STONE:
-			_flagstones(root)
+			_stone_ground(root, 0)
 		Hand.Tool.VISIT:
 			_figure(root)
 		Hand.Tool.COLOUR:
@@ -119,6 +119,11 @@ static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round :
 			_wall(root, plastered, i as WallLayout.Top)
 		PaletteTool.Restyle.FLOOR:
 			_floored(root, plastered, i == 1)
+		PaletteTool.Restyle.STONE:
+			# Turned from lying flat to face the eye, a little from above.
+			_stone_ground(root, i)
+			for part in root.get_children():
+				part.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.62).scaled(Vector3.ONE * 1.4), Vector3.ZERO) * part.transform
 		PaletteTool.Restyle.FACE:
 			if i == PaletteTool.Face.TIMBER:
 				_house(root, true)
@@ -444,9 +449,9 @@ static func _figure(root: Node3D) -> void:
 	a.stand.call_deferred()
 
 
-## A disc of stone ground as the stone tool lays it: the terrain's own flagstones and colours, fraying
-## toward the rim into meadow as scattered slabs.
-static func _flagstones(root: Node3D) -> void:
+## A disc of stone ground as the stone tool lays it in `style`, shaded as the ground shades it, fraying toward the rim
+## into meadow as scattered stones.
+static func _stone_ground(root: Node3D, style: int) -> void:
 	var turf := CylinderMesh.new()
 	turf.top_radius = 0.026
 	turf.bottom_radius = 0.024
@@ -455,13 +460,18 @@ static func _flagstones(root: Node3D) -> void:
 	turf.rings = 1
 	var face := PlaneMesh.new()
 	face.size = Vector2(0.052, 0.052)
-	var mat: StandardMaterial3D = _mats.get("stone_ground")
+	var key := "stone_ground_%d" % style
+	var mat: ShaderMaterial = _mats.get(key)
 	if mat == null:
-		mat = StandardMaterial3D.new()
-		mat.albedo_texture = ImageTexture.create_from_image(_stone_ground_image())
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
-		mat.roughness = 1.0
-		_mats["stone_ground"] = mat
+		mat = ShaderMaterial.new()
+		mat.shader = preload("res://src/stone_disc.gdshader")
+		StoneStyles.apply(mat)
+		mat.set_shader_parameter("style", style)
+		mat.set_shader_parameter("detail", Look.detail_noise())
+		mat.set_shader_parameter("earth", Meadow.GROUND[&"earth"])
+		mat.set_shader_parameter("meadow", Meadow.GRASS[&"root_color"].lerp(Meadow.GRASS[&"tip_lush"].lerp(Meadow.GRASS[&"tip_dry"], 0.5), 0.6))
+		_mats[key] = mat
+	if not _mats.has("stone_ground_side"):
 		var side := StandardMaterial3D.new()
 		side.albedo_color = Meadow.GROUND[&"earth"]
 		side.roughness = 1.0
@@ -473,33 +483,6 @@ static func _flagstones(root: Node3D) -> void:
 		mi.material_override = part[2]
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(mi)
-
-
-## The terrain shader's stone-ground colouring (terrain.gdshader), baked once over a disc of flagstones.
-static func _stone_ground_image() -> Image:
-	const SIZE := 96
-	const SPAN := 0.35
-	var slabs := Look.flagstones().get_image()
-	slabs.clear_mipmaps()
-	var rock: Color = Meadow.GROUND[&"rock"]
-	var meadow: Color = Meadow.GRASS[&"root_color"].lerp(Meadow.GRASS[&"tip_lush"].lerp(Meadow.GRASS[&"tip_dry"], 0.5), 0.6)
-	var joint: Color = Meadow.GROUND[&"earth"].lerp(meadow, 0.35) * 0.8
-	var img := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
-	for y in SIZE:
-		for x in SIZE:
-			var r := Vector2(x + 0.5, y + 0.5).distance_to(Vector2(SIZE, SIZE) * 0.5) / (SIZE * 0.5)
-			if r > 1.0:
-				img.set_pixel(x, y, Color(0, 0, 0, 0))
-				continue
-			var slab := slabs.get_pixel(int(x * SPAN * slabs.get_width() / SIZE), int(y * SPAN * slabs.get_height() / SIZE))
-			var stony := 1.0 - smoothstep(0.5, 1.0, r)
-			var lit := rock * (0.8 + slab.g * 0.28) * lerpf(0.8, 1.04, smoothstep(0.03, 0.25, slab.r))
-			var threshold := 0.12 + slab.g * 0.7
-			var laid := smoothstep(threshold - 0.04, threshold + 0.04, stony) * smoothstep(0.02, 0.06, slab.r)
-			var c := meadow.lerp(joint, smoothstep(0.4, 0.95, stony)).lerp(lit, laid)
-			c.a = 1.0
-			img.set_pixel(x, y, c)
-	return img
 
 
 ## A pond in small: a sandy dish holding a disc of glinting water inside a line of foam, pebbles on its bank.

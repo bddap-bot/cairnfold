@@ -6,13 +6,11 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 #include "res://src/palette.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/meadow.gdshaderinc"
+#include "res://src/stone_ground.gdshaderinc"
 
 uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
-uniform sampler2D flagstones : filter_linear_mipmap, repeat_enable;
-uniform float flagstone_scale = 0.17;
-// Set from Meadow.GROUND, which the stone tool's icon shares.
+// Set from Meadow.GROUND.
 uniform vec3 earth : source_color;
-uniform vec3 rock : source_color;
 // Where on a blade, root to tip, the meadow's ground takes its colour: the tone far blades converge on.
 uniform float canopy = 0.6;
 uniform vec3 trodden : source_color = vec3(0.52, 0.45, 0.33);
@@ -56,14 +54,12 @@ void fragment() {
 	// Painted slabs line a pond's bed and banks; a slope's own rock goes under the sand like any ground.
 	float paved = 0.0;
 	if (stony > 0.0) {
-		vec2 slab = texture(flagstones, world_pos.xz * flagstone_scale + world_pos.y * 0.05).rg;
-		vec3 face = rock * (0.8 + slab.g * 0.28) * (0.88 + fine * 0.24) * mix(0.8, 1.04, smoothstep(0.03, 0.25, slab.r));
-		// Toward its edge stone ground loses whole slabs, the lowest-valued first, so it frays into the
-		// meadow as scattered stones over earthy joints instead of ending in a line.
-		float threshold = 0.12 + slab.g * 0.7;
-		float laid = smoothstep(threshold - 0.04, threshold + 0.04, stony + (d - 0.5) * 0.25 + (fine - 0.5) * 0.15) * smoothstep(0.02, 0.06, slab.r);
-		vec3 joint = mix(c, mix(earth, meadow, 0.35) * 0.8, smoothstep(0.4, 0.95, stony));
-		c = mix(joint, face, laid);
+		float grit = texture(detail, world_pos.xz * 3.7).r;
+		int style = min(ground_style(world_pos.xz, (vec2(fine, grit) - 0.5) * vec2(3.0, 2.5)), STONE_ROOM - 1);
+		float laid;
+		vec2 slope;
+		c = stone_ground(style, world_pos.xz, stony, c, earth, meadow, d, fine, grit, laid, slope);
+		NORMAL = normalize(mix(NORMAL, stone_normal(NORMAL, VIEW_MATRIX[0].xyz, VIEW_MATRIX[2].xyz, slope), laid));
 		paved = laid * min(cover.g / stony, 1.0);
 	}
 	float under = water_depth_at(world_pos.xz);

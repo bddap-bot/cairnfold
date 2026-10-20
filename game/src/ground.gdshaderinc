@@ -4,7 +4,7 @@
 global uniform sampler2D ground_height : filter_linear, repeat_disable;
 global uniform vec3 ground_grid;
 global uniform mat4 ground_humps;
-// What the ground is made of (Ground): red trodden earth, green stone, neither meadow.
+// What the ground is made of (Ground): red trodden earth, green stone, neither meadow; blue the stone's style.
 global uniform sampler2D ground_mask : filter_linear, repeat_disable;
 
 float bell(float t) {
@@ -53,6 +53,13 @@ float grid_smooth(sampler2D t, vec2 xz) {
 
 vec2 ground_cover(vec2 xz) {
 	return textureLod(ground_mask, (xz - ground_grid.x) / (ground_grid.y * (ground_grid.z - 1.0)), 0.0).rg;
+}
+
+// The style of the stone at `xz`, `jitter` texels off so two styles meet along a ragged line.
+int ground_style(vec2 xz, vec2 jitter) {
+	ivec2 size = textureSize(ground_mask, 0);
+	vec2 t = (xz - ground_grid.x) / (ground_grid.y * (ground_grid.z - 1.0)) * vec2(size) + jitter;
+	return int(texelFetch(ground_mask, clamp(ivec2(t), ivec2(0), size - 1), 0).b * 255.0 + 0.5);
 }
 
 // How bare of plants the ground is, as Ground.bare reads it: 1 on earth or stone.

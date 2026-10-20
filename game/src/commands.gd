@@ -5,7 +5,7 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "mix", "sheet"]
+const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "mix", "sheet", "restone"]
 ## What a batch may carry: from a player, takings; from the host, also the undo of them.
 const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show", "uneasel"]
 const UNBATCHED := ["stairs", "wall", "path", "ground", "easel"]
@@ -130,6 +130,10 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 		"unground":
 			ok = typeof(cmd.get("id")) == TYPE_INT and state.grounds.has(cmd.id)
 			out.id = cmd.get("id")
+		"restone":
+			ok = typeof(cmd.get("id")) == TYPE_INT and state.grounds.get(cmd.id, {}).has("style") and _stone_style(cmd.get("style"))
+			out.id = cmd.get("id")
+			out.style = cmd.get("style")
 		"plant":
 			ok = _plant(cmd, out, from_host)
 		"show":
@@ -417,7 +421,14 @@ static func _ground(cmd: Dictionary, out: Dictionary) -> bool:
 			return false
 	out.kind = kind
 	out.stamps = stamps
+	if kind == Ground.Kind.STONE:
+		out.style = cmd.get("style")
+		return _stone_style(out.style)
 	return true
+
+
+static func _stone_style(style: Variant) -> bool:
+	return typeof(style) == TYPE_INT and style >= 0 and style < StoneStyles.STYLES.size()
 
 
 static func _plant(cmd: Dictionary, out: Dictionary, from_host: bool) -> bool:

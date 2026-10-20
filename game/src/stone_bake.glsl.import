@@ -1,0 +1,14 @@
+[remap]
+
+importer="glsl"
+type="RDShaderFile"
+uid="uid://bcf3038gjgmof"
+path="res://.godot/imported/stone_bake.glsl-23f71d33587534437a22ea1fee8b6255.res"
+
+[deps]
+
+source_file="res://src/stone_bake.glsl"
+dest_files=["res://.godot/imported/stone_bake.glsl-23f71d33587534437a22ea1fee8b6255.res"]
+
+[params]
+

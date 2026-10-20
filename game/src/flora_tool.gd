@@ -214,7 +214,7 @@ func _lay_ground(b: Brush, kind: Ground.Kind, center: Vector3, radius: float, de
 	if paths.busy() or (b.ground == null and _ground_held()) or (b.ground != null and b.since_stamp < STAMP_EVERY and center.distance_to(b.last_stamp) < radius * STAMP_MOVE):
 		return
 	if b.ground == null:
-		b.ground = Ground.Stroke.new(kind)
+		b.ground = Ground.Stroke.new(kind, Ground.style)
 		Ground.hold(b.ground)
 	b.since_stamp = 0.0
 	b.last_stamp = center
@@ -251,7 +251,10 @@ func _send_ground(b: Brush) -> void:
 	if stroke.stamps.is_empty():
 		Ground.release(stroke)
 		return
-	world.submit({"op": "ground", "kind": int(stroke.kind), "stamps": stroke.stamps}, Ground.release.bind(stroke), b.hand)
+	var cmd := {"op": "ground", "kind": int(stroke.kind), "stamps": stroke.stamps}
+	if stroke.kind == Ground.Kind.STONE:
+		cmd.style = stroke.style
+	world.submit(cmd, Ground.release.bind(stroke), b.hand)
 
 
 ## A sent stroke is settled: its plants grow in the garden now, or it was turned down.
