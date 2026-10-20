@@ -1,13 +1,6 @@
 class_name Main
 extends Node3D
 
-## How many mixes quitting waits for the audio thread to release the sounds that were playing: counted in mixes,
-## not time, since a loaded machine mixes late. The time is only so a stalled audio driver cannot hold the quit.
-const QUIT_WAIT_MIXES := 20
-const QUIT_WAIT_MSEC := 10000
-
-static var _quitting := false
-
 var args := {}
 var xr: OpenXRInterface
 var rig: Rig
@@ -392,40 +385,8 @@ static func write_bytes(path: String, bytes: PackedByteArray) -> Error:
 	return OK if stored else ERR_FILE_CANT_WRITE
 
 
-## A playback is freed on the main thread only after the audio thread has mixed its stop, so a sound
-## still playing when the tree quits outlives the engine, its streams with it. Playbacks go in the order
-## they were stopped, so a silent marker stopped last also waits out the sounds of nodes already freed.
-## A 3D player hands a new playback to the audio thread on its next physics tick and holds it until then,
-## even through stop().
 static func quit(tree: SceneTree, code := 0) -> void:
-	if _quitting:
-		return
-	_quitting = true
-	var marker := AudioStreamPlayer.new()
-	marker.stream = AudioStreamGenerator.new()
-	tree.root.add_child(marker)
-	marker.play()
-	await tree.physics_frame
-	await tree.process_frame
-	var held: Array[WeakRef] = []
-	for kind in ["AudioStreamPlayer", "AudioStreamPlayer3D"]:
-		for p in tree.root.find_children("*", kind, true, false):
-			if p.has_stream_playback():
-				held.append(weakref(p.get_stream_playback()))
-			p.stop()
-	var playing := func() -> int: return held.filter(func(w: WeakRef) -> bool: return w.get_ref() != null).size()
-	var until := Time.get_ticks_msec() + QUIT_WAIT_MSEC
-	var mixes := 0
-	var since := AudioServer.get_time_since_last_mix()
-	while playing.call() > 0 and mixes < QUIT_WAIT_MIXES and Time.get_ticks_msec() < until:
-		await tree.process_frame
-		var now := AudioServer.get_time_since_last_mix()
-		if now < since:
-			mixes += 1
-		since = now
-	if playing.call() > 0:
-		push_error("%d sounds still in use at exit" % playing.call())
-	tree.quit(code)
+	await tree.root.get_node("AudioLifetime").finish(code)
 
 
 static func _parse(raw: PackedStringArray) -> Dictionary:
