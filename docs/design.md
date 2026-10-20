@@ -1439,7 +1439,9 @@ the Quest 2 (`App=` ms, the bare meadow, each round main's shaders and these swa
 five rounds), against main: at the ladder's bottom step standing 20.67, +0.03 ms (standard error
 0.08), from the air 26.75, -0.01 ms (0.17); at its top step standing 28.15, +0.16 ms (0.10), from
 the air 47.68, +0.14 ms (0.10). Without that steepness move the bottom step standing was +0.14 ms
-(0.05). Tried over the new look in two runs (arm order reversed in the second), GPU ms
+(0.05). On the Steam Frame (`frame-unworn`, the kernel's GPU time a frame, the same
+pairing): bottom step standing 4.31, +0.02 ms (0.004), from the air 5.42, -0.00 ms (0.004); top
+step standing 6.92, -0.02 ms (0.003), from the air 10.19, -0.02 ms (0.002); 72 Hz throughout. Tried over the new look in two runs (arm order reversed in the second), GPU ms
 a frame over it, mean of the two, and left out:
 
 | Tried | Bottom, standing | Bottom, air | Top, standing | Top, air | Why not |
