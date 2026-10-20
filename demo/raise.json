@@ -2,7 +2,7 @@
   {"op": "place", "x": 0, "z": 12},
   {"op": "sculpt", "x": -7, "z": -6, "lift": 1.0, "radius": 4, "seconds": 0.5},
   {"op": "house", "at": [-5, -4], "size": [6, 4], "seconds": 0.5},
-  {"op": "arch", "index": 0, "s": 3.0},
+  {"op": "fit", "what": "opening", "index": 0, "s": 3.0, "style": 1},
   {"op": "house", "at": [4.5, -4], "size": [5, 4], "plaster": true, "seconds": 0.5},
   {"op": "fit", "what": "opening", "index": 1, "s": 2.5, "y": 1.2},
   {"op": "wait", "seconds": 3},

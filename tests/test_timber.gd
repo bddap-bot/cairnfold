@@ -16,7 +16,7 @@ func _init() -> void:
 	wall.layout.closed = true
 	wall.layout.plaster = true
 	wall.layout.height = 4.5
-	wall.layout.openings = [Vector3(1.8, 1.5, 0), Vector3(5, 0.4, 0), Vector3(9.5, 1.5, 0), Vector3(14, 3, 0), Vector3(14.7, 3, 0)]
+	wall.layout.openings = [Vector4(1.8, 1.5, 0, 1), Vector4(5, 0.4, 0, 1), Vector4(9.5, 1.5, 0, 1), Vector4(14, 3, 0, 1), Vector4(14.7, 3, 0, 1)]
 	wall.roof = RoofLayout.new()
 	var original := wall.data()
 	for size in [Vector2(7, 5), Vector2(12, 4), Vector2(4, 9)]:

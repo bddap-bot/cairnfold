@@ -85,7 +85,7 @@ static func _wall(from: Vector2, to: Vector2, height: float) -> Dictionary:
 		var p := from.lerp(to, i / 8.0)
 		points.append(Terrain.ground(p.x, p.y))
 	return {"points": points, "height": height, "seed": 7, "closed": false, "top": 0,
-		"fence": false, "openings": PackedVector3Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
+		"fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
 		"ruins": PackedVector2Array(), "plaster": false, "rise": 0.0, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
 
 

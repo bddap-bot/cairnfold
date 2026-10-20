@@ -42,10 +42,12 @@ const PARAPET := 0.34
 const SAMPLE := 0.2
 ## How far the stones sink below the ground, or into the top of what they stand on.
 const SINK := 0.12
+## A doorway arch's half-width and ring: an opening's size scales its arch, ring and all, from these.
 const ARCH_HALF := 0.75
 const RING := 0.32
-## The nearest an arch's centre stands to a wall's end.
-const ARCH_END := ARCH_HALF + RING + 0.3
+## The nearest an arch's ring stands to a wall's end, and so a doorway arch's centre.
+const END_CLEAR := 0.3
+const ARCH_END := ARCH_HALF + RING + END_CLEAR
 const MIN_ARCH_SPAN := 2.4
 const CORNER_TURN := deg_to_rad(35.0)
 const PIER := THICKNESS + 0.28
@@ -134,8 +136,9 @@ var timber_style := 0
 var storey_floors := false
 ## The gable roof a house's end walls rise under, course by course, as stone walls do; null for any other.
 var gable: RoofLayout
-## Placed openings: arc length, click height above the foot, and DoorStyle.
-var openings: Array[Vector3] = []
+## Placed openings: arc length, click height above the foot, DoorStyle, and size, 1 for a doorway's (or a plain
+## window's) and more for a bigger one, scaling it every way.
+var openings: Array[Vector4] = []
 ## Lanterns: arc length, height above the foot, and the face they hang from (+1 or -1).
 var lanterns: Array[Vector3] = []
 ## Flags on the wall's top, by arc length.
@@ -173,7 +176,7 @@ var stones: Array[Dictionary] = []
 ## Stones shorten on a round loop so their outer ends stay closed.
 var _stone_scale := 1.0
 ## The apertures `build` cut for the openings that fit, fused where they stand together: arc length `s`,
-## half-width `half`, `sill` and `head` heights, `door`, and `lights`, the panes side by side.
+## half-width `half`, `sill` and `head` heights, `door`, `lights`, the panes side by side, and `size`.
 var apertures: Array[Dictionary] = []
 ## Lantern flames and flag cloths, laid with the stones; flames are unit boxes, cloths unit quads off the pole.
 var flames: Array[Transform3D] = []
@@ -189,8 +192,8 @@ static var _laid_count := 0
 var laid := 0
 
 
-static func archway(s: float) -> Vector3:
-	return Vector3(s, 0.0, DoorStyle.ARCHWAY)
+static func archway(s: float, size := 1.0) -> Vector4:
+	return Vector4(s, 0.0, DoorStyle.ARCHWAY, size)
 
 
 func archways() -> Array:
@@ -207,8 +210,9 @@ func point_at(s: float) -> Vector3:
 	return samples[i]
 
 
-func spring() -> float:
-	return minf(1.5, height - arch_rise(RING) - 0.3)
+## The springing of an arch of `size`, lowered under a wall too low for its head.
+func spring(size := 1.0) -> float:
+	return minf(1.5 * size, height - arch_rise(RING * size, size) - 0.3)
 
 
 ## The arch this wall opens: a timber frame's own, else stone.
@@ -216,14 +220,15 @@ func arch_style() -> Dictionary:
 	return ARCH_STYLES[1 if TimberFrame.applies(self) else 0]
 
 
-## The right half of the arch's head `out` beyond its opening, as arcs `[centre, radius, from, to]` about the
-## middle of the springing, angles from level.
-func arch_head(out: float) -> Array:
+## The right half of the head of an arch of `size`, `out` beyond its opening, as arcs `[centre, radius, from, to]`
+## about the middle of the springing, angles from level.
+func arch_head(out: float, size := 1.0) -> Array:
 	var style := arch_style()
 	var turn := deg_to_rad(style.turn)
-	var r: float = ARCH_HALF * style.shoulder
-	var big: float = ARCH_HALF * style.crown
-	var shoulder := Vector2(ARCH_HALF - r, 0.0)
+	var half := ARCH_HALF * size
+	var r: float = half * style.shoulder
+	var big: float = half * style.crown
+	var shoulder := Vector2(half - r, 0.0)
 	var crown := shoulder + Vector2(cos(turn), sin(turn)) * (r - big)
 	var arcs := [[shoulder, r + out, 0.0, turn]]
 	var top := acos(clampf(-crown.x / (big + out), -1.0, 1.0))
@@ -232,23 +237,23 @@ func arch_head(out: float) -> Array:
 	return arcs
 
 
-## How high the arch's head rises over the springing, `out` beyond its opening.
-func arch_rise(out: float) -> float:
-	var last: Array = arch_head(out)[-1]
+## How high the head of an arch of `size` rises over the springing, `out` beyond its opening.
+func arch_rise(out: float, size := 1.0) -> float:
+	var last: Array = arch_head(out, size)[-1]
 	return last[0].y + last[1] * sin(last[3])
 
 
-func can_arch() -> bool:
-	return fence or spring() >= 0.9
+func can_arch(size := 1.0) -> bool:
+	return fence or spring(size) >= 0.9
 
 
-## Arch opening half-width at height `y` above the foot, or with `ring` the half-width of all the arch covers, its
-## posts and its ring; -1 where it does not reach. The one outline both the arch and the wall's cut follow.
-func opening(y: float, ring: bool) -> float:
-	var dy := y - spring()
+## Half-width at height `y` above the foot of the opening of an arch of `size`, or with `ring` of all the arch covers,
+## its posts and its ring; -1 where it does not reach. The one outline both the arch and the wall's cut follow.
+func opening(y: float, ring: bool, size := 1.0) -> float:
+	var dy := y - spring(size)
 	if dy < 0.0:
-		return ARCH_HALF + (arch_style().jamb if ring else 0.0)
-	for arc in arch_head(RING if ring else 0.0):
+		return (ARCH_HALF + (arch_style().jamb if ring else 0.0)) * size
+	for arc in arch_head(RING * size if ring else 0.0, size):
 		if dy <= arc[0].y + arc[1] * sin(arc[3]):
 			return arc[0].x + sqrt(maxf(arc[1] * arc[1] - (dy - arc[0].y) * (dy - arc[0].y), 0.0))
 	return -1.0
@@ -286,7 +291,8 @@ func build(ground: Callable, water := Callable()) -> void:
 	var faces := _face_spans()
 	var course_h := course_height()
 	var bays := pillars()
-	var pillar_top := 0.0
+	var pillar_tops := PackedFloat32Array()
+	pillar_tops.resize(bays.size())
 	var bands := []
 	var sink := 0.0
 	for d in depths:
@@ -296,20 +302,20 @@ func build(ground: Callable, water := Callable()) -> void:
 		var h := minf(course_h, height - y0)
 		var yc := y0 + h * 0.5
 		var spans := [[0.0, total]] if k >= 0 else _over_bed(-y0 - course_h)
-		# Cut to the narrowest the arch's outline reaches across the band, so the band's stones meet it everywhere.
-		var w := minf(opening(y0, true), opening(y0 + h, true))
 		for o in apertures:
 			if o.style == DoorStyle.ARCHWAY:
+				# Cut to the narrowest the arch's outline reaches across the band, so the band's stones meet it everywhere.
+				var w := minf(opening(y0, true, o.size), opening(y0 + h, true, o.size))
 				if w > 0.0:
 					spans = _cut(spans, o.s - w, o.s + w)
 			elif yc > o.sill and yc < o.head:
 				spans = _cut(spans, o.s - o.half, o.s + o.half)
 			elif yc > o.head and yc < o.head + course_h:
 				spans = _cut(spans, o.s - o.half - LINTEL_EAR, o.s + o.half + LINTEL_EAR)
-		if yc < spring():
-			pillar_top = y0 + course_h
-			for b in bays:
-				spans = _cut(spans, b.s - b.half, b.s + b.half)
+		for i in bays.size():
+			if yc < bays[i].top:
+				pillar_tops[i] = y0 + course_h
+				spans = _cut(spans, bays[i].s - bays[i].half, bays[i].s + bays[i].half)
 		for b in breaks[maxi(k, 0)]:
 			spans = _cut(spans, b.x, b.y)
 		var stream := rng if k >= 0 else wet
@@ -327,7 +333,7 @@ func build(ground: Callable, water := Callable()) -> void:
 	_lay_mortar(bands)
 	for i in bays.size():
 		rng.seed = hash([seed, "pillar", i])
-		_lay_pillar(bays[i].s, bays[i].half, pillar_top, rng, wet)
+		_lay_pillar(bays[i].s, bays[i].half, pillar_tops[i], rng, wet)
 	for i in apertures.size():
 		rng.seed = hash([seed, "opening", i])
 		_lay_opening(apertures[i], rng, -ceili(sink / course_h) * course_h)
@@ -726,21 +732,23 @@ func inner_side() -> float:
 	return signf(area)
 
 
-## The opening a placed window makes on its own, before fusing: a door if its sill would be near the ground.
-func opening_for(w: Vector3) -> Dictionary:
+## The opening a placed window makes on its own, before fusing: a door if its sill would be near the ground. Its size
+## scales it every way from where it stands: an arch about its springing, a door or window up from its sill.
+func opening_for(w: Vector4) -> Dictionary:
 	var c := course_height()
+	var k := w.w
 	if w.z == DoorStyle.ARCHWAY:
-		return {"s": w.x, "half": ARCH_HALF, "sill": 0.0, "head": spring() + arch_rise(0.0) + arch_style().ring, "door": true, "style": DoorStyle.ARCHWAY, "lights": 1}
+		return {"s": w.x, "half": ARCH_HALF * k, "sill": 0.0, "head": spring(k) + arch_rise(0.0, k) + arch_style().ring * k, "door": true, "style": DoorStyle.ARCHWAY, "lights": 1, "size": k}
 	if w.y - WINDOW_TALL * 0.5 < DOOR_SILL:
-		return {"s": w.x, "half": DOOR_HALF, "sill": 0.0, "head": roundf(DOOR_TALL / c) * c, "door": true, "lights": 1, "style": DoorStyle.PLAIN}
+		return {"s": w.x, "half": DOOR_HALF * k, "sill": 0.0, "head": roundf(DOOR_TALL * k / c) * c, "door": true, "lights": 1, "style": DoorStyle.PLAIN, "size": k}
 	var sill := roundf((w.y - WINDOW_TALL * 0.5) / c) * c
-	return {"s": w.x, "half": WINDOW_HALF, "sill": sill, "head": sill + roundf(WINDOW_TALL / c) * c, "door": false, "lights": 1, "style": DoorStyle.PLAIN}
+	return {"s": w.x, "half": WINDOW_HALF * k, "sill": sill, "head": sill + roundf(WINDOW_TALL * k / c) * c, "door": false, "lights": 1, "style": DoorStyle.PLAIN, "size": k}
 
 
 ## The apertures `placed` openings make on the built wall: neighbours on one course (doors beside doors) fuse,
 ## round a loop's seam too, and those that fit are kept: under the top with a course left for the lintel,
 ## clear of the ends, corner piers, arches and each other.
-func openings_for(placed: Array[Vector3]) -> Array[Dictionary]:
+func openings_for(placed: Array[Vector4]) -> Array[Dictionary]:
 	placed = placed.duplicate()
 	for a in _water_arches():
 		if placed.size() < Commands.MAX_FITTINGS:
@@ -752,7 +760,7 @@ func openings_for(placed: Array[Vector3]) -> Array[Dictionary]:
 		if o.style == DoorStyle.ARCHWAY:
 			fused.append(o)
 			continue
-		var key := roundi(o.sill * 100.0)
+		var key := Vector2i(roundi(o.sill * 100.0), roundi(o.size * 100.0))
 		if not courses_of.has(key):
 			courses_of[key] = []
 		courses_of[key].append(o)
@@ -767,7 +775,7 @@ func openings_for(placed: Array[Vector3]) -> Array[Dictionary]:
 	return out
 
 
-## Fuses the apertures of one course that stand within FUSE of each other into wider ones.
+## Fuses the apertures of one course and size that stand within FUSE of each other, at their size, into wider ones.
 func _fuse(row: Array) -> Array[Dictionary]:
 	row.sort_custom(func(a, b): return a.s < b.s)
 	if closed and row.size() > 1:
@@ -786,14 +794,14 @@ func _fuse(row: Array) -> Array[Dictionary]:
 	var last := 0.0
 	for o in row:
 		var u: float = row[0].s + fposmod(o.s - row[0].s, length()) if closed else o.s
-		if out.is_empty() or u - last >= FUSE:
+		if out.is_empty() or u - last >= FUSE * o.size:
 			out.append(o)
 			first = u
 		else:
 			var into: Dictionary = out[-1]
 			into.lights += 1
 			into.s = self.wrap((first + u) * 0.5)
-			into.half = into.lights * (DOOR_HALF if o.door else WINDOW_HALF) + (into.lights - 1) * MULLION * 0.5
+			into.half = into.lights * (DOOR_HALF if o.door else WINDOW_HALF) * o.size + (into.lights - 1) * MULLION * 0.5
 		last = u
 	return out
 
@@ -801,18 +809,23 @@ func _fuse(row: Array) -> Array[Dictionary]:
 func _opening_fits(o: Dictionary, others: Array[Dictionary]) -> bool:
 	var arched: bool = o.style == DoorStyle.ARCHWAY
 	if arched:
-		if not can_arch():
+		if not can_arch(o.size):
 			return false
 	elif fence or o.head + course_height() > height + 0.01:
 		return false
-	var edge: float = RING if arched else LINTEL_EAR
+	var edge := _edge(o)
 	var side: float = o.half + edge + PIER * 0.5
-	var end: float = ARCH_END if arched else side
+	var end: float = o.half + edge + END_CLEAR if arched else side
 	if broken(o.s, o.half + edge) or (not closed and (o.s < end or o.s > length() - end)):
 		return false
 	if (closed or not arched) and not corners().all(func(c): return absf(offset(o.s, c)) > side):
 		return false
-	return others.all(func(e): return absf(offset(o.s, e.s)) >= o.half + e.half + edge + (RING if e.style == DoorStyle.ARCHWAY else LINTEL_EAR) or (not arched and e.style != DoorStyle.ARCHWAY and (o.sill > e.head + course_height() * 0.5 or e.sill > o.head + course_height() * 0.5)))
+	return others.all(func(e): return absf(offset(o.s, e.s)) >= o.half + e.half + edge + _edge(e) or (not arched and e.style != DoorStyle.ARCHWAY and (o.sill > e.head + course_height() * 0.5 or e.sill > o.head + course_height() * 0.5)))
+
+
+## How far past its opening an aperture's surround reaches along the wall: an arch's ring, else a lintel's ear.
+static func _edge(o: Dictionary) -> float:
+	return RING * o.size if o.style == DoorStyle.ARCHWAY else LINTEL_EAR
 
 
 ## The opening at a face point, or empty.
@@ -822,13 +835,13 @@ func opening_at(s: float, y: float) -> Dictionary:
 
 func _opening_in(list: Array[Dictionary], s: float, y: float) -> Dictionary:
 	for o in list:
-		if absf(offset(s, o.s)) < (opening(y, false) if o.style == DoorStyle.ARCHWAY else o.half + 0.05) and y > o.sill - 0.05 and y < o.head + 0.05:
+		if absf(offset(s, o.s)) < (opening(y, false, o.size) if o.style == DoorStyle.ARCHWAY else o.half + 0.05) and y > o.sill - 0.05 and y < o.head + 0.05:
 			return o
 	return {}
 
 
 ## Whether a window placed at `at` among the openings `placed` would open without closing any they open.
-func opening_fits(at: Vector3, placed: Array[Vector3]) -> bool:
+func opening_fits(at: Vector4, placed: Array[Vector4]) -> bool:
 	var before := openings_for(placed)
 	var after := placed.duplicate()
 	after.append(at)
@@ -838,7 +851,7 @@ func opening_fits(at: Vector3, placed: Array[Vector3]) -> bool:
 
 
 ## The window among `placed` nearest `click` in the opening they make there, or -1 where they make none.
-func placed_at(click: Vector3, placed: Array[Vector3]) -> int:
+func placed_at(click: Vector4, placed: Array[Vector4]) -> int:
 	var made := openings_for(placed)
 	var o := _opening_in(made, click.x, click.y)
 	var near := -1
@@ -857,7 +870,7 @@ func lantern_fits(s: float, y: float) -> bool:
 		return true
 	if broken(s, 0.3) or y < 0.9 or y > height - 0.2 or (not closed and (s < PIER or s > length() - PIER)):
 		return false
-	return apertures.all(func(o): return absf(offset(s, o.s)) > o.half + (RING + 0.2 if o.style == DoorStyle.ARCHWAY else LINTEL_EAR + 0.15) or y > o.head + course_height() + 0.3 or y < o.sill - 0.3)
+	return apertures.all(func(o): return absf(offset(s, o.s)) > o.half + _edge(o) + (0.2 if o.style == DoorStyle.ARCHWAY else 0.15) or y > o.head + course_height() + 0.3 or y < o.sill - 0.3)
 
 
 func flag_fits(s: float) -> bool:
@@ -866,7 +879,7 @@ func flag_fits(s: float) -> bool:
 
 func _lay_opening(o: Dictionary, rng: RandomNumberGenerator, bottom: float) -> void:
 	if o.style == DoorStyle.ARCHWAY:
-		_lay_arch(o.s, rng, bottom)
+		_lay_arch(o.s, o.size, rng, bottom)
 		return
 	var s: float = o.s
 	var half: float = o.half
@@ -1174,19 +1187,23 @@ func _cells() -> Array[Dictionary]:
 	return out
 
 
-## An arch at `s` in its style: posts up from `bottom` to the springing, the pieces round the head, and behind
-## them the wall's own infill closing the ring out to the outline, so the wall's level cut meets it with no gap.
-func _lay_arch(a: float, rng: RandomNumberGenerator, bottom: float) -> void:
+## An arch of `size` at `s` in its style: posts up from `bottom` to the springing, the pieces round the head, and
+## behind them the wall's own infill closing the ring out to the outline, so the wall's level cut meets it with no gap.
+## Its pieces, keystone and posts scale with it, so a grand arch is laid as a doorway's is, only bigger.
+func _lay_arch(a: float, size: float, rng: RandomNumberGenerator, bottom: float) -> void:
 	var style := arch_style()
 	var tint: Color = style.get("color", Color.WHITE) * rng.randf_range(0.88, 1.12)
-	var ring: float = style.ring
+	var ring: float = style.ring * size
+	var jamb: float = style.jamb * size
+	var spring_y := spring(size)
+	var mortar := RING * size + JOINT
 	var depth := THICKNESS * 1.04
 	var fill := THICKNESS - (PLASTER_INSET if plaster else JOINT) * 2.0 - 0.004
 	var parts: Array[Dictionary] = []
 	for side in [-1.0, 1.0]:
-		if style.jamb > 0.0:
-			parts.append(_arch_part(a + side * (ARCH_HALF + style.jamb * 0.5), (bottom + spring()) * 0.5, Vector3(style.jamb, spring() - bottom, depth), 0.0, style, rng))
-		var head := arch_head(0.0)
+		if jamb > 0.0:
+			parts.append(_arch_part(a + side * (ARCH_HALF * size + jamb * 0.5), (bottom + spring_y) * 0.5, Vector3(jamb, spring_y - bottom, depth), 0.0, style, rng))
+		var head := arch_head(0.0, size)
 		for i in head.size():
 			var arc: Array = head[i]
 			var n: int = style.pieces[i]
@@ -1194,17 +1211,18 @@ func _lay_arch(a: float, rng: RandomNumberGenerator, bottom: float) -> void:
 				var t: float = lerpf(arc[2], arc[3], (j + 0.5) / n)
 				var half: float = (arc[3] - arc[2]) * 0.5 / n
 				var length: float = 2.0 * (arc[1] + ring * style.meet) * tan(half) * (1.0 - style.joint)
-				parts.append(_arch_ring(a, side, arc, t, ring, Vector3(length, ring, depth), style, rng))
+				parts.append(_arch_ring(a, spring_y, side, arc, t, ring, Vector3(length, ring, depth), style, rng))
 			var m: int = ceili((arc[3] - arc[2]) / deg_to_rad(30.0))
 			for j in m:
 				var t: float = lerpf(arc[2], arc[3], (j + 0.5) / m)
 				var half: float = (arc[3] - arc[2]) * 0.5 / m
-				var st := _arch_ring(a, side, arc, t, RING + JOINT + 0.01, Vector3(2.0 * (arc[1] + RING + JOINT) * tan(half) + 0.02, RING + JOINT - 0.01, fill), {"kind": "plaster" if plaster else "mortar", "jitter": 0.0}, rng)
+				var st := _arch_ring(a, spring_y, side, arc, t, mortar + 0.01, Vector3(2.0 * (arc[1] + mortar) * tan(half) + 0.02, mortar - 0.01, fill), {"kind": "plaster" if plaster else "mortar", "jitter": 0.0}, rng)
 				st.color = PLASTER if plaster else MORTAR
 				st.ao = 1.0 if plaster else 0.8
 				st.variant = 0
 				stones.append(st)
-	parts.append(_arch_part(a, spring() + arch_rise(0.0) + ring * 0.5, style.keystone, 0.0, style.merged({"kind": style.capstone}, true), rng))
+	var key: Vector3 = style.keystone * Vector3(size, size, 1.0)
+	parts.append(_arch_part(a, spring_y + arch_rise(0.0, size) + ring * 0.5, key, 0.0, style.merged({"kind": style.capstone}, true), rng))
 	for st in parts:
 		if style.has("color"):
 			st.color = tint
@@ -1212,10 +1230,11 @@ func _lay_arch(a: float, rng: RandomNumberGenerator, bottom: float) -> void:
 		stones.append(st)
 
 
-## A piece of the arch on `side` of its middle `a`: `size.y` deep out from the head's `arc` at angle `t`.
-func _arch_ring(a: float, side: float, arc: Array, t: float, out: float, size: Vector3, style: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+## A piece of the arch on `side` of its middle `a`, springing at `spring_y`: `size.y` deep out from the head's `arc`
+## at angle `t`.
+func _arch_ring(a: float, spring_y: float, side: float, arc: Array, t: float, out: float, size: Vector3, style: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	var at: Vector2 = arc[0] + Vector2(cos(t), sin(t)) * (arc[1] + out * 0.5)
-	return _arch_part(a + side * at.x, spring() + at.y, size, -side * (PI * 0.5 - t), style, rng)
+	return _arch_part(a + side * at.x, spring_y + at.y, size, -side * (PI * 0.5 - t), style, rng)
 
 
 func _arch_part(s: float, y: float, size: Vector3, roll: float, style: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
@@ -1236,16 +1255,19 @@ func wrap(s: float) -> float:
 	return fposmod(s, length()) if closed else clampf(s, 0.0, length())
 
 
-## The pillars of the arcades: their arc length and half-width.
+## The pillars of the arcades, between arches nearer than ARCADE_GAP at their size: arc length, half-width, and the
+## springing of the lower arch, which the pillar rises to.
 func pillars() -> Array[Dictionary]:
-	var arched := archways()
+	var arched := apertures.filter(func(o): return o.style == DoorStyle.ARCHWAY)
 	var out: Array[Dictionary] = []
 	var n := arched.size()
 	for i in range(0 if closed and n > 1 else 1, n):
-		var prev: float = arched[(i + n - 1) % n]
-		var gap := offset(arched[i], prev)
-		if gap > 0.0 and gap < ARCADE_GAP:
-			out.append({"s": prev + gap * 0.5, "half": gap * 0.5 - ARCH_HALF})
+		var prev: Dictionary = arched[(i + n - 1) % n]
+		var next: Dictionary = arched[i]
+		var gap := offset(next.s, prev.s)
+		var k: float = (prev.size + next.size) * 0.5
+		if gap > 0.0 and gap < ARCADE_GAP * k:
+			out.append({"s": prev.s + (gap + prev.half - next.half) * 0.5, "half": (gap - prev.half - next.half) * 0.5, "top": minf(spring(prev.size), spring(next.size))})
 	return out
 
 
@@ -1779,7 +1801,7 @@ func blocks_swim(a: Vector2, b: Vector2) -> bool:
 
 
 func _swims_through(s: float) -> bool:
-	return broken(s, -SWIM_CLEAR) or apertures.any(func(o): return o.style == DoorStyle.ARCHWAY and absf(offset(s, o.s)) < ARCH_HALF - SWIM_CLEAR)
+	return broken(s, -SWIM_CLEAR) or apertures.any(func(o): return o.style == DoorStyle.ARCHWAY and absf(offset(s, o.s)) < o.half - SWIM_CLEAR)
 
 
 ## Closest arc length on the wall to a world point, measured on the ground plane.

@@ -280,6 +280,56 @@ func _a_grab_leaves_the_other_hand_its_tool(rig: Rig) -> void:
 	await _frames()
 
 
+## A grip into an arch takes the arch, not the wall; the other hand's grip on it joins, and the pair pulled apart
+## widen it, its head rising with it, as one build command and one undo step.
+func _two_hands_stretch_an_opening(rig: Rig) -> void:
+	var at_right := rig.right.global_transform
+	var at_left := rig.left.global_transform
+	var wall: Wall = main.tool.walls[0]
+	var world: World = main.world
+	world.submit({"op": "reshape", "of": "walls", "id": wall.id, "data": {"height": 6.0}})
+	main.fitting_tool.fit({"what": "opening", "wall": wall, "s": 3.0, "y": 0.0, "style": WallLayout.DoorStyle.ARCHWAY})
+	for i in 30:
+		await process_frame
+	_check(world.state.walls[wall.id].openings.size() == 1 and wall.layout.archways().size() == 1, "the tall wall opens a doorway arch")
+	var f := wall.layout.frame_at(3.0)
+	var into: Vector3 = f.point + Vector3.UP * 1.0
+	var out: Vector3 = f.tangent.cross(Vector3.UP) * 2.0
+	var head: float = wall.layout.apertures[0].head
+	rig.right.global_transform = Transform3D(Basis.looking_at(-out), into + out + f.tangent * 0.2)
+	rig.left.global_transform = Transform3D(Basis.looking_at(-out), into + out - f.tangent * 0.2)
+	await _frames()
+	Buttons.injected["right_hand/grip_click"] = true
+	await _frames()
+	_check(main.tool.mason(rig.right).growing is WallTool.OpeningGrip and main.tool.mason(rig.right).lifting == null, "a grip into the arch takes the arch, not the wall")
+	Buttons.injected["left_hand/grip_click"] = true
+	await _frames()
+	_check(main.tool.mason(rig.left).partner == main.tool.mason(rig.right), "the other hand's grip on it joins the first")
+	rig.left.global_position -= f.tangent * 0.4
+	for i in 10:
+		await process_frame
+	var shown: Dictionary = wall.layout.apertures[0] if wall.layout.apertures.size() == 1 else {}
+	_check(not shown.is_empty() and absf(shown.size - 2.0) < 0.05 and shown.head > head * 1.8, "the hands pulled twice as far apart show it twice as big, its head as high: %s" % shown)
+	Buttons.injected.erase("left_hand/grip_click")
+	await _frames()
+	_check(main.tool.mason(rig.right).growing is WallTool.OpeningGrip and Array(world.state.walls[wall.id].openings)[0].w == 1.0, "one hand let go, the other still holds it and the garden waits")
+	var steps: int = world.stacks[world.me()].undo.size()
+	Buttons.injected.erase("right_hand/grip_click")
+	for i in 30:
+		await process_frame
+	var kept: Vector4 = Array(world.state.walls[wall.id].openings)[0]
+	_check(absf(kept.w - 2.0) < 0.05 and world.stacks[world.me()].undo.size() == steps + 1, "let go, the garden keeps the grand arch, one undo step: %s" % kept)
+	world.undo()
+	for i in 30:
+		await process_frame
+	_check(Array(world.state.walls[wall.id].openings)[0].w == 1.0 and is_equal_approx(wall.layout.apertures[0].head, head), "undo makes it a doorway again")
+	world.undo()
+	world.undo()
+	rig.right.global_transform = at_right
+	rig.left.global_transform = at_left
+	await _frames()
+
+
 func _run() -> void:
 	var d := Driver.new(main, [{"op": "wall", "points": [[-3, 0], [3, 0]], "seconds": 0.2}])
 	main.add_child(d)
@@ -328,6 +378,7 @@ func _run() -> void:
 	await _one_hand_holds_the_ground_while_the_other_lifts_a_wall(rig)
 	await _a_wall_held_by_one_hand_is_not_taken_by_the_other(rig)
 	await _a_grab_leaves_the_other_hand_its_tool(rig)
+	await _two_hands_stretch_an_opening(rig)
 	hand.tool = Hand.Tool.POND
 	hand.global_basis = Basis.looking_at(Vector3(0, -0.6, -1))
 	var made := _made(["ponds"])

@@ -52,7 +52,7 @@ func _wall(length: float, height: float, windows: Array[Vector2], arches: Array[
 	var w := WallLayout.new()
 	w.points = [Vector3(0, 0, 0), Vector3(length, 0, 0)]
 	w.height = height
-	w.openings.assign(windows.map(func(v): return Vector3(v.x, v.y, 0)))
+	w.openings.assign(windows.map(func(v): return Vector4(v.x, v.y, 0, 1)))
 	w.openings.append_array(arches.map(WallLayout.archway))
 	w.build(_flat)
 	return w
@@ -156,9 +156,9 @@ func _the_lintel_course_is_cut() -> void:
 
 func _a_new_window_never_closes_another() -> void:
 	var w := _wall(8.0, 2.7, [Vector2(4.0, 1.5)])
-	_check(w.opening_fits(Vector3(6.0, 1.5, 0), w.openings), "a window clear of the first fits")
-	_check(w.opening_fits(Vector3(4.8, 1.5, 0), w.openings), "a window beside the first fuses with it")
-	_check(not w.opening_fits(Vector3(3.4, 1.85, 0), w.openings), "a window a course up, overlapping the first, would close it, so it does not fit")
+	_check(w.opening_fits(Vector4(6.0, 1.5, 0, 1), w.openings), "a window clear of the first fits")
+	_check(w.opening_fits(Vector4(4.8, 1.5, 0, 1), w.openings), "a window beside the first fuses with it")
+	_check(not w.opening_fits(Vector4(3.4, 1.85, 0, 1), w.openings), "a window a course up, overlapping the first, would close it, so it does not fit")
 
 
 func _windows_fuse_across_a_loop_seam() -> void:
@@ -167,14 +167,14 @@ func _windows_fuse_across_a_loop_seam() -> void:
 	w.closed = true
 	w.height = 4.5
 	w.build(_flat)
-	w.openings = [Vector3(0.2, 2.0, 0), Vector3(w.length() - 0.3, 2.0, 0)]
+	w.openings = [Vector4(0.2, 2.0, 0, 1), Vector4(w.length() - 0.3, 2.0, 0, 1)]
 	w.build(_flat)
 	_check(w.apertures.size() == 1 and w.apertures[0].lights == 2, "two windows either side of a tower's seam fuse: %s" % [w.apertures])
 	if w.apertures.size() == 1:
 		_check(absf(w.offset(w.apertures[0].s, 0.0) + 0.05) < 0.01, "the fused opening is centred between them, across the seam: s=%.2f" % w.apertures[0].s)
 		_check(_intruders(w, w.apertures[0]).is_empty(), "the opening across the seam is clear")
 	for start in [w.length() - 0.4, w.length() - 1.1, 0.3]:
-		w.openings = [Vector3(start, 2.0, 0), Vector3(start + 0.7, 2.0, 0), Vector3(fposmod(start + 1.4, w.length()), 2.0, 0)]
+		w.openings = [Vector4(start, 2.0, 0, 1), Vector4(start + 0.7, 2.0, 0, 1), Vector4(fposmod(start + 1.4, w.length()), 2.0, 0, 1)]
 		w.build(_flat)
 		_check(w.apertures.size() == 1 and w.apertures[0].lights == 3, "three windows in a row fuse into one of three lights, starting at s=%.2f by the seam: %s" % [start, w.apertures])
 		if w.apertures.size() == 1:
@@ -184,9 +184,9 @@ func _windows_fuse_across_a_loop_seam() -> void:
 	low.closed = true
 	low.height = 4.5
 	low.build(_flat)
-	var spaced: Array[Vector3] = [Vector3(0.0, 1.5, 0), Vector3(0.7, 1.5, 0)]
+	var spaced: Array[Vector4] = [Vector4(0.0, 1.5, 0, 1), Vector4(0.7, 1.5, 0, 1)]
 	for k in 5:
-		spaced.append(Vector3(1.3 + 0.6 * k, 3.3, 0))
+		spaced.append(Vector4(1.3 + 0.6 * k, 3.3, 0, 1))
 	low.openings = spaced
 	low.build(_flat)
 	_check(low.apertures.any(func(o): return o.lights == 2 and o.sill < 1.5), "a pair on one course fuses whatever stands on the course above: %s" % [low.apertures])
@@ -198,7 +198,7 @@ func _flags_keep_their_colour() -> void:
 	w.build(_flat)
 	var before := w.cloths.map(func(c): return c.color)
 	w.lanterns = [Vector3(4.0, 1.5, 1.0)]
-	w.openings = [Vector3(4.0, 0.8, 0)]
+	w.openings = [Vector4(4.0, 0.8, 0, 1)]
 	w.height = 3.0
 	w.build(_flat)
 	_check(w.cloths.map(func(c): return c.color) == before, "a flag keeps its colour while its wall is raised, lit and given a door")
@@ -206,7 +206,7 @@ func _flags_keep_their_colour() -> void:
 
 func _a_house_takes_windows() -> void:
 	var w := _house()
-	w.openings = [Vector3(2.0, 1.5, 0), Vector3(4.0, 0.8, 0), Vector3(8.0, 1.5, 0)]
+	w.openings = [Vector4(2.0, 1.5, 0, 1), Vector4(4.0, 0.8, 0, 1), Vector4(8.0, 1.5, 0, 1)]
 	w.build(_flat)
 	_check(w.apertures.size() == 2, "a house takes a window and a door on its long wall, not one on its corner: %d" % w.apertures.size())
 	_check(w.apertures.any(func(o): return o.door), "the house's door")
@@ -250,7 +250,7 @@ func _fence(length: float, arches: Array[float] = []) -> WallLayout:
 	w.fence = true
 	w.height = WallLayout.FENCE_HEIGHT
 	w.openings.append_array(arches.map(WallLayout.archway))
-	w.openings.append(Vector3(length * 0.5, 1.5, 0))
+	w.openings.append(Vector4(length * 0.5, 1.5, 0, 1))
 	w.build(_flat)
 	return w
 
@@ -526,11 +526,11 @@ func _in_the_glade() -> void:
 	_check(not _fit(fit, {"what": "opening", "style": WallLayout.DoorStyle.ARCHWAY, "y": 0.0, "wall": fence, "s": fence.layout.archways()[0], "point": gate}) and fence.layout.archways().size() == 1, "the arch leaves a path's gate to the path")
 	_undo(world)
 	_check(fence.layout.archways().is_empty(), "undoing the path closes the gate")
-	var cut := PackedVector3Array(world.state.walls[wall.id].openings)
+	var cut := PackedVector4Array(world.state.walls[wall.id].openings)
 	world.restore(world.snapshot())
 	_lay_walls()
 	var reloaded: Wall = main.tool.find(wall.id)
-	_check(cut.size() == 2 and PackedVector3Array(world.state.walls[wall.id].openings) == cut and reloaded.layout.archways().size() == 1, "a save keeps the cut arch")
+	_check(cut.size() == 2 and PackedVector4Array(world.state.walls[wall.id].openings) == cut and reloaded.layout.archways().size() == 1, "a save keeps the cut arch")
 	_shared_opening_cap(reloaded)
 	_done()
 
@@ -539,20 +539,30 @@ func _shared_opening_cap(w: Wall) -> void:
 	var fit: FittingTool = main.fitting_tool
 	var world: World = main.world
 	var before: Dictionary = world.state.walls[w.id].duplicate(true)
-	var full := PackedVector3Array()
+	var full := PackedVector4Array()
 	for i in Commands.MAX_FITTINGS:
-		full.append(Vector3(2.0 + i * 3.0, float(i % 2) * 1.5, i % 2))
+		full.append(Vector4(2.0 + i * 3.0, float(i % 2) * 1.5, i % 2, 1.0 + i % 3))
 	world.state.walls[w.id].openings = full
 	for style in WallLayout.DoorStyle.values():
-		_check(not fit._change(w, false, "openings", Vector3(1, 0, style), -1, true).ok, "the same cap refuses every door style")
-		_check(fit._change(w, false, "openings", Vector3(1, 0, style), 0, true).ok, "the cap still allows removal")
+		_check(not fit._change(w, false, "openings", Vector4(1, 0, style, 1), -1, true).ok, "the same cap refuses every door style")
+		_check(fit._change(w, false, "openings", Vector4(1, 0, style, 1), 0, true).ok, "the cap still allows removal")
 	var data := before.duplicate(true)
 	data.openings = full
 	_check(Commands._wall(data) != null, "the command accepts the shared cap")
 	data.openings.append(WallLayout.archway(200))
 	_check(Commands._wall(data) == null, "the command rejects one more opening")
-	data.openings = PackedVector3Array([Vector3(2, 0, 0.5)])
+	data.openings = PackedVector4Array([Vector4(2, 0, 0.5, 1)])
 	_check(Commands._wall(data) == null, "the command rejects an unknown door style")
+	data.openings = PackedVector4Array([WallLayout.archway(2.0, 0.9)])
+	_check(Commands._wall(data) == null, "the command rejects an opening smaller than a doorway")
+	data.openings = PackedVector3Array([Vector3(2, 0, 1)])
+	_check(Commands._wall(data) == null, "the command rejects openings without their size")
+	data.fence = true
+	data.flags = PackedFloat32Array()
+	data.openings = PackedVector4Array([WallLayout.archway(2.0)])
+	var gate := Commands._wall(data) != null
+	data.openings = PackedVector4Array([WallLayout.archway(2.0, 2.0)])
+	_check(gate and Commands._wall(data) == null, "a fence's gates are a path's, at a doorway's size")
 	world.state.walls[w.id] = before
 
 
@@ -561,7 +571,7 @@ func _shared_opening_cap(w: Wall) -> void:
 static func _tower(center: Vector3, radius: float) -> Dictionary:
 	return {
 		"points": PackedVector3Array(WallLayout.circle(center, radius)), "height": 4.5, "seed": 5,
-		"closed": true, "top": WallLayout.Top.CAP, "fence": false, "openings": PackedVector3Array(), "lanterns": PackedVector3Array(),
+		"closed": true, "top": WallLayout.Top.CAP, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(),
 		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "plaster": false, "rise": 0.0, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain(),
 		"roof": {"kind": RoofLayout.Kind.CONE, "center": center, "radius": radius, "pitch": 3.2, "curve": 0.0, "seed": 5, "chimneys": PackedVector2Array(), "flag": false, "thatch": false},
 	}

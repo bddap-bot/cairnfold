@@ -109,7 +109,7 @@ func _a_ruin_drops_what_stood_in_it() -> void:
 	w.points = [Vector3(0, 0, 0), Vector3(14, 0, 0)]
 	w.height = 3.0
 	w.openings.assign([4.0, 10.0].map(WallLayout.archway))
-	w.openings.append_array([Vector3(7.0, 1.6, 0)])
+	w.openings.append_array([Vector4(7.0, 1.6, 0, 1)])
 	w.lanterns = [Vector3(12.0, 1.5, 1.0)]
 	w.flags = [12.0]
 	w.build(_flat)
@@ -173,7 +173,7 @@ func _after(w: WallLayout, lo: float, hi: float) -> Array[Vector2]:
 
 
 func _the_schema_checks_ruins() -> void:
-	var good := {"points": PackedVector3Array([Terrain.ground(0, 0), Terrain.ground(6, 0)]), "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector3Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array([Vector2(2, 3)]), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
+	var good := {"points": PackedVector3Array([Terrain.ground(0, 0), Terrain.ground(6, 0)]), "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array([Vector2(2, 3)]), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
 	_check(Commands._wall(good) != null, "a wall with a ruin is a wall")
 	var bad := {
 		"backwards": PackedVector2Array([Vector2(3, 2)]),
@@ -217,7 +217,7 @@ func _the_eraser_sweeps_a_ruin_and_undo_mends_it() -> void:
 	var steps: int = world.stacks[world.me()].undo.size()
 	await _play([{"op": "delete", "x": 0, "z": -10}])
 	_check(world.stacks[world.me()].undo.size() == steps and world.state.walls[w.id].ruins == ruins, "a tap inside a ruin changes nothing and takes no step")
-	var arches: PackedVector3Array = world.state.walls[w.id].openings
+	var arches: PackedVector4Array = world.state.walls[w.id].openings
 	main.fitting_tool.fit({"what": "opening", "style": WallLayout.DoorStyle.ARCHWAY, "y": 0.0, "wall": w, "s": w.layout.closest_s(Terrain.ground(6.2, -10))})
 	await process_frame
 	_check(world.state.walls[w.id].openings == arches and world.stacks[world.me()].undo.size() == steps, "no arch opens in a ruin")

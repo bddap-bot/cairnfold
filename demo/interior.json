@@ -2,7 +2,7 @@
   {"op": "label", "name": "build"},
   {"op": "place", "x": 0, "z": 10},
   {"op": "house", "at": [0, 0], "size": [6.0, 4.5], "turn": 0, "seconds": 1.5},
-  {"op": "arch", "index": 0, "s": 3.0},
+  {"op": "fit", "what": "opening", "index": 0, "s": 3.0, "style": 1},
   {"op": "wait", "seconds": 2},
   {"op": "sun", "time": 0.15, "seconds": 0.5},
   {"op": "wait", "seconds": 3},

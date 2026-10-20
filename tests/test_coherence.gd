@@ -113,7 +113,7 @@ func _flat_roof_growth_keeps_slabs() -> void:
 func _openings_keep_their_courses() -> void:
 	var w := _wall(8.0, 3.0)
 	w.openings.assign([2.0].map(WallLayout.archway))
-	w.openings.append_array([Vector3(5.5, 1.65, 0)])
+	w.openings.append_array([Vector4(5.5, 1.65, 0, 1)])
 	w.build(func(_x, _z): return 0.0)
 	var opening := w.apertures.duplicate(true)
 	var ring := w.stones.filter(func(s): return s.kind == "voussoir" or s.kind == "keystone")

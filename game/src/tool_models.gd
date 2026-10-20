@@ -720,7 +720,7 @@ static func fitting(what: String) -> Node3D:
 		var s := layout.nearest_post(2.0) if layout.fence else 2.0
 		match what:
 			"window":
-				layout.openings = [Vector3(s, 1.5, 0)]
+				layout.openings = [Vector4(s, 1.5, WallLayout.DoorStyle.PLAIN, 1.0)]
 			"lantern", "post_lantern":
 				layout.lanterns = [Vector3(s, 1.5, 1.0)]
 			"flag":

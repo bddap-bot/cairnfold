@@ -44,7 +44,7 @@ func _check(ok: bool, what: String) -> void:
 
 
 func _wall(by: int, x: float) -> int:
-	world._order({"op": "wall", "walls": [{"points": PackedVector3Array([Terrain.ground(x, -5), Terrain.ground(x + 4, -5)]), "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector3Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}]}, by)
+	world._order({"op": "wall", "walls": [{"points": PackedVector3Array([Terrain.ground(x, -5), Terrain.ground(x + 4, -5)]), "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}]}, by)
 	return world.seq * Commands.MAX_PIECES
 
 
@@ -97,7 +97,7 @@ func _redo_waits_on_the_same_condition() -> void:
 
 
 func _wall_data(points: PackedVector3Array) -> Dictionary:
-	return {"points": points, "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector3Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
+	return {"points": points, "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
 
 
 func _house_data(on: PackedInt32Array) -> Dictionary:
@@ -369,7 +369,7 @@ func _snapshot_rebuilds_the_garden() -> void:
 		raised[i] += 1.5
 	world._order({"op": "heights", "cells": hill, "values": raised}, 1)
 	var a := _wall(2, -20)
-	world._order({"op": "reshape", "of": "walls", "id": a, "data": {"openings": PackedVector3Array([2.0].map(WallLayout.archway))}}, 2)
+	world._order({"op": "reshape", "of": "walls", "id": a, "data": {"openings": PackedVector4Array([2.0].map(WallLayout.archway))}}, 2)
 	var picture := _picture()
 	var snap := world.snapshot()
 	world.restore({"seq": 0, "cmds": []})

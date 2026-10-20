@@ -51,7 +51,7 @@ func _init() -> void:
 			stone.cover = cover
 			stone.height = 4.5
 			stone.openings.assign([6.0].map(WallLayout.archway))
-			stone.openings.append_array([Vector3(2, 1.6, 0), Vector3(10, 0.4, 0)])
+			stone.openings.append_array([Vector4(2, 1.6, 0, 1), Vector4(10, 0.4, 0, 1)])
 			stone.build(_flat)
 			var plaster := stone.inputs()
 			plaster.plaster = true

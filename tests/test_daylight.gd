@@ -132,7 +132,7 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	var wall := WallLayout.new()
 	wall.points = [Vector3(0, 0, 0), Vector3(16, 0, 0)]
 	wall.height = 3.0
-	wall.openings = [Vector3(3.0, 1.5, 0), Vector3(3.8, 1.5, 0), Vector3(6.5, 0.8, 0)]
+	wall.openings = [Vector4(3.0, 1.5, 0, 1), Vector4(3.8, 1.5, 0, 1), Vector4(6.5, 0.8, 0, 1)]
 	wall.openings.append_array([10.5, 12.8].map(WallLayout.archway))
 	wall.flags = [1.5]
 	wall.lanterns = [Vector3(8.5, 1.6, 1.0)]

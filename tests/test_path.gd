@@ -200,7 +200,7 @@ func _chemistry_works_in_either_order() -> void:
 	var tool: WallTool = nodes[0]
 	var paths: Paths = nodes[1]
 	var first := _draw_wall(tool, Vector3(-8, 0, -12), Vector3(8, 0, -12))
-	_reshape(nodes, first, {"openings": PackedVector3Array()})
+	_reshape(nodes, first, {"openings": PackedVector4Array()})
 	_lay(nodes, Vector3(2, 0, -18), Vector3(2, 0, -6), 0.6)
 	_check(first.layout.archways().size() == 1 and absf(first.layout.archways()[0] - 10.0) < 0.1, "a path laid through a wall cuts an arch at the crossing: %s" % [first.layout.archways()])
 	_lay(nodes, Vector3(-30, 0, -2), Vector3(-30, 0, 10), 2.5)
@@ -242,7 +242,7 @@ func _teardown(nodes: Array) -> void:
 func _a_second_path_beside_an_arch_makes_an_arcade() -> void:
 	var nodes := _setup()
 	var w := _draw_wall(nodes[0], Vector3(-8, 0, 30), Vector3(8, 0, 30))
-	_reshape(nodes, w, {"openings": PackedVector3Array([8.0].map(WallLayout.archway))})
+	_reshape(nodes, w, {"openings": PackedVector4Array([8.0].map(WallLayout.archway))})
 	var before := w.layout.archways().duplicate()
 	_lay(nodes, Vector3(1.5, 0, 24), Vector3(1.5, 0, 36), 0.5)
 	_check(before.all(func(a): return w.layout.archways().has(a)), "a path beside the middle arch closes nothing: %s then %s" % [before, w.layout.archways()])
@@ -259,7 +259,7 @@ func _a_crossing_that_cannot_open_leaves_no_arch() -> void:
 	_lay(nodes, Vector3(-7.6, 0, 34), Vector3(-7.6, 0, 46), 0.5)
 	_check(w.layout.openings == before, "a crossing at a wall's end records no arch: %s" % [w.layout.openings])
 	var low := _draw_wall(nodes[0], Vector3(-8, 0, 50), Vector3(8, 0, 50))
-	_reshape(nodes, low, {"height": 1.2, "openings": PackedVector3Array()})
+	_reshape(nodes, low, {"height": 1.2, "openings": PackedVector4Array()})
 	_lay(nodes, Vector3(0, 0, 44), Vector3(0, 0, 56), 0.5)
 	_check(low.layout.openings.is_empty(), "a wall too low to arch records none: %s" % [low.layout.openings])
 	_teardown(nodes)
@@ -342,7 +342,7 @@ func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.DIRT_PATH) -> void:
 	t.set_process(false)
 	var world: World = nodes[2]
 	var w := _draw_wall(nodes[0], Vector3(-8, 0, 60), Vector3(8, 0, 60))
-	_reshape(nodes, w, {"openings": PackedVector3Array()})
+	_reshape(nodes, w, {"openings": PackedVector4Array()})
 	var b := t.brushes[1]
 	b.hand.tool = kind
 	t.begin_path(b, Terrain.ground(2, 54), 0.6)

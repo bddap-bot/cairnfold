@@ -147,23 +147,27 @@ func _nearest(p: Vector3) -> Dictionary:
 ## The nearest arc length to `s` where a junction's pier stands clear of every arch opening; where arches
 ## stand too close for that, the spot farthest from any of them.
 static func _clear_of_arches(w: WallLayout, s: float) -> float:
-	var arched := w.archways()
+	var arched := w.apertures.filter(func(o): return o.style == WallLayout.DoorStyle.ARCHWAY)
 	if arched.is_empty():
 		return s
-	var clear := WallLayout.ARCH_HALF + WallLayout.RING + WallLayout.PIER * 0.5
 	var spots: Array[float] = [s, 0.0, w.length()]
-	for a in arched:
-		spots.append_array([a - clear, a + clear])
+	for o in arched:
+		spots.append_array([o.s - _clear(o), o.s + _clear(o)])
 	var best := s
 	var best_key := Vector2(-INF, 0.0)
 	for c in spots:
 		if c < 0.0 or c > w.length():
 			continue
 		var room := INF
-		for a in arched:
-			room = minf(room, absf(c - a))
-		var key := Vector2(minf(room, clear), -absf(c - s))
+		for o in arched:
+			room = minf(room, absf(c - o.s) - _clear(o))
+		# The spots at an arch's clearance land within rounding of it, and count as clear.
+		var key := Vector2(minf(room + 0.001, 0.0), -absf(c - s))
 		if key > best_key:
 			best_key = key
 			best = c
 	return best
+
+
+static func _clear(arch: Dictionary) -> float:
+	return arch.half + WallLayout.RING * arch.size + WallLayout.PIER * 0.5

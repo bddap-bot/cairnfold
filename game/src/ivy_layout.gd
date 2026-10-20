@@ -68,7 +68,7 @@ static func blocked(wall: WallLayout, s: float, y: float) -> bool:
 		return true
 	for o in wall.apertures:
 		if o.style == WallLayout.DoorStyle.ARCHWAY:
-			var half := wall.opening(y, true)
+			var half := wall.opening(y, true, o.size)
 			if half > 0.0 and absf(wall.offset(s, o.s)) < half + MARGIN:
 				return true
 		elif absf(wall.offset(s, o.s)) < o.half + WallLayout.LINTEL_EAR + MARGIN and y > o.sill - 0.15 - MARGIN and y < o.head + wall.course_height() + MARGIN:

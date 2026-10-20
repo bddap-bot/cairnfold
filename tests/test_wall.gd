@@ -9,6 +9,9 @@ func _init() -> void:
 	_straight_wall_fills_its_length()
 	_arch_ring_closes_over_the_opening()
 	_arch_meets_its_wall_with_no_gap()
+	_a_grand_arch_is_a_doorway_arch_scaled()
+	_an_arch_grows_up_to_the_wall_top()
+	_doors_and_windows_scale_from_where_they_stand()
 	_short_or_low_walls_take_no_arch()
 	_layout_is_deterministic()
 	_a_copy_built_elsewhere_lays_the_same_stones()
@@ -109,23 +112,37 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 	arc.build(_flat)
 	arc.openings.assign([arc.length() * 0.5].map(WallLayout.archway))
 	walls.append(arc)
+	for style in ["stone", "plaster", "timber"]:
+		var grand := WallLayout.new()
+		if style == "timber":
+			grand.points = WallLayout.rectangle(Vector3.ZERO, Vector3(12, 0, 0), 5.0)
+			grand.closed = true
+		else:
+			grand.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
+		grand.openings.assign([WallLayout.archway(6.0, 2.5)])
+		grand.plaster = style != "stone"
+		grand.timber_style = 0 if style == "timber" else -1
+		grand.height = 6.3
+		walls.append(grand)
 	for w in walls:
 		w.build(_flat)
 		_check(w.archways().size() == 1, "%s wall %.1f m high opens its arch" % [w.arch_style().name, w.height])
 		if w.archways().is_empty():
 			continue
 		var a: float = w.archways()[0]
+		var k: float = w.apertures.filter(func(o): return o.style == WallLayout.DoorStyle.ARCHWAY)[0].size
+		var near := w.stones.filter(func(st: Dictionary) -> bool: return absf(w.offset(st.s, a)) < 1.6 * k + 1.5)
 		var gaps := []
 		var blocked := []
 		var y := 0.05
 		while y < w.height - 0.05:
-			var d := -1.6
-			while d <= 1.6:
-				var inner := w.opening(y + 0.03, false)
-				var edge := maxf(w.opening(y - 0.03, false), w.opening(y + 0.03, false)) + 0.03
-				var reveal: bool = y < w.spring() and w.arch_style().jamb == 0.0 and absf(d) < WallLayout.ARCH_HALF + WallLayout.JOINT + 0.02
+			var d := -1.6 * k
+			while d <= 1.6 * k:
+				var inner := w.opening(y + 0.03, false, k)
+				var edge := maxf(w.opening(y - 0.03, false, k), w.opening(y + 0.03, false, k)) + 0.03
+				var reveal: bool = y < w.spring(k) and w.arch_style().jamb == 0.0 and absf(d) < WallLayout.ARCH_HALF * k + WallLayout.JOINT + 0.02
 				var p: Vector3 = w.frame_at(a + d).point + Vector3.UP * y
-				var hit := w.stones.any(func(st: Dictionary) -> bool:
+				var hit := near.any(func(st: Dictionary) -> bool:
 					var q: Vector3 = st.xform.affine_inverse() * p
 					return absf(q.x) <= 0.5 and absf(q.y) <= 0.5 and absf(q.z) <= 0.5)
 				if absf(d) < inner - 0.03 and hit:
@@ -134,18 +151,18 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 					gaps.append(Vector2(d, y))
 				d += 0.04
 			y += 0.04
-		var name := "%s wall %.1f m high, %.1f m long" % [w.arch_style().name, w.height, w.length()]
+		var name := "%s wall %.1f m high, %.1f m long, arch %.1f" % [w.arch_style().name, w.height, w.length(), k]
 		_check(gaps.is_empty(), "%s: gaps between arch and wall at %s" % [name, gaps.slice(0, 8)])
 		_check(blocked.is_empty(), "%s: pieces in the opening at %s" % [name, blocked.slice(0, 8)])
-		var styled := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == w.arch_style().kind and absf(w.offset(st.s, a)) < 1.2 and st.y < w.spring() + 1.2)
+		var styled := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == w.arch_style().kind and absf(w.offset(st.s, a)) < 1.2 * k and st.y < w.spring(k) + 1.2 * k)
 		_check(not styled.is_empty(), "%s: the arch is laid in %s" % [name, w.arch_style().kind])
 		if w.arch_style().name == "timber":
 			_check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind in ["voussoir", "keystone"]), "%s: no stone in a timber frame's arch" % name)
 
-		if w.height < WallLayout.DOOR_TALL + w.course_height() * 1.4:
+		if w.height < WallLayout.DOOR_TALL + w.course_height() * 1.4 or k != 1.0:
 			continue
 		var door := w.inputs()
-		door.openings = [Vector3(a, 0.0, WallLayout.DoorStyle.PLAIN)]
+		door.openings = [Vector4(a, 0.0, WallLayout.DoorStyle.PLAIN, 1)]
 		door.build(_flat)
 		_check(door.apertures.size() == 1 and door.apertures[0].door, "%s: the same opening list takes a door" % name)
 		if door.apertures.is_empty():
@@ -166,6 +183,62 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 				d += 0.04
 			y += 0.04
 		_check(gaps.is_empty(), "%s: gaps between door and wall at %s" % [name, gaps.slice(0, 8)])
+
+
+## An arch of any size is the doorway's, scaled: its opening, its ring of voussoirs and its keystone, under the top.
+func _a_grand_arch_is_a_doorway_arch_scaled() -> void:
+	for k in [1.0, 2.0, 3.5]:
+		var w := WallLayout.new()
+		w.points = [Vector3(0, 0, 0), Vector3(16, 0, 0)]
+		w.height = 6.0
+		w.openings.assign([WallLayout.archway(8.0, k)])
+		w.build(_flat)
+		_check(w.apertures.size() == 1 and is_equal_approx(w.apertures[0].half, WallLayout.ARCH_HALF * k), "an arch of size %.1f opens %.2f m wide: %s" % [k, WallLayout.ARCH_HALF * k * 2.0, w.apertures])
+		if w.apertures.size() != 1:
+			continue
+		var ring := w.stones.filter(func(st): return st.kind == "voussoir")
+		_check(ring.size() == 10, "size %.1f: 10 voussoirs, got %d" % [k, ring.size()])
+		for st in ring:
+			var r := Vector2(st.s - 8.0, st.y - w.spring(k)).length()
+			_check(absf(r - (WallLayout.ARCH_HALF + WallLayout.RING * 0.5) * k) < 0.05 * k, "size %.1f: voussoir off its ring: r=%f" % [k, r])
+		var key := w.stones.filter(func(st): return st.kind == "keystone")
+		_check(key.size() == 1 and key[0].y > w.apertures[0].head - WallLayout.RING * k, "size %.1f: its keystone closes the head" % k)
+		_check(w.apertures[0].head <= w.height - 0.3 + 0.01, "size %.1f: its ring stays under the top" % k)
+
+
+## The largest arch that opens reaches up to the wall's top, ring and all, however tall the wall: a grand arch is
+## only a matter of a wall tall enough.
+func _an_arch_grows_up_to_the_wall_top() -> void:
+	for height in [3.0, 6.0, 9.0]:
+		var w := WallLayout.new()
+		w.points = [Vector3(0, 0, 0), Vector3(40, 0, 0)]
+		w.height = height
+		w.build(_flat)
+		var placed: Array[Vector4] = []
+		var k := 1.0
+		while w.opening_fits(WallLayout.archway(20.0, k + 0.05), placed):
+			k += 0.05
+		var head: float = w.opening_for(WallLayout.archway(20.0, k)).head
+		_check(k > 1.0 and head > height - 0.3 - 0.1, "on a wall %.1f m high an arch grows to size %.2f, its ring %.2f m up" % [height, k, head])
+
+
+## A door or window of any size stands where it was placed, grown up from its sill: still a window, still a door.
+func _doors_and_windows_scale_from_where_they_stand() -> void:
+	var w := WallLayout.new()
+	w.points = [Vector3(0, 0, 0), Vector3(14, 0, 0)]
+	w.height = 6.0
+	w.openings.assign([Vector4(3.0, 0.5, WallLayout.DoorStyle.PLAIN, 1.5), Vector4(9.0, 2.0, WallLayout.DoorStyle.PLAIN, 2.0)])
+	w.build(_flat)
+	var c := w.course_height()
+	var unit := w.opening_for(Vector4(9.0, 2.0, WallLayout.DoorStyle.PLAIN, 1.0))
+	_check(w.apertures.size() == 2, "a big door and a big window both open: %s" % [w.apertures])
+	if w.apertures.size() != 2:
+		return
+	var door := w.apertures[0]
+	var window := w.apertures[1]
+	_check(door.door and is_equal_approx(door.half, WallLayout.DOOR_HALF * 1.5) and is_equal_approx(door.head, roundf(WallLayout.DOOR_TALL * 1.5 / c) * c), "the door is half again as wide and tall: %s" % door)
+	_check(not window.door and is_equal_approx(window.sill, unit.sill) and is_equal_approx(window.half, WallLayout.WINDOW_HALF * 2.0) and window.head - window.sill > (unit.head - unit.sill) * 1.8, "the window keeps its sill and doubles: %s" % window)
+	_check(w.stones.any(func(st): return st.kind == "lintel" and absf(st.s - 9.0) < 0.1 and st.size.x > WallLayout.WINDOW_HALF * 4.0), "its lintel spans it")
 
 
 func _short_or_low_walls_take_no_arch() -> void:
@@ -192,7 +265,7 @@ func _a_copy_built_elsewhere_lays_the_same_stones() -> void:
 	loop.cover = WallLayout.Cover.ROOF
 	loop.seed = 9
 	loop.openings.assign([16.1].map(WallLayout.archway))
-	loop.openings.append_array([Vector3(2.2, 1.4, 0)])
+	loop.openings.append_array([Vector4(2.2, 1.4, 0, 1)])
 	loop.lanterns.assign([Vector3(7.0, 1.8, 1.0)])
 	var flagged := WallLayout.new()
 	flagged.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
@@ -468,7 +541,7 @@ func _a_low_wall_crosses_as_a_causeway() -> void:
 func _ducks_pass_only_under_arches() -> void:
 	var w := _wet(6.0, 2.6)
 	var a: float = w.archways()[0]
-	_check(not w.opening_fits(Vector3(a, 1.5, WallLayout.DoorStyle.PLAIN), w.openings), "placement respects the water opening it previews")
+	_check(not w.opening_fits(Vector4(a, 1.5, WallLayout.DoorStyle.PLAIN, 1), w.openings), "placement respects the water opening it previews")
 	var x := w.point_at(a).x
 	_check(not w.blocks_swim(Vector2(x, -2), Vector2(x, 2)), "a duck swims under an arch")
 	var pillar: float = w.pillars()[0].s
@@ -548,7 +621,7 @@ func _mortar_stops_short_of_a_doorway_and_the_ends() -> void:
 	var w := WallLayout.new()
 	w.points = [Vector3(0, 0, 0), Vector3(9, 0, 0)]
 	w.height = 3.0
-	w.openings = [Vector3(3.0, 0.3, 0)]
+	w.openings = [Vector4(3.0, 0.3, 0, 1)]
 	w.build(_flat)
 	var o: Dictionary = w.apertures[0]
 	var reach := WallLayout.JOINT - 0.001

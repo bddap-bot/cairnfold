@@ -332,13 +332,13 @@ static func _wall(d: Variant) -> Variant:
 	var openings: Variant = d.get("openings")
 	var lanterns: Variant = d.get("lanterns")
 	var flags: Variant = d.get("flags")
-	if typeof(openings) != TYPE_PACKED_VECTOR3_ARRAY or openings.size() > MAX_FITTINGS or not Array(openings).all(func(w: Vector3) -> bool: return w.is_finite() and w.x >= 0.0 and w.x < 4000.0 and w.y >= 0.0 and (w.z == WallLayout.DoorStyle.PLAIN or w.z == WallLayout.DoorStyle.ARCHWAY)):
+	if typeof(openings) != TYPE_PACKED_VECTOR4_ARRAY or openings.size() > MAX_FITTINGS or not Array(openings).all(func(w: Vector4) -> bool: return w.is_finite() and w.x >= 0.0 and w.x < 4000.0 and w.y >= 0.0 and (w.z == WallLayout.DoorStyle.PLAIN or w.z == WallLayout.DoorStyle.ARCHWAY) and w.w >= 1.0):
 		return null
 	if typeof(lanterns) != TYPE_PACKED_VECTOR3_ARRAY or lanterns.size() > MAX_FITTINGS or not Array(lanterns).all(func(l: Vector3) -> bool: return l.is_finite() and l.x >= 0.0 and l.x < 4000.0 and l.y >= 0.0 and absf(l.z) == 1.0):
 		return null
 	if typeof(flags) != TYPE_PACKED_FLOAT32_ARRAY or flags.size() > MAX_FITTINGS or not Array(flags).all(func(f: float) -> bool: return is_finite(f) and f >= 0.0 and f < 4000.0):
 		return null
-	if d.fence and not (Array(openings).all(func(o): return o.z == WallLayout.DoorStyle.ARCHWAY) and flags.is_empty()):
+	if d.fence and not (Array(openings).all(func(o): return o.z == WallLayout.DoorStyle.ARCHWAY and o.w == 1.0) and flags.is_empty()):
 		return null
 	var ruins: Variant = d.get("ruins")
 	if typeof(ruins) != TYPE_PACKED_VECTOR2_ARRAY or ruins.size() > MAX_RUINS or not Array(ruins).all(func(r: Vector2) -> bool: return r.is_finite() and r.x >= 0.0 and r.y > r.x and r.y < 4000.0):

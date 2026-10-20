@@ -111,7 +111,7 @@ func _capture(name: String, eye: Vector3, dir: Vector3, at: Vector3) -> void:
 
 
 func _other_fittings(w: Wall) -> void:
-	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"openings": PackedVector3Array([Vector3(8, 1.5, 0)]), "roof": {"chimneys": PackedVector2Array([Vector2(0, 1)])}}})
+	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"openings": PackedVector4Array([Vector4(8, 1.5, 0, 1)]), "roof": {"chimneys": PackedVector2Array([Vector2(0, 1)])}}})
 	w.lay_now()
 	await _takes_kind(w, "opening")
 	await _takes_kind(w, "chimney")
@@ -120,7 +120,7 @@ func _other_fittings(w: Wall) -> void:
 	await d.finished
 	d.queue_free()
 	var wall: Wall = main.tool.walls[-1]
-	main.world.submit({"op": "reshape", "of": "walls", "id": wall.id, "data": {"flags": PackedFloat32Array([2]), "openings": PackedVector3Array([5].map(WallLayout.archway))}})
+	main.world.submit({"op": "reshape", "of": "walls", "id": wall.id, "data": {"flags": PackedFloat32Array([2]), "openings": PackedVector4Array([5].map(WallLayout.archway))}})
 	wall.lay_now()
 	await _takes_kind(wall, "flag")
 	await _takes_kind(wall, "opening")

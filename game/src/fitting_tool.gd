@@ -81,7 +81,7 @@ func _process(delta: float) -> void:
 		b.latch()
 	for id in _sent:
 		if _sent[id].has("openings") and not shown.get(id, {}).has("openings"):
-			shown.get_or_add(id, {}).openings = PackedVector3Array(_sent[id].openings)
+			shown.get_or_add(id, {}).openings = PackedVector4Array(_sent[id].openings)
 	show_reshaped(shown)
 	_since_lights += delta
 	if _since_lights >= LIGHT_EVERY:
@@ -131,8 +131,8 @@ func _steady(i: int, target: Dictionary) -> Dictionary:
 	return target
 
 
-static func _opening(target: Dictionary) -> Vector3:
-	return Vector3(target.s, target.y, target.get("style", WallLayout.DoorStyle.PLAIN))
+static func _opening(target: Dictionary) -> Vector4:
+	return Vector4(target.s, target.y, target.get("style", WallLayout.DoorStyle.PLAIN), target.get("size", 1.0))
 
 
 ## Lays each wall in `shown`, by id, with its reshape data, as the command sending it would; every other wall laid
@@ -198,7 +198,9 @@ func _command(target: Dictionary, c: Dictionary) -> Dictionary:
 	var after: Array = c.after
 	var packed: Variant
 	match c.key:
-		"lanterns", "openings":
+		"openings":
+			packed = PackedVector4Array(after)
+		"lanterns":
 			packed = PackedVector3Array(after)
 		"flags":
 			packed = PackedFloat32Array(after)
@@ -222,7 +224,7 @@ func change(target: Dictionary) -> Dictionary:
 			if layout.fence:
 				return {"ok": false}
 			var click := _opening(target)
-			var placed: Array[Vector3] = []
+			var placed: Array[Vector4] = []
 			placed.assign(_placed(w, false, "openings"))
 			var near := layout.placed_at(click, placed)
 			return _change(w, false, "openings", click, near, near >= 0 or layout.opening_fits(click, walls.standing_openings(w, placed)))
@@ -353,11 +355,12 @@ func _exit_tree() -> void:
 
 
 ## Placement and deletion refine the same first building surface with the fittings in front of it that the garden has:
-## a previewed opening is the hand's own aim, never something to take away.
-static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3) -> Dictionary:
-	var best := builder.pick_building(origin, dir)
+## a previewed opening is the hand's own aim, never something to take away. A `held` pick also sees builds another
+## hand is pulling, as `WallTool.pick_building` does.
+static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held := false) -> Dictionary:
+	var best := builder.pick_building(origin, dir, held)
 	for w in builder.walls:
-		if builder._held(w):
+		if builder._held(w) and not held:
 			continue
 		for item in targets(w):
 			var box: AABB = item.box

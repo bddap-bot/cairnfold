@@ -42,8 +42,9 @@ signal built
 
 
 ## A thing a grip grows and shrinks, its top following the hand: how to read and show its scale, the range it may
-## take, and the command that sets it in the garden.
+## take, and the command that sets it in the garden; and the scale it had when the first grip took it.
 class Sizing:
+	var from := 0.0
 	var scale: Callable
 	var top: Callable
 	var limits: Vector2
@@ -53,17 +54,25 @@ class Sizing:
 	var settle: Callable
 
 
+## A placed opening a grip sizes: its wall and its place in the garden's list of the wall's openings.
+class OpeningGrip:
+	var wall: Wall
+	var index: int
+
+
 class Mason:
 	var hand: Hand
 	var buttons: Buttons
 	var stroke: Stroke
 	var lifting: Wall
 	var roofing: Wall
-	## What the grip is sizing (a tree's trunk or a boulder), how, and its top's height over the ground at its scale
-	## `lift_start`.
+	## What the grip is sizing (a tree's trunk, a boulder or an opening), how, and its top's height over the ground at
+	## its scale `lift_start`; with the other hand's grip on it too, that mason, and the hands' span when it joined.
 	var growing: Object
 	var sizing: Sizing
 	var grow_top := 0.0
+	var partner: Mason
+	var pair_span := 0.0
 	var lift_start := 0.0
 	var lift_hand := Vector3.ZERO
 	var lift_gain := 1.0
@@ -242,7 +251,7 @@ func _handle(m: Mason) -> void:
 			extend_stroke(m, m.ground)
 
 	if m.buttons.pressed("grab") and house == null and not busy(m.hand):
-		var pick := pick_building(origin, dir, true)
+		var pick := FittingTool.pick_target(self, origin, dir, true)
 		var roof := pick if pick.get("surface") == "roof" else {}
 		var ground: Variant = Terrain.raycast(origin, dir)
 		var nearest: float = origin.distance_to(ground) if ground != null else INF
@@ -250,11 +259,11 @@ func _handle(m: Mason) -> void:
 		var trunk: Flora.Plant = tree.plants[0] if not tree.is_empty() and tree.plants[0].pool == flora.trunks else null
 		var rock := world.boulders.pick(origin, dir, minf(nearest, minf(pick.get("along", INF), tree.get("along", INF)))) if world.boulders != null else {}
 		if not rock.is_empty():
-			if not masons.any(func(o: Mason) -> bool: return o.growing == rock.boulder):
-				begin_grow(m, rock.boulder, origin, rock.point)
+			begin_grow(m, rock.boulder, origin, rock.point)
 		elif trunk != null and tree.along < pick.get("along", INF):
-			if not masons.any(func(o: Mason) -> bool: return o.growing == trunk):
-				begin_grow(m, trunk, origin, tree.point)
+			begin_grow(m, trunk, origin, tree.point)
+		elif pick.get("what") == "opening" and pick.along < nearest:
+			begin_grow(m, _opening_grip(pick.wall, Array(world.state.walls[pick.wall.id].openings).find(pick.value)), origin, pick.point)
 		elif not roof.is_empty() and roof.along < nearest:
 			if _held(roof.wall):
 				_join(m, roof.wall, true)
@@ -270,7 +279,10 @@ func _handle(m: Mason) -> void:
 	elif m.buttons.held("grab") and m.roofing != null:
 		drag_roof(m, origin)
 	elif m.buttons.held("grab") and m.growing != null:
-		drag_grow(m, origin.y)
+		if m.partner == null:
+			drag_grow(m, origin.y)
+		elif m.pair_span > 0.0:
+			drag_pair(m, m.partner.hand.global_position, origin)
 
 
 ## Shows the bar what the edit in `m`'s hand would add.
@@ -414,6 +426,8 @@ func _forget() -> void:
 		m.lifting = null
 		m.roofing = null
 		m.growing = null
+		m.sizing = null
+		m.partner = null
 	if house != null:
 		house.queue_free()
 		house = null
@@ -611,9 +625,9 @@ static func reshape_house(d: Dictionary, to: Dictionary) -> Dictionary:
 	was.assign(Array(d.points))
 	var now := outline(to)
 	var moved := func(s: float) -> float: return _loop_s(now, _scaled(from, to, _loop_point(was, s)))
-	var openings := PackedVector3Array()
-	for w: Vector3 in d.openings:
-		openings.append(Vector3(moved.call(w.x), w.y, w.z))
+	var openings := PackedVector4Array()
+	for w: Vector4 in d.openings:
+		openings.append(Vector4(moved.call(w.x), w.y, w.z, w.w))
 	var lanterns := PackedVector3Array()
 	for l: Vector3 in d.lanterns:
 		lanterns.append(Vector3(moved.call(l.x), l.y, l.z))
@@ -912,12 +926,23 @@ func end_roof(m: Mason) -> void:
 		world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id), m.hand)
 
 
-## Grip on a tree or a boulder at `at`: the hand raised grows it and lowered shrinks it, its top rising and falling with
-## the hand.
+## Grip on a tree, a boulder or an opening at `at`: the hand raised grows it and lowered shrinks it, its top rising and
+## falling with the hand. A grip on one the other hand is sizing joins it: the two hands pulled apart grow it, pushed
+## together shrink it, in proportion to their span; letting either go leaves the other sizing it alone.
 func begin_grow(m: Mason, target: Object, hand: Vector3, at: Vector3) -> void:
 	m.growing = target
+	for o in masons:
+		if o != m and o.growing == target:
+			m.sizing = o.sizing
+			m.partner = o
+			o.partner = m
+			m.lift_start = m.sizing.scale.call()
+			m.lift_at = at
+			m.pair_span = o.hand.global_position.distance_to(hand)
+			return
 	m.sizing = _sizing(target)
-	m.lift_start = m.sizing.scale.call()
+	m.sizing.from = m.sizing.scale.call()
+	m.lift_start = m.sizing.from
 	m.lift_hand = hand
 	m.lift_at = at
 	m.lift_gain = Hand.reach_gain(hand.distance_to(at))
@@ -928,27 +953,51 @@ func drag_grow(m: Mason, hand_y: float) -> void:
 	var s := m.sizing
 	if not s.current.call():
 		return
-	var scale := clampf(snappedf(m.lift_start * (m.grow_top + (hand_y - m.lift_hand.y) * m.lift_gain) / m.grow_top, 0.01), s.limits.x, s.limits.y)
-	if not is_equal_approx(scale, s.scale.call()):
-		s.show.call(scale)
-		_cue(Cues.Act.WALL_STRETCH, m.lift_at, [m.hand], Cues.stretch(m.lift_start, scale))
+	_size(m, m.lift_start * (m.grow_top + (hand_y - m.lift_hand.y) * m.lift_gain) / m.grow_top)
+
+
+## The two hands sizing what `m` joined, now at `a` and `b`.
+func drag_pair(m: Mason, a: Vector3, b: Vector3) -> void:
+	if m.sizing.current.call():
+		_size(m, m.lift_start * a.distance_to(b) / m.pair_span)
+
+
+func _size(m: Mason, scale: float) -> void:
+	var s := m.sizing
+	var was: float = s.scale.call()
+	s.show.call(clampf(snappedf(scale, 0.01), s.limits.x, s.limits.y))
+	if not is_equal_approx(was, s.scale.call()):
+		_cue(Cues.Act.WALL_STRETCH, m.lift_at, [m.hand] + ([m.partner.hand] if m.partner != null else []), Cues.stretch(m.lift_start, s.scale.call()))
 
 
 func end_grow(m: Mason) -> void:
 	var s := m.sizing
+	var other := m.partner
 	m.growing = null
 	m.sizing = null
-	if not s.current.call() or is_equal_approx(s.scale.call(), m.lift_start):
+	m.partner = null
+	m.pair_span = 0.0
+	if other != null:
+		other.partner = null
+		other.pair_span = 0.0
+		other.lift_start = s.scale.call()
+		other.lift_hand = other.hand.global_position
+		other.lift_gain = Hand.reach_gain(other.lift_hand.distance_to(other.lift_at))
+		other.grow_top = s.top.call()
+		return
+	if not s.current.call() or is_equal_approx(s.scale.call(), s.from):
 		s.settle.call()
 	else:
 		world.submit(s.command.call(s.scale.call()), s.settle, m.hand)
 
 
-## How a grip sizes `target`, a tree's trunk or a boulder; either shows as the garden has it once its sizing has come
-## back or been turned down, unless a hand holds it again.
+## How a grip sizes `target`, a tree's trunk, a boulder or an opening; each shows as the garden has it once its sizing
+## has come back or been turned down, unless a hand holds it again.
 func _sizing(target: Object) -> Sizing:
 	var s := Sizing.new()
 	var held := func() -> bool: return masons.any(func(o: Mason) -> bool: return o.growing == target)
+	if target is OpeningGrip:
+		return _opening_sizing(target, s, held)
 	if target is Boulders.Boulder:
 		var b: Boulders.Boulder = target
 		var rocks := world.boulders
@@ -977,8 +1026,61 @@ func _sizing(target: Object) -> Sizing:
 	return s
 
 
+## Sizes a placed opening: it grows every way from where it stands, as far as it still opens without closing another,
+## an arch up to the wall's top (WallLayout.opening_for).
+func _opening_sizing(grip: OpeningGrip, s: Sizing, held: Callable) -> Sizing:
+	var w := grip.wall
+	var stored := func() -> Array: return Array(world.state.walls[w.id].openings) if is_instance_valid(w) and find(w.id) == w and world.state.walls.has(w.id) else []
+	var start: Vector4 = stored.call()[grip.index]
+	var shown := {"size": start.w}
+	var sized := func(size: float) -> Array:
+		var placed: Array = stored.call()
+		placed[grip.index] = Vector4(start.x, start.y, start.z, size)
+		return placed
+	var fits := func(size: float) -> bool:
+		var others: Array = stored.call()
+		others.remove_at(grip.index)
+		return w.layout.opening_fits(Vector4(start.x, start.y, start.z, size), standing_openings(w, others))
+	s.scale = func() -> float: return shown.size
+	s.top = func() -> float: return w.layout.opening_for(Vector4(start.x, start.y, start.z, shown.size)).head
+	s.limits = Vector2(1.0, INF)
+	var current := func() -> bool:
+		var now: Array = stored.call()
+		return now.size() > grip.index and Vector3(now[grip.index].x, now[grip.index].y, now[grip.index].z) == Vector3(start.x, start.y, start.z)
+	s.current = current
+	s.show = func(size: float) -> void:
+		if size > shown.size and not fits.call(size):
+			var lo: float = shown.size
+			for i in 12:
+				var mid := (lo + size) * 0.5
+				if fits.call(mid):
+					lo = mid
+				else:
+					size = mid
+			size = floorf(lo * 100.0) / 100.0
+		if not is_equal_approx(size, shown.size) and fits.call(size):
+			shown.size = size
+			_relay(w, {"openings": PackedVector4Array(sized.call(size))})
+	s.command = func(size: float) -> Dictionary: return {"op": "reshape", "of": "walls", "id": w.id, "data": {"openings": PackedVector4Array(sized.call(size))}}
+	s.settle = func() -> void:
+		if current.call() and not held.call():
+			settle(w.id)
+	return s
+
+
+## The grip a hand already sizing opening `index` of `w` holds, so a second hand's grip on it joins that one.
+func _opening_grip(w: Wall, index: int) -> OpeningGrip:
+	for m in masons:
+		if m.growing is OpeningGrip and m.growing.wall == w and m.growing.index == index:
+			return m.growing
+	var grip := OpeningGrip.new()
+	grip.wall = w
+	grip.index = index
+	return grip
+
+
 ## The openings in `w` with its stored placements and the paths standing, independent of its preview.
-func standing_openings(w: Wall, own: Array) -> Array[Vector3]:
+func standing_openings(w: Wall, own: Array) -> Array[Vector4]:
 	var shown := w.layout.openings.duplicate()
 	w.layout.openings.assign(own)
 	for p in paths.layouts:
@@ -1101,14 +1203,18 @@ func _cut_crossings(w: Wall, path: PathLayout, cells: Array = []) -> Array[float
 	for a in path.crossings(layout, cells):
 		a = layout.wrap(a)
 		var past := INF
+		var size := 1.0
 		for e in placed:
 			if absf(layout.offset(a, e.x)) < absf(past):
 				past = layout.offset(a, e.x)
-		if absf(past) < WallLayout.ARCH_HALF:
+				size = e.w
+		if absf(past) < WallLayout.ARCH_HALF * size:
 			continue
+		# Beside an opening of `size`, a doorway arch stands as far from it as the pair's halves and rings reach.
+		var pair := (1.0 + size) * 0.5
 		var tries := [a]
-		if absf(past) < WallLayout.ARCH_SPACING:
-			var side := signf(past) * WallLayout.ARCADE_PITCH
+		if absf(past) < WallLayout.ARCH_SPACING * pair:
+			var side := signf(past) * WallLayout.ARCADE_PITCH * pair
 			tries = [layout.wrap(a - past + side), layout.wrap(a - past - side)]
 		for t in tries:
 			if placed.size() < Commands.MAX_FITTINGS and layout.opening_fits(WallLayout.archway(t), placed):
@@ -1200,7 +1306,7 @@ func _held(w: Wall) -> bool:
 	if w != null and w == resizing:
 		return true
 	for m in masons:
-		if m.lifting == w or m.roofing == w:
+		if m.lifting == w or m.roofing == w or (m.growing is OpeningGrip and m.growing.wall == w):
 			return true
 	return false
 

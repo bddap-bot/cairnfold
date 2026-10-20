@@ -164,6 +164,7 @@ static func count(d: Dictionary) -> int:
 		w.gable.kind = d.roof.kind
 		w.gable.pitch = d.roof.pitch
 		w.gable.curve = d.roof.curve
-	for a in w.archways():
-		w._lay_arch(a, RandomNumberGenerator.new(), 0.0)
+	for o in w.apertures:
+		if o.style == WallLayout.DoorStyle.ARCHWAY:
+			w._lay_arch(o.s, o.size, RandomNumberGenerator.new(), 0.0)
 	return generate(w).size() + w.stones.filter(func(s: Dictionary) -> bool: return s.kind == "timber").size()
