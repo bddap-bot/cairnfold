@@ -132,7 +132,8 @@ def scripts(count):
         else:
             steps += [barrier(["home"])]
         steps += [{"op": "quit"}]
-        result[name] = steps
+        # What is synced is under test here, not the frame budget, which tests/test_budget.gd holds.
+        result[name] = [{"op": "budget", "bounded": False}] + steps
     return result
 
 

@@ -78,7 +78,7 @@ if missing:
 wild = sum(max([extra for extra, _ in extras(phase, None)] + [0.0]) for phase in WILD)
 meadow = [gpu[f"meadow/{v}"] for v in views if f"meadow/{v}" in gpu and f"meadow/{v}" not in halved]
 line = {"budget_ms": "1000.0 / REFRESH_HZ * Quality.Governor.LINE", "base_ms": round(max([*base.values(), *meadow]) + wild, 2),
-        **{k: round(v, 3) for k, v in cost.items()}, "timber": "TIMBER_US"}
+        **{k: round(v, 3) for k, v in cost.items()}, "timber": "TIMBER_US", "moss": f"{round(cost['flower'], 3)} * MOSS_FLOWERS"}
 text = ", ".join(f'"{k}": {v}' for k, v in line.items())
 budget = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../game/src/budget.gd")
 src = open(budget).read()

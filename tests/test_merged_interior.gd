@@ -14,6 +14,7 @@ func _check(ok: bool, what: String) -> void:
 		print("FAIL: ", what)
 
 func _run() -> void:
+	main.world.bounded = false
 	var steps := Driver.read("res://../demo/merged-interior.json").slice(0, 7)
 	var driver := Driver.new(main, steps)
 	main.add_child(driver)

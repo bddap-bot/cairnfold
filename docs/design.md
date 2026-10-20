@@ -677,43 +677,55 @@ wanna make it obvious to the user that there is a limit there"
   counts nothing. Lantern light is baked (`Lamps`); a lantern counts by its meshes.
 - A roof counts the area along its slopes: its plan out to the eaves times `RoofLayout.stretch`, the slope's length
   over its run for a gable, the cone's surface over its disc for a tower, 1 for a flat deck. Tiles and straw courses
-  are laid a fixed distance apart along the slope, so they grow with that area, not the plan. `roof_m2` and
-  `thatch_m2` were fitted per square metre of plan, on the costs scene's village alone, whose houses are all one
-  shape (4.9 by 3.08 m, rise 1.29 m, straight slopes; stretch 1.22022): each headset's fitted cost was divided by
-  that stretch, which is the cost the same runs give counted by slope, until they are measured again.
+  are laid a fixed distance apart along the slope, so they grow with that area, not the plan. The Frame's `roof_m2`
+  and `thatch_m2` are fitted by slope. The Quest 2's were fitted per square metre of plan, on the costs scene's
+  village alone, whose houses are all one shape (4.9 by 3.08 m, rise 1.29 m, straight slopes; stretch 1.22022), and
+  divided by that stretch, which is the cost the same run gives counted by slope, until it is measured again.
 - `demo/stress.json`, `demo/ladder.json`, `demo/tour.json` and `demo/costs.json` build past
   the budget on purpose (`{"op": "budget", "bounded": false}`), to measure what lies
   beyond it.
 
-On the Steam Frame (`bench.sh OUT SSH_HOST BUNDLE`, unworn, the ladder held at step 8,
-then its bottom), viewport GPU milliseconds a frame, from the air and standing, over the bare
-meadow's 5.69 and 4.57 ms; the room is 11.1 ms (the governor's line) less 5.7:
+On the Steam Frame (`NESTCOMBE_SCENE=demo/costs.json bench.sh OUT SSH_HOST BUNDLE UNWORN...`, unworn,
+the ladder held at step 8; [record](../perf/frame/costs/20261020T213034Z-b717f4b.json)), viewport GPU
+milliseconds a frame, from the air and standing, every phase at 72 Hz, over the bare meadow's
+7.33 and 6.56 ms (7.32 at dusk). The base is the meadow with its own plants, 8.94 ms from the
+air, plus 0.39 ms of the wildlife builds draw (flowers 0.01, trees 0.05, fences 0.06, ponds
+0.27): 9.33 ms, so the room is 11.1 ms (the governor's line) less 9.33, 1.77 ms:
 
 | Phase | Units | From the air | Standing | Fitted cost |
 | --- | --- | --- | --- | --- |
-| Grass pool full | 12,000 blades | 6.29 | 5.34 | 0.061 µs a blade |
-| Flower pool full | 4,000 flowers | 5.83 | 4.89 | 0.072 µs a flower |
-| Tree pool full | 64 trees | 6.25 | 5.96 | 21.3 µs a tree |
-| Bush pool full (a later run, over its bare meadow's 7.38 and 5.46 ms) | 256 bushes | 7.84 | 6.19 | 2.85 µs a bush |
-| Walls, 10 m disc | 714 m² | 6.73 | 8.94 | 6.07 µs a m² |
-| Walls, 15 m disc | 1,562 m² | 7.62 | 11.75 | |
-| Plaster walls, 15 m disc | 1,562 m² | 7.12 | 9.15 | 2.92 µs a m² |
-| Fences, 15 m disc | 416 m² | 5.93 | 5.36 | 1.82 µs a m² |
-| Eight ponds | 8 | 5.98 | 4.60 | 35.3 µs a pond |
-| Village, 12 m disc | 225 m² of wall, 54 m² of roof | 7.45 | 6.55 | 10.8 µs a m² of roof |
-| Lanterns on the 10 m disc's walls | 90 | 6.78 | 9.22 | 3.1 µs a lantern |
-| The meadow's own flowers, trees and bushes | 3,200, 46, 60 | 6.44 | 4.96 | the base, 6.44 ms |
-| Hills | | 5.70 | 4.74 | nothing |
-| Stone ground | | 5.72 | 4.62 | nothing |
+| Grass pool full | 12,000 blades | 7.96 | 8.69 | 0.177 µs a blade |
+| Flower pool full | 4,000 flowers | 7.74 | 7.42 | 0.215 µs a flower |
+| Tree pool full | 64 trees | 8.15 | 7.87 | 20.5 µs a tree |
+| Bush pool full | 256 bushes | 7.74 | 6.79 | 1.60 µs a bush |
+| Walls, 10 m disc | 553 m² | 8.58 | 10.38 | 6.90 µs a m² |
+| Walls, 15 m disc | 1,122 m² | 9.51 | 10.57 | |
+| Walls, 20 m disc | 1,197 m² | 10.49 | 10.29 | |
+| Plaster walls, 15 m disc | 1,562 m² | 8.25 | 9.69 | 2.01 µs a m² |
+| Fences, 15 m disc | 416 m² | 7.78 | 7.88 | 3.17 µs a m² |
+| Ponds | 7 | 7.46 | 6.67 | 19.5 µs a pond |
+| Village | 215 m² of wall, 158 m² of roof | 9.07 | 9.10 | 6.65 µs a m² of roof |
+| Village floored | 598 m² of wall, 158 m² of roof, 151 m² of floor | 9.64 | 9.50 | nothing: under its walls and roofs |
+| Village thatched | 215 m² of wall, 158 m² of thatch | 9.09 | 8.60 | 3.48 µs a m² of thatch |
+| Lanterns | 58 on 454 m² of wall | 8.43 | 10.60 | 15.6 µs a lantern |
+| Easels | 4 | 7.96 | 8.69 | 532 µs an easel |
+| Boulders | 78 | 8.03 | 7.06 | 9.07 µs a boulder |
+| Moss, not measured | | | | 3.44 µs a patch, sixteen flowers' worth (`Budget.MOSS_FLOWERS`) |
+| Paths | | 7.40 | 6.33 | nothing |
+| The meadow's own flowers, trees and bushes | 3,200, 46, 60 | 8.94 | 7.44 | the base |
+| Hills | | 7.34 | 6.59 | nothing |
+| Stone ground | | 7.51 | 6.42 | nothing |
 
+The walls, village and paths are laid by `sized` steps, so their units are what the run laid,
+not the script's full discs: the 15 and 20 m discs were thinned to stay under the line.
 Walls cost most per square metre standing among the first ones: each wall near the eye
 is drawn in full, while those further off draw 12-triangle stones. So the fit takes the
 10 m disc standing, and a wide garden fills its bar faster than it fills the frame.
 
 The meadow's own scenery is the base, measured whole, not counted at the pool-full prices:
 its plants stand spread across the whole meadow, where a pool-full phase packs as many
-into a 20 m disc. Counted, its 3,200 flowers and 46 trees charged the Frame 1.38 ms against
-the 0.74 measured, and the Quest 2, once refitted at 0.68 µs a flower and 70.7 µs a tree
+into a 20 m disc. Counted, its 3,200 flowers, 46 trees and 60 bushes charge the Frame 1.73 ms
+against the 1.62 measured, and the Quest 2, once refitted at 0.68 µs a flower and 70.7 µs a tree
 (81105e0), 5.42 ms against the 2.09 measured: 141.5% of the room before anything was built,
 so every build was turned down on a Quest.
 

@@ -14,6 +14,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	main.world.bounded = false
 	var rig: Rig = main.rig
 	var walls: Array[Wall] = main.tool.walls
 	await _play([

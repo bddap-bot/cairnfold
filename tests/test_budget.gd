@@ -149,7 +149,7 @@ func _counts_follow_placements_and_deletions() -> void:
 
 func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 	var on := world.devices()
-	var piece := _wall(Vector2(-12, -20), Vector2(12, -20), 4.5)
+	var piece := _wall(Vector2(-6, -20), Vector2(6, -20), 4.5)
 	var share := Budget.fill(Budget.wall(piece), on)
 	_check(share > 0.02 and share < 0.3, "one test wall takes a measurable share: %.3f" % share)
 	var too_big := [_wall(Vector2(-40, 30), Vector2(40, 30), 9.0), _wall(Vector2(-40, 34), Vector2(40, 34), 9.0), _wall(Vector2(-40, 38), Vector2(40, 38), 9.0)]
@@ -159,7 +159,7 @@ func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 	var built := 0
 	for i in 40:
 		var at := -30.0 + i * 3.0
-		if not await _build([_wall(Vector2(-12, at), Vector2(12, at), 4.5)]):
+		if not await _build([_wall(Vector2(-6, at), Vector2(6, at), 4.5)]):
 			break
 		built += 1
 	_check(built > 0 and built < 40, "walls go up until the budget is full: %d" % built)
@@ -170,7 +170,7 @@ func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 	world.submit({"op": "unwall", "ids": PackedInt32Array([last])})
 	await _settled()
 	_check(world.fill() < Budget.fill(full, on), "deleting a wall frees its share")
-	_check(await _build([_wall(Vector2(-12, -50), Vector2(12, -50), 4.5)]), "the room it freed takes another wall")
+	_check(await _build([_wall(Vector2(-6, -50), Vector2(6, -50), 4.5)]), "the room it freed takes another wall")
 	var tall_id: int = world.state.walls.keys().max()
 	world.submit({"op": "reshape", "of": "walls", "id": tall_id, "data": {"height": 9.0}})
 	await _settled()
@@ -216,7 +216,7 @@ func _a_capped_edit_is_heard_felt_and_shown() -> void:
 func _painting_stops_at_the_budget() -> void:
 	for i in 40:
 		var at := -30.0 + i * 3.0
-		if not await _build([_wall(Vector2(-12, at), Vector2(12, at), 4.5)]):
+		if not await _build([_wall(Vector2(-6, at), Vector2(6, at), 4.5)]):
 			break
 	var walls: Array = world.state.walls.keys()
 	world.submit({"op": "unwall", "ids": PackedInt32Array([walls.max()])})

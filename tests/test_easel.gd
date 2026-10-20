@@ -17,6 +17,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
+	main.world.bounded = false
 	await process_frame
 	world = main.world
 	dir = OS.get_temp_dir().path_join("nestcombe-easel-%d" % OS.get_process_id())

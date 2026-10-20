@@ -17,6 +17,7 @@ func _check(ok: bool, what: String) -> void:
 
 
 func _run() -> void:
+	main.world.bounded = false
 	var d := Driver.new(main, [{"op": "house", "at": [0, 0], "size": [6, 5], "seconds": 0.2}])
 	main.add_child(d)
 	await d.finished
