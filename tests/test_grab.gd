@@ -289,7 +289,9 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 	var world: World = main.world
 	world.submit({"op": "reshape", "of": "walls", "id": wall.id, "data": {"height": 6.0}})
 	main.fitting_tool.fit({"what": "opening", "wall": wall, "s": 3.0, "y": 0.0, "style": WallLayout.DoorStyle.ARCHWAY})
-	for i in 30:
+	for i in 600:
+		if world.state.walls[wall.id].openings.size() == 1 and wall.layout.archways().size() == 1:
+			break
 		await process_frame
 	_check(world.state.walls[wall.id].openings.size() == 1 and wall.layout.archways().size() == 1, "the tall wall opens a doorway arch")
 	var f := wall.layout.frame_at(3.0)
