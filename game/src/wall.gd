@@ -735,6 +735,8 @@ func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 
 ## Intersects the continuous wall body between samples, including its foundation and top.
 func ray_hit(origin: Vector3, dir: Vector3) -> Dictionary:
+	if not layout.ruins.is_empty():
+		return _ruin_hit(origin, dir)
 	var best := {}
 	var n := layout.samples.size()
 	var half := 0.1 if layout.fence else WallLayout.THICKNESS * 0.5
@@ -764,4 +766,31 @@ func ray_hit(origin: Vector3, dir: Vector3) -> Dictionary:
 		if t < best.get("along", INF):
 			var end := layout.lengths[j] if j > 0 else layout.length()
 			best = {"along": t, "point": origin + dir * t, "s": lerpf(layout.lengths[i], end, clampf(hit.x / length, 0.0, 1.0)), "distance": 0.0}
+	return best
+
+
+## A ruined wall has no continuous body: the remaining masonry and fallen stones share one nearest hit.
+func _ruin_hit(origin: Vector3, dir: Vector3) -> Dictionary:
+	if get_meta(&"ruin_laid", -1) != layout.laid:
+		var pieces: Array[Dictionary] = []
+		var box := AABB(Vector3.ONE * -0.5, Vector3.ONE)
+		for stone in layout.stones:
+			var xform: Transform3D = stone.xform
+			pieces.append({"bounds": xform * box, "inverse": xform.affine_inverse(), "s": stone.s, "rubble": stone.kind == "rubble"})
+		set_meta(&"ruin_pieces", pieces)
+		set_meta(&"ruin_laid", layout.laid)
+	var best := {}
+	var box := AABB(Vector3.ONE * -0.5, Vector3.ONE)
+	for piece: Dictionary in get_meta(&"ruin_pieces"):
+		var bounds: AABB = piece.bounds
+		if not bounds.has_point(origin) and bounds.intersects_ray(origin, dir) == null:
+			continue
+		var local: Vector3 = piece.inverse * origin
+		var direction: Vector3 = piece.inverse.basis * dir
+		var hit: Variant = local if box.has_point(local) else box.intersects_ray(local, direction)
+		if hit == null:
+			continue
+		var along: float = (hit - local).dot(direction) / direction.length_squared()
+		if along < best.get("along", INF):
+			best = {"along": along, "point": origin + dir * along, "s": piece.s, "distance": 0.0, "rubble": piece.rubble}
 	return best

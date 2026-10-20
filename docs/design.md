@@ -3262,3 +3262,15 @@ not a moss-specific device measurement. `demo/moss.json` shows painted stone,
 coated and resized trunks, and algae below water. The flora stress phase fills
 moss alongside the other plants. `tests/test_moss.gd` measures headless pool fill
 cost and checks placement, budgets, tree resizing, undo and restore.
+
+
+### Removing a ruined wall
+
+Delete pointed at a fallen stone highlights its whole wall. Press and release
+removes that wall in one command; one undo restores the exact ruin. Standing
+stones still break away only along the swept stretch. Rubble made during a held
+partial teardown does not turn that stroke into a whole-wall removal.
+The shared building picker intersects a ruin's remaining masonry and rubble,
+so an empty gap no longer behaves as a full-height wall. The fitting-delete
+highlight also encloses rubble's owning wall. `demo/rubble.json` exercises the
+picker across dense ruined walls; the same phases are in the stress scene.

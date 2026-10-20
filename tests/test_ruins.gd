@@ -215,8 +215,8 @@ func _the_eraser_sweeps_a_ruin_and_undo_mends_it() -> void:
 	ruins = world.state.walls[w.id].ruins
 	_check(ruins.size() == 2 and ruins[1].y - ruins[1].x > 2.0, "a second sweep, leftward, breaks all of its stretch: %s" % ruins)
 	var steps: int = world.stacks[world.me()].undo.size()
-	await _play([{"op": "delete", "x": 0, "z": -10}])
-	_check(world.stacks[world.me()].undo.size() == steps and world.state.walls[w.id].ruins == ruins, "a tap inside a ruin changes nothing and takes no step")
+	var gap := Terrain.ground(0, -10) + Vector3.UP * 1.5
+	_check(w.ray_hit(gap + Vector3(0, 0, 3), Vector3.FORWARD).is_empty(), "a ray through the empty gap hits no standing body")
 	var arches: PackedVector4Array = world.state.walls[w.id].openings
 	main.fitting_tool.fit({"what": "opening", "style": WallLayout.DoorStyle.ARCHWAY, "y": 0.0, "wall": w, "s": w.layout.closest_s(Terrain.ground(6.2, -10))})
 	await process_frame

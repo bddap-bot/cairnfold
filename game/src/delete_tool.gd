@@ -199,7 +199,7 @@ func aim(origin: Vector3, dir: Vector3, taken := {}, gone := {}) -> Dictionary:
 ## Starts `who`'s stroke. Strokes still growing grow at once, so it takes plants not yet grown under it.
 func press(who: Object, origin: Vector3, dir: Vector3) -> void:
 	var target := aim(origin, dir)
-	if target.has("fitting"):
+	if target.has("fitting") or target.get("rubble", false):
 		_cuts[who] = {"single": target}
 		return
 	flora.grow_now()
@@ -258,6 +258,12 @@ func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 		var items: Array = cut.fittings.get_or_add(target.wall.id, [])
 		if not items.any(func(item: Dictionary) -> bool: return item.key == target.key and item.value == target.value):
 			items.append(target)
+		return target
+	# Rubble created by this stroke must not turn its partial teardown into a whole-wall delete.
+	if target.get("rubble", false) and not cut.walls.has(target.wall.id):
+		cut.wall = {}
+		cut.walls[target.wall.id] = [Vector2(0.0, target.wall.layout.length())]
+		cut.moved[target.wall.id] = true
 		return target
 	var on: Wall = cut.wall.get("wall")
 	if on != null:
@@ -347,7 +353,13 @@ func let_go(who: Object) -> void:
 	if cut.is_empty():
 		return
 	if cut.has("single"):
-		var cmd := FittingTool.removal(world.state, cut.single)
+		var target: Dictionary = cut.single
+		var cmd := {}
+		if target.get("rubble", false):
+			if _standing(target.wall):
+				cmd = {"op": "unwall", "ids": PackedInt32Array([target.wall.id])}
+		else:
+			cmd = FittingTool.removal(world.state, target)
 		if not cmd.is_empty():
 			world.submit(cmd)
 		return
