@@ -270,7 +270,8 @@ func _watch_xr() -> void:
 
 
 func _xr_state(state: int) -> void:
-	var pause := state != OpenXRInterface.SESSION_STATE_FOCUSED
+	# An unworn headset never focuses the session, and a script has no player to pause for.
+	var pause := state != OpenXRInterface.SESSION_STATE_FOCUSED and not args.has("script")
 	if get_tree().paused == pause:
 		return
 	get_tree().paused = pause

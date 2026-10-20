@@ -90,5 +90,11 @@ func _run() -> void:
 		await process_frame
 	_check(not paused and sim.frames > before and not audio.stream_paused, "focus return resumes simulation and audio")
 	_check(not Main._quitting and host.multiplayer.get_peers() == ids and guest.multiplayer.multiplayer_peer == peer, "return retains the game and co-op connection")
+	guest.args["script"] = "demo/costs.json"
+	guest.xr.session_visible.emit()
+	before = sim.frames
+	for frame in 12:
+		await process_frame
+	_check(not paused and sim.frames > before, "a scripted game plays on without focus")
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
