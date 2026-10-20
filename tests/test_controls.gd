@@ -21,7 +21,7 @@ func _run() -> void:
 		{"op": "wall", "points": [[-6, -1], [-3, -3.5], [1, -4.5], [5, -3]], "seconds": 0.5},
 		{"op": "wall", "points": [[-7, 3], [-6.5, 0]], "seconds": 0.3},
 	])
-	for b in ["B", "X", "Y", "dpad_up", "dpad_left", "dpad_right", "view", "left_stick_click", "right_stick_click", "left_stick_down", "left_stick_left", "left_stick_right", "right_stick_up", "right_stick_down"]:
+	for b in ["B", "X", "Y", "dpad_up", "dpad_left", "dpad_right", "view", "menu", "left_bumper", "right_bumper", "left_stick_click", "right_stick_click", "left_stick_down", "left_stick_left", "left_stick_right", "right_stick_up", "right_stick_down"]:
 		await _play([{"op": "press", "button": b}])
 	_check(walls.size() == 2, "a tap of every button but undo and redo, and a flick of a stick that neither moves nor turns, leaves %d of 2 walls" % walls.size())
 	_check(rig.left.tool == Hand.Tool.NONE and rig.right.tool == Hand.Tool.NONE, "a tap of a wheel button without a sweep empties both hands, holding %s and %s" % [Hand.Tool.keys()[rig.left.tool], Hand.Tool.keys()[rig.right.tool]])

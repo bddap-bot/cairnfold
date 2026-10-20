@@ -20,6 +20,8 @@ func _run() -> void:
 	_no_two_actions_share_an_input()
 	_a_tool_is_picked_without_a_stick_click()
 	_each_device_profile_binds_its_controls()
+	_frame_touches_bind_to_the_native_controls()
+	await _unused_frame_controls_do_nothing()
 	await _each_control_does_its_action_alone()
 	await _a_flick_is_one_way()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -64,6 +66,36 @@ func _each_device_profile_binds_its_controls() -> void:
 			var input: String = "primary" if Hand.FLICKS.has(to[1]) else to[1]
 			var path := _path(name, to[0])
 			_check(input in bound.get(path, []), "%s's %s (%s) arrives as %s/%s: bound to %s" % [device, name, path, to[0], input, bound.get(path, [])])
+
+
+func _frame_touches_bind_to_the_native_controls() -> void:
+	var map: OpenXRActionMap = load("res://openxr_action_map.tres")
+	var bound := {}
+	for profile in map.interaction_profiles:
+		if profile.interaction_profile_path == Controls.FRAME_PROFILE:
+			for binding in profile.bindings:
+				bound[binding.binding_path] = binding.action.resource_name
+	for hand in ["left", "right"]:
+		var paths := {"squeeze/touch": "grip_touch", "trigger/touch": "trigger_touch", "thumbstick/touch": "primary_touch"}
+		paths["dpad_down/touch" if hand == "left" else "a/touch"] = "ax_touch"
+		paths["dpad_up/touch" if hand == "left" else "b/touch"] = "by_touch"
+		for path in paths:
+			_check(bound.get("/user/hand/%s/input/%s" % [hand, path], "") == paths[path], "Frame %s %s binds %s" % [hand, path, paths[path]])
+	_check(Controls.bound("frame", "wheel", "left_hand") == ["dpad_up"], "only D-pad up opens the left Frame wheel")
+	_check(Controls.bound("frame", "wheel", "right_hand") == ["B"], "only B opens the right Frame wheel")
+
+
+func _unused_frame_controls_do_nothing() -> void:
+	var hands := _hands()
+	for control in ["X", "Y", "dpad_left", "dpad_right", "left_bumper", "right_bumper", "menu", "view", "left_stick_click", "right_stick_click"]:
+		Driver.hold("frame", control, true)
+		await process_frame
+		for action in Controls.ACTIONS:
+			for tracker in Controls.ACTIONS[action]:
+				_check(not Buttons.new(hands[tracker]).held(action), "%s does not trigger %s on %s" % [control, action, tracker])
+		Driver.hold("frame", control, false)
+	for hand in hands.values():
+		hand.free()
 
 
 ## The OpenXR path of a control named as in `Controls.DEVICES`, on the hand `tracker`.

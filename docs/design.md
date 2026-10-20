@@ -1917,8 +1917,8 @@ The style tool's icon is a wand with a star at its tip, which no build resembles
 
 Report (verbatim): "It's not possible to select a tool in your left hand right now". Directive (verbatim): "I'd like you to uh holistically rethink the button mappings. Um. One restriction is, I don't want to have to press the thumbstick down to select a tool"
 
-The wheel button is each hand's upper face button: B on the right, Y on the left (the Frame's B, X and Y
-on the right, its D-pad up, left and right on the left). The left wheel used to open on the left menu
+The wheel button is each hand's upper face button: B on the right, Y on the left (the Frame's B
+on the right, its D-pad up on the left). The left wheel used to open on the left menu
 button, which on a Quest 3 never opened it. Choices made where the directive left room, for a playtest
 to revisit: the wheel is a flat disc standing vertical in front of the hand, 12 cm to a slot, like
 Alyx's; selection is on release, as in Alyx; a subtree opens on reaching its icon; backing out of a
@@ -2006,7 +2006,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 
 | Action | Control |
 | --- | --- |
-| Pick a hand's tool | Hold that hand's upper face button (right B, left Y; on the Frame right B, X or Y, left D-pad up, left or right), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
+| Pick a hand's tool | Hold that hand's upper face button (right B, left Y; on the Frame right B, left D-pad up), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
 | Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it first meets something solid: the ground, a roof of any pitch, a wall's top or a tree; aimed under a roof, as through a door or window, it lands on the floor inside; release to go |
 | Teleport into the air | Aim above the horizon: with nothing on the map for the ray to hit, it targets the point in the air 30 m along it, a ring on a pole down to the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
 | Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the ground even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
@@ -2170,9 +2170,9 @@ An animal is a `Critter` whose `coat` names its surface.
 
 Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
 a D-pad on the left. The Frame binds its own interaction profile (Godot 4.6's
-`frame_controller_valve`) onto the inputs SteamVR's Touch remapping gave it before: B, X and Y
-arrive as one button (right B), D-pad down as left X, and the other D-pad directions
-as left Y, View as left menu. On Quest the Touch bindings arrive unremapped.
+`frame_controller_valve`): B opens the right wheel, D-pad up the left wheel,
+A redoes and D-pad down undoes. X, Y and the other D-pad directions have separate inputs
+and no game action. On Quest the Touch bindings arrive unremapped.
 
 One table, `Controls.ACTIONS`, says what each hand's inputs do, and both hands are alike: trigger for the
 tool, grip to grab, upper face button held for the wheel. The lower face buttons walk the history: left X
@@ -2180,8 +2180,11 @@ undoes, right A redoes. The sticks move the body: left forward teleports, right 
 flick reads as a button (`Hand.FLICKS`). `Controls.DEVICES` lists what each shipped device's controls arrive
 as, so each device's bindings derive from the one table; `tests/test_bindings.gd` holds every control of
 every device and checks it does its action alone, that every action reaches a control on every hand it
-names, that no wheel opens on a stick click, and that each device's profile binds every control. View, the
-Quest's left menu button, both stick clicks and the right stick's up and down do nothing. Changing how a
+names, that no wheel opens on a stick click, and that each device's profile binds every control. The Frame's
+bumpers, Menu and View, the
+Quest's left menu button, both stick clicks and the right stick's up and down do nothing.
+The Frame binds bumpers and Menu to their own inputs so they cannot open a wheel accidentally;
+the system buttons remain reserved for the runtime. Changing how a
 thing looks is a tool, not a button: every style change lives in the style tool. `tests/test_controls.gd`
 taps every Frame button with walls built, picks every tool from the wheels, and walks the history back
 and forth.
@@ -2191,13 +2194,18 @@ second, what that control does on that hand: a small wheel icon beside where the
 facing the eye and tracking the hand (`TouchHints`). The trigger shows the held tool's own wheel icon; the upper
 face button the wheel's eight slots; the lower ones an undo or redo arrow; the left stick the teleport ring ahead
 of it, the right stick a turning arrow to each side; the grip a ball squeezed between two arrowheads. The Touch
-profile has no grip touch, so the grip's hint shows for a light squeeze short of grabbing (`Controls.GRIP_TOUCH`). Lifting or pressing takes it away, and a control pressed stays
+profile has no grip touch, so the grip's hint shows for a light squeeze short of grabbing (`Controls.GRIP_TOUCH`).
+The native Frame profile instead reads `/input/squeeze/touch`: resting a finger needs no squeeze.
+Lifting or pressing takes it away, and a control pressed stays
 quiet until the finger lifts. Directive (verbatim): "Worth a try. Might be easier for our monkey brains if the icon
 shows next to where the button is physically located." The touches are the action map's capacitive inputs
 (`Controls.TOUCHES`), what they show comes from `Controls.ACTIONS`, and where each control lies from
 `Controls.PLACES`, per interaction profile: the Touch profile's places are Meta's Quest 2 controller model for WebXR
-carried into the aim pose by the grip-to-aim offset measured on the Quest; the Frame, remapped onto the Touch
-profile, takes them too. A profile without places shows none.
+carried into the aim pose by the grip-to-aim offset measured on the Quest. The Frame uses Valve's
+SteamVR `frame_controller` render models: each hand's component origins transformed by the inverse
+of its `openxr_aim` transform (metres, a −40° X rotation). The left D-pad uses the rocker's centre
+for both active directions; its two hints have opposite offsets along that rocker. The asymmetric
+face-button and stick layout is retained rather than mirroring the right hand. A profile without places shows none.
 `tests/test_touch_hints.gd` rests on every bound control of each hand and checks its icons show beside it and go on
 lifting and pressing.
 

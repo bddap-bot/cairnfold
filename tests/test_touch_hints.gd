@@ -40,13 +40,16 @@ func _run() -> void:
 	await _play([{"op": "place", "x": 0, "z": 6}, {"op": "wait", "seconds": 0.2},
 		{"op": "hands", "left": [-0.2, -0.3, -0.4], "right": [0.2, -0.3, -0.4]}])
 	_every_touched_action_has_a_place_and_an_icon()
-	Hand.injected_profile = TOUCH
-	await _frames(2)
-	for hand: Hand in main.rig.hands:
-		for touch in Controls.TOUCHES:
-			if not Controls.touched(touch, hand.tracker).is_empty():
-				await _resting_shows_beside_the_control(hand, touch)
-				await _pressing_hides_until_lifted(hand, touch)
+	for profile in [TOUCH, Controls.FRAME_PROFILE]:
+		Hand.injected_profile = profile
+		await _frames(2)
+		for hand: Hand in main.rig.hands:
+			for touch in Controls.TOUCHES:
+				_check(Controls.place(profile, touch, hand.tracker) != Vector3.INF, "%s places %s/%s" % [profile, hand.tracker, touch])
+				if not Controls.touched(touch, hand.tracker).is_empty():
+					await _resting_shows_beside_the_control(hand, touch)
+					await _pressing_hides_until_lifted(hand, touch)
+	await _frame_grip_uses_capacitive_touch()
 	await _the_trigger_shows_the_tool_held()
 	await _a_profile_with_no_places_shows_nothing()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -91,7 +94,7 @@ func _resting_shows_beside_the_control(hand: Hand, touch: String) -> void:
 	for action in Controls.touched(touch, hand.tracker):
 		_check(_hints(hand).showing(touch, action) == null, "%s: a quarter second's rest shows nothing yet" % what)
 	await _frames(30)
-	var control := hand.global_transform * Controls.place(TOUCH, touch, hand.tracker)
+	var control := hand.global_transform * Controls.place(hand.profile, touch, hand.tracker)
 	for action in Controls.touched(touch, hand.tracker):
 		var i := _hints(hand).showing(touch, action)
 		_check(i != null, "%s: resting shows %s" % [what, action])
@@ -158,6 +161,31 @@ func _the_trigger_shows_the_tool_held() -> void:
 		_check(i != null and hints._tool_icon == tool, "the trigger shows the %s held" % Hand.Tool.keys()[tool])
 		Buttons.injected.erase(_key(hand, "trigger_touch"))
 		await _frames(12)
+
+
+## Exercise XR inputs rather than Buttons.injected, which bypasses the profile-specific read.
+func _frame_grip_uses_capacitive_touch() -> void:
+	var hand: Hand = main.rig.right
+	var tracker := XRPositionalTracker.new()
+	tracker.type = XRServer.TRACKER_CONTROLLER
+	tracker.name = hand.tracker
+	XRServer.add_tracker(tracker)
+	Hand.injected_profile = Controls.FRAME_PROFILE
+	tracker.set_input(&"grip", 0.0)
+	tracker.set_input(&"grip_touch", true)
+	await _frames(45)
+	_check(_any_shows(hand, "grip_touch"), "Frame: capacitive grip touch with zero squeeze shows grab")
+	tracker.set_input(&"grip_touch", false)
+	tracker.set_input(&"grip", Controls.GRIP_TOUCH + 0.01)
+	await _frames(45)
+	_check(not _any_shows(hand, "grip_touch"), "Frame: squeeze without touch does not show grab")
+	Hand.injected_profile = TOUCH
+	await _frames(45)
+	_check(_any_shows(hand, "grip_touch"), "Touch: light squeeze still shows grab")
+	tracker.set_input(&"grip", 0.0)
+	await _frames(12)
+	_check(not _any_shows(hand, "grip_touch"), "Touch: releasing squeeze hides grab")
+	XRServer.remove_tracker(tracker)
 
 
 func _a_profile_with_no_places_shows_nothing() -> void:

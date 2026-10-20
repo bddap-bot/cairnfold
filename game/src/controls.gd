@@ -14,21 +14,22 @@ const ACTIONS := {
 	"turn_right": {"right_hand": "primary_right"},
 }
 
-## What each shipped device's controls arrive as. The Frame binds its own profile onto the inputs SteamVR's
-## Touch remapping gave its controls: B, X and Y arrive as one button, D-pad down as left X, its other
-## directions as left Y, View as left menu. The Quest binds the Touch profile. The Quest's left menu
-## button is left out: held, it did not open the wheel on a Quest 3.
+## Native layouts. Extra Frame buttons have distinct inputs but no game action; only B and D-pad up open wheels.
+## The Quest's left menu is left out: held, it did not open the wheel on a Quest 3.
 const DEVICES := {
 	"frame": {
 		"A": ["right_hand", "ax_button"],
 		"B": ["right_hand", "by_button"],
-		"X": ["right_hand", "by_button"],
-		"Y": ["right_hand", "by_button"],
+		"X": ["right_hand", "x_button"],
+		"Y": ["right_hand", "y_button"],
 		"dpad_down": ["left_hand", "ax_button"],
 		"dpad_up": ["left_hand", "by_button"],
-		"dpad_left": ["left_hand", "by_button"],
-		"dpad_right": ["left_hand", "by_button"],
-		"view": ["left_hand", "menu_button"],
+		"dpad_left": ["left_hand", "dpad_left_button"],
+		"dpad_right": ["left_hand", "dpad_right_button"],
+		"view": ["left_hand", "view_button"],
+		"menu": ["right_hand", "menu_button"],
+		"left_bumper": ["left_hand", "bumper_button"],
+		"right_bumper": ["right_hand", "bumper_button"],
 		"left_trigger": ["left_hand", "trigger_click"],
 		"right_trigger": ["right_hand", "trigger_click"],
 		"left_grip": ["left_hand", "grip_click"],
@@ -69,7 +70,7 @@ const DEVICES := {
 
 ## The capacitive touches the action map binds, each with the inputs of the control it lies on. A finger resting on
 ## one unpressed previews what those inputs do (TouchHints). The Touch profile has no grip touch, so "grip_touch" is
-## the grip squeezed past GRIP_TOUCH, short of grabbing (Buttons.down).
+## the grip squeezed past GRIP_TOUCH, short of grabbing (Buttons.down), except on the native Frame profile.
 const TOUCHES := {
 	"ax_touch": ["ax_button"],
 	"by_touch": ["by_button"],
@@ -82,7 +83,7 @@ const GRIP_TOUCH := 0.05
 ## Where each touch's control lies on the Touch profile's right controller, in metres in its aim pose (x right, y up,
 ## -z ahead); the left controller mirrors it in x. Each is the control's centre on Meta's Quest 2 controller model for
 ## WebXR, carried from its grip pose to the aim pose by the offset measured on the Quest; the Quest 3's lie within 5 mm
-## of them. The Frame shows its hints there too until its own controls are placed. A profile not listed shows no hints.
+## of them. A profile not listed shows no hints.
 const TOUCH_PLACES := {
 	"ax_touch": Vector3(0.001, 0.0, 0.044),
 	"by_touch": Vector3(-0.005, 0.0, 0.029),
@@ -90,9 +91,29 @@ const TOUCH_PLACES := {
 	"primary_touch": Vector3(0.016, 0.004, 0.030),
 	"grip_touch": Vector3(0.001, -0.028, 0.054),
 }
+const FRAME_PROFILE := "/interaction_profiles/valve/frame_controller_valve"
+
+## Valve's SteamVR frame_controller render-model component origins, transformed by inverse(openxr_aim).
+## The left D-pad shares one rocker, so both direction hints use its centre.
+const FRAME_PLACES := {
+	"left_hand": {
+		"ax_touch": Vector3(-0.015768, 0.008815, 0.031984),
+		"by_touch": Vector3(-0.015768, 0.008815, 0.031984),
+		"trigger_touch": Vector3(-0.006707, -0.036056, 0.009207),
+		"primary_touch": Vector3(0.012015, 0.010019, 0.041948),
+		"grip_touch": Vector3(0.007007, -0.028275, 0.061512),
+	},
+	"right_hand": {
+		"ax_touch": Vector3(0.016683, 0.009095, 0.040842),
+		"by_touch": Vector3(0.024532, 0.010815, 0.031256),
+		"trigger_touch": Vector3(0.006707, -0.036056, 0.009207),
+		"primary_touch": Vector3(-0.012015, 0.010019, 0.041948),
+		"grip_touch": Vector3(-0.007007, -0.028275, 0.061512),
+	},
+}
 const PLACES := {
 	"/interaction_profiles/oculus/touch_controller": TOUCH_PLACES,
-	"/interaction_profiles/valve/frame_controller_valve": TOUCH_PLACES,
+	FRAME_PROFILE: FRAME_PLACES,
 }
 
 
@@ -107,6 +128,8 @@ static func touched(touch: String, tracker: String) -> Array[String]:
 
 ## Where `touch`'s control lies on `profile`'s controller held in `tracker`, in its aim pose, or Vector3.INF.
 static func place(profile: String, touch: String, tracker: String) -> Vector3:
+	if profile == FRAME_PROFILE:
+		return FRAME_PLACES.get(tracker, {}).get(touch, Vector3.INF)
 	var at: Vector3 = PLACES.get(profile, {}).get(touch, Vector3.INF)
 	return at * Vector3(-1, 1, 1) if tracker == "left_hand" and at != Vector3.INF else at
 
