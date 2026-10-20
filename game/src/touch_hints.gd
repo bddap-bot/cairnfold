@@ -15,6 +15,7 @@ const BESIDE := {
 	"by_touch": Vector3(-0.045, 0.012, -0.012),
 	"trigger_touch": Vector3(0.0, -0.012, -0.045),
 	"primary_touch": Vector3(0.05, 0.012, 0.0),
+	"grip_touch": Vector3(-0.045, -0.012, 0.0),
 }
 ## How far a stick direction's icon stands from the stick's, that way.
 const SPREAD := 0.019
@@ -102,6 +103,8 @@ func _build(action: String) -> Node3D:
 			model = _mark(_arrow(150.0, -130.0, 0.016))
 		"teleport":
 			model = _ring()
+		"grab":
+			model = _grab_mark()
 		"turn_left":
 			model = _mark(_arrow(50.0, 130.0, 0.03), Vector3(0, 0, 0.026))
 		"turn_right":
@@ -139,6 +142,27 @@ static func _wheel_mark() -> MeshInstance3D:
 	var st := SurfaceTool.new()
 	for d in ToolWheel.ring_dirs():
 		st.append_from(dot, 0, Transform3D(Basis.IDENTITY, Vector3(d.x, 0, -d.y) * 0.022))
+	return _mark(st.commit())
+
+
+## A ball squeezed between two arrowheads.
+static func _grab_mark() -> MeshInstance3D:
+	var ball := SphereMesh.new()
+	ball.radius = 0.008
+	ball.height = 0.016
+	ball.radial_segments = 10
+	ball.rings = 5
+	var head := CylinderMesh.new()
+	head.top_radius = 0.0
+	head.bottom_radius = 0.008
+	head.height = 0.014
+	head.radial_segments = 8
+	head.rings = 1
+	var st := SurfaceTool.new()
+	st.append_from(ball, 0, Transform3D.IDENTITY)
+	for side in [-1.0, 1.0]:
+		var inward := Basis(Vector3.BACK, side * PI / 2)
+		st.append_from(head, 0, Transform3D(inward, Vector3(side * 0.024, 0, 0)))
 	return _mark(st.commit())
 
 

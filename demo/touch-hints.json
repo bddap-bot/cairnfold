@@ -12,5 +12,7 @@
   {"op": "rest", "device": "quest", "button": "left_trigger", "seconds": 1.0, "capture": "touch-left-trigger"},
   {"op": "rest", "device": "quest", "button": "right_stick_click", "seconds": 1.0, "capture": "touch-right-stick"},
   {"op": "rest", "device": "quest", "button": "left_stick_click", "seconds": 1.0, "capture": "touch-left-stick"},
+  {"op": "rest", "device": "quest", "button": "right_grip", "seconds": 1.0, "capture": "touch-right-grip"},
+  {"op": "rest", "device": "frame", "button": "left_grip", "seconds": 1.0, "capture": "touch-left-grip"},
   {"op": "quit"}
 ]

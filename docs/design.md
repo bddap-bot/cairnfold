@@ -2045,7 +2045,7 @@ leaves light, water quiet until a quick stroke ticks it faintly, and the animals
 An animal is a `Critter` whose `coat` names its surface.
 
 Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
-a D-pad on the left. Godot 4.5 has no Frame interaction profile, so the game binds
+a D-pad on the left. The action map binds no Frame interaction profile, so the game binds
 the Touch and Index profiles and SteamVR remaps them: B, X and Y arrive as one
 button (Touch right B), D-pad down as Touch left X, and the other D-pad directions
 as Touch left Y, View as Touch left menu. On Quest the Touch bindings arrive unremapped.
@@ -2066,7 +2066,8 @@ A thumb or finger resting on a face button, the trigger or a stick without press
 second, what that control does on that hand: a small wheel icon beside where the control lies on the controller,
 facing the eye and tracking the hand (`TouchHints`). The trigger shows the held tool's own wheel icon; the upper
 face button the wheel's eight slots; the lower ones an undo or redo arrow; the left stick the teleport ring ahead
-of it, the right stick a turning arrow to each side. Lifting or pressing takes it away, and a control pressed stays
+of it, the right stick a turning arrow to each side; the grip a ball squeezed between two arrowheads. The Touch
+profile has no grip touch, so the grip's hint shows for a light squeeze short of grabbing (`Controls.GRIP_TOUCH`). Lifting or pressing takes it away, and a control pressed stays
 quiet until the finger lifts. Directive (verbatim): "Worth a try. Might be easier for our monkey brains if the icon
 shows next to where the button is physically located." The touches are the action map's capacitive inputs
 (`Controls.TOUCHES`), what they show comes from `Controls.ACTIONS`, and where each control lies from

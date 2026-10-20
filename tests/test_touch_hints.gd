@@ -60,6 +60,8 @@ func _every_touched_action_has_a_place_and_an_icon() -> void:
 	_check(Controls.place(TOUCH, "ax_touch", "left_hand").x == -Controls.place(TOUCH, "ax_touch", "right_hand").x, "the left controller mirrors the right")
 	_check(Controls.touched("ax_touch", "left_hand") == ["undo"] and Controls.touched("ax_touch", "right_hand") == ["redo"], "X undoes, A redoes")
 	_check(Controls.touched("primary_touch", "right_hand") == ["turn_left", "turn_right"], "the right stick turns")
+	for tracker in ["left_hand", "right_hand"]:
+		_check(Controls.touched("grip_touch", tracker) == ["grab"], "the %s grip grabs" % tracker)
 
 
 func _key(hand: Hand, touch: String) -> String:

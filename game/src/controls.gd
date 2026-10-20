@@ -14,7 +14,7 @@ const ACTIONS := {
 	"turn_right": {"right_hand": "primary_right"},
 }
 
-## What each shipped device's controls arrive as. Every one binds the Touch profile. Godot 4.5 has no Frame
+## What each shipped device's controls arrive as. Every one binds the Touch profile. The action map binds no Frame
 ## profile, so SteamVR remaps the Frame's onto it: B, X and Y arrive as one button, D-pad down as Touch
 ## left X, its other directions as left Y, View as left menu. The Quest's left menu button is left out:
 ## held, it did not open the wheel on a Quest 3.
@@ -68,13 +68,16 @@ const DEVICES := {
 
 
 ## The capacitive touches the action map binds, each with the inputs of the control it lies on. A finger resting on
-## one unpressed previews what those inputs do (TouchHints).
+## one unpressed previews what those inputs do (TouchHints). The Touch profile has no grip touch, so "grip_touch" is
+## the grip squeezed past GRIP_TOUCH, short of grabbing (Buttons.down).
 const TOUCHES := {
 	"ax_touch": ["ax_button"],
 	"by_touch": ["by_button"],
 	"trigger_touch": ["trigger_click"],
 	"primary_touch": ["primary_click", "primary_up", "primary_down", "primary_left", "primary_right"],
+	"grip_touch": ["grip_click"],
 }
+const GRIP_TOUCH := 0.05
 
 ## Where each touch's control lies on an interaction profile's right controller, in metres in its aim pose (x right,
 ## y up, -z ahead); the left controller mirrors it in x. Each is the control's centre on Meta's Quest 2 controller
@@ -86,6 +89,7 @@ const PLACES := {
 		"by_touch": Vector3(-0.005, 0.0, 0.029),
 		"trigger_touch": Vector3(0.005, -0.020, 0.012),
 		"primary_touch": Vector3(0.016, 0.004, 0.030),
+		"grip_touch": Vector3(0.001, -0.028, 0.054),
 	},
 }
 
