@@ -332,7 +332,15 @@ func _towers_keep_stone() -> void:
 	_check(not world.state.walls[id].plaster and not wall.layout.plaster, "saved plaster towers take the default stone")
 	var picker: PaletteTool = main.palette_tool
 	for style in [WallTool.RoofStyle.PITCHED, WallTool.RoofStyle.THATCHED, WallTool.RoofStyle.FLAT]:
-		world._order({"op": "reshape", "of": "walls", "id": id, "data": WallTool.restyle_roof(world.state.walls[id], style)}, 1)
+		if style == WallTool.RoofStyle.FLAT:
+			wall.lay_now()
+			var mason := WallTool.Mason.new()
+			var start: Vector3 = wall.roof.frame().mid + Vector3.UP * wall.roof.pitch
+			main.tool.begin_roof(mason, wall, start)
+			main.tool.drag_roof(mason, start - Vector3.UP * wall.roof.pitch / mason.lift_gain)
+			main.tool.end_roof(mason)
+		else:
+			world._order({"op": "reshape", "of": "walls", "id": id, "data": WallTool.restyle_roof(world.state.walls[id], style)}, 1)
 		_check(WallTool.roof_style(world.state.walls[id]) == style, "tower takes the tested roof style")
 		wall.lay_now()
 		_check(not wall.layout.stones.any(func(s): return s.kind == "plaster"), "tower geometry has no plaster panels")
