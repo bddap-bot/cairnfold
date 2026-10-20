@@ -32,15 +32,15 @@ static func grow(wall: WallLayout) -> Array[Dictionary]:
 			var rng := RandomNumberGenerator.new()
 			rng.seed = hash([wall.seed, k])
 			k += 1
-			if roots.randf() < 0.85 and side != inner and not blocked(wall, s, 0.05):
-				_vine(wall, Vector2(s, 0.02), Vector2.UP, side, rng.randf_range(0.0, 3.0), minf(wall.height - 0.2, MAX_CLIMB) * rng.randf_range(0.55, 1.0), true, rng, leaves)
+			if roots.randf() < 0.85 and side != inner and not blocked(wall, s, _root(wall, s) + 0.03):
+				_vine(wall, Vector2(s, _root(wall, s)), Vector2.UP, side, rng.randf_range(0.0, 3.0), minf(wall.height - 0.2, MAX_CLIMB) * rng.randf_range(0.55, 1.0), true, rng, leaves)
 			s += roots.randf_range(0.6, 1.4)
 	leaves.sort_custom(func(a, b): return a.t < b.t)
 	return leaves
 
 
-## The leaves as a MultiMesh buffer (transform and colour per instance, the colour's alpha the ground height at the
-## leaf's wall foot, for ivy.gdshader to read the light volumes without reading the ground), their growth times and
+## The leaves as a MultiMesh buffer (transform and colour per instance, the colour's alpha the ground height under
+## the leaf's wall, for ivy.gdshader to read the light volumes without reading the ground), their growth times and
 ## their bounds.
 static func bake(wall: WallLayout) -> Dictionary:
 	var leaves := grow(wall).filter(func(l: Dictionary) -> bool: return not wall.hides(l.xform.origin))
@@ -53,7 +53,7 @@ static func bake(wall: WallLayout) -> Dictionary:
 		var x: Transform3D = leaves[i].xform
 		var c: Color = leaves[i].color
 		var b := x.basis
-		var row := [b.x.x, b.y.x, b.z.x, x.origin.x, b.x.y, b.y.y, b.z.y, x.origin.y, b.x.z, b.y.z, b.z.z, x.origin.z, c.r, c.g, c.b, leaves[i].foot]
+		var row := [b.x.x, b.y.x, b.z.x, x.origin.x, b.x.y, b.y.y, b.z.y, x.origin.y, b.x.z, b.y.z, b.z.z, x.origin.z, c.r, c.g, c.b, leaves[i].ground]
 		for j in 16:
 			buffer[i * 16 + j] = row[j]
 		times[i] = leaves[i].t
@@ -92,7 +92,7 @@ static func _vine(wall: WallLayout, at: Vector2, dir: Vector2, side: float, t: f
 				return
 		if next.x < END or next.x > wall.length() - END or next.y > top:
 			return
-		next.y = maxf(next.y, 0.02)
+		next.y = maxf(next.y, _root(wall, next.x))
 		at = next
 		walked += STEP
 		t += STEP / RATE
@@ -101,6 +101,11 @@ static func _vine(wall: WallLayout, at: Vector2, dir: Vector2, side: float, t: f
 		if main and branches < MAX_BRANCHES and rng.randf() < 0.3:
 			branches += 1
 			_vine(wall, at, Vector2(1.0 if rng.randf() < 0.5 else -1.0, 0.7).normalized(), side, t, rng.randf_range(0.6, 1.5), false, rng, leaves)
+
+
+## How high above the foot ivy roots at `s`: just above the foot of its plinth.
+static func _root(wall: WallLayout, s: float) -> float:
+	return 0.02 - wall.plinth_at(s)
 
 
 static func _nearest_opening(wall: WallLayout, s: float) -> float:
@@ -120,4 +125,4 @@ static func _leaf(wall: WallLayout, at: Vector2, side: float, t: float, young: f
 	var size := rng.randf_range(0.12, 0.2) * lerpf(1.0, 0.65, young)
 	var origin: Vector3 = frame.point + Vector3.UP * at.y + out * (FACE + rng.randf_range(0.0, 0.03))
 	var green: Color = GREENS[rng.randi() % GREENS.size()].lerp(YOUNG, young * 0.8) * rng.randf_range(0.85, 1.15)
-	return {"xform": Transform3D(basis.scaled_local(Vector3.ONE * size), origin), "color": green, "t": t, "s": at.x, "y": at.y, "side": side, "foot": frame.point.y}
+	return {"xform": Transform3D(basis.scaled_local(Vector3.ONE * size), origin), "color": green, "t": t, "s": at.x, "y": at.y, "side": side, "ground": wall.ground_at(at.x)}

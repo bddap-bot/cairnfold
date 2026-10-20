@@ -21,7 +21,7 @@ void vertex() {
 		shown = 1.0 - smoothstep(max(reach - 15.0, reach * 0.5), reach, distance(origin, CAMERA_POSITION_WORLD));
 	}
 	VERTEX *= shown;
-	// A sprig's colour carries the ground height at its wall's foot (IvyLayout.bake) in its alpha.
+	// A sprig's colour carries the ground height under its wall (IvyLayout.bake) in its alpha.
 	float foot = COLOR.a;
 	COLOR = vec4(seasoned(COLOR.rgb, season_foliage), 1.0);
 	given = vec4(0.0);

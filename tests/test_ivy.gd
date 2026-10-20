@@ -18,6 +18,7 @@ func _init() -> void:
 	_every_lobe_faces_its_normal()
 	_a_house_grows_ivy_outside_only()
 	_a_tower_keeps_ivy_on_both_faces()
+	_a_raised_house_roots_its_ivy_at_its_plinths_foot()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -30,6 +31,10 @@ func _check(ok: bool, what: String) -> void:
 
 func _flat(_x: float, _z: float) -> float:
 	return 0.0
+
+
+func _slope(x: float, z: float) -> float:
+	return x * 0.1 + z * 0.05
 
 
 func _wall(length: float, height: float, arches: Array[float], seed := 1) -> WallLayout:
@@ -126,7 +131,7 @@ func _bake_packs_each_leaf() -> void:
 	var i := leaves.size() / 2
 	var b: PackedFloat32Array = baked.buffer
 	var x: Transform3D = leaves[i].xform
-	_check(is_equal_approx(b[i * 16 + 3], x.origin.x) and is_equal_approx(b[i * 16 + 1], x.basis.y.x) and is_equal_approx(b[i * 16 + 14], leaves[i].color.b) and is_equal_approx(b[i * 16 + 15], x.origin.y - leaves[i].y), "rows laid out as the MultiMesh reads them, the alpha the ground at the wall's foot")
+	_check(is_equal_approx(b[i * 16 + 3], x.origin.x) and is_equal_approx(b[i * 16 + 1], x.basis.y.x) and is_equal_approx(b[i * 16 + 14], leaves[i].color.b) and is_equal_approx(b[i * 16 + 15], w.ground_at(leaves[i].s)), "rows laid out as the MultiMesh reads them, the alpha the ground under the wall")
 	_check(baked.bounds.has_point(x.origin), "the bounds hold the leaves")
 
 
@@ -180,3 +185,40 @@ func _a_tower_keeps_ivy_on_both_faces() -> void:
 	var w := _loop(WallLayout.Cover.OPEN, false)
 	var leaves := IvyLayout.grow(w)
 	_check(leaves.any(func(l): return _inside(w, l.xform.origin)) and leaves.any(func(l): return not _inside(w, l.xform.origin)), "an open loop keeps ivy inside and out")
+
+
+## A house raised as it is placed grows its ivy from its base, not high up the building.
+func _a_raised_house_roots_its_ivy_at_its_plinths_foot() -> void:
+	var house := func(rise: float) -> WallLayout:
+		var w := WallLayout.new()
+		w.points = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
+		w.closed = true
+		w.cover = WallLayout.Cover.ROOF
+		w.height = 2.7
+		w.seed = 6
+		w.rise = rise
+		w.build(_slope)
+		return w
+	for rise in [0.0, 1.2, 3.0]:
+		var w: WallLayout = house.call(rise)
+		var shape := w.snapshot()
+		var leaves := IvyLayout.grow(shape)
+		var baked := IvyLayout.bake(shape)
+		var lowest := INF
+		var light_off := 0.0
+		for i in leaves.size():
+			var p: Vector3 = leaves[i].xform.origin
+			lowest = minf(lowest, p.y - _slope(p.x, p.z))
+			var under: Vector3 = w.frame_at(leaves[i].s).point
+			light_off = maxf(light_off, absf(baked.buffer[i * 16 + 15] - _slope(under.x, under.z)))
+		_check(leaves.size() > 100, "a house raised %.1f m grows ivy, got %d leaves" % [rise, leaves.size()])
+		_check(lowest < 0.15, "a house raised %.1f m roots its ivy where its plinth meets the ground: lowest leaf %.2f m above it" % [rise, lowest])
+		_check(light_off < 1e-3, "and its sprigs read the light over the ground under the wall: %.3f m off" % light_off)
+	var tower: WallLayout = house.call(0.0)
+	var on: WallLayout = house.call(1.2)
+	on.supports = [Massing.of(tower, null)]
+	on.build(_slope)
+	var top := INF
+	for l in IvyLayout.grow(on.snapshot()):
+		top = minf(top, l.y)
+	_check(top > 0.0 and top < 0.15, "a house standing on a build roots its ivy at its foot on the build's top: %.2f" % top)

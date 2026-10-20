@@ -130,6 +130,11 @@ var samples: Array[Vector3] = []
 var lengths: Array[float] = []
 ## Per sample, how far the ground lies below the foot: a wall over a pond stands at the water and reaches down to its bed.
 var depths := PackedFloat32Array()
+## Per sample, the ground's height under it.
+var grounds := PackedFloat32Array()
+## Per sample, how far the plinth reaches below the foot to what the wall stands on: the ground, a pond's surface or a
+## build's top. A wall's ivy roots there.
+var plinths := PackedFloat32Array()
 var bounds := Rect2()
 var stones: Array[Dictionary] = []
 ## Stones shorten on a round loop so their outer ends stay closed.
@@ -1352,6 +1357,8 @@ func adopt(built: WallLayout) -> void:
 	samples = built.samples
 	lengths = built.lengths
 	depths = built.depths
+	plinths = built.plinths
+	grounds = built.grounds
 	bounds = built.bounds
 	stones = built.stones
 	_stone_scale = built._stone_scale
@@ -1373,6 +1380,8 @@ func snapshot() -> WallLayout:
 	w.samples = samples.duplicate()
 	w.lengths = lengths.duplicate()
 	w.depths = depths.duplicate()
+	w.plinths = plinths.duplicate()
+	w.grounds = grounds.duplicate()
 	w.bounds = bounds
 	w.live_arches = live_arches.duplicate()
 	w.openings = openings.duplicate(true)
@@ -1402,14 +1411,28 @@ func frame_at(s: float) -> Dictionary:
 
 ## How far the ground lies below the foot at arc length `s`.
 func depth_at(s: float) -> float:
-	if depths.size() < 2:
+	return _along(depths, s)
+
+
+## The ground's height under arc length `s`.
+func ground_at(s: float) -> float:
+	return _along(grounds, s)
+
+
+## How far the plinth reaches below the foot at arc length `s`.
+func plinth_at(s: float) -> float:
+	return _along(plinths, s)
+
+
+func _along(per_sample: PackedFloat32Array, s: float) -> float:
+	if per_sample.size() < 2:
 		return 0.0
 	if closed:
 		s = fposmod(s, length())
 	var i := clampi(lengths.bsearch(s), 1, samples.size() - 1)
 	var l0 := lengths[i - 1]
 	var l1 := lengths[i]
-	return lerpf(depths[i - 1], depths[i], 0.0 if l1 <= l0 else clampf((s - l0) / (l1 - l0), 0.0, 1.0))
+	return lerpf(per_sample[i - 1], per_sample[i], 0.0 if l1 <= l0 else clampf((s - l0) / (l1 - l0), 0.0, 1.0))
 
 
 ## The stretches where the ground lies deeper below the foot than `drop`, as spans of arc length.
@@ -1482,6 +1505,8 @@ func resample(ground: Callable, water := Callable()) -> void:
 	samples.clear()
 	lengths.clear()
 	depths.clear()
+	plinths.clear()
+	grounds.clear()
 	breaks.clear()
 	bounds = Rect2()
 	if points.size() == 0:
@@ -1496,7 +1521,9 @@ func resample(ground: Callable, water := Callable()) -> void:
 	else:
 		_resample_open(footing)
 	for q in samples:
-		depths.append(maxf(q.y - ground.call(q.x, q.z), 0.0))
+		grounds.append(ground.call(q.x, q.z))
+		depths.append(maxf(q.y - grounds[-1], 0.0))
+		plinths.append(maxf(q.y + SINK - maxf(footing.call(q.x, q.z), _rest(q.x, q.z)), 0.0))
 	bounds = Rect2(Vector2(samples[0].x, samples[0].z), Vector2.ZERO)
 	for q in samples:
 		bounds = bounds.expand(Vector2(q.x, q.z))

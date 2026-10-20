@@ -1354,7 +1354,7 @@ beside them.
 
 Ivy pays most for it, being thousands of sprigs of a dozen and more vertices on every wall: `given_at` reads the
 ground twice and both volumes at each vertex. A sprig instead reads them once at its root, facing out of the wall,
-over the ground height at its wall's foot that its bake carries in the colour's alpha (`given_over`), and a sprig
+over the ground height under its wall that its bake carries in the colour's alpha (`given_over`), and a sprig
 shrunk away past its reach reads nothing. Measured on the Quest 2 (`bench.sh`, the stress scene, GPU ms a frame,
 quality step 0), against the same build without any of these reads; "ivy lit by a constant" keeps ivy's fragment
 work and reads nothing, so what it adds is the cost of using the light rather than of reading it:
