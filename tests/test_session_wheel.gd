@@ -53,6 +53,16 @@ func _run() -> void:
 	_check(not hand.picking and hand._wheel_root.get_child_count() == 0, "switching tools closes and frees the wheel")
 	Buttons.injected.erase(button)
 	await process_frame
+	var bytes := FileAccess.get_file_as_bytes(Avatar.BUILT_IN[0])
+	var key := Session._hash(bytes)
+	session._put_on(key, bytes, Avatar.built_in(0), session._seen_file)
+	hand.people.activate("avatar:2")
+	_check(session.worn.is_empty() and session.avatar == 2, "a built-in choice replaces the loaded file")
+	_check(ToolWheel.paths(hand.inventory()).has("avatar:file"), "the loaded file stays available on the wheel")
+	hand.people.activate("avatar:file")
+	_check(session.worn_key == key and main.rig.body.source == key, "the loaded file can be selected again")
+	var vanished := hand.people.figure("join:192.0.2.1:8000")
+	vanished.free()
 	main.queue_free()
 	await process_frame
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
