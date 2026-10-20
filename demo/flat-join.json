@@ -8,7 +8,6 @@
   {"op": "capture", "name": "flat-visit"},
   {"op": "flat", "action": "tool"},
   {"op": "until", "players": 2},
-  {"op": "flat", "action": "next_tool"},
   {"op": "wait", "seconds": 1},
   {"op": "face", "player": true},
   {"op": "flat", "action": "forward", "seconds": 1},
