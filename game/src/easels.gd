@@ -38,7 +38,11 @@ const MIX_AT := Vector3(0.1, 0.0075, 0)
 ## The oil palette's board top, where its mixing field lies.
 const BOARD_TOP := 0.004
 const WELL_RADIUS := 0.018
-const PAN := Vector2(0.024, 0.035)
+const PAN := Vector2(0.02, 0.035)
+## The box's pans run in two rows between these x, short of the mixing field; the oil paint runs this far either way
+## round the palette's edge from its far end, short of the thumb.
+const PANS := Vector2(-0.04, 0.056)
+const OIL_ARC := 1.75
 const PAN_TOP := 0.0105
 ## A tip is in a well anywhere over its paint or pushed on through the board, which nothing stops a hand doing.
 const WELL_REACH := 0.025
@@ -78,9 +82,11 @@ func _init() -> void:
 
 ## Where pigment `i` lies on `kit`'s palette, in its frame.
 static func well(kit: Brushwork.Medium, i: int) -> Vector3:
+	var n := Brushwork.PIGMENTS.size()
 	if kit == Brushwork.Medium.WATER:
-		return Vector3(-0.035 + (i % 4) * 0.029, PAN_TOP, (i / 4 - 0.5) * 0.044)
-	var a := lerpf(-1.5, 1.5, float(i) / (Brushwork.PIGMENTS.size() - 1))
+		var row := ceili(n / 2.0)
+		return Vector3(PANS.x + (i % row) * (PANS.y - PANS.x) / (row - 1), PAN_TOP, (i / row - 0.5) * 0.044)
+	var a := lerpf(-OIL_ARC, OIL_ARC, float(i) / (n - 1))
 	return Vector3(cos(a) * PALETTE_SIZE.x * 0.38, 0.006, sin(a) * PALETTE_SIZE.y * 0.36)
 
 

@@ -34,10 +34,12 @@ const SPACING := 0.2
 ## a wet brush skims most, thick oil little, charcoal not at all.
 const SKIM := 60.0
 const SKIMS := {Medium.WATER: 0.7, Medium.OIL: 0.25, Medium.CHARCOAL: 0.0}
-## The palette's wells, as display colours: white, lemon, ochre, vermilion, rose, ultramarine, sap green, umber.
+## The palette's wells, as display colours: white, lemon, ochre, vermilion, rose, ultramarine, sap green, umber,
+## phthalo blue, black. A demo script or test may name a well by its index, so new wells go on the end.
 const PIGMENTS := [
 	Color(0.97, 0.96, 0.93), Color(0.98, 0.86, 0.18), Color(0.82, 0.6, 0.25), Color(0.9, 0.3, 0.14),
 	Color(0.78, 0.16, 0.36), Color(0.16, 0.24, 0.72), Color(0.28, 0.5, 0.2), Color(0.38, 0.24, 0.16),
+	Color(0.0, 0.45, 0.66), Color(0.08, 0.08, 0.09),
 ]
 const CHARCOAL := Vector3(2.3, 2.25, 2.1)
 const MAX_DENSITY := 8.0
