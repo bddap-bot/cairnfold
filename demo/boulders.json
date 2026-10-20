@@ -25,7 +25,9 @@
   {"op": "wait", "seconds": 1},
   {"op": "view", "eye": [14, 5, -1], "at": [8, 3, -20]},
   {"op": "wait", "seconds": 0.5},
-  {"op": "grow", "boulder": 0, "metres": 4.0, "seconds": 1.5, "capture": "04-grip-grown"},
+  {"op": "carry", "boulder": 0, "move": [-1.5, 2.0, 1.0], "turn": [70, 30, 50], "seconds": 1.5, "capture": "04-carried-turned"},
+  {"op": "wait", "seconds": 0.5},
+  {"op": "capture", "name": "05-set-down"},
   {"op": "wait", "seconds": 1},
   {"op": "quit"}
 ]

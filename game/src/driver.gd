@@ -371,38 +371,52 @@ func _grip(s: Dictionary) -> void:
 		await _standing()
 
 
-## Grips the meadow's tree `tree`, with `boulder` the boulder placed that many before the last (0 the last), or with
-## `x`, `z` the tree standing nearest there, near its top, as a hand does, and raises the hand `metres` over `seconds`
-## (negative lowers it), sizing it; "capture" saves the view at the top of the pull.
+## Grips the meadow's tree `tree`, or with `x`, `z` the tree standing nearest there, near its top, as a hand does, and
+## raises the hand `metres` over `seconds` (negative lowers it), sizing it; "capture" saves the view at the top of the pull.
 func _grow(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var flora: Flora = main.flora_tool.flora
-	var target: Object
-	var at: Vector3
-	if s.has("boulder"):
-		var ids: Array = main.world.state.boulders.keys()
-		var b: Boulders.Boulder = main.boulders.find(ids[ids.size() - 1 - int(s.boulder)])
-		target = b
-		at = b.ground + Vector3.UP * b.top() * 0.8
+	var trunk: Flora.Plant
+	if s.has("tree"):
+		trunk = flora.groups[0][flora.meadow_trees()[s.tree]]
 	else:
-		var trunk: Flora.Plant
-		if s.has("tree"):
-			trunk = flora.groups[0][flora.meadow_trees()[s.tree]]
-		else:
-			var spot := Vector3(s.x, 0.0, s.z)
-			for parts in flora.solids():
-				var p: Flora.Plant = parts[0]
-				if p.pool == flora.trunks and (trunk == null or Vector3(p.anchor.x, 0, p.anchor.z).distance_to(spot) < Vector3(trunk.anchor.x, 0, trunk.anchor.z).distance_to(spot)):
-					trunk = p
-		target = trunk
-		at = trunk.anchor + Vector3.UP * flora.top_of(trunk) * 0.8
+		var spot := Vector3(s.x, 0.0, s.z)
+		for parts in flora.solids():
+			var p: Flora.Plant = parts[0]
+			if p.pool == flora.trunks and (trunk == null or Vector3(p.anchor.x, 0, p.anchor.z).distance_to(spot) < Vector3(trunk.anchor.x, 0, trunk.anchor.z).distance_to(spot)):
+				trunk = p
+	var at := trunk.anchor + Vector3.UP * flora.top_of(trunk) * 0.8
 	var m := tool.mason(_hand(s))
 	var hand: Vector3 = at + Vector3.BACK * 2.0
-	tool.begin_grow(m, target, hand, at)
+	tool.begin_grow(m, trunk, Transform3D(Basis(), hand), at)
 	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
 	for f in frames:
 		await get_tree().process_frame
 		tool.drag_grow(m, hand.y + s.metres * smoothstep(0.0, 1.0, float(f + 1) / frames))
+	if s.has("capture"):
+		await main.capture(s.capture)
+	tool.end_grow(m)
+
+
+## Grips the boulder placed `boulder` before the last (0 the last) from `reach` metres off (1.5 without), as a hand
+## does, and over `seconds` moves the hand by `move` [x, y, z] metres while turning it by `turn` [x, y, z] degrees,
+## then lets go; "capture" saves the view before letting go.
+func _carry(s: Dictionary) -> void:
+	var tool: WallTool = main.tool
+	var ids: Array = main.world.state.boulders.keys()
+	var b: Boulders.Boulder = main.boulders.find(ids[ids.size() - 1 - int(s.get("boulder", 0))])
+	var m := tool.mason(_hand(s))
+	var from := Transform3D(Basis(), b.position + Vector3.BACK * (b.shape.reach() * b.size + s.get("reach", 1.5)))
+	var rock: Dictionary = main.boulders.pick(from.origin, -from.basis.z)
+	tool.begin_grow(m, b, from, rock.get("point", b.position))
+	var move: Array = s.get("move", [0, 0, 0])
+	var turn: Array = s.get("turn", [0, 0, 0])
+	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
+	for f in frames:
+		await get_tree().process_frame
+		var k := smoothstep(0.0, 1.0, float(f + 1) / frames)
+		var basis := Basis.from_euler(Vector3(deg_to_rad(turn[0]), deg_to_rad(turn[1]), deg_to_rad(turn[2])) * k)
+		m.sizing.follow.call(m, Transform3D(basis, from.origin + Vector3(move[0], move[1], move[2]) * k))
 	if s.has("capture"):
 		await main.capture(s.capture)
 	tool.end_grow(m)

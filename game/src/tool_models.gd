@@ -903,7 +903,7 @@ static func _boulders(root: Node3D) -> void:
 		m.mesh = mesh
 		m.material_override = stone
 		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		m.transform = BoulderLayout.xform(shape, b[1], b[2])
+		m.transform = BoulderLayout.rest(shape, Quaternion.IDENTITY, b[2], b[1].x, b[1].z, func(_x: float, _z: float) -> float: return b[1].y)
 		root.add_child(m)
 
 

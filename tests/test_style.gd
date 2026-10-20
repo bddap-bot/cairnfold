@@ -223,7 +223,7 @@ func _trees_grow_by_the_grip() -> void:
 	var m := tool.mason(main.rig.right)
 	var grip := at + Vector3.UP * top * 0.8
 	var hand := grip + Vector3.BACK * 2.0
-	tool.begin_grow(m, trunk, hand, grip)
+	tool.begin_grow(m, trunk, Transform3D(Basis(), hand), grip)
 	_check(tool.busy(main.rig.right), "a grip on a tree holds it")
 	tool.drag_grow(m, hand.y + 1.5)
 	var grown := flora.scale_of(trunk)
@@ -240,7 +240,7 @@ func _trees_grow_by_the_grip() -> void:
 	for bad in [FloraLayout.SCALES.x - 0.01, FloraLayout.SCALES.y + 0.01, 2, NAN]:
 		_check(Commands.clean({"op": "tree", "group": g, "index": 0, "scale": bad}, world.state, false).is_empty(), "no scale %s" % bad)
 	_check(Commands.clean({"op": "tree", "group": g, "index": 0}, world.state, false).is_empty(), "a tree command changes something")
-	tool.begin_grow(m, trunk, hand, grip)
+	tool.begin_grow(m, trunk, Transform3D(Basis(), hand), grip)
 	tool.drag_grow(m, hand.y - 50.0)
 	tool.end_grow(m)
 	_check(is_equal_approx(flora.scale_of(trunk), FloraLayout.SCALES.x), "lowered all the way it shrinks to the least")

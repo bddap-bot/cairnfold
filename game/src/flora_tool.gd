@@ -2,7 +2,8 @@ class_name FloraTool
 extends Node3D
 
 ## Flowers, grass, stone, trees, bushes, boulders and paths, for whichever hand holds them: the trigger paints flowers, grass
-## or stone ground where the hand points, plants a tree or bush or sets a boulder down there, or lays a path along the stroke. The brush
+## or stone ground where the hand points, plants a tree or bush there, takes up a new boulder there to carry and turn as a
+## grip carries a placed one and sets it down on the ground when let go, or lays a path along the stroke. The brush
 ## widens with distance; painting a spot again thickens it, and a path is as wide as the brush. A stone
 ## stroke begun on stone paints the ground back to meadow instead, and the plants under it stand up again.
 
@@ -42,6 +43,12 @@ class Brush:
 	var drawing_path := false
 	## Whether this hold has reached the frame budget, and been told so.
 	var full := false
+	## The new boulder this hold carries, shown here alone; its pose and the hand's when taken up, and how far it moves
+	## per metre of hand.
+	var rock: Boulders.Boulder
+	var rock_from := Transform3D()
+	var rock_hand := Transform3D()
+	var rock_gain := 1.0
 
 
 var rig: Rig
@@ -97,7 +104,7 @@ static func put_ring(r: MeshInstance3D, at: Vector3, radius: float) -> void:
 
 ## Whether `hand`, or with none any hand, has a stroke under way.
 func busy(hand: Hand = null) -> bool:
-	return brushes.any(func(b: Brush) -> bool: return (hand == null or b.hand == hand) and (b.drawing_path or b.ground != null or not b.dabs.is_empty()))
+	return brushes.any(func(b: Brush) -> bool: return (hand == null or b.hand == hand) and (b.drawing_path or b.ground != null or not b.dabs.is_empty() or b.rock != null))
 
 
 func _ground_held() -> bool:
@@ -132,6 +139,9 @@ func _handle(b: Brush, delta: float) -> void:
 	if not b.hand.get_has_tracking_data():
 		return
 	var hand := b.hand.global_transform
+	if b.rock != null:
+		carry_boulder(b, hand)
+		return
 	var hit: Variant = Terrain.raycast(hand.origin, -hand.basis.z)
 	if held == Hand.Tool.MOSS:
 		var solid := flora.solid_hit(hand.origin, -hand.basis.z, hand.origin.distance_to(hit) if hit != null else 30.0)
@@ -153,7 +163,7 @@ func _handle(b: Brush, delta: float) -> void:
 	if held == Hand.Tool.BOULDER:
 		world.preview(b.hand, {"boulder": Budget.boulder(1.0)})
 		if b.buttons.pressed("tool"):
-			place_boulder(hit, b.hand)
+			take_boulder(b, hit)
 		return
 	var radius := brush_radius(hand.origin, hit)
 	if held == Hand.Tool.DIRT_PATH:
@@ -238,6 +248,7 @@ func end_stroke(b: Brush) -> void:
 	b.full = false
 	if b.drawing_path:
 		end_path(b)
+	set_boulder(b)
 	_send_ground(b)
 	_send_plants(b)
 
@@ -287,6 +298,9 @@ func _forget() -> void:
 		b.kind = ""
 		b.ground = null
 		b.drawing_path = false
+		if b.rock != null:
+			b.rock.queue_free()
+			b.rock = null
 	paths.forget()
 	flora.clear_ghosts()
 
@@ -318,12 +332,43 @@ func coat_tree(trunk: Flora.Plant, hand: Hand = null) -> void:
 	world.submit({"op": "tree", "group": trunk.group, "index": trunk.index, "moss": true}, Callable(), hand)
 
 
-## Sets a metre-wide boulder of a new shape down at `at`.
-func place_boulder(at: Vector3, hand: Hand = null, shape := randi(), scale := 1.0) -> void:
-	var cmd := {"op": "boulder", "at": at, "seed": shape, "scale": scale, "paint": world.wall_tool.paint.duplicate()}
+## Takes up a new boulder of shape `shape` and size `scale` at `at` in `b`'s hand, from the hand's pose now.
+func take_boulder(b: Brush, at: Vector3, shape := randi(), scale := 1.0) -> void:
+	b.rock = world.boulders.ghost(_boulder(at, Quaternion.IDENTITY, shape, scale))
+	b.rock_from = b.rock.pose()
+	b.rock_hand = b.hand.global_transform
+	b.rock_gain = Hand.reach_gain(b.rock_hand.origin.distance_to(at))
+
+
+## Carries the boulder `b` took up with the hand, now at `hand`, as a grip carries a placed one.
+func carry_boulder(b: Brush, hand: Transform3D) -> void:
+	b.rock.hold(Boulders.carried(b.rock_from, b.rock_hand, hand, b.rock_gain), b.rock.size)
+
+
+## Sets the boulder `b` carries down on the ground under it, turned as it was held; it shows there until its command
+## comes back.
+func set_boulder(b: Brush) -> void:
+	var rock := b.rock
+	b.rock = null
+	if rock == null:
+		return
+	var pose := rock.pose()
+	place_boulder(pose.origin, b.hand, rock.shape.seed, rock.size, pose.basis.get_rotation_quaternion(), rock)
+
+
+## Sets a boulder of shape `shape`, size `scale` and turn `turn` down on the ground under `at`; `ghost`, the boulder
+## shown for it, rests there until the command comes back.
+func place_boulder(at: Vector3, hand: Hand = null, shape := randi(), scale := 1.0, turn := Quaternion.IDENTITY, ghost: Boulders.Boulder = null) -> void:
+	var cmd := _boulder(at, turn.normalized(), shape, scale)
 	if world.fits(cmd):
 		Cues.play(Cues.Act.BOULDER_PLACE, at, hand)
-	world.submit(cmd, Callable(), hand)
+	if ghost != null:
+		ghost.appear(cmd)
+	world.submit(cmd, ghost.queue_free if ghost != null else Callable(), hand)
+
+
+func _boulder(at: Vector3, turn: Quaternion, shape: int, scale: float) -> Dictionary:
+	return {"op": "boulder", "at": Terrain.ground(at.x, at.z), "turn": turn, "seed": shape, "scale": scale, "paint": world.wall_tool.paint.duplicate()}
 
 
 func place(kind: String, at: Vector3, hand: Hand = null, shape := randi()) -> void:

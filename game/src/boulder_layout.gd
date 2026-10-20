@@ -12,8 +12,10 @@ const SCALES := Vector2(0.08, 8.0)
 const CUTS := Vector2i(6, 10)
 ## How round worn edges are, as a share of the unit boulder.
 const WEAR := 0.01
-## How deep its bed sits in the ground, as a share of its height under its centre.
+## How deep it sits in the ground, as a share of how far it reaches below its centre, whichever way it is turned.
 const BURY := 0.2
+## Icosphere subdivision of the surface points it rests on.
+const FEET := 2
 ## Icosphere subdivisions of the near and far meshes.
 const NEAR := 3
 const FAR := 1
@@ -26,8 +28,10 @@ class Shape:
 	var cuts: Array[Vector4] = []
 	var pits := FastNoiseLite.new()
 	var grain := FastNoiseLite.new()
-	## How far below its centre its bed lies, before burying.
+	## How far below its centre its bed lies.
 	var bed := 0.0
+	## Points on its surface, any of which may be what it rests on.
+	var feet := PackedVector3Array()
 
 	## Distance from the centre to the surface along the unit direction `u`.
 	func radius(u: Vector3) -> float:
@@ -82,14 +86,6 @@ class Shape:
 		var f := func(q: Vector3) -> float: return q.length() - radius(q.normalized())
 		return Vector3(f.call(p + Vector3(e, 0, 0)) - f.call(p - Vector3(e, 0, 0)), f.call(p + Vector3(0, e, 0)) - f.call(p - Vector3(0, e, 0)), f.call(p + Vector3(0, 0, e)) - f.call(p - Vector3(0, 0, e))).normalized()
 
-	## How high its centre stands over the ground it rests on, its bed buried a little.
-	func rest() -> float:
-		return bed * (1.0 - BURY)
-
-	## How high it reaches over the ground it rests on.
-	func top() -> float:
-		return radius(Vector3.UP) + rest()
-
 
 static func shape(seed: int) -> Shape:
 	var rng := RandomNumberGenerator.new()
@@ -109,6 +105,8 @@ static func shape(seed: int) -> Shape:
 	s.pits.fractal_octaves = 2
 	s.grain.seed = rng.randi()
 	s.grain.frequency = 7.0
+	for u: Vector3 in Meshes.icosphere(FEET)[Mesh.ARRAY_VERTEX]:
+		s.feet.append(u * s.radius(u))
 	return s
 
 
@@ -142,6 +140,15 @@ static func arrays(s: Shape, subdiv: int) -> Array:
 	return a
 
 
-## A boulder's transform: standing on `ground` (the point under its centre) grown `scale` times.
-static func xform(s: Shape, ground: Vector3, scale: float) -> Transform3D:
-	return Transform3D(Basis.from_scale(Vector3.ONE * scale), ground + Vector3.UP * s.rest() * scale)
+## A boulder's transform: turned `turn` and grown `scale` times, dropped straight down at (`x`, `z`) onto the ground
+## `height` (x, z) gives until some point of it meets the ground, then sunk BURY of how far it reaches below its centre:
+## whichever way it is turned and however high it was let go, it rests on the ground.
+static func rest(s: Shape, turn: Quaternion, scale: float, x: float, z: float, height: Callable) -> Transform3D:
+	var basis := Basis(turn) * Basis.from_scale(Vector3.ONE * scale)
+	var lift := -INF
+	var depth := 0.0
+	for p in s.feet:
+		var w := basis * p
+		lift = maxf(lift, height.call(x + w.x, z + w.z) - w.y)
+		depth = maxf(depth, -w.y)
+	return Transform3D(basis, Vector3(x, lift - depth * BURY, z))

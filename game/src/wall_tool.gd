@@ -3,8 +3,9 @@ extends Node3D
 
 ## Walls, for whichever hand holds them: trigger draws a wall along the ground, a loop as much as a line,
 ## and a grip pointed at a wall, whatever the hand holds, pulls its height, at a roof its pitch, and at a
-## tree or boulder its size, its top following the hand. Each hand grabs on its own, so two hands pull two walls, roofs, trees or boulders at once; a grip on one the other hand
-## holds takes nothing. A hand holding the house or the tower takes hold of one with its trigger, where it points, and carries it; the
+## tree its size, its top following the hand; a grip on a boulder carries it, turning with the hand every way, and sets it
+## down on the ground when let go. Each hand grabs on its own, so two hands pull two walls, roofs, trees or boulders at
+## once; a grip on one the other hand holds takes nothing, except on a tree, boulder or opening, which the pair then size. A hand holding the house or the tower takes hold of one with its trigger, where it points, and carries it; the
 ## other hand's grip, pressed while it is carried, joins in, whatever it points at, to turn it with the pair and stretch it
 ## along their span, a tower every way at once; letting go builds it. A built
 ## house held by one hand's grip takes the other's too, and the pair stretch its width or depth where it stands, and
@@ -41,8 +42,10 @@ const CARRY_STEP := 0.12
 signal built
 
 
-## A thing a grip grows and shrinks, its top following the hand: how to read and show its scale, the range it may
-## take, and the command that sets it in the garden; and the scale it had when the first grip took it.
+## A thing a grip holds and two grips size by their span: how to read and show its scale, the range it may take, and
+## the command that sets it in the garden as shown ({} while nothing changed); and what one hand alone does with it,
+## `take` holding it from the hand's pose and `follow` moving it with the hand's pose: a tree or opening grows as the
+## hand rises, its top following the hand, a boulder is carried.
 class Sizing:
 	var from := 0.0
 	var scale: Callable
@@ -52,6 +55,8 @@ class Sizing:
 	var show: Callable
 	var command: Callable
 	var settle: Callable
+	var take: Callable
+	var follow: Callable
 
 
 ## A placed opening a grip sizes: its wall and its place in the garden's list of the wall's openings.
@@ -259,11 +264,11 @@ func _handle(m: Mason) -> void:
 		var trunk: Flora.Plant = tree.plants[0] if not tree.is_empty() and tree.plants[0].pool == flora.trunks else null
 		var rock := world.boulders.pick(origin, dir, minf(nearest, minf(pick.get("along", INF), tree.get("along", INF)))) if world.boulders != null else {}
 		if not rock.is_empty():
-			begin_grow(m, rock.boulder, origin, rock.point)
+			begin_grow(m, rock.boulder, hand, rock.point)
 		elif trunk != null and tree.along < pick.get("along", INF):
-			begin_grow(m, trunk, origin, tree.point)
+			begin_grow(m, trunk, hand, tree.point)
 		elif pick.get("what") == "opening" and pick.along < nearest:
-			begin_grow(m, _opening_grip(pick.wall, Array(world.state.walls[pick.wall.id].openings).find(pick.value)), origin, pick.point)
+			begin_grow(m, _opening_grip(pick.wall, Array(world.state.walls[pick.wall.id].openings).find(pick.value)), hand, pick.point)
 		elif not roof.is_empty() and roof.along < nearest:
 			if _held(roof.wall):
 				_join(m, roof.wall, true)
@@ -280,7 +285,7 @@ func _handle(m: Mason) -> void:
 		drag_roof(m, origin)
 	elif m.buttons.held("grab") and m.growing != null:
 		if m.partner == null:
-			drag_grow(m, origin.y)
+			m.sizing.follow.call(m, hand)
 		elif m.pair_span > 0.0:
 			drag_pair(m, m.partner.hand.global_position, origin)
 
@@ -295,8 +300,8 @@ func _preview(m: Mason) -> void:
 		change = world.change_of({"op": "reshape", "of": "walls", "id": m.lifting.id, "data": {"height": m.lifting.layout.height}})
 	elif m.roofing != null:
 		change = world.change_of({"op": "reshape", "of": "walls", "id": m.roofing.id, "data": {"roof": {"pitch": m.roofing.roof.pitch}}})
-	elif m.growing != null and m.sizing.current.call():
-		change = world.change_of(m.sizing.command.call(m.sizing.scale.call()))
+	elif m.growing != null and m.sizing.current.call() and not m.sizing.command.call().is_empty():
+		change = world.change_of(m.sizing.command.call())
 	elif m in _holders and house != null:
 		change = Budget.wall(house.data())
 	elif not _resize_hands.is_empty() and m == _resize_hands[0]:
@@ -926,26 +931,30 @@ func end_roof(m: Mason) -> void:
 		world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id), m.hand)
 
 
-## Grip on a tree, a boulder or an opening at `at`: the hand raised grows it and lowered shrinks it, its top rising and
-## falling with the hand. A grip on one the other hand is sizing joins it: the two hands pulled apart grow it, pushed
-## together shrink it, in proportion to their span; letting either go leaves the other sizing it alone.
-func begin_grow(m: Mason, target: Object, hand: Vector3, at: Vector3) -> void:
+## Grip from the hand's pose `hand` on a tree, a boulder or an opening at `at`, which one hand alone moves as its
+## `Sizing` has it. A grip on one the other hand holds joins it: the two hands pulled apart grow it, pushed together
+## shrink it, in proportion to their span; letting either go leaves it to the other alone.
+func begin_grow(m: Mason, target: Object, hand: Transform3D, at: Vector3) -> void:
 	m.growing = target
+	m.lift_at = at
 	for o in masons:
 		if o != m and o.growing == target:
 			m.sizing = o.sizing
 			m.partner = o
 			o.partner = m
 			m.lift_start = m.sizing.scale.call()
-			m.lift_at = at
-			m.pair_span = o.hand.global_position.distance_to(hand)
+			m.pair_span = o.hand.global_position.distance_to(hand.origin)
 			return
 	m.sizing = _sizing(target)
 	m.sizing.from = m.sizing.scale.call()
-	m.lift_start = m.sizing.from
-	m.lift_hand = hand
-	m.lift_at = at
-	m.lift_gain = Hand.reach_gain(hand.distance_to(at))
+	m.sizing.take.call(m, hand)
+
+
+## One hand alone takes a tree or opening to size: its top follows the hand from its pose `hand` now.
+func _lift(m: Mason, hand: Transform3D) -> void:
+	m.lift_start = m.sizing.scale.call()
+	m.lift_hand = hand.origin
+	m.lift_gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
 	m.grow_top = m.sizing.top.call()
 
 
@@ -980,49 +989,81 @@ func end_grow(m: Mason) -> void:
 	if other != null:
 		other.partner = null
 		other.pair_span = 0.0
-		other.lift_start = s.scale.call()
-		other.lift_hand = other.hand.global_position
-		other.lift_gain = Hand.reach_gain(other.lift_hand.distance_to(other.lift_at))
-		other.grow_top = s.top.call()
+		s.take.call(other, other.hand.global_transform)
 		return
-	if not s.current.call() or is_equal_approx(s.scale.call(), s.from):
+	if not s.current.call():
+		s.settle.call()
+		return
+	# Shown once more with no hand holding it: a carried boulder drops onto the ground.
+	s.show.call(s.scale.call())
+	var cmd: Dictionary = s.command.call()
+	if cmd.is_empty():
 		s.settle.call()
 	else:
-		world.submit(s.command.call(s.scale.call()), s.settle, m.hand)
+		world.submit(cmd, s.settle, m.hand)
 
 
-## How a grip sizes `target`, a tree's trunk, a boulder or an opening; each shows as the garden has it once its sizing
+## How a grip holds `target`, a tree's trunk, a boulder or an opening; each shows as the garden has it once its edit
 ## has come back or been turned down, unless a hand holds it again.
 func _sizing(target: Object) -> Sizing:
 	var s := Sizing.new()
 	var held := func() -> bool: return masons.any(func(o: Mason) -> bool: return o.growing == target)
+	s.take = _lift
+	s.follow = func(m: Mason, hand: Transform3D) -> void: drag_grow(m, hand.origin.y)
 	if target is OpeningGrip:
 		return _opening_sizing(target, s, held)
 	if target is Boulders.Boulder:
-		var b: Boulders.Boulder = target
-		var rocks := world.boulders
-		var standing := func() -> bool: return is_instance_valid(b) and rocks.find(b.id) == b
-		s.scale = func() -> float: return b.size
-		s.top = b.top
-		s.limits = BoulderLayout.SCALES
-		s.current = standing
-		s.show = func(scale: float) -> void: rocks.show_reshaped(b.id, {"scale": scale})
-		s.command = func(scale: float) -> Dictionary: return {"op": "reshape", "of": "boulders", "id": b.id, "data": {"scale": scale}}
-		s.settle = func() -> void:
-			if standing.call() and not held.call():
-				rocks.settle(b.id)
-		return s
+		return _boulder_grip(target, s, held)
 	var trunk: Flora.Plant = target
 	s.scale = flora.scale_of.bind(trunk)
 	s.top = flora.top_of.bind(trunk)
 	s.limits = FloraLayout.SCALES
 	s.current = trunk.current
 	s.show = func(scale: float) -> void: flora.set_look(trunk, flora.species_of(trunk) as FloraLayout.Species, scale)
-	s.command = func(scale: float) -> Dictionary: return {"op": "tree", "group": trunk.group, "index": trunk.index, "scale": scale}
+	s.command = func() -> Dictionary: return {} if is_equal_approx(s.scale.call(), s.from) else {"op": "tree", "group": trunk.group, "index": trunk.index, "scale": s.scale.call()}
 	s.settle = func() -> void:
 		var g: Dictionary = world.state.groups.get(trunk.group, {})
 		if trunk.current() and not g.is_empty() and not held.call():
 			flora.set_look(trunk, g.species.get(trunk.index, FloraLayout.Species.OAK), g.scale.get(trunk.index, 1.0))
+	return s
+
+
+## Carries a boulder: one hand moves it and turns it about its centre every way as the hand turns (`Boulders.carried`),
+## a far one moving farther per metre of hand; let go, it drops straight down onto the ground under it, keeping its
+## turn (`BoulderLayout.rest`), its place, turn and size one reshape.
+func _boulder_grip(b: Boulders.Boulder, s: Sizing, held: Callable) -> Sizing:
+	var rocks := world.boulders
+	var standing := func() -> bool: return is_instance_valid(b) and rocks.find(b.id) == b
+	var grip := {"pose": b.pose(), "scale": b.size, "from": b.pose(), "hand": Transform3D(), "gain": 1.0}
+	var data := func() -> Dictionary:
+		var p: Transform3D = grip.pose
+		return {"at": Terrain.ground(p.origin.x, p.origin.z), "turn": p.basis.get_rotation_quaternion().normalized(), "scale": grip.scale}
+	s.scale = func() -> float: return grip.scale
+	s.limits = BoulderLayout.SCALES
+	s.current = standing
+	s.show = func(scale: float) -> void:
+		grip.scale = scale
+		if held.call():
+			rocks.show_held(b.id, grip.pose, scale)
+		else:
+			rocks.show_reshaped(b.id, data.call())
+			_cue(Cues.Act.BOULDER_PLACE, b.position, [])
+	s.command = func() -> Dictionary:
+		var d: Dictionary = data.call()
+		var was := b.data
+		if is_equal_approx(d.scale, was.scale) and d.turn.is_equal_approx(was.turn) and is_equal_approx(d.at.x, was.at.x) and is_equal_approx(d.at.z, was.at.z):
+			return {}
+		return {"op": "reshape", "of": "boulders", "id": b.id, "data": d}
+	s.take = func(m: Mason, hand: Transform3D) -> void:
+		grip.from = grip.pose
+		grip.hand = hand
+		grip.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
+	s.follow = func(_m: Mason, hand: Transform3D) -> void:
+		grip.pose = Boulders.carried(grip.from, grip.hand, hand, grip.gain)
+		rocks.show_held(b.id, grip.pose, grip.scale)
+	s.settle = func() -> void:
+		if standing.call() and not held.call():
+			rocks.settle(b.id)
 	return s
 
 
@@ -1061,7 +1102,7 @@ func _opening_sizing(grip: OpeningGrip, s: Sizing, held: Callable) -> Sizing:
 		if not is_equal_approx(size, shown.size) and fits.call(size):
 			shown.size = size
 			_relay(w, {"openings": PackedVector4Array(sized.call(size))})
-	s.command = func(size: float) -> Dictionary: return {"op": "reshape", "of": "walls", "id": w.id, "data": {"openings": PackedVector4Array(sized.call(size))}}
+	s.command = func() -> Dictionary: return {} if is_equal_approx(shown.size, s.from) else {"op": "reshape", "of": "walls", "id": w.id, "data": {"openings": PackedVector4Array(sized.call(shown.size))}}
 	s.settle = func() -> void:
 		if current.call() and not held.call():
 			settle(w.id)
