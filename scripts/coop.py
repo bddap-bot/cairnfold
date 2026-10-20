@@ -129,6 +129,43 @@ def scripts(count):
     return result
 
 
+def spawn_scripts(capture=False):
+    result = {
+        "host": [
+            {"op": "sculpt", "x": 0, "z": 4, "lift": 12, "radius": 9, "seconds": 0.5},
+            {"op": "digest", "name": "raised"},
+            barrier(["joined"]),
+            {"op": "quit"},
+        ],
+        "join": [
+            barrier(["raised"]), {"op": "join"},
+            {"op": "digest", "name": "joined", "ground": True},
+            {"op": "quit"},
+        ],
+    }
+
+    if capture:
+        result["host"][-1:-1] = [
+            {"op": "until", "players": 2, "worn": 1},
+            {"op": "wait", "seconds": 1},
+            {"op": "view", "eye": [6, 15, 11], "at": [0, 12.5, 4]},
+            {"op": "capture", "name": "joiner-on-mountain"},
+            {"op": "digest", "name": "captured"},
+        ]
+        result["join"][-1:-1] = [barrier(["captured"])]
+    return result
+
+
+def check_spawn(out):
+    joined = json.loads((out / "joined.json").read_text())
+    raised = json.loads((out / "raised.json").read_text())
+    assert joined["seq"] == raised["seq"] == 1 and joined["heights"] == raised["heights"], "joiner received the raised garden"
+    probe = joined["ground"]
+    print(f"spawn: {probe}", flush=True)
+    assert probe["terrain"] > 10, "host raised a mountain at spawn"
+    assert abs(probe["feet"] - probe["terrain"]) < 0.01, "joiner stands on current ground"
+
+
 def reserve_beacons():
     # Reserve a fifth socket, outside the four listeners, so all four can be used.
     for base in random.sample(range(20000, 60000, 5), 8000):
@@ -148,15 +185,17 @@ def reserve_beacons():
     raise RuntimeError("no free beacon block")
 
 
-def run(out, count):
+def run(out, count, spawn=False, capture=False):
     out.mkdir(parents=True, exist_ok=True)
     for path in out.glob("*.json"):
         path.unlink()
-    generated = scripts(count)
+    generated = spawn_scripts(capture) if spawn else scripts(count)
     for name, steps in generated.items():
         (out / f"script-{name}.json").write_text(json.dumps(steps, indent=2))
     beacon, reservation = reserve_beacons()
     processes = {}
+    display = None
+    xserver = None
     logs = []
     cpu = {}
     stopped = threading.Event()
@@ -183,6 +222,8 @@ def run(out, count):
                 "--", "--desktop", "--script", str(out / f"script-{name}.json"),
                 "--capture-dir", str(out), "--host-port", str(port),
                 "--beacon-port", str(beacon), "--port", str(port if name == "host" else first)]
+        if capture and name == "host":
+            args.remove("--headless")
         if name != "host":
             i = list(generated).index(name) - 1
             folder = out / f"avatars-{name}"
@@ -193,7 +234,8 @@ def run(out, count):
             args += ["--avatars", str(folder), "--avatar", str(i + 1)]
         log = (out / f"{name}.log").open("w")
         logs.append(log)
-        processes[name] = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT)
+        processes[name] = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT,
+                                           env=dict(os.environ, DISPLAY=display) if capture and name == "host" else None)
 
     progress = {"steps": 0, "cpu": 0.0, "quiet": 0.0}
 
@@ -223,6 +265,12 @@ def run(out, count):
             time.sleep(0.1)
 
     try:
+        if capture:
+            reader, writer = os.pipe()
+            xserver = subprocess.Popen(["Xvfb", "-displayfd", str(writer), "-screen", "0", "1600x1200x24", "-nolisten", "tcp"], pass_fds=(writer,))
+            os.close(writer)
+            with os.fdopen(reader) as ready:
+                display = ":" + ready.readline().strip()
         launch("host", first)
         def host_port():
             for line in (out / "host.log").read_text().splitlines():
@@ -232,9 +280,10 @@ def run(out, count):
         port = host_port()
         print(f"coop: {count} players, host port {port}, beacon ports {beacon}–{beacon + 3}", flush=True)
         launch("join", port)
-        until(lambda: all((out / f"{n}-2-players-cost.json").exists() for n in ("host", "join")))
-        for name in list(generated)[2:]:
-            launch(name, port)
+        if not spawn:
+            until(lambda: all((out / f"{n}-2-players-cost.json").exists() for n in ("host", "join")))
+            for name in list(generated)[2:]:
+                launch(name, port)
         until(lambda: all(p.poll() is not None for p in processes.values()))
         check()
     finally:
@@ -253,7 +302,13 @@ def run(out, count):
         sampler.join()
         (out / "process-cpu.json").write_text(json.dumps(cpu))
         reservation.close()
+        if xserver is not None:
+            xserver.terminate()
+            xserver.wait()
     print(f"coop: longest stretch without a step took {progress['quiet']:.1f} of {QUIET_CPU} CPU-seconds", flush=True)
+    if spawn:
+        check_spawn(out)
+        return
     subprocess.run(["python3", str(ROOT / "scripts/coop-check.py"), str(out),
                     str(ROOT / "tests/avatars"), str(count)], check=True)
     rows = []
@@ -277,7 +332,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("out", type=Path)
     parser.add_argument("players", type=int, nargs="?", default=4)
+    parser.add_argument("--spawn", action="store_true", help="only the late-join mountain regression")
+    parser.add_argument("--capture", action="store_true", help="render the spawn regression on a virtual display")
     args = parser.parse_args()
     if not 2 <= args.players <= 8:
         parser.error("players must be 2..8 (Session.MAX_PLAYERS)")
-    run(args.out.resolve(), args.players)
+    run(args.out.resolve() / "spawn", 2, spawn=True, capture=args.capture)
+    if not args.spawn:
+        run(args.out.resolve(), args.players)

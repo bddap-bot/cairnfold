@@ -28,6 +28,8 @@ const OVER := "over the frame budget"
 signal applied(cmd: Dictionary)
 ## The whole garden was swapped (joining or leaving someone's): tools drop what they were doing.
 signal restored
+## The replacement garden, including its terrain, is ready for the player.
+signal loaded
 ## The frame budget turned down what `hand` tried (null for a hand we cannot tell).
 signal capped(hand: XRController3D)
 
@@ -911,6 +913,7 @@ func restore(snap: Dictionary) -> int:
 		return _rebuild(snap.cmds))
 	seq = snap.seq
 	flora.grow_now()
+	loaded.emit()
 	return applied
 
 

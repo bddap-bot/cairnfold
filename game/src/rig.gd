@@ -275,9 +275,14 @@ func teleport(ground: Vector3, lift_m: float) -> void:
 	_fade.visible = true
 
 
+func respawn() -> void:
+	_pending = null
+	place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
+
+
 func place(ground: Vector3, lift_m: float) -> void:
 	var h := head.global_position
-	global_position = Vector3(global_position.x + ground.x - h.x, ground.y + lift_m, global_position.z + ground.z - h.z)
+	global_position = Vector3(global_position.x + ground.x - h.x, maxf(ground.y + lift_m, Terrain.height_at(ground.x, ground.z)), global_position.z + ground.z - h.z)
 	placed.emit()
 
 

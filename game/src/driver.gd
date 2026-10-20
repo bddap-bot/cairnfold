@@ -696,7 +696,7 @@ func _join(s: Dictionary) -> void:
 ## Set once the next garden arrives, so a step after a visit works in the garden visited, however late it comes.
 func _arrival() -> Array:
 	var arrived := [false]
-	main.world.restored.connect(func() -> void:
+	main.world.loaded.connect(func() -> void:
 		if main.session.visiting.is_empty():
 			push_error("driver: went home instead of arriving")
 		else:
@@ -783,6 +783,9 @@ func _until(s: Dictionary) -> void:
 func _digest(s: Dictionary) -> void:
 	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name + ".json")
 	var out: Dictionary = main.world.digest()
+	if s.get("ground", false):
+		var h: Vector3 = main.rig.head.global_position
+		out.ground = {"feet": main.rig.global_position.y, "terrain": Terrain.height_at(h.x, h.z), "head": h.y, "x": h.x, "z": h.z}
 	out.sun = main.look.time
 	out.avatars = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.visible).size()
 	out.worn = main.session.avatars.values().map(func(a: Avatar) -> String: return a.source).filter(func(k: String) -> bool: return k != "")

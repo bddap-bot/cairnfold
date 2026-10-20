@@ -135,7 +135,8 @@ func _ready() -> void:
 		var build: Variant = tool.solid_hit(origin, dir, reach)
 		var stair := world.stairs.pick(origin, dir, reach if build == null else origin.distance_to(build))
 		return build if stair.is_empty() else stair.point
-	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
+	world.loaded.connect(rig.respawn)
+	rig.respawn()
 	var drawn := Quality.session(OS.get_model_name())
 	get_viewport().msaa_3d = drawn.msaa
 	look.env.reflected_light_source = drawn.reflections
