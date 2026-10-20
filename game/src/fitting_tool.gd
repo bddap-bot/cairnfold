@@ -372,7 +372,8 @@ func _exit_tree() -> void:
 	lamps.stop()
 
 
-## Placement and deletion refine the same first building surface with the fittings in front of it.
+## Placement and deletion refine the same first building surface with the fittings in front of it that the garden has:
+## a previewed opening is the hand's own aim, never something to take away.
 static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3) -> Dictionary:
 	var best := builder.pick_building(origin, dir)
 	for w in builder.walls:
@@ -383,7 +384,7 @@ static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3) -> Dic
 			var local: Vector3 = item.inverse * origin
 			var direction: Vector3 = item.inverse.basis * dir
 			var hit: Variant = local if box.has_point(local) else box.intersects_ray(local, direction)
-			if hit == null:
+			if hit == null or removal(builder.world.state, item).is_empty():
 				continue
 			var along: float = (hit - local).dot(direction) / direction.length_squared()
 			var point := origin + dir * along
@@ -468,7 +469,7 @@ static func removal(state: Dictionary, target: Dictionary) -> Dictionary:
 	if not is_instance_valid(target.wall):
 		return {}
 	var w: Wall = target.wall
-	if not is_instance_valid(w) or not state.walls.has(w.id):
+	if not state.walls.has(w.id):
 		return {}
 	var data: Dictionary = state.walls[w.id]
 	if target.on_roof:
