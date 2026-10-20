@@ -1558,7 +1558,7 @@ func _stairs(s: Dictionary) -> void:
 func _stair_field(_s: Dictionary) -> void:
 	main.world.submit({"op": "wipe"})
 	main.world.bounded = true
-	await _sculpt({"x": 5.0, "z": -6.0, "lift": 2.0, "radius": 2.5, "seconds": 0.2})
+	await _sculpt({"x": 5.0, "z": -6.0, "lift": 2.0, "seconds": 0.2})
 	await _pave({"points": [[5, -2.5], [5, -6]], "radius": 0.8, "seconds": 0.2})
 	var placed := 0
 	for row in 9:
