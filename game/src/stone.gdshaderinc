@@ -14,6 +14,9 @@ varying vec3 bounce_at;
 varying vec3 lamp_at;
 // Lamps supplies the same strength to the opening's spill and its glass (colour alpha 0, Wall.pack).
 uniform float window_glow;
+#ifdef ROOF_TIMBER
+instance uniform vec3 timber_color = vec3(1.0);
+#endif
 varying float pane;
 varying flat int style;
 // A styled boulder's tone within its style, its own from where it stands.
@@ -32,7 +35,11 @@ void vertex() {
 #else
 	// A wall panel's ends turn by INSTANCE_CUSTOM.zw about the vertical: each end is cut along the bisector with its
 	// neighbour, and its faces' normals turned to that bisector's, so a curved run of panels closes and shades round.
+	#ifdef ROOF_TIMBER
+	float turn = 0.0;
+#else
 	float turn = VERTEX.x < 0.0 ? INSTANCE_CUSTOM.z : INSTANCE_CUSTOM.w;
+#endif
 	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	if (turn != 0.0) {
 		VERTEX.x += VERTEX.z * length(MODEL_MATRIX[2].xyz) * tan(turn) / length(MODEL_MATRIX[0].xz);
@@ -47,8 +54,14 @@ void vertex() {
 	bounce_at = bounce_coord(world_pos, world_nrm);
 	lamp_at = lamp_coord(world_pos, world_nrm);
 	pane = COLOR.a < 0.5 ? textureLod(lamp_volume, lamp_coord(world_pos, -world_nrm), 0.0).r : 0.0;
+#ifdef ROOF_TIMBER
+	COLOR = vec4(timber_color, 1.0);
+	occlusion = 0.85;
+	material = 5.0;
+#else
 	occlusion = INSTANCE_CUSTOM.x;
 	material = INSTANCE_CUSTOM.y;
+#endif
 	style = stone_style;
 	tone = 0.35 + 0.3 * fract(sin(dot(MODEL_MATRIX[3].xz, vec2(12.9898, 78.233))) * 43758.5453);
 }

@@ -59,6 +59,9 @@ const TORCHING_DROP := 0.04
 const TORCHING_PIECE := 0.5
 const PROFILE_STEPS := 8
 const STACK_WIDTH := 0.66
+const RAFTER_SPACING := 0.65
+const CEILING_BOARD := 0.24
+const CEILING_PIECE := 0.5
 
 ## The clay roof tiles are laid in, before each roof's hue and each tile's variation.
 const CLAY := Color(0.72, 0.4, 0.28)
@@ -125,6 +128,7 @@ var faces := PackedVector3Array()
 var gable_faces := PackedVector3Array()
 ## Under a pitched roof, the lime torching under its tiles that closes the gaps between them, facing down.
 var torching_faces := PackedVector3Array()
+var timber_faces := PackedVector3Array()
 var bounds := AABB()
 
 
@@ -169,6 +173,7 @@ func adopt(built: RoofLayout) -> void:
 	faces = built.faces
 	gable_faces = built.gable_faces
 	torching_faces = built.torching_faces
+	timber_faces = built.timber_faces
 	stepped = built.stepped
 	bounds = built.bounds
 
@@ -311,6 +316,7 @@ func build() -> void:
 	faces = surface()
 	gable_faces = gables()
 	torching_faces = torching()
+	timber_faces = PackedVector3Array()
 	bounds = AABB(faces[0], Vector3.ZERO)
 	for p in faces + gable_faces:
 		bounds = bounds.expand(p)
@@ -329,6 +335,7 @@ func build() -> void:
 			_lay_boards(rng)
 		else:
 			_lay_deck(rng)
+		_lay_ceiling()
 		for i in chimneys.size():
 			rng.seed = hash([seed, "chimney", i])
 			_lay_chimney(chimney_spot(chimneys[i]), rng)
@@ -364,6 +371,71 @@ func build() -> void:
 		_fly_flag(f.mid + Vector3.UP * top)
 	else:
 		_add(Transform3D(Basis().scaled(Vector3(0.16, 0.5, 0.16)), f.mid + Vector3.UP * (top + 0.2)), "finial", Color(0.6, 0.56, 0.5), 1.0)
+
+
+## The rectangular bound also bounds a round ceiling's box segments. Each is charged as an existing timber.
+func ceiling_units() -> int:
+	if not flat():
+		return 0
+	var wide := half_span() - WallLayout.THICKNESS * 0.5
+	var long := wide if kind == Kind.CONE else ridge_length() * 0.5
+	if long < wide:
+		var swap := long
+		long = wide
+		wide = swap
+	return ceili(2.0 * wide / CEILING_BOARD) * ceili(2.0 * long / CEILING_PIECE) + ceili(2.0 * long / RAFTER_SPACING) * ceili(2.0 * wide / CEILING_PIECE)
+
+
+## Framing sits beneath the mortar bed, bearing into the walls. Each strip is split so curved decks and
+## merge exclusions use the same roof height and hiding queries as the covering above it.
+func _lay_ceiling() -> void:
+	var f := frame()
+	var wide := half_span() - WallLayout.THICKNESS * 0.5
+	var long := wide if kind == Kind.CONE else ridge_length() * 0.5
+	var along: Vector3 = f.along
+	var across: Vector3 = f.across
+	if long < wide:
+		var swap := long
+		long = wide
+		wide = swap
+		along = f.across
+		across = -f.along
+	var drop := DECK_DROP + SLAB.y * 1.1
+	var board := CEILING_BOARD
+	var count := maxi(1, ceili(2.0 * wide / board))
+	for i in count:
+		var a := -wide + 2.0 * wide * i / count
+		var b := -wide + 2.0 * wide * (i + 1) / count
+		_ceiling_strip(across, -along, a + 0.004, b - 0.004, long, 0.035, drop)
+	var depth := clampf(2.0 * wide / 18.0, 0.14, 0.38)
+	var width := depth * 0.55
+	count = maxi(1, ceili(2.0 * long / RAFTER_SPACING))
+	for i in count:
+		var x := -long + 2.0 * long * (i + 0.5) / count
+		_ceiling_strip(along, across, x - width * 0.5, x + width * 0.5, wide, depth, drop + 0.035)
+
+
+func _ceiling_strip(along: Vector3, across: Vector3, a: float, b: float, reach: float, depth: float, drop: float) -> void:
+	var mid: Vector3 = frame().mid
+	var ends := Vector2(reach, reach)
+	if kind == Kind.CONE:
+		ends = Vector2(sqrt(maxf(0.0, radius * radius - a * a)), sqrt(maxf(0.0, radius * radius - b * b)))
+	var pieces := maxi(1, ceili(2.0 * maxf(ends.x, ends.y) / CEILING_PIECE))
+	for i in pieces:
+		var verts := PackedVector3Array()
+		for c in 8:
+			var x := a if (c & 1) == 0 else b
+			var end := ends.x if (c & 1) == 0 else ends.y
+			var z := end * (-1.0 + 2.0 * (i + ((c >> 2) & 1)) / pieces)
+			var p := mid + along * x + across * z
+			p.y = height_at(p.x, p.z) - drop - depth * (1 - ((c >> 1) & 1))
+			verts.append(p)
+		var sides := [[0, 2, 3, 1], [4, 5, 7, 6], [0, 1, 5, 4], [0, 4, 6, 2], [1, 3, 7, 5]]
+		for side in sides.size():
+			if (side == 0 and i > 0) or (side == 1 and i < pieces - 1):
+				continue
+			for k in [0, 2, 1, 0, 3, 2]:
+				timber_faces.append(verts[sides[side][k]])
 
 
 func _fly_flag(foot: Vector3) -> void:

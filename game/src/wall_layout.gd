@@ -439,13 +439,20 @@ func hide_roof(r: RoofLayout) -> void:
 	r.keep_coat(func(p: Vector3) -> bool: return not hides(p))
 	r.gable_faces = _unhidden(r.gable_faces)
 	r.torching_faces = _unhidden(r.torching_faces)
+	r.timber_faces = _unhidden(r.timber_faces, r)
 
 
-func _unhidden(tris: PackedVector3Array) -> PackedVector3Array:
+func _unhidden(tris: PackedVector3Array, ceiling: RoofLayout = null) -> PackedVector3Array:
 	var kept := PackedVector3Array()
 	for i in range(0, tris.size(), 3):
 		var tri := tris.slice(i, i + 3)
-		if not hides((tri[0] + tri[1] + tri[2]) / 3.0):
+		var p := (tri[0] + tri[1] + tri[2]) / 3.0
+		var obscured := hides(p)
+		if ceiling != null:
+			# Equal-height roofs share the floor ownership rule; hiding both undersides would open a hole.
+			p.y = ceiling.height_at(p.x, p.z)
+			obscured = hides(p + Vector3.UP * 0.001) or hidden(p - Vector3.UP * 0.001, older, [])
+		if not obscured:
 			kept.append_array(tri)
 	return kept
 

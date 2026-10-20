@@ -3487,3 +3487,23 @@ one empty ring is shown. Figures use the normal avatar lighting and exist only
 on the open page. In flat mode hold Q or the left shoulder button, sweep with the
 mouse or right stick, and release on a slot. The same wheel handles selection,
 sound and haptics in both modes.
+
+### Flat-roof ceilings
+
+Flat stone decks carry exposed timber underneath: rafters span the shorter axis
+at no more than 0.65 m spacing, with depth set by the span, and 24 cm boards run
+across them. Both follow the deck's height function, including bowed decks;
+round towers clip each strip to the wall's circle. The top deck, its standing
+surface and furniture attachment remain the same.
+
+Each roof draws its framing as one mesh surface, using the existing timber
+shading and palette. Hidden top faces and internal segment ends are omitted.
+The mesh disappears at the timber near-detail distance plus its bounding radius,
+so an observer inside a large room does not lose the ceiling just because its
+centre is far away. Joined ceilings yield equal-height overlaps to the older
+building, as floors do. Higher joined rooms use the existing massing exclusions.
+The budget conservatively charges each box segment as an existing timber member;
+round roofs use their rectangular bound for that reservation.
+
+`demo/roof-ceilings.json` views rectangular, bowed, round and merged ceilings from
+inside and the merged deck from above; these cases also finish the stress scene.

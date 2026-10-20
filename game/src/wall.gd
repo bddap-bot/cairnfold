@@ -13,6 +13,7 @@ static var _kinds: Array[Masonry.Kind] = []
 static var _plaster: ShaderMaterial
 static var _thatch: ShaderMaterial
 static var _lime: ShaderMaterial
+static var _roof_wood: ShaderMaterial
 
 var layout := WallLayout.new()
 var masonry: Masonry
@@ -55,6 +56,7 @@ var _ivy: MultiMeshInstance3D
 var _gables: MeshInstance3D
 var _coat: MeshInstance3D
 var _torching: MeshInstance3D
+var _ceiling: MeshInstance3D
 ## The roof faces its meshes were built from; a lay that leaves them alone keeps the meshes.
 var _faced := []
 var _settled := false
@@ -127,6 +129,9 @@ static func approach(step: Quality.Step, delta: float, glade: Masonry) -> bool:
 	if step.stone_near_m != ks[Part.STONE].near or ivy != ks[Part.IVY].reach:
 		_reach(step.stone_near_m, ivy)
 		glade.set_ranges()
+		if glade.is_inside_tree():
+			for ceiling in glade.get_tree().get_nodes_in_group(&"roof_ceilings"):
+				ceiling.visibility_range_end = step.stone_near_m + (ceiling.mesh.get_aabb().size.length() * 0.5 if ceiling.mesh != null else 0.0)
 	return ivy == step.ivy_m
 
 
@@ -180,6 +185,15 @@ func add_roof(r: RoofLayout) -> void:
 	# One face thick and facing down: cast from its front only, it would let the sun through the tiles' gaps.
 	_torching.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
 	add_child(_torching)
+	if _roof_wood == null:
+		_roof_wood = Stones.shared_material().duplicate()
+		_roof_wood.shader = load("res://src/roof_timber.gdshader")
+	_ceiling = MeshInstance3D.new()
+	_ceiling.material_override = _roof_wood
+	_ceiling.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	_ceiling.visibility_range_end = kinds()[Part.TIMBER].near
+	_ceiling.add_to_group(&"roof_ceilings")
+	add_child(_ceiling)
 	_tint_roof()
 
 
@@ -494,7 +508,7 @@ func _pack_roof(roofed := {}) -> void:
 		_chunked[Part.MORTAR] = Masonry.split(_parts[Part.MORTAR], kinds()[Part.MORTAR])
 	_fittings.lay(layout.flames, layout.cloths + roof.cloths)
 	var plastered := layout.plaster and layout.gable_end == WallLayout.GableEnd.WALL
-	var faces := [roof.coat, roof.gable_faces if plastered else PackedVector3Array(), roof.torching_faces]
+	var faces := [roof.coat, roof.gable_faces if plastered else PackedVector3Array(), roof.torching_faces, roof.timber_faces]
 	if faces == _faced:
 		return
 	_faced = faces.duplicate(true)
@@ -505,13 +519,17 @@ func _pack_roof(roofed := {}) -> void:
 		_coat.mesh = mesh
 	_gables.mesh = _faces_mesh(faces[1])
 	_torching.mesh = _faces_mesh(faces[2])
+	_ceiling.mesh = _faces_mesh(faces[3], true)
+	_ceiling.visibility_range_end = kinds()[Part.TIMBER].near + (_ceiling.mesh.get_aabb().size.length() * 0.5 if _ceiling.mesh != null else 0.0)
 
 
-static func _faces_mesh(tris: PackedVector3Array) -> ArrayMesh:
+static func _faces_mesh(tris: PackedVector3Array, flat_normals := false) -> ArrayMesh:
 	if tris.is_empty():
 		return null
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	if flat_normals:
+		st.set_smooth_group(-1)
 	for p in tris:
 		st.add_vertex(p)
 	st.generate_normals()
@@ -597,6 +615,8 @@ func _tint_roof() -> void:
 		var straw := Palette.tint(Palette.Element.THATCH, paint[Palette.Element.THATCH])
 		_coat.set_instance_shader_parameter(&"tint", Vector3(straw.r, straw.g, straw.b))
 		_torching.set_instance_shader_parameter(&"tint", Vector3(t.r, t.g, t.b))
+		var wood := WallLayout.WOOD * Palette.tint(Palette.Element.TIMBER, paint[Palette.Element.TIMBER])
+		_ceiling.set_instance_shader_parameter(&"timber_color", Vector3(wood.r, wood.g, wood.b))
 
 
 ## Brings the packed parts from `_painted` to `paint` on a worker thread, a pass over every piece being too long for a
