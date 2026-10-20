@@ -51,6 +51,8 @@ class Pool:
 	var sparse: Mesh
 	var sparse_from := INF
 	var survivors := 0.0
+	## What the meadow's own plants bake with, where they need less than placed ones: no water plant parts.
+	var kept_mesh: Mesh
 	var mm := MultiMesh.new()
 	var far: MultiMesh
 	var far_live: MultiMeshInstance3D
@@ -169,7 +171,7 @@ class Pool:
 		_index_in_sparse.resize(kept)
 		for key: Vector2i in cells:
 			var slots: Array = cells[key]
-			var whole := _bake(slots, mm.mesh)
+			var whole := _bake(slots, kept_mesh if kept_mesh != null else mm.mesh)
 			for j in slots.size():
 				_cell_of[slots[j]] = whole
 				_index_in_cell[slots[j]] = j
@@ -430,7 +432,7 @@ func _init() -> void:
 	Quality.full_detail(grass_mat)
 	part(NO_HAND, NO_HAND)
 	var clump := Meshes.grass_clump(7, 1, 3)
-	var bloom := Meshes.flower(6)
+	var bloom := Meshes.flower(6, Color.WHITE, true)
 	grass = Pool.new(self, clump, Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false, GRASS_CELL)
 	grass.sparse = Meshes.grass_clump(7, 1, 3, true)
 	grass.survivors = GRASS_SURVIVORS
@@ -439,10 +441,12 @@ func _init() -> void:
 	flower_mat.set_shader_parameter("stalk", Meshes.STALK)
 	flower_mat.set_shader_parameter("eye", Meshes.EYE)
 	flower_mat.set_shader_parameter(&"stem", Meshes.FLOWER_HEIGHT)
+	flower_mat.set_shader_parameter(&"leaf_shoulder", Meshes.LEAF_SHOULDER)
 	flower_mat.set_shader_parameter(&"draw_reach", minf(flower_reach, FLOWER_NEAR))
 	flower_mat.set_shader_parameter(&"water_reach", flower_reach)
 	Quality.full_detail(flower_mat)
 	flowers = Pool.new(self, bloom, Meadow.FLOWERS + PAINTED_FLOWERS, flower_mat, false)
+	flowers.kept_mesh = Meshes.flower(6)
 	grass.indexed = true
 	flowers.indexed = true
 	ghost_grass = Pool.new(self, clump, Commands.MAX_STROKE * 2, grass_mat, false)

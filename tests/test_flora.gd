@@ -17,6 +17,7 @@ func _run() -> void:
 	_tree_stands_on_its_spot()
 	_full_pools_recycle_only_painted()
 	_only_placed_plants_grow_under_water()
+	_planted_flowers_take_their_water_form_by_depth()
 	_trees_recycle_whole()
 	_grass_grows_in_clumps()
 	_flowers_vary_by_patch()
@@ -166,7 +167,7 @@ func _full_pools_recycle_only_painted() -> void:
 	var meadow := 0
 	var boxes := []
 	for mmi: MultiMeshInstance3D in t.flora.get_children():
-		if mmi.multimesh != pool.mm and mmi.multimesh != t.flora.ghost_flowers.mm and mmi.multimesh.mesh == pool.mm.mesh:
+		if mmi.multimesh != pool.mm and mmi.multimesh != t.flora.ghost_flowers.mm and mmi.multimesh.mesh == pool.kept_mesh:
 			meadow += mmi.multimesh.instance_count
 			boxes.append(mmi.multimesh.custom_aabb)
 	_check(meadow == 100, "the meadow's own flowers are baked into cells: %d" % meadow)
@@ -201,6 +202,44 @@ func _only_placed_plants_grow_under_water() -> void:
 			cells += 1
 			_check(flag == null or flag == 0.0, "the meadow's own grass and flowers draw as meadow")
 	_check(cells > 1, "the meadow's plants are baked into cells: %d" % cells)
+
+
+## A flower planted in shallow water stands up out of it as an iris and in deep water floats as a lily, by the flower
+## shader's own `water_form` of the pond depth under its root, read where the shader reads it.
+func _planted_flowers_take_their_water_form_by_depth() -> void:
+	var t := _tool()
+	var code := (load("res://src/plant.gdshaderinc") as ShaderInclude).code
+	var pick := RegEx.create_from_string("float water_form\\(float (\\w+), float (\\w+)\\) \\{\\s*return ([^;]+);\\s*\\}").search(code)
+	var lily_depth := RegEx.create_from_string("uniform float lily_depth = ([0-9.]+);").search(code)
+	_check(pick != null and lily_depth != null, "the flower shader picks its water form in one expression")
+	if pick == null or lily_depth == null:
+		return
+	var form := Expression.new()
+	_check(form.parse(pick.get_string(3), [pick.get_string(1), pick.get_string(2), "lily_depth"]) == OK, "the pick parses")
+	Terrain.dry_water()
+	var spots := {Vector2i(60, 60): 0.15, Vector2i(70, 60): 0.8, Vector2i(80, 60): Terrain.DRY}
+	var water := {}
+	for g: Vector2i in spots:
+		if spots[g] != Terrain.DRY:
+			for dz in range(-1, 2):
+				for dx in range(-1, 2):
+					var at := g + Vector2i(dx, dz)
+					water[at] = Terrain._heights[at.y * Terrain.VERTS + at.x] + spots[g]
+	Terrain.set_water(water)
+	var forms := []
+	for g: Vector2i in spots:
+		var p := Vector3(g.x * Terrain.STEP - Terrain.SIZE * 0.5, 0, g.y * Terrain.STEP - Terrain.SIZE * 0.5)
+		var plant := t.flora.add_flower(Vector3(p.x, Terrain.height_at(p.x, p.z) - 0.02, p.z), _rng(3))
+		var root := plant.xform.origin
+		var depth := Terrain._water_image.get_pixelv(Vector2i(roundi((root.x + Terrain.SIZE * 0.5) / Terrain.STEP), roundi((root.z + Terrain.SIZE * 0.5) / Terrain.STEP))).r
+		var planted: Variant = plant.pool.live.get_instance_shader_parameter(&"planted")
+		forms.append(form.execute([planted, depth, lily_depth.get_string(1).to_float()], self))
+	_check(forms == [1.0, 2.0, 0.0], "a flower planted in the shallows is an iris, in deep water a lily, on land a flower: %s" % [forms])
+	Terrain.dry_water()
+
+
+func step(edge: float, x: float) -> float:
+	return 0.0 if x < edge else 1.0
 
 
 func _trees_recycle_whole() -> void:
@@ -322,7 +361,7 @@ func _flowers_out_of_reach_are_not_drawn() -> void:
 	flora._process(0.0)
 	var shown := []
 	for mmi: MultiMeshInstance3D in flora.get_children():
-		if mmi.multimesh != flora.flowers.mm and mmi.multimesh.mesh == flora.flowers.mesh and mmi.multimesh.instance_count == 1:
+		if mmi.multimesh != flora.flowers.mm and mmi.multimesh.mesh == flora.flowers.kept_mesh and mmi.multimesh.instance_count == 1:
 			shown.append(mmi.visible and mmi.layers & Quality.VIEW_MASK != 0)
 	_check(shown.count(true) == 1 and shown.count(false) == 1, "of two meadow flowers, the one beyond reach is not drawn: %s" % [shown])
 	eye.queue_free()

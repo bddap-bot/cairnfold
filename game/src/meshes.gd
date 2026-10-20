@@ -108,9 +108,14 @@ const EYE := Color(1.0, 0.78, 0.25)
 const FLOWER_HEIGHT := 0.22
 
 
+## Height of a flower's sword leaves' lower shoulders, which the flower shader stands just under a pond's surface.
+const LEAF_SHOULDER := 0.05
+
+
 ## A tiny flower head: a flat star of `head`-coloured petals around a raised eye, on a stalk.
 ## UV.x is 0 on the stalk and 1 on the head, UV.y 1 at its eye, for shaders that colour each instance.
-static func flower(petals: int, head := Color.WHITE) -> ArrayMesh:
+## With `leaves`, three sword leaves (UV.y -1) fan from the stalk's foot, which the shader opens only in the shallows.
+static func flower(petals: int, head := Color.WHITE, leaves := false) -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var h := FLOWER_HEIGHT
@@ -132,6 +137,21 @@ static func flower(petals: int, head := Color.WHITE) -> ArrayMesh:
 			for p: Vector3 in tri:
 				st.set_color(EYE if p == eye else head)
 				st.set_uv(Vector2(1, 1 if p == eye else 0))
+				st.set_normal(Vector3.UP)
+				st.add_vertex(p)
+	for i in 3 if leaves else 0:
+		var a := TAU * i / 3 + 0.4 * i
+		var out := Vector3(cos(a), 0, sin(a))
+		var side := Vector3(-sin(a), 0, cos(a))
+		var top := h * (1.0 - 0.1 * i)
+		var foot := Vector3.ZERO
+		var low := [out * 0.015 - side * 0.03 + Vector3.UP * LEAF_SHOULDER, out * 0.015 + side * 0.03 + Vector3.UP * LEAF_SHOULDER]
+		var high := [out * 0.05 - side * 0.024 + Vector3.UP * lerpf(LEAF_SHOULDER, top, 0.6), out * 0.05 + side * 0.024 + Vector3.UP * lerpf(LEAF_SHOULDER, top, 0.6)]
+		var tip := out * 0.09 + Vector3.UP * top
+		for tri in [[foot, low[0], low[1]], [low[0], high[0], low[1]], [low[1], high[0], high[1]], [high[0], tip, high[1]]]:
+			for p: Vector3 in tri:
+				st.set_color(STALK)
+				st.set_uv(Vector2(0, -1))
 				st.set_normal(Vector3.UP)
 				st.add_vertex(p)
 	st.index()

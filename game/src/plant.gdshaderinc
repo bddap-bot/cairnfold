@@ -31,16 +31,26 @@ uniform float head_fade_end = 30.0;
 uniform float stem;
 // Placed flowers (Flora's painted and ghost pools) rooted under a pond grow as water plants; the meadow's own drown.
 // Past lily_depth a lily: its head opens into a pad lily_pad times as wide, floating at the surface with its bloom
-// raised in the middle, on a stem from the bed. Shallower, an iris standing emergent_height out of the water, its
-// stalk widened at the foot into sword leaves.
+// raised in the middle, on a stem from the bed. Shallower, an iris: its sword leaves (Meshes.flower) open from the bed,
+// full width from just under the surface up to leaf_rise over it, and its bloom cups upward emergent_height over the
+// water, iris_bloom times as wide, both in flower sizes.
 instance uniform float planted = 0.0;
 uniform float water_reach = 60.0;
 uniform float lily_depth = 0.35;
 uniform float lily_pad = 2.6;
 uniform float lily_drift = 0.04;
-uniform float emergent_height = 0.3;
-uniform float leaf_widen = 5.0;
+uniform float emergent_height = 0.5;
+uniform float leaf_rise = 0.4;
+uniform float iris_bloom = 1.5;
+uniform float bloom_cup = 0.9;
+// Meshes.LEAF_SHOULDER: the leaves' lower shoulders, stood just under the surface; their tips' heights are in stems.
+uniform float leaf_shoulder;
 uniform vec3 pad_green : source_color = vec3(0.16, 0.36, 0.1);
+
+// The water plant a flower rooted `depth` under a pond grows as: 0 none, 1 an iris, 2 a lily.
+float water_form(float placed, float depth) {
+	return placed * (step(0.02, depth) + step(lily_depth, depth));
+}
 #endif
 
 varying vec3 bounce_at;
@@ -69,7 +79,8 @@ void vertex() {
 	float depth = water_depth_at(root.xz);
 	float wet = 0.0;
 #ifdef FLOWER
-	wet = planted * step(0.02, depth);
+	float form = water_form(planted, depth);
+	wet = step(0.5, form);
 #endif
 	VERTEX = mix(root, VERTEX, 1.0 - max(bare(root.xz), bank(depth) * (1.0 - wet)));
 #endif
@@ -79,14 +90,20 @@ void vertex() {
 	}
 	float size = length(MODEL_MATRIX[1].xyz);
 	float up = clamp((VERTEX.y - root.y) / (size * stem), 0.0, 1.0);
-	lily = wet * step(lily_depth, depth);
+	lily = step(1.5, form);
+	float iris = wet - lily;
+	float leaf = step(UV.y, -0.5);
 	vec3 off = VERTEX - root;
+	float rise = off.y / size;
 	// Head vertices (UV.x 1) lie within a small disc about the stalk's top; the eye is UV.y 1.
 	vec2 pad = off.xz * mix(1.0, lily_pad * mix(1.0, 1.8, step(length(off.xz), 0.045 * size)), UV.x);
-	off.xz = mix(off.xz, mix(off.xz * mix(leaf_widen, 1.0, up), pad, lily), wet * mix(1.0 - UV.x, 1.0, lily));
+	off.xz = mix(off.xz * mix(1.0, iris_bloom, iris * UV.x), pad, lily);
 	// The surface stands 2 cm over the root (FloraLayout.brush); a pad floats just on it.
-	float head = mix(size * stem, mix(depth + emergent_height, depth + 0.03, lily), wet);
-	off.y = mix(off.y, off.y - size * stem + head, up * wet) + lily * UV.x * UV.y * 0.03 * size;
+	float head = mix(size * stem, mix(depth + emergent_height * size, depth + 0.03, lily), wet);
+	off.y = mix(off.y, off.y - size * stem + head, up * wet) + lily * UV.x * UV.y * 0.03 * size + iris * UV.x * length(off.xz) * bloom_cup;
+	float leaf_y = rise < leaf_shoulder ? rise / leaf_shoulder * depth : depth + (rise - leaf_shoulder) / (stem - leaf_shoulder) * leaf_rise * size;
+	off = mix(off, vec3(off.x, leaf_y, off.z) * iris, leaf);
+	up = mix(up, clamp(off.y / head, 0.0, 1.0), leaf);
 	VERTEX = root + off;
 	vec3 drift = vec3(wind_dir.x, 0.0, wind_dir.y) * sin(TIME * 0.9 + dot(root.xz, vec2(1.3, 0.7))) * lily_drift;
 	VERTEX = mix(bent(VERTEX, wind_push(root.xz, wind_gust(root.xz)) * size * STALK_GIVE, up), VERTEX + drift * up, lily);

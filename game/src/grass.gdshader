@@ -26,7 +26,6 @@ uniform vec3 hand_left;
 uniform vec3 hand_right;
 // Placed grass (Flora's painted and ghost pools) rooted under a pond grows as pondweed: tall ribbons reaching this share of
 // the way to the surface, leaning in a slow current and darkening toward blue-green with depth. The meadow's own drowns.
-// Only the weed_keep share of clumps (by rank) grows, so a ribbon several times a blade's size costs no more than one.
 instance uniform float planted = 0.0;
 uniform float weed_reach = 0.7;
 uniform float weed_stretch = 2.5;
