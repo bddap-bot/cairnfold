@@ -1022,6 +1022,45 @@ the hills from the air) it saves 0.0 to 0.3 ms. Peripheral shading is already th
 runtime's foveation layer's; what remains is vertices that are in view whichever way
 the eye turns.
 
+### Distant grass and flowers
+
+Grass and flowers each have a one-triangle colour patch per plant: flowers face
+the camera, while grass patches follow the terrain.
+`Flora.Pool` derives both representations from the same placement, colour and custom
+attributes; painting, recycling, mowing, undo and ghost clearing write both. No
+plant list is rebuilt each frame. Near meadow cells retain spatial culling; the far layer uses one batch per pool, and
+full-detail photos omit the patches and draw the original meshes.
+
+`flora_lod.gdshaderinc` shares each transition between the near mesh and its patch.
+Grass retains its rank-based thinning and surviving blades. A patch grows as its
+clump sinks away. Land flowers hand off over the last four metres before 18 m (or
+the quality reach if nearer), preserving their petal colour rather than fading it
+to green. Far petals widen gently with distance to remain legible. Patches use
+opaque geometry without textures, alpha blending, fragment discard or shadows.
+Their shaders share terrain, wear, season and grass-palette inputs with the plants.
+Aquatic variants retain their existing reach; land patches disappear underwater.
+
+`demo/flora-cost.json` interleaves off, one-triangle and two-triangle far layers
+in the same scene; `flora_far` is a measurement command, not a player setting.
+`demo/flora-lod.json` fills the painted grass and flower pools and views the field
+from far away, at grass height and nearby. The existing full-pool aerial phase in
+`demo/stress.json` covers the same added representation.
+
+The desktop comparison in `perf/flora-lod/desktop.json` uses 34,000 grass clumps
+and 7,200 flowers. One far triangle per plant adds 41,200 submitted triangles and
+four draw calls in the measured views; the two-triangle alternative adds 82,400.
+The single triangle was selected for that lower submission cost and its lower
+observed distant-view median (4.68 ms versus 5.78 ms for two triangles).
+
+With far patches off/on, viewport GPU medians were 3.44/4.68 ms from afar,
+2.99/2.62 ms at grass height and 5.28/5.29 ms nearby. Individual samples span
+0.69–9.70 ms, so variation is too large to attribute the full frame-time differences
+to LOD or claim a GPU saving. Headless, the flora update alone took 0.058/0.063 ms
+before/after (14 trials each, 5,000 updates per trial); filling the painted pools
+at once took 409/445 ms. Ordinary strokes retain their bounded per-frame growth.
+These desktop and headless measurements do not establish Quest frame rate, and
+no headset budget coefficient was refitted from them.
+
 ### Flora on the Quest 2
 
 Every flora pool full, from the air and standing among it (`demo/tour.json`'s flora

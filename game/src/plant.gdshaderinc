@@ -21,12 +21,10 @@ const vec3 CROWN_SHADE = vec3(0.8, 0.92, 1.15);
 
 #ifdef FLOWER
 // Flowers shrink to their roots over the last draw_fade before draw_reach, so the edge Flora culls at shows no pop.
-uniform float draw_reach = 1000.0;
-uniform float draw_fade = 4.0;
+#include "res://src/flora_lod.gdshaderinc"
 // A camera seeing this layer (Quality.FULL_LAYER) draws flowers at every distance.
 uniform uint full_layer;
-// Heads seen edge-on from afar are sub-pixel specks that 4x MSAA cannot hold still, so over this band they take
-// the stalk's green.
+// Aquatic heads retain their existing edge-on fade; land petals hand their colour to the far patch.
 uniform float head_fade_begin = 10.0;
 uniform float head_fade_end = 30.0;
 // Stalk length to the head in an unscaled flower (Meshes.FLOWER_HEIGHT).
@@ -36,6 +34,7 @@ uniform float stem;
 // raised in the middle, on a stem from the bed. Shallower, an iris standing emergent_height out of the water, its
 // stalk widened at the foot into sword leaves.
 instance uniform float planted = 0.0;
+uniform float water_reach = 60.0;
 uniform float lily_depth = 0.35;
 uniform float lily_pad = 2.6;
 uniform float lily_drift = 0.04;
@@ -92,9 +91,9 @@ void vertex() {
 	vec3 drift = vec3(wind_dir.x, 0.0, wind_dir.y) * sin(TIME * 0.9 + dot(root.xz, vec2(1.3, 0.7))) * lily_drift;
 	VERTEX = mix(bent(VERTEX, wind_push(root.xz, wind_gust(root.xz)) * size * STALK_GIVE, up), VERTEX + drift * up, lily);
 	float dist = distance(root, CAMERA_POSITION_WORLD);
-	far_head = smoothstep(head_fade_begin, head_fade_end, dist);
+	far_head = wet * smoothstep(head_fade_begin, head_fade_end, dist);
 	if ((CAMERA_VISIBLE_LAYERS & full_layer) == 0u) {
-		VERTEX = mix(VERTEX, root, smoothstep(draw_reach - draw_fade, draw_reach, dist));
+		VERTEX = mix(VERTEX, root, flora_fade(dist, mix(draw_reach, water_reach, wet), draw_fade));
 	}
 #endif
 	bounce_at = bounce_coord(VERTEX, NORMAL);

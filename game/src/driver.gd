@@ -677,6 +677,18 @@ func _fill_flora(s: Dictionary) -> void:
 		flora.add_bush(_scatter(rng, s.radius, centre), rng)
 
 
+## Measures distant flora in the same scene: off, quad, or an equal-area single triangle.
+func _flora_far(s: Dictionary) -> void:
+	var flora: Flora = main.flora_tool.flora
+	var mode: String = s.get("mode", "triangle")
+	var mesh := Flora.far_mesh(mode == "triangle")
+	for pool: Flora.Pool in [flora.grass, flora.flowers, flora.ghost_grass, flora.ghost_flowers]:
+		pool.far_live.visible = mode != "off"
+		pool.far.mesh = mesh
+	for mat: ShaderMaterial in [flora.grass_far, flora.flower_far]:
+		mat.set_shader_parameter(&"patch_scale", sqrt(2.0) if mode == "triangle" else 1.0)
+
+
 ## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter; with `storeys`,
 ## each stands that many high, with `wings`, a wing crosses each house, with `gable`, their gable ends take it, and
 ## with `thatch`, their roofs are thatched.

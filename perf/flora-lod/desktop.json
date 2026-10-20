@@ -1,0 +1,588 @@
+{
+  "renderer": "Godot 4.6 Mobile Vulkan, NVIDIA GeForce RTX 2080, desktop 1600x1200",
+  "scene": {
+    "grass": 34000,
+    "flowers": 7200,
+    "quality_step": 7,
+    "painted_radius_m": 15
+  },
+  "method": "Same-process off/quad/triangle/triangle/quad/off at each camera; one settling second before four labelled seconds; discard each label first sample. GPU measurements vary widely and do not establish Quest frame time. Headless flora process method measured for 5000 iterations per trial, 14 trials each before/after in ABBA order.",
+  "gpu_phases": {
+    "far/off/0": [
+      {
+        "viewport_gpu_ms": 4.35672735084187,
+        "draws": 123,
+        "prims": 483674,
+        "frames": 11
+      },
+      {
+        "viewport_gpu_ms": 0.693818184462461,
+        "draws": 123,
+        "prims": 483674,
+        "frames": 12
+      },
+      {
+        "viewport_gpu_ms": 1.76588888963064,
+        "draws": 123,
+        "prims": 483674,
+        "frames": 9
+      }
+    ],
+    "far/quad/1": [
+      {
+        "viewport_gpu_ms": 4.56433333290948,
+        "draws": 127,
+        "prims": 566426,
+        "frames": 9
+      },
+      {
+        "viewport_gpu_ms": 8.87950006127357,
+        "draws": 127,
+        "prims": 566602,
+        "frames": 8
+      },
+      {
+        "viewport_gpu_ms": 4.20649998188019,
+        "draws": 127,
+        "prims": 566602,
+        "frames": 10
+      }
+    ],
+    "far/triangle/2": [
+      {
+        "viewport_gpu_ms": 4.71372732249173,
+        "draws": 127,
+        "prims": 525402,
+        "frames": 11
+      },
+      {
+        "viewport_gpu_ms": 3.93855561150445,
+        "draws": 127,
+        "prims": 525402,
+        "frames": 9
+      },
+      {
+        "viewport_gpu_ms": 6.80950000882149,
+        "draws": 127,
+        "prims": 525402,
+        "frames": 8
+      }
+    ],
+    "far/triangle/3": [
+      {
+        "viewport_gpu_ms": 4.65455555915833,
+        "draws": 127,
+        "prims": 525402,
+        "frames": 9
+      },
+      {
+        "viewport_gpu_ms": 7.62255552079943,
+        "draws": 127,
+        "prims": 525402,
+        "frames": 9
+      },
+      {
+        "viewport_gpu_ms": 4.64927268028259,
+        "draws": 127,
+        "prims": 525402,
+        "frames": 11
+      }
+    ],
+    "far/quad/4": [
+      {
+        "viewport_gpu_ms": 5.91822226842244,
+        "draws": 127,
+        "prims": 566602,
+        "frames": 9
+      },
+      {
+        "viewport_gpu_ms": 5.77712485194206,
+        "draws": 127,
+        "prims": 566602,
+        "frames": 8
+      }
+    ],
+    "far/off/5": [
+      {
+        "viewport_gpu_ms": 4.87399996651544,
+        "draws": 123,
+        "prims": 484202,
+        "frames": 9
+      },
+      {
+        "viewport_gpu_ms": 2.52136362682689,
+        "draws": 123,
+        "prims": 484202,
+        "frames": 11
+      },
+      {
+        "viewport_gpu_ms": 5.62999998439442,
+        "draws": 123,
+        "prims": 484202,
+        "frames": 11
+      }
+    ],
+    "grass/off/0": [
+      {
+        "viewport_gpu_ms": 2.58911111619737,
+        "draws": 109,
+        "prims": 518324,
+        "frames": 9
+      },
+      {
+        "viewport_gpu_ms": 3.06299999025133,
+        "draws": 109,
+        "prims": 518324,
+        "frames": 9
+      },
+      {
+        "viewport_gpu_ms": 3.25937494635582,
+        "draws": 109,
+        "prims": 518324,
+        "frames": 9
+      }
+    ],
+    "grass/quad/1": [
+      {
+        "viewport_gpu_ms": 5.48239998817444,
+        "draws": 113,
+        "prims": 600724,
+        "frames": 10
+      },
+      {
+        "viewport_gpu_ms": 3.98560004234314,
+        "draws": 113,
+        "prims": 600724,
+        "frames": 10
+      },
+      {
+        "viewport_gpu_ms": 5.96311113569472,
+        "draws": 113,
+        "prims": 600724,
+        "frames": 9
+      }
+    ],
+    "grass/triangle/2": [
+      {
+        "viewport_gpu_ms": 0.829000011086464,
+        "draws": 113,
+        "prims": 559524,
+        "frames": 8
+      },
+      {
+        "viewport_gpu_ms": 0.818750001490116,
+        "draws": 113,
+        "prims": 559524,
+        "frames": 8
+      },
+      {
+        "viewport_gpu_ms": 1.80588889122009,
+        "draws": 113,
+        "prims": 559524,
+        "frames": 9
+      }
+    ],
+    "grass/triangle/3": [
+      {
+        "viewport_gpu_ms": 3.4383749961853,
+        "draws": 113,
+        "prims": 559524,
+        "frames": 8
+      },
+      {
+        "viewport_gpu_ms": 6.62985706329346,
+        "draws": 113,
+        "prims": 559524,
+        "frames": 7
+      },
+      {
+        "viewport_gpu_ms": 4.0735555489858,
+        "draws": 113,
+        "prims": 559524,
+        "frames": 9
+      }
+    ],
+    "grass/quad/4": [
+      {
+        "viewport_gpu_ms": 4.83287498354912,
+        "draws": 113,
+        "prims": 600724,
+        "frames": 8
+      },
+      {
+        "viewport_gpu_ms": 5.0501249730587,
+        "draws": 113,
+        "prims": 600724,
+        "frames": 8
+      },
+      {
+        "viewport_gpu_ms": 3.34655552440219,
+        "draws": 113,
+        "prims": 600724,
+        "frames": 9
+      }
+    ],
+    "grass/off/5": [
+      {
+        "viewport_gpu_ms": 2.58657142094203,
+        "draws": 109,
+        "prims": 518324,
+        "frames": 7
+      },
+      {
+        "viewport_gpu_ms": 2.91550001502037,
+        "draws": 109,
+        "prims": 518324,
+        "frames": 8
+      },
+      {
+        "viewport_gpu_ms": 4.51118185303428,
+        "draws": 109,
+        "prims": 518324,
+        "frames": 11
+      }
+    ],
+    "near/off/0": [
+      {
+        "viewport_gpu_ms": 4.28424999117851,
+        "draws": 83,
+        "prims": 534840,
+        "frames": 8
+      },
+      {
+        "viewport_gpu_ms": 6.54828575679234,
+        "draws": 83,
+        "prims": 534840,
+        "frames": 7
+      },
+      {
+        "viewport_gpu_ms": 4.20600003666348,
+        "draws": 83,
+        "prims": 534840,
+        "frames": 9
+      }
+    ],
+    "near/quad/1": [
+      {
+        "viewport_gpu_ms": 8.84387499094009,
+        "draws": 87,
+        "prims": 617240,
+        "frames": 8
+      },
+      {
+        "viewport_gpu_ms": 7.08919997215271,
+        "draws": 87,
+        "prims": 617240,
+        "frames": 10
+      },
+      {
+        "viewport_gpu_ms": 5.38477781083849,
+        "draws": 87,
+        "prims": 617240,
+        "frames": 9
+      }
+    ],
+    "near/triangle/2": [
+      {
+        "viewport_gpu_ms": 4.16477780871921,
+        "draws": 87,
+        "prims": 576040,
+        "frames": 9
+      },
+      {
+        "viewport_gpu_ms": 9.70490012168884,
+        "draws": 87,
+        "prims": 576040,
+        "frames": 10
+      },
+      {
+        "viewport_gpu_ms": 5.28133328755697,
+        "draws": 87,
+        "prims": 576040,
+        "frames": 9
+      }
+    ],
+    "near/triangle/3": [
+      {
+        "viewport_gpu_ms": 5.29763642224399,
+        "draws": 87,
+        "prims": 576040,
+        "frames": 11
+      },
+      {
+        "viewport_gpu_ms": 7.72533342573378,
+        "draws": 88,
+        "prims": 578136,
+        "frames": 9
+      },
+      {
+        "viewport_gpu_ms": 0.970399987697601,
+        "draws": 88,
+        "prims": 578136,
+        "frames": 10
+      }
+    ],
+    "near/quad/4": [
+      {
+        "viewport_gpu_ms": 4.82491668065389,
+        "draws": 88,
+        "prims": 619336,
+        "frames": 12
+      },
+      {
+        "viewport_gpu_ms": 5.20354539697821,
+        "draws": 88,
+        "prims": 619336,
+        "frames": 11
+      },
+      {
+        "viewport_gpu_ms": 4.86500000953674,
+        "draws": 88,
+        "prims": 619336,
+        "frames": 8
+      }
+    ],
+    "near/off/5": [
+      {
+        "viewport_gpu_ms": 6.26925009489059,
+        "draws": 86,
+        "prims": 541128,
+        "frames": 12
+      },
+      {
+        "viewport_gpu_ms": 4.2360000345442,
+        "draws": 86,
+        "prims": 541128,
+        "frames": 9
+      },
+      {
+        "viewport_gpu_ms": 8.65100002288818,
+        "draws": 86,
+        "prims": 541128,
+        "frames": 8
+      }
+    ]
+  },
+  "headless": {
+    "before": [
+      {
+        "flowers": 7200,
+        "frame_us": 58.5102,
+        "grass": 34000,
+        "meadow_us": 863804,
+        "plant_us": 445510
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 83.2202,
+        "grass": 34000,
+        "meadow_us": 904069,
+        "plant_us": 426431
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 58.1488,
+        "grass": 34000,
+        "meadow_us": 910120,
+        "plant_us": 402759
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 46.8254,
+        "grass": 34000,
+        "meadow_us": 792681,
+        "plant_us": 352837
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 47.5682,
+        "grass": 34000,
+        "meadow_us": 714269,
+        "plant_us": 430630
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 49.1246,
+        "grass": 34000,
+        "meadow_us": 703032,
+        "plant_us": 350856
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 52.7014,
+        "grass": 34000,
+        "meadow_us": 788038,
+        "plant_us": 415392
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 68.6254,
+        "grass": 34000,
+        "meadow_us": 864565,
+        "plant_us": 468043
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 56.126,
+        "grass": 34000,
+        "meadow_us": 851863,
+        "plant_us": 395208
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 59.1476,
+        "grass": 34000,
+        "meadow_us": 769202,
+        "plant_us": 400124
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 54.0344,
+        "grass": 34000,
+        "meadow_us": 920152,
+        "plant_us": 385870
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 64.3544,
+        "grass": 34000,
+        "meadow_us": 902353,
+        "plant_us": 402394
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 63.9952,
+        "grass": 34000,
+        "meadow_us": 754482,
+        "plant_us": 437103
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 64.0882,
+        "grass": 34000,
+        "meadow_us": 970297,
+        "plant_us": 435158
+      }
+    ],
+    "after": [
+      {
+        "flowers": 7200,
+        "frame_us": 67.0614,
+        "grass": 34000,
+        "meadow_us": 861176,
+        "plant_us": 434620
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 56.759,
+        "grass": 34000,
+        "meadow_us": 815592,
+        "plant_us": 429925
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 54.2736,
+        "grass": 34000,
+        "meadow_us": 805010,
+        "plant_us": 343573
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 62.6888,
+        "grass": 34000,
+        "meadow_us": 954670,
+        "plant_us": 502018
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 67.7058,
+        "grass": 34000,
+        "meadow_us": 1008189,
+        "plant_us": 473484
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 62.3322,
+        "grass": 34000,
+        "meadow_us": 902795,
+        "plant_us": 442772
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 63.667,
+        "grass": 34000,
+        "meadow_us": 858037,
+        "plant_us": 452058
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 64.319,
+        "grass": 34000,
+        "meadow_us": 1073972,
+        "plant_us": 447113
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 68.9252,
+        "grass": 34000,
+        "meadow_us": 944613,
+        "plant_us": 449216
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 55.3042,
+        "grass": 34000,
+        "meadow_us": 899058,
+        "plant_us": 411372
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 65.0176,
+        "grass": 34000,
+        "meadow_us": 946590,
+        "plant_us": 480931
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 52.5218,
+        "grass": 34000,
+        "meadow_us": 929767,
+        "plant_us": 389231
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 63.8058,
+        "grass": 34000,
+        "meadow_us": 888458,
+        "plant_us": 447073
+      },
+      {
+        "flowers": 7200,
+        "frame_us": 62.0706,
+        "grass": 34000,
+        "meadow_us": 939292,
+        "plant_us": 441984
+      }
+    ]
+  },
+  "final_rotated_triangle": {
+    "far": {
+      "samples": 6,
+      "median_gpu_ms": 4.596500012609695,
+      "median_draws": 127.0,
+      "median_prims": 525193.0
+    },
+    "grass": {
+      "samples": 7,
+      "median_gpu_ms": 3.99122222264608,
+      "median_draws": 113,
+      "median_prims": 559524
+    },
+    "near": {
+      "samples": 7,
+      "median_gpu_ms": 5.34169998168945,
+      "median_draws": 87,
+      "median_prims": 576040
+    }
+  }
+}

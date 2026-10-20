@@ -12,15 +12,7 @@ uniform float backlight = 1.0;
 uniform float gust_brighten = 0.22;
 uniform float far_begin = 8.0;
 uniform float far_end = 20.0;
-// Past `draw_reach` Flora draws no meadow grass.
-uniform float draw_reach;
-// Set from Flora's GRASS_ constants, which say what each does.
-uniform float lod_begin;
-uniform float lod_band;
-uniform float survivors;
-uniform float survivors_from;
-// Each clump sinks into the ground over this distance, at a distance set by its rank.
-uniform float sink = 1.5;
+#include "res://src/flora_lod.gdshaderinc"
 // Survivors spread wider and stand taller across that band, holding the meadow's cover with a quarter of its clumps.
 uniform vec2 survivor_scale = vec2(2.0, 1.25);
 // A camera seeing this layer (Quality.FULL_LAYER) draws every clump whole at every distance.
@@ -98,10 +90,7 @@ void vertex() {
 
 	far = smoothstep(far_begin, far_end, dist);
 	if (!full) {
-		float gone = rank < survivors
-			? mix(draw_reach, draw_reach * survivors_from, rank / survivors)
-			: mix(lod_begin + lod_band, lod_begin + sink, (rank - survivors) / (1.0 - survivors));
-		VERTEX = mix(VERTEX, root, smoothstep(gone - sink, gone, dist));
+		VERTEX = mix(VERTEX, root, flora_fade(dist, grass_end(rank), sink));
 	}
 	NORMAL = normalize(mix(NORMAL, vec3(0.0, 1.0, 0.0), 0.35 + 0.5 * far));
 	if (depth > 0.02 && (weed == 0.0 || rank >= weed_keep)) {

@@ -22,6 +22,7 @@ func _run() -> void:
 	_flowers_vary_by_patch()
 	_grass_thins_with_distance()
 	_flowers_out_of_reach_are_not_drawn()
+	_far_plants_follow_the_pool()
 	_blob_detail_changes_only_what_is_drawn()
 	_crowns_cast_one_shade_each()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -311,7 +312,7 @@ func _flowers_out_of_reach_are_not_drawn() -> void:
 	var eye := Camera3D.new()
 	root.add_child(eye)
 	eye.make_current()
-	_check(flora.flower_mat.get_shader_parameter(&"draw_reach") == flora.flower_reach, "the flowers' shader is told their reach")
+	_check(flora.flower_mat.get_shader_parameter(&"draw_reach") == minf(flora.flower_reach, Flora.FLOWER_NEAR), "the flowers' shader is told their reach")
 	var rng := _rng(8)
 	flora.add_flower(Vector3(5, 0, 0), rng)
 	flora.add_flower(Vector3(5 + flora.flowers.cell * 3, 0, 0), rng)
@@ -376,3 +377,44 @@ func _crowns_cast_one_shade_each() -> void:
 	flora._shade_crowns()
 	_check(flora.crown_shade.visible_instance_count == 2, "and casts it again when shown back")
 	flora.queue_free()
+
+
+func _far_plants_follow_the_pool() -> void:
+	var flora := Flora.new()
+	root.add_child(flora)
+	var rng := _rng(91)
+	for pool: Flora.Pool in [flora.grass, flora.flowers, flora.ghost_grass, flora.ghost_flowers]:
+		var near := pool.mm
+		var far: MultiMeshInstance3D = pool.far_live
+		_check(far.layers == Quality.LADDER_LAYER, "the far representation leaves full-detail photos alone")
+		_check(far.multimesh.mesh.get_faces().size() == 3, "a far plant is one triangle")
+		var p := pool.add(Transform3D(Basis.IDENTITY, Vector3(4, 0, 5)), Color.RED, Vector3(4, 0, 5))
+		_check(far.multimesh.visible_instance_count == 1, "painting shows a near and far instance together")
+		_check_far_buffers(pool)
+		p.set_shown(false)
+		_check_far_buffers(pool)
+		_check(not p.shown(), "mowing addresses the same plant")
+		p.set_shown(true)
+		_check_far_buffers(pool)
+		pool.keep()
+		_check_far_buffers(pool)
+		var cell: MultiMesh = pool._cell_of[0]
+		_check(pool.far.visible_instance_count == 1 and cell.instance_count == 1, "keeping retains the same far slot while baking its near cell")
+		_check(far.multimesh.instance_count == near.instance_count + pool.kept, "the far batch retains capacity for kept and painted slots")
+		pool.add(FloraLayout.flower(Vector3(9, 0, 5), rng), Color.BLUE, Vector3(9, 0, 5))
+		pool.repose(p, Transform3D(Basis.from_scale(Vector3.ONE * 1.2), p.anchor), Color.GREEN)
+		_check_far_buffers(pool)
+		pool.reset()
+		_check_far_buffers(pool)
+		_check(far.multimesh.visible_instance_count == pool.kept, "reset leaves only the kept far plants")
+	flora.queue_free()
+
+
+func _check_far_buffers(pool: Flora.Pool) -> void:
+	# The dummy renderer does not retain instance buffers; the desktop run checks every attribute, including mown transforms.
+	if RenderingServer.get_rendering_device() == null:
+		return
+	for i in pool.size():
+		var source: MultiMesh = pool._cell_of[i] if i < pool.kept else pool.mm
+		var index: int = pool._index_in_cell[i] if i < pool.kept else i - pool.kept
+		_check(source.buffer.slice(index * 20, (index + 1) * 20) == pool.far.buffer.slice(i * 20, (i + 1) * 20), "both representations contain identical transforms, colours and custom attributes")

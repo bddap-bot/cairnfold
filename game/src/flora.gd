@@ -18,6 +18,7 @@ const GRASS_LOD_BEGIN := 8.0
 const GRASS_LOD_BAND := 4.0
 const GRASS_SURVIVORS := 0.25
 const GRASS_SURVIVORS_FROM := 0.5
+const FLOWER_NEAR := 18.0
 const PAINTED_FLOWERS := 4000
 const PLACED_TREES := 64
 const PLACED_BUSHES := 256
@@ -51,6 +52,8 @@ class Pool:
 	var sparse_from := INF
 	var survivors := 0.0
 	var mm := MultiMesh.new()
+	var far: MultiMesh
+	var far_live: MultiMeshInstance3D
 	## What draws `mm`, the slots after the kept ones.
 	var live: MultiMeshInstance3D
 	## Bumped by every `Plant.draw`, so the crowns' shade can follow a tool's preview.
@@ -119,6 +122,11 @@ class Pool:
 		mm.set_instance_transform(i - kept, xform)
 		mm.set_instance_color(i - kept, color)
 		mm.set_instance_custom_data(i - kept, custom)
+		if far != null:
+			far.visible_instance_count = kept + mm.visible_instance_count
+			far.set_instance_transform(i, xform)
+			far.set_instance_color(i, color)
+			far.set_instance_custom_data(i, custom)
 		if i < _colors.size():
 			_colors[i] = color
 			_customs[i] = custom
@@ -212,6 +220,8 @@ class Pool:
 			plants[i] = null
 			stamps[i] += 1
 		mm.visible_instance_count = 0
+		if far != null:
+			far.visible_instance_count = kept
 		_next = 0
 
 	func place(slot: int, xform: Transform3D) -> void:
@@ -221,6 +231,8 @@ class Pool:
 				_sparse_cell_of[slot].set_instance_transform(_index_in_sparse[slot], xform)
 		else:
 			mm.set_instance_transform(slot - kept, xform)
+		if far != null:
+			far.set_instance_transform(slot, xform)
 
 	## Moves a plant to `xform` (its height counted as `add` takes it) in `color`, where it stands or not.
 	func repose(p: Plant, xform: Transform3D, color: Color) -> void:
@@ -240,6 +252,8 @@ class Pool:
 			cell.custom_aabb = cell.custom_aabb.merge(box.grow(0.5))
 		else:
 			mm.set_instance_color(p.slot - kept, color)
+		if far != null:
+			far.set_instance_color(p.slot, color)
 
 	func draw_with(m: Mesh) -> void:
 		mm.mesh = m
@@ -263,6 +277,16 @@ class Pool:
 		m.use_custom_data = true
 		m.mesh = drawn
 		m.instance_count = count
+
+	## The distant layer is one draw per pool. Keeping it whole costs fewer draws than pairing every near cell.
+	func far_with(mat: ShaderMaterial) -> void:
+		far = MultiMesh.new()
+		_setup(far, Flora.far_mesh(), mm.instance_count)
+		far.visible_instance_count = 0
+		Terrain.lift(far, Terrain.bounds())
+		far_live = _show(far)
+		far_live.material_override = mat
+		far_live.layers = Quality.LADDER_LAYER
 
 	func _show(m: MultiMesh) -> MultiMeshInstance3D:
 		var mmi := MultiMeshInstance3D.new()
@@ -367,11 +391,16 @@ var grass_reach: float = Quality.ladder[0].grass_m:
 	set(m):
 		grass_reach = m
 		grass_mat.set_shader_parameter(&"draw_reach", m)
-## How far flowers are drawn, as Quality steps it: meadow, painted and a stroke's flowers alike, as grass reach is.
+		if grass_far != null:
+			grass_far.set_shader_parameter(&"draw_reach", m)
+## The quality reach still controls aquatic flowers; land meshes hand off to patches by FLOWER_NEAR.
 var flower_reach: float = Quality.ladder[0].flowers_m:
 	set(m):
 		flower_reach = m
-		flower_mat.set_shader_parameter(&"draw_reach", m)
+		flower_mat.set_shader_parameter(&"draw_reach", minf(m, FLOWER_NEAR))
+		flower_mat.set_shader_parameter(&"water_reach", m)
+		if flower_far != null:
+			flower_far.set_shader_parameter(&"draw_reach", minf(m, FLOWER_NEAR))
 ## Which of `_blobs` the foliage is drawn with, as Quality steps it.
 var blob_detail: int = Quality.ladder[0].blob_detail:
 	set(n):
@@ -380,6 +409,9 @@ var blob_detail: int = Quality.ladder[0].blob_detail:
 			foliage.draw_with(_blobs[n])
 			bushes.draw_with(_blobs[n])
 var flower_mat: ShaderMaterial
+var grass_far: ShaderMaterial
+var flower_far: ShaderMaterial
+static var _far_meshes := {}
 ## Bumped whenever a tree or bush stands up or goes, so what was gathered from them knows it is stale.
 var changes := 0
 ## Foliage blobs at each detail, made up front so a step changes only which one is drawn.
@@ -407,13 +439,20 @@ func _init() -> void:
 	flower_mat.set_shader_parameter("stalk", Meshes.STALK)
 	flower_mat.set_shader_parameter("eye", Meshes.EYE)
 	flower_mat.set_shader_parameter(&"stem", Meshes.FLOWER_HEIGHT)
-	flower_mat.set_shader_parameter(&"draw_reach", flower_reach)
+	flower_mat.set_shader_parameter(&"draw_reach", minf(flower_reach, FLOWER_NEAR))
+	flower_mat.set_shader_parameter(&"water_reach", flower_reach)
 	Quality.full_detail(flower_mat)
 	flowers = Pool.new(self, bloom, Meadow.FLOWERS + PAINTED_FLOWERS, flower_mat, false)
 	grass.indexed = true
 	flowers.indexed = true
 	ghost_grass = Pool.new(self, clump, Commands.MAX_STROKE * 2, grass_mat, false)
 	ghost_flowers = Pool.new(self, bloom, Commands.MAX_STROKE * 2, flower_mat, false)
+	grass_far = _far_material(false)
+	flower_far = _far_material(true)
+	for pool in [grass, ghost_grass]:
+		pool.far_with(grass_far)
+	for pool in [flowers, ghost_flowers]:
+		pool.far_with(flower_far)
 	for pool in [grass, ghost_grass, flowers, ghost_flowers]:
 		pool.live.set_instance_shader_parameter(&"planted", 1.0)
 	var trunk := CylinderMesh.new()
@@ -443,6 +482,34 @@ func _init() -> void:
 	add_child(shade)
 
 
+static func far_mesh(triangle := true) -> ArrayMesh:
+	if not _far_meshes.has(triangle):
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		var points := [Vector3(-0.5, 0, 0), Vector3(0, 0.5, 0), Vector3(0.5, 0, 0), Vector3(0, -0.5, 0)]
+		for i in ([0, 1, 2] if triangle else [0, 1, 2, 0, 2, 3]):
+			st.set_normal(Vector3.UP)
+			st.add_vertex(points[i])
+		st.index()
+		_far_meshes[triangle] = st.commit()
+	return _far_meshes[triangle]
+
+
+func _far_material(flower: bool) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://src/flora_far.gdshader")
+	mat.set_shader_parameter(&"flower", flower)
+	mat.set_shader_parameter(&"stem", Meshes.FLOWER_HEIGHT)
+	mat.set_shader_parameter(&"draw_reach", minf(flower_reach, FLOWER_NEAR) if flower else grass_reach)
+	for k in Meadow.GRASS:
+		mat.set_shader_parameter(k, Meadow.GRASS[k])
+	mat.set_shader_parameter(&"lod_begin", GRASS_LOD_BEGIN)
+	mat.set_shader_parameter(&"lod_band", GRASS_LOD_BAND)
+	mat.set_shader_parameter(&"survivors", GRASS_SURVIVORS)
+	mat.set_shader_parameter(&"survivors_from", GRASS_SURVIVORS_FROM)
+	return mat
+
+
 static func _plant_material(shader: String, albedo: Color, roughness: float) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://src/%s.gdshader" % shader)
@@ -457,7 +524,7 @@ func _process(_delta: float) -> void:
 	var eye := get_viewport().get_camera_3d()
 	if eye != null:
 		grass.cull(eye.global_position, grass_reach)
-		flowers.cull(eye.global_position, flower_reach)
+		flowers.cull(eye.global_position, minf(flower_reach, FLOWER_NEAR))
 
 
 ## Fits a shade blob to each standing crown's blobs when any tree or bush has changed or been drawn otherwise.
