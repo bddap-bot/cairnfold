@@ -44,6 +44,7 @@ var massing: Massing
 var ivy_age := 0.0
 ## Encloses every stone, for pointing.
 var pick_bounds := AABB()
+var _ruin_pick: Array[TriangleMesh] = []
 var _parts: Array[PackedFloat32Array] = []
 ## Each part's buffer split by ground chunk (`Masonry.split`), as the Masonry takes it.
 var _chunked: Array[Dictionary] = []
@@ -563,7 +564,7 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt3
 	var parts: Array[Part] = [Part.STONE, Part.MORTAR, Part.STONE_SHADOW, Part.TIMBER, Part.FLOOR]
 	for i in bufs.size():
 		chunks[parts[i]] = Masonry.split(bufs[i], ks[parts[i]])
-	return {"stone": bufs[0], "mortar": bufs[1], "shadow": bufs[2], "timber": bufs[3], "floor": bufs[4], "chunks": chunks, "bounds": box.grow(0.6), "paint": colours}
+	return {"stone": bufs[0], "mortar": bufs[1], "shadow": bufs[2], "timber": bufs[3], "floor": bufs[4], "chunks": chunks, "bounds": box.grow(0.6), "paint": colours, "ruin_pick": _pack_ruin(built)}
 
 
 ## A laid part's colour in `colours`.
@@ -659,6 +660,7 @@ func _take(packed: Dictionary) -> void:
 	for part in packed.chunks:
 		_chunked[part] = packed.chunks[part]
 	pick_bounds = packed.bounds
+	_ruin_pick = packed.ruin_pick
 
 
 ## Puts each part where it belongs: with the glade's Masonry once settled (ivy once grown), else drawn here.
@@ -735,7 +737,7 @@ func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 
 ## Intersects the continuous wall body between samples, including its foundation and top.
 func ray_hit(origin: Vector3, dir: Vector3) -> Dictionary:
-	if not layout.ruins.is_empty():
+	if not _ruin_pick.is_empty():
 		return _ruin_hit(origin, dir)
 	var best := {}
 	var n := layout.samples.size()
@@ -769,28 +771,35 @@ func ray_hit(origin: Vector3, dir: Vector3) -> Dictionary:
 	return best
 
 
-## A ruined wall has no continuous body: the remaining masonry and fallen stones share one nearest hit.
+## A ruined wall has no continuous body. Build its query trees with the masonry on the worker,
+## so aiming through several gaps does not scan every remaining stone each frame.
+static func _pack_ruin(built: WallLayout) -> Array[TriangleMesh]:
+	var out: Array[TriangleMesh] = []
+	if built.ruins.is_empty():
+		return out
+	var indices := [0, 2, 1, 1, 2, 3, 4, 5, 6, 5, 7, 6, 0, 4, 2, 4, 6, 2, 1, 3, 5, 5, 3, 7, 0, 1, 4, 4, 1, 5, 2, 6, 3, 3, 6, 7]
+	var faces: Array[PackedVector3Array] = [PackedVector3Array(), PackedVector3Array()]
+	for stone in built.stones:
+		var kind := 1 if stone.kind == "rubble" else 0
+		for index in indices:
+			faces[kind].append(stone.xform * WallLayout.BOX[index])
+	for vertices in faces:
+		var mesh: TriangleMesh
+		if not vertices.is_empty():
+			mesh = TriangleMesh.new()
+			mesh.create_from_faces(vertices)
+		out.append(mesh)
+	return out
+
+
 func _ruin_hit(origin: Vector3, dir: Vector3) -> Dictionary:
-	if get_meta(&"ruin_laid", -1) != layout.laid:
-		var pieces: Array[Dictionary] = []
-		var box := AABB(Vector3.ONE * -0.5, Vector3.ONE)
-		for stone in layout.stones:
-			var xform: Transform3D = stone.xform
-			pieces.append({"bounds": xform * box, "inverse": xform.affine_inverse(), "s": stone.s, "rubble": stone.kind == "rubble"})
-		set_meta(&"ruin_pieces", pieces)
-		set_meta(&"ruin_laid", layout.laid)
 	var best := {}
-	var box := AABB(Vector3.ONE * -0.5, Vector3.ONE)
-	for piece: Dictionary in get_meta(&"ruin_pieces"):
-		var bounds: AABB = piece.bounds
-		if not bounds.has_point(origin) and bounds.intersects_ray(origin, dir) == null:
+	for i in _ruin_pick.size():
+		var mesh := _ruin_pick[i]
+		var hit := mesh.intersect_ray(origin, dir) if mesh != null else {}
+		if hit.is_empty():
 			continue
-		var local: Vector3 = piece.inverse * origin
-		var direction: Vector3 = piece.inverse.basis * dir
-		var hit: Variant = local if box.has_point(local) else box.intersects_ray(local, direction)
-		if hit == null:
-			continue
-		var along: float = (hit - local).dot(direction) / direction.length_squared()
+		var along: float = (hit.position - origin).dot(dir) / dir.length_squared()
 		if along < best.get("along", INF):
-			best = {"along": along, "point": origin + dir * along, "s": piece.s, "distance": 0.0, "rubble": piece.rubble}
+			best = {"along": along, "point": hit.position, "s": layout.closest_s(hit.position), "distance": 0.0, "rubble": i == 1}
 	return best
