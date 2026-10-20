@@ -31,9 +31,6 @@ const MAX_LIFT := 40.0
 const SNAP := deg_to_rad(30.0)
 const FADE := 0.09
 ## The render layers with a private use, one table so no two uses share a bit; everything else draws on layer 1.
-## The tool wheel's icons: the sun skips them and the wheel's own light lights only them, so they look as they do on
-## the default day at any hour.
-const WHEEL_LAYER := 1 << 19
 ## The player's own avatar, which only the camera sees: their eyes would see it from inside.
 const SELF_LAYER := 1 << 18
 

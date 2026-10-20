@@ -119,21 +119,12 @@ func _build_wheel() -> void:
 	_wheel_root.visible = false
 	add_child(_wheel_root)
 	_build_icons(TREE, Vector2.ZERO, ToolWheel.ring_dirs(), [])
-	for v in _wheel_root.find_children("*", "VisualInstance3D", true, false):
-		(v as VisualInstance3D).layers = Rig.WHEEL_LAYER
-		if v is MeshInstance3D:
-			unshade(v)
-	var day := Daylight.light(Daylight.DEFAULT)
-	var light := DirectionalLight3D.new()
-	light.light_cull_mask = Rig.WHEEL_LAYER
-	light.light_color = day.sun
-	light.light_energy = day.energy
-	light.basis = Basis.looking_at(Vector3(0.3, -0.6, -1.0))
-	_wheel_root.add_child(light)
+	# The sun lights the icons: a light of the wheel's own cost the Frame about 4 ms a frame while it was open.
+	for v in _wheel_root.find_children("*", "MeshInstance3D", true, false):
+		unshade(v)
 
 
-## Swaps `mi`'s standard materials for unshaded copies: under the mobile renderer they never took the
-## wheel's light, which reaches only its shader materials.
+## Swaps `mi`'s standard materials for unshaded copies, so those icons read the same at any hour.
 static func unshade(mi: MeshInstance3D) -> void:
 	for i in mi.get_surface_override_material_count():
 		var mat := mi.get_active_material(i) as BaseMaterial3D

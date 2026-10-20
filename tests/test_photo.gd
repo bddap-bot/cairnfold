@@ -112,10 +112,8 @@ func _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not() -> void:
 	var meshes := rig.body.find_children("*", "VisualInstance3D", true, false)
 	_check(not meshes.is_empty() and meshes.all(func(v: VisualInstance3D) -> bool: return v.layers == Rig.SELF_LAYER), "the player's own avatar is drawn on the camera's layer alone")
 	_check(rig.head.cull_mask & Rig.SELF_LAYER == 0, "the player's eyes never see their own avatar")
-	var icons := rig.right.find_children("*", "VisualInstance3D", true, false).filter(func(v: VisualInstance3D) -> bool: return v.layers & Rig.WHEEL_LAYER)
-	_check(not icons.is_empty() and rig.head.cull_mask & Rig.WHEEL_LAYER != 0 and Rig.WHEEL_LAYER & Rig.SELF_LAYER == 0, "while they still see the tool wheel, which has a layer of its own")
-	var wheel_light: DirectionalLight3D = rig.right.find_children("*", "DirectionalLight3D", true, false)[0]
-	_check(wheel_light.light_cull_mask & Rig.SELF_LAYER == 0, "and whose light never lights their avatar")
+	var icons := rig.right.find_children("*", "VisualInstance3D", true, false)
+	_check(not icons.is_empty() and icons.all(func(v: VisualInstance3D) -> bool: return v.layers & rig.head.cull_mask and not v.layers & Rig.SELF_LAYER), "while they still see the tool wheel")
 	rig.head.position = Vector3(0.4, 1.6, 0.2)
 	rig.right.transform = Transform3D(Basis(Vector3.UP, PI), Vector3(0.6, 1.3, -0.4))
 	rig.right.tool = Hand.Tool.CAMERA
