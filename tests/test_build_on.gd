@@ -88,7 +88,9 @@ func _an_upper_storey_stands_on_the_house_and_takes_its_roof() -> void:
 	check(above.is_empty(), "nothing of the house's own stones pokes up into the storey: %d" % above.size())
 	var covered: Array = lower.roof.tiles.filter(func(t: Dictionary) -> bool: return Massing.encloses(Vector2(t.xform.origin.x, t.xform.origin.z), upper.massing.inner))
 	check(covered.is_empty(), "the house's roof is gone under the storey: %d tiles" % covered.size())
-	check(lower.roof.gable_faces.is_empty(), "and its gable ends with it")
+	check(not lower.roof.gable_faces.is_empty(), "the cap band still closes the lower wall")
+	for p in lower.roof.gable_faces:
+		check(p.y <= top + 0.001, "none of the lower gable pokes into the storey")
 	var torching := 0
 	for i in range(0, lower.roof.torching_faces.size(), 3):
 		if (lower.roof.torching_faces[i] + lower.roof.torching_faces[i + 1] + lower.roof.torching_faces[i + 2]).y / 3.0 > top:

@@ -1375,16 +1375,22 @@ func gables(inset := WallLayout.PLASTER_INSET) -> PackedVector3Array:
 		for face in [-1.0, 1.0]:
 			var facing: Vector3 = f.along * end * face
 			var at: Vector3 = f.mid + f.along * end * ridge_length() * 0.5 + facing * faces_at
+			# A storey resting here hides the roof above this plane, but leaves the cap band below it.
+			var left: Vector3 = at - f.across * hs
+			var right: Vector3 = at + f.across * hs
+			var down := Vector3.DOWN * WallLayout.CAP
+			_facing(tris, facing, left + down, left, right)
+			_facing(tris, facing, left + down, right, right + down)
 			for side in [-1.0, 1.0]:
 				var out: Vector3 = f.across * side
 				for i in prof.size() - 1:
 					if prof[i].x >= hs:
 						break
 					var x1 := minf(prof[i + 1].x, hs)
-					var a: Vector3 = at + out * prof[i].x + Vector3.DOWN * WallLayout.CAP
-					var b: Vector3 = at + out * x1 + Vector3.DOWN * WallLayout.CAP
-					var top := Vector3.UP * (WallLayout.CAP + rise(1.0 - x1 / hs))
-					_facing(tris, facing, a, a + Vector3.UP * (WallLayout.CAP + prof[i].y), b + top)
+					var a: Vector3 = at + out * prof[i].x
+					var b: Vector3 = at + out * x1
+					var top := Vector3.UP * rise(1.0 - x1 / hs)
+					_facing(tris, facing, a, a + Vector3.UP * prof[i].y, b + top)
 					if top.y > 0.0:
 						_facing(tris, facing, a, b + top, b)
 	return tris
