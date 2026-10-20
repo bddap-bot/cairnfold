@@ -21,6 +21,7 @@ func _run() -> void:
 	_faces_turn_to_plaster()
 	_faces_cut_no_opening()
 	_timber_faces()
+	_towers_keep_stone()
 	_trees_take_a_species()
 	_meadow_trees_take_a_species()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -198,4 +199,33 @@ func _timber_faces() -> void:
 	_check(world.state.walls[id].timber_style == 4, "redo restores the selected timber face")
 	world.restore(world.snapshot())
 	_check(world.state.walls[id].timber_style == 4, "save retains the pattern")
+	world.restore({"seq": 0, "cmds": []})
+
+
+func _towers_keep_stone() -> void:
+	main.tool.plaster = true
+	main.tool.begin_house(Terrain.ground(-20, 10), 0.0, PackedInt32Array(), true)
+	_check(not main.tool.house.layout.plaster, "new towers use stone even after choosing plaster on a house")
+	var data: Dictionary = main.tool.house.data()
+	main.tool.end_house()
+	world.restore({"seq": 0, "cmds": []})
+	data.plaster = true
+	var snap := {"seq": 2, "cmds": [
+		{"op": "wall", "walls": [data], "ids": PackedInt32Array([Commands.MAX_PIECES]), "seq": 1, "by": 1},
+		{"op": "reshape", "of": "walls", "id": Commands.MAX_PIECES, "data": {"plaster": true}, "seq": 2, "by": 1},
+	]}
+	_check(world.restore(snap) == 2, "a saved plaster tower and its style edit both load")
+	var id := Commands.MAX_PIECES
+	var wall: Wall = main.tool.find(id)
+	_check(not world.state.walls[id].plaster and not wall.layout.plaster, "saved plaster towers take the default stone")
+	var picker: PaletteTool = main.palette_tool
+	for style in [WallTool.RoofStyle.PITCHED, WallTool.RoofStyle.THATCHED, WallTool.RoofStyle.FLAT]:
+		world._order({"op": "reshape", "of": "walls", "id": id, "data": WallTool.restyle_roof(world.state.walls[id], style)}, 1)
+		_check(WallTool.roof_style(world.state.walls[id]) == style, "tower takes the tested roof style")
+		wall.lay_now()
+		_check(not wall.layout.stones.any(func(s): return s.kind == "plaster"), "tower geometry has no plaster panels")
+		var target := picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO)
+		_check(target.count == 1, "every tower roof style offers only stone walls")
+		_turn(target, 1)
+		_check(not world.state.walls[id].plaster, "turning the tower face wheel keeps stone")
 	world.restore({"seq": 0, "cmds": []})

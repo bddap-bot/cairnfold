@@ -145,7 +145,7 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 func style_target(restyle: Restyle, wall: Wall, point: Vector3) -> Dictionary:
 	var count := styles(restyle)
 	if restyle == Restyle.FACE and not (wall.layout.closed and wall.layout.corners().size() == 4):
-		count = Face.ALSACE
+		count = 1 if wall.roof != null and wall.roof.kind == RoofLayout.Kind.CONE else Face.ALSACE
 	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "count": count, "point": point, "of": "walls", "id": wall.id, "wall": wall}
 
 

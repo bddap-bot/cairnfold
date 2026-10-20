@@ -338,6 +338,7 @@ static func _wall(d: Variant) -> Variant:
 			return null
 		if typeof(r.get("thatch")) != TYPE_BOOL:
 			return null
+		out.plaster = plaster and r.kind != RoofLayout.Kind.CONE
 		out.roof = {"kind": r.kind, "center": r.center, "radius": r.radius, "pitch": r.pitch, "curve": r.curve, "seed": r.seed, "chimneys": chimneys, "flag": r.flag, "thatch": r.thatch}
 	return out
 
@@ -373,7 +374,12 @@ static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 				trial.paint[e] = d.paint[e]
 		else:
 			return null
-	return out if (_wall(trial) if of == "walls" else _stairs(trial)) != null else null
+	var cleaned: Variant = _wall(trial) if of == "walls" else _stairs(trial)
+	if cleaned == null:
+		return null
+	if of == "walls" and cleaned.plaster != trial.plaster:
+		out["plaster"] = cleaned.plaster
+	return out
 
 
 static func _path(d: Variant) -> Variant:

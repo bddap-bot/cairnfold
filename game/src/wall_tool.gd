@@ -434,7 +434,7 @@ func _house_input() -> void:
 func begin_house(at: Vector3, yaw: float, on := PackedInt32Array(), round := false) -> void:
 	house = _new_wall()
 	house.on = on
-	house.layout.plaster = plaster
+	house.layout.plaster = plaster and not round
 	house.layout.timber_style = timber_style
 	house.layout.gable_end = gable_end
 	house.layout.closed = true

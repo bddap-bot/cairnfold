@@ -104,7 +104,7 @@ static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round :
 			var thatched := i == WallTool.RoofStyle.THATCHED
 			var flat := i == WallTool.RoofStyle.FLAT
 			if round:
-				_tower(root, plastered, thatched, flat)
+				_tower(root, thatched, flat)
 			else:
 				_house(root, plastered, WallLayout.GableEnd.WALL, flat, 0, thatched)
 		PaletteTool.Restyle.TOP:
@@ -570,9 +570,8 @@ static func _house(root: Node3D, plastered := false, gable_end := WallLayout.Gab
 
 
 ## A round tower under a cone roof, or a flat one.
-static func _tower(root: Node3D, plastered := false, thatched := false, flat := false) -> void:
+static func _tower(root: Node3D, thatched := false, flat := false) -> void:
 	var layout := WallLayout.new()
-	layout.plaster = plastered
 	layout.seed = 9
 	layout.height = 3.2
 	layout.top = WallLayout.Top.CAP
@@ -590,7 +589,7 @@ static func _tower(root: Node3D, plastered := false, thatched := false, flat := 
 	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
 	roof.build()
 	layout.fit_under(roof)
-	_roofed(root, layout, roof, plastered)
+	_roofed(root, layout, roof, false)
 
 
 static func _roofed(root: Node3D, layout: WallLayout, roof: RoofLayout, plastered: bool) -> void:
