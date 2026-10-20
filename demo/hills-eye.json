@@ -1,0 +1,18 @@
+[
+  {"op": "budget", "bounded": false},
+  {"op": "label", "name": "settle"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "hills-ground-north"},
+  {"op": "view", "eye": [0, 1.65, 0], "at": [0, 4, -60], "ground": true},
+  {"op": "wait", "seconds": 30},
+  {"op": "label", "name": "hills-ground-east"},
+  {"op": "view", "eye": [0, 1.65, 0], "at": [60, 4, 0], "ground": true},
+  {"op": "wait", "seconds": 30},
+  {"op": "label", "name": "hills-hover"},
+  {"op": "view", "eye": [0, 22, 20], "at": [0, 12, -60]},
+  {"op": "wait", "seconds": 30},
+  {"op": "label", "name": "hills-glide"},
+  {"op": "view", "eye": [-3, 1.65, 0], "at": [0, 4, -60], "ground": true},
+  {"op": "glide", "eye": [3, 1.65, 0], "at": [0, 4, -60], "ground": true, "seconds": 30},
+  {"op": "quit"}
+]
