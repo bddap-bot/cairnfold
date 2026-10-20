@@ -1,0 +1,63 @@
+[
+  {
+    "op": "quality",
+    "step": "fit"
+  },
+  {
+    "op": "view",
+    "ground": true,
+    "eye": [
+      14,
+      1.6,
+      4
+    ],
+    "at": [
+      14,
+      0.8,
+      0
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 10
+  },
+  {
+    "op": "label",
+    "name": "neck/clips0"
+  },
+  {
+    "op": "neck_cost",
+    "solve": false,
+    "seconds": 15
+  },
+  {
+    "op": "label",
+    "name": "neck/feeding0"
+  },
+  {
+    "op": "neck_cost",
+    "solve": true,
+    "seconds": 15
+  },
+  {
+    "op": "label",
+    "name": "neck/clips1"
+  },
+  {
+    "op": "neck_cost",
+    "solve": false,
+    "seconds": 15
+  },
+  {
+    "op": "label",
+    "name": "neck/feeding1"
+  },
+  {
+    "op": "neck_cost",
+    "solve": true,
+    "seconds": 15
+  },
+  {
+    "op": "quit"
+  }
+]

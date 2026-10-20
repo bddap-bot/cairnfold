@@ -2802,9 +2802,20 @@ or thrown only draw those already there (see "Feeding").
   rigged and animated by hand (`game/animals/sources.json`, each file's hash checked by
   `tests/test_animals.py`). Every motion they make is one of the model's own clips (idle, looking about,
   head low, eating, walk, gallop), with the walk and gallop paced to the ground covered (`Beast.STRIDE`).
-  No motion is made for them here, and a behaviour without a clip is left out: they never lie down.
+  A short neck/head IK chain is the exception during hand feeding: `NeckAim` runs after the clip, aims at the
+  seed heap above the dish, and leaves the torso, legs and ears on their authored animation. A behaviour
+  without a clip is otherwise left out: they never lie down.
 
 ### Feeding
+
+Rigged hand eaters share `NeckAim`: three neck bones and the head, with rest-relative joint limits,
+a 0.2 s blend and a bounded CCD solve starting from the previous frame's solution. The target is the
+seed tool's heap, raised to 3 cm above the dish base for palm clearance. Their standing distance comes
+from 80% of the rig's neck-to-muzzle length at the offered height. Food counts as eaten only with the
+muzzle within 3.5 cm of that target. A hand beyond reach or turned palm-down ends the offer; failed
+contact makes the animal step away. Deer and fox use this one skeleton implementation; the shader-only
+sheep and ducks have no bone chain to attach it to. `demo/neck.json` measures four rigged eaters with
+and without the solve, and `demo/stress.json` includes that cost at full garden density.
 
 The seed tool is a clay dish of bird seed on the controller, beside the camera on the wheel. Held out calmly, it
 draws the animals that eat from a hand, one animal to a hand, through one mechanism in `Wildlife`: each

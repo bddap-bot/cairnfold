@@ -262,14 +262,16 @@ func _think(b: Band, a: Node3D, delta: float) -> void:
 func _come_for_food(a: Node3D) -> void:
 	var appetite := _appetite(a)
 	var reaches := func(o: Node3D) -> bool:
-		var spot := wildlife.eat_spot(appetite, o, a.position)
+		var spot := _eat_spot(a, o)
+		if a is Beast and Wildlife.in_hand(o) and not a.neck.reachable(a, o, spot.y):
+			return false
 		return allowed(spot) and clear_way(a.position, spot)
 	var h := wildlife.offer_for(appetite, a.position, reaches)
 	if h == null:
 		return
 	wildlife.claim(h, a)
 	a.hand = h
-	a.goal = wildlife.eat_spot(appetite, h, a.position)
+	a.goal = _eat_spot(a, h)
 	a.state = State.FEED
 	a.timer = rng.randf_range(appetite.eats_for.x, appetite.eats_for.y)
 
@@ -280,9 +282,12 @@ func _eat(a: Node3D, delta: float) -> void:
 	if not wildlife.feeds(a.hand, a):
 		_fed(a)
 		return
-	var hand: Vector3 = a.hand.global_position
-	var spot := wildlife.eat_spot(_appetite(a), a.hand, a.position)
-	if Vector2(spot.x - a.goal.x, spot.z - a.goal.z).length() > 0.15:
+	var hand: Vector3 = NeckAim.food(a.hand) if Wildlife.in_hand(a.hand) else a.hand.global_position
+	var spot := _eat_spot(a, a.hand)
+	if a is Beast and Wildlife.in_hand(a.hand) and not a.neck.reachable(a, a.hand, spot.y):
+		_back_off(a)
+		return
+	if Vector2(spot.x - a.goal.x, spot.z - a.goal.z).length() > (0.02 if a is Beast and Wildlife.in_hand(a.hand) else 0.15):
 		if not allowed(spot) or not clear_way(a.position, spot):
 			_fed(a)
 			return
@@ -291,15 +296,44 @@ func _eat(a: Node3D, delta: float) -> void:
 		return
 	a.eat(hand.y - a.position.y, delta)
 	Wildlife._face(a, hand - a.position, delta * TURN)
+	if a is Beast and Wildlife.in_hand(a.hand):
+		if not a.neck.touching(a.hand):
+			a.missed_food += delta
+			if a.missed_food > 0.75:
+				_back_off(a)
+			return
+		a.missed_food = 0.0
 	wildlife.nibble(a.hand, delta)
 	a.timer -= delta
 	if a.timer <= 0.0:
 		_fed(a)
 
 
+func _back_off(a: Beast) -> void:
+	var away := a.position - NeckAim.target(a.hand)
+	away.y = 0.0
+	var to := a.position + away.normalized() * 0.4
+	to.y = wildlife.water.floor_at(to)
+	_fed(a)
+	if allowed(to) and clear_way(a.position, to):
+		a.goal = to
+		a.state = State.WALK
+
+
+func _eat_spot(a: Node3D, h: Node3D) -> Vector3:
+	if a is Beast and a.neck != null and Wildlife.in_hand(h):
+		var at := NeckAim.target(h)
+		var off := Vector3(a.position.x - at.x, 0, a.position.z - at.z)
+		at += off.normalized() * a.neck.stand_off(a, h)
+		return Vector3(at.x, wildlife.water.floor_at(at), at.z)
+	return wildlife.eat_spot(_appetite(a), h, a.position)
+
+
 func _fed(a: Node3D) -> void:
 	wildlife.release(a)
 	a.hand = null
+	if a is Beast:
+		a.missed_food = 0.0
 	var appetite := _appetite(a)
 	a.full = rng.randf_range(appetite.full_for.x, appetite.full_for.y)
 	if a.state == State.FEED:

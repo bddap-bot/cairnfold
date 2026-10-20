@@ -1584,3 +1584,45 @@ func _stair_field(_s: Dictionary) -> void:
 			placed += 1
 			await get_tree().process_frame
 	assert(false, "stair field did not fill the budget")
+
+
+## Four rigged eaters (the largest visiting band), with the same clips on both sides of the CPU measurement.
+func _neck_cost(s: Dictionary) -> void:
+	var animals: Array[Beast] = []
+	var dishes: Array[Dish] = []
+	for i in 4:
+		var animal := Beast.new(Beast.Kind.FOX if i == 3 else Beast.Kind.DEER, 1.0, i * 0.2)
+		add_child(animal)
+		animal.set_process(false)
+		animal.neck.active = false
+		var dish := Dish.new()
+		add_child(dish)
+		dish.visible = true
+		var at := Terrain.ground(12.0 + i * 1.8, 0)
+		dish.position = at + Vector3(0, 0.4 if i == 3 else 0.8, 0)
+		animal.position = at
+		animal.position.z += Hand.TOP.z + animal.neck.stand_off(animal, dish)
+		animal.eat(dish.position.y - at.y, 0.0)
+		animal.neck.offer = dish
+		animal.neck.amount = 1.0
+		animals.append(animal)
+		dishes.append(dish)
+	var elapsed := 0.0
+	var samples: Array[float] = []
+	var solving: bool = s.get("solve", true)
+	while elapsed < s.get("seconds", 10.0):
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+		for dish in dishes:
+			dish.position.z = sin(elapsed * 0.7) * 0.02
+		var start := Time.get_ticks_usec()
+		if solving:
+			for animal in animals:
+				animal.neck._process_modification()
+		samples.append((Time.get_ticks_usec() - start) / 1000.0)
+	samples.sort()
+	print("neck_cost: solve=%s, four animals, %d frames, CPU median %.4f ms, p95 %.4f ms, max %.4f ms" % [solving, samples.size(), samples[samples.size() / 2], samples[int(samples.size() * 0.95)], samples[-1]])
+	for animal in animals:
+		animal.queue_free()
+	for dish in dishes:
+		dish.queue_free()

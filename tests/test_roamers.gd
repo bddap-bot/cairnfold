@@ -98,6 +98,11 @@ func _run(g: Glade, seconds: float, each := Callable()) -> void:
 	for i in int(seconds / STEP):
 		g.wildlife.tick(STEP)
 		g.feed.tick(STEP)
+		for a in g.wildlife.roamers.all():
+			if Wildlife.in_hand(a.hand):
+				a.player.advance(STEP)
+				a._process(STEP)
+				a.neck._process_modification()
 		if each.is_valid():
 			each.call()
 
@@ -282,7 +287,7 @@ func _food_held_still_draws_one_to_eat() -> void:
 		if eater != null:
 			_run(g, 1.0)
 			var reach := Vector2(at.x - eater.position.x, at.z - eater.position.z).length()
-			_check(eater.state == Grazers.State.FEED and absf(reach - Roamers.appetite[kind].mouth) < 0.15, "and eats with its mouth at the hand, %.2f m off" % reach)
+			_check(eater.state == Grazers.State.FEED and absf(reach - eater.neck.stand_off(eater, hand)) < 0.15, "and eats with its mouth at the hand, %.2f m off" % reach)
 			_check(eater._clip == Beast.EAT_CLIP, "head down, eating, %s" % eater._clip)
 			var ran := [false]
 			_run(g, Roamers.appetite[kind].eats_for.y + 3.0, func() -> void: ran[0] = ran[0] or eater.state == Grazers.State.FLEE)

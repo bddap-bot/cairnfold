@@ -32,6 +32,8 @@ static var _shared := {}
 
 var kind: Kind
 var size := 1.0
+var neck: NeckAim
+var missed_food := 0.0
 var player: AnimationPlayer
 var _clip := ""
 ## What `Roamers` has this animal doing, until when, and where to.
@@ -115,6 +117,24 @@ func _init(of: Kind, scale_by: float, phase: float) -> void:
 	player = model.find_children("*", "AnimationPlayer")[0]
 	_play(IDLE_CLIPS[0])
 	player.seek(phase * player.current_animation_length, true)
+
+
+func _ready() -> void:
+	var skeleton: Skeleton3D = find_children("*", "Skeleton3D", true, false)[0]
+	neck = NeckAim.new()
+	# The foremost point of each source mesh, in its head bone's rest space.
+	var muzzle := Vector3(-0.001205, 0.009126, 0.000092) if kind == Kind.DEER else Vector3(0.001293, 0.007014, 0.000461)
+	neck.configure(skeleton, muzzle)
+
+
+func _process(_delta: float) -> void:
+	neck.offer = null
+	if not Wildlife.in_hand(hand):
+		return
+	var food := NeckAim.food(hand)
+	var distance := Vector2(global_position.x - food.x, global_position.z - food.z).length()
+	if distance < neck.stand_off(self, hand) + 0.8:
+		neck.offer = hand
 
 
 func _play(clip: String, pace := 1.0) -> void:
