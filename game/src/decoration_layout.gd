@@ -51,7 +51,7 @@ func build(style: int, seed: int, rise := 0.6) -> void:
 			box(Vector3(0, 0.18, 0.33), Vector3(1.1, 0.32, 0.5), WOOD, "board")
 			box(Vector3(0, 0.35, 0.33), Vector3(0.96, 0.04, 0.36), Color(0.12, 0.09, 0.06), "")
 			for i in 5:
-				flowers.append(Transform3D(Basis().scaled(Vector3.ONE * 0.8), Vector3((i - 2) * 0.19, 0.36, 0.33 + sin(i * 2.1) * 0.09)))
+				flowers.append(Transform3D(Basis().scaled(Vector3.ONE * 1.2), Vector3((i - 2) * 0.19, 0.36, 0.33 + sin(i * 2.1) * 0.09)))
 			bounds = bounds.expand(Vector3(0, 0.9, 0.6))
 		1:
 			for x in [-0.52, 0.52]:

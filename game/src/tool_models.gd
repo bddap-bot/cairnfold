@@ -1050,9 +1050,6 @@ static func decoration(layout: DecorationLayout, seed: int) -> Node3D:
 			surface.append_from(mesh, 0, layout.flowers[i])
 		var flower := MeshInstance3D.new()
 		flower.mesh = surface.commit()
-		var mat := StandardMaterial3D.new()
-		mat.vertex_color_use_as_albedo = true
-		mat.roughness = 0.8
-		flower.material_override = mat
+		flower.material_override = _vertex_mat("decoration_flowers", 0.8, true)
 		root.add_child(flower)
 	return root
