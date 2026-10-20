@@ -2348,13 +2348,19 @@ deep water and irises in the shallows.
   blue-green with depth.
 - **Lilies and irises:** a flower deeper than 35 cm opens its head into a pad 2.6 times as wide, floating just on the
   surface and drifting a few centimetres, its bloom raised in the pad's middle on a stem from the bed. Shallower, it
-  stands 30 cm out of the water, its stalk widened at the foot into sword leaves.
+  is an iris: three sword leaves rise from the bed, full width (6 cm) from just under the surface to 40 cm over it,
+  and its bloom, half again as wide, cups upward 50 cm over the water (both in flower sizes). The leaves are geometry
+  only placed flowers carry, collapsed to the root except in the shallows; the meadow's own flowers bake without them.
 - **Cost:** desktop renderer (RTX 2080, 1600×1200, `demo/pondweed.json`, median viewport GPU time, the host shared
   with other work), the painted grass pool full (12,000 clumps) in a 1.8 m disc: in a pond, seen from above, 11.3 ms,
   against 12.2 ms for the same disc on land and 7.3 ms with the pond's grass drowned; from the bed beside it 21.2 ms,
   against 5.0 ms drowned and 14.5 ms for the land disc from the same height. Growing every clump under water cost
   28.4 ms from the bed, half of them 22.1 ms; the shorter, narrower ribbons saved 0.9 ms more. The budget charges a
-  pondweed clump as a grass clump. Headset numbers belong to the on-device run.
+  pondweed clump as a grass clump. Irises, the painted flower pool full (4,000) in a 1.8 m disc over a shallow pond
+  seen standing on its shore, 6.1 and 4.8 ms over two runs, against 5.0 and 5.0 ms for the leafless irises before
+  them; the same pool on land 6.5 and 5.6 ms, against 4.9 and 6.7 ms before the leaves: inside the host's run-to-run
+  noise. The leaves add 12 triangles to each placed flower (41,000 primitives for the full pool), collapsed and
+  culled on land. Headset numbers belong to the on-device run.
 
 Sound: each pond laps softly from its middle (slow, low-passed sloshes with rare bubbles), a hand
 dipping in plops, and a filling pond gurgles; all of it sits below 1.8 kHz.
