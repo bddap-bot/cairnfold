@@ -109,6 +109,8 @@ func _tag(k: String) -> Array:
 	var me := session.me
 	if k == "name":
 		return [me.name, null, me.shared]
+	if not session.nearby.has(k):
+		return ["", null, true]
 	var garden: Dictionary = session.nearby[k]
 	var id := me.steam_id(garden.key)
 	if id and _copied(garden.key):

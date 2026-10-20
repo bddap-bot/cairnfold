@@ -128,7 +128,7 @@ def scripts(count):
         steps += [{"op": "pick", "action": "avatar:2"},
                   {"op": "digest", "name": f"{name}-avatar-picked"},
                   barrier([f"{n}-avatar-picked" for n in names]),
-                  {"op": "wait", "seconds": 2},
+                  {"op": "until", "avatar": 2, "seconds": 30},
                   {"op": "digest", "name": f"{name}-avatar-seen"},
                   barrier([f"{n}-avatar-seen" for n in names])]
         if name == "join":

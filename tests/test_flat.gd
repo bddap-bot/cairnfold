@@ -198,7 +198,7 @@ func _every_control_on_every_tool_sends_no_edit(sent: int) -> void:
 		rig.right.tool = t
 		await _frames(2)
 		for key in range(KEY_SPACE, KEY_ASCIITILDE + 1) + [KEY_TAB, KEY_ESCAPE, KEY_ENTER, KEY_BACKSPACE, KEY_DELETE, KEY_CTRL, KEY_SHIFT, KEY_ALT, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]:
-			if key == KEY_TAB:
+			if key in [KEY_TAB, KEY_Q]:
 				continue
 			_key(true, key)
 			await process_frame
@@ -206,11 +206,11 @@ func _every_control_on_every_tool_sends_no_edit(sent: int) -> void:
 		for b in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_MIDDLE, MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN]:
 			await _tap(_mouse.bind(b), 2)
 		for b in JOY_BUTTON_SDL_MAX:
-			if b != JOY_BUTTON_Y:
+			if b not in [JOY_BUTTON_Y, JOY_BUTTON_LEFT_SHOULDER]:
 				await _tap(_button.bind(b), 2)
 		for a in [JOY_AXIS_TRIGGER_LEFT, JOY_AXIS_TRIGGER_RIGHT]:
 			await _tap(func(on: bool) -> void: _axis(a, 1.0 if on else 0.0), 2)
-		_check(rig.right.tool == t, "no key changes the tool but the next-tool controls")
+		_check(rig.right.tool == t, "no key changes the tool but the next-tool and wheel controls")
 	_check(rig.hands.all(func(h: Hand) -> bool: return Flat.TOOLS.has(h.tool)), "no hand ever holds an edit tool")
 	_check(main.world._next_token == sent, "and no edit command is ever sent: %d sent" % (main.world._next_token - sent))
 

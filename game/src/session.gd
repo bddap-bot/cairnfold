@@ -225,7 +225,7 @@ func _on_peer(id: int) -> void:
 	_appear.rpc_id(id, avatar, colour)
 	Cues.play(Cues.Act.PLAYER_JOINS, _here())
 	if not worn.is_empty():
-		_wear.rpc_id(id, worn)
+		_wear.rpc_id(id, worn, avatar)
 	changed.emit()
 
 
@@ -509,11 +509,12 @@ func _drop_dishes(id: int) -> void:
 ## A player's own VRM, sent to each player they meet and again whenever it changes; empty for their built-in one.
 ## They keep their built-in avatar until the file has been read, on a worker thread, and passes the limits.
 @rpc("any_peer", "reliable", "call_remote", FILE_CHANNEL)
-func _wear(bytes: PackedByteArray) -> void:
+func _wear(bytes: PackedByteArray, look: int) -> void:
 	var id := multiplayer.get_remote_sender_id()
 	print("session: player %d sent %d bytes of avatar%s" % [id, bytes.size(), "" if _looks.has(id) else " before appearing"])
 	if not _looks.has(id) or bytes.size() > Avatar.MAX_BYTES:
 		return
+	_looks[id][0] = posmod(look, Avatar.BUILT_IN.size())
 	_waiting[id] = bytes
 	_read_waiting()
 
@@ -576,19 +577,10 @@ func choose_avatar(choice: String) -> void:
 		return
 	if choice != "file":
 		avatar = posmod(choice.to_int(), Avatar.BUILT_IN.size())
-	if not multiplayer.get_peers().is_empty():
-		_select_avatar.rpc(avatar)
 	if choice == "file":
 		_set_look(avatar_file.key, avatar_file.bytes, avatar_file.scene)
 	else:
 		_set_look("", PackedByteArray(), null)
-
-
-@rpc("any_peer", "reliable", "call_remote", FILE_CHANNEL)
-func _select_avatar(look: int) -> void:
-	var id := multiplayer.get_remote_sender_id()
-	if _looks.has(id):
-		_looks[id][0] = posmod(look, Avatar.BUILT_IN.size())
 
 
 ## Wears the newest .vrm in the avatar folder once it reads as an avatar; with none there, the built-in one.
@@ -634,7 +626,7 @@ func _set_look(key: String, bytes: PackedByteArray, scene: PackedScene) -> void:
 		previews[key] = scene
 	print("session: wearing %s" % (key if key != "" else "a built-in avatar"))
 	if not multiplayer.get_peers().is_empty():
-		_wear.rpc(worn)
+		_wear.rpc(worn, avatar)
 
 
 ## Reads a VRM, from `bytes` or the file at `path`, and hashes it on a worker thread; `done(hash, bytes, scene)`
