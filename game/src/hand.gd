@@ -46,6 +46,11 @@ var flick := ""
 var picking := false
 ## What the hand's tool shows would not fit the frame budget: its pointer shows it refused (BudgetBar).
 var capped := false
+## The model standing on the controller while it holds `t`.
+func model(t: Tool) -> Node3D:
+	return _models[t]
+
+
 ## The interaction profile the runtime bound this hand to (Controls.PLACES), or "".
 var profile := ""
 var _wheel: ToolWheel

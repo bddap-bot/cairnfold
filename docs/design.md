@@ -2646,7 +2646,7 @@ java.io (`Main.write_bytes`), which scoped storage lets write the app's own pict
 permission. The garden save lives in the external files directory (`Main.player_path`), where it
 can be copied off before an uninstall. The screen holds the shot for a
 moment with a soft flash, and the hand gets a short buzz on the press. Either hand can hold a
-camera; both show the view of the first.
+camera, and each camera's screen shows its own lens's view.
 
 Directive (paraphrased): a turned-around version of the camera that acts as a selfie cam; while using it you can
 preview what it sees, so you can hold it out and take a picture of yourself. Placement (paraphrased): it goes in a
@@ -2656,8 +2656,8 @@ The selfie camera is the same tool on the same code path: the camera's entry on 
 the selfie camera, whose lens sits beside a smaller screen on the back and looks back along the controller at the
 holder (`PhotoTool.lens`). Held out, its screen shows the holder as a mirror would, so leaning left moves them left on
 it; the photo, taken on the trigger as the camera's is, is not mirrored. The player's own avatar, which the eyes never
-see, stands in its view as in the camera's, its holding hand folded into the wrist. Its screen is the camera's one
-preview viewport, the same size and rate, so it costs what the camera does (`camera/selfie` in the table above).
+see, stands in its view as in the camera's, its holding hand folded into the wrist. Its screen's view is drawn as
+the camera's is, the same size and rate, so it costs what the camera does (`camera/selfie` in the table above).
 
 Directive (verbatim):
 > I'd like to be able to take a super graphics quality photo that just turns everything all the way up, no level of detail or anything; it can take a long time to render that frame. ... I would like to take very fancy photos. Also give a way to embed metadata about where and how the photo was taken, that'd be cool. I don't know if you can embed a whole world in it, but if the world is small enough, then maybe you could.
@@ -2682,10 +2682,11 @@ after every script has run (`RenderingServer.frame_pre_draw`) and put back after
 directional shadow atlas size and which blob mesh the foliage draws. The headset sees that one
 frame drawn so too.
 
-What it costs: nothing until a hand first holds the camera. The screen is then a second view of
+What it costs: nothing until a hand first holds the camera. Its screen is then a second view of
 the garden at `PhotoTool.PREVIEW_SIZE` without MSAA, out to the eye's own far clip (`Rig.FAR`, the
 one view range the eye, the screen and the photo share), redrawn on one frame in three:
-that frame pays the scene's draw calls and shadow pass again at a small size. A photo is one
+that frame pays the scene's draw calls and shadow pass again at a small size. A camera in each hand
+draws two such views, each on frames of its own, so no frame draws both. A photo is one
 render on the frame after the press, read back from the GPU asynchronously, then converted,
 encoded and written on a worker thread, so no frame waits on the pixels. Its 8x MSAA view is made
 for the shot and let go once the screen stops showing it. The frame drawing it is long; the

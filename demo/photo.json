@@ -35,6 +35,12 @@
   {"op": "capture", "name": "06-selfie-held"},
   {"op": "photo", "tool": "selfie"},
   {"op": "capture", "name": "07-selfie-shot"},
+  {"op": "wait", "seconds": 1.5},
+  {"op": "label", "name": "two cameras"},
+  {"op": "pick", "hand": "left", "tool": "camera"},
+  {"op": "hands", "left": [-0.12, -0.05, -0.4], "right": [0.15, 0.0, -0.6], "tip": 0},
+  {"op": "wait", "seconds": 0.5},
+  {"op": "capture", "name": "08-two-cameras"},
   {"op": "wait", "seconds": 1},
   {"op": "quit"}
 ]

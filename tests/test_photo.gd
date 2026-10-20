@@ -25,8 +25,12 @@ func _check(ok: bool, what: String) -> void:
 		print("FAIL: ", what)
 
 
-func _screen_shows(tool: PhotoTool) -> bool:
-	return tool._preview != null and ToolModels.camera_screen().albedo_texture == tool._preview.get_texture()
+func _screen_shows(tool: PhotoTool, hand: Hand) -> bool:
+	return tool._previews.has(hand) and PhotoTool.screen(hand, hand.tool).albedo_texture == tool._previews[hand].get_texture()
+
+
+func _dark(hand: Hand) -> bool:
+	return PhotoTool.CAMERAS.all(func(t: Hand.Tool) -> bool: return PhotoTool.screen(hand, t).albedo_texture == null)
 
 
 func _the_screen_shows_the_lens_while_a_hand_holds_the_camera() -> void:
@@ -36,30 +40,47 @@ func _the_screen_shows_the_lens_while_a_hand_holds_the_camera() -> void:
 	var tool := PhotoTool.new(rig)
 	root.add_child(tool)
 	await process_frame
-	_check(tool.holders().is_empty() and tool._preview == null and tool._photo == null, "no view is rendered for a camera nobody holds")
-	_check(ToolModels.camera_screen().albedo_texture == null, "an unheld camera's screen is dark")
+	_check(tool.holders().is_empty() and tool._previews.is_empty() and tool._photo == null, "no view is rendered for a camera nobody holds")
+	_check(_dark(rig.right) and _dark(rig.left), "an unheld camera's screen is dark")
 	rig.right.tool = Hand.Tool.CAMERA
 	var drawn := 0
 	for i in PhotoTool.PREVIEW_EVERY * 4:
 		await process_frame
-		drawn += int(tool._preview.render_target_update_mode == SubViewport.UPDATE_ONCE)
-		tool._preview.render_target_update_mode = SubViewport.UPDATE_DISABLED
-	_check(_screen_shows(tool), "the screen shows the lens's view while the camera is held")
+		drawn += int(tool._previews[rig.right].render_target_update_mode == SubViewport.UPDATE_ONCE)
+		tool._previews[rig.right].render_target_update_mode = SubViewport.UPDATE_DISABLED
+	_check(_screen_shows(tool, rig.right), "the screen shows the lens's view while the camera is held")
 	_check(drawn == 4, "the preview is drawn on one frame in %d: %d of %d" % [PhotoTool.PREVIEW_EVERY, drawn, PhotoTool.PREVIEW_EVERY * 4])
 	_the_lens_sees_as_far_as_the_eye(rig, tool)
 	rig.left.tool = Hand.Tool.CAMERA
-	await process_frame
+	rig.left.position = Vector3(-0.3, 1.2, -0.3)
+	rig.right.position = Vector3(0.3, 1.2, -0.3)
+	rig.right.rotation = Vector3(0, PI * 0.5, 0)
+	var drawn_on := {rig.left: [], rig.right: []}
+	for i in PhotoTool.PREVIEW_EVERY * 2:
+		await process_frame
+		for h in drawn_on:
+			if tool._previews[h].render_target_update_mode == SubViewport.UPDATE_ONCE:
+				drawn_on[h].append(i)
+			tool._previews[h].render_target_update_mode = SubViewport.UPDATE_DISABLED
 	_check(tool.holders().size() == 2, "both hands can hold a camera")
+	_check(_screen_shows(tool, rig.left) and _screen_shows(tool, rig.right) and PhotoTool.screen(rig.left, Hand.Tool.CAMERA) != PhotoTool.screen(rig.right, Hand.Tool.CAMERA), "each camera's screen shows its own preview")
+	_check(tool._previews[rig.left].get_texture() != tool._previews[rig.right].get_texture(), "and the two previews are two textures")
+	var left_cam: Camera3D = tool._previews[rig.left].get_child(0)
+	var right_cam: Camera3D = tool._previews[rig.right].get_child(0)
+	_check(left_cam.global_transform.is_equal_approx(PhotoTool.lens(rig.left)) and right_cam.global_transform.is_equal_approx(PhotoTool.lens(rig.right)), "each drawn from its own lens")
+	_check(drawn_on[rig.left].size() == 2 and drawn_on[rig.right].size() == 2 and drawn_on[rig.left].all(func(f: int) -> bool: return not f in drawn_on[rig.right]), "on frames of their own: %s" % [drawn_on])
 	rig.right.tool = Hand.Tool.WALLS
+	await process_frame
+	_check(_dark(rig.right) and _screen_shows(tool, rig.left), "putting one camera away darkens its screen alone")
 	rig.left.picking = true
 	await process_frame
-	_check(tool.holders().is_empty() and ToolModels.camera_screen().albedo_texture == null, "the screen goes dark while the hand holding it picks from its wheel")
+	_check(tool.holders().is_empty() and _dark(rig.left), "the screen goes dark while the hand holding it picks from its wheel")
 	rig.left.picking = false
 	await process_frame
-	_check(_screen_shows(tool), "and shows the view again after")
+	_check(_screen_shows(tool, rig.left), "and shows the view again after")
 	rig.left.tool = Hand.Tool.FLOWERS
 	await process_frame
-	_check(ToolModels.camera_screen().albedo_texture == null, "and goes dark when the camera is put away")
+	_check(_dark(rig.left), "and goes dark when the camera is put away")
 
 
 func _the_lens_sees_as_far_as_the_eye(rig: Rig, tool: PhotoTool) -> void:
@@ -71,7 +92,7 @@ func _the_lens_sees_as_far_as_the_eye(rig: Rig, tool: PhotoTool) -> void:
 		if rig.head.is_position_in_frustum(at * Vector3(0, 0, -d)):
 			far = d
 	_check(far > 100.0, "the eye sees past the meadow: %d m" % far)
-	for lens: SubViewport in [tool._preview, photo]:
+	for lens: SubViewport in [tool._previews[rig.right], photo]:
 		var cam: Camera3D = lens.get_child(0)
 		cam.global_transform = at
 		var dropped := []
@@ -100,7 +121,7 @@ func _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not() -> void:
 	rig.right.tool = Hand.Tool.CAMERA
 	for i in PhotoTool.PREVIEW_EVERY:
 		await process_frame
-	var cam: Camera3D = tool._preview.get_child(0)
+	var cam: Camera3D = tool._previews[rig.right].get_child(0)
 	_check(rig.body.visible and cam.cull_mask & Rig.SELF_LAYER != 0, "the lens sees the avatar while the camera is held")
 	var seen: Vector3 = rig.body.bone("head") * (rig.body._model.get_meta("eyes") as Vector3)
 	_check(seen.distance_to(rig.head.global_position) < 0.001, "the avatar's eyes are at the player's head")
@@ -147,8 +168,8 @@ func _the_selfie_camera_looks_back_at_its_holder() -> void:
 	var to_head := (rig.head.global_position - lens.origin).normalized()
 	_check(to_head.dot(-lens.basis.z) > 0.8, "held out, its lens looks back at the holder's head: %.2f" % to_head.dot(-lens.basis.z))
 	_check(lens.basis.y.dot(rig.right.global_basis.y) > 0.999, "its view is upright as the camera is")
-	var cam: Camera3D = tool._preview.get_child(0)
-	_check(_screen_shows(tool) and cam.global_transform.is_equal_approx(lens), "its screen shows what its lens sees")
+	var cam: Camera3D = tool._previews[rig.right].get_child(0)
+	_check(_screen_shows(tool, rig.right) and cam.global_transform.is_equal_approx(lens), "its screen shows what its lens sees")
 	_check(rig.body.visible and cam.cull_mask & Rig.SELF_LAYER != 0 and cam.is_position_in_frustum(rig.body.bone("head").origin), "which is the holder's own avatar, head and all")
 	var near := []
 	for v: VisualInstance3D in rig.find_children("*", "VisualInstance3D", true, false):
@@ -159,11 +180,12 @@ func _the_selfie_camera_looks_back_at_its_holder() -> void:
 					near.append(v.name)
 					break
 	_check(near.is_empty(), "nothing on the controller lies in the lens's view: %s" % [near])
-	var screen := ToolModels.camera_screen()
+	var screen := PhotoTool.screen(rig.right, Hand.Tool.SELFIE)
 	_check(screen.uv1_scale.x == -1.0 and screen.uv1_offset.x == 1.0, "shown as a mirror would")
 	rig.right.tool = Hand.Tool.CAMERA
 	await process_frame
-	_check(screen.uv1_scale == Vector3.ONE and screen.uv1_offset == Vector3.ZERO, "and the camera's own screen is not mirrored")
+	screen = PhotoTool.screen(rig.right, Hand.Tool.CAMERA)
+	_check(_screen_shows(tool, rig.right) and screen.uv1_scale == Vector3.ONE and screen.uv1_offset == Vector3.ZERO, "and the camera's own screen is not mirrored")
 	rig.queue_free()
 	tool.queue_free()
 

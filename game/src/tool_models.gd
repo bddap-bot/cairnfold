@@ -32,7 +32,6 @@ const SEED_COLOURS: Array[Color] = [Color(0.93, 0.8, 0.5), Color(0.12, 0.11, 0.1
 static var _mats := {}
 static var _meshes := {}
 static var _stars := {}
-static var _camera_screen: StandardMaterial3D
 
 
 static func build(tool: Hand.Tool) -> Node3D:
@@ -369,12 +368,9 @@ static func _piece(root: Node3D, mesh: Mesh, at: Transform3D, mat: Material) -> 
 	return mi
 
 
-## The screen on the back of every camera model, one material PhotoTool shows the lens's view in.
-static func camera_screen() -> StandardMaterial3D:
-	if _camera_screen == null:
-		_camera_screen = StandardMaterial3D.new()
-		_camera_screen.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	return _camera_screen
+## The screen of a camera model built by `build`, its own material, which PhotoTool shows that camera's lens's view in.
+static func screen(camera: Node3D) -> StandardMaterial3D:
+	return (camera.get_node("Screen") as MeshInstance3D).material_override
 
 
 ## A small camera, its screen toward the eye and its lens along the controller's aim, or for a selfie beside the
@@ -425,9 +421,13 @@ static func _camera(root: Node3D, selfie: bool) -> void:
 	var quad := QuadMesh.new()
 	quad.size = size
 	var screen := MeshInstance3D.new()
+	screen.name = "Screen"
 	screen.mesh = quad
 	screen.position = Vector3(screen_x, 0.024, 0.0141)
-	screen.material_override = camera_screen()
+	var glow := StandardMaterial3D.new()
+	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	glow.albedo_color = PhotoTool.DARK
+	screen.material_override = glow
 	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	root.add_child(screen)
 

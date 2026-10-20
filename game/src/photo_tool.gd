@@ -12,7 +12,7 @@ extends Node3D
 ## the foliage's finest blobs. A view capture (Main.capture) is drawn as the eyes see it.
 
 const PREVIEW_SIZE := Vector2i(256, 192)
-## The preview redraws on one frame in this many, a third of the frames paying for a second, small view.
+## Each hand's preview redraws on one frame in this many, its own, so two cameras held never draw on one frame.
 const PREVIEW_EVERY := 3
 const PHOTO_SIZE := Vector2i(3200, 2400)
 const PHOTO_MSAA := Viewport.MSAA_8X
@@ -30,14 +30,14 @@ var flora: Flora
 ## Returns what a photo records of the garden around it: {"about": Dictionary, "world": World.snapshot or null}.
 var scene := func() -> Dictionary: return {"about": {}, "world": null}
 var _buttons: Array[Buttons] = []
-var _preview: SubViewport
+## Per hand that has held a camera, its preview's view.
+var _previews := {}
 var _photo: SubViewport
 var _view: SubViewport
 var _frame := 0
-var _shot_left := 0.0
+## Per hand, how much longer its screen holds the shot it took.
+var _shots := {}
 var _busy := false
-## The hand whose lens the screen shows: the last to shoot while it still holds a camera.
-var _eye: Hand
 ## Photo paths chosen but not yet written, so two quick shots never share one.
 var _reserved := {}
 
@@ -46,7 +46,6 @@ func _init(player: Rig) -> void:
 	rig = player
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["tool"]))
-	ToolModels.camera_screen().albedo_color = DARK
 
 
 func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:
@@ -97,36 +96,49 @@ func holders() -> Array[Hand]:
 
 func _process(delta: float) -> void:
 	var held := holders()
-	_shot_left = maxf(_shot_left - delta, 0.0)
-	var screen := ToolModels.camera_screen()
+	for h in _shots:
+		_shots[h] = maxf(_shots[h] - delta, 0.0)
 	if rig.body != null:
 		rig.body.visible = not held.is_empty()
-	if _shot_left == 0.0 and not _busy and _photo != null:
-		screen.albedo_texture = null
+	if _photo != null and not _busy and _shots.values().all(func(left: float) -> bool: return left == 0.0):
 		_photo.queue_free()
 		_photo = null
-	var eye: Hand = _eye if held.has(_eye) else null if held.is_empty() else held[0]
-	_mirror(screen, eye != null and eye.tool == Hand.Tool.SELFIE and _shot_left == 0.0)
-	if held.is_empty():
-		screen.albedo_texture = null
-		screen.albedo_color = DARK
-	elif _shot_left > 0.0:
-		screen.albedo_texture = _photo.get_texture()
-		screen.albedo_color = Color.WHITE.lerp(Color(2.5, 2.5, 2.5), clampf((_shot_left - SHOT_HOLD + 0.15) / 0.15, 0.0, 1.0))
-	else:
-		if _preview == null:
-			_preview = _viewport(PREVIEW_SIZE, Viewport.MSAA_DISABLED)
-		screen.albedo_texture = _preview.get_texture()
-		screen.albedo_color = Color.WHITE
-		_frame = (_frame + 1) % PREVIEW_EVERY
-		if _frame == 0:
-			_aim(_preview, lens(eye), FOV, Quality.VIEW_MASK)
-			_preview.render_target_update_mode = SubViewport.UPDATE_ONCE
+	_frame = (_frame + 1) % PREVIEW_EVERY
+	for i in rig.hands.size():
+		var h := rig.hands[i]
+		for t in CAMERAS:
+			if not held.has(h) or t != h.tool:
+				_show(screen(h, t), null, DARK, false)
+		if not held.has(h):
+			continue
+		var left: float = _shots.get(h, 0.0)
+		if left > 0.0 and _photo != null:
+			_show(screen(h, h.tool), _photo.get_texture(), Color.WHITE.lerp(Color(2.5, 2.5, 2.5), clampf((left - SHOT_HOLD + 0.15) / 0.15, 0.0, 1.0)), false)
+			continue
+		var preview: SubViewport = _previews.get(h)
+		if preview == null:
+			preview = _viewport(PREVIEW_SIZE, Viewport.MSAA_DISABLED)
+			_previews[h] = preview
+		_show(screen(h, h.tool), preview.get_texture(), Color.WHITE, h.tool == Hand.Tool.SELFIE)
+		if _frame == i:
+			_aim(preview, lens(h), FOV, Quality.VIEW_MASK)
+			preview.render_target_update_mode = SubViewport.UPDATE_ONCE
 	for h in held:
 		if _buttons[rig.hands.find(h)].pressed("tool") and not _busy:
 			shoot(h)
 	for b in _buttons:
 		b.latch()
+
+
+## The screen of `hand`'s camera model for `tool`.
+static func screen(hand: Hand, tool: Hand.Tool) -> StandardMaterial3D:
+	return ToolModels.screen(hand.model(tool))
+
+
+static func _show(on: StandardMaterial3D, tex: Texture2D, tint: Color, mirrored: bool) -> void:
+	on.albedo_texture = tex
+	on.albedo_color = tint
+	_mirror(on, mirrored)
 
 
 ## A selfie's screen shows the holder as a mirror would, so leaning left moves them left on it; the photo is not
@@ -169,14 +181,15 @@ func render_screen(at: Transform3D) -> Image:
 ## Takes a photo through the hand's lens and saves it; the screen holds the shot for a moment. Returns
 ## where it was saved, or "" if it could not be taken.
 func shoot(hand: Hand) -> String:
-	_eye = hand
 	var at := lens(hand)
 	Cues.play(Cues.Act.PHOTO, at.origin, hand)
 	var around: Dictionary = scene.call()
 	var img := await render(at, FOV, Quality.PHOTO_MASK)
 	if img == null:
 		return ""
-	_shot_left = SHOT_HOLD
+	for h in _shots:
+		_shots[h] = 0.0
+	_shots[hand] = SHOT_HOLD
 	DirAccess.make_dir_recursive_absolute(folder)
 	var stamp := Time.get_datetime_string_from_system().replace(":", "-")
 	var path := folder.path_join(stamp + ".png")
