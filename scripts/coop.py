@@ -317,6 +317,8 @@ def run(out, count, spawn=False, capture=False):
                 launch(name, port)
         until(lambda: all(p.poll() is not None for p in processes.values()))
         check()
+        if not spawn:
+            print("ok: inventory-wheel avatar selection is visible to every peer", flush=True)
     finally:
         for proc in processes.values():
             if proc.poll() is None:
