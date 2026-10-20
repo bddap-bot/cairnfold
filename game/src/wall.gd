@@ -185,9 +185,9 @@ func add_roof(r: RoofLayout) -> void:
 ## The wall as a build command carries it.
 func data() -> Dictionary:
 	var d := {
-		"points": PackedVector3Array(layout.points), "height": layout.height, "rise": layout.rise, "arches": PackedFloat32Array(layout.arches),
+		"points": PackedVector3Array(layout.points), "height": layout.height, "rise": layout.rise,
 		"seed": layout.seed, "closed": layout.closed, "top": int(layout.top), "fence": layout.fence,
-		"windows": PackedVector2Array(layout.windows), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags),
+		"openings": PackedVector3Array(layout.openings), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags),
 		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "gable_end": int(layout.gable_end), "timber_style": layout.timber_style, "storey_floors": layout.storey_floors, "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
 	}
 	if roof != null:
@@ -200,7 +200,6 @@ func set_data(d: Dictionary) -> void:
 	layout.points.assign(Array(d.points))
 	layout.height = d.height
 	layout.rise = d.rise
-	layout.arches.assign(Array(d.arches))
 	layout.seed = d.seed
 	layout.closed = d.closed
 	layout.top = d.top as WallLayout.Top
@@ -209,7 +208,7 @@ func set_data(d: Dictionary) -> void:
 	layout.timber_style = d.timber_style
 	layout.storey_floors = d.storey_floors
 	layout.gable_end = d.gable_end as WallLayout.GableEnd
-	layout.windows.assign(Array(d.windows))
+	layout.openings.assign(Array(d.openings))
 	layout.lanterns.assign(Array(d.lanterns))
 	layout.flags.assign(Array(d.flags))
 	layout.ruins.assign(Array(d.ruins))

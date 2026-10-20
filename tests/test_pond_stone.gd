@@ -99,7 +99,7 @@ func _a_wall_drawn_across_a_pond_arches_over_it() -> void:
 	var mid := l.closest_s(Vector3(31.2, 0, 30))
 	_check(absf(l.point_at(mid).y - (pond.pond.level - 0.12)) < 0.02, "over the water it stands at the surface")
 	_check(l.depth_at(mid) > 0.3, "with the bed %.2f m below its foot" % l.depth_at(mid))
-	_check(not l.live_arches.is_empty() and l.live_arches.all(func(a): return main.water.pond_at(l.point_at(a).x, l.point_at(a).z) != null), "arches open over the water: %s" % [l.live_arches])
+	_check(not l.archways().is_empty() and l.archways().all(func(a): return main.water.pond_at(l.point_at(a).x, l.point_at(a).z) != null), "arches open over the water: %s" % [l.archways()])
 	_check(l.stones.any(func(st): return st.y < -0.3), "stones reach down into the pond")
 	world.undo()
 	await _settle()
@@ -115,7 +115,7 @@ func _a_pond_dug_under_a_wall_opens_its_arches() -> void:
 	_check(not w.layout.stones.any(func(st): return st.y < 0.0), "on dry ground nothing lies under its foot")
 	await _dig(-31.5, -30)
 	_check(main.water.pond_at(-30.5, -30) != null, "a pond under the wall")
-	_check(w.layout.live_arches.any(func(a): return absf(a - w.layout.closest_s(Vector3(-30.5, 0, -30))) < 2.0), "the water under it opens an arch: %s" % [w.layout.live_arches])
+	_check(w.layout.archways().any(func(a): return absf(a - w.layout.closest_s(Vector3(-30.5, 0, -30))) < 2.0), "the water under it opens an arch: %s" % [w.layout.archways()])
 	_check(w.layout.stones.any(func(st): return st.y < -0.3), "and its stones reach the bed")
 	for step in 4:
 		world.undo()

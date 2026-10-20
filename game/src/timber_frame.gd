@@ -30,12 +30,9 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 		var holes: Array[Rect2] = []
 		var clearance := WIDTH * 0.72 + 0.01
 		var frames: Array[Rect2] = []
-		for o in w.openings:
+		for o in w.apertures:
 			if o.s > lo and o.s < hi:
 				frames.append(Rect2(o.s - o.half, o.sill, o.half * 2.0, o.head - o.sill))
-		for a in w.live_arches:
-			if a > lo and a < hi:
-				frames.append(Rect2(a - WallLayout.ARCH_HALF, 0, WallLayout.ARCH_HALF * 2.0, w.spring() + w.arch_rise(0.0) + w.arch_style().ring))
 		for f in frames:
 			holes.append(f.grow(clearance))
 			xs.append(f.position.x - clearance)
@@ -159,20 +156,14 @@ static func count(d: Dictionary) -> int:
 	w.timber_style = d.timber_style
 	w.gable_end = d.gable_end
 	w.resample(func(_x: float, _z: float) -> float: return 0.0)
-	var arches: Array = Array(d.arches)
-	arches.sort()
-	for a: float in arches:
-		if w.can_arch() and w.fits_arch(a, w.live_arches):
-			w.live_arches.append(a)
-	var windows: Array[Vector2] = []
-	windows.assign(Array(d.windows))
-	w.openings = w.openings_for(windows)
+	w.openings.assign(Array(d.openings))
+	w.apertures = w.openings_for(w.openings)
 	if d.has("roof"):
 		w.cover = WallLayout.Cover.ROOF
 		w.gable = RoofLayout.new()
 		w.gable.kind = d.roof.kind
 		w.gable.pitch = d.roof.pitch
 		w.gable.curve = d.roof.curve
-	for a in w.live_arches:
+	for a in w.archways():
 		w._lay_arch(a, RandomNumberGenerator.new(), 0.0)
 	return generate(w).size() + w.stones.filter(func(s: Dictionary) -> bool: return s.kind == "timber").size()

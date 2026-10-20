@@ -111,19 +111,19 @@ func _capture(name: String, eye: Vector3, dir: Vector3, at: Vector3) -> void:
 
 
 func _other_fittings(w: Wall) -> void:
-	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"windows": PackedVector2Array([Vector2(8, 1.5)]), "roof": {"chimneys": PackedVector2Array([Vector2(0, 1)])}}})
+	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"openings": PackedVector3Array([Vector3(8, 1.5, 0)]), "roof": {"chimneys": PackedVector2Array([Vector2(0, 1)])}}})
 	w.lay_now()
-	await _takes_kind(w, "window")
+	await _takes_kind(w, "opening")
 	await _takes_kind(w, "chimney")
 	var d := Driver.new(main, [{"op": "wall", "points": [[-10, -8], [-2, -8]], "seconds": 0.2}])
 	main.add_child(d)
 	await d.finished
 	d.queue_free()
 	var wall: Wall = main.tool.walls[-1]
-	main.world.submit({"op": "reshape", "of": "walls", "id": wall.id, "data": {"flags": PackedFloat32Array([2]), "arches": PackedFloat32Array([5])}})
+	main.world.submit({"op": "reshape", "of": "walls", "id": wall.id, "data": {"flags": PackedFloat32Array([2]), "openings": PackedVector3Array([5].map(WallLayout.archway))}})
 	wall.lay_now()
 	await _takes_kind(wall, "flag")
-	await _takes_kind(wall, "arch")
+	await _takes_kind(wall, "opening")
 	d = Driver.new(main, [{"op": "house", "at": [10, 6], "size": [4, 4], "round": true, "seconds": 0.2}])
 	main.add_child(d)
 	await d.finished
@@ -161,7 +161,7 @@ func _takes_kind(w: Wall, kind: String) -> void:
 	if ray == Vector3.ZERO:
 		return
 	var before: Dictionary = main.world.state.walls[w.id].duplicate(true)
-	var placement: Dictionary = main.fitting_tool.aim(Hand.Tool.WINDOWS if kind == "window" else (Hand.Tool.ARCH if kind == "arch" else Hand.Tool.DECORATIONS), origin, ray)
+	var placement: Dictionary = main.fitting_tool.aim(Hand.Tool.WINDOWS if kind == "opening" else Hand.Tool.DECORATIONS, origin, ray)
 	_check(placement.get("what") == kind and placement.get("fitting", false), "placement and delete share " + kind + " identity")
 	tool.press(self, origin, ray)
 	tool.hold(self, origin, ray)

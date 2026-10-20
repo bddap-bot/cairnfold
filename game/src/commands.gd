@@ -15,7 +15,6 @@ const MAX_BATCH := 128
 const MAX_PIECES := 8
 const MAX_POINTS := 256
 const MAX_PATH_POINTS := 2048
-const MAX_ARCHES := 16
 const MAX_DABS := 2000
 const MAX_STROKE := 4000
 const MIN_ROOF_RADIUS := 0.5
@@ -37,7 +36,7 @@ const MAX_SUPPORTS := 8
 ## What a `reshape` may change, by the garden's table of the builds it changes; `paint` and a wall's `roof` change
 ## by the entries they name.
 const RESHAPES := {
-	"walls": ["points", "height", "rise", "top", "plaster", "gable_end", "timber_style", "storey_floors", "arches", "windows", "lanterns", "flags", "ruins"],
+	"walls": ["points", "height", "rise", "top", "plaster", "gable_end", "timber_style", "storey_floors", "openings", "lanterns", "flags", "ruins"],
 	"stairs": ["rail"],
 	"boulders": ["scale"],
 }
@@ -306,10 +305,7 @@ static func _wall(d: Variant) -> Variant:
 	if not d is Dictionary:
 		return null
 	var points: Variant = d.get("points")
-	var arches: Variant = d.get("arches")
 	if typeof(points) != TYPE_PACKED_VECTOR3_ARRAY or points.size() < 2 or points.size() > MAX_POINTS or not Array(points).all(_finite) or length(points) > MAX_LENGTH:
-		return null
-	if typeof(arches) != TYPE_PACKED_FLOAT32_ARRAY or arches.size() > MAX_ARCHES or not Array(arches).all(func(a: float) -> bool: return is_finite(a) and a >= 0.0 and a < 4000.0):
 		return null
 	if not _at_least(d.get("height"), WallLayout.MIN_HEIGHT) or typeof(d.get("seed")) != TYPE_INT or typeof(d.get("closed")) != TYPE_BOOL:
 		return null
@@ -333,16 +329,16 @@ static func _wall(d: Variant) -> Variant:
 	var gable_end: Variant = d.get("gable_end")
 	if typeof(gable_end) != TYPE_INT or gable_end < 0 or gable_end >= WallLayout.GableEnd.size():
 		return null
-	var windows: Variant = d.get("windows")
+	var openings: Variant = d.get("openings")
 	var lanterns: Variant = d.get("lanterns")
 	var flags: Variant = d.get("flags")
-	if typeof(windows) != TYPE_PACKED_VECTOR2_ARRAY or windows.size() > MAX_FITTINGS or not Array(windows).all(func(w: Vector2) -> bool: return w.is_finite() and w.x >= 0.0 and w.x < 4000.0 and w.y >= 0.0):
+	if typeof(openings) != TYPE_PACKED_VECTOR3_ARRAY or openings.size() > MAX_FITTINGS or not Array(openings).all(func(w: Vector3) -> bool: return w.is_finite() and w.x >= 0.0 and w.x < 4000.0 and w.y >= 0.0 and (w.z == WallLayout.DoorStyle.PLAIN or w.z == WallLayout.DoorStyle.ARCHWAY)):
 		return null
 	if typeof(lanterns) != TYPE_PACKED_VECTOR3_ARRAY or lanterns.size() > MAX_FITTINGS or not Array(lanterns).all(func(l: Vector3) -> bool: return l.is_finite() and l.x >= 0.0 and l.x < 4000.0 and l.y >= 0.0 and absf(l.z) == 1.0):
 		return null
 	if typeof(flags) != TYPE_PACKED_FLOAT32_ARRAY or flags.size() > MAX_FITTINGS or not Array(flags).all(func(f: float) -> bool: return is_finite(f) and f >= 0.0 and f < 4000.0):
 		return null
-	if d.fence and not (windows.is_empty() and flags.is_empty()):
+	if d.fence and not (Array(openings).all(func(o): return o.z == WallLayout.DoorStyle.ARCHWAY) and flags.is_empty()):
 		return null
 	var ruins: Variant = d.get("ruins")
 	if typeof(ruins) != TYPE_PACKED_VECTOR2_ARRAY or ruins.size() > MAX_RUINS or not Array(ruins).all(func(r: Vector2) -> bool: return r.is_finite() and r.x >= 0.0 and r.y > r.x and r.y < 4000.0):
@@ -355,7 +351,7 @@ static func _wall(d: Variant) -> Variant:
 	var paint: Variant = d.get("paint")
 	if not Palette.valid(paint):
 		return null
-	var out := {"points": points, "height": d.height, "rise": rise, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "gable_end": gable_end, "timber_style": timber_style, "storey_floors": d.storey_floors, "on": on, "paint": paint}
+	var out := {"points": points, "height": d.height, "rise": rise, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "openings": openings, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "gable_end": gable_end, "timber_style": timber_style, "storey_floors": d.storey_floors, "on": on, "paint": paint}
 	if d.has("roof"):
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():

@@ -214,14 +214,14 @@ func _a_wall_stops_a_hand_that_catches_up_when_it_comes_back(wall: Wall) -> void
 
 
 func _a_hand_reaches_through_an_arch(wall: Wall) -> void:
-	main.fitting_tool.fit({"what": "arch", "wall": wall, "s": 3.0})
+	main.fitting_tool.fit({"what": "opening", "style": WallLayout.DoorStyle.ARCHWAY, "y": 0.0, "wall": wall, "s": 3.0})
 	await _frames(2)
 	wall.lay_now()
 	await _frames(2)
-	_check(not wall.layout.live_arches.is_empty(), "the wall opened an arch")
-	if wall.layout.live_arches.is_empty():
+	_check(not wall.layout.archways().is_empty(), "the wall opened an arch")
+	if wall.layout.archways().is_empty():
 		return
-	var s: float = wall.layout.live_arches[0]
+	var s: float = wall.layout.archways()[0]
 	var p := wall.layout.point_at(s)
 	var y := p.y + WallLayout.SINK + 0.6
 	await _hold(Vector3(p.x, y, -4.8))

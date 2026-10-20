@@ -48,7 +48,7 @@ func _wall(length: float, height: float, arches: Array[float]) -> WallLayout:
 	var w := WallLayout.new()
 	w.points = [Vector3(0, 0, 0), Vector3(length, 0, 0)]
 	w.height = height
-	w.arches = arches
+	w.openings.append_array(arches.map(WallLayout.archway))
 	w.build(_flat)
 	return w
 
@@ -96,7 +96,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 					w.closed = true
 				else:
 					w.points = [Vector3(0, 0, 0), Vector3(stretch, 0, 0)]
-				w.arches = [stretch * 0.5]
+				w.openings.assign([stretch * 0.5].map(WallLayout.archway))
 				w.plaster = style != "stone"
 				w.timber_style = 0 if style == "timber" else -1
 				w.height = height
@@ -107,14 +107,14 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 	arc.height = 3.0
 	arc.plaster = true
 	arc.build(_flat)
-	arc.arches.assign([arc.length() * 0.5])
+	arc.openings.assign([arc.length() * 0.5].map(WallLayout.archway))
 	walls.append(arc)
 	for w in walls:
 		w.build(_flat)
-		_check(w.live_arches.size() == 1, "%s wall %.1f m high opens its arch" % [w.arch_style().name, w.height])
-		if w.live_arches.is_empty():
+		_check(w.archways().size() == 1, "%s wall %.1f m high opens its arch" % [w.arch_style().name, w.height])
+		if w.archways().is_empty():
 			continue
-		var a: float = w.live_arches[0]
+		var a: float = w.archways()[0]
 		var gaps := []
 		var blocked := []
 		var y := 0.05
@@ -142,6 +142,31 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 		if w.arch_style().name == "timber":
 			_check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind in ["voussoir", "keystone"]), "%s: no stone in a timber frame's arch" % name)
 
+		if w.height < WallLayout.DOOR_TALL + w.course_height() * 1.4:
+			continue
+		var door := w.inputs()
+		door.openings = [Vector3(a, 0.0, WallLayout.DoorStyle.PLAIN)]
+		door.build(_flat)
+		_check(door.apertures.size() == 1 and door.apertures[0].door, "%s: the same opening list takes a door" % name)
+		if door.apertures.is_empty():
+			continue
+		var o := door.apertures[0]
+		gaps.clear()
+		y = 0.05
+		while y < door.height - 0.05:
+			var d := -1.6
+			while d <= 1.6:
+				# The jamb exposes course joints; above the lintel the wall must cover the whole band.
+				if absf(d) > o.half + WallLayout.JOINT + 0.03 or y > o.head + door.course_height() + 0.03:
+					var p: Vector3 = door.frame_at(a + d).point + Vector3.UP * y
+					if not door.stones.any(func(st: Dictionary) -> bool:
+						var q: Vector3 = st.xform.affine_inverse() * p
+						return absf(q.x) <= 0.5 and absf(q.y) <= 0.5 and absf(q.z) <= 0.5):
+						gaps.append(Vector2(d, y))
+				d += 0.04
+			y += 0.04
+		_check(gaps.is_empty(), "%s: gaps between door and wall at %s" % [name, gaps.slice(0, 8)])
+
 
 func _short_or_low_walls_take_no_arch() -> void:
 	_check(_wall(1.5, 2.7, [0.75]).stones.all(func(s): return s.kind != "voussoir"), "a 1.5 m wall has no room for an arch")
@@ -166,8 +191,8 @@ func _a_copy_built_elsewhere_lays_the_same_stones() -> void:
 	loop.top = WallLayout.Top.CAP
 	loop.cover = WallLayout.Cover.ROOF
 	loop.seed = 9
-	loop.arches.assign([16.1])
-	loop.windows.assign([Vector2(2.2, 1.4)])
+	loop.openings.assign([16.1].map(WallLayout.archway))
+	loop.openings.append_array([Vector3(2.2, 1.4, 0)])
 	loop.lanterns.assign([Vector3(7.0, 1.8, 1.0)])
 	var flagged := WallLayout.new()
 	flagged.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
@@ -181,12 +206,12 @@ func _a_copy_built_elsewhere_lays_the_same_stones() -> void:
 		copy.build(_flat)
 		var b := WallLayout.new()
 		b.adopt(copy)
-		_check(b.stones.size() == a.stones.size() and b.live_arches == a.live_arches and b.samples == a.samples and b.openings.size() == a.openings.size() and b.flames == a.flames and b.cloths.size() == a.cloths.size(), "a copy's build matches: %d vs %d stones" % [b.stones.size(), a.stones.size()])
+		_check(b.stones.size() == a.stones.size() and b.archways() == a.archways() and b.samples == a.samples and b.apertures.size() == a.apertures.size() and b.flames == a.flames and b.cloths.size() == a.cloths.size(), "a copy's build matches: %d vs %d stones" % [b.stones.size(), a.stones.size()])
 		for i in mini(a.stones.size(), b.stones.size()):
 			if not a.stones[i].xform.is_equal_approx(b.stones[i].xform) or a.stones[i].kind != b.stones[i].kind:
 				_check(false, "stone %d differs in the copy's build" % i)
 				break
-	_check(loop.live_arches.size() == 1 and not loop.openings.is_empty() and not loop.flames.is_empty(), "the loop opens its arch and window and hangs its lantern")
+	_check(loop.archways().size() == 1 and not loop.apertures.is_empty() and not loop.flames.is_empty(), "the loop opens its arch and window and hangs its lantern")
 	_check(not flagged.cloths.is_empty(), "the flag flies")
 
 
@@ -401,20 +426,20 @@ func _a_wall_over_water_stands_on_its_bed() -> void:
 	var w := _wet(6.0, 2.6)
 	_check(absf(w.point_at(6.0).y - (0.0 - 0.12)) < 1e-3, "over water the foot is at the surface, %f" % w.point_at(6.0).y)
 	_check(absf(w.depth_at(6.0) - 0.88) < 1e-3 and w.depth_at(1.0) == 0.0, "the bed lies 0.88 m under the foot there, none on the bank")
-	_check(w.live_arches.size() >= 2 and w.live_arches.all(func(a): return a > 3.0 and a < 9.0), "the crossing opens an arcade over the water: %s" % [w.live_arches])
+	_check(w.archways().size() >= 2 and w.archways().all(func(a): return a > 3.0 and a < 9.0), "the crossing opens an arcade over the water: %s" % [w.archways()])
 	var bays := w.pillars()
-	_check(bays.size() == w.live_arches.size() - 1, "pillars between its arches")
+	_check(bays.size() == w.archways().size() - 1, "pillars between its arches")
 	for b in bays:
 		var lowest := INF
 		for st in w.stones:
 			if st.kind == "pillar" and absf(st.s - b.s) < 0.01:
 				lowest = minf(lowest, st.y - st.size.y * 0.5)
 		_check(absf(lowest + 0.88) < 0.02, "a pillar stands on the bed, its foot %f" % lowest)
-	for a in w.live_arches:
+	for a in w.archways():
 		_check(not w.stones.any(func(st): return st.kind in ["block", "pillar", "mortar"] and absf(st.s - a) < WallLayout.ARCH_HALF - 0.1 and st.y < w.spring()), "water flows under the arch at %f" % a)
 	var footing := w.stones.filter(func(st): return st.y < 0.0)
 	_check(not footing.is_empty() and footing.all(func(st): return st.s > 2.5 and st.s < 9.5), "stones under the foot only over the water")
-	_check(w.live_arches.size() == 3 and w.live_arches[-1] - w.live_arches[0] + WallLayout.ARCH_HALF * 2.0 > 5.5, "the arcade spans the water: %s" % [w.live_arches])
+	_check(w.archways().size() == 3 and w.archways()[-1] - w.archways()[0] + WallLayout.ARCH_HALF * 2.0 > 5.5, "the arcade spans the water: %s" % [w.archways()])
 	var dry := _wall(12.0, 2.6, [])
 	_check(dry.depths.size() == dry.samples.size() and not dry.stones.any(func(st): return st.y < 0.0), "a wall on dry ground lays nothing under its foot")
 	var again := WallLayout.new()
@@ -425,13 +450,13 @@ func _a_wall_over_water_stands_on_its_bed() -> void:
 
 func _a_narrow_crossing_takes_one_arch() -> void:
 	var w := _wet(1.8, 2.6)
-	_check(w.live_arches.size() == 1 and absf(w.live_arches[0] - 6.0) < 0.3, "a narrow pond takes one arch at its middle: %s" % [w.live_arches])
+	_check(w.archways().size() == 1 and absf(w.archways()[0] - 6.0) < 0.3, "a narrow pond takes one arch at its middle: %s" % [w.archways()])
 	_check(w.pillars().is_empty(), "and no pillars")
 
 
 func _a_low_wall_crosses_as_a_causeway() -> void:
 	var w := _wet(6.0, 1.2)
-	_check(w.live_arches.is_empty(), "a wall too low to arch opens none")
+	_check(w.archways().is_empty(), "a wall too low to arch opens none")
 	var under := w.stones.filter(func(st): return st.kind == "block" and st.y < 0.0)
 	var covered := 0.0
 	for st in under:
@@ -442,7 +467,8 @@ func _a_low_wall_crosses_as_a_causeway() -> void:
 
 func _ducks_pass_only_under_arches() -> void:
 	var w := _wet(6.0, 2.6)
-	var a: float = w.live_arches[0]
+	var a: float = w.archways()[0]
+	_check(not w.opening_fits(Vector3(a, 1.5, WallLayout.DoorStyle.PLAIN), w.openings), "placement respects the water opening it previews")
 	var x := w.point_at(a).x
 	_check(not w.blocks_swim(Vector2(x, -2), Vector2(x, 2)), "a duck swims under an arch")
 	var pillar: float = w.pillars()[0].s
@@ -468,10 +494,10 @@ func _ducks_pass_only_under_arches() -> void:
 func _a_path_arch_beside_a_pond_stays_open() -> void:
 	var w := WallLayout.new()
 	w.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
-	w.arches = [2.6]
+	w.openings.assign([2.6].map(WallLayout.archway))
 	w.build(_bowl, _surface)
-	_check(w.live_arches.has(2.6), "a path's arch beside the water stays open: %s" % [w.live_arches])
-	_check(w.live_arches.size() >= 3, "and arches still cross the water")
+	_check(w.archways().any(func(a): return is_equal_approx(a, 2.6)), "a path's arch beside the water stays open: %s" % [w.archways()])
+	_check(w.archways().size() >= 3, "and arches still cross the water")
 
 
 func _water_leaves_the_dry_stones_as_they_were() -> void:
@@ -522,9 +548,9 @@ func _mortar_stops_short_of_a_doorway_and_the_ends() -> void:
 	var w := WallLayout.new()
 	w.points = [Vector3(0, 0, 0), Vector3(9, 0, 0)]
 	w.height = 3.0
-	w.windows = [Vector2(3.0, 0.3)]
+	w.openings = [Vector3(3.0, 0.3, 0)]
 	w.build(_flat)
-	var o: Dictionary = w.openings[0]
+	var o: Dictionary = w.apertures[0]
 	var reach := WallLayout.JOINT - 0.001
 	var bad := []
 	for m in w.stones.filter(func(s): return s.kind == "mortar"):

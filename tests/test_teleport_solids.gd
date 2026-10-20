@@ -38,7 +38,7 @@ func _pose(origin: Vector3, dir: Vector3) -> Transform3D:
 
 
 func _wall_data(points: PackedVector3Array) -> Dictionary:
-	return {"points": points, "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
+	return {"points": points, "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector3Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
 
 
 ## Aims at `at` from `from`, lands, and checks the player stands upright where the ray hit, on `surface`'s height.
@@ -103,7 +103,7 @@ func _onto_a_raised_floor(rig: Rig, world: World) -> void:
 	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(30, 30), Terrain.ground(36, 30), 4.0)))
 	d.closed = true
 	d.rise = 1.5
-	d.arches = PackedFloat32Array([3.0])
+	d.openings = PackedVector3Array([3.0].map(WallLayout.archway))
 	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(33, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "flag": false, "thatch": false}
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var w: Wall = main.tool.walls[-1]

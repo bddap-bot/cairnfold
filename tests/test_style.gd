@@ -130,28 +130,28 @@ func _floors_turn_to_every_storey() -> void:
 ## neither cuts an opening nor fills the arch standing.
 func _faces_cut_no_opening() -> void:
 	var open := _wall_data(PackedVector3Array([Terrain.ground(-30, 20), Terrain.ground(-22, 20)]))
-	open.arches = PackedFloat32Array([2.0])
+	open.openings = PackedVector3Array([2.0].map(WallLayout.archway))
 	var house := _wall_data(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
 	house.closed = true
 	world._order({"op": "wall", "walls": [open, house]}, 1)
 	var picker: PaletteTool = main.palette_tool
 	_check(world.state.walls.size() == 2, "an open wall and a house stand")
 	for id: int in world.state.walls:
-		var before := PackedFloat32Array(world.state.walls[id].arches)
+		var before := PackedVector3Array(world.state.walls[id].openings)
 		var wall: Wall = main.tool.find(id)
 		for at in [0.5, 2.0, 5.0]:
 			var target := picker.style_target(PaletteTool.Restyle.FACE, wall, wall.layout.point_at(at))
 			for pick in target.count:
 				picker.open(main.rig.right, target)
 				picker.twist(main.rig.right, (pick - picker.wheels[main.rig.right].start) * Palette.TWIST_STEP)
-				_check(PackedFloat32Array(wall.layout.arches) == before, "face %d shown at %.1f m keeps the arches: %s" % [pick, at, wall.layout.arches])
+				_check(PackedVector3Array(wall.layout.openings) == before, "face %d shown at %.1f m keeps the arches: %s" % [pick, at, wall.layout.openings])
 				picker.close(main.rig.right)
-				_check(PackedFloat32Array(world.state.walls[id].arches) == before, "face %d sent at %.1f m keeps the arches: %s" % [pick, at, world.state.walls[id].arches])
+				_check(PackedVector3Array(world.state.walls[id].openings) == before, "face %d sent at %.1f m keeps the arches: %s" % [pick, at, world.state.walls[id].openings])
 	world.restore({"seq": 0, "cmds": []})
 
 
 func _wall_data(points: PackedVector3Array) -> Dictionary:
-	return {"points": points, "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
+	return {"points": points, "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector3Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
 
 
 ## A planted tree grows an oak; the style tool aimed at it offers each species and turns it to one through the host,

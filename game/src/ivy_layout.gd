@@ -66,14 +66,12 @@ static func bake(wall: WallLayout) -> Dictionary:
 static func blocked(wall: WallLayout, s: float, y: float) -> bool:
 	if y > wall.standing(s) - 0.2:
 		return true
-	for o in wall.openings:
-		if absf(wall.offset(s, o.s)) < o.half + WallLayout.LINTEL_EAR + MARGIN and y > o.sill - 0.15 - MARGIN and y < o.head + wall.course_height() + MARGIN:
-			return true
-	var w := wall.opening(y, true)
-	if w <= 0.0:
-		return false
-	for a in wall.live_arches:
-		if absf(wall.offset(s, a)) < w + MARGIN:
+	for o in wall.apertures:
+		if o.style == WallLayout.DoorStyle.ARCHWAY:
+			var half := wall.opening(y, true)
+			if half > 0.0 and absf(wall.offset(s, o.s)) < half + MARGIN:
+				return true
+		elif absf(wall.offset(s, o.s)) < o.half + WallLayout.LINTEL_EAR + MARGIN and y > o.sill - 0.15 - MARGIN and y < o.head + wall.course_height() + MARGIN:
 			return true
 	return false
 
@@ -110,7 +108,7 @@ static func _root(wall: WallLayout, s: float) -> float:
 
 static func _nearest_opening(wall: WallLayout, s: float) -> float:
 	var best := INF
-	for a in wall.live_arches + wall.openings.map(func(o): return o.s):
+	for a in wall.apertures.map(func(o): return o.s):
 		if best == INF or absf(wall.offset(a, s)) < absf(wall.offset(best, s)):
 			best = a
 	return best

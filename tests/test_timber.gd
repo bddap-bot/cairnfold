@@ -16,7 +16,7 @@ func _init() -> void:
 	wall.layout.closed = true
 	wall.layout.plaster = true
 	wall.layout.height = 4.5
-	wall.layout.windows = [Vector2(1.8, 1.5), Vector2(5, 0.4), Vector2(9.5, 1.5), Vector2(14, 3), Vector2(14.7, 3)]
+	wall.layout.openings = [Vector3(1.8, 1.5, 0), Vector3(5, 0.4, 0), Vector3(9.5, 1.5, 0), Vector3(14, 3, 0), Vector3(14.7, 3, 0)]
 	wall.roof = RoofLayout.new()
 	var original := wall.data()
 	for size in [Vector2(7, 5), Vector2(12, 4), Vector2(4, 9)]:
@@ -42,7 +42,7 @@ func _init() -> void:
 		_check(copy.stones == w.stones, "layout and colour deterministic")
 		for c in w.corners():
 			_check(parts.any(func(p): return absf(absf(w.offset(p.beam.a.x, c)) - 0.23) < 0.001 and is_equal_approx(p.beam.a.x, p.beam.b.x) and p.beam.a.y < 0.5 and p.beam.b.y > w.height), "full-height corner post survives resize")
-		for o in w.openings:
+		for o in w.apertures:
 			for sign_x in [-1, 1]:
 				_check(parts.any(func(p): return absf(p.s - (o.s + sign_x * (o.half + 0.1252))) < 0.01 and absf(p.xform.basis.x.normalized().y) > 0.99), "opening jamb stud follows resized opening")
 			for y: float in [o.head + 0.1252, o.sill - 0.1252]:

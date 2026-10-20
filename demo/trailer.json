@@ -34,7 +34,7 @@
   {"op": "view", "eye": [10.5, 2.0, 2.5], "at": [12, 1.5, -5.5]},
   {"op": "glide", "eye": [9.2, 2.2, 1.8], "at": [12, 1.8, -5.5], "seconds": 4.5, "background": true},
   {"op": "house", "from": [10.5, -3], "at": [12, -5.5], "size": [6, 3.6], "turn": 15, "turn_from": -10, "seconds": 1.8},
-  {"op": "fit", "what": "window", "index": -1, "s": 2.0, "y": 1.4},
+  {"op": "fit", "what": "opening", "index": -1, "s": 2.0, "y": 1.4},
   {"op": "fit", "what": "chimney", "index": -1, "at": [1.0, 0.5]},
   {"op": "wait", "seconds": 2},
   {"op": "view", "eye": [-2, 0.9, 9.5], "at": [1, 0.4, 4]},

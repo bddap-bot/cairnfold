@@ -45,7 +45,7 @@ func _line(a: Vector2, b: Vector2) -> Array[Vector3]:
 func _standing(arches: Array[float] = []) -> Array[WallLayout]:
 	var w := WallLayout.new()
 	w.points = _line(Vector2(-6, 0), Vector2(6, 0))
-	w.arches = arches
+	w.openings.append_array(arches.map(WallLayout.archway))
 	w.build(_flat)
 	return [w]
 
@@ -99,16 +99,16 @@ func _a_wall_arches_over_a_plant() -> void:
 	var got := _plan(Vector2(-3, 6), Vector2(3, 6), PackedVector3Array([Vector3(-1.2, 0, 6.2)]))
 	for w in got:
 		w.build(_flat)
-	_check(got.size() == 1 and got[0].arches.size() == 1, "a wall over a bush has one arch")
-	if got.size() == 1 and got[0].arches.size() == 1:
-		_check(absf(got[0].point_at(got[0].arches[0]).x + 1.2) < 0.25, "the arch stands over the bush")
-		_check(got[0].live_arches == got[0].arches, "and the layout opens it")
+	_check(got.size() == 1 and got[0].openings.size() == 1, "a wall over a bush has one arch")
+	if got.size() == 1 and got[0].openings.size() == 1:
+		_check(absf(got[0].point_at(got[0].openings[0].x).x + 1.2) < 0.25, "the arch stands over the bush")
+		_check(got[0].archways() == got[0].openings.map(func(o): return o.x), "and the layout opens it")
 
 
 func _a_wall_over_open_ground_stays_solid() -> void:
 	for length in [3.0, 5.0, 8.0, 27.0, 120.0]:
 		var got := _plan(Vector2(-length * 0.5, 6), Vector2(length * 0.5, 6))
-		_check(got.size() == 1 and got[0].arches.is_empty(), "a %s m wall over open ground stays solid" % length)
+		_check(got.size() == 1 and got[0].openings.is_empty(), "a %s m wall over open ground stays solid" % length)
 
 
 func _a_short_wall_can_meet_another() -> void:
@@ -165,8 +165,8 @@ func _a_merged_stroke_wavering_past_reach_stays_merged() -> void:
 func _a_junction_among_crowded_arches_takes_the_widest_pier() -> void:
 	var w := WallLayout.new()
 	w.points = _line(Vector2(0, 0), Vector2(5.4, 0))
-	w.arches = [1.4, 3.94]
+	w.openings.assign([1.4, 3.94].map(WallLayout.archway))
 	w.build(_flat)
-	_check(w.live_arches.size() == 2, "a 5.4 m wall opens both arches")
+	_check(w.archways().size() == 2, "a 5.4 m wall opens both arches")
 	var s := WallPlan._clear_of_arches(w, 1.5)
 	_check(absf(s - 1.4) > 0.9 and absf(s - 3.94) > 0.9, "with no clear spot the junction stands off both arches, at s=%.2f" % s)

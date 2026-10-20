@@ -112,15 +112,15 @@ func _flat_roof_growth_keeps_slabs() -> void:
 
 func _openings_keep_their_courses() -> void:
 	var w := _wall(8.0, 3.0)
-	w.arches = [2.0]
-	w.windows = [Vector2(5.5, 1.65)]
+	w.openings.assign([2.0].map(WallLayout.archway))
+	w.openings.append_array([Vector3(5.5, 1.65, 0)])
 	w.build(func(_x, _z): return 0.0)
-	var opening := w.openings.duplicate(true)
+	var opening := w.apertures.duplicate(true)
 	var ring := w.stones.filter(func(s): return s.kind == "voussoir" or s.kind == "keystone")
 	w.height = 3.15
 	w.points[1].x = 8.2
 	w.build(func(_x, _z): return 0.0)
-	_check(w.openings == opening, "a window stays on its course when the wall grows")
+	_check(w.apertures == opening, "a window stays on its course when the wall grows")
 	for stone in ring:
 		_check(w.stones.any(func(s): return s.kind == stone.kind and s.color == stone.color and s.variant == stone.variant and s.xform.is_equal_approx(stone.xform)), "growth elsewhere cannot reshuffle an arch ring")
 

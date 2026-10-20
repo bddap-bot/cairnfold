@@ -12,7 +12,7 @@ internet comes next and uses the same protocol.
 
 Every finished edit is a **build command**: a small dictionary of plain values. `wall`
 carries the walls a stroke built, `unwall` removes walls, and `reshape` changes a build
-named by its table in the garden (`of`) and id: a wall's height, top, gable ends, arches, fittings, ruins, roof or paint
+named by its table in the garden (`of`) and id: a wall's height, top, gable ends, openings, fittings, ruins, roof or paint
 (its colours), stairs' railings or paint, or a boulder's scale or paint. `path` and `unpath` lay and lift paths, `plant` grows a
 paint stroke or a tree, `show` hides or restores plants, `heights` sets an area of
 ground, `ponds` puts a pond at its level by the grid point it fills from (from a player, one; from the
@@ -41,7 +41,7 @@ comes out the same.
   `World` calls the `done` the tool submitted with, and the ghost gives way to the real
   thing. Painted ghosts grow in pools of their own, so the garden's plant pools fill in
   command order on every machine.
-- **Commands carry results, not gestures.** A wall carries its points, height, arches,
+- **Commands carry results, not gestures.** A wall carries its points, height, openings,
   top, roof and the ids of the builds it stands on. A ground edit carries the heights it leaves. A paint stroke carries its
   random seed and its brush dabs, from which every machine grows the same plants, and it
   records which plants fell on a path when it grew, so a garden rebuilt later grows the
@@ -50,6 +50,9 @@ comes out the same.
   grows them whole first, so every machine still fills its pools in command order.
   A command runs from tens of bytes to a few kilobytes and is sent once per
   gesture, so networking costs no frame time.
+  Openings are one packed list of `(arc length, click height, door style)`: a low
+  click is a door, a higher click a window, and the archway is a door style.
+  They share placement, removal, undo and the fitting count limit.
 - **Derived things are derived everywhere.** How builds meet (what of one lies inside another, how
   high a storey stands on the house under it) is worked out from the walls standing on every machine.
   The arches a path opens in a wall are not

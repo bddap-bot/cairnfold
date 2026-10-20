@@ -348,10 +348,9 @@ class Near:
 		var top := WallLayout.FENCE_HEIGHT if l.fence else l.standing(s) + WallLayout.CAP
 		if y > top + RADIUS or y < -WallLayout.SINK - 2.0:
 			return false
-		if not l.opening_at(s, y).is_empty():
-			return false
-		for arch in l.live_arches:
-			if absf(l.offset(s, arch)) < l.opening(y, false) - RADIUS:
+		for o in l.apertures:
+			var half: float = l.opening(y, false) - RADIUS if o.style == WallLayout.DoorStyle.ARCHWAY else o.half + 0.05
+			if absf(l.offset(s, o.s)) < half and y > o.sill - 0.05 and y < o.head + 0.05:
 				return false
 		if with_facing:
 			var side := off if off.length_squared() > 1e-8 else Vector2(-w.ab.y, w.ab.x)

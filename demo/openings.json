@@ -1,0 +1,17 @@
+[
+  {"op":"place","x":0,"z":14},
+  {"op":"wall","points":[[-7,0],[7,0]],"seconds":0.5},
+  {"op":"lift_wall","index":0,"height":3.0},
+  {"op":"fit","what":"opening","index":0,"s":3.5,"y":0.5,"style":0},
+  {"op":"fit","what":"opening","index":0,"s":10.5,"y":0.0,"style":1},
+  {"op":"wait","seconds":2},
+  {"op":"view","eye":[0,2.8,12],"at":[0,1.4,0]},
+  {"op":"capture","name":"stone-door-and-archway"},
+  {"op":"house","at":[0,-12],"size":[10,5],"plaster":true,"seconds":0.5},
+  {"op":"fit","what":"opening","index":1,"s":2.5,"y":0.5,"style":0},
+  {"op":"fit","what":"opening","index":1,"s":7.5,"y":0.0,"style":1},
+  {"op":"wait","seconds":2},
+  {"op":"view","eye":[0,3,-25],"at":[0,1.8,-12]},
+  {"op":"capture","name":"timber-door-and-archway"},
+  {"op":"quit"}
+]

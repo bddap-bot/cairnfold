@@ -196,7 +196,7 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	_check(tool.house == null and walls.size() == before + 1, "letting go builds it, %d walls" % walls.size())
 	if walls.size() == before + 1:
 		_check(walls[-1].roof != null and walls[-1].layout.closed, "a roofed house")
-		_check(walls[-1].layout.arches.is_empty(), "with no door until one is added")
+		_check(walls[-1].layout.openings.is_empty(), "with no door until one is added")
 		_check(main.world.state.walls[walls[-1].id].rise == rise, "standing as high as it was raised: %.1f m" % main.world.state.walls[walls[-1].id].rise)
 	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(walls.size() == before, "undo takes the house away")
@@ -303,7 +303,7 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 		{"op": "place", "x": 12, "z": -7},
 		{"op": "wall", "points": [[22, -14], [17.5, -14]], "seconds": 0.3},
 		{"op": "house", "at": [12, -14], "size": [6, 4], "seconds": 0.3},
-		{"op": "fit", "what": "window", "index": -1, "s": 3.0, "y": 1.0},
+		{"op": "fit", "what": "opening", "index": -1, "s": 3.0, "y": 1.0},
 		{"op": "fit", "what": "lantern", "index": -1, "s": 13.0, "y": 1.6, "side": -1.0},
 		{"op": "fit", "what": "chimney", "index": -1, "at": [1.5, 0.6]},
 		{"op": "wait", "seconds": 0.3},
@@ -314,7 +314,7 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	var side := walls[-2]
 	var data := func() -> Dictionary: return world.state.walls[house.id]
 	var at := func() -> Dictionary: return WallTool.house_of(data.call())
-	_check(at.call().size.is_equal_approx(Vector2(6, 4)) and data.call().windows.size() == 1 and data.call().lanterns.size() == 1 and data.call().roof.chimneys.size() == 1, "a 6 by 4 house with a window, a lantern and a chimney: %s" % at.call())
+	_check(at.call().size.is_equal_approx(Vector2(6, 4)) and data.call().openings.size() == 1 and data.call().lanterns.size() == 1 and data.call().roof.chimneys.size() == 1, "a 6 by 4 house with a window, a lantern and a chimney: %s" % at.call())
 	side.lay_now()
 	var side_stones := side.layout.stones.size()
 	rig.right.tool = Hand.Tool.TREES
@@ -363,7 +363,7 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	_check(house.layout.laid_points.size() == 4 and house.roof.corners == house.layout.laid_points, "its roof covers the new walls")
 	var window_at := func(d: Dictionary) -> float:
 		var h := WallTool.house_of(d)
-		var p := WallTool._loop_point(_points(d), d.windows[0].x)
+		var p := WallTool._loop_point(_points(d), d.openings[0].x)
 		return (p - h.center).dot(Vector3.RIGHT.rotated(Vector3.UP, h.yaw)) / h.size.x
 	var lantern_at := func(d: Dictionary) -> float:
 		var h := WallTool.house_of(d)
@@ -376,7 +376,7 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	_check(side.layout.stones.size() < side_stones, "the wall it now meets lays nothing inside it: %d of %d stones" % [side.layout.stones.size(), side_stones])
 
 	await _play([{"op": "press", "button": "dpad_down"}])
-	_check(at.call().size.is_equal_approx(Vector2(6, 4)) and data.call().windows == before.windows and data.call().roof.chimneys == before.roof.chimneys, "undo puts its width, window and chimney back: %s" % at.call().size)
+	_check(at.call().size.is_equal_approx(Vector2(6, 4)) and data.call().openings == before.openings and data.call().roof.chimneys == before.roof.chimneys, "undo puts its width, window and chimney back: %s" % at.call().size)
 	side.lay_now()
 	_check(side.layout.stones.size() == side_stones, "and the wall it met whole again")
 	await _play([{"op": "press", "button": "A"}])

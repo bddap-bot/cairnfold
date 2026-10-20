@@ -99,7 +99,7 @@ func _house(length: float, depth: float) -> WallLayout:
 	w.cover = WallLayout.Cover.ROOF
 	w.top = WallLayout.Top.CAP
 	w.height = 2.4
-	w.arches = [length * 0.5]
+	w.openings.assign([length * 0.5].map(WallLayout.archway))
 	w.build(_flat)
 	return w
 
@@ -111,10 +111,10 @@ func _a_house_has_corner_piers_and_a_door() -> void:
 	_check(c.size() == 4, "four corners, got %d" % c.size())
 	if c.size() == 4:
 		_check(absf(c[1] - 6.0) < 0.01 and absf(c[2] - 10.0) < 0.01 and absf(c[3] - 16.0) < 0.01, "corners at %s" % [c])
-	_check(w.live_arches == [3.0], "a door in the middle of the front wall, got %s" % [w.live_arches])
-	w.arches = [6.2, 8.0]
+	_check(w.archways() == [3.0], "a door in the middle of the front wall, got %s" % [w.archways()])
+	w.openings.assign([6.2, 8.0].map(WallLayout.archway))
 	w.build(_flat)
-	_check(w.live_arches == [8.0], "no arch through a corner pier, got %s" % [w.live_arches])
+	_check(w.archways() == [8.0], "no arch through a corner pier, got %s" % [w.archways()])
 	var top := w.height + WallLayout.CAP
 	_check(w.stones.all(func(s): return s.y + s.size.y * 0.5 <= top + 0.05), "nothing stands above the cap under a roof")
 	_check(w.stones.all(func(s): return s.kind != "merlon"), "a roofed house has no merlons")
@@ -252,7 +252,7 @@ func _a_raised_house_stands_on_a_plinth() -> void:
 	_check(is_equal_approx(tall.samples[0].y, low.samples[0].y + 8.0), "raised 8 m, past where a plinth once stopped at 3 m: %.2f" % (tall.samples[0].y - low.samples[0].y))
 	gap = _plinth_gap(tall)
 	_check(gap <= 0.0, "an 8 m plinth reaches the ground all round: %.2f m at most above it" % gap)
-	_check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind == "block" and absf(st.s - w.live_arches[0]) < WallLayout.ARCH_HALF - 0.05 and st.y < w.spring()), "its doorway opens down to the ground")
+	_check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind == "block" and absf(st.s - w.archways()[0]) < WallLayout.ARCH_HALF - 0.05 and st.y < w.spring()), "its doorway opens down to the ground")
 	_check(w.stones.size() > low.stones.size(), "the plinth is laid in stones: %d against %d" % [w.stones.size(), low.stones.size()])
 	var plaster := _house(6.0, 4.0)
 	plaster.plaster = true
@@ -275,7 +275,7 @@ func _plinth_gap(w: WallLayout) -> float:
 	var gap := 0.0
 	for i in w.samples.size():
 		var q := w.samples[i]
-		if absf(w.lengths[i] - w.live_arches[0]) < WallLayout.ARCH_HALF + 0.3:
+		if absf(w.lengths[i] - w.archways()[0]) < WallLayout.ARCH_HALF + 0.3:
 			continue
 		var under := w.stones.filter(func(st: Dictionary) -> bool: return st.kind in ["block", "pier"] and absf(st.s - w.lengths[i]) < 0.4)
 		var lowest := INF
@@ -287,7 +287,7 @@ func _plinth_gap(w: WallLayout) -> float:
 
 func _a_resized_house_keeps_its_fittings_and_roof() -> void:
 	var at := {"center": Vector3(0, 0, 0), "yaw": 0.0, "size": Vector2(6, 4), "round": false}
-	var d := {"points": PackedVector3Array(WallTool.outline(at)), "closed": true, "rise": 0.0, "arches": PackedFloat32Array([1.0]), "windows": PackedVector2Array([Vector2(3.0, 1.2), Vector2(8.0, 0.0)]),
+	var d := {"points": PackedVector3Array(WallTool.outline(at)), "closed": true, "rise": 0.0, "openings": PackedVector3Array([Vector3(3.0, 1.2, 0), Vector3(8.0, 0.0, 0), WallLayout.archway(1.0)]),
 		"lanterns": PackedVector3Array([Vector3(13.0, 2.0, -1.0)]), "flags": PackedFloat32Array([18.0]),
 		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array([Vector2(1.5, 0.8)]), "flag": false, "thatch": false}}
 	var from := WallTool.house_of(d)
@@ -296,8 +296,8 @@ func _a_resized_house_keeps_its_fittings_and_roof() -> void:
 	wide.size = Vector2(12, 4)
 	var r := WallTool.reshape_house(d, wide)
 	_check(r.points.size() == 4 and is_equal_approx(r.points[0].distance_to(r.points[1]), 12.0), "the wall line takes the new width")
-	_check(is_equal_approx(r.windows[0].x, 6.0) and is_equal_approx(r.windows[0].y, 1.2), "a window halfway along the front stays halfway along it, as high: %s" % r.windows[0])
-	_check(is_equal_approx(r.windows[1].x, 14.0) and is_equal_approx(r.arches[0], 2.0), "a door on the end wall stays on it, an arch on the front in proportion: %s, %s" % [r.windows[1], r.arches])
+	_check(is_equal_approx(r.openings[0].x, 6.0) and is_equal_approx(r.openings[0].y, 1.2), "a window halfway along the front stays halfway along it, as high: %s" % r.openings[0])
+	_check(is_equal_approx(r.openings[1].x, 14.0) and is_equal_approx(r.openings[2].x, 2.0), "a door on the end wall stays on it, an arch on the front in proportion: %s, %s" % [r.openings[1], r.openings])
 	_check(is_equal_approx(r.lanterns[0].x, 22.0) and r.lanterns[0].z == -1.0 and is_equal_approx(r.flags[0], 30.0), "a lantern inside keeps its face; it and a flag keep their places: %s, %s" % [r.lanterns, r.flags])
 	_check(is_equal_approx(r.roof.pitch, 1.6) and r.roof.chimneys[0].is_equal_approx(Vector2(3.0, 0.8)), "the roof keeps its slope over the same depth; a chimney moves out along the ridge: %s" % r.roof)
 	var deep := from.duplicate()
@@ -307,8 +307,8 @@ func _a_resized_house_keeps_its_fittings_and_roof() -> void:
 	_check(is_equal_approx(ridge.length(), 6.0) and absf(ridge.z) < 1e-4, "stretched deeper than long, its ridge keeps its axis")
 	_check(is_equal_approx(r.roof.pitch, 3.2), "and the rise scales with the depth under the ridge: %f" % r.roof.pitch)
 	_check(r.roof.chimneys[0].is_equal_approx(Vector2(1.5, 1.6)), "a chimney keeps its spot on the house as the depth grows: %s" % r.roof.chimneys[0])
-	_check(is_equal_approx(r.windows[0].x, 3.0), "the front window stays in the middle of the front as it moves out: %s" % r.windows[0])
-	var tower := {"points": PackedVector3Array(WallLayout.circle(Vector3(2, 0, 2), 2.0)), "closed": true, "rise": 0.0, "arches": PackedFloat32Array(), "windows": PackedVector2Array([Vector2(TAU * 0.5, 0.0)]),
+	_check(is_equal_approx(r.openings[0].x, 3.0), "the front window stays in the middle of the front as it moves out: %s" % r.openings[0])
+	var tower := {"points": PackedVector3Array(WallLayout.circle(Vector3(2, 0, 2), 2.0)), "closed": true, "rise": 0.0, "openings": PackedVector3Array([Vector3(TAU * 0.5, 0.0, 0)]),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array([TAU]),
 		"roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3(2, 0, 2), "radius": 2.0, "pitch": 3.2, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": true, "thatch": false}}
 	var wider := WallTool.house_of(tower)
@@ -316,7 +316,7 @@ func _a_resized_house_keeps_its_fittings_and_roof() -> void:
 	wider.size = Vector2(6, 6)
 	r = WallTool.reshape_house(tower, wider)
 	_check(is_equal_approx(r.roof.radius, 3.0) and is_equal_approx(r.roof.pitch, 4.8) and r.roof.center == Vector3(2, 0, 2), "its cone covers the wider wall at the same slope: %s" % r.roof)
-	_check(absf(r.windows[0].x - TAU * 0.75) < 0.05 and absf(r.flags[0] - TAU * 1.5) < 0.05, "its door and flag keep their bearing: %s, %s" % [r.windows, r.flags])
+	_check(absf(r.openings[0].x - TAU * 0.75) < 0.05 and absf(r.flags[0] - TAU * 1.5) < 0.05, "its door and flag keep their bearing: %s, %s" % [r.openings, r.flags])
 
 
 func _the_ridge_keeps_its_axis() -> void:
@@ -616,7 +616,7 @@ func _gabled(plaster: bool, curve := 0.0, style := WallLayout.GableEnd.WALL, poi
 ## Every style on a stone and a plaster house, at each curvature, as built, steepest and narrowest, and stretched by a
 ## resize either way.
 func _gable_cases() -> Array:
-	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)), "closed": true, "rise": 0.0, "arches": PackedFloat32Array(), "windows": PackedVector2Array(),
+	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)), "closed": true, "rise": 0.0, "openings": PackedVector3Array(),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
 		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": false, "thatch": false}}
 	var shapes := [[d.points, 2.0], [WallLayout.rectangle(Vector3(0, 0, 0), Vector3(4, 0, 0), 2.4), 9.0]]
@@ -724,7 +724,7 @@ func _the_budget_counts_each_gable_end_as_laid() -> void:
 		for curve in [0.0, 0.8, -0.8]:
 			for pitch in [0.8, 2.0, 5.0]:
 				var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "gable_end": 0,
-					"plaster": plaster, "timber_style": 0, "storey_floors": false, "arches": [], "windows": [], "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": pitch, "curve": curve, "chimneys": [], "flag": false, "thatch": false}}
+					"plaster": plaster, "timber_style": 0, "storey_floors": false, "openings": [], "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": pitch, "curve": curve, "chimneys": [], "flag": false, "thatch": false}}
 				var walls := 20.0 * 2.4
 				var wall := Budget.wall(d)
 				d.gable_end = WallLayout.GableEnd.BOARDS

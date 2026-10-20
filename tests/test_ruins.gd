@@ -108,22 +108,22 @@ func _a_ruin_drops_what_stood_in_it() -> void:
 	var w := WallLayout.new()
 	w.points = [Vector3(0, 0, 0), Vector3(14, 0, 0)]
 	w.height = 3.0
-	w.arches = [4.0, 10.0]
-	w.windows = [Vector2(7.0, 1.6)]
+	w.openings.assign([4.0, 10.0].map(WallLayout.archway))
+	w.openings.append_array([Vector3(7.0, 1.6, 0)])
 	w.lanterns = [Vector3(12.0, 1.5, 1.0)]
 	w.flags = [12.0]
 	w.build(_flat)
-	_check(w.live_arches.size() == 2 and w.openings.size() == 1 and w.flames.size() == 1 and w.cloths.size() == 1, "whole, it has two arches, a window, a lantern and a flag")
+	_check(w.archways().size() == 2 and w.apertures.size() == 3 and w.flames.size() == 1 and w.cloths.size() == 1, "whole, it has two arches, a window, a lantern and a flag")
 	w.ruins = [Vector2(9.5, 13.0)]
 	w.build(_flat)
-	_check(w.live_arches == [4.0], "an arch in the ruin closes: %s" % [w.live_arches])
-	_check(w.openings.size() == 1, "the window clear of it stays")
+	_check(w.archways() == [4.0], "an arch in the ruin closes: %s" % [w.archways()])
+	_check(w.apertures.size() == 2, "the window clear of it stays")
 	_check(w.flames.is_empty() and w.cloths.is_empty(), "the lantern and flag in it go")
 	var piers := w.stones.filter(func(s): return s.kind == "pier")
 	_check(piers.all(func(s): return s.s < 1.0), "the ruined end loses its pier")
 	w.ruins = [Vector2(6.5, 7.5)]
 	w.build(_flat)
-	_check(w.openings.is_empty(), "a window in a ruin closes")
+	_check(w.apertures.all(func(o): return o.style == WallLayout.DoorStyle.ARCHWAY), "a window in a ruin closes")
 	_check(not w.lantern_fits(7.0, 1.5) and w.lantern_fits(12.0, 1.5), "no lantern hangs in a ruin")
 
 
@@ -173,7 +173,7 @@ func _after(w: WallLayout, lo: float, hi: float) -> Array[Vector2]:
 
 
 func _the_schema_checks_ruins() -> void:
-	var good := {"points": PackedVector3Array([Terrain.ground(0, 0), Terrain.ground(6, 0)]), "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array([Vector2(2, 3)]), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
+	var good := {"points": PackedVector3Array([Terrain.ground(0, 0), Terrain.ground(6, 0)]), "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector3Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array([Vector2(2, 3)]), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
 	_check(Commands._wall(good) != null, "a wall with a ruin is a wall")
 	var bad := {
 		"backwards": PackedVector2Array([Vector2(3, 2)]),
@@ -217,10 +217,10 @@ func _the_eraser_sweeps_a_ruin_and_undo_mends_it() -> void:
 	var steps: int = world.stacks[world.me()].undo.size()
 	await _play([{"op": "delete", "x": 0, "z": -10}])
 	_check(world.stacks[world.me()].undo.size() == steps and world.state.walls[w.id].ruins == ruins, "a tap inside a ruin changes nothing and takes no step")
-	var arches: PackedFloat32Array = world.state.walls[w.id].arches
-	main.fitting_tool.fit({"what": "arch", "wall": w, "s": w.layout.closest_s(Terrain.ground(6.2, -10))})
+	var arches: PackedVector3Array = world.state.walls[w.id].openings
+	main.fitting_tool.fit({"what": "opening", "style": WallLayout.DoorStyle.ARCHWAY, "y": 0.0, "wall": w, "s": w.layout.closest_s(Terrain.ground(6.2, -10))})
 	await process_frame
-	_check(world.state.walls[w.id].arches == arches and world.stacks[world.me()].undo.size() == steps, "no arch opens in a ruin")
+	_check(world.state.walls[w.id].openings == arches and world.stacks[world.me()].undo.size() == steps, "no arch opens in a ruin")
 	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(world.state.walls[w.id].ruins.size() == 1, "undo mends the last one")
 	await _play([{"op": "press", "button": "dpad_down"}])

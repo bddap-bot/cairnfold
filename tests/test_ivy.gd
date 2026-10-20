@@ -41,7 +41,7 @@ func _wall(length: float, height: float, arches: Array[float], seed := 1) -> Wal
 	var w := WallLayout.new()
 	w.points = [Vector3(0, 0, 0), Vector3(length, 0, 0)]
 	w.height = height
-	w.arches = arches
+	w.openings.append_array(arches.map(WallLayout.archway))
 	w.seed = seed
 	w.build(_flat)
 	return w
@@ -69,7 +69,7 @@ func _ivy_stays_on_the_wall() -> void:
 
 func _ivy_keeps_out_of_arches() -> void:
 	var w := _wall(10.0, 3.3, [5.0])
-	_check(w.live_arches == [5.0], "the test wall has its arch")
+	_check(w.archways() == [5.0], "the test wall has its arch")
 	var leaves := IvyLayout.grow(w)
 	var near := 0
 	for l in leaves:

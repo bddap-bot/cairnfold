@@ -545,7 +545,7 @@ static func _wall(root: Node3D, plastered := false, top := WallLayout.Top.CRENEL
 	layout.top = top
 	layout.points = [Vector3(-1.4, 0, 0), Vector3(1.4, 0, 0)]
 	if arched:
-		layout.arches = [1.4]
+		layout.openings = [WallLayout.archway(1.4)]
 	layout.build(_flat)
 	_stones(root, layout.stones, 0.015)
 
@@ -561,7 +561,7 @@ static func _house(root: Node3D, plastered := false, gable_end := WallLayout.Gab
 	layout.gable_end = gable_end
 	layout.cover = WallLayout.Cover.DECK if flat else WallLayout.Cover.ROOF
 	layout.points = WallLayout.rectangle(Vector3(-1.6, 0, 0), Vector3(1.6, 0, 0), 2.6)
-	layout.arches = [3.2 * 1.5 + 2.6]
+	layout.openings = [WallLayout.archway(3.2 * 1.5 + 2.6)]
 	var roof := RoofLayout.new()
 	roof.seed = 7
 	roof.corners = layout.points
@@ -712,7 +712,7 @@ static func fitting(what: String) -> Node3D:
 		var s := layout.nearest_post(2.0) if layout.fence else 2.0
 		match what:
 			"window":
-				layout.windows = [Vector2(s, 1.5)]
+				layout.openings = [Vector3(s, 1.5, 0)]
 			"lantern", "post_lantern":
 				layout.lanterns = [Vector3(s, 1.5, 1.0)]
 			"flag":
@@ -723,7 +723,7 @@ static func fitting(what: String) -> Node3D:
 		cloths = layout.cloths
 		match what:
 			"window":
-				var o := layout.openings[0]
+				var o := layout.apertures[0]
 				mount = Vector3(0, (o.sill + o.head) * 0.5, INF)
 				for p in parts:
 					if p.kind in FITTING_PARTS[what]:

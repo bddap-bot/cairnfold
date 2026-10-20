@@ -50,15 +50,15 @@ func _init() -> void:
 			stone.closed = closed
 			stone.cover = cover
 			stone.height = 4.5
-			stone.arches = [6.0]
-			stone.windows = [Vector2(2, 1.6), Vector2(10, 0.4)]
+			stone.openings.assign([6.0].map(WallLayout.archway))
+			stone.openings.append_array([Vector3(2, 1.6, 0), Vector3(10, 0.4, 0)])
 			stone.build(_flat)
 			var plaster := stone.inputs()
 			plaster.plaster = true
 			plaster.build(_flat)
 			_check(plaster.inputs().plaster and plaster.snapshot().plaster, "workers preserve plaster")
 			_check(not plaster.same_inputs(stone), "material invalidates cached layout")
-			_check(plaster.live_arches == stone.live_arches and plaster.openings == stone.openings, "same arches, windows and doors")
+			_check(plaster.archways() == stone.archways() and plaster.apertures == stone.apertures, "same arches, windows and doors")
 			_check(plaster.stones.size() < stone.stones.size(), "plaster replaces stones instead of overlaying them")
 			var packed := Wall.pack(plaster, Wall.kinds(), Palette.plain())
 			var old := Wall.pack(stone, Wall.kinds(), Palette.plain())
@@ -66,8 +66,8 @@ func _init() -> void:
 			_check(packed.mortar.size() <= old.mortar.size() * 2, "plaster splits from the footing's mortar, no finer")
 			for panel in plaster.stones.filter(func(s): return s.kind == "plaster"):
 				_check(panel.y > plaster.course_height(), "stone base retained")
-				for o in plaster.openings:
-					_check(not (panel.y > o.sill and panel.y < o.head and absf(panel.s - o.s) < o.half), "plaster does not fill an opening")
+				for o in plaster.apertures:
+					_check(not (panel.y > o.sill and panel.y < o.head and absf(panel.s - o.s) < (plaster.opening(panel.y, false) if o.style == WallLayout.DoorStyle.ARCHWAY else o.half)), "plaster does not fill an opening")
 			print("plaster: closed=%s cover=%d pieces %d -> %d" % [closed, cover, stone.stones.size(), plaster.stones.size()])
 	var wall := Wall.new(1, null)
 	wall.layout.points = [Vector3.ZERO, Vector3(8, 0, 0)]

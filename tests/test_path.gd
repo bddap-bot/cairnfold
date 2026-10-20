@@ -141,15 +141,15 @@ func _every_pair(path: PathLayout, wall: WallLayout) -> Array[float]:
 
 func _arcades_stand_on_pillars() -> void:
 	var w := _wall([[0, 0], [16, 0]], 3.2)
-	w.arches.assign(_path([[8, -6], [8, 6]], 2.5).crossings(w))
+	w.openings.assign(_path([[8, -6], [8, 6]], 2.5).crossings(w).map(WallLayout.archway))
 	w.build(_flat)
-	_check(w.live_arches.size() == w.arches.size(), "every arcade arch opens: %s of %s" % [w.live_arches, w.arches])
+	_check(w.archways().size() == w.openings.size(), "every arcade arch opens: %s of %s" % [w.archways(), w.openings])
 	var pillars := w.pillars()
-	_check(pillars.size() == w.live_arches.size() - 1, "%d pillars between %d arches" % [pillars.size(), w.live_arches.size()])
+	_check(pillars.size() == w.archways().size() - 1, "%d pillars between %d arches" % [pillars.size(), w.archways().size()])
 	var pillar_stones := w.stones.filter(func(s): return s.kind == "pillar")
 	_check(pillar_stones.size() >= pillars.size() * 4, "each pillar is a stack of drums with plinth and capital (%d stones)" % pillar_stones.size())
-	var lo: float = w.live_arches[0] - WallLayout.ARCH_HALF
-	var hi: float = w.live_arches[-1] + WallLayout.ARCH_HALF
+	var lo: float = w.archways()[0] - WallLayout.ARCH_HALF
+	var hi: float = w.archways()[-1] + WallLayout.ARCH_HALF
 	for s in w.stones:
 		if s.kind == "block" and s.y < w.spring() - 0.2 and absf(s.s - (lo + hi) * 0.5) < (hi - lo) * 0.5 - s.size.x * 0.5 + 0.01:
 			_check(false, "a coursed block at s=%.2f y=%.2f fills the arcade below its springing" % [s.s, s.y])
@@ -164,9 +164,9 @@ func _arcades_stand_on_pillars() -> void:
 
 func _overlapping_arches_do_not_both_open() -> void:
 	var w := _wall([[0, 0], [12, 0]])
-	w.arches.assign([5.0, 6.0])
+	w.openings.assign([5.0, 6.0].map(WallLayout.archway))
 	w.build(_flat)
-	_check(w.live_arches.size() == 1, "two arches whose rings overlap open as one: %s" % [w.live_arches])
+	_check(w.archways().size() == 1, "two arches whose rings overlap open as one: %s" % [w.archways()])
 
 
 func _the_mask_parts_the_path_only() -> void:
@@ -200,14 +200,14 @@ func _chemistry_works_in_either_order() -> void:
 	var tool: WallTool = nodes[0]
 	var paths: Paths = nodes[1]
 	var first := _draw_wall(tool, Vector3(-8, 0, -12), Vector3(8, 0, -12))
-	_reshape(nodes, first, {"arches": PackedFloat32Array()})
+	_reshape(nodes, first, {"openings": PackedVector3Array()})
 	_lay(nodes, Vector3(2, 0, -18), Vector3(2, 0, -6), 0.6)
-	_check(first.layout.live_arches.size() == 1 and absf(first.layout.live_arches[0] - 10.0) < 0.1, "a path laid through a wall cuts an arch at the crossing: %s" % [first.layout.live_arches])
+	_check(first.layout.archways().size() == 1 and absf(first.layout.archways()[0] - 10.0) < 0.1, "a path laid through a wall cuts an arch at the crossing: %s" % [first.layout.archways()])
 	_lay(nodes, Vector3(-30, 0, -2), Vector3(-30, 0, 10), 2.5)
 	var second := _draw_wall(tool, Vector3(-38, 0, 4), Vector3(-22, 0, 4))
-	_check(second.layout.live_arches.size() >= 2 and second.layout.pillars().size() >= 1, "a wall drawn across a wide path opens an arcade: %s" % [second.layout.live_arches])
-	for a in second.layout.live_arches:
-		_check(absf(a - 8.0) < WallLayout.ARCADE_PITCH * 1.5, "arcade arches stand over the path, not the wall's middle: %s" % [second.layout.live_arches])
+	_check(second.layout.archways().size() >= 2 and second.layout.pillars().size() >= 1, "a wall drawn across a wide path opens an arcade: %s" % [second.layout.archways()])
+	for a in second.layout.archways():
+		_check(absf(a - 8.0) < WallLayout.ARCADE_PITCH * 1.5, "arcade arches stand over the path, not the wall's middle: %s" % [second.layout.archways()])
 	_teardown(nodes)
 
 
@@ -242,26 +242,26 @@ func _teardown(nodes: Array) -> void:
 func _a_second_path_beside_an_arch_makes_an_arcade() -> void:
 	var nodes := _setup()
 	var w := _draw_wall(nodes[0], Vector3(-8, 0, 30), Vector3(8, 0, 30))
-	_reshape(nodes, w, {"arches": PackedFloat32Array([8.0])})
-	var before := w.layout.live_arches.duplicate()
+	_reshape(nodes, w, {"openings": PackedVector3Array([8.0].map(WallLayout.archway))})
+	var before := w.layout.archways().duplicate()
 	_lay(nodes, Vector3(1.5, 0, 24), Vector3(1.5, 0, 36), 0.5)
-	_check(before.all(func(a): return w.layout.live_arches.has(a)), "a path beside the middle arch closes nothing: %s then %s" % [before, w.layout.live_arches])
-	_check(w.layout.live_arches.size() == before.size() + 1 and w.layout.pillars().size() == 1, "it opens a second arch on a shared pillar: %s" % [w.layout.live_arches])
+	_check(before.all(func(a): return w.layout.archways().has(a)), "a path beside the middle arch closes nothing: %s then %s" % [before, w.layout.archways()])
+	_check(w.layout.archways().size() == before.size() + 1 and w.layout.pillars().size() == 1, "it opens a second arch on a shared pillar: %s" % [w.layout.archways()])
 	_lay(nodes, Vector3(0.2, 0, 24), Vector3(0.2, 0, 36), 0.5)
-	_check(w.layout.live_arches.size() == before.size() + 1, "a path through an opening that is already there adds none: %s" % [w.layout.live_arches])
+	_check(w.layout.archways().size() == before.size() + 1, "a path through an opening that is already there adds none: %s" % [w.layout.archways()])
 	_teardown(nodes)
 
 
 func _a_crossing_that_cannot_open_leaves_no_arch() -> void:
 	var nodes := _setup()
 	var w := _draw_wall(nodes[0], Vector3(-8, 0, 40), Vector3(8, 0, 40))
-	var before := w.layout.arches.duplicate()
+	var before := w.layout.openings.duplicate()
 	_lay(nodes, Vector3(-7.6, 0, 34), Vector3(-7.6, 0, 46), 0.5)
-	_check(w.layout.arches == before, "a crossing at a wall's end records no arch: %s" % [w.layout.arches])
+	_check(w.layout.openings == before, "a crossing at a wall's end records no arch: %s" % [w.layout.openings])
 	var low := _draw_wall(nodes[0], Vector3(-8, 0, 50), Vector3(8, 0, 50))
-	_reshape(nodes, low, {"height": 1.2, "arches": PackedFloat32Array()})
+	_reshape(nodes, low, {"height": 1.2, "openings": PackedVector3Array()})
 	_lay(nodes, Vector3(0, 0, 44), Vector3(0, 0, 56), 0.5)
-	_check(low.layout.arches.is_empty(), "a wall too low to arch records none: %s" % [low.layout.arches])
+	_check(low.layout.openings.is_empty(), "a wall too low to arch records none: %s" % [low.layout.openings])
 	_teardown(nodes)
 
 
@@ -275,15 +275,15 @@ func _a_tower_opens_a_doorway_across_its_seam() -> void:
 	_check(cut.size() == 1, "a path into a tower crosses its wall once there, got %s" % [cut])
 	if cut.size() == 1:
 		var a := w.wrap(cut[0])
-		_check(w.fits_arch(a, []), "a doorway fits beside the tower's seam at %.2f of %.2f" % [a, w.length()])
-		w.arches.assign([a])
+		_check(w.opening_fits(WallLayout.archway(a), []), "a doorway fits beside the tower's seam at %.2f of %.2f" % [a, w.length()])
+		w.openings.assign([a].map(WallLayout.archway))
 		w.build(_flat)
-		_check(w.live_arches.size() == 1, "the doorway opens")
+		_check(w.archways().size() == 1, "the doorway opens")
 		var t := WallLayout.new()
 		t.points = w.points
 		t.closed = true
 		t.height = 4.5
-		t.arches.assign([w.wrap(a - 1.0)])
+		t.openings.assign([w.wrap(a - 1.0)].map(WallLayout.archway))
 		t.build(_flat)
 		var nodes := _setup()
 		var tower := Wall.new(1, nodes[0].masonry)
@@ -342,7 +342,7 @@ func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.DIRT_PATH) -> void:
 	t.set_process(false)
 	var world: World = nodes[2]
 	var w := _draw_wall(nodes[0], Vector3(-8, 0, 60), Vector3(8, 0, 60))
-	_reshape(nodes, w, {"arches": PackedFloat32Array()})
+	_reshape(nodes, w, {"openings": PackedVector3Array()})
 	var b := t.brushes[1]
 	b.hand.tool = kind
 	t.begin_path(b, Terrain.ground(2, 54), 0.6)
@@ -351,25 +351,25 @@ func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.DIRT_PATH) -> void:
 	t.end_path(b)
 	_lay_walls(nodes[0])
 	var paths: Paths = nodes[1]
-	_check(paths.layouts.size() == 1 and w.layout.live_arches.size() == 1, "the path is laid and opens its arch: %s" % [w.layout.live_arches])
+	_check(paths.layouts.size() == 1 and w.layout.archways().size() == 1, "the path is laid and opens its arch: %s" % [w.layout.archways()])
 	world.undo()
 	_lay_walls(nodes[0])
 	_check(paths.layouts.is_empty() and Ground.bare(2, 57) == 0.0, "undo lifts the path and its wear (%.2f)" % Ground.bare(2, 57))
-	_check(w.layout.live_arches.is_empty(), "undo closes the arch the path opened: %s" % [w.layout.live_arches])
+	_check(w.layout.archways().is_empty(), "undo closes the arch the path opened: %s" % [w.layout.archways()])
 	world.redo()
 	_lay_walls(nodes[0])
 	Ground.settle()
-	_check(paths.layouts.size() == 1 and Ground.bare(2, 57) > 0.99 and w.layout.live_arches.size() == 1, "redo lays it again, arch and all: %s" % [w.layout.live_arches])
+	_check(paths.layouts.size() == 1 and Ground.bare(2, 57) > 0.99 and w.layout.archways().size() == 1, "redo lays it again, arch and all: %s" % [w.layout.archways()])
 	var deleter := DeleteTool.new(nodes[3], nodes[0], t, world)
 	var target := deleter.aim(Terrain.ground(2, 57) + Vector3.UP * 2, Vector3.DOWN)
 	_check(target.has("laid"), "Delete selects a path away from its wall crossing")
 	deleter.press(deleter, Terrain.ground(2, 57) + Vector3.UP * 2, Vector3.DOWN)
 	deleter.let_go(deleter)
 	_lay_walls(nodes[0])
-	_check(paths.layouts.is_empty() and w.layout.live_arches.is_empty(), "Delete lifts path and closes its arch")
+	_check(paths.layouts.is_empty() and w.layout.archways().is_empty(), "Delete lifts path and closes its arch")
 	world.undo()
 	_lay_walls(nodes[0])
-	_check(paths.layouts.size() == 1 and w.layout.live_arches.size() == 1, "undo restores deleted path and arch")
+	_check(paths.layouts.size() == 1 and w.layout.archways().size() == 1, "undo restores deleted path and arch")
 	deleter.free()
 	t.free()
 	_teardown(nodes)
@@ -416,38 +416,38 @@ func _a_path_opens_its_arch_before_release() -> void:
 	paths.begin(Terrain.ground(3, 4), 0.6)
 	paths.extend(Terrain.ground(3, 1), 0.6)
 	paths._relay()
-	_check(w.layout.arches.is_empty(), "a path approaching a wall leaves it solid")
+	_check(w.layout.openings.is_empty(), "a path approaching a wall leaves it solid")
 	paths.extend(Terrain.ground(3, -1), 0.6)
 	paths._relay()
-	_check(w.layout.arches.size() == 1 and paths.drawing != null, "crossing opens an arch while the stroke is held")
-	_check(world.state.paths.is_empty() and world.state.walls[w.id].arches.is_empty(), "the preview changes no saved garden data")
+	_check(w.layout.openings.size() == 1 and paths.drawing != null, "crossing opens an arch while the stroke is held")
+	_check(world.state.paths.is_empty() and world.state.walls[w.id].openings.is_empty(), "the preview changes no saved garden data")
 	while w.laying():
 		await process_frame
-	_check(w.layout.live_arches.size() == 1, "the worker renders the arch before release")
+	_check(w.layout.archways().size() == 1, "the worker renders the arch before release")
 	var laid := w.layout.laid
 	paths.extend(Terrain.ground(3, -2), 0.6)
 	paths._relay()
 	_check(not w.laying() and w.layout.laid == laid, "an unchanged crossing does not rebuild the wall")
 	var ghost := paths.end()
-	_check(w.layout.arches.size() == 1, "the sent ghost keeps its arch while awaiting acceptance")
+	_check(w.layout.openings.size() == 1, "the sent ghost keeps its arch while awaiting acceptance")
 	paths.drop(ghost)
 	while w.laying():
 		await process_frame
-	_check(w.layout.live_arches.is_empty(), "a rejected ghost closes its preview arch")
+	_check(w.layout.archways().is_empty(), "a rejected ghost closes its preview arch")
 	paths.begin(Terrain.ground(3, 4), 0.6)
 	paths.extend(Terrain.ground(3, -1), 0.6)
 	paths._relay()
 	paths.forget()
 	while w.laying():
 		await process_frame
-	_check(w.layout.live_arches.is_empty(), "forgetting the stroke closes its preview arch")
+	_check(w.layout.archways().is_empty(), "forgetting the stroke closes its preview arch")
 	paths.begin(Terrain.ground(3, 0.1), 0.6)
 	paths.extend(Terrain.ground(3, -0.1), 0.6)
 	paths._relay()
-	_check(w.layout.arches.size() == 1, "a short crossing previews its opening")
+	_check(w.layout.openings.size() == 1, "a short crossing previews its opening")
 	paths.extend(Terrain.ground(3, 0.3), 0.6)
 	paths._relay()
-	_check(w.layout.arches.is_empty(), "moving the unsettled tip back closes the crossing")
+	_check(w.layout.openings.is_empty(), "moving the unsettled tip back closes the crossing")
 	_check(paths.end().is_empty() and paths.previews.is_empty(), "a discarded short stroke leaves no preview")
 	_teardown(nodes)
 

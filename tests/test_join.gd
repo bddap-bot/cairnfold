@@ -65,7 +65,7 @@ func _the_preview_over_a_bush_is_the_wall_left_on_release() -> void:
 	tool._flush()
 	while m.stroke.walls.any(func(w: Wall) -> bool: return w.laying()):
 		await process_frame
-	_check(m.stroke.walls.size() == 1 and m.stroke.walls[0].layout.live_arches.size() == 1, "the preview arches over the bush while drawing")
+	_check(m.stroke.walls.size() == 1 and m.stroke.walls[0].layout.archways().size() == 1, "the preview arches over the bush while drawing")
 	var shown := _stones(m.stroke.walls)
 	var preview := m.stroke.walls.size()
 	var before := tool.walls.size()
@@ -73,8 +73,8 @@ func _the_preview_over_a_bush_is_the_wall_left_on_release() -> void:
 	var kept := tool.walls.slice(before)
 	_check(kept.size() == preview, "release leaves the preview's walls")
 	_check(_alike(shown, _stones(kept)), "and their stones stand where the preview showed them")
-	if kept.size() == 1 and kept[0].layout.live_arches.size() == 1:
-		var at: Vector3 = kept[0].layout.point_at(kept[0].layout.live_arches[0])
+	if kept.size() == 1 and kept[0].layout.archways().size() == 1:
+		var at: Vector3 = kept[0].layout.point_at(kept[0].layout.archways()[0])
 		_check(Vector2(at.x - bush.x, at.z - bush.z).length() < 0.3, "the arch stands over the bush")
 
 

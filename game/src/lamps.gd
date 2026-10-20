@@ -69,10 +69,8 @@ class Room:
 		r.roof = massing.roof
 		if layout.cover != WallLayout.Cover.OPEN:
 			r.top = massing.feet[0] + massing.rise
-		for o in layout.openings:
+		for o in layout.apertures:
 			r._open(layout, o.s, (o.sill + o.head) * 0.5, DOOR if o.door else 1.0)
-		for a in layout.live_arches:
-			r._open(layout, a, (layout.spring() + WallLayout.ARCH_HALF) * 0.5, DOOR)
 		return r
 
 	func _open(layout: WallLayout, s: float, y: float, gives: float) -> void:

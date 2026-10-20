@@ -35,8 +35,8 @@ func _house(cover := WallLayout.Cover.ROOF) -> Lamps.Room:
 	w.cover = cover
 	w.top = WallLayout.Top.CAP
 	w.height = 2.4
-	w.arches = [3.5]
-	w.windows = [Vector2(15.5, 1.6)]
+	w.openings.assign([3.5].map(WallLayout.archway))
+	w.openings.append_array([Vector3(15.5, 1.6, 0)])
 	w.build(_flat)
 	var roof: RoofLayout = null
 	if cover == WallLayout.Cover.ROOF:

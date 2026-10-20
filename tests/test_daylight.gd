@@ -132,8 +132,8 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	var wall := WallLayout.new()
 	wall.points = [Vector3(0, 0, 0), Vector3(16, 0, 0)]
 	wall.height = 3.0
-	wall.windows = [Vector2(3.0, 1.5), Vector2(3.8, 1.5), Vector2(6.5, 0.8)]
-	wall.arches = [10.5, 12.8]
+	wall.openings = [Vector3(3.0, 1.5, 0), Vector3(3.8, 1.5, 0), Vector3(6.5, 0.8, 0)]
+	wall.openings.append_array([10.5, 12.8].map(WallLayout.archway))
 	wall.flags = [1.5]
 	wall.lanterns = [Vector3(8.5, 1.6, 1.0)]
 	wall.build(_flat)
@@ -146,7 +146,7 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	fence.fence = true
 	fence.height = WallLayout.FENCE_HEIGHT
 	fence.points = [Vector3(0, 0, 4), Vector3(8, 0, 4)]
-	fence.arches = [4.0]
+	fence.openings.assign([4.0].map(WallLayout.archway))
 	fence.build(_flat)
 	var roof := RoofLayout.new()
 	roof.kind = RoofLayout.Kind.GABLE
@@ -328,15 +328,15 @@ func _in_the_glade() -> void:
 		{"op": "wall", "points": [[-8, 0], [-3, 0], [2, 0]], "seconds": 0.3},
 		{"op": "house", "at": [11.0, 0.0], "size": [6.0, 3.7], "seconds": 0.2},
 		{"op": "fence", "points": [[-8, 6], [-2, 6]], "seconds": 0.3},
-		{"op": "fit", "what": "window", "index": 0, "s": 2.5, "y": 1.5},
+		{"op": "fit", "what": "opening", "index": 0, "s": 2.5, "y": 1.5},
 		{"op": "wall", "points": [[-8, -6], [2, -6]], "seconds": 0.3},
 	])
 	var wall: WallLayout = walls[0].layout
 	var house: Wall = walls[1]
 	var face := wall.point_at(2.0) + Vector3(0, 1.0, 0)
 	_check(tool.aim(face + Vector3(0, 0, 3), Vector3.FORWARD).get("element") == Palette.Element.STONE, "the picker on a wall's face paints stone")
-	if not wall.openings.is_empty():
-		var o: Dictionary = wall.openings[0]
+	if not wall.apertures.is_empty():
+		var o: Dictionary = wall.apertures[0]
 		var at := wall.point_at(o.s) + Vector3(0, (o.sill + o.head) * 0.5, 0)
 		_check(tool.aim(at + Vector3(0, 0, 3), Vector3.FORWARD).get("element") == Palette.Element.WOOD, "the picker on a window paints woodwork")
 	else:

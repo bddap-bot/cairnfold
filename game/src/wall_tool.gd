@@ -134,7 +134,7 @@ var _since_rebuild := 0.0
 var _dirty := false
 ## Ids of builds to lay again at the end of the frame for what they meet.
 var _due := {}
-var _path_arches := {}
+var _path_openings := {}
 var _walls_at := {}
 var _walls_at_from: Array = []
 ## Wall → the segment grid and inputs its preview arches were last cut from: a wall the stroke's moving end is not
@@ -405,7 +405,7 @@ func _finish(ws: Array[Wall], hand: Hand = null) -> void:
 ## The garden is being swapped: walls in hand belong to the old one.
 func _forget() -> void:
 	_let_go_handed()
-	_path_arches.clear()
+	_path_openings.clear()
 	_previewed.clear()
 	for m in masons:
 		if m.stroke != null:
@@ -612,12 +612,9 @@ static func reshape_house(d: Dictionary, to: Dictionary) -> Dictionary:
 	was.assign(Array(d.points))
 	var now := outline(to)
 	var moved := func(s: float) -> float: return _loop_s(now, _scaled(from, to, _loop_point(was, s)))
-	var arches := PackedFloat32Array()
-	for a: float in d.arches:
-		arches.append(moved.call(a))
-	var windows := PackedVector2Array()
-	for w: Vector2 in d.windows:
-		windows.append(Vector2(moved.call(w.x), w.y))
+	var openings := PackedVector3Array()
+	for w: Vector3 in d.openings:
+		openings.append(Vector3(moved.call(w.x), w.y, w.z))
 	var lanterns := PackedVector3Array()
 	for l: Vector3 in d.lanterns:
 		lanterns.append(Vector3(moved.call(l.x), l.y, l.z))
@@ -635,7 +632,7 @@ static func reshape_house(d: Dictionary, to: Dictionary) -> Dictionary:
 			var o: Vector3 = _scaled(from, to, from.center + r0 * c.x + r0.cross(Vector3.UP) * c.y) - to.center
 			chimneys.append(Vector2(o.dot(r1), o.dot(r1.cross(Vector3.UP))))
 		roof = {"pitch": d.roof.pitch * to.size.y / from.size.y, "chimneys": chimneys}
-	return {"points": PackedVector3Array(now), "rise": to.get("rise", from.rise), "arches": arches, "windows": windows, "lanterns": lanterns, "flags": flags, "roof": roof}
+	return {"points": PackedVector3Array(now), "rise": to.get("rise", from.rise), "openings": openings, "lanterns": lanterns, "flags": flags, "roof": roof}
 
 
 static func _ridge_of(at: Dictionary) -> Vector3:
@@ -972,14 +969,14 @@ func _sizing(target: Object) -> Sizing:
 	return s
 
 
-## The arches that would stand in `w` with `own` its own, with those the paths standing open, whatever it shows.
-func standing_arches(w: Wall, own: Array) -> Array[float]:
-	var shown := w.layout.arches.duplicate()
-	w.layout.arches.assign(own)
+## The openings in `w` with its stored placements and the paths standing, independent of its preview.
+func standing_openings(w: Wall, own: Array) -> Array[Vector3]:
+	var shown := w.layout.openings.duplicate()
+	w.layout.openings.assign(own)
 	for p in paths.layouts:
 		_cut_crossings(w, p)
-	var standing := w.layout.arches.duplicate()
-	w.layout.arches = shown
+	var standing := w.layout.openings.duplicate()
+	w.layout.openings = shown
 	return standing
 
 
@@ -1012,15 +1009,15 @@ func _relay(w: Wall, data := {}) -> void:
 	_meet(w)
 	w.layout.resample(Terrain.height_at, Terrain.water_at)
 	_reshaped(w)
-	_open_paths(w, d.arches)
+	_open_paths(w, d.openings)
 	w.rebuild()
 
 
 func _open_paths(w: Wall, own: Variant = null) -> void:
-	w.layout.arches.assign(Array(w.reshaped.get("arches", world.state.walls[w.id].arches) if own == null else own))
+	w.layout.openings.assign(Array(w.reshaped.get("openings", world.state.walls[w.id].openings) if own == null else own))
 	for p in paths.layouts:
 		_cut_crossings(w, p)
-	_path_arches[w.id] = w.layout.arches.duplicate()
+	_path_openings[w.id] = w.layout.openings.duplicate()
 	for p in paths.previews:
 		_cut_crossings(w, p)
 
@@ -1040,21 +1037,21 @@ func _preview_crossings() -> void:
 					met[w][p] = []
 				met[w][p].append(c)
 	for w in walls:
-		if _held(w) or not _path_arches.has(w.id):
+		if _held(w) or not _path_openings.has(w.id):
 			continue
 		var meeting: Dictionary = met.get(w, {})
-		var cut_from := [_path_arches[w.id]]
+		var cut_from := [_path_openings[w.id]]
 		for p in meeting:
 			cut_from.append_array([p, p.segments_in(meeting[p])])
 		var last: Array = _previewed.get(w, [])
 		if not last.is_empty() and is_same(last[0], w.layout.segment_cells()) and last[1] == cut_from:
 			continue
 		_previewed[w] = [w.layout.segment_cells(), cut_from]
-		var before := w.layout.arches.duplicate()
-		w.layout.arches.assign(_path_arches[w.id])
+		var before := w.layout.openings.duplicate()
+		w.layout.openings.assign(_path_openings[w.id])
 		for p in meeting:
 			_cut_crossings(w, p, meeting[p])
-		if before != w.layout.arches:
+		if before != w.layout.openings:
 			w.rebuild()
 
 
@@ -1077,9 +1074,9 @@ func _walls_by_cell() -> Dictionary:
 func relay_crossings(path: PathLayout) -> void:
 	for w in walls:
 		if not path.crossings(w.layout).is_empty() and not _held(w):
-			var before := w.layout.arches.duplicate()
+			var before := w.layout.openings.duplicate()
 			_open_paths(w)
-			if before != w.layout.arches:
+			if before != w.layout.openings:
 				w.rebuild()
 			_sound(Cues.Act.ARCH, _top(w, w.layout.length() * 0.5))
 
@@ -1092,13 +1089,13 @@ func _cut_crossings(w: Wall, path: PathLayout, cells: Array = []) -> Array[float
 	var layout := w.layout
 	if not layout.can_arch():
 		return opened
-	var arches := layout.arches.duplicate()
+	var placed := layout.openings.duplicate()
 	for a in path.crossings(layout, cells):
 		a = layout.wrap(a)
 		var past := INF
-		for e in arches:
-			if absf(layout.offset(a, e)) < absf(past):
-				past = layout.offset(a, e)
+		for e in placed:
+			if absf(layout.offset(a, e.x)) < absf(past):
+				past = layout.offset(a, e.x)
 		if absf(past) < WallLayout.ARCH_HALF:
 			continue
 		var tries := [a]
@@ -1106,9 +1103,9 @@ func _cut_crossings(w: Wall, path: PathLayout, cells: Array = []) -> Array[float
 			var side := signf(past) * WallLayout.ARCADE_PITCH
 			tries = [layout.wrap(a - past + side), layout.wrap(a - past - side)]
 		for t in tries:
-			if layout.fits_arch(t, arches):
-				arches.append(t)
-				layout.arches.append(t)
+			if placed.size() < Commands.MAX_FITTINGS and layout.opening_fits(WallLayout.archway(t), placed):
+				placed.append(WallLayout.archway(t))
+				layout.openings.append(WallLayout.archway(t))
 				opened.append(t)
 				break
 	return opened
@@ -1148,7 +1145,7 @@ func _let_go_handed() -> void:
 
 
 func take(id: int) -> void:
-	_path_arches.erase(id)
+	_path_openings.erase(id)
 	var w := find(id)
 	_previewed.erase(w)
 	if w == resizing:
@@ -1176,7 +1173,7 @@ func restyle(id: int, changed: Array) -> void:
 	_relay(w)
 	if "ruins" in changed:
 		_sound(Cues.Act.WALL_CRUMBLE, _top(w, w.layout.length() * 0.5))
-	elif "arches" in changed:
+	elif "openings" in changed:
 		_sound(Cues.Act.ARCH, _top(w, w.layout.length() * 0.5))
 	elif "roof" in changed or "gable_end" in changed:
 		_sound(Cues.Act.WALL_LAY, _ridge(w))

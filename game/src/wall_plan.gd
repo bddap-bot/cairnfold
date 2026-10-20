@@ -52,7 +52,7 @@ func pieces(stroke: Array[Vector3], ground: Callable) -> Array[WallLayout]:
 		w.resample(ground)
 		if w.length() < MIN_LENGTH:
 			continue
-		w.arches = arches_for(w)
+		w.openings.assign(arches_for(w).map(WallLayout.archway))
 		out.append(w)
 	return out
 
@@ -147,11 +147,12 @@ func _nearest(p: Vector3) -> Dictionary:
 ## The nearest arc length to `s` where a junction's pier stands clear of every arch opening; where arches
 ## stand too close for that, the spot farthest from any of them.
 static func _clear_of_arches(w: WallLayout, s: float) -> float:
-	if w.live_arches.is_empty():
+	var arched := w.archways()
+	if arched.is_empty():
 		return s
 	var clear := WallLayout.ARCH_HALF + WallLayout.RING + WallLayout.PIER * 0.5
 	var spots: Array[float] = [s, 0.0, w.length()]
-	for a in w.live_arches:
+	for a in arched:
 		spots.append_array([a - clear, a + clear])
 	var best := s
 	var best_key := Vector2(-INF, 0.0)
@@ -159,7 +160,7 @@ static func _clear_of_arches(w: WallLayout, s: float) -> float:
 		if c < 0.0 or c > w.length():
 			continue
 		var room := INF
-		for a in w.live_arches:
+		for a in arched:
 			room = minf(room, absf(c - a))
 		var key := Vector2(minf(room, clear), -absf(c - s))
 		if key > best_key:

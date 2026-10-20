@@ -13,9 +13,9 @@ func _init() -> void:
 	_check(wall.same_inputs(wall.inputs()), "laid wall output does not change its inputs")
 	_check(roof.same_inputs(roof.inputs()), "laid roof output and derived footprint do not change its inputs")
 	_changes(wall, {
-		"points": [Vector3.ZERO, Vector3(7, 0, 0)], "height": 4.0, "arches": [2.0],
+		"points": [Vector3.ZERO, Vector3(7, 0, 0)], "height": 4.0,
 		"seed": 19, "closed": true, "top": WallLayout.Top.COPE, "cover": WallLayout.Cover.ROOF,
-		"fence": true, "plaster": true, "gable_end": WallLayout.GableEnd.STEPS, "windows": [Vector2(2, 1)], "lanterns": [Vector3(2, 1, 1)],
+		"fence": true, "plaster": true, "gable_end": WallLayout.GableEnd.STEPS, "openings": [Vector3(2, 1, 0)], "lanterns": [Vector3(2, 1, 1)],
 		"flags": [2.0], "ruins": [Vector2(2, 3)], "supports": [Massing.new()],
 		"resting": [Massing.new()], "joined": [Massing.new()], "older": [Massing.new()], "storey_floors": true,
 	})
