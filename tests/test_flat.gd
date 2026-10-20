@@ -227,6 +227,9 @@ func _the_seed_dish_is_held_out_level_and_low_looking_down() -> void:
 	_check(_near(rig.right.global_transform, rig.head.global_transform * Flat.held(Hand.Tool.SEEDS, flat.pitch)), "the dish is held out before the eye")
 	_check(rig.right.body.global_basis.y.dot(Vector3.UP) > 0.999, "level however the head tips")
 	_check(main.wildlife.offers().has(rig.right), "an offer to the animals")
+	var next := main.feed_tool._next
+	await _tap(func(on: bool) -> void: _axis(JOY_AXIS_TRIGGER_RIGHT, 1.0 if on else 0.0))
+	_check(main.feed_tool._next == (next + 1) % FeedTool.HANDFULS, "the trigger throws a handful from it")
 	var ground := func() -> float: return rig.right.body.global_position.y - Terrain.height_at(rig.right.body.global_position.x, rig.right.body.global_position.z)
 	var standing: float = ground.call()
 	flat.pitch = -1.2

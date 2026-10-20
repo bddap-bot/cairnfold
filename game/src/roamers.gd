@@ -110,7 +110,7 @@ static func flight(a: Beast) -> float:
 func _alarm(b: Band, a: Node3D, _delta: float) -> bool:
 	if a.state == State.ENTER or a.state == State.FLEE:
 		return false
-	var eating: bool = a.state == State.FEED and a.hand != null and a.hand is not Handful
+	var eating: bool = a.state == State.FEED and Wildlife.in_hand(a.hand)
 	var runs_at := flight(a)
 	for n in wildlife._watched():
 		var at := n.global_position

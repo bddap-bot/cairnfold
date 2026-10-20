@@ -867,7 +867,7 @@ func _until(s: Dictionary) -> void:
 		var w: World = main.world
 		var worn: int = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.source != "").size()
 		var digested: bool = s.get("digests", []).all(func(n: String) -> bool: return FileAccess.file_exists(dir.path_join(n + ".json")))
-		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.fish.swimming.size() >= s.get("swimming", 0) and (not s.has("fed") or main.fed(s.fed) > 0) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
+		if w.seq >= s.get("seq", 0) and main.session.players() >= s.get("players", 0) and worn >= s.get("worn", 0) and main.session.previews.values().filter(func(p: PackedScene) -> bool: return p != null).size() >= s.get("previewed", 0) and main.fish.swimming.size() >= s.get("swimming", 0) and (not s.has("fed") or main.fed(s.fed == "dish") > 0) and digested and (not s.get("heard", false) or main.session.nearby.keys().any(func(k: String) -> bool: return k.ends_with(":%d" % _host_port(s)))):
 			_waiting = {}
 			return
 		await get_tree().process_frame
@@ -887,7 +887,7 @@ func _digest(s: Dictionary) -> void:
 	out.sun = main.look.time
 	out.avatars = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.visible).size()
 	out.worn = main.session.avatars.values().map(func(a: Avatar) -> String: return a.source).filter(func(k: String) -> bool: return k != "")
-	out.fed = {"hand": main.fed("hand"), "dish": main.fed("dish")}
+	out.fed = {"hand": main.fed(false), "dish": main.fed(true)}
 	out.handfuls = main.feed_tool.handfuls.filter(func(h: Handful) -> bool: return h.landed()).map(func(h: Handful) -> Array: return [h.position.x, h.position.y, h.position.z])
 	out.frenzy = main.fish.frenzy()
 	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))

@@ -48,7 +48,7 @@ func _process(delta: float) -> void:
 			var moved: Vector3 = (at - _was.get(h, at)) / delta
 			_velocity[h] = _velocity.get(h, Vector3.ZERO).lerp(moved, 1.0 - exp(-delta * EASE))
 		_was[h] = at
-		if _buttons[i].pressed("tool") and h.tool == Hand.Tool.SEEDS and h.tracked() and rig.aim_hand != h and not h.picking:
+		if _buttons[i].pressed("tool") and h.holds_seeds() and rig.aim_hand != h:
 			Cues.play(Cues.Act.SEEDS_THROW, dish(h), h)
 			throw(dish(h), launch(h, rig.global_basis * _velocity.get(h, Vector3.ZERO)))
 		_buttons[i].latch()

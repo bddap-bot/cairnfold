@@ -464,7 +464,13 @@ func _hand_within(p: Vector3, reach: float) -> Node3D:
 func _watch(delta: float) -> void:
 	if delta <= 0.0:
 		return
-	for n in _watched():
+	var watched := _watched()
+	for n in _was.keys():
+		if not watched.has(n):
+			_was.erase(n)
+			_speed.erase(n)
+			_velocity.erase(n)
+	for n in watched:
 		var at := n.global_position
 		var moved: Vector3 = (at - _was.get(n, at)) / delta
 		var ease := 1.0 - exp(-delta * SPEED_EASE)
@@ -477,10 +483,12 @@ func _watch(delta: float) -> void:
 			_eaters.erase(h)
 
 
+## This player's hands and head, and other players' dishes while held out: a dish put away is forgotten, so held out
+## again it is no sudden move.
 func _watched() -> Array[Node3D]:
 	var out: Array[Node3D] = []
 	for n: Node3D in hands + dishes + [viewer]:
-		if n != null and n.is_inside_tree():
+		if n != null and n.is_inside_tree() and (n is not Dish or n.visible):
 			out.append(n)
 	return out
 
@@ -534,6 +542,16 @@ func offers() -> Array[Node3D]:
 	return out
 
 
+## Whether `offer` is seeds held in a hand, this player's or another's, rather than thrown.
+static func in_hand(offer: Node3D) -> bool:
+	return offer is Hand or offer is Dish
+
+
+## Conures eating from a dish held out in this player's hand, or with `dish` in another player's.
+func feeding(dish: bool) -> int:
+	return birds.birds.filter(func(b: Birds.Bird) -> bool: return b.state == Birds.State.FEED and (b.node.hand is Dish if dish else b.node.hand is Hand)).size()
+
+
 func nibble(offer: Node3D, delta: float) -> void:
 	if offer is Handful:
 		offer.peck(delta)
@@ -547,7 +565,7 @@ func offer_for(appetite: Appetite, at: Vector3, fits := Callable()) -> Node3D:
 		var p := h.global_position
 		if _eaters.has(h) or sudden(h) or p.distance_to(at) > appetite.notice:
 			continue
-		if h is not Handful and appetite.eat == Eat.UNDER_HAND and p.y - water.floor_at(p) > appetite.reach:
+		if in_hand(h) and appetite.eat == Eat.UNDER_HAND and p.y - water.floor_at(p) > appetite.reach:
 			continue
 		if h is Handful and appetite.eat == Eat.ON_HAND and water.pond_at(p.x, p.z) != null:
 			continue
@@ -576,7 +594,7 @@ func feeds(h: Node3D, eater: Object) -> bool:
 ## in the hand's space), or on the ground or water with its mouth under it.
 func eat_spot(appetite: Appetite, h: Node3D, from: Vector3) -> Vector3:
 	var seen: Node3D = h.body if h is Hand else h
-	if appetite.eat == Eat.ON_HAND and h is not Handful:
+	if appetite.eat == Eat.ON_HAND and in_hand(h):
 		return seen.global_transform * ON_HAND
 	var at := seen.global_position
 	var off := Vector3(from.x - at.x, 0, from.z - at.z)

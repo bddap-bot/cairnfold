@@ -232,9 +232,9 @@ func _editing(hand: Hand = null) -> bool:
 	return stair_tool.busy(hand) or tool.busy(hand) or flora_tool.busy(hand) or ground_grab.busy(hand) or palette_tool.busy(hand) or delete_tool.busy(hand) or easel_tool.busy(hand)
 
 
-## Conures eating from a dish held out in this player's hand ("hand") or another player's ("dish"), for a script to wait on.
-func fed(on: String) -> int:
-	return wildlife.birds.birds.filter(func(b: Birds.Bird) -> bool: return b.state == Birds.State.FEED and (b.node.hand is Dish if on == "dish" else b.node.hand is Hand)).size()
+## `Wildlife.feeding`, for a script to wait on: the driver reaches no animal.
+func fed(dish: bool) -> int:
+	return wildlife.feeding(dish)
 
 
 ## A game played without a headset comes up on the flat screen; a script or test asks for it by --flat.

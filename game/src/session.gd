@@ -68,7 +68,8 @@ var visiting := {}
 var nearby := {}
 ## Remote players' avatars by peer id.
 var avatars := {}
-## Their seed dishes, two to a player, each shown in its hand while held out; `Wildlife` feeds from them.
+## Their seed dishes, two to a player, each shown in its hand while held out; `Wildlife` feeds from them. A leaving
+## player's are hidden for the next to take up, never freed, so no animal is left holding a freed one.
 var dishes: Array[Dish] = []
 var _dishes := {}
 ## The folder whose newest .vrm is this player's avatar, or "" for a built-in one.
@@ -485,19 +486,22 @@ func _appear(look: int, tint: Color) -> void:
 		return
 	_looks[id] = [posmod(look, Avatar.BUILT_IN.size()), tint.clamp()]
 	_dress(id, Avatar.built_in(look), "")
+	var taken: Array = _dishes.values().reduce(func(all: Array, pair: Array) -> Array: return all + pair, [])
 	var pair: Array[Dish] = []
-	for s in 2:
+	for dish in dishes:
+		if pair.size() < 2 and not taken.has(dish):
+			pair.append(dish)
+	while pair.size() < 2:
 		var dish := Dish.new()
 		add_child(dish)
+		dishes.append(dish)
 		pair.append(dish)
 	_dishes[id] = pair
-	dishes.append_array(pair)
 
 
 func _drop_dishes(id: int) -> void:
 	for dish: Dish in _dishes.get(id, []):
-		dishes.erase(dish)
-		dish.queue_free()
+		dish.visible = false
 	_dishes.erase(id)
 
 

@@ -447,7 +447,7 @@ func _to_hand(b: Bird, delta: float) -> void:
 		b.to = b.spot
 		return
 	b.node.position = b.spot
-	if h is not Handful:
+	if Wildlife.in_hand(h):
 		Wildlife._face(b.node, -h.global_basis.z, delta * 6.0)
 	wildlife.nibble(h, delta)
 	b.timer -= delta
@@ -654,7 +654,7 @@ func _land(b: Bird) -> void:
 
 
 func _animation_event(act: Cues.Act, b: Bird) -> void:
-	if b.state == State.FEED and b.node.hand is not Handful:
+	if b.state == State.FEED and Wildlife.in_hand(b.node.hand):
 		Cues.play(act, b.node.global_position, b.node.hand as Hand)
 		if act == Cues.Act.HAND_PECK:
 			wildlife.calls.call_out("click", b.node.position)
