@@ -50,7 +50,7 @@ func _run() -> void:
 		var invalid := d.duplicate()
 		invalid.b = bad
 		check(Commands._stairs(invalid) == null, "reject invalid endpoint")
-	var long := {"a": Vector3(0, 2, 0), "b": Vector3(0, 2, -60), "width": 1.2, "rail": "stone", "seed": 5}
+	var long := {"a": Vector3(0, 2, 0), "b": Vector3(0, 2, -60), "width": 1.2, "rail": "stone", "seed": 5, "paint": Palette.plain()}
 	check(Commands._stairs(long) != null, "a sixty-metre bridge is a valid command")
 	stairs.build(long)
 	check(stairs.kind == StairLayout.Kind.LANDING and is_equal_approx(stairs.surface(Vector3(0, 3, -59.5)), 2.0), "a sixty-metre bridge is walkable to its far end")
