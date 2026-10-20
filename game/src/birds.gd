@@ -64,7 +64,7 @@ const VOICE := {
 	"HOP": [["chirp", 8.0]],
 	"PECK": [["click", 12.0], ["chatter", 25.0]],
 	"DECIDE": [["murmur", 4.0]],
-	"FEED": [["click", 4.0], ["murmur", 10.0], ["grind", 30.0]],
+	"FEED": [["murmur", 10.0], ["grind", 30.0]],
 	"FLY": [["contact", 20.0]],
 	"ARRIVE": [["contact", 8.0]],
 	"LEAVE": [["contact", 12.0]],
@@ -655,6 +655,8 @@ func _land(b: Bird) -> void:
 func _animation_event(act: Cues.Act, b: Bird) -> void:
 	if b.state == State.FEED and b.node.hand is Hand:
 		Cues.play(act, b.node.global_position, b.node.hand)
+		if act == Cues.Act.HAND_PECK:
+			wildlife.calls.call_out("click", b.node.position)
 	if act == Cues.Act.HAND_PERCH and b.state == State.PERCH:
 		if wildlife.calls.rng.randf() < 0.5 and not wildlife.calls.calm(b.to):
 			wildlife.calls.call_out("chirp", b.to)

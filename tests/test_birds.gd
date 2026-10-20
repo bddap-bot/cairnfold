@@ -425,6 +425,13 @@ func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 	_check(d.get("for", 0.0) >= Birds.DECIDE_FOR.x - STEP and d.get("for", 0.0) <= Birds.DECIDE_FOR.y + STEP, "it stood deciding a while first, %.2f s" % d.get("for", 0.0))
 	_check(d.get("moved", 1.0) < 0.001, "where it stood")
 	_check(d.get("head", 0.0) > 0.95 and d.get("hand", 0.0) > 0.95, "looking at whoever holds the seeds and at the hand, %.2f and %.2f" % [d.get("head", 0.0), d.get("hand", 0.0)])
+	g.wildlife.calls._since["click"] = INF
+	var cue_before: int = Cues.asked.get(Cues.Act.HAND_PECK, 0)
+	b.node.event(Cues.Act.HAND_PECK)
+	_check(g.wildlife.calls._since["click"] == 0.0 and Cues.asked.get(Cues.Act.HAND_PECK, 0) == cue_before + 1, "one hand peck event plays both the seed click and its pulse")
+	g.wildlife.calls._since["click"] = INF
+	g.wildlife.birds._voice(b, "FEED", 100.0)
+	_check(is_inf(g.wildlife.calls._since["click"]), "feeding chatter has no independent seed-click timer")
 	var pecks := [0]
 	var watch_peck := func(act: Cues.Act) -> void:
 		if act == Cues.Act.HAND_PECK:

@@ -2504,13 +2504,20 @@ Every player action, from the code:
 | `PLAYER_LEAVES` | Another player leaves | three plucks falling | none: no hand did it |
 | `BIRDS_STARTLE` | A conure takes off from someone coming near | wing flutter | none: nothing touched the hand |
 | `HAND_PERCH` | A conure lands on a hand holding seeds | none | one 0.025 pulse, 12 ms |
-| `HAND_PECK` | A conure reaches the bottom of its visible peck | none | one 0.012 pulse, 6 ms |
+| `HAND_PECK` | A conure reaches the bottom of its visible peck | seed click through `Calls`, from the same event | one 0.012 pulse, 6 ms |
 | `HAND_FLIT` | The perched wing flit and tail shake begin together | none | one 0.015 pulse, 9 ms |
 | `HAND_HOP` | A hop or shuffle touches down | none | one 0.018 pulse, 8 ms |
 | `HAND_PREEN` | A preening stroke reaches its shoulder | none | one 0.008 pulse, 5 ms |
 | `HAND_LOOK` | An idle head turn begins | none | one 0.005 pulse, 4 ms |
 | `REFUSED` | Something other than the frame budget turns an action down | low tock | two knocks |
 | `CAPPED` | The frame budget turns an action down | soft grunt | two knocks, and the bar jumps and shakes |
+
+Conure pulses follow `Conure.animation_event`, on the same clock as its shader motion.
+The tail shake and wing flit share one fluff-up and one pulse; breathing has none.
+The feeding timer no longer emits pulses or seed clicks. A perched conure leaves
+the hand above `Birds.HAND_FLICK`, 2.0 m/s of smoothed controller speed (formerly
+0.7 m/s); approaching other animals still uses the original calm threshold.
+The deciding head turn eases at 22/s while retaining its person-to-food glance.
 
 | Action | What it is | Why it has no entry |
 | --- | --- | --- |
