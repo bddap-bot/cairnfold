@@ -22,6 +22,12 @@ func _frames() -> void:
 		await process_frame
 
 
+## Waits for `w`'s stones, which a worker thread lays over however many frames it takes, and the apertures they cut.
+func _laid(w: Wall) -> void:
+	while w.laying():
+		await process_frame
+
+
 func _capture(name: String) -> void:
 	if main.args.has("capture-dir"):
 		await main.capture(name)
@@ -293,6 +299,7 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 		if world.state.walls[wall.id].openings.size() == 1 and wall.layout.archways().size() == 1:
 			break
 		await process_frame
+	await _laid(wall)
 	_check(world.state.walls[wall.id].openings.size() == 1 and wall.layout.archways().size() == 1, "the tall wall opens a doorway arch")
 	var f := wall.layout.frame_at(3.0)
 	var into: Vector3 = f.point + Vector3.UP * 1.0
@@ -312,6 +319,7 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 		if wall.layout.apertures.size() == 1 and absf(wall.layout.apertures[0].size - 2.0) < 0.05:
 			break
 		await process_frame
+	await _laid(wall)
 	var shown: Dictionary = wall.layout.apertures[0] if wall.layout.apertures.size() == 1 else {}
 	_check(not shown.is_empty() and absf(shown.size - 2.0) < 0.05 and shown.head > head * 1.8, "the hands pulled twice as far apart show it twice as big, its head as high: %s" % shown)
 	Buttons.injected.erase("left_hand/grip_click")
@@ -328,6 +336,7 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 		if wall.layout.apertures.size() == 1 and is_equal_approx(wall.layout.apertures[0].head, head):
 			break
 		await process_frame
+	await _laid(wall)
 	_check(Array(world.state.walls[wall.id].openings)[0].w == 1.0 and is_equal_approx(wall.layout.apertures[0].head, head), "undo makes it a doorway again")
 	world.undo()
 	world.undo()
