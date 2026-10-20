@@ -115,6 +115,8 @@ static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round :
 				_house(root, plastered, WallLayout.GableEnd.WALL, flat, thatched)
 		PaletteTool.Restyle.TOP:
 			_wall(root, plastered, i as WallLayout.Top)
+		PaletteTool.Restyle.FLOOR:
+			_floored(root, plastered, i == 1)
 		PaletteTool.Restyle.FACE:
 			if i == PaletteTool.Face.TIMBER:
 				_house(root, true)
@@ -587,6 +589,24 @@ static func _house(root: Node3D, plastered := false, gable_end := WallLayout.Gab
 	roof.build()
 	layout.fit_under(roof)
 	_roofed(root, layout, roof, plastered)
+
+
+## A tall house cut away down its front and one side to show its floor at the foot, or one at every storey.
+static func _floored(root: Node3D, plastered: bool, storeys: bool) -> void:
+	var layout := WallLayout.new()
+	layout.plaster = plastered
+	layout.seed = 5
+	layout.height = 5.4
+	layout.top = WallLayout.Top.CAP
+	layout.closed = true
+	layout.cover = WallLayout.Cover.DECK
+	layout.storey_floors = storeys
+	layout.points = WallLayout.rectangle(Vector3(-1.4, 0, 0), Vector3(1.4, 0, 0), 2.4)
+	layout.build(_flat)
+	var floors := ["flagstone", "plank"]
+	_stones(root, layout.stones.filter(func(st: Dictionary) -> bool:
+		var at: Vector3 = st.xform.origin
+		return st.kind in floors or (at.z < 0.6 and at.x < 1.0)), 0.012)
 
 
 ## A round tower under a cone roof, or a flat one.

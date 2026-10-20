@@ -84,6 +84,8 @@ var plaster := false
 var timber_style := 0
 ## Whether new houses are thatched: the roof last turned to on this machine.
 var thatch := false
+## Whether new houses and towers are floored at every storey: the floor last turned to on this machine.
+var storey_floors := false
 var masons: Array[Mason] = []
 ## The house the hands are carrying, where it stands, and the hands holding it.
 var house: Wall
@@ -453,6 +455,7 @@ func begin_house(at: Vector3, yaw: float, on := PackedInt32Array(), round := fal
 	house.on = on
 	house.layout.plaster = plaster and not round
 	house.layout.timber_style = timber_style
+	house.layout.storey_floors = storey_floors
 	house.layout.gable_end = gable_end
 	house.layout.closed = true
 	house.layout.top = WallLayout.Top.CAP
@@ -1149,19 +1152,31 @@ func pick_building(origin: Vector3, dir: Vector3, held := false) -> Dictionary:
 ## The first building or plant surface along a teleport ray, short of reach.
 func solid_hit(origin: Vector3, dir: Vector3, reach: float) -> Variant:
 	var hit := pick_building(origin, dir)
-	var best: float = minf(reach, hit.get("along", INF))
+	var best: float = minf(minf(reach, hit.get("along", INF)), pick_floor(origin, dir).get("along", INF))
 	var plant := flora.solid_hit(origin, dir, best)
 	if not plant.is_empty():
 		best = plant.along
 	return origin + dir * best if best < reach else null
 
 
-## What a point stands on: the ground under it, or a flat roof's deck at or below it.
+## The nearest floor inside a house or tower along a ray, as {wall, along, point}, or empty.
+func pick_floor(origin: Vector3, dir: Vector3) -> Dictionary:
+	var best := {}
+	for w in walls:
+		if w.roof == null or _held(w):
+			continue
+		var t := w.layout.floor_hit(origin, dir)
+		if t < best.get("along", INF):
+			best = {"wall": w, "along": t, "point": origin + dir * t}
+	return best
+
+
+## What a point stands on: the ground under it, a house's or tower's floor, or a flat roof's deck at or below it.
 func floor_under(p: Vector3) -> float:
 	var y := Terrain.height_at(p.x, p.z)
 	for w in walls:
-		if w.roof != null:
-			y = maxf(y, w.roof.deck_under(p))
+		if w.roof != null and not _held(w):
+			y = maxf(y, maxf(w.roof.deck_under(p), w.layout.floor_under(p)))
 	return y
 
 
@@ -1241,6 +1256,7 @@ func _meet(w: Wall) -> void:
 	var supports: Array[Massing] = []
 	var resting: Array[Massing] = []
 	var joined: Array[Massing] = []
+	var older: Array[Massing] = []
 	var under := _below(w.on)
 	var rect := _reach(w)
 	for o in walls:
@@ -1254,9 +1270,12 @@ func _meet(w: Wall) -> void:
 			resting.append(o.massing)
 		elif o.massing.closed:
 			joined.append(o.massing)
+			if w.id < 0 or o.id < w.id:
+				older.append(o.massing)
 	w.layout.supports = supports
 	w.layout.resting = resting
 	w.layout.joined = joined
+	w.layout.older = older
 
 
 static func _reach(w: Wall) -> Rect2:

@@ -6,6 +6,7 @@ uniform vec3 moss : source_color = vec3(0.30, 0.42, 0.14);
 varying vec3 world_pos;
 varying vec3 world_nrm;
 varying float occlusion;
+varying float material;
 varying vec3 bounce_at;
 varying vec3 lamp_at;
 // Lantern light a pane of glass (colour alpha 0, Wall.pack) shows from behind it, as bright as the lit stone and
@@ -42,6 +43,7 @@ void vertex() {
 	lamp_at = lamp_coord(world_pos, world_nrm);
 	pane = COLOR.a < 0.5 ? textureLod(lamp_volume, lamp_coord(world_pos, -world_nrm), 0.0).r : 0.0;
 	occlusion = INSTANCE_CUSTOM.x;
+	material = INSTANCE_CUSTOM.y;
 }
 
 void fragment() {
@@ -49,11 +51,13 @@ void fragment() {
 	vec3 an = abs(world_nrm);
 	float tri = texture(detail, p.yz).r * an.x + texture(detail, p.xz).r * an.y + texture(detail, p.xy).r * an.z;
 	vec3 base = COLOR.rgb * (0.78 + tri * 0.45);
-	float mossy = smoothstep(0.55, 0.9, world_nrm.y) * smoothstep(0.45, 0.7, texture(detail, world_pos.xz * 0.3).r);
+	vec4 bounce = texture(bounce_volume, bounce_at);
+	// Moss takes stone out under the sky: a floor under its roof and woodwork (Palette.Element WOOD, TIMBER) stay bare.
+	float wood = step(abs(material - 3.0), 0.5) + step(abs(material - 5.0), 0.5);
+	float mossy = smoothstep(0.55, 0.9, world_nrm.y) * smoothstep(0.45, 0.7, texture(detail, world_pos.xz * 0.3).r) * smoothstep(0.35, 0.7, bounce.a) * (1.0 - wood);
 	ALBEDO = mix(base, moss, mossy * 0.8) * occlusion;
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.25;
-	vec4 bounce = texture(bounce_volume, bounce_at);
 	AO = bounce.a;
 	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce) + pane * lamp_light * PANE_SHOWS;
 }

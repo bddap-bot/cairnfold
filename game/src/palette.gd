@@ -36,10 +36,10 @@ const KINDS := {
 	"block": Element.STONE, "mortar": Element.STONE, "voussoir": Element.STONE, "keystone": Element.STONE,
 	"pillar": Element.STONE, "cope": Element.STONE, "cap": Element.STONE, "merlon": Element.STONE,
 	"pier": Element.STONE, "lintel": Element.STONE, "sill": Element.STONE, "mullion": Element.STONE,
-	"chimney": Element.STONE, "rubble": Element.STONE, "deck": Element.STONE,
+	"chimney": Element.STONE, "rubble": Element.STONE, "deck": Element.STONE, "flagstone": Element.STONE, "bed": Element.STONE,
 	"tile": Element.ROOF, "ridge": Element.ROOF, "thatch": Element.THATCH,
 	"post": Element.WOOD, "rail": Element.WOOD, "board": Element.WOOD, "gate": Element.WOOD, "frame": Element.WOOD,
-	"door": Element.WOOD, "pole": Element.WOOD,
+	"door": Element.WOOD, "pole": Element.WOOD, "plank": Element.WOOD,
 	"plaster": Element.PLASTER, "timber": Element.TIMBER,
 }
 const TWIST_STEP := 28.0

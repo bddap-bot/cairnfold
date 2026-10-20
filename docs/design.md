@@ -1679,6 +1679,36 @@ timber-framed one with two hands, and places a third raised; `tests/test_house.g
 `tests/test_controls.gd` both holds in tracked hands, `tests/test_keep.gd` that it is kept, and `scripts/coop.sh`
 that every player sees the joiner's raised wing.
 
+## Floors
+
+Directive (playtest, paraphrased): give buildings floors.
+
+Every house and tower is floored (`WallLayout.floors`; tests in `tests/test_floors.gd`):
+
+- At its foot, inside the walls and under them to just short of their outer faces, so nothing shows between floor
+  and wall. It rides the foot: raised on a plinth, the floor is raised with it, and a stretched or resized house lays
+  its floor again with its walls. Where the ground inside stands higher than the foot, as up a slope, the floor
+  stands at the highest of it, so no ground shows through, on a bed reaching down to the foot that reads as a step
+  at a door low on the downhill side.
+- Flags under stone, laid in running bond on mortar that shows in their joints; boards under plaster, timber framing
+  included, in staggered lengths. Either is plain boxes, as timbers are, and casts no shadow, lying in the walls' own.
+  They take the build's stone or woodwork paint. Moss grows on stone only under the sky, so a floor under its roof and
+  every piece of woodwork stay bare of it.
+- With the style tool on a floor, a house or tower is floored at its foot alone or at every storey too: a floor each
+  2.4 m (eight courses) above the one at its foot, as far up its walls as leaves 1.2 m under its top, a loft under a roof, so a 4.5 m tower has two and a 9 m
+  house four.
+  Houses laid after take the choice let go last. An upper floor is charged against the budget by its area
+  (`floor_m2`); the floor at the foot is charged with the roof over it, since every roofed build has one (`roof_m2`).
+- A floor is stood on: the teleport ray lands on the first floor it meets, and a point inside stands on the highest
+  floor at or below it, so a raised house is stood in on its floor, not on the ground under it.
+- Nothing grows through it: the meadow under a house or tower on the ground is worn bare, out to inside its walls,
+  as a path wears it, as a mark in the order of its build command, so taking the house away brings the grass back.
+- Two houses joined into one room never lay two floors over each other: the newer floor lays nothing in the older
+  one's room, where the older floor stays whole.
+
+`demo/floors.json` floors a stone house on a hump, a plaster one raised on its plinth and a tower floored at every
+storey through the style tool, and looks inside each.
+
 ## Colour per build
 
 Directive (verbatim): "If I make one wall somewhere, and then I make another wall elsewhere, and I select the color
@@ -2091,7 +2121,7 @@ The style tool is the colour tool's picker with styles for swatches (`PaletteToo
 thing opens a wheel of miniatures of that thing's styles, twisting the wrist turns it, showing each on the
 build live, and letting go keeps the one at the top, one undo step. What it offers depends on what it points
 at: a gable end, its house's gable ends (the wall's, boarded, crow-stepped; houses laid after take it); a
-house's or tower's roof, pitched, a cone (standing it as a round tower, see "Towers") or flat, or pitched or a cone thatched (see "Thatch"); a roofless
+house's or tower's roof, pitched, a cone (standing it as a round tower, see "Towers") or flat, or pitched or a cone thatched (see "Thatch"); a house's or tower's floor, at its foot alone or at every storey (see "Floors"); a roofless
 wall's top, merlons, plain capping or coping; a wall's face, stone or plaster, and on a house the timber framings
 (walls and houses laid after take the material turned to last); a flight or landing, its railings, stone, wooden or
 none (stairs laid after take them); a tree, its species: an oak's round crown, a

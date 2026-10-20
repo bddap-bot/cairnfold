@@ -256,7 +256,7 @@ func _thatch_is_part_of_the_build_command() -> void:
 	_check(not copy.same_inputs(r), "a thatched roof is another roof")
 	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "height": 2.4, "arches": PackedFloat32Array(),
 		"seed": 3, "closed": true, "top": int(WallLayout.Top.CAP), "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(),
-		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "plaster": false, "rise": 0.0, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain(),
+		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "plaster": false, "rise": 0.0, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain(),
 		"roof": {"kind": int(RoofLayout.Kind.GABLE), "center": Vector3.ZERO, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 3, "chimneys": PackedVector2Array(), "flag": false, "thatch": false}}
 	_check(Commands._wall(d) != null, "a tiled house is a valid build")
 	d.roof.thatch = true
@@ -269,7 +269,7 @@ func _thatch_is_part_of_the_build_command() -> void:
 
 
 func _the_budget_counts_thatch() -> void:
-	var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "plaster": false, "gable_end": 0,
+	var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "plaster": false, "gable_end": 0, "storey_floors": false,
 		"lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "flag": false, "thatch": true}}
 	var plan := (6.0 + WallLayout.THICKNESS + 2.0 * RoofLayout.GABLE_OVERHANG) * (4.0 + WallLayout.THICKNESS + 2.0 * RoofLayout.OVERHANG)
 	var thatched := Budget.wall(d)

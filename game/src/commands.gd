@@ -37,7 +37,7 @@ const MAX_SUPPORTS := 8
 ## What a `reshape` may change, by the garden's table of the builds it changes; `paint` and a wall's `roof` change
 ## by the entries they name.
 const RESHAPES := {
-	"walls": ["points", "height", "rise", "top", "plaster", "gable_end", "timber_style", "arches", "windows", "lanterns", "flags", "ruins"],
+	"walls": ["points", "height", "rise", "top", "plaster", "gable_end", "timber_style", "storey_floors", "arches", "windows", "lanterns", "flags", "ruins"],
 	"stairs": ["rail"],
 }
 
@@ -304,6 +304,8 @@ static func _wall(d: Variant) -> Variant:
 	if typeof(timber_style) != TYPE_INT or timber_style < -1:
 		return null
 	timber_style = mini(timber_style, 0)
+	if typeof(d.get("storey_floors")) != TYPE_BOOL:
+		return null
 	var gable_end: Variant = d.get("gable_end")
 	if typeof(gable_end) != TYPE_INT or gable_end < 0 or gable_end >= WallLayout.GableEnd.size():
 		return null
@@ -329,7 +331,7 @@ static func _wall(d: Variant) -> Variant:
 	var paint: Variant = d.get("paint")
 	if not Palette.valid(paint):
 		return null
-	var out := {"points": points, "height": d.height, "rise": rise, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "gable_end": gable_end, "timber_style": timber_style, "on": on, "paint": paint}
+	var out := {"points": points, "height": d.height, "rise": rise, "arches": arches, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "windows": windows, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "gable_end": gable_end, "timber_style": timber_style, "storey_floors": d.storey_floors, "on": on, "paint": paint}
 	if d.has("roof"):
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():

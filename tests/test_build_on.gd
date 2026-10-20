@@ -128,6 +128,11 @@ func _a_tower_on_a_wall_stands_on_its_top_and_takes_its_merlons() -> void:
 	_check(w.stones.filter(func(s: Dictionary) -> bool: return s.kind != "merlon").size() == bare.stones.filter(func(s: Dictionary) -> bool: return s.kind != "merlon").size(), "and every stone below its top")
 
 
+## A build's stones but its floors', which tests/test_floors.gd checks where joined rooms meet.
+func _walls(w: WallLayout) -> Array:
+	return w.stones.filter(func(s: Dictionary) -> bool: return not s.kind in WallLayout.FLOOR_KINDS)
+
+
 func _two_houses_joined_are_one_room_under_one_roof() -> void:
 	var a := _house(Vector3(0, 0, 0), Vector3(7, 0, 0), 4.0)
 	var b := _house(Vector3(4, 0, -1), Vector3(4, 0, 6), 3.6)
@@ -138,11 +143,11 @@ func _two_houses_joined_are_one_room_under_one_roof() -> void:
 	_lay(a)
 	_lay(b)
 	for pair in [[a, b], [b, a]]:
-		var inside: Array = pair[0].wall.stones.filter(func(s: Dictionary) -> bool: return pair[1].massing.holds(s.xform.origin))
+		var inside: Array = _walls(pair[0].wall).filter(func(s: Dictionary) -> bool: return pair[1].massing.holds(s.xform.origin))
 		_check(inside.is_empty(), "no wall stands inside the other house: %d stones" % inside.size())
 		var tiles: Array = pair[0].roof.tiles.filter(func(t: Dictionary) -> bool: return pair[1].massing.holds(t.xform.origin))
 		_check(tiles.is_empty(), "no roof tile lies under the other roof: %d" % tiles.size())
-	_check(a.wall.stones.size() < lone.wall.stones.size() * 0.9, "the shared stretch of wall is gone (%d of %d)" % [a.wall.stones.size(), lone.wall.stones.size()])
+	_check(_walls(a.wall).size() < _walls(lone.wall).size() * 0.9, "the shared stretch of wall is gone (%d of %d)" % [_walls(a.wall).size(), _walls(lone.wall).size()])
 	_check(a.wall.stones.size() > lone.wall.stones.size() * 0.5, "the rest stands")
 	_check(a.roof.tiles.size() < lone.roof.tiles.size() and a.roof.tiles.size() > lone.roof.tiles.size() * 0.5, "the roofs meet: %d of %d tiles" % [a.roof.tiles.size(), lone.roof.tiles.size()])
 	for corner in [Vector2(2.2, 2.0), Vector2(5.8, 2.0)]:

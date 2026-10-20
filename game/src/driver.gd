@@ -679,6 +679,7 @@ func _village(s: Dictionary) -> void:
 	_lay_gables(s)
 	_lay_plaster(s)
 	main.tool.thatch = s.get("thatch", false)
+	main.tool.storey_floors = s.get("storey_floors", false)
 	var k := 0
 	for z in range(-int(r / step), int(r / step) + 1):
 		for x in range(-int(r / step), int(r / step) + 1):
@@ -692,6 +693,7 @@ func _village(s: Dictionary) -> void:
 			for storey in s.get("storeys", 1):
 				tool.begin_house(at, yaw, on)
 				tool.place_house(at, yaw, Vector2(0.7, 0.44) * step)
+				tool.house.layout.height = s.get("height", WallTool.HOUSE_HEIGHT)
 				tool.end_house()
 				tool.walls[-1].ivy_age = INF
 				on = PackedInt32Array([tool.walls[-1].id])

@@ -5,7 +5,9 @@ extends Node3D
 ## wall changes by its own Masonry, so far chunks draw coarse stones as settled ones do, and once it settles by the
 ## glade's.
 
-enum Part { STONE, MORTAR, STONE_SHADOW, TILE, TILE_SHADOW, COAT, IVY, TIMBER }
+enum Part { STONE, MORTAR, STONE_SHADOW, TILE, TILE_SHADOW, COAT, IVY, TIMBER, FLOOR }
+## The parts a build's paint colours.
+const PAINTED: Array[Part] = [Part.STONE, Part.MORTAR, Part.TILE, Part.COAT, Part.TIMBER, Part.FLOOR]
 
 static var _kinds: Array[Masonry.Kind] = []
 static var _plaster: ShaderMaterial
@@ -82,7 +84,9 @@ var _perch_out := {}
 ## tiles cost the Quest 2 ten times what plain ones do. Mortar only shows in the gaps, so it is a plain box too. A
 ## thatched roof's coat is a mesh of its own; its slabs cast its shadow and stand in it for the bounce light. A
 ## timber is a plain box near, where a stone's lumps would cost it nine times the triangles; far it is the coarse
-## stone in a shader that reads nothing per pixel, since a few pixels wide its shading is what it costs.
+## stone in a shader that reads nothing per pixel, since a few pixels wide its shading is what it costs. A floor's
+## flags and planks are drawn as timbers are, but lie in the walls' own shade and the light around them: they cast
+## no shadow and shade no bounce light, which reads a room's builds from its roof down.
 static func kinds() -> Array[Masonry.Kind]:
 	if _kinds.is_empty():
 		var box := BoxMesh.new()
@@ -105,6 +109,9 @@ static func kinds() -> Array[Masonry.Kind]:
 		_kinds[Part.TIMBER].far = Stones.far_mesh()
 		_kinds[Part.TIMBER].far_material = ShaderMaterial.new()
 		_kinds[Part.TIMBER].far_material.shader = load("res://src/timber_far.gdshader")
+		_kinds[Part.FLOOR] = Masonry.Kind.new(box, Stones.shared_material(), true, true, off)
+		_kinds[Part.FLOOR].far = _kinds[Part.TIMBER].far
+		_kinds[Part.FLOOR].far_material = _kinds[Part.TIMBER].far_material
 		_reach(Quality.ladder[0].stone_near_m, Quality.ladder[0].ivy_m)
 	return _kinds
 
@@ -123,6 +130,7 @@ static func approach(step: Quality.Step, delta: float, glade: Masonry) -> bool:
 static func _reach(stone_near: float, ivy: float) -> void:
 	_kinds[Part.STONE].near = stone_near
 	_kinds[Part.TIMBER].near = stone_near
+	_kinds[Part.FLOOR].near = stone_near
 	_kinds[Part.TILE].near = stone_near
 	_kinds[Part.IVY].reach = ivy
 	_kinds[Part.IVY].material.set_shader_parameter("reach", ivy)
@@ -177,7 +185,7 @@ func data() -> Dictionary:
 		"points": PackedVector3Array(layout.points), "height": layout.height, "rise": layout.rise, "arches": PackedFloat32Array(layout.arches),
 		"seed": layout.seed, "closed": layout.closed, "top": int(layout.top), "fence": layout.fence,
 		"windows": PackedVector2Array(layout.windows), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags),
-		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "gable_end": int(layout.gable_end), "timber_style": layout.timber_style, "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
+		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "gable_end": int(layout.gable_end), "timber_style": layout.timber_style, "storey_floors": layout.storey_floors, "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
 	}
 	if roof != null:
 		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "flag": roof.flag, "thatch": roof.thatch}
@@ -196,6 +204,7 @@ func set_data(d: Dictionary) -> void:
 	layout.fence = d.fence
 	layout.plaster = d.plaster
 	layout.timber_style = d.timber_style
+	layout.storey_floors = d.storey_floors
 	layout.gable_end = d.gable_end as WallLayout.GableEnd
 	layout.windows.assign(Array(d.windows))
 	layout.lanterns.assign(Array(d.lanterns))
@@ -506,42 +515,48 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt3
 	var mortar := ks[Part.MORTAR]
 	var shadow := ks[Part.STONE_SHADOW]
 	var timber := ks[Part.TIMBER]
+	var paving := ks[Part.FLOOR]
 	var counts := {}
 	for s in built.stones:
 		counts[s.kind] = counts.get(s.kind, 0) + 1
-	var mortars: int = counts.get("mortar", 0) + counts.get("plaster", 0)
+	var mortars: int = counts.get("mortar", 0) + counts.get("plaster", 0) + counts.get("bed", 0)
+	var floor: int = counts.get("flagstone", 0) + counts.get("plank", 0)
 	var beams: int = counts.get("timber", 0)
-	var stones := built.stones.size() - mortars - beams
-	var bufs: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array()]
+	var stones := built.stones.size() - mortars - beams - floor
+	var bufs: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array()]
 	bufs[0].resize(stones * stone.stride())
 	bufs[1].resize(mortars * mortar.stride())
-	bufs[2].resize((built.stones.size() - counts.get("mortar", 0)) * shadow.stride())
+	bufs[2].resize((built.stones.size() - counts.get("mortar", 0) - counts.get("bed", 0) - floor) * shadow.stride())
 	bufs[3].resize(beams * timber.stride())
-	var n := [0, 0, 0, 0]
+	bufs[4].resize(floor * paving.stride())
+	var n := [0, 0, 0, 0, 0]
 	var box := AABB(built.samples[0] if built.samples.size() > 0 else Vector3.ZERO, Vector3.ZERO)
 	for s in built.stones:
 		var x: Transform3D = s.xform
-		if s.kind in ["mortar", "plaster"]:
+		if s.kind in ["mortar", "plaster", "bed"]:
 			mortar.write(bufs[1], n[1], x, _painted_as(s, colours), s.ao, Palette.code(s.kind), s.get("ends", Vector2.ZERO))
 			n[1] += 1
 		elif s.kind == "timber":
 			timber.write(bufs[3], n[3], x, _painted_as(s, colours), s.ao, Palette.code(s.kind))
 			n[3] += 1
+		elif s.kind in ["flagstone", "plank"]:
+			paving.write(bufs[4], n[4], x, _painted_as(s, colours), s.ao, Palette.code(s.kind))
+			n[4] += 1
 		else:
 			x.basis = x.basis * Stones.FLIPS[s.variant]
 			var c := _painted_as(s, colours)
 			c.a = 0.0 if s.kind == "glass" else 1.0
 			stone.write(bufs[0], n[0], x, c, s.ao, Palette.code(s.kind))
 			n[0] += 1
-		if s.kind != "mortar":
+		if s.kind != "mortar" and not s.kind in WallLayout.FLOOR_KINDS:
 			shadow.write(bufs[2], n[2], x)
 			n[2] += 1
 		box = box.expand(x.origin)
 	var chunks := {}
-	var parts: Array[Part] = [Part.STONE, Part.MORTAR, Part.STONE_SHADOW, Part.TIMBER]
+	var parts: Array[Part] = [Part.STONE, Part.MORTAR, Part.STONE_SHADOW, Part.TIMBER, Part.FLOOR]
 	for i in bufs.size():
 		chunks[parts[i]] = Masonry.split(bufs[i], ks[parts[i]])
-	return {"stone": bufs[0], "mortar": bufs[1], "shadow": bufs[2], "timber": bufs[3], "chunks": chunks, "bounds": box.grow(0.6), "paint": colours}
+	return {"stone": bufs[0], "mortar": bufs[1], "shadow": bufs[2], "timber": bufs[3], "floor": bufs[4], "chunks": chunks, "bounds": box.grow(0.6), "paint": colours}
 
 
 ## A laid part's colour in `colours`.
@@ -575,7 +590,7 @@ func _tint_roof() -> void:
 func _recolour() -> void:
 	if _painted == paint or _recolour_task >= 0:
 		return
-	if _parts[Part.STONE].is_empty() and _parts[Part.MORTAR].is_empty() and _parts[Part.TIMBER].is_empty():
+	if PAINTED.all(func(p: Part) -> bool: return _parts[p].is_empty()):
 		_painted = paint.duplicate()
 		return
 	var scale := {}
@@ -586,7 +601,7 @@ func _recolour() -> void:
 			scale[float(e)] = Vector3(b.r / a.r, b.g / a.g, b.b / a.b)
 	var ks := kinds()
 	var parts := {}
-	for p in [Part.STONE, Part.MORTAR, Part.TILE, Part.COAT, Part.TIMBER]:
+	for p in PAINTED:
 		parts[p] = [_parts[p], _chunked[p], ks[p].stride()]
 	var out := {"laid": _laid, "to": paint.duplicate()}
 	_recoloured = out
@@ -605,7 +620,7 @@ func _land_recolour() -> void:
 	_recolour_task = -1
 	var out := _recoloured
 	if out.laid == _laid:
-		for p in [Part.STONE, Part.MORTAR, Part.TILE, Part.COAT, Part.TIMBER]:
+		for p in PAINTED:
 			_parts[p] = out[p][0]
 			_chunked[p] = out[p][1]
 		_painted = out.to
@@ -633,6 +648,7 @@ func _take(packed: Dictionary) -> void:
 	_parts[Part.MORTAR] = packed.mortar
 	_parts[Part.STONE_SHADOW] = packed.shadow
 	_parts[Part.TIMBER] = packed.timber
+	_parts[Part.FLOOR] = packed.floor
 	for part in packed.chunks:
 		_chunked[part] = packed.chunks[part]
 	pick_bounds = packed.bounds

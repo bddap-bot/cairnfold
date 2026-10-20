@@ -17,6 +17,20 @@ const COURSE := 0.3
 ## The lowest a wall stands. Nothing caps how tall it stands, or how high a house rises on its plinth: the budget
 ## charges both as wall.
 const MIN_HEIGHT := 0.9
+## A house's or tower's floors: one storey's height, the least headroom a floor under its top keeps, the flags
+## (or, under plaster, the planks: width, length range and gap) it is laid in, and how far in from the outer faces
+## its rows end, inside the stones.
+const STOREY := 8 * COURSE
+const HEADROOM := 1.2
+const FLAG := Vector3(0.7, 0.08, 0.5)
+const PLANK := Vector4(0.2, 0.05, 1.2, 2.6)
+const FLOOR_JOINT := 0.012
+const FLOOR_IN := 0.04
+## The kinds a floor's pieces are laid as: its flags, its planks, and the mortar bed under either.
+const FLOOR_KINDS: Array[String] = ["flagstone", "plank", "bed"]
+## The discs wearing the meadow bare under a floor: how far apart, how far inside the walls' centre line their centres
+## stay, and each one's radius and fade.
+const BARE_STAMP := Vector4(0.4, 0.15, 0.3, 0.1)
 ## The courses under a wall's foot, its plinth, stand this far proud of each face, in stone this much darker, so a
 ## raised house reads as standing on them.
 const PLINTH := Vector2(0.05, 0.86)
@@ -106,6 +120,8 @@ var fence := false
 var plaster := false
 var gable_end := GableEnd.WALL
 var timber_style := 0
+## A house or tower floored at every storey up its walls, not only at its foot.
+var storey_floors := false
 ## The gable roof a house's end walls rise under, course by course, as stone walls do; null for any other.
 var gable: RoofLayout
 ## Where windows were placed: arc length and the height of the click above the foot.
@@ -121,6 +137,8 @@ var ruins: Array[Vector2] = []
 var supports: Array[Massing] = []
 var resting: Array[Massing] = []
 var joined: Array[Massing] = []
+## Of `joined`, the builds older than this one: its floors yield to their rooms, so two joined floors never overlap.
+var older: Array[Massing] = []
 # The fields above are what `build` reads (see `inputs`); those below are what it lays (see `adopt`).
 
 ## The points and plinth the stones were laid along: `points` and `rise` may have moved on while a worker lays them.
@@ -147,6 +165,9 @@ var openings: Array[Dictionary] = []
 ## Lantern flames and flag cloths, laid with the stones; flames are unit boxes, cloths unit quads off the pole.
 var flames: Array[Transform3D] = []
 var cloths: Array[Dictionary] = []
+## The heights of the floors' tops, lowest first, and the outline they cover: empty but for a house or tower.
+var floors := PackedFloat32Array()
+var floor_outline := PackedVector2Array()
 ## Per course from the foot up, the stretches broken away there: each ruin, wider every course up.
 var breaks: Array[PackedVector2Array] = []
 ## Counts the times stones were laid in any layout, by `build` or `adopt`, so what is worked out from a wall's
@@ -194,6 +215,8 @@ func build(ground: Callable, water := Callable()) -> void:
 	flames.clear()
 	cloths.clear()
 	openings.clear()
+	floors.clear()
+	floor_outline.clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	# Stones under the foot draw from their own stream, so water coming or going leaves the dry stones as they were.
@@ -290,6 +313,7 @@ func build(ground: Callable, water := Callable()) -> void:
 			_world(parts.finial, FINIAL, "finial", f)
 			cloths.append(parts.cloth)
 	_hide()
+	_lay_floors(ground)
 
 
 ## A stone's corners, before its transform.
@@ -410,6 +434,179 @@ func standing(s: float) -> float:
 
 
 ## Stones fallen from each ruin, lying in and beside its gap.
+## How many floors a house or tower `height` tall lays above its foot when floored at every storey, on level ground.
+static func upper_floors(height: float) -> int:
+	return maxi(0, floori((height - HEADROOM) / STOREY + 1e-4))
+
+
+## Whether this is a house or tower, floored inside.
+func floored() -> bool:
+	return closed and not fence and cover != Cover.OPEN and points.size() > 2
+
+
+## The floor under `p` inside this house or tower: the height of the highest floor at or just below it, or -INF.
+func floor_under(p: Vector3) -> float:
+	var best := -INF
+	if floors.is_empty() or not Geometry2D.is_point_in_polygon(Vector2(p.x, p.z), floor_outline):
+		return best
+	for y in floors:
+		if y <= p.y + SINK:
+			best = y
+	return best
+
+
+## How far along a ray it meets the top of one of the floors, or INF.
+func floor_hit(origin: Vector3, dir: Vector3) -> float:
+	var best := INF
+	if dir.y >= 0.0:
+		return best
+	for y in floors:
+		var t := (y - origin.y) / dir.y
+		if t >= 0.0 and t < best:
+			var at := origin + dir * t
+			if Geometry2D.is_point_in_polygon(Vector2(at.x, at.z), floor_outline):
+				best = t
+	return best
+
+
+## A house's or tower's floors: one at its foot, raised over any ground under it that stands higher, its bed reaching
+## down to the foot so it reads as a step at the door; with `storey_floors`, one more a storey above each, as far as
+## the walls rise with headroom to spare. Flags under stone, planks under plaster, in rows along its first side that end inside the
+## walls; none in the room of an older build it joins, or under a build standing on it.
+func _lay_floors(ground: Callable) -> void:
+	if not floored() or samples.is_empty() or laid_points.size() < 3:
+		return
+	var foot := samples[0].y + SINK
+	var line := PackedVector2Array()
+	for p in laid_points:
+		line.append(Vector2(p.x, p.z))
+	var inner := Geometry2D.offset_polygon(line, -THICKNESS * 0.5)
+	var outer := Geometry2D.offset_polygon(line, THICKNESS * 0.5 - FLOOR_IN)
+	if inner.is_empty() or outer.is_empty():
+		return
+	floor_outline = inner[0]
+	var lowest := foot
+	if supports.is_empty():
+		lowest = maxf(lowest, _highest_ground(outer[0], ground))
+	floors.append(lowest)
+	if storey_floors:
+		for k in range(1, upper_floors(height) + 1):
+			if lowest + k * STOREY <= foot + height - HEADROOM:
+				floors.append(lowest + k * STOREY)
+	var along := (line[1] - line[0]).normalized()
+	var across := along.orthogonal()
+	var lo := INF
+	var hi := -INF
+	for q in outer[0]:
+		lo = minf(lo, q.dot(across))
+		hi = maxf(hi, q.dot(across))
+	var planks := plaster
+	var rng := RandomNumberGenerator.new()
+	for f in floors.size():
+		var top_y := floors[f]
+		var bottom := foot - SINK if f == 0 else top_y - (PLANK.y if planks else FLAG.y) - 0.06
+		var row := 0
+		var z := lo
+		while z < hi - 0.01:
+			rng.seed = hash([seed, "floor", f, row])
+			var depth := minf(PLANK.x if planks else FLAG.z, hi - z)
+			var near := _chord(outer[0], along, across, z)
+			var far := _chord(outer[0], along, across, z + depth)
+			var a := maxf(near.x, far.x)
+			var b := minf(near.y, far.y)
+			var x := a - (rng.randf_range(0.0, PLANK.w) if planks else (FLAG.x * 0.5 if row % 2 == 1 else 0.0))
+			while x < b - 0.01:
+				var size := rng.randf_range(PLANK.z, PLANK.w) if planks else FLAG.x
+				var x0 := maxf(x, a)
+				var x1 := minf(x + size, b)
+				if x1 - x0 > 0.05:
+					_lay_floor_piece(along * (x0 + x1) * 0.5 + across * (z + depth * 0.5), Vector2(x1 - x0, depth), top_y, bottom, along, planks, rng)
+				x += size
+			z += depth
+			row += 1
+
+
+## One flag or plank with its top at `top_y`, on a bed down to `bottom` that shows in its joints.
+func _lay_floor_piece(at: Vector2, size: Vector2, top_y: float, bottom: float, along: Vector2, planks: bool, rng: RandomNumberGenerator) -> void:
+	var thick := PLANK.y if planks else FLAG.y
+	var centre := Vector3(at.x, top_y - thick * 0.5, at.y)
+	if _floor_hidden(centre):
+		return
+	var x := Vector3(along.x, 0.0, along.y)
+	var basis := Basis(x, Vector3.UP, x.cross(Vector3.UP))
+	var tilt := Basis.from_euler(Vector3(rng.randf_range(-0.008, 0.008), 0.0, rng.randf_range(-0.008, 0.008))) if not planks else Basis()
+	var color := WOOD * rng.randf_range(0.78, 1.05) if planks else stone_color(rng) * rng.randf_range(0.86, 0.98)
+	var piece := Transform3D((basis * tilt).scaled_local(Vector3(size.x - FLOOR_JOINT, thick, size.y - FLOOR_JOINT)), centre + Vector3.UP * rng.randf_range(-0.004, 0.004))
+	stones.append({"xform": piece, "color": color, "kind": "plank" if planks else "flagstone", "s": 0.0, "y": 0.0, "size": Vector3(size.x, thick, size.y), "ao": 0.9, "variant": 0})
+	var bed_top := top_y - thick * 0.6
+	var bed := Transform3D(basis.scaled_local(Vector3(size.x, bed_top - bottom, size.y)), Vector3(centre.x, (bed_top + bottom) * 0.5, centre.z))
+	stones.append({"xform": bed, "color": MORTAR, "kind": "bed", "s": 0.0, "y": 0.0, "size": bed.basis.get_scale(), "ao": 0.8, "variant": 0})
+
+
+## Discs wearing the ground bare under the floor inside the loop through `points`, as Ground.Stroke stamps: each
+## reaches past the inner faces into the walls, never out past them.
+static func floor_stamps(points: Array) -> PackedVector4Array:
+	var out := PackedVector4Array()
+	var line := PackedVector2Array()
+	for p: Vector3 in points:
+		line.append(Vector2(p.x, p.z))
+	var inside := Geometry2D.offset_polygon(line, -BARE_STAMP.y)
+	if inside.is_empty():
+		return out
+	var box := Rect2(inside[0][0], Vector2.ZERO)
+	for q in inside[0]:
+		box = box.expand(q)
+	for j in range(floori(box.position.y / BARE_STAMP.x), ceili(box.end.y / BARE_STAMP.x) + 1):
+		for i in range(floori(box.position.x / BARE_STAMP.x), ceili(box.end.x / BARE_STAMP.x) + 1):
+			var q := Vector2(i, j) * BARE_STAMP.x
+			if Geometry2D.is_point_in_polygon(q, inside[0]):
+				out.append(Vector4(q.x, q.y, BARE_STAMP.z, BARE_STAMP.w))
+	for q in inside[0]:
+		out.append(Vector4(q.x, q.y, BARE_STAMP.z, BARE_STAMP.w))
+	return out
+
+
+func _floor_hidden(p: Vector3) -> bool:
+	for s in older:
+		if s.holds(p):
+			return true
+	for s in resting:
+		if s.covers(p):
+			return true
+	return false
+
+
+## Where the line `across` = `z` crosses `outline`, as the least and most along it.
+static func _chord(outline: PackedVector2Array, along: Vector2, across: Vector2, z: float) -> Vector2:
+	var out := Vector2(INF, -INF)
+	for i in outline.size():
+		var p := outline[i]
+		var q := outline[(i + 1) % outline.size()]
+		var zp := p.dot(across) - z
+		var zq := q.dot(across) - z
+		if (zp < 0.0) == (zq < 0.0):
+			continue
+		var x := p.lerp(q, zp / (zp - zq)).dot(along)
+		out = Vector2(minf(out.x, x), maxf(out.y, x))
+	return out
+
+
+## The highest ground inside `outline`: at its corners and on the grid of the heights within it, where the ground's
+## bilinear surface peaks.
+static func _highest_ground(outline: PackedVector2Array, ground: Callable) -> float:
+	var top := -INF
+	var box := Rect2(outline[0], Vector2.ZERO)
+	for q in outline:
+		box = box.expand(q)
+		top = maxf(top, ground.call(q.x, q.y))
+	for j in range(floori(box.position.y / Terrain.STEP), ceili(box.end.y / Terrain.STEP) + 1):
+		for i in range(floori(box.position.x / Terrain.STEP), ceili(box.end.x / Terrain.STEP) + 1):
+			var q := Vector2(i, j) * Terrain.STEP
+			if Geometry2D.is_point_in_polygon(q, outline):
+				top = maxf(top, ground.call(q.x, q.y))
+	return top
+
+
 func _lay_rubble() -> void:
 	for r in ruins:
 		var rng := RandomNumberGenerator.new()
@@ -1329,6 +1526,7 @@ func inputs() -> WallLayout:
 	w.plaster = plaster
 	w.gable_end = gable_end
 	w.timber_style = timber_style
+	w.storey_floors = storey_floors
 	w.gable = gable
 	w.windows = windows.duplicate()
 	w.lanterns = lanterns.duplicate()
@@ -1337,6 +1535,7 @@ func inputs() -> WallLayout:
 	w.supports = supports.duplicate()
 	w.resting = resting.duplicate()
 	w.joined = joined.duplicate()
+	w.older = older.duplicate()
 	return w
 
 
@@ -1344,10 +1543,10 @@ func inputs() -> WallLayout:
 func same_inputs(other: WallLayout) -> bool:
 	return (points == other.points and height == other.height and rise == other.rise and arches == other.arches
 		and seed == other.seed and closed == other.closed and top == other.top
-		and cover == other.cover and fence == other.fence and plaster == other.plaster and gable_end == other.gable_end and timber_style == other.timber_style
+		and cover == other.cover and fence == other.fence and plaster == other.plaster and gable_end == other.gable_end and timber_style == other.timber_style and storey_floors == other.storey_floors
 		and windows == other.windows and lanterns == other.lanterns and flags == other.flags
 		and ruins == other.ruins and supports == other.supports and resting == other.resting
-		and joined == other.joined)
+		and joined == other.joined and older == other.older)
 
 
 ## Takes what `built` laid, as if `build` had run here.
@@ -1367,6 +1566,8 @@ func adopt(built: WallLayout) -> void:
 	flames = built.flames
 	cloths = built.cloths
 	breaks = built.breaks
+	floors = built.floors
+	floor_outline = built.floor_outline
 	_laid_count += 1
 	laid = _laid_count
 

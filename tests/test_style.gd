@@ -19,6 +19,7 @@ func _run() -> void:
 	world = main.world
 	_species_differ()
 	_faces_turn_to_plaster()
+	_floors_turn_to_every_storey()
 	_faces_cut_no_opening()
 	_timber_faces()
 	_towers_keep_stone()
@@ -96,6 +97,33 @@ func _faces_turn_to_plaster() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
+## The style tool aimed at a tall tower's floor floors it at every storey, on every machine, and towers laid after too.
+func _floors_turn_to_every_storey() -> void:
+	var d := _wall_data(PackedVector3Array(WallLayout.circle(Terrain.ground(-12, 24), 1.7)))
+	d.closed = true
+	d.height = 4.5
+	d.roof = {"kind": RoofLayout.Kind.CONE, "center": Terrain.ground(-12, 24), "radius": 1.7, "pitch": 2.7, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "flag": false, "thatch": false}
+	world._order({"op": "wall", "walls": [d]}, 1)
+	var id := world.seq * Commands.MAX_PIECES
+	var w: Wall = main.tool.find(id)
+	w.lay_now()
+	_check(w.layout.floors.size() == 1, "a tower is floored at its foot: %s" % [w.layout.floors])
+	var inside := Vector3(-12.3, w.layout.floors[0] + 1.6, 24.2)
+	var target: Dictionary = main.palette_tool.aim_style(inside, Vector3(0.1, -1, -0.1).normalized())
+	_check(target.get("restyle") == PaletteTool.Restyle.FLOOR and target.get("count") == 2, "the style tool aimed at the floor offers its floors: %s" % [target.get("restyle")])
+	var relayed := _relayed({"op": "reshape", "of": "walls", "id": id, "data": {"storey_floors": true}}, 2)
+	_check(relayed.get("data", {}).get("storey_floors") == true, "a peer takes the host's turn of a floor to every storey: %s" % relayed)
+	_turn(target, 1)
+	w.lay_now()
+	_check(world.state.walls[id].storey_floors and w.layout.floors.size() == 2, "a twist floors it at every storey: %s" % [w.layout.floors])
+	_check(main.tool.storey_floors, "towers laid after are floored at every storey")
+	world._order({"op": "undo"}, world.me())
+	w.lay_now()
+	_check(not world.state.walls[id].storey_floors and w.layout.floors.size() == 1, "an undo takes the upper floor away")
+	main.tool.storey_floors = false
+	world.restore({"seq": 0, "cmds": []})
+
+
 ## The style tool only restyles: turned through every face of an open wall and of a house, shown and sent, it
 ## neither cuts an opening nor fills the arch standing.
 func _faces_cut_no_opening() -> void:
@@ -121,7 +149,7 @@ func _faces_cut_no_opening() -> void:
 
 
 func _wall_data(points: PackedVector3Array) -> Dictionary:
-	return {"points": points, "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain()}
+	return {"points": points, "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
 
 
 ## A planted tree grows an oak; the style tool aimed at it offers each species and turns it to one through the host,

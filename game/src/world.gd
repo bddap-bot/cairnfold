@@ -62,6 +62,8 @@ var _next_token := 0
 var _awaiting := false
 ## The ground strokes standing, by id.
 var _strokes := {}
+## The meadow worn bare under each house's or tower's floor on the ground, by its wall's id, so no grass shows through.
+var _floor_marks := {}
 var _resending := {}
 ## What to do when each of our sent commands is settled, by token.
 var _done := {}
@@ -617,6 +619,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				state.walls[cmd.ids[i]] = cmd.walls[i].duplicate(true)
 				wall_tool.put(cmd.ids[i], handed)
 				_account("w%d" % cmd.ids[i], Budget.wall(state.walls[cmd.ids[i]]))
+				_floor_mark(cmd.ids[i])
 			inverse = {"op": "unwall", "ids": cmd.ids}
 		"unwall":
 			inverse = {"op": "wall", "ids": cmd.ids, "walls": Array(cmd.ids).map(func(id: int) -> Dictionary: return state.walls[id])}
@@ -624,6 +627,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				state.walls.erase(id)
 				wall_tool.take(id)
 				_account("w%d" % id, {})
+				_floor_mark(id)
 		"reshape":
 			var now: Dictionary = state[cmd.of][cmd.id]
 			var before := {}
@@ -648,6 +652,8 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			else:
 				stairs.settle(cmd.id)
 			_account(_keys(cmd)[0], _units(cmd.of, now))
+			if cmd.of == "walls":
+				_floor_mark(cmd.id)
 			inverse = {"op": "reshape", "of": cmd.of, "id": cmd.id, "data": before}
 		"stairs":
 			state.stairs[cmd.id] = cmd.stairs.duplicate(true)
@@ -952,6 +958,19 @@ func restore(snap: Dictionary) -> int:
 	return applied
 
 
+func _floor_mark(id: int) -> void:
+	if _floor_marks.has(id):
+		Ground.lift(_floor_marks[id])
+		_floor_marks.erase(id)
+	var d: Dictionary = state.walls.get(id, {})
+	if d.is_empty() or not d.closed or d.fence or not d.has("roof") or not d.on.is_empty():
+		return
+	var mark := Ground.Stroke.new(Ground.Kind.EARTH)
+	mark.stamps = WallLayout.floor_stamps(d.points)
+	_floor_marks[id] = mark
+	Ground.lay(mark, id)
+
+
 ## Runs `change` with the walls' sounds and the ground's rewear held until it has finished; what it returns.
 func _hushed(change: Callable) -> Variant:
 	wall_tool.quiet = true
@@ -978,6 +997,9 @@ func _clear() -> void:
 	for id in _strokes:
 		Ground.lift(_strokes[id])
 	_strokes.clear()
+	for id in _floor_marks:
+		Ground.lift(_floor_marks[id])
+	_floor_marks.clear()
 	state = {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}, "easels": {}}
 	_fills.clear()
 	units = _meadow_units.duplicate()
@@ -1027,7 +1049,7 @@ func digest() -> Dictionary:
 	var heights := Array(Terrain.read(Terrain.ALL))
 	var out := {"seq": seq, "walls": {}, "groups": {}, "ground": hash(heights), "heights": [heights.min(), heights.max()]}
 	for w: Wall in wall_tool.walls:
-		out.walls[str(w.id)] = {"data": var_to_str(state.walls[w.id]), "stones": w.layout.stones.size(), "height": w.layout.height}
+		out.walls[str(w.id)] = {"data": var_to_str(state.walls[w.id]), "stones": w.layout.stones.size(), "height": w.layout.height, "floors": Array(w.layout.floors)}
 	for g in flora.groups:
 		var shown := 0
 		var spot := Vector3.ZERO

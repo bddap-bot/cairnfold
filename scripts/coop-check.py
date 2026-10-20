@@ -32,6 +32,10 @@ rises = sorted(round(float(m.group(1)), 2) for w in g["walls"].values() for m in
 check(rises.count(0.9) == 1 and rises.count(0.0) == len(rises) - 1, f"the joiner raised the host's wing 0.9 m onto a plinth, and nothing else: {rises}")
 ends = sorted(int(re.search(r'"gable_end": (\d+)', w["data"]).group(1)) for w in g["walls"].values() if "roof" in w["data"])
 check(ends == [0, 1, 2], f"the host's house has the wall's gable ends, the joiner's storey boards and the host's wing crow steps: {ends}")
+houses = [w for w in g["walls"].values() if "roof" in w["data"]]
+check(len(houses) == 3 and all(len(w["floors"]) == 1 for w in houses), f"every house, storey and wing is floored alike on every machine: {[w['floors'] for w in houses]}")
+storey = next(w for w in houses if '"on": PackedInt32Array()' not in w["data"])
+check(storey["floors"][0] > min(w["floors"][0] for w in houses if w is not storey) + 2.0, f"the joiner's storey is floored on the host's house's top: {storey['floors']}")
 kinds = lambda k: [v for v in g["groups"].values() if v["kind"] == k]
 check(len(kinds("tree")) == 1 and kinds("tree")[0]["shown"] == 0, "the host's undo took its tree away")
 check(len(kinds("flowers")) == 1 and kinds("flowers")[0]["shown"] == kinds("flowers")[0]["plants"], "the joiner's undo then redo left its flowers standing")

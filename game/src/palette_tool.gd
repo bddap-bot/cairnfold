@@ -9,7 +9,8 @@ extends Node3D
 ## (builds laid after take the swatch let go last), or on the meadow the garden's season. The style tool's are
 ## miniatures of the styles of what it points at: a gable end's, a roof's (tiled, thatched or flat, a house's or a
 ## tower's), a roofless wall's top, a wall's face (stone, plaster or a house's timber framing; builds laid after take
-## the material let go last), a flight's or landing's railings (stairs laid after take them), or a tree's species. It
+## the material let go last), a flight's or landing's railings (stairs laid after take them), a house's or tower's floor (at its foot alone, or at
+## every storey), or a tree's species. It
 ## only restyles: openings are the windows' and the arch's.
 
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
@@ -17,7 +18,7 @@ const WHEEL_RADIUS := 0.07
 ## Where the wheel stands from the controller, in its frame when the trigger went down.
 const WHEEL_AT := Vector3(0, 0.06, -0.05)
 
-enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL }
+enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, FLOOR }
 enum Face { STONE, PLASTER, TIMBER }
 
 ## A hand's open wheel: what it changes (`aim`'s target) on which build (its garden table `of` and `id`; "" and -1 for
@@ -116,19 +117,22 @@ func colour_target(element: Palette.Element, point: Vector3, of := "", id := -1)
 
 
 ## What the style tool would restyle from `origin` along `dir`, as `aim` gives it, with `restyle` in place of an
-## element, or empty: the tree, stairs, gable end, roof or wall it meets first, a
+## element, or empty: the tree, stairs, floor, gable end, roof or wall it meets first, a
 ## roofless wall's top near it; fences, ladders and bushes have no style.
 func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var pick := walls.pick_building(origin, dir)
 	var roof := pick if pick.get("surface") == "roof" else {}
 	var gable := pick if pick.get("surface") == "gable" else {}
 	var solid := walls.flora.solid_hit(origin, dir, DeleteTool.REACH)
+	var floor := walls.pick_floor(origin, dir)
 	var nearest: float = pick.get("along", INF)
-	var stair := world.stairs.pick(origin, dir, minf(nearest, solid.get("along", INF)))
+	var stair := world.stairs.pick(origin, dir, minf(minf(nearest, solid.get("along", INF)), floor.get("along", INF)))
 	if not stair.is_empty():
 		if world.stairs.layouts[stair.stair].kind == StairLayout.Kind.LADDER:
 			return {}
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.RAIL, "count": styles(Restyle.RAIL), "point": stair.point, "of": "stairs", "id": stair.stair, "wall": null}
+	if floor.get("along", INF) < minf(nearest, solid.get("along", INF)):
+		return style_target(Restyle.FLOOR, floor.wall, floor.point)
 	if solid.get("along", INF) < nearest and solid.plants[0].pool == walls.flora.trunks:
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.TREE, "count": FloraLayout.Species.size(), "point": solid.point, "of": "", "id": -1, "wall": null, "tree": solid.plants[0]}
 	if not gable.is_empty():
@@ -161,6 +165,8 @@ static func styles(restyle: Restyle) -> int:
 			return FloraLayout.Species.size()
 		Restyle.RAIL:
 			return StairLayout.RAILS.size()
+		Restyle.FLOOR:
+			return 2
 	return Face.size()
 
 
@@ -249,6 +255,8 @@ func _now(w: Wheel) -> int:
 			return WallTool.roof_style(d)
 		Restyle.TOP:
 			return d.top
+		Restyle.FLOOR:
+			return int(d.storey_floors)
 	if d.plaster and d.timber_style >= 0 and d.closed and d.points.size() == 4:
 		return Face.TIMBER
 	return Face.PLASTER if d.plaster else Face.STONE
@@ -267,6 +275,8 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 			return {"top": pick}
 		Restyle.RAIL:
 			return {"rail": StairLayout.RAILS[pick]}
+		Restyle.FLOOR:
+			return {"storey_floors": pick == 1}
 	var data := {}
 	var timber_style: int = 0 if pick == Face.TIMBER else -1
 	if timber_style != world.state.walls[w.id].timber_style:
@@ -309,6 +319,8 @@ func close(hand: Hand) -> void:
 		walls.gable_end = w.pick as WallLayout.GableEnd
 	elif w.id >= 0 and w.target.restyle == Restyle.ROOF and w.pick != WallTool.RoofStyle.FLAT:
 		walls.thatch = w.pick == WallTool.RoofStyle.THATCHED
+	elif w.id >= 0 and w.target.restyle == Restyle.FLOOR:
+		walls.storey_floors = w.pick == 1
 	elif w.id >= 0 and w.target.restyle == Restyle.FACE:
 		walls.plaster = w.pick >= Face.PLASTER
 		walls.timber_style = 0 if w.pick == Face.TIMBER else -1

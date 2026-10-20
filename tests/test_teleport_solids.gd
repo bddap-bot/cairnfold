@@ -22,6 +22,7 @@ func _run() -> void:
 	_onto_a_pitched_roof(rig, world)
 	_onto_a_tree(rig, world)
 	_onto_a_wall_top(rig, world)
+	_onto_a_raised_floor(rig, world)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -37,7 +38,7 @@ func _pose(origin: Vector3, dir: Vector3) -> Transform3D:
 
 
 func _wall_data(points: PackedVector3Array) -> Dictionary:
-	return {"points": points, "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain()}
+	return {"points": points, "height": 2.6, "arches": PackedFloat32Array(), "seed": 3, "closed": false, "top": 0, "fence": false, "windows": PackedVector2Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
 
 
 ## Aims at `at` from `from`, lands, and checks the player stands upright where the ray hit, on `surface`'s height.
@@ -96,3 +97,27 @@ func _onto_a_wall_top(rig: Rig, world: World) -> void:
 	var on_top := func(_p: Vector3) -> float: return top.y
 	_lands(rig, top + Vector3(0, 5, 6), top, on_top, "down onto a wall's top")
 	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+
+
+func _onto_a_raised_floor(rig: Rig, world: World) -> void:
+	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(30, 30), Terrain.ground(36, 30), 4.0)))
+	d.closed = true
+	d.rise = 1.5
+	d.arches = PackedFloat32Array([3.0])
+	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(33, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "flag": false, "thatch": false}
+	world._order({"op": "wall", "walls": [d]}, 1)
+	var w: Wall = main.tool.walls[-1]
+	w.lay_now()
+	var level := w.layout.floors[0]
+	var inside := Vector3(33.5, level, 30.0)
+	var on_floor := func(_p: Vector3) -> float: return level
+	_check(level > Terrain.height_at(inside.x, inside.z) + 1.0, "the raised house's floor stands over the ground: %.2f" % level)
+	_lands(rig, Vector3(32.5, level + 1.6, 30.3), inside, on_floor, "down onto a raised house's floor from inside")
+	_check(is_equal_approx(main.tool.floor_under(inside + Vector3.UP * 0.5), level), "standing inside, the player stands on the floor, not the ground under it")
+	var middle := Terrain.ground(33.0, 30.0)
+	Ground.settle()
+	_check(Ground.laid_bare(middle.x, middle.z) > 0.99, "the meadow under the floor is worn bare: %.2f" % Ground.laid_bare(middle.x, middle.z))
+	_check(Ground.laid_bare(33.0, 30.0 + 2.0 + 1.0) < 0.01, "the meadow outside the walls is not")
+	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	Ground.settle()
+	_check(Ground.laid_bare(middle.x, middle.z) < 0.01, "taken away, the house gives the meadow back")
