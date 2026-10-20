@@ -3240,8 +3240,8 @@ the tread, the bridge's deck or a rung. Stairs stand where they were drawn: they
 carry no supports, take no part in wall arches, and outlive a wall they were drawn
 onto. `demo/stairs.json` shows a bridge over a pond between two walls, a flight up
 to it, a ladder and a flight onto a flat roof, then teleports onto the bridge; the
-stress scene fills the build budget with stairs, ladders and landings for its
-`stairs/*` views.
+stress scene fills the build budget with stairs, ladders and landings, beside a
+stepped path up a hill, for its `stairs/*` views.
 
 ## Timbered plaster houses
 
