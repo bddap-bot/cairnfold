@@ -1943,11 +1943,12 @@ from one corner of the map to the other.
 
 Report: with the mountains in place, teleporting far horizontally no longer worked; the ray seemed to hit the mountains.
 
-Everything past the map's side, the mountains and the ground before them, is scenery nobody stands on, and the ray
-never meets it: it ends where it leaves the map. A ray that leaves through the side before it hits anything or,
-aimed upward, before the 30 m air reach, stands the player on the floor at the map's edge where it left, so a long
-level aim toward the mountains carries as far as the map goes. Before, a level ray off the edge had no target and
-an upward one floated the player in the air past the map.
+Directive (verbatim): "I'd like mountains to behave like skybox as far as teleport is concerned."
+
+Everything past the map's side, the mountains and the ground before them, is sky to the ray: it never meets them.
+Aimed at a mountain, the ray gives what the sky there gives: the point in the air at the 30 m reach while that is
+over the map, and otherwise no target at all, so the player never floats out past the edge. Ground, roofs, walls
+and trees on the map stay targets up to the edge.
 
 Directive (verbatim): "I'd like to be able to use the grab button to grab the ground so ground terraforming becomes um... not a tool, it's just something that's always available. I just grab something. Grab the ground and push it down or pull it up"
 

@@ -28,7 +28,7 @@ func _finish(rig: Rig) -> void:
 	rig.set_process(false)
 	_a_ray_lands_on_any_roof_it_hits(rig)
 	_reaches_across_the_map(rig)
-	_backdrop_stops_no_ray(rig)
+	_mountains_are_sky(rig)
 	await _stick_teleports_with_every_tool(rig)
 	await _eased_stick_lands_nearer(rig, Vector3(0, -0.3, -1), "ground")
 	await _eased_stick_lands_nearer(rig, Vector3(0, 1, -1), "air")
@@ -112,29 +112,42 @@ func _air_reach_stops_at_nearer_ground(rig: Rig) -> void:
 	_check(rig.aim_lift < 0.15 and rig.aim_ground.distance_to(hill) < 0.1, "a rising ray that meets a hillside within reach lands on it")
 
 
-## The mountains and everything round the map are scenery: a ray toward them from anywhere on it, level, a little
-## down or up at a ridge, lands on the map's own floor where it leaves, or at the air reach short of that; never on
-## nothing, nor in the air past the map.
-func _backdrop_stops_no_ray(rig: Rig) -> void:
+## The mountains are sky to the ray: aimed at one over the map's ground, level or up at its ridge, it gives what the
+## sky over it gives, nothing near the map's side and the air reach farther in, and never the floor at the edge.
+## Aimed down near the edge it still lands on the ground there.
+func _mountains_are_sky(rig: Rig) -> void:
 	var half := Terrain.SIZE * 0.5
 	var ranges: Dictionary = Mountains.RANGES[0]
 	for side: Vector2 in [Vector2(0, -1), Vector2(1, 0), Vector2(0, 1), Vector2(-1, 0)]:
 		var az := atan2(side.y, side.x)
 		var ridge: Vector3 = Vector3(side.x, 0, side.y) * ranges.radius + Vector3.UP * Mountains.ridge(ranges, Mountains.noise_for(ranges), az)
-		for from in [40.0, 65.0, half - 6.0]:
-			var o := Vector3(side.x * from, Terrain.height_at(side.x * from, side.y * from) + Rig.EYE, side.y * from)
-			for dir: Vector3 in [Vector3(side.x, 0, side.y), Vector3(side.x, -0.02, side.y), Vector3(side.x, 0.2, side.y), ridge - o]:
-				rig.aim(_pose(o, dir.normalized()))
+		for at: Vector2 in [Vector2(half - 6.0, Rig.EYE), Vector2(40.0, 25.0)]:
+			var from := at.x
+			var o := Vector3(side.x * from, Terrain.height_at(side.x * from, side.y * from) + at.y, side.y * from)
+			var sky := Vector3(side.x, 0.5, side.y).normalized()
+			rig.aim(_pose(o, sky))
+			var above: Variant = rig.aim_ground
+			var above_lift := rig.aim_lift
+			for dir: Vector3 in [Vector3(side.x, 0, side.y), Vector3(side.x, 0.2, side.y), ridge - o]:
+				dir = dir.normalized()
+				rig.aim(_pose(o, dir))
 				var g: Variant = rig.aim_ground
-				var what := "a ray from %.0f m toward the mountains along %s" % [from, dir.normalized()]
-				_check(g != null, what + " has a target")
-				if g == null:
-					continue
-				_check(maxf(absf(g.x), absf(g.z)) <= half + 0.01, what + " lands on the map: %s" % g)
-				var on_floor: bool = rig.aim_lift < 0.15 and absf(g.y - Terrain.height_at(g.x, g.z)) < 0.05
-				var air: bool = (g + Vector3.UP * rig.aim_lift).distance_to(o + dir.normalized() * Rig.AIR_REACH) < 0.01
-				_check(on_floor or air, what + " stands on the floor or at the air reach: %s, lift %.2f" % [g, rig.aim_lift])
-				_check(Vector2(g.x - o.x, g.z - o.z).length() > 4.0, what + " goes out toward them: %s" % g)
+				var what := "a ray from %.0f m at the mountains along %s" % [from, dir]
+				_check(Terrain.raycast(o, dir) == null, what + " clears the map's ground")
+				var air := o + dir * Rig.AIR_REACH
+				if dir.y <= 0.0 or not Terrain.over_map(air):
+					_check(g == null and not rig._ground_ring.visible, what + " has no target, as the sky has none: %s" % g)
+				else:
+					_check(g != null and (g + Vector3.UP * rig.aim_lift).distance_to(air) < 0.01, what + " targets the air at the reach, as the sky does: %s" % g)
+				if from == half - 6.0:
+					_check(g == null and above == null, what + " gives what the sky above it gives: %s and %s" % [g, above])
+			if from != half - 6.0:
+				_check(above != null and (above + Vector3.UP * above_lift).distance_to(o + sky * Rig.AIR_REACH) < 0.01, "the sky from %.0f m in targets the air" % from)
+		var near := Vector3(side.x, 0, side.y) * (half - 6.0)
+		var eye := near + Vector3.UP * (Terrain.height_at(near.x, near.z) + Rig.EYE)
+		rig.aim(_pose(eye, Vector3(side.x, -0.5, side.y).normalized()))
+		var g: Variant = rig.aim_ground
+		_check(g != null and Terrain.over_map(g) and absf(g.y - Terrain.height_at(g.x, g.z)) < 0.05 and rig.aim_lift < 0.15, "a ray down at the ground by the edge lands on it: %s" % g)
 	rig.hide_markers()
 
 

@@ -248,10 +248,9 @@ static func exit_along(origin: Vector3, dir: Vector3) -> float:
 	return maxf(t, 0.0)
 
 
-## Whether `p`, on bounds(), lies on its side rather than its top or bottom.
-static func on_side(p: Vector3) -> bool:
-	var box := bounds()
-	return p.y > box.position.y and p.y < box.end.y and maxf(absf(p.x), absf(p.z)) >= SIZE * 0.5 - 0.001
+## Whether `p` lies over the map, not out past its side.
+static func over_map(p: Vector3) -> bool:
+	return maxf(absf(p.x), absf(p.z)) <= SIZE * 0.5
 
 
 ## The grid cells within `radius` of (x, z), clipped to the play area.
