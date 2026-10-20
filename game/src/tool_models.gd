@@ -105,6 +105,13 @@ static func build(tool: Hand.Tool) -> Node3D:
 ## a roof's over a house or a round tower; a gable end's turned to face the eye.
 static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round := false) -> Node3D:
 	var root := Node3D.new()
+	if restyle == PaletteTool.Restyle.DECORATION:
+		var layout := DecorationLayout.new()
+		layout.build(i, 0)
+		var model := layout.model(0)
+		model.scale = Vector3.ONE * 0.035
+		root.add_child(model)
+		return root
 	if restyle == PaletteTool.Restyle.RAIL:
 		_stairs(root, StairLayout.RAILS[i])
 		return root

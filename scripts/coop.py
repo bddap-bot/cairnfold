@@ -119,6 +119,12 @@ def scripts(count):
                 steps += [{"op": "sculpt", "x": -50, "z": 50, "lift": lift, "seconds": 0.5}]
             steps += [{"op": "until", "seq": last + 1 + k}, {"op": "digest", "name": f"{name}-{shape}"},
                       barrier([f"{n}-{shape}" for n in names])]
+        if name == "host":
+            steps += [{"op": "fit", "what": "decoration", "index": 0, "s": 0.5 + i * 0.25, "style": i} for i in range(7)]
+            steps += [{"op": "fit", "what": "decoration", "x": 20 + i, "z": 20, "style": i} for i in (7, 8)]
+            steps += [{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "A"}]
+        steps += [{"op": "until", "seq": last + 13}, {"op": "digest", "name": f"{name}-decorations"},
+                  barrier([f"{n}-decorations" for n in names])]
         if name == "join":
             steps += [{"op": "visit", "home": True},
                       {"op": "until", "players": 1},

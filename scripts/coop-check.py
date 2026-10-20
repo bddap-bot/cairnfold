@@ -83,4 +83,7 @@ check(seen == {n: len(names) - 1 for n in names}, f"each player sees all other a
 for n in names:
     expected = sorted(h for peer, h in own.items() if peer != n)
     check(worn[n] == expected, f"{n} sees every other custom avatar: {worn[n]}")
+decorated = {n: json.load(open(f"{out}/{n}-decorations.json"))["decorations"] for n in names}
+check(all(v == decorated["host"] for v in decorated.values()), "decoration styles and seeds sync after undo and redo")
+check(len(decorated["host"]) == 9, "all nine decoration styles survive co-op undo and redo")
 sys.exit(0 if ok else 1)

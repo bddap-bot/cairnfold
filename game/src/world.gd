@@ -41,6 +41,7 @@ var ground_grab: GroundGrab
 var water: Water
 var easels: Easels
 var boulders: Boulders
+var decorations: Decorations
 ## The garden's season; each build carries its own colours.
 var palette := Palette.new()
 ## Where the sun stands (Daylight), shown on `look` once the sky tool lets the sky go.
@@ -93,7 +94,7 @@ var _ops := {}
 
 ## A garden with nothing in it.
 static func blank() -> Dictionary:
-	return {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}, "easels": {}, "boulders": {}}
+	return {"stairs": {}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}, "easels": {}, "boulders": {}, "decorations": {}}
 
 
 func _init() -> void:
@@ -198,6 +199,10 @@ func change_of(cmd: Dictionary) -> Dictionary:
 		"uneasel":
 			if state.easels.has(cmd.id):
 				out.easel = -1
+		"decoration":
+			out = Budget.decoration(cmd.style)
+		"undecoration":
+			Budget.add(out, _units_of.get("d%d" % cmd.id, {}), -1.0)
 		"boulder":
 			out.boulder = Budget.boulder(cmd.scale)
 		"unboulder":
@@ -401,7 +406,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 		cmd.token = proposed.token
 	if cmd.op == "wall" and not cmd.has("ids"):
 		cmd.ids = PackedInt32Array(range(seq * Commands.MAX_PIECES, seq * Commands.MAX_PIECES + cmd.walls.size()))
-	elif cmd.op in ["stairs", "plant", "path", "ground", "easel", "boulder"] and not cmd.has("id"):
+	elif cmd.op in ["stairs", "plant", "path", "ground", "easel", "boulder", "decoration"] and not cmd.has("id"):
 		cmd.id = seq
 	var inverse := _timed(cmd)
 	if cmd.op == "plant" and not cmd.kind in Flora.PLACED:
@@ -554,6 +559,8 @@ static func _units(of: String, d: Dictionary) -> Dictionary:
 			return Budget.wall(d)
 		"stairs":
 			return Budget.stairs(d)
+		"decorations":
+			return Budget.decoration(d.style)
 	return {"boulder": Budget.boulder(d.scale)}
 
 
@@ -573,7 +580,7 @@ func _keys(cmd: Dictionary) -> Array:
 		"wall", "unwall":
 			return Array(cmd.ids).map(func(id: int) -> String: return "w%d" % id)
 		"reshape":
-			return ["%s%d" % [{"walls": "w", "stairs": "q", "boulders": "b"}[cmd.of], cmd.id]]
+			return ["%s%d" % [{"walls": "w", "stairs": "q", "boulders": "b", "decorations": "d"}[cmd.of], cmd.id]]
 		"plant":
 			return ["p%d" % cmd.id]
 		"tree":
@@ -587,6 +594,8 @@ func _keys(cmd: Dictionary) -> Array:
 			return ["season"]
 		"easel", "uneasel":
 			return ["e%d" % cmd.id]
+		"decoration", "undecoration":
+			return ["d%d" % cmd.id]
 		"boulder", "unboulder":
 			return ["b%d" % cmd.id]
 
@@ -649,6 +658,14 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			inverse = {"op": "unwall", "ids": cmd.ids}
 		"unwall":
 			inverse = {"op": "wall", "ids": cmd.ids, "walls": Array(cmd.ids).map(func(id: int) -> Dictionary: return state.walls[id])}
+			var restore_decorations: Array = []
+			for id in state.decorations.keys():
+				if state.decorations[id].wall in cmd.ids:
+					restore_decorations.append(state.decorations[id].merged({"op": "decoration", "id": id}))
+					state.decorations.erase(id)
+					_account("d%d" % id, {})
+			if not restore_decorations.is_empty():
+				inverse = {"op": "batch", "cmds": [inverse] + restore_decorations}
 			for id in cmd.ids:
 				state.walls.erase(id)
 				wall_tool.take(id)
@@ -677,6 +694,9 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				wall_tool.restyle(cmd.id, cmd.data.keys())
 			elif cmd.of == "stairs":
 				stairs.settle(cmd.id)
+			elif cmd.of == "decorations":
+				if decorations != null:
+					decorations.settle(cmd.id)
 			elif boulders != null:
 				boulders.put(cmd.id, now)
 			_account(_keys(cmd)[0], _units(cmd.of, now))
@@ -793,7 +813,8 @@ func _apply(cmd: Dictionary) -> Dictionary:
 		"batch":
 			var back := []
 			for c: Dictionary in cmd.cmds:
-				back.push_front(_apply(c))
+				var undone := _apply(c)
+				back = (undone.cmds if undone.op == "batch" else [undone]) + back
 			inverse = {"op": "batch", "cmds": back}
 		"garden":
 			inverse = {"op": "wipe"}
@@ -833,6 +854,14 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			state.easels[cmd.easel].strokes = cmd.strokes.duplicate()
 			if easels != null:
 				easels.repaint(cmd.easel, state.easels[cmd.easel].strokes)
+		"decoration":
+			state.decorations[cmd.id] = Commands._decoration(cmd)
+			_account("d%d" % cmd.id, Budget.decoration(cmd.style))
+			inverse = {"op": "undecoration", "id": cmd.id}
+		"undecoration":
+			inverse = state.decorations[cmd.id].merged({"op": "decoration", "id": cmd.id})
+			state.decorations.erase(cmd.id)
+			_account("d%d" % cmd.id, {})
 		"boulder":
 			state.boulders[cmd.id] = {"at": cmd.at, "turn": cmd.turn, "seed": cmd.seed, "scale": cmd.scale, "paint": cmd.paint, "style": cmd.style}
 			if boulders != null:
@@ -963,6 +992,8 @@ func snapshot() -> Dictionary:
 	for id in state.easels:
 		var e: Dictionary = state.easels[id]
 		cmds.append({"op": "easel", "id": id, "at": e.at, "yaw": e.yaw, "strokes": e.strokes, "mix": e.mix})
+	for id in state.decorations:
+		cmds.append(state.decorations[id].merged({"op": "decoration", "id": id}))
 	for id in state.boulders:
 		var b: Dictionary = state.boulders[id]
 		cmds.append({"op": "boulder", "id": id, "at": b.at, "turn": b.turn, "seed": b.seed, "scale": b.scale, "paint": b.paint, "style": b.style})
@@ -1128,6 +1159,9 @@ func digest() -> Dictionary:
 	for id in state.easels:
 		var e: Dictionary = state.easels[id]
 		out.easels[str(id)] = {"at": var_to_str(e.at.snapped(Vector3.ONE * 0.01)), "strokes": e.strokes.size(), "paint": hash(var_to_str(e.strokes)), "mix": hash(e.mix)}
+	out.decorations = {}
+	for id in state.decorations:
+		out.decorations[str(id)] = var_to_str(state.decorations[id])
 	out.boulders = {}
 	for id in state.boulders:
 		var b: Dictionary = state.boulders[id]

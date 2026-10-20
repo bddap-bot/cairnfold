@@ -460,6 +460,14 @@ func _wall_of(s: Dictionary) -> Wall:
 ## would find it: `what` is opening, lantern, flag, chimney or tower_flag; `s` and `y` place it on the wall,
 ## `style` and `size` shape an opening, `side` picks a lantern's face, `at` a chimney's spot along and across the ridge.
 func _fit(s: Dictionary) -> void:
+	if s.what == "decoration":
+		var w: Wall = main.tool.walls[s.index] if s.has("index") else null
+		var at := w.layout.point_at(float(s.get("s", 0.0))) if w != null else Vector3(float(s.get("x", 0.0)), 0, float(s.get("z", 0.0)))
+		var target := {"what": "decoration", "wall": w, "point": at, "s": float(s.get("s", 0.0)), "side": float(s.get("side", 1.0)), "turn": float(s.get("turn", 0.0))}
+		if s.has("style"):
+			target.style = int(s.style)
+		main.fitting_tool.fit(target)
+		return
 	var target := {"what": s.what, "wall": main.tool.walls[s.index], "s": s.get("s", 0.0), "y": s.get("y", 0.0), "style": s.get("style", WallLayout.DoorStyle.PLAIN), "size": s.get("size", 1.0), "side": s.get("side", 1.0)}
 	if s.has("at"):
 		target.at = Vector2(s.at[0], s.at[1])

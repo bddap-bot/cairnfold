@@ -1,0 +1,389 @@
+[
+  {
+    "op": "budget",
+    "bounded": false
+  },
+  {
+    "op": "place",
+    "x": 0,
+    "z": 8
+  },
+  {
+    "op": "house",
+    "at": [
+      0,
+      0
+    ],
+    "size": [
+      3.5,
+      3.0
+    ],
+    "seconds": 0.2,
+    "rise": 0.6
+  },
+  {
+    "op": "fit",
+    "what": "decoration",
+    "index": 0,
+    "s": 1.75,
+    "style": 0,
+    "side": -1
+  },
+  {
+    "op": "wait",
+    "seconds": 0.4
+  },
+  {
+    "op": "house",
+    "at": [
+      5,
+      0
+    ],
+    "size": [
+      3.5,
+      3.0
+    ],
+    "seconds": 0.2,
+    "rise": 0.6
+  },
+  {
+    "op": "fit",
+    "what": "decoration",
+    "index": 1,
+    "s": 1.75,
+    "style": 1,
+    "side": -1
+  },
+  {
+    "op": "wait",
+    "seconds": 0.4
+  },
+  {
+    "op": "house",
+    "at": [
+      10,
+      0
+    ],
+    "size": [
+      3.5,
+      3.0
+    ],
+    "seconds": 0.2,
+    "rise": 0.6
+  },
+  {
+    "op": "fit",
+    "what": "decoration",
+    "index": 2,
+    "s": 1.75,
+    "style": 2,
+    "side": -1
+  },
+  {
+    "op": "wait",
+    "seconds": 0.4
+  },
+  {
+    "op": "house",
+    "at": [
+      15,
+      0
+    ],
+    "size": [
+      3.5,
+      3.0
+    ],
+    "seconds": 0.2,
+    "rise": 0.6
+  },
+  {
+    "op": "fit",
+    "what": "decoration",
+    "index": 3,
+    "s": 1.75,
+    "style": 3,
+    "side": -1
+  },
+  {
+    "op": "wait",
+    "seconds": 0.4
+  },
+  {
+    "op": "house",
+    "at": [
+      20,
+      0
+    ],
+    "size": [
+      3.5,
+      3.0
+    ],
+    "seconds": 0.2,
+    "rise": 0.6
+  },
+  {
+    "op": "fit",
+    "what": "decoration",
+    "index": 4,
+    "s": 1.75,
+    "style": 4,
+    "side": -1
+  },
+  {
+    "op": "fit",
+    "what": "opening",
+    "index": 4,
+    "s": 1.75,
+    "y": 0.0
+  },
+  {
+    "op": "wait",
+    "seconds": 0.4
+  },
+  {
+    "op": "house",
+    "at": [
+      25,
+      0
+    ],
+    "size": [
+      3.5,
+      3.0
+    ],
+    "seconds": 0.2,
+    "rise": 0.6
+  },
+  {
+    "op": "fit",
+    "what": "decoration",
+    "index": 5,
+    "s": 1.75,
+    "style": 5,
+    "side": -1
+  },
+  {
+    "op": "wait",
+    "seconds": 0.4
+  },
+  {
+    "op": "house",
+    "at": [
+      30,
+      0
+    ],
+    "size": [
+      3.5,
+      3.0
+    ],
+    "seconds": 0.2,
+    "rise": 0.6
+  },
+  {
+    "op": "fit",
+    "what": "decoration",
+    "index": 6,
+    "s": 1.75,
+    "style": 6,
+    "side": -1
+  },
+  {
+    "op": "wait",
+    "seconds": 0.4
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "view",
+    "eye": [
+      2.4,
+      1.8,
+      -5.5
+    ],
+    "at": [
+      0,
+      0.5,
+      -1.6
+    ],
+    "ground": true
+  },
+  {
+    "op": "capture",
+    "name": "01-foundation"
+  },
+  {
+    "op": "view",
+    "eye": [
+      7.4,
+      1.8,
+      -5.5
+    ],
+    "at": [
+      5,
+      0.5,
+      -1.6
+    ],
+    "ground": true
+  },
+  {
+    "op": "capture",
+    "name": "02-foundation"
+  },
+  {
+    "op": "view",
+    "eye": [
+      12.4,
+      1.8,
+      -5.5
+    ],
+    "at": [
+      10,
+      0.5,
+      -1.6
+    ],
+    "ground": true
+  },
+  {
+    "op": "capture",
+    "name": "03-foundation"
+  },
+  {
+    "op": "view",
+    "eye": [
+      17.4,
+      1.8,
+      -5.5
+    ],
+    "at": [
+      15,
+      0.5,
+      -1.6
+    ],
+    "ground": true
+  },
+  {
+    "op": "capture",
+    "name": "04-foundation"
+  },
+  {
+    "op": "view",
+    "eye": [
+      22.4,
+      1.8,
+      -5.5
+    ],
+    "at": [
+      20,
+      0.5,
+      -1.6
+    ],
+    "ground": true
+  },
+  {
+    "op": "capture",
+    "name": "05-foundation"
+  },
+  {
+    "op": "view",
+    "eye": [
+      27.4,
+      1.8,
+      -5.5
+    ],
+    "at": [
+      25,
+      0.5,
+      -1.6
+    ],
+    "ground": true
+  },
+  {
+    "op": "capture",
+    "name": "06-foundation"
+  },
+  {
+    "op": "view",
+    "eye": [
+      32.4,
+      1.8,
+      -5.5
+    ],
+    "at": [
+      30,
+      0.5,
+      -1.6
+    ],
+    "ground": true
+  },
+  {
+    "op": "capture",
+    "name": "07-foundation"
+  },
+  {
+    "op": "sun",
+    "time": 1.0,
+    "seconds": 0.5
+  },
+  {
+    "op": "fit",
+    "what": "decoration",
+    "x": 0,
+    "z": 10,
+    "style": 7
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "view",
+    "eye": [
+      2.0,
+      1.6,
+      13.8
+    ],
+    "at": [
+      0,
+      0.6,
+      10
+    ],
+    "ground": true
+  },
+  {
+    "op": "capture",
+    "name": "08-night"
+  },
+  {
+    "op": "fit",
+    "what": "decoration",
+    "x": 5,
+    "z": 10,
+    "style": 8
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "view",
+    "eye": [
+      7.0,
+      1.6,
+      13.8
+    ],
+    "at": [
+      5,
+      0.6,
+      10
+    ],
+    "ground": true
+  },
+  {
+    "op": "capture",
+    "name": "09-night"
+  },
+  {
+    "op": "quit"
+  }
+]

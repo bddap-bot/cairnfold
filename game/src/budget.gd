@@ -201,3 +201,10 @@ static func path(d: Dictionary) -> Dictionary:
 			stones += maxi(1, ceili(f.half * 2.0 / 0.5))
 	# Wall courses lay roughly ten blocks per square metre.
 	return {"wall_m2": stones * 0.1}
+
+
+## Reserve the instanced solid pieces plus flowers and flame overlays against measured fitting units.
+static func decoration(style: int) -> Dictionary:
+	var layout := DecorationLayout.new()
+	layout.build(style, 0, 4.8)
+	return {"fitting": float(layout.parts.size() + layout.flames.size() * 2), "flower": float(layout.flowers.size())}

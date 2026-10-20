@@ -5,10 +5,10 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "mix", "sheet", "restone", "boulder", "unboulder"]
+const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "mix", "sheet", "restone", "boulder", "unboulder", "decoration", "undecoration"]
 ## What a batch may carry: from a player, takings; from the host, also the undo of them.
-const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show", "uneasel", "unboulder"]
-const UNBATCHED := ["stairs", "wall", "path", "ground", "easel", "boulder"]
+const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show", "uneasel", "unboulder", "undecoration"]
+const UNBATCHED := ["stairs", "wall", "path", "ground", "easel", "boulder", "decoration"]
 ## Most commands one batch carries.
 const MAX_BATCH := 128
 ## A stroke builds at most this many walls; their ids follow from the command's sequence number.
@@ -39,6 +39,7 @@ const RESHAPES := {
 	"walls": ["points", "height", "rise", "top", "plaster", "plinth_plaster", "gable_end", "timber_style", "storey_floors", "openings", "lanterns", "flags", "ruins"],
 	"stairs": ["rail"],
 	"boulders": ["at", "turn", "scale", "style"],
+	"decorations": ["style"],
 }
 
 
@@ -52,7 +53,7 @@ static func length(points: Variant) -> float:
 
 ## Walls, paths, easels, boulders and plant groups with anything standing.
 static func _things(state: Dictionary) -> int:
-	var n: int = state.stairs.size() + state.walls.size() + state.paths.size() + state.grounds.size() + state.easels.size() + state.boulders.size()
+	var n: int = state.stairs.size() + state.walls.size() + state.paths.size() + state.grounds.size() + state.easels.size() + state.boulders.size() + state.decorations.size()
 	for g: Dictionary in state.groups.values():
 		if g.kind != "meadow" and g.hidden.size() < g.size:
 			n += 1
@@ -78,11 +79,11 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			out[k] = cmd[k]
 	if typeof(cmd.get("token")) == TYPE_INT:
 		out.token = cmd.token
-	if op in ["stairs", "plant", "path", "ground", "easel", "boulder"] and from_host:
-		if typeof(cmd.get("id")) != TYPE_INT or state.groups.has(cmd.id) or state.paths.has(cmd.id) or state.grounds.has(cmd.id) or state.stairs.has(cmd.id) or state.easels.has(cmd.id) or state.boulders.has(cmd.id):
+	if op in ["stairs", "plant", "path", "ground", "easel", "boulder", "decoration"] and from_host:
+		if typeof(cmd.get("id")) != TYPE_INT or state.groups.has(cmd.id) or state.paths.has(cmd.id) or state.grounds.has(cmd.id) or state.stairs.has(cmd.id) or state.easels.has(cmd.id) or state.boulders.has(cmd.id) or state.decorations.has(cmd.id):
 			return {}
 		out.id = cmd.id
-	if op in ["stairs", "wall", "path", "ground", "plant", "easel", "boulder"] and not from_host and _things(state) >= MAX_THINGS:
+	if op in ["stairs", "wall", "path", "ground", "plant", "easel", "boulder", "decoration"] and not from_host and _things(state) >= MAX_THINGS:
 		return {}
 	var ok := false
 	match op:
@@ -191,6 +192,14 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 				out.easel = e
 				out.strokes = _strokes(cmd.get("strokes"))
 				ok = out.strokes != null and (from_host or out.strokes.is_empty())
+		"decoration":
+			var d: Variant = _decoration(cmd)
+			ok = d != null and (from_host or d.wall < 0 or state.walls.has(d.wall))
+			if ok:
+				out.merge(d)
+		"undecoration":
+			ok = typeof(cmd.get("id")) == TYPE_INT and state.decorations.has(cmd.id)
+			out.id = cmd.get("id")
 		"boulder":
 			var b: Variant = _boulder(cmd)
 			ok = b != null
@@ -200,6 +209,21 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			ok = typeof(cmd.get("id")) == TYPE_INT and state.boulders.has(cmd.id)
 			out.id = cmd.get("id")
 	return out if ok else {}
+
+
+static func _decoration(d: Dictionary) -> Variant:
+	if typeof(d.get("wall")) != TYPE_INT or typeof(d.get("style")) != TYPE_INT or typeof(d.get("seed")) != TYPE_INT:
+		return null
+	if d.style not in DecorationLayout.options("ground" if d.wall < 0 else "foundation"):
+		return null
+	if typeof(d.get("at")) != TYPE_VECTOR3 or not _finite(d.at):
+		return null
+	for key in ["turn", "s", "side"]:
+		if typeof(d.get(key)) != TYPE_FLOAT or not is_finite(d[key]):
+			return null
+	if d.s < 0.0 or d.s >= 4000.0 or absf(d.side) != 1.0:
+		return null
+	return {"wall": d.wall, "style": d.style, "seed": d.seed, "at": d.at, "turn": d.turn, "s": d.s, "side": d.side}
 
 
 ## A boulder: the ground point under its centre, which way it is turned, the seed its shape grows from, its size,
@@ -423,6 +447,8 @@ static func _whole(of: String, d: Dictionary) -> Variant:
 			return _wall(d)
 		"stairs":
 			return _stairs(d)
+		"decorations":
+			return _decoration(d)
 	return _boulder(d)
 
 

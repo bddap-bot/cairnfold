@@ -218,7 +218,7 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 	if cut.is_empty():
 		return {}
 	if cut.has("single"):
-		return cut.single if is_instance_valid(cut.single.wall) else {}
+		return cut.single if cut.single.has("decoration") or is_instance_valid(cut.single.wall) else {}
 	var was: Array = cut.ray
 	var aimed := aim(origin, dir, cut.plants, _gone(cut))
 	var far := Vector3(aimed.get("point", origin + dir))
@@ -253,6 +253,9 @@ static func steps(metres: float, mow := 0.0) -> int:
 
 func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 	var target := aim(origin, dir, cut.plants, _gone(cut))
+	if target.has("decoration"):
+		cut.get_or_add("decorations", {})[target.decoration] = target
+		return target
 	if target.has("fitting"):
 		cut.wall = {}
 		var items: Array = cut.fittings.get_or_add(target.wall.id, [])
@@ -380,6 +383,10 @@ func let_go(who: Object) -> void:
 	for id: int in cut.easels:
 		if world.state.easels.has(id):
 			cmds.append({"op": "uneasel", "id": id})
+	for item: Dictionary in cut.get("decorations", {}).values():
+		var cmd := FittingTool.removal(world.state, item)
+		if not cmd.is_empty():
+			cmds.append(cmd)
 	for id: int in cut.fittings:
 		if not world.state.walls.has(id) or cmds.any(func(c: Dictionary) -> bool: return c.op == "unwall" and id in c.ids):
 			continue

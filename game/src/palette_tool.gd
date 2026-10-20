@@ -19,7 +19,7 @@ const WHEEL_RADIUS := 0.07
 ## Where the wheel stands from the controller, in its frame when the trigger went down.
 const WHEEL_AT := Vector3(0, 0.06, -0.05)
 
-enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, FLOOR, STONE }
+enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, FLOOR, STONE, DECORATION }
 enum Face { STONE, PLASTER, TIMBER }
 
 ## A hand's open wheel: what it changes (`aim`'s target) on which build (its garden table `of` and `id`; "" and -1 for
@@ -126,7 +126,7 @@ func colour_target(element: Palette.Element, point: Vector3, of := "", id := -1)
 ## element, or empty: the tree, stairs, floor, boulder, gable end, roof, wall or painted stone it meets first, a
 ## roofless wall's top near it; fences, ladders, bushes and unpaved ground have no style.
 func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
-	var pick := walls.pick_building(origin, dir)
+	var pick := FittingTool.pick_target(walls, origin, dir)
 	var roof := pick if pick.get("surface") == "roof" else {}
 	var gable := pick if pick.get("surface") == "gable" else {}
 	var solid := walls.flora.solid_hit(origin, dir, DeleteTool.REACH)
@@ -149,6 +149,10 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 		return style_target(Restyle.FLOOR, floor.wall, floor.point)
 	if solid.get("along", INF) < nearest and solid.plants[0].pool == walls.flora.trunks:
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.TREE, "count": FloraLayout.Species.size(), "point": solid.point, "of": "", "id": -1, "wall": null, "tree": solid.plants[0]}
+	if pick.has("decoration"):
+		var d: Dictionary = world.state.decorations[pick.decoration]
+		var options := DecorationLayout.options("ground" if d.wall < 0 else "foundation")
+		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.DECORATION, "options": options, "count": options.size(), "point": pick.point, "of": "decorations", "id": pick.decoration, "wall": pick.wall}
 	if not gable.is_empty():
 		return style_target(Restyle.GABLE, gable.wall, gable.point)
 	if not roof.is_empty() and not WallTool.house_of(world.state.walls.get(roof.wall.id, {})).is_empty():
@@ -278,6 +282,8 @@ func _now(w: Wheel) -> int:
 			return d.top
 		Restyle.FLOOR:
 			return int(d.storey_floors)
+		Restyle.DECORATION:
+			return w.target.options.find(d.style)
 		Restyle.STONE:
 			return d.style
 	if w.target.face_key == "plaster" and d.plaster and d.timber_style >= 0 and d.closed and d.points.size() == 4:
@@ -300,6 +306,8 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 			return {"rail": StairLayout.RAILS[pick]}
 		Restyle.FLOOR:
 			return {"storey_floors": pick == 1}
+		Restyle.DECORATION:
+			return {"style": w.target.options[pick]}
 		Restyle.STONE:
 			return {"style": pick}
 	var data := {}
@@ -329,7 +337,7 @@ func _show(w: Wheel, pick: int) -> void:
 
 ## What lays the builds of the garden's table `of`: each shows a reshape before it is sent and `settle`s back.
 func _builder(of: String) -> Object:
-	return {"walls": walls, "stairs": world.stairs, "boulders": world.boulders}[of]
+	return {"walls": walls, "stairs": world.stairs, "boulders": world.boulders, "decorations": world.decorations}[of]
 
 
 ## Sends the choice at the top of `hand`'s wheel to the garden, unless the garden already has it (another

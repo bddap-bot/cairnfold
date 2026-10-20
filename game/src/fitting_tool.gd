@@ -38,6 +38,8 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 	rig = player
 	walls = builder
 	world = garden
+	world.decorations = Decorations.new(world, walls)
+	add_child(world.decorations)
 	lamps.install()
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["tool"]))
@@ -56,6 +58,7 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 
 
 func _process(delta: float) -> void:
+	world.decorations.sync()
 	var shown := {}
 	for i in _buttons.size():
 		var b := _buttons[i]
@@ -92,6 +95,9 @@ func _process(delta: float) -> void:
 ## What a press from `origin` along `dir` would do with `tool`: a dictionary naming `what` and where, or empty.
 func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 	var pick := pick_target(walls, origin, dir)
+	var ground: Variant = Terrain.raycast(origin, dir)
+	if tool == Hand.Tool.DECORATIONS and ground != null and origin.distance_to(ground) < pick.get("along", INF):
+		return {"what": "decoration", "point": ground, "wall": null, "s": 0.0, "side": 1.0, "turn": atan2(-dir.x, -dir.z)}
 	if pick.has("fitting"):
 		var what: String = pick.what
 		if (tool == Hand.Tool.DECORATIONS and what != "opening") or (tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH] and what == "opening"):
@@ -114,6 +120,8 @@ func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 	if not layout.fence and layout.cover != WallLayout.Cover.ROOF and y > layout.height - WallTool.TOP_BAND:
 		return {"what": "flag", "wall": pick.wall, "s": pick.s, "point": pick.point}
 	var side := signf((origin - pick.point).dot(layout.frame_at(pick.s).tangent.cross(Vector3.UP)))
+	if not layout.fence and y <= 0.25:
+		return {"what": "decoration", "wall": pick.wall, "s": pick.s, "side": side if side != 0.0 else 1.0, "point": pick.point, "turn": 0.0}
 	return {"what": "lantern", "wall": pick.wall, "s": pick.s, "y": y, "side": side if side != 0.0 else 1.0, "point": pick.point}
 
 
@@ -162,6 +170,9 @@ func fit(target: Dictionary, hand: XRController3D = null) -> bool:
 	var cmd := command(target)
 	if cmd.is_empty():
 		return false
+	if target.what == "decoration":
+		world.submit(cmd, Callable(), hand)
+		return true
 	var w: Wall = target.wall
 	var key: String = cmd.data.roof.keys()[0] if cmd.data.has("roof") else cmd.data.keys()[0]
 	var after: Variant = cmd.data.roof[key] if cmd.data.has("roof") else cmd.data[key]
@@ -192,6 +203,8 @@ func _command(target: Dictionary, c: Dictionary) -> Dictionary:
 		return removal(world.state, target)
 	if not c.ok:
 		return {}
+	if target.what == "decoration":
+		return decoration_command(target)
 	var w: Wall = target.wall
 	if target.what == "tower_flag":
 		return {"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"flag": not w.roof.flag}}}
@@ -215,6 +228,8 @@ func _command(target: Dictionary, c: Dictionary) -> Dictionary:
 func change(target: Dictionary) -> Dictionary:
 	if target.is_empty():
 		return {"ok": false}
+	if target.what == "decoration":
+		return {"ok": true, "near": target.index if target.has("fitting") else -1}
 	var w: Wall = target.wall
 	var layout := w.layout
 	if target.has("fitting"):
@@ -271,6 +286,9 @@ func ghost_of(target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -
 	if target.is_empty():
 		var at: Vector3 = hit + Vector3.UP * HANG_OVER if hit != null and origin.distance_to(hit) < HANG * 2.0 else origin + dir * HANG
 		return {"what": "lantern", "xform": _facing(at, -dir), "fits": false}
+	if target.what == "decoration":
+		var d := decoration_command(target)
+		return {"what": "decoration", "style": d.style, "seed": d.seed, "rise": world.decorations.rise(d), "xform": world.decorations.frame(d), "fits": true}
 	var w: Wall = target.wall
 	var layout := w.layout
 	var what: String = target.what
@@ -321,6 +339,16 @@ static func _ghost_material(tint: Color, glow: float) -> StandardMaterial3D:
 
 func _show_ghost(i: int, ghost: Dictionary, delta: float) -> void:
 	_shaken[i] += delta
+	if ghost.get("what") == "decoration" and (not _ghosts[i].has("decoration") or _ghosts[i].decoration.get_meta(&"shape") != [ghost.style, ghost.seed, ghost.rise]):
+		if _ghosts[i].has("decoration"):
+			_ghosts[i].decoration.free()
+		var layout := DecorationLayout.new()
+		layout.build(ghost.style, ghost.seed, ghost.rise)
+		var n := layout.model(ghost.seed)
+		n.top_level = true
+		n.set_meta(&"shape", [ghost.style, ghost.seed, ghost.rise])
+		add_child(n)
+		_ghosts[i].decoration = n
 	for what in _ghosts[i]:
 		var g: Node3D = _ghosts[i][what]
 		var on: bool = ghost.get("what") == what
@@ -333,11 +361,13 @@ func _show_ghost(i: int, ghost: Dictionary, delta: float) -> void:
 			x.origin += x.basis.x * sin(k * TAU * 3.0) * 0.06 * (1.0 - k)
 		g.global_transform = x
 		var mat := _ghost_fits if ghost.fits else _ghost_astray
-		if not g.visible or g.get_meta(&"mat") != mat:
+		if not g.visible or g.get_meta(&"mat", null) != mat:
 			g.set_meta(&"mat", mat)
 			for c in g.get_children():
 				if c is Fittings:
 					(c as Fittings).ghostly(mat)
+				elif c is GeometryInstance3D:
+					c.material_override = mat
 				else:
 					for m in c.get_children():
 						(m as GeometryInstance3D).material_override = mat
@@ -347,7 +377,7 @@ func _show_ghost(i: int, ghost: Dictionary, delta: float) -> void:
 ## Hands every lantern's flame, and the houses holding them, to the light they cast.
 func light_lanterns() -> void:
 	_since_lights = 0.0
-	lamps.light(walls.walls)
+	lamps.light(walls.walls, world.decorations.flames)
 
 
 func _exit_tree() -> void:
@@ -382,6 +412,19 @@ static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held :
 			best.y = point.y - w.layout.point_at(best.s).y
 			best.surface = "roof" if item.on_roof else "wall"
 			best.distance = 0.0
+	if builder.world.decorations != null:
+		for item in builder.world.decorations.targets():
+			var local: Vector3 = item.inverse * origin
+			var direction: Vector3 = item.inverse.basis * dir
+			var hit: Variant = item.box.intersects_ray(local, direction)
+			if hit == null:
+				continue
+			var along: float = (hit - local).dot(direction) / direction.length_squared()
+			if along < 0.0 or along > best.get("along", INF) + 0.001:
+				continue
+			best = item.duplicate()
+			best.point = origin + dir * along
+			best.along = along
 	return best
 
 
@@ -443,6 +486,8 @@ static func _target(w: Wall, what: String, key: String, index: int, value: Varia
 
 
 static func removal(state: Dictionary, target: Dictionary) -> Dictionary:
+	if target.has("decoration"):
+		return {"op": "undecoration", "id": target.decoration} if state.decorations.has(target.decoration) else {}
 	if not is_instance_valid(target.wall):
 		return {}
 	var w: Wall = target.wall
@@ -466,3 +511,10 @@ static func removal(state: Dictionary, target: Dictionary) -> Dictionary:
 		after.remove_at(index)
 	var change := {target.key: after}
 	return {"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": change} if target.on_roof else change}
+
+
+static func decoration_command(target: Dictionary) -> Dictionary:
+	var w: Wall = target.get("wall")
+	var mount := "ground" if w == null else "foundation"
+	var seed: int = target.get("seed", hash([target.point.snapped(Vector3.ONE * 0.05), w.layout.seed if w != null else 0]))
+	return {"op": "decoration", "wall": w.id if w != null else -1, "at": target.point, "s": float(target.get("s", 0.0)), "side": float(target.get("side", 1.0)), "turn": float(target.get("turn", 0.0)), "seed": seed, "style": target.get("style", DecorationLayout.choose(mount, seed))}
