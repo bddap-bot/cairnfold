@@ -24,6 +24,9 @@ func _run() -> void:
 			_pose_puts_the_eyes_on_the_head(scene, path)
 			_arms_join_shoulders_to_hands(scene, path)
 	_both_versions_stand_alike()
+	for i in Avatar.BUILT_IN.size():
+		_eye_bones_follow_the_look(Avatar.built_in(i), "built-in %d" % i)
+	_expressions_follow_the_look()
 	_check(Avatar.read("not a vrm".to_utf8_buffer()) == null, "a file that is not glTF reads as nothing")
 	var big := PackedByteArray()
 	big.resize(Avatar.MAX_BYTES + 1)
@@ -59,6 +62,7 @@ func _built_in_reads_as_humanoid(i: int) -> void:
 				wrong += 1
 	_check(tinted > 0 and wrong == 0, "built-in %d takes the player's colour on its tint surfaces only (%d, %d wrong)" % [i, tinted, wrong])
 	_check((a._model.get_meta("eyes") as Vector3).is_equal_approx(Vector3(0, 0.12, 0.09)), "built-in %d carries its eye offset in the file" % i)
+	_check(a._eyes.size() == 2 and a._model.get_meta("look").type == Vrm.BONE, "built-in %d looks by its eye bones" % i)
 	a.free()
 
 
@@ -76,7 +80,8 @@ func _within_limits(scene: PackedScene, what: String) -> void:
 			if m != null and m.albedo_texture != null:
 				textures[m.albedo_texture] = true
 			triangles += mi.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX].size() / 3
-			_check(mi.mesh.surface_get_blend_shape_arrays(s).is_empty(), "%s drops its expressions" % what)
+		var looks: int = a._shapes.reduce(func(n: int, sets: Array) -> int: return n + sets.size(), 0)
+		_check(mi.mesh.get_blend_shape_count() <= mini(looks, Vrm.LOOKS.size() * Vrm.BINDS_PER_LOOK), "%s drops every expression but its eyes' (%d kept)" % [what, mi.mesh.get_blend_shape_count()])
 	_check(triangles > 0 and triangles <= Avatar.MAX_TRIANGLES, "%s keeps to the triangle limit (%d)" % [what, triangles])
 	_check(surfaces <= Avatar.MAX_SURFACES, "%s keeps to the draw limit (%d)" % [what, surfaces])
 	_check(skinned > 0 and a._joints.head.bone >= 0, "%s is skinned to a skeleton's bones" % what)
@@ -160,3 +165,51 @@ func _both_versions_stand_alike() -> void:
 		a.free()
 	for k in 4:
 		_check(posed[0][k].distance_to(posed[1][k]) < 0.01, "VRM 1.0 and 0.x stand alike (%d: %s vs %s)" % [k, posed[0][k], posed[1][k]])
+
+
+## Where an eye bone points, turned from its rest as it is now.
+func _eye_points(a: Avatar, side: String) -> Vector3:
+	var rest: Transform3D = a._joints[side + "Eye"].rest
+	return a.bone(side + "Eye").basis * rest.basis.inverse() * (a._model.get_meta("forward") as Vector3)
+
+
+## Each eye turns by the model's range map: in proportion to the look up to its largest input, no further.
+func _eye_bones_follow_the_look(scene: PackedScene, what: String) -> void:
+	var a := Avatar.open(scene, Color.WHITE)
+	root.add_child(a)
+	var at := Transform3D(Basis(Vector3.UP, 0.7), Vector3(3, 1.7, -2))
+	var ranges: Array = a._model.get_meta("look").ranges
+	var ahead := -at.basis.z
+	a.pose(at, at, at)
+	for side in ["left", "right"]:
+		_check(_eye_points(a, side).angle_to(ahead) < 0.001, "%s: the %s eye looks ahead by default" % [what, side])
+	var half: float = ranges[1].x * 0.5
+	a.pose(at, at, at, Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(half)))
+	var left := _eye_points(a, "left")
+	_check(absf(rad_to_deg(left.angle_to(ahead)) - ranges[1].y * 0.5) < 0.1 and left.dot(at.basis.x) < 0.0, "%s: looking left, the left eye turns outward by half its outer range" % what)
+	_check(absf(rad_to_deg(_eye_points(a, "right").angle_to(ahead)) - ranges[0].y * 0.5) < 0.1, "%s: and the right eye inward by half its inner range" % what)
+	a.pose(at, at, at, Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(80.0)))
+	_check(absf(rad_to_deg(_eye_points(a, "left").angle_to(ahead)) - ranges[1].y) < 0.1, "%s: a look past the range turns the eye no further than the range allows" % what)
+	a.pose(at, at, at, Vector3.FORWARD.rotated(Vector3.RIGHT, deg_to_rad(80.0)))
+	var up := _eye_points(a, "right")
+	_check(absf(rad_to_deg(up.angle_to(ahead)) - ranges[3].y) < 0.1 and up.y > ahead.y, "%s: looking up, the eyes turn up, clamped" % what)
+	a.free()
+
+
+## A model that looks by expression weighs its look expressions: looking left sets lookLeft and none of the others.
+func _expressions_follow_the_look() -> void:
+	var a := Avatar.open(Avatar.read(FileAccess.get_file_as_bytes(_sample("godette-0.x.vrm"))), Color.WHITE)
+	root.add_child(a)
+	_check(a._look_type == Vrm.EXPRESSION and a._shapes.all(func(sets: Array) -> bool: return not sets.is_empty()), "godette looks by its four look expressions")
+	var at := Transform3D(Basis.IDENTITY, Vector3(0, 1.6, 0))
+	var ranges: Array = a._model.get_meta("look").ranges
+	a.pose(at, at, at, Vector3.FORWARD.rotated(Vector3.UP, deg_to_rad(ranges[1].x * 0.5)))
+	var weights := Vrm.LOOKS.map(func(dir: String) -> float:
+		var b: Array = a._shapes[Vrm.LOOKS.find(dir)][0]
+		return (b[0] as MeshInstance3D).get_blend_shape_value(b[1]))
+	_check(absf(weights[0] - ranges[1].y * 0.5) < 0.01 and weights.slice(1).all(func(w: float) -> bool: return w == 0.0), "looking left weighs lookLeft by the range map, and nothing else (%s)" % [weights])
+	a.pose(at, at, at)
+	_check(Vrm.LOOKS.all(func(dir: String) -> bool:
+		var b: Array = a._shapes[Vrm.LOOKS.find(dir)][0]
+		return (b[0] as MeshInstance3D).get_blend_shape_value(b[1]) == 0.0), "looking ahead weighs none")
+	a.free()

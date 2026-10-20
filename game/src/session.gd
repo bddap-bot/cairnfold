@@ -257,15 +257,20 @@ func _process(delta: float) -> void:
 		_since_folder = 0.0
 		_look_in_folder()
 	_finish_jobs()
+	var faces: Array[Vector3] = []
+	for a: Avatar in avatars.values():
+		if a.visible:
+			faces.append(a.eyes.origin)
+	rig.gaze.follow(rig.head.global_transform, faces, delta)
 	_since_pose += delta
 	if _since_pose >= POSE_EVERY and not multiplayer.get_peers().is_empty():
 		_since_pose = 0.0
-		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform)
+		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look)
 	var k := 1.0 - exp(-FOLLOW * delta)
 	for id in _targets:
 		var a: Avatar = avatars[id]
 		var t: Array = _targets[id]
-		a.pose(a.eyes.interpolate_with(t[0], k), a.hands[0].interpolate_with(t[1], k), a.hands[1].interpolate_with(t[2], k))
+		a.pose(a.eyes.interpolate_with(t[0], k), a.hands[0].interpolate_with(t[1], k), a.hands[1].interpolate_with(t[2], k), a.look.slerp(t[3], k))
 
 
 func _announce() -> void:
@@ -507,7 +512,7 @@ func _dress(id: int, scene: PackedScene, key: String) -> void:
 	var old: Avatar = avatars.get(id)
 	a.visible = old != null and old.visible
 	if old != null:
-		a.pose(old.eyes, old.hands[0], old.hands[1])
+		a.pose(old.eyes, old.hands[0], old.hands[1], old.look)
 		old.queue_free()
 	add_child(a)
 	avatars[id] = a
@@ -609,18 +614,19 @@ func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
 	feed.toss(from, velocity, seed)
 
 
+## A player's head, hands and where their eyes look, in their head's frame.
 @rpc("any_peer", "unreliable_ordered")
-func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D) -> void:
+func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3) -> void:
 	var id := multiplayer.get_remote_sender_id()
 	var room := Terrain.bounds().grow(40.0)
 	for t in [eyes, left, right]:
 		if not (t.is_finite() and absf(t.basis.determinant()) > 1e-3 and room.has_point(t.origin)):
 			return
-	if not avatars.has(id):
+	if not (avatars.has(id) and look.is_finite() and look.length() > 0.1):
 		return
-	var target := [eyes.orthonormalized(), left.orthonormalized(), right.orthonormalized()]
+	var target := [eyes.orthonormalized(), left.orthonormalized(), right.orthonormalized(), look.normalized()]
 	var a: Avatar = avatars[id]
 	if not a.visible:
 		a.visible = true
-		a.pose(target[0], target[1], target[2])
+		a.pose(target[0], target[1], target[2], target[3])
 	_targets[id] = target

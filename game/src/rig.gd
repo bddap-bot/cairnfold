@@ -144,7 +144,7 @@ func wear(a: Avatar) -> void:
 ## Poses the body from the head and hands; a hand in `holding` holds a camera, whose model stands in for it, so its
 ## fingers never reach in front of the lens.
 func pose_body(holding: Array[Hand]) -> void:
-	body.pose(head.global_transform, left.global_transform, right.global_transform)
+	body.pose(head.global_transform, left.global_transform, right.global_transform, gaze.look)
 	for h in holding:
 		body.fold(hands.find(h))
 

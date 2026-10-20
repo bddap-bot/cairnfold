@@ -3,11 +3,14 @@ extends SceneTree
 ## Writes the built-in avatars (game/avatars/*.vrm): run from game/ as
 ## godot4 --headless --path . --script ../scripts/avatars.gd
 ## Each is a VRM 1.0 humanoid in T-pose facing +Z with a floating head, mittens and a small smock;
-## surfaces whose material name starts with "tint" take the player's colour.
+## surfaces whose material name starts with "tint" take the player's colour. Its eyes look by bone: both eye bones
+## sit behind the face, so a turned eye slides over it.
 
 const STONE := Color(0.78, 0.74, 0.66)
 const DARK := Color(0.12, 0.1, 0.09)
 const BARK := Color(0.42, 0.29, 0.17)
+## A look this many degrees off ahead turns the eyes their full range.
+const LOOK_REACH := 30.0
 
 
 func _init() -> void:
@@ -22,7 +25,7 @@ func _pebble() -> Node3D:
 	var root := _skeleton("pebble")
 	var head: Node3D = root.find_child("head", true, false)
 	_part(head, Meshes.rounded_box(0.45, 3, 11), _tint(), Vector3(0, 0.12, 0), Vector3(0.24, 0.22, 0.22))
-	_eyes(head, DARK, 0.12)
+	_eyes(root, DARK, 0.12, Vector3(0, 0.12, -0.05), Vector2(12, 8))
 	_mittens(root, _tint())
 	_smock(root, _mat(STONE))
 	return root
@@ -35,7 +38,7 @@ func _acorn() -> Node3D:
 	var cap := _sphere(0.125, 10, 6, true)
 	_part(head, cap, _tint(), Vector3(0, 0.14, 0), Vector3(1, 0.7, 1))
 	_part(head, _cylinder(0.012, 0.02, 0.05, 5), _mat(BARK), Vector3(0, 0.25, 0), Vector3.ONE)
-	_eyes(head, DARK, 0.1)
+	_eyes(root, DARK, 0.1, Vector3(0, 0.11, 0), Vector2(20, 15))
 	_mittens(root, _mat(STONE))
 	_smock(root, _tint())
 	return root
@@ -46,7 +49,7 @@ func _hood() -> Node3D:
 	var head: Node3D = root.find_child("head", true, false)
 	_part(head, _cylinder(0.0, 0.15, 0.36, 10), _tint(), Vector3(0, 0.2, -0.02), Vector3(1, 1, 0.95))
 	_part(head, _sphere(0.1, 10, 6), _mat(DARK), Vector3(0, 0.1, 0.04), Vector3(1, 0.9, 0.8))
-	_eyes(head, Color(0.98, 0.9, 0.6), 0.1)
+	_eyes(root, Color(0.98, 0.9, 0.6), 0.1, Vector3(0, 0.1, -0.03), Vector2(12, 8))
 	_mittens(root, _tint())
 	_smock(root, _tint())
 	return root
@@ -78,9 +81,15 @@ func _bone(parent: Node3D, name: String, at: Vector3) -> Node3D:
 	return b
 
 
-func _eyes(head: Node3D, colour: Color, height: float) -> void:
-	for x in [-0.045, 0.045]:
-		_part(head, _sphere(0.018, 6, 4), _mat(colour), Vector3(x, height, 0.1), Vector3(1, 1.3, 0.6))
+## Both eyes turn about `middle`, at most `turn` degrees across and up or down, which keeps them on the face.
+func _eyes(root: Node3D, colour: Color, height: float, middle: Vector3, turn: Vector2) -> void:
+	var across := Vector2(LOOK_REACH, turn.x)
+	var upward := Vector2(LOOK_REACH, turn.y)
+	root.set_meta("look", {"type": Vrm.BONE, "ranges": [across, across, upward, upward]})
+	var head: Node3D = root.find_child("head", true, false)
+	for side in [["leftEye", 0.045], ["rightEye", -0.045]]:
+		var eye := _bone(head, side[0], middle)
+		_part(eye, _sphere(0.018, 6, 4), _mat(colour), Vector3(side[1], height, 0.1) - middle, Vector3(1, 1.3, 0.9))
 
 
 ## Mittens lie along the arms, palms down, as VRM's T-pose holds hands.
