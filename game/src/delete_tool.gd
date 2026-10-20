@@ -72,14 +72,13 @@ func _process(delta: float) -> void:
 		var b := _buttons[k]
 		var hand: Hand = b.hand
 		_rings[k].visible = false
-		var live := hand.tool == Hand.Tool.DELETE and rig.aim_hand != hand and hand.get_has_tracking_data()
+		var live := hand.tool == Hand.Tool.DELETE and rig.aim_hand != hand and hand.tracked()
 		var t := hand.global_transform
 		if _cuts.has(hand):
 			if live and b.held("tool"):
 				var target := hold(hand, t.origin, -t.basis.z)
 				hand.point(target.get("point"), TINT)
-				if target.has("mow"):
-					FloraTool.put_ring(_rings[k], target.point, target.mow)
+				show_target(_rings[k], target, rig.head.global_position)
 			else:
 				let_go(hand)
 		elif _charges.has(hand):
@@ -88,7 +87,7 @@ func _process(delta: float) -> void:
 					hand.point(t.origin - t.basis.z * ORB_REACH, TINT)
 			else:
 				cancel(hand)
-		elif live and b.pressed("tool") and sky(-t.basis.z):
+		elif live and b.pressed("tool") and sky(-t.basis.z) and aim(t.origin, -t.basis.z).is_empty():
 			charge(hand, t.origin, -t.basis.z, delta)
 		elif live:
 			if b.pressed("tool"):
@@ -96,8 +95,7 @@ func _process(delta: float) -> void:
 			else:
 				var target := aim(t.origin, -t.basis.z)
 				hand.point(target.get("point"), TINT)
-				if target.has("mow"):
-					FloraTool.put_ring(_rings[k], target.point, target.mow)
+				show_target(_rings[k], target, rig.head.global_position)
 		b.latch()
 
 
@@ -108,7 +106,7 @@ func sky(dir: Vector3) -> bool:
 ## Charges a wipe for `who` pointing from `origin` along `dir`, `delta` seconds more; at WIPE_HOLD it wipes the
 ## garden. Pointing below the sky lets the charge go. Whether it is still charging.
 func charge(who: Object, origin: Vector3, dir: Vector3, delta: float) -> bool:
-	if not sky(dir) or not world.multiplayer.is_server():
+	if not sky(dir) or not aim(origin, dir).is_empty() or not world.multiplayer.is_server():
 		if not world.multiplayer.is_server() and not _charges.has(who) and who is XRController3D:
 			Cues.play(Cues.Act.REFUSED, who.global_position, who)
 		cancel(who)
@@ -162,7 +160,9 @@ func _orb() -> MeshInstance3D:
 func aim(origin: Vector3, dir: Vector3, taken := {}, gone := {}) -> Dictionary:
 	var ground: Variant = Terrain.raycast(origin, dir, REACH)
 	var reach: float = (ground - origin).dot(dir) if ground != null else REACH
-	var pick := walls.pick_building(origin, dir)
+	var pick := FittingTool.pick_target(walls, origin, dir)
+	if pick.get("along", INF) > reach:
+		pick = {}
 	var easel := world.easels.pick(origin, dir) if world.easels != null else {}
 	if not easel.is_empty() and (gone.has(easel.easel.id) or easel.along > reach or (not pick.is_empty() and pick.along <= easel.along)):
 		easel = {}
@@ -172,8 +172,8 @@ func aim(origin: Vector3, dir: Vector3, taken := {}, gone := {}) -> Dictionary:
 	var stair := world.stairs.pick(origin, dir, minf(reach, minf(pick.get("along", INF), solid.get("along", INF)))) if world.stairs != null else {}
 	if not stair.is_empty():
 		return stair
-	if not pick.is_empty() and (solid.is_empty() or pick.along <= solid.along):
-		return {"wall": pick.wall, "s": pick.s, "point": pick.point}
+	if not pick.is_empty() and pick.along <= reach and (solid.is_empty() or pick.along <= solid.along):
+		return pick
 	if not solid.is_empty():
 		return {"plants": solid.plants, "point": solid.point}
 	if not easel.is_empty():
@@ -187,9 +187,13 @@ func aim(origin: Vector3, dir: Vector3, taken := {}, gone := {}) -> Dictionary:
 
 ## Starts `who`'s stroke. Strokes still growing grow at once, so it takes plants not yet grown under it.
 func press(who: Object, origin: Vector3, dir: Vector3) -> void:
+	var target := aim(origin, dir)
+	if target.has("fitting"):
+		_cuts[who] = {"single": target}
+		return
 	flora.grow_now()
-	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}, "easels": {}}
-	var target := _stroke(_cuts[who], origin, dir)
+	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}, "easels": {}, "fittings": {}}
+	target = _stroke(_cuts[who], origin, dir)
 	_cuts[who].ray = [origin, dir, target.get("point", origin + dir)]
 	_preview(_cuts[who])
 	if _taken(_cuts[who]) > 0 or not _cuts[who].wall.is_empty():
@@ -202,6 +206,8 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 	var cut: Dictionary = _cuts.get(who, {})
 	if cut.is_empty():
 		return {}
+	if cut.has("single"):
+		return cut.single
 	var was: Array = cut.ray
 	var aimed := aim(origin, dir, cut.plants, cut.easels)
 	var far := Vector3(aimed.get("point", origin + dir))
@@ -220,7 +226,7 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 
 
 static func _taken(cut: Dictionary) -> int:
-	return cut.walls.size() + cut.plants.size() + cut.marks.size() + cut.easels.size()
+	return cut.walls.size() + cut.plants.size() + cut.marks.size() + cut.easels.size() + cut.fittings.size()
 
 
 ## How many rays a stroke takes between two where they strike `metres` apart: STEP apart, or over the ground half a
@@ -232,6 +238,12 @@ static func steps(metres: float, mow := 0.0) -> int:
 
 func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 	var target := aim(origin, dir, cut.plants, cut.easels)
+	if target.has("fitting"):
+		cut.wall = {}
+		var items: Array = cut.fittings.get_or_add(target.wall.id, [])
+		if not items.any(func(item: Dictionary) -> bool: return item.key == target.key and item.value == target.value):
+			items.append(target)
+		return target
 	var on: Wall = cut.wall.get("wall")
 	if on != null:
 		var hit := sweep(cut, origin, dir)
@@ -316,6 +328,11 @@ func let_go(who: Object) -> void:
 	_cuts.erase(who)
 	if cut.is_empty():
 		return
+	if cut.has("single"):
+		var cmd := FittingTool.removal(world.state, cut.single)
+		if not cmd.is_empty():
+			world.submit(cmd)
+		return
 	var plants: Array = cut.plants.keys()
 	var cmds := [] if plants.is_empty() else [_show(plants)]
 	var swept: Array[int] = []
@@ -333,6 +350,28 @@ func let_go(who: Object) -> void:
 	for id: int in cut.easels:
 		if world.state.easels.has(id):
 			cmds.append({"op": "uneasel", "id": id})
+	for id: int in cut.fittings:
+		if not world.state.walls.has(id) or cmds.any(func(c: Dictionary) -> bool: return c.op == "unwall" and id in c.ids):
+			continue
+		var data: Dictionary = world.state.walls[id].duplicate(true)
+		var changed := {}
+		for item: Dictionary in cut.fittings[id]:
+			var cmd := FittingTool.removal({"walls": {id: data}}, item)
+			if cmd.is_empty():
+				continue
+			if cmd.data.has("roof"):
+				data.roof.merge(cmd.data.roof, true)
+				changed.get_or_add("roof", {}).merge(cmd.data.roof, true)
+			else:
+				data.merge(cmd.data, true)
+				changed.merge(cmd.data, true)
+		if changed.is_empty():
+			continue
+		var existing := cmds.find_custom(func(c: Dictionary) -> bool: return c.op == "reshape" and c.get("of") == "walls" and c.id == id)
+		if existing >= 0:
+			cmds[existing].data.merge(changed, true)
+		else:
+			cmds.append({"op": "reshape", "of": "walls", "id": id, "data": changed})
 	var settle := func() -> void:
 		for id in swept:
 			walls.settle(id)
@@ -378,3 +417,48 @@ func _preview(cut: Dictionary) -> void:
 			w.layout.ruins = ruins
 			w.rebuild(false)
 	cut.moved.clear()
+
+
+## The same ring used for mowing encloses a fitting, or the whole building a body hit would take.
+func show_target(ring: MeshInstance3D, target: Dictionary, eye: Vector3) -> void:
+	ring.visible = false
+	if target.has("mow"):
+		FloraTool.put_ring(ring, target.point, target.mow)
+		return
+	var bounds := target_bounds(target)
+	if bounds.size == Vector3.ZERO:
+		return
+	var centre := bounds.get_center()
+	var normal := (eye - centre).normalized()
+	var x := Vector3.UP.cross(normal).normalized()
+	if x.length_squared() < 0.01:
+		x = Vector3.RIGHT
+	var z := x.cross(normal).normalized()
+	var radius_x := 0.0
+	var radius_z := 0.0
+	var depth := 0.0
+	for i in 8:
+		depth = maxf(depth, (bounds.get_endpoint(i) - centre).dot(normal))
+	var distance := eye.distance_to(centre)
+	var plane := maxf(0.1, distance - depth - 0.04)
+	for i in 8:
+		var corner := bounds.get_endpoint(i) - centre
+		var projection := plane / maxf(0.1, distance - corner.dot(normal))
+		radius_x = maxf(radius_x, absf(corner.dot(x)) * projection)
+		radius_z = maxf(radius_z, absf(corner.dot(z)) * projection)
+	ring.global_transform = Transform3D(Basis(x * (radius_x + 0.08), normal, z * (radius_z + 0.08)), eye - normal * plane)
+	ring.visible = true
+
+
+func target_bounds(target: Dictionary) -> AABB:
+	if target.has("fitting"):
+		return target.bounds
+	if target.has("wall"):
+		var w: Wall = target.wall
+		var bounds := w.pick_bounds
+		if w.roof != null:
+			bounds = bounds.expand(w.roof.frame().mid + Vector3.UP * w.roof.pitch)
+		return bounds
+	if target.has("stair") and world.stairs.layouts.has(target.stair):
+		return world.stairs.layouts[target.stair].bounds
+	return AABB()

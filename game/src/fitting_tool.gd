@@ -102,7 +102,11 @@ func _process(delta: float) -> void:
 
 ## What a press from `origin` along `dir` would do with `tool`: a dictionary naming `what` and where, or empty.
 func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
-	var pick := walls.pick_building(origin, dir)
+	var pick := pick_target(walls, origin, dir)
+	if pick.has("fitting"):
+		var what: String = pick.what
+		if tool == Hand.Tool.DECORATIONS and what not in ["window", "arch"] or tool == Hand.Tool.WINDOWS and what == "window" or tool == Hand.Tool.ARCH and what == "arch":
+			return pick
 	var roof := pick if pick.get("surface") == "roof" else {}
 	var on_roof := not roof.is_empty()
 	if tool == Hand.Tool.WINDOWS:
@@ -194,10 +198,14 @@ func fit(target: Dictionary, hand: XRController3D = null) -> bool:
 
 ## The build command a press on `target` sends, or {} where it does nothing.
 func command(target: Dictionary) -> Dictionary:
+	if target.has("fitting"):
+		return removal(world.state, target)
 	return _command(target, change(target))
 
 
 func _command(target: Dictionary, c: Dictionary) -> Dictionary:
+	if target.has("fitting"):
+		return removal(world.state, target)
 	if not c.ok:
 		return {}
 	var w: Wall = target.wall
@@ -223,6 +231,8 @@ func change(target: Dictionary) -> Dictionary:
 		return {"ok": false}
 	var w: Wall = target.wall
 	var layout := w.layout
+	if target.has("fitting"):
+		return {"ok": not removal(world.state, target).is_empty(), "near": target.index}
 	match target.what:
 		"window":
 			var click := Vector2(target.s, target.y)
@@ -360,3 +370,121 @@ func light_lanterns() -> void:
 
 func _exit_tree() -> void:
 	lamps.stop()
+
+
+## Placement and deletion refine the same first building surface with the fittings in front of it.
+static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3) -> Dictionary:
+	var best := builder.pick_building(origin, dir)
+	for w in builder.walls:
+		if builder._held(w):
+			continue
+		for item in targets(w):
+			var box: AABB = item.box
+			var local: Vector3 = item.inverse * origin
+			var direction: Vector3 = item.inverse.basis * dir
+			var hit: Variant = local if box.has_point(local) else box.intersects_ray(local, direction)
+			if hit == null:
+				continue
+			var along: float = (hit - local).dot(direction) / direction.length_squared()
+			var point := origin + dir * along
+			if along > best.get("along", INF) + 0.001:
+				continue
+			best = item.duplicate()
+			best.point = point
+			best.along = along
+			best.s = w.layout.closest_s(point)
+			best.y = point.y - w.layout.point_at(best.s).y
+			best.surface = "roof" if item.on_roof else "wall"
+			best.distance = 0.0
+	return best
+
+
+## Addressable additions only: ivy is grown as part of the wall, not stored as separate plants.
+static func targets(w: Wall) -> Array[Dictionary]:
+	if w.get_meta(&"fitting_laid", -1) == w.layout.laid:
+		return w.get_meta(&"fitting_targets")
+	var out: Array[Dictionary] = []
+	var l := w.layout
+	for i in l.lanterns.size():
+		var v := l.lanterns[i]
+		if not l.lantern_fits(v.x, v.y):
+			continue
+		var f := l.frame_at(l.nearest_post(v.x) if l.fence else v.x)
+		var at: Vector3 = f.point + Vector3.UP * (WallLayout.FENCE_HEIGHT + 0.25 if l.fence else v.y)
+		if not l.fence:
+			at += f.tangent.cross(Vector3.UP) * v.z * (WallLayout.THICKNESS * 0.5 + WallLayout.LANTERN_OUT)
+		out.append(_target(w, "lantern", "lanterns", i, v, AABB(at + Vector3(-0.14, -0.1, -0.14), Vector3(0.28, 0.44, 0.28))))
+	for i in l.windows.size():
+		var v := l.windows[i]
+		if l._opening_in(l.openings, v.x, v.y).is_empty():
+			continue
+		var o := l.opening_for(v)
+		var f := l.frame_at(v.x)
+		var xform := Transform3D(Basis(f.tangent, Vector3.UP, f.tangent.cross(Vector3.UP)), f.point)
+		var box := AABB(Vector3(-o.half, o.sill, -WallLayout.THICKNESS * 0.5 - 0.02), Vector3(o.half * 2, o.head - o.sill, WallLayout.THICKNESS + 0.04))
+		out.append(_target(w, "window", "windows", i, v, box, false, xform))
+	for i in l.arches.size():
+		var v := l.arches[i]
+		if not l.live_arches.has(v):
+			continue
+		var f := l.frame_at(v)
+		var xform := Transform3D(Basis(f.tangent, Vector3.UP, f.tangent.cross(Vector3.UP)), f.point)
+		var half := WallLayout.ARCH_HALF + WallLayout.RING
+		out.append(_target(w, "arch", "arches", i, v, AABB(Vector3(-half, 0, -WallLayout.THICKNESS * 0.5 - 0.02), Vector3(half * 2, l.spring() + half, WallLayout.THICKNESS + 0.04)), false, xform))
+	for i in l.flags.size():
+		var v := l.flags[i]
+		if l.flag_fits(v) and not l.broken(v, 0.3):
+			var f := l.frame_at(v)
+			out.append(_target(w, "flag", "flags", i, v, _flag_bounds(f.point + Vector3.UP * (l.height + WallLayout.CAP), f.tangent)))
+	if w.roof != null:
+		var r := w.roof
+		var f := r.frame()
+		for i in r.chimneys.size():
+			var v := r.chimneys[i]
+			var foot: Vector3 = f.mid + f.along * v.x + f.across * v.y
+			var surface := r.rise(1.0 - absf(v.y) / r.half_span())
+			var top := maxf(r.pitch + 0.7, surface + 1.0) + r.coat_rise() + 0.34
+			var half := (RoofLayout.STACK_WIDTH + 0.14) * 0.5
+			var xform := Transform3D(Basis(f.along, Vector3.UP, f.across), foot)
+			out.append(_target(w, "chimney", "chimneys", i, v, AABB(Vector3(-half, surface, -half), Vector3(half * 2, top - surface, half * 2)), true, xform))
+		if r.flag:
+			out.append(_target(w, "tower_flag", "flag", 0, true, _flag_bounds(f.mid + Vector3.UP * r.pitch, Vector3(1, 0, 0.4)), true))
+	w.set_meta(&"fitting_laid", w.layout.laid)
+	w.set_meta(&"fitting_targets", out)
+	return out
+
+
+static func _flag_bounds(foot: Vector3, along: Vector3) -> AABB:
+	var parts := WallLayout.flag(foot, along, Color.WHITE)
+	var unit := AABB(Vector3.ONE * -0.5, Vector3.ONE)
+	return (parts.pole * unit).merge(parts.finial * unit).merge(parts.cloth.xform * AABB(Vector3(0, -0.5, -0.08), Vector3(1, 1, 0.16)))
+
+
+static func _target(w: Wall, what: String, key: String, index: int, value: Variant, box: AABB, on_roof := false, space := Transform3D.IDENTITY) -> Dictionary:
+	return {"wall": w, "fitting": true, "what": what, "key": key, "index": index, "value": value, "bounds": space * box, "box": box, "inverse": space.affine_inverse(), "on_roof": on_roof}
+
+
+static func removal(state: Dictionary, target: Dictionary) -> Dictionary:
+	if not is_instance_valid(target.wall):
+		return {}
+	var w: Wall = target.wall
+	if not is_instance_valid(w) or not state.walls.has(w.id):
+		return {}
+	var data: Dictionary = state.walls[w.id]
+	if target.on_roof:
+		data = data.get("roof", {})
+	var after: Variant = data.get(target.key)
+	if after == null:
+		return {}
+	if target.what == "tower_flag":
+		if not after:
+			return {}
+		after = false
+	else:
+		after = after.duplicate()
+		var index: int = after.find(target.value)
+		if index < 0:
+			return {}
+		after.remove_at(index)
+	var change := {target.key: after}
+	return {"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": change} if target.on_roof else change}
