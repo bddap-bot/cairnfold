@@ -150,6 +150,15 @@ func _the_selfie_camera_looks_back_at_its_holder() -> void:
 	var cam: Camera3D = tool._preview.get_child(0)
 	_check(_screen_shows(tool) and cam.global_transform.is_equal_approx(lens), "its screen shows what its lens sees")
 	_check(rig.body.visible and cam.cull_mask & Rig.SELF_LAYER != 0 and cam.is_position_in_frustum(rig.body.bone("head").origin), "which is the holder's own avatar, head and all")
+	var near := []
+	for v: VisualInstance3D in rig.find_children("*", "VisualInstance3D", true, false):
+		if v.is_visible_in_tree() and v.layers & cam.cull_mask and not rig.body.is_ancestor_of(v):
+			var a := v.get_aabb()
+			for c in 8:
+				if cam.is_position_in_frustum(v.global_transform * a.get_endpoint(c)):
+					near.append(v.name)
+					break
+	_check(near.is_empty(), "nothing on the controller lies in the lens's view: %s" % [near])
 	var screen := ToolModels.camera_screen()
 	_check(screen.uv1_scale.x == -1.0 and screen.uv1_offset.x == 1.0, "shown as a mirror would")
 	rig.right.tool = Hand.Tool.CAMERA

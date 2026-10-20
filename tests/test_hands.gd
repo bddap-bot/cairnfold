@@ -53,6 +53,10 @@ func _run() -> void:
 	await _frames(3)
 	_check(hand._beam.visible, "picking a tool brings its ray back")
 	_check(bar.visible, "picking a tool brings its budget bar back")
+	for camera in [Hand.Tool.CAMERA, Hand.Tool.SELFIE]:
+		hand.tool = camera
+		await _frames(1)
+		_check(not bar.visible, "a camera builds nothing, so shows no budget bar either")
 	XRServer.remove_tracker(tracker)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
