@@ -577,10 +577,10 @@ func _lay_floors(ground: Callable) -> void:
 			var x := a - (rng.randf_range(0.0, PLANK.w) if planks else (FLAG.x * 0.5 if row % 2 == 1 else 0.0))
 			while x < b - 0.01:
 				var size := rng.randf_range(PLANK.z, PLANK.w) if planks else FLAG.x
-				var x0 := maxf(x, a)
-				var x1 := minf(x + size, b)
-				if x1 - x0 > 0.05:
-					_lay_floor_piece(along * (x0 + x1) * 0.5 + across * (z + depth * 0.5), Vector2(x1 - x0, depth), top_y, bottom, along, planks, rng)
+				var middle := across * (z + depth * 0.5)
+				var open := _floor_open(along, middle, maxf(x, a), minf(x + size, b), top_y - (PLANK.y if planks else FLAG.y) * 0.5)
+				if open.y - open.x > 0.05:
+					_lay_floor_piece(along * (open.x + open.y) * 0.5 + middle, Vector2(open.y - open.x, depth), top_y, bottom, along, planks, rng)
 				x += size
 			z += depth
 			row += 1
@@ -590,8 +590,6 @@ func _lay_floors(ground: Callable) -> void:
 func _lay_floor_piece(at: Vector2, size: Vector2, top_y: float, bottom: float, along: Vector2, planks: bool, rng: RandomNumberGenerator) -> void:
 	var thick := PLANK.y if planks else FLAG.y
 	var centre := Vector3(at.x, top_y - thick * 0.5, at.y)
-	if _floor_hidden(centre):
-		return
 	var x := Vector3(along.x, 0.0, along.y)
 	var basis := Basis(x, Vector3.UP, x.cross(Vector3.UP))
 	var tilt := Basis.from_euler(Vector3(rng.randf_range(-0.008, 0.008), 0.0, rng.randf_range(-0.008, 0.008))) if not planks else Basis()
@@ -626,6 +624,27 @@ static func floor_stamps(points: Array) -> PackedVector4Array:
 	return out
 
 
+## Of a row's stretch from `x0` to `x1` along it at height `y`, the part no older room it joins or build standing on it
+## hides. A piece reaching into one is cut at its edge rather than kept or dropped whole: the older room's floor reaches
+## out under its cut-away wall, past that edge by more than half a row's depth, so the two floors meet with no gap.
+func _floor_open(along: Vector2, row: Vector2, x0: float, x1: float, y: float) -> Vector2:
+	var hidden_at := func(x: float) -> bool:
+		var q := along * x + row
+		return _floor_hidden(Vector3(q.x, y, q.y))
+	var start: bool = hidden_at.call(x0)
+	if start == hidden_at.call(x1):
+		return Vector2(x0, x0) if start else Vector2(x0, x1)
+	var lo := x0
+	var hi := x1
+	for i in 16:
+		var mid := (lo + hi) * 0.5
+		if hidden_at.call(mid) == start:
+			lo = mid
+		else:
+			hi = mid
+	return Vector2(hi, x1) if start else Vector2(x0, lo)
+
+
 func _floor_hidden(p: Vector3) -> bool:
 	for s in older:
 		if s.holds(p):
@@ -636,7 +655,8 @@ func _floor_hidden(p: Vector3) -> bool:
 	return false
 
 
-## Where the line `across` = `z` crosses `outline`, as the least and most along it.
+## Where the line `across` = `z` crosses or touches `outline`, as the least and most along it: a row starting on the
+## outline's first edge needs that edge's own extent, the wall over it being cut away where a house joins.
 static func _chord(outline: PackedVector2Array, along: Vector2, across: Vector2, z: float) -> Vector2:
 	var out := Vector2(INF, -INF)
 	for i in outline.size():
@@ -644,10 +664,10 @@ static func _chord(outline: PackedVector2Array, along: Vector2, across: Vector2,
 		var q := outline[(i + 1) % outline.size()]
 		var zp := p.dot(across) - z
 		var zq := q.dot(across) - z
-		if (zp < 0.0) == (zq < 0.0):
+		if (zp > 0.0 and zq > 0.0) or (zp < 0.0 and zq < 0.0):
 			continue
-		var x := p.lerp(q, zp / (zp - zq)).dot(along)
-		out = Vector2(minf(out.x, x), maxf(out.y, x))
+		for x in [p.dot(along), q.dot(along)] if zp == zq else [p.lerp(q, zp / (zp - zq)).dot(along)]:
+			out = Vector2(minf(out.x, x), maxf(out.y, x))
 	return out
 
 

@@ -175,35 +175,33 @@ func _open_walls_lay_no_floor() -> void:
 	_check(line.floors.is_empty() and _pieces(line).is_empty(), "an open wall lays no floor")
 
 
+## Joined across the side its rows start from, past its end, and corner to corner, on level and sloping ground.
 func _a_newer_house_yields_its_floor_to_an_older_one_it_joins() -> void:
-	var old := _house(_flat)
-	var new := WallLayout.new()
-	new.points = WallLayout.rectangle(Vector3(4, 0, -1), Vector3(10, 0, -1), 4.0)
-	new.closed = true
-	new.cover = WallLayout.Cover.ROOF
-	new.height = 2.4
-	new.build(_flat)
-	var room := Massing.of(old, null)
-	new.joined.assign([room])
-	new.older.assign([room])
-	new.build(_flat)
-	old.joined.assign([Massing.of(new, null)])
-	old.build(_flat)
-	_check(_pieces(new).all(func(s: Dictionary) -> bool: return not room.holds(s.xform.origin)), "the newer floor lays nothing in the older room")
-	_check(_covered(old, old.floors[0]) == 1.0, "the older floor stays whole")
-	var both := 0
-	var gap := 0
-	for j in range(-25, 16):
-		for i in range(40, 61):
-			var p := Vector2(i * 0.1, j * 0.1)
-			var in_old := Geometry2D.is_point_in_polygon(p, old.floor_outline)
-			var in_new := Geometry2D.is_point_in_polygon(p, new.floor_outline)
-			if not (in_old or in_new):
-				continue
-			var hits := _pieces(old).filter(func(s: Dictionary) -> bool: return _over(s, p)).size() + _pieces(new).filter(func(s: Dictionary) -> bool: return _over(s, p)).size()
-			if hits == 0:
-				gap += 1
-	_check(gap == 0, "the joined rooms' floors leave no gap: %d bare points" % gap)
+	for ground in [_flat, _slope]:
+		for at in [Vector3(4, 0, -1), Vector3(0, 0, 3.7), Vector3(2, 0, 3.7), Vector3(4.3, 0, 2.6)]:
+			var old := _house(ground)
+			var new := WallLayout.new()
+			new.points = WallLayout.rectangle(at, at + Vector3(6, 0, 0), 4.0)
+			new.closed = true
+			new.cover = WallLayout.Cover.ROOF
+			new.height = 2.4
+			new.build(ground)
+			var room := Massing.of(old, null)
+			new.joined.assign([room])
+			new.older.assign([room])
+			new.build(ground)
+			old.joined.assign([Massing.of(new, null)])
+			old.build(ground)
+			_check(_pieces(new).all(func(s: Dictionary) -> bool: return not room.holds(s.xform.origin)), "the newer floor lays nothing in the older room")
+			_check(_covered(old, old.floors[0]) == 1.0, "the older floor stays whole")
+			var pieces := _pieces(old) + _pieces(new)
+			var gap := 0
+			for j in range(-110, 311):
+				for i in range(-10, 511):
+					var p := Vector2(i * 0.02, j * 0.02)
+					if (Geometry2D.is_point_in_polygon(p, old.floor_outline) or Geometry2D.is_point_in_polygon(p, new.floor_outline)) and not pieces.any(func(s: Dictionary) -> bool: return _over(s, p)):
+						gap += 1
+			_check(gap == 0, "joined at %s, the rooms' floors leave no gap: %d bare points" % [at, gap])
 
 
 func _floors_are_stood_on_and_hit() -> void:
