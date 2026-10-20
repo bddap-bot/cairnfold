@@ -28,6 +28,9 @@ const PASS_DEPTH := 0.7
 const SEEN_FROM := Vector3(0, 40, 0)
 ## How far a face's rock juts out of the slope, as a share of the range's depth.
 const CRAG := 0.08
+## Faces meeting at a sharper fold than this, in degrees, keep a hard edge between them: the ridges and crags stay
+## crisp while the slopes between them shade smoothly.
+const CREASE := 40.0
 
 
 ## Where the ridge stands above the foot at `azimuth` (radians from +x toward +z), from `noise` sampled on a circle.
@@ -71,32 +74,69 @@ static func noise_for(r: Dictionary) -> FastNoiseLite:
 	return n
 
 
-## The plain from the meadow's edge to the first range's foot, then each range's facing slopes, as one
-## surface of flat-shaded triangles. COLOR.r is the height as a share of the farthest range's highest, COLOR.g the
-## haze of the air in front, COLOR.b where snow may lie.
+## The plain from the meadow's edge to the first range's foot, then each range's facing slopes, as one indexed
+## surface whose normals are smoothed across every fold gentler than CREASE. COLOR.r is the height as a share of the
+## farthest range's highest, COLOR.g the haze of the air in front, COLOR.b where snow may lie.
 static func arrays() -> Array:
+	var corners := PackedVector3Array()
+	var colors := PackedColorArray()
+	_plain(corners, colors)
+	for r: Dictionary in RANGES:
+		_range(corners, colors, r)
+	return _smooth(corners, colors)
+
+
+## Each corner's normal is the angle-weighted mean of the faces round its point that fold from its own face by less
+## than CREASE; corners that agree on point and normal become one vertex.
+static func _smooth(corners: PackedVector3Array, colors: PackedColorArray) -> Array:
+	var faces := PackedVector3Array()
+	var angles := PackedFloat32Array()
+	var at := {}
+	for i in corners.size():
+		var f := i - i % 3
+		if i == f:
+			faces.append((corners[f + 2] - corners[f]).cross(corners[f + 1] - corners[f]).normalized())
+		var p := corners[i]
+		angles.append((corners[f + (i + 1) % 3] - p).angle_to(corners[f + (i + 2) % 3] - p))
+		if not at.has(p):
+			at[p] = []
+		at[p].append(i)
+	var crease := cos(deg_to_rad(CREASE))
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
-	var colors := PackedColorArray()
-	_plain(verts, normals, colors)
-	for r: Dictionary in RANGES:
-		_range(verts, normals, colors, r)
+	var tints := PackedColorArray()
+	var indices := PackedInt32Array()
+	var seen := {}
+	for i in corners.size():
+		var own := faces[i / 3]
+		var n := Vector3.ZERO
+		for j: int in at[corners[i]]:
+			if own.dot(faces[j / 3]) >= crease:
+				n += faces[j / 3] * angles[j]
+		var key := [corners[i], n]
+		if not seen.has(key):
+			seen[key] = verts.size()
+			verts.append(corners[i])
+			normals.append(n.normalized())
+			tints.append(colors[i])
+		indices.append(seen[key])
 	var out := []
 	out.resize(Mesh.ARRAY_MAX)
 	out[Mesh.ARRAY_VERTEX] = verts
 	out[Mesh.ARRAY_NORMAL] = normals
-	out[Mesh.ARRAY_COLOR] = colors
+	out[Mesh.ARRAY_COLOR] = tints
+	out[Mesh.ARRAY_INDEX] = indices
 	return out
 
 
-static func _range(verts: PackedVector3Array, normals: PackedVector3Array, colors: PackedColorArray, r: Dictionary) -> void:
+static func _range(corners: PackedVector3Array, colors: PackedColorArray, r: Dictionary) -> void:
 	var noise := noise_for(r)
 	var crag := noise_for(r)
 	crag.seed += 100
 	crag.frequency = 2.4
 	var cols: int = r.columns
 	var grid: Array[PackedVector3Array] = []
-	for c in cols + 1:
+	for c in cols:
 		var a := TAU * c / cols
 		var h := ridge(r, noise, a)
 		var out := Vector2(cos(a), sin(a))
@@ -107,12 +147,13 @@ static func _range(verts: PackedVector3Array, normals: PackedVector3Array, color
 			row.append(Vector3(out.x * dist, PLAIN_HIGH + h * ROWS[k], out.y * dist))
 		grid.append(row)
 	for c in cols:
+		var next := grid[(c + 1) % cols]
 		for k in ROWS.size() - 1:
-			_face(verts, normals, colors, r, [grid[c][k], grid[c][k + 1], grid[c + 1][k]])
-			_face(verts, normals, colors, r, [grid[c + 1][k], grid[c][k + 1], grid[c + 1][k + 1]])
+			_face(corners, colors, r, [grid[c][k], grid[c][k + 1], next[k]])
+			_face(corners, colors, r, [next[k], grid[c][k + 1], next[k + 1]])
 
 
-static func _plain(verts: PackedVector3Array, normals: PackedVector3Array, colors: PackedColorArray) -> void:
+static func _plain(corners: PackedVector3Array, colors: PackedColorArray) -> void:
 	var r: Dictionary = RANGES[0]
 	var foot: float = r.radius - r.depth
 	var edge := Terrain.SIZE * 0.5
@@ -130,19 +171,17 @@ static func _plain(verts: PackedVector3Array, normals: PackedVector3Array, color
 		var b := rim[(k + 1) % rim.size()]
 		var fa := Vector3(a.x, 0, a.z).normalized() * foot + Vector3.UP * PLAIN_HIGH
 		var fb := Vector3(b.x, 0, b.z).normalized() * foot + Vector3.UP * PLAIN_HIGH
-		_face(verts, normals, colors, r, [a, fa, b])
-		_face(verts, normals, colors, r, [b, fa, fb])
+		_face(corners, colors, r, [a, fa, b])
+		_face(corners, colors, r, [b, fa, fb])
 
 
-static func _face(verts: PackedVector3Array, normals: PackedVector3Array, colors: PackedColorArray, r: Dictionary, tri: Array) -> void:
-	var n: Vector3 = (tri[2] - tri[0]).cross(tri[1] - tri[0]).normalized()
+static func _face(corners: PackedVector3Array, colors: PackedColorArray, r: Dictionary, tri: Array) -> void:
+	var n: Vector3 = (tri[2] - tri[0]).cross(tri[1] - tri[0])
 	if n.dot(SEEN_FROM - tri[0]) < 0.0:
-		n = -n
 		tri = [tri[0], tri[2], tri[1]]
 	var top: float = RANGES[RANGES.size() - 1].high
 	for p: Vector3 in tri:
-		verts.append(p)
-		normals.append(n)
+		corners.append(p)
 		colors.append(Color((p.y - PLAIN_HIGH) / top, r.haze, r.snow))
 
 
