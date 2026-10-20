@@ -28,6 +28,8 @@ const NEAREST := 0.1
 ## target from this long before the stick reached its deadzone.
 const RELEASE_LOOKBACK := 0.1
 const MAX_LIFT := 40.0
+## A target this far over its floor floats: the markers show a lifted ring and pole.
+const LIFTED := 0.15
 const SNAP := deg_to_rad(30.0)
 const FADE := 0.09
 ## The render layers with a private use, one table so no two uses share a bit; everything else draws on layer 1.
@@ -257,7 +259,7 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 	var size := maxf(1.0, head.global_position.distance_to(target) / MARKER_NEAR)
 	_ground_ring.visible = true
 	_ground_ring.global_transform = Transform3D(Basis().scaled(Vector3.ONE * size), g3 + Vector3.UP * 0.03 * size)
-	var lifted := aim_lift > 0.15
+	var lifted := aim_lift > LIFTED
 	_float_ring.visible = lifted
 	_pole.visible = lifted
 	if lifted:
@@ -273,9 +275,13 @@ func hide_markers() -> void:
 
 
 ## Move so the head stands over `ground`, `lift` metres up. The rig then stays exactly there: in a headset
-## any view motion the player's head did not make is uncomfortable.
+## any view motion the player's head did not make is uncomfortable. A far teleport, past MARKER_NEAR from the eyes,
+## that stands the player on something over the terrain (a roof, a wall's top, a tree) sounds as a landing.
 func teleport(ground: Vector3, lift_m: float) -> void:
-	Cues.play(Cues.Act.TELEPORT, ground + Vector3.UP * (lift_m + head.position.y), left)
+	var at := ground + Vector3.UP * (lift_m + head.position.y)
+	var onto := lift_m <= LIFTED and ground.y > Terrain.height_at(ground.x, ground.z) + 0.05
+	var far_away := head.global_position.distance_to(at) > MARKER_NEAR
+	Cues.play(Cues.Act.TELEPORT_ONTO if onto and far_away else Cues.Act.TELEPORT, at, left)
 	_pending = [ground, lift_m]
 	_fade_t = 0.0
 	_fade.visible = true

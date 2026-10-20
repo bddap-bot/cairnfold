@@ -1,0 +1,20 @@
+[
+ {
+  "page": "https://opengameart.org/content/swishes-sound-pack",
+  "audio": "https://opengameart.org/sites/default/files/swishes.zip",
+  "member": "swishes/swish-4.wav",
+  "title": "Swishes Sound Pack",
+  "author": "artisticdude",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "clip": "swish0"
+ },
+ {
+  "page": "https://kenney.nl/assets/rpg-audio",
+  "audio": "https://kenney.nl/media/pages/assets/rpg-audio/8e99002d76-1677590336/kenney_rpg-audio.zip",
+  "member": "Audio/cloth3.ogg",
+  "title": "RPG Audio",
+  "author": "Kenney (kenney.nl)",
+  "licence": "CC0 1.0, https://creativecommons.org/publicdomain/zero/1.0/",
+  "clip": "cloth0"
+ }
+]

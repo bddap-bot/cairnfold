@@ -4,7 +4,7 @@ extends Node3D
 ## What every player action sounds and feels like, from one table (docs/design.md, "Action feedback"). A call site
 ## names its action and where it happened; the table says the sound, its level and spread of pitch, the pulse the
 ## hand that did it feels, and how often a continuous action may repeat, so dragging and painting come out as a
-## texture. The sounds are rendered by scripts/compose.py into game/audio/fx and play from a fixed pool of 3D voices
+## texture. The sounds are rendered by scripts/compose.py, or cut from recordings by scripts/fx_recordings.py, into game/audio/fx and play from a fixed pool of 3D voices
 ## at the action. What a hand feels touching a surface is HandStop.FEEL's, not this table's.
 
 enum Act {
@@ -22,7 +22,7 @@ enum Act {
 	PHOTO, SEEDS_THROW,
 	WHEEL_OPEN, WHEEL_HOVER, WHEEL_PICK,
 	UNDO, REDO,
-	TELEPORT, TURN,
+	TELEPORT, TELEPORT_ONTO, TURN,
 	VISIT_HOVER, VISIT_GO,
 	PLAYER_JOINS, PLAYER_LEAVES,
 	BIRDS_STARTLE, HAND_PERCH, HAND_PECK, HAND_FLIT, HAND_HOP, HAND_PREEN, HAND_LOOK,
@@ -81,7 +81,8 @@ const TABLE := {
 	Act.WHEEL_PICK: {"sound": "pick", "db": -11.0, "spread": 0.0, "feel": [0.3, 0.03, 1, 0.0]},
 	Act.UNDO: {"sound": "undo", "db": -11.0, "spread": 0.0, "feel": [0.2, 0.02, 1, 0.0]},
 	Act.REDO: {"sound": "redo", "db": -11.0, "spread": 0.0, "feel": [0.2, 0.02, 1, 0.0]},
-	Act.TELEPORT: {"sound": "whoosh", "db": -14.0, "spread": 0.06, "feel": [0.12, 0.05, 1, 0.0]},
+	Act.TELEPORT: {"sound": "swish", "db": -12.0, "spread": 0.06, "feel": [0.12, 0.05, 1, 0.0]},
+	Act.TELEPORT_ONTO: {"sound": "cloth", "db": -12.0, "spread": 0.06, "feel": [0.12, 0.05, 1, 0.0]},
 	Act.TURN: {"sound": "", "feel": [0.08, 0.015, 1, 0.0]},
 	Act.VISIT_HOVER: {"sound": "tock", "db": -16.0, "spread": 0.04, "tune": 1.1, "feel": [0.12, 0.015, 1, 0.0]},
 	Act.VISIT_GO: {"sound": "hello", "db": -10.0, "spread": 0.0, "feel": [0.3, 0.04, 1, 0.0]},
@@ -100,7 +101,7 @@ const TABLE := {
 const SOUNDS := {
 	"stone": 5, "settle": 3, "arch": 2, "crumble": 2, "dip": 3, "fill": 2, "plop": 3, "nibble": 4,
 	"bow": 3, "lift": 2, "scrape": 4, "wood": 3, "rustle": 4, "gravel": 4, "soil": 3, "sweep": 1, "tock": 3,
-	"pick": 3, "brush": 4, "tear": 2, "shutter": 2, "scatter": 3, "undo": 1, "redo": 1, "whoosh": 2, "hello": 1,
+	"pick": 3, "brush": 4, "tear": 2, "shutter": 2, "scatter": 3, "undo": 1, "redo": 1, "swish": 1, "cloth": 1, "hello": 1,
 	"bye": 1, "flutter": 3, "grunt": 2,
 }
 ## The sounds there were before this table; every other one is checked for band energy against them

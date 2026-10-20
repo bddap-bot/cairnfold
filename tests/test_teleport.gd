@@ -36,8 +36,30 @@ func _finish(rig: Rig) -> void:
 	await _far_aim_holds_against_tremor(rig)
 	await _view_holds_after_teleport(rig, 0.0)
 	await _view_holds_after_teleport(rig, 12.0)
+	_landing_sounds(rig)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
+
+
+## A teleport swishes; one past MARKER_NEAR that stands the player on something sounds as a landing.
+func _landing_sounds(rig: Rig) -> void:
+	var cases := {
+		"a short teleport onto the ground": [Terrain.ground(0, 0), 0.0, Cues.Act.TELEPORT],
+		"a long teleport onto the ground": [Terrain.ground(0, -40), 0.0, Cues.Act.TELEPORT],
+		"a short teleport onto a roof": [Terrain.ground(0, 0) + Vector3.UP * 3.0, 0.0, Cues.Act.TELEPORT],
+		"a long teleport into the air": [Terrain.ground(0, -40), 6.0, Cues.Act.TELEPORT],
+		"a long teleport onto a roof": [Terrain.ground(0, -40) + Vector3.UP * 3.0, 0.0, Cues.Act.TELEPORT_ONTO],
+	}
+	for what: String in cases:
+		rig.respawn()
+		var before := {}
+		for act in [Cues.Act.TELEPORT, Cues.Act.TELEPORT_ONTO]:
+			before[act] = Cues.asked.get(act, 0)
+		rig.teleport(cases[what][0], cases[what][1])
+		var played: Cues.Act = cases[what][2]
+		var other := Cues.Act.TELEPORT_ONTO if played == Cues.Act.TELEPORT else Cues.Act.TELEPORT
+		_check(Cues.asked.get(played, 0) == before[played] + 1 and Cues.asked.get(other, 0) == before[other], what + " plays " + Cues.Act.keys()[played])
+	rig.respawn()
 
 
 func _check(ok: bool, what: String) -> void:

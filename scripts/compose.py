@@ -597,13 +597,6 @@ def actions():
         fx[f"shutter{i}"] = x
     for i in range(3):
         fx[f"scatter{i}"] = _grains(0.4, 18, 0.008, 320, 880, 1.6) + _band(crng.standard_normal(int(0.4 * SR)), 150, 600) * np.exp(-_t(0.4) * 9) * 0.3
-    for i in range(2):
-        n = int(0.5 * SR)
-        noise = crng.standard_normal(n)
-        cut = 250 + 650 * np.sin(np.pi * _t(0.5) / 0.5) ** 2
-        lo, hi = _fft_lowpass(noise, 250), _fft_lowpass(noise, 900)
-        mix = (cut - 250) / 650
-        fx[f"whoosh{i}"] = (lo * (1 - mix) + hi * mix) * np.sin(np.pi * _t(0.5) / 0.5) ** 1.5
     for i in range(3):
         x = np.zeros(int(0.75 * SR))
         rate = crng.uniform(12, 16)

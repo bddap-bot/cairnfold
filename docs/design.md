@@ -2430,7 +2430,7 @@ renders.
 
 ## Sound
 
-Every sound but the animal calls is synthesised by `scripts/compose.py` into
+Every sound but the animal calls and the teleport sounds is synthesised by `scripts/compose.py` into
 `game/audio/`; rerun it (`nix-shell --run 'python3 scripts/compose.py'`) after changing
 it, never edit the files by hand. The runtime only plays them: Godot mixes on its audio thread, so
 sound costs no frame time.
@@ -2449,6 +2449,9 @@ sound costs no frame time.
   melodies in octaves 3–5, harmonics cut off below 3 kHz, a dark reverb. Keep it
   that way: no stacked high registers and almost no energy above 2 kHz.
 - Effects: every player action's sound and feel come from one table (see "Action feedback").
+- Teleport sounds: a quick cloth swish and a cloth rustle landing, CC0 recordings cut by `scripts/fx_recordings.py`
+  from the files `game/audio/fx/sources.json` lists with their page, author and licence: the first half second of
+  each, low-passed at 1.8 kHz like the synthesised effects.
 - Animal calls: recordings of real conures, ducks, ducklings, sheep, deer and foxes, all CC0, cut
   by `scripts/animals.py` from the recordings `game/audio/animals/sources.json` lists
   with their page, author and licence (`nix-shell --run 'python3 scripts/animals.py'`).
@@ -2566,7 +2569,8 @@ Every player action, from the code:
 | `WHEEL_PICK` | Letting go takes the tool | felt pluck | knock |
 | `UNDO` | One step back | two plucks falling | tick |
 | `REDO` | One step forward | two plucks rising | tick |
-| `TELEPORT` | A teleport is let go | soft whoosh where the player lands | pulse in the aiming hand |
+| `TELEPORT` | A teleport is let go | quick cloth swish where the player lands | pulse in the aiming hand |
+| `TELEPORT_ONTO` | A teleport past `Rig.MARKER_NEAR` (15 m) from the eyes lets go standing on something over the terrain: a roof, a wall's top, a tree | cloth rustle landing | pulse in the aiming hand |
 | `TURN` | A snap turn | none: the most frequent motion, a sound on each would become a tic | light tick |
 | `VISIT_HOVER` | The visit pointer moves onto a garden's figure | quiet tock | light tick |
 | `VISIT_GO` | Visiting a garden or going home (flat players too) | three plucks rising | knock |

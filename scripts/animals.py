@@ -8,6 +8,7 @@ import pathlib
 import subprocess
 import sys
 import urllib.request
+import zipfile
 
 import numpy as np
 
@@ -33,12 +34,19 @@ RMS = 10 ** (-22 / 20)
 PEAK = 0.7
 
 
-def decode(url):
+def decode(url, member=None):
+    """The recording at `url`, or the file `member` in the zip there, as mono samples at SR."""
     CACHE.mkdir(exist_ok=True)
     path = CACHE / url.rsplit("/", 1)[1]
     if not path.exists():
         request = urllib.request.Request(url, headers={"User-Agent": "nestcombe-animals"})
         path.write_bytes(urllib.request.urlopen(request, timeout=60).read())
+    if member is not None:
+        out = CACHE / f"{path.stem}-{pathlib.PurePosixPath(member).name}"
+        if not out.exists():
+            with zipfile.ZipFile(path) as z:
+                out.write_bytes(z.read(member))
+        path = out
     pcm = subprocess.run(["ffmpeg", "-v", "error", "-i", str(path), "-ac", "1", "-ar", str(SR), "-f", "f32le", "-"],
                          capture_output=True, check=True).stdout
     return np.frombuffer(pcm, np.float32).astype(np.float64)
