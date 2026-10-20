@@ -7,7 +7,7 @@ extends Node3D
 ## is one undo step. The colour tool's choices are swatches of the material pointed at: a build's stone, roof
 ## tiles, woodwork (fences, window frames, doors, wooden railings, ladders) or plaster, as a `reshape` of its paint
 ## (builds laid after take the swatch let go last), or on the meadow the garden's season. The style tool's are
-## miniatures of the styles of what it points at: a gable end's, a roof's (tiled, thatched or flat, a house's or a
+## miniatures of the styles of what it points at: a gable end's, a roof's covering (stone when flat, tile or thatch when pitched, a house's or a
 ## tower's), a roofless wall's top, a wall's face (stone, plaster or a house's timber framing; builds laid after take
 ## the material let go last), a flight's or landing's railings (stairs laid after take them), a house's or tower's floor (at its foot alone, or at
 ## every storey), a tree's species, or a stroke of painted
@@ -101,7 +101,7 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 		var wood := end.gable_end == WallLayout.GableEnd.BOARDS
 		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if end.plaster else Palette.Element.STONE, gable.point, "walls", gable.wall.id)
 	if not roof.is_empty():
-		return colour_target(Palette.Element.THATCH if roof.wall.roof.thatched() else Palette.Element.ROOF, roof.point, "walls", roof.wall.id)
+		return colour_target(Palette.Element.STONE if roof.wall.roof.flat() else Palette.Element.THATCH if roof.wall.roof.thatched() else Palette.Element.ROOF, roof.point, "walls", roof.wall.id)
 	if not pick.is_empty():
 		var layout: WallLayout = pick.wall.layout
 		if _on_timber(layout, pick.point):
@@ -155,7 +155,8 @@ func style_target(restyle: Restyle, wall: Wall, point: Vector3) -> Dictionary:
 	var count := styles(restyle)
 	if restyle == Restyle.FACE and not (wall.layout.closed and wall.layout.corners().size() == 4):
 		count = 1 if wall.roof != null and wall.roof.kind == RoofLayout.Kind.CONE else Face.TIMBER
-	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "count": count, "point": point, "of": "walls", "id": wall.id, "wall": wall}
+	var options: Array = WallTool.roof_options(wall.roof.pitch) if restyle == Restyle.ROOF else range(count)
+	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "options": options, "count": options.size(), "point": point, "of": "walls", "id": wall.id, "wall": wall}
 
 
 static func styles(restyle: Restyle) -> int:
@@ -195,7 +196,7 @@ func open(hand: Hand, target: Dictionary) -> void:
 	w.node = Node3D.new()
 	w.node.top_level = true
 	for i in target.count:
-		var choice := _swatch(target.element, i) if target.tool == Hand.Tool.COLOUR else _style(target.restyle, i, target.wall)
+		var choice := _swatch(target.element, i) if target.tool == Hand.Tool.COLOUR else _style(target.restyle, target.get("options", range(target.count))[i], target.wall)
 		w.node.add_child(choice)
 		w.choices.append(choice)
 	add_child(w.node)
@@ -262,7 +263,7 @@ func _now(w: Wheel) -> int:
 		Restyle.GABLE:
 			return d.gable_end
 		Restyle.ROOF:
-			return WallTool.roof_style(d)
+			return w.target.options.find(WallTool.roof_style(d))
 		Restyle.TOP:
 			return d.top
 		Restyle.FLOOR:
@@ -280,7 +281,7 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 		Restyle.GABLE:
 			return {"gable_end": pick}
 		Restyle.ROOF:
-			return WallTool.restyle_roof(world.state.walls[w.id], pick as WallTool.RoofStyle)
+			return WallTool.restyle_roof(world.state.walls[w.id], w.target.options[pick] as WallTool.RoofStyle)
 		Restyle.TOP:
 			return {"top": pick}
 		Restyle.RAIL:
@@ -330,8 +331,8 @@ func close(hand: Hand) -> void:
 		walls.paint[w.target.element] = w.pick
 	elif w.id >= 0 and w.target.restyle == Restyle.GABLE:
 		walls.gable_end = w.pick as WallLayout.GableEnd
-	elif w.id >= 0 and w.target.restyle == Restyle.ROOF and w.pick != WallTool.RoofStyle.FLAT:
-		walls.thatch = w.pick == WallTool.RoofStyle.THATCHED
+	elif w.id >= 0 and w.target.restyle == Restyle.ROOF and w.target.options[w.pick] != WallTool.RoofStyle.FLAT:
+		walls.thatch = w.target.options[w.pick] == WallTool.RoofStyle.THATCHED
 	elif w.id >= 0 and w.target.restyle == Restyle.FLOOR:
 		walls.storey_floors = w.pick == 1
 	elif w.id >= 0 and w.target.restyle == Restyle.FACE:

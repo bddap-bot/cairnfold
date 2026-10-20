@@ -17,6 +17,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await process_frame
 	world = main.world
+	_roof_choices_keep_shape()
 	_species_differ()
 	_faces_turn_to_plaster()
 	_floors_turn_to_every_storey()
@@ -383,3 +384,41 @@ func _stone_takes_a_style() -> void:
 
 func _style_at(x: float, z: float) -> int:
 	return Ground._texel(x, z, Ground.laid).b8
+
+
+func _roof_choices_keep_shape() -> void:
+	var picker: PaletteTool = main.palette_tool
+	for pitch in [0.0, 2.0]:
+		for thatch in [false, true]:
+			var data := _wall_data(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
+			data.closed = true
+			data.roof = {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": pitch, "curve": 0.4, "seed": 3, "chimneys": PackedVector2Array(), "flag": false, "thatch": thatch}
+			world._order({"op": "wall", "walls": [data]}, world.me())
+			var id := world.seq * Commands.MAX_PIECES
+			var wall: Wall = main.tool.find(id)
+			var target := picker.style_target(PaletteTool.Restyle.ROOF, wall, Vector3.ZERO)
+			_check(target.count == (1 if pitch == 0.0 else 2), "roof offers only coverings for its shape")
+			for pick in target.count:
+				picker.open(main.rig.right, target)
+				var wheel: PaletteTool.Wheel = picker.wheels[main.rig.right]
+				for change in wheel.data:
+					_check(not change.get("roof", {}).has("pitch") and not change.get("roof", {}).has("curve"), "covering choices never write shape")
+				picker.twist(main.rig.right, (pick - wheel.start) * Palette.TWIST_STEP)
+				_check(wall.roof.pitch == pitch and wall.roof.curve == 0.4, "preview preserves pitch and curve")
+				picker.close(main.rig.right)
+				_check(world.state.walls[id].roof.pitch == pitch and world.state.walls[id].roof.curve == 0.4, "committed covering preserves pitch and curve")
+			wall.lay_now()
+			var colour := picker.aim(wall.roof.frame().mid + Vector3.UP * 10.0, Vector3.DOWN)
+			var element := Palette.Element.STONE if pitch == 0.0 else Palette.Element.THATCH
+			_check(colour.get("element") == element, "roof colour choices match the rendered covering")
+			_turn(colour, 1)
+			_check(world.state.walls[id].paint[element] == 1, "roof colour commits the covering's swatch")
+			_check(world.state.walls[id].roof.pitch == pitch, "colour keeps the roof shape")
+			wall.lay_now()
+			var mason := WallTool.Mason.new()
+			var start: Vector3 = wall.roof.frame().mid + Vector3.UP * pitch
+			main.tool.begin_roof(mason, wall, start)
+			main.tool.drag_roof(mason, start + Vector3.UP * (2.0 if pitch == 0.0 else -2.0) / mason.lift_gain)
+			main.tool.end_roof(mason)
+			_check((world.state.walls[id].roof.pitch == 0.0) == (pitch > 0.0), "grab and vertical pull changes roof shape")
+			world.restore({"seq": 0, "cmds": []})

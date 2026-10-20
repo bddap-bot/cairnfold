@@ -23,6 +23,12 @@ const HOUSE_HEIGHT := 2.4
 const TOWER_HEIGHT := 4.5
 const HOUSE_SIDE := 2.4
 enum RoofStyle { PITCHED, FLAT, THATCHED }
+enum RoofShape { FLAT, PITCHED }
+const ROOF_OPTIONS := {
+	RoofShape.FLAT: [RoofStyle.FLAT],
+	RoofShape.PITCHED: [RoofStyle.PITCHED, RoofStyle.THATCHED],
+}
+
 const HOUSE_SIZE := Vector2(4.5, 4.5)
 const TOWER_SIZE := Vector2(3.4, 3.4)
 const HOUSE_REACH := 6.0
@@ -551,21 +557,21 @@ static func pitch_for(at: Dictionary) -> float:
 	return at.size.y * 0.42
 
 
+static func roof_options(pitch: float) -> Array:
+	return ROOF_OPTIONS[RoofShape.FLAT if pitch <= 0.0 else RoofShape.PITCHED]
+
+
 static func roof_style(d: Dictionary) -> RoofStyle:
 	if d.roof.pitch <= 0.0:
 		return RoofStyle.FLAT
 	return RoofStyle.THATCHED if d.roof.thatch else RoofStyle.PITCHED
 
 
-## The `reshape` that gives the house or tower with garden data `d` roof `style`. A flat roof keeps the covering it
-## had for when it is pitched again.
+## Coverings never reshape the roof; a flat deck remembers the covering to use when pulled up.
 static func restyle_roof(d: Dictionary, style: RoofStyle) -> Dictionary:
-	if style == RoofStyle.FLAT:
-		return {"roof": {"pitch": 0.0}}
-	var out := {"roof": {"thatch": style == RoofStyle.THATCHED}}
-	if d.roof.pitch <= 0.0:
-		out.roof.pitch = pitch_for(house_of(d))
-	return out
+	if style not in roof_options(d.roof.pitch) or style == RoofStyle.FLAT:
+		return {}
+	return {"roof": {"thatch": style == RoofStyle.THATCHED}}
 
 
 ## Where a built house stands, as `outline` takes it, from its garden data; {} for a build that is no house or tower.
