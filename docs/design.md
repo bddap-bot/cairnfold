@@ -631,6 +631,24 @@ A path stroke over the walls still loses frames for a few seconds with the GPU a
 frame at the bottom step: the main thread spends 12 to 19 ms a frame laying the path, as it
 did before this work, which no quality step reaches.
 
+A visited garden past the build budget, as one came in a played co-op session (4.1 to
+4.7 times the room, 23,000 stones, 130,000 to 150,000 sprigs of ivy): `demo/visited-host.json`
+builds it unbounded on a headless host on the Frame itself, `demo/visited.json` joins it in
+the headset (`--host-port` the host's `--port`), lets its ivy grow and stands looking across
+it, the governor free, the tool wheel shut and then held open. Unworn, each phase 20 s shut and
+15 s open, twice:
+
+| Build | Shut: GPU ms, late, step | Wheel open: GPU ms, late, step |
+|---|---|---|
+| Before the wheel lost its own light | 11.0, 0, 7; 6.7, 0, 10 | 7.7 (13.8 max), 58, 7 to 10; 7.8, 0, 10 |
+| After | 9.2, 1, 9; 10.1, 1, 8 | 9.9, 1, 9; 10.8, 1, 8 |
+
+Before, opening the wheel lost 58 frames and drove the ladder to its bottom, with no sun
+shadows and a 0.78 3D scale. After, the wheel costs 0.7 ms and the garden holds 72 Hz at
+steps 8 to 9. With the ladder pinned instead, this garden reads 14.0 to 15.5 ms at steps 0
+to 6 with the wheel shut, half rate: a garden this far past the budget holds the rate only
+because the governor steps down for it.
+
 ## Build budget
 
 Directive (verbatim): "I'd like an indicator somewhere. Uh, I think probably on the- on
