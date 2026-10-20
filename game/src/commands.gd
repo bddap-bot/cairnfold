@@ -301,8 +301,9 @@ static func _wall(d: Variant) -> Variant:
 	if typeof(plaster) != TYPE_BOOL or (plaster and d.fence):
 		return null
 	var timber_style: Variant = d.get("timber_style")
-	if typeof(timber_style) != TYPE_INT or timber_style < -1 or timber_style >= TimberFrame.PATTERNS.size():
+	if typeof(timber_style) != TYPE_INT or timber_style < -1:
 		return null
+	timber_style = mini(timber_style, 0)
 	var gable_end: Variant = d.get("gable_end")
 	if typeof(gable_end) != TYPE_INT or gable_end < 0 or gable_end >= WallLayout.GableEnd.size():
 		return null

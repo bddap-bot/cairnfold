@@ -18,7 +18,7 @@ const WHEEL_RADIUS := 0.07
 const WHEEL_AT := Vector3(0, 0.06, -0.05)
 
 enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL }
-enum Face { STONE, PLASTER, ALSACE, MAGPIE, RURAL, FACHWERK, COLOMBAGE }
+enum Face { STONE, PLASTER, TIMBER }
 
 ## A hand's open wheel: what it changes (`aim`'s target) on which build (its garden table `of` and `id`; "" and -1 for
 ## none) or tree (its trunk; null for none), the choice it started on and the one at its top, and the hand's frame when it
@@ -145,7 +145,7 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 func style_target(restyle: Restyle, wall: Wall, point: Vector3) -> Dictionary:
 	var count := styles(restyle)
 	if restyle == Restyle.FACE and not (wall.layout.closed and wall.layout.corners().size() == 4):
-		count = 1 if wall.roof != null and wall.roof.kind == RoofLayout.Kind.CONE else Face.ALSACE
+		count = 1 if wall.roof != null and wall.roof.kind == RoofLayout.Kind.CONE else Face.TIMBER
 	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "count": count, "point": point, "of": "walls", "id": wall.id, "wall": wall}
 
 
@@ -250,7 +250,7 @@ func _now(w: Wheel) -> int:
 		Restyle.TOP:
 			return d.top
 	if d.plaster and d.timber_style >= 0 and d.closed and d.points.size() == 4:
-		return Face.ALSACE + d.timber_style
+		return Face.TIMBER
 	return Face.PLASTER if d.plaster else Face.STONE
 
 
@@ -268,7 +268,7 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 		Restyle.RAIL:
 			return {"rail": StairLayout.RAILS[pick]}
 	var data := {}
-	var timber_style: int = pick - Face.ALSACE if pick >= Face.ALSACE else -1
+	var timber_style: int = 0 if pick == Face.TIMBER else -1
 	if timber_style != world.state.walls[w.id].timber_style:
 		data["timber_style"] = timber_style
 	var plaster := pick >= Face.PLASTER
@@ -311,7 +311,7 @@ func close(hand: Hand) -> void:
 		walls.thatch = w.pick == WallTool.RoofStyle.THATCHED
 	elif w.id >= 0 and w.target.restyle == Restyle.FACE:
 		walls.plaster = w.pick >= Face.PLASTER
-		walls.timber_style = w.pick - Face.ALSACE if w.pick >= Face.ALSACE else -1
+		walls.timber_style = 0 if w.pick == Face.TIMBER else -1
 	elif w.id >= 0 and w.target.restyle == Restyle.RAIL:
 		world.stairs.rail = StairLayout.RAILS[w.pick]
 	var data: Dictionary = (w.data[w.pick] if w.target.tool == Hand.Tool.STYLE else _data(w, w.pick)) if w.id >= 0 else {}

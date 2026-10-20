@@ -183,22 +183,33 @@ func _timber_faces() -> void:
 	var wall: Wall = main.tool.find(id)
 	wall.lay_now()
 	var picker: PaletteTool = main.palette_tool
-	for style in TimberFrame.PATTERNS.size():
-		var target := picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO)
-		_check(target.count == 7, "a house's face wheel offers stone, plaster and the five timber patterns")
-		picker.open(main.rig.right, target)
-		var start: int = picker.wheels[main.rig.right].start
-		picker.twist(main.rig.right, (PaletteTool.Face.ALSACE + style - start) * Palette.TWIST_STEP)
-		picker.close(main.rig.right)
-		_check(world.state.walls[id].plaster and world.state.walls[id].timber_style == style, "face wheel commits timber pattern %d" % style)
-		wall.lay_now()
-		_check(wall.layout.stones.any(func(p): return p.kind == "timber"), "selected timber face is rendered")
+	var target := picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO)
+	_check(target.count == 3, "a house's face wheel offers stone, plaster and timber")
+	picker.open(main.rig.right, target)
+	var start: int = picker.wheels[main.rig.right].start
+	picker.twist(main.rig.right, (PaletteTool.Face.TIMBER - start) * Palette.TWIST_STEP)
+	picker.close(main.rig.right)
+	_check(world.state.walls[id].plaster and world.state.walls[id].timber_style == 0, "face wheel commits timber")
+	wall.lay_now()
+	_check(wall.layout.stones.any(func(p): return p.kind == "timber"), "selected timber face is rendered")
 	world._order({"op": "undo"}, world.me())
-	_check(world.state.walls[id].timber_style == 3, "undo restores the preceding timber face")
+	_check(not world.state.walls[id].plaster, "undo restores stone")
 	world._order({"op": "redo"}, world.me())
-	_check(world.state.walls[id].timber_style == 4, "redo restores the selected timber face")
+	_check(world.state.walls[id].timber_style == 0, "redo restores the selected timber face")
 	world.restore(world.snapshot())
-	_check(world.state.walls[id].timber_style == 4, "save retains the pattern")
+	_check(world.state.walls[id].timber_style == 0, "save retains the pattern")
+	var saved := world.snapshot().duplicate(true)
+	for previous in 5:
+		for cmd in saved.cmds:
+			if cmd.op == "wall":
+				cmd.walls[0].timber_style = previous
+		_check(world.restore(saved) == saved.cmds.size(), "existing timber house loads")
+		_check(world.state.walls[id].timber_style == 0, "existing timber choice loads as Fachwerk")
+	wall = main.tool.find(id)
+	_turn(picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO), -1)
+	wall.lay_now()
+	_check(world.state.walls[id].plaster and world.state.walls[id].timber_style == -1, "plain plaster remains selectable on houses")
+	_check(wall.layout.stones.all(func(p): return p.kind != "timber"), "plain plaster has no framing")
 	world.restore({"seq": 0, "cmds": []})
 
 

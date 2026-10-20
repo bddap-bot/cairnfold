@@ -6,13 +6,8 @@ const DEPTH := 0.10
 ## How far a roofed wall's top rail sits under its eaves, so its square edge stays under the tiles.
 const EAVE_DROP := 0.04
 const OAK := Color(0.12, 0.075, 0.045)
-const PATTERNS := [
-	{"name": "Alsace", "spacing": 1.6, "rails": [0.5], "braces": [Vector4(0, 0, 1, 1), Vector4(1, 0, 0, 1)], "brace_rows": [0]},
-	{"name": "Magpie", "spacing": 1.2, "rails": [0.5], "braces": [Vector4(0, 0, 1, 1)], "brace_rows": [0, 1]},
-	{"name": "Rural", "spacing": 0.65, "rails": [0.5], "braces": [Vector4(0, 0, 1, 1)], "brace_rows": [0]},
-	{"name": "Fachwerk", "spacing": 1.8, "rails": [0.5], "braces": [Vector4(0, 0, 1, 1), Vector4(1, 0, 0, 1)], "brace_rows": [0, 1]},
-	{"name": "Colombage", "spacing": 0.5, "rails": [0.5], "braces": [], "brace_rows": []},
-]
+const SPACING := 1.8
+const BRACES := [Vector4(0, 0, 1, 1), Vector4(1, 0, 0, 1)]
 
 static func applies(w: WallLayout) -> bool:
 	return w.timber_style >= 0 and w.plaster and w.closed and not w.fence and w.corners().size() == 4
@@ -22,7 +17,6 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if not applies(w):
 		return out
-	var pattern: Dictionary = PATTERNS[w.timber_style]
 	var corners := w.corners()
 	corners.append(w.length())
 	for side in 4:
@@ -44,16 +38,13 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 		for a in w.live_arches:
 			if a > lo and a < hi:
 				holes.append(Rect2(a - WallLayout.ARCH_HALF, 0, WallLayout.ARCH_HALF * 2.0, w.spring() + WallLayout.ARCH_HALF).grow(clearance))
-		var count := ceili((hi - lo) / float(pattern.spacing))
+		var count := ceili((hi - lo) / SPACING)
 		for i in range(1, count):
 			var x := lerpf(lo, hi, float(i) / count)
-			if xs.all(func(v: float) -> bool: return absf(v - x) > float(pattern.spacing) * 0.45):
+			if xs.all(func(v: float) -> bool: return absf(v - x) > SPACING * 0.45):
 				xs.append(x)
 		xs.sort()
-		var ys: Array[float] = [foot]
-		for y: float in pattern.rails:
-			ys.append(lerpf(foot, eaves, y))
-		ys.append(eaves)
+		var ys: Array[float] = [foot, lerpf(foot, eaves, 0.5), eaves]
 		for y in ys:
 			var rail := y - EAVE_DROP if y == eaves and side % 2 == 0 and w.cover == WallLayout.Cover.ROOF else y
 			_emit(out, Vector2(lo - corner, rail), Vector2(hi + corner, rail), mid, holes)
@@ -65,12 +56,12 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 			for y: float in [o.sill - clearance, o.head + clearance]:
 				if y >= foot:
 					_emit(out, Vector2(o.s - o.half - clearance, y), Vector2(o.s + o.half + clearance, y), mid, holes)
-		for row: int in pattern.brace_rows:
+		for row in 2:
 			for i in xs.size() - 1:
 				var panel := Rect2(Vector2(xs[i], ys[row]), Vector2(xs[i + 1] - xs[i], ys[row + 1] - ys[row]))
 				if panel.size.x < 0.5 or holes.any(func(h: Rect2) -> bool: return panel.intersects(h)):
 					continue
-				for brace: Vector4 in pattern.braces:
+				for brace: Vector4 in BRACES:
 					_emit(out, panel.position + panel.size * Vector2(brace.x, brace.y), panel.position + panel.size * Vector2(brace.z, brace.w), mid, holes)
 		if side % 2 == 0 or w.gable == null or w.gable.kind != RoofLayout.Kind.GABLE or w.gable.flat() or w.cover != WallLayout.Cover.ROOF or w.gable_end == WallLayout.GableEnd.BOARDS:
 			continue
@@ -82,10 +73,9 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 		for x in xs:
 			var top := base + w.gable.rise(1.0 - (absf(x - mid) + WIDTH * 0.5) / hs) - WIDTH
 			_emit(out, Vector2(x, eaves), Vector2(x, top), mid, [])
-		for fraction: float in pattern.rails:
-			var y := w.gable.rise(1.0) * fraction
-			var half := w._under_slope(y + WIDTH, hs)
-			_emit(out, Vector2(mid - half, base + y), Vector2(mid + half, base + y), mid, [])
+		var y := w.gable.rise(1.0) * 0.5
+		var half := w._under_slope(y + WIDTH, hs)
+		_emit(out, Vector2(mid - half, base + y), Vector2(mid + half, base + y), mid, [])
 		for sign_x in [-1.0, 1.0]:
 			var last := Vector2(mid + sign_x * hs, base - WIDTH)
 			var segments := maxi(1, ceili(absf(w.gable.curve) * 12.0))
@@ -99,7 +89,7 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 			if top - eaves < 0.35 or xs[i + 1] - xs[i] < 0.5:
 				continue
 			var panel := Rect2(Vector2(xs[i], eaves), Vector2(xs[i + 1] - xs[i], top - eaves))
-			for brace: Vector4 in pattern.braces:
+			for brace: Vector4 in BRACES:
 				_emit(out, panel.position + panel.size * Vector2(brace.x, brace.y), panel.position + panel.size * Vector2(brace.z, brace.w), mid, [])
 	return out
 

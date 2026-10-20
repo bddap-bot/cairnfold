@@ -106,12 +106,12 @@ static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round :
 			if round:
 				_tower(root, thatched, flat)
 			else:
-				_house(root, plastered, WallLayout.GableEnd.WALL, flat, 0, thatched)
+				_house(root, plastered, WallLayout.GableEnd.WALL, flat, thatched)
 		PaletteTool.Restyle.TOP:
 			_wall(root, plastered, i as WallLayout.Top)
 		PaletteTool.Restyle.FACE:
-			if i >= PaletteTool.Face.ALSACE:
-				_house(root, true, WallLayout.GableEnd.WALL, false, i - PaletteTool.Face.ALSACE)
+			if i == PaletteTool.Face.TIMBER:
+				_house(root, true)
 			else:
 				_wall(root, i == PaletteTool.Face.PLASTER, WallLayout.Top.CAP)
 	var turn := Basis(Vector3.UP, PI * 0.38) if restyle == PaletteTool.Restyle.GABLE else Basis()
@@ -543,9 +543,8 @@ static func _wall(root: Node3D, plastered := false, top := WallLayout.Top.CRENEL
 
 
 ## A cottage: stone walls with a door toward the eye under a tiled gable roof, or a flat one.
-static func _house(root: Node3D, plastered := false, gable_end := WallLayout.GableEnd.WALL, flat := false, timber_style := 0, thatched := false) -> void:
+static func _house(root: Node3D, plastered := false, gable_end := WallLayout.GableEnd.WALL, flat := false, thatched := false) -> void:
 	var layout := WallLayout.new()
-	layout.timber_style = timber_style
 	layout.plaster = plastered
 	layout.seed = 7
 	layout.height = 2.4

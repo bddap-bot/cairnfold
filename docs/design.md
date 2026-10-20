@@ -2915,9 +2915,9 @@ posts continue the wall's post positions, with rails and rakes following the roo
 Stone houses retain their existing masonry. Boarded gables retain their boards;
 stepped plaster gables keep their crow steps above the framing.
 
-Alsace is the default. The Style tool's existing face wheel offers plain stone and plaster alongside
-Alsace, Magpie, rural close studding, Fachwerk crosses or Colombage verticals.
-Plain plaster switches the framing off explicitly. The timber patterns are data for one generator, retained in the build's `timber_style` through
+Fachwerk crosses in both rows are the timber pattern. The Style tool's face wheel offers
+stone, plain plaster and timber. Plain plaster switches the framing off explicitly.
+Existing timber choices load as Fachwerk; the choice is retained through
 save, undo, visits and resize. Point the colour tool at a beam to choose its dark
 oak colour independently of plaster, window frames and doors.
 
