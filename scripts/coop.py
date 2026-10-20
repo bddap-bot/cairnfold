@@ -35,7 +35,7 @@ def sample(name, names, count):
         {"op": "wait", "seconds": 1},
         {"op": "digest", "name": f"{name}-{phase}-ready"},
         barrier([f"{n}-{phase}-ready" for n in names]),
-        {"op": "network_sample", "name": f"{name}-{phase}-cost", "seconds": 10},
+        {"op": "network_sample", "name": f"{name}-{phase}-cost", "seconds": 4},
         barrier([f"{n}-{phase}-cost" for n in names]),
     ]
 
@@ -240,16 +240,26 @@ def run(out, count, spawn=False, capture=False):
 
     progress = {"steps": 0, "cpu": 0.0, "quiet": 0.0}
 
+    def fail(name, what):
+        # The run's output is all a landing keeps, so the end of the player's log goes there.
+        log = out / f"{name}.log"
+        print("".join(f"{name}: {line}\n" for line in log.read_text(errors="replace").splitlines()[-60:]), end="", flush=True)
+        raise RuntimeError(f"{name} {what}; see {log}")
+
     def check():
         last = {}
         for name, proc in processes.items():
             if proc.poll():
-                raise RuntimeError(f"{name} exited unsuccessfully")
+                fail(name, f"exited {proc.returncode}")
             text = (out / f"{name}.log").read_text(errors="replace")
-            if any(s in text for s in ("SCRIPT ERROR", "timed out", "handle_crash", "cannot apply", "tree_exited")):
-                raise RuntimeError(f"{name} failed; see {out / (name + '.log')}")
+            if "handle_crash" in text:
+                # A crashing player writes its backtrace and core before it aborts; ending it first would lose both.
+                proc.wait()
+                fail(name, "crashed")
+            if any(s in text for s in ("SCRIPT ERROR", "timed out", "cannot apply", "tree_exited")):
+                fail(name, "failed")
             if "session: home from" in HOME_CUE.split(text, 1)[0]:
-                raise RuntimeError(f"{name} lost the garden it visited; see {out / (name + '.log')}")
+                fail(name, "lost the garden it visited")
             last[name] = [line for line in text.splitlines() if line.startswith("driver: {")]
         steps = sum(len(lines) for lines in last.values())
         spent = sum(samples[-1][1] for samples in list(cpu.values()))

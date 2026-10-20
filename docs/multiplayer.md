@@ -323,7 +323,7 @@ small draw calls and a few hundred triangles. Frame times with 1, 2 and 4 player
 
 `coop.sh` writes `costs.json`, raw `*-cost.json` ENet samples and
 `process-cpu.json` process-counter samples alongside the gardens and logs. Each
-phase lasts ten wall-clock seconds after all peers have loaded the other avatars
+phase lasts four wall-clock seconds after all peers have loaded the other avatars
 and the garden has settled. The two-player phase precedes the N-player phase in
 the same host and visitor processes; the late joiners build and undo before the
 second phase, leaving the same garden. These samples measure idle pose streaming,
