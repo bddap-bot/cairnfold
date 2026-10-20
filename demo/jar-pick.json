@@ -66,6 +66,16 @@
     ]
   },
   {
+    "op": "pick",
+    "hand": "left",
+    "tool": "none"
+  },
+  {
+    "op": "pick",
+    "hand": "right",
+    "tool": "none"
+  },
+  {
     "op": "take",
     "what": "small",
     "hand": "left",
@@ -78,6 +88,10 @@
     "hand": "right",
     "preview": true,
     "easel": 0
+  },
+  {
+    "op": "wait",
+    "seconds": 30
   },
   {
     "op": "label",
