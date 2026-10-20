@@ -124,10 +124,10 @@ func update() -> void:
 	_dirty = false
 	var flames := _flames
 	var rooms := _rooms.duplicate()
-	var ground := Bounce.grounds(Terrain.read(Terrain.ALL))
+	var heights := Terrain.read(Terrain.ALL)
 	var out := {}
 	_out = out
-	_task = WorkerThreadPool.add_task(func() -> void: out.layers = shine(flames, ground, rooms), false)
+	_task = WorkerThreadPool.add_task(func() -> void: out.layers = shine(flames, Bounce.grounds(heights), rooms), false)
 
 
 ## Solves everything changed so far before returning.

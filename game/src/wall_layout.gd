@@ -135,6 +135,9 @@ var ruins: Array[Vector2] = []
 ## The builds this one stands on, the builds standing on it and the houses and towers it joins
 ## (docs/design.md, "Buildings on buildings").
 var supports: Array[Massing] = []
+## What the samples were last laid out from: `resample` with the same again keeps them, since laying them out reads
+## every point of the ground along the wall.
+var _sampled_from := []
 var resting: Array[Massing] = []
 var joined: Array[Massing] = []
 ## Of `joined`, the builds older than this one: its floors yield to their rooms, so two joined floors never overlap.
@@ -1703,6 +1706,10 @@ func closest_s(p: Vector3) -> float:
 
 ## The ground curve, and the ruins' breaks along it, for the inputs as they stand.
 func resample(ground: Callable, water := Callable()) -> void:
+	var key := [points.duplicate(), height, rise, seed, closed, top, fence, lanterns.duplicate(), ruins.duplicate(), supports.duplicate(), Terrain.revision, ground, water]
+	if key == _sampled_from:
+		return
+	_sampled_from = key
 	samples.clear()
 	lengths.clear()
 	depths.clear()

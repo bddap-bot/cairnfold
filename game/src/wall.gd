@@ -54,6 +54,8 @@ var _ivy: MultiMeshInstance3D
 var _gables: MeshInstance3D
 var _coat: MeshInstance3D
 var _torching: MeshInstance3D
+## The roof faces its meshes were built from; a lay that leaves them alone keeps the meshes.
+var _faced := []
 var _settled := false
 var _ivy_times := PackedFloat32Array()
 var _ivy_task := -1
@@ -171,6 +173,7 @@ func add_roof(r: RoofLayout) -> void:
 		_lime.shader = load("res://src/torching.gdshader")
 		_lime.set_shader_parameter("albedo", WallLayout.PLASTER)
 		_lime.set_shader_parameter("detail", Look.detail_noise())
+	_faced = []
 	_torching = MeshInstance3D.new()
 	_torching.material_override = _lime
 	# One face thick and facing down: cast from its front only, it would let the sun through the tiles' gaps.
@@ -487,14 +490,18 @@ func _pack_roof(roofed := {}) -> void:
 		_parts[Part.MORTAR] = _wall_mortar + roofed.mortar
 		_chunked[Part.MORTAR] = Masonry.split(_parts[Part.MORTAR], kinds()[Part.MORTAR])
 	_fittings.lay(layout.flames, layout.cloths + roof.cloths)
+	var plastered := layout.plaster and layout.gable_end == WallLayout.GableEnd.WALL
+	var faces := [roof.coat, roof.gable_faces if plastered else PackedVector3Array(), roof.torching_faces]
+	if faces == _faced:
+		return
+	_faced = faces.duplicate(true)
 	_coat.mesh = null
 	if not roof.coat.is_empty() and not roof.coat[Mesh.ARRAY_VERTEX].is_empty():
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, roof.coat)
 		_coat.mesh = mesh
-	var plastered := layout.plaster and layout.gable_end == WallLayout.GableEnd.WALL
-	_gables.mesh = _faces_mesh(roof.gable_faces if plastered else PackedVector3Array())
-	_torching.mesh = _faces_mesh(roof.torching_faces)
+	_gables.mesh = _faces_mesh(faces[1])
+	_torching.mesh = _faces_mesh(faces[2])
 
 
 static func _faces_mesh(tris: PackedVector3Array) -> ArrayMesh:
