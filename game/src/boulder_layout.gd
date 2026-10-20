@@ -14,6 +14,9 @@ const CUTS := Vector2i(6, 10)
 const WEAR := 0.01
 ## How deep it sits in the ground, as a share of how far it reaches below its centre, whichever way it is turned.
 const BURY := 0.2
+## The share of its height a boulder pushed into the ground keeps above it, so a ray still finds it to grip, delete
+## or restyle it, and a mostly buried one still reads as a stone and not a mark on the grass.
+const KEEP := 0.15
 ## Icosphere subdivision of the surface points it rests on.
 const FEET := 2
 ## Icosphere subdivisions of the near and far meshes.
@@ -141,14 +144,34 @@ static func arrays(s: Shape, subdiv: int) -> Array:
 
 
 ## A boulder's transform: turned `turn` and grown `scale` times, dropped straight down at (`x`, `z`) onto the ground
-## `height` (x, z) gives until some point of it meets the ground, then sunk BURY of how far it reaches below its centre:
-## whichever way it is turned and however high it was let go, it rests on the ground.
-static func rest(s: Shape, turn: Quaternion, scale: float, x: float, z: float, height: Callable) -> Transform3D:
+## `height` (x, z) gives until some point of it meets the ground, then sunk BURY of how far it reaches below its centre,
+## and `sink` unit metres further, as deep as keeps KEEP of its height above the ground: whichever way it is turned and
+## however high it was let go, it rests on the ground or in it, never over it.
+static func rest(s: Shape, turn: Quaternion, scale: float, x: float, z: float, height: Callable, sink := 0.0) -> Transform3D:
 	var basis := Basis(turn) * Basis.from_scale(Vector3.ONE * scale)
+	var drop := _drop(s, basis, x, z, height)
+	return Transform3D(basis, Vector3(x, drop.x - clampf(sink * scale, 0.0, drop.y), z))
+
+
+## How far below where it would rest a boulder turned `turn`, grown `scale` times and held with its centre at `at` sits,
+## in unit metres, as `rest` takes it: none held over the ground, at most as deep as keeps KEEP of it showing.
+static func sink(s: Shape, turn: Quaternion, scale: float, at: Vector3, height: Callable) -> float:
+	var drop := _drop(s, Basis(turn) * Basis.from_scale(Vector3.ONE * scale), at.x, at.z, height)
+	return clampf(drop.x - at.y, 0.0, drop.y) / scale
+
+
+## Where the centre of a boulder of `basis` rests at (`x`, `z`), and how much deeper it may sink.
+static func _drop(s: Shape, basis: Basis, x: float, z: float, height: Callable) -> Vector2:
 	var lift := -INF
-	var depth := 0.0
+	var low := INF
+	var high := -INF
+	var clear := -INF
 	for p in s.feet:
 		var w := basis * p
-		lift = maxf(lift, height.call(x + w.x, z + w.z) - w.y)
-		depth = maxf(depth, -w.y)
-	return Transform3D(basis, Vector3(x, lift - depth * BURY, z))
+		var under: float = height.call(x + w.x, z + w.z)
+		lift = maxf(lift, under - w.y)
+		clear = maxf(clear, w.y - under)
+		low = minf(low, w.y)
+		high = maxf(high, w.y)
+	var y := lift + low * BURY
+	return Vector2(y, maxf(y + clear - KEEP * (high - low), 0.0))

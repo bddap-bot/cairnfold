@@ -345,21 +345,23 @@ func carry_boulder(b: Brush, hand: Transform3D) -> void:
 	b.rock.hold(Boulders.carried(b.rock_from, b.rock_hand, hand, b.rock_gain), b.rock.size)
 
 
-## Sets the boulder `b` carries down on the ground under it, turned as it was held; it shows there until its command
-## comes back.
+## Sets the boulder `b` carries down on the ground under it, turned as it was held, or leaves it as deep as it was
+## pushed into the ground; it shows there until its command comes back.
 func set_boulder(b: Brush) -> void:
 	var rock := b.rock
 	b.rock = null
 	if rock == null:
 		return
 	var pose := rock.pose()
-	place_boulder(pose.origin, b.hand, rock.shape.seed, rock.size, pose.basis.get_rotation_quaternion(), rock)
+	var turn := pose.basis.get_rotation_quaternion().normalized()
+	place_boulder(pose.origin, b.hand, rock.shape.seed, rock.size, turn, rock, BoulderLayout.sink(rock.shape, turn, rock.size, pose.origin, Terrain.height_at))
 
 
-## Sets a boulder of shape `shape`, size `scale` and turn `turn` down on the ground under `at`, in the stone style the
-## style wheel let go last; `ghost`, the boulder shown for it, rests there until the command comes back.
-func place_boulder(at: Vector3, hand: Hand = null, shape := randi(), scale := 1.0, turn := Quaternion.IDENTITY, ghost: Boulders.Boulder = null) -> void:
-	var cmd := _boulder(at, turn.normalized(), shape, scale)
+## Sets a boulder of shape `shape`, size `scale` and turn `turn` down on the ground under `at`, `sink` unit metres into
+## it, in the stone style the style wheel let go last; `ghost`, the boulder shown for it, rests there until the command
+## comes back.
+func place_boulder(at: Vector3, hand: Hand = null, shape := randi(), scale := 1.0, turn := Quaternion.IDENTITY, ghost: Boulders.Boulder = null, sink := 0.0) -> void:
+	var cmd := _boulder(at, turn.normalized(), shape, scale, sink)
 	if world.fits(cmd):
 		Cues.play(Cues.Act.BOULDER_PLACE, at, hand)
 	if ghost != null:
@@ -367,8 +369,8 @@ func place_boulder(at: Vector3, hand: Hand = null, shape := randi(), scale := 1.
 	world.submit(cmd, ghost.queue_free if ghost != null else Callable(), hand)
 
 
-func _boulder(at: Vector3, turn: Quaternion, shape: int, scale: float) -> Dictionary:
-	return {"op": "boulder", "at": Terrain.ground(at.x, at.z), "turn": turn, "seed": shape, "scale": scale, "paint": world.wall_tool.paint.duplicate(), "style": Ground.style}
+func _boulder(at: Vector3, turn: Quaternion, shape: int, scale: float, sink := 0.0) -> Dictionary:
+	return {"op": "boulder", "at": Terrain.ground(at.x, at.z), "turn": turn, "sink": sink, "seed": shape, "scale": scale, "paint": world.wall_tool.paint.duplicate(), "style": Ground.style}
 
 
 func place(kind: String, at: Vector3, hand: Hand = null, shape := randi()) -> void:

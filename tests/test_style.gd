@@ -437,7 +437,7 @@ func _stone_takes_a_style() -> void:
 ## and a save follow it.
 func _boulders_take_a_stone_style() -> void:
 	var at := Terrain.ground(-50, 30)
-	var plain := {"op": "boulder", "at": at, "turn": Quaternion.IDENTITY, "seed": 5, "scale": 1.0, "paint": Palette.plain()}
+	var plain := {"op": "boulder", "at": at, "turn": Quaternion.IDENTITY, "sink": 0.0, "seed": 5, "scale": 1.0, "paint": Palette.plain()}
 	_check(Commands.clean(plain, world.state, false).is_empty(), "a boulder names its style")
 	_check(Commands.clean(plain.merged({"style": StoneStyles.STYLES.size()}), world.state, false).is_empty(), "no boulder style past the last")
 	world._order(plain.merged({"style": 0}), world.me())

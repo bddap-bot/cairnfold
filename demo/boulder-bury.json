@@ -1,0 +1,13 @@
+[
+  {"op": "place", "x": 0, "z": 6},
+  {"op": "boulder", "x": -1.3, "z": -1.5, "seed": 4409, "scale": 1.3},
+  {"op": "boulder", "x": 1.4, "z": -1.8, "seed": 2203, "scale": 1.3},
+  {"op": "view", "eye": [0.2, 1.6, 2.6], "at": [0.0, 0.2, -1.6]},
+  {"op": "wait", "seconds": 1.0},
+  {"op": "carry", "boulder": 1, "move": [0, -0.2, 0], "seconds": 2.0},
+  {"op": "wait", "seconds": 1.5},
+  {"op": "carry", "boulder": 0, "move": [0, -0.6, 0], "seconds": 2.5},
+  {"op": "wait", "seconds": 2.0},
+  {"op": "capture", "name": "buried"},
+  {"op": "quit"}
+]

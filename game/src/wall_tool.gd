@@ -1032,14 +1032,15 @@ func _sizing(target: Object) -> Sizing:
 
 ## Carries a boulder: one hand moves it and turns it about its centre every way as the hand turns (`Boulders.carried`),
 ## a far one moving farther per metre of hand; let go, it drops straight down onto the ground under it, keeping its
-## turn (`BoulderLayout.rest`), its place, turn and size one reshape.
+## turn, or stays as deep as it was pushed into the ground (`BoulderLayout.rest`), its place, turn, depth and size one reshape.
 func _boulder_grip(b: Boulders.Boulder, s: Sizing, held: Callable) -> Sizing:
 	var rocks := world.boulders
 	var standing := func() -> bool: return is_instance_valid(b) and rocks.find(b.id) == b
 	var grip := {"pose": b.pose(), "scale": b.size, "from": b.pose(), "hand": Transform3D(), "gain": 1.0}
 	var data := func() -> Dictionary:
 		var p: Transform3D = grip.pose
-		return {"at": Terrain.ground(p.origin.x, p.origin.z), "turn": p.basis.get_rotation_quaternion().normalized(), "scale": grip.scale}
+		var turn := p.basis.get_rotation_quaternion().normalized()
+		return {"at": Terrain.ground(p.origin.x, p.origin.z), "turn": turn, "sink": BoulderLayout.sink(b.shape, turn, grip.scale, p.origin, Terrain.height_at), "scale": grip.scale}
 	s.scale = func() -> float: return grip.scale
 	s.limits = BoulderLayout.SCALES
 	s.current = standing
@@ -1053,7 +1054,7 @@ func _boulder_grip(b: Boulders.Boulder, s: Sizing, held: Callable) -> Sizing:
 	s.command = func() -> Dictionary:
 		var d: Dictionary = data.call()
 		var was := b.data
-		if is_equal_approx(d.scale, was.scale) and d.turn.is_equal_approx(was.turn) and is_equal_approx(d.at.x, was.at.x) and is_equal_approx(d.at.z, was.at.z):
+		if is_equal_approx(d.scale, was.scale) and d.turn.is_equal_approx(was.turn) and is_equal_approx(d.sink, was.sink) and is_equal_approx(d.at.x, was.at.x) and is_equal_approx(d.at.z, was.at.z):
 			return {}
 		return {"op": "reshape", "of": "boulders", "id": b.id, "data": d}
 	s.take = func(m: Mason, hand: Transform3D) -> void:

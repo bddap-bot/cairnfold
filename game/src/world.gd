@@ -863,14 +863,14 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			state.decorations.erase(cmd.id)
 			_account("d%d" % cmd.id, {})
 		"boulder":
-			state.boulders[cmd.id] = {"at": cmd.at, "turn": cmd.turn, "seed": cmd.seed, "scale": cmd.scale, "paint": cmd.paint, "style": cmd.style}
+			state.boulders[cmd.id] = Commands._boulder(cmd)
 			if boulders != null:
 				boulders.put(cmd.id, state.boulders[cmd.id])
 			_account("b%d" % cmd.id, {"boulder": Budget.boulder(cmd.scale)})
 			inverse = {"op": "unboulder", "id": cmd.id}
 		"unboulder":
 			var b: Dictionary = state.boulders[cmd.id]
-			inverse = {"op": "boulder", "id": cmd.id, "at": b.at, "turn": b.turn, "seed": b.seed, "scale": b.scale, "paint": b.paint, "style": b.style}
+			inverse = b.merged({"op": "boulder", "id": cmd.id})
 			state.boulders.erase(cmd.id)
 			if boulders != null:
 				boulders.take(cmd.id)
@@ -995,8 +995,7 @@ func snapshot() -> Dictionary:
 	for id in state.decorations:
 		cmds.append(state.decorations[id].merged({"op": "decoration", "id": id}))
 	for id in state.boulders:
-		var b: Dictionary = state.boulders[id]
-		cmds.append({"op": "boulder", "id": id, "at": b.at, "turn": b.turn, "seed": b.seed, "scale": b.scale, "paint": b.paint, "style": b.style})
+		cmds.append(state.boulders[id].merged({"op": "boulder", "id": id}))
 	for id in state.groups:
 		var g: Dictionary = state.groups[id]
 		if g.kind != "meadow":

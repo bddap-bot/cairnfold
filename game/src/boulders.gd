@@ -21,6 +21,8 @@ class Boulder:
 	var shape: BoulderLayout.Shape
 	var ground := Vector3.ZERO
 	var turn := Quaternion.IDENTITY
+	## How far it is pushed into the ground below where it would rest, in unit metres (BoulderLayout.rest).
+	var sink := 0.0
 	var size := 1.0
 	## Whether a hand has it, so it is shown where the hand holds it, not resting on the ground.
 	var held := false
@@ -28,10 +30,11 @@ class Boulder:
 	var near: MultiMeshInstance3D
 	var far: MultiMeshInstance3D
 
-	## Shows it as `d` ({at, turn, seed, scale, paint, style}) has it, its seed its own.
+	## Shows it as `d` ({at, turn, sink, seed, scale, paint, style}) has it, its seed its own.
 	func appear(d: Dictionary) -> void:
 		ground = d.at
 		turn = d.turn
+		sink = d.sink
 		held = false
 		# The stone shader tints a style by its paint as the swatch over the one stone is laid in.
 		var c := Palette.swatch(Palette.Element.STONE, d.paint[Palette.Element.STONE]) / Palette.swatch(Palette.Element.STONE, 0)
@@ -41,10 +44,10 @@ class Boulder:
 			mesh.set_instance_shader_parameter("stone_style", d.style)
 		seat(d.scale)
 
-	## Rests it at `scale` on the ground under it as the ground is now.
+	## Rests it at `scale` on the ground under it, or as deep in it as it was pushed, as the ground is now.
 	func seat(scale: float) -> void:
 		ground.y = Terrain.height_at(ground.x, ground.z)
-		_show(BoulderLayout.rest(shape, turn, scale, ground.x, ground.z, Terrain.height_at), scale)
+		_show(BoulderLayout.rest(shape, turn, scale, ground.x, ground.z, Terrain.height_at, sink), scale)
 
 	## Shows it at `pose` (unscaled) grown `scale` times, where a hand holds it.
 	func hold(pose: Transform3D, scale: float) -> void:
@@ -72,7 +75,7 @@ func _init() -> void:
 	name = "Boulders"
 
 
-## Puts boulder `id` as `data` ({at, turn, seed, scale, paint, style}) has it; one standing with that seed keeps its meshes.
+## Puts boulder `id` as `data` ({at, turn, sink, seed, scale, paint, style}) has it; one standing with that seed keeps its meshes.
 func put(id: int, data: Dictionary) -> Boulder:
 	var b: Boulder = boulders.get(id)
 	if b == null or b.shape.seed != data.seed:
@@ -183,8 +186,10 @@ func pick(origin: Vector3, dir: Vector3, reach := INF) -> Dictionary:
 		var local_dir := inv.basis * d
 		var unit := local_dir.length()
 		var t := b.shape.hit(inv * origin, local_dir / unit, minf(reach, best.get("along", INF)) * unit)
-		if t < INF:
-			best = {"boulder": b, "along": t / unit, "point": origin + d * t / unit}
+		var point := origin + d * t / unit
+		# What it meets first under the ground is its buried part, which the ground hides from the ray.
+		if t < INF and point.y >= Terrain.height_at(point.x, point.z):
+			best = {"boulder": b, "along": t / unit, "point": point}
 	return best
 
 

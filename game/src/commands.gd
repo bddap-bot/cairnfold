@@ -38,7 +38,7 @@ const MAX_SUPPORTS := 8
 const RESHAPES := {
 	"walls": ["points", "height", "rise", "top", "plaster", "plinth_plaster", "gable_end", "timber_style", "storey_floors", "openings", "lanterns", "flags", "ruins"],
 	"stairs": ["rail"],
-	"boulders": ["at", "turn", "scale", "style"],
+	"boulders": ["at", "turn", "sink", "scale", "style"],
 	"decorations": ["style"],
 }
 
@@ -226,19 +226,22 @@ static func _decoration(d: Dictionary) -> Variant:
 	return {"wall": d.wall, "style": d.style, "seed": d.seed, "at": d.at, "turn": d.turn, "s": d.s, "side": d.side}
 
 
-## A boulder: the ground point under its centre, which way it is turned, the seed its shape grows from, its size,
-## its paint and its style.
+## A boulder: the ground point under its centre, which way it is turned, how far it is pushed into the ground, the seed
+## its shape grows from, its size, its paint and its style.
 static func _boulder(d: Dictionary) -> Variant:
 	var at: Variant = d.get("at")
 	var turn: Variant = d.get("turn")
 	var scale: Variant = d.get("scale")
+	var sink: Variant = d.get("sink")
+	if typeof(sink) != TYPE_FLOAT or not (sink >= 0.0 and sink < INF):
+		return null
 	if typeof(at) != TYPE_VECTOR3 or not _finite(at) or typeof(d.get("seed")) != TYPE_INT or not Palette.valid(d.get("paint")):
 		return null
 	if typeof(turn) != TYPE_QUATERNION or not turn.is_finite() or absf(turn.length() - 1.0) > 1e-3:
 		return null
 	if typeof(scale) != TYPE_FLOAT or not (scale >= BoulderLayout.SCALES.x and scale <= BoulderLayout.SCALES.y) or not _stone_style(d.get("style")):
 		return null
-	return {"at": at, "turn": turn.normalized(), "seed": d.seed, "scale": scale, "paint": d.paint, "style": d.style}
+	return {"at": at, "turn": turn.normalized(), "sink": sink, "seed": d.seed, "scale": scale, "paint": d.paint, "style": d.style}
 
 
 ## A new easel: where it stands and which way it faces, clear of the others; from the host, also the strokes and

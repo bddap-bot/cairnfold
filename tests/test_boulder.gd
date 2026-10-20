@@ -2,8 +2,8 @@ extends SceneTree
 
 ## Headless checks of boulders: each seed grows its own worn, faceted shape and the same one every time; a placed
 ## boulder is a build command kept with the garden, sized and painted by a reshape, taken back by undo, struck by the delete tool's
-## beam, and stopping a hand; one hand carries and turns it every way and sets it down resting on the ground, two size
-## it, and it rides the ground as it is reshaped: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_boulder.gd
+## beam, and stopping a hand; one hand carries and turns it every way and sets it down resting on the ground or as deep
+## in it as it was pushed, two size it, and it rides the ground as it is reshaped: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_boulder.gd
 
 var failures := 0
 var main: Node
@@ -31,7 +31,9 @@ func _run() -> void:
 	await _a_grip_carries_and_turns_it_onto_the_ground()
 	await _let_go_in_the_air_it_drops()
 	await _two_hands_size_it()
+	await _pushed_into_the_ground_it_stays()
 	await _the_trigger_carries_a_new_one()
+	await _the_trigger_buries_a_new_one()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -115,15 +117,20 @@ func _bad_commands_are_dropped() -> void:
 	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3, "scale": 0.01, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "under the smallest size it is dropped")
 	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3.0, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "a seed that is no whole number is dropped")
 	var q := Quaternion.IDENTITY
-	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "one with no turn is dropped")
-	_check(Commands.clean({"op": "boulder", "at": at, "turn": Quaternion(0.5, 0, 0, 0.5), "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "a turn that is no rotation is dropped")
-	_check(Commands.clean({"op": "boulder", "at": at, "turn": q, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).size() == 7, "a boulder command keeps its place, turn, seed, size, paint and style")
+	_check(Commands.clean({"op": "boulder", "at": at, "turn": q, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "one with no depth is dropped")
+	_check(Commands.clean({"op": "boulder", "at": at, "turn": q, "sink": -0.1, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "one sunk above the ground is dropped")
+	_check(Commands.clean({"op": "boulder", "at": at, "turn": q, "sink": INF, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "one sunk without end is dropped")
+	_check(Commands.clean({"op": "boulder", "at": at, "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "one with no turn is dropped")
+	_check(Commands.clean({"op": "boulder", "at": at, "turn": Quaternion(0.5, 0, 0, 0.5), "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "a turn that is no rotation is dropped")
+	_check(Commands.clean({"op": "boulder", "at": at, "turn": q, "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).size() == 8, "a boulder command keeps its place, turn, depth, seed, size, paint and style")
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 1.0}}, state, false).is_empty(), "sizing a boulder that is not there is dropped")
-	state.boulders[9] = {"at": at, "turn": q, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}
+	state.boulders[9] = {"at": at, "turn": q, "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}
 	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"at": at + Vector3(2, 0, 1), "turn": Quaternion(Vector3.RIGHT, 1.2)}}, state, false).is_empty(), "a reshape moves and turns it")
 	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 8.0}}, state, false).is_empty(), "a boulder sizes up to a house")
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 9.0}}, state, false).is_empty(), "and no further")
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"seed": 4}}, state, false).is_empty(), "a reshape cannot swap its shape")
+	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"sink": 0.4}}, state, false).is_empty(), "a reshape pushes it into the ground")
+	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"sink": -0.4}}, state, false).is_empty(), "and never out over it")
 
 
 func _a_placed_boulder_sizes_undoes_and_reloads() -> void:
@@ -277,6 +284,102 @@ func _let_go_in_the_air_it_drops() -> void:
 	_check(absf(world.state.boulders[b.id].at.y - Terrain.height_at(b.position.x, b.position.z)) < 1e-3, "the garden keeps it on the ground")
 
 
+## The share of its height that shows above the ground under it.
+func _showing(b: Boulders.Boulder) -> float:
+	var clear := -INF
+	var low := INF
+	var high := -INF
+	for p in b.shape.feet:
+		var w := b.transform.basis * p
+		var at := b.transform.origin + w
+		clear = maxf(clear, at.y - Terrain.height_at(at.x, at.z))
+		low = minf(low, w.y)
+		high = maxf(high, w.y)
+	return clear / (high - low)
+
+
+## Pushed halfway into the ground and let go it stays there, pushed further it stays with KEEP of it showing; the
+## garden keeps its depth through a style, a resize by two hands, a raised ground, an undo and a reload, a ray from
+## above still finds it, and none finds its buried part through the ground.
+func _pushed_into_the_ground_it_stays() -> void:
+	world.restore({"seq": 0, "cmds": []})
+	main.flora_tool.place_boulder(Terrain.ground(-3, 5), null, 43, 1.2)
+	await _settled()
+	var b: Boulders.Boulder = main.boulders.boulders.values()[0]
+	var id := b.id
+	var rest := b.transform
+	var shown := _showing(b)
+	var tool: WallTool = main.tool
+	var m := tool.mason(main.rig.right)
+	var hand := Transform3D(Basis(), b.position + Vector3(0, 0.5, 1.5))
+	tool.begin_grow(m, b, hand, b.position + Vector3(0, 0.3, 0.4))
+	m.sizing.follow.call(m, hand.translated(Vector3.DOWN * 0.25))
+	var held := b.position
+	_check(held.y < rest.origin.y - 0.2, "held, it pushes into the ground (%.2f)" % (rest.origin.y - held.y))
+	tool.end_grow(m)
+	_check(b.position.is_equal_approx(held), "let go part buried, it stays as deep as it was pushed (%.3f)" % (b.position.y - held.y))
+	await _settled()
+	_check(b.position.distance_to(held) < 1e-3 and world.state.boulders[id].sink > 0.1, "the garden keeps it there (%.3f)" % world.state.boulders[id].sink)
+	_check(_showing(b) < shown, "less of it shows than resting (%.2f of %.2f)" % [_showing(b), shown])
+	tool.begin_grow(m, b, hand, b.position + Vector3(0, 0.3, 0.4))
+	m.sizing.follow.call(m, hand.translated(Vector3.DOWN * 5.0))
+	tool.end_grow(m)
+	await _settled()
+	var buried := b.transform
+	_check(absf(_showing(b) - BoulderLayout.KEEP) < 0.01, "pushed far down, it keeps KEEP of it above the ground (%.3f)" % _showing(b))
+	var rock: Dictionary = main.boulders.pick(b.position + Vector3.UP * 4.0, Vector3.DOWN)
+	_check(not rock.is_empty() and rock.boulder == b, "a ray from above still meets it")
+	var under := Terrain.ground(b.position.x, b.position.z) + Vector3(3.0, 0.4, 0)
+	var low := b.position + Vector3(0, -0.2, 0)
+	_check(main.boulders.pick(under, (low - under).normalized()).is_empty(), "a ray aimed through the ground at its buried part meets nothing")
+	world.submit({"op": "reshape", "of": "boulders", "id": id, "data": {"style": 1}})
+	await _settled()
+	_check(b.transform.is_equal_approx(buried), "restyled, it stays buried")
+	var left := tool.mason(main.rig.left)
+	main.rig.right.global_position = b.position + Vector3(0.3, 0.3, 1.5)
+	main.rig.left.global_position = b.position + Vector3(-0.3, 0.3, 1.5)
+	tool.begin_grow(m, b, main.rig.right.global_transform, b.position + Vector3(0, 0.3, 0.4))
+	tool.begin_grow(left, b, main.rig.left.global_transform, b.position + Vector3(0, 0.3, 0.4))
+	tool.drag_pair(left, b.position + Vector3(0.75, 0.3, 1.5), b.position + Vector3(-0.75, 0.3, 1.5))
+	tool.end_grow(left)
+	tool.end_grow(m)
+	await _settled()
+	_check(is_equal_approx(b.size, 1.2 * 2.5), "two hands size it buried (%.2f)" % b.size)
+	_check(_showing(b) < 0.5 and _showing(b) >= BoulderLayout.KEEP - 0.01, "and it stays mostly buried at its new size (%.3f)" % _showing(b))
+	world.undo()
+	await _settled()
+	_check(b.transform.is_equal_approx(buried), "undo takes back the size, still buried")
+	var was := b.position.y
+	var cells := Terrain.cells_around(b.ground.x, b.ground.z, 3.0)
+	var values := Terrain.read(cells)
+	for i in values.size():
+		values[i] += 1.0
+	world.submit({"op": "heights", "cells": cells, "values": values})
+	await _settled()
+	_check(absf(b.position.y - was - 1.0) < 0.05 and absf(_showing(b) - BoulderLayout.KEEP) < 0.01, "it rises buried with the ground raised under it (%.2f)" % (b.position.y - was))
+	world.undo()
+	await _settled()
+	world.undo()
+	await _settled()
+	_check(b.transform.is_equal_approx(buried), "undoing the style keeps it buried")
+	world.undo()
+	await _settled()
+	_check(b.position.distance_to(held) < 1e-3, "undo sets it back halfway")
+	world.undo()
+	await _settled()
+	_check(b.transform.is_equal_approx(rest), "and back onto the ground")
+	for i in 3:
+		world.redo()
+		await _settled()
+	world.flush()
+	var saved := var_to_str(world.digest())
+	world.restore({"seq": 0, "cmds": []})
+	await _settled()
+	world.load_from(world.save_path)
+	await _settled()
+	_check(var_to_str(world.digest()) == saved and main.boulders.boulders.values()[0].transform.is_equal_approx(buried), "a buried boulder loads back as deep")
+
+
 func _two_hands_size_it() -> void:
 	var b: Boulders.Boulder = main.boulders.boulders.values()[0]
 	var id := b.id
@@ -298,7 +401,7 @@ func _two_hands_size_it() -> void:
 	_check(b.position.x > held.x + 0.9 and is_equal_approx(b.size, 2.0), "which carries it on at its new size")
 	tool.end_grow(right)
 	await _settled()
-	_check(is_equal_approx(world.state.boulders[id].scale, 2.0) and absf(_sunk(b) - BoulderLayout.BURY) < 0.01, "set down, the garden keeps its size and it rests on the ground")
+	_check(is_equal_approx(world.state.boulders[id].scale, 2.0) and b.position.distance_to(held + Vector3(1.0, 0, 0)) < 1e-3 and _sunk(b) > BoulderLayout.BURY, "set down, the garden keeps its size and it stays where it was held, grown into the ground")
 	world.undo()
 	await _settled()
 	_check(is_equal_approx(b.size, 1.0) and absf(b.position.x - held.x) < 1e-3, "undo takes back the size and the move as one")
@@ -326,3 +429,21 @@ func _the_trigger_carries_a_new_one() -> void:
 	world.undo()
 	await _settled()
 	_check(world.state.boulders.is_empty() and main.boulders.boulders.is_empty() and main.boulders.get_child_count() == 0, "undo takes it away, ghost and all")
+
+
+## A new boulder taken up with the trigger and pushed into the ground before it is let go is set down there.
+func _the_trigger_buries_a_new_one() -> void:
+	world.restore({"seq": 0, "cmds": []})
+	await _settled()
+	var tools: FloraTool = main.flora_tool
+	var brush := tools.brush(main.rig.right)
+	var spot := Terrain.ground(-5, 9)
+	main.rig.right.global_transform = Transform3D(Basis(), spot + Vector3(0, 1.2, 2.0))
+	tools.take_boulder(brush, spot, 77, 1.5)
+	var rest := brush.rock.position
+	tools.carry_boulder(brush, main.rig.right.global_transform.translated(Vector3.DOWN * 0.15))
+	var held := brush.rock.position
+	tools.set_boulder(brush)
+	await _settled()
+	var b: Boulders.Boulder = main.boulders.boulders.values()[0]
+	_check(held.y < rest.y - 0.2 and b.position.distance_to(held) < 1e-3, "let go in the ground, it is set down as deep as it was held (%.3f)" % (b.position.y - held.y))
