@@ -28,9 +28,13 @@ func _capture(name: String) -> void:
 
 
 ## What the garden holds and what any tool has under way, so a grip that made or started something shows.
-func _made() -> String:
+## The garden and what each tool is in the middle of, but for the parts of the garden named in `apart`.
+func _made(apart: Array = []) -> String:
 	var busy := [main.tool.busy(), main.flora_tool.busy(), main.palette_tool.busy(), main.delete_tool.busy(), main.tool.house != null]
-	return var_to_str([main.world.state, main.world.palette.season, busy])
+	var state: Dictionary = main.world.state.duplicate()
+	for k in apart:
+		state.erase(k)
+	return var_to_str([state, main.world.palette.season, busy])
 
 
 func _grip_lifts_the_wall_whatever_the_hand_holds(hand: Hand) -> void:
@@ -326,11 +330,11 @@ func _run() -> void:
 	await _a_grab_leaves_the_other_hand_its_tool(rig)
 	hand.tool = Hand.Tool.POND
 	hand.global_basis = Basis.looking_at(Vector3(0, -0.6, -1))
-	var made := _made()
+	var made := _made(["ponds"])
 	var heights := Terrain.read(Terrain.ALL)
 	Buttons.injected["right_hand/trigger_click"] = true
 	await _frames()
-	_check(_made() == made and Terrain.read(Terrain.ALL) == heights, "the pond tool's trigger on open meadow neither digs nor fills")
+	_check(_made(["ponds"]) == made and Terrain.read(Terrain.ALL) == heights, "the pond tool's trigger on the meadow never shapes the ground, only fills what its hollows hold")
 	_check(hand._beam.visible and hand._dot.visible, "the pond tool keeps its pointer")
 	Buttons.injected.erase("right_hand/trigger_click")
 	hand.tool = Hand.Tool.WALLS
