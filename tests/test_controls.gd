@@ -89,23 +89,21 @@ func _run() -> void:
 	Main.quit(self, 1 if failures else 0)
 
 
-## Moves the hand itself, not an injected reach: down onto delete, then right onto planting and back left onto
-## grass, in a wheel standing upright and facing the head.
+## Moves the hand itself through the tool paths in a wheel standing upright and facing the head.
 func _sweep_by_hand(hand: Hand, at: Vector3) -> void:
 	var key := "%s/%s" % [hand.tracker, Controls.input("wheel", hand.tracker)]
 	var toward: Vector3 = main.rig.head.global_position - at
 	toward.y = 0.0
 	var right := Vector3.UP.cross(toward.normalized())
-	var planting: Array = Hand.TREE[2]
-	var back := ToolWheel.fan_dirs(planting.size(), ToolWheel.ring_dirs()[2])[planting.find(Hand.Tool.GRASS)]
-	for case in [[Hand.Tool.DELETE, [Vector3.DOWN]], [Hand.Tool.GRASS, [right, right * back.x + Vector3.UP * back.y]]]:
+	var paths := ToolWheel.paths(Hand.TREE)
+	for tool in [Hand.Tool.DELETE, Hand.Tool.GRASS, Hand.Tool.MOSS]:
 		hand.global_position = at
 		Buttons.injected[key] = true
 		await process_frame
 		await process_frame
 		var from := at
-		for step: Vector3 in case[1]:
-			var to := from + step * ToolWheel.RADIUS
+		for point: Vector2 in ToolWheel.sweep(Hand.TREE, paths[tool]):
+			var to := at + right * point.x + Vector3.UP * point.y
 			for f in 6:
 				hand.global_position = from.lerp(to, (f + 1) / 6.0)
 				await process_frame
@@ -113,7 +111,7 @@ func _sweep_by_hand(hand: Hand, at: Vector3) -> void:
 		Buttons.injected.erase(key)
 		await process_frame
 		await process_frame
-		_check(hand.tool == case[0], "sweeping the hand itself picks %s, holding %s" % [Hand.Tool.keys()[case[0]], Hand.Tool.keys()[hand.tool]])
+		_check(hand.tool == tool, "sweeping the hand itself picks %s, holding %s" % [Hand.Tool.keys()[tool], Hand.Tool.keys()[hand.tool]])
 	hand.global_position = at
 ## The house tool in tracked hands: the trigger takes up a square house where it points and carries it; the other
 ## hand's grip joins to spread and turn it; letting go builds it.

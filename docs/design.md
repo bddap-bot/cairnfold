@@ -3176,7 +3176,7 @@ worst measured with the box path (2.2 ms over 4,914 Fachwerk members), rounded u
 
 ## Moss
 
-Moss sits beside grass on the garden wheel. Hold the trigger to paint a low,
+Moss shares the grass branch on the garden wheel. Hold the trigger to paint a low,
 opaque carpet on the ground, including painted stone. Its twelve-triangle patches
 sample the ground at each vertex, so they follow slopes and later sculpting. The
 same `planted_water` / `water_depth_at` path as grass and flowers turns a submerged
