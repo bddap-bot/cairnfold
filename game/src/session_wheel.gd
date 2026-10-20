@@ -37,13 +37,11 @@ func friends() -> Array:
 	return pages(out)
 
 
-## Each deeper fan holds a bounded page and another fan for the remainder.
+## The middle continuation is horizontal, so arbitrarily many pages zig-zag in the same reach.
 static func pages(items: Array) -> Array:
 	if items.size() <= PAGE:
 		return items
-	var out := items.slice(0, PAGE - 1)
-	out.append(pages(items.slice(PAGE - 1)))
-	return out
+	return [items[0], pages(items.slice(2)), items[1]]
 
 
 func activate(key: String) -> void:

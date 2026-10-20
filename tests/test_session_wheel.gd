@@ -26,6 +26,7 @@ func _run() -> void:
 		var key := "join:192.0.2.1:%d" % (8000 + i)
 		var wheel := ToolWheel.new(tree)
 		for at in ToolWheel.sweep(tree, paths[key]):
+			_check(at.length() < 0.5, "friend paging stays within reach: %s at %s" % [key, at])
 			wheel.move(at)
 		_check(wheel.chosen() == key, "every friend is reachable through bounded pages: " + key)
 	session.nearby.clear()
