@@ -27,8 +27,13 @@ const KITS := {
 const KIT_REACH := {Brushwork.Medium.WATER: 0.1, Brushwork.Medium.OIL: PALETTE_SIZE.x * 0.5}
 const CLEAR := 0.01
 const JAR_SIZE := Vector2(0.042, 0.1)
-## The brushes standing in the pot, by kind: where each one's tip stands above the pot.
-const BRUSH_TIPS := {Brushwork.Brush.SMALL: Vector3(-0.022, 0.3, -0.012), Brushwork.Brush.BIG: Vector3(0.02, 0.32, -0.008), Brushwork.Brush.FLAT: Vector3(0.0, 0.28, 0.024)}
+## The pot: its outer radius and height, its wall, and how high inside its handles stand.
+const POT_SIZE := Vector2(0.055, 0.12)
+const POT_WALL := 0.008
+const POT_FLOOR := 0.01
+## The brushes splayed in the pot, by kind: which way each leans, turned from the painter toward their right. Each
+## leans as far as the pot's mouth lets it, its foot against the wall opposite, so their handles stand well apart.
+const SPLAY := {Brushwork.Brush.SMALL: deg_to_rad(-80.0), Brushwork.Brush.FLAT: 0.0, Brushwork.Brush.BIG: deg_to_rad(80.0)}
 ## Each palette, in its own frame: a thumb hole at its -x end, where a hand holds it, and its paint toward the +x end.
 ## The oil palette's paint lies round its far edge with its open board, the mixing field (`Mixing`), inside it; the
 ## box's pans lie in two rows beside a field showing the brush's own mix.
@@ -318,12 +323,11 @@ func _build(e: Easel) -> void:
 	_part(implements, rim, Transform3D(Basis(), JAR + Vector3(0, JAR_SIZE.y, 0)), _mat("glass_rim", Color(0.9, 0.95, 0.97), 0.05), false)
 	e.water = _clean_water().duplicate()
 	_part(implements, _cylinder(JAR_SIZE.x - 0.003, JAR_SIZE.y * 0.72, 20), Transform3D(Basis(), JAR + Vector3(0, 0.002 + JAR_SIZE.y * 0.36, 0)), e.water, false)
-	_part(implements, _cylinder(0.055, 0.12), Transform3D(Basis(), POT + Vector3(0, 0.06, 0)), _mat("pot", Color(0.66, 0.36, 0.26)))
-	_part(implements, _cylinder(0.047, 0.002), Transform3D(Basis(), POT + Vector3(0, 0.12, 0)), _mat("pot_inside", Color(0.24, 0.13, 0.1)), false)
-	for kind in BRUSH_TIPS:
+	_part(implements, _cylinder(POT_SIZE.x, POT_SIZE.y), Transform3D(Basis(), POT + Vector3(0, POT_SIZE.y * 0.5, 0)), _mat("pot", Color(0.66, 0.36, 0.26)))
+	_part(implements, _cylinder(POT_SIZE.x - POT_WALL, 0.002), Transform3D(Basis(), POT + Vector3(0, POT_SIZE.y, 0)), _mat("pot_inside", Color(0.24, 0.13, 0.1)), false)
+	for kind in SPLAY:
 		var b := ToolModels.brush(kind)
-		var tip: Vector3 = POT + BRUSH_TIPS[kind]
-		b.transform = Transform3D(Basis.looking_at(Vector3.UP, Vector3.BACK), tip + Vector3.UP * ToolModels.BRUSH_TIP.z)
+		b.transform = in_pot(kind)
 		implements.add_child(b)
 		e.brushes[kind] = b
 	e.stick = ToolModels.brush(Brushwork.Brush.STICK)
@@ -357,6 +361,27 @@ static func _tray_charcoal() -> ArrayMesh:
 		var along := Basis(Vector3.UP, piece[0] - 0.04) * Basis(Vector3.BACK, -PI * 0.5)
 		sticks.append([ToolModels.charcoal(piece[2]), Transform3D(along, Vector3(STICK.x + piece[0] + piece[2] * 0.5, TRAY_Y + ToolModels.CHARCOAL_RADIUS, STICK.z + piece[1])), null])
 	return ToolModels.bake(sticks)
+
+
+## How a brush of `kind` stands in the pot, in the easel's frame: its foot inside the wall away from where it leans, its
+## handle leaving through the mouth just inside the wall toward it.
+static func in_pot(kind: Brushwork.Brush) -> Transform3D:
+	var inside := POT_SIZE.x - POT_WALL - CLEAR
+	var lean := atan2(inside * 2.0, POT_SIZE.y - POT_FLOOR)
+	var out := Vector3(sin(SPLAY[kind]), 0, cos(SPLAY[kind]))
+	var along := out * sin(lean) + Vector3.UP * cos(lean)
+	return Transform3D(Basis.looking_at(along, out), POT + Vector3(0, POT_FLOOR, 0) - out * inside)
+
+
+## Where a grip takes a brush of `kind` (or the charcoal, "stick"), in its own frame: a brush in the pot by the middle of
+## what stands out of it, the charcoal by its middle.
+static func grip(kind: Brushwork.Brush) -> Vector3:
+	if kind == Brushwork.Brush.STICK:
+		return ToolModels.BRUSH_TIP * 0.5
+	var t := in_pot(kind)
+	var out := (t.basis * Vector3.FORWARD).y
+	var rim := (POT_SIZE.y - POT_FLOOR) / out
+	return Vector3(0, ToolModels.BRUSH_TIP.y, -(rim - ToolModels.BRUSH_TIP.z) * 0.5)
 
 
 ## Where a leg standing `x` along the canvas, LEG_BACK behind it, meets the ground.

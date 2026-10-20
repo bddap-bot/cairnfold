@@ -1086,9 +1086,10 @@ func _take(s: Dictionary) -> void:
 		"palette":
 			at = e.palettes[Brushwork.Medium.OIL].global_position
 		"stick":
-			at = e.stick.global_transform * (ToolModels.BRUSH_TIP * 0.5)
+			at = e.stick.global_transform * Easels.grip(Brushwork.Brush.STICK)
 		_:
-			at = e.brushes[Brushwork.Brush[s.what.to_upper()]].global_transform * (ToolModels.BRUSH_TIP * 0.5)
+			var kind: Brushwork.Brush = Brushwork.Brush[s.what.to_upper()]
+			at = e.brushes[kind].global_transform * Easels.grip(kind)
 	hand.global_transform = Transform3D(e.global_basis * Basis(Vector3.RIGHT, -0.6), at)
 	hand.held_still = true
 	await _frames(1)
@@ -1099,18 +1100,18 @@ func _take(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## A grip at the held palette's place on the tray, by the hand holding it, sets it down there.
+## A grip by the hand holding a palette, wherever that hand is, sends the palette back to its rest on the tray; done
+## once it rests there.
 func _set_down(s: Dictionary) -> void:
 	var hand := _hand(s)
-	var e := _easel_of(s)
-	hand.global_transform = Transform3D(e.global_basis, e.tray(Easels.KITS[main.easel_tool.painter(hand).kit]))
 	hand.held_still = true
-	await _frames(1)
 	var key := "%s/grip_click" % hand.tracker
 	Buttons.injected[key] = true
 	await _frames(2)
 	Buttons.injected.erase(key)
-	await _frames(2)
+	while not main.easel_tool.returning.is_empty():
+		await _frames(1)
+	await _frames(1)
 
 
 ## Checks that `hand` holds `what` (as EaselTool.holding names it) once its brush has had time to show, and that
@@ -1124,6 +1125,19 @@ func _holds(s: Dictionary) -> void:
 	var shown: Array = p.models.keys().filter(func(k: Brushwork.Brush) -> bool: return p.models[k].visible)
 	var brush := hand.tool == Hand.Tool.EASEL and p.palette == null
 	assert(shown == ([p.brush] if brush else []), "driver: %s holding %s shows brushes %s" % [hand.tracker, now, shown])
+
+
+## Checks that every palette on the easel rests at its place on the tray, as this machine sees it, once those set
+## down have arrived.
+func _rests(s: Dictionary) -> void:
+	var e := _easel_of(s)
+	await _frames(1)
+	while not main.easel_tool.returning.is_empty():
+		await _frames(1)
+	for kit: Brushwork.Medium in e.palettes:
+		var node: Node3D = e.palettes[kit]
+		var held: bool = main.easel_tool.painters.any(func(p: EaselTool.Painter) -> bool: return p.palette == e and p.kit == kit)
+		assert(held or (not node.top_level and node.transform.is_equal_approx(Transform3D(Basis(), Easels.KITS[kit]))), "driver: the %s palette is not at its rest" % Brushwork.Medium.keys()[kit].to_lower())
 
 
 ## Holds the palette-holding hand where a painter holds it: beside the canvas, `at` in the easel's frame.

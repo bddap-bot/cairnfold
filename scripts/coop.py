@@ -41,15 +41,16 @@ def sample(name, names, count):
 
 
 # The host and the joiner, at the host's easel together, take the charcoal and switch, set down, tear and pick tools
-# while the other paints or holds the same palette; after each step the hand must hold what it should. They lay six
-# commands: a stroke each, the joiner's fresh sheet, the joiner's stroke on it, the host's, and the host's blue painted
-# onto the oil palette, which every peer's digest must show.
+# while the other paints or holds the same palette; after each step the hand must hold what it should, and once the
+# host's grip sends its palette home both see every palette at rest on the tray. They lay six commands: a stroke each,
+# the joiner's fresh sheet, the joiner's stroke on it, the host's, and the host's blue painted onto the oil palette,
+# which every peer's digest must show.
 EASEL_PHASES = {
     "host": [
         [{"op": "take", "what": "stick"}, {"op": "holds", "what": "stick"},
          {"op": "brush", "points": [[0.2, 0.3, 0.8], [0.5, 0.35, 0.8]], "seconds": 0.3},
          {"op": "take", "what": "palette"}, {"op": "holds", "what": "oil palette"}],
-        [{"op": "set_down"}, {"op": "holds", "what": "stick"},
+        [{"op": "set_down"}, {"op": "holds", "what": "stick"}, {"op": "rests"},
          {"op": "pick", "tool": "seeds"}, {"op": "holds", "what": "seeds"},
          {"op": "pick", "tool": "easel"}, {"op": "holds", "what": "stick"}],
         [{"op": "brush", "points": [[0.2, 0.7, 0.8], [0.5, 0.75, 0.8]], "seconds": 0.3}, {"op": "holds", "what": "stick"},
@@ -65,7 +66,7 @@ EASEL_PHASES = {
         [{"op": "take", "what": "stick"}, {"op": "holds", "what": "stick"},
          {"op": "sheet", "pull": 0.5}, {"op": "holds", "what": "stick"},
          {"op": "brush", "points": [[0.6, 0.5, 0.8], [0.9, 0.55, 0.8]], "seconds": 0.3}],
-        [{"op": "pick", "tool": "seeds"}, {"op": "holds", "what": "seeds"},
+        [{"op": "rests"}, {"op": "pick", "tool": "seeds"}, {"op": "holds", "what": "seeds"},
          {"op": "pick", "tool": "easel"}, {"op": "holds", "what": "stick"},
          {"op": "take", "what": "flat"}, {"op": "holds", "what": "flat"},
          {"op": "take", "what": "stick"}, {"op": "holds", "what": "stick"},

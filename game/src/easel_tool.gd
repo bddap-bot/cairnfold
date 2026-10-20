@@ -5,12 +5,12 @@ extends Node3D
 ## the controller. Its trigger, pointed at open ground away from any easel, sets an easel up there facing the player.
 ## At an easel everything is picked up or touched: a grip at the pot takes a small round, a big round or a flat brush,
 ## and at the tray the charcoal; a grip at either palette, the watercolour box or the oil palette, takes it by its
-## thumb hole, and it stays in that hand, as a brush does, until a grip sets it back on its tray, takes a brush, or
-## another tool is picked. The palette a brush is dipped into is its medium: a watercolour pan loads that pigment,
-## mixing with what is on the brush already; an oil colour loads it pure, and oils mix on the oil palette's open board,
-## painted onto it and picked up from it by touching it (`Mixing`); the jar wets the brush for watercolour, thinner
-## each dip, and the water clouds with what it rinses off. Touching the canvas paints: pushing in presses harder, and
-## moving fast skims. A grip on the canvas's face takes its sheet, and pulling it well away tears it off for a fresh one.
+## thumb hole, and it stays in that hand, as a brush does, until the next grip, wherever the hand is, sends it back to
+## its rest on the tray, or another tool is picked. The palette a brush is dipped into is its medium: a watercolour pan
+## loads that pigment, mixing with what is on the brush already; an oil colour loads it pure, and oils mix on the oil
+## palette's open board, painted onto it and picked up from it by touching it (`Mixing`); the jar wets the brush for
+## watercolour, thinner each dip, and the water clouds with what it rinses off. Touching the canvas paints: pushing in
+## presses harder, and moving fast skims. A grip on the canvas's face takes its sheet, and pulling it well away tears it off for a fresh one.
 ## Strokes go to the garden as build commands (`paint`) when the brush leaves the canvas, laid on this machine's
 ## canvas as they are painted and played on everyone else's as they were.
 
@@ -33,6 +33,8 @@ const MIX_RADIUS := 0.0006
 ## turned this far off the hand's right.
 const GRIP := Vector3(0, -0.035, 0.02)
 const GRIP_YAW := 0.5
+## A palette set down travels from where it was to its rest on the tray in this long, in seconds.
+const RETURN := 0.3
 const TINT := Color(0.95, 0.86, 0.72, 0.6)
 ## What a dip into each medium's palette is called, before the pigment's index.
 const PAINTS := {Brushwork.Medium.WATER: "pan", Brushwork.Medium.OIL: "oil"}
@@ -77,6 +79,8 @@ var rig: Rig
 var easels: Easels
 var world: World
 var painters: Array[Painter] = []
+## Each palette on its way back to its tray, by its node: [easel, kit, where it set off from, how far along (0..1)].
+var returning := {}
 
 
 func _init(player: Rig, stands: Easels, garden: World) -> void:
@@ -141,6 +145,7 @@ func _forget() -> void:
 
 
 func _process(delta: float) -> void:
+	_return(delta)
 	for p in painters:
 		_handle(p, delta)
 		_note(p)
@@ -213,34 +218,34 @@ func _decline(hand: Hand, why: String) -> void:
 
 
 ## What a grip at the hand takes: the nearest brush in a pot, charcoal, palette or canvas sheet within reach; a hand
-## holding a palette sets it down at its place on the tray.
+## holding a palette sends it back to its tray, wherever the hand is, and takes nothing.
 func grab(p: Painter) -> void:
 	var at := p.hand.global_position
+	if p.palette != null:
+		_set_down(p, true)
+		_note(p, true)
+		Cues.play(Cues.Act.BRUSH_TAKE, at, p.hand)
+		return
 	var best := REACH
 	var take := Callable()
 	for e: Easels.Easel in easels.easels.values():
 		for kind in e.brushes:
-			var d := at.distance_to(e.brushes[kind].global_transform * (ToolModels.BRUSH_TIP * 0.5))
+			var d := at.distance_to(e.brushes[kind].global_transform * Easels.grip(kind))
 			if d < best:
 				best = d
 				take = _take_brush.bind(p, kind)
-		var d := at.distance_to(e.stick.global_transform * (ToolModels.BRUSH_TIP * 0.5))
+		var d := at.distance_to(e.stick.global_transform * Easels.grip(Brushwork.Brush.STICK))
 		if d < best:
 			best = d
 			take = _take_brush.bind(p, Brushwork.Brush.STICK)
 		for kit: Brushwork.Medium in e.palettes:
-			if p.palette == e and p.kit == kit:
-				d = at.distance_to(e.tray(Easels.KITS[kit]))
-				if d < maxf(best, Easels.KIT_REACH[kit]):
-					best = d
-					take = _set_down.bind(p, true)
-			elif not painters.any(func(o: Painter) -> bool: return o.palette == e and o.kit == kit):
+			if not painters.any(func(o: Painter) -> bool: return o.palette == e and o.kit == kit):
 				d = at.distance_to(e.palettes[kit].global_position)
 				if d < maxf(best, Easels.KIT_REACH[kit]):
 					best = d
 					take = _take_palette.bind(p, e, kit)
 		var c := e.on_canvas(at)
-		if p.palette == null and c.x >= 0.0 and c.x <= 1.0 and c.y >= 0.0 and c.y <= 1.0 and c.z > -0.02 and c.z < REACH and c.z < best:
+		if c.x >= 0.0 and c.x <= 1.0 and c.y >= 0.0 and c.y <= 1.0 and c.z > -0.02 and c.z < REACH and c.z < best:
 			best = c.z
 			take = func() -> void: p.peel = e
 	if take.is_valid():
@@ -269,6 +274,7 @@ func _take_palette(p: Painter, e: Easels.Easel, kit: Brushwork.Medium) -> void:
 	p.hand.tool = Hand.Tool.EASEL
 	p.palette = e
 	p.kit = kit
+	returning.erase(e.palettes[kit])
 	_hold_palette(p)
 
 
@@ -313,7 +319,7 @@ static func held(hand: Hand) -> Transform3D:
 	return Transform3D(b, GRIP - b * Easels.THUMB)
 
 
-## Puts the palette in `p`'s hand back on its tray, and with `restore` gives the hand back what it held before.
+## Sends the palette in `p`'s hand back to its tray, and with `restore` gives the hand back what it held before.
 func _set_down(p: Painter, restore := false) -> void:
 	var e := p.palette
 	p.palette = null
@@ -323,8 +329,25 @@ func _set_down(p: Painter, restore := false) -> void:
 		p.hand.tool = p.before
 	if is_instance_valid(e):
 		var node: Node3D = e.palettes[p.kit]
-		node.top_level = false
-		node.transform = Transform3D(Basis(), Easels.KITS[p.kit])
+		returning[node] = [e, p.kit, node.global_transform, 0.0]
+
+
+## Carries each palette set down on toward its rest on the tray, easing in and out, and leaves it there.
+func _return(delta: float) -> void:
+	for node: Variant in returning.keys():
+		var r: Array = returning[node]
+		if not is_instance_valid(node) or not is_instance_valid(r[0]) or not (node as Node3D).is_inside_tree():
+			returning.erase(node)
+			continue
+		var palette: Node3D = node
+		var rest := Transform3D(Basis(), Easels.KITS[r[1]])
+		r[3] = minf(r[3] + delta / RETURN, 1.0)
+		if r[3] < 1.0:
+			palette.global_transform = (r[2] as Transform3D).interpolate_with((palette.get_parent() as Node3D).global_transform * rest, smoothstep(0.0, 1.0, r[3]))
+			continue
+		palette.top_level = false
+		palette.transform = rest
+		returning.erase(node)
 
 
 func _pull_sheet(p: Painter, live: bool) -> void:
