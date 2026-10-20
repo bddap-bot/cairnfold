@@ -29,15 +29,17 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 		var xs: Array[float] = [lo - corner, hi + corner]
 		var holes: Array[Rect2] = []
 		var clearance := WIDTH * 0.72 + 0.01
+		var frames: Array[Rect2] = []
 		for o in w.openings:
-			if o.s <= lo or o.s >= hi:
-				continue
-			holes.append(Rect2(o.s - o.half, o.sill, o.half * 2.0, o.head - o.sill).grow(clearance))
-			xs.append(o.s - o.half - clearance)
-			xs.append(o.s + o.half + clearance)
+			if o.s > lo and o.s < hi:
+				frames.append(Rect2(o.s - o.half, o.sill, o.half * 2.0, o.head - o.sill))
 		for a in w.live_arches:
 			if a > lo and a < hi:
-				holes.append(Rect2(a - WallLayout.ARCH_HALF, 0, WallLayout.ARCH_HALF * 2.0, w.spring() + WallLayout.ARCH_HALF).grow(clearance))
+				frames.append(Rect2(a - WallLayout.ARCH_HALF, 0, WallLayout.ARCH_HALF * 2.0, w.spring() + w.arch_rise(0.0) + w.arch_style().ring))
+		for f in frames:
+			holes.append(f.grow(clearance))
+			xs.append(f.position.x - clearance)
+			xs.append(f.end.x + clearance)
 		var count := ceili((hi - lo) / SPACING)
 		for i in range(1, count):
 			var x := lerpf(lo, hi, float(i) / count)
@@ -50,12 +52,10 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 			_emit(out, Vector2(lo - corner, rail), Vector2(hi + corner, rail), mid, holes)
 		for x in xs:
 			_emit(out, Vector2(x, foot), Vector2(x, eaves), mid, holes)
-		for o in w.openings:
-			if o.s <= lo or o.s >= hi:
-				continue
-			for y: float in [o.sill - clearance, o.head + clearance]:
+		for f in frames:
+			for y: float in [f.position.y - clearance, f.end.y + clearance]:
 				if y >= foot:
-					_emit(out, Vector2(o.s - o.half - clearance, y), Vector2(o.s + o.half + clearance, y), mid, holes)
+					_emit(out, Vector2(f.position.x - clearance, y), Vector2(f.end.x + clearance, y), mid, holes)
 		for row in 2:
 			for i in xs.size() - 1:
 				var panel := Rect2(Vector2(xs[i], ys[row]), Vector2(xs[i + 1] - xs[i], ys[row + 1] - ys[row]))
@@ -173,4 +173,6 @@ static func count(d: Dictionary) -> int:
 		w.gable.kind = d.roof.kind
 		w.gable.pitch = d.roof.pitch
 		w.gable.curve = d.roof.curve
-	return generate(w).size()
+	for a in w.live_arches:
+		w._lay_arch(a, RandomNumberGenerator.new(), 0.0)
+	return generate(w).size() + w.stones.filter(func(s: Dictionary) -> bool: return s.kind == "timber").size()

@@ -51,6 +51,15 @@ const PIER := THICKNESS + 0.28
 const ARCH_SPACING := (ARCH_HALF + RING) * 2.0
 const ARCADE_GAP := ARCH_SPACING + 0.4
 const ARCADE_PITCH := 2.3
+## How each style of wall opens an arch, one row per style. The head is a shoulder arc of `shoulder` times
+## ARCH_HALF turning `turn` degrees from upright, then a crown arc of `crown` times it closing at the middle (a
+## round head is the shoulder alone); `pieces` of `kind`, `ring` deep, are laid round each arc, meeting at
+## `meet` of the ring's depth less `joint`, closed at the top by a `keystone` of `capstone`; posts `jamb` wide
+## stand under the springing.
+const ARCH_STYLES := [
+	{"name": "stone", "shoulder": 1.0, "turn": 90.0, "crown": 1.0, "pieces": [5, 0], "ring": RING, "meet": 0.5, "joint": 0.02, "kind": "voussoir", "capstone": "keystone", "keystone": Vector3(0.34, RING * 1.15, THICKNESS * 1.1), "jamb": 0.0, "jitter": 0.015},
+	{"name": "timber", "shoulder": 0.35, "turn": 60.0, "crown": 2.0, "pieces": [3, 2], "ring": TimberFrame.WIDTH, "meet": 1.0, "joint": 0.0, "kind": "timber", "color": TimberFrame.OAK, "capstone": "timber", "keystone": Vector3(0.2, TimberFrame.WIDTH, THICKNESS * 1.04), "jamb": TimberFrame.WIDTH, "jitter": 0.0},
+]
 ## Water under the foot deeper than this opens arches over it.
 const WADE_UNDER := 0.1
 ## How far a paddling duck keeps from the sides of an arch it swims under.
@@ -192,21 +201,50 @@ func point_at(s: float) -> Vector3:
 
 
 func spring() -> float:
-	return minf(1.5, height - ARCH_HALF - RING - 0.3)
+	return minf(1.5, height - arch_rise(RING) - 0.3)
+
+
+## The arch this wall opens: a timber frame's own, else stone.
+func arch_style() -> Dictionary:
+	return ARCH_STYLES[1 if TimberFrame.applies(self) else 0]
+
+
+## The right half of the arch's head `out` beyond its opening, as arcs `[centre, radius, from, to]` about the
+## middle of the springing, angles from level.
+func arch_head(out: float) -> Array:
+	var style := arch_style()
+	var turn := deg_to_rad(style.turn)
+	var r: float = ARCH_HALF * style.shoulder
+	var big: float = ARCH_HALF * style.crown
+	var shoulder := Vector2(ARCH_HALF - r, 0.0)
+	var crown := shoulder + Vector2(cos(turn), sin(turn)) * (r - big)
+	var arcs := [[shoulder, r + out, 0.0, turn]]
+	var top := acos(clampf(-crown.x / (big + out), -1.0, 1.0))
+	if top - turn > 1e-4:
+		arcs.append([crown, big + out, turn, top])
+	return arcs
+
+
+## How high the arch's head rises over the springing, `out` beyond its opening.
+func arch_rise(out: float) -> float:
+	var last: Array = arch_head(out)[-1]
+	return last[0].y + last[1] * sin(last[3])
 
 
 func can_arch() -> bool:
 	return fence or spring() >= 0.9
 
 
-## Arch opening half-width at height `y` above the ground, or -1 where the arch does not reach.
+## Arch opening half-width at height `y` above the foot, or with `ring` the half-width of all the arch covers, its
+## posts and its ring; -1 where it does not reach. The one outline both the arch and the wall's cut follow.
 func opening(y: float, ring: bool) -> float:
-	var r := ARCH_HALF + (RING if ring else 0.0)
-	var s := spring()
-	if y < s:
-		return ARCH_HALF
-	var dy := y - s
-	return sqrt(r * r - dy * dy) if dy < r else -1.0
+	var dy := y - spring()
+	if dy < 0.0:
+		return ARCH_HALF + (arch_style().jamb if ring else 0.0)
+	for arc in arch_head(RING if ring else 0.0):
+		if dy <= arc[0].y + arc[1] * sin(arc[3]):
+			return arc[0].x + sqrt(maxf(arc[1] * arc[1] - (dy - arc[0].y) * (dy - arc[0].y), 0.0))
+	return -1.0
 
 
 ## `water` gives the pond surface at (x, z), below the ground where there is none; without it the ground is dry.
@@ -259,8 +297,9 @@ func build(ground: Callable, water := Callable()) -> void:
 		var h := minf(course_h, height - y0)
 		var yc := y0 + h * 0.5
 		var spans := [[0.0, total]] if k >= 0 else _over_bed(-y0 - course_h)
+		# Cut to the narrowest the arch's outline reaches across the band, so the band's stones meet it everywhere.
+		var w := minf(opening(y0, true), opening(y0 + h, true))
 		for a in live_arches:
-			var w := opening(yc, true)
 			if w > 0.0:
 				spans = _cut(spans, a - w, a + w)
 		for o in openings:
@@ -289,7 +328,7 @@ func build(ground: Callable, water := Callable()) -> void:
 	_lay_mortar(bands)
 	for i in live_arches.size():
 		rng.seed = hash([seed, "arch", i])
-		_lay_ring(live_arches[i], rng)
+		_lay_arch(live_arches[i], rng, -ceili(sink / course_h) * course_h)
 	for i in bays.size():
 		rng.seed = hash([seed, "pillar", i])
 		_lay_pillar(bays[i].s, bays[i].half, pillar_top, rng, wet)
@@ -1121,17 +1160,52 @@ func _cells() -> Array[Dictionary]:
 	return out
 
 
-func _lay_ring(a: float, rng: RandomNumberGenerator) -> void:
-	var n := 11
-	var r := ARCH_HALF + RING * 0.5
-	for i in n:
-		var t := (i + 0.5) / n * PI
-		var along := a - cos(t) * r
-		var up := spring() + sin(t) * r
-		var size := Vector3(PI * r / n * 0.98, RING, THICKNESS * 1.04)
-		stones.append(_stone(along, up, size, rng, "voussoir", 1.0, 0.0, PI * 0.5 - t))
-	var top := spring() + r
-	_add(a, top, Vector3(0.34, RING * 1.15, THICKNESS * 1.1), rng, "keystone", 1.05, 0.0)
+## An arch at `s` in its style: posts up from `bottom` to the springing, the pieces round the head, and behind
+## them the wall's own infill closing the ring out to the outline, so the wall's level cut meets it with no gap.
+func _lay_arch(a: float, rng: RandomNumberGenerator, bottom: float) -> void:
+	var style := arch_style()
+	var tint: Color = style.get("color", Color.WHITE) * rng.randf_range(0.88, 1.12)
+	var ring: float = style.ring
+	var depth := THICKNESS * 1.04
+	var fill := THICKNESS - (PLASTER_INSET if plaster else JOINT) * 2.0 - 0.004
+	var parts: Array[Dictionary] = []
+	for side in [-1.0, 1.0]:
+		if style.jamb > 0.0:
+			parts.append(_arch_part(a + side * (ARCH_HALF + style.jamb * 0.5), (bottom + spring()) * 0.5, Vector3(style.jamb, spring() - bottom, depth), 0.0, style, rng))
+		var head := arch_head(0.0)
+		for i in head.size():
+			var arc: Array = head[i]
+			var n: int = style.pieces[i]
+			for j in n:
+				var t: float = lerpf(arc[2], arc[3], (j + 0.5) / n)
+				var half: float = (arc[3] - arc[2]) * 0.5 / n
+				var length: float = 2.0 * (arc[1] + ring * style.meet) * tan(half) * (1.0 - style.joint)
+				parts.append(_arch_ring(a, side, arc, t, ring, Vector3(length, ring, depth), style, rng))
+			var m: int = ceili((arc[3] - arc[2]) / deg_to_rad(30.0))
+			for j in m:
+				var t: float = lerpf(arc[2], arc[3], (j + 0.5) / m)
+				var half: float = (arc[3] - arc[2]) * 0.5 / m
+				var st := _arch_ring(a, side, arc, t, RING + JOINT + 0.01, Vector3(2.0 * (arc[1] + RING + JOINT) * tan(half) + 0.02, RING + JOINT - 0.01, fill), {"kind": "plaster" if plaster else "mortar", "jitter": 0.0}, rng)
+				st.color = PLASTER if plaster else MORTAR
+				st.ao = 1.0 if plaster else 0.8
+				st.variant = 0
+				stones.append(st)
+	parts.append(_arch_part(a, spring() + arch_rise(0.0) + ring * 0.5, style.keystone, 0.0, style.merged({"kind": style.capstone}, true), rng))
+	for st in parts:
+		if style.has("color"):
+			st.color = tint
+			st.variant = 0
+		stones.append(st)
+
+
+## A piece of the arch on `side` of its middle `a`: `size.y` deep out from the head's `arc` at angle `t`.
+func _arch_ring(a: float, side: float, arc: Array, t: float, out: float, size: Vector3, style: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+	var at: Vector2 = arc[0] + Vector2(cos(t), sin(t)) * (arc[1] + out * 0.5)
+	return _arch_part(a + side * at.x, spring() + at.y, size, -side * (PI * 0.5 - t), style, rng)
+
+
+func _arch_part(s: float, y: float, size: Vector3, roll: float, style: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+	return _stone(s, y, size, rng, style.kind, 1.0, 0.0, roll, style.jitter)
 
 
 ## Whether an arch can open at `s` beside `others`: clear of an open wall's ends, a loop's corner piers,
@@ -1466,12 +1540,12 @@ func _add(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: S
 	stones.append(_stone(s, y, size, rng, kind, shade, wobble))
 
 
-func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: String, shade: float, wobble: float, roll := 0.0) -> Dictionary:
+func _stone(s: float, y: float, size: Vector3, rng: RandomNumberGenerator, kind: String, shade: float, wobble: float, roll := 0.0, jitter := 0.015) -> Dictionary:
 	var frame := frame_at(s)
 	var basis := Basis(frame.tangent, Vector3.UP, frame.tangent.cross(Vector3.UP)) * Basis(Vector3.BACK, roll)
 	basis = basis * Basis.from_euler(Vector3(rng.randf_range(-wobble, wobble), rng.randf_range(-wobble, wobble) * 2.0, rng.randf_range(-wobble, wobble)))
 	var origin: Vector3 = frame.point + Vector3.UP * y
-	origin += basis.z * rng.randf_range(-0.015, 0.015)
+	origin += basis.z * rng.randf_range(-jitter, jitter)
 	var color := stone_color(rng) * shade
 	return {"xform": Transform3D(basis.scaled_local(size), origin), "color": color, "kind": kind, "s": s, "y": y, "size": size, "ao": clampf(0.6 + y * 0.25, 0.6, 1.0), "variant": rng.randi() % 3}
 

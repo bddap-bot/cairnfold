@@ -7,8 +7,8 @@ var failures := 0
 
 func _init() -> void:
 	_straight_wall_fills_its_length()
-	_arch_leaves_its_opening_clear()
 	_arch_ring_closes_over_the_opening()
+	_arch_meets_its_wall_with_no_gap()
 	_short_or_low_walls_take_no_arch()
 	_layout_is_deterministic()
 	_a_copy_built_elsewhere_lays_the_same_stones()
@@ -71,27 +71,76 @@ func _straight_wall_fills_its_length() -> void:
 	_check(w.stones.filter(func(s): return s.kind == "pier").size() >= 4, "piers at both ends")
 
 
-func _arch_leaves_its_opening_clear() -> void:
-	var w := _wall(8.0, 2.7, [4.0])
-	for s in w.stones:
-		if s.kind == "voussoir" or s.kind == "keystone":
-			continue
-		var y: float = s.y
-		var half := w.opening(y, false)
-		var lo: float = s.s - s.size.x * 0.5
-		var hi: float = s.s + s.size.x * 0.5
-		if half > 0.0:
-			_check(hi <= 4.0 - half + 0.01 or lo >= 4.0 + half - 0.01, "%s at s=%f y=%f intrudes into the arch" % [s.kind, s.s, y])
-
-
 func _arch_ring_closes_over_the_opening() -> void:
 	var w := _wall(8.0, 2.7, [4.0])
 	var ring := w.stones.filter(func(s): return s.kind == "voussoir")
-	_check(ring.size() == 11, "11 voussoirs, got %d" % ring.size())
+	_check(ring.size() == 10, "10 voussoirs, got %d" % ring.size())
 	_check(w.stones.filter(func(s): return s.kind == "keystone").size() == 1, "one keystone")
 	for s in ring:
 		var r := Vector2(s.s - 4.0, s.y - w.spring()).length()
 		_check(absf(r - (WallLayout.ARCH_HALF + WallLayout.RING * 0.5)) < 0.05, "voussoir off the ring: r=%f" % r)
+
+
+## Across every style, height and stretch, every point of the wall's middle plane round an arch is either in its
+## opening and clear, or covered by a piece of the wall or the arch; points within 3 cm of the opening's edge are
+## its soffit's facets. Under the springing of a style with no posts the jamb is the wall's own reveal, where the
+## mortar stands JOINT back between courses as at every open end.
+func _arch_meets_its_wall_with_no_gap() -> void:
+	var walls: Array[WallLayout] = []
+	for style in ["stone", "plaster", "timber"]:
+		for height in [2.3, 2.6, 3.1, 4.5]:
+			for stretch in [5.0, 9.0]:
+				var w := WallLayout.new()
+				if style == "timber":
+					w.points = WallLayout.rectangle(Vector3.ZERO, Vector3(stretch, 0, 0), 5.0)
+					w.closed = true
+				else:
+					w.points = [Vector3(0, 0, 0), Vector3(stretch, 0, 0)]
+				w.arches = [stretch * 0.5]
+				w.plaster = style != "stone"
+				w.timber_style = 0 if style == "timber" else -1
+				w.height = height
+				walls.append(w)
+	var arc := WallLayout.new()
+	for i in 9:
+		arc.points.append(Vector3(cos(i / 8.0 * PI) * 5.0, 0.0, sin(i / 8.0 * PI) * 5.0))
+	arc.height = 3.0
+	arc.plaster = true
+	arc.build(_flat)
+	arc.arches.assign([arc.length() * 0.5])
+	walls.append(arc)
+	for w in walls:
+		w.build(_flat)
+		_check(w.live_arches.size() == 1, "%s wall %.1f m high opens its arch" % [w.arch_style().name, w.height])
+		if w.live_arches.is_empty():
+			continue
+		var a: float = w.live_arches[0]
+		var gaps := []
+		var blocked := []
+		var y := 0.05
+		while y < w.height - 0.05:
+			var d := -1.6
+			while d <= 1.6:
+				var inner := w.opening(y + 0.03, false)
+				var edge := maxf(w.opening(y - 0.03, false), w.opening(y + 0.03, false)) + 0.03
+				var reveal: bool = y < w.spring() and w.arch_style().jamb == 0.0 and absf(d) < WallLayout.ARCH_HALF + WallLayout.JOINT + 0.02
+				var p: Vector3 = w.frame_at(a + d).point + Vector3.UP * y
+				var hit := w.stones.any(func(st: Dictionary) -> bool:
+					var q: Vector3 = st.xform.affine_inverse() * p
+					return absf(q.x) <= 0.5 and absf(q.y) <= 0.5 and absf(q.z) <= 0.5)
+				if absf(d) < inner - 0.03 and hit:
+					blocked.append(Vector2(d, y))
+				elif absf(d) > edge and not reveal and not hit:
+					gaps.append(Vector2(d, y))
+				d += 0.04
+			y += 0.04
+		var name := "%s wall %.1f m high, %.1f m long" % [w.arch_style().name, w.height, w.length()]
+		_check(gaps.is_empty(), "%s: gaps between arch and wall at %s" % [name, gaps.slice(0, 8)])
+		_check(blocked.is_empty(), "%s: pieces in the opening at %s" % [name, blocked.slice(0, 8)])
+		var styled := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == w.arch_style().kind and absf(w.offset(st.s, a)) < 1.2 and st.y < w.spring() + 1.2)
+		_check(not styled.is_empty(), "%s: the arch is laid in %s" % [name, w.arch_style().kind])
+		if w.arch_style().name == "timber":
+			_check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind in ["voussoir", "keystone"]), "%s: no stone in a timber frame's arch" % name)
 
 
 func _short_or_low_walls_take_no_arch() -> void:
