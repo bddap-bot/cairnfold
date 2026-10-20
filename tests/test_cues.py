@@ -53,6 +53,11 @@ class ActionSounds(unittest.TestCase):
         counts = {k: int(v) for k, v in re.findall(r'"(\w+)": (\d+)', re.search(r'const SOUNDS := \{(.*?)\}', CUES, re.S).group(1))}
         self.assertEqual({k: len(v) for k, v in _families().items()}, counts)
 
+    def test_every_recorded_sound_is_public_domain(self) -> None:
+        for s in json.loads((FX / 'sources.json').read_text()):
+            self.assertTrue(s['licence'].startswith('CC0'), s['page'])
+            self.assertTrue((FX / f"{s['clip']}.ogg").exists(), s['clip'])
+
 
 if __name__ == '__main__':
     unittest.main()
