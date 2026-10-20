@@ -39,7 +39,9 @@ func _feeding(kind: Beast.Kind) -> void:
 		dish.position = Vector3(0, height, 0)
 		animal.position = Vector3(0, 0, Hand.TOP.z + animal.neck.stand_off(animal, dish))
 		for frame in 120:
-			dish.position.x = sin(frame * 0.05) * 0.02
+			dish.position.x = sin(frame * 0.05) * 0.03
+			dish.position.z = cos(frame * 0.04) * 0.01
+			dish.rotation.x = sin(frame * 0.03) * 0.3
 			animal.player.seek(frame / 60.0, true)
 			var body := s.get_bone_pose(s.find_bone("Torso3"))
 			var ear := s.get_bone_pose(s.find_bone("Ear1.L"))

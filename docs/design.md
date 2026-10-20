@@ -2817,6 +2817,13 @@ contact makes the animal step away. Deer and fox use this one skeleton implement
 sheep and ducks have no bone chain to attach it to. `demo/neck.json` measures four rigged eaters with
 and without the solve, and `demo/stress.json` includes that cost at full garden density.
 
+On an unworn Quest 2, the four-eater fixture at low, middle and high food positions took
+0.165 and 0.167 ms of CPU time per frame at the median in two runs (p95 0.335 and 0.356 ms;
+maximum 0.501 and 0.567 ms). Each paired clip-only measurement took 0.000 ms at the median.
+At the budget's fitted quality step, GPU time was 6.18 → 6.19 ms and 6.20 → 6.21 ms,
+with the same 41 draws and 157,633 primitives. All four phases passed the GPU budget check;
+each recorded two late frames, including the clip-only phases. Their cause was not isolated.
+
 The seed tool is a clay dish of bird seed on the controller, beside the camera on the wheel. Held out calmly, it
 draws the animals that eat from a hand, one animal to a hand, through one mechanism in `Wildlife`: each
 kind declares an `Appetite`, whether it eats standing on the hand (`Eat.ON_HAND`) or under it
