@@ -33,6 +33,11 @@ var _drm_fds: PackedStringArray = []
 var _drm_scan := 0
 var _draws := 0
 var _prims := 0
+## The headset whose eyes' frusta each second records the widest swing of: the sun's shadow map is fitted to them
+## every frame, and holds still only while they do.
+var xr: XRInterface
+var _eye_lo := PackedFloat32Array()
+var _eye_hi := PackedFloat32Array()
 ## Seconds not yet written.
 var _seconds: Array = []
 var _file: FileAccess
@@ -67,6 +72,14 @@ func _process(_delta: float) -> void:
 		_gpu.append(quality.frame_ms)
 		_viewport_ms += quality.frame_ms
 		_viewport_frames += 1
+	if xr != null and xr.is_initialized():
+		var now_eyes := eye_half_angles(xr.get_projection_for_view(0, 1.0, 0.05, 400.0)) + eye_half_angles(xr.get_projection_for_view(1, 1.0, 0.05, 400.0))
+		if _eye_lo.is_empty():
+			_eye_lo = now_eyes.duplicate()
+			_eye_hi = now_eyes.duplicate()
+		for i in now_eyes.size():
+			_eye_lo[i] = minf(_eye_lo[i], now_eyes[i])
+			_eye_hi[i] = maxf(_eye_hi[i], now_eyes[i])
 	if head != null:
 		var o := head.get_parent_node_3d().global_position
 		if o != _origin:
@@ -87,6 +100,10 @@ func _process(_delta: float) -> void:
 			row.origin_moves = _origin_moves
 			_origin_moves = 0
 		row.prims = _prims
+		if not _eye_lo.is_empty():
+			row.eye_fov_spread_deg = spread(_eye_lo, _eye_hi)
+			_eye_lo = PackedFloat32Array()
+			_eye_hi = PackedFloat32Array()
 		if world != null:
 			row.fill = snappedf(world.fill(), 0.001)
 		_draws = 0
@@ -123,6 +140,20 @@ func _process(_delta: float) -> void:
 		_since_flush += 1.0
 		if _since_flush >= 5.0:
 			flush()
+
+
+## Left, right, down and up half-angles of an eye's frustum, in degrees.
+static func eye_half_angles(p: Projection) -> PackedFloat32Array:
+	return PackedFloat32Array([rad_to_deg(atan((1.0 - p.z.x) / p.x.x)), rad_to_deg(atan((1.0 + p.z.x) / p.x.x)),
+		rad_to_deg(atan((1.0 - p.z.y) / p.y.y)), rad_to_deg(atan((1.0 + p.z.y) / p.y.y))])
+
+
+## The widest of the swings between each pair of lowest and highest.
+static func spread(lo: PackedFloat32Array, hi: PackedFloat32Array) -> float:
+	var most := 0.0
+	for i in lo.size():
+		most = maxf(most, hi[i] - lo[i])
+	return most
 
 
 func summary(d: PackedFloat32Array) -> Dictionary:

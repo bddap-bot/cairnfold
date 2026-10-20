@@ -44,3 +44,16 @@ Map stabilization already exists in
 [the directional shadow fitting code](https://github.com/godotengine/godot/blob/4.5.1-stable/servers/rendering/renderer_scene_cull.cpp).
 The fix removes the fade and split transitions from the garden rather than
 changing quality with the head's direction.
+
+## Flicker in a headset
+
+Each second of a session log carries `eye_fov_spread_deg`: the widest change of any
+edge of either eye's frustum within that second. The engine fits the sun's
+stabilized shadow map to the eyes' combined frustum every frame, so the map holds
+still only while the frusta do; a nonzero spread in the seconds around a flicker
+names the runtime's projection as its input. A desktop camera holding the same
+place, time of day and quality step, turned in 0.15° and 0.5° steps or moved in
+3 mm to 2 cm steps, keeps every static shadow unchanged frame to frame. So do a
+camera preview re-rendering the shadow every third frame and the governor's step
+logged per second (its highest), which stays on a shadowed step through such a
+report.

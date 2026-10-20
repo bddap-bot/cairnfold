@@ -151,6 +151,8 @@ func _ready() -> void:
 	add_child(quality)
 	metrics.quality = quality
 	metrics.head = rig.head
+	if metrics.info.xr:
+		metrics.xr = xr
 	metrics.world = world
 	if get_tree().current_scene == self:
 		metrics.play_log = PlayLog.open_enabled(args)
@@ -256,8 +258,7 @@ func _note_session() -> void:
 
 ## Left, right, down and up half-angles of an eye's frustum.
 static func _fov(p: Projection) -> Array:
-	var deg := func(t: float) -> float: return snappedf(rad_to_deg(atan(t)), 0.1)
-	return [deg.call((1.0 - p.z.x) / p.x.x), deg.call((1.0 + p.z.x) / p.x.x), deg.call((1.0 - p.z.y) / p.y.y), deg.call((1.0 + p.z.y) / p.y.y)]
+	return Array(Metrics.eye_half_angles(p)).map(func(d: float) -> float: return snappedf(d, 0.1))
 
 
 ## Put the head at `eye` looking at `at`; in a headset the play space moves under the tracked head instead.

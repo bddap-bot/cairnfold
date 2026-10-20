@@ -8,6 +8,7 @@ var failures := 0
 func _initialize() -> void:
 	_every_flush_leaves_whole_json_with_every_second()
 	_stalls_are_not_capped_by_engine_delta()
+	_eye_frusta_swing_is_the_widest_edge_change()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -50,3 +51,16 @@ func _stalls_are_not_capped_by_engine_delta() -> void:
 	m._process(0.05)
 	_check(m._deltas[0] >= 99.0, "a 100 ms stall is recorded even when engine delta is capped to 50 ms")
 	m.free()
+
+
+func _eye_frusta_swing_is_the_widest_edge_change() -> void:
+	var a := Metrics.eye_half_angles(Projection.create_frustum(-1.0, 1.0, -1.0, 1.0, 1.0, 100.0))
+	_check(a.size() == 4 and absf(a[0] - 45.0) < 0.001 and absf(a[3] - 45.0) < 0.001, "a symmetric 90 degree frustum has 45 degree edges: %s" % [a])
+	var b := Metrics.eye_half_angles(Projection.create_frustum(-1.0, 1.2, -1.0, 1.0, 1.0, 100.0))
+	var lo := a.duplicate()
+	var hi := a.duplicate()
+	for i in b.size():
+		lo[i] = minf(lo[i], b[i])
+		hi[i] = maxf(hi[i], b[i])
+	_check(absf(Metrics.spread(lo, hi) - (rad_to_deg(atan(1.2)) - 45.0)) < 0.001, "the swing is the widest edge's change")
+	_check(Metrics.spread(a, a) == 0.0, "frusta that hold still swing 0")
