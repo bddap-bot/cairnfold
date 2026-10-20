@@ -229,7 +229,7 @@ func _holder(rig: Rig, trackers: Dictionary) -> Callable:
 ## Report (verbatim): "I don't think there's a way to make those rounded buildings anymore. Is that right"
 ## Directive (verbatim): "Let's um add a rounded building that you can place. It's another tool"
 ## The tower tool in tracked hands takes up a round tower under a cone and sets it down; the style tool on its roof
-## thatches it or lays it flat and keeps it round, each one undo step.
+## switches tile and thatch without changing its pitch or round footprint, each one undo step.
 func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 	await _play([{"op": "place", "x": -14, "z": 12}, {"op": "pick", "hand": "right", "tool": "tower"}])
 	_check(rig.right.tool == Hand.Tool.TOWER, "the right ring picks the tower")
@@ -274,11 +274,12 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 	var coat := func() -> bool:
 		w.lay_now()
 		return not w.roof.coat.is_empty() and w.roof.tiles.all(func(t: Dictionary) -> bool: return t.kind != "tile")
-	await restyle.call(2)
+	var pitch := w.roof.pitch
+	await restyle.call(1)
 	_check(w.roof.thatch and not w.roof.flat() and round.call() and coat.call(), "Directive (verbatim): \"Thatched roofs I want them as an option.\" A twist on to thatch thatches the cone, still round")
 	_check(main.tool.thatch, "and builds laid after are thatched")
 	await restyle.call(-1)
-	_check(w.roof.flat() and round.call(), "a twist back lays it flat, still round")
+	_check(not w.roof.thatch and is_equal_approx(w.roof.pitch, pitch) and round.call(), "a twist back tiles it, keeping pitch and round footprint")
 	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(w.roof.thatch and not w.roof.flat() and round.call(), "undo stands the thatched cone again")
 	await _play([{"op": "press", "button": "dpad_down"}])
