@@ -12,6 +12,8 @@ var steps: Array
 var _eye := Vector3.ZERO
 var _at := Vector3.FORWARD
 var _waiting := {}
+## What `grass` hid: each grass MultiMesh's visible count before.
+var _hidden_grass := {}
 ## The share of their area the builds a `sized` step lays take: walls farther apart, a village over a smaller disc,
 ## paths shorter.
 var _area := 1.0
@@ -737,6 +739,22 @@ func _flora_far(s: Dictionary) -> void:
 	for pool: Flora.Pool in [flora.flowers, flora.ghost_flowers]:
 		pool.far_live.visible = on
 	flora.ground_mat.set_shader_parameter(&"far_grass", on)
+
+## Hides every grass blade, the meadow's and painted, or shows them again, so a scene measures what they cost against
+## the same view without them; the ground paints its grass either way.
+func _grass(s: Dictionary) -> void:
+	var flora: Flora = main.flora_tool.flora
+	var on: bool = s.get("mode", "on") != "off"
+	for node in flora.get_children():
+		var mmi := node as MultiMeshInstance3D
+		if mmi == null or mmi.material_override != flora.grass_mat:
+			continue
+		if on and _hidden_grass.has(mmi):
+			mmi.multimesh.visible_instance_count = _hidden_grass[mmi]
+			_hidden_grass.erase(mmi)
+		elif not on and not _hidden_grass.has(mmi):
+			_hidden_grass[mmi] = mmi.multimesh.visible_instance_count
+			mmi.multimesh.visible_instance_count = 0
 
 ## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter; with `storeys`,
 ## each stands that many high, with `wings`, a wing crosses each house, with `gable`, their gable ends take it, and
