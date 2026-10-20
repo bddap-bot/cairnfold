@@ -1,0 +1,74 @@
+{
+  "device": "Quest 2",
+  "method": "Unworn XR, scripts/bench.sh, identical window scene, fixed fit quality, clocks level 4. Build budget guard disabled to preserve the comparison house. Each phase waits 3 seconds then measures 12 seconds. First runtime GPU sample discarded.",
+  "budget_gpu_ms": 12.5,
+  "baseline_bench_exit": 1,
+  "changed_bench_exit": 1,
+  "limitation": "Both runs exceed the frame budget before and after the brightness change. Paired differences include unisolated run-to-run variation; no claim that all differences are caused by the shader uniform.",
+  "phases": {
+    "01-dark": {
+      "before_gpu_ms": 13.59,
+      "after_gpu_ms": 13.23,
+      "delta_ms": -0.36,
+      "before_samples": 12,
+      "after_samples": 12
+    },
+    "02-lit": {
+      "before_gpu_ms": 13.52,
+      "after_gpu_ms": 13.6,
+      "delta_ms": 0.08,
+      "before_samples": 13,
+      "after_samples": 13
+    },
+    "03-outside": {
+      "before_gpu_ms": 12.88,
+      "after_gpu_ms": 13.05,
+      "delta_ms": 0.17,
+      "before_samples": 12,
+      "after_samples": 11
+    },
+    "04-outside-back": {
+      "before_gpu_ms": 14.27,
+      "after_gpu_ms": 14.8,
+      "delta_ms": 0.53,
+      "before_samples": 11,
+      "after_samples": 12
+    },
+    "05-near": {
+      "before_gpu_ms": 16.62,
+      "after_gpu_ms": 16.71,
+      "delta_ms": 0.09,
+      "before_samples": 12,
+      "after_samples": 11
+    },
+    "06-near-back": {
+      "before_gpu_ms": 13.51,
+      "after_gpu_ms": 14.53,
+      "delta_ms": 1.02,
+      "before_samples": 12,
+      "after_samples": 12
+    },
+    "07-door": {
+      "before_gpu_ms": 13.13,
+      "after_gpu_ms": 13.71,
+      "delta_ms": 0.58,
+      "before_samples": 11,
+      "after_samples": 12
+    },
+    "08-above": {
+      "before_gpu_ms": 12.82,
+      "after_gpu_ms": 12.42,
+      "delta_ms": -0.4,
+      "before_samples": 12,
+      "after_samples": 11
+    },
+    "09-village": {
+      "before_gpu_ms": 13.62,
+      "after_gpu_ms": 12.84,
+      "delta_ms": -0.78,
+      "before_samples": 11,
+      "after_samples": 12
+    }
+  },
+  "median_paired_delta_ms": 0.09
+}

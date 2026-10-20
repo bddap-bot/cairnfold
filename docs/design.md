@@ -1386,6 +1386,10 @@ mesh or texture read. `demo/window-glow.json` compares the unlit and lit room, n
 and the house from across the meadow. For a subtler build, add `subtle_windows` to the export preset's
 `custom_features`: it halves that same strength for both the pane and the spill. The default is the stronger
 variant. Neither variant brightens a house without an interior lantern.
+The paired Quest 2 run in `perf/window-glow/quest-2.json` measures a median GPU difference of +0.09 ms
+across nine views (11–13 runtime samples per phase per build), ranging from -0.78 to +1.02 ms.
+Both builds exceed the frame budget in this scene; these paired differences include unisolated variation,
+and establish neither zero cost nor a fix for that existing budget excess.
 
 Holding the light in rooms cost the Frame nothing measurable (stress scene, GPU ms a frame, before and after):
 9.43 and 9.46 with lanterns hung standing, 19.18 and 19.20 from the air, 9.39 and 9.40 on the bare meadow.
