@@ -194,7 +194,7 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 				ok = out.strokes != null and (from_host or out.strokes.is_empty())
 		"decoration":
 			var d: Variant = _decoration(cmd)
-			ok = d != null and (from_host or d.wall < 0 or state.walls.has(d.wall))
+			ok = d != null and (from_host or d.wall < 0 or state.walls.has(d.wall) and _holds(state.walls[d.wall], DecorationLayout.mount_of(d.style)))
 			if ok:
 				out.merge(d)
 		"undecoration":
@@ -209,6 +209,16 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			ok = typeof(cmd.get("id")) == TYPE_INT and state.boulders.has(cmd.id)
 			out.id = cmd.get("id")
 	return out if ok else {}
+
+
+## Whether a wall offers the surface a mount stands on: a house for its floors, a flat roof for its deck.
+static func _holds(wall: Dictionary, mount: String) -> bool:
+	match mount:
+		"floor":
+			return wall.has("roof")
+		"deck":
+			return wall.has("roof") and wall.roof.pitch <= 0.0
+	return true
 
 
 static func _decoration(d: Dictionary) -> Variant:
