@@ -31,6 +31,8 @@ const FILE_CHANNEL := 1
 const SHELF_PEERS := 4
 const FETCHES := 2
 const STALL := 30.0
+## ENet's longest silence in milliseconds, past what its clock can tell apart: a link set to it never times out.
+const PATIENT := 0x7fffffff
 const CHUNK := 1 << 16
 ## A file that could not be fetched or read is tried again after this many seconds.
 const RETRY := 30.0
@@ -206,6 +208,11 @@ func players() -> int:
 
 
 func _on_peer(id: int) -> void:
+	# A script's or a test's peer is never dropped for going quiet: on a loaded machine one long frame starves its
+	# link however alive it is, and its harness ends a run whose player stops. Leaving still says goodbye.
+	var enet := multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	if not lan and enet != null and (multiplayer.is_server() or id == 1):
+		enet.get_peer(id).set_timeout(0, PATIENT, PATIENT)
 	if multiplayer.is_server():
 		world.welcome(id)
 	_appear.rpc_id(id, avatar, colour)
