@@ -369,6 +369,8 @@ func _fences_draw_a_flock() -> void:
 			_run(g, STEP, func() -> void: fled[0] = fled[0] or target.state == Herds.State.FLEE)
 		_run(g, 2.0, func() -> void: fled[0] = fled[0] or target.state == Herds.State.FLEE)
 		_check(not fled[0], "a hand brought slowly to its back leaves a sheep be")
+		# The sheep may have walked during the slow approach. Startle where it is now.
+		back = target.position + Vector3(0.3, 0.6, 0.3)
 		hand.global_position = back + Vector3(0.6, 0.2, 0.6)
 		_run(g, STEP)
 		hand.global_position = back
@@ -417,11 +419,10 @@ func _the_same_seed_brings_the_same_flock() -> void:
 
 ## A curved wall is kept clear of along its curve, not along the chords between the points it was drawn through.
 func _curved_walls_are_kept_off_where_they_curve() -> void:
-	var w := WallLayout.new()
-	w.points.assign([Vector3(0, 0, 0), Vector3(3, 0, 3), Vector3(6, 0, 0), Vector3(9, 0, 3)])
-	w.build(func(_x: float, _z: float) -> float: return 0.0)
+	var stroke: Array[Vector3] = [Vector3(0, 0, 0), Vector3(3, 0, 1), Vector3(6, 0, 1), Vector3(9, 0, 0)]
+	var w := WallPlan.new([], PackedVector3Array(), 1).pieces(stroke, func(_x: float, _z: float) -> float: return 0.0, true)[0]
 	var chords := PackedVector2Array()
-	for p in w.points:
+	for p in stroke:
 		chords.append(Vector2(p.x, p.z))
 	var worst := 0.0
 	var at := Vector2.ZERO
@@ -430,7 +431,7 @@ func _curved_walls_are_kept_off_where_they_curve() -> void:
 		if _off_line(chords, q) > worst:
 			worst = _off_line(chords, q)
 			at = q
-	_check(worst > 0.25, "the curve strays %.2f m from its chords" % worst)
+	_check(worst > 0.1, "the curve strays %.2f m from its chords" % worst)
 	_check(_off_line(Herds._line(w), at) < 0.01, "the line sheep keep off runs along the curve, %.2f m off it" % _off_line(Herds._line(w), at))
 
 

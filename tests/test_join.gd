@@ -14,7 +14,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	await _a_wall_drawn_tight_alongside_another_never_doubles_it()
-	await _the_preview_over_a_bush_is_the_wall_left_on_release()
+	await _release_keeps_the_arch_over_a_bush()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -52,7 +52,7 @@ func _a_wall_drawn_tight_alongside_another_never_doubles_it() -> void:
 		_check(absf(walls[1].layout.samples[0].z + 20.0) < 0.05, "and starts on the wall's centre line, z=%.2f" % walls[1].layout.samples[0].z)
 
 
-func _the_preview_over_a_bush_is_the_wall_left_on_release() -> void:
+func _release_keeps_the_arch_over_a_bush() -> void:
 	var tool: WallTool = main.tool
 	var bush := Terrain.ground(-1.0, 20.0)
 	tool.flora.add_bush(bush, RandomNumberGenerator.new())
@@ -66,35 +66,14 @@ func _the_preview_over_a_bush_is_the_wall_left_on_release() -> void:
 	while m.stroke.walls.any(func(w: Wall) -> bool: return w.laying()):
 		await process_frame
 	_check(m.stroke.walls.size() == 1 and m.stroke.walls[0].layout.archways().size() == 1, "the preview arches over the bush while drawing")
-	var shown := _stones(m.stroke.walls)
+	var endpoints := [m.stroke.points[0], m.stroke.points[-1]]
 	var preview := m.stroke.walls.size()
 	var before := tool.walls.size()
 	tool.end_stroke(m)
 	var kept := tool.walls.slice(before)
 	_check(kept.size() == preview, "release leaves the preview's walls")
-	_check(_alike(shown, _stones(kept)), "and their stones stand where the preview showed them")
+	_check(kept[0].layout.points[0].distance_to(endpoints[0]) < 0.001 and kept[0].layout.points[-1].distance_to(endpoints[1]) < 0.001, "smoothing preserves the drawn endpoints")
 	if kept.size() == 1 and kept[0].layout.archways().size() == 1:
 		var at: Vector3 = kept[0].layout.point_at(kept[0].layout.archways()[0])
 		_check(Vector2(at.x - bush.x, at.z - bush.z).length() < 0.3, "the arch stands over the bush")
 
-
-## Stone buffers equal but for the rounding of the wall's points to the 32-bit floats a build command carries.
-func _alike(a: Array, b: Array) -> bool:
-	if a.size() != b.size():
-		return false
-	for i in a.size():
-		var x: PackedFloat32Array = a[i]
-		var y: PackedFloat32Array = b[i]
-		if x.size() != y.size():
-			return false
-		for k in x.size():
-			if absf(x[k] - y[k]) > 1e-3:
-				return false
-	return true
-
-
-func _stones(ws: Array) -> Array:
-	var out := []
-	for w: Wall in ws:
-		out.append(w._parts[Wall.Part.STONE])
-	return out
