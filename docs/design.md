@@ -2571,7 +2571,7 @@ Every player action, from the code:
 | `UNDO` | One step back | two plucks falling | tick |
 | `REDO` | One step forward | two plucks rising | tick |
 | `TELEPORT` | A teleport is let go | quick cloth swish where the player lands | pulse in the aiming hand |
-| `TELEPORT_ONTO` | A teleport past `Rig.MARKER_NEAR` (15 m) from the eyes lets go standing on something over the terrain: a roof, a wall's top, a tree | cloth rustle landing | pulse in the aiming hand |
+| `TELEPORT_ONTO` | A teleport past `Rig.MARKER_NEAR` (15 m) from the eyes lets go standing on something: the ground, a roof, a wall's top, a tree; one into the air is a `TELEPORT` | cloth rustle landing | pulse in the aiming hand |
 | `TURN` | A snap turn | none: the most frequent motion, a sound on each would become a tic | light tick |
 | `VISIT_HOVER` | The visit pointer moves onto a garden's figure | quiet tock | light tick |
 | `VISIT_GO` | Visiting a garden or going home (flat players too) | three plucks rising | knock |

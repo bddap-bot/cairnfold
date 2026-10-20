@@ -273,12 +273,11 @@ func hide_markers() -> void:
 
 ## Move so the head stands over `ground`, `lift` metres up. The rig then stays exactly there: in a headset
 ## any view motion the player's head did not make is uncomfortable. A far teleport, past MARKER_NEAR from the eyes,
-## that stands the player on something over the terrain (a roof, a wall's top, a tree) sounds as a landing.
+## that stands the player on something, the ground or anything on it, sounds as a landing; one into the air does not.
 func teleport(ground: Vector3, lift_m: float) -> void:
 	var at := ground + Vector3.UP * (lift_m + head.position.y)
-	var onto := lift_m <= LIFTED and ground.y > Terrain.height_at(ground.x, ground.z) + 0.05
-	var far_away := head.global_position.distance_to(at) > MARKER_NEAR
-	Cues.play(Cues.Act.TELEPORT_ONTO if onto and far_away else Cues.Act.TELEPORT, at, left)
+	var landing := lift_m <= LIFTED and head.global_position.distance_to(at) > MARKER_NEAR
+	Cues.play(Cues.Act.TELEPORT_ONTO if landing else Cues.Act.TELEPORT, at, left)
 	_pending = [ground, lift_m]
 	_fade_t = 0.0
 	_fade.visible = true

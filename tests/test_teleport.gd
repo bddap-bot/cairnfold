@@ -41,11 +41,11 @@ func _finish(rig: Rig) -> void:
 	Main.quit(self, 1 if failures else 0)
 
 
-## A teleport swishes; one past MARKER_NEAR that stands the player on something sounds as a landing.
+## A teleport swishes; one past MARKER_NEAR that stands the player on the ground or something on it sounds as a landing.
 func _landing_sounds(rig: Rig) -> void:
 	var cases := {
 		"a short teleport onto the ground": [Terrain.ground(0, 0), 0.0, Cues.Act.TELEPORT],
-		"a long teleport onto the ground": [Terrain.ground(0, -40), 0.0, Cues.Act.TELEPORT],
+		"a long teleport onto the ground": [Terrain.ground(0, -40), 0.0, Cues.Act.TELEPORT_ONTO],
 		"a short teleport onto a roof": [Terrain.ground(0, 0) + Vector3.UP * 3.0, 0.0, Cues.Act.TELEPORT],
 		"a long teleport into the air": [Terrain.ground(0, -40), 6.0, Cues.Act.TELEPORT],
 		"a long teleport onto a roof": [Terrain.ground(0, -40) + Vector3.UP * 3.0, 0.0, Cues.Act.TELEPORT_ONTO],
