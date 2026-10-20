@@ -150,8 +150,10 @@ func _the_lintel_course_is_cut() -> void:
 	var w := _wall(8.0, 2.7, [Vector2(4.0, 1.5)])
 	var o := w.apertures[0]
 	var reach: float = o.half + WallLayout.LINTEL_EAR
-	var under := w.stones.filter(func(s): return (s.kind == "block" or s.kind == "mortar") and s.y > o.head and s.y < o.head + w.course_height() and absf(s.s - o.s) < reach + s.size.x * 0.5 - 0.02)
+	var under := w.stones.filter(func(s): return s.kind == "block" and s.y > o.head and s.y < o.head + w.course_height() and absf(s.s - o.s) < reach + s.size.x * 0.5 - 0.02)
 	_check(under.is_empty(), "the lintel's course is cut for it, %d coursed stones in its way" % under.size())
+	var behind := w.stones.filter(func(s): return s.kind == "mortar" and s.y > o.head and s.y < o.head + w.course_height() and absf(s.s - o.s) < o.half)
+	_check(not behind.is_empty() and behind.all(func(s): return s.y - s.size.y * 0.5 >= o.head + WallLayout.JOINT - 0.001 and s.size.z < WallLayout.THICKNESS), "mortar runs on behind the lintel, inside it and off the head: %s" % [behind])
 
 
 func _a_new_window_never_closes_another() -> void:
