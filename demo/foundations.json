@@ -1,0 +1,179 @@
+[
+  {
+    "op": "budget",
+    "bounded": false
+  },
+  {
+    "op": "quality",
+    "step": 0
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "clear"
+  },
+  {
+    "op": "house",
+    "at": [
+      -4,
+      -3
+    ],
+    "size": [
+      5,
+      4
+    ],
+    "rise": 1.5,
+    "plaster": true,
+    "timber_style": -1,
+    "seconds": 0.3
+  },
+  {
+    "op": "house",
+    "at": [
+      4,
+      -3
+    ],
+    "size": [
+      5,
+      4
+    ],
+    "rise": 1.5,
+    "plaster": true,
+    "timber_style": -1,
+    "seconds": 0.3
+  },
+  {
+    "op": "view",
+    "eye": [
+      10,
+      5,
+      11
+    ],
+    "at": [
+      0,
+      2,
+      -3
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "label",
+    "name": "sweep/foundation-stone"
+  },
+  {
+    "op": "wait",
+    "seconds": 20
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "style",
+    "restyle": "face",
+    "pick": 1,
+    "from": [
+      -4,
+      0.7,
+      2
+    ],
+    "at": [
+      -4,
+      0.7,
+      -3
+    ],
+    "seconds": 0.5
+  },
+  {
+    "op": "wait",
+    "seconds": 1
+  },
+  {
+    "op": "capture",
+    "name": "plaster-and-stone-foundations"
+  },
+  {
+    "op": "style",
+    "restyle": "face",
+    "pick": 1,
+    "from": [
+      4,
+      0.7,
+      2
+    ],
+    "at": [
+      4,
+      0.7,
+      -3
+    ],
+    "seconds": 0.5
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "label",
+    "name": "sweep/foundation-plaster"
+  },
+  {
+    "op": "wait",
+    "seconds": 20
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "style",
+    "restyle": "face",
+    "pick": 0,
+    "from": [
+      -4,
+      0.7,
+      2
+    ],
+    "at": [
+      -4,
+      0.7,
+      -3
+    ],
+    "seconds": 0.5
+  },
+  {
+    "op": "style",
+    "restyle": "face",
+    "pick": 0,
+    "from": [
+      4,
+      0.7,
+      2
+    ],
+    "at": [
+      4,
+      0.7,
+      -3
+    ],
+    "seconds": 0.5
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "label",
+    "name": "sweep/foundation-stone-repeat"
+  },
+  {
+    "op": "wait",
+    "seconds": 20
+  },
+  {
+    "op": "quit"
+  }
+]

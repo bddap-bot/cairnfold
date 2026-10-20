@@ -130,6 +130,7 @@ var cover := Cover.OPEN
 ## Posts and rails instead of stone; a path through a fence opens a wooden arch.
 var fence := false
 var plaster := false
+var plinth_plaster := false
 var gable_end := GableEnd.WALL
 var timber_style := 0
 ## A house or tower floored at every storey up its walls, not only at its foot.
@@ -321,7 +322,7 @@ func build(ground: Callable, water := Callable()) -> void:
 		var stream := rng if k >= 0 else wet
 		stream.seed = hash([seed, "course", k])
 		var offset := (0.5 if posmod(k, 2) == 1 else 0.0) * stream.randf_range(0.3, 0.6)
-		if not plaster or k <= 0:
+		if not plaster_at(y0):
 			for i in spans.size():
 				var span: Array = spans[i]
 				for face in faces.size():
@@ -1064,6 +1065,10 @@ func _cut_span(spans: Array, lo: float, hi: float) -> Array:
 	return out
 
 
+func plaster_at(y: float) -> bool:
+	return plinth_plaster if y < 0.0 else plaster and y > 0.0
+
+
 func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: RandomNumberGenerator) -> void:
 	var s := a
 	var first := true
@@ -1079,7 +1084,7 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 		s += l
 
 
-## Mortar, or plaster above the footing, fills each band's spans `[y0, h, spans, broken]` as panels on cells every band
+## Mortar, or the selected plaster face, fills each band's spans `[y0, h, spans, broken]` as panels on cells every band
 ## shares. Mortar stands JOINT back from the stones at every end a span leaves open, a ruin's, a doorway's or the wall's
 ## own, and on the broken tops under the next band's.
 ## A panel runs straight between its cell's ends on the ground, so it climbs a slope rather than stepping, and is
@@ -1099,7 +1104,7 @@ func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 	var below := {}
 	for j in bands.size():
 		var y0: float = bands[j][0]
-		var face := plaster and y0 > 0.0
+		var face := plaster_at(y0)
 		var spans: Array = bands[j][2]
 		var bare := _round(bands[j + 1][3] if j + 1 < bands.size() and bands[j + 1].size() > 3 and not face else PackedVector2Array())
 		if not face:
@@ -1134,7 +1139,7 @@ func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 		var size := Vector3(p.b - p.a, h, thick - (PLASTER_INSET if p.face else JOINT) * 2.0)
 		var basis := Basis(to - from, Vector3.UP * h, c.tangent.cross(Vector3.UP) * size.z)
 		var y: float = p.y0 + h * 0.5
-		stones.append({"xform": Transform3D(basis, (from + to) * 0.5 + Vector3.UP * y), "color": PLASTER if p.face else MORTAR, "kind": "plaster" if p.face else "mortar", "s": (p.a + p.b) * 0.5, "y": y, "size": size, "ao": 1.0 if plaster else 0.8, "variant": 0, "ends": p.ends})
+		stones.append({"xform": Transform3D(basis, (from + to) * 0.5 + Vector3.UP * y), "color": PLASTER if p.face else MORTAR, "kind": "plaster" if p.face else "mortar", "s": (p.a + p.b) * 0.5, "y": y, "size": size, "ao": 1.0 if plaster or p.face else 0.8, "variant": 0, "ends": p.ends})
 
 
 ## The stretches, and round a loop each one a lap either way too, in order.
@@ -1639,6 +1644,7 @@ func inputs() -> WallLayout:
 	w.cover = cover
 	w.fence = fence
 	w.plaster = plaster
+	w.plinth_plaster = plinth_plaster
 	w.gable_end = gable_end
 	w.timber_style = timber_style
 	w.storey_floors = storey_floors
@@ -1658,7 +1664,7 @@ func inputs() -> WallLayout:
 func same_inputs(other: WallLayout) -> bool:
 	return (points == other.points and height == other.height and rise == other.rise
 		and seed == other.seed and closed == other.closed and top == other.top
-		and cover == other.cover and fence == other.fence and plaster == other.plaster and gable_end == other.gable_end and timber_style == other.timber_style and storey_floors == other.storey_floors
+		and cover == other.cover and fence == other.fence and plaster == other.plaster and plinth_plaster == other.plinth_plaster and gable_end == other.gable_end and timber_style == other.timber_style and storey_floors == other.storey_floors
 		and openings == other.openings and lanterns == other.lanterns and flags == other.flags
 		and ruins == other.ruins and supports == other.supports and resting == other.resting
 		and joined == other.joined and older == other.older)
@@ -1704,6 +1710,7 @@ func snapshot() -> WallLayout:
 	w.breaks = breaks.duplicate()
 	w.fence = fence
 	w.plaster = plaster
+	w.plinth_plaster = plinth_plaster
 	w.cover = cover
 	w.resting = resting.duplicate()
 	w.joined = joined.duplicate()

@@ -20,6 +20,7 @@ func _run() -> void:
 	_roof_choices_keep_shape()
 	_species_differ()
 	_faces_turn_to_plaster()
+	_foundations_turn_to_plaster()
 	_floors_turn_to_every_storey()
 	_faces_cut_no_opening()
 	_timber_faces()
@@ -100,6 +101,46 @@ func _faces_turn_to_plaster() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
+func _foundations_turn_to_plaster() -> void:
+	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(-4, 0), Terrain.ground(4, 0), 6.0)))
+	d.closed = true
+	d.rise = 1.5
+	d.timber_style = -1
+	world._order({"op": "wall", "walls": [d]}, world.me())
+	var id := world.seq * Commands.MAX_PIECES
+	var w: Wall = main.tool.find(id)
+	w.lay_now()
+	var f := w.layout.frame_at(2.0)
+	var out: Vector3 = f.tangent.cross(Vector3.UP)
+	var origin: Vector3 = f.point + Vector3.DOWN * 0.6 + out * 2.0
+	var target: Dictionary = main.palette_tool.aim_style(origin, -out)
+	_check(target.get("restyle") == PaletteTool.Restyle.FACE and target.get("count") == 2, "a foundation uses the face wheel with stone and plaster: %s" % target)
+	_turn(target, PaletteTool.Face.PLASTER)
+	w.lay_now()
+	_check(w.layout.stones.any(func(st): return st.kind == "plaster" and st.y < 0.0), "the foundation wheel lays plaster below the foot")
+	_check(not w.layout.plaster, "styling a foundation leaves the upper wall stone")
+	_check(not main.tool.plaster, "foundation style leaves the next wall's face unchanged")
+	_check(w.layout.stones.filter(func(st): return st.kind == "plaster" and st.y < 0.0).all(func(st): return st.color == WallLayout.PLASTER), "foundation panels share the wall plaster colour")
+	_check(main.palette_tool.aim(origin, -out).get("element") == Palette.Element.PLASTER, "the colour tool recognises the foundation's plaster")
+	var relayed := _relayed({"op": "reshape", "of": "walls", "id": id, "data": {"plinth_plaster": false}}, 2)
+	_check(relayed.get("data", {}).get("plinth_plaster") == false, "foundation style survives host and peer validation")
+	world._order({"op": "undo"}, world.me())
+	w.lay_now()
+	_check(not w.layout.plinth_plaster and w.layout.stones.any(func(st): return st.kind == "block" and st.y < 0.0), "undo restores stone foundation courses")
+	world._order({"op": "redo"}, world.me())
+	world.restore(world.snapshot())
+	w = main.tool.find(id)
+	w.lay_now()
+	_check(w.layout.plinth_plaster and not w.layout.plaster, "redo and save preserve foundation style independently")
+	world._order({"op": "reshape", "of": "walls", "id": id, "data": {"plaster": true}}, world.me())
+	w.lay_now()
+	_turn(main.palette_tool.aim_style(origin, -out), -1)
+	w.lay_now()
+	_check(not w.layout.plinth_plaster and w.layout.plaster, "turning the foundation back to stone keeps the wall plastered")
+
+	world.restore({"seq": 0, "cmds": []})
+
+
 ## The style tool aimed at a tall tower's floor floors it at every storey, on every machine, and towers laid after too.
 func _floors_turn_to_every_storey() -> void:
 	var d := _wall_data(PackedVector3Array(WallLayout.circle(Terrain.ground(-12, 24), 1.7)))
@@ -152,7 +193,7 @@ func _faces_cut_no_opening() -> void:
 
 
 func _wall_data(points: PackedVector3Array) -> Dictionary:
-	return {"points": points, "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
+	return {"points": points, "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "plinth_plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
 
 
 ## A planted tree grows an oak; the style tool aimed at it offers each species and turns it to one through the host,

@@ -36,7 +36,7 @@ const MAX_SUPPORTS := 8
 ## What a `reshape` may change, by the garden's table of the builds it changes; `paint` and a wall's `roof` change
 ## by the entries they name.
 const RESHAPES := {
-	"walls": ["points", "height", "rise", "top", "plaster", "gable_end", "timber_style", "storey_floors", "openings", "lanterns", "flags", "ruins"],
+	"walls": ["points", "height", "rise", "top", "plaster", "plinth_plaster", "gable_end", "timber_style", "storey_floors", "openings", "lanterns", "flags", "ruins"],
 	"stairs": ["rail"],
 	"boulders": ["at", "turn", "scale", "style"],
 }
@@ -324,6 +324,9 @@ static func _wall(d: Variant) -> Variant:
 	var plaster: Variant = d.get("plaster")
 	if typeof(plaster) != TYPE_BOOL or (plaster and d.fence):
 		return null
+	var plinth_plaster: Variant = d.get("plinth_plaster")
+	if typeof(plinth_plaster) != TYPE_BOOL or (plinth_plaster and d.fence):
+		return null
 	var timber_style: Variant = d.get("timber_style")
 	if typeof(timber_style) != TYPE_INT or timber_style < -1:
 		return null
@@ -355,7 +358,7 @@ static func _wall(d: Variant) -> Variant:
 	var paint: Variant = d.get("paint")
 	if not Palette.valid(paint):
 		return null
-	var out := {"points": points, "height": d.height, "rise": rise, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "openings": openings, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "gable_end": gable_end, "timber_style": timber_style, "storey_floors": d.storey_floors, "on": on, "paint": paint}
+	var out := {"points": points, "height": d.height, "rise": rise, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "openings": openings, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "plinth_plaster": plinth_plaster, "gable_end": gable_end, "timber_style": timber_style, "storey_floors": d.storey_floors, "on": on, "paint": paint}
 	if d.has("roof"):
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():

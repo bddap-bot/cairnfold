@@ -112,7 +112,7 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 		if _on_timber(layout, pick.point):
 			return colour_target(Palette.Element.TIMBER, pick.point, "walls", pick.wall.id)
 		var wood := layout.fence or not layout.opening_at(pick.s, pick.point.y - layout.point_at(pick.s).y).is_empty()
-		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if layout.plaster else Palette.Element.STONE, pick.point, "walls", pick.wall.id)
+		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if layout.plaster_at(pick.point.y - layout.point_at(pick.s).y) else Palette.Element.STONE, pick.point, "walls", pick.wall.id)
 	if ground != null:
 		return colour_target(Palette.Element.MEADOW, ground)
 	return {}
@@ -161,11 +161,12 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 
 
 func style_target(restyle: Restyle, wall: Wall, point: Vector3) -> Dictionary:
-	var count := styles(restyle)
-	if restyle == Restyle.FACE and not (wall.layout.closed and wall.layout.corners().size() == 4):
+	var foundation := restyle == Restyle.FACE and point.y < wall.layout.point_at(wall.layout.closest_s(point)).y
+	var count := Face.TIMBER if foundation else styles(restyle)
+	if not foundation and restyle == Restyle.FACE and not (wall.layout.closed and wall.layout.corners().size() == 4):
 		count = 1 if wall.roof != null and wall.roof.kind == RoofLayout.Kind.CONE else Face.TIMBER
 	var options: Array = WallTool.roof_options(wall.roof.pitch) if restyle == Restyle.ROOF else range(count)
-	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "options": options, "count": options.size(), "point": point, "of": "walls", "id": wall.id, "wall": wall}
+	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "options": options, "face_key": "plinth_plaster" if foundation else "plaster", "count": options.size(), "point": point, "of": "walls", "id": wall.id, "wall": wall}
 
 
 static func styles(restyle: Restyle) -> int:
@@ -279,9 +280,9 @@ func _now(w: Wheel) -> int:
 			return int(d.storey_floors)
 		Restyle.STONE:
 			return d.style
-	if d.plaster and d.timber_style >= 0 and d.closed and d.points.size() == 4:
+	if w.target.face_key == "plaster" and d.plaster and d.timber_style >= 0 and d.closed and d.points.size() == 4:
 		return Face.TIMBER
-	return Face.PLASTER if d.plaster else Face.STONE
+	return Face.PLASTER if d[w.target.face_key] else Face.STONE
 
 
 ## The `reshape` data that gives `w`'s build choice `pick`; empty for one that cannot stand.
@@ -303,11 +304,11 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 			return {"style": pick}
 	var data := {}
 	var timber_style: int = 0 if pick == Face.TIMBER else -1
-	if timber_style != world.state.walls[w.id].timber_style:
+	if w.target.face_key == "plaster" and timber_style != world.state.walls[w.id].timber_style:
 		data["timber_style"] = timber_style
 	var plaster := pick >= Face.PLASTER
-	if plaster != world.state.walls[w.id].plaster:
-		data["plaster"] = plaster
+	if plaster != world.state.walls[w.id][w.target.face_key]:
+		data[w.target.face_key] = plaster
 	return data
 
 
@@ -348,7 +349,7 @@ func close(hand: Hand) -> void:
 		walls.thatch = w.target.options[w.pick] == WallTool.RoofStyle.THATCHED
 	elif w.id >= 0 and w.target.restyle == Restyle.FLOOR:
 		walls.storey_floors = w.pick == 1
-	elif w.id >= 0 and w.target.restyle == Restyle.FACE:
+	elif w.id >= 0 and w.target.restyle == Restyle.FACE and w.target.face_key == "plaster":
 		walls.plaster = w.pick >= Face.PLASTER
 		walls.timber_style = 0 if w.pick == Face.TIMBER else -1
 	elif w.id >= 0 and w.target.restyle == Restyle.RAIL:

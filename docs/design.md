@@ -1726,7 +1726,7 @@ It never floats: its foot stands level, raised above its lowest ground, and the 
 a wall over a pond already lays down to the bed, carry on down to the ground all round as its plinth, following a
 slope. They stand a little proud of the faces in a darker stone, and stay stone under a plaster or timber-framed
 house. Its corner piers reach down with them, and an arch's opening runs down through the plinth to the ground, so
-a raised house is still walked into; a door stays on its floor. The plinth counts against the budget as stone wall,
+a raised house is still walked into; a door stays on its floor. The Style tool aimed below the wall foot offers stone or plaster for the foundation independently of the wall above. Both use the same face wheel and plaster panels; the Colour tool uses the build’s shared plaster swatch. Foundation corner piers stay stone. The plinth counts against the budget as stone wall,
 and a grip on it holds the house as one on its walls does. `demo/raise.json` raises a stone house on a slope and a
 timber-framed one with two hands, and places a third raised; `tests/test_house.gd` checks the rule and the plinth,
 `tests/test_controls.gd` both holds in tracked hands, `tests/test_keep.gd` that it is kept, and `scripts/coop.sh`
