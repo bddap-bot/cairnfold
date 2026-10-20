@@ -46,14 +46,22 @@ func _run() -> void:
 	check(stairs.treads.all(func(p): return is_zero_approx(p.y)), "landing stays level")
 	check(stairs.stones.any(func(p): return p.kind == "rail"), "wooden railing")
 	check(Commands._stairs(d) != null, "valid stair command")
-	for bad in [Vector3(NAN, 0, 0), Vector3(0, 0, -100), d.a]:
+	for bad in [Vector3(NAN, 0, 0), Vector3(0, 0, -Commands.MAX_LENGTH - 1.0), d.a]:
 		var invalid := d.duplicate()
 		invalid.b = bad
 		check(Commands._stairs(invalid) == null, "reject invalid endpoint")
+	var long := {"a": Vector3(0, 2, 0), "b": Vector3(0, 2, -60), "width": 1.2, "rail": "stone", "seed": 5}
+	check(Commands._stairs(long) != null, "a sixty-metre bridge is a valid command")
+	stairs.build(long)
+	check(stairs.kind == StairLayout.Kind.LANDING and is_equal_approx(stairs.surface(Vector3(0, 3, -59.5)), 2.0), "a sixty-metre bridge is walkable to its far end")
 	var main := (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	await process_frame
 	var world: World = main.world
+	main.stair_tool.begin(main.rig.left, long.a)
+	main.stair_tool.extend(main.rig.left, long.b)
+	check(is_equal_approx(main.stair_tool._strokes[main.rig.left].data.b.z, -60.0), "the tool draws a bridge past twenty-four metres")
+	main.stair_tool._cancel(main.rig.left)
 	d.a.y = 2.0
 	d.b.y = 2.0
 	var units_before := world.units.duplicate(true)

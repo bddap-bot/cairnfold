@@ -3,7 +3,6 @@ extends RefCounted
 
 enum Kind { FLIGHT, LADDER, LANDING }
 const WIDTH := Vector2(0.6, 3.0)
-const MAX_LENGTH := 24.0
 const RISE := 0.2
 const LADDER_SLOPE := 1.5
 const LEVEL := 0.08

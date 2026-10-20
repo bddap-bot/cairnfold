@@ -19,7 +19,8 @@ const MAX_ARCHES := 16
 const MAX_DABS := 2000
 const MAX_STROKE := 4000
 const ROOF_RADIUS := Vector2(0.5, 8.0)
-## Longest stroke a wall or a path may run, end to end along the ground; the tools stop growing one there.
+## Longest stroke a wall, a path or a flight of stairs may run, and highest a house may stand raised; the tools stop
+## growing one there.
 const MAX_LENGTH := 240.0
 ## Where the tools stop a stroke: short of MAX_LENGTH by more than a stroke's last moves and joins add.
 const STROKE_LENGTH := MAX_LENGTH - 16.0
@@ -524,7 +525,7 @@ static func _stairs(d: Variant) -> Variant:
 		if typeof(d.get(key)) != TYPE_VECTOR3 or not _finite(d[key]):
 			return null
 	var length: float = d.a.distance_to(d.b)
-	if length < 0.3 or length > StairLayout.MAX_LENGTH + 0.001 or not _in(d.get("width"), StairLayout.WIDTH):
+	if length < 0.3 or length > MAX_LENGTH or not _in(d.get("width"), StairLayout.WIDTH):
 		return null
 	if typeof(d.get("seed")) != TYPE_INT or not d.get("rail") in StairLayout.RAILS or not Palette.valid(d.get("paint")):
 		return null

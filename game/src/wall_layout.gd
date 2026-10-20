@@ -15,8 +15,9 @@ enum GableEnd { WALL, BOARDS, STEPS }
 
 const COURSE := 0.3
 const HEIGHTS := Vector2(0.9, 9.0)
-## How far a house or tower on the ground may stand raised above its lowest ground, on a plinth of its own courses.
-const RISE := Vector2(0.0, 3.0)
+## How far a house or tower on the ground may stand raised above its lowest ground, on a plinth of its own courses:
+## as high as a build runs long. The budget charges the plinth as stone wall.
+const RISE := Vector2(0.0, Commands.MAX_LENGTH)
 ## The courses under a wall's foot, its plinth, stand this far proud of each face, in stone this much darker, so a
 ## raised house reads as standing on them.
 const PLINTH := Vector2(0.05, 0.86)

@@ -1651,8 +1651,8 @@ Directive (verbatim): "If I grab a house or a building with two hands, I would l
 
 Directive (verbatim): "When placing a building, you should be able to raise it higher up by raising your controller up"
 
-A house or tower on the ground can stand raised on a plinth, up to 3 m above its lowest ground (`rise` on the
-build, `WallLayout.RISE`). One rule moves it, for both holds (`WallTool.lifted`): it rises as far as the hand
+A house or tower on the ground can stand raised on a plinth above its lowest ground, as high as a build runs long
+(`rise` on the build, `WallLayout.RISE`); the budget, which counts the plinth as stone wall, is what stops it. One rule moves it, for both holds (`WallTool.lifted`): it rises as far as the hand
 rises, scaled by the reach gain as a carry is, or with two hands as far as both rise together, the lesser of the
 two, so one hand rising alone, as a spread or a turn does, leaves it be; a course (0.3 m) at a time, never below
 its ground.
@@ -2887,7 +2887,8 @@ Report (verbatim): "I liked the stair slash bridge object that you had in a prev
 The stairs tool lives beside paths on the tool wheel. Hold the trigger at one end,
 point at the other, then release. Either end can be ground, a wall top, a flat roof
 or an existing landing. A level stroke is a landing, so one drawn between two wall
-tops is a bridge; a near-vertical run becomes a wooden ladder. Railings are stone until
+tops is a bridge; a near-vertical run becomes a wooden ladder. A flight, landing or ladder runs as long as a wall
+can, its treads and railings charged by the metre against the build budget. Railings are stone until
 the style tool turns them wooden or takes them off, and the colour tool paints stairs as
 any build (see "Colour per build" and "Styles"). Stones
 appear in order from the lower end. Delete takes a flight, ladder or landing whole;

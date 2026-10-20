@@ -224,7 +224,9 @@ func _both_hands_raise_a_built_house() -> void:
 	c = WallTool.resize(start, front, [_hand(Vector3(-0.2, 1.4, 0)), _hand(Vector3(0.2, 1.4, 0))], 3.0)
 	_check(is_equal_approx(c.rise, 1.2), "a far house rises by the reach gain, a course at a time: %.2f" % c.rise)
 	c = WallTool.resize(start, front, [_hand(Vector3(-0.2, 9, 0)), _hand(Vector3(0.2, 9, 0))], 1.0)
-	_check(c.rise == WallLayout.RISE.y, "no higher than the highest plinth: %.2f" % c.rise)
+	_check(is_equal_approx(c.rise, 8.1), "raised 8 m, past where a plinth once stopped at 3 m: %.2f" % c.rise)
+	c = WallTool.resize(start, front, [_hand(Vector3(-0.2, 1000, 0)), _hand(Vector3(0.2, 1000, 0))], 1.0)
+	_check(c.rise == WallLayout.RISE.y, "no higher than the longest build: %.2f" % c.rise)
 	var raised := start.duplicate()
 	raised.rise = 0.9
 	c = WallTool.resize(raised, front, [_hand(Vector3(-0.2, 0.7, 0)), _hand(Vector3(0.2, 0.7, 0))], 1.0)
@@ -242,17 +244,14 @@ func _a_raised_house_stands_on_a_plinth() -> void:
 	w.build(_slope)
 	low.build(_slope)
 	_check(is_equal_approx(w.samples[0].y, low.samples[0].y + 1.2), "its foot stands 1.2 m above its lowest ground: %.2f" % (w.samples[0].y - low.samples[0].y))
-	var gap := 0.0
-	for i in w.samples.size():
-		var q := w.samples[i]
-		if absf(w.lengths[i] - w.live_arches[0]) < WallLayout.ARCH_HALF + 0.3:
-			continue
-		var under := w.stones.filter(func(st: Dictionary) -> bool: return st.kind in ["block", "pier"] and absf(st.s - w.lengths[i]) < 0.4)
-		var lowest := INF
-		for st: Dictionary in under:
-			lowest = minf(lowest, st.xform.origin.y - st.size.y * 0.5)
-		gap = maxf(gap, lowest - _slope(q.x, q.z))
+	var gap := _plinth_gap(w)
 	_check(gap <= 0.0, "its courses reach the ground all round, nowhere floating: %.2f m at most above it" % gap)
+	var tall := _house(6.0, 4.0)
+	tall.rise = 8.0
+	tall.build(_slope)
+	_check(is_equal_approx(tall.samples[0].y, low.samples[0].y + 8.0), "raised 8 m, past where a plinth once stopped at 3 m: %.2f" % (tall.samples[0].y - low.samples[0].y))
+	gap = _plinth_gap(tall)
+	_check(gap <= 0.0, "an 8 m plinth reaches the ground all round: %.2f m at most above it" % gap)
 	_check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind == "block" and absf(st.s - w.live_arches[0]) < WallLayout.ARCH_HALF - 0.05 and st.y < w.spring()), "its doorway opens down to the ground")
 	_check(w.stones.size() > low.stones.size(), "the plinth is laid in stones: %d against %d" % [w.stones.size(), low.stones.size()])
 	var plaster := _house(6.0, 4.0)
@@ -270,6 +269,20 @@ func _a_raised_house_stands_on_a_plinth() -> void:
 	var flat := d.duplicate()
 	flat.rise = 0.0
 	_check(is_equal_approx(Budget.wall(d).wall_m2 - Budget.wall(flat).wall_m2, 20.0 * 1.2), "the budget counts the plinth as stone wall")
+
+
+func _plinth_gap(w: WallLayout) -> float:
+	var gap := 0.0
+	for i in w.samples.size():
+		var q := w.samples[i]
+		if absf(w.lengths[i] - w.live_arches[0]) < WallLayout.ARCH_HALF + 0.3:
+			continue
+		var under := w.stones.filter(func(st: Dictionary) -> bool: return st.kind in ["block", "pier"] and absf(st.s - w.lengths[i]) < 0.4)
+		var lowest := INF
+		for st: Dictionary in under:
+			lowest = minf(lowest, st.xform.origin.y - st.size.y * 0.5)
+		gap = maxf(gap, lowest - _slope(q.x, q.z))
+	return gap
 
 
 func _a_resized_house_keeps_its_fittings_and_roof() -> void:

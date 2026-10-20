@@ -31,7 +31,7 @@ func extend(hand: Hand, at: Vector3) -> void:
 		return
 	var s: Dictionary = _strokes[hand]
 	var d: Vector3 = at - s.data.a
-	s.data.b = s.data.a + d.limit_length(StairLayout.MAX_LENGTH)
+	s.data.b = s.data.a + d.limit_length(Commands.STROKE_LENGTH)
 	var steps := floori(s.data.a.distance_to(s.data.b) / WallLayout.COURSE)
 	if steps != s.get("steps", 0):
 		s.steps = steps
