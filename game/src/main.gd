@@ -385,7 +385,10 @@ static func write_bytes(path: String, bytes: PackedByteArray) -> Error:
 	return OK if stored else ERR_FILE_CANT_WRITE
 
 
+## Data-only tests can finish before the autoloads have entered the tree.
 static func quit(tree: SceneTree, code := 0) -> void:
+	if not tree.root.is_inside_tree():
+		await tree.process_frame
 	await tree.root.get_node("AudioLifetime").finish(code)
 
 
