@@ -26,8 +26,7 @@
   {"op": "wait", "seconds": 2},
   {"op": "digest", "name": "flat-photo"},
   {"op": "until", "digests": ["host-done"]},
-  {"op": "face", "at": [0, 1.65, -2.5]},
-  {"op": "flat", "action": "forward", "seconds": 1},
+  {"op": "place", "x": 0, "z": 1},
   {"op": "flat", "action": "next_tool"},
   {"op": "flat", "action": "next_tool"},
   {"op": "face", "at": [0, 1.0, -2.5]},
@@ -35,6 +34,7 @@
   {"op": "until", "fed": "hand"},
   {"op": "wait", "seconds": 2},
   {"op": "capture", "name": "flat-feeding"},
+  {"op": "digest", "name": "flat-fed"},
   {"op": "until", "digests": ["host-fed"]},
   {"op": "quit"}
 ]

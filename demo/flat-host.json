@@ -47,6 +47,7 @@
   {"op": "view", "subject": "dishes", "index": 1, "eye": [0.3, 0.35, -1.3], "at": [0, 0.08, 0]},
   {"op": "capture", "name": "host-sees-feeding-close"},
   {"op": "digest", "name": "host-fed"},
+  {"op": "until", "digests": ["flat-fed"]},
   {"op": "until", "players": 1},
   {"op": "quit"}
 ]
