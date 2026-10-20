@@ -8,6 +8,7 @@ shader_type spatial;
 uniform vec3 albedo;
 // Its build's plaster swatch over the first (Palette.tint).
 instance uniform vec3 tint = vec3(1.0);
+instance uniform vec3 backing_tint = vec3(1.0);
 
 varying vec3 world_pos;
 varying vec3 bounce_at;
@@ -21,7 +22,10 @@ void vertex() {
 }
 
 void fragment() {
-	ALBEDO = albedo * tint * (0.78 + texture(detail, world_pos.xz * 1.7).r * 0.45);
+	vec3 p = world_pos * 1.7;
+	vec3 n = abs((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
+	float grain = COLOR.r > 0.5 ? (n.x > n.z ? texture(detail, p.yz).r : texture(detail, p.xy).r) : texture(detail, p.xz).r;
+	ALBEDO = albedo * mix(tint, backing_tint, COLOR.r) * (0.78 + grain * 0.45);
 	ROUGHNESS = 0.95;
 	SPECULAR = 0.2;
 	vec4 bounce = texture(bounce_volume, bounce_at);

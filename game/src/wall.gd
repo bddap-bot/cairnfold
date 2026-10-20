@@ -521,7 +521,8 @@ func _pack_roof(roofed := {}) -> void:
 		_chunked[Part.MORTAR] = Masonry.split(_parts[Part.MORTAR], kinds()[Part.MORTAR])
 	_fittings.lay(layout.flames, layout.cloths + roof.cloths, paint[Palette.Element.LANTERN])
 	_smoke.lay(roof.vents)
-	var faces := [roof.coat, roof.gable_faces, roof.torching_faces, roof.timber_faces]
+	var plastered := layout.plastered() and layout.gable_end == WallLayout.GableEnd.WALL
+	var faces := [roof.coat, roof.gable_faces if plastered else PackedVector3Array(), roof.torching_faces, roof.timber_faces, PackedVector3Array() if plastered else roof.gable_faces]
 	if faces == _faced:
 		return
 	_faced = faces.duplicate(true)
@@ -530,7 +531,7 @@ func _pack_roof(roofed := {}) -> void:
 	_coat.visibility_range_end = kinds()[Part.STONE].near + (_coat.mesh.get_aabb().size.length() * 0.5 if _coat.mesh != null else 0.0)
 	_coat_far.visibility_range_begin = _coat.visibility_range_end
 	_gables.mesh = _faces_mesh(faces[1])
-	_torching.mesh = _faces_mesh(faces[2])
+	_torching.mesh = _faces_mesh(faces[2], false, faces[4])
 	_ceiling.mesh = _faces_mesh(faces[3], true)
 	_ceiling.visibility_range_end = kinds()[Part.TIMBER].near + (_ceiling.mesh.get_aabb().size.length() * 0.5 if _ceiling.mesh != null else 0.0)
 
@@ -543,14 +544,18 @@ static func _coat_mesh(arrays: Array) -> ArrayMesh:
 	return mesh
 
 
-static func _faces_mesh(tris: PackedVector3Array, flat_normals := false) -> ArrayMesh:
-	if tris.is_empty():
+static func _faces_mesh(tris: PackedVector3Array, flat_normals := false, backing := PackedVector3Array()) -> ArrayMesh:
+	if tris.is_empty() and backing.is_empty():
 		return null
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	if flat_normals:
 		st.set_smooth_group(-1)
+	st.set_color(Color(0, 0, 0))
 	for p in tris:
+		st.add_vertex(p)
+	st.set_color(Color(1, 0, 0))
+	for p in backing:
 		st.add_vertex(p)
 	st.generate_normals()
 	return st.commit()
@@ -647,6 +652,7 @@ func _tint_roof() -> void:
 		elif not layout.plaster:
 			g = Palette.tint(Palette.Element.STONE, paint[Palette.Element.STONE]) * WallLayout.MORTAR * 0.8 / WallLayout.PLASTER
 		_gables.set_instance_shader_parameter(&"tint", Vector3(g.r, g.g, g.b))
+		_torching.set_instance_shader_parameter(&"backing_tint", Vector3(g.r, g.g, g.b))
 		var straw := Palette.tint(Palette.Element.THATCH, paint[Palette.Element.THATCH])
 		for coat in [_coat, _coat_far]:
 			coat.set_instance_shader_parameter(&"tint", Vector3(straw.r, straw.g, straw.b))
