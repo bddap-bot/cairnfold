@@ -13,7 +13,7 @@ internet comes next and uses the same protocol.
 Every finished edit is a **build command**: a small dictionary of plain values. `wall`
 carries the walls a stroke built, `unwall` removes walls, and `reshape` changes a build
 named by its table in the garden (`of`) and id: a wall's height, top, gable ends, openings, fittings, ruins, roof or paint
-(its colours), stairs' railings or paint, or a boulder's scale or paint. `path` and `unpath` lay and lift paths, `plant` grows a
+(its colours), stairs' railings or paint, or a boulder's scale, paint or stone style. `path` and `unpath` lay and lift paths, `plant` grows a
 paint stroke or a tree, `show` hides or restores plants, `heights` sets an area of
 ground, `ponds` puts a pond at its level by the grid point it fills from (from a player, one; from the
 host, undoing or rebuilding, any, and it may take ponds out, as a `heights` from the host may too), and

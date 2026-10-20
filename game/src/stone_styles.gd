@@ -100,7 +100,7 @@ static func apply(mat: ShaderMaterial) -> void:
 	var dark := PackedVector3Array()
 	for i in ROOM:
 		var s: Dictionary = STYLES[mini(i, STYLES.size() - 1)]
-		look.append(Vector4(s.tile, s.moss, s.meadow, 0.0))
+		look.append(Vector4(s.tile, s.moss, s.meadow, 0.0 if s.kind == Kind.PEBBLES else 1.0))
 		light.append(_linear(s.light))
 		dark.append(_linear(s.dark))
 	mat.set_shader_parameter("stone_patterns", patterns())

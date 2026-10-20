@@ -356,8 +356,8 @@ func set_boulder(b: Brush) -> void:
 	place_boulder(pose.origin, b.hand, rock.shape.seed, rock.size, pose.basis.get_rotation_quaternion(), rock)
 
 
-## Sets a boulder of shape `shape`, size `scale` and turn `turn` down on the ground under `at`; `ghost`, the boulder
-## shown for it, rests there until the command comes back.
+## Sets a boulder of shape `shape`, size `scale` and turn `turn` down on the ground under `at`, in the stone style the
+## style wheel let go last; `ghost`, the boulder shown for it, rests there until the command comes back.
 func place_boulder(at: Vector3, hand: Hand = null, shape := randi(), scale := 1.0, turn := Quaternion.IDENTITY, ghost: Boulders.Boulder = null) -> void:
 	var cmd := _boulder(at, turn.normalized(), shape, scale)
 	if world.fits(cmd):
@@ -368,7 +368,7 @@ func place_boulder(at: Vector3, hand: Hand = null, shape := randi(), scale := 1.
 
 
 func _boulder(at: Vector3, turn: Quaternion, shape: int, scale: float) -> Dictionary:
-	return {"op": "boulder", "at": Terrain.ground(at.x, at.z), "turn": turn, "seed": shape, "scale": scale, "paint": world.wall_tool.paint.duplicate()}
+	return {"op": "boulder", "at": Terrain.ground(at.x, at.z), "turn": turn, "seed": shape, "scale": scale, "paint": world.wall_tool.paint.duplicate(), "style": Ground.style}
 
 
 func place(kind: String, at: Vector3, hand: Hand = null, shape := randi()) -> void:

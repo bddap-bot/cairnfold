@@ -577,8 +577,11 @@ func _bush(s: Dictionary) -> void:
 	main.flora_tool.place("bush", _spot(s, s.x, s.z), null, s.get("seed", randi()))
 
 
-## Sets a boulder down at `x`, `z`, of shape `seed` (a new one without) and `scale` (1 without).
+## Sets a boulder down at `x`, `z`, of shape `seed` (a new one without) and `scale` (1 without); in `style`
+## (StoneStyles' index) when given, as if the style wheel last let go there.
 func _boulder(s: Dictionary) -> void:
+	if s.has("style"):
+		Ground.style = s.style
 	main.flora_tool.place_boulder(_spot(s, s.x, s.z), null, int(s.get("seed", randi())), float(s.get("scale", 1.0)))
 
 

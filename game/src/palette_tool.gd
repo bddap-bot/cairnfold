@@ -11,7 +11,8 @@ extends Node3D
 ## tower's), a roofless wall's top, a wall's face (stone, plaster or a house's timber framing; builds laid after take
 ## the material let go last), a flight's or landing's railings (stairs laid after take them), a house's or tower's floor (at its foot alone, or at
 ## every storey), a tree's species, or a stroke of painted
-## stone ground's (StoneStyles; stone painted after takes the style let go last). It only restyles: openings are the windows' and the arch's.
+## stone ground's or a boulder's, one list of stone styles (StoneStyles; stone painted and boulders set down after take
+## the style let go last). It only restyles: openings are the windows' and the arch's.
 
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
 const WHEEL_RADIUS := 0.07
@@ -22,7 +23,7 @@ enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, FLOOR, STONE }
 enum Face { STONE, PLASTER, TIMBER }
 
 ## A hand's open wheel: what it changes (`aim`'s target) on which build (its garden table `of` and `id`; "" and -1 for
-## none), tree (its trunk; null for none) or stone stroke (-1 for none), the choice it started on and the one at its top,
+## none; a boulder's is "boulders"), tree (its trunk; null for none) or stone stroke (-1 for none), the choice it started on and the one at its top,
 ## and the hand's frame when it opened. One on none of them is on the meadow.
 class Wheel:
 	var of := ""
@@ -122,7 +123,7 @@ func colour_target(element: Palette.Element, point: Vector3, of := "", id := -1)
 
 
 ## What the style tool would restyle from `origin` along `dir`, as `aim` gives it, with `restyle` in place of an
-## element, or empty: the tree, stairs, floor, gable end, roof, wall or painted stone it meets first, a
+## element, or empty: the tree, stairs, floor, boulder, gable end, roof, wall or painted stone it meets first, a
 ## roofless wall's top near it; fences, ladders, bushes and unpaved ground have no style.
 func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var pick := walls.pick_building(origin, dir)
@@ -134,8 +135,12 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var ground: Variant = Terrain.raycast(origin, dir)
 	var stroke := Ground.mark_at(ground.x, ground.z) if ground != null and Ground.stone(ground.x, ground.z) > 0.5 else -1
 	var stair := world.stairs.pick(origin, dir, minf(minf(nearest, solid.get("along", INF)), floor.get("along", INF)))
-	if world.state.grounds.has(stroke) and origin.distance_to(ground) < minf(minf(minf(nearest, solid.get("along", INF)), floor.get("along", INF)), stair.get("along", INF)):
+	var built := minf(minf(minf(nearest, solid.get("along", INF)), floor.get("along", INF)), stair.get("along", INF))
+	var rock := world.boulders.pick(origin, dir, built) if world.boulders != null else {}
+	if world.state.grounds.has(stroke) and origin.distance_to(ground) < minf(built, rock.get("along", INF)):
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.STONE, "count": styles(Restyle.STONE), "point": ground, "of": "", "id": -1, "wall": null, "stroke": stroke}
+	if not rock.is_empty():
+		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.STONE, "count": styles(Restyle.STONE), "point": rock.point, "of": "boulders", "id": rock.boulder.id, "wall": null}
 	if not stair.is_empty():
 		if world.stairs.layouts[stair.stair].kind == StairLayout.Kind.LADDER:
 			return {}
@@ -272,6 +277,8 @@ func _now(w: Wheel) -> int:
 			return d.top
 		Restyle.FLOOR:
 			return int(d.storey_floors)
+		Restyle.STONE:
+			return d.style
 	if d.plaster and d.timber_style >= 0 and d.closed and d.points.size() == 4:
 		return Face.TIMBER
 	return Face.PLASTER if d.plaster else Face.STONE
@@ -292,6 +299,8 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 			return {"rail": StairLayout.RAILS[pick]}
 		Restyle.FLOOR:
 			return {"storey_floors": pick == 1}
+		Restyle.STONE:
+			return {"style": pick}
 	var data := {}
 	var timber_style: int = 0 if pick == Face.TIMBER else -1
 	if timber_style != world.state.walls[w.id].timber_style:
@@ -344,13 +353,14 @@ func close(hand: Hand) -> void:
 		walls.timber_style = 0 if w.pick == Face.TIMBER else -1
 	elif w.id >= 0 and w.target.restyle == Restyle.RAIL:
 		world.stairs.rail = StairLayout.RAILS[w.pick]
+	elif w.target.get("restyle") == Restyle.STONE:
+		Ground.style = w.pick
 	var data: Dictionary = (w.data[w.pick] if w.target.tool == Hand.Tool.STYLE else _data(w, w.pick)) if w.id >= 0 else {}
 	if w.pick == now or (w.id >= 0 and data.is_empty()):
 		_settled(w)
 		return
 	Cues.play(Cues.Act.DIAL_SET, hand.global_position, hand)
 	if w.stroke >= 0:
-		Ground.style = w.pick
 		world.submit({"op": "restone", "id": w.stroke, "style": w.pick}, _settled.bind(w), hand)
 	elif w.tree != null:
 		world.submit({"op": "tree", "group": w.tree.group, "index": w.tree.index, "species": w.pick}, _settled.bind(w), hand)

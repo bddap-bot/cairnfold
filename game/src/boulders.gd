@@ -1,9 +1,9 @@
 class_name Boulders
 extends Node3D
 
-## The garden's boulders, each grown from its seed (BoulderLayout) in wall stone of its paint, turned as it was set
+## The garden's boulders, each grown from its seed (BoulderLayout) in wall stone of its paint and style (StoneStyles), turned as it was set
 ## down, grown to its scale and resting on the ground under it. `World` puts and takes them, and reshapes their place,
-## turn, size and paint; a hand holding one shows it where the hand has it (`show_held`) until it is let go; tools pick
+## turn, size, paint and style; a hand holding one shows it where the hand has it (`show_held`) until it is let go; tools pick
 ## them by `pick`, a hand stops at them by `inside`.
 ## Each draws a near mesh and, past a distance that grows with it, a far one of a sixteenth the triangles, so a pebble
 ## costs little and a house-sized one keeps its outline far off.
@@ -28,14 +28,17 @@ class Boulder:
 	var near: MultiMeshInstance3D
 	var far: MultiMeshInstance3D
 
-	## Shows it as `d` ({at, turn, seed, scale, paint}) has it, its seed its own.
+	## Shows it as `d` ({at, turn, seed, scale, paint, style}) has it, its seed its own.
 	func appear(d: Dictionary) -> void:
 		ground = d.at
 		turn = d.turn
 		held = false
-		var c := Palette.swatch(Palette.Element.STONE, d.paint[Palette.Element.STONE])
-		near.multimesh.set_instance_color(0, c)
-		far.multimesh.set_instance_color(0, c)
+		# The stone shader tints a style by its paint as the swatch over the one stone is laid in.
+		var c := Palette.swatch(Palette.Element.STONE, d.paint[Palette.Element.STONE]) / Palette.swatch(Palette.Element.STONE, 0)
+		c.a = 1.0
+		for mesh: MultiMeshInstance3D in [near, far]:
+			mesh.multimesh.set_instance_color(0, c)
+			mesh.set_instance_shader_parameter("stone_style", d.style)
 		seat(d.scale)
 
 	## Rests it at `scale` on the ground under it as the ground is now.
@@ -69,7 +72,7 @@ func _init() -> void:
 	name = "Boulders"
 
 
-## Puts boulder `id` as `data` ({at, turn, seed, scale, paint}) has it; one standing with that seed keeps its meshes.
+## Puts boulder `id` as `data` ({at, turn, seed, scale, paint, style}) has it; one standing with that seed keeps its meshes.
 func put(id: int, data: Dictionary) -> Boulder:
 	var b: Boulder = boulders.get(id)
 	if b == null or b.shape.seed != data.seed:

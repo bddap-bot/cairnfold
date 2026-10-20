@@ -111,15 +111,15 @@ func _its_mesh_is_its_surface() -> void:
 func _bad_commands_are_dropped() -> void:
 	var state := World.blank()
 	var at := Terrain.ground(10, 10)
-	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3, "scale": 20.0, "paint": Palette.plain()}, state, false).is_empty(), "past the largest size it is dropped")
-	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3, "scale": 0.01, "paint": Palette.plain()}, state, false).is_empty(), "under the smallest size it is dropped")
-	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3.0, "scale": 1.0, "paint": Palette.plain()}, state, false).is_empty(), "a seed that is no whole number is dropped")
+	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3, "scale": 20.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "past the largest size it is dropped")
+	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3, "scale": 0.01, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "under the smallest size it is dropped")
+	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3.0, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "a seed that is no whole number is dropped")
 	var q := Quaternion.IDENTITY
-	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3, "scale": 1.0, "paint": Palette.plain()}, state, false).is_empty(), "one with no turn is dropped")
-	_check(Commands.clean({"op": "boulder", "at": at, "turn": Quaternion(0.5, 0, 0, 0.5), "seed": 3, "scale": 1.0, "paint": Palette.plain()}, state, false).is_empty(), "a turn that is no rotation is dropped")
-	_check(Commands.clean({"op": "boulder", "at": at, "turn": q, "seed": 3, "scale": 1.0, "paint": Palette.plain()}, state, false).size() == 6, "a boulder command keeps its place, turn, seed, size and paint")
+	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "one with no turn is dropped")
+	_check(Commands.clean({"op": "boulder", "at": at, "turn": Quaternion(0.5, 0, 0, 0.5), "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "a turn that is no rotation is dropped")
+	_check(Commands.clean({"op": "boulder", "at": at, "turn": q, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).size() == 7, "a boulder command keeps its place, turn, seed, size, paint and style")
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 1.0}}, state, false).is_empty(), "sizing a boulder that is not there is dropped")
-	state.boulders[9] = {"at": at, "turn": q, "seed": 3, "scale": 1.0, "paint": Palette.plain()}
+	state.boulders[9] = {"at": at, "turn": q, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}
 	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"at": at + Vector3(2, 0, 1), "turn": Quaternion(Vector3.RIGHT, 1.2)}}, state, false).is_empty(), "a reshape moves and turns it")
 	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 8.0}}, state, false).is_empty(), "a boulder sizes up to a house")
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 9.0}}, state, false).is_empty(), "and no further")

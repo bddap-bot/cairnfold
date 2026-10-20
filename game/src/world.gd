@@ -49,8 +49,8 @@ var look: Look
 ## Standing walls, paths, easels, boulders and plant groups by id, as the plain values their commands carry, and each
 ## pond's level by the grid point it fills from. A group keeps its command's fields, its `size` and the indices of its plants
 ## since `hidden`; an easel where it stands, which way it faces, its canvas's strokes, oldest first, and its oil
-## palette's mixing field (`Mixing.bytes`, empty when clean); a boulder the ground point under it, its turn, seed, scale
-## and paint.
+## palette's mixing field (`Mixing.bytes`, empty when clean); a boulder the ground point under it, its turn, seed, scale,
+## paint and stone style.
 var state := blank()
 var seq := 0
 var sculpted := false
@@ -832,14 +832,14 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			if easels != null:
 				easels.repaint(cmd.easel, state.easels[cmd.easel].strokes)
 		"boulder":
-			state.boulders[cmd.id] = {"at": cmd.at, "turn": cmd.turn, "seed": cmd.seed, "scale": cmd.scale, "paint": cmd.paint}
+			state.boulders[cmd.id] = {"at": cmd.at, "turn": cmd.turn, "seed": cmd.seed, "scale": cmd.scale, "paint": cmd.paint, "style": cmd.style}
 			if boulders != null:
 				boulders.put(cmd.id, state.boulders[cmd.id])
 			_account("b%d" % cmd.id, {"boulder": Budget.boulder(cmd.scale)})
 			inverse = {"op": "unboulder", "id": cmd.id}
 		"unboulder":
 			var b: Dictionary = state.boulders[cmd.id]
-			inverse = {"op": "boulder", "id": cmd.id, "at": b.at, "turn": b.turn, "seed": b.seed, "scale": b.scale, "paint": b.paint}
+			inverse = {"op": "boulder", "id": cmd.id, "at": b.at, "turn": b.turn, "seed": b.seed, "scale": b.scale, "paint": b.paint, "style": b.style}
 			state.boulders.erase(cmd.id)
 			if boulders != null:
 				boulders.take(cmd.id)
@@ -963,7 +963,7 @@ func snapshot() -> Dictionary:
 		cmds.append({"op": "easel", "id": id, "at": e.at, "yaw": e.yaw, "strokes": e.strokes, "mix": e.mix})
 	for id in state.boulders:
 		var b: Dictionary = state.boulders[id]
-		cmds.append({"op": "boulder", "id": id, "at": b.at, "turn": b.turn, "seed": b.seed, "scale": b.scale, "paint": b.paint})
+		cmds.append({"op": "boulder", "id": id, "at": b.at, "turn": b.turn, "seed": b.seed, "scale": b.scale, "paint": b.paint, "style": b.style})
 	for id in state.groups:
 		var g: Dictionary = state.groups[id]
 		if g.kind != "meadow":
@@ -1130,6 +1130,6 @@ func digest() -> Dictionary:
 	for id in state.boulders:
 		var b: Dictionary = state.boulders[id]
 		var shown: Boulders.Boulder = boulders.find(id) if boulders != null else null
-		out.boulders[str(id)] = {"seed": b.seed, "scale": b.scale, "paint": b.paint, "turn": var_to_str(b.turn), "at": var_to_str(shown.transform.origin.snapped(Vector3.ONE * 0.01)) if shown != null else ""}
+		out.boulders[str(id)] = {"seed": b.seed, "scale": b.scale, "paint": b.paint, "style": b.style, "turn": var_to_str(b.turn), "at": var_to_str(shown.transform.origin.snapped(Vector3.ONE * 0.01)) if shown != null else ""}
 	out.budget = snappedf(fill(), 0.001)
 	return out

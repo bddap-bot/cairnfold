@@ -38,7 +38,7 @@ const MAX_SUPPORTS := 8
 const RESHAPES := {
 	"walls": ["points", "height", "rise", "top", "plaster", "gable_end", "timber_style", "storey_floors", "openings", "lanterns", "flags", "ruins"],
 	"stairs": ["rail"],
-	"boulders": ["at", "turn", "scale"],
+	"boulders": ["at", "turn", "scale", "style"],
 }
 
 
@@ -202,8 +202,8 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 	return out if ok else {}
 
 
-## A boulder: the ground point under its centre, which way it is turned, the seed its shape grows from, its size and
-## its paint.
+## A boulder: the ground point under its centre, which way it is turned, the seed its shape grows from, its size,
+## its paint and its style.
 static func _boulder(d: Dictionary) -> Variant:
 	var at: Variant = d.get("at")
 	var turn: Variant = d.get("turn")
@@ -212,9 +212,9 @@ static func _boulder(d: Dictionary) -> Variant:
 		return null
 	if typeof(turn) != TYPE_QUATERNION or not turn.is_finite() or absf(turn.length() - 1.0) > 1e-3:
 		return null
-	if typeof(scale) != TYPE_FLOAT or not (scale >= BoulderLayout.SCALES.x and scale <= BoulderLayout.SCALES.y):
+	if typeof(scale) != TYPE_FLOAT or not (scale >= BoulderLayout.SCALES.x and scale <= BoulderLayout.SCALES.y) or not _stone_style(d.get("style")):
 		return null
-	return {"at": at, "turn": turn.normalized(), "seed": d.seed, "scale": scale, "paint": d.paint}
+	return {"at": at, "turn": turn.normalized(), "seed": d.seed, "scale": scale, "paint": d.paint, "style": d.style}
 
 
 ## A new easel: where it stands and which way it faces, clear of the others; from the host, also the strokes and

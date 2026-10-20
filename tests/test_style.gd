@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Headless checks of the style tool's plaster faces, tree species and painted stone's styles, through the host as a player's turn of the
+## Headless checks of the style tool's plaster faces, tree species and painted stone's and boulders' styles, through the host as a player's turn of the
 ## wheel goes: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_style.gd
 
 var failures := 0
@@ -29,6 +29,7 @@ func _run() -> void:
 	_trees_grow_by_the_grip()
 	_meadow_trees_grow()
 	_stone_takes_a_style()
+	_boulders_take_a_stone_style()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -386,6 +387,37 @@ func _stone_takes_a_style() -> void:
 	world._order({"op": "ground", "kind": Ground.Kind.STONE, "stamps": PackedVector4Array([Vector4(33, 30, r, r * 2.0)]), "style": 1}, world.me())
 	Ground.settle()
 	_check(_style_at(33, 30) == 1 and _style_at(30, 30) == 3, "a later stroke's style takes what it covers most, the first keeps the rest: %d, %d" % [_style_at(33, 30), _style_at(30, 30)])
+	Ground.style = 0
+	world.restore({"seq": 0, "cmds": []})
+
+
+## A boulder aimed at offers the same stone styles as painted stone, before the ground under it, and takes one as a
+## `reshape` through the host, which a peer takes; its meshes draw in it, boulders set down after take it, and an undo
+## and a save follow it.
+func _boulders_take_a_stone_style() -> void:
+	var at := Terrain.ground(-50, 30)
+	var plain := {"op": "boulder", "at": at, "turn": Quaternion.IDENTITY, "seed": 5, "scale": 1.0, "paint": Palette.plain()}
+	_check(Commands.clean(plain, world.state, false).is_empty(), "a boulder names its style")
+	_check(Commands.clean(plain.merged({"style": StoneStyles.STYLES.size()}), world.state, false).is_empty(), "no boulder style past the last")
+	world._order(plain.merged({"style": 0}), world.me())
+	var id := world.seq
+	var target: Dictionary = main.palette_tool.aim_style(at + Vector3(0, 4, 4), Vector3(0, -4, -4).normalized())
+	_check(target.get("restyle") == PaletteTool.Restyle.STONE and target.get("of") == "boulders" and target.get("id") == id and target.get("count") == StoneStyles.STYLES.size(), "the style tool aimed at a boulder offers the stone styles: %s" % [target])
+	var relayed := _relayed({"op": "reshape", "of": "boulders", "id": id, "data": {"style": 4}}, 2)
+	_check(relayed.get("data", {}).get("style") == 4, "a peer takes the host's boulder style: %s" % relayed)
+	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": id, "data": {"style": -1}}, world.state, false).is_empty(), "no boulder style before the first")
+	_turn(target, 4)
+	var b: Boulders.Boulder = main.boulders.find(id)
+	_check(world.state.boulders[id].style == 4 and b.near.get_instance_shader_parameter("stone_style") == 4 and b.far.get_instance_shader_parameter("stone_style") == 4, "a twist of the wheel draws the boulder in the fifth style")
+	_check(Ground.style == 4, "boulders set down and stone painted after take it")
+	main.flora_tool.place_boulder(Terrain.ground(-46, 30), null, 6)
+	_check(world.state.boulders[world.seq].style == 4, "a boulder set down after is in it")
+	world._order({"op": "undo"}, world.me())
+	world._order({"op": "undo"}, world.me())
+	_check(world.state.boulders[id].style == 0 and main.boulders.find(id).near.get_instance_shader_parameter("stone_style") == 0, "an undo puts the first style back")
+	world._order({"op": "redo"}, world.me())
+	world.restore(world.snapshot())
+	_check(world.state.boulders[id].style == 4 and main.boulders.find(id).near.get_instance_shader_parameter("stone_style") == 4, "a save carries it")
 	Ground.style = 0
 	world.restore({"seq": 0, "cmds": []})
 

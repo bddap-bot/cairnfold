@@ -39,7 +39,7 @@ static var _brushes := {}
 ## that patch and the marks meeting it.
 static var _areas := {}
 static var _wearing := Rect2i()
-## The style this machine's player lays stone in: the one they last turned the style wheel to.
+## The style this machine's player lays stone and sets boulders down in: the one they last turned the style wheel to.
 static var style := 0
 ## Where a patch is worn again before it is copied into `laid`: what lies outside the patch is never read.
 static var _patch := Image.create(SIZE, SIZE, false, Image.FORMAT_RGBA8)
