@@ -488,7 +488,7 @@ func _watch(delta: float) -> void:
 func _watched() -> Array[Node3D]:
 	var out: Array[Node3D] = []
 	for n: Node3D in hands + dishes + [viewer]:
-		if n != null and n.is_inside_tree() and (n is not Dish or n.visible):
+		if n != null and n.is_inside_tree() and (n is not Dish or n.is_visible_in_tree()):
 			out.append(n)
 	return out
 
