@@ -114,8 +114,8 @@ second, which reads untracked while the headset is off the head.
 Off the head SteamVR puts the headset in standby and, by default
 (`power.pauseCompositorOnStandby`), pauses the game: about 0.3 ms of GPU time a
 frame, every frame on vsync, nothing drawn, so such a run measures nothing. With
-that setting off in `~/.config/openvr/config/steamvr.vrsettings` and SteamVR
-restarted, the unworn headset renders the game through its own XR session and
+that setting off, set live through SteamVR's settings interface rather than by a
+SteamVR restart, the unworn headset renders the game through its own XR session and
 compositor at full cost; `scripts/bench.sh`'s Frame mode measures that way. Its
 times are the headset's render path: the runtime's render target, both eyes, the
 foveation layer and the compositor. They stand in for a worn session's game GPU

@@ -1,14 +1,17 @@
 #!/usr/bin/env bash
 # Plays the stress scene, demo/stress.json, and holds each phase to the frame budget in game/src/budget.gd:
 #   bench.sh OUT_DIR                          desktop renderer: draw calls and primitives only, its GPU is no target
-#   bench.sh OUT_DIR SSH_HOST BUNDLE.tar.gz   a Steam Frame, from a scratch install of the linux-arm64 package that leaves ~/nestcombe alone,
-#                                             in the headset's XR session unworn: SteamVR pauses the game while the
-#                                             headset is in standby, so the run turns power.pauseCompositorOnStandby
-#                                             off and restarts SteamVR, and puts both back on exit. Nothing else may
-#                                             use SteamVR meanwhile. The run autosaves every edit to log/garden.save, as
-#                                             play does, so the late column counts each save's frame. The GPU times
-#                                             are the headset's own render path; a worn session's eye tracking and
-#                                             passthrough cameras are not in them
+#   bench.sh OUT_DIR SSH_HOST BUNDLE.tar.gz UNWORN...
+#                                             a Steam Frame, from a scratch install of the linux-arm64 package that leaves ~/nestcombe alone,
+#                                             in the headset's XR session unworn. SteamVR pauses the game while the
+#                                             headset is in standby, so the game runs as the command UNWORN... is
+#                                             given as its last argument: a host command that runs that bash command
+#                                             on the headset with power.pauseCompositorOnStandby off, restores the
+#                                             setting after, even if its caller dies, and exits with the command's
+#                                             status. Nothing else may use SteamVR meanwhile. The run autosaves every
+#                                             edit to log/garden.save, as play does, so the late column counts each
+#                                             save's frame. The GPU times are the headset's own render path; a worn
+#                                             session's eye tracking and passthrough cameras are not in them
 #   bench.sh OUT_DIR --android APK            the one Quest adb reaches, in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
 # On a Quest, exits 1 when a phase the build must hold goes over budget; phases named "sweep/..." only measure.
@@ -181,32 +184,16 @@ if [ "${2:-}" = --android ]; then
   adb pull "$log" "$out/logcat.txt" > /dev/null
   [ -n "$ended" ] || { echo "bench: the game was still running after an hour; see $out/logcat.txt" >&2; exit 1; }
   adb pull "$dir/." "$out/" > /dev/null
-elif [ $# -ge 3 ]; then
+elif [ $# -ge 4 ]; then
   device=frame
   rig=frame
   ssh "$2" 'set -e; rm -rf nestcombe-bench; mkdir nestcombe-bench; tar -xz -C nestcombe-bench; mkdir nestcombe-bench/nestcombe/log' < "$3"
   build=$(ssh -n "$2" cat nestcombe-bench/nestcombe/REVISION)
   same "$build"
   scp -q "$out/stress.json" "$2:nestcombe-bench/nestcombe/log/stress.json"
-  # standby HOST off|on: SteamVR reads its settings only as it starts.
-  standby() {
-    ssh -n "$1" 'cfg=$HOME/.config/openvr/config/steamvr.vrsettings saved=$cfg.bench
-      export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
-      if [ "'"$2"'" = off ]; then
-        [ -f "$saved" ] || cp "$cfg" "$saved"
-        python3 -c "import json, sys; s = json.load(open(sys.argv[1])); s.setdefault(\"power\", {})[\"pauseCompositorOnStandby\"] = False; json.dump(s, open(sys.argv[1], \"w\"), indent=3)" "$cfg"
-      elif [ -f "$saved" ]; then
-        mv "$saved" "$cfg"
-      else
-        exit 0
-      fi
-      systemctl --user restart steamvr
-      for _ in $(seq 60); do pgrep -x vrcompositor > /dev/null && exit 0; sleep 1; done
-      echo "bench: SteamVR did not come back" >&2; exit 1'
-  }
-  trap 'ssh -n "$2" "[ ! -f nestcombe-bench/nestcombe/log/pid ] || kill \$(cat nestcombe-bench/nestcombe/log/pid)" || true; standby "$2" on || true; stop' EXIT
-  standby "$2" off
-  ssh -n "$2" 'cd nestcombe-bench/nestcombe
+  trap 'ssh -n "$2" "[ ! -f nestcombe-bench/nestcombe/log/pid ] || kill \$(cat nestcombe-bench/nestcombe/log/pid)" || true; stop' EXIT
+  # shellcheck disable=SC2016 # expanded on the headset
+  "${@:4}" 'cd ~/nestcombe-bench/nestcombe
     export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)} DISPLAY=${DISPLAY:-:0}
     status=0; timeout 900 ./nestcombe -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --garden "$PWD/log/garden.save" --seed '"$seed${hosting:+ --port $hosting}"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
     rm log/pid; echo "bench: $(cat REVISION) exit $status"; exit $status' &
@@ -217,7 +204,6 @@ elif [ $# -ge 3 ]; then
   fi
   wait "$remote" || game=$?
   scp -rq "$2:nestcombe-bench/nestcombe/log/*" "$out/"
-  standby "$2" on
 else
   setsid env NESTCOMBE_QUIT_AFTER=900 "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" ${hosting:+--port "$hosting"} > "$out/godot.log" 2>&1 &
   measured=$!
