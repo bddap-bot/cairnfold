@@ -45,12 +45,34 @@ func sync() -> void:
 			flames.append(x * f.origin)
 
 
+## Where a decoration stands, or null where its surface is gone: on the ground; at a house's foot, out from the wall
+## at `s` on `side`; or, for furniture, at `at` in its house's plan (`plan`), turned `turn` from its ridge, on the floor
+## nearest `at.y` over its lowest or on a flat roof's deck, so it moves, turns, grows and rises with the house.
 func frame(d: Dictionary) -> Variant:
 	if d.wall < 0:
 		return Transform3D(Basis(Vector3.UP, d.turn), Vector3(d.at.x, Terrain.height_at(d.at.x, d.at.z), d.at.z))
 	var w := walls.find(d.wall)
 	if w == null:
 		return null
+	var mount := DecorationLayout.mount_of(d.style)
+	if mount != "foundation":
+		if w.roof == null or w.layout.floors.is_empty():
+			return null
+		var x := plan(w)
+		var p: Vector3 = x * Vector3(d.at.x, 0.0, d.at.z)
+		var turn: float = d.turn + atan2(-x.basis.x.z, x.basis.x.x)
+		var l := w.layout
+		if mount == "deck":
+			if not w.roof.flat() or not w.roof.over(p.x, p.z):
+				return null
+			return Transform3D(Basis(Vector3.UP, turn), Vector3(p.x, w.roof.height_at(p.x, p.z), p.z))
+		if not Geometry2D.is_point_in_polygon(Vector2(p.x, p.z), l.floor_outline):
+			return null
+		var best := l.floors[0]
+		for y in l.floors:
+			if absf(y - l.floors[0] - d.at.y) < absf(best - l.floors[0] - d.at.y):
+				best = y
+		return Transform3D(Basis(Vector3.UP, turn), Vector3(p.x, best, p.z))
 	var f := w.layout.frame_at(d.s)
 	var normal: Vector3 = f.tangent.cross(Vector3.UP) * d.side
 	var at: Vector3 = f.point + normal * (WallLayout.THICKNESS * 0.5 + 0.02)
@@ -58,9 +80,21 @@ func frame(d: Dictionary) -> Variant:
 	return FittingTool._facing(at, normal)
 
 
+## A house's plan on the ground plane: its middle, and its ridge and across it, each scaled to the half span from the
+## middle to its inner faces, so (1, 0, 1) is the corner and furniture keeps its share of the room when it is resized.
+static func plan(w: Wall) -> Transform3D:
+	var r := w.roof
+	var f := r.frame()
+	var inner := r.half_span() - WallLayout.THICKNESS
+	var half := Vector2(inner, inner) if r.kind == RoofLayout.Kind.CONE else Vector2(r.ridge_length() * 0.5 - WallLayout.THICKNESS * 0.5, inner)
+	return Transform3D(Basis(f.along * half.x, Vector3.UP, f.across * half.y), Vector3(f.mid.x, 0.0, f.mid.z))
+
+
 func targets() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for id in nodes:
+		if not world.state.decorations.has(id):
+			continue
 		var n: Node3D = nodes[id]
 		var d: Dictionary = world.state.decorations[id]
 		var b: AABB = n.get_meta(&"bounds")
@@ -81,7 +115,7 @@ func settle(id: int) -> void:
 
 func rise(d: Dictionary) -> float:
 	var w := walls.find(d.wall)
-	if w == null:
+	if w == null or DecorationLayout.mount_of(d.style) != "foundation":
 		return 0.6
 	var x: Transform3D = frame(d)
 	return maxf(0.1, w.layout.point_at(d.s).y - x.origin.y)

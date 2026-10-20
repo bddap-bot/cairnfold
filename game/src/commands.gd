@@ -214,7 +214,7 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 static func _decoration(d: Dictionary) -> Variant:
 	if typeof(d.get("wall")) != TYPE_INT or typeof(d.get("style")) != TYPE_INT or typeof(d.get("seed")) != TYPE_INT:
 		return null
-	if d.style not in DecorationLayout.options("ground" if d.wall < 0 else "foundation"):
+	if d.style < 0 or d.style >= DecorationLayout.STYLES.size() or (d.wall < 0) != (DecorationLayout.mount_of(d.style) == "ground"):
 		return null
 	if typeof(d.get("at")) != TYPE_VECTOR3 or not _finite(d.at):
 		return null

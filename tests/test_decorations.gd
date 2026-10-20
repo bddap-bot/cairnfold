@@ -29,9 +29,10 @@ func _run() -> void:
 		layout.build(style, 53)
 		check(not layout.parts.is_empty() and layout.bounds.size.length() > 0.0, "geometry %d" % style)
 		print("decoration cost: %s solids=%d triangles=%d flowers=%d flames=%d" % [DecorationLayout.STYLES[style].name, layout.parts.size(), layout.parts.size() * 108 + layout.flames.size() * 14, layout.flowers.size(), layout.flames.size()])
+	for style in DecorationLayout.options("foundation") + DecorationLayout.options("ground"):
 		var f := w.layout.frame_at(0.5 + style * 0.9)
 		var side := signf((f.point - w.roof.frame().mid).dot(f.tangent.cross(Vector3.UP)))
-		var target := {"what": "decoration", "wall": w if style < 7 else null, "s": 0.5 + style * 0.9, "side": side, "point": f.point if style < 7 else Vector3(12 + style, 0, 12), "style": style}
+		var target := {"what": "decoration", "wall": w if DecorationLayout.mount_of(style) == "foundation" else null, "s": 0.5 + style * 0.9, "side": side, "point": f.point if DecorationLayout.mount_of(style) == "foundation" else Vector3(12 + style, 0, 12), "style": style}
 		check(main.fitting_tool.fit(target), "place %d" % style)
 	main.world.decorations.sync()
 	check(main.world.state.decorations.size() == 9, "all styles saved")

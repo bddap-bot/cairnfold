@@ -96,8 +96,13 @@ func _process(delta: float) -> void:
 func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 	var pick := pick_target(walls, origin, dir)
 	var ground: Variant = Terrain.raycast(origin, dir)
-	if tool == Hand.Tool.DECORATIONS and ground != null and origin.distance_to(ground) < pick.get("along", INF):
-		return {"what": "decoration", "point": ground, "wall": null, "s": 0.0, "side": 1.0, "turn": atan2(-dir.x, -dir.z)}
+	var facing := atan2(-dir.x, -dir.z)
+	if tool == Hand.Tool.DECORATIONS:
+		var floor := walls.pick_floor(origin, dir)
+		if floor.get("along", INF) < minf(pick.get("along", INF), origin.distance_to(ground) if ground != null else INF):
+			return {"what": "decoration", "mount": "floor", "point": floor.point, "wall": floor.wall, "turn": facing}
+		if ground != null and origin.distance_to(ground) < pick.get("along", INF):
+			return {"what": "decoration", "mount": "ground", "point": ground, "wall": null, "s": 0.0, "side": 1.0, "turn": facing}
 	if pick.has("fitting"):
 		var what: String = pick.what
 		if (tool == Hand.Tool.DECORATIONS and what != "opening") or (tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH] and what == "opening"):
@@ -110,6 +115,8 @@ func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 		return {"what": "opening", "wall": pick.wall, "s": pick.s, "y": 0.0 if tool == Hand.Tool.ARCH else _height(pick), "style": WallLayout.DoorStyle.ARCHWAY if tool == Hand.Tool.ARCH else WallLayout.DoorStyle.PLAIN, "point": pick.point}
 	if on_roof:
 		var w: Wall = roof.wall
+		if w.roof.flat():
+			return {"what": "decoration", "mount": "deck", "point": roof.point, "wall": w, "turn": facing}
 		if w.roof.kind == RoofLayout.Kind.CONE:
 			return {"what": "tower_flag", "wall": w, "point": roof.point}
 		return {"what": "chimney", "wall": w, "at": w.roof.spot_of(roof.point), "point": roof.point}
@@ -121,7 +128,7 @@ func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 		return {"what": "flag", "wall": pick.wall, "s": pick.s, "point": pick.point}
 	var side := signf((origin - pick.point).dot(layout.frame_at(pick.s).tangent.cross(Vector3.UP)))
 	if not layout.fence and y <= 0.25:
-		return {"what": "decoration", "wall": pick.wall, "s": pick.s, "side": side if side != 0.0 else 1.0, "point": pick.point, "turn": 0.0}
+		return {"what": "decoration", "mount": "foundation", "wall": pick.wall, "s": pick.s, "side": side if side != 0.0 else 1.0, "point": pick.point, "turn": 0.0}
 	return {"what": "lantern", "wall": pick.wall, "s": pick.s, "y": y, "side": side if side != 0.0 else 1.0, "point": pick.point}
 
 
@@ -288,6 +295,8 @@ func ghost_of(target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -
 		return {"what": "lantern", "xform": _facing(at, -dir), "fits": false}
 	if target.what == "decoration":
 		var d := decoration_command(target)
+		if world.decorations.frame(d) == null:
+			return {}
 		return {"what": "decoration", "style": d.style, "seed": d.seed, "rise": world.decorations.rise(d), "xform": world.decorations.frame(d), "fits": true}
 	var w: Wall = target.wall
 	var layout := w.layout
@@ -515,6 +524,13 @@ static func removal(state: Dictionary, target: Dictionary) -> Dictionary:
 
 static func decoration_command(target: Dictionary) -> Dictionary:
 	var w: Wall = target.get("wall")
-	var mount := "ground" if w == null else "foundation"
+	var mount: String = target.get("mount", "ground" if w == null else "foundation")
 	var seed: int = target.get("seed", hash([target.point.snapped(Vector3.ONE * 0.05), w.layout.seed if w != null else 0]))
-	return {"op": "decoration", "wall": w.id if w != null else -1, "at": target.point, "s": float(target.get("s", 0.0)), "side": float(target.get("side", 1.0)), "turn": float(target.get("turn", 0.0)), "seed": seed, "style": target.get("style", DecorationLayout.choose(mount, seed))}
+	var at: Vector3 = target.point
+	var turn: float = target.get("turn", 0.0)
+	if mount in ["floor", "deck"]:
+		var x := Decorations.plan(w)
+		at = x.affine_inverse() * Vector3(at.x, 0.0, at.z)
+		at.y = target.point.y - w.layout.floors[0] if mount == "floor" else 0.0
+		turn -= atan2(-x.basis.x.z, x.basis.x.x)
+	return {"op": "decoration", "wall": w.id if w != null else -1, "at": at, "s": float(target.get("s", 0.0)), "side": float(target.get("side", 1.0)), "turn": turn, "seed": seed, "style": target.get("style", DecorationLayout.choose(mount, seed))}

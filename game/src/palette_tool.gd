@@ -151,7 +151,7 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.TREE, "count": FloraLayout.Species.size(), "point": solid.point, "of": "", "id": -1, "wall": null, "tree": solid.plants[0]}
 	if pick.has("decoration"):
 		var d: Dictionary = world.state.decorations[pick.decoration]
-		var options := DecorationLayout.options("ground" if d.wall < 0 else "foundation")
+		var options := DecorationLayout.options(DecorationLayout.mount_of(d.style))
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.DECORATION, "options": options, "count": options.size(), "point": pick.point, "of": "decorations", "id": pick.decoration, "wall": pick.wall}
 	if not gable.is_empty():
 		return style_target(Restyle.GABLE, gable.wall, gable.point)

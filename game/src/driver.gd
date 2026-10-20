@@ -459,11 +459,18 @@ func _wall_of(s: Dictionary) -> Wall:
 ## A press of the windows or decorations tool on wall `index` (-1 the last drawn), as `FittingTool.aim`
 ## would find it: `what` is opening, lantern, flag, chimney or tower_flag; `s` and `y` place it on the wall,
 ## `style` and `size` shape an opening, `side` picks a lantern's face, `at` a chimney's spot along and across the ridge.
+## A decoration with `from` is aimed as the hand would from there toward `at`, turned `turn` degrees if given: furniture
+## on a floor or a flat roof.
 func _fit(s: Dictionary) -> void:
 	if s.what == "decoration":
 		var w: Wall = main.tool.walls[s.index] if s.has("index") else null
 		var at := w.layout.point_at(float(s.get("s", 0.0))) if w != null else Vector3(float(s.get("x", 0.0)), 0, float(s.get("z", 0.0)))
 		var target := {"what": "decoration", "wall": w, "point": at, "s": float(s.get("s", 0.0)), "side": float(s.get("side", 1.0)), "turn": float(s.get("turn", 0.0))}
+		if s.has("from"):
+			var eye := Vector3(s.from[0], s.from[1], s.from[2])
+			target = main.fitting_tool.aim(Hand.Tool.DECORATIONS, eye, (Vector3(s.at[0], s.at[1], s.at[2]) - eye).normalized())
+			if s.has("turn"):
+				target.turn = deg_to_rad(s.turn)
 		if s.has("style"):
 			target.style = int(s.style)
 		main.fitting_tool.fit(target)
