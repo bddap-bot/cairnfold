@@ -100,9 +100,9 @@ func _quit_writes_first() -> void:
 	var path := dir.path_join("quit.save")
 	world.load_from(path)
 	world.restore({"seq": 0, "cmds": [{"op": "plant", "kind": "tree", "seed": 1, "at": Terrain.ground(2, 2), "id": 5, "seq": 0, "by": 1}]})
-	Main._quitting = true
+	root.get_node("AudioLifetime")._quitting = true
 	main.finish()
-	Main._quitting = false
+	root.get_node("AudioLifetime")._quitting = false
 	var kept: Variant = bytes_to_var(FileAccess.get_file_as_bytes(path))
 	_check(kept is Dictionary and kept.get("cmds") is Array and kept.cmds.size() == 1, "a quit writes the garden changed in its own frame")
 	var chunk: String = Array(DirAccess.get_files_at(sessions)).filter(func(f: String) -> bool: return f.ends_with(".jsonl"))[0]
