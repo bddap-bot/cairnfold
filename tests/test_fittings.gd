@@ -445,7 +445,7 @@ func _in_the_glade() -> void:
 	_check(fit.aim(Hand.Tool.DECORATIONS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).get("what") == "lantern", "on a fence, a lantern")
 	_check(fit.aim(Hand.Tool.WINDOWS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).is_empty(), "no windows in a fence")
 	_check(fit.aim(Hand.Tool.ARCH, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).is_empty() and fit.aim(Hand.Tool.ARCH, ridge + Vector3.UP * 6.0, Vector3.DOWN).is_empty(), "the arch cuts nothing in a fence or a roof")
-	_check(main.tool.pick_wall(post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).get("wall") == fence, "a ray through the fence and on into the wall behind picks the fence")
+	_check(main.tool.pick_building(post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n).get("wall") == fence, "a ray through the fence and on into the wall behind picks the fence")
 	_fit(fit, fit.aim(Hand.Tool.DECORATIONS, post.point + Vector3.UP * 0.8 + post_n * 3.0, -post_n))
 	_check(fence.layout.flames.size() == 1, "a press hangs a lantern on the fence")
 	var beside: Vector3 = fence.layout.frame_at(3.7).point + Vector3.UP * 0.8

@@ -48,7 +48,7 @@ class Mason:
 	var lift_at := Vector3.ZERO
 	var lift_side := Vector3.RIGHT
 	var pick := {}
-	## The gable end the hand points at before any roof, as `pick_gable` gives it.
+	## The gable end the hand points at before any roof, as `pick_building` gives it.
 	var gable := {}
 	## Where the hand points to build, and the id of the build it points at, or -1 on the ground.
 	var ground: Variant = null
@@ -202,23 +202,20 @@ func _handle(m: Mason) -> void:
 		var aimed := aim(origin, dir) if m.stroke == null or is_nan(m.stroke.level) else _at_level(origin, dir, m.stroke.level)
 		m.ground = aimed.get("point")
 		m.on = aimed.get("on", -1)
-		m.pick = pick_wall(origin, dir)
-		var roof := pick_roof(origin, dir)
-		var gable := pick_gable(origin, dir)
-		if gable.get("along", INF) < roof.get("along", INF):
-			m.gable = gable
-		m.hand.point(m.gable.point if _on_roof(m.pick, m.gable) else roof.point if _on_roof(m.pick, roof) else m.ground if m.pick.is_empty() else m.pick.point, TINT)
+		m.pick = pick_building(origin, dir)
+		m.gable = m.pick if m.pick.get("surface") == "gable" else {}
+		m.hand.point(m.ground if m.pick.is_empty() else m.pick.point, TINT)
 		if m.buttons.pressed("tool") and m.ground != null and not busy(m.hand):
 			begin_stroke(m, m.ground, m.on)
 		elif m.buttons.held("tool") and m.stroke != null and m.ground != null:
 			extend_stroke(m, m.ground)
 
 	if m.buttons.pressed("grab") and house == null and not busy(m.hand):
-		var pick := pick_wall(origin, dir, true)
-		var roof := pick_roof(origin, dir, true)
+		var pick := pick_building(origin, dir, true)
+		var roof := pick if pick.get("surface") == "roof" else {}
 		var ground: Variant = Terrain.raycast(origin, dir)
 		var nearest: float = origin.distance_to(ground) if ground != null else INF
-		if _on_roof(pick, roof) and roof.along < nearest:
+		if not roof.is_empty() and roof.along < nearest:
 			if _held(roof.wall):
 				_join(m, roof.wall)
 			else:
@@ -250,11 +247,6 @@ func _preview(m: Mason) -> void:
 		change = world.change_of({"op": "reshape", "of": "walls", "id": resizing.id, "data": reshape_house(_resize_data, resized_to)})
 	if not change.is_empty():
 		world.preview(m.hand, change)
-
-
-## Whether a hand aimed at both a wall and a roof means the roof.
-static func _on_roof(pick: Dictionary, roof: Dictionary) -> bool:
-	return not roof.is_empty() and (pick.is_empty() or pick.distance > 0.2 or roof.along < pick.along)
 
 
 func _let_go(m: Mason) -> void:
@@ -1079,62 +1071,36 @@ func _ridge(w: Wall) -> Vector3:
 	return mid / w.layout.points.size() + Vector3.UP * (w.layout.height + w.roof.pitch)
 
 
-## The wall a ray points at: the nearest along it of those it passes through, else the one it passes closest to.
-## A `held` pick also sees walls a hand is pulling.
-func pick_wall(origin: Vector3, dir: Vector3, held := false) -> Dictionary:
+## All building tools select the first surface, before deciding what that surface allows.
+## A held pick also sees builds another hand is pulling.
+func pick_building(origin: Vector3, dir: Vector3, held := false) -> Dictionary:
 	var best := {}
-	var best_key := Vector2(1.0, WALL_PICK)
 	for w in walls:
 		if _held(w) and not held:
 			continue
-		if w.pick_bounds.grow(WALL_PICK).intersects_ray(origin, dir) == null:
-			continue
-		var hit := w.ray_distance(origin, dir)
-		var key := Vector2(0.0, hit.along) if hit.through else Vector2(1.0, hit.distance)
-		if key < best_key:
-			best_key = key
-			best = {"wall": w, "s": hit.s, "point": hit.point, "along": hit.along, "distance": hit.distance}
-	return best
-
-
-func pick_roof(origin: Vector3, dir: Vector3, held := false) -> Dictionary:
-	var best := {}
-	for w in walls:
-		if w.roof == null or (_held(w) and not held):
-			continue
-		var t := w.roof.ray_hit(origin, dir)
-		if t < best.get("along", INF):
-			best = {"wall": w, "along": t, "point": origin + dir * t}
-	return best
-
-
-## Where a teleport ray from `origin` along `dir` first meets something solid to stand on short of `reach`, the
-## ground aside: a roof of any pitch or its gable end, the top of an unroofed wall, or a tree or bush; null for none.
-func solid_hit(origin: Vector3, dir: Vector3, reach: float) -> Variant:
-	var best := reach
-	for w in walls:
-		if _held(w):
-			continue
+		if w.pick_bounds.grow(WALL_PICK).intersects_ray(origin, dir) != null:
+			var hit := w.ray_hit(origin, dir)
+			if not hit.is_empty() and hit.along < best.get("along", INF):
+				best = hit
+				best.wall = w
+				best.surface = "wall"
 		if w.roof != null:
-			best = minf(best, minf(w.roof.ray_hit(origin, dir), w.roof.gable_hit(origin, dir)))
-		elif w.massing != null and not w.layout.fence:
-			best = minf(best, _top_hit(w, origin, dir))
+			for surface in ["roof", "gable"]:
+				var t := w.roof.ray_hit(origin, dir) if surface == "roof" else w.roof.gable_hit(origin, dir)
+				if t < best.get("along", INF):
+					var point := origin + dir * t
+					best = {"wall": w, "surface": surface, "along": t, "point": point, "s": w.layout.closest_s(point), "distance": 0.0}
+	return best
+
+
+## The first building or plant surface along a teleport ray, short of reach.
+func solid_hit(origin: Vector3, dir: Vector3, reach: float) -> Variant:
+	var hit := pick_building(origin, dir)
+	var best: float = minf(reach, hit.get("along", INF))
 	var plant := flora.solid_hit(origin, dir, best)
 	if not plant.is_empty():
 		best = plant.along
 	return origin + dir * best if best < reach else null
-
-
-## The nearest gable end of a pitched roof along a ray, as {wall, along, point}, or empty.
-func pick_gable(origin: Vector3, dir: Vector3) -> Dictionary:
-	var best := {}
-	for w in walls:
-		if w.roof == null or _held(w):
-			continue
-		var t := w.roof.gable_hit(origin, dir)
-		if t < best.get("along", INF):
-			best = {"wall": w, "along": t, "point": origin + dir * t}
-	return best
 
 
 ## What a point stands on: the ground under it, or a flat roof's deck at or below it.

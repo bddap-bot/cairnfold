@@ -162,7 +162,7 @@ func _orb() -> MeshInstance3D:
 func aim(origin: Vector3, dir: Vector3, taken := {}, gone := {}) -> Dictionary:
 	var ground: Variant = Terrain.raycast(origin, dir, REACH)
 	var reach: float = (ground - origin).dot(dir) if ground != null else REACH
-	var pick := walls.pick_wall(origin, dir)
+	var pick := walls.pick_building(origin, dir)
 	var easel := world.easels.pick(origin, dir) if world.easels != null else {}
 	if not easel.is_empty() and (gone.has(easel.easel.id) or easel.along > reach or (not pick.is_empty() and pick.along <= easel.along)):
 		easel = {}

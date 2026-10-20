@@ -102,9 +102,9 @@ func _process(delta: float) -> void:
 
 ## What a press from `origin` along `dir` would do with `tool`: a dictionary naming `what` and where, or empty.
 func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
-	var pick := walls.pick_wall(origin, dir)
-	var roof := walls.pick_roof(origin, dir)
-	var on_roof: bool = not roof.is_empty() and (pick.is_empty() or pick.distance > 0.2 or roof.along < pick.along)
+	var pick := walls.pick_building(origin, dir)
+	var roof := pick if pick.get("surface") == "roof" else {}
+	var on_roof := not roof.is_empty()
 	if tool == Hand.Tool.WINDOWS:
 		if on_roof or pick.is_empty() or pick.wall.layout.fence:
 			return {}

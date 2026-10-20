@@ -706,3 +706,37 @@ func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 			best_t = t
 			best_p = p
 	return {"distance": best_d, "s": layout.lengths[best_i] if best_d < INF else 0.0, "point": best_p, "along": best_t if best_d < INF else INF, "through": best_key.x == 0.0}
+
+
+## Intersects the continuous wall body between samples, including its foundation and top.
+func ray_hit(origin: Vector3, dir: Vector3) -> Dictionary:
+	var best := {}
+	var n := layout.samples.size()
+	var half := 0.1 if layout.fence else WallLayout.THICKNESS * 0.5
+	for i in n if layout.closed else n - 1:
+		var j := (i + 1) % n
+		var a := layout.samples[i]
+		var b := layout.samples[j]
+		var edge := b - a
+		var length := Vector2(edge.x, edge.z).length()
+		if length < 1e-6:
+			continue
+		var x := Vector3(edge.x, 0, edge.z) / length
+		var z := x.cross(Vector3.UP)
+		var slope := edge.y / length
+		var offset := origin - a
+		var ox := offset.dot(x)
+		var dx := dir.dot(x)
+		var local := Vector3(ox, offset.y - slope * ox, offset.dot(z))
+		var direction := Vector3(dx, dir.y - slope * dx, dir.dot(z))
+		var under := maxf(layout.depths[i], layout.depths[j]) if layout.depths.size() == n else 0.0
+		var height := layout.height + WallLayout.CAP
+		var box := AABB(Vector3(0, -under, -half), Vector3(length, height + under, half * 2.0))
+		var hit: Variant = local if box.has_point(local) else box.intersects_ray(local, direction)
+		if hit == null:
+			continue
+		var t: float = (hit - local).dot(direction) / direction.length_squared()
+		if t < best.get("along", INF):
+			var end := layout.lengths[j] if j > 0 else layout.length()
+			best = {"along": t, "point": origin + dir * t, "s": lerpf(layout.lengths[i], end, clampf(hit.x / length, 0.0, 1.0)), "distance": 0.0}
+	return best

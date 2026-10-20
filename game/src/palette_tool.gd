@@ -85,21 +85,20 @@ func _process(_delta: float) -> void:
 ## What the colour tool's trigger would recolour from `origin` along `dir`: `element`, `point` and the build's garden
 ## table `of` and `id` ("" and -1 on the meadow), or empty.
 func aim(origin: Vector3, dir: Vector3) -> Dictionary:
-	var pick := walls.pick_wall(origin, dir)
-	var roof := walls.pick_roof(origin, dir)
-	var along: float = roof.get("along", INF)
-	var gable := walls.pick_gable(origin, dir)
+	var pick := walls.pick_building(origin, dir)
+	var roof := pick if pick.get("surface") == "roof" else {}
+	var gable := pick if pick.get("surface") == "gable" else {}
 	var ground: Variant = Terrain.raycast(origin, dir)
-	var stair := world.stairs.pick(origin, dir, minf(minf(along, gable.get("along", INF)), minf(pick.get("along", INF), origin.distance_to(ground) if ground != null else INF)))
+	var stair := world.stairs.pick(origin, dir, minf(pick.get("along", INF), origin.distance_to(ground) if ground != null else INF))
 	if not stair.is_empty():
 		return colour_target(Palette.KINDS[stair.kind], stair.point, "stairs", stair.stair)
-	if gable.get("along", INF) < along and WallTool._on_roof(pick, gable):
+	if not gable.is_empty():
 		if _on_timber(gable.wall.layout, gable.point):
 			return colour_target(Palette.Element.TIMBER, gable.point, "walls", gable.wall.id)
 		var end: WallLayout = gable.wall.layout
 		var wood := end.gable_end == WallLayout.GableEnd.BOARDS
 		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if end.plaster else Palette.Element.STONE, gable.point, "walls", gable.wall.id)
-	if along < INF and (pick.is_empty() or pick.distance > 0.2 or along < pick.along):
+	if not roof.is_empty():
 		return colour_target(Palette.Element.THATCH if roof.wall.roof.thatched() else Palette.Element.ROOF, roof.point, "walls", roof.wall.id)
 	if not pick.is_empty():
 		var layout: WallLayout = pick.wall.layout
@@ -120,11 +119,11 @@ func colour_target(element: Palette.Element, point: Vector3, of := "", id := -1)
 ## element, or empty: the tree, stairs, gable end, roof or wall it meets first, a
 ## roofless wall's top near it; fences, ladders and bushes have no style.
 func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
-	var pick := walls.pick_wall(origin, dir)
-	var roof := walls.pick_roof(origin, dir)
-	var gable := walls.pick_gable(origin, dir)
+	var pick := walls.pick_building(origin, dir)
+	var roof := pick if pick.get("surface") == "roof" else {}
+	var gable := pick if pick.get("surface") == "gable" else {}
 	var solid := walls.flora.solid_hit(origin, dir, DeleteTool.REACH)
-	var nearest := minf(minf(gable.get("along", INF), roof.get("along", INF)), pick.get("along", INF))
+	var nearest: float = pick.get("along", INF)
 	var stair := world.stairs.pick(origin, dir, minf(nearest, solid.get("along", INF)))
 	if not stair.is_empty():
 		if world.stairs.layouts[stair.stair].kind == StairLayout.Kind.LADDER:
@@ -132,9 +131,9 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.RAIL, "count": styles(Restyle.RAIL), "point": stair.point, "of": "stairs", "id": stair.stair, "wall": null}
 	if solid.get("along", INF) < nearest and solid.plants[0].pool == walls.flora.trunks:
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.TREE, "count": FloraLayout.Species.size(), "point": solid.point, "of": "", "id": -1, "wall": null, "tree": solid.plants[0]}
-	if gable.get("along", INF) < roof.get("along", INF) and WallTool._on_roof(pick, gable):
+	if not gable.is_empty():
 		return style_target(Restyle.GABLE, gable.wall, gable.point)
-	if WallTool._on_roof(pick, roof) and not WallTool.house_of(world.state.walls.get(roof.wall.id, {})).is_empty():
+	if not roof.is_empty() and not WallTool.house_of(world.state.walls.get(roof.wall.id, {})).is_empty():
 		return style_target(Restyle.ROOF, roof.wall, roof.point)
 	if not pick.is_empty() and not pick.wall.layout.fence:
 		var layout: WallLayout = pick.wall.layout

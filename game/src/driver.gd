@@ -398,7 +398,7 @@ func _arrive(s: Dictionary) -> void:
 ## The wall a step names: by `index` in build order, or the one under the ground point `at` [x, z].
 func _wall_of(s: Dictionary) -> Wall:
 	if s.has("at"):
-		return main.tool.pick_wall(_spot(s, s.at[0], s.at[1]) + Vector3.UP * 2.0, Vector3.DOWN).wall
+		return main.tool.pick_building(_spot(s, s.at[0], s.at[1]) + Vector3.UP * 2.0, Vector3.DOWN).wall
 	return main.tool.walls[s.index]
 
 

@@ -85,6 +85,7 @@ var thatch := false
 var tiles: Array[Dictionary] = []
 ## A thatched roof's coat, as Mesh arrays, and the slabs standing in for it in shadows and bounce light.
 var coat: Array = []
+var _coat_pick: TriangleMesh
 var slabs: Array[Dictionary] = []
 ## Plain mortar boxes bedding a deck's flags, so its joints show mortar rather than the floor below.
 var mortar: Array[Dictionary] = []
@@ -124,6 +125,7 @@ func adopt(built: RoofLayout) -> void:
 	corners = built.corners
 	tiles = built.tiles
 	coat = built.coat
+	_coat_pick = built._coat_pick
 	slabs = built.slabs
 	mortar = built.mortar
 	cloths = built.cloths
@@ -228,6 +230,7 @@ func build() -> void:
 		bounds = bounds.expand(p)
 	tiles.clear()
 	coat = []
+	_coat_pick = null
 	slabs.clear()
 	mortar.clear()
 	cloths.clear()
@@ -484,6 +487,7 @@ func _lay_thatch(rng: RandomNumberGenerator) -> void:
 	else:
 		_coat_cone(c)
 	coat = c.arrays()
+	_pick_coat()
 
 
 ## A gable's coat: each slope a grid from the ridge to past the eave and past both verges, its edges rounded under, then
@@ -752,6 +756,7 @@ func keep_coat(kept: Callable) -> void:
 			out[Mesh.ARRAY_COLOR].append(coat[Mesh.ARRAY_COLOR][i + k])
 			out[Mesh.ARRAY_TANGENT].append_array(coat[Mesh.ARRAY_TANGENT].slice((i + k) * 4, (i + k) * 4 + 4))
 	coat = out
+	_pick_coat()
 
 
 func _clay(hue: float, rng: RandomNumberGenerator) -> Color:
@@ -869,6 +874,9 @@ func torching() -> PackedVector3Array:
 
 ## Nearest distance along a ray to the roof, or INF.
 func ray_hit(origin: Vector3, dir: Vector3) -> float:
+	if thatched():
+		var hit := _coat_pick.intersect_ray(origin, dir) if _coat_pick != null else {}
+		return origin.distance_to(hit.position) if not hit.is_empty() else INF
 	return _nearest(origin, dir, faces)
 
 
@@ -886,3 +894,15 @@ func _nearest(origin: Vector3, dir: Vector3, tris: PackedVector3Array) -> float:
 		if hit != null:
 			best = minf(best, origin.distance_to(hit))
 	return best
+
+
+## The coat extends beyond the tiled bed, so its rendered triangles also own its pick surface.
+func _pick_coat() -> void:
+	_coat_pick = null
+	var vertices: PackedVector3Array = coat[Mesh.ARRAY_VERTEX]
+	if vertices.is_empty():
+		return
+	_coat_pick = TriangleMesh.new()
+	_coat_pick.create_from_faces(vertices)
+	for vertex in vertices:
+		bounds = bounds.expand(vertex)
