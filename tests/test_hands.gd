@@ -49,7 +49,7 @@ func _run() -> void:
 	_check(not bar.visible, "an empty hand shows no budget bar")
 	var on_top := hand._models[Hand.Tool.NONE]
 	_check(on_top.get_child_count() == 0, "nothing stands on an empty hand's controller")
-	await _play([{"op": "pick", "hand": "right", "tool": "path"}])
+	await _play([{"op": "pick", "hand": "right", "tool": "dirt_path"}])
 	await _frames(3)
 	_check(hand._beam.visible, "picking a tool brings its ray back")
 	_check(bar.visible, "picking a tool brings its budget bar back")
