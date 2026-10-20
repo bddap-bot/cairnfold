@@ -33,6 +33,7 @@ func _run() -> void:
 	_no_implement_crosses_the_easel()
 	_easels_share_their_geometry()
 	await _the_palette_stays_in_the_hand_by_its_thumb_hole()
+	await _every_way_out_lets_the_palette_go()
 	await _every_held_change_logs_a_line()
 	await _a_tip_in_each_well_loads_its_colour()
 	await _oil_mixes_by_painting_onto_the_board_and_picking_up_from_it()
@@ -332,6 +333,25 @@ func _the_palette_stays_in_the_hand_by_its_thumb_hole() -> void:
 	_check(right.kit == Brushwork.Medium.OIL and right.palette == e, "while the other hand takes the oil palette")
 	await _play([{"op": "set_down", "hand": "left"}, {"op": "set_down", "hand": "right"}])
 	await _play([{"op": "rests"}])
+
+
+## Besides a grip anywhere, picking another tool from the wheel sends a held palette home and leaves that tool in the
+## hand, and an easel taken away while its palette is held leaves the hand holding nothing of it.
+func _every_way_out_lets_the_palette_go() -> void:
+	var e: Easels.Easel = main.easels.easels.values()[-1]
+	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.left)
+	var node: Node3D = e.palettes[Brushwork.Medium.OIL]
+	await _play([{"op": "take", "what": "palette", "hand": "left"}, {"op": "pick", "hand": "left", "tool": "seeds"}, {"op": "rests"}])
+	_check(p.palette == null and main.rig.left.tool == Hand.Tool.SEEDS and not node.top_level and node.transform.is_equal_approx(Transform3D(Basis(), Easels.KITS[Brushwork.Medium.OIL])), "picking seeds from the wheel sends the palette home and holds seeds")
+	await _play([{"op": "pick", "hand": "left", "tool": "easel"}, {"op": "take", "what": "palette", "hand": "left"}])
+	var id := e.id
+	var from: Vector3 = main.rig.head.global_position
+	main.delete_tool.press(main.rig.right, from, e.canvas_frame().origin - from)
+	main.delete_tool.let_go(main.rig.right)
+	await _frames(int(EaselTool.RETURN * 60.0) + 2)
+	_check(main.easels.find(id) == null and p.palette == null and main.easel_tool.returning.is_empty() and EaselTool.holding(p) != "oil palette", "an easel taken away while its palette is held leaves the hand holding none")
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(main.easels.find(id) != null, "and undo stands it back up")
 
 
 class Lines:
