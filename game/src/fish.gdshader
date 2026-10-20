@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode blend_mix, depth_draw_never, diffuse_lambert_wrap, specular_disabled, shadows_disabled, cull_disabled;
+render_mode blend_mix, depth_draw_never, diffuse_lambert_wrap, specular_disabled, shadows_disabled;
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/water.gdshaderinc"

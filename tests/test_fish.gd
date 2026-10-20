@@ -11,6 +11,7 @@ func _initialize() -> void:
 	Terrain.install()
 	await process_frame
 	_no_tool_places_fish()
+	_faces_out()
 	await _they_swim_in_the_ponds()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
@@ -27,6 +28,39 @@ func _no_tool_places_fish() -> void:
 		if f.ends_with("_tool.gd") or f in ["hand.gd", "driver.gd", "buttons.gd"]:
 			_check(not FileAccess.get_file_as_string("res://src/" + f).contains("Fish"), "%s reaches no fish" % f)
 	_check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Fish.new(") == 1, "Wildlife alone makes fish")
+
+
+## The fish draws see-through, so a face turned from the eye would show its inside over its outside: it draws only
+## faces turned to the eye, its body is closed with every face turned out, and each fin is a face either way up.
+func _faces_out() -> void:
+	_check(not (load("res://src/fish.gdshader") as Shader).code.contains("cull_"), "a fish draws only the faces turned to the eye")
+	var arrays := Fish.body().surface_get_arrays(0)
+	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
+	var uv: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
+	var key := func(p: Vector3) -> String: return str(Vector3i((p * 1e5).round()))
+	var edges := {}
+	var fins := {}
+	for t in range(0, v.size(), 3):
+		var front := (v[t + 2] - v[t]).cross(v[t + 1] - v[t])
+		if front.length() < 1e-9:
+			continue
+		_check(front.dot(n[t] + n[t + 1] + n[t + 2]) > 0.0, "triangle %d faces the way its normals do" % (t / 3))
+		if uv[t].x == 1.0:
+			var corners := [key.call(v[t]), key.call(v[t + 1]), key.call(v[t + 2])]
+			corners.sort()
+			fins.get_or_add(str(corners), []).append(signf(front.y))
+			continue
+		_check(front.dot((v[t] + v[t + 1] + v[t + 2]) / 3.0) > 0.0, "body triangle %d faces out" % (t / 3))
+		for k in 3:
+			var edge := "%s>%s" % [key.call(v[t + k]), key.call(v[t + (k + 1) % 3])]
+			edges[edge] = edges.get(edge, 0) + 1
+	for edge: String in edges:
+		var back := "%s>%s" % [edge.get_slice(">", 1), edge.get_slice(">", 0)]
+		_check(edges[edge] == 1 and edges.get(back, 0) == 1, "the body is closed, edge %s met once each way" % edge)
+	_check(fins.size() == 6, "six fin faces, found %d" % fins.size())
+	for f: String in fins:
+		_check(fins[f].size() == 2 and 1.0 in fins[f] and -1.0 in fins[f], "fin %s is a face either way up" % f)
 
 
 ## Presses a hollow at x, z as a grip does, then fills it to its brim with the pond tool.

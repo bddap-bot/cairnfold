@@ -101,42 +101,45 @@ func _init(home: Wildlife, seed: int) -> void:
 	add_child(mmi)
 
 
-## A fish LENGTH long along +z, nose at -z: a round body tapering to the tail, a tail fanned flat like a koi's
+## A fish LENGTH long along +z, nose at -z: a closed round body tapering to the tail, a tail fanned flat like a koi's
 ## and two side fins, so it reads from above. UV.y runs 0 at the nose to past 1 at the tail's tips, for the
-## shader's tail beat; UV.x is 1 on the fins.
+## shader's tail beat; UV.x is 1 on the fins. Drawn see-through, it shows only faces turned to the eye, so every
+## face of the body turns out and each fin is two faces, one either way up.
 static func body() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var rings := [Vector3(0.0, 0.0, -0.5), Vector3(0.5, 0.55, -0.36), Vector3(0.7, 0.85, -0.12), Vector3(0.62, 0.72, 0.12), Vector3(0.32, 0.36, 0.32), Vector3(0.1, 0.1, 0.42)]
 	var sides := 8
 	var r := LENGTH * 0.2
-	for i in rings.size() - 1:
-		for s in sides:
-			var quad := []
-			for k: Vector2i in [Vector2i(i, s), Vector2i(i + 1, s), Vector2i(i + 1, s + 1), Vector2i(i, s + 1)]:
-				var ring: Vector3 = rings[k.x]
-				var a := TAU * k.y / sides
-				var n := Vector3(cos(a) * ring.y, sin(a) * ring.x, 0.0).normalized()
-				quad.append([Vector3(cos(a) * ring.y * r, sin(a) * ring.x * r, ring.z * LENGTH), n, ring.z + 0.5])
+	var at := func(i: int, s: int) -> Array:
+		var ring: Vector3 = rings[i]
+		var a := TAU * s / sides
+		return [Vector3(cos(a) * ring.y * r, sin(a) * ring.x * r, ring.z * LENGTH), Vector3(cos(a) * ring.y, sin(a) * ring.x, 0.0).normalized(), ring.z + 0.5]
+	var tail: Vector3 = rings[-1]
+	var end := [Vector3(0.0, 0.0, tail.z * LENGTH), Vector3.BACK, tail.z + 0.5]
+	for s in sides:
+		for i in rings.size() - 1:
+			var quad := [at.call(i, s), at.call(i + 1, s), at.call(i + 1, s + 1), at.call(i, s + 1)]
 			for t in [0, 1, 2, 0, 2, 3]:
 				st.set_normal(quad[t][1])
 				st.set_uv(Vector2(0.0, quad[t][2]))
 				st.add_vertex(quad[t][0])
-	var root := Vector3(0, 0, 0.4 * LENGTH)
+		for v: Array in [at.call(rings.size() - 1, s), end, at.call(rings.size() - 1, s + 1)]:
+			st.set_normal(Vector3.BACK)
+			st.set_uv(Vector2(0.0, v[2]))
+			st.add_vertex(v[0])
+	var fins := []
 	for side in [-1.0, 1.0]:
-		for v: Vector3 in [root, Vector3(side * 0.03, 0.0, 0.5) * LENGTH, Vector3(side * 0.16, 0.0, 0.66) * LENGTH]:
-			st.set_normal(Vector3.UP)
-			st.set_uv(Vector2(1.0, v.z / LENGTH + 0.5))
-			st.add_vertex(v)
-		for v: Vector3 in [Vector3(side * 0.03, 0.0, 0.5) * LENGTH, Vector3(0, 0, 0.56) * LENGTH, Vector3(side * 0.16, 0.0, 0.66) * LENGTH]:
-			st.set_normal(Vector3.UP)
-			st.set_uv(Vector2(1.0, v.z / LENGTH + 0.5))
-			st.add_vertex(v)
-	for side in [-1.0, 1.0]:
-		for v: Vector3 in [Vector3(side * 0.08, -0.02, -0.22), Vector3(side * 0.2, -0.03, -0.12), Vector3(side * 0.08, -0.02, -0.08)]:
-			st.set_normal(Vector3.UP)
-			st.set_uv(Vector2(1.0, v.z + 0.5))
-			st.add_vertex(v * LENGTH)
+		fins.append([Vector3(0, 0, 0.4), Vector3(side * 0.03, 0.0, 0.5), Vector3(side * 0.16, 0.0, 0.66)])
+		fins.append([Vector3(side * 0.03, 0.0, 0.5), Vector3(0, 0, 0.56), Vector3(side * 0.16, 0.0, 0.66)])
+		fins.append([Vector3(side * 0.08, -0.02, -0.22), Vector3(side * 0.2, -0.03, -0.12), Vector3(side * 0.08, -0.02, -0.08)])
+	for fin: Array in fins:
+		var up: bool = (fin[2] - fin[0]).cross(fin[1] - fin[0]).y > 0.0
+		for n in [Vector3.UP, Vector3.DOWN]:
+			for k in ([0, 1, 2] if up == (n == Vector3.UP) else [0, 2, 1]):
+				st.set_normal(n)
+				st.set_uv(Vector2(1.0, fin[k].z + 0.5))
+				st.add_vertex(fin[k] * LENGTH)
 	return st.commit()
 
 
