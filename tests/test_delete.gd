@@ -133,8 +133,6 @@ func _one_stroke() -> void:
 		{"op": "tree", "x": 6, "z": -22},
 		{"op": "pave", "points": [[9, -24], [9, -20]], "radius": 0.8, "seconds": 0.4},
 	])
-	while main.tool.paths.laying():
-		await process_frame
 	var trees := flora.placed("tree")
 	var wall: Wall = main.tool.walls[-1]
 	var grass := Terrain.ground(12, -22)

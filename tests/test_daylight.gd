@@ -208,7 +208,7 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	_check(tinted and painted.paint == paint, "a wall packed in its paint scales its wood onto the swatch and leaves the rest")
 	var door: Dictionary = wall.stones.filter(func(s): return s.kind == "door")[0]
 	_check(Stones.custom(door) == Color(door.ao, Palette.Element.WOOD, 0, 0), "a laid door carries its occlusion and wood's code to its shader")
-	_check(Stones.custom({"ao": 0.85}) == Color(0.85, 0, 0, 0), "paving, with no kind, keeps its colour")
+	_check(Stones.custom({"ao": 0.85}) == Color(0.85, 0, 0, 0), "a stone with no kind, keeps its colour")
 
 
 func _shaders_read_the_codes_and_globals_palette_writes() -> void:

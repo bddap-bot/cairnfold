@@ -220,7 +220,7 @@ late frames (over 1.5× the refresh period) and GPU time per frame (fdinfo):
 | Phase | Stepping down to 0.9 | Held at 0.9 |
 | --- | --- | --- |
 | Houses | 34, 2, 34; 9.65 ms | 0, 0, 0; 9.6 to 9.7 ms |
-| Paths | 66, 0, 0 | 0, 0, 0 |
+| Paths | Dirt strokes and wall crossings | Dirt strokes wear soft-edged earth into the ground mask and open arches or gates through walls and fences | 5 (done) |
 | Erase | 0, 0, 0 | 0, 0, 0 |
 An earlier pair of runs with the line at 0.82 gave 1 and 75 late frames; they were not split
 by cause.
@@ -362,10 +362,6 @@ What makes building cheap:
   long stroke costs the main thread nothing while it grows.
 - A vine lays one three-leaf sprig a step rather than three leaves; sprigs shrink
   away over the last 15 m of ivy's reach.
-- A path's stone chunks are bounded by their own stones, so they cull. A chunk wholly past the near distance draws
-  `Stones.far_mesh` too, counting half its lifted bounds' height as reach; whole stones still cast its shadows. From
-  the air the five-path phase of `demo/costs.json` went from 14.35 to 11.15 ms on the Quest 3 with no late frame.
-- A laid path's stones are packed on a worker thread; the main thread only plans its rows (wear and arches need nothing more) and lays the finished chunks. Packing a 48 m path 6 m wide took about 35 ms on the desktop.
 - Ground moving under walls changes neither their data nor where paths cross them,
   so a stroke only lays their stones again on a worker thread, and a wall settles
   from the preview laid on the ground as it settled. A replaced layout's stones are
@@ -1517,8 +1513,8 @@ Stage numbers refer to the build order at the end.
 | Wall tops | Merlons on flat tops, can be turned off; wooden railings on half-timber | Per wall: capping slabs with merlons, plain capping, or dry-stone coping (stones on edge, tall and short in turn); the style tool on a roofless wall's top picks one | 1 (done), 4 (done) |
 | Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | A wall drawn over a tree or bush arches over it, shown live while drawing; one of 5 m or more over open ground opens an arch at the middle; the arch tool (its icon a wall with an archway through it) cuts an archway where it points on a wall, in the wall's own style (`WallLayout.ARCH_STYLES`: a round stone ring under a keystone, or on a timber-framed house a four-centred oak head on oak posts, framed by a stud either side and a rail above; the wall's level courses are cut to the arch's one outline, so they meet it with no gap), and on an arch of the wall's own (not a path's) fills it again, one undo step either way. Wall chemistry, in either order (a path laid through a wall, or a wall drawn across a path): one arch where they cross, or, where the crossing runs 2.8 m or more along the wall (a wide path, or one meeting it at a slant), an arcade of arches 2.3 m apart on stone pillars. A crossing beside an arch already there joins it as an arcade, so no opening closes; undoing the path closes the arches it opened | 1 (done), 5 (done) |
 | Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends and at the corners of a house | 1 (done), 4 (done) |
-| Paths | Brush-painted sand, stones, cobbles; stones arrange along the path; stairs on rock | The path tool's trigger, swept over the ground: flat stones laid in rows along the smoothed stroke, as wide as the brush ring (`PathLayout`), one to a cell of each row and clear of every stone already laid, so stones never overlap on curves, at junctions or where paths cross: a later path paves around earlier ones; like the plants they ride the ground, so reshaping it carries them along. The stroke wears trodden earth into the ground mask (see "Ground materials") that the terrain shader shows and the grass and flower shaders read to part around the stones | 5 (done) |
-| Stone ground | Steep terrain turns rocky; paths of dirt and, later, cobblestone blended with them | The stone tool paints stone ground where it points, in the style the style tool last set (fieldstone, cobblestone, flagstone, river cobble, mossy, ashlar), fraying into the meadow stone by stone; a stroke begun on stone paints meadow back (see "Ground materials") | 7 (done) |
+| Paths | Dirt strokes and wall crossings | Dirt strokes wear soft-edged earth into the ground mask and open arches or gates through walls and fences | 5 (done) |
+| Stone ground | Steep terrain turns rocky; dirt paths blend with the ground | The stone tool paints stone ground where it points, in the style the style tool last set (fieldstone, cobblestone, flagstone, river cobble, mossy, ashlar), fraying into the meadow stone by stone; a stroke begun on stone paints meadow back (see "Ground materials") | 7 (done) |
 | Towers | A loop held down straightens into a circle | A wall drawn into a loop, round or any shape, stays a freestanding wall, roofless. A round tower is its own tool beside the house, a little tower under a cone in the ring, carried and set down as a house is: 4.5 m tall under a cone roof, 3.4 m across, spread every way at once by two hands while carried or once built (from 2.4 m across, no widest). No door until one is made, as for a house. `demo/tower.json` builds a stone tower, a plaster one and a house | 4 (done) |
 | Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Circle footprints are the round towers above. Its own tool, a little house in the ring. Its trigger takes up a square house where the hand points and carries it, turning with the hand; the other hand's grip joins to hold it by both hands, which move it by their midpoint, turn it as the pair turns and stretch the side nearest the line between them as they spread (each side from 2.4 m, with no longest or deepest). Raising the hand as it carries raises it onto a plinth. Letting go builds it. Built, it is resized where it stands: a grip on its wall pulls its height, and the other hand's grip on it too stretches its width or depth, and both hands raised together raise it (see "Resizing a house" and "Raising a house"). Stone walls with corner piers and no door, level on its lowest ground; a door comes from the windows tool low on a wall, an arch from the arch tool or from a path running in | 4 (done) |
 | Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings") | 4 (done) |
@@ -1805,7 +1801,7 @@ Each hand holds one tool, any tool in either hand, so the two can be dual-wielde
 windows, decorations, paths, stone, flowers, grass, trees, bushes, ponds, colour, style, camera, selfie camera, seeds, easel, delete and visit. The tool a hand
 holds stands on top of its controller as a small object, built from the same generators as the full-size
 thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
-flag with lanterns on it, a bend of paving, a disc of stone ground
+flag with lanterns on it, a bend of dirt, a disc of stone ground
 fraying into meadow, three flowers, a grass tuft, a tree, three bushes, a pond in a
 sandy dish, a painter's palette with dabs of colour, a small camera (for the selfie camera, its lens beside the screen on the back), a clay dish heaped with bird seed, a paintbrush reaching past the controller for the easel, a spade for delete, and a little avatar
 figure for visit. A new tool
@@ -2361,8 +2357,7 @@ is bare (earth or stone), and the brushes plant nothing there.
 What Tiny Glade does, from public material only: grass and rocky terrain are separate surface kinds
 (beta 1.16.0 notes fix "terrain cracks and 'astroturf' popping on top of grass and rocky terrain"); rock
 there comes from steepness, set with the terrain tool's slope control, rather than a rock brush; the
-path tool lays brown dirt over the green, and a July 2025 update added cobblestone in three options that
-"combine and blend with paths". Its palette is warm and pastel. How its painted edges blend is not
+path tool lays brown dirt over the green. Its palette is warm and pastel. How its painted edges blend is not
 described publicly; ours fray slab by slab while the grass thins, which reads as a soft edge in desktop
 renders.
 
@@ -2969,7 +2964,6 @@ The "how the original does it" column summarises public material only:
 - Patch notes on grass and rocky terrain, and paths past the glade edge: https://steamcommunity.com/app/2198150/allnews/
 - Players on the terrain tool's slope control and rocky cliffs: https://steamcommunity.com/app/2198150/discussions/0/4842023530179623756/
 - Paths as dirt over grass, with a developer reply: https://steamcommunity.com/app/2198150/discussions/0/597406800761043765/
-- Cobblestone paths blended with dirt: https://80.lv/articles/you-can-finally-make-stairs-easily-in-tiny-glade
 
 Thatch (public material on English thatching: its materials, eaves, verges and block-cut ridges):
 
@@ -3018,14 +3012,10 @@ benchmark output remains available separately.
 
 ## Dirt paths
 
-Directive (verbatim): "Can you give me a path that is not cobblestone"
-
-Dirt path is its own tool choice beside cobblestone. The same trigger stroke wears
-soft-edged earth into the ground mask, with no placed stones. Both path styles open
-arches beneath walls and can be selected with Delete; undo restores the path and
-its crossings. A saved path carries its style.
-`demo/dirt-path.json` shows the two surfaces side by side; the stress scene includes
-both. Dirt reuses the ground material and adds no path draw calls.
+The dirt path tool wears soft-edged earth into the ground mask. Paths open arches
+beneath walls and can be selected with Delete; undo restores the path and its
+crossings. `demo/dirt-path.json` shows the surface. Dirt reuses the ground material
+and adds no path draw calls.
 
 ## Stairs
 

@@ -467,7 +467,7 @@ func _paint(s: Dictionary) -> void:
 func _pave(s: Dictionary) -> void:
 	var flora_tool: FloraTool = main.flora_tool
 	var b := flora_tool.brush(main.rig.left if s.get("hand", "left") == "left" else main.rig.right)
-	b.hand.tool = Hand.Tool.DIRT_PATH if s.get("style", "cobble") == "dirt" else Hand.Tool.PATH
+	b.hand.tool = Hand.Tool.DIRT_PATH
 	var path := _path(s)
 	var mid := path[0].lerp(path[-1], 0.5)
 	for i in path.size():

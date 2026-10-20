@@ -194,7 +194,7 @@ func _a_path_over_flowers_takes_them_away() -> void:
 	_paint(g, Vector3(-3, 0, -5), 4.0)
 	_arrived(g)
 	var b := g.tool.brushes[0]
-	b.hand.tool = Hand.Tool.PATH
+	b.hand.tool = Hand.Tool.DIRT_PATH
 	g.tool.begin_path(b, Terrain.ground(-6, -5), 2.5)
 	for x in range(-6, 1):
 		g.tool.extend_path(Terrain.ground(x, -5), 2.5)

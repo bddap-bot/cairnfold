@@ -119,7 +119,7 @@
   {"op": "label", "name": "-"},
   {"op": "capture", "name": "meadow-edge"},
   {"op": "pave", "points": [[-3, 8], [-3, 0], [-4, -8]], "radius": 1.0, "seconds": 2},
-  {"op": "pave", "style": "dirt", "points": [[2, 8], [2, 0], [1, -8]], "radius": 1.0, "seconds": 2},
+  {"op": "pave", "points": [[2, 8], [2, 0], [1, -8]], "radius": 1.0, "seconds": 2},
   {"op": "label", "name": "paths/ground"},
   {"op": "wait", "seconds": 6},
   {"op": "label", "name": "-"},

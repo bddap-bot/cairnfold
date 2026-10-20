@@ -53,10 +53,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_decor(root)
 		Hand.Tool.STAIRS:
 			_stairs(root, "wood")
-		Hand.Tool.PATH:
-			_path(root)
 		Hand.Tool.DIRT_PATH:
-			_path(root, true)
+			_path(root)
 		Hand.Tool.FLOWERS:
 			_flowers(root)
 		Hand.Tool.GRASS:
@@ -763,17 +761,13 @@ static func _flat(_x: float, _z: float) -> float:
 	return 0.0
 
 
-## A short bend of paving.
-static func _path(root: Node3D, dirt := false) -> void:
+## A short dirt stroke.
+static func _path(root: Node3D) -> void:
 	var layout := PathLayout.new()
 	layout.seed = 3
-	layout.style = "dirt" if dirt else "cobble"
 	for p in [Vector3(-0.3, 0, -1.6), Vector3(0.25, 0, -0.5), Vector3(-0.2, 0, 0.6), Vector3(0.3, 0, 1.6)]:
 		layout.add(p, 0.62)
-	layout.build()
-	if not dirt:
-		_stones(root, layout.stones, 0.024)
-		return
+	layout.plan()
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in layout.samples.size() - 1:

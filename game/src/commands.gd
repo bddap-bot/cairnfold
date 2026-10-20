@@ -394,7 +394,7 @@ static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 
 
 static func _path(d: Variant) -> Variant:
-	if not d is Dictionary or typeof(d.get("seed")) != TYPE_INT:
+	if not d is Dictionary or d.size() != 3 or typeof(d.get("seed")) != TYPE_INT:
 		return null
 	var points: Variant = d.get("points")
 	var halves: Variant = d.get("half_widths")
@@ -402,10 +402,7 @@ static func _path(d: Variant) -> Variant:
 		return null
 	if typeof(halves) != TYPE_PACKED_FLOAT32_ARRAY or halves.size() != points.size() or not Array(halves).all(func(h: float) -> bool: return h >= PathLayout.HALF_WIDTH.x - 0.001 and h <= PathLayout.HALF_WIDTH.y + 0.001):
 		return null
-	var style: Variant = d.get("style")
-	if not style in ["cobble", "dirt"]:
-		return null
-	return {"points": points, "half_widths": halves, "seed": d.seed, "style": style}
+	return {"points": points, "half_widths": halves, "seed": d.seed}
 
 
 static func _ground(cmd: Dictionary, out: Dictionary) -> bool:

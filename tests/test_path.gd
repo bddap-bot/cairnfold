@@ -11,11 +11,6 @@ func _initialize() -> void:
 
 func _run() -> void:
 	Ground.install()
-	_stones_pave_the_stroke()
-	_stones_sit_on_the_ground()
-	_paths_are_deterministic()
-	_a_growing_stroke_ends_as_one_build()
-	await _stones_never_overlap()
 	_a_path_across_a_wall_opens_one_arch()
 	_a_wide_or_slanted_crossing_opens_an_arcade()
 	_a_path_beside_a_wall_opens_nothing()
@@ -28,14 +23,11 @@ func _run() -> void:
 	_a_second_path_beside_an_arch_makes_an_arcade()
 	_a_crossing_that_cannot_open_leaves_no_arch()
 	_a_tower_opens_a_doorway_across_its_seam()
-	_a_long_stroke_freezes_into_chunks()
-	_far_paving_draws_far_stones_and_the_whole_stones_shade()
 	_painting_skips_a_path()
 	_a_scripted_stroke_outlasts_the_hand()
 	_undo_lifts_a_path_and_its_arches()
 	await _a_path_opens_its_arch_before_release()
 	await _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame()
-	_undo_lifts_a_path_and_its_arches(Hand.Tool.DIRT_PATH)
 	await _dirt_wears_without_stones()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
@@ -55,7 +47,7 @@ func _path(points: Array, half: float) -> PathLayout:
 	var p := PathLayout.new()
 	for q in points:
 		p.add(Vector3(q[0], 0, q[1]), half)
-	p.build()
+	p.plan()
 	return p
 
 
@@ -66,134 +58,6 @@ func _wall(points: Array, height := 2.6) -> WallLayout:
 	w.height = height
 	w.build(_flat)
 	return w
-
-
-func _stones_pave_the_stroke() -> void:
-	var p := _path([[0, 0], [3, 1], [6, 0], [9, -2]], 0.8)
-	_check(p.stones.size() > 40, "a 9 m path lays %d stones" % p.stones.size())
-	var s := 0.3
-	while s < p.length() - 0.3:
-		var i := clampi(p.lengths.bsearch(s), 0, p.samples.size() - 1)
-		var near := p.stones.any(func(st): return Vector2(st.xform.origin.x - p.samples[i].x, st.xform.origin.z - p.samples[i].z).length() < 0.6)
-		if not near:
-			_check(false, "no stone within 0.6 m of the spine at %.1f m" % s)
-			return
-		s += 0.5
-	for st in p.stones:
-		var o: Vector3 = st.xform.origin
-		var d := INF
-		for q in p.samples:
-			d = minf(d, Vector2(o.x - q.x, o.z - q.z).length())
-		if d > 0.8 + 0.05:
-			_check(false, "a stone %.2f m off the spine is outside a 0.8 m half-width" % d)
-			return
-	var wide := _path([[0, 0], [9, 0]], 2.5)
-	_check(wide.stones.size() > p.stones.size() * 2, "a wider brush lays a wider path (%d vs %d stones)" % [wide.stones.size(), p.stones.size()])
-
-
-func _stones_sit_on_the_ground() -> void:
-	var p := _path([[-6, -3], [0, 0], [6, 4]], 1.2)
-	for st in p.stones:
-		var top: float = st.xform.origin.y + (st.xform.basis.y as Vector3).length() * 0.5
-		if top < 0.0 or top > 0.12:
-			_check(false, "a stone's top stands %.3f m off the ground under it" % top)
-			return
-
-
-func _paths_are_deterministic() -> void:
-	var a := _path([[0, 0], [4, 2], [8, 0]], 1.0)
-	var b := _path([[0, 0], [4, 2], [8, 0]], 1.0)
-	var same := a.stones.size() == b.stones.size()
-	for i in mini(a.stones.size(), b.stones.size()):
-		same = same and a.stones[i].xform.is_equal_approx(b.stones[i].xform)
-	_check(same, "the same stroke lays the same stones")
-
-
-func _a_growing_stroke_ends_as_one_build() -> void:
-	var grown := PathLayout.new()
-	var whole := PathLayout.new()
-	for i in 40:
-		var q := Vector3(i * 0.45, 0, sin(i * 0.3) * 2.0)
-		grown.add(q, 0.6 + i * 0.03)
-		whole.add(q, 0.6 + i * 0.03)
-		grown.build(grown.settled())
-		if i % 3 == 1:
-			grown.points[-1] += Vector3(0.1, 0, 0.1)
-			whole.points[-1] += Vector3(0.1, 0, 0.1)
-			grown.build(grown.settled())
-	whole.build()
-	var same := grown.stones.size() == whole.stones.size()
-	for i in mini(grown.stones.size(), whole.stones.size()):
-		same = same and grown.stones[i].xform.is_equal_approx(whole.stones[i].xform)
-	_check(same, "a stroke relaid row by row as it grows ends with the stones of one build (%d vs %d)" % [grown.stones.size(), whole.stones.size()])
-
-
-## Stones cover the mesh's lumps: a unit box reaching 0.53 of its scale each way.
-func _footprint(st: Dictionary) -> PackedVector2Array:
-	var b: Basis = st.xform.basis
-	var o: Vector3 = st.xform.origin
-	var u := Vector2(b.x.x, b.x.z) * 0.53
-	var v := Vector2(b.z.x, b.z.z) * 0.53
-	var c := Vector2(o.x, o.z)
-	return PackedVector2Array([c - u - v, c + u - v, c + u + v, c - u + v])
-
-
-func _overlaps(stones: Array[Dictionary]) -> int:
-	var feet := stones.map(_footprint)
-	var n := 0
-	for i in feet.size():
-		for j in range(i + 1, feet.size()):
-			if feet[i][0].distance_to(feet[j][0]) < 2.0 and not Geometry2D.intersect_polygons(feet[i], feet[j]).is_empty():
-				n += 1
-	return n
-
-
-func _stones_never_overlap() -> void:
-	var shapes := {
-		"a straight run": [[[0, 0], [12, 0]], 1.5],
-		"a gentle curve": [[[0, 0], [4, 2], [8, 0], [12, -3]], 1.2],
-		"a tight curve": [[[0, 0], [2, 0], [2.5, 1], [2, 2], [0, 2]], 1.8],
-		"a hairpin": [[[0, 0], [5, 0], [5.6, 0.6], [5, 1.2], [0, 1.2]], 0.9],
-		"a zigzag": [[[0, 0], [1.5, 1.5], [3, 0], [4.5, 1.5], [6, 0]], 1.0],
-		"a loop crossing itself": [[[0, 0], [6, 0], [7, 2], [5, 3], [4, 1], [4, -3]], 1.2],
-	}
-	for name in shapes:
-		var p := _path(shapes[name][0], shapes[name][1])
-		var n := _overlaps(p.stones)
-		_check(n == 0, "%s lays %d overlapping pairs of %d stones" % [name, n, p.stones.size()])
-	var paths := Paths.new()
-	root.add_child(paths)
-	var strokes := [
-		[[[-8, 0], [8, 0]], 1.4],
-		[[[0, -8], [0, 8]], 1.0],
-		[[[-6, -6], [6, 6]], 2.0],
-		[[[-8, 0.3], [8, 0.2]], 1.4],
-		[[[-8, 2], [0, 0], [8, 1]], 0.8],
-	]
-	for i in strokes.size():
-		var pts := PackedVector3Array()
-		var halves := PackedFloat32Array()
-		for q in strokes[i][0]:
-			pts.append(Vector3(q[0], 0, q[1]))
-			halves.append(strokes[i][1])
-		paths.put(i + 1, {"points": pts, "half_widths": halves, "seed": i + 7, "style": "cobble"})
-	while paths.laying():
-		await process_frame
-	var all: Array[Dictionary] = []
-	for p in paths.layouts:
-		all.append_array(p.stones)
-	var n := _overlaps(all)
-	_check(n == 0, "crossing and re-drawn paths lay %d overlapping pairs of %d stones" % [n, all.size()])
-	paths.take(2)
-	paths.put(2, {"points": PackedVector3Array([Vector3(0, 0, -8), Vector3(0, 0, 8)]), "half_widths": PackedFloat32Array([1.0, 1.0]), "seed": 8, "style": "cobble"})
-	while paths.laying():
-		await process_frame
-	all.clear()
-	for p in paths.layouts:
-		all.append_array(p.stones)
-	n = _overlaps(all)
-	_check(n == 0, "a path put back under later ones lays %d overlapping pairs" % n)
-	paths.queue_free()
 
 
 func _a_path_across_a_wall_opens_one_arch() -> void:
@@ -314,8 +178,8 @@ func _the_mask_parts_the_path_only() -> void:
 	var p := paths.end()
 	_check(not p.is_empty() and p.layout.length() > 8.0, "a 9 m stroke is a path")
 	Ground.settle()
-	_check(Ground.bare(-5, 20) > 0.99, "the ground under the stones is fully worn (%.2f)" % Ground.bare(-5, 20))
-	_check(Ground.bare(-5, 20.7) > 0.5, "the stones' edge is worn (%.2f)" % Ground.bare(-5, 20.7))
+	_check(Ground.bare(-5, 20) > 0.99, "the stroke centre is fully worn (%.2f)" % Ground.bare(-5, 20))
+	_check(Ground.bare(-5, 20.7) > 0.5, "the stroke edge is worn (%.2f)" % Ground.bare(-5, 20.7))
 	_check(Ground.bare(-5, 21.6) == 0.0, "the meadow a metre past the edge is untouched (%.2f)" % Ground.bare(-5, 21.6))
 	_check(Ground.bare(10, 20) == 0.0, "the meadow past the end is untouched")
 	paths.queue_free()
@@ -436,49 +300,6 @@ func _a_tower_opens_a_doorway_across_its_seam() -> void:
 		_check(not blocks.any(func(s): return Vector2(s.xform.origin.x - 1.3, s.xform.origin.z - 0.15).length() < WallLayout.ARCH_HALF - 0.2), "no block fills the doorway across the seam")
 
 
-func _a_long_stroke_freezes_into_chunks() -> void:
-	var paths := Paths.new()
-	root.add_child(paths)
-	paths.begin(Vector3(-40, 0, -40), 3.0)
-	for i in 120:
-		paths.extend(Vector3(-40 + i * 0.4, 0, -40), 3.0)
-		if i % 5 == 0:
-			paths._relay()
-	var p: PathLayout = paths.end().layout
-	var laid := 0
-	var chunks := 0
-	for c in paths.get_children():
-		if c is Stones:
-			chunks += 1
-			laid += c.count()
-	_check(chunks >= 3, "a 48 m wide stroke settles into %d chunks" % chunks)
-	_check(p != null and laid == p.stones.size(), "the chunks hold every stone once: %d of %d" % [laid, p.stones.size() if p else -1])
-	paths.queue_free()
-
-
-func _far_paving_draws_far_stones_and_the_whole_stones_shade() -> void:
-	var p := _path([[0, 0], [12, 0]], 1.2)
-	p.build()
-	var c := Stones.new(true)
-	root.add_child(c)
-	c.lay(p.stones)
-	var mmis: Array[MultiMeshInstance3D] = []
-	for n in c.get_children():
-		mmis.append(n)
-	var near := mmis.filter(func(m): return m.multimesh.mesh == Stones.mesh() and m.layers == Quality.LADDER_LAYER)
-	var far := mmis.filter(func(m): return m.multimesh.mesh == Stones.far_mesh())
-	var full := mmis.filter(func(m): return m.layers == Quality.FULL_LAYER)
-	_check(near.size() == 1 and far.size() == 1 and full.size() == 1, "paving draws whole stones near, far stones past them, and whole stones for a photo")
-	if far.size() == 1 and near.size() == 1 and full.size() == 1:
-		var split: float = near[0].visibility_range_end
-		_check(split >= Wall.kinds()[Wall.Part.STONE].near and is_equal_approx(far[0].visibility_range_begin, split), "far paving begins where the whole stones end, past the near distance: %.1f" % split)
-		_check(far[0].multimesh.instance_count == p.stones.size(), "the far stones are the laid stones")
-		_check(near[0].cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and far[0].cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF and full[0].cast_shadow != GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "only the whole stones cast paving's shadow")
-		c.lay([])
-		_check(far[0].multimesh.instance_count == 0, "an emptied chunk draws no far stones")
-	c.free()
-
-
 func _painting_skips_a_path() -> void:
 	var nodes := _setup()
 	var flora: Flora = nodes[4]
@@ -503,7 +324,7 @@ func _a_scripted_stroke_outlasts_the_hand() -> void:
 	t.set_process(false)
 	var paths: Paths = nodes[1]
 	var b := t.brushes[0]
-	b.hand.tool = Hand.Tool.PATH
+	b.hand.tool = Hand.Tool.DIRT_PATH
 	t.begin_path(b, Terrain.ground(-30, 20), 0.6)
 	rig.aim_hand = b.hand
 	t._handle(b, 1.0 / 60.0)
@@ -514,7 +335,7 @@ func _a_scripted_stroke_outlasts_the_hand() -> void:
 	_teardown(nodes)
 
 
-func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.PATH) -> void:
+func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.DIRT_PATH) -> void:
 	Ground.install()
 	var nodes := _setup()
 	var t := FloraTool.new(nodes[3], nodes[4], nodes[1], nodes[2])
@@ -535,7 +356,6 @@ func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.PATH) -> void:
 	_lay_walls(nodes[0])
 	_check(paths.layouts.is_empty() and Ground.bare(2, 57) == 0.0, "undo lifts the path and its wear (%.2f)" % Ground.bare(2, 57))
 	_check(w.layout.live_arches.is_empty(), "undo closes the arch the path opened: %s" % [w.layout.live_arches])
-	_check(not paths.get_children().any(func(c): return c is Stones), "undo takes the path's stones away")
 	world.redo()
 	_lay_walls(nodes[0])
 	Ground.settle()
@@ -651,10 +471,10 @@ func _dirt_wears_without_stones() -> void:
 	Ground.install()
 	var paths := Paths.new()
 	root.add_child(paths)
-	paths.begin(Vector3(-20, 0, -20), 0.8, "dirt")
+	paths.begin(Vector3(-20, 0, -20), 0.8)
 	paths.extend(Vector3(-10, 0, -20), 0.8)
 	var ghost := paths.end()
-	_check(ghost.layout.stones.is_empty() and ghost.chunks.is_empty(), "dirt creates no stones or stone nodes")
+	_check(paths.get_child_count() == 0, "dirt creates no stones or stone nodes")
 	Ground.settle()
 	_check(Ground.bare(-15, -20) > 0.99, "dirt wears the stroke centre")
 	var soft := false
@@ -664,18 +484,12 @@ func _dirt_wears_without_stones() -> void:
 	_check(soft, "dirt has partially worn texels along its edge")
 	_check(Ground.bare(-15, -18) == 0.0, "ground outside dirt stays meadow")
 	var data: Dictionary = Commands._path(ghost.data)
-	_check(data.style == "dirt", "command validation keeps dirt style")
 	paths.drop(ghost)
 	paths.put(123, data)
-	while paths.laying():
-		await process_frame
-	_check(paths.layouts[0].style == "dirt" and paths.layouts[0].stones.is_empty(), "replayed dirt stays stone-free")
 	_check(Ground.mark_at(-15, -20) == 123 and Ground.mark_at(-15, -18) == -1, "path selection follows the stroke width")
 	paths.take(123)
 	await process_frame
 	_check(Ground.bare(-15, -20) == 0.0, "taking dirt restores the meadow")
-	data.erase("style")
-	_check(Commands._path(data) == null, "a path without a style is rejected")
 	data.style = "invalid"
-	_check(Commands._path(data) == null, "unknown path styles are rejected")
+	_check(Commands._path(data) == null, "extra path fields are rejected")
 	paths.free()

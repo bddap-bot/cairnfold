@@ -9,7 +9,7 @@ extends Node3D
 ## Plants per square metre per second of painting.
 const RATES := {Hand.Tool.FLOWERS: 12.0, Hand.Tool.GRASS: 30.0}
 const PLACES := {Hand.Tool.TREES: "tree", Hand.Tool.BUSHES: "bush"}
-const TINTS := {Hand.Tool.DIRT_PATH: Color(0.78, 0.58, 0.35, 0.6), Hand.Tool.FLOWERS: Color(1.0, 0.82, 0.9, 0.6), Hand.Tool.GRASS: Color(0.78, 1.0, 0.55, 0.6), Hand.Tool.TREES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.BUSHES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.PATH: Color(1.0, 0.9, 0.7, 0.6), Hand.Tool.STONE: Color(0.9, 0.88, 0.82, 0.6)}
+const TINTS := {Hand.Tool.DIRT_PATH: Color(0.78, 0.58, 0.35, 0.6), Hand.Tool.FLOWERS: Color(1.0, 0.82, 0.9, 0.6), Hand.Tool.GRASS: Color(0.78, 1.0, 0.55, 0.6), Hand.Tool.TREES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.BUSHES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.STONE: Color(0.9, 0.88, 0.82, 0.6)}
 const RADIUS_PER_METRE := 0.15
 const MIN_RADIUS := 0.3
 const MAX_RADIUS := 3.0
@@ -39,7 +39,7 @@ class Brush:
 	var since_stamp := 0.0
 	var last_stamp := Vector3.INF
 	var owed := 0.0
-	var paving := false
+	var drawing_path := false
 	## Whether this hold has reached the frame budget, and been told so.
 	var full := false
 
@@ -97,7 +97,7 @@ static func put_ring(r: MeshInstance3D, at: Vector3, radius: float) -> void:
 
 ## Whether `hand`, or with none any hand, has a stroke under way.
 func busy(hand: Hand = null) -> bool:
-	return brushes.any(func(b: Brush) -> bool: return (hand == null or b.hand == hand) and (b.paving or b.ground != null or not b.dabs.is_empty()))
+	return brushes.any(func(b: Brush) -> bool: return (hand == null or b.hand == hand) and (b.drawing_path or b.ground != null or not b.dabs.is_empty()))
 
 
 func _ground_held() -> bool:
@@ -143,15 +143,15 @@ func _handle(b: Brush, delta: float) -> void:
 			place(PLACES[held], hit, b.hand)
 		return
 	var radius := brush_radius(hand.origin, hit)
-	if held in [Hand.Tool.PATH, Hand.Tool.DIRT_PATH]:
+	if held == Hand.Tool.DIRT_PATH:
 		radius = clampf(radius, PathLayout.HALF_WIDTH.x, PathLayout.HALF_WIDTH.y)
 	put_ring(b.ring, hit, radius)
-	if held in [Hand.Tool.PATH, Hand.Tool.DIRT_PATH]:
+	if held == Hand.Tool.DIRT_PATH:
 		if b.buttons.pressed("tool") and not paths.busy() and not _ground_held():
 			begin_path(b, hit, radius)
-		elif b.buttons.held("tool") and b.paving:
+		elif b.buttons.held("tool") and b.drawing_path:
 			extend_path(hit, radius, b.hand)
-		if b.paving and paths.drawing != null:
+		if b.drawing_path and paths.drawing != null:
 			world.preview(b.hand, Budget.path({"points": paths.drawing.points, "half_widths": paths.drawing.half_widths}))
 	elif b.buttons.held("tool"):
 		if b.buttons.pressed("tool"):
@@ -225,7 +225,7 @@ func _lay_ground(b: Brush, kind: Ground.Kind, center: Vector3, radius: float, de
 
 func end_stroke(b: Brush) -> void:
 	b.full = false
-	if b.paving:
+	if b.drawing_path:
 		end_path(b)
 	_send_ground(b)
 	_send_plants(b)
@@ -275,14 +275,14 @@ func _forget() -> void:
 		b.dabs = []
 		b.kind = ""
 		b.ground = null
-		b.paving = false
+		b.drawing_path = false
 	paths.forget()
 	flora.clear_ghosts()
 
 
 func begin_path(b: Brush, at: Vector3, radius: float) -> void:
-	b.paving = true
-	paths.begin(at, radius, "dirt" if b.hand.tool == Hand.Tool.DIRT_PATH else "cobble")
+	b.drawing_path = true
+	paths.begin(at, radius)
 	planted.emit()
 	Cues.play(Cues.Act.PATH_LAY, at, b.hand)
 
@@ -296,7 +296,7 @@ func extend_path(at: Vector3, radius: float, hand: Hand = null) -> void:
 
 ## Sends the drawn path to the garden; its stones and worn ground stay as drawn until the command comes back.
 func end_path(b: Brush) -> void:
-	b.paving = false
+	b.drawing_path = false
 	var ghost := paths.end()
 	if not ghost.is_empty():
 		world.submit({"op": "path", "path": ghost.data}, paths.drop.bind(ghost), b.hand)
