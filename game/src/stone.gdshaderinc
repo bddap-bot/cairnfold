@@ -11,9 +11,8 @@ varying float occlusion;
 varying float material;
 varying vec3 bounce_at;
 varying vec3 lamp_at;
-// Lantern light a pane of glass (colour alpha 0, Wall.pack) shows from behind it, as bright as the lit stone and
-// plaster it looks onto.
-const float PANE_SHOWS = 0.6;
+// Lamps supplies the same strength to the opening's spill and its glass (colour alpha 0, Wall.pack).
+uniform float window_glow;
 varying float pane;
 varying flat int style;
 // A styled boulder's tone within its style, its own from where it stands.
@@ -72,5 +71,5 @@ void fragment() {
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.25;
 	AO = bounce.a;
-	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce) + pane * lamp_light * PANE_SHOWS;
+	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce) + pane * lamp_light * window_glow;
 }

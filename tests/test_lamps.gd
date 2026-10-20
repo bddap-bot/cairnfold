@@ -10,6 +10,7 @@ func _init() -> void:
 	ground.resize(Bounce.CELLS * Bounce.CELLS)
 	_a_house_keeps_its_light_in()
 	_windows_and_doors_let_it_out()
+	_window_strength_does_not_brighten_the_room()
 	_a_house_keeps_light_out()
 	_an_open_loop_lets_light_up()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -79,6 +80,23 @@ func _a_house_keeps_light_out() -> void:
 	_check(_at(held, 3.5, 0.5, 1) == 0.0, "a lantern outside lights nothing inside")
 	_check(_at(Lamps.shine(flame, ground), -0.5, 0.5, 1) > 0.0 and _at(held, -0.5, 0.5, 1) == 0.0, "nor beyond the house")
 	_check(_at(held, 8.5, 0.5, 0) > 0.3, "but lights its own side")
+
+
+func _window_strength_does_not_brighten_the_room() -> void:
+	var house := _house()
+	var flames := PackedVector3Array([Vector3(3.5, 1.8, 0.0)])
+	var bright := Lamps.shine(flames, ground, [house])
+	for o in house.openings:
+		if o.gives != Lamps.DOOR:
+			o.gives = 1.0
+	var plain := Lamps.shine(flames, ground, [house])
+	_check(absf(_at(bright, 3.5, 4.5, 0) - _at(plain, 3.5, 4.5, 0) * Lamps.window_glow()) < Lamps.ENCODE / 255.0 * Lamps.window_glow(),
+		"the window strength reaches the ground outside")
+	_check(_at(bright, 3.5, 0.5, 1) == _at(plain, 3.5, 0.5, 1), "window strength leaves the interior's light alone")
+	_check(_at(bright, 3.5, -4.5, 0) == _at(plain, 3.5, -4.5, 0), "window strength leaves the doorway's spill alone")
+	var dark := Lamps.shine(PackedVector3Array(), ground, [house])
+	_check(_at(dark, 3.5, 4.5, 0) == 0.0, "without an interior flame the window gives no light")
+	_check(Stones.shared_material().get_shader_parameter("window_glow") == Lamps.window_glow(), "the pane and spill share their strength")
 
 
 func _an_open_loop_lets_light_up() -> void:

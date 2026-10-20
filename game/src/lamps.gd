@@ -11,6 +11,8 @@ extends RefCounted
 const REACH := 9.0
 ## Lantern light as the shaders add it, colour times strength.
 const LIGHT := Color(0.4, 0.28, 0.16)
+## A lit opening must read against the flame of an outdoor lantern, not only against unlit stone.
+const WINDOW_GLOW := 8.0
 ## Light is stored this many times under its value, so a byte holds it from beside a flame out to its reach.
 const ENCODE := 4.0
 ## How far a lit window's light falls outside it.
@@ -31,6 +33,10 @@ var _ground := -1
 var _dirty := false
 var _task := -1
 var _out := {}
+
+
+static func window_glow() -> float:
+	return WINDOW_GLOW * (0.5 if OS.has_feature("subtle_windows") else 1.0)
 
 
 func _init() -> void:
@@ -70,7 +76,7 @@ class Room:
 		if layout.cover != WallLayout.Cover.OPEN:
 			r.top = massing.feet[0] + massing.rise
 		for o in layout.apertures:
-			r._open(layout, o.s, (o.sill + o.head) * 0.5, DOOR if o.door else 1.0)
+			r._open(layout, o.s, (o.sill + o.head) * 0.5, DOOR if o.door else Lamps.window_glow())
 		return r
 
 	func _open(layout: WallLayout, s: float, y: float, gives: float) -> void:

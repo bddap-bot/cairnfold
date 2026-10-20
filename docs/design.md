@@ -1379,6 +1379,14 @@ and brightest straight out from a point half a metre before its face, so it ligh
 wall around it and never the eaves; a doorway lets out a fifth. Surfaces read the volume a metre out (`lamp_coord`), so a face of the shell
 reads the air on its own side, and a pane of glass also shows the light a metre behind it.
 
+A lit window's pane and outward spill share `Lamps.WINDOW_GLOW`. The pane is opaque glass, not a view
+into the room: it emits the light sampled behind it, so a lit house remains recognizable beside an outdoor
+lantern's flame. The multiplier changes neither the room's light nor a doorway's spill, and adds no light,
+mesh or texture read. `demo/window-glow.json` compares the unlit and lit room, nearby outdoor lanterns,
+and the house from across the meadow. For a subtler build, add `subtle_windows` to the export preset's
+`custom_features`: it halves that same strength for both the pane and the spill. The default is the stronger
+variant. Neither variant brightens a house without an interior lantern.
+
 Holding the light in rooms cost the Frame nothing measurable (stress scene, GPU ms a frame, before and after):
 9.43 and 9.46 with lanterns hung standing, 19.18 and 19.20 from the air, 9.39 and 9.40 on the bare meadow.
 
