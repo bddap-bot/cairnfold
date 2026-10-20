@@ -241,13 +241,13 @@ func _preview(m: Mason) -> void:
 		for w in m.stroke.walls:
 			Budget.add(change, Budget.wall(w.data()))
 	elif m.lifting != null:
-		change = world.change_of({"op": "reshape", "id": m.lifting.id, "data": {"height": m.lifting.layout.height}})
+		change = world.change_of({"op": "reshape", "of": "walls", "id": m.lifting.id, "data": {"height": m.lifting.layout.height}})
 	elif m.roofing != null:
-		change = world.change_of({"op": "reshape", "id": m.roofing.id, "data": {"roof": {"pitch": m.roofing.roof.pitch}}})
+		change = world.change_of({"op": "reshape", "of": "walls", "id": m.roofing.id, "data": {"roof": {"pitch": m.roofing.roof.pitch}}})
 	elif m in _holders and house != null:
 		change = Budget.wall(house.data())
 	elif not _resize_hands.is_empty() and m == _resize_hands[0]:
-		change = world.change_of({"op": "reshape", "id": resizing.id, "data": reshape_house(_resize_data, resized_to)})
+		change = world.change_of({"op": "reshape", "of": "walls", "id": resizing.id, "data": reshape_house(_resize_data, resized_to)})
 	if not change.is_empty():
 		world.preview(m.hand, change)
 
@@ -794,7 +794,7 @@ func end_resize(hand: Hand = null) -> void:
 	if resized_to.size.is_equal_approx(_resize_start.size) and is_equal_approx(resized_to.rise, _resize_start.rise):
 		_relay(w)
 	else:
-		world.submit({"op": "reshape", "id": w.id, "data": reshape_house(_resize_data, resized_to)}, settle.bind(w.id), hand)
+		world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": reshape_house(_resize_data, resized_to)}, settle.bind(w.id), hand)
 
 
 func begin_lift(m: Mason, w: Wall, hand: Vector3, at: Vector3) -> void:
@@ -823,7 +823,7 @@ func end_lift(m: Mason) -> void:
 	if is_equal_approx(w.layout.height, m.lift_start):
 		_relay(w)
 	else:
-		world.submit({"op": "reshape", "id": w.id, "data": {"height": w.layout.height}}, settle.bind(w.id), m.hand)
+		world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"height": w.layout.height}}, settle.bind(w.id), m.hand)
 
 
 ## Grip on a roof: raising the hand raises the ridge, moving it sideways bows or sags the slopes.
@@ -862,7 +862,7 @@ func end_roof(m: Mason) -> void:
 	if is_equal_approx(w.roof.pitch, m.lift_start) and is_equal_approx(w.roof.curve, m.curve_start):
 		_relay(w)
 	else:
-		world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id), m.hand)
+		world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id), m.hand)
 
 
 ## The arches that would stand in `w` with `own` its own, with those the paths standing open, whatever it shows.
@@ -886,18 +886,20 @@ func settle(id: int) -> void:
 
 ## Lays a wall as a reshape with `data` would leave it, through the path that lays the reshape itself, so what a
 ## tool shows of an edit is what the edit builds; `settle` lays it as the garden has it again.
-func show_reshaped(w: Wall, data: Dictionary) -> void:
-	if not _held(w):
+func show_reshaped(id: int, data: Dictionary) -> void:
+	var w := find(id)
+	if w == null or _held(w):
+		return
+	if data.keys() == ["paint"]:
+		w.repaint(World.reshaped(world.state.walls[id], data).paint)
+	else:
 		_relay(w, data)
 
 
 ## Lays a wall as the garden has it, with `data` in place of its own fields, with the arches the paths standing open
 ## in it, on and among the builds it meets.
 func _relay(w: Wall, data := {}) -> void:
-	var now: Dictionary = world.state.walls[w.id]
-	var d := now.merged(data, true)
-	if data.has("roof"):
-		d.roof = now.roof.merged(data.roof, true)
+	var d := World.reshaped(world.state.walls[w.id], data)
 	w.set_data(d)
 	w.reshaped = data
 	_meet(w)

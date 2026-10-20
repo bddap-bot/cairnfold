@@ -48,12 +48,7 @@ static func build(tool: Hand.Tool) -> Node3D:
 		Hand.Tool.DECORATIONS:
 			_decor(root)
 		Hand.Tool.STAIRS:
-			var layout := StairLayout.new()
-			layout.build({"a": Vector3.ZERO, "b": Vector3(0, 0.8, -1.5), "width": 1.2, "rail": "wood", "seed": 1})
-			var stones := Stones.new()
-			stones.lay(layout.stones)
-			stones.scale = Vector3.ONE * 0.035
-			root.add_child(stones)
+			_stairs(root, "wood")
 		Hand.Tool.PATH:
 			_path(root)
 		Hand.Tool.DIRT_PATH:
@@ -96,6 +91,9 @@ static func build(tool: Hand.Tool) -> Node3D:
 ## a roof's over a house or a round tower; a gable end's turned to face the eye.
 static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round := false) -> Node3D:
 	var root := Node3D.new()
+	if restyle == PaletteTool.Restyle.RAIL:
+		_stairs(root, StairLayout.RAILS[i])
+		return root
 	if restyle == PaletteTool.Restyle.TREE:
 		_tree(root, i as FloraLayout.Species)
 		for part in root.get_children():
@@ -122,6 +120,15 @@ static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round :
 	for part in root.get_children():
 		part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22) * turn, Vector3.ZERO) * part.transform
 	return root
+
+
+static func _stairs(root: Node3D, rail: String) -> void:
+	var layout := StairLayout.new()
+	layout.build({"a": Vector3.ZERO, "b": Vector3(0, 0.8, -1.5), "width": 1.2, "rail": rail, "seed": 1, "paint": Palette.plain()})
+	var stones := Stones.new()
+	stones.lay(layout.stones)
+	stones.scale = Vector3.ONE * 0.035
+	root.add_child(stones)
 
 
 ## A painter's palette: a wooden board with a dab of each roof colour round its edge.

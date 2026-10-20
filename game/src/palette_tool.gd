@@ -5,25 +5,27 @@ extends Node3D
 ## choices over the controller, and twisting the wrist turns the wheel like a dial, showing each choice live
 ## on this machine; letting go sends the choice at the top to the garden, so everyone building sees it, and it
 ## is one undo step. The colour tool's choices are swatches of the material pointed at: a build's stone, roof
-## tiles, woodwork (fences, window frames, doors) or plaster, as a `reshape` of its paint (builds laid after
-## take the swatch let go last), or on the meadow the garden's season. The style tool's are miniatures of the
-## styles of what it points at: a gable end's, a roof's (tiled, thatched or flat, a house's or a tower's), a roofless wall's top,
-## a wall's face (stone, plaster or a house's timber framing; builds laid after take the material let go last), or a
-## tree's species. It only restyles: openings are the windows' and the arch's.
+## tiles, woodwork (fences, window frames, doors, wooden railings, ladders) or plaster, as a `reshape` of its paint
+## (builds laid after take the swatch let go last), or on the meadow the garden's season. The style tool's are
+## miniatures of the styles of what it points at: a gable end's, a roof's (tiled, thatched or flat, a house's or a
+## tower's), a roofless wall's top, a wall's face (stone, plaster or a house's timber framing; builds laid after take
+## the material let go last), a flight's or landing's railings (stairs laid after take them), or a tree's species. It
+## only restyles: openings are the windows' and the arch's.
 
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
 const WHEEL_RADIUS := 0.07
 ## Where the wheel stands from the controller, in its frame when the trigger went down.
 const WHEEL_AT := Vector3(0, 0.06, -0.05)
 
-enum Restyle { GABLE, ROOF, TOP, FACE, TREE }
+enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL }
 enum Face { STONE, PLASTER, ALSACE, MAGPIE, RURAL, FACHWERK, COLOMBAGE }
 
-## A hand's open wheel: what it changes (`aim`'s target) on which build (-1 for none) or tree (its trunk; null for
-## none), the choice it started on and the one at its top, and the hand's frame when it opened. One on neither is
-## on the meadow.
+## A hand's open wheel: what it changes (`aim`'s target) on which build (its garden table `of` and `id`; "" and -1 for
+## none) or tree (its trunk; null for none), the choice it started on and the one at its top, and the hand's frame when it
+## opened. One on neither is on the meadow.
 class Wheel:
-	var wall := -1
+	var of := ""
+	var id := -1
 	var tree: Flora.Plant
 	var target: Dictionary
 	var start := 0
@@ -80,48 +82,56 @@ func _process(_delta: float) -> void:
 		_place(wheels[hand], hand)
 
 
-## What the colour tool's trigger would recolour from `origin` along `dir`: `element`, `point` and the `wall` (null
-## on the meadow), or empty.
+## What the colour tool's trigger would recolour from `origin` along `dir`: `element`, `point` and the build's garden
+## table `of` and `id` ("" and -1 on the meadow), or empty.
 func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 	var pick := walls.pick_wall(origin, dir)
 	var roof := walls.pick_roof(origin, dir)
 	var along: float = roof.get("along", INF)
 	var gable := walls.pick_gable(origin, dir)
+	var ground: Variant = Terrain.raycast(origin, dir)
+	var stair := world.stairs.pick(origin, dir, minf(minf(along, gable.get("along", INF)), minf(pick.get("along", INF), origin.distance_to(ground) if ground != null else INF)))
+	if not stair.is_empty():
+		return colour_target(Palette.KINDS[stair.kind], stair.point, "stairs", stair.stair)
 	if gable.get("along", INF) < along and WallTool._on_roof(pick, gable):
 		if _on_timber(gable.wall.layout, gable.point):
-			return colour_target(Palette.Element.TIMBER, gable.point, gable.wall)
+			return colour_target(Palette.Element.TIMBER, gable.point, "walls", gable.wall.id)
 		var end: WallLayout = gable.wall.layout
 		var wood := end.gable_end == WallLayout.GableEnd.BOARDS
-		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if end.plaster else Palette.Element.STONE, gable.point, gable.wall)
+		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if end.plaster else Palette.Element.STONE, gable.point, "walls", gable.wall.id)
 	if along < INF and (pick.is_empty() or pick.distance > 0.2 or along < pick.along):
-		return colour_target(Palette.Element.THATCH if roof.wall.roof.thatched() else Palette.Element.ROOF, roof.point, roof.wall)
+		return colour_target(Palette.Element.THATCH if roof.wall.roof.thatched() else Palette.Element.ROOF, roof.point, "walls", roof.wall.id)
 	if not pick.is_empty():
 		var layout: WallLayout = pick.wall.layout
 		if _on_timber(layout, pick.point):
-			return colour_target(Palette.Element.TIMBER, pick.point, pick.wall)
+			return colour_target(Palette.Element.TIMBER, pick.point, "walls", pick.wall.id)
 		var wood := layout.fence or not layout.opening_at(pick.s, pick.point.y - layout.point_at(pick.s).y).is_empty()
-		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if layout.plaster else Palette.Element.STONE, pick.point, pick.wall)
-	var ground: Variant = Terrain.raycast(origin, dir)
+		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if layout.plaster else Palette.Element.STONE, pick.point, "walls", pick.wall.id)
 	if ground != null:
-		return colour_target(Palette.Element.MEADOW, ground, null)
+		return colour_target(Palette.Element.MEADOW, ground)
 	return {}
 
 
-func colour_target(element: Palette.Element, point: Vector3, wall: Wall) -> Dictionary:
-	return {"tool": Hand.Tool.COLOUR, "element": element, "count": Palette.count(element), "point": point, "wall": wall}
+func colour_target(element: Palette.Element, point: Vector3, of := "", id := -1) -> Dictionary:
+	return {"tool": Hand.Tool.COLOUR, "element": element, "count": Palette.count(element), "point": point, "of": of, "id": id}
 
 
 ## What the style tool would restyle from `origin` along `dir`, as `aim` gives it, with `restyle` in place of an
-## element, or empty: the tree, gable end, roof or wall it meets first, a
-## roofless wall's top near it; fences and bushes have no style.
+## element, or empty: the tree, stairs, gable end, roof or wall it meets first, a
+## roofless wall's top near it; fences, ladders and bushes have no style.
 func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var pick := walls.pick_wall(origin, dir)
 	var roof := walls.pick_roof(origin, dir)
 	var gable := walls.pick_gable(origin, dir)
 	var solid := walls.flora.solid_hit(origin, dir, DeleteTool.REACH)
 	var nearest := minf(minf(gable.get("along", INF), roof.get("along", INF)), pick.get("along", INF))
+	var stair := world.stairs.pick(origin, dir, minf(nearest, solid.get("along", INF)))
+	if not stair.is_empty():
+		if world.stairs.layouts[stair.stair].kind == StairLayout.Kind.LADDER:
+			return {}
+		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.RAIL, "count": styles(Restyle.RAIL), "point": stair.point, "of": "stairs", "id": stair.stair, "wall": null}
 	if solid.get("along", INF) < nearest and solid.plants[0].pool == walls.flora.trunks:
-		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.TREE, "count": FloraLayout.Species.size(), "point": solid.point, "wall": null, "tree": solid.plants[0]}
+		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.TREE, "count": FloraLayout.Species.size(), "point": solid.point, "of": "", "id": -1, "wall": null, "tree": solid.plants[0]}
 	if gable.get("along", INF) < roof.get("along", INF) and WallTool._on_roof(pick, gable):
 		return style_target(Restyle.GABLE, gable.wall, gable.point)
 	if WallTool._on_roof(pick, roof) and not WallTool.house_of(world.state.walls.get(roof.wall.id, {})).is_empty():
@@ -137,7 +147,7 @@ func style_target(restyle: Restyle, wall: Wall, point: Vector3) -> Dictionary:
 	var count := styles(restyle)
 	if restyle == Restyle.FACE and not (wall.layout.closed and wall.layout.corners().size() == 4):
 		count = Face.ALSACE
-	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "count": count, "point": point, "wall": wall}
+	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "count": count, "point": point, "of": "walls", "id": wall.id, "wall": wall}
 
 
 static func styles(restyle: Restyle) -> int:
@@ -150,6 +160,8 @@ static func styles(restyle: Restyle) -> int:
 			return WallLayout.Top.size()
 		Restyle.TREE:
 			return FloraLayout.Species.size()
+		Restyle.RAIL:
+			return StairLayout.RAILS.size()
 	return Face.size()
 
 
@@ -158,12 +170,12 @@ static func styles(restyle: Restyle) -> int:
 func open(hand: Hand, target: Dictionary) -> void:
 	var w := Wheel.new()
 	w.target = target
-	if target.wall != null:
-		w.wall = target.wall.id
+	w.of = target.of
+	w.id = target.id
 	w.tree = target.get("tree")
 	w.start = _now(w)
 	w.pick = w.start
-	if w.wall >= 0 and target.tool == Hand.Tool.STYLE:
+	if w.id >= 0 and target.tool == Hand.Tool.STYLE:
 		for i in target.count:
 			w.data.append(_data(w, i))
 	w.basis = hand.global_basis.orthonormalized()
@@ -222,14 +234,16 @@ func _now(w: Wheel) -> int:
 		if walls.flora.species_of(w.tree) < 0 or group.is_empty():
 			return -1
 		return group.species.get(w.tree.index, FloraLayout.Species.OAK)
-	if w.wall < 0:
+	if w.id < 0:
 		return world.palette.season
-	if not world.state.walls.has(w.wall):
+	if not world.state[w.of].has(w.id):
 		return -1
-	var d: Dictionary = world.state.walls[w.wall]
+	var d: Dictionary = world.state[w.of][w.id]
 	if w.target.tool == Hand.Tool.COLOUR:
 		return d.paint[w.target.element]
 	match w.target.restyle:
+		Restyle.RAIL:
+			return StairLayout.RAILS.find(d.rail)
 		Restyle.GABLE:
 			return d.gable_end
 		Restyle.ROOF:
@@ -249,15 +263,17 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 		Restyle.GABLE:
 			return {"gable_end": pick}
 		Restyle.ROOF:
-			return WallTool.restyle_roof(world.state.walls[w.wall], pick as WallTool.RoofStyle)
+			return WallTool.restyle_roof(world.state.walls[w.id], pick as WallTool.RoofStyle)
 		Restyle.TOP:
 			return {"top": pick}
+		Restyle.RAIL:
+			return {"rail": StairLayout.RAILS[pick]}
 	var data := {}
 	var timber_style: int = pick - Face.ALSACE if pick >= Face.ALSACE else -1
-	if timber_style != world.state.walls[w.wall].timber_style:
+	if timber_style != world.state.walls[w.id].timber_style:
 		data["timber_style"] = timber_style
 	var plaster := pick >= Face.PLASTER
-	if plaster != world.state.walls[w.wall].plaster:
+	if plaster != world.state.walls[w.id].plaster:
 		data["plaster"] = plaster
 	return data
 
@@ -267,18 +283,16 @@ func _show(w: Wheel, pick: int) -> void:
 	if w.tree != null:
 		walls.flora.set_species(w.tree, pick as FloraLayout.Species)
 		return
-	if w.wall < 0:
+	if w.id < 0:
 		Palette.preview(pick)
 		return
-	var built := walls.find(w.wall)
-	if built == null or not world.state.walls.has(w.wall):
-		return
-	if w.target.tool == Hand.Tool.COLOUR:
-		var paint: PackedInt32Array = world.state.walls[w.wall].paint.duplicate()
-		paint[w.target.element] = pick
-		built.repaint(paint)
-	else:
-		walls.show_reshaped(built, w.data[pick])
+	if world.state[w.of].has(w.id):
+		_builder(w.of).show_reshaped(w.id, _data(w, pick) if w.target.tool == Hand.Tool.COLOUR else w.data[pick])
+
+
+## What lays the builds of the garden's table `of`: each shows a reshape before it is sent and `settle`s back.
+func _builder(of: String) -> Object:
+	return walls if of == "walls" else world.stairs
 
 
 ## Sends the choice at the top of `hand`'s wheel to the garden, unless the garden already has it (another
@@ -290,26 +304,28 @@ func close(hand: Hand) -> void:
 	var now := _now(w)
 	if now < 0:
 		return
-	if w.wall >= 0 and w.target.tool == Hand.Tool.COLOUR:
+	if w.id >= 0 and w.target.tool == Hand.Tool.COLOUR:
 		walls.paint[w.target.element] = w.pick
-	elif w.wall >= 0 and w.target.restyle == Restyle.GABLE:
+	elif w.id >= 0 and w.target.restyle == Restyle.GABLE:
 		walls.gable_end = w.pick as WallLayout.GableEnd
-	elif w.wall >= 0 and w.target.restyle == Restyle.ROOF and w.pick != WallTool.RoofStyle.FLAT:
+	elif w.id >= 0 and w.target.restyle == Restyle.ROOF and w.pick != WallTool.RoofStyle.FLAT:
 		walls.thatch = w.pick == WallTool.RoofStyle.THATCHED
-	elif w.wall >= 0 and w.target.restyle == Restyle.FACE:
+	elif w.id >= 0 and w.target.restyle == Restyle.FACE:
 		walls.plaster = w.pick >= Face.PLASTER
 		walls.timber_style = w.pick - Face.ALSACE if w.pick >= Face.ALSACE else -1
-	var data: Dictionary = (w.data[w.pick] if w.target.tool == Hand.Tool.STYLE else _data(w, w.pick)) if w.wall >= 0 else {}
-	if w.pick == now or (w.wall >= 0 and data.is_empty()):
+	elif w.id >= 0 and w.target.restyle == Restyle.RAIL:
+		world.stairs.rail = StairLayout.RAILS[w.pick]
+	var data: Dictionary = (w.data[w.pick] if w.target.tool == Hand.Tool.STYLE else _data(w, w.pick)) if w.id >= 0 else {}
+	if w.pick == now or (w.id >= 0 and data.is_empty()):
 		_settled(w)
 		return
 	Cues.play(Cues.Act.DIAL_SET, hand.global_position, hand)
 	if w.tree != null:
 		world.submit({"op": "species", "group": w.tree.group, "index": w.tree.index, "species": w.pick}, _settled.bind(w), hand)
-	elif w.wall < 0:
+	elif w.id < 0:
 		world.submit({"op": "season", "index": w.pick}, world.palette.apply, hand)
 	else:
-		world.submit({"op": "reshape", "id": w.wall, "data": data}, _settled.bind(w), hand)
+		world.submit({"op": "reshape", "of": w.of, "id": w.id, "data": data}, _settled.bind(w), hand)
 
 
 ## A sent choice is settled before it applies, so the build is shown as the garden has it once it has.
@@ -318,10 +334,10 @@ func _settled(w: Wheel) -> void:
 		if w.tree != null:
 			if _now(w) >= 0:
 				_show(w, _now(w))
-		elif w.wall < 0 or w.target.tool == Hand.Tool.COLOUR:
+		elif w.id < 0 or w.target.tool == Hand.Tool.COLOUR:
 			_show(w, _now(w))
 		else:
-			walls.settle(w.wall)).call_deferred()
+			_builder(w.of).settle(w.id)).call_deferred()
 
 
 func _drop(hand: Hand) -> void:

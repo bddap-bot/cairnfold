@@ -8,6 +8,8 @@ const RISE := 0.2
 const LADDER_SLOPE := 1.5
 const LEVEL := 0.08
 const RAIL_HEIGHT := 0.85
+## A flight's or landing's railings, as the style tool offers them.
+const RAILS := ["stone", "wood", "none"]
 
 var stones: Array[Dictionary] = []
 var kind := Kind.FLIGHT
@@ -20,6 +22,7 @@ var _side := Vector3.RIGHT
 var _run := 0.0
 var _depth := 1.0
 var _width := 0.0
+var _paint: PackedInt32Array
 
 static func classify(a: Vector3, b: Vector3) -> Kind:
 	var run := Vector2(b.x - a.x, b.z - a.z).length()
@@ -49,6 +52,7 @@ func build(d: Dictionary) -> void:
 	_side = side
 	_run = run
 	_width = width
+	_paint = d.paint
 	var rng := RandomNumberGenerator.new()
 	rng.seed = d.seed
 	if kind == Kind.LADDER:
@@ -103,8 +107,10 @@ func _bound() -> void:
 		bounds = box if i == 0 else bounds.merge(box)
 
 func _piece(at: Vector3, basis: Basis, size: Vector3, material: String, rng: RandomNumberGenerator) -> void:
+	var kind := "block" if material == "stone" else "rail"
+	var element: Palette.Element = Palette.KINDS[kind]
 	var color := Color(0.62, 0.58, 0.5) if material == "stone" else Color(0.42, 0.27, 0.14)
-	stones.append({"xform": Transform3D(basis.scaled_local(size), at), "color": color * rng.randf_range(0.88, 1.05), "ao": 0.9, "variant": 0, "kind": "block" if material == "stone" else "rail"})
+	stones.append({"xform": Transform3D(basis.scaled_local(size), at), "color": color * Palette.tint(element, _paint[element]) * rng.randf_range(0.88, 1.05), "ao": 0.9, "variant": 0, "kind": kind})
 
 func _beam(a: Vector3, b: Vector3, thickness: float, material: String, rng: RandomNumberGenerator) -> void:
 	var y := (b - a).normalized()

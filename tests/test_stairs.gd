@@ -11,7 +11,7 @@ func check(ok: bool, what: String) -> void:
 		print("FAIL: ", what)
 
 func _run() -> void:
-	var d := {"a": Vector3.ZERO, "b": Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 8}
+	var d := {"a": Vector3.ZERO, "b": Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 8, "paint": Palette.plain()}
 	var stairs := StairLayout.new()
 	stairs.build(d)
 	check(stairs.kind == StairLayout.Kind.FLIGHT and stairs.treads.size() == 10, "two metres rise makes ten steps")
@@ -23,8 +23,8 @@ func _run() -> void:
 		var piece: Dictionary = stairs.stones[i]
 		check(is_equal_approx(piece.xform.origin.y + piece.xform.basis.y.length() * 0.5, stairs.treads[i / 3].y), "blocks meet the tread top")
 	_walkable(d)
-	_walkable({"a": Vector3(1, 0.5, 2), "b": Vector3(-3, 0.5, -1), "width": 2.0, "rail": "none", "seed": 3})
-	_walkable({"a": Vector3(2, 3.1, 0), "b": Vector3(-1, 0.2, 2.5), "width": 0.8, "rail": "wood", "seed": 4})
+	_walkable({"a": Vector3(1, 0.5, 2), "b": Vector3(-3, 0.5, -1), "width": 2.0, "rail": "none", "seed": 3, "paint": Palette.plain()})
+	_walkable({"a": Vector3(2, 3.1, 0), "b": Vector3(-1, 0.2, 2.5), "width": 0.8, "rail": "wood", "seed": 4, "paint": Palette.plain()})
 	check(is_nan(stairs.surface(Vector3(2, 1, -2))), "nothing to stand on beside the flight")
 	check(is_nan(stairs.surface(Vector3(0, 1, 1))), "nothing to stand on before its foot")
 	var first := stairs.stones.duplicate(true)
@@ -95,6 +95,7 @@ func _run() -> void:
 	check(world.state.stairs.is_empty(), "eraser takes the whole landing")
 	world.undo()
 	check(world.state.stairs.size() == 1, "erased stairs return on undo")
+	_painted_and_styled(main)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -118,3 +119,70 @@ func _walkable(d: Dictionary) -> void:
 		check(absf(stairs.surface(off) - y) <= StairLayout.RISE + 0.001, "a tread spans the width of %s" % [d])
 		last = y
 	check(is_equal_approx(last, high.y), "the treads reach the upper end of %s" % [d])
+
+
+## The colour and style tools reach stairs as they reach walls: a tread recoloured, the railings restyled, each one
+## undo step, kept through a snapshot, and taken by stairs laid after.
+func _painted_and_styled(main: Node) -> void:
+	var world: World = main.world
+	var picker: PaletteTool = main.palette_tool
+	var hand: Hand = main.rig.right
+	var stone := Palette.Element.STONE
+	world.submit({"op": "wipe"})
+	var a := Terrain.ground(10, 0)
+	world.submit({"op": "stairs", "stairs": {"a": a, "b": a + Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 5, "paint": Palette.plain()}})
+	world.stairs._process(10.0)
+	var id: int = world.state.stairs.keys()[0]
+	var over := a + Vector3(0, 6, -2)
+	var laid: Color = world.stairs.layouts[id].stones[0].color
+	hand.tool = Hand.Tool.COLOUR
+	var target := picker.aim(over, Vector3.DOWN)
+	check(target.get("of") == "stairs" and target.get("id") == id and target.get("element") == stone, "the colour tool on a tread picks the stairs' stone: %s" % [target])
+	picker.open(hand, target)
+	picker.twist(hand, 3 * Palette.TWIST_STEP)
+	var shown: Color = world.stairs.layouts[id].stones[0].color
+	check(world.state.stairs[id].paint[stone] == 0 and shown.is_equal_approx(laid * Palette.tint(stone, 3)), "the turned swatch shows on the stairs before it is sent")
+	picker.close(hand)
+	check(world.state.stairs[id].paint[stone] == 3, "letting go recolours the stairs")
+	check(world.stairs.layouts[id].stones[0].color.is_equal_approx(laid * Palette.tint(stone, 3)), "the stairs are laid in the swatch")
+	check(main.tool.paint[stone] == 3, "builds laid after take the swatch")
+	var blocks: Array = world.stairs.layouts[id].stones.filter(func(p: Dictionary) -> bool: return p.kind == "block")
+	hand.tool = Hand.Tool.STYLE
+	target = picker.aim_style(over, Vector3.DOWN)
+	check(target.get("restyle") == PaletteTool.Restyle.RAIL and target.get("id") == id and target.count == StairLayout.RAILS.size(), "the style tool on stairs offers their railings: %s" % [target])
+	picker.open(hand, target)
+	check(picker.wheels[hand].choices.size() == StairLayout.RAILS.size(), "a miniature for each railing")
+	picker.twist(hand, StairLayout.RAILS.find("wood") * Palette.TWIST_STEP)
+	check(world.stairs.layouts[id].stones.any(func(p: Dictionary) -> bool: return p.kind == "rail"), "the turned railing shows on the stairs before it is sent")
+	picker.close(hand)
+	var wooden: Array = world.stairs.layouts[id].stones
+	check(world.state.stairs[id].rail == "wood" and wooden.any(func(p: Dictionary) -> bool: return p.kind == "rail"), "letting go gives the stairs wooden railings")
+	check(wooden.filter(func(p: Dictionary) -> bool: return p.kind == "block").size() < blocks.size(), "the stone railings are gone")
+	check(world.stairs.rail == "wood", "stairs laid after take the railings")
+	check(Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"rail": "gold"}}, world.state, false).is_empty(), "a railing off the wheel is refused")
+	check(Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"a": a}}, world.state, false).is_empty(), "a reshape moves no stairs")
+	check(Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"paint": {stone: Palette.count(stone)}}}, world.state, false).is_empty(), "a swatch off the wheel is refused")
+	world.undo()
+	check(world.state.stairs[id].rail == "stone" and not world.stairs.layouts[id].stones.any(func(p: Dictionary) -> bool: return p.kind == "rail"), "undo puts the stone railings back")
+	world.redo()
+	check(world.state.stairs[id].rail == "wood", "redo restyles again")
+	var snap := world.snapshot()
+	world.submit({"op": "wipe"})
+	world.restore(snap)
+	world.stairs._process(10.0)
+	var kept: Dictionary = world.state.stairs.get(id, {})
+	check(kept.get("rail") == "wood" and kept.get("paint", Palette.plain())[stone] == 3, "a garden rebuilt from its snapshot keeps the stairs' colour and railings")
+	check(world.stairs.layouts[id].stones[0].color.is_equal_approx(laid * Palette.tint(stone, 3)) and world.stairs.layouts[id].stones.any(func(p: Dictionary) -> bool: return p.kind == "rail"), "and lays them so")
+	hand.tool = Hand.Tool.STAIRS
+	var b := Terrain.ground(-10, 0)
+	main.stair_tool.begin(hand, b)
+	main.stair_tool.extend(hand, b + Vector3(0, 2, -4))
+	main.stair_tool.end(hand)
+	var fresh: Dictionary = world.state.stairs[world.state.stairs.keys().max()]
+	check(fresh.rail == "wood" and fresh.paint[stone] == 3, "new stairs take the last swatch and railings")
+	var ladder := Terrain.ground(0, 10)
+	world.submit({"op": "stairs", "stairs": {"a": ladder, "b": ladder + Vector3(0, 3, -0.5), "width": 1.2, "rail": "stone", "seed": 6, "paint": Palette.plain()}})
+	world.stairs._process(10.0)
+	var facing := ladder + Vector3(0.6, 1.5, 3)
+	check(not world.stairs.pick(facing, Vector3.FORWARD, 10.0).is_empty() and picker.aim_style(facing, Vector3.FORWARD).is_empty(), "a ladder has no style")
+	hand.tool = Hand.Tool.WALLS

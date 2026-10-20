@@ -1686,7 +1686,9 @@ buildings"):
 
 - A build carries its `paint`: a swatch for each material (stone, roof tiles, thatch, woodwork, plaster). Its roof, gable
   ends, window frames, doors and chimneys are part of it and take its paint; flags, glass and iron keep theirs.
-  A storey on a house, or a wing across it, is a build of its own and keeps its own colours.
+  A storey on a house, or a wing across it, is a build of its own and keeps its own colours. Stairs are builds
+  too: their treads and stone railings take the stone swatch, wooden railings and ladders the woodwork's, laid into
+  their stones, so a repaint lays them again whole.
 - The colour tool's wheel on a build opens on that build's swatch, and letting go changes that build alone: a
   `reshape` of its paint, so it is one undo step, every player sees it, saves and joiners' snapshots carry it with
   the build, and undoing a delete brings the build back in its colours. There is no garden-wide build colour.
@@ -2076,12 +2078,13 @@ build live, and letting go keeps the one at the top, one undo step. What it offe
 at: a gable end, its house's gable ends (the wall's, boarded, crow-stepped; houses laid after take it); a
 house's or tower's roof, pitched, a cone (standing it as a round tower, see "Towers") or flat, or pitched or a cone thatched (see "Thatch"); a roofless
 wall's top, merlons, plain capping or coping; a wall's face, stone or plaster, and on a house the timber framings
-(walls and houses laid after take the material turned to last); a tree, its species: an oak's round crown, a
+(walls and houses laid after take the material turned to last); a flight or landing, its railings, stone, wooden or
+none (stairs laid after take them); a tree, its species: an oak's round crown, a
 fir's dark cone, a poplar's column, a birch's pale trunk under a light open crown, a copper beech's low
 wine-red dome. Every species is the same trunk and eight foliage blobs placed differently, so a tree changes
 species in the slots it holds and a forest costs what it did: on a Quest 2, `demo/forest.json`'s full tree
 pool drew 24.3 ms of GPU a frame with every species in turn, against 25.2 ms all oaks. Planted trees and the meadow's own are oaks
-until styled. Fences and bushes have no style. The style tool only restyles: it never cuts or fills an opening, which
+until styled. Fences, ladders and bushes have no style. The style tool only restyles: it never cuts or fills an opening, which
 is the windows' and the arch's work. Report (verbatim): "I dont understand why the style selector is adding
 doorways. It seems the style selector seems to add archways to the house for some reason. Is that an
 accident" Directive (verbatim): "Yeah that would make more sense." (to taking arches off the style wheel as
@@ -2855,8 +2858,9 @@ Report (verbatim): "I liked the stair slash bridge object that you had in a prev
 The stairs tool lives beside paths on the tool wheel. Hold the trigger at one end,
 point at the other, then release. Either end can be ground, a wall top, a flat roof
 or an existing landing. A level stroke is a landing, so one drawn between two wall
-tops is a bridge; a near-vertical run becomes a wooden ladder. Railings are stone;
-the wooden ones a demo or saved garden names still lay. Stones
+tops is a bridge; a near-vertical run becomes a wooden ladder. Railings are stone until
+the style tool turns them wooden or takes them off, and the colour tool paints stairs as
+any build (see "Colour per build" and "Styles"). Stones
 appear in order from the lower end. Delete takes a flight, ladder or landing whole;
 undo, redo, autosave and joining a garden preserve it like other builds.
 

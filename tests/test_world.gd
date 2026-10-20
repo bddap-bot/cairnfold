@@ -64,7 +64,7 @@ func _undo_takes_back_only_your_own_steps() -> void:
 
 func _your_later_steps_never_block_your_earlier_ones() -> void:
 	var a := _wall(1, 0)
-	world._order({"op": "reshape", "id": a, "data": {"height": 4.0}}, 1)
+	world._order({"op": "reshape", "of": "walls", "id": a, "data": {"height": 4.0}}, 1)
 	world._order({"op": "undo"}, 1)
 	_check(is_equal_approx(_height(a), 2.6), "undo lowers the wall back")
 	world._order({"op": "undo"}, 1)
@@ -75,7 +75,7 @@ func _a_step_someone_built_on_is_skipped() -> void:
 	world._order({"op": "plant", "kind": "tree", "seed": 4, "at": Terrain.ground(-8, 6)}, 1)
 	var tree := world.seq
 	var a := _wall(1, 0)
-	world._order({"op": "reshape", "id": a, "data": {"height": 5.0}}, 2)
+	world._order({"op": "reshape", "of": "walls", "id": a, "data": {"height": 5.0}}, 2)
 	var before := world.seq
 	world._order({"op": "undo"}, 1)
 	_check(world.state.walls.has(a) and is_equal_approx(_height(a), 5.0), "player 1's undo leaves the wall player 2 raised standing as raised")
@@ -87,9 +87,9 @@ func _a_step_someone_built_on_is_skipped() -> void:
 
 func _redo_waits_on_the_same_condition() -> void:
 	var a := _wall(1, 20)
-	world._order({"op": "reshape", "id": a, "data": {"height": 3.2}}, 1)
+	world._order({"op": "reshape", "of": "walls", "id": a, "data": {"height": 3.2}}, 1)
 	world._order({"op": "undo"}, 1)
-	world._order({"op": "reshape", "id": a, "data": {"top": 2}}, 2)
+	world._order({"op": "reshape", "of": "walls", "id": a, "data": {"top": 2}}, 2)
 	var before := world.seq
 	world._order({"op": "redo"}, 1)
 	_check(world.seq == before and is_equal_approx(_height(a), 2.6), "a redo of a step someone has since built on does nothing")
@@ -126,7 +126,7 @@ func _a_storey_follows_what_it_stands_on() -> void:
 	var upper := world.seq * Commands.MAX_PIECES
 	var top := _foot(lower) + 2.6 + WallLayout.CAP
 	_check(absf(_foot(upper) - (top - WallLayout.SINK)) < 0.01, "the storey stands on the house")
-	world._order({"op": "reshape", "id": lower, "data": {"height": 3.5}}, 1)
+	world._order({"op": "reshape", "of": "walls", "id": lower, "data": {"height": 3.5}}, 1)
 	await _laid(upper)
 	_check(absf(_foot(upper) - (_foot(lower) + 3.5 + WallLayout.CAP - WallLayout.SINK)) < 0.01, "raising the house lifts the storey")
 	world._order({"op": "unwall", "ids": PackedInt32Array([lower])}, 1)
@@ -153,10 +153,10 @@ func _bad_commands_are_dropped() -> void:
 	var cases := {
 		"unknown op": {"op": "explode"},
 		"unwall of nothing": {"op": "unwall", "ids": PackedInt32Array([9999])},
-		"reshape of nothing": {"op": "reshape", "id": 9999, "data": {"height": 3.0}},
-		"reshape of an unknown field": {"op": "reshape", "id": a, "data": {"points": 5}},
-		"reshape out of range": {"op": "reshape", "id": a, "data": {"height": 500.0}},
-		"reshape of a roof it lacks": {"op": "reshape", "id": a, "data": {"roof": {"pitch": 2.0}}},
+		"reshape of nothing": {"op": "reshape", "of": "walls", "id": 9999, "data": {"height": 3.0}},
+		"reshape of an unknown field": {"op": "reshape", "of": "walls", "id": a, "data": {"points": 5}},
+		"reshape out of range": {"op": "reshape", "of": "walls", "id": a, "data": {"height": 500.0}},
+		"reshape of a roof it lacks": {"op": "reshape", "of": "walls", "id": a, "data": {"roof": {"pitch": 2.0}}},
 		"wall with a string height": {"op": "wall", "walls": [_with(good, "height", "tall")]},
 		"wall of one point": {"op": "wall", "walls": [_with(good, "points", PackedVector3Array([Vector3.ZERO]))]},
 		"wall off the map": {"op": "wall", "walls": [_with(good, "points", PackedVector3Array([Vector3.ZERO, Vector3(1e9, 0, 0)]))]},
@@ -167,9 +167,9 @@ func _bad_commands_are_dropped() -> void:
 		"wall longer than any stroke": {"op": "wall", "walls": [_with(good, "points", PackedVector3Array(range(200).map(func(i: int) -> Vector3: return Vector3(-70 if i % 2 else 70, 0, 0))))]},
 		"unwall of one wall twice": {"op": "unwall", "ids": PackedInt32Array([a, a])},
 		"dabs whose count overflows": {"op": "plant", "kind": "grass", "seed": 1, "dabs": [[Vector3.ZERO, 1.0, 1 << 62], [Vector3.ZERO, 1.0, 1 << 62], [Vector3.ZERO, 1.0, 1 << 62], [Vector3.ZERO, 1.0, 1 << 62]]},
-		"reshape to no gable end": {"op": "reshape", "id": a, "data": {"gable_end": WallLayout.GableEnd.size()}},
-		"reshape to a named gable end": {"op": "reshape", "id": a, "data": {"gable_end": "steps"}},
-		"reshape keyed by a name": {"op": "reshape", "id": a, "data": {&"height": NAN}},
+		"reshape to no gable end": {"op": "reshape", "of": "walls", "id": a, "data": {"gable_end": WallLayout.GableEnd.size()}},
+		"reshape to a named gable end": {"op": "reshape", "of": "walls", "id": a, "data": {"gable_end": "steps"}},
+		"reshape keyed by a name": {"op": "reshape", "of": "walls", "id": a, "data": {&"height": NAN}},
 		"heights that put a pond": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": Terrain.read(Rect2i(0, 0, 1, 1)), "put": {Vector2i(0, 0): 1.0}},
 		"heights that drain someone's pond": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": Terrain.read(Rect2i(0, 0, 1, 1)), "drop": [Vector2i(0, 0)]},
 		"a pond on open meadow": {"op": "ponds", "put": {Vector2i(80, 80): Terrain.ground(0, 0).y}},
@@ -209,7 +209,7 @@ func _gable_ends_go_through_the_host() -> void:
 	world._order({"op": "wall", "walls": [_house_data(PackedInt32Array())]}, 1)
 	var id := world.seq * Commands.MAX_PIECES
 	_check(world.state.walls[id].gable_end == WallLayout.GableEnd.WALL, "a house sent without a gable end has the wall's")
-	var turn := {"op": "reshape", "id": id, "data": {"gable_end": WallLayout.GableEnd.STEPS}}
+	var turn := {"op": "reshape", "of": "walls", "id": id, "data": {"gable_end": WallLayout.GableEnd.STEPS}}
 	var hosted := Commands.clean(turn, world.state, false)
 	hosted.seq = world.seq + 1
 	hosted.by = 2
@@ -267,7 +267,7 @@ func _ground_undo_waits_on_overlapping_ground() -> void:
 func _stacks_keep_their_newest_steps() -> void:
 	var a := _wall(3, 40)
 	for i in World.LIMIT + 5:
-		world._order({"op": "reshape", "id": a, "data": {"top": i % 3}}, 3)
+		world._order({"op": "reshape", "of": "walls", "id": a, "data": {"top": i % 3}}, 3)
 	_check(world.stacks[3].undo.size() == World.LIMIT, "a stack holds %d steps" % World.LIMIT)
 	world._order({"op": "undo"}, 3)
 	_check(world.state.walls[a].top == (World.LIMIT + 3) % 3, "and undo takes the newest first")
@@ -277,19 +277,19 @@ func _stacks_keep_their_newest_steps() -> void:
 func _undo_restores_exact_values() -> void:
 	world._order({"op": "wall", "walls": [_with(_wall_data(PackedVector3Array([Terrain.ground(-30, 0), Terrain.ground(-30, 4), Terrain.ground(-26, 4), Terrain.ground(-26, 0)])), "closed", true).merged({"roof": {"kind": 0, "center": Terrain.ground(-28, 2), "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 2, "chimneys": PackedVector2Array(), "flag": false, "thatch": false}}, true)]}, 1)
 	var a := world.seq * Commands.MAX_PIECES
-	world._order({"op": "reshape", "id": a, "data": {"roof": {"pitch": 3.5, "curve": 0.4}}}, 1)
+	world._order({"op": "reshape", "of": "walls", "id": a, "data": {"roof": {"pitch": 3.5, "curve": 0.4}}}, 1)
 	world._order({"op": "undo"}, 1)
 	_check(is_equal_approx(world.state.walls[a].roof.pitch, 2.0) and is_equal_approx(world.state.walls[a].roof.curve, 0.0), "undo puts a roof back as it was")
 	_check(is_equal_approx(main.tool.find(a).roof.pitch, 2.0), "and its wall shows it")
-	world._order({"op": "reshape", "id": a, "data": {"roof": {"pitch": 0.0}}}, 1)
+	world._order({"op": "reshape", "of": "walls", "id": a, "data": {"roof": {"pitch": 0.0}}}, 1)
 	_check(world.state.walls[a].roof.pitch == 0.0 and main.tool.find(a).layout.cover == WallLayout.Cover.DECK, "a roof pushed flat is taken and laid as a deck")
-	world._order({"op": "reshape", "id": a, "data": {"top": WallLayout.Top.CRENEL}}, 1)
+	world._order({"op": "reshape", "of": "walls", "id": a, "data": {"top": WallLayout.Top.CRENEL}}, 1)
 	main.tool.find(a).lay_now()
 	_check(main.tool.find(a).layout.stones.any(func(s): return s.kind == "merlon"), "a flat-roofed house's top restyles like an open wall's")
 	world._order({"op": "undo"}, 1)
 	world._order({"op": "undo"}, 1)
 	_check(is_equal_approx(main.tool.find(a).roof.pitch, 2.0) and main.tool.find(a).layout.cover == WallLayout.Cover.ROOF, "undo raises it back into a pitched roof")
-	var sent := {"op": "reshape", "id": a, "data": {"height": 3.0}}
+	var sent := {"op": "reshape", "of": "walls", "id": a, "data": {"height": 3.0}}
 	world._order(sent, 1)
 	sent.data.height = 7.0
 	_check(is_equal_approx(world.state.walls[a].height, 3.0), "the garden keeps its own copy of a command's values")
@@ -368,7 +368,7 @@ func _snapshot_rebuilds_the_garden() -> void:
 		raised[i] += 1.5
 	world._order({"op": "heights", "cells": hill, "values": raised}, 1)
 	var a := _wall(2, -20)
-	world._order({"op": "reshape", "id": a, "data": {"arches": PackedFloat32Array([2.0])}}, 2)
+	world._order({"op": "reshape", "of": "walls", "id": a, "data": {"arches": PackedFloat32Array([2.0])}}, 2)
 	var picture := _picture()
 	var snap := world.snapshot()
 	world.restore({"seq": 0, "cmds": []})
@@ -392,7 +392,7 @@ func _a_stroke_painted_out_of_step_stays_shown() -> void:
 	var client := ENetMultiplayerPeer.new()
 	client.create_client("127.0.0.1", 9)
 	main.multiplayer.multiplayer_peer = client
-	world._commit({"op": "reshape", "id": 123456, "data": {"height": 3.0}, "seq": world.seq + 1, "by": 1})
+	world._commit({"op": "reshape", "of": "walls", "id": 123456, "data": {"height": 3.0}, "seq": world.seq + 1, "by": 1})
 	var b := tool.brushes[0]
 	b.hand.tool = Hand.Tool.FLOWERS
 	for i in 30:

@@ -283,15 +283,15 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 	var house_id := house.id
 	world.restore(snap)
 	_check(world.palette.season == 4 and world.state.walls[first_id].paint[stone] == 2 and world.state.walls[house_id].paint[Palette.Element.ROOF] == 3, "a garden rebuilt from its snapshot keeps each build's colours")
-	_check(Commands.clean({"op": "reshape", "id": house_id, "data": {"paint": {Palette.Element.ROOF: Palette.count(Palette.Element.ROOF)}}}, world.state, false).is_empty(), "a swatch off the wheel is refused")
-	_check(Commands.clean({"op": "reshape", "id": house_id, "data": {"paint": {Palette.Element.MEADOW: 1}}}, world.state, false).is_empty(), "a build takes no season")
+	_check(Commands.clean({"op": "reshape", "of": "walls", "id": house_id, "data": {"paint": {Palette.Element.ROOF: Palette.count(Palette.Element.ROOF)}}}, world.state, false).is_empty(), "a swatch off the wheel is refused")
+	_check(Commands.clean({"op": "reshape", "of": "walls", "id": house_id, "data": {"paint": {Palette.Element.MEADOW: 1}}}, world.state, false).is_empty(), "a build takes no season")
 	for data in [{"paint": {stone: 1}}, {"roof": {"pitch": 3.0}}]:
-		var cleaned := Commands.clean({"op": "reshape", "id": house_id, "data": data}, world.state, false)
+		var cleaned := Commands.clean({"op": "reshape", "of": "walls", "id": house_id, "data": data}, world.state, false)
 		cleaned.seq = world.seq
 		cleaned.by = 1
 		_check(not Commands.clean(cleaned, world.state, true).is_empty(), "a peer takes the %s reshape the host cleaned" % data.keys()[0])
-	world.submit({"op": "reshape", "id": house_id, "data": {"paint": {stone: 1}}})
-	world.submit({"op": "reshape", "id": house_id, "data": {"paint": {Palette.Element.WOOD: 2}}})
+	world.submit({"op": "reshape", "of": "walls", "id": house_id, "data": {"paint": {stone: 1}}})
+	world.submit({"op": "reshape", "of": "walls", "id": house_id, "data": {"paint": {Palette.Element.WOOD: 2}}})
 	var both: PackedInt32Array = world.state.walls[house_id].paint
 	_check(both[stone] == 1 and both[Palette.Element.WOOD] == 2 and both[Palette.Element.ROOF] == 3, "two players' picks of different materials on one build both stand: %s" % [both])
 

@@ -75,7 +75,7 @@ func _faces_turn_to_plaster() -> void:
 	var id := world.seq * Commands.MAX_PIECES
 	var target: Dictionary = main.palette_tool.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO)
 	_check(target.count == 2, "an open wall's face offers stone and plaster")
-	var relayed := _relayed({"op": "reshape", "id": id, "data": {"plaster": true}}, 2)
+	var relayed := _relayed({"op": "reshape", "of": "walls", "id": id, "data": {"plaster": true}}, 2)
 	_check(relayed.get("data", {}).get("plaster") == true, "a peer takes the host's turn of a face to plaster: %s" % relayed)
 	_turn(target, PaletteTool.Face.PLASTER)
 	_check(world.state.walls[id].plaster and main.tool.find(id).layout.plaster, "a twist of the style tool turns the face to plaster")

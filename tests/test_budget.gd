@@ -165,7 +165,7 @@ func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 	_check(world.fill() < Budget.fill(full, on), "deleting a wall frees its share")
 	_check(await _build([_wall(Vector2(-12, -50), Vector2(12, -50), 4.5)]), "the room it freed takes another wall")
 	var tall_id: int = world.state.walls.keys().max()
-	world.submit({"op": "reshape", "id": tall_id, "data": {"height": 9.0}})
+	world.submit({"op": "reshape", "of": "walls", "id": tall_id, "data": {"height": 9.0}})
 	await _settled()
 	_check(world.state.walls[tall_id].height == 4.5, "pulling a wall taller than the budget allows is turned down")
 	await _play([{"op": "bare"}])

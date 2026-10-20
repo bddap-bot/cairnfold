@@ -6,7 +6,6 @@ var walls: WallTool
 var world: World
 var _buttons: Array[Buttons] = []
 var _strokes := {}
-var rail := "stone"
 
 func _init(player: Rig, builder: WallTool, garden: World) -> void:
 	rig = player
@@ -25,7 +24,7 @@ func begin(hand: Hand, at: Vector3) -> void:
 	_cancel(hand)
 	var ghost := Stones.new()
 	add_child(ghost)
-	_strokes[hand] = {"data": {"a": at, "b": at, "width": 1.2, "rail": rail, "seed": randi()}, "ghost": ghost}
+	_strokes[hand] = {"data": {"a": at, "b": at, "width": 1.2, "rail": world.stairs.rail, "seed": randi(), "paint": walls.paint.duplicate()}, "ghost": ghost}
 
 func extend(hand: Hand, at: Vector3) -> void:
 	if not _strokes.has(hand):
@@ -37,7 +36,7 @@ func extend(hand: Hand, at: Vector3) -> void:
 	if steps != s.get("steps", 0):
 		s.steps = steps
 		Cues.play(Cues.Act.STAIRS_LAY, s.data.b, hand)
-	s.data.rail = rail
+	s.data.rail = world.stairs.rail
 	var layout := StairLayout.new()
 	layout.build(s.data)
 	s.ghost.lay(layout.stones)

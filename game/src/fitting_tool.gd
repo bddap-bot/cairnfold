@@ -161,7 +161,7 @@ func show_reshaped(shown: Dictionary) -> void:
 		var w := walls.find(id)
 		if w != null and w.reshaped != shown[id]:
 			_previewed[id] = shown[id]
-			walls.show_reshaped(w, shown[id])
+			walls.show_reshaped(id, shown[id])
 
 
 static func _height(pick: Dictionary) -> float:
@@ -202,7 +202,7 @@ func _command(target: Dictionary, c: Dictionary) -> Dictionary:
 		return {}
 	var w: Wall = target.wall
 	if target.what == "tower_flag":
-		return {"op": "reshape", "id": w.id, "data": {"roof": {"flag": not w.roof.flag}}}
+		return {"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"flag": not w.roof.flag}}}
 	var after: Array = c.after
 	var packed: Variant
 	match c.key:
@@ -212,7 +212,7 @@ func _command(target: Dictionary, c: Dictionary) -> Dictionary:
 			packed = PackedFloat32Array(after)
 		_:
 			packed = PackedVector2Array(after)
-	return {"op": "reshape", "id": w.id, "data": {"roof": {c.key: packed}} if c.on_roof else {c.key: packed}}
+	return {"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {c.key: packed}} if c.on_roof else {c.key: packed}}
 
 
 ## What a press on `target` would do: `ok` false where nothing; otherwise the list `key` on the wall (or

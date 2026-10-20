@@ -583,7 +583,7 @@ func _lay(nodes: Array, a: Vector3, b: Vector3, half: float) -> void:
 
 
 func _reshape(nodes: Array, w: Wall, data: Dictionary) -> void:
-	(nodes[2] as World).submit({"op": "reshape", "id": w.id, "data": data})
+	(nodes[2] as World).submit({"op": "reshape", "of": "walls", "id": w.id, "data": data})
 	_lay_walls(nodes[0])
 
 

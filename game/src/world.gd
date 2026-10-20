@@ -145,14 +145,9 @@ func change_of(cmd: Dictionary) -> Dictionary:
 			for id in cmd.ids:
 				Budget.add(out, _units_of.get("w%d" % id, {}), -1.0)
 		"reshape":
-			if state.walls.has(cmd.id):
-				var trial: Dictionary = state.walls[cmd.id].duplicate(true)
-				for k in cmd.data:
-					if k == "roof":
-						trial.roof.merge(cmd.data.roof, true)
-					elif k != "paint":
-						trial[k] = cmd.data[k]
-				Budget.add(Budget.add(out, Budget.wall(trial)), _units_of.get("w%d" % cmd.id, {}), -1.0)
+			if state[cmd.of].has(cmd.id):
+				var trial := reshaped(state[cmd.of][cmd.id], cmd.data)
+				Budget.add(Budget.add(out, _units(cmd.of, trial)), _units_of.get(_keys(cmd)[0], {}), -1.0)
 		"stairs":
 			Budget.add(out, Budget.stairs(cmd.stairs))
 		"unstairs":
@@ -520,13 +515,30 @@ func _untouched_by_others(e: Dictionary, by: int) -> bool:
 	return true
 
 
+## A build's garden data `now` with a `reshape`'s `data` applied: a roof's and the paint's by the entries they name.
+static func reshaped(now: Dictionary, data: Dictionary) -> Dictionary:
+	var out := now.merged(data, true)
+	if data.has("roof"):
+		out.roof = now.roof.merged(data.roof, true)
+	if data.has("paint"):
+		out.paint = PackedInt32Array(now.paint)
+		for e in data.paint:
+			out.paint[e] = data.paint[e]
+	return out
+
+
+## What a build from the garden's table `of` counts as in the frame budget.
+static func _units(of: String, d: Dictionary) -> Dictionary:
+	return Budget.wall(d) if of == "walls" else Budget.stairs(d)
+
+
 ## What a command changes, as keys `touched` tracks: a wall, a painted group, patches of ground and meadow.
 func _keys(cmd: Dictionary) -> Array:
 	match cmd.op:
 		"wall", "unwall":
 			return Array(cmd.ids).map(func(id: int) -> String: return "w%d" % id)
 		"reshape":
-			return ["w%d" % cmd.id]
+			return ["%s%d" % ["w" if cmd.of == "walls" else "q", cmd.id]]
 		"plant":
 			return ["p%d" % cmd.id]
 		"species":
@@ -601,7 +613,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				wall_tool.take(id)
 				_account("w%d" % id, {})
 		"reshape":
-			var now: Dictionary = state.walls[cmd.id]
+			var now: Dictionary = state[cmd.of][cmd.id]
 			var before := {}
 			for k in cmd.data:
 				if k == "roof":
@@ -619,9 +631,12 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				else:
 					before[k] = now[k]
 					now[k] = cmd.data[k]
-			wall_tool.restyle(cmd.id, cmd.data.keys())
-			_account("w%d" % cmd.id, Budget.wall(now))
-			inverse = {"op": "reshape", "id": cmd.id, "data": before}
+			if cmd.of == "walls":
+				wall_tool.restyle(cmd.id, cmd.data.keys())
+			else:
+				stairs.settle(cmd.id)
+			_account(_keys(cmd)[0], _units(cmd.of, now))
+			inverse = {"op": "reshape", "of": cmd.of, "id": cmd.id, "data": before}
 		"stairs":
 			state.stairs[cmd.id] = cmd.stairs.duplicate(true)
 			stairs.put(cmd.id, state.stairs[cmd.id])

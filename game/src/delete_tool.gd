@@ -327,7 +327,7 @@ func let_go(who: Object) -> void:
 		if ruins.is_empty():
 			cmds.append({"op": "unwall", "ids": PackedInt32Array([id])})
 		elif ruins != Array(world.state.walls[id].ruins):
-			cmds.append({"op": "reshape", "id": id, "data": {"ruins": PackedVector2Array(ruins)}})
+			cmds.append({"op": "reshape", "of": "walls", "id": id, "data": {"ruins": PackedVector2Array(ruins)}})
 	for id: int in cut.marks:
 		cmds.append({"op": cut.marks[id], "id": id})
 	for id: int in cut.easels:

@@ -316,18 +316,18 @@ func _turn(s: Dictionary, x: float, z: float, degrees: float) -> float:
 func _roof(s: Dictionary) -> void:
 	var w: Wall = main.tool.walls[s.index]
 	main.tool.shape_roof(w, s.get("pitch", w.roof.pitch), s.get("curve", w.roof.curve))
-	main.world.submit({"op": "reshape", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}})
+	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}})
 
 
 func _top(s: Dictionary) -> void:
 	var w: Wall = main.tool.walls[s.index]
 	if w.roof == null or w.roof.flat():
-		main.world.submit({"op": "reshape", "id": w.id, "data": {"top": int(WallLayout.Top[s.style.to_upper()])}})
+		main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"top": int(WallLayout.Top[s.style.to_upper()])}})
 
 
 ## Turns the gable ends of the house `index` (or under `at`) to `style`: wall, boards or steps.
 func _gable(s: Dictionary) -> void:
-	main.world.submit({"op": "reshape", "id": _wall_of(s).id, "data": {"gable_end": int(WallLayout.GableEnd[s.style.to_upper()])}})
+	main.world.submit({"op": "reshape", "of": "walls", "id": _wall_of(s).id, "data": {"gable_end": int(WallLayout.GableEnd[s.style.to_upper()])}})
 
 
 ## With `gable` (wall, boards or steps), houses laid after take that style of gable end.
@@ -338,7 +338,7 @@ func _lay_gables(s: Dictionary) -> void:
 
 func _lift_wall(s: Dictionary) -> void:
 	var w := _wall_of(s)
-	main.world.submit({"op": "reshape", "id": w.id, "data": {"height": float(s.height)}})
+	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"height": float(s.height)}})
 
 
 ## Grips wall `index` (or the one under `at`) on its top, as a hand does, and pulls it `metres` up then down again
@@ -591,7 +591,7 @@ func _stress(s: Dictionary) -> void:
 		var before := tool.walls.size()
 		tool.end_stroke(m)
 		for w in tool.walls.slice(before):
-			main.world.submit({"op": "reshape", "id": w.id, "data": {"height": float(s.height)}})
+			main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"height": float(s.height)}})
 			w.ivy_age = INF
 	var ms := (Time.get_ticks_usec() - start) / 1000.0
 	var stones := 0
@@ -614,7 +614,7 @@ func _lanterns(s: Dictionary) -> void:
 				hung += 1
 			t += s.every
 		if after.size() > layout.lanterns.size():
-			main.world.submit({"op": "reshape", "id": w.id, "data": {"lanterns": after}})
+			main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"lanterns": after}})
 	print("stress: %d lanterns" % hung)
 
 
@@ -875,7 +875,7 @@ func _sun(s: Dictionary) -> void:
 func _colour(s: Dictionary) -> void:
 	var tool: PaletteTool = main.palette_tool
 	var element: Palette.Element = Palette.Element[s.element.to_upper()]
-	var target := tool.colour_target(element, Vector3.ZERO, null)
+	var target := tool.colour_target(element, Vector3.ZERO)
 	if s.has("at"):
 		target = tool.aim(_dial_from(s), _dial_dir(s))
 	if target.get("element") != element:
@@ -885,7 +885,7 @@ func _colour(s: Dictionary) -> void:
 
 
 ## The style tool's trigger held on what it finds from `from` toward `at`, as `PaletteTool.aim_style` does
-## (`restyle` names what that must be: gable, roof, top, face or tree), twisted round to choice `pick` over
+## (`restyle` names what that must be: gable, roof, top, face, rail or tree), twisted round to choice `pick` over
 ## `seconds` and let go, as `colour` does.
 ## With `tree`, it is aimed instead at the meadow's own tree of that number, across its crown from `side` metres away.
 func _style(s: Dictionary) -> void:
@@ -1380,7 +1380,7 @@ func _units(_s: Dictionary) -> void:
 func _stairs(s: Dictionary) -> void:
 	var hand: Hand = main.rig.right
 	hand.tool = Hand.Tool.STAIRS
-	main.stair_tool.rail = s.get("rail", "stone")
+	main.world.stairs.rail = s.get("rail", "stone")
 	var a := Vector3(s.a[0], s.a[1], s.a[2])
 	var b := Vector3(s.b[0], s.b[1], s.b[2])
 	if s.get("ground", false):
@@ -1406,7 +1406,7 @@ func _stair_field(_s: Dictionary) -> void:
 	for row in 9:
 		for col in 9:
 			var a := Terrain.ground((col - 4) * 3.5, (row - 4) * 6.0)
-			var d := {"a": a, "b": a + Vector3(0, 2.4, -4), "width": 1.2, "rail": "stone" if col % 2 == 0 else "wood", "seed": row * 9 + col}
+			var d := {"a": a, "b": a + Vector3(0, 2.4, -4), "width": 1.2, "rail": "stone" if col % 2 == 0 else "wood", "seed": row * 9 + col, "paint": Palette.plain()}
 			if col % 3 == 1:
 				d.b = a + Vector3(0, 3, -1)
 			elif col % 3 == 2:

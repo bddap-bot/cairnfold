@@ -3,12 +3,16 @@ extends Node3D
 
 var masonry: Masonry
 var layouts := {}
+## The railings new flights and landings are laid with: the style last turned to on this machine.
+var rail := "stone"
 var _growing := {}
+var _data := {}
 
 func _init(shared: Masonry) -> void:
 	masonry = shared
 
 func put(id: int, data: Dictionary) -> void:
+	_data[id] = data
 	var layout := StairLayout.new()
 	layout.build(data)
 	layouts[id] = layout
@@ -19,6 +23,7 @@ func put(id: int, data: Dictionary) -> void:
 	_growing[id] = {"node": shown, "count": 0.0, "shown": -1}
 
 func take(id: int) -> void:
+	_data.erase(id)
 	layouts.erase(id)
 	if _growing.has(id):
 		_growing[id].node.queue_free()
@@ -36,20 +41,35 @@ func _process(delta: float) -> void:
 		growth.shown = n
 		growth.node.reveal(n)
 		if n == layout.stones.size():
-			var wall := WallLayout.new()
-			wall.stones = layout.stones
-			var packed := Wall.pack(wall, Wall.kinds(), Palette.plain())
-			var parts: Array[Dictionary] = []
-			for k in Wall.Part.size():
-				parts.append(packed.chunks.get(k, {}))
-			masonry.place(-1000000 - id, parts)
-			growth.node.queue_free()
-			_growing.erase(id)
+			_place(id)
+
+## Lays stairs as the garden has them again, whole at once.
+func settle(id: int) -> void:
+	show_reshaped(id, {})
+
+## Lays stairs whole as a reshape with `data` would leave them, through the layout that lays the reshape itself.
+func show_reshaped(id: int, data: Dictionary) -> void:
+	var layout := StairLayout.new()
+	layout.build(World.reshaped(_data[id], data))
+	layouts[id] = layout
+	_place(id)
+
+func _place(id: int) -> void:
+	var wall := WallLayout.new()
+	wall.stones = layouts[id].stones
+	var packed := Wall.pack(wall, Wall.kinds(), Palette.plain())
+	var parts: Array[Dictionary] = []
+	for k in Wall.Part.size():
+		parts.append(packed.chunks.get(k, {}))
+	masonry.place(-1000000 - id, parts)
+	if _growing.has(id):
+		_growing[id].node.queue_free()
+		_growing.erase(id)
 
 func laying() -> bool:
 	return not _growing.is_empty()
 
-## The nearest stone of any stairs along a ray short of `reach`, as {stair, point, along}, or empty.
+## The nearest stone of any stairs along a ray short of `reach`, as {stair, point, along, kind} (the stone's), or empty.
 func pick(origin: Vector3, direction: Vector3, reach: float) -> Dictionary:
 	var best := {}
 	for id: int in layouts:
@@ -66,7 +86,7 @@ func pick(origin: Vector3, direction: Vector3, reach: float) -> Dictionary:
 				var distance := origin.distance_to(point)
 				if distance < reach:
 					reach = distance
-					best = {"stair": id, "point": point, "along": distance}
+					best = {"stair": id, "point": point, "along": distance, "kind": piece.kind}
 	return best
 
 

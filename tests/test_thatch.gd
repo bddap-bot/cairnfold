@@ -261,7 +261,7 @@ func _thatch_is_part_of_the_build_command() -> void:
 	_check(Commands._wall(d) != null, "a tiled house is a valid build")
 	d.roof.thatch = true
 	_check(Commands._wall(d) != null and Commands._wall(d).roof.thatch, "and a thatched one")
-	_check(Commands._reshape({"roof": {"thatch": false}}, Commands._wall(d)).roof == {"thatch": false}, "a reshape tiles it again")
+	_check(Commands._reshape("walls", {"roof": {"thatch": false}}, Commands._wall(d)).roof == {"thatch": false}, "a reshape tiles it again")
 	d.roof.thatch = 1
 	_check(Commands._wall(d) == null, "a covering that is not a yes or no is refused")
 	d.roof.erase("thatch")

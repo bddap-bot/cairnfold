@@ -34,6 +34,12 @@ const MAX_RUINS := 32
 const MAX_SNAPSHOT := MAX_THINGS * 2 + 64
 ## Most builds one build stands on.
 const MAX_SUPPORTS := 8
+## What a `reshape` may change, by the garden's table of the builds it changes; `paint` and a wall's `roof` change
+## by the entries they name.
+const RESHAPES := {
+	"walls": ["points", "height", "rise", "top", "plaster", "gable_end", "timber_style", "arches", "windows", "lanterns", "flags", "ruins"],
+	"stairs": ["rail"],
+}
 
 
 ## Length of a stroke along the ground.
@@ -107,10 +113,11 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			ok = typeof(ids) == TYPE_PACKED_INT32_ARRAY and ids.size() >= 1 and ids.size() <= MAX_PIECES and _unique(ids) and Array(ids).all(func(id: int) -> bool: return state.walls.has(id))
 			out.ids = ids
 		"reshape":
-			ok = typeof(cmd.get("id")) == TYPE_INT and state.walls.has(cmd.id) and cmd.get("data") is Dictionary
+			ok = RESHAPES.has(cmd.get("of")) and typeof(cmd.get("id")) == TYPE_INT and state[cmd.of].has(cmd.id) and cmd.get("data") is Dictionary
 			if ok:
+				out.of = cmd.of
 				out.id = cmd.id
-				out.data = _reshape(cmd.data, state.walls[cmd.id])
+				out.data = _reshape(cmd.of, cmd.data, state[cmd.of][cmd.id])
 				ok = out.data != null
 		"path":
 			out.path = _path(cmd.get("path"))
@@ -239,7 +246,7 @@ static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 			kept.erase(k)
 		var ids: Array = Array(kept.ids) if kept.has("ids") else ([kept.id] if kept.has("id") else [-1])
 		for id: int in ids:
-			var key := "%s%d" % ["w" if kept.op in ["wall", "unwall", "reshape"] else ("e" if kept.op in ["easel", "uneasel"] else ("q" if id >= 0 else "show")), id]
+			var key := "%s%d" % ["w" if kept.op in ["wall", "unwall"] or kept.get("of") == "walls" else ("e" if kept.op in ["easel", "uneasel"] else ("q" if id >= 0 else "show")), id]
 			if seen.has(key):
 				return false
 			seen[key] = true
@@ -323,8 +330,9 @@ static func _wall(d: Variant) -> Variant:
 	return out
 
 
-## A wall's changed fields, each as valid as in a whole wall: a copy of it with them applied must pass.
-static func _reshape(d: Dictionary, now: Dictionary) -> Variant:
+## A build's changed fields, each as valid as in a whole build of its kind (`of`, the garden's table of them): a copy
+## of it with them applied must pass.
+static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 	if d.is_empty():
 		return null
 	var out := {}
@@ -333,7 +341,7 @@ static func _reshape(d: Dictionary, now: Dictionary) -> Variant:
 		# A peer re-checks what the host cleaned, so keys stay Strings: `out.roof = ` would store a StringName.
 		if typeof(k) != TYPE_STRING:
 			return null
-		if k in ["points", "height", "rise", "top", "plaster", "gable_end", "timber_style", "arches", "windows", "lanterns", "flags", "ruins"]:
+		if k in RESHAPES[of]:
 			out[k] = d[k]
 			trial[k] = d[k]
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():
@@ -353,7 +361,7 @@ static func _reshape(d: Dictionary, now: Dictionary) -> Variant:
 				trial.paint[e] = d.paint[e]
 		else:
 			return null
-	return out if _wall(trial) != null else null
+	return out if (_wall(trial) if of == "walls" else _stairs(trial)) != null else null
 
 
 static func _path(d: Variant) -> Variant:
@@ -500,6 +508,6 @@ static func _stairs(d: Variant) -> Variant:
 	var length: float = d.a.distance_to(d.b)
 	if length < 0.3 or length > StairLayout.MAX_LENGTH + 0.001 or not _in(d.get("width"), StairLayout.WIDTH):
 		return null
-	if typeof(d.get("seed")) != TYPE_INT or not d.get("rail") in ["none", "stone", "wood"]:
+	if typeof(d.get("seed")) != TYPE_INT or not d.get("rail") in StairLayout.RAILS or not Palette.valid(d.get("paint")):
 		return null
-	return {"a": d.a, "b": d.b, "width": d.width, "seed": d.seed, "rail": d.rail}
+	return {"a": d.a, "b": d.b, "width": d.width, "seed": d.seed, "rail": d.rail, "paint": d.paint}
