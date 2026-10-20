@@ -2698,8 +2698,9 @@ Report (verbatim): "I think I may have gotten stuck at one point using what look
 Each kit reads at a glance from standing height at arm's length, judged on renders at headset scale
 (`demo/easel-kit.json`) by a reader given only the pictures: the glass holds blue water under a bright rim, the pans
 sit in a white box, the oil colours stand up as glossy dollops, and the charcoal is bare crooked grey-black sticks with
-no handle or ferrule, so it is never taken for a brush. Each palette is one or two baked meshes coloured by vertex,
-so the kits add a few draw calls an easel.
+no handle or ferrule, so it is never taken for a brush. Each palette is one or two baked meshes coloured by vertex.
+On a Quest 2 (`demo/easel-kit-bench.json`, `perf/quest-2/easel-kit-bench/`) the kits drew 6 to 30 fewer calls than
+the one palette, tin and jar before them, with GPU time within 0.11 ms in every easel view.
 
 The stand's legs run parallel to the canvas a few centimetres behind its backing, so no plank crosses the painting
 from anywhere a player stands. A well counts as reached over its whole footprint and through the board, because no
