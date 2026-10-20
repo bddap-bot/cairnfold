@@ -44,6 +44,10 @@ func _run() -> void:
 	_check(host.session.players() == 2 and guest.session.avatars.has(1), "co-op peer joins before focus loss")
 	var peer := guest.multiplayer.multiplayer_peer
 	var ids := host.multiplayer.get_peers()
+	# This pause must survive a played session's timeouts, not the scripted co-op exemption.
+	for game in [host, guest]:
+		for id in game.multiplayer.get_peers():
+			(game.multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(id).set_timeout(0, 0, 0)
 	var sim := Simulation.new()
 	guest.add_child(sim)
 	var audio := AudioStreamPlayer.new()
@@ -69,6 +73,12 @@ func _run() -> void:
 		var cue_clock := cues._clock
 		for frame in 12:
 			await process_frame
+		if signal_name == "idle":
+			var started := Time.get_ticks_msec()
+			while Time.get_ticks_msec() - started < 35000:
+				await process_frame
+				OS.delay_msec(10)
+			print("tests: co-op paused for %d ms with normal ENet timeouts" % (Time.get_ticks_msec() - started))
 		_check(paused and sim.frames == frames and audio.stream_paused, "%s pauses simulation and audio" % signal_name)
 		_check(cue_voice.stream_paused and cues._clock == cue_clock, "%s pauses action sounds and queued haptics" % signal_name)
 		_check(guest.session._clock > network_clock, "%s keeps networking processing" % signal_name)
