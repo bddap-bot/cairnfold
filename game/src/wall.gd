@@ -767,6 +767,8 @@ func ray_hit(origin: Vector3, dir: Vector3) -> Dictionary:
 		if hit == null:
 			continue
 		var t: float = (hit - local).dot(direction) / direction.length_squared()
+		if layout.hides(origin + dir * t):
+			continue
 		if t < best.get("along", INF):
 			var end := layout.lengths[j] if j > 0 else layout.length()
 			best = {"along": t, "point": origin + dir * t, "s": lerpf(layout.lengths[i], end, clampf(hit.x / length, 0.0, 1.0)), "distance": 0.0}

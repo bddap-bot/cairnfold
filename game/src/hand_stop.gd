@@ -284,6 +284,8 @@ class Near:
 		for r in roofs:
 			var below := p.y - r.height_at(p.x, p.z) + ROOF_SHELL * 0.5
 			if r.over(p.x, p.z) and absf(below) < ROOF_SHELL * 0.5 + RADIUS:
+				if WallLayout.hidden(Vector3(p.x, r.height_at(p.x, p.z), p.z), r.joined, r.resting):
+					continue
 				if with_facing:
 					facing = _slope(p, r.height_at) * signf(below + 1e-6)
 				return Surface.STONE if r.flat() else Surface.TILE
@@ -343,6 +345,8 @@ class Near:
 		if off.length_squared() >= reach * reach:
 			return false
 		var l := w.layout
+		if l.hides(p):
+			return false
 		var s := lerpf(w.s0, w.s1, u)
 		var y := p.y - lerpf(w.y0, w.y1, u) - WallLayout.SINK
 		var top := WallLayout.FENCE_HEIGHT if l.fence else l.standing(s) + WallLayout.CAP

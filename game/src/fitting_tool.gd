@@ -371,6 +371,8 @@ static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held :
 				continue
 			var along: float = (hit - local).dot(direction) / direction.length_squared()
 			var point := origin + dir * along
+			if w.layout.hides(point):
+				continue
 			if along > best.get("along", INF) + 0.001:
 				continue
 			best = item.duplicate()

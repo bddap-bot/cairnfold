@@ -152,6 +152,8 @@ func _two_houses_joined_are_one_room_under_one_roof() -> void:
 	var body := node.ray_distance(Vector3(4, 1, 3), Vector3.FORWARD)
 	print("merged wall pick distance: ", body.along)
 	_check(body.along > 4.5 and body.along < 5.5, "wall pick skips the removed near wall and finds the standing far wall")
+	var surface := node.ray_hit(Vector3(4, 1, 3), Vector3.FORWARD)
+	_check(not surface.is_empty() and surface.along > 4.5 and surface.along < 5.5, "continuous wall pick retains the far visible wall after skipping the hidden near one")
 	node.free()
 	var origin := Vector3(4, 3.8, 3.0)
 	var direction := Vector3(0, -0.3, -1).normalized()
