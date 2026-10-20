@@ -43,11 +43,10 @@ signal built
 
 
 ## A thing a grip holds and two grips size by their span: how to read and show its scale, the range it may take, and
-## the command that sets it in the garden as shown ({} while nothing changed); and what one hand alone does with it,
+## the command that sets it in the garden as shown ({} while it is as the garden has it); and what one hand alone does with it,
 ## `take` holding it from the hand's pose and `follow` moving it with the hand's pose: a tree or opening grows as the
 ## hand rises, its top following the hand, a boulder is carried.
 class Sizing:
-	var from := 0.0
 	var scale: Callable
 	var top: Callable
 	var limits: Vector2
@@ -946,7 +945,6 @@ func begin_grow(m: Mason, target: Object, hand: Transform3D, at: Vector3) -> voi
 			m.pair_span = o.hand.global_position.distance_to(hand.origin)
 			return
 	m.sizing = _sizing(target)
-	m.sizing.from = m.sizing.scale.call()
 	m.sizing.take.call(m, hand)
 
 
@@ -1020,7 +1018,10 @@ func _sizing(target: Object) -> Sizing:
 	s.limits = FloraLayout.SCALES
 	s.current = trunk.current
 	s.show = func(scale: float) -> void: flora.set_look(trunk, flora.species_of(trunk) as FloraLayout.Species, scale)
-	s.command = func() -> Dictionary: return {} if is_equal_approx(s.scale.call(), s.from) else {"op": "tree", "group": trunk.group, "index": trunk.index, "scale": s.scale.call()}
+	s.command = func() -> Dictionary:
+		var scale := flora.scale_of(trunk)
+		var g: Dictionary = world.state.groups.get(trunk.group, {})
+		return {} if not g.is_empty() and is_equal_approx(scale, g.scale.get(trunk.index, 1.0)) else {"op": "tree", "group": trunk.group, "index": trunk.index, "scale": scale}
 	s.settle = func() -> void:
 		var g: Dictionary = world.state.groups.get(trunk.group, {})
 		if trunk.current() and not g.is_empty() and not held.call():
@@ -1102,7 +1103,7 @@ func _opening_sizing(grip: OpeningGrip, s: Sizing, held: Callable) -> Sizing:
 		if not is_equal_approx(size, shown.size) and fits.call(size):
 			shown.size = size
 			_relay(w, {"openings": PackedVector4Array(sized.call(size))})
-	s.command = func() -> Dictionary: return {} if is_equal_approx(shown.size, s.from) else {"op": "reshape", "of": "walls", "id": w.id, "data": {"openings": PackedVector4Array(sized.call(shown.size))}}
+	s.command = func() -> Dictionary: return {} if is_equal_approx(shown.size, start.w) else {"op": "reshape", "of": "walls", "id": w.id, "data": {"openings": PackedVector4Array(sized.call(shown.size))}}
 	s.settle = func() -> void:
 		if current.call() and not held.call():
 			settle(w.id)
