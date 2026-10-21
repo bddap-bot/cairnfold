@@ -30,12 +30,15 @@ void fragment() {
 	vec3 col = sheet * exp(-(d.rgb + w.rgb));
 	float damp = smoothstep(0.0, 0.25, w.a);
 	ALBEDO = col * (1.0 - 0.12 * damp);
-	vec2 px = 1.0 / vec2(textureSize(dry, 0));
-	float hl = texture(dry, UV - vec2(px.x, 0)).a * IMPASTO + texture(paper, UV - vec2(px.x, 0)).r * GRAIN;
-	float hr = texture(dry, UV + vec2(px.x, 0)).a * IMPASTO + texture(paper, UV + vec2(px.x, 0)).r * GRAIN;
-	float hu = texture(dry, UV - vec2(0, px.y)).a * IMPASTO + texture(paper, UV - vec2(0, px.y)).r * GRAIN;
-	float hd = texture(dry, UV + vec2(0, px.y)).a * IMPASTO + texture(paper, UV + vec2(0, px.y)).r * GRAIN;
-	vec2 slope = vec2(hr - hl, hd - hu) / (2.0 * px * metres);
+	float height = d.a * IMPASTO + tooth.x * GRAIN;
+	vec2 dx = dFdx(UV * metres);
+	vec2 dy = dFdy(UV * metres);
+	float determinant = dx.x * dy.y - dx.y * dy.x;
+	vec2 slope = vec2(0.0);
+	if (abs(determinant) > 1e-12) {
+		vec2 dh = vec2(dFdx(height), dFdy(height));
+		slope = vec2(dh.x * dy.y - dh.y * dx.y, dh.y * dx.x - dh.x * dy.x) / determinant;
+	}
 	NORMAL_MAP = normalize(vec3(-slope.x, slope.y, 1.0)) * 0.5 + 0.5;
 	float oil = smoothstep(0.02, 0.2, d.a);
 	ROUGHNESS = mix(mix(0.92, 0.45, oil), 0.18, damp);
