@@ -3734,3 +3734,38 @@ credited to the shader. The records are in `perf/quest-2/grass-collapse/`.
 This is a partial saving, not a frame-budget pass. The candidate's visible-grass
 phases still take 29.67/29.63 ms against the 12.5 ms budget. The full stress scene
 and its validation remain unchanged.
+
+### Dense-scene lighting remainder
+
+`demo/dense-sun-shadows.json` repeats sunlight on/off/on three times in a dense
+wall/hill view at full detail. It then compares quality steps 8 and 9, which differ
+only in shadows, and separately toggles sunlight with shadows already disabled.
+Run it with `NESTCOMBE_SCENE=demo/dense-sun-shadows.json scripts/bench.sh OUT --android APK`.
+These are diagnostic controls, not changes to the stress acceptance workload.
+
+On one physical Quest 2 at 72 Hz, levels 4/4 and 1478/525 MHz, the bracketed GPU
+costs on `21b182e4` were:
+
+| Conditional comparison | Saving against before/after controls | GPU time with that work disabled |
+| --- | --- | --- |
+| Full detail, sunlight and shadows together | 5.16–5.39 ms | 25.25–25.38 ms |
+| Lower detail, shadows alone | 1.36–1.64 ms | 22.40–22.48 ms |
+| Lower detail, direct lighting with shadows already off | 3.16–3.61 ms | 18.97–19.21 ms |
+
+The records are in `perf/quest-2/dense-sun-shadows/`. The fixture omits the earlier
+pond and wildlife edits from the full stress tour. Its conditional differences
+are not additive across comparisons or transferable to individual stress phases.
+The entire time left with each control disabled remains unisolated; even the
+lowest control exceeds 12.5 ms. This establishes costs to investigate, not a
+quality-preserving optimization or a budget pass.
+
+The unmodified stress run on the same revision, recorded in
+`perf/quest-2/stress/20261021T122615Z-21b182e.json`, held 52 of 120 non-sweep phases;
+68 failed, with `camera/two` at 38.67 ms (26.17 ms over budget). The five sweep
+phases are retained separately. All 69 previously failing phases were measured:
+`hints/every` and `decorations/night` held, while the other 67 still failed;
+`ruins/no-delete` also failed at 12.64 ms. The added held-object phases remain in
+the count. Every full-stress excess is still unassigned: the diagnostic does not
+explain those totals. The repeated sweep style-target misses and formatting error
+persisted and remain a limitation on interpreting the sweep setup. The benchmark's
+contamination and completion checks passed unchanged.
