@@ -781,12 +781,21 @@ against the 1.62 measured, and the Quest 2, once refitted at 0.68 µs a flower a
 so every build was turned down on a Quest.
 
 A garden filled to the budget through the tools (`demo/full.json`: six trees, a flower
-stroke, a path, a pond, a house and walls until they were turned down; 100%), played on
-the Frame with the ladder free: standing in the garden, among its walls and by the house,
-every second ran 72 to 73 frames at 7.7 to 8.5 ms (step 2), one late frame in 36 s. From
-the air it held 72 Hz at 10.3 to 10.8 ms at steps 1 and 2, then the governor stepped up
-to the top and the runtime held the game at every other refresh for six seconds before it
-stepped back down: the ladder's own probe for room, not the content, which held at step 2.
+stroke, a path, a pond, a house, walls until they were turned down, then a flower stroke that
+paints until the budget stops it), played with the ladder free. The script lays most of the
+garden within a second, so the ladder starts from the top and walks down over the next
+seconds; the frames late there are that walk, which a garden built by hand never makes.
+Once the ladder settles (step 10 on both):
+
+| Headset, share of the budget | From the air | Standing | Among the walls | By the house |
+| --- | --- | --- | --- | --- |
+| Quest 2, 99.9 to 100% (four runs) | 72 fps, 9.7 to 9.8 ms App | 72 fps, 7.6 ms | 72 fps, 8.0 to 8.1 ms | 72 fps, 7.9 to 8.0 ms |
+| Steam Frame, 97.7% (the next wall turned down) | 72 to 73 fps, 7.5 ms viewport | 72 to 73 fps, 5.9 ms | 72 to 73 fps, 5.6 ms | 72 to 73 fps, 6.0 ms |
+
+The Quest 2's budget is 12.5 ms of App time and the Frame's line 11.1 ms of viewport time; at the
+limit the Quest 2 keeps 2.7 ms and the Frame 3.6 ms. In the first two or three seconds from the
+air, while the ladder walked down, the Quest 2 ran 52 to 70 fps and the Frame, from the top
+step, half rate for about ten seconds.
 
 What walls cost the Quest 2 (`NESTCOMBE_SCENE=demo/costs.json bench.sh OUT --android APK`,
 the ladder at its bottom step): GPU milliseconds a frame over the bare meadow of the same run,
