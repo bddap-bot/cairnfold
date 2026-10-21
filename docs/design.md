@@ -3769,3 +3769,47 @@ the count. Every full-stress excess is still unassigned: the diagnostic does not
 explain those totals. The repeated sweep style-target misses and formatting error
 persisted and remain a limitation on interpreting the sweep setup. The benchmark's
 contamination and completion checks passed unchanged.
+
+The stair stress fixture checks its own allowance directly. It must not leave the
+garden's build limit enabled: later stress houses were otherwise rejected before
+the foundation style rays ran. A regression follows the stair field with the
+foundation house and its style ray, checking that the house exists and the ray
+hits its face. Earlier foundation-sweep timings with style-target misses measured
+an incomplete fixture, even though the benchmark's contamination checks passed.
+
+`demo/stress-layer-costs.json` preserves the complete stress prefix through
+`camera/two`, then brackets each diagnostic control twice at full detail. The
+`shadows` control suppresses the main sun's shadows across quality steps and
+restores each step's original setting; `masonry` hides the settled masonry node;
+`camera_previews` pauses preview updates while retaining the displayed images.
+These controls change only an explicitly requested diagnostic. Their differences
+include interactions such as newly exposed geometry when an occluder is hidden.
+
+On the physical Quest 2, the accumulated camera scene gave these bracketed
+conditional differences (two on/off/on repetitions, milliseconds):
+
+| Control disabled | Difference against on controls | Frame time with it disabled |
+| --- | --- | --- |
+| masonry | 14.89–16.10 | 20.84–20.94 |
+| camera_previews | 5.97–7.08 | 30.05–30.90 |
+| grass | 4.90–7.01 | 31.10–32.16 |
+| sun | 4.75–5.45 | 30.39–30.91 |
+| msaa | 1.14–2.57 | 35.49–37.07 |
+| shadows | 1.01–2.45 | 35.61–36.65 |
+| terrain | 0.67–2.25 | 35.83–37.45 |
+| water | -0.96–0.58 | 37.55–38.01 |
+| trees | -11.36–-9.40 | 46.54–48.27 |
+
+The record is in `perf/quest-2/stress-layer-costs/`. All 1,460 labeled runtime
+clock samples held levels 4/4 at 1478/525 MHz, and the contamination and completion
+checks passed. Settled masonry has the largest measured net effect, followed by
+camera previews, grass and sunlight. Shadow-only removal is smaller than removing
+sunlight as a whole. Hiding trees makes the frame slower; exposing occluded work
+is a hypothesis, not a separately isolated cause. Water has no consistent saving.
+
+Each disabled-state total remains an explicit unassigned remainder. Even hiding
+all settled masonry leaves 20.84–20.94 ms, 8.34–8.44 ms over budget. These effects
+include interactions and the camera previews' views, and cannot be summed into a
+frame decomposition or transferred to every stress phase. They identify larger
+costs to investigate; they do not justify hiding geometry, removing lighting or
+lowering acceptance quality. No rendering optimization is claimed here.
