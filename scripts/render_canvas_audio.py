@@ -56,7 +56,7 @@ def render(profile):
             pitch = 0.8 * rng.uniform(0.88, 1.12)
             gain = 10 ** ((-18 + rng.uniform(-1.5, 1)) / 20)
         else:
-            due = t + 0.065
+            due = t + 0.1
             index = (previous + 1 + int(rng.integers(7))) % 8
             previous = index
             pitch = min(1.05, 0.85 + speed * 0.3)

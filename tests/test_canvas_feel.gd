@@ -41,6 +41,8 @@ func audio_stops() -> void:
 	root.add_child(hand)
 	await process_frame
 	Cues.canvas_contact(hand, Vector3.ZERO, true, true, 0.8, 0.2, 0.003, false)
+	for grain: AudioStream in cues._charcoal:
+		check(grain.get_length() / 0.85 <= 2 * Cues.CHARCOAL_INTERVAL, "both voices let each grain finish at the slowest pitch")
 	var contact: Dictionary = cues._canvas[hand.get_instance_id()]
 	check(contact.voices.any(func(v: AudioStreamPlayer3D) -> bool: return v.playing), "moving charcoal plays")
 	Cues.canvas_contact(hand, Vector3.ZERO, true, true, 0.8, 0.0, 0.0, false)

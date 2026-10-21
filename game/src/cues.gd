@@ -113,6 +113,7 @@ const UNIT := 3.0
 ## Per-build choice: soft (default), paper, dark, or off. No runtime menu.
 const CHARCOAL_PROFILE := "soft"
 const CHARCOAL_GRAINS := 8
+const CHARCOAL_INTERVAL := 0.1
 
 ## Contact feedback is independent of paint samples and brush load. Distances are metres.
 class CanvasFeel:
@@ -266,7 +267,7 @@ func _canvas_contact(hand: XRController3D, at: Vector3, stick: bool, touching: b
 			voice.stop()
 		c.grain_at = -INF
 		return
-	if _charcoal.is_empty() or _clock - c.grain_at < 0.065:
+	if _charcoal.is_empty() or _clock - c.grain_at < CHARCOAL_INTERVAL:
 		return
 	c.grain_at = _clock
 	# Never repeat the previous excerpt; the two voices overlap their soft envelopes.
