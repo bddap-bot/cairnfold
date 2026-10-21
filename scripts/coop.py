@@ -125,6 +125,12 @@ def scripts(count):
             steps += [{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "A"}]
         steps += [{"op": "until", "seq": last + 13}, {"op": "digest", "name": f"{name}-decorations"},
                   barrier([f"{n}-decorations" for n in names])]
+        # The joiner holds delete at the sky until the garden is wiped, then undoes it; every peer digests both.
+        for k, (phase, step) in enumerate([("wiped", {"op": "wipe", "seconds": 2.5}), ("unwiped", {"op": "press", "button": "dpad_down"})]):
+            if name == "join":
+                steps += [step]
+            steps += [{"op": "until", "seq": last + 14 + k}, {"op": "digest", "name": f"{name}-{phase}"},
+                      barrier([f"{n}-{phase}" for n in names])]
         steps += [{"op": "pick", "action": "avatar:2"},
                   {"op": "digest", "name": f"{name}-avatar-picked"},
                   barrier([f"{n}-avatar-picked" for n in names]),

@@ -379,9 +379,6 @@ func _spend(by: int, cost: float) -> bool:
 func _order(proposed: Dictionary, by: int) -> void:
 	var kind: Variant = proposed.get("op")
 	var cmd := {}
-	if kind == "wipe" and by != me():
-		_refuse(by, proposed, "only the host wipes")
-		return
 	if kind == "undo" or kind == "redo":
 		var step := _resolve(by, kind)
 		if step.is_empty():

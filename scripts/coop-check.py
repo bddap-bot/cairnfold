@@ -86,4 +86,15 @@ for n in names:
 decorated = {n: json.load(open(f"{out}/{n}-decorations.json"))["decorations"] for n in names}
 check(all(v == decorated["host"] for v in decorated.values()), "decoration styles and seeds sync after undo and redo")
 check(len(decorated["host"]) == 9, "all nine decoration styles survive co-op undo and redo")
+LIVE = ("seq", "avatars", "worn", "handfuls", "frenzy", "fed", "sun", "avatar_choices")
+garden = lambda phase: {n: {k: v for k, v in json.load(open(f"{out}/{n}-{phase}.json")).items() if k not in LIVE} for n in names}
+wiped, unwiped, built = garden("wiped"), garden("unwiped"), garden("decorations")
+w = wiped["host"]
+check(all(v == w for v in wiped.values()), "every peer shows the joiner's wipe alike")
+check(not w["walls"] and list(w["groups"]) == ["0"] and not w["paths"] and not w["grounds"] and not w["pond_levels"] and not w["easels"],
+      f"the joiner's wipe left bare meadow: {len(w['walls'])} walls, groups {list(w['groups'])}, {len(w['paths'])} paths, {len(w['easels'])} easels")
+check(all(v == unwiped["host"] for v in unwiped.values()), "every peer shows the joiner's undone wipe alike")
+# A snapshot rebuild sets each plant group on the ground as it now stands, so only where the groups stand may differ.
+placed = lambda g: {**g, "groups": {k: {**v, "spot": None} for k, v in g["groups"].items()}}
+check(placed(unwiped["host"]) == placed(built["host"]), "the joiner's undo brings back every build of the garden as it was")
 sys.exit(0 if ok else 1)

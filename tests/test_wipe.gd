@@ -1,7 +1,7 @@
 extends SceneTree
 
 ## Headless checks of wiping the garden: the delete tool held at the sky empties every layer in one step, undo
-## brings back the garden as it was kept, and only the host may wipe: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wipe.gd
+## brings back the garden as it was kept, and a visitor's wipe is the host's: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wipe.gd
 
 var failures := 0
 var main: Node
@@ -24,7 +24,7 @@ func _run() -> void:
 	await _build()
 	await _letting_go_early_wipes_nothing()
 	await _a_wipe_empties_every_layer_and_undo_brings_it_all_back()
-	_a_visitor_cannot_wipe()
+	_a_visitor_wipes()
 	_a_wipe_someone_built_on_stays()
 	await _settled()
 	for f in DirAccess.get_files_at(dir):
@@ -130,12 +130,11 @@ func _a_wipe_empties_every_layer_and_undo_brings_it_all_back() -> void:
 	_check(_picture() == wiped, "the wiped garden is kept and loads back bare")
 
 
-func _a_visitor_cannot_wipe() -> void:
+func _a_visitor_wipes() -> void:
 	world._order({"op": "plant", "kind": "tree", "seed": 4, "at": Terrain.ground(-8, 6)}, 1)
 	var seq := world.seq
-	var picture := _picture()
 	world._order({"op": "wipe"}, 2)
-	_check(world.seq == seq and _picture() == picture, "the host turns down a visitor's wipe")
+	_check(world.seq == seq + 1 and world.state.groups.keys() == [0], "the host applies a visitor's wipe")
 
 
 func _a_wipe_someone_built_on_stays() -> void:

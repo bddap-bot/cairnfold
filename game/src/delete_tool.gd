@@ -10,7 +10,7 @@ extends Node3D
 ## goes to the garden as one command when the trigger lets go, so one undo puts it all back. A sweep that would
 ## leave a wall nothing worth standing, or one on a fence, house or tower, takes the whole of it.
 ## Held pointed up at the sky, the trigger charges a swelling orb and, once it is full, wipes the whole garden back
-## to bare meadow; letting go or lowering the beam first lets it fade. Only the garden's host can wipe it. Undo puts
+## to bare meadow; letting go or lowering the beam first lets it fade. Anyone in the garden can wipe it. Undo puts
 ## any of it back, a wipe in one step.
 
 const TINT := Color(1.0, 0.7, 0.62, 0.6)
@@ -106,9 +106,7 @@ func sky(dir: Vector3) -> bool:
 ## Charges a wipe for `who` pointing from `origin` along `dir`, `delta` seconds more; at WIPE_HOLD it wipes the
 ## garden. Pointing below the sky lets the charge go. Whether it is still charging.
 func charge(who: Object, origin: Vector3, dir: Vector3, delta: float) -> bool:
-	if not sky(dir) or not aim(origin, dir).is_empty() or not world.multiplayer.is_server():
-		if not world.multiplayer.is_server() and not _charges.has(who) and who is XRController3D:
-			Cues.play(Cues.Act.REFUSED, who.global_position, who)
+	if not sky(dir) or not aim(origin, dir).is_empty():
 		cancel(who)
 		return false
 	if not _charges.has(who):

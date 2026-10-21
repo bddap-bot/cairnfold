@@ -117,7 +117,7 @@ sequence number. A thing is a wall, a path, a plant group, an 8 m patch of groun
 8 m patch of the meadow's own plants, or the season. A step is still yours if every other player's last
 change to everything it touched came before it. A wipe touches everything: anyone's later change stands on it, it stands on
 every earlier step of the others, and a wipe dropped from your undo takes your older steps with it, since
-the garden they changed is gone. Only the host may wipe its garden. The host does not track one kind of
+the garden they changed is gone. Any player may wipe the garden; the host applies it like any other command. The host does not track one kind of
 dependency: things standing on each other. If you undo a ground edit, a wall a friend
 later built on that patch settles onto the restored ground.
 
