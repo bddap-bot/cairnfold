@@ -94,7 +94,5 @@ check(all(v == w for v in wiped.values()), "every peer shows the joiner's wipe a
 check(not w["walls"] and list(w["groups"]) == ["0"] and not w["paths"] and not w["grounds"] and not w["pond_levels"] and not w["easels"],
       f"the joiner's wipe left bare meadow: {len(w['walls'])} walls, groups {list(w['groups'])}, {len(w['paths'])} paths, {len(w['easels'])} easels")
 check(all(v == unwiped["host"] for v in unwiped.values()), "every peer shows the joiner's undone wipe alike")
-# A snapshot rebuild sets each plant group on the ground as it now stands, so only where the groups stand may differ.
-placed = lambda g: {**g, "groups": {k: {**v, "spot": None} for k, v in g["groups"].items()}}
-check(placed(unwiped["host"]) == placed(built["host"]), "the joiner's undo brings back every build of the garden as it was")
+check(unwiped["host"] == built["host"], "the joiner's undo brings back every build of the garden as it was, every plant where it stood")
 sys.exit(0 if ok else 1)
