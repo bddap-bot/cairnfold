@@ -116,19 +116,10 @@ void vertex() {
 	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
 }
 
-float noise(vec3 p) {
-	vec3 i = floor(p);
-	vec3 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	float n = i.x + i.y * 57.0 + i.z * 113.0;
-	return mix(mix(mix(hash(n), hash(n + 1.0), f.x), mix(hash(n + 57.0), hash(n + 58.0), f.x), f.y),
-		mix(mix(hash(n + 113.0), hash(n + 114.0), f.x), mix(hash(n + 170.0), hash(n + 171.0), f.x), f.y), f.z);
-}
-
 void fragment() {
 	float facing = clamp(dot(normalize(NORMAL), normalize(VIEW)), 0.0, 1.0);
 	float plume = step(0.75, COLOR.a);
-	float fluff = noise(rest * 420.0) * 0.6 + noise(rest * 140.0) * 0.4;
+	float fluff = COLOR.g * 2.0 - 1.0;
 	float rim = pow(1.0 - facing, 4.0);
 	vec3 feather;
 	if (plumage == 0) {

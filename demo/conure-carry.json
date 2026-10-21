@@ -136,6 +136,10 @@
     "seconds": 3
   },
   {
+    "op": "label",
+    "name": "-"
+  },
+  {
     "op": "capture",
     "name": "conure-smear"
   },
