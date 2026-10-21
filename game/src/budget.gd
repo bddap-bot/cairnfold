@@ -378,14 +378,17 @@ static func path(d: Dictionary) -> Dictionary:
 	var layout := PathLayout.of(d)
 	layout.plan()
 	var stones := 0
+	var timbers := 0
 	for row in layout.row_ends.size():
 		var start := layout.row_ends[row - 1] if row > 0 else 0.0
 		var end := minf(layout.row_ends[row], layout.length())
 		for i in PATH_TREADS_PER_ROW:
 			var f := layout.frame_at(lerpf(start, end, (i + 0.5) / PATH_TREADS_PER_ROW))
 			stones += maxi(1, ceili(f.half * 2.0 / 0.5))
+			# Stringers come to at most three timbers a tread, where every flight is two treads long.
+			timbers += 3
 	# Wall courses lay roughly ten blocks per square metre.
-	return {"wall_m2": stones * 0.1}
+	return {"wall_m2": stones * 0.1, "timber": timbers}
 
 
 ## A decoration's paired Quest 2 cost, the least linear rule at or over every style's dearest of two 24-copy runs of

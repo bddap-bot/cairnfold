@@ -485,6 +485,53 @@ func _dirt_wears_without_stones() -> void:
 	paths.free()
 
 
+## Both edges carry a timber run from the ground at the foot to the ground at the head, its top standing proud of every
+## tread it passes, with no break along it.
+func _stringers_carry_the_flight(treads: Array, timbers: Array, ground: Callable) -> void:
+	check(timbers.size() >= 4, "a flight has a stringer on either edge: %d timbers" % timbers.size())
+	for edge in [-1.0, 1.0]:
+		var run := timbers.filter(func(p: Dictionary) -> bool: return signf(p.xform.origin.x) == edge)
+		check(run.size() * 2 == timbers.size(), "the stringers stand at either edge")
+		run.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.xform.origin.z > b.xform.origin.z)
+		var foot: Transform3D = run[0].xform
+		var head: Transform3D = run[-1].xform
+		var foot_end := foot.origin + foot.basis.z * 0.5 * signf(foot.basis.z.z)
+		var head_end := head.origin - head.basis.z * 0.5 * signf(head.basis.z.z)
+		check(foot_end.y - foot.basis.y.length() * 0.5 <= ground.call(foot_end.x, foot_end.z), "the stringer meets the ground at the flight's foot")
+		check(head_end.y - head.basis.y.length() * 0.5 <= ground.call(head_end.x, head_end.z), "the stringer meets the ground at the flight's head")
+		for i in run.size() - 1:
+			var a: Transform3D = run[i].xform
+			var b: Transform3D = run[i + 1].xform
+			var a_end := a.origin + a.basis.z * 0.5 * -signf(a.basis.z.z)
+			var b_start := b.origin + b.basis.z * 0.5 * signf(b.basis.z.z)
+			check(signf(a_end.z - b_start.z) <= 0.0, "consecutive stringer timbers overlap")
+	for tread in treads:
+		var x: Transform3D = tread.xform
+		var top := x.origin.y + x.basis.y.length() * 0.5
+		var edge := absf(x.origin.x) + x.basis.x.length() * 0.5
+		var beside := timbers.filter(func(p: Dictionary) -> bool: return absf(p.xform.origin.z - x.origin.z) < 0.3)
+		check(beside.any(func(p: Dictionary) -> bool: return absf(p.xform.origin.x) >= edge - 0.05), "a stringer runs beside every tread")
+
+
+## Neighbouring stones overlap across the width and along the flight, so nothing beneath shows between them.
+func _no_gaps_between_treads(treads: Array) -> void:
+	for a in treads:
+		var xa: Transform3D = a.xform
+		var near := treads.filter(func(b: Dictionary) -> bool: return b != a and absf(b.xform.origin.z - xa.origin.z) < 0.01 and absf(b.xform.origin.x - xa.origin.x) < xa.basis.x.length() * 1.5)
+		for b in near:
+			var xb: Transform3D = b.xform
+			check(absf(xb.origin.x - xa.origin.x) < (xa.basis.x.length() + xb.basis.x.length()) * 0.5, "stones side by side in a tread overlap")
+	var rows := {}
+	for t in treads:
+		rows[snappedf(t.xform.origin.z, 0.001)] = t.xform
+	var zs := rows.keys()
+	zs.sort()
+	for i in zs.size() - 1:
+		var a: Transform3D = rows[zs[i]]
+		var b: Transform3D = rows[zs[i + 1]]
+		check(zs[i + 1] - zs[i] < (a.basis.z.length() + b.basis.z.length()) * 0.5, "consecutive treads overlap along the flight")
+
+
 func _steep_paths_lay_level_treads() -> void:
 	var path := PathLayout.new()
 	path.add(Vector3.ZERO, 0.8)
@@ -494,20 +541,26 @@ func _steep_paths_lay_level_treads() -> void:
 	var slope := func(_x: float, z: float) -> float: return -z * 0.8
 	check(path.steps(flat).is_empty(), "flat dirt has no treads")
 	var pieces := path.steps(slope)
-	check(pieces.size() > 30, "steep dirt lays a flight of stone treads")
-	for piece in pieces:
-		var x: Transform3D = piece.xform
+	var treads := pieces.filter(func(p: Dictionary) -> bool: return p.kind == "block")
+	var timbers := pieces.filter(func(p: Dictionary) -> bool: return p.kind == "timber")
+	check(treads.size() > 30, "steep dirt lays a flight of stone treads")
+	check(treads.size() + timbers.size() == pieces.size(), "a flight is stone treads and timber stringers")
+	for tread in treads:
+		var x: Transform3D = tread.xform
 		check(x.basis.y.normalized().is_equal_approx(Vector3.UP), "tread top is horizontal")
 		var back := x.origin + x.basis.z * 0.5
 		var front := x.origin - x.basis.z * 0.5
 		var top := x.origin.y + x.basis.y.length() * 0.5
 		check(top >= maxf(slope.call(back.x, back.z), slope.call(front.x, front.z)) - 0.01, "tread is above its sloping ground")
+	_stringers_carry_the_flight(treads, timbers, slope)
+	_no_gaps_between_treads(treads)
 	var extreme := path.steps(func(_x: float, z: float) -> float: return -z * 100.0)
 	check(extreme.size() == pieces.size(), "raising terrain cannot multiply reserved geometry")
-	for piece in extreme:
+	for piece in extreme.filter(func(p: Dictionary) -> bool: return p.kind == "block"):
 		var x: Transform3D = piece.xform
 		var uphill := x.origin - x.basis.z * 0.5
 		check(x.origin.y + x.basis.y.length() * 0.5 >= -uphill.z * 100.0, "the full tread footprint clears very steep ground")
 	check(path.steps(slope) == pieces, "steps rebuild deterministically")
 	check(path.steps(flat).is_empty(), "flattening a path removes its steps")
-	check(Budget.path(path.data()).wall_m2 >= pieces.size() * 0.1, "flat paths reserve their possible steps before terrain is raised")
+	var reserved := Budget.path(path.data())
+	check(reserved.wall_m2 >= treads.size() * 0.1 and reserved.timber >= timbers.size(), "flat paths reserve their possible treads and stringers before terrain is raised: %s" % reserved)

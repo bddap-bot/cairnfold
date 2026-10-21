@@ -10,6 +10,12 @@ const HALF_WIDTH := Vector2(0.45, 3.0)
 const ARCADE_SPAN := 2.8
 ## Soft edge beyond the stroke.
 const VERGE := 0.3
+## How far neighbouring treads overlap, so no seam between their stones shows the ground beneath.
+const TREAD_LAP := 0.06
+## Width and depth of the timbers carrying a flight of treads at either edge.
+const STRINGER := Vector2(0.16, 0.34)
+## How far a stringer's top stands above the treads it carries.
+const STRINGER_PROUD := 0.06
 
 var points: Array[Vector3] = []
 var half_widths: Array[float] = []
@@ -210,21 +216,23 @@ static func _flat(p: Vector3) -> Vector2:
 	return Vector2(p.x, p.z)
 
 
-## Horizontal treads on steep rows; height is supplied so the layout stays pure data.
+## Horizontal treads on steep rows, each flight carried by a timber stringer along either edge; height is supplied
+## so the layout stays pure data.
 func steps(height: Callable) -> Array[Dictionary]:
 	var pieces: Array[Dictionary] = []
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
+	var flight: Array[Dictionary] = []
 	for row in row_ends.size():
 		var start := row_ends[row - 1] if row > 0 else 0.0
 		var end := minf(row_ends[row], length())
 		var a := frame_at(start).point as Vector3
 		var b := frame_at(end).point as Vector3
 		var run := Vector2(b.x - a.x, b.z - a.z).length()
-		if run < 0.001:
-			continue
-		var rise: float = height.call(b.x, b.z) - height.call(a.x, a.z)
-		if absf(rise) / run <= 0.5:
+		var rise: float = height.call(b.x, b.z) - height.call(a.x, a.z) if run >= 0.001 else 0.0
+		if run < 0.001 or absf(rise) / run <= 0.5:
+			_stringers(flight, height, pieces, rng)
+			flight.clear()
 			continue
 		var count := Budget.PATH_TREADS_PER_ROW
 		for i in count:
@@ -234,11 +242,12 @@ func steps(height: Callable) -> Array[Dictionary]:
 			var along := Vector3(f.along.x, 0, f.along.z).normalized()
 			var side := along.cross(Vector3.UP)
 			var columns := maxi(1, ceili(f.half * 2.0 / 0.5))
+			var depth := to - from + TREAD_LAP
 			var top := -INF
 			var low := INF
 			for k in columns + 1:
 				for edge in [-1.0, 1.0]:
-					var at: Vector3 = f.point + side * (float(k) / columns - 0.5) * f.half * 2.0 + along * (to - from + 0.02) * edge * 0.5
+					var at: Vector3 = f.point + side * (float(k) / columns - 0.5) * f.half * 2.0 + along * depth * edge * 0.5
 					var y: float = height.call(at.x, at.z)
 					top = maxf(top, y)
 					low = minf(low, y)
@@ -246,6 +255,36 @@ func steps(height: Callable) -> Array[Dictionary]:
 			for col in columns:
 				var at: Vector3 = f.point + side * ((col + 0.5) / columns - 0.5) * f.half * 2.0
 				at.y = top + 0.025 - thick * 0.5
-				var size := Vector3(f.half * 2.0 / columns - 0.015, thick, to - from + 0.02)
+				var size := Vector3(f.half * 2.0 / columns + TREAD_LAP, thick, depth)
 				pieces.append({"xform": Transform3D(Basis(side, Vector3.UP, -along).scaled_local(size), at), "color": Color(0.62, 0.58, 0.5) * rng.randf_range(0.88, 1.05), "ao": 0.9, "variant": 0, "kind": "block"})
+			flight.append({"point": Vector3(f.point.x, top + 0.025, f.point.z), "half": f.half, "along": along, "depth": depth})
+	_stringers(flight, height, pieces, rng)
 	return pieces
+
+
+## Two timbers along a flight's edges, from the ground at its foot to the ground at its head, their tops a little
+## above the tread line so they read as holding the stones up.
+func _stringers(flight: Array[Dictionary], height: Callable, pieces: Array[Dictionary], rng: RandomNumberGenerator) -> void:
+	if flight.is_empty():
+		return
+	for edge in [-1.0, 1.0]:
+		var line: Array[Vector3] = []
+		for t in flight:
+			line.append(t.point + t.along.cross(Vector3.UP) * edge * (t.half + STRINGER.x * 0.5))
+		var first: Dictionary = flight[0]
+		var last: Dictionary = flight[-1]
+		var foot: Vector3 = line[0] - first.along * first.depth * 0.5
+		var head: Vector3 = line[-1] + last.along * last.depth * 0.5
+		foot.y = minf(foot.y, height.call(foot.x, foot.z))
+		head.y = minf(head.y, height.call(head.x, head.z))
+		line.push_front(foot)
+		line.push_back(head)
+		var color: Color = TimberFrame.OAK * rng.randf_range(0.88, 1.12)
+		for i in line.size() - 1:
+			var run := line[i + 1] - line[i]
+			var z := run.normalized()
+			var x := Vector3.UP.cross(z).normalized()
+			var y := z.cross(x)
+			var size := Vector3(STRINGER.x, STRINGER.y, run.length() + STRINGER.x)
+			var at := (line[i] + line[i + 1]) * 0.5 - y * (STRINGER.y * 0.5 - STRINGER_PROUD)
+			pieces.append({"xform": Transform3D(Basis(x, y, z).scaled_local(size), at), "color": color, "ao": 1.0, "variant": 0, "kind": "timber", "size": size})
