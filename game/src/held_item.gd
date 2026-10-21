@@ -18,6 +18,7 @@ static func describe(hand: Hand, painting: EaselTool, book: Book) -> Array:
 	var colour := Color.WHITE
 	var load := 0.0
 	var detail := 0
+	var bend := Vector3.ZERO
 	if hand.tool == Hand.Tool.NONE:
 		return []
 	if hand.tool == Hand.Tool.EASEL:
@@ -37,6 +38,7 @@ static func describe(hand: Hand, painting: EaselTool, book: Book) -> Array:
 			source = p.models[p.brush]
 			colour = p.tip.albedo_color
 			load = p.load
+			bend = p.bend
 	elif hand.tool == Hand.Tool.BOOK:
 		if book == null or book.holder != hand:
 			return []
@@ -46,7 +48,7 @@ static func describe(hand: Hand, painting: EaselTool, book: Book) -> Array:
 	if not source.visible:
 		return []
 	var local := hand.body.global_transform.affine_inverse() * source.global_transform
-	return [kind, index, local, colour, load, detail, hand.holds_seeds()]
+	return [kind, index, local, colour, load, detail, hand.holds_seeds(), bend]
 
 
 static func same(a: Array, b: Array) -> bool:
@@ -54,16 +56,19 @@ static func same(a: Array, b: Array) -> bool:
 		return false
 	if a.is_empty():
 		return true
-	return a[0] == b[0] and a[1] == b[1] and (a[2] as Transform3D).is_equal_approx(b[2]) and (a[3] as Color).is_equal_approx(b[3]) and is_equal_approx(a[4], b[4]) and a[5] == b[5] and a[6] == b[6]
+	return a[0] == b[0] and a[1] == b[1] and (a[2] as Transform3D).is_equal_approx(b[2]) and (a[3] as Color).is_equal_approx(b[3]) and is_equal_approx(a[4], b[4]) and a[5] == b[5] and a[6] == b[6] and (a[7] as Vector3).is_equal_approx(b[7])
 
 
 static func valid(s: Array) -> bool:
 	if s.is_empty():
 		return true
-	if s.size() != 7 or s[0] is not int or s[1] is not int or s[2] is not Transform3D or s[3] is not Color or s[4] is not float or s[5] is not int or s[6] is not bool:
+	if s.size() != 8 or s[0] is not int or s[1] is not int or s[2] is not Transform3D or s[3] is not Color or s[4] is not float or s[5] is not int or s[6] is not bool or s[7] is not Vector3:
 		return false
 	var t: Transform3D = s[2]
 	var c: Color = s[3]
+	var bend: Vector3 = s[7]
+	if not bend.is_finite() or bend.length() > CanvasContact.BEND + CanvasContact.SKIN:
+		return false
 	if not t.is_finite() or t.origin.length() > 3.0 or t.basis.get_scale().length() > 4.0 or not is_finite(c.r + c.g + c.b + c.a) or not is_finite(s[4]) or s[4] < 0.0 or s[4] > 1.0:
 		return false
 	match s[0]:
@@ -111,6 +116,7 @@ func show_state(s: Array) -> void:
 		var tip := (model.get_node("tip") as MeshInstance3D).material_override as StandardMaterial3D
 		tip.albedo_color = s[3]
 		tip.roughness = 0.25 if s[4] > 0.02 else 0.7
+		ToolModels.bend(model, s[1], s[7])
 
 
 func feeds() -> bool:

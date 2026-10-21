@@ -19,19 +19,35 @@ func _run() -> void:
 	for tool in Hand.Tool.values():
 		if tool in [Hand.Tool.NONE, Hand.Tool.EASEL, Hand.Tool.BOOK]:
 			continue
-		var s := [HeldItem.Kind.TOOL, tool, Transform3D(Basis(), Hand.TOP), Color.WHITE, 0.0, 0, tool == Hand.Tool.SEEDS]
+		var s := [HeldItem.Kind.TOOL, tool, Transform3D(Basis(), Hand.TOP), Color.WHITE, 0.0, 0, tool == Hand.Tool.SEEDS, Vector3.ZERO]
 		check(HeldItem.valid(s), "wheel tool accepted")
 		item.show_state(s)
 		check(item.model != null and item.model.get_child_count() > 0, "wheel tool builds its actual model")
 		check(item.feeds() == (tool == Hand.Tool.SEEDS), "only seeds feed animals")
 	for kind in Brushwork.Brush.values():
-		var s := [HeldItem.Kind.BRUSH, kind, Transform3D(), Color(0.2, 0.3, 0.7), 0.8, 0, false]
+		var s := [HeldItem.Kind.BRUSH, kind, Transform3D(), Color(0.2, 0.3, 0.7), 0.8, 0, false, Vector3.ZERO]
 		check(HeldItem.valid(s), "painting implement accepted")
 		item.show_state(s)
 		check(item.model != null, "painting implement builds")
 		if kind != Brushwork.Brush.STICK:
 			var mat: StandardMaterial3D = item.model.get_node("tip").material_override
 			check(mat.albedo_color == s[3] and is_equal_approx(mat.roughness, 0.25), "loaded paint reaches actual bristles")
+		if kind != Brushwork.Brush.STICK:
+			var model := item.model
+			var tip := model.get_node("tip") as MeshInstance3D
+			var relaxed := tip.transform
+			var bent := s.duplicate()
+			bent[7] = Vector3(0.004, 0, 0.008)
+			check(HeldItem.valid(bent) and not HeldItem.same(s, bent), "bend changes travel through held state")
+			item.show_state(bent)
+			check(item.model == model and not tip.transform.is_equal_approx(relaxed), "remote bend deforms existing bristles without rebuilding")
+			item.show_state(s)
+			check(tip.transform.is_equal_approx(relaxed), "leaving canvas restores remote bristles")
+		var bad_bend := s.duplicate()
+		bad_bend[7] = Vector3(NAN, 0, 0)
+		check(not HeldItem.valid(bad_bend), "nonfinite bend rejected")
+		bad_bend[7] = Vector3.ONE
+		check(not HeldItem.valid(bad_bend), "bend beyond physical limit rejected")
 		var invalid := s.duplicate()
 		invalid[1] = 999
 		check(not HeldItem.valid(invalid), "unknown implement rejected")
