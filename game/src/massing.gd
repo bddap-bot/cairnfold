@@ -22,6 +22,8 @@ var rise := 0.0
 var roof: RoofLayout
 ## The centre line shrunk by SLACK: inside it lies a joined build's room.
 var inner: Array[PackedVector2Array] = []
+## The centre line itself, where the ceiling under the roof starts.
+var centre: Array[PackedVector2Array] = []
 ## The outer faces, where a build standing here rests.
 var outer: Array[PackedVector2Array] = []
 ## Out to where a roof's eaves would reach: under it lies what a build standing here covers.
@@ -43,6 +45,7 @@ static func of(layout: WallLayout, cover: RoofLayout) -> Massing:
 			s.line.append(Vector2(p.x, p.z))
 		s.feet.append(layout.samples[0].y if layout.samples.size() > 0 else 0.0)
 		s.inner = Geometry2D.offset_polygon(s.line, -SLACK)
+		s.centre = [s.line]
 		s.outer = Geometry2D.offset_polygon(s.line, half)
 		s.eaves = Geometry2D.offset_polygon(s.line, half + (cover.overhang if cover != null else RoofLayout.OVERHANG))
 		if cover != null and (not cover.flat() or cover.curve != 0.0):

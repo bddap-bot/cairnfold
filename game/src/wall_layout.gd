@@ -387,6 +387,9 @@ const BOX: Array[Vector3] = [Vector3(-0.5, -0.5, -0.5), Vector3(0.5, -0.5, -0.5)
 ## How far under a roof's tiles `fit_under` leaves a cut stone's top, and the thinnest stone it leaves.
 const FIT_CLEAR := 0.005
 const MIN_FIT := 0.06
+## The pieces of a flat roof's deck `_trimmed` cuts back, and how finely.
+const DECK_PIECES := ["deck", "plank", "board", "mortar"]
+const TRIM_STEPS := 7
 
 
 ## A laid piece's corners as it is drawn, in the order of BOX: its ends cut as the stone shader cuts them (`ends`,
@@ -447,8 +450,8 @@ func hide_roof(r: RoofLayout) -> void:
 	r.resting = resting.duplicate()
 	if joined.is_empty() and resting.is_empty():
 		return
-	r.tiles.assign(r.tiles.filter(func(t: Dictionary) -> bool: return not _roof_hidden(t.xform.origin, r)))
-	r.mortar.assign(r.mortar.filter(func(m: Dictionary) -> bool: return not _roof_hidden(m.xform.origin, r)))
+	r.tiles.assign(_trimmed(r.tiles, r))
+	r.mortar.assign(_trimmed(r.mortar, r))
 	r.cloths.assign(r.cloths.filter(func(c: Dictionary) -> bool: return not hides(c.xform.origin)))
 	r.keep_coat(func(p: Vector3) -> bool: return not hides(p))
 	r.gable_faces = _unhidden(r.gable_faces)
@@ -476,6 +479,76 @@ func _roof_hidden(p: Vector3, r: RoofLayout) -> bool:
 	# Joined decks share one owner; a platform above still tests the piece's actual height.
 	p.y = r.height_at(p.x, p.z)
 	return covered or hidden(p + Vector3.UP * 0.001, joined, []) or hidden(p - Vector3.UP * 0.001, older, [])
+
+
+## The pieces of `r` its owner keeps. A deck piece kept by its middle across the centre line of a joined build whose
+## walls stand above the whole deck is cut back to that line, so none of it hangs below the ceiling starting there;
+## those walls' top closes the cut.
+func _trimmed(pieces: Array[Dictionary], r: RoofLayout) -> Array[Dictionary]:
+	var over: Array[Massing] = []
+	if r.flat():
+		over.assign(joined.filter(func(s: Massing) -> bool: return s.closed and s.feet[0] + s.rise > r.bounds.end.y))
+	var kept: Array[Dictionary] = []
+	for piece in pieces:
+		var x: Transform3D = piece.xform
+		if _roof_hidden(x.origin, r):
+			continue
+		if piece.kind in DECK_PIECES and not over.any(func(s: Massing) -> bool: return Massing.encloses(Vector2(x.origin.x, x.origin.z), s.inner)):
+			var cut := x
+			# Faces first by their middles, so a piece crossing one wall is cut only across it; then a corner still
+			# reaching in, where two walls meet or a tilted piece leans past the cut, takes the smallest cut that clears it.
+			for axis in [0, 2]:
+				for side in [1.0, -1.0]:
+					cut = _cut_back(cut, axis, side, [0.0], over)
+			for k in 4:
+				var least := cut
+				var kept_share := 0.0
+				for axis in [0, 2]:
+					for side in [1.0, -1.0]:
+						var c := _cut_back(cut, axis, side, [-0.5, 0.5], over)
+						var share := c.basis[axis].length() / cut.basis[axis].length()
+						if c != cut and share > kept_share:
+							least = c
+							kept_share = share
+				if least == cut:
+					break
+				cut = least
+			if cut != x:
+				piece = piece.duplicate()
+				piece.xform = cut
+		kept.append(piece)
+	return kept
+
+
+## `x`'s box with its face toward `side` along local `axis` moved in to the last place outside `over`'s centre lines.
+func _cut_back(x: Transform3D, axis: int, side: float, across: Array, over: Array[Massing]) -> Transform3D:
+	if not _face_within(x, axis, 0.5 * side, across, over):
+		return x
+	var clear := 0.0
+	var inside := 0.5
+	for i in TRIM_STEPS:
+		var mid := (clear + inside) * 0.5
+		if _face_within(x, axis, mid * side, across, over):
+			inside = mid
+		else:
+			clear = mid
+	var b := x.basis
+	b[axis] *= 0.5 + clear
+	return Transform3D(b, x.origin + x.basis[axis] * side * (clear - 0.5) * 0.5)
+
+
+## Whether the top or bottom of `x`'s face at `at` along local `axis`, at `across` along the other level axis, lies
+## within one of `over`'s centre lines.
+func _face_within(x: Transform3D, axis: int, at: float, across: Array, over: Array[Massing]) -> bool:
+	for o: float in across:
+		for y in [-0.5, 0.5]:
+			var c := Vector3(0.0, y, 0.0)
+			c[axis] = at
+			c[2 - axis] = o
+			var p := x * c
+			if over.any(func(s: Massing) -> bool: return Massing.encloses(Vector2(p.x, p.z), s.centre)):
+				return true
+	return false
 
 
 ## Takes away what lies where a build this one meets lays nothing.

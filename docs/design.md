@@ -3659,7 +3659,10 @@ shading and palette. Hidden top faces and internal segment ends are omitted.
 The mesh disappears at the timber near-detail distance plus its bounding radius,
 so an observer inside a large room does not lose the ceiling just because its
 centre is far away. Joined ceilings yield equal-height overlaps to the older
-building, as floors do. Higher joined rooms use the existing massing exclusions.
+building, as floors do. Higher joined rooms use the existing massing exclusions;
+where a joined building's walls stand above a whole deck, that deck's flags, boards
+and mortar crossing the building's centre line are cut back to it, where its
+ceiling starts, so nothing of the lower deck hangs below the higher ceiling.
 The budget conservatively charges each box segment as an existing timber member;
 round roofs use their rectangular bound for that reservation.
 

@@ -61,7 +61,8 @@ func _run() -> void:
 	wing.height = a.height + 0.08
 	wing.points = WallLayout.rectangle(Vector3(3, 0, -1), Vector3(6, 0, -1), 4.0)
 	wing.resample(func(_x: float, _z: float): return 0.0)
-	a.joined = [Massing.of(wing, null)]
+	var higher := Massing.of(wing, null)
+	a.joined = [higher]
 	a.older = []
 	r.build()
 	var beds := r.mortar.size()
@@ -69,6 +70,18 @@ func _run() -> void:
 	_check(r.mortar.size() > 0 and r.mortar.size() < beds, "offset join removes only the overlapping mortar")
 	for bed in r.mortar:
 		_check(not a.hides(bed.xform.origin), "joined ceiling has no hidden mortar bed blocking its boards")
+	var deck := r.mortar + r.tiles.filter(func(t: Dictionary) -> bool: return t.kind == "deck")
+	var straddling := 0
+	for piece in deck:
+		var under := 0
+		for c in WallLayout.BOX:
+			var p: Vector3 = piece.xform * c
+			if Massing.encloses(Vector2(p.x, p.z), higher.centre):
+				under += 1
+		_check(under == 0, "no deck piece hangs under the higher joined ceiling")
+		if absf(piece.xform.origin.x - 3.0) < 0.6:
+			straddling += 1
+	_check(straddling > 0, "deck pieces at the higher wall's line are cut back, not taken away")
 	var mesh := Wall._faces_mesh(original, true)
 	_check(mesh.get_surface_count() == 1, "all framing has one draw surface")
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
