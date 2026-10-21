@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Fits the frame budget's unit costs from a run of demo/costs.json and writes them into game/src/budget.gd as the
-headset's line of Budget.COSTS: costs.py OUT_DIR QUEST_2|FRAME
+"""Fits the frame budget's unit costs from a run of demo/costs.json and prints a candidate for review:
+costs.py OUT_DIR
 
 OUT_DIR is what `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT_DIR ...` left on that headset. Each phase is the
-bare meadow plus one kind of build, at the step the headset's budget is fitted at (Budget.fit_step), from the air and standing; its cost is its
+bare meadow plus one kind of build, at the fixed calibration step (Budget.fit_step), from the air and standing; its cost is its
 median viewport GPU time (the governor's signal) over the bare meadow's from the same view. A view whose frames fell
 below the refresh rate is left out: GPU time read there is not the scene's. A unit's cost is the most any view of any phase
 holding it as the one unknown gives, so the bound holds from every view measured. Wildlife comes to builds in numbers
@@ -19,7 +19,7 @@ import os
 import re
 import sys
 
-out, device = sys.argv[1], sys.argv[2]
+out = sys.argv[1]
 # fill_flora is no build command, so the game does not count these; the pools' sizes are Flora's.
 FLORA = {"grass": {"grass": 12000}, "flowers": {"flower": 4000}, "trees": {"tree": 64}, "bushes": {"bush": 256}}
 FLORA.update({"flowers-wild": FLORA["flowers"], "trees-wild": FLORA["trees"]})
@@ -90,10 +90,4 @@ meadow = [gpu[f"meadow/{v}"] for v in views if f"meadow/{v}" in gpu and f"meadow
 line = {"budget_ms": "1000.0 / REFRESH_HZ * Quality.Governor.LINE", "base_ms": round(max([*base.values(), *meadow]) + wild, 2),
         **{k: round(v, 3) for k, v in cost.items()}, "water": round(water * 1000.0, 3), "timber": "TIMBER_US", "arch": "ARCH_US", "moss": f"{round(cost['flower'], 3)} * MOSS_FLOWERS"}
 text = ", ".join(f'"{k}": {v}' for k, v in line.items())
-budget = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../game/src/budget.gd")
-src = open(budget).read()
-src, n = re.subn(rf"^const {device}_COSTS := \{{.*\}}$", f"const {device}_COSTS := {{{text}}}", src, flags=re.M)
-if n != 1:
-    sys.exit(f"costs: no line `const {device}_COSTS := {{...}}` in {budget}")
-open(budget, "w").write(src)
-print(f"costs: {device} {text}")
+print(text)

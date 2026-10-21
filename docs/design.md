@@ -319,7 +319,7 @@ and 44.87 ms. The frenzy costs nothing measurable, so `Fish.tick` is left as it 
 
 A Quest 2 figure comes from a Quest 2. One Quest APK was run on a Quest 2 and on a
 Quest 3, both at the Quest 2's fit step (`{"op": "quality", "step": "fit"}`, which
-an Android headset resolves to the Quest 2's), through `demo/costs.json` and the stress scene with
+at the time resolved an Android headset to the Quest 2's), through `demo/costs.json` and the stress scene with
 every `quality` op set to `fit`. Each prediction below is held out: the phase's family
 is left out of the fit, or, for the stress scene, the whole scene is.
 
@@ -337,12 +337,12 @@ grows with load. Light phases run 1.0 to 1.1 times, and the heavy village views 
 times (19.3 ms against 54.6 ms). Two identical Quest 3 runs differ by 0.3 ms median and
 1.06 ms p90 on a build's cost, and the Quest 2's slope multiplies that noise. CPU time
 does not correlate at all: the slope between the two headsets' build costs is 0.1. The
-Frame's own fitted table, `FRAME_COSTS` (at its own fit step), prices the same units between 1.8 and 10.7
-times below `QUEST_2_COSTS` (easel against thatch), so it fails the same way.
+Frame's own fitted table, the former Frame table (at its own fit step), prices the same units between 1.8 and 10.7
+times below the former Quest 2 table (easel against thatch), so it fails the same way.
 
 A Quest 3 run still orders phases that differ by a millisecond or more on the Quest 2
 (92 to 95 per cent of such pairs agree), so it can screen a large change. Any number
-that is reported as Quest 2 milliseconds, written to `QUEST_2_COSTS`, or compared with
+that is reported as Quest 2 milliseconds, written to the former Quest 2 table, or compared with
 the budget is measured on a Quest 2.
 
 ## Frame budget
@@ -736,6 +736,8 @@ represent, how much of the frame budget, you've consumed by placing objects. I w
 make it not possible to place so many objects that the game- starts stuttering, and I
 wanna make it obvious to the user that there is a limit there"
 
+Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change depending on what hardware is running"
+
 - What a garden holds counts in units (`Budget.UNITS`): square metres of stone wall,
   plaster wall, fence and path face, and of a tiled or flat roof and a thatched one laid along their slopes out to their eaves; fittings that add a mesh (lanterns, flags,
   chimneys, dormers, each dormer's boarded faces counted as stone wall and its slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing; square metres of pond water, all of it charged at most what a view full of water adds. The
@@ -743,26 +745,27 @@ wanna make it obvious to the user that there is a limit there"
   counts only its growth. `World` keeps the count as every command applies, so deleting
   frees exactly what placing took, and undo, wipes and a garden loaded or joined count
   alike on every machine.
-- `Budget.COSTS` prices each unit per headset, in the governor's signal (the viewport's
-  GPU time) at its `Budget.fit_step`, with the meadow's time, its own plants standing, as the
-  base: on the Frame step 8, the ladder's last with the sun's shadows and the full 3D resolution, so a full
-  garden is held there, anything above it is spare, and the two steps below it are for what
-  lies past the budget; on the Quest 2 the bottom step, the only one its bare meadow holds
-  72 Hz at. The room for builds is the headset's `budget_ms` less that base.
-- A garden is held to every headset it is shown on: its own, and each visitor's, which
-  each player tells the others as they meet. The host turns down any command that would
-  take the garden past the room on one of them, and each player's own game turns it down
-  before sending. Taking things away always goes through, even in a garden already
-  over. Undo is held to it too.
-- On each controller, a bar on the back of its top shows the share the garden takes on
-  the most loaded headset: moss green, warming to amber near full. What the hand's tool
-  is showing joins it as a paler stretch, and the whole bar pulses red while that would
-  not fit; letting go then turns it down with the same two soft knocks as any refused
-  action. A paint stroke stops laying plants at the budget and knocks once. Visitors see
-  the host garden's bar.
+- `Budget.COSTS` is one fixed table in GPU microseconds per unit, and
+  `Budget.CAPACITY_MS` is one fixed 1.73 ms-equivalent capacity. Fill is
+  the cost of the garden divided by that capacity, on Frame, Quest, desktop and tests.
+  Neither the running quality step, refresh rate nor the visitors present changes it.
+  The host and visitor apply the same check; removing cost still works in older gardens
+  already over capacity, and undo uses the same limit.
+- The fixed table takes the larger measured price for each unit from the Quest 2 and
+  Frame calibrations below: the Quest 2 prices throughout, except fittings at the
+  Frame's 15.609 µs. Capacity takes the smaller measured room: the 72 Hz calibration
+  line of 11.111111111111111 ms less the Quest 2's 9.38 ms base, including the meadow
+  and wildlife, rounded down to 1.73 ms. These are fixed design numbers, independent of future governor tuning.
+  The Quest 2 is the weakest supported target; its full-garden runs below held 72 fps
+  once the ladder settled. This choice admits no more cost than either measured table.
+  The measurements bound the tested scenes, not every possible arrangement; the initial
+  quality-settling frames remain as documented below.
+- On each controller the bar shows this same garden fill, moss green warming to amber
+  near full. The hand's preview adds a paler stretch and pulses red when it would not
+  fit. Refused actions knock twice; painting stops at capacity and knocks once.
 - `demo/costs.json`, played by `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT ...`
-  and fitted by `scripts/costs.py OUT`, measures each kind of build alone over the bare
-  meadow at the headset's `Budget.fit_step`, from the air and standing. Each phase of walls, a
+  and fitted by `scripts/costs.py OUT`, which prints a candidate table for review, measures each kind of build alone over the bare
+  meadow at `Budget.fit_step()` (the bottom of the quality ladder), from the air and standing. Each phase of walls, a
   village or paths is laid by a `sized` step: while either view reads over the governor's line,
   the meadow is bared and the builds laid again over the share of their area that would bring
   it under (walls farther apart, the village on a smaller disc, paths shorter), so one script
@@ -1132,7 +1135,7 @@ For the session the Quest 2 also draws 2x MSAA instead of 4x and takes no reflec
 the sky (`Quality.QUEST_2`), and the ground reads the light builds give back once a vertex, the
 probes lying a grid cell apart as its vertices do. At the ladder's bottom the bare meadow went
 from 12.3 ms from the air and 10.5 standing to 6.9 and 6.7 in the governor's signal, so a garden
-has 3.8 ms of room under the 11.1 ms line (`Budget.QUEST_2_COSTS`) where it had none. Found by hiding each part of the bare
+has 3.8 ms of room under the 11.1 ms line (the then-current Quest 2 table) where it had none. Found by hiding each part of the bare
 meadow in turn, each against the unchanged meadow measured between (`bench.sh --android`, step
 10): the ground's mesh took 8.7 ms from the air and 4.1 standing, the meadow's plants 1.0 and
 3.7, the sun's light 1.1 and 2.0, the mountains, the sun's disc, the hands and the book nothing
@@ -2549,7 +2552,7 @@ were 6.39, 6.47 and 6.45 ms. All 18 phases held 72 Hz with zero late frames.
 The phase record is `perf/quest-2/tree-scale/measured.json`.
 
 The fitted charge is constant: `scale^0`, equivalently `a + b*scale^2` with
-`a = 1`, `b = 0`. `Budget.QUEST_2_COSTS.tree` is 54 microseconds, the largest
+`a = 1`, `b = 0`. The tree calibration at that point was 54 microseconds, the largest
 measured viewport increment per tree rounded up. A planted tree counts once;
 a meadow tree stays in the base, and resizing changes neither count. Smaller
 trees receive no discount, including the unmeasured 0.4-to-1 range. The Frame

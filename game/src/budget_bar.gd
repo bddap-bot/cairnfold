@@ -1,12 +1,6 @@
 class_name BudgetBar
 extends MeshInstance3D
 
-## A bar along the back of a controller's top: how much of the frame budget the garden's builds take (Budget), on the
-## most loaded headset it is shown on, so visitors see the host garden's. What the hand's tool is showing joins it in a
-## paler stretch; where it would not fit, the whole bar pulses red and swells and the hand's pointer shows it refused,
-## and when the budget turns an edit down the bar jumps up and shakes (World.cap). An empty hand or a camera holds
-## nothing to build, so it shows none; lying under the selfie camera's lens, it would cross every selfie.
-
 const SIZE := Vector2(0.05, 0.009)
 const UNBUILDING: Array[Hand.Tool] = [Hand.Tool.NONE, Hand.Tool.CAMERA, Hand.Tool.SELFIE]
 ## Where it lies on the controller (Hand's body), behind the tool's model.

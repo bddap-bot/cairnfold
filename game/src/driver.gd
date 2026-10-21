@@ -1736,11 +1736,11 @@ static func _along(path: Array[Vector3], fraction: float) -> Vector3:
 	return path[-1]
 
 
-## Holds the quality ladder at `step`, or with "fit" at the step this headset's budget is fitted at (Budget.fit_step);
+## Holds the quality ladder at `step`, or with "fit" at the fixed table's calibration step (Budget.fit_step);
 ## without one, the governor walks it again.
 func _quality(s: Dictionary) -> void:
 	var step: Variant = s.get("step", -1)
-	main.quality.pin = Budget.fit_step(Budget.device()) if step is String and step == "fit" else int(step)
+	main.quality.pin = Budget.fit_step() if step is String and step == "fit" else int(step)
 
 
 func _label(s: Dictionary) -> void:
@@ -1748,11 +1748,11 @@ func _label(s: Dictionary) -> void:
 
 
 ## Lays the `build` steps over the bare meadow as large as this headset holds them: while the dearest of `views` reads
-## over the governor's line (Budget.COSTS), the meadow is bared and they are laid again over the share of their area that
+## over the governor's line, the meadow is bared and they are laid again over the share of their area that
 ## would bring it under, so every phase of demo/costs.json is measured at the refresh rate, on any headset, from one
 ## script.
 func _sized(s: Dictionary) -> void:
-	var line: float = Budget.COSTS[Budget.device()].budget_ms * 0.95
+	var line: float = (1000.0 / Budget.REFRESH_HZ * Quality.Governor.LINE) * 0.95
 	var base: Array[float] = []
 	for v: Dictionary in s.views:
 		base.append(await _gpu_ms(v))
@@ -1800,12 +1800,8 @@ func _budget(s: Dictionary) -> void:
 	main.world.bounded = s.bounded
 
 
-## Prints what the garden's builds count as in the frame budget, and the share of it they take on each headset.
 func _units(_s: Dictionary) -> void:
-	var on := {}
-	for d in Budget.Device.size():
-		on[Budget.Device.keys()[d]] = snappedf(Budget.cost_ms(main.world.units, d), 0.01)
-	print("budget: %s units %s ms %s fill %.3f" % [main.metrics.info.label, JSON.stringify(main.world.units), JSON.stringify(on), main.world.fill()])
+	print("budget: %s units %s ms %.3f fill %.3f" % [main.metrics.info.label, JSON.stringify(main.world.units), Budget.cost_ms(main.world.units), main.world.fill()])
 
 
 func _stairs(s: Dictionary) -> void:
@@ -1842,7 +1838,7 @@ func _stair_field(_s: Dictionary) -> void:
 				d.b = a + Vector3(0, 3, -1)
 			elif col % 3 == 2:
 				d.b = a + Vector3(0, 0, -4)
-			if not Budget.fits(main.world.units, main.world.change_of({"op": "stairs", "stairs": d}), main.world.devices()):
+			if not Budget.fits(main.world.units, main.world.change_of({"op": "stairs", "stairs": d})):
 				print("stairs: budget full at %d builds, fill %.3f" % [placed, main.world.fill()])
 				return
 			main.world.submit({"op": "stairs", "stairs": d})

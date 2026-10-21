@@ -122,7 +122,7 @@ func _a_placed_bush_counts_and_is_kept() -> void:
 	await _settled()
 	_check(flora.placed("bush").size() == 2, "two placed bushes stand: %d" % flora.placed("bush").size())
 	_check(world.units.get("bush", 0) == before.get("bush", 0) + 2, "each counts one bush: %s" % world.units)
-	_check(Budget.cost_ms(world.units, Budget.Device.FRAME) - Budget.cost_ms(before, Budget.Device.FRAME) > 0.0, "and costs the frame")
+	_check(Budget.cost_ms(world.units) - Budget.cost_ms(before) > 0.0, "and costs the frame")
 	var picture := _picture()
 	world.restore({"seq": 0, "cmds": []})
 	await _settled()

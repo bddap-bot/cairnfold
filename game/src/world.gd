@@ -82,9 +82,6 @@ var units := {}
 var _units_of := {}
 ## False lets the garden take builds past the frame budget, as the stress scene does to find what they cost.
 var bounded := true
-## Every other player's headset by peer id, as they told us; the garden is held to the weakest here.
-var _devices := {}
-## Each pond's level and how it last filled, by its grid point.
 var _fills := {}
 ## Per hand, what the edit its tool is showing would add, and the frame it said so.
 var _pending := {}
@@ -105,31 +102,11 @@ func _init() -> void:
 
 
 func _ready() -> void:
-	multiplayer.peer_connected.connect(func(id: int) -> void: _device.rpc_id(id, Budget.device()))
-	multiplayer.peer_disconnected.connect(func(id: int) -> void:
-		_allowance.erase(id)
-		_devices.erase(id))
+	multiplayer.peer_disconnected.connect(func(id: int) -> void: _allowance.erase(id))
 
 
-@rpc("any_peer", "reliable")
-func _device(d: int) -> void:
-	if d >= 0 and d < Budget.Device.size():
-		_devices[multiplayer.get_remote_sender_id()] = d
-
-
-## The headsets this garden is shown on now: ours and every other player's.
-func devices() -> Array:
-	var out := [Budget.device()]
-	for id in multiplayer.get_peers():
-		if _devices.has(id) and not _devices[id] in out:
-			out.append(_devices[id])
-	return out
-
-
-## The share of the frame budget the garden takes on its most loaded headset, with what `hand`'s tool is showing
-## added when one is given.
 func fill(hand: Node = null) -> float:
-	return Budget.fill(Budget.add(units.duplicate(), pending(hand)) if hand != null else units, devices())
+	return Budget.fill(Budget.add(units.duplicate(), pending(hand)) if hand != null else units)
 
 
 ## Tools say each frame what the edit they show would add, so the bar can show whether it fits.
@@ -142,9 +119,8 @@ func pending(hand: Node) -> Dictionary:
 	return p[1] if Engine.get_process_frames() - p[0] <= 1 else {}
 
 
-## Whether the garden may take `cmd` within the frame budget of every headset it is shown on.
 func fits(cmd: Dictionary) -> bool:
-	return not bounded or Budget.fits(units, change_of(cmd), devices())
+	return not bounded or Budget.fits(units, change_of(cmd))
 
 
 ## What `cmd` would add to `units`, without applying it: negative for what it takes away. A paint stroke counts every

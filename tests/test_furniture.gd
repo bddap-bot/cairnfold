@@ -117,7 +117,7 @@ func _run() -> void:
 		for style in DecorationLayout.options(mount):
 			var layout := DecorationLayout.new()
 			layout.build(style, 0)
-			print("furniture cost: %s %s solids=%d flames=%d flowers=%d reserved_quest2_us=%.1f" % [mount, DecorationLayout.STYLES[style].name, layout.parts.size(), layout.flames.size(), layout.flowers.size(), Budget.cost_ms(Budget.decoration(style), Budget.Device.QUEST_2) * 1000.0])
+			print("furniture cost: %s %s solids=%d flames=%d flowers=%d reserved_quest2_us=%.1f" % [mount, DecorationLayout.STYLES[style].name, layout.parts.size(), layout.flames.size(), layout.flowers.size(), Budget.cost_ms(Budget.decoration(style)) * 1000.0])
 	var saved: Dictionary = main.world.snapshot()
 	main.world.restore(saved)
 	check(main.world.state.decorations.size() == 2, "save restore keeps furniture")

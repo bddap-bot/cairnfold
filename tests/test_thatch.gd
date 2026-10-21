@@ -305,7 +305,7 @@ func _the_budget_counts_thatch() -> void:
 	_check(Budget.wall(d).thatch_m2 > thatched.thatch_m2 * 1.8, "a house twice as long counts nearly twice the thatch")
 	d.roof.pitch = 0.0
 	_check(Budget.wall(d).has("roof_m2") and not Budget.wall(d).has("thatch_m2"), "pushed flat it is a stone deck")
-	_check(Budget.FRAME_COSTS.has("thatch_m2") and "thatch_m2" in Budget.UNITS, "thatch has its own measured cost")
+	_check(Budget.COSTS.has("thatch_m2") and "thatch_m2" in Budget.UNITS, "thatch has its own measured cost")
 
 
 func _thatch_is_painted_as_thatch() -> void:

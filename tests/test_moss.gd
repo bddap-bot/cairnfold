@@ -47,6 +47,6 @@ func _run() -> void:
 	rng.seed = 17
 	for i in Flora.PAINTED_MOSS:
 		flora.add_moss(Terrain.ground(rng.randf_range(-2, 2), rng.randf_range(-2, 2)), rng)
-	print("moss cost: %d patches, %d triangles, %.3f ms to fill; Quest 2 reserved %.3f ms" % [Flora.PAINTED_MOSS, Flora.PAINTED_MOSS * 12, (Time.get_ticks_usec() - start) / 1000.0, Budget.cost_ms({"moss": Flora.PAINTED_MOSS}, Budget.Device.QUEST_2)])
+	print("moss cost: %d patches, %d triangles, %.3f ms to fill; Quest 2 reserved %.3f ms" % [Flora.PAINTED_MOSS, Flora.PAINTED_MOSS * 12, (Time.get_ticks_usec() - start) / 1000.0, Budget.cost_ms({"moss": Flora.PAINTED_MOSS})])
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)

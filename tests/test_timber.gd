@@ -68,8 +68,8 @@ func _init() -> void:
 	plain.timber_style = -1
 	_check(TimberFrame.count(plain) == 0 and not Budget.wall(plain).has("timber"), "explicit plain plaster has no timber charge")
 	var charge := Budget.wall(original)
-	_check(charge.timber > 0 and Budget.cost_ms({"timber": charge.timber}, Budget.Device.QUEST_2) > 0, "timber is charged separately")
-	_check(not Budget.fits({"timber": Budget.room_ms(Budget.Device.QUEST_2) * 1000.0 / Budget.TIMBER_US}, {"timber": 1}, [Budget.Device.QUEST_2]), "a timber member cannot exceed the remaining frame budget")
+	_check(charge.timber > 0 and Budget.cost_ms({"timber": charge.timber}) > 0, "timber is charged separately")
+	_check(not Budget.fits({"timber": Budget.CAPACITY_MS * 1000.0 / Budget.TIMBER_US}, {"timber": 1}), "a timber member cannot exceed the remaining frame budget")
 	var paint := Palette.plain()
 	paint[Palette.Element.PLASTER] = 2
 	paint[Palette.Element.TIMBER] = 3

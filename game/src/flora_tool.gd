@@ -210,7 +210,7 @@ func paint(b: Brush, center: Vector3, radius: float, delta: float) -> void:
 	if n == 0 or b.full:
 		return
 	# A hold paints up to the budget and no further: past it, plants stop coming and the hand feels why.
-	if not Budget.fits(world.units, Budget.plants(kind, (b.count if b.kind == kind else 0) + n), world.devices()):
+	if not Budget.fits(world.units, Budget.plants(kind, (b.count if b.kind == kind else 0) + n)):
 		b.full = true
 		world.cap(b.hand)
 		return

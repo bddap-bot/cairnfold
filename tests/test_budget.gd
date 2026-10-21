@@ -18,35 +18,47 @@ func _initialize() -> void:
 func _run() -> void:
 	await process_frame
 	world = main.world
-	await _a_joined_quest_2_holds_the_garden_to_its_own_budget()
+	await _joining_does_not_change_the_budget()
+	_device_profiles_keep_the_same_fill()
 	await _counts_follow_placements_and_deletions()
 	await _arches_reserve_room_until_removed()
 	await _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room()
 	await _a_capped_edit_is_heard_felt_and_shown()
 	await _painting_stops_at_the_budget()
 	await _the_bar_shows_the_share()
-	_each_headset_is_fitted_where_its_budget_holds()
 	_water_costs_at_most_a_view_full()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
 
+func _device_profiles_keep_the_same_fill() -> void:
+	var garden := {"wall_m2": 20.0, "flower": 100, "fitting": 2}
+	var expected := Budget.fill(garden)
+	var viewport := root
+	var msaa := viewport.msaa_3d
+	var scale := viewport.scaling_3d_scale
+	var pin: int = main.quality.pin
+	for model in ["Quest 2", "Steam Frame", "Desktop", "Headless"]:
+		var profile := Quality.session(model)
+		viewport.msaa_3d = profile.msaa
+		viewport.scaling_3d_scale = profile.render_scale
+		for step in [0, Budget.fit_step()]:
+			main.quality.pin = step
+			_check(is_equal_approx(Budget.fill(garden), expected), "%s quality %d keeps the same fill" % [model, step])
+			_check(not Budget.fits(garden, {"wall_m2": 1000.0}), "%s refuses an over-capacity edit" % model)
+	viewport.msaa_3d = msaa
+	viewport.scaling_3d_scale = scale
+	main.quality.pin = pin
+
+
 func _water_costs_at_most_a_view_full() -> void:
-	var q: Dictionary = Budget.QUEST_2_COSTS
+	var q: Dictionary = Budget.COSTS
 	var pond := {"pond_m2": 20.0}
-	_check(is_equal_approx(Budget.cost_ms(pond, Budget.Device.QUEST_2), 20.0 * q.pond_m2 / 1000.0), "a small pond costs its square metres")
+	_check(is_equal_approx(Budget.cost_ms(pond), 20.0 * q.pond_m2 / 1000.0), "a small pond costs its square metres")
 	var lake := {"pond_m2": 13158.0}
-	_check(is_equal_approx(Budget.cost_ms(lake, Budget.Device.QUEST_2), q.water / 1000.0), "the meadow's whole bowl costs a view full of water")
-	_check(Budget.fits({}, lake, [Budget.Device.QUEST_2]) == (q.water / 1000.0 <= Budget.room_ms(Budget.Device.QUEST_2)), "and fits an empty garden exactly when that view fits the room")
-	_check(Budget.fits(lake, {"pond_m2": 500.0}, [Budget.Device.QUEST_2, Budget.Device.FRAME]), "more water beside a full view's worth costs nothing more")
-
-
-func _each_headset_is_fitted_where_its_budget_holds() -> void:
-	var frame := Quality.ladder[Budget.fit_step(Budget.Device.FRAME)]
-	_check(frame.shadows and frame.scale_3d == 1.0, "the Frame is fitted on a step with shadows at full resolution")
-	var below := Quality.ladder[Budget.fit_step(Budget.Device.FRAME) + 1]
-	_check(not below.shadows or below.scale_3d != 1.0, "and on the last such step")
-	_check(Budget.fit_step(Budget.Device.QUEST_2) == Quality.ladder.size() - 1, "the Quest 2 is fitted at the bottom")
+	_check(is_equal_approx(Budget.cost_ms(lake), q.water / 1000.0), "the meadow's whole bowl costs a view full of water")
+	_check(Budget.fits({}, lake) == (q.water / 1000.0 <= Budget.CAPACITY_MS), "and fits an empty garden exactly when that view fits the room")
+	_check(Budget.fits(lake, {"pond_m2": 500.0}), "more water beside a full view's worth costs nothing more")
 
 
 func _check(ok: bool, what: String) -> void:
@@ -119,8 +131,7 @@ func _build(walls: Array) -> bool:
 func _counts_follow_placements_and_deletions() -> void:
 	var meadow := world.units.duplicate()
 	_check(meadow.is_empty(), "the meadow's own plants are the base and count nothing: %s" % meadow)
-	for on: Budget.Device in Budget.COSTS:
-		_check(Budget.room_ms(on) > 0.0 and Budget.fits(meadow, {"wall_m2": 1.0}, [on]), "a fresh garden has room to build on %s" % Budget.Device.keys()[on])
+	_check(Budget.CAPACITY_MS > 0.0 and Budget.fits(meadow, {"wall_m2": 1.0}), "a fresh garden has room to build")
 	_check(_same(world.units, _recount()), "a fresh garden counts what it holds")
 	world._order({"op": "tree", "group": 0, "index": world.flora.meadow_trees()[0], "scale": 2.0}, world.me())
 	_check(world.units.is_empty(), "a meadow tree stays in the base when resized: %s" % world.units)
@@ -179,7 +190,7 @@ func _arches_reserve_room_until_removed() -> void:
 	var plain := world.units.duplicate()
 	await _play([{"op": "fit", "what": "opening", "index": 0, "s": 6.0, "style": 1}])
 	await _settled()
-	_check(world.fill() > Budget.fill(plain, world.devices()), "an arch reserves GPU room beyond its intact stone wall")
+	_check(world.fill() > Budget.fill(plain), "an arch reserves GPU room beyond its intact stone wall")
 	var arched := world.units.duplicate()
 	world.undo()
 	await _settled()
@@ -195,10 +206,9 @@ func _arches_reserve_room_until_removed() -> void:
 
 
 func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
-	var on := world.devices()
 	var piece := _wall(Vector2(-6, -20), Vector2(6, -20), 4.5)
-	var share := Budget.fill(Budget.wall(piece), on)
-	_check(share > 0.02 and share < 0.3, "one test wall takes a measurable share: %.3f" % share)
+	var share := Budget.fill(Budget.wall(piece))
+	_check(share > 0.02 and share < 1.0, "one test wall takes a measurable share: %.3f" % share)
 	var too_big := [_wall(Vector2(-40, 30), Vector2(40, 30), 9.0), _wall(Vector2(-40, 34), Vector2(40, 34), 9.0), _wall(Vector2(-40, 38), Vector2(40, 38), 9.0)]
 	var before := world.units.duplicate()
 	_check(not await _build(too_big), "a build past the whole budget is turned down")
@@ -216,7 +226,7 @@ func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 	var last: int = world.state.walls.keys().max()
 	world.submit({"op": "unwall", "ids": PackedInt32Array([last])})
 	await _settled()
-	_check(world.fill() < Budget.fill(full, on), "deleting a wall frees its share")
+	_check(world.fill() < Budget.fill(full), "deleting a wall frees its share")
 	_check(await _build([_wall(Vector2(-6, -50), Vector2(6, -50), 4.5)]), "the room it freed takes another wall")
 	var tall_id: int = world.state.walls.keys().max()
 	world.submit({"op": "reshape", "of": "walls", "id": tall_id, "data": {"height": 9.0}})
@@ -288,7 +298,7 @@ func _the_bar_shows_the_share() -> void:
 		_check(absf(shown - world.fill()) < 0.01, "the bar shows the garden's share: %.3f against %.3f" % [shown, world.fill()])
 
 
-func _a_joined_quest_2_holds_the_garden_to_its_own_budget() -> void:
+func _joining_does_not_change_the_budget() -> void:
 	var meadow := world.units.duplicate()
 	await _play([{"op": "place", "x": 0, "z": 8}, {"op": "house", "at": [0, 0], "size": [2.4, 2.4], "seconds": 0.3}])
 	_check(world.state.walls.size() == 1, "the solo host can place a small stone house")
@@ -308,9 +318,8 @@ func _a_joined_quest_2_holds_the_garden_to_its_own_budget() -> void:
 		peers.append(ENetMultiplayerPeer.new())
 	var host := worlds[0]
 	var guest := worlds[1]
-	var own := Budget.device()
 	var solo := host.fill()
-	_check(host.devices() == [own], "a solo garden is held to its own headset")
+	var fits_solo := Budget.fits(host.units, house)
 	_check(peers[0].create_server(0) == OK, "the budget test host opens ENet")
 	host.multiplayer.multiplayer_peer = peers[0]
 	_check(peers[1].create_client("127.0.0.1", peers[0].host.get_local_port()) == OK, "the visitor connects")
@@ -321,21 +330,14 @@ func _a_joined_quest_2_holds_the_garden_to_its_own_budget() -> void:
 			break
 	for i in 30:
 		await process_frame
-	guest._device.rpc_id(1, Budget.Device.QUEST_2)
-	for i in 30:
-		await process_frame
-	var both := [own, Budget.Device.QUEST_2]
-	print("budget-coop: house %s; meadow %.6f -> %.6f; house %.6f -> %.6f; garden %.6f -> %.6f" % [house,
-		Budget.fill(meadow, [own]), Budget.fill(meadow, both), Budget.fill(house, [own]), Budget.fill(house, both), solo, host.fill()])
-	_check(Budget.Device.QUEST_2 in host.devices(), "the host holds the garden to the Quest 2 that joined: %s" % [host.devices()])
-	_check(is_equal_approx(host.fill(), Budget.fill(host.units, both)), "the bar prices the garden against the visitor's table")
-	_check(Budget.fits(host.units, house, host.devices()) == Budget.fits(host.units, house, both),
-		"a second house fits only if it fits the visitor's headset too")
+	_check(host.multiplayer.get_peers().size() == 1 and guest.multiplayer.get_peers().size() == 1, "host and visitor connected")
+	_check(is_equal_approx(host.fill(), solo) and is_equal_approx(guest.fill(), solo), "host and visitor keep the solo garden fill")
+	_check(Budget.fits(host.units, house) == fits_solo and Budget.fits(guest.units, house) == fits_solo, "host and visitor agree on a second house")
 	for peer in peers:
 		peer.close()
 	host.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	guest.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
-	_check(host.devices() == [own], "once the visitor leaves, the garden is held to the host's headset alone")
+	_check(is_equal_approx(host.fill(), solo), "leaving does not change the garden fill")
 	for branch in branches:
 		branch.queue_free()
 	world.undo()
