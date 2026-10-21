@@ -9,6 +9,7 @@ varying vec4 given;
 // x looking about, y preening, z pecking, w flight: weights scale each motion so blends stay continuous.
 instance uniform vec4 mode = vec4(1.0, 0.0, 0.0, 0.0);
 instance uniform float animation_time = 0.0;
+instance uniform float floor_height = 0.0;
 // A row of `palette`; row 0 is iridescent, its feathers coloured here. See Conure.PLUMAGES.
 instance uniform int plumage = 0;
 // Where the head is held to look at something, in the bird's own space: yaw, pitch, and how far it holds there
@@ -111,7 +112,7 @@ void vertex() {
 	}
 	turn(VERTEX, NORMAL, BODY, rot(X, -fly * 0.96));
 	VERTEX.y += fly * 0.006 * sin(t * TAU * 8.0 + 1.0);
-	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
+	given = given_over((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL), floor_height);
 }
 
 void fragment() {

@@ -95,6 +95,8 @@ func look(delta: float) -> void:
 
 ## The shader and event crossings use this clock, including in fixed-step replays.
 func animate(delta: float) -> void:
+	if is_inside_tree():
+		set_instance_shader_parameter("floor_height", Terrain.height_at(global_position.x, global_position.z))
 	var before := animation_time
 	animation_time += delta
 	set_instance_shader_parameter("animation_time", animation_time)
