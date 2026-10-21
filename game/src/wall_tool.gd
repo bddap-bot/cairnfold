@@ -24,10 +24,10 @@ const TINT := Color(1.0, 0.97, 0.9, 0.55)
 const HOUSE_HEIGHT := 2.4
 const TOWER_HEIGHT := 4.5
 const HOUSE_SIDE := 2.4
-enum RoofStyle { PITCHED, FLAT, THATCHED }
+enum RoofStyle { PITCHED, FLAT, THATCHED, BOARDED }
 enum RoofShape { FLAT, PITCHED }
 const ROOF_OPTIONS := {
-	RoofShape.FLAT: [RoofStyle.FLAT],
+	RoofShape.FLAT: [RoofStyle.FLAT, RoofStyle.BOARDED],
 	RoofShape.PITCHED: [RoofStyle.PITCHED, RoofStyle.THATCHED],
 }
 
@@ -82,6 +82,8 @@ class Mason:
 	var lift_hand := Vector3.ZERO
 	var lift_gain := 1.0
 	var lift_at := Vector3.ZERO
+	## On a grip of a roof's eave, the way out from the walls it pulls the overhang; zero on any other grip of a roof.
+	var eave_out := Vector3.ZERO
 	var pick := {}
 	## The gable end the hand points at before any roof, as `pick_building` gives it.
 	var gable := {}
@@ -114,8 +116,9 @@ var gable_end := WallLayout.GableEnd.WALL
 ## Whether new walls and houses are laid in plaster: the face last turned to on this machine.
 var plaster := false
 var timber_style := 0
-## Whether new houses are thatched: the roof last turned to on this machine.
+## Whether new houses are thatched, and what their decks are laid in when pushed flat: the roof last turned to on this machine.
 var thatch := false
+var deck := RoofLayout.Deck.STONE
 ## Whether new houses and towers are floored at every storey: the floor last turned to on this machine.
 var storey_floors := false
 var masons: Array[Mason] = []
@@ -273,7 +276,7 @@ func _handle(m: Mason) -> void:
 			if _held(roof.wall):
 				_join(m, roof.wall, true)
 			else:
-				begin_roof(m, roof.wall, origin)
+				begin_roof(m, roof.wall, origin, roof.point)
 		elif not pick.is_empty() and pick.along < nearest and not pick.wall.layout.fence:
 			if _held(pick.wall):
 				_join(m, pick.wall)
@@ -299,7 +302,7 @@ func _preview(m: Mason) -> void:
 	elif m.lifting != null:
 		change = world.change_of({"op": "reshape", "of": "walls", "id": m.lifting.id, "data": {"height": m.lifting.layout.height}})
 	elif m.roofing != null:
-		change = world.change_of({"op": "reshape", "of": "walls", "id": m.roofing.id, "data": {"roof": {"pitch": m.roofing.roof.pitch}}})
+		change = world.change_of({"op": "reshape", "of": "walls", "id": m.roofing.id, "data": {"roof": {"pitch": m.roofing.roof.pitch, "overhang": m.roofing.roof.overhang}}})
 	elif m.growing != null and m.sizing.current.call() and not m.sizing.command.call().is_empty():
 		change = world.change_of(m.sizing.command.call())
 	elif m in _holders and house != null:
@@ -430,6 +433,7 @@ func _forget() -> void:
 		m.stroke = null
 		m.lifting = null
 		m.roofing = null
+		m.eave_out = Vector3.ZERO
 		m.growing = null
 		m.sizing = null
 		m.partner = null
@@ -512,6 +516,7 @@ func begin_house(at: Vector3, yaw: float, on := PackedInt32Array(), round := fal
 	roof.kind = RoofLayout.Kind.CONE if round else RoofLayout.Kind.GABLE
 	roof.seed = house.layout.seed
 	roof.thatch = thatch
+	roof.deck = deck
 	house.add_roof(roof)
 	_holders.clear()
 	_laid_at.clear()
@@ -599,14 +604,17 @@ static func roof_options(pitch: float) -> Array:
 
 static func roof_style(d: Dictionary) -> RoofStyle:
 	if d.roof.pitch <= 0.0:
-		return RoofStyle.FLAT
+		return RoofStyle.BOARDED if d.roof.deck == RoofLayout.Deck.WOOD else RoofStyle.FLAT
 	return RoofStyle.THATCHED if d.roof.thatch else RoofStyle.PITCHED
 
 
-## Coverings never reshape the roof; a flat deck remembers the covering to use when pulled up.
+## Coverings never reshape the roof: a flat deck keeps the covering to use when pulled up, a pitched roof the deck to
+## lay when pushed flat.
 static func restyle_roof(d: Dictionary, style: RoofStyle) -> Dictionary:
-	if style not in roof_options(d.roof.pitch) or style == RoofStyle.FLAT:
+	if style not in roof_options(d.roof.pitch):
 		return {}
+	if d.roof.pitch <= 0.0:
+		return {"roof": {"deck": RoofLayout.Deck.WOOD if style == RoofStyle.BOARDED else RoofLayout.Deck.STONE}}
 	return {"roof": {"thatch": style == RoofStyle.THATCHED}}
 
 
@@ -643,13 +651,15 @@ static func reshape_house(d: Dictionary, to: Dictionary) -> Dictionary:
 	if to.round:
 		roof = {"center": to.center, "radius": to.size.x * 0.5, "pitch": d.roof.pitch * to.size.x / from.size.x}
 	else:
-		var chimneys := PackedVector2Array()
 		var r0 := _ridge_of(from)
 		var r1 := _ridge_of(to)
-		for c: Vector2 in d.roof.chimneys:
-			var o: Vector3 = _scaled(from, to, from.center + r0 * c.x + r0.cross(Vector3.UP) * c.y) - to.center
-			chimneys.append(Vector2(o.dot(r1), o.dot(r1.cross(Vector3.UP))))
-		roof = {"pitch": d.roof.pitch * to.size.y / from.size.y, "chimneys": chimneys}
+		var moved_on := func(spots: PackedVector2Array) -> PackedVector2Array:
+			var out := PackedVector2Array()
+			for c: Vector2 in spots:
+				var o: Vector3 = _scaled(from, to, from.center + r0 * c.x + r0.cross(Vector3.UP) * c.y) - to.center
+				out.append(Vector2(o.dot(r1), o.dot(r1.cross(Vector3.UP))))
+			return out
+		roof = {"pitch": d.roof.pitch * to.size.y / from.size.y, "chimneys": moved_on.call(d.roof.chimneys), "dormers": moved_on.call(d.roof.dormers)}
 	return {"points": PackedVector3Array(now), "rise": to.get("rise", from.rise), "openings": openings, "lanterns": lanterns, "flags": flags, "roof": roof}
 
 
@@ -789,6 +799,7 @@ func _join(m: Mason, w: Wall, roof := false) -> void:
 	var bend := roof and first.roofing == w
 	first.lifting = null
 	first.roofing = null
+	first.eave_out = Vector3.ZERO
 	begin_resize(w, bend)
 	_resize_hands = [first, m]
 	_resize_from = [first.hand.global_transform, m.hand.global_transform]
@@ -896,18 +907,35 @@ func end_lift(m: Mason) -> void:
 		world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"height": w.layout.height}}, settle.bind(w.id), m.hand)
 
 
-## One grip raises the ridge; two roof grips bend the slopes through the shared resize session.
-func begin_roof(m: Mason, w: Wall, hand: Vector3) -> void:
+## One grip raises the ridge, or on the eave, past the walls, pulls the eave out or pushes it back; two roof grips bend
+## the slopes through the shared resize session.
+func begin_roof(m: Mason, w: Wall, hand: Vector3, at := Vector3.INF) -> void:
+	var r := w.roof
 	m.roofing = w
-	m.lift_start = w.roof.pitch
 	m.lift_hand = hand
-	m.lift_at = w.roof.frame().mid + Vector3.UP * w.roof.pitch
+	m.eave_out = Vector3.ZERO if at == Vector3.INF else r.eave_way(at)
+	m.lift_start = r.pitch if m.eave_out == Vector3.ZERO else r.overhang
+	m.lift_at = r.frame().mid + Vector3.UP * r.pitch if m.eave_out == Vector3.ZERO else at
 	m.lift_gain = Hand.reach_gain(hand.distance_to(m.lift_at))
 
 
 func drag_roof(m: Mason, hand: Vector3) -> void:
 	var move := (hand - m.lift_hand) * m.lift_gain
-	shape_roof(m.roofing, m.lift_start + move.y, m.roofing.roof.curve, m.hand)
+	if m.eave_out != Vector3.ZERO:
+		shape_eave(m.roofing, m.lift_start + move.dot(m.eave_out), m.hand)
+	else:
+		shape_roof(m.roofing, m.lift_start + move.y, m.roofing.roof.curve, m.hand)
+
+
+## Lays the roof on `w` with its eaves `overhang` past its walls, on the nearest ROOF_STEP.
+func shape_eave(w: Wall, overhang: float, hand: Hand = null) -> void:
+	var r := w.roof
+	overhang = clampf(snappedf(overhang, ROOF_STEP), 0.0, RoofLayout.MAX_OVERHANG)
+	if is_equal_approx(overhang, r.overhang):
+		return
+	r.overhang = overhang
+	_dirty = true
+	_cue(Cues.Act.ROOF_SHAPE, _ridge(w), [hand] if hand != null else [])
 
 
 func shape_roof(w: Wall, pitch: float, curve: float, hand: Hand = null) -> void:
@@ -925,8 +953,12 @@ func shape_roof(w: Wall, pitch: float, curve: float, hand: Hand = null) -> void:
 func end_roof(m: Mason) -> void:
 	var w := m.roofing
 	m.roofing = null
-	if is_equal_approx(w.roof.pitch, m.lift_start):
+	var eave := m.eave_out != Vector3.ZERO
+	m.eave_out = Vector3.ZERO
+	if is_equal_approx(w.roof.overhang if eave else w.roof.pitch, m.lift_start):
 		_relay(w)
+	elif eave:
+		world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"overhang": w.roof.overhang}}}, settle.bind(w.id), m.hand)
 	else:
 		world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}}, settle.bind(w.id), m.hand)
 

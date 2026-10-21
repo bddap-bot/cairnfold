@@ -44,7 +44,7 @@ static func of(layout: WallLayout, cover: RoofLayout) -> Massing:
 		s.feet.append(layout.samples[0].y if layout.samples.size() > 0 else 0.0)
 		s.inner = Geometry2D.offset_polygon(s.line, -SLACK)
 		s.outer = Geometry2D.offset_polygon(s.line, half)
-		s.eaves = Geometry2D.offset_polygon(s.line, half + RoofLayout.OVERHANG)
+		s.eaves = Geometry2D.offset_polygon(s.line, half + (cover.overhang if cover != null else RoofLayout.OVERHANG))
 		if cover != null and (not cover.flat() or cover.curve != 0.0):
 			s.roof = RoofLayout.new()
 			s.roof.kind = cover.kind
@@ -53,7 +53,9 @@ static func of(layout: WallLayout, cover: RoofLayout) -> Massing:
 			s.roof.radius = cover.radius
 			s.roof.pitch = cover.pitch
 			s.roof.curve = cover.curve
+			s.roof.overhang = cover.overhang
 			s.roof.base = s.feet[0] + s.rise
+			s.roof.foot = layout.stands_at() if layout.samples.size() > 0 else -INF
 	else:
 		for q in layout.samples:
 			s.line.append(Vector2(q.x, q.z))
@@ -69,8 +71,8 @@ static func of(layout: WallLayout, cover: RoofLayout) -> Massing:
 	s.rect = Rect2(s.line[0] if s.line.size() > 0 else Vector2.ZERO, Vector2.ZERO)
 	for p in s.line:
 		s.rect = s.rect.expand(p)
-	s.rect = s.rect.grow(half + maxf(REACH, RoofLayout.OVERHANG))
-	s._key = [s.closed, s.line, s.feet, s.rise, [s.roof.kind, s.roof.pitch, s.roof.curve] if s.roof != null else null]
+	s.rect = s.rect.grow(half + maxf(REACH, cover.overhang if cover != null else RoofLayout.OVERHANG))
+	s._key = [s.closed, s.line, s.feet, s.rise, [s.roof.kind, s.roof.pitch, s.roof.curve, s.roof.overhang] if s.roof != null else null]
 	return s
 
 

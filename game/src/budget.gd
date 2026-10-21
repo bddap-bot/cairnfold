@@ -19,7 +19,8 @@ enum Device { QUEST_2, FRAME }
 ## What a garden's builds count as, the units COSTS prices: square metres of face of stone walls, plaster walls and
 ## fences (length along the ground by height, and a house's two gable ends: boards, laid as stones are but fewer, count
 ## as stone wall), of tiled or flat roof and of thatch (laid along its slopes out to its eaves);
-## fittings that add a mesh (lanterns, flags, chimneys); painted grass blades and flowers; trees and bushes standing;
+## fittings that add a mesh (lanterns, flags, chimneys, dormers, whose boarded faces count as stone wall and whose
+## slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing;
 ## ponds, one a seed; easels, each a canvas drawn and simulated; and boulders, a metre-wide one a unit (`boulder`).
 const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "floor_m2", "fitting", "grass", "flower", "tree", "bush", "pond", "timber", "easel", "boulder", "moss"]
 
@@ -130,13 +131,14 @@ static func wall(d: Dictionary) -> Dictionary:
 		out.timber = timber
 	var fittings: int = d.lanterns.size() + d.flags.size()
 	if d.has("roof"):
-		var eave := WallLayout.THICKNESS * 0.5 + RoofLayout.OVERHANG
+		var eave: float = WallLayout.THICKNESS * 0.5 + d.roof.overhang
 		var plan: float = PI * (d.roof.radius + eave) * (d.roof.radius + eave)
 		var slopes := RoofLayout.new()
 		slopes.kind = RoofLayout.Kind.CONE
 		slopes.radius = d.roof.radius
 		slopes.pitch = d.roof.pitch
 		slopes.curve = d.roof.curve
+		slopes.overhang = d.roof.overhang
 		if d.roof.kind == RoofLayout.Kind.GABLE and d.points.size() == 4:
 			slopes.kind = RoofLayout.Kind.GABLE
 			slopes.corners.assign(Array(d.points))
@@ -150,9 +152,14 @@ static func wall(d: Dictionary) -> Dictionary:
 			var units := "wall_m2" if ends.gable_end == WallLayout.GableEnd.BOARDS else face
 			out[units] = out.get(units, 0.0) + 2.0 * ends.gable_face(half_span)
 			var ridge := Vector2(d.points[1].x - d.points[0].x, d.points[1].z - d.points[0].z).length()
-			plan = (ridge + WallLayout.THICKNESS + 2.0 * RoofLayout.GABLE_OVERHANG) * 2.0 * (half_span + RoofLayout.OVERHANG)
-		out["thatch_m2" if d.roof.thatch and d.roof.pitch > 0.0 else "roof_m2"] = plan * slopes.stretch()
-		fittings += d.roof.chimneys.size() + (1 if d.roof.flag else 0)
+			plan = (ridge + WallLayout.THICKNESS + 2.0 * RoofLayout.GABLE_OVERHANG) * 2.0 * (half_span + d.roof.overhang)
+			for c: Vector2 in d.roof.dormers:
+				var area := slopes.dormer_area(c)
+				out.wall_m2 = out.get("wall_m2", 0.0) + area.x
+				out.roof_m2 = out.get("roof_m2", 0.0) + area.y
+		var covering := "thatch_m2" if d.roof.thatch and d.roof.pitch > 0.0 else "roof_m2"
+		out[covering] = out.get(covering, 0.0) + plan * slopes.stretch()
+		fittings += d.roof.chimneys.size() + d.roof.dormers.size() + (1 if d.roof.flag else 0)
 		var upper := WallLayout.upper_floors(d.height) if d.storey_floors else 0
 		if upper > 0:
 			out.floor_m2 = upper * _plan(d.points)

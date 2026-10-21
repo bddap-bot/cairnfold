@@ -105,7 +105,7 @@ func _house_data(on: PackedInt32Array) -> Dictionary:
 	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(-40, 30), Terrain.ground(-34, 30), 4.0)))
 	d.closed = true
 	d.on = on
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(-37, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "flag": false, "thatch": false}
+	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(-37, 30), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
 	return d
 
 
@@ -163,7 +163,7 @@ func _bad_commands_are_dropped() -> void:
 		"wall of one point": {"op": "wall", "walls": [_with(good, "points", PackedVector3Array([Vector3.ZERO]))]},
 		"wall off the map": {"op": "wall", "walls": [_with(good, "points", PackedVector3Array([Vector3.ZERO, Vector3(1e9, 0, 0)]))]},
 		"wall through NaN": {"op": "wall", "walls": [_with(good, "points", PackedVector3Array([Vector3.ZERO, Vector3(NAN, 0, 0)]))]},
-		"wall with a bad roof": {"op": "wall", "walls": [_with(good, "roof", {"kind": 0, "center": Vector3.ZERO, "radius": 2.0, "pitch": -1.0, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "flag": false, "thatch": false})]},
+		"wall with a bad roof": {"op": "wall", "walls": [_with(good, "roof", {"kind": 0, "center": Vector3.ZERO, "radius": 2.0, "pitch": -1.0, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false})]},
 		"stroke of too many walls": {"op": "wall", "walls": range(Commands.MAX_PIECES + 1).map(func(_i: int) -> Dictionary: return good)},
 		"no walls": {"op": "wall", "walls": []},
 		"wall longer than any stroke": {"op": "wall", "walls": [_with(good, "points", PackedVector3Array(range(200).map(func(i: int) -> Vector3: return Vector3(-70 if i % 2 else 70, 0, 0))))]},
@@ -277,7 +277,7 @@ func _stacks_keep_their_newest_steps() -> void:
 
 
 func _undo_restores_exact_values() -> void:
-	world._order({"op": "wall", "walls": [_with(_wall_data(PackedVector3Array([Terrain.ground(-30, 0), Terrain.ground(-30, 4), Terrain.ground(-26, 4), Terrain.ground(-26, 0)])), "closed", true).merged({"roof": {"kind": 0, "center": Terrain.ground(-28, 2), "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 2, "chimneys": PackedVector2Array(), "flag": false, "thatch": false}}, true)]}, 1)
+	world._order({"op": "wall", "walls": [_with(_wall_data(PackedVector3Array([Terrain.ground(-30, 0), Terrain.ground(-30, 4), Terrain.ground(-26, 4), Terrain.ground(-26, 0)])), "closed", true).merged({"roof": {"kind": 0, "center": Terrain.ground(-28, 2), "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 2, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}, true)]}, 1)
 	var a := world.seq * Commands.MAX_PIECES
 	world._order({"op": "reshape", "of": "walls", "id": a, "data": {"roof": {"pitch": 3.5, "curve": 0.4}}}, 1)
 	world._order({"op": "undo"}, 1)

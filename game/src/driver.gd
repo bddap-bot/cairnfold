@@ -319,10 +319,18 @@ func _turn(s: Dictionary, x: float, z: float, degrees: float) -> float:
 	return WallTool.angle(_spot(s, x + cos(t), z + sin(t)) - _spot(s, x, z))
 
 
+## Shapes the roof of build `index`: its `pitch` and `curve` as a grip pulls them, its eaves `overhang` metres past the
+## walls, its `deck` ("stone" or "wood") and its `dormers`, each [metres along the ridge, across it].
 func _roof(s: Dictionary) -> void:
 	var w: Wall = main.tool.walls[s.index]
 	main.tool.shape_roof(w, s.get("pitch", w.roof.pitch), s.get("curve", w.roof.curve))
-	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"pitch": w.roof.pitch, "curve": w.roof.curve}}})
+	main.tool.shape_eave(w, s.get("overhang", w.roof.overhang))
+	var roof := {"pitch": w.roof.pitch, "curve": w.roof.curve, "overhang": w.roof.overhang}
+	if s.has("deck"):
+		roof["deck"] = int(RoofLayout.Deck[s.deck.to_upper()])
+	if s.has("dormers"):
+		roof["dormers"] = PackedVector2Array(s.dormers.map(func(d: Array) -> Vector2: return Vector2(d[0], d[1])))
+	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": roof}})
 
 
 func _top(s: Dictionary) -> void:
@@ -460,8 +468,8 @@ func _wall_of(s: Dictionary) -> Wall:
 
 
 ## A press of the windows or decorations tool on wall `index` (-1 the last drawn), as `FittingTool.aim`
-## would find it: `what` is opening, lantern, flag, chimney or tower_flag; `s` and `y` place it on the wall,
-## `style` and `size` shape an opening, `side` picks a lantern's face, `at` a chimney's spot along and across the ridge.
+## would find it: `what` is opening, lantern, flag, chimney, dormer or tower_flag; `s` and `y` place it on the wall,
+## `style` and `size` shape an opening, `side` picks a lantern's face, `at` a chimney's or dormer's spot along and across the ridge.
 ## A decoration with `from` is aimed as the hand would from there toward `at`, turned `turn` degrees if given: furniture
 ## on a floor or a flat roof.
 func _fit(s: Dictionary) -> void:
@@ -758,7 +766,9 @@ func _grass(s: Dictionary) -> void:
 
 ## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter; with `storeys`,
 ## each stands that many high, with `wings`, a wing crosses each house, with `gable`, their gable ends take it, and
-## with `thatch`, their roofs are thatched.
+## with `thatch`, their roofs are thatched. With `roofs`, a list the houses take in turn, each house's roof is laid as
+## its entry has it: `pitch` (0 flat), `deck` and `top` ("stone" or "wood"; a WallLayout.Top), `dormers` on each slope,
+## `overhang`, and `storeys` high, each storey above the first `upper` times the size of the one under it.
 func _village(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var start := Time.get_ticks_usec()
@@ -778,13 +788,17 @@ func _village(s: Dictionary) -> void:
 			var yaw := PI * 0.5 * (k % 2)
 			var at := Terrain.ground(c.x, c.y)
 			var on := PackedInt32Array()
-			for storey in s.get("storeys", 1):
+			var kind: Dictionary = s.roofs[k % s.roofs.size()] if s.has("roofs") else {}
+			var size := Vector2(0.7, 0.44) * step
+			for storey in int(kind.get("storeys", s.get("storeys", 1))):
 				tool.begin_house(at, yaw, on)
-				tool.place_house(at, yaw, Vector2(0.7, 0.44) * step)
+				tool.place_house(at, yaw, size)
 				tool.house.layout.height = s.get("height", WallTool.HOUSE_HEIGHT)
 				tool.house.roof.curve = s.get("curve", 0.0)
-				tool.house.roof.pitch = s.get("pitch", tool.house.roof.pitch)
+				tool.house.roof.pitch = kind.get("pitch", s.get("pitch", tool.house.roof.pitch))
+				_lay_roof_kind(tool.house, kind, size)
 				tool.end_house()
+				size *= kind.get("upper", 1.0)
 				tool.walls[-1].ivy_age = INF
 				on = PackedInt32Array([tool.walls[-1].id])
 			if s.get("wings", false):
@@ -797,6 +811,19 @@ func _village(s: Dictionary) -> void:
 				tool.end_house()
 				tool.walls[-1].ivy_age = INF
 	print("village: %d buildings in %.0f ms" % [k, (Time.get_ticks_usec() - start) / 1000.0])
+
+
+## Lays `house`'s roof and top, `size` [along, across], as a village's `roofs` entry `kind` has them.
+func _lay_roof_kind(house: Wall, kind: Dictionary, size: Vector2) -> void:
+	var r := house.roof
+	r.deck = RoofLayout.Deck[kind.get("deck", "stone").to_upper()]
+	r.overhang = kind.get("overhang", RoofLayout.OVERHANG)
+	house.layout.top = WallLayout.Top[kind.get("top", "cap").to_upper()]
+	var n := int(kind.get("dormers", 0))
+	r.dormers.clear()
+	for side in ([-1.0, 1.0] if n > 0 else []):
+		for i in n:
+			r.dormers.append(Vector2(((i + 0.5) / n - 0.5) * (size.x - 1.2), side * size.y))
 
 
 func _clear(_s: Dictionary) -> void:

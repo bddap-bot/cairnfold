@@ -430,7 +430,7 @@ func _in_the_glade() -> void:
 	var ridge: Vector3 = house.roof.frame().mid + Vector3.UP * (house.roof.pitch * 0.5)
 	_check(fit.aim(Hand.Tool.DECORATIONS, ridge + house.roof.frame().across * 1.2 + Vector3.UP * 6.0, Vector3.DOWN).get("what") == "chimney", "on a house's roof, a chimney")
 	_check(fit.aim(Hand.Tool.DECORATIONS, tower.roof.frame().mid + Vector3.UP * 12.0, Vector3.DOWN).get("what") == "tower_flag", "on a tower's roof, a flag")
-	_check(fit.aim(Hand.Tool.WINDOWS, ridge + Vector3.UP * 6.0, Vector3.DOWN).is_empty(), "windows do nothing on a roof")
+	_check(fit.aim(Hand.Tool.WINDOWS, ridge + Vector3.UP * 6.0, Vector3.DOWN).get("what") == "dormer" and fit.aim(Hand.Tool.WINDOWS, tower.roof.frame().mid + Vector3.UP * 12.0, Vector3.DOWN).is_empty(), "windows on a house's roof open a dormer, on a tower's nothing")
 	var corners := house.layout.points
 	var middle: Vector3 = corners.reduce(func(m, c): return m + c / corners.size(), Vector3.ZERO)
 	var missed := []
@@ -575,7 +575,7 @@ static func _tower(center: Vector3, radius: float) -> Dictionary:
 		"points": PackedVector3Array(WallLayout.circle(center, radius)), "height": 4.5, "seed": 5,
 		"closed": true, "top": WallLayout.Top.CAP, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(),
 		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "plaster": false, "plinth_plaster": false, "rise": 0.0, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain(),
-		"roof": {"kind": RoofLayout.Kind.CONE, "center": center, "radius": radius, "pitch": 3.2, "curve": 0.0, "seed": 5, "chimneys": PackedVector2Array(), "flag": false, "thatch": false},
+		"roof": {"kind": RoofLayout.Kind.CONE, "center": center, "radius": radius, "pitch": 3.2, "curve": 0.0, "seed": 5, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false},
 	}
 
 

@@ -106,7 +106,9 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 		var wood := end.gable_end == WallLayout.GableEnd.BOARDS
 		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if end.plaster else Palette.Element.STONE, gable.point, "walls", gable.wall.id)
 	if not roof.is_empty():
-		return colour_target(Palette.Element.STONE if roof.wall.roof.flat() else Palette.Element.THATCH if roof.wall.roof.thatched() else Palette.Element.ROOF, roof.point, "walls", roof.wall.id)
+		var r: RoofLayout = roof.wall.roof
+		var covering := (Palette.Element.WOOD if r.deck == RoofLayout.Deck.WOOD else Palette.Element.STONE) if r.flat() else Palette.Element.THATCH if r.thatched() else Palette.Element.ROOF
+		return colour_target(covering, roof.point, "walls", roof.wall.id)
 	if not pick.is_empty():
 		var layout: WallLayout = pick.wall.layout
 		if _on_timber(layout, pick.point):
@@ -353,7 +355,9 @@ func close(hand: Hand) -> void:
 		walls.paint[w.target.element] = w.pick
 	elif w.id >= 0 and w.target.restyle == Restyle.GABLE:
 		walls.gable_end = w.pick as WallLayout.GableEnd
-	elif w.id >= 0 and w.target.restyle == Restyle.ROOF and w.target.options[w.pick] != WallTool.RoofStyle.FLAT:
+	elif w.id >= 0 and w.target.restyle == Restyle.ROOF and w.target.options[w.pick] in [WallTool.RoofStyle.FLAT, WallTool.RoofStyle.BOARDED]:
+		walls.deck = RoofLayout.Deck.WOOD if w.target.options[w.pick] == WallTool.RoofStyle.BOARDED else RoofLayout.Deck.STONE
+	elif w.id >= 0 and w.target.restyle == Restyle.ROOF:
 		walls.thatch = w.target.options[w.pick] == WallTool.RoofStyle.THATCHED
 	elif w.id >= 0 and w.target.restyle == Restyle.FLOOR:
 		walls.storey_floors = w.pick == 1

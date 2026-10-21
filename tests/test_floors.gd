@@ -247,7 +247,7 @@ func _the_meadow_is_worn_bare_inside_the_walls_only() -> void:
 
 func _the_budget_counts_storey_floors() -> void:
 	var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 7.2, "rise": 0.0, "fence": false, "gable_end": 0,
-		"plaster": false, "plinth_plaster": false, "timber_style": 0, "storey_floors": false, "openings": [], "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "flag": false, "thatch": false}}
+		"plaster": false, "plinth_plaster": false, "timber_style": 0, "storey_floors": false, "openings": [], "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
 	_check(not Budget.wall(d).has("floor_m2"), "a house floored at its foot alone is charged as before")
 	d.storey_floors = true
 	_check(is_equal_approx(Budget.wall(d).get("floor_m2", 0.0), 2.0 * 24.0), "two storey floors of 24 m² are charged: %s" % [Budget.wall(d)])

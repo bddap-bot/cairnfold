@@ -28,6 +28,7 @@ const MAX_PONDS := 256
 const MAX_STAMPS := 2000
 const MAX_FITTINGS := 64
 const MAX_CHIMNEYS := 8
+const MAX_DORMERS := 8
 const MAX_RUINS := 32
 ## Most commands a snapshot holds: per thing one, and per plant group one more for its hidden plants.
 const MAX_SNAPSHOT := MAX_THINGS * 2 + 64
@@ -407,10 +408,17 @@ static func _wall(d: Variant) -> Variant:
 		var chimneys: Variant = r.get("chimneys")
 		if typeof(chimneys) != TYPE_PACKED_VECTOR2_ARRAY or chimneys.size() > MAX_CHIMNEYS or not Array(chimneys).all(func(c: Vector2) -> bool: return c.is_finite() and absf(c.x) < 40.0 and absf(c.y) < 40.0) or typeof(r.get("flag")) != TYPE_BOOL:
 			return null
+		var dormers: Variant = r.get("dormers")
+		if typeof(dormers) != TYPE_PACKED_VECTOR2_ARRAY or dormers.size() > MAX_DORMERS or not Array(dormers).all(func(c: Vector2) -> bool: return c.is_finite() and absf(c.x) < 40.0 and absf(c.y) < 40.0):
+			return null
+		if not _at_least(r.get("overhang"), 0.0) or r.overhang > RoofLayout.MAX_OVERHANG:
+			return null
+		if typeof(r.get("deck")) != TYPE_INT or r.deck < 0 or r.deck >= RoofLayout.Deck.size():
+			return null
 		if typeof(r.get("thatch")) != TYPE_BOOL:
 			return null
 		out.plaster = plaster and r.kind != RoofLayout.Kind.CONE
-		out.roof = {"kind": r.kind, "center": r.center, "radius": r.radius, "pitch": r.pitch, "curve": r.curve, "seed": r.seed, "chimneys": chimneys, "flag": r.flag, "thatch": r.thatch}
+		out.roof = {"kind": r.kind, "center": r.center, "radius": r.radius, "pitch": r.pitch, "curve": r.curve, "seed": r.seed, "chimneys": chimneys, "dormers": dormers, "overhang": r.overhang, "deck": r.deck, "flag": r.flag, "thatch": r.thatch}
 	return out
 
 
@@ -431,7 +439,7 @@ static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():
 			out[k] = {}
 			for r in d.roof:
-				if typeof(r) != TYPE_STRING or not r in ["kind", "center", "radius", "pitch", "curve", "chimneys", "flag", "thatch"]:
+				if typeof(r) != TYPE_STRING or not r in ["kind", "center", "radius", "pitch", "curve", "chimneys", "dormers", "overhang", "deck", "flag", "thatch"]:
 					return null
 				out[k][r] = d.roof[r]
 				trial.roof[r] = d.roof[r]

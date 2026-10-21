@@ -2,7 +2,8 @@ class_name FittingTool
 extends Node3D
 
 ## One opening operation for windows and both door styles, plus decorations. A low window click makes a
-## plain door; the arch selection supplies the archway door style. Both preview and commit the same list.
+## plain door; the arch selection supplies the archway door style; on a gable roof's slope the window opens a dormer.
+## Both preview and commit the same list.
 ## Decorations hang as ghosts until their command returns. Every edit goes through World.
 
 const TINT := Color(1.0, 0.93, 0.78, 0.6)
@@ -105,11 +106,13 @@ func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 			return {"what": "decoration", "mount": "ground", "point": ground, "wall": null, "s": 0.0, "side": 1.0, "turn": facing}
 	if pick.has("fitting"):
 		var what: String = pick.what
-		if (tool == Hand.Tool.DECORATIONS and what != "opening") or (tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH] and what == "opening"):
+		if (tool == Hand.Tool.DECORATIONS and not what in ["opening", "dormer"]) or (tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH] and what == "opening") or (tool == Hand.Tool.WINDOWS and what == "dormer"):
 			return pick
 	var roof := pick if pick.get("surface") == "roof" else {}
 	var on_roof := not roof.is_empty()
 	if tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH]:
+		if on_roof and tool == Hand.Tool.WINDOWS and roof.wall.roof.kind == RoofLayout.Kind.GABLE and not roof.wall.roof.flat():
+			return {"what": "dormer", "wall": roof.wall, "at": roof.wall.roof.spot_of(roof.point), "point": roof.point}
 		if on_roof or pick.is_empty() or pick.wall.layout.fence:
 			return {}
 		return {"what": "opening", "wall": pick.wall, "s": pick.s, "y": 0.0 if tool == Hand.Tool.ARCH else _height(pick), "style": WallLayout.DoorStyle.ARCHWAY if tool == Hand.Tool.ARCH else WallLayout.DoorStyle.PLAIN, "point": pick.point}
@@ -262,6 +265,12 @@ func change(target: Dictionary) -> Dictionary:
 			var spot := w.roof.chimney_spot(target.at)
 			var near := w.roof.chimneys.find_custom(func(e): return e.distance_to(spot) < RoofLayout.STACK_WIDTH + 0.3)
 			return _change(w, true, "chimneys", spot, near, true)
+		"dormer":
+			var placed := _placed(w, true, "dormers")
+			var spot := w.roof.dormer_spot(target.at)
+			var at: Vector2 = target.at if is_nan(spot.x) else spot
+			var near := placed.find_custom(func(e: Vector2) -> bool: return signf(e.y) == signf(at.y) and absf(e.x - at.x) < RoofLayout.DORMER_HALF + RoofLayout.DORMER_EAVE)
+			return _change(w, true, "dormers", spot, near, near >= 0 or w.roof.dormer_fits(spot, placed))
 	return {"ok": true, "near": 0 if w.roof.flag else -1}
 
 
@@ -276,7 +285,7 @@ func _change(w: Wall, on_roof: bool, key: String, value: Variant, near: int, ok:
 	var after := _placed(w, on_roof, key).duplicate()
 	if near >= 0:
 		after.remove_at(near)
-	elif after.size() >= {"chimneys": Commands.MAX_CHIMNEYS}.get(key, Commands.MAX_FITTINGS):
+	elif after.size() >= {"chimneys": Commands.MAX_CHIMNEYS, "dormers": Commands.MAX_DORMERS}.get(key, Commands.MAX_FITTINGS):
 		ok = false
 	else:
 		after.append(value)
@@ -477,6 +486,10 @@ static func targets(w: Wall) -> Array[Dictionary]:
 			var half := (RoofLayout.STACK_WIDTH + 0.14) * 0.5
 			var xform := Transform3D(Basis(f.along, Vector3.UP, f.across), foot)
 			out.append(_target(w, "chimney", "chimneys", i, v, AABB(Vector3(-half, surface, -half), Vector3(half * 2, top - surface, half * 2)), true, xform))
+		for i in r.dormers.size():
+			var room := r.dormer_bounds(r.dormers[i])
+			if not room.is_empty():
+				out.append(_target(w, "dormer", "dormers", i, r.dormers[i], room[1], true, room[0]))
 		if r.flag:
 			out.append(_target(w, "tower_flag", "flag", 0, true, _flag_bounds(f.mid + Vector3.UP * r.pitch, Vector3(1, 0, 0.4)), true))
 	w.set_meta(&"fitting_laid", w.layout.laid)

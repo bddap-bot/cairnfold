@@ -3,14 +3,18 @@ extends RefCounted
 
 ## Lays the tiles of a roof resting on a closed wall: a gable over a house's rectangle or a cone over a
 ## round tower. Pitch is the ridge's rise above the wall top; curvature bows the slopes out (positive)
-## or sags them into swept eaves (negative). At pitch 0 the roof is a flat stone deck inside the walls,
-## whose top style rims it. A gable carries chimneys; a cone can fly a flag from its top. Thatched, the slopes
-## are a thick coat of overlapping straw courses instead, rolled over the eaves and verges under a block-cut ridge.
-## Pure data, like WallLayout.
+## or sags them into swept eaves (negative); its eaves reach `overhang` past the walls, at most down to what the walls
+## stand on, so a long overhang on low walls brings the slopes down to the ground like a tent. At pitch 0 the roof is a
+## flat deck inside the walls, stone flags or boards, whose top style rims it. A gable carries chimneys and dormers; a
+## cone can fly a flag from its top. Thatched, the slopes are a thick coat of overlapping straw courses instead, rolled
+## over the eaves and verges under a block-cut ridge. Pure data, like WallLayout.
 
 enum Kind { GABLE, CONE }
+enum Deck { STONE, WOOD }
 
+## How far the eaves reach past the walls' outer faces as a roof is first laid, and the furthest a pull takes them.
 const OVERHANG := 0.3
+const MAX_OVERHANG := 2.5
 const GABLE_OVERHANG := 0.25
 const ROW := 0.24
 ## A tile's full size. Its lower edge hangs NOSE below its row's line and it runs on up under the two rows above,
@@ -22,6 +26,22 @@ const CONE_LAP := 0.25
 ## A pitch pulled below this lands flat.
 const FLAT_SNAP := 0.4
 const SLAB := Vector3(0.7, 0.1, 0.5)
+## A wooden deck's boards: width, thickness, gap between them, and the shortest and longest board; the joists under
+## them, how far apart and how deep.
+const DECK_BOARD := Vector4(0.18, 0.05, 0.01, 1.4)
+const DECK_BOARD_LONGEST := 3.2
+const JOIST := Vector2(0.6, 0.12)
+## A dormer: half its width out to its cheeks' outer faces, how tall its front stands from the slope to its eaves, how
+## far its own little gable rises over that, how far its roof reaches past its front and cheeks, how far from the gable
+## ends and its neighbours it keeps, how far its ridge stays under the roof's, and its window's half-width.
+const DORMER_HALF := 0.62
+const DORMER_TALL := 0.9
+const DORMER_PITCH := 0.42
+const DORMER_EAVE := 0.12
+const DORMER_CLEAR := 0.25
+const DORMER_UNDER := 0.15
+const DORMER_WINDOW := 0.3
+const BOARD := Vector2(0.16, 0.05)
 ## How far the deck runs in under the cap's inner lip, and how far below the cap's top it lies.
 const DECK_TUCK := 0.06
 const DECK_DROP := 0.03
@@ -67,13 +87,18 @@ var corners: Array[Vector3] = []
 ## For a cone: the axis on the ground and the radius of the wall's centre line.
 var center := Vector3.ZERO
 var radius := 2.0
-## Height of the wall top the roof rests on.
+## Height of the wall top the roof rests on, and of the ground (or top) the walls stand on, which no eave reaches below.
 var base := 0.0
+var foot := -INF
 var pitch := 2.0
 var curve := 0.0
 var seed := 1
 ## Chimneys on a gable: metres along the ridge from its middle and across it, toward a slope's eave.
 var chimneys: Array[Vector2] = []
+## Dormers on a gable, as chimneys are placed: metres along the ridge to a dormer's middle, and across it to its front.
+var dormers: Array[Vector2] = []
+var overhang := OVERHANG
+var deck := Deck.STONE
 ## A cone flies a flag from its top instead of a finial.
 var flag := false
 ## Laid from the wall it rests on, like `base`: its gable ends rise past the slopes in crow steps, so the tiles stop
@@ -111,6 +136,9 @@ func inputs() -> RoofLayout:
 	r.curve = curve
 	r.seed = seed
 	r.chimneys = chimneys.duplicate()
+	r.dormers = dormers.duplicate()
+	r.overhang = overhang
+	r.deck = deck
 	r.flag = flag
 	r.thatch = thatch
 	return r
@@ -119,12 +147,14 @@ func inputs() -> RoofLayout:
 func same_inputs(other: RoofLayout) -> bool:
 	return (kind == other.kind and center == other.center and radius == other.radius
 		and pitch == other.pitch and curve == other.curve and seed == other.seed
-		and chimneys == other.chimneys and flag == other.flag and thatch == other.thatch)
+		and chimneys == other.chimneys and dormers == other.dormers and overhang == other.overhang and deck == other.deck
+		and flag == other.flag and thatch == other.thatch)
 
 
 ## Takes what `built` laid, as if `build` had run here.
 func adopt(built: RoofLayout) -> void:
 	base = built.base
+	foot = built.foot
 	corners = built.corners
 	tiles = built.tiles
 	coat = built.coat
@@ -211,9 +241,34 @@ func frame() -> Dictionary:
 	return {"along": along.normalized(), "across": across.normalized(), "mid": Vector3(mid.x, base, mid.z)}
 
 
-## Horizontal distance out from the ridge (or axis) at which the eave ends.
+## Horizontal distance out from the ridge (or axis) at which the eave ends: `overhang` past the walls, or where the
+## slope carried on meets the height the walls stand on, if sooner.
 func eave() -> float:
-	return half_span() + (0.0 if flat() else OVERHANG)
+	if flat():
+		return half_span()
+	var fall := pitch * (1.0 + curve * 0.25 * PI) / half_span()
+	var down := base - foot
+	return half_span() + (minf(overhang, down / fall) if fall > 0.0 and is_finite(down) else overhang)
+
+
+## The way out from the walls, level, that pulls the eave the point `p` lies on; zero where `p` is over the walls or
+## the roof is flat. A gable's verges are not eaves.
+func eave_way(p: Vector3) -> Vector3:
+	if flat():
+		return Vector3.ZERO
+	var f := frame()
+	var d: Vector3 = p - f.mid
+	d.y = 0.0
+	if kind == Kind.CONE:
+		return d.normalized() if d.length() > half_span() else Vector3.ZERO
+	var across := d.dot(f.across)
+	var inside := absf(d.dot(f.along)) <= ridge_length() * 0.5 + WallLayout.THICKNESS * 0.5
+	return f.across * signf(across) if absf(across) > half_span() and inside else Vector3.ZERO
+
+
+## Whether the eaves come down to what the walls stand on: a tent of a roof.
+func grounded() -> bool:
+	return not flat() and eave() < half_span() + overhang - 0.001
 
 
 func gable_overhang() -> float:
@@ -268,7 +323,10 @@ func build() -> void:
 	var hue := rng.randf_range(-0.04, 0.04)
 	var f := frame()
 	if flat():
-		_lay_deck(rng)
+		if deck == Deck.WOOD:
+			_lay_boards(rng)
+		else:
+			_lay_deck(rng)
 		for i in chimneys.size():
 			rng.seed = hash([seed, "chimney", i])
 			_lay_chimney(chimney_spot(chimneys[i]), rng)
@@ -297,6 +355,9 @@ func build() -> void:
 		for i in chimneys.size():
 			rng.seed = hash([seed, "chimney", i])
 			_lay_chimney(chimney_spot(chimneys[i]), rng)
+		for i in dormers.size():
+			rng.seed = hash([seed, "dormer", i])
+			_lay_dormer(dormers[i], hue, rng)
 	elif flag:
 		_fly_flag(f.mid + Vector3.UP * top)
 	else:
@@ -349,16 +410,66 @@ func _lay_deck(rng: RandomNumberGenerator) -> void:
 		row += 1
 
 
+## Boards laid across a deck inside the walls, on joists running the other way: rows of boards of varied length
+## along a house's ridge (straight across a tower), staggered so no two rows' joints line up, cut at the walls.
+func _lay_boards(rng: RandomNumberGenerator) -> void:
+	var f := frame()
+	var reach := half_span() - WallLayout.THICKNESS + DECK_TUCK
+	var long := reach if kind == Kind.CONE else ridge_length() * 0.5 - WallLayout.THICKNESS * 0.5 + DECK_TUCK
+	var top: float = f.mid.y - DECK_DROP
+	var basis := Basis(f.along, Vector3.UP, f.across)
+	var j := -long + JOIST.x * 0.5
+	while j < long:
+		var half := _chord(j, reach) if kind == Kind.CONE else reach
+		if half > 0.05:
+			var p := _on_deck(Vector3(f.mid.x, top - DECK_BOARD.y - JOIST.y * 0.5, f.mid.z) + f.along * j, basis)
+			_add(Transform3D(p.basis.scaled_local(Vector3(0.08, JOIST.y, half * 2.0)), p.origin), "board", WallLayout.WOOD * rng.randf_range(0.6, 0.7), 0.7)
+		j += JOIST.x
+	var z := -reach
+	var row := 0
+	while z < reach - 0.01:
+		rng.seed = hash([seed, "boards", row])
+		var width := minf(DECK_BOARD.x, reach - z)
+		var mid := z + width * 0.5
+		var half := _chord(mid, reach) if kind == Kind.CONE else long
+		var x := -half - rng.randf_range(0.0, DECK_BOARD.w)
+		while x < half - 0.01 and half > 0.02:
+			var length := rng.randf_range(DECK_BOARD.w, DECK_BOARD_LONGEST)
+			var a := maxf(x, -half)
+			var b := minf(x + length, half)
+			if b - a > 0.05:
+				var p := _on_deck(Vector3(f.mid.x, top - DECK_BOARD.y * 0.5, f.mid.z) + f.along * ((a + b) * 0.5) + f.across * mid, basis)
+				var tilt := p.basis * Basis.from_euler(Vector3(0.0, rng.randf_range(-0.006, 0.006), rng.randf_range(-0.008, 0.008)))
+				var colour := WallLayout.WOOD * rng.randf_range(0.82, 1.08)
+				_add(Transform3D(tilt.scaled_local(Vector3(b - a - DECK_BOARD.z, DECK_BOARD.y, width - DECK_BOARD.z)), p.origin + Vector3.UP * rng.randf_range(-0.004, 0.004)), "plank", colour, 0.9)
+			x += length
+		z += width
+		row += 1
+
+
+## Half the length of a chord `d` from a circle's centre, `r` round.
+static func _chord(d: float, r: float) -> float:
+	return sqrt(maxf(0.0, r * r - d * d))
+
+
+## A deck piece's frame at `at`, on a curved deck lifted onto its surface and tilted with it.
+func _on_deck(at: Vector3, basis: Basis) -> Transform3D:
+	if curve == 0.0:
+		return Transform3D(basis, at)
+	at.y += height_at(at.x, at.z) - base
+	var dx := (height_at(at.x + 0.01, at.z) - height_at(at.x - 0.01, at.z)) / 0.02
+	var dz := (height_at(at.x, at.z + 0.01) - height_at(at.x, at.z - 0.01)) / 0.02
+	var normal := Vector3(-dx, 1.0, -dz).normalized()
+	var across := (basis.x - normal * basis.x.dot(normal)).normalized()
+	return Transform3D(Basis(across, normal, across.cross(normal)), at)
+
+
 ## One flag of the deck, `size` across its top, a hair smaller for the joint and a hair tilted, on a mortar bed
 ## reaching past it into its neighbours' so no gap, rounded corners' included, opens onto the floor below.
 func _slab(at: Vector3, basis: Basis, size: Vector2, rng: RandomNumberGenerator) -> void:
-	if curve != 0.0:
-		at.y += height_at(at.x, at.z) - base
-		var dx := (height_at(at.x + 0.01, at.z) - height_at(at.x - 0.01, at.z)) / 0.02
-		var dz := (height_at(at.x, at.z + 0.01) - height_at(at.x, at.z - 0.01)) / 0.02
-		var normal := Vector3(-dx, 1.0, -dz).normalized()
-		var across := (basis.x - normal * basis.x.dot(normal)).normalized()
-		basis = Basis(across, normal, across.cross(normal))
+	var on := _on_deck(at, basis)
+	at = on.origin
+	basis = on.basis
 	var b := basis * Basis.from_euler(Vector3(rng.randf_range(-0.01, 0.01), rng.randf_range(-0.02, 0.02), rng.randf_range(-0.01, 0.01)))
 	var color := WallLayout.stone_color(rng) * rng.randf_range(0.86, 0.98)
 	_add(Transform3D(b.scaled_local(Vector3(maxf(0.001, size.x - 0.025), SLAB.y, maxf(0.001, size.y - 0.025))), at + Vector3.UP * rng.randf_range(-0.006, 0.006)), "deck", color, 0.9)
@@ -397,6 +508,168 @@ func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
 	_add(Transform3D(basis.scaled_local(Vector3(STACK_WIDTH + 0.14, 0.09, STACK_WIDTH + 0.14)), foot + Vector3.UP * (top + 0.045)), "chimney", Color(0.6, 0.56, 0.5), 1.0)
 	for side in [-1.0, 1.0]:
 		_add(Transform3D(basis.scaled_local(Vector3(0.15, 0.24, 0.15)), foot + f.along * side * STACK_WIDTH * 0.22 + Vector3.UP * (top + 0.21)), "pot", _clay(0.0, rng) * 0.9, 1.0)
+
+
+## Where a dormer can stand on this gable nearest the spot `c`: along the ridge clear of the gable ends, its front
+## between the walls' centre line and as far up the slope as leaves its own gable under the ridge; NAN where none fits.
+func dormer_spot(c: Vector2) -> Vector2:
+	var none := Vector2(NAN, NAN)
+	if kind != Kind.GABLE or flat():
+		return none
+	var along := ridge_length() * 0.5 - WallLayout.THICKNESS * 0.5 - DORMER_HALF - DORMER_EAVE - DORMER_CLEAR
+	var lo := _dormer_reach()
+	var hi := half_span() - WallLayout.THICKNESS * 0.5
+	if along < 0.0 or lo > hi:
+		return none
+	return Vector2(clampf(c.x, -along, along), (-1.0 if c.y < 0.0 else 1.0) * clampf(absf(c.y), lo, hi))
+
+
+## Whether a dormer at `c` stands on this roof clear of the dormers in `placed` on its slope.
+func dormer_fits(c: Vector2, placed: Array) -> bool:
+	var spot := dormer_spot(c)
+	if is_nan(spot.x):
+		return false
+	var apart := (DORMER_HALF + DORMER_EAVE) * 2.0 + DORMER_CLEAR
+	return placed.all(func(o: Vector2) -> bool: return signf(o.y) != signf(spot.y) or absf(o.x - spot.x) >= apart - 0.001)
+
+
+## The least distance out from the ridge a dormer's front can stand at with its gable under the ridge, or INF.
+func _dormer_reach() -> float:
+	var hs := half_span()
+	var under := pitch - DORMER_TALL - DORMER_PITCH - DORMER_UNDER
+	if rise(1.0 - (hs - WallLayout.THICKNESS * 0.5) / hs) > under:
+		return INF
+	return _out_at(under)
+
+
+## How far out from the ridge the slope's surface stands `y` above the wall top: 0 above the ridge, the walls' outer
+## faces below it.
+func _out_at(y: float) -> float:
+	var hs := half_span()
+	var lo := 0.0
+	var hi := hs
+	for i in 24:
+		var x := (lo + hi) * 0.5
+		if rise(1.0 - x / hs) > y:
+			lo = x
+		else:
+			hi = x
+	return hi
+
+
+## A dormer's room, for pointing at it: a box in the frame (x along the ridge, y up, z out of its front) the returned
+## transform places, from the slope at its back to its eaves; or [] where none stands at `c`.
+func dormer_bounds(c: Vector2) -> Array:
+	var spot := dormer_spot(c)
+	if is_nan(spot.x):
+		return []
+	var f := frame()
+	var out: Vector3 = f.across * signf(spot.y)
+	var x := absf(spot.y)
+	var lift := COAT if thatched() else 0.0
+	var foot := rise(1.0 - x / half_span()) + lift
+	var top := foot + DORMER_TALL + DORMER_PITCH + 0.15
+	var back := x - _out_at(foot + DORMER_TALL - lift)
+	var wide := DORMER_HALF + DORMER_EAVE
+	var xform := Transform3D(Basis(f.along, Vector3.UP, out), f.mid + f.along * spot.x + out * x)
+	return [xform, AABB(Vector3(-wide, foot - lift - 0.1, -back), Vector3(wide * 2.0, top - foot + lift + 0.1, back + DORMER_EAVE))]
+
+
+## A dormer's faces and slopes, as Vector2(square metres of boarded front and cheeks, of tiled roof).
+func dormer_area(c: Vector2) -> Vector2:
+	var spot := dormer_spot(c)
+	if is_nan(spot.x):
+		return Vector2.ZERO
+	var x := absf(spot.y)
+	var foot := rise(1.0 - x / half_span())
+	var depth := x - _out_at(foot + DORMER_TALL)
+	var front := DORMER_HALF * 2.0 * (DORMER_TALL + DORMER_PITCH * 0.5)
+	var slope := Vector2(DORMER_HALF + DORMER_EAVE, DORMER_PITCH * (1.0 + DORMER_EAVE / DORMER_HALF)).length()
+	return Vector2(front + depth * DORMER_TALL, 2.0 * slope * (depth + DORMER_EAVE))
+
+
+## A dormer standing out of a slope: an upright boarded front with a cottage window, boarded cheeks back to where its
+## eaves meet the slope, and its own little gable of tiles under a ridge running back into the roof. Its pieces stand
+## a little into the slope (on thatch, into the coat) so no gap opens where they meet it.
+func _lay_dormer(c: Vector2, hue: float, rng: RandomNumberGenerator) -> void:
+	var spot := dormer_spot(c)
+	if is_nan(spot.x):
+		return
+	var f := frame()
+	var hs := half_span()
+	var out: Vector3 = f.across * signf(spot.y)
+	var x := absf(spot.y)
+	var lift := COAT if thatched() else 0.0
+	var foot := rise(1.0 - x / hs) + lift
+	var eave_y := foot + DORMER_TALL
+	var ridge_y := eave_y + DORMER_PITCH
+	var o: Vector3 = f.mid + f.along * spot.x + out * x
+	var sill := foot + 0.2
+	var head := eave_y - 0.12
+	var t := -DORMER_HALF
+	while t < DORMER_HALF - 0.001:
+		var w := minf(BOARD.x, DORMER_HALF - t)
+		var m := t + w * 0.5
+		var bottom := rise(1.0 - x / hs) - 0.12
+		var top := eave_y + DORMER_PITCH * (1.0 - (absf(m) + w * 0.5) / DORMER_HALF)
+		var spans: Array[Vector2] = [Vector2(bottom, top)]
+		if absf(m) < DORMER_WINDOW + 0.04:
+			spans = [Vector2(bottom, sill), Vector2(head, top)]
+		var colour := WallLayout.WOOD * rng.randf_range(0.82, 1.08)
+		for span in spans:
+			if span.y - span.x > 0.02:
+				_add(Transform3D(Basis(f.along, Vector3.UP, out).scaled_local(Vector3(w - 0.012, span.y - span.x, BOARD.y)), o + f.along * m + Vector3.UP * ((span.x + span.y) * 0.5) - out * BOARD.y * 0.5), "board", colour, 0.95)
+		t += w
+	var back := _out_at(eave_y - lift)
+	for end in [-1.0, 1.0]:
+		var side: Vector3 = f.along * end
+		var at := x
+		while at > back + 0.001:
+			var w := minf(BOARD.x, at - back)
+			var m := at - w * 0.5
+			var bottom := rise(1.0 - m / hs) - 0.12
+			if eave_y - bottom > 0.02:
+				_add(Transform3D(Basis(out, Vector3.UP, side).scaled_local(Vector3(w - 0.012, eave_y - bottom, BOARD.y)), f.mid + f.along * spot.x + side * (DORMER_HALF - BOARD.y * 0.5) + out * m + Vector3.UP * ((bottom + eave_y) * 0.5)), "board", WallLayout.WOOD * rng.randf_range(0.82, 1.08), 0.95)
+			at -= w
+	_lay_dormer_window(o - out * 0.08, f.along, out, sill, head, rng)
+	_add(Transform3D(Basis(f.along, Vector3.UP, out).scaled_local(Vector3(DORMER_WINDOW * 2.0 + 0.16, 0.06, 0.14)), o + Vector3.UP * (sill - 0.03) + out * 0.02), "sill", WallLayout.stone_color(rng), 0.95)
+	var slope := atan(DORMER_PITCH / DORMER_HALF)
+	for end in [-1.0, 1.0]:
+		var down: Vector3 = f.along * end
+		var basis := _slope_basis(down, slope)
+		var along := DORMER_HALF + DORMER_EAVE
+		while along > 0.1:
+			var y := ridge_y - along * tan(slope)
+			var reach := _out_at(y - lift) - 0.08
+			var run := clampf(along / cos(slope) + NOSE, NOSE * 2.0, TILE.z)
+			var a := x + DORMER_EAVE
+			while a > reach + 0.001:
+				var w := minf(TILE.x, a - reach)
+				_tile(f.mid + f.along * spot.x + down * along + out * (a - w * 0.5) + Vector3.UP * (y + TILE.y * 0.5), basis, hue, rng, w / TILE.x, run)
+				a -= TILE.x
+			along -= ROW * cos(slope)
+	var ridge_back := _out_at(ridge_y - lift)
+	var a := x + DORMER_EAVE
+	while a > ridge_back + 0.001:
+		var w := minf(0.32, a - ridge_back)
+		_add(Transform3D(Basis(out, Vector3.UP, f.along).scaled_local(Vector3(w * 1.02, 0.14, 0.3)), f.mid + f.along * spot.x + out * (a - w * 0.5) + Vector3.UP * (ridge_y + 0.05)), "ridge", _clay(hue, rng) * 0.88, 0.95)
+		a -= w
+
+
+## A dormer's window, its pane set back at `at` in the front facing `out`, as a wall's cottage window is laid.
+func _lay_dormer_window(at: Vector3, along: Vector3, out: Vector3, sill: float, head: float, rng: RandomNumberGenerator) -> void:
+	var w := DORMER_WINDOW * 2.0
+	var tall := head - sill
+	var mid := sill + tall * 0.5
+	var basis := Basis(along, Vector3.UP, out)
+	var piece := func(offset: Vector2, size: Vector3, colour: Color, what: String) -> void:
+		_add(Transform3D(basis.scaled_local(size), at + along * offset.x + Vector3.UP * (mid + offset.y)), what, colour, 1.0)
+	piece.call(Vector2.ZERO, Vector3(w - 0.02, tall - 0.02, 0.02), WallLayout.GLASS * rng.randf_range(0.9, 1.1), "glass")
+	for edge in [-1.0, 1.0]:
+		piece.call(Vector2(edge * (w * 0.5 - 0.03), 0.0), Vector3(0.06, tall, 0.08), WallLayout.WOOD * rng.randf_range(0.85, 1.05), "frame")
+		piece.call(Vector2(0.0, edge * (tall * 0.5 - 0.03)), Vector3(w, 0.06, 0.08), WallLayout.WOOD * rng.randf_range(0.85, 1.05), "frame")
+	piece.call(Vector2.ZERO, Vector3(0.035, tall, 0.05), WallLayout.WOOD, "frame")
+	piece.call(Vector2(0.0, tall * 0.08), Vector3(w, 0.035, 0.05), WallLayout.WOOD, "frame")
 
 
 ## Tile rows as {x, y, slope}, eave first, ROW apart along the curved slope.

@@ -192,7 +192,7 @@ func data() -> Dictionary:
 		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "plinth_plaster": layout.plinth_plaster, "gable_end": int(layout.gable_end), "timber_style": layout.timber_style, "storey_floors": layout.storey_floors, "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
 	}
 	if roof != null:
-		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "flag": roof.flag, "thatch": roof.thatch}
+		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "dormers": PackedVector2Array(roof.dormers), "overhang": roof.overhang, "deck": int(roof.deck), "flag": roof.flag, "thatch": roof.thatch}
 	return d
 
 
@@ -219,10 +219,12 @@ func set_data(d: Dictionary) -> void:
 	if d.has("roof"):
 		if roof == null:
 			add_roof(RoofLayout.new())
-		for k in ["center", "radius", "pitch", "curve", "seed", "flag", "thatch"]:
+		for k in ["center", "radius", "pitch", "curve", "seed", "overhang", "flag", "thatch"]:
 			roof.set(k, d.roof[k])
 		roof.kind = d.roof.kind as RoofLayout.Kind
+		roof.deck = d.roof.deck as RoofLayout.Deck
 		roof.chimneys.assign(Array(d.roof.chimneys))
+		roof.dormers.assign(Array(d.roof.dormers))
 		_cover()
 
 
@@ -445,6 +447,7 @@ func _lay_dressing(roofed := {}) -> void:
 ## arguments, so it runs on a worker thread.
 static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Dictionary:
 	r.base = built.samples[0].y + built.height + WallLayout.CAP
+	r.foot = built.stands_at()
 	r.stepped = built.gable_end == WallLayout.GableEnd.STEPS
 	if r.kind == RoofLayout.Kind.GABLE:
 		r.corners = built.laid_points
@@ -471,7 +474,9 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind],
 	shadows.resize(r.tiles.size() * shadow.stride())
 	for i in r.tiles.size():
 		var t: Dictionary = r.tiles[i]
-		tile.write(tiles, i, t.xform, _painted_as(t, colours), t.ao, Palette.code(t.kind))
+		var c := _painted_as(t, colours)
+		c.a = 0.0 if t.kind == "glass" else 1.0
+		tile.write(tiles, i, t.xform, c, t.ao, Palette.code(t.kind))
 		shadow.write(shadows, i, t.xform)
 	var chunks := {Part.TILE: Masonry.split(tiles, tile), Part.TILE_SHADOW: Masonry.split(shadows, shadow), Part.COAT: Masonry.split(slabs, slab)}
 	return {"roof": r, "tiles": tiles, "shadows": shadows, "slabs": slabs, "chunks": chunks, "mortar": mortar}

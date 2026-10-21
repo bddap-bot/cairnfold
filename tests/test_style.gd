@@ -146,7 +146,7 @@ func _floors_turn_to_every_storey() -> void:
 	var d := _wall_data(PackedVector3Array(WallLayout.circle(Terrain.ground(-12, 24), 1.7)))
 	d.closed = true
 	d.height = 4.5
-	d.roof = {"kind": RoofLayout.Kind.CONE, "center": Terrain.ground(-12, 24), "radius": 1.7, "pitch": 2.7, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "flag": false, "thatch": false}
+	d.roof = {"kind": RoofLayout.Kind.CONE, "center": Terrain.ground(-12, 24), "radius": 1.7, "pitch": 2.7, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var id := world.seq * Commands.MAX_PIECES
 	var w: Wall = main.tool.find(id)
@@ -358,6 +358,7 @@ func _timber_faces() -> void:
 
 func _towers_keep_stone() -> void:
 	main.tool.plaster = true
+	main.tool.deck = RoofLayout.Deck.STONE
 	main.tool.begin_house(Terrain.ground(-20, 10), 0.0, PackedInt32Array(), true)
 	_check(not main.tool.house.layout.plaster, "new towers use stone even after choosing plaster on a house")
 	var data: Dictionary = main.tool.house.data()
@@ -473,12 +474,12 @@ func _roof_choices_keep_shape() -> void:
 		for thatch in [false, true]:
 			var data := _wall_data(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
 			data.closed = true
-			data.roof = {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": pitch, "curve": 0.4, "seed": 3, "chimneys": PackedVector2Array(), "flag": false, "thatch": thatch}
+			data.roof = {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": pitch, "curve": 0.4, "seed": 3, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": thatch}
 			world._order({"op": "wall", "walls": [data]}, world.me())
 			var id := world.seq * Commands.MAX_PIECES
 			var wall: Wall = main.tool.find(id)
 			var target := picker.style_target(PaletteTool.Restyle.ROOF, wall, Vector3.ZERO)
-			_check(target.count == (1 if pitch == 0.0 else 2), "roof offers only coverings for its shape")
+			_check(target.count == 2 and target.options == WallTool.roof_options(pitch), "roof offers only coverings for its shape")
 			for pick in target.count:
 				picker.open(main.rig.right, target)
 				var wheel: PaletteTool.Wheel = picker.wheels[main.rig.right]
@@ -490,7 +491,8 @@ func _roof_choices_keep_shape() -> void:
 				_check(world.state.walls[id].roof.pitch == pitch and world.state.walls[id].roof.curve == 0.4, "committed covering preserves pitch and curve")
 			wall.lay_now()
 			var colour := picker.aim(wall.roof.frame().mid + Vector3.UP * 10.0, Vector3.DOWN)
-			var element := Palette.Element.STONE if pitch == 0.0 else Palette.Element.THATCH
+			var boarded: bool = world.state.walls[id].roof.deck == RoofLayout.Deck.WOOD
+			var element := (Palette.Element.WOOD if boarded else Palette.Element.STONE) if pitch == 0.0 else Palette.Element.THATCH
 			_check(colour.get("element") == element, "roof colour choices match the rendered covering")
 			_turn(colour, 1)
 			_check(world.state.walls[id].paint[element] == 1, "roof colour commits the covering's swatch")

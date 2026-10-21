@@ -659,7 +659,7 @@ wanna make it obvious to the user that there is a limit there"
 
 - What a garden holds counts in units (`Budget.UNITS`): square metres of stone wall,
   plaster wall, fence and path face, and of a tiled or flat roof and a thatched one laid along their slopes out to their eaves; fittings that add a mesh (lanterns, flags,
-  chimneys); painted grass blades and flowers; trees and bushes standing; ponds. The
+  chimneys, dormers, each dormer's boarded faces counted as stone wall and its slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing; ponds. The
   meadow's own plants are part of the base and count nothing; one of its trees grown
   counts only its growth. `World` keeps the count as every command applies, so deleting
   frees exactly what placing took, and undo, wipes and a garden loaded or joined count
@@ -1609,16 +1609,16 @@ Stage numbers refer to the build order at the end.
 | --- | --- | --- | --- |
 | Freehand walls | Drag on the ground; gridless, follows terrain, stroke speed sets corner sharpness; bricks laid by GPU compute | Hold trigger and sweep the pointer over the ground (from the ground or from the air). The stroke is Catmull-Rom smoothed and courses of individual stones are laid live while you draw. A stroke near a standing wall merges into it (see "Walls meeting walls") | 1 (done) |
 | Wall height | Height gizmo; walls from very low to very high | Grip a wall and raise or lower your hand; height snaps to whole stone courses, so it grows and shrinks a row at a time | 1 (done) |
-| Wall tops | Merlons on flat tops, can be turned off; wooden railings on half-timber | Per wall: capping slabs with merlons, plain capping, or dry-stone coping (stones on edge, tall and short in turn); the style tool on a roofless wall's top picks one | 1 (done), 4 (done) |
+| Wall tops | Merlons on flat tops, can be turned off; wooden railings on half-timber | Per wall: capping slabs with merlons, plain capping, dry-stone coping (stones on edge, tall and short in turn), or a wooden railing on the capping (posts at most 1.4 m apart between the piers, a top rail and a middle one); the style tool on a roofless wall's top picks one | 1 (done), 4 (done), 13 (done) |
 | Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | A wall drawn over a tree or bush arches over it, shown live while drawing; one of 5 m or more over open ground opens an arch at the middle; the arch tool (its icon a wall with an archway through it) cuts an archway where it points on a wall, in the wall's own style (`WallLayout.ARCH_STYLES`: a round stone ring under a keystone, or on a timber-framed house a four-centred oak head on oak posts, framed by a stud either side and a rail above; the wall's level courses are cut to the arch's one outline, so they meet it with no gap), and on an arch of the wall's own (not a path's) fills it again, one undo step either way. Each opening carries a size, 1 a doorway's (`WallLayout.openings`): an arch of size k is the doorway's scaled k times, ring, voussoirs, keystone and posts, laid round by the wall's courses through the same outline, so a grand arch still reads as built. Wall chemistry, in either order (a path laid through a wall, or a wall drawn across a path): one arch where they cross, or, where the crossing runs 2.8 m or more along the wall (a wide path, or one meeting it at a slant), an arcade of arches 2.3 m apart on stone pillars. A crossing beside an arch already there joins it as an arcade, so no opening closes; undoing the path closes the arches it opened | 1 (done), 5 (done) |
 | Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends and at the corners of a house | 1 (done), 4 (done) |
 | Paths | Dirt strokes and wall crossings | Dirt strokes wear soft-edged earth into the ground mask and open arches or gates through walls and fences | 5 (done) |
 | Stone ground | Steep terrain turns rocky; dirt paths blend with the ground | The stone tool paints stone ground where it points, in the style the style tool last set (fieldstone, cobblestone, flagstone, river cobble, mossy, ashlar), fraying into the meadow stone by stone; a stroke begun on stone paints meadow back (see "Ground materials") | 7 (done) |
 | Towers | A loop held down straightens into a circle | A wall drawn into a loop, round or any shape, stays a freestanding wall, roofless. A round tower is its own tool beside the house, a little tower under a cone in the ring, carried and set down as a house is: 4.5 m tall under a cone roof, 3.4 m across, spread every way at once by two hands while carried or once built (from 2.4 m across, no widest). No door until one is made, as for a house. `demo/tower.json` builds a stone tower, a plaster one and a house | 4 (done) |
 | Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Circle footprints are the round towers above. Its own tool, a little house in the ring. Its trigger takes up a square house where the hand points and carries it, turning with the hand; the other hand's grip joins to hold it by both hands, which move it by their midpoint, turn it as the pair turns and stretch the side nearest the line between them as they spread (each side from 2.4 m, with no longest or deepest). Raising the hand as it carries raises it onto a plinth. Letting go builds it. Built, it is resized where it stands: a grip on its wall pulls its height, and the other hand's grip on it too stretches its width or depth, and both hands raised together raise it (see "Resizing a house" and "Raising a house"). Stone walls with corner piers and no door, level on its lowest ground; a door comes from the windows tool low on a wall, an arch from the arch tool or from a path running in | 4 (done) |
-| Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings") | 4 (done) |
-| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, with lime torching under the tiles so no sky shows between them from inside. From outside every joint lies over a tile (each tile runs up under the two rows above, the eave row lies on an under-course, a cone's tiles lap their neighbours), and the walls' stones stop under the slopes at any pitch. A gable end continues the wall below it: a stone house's courses carry on up under the slopes, a plaster house's plaster does, and on both a verge of stones runs up each rake over the courses' ends (European town houses of Cotswold stone or Provençal plaster). The style tool on a gable end picks that house's gable ends, and houses laid after take it: the wall carried up; boarded, upright planks under a barge board up each rake (a barn's end), painted as woodwork; or crow-stepped, the stone courses or plaster climbing past the slopes in capped steps, the roof stopping inside them. The gable ends count against the budget at the face each style lays, as wall (boards as stone wall: laid as stones are, fewer). Grip on a roof, whatever the hand holds: raise the hand for pitch, grab the roof with both hands and spread them to bow the slopes out, or squeeze them together to bow inward (`RoofLayout`). Pushed all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top then takes a style like an open wall's. The style tool offers tile or thatch on a pitched roof and the stone deck on a flat roof; only grabbing and pulling changes between flat and pitched, a tower's cone as a house's gable (see "Thatch") | 4 (done) |
-| Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. While it points, the wall stands as the press would leave it, laid by the same code. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light | 6 (done) |
+| Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings"). Flat roofs stack: a house or tower set down on a deck stands on it, and pushed flat it is a deck of its own, so smaller storeys rise in terraces (see "Flat roofs, platforms and dormers") | 4 (done), 13 (done) |
+| Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, with lime torching under the tiles so no sky shows between them from inside. From outside every joint lies over a tile (each tile runs up under the two rows above, the eave row lies on an under-course, a cone's tiles lap their neighbours), and the walls' stones stop under the slopes at any pitch. A gable end continues the wall below it: a stone house's courses carry on up under the slopes, a plaster house's plaster does, and on both a verge of stones runs up each rake over the courses' ends (European town houses of Cotswold stone or Provençal plaster). The style tool on a gable end picks that house's gable ends, and houses laid after take it: the wall carried up; boarded, upright planks under a barge board up each rake (a barn's end), painted as woodwork; or crow-stepped, the stone courses or plaster climbing past the slopes in capped steps, the roof stopping inside them. The gable ends count against the budget at the face each style lays, as wall (boards as stone wall: laid as stones are, fewer). Grip on a roof, whatever the hand holds: raise the hand for pitch, grab the roof with both hands and spread them to bow the slopes out, or squeeze them together to bow inward (`RoofLayout`). Pushed all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top then takes a style like an open wall's. The style tool offers tile or thatch on a pitched roof and a stone or wooden deck on a flat roof; only grabbing and pulling changes between flat and pitched, a tower's cone as a house's gable (see "Thatch"). A grip on the eave, past the walls, pulls it out or pushes it back; pulled far on low walls the slopes come down to the ground like a tent. The windows tool on a gable's slope opens a dormer (see "Flat roofs, platforms and dormers") | 4 (done), 13 (done) |
+| Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. While it points, the wall stands as the press would leave it, laid by the same code. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light. Pointed at a gable roof's slope it opens a dormer instead (see "Flat roofs, platforms and dormers") | 6 (done), 13 (done) |
 | Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | The decorations tool's trigger places what suits where it points: a stone chimney with two clay pots on a house's roof, rising clear of the ridge; a flag on a tower's roof or a wall's top, waving; a lantern on an iron arm off a wall's face, or on a fence post. Lanterns are emissive bodies in a soft additive halo, and every one lights the ground and walls around it (see "Lantern light"). A press on one takes it away | 6 (done) |
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | The fence tool draws like walls (same stroke, merging and junctions) with a wooden profile: posts at most 1.6 m apart and two rails between. A path through a fence, in either order, opens a gate: two tall posts under a bent wooden arch | 6 (done) |
 | Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces (a house or tower under a roof or deck only its outer one: [inside before and after, outside after](ivy.jpg)), wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`), kept out of windows and doors too | 3 (done), 6 (done) |
@@ -1856,11 +1856,11 @@ buildings"):
 Directive (verbatim): "Thatched roofs I want them as an option."
 
 A pitched roof or a tower's cone is tiled or thatched (`RoofLayout.thatch`, part of the build command, so a `reshape`
-changes it, one undo step, and every player, save and joiner sees it). The style tool's roof wheel offers tile and thatch on pitched roofs, each as a miniature, and only the stone deck
-on flat roofs. Flat decks take stone colours. Selecting a covering preserves pitch and curvature; only grabbing
+changes it, one undo step, and every player, save and joiner sees it). The style tool's roof wheel offers tile and thatch on pitched roofs, each as a miniature, and stone flags or boards
+on flat roofs. Flat decks take stone colours, or woodwork's when boarded. Selecting a covering preserves pitch and curvature; only grabbing
 and pulling changes between flat and pitched; houses laid after on that machine take the covering last turned to, as they take a wall's material, so a
-thatched village costs one turn. A flat roof stays a stone deck: it is walked on, and keeps the covering it had for
-when it is pitched again. A thatched roof keeps its thatch when it is resized or reshaped.
+thatched village costs one turn. A flat roof is never thatched: it is walked on, and keeps the covering it had for
+when it is pitched again, as a pitched roof keeps the deck it had. A thatched roof keeps its thatch when it is resized or reshaped.
 
 Thatch is massing, not a texture on a tiled slope. Reed and straw roofs in England (Norfolk water reed, Devon combed
 wheat reed, Cotswold long straw) share a shape that reads across a village: a coat about a third of a metre deep,
@@ -1895,6 +1895,57 @@ and under the overhang; no wall stone through it; and the command, budget and sw
 turns a house's and a tower's roof to thatch with the style tool in tracked hands and undoes it.
 `demo/thatch.json` thatches a stone and a plaster house with the style tool, then a village around them, close and
 from across it, by day and at dusk.
+
+## Flat roofs, platforms and dormers
+
+The original's roofs are more than pitched tiles: a house can be topped by a flat terrace walked on behind a parapet or
+a railing, terraces stack, gable roofs grow dormer windows, eaves reach out or tuck in, and a roof pulled down low
+makes a tent. Every one of these is a field of the build command (`World.state.walls[id].roof`, `top`), so it is one
+undo step, every player sees it, and saves and joiners' snapshots carry it.
+
+- Decks. A roof pushed flat is a platform inside the walls (`RoofLayout`, `deck`): stone flags in running bond on a
+  mortar bed, or boards. Boards (`_lay_boards`) run along a house's ridge (straight across a tower) in rows of
+  staggered lengths, 1.4 to 3.2 m, cut at the walls, on joists 0.6 m apart running the other way; a bowed deck's
+  boards ride its curved surface as its flags do. The style tool's roof wheel on a flat roof turns between the two,
+  each a miniature, and new houses take the deck last turned to on this machine; the colour tool paints a boarded deck
+  in woodwork's swatches.
+- Rims. A deck is rimmed by its wall's top: a cap top rises into a coped parapet, a crenellated one keeps its merlons,
+  or the railing top stands wooden posts on the capping, at most 1.4 m apart and clear of the corner piers, under a top
+  rail and a middle one that follow the wall from post to post. The railing is a top like any other, so an open wall
+  takes one too, and under a pitched roof it goes, as merlons do.
+- Platforms stack. A house or tower set down on a deck stands on its cap (see "Buildings on buildings"); pushed flat
+  it is a deck in turn. The deck under it stays, as its floor, and what the lower rim had under its walls goes, so a
+  smaller storey leaves a terrace round it behind the lower parapet or railing.
+- Eaves. A pitched roof's eaves reach `overhang` past the walls' outer faces: 0.3 m as laid, from flush to 2.5 m. A grip
+  on the roof past the walls takes the eave instead of the ridge: moving the hand out, level, pulls it on a tenth of a
+  metre at a time, back pushes it in, and the pitch stays. The slope carries on straight past the walls, so a long
+  eave on a steep roof sweeps low.
+- Tents. No eave reaches below what the walls stand on (`RoofLayout.foot`: the ground, under a raised house's plinth
+  too, or the top of the build under a storey). A long eave on low walls stops where its slope meets the ground, so the
+  roof comes down to it on both sides like a tent; a tower's cone does the same as a round tent. This is the roof the
+  original makes by pulling a roof very low.
+- Dormers. The windows tool pointed at a gable roof's slope opens a dormer there (`RoofLayout.dormers`, as chimneys
+  are placed: along the ridge, across it to the dormer's front). A dormer is an upright boarded front with a cottage
+  window, boarded cheeks back to where its eaves meet the slope, and its own little gable of tiles under a ridge
+  running back into the roof; on thatch it stands out of the coat. Its front stands between the walls' centre line and
+  as high up the slope as keeps its ridge 0.15 m under the roof's, clear of the gable ends; dormers on one slope keep
+  0.25 m apart. A roof too low for one turns the press down with a knock. A press on a dormer takes it away; resizing
+  the house carries its dormers along as it carries its chimneys.
+
+Cost: a dormer counts as a fitting, its front and cheeks as stone wall (boards are laid as stones are) and its slopes as
+tiled roof; a longer eave counts its plan out to the eave. A wooden deck counts as a flat roof. The stress scene's
+`roofs/*` phases fill its village with them in turn: three storeys decked in boards behind railings, each 0.72 the size
+of the one under it; two-storey stone terraces behind parapets; and steep houses with two dormers a slope and 0.9 m
+eaves, or one and 0.6 m.
+
+`tests/test_roofs.gd` lays them headless: boards inside the walls at the deck's height, staggered, on joists, a tower's
+inside its ring, a bowed deck's on its surface; a railing round a deck and on an open wall, gone under a pitched roof;
+three platforms stacked, each on the one under it with its terrace kept; eaves out to their overhang and onto a gable
+or cone; a low roof's eave on the ground and none under it; dormers' pieces in their room, their panes facing out, their
+ridges under the roof's, room and spacing refused, on thatch looking out over the coat; the budget, the command and
+the style wheel. Through the tools, the windows tool opens a dormer, takes it away and undo brings it back, a grip on
+the eave pulls it out, and a deck boarded and railed takes a platform on it. `demo/roofs.json` renders dormers, a
+boarded deck behind a railing under two stacked platforms, a tent, a round tent and deep eaves.
 
 ## Tools in hand
 
@@ -2294,6 +2345,8 @@ the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
 9. Sound and music. (Done.)
 10. Save and load, undo history and the eraser. (Done.)
 11. Wildlife and photo mode.
+12. Stairs, ladders and stepped paths. (Done.)
+13. Flat roofs and platforms, railings, eaves and tents, dormers. (Done.)
 
 ## Water
 

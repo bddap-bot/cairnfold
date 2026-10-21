@@ -123,11 +123,12 @@ static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round :
 			_house(root, plastered, i as WallLayout.GableEnd)
 		PaletteTool.Restyle.ROOF:
 			var thatched := i == WallTool.RoofStyle.THATCHED
-			var flat := i == WallTool.RoofStyle.FLAT
+			var flat := i in [WallTool.RoofStyle.FLAT, WallTool.RoofStyle.BOARDED]
+			var deck := RoofLayout.Deck.WOOD if i == WallTool.RoofStyle.BOARDED else RoofLayout.Deck.STONE
 			if round:
-				_tower(root, thatched, flat)
+				_tower(root, thatched, flat, deck)
 			else:
-				_house(root, plastered, WallLayout.GableEnd.WALL, flat, thatched)
+				_house(root, plastered, WallLayout.GableEnd.WALL, flat, thatched, deck)
 		PaletteTool.Restyle.TOP:
 			_wall(root, plastered, i as WallLayout.Top)
 		PaletteTool.Restyle.FLOOR:
@@ -563,8 +564,8 @@ static func _wall(root: Node3D, plastered := false, top := WallLayout.Top.CRENEL
 	_stones(root, layout.stones, 0.015)
 
 
-## A cottage: stone walls with a door toward the eye under a tiled gable roof, or a flat one.
-static func _house(root: Node3D, plastered := false, gable_end := WallLayout.GableEnd.WALL, flat := false, thatched := false) -> void:
+## A cottage: stone walls with a door toward the eye under a tiled gable roof, or a flat one decked in `deck`.
+static func _house(root: Node3D, plastered := false, gable_end := WallLayout.GableEnd.WALL, flat := false, thatched := false, deck := RoofLayout.Deck.STONE) -> void:
 	var layout := WallLayout.new()
 	layout.plaster = plastered
 	layout.seed = 7
@@ -581,6 +582,7 @@ static func _house(root: Node3D, plastered := false, gable_end := WallLayout.Gab
 	roof.pitch = 0.0 if flat else 1.8
 	roof.stepped = gable_end == WallLayout.GableEnd.STEPS
 	roof.thatch = thatched
+	roof.deck = deck
 	layout.gable = roof
 	layout.build(_flat)
 	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
@@ -607,8 +609,8 @@ static func _floored(root: Node3D, plastered: bool, storeys: bool) -> void:
 		return st.kind in floors or (at.z < 0.6 and at.x < 1.0)), 0.012)
 
 
-## A round tower under a cone roof, or a flat one.
-static func _tower(root: Node3D, thatched := false, flat := false) -> void:
+## A round tower under a cone roof, or a flat one decked in `deck`.
+static func _tower(root: Node3D, thatched := false, flat := false, deck := RoofLayout.Deck.STONE) -> void:
 	var layout := WallLayout.new()
 	layout.seed = 9
 	layout.height = 3.2
@@ -622,6 +624,7 @@ static func _tower(root: Node3D, thatched := false, flat := false) -> void:
 	roof.radius = 1.2
 	roof.pitch = 0.0 if flat else WallTool.pitch_for({"round": true, "size": Vector2(2.4, 2.4)})
 	roof.thatch = thatched
+	roof.deck = deck
 	layout.gable = roof
 	layout.build(_flat)
 	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP

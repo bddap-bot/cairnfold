@@ -7,7 +7,7 @@ extends RefCounted
 
 enum DoorStyle { PLAIN, ARCHWAY }
 
-enum Top { CRENEL, CAP, COPE }
+enum Top { CRENEL, CAP, COPE, RAIL }
 ## What rests on a closed wall's top: nothing, a pitched roof (the top stops flush under it) or a flat deck
 ## (the top rises round it as a rim, a cap top as a low parapet).
 enum Cover { OPEN, ROOF, DECK }
@@ -39,6 +39,11 @@ const PLINTH := Vector2(0.05, 0.86)
 const THICKNESS := 0.62
 const CAP := 0.14
 const PARAPET := 0.34
+## A wooden railing along a capped top: how tall it stands over the cap, the most its posts stand apart, and the
+## heights of its two rails.
+const RAILING := 0.9
+const RAIL_POSTS := 1.4
+const RAILS := Vector2(0.45, 0.86)
 const SAMPLE := 0.2
 ## How far the stones sink below the ground, or into the top of what they stand on.
 const SINK := 0.12
@@ -1387,6 +1392,8 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		s += l
 	if style == Top.CAP and cover == Cover.DECK:
 		_lay_parapet(a, total, rng)
+	if style == Top.RAIL:
+		_lay_railing(a, total, rng)
 	if style != Top.CRENEL:
 		return
 	rng.seed = hash([rng.seed, "merlon"])
@@ -1575,6 +1582,29 @@ func _lay_parapet(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		var l := minf(rng.randf_range(0.6, 1.0), total - s)
 		_add(s + l * 0.5, y + PARAPET + CAP * 0.4, Vector3(l, CAP * 0.8, THICKNESS * 0.74), rng, "cap", 0.95, 0.02)
 		s += l
+
+
+## Wooden posts standing on the cap from `a` to `total`, clear of the piers at its ends, under two rails that follow
+## the top from post to post.
+func _lay_railing(a: float, total: float, rng: RandomNumberGenerator) -> void:
+	rng.seed = hash([rng.seed, "railing"])
+	var y := height + CAP
+	var ends := Vector2(a, total) + Vector2(1.0, -1.0) * (PIER * 0.5 + 0.03)
+	if ends.y - ends.x < 0.1:
+		return
+	var n := ceili((ends.y - ends.x) / RAIL_POSTS)
+	var posts: Array[float] = []
+	for i in n + 1:
+		posts.append(lerpf(ends.x, ends.y, float(i) / n))
+	for s in posts:
+		_part(s, y + RAILING * 0.5, Vector3(0.1, RAILING, 0.1) * Vector3(rng.randf_range(0.92, 1.08), 1.0, rng.randf_range(0.92, 1.08)), WOOD * rng.randf_range(0.8, 1.1), rng, "post", 0.0, 0.02)
+	for i in range(1, posts.size()):
+		for h: float in [RAILS.x, RAILS.y]:
+			var p: Vector3 = frame_at(posts[i - 1]).point + Vector3.UP * (y + h)
+			var q: Vector3 = frame_at(posts[i]).point + Vector3.UP * (y + h)
+			var x := (q - p).normalized()
+			var z := x.cross(Vector3.UP).normalized()
+			_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(p.distance_to(q) + 0.04, 0.08 if h == RAILS.y else 0.06, 0.06)), (p + q) * 0.5), WOOD * rng.randf_range(0.8, 1.1), "rail", (posts[i - 1] + posts[i]) * 0.5)
 
 
 func _lay_pier(s: float, rng: RandomNumberGenerator, wet: RandomNumberGenerator) -> void:
@@ -1985,6 +2015,11 @@ func _resample_loop(ground: Callable) -> void:
 			acc += Vector2(q.x - samples[-1].x, q.z - samples[-1].z).length()
 		samples.append(q)
 		lengths.append(acc)
+
+
+## Height of the ground, or the top of the builds, a closed loop stands on: under its plinth, if it is raised.
+func stands_at() -> float:
+	return samples[0].y + SINK - (laid_rise if supports.is_empty() else 0.0)
 
 
 ## The highest top of the builds under (x, z), or -INF.
