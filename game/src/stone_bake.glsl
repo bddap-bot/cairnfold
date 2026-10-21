@@ -9,14 +9,13 @@ layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 layout(rgba8, set = 0, binding = 0) uniform restrict writeonly image2DArray patterns;
 
 layout(push_constant, std430) uniform Params {
-	ivec4 shape; // kind, stones across, courses down, layer
+	ivec4 shape; // kind, stones across, layer, unused
 	vec4 cut; // jitter, warp, joint in metres, dome
 	vec4 face; // grain, relief in metres, tile in metres, elongation
 } p;
 
 const int CELLS = 0;
 const int PEBBLES = 1;
-const int COURSES = 2;
 
 uvec3 pcg3d(uvec3 v) {
 	v = v * 1664525u + 1013904223u;
@@ -37,7 +36,7 @@ ivec2 wrap(ivec2 c, int period) {
 
 vec3 rand3(ivec2 c, int period, int salt) {
 	uvec2 w = uvec2(wrap(c, period));
-	return vec3(pcg3d(uvec3(w, uint(salt + p.shape.w * 101)))) / 4294967295.0;
+	return vec3(pcg3d(uvec3(w, uint(salt + p.shape.z * 101)))) / 4294967295.0;
 }
 
 // Value noise with `period` lattice cells across the tile, so it tiles.
@@ -125,28 +124,13 @@ vec2 pebbles(vec2 uv) {
 	return out_h;
 }
 
-// Cut blocks in courses, each course's joints shifted half a block from the last and a little more at random; an even
-// number of courses, so the tile repeats.
-vec3 courses(vec2 uv) {
-	int n = p.shape.y;
-	int rows = p.shape.z;
-	float y = uv.y * float(rows);
-	int row = wrap(ivec2(int(floor(y))), rows).x;
-	float shift = float(row % 2) * 0.5 + (rand3(ivec2(0, row), rows, 13).x - 0.5) * p.cut.x;
-	float x = uv.x * float(n) + shift;
-	int col = int(floor(x));
-	vec2 f = vec2(fract(x), fract(y));
-	float edge = min(min(f.x, 1.0 - f.x) * p.face.z / float(n), min(f.y, 1.0 - f.y) * p.face.z / float(rows));
-	return vec3(edge, 0.0, rand3(ivec2(wrap(ivec2(col), n).x, row), n * rows, 5).x);
-}
-
 vec2 height(vec2 uv) {
 	float grain = (fbm(uv, 16, 31) - 0.5) * p.face.x;
 	if (p.shape.x == PEBBLES) {
 		vec2 h = pebbles(uv);
 		return vec2(clamp(h.x + grain * h.x, 0.0, 1.0), h.y);
 	}
-	vec3 c = p.shape.x == COURSES ? courses(uv) : cells(uv);
+	vec3 c = cells(uv);
 	float gap = p.cut.z * 0.15;
 	float h = smoothstep(gap, gap + p.cut.z, c.x) * (1.0 - p.cut.w * c.y * c.y);
 	return vec2(clamp(h + grain * smoothstep(0.0, 0.3, h), 0.0, 1.0), c.z);
@@ -165,5 +149,5 @@ void main() {
 	float gx = (height(uv + vec2(e.x, 0.0)).x - height(uv - vec2(e.x, 0.0)).x) * p.face.y / metres;
 	float gz = (height(uv + vec2(0.0, e.y)).x - height(uv - vec2(0.0, e.y)).x) * p.face.y / metres;
 	vec3 n = normalize(vec3(-gx, 1.0, -gz));
-	imageStore(patterns, ivec3(t, p.shape.w), vec4(h.x, h.y, n.x * 0.5 + 0.5, n.z * 0.5 + 0.5));
+	imageStore(patterns, ivec3(t, p.shape.z), vec4(h.x, h.y, n.x * 0.5 + 0.5, n.z * 0.5 + 0.5));
 }

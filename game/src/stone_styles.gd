@@ -3,31 +3,23 @@ extends RefCounted
 
 ## The painted stone ground's styles: the one table the style wheel lists and the ground is shaded from
 ## (stone_ground.gdshaderinc). Each style's pattern tiles a square `tile` metres a side, baked once on the GPU by
-## stone_bake.glsl: `kind` of stone, `across` stones (or blocks) a tile and `courses` of blocks down it, `jitter`
+## stone_bake.glsl: `kind` of stone, `across` stones a tile, `jitter`
 ## and `warp` to break the grid, `joint` metres of bevel into the soil between stones, `dome` how much each rounds
 ## from its centre, `grain` how rough its face, `relief` metres from joint to crown, and `elongation` a pebble's
 ## longest over shortest. The ground shades it between `dark` and `light` stones, with `moss` on the stones and
 ## `meadow` of the joints grassed rather than earth.
 
-enum Kind { CELLS, PEBBLES, COURSES }
+enum Kind { CELLS, PEBBLES }
 
 const TEXELS := 512
 ## Room in the shaders' per-style arrays.
 const ROOM := 8
 
 const STYLES: Array[Dictionary] = [
-	{"name": "fieldstone", "kind": Kind.CELLS, "tile": 6.0, "across": 9, "courses": 0, "jitter": 1.0, "warp": 0.2, "joint": 0.12, "dome": 0.6, "grain": 0.35, "relief": 0.12, "elongation": 1.0,
-		"light": Color(0.71, 0.67, 0.59), "dark": Color(0.42, 0.40, 0.37), "moss": 0.12, "meadow": 0.45},
-	{"name": "cobblestone", "kind": Kind.CELLS, "tile": 5.9, "across": 13, "courses": 0, "jitter": 0.85, "warp": 0.0, "joint": 0.08, "dome": 0.7, "grain": 0.12, "relief": 0.08, "elongation": 1.0,
-		"light": Color(0.69, 0.65, 0.57), "dark": Color(0.51, 0.48, 0.42), "moss": 0.05, "meadow": 0.35},
-	{"name": "flagstone", "kind": Kind.CELLS, "tile": 6.5, "across": 5, "courses": 0, "jitter": 0.75, "warp": 0.12, "joint": 0.035, "dome": 0.15, "grain": 0.18, "relief": 0.03, "elongation": 1.0,
-		"light": Color(0.66, 0.64, 0.60), "dark": Color(0.45, 0.47, 0.48), "moss": 0.04, "meadow": 0.3},
-	{"name": "river cobble", "kind": Kind.PEBBLES, "tile": 3.2, "across": 14, "courses": 0, "jitter": 0.35, "warp": 0.0, "joint": 0.0, "dome": 1.0, "grain": 0.04, "relief": 0.06, "elongation": 1.6,
-		"light": Color(0.75, 0.71, 0.65), "dark": Color(0.36, 0.35, 0.34), "moss": 0.0, "meadow": 0.12},
-	{"name": "mossy", "kind": Kind.CELLS, "tile": 5.5, "across": 8, "courses": 0, "jitter": 1.0, "warp": 0.25, "joint": 0.12, "dome": 0.6, "grain": 0.4, "relief": 0.12, "elongation": 1.0,
+	{"name": "mossy", "kind": Kind.CELLS, "tile": 5.5, "across": 8, "jitter": 1.0, "warp": 0.25, "joint": 0.12, "dome": 0.6, "grain": 0.4, "relief": 0.12, "elongation": 1.0,
 		"light": Color(0.58, 0.57, 0.50), "dark": Color(0.33, 0.33, 0.30), "moss": 0.65, "meadow": 0.75},
-	{"name": "ashlar", "kind": Kind.COURSES, "tile": 4.8, "across": 4, "courses": 8, "jitter": 0.3, "warp": 0.0, "joint": 0.012, "dome": 0.0, "grain": 0.1, "relief": 0.015, "elongation": 1.0,
-		"light": Color(0.80, 0.74, 0.62), "dark": Color(0.66, 0.60, 0.50), "moss": 0.03, "meadow": 0.1},
+	{"name": "river cobble", "kind": Kind.PEBBLES, "tile": 3.2, "across": 14, "jitter": 0.35, "warp": 0.0, "joint": 0.0, "dome": 1.0, "grain": 0.04, "relief": 0.06, "elongation": 1.6,
+		"light": Color(0.75, 0.71, 0.65), "dark": Color(0.36, 0.35, 0.34), "moss": 0.0, "meadow": 0.12},
 ]
 
 static var _patterns: Texture2DArray
@@ -76,7 +68,7 @@ static func _bake(rd: RenderingDevice) -> Array[Image]:
 	rd.compute_list_bind_uniform_set(list, set, 0)
 	for i in STYLES.size():
 		var s: Dictionary = STYLES[i]
-		var push := PackedInt32Array([s.kind, s.across, s.courses, i]).to_byte_array()
+		var push := PackedInt32Array([s.kind, s.across, i, 0]).to_byte_array()
 		push.append_array(PackedFloat32Array([s.jitter, s.warp, s.joint, s.dome, s.grain, s.relief, s.tile, s.elongation]).to_byte_array())
 		rd.compute_list_set_push_constant(list, push, push.size())
 		rd.compute_list_dispatch(list, TEXELS / 8, TEXELS / 8, 1)
@@ -95,12 +87,12 @@ static func _bake(rd: RenderingDevice) -> Array[Image]:
 
 ## Gives `mat`, a shader including stone_ground.gdshaderinc, the styles.
 static func apply(mat: ShaderMaterial) -> void:
-	var look := PackedVector4Array()
+	var look := PackedVector3Array()
 	var light := PackedVector3Array()
 	var dark := PackedVector3Array()
 	for i in ROOM:
 		var s: Dictionary = STYLES[mini(i, STYLES.size() - 1)]
-		look.append(Vector4(s.tile, s.moss, s.meadow, 0.0 if s.kind == Kind.PEBBLES else 1.0))
+		look.append(Vector3(s.tile, s.moss, s.meadow))
 		light.append(_linear(s.light))
 		dark.append(_linear(s.dark))
 	mat.set_shader_parameter("stone_patterns", patterns())

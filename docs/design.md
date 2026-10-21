@@ -1636,7 +1636,7 @@ Stage numbers refer to the build order at the end.
 | Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | A wall drawn over a tree or bush arches over it, shown live while drawing; one of 5 m or more over open ground opens an arch at the middle; the arch tool (its icon a wall with an archway through it) cuts an archway where it points on a wall, in the wall's own style (`WallLayout.ARCH_STYLES`: a round stone ring under a keystone, or on a timber-framed house a four-centred oak head on oak posts, framed by a stud either side and a rail above; the wall's level courses are cut to the arch's one outline, so they meet it with no gap), and on an arch of the wall's own (not a path's) fills it again, one undo step either way. Each opening carries a size, 1 a doorway's, down to a pet door's 0.4 (`WallLayout.openings`): a door's height counts from the floor it opens onto, so a floor raised over higher ground inside takes none of it; an arch of size k is the doorway's scaled k times, ring, voussoirs, keystone and posts, laid round by the wall's courses through the same outline, so a grand arch still reads as built. Wall chemistry, in either order (a path laid through a wall, or a wall drawn across a path): one arch where they cross, or, where the crossing runs 2.8 m or more along the wall (a wide path, or one meeting it at a slant), an arcade of arches 2.3 m apart on stone pillars. A crossing beside an arch already there joins it as an arcade, so no opening closes; undoing the path closes the arches it opened | 1 (done), 5 (done) |
 | Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends and at the corners of a house | 1 (done), 4 (done) |
 | Paths | Dirt strokes and wall crossings | Dirt strokes wear soft-edged earth into the ground mask and open arches or gates through walls and fences | 5 (done) |
-| Stone ground | Steep terrain turns rocky; dirt paths blend with the ground | The stone tool paints stone ground where it points, in the style the style tool last set (fieldstone, cobblestone, flagstone, river cobble, mossy, ashlar), fraying into the meadow stone by stone; a stroke begun on stone paints meadow back (see "Ground materials") | 7 (done) |
+| Stone ground | Steep terrain turns rocky; dirt paths blend with the ground | The stone tool paints stone ground where it points, in the style the style tool last set (mossy or river cobble), fraying into the meadow stone by stone; a stroke begun on stone paints meadow back (see "Ground materials") | 7 (done) |
 | Towers | A loop held down straightens into a circle | A wall drawn into a loop, round or any shape, stays a freestanding wall, roofless. A round tower is its own tool beside the house, a little tower under a cone in the ring, carried and set down as a house is: 4.5 m tall under a cone roof, 3.4 m across, spread every way at once by two hands while carried or once built (from 2.4 m across, no widest). No door until one is made, as for a house. `demo/tower.json` builds a stone tower, a plaster one and a house | 4 (done) |
 | Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Circle footprints are the round towers above. Its own tool, a little house in the ring. Its trigger takes up a square house where the hand points and carries it, turning with the hand; the other hand's grip joins to hold it by both hands, which move it by their midpoint, turn it as the pair turns and stretch the side nearest the line between them as they spread (each side from 2.4 m, with no longest or deepest). Raising the hand as it carries raises it onto a plinth. Letting go builds it. Built, it is resized where it stands: a grip on its wall pulls its height, and the other hand's grip on it too stretches its width or depth, and both hands raised together raise it (see "Resizing a house" and "Raising a house"). Stone walls with corner piers and no door, level on its lowest ground; a door comes from the windows tool low on a wall, an arch from the arch tool or from a path running in | 4 (done) |
 | Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings"). Flat roofs stack: a house or tower set down on a deck stands on it, and pushed flat it is a deck of its own, so smaller storeys rise in terraces (see "Flat roofs, platforms and dormers") | 4 (done), 13 (done) |
@@ -2006,7 +2006,7 @@ head (`Hand.TREE`, `ToolWheel`). Sweeping the hand toward a slot makes it hot, a
 go of the button takes the hot tool, and letting go with nothing hot empties the hand. A slot is a
 tool or a subtree, drawn as its tools in miniature; every icon is tipped toward the eye, as a
 controller's top is seen, on a pale disc. Each icon is a miniature of what its tool makes: stone ground's
-is a disc of fieldstone shaded by the ground's own stone code, fraying into meadow at the rim. Reaching a
+is a disc of mossy stone shaded by the ground's own stone code, fraying into meadow at the rim. Reaching a
 subtree hides the rest of the wheel and opens its tools beside it. Reached by a sideways swing, three or
 four stand in a column on the side away from that swing, so a deep pick zig-zags: right onto planting, left
 onto trees. The top slot holds two, opening one to each side: up, then left for colour or right for style.
@@ -2545,9 +2545,8 @@ is bare (earth or stone), and the brushes plant nothing there.
   stand up again where the stone goes. A stroke is one history step.
 - **Slopes:** the terrain shader treats a slope too steep to hold soil as stone ground too: one stone
   look, fed by the mask's green channel or by the slope, whichever is higher.
-- **Styles:** each stroke of stone carries a style from one table (`StoneStyles`): fieldstone (the
-  default), cobblestone (the earlier flagstone pattern, kept as a style), flagstone, river cobble, mossy and
-  ashlar. The mask's blue channel holds the style of the stroke that laid most of the stone at each texel, read
+- **Styles:** each stroke of stone carries a style from one table (`StoneStyles`): mossy (the
+  default) and river cobble; a boulder with lines on it did not fit, so no other style earned its place. The mask's blue channel holds the style of the stroke that laid most of the stone at each texel, read
   nearest-texel at a jittered spot so two styles meet along a ragged line. The style tool on painted stone
   opens a wheel of the table's styles, each a disc of that stone shaded as the ground shades it; letting go
   restyles that stroke (`restone`, one undo step), and stone painted after takes the style let go last.
@@ -2556,15 +2555,13 @@ is bare (earth or stone), and the brushes plant nothing there.
   A boulder is one stone of its style, drawn in wall stone's own material (`stone.gdshader`, a per-instance
   `stone_style`; wall stone keeps -1 and its own colour): the style's tones at a value of its own, shaded by the
   face code the ground's stones use (`stone_face`), so it darkens in its pits and carries the style's lichen and
-  moss, tinted by its stone swatch. Where the style is laid in joints (all but river cobble) the pattern's joints
-  crack it, at the ground's scale and cast along the axis its face most looks, one pattern read: a pebble shows a
-  crack or none, a house-sized boulder the jointed face of an outcrop. Cost (desktop `render.sh`,
-  `demo/boulders.json`, a house-sized fieldstone boulder filling the view, viewport GPU medians of three
+  moss, tinted by its stone swatch, with no joint lines across it. Cost (desktop `render.sh`,
+  `demo/boulders.json`, a house-sized boulder filling the view, viewport GPU medians of three
   interleaved runs each): 2.96 ms unstyled, 3.03 ms styled, within the runs' 0.3 ms spread.
 - **Look:** each style's pattern tiles a square of ground, baked once at load on the GPU (`stone_bake.glsl`,
   512² a layer of one `Texture2DArray`, mipmapped): height from the joint to each stone's crown, one value
   per stone, and the face's normal. Irregular stones are a tiling Voronoi with warped cells and corners
-  rounded by a soft minimum over the joints, pebbles are domed ellipses, ashlar is cut blocks in courses.
+  rounded by a soft minimum over the joints, and pebbles are domed ellipses.
   The normal tilts the lit surface, so stones read raised from their joints; each stone takes a tone between
   its style's dark and light stones, darkens where it dips into its joint, and carries grain, a little lichen
   and its style's moss. Joints are shaded soil, grassed in patches. Toward the edge of stone ground whole
@@ -2576,7 +2573,7 @@ is bare (earth or stone), and the brushes plant nothing there.
   GPU timer, median of 15 one-second samples, four meadow/stone pairs a run, two runs each tree,
   alternated): the flat flagstones read 4.31–4.40 ms against the meadow's 4.36–4.48 (nothing), the styled,
   normal-mapped stone 4.72–4.80 against 4.38–4.48, so about 0.35 ms a frame when stone fills the screen.
-  Memory: the pattern array is 6 × 512² RGBA8 with mipmaps, 8.4 MB, and the mask grows from RG8 to RGBA8
+  Memory: the pattern array is 2 × 512² RGBA8 with mipmaps, 2.8 MB, and the mask grows from RG8 to RGBA8
   (+0.5 MB). The bake at load takes 0.4–1.4 s on that desktop (a local RenderingDevice, ~0.3 s; the
   dispatch, 20 ms; mipmaps, 10 ms; the first run on a machine also compiles the compute pipeline, 2.7 s
   once). Headset cost is not yet measured.

@@ -66,8 +66,6 @@ static func detail_noise() -> NoiseTexture2D:
 	return _detail
 
 
-## Flagstones for stone ground, tiling: red rises from 0 along the joints between slabs, green is each
-## slab's own value.
 static func cloud_noise() -> NoiseTexture2D:
 	var n := FastNoiseLite.new()
 	n.seed = 21

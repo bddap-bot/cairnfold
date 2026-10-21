@@ -69,7 +69,7 @@ void fragment() {
 		if (style >= 0) {
 			// The styles' tones are linear where stone's own colours are not, so they come back to stone's before its
 			// paint tints them (Boulders: the swatch over the one stone is laid in) and its shade darkens them.
-			base = pow(stone_rock(style, world_pos, normalize(world_nrm), tone, moss, patch, tri), vec3(1.0 / 2.2)) * COLOR.rgb;
+			base = pow(stone_rock(style, tone, moss, patch, tri), vec3(1.0 / 2.2)) * COLOR.rgb;
 		}
 		ALBEDO = mix(base, moss, mossy * 0.8) * occlusion;
 	}

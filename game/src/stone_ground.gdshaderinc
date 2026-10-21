@@ -3,7 +3,7 @@
 // much of its joints is meadow; its stones' tones.
 #define STONE_ROOM 8
 uniform sampler2DArray stone_patterns : filter_linear_mipmap, repeat_enable;
-uniform vec4 stone_look[STONE_ROOM];
+uniform vec3 stone_look[STONE_ROOM];
 uniform vec3 stone_light[STONE_ROOM];
 uniform vec3 stone_dark[STONE_ROOM];
 
@@ -24,7 +24,7 @@ vec3 stone_face(int style, vec4 p, vec3 green, float d, float fine, float grit) 
 // d, fine and grit are noise at three scales. `laid` is how much shows stone face and `slope` that face's tilt, x
 // and z per metre up.
 vec3 stone_ground(int style, vec2 xz, float stony, vec3 under, vec3 soil, vec3 green, float d, float fine, float grit, out float laid, out vec2 slope) {
-	vec4 look = stone_look[style];
+	vec3 look = stone_look[style];
 	vec4 p = texture(stone_patterns, vec3(xz / look.x, float(style)));
 	float h = p.r;
 	float v = p.g;
@@ -46,18 +46,8 @@ vec3 stone_normal(vec3 n, vec3 x, vec3 z, vec2 slope) {
 	return normalize(n + x * slope.x + z * slope.y);
 }
 
-// A boulder of `style` at world point `at` facing world normal `n`, as one stone of it: the style's tones at `v` (0 to
-// 1, the boulder's own), darkening into its pits where `fine` is low, with its lichen and moss, and cracked along its
-// pattern's joints, cast along the axis it most faces (one read; worn edges hide the seams), where its style is laid
-// in joints (stone_look w); d and fine are noise, coarse and fine.
-vec3 stone_rock(int style, vec3 at, vec3 n, float v, vec3 green, float d, float fine) {
-	vec4 look = stone_look[style];
-	vec3 face = stone_face(style, vec4(mix(0.3, 1.0, fine), clamp(v + (d - 0.5) * 0.3, 0.0, 1.0), 0.5, 0.5), green, d, fine, fine);
-	if (look.w == 0.0) {
-		return face;
-	}
-	vec3 a = abs(n);
-	vec2 uv = a.y >= max(a.x, a.z) ? at.xz : a.x >= a.z ? at.zy : at.xy;
-	float h = texture(stone_patterns, vec3(uv / look.x, float(style))).r;
-	return face * mix(0.5, 1.0, smoothstep(0.0, 0.035, h) * look.w);
+// A boulder of `style` as one stone of it: the style's tones at `v` (0 to 1, the boulder's own), darkening into its
+// pits where `fine` is low, with its lichen and moss; d and fine are noise, coarse and fine.
+vec3 stone_rock(int style, float v, vec3 green, float d, float fine) {
+	return stone_face(style, vec4(mix(0.3, 1.0, fine), clamp(v + (d - 0.5) * 0.3, 0.0, 1.0), 0.5, 0.5), green, d, fine, fine);
 }
