@@ -19,7 +19,6 @@ const REACH := 0.12
 ## The tip touches within this of the canvas's face, and pushed this far past touching presses fully.
 const CONTACT := 0.006
 const PRESS_DEPTH := 0.035
-const LIFT_OFF := 0.015
 ## A sheet pulled this far off the canvas tears away when let go.
 const PEEL := 0.3
 ## The trigger sets an easel up only with none this near the hand.
@@ -70,10 +69,15 @@ class Painter:
 	var shown := 0.0
 	## What the hand held when last logged (`holding`).
 	var held := ""
+	var contact := CanvasContact.new()
+	var contact_easel: Easels.Easel
+	var contact_point := Vector3.INF
+	var bend := Vector3.ZERO
 
 
 ## A trigger that set no easel up, and why; the log carries it too.
 signal declined(why: String)
+signal canvas_contact(hand: Hand, at: Vector3, stick: bool, touching: bool, pressure: float, speed: float, distance: float, hard: bool)
 
 var rig: Rig
 var easels: Easels
@@ -104,7 +108,7 @@ func _init(player: Rig, stands: Easels, garden: World) -> void:
 			m.visible = false
 			if kind != Brushwork.Brush.STICK:
 				(m.get_node("tip") as MeshInstance3D).material_override = p.tip
-			h.add_child(m)
+			h.body.add_child(m)
 			p.models[kind] = m
 		p.ghost = _ghost()
 		add_child(p.ghost)
@@ -174,13 +178,19 @@ func _handle(p: Painter, delta: float) -> void:
 		_decline(hand, "the hand is %s" % ("untracked" if not hand.tracked() else "aiming a teleport" if rig.aim_hand == hand else "picking a tool"))
 	if not holding or not live or p.peel != null:
 		end_stroke(p)
+		_clear_contact(p)
 		_lift(p)
 		return
-	var tip := hand.global_transform * ToolModels.BRUSH_TIP
+	var tip := hand.body.global_transform * ToolModels.BRUSH_TIP
 	var e := easels.nearest(tip)
 	if e != null:
 		_dip(p, tip)
-		if _mix(p, tip, delta) or _touch(p, e, tip):
+		if _mix(p, tip, delta):
+			end_stroke(p)
+			_clear_contact(p)
+			hand.hold()
+			return
+		if _touch(p, e, delta):
 			hand.hold()
 			return
 	if e == null or Easels._flat(e.global_position, hand.global_position) > PLACE_CLEAR:
@@ -306,6 +316,7 @@ func _preview() -> void:
 
 
 func _take_brush(p: Painter, kind: Brushwork.Brush) -> void:
+	p.contact.reset()
 	end_stroke(p)
 	_set_down(p)
 	p.hand.tool = Hand.Tool.EASEL
@@ -554,25 +565,43 @@ func _lift(p: Painter) -> void:
 	p.mixed = false
 
 
+func _clear_contact(p: Painter) -> void:
+	p.contact.reset()
+	p.contact_easel = null
+	p.contact_point = Vector3.INF
+	p.bend = Vector3.ZERO
+	if p.brush != Brushwork.Brush.STICK:
+		ToolModels.bend(p.models[p.brush], p.brush, p.bend)
+	canvas_contact.emit(p.hand, p.hand.global_position, p.brush == Brushwork.Brush.STICK, false, 0.0, 0.0, 0.0, false)
+
+
 ## Paints while the tip touches easel `e`'s canvas; whether it does.
-func _touch(p: Painter, e: Easels.Easel, tip: Vector3) -> bool:
-	var c := e.on_canvas(tip)
-	var on := c.x >= 0.0 and c.x <= 1.0 and c.y >= 0.0 and c.y <= 1.0 and c.z > -0.1
-	if not p.stroke.is_empty() and (p.stroke.easel != e or not on or c.z > CONTACT + LIFT_OFF):
+func _touch(p: Painter, e: Easels.Easel, delta: float) -> bool:
+	if p.contact_easel != e:
 		end_stroke(p)
-	if not on or c.z > CONTACT:
-		return not p.stroke.is_empty()
-	var pressure := clampf((CONTACT - c.z) / PRESS_DEPTH, 0.05, 1.0)
-	var t := p.hand.global_transform
-	var across := e.canvas_frame().basis.inverse() * t.basis.x
-	var angle := atan2(-across.y, across.x)
-	touch(p, e, Vector2(c.x, c.y), pressure, angle)
+		p.contact_point = Vector3.INF
+		p.contact.reset()
+		p.contact_easel = e
+	var frame := e.canvas_frame()
+	var contact := p.contact.move(frame, p.hand.body.global_transform, p.brush == Brushwork.Brush.STICK)
+	p.hand.body.global_transform = contact.pose
+	if p.brush != Brushwork.Brush.STICK:
+		p.bend = contact.pose.basis.inverse() * frame.basis.z * contact.bend
+		ToolModels.bend(p.models[p.brush], p.brush, p.bend)
+	var distance: float = contact.point.distance_to(p.contact_point) if contact.on and p.contact_point != Vector3.INF else 0.0
+	canvas_contact.emit(p.hand, contact.point, p.brush == Brushwork.Brush.STICK, contact.on, contact.pressure, distance / maxf(delta, 1e-6), distance, contact.hard)
+	if not contact.on:
+		end_stroke(p)
+		p.contact_point = Vector3.INF
+		return false
+	p.contact_point = contact.point
+	touch(p, e, contact.uv, contact.pressure, contact.angle, contact.side)
 	return true
 
 
 ## The tip at `uv` on easel `e`'s canvas, pressed `pressure` (0..1), a flat brush turned `angle`: starts a stroke or
 ## carries one on, laying its paint at once.
-func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: float) -> void:
+func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: float, side := 0.0) -> void:
 	var canvas := e.canvas
 	if p.stroke.is_empty():
 		if p.load <= 0.01 or not _room(e):
@@ -583,9 +612,11 @@ func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: flo
 	if not s.last.is_empty():
 		var r: float = Brushwork.RADII[p.brush].y * pressure
 		var moved: float = (Vector2(uv - s.last[0]) * Vector2(Brushwork.SIZE)).length()
+		if p.brush == Brushwork.Brush.STICK and moved < 0.01:
+			return
 		if moved < maxf(r * 0.15, 1.0) and absf(pressure - s.last[1]) < 0.05 and canvas.ticks - s.at < STILL_TICKS:
 			return
-	var packed := Brushwork.pack(uv, pressure, angle, canvas.ticks - s.at if not s.last.is_empty() else 0)
+	var packed := Brushwork.pack(uv, pressure, angle, canvas.ticks - s.at if not s.last.is_empty() else 0, side)
 	s.data.samples.append_array(packed)
 	s.at = canvas.ticks
 	s.last = [uv, pressure]

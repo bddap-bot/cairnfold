@@ -277,6 +277,14 @@ static func brush(kind: Brushwork.Brush) -> Node3D:
 	return root
 
 
+static func bend(model: Node3D, kind: Brushwork.Brush, offset: Vector3) -> void:
+	var flat := Basis().scaled(Vector3(2.2, 1, 0.45)) if kind == Brushwork.Brush.FLAT else Basis()
+	var along := Basis(Vector3.RIGHT, -PI * 0.5) * flat
+	along.y = (Vector3(0, 0, -0.026) + offset) / 0.026
+	var tip: Node3D = model.get_node("tip")
+	tip.transform = Transform3D(along, BRUSH_TIP + Vector3(0, 0, 0.013) + offset * 0.5)
+
+
 ## Charcoal's matte black, which no sky glints off, coloured by vertex.
 static func charcoal_material() -> StandardMaterial3D:
 	var mat: StandardMaterial3D = _mats.get("charcoal")

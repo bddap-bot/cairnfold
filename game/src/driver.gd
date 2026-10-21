@@ -1389,7 +1389,6 @@ func _take(s: Dictionary) -> void:
 		return
 	hand.global_transform = Transform3D(e.global_basis * Basis(Vector3.RIGHT, -0.6), at)
 	hand.held_still = true
-	await _frames(1)
 	var key := "%s/grip_click" % hand.tracker
 	Buttons.injected[key] = true
 	await _frames(2)
@@ -1501,11 +1500,18 @@ func _brush(s: Dictionary) -> void:
 	var e := _easel_of(s)
 	var frame := e.canvas_frame()
 	var roll := deg_to_rad(s.get("roll", 0.0))
+	var direction := frame.basis * (Basis(Vector3.UP, deg_to_rad(s.get("tilt", 0.0))) * Vector3.FORWARD)
 	var on := func(p: Array, out: float) -> Vector3:
 		var depth: float = EaselTool.CONTACT - p[2] * EaselTool.PRESS_DEPTH
 		return frame * Vector3((p[0] - 0.5) * Brushwork.METRES.x, (0.5 - p[1]) * Brushwork.METRES.y, depth + out)
 	var pts: Array = s.points
-	_tip_at(hand, on.call(pts[0], 0.05), -frame.basis.z, frame.basis.y, roll)
+	var before := frame.affine_inverse() * (hand.global_transform * ToolModels.BRUSH_TIP)
+	before.z = 0.4
+	_tip_at(hand, frame * before, -hand.global_basis.z, hand.global_basis.y)
+	await _frames(2)
+	_tip_at(hand, on.call(pts[0], 0.4), direction, frame.basis.y, roll)
+	await _frames(2)
+	_tip_at(hand, on.call(pts[0], 0.05), direction, frame.basis.y, roll)
 	await _frames(2)
 	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
 	for f in frames + 1:
@@ -1514,9 +1520,12 @@ func _brush(s: Dictionary) -> void:
 		var a: Array = pts[i]
 		var b: Array = pts[mini(i + 1, pts.size() - 1)]
 		var t := k - i
-		_tip_at(hand, on.call([lerpf(a[0], b[0], t), lerpf(a[1], b[1], t), lerpf(a[2], b[2], t)], 0.0), -frame.basis.z, frame.basis.y, roll)
+		_tip_at(hand, on.call([lerpf(a[0], b[0], t), lerpf(a[1], b[1], t), lerpf(a[2], b[2], t)], 0.0), direction, frame.basis.y, roll)
 		await _frames(1)
-	_tip_at(hand, on.call(pts[-1], 0.05), -frame.basis.z, frame.basis.y, roll)
+	if s.has("capture"):
+		print("brush contact: tracked %s, visible %s" % [e.on_canvas(hand.global_transform * ToolModels.BRUSH_TIP), e.on_canvas(hand.body.global_transform * ToolModels.BRUSH_TIP)])
+		await main.capture(s.capture)
+	_tip_at(hand, on.call(pts[-1], 0.05), direction, frame.basis.y, roll)
 	await _frames(2)
 
 
@@ -1526,13 +1535,13 @@ func _sheet(s: Dictionary) -> void:
 	var e := _easel_of(s)
 	var frame := e.canvas_frame()
 	var key := "%s/grip_click" % hand.tracker
-	hand.global_transform = Transform3D(frame.basis, frame * Vector3(0, -0.3, 0.05))
+	hand.global_transform = Transform3D(frame.basis * Basis(Vector3.UP, PI), frame * Vector3(0, -0.3, 0.05))
 	hand.held_still = true
 	await _frames(1)
 	Buttons.injected[key] = true
 	var frames := maxi(1, ceili(s.get("seconds", 0.6) * 60.0))
 	for f in frames:
-		hand.global_transform = Transform3D(frame.basis, frame * Vector3(0, -0.3, 0.05 + s.get("pull", 0.4) * (f + 1) / frames))
+		hand.global_transform = Transform3D(frame.basis * Basis(Vector3.UP, PI), frame * Vector3(0, -0.3, 0.05 + s.get("pull", 0.4) * (f + 1) / frames))
 		await _frames(1)
 	if s.has("capture"):
 		await main.capture(s.capture)

@@ -3225,6 +3225,16 @@ reaches past the controller; touching the canvas paints, pushing in presses hard
 skims the paper's tooth, and the brush runs dry as it paints. A grip on the canvas takes its sheet and pulling it
 well away tears it off for a fresh one. A garden holds four easels at most, 1.4 m apart.
 
+Held brushes and charcoal use the hand's swept collision solver against the canvas
+face and edges. Bristles deform up to 18 mm, with pressure rising through that
+travel; then the visible hand and brush stop while the tracked controller can
+continue. The rigid brush shaft and charcoal also stop at the sheet. Charcoal
+leaves a faint first touch and deposits further pigment only with contact travel.
+Its footprint follows the stick's angle: narrow at the tip, long and narrow across
+its side. Contact angle is kept in stroke samples, so replay and peers lay the
+same marks. `demo/canvas-contact.json` captures the stopped tools and compares
+charcoal taps, drags, tip strokes and side strokes.
+
 An easel moves as most things do: a grip on its legs or tray, whatever the hand holds, carries it along the ground
 with the hand, farther for a far one by the reach gain, and turns it about the vertical as the hand turns, its painting,
 palettes and brushes riding with it (`WallTool.grip_easel`). Let go, it is set there as one reshape of where it stands

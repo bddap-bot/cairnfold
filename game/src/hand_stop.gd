@@ -72,6 +72,7 @@ func _process(delta: float) -> void:
 	var critters := get_tree().get_nodes_in_group(CRITTERS)
 	for i in _rig.hands.size():
 		var hand: Hand = _rig.hands[i]
+		hand.body.basis = Basis()
 		if not hand.tracked():
 			_held[i] = Vector3.INF
 			hand.body.position = Vector3.ZERO
@@ -106,10 +107,10 @@ func _near_for(i: int, box: AABB) -> Near:
 ## meets and then slid along it, the rest of the move turned along the surface's `normal`, a few times over to
 ## settle into corners. A ball that starts inside something is let go, so a build raised round a hand, or an animal
 ## walking into it, cannot trap it.
-static func resolve(from: Vector3, to: Vector3, solid: Callable, normal: Callable) -> Vector3:
+static func resolve(from: Vector3, to: Vector3, solid: Callable, normal: Callable, step := STEP) -> Vector3:
 	if solid.call(from):
 		return to
-	var at := _sweep(from, to, solid)
+	var at := _sweep(from, to, solid, step)
 	var pushed := to - from
 	for i in SLIDES:
 		if at == to:
@@ -120,14 +121,14 @@ static func resolve(from: Vector3, to: Vector3, solid: Callable, normal: Callabl
 		if n == Vector3.ZERO or pushed.length_squared() < 1e-6:
 			break
 		var target := at + pushed
-		at = _sweep(at, target, solid)
+		at = _sweep(at, target, solid, step)
 		if at == target:
 			break
 	return at
 
 
-static func _sweep(from: Vector3, to: Vector3, solid: Callable) -> Vector3:
-	var n := maxi(1, ceili(from.distance_to(to) / STEP))
+static func _sweep(from: Vector3, to: Vector3, solid: Callable, step := STEP) -> Vector3:
+	var n := maxi(1, ceili(from.distance_to(to) / step))
 	for k in range(1, n + 1):
 		if not solid.call(from.lerp(to, float(k) / n)):
 			continue

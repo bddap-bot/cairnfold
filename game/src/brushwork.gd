@@ -47,7 +47,7 @@ const MAX_SAMPLES := 512
 ## Most samples one canvas holds across its strokes; past it the canvas takes no more until a fresh sheet.
 const MAX_TOTAL := 120000
 const MAX_STROKES := 4000
-## Floats per dab, as the shader's Dab struct reads them: x, y, radius, pressure; heading, load, dryness, flat angle.
+## Floats per dab: x, y, major radius, pressure; heading (charcoal minor radius), load, dryness, footprint angle.
 const DAB := 8
 
 
@@ -66,21 +66,22 @@ static func medium_of(brush: Brush, medium: Medium) -> Medium:
 
 
 ## One sample as the two ints a stroke keeps it in: where on the canvas (0..1 each way, to 1/65535), how hard
-## (0..1), the flat brush's angle (0..PI), and the ticks since the stroke's previous sample.
-static func pack(uv: Vector2, pressure: float, angle: float, ticks: int) -> PackedInt32Array:
+## (0..1), footprint angle (0..PI), ticks since the previous sample (0..2047), and charcoal side contact (0..1).
+static func pack(uv: Vector2, pressure: float, angle: float, ticks: int, side := 0.0) -> PackedInt32Array:
 	var u := clampi(roundi(clampf(uv.x, 0.0, 1.0) * 65535.0), 0, 65535)
 	var v := clampi(roundi(clampf(uv.y, 0.0, 1.0) * 65535.0), 0, 65535)
 	var p := clampi(roundi(clampf(pressure, 0.0, 1.0) * 255.0), 0, 255)
 	var a := clampi(roundi(fposmod(angle, PI) / PI * 255.0), 0, 255)
-	var t := clampi(ticks, 0, 32767)
-	return PackedInt32Array([u | (v << 16), p | (a << 8) | (t << 16)])
+	var t := clampi(ticks, 0, 2047)
+	var side_bits := clampi(roundi(side * 31.0), 0, 31)
+	return PackedInt32Array([u | (v << 16), p | (a << 8) | (t << 16) | (side_bits << 27)])
 
 
-## Sample `i` of `samples`: [uv, pressure, angle, ticks].
+## Sample `i` of `samples`: [uv, pressure, angle, ticks, charcoal side contact].
 static func unpack(samples: PackedInt32Array, i: int) -> Array:
 	var a := samples[i * 2]
 	var b := samples[i * 2 + 1]
-	return [Vector2((a & 0xffff) / 65535.0, ((a >> 16) & 0xffff) / 65535.0), (b & 0xff) / 255.0, ((b >> 8) & 0xff) / 255.0 * PI, (b >> 16) & 0x7fff]
+	return [Vector2((a & 0xffff) / 65535.0, ((a >> 16) & 0xffff) / 65535.0), (b & 0xff) / 255.0, ((b >> 8) & 0xff) / 255.0 * PI, (b >> 16) & 0x7ff, ((b >> 27) & 31) / 31.0]
 
 
 static func count(stroke: Dictionary) -> int:
@@ -135,30 +136,36 @@ class Stroker:
 	func add(s: Array) -> PackedFloat32Array:
 		var out := PackedFloat32Array()
 		var to := Vector2(s[0].x * SIZE.x, s[0].y * SIZE.y)
+		var side: float = s[4]
+		var charcoal: bool = stroke.medium == Medium.CHARCOAL
 		if _last.is_empty():
-			_dab(out, to, s[1], s[2], 0.0)
-			_last = [to, s[1], s[2]]
+			_dab(out, to, s[1], s[2], 0.0, 0.015 if charcoal else 1.0, side)
+			_last = [to, s[1], s[2], side]
 			return out
 		var from: Vector2 = _last[0]
 		var run := from.distance_to(to)
 		if run > 0.01:
 			_heading = (to - from).angle()
+		if charcoal and run < 1e-5:
+			_last = [to, s[1], s[2], side]
+			return out
 		var speed := run / maxf(float(s[3]), 1.0)
 		var r := minf(_radius(_last[1]), _radius(s[1]))
 		var n := clampi(ceili(run / maxf(r * SPACING, 0.5)), 1, 4096)
 		for k in range(1, n + 1):
 			var t := float(k) / n
-			_dab(out, from.lerp(to, t), lerpf(_last[1], s[1], t), lerp_angle(_last[2], s[2], t), speed)
-		_last = [to, s[1], s[2]]
+			_dab(out, from.lerp(to, t), lerpf(_last[1], s[1], t), lerp_angle(_last[2], s[2], t), speed, run / n / maxf(r * SPACING, 0.5) if charcoal else 1.0, lerpf(_last[3], side, t))
+		_last = [to, s[1], s[2], side]
 		return out
 
 	func _radius(pressure: float) -> float:
 		var r: Vector2 = RADII[stroke.brush]
 		return lerpf(r.x, r.y, pow(pressure, 0.7))
 
-	func _dab(out: PackedFloat32Array, at: Vector2, pressure: float, angle: float, speed: float) -> void:
+	func _dab(out: PackedFloat32Array, at: Vector2, pressure: float, angle: float, speed: float, travel := 1.0, side := 0.0) -> void:
 		var r := _radius(pressure)
 		var load: float = stroke.load * left()
 		var dryness: float = clampf(speed / SKIM, 0.0, 1.0) * SKIMS[stroke.medium] + (1.0 - load) * 0.45
-		out.append_array([at.x, at.y, r, pressure, _heading, load, clampf(dryness, 0.0, 1.0), angle])
+		var major := maxf(r, side * ToolModels.CHARCOAL_LENGTH * 0.5 * SIZE.x / METRES.x) if stroke.medium == Medium.CHARCOAL else r
+		out.append_array([at.x, at.y, major, pressure, r if stroke.medium == Medium.CHARCOAL else _heading, load * travel, clampf(dryness, 0.0, 1.0), angle])
 		_spent += PI * r * r * SPACING * (0.3 + pressure)

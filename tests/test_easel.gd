@@ -48,6 +48,8 @@ func _run() -> void:
 	_easels_keep_their_distance_and_number()
 	_bad_strokes_are_dropped()
 	_every_demo_dips_into_something_on_the_tray()
+	await _held_brush_stops_with_its_hand()
+	await _changing_canvases_ends_the_previous_stroke()
 	for f in DirAccess.get_files_at(dir):
 		DirAccess.remove_absolute(dir.path_join(f))
 	DirAccess.remove_absolute(dir)
@@ -764,3 +766,42 @@ func _preview_matches_the_grip() -> void:
 	p.hand.global_position += Vector3.UP * 2.0
 	await _settled()
 	_check(main.easel_tool.highlighted.is_empty(), "moving away clears the highlight")
+
+
+func _held_brush_stops_with_its_hand() -> void:
+	var e: Easels.Easel = main.easels.easels.values()[0]
+	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
+	main.easel_tool._take_brush(p, Brushwork.Brush.BIG)
+	var frame := e.canvas_frame()
+	p.hand.global_transform = Transform3D(frame.basis, frame * Vector3(0, 0, 0.1) - frame.basis * ToolModels.BRUSH_TIP)
+	p.hand.held_still = true
+	await process_frame
+	await process_frame
+	p.hand.global_transform = Transform3D(frame.basis, frame * Vector3(0, 0, -0.3) - frame.basis * ToolModels.BRUSH_TIP)
+	await process_frame
+	await process_frame
+	var tracked := e.on_canvas(p.hand.global_transform * ToolModels.BRUSH_TIP)
+	var visible := e.on_canvas(p.hand.body.global_transform * ToolModels.BRUSH_TIP)
+	_check(tracked.z < -0.29 and visible.z >= -CanvasContact.BEND - 0.001, "tracked hand passes the canvas while visible brush and hand stop: %s / %s" % [tracked, visible])
+	_check(p.models[p.brush].get_parent() == p.hand.body, "brush follows the collision-stopped visible hand")
+	p.hand.tool = Hand.Tool.WALLS
+	await process_frame
+	_check(p.hand.body.basis.is_equal_approx(Basis()), "dropping a tool restores the tracked hand orientation")
+
+
+func _changing_canvases_ends_the_previous_stroke() -> void:
+	world.restore({"seq": 0, "cmds": []})
+	await _settled()
+	await _play([{"op": "easel", "x": -3, "z": 0}, {"op": "easel", "x": 3, "z": 0}])
+	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
+	main.easel_tool._take_brush(p, Brushwork.Brush.STICK)
+	var stands: Array = main.easels.easels.values()
+	for e: Easels.Easel in stands:
+		var frame := e.canvas_frame()
+		p.hand.body.global_transform = Transform3D(frame.basis, frame * Vector3(0, 0, -0.01) - frame.basis * ToolModels.BRUSH_TIP)
+		main.easel_tool._touch(p, e, 1.0 / 60.0)
+	world.flush()
+	_check(world.state.easels[stands[0].id].strokes.size() == 1 and p.stroke.easel == stands[1], "crossing to another canvas commits the old stroke to its own canvas")
+	main.easel_tool.end_stroke(p)
+	world.flush()
+	_check(world.state.easels[stands[1].id].strokes.size() == 1, "the next canvas receives its own stroke command")

@@ -130,7 +130,12 @@ float footprint(Dab d, vec2 q, float h) {
 	vec2 rel = q - d.a.xy;
 	float r = d.a.z;
 	float dist;
-	if (pc.brush == FLAT) {
+	if (int(pc.more.x) == CHARCOAL) {
+		float c = cos(d.b.w);
+		float s = sin(d.b.w);
+		vec2 l = vec2(dot(rel, vec2(c, s)), dot(rel, vec2(-s, c)));
+		dist = length(l / vec2(r, d.b.x));
+	} else if (pc.brush == FLAT) {
 		float c = cos(d.b.w);
 		float s = sin(d.b.w);
 		vec2 l = vec2(dot(rel, vec2(c, s)), dot(rel, vec2(-s, c))) / vec2(r, r * 0.28);
@@ -212,7 +217,7 @@ void lay(ivec2 p) {
 			// Pressing harder reaches lower but never into the deepest pits: a hard line closed into a smooth band
 			// reads as a wash. Each pass darkens what it catches less than the one before.
 			float bite = 0.86 - pressure * 0.44;
-			float take = f * smoothstep(bite - 0.04, bite + 0.04, fine * 0.5 + lump * 0.5) * (0.12 + 0.2 * pressure);
+			float take = f * load * smoothstep(bite - 0.04, bite + 0.04, fine * 0.5 + lump * 0.5) * (0.12 + 0.2 * pressure);
 			laid.rgb += density * take * exp(-laid.g * 0.6);
 		}
 	}
