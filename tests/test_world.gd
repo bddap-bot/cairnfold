@@ -364,7 +364,7 @@ func _snapshot_rebuilds_the_garden() -> void:
 	var flowers := world.seq
 	var flora: Flora = main.flora_tool.flora
 	world._order({"op": "show", "plants": {flowers: PackedInt32Array([0, 1, 2]), 0: PackedInt32Array([7])}, "on": false}, 2)
-	var hill := Rect2i(90, 90, 5, 5)
+	var hill := Rect2i(82, 82, 14, 14)
 	var raised := Terrain.read(hill)
 	for i in raised.size():
 		raised[i] += 1.5
@@ -377,7 +377,7 @@ func _snapshot_rebuilds_the_garden() -> void:
 	_check(_picture() != picture, "restoring an empty snapshot clears the garden")
 	_check(flora.groups.size() == 1 and absf(Terrain.height_at(12, 12) - Terrain.base_heights()[92 * Terrain.VERTS + 92]) < 0.01, "back to the meadow and its ground")
 	world.restore(snap)
-	_check(_picture() == picture, "the snapshot rebuilds every wall, plant and height")
+	_check(_picture() == picture, "the snapshot rebuilds every wall, plant and height, flowers standing where the hill rose under them")
 
 
 func _picture() -> String:

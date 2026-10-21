@@ -403,7 +403,7 @@ func _grow(s: Dictionary) -> void:
 			var p: Flora.Plant = parts[0]
 			if p.pool == flora.trunks and (trunk == null or Vector3(p.anchor.x, 0, p.anchor.z).distance_to(spot) < Vector3(trunk.anchor.x, 0, trunk.anchor.z).distance_to(spot)):
 				trunk = p
-	var at := trunk.anchor + Vector3.UP * flora.top_of(trunk) * 0.8
+	var at := trunk.foot() + Vector3.UP * flora.top_of(trunk) * 0.8
 	var m := tool.mason(_hand(s))
 	var hand: Vector3 = at + Vector3.BACK * 2.0
 	tool.begin_grow(m, trunk, Transform3D(Basis(), hand), at)
@@ -1114,7 +1114,7 @@ func _style(s: Dictionary) -> void:
 	if s.has("tree"):
 		var flora: Flora = main.flora_tool.flora
 		var trunk: Flora.Plant = flora.groups[0][flora.meadow_trees()[s.tree]]
-		var crown := trunk.anchor + Vector3.UP * 2.5
+		var crown := trunk.foot() + Vector3.UP * 2.5
 		var from := crown + Vector3(0, 1, s.get("side", 6.0))
 		target = tool.aim_style(from, (crown - from).normalized())
 	if target.get("restyle") != PaletteTool.Restyle[s.restyle.to_upper()]:

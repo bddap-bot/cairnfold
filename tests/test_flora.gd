@@ -450,7 +450,7 @@ func _far_plants_follow_the_pool() -> void:
 		_check(pool.far.visible_instance_count == 1 and cell.instance_count == 1, "keeping retains the same far slot while baking its near cell")
 		_check(far.multimesh.instance_count == near.instance_count + pool.kept, "the far batch retains capacity for kept and painted slots")
 		pool.add(FloraLayout.flower(Vector3(9, 0, 5), rng), Color.BLUE, Vector3(9, 0, 5))
-		pool.repose(p, Transform3D(Basis.from_scale(Vector3.ONE * 1.2), p.anchor), Color.GREEN)
+		pool.repose(p, Transform3D(Basis.from_scale(Vector3.ONE * 1.2), p.foot()), Color.GREEN)
 		_check_far_buffers(pool)
 		pool.reset()
 		_check_far_buffers(pool)

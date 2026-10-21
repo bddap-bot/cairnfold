@@ -3,8 +3,8 @@ extends Node3D
 
 ## Every plant in the glade: the meadow's own and those painted or placed since. Painted plants of each
 ## kind share one MultiMesh allocated up front, so painting writes instances without resizing GPU buffers. A plant's
-## transform counts its height from the ground under its anchor, which its shader reads from the
-## terrain each frame, so reshaping the ground moves no instance.
+## transform and its anchor count their height from the ground under it, which its shader reads from the
+## terrain each frame, so reshaping the ground moves no instance and leaves no plant a stale height.
 
 const PAINTED_GRASS := 12000
 ## The meadow's grass cells are small, so a cell turns sparse close to where its clumps do.
@@ -123,7 +123,9 @@ class Pool:
 			_unindex(i)
 		if cover != null and plants[i] != null:
 			cover.touch(plants[i].anchor)
-		xform.origin.y -= Terrain.base_at(anchor.x, anchor.z)
+		var ground := Terrain.base_at(anchor.x, anchor.z)
+		xform.origin.y -= ground
+		anchor.y -= ground
 		custom.b = anchor.x
 		custom.a = anchor.z
 		mm.set_instance_transform(i - kept, xform)
@@ -341,6 +343,7 @@ class Plant:
 	var slot: int
 	var stamp: int
 	var xform: Transform3D
+	## Where it stands, its height counted from the ground under it as `xform`'s is.
 	var anchor: Vector3
 	## Where build commands find it: its group (0 is the meadow's own, else the command that grew it)
 	## and its place in that group.
@@ -357,6 +360,10 @@ class Plant:
 
 	func current() -> bool:
 		return pool.stamps[slot] == stamp
+
+	## Where it stands on the ground as the ground now lies.
+	func foot() -> Vector3:
+		return anchor + Vector3.UP * Terrain.base_at(anchor.x, anchor.z)
 
 	func shown() -> bool:
 		return current() and pool.anchors[slot] != Pool.GONE
@@ -652,7 +659,7 @@ func set_look(trunk: Plant, species: FloraLayout.Species, scale: float) -> void:
 		return
 	var key := Vector2i(0, trunk.slot)
 	var solid: Solid = _solids[key]
-	var t := FloraLayout.tree(trunk.anchor, solid.seed, species, scale)
+	var t := FloraLayout.tree(trunk.foot(), solid.seed, species, scale)
 	trunks.repose(trunk, t.trunk, t.bark)
 	for i in mini(t.blobs.size(), solid.parts.size() - 1):
 		foliage.repose(solid.parts[i + 1], t.blobs[i][0], t.blobs[i][1])
@@ -962,7 +969,7 @@ func plants_near(p: Vector3, radius: float) -> Array[Plant]:
 	return out
 
 
-## Where trees and bushes stand: the ground points a wall arches over.
+## Where trees and bushes stand, which a wall arches over.
 func obstacles() -> PackedVector3Array:
 	var out := PackedVector3Array()
 	for pool in [trunks, bushes]:
