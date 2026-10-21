@@ -61,6 +61,16 @@ func _the_look_is_steady_but_quick() -> void:
 		if i > 30:
 			wobble = maxf(wobble, rad_to_deg(look.angle_to(to)))
 	_check(wobble < 0.2, "half a degree of noise moves it less than 0.2 degrees (%.2f)" % wobble)
+	# Looks ahead that differ only by float noise; Vector3.slerp errored on these (an axis not of unit length).
+	var noise := RandomNumberGenerator.new()
+	noise.seed = 1
+	var ahead := 0
+	for i in 200:
+		var s := pow(10.0, noise.randf_range(-23.0, -19.0))
+		var a := Vector3(noise.randf_range(-s, s), noise.randf_range(-s, s), -1)
+		var b := Vector3(noise.randf_range(-s, s), noise.randf_range(-s, s), -1)
+		ahead += 1 if Gaze.steady(a, b, dt).is_equal_approx(Vector3.FORWARD) else 0
+	_check(ahead == 200, "looks ahead that differ by float noise stay ahead (%d of 200)" % ahead)
 
 
 func _eyes_tracker() -> XRPositionalTracker:

@@ -57,7 +57,14 @@ static func glance(head: Transform3D, faces: Array[Vector3]) -> Vector3:
 ## One frame of `from` closing on `to`.
 static func steady(from: Vector3, to: Vector3, delta: float) -> Vector3:
 	var hz := STEADY_HZ + HZ_PER_RAD * from.angle_to(to)
-	return from.slerp(to, 1.0 - exp(-TAU * hz * delta)).normalized()
+	return turned(from, to, 1.0 - exp(-TAU * hz * delta))
+
+
+## `from` turned the fraction `w` of the way to `to`. Not Vector3.slerp: for two looks ahead that differ only by float
+## noise it builds its axis from a denormal cross product, which is not unit length.
+static func turned(from: Vector3, to: Vector3, w: float) -> Vector3:
+	var v := from.lerp(to, w)
+	return v.normalized() if v.length_squared() > 1e-6 else to
 
 
 func show_marker(on: bool) -> void:

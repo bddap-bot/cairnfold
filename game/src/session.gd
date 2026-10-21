@@ -295,7 +295,7 @@ func _process(delta: float) -> void:
 	for id in _targets:
 		var a: Avatar = avatars[id]
 		var t: Array = _targets[id]
-		a.pose(a.eyes.interpolate_with(t[0], k), a.hands[0].interpolate_with(t[1], k), a.hands[1].interpolate_with(t[2], k), a.look.slerp(t[3], k))
+		a.pose(a.eyes.interpolate_with(t[0], k), a.hands[0].interpolate_with(t[1], k), a.hands[1].interpolate_with(t[2], k), Gaze.turned(a.look, t[3], k))
 		for s in 2:
 			var dish: Dish = _dishes[id][s]
 			dish.transform = a.hands[s]

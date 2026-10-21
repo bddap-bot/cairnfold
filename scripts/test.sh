@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# The repo's checks: scripts compile, then every headless test; a script error, a failed allocation or a resource left
+# The repo's checks: scripts compile, then every headless test; a script error, a failed allocation, an engine math call
+# given an unnormalized axis or a resource left
 # in use at exit fails it.
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -28,8 +29,8 @@ for t in tests/test_*.gd; do
   code=$(cat "$log.exit")
   failed=0
   if [ "$code" != 0 ]; then echo "$t: exited $code"; failed=1; fi
-  grep -E "^(tests|FAIL):|SCRIPT ERROR|still in use at exit|Parameter \"mem" "$log" | sed "s|^|$t: |" || true
-  if grep -qE "SCRIPT ERROR|still in use at exit|Parameter \"mem" "$log"; then failed=1; fi
+  grep -E "^(tests|FAIL):|SCRIPT ERROR|still in use at exit|Parameter \"mem|must be normalized" "$log" | sed "s|^|$t: |" || true
+  if grep -qE "SCRIPT ERROR|still in use at exit|Parameter \"mem|must be normalized" "$log"; then failed=1; fi
   # A failure seen once is kept in the run's log, crash backtraces and errors around it included.
   if [ "$failed" = 1 ]; then tail -n 60 "$log" | sed "s|^|$t: |"; status=1; fi
 done
