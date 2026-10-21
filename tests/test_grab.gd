@@ -36,30 +36,31 @@ func _capture(name: String) -> void:
 ## What the garden holds and what any tool has under way, so a grip that made or started something shows.
 ## The garden and what each tool is in the middle of, but for the parts of the garden named in `apart`.
 func _made(apart: Array = []) -> String:
-	var busy := [main.tool.busy(), main.flora_tool.busy(), main.palette_tool.busy(), main.delete_tool.busy(), main.tool.house != null]
+	var busy := [main.tool.busy(), main.flora_tool.busy(), main.palette_tool.busy(), main.delete_tool.busy(), main.tool.held != null]
 	var state: Dictionary = main.world.state.duplicate()
 	for k in apart:
 		state.erase(k)
 	return var_to_str([state, main.world.palette.season, busy])
 
 
-func _grip_lifts_the_wall_whatever_the_hand_holds(hand: Hand) -> void:
+## Grip on a wall, whatever the hand holds, takes the wall and carries it with the hand; let go, the garden has it there.
+func _grip_carries_the_wall_whatever_the_hand_holds(hand: Hand) -> void:
 	var at := hand.global_transform
 	for t in Hand.Tool.values():
 		hand.tool = t
 		hand.global_transform = at
 		await _frames()
 		var wall: Wall = main.tool.walls[0]
-		var height := wall.layout.height
+		var was: PackedVector3Array = main.world.state.walls[wall.id].points
 		Buttons.injected["right_hand/grip_click"] = true
 		await _frames()
-		_check(main.tool.mason(hand).lifting == wall and not main.ground_grab.busy(), "grip on the wall takes the wall, holding %s" % Hand.Tool.keys()[t])
-		hand.position.y += 0.3
+		_check(main.tool.held == wall and not main.ground_grab.busy(), "grip on the wall takes the wall, holding %s" % Hand.Tool.keys()[t])
+		hand.position.x += 0.3
 		await _frames()
-		_check(wall.layout.height > height, "and lifts it, holding %s" % Hand.Tool.keys()[t])
+		_check(main.tool.held_at.center.distance_to(WallTool.line_of(main.world.state.walls[wall.id]).center) > 0.3, "and carries it, holding %s" % Hand.Tool.keys()[t])
 		Buttons.injected.erase("right_hand/grip_click")
 		await _frames()
-		_check(main.tool.mason(hand).lifting == null, "release drops it, holding %s" % Hand.Tool.keys()[t])
+		_check(main.tool.held == null and main.world.state.walls[wall.id].points != was, "release sets it where it was carried, holding %s" % Hand.Tool.keys()[t])
 		main.world.undo()
 		await _frames()
 	hand.tool = Hand.Tool.WALLS
@@ -216,8 +217,8 @@ func _two_hands_grab_the_ground_at_once(rig: Rig) -> void:
 	await _frames()
 
 
-## Holding the ground in one hand while the other pulls a wall up: both move, each its own step.
-func _one_hand_holds_the_ground_while_the_other_lifts_a_wall(rig: Rig) -> void:
+## Holding the ground in one hand while the other carries a wall: both move, each its own step.
+func _one_hand_holds_the_ground_while_the_other_carries_a_wall(rig: Rig) -> void:
 	var left_at := rig.left.global_transform
 	var right_at := rig.right.global_transform
 	var g := _ground_ahead(rig.left, -1.0)
@@ -225,38 +226,40 @@ func _one_hand_holds_the_ground_while_the_other_lifts_a_wall(rig: Rig) -> void:
 	_grip(rig.left, true)
 	await _frames()
 	var wall: Wall = main.tool.walls[0]
-	var height := wall.layout.height
+	var was: PackedVector3Array = main.world.state.walls[wall.id].points
 	_grip(rig.right, true)
 	await _frames()
-	_check(main.ground_grab.busy(rig.left) and main.tool.mason(rig.right).lifting == wall, "the left grip holds the ground and the right the wall")
+	_check(main.ground_grab.busy(rig.left) and main.tool.held == wall, "the left grip holds the ground and the right the wall")
 	rig.left.position.y += 0.3
-	rig.right.position.y += 0.3
+	rig.right.position.x += 0.3
 	await _frames()
 	var raised := Terrain.height_at(g.x, g.z) - g.y
-	_check(raised > 0.15 and wall.layout.height > height, "both follow their hands, ground %+.2f, wall %.2f to %.2f" % [raised, height, wall.layout.height])
+	_check(raised > 0.15 and main.tool.held_at.center.distance_to(WallTool.line_of(main.world.state.walls[wall.id]).center) > 0.3, "both follow their hands, ground %+.2f" % raised)
 	_grip(rig.right, false)
 	_grip(rig.left, false)
 	await _frames()
 	main.world.undo()
 	main.world.undo()
 	await _frames()
-	_check(absf(Terrain.height_at(g.x, g.z) - g.y) < 1e-3 and is_equal_approx(main.tool.walls[0].layout.height, height), "two undos put both back")
+	_check(absf(Terrain.height_at(g.x, g.z) - g.y) < 1e-3 and main.world.state.walls[wall.id].points == was, "two undos put both back")
 	rig.left.global_transform = left_at
 	rig.right.global_transform = right_at
 	await _frames()
 
 
-## A grip on the wall the other hand holds takes nothing, not the wall and not the ground behind it.
-func _a_wall_held_by_one_hand_is_not_taken_by_the_other(rig: Rig) -> void:
+## A grip on the wall the other hand holds joins that hold to size the wall, taking neither the ground behind it nor
+## the sky.
+func _a_wall_held_by_one_hand_is_joined_by_the_other(rig: Rig) -> void:
 	var wall: Wall = main.tool.walls[0]
 	_grip(rig.right, true)
 	await _frames()
-	_check(main.tool.mason(rig.right).lifting == wall, "the right grip takes the wall")
+	_check(main.tool.held == wall, "the right grip takes the wall")
 	_grip(rig.left, true)
 	await _frames()
-	_check(main.tool.mason(rig.left).lifting == null and not main.ground_grab.busy(rig.left) and main.sky_tool.holder == null, "the left grip on the same wall takes nothing")
-	_check(main.tool.mason(rig.right).lifting == wall, "and the right keeps it")
+	_check(main.tool._holders.size() == 2 and not main.ground_grab.busy(rig.left) and main.sky_tool.holder == null, "the left grip on the same wall joins the hold and takes nothing else")
 	_grip(rig.left, false)
+	await _frames()
+	_check(main.tool.held == wall and main.tool._holders.size() == 1, "and letting it go leaves the wall in the right hand")
 	_grip(rig.right, false)
 	await _frames()
 
@@ -310,7 +313,7 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 	await _frames()
 	Buttons.injected["right_hand/grip_click"] = true
 	await _frames()
-	_check(main.tool.mason(rig.right).growing is WallTool.OpeningGrip and main.tool.mason(rig.right).lifting == null, "a grip into the arch takes the arch, not the wall")
+	_check(main.tool.mason(rig.right).growing is WallTool.OpeningGrip and main.tool.held == null, "a grip into the arch takes the arch, not the wall")
 	Buttons.injected["left_hand/grip_click"] = true
 	await _frames()
 	_check(main.tool.mason(rig.left).partner == main.tool.mason(rig.right), "the other hand's grip on it joins the first")
@@ -367,31 +370,32 @@ func _run() -> void:
 	_check(hand._beam.visible and hand._dot.visible, "idle hand points at the wall")
 	Buttons.injected["right_hand/grip_click"] = true
 	await _frames()
-	_check(main.tool.mason(hand).lifting != null, "grip takes the wall")
+	_check(main.tool.held != null, "grip takes the wall")
 	_check(not hand._beam.visible and not hand._dot.visible, "wall grab hides beam and dot")
 	hand.point(Vector3.ZERO, Color.WHITE)
 	_check(not hand._beam.visible and not hand._dot.visible, "a later tool cannot redraw a held hand pointer")
 	_check(rig.left._beam.visible, "other hand can still point")
 	await _capture("grab")
 	var height: float = main.tool.walls[0].layout.height
+	var center: Vector3 = main.tool.held_at.center
 	hand.rotate_x(0.2)
 	await _frames()
-	_check(is_equal_approx(main.tool.walls[0].layout.height, height), "rotating a held wall does not lift it")
+	_check(main.tool.held_at.center.is_equal_approx(center), "tipping a held wall's hand up does not move it")
 	hand.position.y += 0.2
 	await _frames()
-	_check(main.tool.walls[0].layout.height > height, "translating the hand lifts the wall")
+	_check(is_equal_approx(main.tool.walls[0].layout.height, height) and main.tool.held_at.center.is_equal_approx(center), "one hand raised neither lifts a wall nor raises it")
 	Buttons.injected.erase("right_hand/grip_click")
 	await _frames()
-	_check(main.tool.mason(hand).lifting == null, "release drops the wall")
+	_check(main.tool.held == null, "release drops the wall")
 	_check(hand._beam.visible, "pointer returns on release")
 	await _capture("released")
-	await _grip_lifts_the_wall_whatever_the_hand_holds(hand)
+	await _grip_carries_the_wall_whatever_the_hand_holds(hand)
 	await _grip_grows_a_tree_whatever_the_hand_holds(hand)
 	await _grip_shapes_the_ground_and_makes_nothing(hand)
 	await _grip_on_a_pond_moves_its_bed(hand)
 	await _two_hands_grab_the_ground_at_once(rig)
-	await _one_hand_holds_the_ground_while_the_other_lifts_a_wall(rig)
-	await _a_wall_held_by_one_hand_is_not_taken_by_the_other(rig)
+	await _one_hand_holds_the_ground_while_the_other_carries_a_wall(rig)
+	await _a_wall_held_by_one_hand_is_joined_by_the_other(rig)
 	await _a_grab_leaves_the_other_hand_its_tool(rig)
 	await _two_hands_stretch_an_opening(rig)
 	hand.tool = Hand.Tool.POND

@@ -350,8 +350,8 @@ func _house(s: Dictionary) -> void:
 	if tool.walls.size() == count:
 		push_error("driver: the house put up at %s never stood" % put.center)
 		return
-	tool.take_house(tool.walls[-1])
-	var start: Dictionary = tool.house_at.duplicate()
+	tool.take_build(tool.walls[-1])
+	var start: Dictionary = tool.held_at.duplicate()
 	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
 	var shots: int = s.get("shots", 3) if s.has("capture") else 0
 	var taken := 0
@@ -362,13 +362,13 @@ func _house(s: Dictionary) -> void:
 		to.center = start.center.lerp(at.center, k)
 		to.yaw = lerp_angle(start.yaw, at.yaw, k)
 		to.rise = snappedf(at.rise * k, WallLayout.COURSE)
-		tool.stand_house(to)
+		tool.stand_build(to)
 		if taken < shots and f + 1 >= frames * (taken + 1) / shots:
 			taken += 1
 			await get_tree().create_timer(0.4).timeout
 			await main.capture("%s-%d" % [s.capture, taken])
-	if tool.house != null:
-		tool.end_house()
+	if tool.held != null:
+		tool.end_build()
 
 
 ## Holds the built house `index` (or under `at`) as hands would and over `seconds` moves it by `move` [x, z] metres,
@@ -376,8 +376,8 @@ func _house(s: Dictionary) -> void:
 ## `rise` metres onto its plinth, its walls to `height` and its roof to `pitch`, `curve` and `overhang`; then lets go.
 func _resize(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
-	tool.take_house(_wall_of(s))
-	var start: Dictionary = tool.house_at.duplicate()
+	tool.take_build(_wall_of(s))
+	var start: Dictionary = tool.held_at.duplicate()
 	var end := start.duplicate()
 	var move: Array = s.get("move", [0, 0])
 	end.center = start.center + Vector3(move[0], 0.0, move[1])
@@ -396,9 +396,9 @@ func _resize(s: Dictionary) -> void:
 		to.size = start.size.lerp(end.size, k)
 		for key in ["rise", "height", "pitch", "curve", "overhang"]:
 			to[key] = lerpf(start[key], end[key], k)
-		tool.stand_house(to)
-	if tool.house != null:
-		tool.end_house()
+		tool.stand_build(to)
+	if tool.held != null:
+		tool.end_build()
 
 
 func _turn(s: Dictionary, x: float, z: float, degrees: float) -> float:
@@ -444,41 +444,27 @@ func _lift_wall(s: Dictionary) -> void:
 	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"height": float(s.height)}})
 
 
-## Grips wall `index` (or the one under `at`) on its top, as a hand does, and pulls it `metres` up then down again
-## `times` times, `seconds` a pull: its height, or a house's with two hands; with "roof", a house's ridge with two
-## hands on its roof.
+## Holds wall `index` (or the one under `at`), a house too, as two hands would, and draws them `metres` apart upright
+## then back `times` times, `seconds` a pull: its height, or with "roof" a house's ridge.
 func _grip(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var w := _wall_of(s)
-	var house := not WallTool.house_of(main.world.state.walls[w.id]).is_empty()
-	var m := tool.mason(_hand(s))
-	var at: Vector3 = w.layout.point_at(w.layout.length() * 0.5) + Vector3.UP * w.layout.height
-	var hand: Vector3 = at + Vector3.BACK
 	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
 	for n in int(s.get("times", 1)):
 		var metres: float = s.get("metres", 1.0) * (1.0 if n % 2 == 0 else -1.0)
-		var start := {}
-		if house:
-			tool.take_house(w)
-			start = tool.house_at.duplicate()
-		else:
-			tool.begin_lift(m, w, hand, at)
+		tool.take_build(w)
+		var start: Dictionary = tool.held_at.duplicate()
 		for f in frames:
 			await get_tree().process_frame
 			var up := metres * smoothstep(0.0, 1.0, float(f + 1) / frames)
-			if not house:
-				tool.drag_lift(m, hand.y + up)
-				continue
 			var to := start.duplicate()
 			if s.get("roof", false):
 				to.pitch = RoofLayout.snap_pitch(start.pitch + up, WallTool.ROOF_STEP)
 			else:
 				to.height = maxf(start.height + snappedf(up, WallLayout.COURSE), WallLayout.MIN_HEIGHT)
-			tool.stand_house(to)
-		if house:
-			tool.end_house()
-		else:
-			tool.end_lift(m)
+			tool.stand_build(to)
+		if tool.held != null:
+			tool.end_build()
 		await _standing()
 
 

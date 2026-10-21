@@ -164,7 +164,7 @@ func _check_colour(_page: Dictionary, before: Dictionary) -> void:
 
 
 func _check_house(_page: Dictionary, before: Dictionary) -> void:
-	_check(main.tool.walls.size() == before.walls and before.walls == 1 and main.tool.house == null, "the house page's grips leave the one house it has: %d walls" % main.tool.walls.size())
+	_check(main.tool.walls.size() == before.walls and before.walls == 1 and main.tool.held == null, "the house page's grips leave the one house it has: %d walls" % main.tool.walls.size())
 	if main.tool.walls.size() != 1:
 		return
 	var was := WallTool.house_of(str_to_var(before.state).values()[0])

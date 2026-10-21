@@ -499,12 +499,12 @@ func _in_the_glade() -> void:
 	var eave: Vector3 = r.frame().mid + across * (hs + 0.15) + Vector3.UP * r.rise(1.0 - (hs + 0.15) / hs)
 	_check(r.eave_way(eave).is_equal_approx(across) and r.eave_way(eave - across * (hs + 0.15) * 2.0).is_equal_approx(-across), "a grip on either eave, past the walls, holds that eave")
 	_check(r.eave_way(ridge) == Vector3.ZERO, "a grip on the slope over the walls holds the roof itself")
-	tool.take_house(house)
+	tool.take_build(house)
 	var from: Array[Transform3D] = [Transform3D(Basis(), eave - across * 2.0 * (hs + 0.15)), Transform3D(Basis(), eave)]
 	var to: Array[Transform3D] = [Transform3D(Basis(), from[0].origin - across * 0.8), Transform3D(Basis(), from[1].origin + across * 0.8)]
 	var out: Array[Vector3] = [-across, across]
-	tool.stand_house(WallTool.pull_eaves(tool.house_at, from, to, out, 1.0, house.roof.reach()))
-	tool.end_house()
+	tool.stand_build(WallTool.pull_eaves(tool.held_at, from, to, out, 1.0, house.roof.reach()))
+	tool.end_build()
 	for f in 4:
 		await process_frame
 	var pulled: float = world.state.walls[house.id].roof.overhang

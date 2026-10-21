@@ -12,6 +12,7 @@ func _init() -> void:
 	_one_hand_carries_and_turns_a_house()
 	_two_hands_resize_a_built_house_one_side_at_a_time()
 	_two_hands_drawn_apart_upright_raise_its_walls()
+	_a_wall_is_carried_and_sized_as_a_house_is()
 	_a_raised_house_stands_on_a_plinth()
 	_a_resized_house_keeps_its_fittings_and_roof()
 	_the_ridge_keeps_its_axis()
@@ -210,6 +211,32 @@ func _two_hands_drawn_apart_upright_raise_its_walls() -> void:
 	tower.height = 4.5
 	c = WallTool.resize(tower, front, [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.2, 1.9, 0))], 1.0)
 	_check(is_equal_approx(c.height, 5.4) and c.size.is_equal_approx(tower.size), "a tower's height grows the same way: %s" % c)
+
+
+## Everything built or placed is moved by one hand and sized by two: a wall or fence is carried and turned about its
+## middle, drawn out along its line by the hands' spread, and made taller upright, a fence keeping its height.
+func _a_wall_is_carried_and_sized_as_a_house_is() -> void:
+	var d := {"points": PackedVector3Array([Vector3(0, 0, 0), Vector3(4, 0, 0), Vector3(6, 0, 2)]), "height": 2.0, "rise": 0.0, "fence": false,
+		"openings": PackedVector4Array([Vector4(2.0, 0.0, WallLayout.DoorStyle.ARCHWAY, 1.0)]), "lanterns": PackedVector3Array([Vector3(5.0, 1.2, 1.0)]),
+		"flags": PackedFloat32Array([1.0]), "ruins": PackedVector2Array([Vector2(3.0, 3.5)])}
+	var at := WallTool.line_of(d)
+	_check(at.center.is_equal_approx(Vector3(10.0 / 3.0, 0, 2.0 / 3.0)) and is_equal_approx(at.run, 4.0 + sqrt(8.0)) and at.length == 1.0, "a wall's middle and length read back: %s" % at)
+	var c := WallTool.carry(at, _hand(Vector3(0, 1, 0)), _hand(Vector3(0.5, 1.3, 0), PI * 0.5), 2.0)
+	_check(c.center.is_equal_approx(at.center + Vector3(1, 0, 0)) and is_equal_approx(c.yaw, PI * 0.5) and c.rise == 0.0, "one hand carries and turns it, raising nothing: %s" % c)
+	var r := WallTool.reshape_line(d, c)
+	var turned: Vector3 = c.center + Basis(Vector3.UP, PI * 0.5) * (Vector3(4, 0, 0) - at.center)
+	_check(Vector2(r.points[1].x - turned.x, r.points[1].z - turned.z).length() < 1e-4 and r.openings == d.openings and r.lanterns == d.lanterns, "its line is carried and turned about its middle, its fittings where they were along it: %s" % r.points)
+	var pair: Array[Transform3D] = [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.2, 1, 0))]
+	c = WallTool.stretch_line(at, pair, [_hand(Vector3(-0.4, 1, 0)), _hand(Vector3(0.4, 1.3, 0))], 1.0)
+	_check(is_equal_approx(c.length, 2.0) and is_equal_approx(c.height, 2.3) and c.center == at.center, "two hands spread twice as far draw it twice as long about its middle, and one rising makes it taller: %s" % c)
+	r = WallTool.reshape_line(d, c)
+	_check(is_equal_approx(Commands.length(r.points), 2.0 * at.run) and is_equal_approx(r.openings[0].x, 4.0) and is_equal_approx(r.lanterns[0].x, 10.0) and is_equal_approx(r.flags[0], 2.0) and r.ruins[0].is_equal_approx(Vector2(6.0, 7.0)), "every opening, lantern, flag and ruin keeps its share of the line: %s" % r)
+	c = WallTool.stretch_line(at, pair, [_hand(Vector3(0, 1, 0)), _hand(Vector3(0.001, 1, 0))], 1.0)
+	_check(is_equal_approx(c.length * at.run, 1.0), "closed up, it stops a metre long: %.2f" % (c.length * at.run))
+	var fence := at.duplicate()
+	fence.fence = true
+	c = WallTool.stretch_line(fence, pair, [_hand(Vector3(-0.2, 1, 0)), _hand(Vector3(0.2, 2, 0))], 1.0)
+	_check(c.height == fence.height, "a fence keeps its height")
 
 
 func _a_raised_house_stands_on_a_plinth() -> void:
