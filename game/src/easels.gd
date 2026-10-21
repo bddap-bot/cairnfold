@@ -29,10 +29,12 @@ const CLEAR := 0.01
 const JAR_SIZE := Vector2(0.042, 0.1)
 ## The pot: its outer radius and height, its wall, and how high inside its handles stand.
 const POT_SIZE := Vector2(0.055, 0.12)
-const POT_WALL := 0.008
+const POT_WALL := 0.005
 const POT_FLOOR := 0.01
+## How far inside the pot's wall each brush's handle stays.
+const POT_GAP := 0.001
 ## The brushes splayed in the pot, by kind: which way each leans, turned from the painter toward their right. Each
-## leans as far as the pot's mouth lets it, its foot against the wall opposite, so their handles stand well apart.
+## leans as far as the pot's mouth lets it (`in_pot`), so their handles stand well apart.
 const SPLAY := {Brushwork.Brush.SMALL: deg_to_rad(-80.0), Brushwork.Brush.FLAT: 0.0, Brushwork.Brush.BIG: deg_to_rad(80.0)}
 ## Each palette, in its own frame: a thumb hole at its -x end, where a hand holds it, and its paint toward the +x end.
 ## The oil palette's paint lies round its far edge with its open board, the mixing field (`Mixing`), inside it; the
@@ -363,14 +365,16 @@ static func _tray_charcoal() -> ArrayMesh:
 	return ToolModels.bake(sticks)
 
 
-## How a brush of `kind` stands in the pot, in the easel's frame: its foot inside the wall away from where it leans, its
-## handle leaving through the mouth just inside the wall toward it.
+## How a brush of `kind` stands in the pot, in the easel's frame: its handle's axis rises from the floor by the wall
+## away from where it leans and leaves through the mouth by the wall toward it, leaning as far as keeps the handle
+## POT_GAP inside the wall at both ends.
 static func in_pot(kind: Brushwork.Brush) -> Transform3D:
-	var inside := POT_SIZE.x - POT_WALL - CLEAR
-	var lean := atan2(inside * 2.0, POT_SIZE.y - POT_FLOOR)
+	var inside := POT_SIZE.x - POT_WALL - POT_GAP
+	var deep := POT_SIZE.y - POT_FLOOR
+	var lean := atan2(inside * 2.0, deep) - asin(ToolModels.HANDLE_RADIUS * 2.0 / Vector2(deep, inside * 2.0).length())
 	var out := Vector3(sin(SPLAY[kind]), 0, cos(SPLAY[kind]))
-	var along := out * sin(lean) + Vector3.UP * cos(lean)
-	return Transform3D(Basis.looking_at(along, out), POT + Vector3(0, POT_FLOOR, 0) - out * inside)
+	var basis := Basis.looking_at(out * sin(lean) + Vector3.UP * cos(lean), out)
+	return Transform3D(basis, POT + Vector3(0, POT_FLOOR, 0) - out * deep * tan(lean) * 0.5 - basis.y * ToolModels.BRUSH_TIP.y)
 
 
 ## Where a grip takes a brush of `kind` (or the charcoal, "stick"), in its own frame: a brush in the pot by the middle of

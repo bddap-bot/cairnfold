@@ -30,6 +30,7 @@ func _run() -> void:
 	await _a_deleted_easel_comes_back_with_its_painting()
 	await _the_tray_loads_the_brush()
 	_each_brush_in_the_pot_is_taken_alone()
+	_no_brush_crosses_the_pot()
 	_reaches_for_each_implement()
 	await _preview_matches_the_grip()
 	_no_plank_crosses_the_canvas()
@@ -201,6 +202,34 @@ func _the_tray_loads_the_brush() -> void:
 	_check(p.brush == Brushwork.Brush.BIG and p.palette == null and main.rig.right.tool == Hand.Tool.EASEL, "from the charcoal a hand takes a palette, sets it down and takes a brush")
 
 
+## Every brush standing in the pot keeps its whole surface inside the pot's inner wall from the pot's foot to its rim,
+## so none shows through the wall or its lip, sampled densely enough that a crossing of a millimetre shows.
+func _no_brush_crosses_the_pot() -> void:
+	const STEPS := 48
+	var e: Easels.Easel = main.easels.easels.values()[-1]
+	var inner := Easels.POT_SIZE.x - Easels.POT_WALL
+	for kind: Brushwork.Brush in e.brushes:
+		var worst := -INF
+		var below := 0
+		for mi: MeshInstance3D in e.brushes[kind].find_children("*", "MeshInstance3D", true, false):
+			var into := e.global_transform.affine_inverse() * mi.global_transform
+			var arrays := mi.mesh.surface_get_arrays(0)
+			var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+			var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+			for t in range(0, indices.size(), 3):
+				var a := into * vertices[indices[t]]
+				var b := into * vertices[indices[t + 1]]
+				var c := into * vertices[indices[t + 2]]
+				for i in STEPS + 1:
+					for j in STEPS + 1 - i:
+						var at := a + (b - a) * (float(i) / STEPS) + (c - a) * (float(j) / STEPS) - Easels.POT
+						if at.y < 0.0:
+							below += 1
+						elif at.y <= Easels.POT_SIZE.y:
+							worst = maxf(worst, Vector2(at.x, at.z).length())
+		_check(below == 0 and worst < inner, "the %s stands inside the pot: %d points below its foot, %.4f m out where its inner wall is %.4f m" % [Brushwork.Brush.keys()[kind], below, worst, inner])
+
+
 ## The brushes splay out of the pot, each handle leaving through its mouth, and a grip anywhere within a few
 ## centimetres of a brush's handle takes that brush, never its neighbour or the charcoal.
 func _each_brush_in_the_pot_is_taken_alone() -> void:
@@ -210,11 +239,7 @@ func _each_brush_in_the_pot_is_taken_alone() -> void:
 	var grips := {}
 	for kind: Brushwork.Brush in e.brushes:
 		grips[kind] = e.brushes[kind].global_transform * Easels.grip(kind)
-		var t := Easels.in_pot(kind)
-		var along := t.basis * Vector3.FORWARD
-		var at_rim := t.origin + along * ((Easels.POT_SIZE.y - Easels.POT_FLOOR) / along.y)
-		_check(Vector2(at_rim.x - Easels.POT.x, at_rim.z - Easels.POT.z).length() < Easels.POT_SIZE.x - Easels.POT_WALL, "the %s's handle leaves through the pot's mouth" % Brushwork.Brush.keys()[kind])
-		_check(at_rim.y < (e.global_transform.affine_inverse() * grips[kind]).y, "and the %s is gripped above the rim" % Brushwork.Brush.keys()[kind])
+		_check((e.global_transform.affine_inverse() * grips[kind]).y > Easels.POT.y + Easels.POT_SIZE.y, "the %s is gripped above the pot's rim" % Brushwork.Brush.keys()[kind])
 	grips[Brushwork.Brush.STICK] = e.stick.global_transform * Easels.grip(Brushwork.Brush.STICK)
 	for kind: Brushwork.Brush in e.brushes:
 		var offsets: Array[Vector3] = [Vector3.ZERO, Vector3.LEFT, Vector3.RIGHT, Vector3.UP, Vector3.DOWN, Vector3.FORWARD, Vector3.BACK]

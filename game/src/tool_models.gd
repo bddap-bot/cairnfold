@@ -16,6 +16,8 @@ const _SELFIE_SCREEN_X := -0.011
 ## Where a brush's tip is, from the controller it is held in: it reaches past the controller, so painting is done
 ## with the brush, not the hand.
 const BRUSH_TIP := Vector3(0, 0.01, -0.27)
+## A brush handle's radius at its widest, by the ferrule.
+const HANDLE_RADIUS := 0.005
 const CHARCOAL_LENGTH := 0.25
 const CHARCOAL_RADIUS := 0.0065
 ## The parts of each fitting, by the kind its generator files them under.
@@ -262,7 +264,7 @@ static func brush(kind: Brushwork.Brush) -> Node3D:
 		var stick := _piece(root, charcoal(CHARCOAL_LENGTH), Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + CHARCOAL_LENGTH * 0.5)), charcoal_material())
 		stick.name = "tip"
 		return root
-	_piece(root, cylinder(0.005, 0.0035, 0.2, 10), Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + 0.155)), _plain("brush_handle", Color(0.75, 0.28, 0.2)))
+	_piece(root, cylinder(HANDLE_RADIUS, 0.0035, 0.2, 10), Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + 0.155)), _plain("brush_handle", Color(0.75, 0.28, 0.2)))
 	var flat := Basis().scaled(Vector3(2.2, 1, 0.45)) if kind == Brushwork.Brush.FLAT else Basis()
 	var ferrule := cylinder(0.0045 if kind == Brushwork.Brush.SMALL else 0.0075, 0.005, 0.03, 10)
 	_piece(root, ferrule, Transform3D(along * flat, Vector3(0, BRUSH_TIP.y, tip_z + 0.04)), _plain("ferrule", Color(0.78, 0.76, 0.7)))
