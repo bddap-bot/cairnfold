@@ -83,6 +83,8 @@ func _settle() -> void:
 	for w in main.tool.walls:
 		w.ivy_age = INF
 		w.lay_now()
+	for id: int in world.stairs.layouts:
+		world.stairs.settle(id)
 	for i in 600:
 		await process_frame
 		if main.tool.walls.all(func(w: Wall) -> bool: return w._ivy_task < 0 and not w.laying()):
