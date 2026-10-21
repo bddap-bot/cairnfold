@@ -1116,7 +1116,7 @@ func _opening_sizing(grip: OpeningGrip, s: Sizing, held: Callable) -> Sizing:
 		return w.layout.opening_fits(Vector4(start.x, start.y, start.z, size), standing_openings(w, others))
 	s.scale = func() -> float: return shown.size
 	s.top = func() -> float: return w.layout.opening_for(Vector4(start.x, start.y, start.z, shown.size)).head
-	s.limits = Vector2(1.0, INF)
+	s.limits = Vector2(WallLayout.MIN_SIZE, INF)
 	var current := func() -> bool:
 		var now: Array = stored.call()
 		return now.size() > grip.index and Vector3(now[grip.index].x, now[grip.index].y, now[grip.index].z) == Vector3(start.x, start.y, start.z)

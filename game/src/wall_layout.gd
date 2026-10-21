@@ -48,6 +48,10 @@ const SINK := 0.12
 ## A doorway arch's half-width and ring: an opening's size scales its arch, ring and all, from these.
 const ARCH_HALF := 0.75
 const RING := 0.32
+## How high a doorway arch springs over the floor; an opening's size scales it too.
+const SPRING := 1.5
+## The smallest an opening is sized, a doorway at this size being a pet door.
+const MIN_SIZE := 0.4
 ## The nearest an arch's ring stands to a wall's end, and so a doorway arch's centre.
 const END_CLEAR := 0.3
 const ARCH_END := ARCH_HALF + RING + END_CLEAR
@@ -212,9 +216,9 @@ func point_at(s: float) -> Vector3:
 	return samples[i]
 
 
-## The springing of an arch of `size`, lowered under a wall too low for its head.
+## The springing of an arch of `size` over the floor, lowered under a wall too low for its head.
 func spring(size := 1.0) -> float:
-	return minf(1.5 * size, height - arch_rise(RING * size, size) - 0.3)
+	return minf(floor_lift() + SPRING * size, height - arch_rise(RING * size, size) - 0.3)
 
 
 ## The arch this wall opens: a timber frame's own, else stone.
@@ -246,7 +250,7 @@ func arch_rise(out: float, size := 1.0) -> float:
 
 
 func can_arch(size := 1.0) -> bool:
-	return fence or spring(size) >= 0.9
+	return fence or spring(size) - floor_lift() >= minf(0.9, SPRING * size)
 
 
 ## Half-width at height `y` above the foot of the opening of an arch of `size`, or with `ring` of all the arch covers,
@@ -282,6 +286,7 @@ func build(ground: Callable, water := Callable()) -> void:
 	var total := length()
 	if total < 0.3:
 		return
+	_level_floors(ground)
 	apertures = openings_for(openings)
 	if fence:
 		_build_fence(rng)
@@ -367,7 +372,7 @@ func build(ground: Callable, water := Callable()) -> void:
 			_world(parts.finial, FINIAL, "finial", f)
 			cloths.append(parts.cloth)
 	_hide()
-	_lay_floors(ground)
+	_lay_floors()
 
 
 ## A stone's corners, before its transform.
@@ -520,30 +525,56 @@ func floor_hit(origin: Vector3, dir: Vector3) -> float:
 	return best
 
 
-## A house's or tower's floor at its foot, raised over any ground under it that stands higher, its bed reaching
-## down to the foot so it reads as a step at the door. Flags under stone, planks under plaster, in rows along its first side that end inside the
-## walls; none in the room of an older build it joins, or under a build standing on it.
-func _lay_floors(ground: Callable) -> void:
-	if not floored() or samples.is_empty() or laid_points.size() < 3:
+## The height of a house's or tower's floor: at its foot, raised over any ground under it that stands higher.
+func _level_floors(ground: Callable) -> void:
+	var outer := _floor_bounds()
+	if outer.is_empty():
 		return
 	var foot := samples[0].y + SINK
+	floor_outline = Geometry2D.offset_polygon(_floor_line(), -THICKNESS * 0.5)[0]
+	var lowest := foot
+	if supports.is_empty():
+		lowest = maxf(lowest, _highest_ground(outer, ground))
+	floors.append(lowest)
+
+
+## How far the ground floor stands above the foot: the height a door's is counted from, so a floor raised over higher
+## ground inside takes nothing from the doors onto it.
+func floor_lift() -> float:
+	return floors[0] - samples[0].y - SINK if not floors.is_empty() else 0.0
+
+
+func _floor_line() -> PackedVector2Array:
 	var line := PackedVector2Array()
 	for p in laid_points:
 		line.append(Vector2(p.x, p.z))
+	return line
+
+
+## The outline the floor's rows end at, inside the stones; empty for anything not floored.
+func _floor_bounds() -> PackedVector2Array:
+	if not floored() or samples.is_empty() or laid_points.size() < 3:
+		return PackedVector2Array()
+	var line := _floor_line()
 	var inner := Geometry2D.offset_polygon(line, -THICKNESS * 0.5)
 	var outer := Geometry2D.offset_polygon(line, THICKNESS * 0.5 - FLOOR_IN)
-	if inner.is_empty() or outer.is_empty():
+	return outer[0] if not inner.is_empty() and not outer.is_empty() else PackedVector2Array()
+
+
+## Lays the floors `_level_floors` set, the lowest's bed reaching down to the foot so it reads as a step at the door. Flags
+## under stone, planks under plaster, in rows along its first side that end inside the walls; none in the room of an older
+## build it joins, or under a build standing on it.
+func _lay_floors() -> void:
+	if floors.is_empty():
 		return
-	floor_outline = inner[0]
-	var lowest := foot
-	if supports.is_empty():
-		lowest = maxf(lowest, _highest_ground(outer[0], ground))
-	floors.append(lowest)
+	var foot := samples[0].y + SINK
+	var outer := _floor_bounds()
+	var line := _floor_line()
 	var along := (line[1] - line[0]).normalized()
 	var across := along.orthogonal()
 	var lo := INF
 	var hi := -INF
-	for q in outer[0]:
+	for q in outer:
 		lo = minf(lo, q.dot(across))
 		hi = maxf(hi, q.dot(across))
 	var planks := plaster
@@ -556,8 +587,8 @@ func _lay_floors(ground: Callable) -> void:
 		while z < hi - 0.01:
 			rng.seed = hash([seed, "floor", f, row])
 			var depth := minf(PLANK.x if planks else FLAG.z, hi - z)
-			var near := _chord(outer[0], along, across, z)
-			var far := _chord(outer[0], along, across, z + depth)
+			var near := _chord(outer, along, across, z)
+			var far := _chord(outer, along, across, z + depth)
 			var a := maxf(near.x, far.x)
 			var b := minf(near.y, far.y)
 			var x := a - (rng.randf_range(0.0, PLANK.w) if planks else (FLAG.x * 0.5 if row % 2 == 1 else 0.0))
@@ -760,7 +791,7 @@ func opening_for(w: Vector4) -> Dictionary:
 	if w.z == DoorStyle.ARCHWAY:
 		return {"s": w.x, "half": ARCH_HALF * k, "sill": 0.0, "head": spring(k) + arch_rise(0.0, k) + arch_style().ring * k, "door": true, "style": DoorStyle.ARCHWAY, "lights": 1, "size": k}
 	if w.y - WINDOW_TALL * 0.5 < DOOR_SILL:
-		return {"s": w.x, "half": DOOR_HALF * k, "sill": 0.0, "head": roundf(DOOR_TALL * k / c) * c, "door": true, "lights": 1, "style": DoorStyle.PLAIN, "size": k}
+		return {"s": w.x, "half": DOOR_HALF * k, "sill": 0.0, "head": roundf((floor_lift() + DOOR_TALL * k) / c) * c, "door": true, "lights": 1, "style": DoorStyle.PLAIN, "size": k}
 	var sill := roundf((w.y - WINDOW_TALL * 0.5) / c) * c
 	return {"s": w.x, "half": WINDOW_HALF * k, "sill": sill, "head": sill + roundf(WINDOW_TALL * k / c) * c, "door": false, "lights": 1, "style": DoorStyle.PLAIN, "size": k}
 

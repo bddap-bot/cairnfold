@@ -555,8 +555,10 @@ func _shared_opening_cap(w: Wall) -> void:
 	_check(Commands._wall(data) == null, "the command rejects one more opening")
 	data.openings = PackedVector4Array([Vector4(2, 0, 0.5, 1)])
 	_check(Commands._wall(data) == null, "the command rejects an unknown door style")
-	data.openings = PackedVector4Array([WallLayout.archway(2.0, 0.9)])
-	_check(Commands._wall(data) == null, "the command rejects an opening smaller than a doorway")
+	data.openings = PackedVector4Array([WallLayout.archway(2.0, WallLayout.MIN_SIZE)])
+	_check(Commands._wall(data) != null, "the command accepts a pet door")
+	data.openings = PackedVector4Array([WallLayout.archway(2.0, WallLayout.MIN_SIZE - 0.01)])
+	_check(Commands._wall(data) == null, "the command rejects an opening smaller than a pet door")
 	data.openings = PackedVector3Array([Vector3(2, 0, 1)])
 	_check(Commands._wall(data) == null, "the command rejects openings without their size")
 	data.fence = true

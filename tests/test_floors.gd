@@ -8,6 +8,7 @@ var failures := 0
 func _init() -> void:
 	_a_house_is_floored_wall_to_wall_over_its_highest_ground()
 	_a_raised_house_floors_its_foot()
+	_doors_stand_their_height_over_the_floor()
 	_stone_lays_flags_and_plaster_planks()
 	_a_round_tower_is_floored_too()
 	_a_house_has_one_floor_however_tall()
@@ -105,6 +106,19 @@ func _a_raised_house_floors_its_foot() -> void:
 			lowest = minf(lowest, _slope(p.x, p.z))
 		_check(is_equal_approx(w.floors[0], w.samples[0].y + WallLayout.SINK) and absf(w.floors[0] - (lowest + rise)) < 0.05, "raised %.1f, the floor rides the foot: %.2f over ground %.2f" % [rise, w.floors[0], lowest])
 		_check(_covered(w, w.floors[0]) == 1.0, "raised %.1f, the floor still covers the room" % rise)
+
+
+func _doors_stand_their_height_over_the_floor() -> void:
+	for plaster in [false, true]:
+		var w := _house(_slope, 0.0, plaster, 4.8)
+		var lift := w.floors[0] - w.samples[0].y - WallLayout.SINK
+		_check(lift > 0.3 and is_equal_approx(w.floor_lift(), lift), "up a slope the floor stands %.2f over the foot" % lift)
+		_check(is_equal_approx(w.spring() - lift, WallLayout.SPRING), "the doorway arch springs its full height over the floor: %.2f" % (w.spring() - lift))
+		var door := w.opening_for(Vector4(1.5, 0.0, WallLayout.DoorStyle.PLAIN, 1.0))
+		_check(door.head - lift >= WallLayout.DOOR_TALL - w.course_height() * 0.5, "a door's head stands its height over the floor: %.2f" % (door.head - lift))
+		var pet := w.opening_for(Vector4(1.5, 0.0, WallLayout.DoorStyle.ARCHWAY, WallLayout.MIN_SIZE))
+		_check(w.can_arch(WallLayout.MIN_SIZE) and pet.head - lift < 1.2, "a pet door still opens small over the floor: %.2f" % (pet.head - lift))
+		_check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind in ["block", "plaster"] and absf(st.s - 3.0) < WallLayout.ARCH_HALF - 0.1 and st.y > lift and st.y < w.spring()), "nothing of the wall stands in the doorway over the floor")
 
 
 func _stone_lays_flags_and_plaster_planks() -> void:
