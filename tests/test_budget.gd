@@ -124,10 +124,11 @@ func _counts_follow_placements_and_deletions() -> void:
 	_check(world.units.get("tree", 0) == 1 and world.units.get("flower", 0) > 0, "a planted tree and painted flowers count: %s" % world.units)
 	var planted: int = world.state.groups.keys().filter(func(g: int) -> bool: return world.state.groups[g].kind == "tree")[0]
 	var before_resize := world.units.duplicate()
-	for scale in [0.4, 2.0, 3.0]:
+	for scale in [FloraLayout.SCALES.x, 2.0, FloraLayout.SCALES.y]:
 		var resize := {"op": "tree", "group": planted, "index": 0, "scale": scale}
 		_check(world.change_of(resize).is_empty(), "resizing predicts no extra charge")
 		world._order(resize, world.me())
+		_check(is_equal_approx(world.state.groups[planted].scale.get(0, 1.0), scale), "the resize was accepted before undoing it")
 		_check(_same(world.units, before_resize) and _same(world.units, _recount()), "resizing keeps the planted tree charged once")
 		world._order({"op": "undo"}, world.me())
 		_check(_same(world.units, before_resize), "undoing a resize preserves its charge")

@@ -263,7 +263,7 @@ func _trees_grow_by_the_grip() -> void:
 	_check(world.state.groups[g].scale.is_empty(), "shown here alone while held")
 	tool.end_grow(m)
 	_check(world.state.groups[g].scale.get(0) == grown and is_equal_approx(flora.scale_of(trunk), grown), "letting go sends it")
-	_check(is_equal_approx(world.units.tree, trees - 1.0 + grown * grown), "it counts by its crown's ground: %.2f" % (world.units.tree - trees))
+	_check(is_equal_approx(world.units.tree, trees), "a resized tree keeps its measured per-tree charge: %.2f" % (world.units.tree - trees))
 	_check(flora.shade_of(flora.groups[g]).basis.get_scale().is_equal_approx(shade * grown), "its shade grows with it")
 	var high := at + Vector3(0, top * grown * 0.9, 6)
 	_check(not flora.solid_hit(high, Vector3.FORWARD, 12.0).is_empty(), "and what strikes it, high on its new crown")
