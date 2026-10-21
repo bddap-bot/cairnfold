@@ -94,12 +94,15 @@ func _smear(h: Hand, b: Birds.Bird) -> void:
 static func cup() -> Node3D:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	for side in [-1.0, 1.0]:
-		for finger in 3:
-			for joint in 3:
-				var angle := float(joint) * 0.45
-				var at := Vector3(side * (0.025 + sin(angle) * 0.018), 0.008 + float(joint) * 0.012, float(finger - 1) * 0.017)
-				Meshes.ellipsoid(st, 0, at, Vector3(0.009, 0.009, 0.012), Color.WHITE, 3, 8)
+	Meshes.ellipsoid(st, 0, Vector3(0, -0.004, 0.008), Vector3(0.035, 0.012, 0.04), Color.WHITE, 4, 10)
+	for finger in 4:
+		for joint in 3:
+			var angle := float(joint) * 0.45
+			var at := Vector3(0.025 + sin(angle) * 0.018, 0.006 + float(joint) * 0.012, float(finger) * 0.015 - 0.022)
+			Meshes.ellipsoid(st, 0, at, Vector3(0.009, 0.009, 0.011), Color.WHITE, 3, 8)
+	for joint in 3:
+		var at := Vector3(-0.024 - joint * 0.005, 0.006 + joint * 0.009, 0.015 - joint * 0.007)
+		Meshes.ellipsoid(st, 0, at, Vector3(0.011, 0.01, 0.012), Color.WHITE, 3, 8)
 	st.index()
 	var m := MeshInstance3D.new()
 	m.mesh = st.commit()

@@ -2001,10 +2001,12 @@ func _bird_smear(s: Dictionary) -> void:
 	var basis := frame.basis
 	var from := h.global_transform
 	var target := Transform3D(basis, frame * Vector3(-0.25, 0, 0.09) - basis * (BirdCarry.HOLD.origin + Conure.BODY))
-	for i in 60:
-		h.global_transform = from.interpolate_with(target, float(i + 1) / 60.0)
+	var approach := 0.0
+	while approach < 0.6:
 		await get_tree().process_frame
-	await _frames(15)
+		approach += get_process_delta_time()
+		h.global_transform = from.interpolate_with(target, smoothstep(0.0, 0.6, approach))
+	await _frames(2)
 	var seconds: float = s.get("seconds", 3.0)
 	var t := 0.0
 	while t < seconds:
