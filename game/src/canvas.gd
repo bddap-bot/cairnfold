@@ -6,6 +6,9 @@ extends Node
 ## by sample at the pace it was painted (`play`), or a whole kept painting replayed as fast as the frame allows
 ## (`rebuild`). Wet paint flows and dries in ticks, only on tiles a wet brush touched in the last DRY_TICKS, and every
 ## dab lands at a known tick, so a replay lays the same painting the painter saw.
+## Each time the canvas comes to rest at a stroke's end it keeps a checkpoint: its paint on the GPU, its tick and wet
+## tiles, under a key naming every stroke laid so far. `rebuild` starts from the checkpoint of the longest prefix of its
+## strokes and replays only the rest, so undoing the last stroke costs a texture copy however many came before.
 ## Without a RenderingDevice (headless runs) it keeps its ticks and does nothing on the GPU.
 
 ## GPU work a frame may take, in texel-steps (one texel through one flow step, or under one dab). A painter's own
@@ -19,6 +22,8 @@ const DAB_ROOM := 8192
 const PAPER := 0
 const DAB := 1
 const FLOW := 2
+## Checkpoints a canvas keeps, each two textures of 14 MB: undo steps back this far without a replay.
+const CHECKPOINTS := 6
 
 static var _shader: RID
 static var _pipeline: RID
@@ -39,7 +44,22 @@ var _wet_tiles := {}
 var _queue: Array = []
 var _queued_ticks := 0
 var _catching_up := false
+## When the replay under way began, and the frames it has taken, for the log line its end writes.
+var _replay_from := 0
+var _replay_frames := 0
+var _replay_strokes := 0
 var _owed := 0.0
+## The key of the strokes ended so far, in the order they ended (`_chain`), how many, and the checkpoints kept:
+## [key, count, ticks, tiles, wet tiles, slot], newest last.
+var _key := 0
+var _count := 0
+var _checkpoints: Array = []
+## Strokes queued and not yet ended, and whether the painter's own brush has laid since its last `end`: a checkpoint is
+## kept only between strokes.
+var _pending := 0
+var _open := false
+## Render thread: each slot's [wet, dry] textures, made the first time it is saved to.
+var _slots: Array = []
 ## What this frame lays, in order, and the dabs it uses.
 var _ops: Array = []
 var _batches: Array = []
@@ -138,7 +158,10 @@ func _exit_tree() -> void:
 		rids.append_array([b[2], b[3], b[0], b[1]])
 	rids.append_array(_wet + [_dry, _paper] + _frozen)
 	var rd := _rd
+	var slots := _slots
 	RenderingServer.call_on_render_thread(func() -> void:
+		for slot: Array in slots:
+			rids.append_array(slot)
 		for r in rids:
 			if r.is_valid():
 				rd.free_rid(r))
@@ -157,8 +180,15 @@ func wet() -> bool:
 
 ## Lays dabs now, at the current tick: the painter's own brush, as it touches.
 func lay(stroke: Dictionary, dabs: PackedFloat32Array) -> void:
+	_open = true
 	if not dabs.is_empty():
 		_lay(stroke, dabs)
+
+
+## The painter's own `stroke` has ended now.
+func end(stroke: Dictionary) -> void:
+	_open = false
+	_ended(stroke)
 
 
 ## Plays `stroke` after `gap` ticks, each sample at the tick it was painted.
@@ -169,25 +199,87 @@ func play(stroke: Dictionary, gap: int) -> void:
 		var sample := Brushwork.unpack(stroke.samples, i)
 		_wait(sample[3])
 		_queue.append(["dabs", stroke, s.add(sample)])
-	_queue.append(["end"])
+	_queue.append(["end", stroke])
+	_pending += 1
 
 
-## Back to a blank sheet, then `strokes` replayed as fast as the frame allows; the painting as it was stays on show
-## until the replay has caught up.
+## The canvas as `strokes` leave it: back to the checkpoint of the longest prefix of them kept, or a blank sheet, then
+## the rest replayed as fast as the frame allows, the painting as it was staying on show until the replay has caught up.
 func rebuild(strokes: Array) -> void:
-	_freeze()
-	_blank = true
+	var keys := [0]
+	for s: Dictionary in strokes:
+		keys.append(_chain(keys[-1], s))
+	var from: Array = []
+	for c: Array in _checkpoints:
+		if c[1] <= strokes.size() and c[0] == keys[c[1]] and (from.is_empty() or c[1] > from[1]):
+			from = c
+	if (0 if from.is_empty() else from[1]) < strokes.size():
+		_freeze()
 	_queue.clear()
 	_queued_ticks = 0
+	_pending = 0
+	_open = false
 	_owed = 0.0
-	ticks = 0
-	last_end = 0
-	_wet_tiles.clear()
-	_tiles.fill(0)
-	_ops.append(["clear"])
-	for s: Dictionary in strokes:
-		play(s, s.gap)
+	_catching_up = false
+	_close_batch()
+	if from.is_empty():
+		_ops.append(["clear"])
+		_restore([0, 0, 0, PackedInt32Array(), {}, -1])
+	else:
+		_ops.append(["restore", from[5]])
+		_restore(from)
+		_checkpoints.erase(from)
+		_checkpoints.append(from)
+	_close_batch()
+	print("canvas: %d strokes, %d of them from a checkpoint" % [strokes.size(), _count])
+	if _count == strokes.size():
+		_thaw()
+		return
+	for i in range(_count, strokes.size()):
+		play(strokes[i], strokes[i].gap)
 	_catching_up = true
+	_replay_from = Time.get_ticks_usec()
+	_replay_frames = 0
+	_replay_strokes = strokes.size() - _count
+
+
+func _restore(c: Array) -> void:
+	_key = c[0]
+	_count = c[1]
+	ticks = c[2]
+	last_end = c[2]
+	if c[3].is_empty():
+		_tiles.fill(0)
+	else:
+		_tiles = c[3].duplicate()
+	_wet_tiles = c[4].duplicate()
+	_blank = c[1] == 0
+
+
+## The key of the strokes `key` names followed by `stroke`.
+static func _chain(key: int, stroke: Dictionary) -> int:
+	return hash([key, stroke.medium, stroke.brush, stroke.colour, stroke.strength, stroke.load, stroke.gap, stroke.samples])
+
+
+## A stroke has ended at this tick; with no other under way, the canvas keeps a checkpoint of itself.
+func _ended(stroke: Dictionary) -> void:
+	last_end = ticks
+	_key = _chain(_key, stroke)
+	_count += 1
+	if _open or _pending > 0:
+		return
+	var slot := -1
+	for c: Array in _checkpoints:
+		if c[0] == _key and c[1] == _count:
+			slot = c[5]
+			_checkpoints.erase(c)
+			break
+	if slot < 0 and _checkpoints.size() >= CHECKPOINTS:
+		slot = _checkpoints.pop_front()[5]
+	if slot < 0:
+		slot = _checkpoints.size()
+	_checkpoints.append([_key, _count, ticks, _tiles.duplicate(), _wet_tiles.duplicate(), slot])
+	_ops.append(["save", slot])
 
 
 func _wait(n: int) -> void:
@@ -208,7 +300,8 @@ func _process(delta: float) -> void:
 		if not _queue.is_empty() and _queue[0][0] != "wait":
 			var e: Array = _queue.pop_front()
 			if e[0] == "end":
-				last_end = ticks
+				_pending -= 1
+				_ended(e[1])
 				continue
 			if _catching_up and budget <= 0.0:
 				_queue.push_front(e)
@@ -234,8 +327,11 @@ func _process(delta: float) -> void:
 		elif not wet():
 			_owed = 0.0
 			break
+	if _catching_up:
+		_replay_frames += 1
 	if _catching_up and _queue.is_empty():
 		_catching_up = false
+		print("canvas: %d strokes back in %.0f ms over %d frames" % [_replay_strokes, (Time.get_ticks_usec() - _replay_from) / 1000.0, _replay_frames])
 		_owed = 0.0
 		_thaw()
 	_submit()
@@ -337,6 +433,18 @@ func _run(batches: Array) -> void:
 				"clear":
 					for t in _wet + [_dry]:
 						_rd.texture_clear(t, Color(0, 0, 0, 0), 0, 1, 0, 1)
+				"save":
+					while _slots.size() <= op[1]:
+						_slots.append([])
+					if _slots[op[1]].is_empty():
+						var fmt := _rd.texture_get_format(_dry)
+						_slots[op[1]] = [_rd.texture_create(fmt, RDTextureView.new()), _rd.texture_create(fmt, RDTextureView.new())]
+					_copy(_wet[0], _slots[op[1]][0])
+					_copy(_dry, _slots[op[1]][1])
+				"restore":
+					_copy(_slots[op[1]][0], _wet[0])
+					_copy(_slots[op[1]][0], _wet[1])
+					_copy(_slots[op[1]][1], _dry)
 				"tick":
 					_dispatch(bundle[2], FLOW, op[2], [0, 0, 0], Vector4.ZERO, Vector4(0, 0, op[1], 0))
 					_dispatch(bundle[3], FLOW, op[2], [0, 0, 0], Vector4.ZERO, Vector4(0, 0, op[1], 1))
@@ -346,7 +454,11 @@ func _run(batches: Array) -> void:
 					_dispatch(bundle[3], DAB, op[4], [op[2], op[3], s.brush], Vector4(c.x, c.y, c.z, s.strength), Vector4(s.medium, 0, 0, 0))
 
 
-## Shows a copy of the canvas as it stands while a replay catches up behind it.
+func _copy(from: RID, to: RID) -> void:
+	_rd.texture_copy(from, to, Vector3.ZERO, Vector3.ZERO, Vector3(Brushwork.SIZE.x, Brushwork.SIZE.y, 1), 0, 0, 0, 0)
+
+
+## Shows a copy of the canvas as it stood before this frame's `rebuild` while a replay catches up behind it.
 func _freeze() -> void:
 	if _rd == null or _blank or not _frozen.is_empty():
 		return
@@ -354,7 +466,7 @@ func _freeze() -> void:
 		var fmt := _rd.texture_get_format(_dry)
 		for from in [_wet[0], _dry]:
 			var copy := _rd.texture_create(fmt, RDTextureView.new())
-			_rd.texture_copy(from, copy, Vector3.ZERO, Vector3.ZERO, Vector3(fmt.width, fmt.height, 1), 0, 0, 0, 0)
+			_copy(from, copy)
 			_frozen.append(copy))
 	_shown[0].texture_rd_rid = _frozen[0]
 	_shown[1].texture_rd_rid = _frozen[1]

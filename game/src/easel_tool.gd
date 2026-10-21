@@ -608,7 +608,7 @@ func end_stroke(p: Painter) -> void:
 	var e: Easels.Easel = s.easel
 	if not is_instance_valid(e):
 		return
-	e.canvas.last_end = e.canvas.ticks
+	e.canvas.end(s.data)
 	if p.brush != Brushwork.Brush.STICK:
 		p.load *= s.stroker.left()
 		_show_paint(p)

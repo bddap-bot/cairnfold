@@ -3249,6 +3249,16 @@ the canvas, so replaying a kept painting (loading, joining, or after an undo) la
 a replay on this machine's GPU matched the live painting bit for bit. The painter's own canvas lays the stroke as it
 is painted; other players' canvases play it at the pace it was painted. Undo takes the last stroke off.
 
+Each time a canvas comes to rest at a stroke's end, with no other stroke under way on it, it keeps a checkpoint: a
+GPU copy of its wet and dry paint (the paper never changes), its tick and its wet tiles, under a hash of every stroke
+laid so far. A rebuild (undo, redo, a stroke the garden turned down) goes back to the checkpoint of the longest
+prefix of the strokes it is given, or to a blank sheet, and replays only the rest, so undoing the last stroke is one
+texture copy however long the painting is. Paint still wet at the checkpoint carries on drying from the same tick, so
+it dries to what a fresh replay dries to, bit for bit (`tests/gpu_canvas.gd`). A canvas keeps six checkpoints, the
+most recently made or used, each two 1536×1152 half-float textures (28 MB), made only once that canvas is painted
+on: undo steps back six strokes at a copy each, and further back replays from the nearest checkpoint kept or from
+the blank sheet. `demo/canvas-undo.json` times undo at 10, 50 and 200 strokes.
+
 `demo/easel.json` sets up three easels and paints a landscape on each, one per medium; `demo/oil-mixing.json` paints
 blue and then yellow onto the oil palette, stirs them green, picks the green up and paints with it; `demo/easel-bench.json`
 measures painting on a headset, and `demo/costs.json` what an easel costs a frame.

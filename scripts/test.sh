@@ -33,6 +33,21 @@ for t in tests/test_*.gd; do
   # A failure seen once is kept in the run's log, crash backtraces and errors around it included.
   if [ "$failed" = 1 ]; then tail -n 60 "$log" | sed "s|^|$t: |"; status=1; fi
 done
+# The GPU checks compare what the compute shaders lay, so they run on the desktop renderer under a virtual display, as
+# scripts/render.sh does, one at a time.
+display=:$((100 + RANDOM % 800))
+Xvfb "$display" -screen 0 640x480x24 -nolisten tcp &
+xvfb=$!
+trap 'kill $xvfb 2>/dev/null || true; rm -rf "$runs"' EXIT
+for _ in $(seq 50); do [ -e "/tmp/.X11-unix/X${display#:}" ] && break; sleep 0.1; done
+for t in tests/gpu_*.gd; do
+  log="$runs/$(basename "$t").log"
+  code=0
+  DISPLAY=$display VK_ICD_FILENAMES=${NESTCOMBE_ICD:-/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json} XDG_DATA_HOME=$(mktemp -d -p "$runs") \
+    timeout 600 godot4 --path game --fixed-fps 60 --xr-mode off --resolution 64x64 --script "../$t" >"$log" 2>&1 || code=$?
+  grep -E "^(tests|FAIL):|SCRIPT ERROR" "$log" | sed "s|^|$t: |" || true
+  if [ "$code" != 0 ] || grep -qE "SCRIPT ERROR" "$log"; then echo "$t: exited $code"; tail -n 60 "$log" | sed "s|^|$t: |"; status=1; fi
+done
 if ! wait "$python"; then status=1; fi
 cat "$runs/python.log"
 exit "$status"

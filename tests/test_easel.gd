@@ -27,6 +27,7 @@ func _run() -> void:
 	await _strokes_are_kept_and_load_whole()
 	await _undo_takes_back_a_stroke_and_redo_paints_it_again()
 	await _a_fresh_sheet_clears_and_undo_brings_the_painting_back()
+	await _undoing_a_stroke_replays_nothing_however_many_came_before()
 	await _a_deleted_easel_comes_back_with_its_painting()
 	await _the_tray_loads_the_brush()
 	_each_brush_in_the_pot_is_taken_alone()
@@ -160,6 +161,33 @@ func _a_fresh_sheet_clears_and_undo_brings_the_painting_back() -> void:
 	_check(_easel().strokes.is_empty(), "a sheet pulled well off tears away, leaving a fresh one")
 	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(_easel().strokes == before, "undo puts the painting back")
+
+
+## Undo's cost does not grow with the painting: the canvas goes back to the checkpoint the stroke before kept, at its
+## tick, with nothing left to replay, at 10 strokes as at 200; a stroke further back replays only those after the
+## nearest checkpoint.
+func _undoing_a_stroke_replays_nothing_however_many_came_before() -> void:
+	for n in [10, 200]:
+		var canvas := Canvas.new()
+		root.add_child(canvas)
+		var strokes := Driver.painting(n + 1)
+		var kept := strokes.slice(0, n)
+		canvas.rebuild(kept)
+		while canvas.catching_up():
+			await process_frame
+		var at := canvas.last_end
+		canvas.play(strokes[n], 30)
+		while canvas.last_end == at:
+			await process_frame
+		canvas.rebuild(kept)
+		_check(not canvas.catching_up() and canvas.ticks == at and canvas.last_end == at, "undo at %d strokes goes straight back to the stroke before, tick %d: %d" % [n, at, canvas.ticks])
+		canvas.rebuild(strokes.slice(0, 2))
+		_check(canvas.catching_up() and canvas.ticks == 0, "a stroke before any checkpoint replays from a blank sheet")
+		while canvas.catching_up():
+			await process_frame
+		canvas.rebuild(strokes.slice(0, 3))
+		_check(canvas.catching_up() and canvas._pending == 1, "the stroke after a checkpoint is all that replays: %d" % canvas._pending)
+		canvas.queue_free()
 
 
 func _a_deleted_easel_comes_back_with_its_painting() -> void:
