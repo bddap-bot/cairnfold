@@ -145,11 +145,11 @@ static func build() -> ArrayMesh:
 	var head := BODY + up * 0.062 - back * 0.004
 	var none := Callable()
 	var shade := func(s: float) -> Color: return Color(s, 0.0, 0.0, 0.5)
-	Meshes.ellipsoid(st, Part.BODY, BODY, Vector3(0.036, 0.052, 0.038), feathers(1.0, 0.0, Patch.BACK), 8, 14, none, lean, 0.03, BODY)
-	Meshes.ellipsoid(st, Part.BODY, BODY + up * 0.014 - back * 0.012, Vector3(0.033, 0.036, 0.032), feathers(1.05, 0.06, Patch.CHEST), 6, 11, none, lean, 0.035, BODY)
-	Meshes.ellipsoid(st, Part.BODY, BODY - up * 0.024 - back * 0.006, Vector3(0.031, 0.031, 0.031), feathers(1.08, 0.18, Patch.BELLY), 6, 11, none, lean, 0.04, BODY)
-	Meshes.ellipsoid(st, Part.BODY, BODY + up * 0.008 + back * 0.013, Vector3(0.031, 0.042, 0.026), feathers(0.95, -0.04, Patch.BACK), 6, 11, none, lean, 0.03, BODY)
-	Meshes.ellipsoid(st, Part.HEAD, head, Vector3(0.031, 0.03, 0.032), feathers(1.0, -0.12, Patch.CROWN), 8, 13, none, Basis(), 0.025, head)
+	Meshes.ellipsoid(st, Part.BODY, BODY, Vector3(0.036, 0.052, 0.038), feathers(1.0, 0.0, Patch.BACK), 6, 12, none, lean, 0.03, BODY)
+	Meshes.ellipsoid(st, Part.BODY, BODY + up * 0.014 - back * 0.012, Vector3(0.033, 0.036, 0.032), feathers(1.05, 0.06, Patch.CHEST), 4, 9, none, lean, 0.035, BODY)
+	Meshes.ellipsoid(st, Part.BODY, BODY - up * 0.024 - back * 0.006, Vector3(0.031, 0.031, 0.031), feathers(1.08, 0.18, Patch.BELLY), 4, 9, none, lean, 0.04, BODY)
+	Meshes.ellipsoid(st, Part.BODY, BODY + up * 0.008 + back * 0.013, Vector3(0.031, 0.042, 0.026), feathers(0.95, -0.04, Patch.BACK), 4, 9, none, lean, 0.03, BODY)
+	Meshes.ellipsoid(st, Part.HEAD, head, Vector3(0.031, 0.03, 0.032), feathers(1.0, -0.12, Patch.CROWN), 6, 12, none, Basis(), 0.025, head)
 	Meshes.ellipsoid(st, Part.HEAD, head + Vector3(0, 0.004, -0.019), Vector3(0.023, 0.021, 0.017), feathers(1.05, -0.08, Patch.FACE), 5, 9, none, Basis(), 0.04, head)
 	var bill := head + Vector3(0, -0.006, -0.03)
 	Meshes.ellipsoid(st, Part.HEAD, bill, BILL_SIZE, shade.call(1.0), 5, 8, _hook)
@@ -157,20 +157,20 @@ static func build() -> ArrayMesh:
 	for s in [-1.0, 1.0]:
 		var out := Vector3(s * 0.8, 0.22, -0.56).normalized()
 		var eye := head + out * 0.028
-		Meshes.ellipsoid(st, Part.HEAD, head + out * 0.0295, Vector3(0.0098, 0.0098, 0.004), RING, 3, 14, none, Basis.looking_at(out))
+		Meshes.ellipsoid(st, Part.HEAD, head + out * 0.0295, Vector3(0.0098, 0.0098, 0.004), RING, 3, 10, none, Basis.looking_at(out))
 		Meshes.ellipsoid(st, Part.HEAD, eye, Vector3.ONE * 0.0071, EYE, 4, 10)
 		Meshes.ellipsoid(st, Part.HEAD, eye + out * 0.0052 + Vector3(0, 0.0024, -0.002), Vector3.ONE * 0.0019, SHINE, 2, 5)
 		var w := Part.WING_L if s < 0 else Part.WING_R
 		var shoulder: Vector3 = BODY + up * 0.004 + back * 0.012 + Vector3(s * 0.029, 0, 0)
 		var wing := lean * Basis(Vector3.BACK, s * 0.08)
-		Meshes.ellipsoid(st, w, shoulder, WING_SIZE, feathers(0.88, -0.18, Patch.FLIGHT), 6, 10, _wing_shape, wing, 0.03, BODY)
+		Meshes.ellipsoid(st, w, shoulder, WING_SIZE, feathers(0.88, -0.18, Patch.FLIGHT), 4, 8, _wing_shape, wing, 0.03, BODY)
 		Meshes.ellipsoid(st, w, shoulder + up * 0.018 + Vector3(s * 0.003, 0, 0), Vector3(0.011, 0.024, 0.023), feathers(0.95, -0.08, Patch.COVERTS), 4, 8, none, wing, 0.04, BODY)
 		var foot := Vector3(s * 0.012, 0, 0.004)
 		Meshes.ellipsoid(st, Part.FEET, foot + Vector3(0, 0.009, 0), Vector3(0.0045, 0.009, 0.0045), FOOT, 2, 5)
 		Meshes.ellipsoid(st, Part.FEET, foot + Vector3(0, 0.0025, 0), Vector3(0.006, 0.0022, 0.011), FOOT, 2, 5)
 	var rump := BODY - up * 0.036 + back * 0.014
 	var tail := Basis(Vector3.RIGHT, deg_to_rad(101.0))
-	Meshes.ellipsoid(st, Part.TAIL, rump + tail.y * 0.05, TAIL_SIZE, feathers(0.8, -0.25, Patch.TAIL), 6, 8, _tail_shape, tail)
+	Meshes.ellipsoid(st, Part.TAIL, rump + tail.y * 0.05, TAIL_SIZE, feathers(0.8, -0.25, Patch.TAIL), 4, 8, _tail_shape, tail)
 	st.index()
 	return st.commit()
 
