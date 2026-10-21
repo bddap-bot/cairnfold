@@ -312,6 +312,36 @@ the calm `deer/ground` view, inside the 0.6 ms spread of the pond phases with no
 (`20261019T071201Z-6f3dc2d.json`, the full-size swapchain) read the same order: 41.82 ms against 44.81 ms
 and 44.87 ms. The frenzy costs nothing measurable, so `Fish.tick` is left as it is.
 
+### Another headset is no stand-in for the Quest 2
+
+A Quest 2 figure comes from a Quest 2. One Quest APK was run on a Quest 2 and on a
+Quest 3, both at the Quest 2's fit step (`{"op": "quality", "step": "fit"}`, which
+an Android headset resolves to the Quest 2's), through `demo/costs.json` and the stress scene with
+every `quality` op set to `fit`. Each prediction below is held out: the phase's family
+is left out of the fit, or, for the stress scene, the whole scene is.
+
+| Estimate from the Quest 3 (`App=` GPU ms) | Foliage | Masonry | Water | p90 error, all |
+| --- | --- | --- | --- | --- |
+| Build cost over the bare meadow, per-category ratio | 2.76 | 1.10 | 0.90 | 1.60 |
+| Stress-scene frame, calibrated on the costs scene | 8.24 | 27.63 | 9.74 | 21.83 |
+| Frame, a local curve over both scenes | 2.44 | 5.85 | 4.32 | 4.48 |
+
+The room for a garden's builds on the Quest 2 is `budget_ms - base_ms`, about 2 ms, so an
+estimator would need a p90 error near 0.25 ms, an eighth of that room, to say whether a change fits. None of these
+comes close. The ratio is not one number. Foliage costs the Quest 2 1.7 to 10 times what it
+costs the Quest 3, masonry mostly 0.7 to 1.7 times, and wildlife 4 to 5 times. It also
+grows with load. Light phases run 1.0 to 1.1 times, and the heavy village views run 2.8
+times (19.3 ms against 54.6 ms). Two identical Quest 3 runs differ by 0.3 ms median and
+1.06 ms p90 on a build's cost, and the Quest 2's slope multiplies that noise. CPU time
+does not correlate at all: the slope between the two headsets' build costs is 0.1. The
+Frame's own fitted table, `FRAME_COSTS` (at its own fit step), prices the same units between 1.8 and 10.7
+times below `QUEST_2_COSTS` (easel against thatch), so it fails the same way.
+
+A Quest 3 run still orders phases that differ by a millisecond or more on the Quest 2
+(92 to 95 per cent of such pairs agree), so it can screen a large change. Any number
+that is reported as Quest 2 milliseconds, written to `QUEST_2_COSTS`, or compared with
+the budget is measured on a Quest 2.
+
 ## Frame budget
 
 Directive (verbatim): "The-the only reason I could see for adding a resource to this
