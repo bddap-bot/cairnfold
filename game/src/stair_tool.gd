@@ -50,23 +50,10 @@ func end(hand: Hand) -> void:
 	if s.data.a.distance_to(s.data.b) < 0.3:
 		s.ghost.queue_free()
 		return
-	s.data.on = supports(s.data)
+	s.data.on = walls.stair_supports(s.data)
 	if world.fits({"op": "stairs", "stairs": s.data}):
 		Cues.play(Cues.Act.STAIRS_SET, s.data.b, hand)
 	world.submit({"op": "stairs", "stairs": s.data}, func(): s.ghost.queue_free(), hand)
-
-## The builds the stairs' ends rest on, on a top or a floor inside, which take the stairs with them when they go.
-func supports(d: Dictionary) -> PackedInt32Array:
-	var on := PackedInt32Array()
-	for p: Vector3 in [d.a, d.b]:
-		var ids: Array[int] = [walls.aim(p + Vector3.UP * WallTool.TOP_BAND, Vector3.DOWN).get("on", -1)]
-		for w in walls.walls:
-			if w.roof != null and absf(w.layout.floor_under(p) - p.y) < WallTool.TOP_BAND:
-				ids.append(w.id)
-		for id in ids:
-			if id >= 0 and not on.has(id) and on.size() < Commands.MAX_SUPPORTS:
-				on.append(id)
-	return on
 
 func _cancel(hand: Hand) -> void:
 	if _strokes.has(hand):

@@ -235,7 +235,7 @@ func _gripped(main: Node) -> void:
 	var world: World = main.world
 	var tool: WallTool = main.tool
 	var g := Terrain.ground(6, -6)
-	world.submit({"op": "stairs", "stairs": {"a": g, "b": g + Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 9, "paint": Palette.plain()}})
+	world.submit({"op": "stairs", "stairs": {"a": g, "b": g + Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 9, "paint": Palette.plain(), "on": PackedInt32Array()}})
 	world.stairs._process(10.0)
 	var id: int = world.state.stairs.keys().filter(func(k: int) -> bool: return world.state.stairs[k].seed == 9)[0]
 	var was: Dictionary = world.state.stairs[id].duplicate()

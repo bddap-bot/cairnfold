@@ -1185,7 +1185,7 @@ func _stair_sizing(grip: StairGrip, s: Sizing, in_hand: Callable) -> Sizing:
 		stairs.show_reshaped(grip.id, shown)
 	s.command = func() -> Dictionary:
 		var same: bool = shown.a.is_equal_approx(was.a) and shown.b.is_equal_approx(was.b) and is_equal_approx(shown.width, was.width)
-		return {} if same else {"op": "reshape", "of": "stairs", "id": grip.id, "data": shown.duplicate()}
+		return {} if same else {"op": "reshape", "of": "stairs", "id": grip.id, "data": shown.merged({"on": stair_supports(shown)})}
 	s.take = func(m: Mason, hand: Transform3D) -> void:
 		from.merge(shown, true)
 		hold.hand = hand
@@ -1211,6 +1211,21 @@ static func carry_stairs(at: Dictionary, from: Transform3D, to: Transform3D, gai
 	var low := a if a.y < b.y else b
 	var under := maxf(Terrain.height_at(low.x, low.z) - low.y, 0.0)
 	return {"a": a + Vector3.UP * under, "b": b + Vector3.UP * under, "width": at.width}
+
+
+## The builds stairs standing as `d` rest their ends on, on a top or a floor inside, which take the stairs with them
+## when they go.
+func stair_supports(d: Dictionary) -> PackedInt32Array:
+	var on := PackedInt32Array()
+	for p: Vector3 in [d.a, d.b]:
+		var ids: Array[int] = [aim(p + Vector3.UP * TOP_BAND, Vector3.DOWN).get("on", -1)]
+		for w in walls:
+			if w.roof != null and absf(w.layout.floor_under(p) - p.y) < TOP_BAND:
+				ids.append(w.id)
+		for id in ids:
+			if id >= 0 and not on.has(id) and on.size() < Commands.MAX_SUPPORTS:
+				on.append(id)
+	return on
 
 
 ## The grip a hand already holding stairs `id` holds, so a second hand's grip on them joins that one.
