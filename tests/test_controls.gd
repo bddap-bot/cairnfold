@@ -167,9 +167,14 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	_check(w.layout.laid == laid, "carried, not laid again: walls, roof and all move as one")
 	_check(data.call().points == PackedVector3Array(WallTool.outline(placed)) or WallTool.house_of(data.call()).center == placed.center, "nothing is sent while it is held")
 	# Directive (verbatim): "When placing a building, you should be able to raise it higher up by raising your controller up"
-	for i in 10:
-		hold.call(&"right_hand", Vector3(0.5, -0.4 + 0.04 * (i + 1), -0.3), front)
+	var stale := 0
+	for i in 70:
+		hold.call(&"right_hand", Vector3(0.5, -0.4 + 0.04 * mini(i + 1, 10), -0.3), front)
 		await _frames(1)
+		var shown: Dictionary = tool._laid_at[0]
+		if shown.points != w.layout.laid_points or shown.laid_rise != w.layout.laid_rise:
+			stale += 1
+	_check(stale == 0, "each frame the stones laid are the ones carried, never a new lay under the old carry: %d stale frames" % stale)
 	var rise: float = tool.held_at.rise
 	_check(rise >= 0.3 and w.layout.rise == rise, "raising the hand raises it onto its plinth: %.1f m" % rise)
 	await _laid(w)

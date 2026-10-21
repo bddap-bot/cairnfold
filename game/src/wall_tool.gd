@@ -213,11 +213,8 @@ func _process(delta: float) -> void:
 		_handle(m)
 	_place_input()
 	_hold_build()
-	if held != null:
-		_carry(held, _laid_at, held_at)
-		for r: Wall in _riders:
-			_carry(r, _riders[r], held_at)
-	_settle_builds()
+	# At the end of the frame, after the walls, so a carried build is placed for the stones it laid this frame.
+	_place_carried.call_deferred()
 	_since_rebuild += delta
 	if _dirty and _since_rebuild >= REBUILD_EVERY:
 		_flush()
@@ -608,6 +605,14 @@ func _lay_build() -> void:
 func _build_change(at: Dictionary) -> Dictionary:
 	var d: Dictionary = world.state.walls[held.id]
 	return reshape_house(d, at) if at.has("size") else reshape_line(d, at)
+
+
+func _place_carried() -> void:
+	if held != null:
+		_carry(held, _laid_at, held_at)
+		for r: Wall in _riders:
+			_carry(r, _riders[r], held_at)
+	_settle_builds()
 
 
 ## Carries the stones `w` has laid to where its house stands as `at`, from where that stood when they were laid
