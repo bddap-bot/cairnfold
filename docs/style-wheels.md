@@ -15,7 +15,8 @@ models. Miniature masonry uses the existing shared baked geometry and materials.
 
 `demo/style-models.json` measures each wheel open for 25 seconds on the same
 scene and view, with the normal quality governor. It waits two minutes before
-measurement because the physical Quest shell continued rendering for 44–68
-seconds after scene startup in the first two attempts. Those attempts failed the
-benchmark's contamination check and are excluded. The check remains unchanged.
+measurement and closes the Quest shell after launch, before the measured phases. Three
+initial attempts caught the shell rendering beside the game, including repeated
+hand-presence transitions; those runs failed the benchmark's contamination check
+and are excluded. The check remains unchanged.
 The same wheel fixtures are appended to `demo/stress.json`.
