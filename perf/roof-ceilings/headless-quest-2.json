@@ -1,0 +1,27 @@
+{
+  "display": "headless",
+  "footprint_m": [
+    6,
+    4
+  ],
+  "model": "Quest 2",
+  "results": {
+    "after": {
+      "ceiling_surfaces": 1,
+      "ceiling_triangles": 1812,
+      "mortar": 59,
+      "roof_and_mesh_us_median": 11599,
+      "roof_and_mesh_us_p95": 12563,
+      "tiles": 59
+    },
+    "before": {
+      "ceiling_surfaces": 0,
+      "ceiling_triangles": 0,
+      "mortar": 59,
+      "roof_and_mesh_us_median": 424,
+      "roof_and_mesh_us_p95": 486,
+      "tiles": 59
+    }
+  },
+  "runs": 30
+}

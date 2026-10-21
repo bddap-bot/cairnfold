@@ -3507,3 +3507,16 @@ round roofs use their rectangular bound for that reservation.
 
 `demo/roof-ceilings.json` views rectangular, bowed, round and merged ceilings from
 inside and the merged deck from above; these cases also finish the stress scene.
+
+A physical Quest 2 headless sample of a 6 × 4 m roof (30 measured builds after
+five warmups) takes 11.60 ms median / 12.56 ms p95 for roof generation and mesh
+construction, versus 0.42 / 0.49 ms with ceiling generation omitted. The added
+ceiling has 1,812 triangles in one surface; the 59 deck tiles and 59 mortar
+pieces are unchanged. These are construction times, not rendered frame times;
+`perf/roof-ceilings/headless-quest-2.json` records the sample.
+
+The paired physical XR fixture is recorded in `perf/roof-ceilings/render-quest-2.json`.
+The interior holds the GPU budget in both runs. The dense scene exceeds it
+before and after; the changed exterior also exceeds it. Ivy counts differ between
+runs, so these totals do not isolate the ceiling's GPU cost or establish a
+whole-scene budget pass.

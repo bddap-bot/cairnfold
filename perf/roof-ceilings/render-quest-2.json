@@ -1,0 +1,86 @@
+{
+  "device": "Quest 2",
+  "method": "Physical unworn XR via scripts/bench.sh, fixed fit quality, identical scripted roofs with build guard disabled. Includes surrounding scene. Both validator runs exit 1 on GPU budget overrun.",
+  "budget_gpu_ms": 12.5,
+  "before_exit": 1,
+  "after_exit": 1,
+  "limitation": "Ivy generation differs between the two runs; paired GPU differences include that geometry and run-to-run variation. Ceiling-only GPU cost is not isolated. Dense baseline already exceeds budget; outside and dense after exceed budget. No claim of a whole-scene budget pass.",
+  "phases": {
+    "ceiling/inside": {
+      "before": {
+        "p50": 13.918999671936,
+        "p99": 14.6979999542236,
+        "late": 0,
+        "draws": 143,
+        "prims": 321644,
+        "gpu_ms": 10.88
+      },
+      "after": {
+        "p50": 13.9119997024536,
+        "p99": 15.048999786377,
+        "late": 0,
+        "draws": 144,
+        "prims": 321884,
+        "gpu_ms": 10.76
+      },
+      "gpu_delta_ms": -0.12
+    },
+    "ceiling/outside": {
+      "before": {
+        "p50": 14.1789999008179,
+        "p99": 28.2789993286133,
+        "late": 180,
+        "draws": 101,
+        "prims": 189993,
+        "gpu_ms": 12.37
+      },
+      "after": {
+        "p50": 15.2869997024536,
+        "p99": 25.5069999694824,
+        "late": 195,
+        "draws": 108,
+        "prims": 199553,
+        "gpu_ms": 12.69
+      },
+      "gpu_delta_ms": 0.32
+    },
+    "ceiling/far": {
+      "before": {
+        "p50": 13.9259996414185,
+        "p99": 14.9300003051758,
+        "late": 0,
+        "draws": 125,
+        "prims": 188908,
+        "gpu_ms": 11.08
+      },
+      "after": {
+        "p50": 14.0270004272461,
+        "p99": 25.6499996185303,
+        "late": 33,
+        "draws": 133,
+        "prims": 198718,
+        "gpu_ms": 11.66
+      },
+      "gpu_delta_ms": 0.58
+    },
+    "ceilings/dense": {
+      "before": {
+        "p50": 14.960000038147,
+        "p99": 28.1070003509521,
+        "late": 171,
+        "draws": 117,
+        "prims": 452349,
+        "gpu_ms": 13.02
+      },
+      "after": {
+        "p50": 16.0849990844727,
+        "p99": 25.9249992370605,
+        "late": 235,
+        "draws": 127,
+        "prims": 463419,
+        "gpu_ms": 13.29
+      },
+      "gpu_delta_ms": 0.27
+    }
+  }
+}
