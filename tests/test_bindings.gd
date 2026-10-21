@@ -78,16 +78,16 @@ func _frame_touches_bind_to_the_native_controls() -> void:
 	for hand in ["left", "right"]:
 		var paths := {"squeeze/touch": "grip_touch", "trigger/touch": "trigger_touch", "thumbstick/touch": "primary_touch"}
 		paths["dpad_down/touch" if hand == "left" else "a/touch"] = "ax_touch"
-		paths["dpad_up/touch" if hand == "left" else "b/touch"] = "by_touch"
+		paths["dpad_right/touch" if hand == "left" else "b/touch"] = "by_touch"
 		for path in paths:
 			_check(bound.get("/user/hand/%s/input/%s" % [hand, path], "") == paths[path], "Frame %s %s binds %s" % [hand, path, paths[path]])
-	_check(Controls.bound("frame", "wheel", "left_hand") == ["dpad_up"], "only D-pad up opens the left Frame wheel")
+	_check(Controls.bound("frame", "wheel", "left_hand") == ["dpad_right"], "only D-pad right opens the left Frame wheel")
 	_check(Controls.bound("frame", "wheel", "right_hand") == ["B"], "only B opens the right Frame wheel")
 
 
 func _unused_frame_controls_do_nothing() -> void:
 	var hands := _hands()
-	for control in ["X", "Y", "dpad_left", "dpad_right", "left_bumper", "right_bumper", "menu", "view", "left_stick_click", "right_stick_click"]:
+	for control in ["X", "Y", "dpad_up", "dpad_left", "left_bumper", "right_bumper", "menu", "view", "left_stick_click", "right_stick_click"]:
 		Driver.hold("frame", control, true)
 		await process_frame
 		for action in Controls.ACTIONS:

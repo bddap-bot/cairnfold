@@ -14,7 +14,7 @@ Each hand holds a tool, shown as a small object on top of its controller: walls,
 dirt paths, stone, flowers, grass, trees, boulders, pond, colour, style, camera, seeds, delete or visit.
 
 - Hold the upper face button (B on the right, Y on the left; on the Steam Frame B
-  on the right, D-pad up on the left), and a wheel of tools stands up in front of that
+  on the right, D-pad right on the left), and a wheel of tools stands up in front of that
   hand: sweep the hand onto a tool and let go to take it, or let go on none to hold nothing. A slot showing a little
   cluster opens more tools on its far side: swing back onto one. Picks zig-zag
   left and right, the same motion every time.

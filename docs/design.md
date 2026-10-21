@@ -2014,7 +2014,7 @@ The style tool's icon is a wand with a star at its tip, which no build resembles
 Report (verbatim): "It's not possible to select a tool in your left hand right now". Directive (verbatim): "I'd like you to uh holistically rethink the button mappings. Um. One restriction is, I don't want to have to press the thumbstick down to select a tool"
 
 The wheel button is each hand's upper face button: B on the right, Y on the left (the Frame's B
-on the right, its D-pad up on the left). The left wheel used to open on the left menu
+on the right, its D-pad right on the left; it moved there from D-pad up, which now does nothing). The left wheel used to open on the left menu
 button, which on a Quest 3 never opened it. Choices made where the directive left room, for a playtest
 to revisit: the wheel is a flat disc standing vertical in front of the hand, 12 cm to a slot, like
 Alyx's; selection is on release, as in Alyx; a subtree opens on reaching its icon; backing out of a
@@ -2102,7 +2102,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 
 | Action | Control |
 | --- | --- |
-| Pick a hand's tool | Hold that hand's upper face button (right B, left Y; on the Frame right B, left D-pad up), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
+| Pick a hand's tool | Hold that hand's upper face button (right B, left Y; on the Frame right B, left D-pad right), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
 | Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it first meets something solid: the ground, a roof of any pitch, a wall's top or a tree; aimed under a roof, as through a door or window, it lands on the floor inside; release to go |
 | Teleport into the air | Aim above the horizon: with nothing on the map for the ray to hit, it targets the point in the air 30 m along it, a ring on a pole down to the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
 | Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the ground even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
@@ -2266,7 +2266,7 @@ An animal is a `Critter` whose `coat` names its surface.
 
 Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
 a D-pad on the left. The Frame binds its own interaction profile (Godot 4.6's
-`frame_controller_valve`): B opens the right wheel, D-pad up the left wheel,
+`frame_controller_valve`): B opens the right wheel, D-pad right the left wheel,
 A redoes and D-pad down undoes. X, Y and the other D-pad directions have separate inputs
 and no game action. On Quest the Touch bindings arrive unremapped.
 
