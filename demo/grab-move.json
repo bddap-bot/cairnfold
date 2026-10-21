@@ -44,5 +44,6 @@
       {"t": 4.8, "right": {"at": [0.35, -0.23, -0.35], "toward": [2.2, 1.5, -5.25]}}
     ],
     "press": [{"hand": "right", "action": "grab", "from": 0.5, "to": 5.4}]},
-  {"op": "wait", "seconds": 3}
+  {"op": "wait", "seconds": 3},
+  {"op": "quit"}
 ]
