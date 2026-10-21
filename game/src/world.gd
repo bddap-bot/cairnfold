@@ -572,7 +572,12 @@ static func _ground(d: Dictionary, id := -1) -> Dictionary:
 ## What a command changes, as keys `touched` tracks: a wall, a painted group, patches of ground and meadow.
 func _keys(cmd: Dictionary) -> Array:
 	match cmd.op:
-		"wall", "unwall":
+		"wall":
+			var out := Array(cmd.ids).map(func(id: int) -> String: return "w%d" % id)
+			for w: Dictionary in cmd.walls:
+				out.append_array(Array(w.on).map(func(id: int) -> String: return "w%d" % id))
+			return out
+		"unwall":
 			return Array(cmd.ids).map(func(id: int) -> String: return "w%d" % id)
 		"reshape":
 			return ["%s%d" % [{"walls": "w", "stairs": "q", "boulders": "b", "decorations": "d"}[cmd.of], cmd.id]]
@@ -583,13 +588,17 @@ func _keys(cmd: Dictionary) -> Array:
 				return ["p%d" % cmd.group]
 			var at: Vector3 = flora.groups[0][cmd.index].anchor
 			return ["m%d,%d" % [floori(at.x / PATCH), floori(at.z / PATCH)]]
-		"stairs", "unstairs", "path", "unpath", "ground", "unground", "restone":
+		"stairs":
+			return ["q%d" % cmd.id] + Array(cmd.stairs.on).map(func(id: int) -> String: return "w%d" % id)
+		"unstairs", "path", "unpath", "ground", "unground", "restone":
 			return ["q%d" % cmd.id]
 		"season":
 			return ["season"]
 		"easel", "uneasel":
 			return ["e%d" % cmd.id]
-		"decoration", "undecoration":
+		"decoration":
+			return ["d%d" % cmd.id] + (["w%d" % cmd.wall] if cmd.wall >= 0 else [])
+		"undecoration":
 			return ["d%d" % cmd.id]
 		"boulder", "unboulder":
 			return ["b%d" % cmd.id]
@@ -790,6 +799,9 @@ func _apply(cmd: Dictionary) -> Dictionary:
 		"batch":
 			var back := []
 			for c: Dictionary in cmd.cmds:
+				# A build an earlier taking took with what it stood on is not there to reshape.
+				if c.op == "reshape" and not state[c.of].has(c.id):
+					continue
 				var undone := _apply(c)
 				back = (undone.cmds if undone.op == "batch" else [undone]) + back
 			inverse = {"op": "batch", "cmds": back}

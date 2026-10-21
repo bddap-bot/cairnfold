@@ -58,6 +58,7 @@ func _run() -> void:
 	_none_left(owned, "redoing the delete")
 	await _a_sweep_takes_the_house_and_its_things(before, owned)
 	await _a_peer_sees_the_same(before, sent[0], gone, owned)
+	await _undo_spares_what_another_built_on_it()
 	world.restore({"seq": 0, "cmds": []})
 	await _settle()
 	_check(_scene() == bare, "an emptied garden is the bare meadow again")
@@ -199,6 +200,9 @@ func _house() -> Dictionary:
 	var landing := Vector3(-1.0, deck_y, -28.5)
 	owned.stairs.append(_stairs(foot, landing))
 	_check(world.state.stairs[owned.stairs[0]].on == PackedInt32Array([storey]), "stairs onto the deck stand on the storey: %s" % world.state.stairs[owned.stairs[0]].on)
+	var low := Vector3(inside.x - 1.5, h.layout.floors[0], inside.y - 0.8)
+	owned.stairs.append(_stairs(low, Vector3(inside.x + 1.5, h.layout.floors[-1], inside.y - 0.8)))
+	_check(house in Array(world.state.stairs[owned.stairs[1]].on), "stairs between the house's floors stand in the house: %s" % world.state.stairs[owned.stairs[1]].on)
 	await _settle()
 	return {"id": house, "owned": owned}
 
@@ -256,14 +260,15 @@ func _cmds_naming(cmds: Array, owned: Dictionary) -> Array:
 		return false)
 
 
-## One delete stroke across the house, its storey and a chair on its floor takes them as one command, though the
-## house's going takes the rest first, and leaves the rest standing as one delete does.
+## One delete stroke across the house, its storey, a lantern on the house on its deck and a chair on its floor takes
+## them as one command, though the house's going takes the rest first, and leaves the rest standing as one delete does.
 func _a_sweep_takes_the_house_and_its_things(before: Dictionary, owned: Dictionary) -> void:
 	world.restore(before)
 	await _settle()
 	world.submit({"op": "batch", "cmds": [
 		{"op": "unwall", "ids": PackedInt32Array([owned.walls[0]])},
 		{"op": "unwall", "ids": PackedInt32Array([owned.walls[1]])},
+		{"op": "reshape", "of": "walls", "id": owned.walls[2], "data": {"lanterns": PackedVector3Array()}},
 		{"op": "undecoration", "id": owned.decorations[1]},
 	]})
 	await _settle()
@@ -281,3 +286,19 @@ func _a_peer_sees_the_same(before: Dictionary, sent: Dictionary, host: Dictionar
 	await _settle()
 	_none_left(owned, "a peer applying the host's delete")
 	_check(world.digest() == host, "the peer's garden matches the host's")
+
+
+## Another player's chair in my house is building on it: my undo of the house is dropped rather than taking the chair.
+func _undo_spares_what_another_built_on_it() -> void:
+	world.restore({"seq": 0, "cmds": []})
+	await _settle()
+	var house := _build(_wall_data(Vector3(-6, 0, -30), Vector3(0, 0, -30), 5.0, PackedInt32Array(), 1.4))
+	await _settle()
+	var h := main.tool.find(house)
+	var inside := h.massing.rect.get_center()
+	var chair := FittingTool.decoration_command({"wall": h, "mount": "floor", "point": Vector3(inside.x, h.layout.floors[0], inside.y), "style": DecorationLayout.options("floor")[0]})
+	world._order(chair, 42)
+	var id := world.seq
+	world.undo()
+	await _settle()
+	_check(world.state.walls.has(house) and world.state.decorations.has(id), "my undo leaves the house another player furnished, and their chair")

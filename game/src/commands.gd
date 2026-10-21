@@ -307,7 +307,9 @@ static func _samples(strokes: Array) -> int:
 ## takes went meanwhile) is dropped and the rest stand; from the host, every one must apply.
 static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary) -> bool:
 	var cmds: Variant = cmd.get("cmds")
-	if not cmds is Array or cmds.is_empty() or cmds.size() > MAX_BATCH:
+	# The host's batches include undoing a build taken with all that stood on it, however much that was.
+	var most := MAX_SNAPSHOT if from_host else MAX_BATCH
+	if not cmds is Array or cmds.is_empty() or cmds.size() > most:
 		return false
 	var allowed := BATCHED + (UNBATCHED if from_host else [])
 	var seen := {}
@@ -334,7 +336,7 @@ static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 				return false
 			seen[key] = true
 		out.cmds.append(kept)
-	return not out.cmds.is_empty() and seen.size() <= MAX_BATCH
+	return not out.cmds.is_empty() and seen.size() <= most
 
 
 static func _finite(v: Vector3) -> bool:
@@ -644,6 +646,6 @@ static func _stairs(d: Variant) -> Variant:
 	if typeof(d.get("seed")) != TYPE_INT or not d.get("rail") in StairLayout.RAILS or not Palette.valid(d.get("paint")):
 		return null
 	var on: Variant = d.get("on")
-	if typeof(on) != TYPE_PACKED_INT32_ARRAY or on.size() > 2 or not _unique(on):
+	if typeof(on) != TYPE_PACKED_INT32_ARRAY or on.size() > MAX_SUPPORTS or not _unique(on):
 		return null
 	return {"a": d.a, "b": d.b, "width": d.width, "seed": d.seed, "rail": d.rail, "paint": d.paint, "on": on}
