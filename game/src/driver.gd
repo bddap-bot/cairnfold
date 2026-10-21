@@ -1447,6 +1447,42 @@ func _sheet(s: Dictionary) -> void:
 	await _frames(2)
 
 
+## Puts a fresh sheet up on the easel, paints `strokes` strokes of `painting` on it, and waits until the canvas has
+## replayed them as a kept painting.
+func _painting(s: Dictionary) -> void:
+	var e := _easel_of(s)
+	main.world.submit({"op": "sheet", "easel": e.id, "strokes": []})
+	for stroke: Dictionary in painting(int(s.strokes)):
+		main.world.submit({"op": "paint", "easel": e.id, "stroke": stroke})
+	await _frames(2)
+	main.easels.repaint(e.id, main.world.state.easels[e.id].strokes)
+	await _caught_up(s)
+
+
+## Waits until the easel's canvas has caught up with its painting.
+func _caught_up(s: Dictionary) -> void:
+	var e := _easel_of(s)
+	while e.canvas.catching_up():
+		await _frames(1)
+
+
+## `n` watercolour strokes across the canvas, half a second each, a third of a second apart: a kept painting as
+## benches and tests replay it.
+static func painting(n: int) -> Array:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	var out := []
+	for k in n:
+		var samples := PackedInt32Array()
+		var from := Vector2(rng.randf_range(0.05, 0.6), rng.randf_range(0.05, 0.95))
+		var to := from + Vector2(rng.randf_range(0.2, 0.35), rng.randf_range(-0.05, 0.05))
+		for i in 15:
+			samples.append_array(Brushwork.pack(from.lerp(to, i / 14.0), 0.8, 0.0, 0 if i == 0 else 2))
+		var c: Color = Brushwork.PIGMENTS[1 + k % (Brushwork.PIGMENTS.size() - 1)]
+		out.append({"medium": Brushwork.Medium.WATER, "brush": Brushwork.Brush.BIG, "colour": Brushwork.absorbance(c), "strength": 0.8, "load": 1.0, "gap": 20, "samples": samples})
+	return out
+
+
 ## Desktop only: holds `hand` at `at`, pointing along `aim`, rolled `roll` degrees, all in head space, as a lesson poses it.
 func _hold_pose(s: Dictionary) -> void:
 	var hand := _hand(s)
