@@ -18,6 +18,7 @@ func _run() -> void:
 		print("FAIL: no RenderingDevice; run on the desktop renderer")
 		Main.quit(self, 1)
 		return
+	await _smear()
 	await _charcoal_contact()
 	var strokes := Driver.painting(N + 1)
 	var kept := strokes.slice(0, N)
@@ -119,3 +120,38 @@ func _charcoal_contact() -> void:
 	var side := await _charcoal_image(1.0, false)
 	_check(tap.total > 0.0 and tap.total < drag.total * 0.01 and tap.peak < drag.peak * 0.05, "rendered tap is faint beside drag at equal pressure: %s / %s" % [tap, drag])
 	_check(side.span.x > tap.span.x * 10 and side.span.y < tap.span.y * 1.5, "rendered side footprint follows stick length and width: %s / %s" % [side, tap])
+
+
+func _smear() -> void:
+	var c := await _canvas()
+	c.set_process(false)
+	var rd := RenderingServer.get_rendering_device()
+	var image := Image.create(Brushwork.SIZE.x, Brushwork.SIZE.y, false, Image.FORMAT_RGBAH)
+	image.fill(Color(0, 0, 0, 0))
+	for y in range(550, 600):
+		for x in range(750, 770):
+			image.set_pixel(x, y, Color(0.5, 0.25, 0.125, 0.75))
+	RenderingServer.call_on_render_thread(func() -> void:
+		var initial := rd.texture_create(rd.texture_get_format(c._wet[0]), RDTextureView.new(), [image.get_data()])
+		c._copy(initial, c._wet[0])
+		rd.free_rid(initial))
+	var before := await _pixels(c)
+	var stroke := {"medium": Brushwork.Medium.SMEAR, "brush": Brushwork.Brush.FLAT, "colour": Vector3.ZERO, "strength": 0.0, "load": 1.0, "gap": 0, "samples": Brushwork.pack(Vector2(0.5, 0.5), 1.0, 0.0, 0)}
+	_check(Brushwork.clean(stroke) != null, "smear stroke validates")
+	var forged := stroke.duplicate()
+	forged.colour = Vector3.ONE
+	_check(Brushwork.clean(forged) == null, "smear cannot introduce pigment")
+	c.lay(stroke, Brushwork.Stroker.new(stroke).add(Brushwork.unpack(stroke.samples, 0)))
+	c._process(0.0)
+	var after := await _pixels(c)
+	_check(before[0] != after[0], "feathers move existing wet paint")
+	_check(before[1] == after[1], "smear leaves dry paint untouched")
+	var moved := Image.create_from_data(Brushwork.SIZE.x, Brushwork.SIZE.y, false, Image.FORMAT_RGBAH, after[0])
+	var total := Vector4.ZERO
+	for y in range(500, 650):
+		for x in range(700, 850):
+			var pixel := moved.get_pixel(x, y)
+			total += Vector4(pixel.r, pixel.g, pixel.b, pixel.a)
+	_check((total - Vector4(500,250,125,750)).length() < 1.0, "smear conserves pigment and water within half-float rounding")
+	c.queue_free()
+	await process_frame

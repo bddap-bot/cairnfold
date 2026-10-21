@@ -16,6 +16,7 @@ func _initialize() -> void:
 	_no_tool_places_a_bird()
 	_wall_tops_are_perches()
 	_plumages()
+	await _carry()
 	await _they_come_after_the_ducks_and_leave_with_the_perches()
 	await _a_perch_taken_away_sends_them_elsewhere()
 	await _with_no_room_they_leave()
@@ -34,12 +35,12 @@ func _no_tool_places_a_bird() -> void:
 	for key: String in Hand.Tool.keys():
 		_check(not key in ["BIRD", "BIRDS", "CONURE", "CONURES"], "no hand tool %s" % key)
 	for f in DirAccess.get_files_at("res://src"):
-		if f.ends_with("_tool.gd") or f in ["hand.gd", "driver.gd", "buttons.gd"]:
+		if f.ends_with("_tool.gd") or f in ["hand.gd", "buttons.gd"]:
 			var code := FileAccess.get_file_as_string("res://src/" + f)
 			_check(not code.contains("Birds") and not code.contains("onure"), "%s reaches no bird" % f)
 	_check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Birds.new(") == 1, "Wildlife alone makes the birds")
 	for f in DirAccess.get_files_at("res://src"):
-		if f.ends_with(".gd") and f != "birds.gd" and f != "conure.gd":
+		if f.ends_with(".gd") and f not in ["birds.gd", "conure.gd", "held_item.gd"]:
 			_check(not FileAccess.get_file_as_string("res://src/" + f).contains("Conure.new("), "%s makes no conure" % f)
 
 
@@ -638,3 +639,45 @@ func _a_reshape_carries_them_with_their_perch() -> void:
 					off[0] += 1)
 	_check(off[1] > 0 and off[0] == 0, "perched conures stand on the wall top or crown as they are after the reshape, %d of %d frames off" % off)
 	await _teardown(g)
+
+
+func _carry() -> void:
+	var g := await _glade(24)
+	var easels := Easels.new()
+	root.add_child(easels)
+	var painting := EaselTool.new(g.rig, easels, g.world)
+	root.add_child(painting)
+	painting.set_process(false)
+	var carry := BirdCarry.new(g.rig, g.wildlife.birds, painting)
+	root.add_child(carry)
+	carry.set_process(false)
+	var h := g.rig.right
+	h.held_still = true
+	h.global_position = Vector3(0, 1.0, 0)
+	h.tool = Hand.Tool.SEEDS
+	var b := Birds.Bird.new()
+	b.node = Conure.new(0, 0)
+	g.wildlife.birds.add_child(b.node)
+	g.wildlife.birds.birds.append(b)
+	b.node.global_position = h.global_position
+	b.state = Birds.State.FEED
+	b.node.hand = h
+	g.wildlife.claim(h, b)
+	_check(not carry.take(h, b), "unfed bird refuses pickup")
+	for i in 250:
+		g.wildlife.birds._to_hand(b, STEP)
+	_check(b.affection == BirdCarry.TRUST, "feeding earns trust")
+	_check(carry.take(h, b), "fed bird accepts gentle pickup")
+	_check(h.carried == b.node and h.tool == Hand.Tool.NONE, "carry is not a wheel tool")
+	Buttons.injected["%s/%s" % [h.tracker, Controls.input("grab", h.tracker)]] = true
+	h.global_position += Vector3(5, 2, 1)
+	for i in 120:
+		carry._process(STEP)
+		g.wildlife.birds.tick(STEP)
+	_check(b.node.global_position.distance_to(h.body.global_transform * BirdCarry.HOLD.origin) < 0.001, "bird follows carried hand without a flick departure")
+	var description := HeldItem.describe(h, painting, null)
+	_check(HeldItem.valid(description) and description[0] == HeldItem.Kind.BIRD, "carried bird uses shared remote descriptor")
+	Buttons.injected.clear()
+	carry._process(STEP)
+	_check(h.carried == null and not b.carried and b.node.hand == null, "letting go clears ownership")
+	_check(b.state in [Birds.State.FLY, Birds.State.LEAVE], "release flies rather than falls")

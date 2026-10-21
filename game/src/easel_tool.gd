@@ -646,7 +646,7 @@ func end_stroke(p: Painter) -> void:
 	if not is_instance_valid(e):
 		return
 	e.canvas.end(s.data)
-	if p.brush != Brushwork.Brush.STICK:
+	if p.medium != Brushwork.Medium.SMEAR and p.brush != Brushwork.Brush.STICK:
 		p.load *= s.stroker.left()
 		_show_paint(p)
 	var id := e.id

@@ -2,7 +2,7 @@ class_name HeldItem
 extends Node3D
 
 ## A held model's description travels only when it changes; the existing hand pose carries its motion.
-enum Kind { TOOL, BRUSH, PALETTE, BOOK }
+enum Kind { TOOL, BRUSH, PALETTE, BOOK, BIRD }
 
 var state: Array = []
 var model: Node3D
@@ -12,6 +12,8 @@ var easels: Easels
 static func describe(hand: Hand, painting: EaselTool, book: Book) -> Array:
 	if not hand.tracked():
 		return []
+	if hand.carried is Conure:
+		return [Kind.BIRD, hand.carried.colouring, BirdCarry.HOLD, Color.WHITE, 0.0, 0, false, Vector3.ZERO]
 	var kind := Kind.TOOL
 	var index := int(hand.tool)
 	var source: Node3D = hand.model(hand.tool)
@@ -78,6 +80,8 @@ static func valid(s: Array) -> bool:
 			return s[1] in Brushwork.Brush.values()
 		Kind.PALETTE:
 			return s[1] in Easels.KITS and s[5] > 0
+		Kind.BIRD:
+			return s[1] >= 0 and s[1] < Conure.PLUMAGES.size()
 		Kind.BOOK:
 			return s[1] >= 0 and s[1] <= ceili(Lessons.PAGES.size() / 2.0) + 1
 	return false
@@ -103,6 +107,9 @@ func show_state(s: Array) -> void:
 			Kind.PALETTE:
 				var e := easels.find(s[5]) if easels != null else null
 				model = e.palettes[s[1]].duplicate() if e != null else Easels.watercolours() if s[1] == Brushwork.Medium.WATER else Easels.oils()
+			Kind.BIRD:
+				model = Conure.new(0.0, s[1])
+				model.add_child(BirdCarry.cup())
 			Kind.BOOK:
 				model = Book.new(false)
 				(model as Book).at = s[1]
@@ -133,6 +140,13 @@ static func label(s: Array) -> String:
 			return Brushwork.Brush.keys()[s[1]].to_lower()
 		Kind.PALETTE:
 			return "%s palette" % Brushwork.Medium.keys()[s[1]].to_lower()
+		Kind.BIRD:
+			return "conure"
 		Kind.BOOK:
 			return "book"
 	return ""
+
+
+func _process(delta: float) -> void:
+	if model is Conure:
+		model.animate(delta)

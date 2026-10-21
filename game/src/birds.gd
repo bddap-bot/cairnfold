@@ -97,6 +97,8 @@ class Bird:
 	var then := State.PERCH
 	## How long until it goes for seeds again; the hand it flies to or eats on is its node's.
 	var full := 0.0
+	var affection := 0.0
+	var carried := false
 
 
 ## Something a bird may stand on, and the points on it where it may.
@@ -230,7 +232,7 @@ func look() -> void:
 	for s in sites:
 		s.listed = true
 	for b in birds:
-		if b.state == State.LEAVE:
+		if b.state == State.LEAVE or b.carried:
 			continue
 		if sites.is_empty():
 			_leave(b)
@@ -283,6 +285,11 @@ static func _crown(parts: Array[Flora.Plant]) -> PackedVector3Array:
 
 
 func _think(b: Bird, delta: float) -> void:
+	if b.carried:
+		b.node.blend(Conure.IDLE, delta)
+		if wildlife.viewer != null:
+			b.node.looking = wildlife.viewer.global_position
+		return
 	b.full = maxf(b.full - delta, 0.0)
 	if b.node.hand != null:
 		_voice(b, State.keys()[b.state], delta)
@@ -450,6 +457,8 @@ func _to_hand(b: Bird, delta: float) -> void:
 	if Wildlife.in_hand(h):
 		Wildlife._face(b.node, -h.global_basis.z, delta * 6.0)
 	wildlife.nibble(h, delta)
+	if h is Hand:
+		b.affection = minf(b.affection + delta, BirdCarry.TRUST)
 	b.timer -= delta
 	b.node.blend(Conure.PECK if fposmod(b.timer, 3.0) < 1.8 else Conure.IDLE, delta)
 	if h is Handful and b.timer <= 0.0:
@@ -605,6 +614,8 @@ func _clear(p: Vector3, me: Bird) -> bool:
 ## Along an arc from `from` to `to`, slowing to land; a leaving bird speeds up and keeps going.
 func _move(b: Bird, delta: float) -> void:
 	var n := b.node
+	if b.carried:
+		return
 	match b.state:
 		State.PERCH, State.DECIDE:
 			if not n.is_in_group(&"perched"):

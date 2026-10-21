@@ -54,6 +54,7 @@ const GAZE_EASE := 4.0
 const GAZE_TURN_EASE := 22.0
 
 ## What it looks at this tick, Vector3.INF to look about; `look` eases the head there.
+var colouring := 0
 var looking := Vector3.INF
 var _gaze := Vector3.ZERO
 var animation_time := 0.0
@@ -69,6 +70,7 @@ static func prepare() -> void:
 ## `plumage` indexes `PLUMAGES`.
 func _init(phase: float, plumage: int) -> void:
 	super(KIND, build, SHADER, BLEND, phase, HandStop.Surface.FEATHERS)
+	colouring = plumage
 	prepare()
 	animation_time = phase
 	set_instance_shader_parameter("animation_time", animation_time)

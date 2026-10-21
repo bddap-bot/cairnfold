@@ -43,6 +43,8 @@ static var injected_reach := {}
 ## The interaction profile the driver gives the hands in place of the runtime's, or "".
 static var injected_profile := ""
 
+var carried: Node3D
+
 var tool := Tool.WALLS:
 	set(value):
 		if tool != value and picking:
@@ -347,7 +349,7 @@ func ray(target: Vector3, tint: Color) -> bool:
 
 ## Whether a tool already holds this hand this frame.
 func taken() -> bool:
-	return _holding
+	return _holding or carried != null
 
 
 func clear_pointer() -> void:
@@ -397,6 +399,8 @@ func _log_profile() -> void:
 ## Hold the wheel button and the wheel opens where the hand is, facing the head; sweep the hand
 ## onto a tool, or onto a subtree and on into it; let go to take the tool the hand is on, or, on none, to hold nothing.
 func _select_input(delta: float) -> void:
+	if carried != null:
+		return
 	if _wheel == null:
 		if _warming > 0:
 			_warm()

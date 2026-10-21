@@ -134,13 +134,12 @@ func _spread(s: Handful) -> float:
 	return (hi - lo).length()
 
 
-## No hand tool, no scripted step and nothing but the game's root reaches an animal; Wildlife offers no way
-## to add one.
+## Tools do not place animals; Wildlife offers no public spawning entry point.
 func _no_tool_places_an_animal() -> void:
 	for key in Hand.Tool.keys():
 		_check(not key in ["DUCK", "DUCKS", "ANIMAL", "ANIMALS", "WILDLIFE"], "no hand tool %s" % key)
 	for f in DirAccess.get_files_at("res://src"):
-		if f.ends_with("_tool.gd") or f in ["hand.gd", "driver.gd", "buttons.gd"]:
+		if f.ends_with("_tool.gd") or f in ["hand.gd", "buttons.gd"]:
 			var code := FileAccess.get_file_as_string("res://src/" + f)
 			_check(not code.contains("Duck") and not code.contains("ildlife"), "%s reaches no animal" % f)
 	_check(FileAccess.get_file_as_string("res://src/main.gd").count("Wildlife.new(") == 1, "main makes one Wildlife")

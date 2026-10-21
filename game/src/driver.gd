@@ -1962,3 +1962,71 @@ func _held_cost(s: Dictionary) -> void:
 	await _label({"name": "-"})
 	for item in items:
 		item.queue_free()
+
+
+## Offers seeds beside an existing bird, waits for earned trust, then closes the grip.
+func _befriend(s: Dictionary) -> void:
+	var h := _hand(s)
+	var flock: Birds = main.wildlife.birds
+	var elapsed := 0.0
+	while flock.birds.is_empty() and elapsed < 240.0:
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+	assert(not flock.birds.is_empty(), "no conure arrived")
+	var bird := flock.birds[0]
+	while bird.state != Birds.State.PERCH and elapsed < 260.0:
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+	assert(bird.state == Birds.State.PERCH, "bird did not land")
+	h.tool = Hand.Tool.SEEDS
+	h.held_still = true
+	h.global_transform = Transform3D(Basis.IDENTITY, bird.node.global_position + Vector3(0.2, -0.15, 0.2))
+	elapsed = 0.0
+	while (bird.affection < BirdCarry.TRUST or bird.state != Birds.State.FEED) and elapsed < 90.0:
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+	assert(bird.affection >= BirdCarry.TRUST and bird.state == Birds.State.FEED, "bird did not feed and trust hand")
+	Buttons.injected["%s/%s" % [h.tracker, Controls.input("grab", h.tracker)]] = true
+	await _frames(30)
+	assert(h.carried == bird.node, "grip did not pick up fed bird")
+	print("conure: feeding earned trust, grip carries bird")
+
+
+## Carries the bird to the canvas and sweeps its feathers across it, then lifts away.
+func _bird_smear(s: Dictionary) -> void:
+	var h := _hand(s)
+	assert(h.carried != null, "no held bird")
+	var e := _easel_of(s)
+	var frame := e.canvas_frame()
+	var basis := frame.basis
+	var from := h.global_transform
+	var target := Transform3D(basis, frame * Vector3(-0.25, 0, 0.09) - basis * (BirdCarry.HOLD.origin + Conure.BODY))
+	for i in 60:
+		h.global_transform = from.interpolate_with(target, float(i + 1) / 60.0)
+		await get_tree().process_frame
+	await _frames(15)
+	var seconds: float = s.get("seconds", 3.0)
+	var t := 0.0
+	while t < seconds:
+		await get_tree().process_frame
+		t += get_process_delta_time()
+		var along := t / seconds
+		h.global_transform = Transform3D(basis, frame * Vector3(lerpf(-0.25, 0.25, along), 0, 0.018) - basis * (BirdCarry.HOLD.origin + Conure.BODY))
+	h.global_position += frame.basis.z * 0.2
+	await _frames(30)
+	print("conure: wet canvas smear submitted")
+
+
+func _view_held(s: Dictionary) -> void:
+	var h := _hand(s)
+	assert(h.carried != null)
+	var at := h.carried.global_position + Vector3.UP * 0.07
+	main.view(at + Vector3(0.25, 0.13, -0.36), at, false)
+	await _frames(30)
+
+
+func _release_bird(s: Dictionary) -> void:
+	var h := _hand(s)
+	Buttons.injected.erase("%s/%s" % [h.tracker, Controls.input("grab", h.tracker)])
+	await _frames(2)
+	assert(h.carried == null, "bird must leave the hand when grip releases")

@@ -3922,3 +3922,17 @@ include interactions and the camera previews' views, and cannot be summed into a
 frame decomposition or transferred to every stress phase. They identify larger
 costs to investigate; they do not justify hiding geometry, removing lighting or
 lowering acceptance quality. No rendering optimization is claimed here.
+
+
+### Carrying a trusted conure
+
+Eight seconds of feeding from either of your hands earns a conure's trust for its visit.
+With seeds or an empty hand, close the grip within 14 cm to cup it gently. Keep the
+grip held to carry it; release it and it flies toward a perch, or away if none remains.
+The bird settles into the cup and keeps its existing idle flits and eased gaze.
+It never appears on the wheel or hotbar. Peers see the same plumage through the
+shared held-item descriptor.
+
+Touching its feathers to a canvas exchanges only the existing wet pigment and
+water across a soft feathered oval. It adds no pigment, water or dry marks.
+Smears use the normal recorded paint commands, including replay, undo and peers.

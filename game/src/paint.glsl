@@ -39,6 +39,7 @@ const int FLOW = 2;
 const int WATER = 0;
 const int OIL = 1;
 const int CHARCOAL = 2;
+const int SMEAR = 3;
 const int FLAT = 2;
 const int TILE = 64;
 const int TILES_X = 24;
@@ -158,7 +159,38 @@ float bristles(Dab d, vec2 q) {
 	return n;
 }
 
+float feathers(Dab d, vec2 q) {
+	vec2 v = (q - d.a.xy) / d.a.z;
+	v.x *= 0.7;
+	float fringe = 0.06 * sin(v.y * 37.0) * sin(v.x * 29.0);
+	return (1.0 - smoothstep(0.55, 1.0, length(v) + fringe)) * d.a.w;
+}
+
+void smear(ivec2 p) {
+	vec4 here = texelFetch(wet_in, p, 0);
+	vec4 change = vec4(0.0);
+	ivec2 extent = textureSize(wet_in, 0);
+	// Symmetric exchange moves only existing wet pigment and water, including across the feather fringe.
+	for (int i = pc.first; i < pc.first + pc.count; i++) {
+		Dab d = dabs[i];
+		float f = feathers(d, vec2(p) + 0.5);
+		if (f <= 0.0) continue;
+		for (int axis = 0; axis < 4; axis++) {
+			ivec2 offset = axis == 0 ? ivec2(6,0) : axis == 1 ? ivec2(-6,0) : axis == 2 ? ivec2(0,6) : ivec2(0,-6);
+			ivec2 q = p + offset;
+			if (any(lessThan(q, ivec2(0))) || any(greaterThanEqual(q, extent))) continue;
+			float weight = min(f, feathers(d, vec2(q) + 0.5)) * 0.24 / float(pc.count);
+			change += (texelFetch(wet_in, q, 0) - here) * weight;
+		}
+	}
+	imageStore(wet_out, p, here + change);
+}
+
 void lay(ivec2 p) {
+	if (int(pc.more.x) == SMEAR) {
+		smear(p);
+		return;
+	}
 	vec2 q = vec2(p) + 0.5;
 	vec4 w = imageLoad(wet_out, p);
 	vec4 laid = imageLoad(dry, p);

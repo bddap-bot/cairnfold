@@ -130,6 +130,7 @@ func _ready() -> void:
 	add_child(feed_tool)
 	wildlife.handfuls = feed_tool.handfuls
 	wildlife.dishes = session.dishes
+	add_child(BirdCarry.new(rig, wildlife.birds, easel_tool))
 	fish = wildlife.fish
 	session.feed = feed_tool
 	sound = Soundscape.new(tool, flora_tool)

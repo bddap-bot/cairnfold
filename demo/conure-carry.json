@@ -1,0 +1,137 @@
+[
+  {
+    "op": "budget",
+    "bounded": false
+  },
+  {
+    "op": "quality",
+    "step": "fit"
+  },
+  {
+    "op": "place",
+    "x": 0,
+    "z": 3
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      1.5,
+      3
+    ],
+    "at": [
+      0,
+      1,
+      -2
+    ]
+  },
+  {
+    "op": "dig",
+    "x": -4,
+    "z": 0,
+    "seconds": 2
+  },
+  {
+    "op": "wall",
+    "points": [
+      [
+        -1,
+        -2
+      ],
+      [
+        1,
+        -2
+      ]
+    ],
+    "seconds": 1
+  },
+  {
+    "op": "easel",
+    "x": 0,
+    "z": 0,
+    "facing": [
+      0,
+      3
+    ]
+  },
+  {
+    "op": "befriend",
+    "hand": "left"
+  },
+  {
+    "op": "view_held",
+    "hand": "left"
+  },
+  {
+    "op": "wait",
+    "seconds": 1
+  },
+  {
+    "op": "capture",
+    "name": "conure-held"
+  },
+  {
+    "op": "view",
+    "subject": "easel",
+    "index": 0,
+    "eye": [
+      0,
+      1.4,
+      1.0
+    ],
+    "at": [
+      0,
+      1.32,
+      0
+    ],
+    "ground": true
+  },
+  {
+    "op": "take",
+    "what": "big",
+    "hand": "right"
+  },
+  {
+    "op": "dip",
+    "what": "pan",
+    "index": 5,
+    "hand": "right"
+  },
+  {
+    "op": "brush",
+    "hand": "right",
+    "points": [
+      [
+        0.3,
+        0.5,
+        1
+      ],
+      [
+        0.7,
+        0.5,
+        1
+      ]
+    ],
+    "seconds": 1
+  },
+  {
+    "op": "label",
+    "name": "conure/smear"
+  },
+  {
+    "op": "bird_smear",
+    "hand": "left",
+    "seconds": 3
+  },
+  {
+    "op": "capture",
+    "name": "conure-smear"
+  },
+  {
+    "op": "wait",
+    "seconds": 3
+  },
+  {
+    "op": "quit"
+  }
+]

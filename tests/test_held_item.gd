@@ -54,6 +54,13 @@ func _run() -> void:
 		invalid = s.duplicate()
 		invalid[4] = NAN
 		check(not HeldItem.valid(invalid), "nonfinite load rejected")
+	var bird := [HeldItem.Kind.BIRD, 0, BirdCarry.HOLD, Color.WHITE, 0.0, 0, false, Vector3.ZERO]
+	check(HeldItem.valid(bird), "remote bird descriptor accepted")
+	item.show_state(bird)
+	check(item.model is Conure and not item.feeds(), "remote carry shows bird without offering seeds")
+	var old := item.model
+	item.show_state(bird)
+	check(item.model == old, "unchanged bird state preserves model")
 	item.show_state([])
 	check(item.model == null and not item.feeds(), "empty hand removes model and feeding target")
 	check(not HeldItem.valid([0]) and not HeldItem.valid([0, 0, "bad", Color.WHITE, 0.0, 0, false]), "malformed state rejected")

@@ -7,7 +7,7 @@ extends RefCounted
 ## every replay of a kept painting. Colours are optical densities (absorbance per channel, Beer-Lambert), so paint
 ## mixes on the brush and glazes on the canvas subtractively: blue and yellow make green, layers darken.
 
-enum Medium { WATER, OIL, CHARCOAL }
+enum Medium { WATER, OIL, CHARCOAL, SMEAR }
 enum Brush { SMALL, BIG, FLAT, STICK }
 
 ## The canvas in texels and in metres: about a millimetre a texel, finer than the Frame resolves at arm's length.
@@ -33,7 +33,7 @@ const SPACING := 0.2
 ## Speed, in texels a tick, at which a stroke skips over the paper's dips (dry-brush), and how much it does per medium:
 ## a wet brush skims most, thick oil little, charcoal not at all.
 const SKIM := 60.0
-const SKIMS := {Medium.WATER: 0.7, Medium.OIL: 0.25, Medium.CHARCOAL: 0.0}
+const SKIMS := {Medium.WATER: 0.7, Medium.OIL: 0.25, Medium.CHARCOAL: 0.0, Medium.SMEAR: 0.0}
 ## The palette's wells, as display colours: white, lemon, ochre, vermilion, rose, ultramarine, sap green, umber,
 ## phthalo blue, black. A demo script or test may name a well by its index, so new wells go on the end.
 const PIGMENTS := [
@@ -96,6 +96,8 @@ static func clean(d: Variant) -> Variant:
 	var medium: Variant = d.get("medium")
 	var brush: Variant = d.get("brush")
 	if typeof(medium) != TYPE_INT or medium < 0 or medium >= Medium.size() or typeof(brush) != TYPE_INT or brush < 0 or brush >= Brush.size():
+		return null
+	if medium == Medium.SMEAR and (brush != Brush.FLAT or d.get("colour") != Vector3.ZERO or d.get("strength") != 0.0 or d.get("load") != 1.0):
 		return null
 	if medium_of(brush, medium) != medium:
 		return null
