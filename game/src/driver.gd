@@ -7,13 +7,17 @@ extends Node
 
 signal finished
 
+## The parts of the scene `layer` hides, as demo/meadow-layers.json prices the bare meadow; "all" hides every one.
+## "mountains" are the ranges and their foothills, "foothills" the foothills alone.
+const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "foothills", "sky", "sun_disc", "sun", "ambient", "fog", "post", "msaa", "water", "hands"]
+
 var main: Node
 var steps: Array
 var _eye := Vector3.ZERO
 var _at := Vector3.FORWARD
 var _waiting := {}
-## What `grass` hid: each grass MultiMesh's visible count before.
-var _hidden_grass := {}
+## What `layer` hid: each property it turned off, by object and property, and the value it had before.
+var _hidden := {}
 ## The share of their area the builds a `sized` step lays take: walls farther apart, a village over a smaller disc,
 ## paths shorter.
 var _area := 1.0
@@ -748,21 +752,81 @@ func _flora_far(s: Dictionary) -> void:
 		pool.far_live.visible = on
 	flora.ground_mat.set_shader_parameter(&"far_grass", on)
 
-## Hides every grass blade, the meadow's and painted, or shows them again, so a scene measures what they cost against
-## the same view without them; the ground paints its grass either way.
-func _grass(s: Dictionary) -> void:
-	var flora: Flora = main.flora_tool.flora
+## Hides one of LAYERS, or shows it again, so a scene measures what it costs against the same view without it.
+## Grass is every blade, the meadow's and painted; the ground paints its grass either way. Trees count their bushes,
+## which share their crowns' material.
+func _layer(s: Dictionary) -> void:
 	var on: bool = s.get("mode", "on") != "off"
-	for node in flora.get_children():
-		var mmi := node as MultiMeshInstance3D
-		if mmi == null or mmi.material_override != flora.grass_mat:
+	for name: String in LAYERS if s.name == "all" else [s.name]:
+		for off: Array in _layer_parts(name):
+			var key := "%d.%s" % [off[0].get_instance_id(), off[1]]
+			if on and _hidden.has(key):
+				off[0].set(off[1], _hidden[key])
+				_hidden.erase(key)
+			elif not on and not _hidden.has(key):
+				_hidden[key] = off[0].get(off[1])
+				off[0].set(off[1], off[2])
+
+
+## Each [object, property, value hiding it] that hides `name`.
+func _layer_parts(name: String) -> Array[Array]:
+	var flora: Flora = main.flora_tool.flora
+	var look: Look = main.look
+	var out: Array[Array] = []
+	var materials: Array[Material] = []
+	match name:
+		"terrain":
+			materials = [flora.ground_mat]
+		"grass":
+			materials = [flora.grass_mat]
+		"flowers":
+			materials = [flora.flower_mat, flora.flower_far]
+		"trees":
+			materials = [flora.trunks.live.material_override, flora.foliage.live.material_override]
+		"mountains", "foothills":
+			for n in look.get_children():
+				if n is MeshInstance3D and n != look.disc:
+					out.append([n, "visible", false] if name == "mountains" else [n, "mesh", _ranges(n.mesh)])
+		"sky":
+			out.append([look.env, "background_mode", Environment.BG_COLOR])
+		"sun_disc":
+			out.append([look.disc, "visible", false])
+		"sun":
+			out.append([look.sun, "visible", false])
+		"fog":
+			out.append([look.env, "fog_enabled", false])
+		"ambient":
+			out.append([look.env, "ambient_light_source", Environment.AMBIENT_SOURCE_DISABLED])
+		"post":
+			out.append([look.env, "adjustment_enabled", false])
+		"msaa":
+			out.append([main.get_viewport(), "msaa_3d", Viewport.MSAA_DISABLED])
+		"water":
+			out.append([main.water, "visible", false])
+		"hands":
+			for h: Node3D in main.rig.hands:
+				out.append([h, "visible", false])
+		_:
+			assert(false, "layer: no layer %s" % name)
+	for n in main.find_children("*", "GeometryInstance3D", true, false):
+		var g := n as GeometryInstance3D
+		if g.material_override == null or g.material_override not in materials:
 			continue
-		if on and _hidden_grass.has(mmi):
-			mmi.multimesh.visible_instance_count = _hidden_grass[mmi]
-			_hidden_grass.erase(mmi)
-		elif not on and not _hidden_grass.has(mmi):
-			_hidden_grass[mmi] = mmi.multimesh.visible_instance_count
-			mmi.multimesh.visible_instance_count = 0
+		if g is MultiMeshInstance3D:
+			out.append([(g as MultiMeshInstance3D).multimesh, "visible_instance_count", 0])
+		else:
+			out.append([g, "visible", false])
+	return out
+
+
+## The mountains' mesh with their ranges alone (Mountains.build), its foothills taken off.
+func _ranges(mountains: Mesh) -> ArrayMesh:
+	if mountains.get_surface_count() == 1:
+		return mountains
+	var m := ArrayMesh.new()
+	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, mountains.surface_get_arrays(0))
+	m.surface_set_material(0, mountains.surface_get_material(0))
+	return m
 
 ## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter; with `storeys`,
 ## each stands that many high, with `wings`, a wing crosses each house, with `gable`, their gable ends take it, and
