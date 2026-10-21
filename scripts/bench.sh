@@ -20,6 +20,7 @@
 # measured, for scripts/trend.py to follow.
 # NESTCOMBE_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
 # frames over 1.5x the refresh period from its first second, where its edits land; the others leave that second out.
+# NESTCOMBE_ARGS="--render-scale 0.5" passes more game arguments on a Quest, each word its own.
 # NESTCOMBE_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
 # streaming their heads and hands. NESTCOMBE_WAVE=1 makes them flat-screen players repeatedly waving. NESTCOMBE_GUEST_AVATAR=FILE.vrm has each of them wear that VRM in place of a
 # built-in avatar, to measure what a player's own avatar costs the others.
@@ -34,6 +35,7 @@ game=0
 rig=desktop
 build=$(git -C "$here" rev-parse HEAD)
 players=${NESTCOMBE_PLAYERS:-1}
+read -ra extra <<< "${NESTCOMBE_ARGS:-}"
 case $players in [1-8]) ;; *) echo "bench: NESTCOMBE_PLAYERS is 1 to 8" >&2; exit 1 ;; esac
 # A scripted run hosts only when given a port.
 hosting=
@@ -180,7 +182,7 @@ if [ "${2:-}" = --android ]; then
     adb logcat -c
     logcat_pid=$(adb shell "rm -f $log; nohup logcat -v threadtime -f $log > /dev/null 2>&1 < /dev/null & echo \$!" | tr -d '\r')
     printf '%s\n' --script "$files/bench.json" --metrics "$dir/metrics.json" --capture-dir "$dir" --seed "$seed" \
-      ${hosting:+--port "$hosting"} > "$out/launch.args"
+      ${hosting:+--port "$hosting"} "${extra[@]}" > "$out/launch.args"
     adb push "$out/launch.args" "$files/launch.args" > /dev/null
     adb shell am start -n "$pkg/com.godot.game.GodotAppLauncher" > /dev/null
     sleep 15
