@@ -61,6 +61,8 @@ const PROFILE_STEPS := 8
 const STACK_WIDTH := 0.66
 const RAFTER_SPACING := 0.65
 const CEILING_BOARD := 0.24
+const CEILING_DROP := DECK_DROP + SLAB.y * 1.1
+const CEILING_DEPTH := 0.035
 const CEILING_PIECE := 0.5
 
 ## The clay roof tiles are laid in, before each roof's hue and each tile's variation.
@@ -400,19 +402,19 @@ func _lay_ceiling() -> void:
 		wide = swap
 		along = f.across
 		across = -f.along
-	var drop := DECK_DROP + SLAB.y * 1.1
+	var drop := CEILING_DROP
 	var board := CEILING_BOARD
 	var count := maxi(1, ceili(2.0 * wide / board))
 	for i in count:
 		var a := -wide + 2.0 * wide * i / count
 		var b := -wide + 2.0 * wide * (i + 1) / count
-		_ceiling_strip(across, -along, a + 0.004, b - 0.004, long, 0.035, drop)
+		_ceiling_strip(across, -along, a + 0.004, b - 0.004, long, CEILING_DEPTH, drop)
 	var depth := clampf(2.0 * wide / 18.0, 0.14, 0.38)
 	var width := depth * 0.55
 	count = maxi(1, ceili(2.0 * long / RAFTER_SPACING))
 	for i in count:
 		var x := -long + 2.0 * long * (i + 0.5) / count
-		_ceiling_strip(along, across, x - width * 0.5, x + width * 0.5, wide, depth, drop + 0.035)
+		_ceiling_strip(along, across, x - width * 0.5, x + width * 0.5, wide, depth, drop + CEILING_DEPTH)
 
 
 func _ceiling_strip(along: Vector3, across: Vector3, a: float, b: float, reach: float, depth: float, drop: float) -> void:

@@ -463,11 +463,29 @@ func _unhidden(tris: PackedVector3Array, ceiling: RoofLayout = null) -> PackedVe
 	var kept := PackedVector3Array()
 	for i in range(0, tris.size(), 3):
 		var tri := tris.slice(i, i + 3)
-		var p := (tri[0] + tri[1] + tri[2]) / 3.0
-		var obscured := hides(p)
 		if ceiling != null:
-			obscured = _roof_hidden(p, ceiling)
-		if not obscured:
+			# A centroid cut drops half a beam end or board, exposing the bed behind it.
+			var polygon := PackedVector3Array()
+			for j in 3:
+				var a := tri[j]
+				var b := tri[(j + 1) % 3]
+				var a_hidden := _roof_hidden(a, ceiling)
+				var b_hidden := _roof_hidden(b, ceiling)
+				if not a_hidden:
+					polygon.append(a)
+				if a_hidden != b_hidden:
+					var outside := b if a_hidden else a
+					var inside := a if a_hidden else b
+					for k in TRIM_STEPS:
+						var mid := outside.lerp(inside, 0.5)
+						if _roof_hidden(mid, ceiling):
+							inside = mid
+						else:
+							outside = mid
+					polygon.append(outside)
+			for j in range(1, polygon.size() - 1):
+				kept.append_array(PackedVector3Array([polygon[0], polygon[j], polygon[j + 1]]))
+		elif not hides((tri[0] + tri[1] + tri[2]) / 3.0):
 			kept.append_array(tri)
 	return kept
 
@@ -482,7 +500,8 @@ func _roof_hidden(p: Vector3, r: RoofLayout) -> bool:
 
 
 ## The pieces of `r` its owner keeps. Deck pieces crossing a joined building's centre line are cut back
-## to it, where that building's ceiling starts.
+## to it, where that building's ceiling starts. Inside an overlap, only a portion below the higher ceiling
+## is cut: the deck above it must still overlap to close the roof.
 func _trimmed(pieces: Array[Dictionary], r: RoofLayout) -> Array[Dictionary]:
 	var over: Array[Massing] = []
 	if r.flat():
@@ -492,19 +511,27 @@ func _trimmed(pieces: Array[Dictionary], r: RoofLayout) -> Array[Dictionary]:
 		var x: Transform3D = piece.xform
 		if _roof_hidden(x.origin, r):
 			continue
-		if piece.kind in DECK_PIECES and not over.any(func(s: Massing) -> bool: return Massing.encloses(Vector2(x.origin.x, x.origin.z), s.inner)):
+		if piece.kind in DECK_PIECES:
+			var interior := over.any(func(s: Massing) -> bool: return Massing.encloses(Vector2(x.origin.x, x.origin.z), s.inner))
+			var within := func(p: Vector3) -> bool:
+				if not interior:
+					return over.any(func(s: Massing) -> bool: return Massing.encloses(Vector2(p.x, p.z), s.centre))
+				return over.any(func(s: Massing) -> bool:
+					var surface := Vector3(p.x, r.height_at(p.x, p.z) + 0.001, p.z)
+					var top_y := s.roof.height_at(p.x, p.z) if s.roof != null else s.feet[0] + s.rise
+					return s.holds(surface) and p.y < top_y - RoofLayout.CEILING_DROP)
 			var cut := x
 			# Faces first by their middles, so a piece crossing one wall is cut only across it; then a corner still
 			# reaching in, where two walls meet or a tilted piece leans past the cut, takes the smallest cut that clears it.
 			for axis in [0, 2]:
 				for side in [1.0, -1.0]:
-					cut = _cut_back(cut, axis, side, [0.0], over)
+					cut = _cut_back(cut, axis, side, [0.0], within)
 			for k in 4:
 				var least := cut
 				var kept_share := 0.0
 				for axis in [0, 2]:
 					for side in [1.0, -1.0]:
-						var c := _cut_back(cut, axis, side, [-0.5, 0.5], over)
+						var c := _cut_back(cut, axis, side, [-0.5, 0.5], within)
 						var share := c.basis[axis].length() / cut.basis[axis].length()
 						if c != cut and share > kept_share:
 							least = c
@@ -519,15 +546,15 @@ func _trimmed(pieces: Array[Dictionary], r: RoofLayout) -> Array[Dictionary]:
 	return kept
 
 
-## `x`'s box with its face toward `side` along local `axis` moved in to the last place outside `over`'s centre lines.
-func _cut_back(x: Transform3D, axis: int, side: float, across: Array, over: Array[Massing]) -> Transform3D:
-	if not _face_within(x, axis, 0.5 * side, across, over):
+## `x`'s box with its face toward `side` along local `axis` moved in to the last place outside `within`.
+func _cut_back(x: Transform3D, axis: int, side: float, across: Array, within: Callable) -> Transform3D:
+	if not _face_within(x, axis, 0.5 * side, across, within):
 		return x
 	var clear := 0.0
 	var inside := 0.5
 	for i in TRIM_STEPS:
 		var mid := (clear + inside) * 0.5
-		if _face_within(x, axis, mid * side, across, over):
+		if _face_within(x, axis, mid * side, across, within):
 			inside = mid
 		else:
 			clear = mid
@@ -537,15 +564,15 @@ func _cut_back(x: Transform3D, axis: int, side: float, across: Array, over: Arra
 
 
 ## Whether the top or bottom of `x`'s face at `at` along local `axis`, at `across` along the other level axis, lies
-## within one of `over`'s centre lines.
-func _face_within(x: Transform3D, axis: int, at: float, across: Array, over: Array[Massing]) -> bool:
+## inside the region to cut away.
+func _face_within(x: Transform3D, axis: int, at: float, across: Array, within: Callable) -> bool:
 	for o: float in across:
 		for y in [-0.5, 0.5]:
 			var c := Vector3(0.0, y, 0.0)
 			c[axis] = at
 			c[2 - axis] = o
 			var p := x * c
-			if over.any(func(s: Massing) -> bool: return Massing.encloses(Vector2(p.x, p.z), s.centre)):
+			if within.call(p):
 				return true
 	return false
 

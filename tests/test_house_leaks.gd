@@ -203,6 +203,24 @@ func _house(seed_value: int, count: int) -> void:
 				for c in WallLayout.BOX:
 					var p: Vector3 = x * c
 					_check(not w.layout.joined.any(func(other: Massing) -> bool: return Massing.encloses(Vector2(p.x, p.z), other.centre)), "curved join keeps deck corners outside the adjoining ceiling")
+		for w in room:
+			for piece in w.roof.mortar + w.roof.tiles:
+				if piece.kind not in ["mortar", "deck"]:
+					continue
+				for c in WallLayout.BOX:
+					if c.y > 0.0:
+						continue
+					var p: Vector3 = piece.xform * c
+					for other in room:
+						if other == w or not Massing.encloses(Vector2(p.x, p.z), other.massing.centre):
+							continue
+						var higher := other.roof.height_at(p.x, p.z)
+						if higher > w.roof.height_at(p.x, p.z) + 0.001:
+							_check(p.y >= higher - RoofLayout.CEILING_DROP - RoofLayout.CEILING_DEPTH - 0.005, "crossing domes keep deck undersides above the higher ceiling boards")
+		var ceiling := Probe.new()
+		for w in room:
+			ceiling.add_faces(w.roof.timber_faces, "ceiling", w.id)
+		_check(not ceiling.first(Vector3(-0.5, 1.3, -18.2), Vector3.UP).is_empty(), "boards meet across a curved join without a missing triangle exposing the bed")
 	var probe := Probe.new()
 	for w in room:
 		probe.add_wall(w)
