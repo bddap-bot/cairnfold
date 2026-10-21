@@ -1955,8 +1955,11 @@ func _held_cost(s: Dictionary) -> void:
 	for state in states:
 		for item in items:
 			item.show_state(state)
+			if s.get("without_cup", false) and item.model is Conure:
+				for child in item.model.get_children():
+					(child as Node3D).hide()
 		await get_tree().create_timer(0.1).timeout
-		var name := HeldItem.label(state)
+		var name := HeldItem.label(state) + ("-without-cup" if s.get("without_cup", false) else "")
 		var label := {"op": "label", "name": "held/" + name.replace(" ", "-")}
 		print("driver: ", label)
 		await _label(label)
