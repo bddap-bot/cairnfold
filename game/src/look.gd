@@ -42,7 +42,6 @@ var sky_mat: ShaderMaterial
 var disc: MeshInstance3D
 var disc_mat := ShaderMaterial.new()
 var mountains_mat := ShaderMaterial.new()
-var hills_mat := ShaderMaterial.new()
 var bounce := Bounce.new()
 var _lift := -1.0
 var time := -1.0
@@ -148,8 +147,7 @@ static func build(parent: Node) -> Look:
 	look.add_child(look.disc)
 	look.disc_mat.set_shader_parameter("radius", DISC_RADIUS_DEG / DISC_SPAN_DEG)
 	look.mountains_mat.shader = load("res://src/mountains.gdshader")
-	look.hills_mat.shader = load("res://src/hills.gdshader")
-	look.add_child(Mountains.build(look.mountains_mat, look.hills_mat))
+	look.add_child(Mountains.build(look.mountains_mat))
 	look.bounce.install()
 	look.lift_to(0.0)
 	look.set_time(Daylight.DEFAULT)
@@ -170,13 +168,12 @@ func set_time(t: float) -> void:
 	disc_mat.set_shader_parameter("tint", l.sun)
 	env.ambient_light_energy = l.ambient
 	env.fog_light_color = UNDER_FOG * under_light(l) if under else l.fog
-	for mat in [mountains_mat, hills_mat]:
-		mat.set_shader_parameter("sun_dir", Daylight.toward_sun(t))
-		mat.set_shader_parameter("sun", l.sun)
-		mat.set_shader_parameter("energy", l.energy)
-		mat.set_shader_parameter("sky", l.zenith)
-		mat.set_shader_parameter("ambient", l.ambient)
-		mat.set_shader_parameter("horizon", l.horizon)
+	mountains_mat.set_shader_parameter("sun_dir", Daylight.toward_sun(t))
+	mountains_mat.set_shader_parameter("sun", l.sun)
+	mountains_mat.set_shader_parameter("energy", l.energy)
+	mountains_mat.set_shader_parameter("sky", l.zenith)
+	mountains_mat.set_shader_parameter("ambient", l.ambient)
+	mountains_mat.set_shader_parameter("horizon", l.horizon)
 	mountains_mat.set_shader_parameter("haze", l.fog)
 	bounce.set_sun(Daylight.toward_sun(t), l.sun * l.energy)
 

@@ -15,13 +15,10 @@ const RANGES := [
 ## Rows from foot to ridge, each its share of the height; the last rows stand steep, a stone face over its talus.
 const ROWS := [0.0, 0.12, 0.3, 0.5, 0.68, 0.84, 1.0]
 const REACH := [0.0, 0.42, 0.66, 0.8, 0.88, 0.95, 1.0]
-## The first range's foot stands this high; the foothills run to it from just under the meadow's edge.
-const FOOT_HIGH := 6.0
-const RIM_SAG := 0.5
-const RIM_STEP := 5.0
-## The foothills' rows from the meadow's edge to the foot, and how high they roll between.
-const HILL_ROWS := [0.0, 0.02, 0.05, 0.09, 0.14, 0.22, 0.32, 0.45, 0.6, 0.75, 0.88, 1.0]
-const HILL := 26.0
+## The plain runs from the meadow's edge, just under it, out to the first range's foot at this height.
+const PLAIN_HIGH := 6.0
+const PLAIN_SAG := 0.5
+const PLAIN_STEP := 5.0
 ## The sun's elevation in degrees where a pass is centred on its path, rising and setting.
 const PASS_SUN := 4.0
 ## How far either side of a pass's centre it opens, in radians, and how low it takes the ridge.
@@ -77,12 +74,13 @@ static func noise_for(r: Dictionary) -> FastNoiseLite:
 	return n
 
 
-## Each range's facing slopes, as one indexed surface whose normals are smoothed across every fold gentler than
-## CREASE. COLOR.r is the height as a share of the farthest range's highest, COLOR.g the haze of the air in front,
-## COLOR.b where snow may lie.
+## The plain from the meadow's edge to the first range's foot, then each range's facing slopes, as one indexed
+## surface whose normals are smoothed across every fold gentler than CREASE. COLOR.r is the height as a share of the
+## farthest range's highest, COLOR.g the haze of the air in front, COLOR.b where snow may lie.
 static func arrays() -> Array:
 	var corners := PackedVector3Array()
 	var colors := PackedColorArray()
+	_plain(corners, colors)
 	for r: Dictionary in RANGES:
 		_range(corners, colors, r)
 	return _smooth(corners, colors)
@@ -146,13 +144,35 @@ static func _range(corners: PackedVector3Array, colors: PackedColorArray, r: Dic
 		for k in ROWS.size():
 			var jut: float = crag.get_noise_2d(c % cols * 0.7, k * 1.3) * CRAG * r.depth * (1.0 - absf(ROWS[k] * 2.0 - 1.0))
 			var dist: float = r.radius - r.depth * (1.0 - REACH[k]) + jut
-			row.append(Vector3(out.x * dist, FOOT_HIGH + h * ROWS[k], out.y * dist))
+			row.append(Vector3(out.x * dist, PLAIN_HIGH + h * ROWS[k], out.y * dist))
 		grid.append(row)
 	for c in cols:
 		var next := grid[(c + 1) % cols]
 		for k in ROWS.size() - 1:
 			_face(corners, colors, r, [grid[c][k], grid[c][k + 1], next[k]])
 			_face(corners, colors, r, [next[k], grid[c][k + 1], next[k + 1]])
+
+
+static func _plain(corners: PackedVector3Array, colors: PackedColorArray) -> void:
+	var r: Dictionary = RANGES[0]
+	var foot: float = r.radius - r.depth
+	var edge := Terrain.SIZE * 0.5
+	var heights := Terrain.base_heights()
+	var along := int(Terrain.SIZE / PLAIN_STEP)
+	var rim := PackedVector3Array()
+	for side in 4:
+		for k in along:
+			var t := -edge + k * PLAIN_STEP
+			var p: Vector2 = [Vector2(t, -edge), Vector2(edge, t), Vector2(-t, edge), Vector2(-edge, -t)][side]
+			var g := Vector2i(clampi(roundi((p.x + edge) / Terrain.STEP), 0, Terrain.CELLS), clampi(roundi((p.y + edge) / Terrain.STEP), 0, Terrain.CELLS))
+			rim.append(Vector3(p.x, heights[g.y * Terrain.VERTS + g.x] - PLAIN_SAG, p.y))
+	for k in rim.size():
+		var a := rim[k]
+		var b := rim[(k + 1) % rim.size()]
+		var fa := Vector3(a.x, 0, a.z).normalized() * foot + Vector3.UP * PLAIN_HIGH
+		var fb := Vector3(b.x, 0, b.z).normalized() * foot + Vector3.UP * PLAIN_HIGH
+		_face(corners, colors, r, [a, fa, b])
+		_face(corners, colors, r, [b, fa, fb])
 
 
 static func _face(corners: PackedVector3Array, colors: PackedColorArray, r: Dictionary, tri: Array) -> void:
@@ -162,93 +182,15 @@ static func _face(corners: PackedVector3Array, colors: PackedColorArray, r: Dict
 	var top: float = RANGES[RANGES.size() - 1].high
 	for p: Vector3 in tri:
 		corners.append(p)
-		colors.append(Color((p.y - FOOT_HIGH) / top, r.haze, r.snow))
+		colors.append(Color((p.y - PLAIN_HIGH) / top, r.haze, r.snow))
 
 
-static func _rim() -> PackedVector3Array:
-	var half := Terrain.SIZE * 0.5
-	var heights := Terrain.base_heights()
-	var rim := PackedVector3Array()
-	for side in 4:
-		for k in int(Terrain.SIZE / RIM_STEP):
-			var t := -half + k * RIM_STEP
-			var p: Vector2 = [Vector2(t, -half), Vector2(half, t), Vector2(-t, half), Vector2(-half, -t)][side]
-			var g := Vector2i(clampi(roundi((p.x + half) / Terrain.STEP), 0, Terrain.CELLS), clampi(roundi((p.y + half) / Terrain.STEP), 0, Terrain.CELLS))
-			rim.append(Vector3(p.x, heights[g.y * Terrain.VERTS + g.x] - RIM_SAG, p.y))
-	return rim
-
-
-static func _hill_noise(seed: int, frequency: float) -> FastNoiseLite:
-	var n := FastNoiseLite.new()
-	n.seed = seed
-	n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
-	n.frequency = frequency
-	n.fractal_octaves = 2
-	return n
-
-
-## The foothills from the meadow's edge to the first range's foot, flat-shaded. COLOR.r is how dry, COLOR.g how wooded.
-static func hill_arrays() -> Array:
-	var foot: float = RANGES[0].radius - RANGES[0].depth
-	var rolling := _hill_noise(21, 0.011)
-	var dry := _hill_noise(22, 0.02)
-	var wood := _hill_noise(23, 0.016)
-	var rim := _rim()
-	var grid: Array[PackedVector3Array] = []
-	var tones: Array[PackedColorArray] = []
-	for k in rim.size() + 1:
-		var a := rim[k % rim.size()]
-		var out := Vector3(a.x, 0, a.z).normalized() * foot
-		var row := PackedVector3Array()
-		var tone := PackedColorArray()
-		for t: float in HILL_ROWS:
-			var p := Vector3(lerpf(a.x, out.x, t), 0, lerpf(a.z, out.z, t))
-			p.y = lerpf(a.y, FOOT_HIGH, t) + HILL * pow(sin(PI * t), 0.8) * (1.0 + 0.6 * rolling.get_noise_2d(p.x, p.z))
-			row.append(p)
-			tone.append(Color(dry.get_noise_2d(p.x, p.z) * 0.5 + 0.5, smoothstep(0.1, 0.4, wood.get_noise_2d(p.x, p.z)) * smoothstep(0.03, 0.12, t), 0))
-		grid.append(row)
-		tones.append(tone)
-	var verts := PackedVector3Array()
-	var normals := PackedVector3Array()
-	var colors := PackedColorArray()
-	for c in rim.size():
-		for k in HILL_ROWS.size() - 1:
-			_tile(verts, normals, colors, [grid[c][k], grid[c][k + 1], grid[c + 1][k]], [tones[c][k], tones[c][k + 1], tones[c + 1][k]])
-			_tile(verts, normals, colors, [grid[c + 1][k], grid[c][k + 1], grid[c + 1][k + 1]], [tones[c + 1][k], tones[c][k + 1], tones[c + 1][k + 1]])
-	return _surface(verts, normals, colors)
-
-
-static func _tile(verts: PackedVector3Array, normals: PackedVector3Array, colors: PackedColorArray, tri: Array, tone: Array) -> void:
-	var n: Vector3 = (tri[2] - tri[0]).cross(tri[1] - tri[0]).normalized()
-	if n.y < 0.0:
-		n = -n
-		tri = [tri[0], tri[2], tri[1]]
-		tone = [tone[0], tone[2], tone[1]]
-	for i in 3:
-		verts.append(tri[i])
-		normals.append(n)
-		colors.append(tone[i])
-
-
-static func _surface(verts: PackedVector3Array, normals: PackedVector3Array, colors: PackedColorArray) -> Array:
-	var out := []
-	out.resize(Mesh.ARRAY_MAX)
-	out[Mesh.ARRAY_VERTEX] = verts
-	out[Mesh.ARRAY_NORMAL] = normals
-	out[Mesh.ARRAY_COLOR] = colors
-	return out
-
-
-## The ranges in `ranges`, unfogged since their shader hazes them itself; the foothills in `hills`, under the
-## garden's own fog so they meet the meadow in the same air.
-static func build(ranges: Material, hills: Material) -> MeshInstance3D:
+static func build(material: ShaderMaterial) -> MeshInstance3D:
 	var m := ArrayMesh.new()
 	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays())
-	m.surface_set_material(0, ranges)
-	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, hill_arrays())
-	m.surface_set_material(1, hills)
 	var mi := MeshInstance3D.new()
 	mi.mesh = m
+	mi.material_override = material
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	mi.gi_mode = GeometryInstance3D.GI_MODE_DISABLED
 	return mi

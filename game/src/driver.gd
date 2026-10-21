@@ -8,8 +8,8 @@ extends Node
 signal finished
 
 ## The parts of the scene `layer` hides, as demo/meadow-layers.json prices the bare meadow; "all" hides every one.
-## "mountains" are the ranges and their foothills, "foothills" the foothills alone.
-const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "foothills", "sky", "sun_disc", "sun", "ambient", "fog", "post", "msaa", "water", "hands"]
+## "mountains" are the ranges and whatever lies between them and the meadow.
+const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "sun_disc", "sun", "ambient", "fog", "post", "msaa", "water", "hands"]
 
 var main: Node
 var steps: Array
@@ -783,10 +783,10 @@ func _layer_parts(name: String) -> Array[Array]:
 			materials = [flora.flower_mat, flora.flower_far]
 		"trees":
 			materials = [flora.trunks.live.material_override, flora.foliage.live.material_override]
-		"mountains", "foothills":
+		"mountains":
 			for n in look.get_children():
 				if n is MeshInstance3D and n != look.disc:
-					out.append([n, "visible", false] if name == "mountains" else [n, "mesh", _ranges(n.mesh)])
+					out.append([n, "visible", false])
 		"sky":
 			out.append([look.env, "background_mode", Environment.BG_COLOR])
 		"sun_disc":
@@ -818,15 +818,6 @@ func _layer_parts(name: String) -> Array[Array]:
 			out.append([g, "visible", false])
 	return out
 
-
-## The mountains' mesh with their ranges alone (Mountains.build), its foothills taken off.
-func _ranges(mountains: Mesh) -> ArrayMesh:
-	if mountains.get_surface_count() == 1:
-		return mountains
-	var m := ArrayMesh.new()
-	m.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, mountains.surface_get_arrays(0))
-	m.surface_set_material(0, mountains.surface_get_material(0))
-	return m
 
 ## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter; with `storeys`,
 ## each stands that many high, with `wings`, a wing crosses each house, with `gable`, their gable ends take it, and

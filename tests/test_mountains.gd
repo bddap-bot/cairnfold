@@ -24,9 +24,6 @@ func _run() -> void:
 	_slopes_shade_smoothly_and_ridges_crisply(verts, normals, indices)
 	_the_sun_rises_and_sets_through_a_pass()
 	_they_cost_a_few_thousand_triangles(verts, indices)
-	var hills: PackedVector3Array = Mountains.hill_arrays()[Mesh.ARRAY_VERTEX]
-	_the_foothills_join_the_meadow_to_the_ranges(hills)
-	_the_foothills_cost_a_few_thousand_triangles(hills)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -116,7 +113,7 @@ func _the_sun_rises_and_sets_through_a_pass() -> void:
 			var clear := true
 			for k in Mountains.RANGES.size():
 				var r: Dictionary = Mountains.RANGES[k]
-				var top := Vector3(cos(az) * r.radius, Mountains.FOOT_HIGH + Mountains.ridge(r, noises[k], az), sin(az) * r.radius)
+				var top := Vector3(cos(az) * r.radius, Mountains.PLAIN_HIGH + Mountains.ridge(r, noises[k], az), sin(az) * r.radius)
 				clear = clear and toward.y > (top - eye).normalized().y
 			if clear:
 				first = Daylight.elevation(t)
@@ -127,25 +124,3 @@ func _the_sun_rises_and_sets_through_a_pass() -> void:
 func _they_cost_a_few_thousand_triangles(verts: PackedVector3Array, indices: PackedInt32Array) -> void:
 	_check(indices.size() / 3 < 6000, "the ranges take %d triangles" % (indices.size() / 3))
 	print("mountains: %d triangles, %d vertices" % [indices.size() / 3, verts.size()])
-
-
-## Each foothill vertex on the meadow's edge sits just under it, and each at the far end on the first range's foot.
-func _the_foothills_join_the_meadow_to_the_ranges(hills: PackedVector3Array) -> void:
-	var half := Terrain.SIZE * 0.5
-	var foot: float = Mountains.RANGES[0].radius - Mountains.RANGES[0].depth
-	var seams := 0
-	var feet := 0
-	var off := 0
-	for p in hills:
-		if maxf(absf(p.x), absf(p.z)) < half + 0.01:
-			seams += 1
-			var under := Terrain.base_at(p.x, p.z) - p.y
-			off += 1 if under < 0.0 or under > Mountains.RIM_SAG + 0.01 else 0
-		elif absf(_flat(p) - foot) < 0.5:
-			feet += 1
-			off += 1 if absf(p.y - Mountains.FOOT_HIGH) > 0.01 else 0
-	_check(seams > 0 and feet > 0 and off == 0, "%d of %d seam and %d foot vertices miss the meadow or the foot" % [off, seams, feet])
-
-
-func _the_foothills_cost_a_few_thousand_triangles(hills: PackedVector3Array) -> void:
-	_check(hills.size() / 3 < 4000, "the foothills take %d triangles" % (hills.size() / 3))

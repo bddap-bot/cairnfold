@@ -1326,21 +1326,14 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
   diffuse for soft terminators; foliage backlight for the glowing-leaf look.
 - **Atmosphere:** depth fog with aerial perspective and sun scatter, tinted towards
   the sky, so distant hills fade and the near meadow stays saturated.
-- **Horizon:** two rings of stone-faced mountains, 300 to 2100 m out, with foothills from the
-  meadow's edge to their feet (`Mountains`), drawn as one mesh in two surfaces, unshaded, lit
-  from the hour's light, casting no shadow. The ranges are one indexed surface of about 5k
-  triangles, its normals smoothed across every fold gentler than `Mountains.CREASE` so the slopes
-  shade softly while ridges and crags keep their edge, hazed in its own shader. They are real
-  geometry far enough off that both eyes and every step through the garden see them as distant.
-  The ridges dip where the sun crosses them low, so it rises and sets through a pass. The
-  foothills (about 2.8k flat-shaded triangles, `hills.gdshader`) start just under the meadow's
-  rim and roll up to 26 m before meeting the first range's foot, in meadow greens with darker
-  wooded patches, under the garden's own fog so the seam sits in the same air. They replaced a
-  flat plain that read as a line with a wall behind it. Of the three edges tried, measured on a
-  Quest 2 from the garden's centre (`perf/quest-2/edge/`, GPU ms a frame against the plain):
-  foothills +0.1 standing and +0.2 floating; a beach into a lake within noise of that but still a
-  flat sheet ending at the wall; a two-row treeline of 316 trees +2.4 at either height, with the
-  plain still showing over it. The eyes' far clip (`Rig.FAR`) and the sun's disc stand beyond them.
+- **Horizon:** two rings of stone-faced mountains, 300 to 2100 m out, with a plain from the
+  meadow's edge to their feet (`Mountains`): one indexed mesh of about 5k triangles in one
+  draw, its normals smoothed across every fold gentler than `Mountains.CREASE` so the slopes
+  shade softly while ridges and crags keep their edge, unshaded, lit and hazed in its own
+  shader from the hour's light, casting no shadow.
+  They are real geometry far enough off that both eyes and every step through the garden
+  see them as distant. The ridges dip where the sun crosses them low, so it rises and sets
+  through a pass. The eyes' far clip (`Rig.FAR`) and the sun's disc stand beyond them.
 - **Sun shadows:** one stabilized orthogonal map reaches 256 m, covering the garden
   without a fade or cascade boundary inside it. Godot's Mobile renderer selects
   cascades and fades shadows by view depth: a fixed distant tree used to lose its
