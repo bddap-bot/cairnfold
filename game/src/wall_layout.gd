@@ -472,9 +472,10 @@ func _unhidden(tris: PackedVector3Array, ceiling: RoofLayout = null) -> PackedVe
 func _roof_hidden(p: Vector3, r: RoofLayout) -> bool:
 	if not r.flat():
 		return hides(p)
-	# The whole flat deck shares one owner at a join, including its bed and ceiling.
+	var covered := hidden(p, [], resting)
+	# Joined decks share one owner; a platform above still tests the piece's actual height.
 	p.y = r.height_at(p.x, p.z)
-	return hides(p + Vector3.UP * 0.001) or hidden(p - Vector3.UP * 0.001, older, [])
+	return covered or hidden(p + Vector3.UP * 0.001, joined, []) or hidden(p - Vector3.UP * 0.001, older, [])
 
 
 ## Takes away what lies where a build this one meets lays nothing.
