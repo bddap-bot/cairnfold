@@ -170,17 +170,20 @@ void smear(ivec2 p) {
 	vec4 here = texelFetch(wet_in, p, 0);
 	vec4 change = vec4(0.0);
 	ivec2 extent = textureSize(wet_in, 0);
-	// Symmetric exchange moves only existing wet pigment and water, including across the feather fringe.
+	// Each outgoing transfer has an equal incoming transfer at its destination: no pigment is created.
 	for (int i = pc.first; i < pc.first + pc.count; i++) {
 		Dab d = dabs[i];
 		float f = feathers(d, vec2(p) + 0.5);
 		if (f <= 0.0) continue;
-		for (int axis = 0; axis < 4; axis++) {
-			ivec2 offset = axis == 0 ? ivec2(6,0) : axis == 1 ? ivec2(-6,0) : axis == 2 ? ivec2(0,6) : ivec2(0,-6);
-			ivec2 q = p + offset;
-			if (any(lessThan(q, ivec2(0))) || any(greaterThanEqual(q, extent))) continue;
-			float weight = min(f, feathers(d, vec2(q) + 0.5)) * 0.24 / float(pc.count);
-			change += (texelFetch(wet_in, q, 0) - here) * weight;
+		ivec2 offset = ivec2(round(vec2(cos(d.b.x), sin(d.b.x)) * 12.0));
+		ivec2 source = p - offset;
+		ivec2 destination = p + offset;
+		float amount = 0.6 / float(pc.count);
+		if (all(greaterThanEqual(source, ivec2(0))) && all(lessThan(source, extent))) {
+			change += texelFetch(wet_in, source, 0) * min(f, feathers(d, vec2(source) + 0.5)) * amount;
+		}
+		if (all(greaterThanEqual(destination, ivec2(0))) && all(lessThan(destination, extent))) {
+			change -= here * min(f, feathers(d, vec2(destination) + 0.5)) * amount;
 		}
 	}
 	imageStore(wet_out, p, here + change);

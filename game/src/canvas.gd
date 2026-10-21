@@ -372,7 +372,7 @@ func _lay(stroke: Dictionary, dabs: PackedFloat32Array) -> float:
 	var lo := Vector2(INF, INF)
 	var hi := Vector2(-INF, -INF)
 	for i in range(0, dabs.size(), Brushwork.DAB):
-		var r := dabs[i + 2] * 1.4 + 2.0
+		var r := dabs[i + 2] * (1.6 if stroke.medium == Brushwork.Medium.SMEAR else 1.4) + 2.0
 		lo = Vector2(minf(lo.x, dabs[i] - r), minf(lo.y, dabs[i + 1] - r))
 		hi = Vector2(maxf(hi.x, dabs[i] + r), maxf(hi.y, dabs[i + 1] + r))
 	var rect := Rect2i(Vector2i(lo.floor()), Vector2i((hi - lo).ceil()) + Vector2i.ONE).intersection(Rect2i(Vector2i.ZERO, Brushwork.SIZE))
@@ -457,7 +457,7 @@ func _run(batches: Array) -> void:
 				"dabs":
 					var s: Dictionary = op[1]
 					if s.medium == Brushwork.Medium.SMEAR:
-						var region: Rect2i = op[4].grow(6).intersection(Rect2i(Vector2i.ZERO, Brushwork.SIZE))
+						var region: Rect2i = op[4].grow(12).intersection(Rect2i(Vector2i.ZERO, Brushwork.SIZE))
 						var origin := Vector3(region.position.x, region.position.y, 0)
 						_rd.texture_copy(_wet[0], _wet[1], origin, origin, Vector3(region.size.x, region.size.y, 1), 0, 0, 0, 0)
 					var c: Vector3 = Brushwork.CHARCOAL if s.medium == Brushwork.Medium.CHARCOAL else s.colour

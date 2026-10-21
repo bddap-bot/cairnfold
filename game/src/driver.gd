@@ -2011,7 +2011,7 @@ func _bird_smear(s: Dictionary) -> void:
 		await get_tree().process_frame
 		t += get_process_delta_time()
 		var along := t / seconds
-		h.global_transform = Transform3D(basis, frame * Vector3(lerpf(-0.25, 0.25, along), 0, 0.018) - basis * (BirdCarry.HOLD.origin + Conure.BODY))
+		h.global_transform = Transform3D(basis, frame * Vector3(lerpf(-0.25, 0.25, along), along * 0.18, 0.018) - basis * (BirdCarry.HOLD.origin + Conure.BODY))
 	h.global_position += frame.basis.z * 0.2
 	await _frames(30)
 	print("conure: wet canvas smear submitted")
@@ -2020,6 +2020,8 @@ func _bird_smear(s: Dictionary) -> void:
 func _view_held(s: Dictionary) -> void:
 	var h := _hand(s)
 	assert(h.carried != null)
+	h.global_transform = Transform3D(Basis.IDENTITY, Terrain.ground(1.5, 2.0) + Vector3.UP * 1.4)
+	await _frames(30)
 	var at := h.carried.global_position + Vector3.UP * 0.07
 	var hand_pose := h.global_transform
 	main.view(at + Vector3(0.25, 0.13, -0.36), at, false)
