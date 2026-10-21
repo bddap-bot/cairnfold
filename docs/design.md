@@ -3299,6 +3299,21 @@ instead of the frame running long. A dab costs a texel-step for every texel of i
 land whatever they cost; a replay catching up charges its dabs to the same budget, so it lays a painting no faster
 than the frame holds. A dry canvas costs its drawing only.
 
+The flow shader reads the immutable water input and paper through integer texture fetches. Empty texels whose
+four neighbours cannot supply water write zero to the next buffer without evaluating flow or settling; every
+other texel runs the same equations. Canvas resolution, wet-tile margins, drying ticks and the work budget stay
+unchanged. `demo/canvas-water-bench.json` reproduces the loaded big-water-brush phase on a single easel; run it with
+`NESTCOMBE_SCENE=demo/canvas-water-bench.json scripts/bench.sh OUT --android APK` on a Quest.
+
+On Quest 2, the unchanged fixture measured 15.52 ms for the loaded-water phase before this change and 12.11 ms
+after, against 12.50 ms; idle was 10.22/10.16 ms and the subsequent charcoal phases 10.65/10.66 and 10.36/10.20 ms.
+The paired records are in `perf/quest-2/canvas-water-bench/`. GPU timestamps on an instrumented baseline put
+water flow at a median 5.883 ms per painting frame and dabs at 0.020 ms (medians of per-second averages); the rest
+of the frame was not decomposed. Either optimization alone still exceeded budget (13.42 ms with the empty-texel
+exit alone, 13.16 ms with sampled reads alone). The final run still recorded 38 late frames during painting:
+passing this GPU-time gate does not establish zero missed frames. Original and optimized textures matched bit for
+bit at 16 wet/dry snapshots across watercolour, oil, charcoal, edge strokes and complete drying.
+
 On the Steam Frame (`demo/easel-bench.json`, 72 Hz, the build budget 12.5 ms of GPU time), frame milliseconds at the
 median and 99th percentile, late frames, and viewport GPU milliseconds, for the canvas's budget before (8 million
 texel-steps a frame catching up, at most 4,000 dabs) and after (one budget of 3 million, dabs charged):
