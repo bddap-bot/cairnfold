@@ -127,8 +127,10 @@ var masons: Array[Mason] = []
 ## (`house_of`, with "grounded" false for one standing on a build, which keeps to that build's top).
 var house: Wall
 var house_at := {}
-var _house_data := {}
+## Where it stood as the garden had it when taken, and the builds standing on it, all the way up, each with where its
+## stones stood when laid (`_laid_at`), carried with it.
 var _house_was := {}
+var _riders := {}
 ## The hands holding it, and what the pair of them shape; where it stood and their poses when the last of them took
 ## hold, and how far it goes per metre of hand.
 var _holders: Array[Mason] = []
@@ -139,9 +141,13 @@ var _hold_gain := 1.0
 ## Where the house stood for each footprint sent to be laid, so whichever is laid is carried to where it stands now.
 var _laid_at: Array[Dictionary] = []
 var _house_dirty := false
-## Houses let go and not yet laid as the garden has them, by id: their `_laid_at`, where they were let go, and whether
-## the garden has answered for them, so their stones are carried there until they are laid again.
+## Houses let go, and the builds on them, not yet laid as the garden has them, by id: their `_laid_at`, where the house
+## was let go, and whether the garden has answered for them, so their stones are carried there until they are laid again.
 var _settling := {}
+## How far a house may be carried, in metres, or turned, in radians, and still count as left where it stood: a hand held
+## still trembles.
+const NUDGE := 0.05
+const TURN_NUDGE := 0.02
 ## True while the garden is swapped wholesale: walls come and go without a sound.
 var quiet := false
 var _since_rebuild := 0.0
@@ -207,6 +213,8 @@ func _process(delta: float) -> void:
 	_hold_house()
 	if house != null:
 		_carry(house, _laid_at, house_at)
+		for r: Wall in _riders:
+			_carry(r, _riders[r], house_at)
 	_settle_houses()
 	_since_rebuild += delta
 	if _dirty and _since_rebuild >= REBUILD_EVERY:
@@ -258,7 +266,8 @@ func _handle(m: Mason) -> void:
 		var tree := flora.solid_hit(origin, dir, nearest)
 		var trunk: Flora.Plant = tree.plants[0] if not tree.is_empty() and tree.plants[0].pool == flora.trunks else null
 		var rock := world.boulders.pick(origin, dir, minf(nearest, minf(pick.get("along", INF), tree.get("along", INF)))) if world.boulders != null else {}
-		if not held.is_empty() and held.along < minf(nearest, minf(tree.get("along", INF), rock.get("along", INF))):
+		var before: float = minf(nearest, minf(tree.get("along", INF), rock.get("along", INF)))
+		if not held.is_empty() and held.along < (before if pick.get("wall") == house else minf(before, pick.get("along", INF))):
 			_join_house(m, held.roof, held.eave)
 		elif not rock.is_empty():
 			begin_grow(m, rock.boulder, hand, rock.point)
@@ -269,10 +278,13 @@ func _handle(m: Mason) -> void:
 		elif not pick.is_empty() and pick.along < nearest and not pick.wall.layout.fence:
 			if _held(pick.wall):
 				m.hand.hold()
-			elif house == null and world.state.walls.has(pick.wall.id) and not house_of(world.state.walls[pick.wall.id]).is_empty():
-				var roof: bool = pick.get("surface") == "roof"
-				take_house(pick.wall)
-				_join_house(m, roof, pick.wall.roof.eave_way(pick.point) if roof else Vector3.ZERO)
+			elif world.state.walls.has(pick.wall.id) and not house_of(world.state.walls[pick.wall.id]).is_empty():
+				if house != null:
+					m.hand.hold()
+				else:
+					var roof: bool = pick.get("surface") == "roof"
+					take_house(pick.wall)
+					_join_house(m, roof, pick.wall.roof.eave_way(pick.point) if roof else Vector3.ZERO)
 			else:
 				begin_lift(m, pick.wall, origin, pick.point)
 	elif m.buttons.held("grab") and m.lifting != null:
@@ -417,6 +429,7 @@ func _forget() -> void:
 		m.partner = null
 	house = null
 	_holders.clear()
+	_riders.clear()
 	_settling.clear()
 	_due.clear()
 
@@ -476,21 +489,35 @@ func new_house(at: Dictionary, on := PackedInt32Array()) -> Wall:
 	return w
 
 
-## Takes the built house or tower `w` in hand as the garden has it, for the grips that join it (`_join_house`), or a
-## script (`stand_house`), to move and size.
+## Takes the built house or tower `w` in hand as the garden has it, or where it was let go if the garden has not yet
+## answered, for the grips that join it (`_join_house`), or a script (`stand_house`), to move and size; what stands on it
+## goes with it.
 func take_house(w: Wall) -> void:
 	house = w
-	_house_data = world.state.walls[w.id].duplicate(true)
-	house_at = house_of(_house_data)
-	house_at.grounded = w.on.is_empty()
-	_house_was = house_at.duplicate()
+	var d: Dictionary = world.state.walls[w.id]
+	_house_was = house_of(d)
+	_house_was.grounded = w.on.is_empty()
+	var was: Dictionary = _settling.get(w.id, {})
+	house_at = (_house_was if was.is_empty() or was.back else was.at).duplicate()
+	_hold_start = house_at.duplicate()
+	_laid_at = _resettled(w, d.points, d.rise)
+	_riders.clear()
+	for o in walls:
+		if o != w and _below(o.on).has(w.id):
+			_riders[o] = _resettled(o, world.state.walls[o.id].points, o.layout.laid_rise)
 	_holders.clear()
-	_laid_at = _settling.get(w.id, {}).get("laid_at", [] as Array[Dictionary])
-	_settling.erase(w.id)
-	var points: Array[Vector3] = []
-	points.assign(Array(_house_data.points))
-	_laid_at.append({"points": points, "center": house_at.center, "yaw": house_at.yaw, "rise": house_at.rise})
 	_carried = 0.0
+
+
+## Where the stones `w` has laid stood, its house standing as it was let go or as the garden has it, `w` standing at
+## `points` raised `rise` in the garden; it is held now, so no longer settling.
+func _resettled(w: Wall, points: PackedVector3Array, rise: float) -> Array[Dictionary]:
+	var out: Array[Dictionary] = _settling.get(w.id, {}).get("laid_at", [] as Array[Dictionary])
+	_settling.erase(w.id)
+	var laid: Array[Vector3] = []
+	laid.assign(Array(points))
+	out.append({"points": laid, "laid_rise": rise, "center": _house_was.center, "yaw": _house_was.yaw, "rise": _house_was.rise})
+	return out
 
 
 ## `m`'s grip joins the hold on the house in hand: on its roof with `roof`, on its eave going `eave` out from its walls.
@@ -568,28 +595,28 @@ func stand_house(to: Dictionary) -> void:
 
 
 func _lay_house() -> void:
-	house.set_data(World.reshaped(_house_data, _house_change(house_at)))
+	house.set_data(World.reshaped(world.state.walls[house.id], _house_change(house_at)))
 	_meet(house)
-	_laid_at.append({"points": house.layout.points.duplicate(), "center": house_at.center, "yaw": house_at.yaw, "rise": house_at.rise})
+	_laid_at.append({"points": house.layout.points.duplicate(), "laid_rise": house_at.rise, "center": house_at.center, "yaw": house_at.yaw, "rise": house_at.rise})
 	_house_dirty = true
 	_dirty = true
 
 
 func _house_change(at: Dictionary) -> Dictionary:
-	return reshape_house(_house_data, at)
+	return reshape_house(world.state.walls[house.id], at)
 
 
-## Carries the stones `w` has laid to where it stands as `at`, from where it stood when they were laid (`laid_at`), its
-## decorations with them: on the ground it rides the ground, on a build it keeps that build's top.
+## Carries the stones `w` has laid to where its house stands as `at`, from where that stood when they were laid
+## (`laid_at`), its decorations with them: a house on the ground rides the ground, one on a build keeps that build's top.
 func _carry(w: Wall, laid_at: Array[Dictionary], at: Dictionary) -> void:
 	var laid := w.layout.laid_points
-	var i := laid_at.find_custom(func(e: Dictionary) -> bool: return e.points == laid and e.rise == w.layout.laid_rise)
+	var i := laid_at.find_custom(func(e: Dictionary) -> bool: return e.points == laid and e.laid_rise == w.layout.laid_rise)
 	if i < 0:
 		return
 	for k in i:
 		laid_at.pop_front()
 	var was: Dictionary = laid_at[0]
-	var lift: float = 0.0 if not w.on.is_empty() else _lowest(outline(at)) - _lowest(outline({"center": was.center, "yaw": was.yaw, "size": at.size, "round": at.round})) + at.rise - was.rise
+	var lift: float = 0.0 if not at.grounded else _lowest(outline(at)) - _lowest(outline({"center": was.center, "yaw": was.yaw, "size": at.size, "round": at.round})) + at.rise - was.rise
 	var from := Transform3D(Basis(Vector3.UP, was.yaw), Vector3(was.center.x, 0.0, was.center.z))
 	var to := Transform3D(Basis(Vector3.UP, at.yaw), Vector3(at.center.x, lift, at.center.z))
 	_place_laid(w, to * from.affine_inverse())
@@ -603,26 +630,75 @@ func _place_laid(w: Wall, x: Transform3D) -> void:
 		world.decorations.carry(w)
 
 
-## Lets the house in hand go: it is set where and as it stands, one reshape, and shown there until the garden lays it so.
+## Lets the house in hand go: it is set where and as it stands, one reshape with the builds on it carried along, and
+## shown there until the garden lays it so.
 func end_house(hand: Hand = null) -> void:
 	var w := house
-	var change := _house_change(house_at)
-	var moved := ["center", "yaw", "size", "rise", "height", "pitch", "curve", "overhang"].any(func(k: String) -> bool: return house_at[k] != _house_was[k])
+	var at := house_at
+	var moved := _moved(_house_was, at)
+	var carried := _moved(_house_was, at.merged({"size": _house_was.size, "rise": _house_was.rise, "height": _house_was.height, "pitch": _house_was.pitch, "curve": _house_was.curve, "overhang": _house_was.overhang}, true))
+	var cmds: Array = [{"op": "reshape", "of": "walls", "id": w.id, "data": _house_change(at)}] if moved else []
+	var ids := [w.id]
+	var x := _footing(at) * _footing(_house_was).affine_inverse()
+	for r: Wall in _riders:
+		if carried:
+			cmds.append({"op": "reshape", "of": "walls", "id": r.id, "data": carried_by(world.state.walls[r.id], x)})
+		_settling[r.id] = {"laid_at": _riders[r], "at": at, "back": not carried}
+		ids.append(r.id)
+	_settling[w.id] = {"laid_at": _laid_at, "at": at, "back": not moved}
 	house = null
 	_holders.clear()
-	_settling[w.id] = {"laid_at": _laid_at, "at": house_at, "back": not moved}
+	_riders.clear()
 	_laid_at = []
-	if moved:
-		world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": change}, _house_back.bind(w.id), hand)
-	else:
+	if cmds.is_empty():
 		_relay(w)
+	else:
+		world.submit(cmds[0] if cmds.size() == 1 else {"op": "batch", "cmds": cmds}, _house_back.bind(ids), hand)
 
 
-## The garden has answered for a house let go, taking it as it stood or turning it down.
-func _house_back(id: int) -> void:
-	if _settling.has(id):
-		_settling[id].back = true
-	settle(id)
+## Whether a house held from `was` stands far enough from it as `at` to set it there.
+static func _moved(was: Dictionary, at: Dictionary) -> bool:
+	if Vector2(at.center.x - was.center.x, at.center.z - was.center.z).length() > NUDGE or absf(angle_difference(at.yaw, was.yaw)) > TURN_NUDGE:
+		return true
+	return not at.size.is_equal_approx(was.size) or ["rise", "height", "pitch", "curve", "overhang"].any(func(k: String) -> bool: return absf(at[k] - was[k]) > 0.01)
+
+
+## Where a house standing as `at` stands on the ground and which way it faces, as a frame.
+static func _footing(at: Dictionary) -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, at.yaw), Vector3(at.center.x, 0.0, at.center.z))
+
+
+## The reshape that carries build `d` by `x`, a turn about the vertical and a move along the ground: its wall line, and a
+## tower's cone with it; what stands along its walls or on its roof keeps its place there.
+static func carried_by(d: Dictionary, x: Transform3D) -> Dictionary:
+	var points := PackedVector3Array()
+	for p: Vector3 in d.points:
+		var q := x * Vector3(p.x, 0.0, p.z)
+		points.append(Vector3(q.x, p.y, q.z))
+	var out := {"points": points}
+	if d.has("roof"):
+		var c := x * Vector3(d.roof.center.x, 0.0, d.roof.center.z)
+		out["roof"] = {"center": Vector3(c.x, d.roof.center.y, c.z)}
+	return out
+
+
+## The garden has answered for a house let go and the builds on it, taking them as they stood or turning them down: any
+## not yet laid as the garden has them are laid so.
+func _house_back(ids: Array) -> void:
+	for id: int in ids:
+		if _settling.has(id):
+			_settling[id].back = true
+		var w := find(id)
+		if w != null and not _held(w) and world.state.walls.has(id) and not _shows_garden(w):
+			_relay(w)
+
+
+## Whether `w` is laid from the garden's own copy of it as far as a hold changes it.
+func _shows_garden(w: Wall) -> bool:
+	var d: Dictionary = world.state.walls[w.id]
+	if PackedVector3Array(w.layout.points) != d.points or w.layout.rise != d.rise or w.layout.height != d.height:
+		return false
+	return w.roof == null or (w.roof.pitch == d.roof.pitch and w.roof.curve == d.roof.curve and w.roof.overhang == d.roof.overhang and w.roof.center == d.roof.center)
 
 
 ## A house let go keeps its stones carried to where it was let go until it is laid as the garden has it.
@@ -1301,6 +1377,8 @@ func take(id: int) -> void:
 	if w == house:
 		house = null
 		_holders.clear()
+		_riders.clear()
+	_riders.erase(w)
 	_settling.erase(id)
 	for m in masons:
 		if m.lifting == w:
@@ -1338,7 +1416,7 @@ func find(id: int) -> Wall:
 
 
 func _held(w: Wall) -> bool:
-	if w != null and w == house:
+	if w != null and (w == house or _riders.has(w)):
 		return true
 	for m in masons:
 		if m.lifting == w or (m.growing is OpeningGrip and m.growing.wall == w):

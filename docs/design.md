@@ -1767,8 +1767,10 @@ moves one.
 - Carry: a grip anywhere on a house or tower, its walls, gables or roof, whatever the hand holds, takes it. It moves
   along the ground with the hand, farther for a far house by the reach gain a wall's pull has, and turns about the
   vertical as the hand turns; raised or lowered, it rises onto its plinth or comes back down (see "Raising a house").
-  Its stones are carried as laid, roof, ivy, fittings and furniture with them, riding the ground under it; only a
-  change of plinth lays it again. One standing on a build keeps to that build's top.
+  Its stones are carried as laid, roof, ivy, fittings, furniture and lantern light with them, riding the ground under
+  it; only a change of plinth lays it again. Every build standing on it, storeys and walls all the way up, is carried
+  with it and set where it is let go. One standing on a build keeps to that build's top. A grip into a door, window or
+  arch takes the opening, not the house (see the controls table).
 - Size: the other hand's grip on the same house joins the hold, and the two hands size it where it stands. On its
   walls, spreading or closing them moves those walls out or in along the side nearest the line between the hands,
   and only that side: hands across its front change its width, hands along its flank its depth. The nearer side
@@ -1778,7 +1780,8 @@ moves one.
   the roof riding the new top. Two hands never move, turn or raise it.
 - A round tower has one footprint dimension: two hands spread its diameter, and it stays round; upright they set its
   height as a house's.
-- The roof: both grips on the roof shape it instead (see "Flat roofs, platforms and dormers" for the eaves). Drawn
+- The roof: both grips on the roof shape it instead (see "Flat roofs, platforms and dormers" for the eaves); a pair
+  with either grip on its walls sizes it. Drawn
   apart upright they raise the ridge, together lower it, all the way down snapping it flat; spread or closed across,
   they bow the slopes out or in, and closing again takes the bow back.
 - Letting go of one hand leaves the house in the other, carried from where it now stands.
@@ -1792,8 +1795,10 @@ moves one.
   its share of the room, so the light a lantern casts inside stays where it hangs; builds joined to the house, or
   standing on it, are laid again against its new walls, and its ivy regrows.
 - Letting go of both grips sets the house as one `reshape` command (its points, height, plinth, the fittings' places
-  and its roof), one undo step, and every player sees it as they see a raised wall. The budget bar shows what the
-  house as held would cost, and a house the garden turns down goes back where it stood.
+  and its roof), with one more for each build carried on it, all one undo step, and every player sees it as they see a
+  raised wall. Let go within 5 cm and a degree of where it stood, unsized, it is left as it was and nothing is sent, so
+  a trembling grip is no edit. The budget bar shows what the house as held would cost, and a house the garden turns
+  down goes back where it stood.
 
 `demo/resize.json` widens, deepens and raises a house with doors, a lantern inside and a chimney, widens a
 tower beside it, and looks inside at dusk before and after; `demo/grab-move.json` carries, turns, widens and heightens

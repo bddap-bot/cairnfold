@@ -4,8 +4,9 @@ extends Node3D
 var world: World
 var walls: WallTool
 var nodes := {}
-## Each decoration's place as its build was laid, which its build's carry moves it from (`carry`).
+## Each decoration's place as its build was laid, which its build's carry moves it from (`carry`), and its flames there.
 var _frames := {}
+var _flames := {}
 var _shown := {}
 var _stamp := {}
 var flames := PackedVector3Array()
@@ -27,7 +28,7 @@ func sync() -> void:
 		n.free()
 	nodes.clear()
 	_frames.clear()
-	flames.clear()
+	_flames.clear()
 	for id in world.state.decorations:
 		var d: Dictionary = world.state.decorations[id].merged(_shown.get(id, {}), true)
 		var x: Variant = frame(d)
@@ -45,8 +46,8 @@ func sync() -> void:
 		add_child(n)
 		nodes[id] = n
 		_frames[id] = x
-		for f in layout.flames:
-			flames.append(x * f.origin)
+		_flames[id] = PackedVector3Array(layout.flames.map(func(f: Transform3D) -> Vector3: return x * f.origin))
+	_gather()
 
 
 ## Where a decoration stands, or null where its surface is gone: on the ground; at a house's foot, out from the wall
@@ -99,6 +100,15 @@ func carry(w: Wall) -> void:
 	for id in nodes:
 		if world.state.decorations.has(id) and world.state.decorations[id].wall == w.id:
 			nodes[id].transform = w.transform * _frames[id]
+	_gather()
+
+
+func _gather() -> void:
+	flames.clear()
+	for id in _flames:
+		var w := walls.find(world.state.decorations.get(id, {}).get("wall", -1))
+		for f in _flames[id]:
+			flames.append(w.transform * f if w != null else f)
 
 
 func targets() -> Array[Dictionary]:

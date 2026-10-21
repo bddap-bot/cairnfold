@@ -126,7 +126,7 @@ func light(walls: Array, extra := PackedVector3Array()) -> void:
 	var shells := []
 	for w: Wall in walls:
 		for f in w.layout.flames:
-			flames.append(f.origin)
+			flames.append(w.transform * f.origin)
 		if w.layout.closed and not w.layout.fence and w.massing != null:
 			shells.append([w, w.massing, w.layout.laid])
 	if shells != _shells:

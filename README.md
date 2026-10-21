@@ -45,9 +45,13 @@ dirt paths, stone, flowers, grass, trees, boulders, pond, colour, style, camera,
   Animals let you come right up if you move slowly; a sudden move startles them.
 - Grip, whatever the hand holds: grab what you point at and drag it. Grab the
   ground (a pond's bed too) and raise the hand to pull a hill or lower it to press
-  a hollow; grab a wall to pull its height, a roof to shape it, open sky to turn
-  it by aiming, the sun riding on it from dawn to dusk. Grip never builds anything. Each hand grabs on its own: hold
-  a pond's bed in one hand while the other pulls a roof, or shape two hills at once.
+  a hollow; grab a house or tower to carry and turn it, raising it onto a plinth as the
+  hand rises; grab a wall to pull its height, open sky to turn it by aiming, the sun riding
+  on it from dawn to dusk. Two hands size: grip a house with both and spread them for width
+  or depth, draw them apart upright for taller walls; both on its roof raise the ridge
+  upright and bow it across; both on its eaves pull them out. Grip never builds anything.
+  Each hand grabs on its own: hold a pond's bed in one hand while the other carries a house,
+  or shape two hills at once.
 - A hand’s pointer disappears while grabbing and returns when released, except
   on the sky, where aiming is what turns it.
 - On the inventory wheel, enter the people branch to pick your avatar or a nearby
@@ -55,9 +59,7 @@ dirt paths, stone, flowers, grass, trees, boulders, pond, colour, style, camera,
 - Plaster keeps stone bases, corners and opening trim; either material supports the same
   roofs and fittings.
 - A wall drawn round into a loop stays a wall.
-- Holding the house: trigger takes up a house where you point; carry it,
-  add the other grip to turn it and stretch it between your hands; let go to build.
-  Style its roof as a cone to make it a round tower.
+- Holding the house or the tower: trigger puts one up where you point; the grip moves it.
 - Left stick forward: aim a teleport from the left hand, whatever it holds;
   release to go, into the sky to float. Ease the stick back to land nearer
   along the aim.

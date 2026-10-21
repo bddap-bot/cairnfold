@@ -314,7 +314,9 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 
 ## The house tool's trigger: a square house put up at `at`, `size` [along, across], its front turned `turn` degrees
 ## from the x axis (the head's right with "relative"), raised `rise` metres on its plinth; with "round", the tower
-## tool's, a round tower `size` [across, across]. "seconds" waits that long after.
+## tool's, a round tower `size` [across, across]. Put up at `from` (default `at`) turned `turn_from` (default `turn`), a
+## grip then carries it there over `seconds`, raising it as it goes; else "seconds" waits that long after. With "capture",
+## `shots` views named after it are saved at even steps of the carry, the last just before letting go.
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var round: bool = s.get("round", false)
@@ -327,10 +329,46 @@ func _house(s: Dictionary) -> void:
 		at.size = Vector2(s.size[0], s.size[1])
 		at.pitch = WallTool.pitch_for(at)
 	at.rise = snappedf(s.get("rise", 0.0), WallLayout.COURSE)
-	var on: int = _target(s, at.center).on
+	var carried := s.has("from") or s.has("turn_from") or s.has("capture")
+	var put := at.duplicate()
+	if carried:
+		var from: Array = s.get("from", s.at)
+		put.center = _spot(s, from[0], from[1])
+		put.yaw = _turn(s, from[0], from[1], s.get("turn_from", s.get("turn", 0.0)))
+		put.rise = 0.0
+	var on: int = _target(s, put.center).on
 	_lay_gables(s)
-	tool.build([tool.new_house(at, PackedInt32Array([on]) if on >= 0 else PackedInt32Array())])
-	await get_tree().create_timer(s.get("seconds", 0.0)).timeout
+	var count := tool.walls.size()
+	tool.build([tool.new_house(put, PackedInt32Array([on]) if on >= 0 else PackedInt32Array())])
+	if not carried:
+		await get_tree().create_timer(s.get("seconds", 0.0)).timeout
+		return
+	for f in 600:
+		if tool.walls.size() > count:
+			break
+		await get_tree().process_frame
+	if tool.walls.size() == count:
+		push_error("driver: the house put up at %s never stood" % put.center)
+		return
+	tool.take_house(tool.walls[-1])
+	var start: Dictionary = tool.house_at.duplicate()
+	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
+	var shots: int = s.get("shots", 3) if s.has("capture") else 0
+	var taken := 0
+	for f in frames:
+		await get_tree().process_frame
+		var k := float(f + 1) / frames
+		var to := start.duplicate()
+		to.center = start.center.lerp(at.center, k)
+		to.yaw = lerp_angle(start.yaw, at.yaw, k)
+		to.rise = snappedf(at.rise * k, WallLayout.COURSE)
+		tool.stand_house(to)
+		if taken < shots and f + 1 >= frames * (taken + 1) / shots:
+			taken += 1
+			await get_tree().create_timer(0.4).timeout
+			await main.capture("%s-%d" % [s.capture, taken])
+	if tool.house != null:
+		tool.end_house()
 
 
 ## Holds the built house `index` (or under `at`) as hands would and over `seconds` moves it by `move` [x, z] metres,
@@ -359,7 +397,8 @@ func _resize(s: Dictionary) -> void:
 		for key in ["rise", "height", "pitch", "curve", "overhang"]:
 			to[key] = lerpf(start[key], end[key], k)
 		tool.stand_house(to)
-	tool.end_house()
+	if tool.house != null:
+		tool.end_house()
 
 
 func _turn(s: Dictionary, x: float, z: float, degrees: float) -> float:

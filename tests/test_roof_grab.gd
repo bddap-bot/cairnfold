@@ -1,7 +1,8 @@
 extends SceneTree
 
-## Hands on a built house's roof: one carries the house, two upright raise its ridge, two across bow its slopes and two
-## on its eaves pull them out: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_roof_grab.gd
+## Hands on a built house: one on its roof carries the house, two upright raise its ridge, two across bow its slopes and
+## two on its eaves pull them out; what stands on it goes with it, and edits made to it meanwhile stay:
+## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_roof_grab.gd
 
 var main: Node
 var failures := 0
@@ -41,6 +42,8 @@ func _run() -> void:
 		trackers.append(tracker)
 	await _body_and_ridge()
 	await _eaves()
+	await _storeys_ride_along()
+	await _edits_made_meanwhile_stay()
 	for tracker in trackers:
 		XRServer.remove_tracker(tracker)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -148,3 +151,93 @@ func _eaves() -> void:
 	Buttons.injected.clear()
 	await _frames()
 	_check(is_equal_approx(main.world.state.walls[w.id].roof.overhang, pulled), "letting go sets the eaves: %.2f" % main.world.state.walls[w.id].roof.overhang)
+
+
+func _play(steps: Array) -> void:
+	var d := Driver.new(main, steps)
+	main.add_child(d)
+	await d.finished
+	d.queue_free()
+
+
+## A storey standing on a carried house, and a wall on that storey, ride along with it and are set where it is let go,
+## one undo step; a grip that only trembles sends nothing.
+func _storeys_ride_along() -> void:
+	var tool: WallTool = main.tool
+	var world: World = main.world
+	await _play([
+		{"op": "budget", "bounded": false},
+		{"op": "house", "at": [20, -20], "size": [6, 5], "seconds": 0.2},
+		{"op": "house", "at": [20, -20], "size": [4, 3.5], "seconds": 0.2, "on": true},
+		{"op": "wall", "points": [[19, -20], [21, -20]], "seconds": 0.3, "on": true},
+	])
+	var walls: Array[Wall] = tool.walls
+	var base := walls[-3]
+	var upper := walls[-2]
+	var top := walls[-1]
+	_check(upper.on == PackedInt32Array([base.id]) and top.on.has(upper.id), "a storey stands on the house and a wall on the storey: %s" % [walls.slice(-4).map(func(w: Wall) -> Array: return [w.id, w.on, w.layout.closed])])
+	var before := {}
+	for w: Wall in [base, upper, top]:
+		before[w.id] = world.state.walls[w.id].points
+	tool.take_house(base)
+	var nudged: Dictionary = tool.house_at.duplicate()
+	nudged.center += Vector3(0.02, 0, 0.01)
+	tool.stand_house(nudged)
+	tool.end_house()
+	await _frames()
+	_check(world.state.walls[base.id].points == before[base.id] and world.state.walls[upper.id].points == before[upper.id], "a grip that only trembles leaves it where it stood, sending nothing")
+	tool.take_house(base)
+	_check(tool._held(upper) and tool._held(top), "what stands on it is held with it")
+	var to: Dictionary = tool.house_at.duplicate()
+	to.center += Vector3(3, 0, 1)
+	to.yaw += 0.3
+	tool.stand_house(to)
+	await _frames()
+	var moved := func(w: Wall) -> bool: return w.transform.basis.is_equal_approx(Basis(Vector3.UP, 0.3)) and not w.transform.origin.is_zero_approx()
+	_check(moved.call(base) and moved.call(upper) and moved.call(top), "carried, the storey and the wall on it move with it as laid")
+	tool.end_house()
+	await _frames(30)
+	var x := Transform3D(Basis(Vector3.UP, 0.3), Vector3.ZERO)
+	var c0: Vector3 = WallTool.house_of({"points": before[base.id], "roof": world.state.walls[base.id].roof, "closed": true, "rise": 0.0, "height": 2.4}).center
+	var expect := func(p: Vector3) -> Vector3:
+		var q := Transform3D(Basis(Vector3.UP, 0.3), Vector3(to.center.x, 0, to.center.z)) * Transform3D(Basis(), -Vector3(c0.x, 0, c0.z)) * Vector3(p.x, 0, p.z)
+		return Vector3(q.x, 0, q.z)
+	var lands := func(id: int) -> bool:
+		var now: PackedVector3Array = world.state.walls[id].points
+		var was: PackedVector3Array = before[id]
+		for i in was.size():
+			var e: Vector3 = expect.call(was[i])
+			if Vector2(now[i].x - e.x, now[i].z - e.z).length() > 0.01:
+				return false
+		return true
+	_check(lands.call(base.id) and lands.call(upper.id) and lands.call(top.id), "let go, the house, its storey and the wall on that are all set where they were carried")
+	_check(upper.on == PackedInt32Array([base.id]) and top.on.has(upper.id), "each still standing on the one under it")
+	for i in 120:
+		if [base, upper, top].all(func(w: Wall) -> bool: return w.transform.is_equal_approx(Transform3D.IDENTITY)):
+			break
+		await _frames(1)
+	_check([base, upper, top].all(func(w: Wall) -> bool: return w.transform.is_equal_approx(Transform3D.IDENTITY)), "laid again where they stand, carried no more")
+	world.undo()
+	await _frames()
+	_check([base, upper, top].all(func(w: Wall) -> bool: return world.state.walls[w.id].points == before[w.id]), "one undo puts all three back")
+	world.redo()
+	await _frames()
+	_check(lands.call(base.id) and lands.call(upper.id), "redo carries them again")
+
+
+## A window opened in a house while another hand carries it is still there when it is let go.
+func _edits_made_meanwhile_stay() -> void:
+	var tool: WallTool = main.tool
+	var world: World = main.world
+	await _play([{"op": "house", "at": [-20, -20], "size": [6, 4], "seconds": 0.2}])
+	var w: Wall = tool.walls[-1]
+	tool.take_house(w)
+	var to: Dictionary = tool.house_at.duplicate()
+	to.center += Vector3(2, 0, 0)
+	tool.stand_house(to)
+	await _play([{"op": "wait", "seconds": 0.1}, {"op": "fit", "what": "opening", "index": -1, "s": 3.0, "y": 1.0}, {"op": "wait", "seconds": 0.1}])
+	_check(world.state.walls[w.id].openings.size() == 1, "a window opens in the house in hand")
+	tool.end_house()
+	await _frames()
+	var d: Dictionary = world.state.walls[w.id]
+	_check(d.openings.size() == 1 and absf(WallTool.house_of(d).center.x - to.center.x) < 0.01, "let go, it stands where it was carried with the window still in it: %s" % d.openings)

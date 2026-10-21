@@ -364,7 +364,8 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	var rise: float = data.call().rise
 	_check(rise >= 0.6 and data.call().height == height and at.call().size.is_equal_approx(Vector2(6, 4)), "one grip rising raises it %.1f m onto its plinth, as large and as tall" % rise)
 	await _laid(house)
-	_check(is_equal_approx(house.layout.samples[0].y, foot + rise) and house.transform.is_equal_approx(Transform3D.IDENTITY), "it is laid that much higher: %.2f to %.2f by %.2f, carried by %s" % [foot, house.layout.samples[0].y, rise, house.transform])
+	await _frames(2)
+	_check(is_equal_approx(house.layout.samples[0].y, foot + rise) and house.transform.is_equal_approx(Transform3D.IDENTITY), "it is laid that much higher, carried no more: %.2f to %.2f" % [foot, house.layout.samples[0].y])
 	hold.call(&"right_hand", Vector3(0.2, -0.1, -0.3), front)
 	await _frames(1)
 	await grip.call(&"right_hand", true)
@@ -493,7 +494,7 @@ func _points(d: Dictionary) -> Array[Vector3]:
 func _laid(w: Wall) -> void:
 	for i in 300:
 		w.lay_now()
-		if w.layout.laid_points == w.layout.points:
+		if w.layout.laid_points == w.layout.points and w.layout.laid_rise == w.layout.rise:
 			return
 		await _frames(1)
 
