@@ -1973,7 +1973,7 @@ func _befriend(s: Dictionary) -> void:
 		await get_tree().process_frame
 		elapsed += get_process_delta_time()
 	assert(not flock.birds.is_empty(), "no conure arrived")
-	var bird := flock.birds[0]
+	var bird := flock.birds[s.get("index", 0)]
 	while bird.state != Birds.State.PERCH and elapsed < 260.0:
 		await get_tree().process_frame
 		elapsed += get_process_delta_time()
@@ -2021,7 +2021,9 @@ func _view_held(s: Dictionary) -> void:
 	var h := _hand(s)
 	assert(h.carried != null)
 	var at := h.carried.global_position + Vector3.UP * 0.07
+	var hand_pose := h.global_transform
 	main.view(at + Vector3(0.25, 0.13, -0.36), at, false)
+	h.global_transform = hand_pose
 	await _frames(30)
 
 

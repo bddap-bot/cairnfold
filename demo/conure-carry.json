@@ -59,6 +59,18 @@
     "hand": "left"
   },
   {
+    "op": "label",
+    "name": "conure/carry"
+  },
+  {
+    "op": "wait",
+    "seconds": 12
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
     "op": "view_held",
     "hand": "left"
   },
@@ -130,6 +142,57 @@
   {
     "op": "wait",
     "seconds": 3
+  },
+  {
+    "op": "befriend",
+    "hand": "right",
+    "index": 1
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      1.4,
+      1.5
+    ],
+    "at": [
+      0,
+      1.3,
+      0
+    ]
+  },
+  {
+    "op": "hands",
+    "left": [
+      -0.17,
+      -0.2,
+      -0.4
+    ],
+    "right": [
+      0.17,
+      -0.2,
+      -0.4
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1
+  },
+  {
+    "op": "label",
+    "name": "conure/two-carried"
+  },
+  {
+    "op": "wait",
+    "seconds": 12
+  },
+  {
+    "op": "release_bird",
+    "hand": "left"
+  },
+  {
+    "op": "release_bird",
+    "hand": "right"
   },
   {
     "op": "quit"
