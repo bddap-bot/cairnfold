@@ -53,6 +53,19 @@ func _run() -> void:
 	r.build()
 	a.hide_roof(r)
 	_check(r.timber_faces.size() < original.size(), "newer roof yields its overlap to the older ceiling")
+	var wing := WallLayout.new()
+	wing.closed = true
+	wing.height = a.height + 0.08
+	wing.points = WallLayout.rectangle(Vector3(3, 0, -1), Vector3(6, 0, -1), 4.0)
+	wing.resample(func(_x: float, _z: float): return 0.0)
+	a.joined = [Massing.of(wing, null)]
+	a.older = []
+	r.build()
+	var beds := r.mortar.size()
+	a.hide_roof(r)
+	_check(r.mortar.size() > 0 and r.mortar.size() < beds, "offset join removes only the overlapping mortar")
+	for bed in r.mortar:
+		_check(not a.hides(bed.xform.origin), "joined ceiling has no hidden mortar bed blocking its boards")
 	var mesh := Wall._faces_mesh(original, true)
 	_check(mesh.get_surface_count() == 1, "all framing has one draw surface")
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))

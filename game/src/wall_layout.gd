@@ -448,6 +448,7 @@ func hide_roof(r: RoofLayout) -> void:
 	if joined.is_empty() and resting.is_empty():
 		return
 	r.tiles.assign(r.tiles.filter(func(t: Dictionary) -> bool: return not hides(t.xform.origin)))
+	r.mortar.assign(r.mortar.filter(func(m: Dictionary) -> bool: return not hides(m.xform.origin)))
 	r.cloths.assign(r.cloths.filter(func(c: Dictionary) -> bool: return not hides(c.xform.origin)))
 	r.keep_coat(func(p: Vector3) -> bool: return not hides(p))
 	r.gable_faces = _unhidden(r.gable_faces)
