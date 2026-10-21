@@ -1,5 +1,6 @@
 [
   {"op": "place", "x": 0, "z": 6, "lift": 2},
+  {"op": "level"},
   {"op": "house", "relative": true, "at": [0, 7.5], "size": [4.5, 4.5], "seconds": 2},
   {"op": "wait", "seconds": 1.5},
   {"op": "label", "name": "size"},

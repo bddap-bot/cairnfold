@@ -209,6 +209,22 @@ func _gesture(s: Dictionary) -> void:
 	await _frames(2)
 
 
+## Tips the rig about the head so the head looks level, as an unworn headset lying tilted would not: a scripted view
+## then sees what a standing player would.
+func _level(_s: Dictionary) -> void:
+	var head: Transform3D = main.rig.head.global_transform
+	var ahead := -head.basis.z
+	var flat := Vector3(ahead.x, 0.0, ahead.z)
+	if flat.length() < 0.01:
+		flat = head.basis.y if ahead.y < 0.0 else -head.basis.y
+		flat.y = 0.0
+	var axis := ahead.cross(flat.normalized())
+	if axis.length() > 1e-4:
+		var turn := Transform3D(Basis(axis.normalized(), ahead.angle_to(flat.normalized())), Vector3.ZERO)
+		main.rig.global_transform = Transform3D.IDENTITY.translated(head.origin) * turn * Transform3D.IDENTITY.translated(-head.origin) * main.rig.global_transform
+	await _frames(2)
+
+
 ## Holds `hand` beside the head, holding `tool`, pointing at `at` in the garden.
 func _point(s: Dictionary) -> void:
 	var hand := _holding(s, Hand.Tool[s.tool.to_upper()])
