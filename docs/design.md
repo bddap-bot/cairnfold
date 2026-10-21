@@ -3936,3 +3936,17 @@ shared held-item descriptor.
 Touching its feathers to a canvas exchanges only the existing wet pigment and
 water across a soft feathered oval. It adds no pigment, water or dry marks.
 Smears use the normal recorded paint commands, including replay, undo and peers.
+
+The Quest carry replay (`demo/conure-carry.json`) exercises feeding, both hands,
+canvas contact and fourteen remote held birds through the shared renderer. At the
+budget's fit step, its measured GPU times were 5.74 ms carrying one bird, 12.30 ms
+smearing, 11.44 ms carrying two and 12.41 ms with fourteen remote birds beside them;
+all passed `scripts/bench.sh`. The phases recorded 0, 22, 0 and 135 late frames.
+Those 157 late frames remain unattributed; the GPU-budget pass is not evidence of
+perfect frame pacing. The run is recorded in `perf/quest-2/conure-carry/`.
+
+To fit the added birds, their small surfaces use fewer vertices and their ambient
+lighting samples terrain height once per bird each frame. Feather variation uses
+mesh colour, and canvas relief uses screen derivatives of its existing height
+sample rather than eight neighbouring texture reads. Removing the supporting
+palms did not improve the measured GPU total, so the cupped hold stays intact.
