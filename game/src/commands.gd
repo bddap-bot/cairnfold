@@ -40,7 +40,7 @@ const RESHAPES := {
 	"walls": ["points", "height", "rise", "top", "plaster", "plinth_plaster", "gable_end", "timber_style", "openings", "lanterns", "flags", "ruins"],
 	"stairs": ["rail", "a", "b", "width", "on"],
 	"boulders": ["at", "turn", "sink", "scale", "style"],
-	"decorations": ["style"],
+	"decorations": ["style", "at", "turn", "s"],
 	"easels": ["at", "yaw"],
 }
 ## Per table of the garden, the field naming the builds an entry stands on, or "" for one standing only on the ground:

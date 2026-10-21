@@ -328,7 +328,7 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 		{"op": "wall", "points": [[22, -14], [17.5, -14]], "seconds": 0.3},
 		{"op": "house", "at": [12, -14], "size": [6, 4], "seconds": 0.3},
 		{"op": "fit", "what": "opening", "index": -1, "s": 3.0, "y": 1.0},
-		{"op": "fit", "what": "lantern", "index": -1, "s": 13.0, "y": 1.6, "side": -1.0},
+		{"op": "fit", "what": "lantern", "index": -1, "s": 15.0, "y": 1.6, "side": -1.0},
 		{"op": "fit", "what": "chimney", "index": -1, "at": [1.5, 0.6]},
 		{"op": "wait", "seconds": 0.3},
 	])

@@ -2,9 +2,9 @@ class_name WallTool
 extends Node3D
 
 ## Walls, for whichever hand holds them: trigger draws a wall along the ground, a loop as much as a line, and a grip
-## at an opening sizes it, its top following the hand; a grip on a tree, bush, boulder or stairs carries them, a boulder
-## turning with the hand every way, and sets it down on the ground when let go. Each hand grabs on its own; a grip on a tree, boulder,
-## stairs or opening the other hand holds joins it, and the pair size it.
+## on a tree, bush, boulder, stairs or placed fitting carries it, a boulder turning with the hand every way, a fitting
+## kept to what it stands on (`_fitting_sizing`), and sets it down when let go. Each hand grabs on its own; a grip on a
+## tree, boulder, stairs or opening the other hand holds joins it, and the pair size it.
 ## A hand holding the house or the tower puts one up with its trigger where it points, and nothing more. A grip
 ## anywhere on a build, a wall, fence, house or tower, roof included, carries it: it moves and turns with the hand, a
 ## house or tower rising onto its plinth as the hand rises. The other hand's grip on it too sizes it: spread across a
@@ -47,11 +47,10 @@ signal built
 
 ## A thing a grip holds and two grips size by their span: how to read and show its scale, the range it may take, and
 ## the command that sets it in the garden as shown ({} while it is as the garden has it); and what one hand alone does with it,
-## `take` holding it from the hand's pose and `follow` moving it with the hand's pose: an opening grows as the hand
-## rises, its top following the hand; a tree, bush, boulder or stairs are carried.
+## `take` holding it from the hand's pose and `follow` moving it with the hand's pose: a tree, bush, boulder, stairs or
+## fitting is carried.
 class Sizing:
 	var scale: Callable
-	var top: Callable
 	var limits: Vector2
 	var current: Callable
 	var show: Callable
@@ -59,12 +58,6 @@ class Sizing:
 	var settle: Callable
 	var take: Callable
 	var follow: Callable
-
-
-## A placed opening a grip sizes: its wall and its place in the garden's list of the wall's openings.
-class OpeningGrip:
-	var wall: Wall
-	var index: int
 
 
 ## A flight of stairs, a landing or a ladder a grip holds, by its id in the garden.
@@ -85,16 +78,13 @@ class Mason:
 	## there; zero on its walls or the roof over them.
 	var took_roof := false
 	var eave_out := Vector3.ZERO
-	## What the grip is sizing (a tree's trunk, a bush, a boulder, stairs or an opening), how, and its top's height over the ground at
-	## its scale `lift_start`; with the other hand's grip on it too, that mason, and the hands' span when it joined.
+	## What the grip holds (a tree's trunk, a bush, a boulder, stairs or a fitting), how, and where it took it; with the
+	## other hand's grip on it too, that mason, its scale `lift_start` and the hands' span when it joined.
 	var growing: Object
 	var sizing: Sizing
-	var grow_top := 0.0
 	var partner: Mason
 	var pair_span := 0.0
 	var lift_start := 0.0
-	var lift_hand := Vector3.ZERO
-	var lift_gain := 1.0
 	var lift_at := Vector3.ZERO
 	var pick := {}
 	## The gable end the hand points at before any roof, as `pick_building` gives it.
@@ -288,8 +278,10 @@ func _handle(m: Mason) -> void:
 			begin_grow(m, rock.boulder, hand, rock.point)
 		elif plant != null and tree.along < pick.get("along", INF):
 			begin_grow(m, plant, hand, tree.point)
-		elif pick.get("what") == "opening" and pick.along < nearest:
-			begin_grow(m, _opening_grip(pick.wall, Array(world.state.walls[pick.wall.id].openings).find(pick.value)), hand, pick.point)
+		elif pick.has("fitting") and pick.what != "tower_flag" and pick.along < nearest:
+			var grip := _fitting_grip(pick)
+			if grip != null:
+				begin_grow(m, grip, hand, pick.point)
 		elif not pick.is_empty() and pick.along < nearest:
 			if held != null or not world.state.walls.has(pick.wall.id):
 				m.hand.hold()
@@ -1033,7 +1025,7 @@ func _held_hit(origin: Vector3, dir: Vector3) -> Dictionary:
 	return best
 
 
-## Grip from the hand's pose `hand` on a tree, a bush, a boulder, stairs or an opening at `at`, which one hand alone moves as its
+## Grip from the hand's pose `hand` on a tree, a bush, a boulder, stairs or a fitting at `at`, which one hand alone moves as its
 ## `Sizing` has it. A grip on one the other hand holds joins it: the two hands pulled apart grow it, pushed together
 ## shrink it, in proportion to their span; letting either go leaves it to the other alone.
 func begin_grow(m: Mason, target: Object, hand: Transform3D, at: Vector3) -> void:
@@ -1049,21 +1041,6 @@ func begin_grow(m: Mason, target: Object, hand: Transform3D, at: Vector3) -> voi
 			return
 	m.sizing = _sizing(target)
 	m.sizing.take.call(m, hand)
-
-
-## One hand alone takes an opening to size: its top follows the hand from its pose `hand` now.
-func _lift(m: Mason, hand: Transform3D) -> void:
-	m.lift_start = m.sizing.scale.call()
-	m.lift_hand = hand.origin
-	m.lift_gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
-	m.grow_top = m.sizing.top.call()
-
-
-func drag_grow(m: Mason, hand_y: float) -> void:
-	var s := m.sizing
-	if not s.current.call():
-		return
-	_size(m, m.lift_start * (m.grow_top + (hand_y - m.lift_hand.y) * m.lift_gain) / m.grow_top)
 
 
 ## The two hands sizing what `m` joined, now at `a` and `b`.
@@ -1104,15 +1081,13 @@ func end_grow(m: Mason) -> void:
 		world.submit(cmd, s.settle, m.hand)
 
 
-## How a grip holds `target`, a tree's trunk, a bush, a boulder, stairs or an opening; each shows as the garden has it once its edit
+## How a grip holds `target`, a tree's trunk, a bush, a boulder, stairs or a fitting; each shows as the garden has it once its edit
 ## has come back or been turned down, unless a hand holds it again.
 func _sizing(target: Object) -> Sizing:
 	var s := Sizing.new()
 	var in_hand := func() -> bool: return masons.any(func(o: Mason) -> bool: return o.growing == target)
-	s.take = _lift
-	s.follow = func(m: Mason, hand: Transform3D) -> void: drag_grow(m, hand.origin.y)
-	if target is OpeningGrip:
-		return _opening_sizing(target, s, in_hand)
+	if target is FittingGrip:
+		return _fitting_sizing(target, s, in_hand)
 	if target is Boulders.Boulder:
 		return _boulder_grip(target, s, in_hand)
 	if target is StairGrip:
@@ -1331,57 +1306,127 @@ func _stair_grip(id: int) -> StairGrip:
 	return grip
 
 
-## Sizes a placed opening: it grows every way from where it stands, as far as it still opens without closing another,
-## an arch up to the wall's top (WallLayout.opening_for).
-func _opening_sizing(grip: OpeningGrip, s: Sizing, in_hand: Callable) -> Sizing:
+## Carries a placed fitting with the hand, a far one farther per metre, by whole steps (`FittingGrip.moved`), stopping it
+## at the last place it fits; two hands size an opening, which grows every way from where it stands, as far as it still
+## opens without closing another, an arch up to the wall's top (WallLayout.opening_for). Its wall is laid again only as
+## it moves on by a step. Let go, it is set as one reshape of its wall.
+func _fitting_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
+	if grip.decoration >= 0:
+		return _decoration_grip(grip.decoration, s, in_hand)
 	var w := grip.wall
-	var stored := func() -> Array: return Array(world.state.walls[w.id].openings) if is_instance_valid(w) and find(w.id) == w and world.state.walls.has(w.id) else []
-	var start: Vector4 = stored.call()[grip.index]
-	var shown := {"size": start.w}
-	var sized := func(size: float) -> Array:
+	var key := grip.key
+	var stored := func() -> Array:
+		if not is_instance_valid(w) or find(w.id) != w or not world.state.walls.has(w.id):
+			return []
+		var d: Dictionary = world.state.walls[w.id]
+		return Array((d.roof if grip.on_roof else d)[key])
+	var start: Variant = stored.call()[grip.index]
+	var shown := {"value": start, "laid": start}
+	var hold := {"from": start, "hand": Transform3D(), "gain": 1.0}
+	var others := func() -> Array:
+		var rest: Array = stored.call()
+		rest.remove_at(grip.index)
+		return rest
+	var data := func(v: Variant) -> Dictionary:
 		var placed: Array = stored.call()
-		placed[grip.index] = Vector4(start.x, start.y, start.z, size)
-		return placed
-	var fits := func(size: float) -> bool:
-		var others: Array = stored.call()
-		others.remove_at(grip.index)
-		return w.layout.opening_fits(Vector4(start.x, start.y, start.z, size), standing_openings(w, others))
-	s.scale = func() -> float: return shown.size
-	s.top = func() -> float: return w.layout.opening_for(Vector4(start.x, start.y, start.z, shown.size)).head
-	s.limits = Vector2(WallLayout.MIN_SIZE, INF)
+		placed[grip.index] = v
+		var packed: Variant = {"openings": PackedVector4Array(placed), "lanterns": PackedVector3Array(placed), "flags": PackedFloat32Array(placed)}.get(key, PackedVector2Array(placed))
+		return {"roof": {key: packed}} if grip.on_roof else {key: packed}
+	var fits := func(v: Variant) -> bool:
+		var rest: Array = others.call()
+		return FittingGrip.fits(w, key, v, rest, standing_openings(w, rest) if key == "openings" else ([] as Array[Vector4]))
+	var lay := func() -> void:
+		if shown.value != shown.laid:
+			shown.laid = shown.value
+			_relay(w, data.call(shown.value))
 	var current := func() -> bool:
 		var now: Array = stored.call()
-		return now.size() > grip.index and Vector3(now[grip.index].x, now[grip.index].y, now[grip.index].z) == Vector3(start.x, start.y, start.z)
+		return now.size() > grip.index and now[grip.index] == start
 	s.current = current
+	s.scale = func() -> float: return shown.value.w if key == "openings" else 1.0
+	s.limits = Vector2(WallLayout.MIN_SIZE, INF) if key == "openings" else Vector2.ONE
 	s.show = func(size: float) -> void:
-		if size > shown.size and not fits.call(size):
-			var lo: float = shown.size
-			for i in 12:
-				var mid := (lo + size) * 0.5
-				if fits.call(mid):
-					lo = mid
-				else:
-					size = mid
-			size = floorf(lo * 100.0) / 100.0
-		if not is_equal_approx(size, shown.size) and fits.call(size):
-			shown.size = size
-			_relay(w, {"openings": PackedVector4Array(sized.call(size))})
-	s.command = func() -> Dictionary: return {} if is_equal_approx(shown.size, start.w) else {"op": "reshape", "of": "walls", "id": w.id, "data": {"openings": PackedVector4Array(sized.call(shown.size))}}
+		if key == "openings":
+			var at: Vector4 = shown.value
+			var sized := func(k: float) -> Vector4: return Vector4(at.x, at.y, at.z, k)
+			if size > at.w and not fits.call(sized.call(size)):
+				var lo: float = at.w
+				for i in 12:
+					var mid := (lo + size) * 0.5
+					if fits.call(sized.call(mid)):
+						lo = mid
+					else:
+						size = mid
+				size = floorf(lo * 100.0) / 100.0
+			if not is_equal_approx(size, at.w) and fits.call(sized.call(size)):
+				shown.value = sized.call(size)
+		lay.call()
+	s.take = func(m: Mason, hand: Transform3D) -> void:
+		hold.from = shown.value
+		hold.hand = hand
+		hold.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
+	s.follow = func(_m: Mason, hand: Transform3D) -> void:
+		var by: Vector3 = FittingGrip.step((hand.origin - hold.hand.origin) * hold.gain, 0.0)[0]
+		var v: Variant = FittingGrip.moved(w, key, hold.from, by)
+		if v != shown.value and fits.call(v):
+			shown.value = v
+		lay.call()
+	s.command = func() -> Dictionary: return {} if shown.value == start else {"op": "reshape", "of": "walls", "id": w.id, "data": data.call(shown.value)}
 	s.settle = func() -> void:
 		if current.call() and not in_hand.call():
 			settle(w.id)
 	return s
 
 
-## The grip a hand already sizing opening `index` of `w` holds, so a second hand's grip on it joins that one.
-func _opening_grip(w: Wall, index: int) -> OpeningGrip:
+## Carries a decoration: one hand moves it across the ground, its floor or deck and turns it with the hand, or along the
+## wall it stands at the foot of (`FittingGrip.carried`), stopping it at the last place it stands. Only its node moves
+## while it is held; let go, it is set as one reshape.
+func _decoration_grip(id: int, s: Sizing, in_hand: Callable) -> Sizing:
+	var decorations := world.decorations
+	var start: Dictionary = world.state.decorations[id].duplicate()
+	var shown := {"d": start}
+	var hold := {"from": start, "hand": Transform3D(), "gain": 1.0}
+	var current := func() -> bool: return world.state.decorations.get(id) == start
+	s.current = current
+	s.scale = func() -> float: return 1.0
+	s.limits = Vector2.ONE
+	s.show = func(_size: float) -> void: pass
+	s.take = func(m: Mason, hand: Transform3D) -> void:
+		hold.from = shown.d
+		hold.hand = hand
+		hold.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
+	s.follow = func(_m: Mason, hand: Transform3D) -> void:
+		var step: Array = FittingGrip.step((hand.origin - hold.hand.origin) * hold.gain, angle_difference(angle(hold.hand.basis.x), angle(hand.basis.x)))
+		var d := FittingGrip.carried(hold.from, find(start.wall), step[0], step[1])
+		if d != shown.d and decorations.frame(d) != null:
+			shown.d = d
+			decorations.show_held(id, d)
+	s.command = func() -> Dictionary:
+		var d: Dictionary = shown.d
+		return {} if d == start else {"op": "reshape", "of": "decorations", "id": id, "data": {"at": d.at, "turn": d.turn, "s": d.s}}
+	s.settle = func() -> void:
+		if not in_hand.call():
+			decorations.settle(id)
+	return s
+
+
+## The grip on the fitting `pick` names (`FittingTool.pick_target`): the one a hand already holds, so a second hand's
+## grip on an opening joins it, or a new one; null for one another hand holds that takes no size.
+func _fitting_grip(pick: Dictionary) -> FittingGrip:
 	for m in masons:
-		if m.growing is OpeningGrip and m.growing.wall == w and m.growing.index == index:
-			return m.growing
-	var grip := OpeningGrip.new()
-	grip.wall = w
-	grip.index = index
-	return grip
+		var g: Variant = m.growing
+		if g is FittingGrip and (g.decoration == pick.decoration if pick.has("decoration") else g.wall == pick.wall and g.key == pick.key and g.index == pick.index and g.on_roof == pick.on_roof):
+			return g if g.sized() else null
+	var grip := FittingGrip.new()
+	if pick.has("decoration"):
+		grip.decoration = pick.decoration
+		return grip
+	var d: Dictionary = world.state.walls[pick.wall.id]
+	grip.wall = pick.wall
+	grip.key = pick.key
+	grip.on_roof = pick.on_roof
+	grip.index = Array((d.roof if pick.on_roof else d)[pick.key]).find(pick.value)
+	return grip if grip.index >= 0 else null
 
 
 ## The openings in `w` with its stored placements and the paths standing, independent of its preview.
@@ -1609,7 +1654,7 @@ func _held(w: Wall) -> bool:
 	if w != null and (w == held or _riders.has(w)):
 		return true
 	for m in masons:
-		if m.growing is OpeningGrip and m.growing.wall == w:
+		if m.growing is FittingGrip and m.growing.wall == w:
 			return true
 	return false
 

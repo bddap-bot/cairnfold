@@ -314,7 +314,7 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 	await _frames()
 	Buttons.injected["right_hand/grip_click"] = true
 	await _frames()
-	_check(main.tool.mason(rig.right).growing is WallTool.OpeningGrip and main.tool.held == null, "a grip into the arch takes the arch, not the wall")
+	_check(main.tool.mason(rig.right).growing is FittingGrip and main.tool.held == null, "a grip into the arch takes the arch, not the wall")
 	Buttons.injected["left_hand/grip_click"] = true
 	await _frames()
 	_check(main.tool.mason(rig.left).partner == main.tool.mason(rig.right), "the other hand's grip on it joins the first")
@@ -328,7 +328,7 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 	_check(not shown.is_empty() and absf(shown.size - 2.0) < 0.05 and shown.head > head * 1.8, "the hands pulled twice as far apart show it twice as big, its head as high: %s" % shown)
 	Buttons.injected.erase("left_hand/grip_click")
 	await _frames()
-	_check(main.tool.mason(rig.right).growing is WallTool.OpeningGrip and Array(world.state.walls[wall.id].openings)[0].w == 1.0, "one hand let go, the other still holds it and the garden waits")
+	_check(main.tool.mason(rig.right).growing is FittingGrip and Array(world.state.walls[wall.id].openings)[0].w == 1.0, "one hand let go, the other still holds it and the garden waits")
 	var steps: int = world.stacks[world.me()].undo.size()
 	Buttons.injected.erase("right_hand/grip_click")
 	for i in 30:

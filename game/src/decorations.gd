@@ -8,6 +8,8 @@ var nodes := {}
 var _frames := {}
 var _flames := {}
 var _shown := {}
+## Decorations a hand carries, as it shows them; moving one moves its node alone.
+var _held := {}
 var _stamp := {}
 var flames := PackedVector3Array()
 
@@ -30,7 +32,7 @@ func sync() -> void:
 	_frames.clear()
 	_flames.clear()
 	for id in world.state.decorations:
-		var d: Dictionary = world.state.decorations[id].merged(_shown.get(id, {}), true)
+		var d: Dictionary = world.state.decorations[id].merged(_shown.get(id, {}), true).merged(_held.get(id, {}), true)
 		var x: Variant = frame(d)
 		if x == null:
 			continue
@@ -128,7 +130,23 @@ func show_reshaped(id: int, data: Dictionary) -> void:
 	sync()
 
 
+## Shows decoration `id` as `d` while a hand carries it: its node moves, nothing is laid again.
+func show_held(id: int, d: Dictionary) -> void:
+	_held[id] = d
+	var x: Variant = frame(d)
+	if not nodes.has(id) or x == null:
+		return
+	var wall := walls.find(d.wall)
+	nodes[id].transform = (wall.transform if wall != null else Transform3D.IDENTITY) * x
+	var layout_flames: PackedVector3Array = _flames.get(id, PackedVector3Array())
+	var was: Transform3D = _frames[id]
+	_flames[id] = PackedVector3Array(Array(layout_flames).map(func(f: Vector3) -> Vector3: return x * (was.affine_inverse() * f)))
+	_frames[id] = x
+	_gather()
+
+
 func settle(id: int) -> void:
+	_held.erase(id)
 	_shown.erase(id)
 	_stamp.clear()
 	sync()
