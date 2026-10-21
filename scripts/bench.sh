@@ -135,6 +135,7 @@ if [ "${2:-}" = --android ]; then
   # it warms.
   saved_props=$(for k in guardian_pause cpuLevel gpuLevel; do printf '%s=%s ' "$k" "$(adb shell getprop "debug.oculus.$k" | tr -d '\r')"; done)
   logcat_pid=
+  snoozed=
   restore_headset() {
     local kv
     set +e
@@ -159,13 +160,18 @@ if [ "${2:-}" = --android ]; then
   # controller check, with the controllers idle, or be paused as it starts, which crashes Godot; and while a
   # first-time tip (com.oculus.firsttimenux) is up the shell holds every launch. The Quest 3's guidebook posts tips
   # as toasts the shell draws beside the game. A fresh shell, with the panels, the tip and the guidebook closed,
-  # starts with none of them.
+  # starts with none of them, but replays every toast still posted, such as the Quest 2 library's long-press tip, for
+  # 30 seconds beside the game: each is snoozed for an hour, which outlasts the run and lapses by itself.
   fresh_shell() {
-    local app
+    local app key
     for app in com.oculus.store com.oculus.panelapp.library com.oculus.firsttimenux com.oculus.guidebook com.oculus.vrshell; do
       adb shell am force-stop "$app"
     done
     sleep 10
+    for key in $(adb shell dumpsys notification --noredact | sed -n 's/.*NotificationRecord(.* key=\([^:]*\): Notification(channel=vr_notifications_toast .*/\1/p'); do
+      adb shell "cmd notification snooze --for 3600000 '$key'" > /dev/null
+      snoozed="$snoozed $key"
+    done
   }
   fresh_shell
   for try in 1 2 3; do
