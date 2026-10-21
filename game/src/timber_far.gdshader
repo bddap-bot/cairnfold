@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode diffuse_lambert_wrap;
+render_mode diffuse_lambert_wrap, specular_disabled;
 
 // Far timbers: the stone shader's light without its per-fragment reads. Beyond the near distance a beam is a few
 // pixels wide, its detail texture averages to the colour it scales (0.78 + 0.45 x its mean of 0.5), and its bounce

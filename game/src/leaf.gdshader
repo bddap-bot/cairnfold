@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode world_vertex_coords;
+render_mode world_vertex_coords, specular_disabled;
 
 #define BACKLIT
 #include "res://src/wind.gdshaderinc"
