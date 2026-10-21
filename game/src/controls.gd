@@ -14,7 +14,7 @@ const ACTIONS := {
 	"turn_right": {"right_hand": "primary_right"},
 }
 
-## Native layouts. Extra Frame buttons have distinct inputs but no game action; only B and D-pad right open wheels.
+## Native layouts. Extra Frame buttons have distinct inputs but no game action; only B and D-pad left open wheels.
 ## The Quest's left menu is left out: held, it did not open the wheel on a Quest 3.
 const DEVICES := {
 	"frame": {
@@ -24,8 +24,8 @@ const DEVICES := {
 		"Y": ["right_hand", "y_button"],
 		"dpad_down": ["left_hand", "ax_button"],
 		"dpad_up": ["left_hand", "dpad_up_button"],
-		"dpad_left": ["left_hand", "dpad_left_button"],
-		"dpad_right": ["left_hand", "by_button"],
+		"dpad_left": ["left_hand", "by_button"],
+		"dpad_right": ["left_hand", "dpad_right_button"],
 		"view": ["left_hand", "view_button"],
 		"menu": ["right_hand", "menu_button"],
 		"left_bumper": ["left_hand", "bumper_button"],
@@ -94,11 +94,11 @@ const TOUCH_PLACES := {
 const FRAME_PROFILE := "/interaction_profiles/valve/frame_controller_valve"
 
 ## Valve's SteamVR frame_controller render-model component origins, transformed by inverse(openxr_aim).
-## The left D-pad shares one rocker, so both direction hints use its centre.
+## The left D-pad is one rocker centred at (-0.015768, 0.008815, 0.031984); each direction lies 1 cm from it its own way.
 const FRAME_PLACES := {
 	"left_hand": {
-		"ax_touch": Vector3(-0.015768, 0.008815, 0.031984),
-		"by_touch": Vector3(-0.015768, 0.008815, 0.031984),
+		"ax_touch": Vector3(-0.015768, 0.008815, 0.041984),
+		"by_touch": Vector3(-0.025768, 0.008815, 0.031984),
 		"trigger_touch": Vector3(-0.006707, -0.036056, 0.009207),
 		"primary_touch": Vector3(0.012015, 0.010019, 0.041948),
 		"grip_touch": Vector3(0.007007, -0.028275, 0.061512),
