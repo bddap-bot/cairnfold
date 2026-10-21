@@ -1875,6 +1875,8 @@ func _neck_cost(s: Dictionary) -> void:
 func _held_snapshot(s: Dictionary) -> void:
 	await get_tree().create_timer(Hand.POP * 3.0).timeout
 	var items := [HeldItem.describe(main.rig.left, main.easel_tool, main.book), HeldItem.describe(main.rig.right, main.easel_tool, main.book)]
+	if s.get("loaded", false):
+		assert(items[1].size() == 7 and items[1][0] == HeldItem.Kind.BRUSH and items[1][4] > 0.5, "capture holds a loaded brush")
 	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name)
 	FileAccess.open(path + ".held", FileAccess.WRITE).store_var([multiplayer.get_unique_id(), items])
 	FileAccess.open(path + ".json", FileAccess.WRITE).store_string(JSON.stringify({"held": items.map(HeldItem.label)}))

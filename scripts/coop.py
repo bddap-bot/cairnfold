@@ -100,7 +100,7 @@ def held_steps(name, names, capture=False):
     for i, phase in enumerate(phases):
         key = f"held-{i}"
         if name == "join":
-            steps += phase + [{"op": "held_snapshot", "name": key}]
+            steps += phase + [{"op": "held_snapshot", "name": key, "loaded": i in (len(tools) + 4, len(tools) + 5)}]
         steps += [barrier([key])]
         if name != "join":
             steps += [{"op": "remote_holds", "name": key}]

@@ -197,14 +197,23 @@ and its toon shading would stand apart from the garden's light. Spring bones run
 every avatar every frame. The addon is also a large editor import plugin, and the game needs
 only the ~60 lines of humanoid reading it already has.
 
-Each player's avatar and colour go to every other player once, reliably. After that a
-pose packet carries three transforms, the look, a direction in the head's frame, and which
-hands hold the seed dish out, sent unreliable and ordered at 30 Hz and smoothed on arrival; the
-look adds 12 bytes to a packet already sent, which costs less than any packet of its own at a
-lower rate. The others show a dish held out in that avatar's hand, and their own animals eat
-from it (docs/design.md, "Feeding"). Values
-that are not finite are dropped. A thrown handful of seeds goes to every other player once, reliably:
-where it left the dish, its velocity and the seed of its spread, from which each game throws the same handful
+Each player's avatar and colour go to every other player once, reliably. A pose packet carries
+three transforms and the look direction in the head's frame, unreliable and ordered at 30 Hz,
+smoothed on arrival. Held implements use the same hand transforms. A reliable description of
+both hands travels on change and when a peer arrives: model kind, variant, transform relative
+to the visible hand, paint colour and load, source easel or book page, and whether seeds are
+being offered. An idle implement sends no repeated description.
+
+`HeldItem` builds ordinary wheel tools, brushes and charcoal, both palettes and the book from
+the holder's model builders. Empty or untracked hands remove their model. Painting models
+carry their actual colour and load; held palettes reuse their easel's materials, including the
+mixing field. A seed dish's separate feeding target stays alive when put away so animals never
+retain a freed target; its drawing goes through the same held-model path as other tools.
+Descriptions reject invalid kinds, nonfinite values and unbounded transforms. The garden's
+build commands remain separate from these transient held appearances.
+
+A thrown handful of seeds goes to every other player once, reliably: where it left the dish,
+its velocity and the seed of its spread, from which each game throws the same handful
 (docs/design.md, "Feeding").
 
 ## Finding each other
