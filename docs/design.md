@@ -3226,7 +3226,7 @@ skims the paper's tooth, and the brush runs dry as it paints. A grip on the canv
 well away tears it off for a fresh one. A garden holds four easels at most, 1.4 m apart.
 
 Held brushes and charcoal use the hand's swept collision solver against the canvas
-face and edges. Bristles deform up to 18 mm, with pressure rising through that
+face and edges. Bristles deform up to 12 mm, with pressure rising through that
 travel; then the visible hand and brush stop while the tracked controller can
 continue. The rigid brush shaft and charcoal also stop at the sheet. Charcoal
 leaves a faint first touch and deposits further pigment only with contact travel.

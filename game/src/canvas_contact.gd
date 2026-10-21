@@ -1,7 +1,7 @@
 class_name CanvasContact
 extends RefCounted
 
-const BEND := 0.018
+const BEND := 0.012
 const STEP := 0.004
 const SKIN := 0.001
 var previous := Vector3.INF

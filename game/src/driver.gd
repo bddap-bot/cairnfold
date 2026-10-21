@@ -1457,11 +1457,11 @@ func _dip(s: Dictionary) -> void:
 		_:
 			var kit: Brushwork.Medium = EaselTool.PAINTS.find_key(s.what)
 			into = e.palettes[kit].global_transform * (Easels.well(kit, s.index) - Vector3(0, s.get("depth", 0.0), 0))
-	_tip_at(hand, into + Vector3.UP * 0.08, Vector3.DOWN, -e.global_basis.z)
+	_tip_at(hand, into + Vector3.UP * 0.08, (Vector3.DOWN - e.global_basis.z * 0.6).normalized(), -e.global_basis.z)
 	await _frames(2)
-	_tip_at(hand, into, Vector3.DOWN, -e.global_basis.z)
+	_tip_at(hand, into, (Vector3.DOWN - e.global_basis.z * 0.6).normalized(), -e.global_basis.z)
 	await _frames(3)
-	_tip_at(hand, into + Vector3.UP * 0.08, Vector3.DOWN, -e.global_basis.z)
+	_tip_at(hand, into + Vector3.UP * 0.08, (Vector3.DOWN - e.global_basis.z * 0.6).normalized(), -e.global_basis.z)
 	await _frames(2)
 
 
@@ -1505,9 +1505,9 @@ func _brush(s: Dictionary) -> void:
 		var depth: float = EaselTool.CONTACT - p[2] * EaselTool.PRESS_DEPTH
 		return frame * Vector3((p[0] - 0.5) * Brushwork.METRES.x, (0.5 - p[1]) * Brushwork.METRES.y, depth + out)
 	var pts: Array = s.points
-	var before := frame.affine_inverse() * (hand.global_transform * ToolModels.BRUSH_TIP)
-	before.z = 0.4
-	_tip_at(hand, frame * before, -hand.global_basis.z, hand.global_basis.y)
+	var before := frame.affine_inverse() * hand.global_position
+	before.z = 0.6
+	hand.global_position = frame * before
 	await _frames(2)
 	_tip_at(hand, on.call(pts[0], 0.4), direction, frame.basis.y, roll)
 	await _frames(2)
@@ -1537,8 +1537,8 @@ func _sheet(s: Dictionary) -> void:
 	var key := "%s/grip_click" % hand.tracker
 	hand.global_transform = Transform3D(frame.basis * Basis(Vector3.UP, PI), frame * Vector3(0, -0.3, 0.05))
 	hand.held_still = true
-	await _frames(1)
 	Buttons.injected[key] = true
+	await _frames(1)
 	var frames := maxi(1, ceili(s.get("seconds", 0.6) * 60.0))
 	for f in frames:
 		hand.global_transform = Transform3D(frame.basis * Basis(Vector3.UP, PI), frame * Vector3(0, -0.3, 0.05 + s.get("pull", 0.4) * (f + 1) / frames))

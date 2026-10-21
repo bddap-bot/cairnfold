@@ -18,7 +18,7 @@ func _run() -> void:
 	contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, 0.1)), false)
 	var bent := contact.move(Transform3D.IDENTITY, pose(Vector3(0, 0, -0.3)), false)
 	var tip: Vector3 = bent.pose * ToolModels.BRUSH_TIP
-	check(tip.z >= -CanvasContact.BEND - 0.0001 and tip.z < -0.017, "brush stops at bend limit: %s" % tip)
+	check(tip.z >= -CanvasContact.BEND - 0.0001 and tip.z < -CanvasContact.BEND + 0.001, "brush stops at bend limit: %s" % tip)
 	check(bent.hard and bent.pressure > 0.98 and absf(tip.z + bent.bend) < 0.0001, "bent bristles end on the sheet, fully pressed")
 	var brush := ToolModels.brush(Brushwork.Brush.BIG)
 	ToolModels.bend(brush, Brushwork.Brush.BIG, Vector3(0, 0, bent.bend))
