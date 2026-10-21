@@ -753,7 +753,9 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   already over capacity, and undo uses the same limit.
 - The fixed table takes the larger measured price for each unit from the Quest 2 and
   Frame calibrations below: the Quest 2 prices throughout, except fittings at the
-  Frame's 15.609 µs. Capacity takes the smaller measured room: the 72 Hz calibration
+  Frame's 15.609 µs, and grass at 0.706 µs a clump, the pool packed into a 1.8 m disc and seen standing over it
+  ("Water plants"). Each price a record carries (`prices`, added by `scripts/prices.py`) is held by
+  `tests/test_prices.py`: no unit is charged below the latest one recorded for it. Capacity takes the smaller measured room: the 72 Hz calibration
   line of 11.111111111111111 ms less the Quest 2's 9.38 ms base, including the meadow
   and wildlife, rounded down to 1.73 ms. These are fixed design numbers, independent of future governor tuning.
   The Quest 2 is the weakest supported target; its full-garden runs below held 72 fps
@@ -771,8 +773,9 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   it under (walls farther apart, the village on a smaller disc, paths shorter), so one script
   is measured at the refresh rate on every headset. It opens on 30 s of the bare meadow unmeasured: a
   Quest's shell draws a tip beside a freshly launched game for its first 30 s, at the cost of the
-  game's GPU time. A unit's cost is the highest any
-  view gives; a view whose frames fell below the refresh rate is left out, its GPU time not the scene's.
+  game's GPU time. Grass and flowers are measured twice: their pool spread over a 20 m disc, and packed into a 1.8 m disc
+  seen standing over it (`grass-dense`, `flowers-dense`, the `near` view), where each plant covers the most. A unit's
+  cost is the highest any view gives; a view whose frames fell below the refresh rate is left out, its GPU time not the scene's.
   Hills and painted stone ground measured within noise of the bare meadow, so terrain
   counts nothing. Lantern light is baked (`Lamps`); a lantern counts by its meshes.
 - A roof counts the area along its slopes: its plan out to the eaves times `RoofLayout.stretch`, the slope's length
@@ -2783,10 +2786,16 @@ deep water and irises in the shallows.
   | Land grass, standing | 9.14 ms | 17.61 ms | 0.71 µs |
   | Land grass, from the bed's height | 8.81 ms | 16.17 ms | 0.61 µs |
 
-  A pondweed clump costs about two thirds of a land clump in matching views, so charging a pondweed clump as a grass clump (`Budget.COSTS.grass`) overstates
-  it, and the budget holds. The full pool is past what the budget lets a garden plant (1.73 ms of room at 0.184 µs a
-  clump is about 9,400), and every view of it here is over the 12.5 ms line; 9,400 clumps of pondweed seen from the bed
-  come to about 11.5 ms. Flowers, the pool full (4,000) seen standing on the shore: irises over a shallow pond
+  A pondweed clump costs about two thirds of a land clump in matching views, and both cost far more packed beside the
+  eye than the 0.184 µs a clump grass was charged from the costs scene's pool spread over 20 m: 0.44 µs a pondweed
+  clump, 0.71 a land clump. Charged that, 9,400 clumps would reach 13.8 ms of pondweed from above the pond and
+  15.8 ms of land grass standing over it, past the 12.5 ms line. So `Budget.COSTS.grass` is the dearest of these,
+  0.706 µs a clump, the land disc standing (`scripts/prices.py` adds each kind's price to its record, and
+  `tests/test_prices.py` fails while any unit is charged below the latest price recorded for it). A placed clump
+  stays one grass unit wherever the water stands, since a pond can rise over it later; land grass's charge covers
+  pondweed's. The 1.73 ms room now holds about 2,450 clumps: from above the pond, 9.92 + 1.02 = 10.9 ms; from the bed,
+  7.38 + 1.08 = 8.5 ms; the land disc standing, 9.14 + 1.73 = 10.9 ms, and from the bed's height 8.81 + 1.50 =
+  10.3 ms, all under the line. Flowers, the pool full (4,000) seen standing on the shore: irises over a shallow pond
   29.7 ms, the same disc of flowers on land 34.1 ms.
 
 Sound: each pond laps softly from its middle (slow, low-passed sloshes with rare bubbles), a hand

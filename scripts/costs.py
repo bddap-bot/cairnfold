@@ -6,7 +6,8 @@ OUT_DIR is what `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT_DIR ...` l
 bare meadow plus one kind of build, at the fixed calibration step (Budget.fit_step), from the air and standing; its cost is its
 median viewport GPU time (the governor's signal) over the bare meadow's from the same view. A view whose frames fell
 below the refresh rate is left out: GPU time read there is not the scene's. A unit's cost is the most any view of any phase
-holding it as the one unknown gives, so the bound holds from every view measured. Wildlife comes to builds in numbers
+holding it as the one unknown gives, so the bound holds from every view measured: grass and flowers are measured
+both spread over 20 m and packed into the 1.8 m disc a garden can paint beside the eye, where each covers the most. Wildlife comes to builds in numbers
 its caps bound, however much is built, so what a phase's animals add once they have come, over what its builds were
 fitted to cost, is charged once to the base: the room is what is left with every kind of animal there, each phase's
 animals counted whole even where two phases bring the same kind. The base is the dearest view of the meadow with its
@@ -22,9 +23,9 @@ import sys
 out = sys.argv[1]
 # fill_flora is no build command, so the game does not count these; the pools' sizes are Flora's.
 FLORA = {"grass": {"grass": 12000}, "flowers": {"flower": 4000}, "trees": {"tree": 64}, "bushes": {"bush": 256}}
-FLORA.update({"flowers-wild": FLORA["flowers"], "trees-wild": FLORA["trees"]})
+FLORA.update({"flowers-wild": FLORA["flowers"], "trees-wild": FLORA["trees"], "grass-dense": FLORA["grass"], "flowers-dense": FLORA["flowers"]})
 # Each phase and the unit it fits, over what earlier phases fitted of its others.
-ORDER = [("grass", "grass"), ("flowers", "flower"), ("trees", "tree"), ("bushes", "bush"), ("walls-r10", "wall_m2"), ("walls-r15", "wall_m2"),
+ORDER = [("grass", "grass"), ("grass-dense", "grass"), ("flowers", "flower"), ("flowers-dense", "flower"), ("trees", "tree"), ("bushes", "bush"), ("walls-r10", "wall_m2"), ("walls-r15", "wall_m2"),
          ("walls-r20", "wall_m2"), ("plaster", "plaster_m2"), ("fences", "fence_m2"), ("ponds", "pond_m2"),
          ("village", "roof_m2"), ("thatch", "thatch_m2"), ("lanterns", "fitting"), ("meadow", None), ("hills", None), ("stone", None), ("easels", "easel"), ("boulders", "boulder")]
 WILD = ["flowers-wild", "trees-wild", "fences-wild", "ponds-wild"]

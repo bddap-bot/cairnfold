@@ -137,5 +137,15 @@
    "prims": 685498,
    "gpu_ms": 34.11
   }
+ },
+ "prices": {
+  "pondweed": {
+   "unit": "grass",
+   "us": 0.442
+  },
+  "grass": {
+   "unit": "grass",
+   "us": 0.706
+  }
  }
 }
