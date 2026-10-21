@@ -79,8 +79,7 @@ void vertex() {
 		float cock = idle * 0.45 * snap(t, 0.7, 11.0) * (1.0 - 0.6 * gaze.z) + preen * 0.35 * sin(t * 9.0);
 		float nod = mix(preen * (0.75 + 0.12 * sin(t * 14.0)) + peck * (0.25 + 0.9 * pow(max(sin(t * 4.2), 0.0), 6.0)) - fly * 0.4, -gaze.y, gaze.z);
 		turn(VERTEX, NORMAL, NECK + vec3(0.0, 0.016, -0.012), rot(vec3(0.0, 0.0, 1.0), cock));
-		turn(VERTEX, NORMAL, NECK, rot(X, -nod));
-		turn(VERTEX, NORMAL, NECK, rot(vec3(0.0, 1.0, 0.0), yaw));
+		turn(VERTEX, NORMAL, NECK, rot(vec3(0.0, 1.0, 0.0), yaw) * rot(X, -nod));
 	}
 
 	if (wing) {
@@ -93,16 +92,14 @@ void vertex() {
 		float along = dot(off, -L);
 		off += -L * along * fly * 0.9;
 		VERTEX = shoulder + off;
-		turn(VERTEX, NORMAL, shoulder, rot(D, side * spread));
-		turn(VERTEX, NORMAL, shoulder, rot(L, -side * (beat + flick + lift)));
+		turn(VERTEX, NORMAL, shoulder, rot(L, -side * (beat + flick + lift)) * rot(D, side * spread));
 	}
 
 	if (part == 4) {
 		vec3 rump = BODY - L * 0.036 + D * 0.014;
 		float wag = idle * (0.08 * sin(t * 1.7) + 0.4 * burst * sin(t * 30.0)) + peck * 0.1 * sin(t * 4.2);
 		float lift = fly * 0.9 + 0.12 * snap(t, 0.5, 23.0) * idle;
-		turn(VERTEX, NORMAL, rump, rot(D, wag));
-		turn(VERTEX, NORMAL, rump, rot(X, lift));
+		turn(VERTEX, NORMAL, rump, rot(X, lift) * rot(D, wag));
 	}
 
 	if (part == 5) {
@@ -110,13 +107,11 @@ void vertex() {
 	}
 
 	// Pecking leans the body forward over its feet; flight levels it out, bobbing with each beat.
-	if (part != 5 && peck > 0.0) {
+	if (part != 5) {
 		turn(VERTEX, NORMAL, vec3(0.0), rot(X, -peck * 0.55));
 	}
-	if (fly > 0.0) {
-		turn(VERTEX, NORMAL, BODY, rot(X, -fly * 0.96));
-		VERTEX.y += fly * 0.006 * sin(t * TAU * 8.0 + 1.0);
-	}
+	turn(VERTEX, NORMAL, BODY, rot(X, -fly * 0.96));
+	VERTEX.y += fly * 0.006 * sin(t * TAU * 8.0 + 1.0);
 	given = given_over((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL), floor_height);
 }
 
