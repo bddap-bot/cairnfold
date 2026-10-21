@@ -67,9 +67,9 @@ func _grip_carries_the_wall_whatever_the_hand_holds(hand: Hand) -> void:
 	hand.global_transform = at
 
 
-## Grip on a tree, whatever the hand holds, takes the tree, not the ground behind it: raised, it grows the tree; let
-## go, the garden has it.
-func _grip_grows_a_tree_whatever_the_hand_holds(hand: Hand) -> void:
+## Grip on a tree, whatever the hand holds, takes the tree, not the ground behind it: moved, it carries the tree along
+## the ground; let go, the garden has it there.
+func _grip_carries_a_tree_whatever_the_hand_holds(hand: Hand) -> void:
 	var at := hand.global_transform
 	var flora: Flora = main.flora_tool.flora
 	var spot := Terrain.ground(9, 8)
@@ -84,14 +84,15 @@ func _grip_grows_a_tree_whatever_the_hand_holds(hand: Hand) -> void:
 		Buttons.injected["right_hand/grip_click"] = true
 		await _frames()
 		_check(main.tool.mason(hand).growing == trunk and not main.ground_grab.busy(), "grip on a tree takes the tree, holding %s" % Hand.Tool.keys()[t])
-		hand.position.y += 2.0
+		hand.position += Vector3(1.0, 1.0, 0.0)
 		await _frames()
 		Buttons.injected.erase("right_hand/grip_click")
 		await _frames()
-		_check(main.tool.mason(hand).growing == null and main.world.state.groups[g].scale.get(0, 1.0) > 1.1, "raised and let go, it grows, holding %s" % Hand.Tool.keys()[t])
+		var set: Vector3 = main.world.state.groups[g].places.get(0, spot)
+		_check(main.tool.mason(hand).growing == null and set.x - spot.x >= 0.99 and absf(set.z - spot.z) < 0.01 and flora.scale_of(trunk) == 1.0, "moved and let go, it stands where it was carried, as tall, holding %s: %s from %s" % [Hand.Tool.keys()[t], set, spot])
 		main.world.undo()
 		await _frames()
-		_check(flora.scale_of(trunk) == 1.0, "an undo shrinks it back, holding %s" % Hand.Tool.keys()[t])
+		_check(Vector2(trunk.anchor.x - spot.x, trunk.anchor.z - spot.z).length() < 0.01, "an undo sets it back, holding %s" % Hand.Tool.keys()[t])
 	main.world.undo()
 	await _frames()
 	hand.tool = Hand.Tool.WALLS
@@ -390,7 +391,7 @@ func _run() -> void:
 	_check(hand._beam.visible, "pointer returns on release")
 	await _capture("released")
 	await _grip_carries_the_wall_whatever_the_hand_holds(hand)
-	await _grip_grows_a_tree_whatever_the_hand_holds(hand)
+	await _grip_carries_a_tree_whatever_the_hand_holds(hand)
 	await _grip_shapes_the_ground_and_makes_nothing(hand)
 	await _grip_on_a_pond_moves_its_bed(hand)
 	await _two_hands_grab_the_ground_at_once(rig)

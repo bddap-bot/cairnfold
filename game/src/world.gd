@@ -19,7 +19,7 @@ const WIPED := "*"
 ## every stroke to grow.
 const GROWS_FIRST := ["heights"]
 ## Commands that can leave a tree or bush standing where water covers its root, which `_drown` then takes out.
-const DROWNING := ["heights", "ponds", "plant"]
+const DROWNING := ["heights", "ponds", "plant", "tree"]
 ## A saved garden from another format is moved aside rather than rebuilt into a different one: 3 paints
 ## each build its own colours.
 const FORMAT := 3
@@ -304,7 +304,7 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 
 ## The meadow's own group as it grows: every plant standing, every tree an oak.
 func _meadow() -> Dictionary:
-	return {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees(), "species": {}, "scale": {}, "moss": {}}
+	return {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees(), "bushes": flora.meadow_bushes(), "species": {}, "scale": {}, "moss": {}, "places": {}}
 
 
 func me() -> int:
@@ -588,7 +588,8 @@ func _keys(cmd: Dictionary) -> Array:
 		"tree":
 			if cmd.group != 0:
 				return ["p%d" % cmd.group]
-			var at: Vector3 = flora.groups[0][cmd.index].anchor
+			# A move's inverse carries where it stood, so its undo entry keys both patches.
+			var at: Vector3 = cmd.get("at", flora.groups[0][cmd.index].anchor)
 			return ["m%d,%d" % [floori(at.x / PATCH), floori(at.z / PATCH)]]
 		"stairs":
 			return ["q%d" % cmd.id] + Array(cmd.stairs.on).map(func(id: int) -> String: return "w%d" % id)
@@ -739,6 +740,8 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			var plants := flora.grow(cmd.id, g)
 			g.size = plants.size()
 			g.hidden = {}
+			if g.kind in Flora.PLACED:
+				g.places = {}
 			if g.kind == "tree":
 				g.species = {}
 				g.scale = {}
@@ -763,8 +766,12 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			inverse = {"op": "show", "plants": changed, "on": not cmd.on}
 		"tree":
 			var g: Dictionary = state.groups[cmd.group]
-			var trunk: Flora.Plant = flora.groups[cmd.group][cmd.index]
+			var first: Flora.Plant = flora.groups[cmd.group][cmd.index]
 			inverse = {"op": "tree", "group": cmd.group, "index": cmd.index}
+			if cmd.has("at"):
+				inverse.at = first.foot()
+				g.places[cmd.index] = cmd.at
+				flora.move(first, cmd.at)
 			for k: String in ["species", "scale", "moss"]:
 				if not cmd.has(k):
 					continue
@@ -773,8 +780,9 @@ func _apply(cmd: Dictionary) -> Dictionary:
 					g[k].erase(cmd.index)
 				else:
 					g[k][cmd.index] = cmd[k]
-			flora.set_look(trunk, g.species.get(cmd.index, FloraLayout.Species.OAK), g.scale.get(cmd.index, 1.0))
-			flora.set_moss(trunk, g.moss.get(cmd.index, false))
+			if flora.species_of(first) >= 0:
+				flora.set_look(first, g.species.get(cmd.index, FloraLayout.Species.OAK), g.scale.get(cmd.index, 1.0))
+				flora.set_moss(first, g.moss.get(cmd.index, false))
 		"heights":
 			inverse = {"op": "heights", "cells": cmd.cells, "values": Terrain.read(cmd.cells)}
 			var before: Dictionary = state.ponds.duplicate()
@@ -1078,15 +1086,19 @@ func snapshot() -> Dictionary:
 		var g: Dictionary = state.groups[id]
 		if g.kind != "meadow":
 			var c := g.duplicate(true)
-			for k in ["hidden", "size", "species", "scale", "moss"]:
+			for k in ["hidden", "size", "species", "scale", "moss", "places"]:
 				c.erase(k)
 			c.op = "plant"
 			c.id = id
 			cmds.append(c)
 		if not g.hidden.is_empty():
 			cmds.append({"op": "show", "plants": {id: PackedInt32Array(g.hidden.keys())}, "on": false})
-		for i in g.get("species", {}).merged(g.get("scale", {})).merged(g.get("moss", {})):
-			cmds.append({"op": "tree", "group": id, "index": i, "species": g.species.get(i, FloraLayout.Species.OAK), "scale": g.scale.get(i, 1.0), "moss": g.moss.get(i, false)})
+		for i in g.get("species", {}).merged(g.get("scale", {})).merged(g.get("moss", {})).merged(g.get("places", {})):
+			var c := {"op": "tree", "group": id, "index": i}
+			for k in ["species", "scale", "moss", "places"]:
+				if g.get(k, {}).has(i):
+					c["at" if k == "places" else k] = g[k][i]
+			cmds.append(c)
 	if palette.season != Palette.SUMMER:
 		cmds.append({"op": "season", "index": palette.season})
 	if time != Daylight.DEFAULT:

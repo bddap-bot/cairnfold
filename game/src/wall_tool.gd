@@ -2,8 +2,8 @@ class_name WallTool
 extends Node3D
 
 ## Walls, for whichever hand holds them: trigger draws a wall along the ground, a loop as much as a line, and a grip
-## at a tree sizes it, its top following the hand; a grip on a boulder or stairs carries them, a boulder turning with the
-## hand every way, and sets it down on the ground when let go. Each hand grabs on its own; a grip on a tree, boulder,
+## at an opening sizes it, its top following the hand; a grip on a tree, bush, boulder or stairs carries them, a boulder
+## turning with the hand every way, and sets it down on the ground when let go. Each hand grabs on its own; a grip on a tree, boulder,
 ## stairs or opening the other hand holds joins it, and the pair size it.
 ## A hand holding the house or the tower puts one up with its trigger where it points, and nothing more. A grip
 ## anywhere on a build, a wall, fence, house or tower, roof included, carries it: it moves and turns with the hand, a
@@ -47,8 +47,8 @@ signal built
 
 ## A thing a grip holds and two grips size by their span: how to read and show its scale, the range it may take, and
 ## the command that sets it in the garden as shown ({} while it is as the garden has it); and what one hand alone does with it,
-## `take` holding it from the hand's pose and `follow` moving it with the hand's pose: a tree or opening grows as the
-## hand rises, its top following the hand, a boulder is carried.
+## `take` holding it from the hand's pose and `follow` moving it with the hand's pose: an opening grows as the hand
+## rises, its top following the hand; a tree, bush, boulder or stairs are carried.
 class Sizing:
 	var scale: Callable
 	var top: Callable
@@ -85,7 +85,7 @@ class Mason:
 	## there; zero on its walls or the roof over them.
 	var took_roof := false
 	var eave_out := Vector3.ZERO
-	## What the grip is sizing (a tree's trunk, a boulder or an opening), how, and its top's height over the ground at
+	## What the grip is sizing (a tree's trunk, a bush, a boulder, stairs or an opening), how, and its top's height over the ground at
 	## its scale `lift_start`; with the other hand's grip on it too, that mason, and the hands' span when it joined.
 	var growing: Object
 	var sizing: Sizing
@@ -273,7 +273,7 @@ func _handle(m: Mason) -> void:
 		var ground: Variant = Terrain.raycast(origin, dir)
 		var nearest: float = origin.distance_to(ground) if ground != null else INF
 		var tree := flora.solid_hit(origin, dir, nearest)
-		var trunk: Flora.Plant = tree.plants[0] if not tree.is_empty() and tree.plants[0].pool == flora.trunks else null
+		var plant: Flora.Plant = tree.plants[0] if not tree.is_empty() else null
 		var rock := world.boulders.pick(origin, dir, minf(nearest, minf(pick.get("along", INF), tree.get("along", INF)))) if world.boulders != null else {}
 		var step := world.stairs.pick(origin, dir, minf(minf(nearest, rock.get("along", INF)), minf(pick.get("along", INF), tree.get("along", INF)))) if world.stairs != null else {}
 		var stand := world.easels.pick_stand(origin, dir, minf(minf(minf(nearest, step.get("along", INF)), minf(tree.get("along", INF), rock.get("along", INF))), pick.get("along", INF))) if world.easels != null else {}
@@ -286,8 +286,8 @@ func _handle(m: Mason) -> void:
 			begin_grow(m, _stair_grip(step.stair), hand, step.point)
 		elif not rock.is_empty():
 			begin_grow(m, rock.boulder, hand, rock.point)
-		elif trunk != null and tree.along < pick.get("along", INF):
-			begin_grow(m, trunk, hand, tree.point)
+		elif plant != null and tree.along < pick.get("along", INF):
+			begin_grow(m, plant, hand, tree.point)
 		elif pick.get("what") == "opening" and pick.along < nearest:
 			begin_grow(m, _opening_grip(pick.wall, Array(world.state.walls[pick.wall.id].openings).find(pick.value)), hand, pick.point)
 		elif not pick.is_empty() and pick.along < nearest:
@@ -1033,7 +1033,7 @@ func _held_hit(origin: Vector3, dir: Vector3) -> Dictionary:
 	return best
 
 
-## Grip from the hand's pose `hand` on a tree, a boulder, stairs or an opening at `at`, which one hand alone moves as its
+## Grip from the hand's pose `hand` on a tree, a bush, a boulder, stairs or an opening at `at`, which one hand alone moves as its
 ## `Sizing` has it. A grip on one the other hand holds joins it: the two hands pulled apart grow it, pushed together
 ## shrink it, in proportion to their span; letting either go leaves it to the other alone.
 func begin_grow(m: Mason, target: Object, hand: Transform3D, at: Vector3) -> void:
@@ -1051,7 +1051,7 @@ func begin_grow(m: Mason, target: Object, hand: Transform3D, at: Vector3) -> voi
 	m.sizing.take.call(m, hand)
 
 
-## One hand alone takes a tree or opening to size: its top follows the hand from its pose `hand` now.
+## One hand alone takes an opening to size: its top follows the hand from its pose `hand` now.
 func _lift(m: Mason, hand: Transform3D) -> void:
 	m.lift_start = m.sizing.scale.call()
 	m.lift_hand = hand.origin
@@ -1104,7 +1104,7 @@ func end_grow(m: Mason) -> void:
 		world.submit(cmd, s.settle, m.hand)
 
 
-## How a grip holds `target`, a tree's trunk, a boulder or an opening; each shows as the garden has it once its edit
+## How a grip holds `target`, a tree's trunk, a bush, a boulder, stairs or an opening; each shows as the garden has it once its edit
 ## has come back or been turned down, unless a hand holds it again.
 func _sizing(target: Object) -> Sizing:
 	var s := Sizing.new()
@@ -1119,20 +1119,47 @@ func _sizing(target: Object) -> Sizing:
 		return _stair_sizing(target, s, in_hand)
 	if target is EaselGrip:
 		return _easel_sizing(target, s, in_hand)
-	var trunk: Flora.Plant = target
-	s.scale = flora.scale_of.bind(trunk)
-	s.top = flora.top_of.bind(trunk)
-	s.limits = FloraLayout.SCALES
-	s.current = trunk.current
-	s.show = func(scale: float) -> void: flora.set_look(trunk, flora.species_of(trunk) as FloraLayout.Species, scale)
+	return _plant_grip(target, s, in_hand)
+
+
+## Carries a tree or bush (`first`, a tree's trunk or a bush's blob), the meadow's own too: one hand moves it along the
+## ground with the hand, a far one farther per metre; two hands size a tree by their span. Let go, its place and size are
+## one `tree` command; over water it goes back where it stood.
+func _plant_grip(first: Flora.Plant, s: Sizing, in_hand: Callable) -> Sizing:
+	var tree := first.pool == flora.trunks
+	var placed := func() -> Vector3:
+		return world.state.groups.get(first.group, {}).get("places", {}).get(first.index, flora.home_of(first))
+	var hold := {"from": Vector3.ZERO, "hand": Vector3.ZERO, "gain": 1.0}
+	s.scale = flora.scale_of.bind(first) if tree else func() -> float: return 1.0
+	s.limits = FloraLayout.SCALES if tree else Vector2.ONE
+	s.current = first.current
+	s.show = func(scale: float) -> void:
+		if tree:
+			flora.set_look(first, flora.species_of(first) as FloraLayout.Species, scale)
 	s.command = func() -> Dictionary:
-		var scale := flora.scale_of(trunk)
-		var g: Dictionary = world.state.groups.get(trunk.group, {})
-		return {} if not g.is_empty() and is_equal_approx(scale, g.scale.get(trunk.index, 1.0)) else {"op": "tree", "group": trunk.group, "index": trunk.index, "scale": scale}
+		var g: Dictionary = world.state.groups.get(first.group, {})
+		var at := first.foot()
+		if g.is_empty() or Water.drowned(at):
+			return {}
+		var cmd := {"op": "tree", "group": first.group, "index": first.index}
+		var was: Vector3 = placed.call()
+		if Vector2(at.x - was.x, at.z - was.z).length() >= NUDGE:
+			cmd.at = Terrain.ground(at.x, at.z)
+		if tree and not is_equal_approx(flora.scale_of(first), g.scale.get(first.index, 1.0)):
+			cmd.scale = flora.scale_of(first)
+		return {} if cmd.size() == 3 else cmd
+	s.take = func(m: Mason, hand: Transform3D) -> void:
+		hold.from = first.foot()
+		hold.hand = hand.origin
+		hold.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
+	s.follow = func(_m: Mason, hand: Transform3D) -> void:
+		flora.move(first, hold.from + (hand.origin - hold.hand) * hold.gain)
 	s.settle = func() -> void:
-		var g: Dictionary = world.state.groups.get(trunk.group, {})
-		if trunk.current() and not g.is_empty() and not in_hand.call():
-			flora.set_look(trunk, g.species.get(trunk.index, FloraLayout.Species.OAK), g.scale.get(trunk.index, 1.0))
+		var g: Dictionary = world.state.groups.get(first.group, {})
+		if first.current() and not g.is_empty() and not in_hand.call():
+			flora.move(first, placed.call())
+			if tree:
+				flora.set_look(first, g.species.get(first.index, FloraLayout.Species.OAK), g.scale.get(first.index, 1.0))
 	return s
 
 

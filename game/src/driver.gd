@@ -468,8 +468,9 @@ func _grip(s: Dictionary) -> void:
 		await _standing()
 
 
-## Grips the meadow's tree `tree`, or with `x`, `z` the tree standing nearest there, near its top, as a hand does, and
-## raises the hand `metres` over `seconds` (negative lowers it), sizing it; "capture" saves the view at the top of the pull.
+## Grips the meadow's tree `tree`, or with `x`, `z` the tree standing nearest there, near its top with both hands 2 m
+## apart, as two hands do, and spreads them `metres` farther over `seconds` (negative closes them), sizing it by their
+## span; "capture" saves the view at the end of the pull.
 func _grow(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var flora: Flora = main.flora_tool.flora
@@ -483,16 +484,21 @@ func _grow(s: Dictionary) -> void:
 			if p.pool == flora.trunks and (trunk == null or Vector3(p.anchor.x, 0, p.anchor.z).distance_to(spot) < Vector3(trunk.anchor.x, 0, trunk.anchor.z).distance_to(spot)):
 				trunk = p
 	var at := trunk.foot() + Vector3.UP * flora.top_of(trunk) * 0.8
-	var m := tool.mason(_hand(s))
-	var hand: Vector3 = at + Vector3.BACK * 2.0
-	tool.begin_grow(m, trunk, Transform3D(Basis(), hand), at)
+	var mid: Vector3 = at + Vector3.BACK * 2.0
+	var right := tool.mason(main.rig.right)
+	var left := tool.mason(main.rig.left)
+	for m: WallTool.Mason in [right, left]:
+		m.hand.global_position = mid + Vector3.RIGHT * (1.0 if m == right else -1.0)
+		tool.begin_grow(m, trunk, m.hand.global_transform, at)
 	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
 	for f in frames:
 		await get_tree().process_frame
-		tool.drag_grow(m, hand.y + s.metres * smoothstep(0.0, 1.0, float(f + 1) / frames))
+		var half: float = 1.0 + s.metres * 0.5 * smoothstep(0.0, 1.0, float(f + 1) / frames)
+		tool.drag_pair(left, mid + Vector3.RIGHT * half, mid + Vector3.LEFT * half)
 	if s.has("capture"):
 		await main.capture(s.capture)
-	tool.end_grow(m)
+	tool.end_grow(left)
+	tool.end_grow(right)
 
 
 ## Grips the boulder placed `boulder` before the last (0 the last) from `reach` metres off (1.5 without), as a hand

@@ -259,17 +259,52 @@ class Pool:
 		if p.shown():
 			place(p.slot, xform)
 		if p.slot < kept:
-			var cell := _cell_of[p.slot]
-			cell.set_instance_color(_index_in_cell[p.slot], color)
-			var ground := Terrain.bounds()
-			var box := xform * mesh.get_aabb()
-			box.position.y += ground.position.y
-			box.size.y += ground.size.y
-			cell.custom_aabb = cell.custom_aabb.merge(box.grow(0.5))
+			_cell_of[p.slot].set_instance_color(_index_in_cell[p.slot], color)
+			_cover_cell(p.slot)
 		else:
 			mm.set_instance_color(p.slot - kept, color)
 		if far != null:
 			far.set_instance_color(p.slot, color)
+
+	## Moves a plant `by` across the ground, its anchor with it, drawn with `custom` (as `add` takes it). Its height
+	## above the ground stays, so it stands on the ground where it now is.
+	func shift(p: Plant, by: Vector3, custom: Color) -> void:
+		if not p.current():
+			return
+		if indexed:
+			_unindex(p.slot)
+		if cover != null:
+			cover.touch(p.anchor)
+		p.anchor += by
+		p.xform.origin += by
+		if anchors[p.slot] != GONE:
+			anchors[p.slot] = p.anchor
+		if indexed:
+			_grid.get_or_add(_square(p.anchor), []).append(p.slot)
+		set_custom(p.slot, Color(custom.r, custom.g, p.anchor.x, p.anchor.z))
+		if p.drawn:
+			place(p.slot, p.xform)
+		if p.slot < kept:
+			_cover_cell(p.slot)
+
+	func set_custom(slot: int, custom: Color) -> void:
+		if slot < kept:
+			_cell_of[slot].set_instance_custom_data(_index_in_cell[slot], custom)
+			if _sparse_cell_of[slot] != null:
+				_sparse_cell_of[slot].set_instance_custom_data(_index_in_sparse[slot], custom)
+		else:
+			mm.set_instance_custom_data(slot - kept, custom)
+		if far != null:
+			far.set_instance_custom_data(slot, custom)
+
+	## Widens a kept plant's cell box to take it in as it now stands, so the camera does not cull it.
+	func _cover_cell(slot: int) -> void:
+		var cell := _cell_of[slot]
+		var ground := Terrain.bounds()
+		var box := plants[slot].xform * mesh.get_aabb()
+		box.position.y += ground.position.y
+		box.size.y += ground.size.y
+		cell.custom_aabb = cell.custom_aabb.merge(box.grow(0.5))
 
 	func draw_with(m: Mesh) -> void:
 		mm.mesh = m
@@ -324,9 +359,15 @@ class Solid:
 	var seed := 0
 	var species := -1
 	var scale := 1.0
+	var moss := false
+	## Where its first part's anchor stood as it grew.
+	var home: Vector3
+	## Its shade blob's instance in `crown_shade` as last fitted, or -1 for none.
+	var shade := -1
 
 	func _init(p: Array[Plant]) -> void:
 		parts = p
+		home = p[0].anchor
 		fit()
 
 	func fit() -> void:
@@ -564,18 +605,25 @@ func _process(_delta: float) -> void:
 
 ## Fits a shade blob to each standing crown's blobs when any tree or bush has changed or been drawn otherwise.
 func _shade_crowns() -> void:
-	var seen := changes + trunks.draws + foliage.draws + bushes.draws
+	var seen := _shade_seen()
 	if seen == _shaded:
 		return
 	_shaded = seen
 	var n := 0
-	for parts in solids():
-		if not parts[0].drawn or n == crown_shade.instance_count:
+	for solid: Solid in _solids.values():
+		var first := solid.parts[0]
+		solid.shade = -1
+		if not first.shown() or not first.drawn or n == crown_shade.instance_count:
 			continue
-		crown_shade.set_instance_transform(n, shade_of(parts))
-		crown_shade.set_instance_custom_data(n, Color(0, 0, parts[0].anchor.x, parts[0].anchor.z))
+		solid.shade = n
+		crown_shade.set_instance_transform(n, shade_of(solid.parts))
+		crown_shade.set_instance_custom_data(n, Color(0, 0, first.anchor.x, first.anchor.z))
 		n += 1
 	crown_shade.visible_instance_count = n
+
+
+func _shade_seen() -> int:
+	return changes + trunks.draws + foliage.draws + bushes.draws
 
 
 ## Where the shade blob of a tree or bush (its parts) stands, fitted to the box around its blobs.
@@ -670,6 +718,39 @@ func set_look(trunk: Plant, species: FloraLayout.Species, scale: float) -> void:
 	_index(key, solid)
 
 
+## Moves the tree or bush whose first part is `first` to stand at `at` across the ground, as though it had grown
+## there: its parts keep their shape and their heights above the ground, so nothing grows again.
+func move(first: Plant, at: Vector3) -> void:
+	var key := _key_of(first)
+	var solid: Solid = _solids.get(key)
+	if solid == null or solid.parts[0] != first or not first.current():
+		return
+	var by := Vector3(at.x - first.anchor.x, 0.0, at.z - first.anchor.z)
+	if by.is_zero_approx():
+		return
+	var synced := _shade_seen() == _shaded
+	for p in solid.parts:
+		p.pool.shift(p, by, Color(1.0 if solid.moss and p.pool == trunks else 0.0, 0, 0, 0))
+	solid.fit()
+	_index(key, solid)
+	changes += 1
+	# A carried tree moves every frame: only its own shade is fitted again, not every crown's.
+	if synced:
+		_shaded = _shade_seen()
+		if solid.shade >= 0:
+			crown_shade.set_instance_transform(solid.shade, shade_of(solid.parts))
+			crown_shade.set_instance_custom_data(solid.shade, Color(0, 0, first.anchor.x, first.anchor.z))
+
+
+## Where the tree or bush whose first part is `first` stood as it grew, across the ground.
+func home_of(first: Plant) -> Vector3:
+	return _solids[_key_of(first)].home
+
+
+func _key_of(first: Plant) -> Vector2i:
+	return Vector2i(0 if first.pool == trunks else 1, first.slot)
+
+
 func add_bush(at: Vector3, rng: RandomNumberGenerator) -> Array[Plant]:
 	var b := FloraLayout.bush(at, rng)
 	var parts: Array[Plant] = []
@@ -711,9 +792,17 @@ func keep() -> void:
 
 ## Where the meadow's own trees' trunks stand in its group.
 func meadow_trees() -> PackedInt32Array:
+	return _meadow_in(trunks)
+
+
+func meadow_bushes() -> PackedInt32Array:
+	return _meadow_in(bushes)
+
+
+func _meadow_in(pool: Pool) -> PackedInt32Array:
 	var out := PackedInt32Array()
 	for p: Plant in groups[0]:
-		if p.pool == trunks:
+		if p.pool == pool:
 			out.append(p.index)
 	return out
 
@@ -750,11 +839,8 @@ func add_moss(p: Vector3, rng: RandomNumberGenerator, pool: Pool = null) -> Plan
 func set_moss(trunk: Plant, on: bool) -> void:
 	if species_of(trunk) < 0:
 		return
-	var custom := Color(1.0 if on else 0.0, 0, trunk.anchor.x, trunk.anchor.z)
-	if trunk.slot < trunks.kept:
-		trunks._cell_of[trunk.slot].set_instance_custom_data(trunks._index_in_cell[trunk.slot], custom)
-	else:
-		trunks.mm.set_instance_custom_data(trunk.slot - trunks.kept, custom)
+	_solids[Vector2i(0, trunk.slot)].moss = on
+	trunks.set_custom(trunk.slot, Color(1.0 if on else 0.0, 0, trunk.anchor.x, trunk.anchor.z))
 
 
 func _paint(kind: String, p: Vector3, rng: RandomNumberGenerator, ghost: bool) -> Plant:
@@ -887,6 +973,7 @@ func reset() -> void:
 	_solid_cells.clear()
 	for key: Vector2i in _solids:
 		var solid: Solid = _solids[key]
+		move(solid.parts[0], solid.home)
 		if solid.species > FloraLayout.Species.OAK or solid.scale != 1.0:
 			set_look(solid.parts[0], FloraLayout.Species.OAK, 1.0)
 		_index(key, solid)

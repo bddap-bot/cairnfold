@@ -239,9 +239,9 @@ func _meadow_trees_take_a_species() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## A grip on a planted tree raised grows it and lowered shrinks it, within FloraLayout.SCALES, through the host,
-## which a peer takes; what it strikes, its shade and its share of the budget grow with it; an undo, a redo, a
-## species and a snapshot keep it.
+## Two grips on a planted tree spread grow it and closed shrink it, by their span, within FloraLayout.SCALES, through the
+## host, which a peer takes; one hand raised alone grows nothing; what it strikes, its shade and its share of the
+## budget grow with it; an undo, a redo, a species and a snapshot keep it.
 func _trees_grow_by_the_grip() -> void:
 	var flora: Flora = main.flora_tool.flora
 	var tool: WallTool = main.tool
@@ -253,16 +253,25 @@ func _trees_grow_by_the_grip() -> void:
 	var shade := flora.shade_of(flora.groups[g]).basis.get_scale()
 	var trees: float = world.units.tree
 	var m := tool.mason(main.rig.right)
+	var other := tool.mason(main.rig.left)
 	var grip := at + Vector3.UP * top * 0.8
 	var hand := grip + Vector3.BACK * 2.0
 	tool.begin_grow(m, trunk, Transform3D(Basis(), hand), grip)
 	_check(tool.busy(main.rig.right), "a grip on a tree holds it")
-	tool.drag_grow(m, hand.y + 1.5)
+	m.sizing.follow.call(m, Transform3D(Basis(), hand + Vector3.UP * 1.5))
+	_check(flora.scale_of(trunk) == 1.0, "one hand raised alone grows nothing")
+	m.sizing.follow.call(m, Transform3D(Basis(), hand))
+	m.hand.global_position = hand
+	other.hand.global_position = hand + Vector3.LEFT
+	tool.begin_grow(other, trunk, Transform3D(Basis(), hand + Vector3.LEFT), grip)
+	tool.drag_pair(other, hand + Vector3.RIGHT * 0.25, hand + Vector3.LEFT * 1.25)
 	var grown := flora.scale_of(trunk)
-	_check(grown > 1.3 and absf(flora.top_of(trunk) - (top + 1.5 * Hand.reach_gain(2.0))) < 0.1, "its top follows the raised hand: %.2f, top %.2f from %.2f" % [grown, flora.top_of(trunk), top])
+	_check(is_equal_approx(grown, 1.5) and absf(flora.top_of(trunk) - top * 1.5) < 0.3, "two hands spread to half again their span grow it half again: %.2f, top %.2f from %.2f" % [grown, flora.top_of(trunk), top])
 	_check(world.state.groups[g].scale.is_empty(), "shown here alone while held")
+	tool.end_grow(other)
+	_check(m.partner == null and is_equal_approx(flora.scale_of(trunk), grown), "letting one go leaves the other holding it as sized")
 	tool.end_grow(m)
-	_check(world.state.groups[g].scale.get(0) == grown and is_equal_approx(flora.scale_of(trunk), grown), "letting go sends it")
+	_check(world.state.groups[g].scale.get(0) == grown and is_equal_approx(flora.scale_of(trunk), grown) and not world.state.groups[g].places.has(0), "letting go sends its size, and no place for a tree not carried")
 	_check(is_equal_approx(world.units.tree, trees), "a resized tree keeps its measured per-tree charge: %.2f" % (world.units.tree - trees))
 	_check(flora.shade_of(flora.groups[g]).basis.get_scale().is_equal_approx(shade * grown), "its shade grows with it")
 	var high := at + Vector3(0, top * grown * 0.9, 6)
@@ -273,9 +282,11 @@ func _trees_grow_by_the_grip() -> void:
 		_check(Commands.clean({"op": "tree", "group": g, "index": 0, "scale": bad}, world.state, false).is_empty(), "no scale %s" % bad)
 	_check(Commands.clean({"op": "tree", "group": g, "index": 0}, world.state, false).is_empty(), "a tree command changes something")
 	tool.begin_grow(m, trunk, Transform3D(Basis(), hand), grip)
-	tool.drag_grow(m, hand.y - 50.0)
+	tool.begin_grow(other, trunk, Transform3D(Basis(), hand + Vector3.LEFT), grip)
+	tool.drag_pair(other, hand, hand + Vector3.LEFT * 0.01)
+	tool.end_grow(other)
 	tool.end_grow(m)
-	_check(is_equal_approx(flora.scale_of(trunk), FloraLayout.SCALES.x), "lowered all the way it shrinks to the least")
+	_check(is_equal_approx(flora.scale_of(trunk), FloraLayout.SCALES.x), "closed all the way it shrinks to the least")
 	world._order({"op": "undo"}, world.me())
 	_check(is_equal_approx(flora.scale_of(trunk), grown), "an undo grows it back")
 	world._order({"op": "undo"}, world.me())
