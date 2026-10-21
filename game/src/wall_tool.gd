@@ -493,10 +493,12 @@ func take_build(w: Wall) -> void:
 	held_at = (_held_was if was.is_empty() or was.back else was.at).duplicate()
 	_hold_start = held_at.duplicate()
 	_laid_at = _resettled(w, d.points, d.rise)
+	w.draw_live()
 	_riders.clear()
 	for o in walls:
 		if o != w and _below(o.on).has(w.id):
 			_riders[o] = _resettled(o, world.state.walls[o.id].points, o.layout.laid_rise)
+			o.draw_live()
 	_holders.clear()
 	_carried = 0.0
 

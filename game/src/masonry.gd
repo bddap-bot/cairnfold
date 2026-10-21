@@ -299,6 +299,12 @@ func _ranges(key: Vector3i) -> void:
 
 
 func _process(_delta: float) -> void:
+	flush()
+
+
+## Uploads every chunk placed since the last upload now, rather than when this node next processes, for a wall moving its
+## stones between two of them in one frame.
+func flush() -> void:
 	var coarse := {}
 	for key: Vector3i in _dirty:
 		var c: Chunk = _chunks[key]

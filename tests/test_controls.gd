@@ -165,6 +165,7 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 			break
 	_check(Vector2(tool.held_at.center.x - start.x, tool.held_at.center.z - start.z).length() > 1.0, "moving the hand carries it: %s" % tool.held_at.center)
 	_check(w.layout.laid == laid, "carried, not laid again: walls, roof and all move as one")
+	_check(w._drawn != null and w.masonry.counts() != null and not w._settled, "its stones are drawn with it, not left in the glade's")
 	_check(data.call().points == PackedVector3Array(WallTool.outline(placed)) or WallTool.house_of(data.call()).center == placed.center, "nothing is sent while it is held")
 	# Directive (verbatim): "When placing a building, you should be able to raise it higher up by raising your controller up"
 	var stale := 0

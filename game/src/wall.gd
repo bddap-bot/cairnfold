@@ -690,7 +690,15 @@ func _take(packed: Dictionary) -> void:
 	_ruin_pick = packed.ruin_pick
 
 
-## Puts each part where it belongs: with the glade's Masonry once settled (ivy once grown), else drawn here.
+## Draws the stones laid here rather than with the glade's, so moving this wall moves them, as a hold carries it.
+func draw_live() -> void:
+	if _settled:
+		_settled = false
+		_sync()
+
+
+## Puts each part where it belongs: with the glade's Masonry once settled (ivy once grown), else drawn here; a part
+## moving between the two is drawn by both this frame, so none blinks out.
 func _sync() -> void:
 	var placed: Array[Dictionary] = []
 	var drawn: Array[Dictionary] = []
@@ -702,11 +710,16 @@ func _sync() -> void:
 		live = live or not drawn[p].is_empty()
 	masonry.place(get_instance_id(), placed)
 	if live:
-		if _drawn == null:
+		var fresh := _drawn == null
+		if fresh:
 			_drawn = Masonry.new(kinds())
 			add_child(_drawn)
 		_drawn.place(get_instance_id(), drawn)
+		if fresh:
+			_drawn.flush()
+			masonry.flush()
 	elif _drawn != null:
+		masonry.flush()
 		_drawn.queue_free()
 		_drawn = null
 	_show_ivy(_settled and _ivy_growing())
