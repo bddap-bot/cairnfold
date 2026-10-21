@@ -18,7 +18,7 @@ enum Act {
 	DELETE_SWEEP, WIPE_CHARGE, WIPE,
 	DIAL_TURN, DIAL_SET,
 	SKY_TURN,
-	EASEL_PLACE, BRUSH_TAKE, BRUSH_DIP, CANVAS_STROKE, CHARCOAL_STROKE, SHEET_TEAR,
+	EASEL_PLACE, BRUSH_TAKE, BRUSH_DIP, SHEET_TEAR,
 	PHOTO, SEEDS_THROW,
 	WHEEL_OPEN, WHEEL_HOVER, WHEEL_PICK,
 	UNDO, REDO,
@@ -72,8 +72,6 @@ const TABLE := {
 	Act.EASEL_PLACE: {"sound": "wood", "db": -5.0, "spread": 0.06, "tune": 0.75, "feel": [0.35, 0.04, 1, 0.0]},
 	Act.BRUSH_TAKE: {"sound": "tock", "db": -12.0, "spread": 0.06, "tune": 1.2, "feel": [0.3, 0.03, 1, 0.0]},
 	Act.BRUSH_DIP: {"sound": "dip", "db": -18.0, "spread": 0.1, "tune": 1.3, "feel": [0.2, 0.02, 1, 0.0]},
-	Act.CANVAS_STROKE: {"sound": "brush", "db": -18.0, "spread": 0.1, "feel": [0.05, 0.008, 1, 0.0], "tighten": 1.5, "every": 0.035},
-	Act.CHARCOAL_STROKE: {"sound": "brush", "db": -18.0, "spread": 0.12, "tune": 0.8, "feel": [0.07, 0.005, 1, 0.0], "tighten": 1.5, "every": 0.025},
 	Act.SHEET_TEAR: {"sound": "tear", "db": -8.0, "spread": 0.06, "feel": [0.3, 0.06, 1, 0.0]},
 	Act.PHOTO: {"sound": "shutter", "db": -8.0, "spread": 0.04, "feel": [0.4, 0.04, 1, 0.0]},
 	Act.SEEDS_THROW: {"sound": "scatter", "db": -8.0, "spread": 0.1, "feel": [0.2, 0.03, 1, 0.0]},
@@ -100,7 +98,7 @@ const TABLE := {
 const SOUNDS := {
 	"stone": 5, "settle": 3, "arch": 2, "crumble": 2, "dip": 3, "fill": 2, "plop": 3, "nibble": 4,
 	"bow": 3, "lift": 2, "scrape": 4, "wood": 3, "rustle": 4, "gravel": 4, "soil": 3, "sweep": 1, "tock": 3,
-	"pick": 3, "brush": 4, "tear": 2, "shutter": 2, "scatter": 3, "undo": 1, "redo": 1, "swish": 1, "cloth": 1, "hello": 1,
+	"pick": 3, "tear": 2, "shutter": 2, "scatter": 3, "undo": 1, "redo": 1, "swish": 1, "cloth": 1, "hello": 1,
 	"bye": 1, "flutter": 3, "grunt": 2, "thud": 3, "whoosh": 3,
 }
 ## The sounds there were before this table; every other one is checked for band energy against them

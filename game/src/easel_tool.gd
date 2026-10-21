@@ -621,7 +621,6 @@ func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: flo
 	s.at = canvas.ticks
 	s.last = [uv, pressure]
 	canvas.lay(s.data, s.stroker.add(Brushwork.unpack(packed, 0)))
-	Cues.play(Cues.Act.CHARCOAL_STROKE if p.brush == Brushwork.Brush.STICK else Cues.Act.CANVAS_STROKE, p.hand.global_position, p.hand, pressure)
 	if Brushwork.count(s.data) >= Brushwork.MAX_SAMPLES:
 		end_stroke(p)
 

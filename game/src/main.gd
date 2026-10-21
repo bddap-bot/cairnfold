@@ -77,6 +77,7 @@ func _ready() -> void:
 	easels = Easels.new()
 	builds.add_child(easels)
 	easel_tool = EaselTool.new(rig, easels, world)
+	easel_tool.canvas_contact.connect(Cues.canvas_contact)
 	add_child(easel_tool)
 	tool.painting = easel_tool.claims
 	ground_grab = GroundGrab.new(rig, world, _editing)

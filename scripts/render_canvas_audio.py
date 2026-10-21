@@ -35,7 +35,7 @@ def trace(t):
 def render(profile):
     rng = np.random.default_rng(8801)
     old = profile == 'old'
-    clips = [read(ROOT / f'game/audio/fx/brush{i}.ogg') for i in range(4)] if old else [read(ROOT / f'game/audio/charcoal/{profile}{i}.ogg') for i in range(8)]
+    clips = [read(ROOT / f'tests/fixtures/canvas-audio/brush{i}.ogg') for i in range(4)] if old else [read(ROOT / f'game/audio/charcoal/{profile}{i}.ogg') for i in range(8)]
     result = np.zeros(7 * SR)
     previous = -1
     due = 0.0

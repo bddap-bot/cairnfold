@@ -2851,8 +2851,6 @@ Every player action, from the code:
 | `EASEL_PLACE` | An easel is set up | low wooden knock | knock |
 | `BRUSH_TAKE` | A grip takes a brush, charcoal, the palette or the sheet's corner | tock | knock |
 | `BRUSH_DIP` | A brush dips into paint, the jar or the tin | quiet dip | tick |
-| `CANVAS_STROKE` | A brush lays paint on the canvas | soft bristle swish, at most 28 a second | grain, stronger the harder it is pressed |
-| `CHARCOAL_STROKE` | Charcoal draws on the canvas | lower, grittier swish | finer grain, stronger the harder it is pressed |
 | `SHEET_TEAR` | The sheet is torn off | paper tear | pulse |
 | `PHOTO` | The camera takes a photo (flat players too) | wooden shutter | knock |
 | `SEEDS_THROW` | A handful of seeds leaves the dish | soft scatter | knock |

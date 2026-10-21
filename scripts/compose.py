@@ -603,8 +603,6 @@ def actions():
     fx["redo0"] = _notes([59, 66], 0.11)
     fx["hello0"] = _notes([59, 63, 66], 0.12)
     fx["bye0"] = _notes([66, 63, 59], 0.12)
-    for i in range(4):
-        fx[f"brush{i}"] = _band(crng.standard_normal(int(0.09 * SR)), 220, 900) * np.hanning(int(0.09 * SR))
     for i in range(2):
         n = int(0.4 * SR)
         crackle = (crng.random(n) < 0.004) * crng.uniform(0.3, 1.0, n)
