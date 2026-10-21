@@ -3699,3 +3699,23 @@ The interior holds the GPU budget in both runs. The dense scene exceeds it
 before and after; the changed exterior also exceeds it. Ivy counts differ between
 runs, so these totals do not isolate the ceiling's GPU cost or establish a
 whole-scene budget pass.
+
+
+### Skipping collapsed grass work
+
+A grass clump beyond its individual distance limit is already collapsed to its root.
+Its vertex shader now takes that path before computing water shading, bounce light,
+wind and hand bending. Clumps still visible keep the same calculations, and the photo
+layer still draws every clump in full.
+
+On one physical Quest 2 at 72 Hz and GPU level 4, `demo/grass-collapse.json` holds
+maximum quality in a dense hilly wall scene and measures grass on/off twice. In an
+original/candidate/original sequence, grass's incremental GPU time was 6.67/7.09 ms,
+5.29/5.36 ms, then 6.43/6.38 ms. The candidate saves 1.02–1.80 ms against those
+controls. Whole-scene times vary between runs: the grass-hidden control moved from
+25.51/25.55 ms to 24.38/24.27 ms and back to 25.51/25.49 ms, so that drift is not
+credited to the shader. The records are in `perf/quest-2/grass-collapse/`.
+
+This is a partial saving, not a frame-budget pass. The candidate's visible-grass
+phases still take 29.67/29.63 ms against the 12.5 ms budget. The full stress scene
+and its validation remain unchanged.
