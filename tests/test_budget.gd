@@ -37,7 +37,7 @@ func _water_costs_at_most_a_view_full() -> void:
 	_check(is_equal_approx(Budget.cost_ms(pond, Budget.Device.QUEST_2), 20.0 * q.pond_m2 / 1000.0), "a small pond costs its square metres")
 	var lake := {"pond_m2": 13158.0}
 	_check(is_equal_approx(Budget.cost_ms(lake, Budget.Device.QUEST_2), q.water / 1000.0), "the meadow's whole bowl costs a view full of water")
-	_check(Budget.fits({}, lake, [Budget.Device.QUEST_2]), "and fits an empty garden")
+	_check(Budget.fits({}, lake, [Budget.Device.QUEST_2]) == (q.water / 1000.0 <= Budget.room_ms(Budget.Device.QUEST_2)), "and fits an empty garden exactly when that view fits the room")
 	_check(Budget.fits(lake, {"pond_m2": 500.0}, [Budget.Device.QUEST_2, Budget.Device.FRAME]), "more water beside a full view's worth costs nothing more")
 
 

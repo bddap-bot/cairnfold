@@ -287,6 +287,7 @@ func _ponds_in_the_glade() -> void:
 	var rig := Rig.new()
 	root.add_child(rig)
 	var world := World.new()
+	world.bounded = false
 	root.add_child(world)
 	var terrain := GroundGrab.new(rig, world)
 	root.add_child(terrain)

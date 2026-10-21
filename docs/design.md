@@ -843,6 +843,59 @@ limit the Quest 2 keeps 2.7 ms and the Frame 3.6 ms. In the first two or three s
 air, while the ladder walked down, the Quest 2 ran 52 to 70 fps and the Frame, from the top
 step, half rate for about ten seconds.
 
+### What the bare meadow costs the Quest 2
+
+`NESTCOMBE_SCENE=demo/meadow-layers.json bench.sh OUT --android APK` hides each part of the meadow in turn, twice, each
+stretch against the part shown beside it, from the air and standing, at the fit step; `scripts/layers.py OUT` reads it.
+Milliseconds a frame in the governor's signal, on main before the cut below
+([record](../perf/quest-2/meadow-layers/20261021T203327Z-ab7159c.json)), and the share of each kept at a 0.5 swapchain
+(`NESTCOMBE_ARGS="--render-scale 0.5"`, 51% of the pixels; [record](../perf/quest-2/meadow-layers/20261021T204840Z-ab7159c.json)):
+
+| Hidden | From the air | Standing | Kept at 0.5, air and standing |
+| --- | --- | --- | --- |
+| The meadow shown | 10.26 | 8.33 | 0.65, 0.68 |
+| Ground (terrain mesh) | 3.99 | 2.07 | 0.68, 0.69 |
+| Trees and bushes | 3.22 | 1.63 | 0.89, 0.97 |
+| Grass blades | 0.46 | 2.05 | 0.83, 0.79 |
+| Flowers | 0.59 | 0.98 | 0.68, 0.88 |
+| Sky | 0.10 | 0.18 | |
+| Mountains | 0.06 | 0.07 | |
+| Sun's disc, water, hands, grading | 0.0 to 0.05 | 0.0 to 0.05 | |
+| Everything at once | 9.06 | 7.40 | |
+| The sun's light, over all of it | 3.25 | 1.70 | 0.78, 1.12 |
+| 2x MSAA, over all of it | 2.41 | 1.79 | 0.61, 0.80 |
+| Ambient sky light | 0.35 | 0.64 | |
+| Fog | 0.31 | 0.57 | |
+
+With everything hidden 1.2 and 1.1 ms remain: the clear, the compositor's share and the wildlife. The parts' costs add
+to 0.6 and 0.2 ms less than the whole, which is what they share. The sun, MSAA, ambient light and fog are not parts:
+each is paid inside the ground's, trees' and plants' pixels. The foothills were gone before this run (c157993b).
+
+The frame is two thirds pixels: a 0.5 swapchain keeps 65 to 68% of its time where pure fill would keep 51%. The ground
+and the flowers are fill; the trees are not (0.89, 0.97), and neither is the sun's light standing. "Which knobs matter"
+found the render region saved nothing because the region does not shrink the swapchain's passes; the swapchain itself
+does.
+
+Leaves, bark, stone, plaster, thatch and roof timber shade without specular: all at roughness 0.92 or rougher, where
+the sun's highlight is a faint sheen side-by-side renders do not show. On one Quest 2, the same scene played
+main, cut, main (median of three 15 s rounds a view): 10.33, 9.24, 10.38 ms from the air and 8.69, 8.09, 8.76 standing.
+
+The same build and headset read 10.26 and 8.33 ms in the first run and 11.90 and 10.38 two hours later
+([record](../perf/quest-2/meadow-layers/20261021T222648Z-ab7159c.json)), the clocks held at CPU 4 / GPU 4 throughout
+and the headset 37.2 °C then 39.0 °C. So only interleaved comparisons resolve a millisecond on a Quest 2, and a
+`base_ms` fitted in one run is good to about 2 ms; the cut build's own layer run
+([record](../perf/quest-2/meadow-layers/20261021T221029Z-e6f5b3b.json)) steps by 1.5 ms between its stretches the same
+way.
+
+Refitted on that build ([record](../perf/quest-2/costs/20261021T214216Z-e6f5b3b.json)): `base_ms` 9.38, room 1.73 ms.
+Main before it fitted 10.78 and 0.33 ms ([record](../perf/quest-2/costs/20261021T210901Z-ab7159c.json)), against the
+9.10 and 2.01 ms the table carried from 20261020. Walls cost 23.8 µs a m² from the 231 m² disc standing, and the
+standing cost of walls saturates: +5.51, +5.34 and +4.76 ms for 231, 450 and 584 m², against +1.67, +3.74 and
++4.64 ms from the air. The village's 43 m² of wall and 32 m² of roof measured +0.36 to +0.59 ms and are priced 1.62 ms;
+the lanterns' phase reads under its walls' price, so `fitting` fits to nothing.
+The lake drowns the plants the cut made cheaper, so its view reads as before (9.56 ms App time) over a meadow 0.7 ms
+cheaper: a view full of water now costs 1.99 ms, more than the room, and the whole bowl no longer fits an empty garden.
+
 What walls cost the Quest 2 (`NESTCOMBE_SCENE=demo/costs.json bench.sh OUT --android APK`,
 the ladder at its bottom step): GPU milliseconds a frame over the bare meadow of the same run,
 whose own time read 19 to 27 ms here, so only the differences count. Before is 16 m masonry
