@@ -4715,6 +4715,13 @@ frame and its dabs up to 1.1 million more; five more runs before the change read
 frame after is the undo itself, 33 ms applying the command. The replay now takes longer: eight seconds in, about half
 the bench's strokes are back on the canvas.
 
+Brush load stays constant while painting, including across separate strokes. Dipping fills the brush;
+a clean brush picking paint up from the mixing board fills too. A lateral wipe across the cloth on
+the tray lip removes a quarter of the load, once until the brush lifts, down to a 15% dry-brush floor.
+The cloth takes a smear of the current colour. Charcoal is unaffected. On the brush itself the painted
+part of the bristles retreats from the tip and loses its gloss as load drops, without a text readout.
+`demo/brush-load.json` captures the same stroke and bristles at full load, after one wipe and after three.
+
 Every stroke is a build command (`paint`, docs/multiplayer.md): the brush's medium, colour, strength and load, and
 its samples (where on the canvas, how hard, the flat brush's angle, at which tick), packed in two ints each.
 `Brushwork.Stroker` turns samples into dabs the same way on every machine, and every dab lands at a known tick of

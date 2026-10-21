@@ -108,10 +108,17 @@ func _a_stroke_lays_the_same_dabs_every_time() -> void:
 		return out
 	var once: PackedFloat32Array = lay.call()
 	check(once == lay.call() and once.size() > 5 * Brushwork.DAB, "a stroke's samples lay the same dabs every time: %d" % (once.size() / Brushwork.DAB))
-	var s := Brushwork.Stroker.new(stroke)
-	for i in 5:
-		s.add(Brushwork.unpack(samples, i))
-	check(s.left() < 1.0 and s.left() > 0.0, "and spend some of the paint on the brush: %.3f left" % s.left())
+	for medium in [Brushwork.Medium.WATER, Brushwork.Medium.OIL]:
+		stroke.medium = medium
+		stroke.load = 0.4
+		var s := Brushwork.Stroker.new(stroke)
+		var constant := true
+		for i in 512:
+			var dabs := s.add([Vector2(0.1 if i % 2 == 0 else 0.9, 0.5), 1.0, 0.0, 3, 0.0])
+			for d in range(5, dabs.size(), Brushwork.DAB):
+				constant = constant and is_equal_approx(dabs[d], 0.4)
+		check(constant, "a long stroke keeps its load in medium %d" % medium)
+
 
 
 func _strokes_are_kept_and_load_whole() -> void:
@@ -303,9 +310,24 @@ func _the_tray_loads_the_brush() -> void:
 	check(p.colour.distance_to(lemon) < 1e-4, "a second oil colour replaces the first: oils mix on the palette's board, not in the paint")
 	await play([{"op": "dip", "what": "pan", "index": 5}])
 	check(p.medium == Brushwork.Medium.WATER and p.colour.distance_to(blue) < 1e-4, "and a pan makes it watercolour again, clean of the oil")
+	await play([{"op": "rag_wipe"}])
+	check(is_equal_approx(p.load, 0.75), "one physical rag wipe lowers load once")
+	await play([{"op": "brush", "points": [[0.1, 0.5, 0.8], [0.9, 0.5, 0.8]], "seconds": 0.4}])
+	await _settled()
+	check(is_equal_approx(p.load, 0.75) and is_equal_approx(world.state.easels[e.id].strokes[-1].load, 0.75), "painting keeps the wiped load and sends it in the stroke command")
+
+	await play([{"op": "rag_wipe", "times": 2}])
+	check(is_equal_approx(p.load, 0.25), "three wipes leave a quarter load")
+	await play([{"op": "rag_wipe", "times": 5}])
+	check(is_equal_approx(p.load, 0.15), "the rag leaves a dry-brush floor")
+	check(e.rag.get_shader_parameter("stained"), "the rag picks up pigment")
+	await play([{"op": "dip", "what": "pan", "index": 5}])
+	check(p.load == 1.0, "dipping restores full load")
+
 	await play([{"op": "take", "what": "stick"}])
 	check(p.brush == Brushwork.Brush.STICK and p.medium == Brushwork.Medium.CHARCOAL, "the stick is charcoal")
 	await play([{"op": "dip", "what": "jar"}, {"op": "dip", "what": "pan", "index": 2}, {"op": "dip", "what": "oil", "index": 2}])
+	await play([{"op": "rag_wipe"}])
 	check(p.medium == Brushwork.Medium.CHARCOAL and p.load == 1.0, "and stays charcoal whatever it is dipped in")
 	await play([{"op": "take", "what": "box"}, {"op": "set_down"}, {"op": "take", "what": "big"}])
 	check(p.brush == Brushwork.Brush.BIG and p.palette == null and main.rig.right.tool == Hand.Tool.EASEL, "from the charcoal a hand takes a palette, sets it down and takes a brush")
@@ -559,7 +581,7 @@ func _a_tip_in_each_well_loads_its_colour() -> void:
 					await frames(2)
 					tip_at.call(into)
 					await frames(2)
-					var shown := p.tip.albedo_color
+					var shown: Color = p.tip.get_shader_parameter("paint_colour")
 					check(p.medium == kit and p.colour.distance_to(Brushwork.absorbance(Brushwork.PIGMENTS[i])) < 1e-4 and p.load > 0.5, "a tip at %s in %s %d of a palette %s loads its colour" % [spot, EaselTool.PAINTS[kit], i, "in hand" if held else "on the tray"])
 					check(shown.is_equal_approx(tool._paint_colour(p)), "the bristles show %s %d's colour" % [EaselTool.PAINTS[kit], i])
 			if held:
@@ -584,7 +606,7 @@ func _oil_mixes_by_painting_onto_the_board_and_picking_up_from_it() -> void:
 	await play([{"op": "mix", "points": [[-0.3, 0.0, 0.7], [0.1, 0.0, 0.7]], "seconds": 0.3}])
 	var blue: Color = colour.call()
 	check(e.mixing.at(spot).amount > 0.05 and blue.b > blue.g and blue.b > blue.r, "blue painted onto the board lies there: %s, %.2f" % [blue, e.mixing.at(spot).amount])
-	check(p.load < 1.0 and p.load > 0.2, "and leaves the brush: %.2f left" % p.load)
+	check(p.load == 1.0, "mixing keeps the brush full: %.2f left" % p.load)
 	await _settled()
 	var after_blue: PackedByteArray = _easel().mix
 	check(after_blue == e.mixing.bytes, "the garden has the board as it was left")

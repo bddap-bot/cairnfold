@@ -11,6 +11,7 @@ extends Node3D
 const TILT := deg_to_rad(10.0)
 const CANVAS_AT := Vector3(0, 1.32, 0)
 const TRAY_Y := 0.72
+const RAG := AABB(Vector3(-0.48, TRAY_Y + 0.04, 0.30), Vector3(0.23, 0.008, 0.12))
 const TRAY := AABB(Vector3(-0.82, TRAY_Y - 0.03, 0.035), Vector3(1.64, 0.03, 0.31))
 ## The rail along the tray's front edge: height and thickness.
 const LIP := Vector2(0.035, 0.012)
@@ -145,6 +146,7 @@ class Easel:
 	## Each brush in the pot and stick of charcoal on the tray, by its Brushwork.Brush; one a hand holds is off it
 	## (`EaselTool`).
 	var brushes := {}
+	var rag: ShaderMaterial
 
 	## The canvas's frame: x along it, y up it, z out of it toward the painter, origin at its centre.
 	func canvas_frame() -> Transform3D:
@@ -410,6 +412,9 @@ func _build(e: Easel) -> void:
 	var implements := Node3D.new()
 	implements.name = "implements"
 	e.add_child(implements)
+	e.rag = ShaderMaterial.new()
+	e.rag.shader = preload("res://src/rag.gdshader")
+	_part(implements, ToolModels.box(RAG.size), Transform3D(Basis(), RAG.get_center()), e.rag, false)
 	var glass := _mat("glass", Color(0.86, 0.93, 0.96, 0.22), 0.04)
 	glass.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	glass.rim_enabled = true

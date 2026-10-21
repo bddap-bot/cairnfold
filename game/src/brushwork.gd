@@ -22,17 +22,13 @@ const TILE := 64
 ## How far past the brush water may run, in texels: sideways and up, then down the tilted canvas.
 const MARGIN := 40
 const RUN := 160
-## Each brush's radius in texels, from a touch to full pressure (`radii`), and how much paint it holds, in texels of
-## area laid at full pressure before it is spent; charcoal is never spent.
+## Each brush's radius in texels, from a touch to full pressure (`radii`).
 const RADII := {Brush.SMALL: Vector2(1.5, 8.0), Brush.BIG: Vector2(6.0, 40.0), Brush.FLAT: Vector2(10.0, 42.0)}
-const HOLDS := {Brush.SMALL: 40000.0, Brush.BIG: 400000.0, Brush.FLAT: 400000.0}
 ## The charcoal sticks, long and thin to short and thick, by their radius and length in metres; the radius sets the
 ## mark's width and the length how far a stick on its side reaches.
 const STICKS := {Brush.THIN_STICK: Vector2(0.0035, 0.24), Brush.STICK: Vector2(0.0065, 0.15), Brush.THICK_STICK: Vector2(0.011, 0.08)}
 ## How far a tool pushed past the surface it paints on presses fully (`pressure`).
 const PRESS_DEPTH := 0.02
-## Oil is spent a little sooner than a wet brush.
-const OIL_HOLDS := 0.8
 ## Dabs are laid this fraction of their radius apart.
 const SPACING := 0.2
 ## Speed, in texels a tick, at which a stroke skips over the paper's dips (dry-brush), and how much it does per medium:
@@ -166,21 +162,14 @@ static func clean(d: Variant) -> Variant:
 
 
 ## Lays a stroke's dabs sample by sample: between each sample and the one before, dabs a fifth of a radius apart,
-## the paint on the brush running down as it lays them. The first sample lays one dab.
+## with constant paint load. The first sample lays one dab.
 class Stroker:
 	var stroke: Dictionary
-	var _hold: float
-	var _spent := 0.0
 	var _last: Array = []
 	var _heading := 0.0
 
 	func _init(of: Dictionary) -> void:
 		stroke = of
-		_hold = (INF if Brushwork.is_stick(of.brush) else HOLDS[of.brush]) * (OIL_HOLDS if of.medium == Medium.OIL else 1.0)
-
-	## The paint left on the brush, 0..1 of what the stroke began with.
-	func left() -> float:
-		return exp(-_spent / _hold)
 
 	## The dabs sample `s` ([uv, pressure, angle, ticks, side], as `unpack` gives) adds. A stick on its side lays a
 	## line, so it lays by how far that line sweeps, turning about its middle as much as moving it.
@@ -217,8 +206,7 @@ class Stroker:
 
 	func _dab(out: PackedFloat32Array, at: Vector2, pressure: float, angle: float, speed: float, travel := 1.0, side := 0.0) -> void:
 		var r := _radius(pressure)
-		var load: float = stroke.load * left()
+		var load: float = stroke.load
 		var dryness: float = clampf(speed / SKIM, 0.0, 1.0) * SKIMS[stroke.medium] + (1.0 - load) * 0.45
 		var major := maxf(r, Brushwork.side_reach(stroke.brush, side)) if stroke.medium == Medium.CHARCOAL else r
 		out.append_array([at.x, at.y, major, pressure, r if stroke.medium == Medium.CHARCOAL else _heading, load * travel, clampf(dryness, 0.0, 1.0), angle])
-		_spent += PI * r * r * SPACING * (0.3 + pressure)

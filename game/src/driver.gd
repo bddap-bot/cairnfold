@@ -1781,6 +1781,22 @@ func _hold(s: Dictionary) -> void:
 	await _frames(2)
 
 
+func _rag_wipe(s: Dictionary) -> void:
+	var hand := _hand(s)
+	var e := _easel_of(s)
+	var at := Easels.RAG.get_center()
+	for i in s.get("times", 1):
+		_tip_at(hand, e.tray(at + Vector3(-0.08, 0.08, 0)), Vector3.DOWN, -e.global_basis.z)
+		await _frames(2)
+		_tip_at(hand, e.tray(at + Vector3(-0.08, 0, 0)), Vector3.DOWN, -e.global_basis.z)
+		await _frames(2)
+		for k in 12:
+			_tip_at(hand, e.tray(at + Vector3(-0.08 + k * 0.014, 0, 0)), Vector3.DOWN, -e.global_basis.z)
+			await _frames(1)
+		_tip_at(hand, e.tray(at + Vector3(0.08, 0.08, 0)), Vector3.DOWN, -e.global_basis.z)
+		await _frames(2)
+
+
 ## Dips the brush in `hand` into the jar, or pigment `index` of the watercolour box ("pan") or the oil palette ("oil"),
 ## wherever that palette is, pushed `depth` metres on through it, and lifts it out.
 func _dip(s: Dictionary) -> void:

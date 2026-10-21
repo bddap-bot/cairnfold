@@ -53,11 +53,14 @@ class Painter:
 	var strength := 0.0
 	var load := 0.0
 	var models := {}
-	var tip: StandardMaterial3D
+	var tip: ShaderMaterial
 	## The stroke being painted: {easel, data, stroker, last: [uv, pressure], at (tick of the last sample)}.
 	var stroke := {}
 	## What the tip is in, so a dip happens once on going in.
 	var dipped := ""
+	var rag: Easels.Easel
+	var wipe_start := Vector3.ZERO
+	var wiped := false
 	## The easel whose mixing field the tip is working, whether it changed it, and the microseconds each frame of it
 	## took.
 	var board: Easels.Easel
@@ -104,8 +107,8 @@ func _init(player: Rig, stands: Easels, garden: World) -> void:
 		var p := Painter.new()
 		p.hand = h
 		p.buttons = Buttons.new(h).watch(["tool", "grab"])
-		p.tip = StandardMaterial3D.new()
-		p.tip.roughness = 0.5
+		p.tip = ShaderMaterial.new()
+		p.tip.shader = preload("res://src/bristles.gdshader")
 		for kind in Brushwork.Brush.values():
 			var m := ToolModels.brush(kind)
 			m.transform = ToolModels.hold(kind)
@@ -185,6 +188,7 @@ func _handle(p: Painter, delta: float) -> void:
 	var tip := held_brush(p) * ToolModels.BRUSH_TIP
 	var e := easels.nearest(tip)
 	if e != null:
+		_wipe(p, e, tip)
 		_dip(p, tip)
 		if _mix(p, tip, delta):
 			end_stroke(p)
@@ -485,6 +489,32 @@ func fresh_sheet(id: int, hand: Hand = null) -> void:
 	world.submit({"op": "sheet", "easel": id, "strokes": []}, Callable(), hand)
 
 
+func _wipe(p: Painter, e: Easels.Easel, tip: Vector3) -> void:
+	var local := e.to_local(tip)
+	var on := p.brush != Brushwork.Brush.STICK and Easels.RAG.grow(0.008).has_point(local)
+	if not on:
+		p.rag = null
+		return
+	end_stroke(p)
+	if p.rag != e:
+		p.rag = e
+		p.wipe_start = local
+		p.wiped = false
+	if not p.wiped and Vector2(local.x - p.wipe_start.x, local.z - p.wipe_start.z).length() >= 0.035:
+		wipe(p, e)
+		p.wiped = true
+
+
+func wipe(p: Painter, e: Easels.Easel) -> void:
+	if p.brush == Brushwork.Brush.STICK or p.load <= 0.0:
+		return
+	end_stroke(p)
+	p.load = maxf(0.15, p.load - 0.25)
+	e.rag.set_shader_parameter("paint_colour", _paint_colour(p))
+	e.rag.set_shader_parameter("stained", true)
+	_show_paint(p)
+
+
 ## Dips the brush into whatever the tip has just gone into: a pan, an oil colour or the jar, on any easel's tray or a
 ## palette in a hand.
 func _dip(p: Painter, tip: Vector3) -> void:
@@ -541,7 +571,7 @@ func dip(p: Painter, what: String) -> void:
 			p.load = 1.0
 		else:
 			p.strength = minf(1.0, p.strength + 0.6) if not clean else 0.6
-			p.load = maxf(p.load, 0.6)
+			p.load = 1.0
 	Cues.play(Cues.Act.BRUSH_DIP, p.hand.global_position, p.hand)
 	_show_paint(p)
 
@@ -554,8 +584,8 @@ func _paint_colour(p: Painter) -> Color:
 
 
 func _show_paint(p: Painter) -> void:
-	p.tip.albedo_color = _paint_colour(p) if p.load > 0.02 else Color(0.86, 0.78, 0.62)
-	p.tip.roughness = 0.25 if p.load > 0.02 and p.medium != Brushwork.Medium.CHARCOAL else 0.7
+	p.tip.set_shader_parameter("paint_colour", _paint_colour(p))
+	p.tip.set_shader_parameter("load", p.load)
 
 
 func _show_brush(p: Painter, holding: bool, delta: float) -> void:
@@ -596,7 +626,7 @@ func _mix(p: Painter, tip: Vector3, delta: float) -> bool:
 		p.medium = Brushwork.Medium.OIL
 		p.colour = Mixing.density_of(got[0].ks)
 		p.strength = 1.0
-		p.load = got[0].load
+		p.load = 1.0 if not oil or p.load == 0.0 else p.load
 		_show_paint(p)
 	p.mix_cost.append(Time.get_ticks_usec() - start)
 	return true
@@ -699,9 +729,6 @@ func end_stroke(p: Painter) -> void:
 	if not is_instance_valid(e):
 		return
 	e.canvas.end(s.data)
-	if p.medium != Brushwork.Medium.SMEAR and not Brushwork.is_stick(p.brush):
-		p.load *= s.stroker.left()
-		_show_paint(p)
 	var id := e.id
 	var data: Dictionary = s.data
 	world.submit({"op": "paint", "easel": id, "stroke": data}, func() -> void: _settled.call_deferred(id, data), p.hand)

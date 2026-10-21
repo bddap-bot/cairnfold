@@ -1,0 +1,302 @@
+[
+  {
+    "op": "place",
+    "x": 0,
+    "z": 4
+  },
+  {
+    "op": "easel",
+    "x": 0,
+    "z": 2,
+    "facing": [
+      0,
+      4
+    ]
+  },
+  {
+    "op": "hands",
+    "left": [
+      -0.4,
+      -0.8,
+      0.1
+    ],
+    "right": [
+      0.3,
+      -0.3,
+      -0.4
+    ]
+  },
+  {
+    "op": "take",
+    "what": "big"
+  },
+  {
+    "op": "dip",
+    "what": "oil",
+    "index": 5
+  },
+  {
+    "op": "brush",
+    "points": [
+      [
+        0.18,
+        0.5,
+        0.8
+      ],
+      [
+        0.35,
+        0.44,
+        0.8
+      ],
+      [
+        0.55,
+        0.54,
+        0.8
+      ],
+      [
+        0.82,
+        0.48,
+        0.8
+      ]
+    ],
+    "seconds": 1.5
+  },
+  {
+    "op": "view",
+    "subject": "easel",
+    "eye": [
+      0,
+      1.5,
+      1.25
+    ],
+    "at": [
+      0,
+      1.35,
+      0
+    ]
+  },
+  {
+    "op": "hold_pose",
+    "at": [
+      0.3,
+      -0.3,
+      -0.3
+    ],
+    "aim": [
+      0,
+      0,
+      -1
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1
+  },
+  {
+    "op": "capture",
+    "name": "full-stroke"
+  },
+  {
+    "op": "hold_pose",
+    "at": [
+      -0.25,
+      -0.01,
+      -0.14
+    ],
+    "aim": [
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 0.3
+  },
+  {
+    "op": "capture",
+    "name": "full-bristles"
+  },
+  {
+    "op": "sheet",
+    "hand": "left",
+    "pull": 0.5
+  },
+  {
+    "op": "rag_wipe",
+    "times": 1
+  },
+  {
+    "op": "brush",
+    "points": [
+      [
+        0.18,
+        0.5,
+        0.8
+      ],
+      [
+        0.35,
+        0.44,
+        0.8
+      ],
+      [
+        0.55,
+        0.54,
+        0.8
+      ],
+      [
+        0.82,
+        0.48,
+        0.8
+      ]
+    ],
+    "seconds": 1.5
+  },
+  {
+    "op": "view",
+    "subject": "easel",
+    "eye": [
+      0,
+      1.5,
+      1.25
+    ],
+    "at": [
+      0,
+      1.35,
+      0
+    ]
+  },
+  {
+    "op": "hold_pose",
+    "at": [
+      0.3,
+      -0.3,
+      -0.3
+    ],
+    "aim": [
+      0,
+      0,
+      -1
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1
+  },
+  {
+    "op": "capture",
+    "name": "one-wipe-stroke"
+  },
+  {
+    "op": "hold_pose",
+    "at": [
+      -0.25,
+      -0.01,
+      -0.14
+    ],
+    "aim": [
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 0.3
+  },
+  {
+    "op": "capture",
+    "name": "one-wipe-bristles"
+  },
+  {
+    "op": "sheet",
+    "hand": "left",
+    "pull": 0.5
+  },
+  {
+    "op": "rag_wipe",
+    "times": 2
+  },
+  {
+    "op": "brush",
+    "points": [
+      [
+        0.18,
+        0.5,
+        0.8
+      ],
+      [
+        0.35,
+        0.44,
+        0.8
+      ],
+      [
+        0.55,
+        0.54,
+        0.8
+      ],
+      [
+        0.82,
+        0.48,
+        0.8
+      ]
+    ],
+    "seconds": 1.5
+  },
+  {
+    "op": "view",
+    "subject": "easel",
+    "eye": [
+      0,
+      1.5,
+      1.25
+    ],
+    "at": [
+      0,
+      1.35,
+      0
+    ]
+  },
+  {
+    "op": "hold_pose",
+    "at": [
+      0.3,
+      -0.3,
+      -0.3
+    ],
+    "aim": [
+      0,
+      0,
+      -1
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1
+  },
+  {
+    "op": "capture",
+    "name": "three-wipes-stroke"
+  },
+  {
+    "op": "hold_pose",
+    "at": [
+      -0.25,
+      -0.01,
+      -0.14
+    ],
+    "aim": [
+      1,
+      0,
+      0
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 0.3
+  },
+  {
+    "op": "capture",
+    "name": "three-wipes-bristles"
+  }
+]
