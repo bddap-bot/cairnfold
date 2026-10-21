@@ -123,6 +123,11 @@
     "pull": 0.5
   },
   {
+    "op": "pick",
+    "tool": "none",
+    "hand": "left"
+  },
+  {
     "op": "rag_wipe",
     "times": 1
   },
@@ -212,6 +217,11 @@
     "op": "sheet",
     "hand": "left",
     "pull": 0.5
+  },
+  {
+    "op": "pick",
+    "tool": "none",
+    "hand": "left"
   },
   {
     "op": "rag_wipe",
