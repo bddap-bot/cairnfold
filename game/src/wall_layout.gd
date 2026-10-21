@@ -481,13 +481,12 @@ func _roof_hidden(p: Vector3, r: RoofLayout) -> bool:
 	return covered or hidden(p + Vector3.UP * 0.001, joined, []) or hidden(p - Vector3.UP * 0.001, older, [])
 
 
-## The pieces of `r` its owner keeps. A deck piece kept by its middle across the centre line of a joined build whose
-## walls stand above the whole deck is cut back to that line, so none of it hangs below the ceiling starting there;
-## those walls' top closes the cut.
+## The pieces of `r` its owner keeps. Deck pieces crossing a joined building's centre line are cut back
+## to it, where that building's ceiling starts.
 func _trimmed(pieces: Array[Dictionary], r: RoofLayout) -> Array[Dictionary]:
 	var over: Array[Massing] = []
 	if r.flat():
-		over.assign(joined.filter(func(s: Massing) -> bool: return s.closed and s.feet[0] + s.rise > r.bounds.end.y))
+		over.assign(joined.filter(func(s: Massing) -> bool: return s.closed))
 	var kept: Array[Dictionary] = []
 	for piece in pieces:
 		var x: Transform3D = piece.xform
@@ -555,7 +554,33 @@ func _face_within(x: Transform3D, axis: int, at: float, across: Array, over: Arr
 func _hide() -> void:
 	if joined.is_empty() and resting.is_empty():
 		return
-	stones.assign(stones.filter(func(st: Dictionary) -> bool: return not hides(st.xform.origin)))
+	var kept: Array[Dictionary] = []
+	for st in stones:
+		var x: Transform3D = st.xform
+		if hidden(x.origin, [], resting):
+			continue
+		# A panel's middle can be inside a room while its top closes the corner above that room's bowed ceiling.
+		var bottom := x.origin.y - x.basis.y.y * 0.5
+		for other in joined:
+			if not other.holds(x.origin):
+				continue
+			var ceiling := other.feet[0] + other.rise
+			if other.roof != null:
+				ceiling = INF
+				for p in drawn_corners(st):
+					ceiling = minf(ceiling, other.roof.height_at(p.x, p.z))
+			bottom = maxf(bottom, ceiling)
+		var top_y := x.origin.y + x.basis.y.y * 0.5
+		if bottom >= top_y:
+			continue
+		if bottom > x.origin.y - x.basis.y.y * 0.5:
+			st = st.duplicate()
+			var share := (top_y - bottom) / x.basis.y.y
+			st.xform = Transform3D(Basis(x.basis.x, x.basis.y * share, x.basis.z), x.origin + x.basis.y * (1.0 - share) * 0.5)
+			st.y += st.size.y * (1.0 - share) * 0.5
+			st.size.y *= share
+		kept.append(st)
+	stones.assign(kept)
 	flames.assign(flames.filter(func(x: Transform3D) -> bool: return not hides(x.origin)))
 	cloths.assign(cloths.filter(func(c: Dictionary) -> bool: return not hides(c.xform.origin)))
 

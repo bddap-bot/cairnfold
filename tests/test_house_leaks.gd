@@ -5,6 +5,10 @@ const SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 60]
 const SEALED_SEEDS := [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 60]
 ## Escapes the dense sweep found, as [origin, direction]: the normal sphere is too sparse to meet them again.
 const SEALED_RAYS := {
+	35: [
+		# The wall corner above a crossing bowed deck must seal without the deck's hanging mortar bed.
+		[Vector3(-0.5, 1.33116233348846, -17.8215808868408), Vector3(-0.901065587997437, 0.43359375, -0.008791608735919)],
+	],
 	31: [
 		# Past lintel ends and over a lintel's top, where the joint had no mortar behind it.
 		[Vector3(-0.5, 2.10659718513489, -20.5), Vector3(0.0616170428693295, -0.008544921875, -0.998063266277313)],
@@ -190,6 +194,15 @@ func _house(seed_value: int, count: int) -> void:
 	_check(room.size() == commands.size(), "seed %d accepted every real build command" % seed_value)
 	if room.is_empty():
 		return
+	if seed_value == 35:
+		for w in room:
+			for piece in w.roof.mortar + w.roof.tiles:
+				var x: Transform3D = piece.xform
+				if piece.kind not in WallLayout.DECK_PIECES or w.layout.joined.any(func(other: Massing) -> bool: return Massing.encloses(Vector2(x.origin.x, x.origin.z), other.inner)):
+					continue
+				for c in WallLayout.BOX:
+					var p: Vector3 = x * c
+					_check(not w.layout.joined.any(func(other: Massing) -> bool: return Massing.encloses(Vector2(p.x, p.z), other.centre)), "curved join keeps deck corners outside the adjoining ceiling")
 	var probe := Probe.new()
 	for w in room:
 		probe.add_wall(w)
