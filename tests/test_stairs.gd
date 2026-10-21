@@ -108,6 +108,7 @@ func _run() -> void:
 	world.undo()
 	check(world.state.stairs.size() == 1, "erased stairs return on undo")
 	_painted_and_styled(main)
+	_gripped(main)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -172,7 +173,8 @@ func _painted_and_styled(main: Node) -> void:
 	check(wooden.filter(func(p: Dictionary) -> bool: return p.kind == "block").size() < blocks.size(), "the stone railings are gone")
 	check(world.stairs.rail == "wood", "stairs laid after take the railings")
 	check(Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"rail": "gold"}}, world.state, false).is_empty(), "a railing off the wheel is refused")
-	check(Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"a": a}}, world.state, false).is_empty(), "a reshape moves no stairs")
+	check(not Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"a": a + Vector3(1, 0, 0)}}, world.state, false).is_empty(), "a reshape may move stairs, as a grip does")
+	check(Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"width": StairLayout.WIDTH.y + 1.0}}, world.state, false).is_empty(), "but never wider than stairs are drawn")
 	check(Commands.clean({"op": "reshape", "of": "stairs", "id": id, "data": {"paint": {stone: Palette.count(stone)}}}, world.state, false).is_empty(), "a swatch off the wheel is refused")
 	world.undo()
 	check(world.state.stairs[id].rail == "stone" and not world.stairs.layouts[id].stones.any(func(p: Dictionary) -> bool: return p.kind == "rail"), "undo puts the stone railings back")
@@ -226,3 +228,58 @@ func _path_steps_follow_terrain(main: Node3D) -> void:
 	check(not main.tool.masonry._owners.has(owner), "deleting steep path removes its masonry")
 	check(world.units == before, "deleting path refunds its steps")
 	world.submit({"op": "heights", "cells": cells, "values": original})
+
+
+## Report (relay): stairs join the grab rule: a one-hand grip moves and turns a flight, two hands pulled apart widen it.
+func _gripped(main: Node) -> void:
+	var world: World = main.world
+	var tool: WallTool = main.tool
+	var g := Terrain.ground(6, -6)
+	world.submit({"op": "stairs", "stairs": {"a": g, "b": g + Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 9, "paint": Palette.plain()}})
+	world.stairs._process(10.0)
+	var id: int = world.state.stairs.keys().filter(func(k: int) -> bool: return world.state.stairs[k].seed == 9)[0]
+	var was: Dictionary = world.state.stairs[id].duplicate()
+	var mid: Vector3 = (was.a + was.b) * 0.5
+	var right: Hand = main.rig.right
+	var left: Hand = main.rig.left
+	var from := Transform3D(Basis(), mid + Vector3(0, 1.5, 3))
+	var hit: Dictionary = world.stairs.pick(from.origin, (mid - from.origin).normalized(), 50.0)
+	check(hit.get("stair", -1) == id, "a ray from the hand meets the flight")
+	if hit.is_empty():
+		return
+	right.global_transform = from
+	var m := tool.mason(right)
+	tool.begin_grow(m, tool._stair_grip(id), from, hit.point)
+	check(m.growing is WallTool.StairGrip and tool.busy(right), "a grip on stairs takes them")
+	var to := Transform3D(Basis(Vector3.UP, 0.5), from.origin + Vector3(1, -0.2, 0.5))
+	m.sizing.follow.call(m, to)
+	var expect := WallTool.carry_stairs(was, from, to, Hand.reach_gain(from.origin.distance_to(hit.point)))
+	check(expect.a.distance_to(was.a) > 1.0 and not is_equal_approx((expect.b - expect.a).normalized().dot((was.b - was.a).normalized()), 1.0), "the hand's move and turn carry and turn them")
+	check(world.state.stairs[id].a == was.a, "nothing is sent while they are held")
+	tool.end_grow(m)
+	var now: Dictionary = world.state.stairs[id]
+	check(now.a.is_equal_approx(expect.a) and now.b.is_equal_approx(expect.b) and now.width == was.width, "let go, they are set where the hand carried and turned them: %s" % [now])
+	var low: Vector3 = now.a if now.a.y < now.b.y else now.b
+	check(low.y >= Terrain.height_at(low.x, low.z) - 0.001, "their lower end is never under the ground")
+	var deep := WallTool.carry_stairs(was, from, Transform3D(Basis(), from.origin + Vector3.DOWN * 3.0), 1.0)
+	var foot: Vector3 = deep.a if deep.a.y < deep.b.y else deep.b
+	check(is_equal_approx(foot.y, Terrain.height_at(foot.x, foot.z)), "pushed down, they stop with their lower end on the ground")
+	var mid2: Vector3 = (now.a + now.b) * 0.5
+	var r := Transform3D(Basis(), mid2 + Vector3(0.3, 1.5, 3))
+	var l := Transform3D(Basis(), mid2 + Vector3(-0.3, 1.5, 3))
+	right.global_transform = r
+	left.global_transform = l
+	var on: Dictionary = world.stairs.pick(r.origin, (mid2 - r.origin).normalized(), 50.0)
+	tool.begin_grow(m, tool._stair_grip(id), r, on.get("point", mid2))
+	var lm := tool.mason(left)
+	tool.begin_grow(lm, tool._stair_grip(id), l, on.get("point", mid2))
+	check(lm.growing == m.growing and lm.partner == m, "the other hand's grip on them joins the first")
+	tool.drag_pair(lm, r.origin, l.origin - Vector3(0.6, 0, 0))
+	tool.end_grow(lm)
+	tool.end_grow(m)
+	var wide: float = world.state.stairs[id].width
+	check(is_equal_approx(wide, snappedf(1.2 * 1.2 / 0.6, 0.01)) and world.state.stairs[id].a.is_equal_approx(now.a), "two hands pulled apart widen them where they stand: %.2f" % wide)
+	world.undo()
+	check(world.state.stairs[id].width == was.width, "undo narrows them back")
+	world.undo()
+	check(world.state.stairs[id].a == was.a and world.state.stairs[id].b == was.b, "and the undo before puts them back where they stood")

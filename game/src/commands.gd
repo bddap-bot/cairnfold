@@ -38,7 +38,7 @@ const MAX_SUPPORTS := 8
 ## by the entries they name.
 const RESHAPES := {
 	"walls": ["points", "height", "rise", "top", "plaster", "plinth_plaster", "gable_end", "timber_style", "openings", "lanterns", "flags", "ruins"],
-	"stairs": ["rail"],
+	"stairs": ["rail", "a", "b", "width"],
 	"boulders": ["at", "turn", "sink", "scale", "style"],
 	"decorations": ["style"],
 }

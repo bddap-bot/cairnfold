@@ -67,6 +67,11 @@ class OpeningGrip:
 	var index: int
 
 
+## A flight of stairs, a landing or a ladder a grip holds, by its id in the garden.
+class StairGrip:
+	var id: int
+
+
 class Mason:
 	var hand: Hand
 	var buttons: Buttons
@@ -266,9 +271,12 @@ func _handle(m: Mason) -> void:
 		var tree := flora.solid_hit(origin, dir, nearest)
 		var trunk: Flora.Plant = tree.plants[0] if not tree.is_empty() and tree.plants[0].pool == flora.trunks else null
 		var rock := world.boulders.pick(origin, dir, minf(nearest, minf(pick.get("along", INF), tree.get("along", INF)))) if world.boulders != null else {}
-		var before: float = minf(nearest, minf(tree.get("along", INF), rock.get("along", INF)))
+		var step := world.stairs.pick(origin, dir, minf(minf(nearest, rock.get("along", INF)), minf(pick.get("along", INF), tree.get("along", INF)))) if world.stairs != null else {}
+		var before: float = minf(minf(nearest, step.get("along", INF)), minf(tree.get("along", INF), rock.get("along", INF)))
 		if not held.is_empty() and held.along < (before if pick.get("wall") == house else minf(before, pick.get("along", INF))):
 			_join_house(m, held.roof, held.eave)
+		elif not step.is_empty():
+			begin_grow(m, _stair_grip(step.stair), hand, step.point)
 		elif not rock.is_empty():
 			begin_grow(m, rock.boulder, hand, rock.point)
 		elif trunk != null and tree.along < pick.get("along", INF):
@@ -997,7 +1005,7 @@ func end_lift(m: Mason) -> void:
 		world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"height": w.layout.height}}, settle.bind(w.id), m.hand)
 
 
-## Grip from the hand's pose `hand` on a tree, a boulder or an opening at `at`, which one hand alone moves as its
+## Grip from the hand's pose `hand` on a tree, a boulder, stairs or an opening at `at`, which one hand alone moves as its
 ## `Sizing` has it. A grip on one the other hand holds joins it: the two hands pulled apart grow it, pushed together
 ## shrink it, in proportion to their span; letting either go leaves it to the other alone.
 func begin_grow(m: Mason, target: Object, hand: Transform3D, at: Vector3) -> void:
@@ -1079,6 +1087,8 @@ func _sizing(target: Object) -> Sizing:
 		return _opening_sizing(target, s, held)
 	if target is Boulders.Boulder:
 		return _boulder_grip(target, s, held)
+	if target is StairGrip:
+		return _stair_sizing(target, s, held)
 	var trunk: Flora.Plant = target
 	s.scale = flora.scale_of.bind(trunk)
 	s.top = flora.top_of.bind(trunk)
@@ -1136,6 +1146,64 @@ func _boulder_grip(b: Boulders.Boulder, s: Sizing, held: Callable) -> Sizing:
 		if standing.call() and not held.call():
 			rocks.settle(b.id)
 	return s
+
+
+## Carries a flight of stairs, a landing or a ladder: one hand moves it with the hand, a far one farther per metre, and
+## turns it about the vertical through its middle as the hand turns (`carry_stairs`); two hands widen or narrow it by
+## their span. Let go, it is set as one reshape.
+func _stair_sizing(grip: StairGrip, s: Sizing, held: Callable) -> Sizing:
+	var stairs := world.stairs
+	var was: Dictionary = world.state.stairs[grip.id].duplicate()
+	var shown := {"a": was.a, "b": was.b, "width": was.width}
+	var from := shown.duplicate()
+	var hold := {"hand": Transform3D(), "gain": 1.0}
+	var current := func() -> bool:
+		var now: Dictionary = world.state.stairs.get(grip.id, {})
+		return not now.is_empty() and now.a == was.a and now.b == was.b and now.width == was.width
+	s.scale = func() -> float: return shown.width
+	s.limits = StairLayout.WIDTH
+	s.current = current
+	s.show = func(width: float) -> void:
+		shown.width = width
+		stairs.show_reshaped(grip.id, shown)
+	s.command = func() -> Dictionary:
+		var same: bool = shown.a.is_equal_approx(was.a) and shown.b.is_equal_approx(was.b) and is_equal_approx(shown.width, was.width)
+		return {} if same else {"op": "reshape", "of": "stairs", "id": grip.id, "data": shown.duplicate()}
+	s.take = func(m: Mason, hand: Transform3D) -> void:
+		from.merge(shown, true)
+		hold.hand = hand
+		hold.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
+	s.follow = func(_m: Mason, hand: Transform3D) -> void:
+		shown.merge(carry_stairs(from, hold.hand, hand, hold.gain), true)
+		stairs.show_reshaped(grip.id, shown)
+	s.settle = func() -> void:
+		if world.state.stairs.has(grip.id) and not held.call():
+			stairs.settle(grip.id)
+	return s
+
+
+## Where stairs held standing as `at` ({a, b, width}) stand once the hand holding them moves from pose `from` to `to`:
+## moved with the hand, `gain` times as far, and turned about the vertical through their middle with the hand's own turn,
+## their lower end never under the ground.
+static func carry_stairs(at: Dictionary, from: Transform3D, to: Transform3D, gain: float) -> Dictionary:
+	var mid: Vector3 = (at.a + at.b) * 0.5
+	var turn := Basis(Vector3.UP, angle_difference(angle(from.basis.x), angle(to.basis.x)))
+	var move := (to.origin - from.origin) * gain
+	var a: Vector3 = mid + move + turn * (at.a - mid)
+	var b: Vector3 = mid + move + turn * (at.b - mid)
+	var low := a if a.y < b.y else b
+	var under := maxf(Terrain.height_at(low.x, low.z) - low.y, 0.0)
+	return {"a": a + Vector3.UP * under, "b": b + Vector3.UP * under, "width": at.width}
+
+
+## The grip a hand already holding stairs `id` holds, so a second hand's grip on them joins that one.
+func _stair_grip(id: int) -> StairGrip:
+	for m in masons:
+		if m.growing is StairGrip and m.growing.id == id:
+			return m.growing
+	var grip := StairGrip.new()
+	grip.id = id
+	return grip
 
 
 ## Sizes a placed opening: it grows every way from where it stands, as far as it still opens without closing another,

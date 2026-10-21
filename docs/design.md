@@ -2152,6 +2152,8 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Shape a roof | Two grips on a roof, whatever the hands hold: drawn apart upright for a taller ridge, together for a lower one, all the way down snapping it flat; spread across for convex slopes and squeezed for concave slopes (stone decks bow too). Two grips on the eaves, past the walls: each hand out from its walls pulls them out, back pushes them in |
 | Put up a house or tower | Trigger of a hand holding the house or the tower: a square house or round tower stands where it points, on the ground or on a build's top for an upper storey, its front square to the head. The trigger only places it |
 | Move a house or tower | Grip anywhere on it, roof included, whatever the hand holds: it moves and turns with the hand, the gain growing with distance, and rises onto its plinth as the hand rises, or comes back down; let go to set it there, one undo step |
+| Move stairs | Grip on a flight, landing or ladder, whatever the hand holds: it moves with the hand and turns as the hand turns, the gain growing with distance, its lower end never under the ground; let go to set it there |
+| Widen stairs | Holding stairs with one grip, grip them with the other hand too and pull the hands apart, or push them together to narrow them |
 | Size a house or tower | Holding it with one grip, grip the same house with the other hand: spread or close the hands across its front for width, along its flank for depth, or across a tower for its diameter; one over the other, draw them apart for taller walls or together for lower ones (see "Moving and sizing a house") |
 | Paint flowers or grass | Trigger held on a hand holding flowers or grass, pointing at the ground; the ring shows the brush, which widens the farther you point |
 | Paint stone ground | Trigger held on a hand holding stone, pointing at the ground; a stroke begun on stone paints it back to meadow instead. The ring shows the brush, which widens the farther you point |
@@ -3390,7 +3392,11 @@ A flight or landing is walkable: its treads are what a point over it stands on,
 and the teleport ray stops at its stones like any other solid, so a player lands on
 the tread, the bridge's deck or a rung. Stairs stand where they were drawn and take
 no part in wall arches; the builds whose tops their ends rest on are their supports (`on`),
-and taking one away takes the stairs. `demo/stairs.json` shows a bridge over a pond between two walls, a flight up
+and taking one away takes the stairs. A grip on any of their stones, whatever the hand holds, takes them as it takes a
+boulder (`WallTool.carry_stairs`): they move with the hand, a far flight farther per metre, and turn about the vertical
+through their middle as the hand turns, their lower end never under the ground; the other hand's grip on them too
+widens or narrows them by the hands' span, from 0.6 to 3 m. Letting go sets them as one `reshape` of their ends and
+width, one undo step; `tests/test_stairs.gd` carries, turns and widens one. `demo/stairs.json` shows a bridge over a pond between two walls, a flight up
 to it, a ladder and a flight onto a flat roof, then teleports onto the bridge; the
 stress scene fills the build budget with stairs, ladders and landings, beside a
 stepped path up a hill, for its `stairs/*` views. On the Steam Frame, governed, both views
