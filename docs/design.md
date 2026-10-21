@@ -2770,7 +2770,24 @@ deep water and irises in the shallows.
   seen standing on its shore, 6.1 and 4.8 ms over two runs, against 5.0 and 5.0 ms for the leafless irises before
   them; the same pool on land 6.5 and 5.6 ms, against 4.9 and 6.7 ms before the leaves: inside the host's run-to-run
   noise. The leaves add 12 triangles to each placed flower (41,000 primitives for the full pool), collapsed and
-  culled on land. Headset numbers belong to the on-device run.
+  culled on land.
+- **On the Quest 2** (`NESTCOMBE_SCENE=demo/pondweed.json bench.sh OUT --android APK`, the ladder pinned at the
+  bottom step the build budget is fitted at, median runtime GPU time a frame;
+  [record](../perf/quest-2/pondweed/20261021T231514Z-8c2be1b.json)), the painted grass pool full (12,000 clumps) in a
+  1.8 m disc over each view of that disc empty:
+
+  | View | Empty | Pool full | Per clump |
+  | --- | --- | --- | --- |
+  | Pondweed, from the bed beside it | 7.38 ms | 12.68 ms | 0.44 µs |
+  | Pondweed, from above the pond | 9.92 ms | 14.91 ms | 0.42 µs |
+  | Land grass, standing | 9.14 ms | 17.61 ms | 0.71 µs |
+  | Land grass, from the bed's height | 8.81 ms | 16.17 ms | 0.61 µs |
+
+  A pondweed clump costs about two thirds of a land clump in matching views, so charging a pondweed clump as a grass clump (`Budget.COSTS.grass`) overstates
+  it, and the budget holds. The full pool is past what the budget lets a garden plant (1.73 ms of room at 0.184 µs a
+  clump is about 9,400), and every view of it here is over the 12.5 ms line; 9,400 clumps of pondweed seen from the bed
+  come to about 11.5 ms. Flowers, the pool full (4,000) seen standing on the shore: irises over a shallow pond
+  29.7 ms, the same disc of flowers on land 34.1 ms.
 
 Sound: each pond laps softly from its middle (slow, low-passed sloshes with rare bubbles), a hand
 dipping in plops, and a filling pond gurgles; all of it sits below 1.8 kHz.
