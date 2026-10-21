@@ -166,6 +166,8 @@ func _the_selfie_camera_looks_back_at_its_holder() -> void:
 	var to_head := (rig.head.global_position - lens.origin).normalized()
 	_check(to_head.dot(-lens.basis.z) > 0.8, "held out, its lens looks back at the holder's head: %.2f" % to_head.dot(-lens.basis.z))
 	_check(lens.basis.y.dot(rig.right.global_basis.y) > 0.999, "its view is upright as the camera is")
+	var lift := (lens.origin - rig.right.global_transform * Hand.TOP).dot(rig.right.global_basis.y)
+	_check(lift >= ToolModels.SELFIE_LIFT, "its lens stands above the hand, so the shot frames the face over the arm: %.3f m" % lift)
 	var cam: Camera3D = tool._previews[rig.right].get_child(0)
 	_check(_screen_shows(tool, rig.right) and cam.global_transform.is_equal_approx(lens), "its screen shows what its lens sees")
 	_check(rig.body.visible and cam.cull_mask & Rig.SELF_LAYER != 0 and cam.is_position_in_frustum(rig.body.bone("head").origin), "which is the holder's own avatar, head and all")
@@ -179,11 +181,10 @@ func _the_selfie_camera_looks_back_at_its_holder() -> void:
 					break
 	_check(near.is_empty(), "nothing on the controller lies in the lens's view: %s" % [near])
 	var screen := PhotoTool.screen(rig.right, Hand.Tool.SELFIE)
-	_check(screen.uv1_scale.x == -1.0 and screen.uv1_offset.x == 1.0, "shown as a mirror would")
+	_check(screen.uv1_scale == Vector3.ONE and screen.uv1_offset == Vector3.ZERO, "shown unmirrored, as the photo is")
 	rig.right.tool = Hand.Tool.CAMERA
 	await process_frame
-	screen = PhotoTool.screen(rig.right, Hand.Tool.CAMERA)
-	_check(_screen_shows(tool, rig.right) and screen.uv1_scale == Vector3.ONE and screen.uv1_offset == Vector3.ZERO, "and the camera's own screen is not mirrored")
+	_check(_screen_shows(tool, rig.right), "and the camera's own screen shows its lens's view")
 	rig.queue_free()
 	tool.queue_free()
 

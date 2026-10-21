@@ -9,8 +9,10 @@ extends RefCounted
 ## The camera model's lens, from the model's origin; PhotoTool takes photos from here.
 const CAMERA_LENS := Vector3(0, 0.024, -0.0302)
 const CAMERA_SCREEN := Vector2(0.048, 0.036)
+## The selfie camera stands on a stalk this high so its shot frames the holder's face over their arm.
+const SELFIE_LIFT := 0.08
 ## The selfie camera's lens, beside its screen and looking out of the back toward the holder.
-const SELFIE_LENS := Vector3(0.02, 0.024, 0.0167)
+const SELFIE_LENS := Vector3(0.02, 0.024 + SELFIE_LIFT, 0.0167)
 const SELFIE_SCREEN := Vector2(0.036, 0.027)
 const _SELFIE_SCREEN_X := -0.011
 ## Where a brush's tip is, from the controller it is held in: it reaches past the controller, so painting is done
@@ -418,14 +420,15 @@ static func _camera(root: Node3D, selfie: bool) -> void:
 	button.radial_segments = 10
 	button.rings = 1
 	var facing := Basis(Vector3.RIGHT, PI * 0.5)
+	var y := SELFIE_LENS.y if selfie else CAMERA_LENS.y
 	var size := SELFIE_SCREEN if selfie else CAMERA_SCREEN
 	var screen_x := _SELFIE_SCREEN_X if selfie else 0.0
 	var parts := [
-		[Meshes.rounded_box(0.25, 2, 41), Transform3D(Basis().scaled(Vector3(0.064, 0.046, 0.026)), Vector3(0, 0.024, 0)), Color(0.84, 0.76, 0.62)],
-		[Meshes.rounded_box(0.2, 2, 42), Transform3D(Basis().scaled(Vector3(size.x + 0.006, size.y + 0.006, 0.002)), Vector3(screen_x, 0.024, 0.013)), Color(0.16, 0.14, 0.13)],
-		[lens, Transform3D(facing, SELFIE_LENS - Vector3(0, 0, 0.0035) if selfie else Vector3(0, 0.024, -0.021)), Color(0.22, 0.2, 0.19)],
+		[Meshes.rounded_box(0.25, 2, 41), Transform3D(Basis().scaled(Vector3(0.064, 0.046, 0.026)), Vector3(0, y, 0)), Color(0.84, 0.76, 0.62)],
+		[Meshes.rounded_box(0.2, 2, 42), Transform3D(Basis().scaled(Vector3(size.x + 0.006, size.y + 0.006, 0.002)), Vector3(screen_x, y, 0.013)), Color(0.16, 0.14, 0.13)],
+		[lens, Transform3D(facing, SELFIE_LENS - Vector3(0, 0, 0.0035) if selfie else Vector3(0, y, -0.021)), Color(0.22, 0.2, 0.19)],
 		[glass, Transform3D(facing, SELFIE_LENS if selfie else CAMERA_LENS), Color(0.08, 0.1, 0.16)],
-		[button, Transform3D(Basis(), Vector3(0.019, 0.048, 0.002)), Color(0.72, 0.56, 0.3)],
+		[button, Transform3D(Basis(), Vector3(0.019, y + 0.024, 0.002)), Color(0.72, 0.56, 0.3)],
 	]
 	for part in parts:
 		var key := "camera_%s" % part[2].to_html()
@@ -441,12 +444,25 @@ static func _camera(root: Node3D, selfie: bool) -> void:
 		mi.material_override = mat
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(mi)
+	if selfie:
+		var stalk := CylinderMesh.new()
+		stalk.top_radius = 0.006
+		stalk.bottom_radius = 0.007
+		stalk.height = SELFIE_LIFT
+		stalk.radial_segments = 10
+		stalk.rings = 1
+		var mi := MeshInstance3D.new()
+		mi.mesh = stalk
+		mi.position = Vector3(0, SELFIE_LIFT * 0.5, 0)
+		mi.material_override = _mats["camera_%s" % Color(0.22, 0.2, 0.19).to_html()]
+		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		root.add_child(mi)
 	var quad := QuadMesh.new()
 	quad.size = size
 	var screen := MeshInstance3D.new()
 	screen.name = "Screen"
 	screen.mesh = quad
-	screen.position = Vector3(screen_x, 0.024, 0.0141)
+	screen.position = Vector3(screen_x, y, 0.0141)
 	var glow := StandardMaterial3D.new()
 	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	glow.albedo_color = PhotoTool.DARK

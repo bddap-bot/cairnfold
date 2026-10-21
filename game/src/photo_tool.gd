@@ -2,7 +2,7 @@ class_name PhotoTool
 extends Node3D
 
 ## For a hand holding the camera: the screen on the back of the camera model (ToolModels._camera) shows what
-## its lens sees, mirrored for the selfie camera whose lens looks back at the holder, and the trigger takes the photo, saved as a PNG that says where and how it was taken (PhotoMeta).
+## its lens sees, unmirrored for the selfie camera too, so the screen and the photo match, and the trigger takes the photo, saved as a PNG that says where and how it was taken (PhotoMeta).
 ## The shot stays on the screen a moment after. The player's own avatar stands in the lens's view while a camera is
 ## held, and in no other.
 ##
@@ -121,18 +121,18 @@ func _process(delta: float) -> void:
 		var h := rig.hands[i]
 		for t in CAMERAS:
 			if not held.has(h) or t != h.tool:
-				_show(screen(h, t), null, DARK, false)
+				_show(screen(h, t), null, DARK)
 		if not held.has(h):
 			continue
 		var left: float = _shots.get(h, 0.0)
 		if left > 0.0 and _photo != null:
-			_show(screen(h, h.tool), _photo.get_texture(), Color.WHITE.lerp(Color(2.5, 2.5, 2.5), clampf((left - SHOT_HOLD + 0.15) / 0.15, 0.0, 1.0)), false)
+			_show(screen(h, h.tool), _photo.get_texture(), Color.WHITE.lerp(Color(2.5, 2.5, 2.5), clampf((left - SHOT_HOLD + 0.15) / 0.15, 0.0, 1.0)))
 			continue
 		var preview: SubViewport = _previews.get(h)
 		if preview == null:
 			preview = _viewport(PREVIEW_SIZE, Viewport.MSAA_DISABLED)
 			_previews[h] = preview
-		_show(screen(h, h.tool), preview.get_texture(), Color.WHITE, h.tool == Hand.Tool.SELFIE)
+		_show(screen(h, h.tool), preview.get_texture(), Color.WHITE)
 		if _frame == i:
 			_aim(preview, lens(h), FOV, Quality.VIEW_MASK)
 			preview.render_target_update_mode = SubViewport.UPDATE_ONCE
@@ -148,17 +148,9 @@ static func screen(hand: Hand, tool: Hand.Tool) -> StandardMaterial3D:
 	return ToolModels.screen(hand.model(tool))
 
 
-static func _show(on: StandardMaterial3D, tex: Texture2D, tint: Color, mirrored: bool) -> void:
+static func _show(on: StandardMaterial3D, tex: Texture2D, tint: Color) -> void:
 	on.albedo_texture = tex
 	on.albedo_color = tint
-	_mirror(on, mirrored)
-
-
-## A selfie's screen shows the holder as a mirror would, so leaning left moves them left on it; the photo is not
-## mirrored.
-static func _mirror(screen: StandardMaterial3D, on: bool) -> void:
-	screen.uv1_scale = Vector3(-1, 1, 1) if on else Vector3.ONE
-	screen.uv1_offset = Vector3(1, 0, 0) if on else Vector3.ZERO
 
 
 ## Where the lens is and which way it looks: as the controller is turned, roll included, as a camera held in the hand;
