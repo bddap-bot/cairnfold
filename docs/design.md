@@ -2577,7 +2577,8 @@ takes 320 to 580 ms against 60 to 200 ms for the old largest; a ground edit insi
 30 to 40 ms. Fish (`Fish.CAP`), ripples and the lapping sound are capped per garden or per pond already.
 
 What that lake costs a Quest 2, in `demo/costs.json` at the ladder's fit step (`NESTCOMBE_SCENE=demo/costs.json
-bench.sh OUT --android APK`), viewport GPU milliseconds a frame, every view at 72 Hz; over the bare meadow from
+bench.sh OUT --android APK`), viewport GPU milliseconds a frame as `scripts/costs.py` reads them (the median of the
+governor's signal; a record's `gpu_ms` is the headset's own App time), every view at 72 Hz; over the bare meadow from
 [one run](../perf/quest-2/costs/20261021T192027Z-a049b03.json), over the meadow with its own plants from
 [the next](../perf/quest-2/costs/20261021T194322Z-38783ee.json):
 
