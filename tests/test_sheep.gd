@@ -51,6 +51,8 @@ func _glade(seed: int) -> Glade:
 	g.rig = Rig.new()
 	root.add_child(g.rig)
 	g.world = World.new()
+	# Fence fixtures exceed capacity; this test checks the flocks they attract.
+	g.world.bounded = false
 	root.add_child(g.world)
 	var paths := Paths.new()
 	root.add_child(paths)

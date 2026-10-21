@@ -35,8 +35,6 @@ func _initialize() -> void:
 	_each_fitting_stands_alone()
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
-	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
-	main.world.bounded = false
 	_in_the_glade.call_deferred()
 
 
@@ -363,6 +361,9 @@ func _fittings_are_deterministic() -> void:
 
 ## Through the tools, in the glade.
 func _in_the_glade() -> void:
+	await process_frame
+	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
+	main.world.bounded = false
 	var walls: Array[Wall] = main.tool.walls
 	var fit: FittingTool = main.fitting_tool
 	var world: World = main.world

@@ -6,8 +6,6 @@ var main: Node
 func _initialize() -> void:
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
-	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
-	main.world.bounded = false
 	_run.call_deferred()
 
 func _check(ok: bool, what: String) -> void:
@@ -16,6 +14,9 @@ func _check(ok: bool, what: String) -> void:
 		print("FAIL: ", what)
 
 func _run() -> void:
+	await process_frame
+	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
+	main.world.bounded = false
 	var d := Driver.new(main, [{"op": "house", "at": [0, 0], "size": [6, 5], "seconds": 0.2}])
 	main.add_child(d)
 	await d.finished

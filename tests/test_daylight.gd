@@ -21,8 +21,6 @@ func _initialize() -> void:
 	_a_clockwise_twist_counts_up()
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
-	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
-	main.world.bounded = false
 	_in_the_glade.call_deferred()
 
 
@@ -323,6 +321,9 @@ func _a_clockwise_twist_counts_up() -> void:
 
 
 func _in_the_glade() -> void:
+	await process_frame
+	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
+	main.world.bounded = false
 	var tool: PaletteTool = main.palette_tool
 	var walls: Array[Wall] = main.tool.walls
 	await _play([

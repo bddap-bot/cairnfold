@@ -19,6 +19,8 @@ func _run() -> void:
 	var main := (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	await process_frame
+	# The bridge fixture exceeds capacity; this test checks its teleport landing.
+	main.world.bounded = false
 	var steps := Driver.read("res://../demo/stairs.json").filter(func(s: Dictionary) -> bool: return s.op != "capture")
 	var at := steps.find_custom(func(s: Dictionary) -> bool: return s.op == "aim")
 	var aim: Dictionary = steps[at]
