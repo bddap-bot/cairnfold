@@ -24,6 +24,13 @@ func _run() -> void:
 	_slopes_shade_smoothly_and_ridges_crisply(verts, normals, indices)
 	_the_sun_rises_and_sets_through_a_pass()
 	_they_cost_a_few_thousand_triangles(verts, indices)
+	Mountains.lake = true
+	var l := Mountains.arrays()
+	_every_face_faces_the_garden(l[Mesh.ARRAY_VERTEX], l[Mesh.ARRAY_NORMAL], l[Mesh.ARRAY_INDEX])
+	_the_lake_stands_under_the_meadow_and_over_the_feet(l[Mesh.ARRAY_VERTEX])
+	_the_lake_reaches_past_the_first_ridge()
+	_the_water_mirrors_the_ridges_as_they_stand()
+	Mountains.lake = false
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -113,7 +120,7 @@ func _the_sun_rises_and_sets_through_a_pass() -> void:
 			var clear := true
 			for k in Mountains.RANGES.size():
 				var r: Dictionary = Mountains.RANGES[k]
-				var top := Vector3(cos(az) * r.radius, Mountains.PLAIN_HIGH + Mountains.ridge(r, noises[k], az), sin(az) * r.radius)
+				var top := Vector3(cos(az) * r.radius, Mountains.foot_high() + Mountains.ridge(r, noises[k], az), sin(az) * r.radius)
 				clear = clear and toward.y > (top - eye).normalized().y
 			if clear:
 				first = Daylight.elevation(t)
@@ -124,3 +131,46 @@ func _the_sun_rises_and_sets_through_a_pass() -> void:
 func _they_cost_a_few_thousand_triangles(verts: PackedVector3Array, indices: PackedInt32Array) -> void:
 	_check(indices.size() / 3 < 6000, "the ranges take %d triangles" % (indices.size() / 3))
 	print("mountains: %d triangles, %d vertices" % [indices.size() / 3, verts.size()])
+
+
+## The water stays under every point of the meadow's edge, so it never floods the garden, and over the bank's foot and
+## every range's foot, so it meets the bank and the ranges with no ground between.
+func _the_lake_stands_under_the_meadow_and_over_the_feet(verts: PackedVector3Array) -> void:
+	var half := Terrain.SIZE * 0.5
+	var lowest := INF
+	for i in Terrain.VERTS:
+		for p in [Vector2(-half + i, -half), Vector2(-half + i, half), Vector2(-half, -half + i), Vector2(half, -half + i)]:
+			lowest = minf(lowest, Terrain.base_at(p.x, p.y))
+	_check(Mountains.LAKE < lowest - 0.5, "the lake at %.1f m floods the meadow's edge at %.1f m" % [Mountains.LAKE, lowest])
+	var dry := 0
+	for p in verts:
+		var out := maxf(absf(p.x), absf(p.z)) - half
+		if out > 1.0 and out < Mountains.BANK + 1.0:
+			dry += 1 if p.y >= Mountains.LAKE else 0
+	_check(Mountains.foot_high() < Mountains.LAKE, "the ranges' feet stand at %.1f m, over the lake" % Mountains.foot_high())
+	_check(dry == 0, "%d points of the bank's foot stand out of the water" % dry)
+
+
+func _the_lake_reaches_past_the_first_ridge() -> void:
+	var water: PackedVector3Array = Mountains.lake_arrays()[Mesh.ARRAY_VERTEX]
+	var reach := INF
+	for p in water:
+		_check(is_equal_approx(p.y, Mountains.LAKE), "water at %.2f m, not the lake's %.2f m" % [p.y, Mountains.LAKE])
+		if _flat(p) > Terrain.SIZE:
+			reach = minf(reach, _flat(p))
+	_check(reach > Mountains.RANGES[0].radius, "the water stops %.0f m out, short of the first ridge" % reach)
+	_check(water.size() / 3 < 400, "the lake takes %d triangles" % (water.size() / 3))
+
+
+func _the_water_mirrors_the_ridges_as_they_stand() -> void:
+	var img := Mountains.ridge_image()
+	var top: float = Mountains.RANGES[Mountains.RANGES.size() - 1].high
+	var worst := 0.0
+	for k in Mountains.RANGES.size():
+		var r: Dictionary = Mountains.RANGES[k]
+		var noise := Mountains.noise_for(r)
+		for i in range(0, Mountains.RIDGE_SAMPLES, 7):
+			var az := TAU * i / Mountains.RIDGE_SAMPLES
+			var mirrored: float = img.get_pixel(i, 0)[k] * top + Mountains.LAKE
+			worst = maxf(worst, absf(mirrored - Mountains.foot_high() - Mountains.ridge(r, noise, az)))
+	_check(worst < 0.05, "the mirrored ridge strays %.2f m from the ridge" % worst)

@@ -1334,6 +1334,15 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
   They are real geometry far enough off that both eyes and every step through the garden
   see them as distant. The ridges dip where the sun crosses them low, so it rises and sets
   through a pass. The eyes' far clip (`Rig.FAR`) and the sun's disc stand beyond them.
+  With the `lake_ring` export feature (on in the "Linux arm64" preset, the Steam Frame's
+  build) a lake replaces the plain: a bank drops from the meadow's edge under the water,
+  which stands at `Mountains.LAKE` out past the first ridge, and the ranges' feet sink
+  `Mountains.SUNK` under it, so the water floods their lower slopes and meets them along a
+  contour. The water is one opaque, unshaded surface of 256 triangles (`lake.gdshader`) that
+  mirrors the ranges without drawing them twice: each fragment follows its reflected ray to
+  each range's circle and compares its climb with the ridge there, read from a 512-texel
+  ring of ridge heights (`Mountains.ridge_image`). `demo/edge.json` measures it against the
+  plain from the garden and from the air.
 - **Sun shadows:** one stabilized orthogonal map reaches 256 m, covering the garden
   without a fade or cascade boundary inside it. Godot's Mobile renderer selects
   cascades and fades shadows by view depth: a fixed distant tree used to lose its
