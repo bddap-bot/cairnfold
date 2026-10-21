@@ -26,8 +26,19 @@ func _run() -> void:
 	await _painting_stops_at_the_budget()
 	await _the_bar_shows_the_share()
 	_each_headset_is_fitted_where_its_budget_holds()
+	_water_costs_at_most_a_view_full()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
+
+
+func _water_costs_at_most_a_view_full() -> void:
+	var q: Dictionary = Budget.QUEST_2_COSTS
+	var pond := {"pond_m2": 20.0}
+	_check(is_equal_approx(Budget.cost_ms(pond, Budget.Device.QUEST_2), 20.0 * q.pond_m2 / 1000.0), "a small pond costs its square metres")
+	var lake := {"pond_m2": 13158.0}
+	_check(is_equal_approx(Budget.cost_ms(lake, Budget.Device.QUEST_2), q.water / 1000.0), "the meadow's whole bowl costs a view full of water")
+	_check(Budget.fits({}, lake, [Budget.Device.QUEST_2]), "and fits an empty garden")
+	_check(Budget.fits(lake, {"pond_m2": 500.0}, [Budget.Device.QUEST_2, Budget.Device.FRAME]), "more water beside a full view's worth costs nothing more")
 
 
 func _each_headset_is_fitted_where_its_budget_holds() -> void:
@@ -70,8 +81,11 @@ func _recount() -> Dictionary:
 				var u := world.flora.unit_of(p)
 				if u != "" and g != 0:
 					Budget.add(out, {u: 1})
-	if not world.state.ponds.is_empty():
-		out.pond = world.state.ponds.size()
+	var wet := 0
+	for w: PondWater in world.water.ponds:
+		wet += w.pond.cells.size()
+	if wet > 0:
+		out.pond_m2 = wet
 	return out
 
 
@@ -121,7 +135,7 @@ func _counts_follow_placements_and_deletions() -> void:
 		{"op": "dig", "x": 10, "z": -8, "seconds": 0.5},
 	])
 	await _settled()
-	_check(world.units.get("wall_m2", 0.0) > 0.0 and not world.units.has("path_m2") and world.units.get("pond", 0) == 1, "walls, ponds and reserved path steps count: %s" % world.units)
+	_check(world.units.get("wall_m2", 0.0) > 0.0 and not world.units.has("path_m2") and world.units.get("pond_m2", 0) > 0, "walls, ponds and reserved path steps count: %s" % world.units)
 	_check(world.units.get("tree", 0) == 1 and world.units.get("flower", 0) > 0, "a planted tree and painted flowers count: %s" % world.units)
 	var planted: int = world.state.groups.keys().filter(func(g: int) -> bool: return world.state.groups[g].kind == "tree")[0]
 	var before_resize := world.units.duplicate()

@@ -738,7 +738,7 @@ wanna make it obvious to the user that there is a limit there"
 
 - What a garden holds counts in units (`Budget.UNITS`): square metres of stone wall,
   plaster wall, fence and path face, and of a tiled or flat roof and a thatched one laid along their slopes out to their eaves; fittings that add a mesh (lanterns, flags,
-  chimneys, dormers, each dormer's boarded faces counted as stone wall and its slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing; ponds. The
+  chimneys, dormers, each dormer's boarded faces counted as stone wall and its slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing; square metres of pond water, all of it charged at most what a view full of water adds. The
   meadow's own plants are part of the base and count nothing; one of its trees grown
   counts only its growth. `World` keeps the count as every command applies, so deleting
   frees exactly what placing took, and undo, wipes and a garden loaded or joined count
@@ -2575,8 +2575,30 @@ CPU (`demo/lake.json`'s lake against the largest pond the 24-point limit allowed
 takes 50 to 100 ms held under its rim and 230 to 320 ms pointed over it; putting it as a command
 takes 320 to 580 ms against 60 to 200 ms for the old largest; a ground edit inside it 160 ms against
 30 to 40 ms. Fish (`Fish.CAP`), ripples and the lapping sound are capped per garden or per pond already.
-`Budget` prices a pond whatever its size: its fragments are bounded by the view and the lake's mesh is
-smaller than the old largest pond's, but a lake filling the view is not yet measured on a headset.
+
+What that lake costs a Quest 2, in `demo/costs.json` at the ladder's fit step (`NESTCOMBE_SCENE=demo/costs.json
+bench.sh OUT --android APK`), viewport GPU milliseconds a frame, every view at 72 Hz; over the bare meadow from
+[one run](../perf/quest-2/costs/20261021T192027Z-a049b03.json), over the meadow with its own plants from
+[the next](../perf/quest-2/costs/20261021T194322Z-38783ee.json):
+
+| View | Bare meadow | With the lake | Meadow with its plants | With the lake |
+| --- | --- | --- | --- | --- |
+| From the air, the lake filling the view | 6.80 | 10.83 | 10.45 | 10.82 |
+| Standing, the head under the lake | 6.63 | 4.38 | 9.52 | 4.83 |
+| From the shore, looking across it | 6.36 | 8.78 | 11.12 | 9.76 |
+
+Water costs by the pixels it covers: over the bare meadow the lake takes 4.0 ms from the air, 45 times the
+0.09 ms `Budget` charged a pond whatever its size. The plants it covers collapse, though, and they cost about as
+much, so over the meadow as it stands the lake adds 0.37 ms from the air and saves 1.4 ms from the shore and 4.7 ms
+under it. `Budget` prices water by the square metre, 5.15 µs, the most seven small ponds (71 m²) wholly in view
+gave over the bare meadow in either run (0.37 and 0.08 ms), and all of a garden's water at most 0.37 ms
+(`water`), what the lake adds to the meadow from its dearest view: a pond of 72 m² or more costs that, a fifth of
+the Quest 2's 2 ms of room. The Frame shares these prices until the lake is measured there.
+
+Putting the lake as a command holds the Quest 2's main thread for one frame of 730 to 745 ms (726 to 742 ms of it
+script), and each ground edit inside it for one of 166 to 169 ms (158 to 161 ms of script), over three runs: 53 and
+12 refresh periods. That stall is not bounded yet: the fill, its
+surface and the refill after an edit still run on the main thread.
 
 The look follows the usual recipe for stylised water (Sea of Thieves' blend of deep and shallow
 colour, the common stylised-water shaders' depth bands and shore foam), adapted so nothing reads

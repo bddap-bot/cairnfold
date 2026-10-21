@@ -112,4 +112,4 @@ func fill(hand: Hand, hit: Vector3) -> void:
 		Cues.play(Cues.Act.REFUSED, hand.global_position, hand)
 		return
 	Cues.play(Cues.Act.POND_POUR, at, hand)
-	world.submit({"op": "ponds", "put": {p.at: at.y}}, Callable(), hand)
+	world.submit({"op": "ponds", "put": {p.at: at.y}, "wet": p.cells.size()}, Callable(), hand)

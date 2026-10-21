@@ -185,13 +185,13 @@ func change_of(cmd: Dictionary) -> Dictionary:
 					if p != null and p.current() and p.shown() != cmd.on and not (cmd.on and _drowned(p)):
 						Budget.add(out, _unit(g, p), 1.0 if cmd.on else -1.0)
 		"heights", "ponds":
-			var n := 0
+			var wet: int = cmd.get("wet", 0)
 			for g in cmd.get("put", {}):
-				n += int(not state.ponds.has(g))
+				wet -= _wet(g)
 			for g in cmd.get("drop", []):
-				n -= int(state.ponds.has(g))
-			if n != 0:
-				out.pond = n
+				wet -= _wet(g)
+			if wet != 0:
+				out.pond_m2 = wet
 		"easel":
 			out.easel = 1
 		"uneasel":
@@ -888,6 +888,12 @@ func _apply(cmd: Dictionary) -> Dictionary:
 	return inverse
 
 
+## The square metres pond `g` holds under water as it last filled: none for a pond the garden does not hold.
+func _wet(g: Vector2i) -> int:
+	var was: Array = _fills.get(g, [])
+	return was[1].cells.size() if not was.is_empty() and was[1] != null else 0
+
+
 ## Takes out every tree and bush standing where water covers its root, as the delete tool takes one, so a pond never
 ## hides one that still stands; returns what brings them back, or {} for none.
 func _drown() -> Dictionary:
@@ -1020,7 +1026,7 @@ func _set_ponds(cmd: Dictionary, before: Dictionary, inverse: Dictionary, ground
 		inverse.put = back
 	if not gone.is_empty():
 		inverse.drop = gone
-	_account("ponds", {"pond": state.ponds.size()} if not state.ponds.is_empty() else {})
+	_account("ponds", {"pond_m2": taken.size()} if not taken.is_empty() else {})
 
 
 ## Pond `was`, at `level`, filled again over the ground as it stands, or null when none of its water is left where it

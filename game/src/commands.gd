@@ -157,7 +157,10 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 		"heights":
 			ok = _heights(cmd, from_host, out) and _ponds(cmd, state, from_host, out)
 		"ponds":
+			var wet: Variant = cmd.get("wet", 0)
 			ok = _ponds(cmd, state, from_host, out) and (from_host or out.has("put") and _pointed(out.put, state))
+			ok = ok and typeof(wet) == TYPE_INT and wet >= 0 and wet <= Terrain.ALL.get_area()
+			out.wet = wet
 		"season":
 			var i: Variant = cmd.get("index")
 			ok = typeof(i) == TYPE_INT and i >= 0 and i < Palette.SEASONS.size()

@@ -693,9 +693,12 @@ func _pond(s: Dictionary) -> void:
 	var at := _spot(s, s.x, s.z)
 	if s.has("brim"):
 		at.y = Water.brim(at.x, at.z, s.brim)
+	var hand := _hand(s)
+	var was := hand.tool
 	main.water_tool.fill(_holding(s, Hand.Tool.POND), at)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	hand.tool = was
 
 
 ## Sweeps the right hand along `points` at `y` metres above the pond at the first point, as if trailing it through.

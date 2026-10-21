@@ -21,15 +21,18 @@ enum Device { QUEST_2, FRAME }
 ## as stone wall), of tiled or flat roof and of thatch (laid along its slopes out to its eaves);
 ## fittings that add a mesh (lanterns, flags, chimneys, dormers, whose boarded faces count as stone wall and whose
 ## slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing;
-## explicit arch openings, with timber members counted separately; ponds, one a seed; easels, each a canvas drawn
-## and simulated; and boulders, a metre-wide one a unit (`boulder`).
-const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "fitting", "grass", "flower", "tree", "bush", "pond", "timber", "easel", "boulder", "moss", "arch"]
+## explicit arch openings, with timber members counted separately; square metres of pond water; easels, each a canvas
+## drawn and simulated; and boulders, a metre-wide one a unit (`boulder`).
+const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "fitting", "grass", "flower", "tree", "bush", "pond_m2", "timber", "easel", "boulder", "moss", "arch"]
 
 ## Per headset, in the governor's signal (the viewport's GPU time per frame, Quality) at its fit_step; fitted
 ## by `scripts/costs.py` from `demo/costs.json` played on it (see "Build budget" in docs/design.md): `budget_ms`, the
 ## most a frame may take there; `base_ms`, the meadow with its own plants standing, whose wide spread costs far less
 ## than its count at the pool-full prices; then GPU microseconds a frame per unit. Hills and painted stone ground
-## measured within noise of the bare meadow, so terrain counts nothing.
+## measured within noise of the bare meadow, so terrain counts nothing. Water is priced by the square metre as small
+## ponds wholly in view cost, and all of it at most `water`, what the meadow's whole bowl filled adds to the meadow
+## from its dearest view: water costs by the pixels it covers and hides the plants under it, and no garden's water
+## covers more of a view than that lake.
 const COSTS := {
 	Device.QUEST_2: QUEST_2_COSTS,
 	Device.FRAME: FRAME_COSTS,
@@ -49,11 +52,14 @@ const BOULDER_LEAST := 0.25
 ## This is conservative accounting until moss is measured on a headset.
 ## Each opaque patch is twelve triangles, with no shadow pass or CPU animation.
 const MOSS_FLOWERS := 16.0
-## The Frame's runtime halves the rate once a frame nears 0.88 of the period: held to the governor's line under it.
-const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.33, "grass": 0.177, "flower": 0.215, "tree": 20.457, "bush": 1.599, "wall_m2": 6.901, "plaster_m2": 2.006, "fence_m2": 3.166, "pond": 19.484, "roof_m2": 6.647, "thatch_m2": 3.477, "fitting": 15.609, "easel": 532.153, "boulder": 9.068, "timber": TIMBER_US, "moss": 0.215 * MOSS_FLOWERS, "arch": ARCH_US}
 ## Full tree pools at scales 1, 2 and 3 cost at most 53.811 us per tree at fit_step (demo/tree-scale.json).
 ## Round up and keep one unit at every scale: the dense layout measured no growth in cost, and gets no size discount.
-const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.1, "grass": 0.449, "flower": 0.678, "tree": 54.0, "wall_m2": 19.054, "plaster_m2": 6.46, "fence_m2": 4.348, "pond": 89.764, "roof_m2": 30.465, "thatch_m2": 51.347, "fitting": 21.346, "bush": 0.0, "easel": 1091.208, "timber": TIMBER_US, "boulder": 20.6, "moss": 0.678 * MOSS_FLOWERS, "arch": ARCH_US}
+## `pond_m2` and `water` are the dearest of two later runs (perf/quest-2/costs/20261021T192027Z-a049b03.json and
+## 20261021T194322Z-38783ee.json), fitted as `scripts/costs.py` fits them; the rest of the line is older.
+const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.1, "grass": 0.449, "flower": 0.678, "tree": 54.0, "wall_m2": 19.054, "plaster_m2": 6.46, "fence_m2": 4.348, "pond_m2": 5.146, "water": 371.542, "roof_m2": 30.465, "thatch_m2": 51.347, "fitting": 21.346, "bush": 0.0, "easel": 1091.208, "timber": TIMBER_US, "boulder": 20.6, "moss": 0.678 * MOSS_FLOWERS, "arch": ARCH_US}
+## The Frame's runtime halves the rate once a frame nears 0.88 of the period: held to the governor's line under it.
+## Its water shares the Quest 2's prices until the lake is measured there.
+const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.33, "grass": 0.177, "flower": 0.215, "tree": 20.457, "bush": 1.599, "wall_m2": 6.901, "plaster_m2": 2.006, "fence_m2": 3.166, "pond_m2": QUEST_2_COSTS.pond_m2, "water": QUEST_2_COSTS.water, "roof_m2": 6.647, "thatch_m2": 3.477, "fitting": 15.609, "easel": 532.153, "boulder": 9.068, "timber": TIMBER_US, "moss": 0.215 * MOSS_FLOWERS, "arch": ARCH_US}
 
 
 ## The ladder step `on`'s COSTS are fitted at (demo/costs.json), so a garden within its budget holds 72 Hz there: the
@@ -86,7 +92,7 @@ static func cost_ms(units: Dictionary, on: Device) -> float:
 	var c: Dictionary = COSTS[on]
 	var us := 0.0
 	for k in units:
-		us += units[k] * c[k]
+		us += minf(units[k] * c[k], c.water) if k == "pond_m2" else units[k] * c[k]
 	return us / 1000.0
 
 
@@ -106,8 +112,10 @@ static func fill(units: Dictionary, devices: Array) -> float:
 ## Whether a garden of `units` may take `change` on every one of `devices`: anything that costs nothing more fits,
 ## so taking things away always does, even in a garden already over.
 static func fits(units: Dictionary, change: Dictionary, devices: Array) -> bool:
+	var after := add(units.duplicate(), change)
 	for d: Device in devices:
-		if cost_ms(change, d) > 0.0 and cost_ms(units, d) + cost_ms(change, d) > room_ms(d):
+		var now := cost_ms(after, d)
+		if now > cost_ms(units, d) and now > room_ms(d):
 			return false
 	return true
 

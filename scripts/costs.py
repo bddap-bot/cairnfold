@@ -11,7 +11,9 @@ its caps bound, however much is built, so what a phase's animals add once they h
 fitted to cost, is charged once to the base: the room is what is left with every kind of animal there, each phase's
 animals counted whole even where two phases bring the same kind. The base is the dearest view of the meadow with its
 own plants standing or of the bare meadow, dusk included: the meadow's plants spread far wider than a pool-full phase
-packs them, so it is measured whole rather than counted at their prices."""
+packs them, so it is measured whole rather than counted at their prices. Water costs by the pixels it covers: a square
+metre of it costs what small ponds wholly in view give, and all of it at most `water`, the lake phase's dearest view over
+the meadow with its own plants, the meadow's whole bowl filled."""
 import json
 import os
 import re
@@ -23,7 +25,7 @@ FLORA = {"grass": {"grass": 12000}, "flowers": {"flower": 4000}, "trees": {"tree
 FLORA.update({"flowers-wild": FLORA["flowers"], "trees-wild": FLORA["trees"]})
 # Each phase and the unit it fits, over what earlier phases fitted of its others.
 ORDER = [("grass", "grass"), ("flowers", "flower"), ("trees", "tree"), ("bushes", "bush"), ("walls-r10", "wall_m2"), ("walls-r15", "wall_m2"),
-         ("walls-r20", "wall_m2"), ("plaster", "plaster_m2"), ("fences", "fence_m2"), ("ponds", "pond"),
+         ("walls-r20", "wall_m2"), ("plaster", "plaster_m2"), ("fences", "fence_m2"), ("ponds", "pond_m2"),
          ("village", "roof_m2"), ("thatch", "thatch_m2"), ("lanterns", "fitting"), ("meadow", None), ("hills", None), ("stone", None), ("easels", "easel"), ("boulders", "boulder")]
 WILD = ["flowers-wild", "trees-wild", "fences-wild", "ponds-wild"]
 
@@ -75,10 +77,18 @@ for phase, unit in ORDER:
 missing = [unit for _, unit in ORDER if unit is not None and unit not in cost]
 if missing:
     sys.exit(f"costs: no view measured {', '.join(missing)}; nothing written")
+# Water costs by the pixels it covers, so a view full of it is the most any garden's water can cost: the meadow's whole
+# bowl filled, over the meadow with its own plants from the same view, since the lake drowns those it covers.
+lake = [gpu[f"lake/{v}"] - gpu[f"meadow/{v}"] for v in ("aerial", "ground", "shore")
+        if f"lake/{v}" in gpu and f"meadow/{v}" in gpu and f"lake/{v}" not in halved and f"meadow/{v}" not in halved]
+if not lake:
+    sys.exit("costs: no view measured the lake; nothing written")
+print(f"lake over the meadow: {', '.join(f'{x:+.2f}' for x in lake)} ms", file=sys.stderr)
+water = max(lake)
 wild = sum(max([extra for extra, _ in extras(phase, None)] + [0.0]) for phase in WILD)
 meadow = [gpu[f"meadow/{v}"] for v in views if f"meadow/{v}" in gpu and f"meadow/{v}" not in halved]
 line = {"budget_ms": "1000.0 / REFRESH_HZ * Quality.Governor.LINE", "base_ms": round(max([*base.values(), *meadow]) + wild, 2),
-        **{k: round(v, 3) for k, v in cost.items()}, "timber": "TIMBER_US", "moss": f"{round(cost['flower'], 3)} * MOSS_FLOWERS"}
+        **{k: round(v, 3) for k, v in cost.items()}, "water": round(water * 1000.0, 3), "timber": "TIMBER_US", "arch": "ARCH_US", "moss": f"{round(cost['flower'], 3)} * MOSS_FLOWERS"}
 text = ", ".join(f'"{k}": {v}' for k, v in line.items())
 budget = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../game/src/budget.gd")
 src = open(budget).read()
