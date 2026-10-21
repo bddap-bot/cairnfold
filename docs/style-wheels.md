@@ -15,7 +15,8 @@ models. Miniature masonry uses the existing shared baked geometry and materials.
 
 `demo/style-models.json` measures each wheel open for 25 seconds on the same
 scene and view, with the normal quality governor. It waits two minutes before
-measurement and closes the Quest shell after launch, before the measured phases. Three
+measurement. For the physical runs, close the Quest shell after game launch with
+`quest2 run adb shell am force-stop com.oculus.vrshell`, before the measured phases. Three
 initial attempts caught the shell rendering beside the game, including repeated
 hand-presence transitions; those runs failed the benchmark's contamination check
 and are excluded. The check remains unchanged.
