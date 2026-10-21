@@ -919,16 +919,22 @@ func _lay_opening(o: Dictionary, rng: RandomNumberGenerator, bottom: float) -> v
 			_lay_window(at, o.sill, light, tall, rng)
 
 
-## A casement: a dark pane in a wooden frame with a cross of glazing bars, set back in the wall.
+## A casement set back in the wall.
 func _lay_window(s: float, sill: float, w: float, tall: float, rng: RandomNumberGenerator) -> void:
-	var mid := sill + tall * 0.5
-	var back := -THICKNESS * 0.12
-	_part(s, mid, Vector3(w - 0.02, tall - 0.02, 0.02), GLASS * rng.randf_range(0.9, 1.1), rng, "glass", back)
+	for p in casement(w, tall, rng):
+		_part(s + p.at.x, sill + tall * 0.5 + p.at.y, p.size, p.color, rng, p.kind, -THICKNESS * 0.12)
+
+
+## A casement `w` wide and `tall`: a dark pane in a wooden frame with a cross of glazing bars, as pieces each placed
+## `at` (along the face, up) from its middle.
+static func casement(w: float, tall: float, rng: RandomNumberGenerator) -> Array[Dictionary]:
+	var out: Array[Dictionary] = [{"at": Vector2.ZERO, "size": Vector3(w - 0.02, tall - 0.02, 0.02), "color": GLASS * rng.randf_range(0.9, 1.1), "kind": "glass"}]
 	for edge in [-1.0, 1.0]:
-		_part(s + edge * (w * 0.5 - 0.03), mid, Vector3(0.06, tall, 0.08), WOOD * rng.randf_range(0.85, 1.05), rng, "frame", back)
-		_part(s, mid + edge * (tall * 0.5 - 0.03), Vector3(w, 0.06, 0.08), WOOD * rng.randf_range(0.85, 1.05), rng, "frame", back)
-	_part(s, mid, Vector3(0.035, tall, 0.05), WOOD, rng, "frame", back)
-	_part(s, mid + tall * 0.08, Vector3(w, 0.035, 0.05), WOOD, rng, "frame", back)
+		out.append({"at": Vector2(edge * (w * 0.5 - 0.03), 0.0), "size": Vector3(0.06, tall, 0.08), "color": WOOD * rng.randf_range(0.85, 1.05), "kind": "frame"})
+		out.append({"at": Vector2(0.0, edge * (tall * 0.5 - 0.03)), "size": Vector3(w, 0.06, 0.08), "color": WOOD * rng.randf_range(0.85, 1.05), "kind": "frame"})
+	out.append({"at": Vector2.ZERO, "size": Vector3(0.035, tall, 0.05), "color": WOOD, "kind": "frame"})
+	out.append({"at": Vector2(0.0, tall * 0.08), "size": Vector3(w, 0.035, 0.05), "color": WOOD, "kind": "frame"})
+	return out
 
 
 ## A plank door with two iron straps, set back in the wall.
@@ -1015,11 +1021,7 @@ func _build_fence(rng: RandomNumberGenerator) -> void:
 		if arched.any(func(a): return a > prev and a < s):
 			continue
 		for y: float in [0.45, 0.85]:
-			var a: Vector3 = frame_at(prev).point + Vector3.UP * (y + 0.12)
-			var b: Vector3 = frame_at(s).point + Vector3.UP * (y + 0.12)
-			var x := (b - a).normalized()
-			var z := x.cross(Vector3.UP).normalized()
-			_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(a.distance_to(b) + 0.06, 0.08, 0.05)), (a + b) * 0.5), WOOD * rng.randf_range(0.8, 1.1), "rail", (prev + s) * 0.5)
+			_rail(prev, s, y + 0.12, Vector3(0.06, 0.08, 0.05), WOOD * rng.randf_range(0.8, 1.1))
 	for a in arched:
 		var r := ARCH_HALF + 0.08
 		var squash := 0.5
@@ -1429,8 +1431,8 @@ func _lay_gables() -> void:
 				_lay_crow_steps(mid, hs, base, h, rng)
 			_:
 				var rows: Array[Vector2] = []
-				while not plaster and _under_slope((rows.size() + 1) * h, hs) >= 0.2:
-					rows.append(Vector2(rows.size(), _under_slope((rows.size() + 1) * h, hs)))
+				while not plaster and gable.out_at((rows.size() + 1) * h, hs) >= 0.2:
+					rows.append(Vector2(rows.size(), gable.out_at((rows.size() + 1) * h, hs)))
 				_lay_gable_rows(mid, hs, base, h, rows, rng)
 				if not TimberFrame.applies(self) and not gable.thatch:
 					_lay_verge(mid, hs, base, rng, "cope")
@@ -1465,11 +1467,11 @@ func crow_steps(hs: float) -> Array[Vector3]:
 	var half := hs
 	while half > TOP_STEP:
 		var top := k + STEP_COURSES
-		while _under_slope(top * h, hs) > minf(half, hs - THICKNESS) - TREAD:
+		while gable.out_at(top * h, hs) > minf(half, hs - THICKNESS) - TREAD:
 			top += 1
 		steps.append(Vector3(half, k, top - k))
 		k = top
-		half = _under_slope(k * h, hs)
+		half = gable.out_at(k * h, hs)
 	steps.append(Vector3(TOP_STEP, k, maxi(STEP_COURSES, ceili(gable.rise(1.0) / h) + 1 - k)))
 	return steps
 
@@ -1554,19 +1556,6 @@ func _standing(spans: Array) -> Array:
 	return spans
 
 
-## How far out from the ridge the gable's slope stands `rise` above its foot, `hs` out at the faces.
-func _under_slope(rise: float, hs: float) -> float:
-	var lo := 0.0
-	var hi := hs
-	for i in 20:
-		var x := (lo + hi) * 0.5
-		if gable.rise(1.0 - x / hs) > rise:
-			lo = x
-		else:
-			hi = x
-	return lo
-
-
 func _lay_parapet(a: float, total: float, rng: RandomNumberGenerator) -> void:
 	rng.seed = hash([rng.seed, "parapet"])
 	var y := height + CAP
@@ -1600,11 +1589,16 @@ func _lay_railing(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		_part(s, y + RAILING * 0.5, Vector3(0.1, RAILING, 0.1) * Vector3(rng.randf_range(0.92, 1.08), 1.0, rng.randf_range(0.92, 1.08)), WOOD * rng.randf_range(0.8, 1.1), rng, "post", 0.0, 0.02)
 	for i in range(1, posts.size()):
 		for h: float in [RAILS.x, RAILS.y]:
-			var p: Vector3 = frame_at(posts[i - 1]).point + Vector3.UP * (y + h)
-			var q: Vector3 = frame_at(posts[i]).point + Vector3.UP * (y + h)
-			var x := (q - p).normalized()
-			var z := x.cross(Vector3.UP).normalized()
-			_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(p.distance_to(q) + 0.04, 0.08 if h == RAILS.y else 0.06, 0.06)), (p + q) * 0.5), WOOD * rng.randf_range(0.8, 1.1), "rail", (posts[i - 1] + posts[i]) * 0.5)
+			_rail(posts[i - 1], posts[i], y + h, Vector3(0.04, 0.08 if h == RAILS.y else 0.06, 0.06), WOOD * rng.randf_range(0.8, 1.1))
+
+
+## A wooden rail `y` up from the wall's line at `a` to it at `b`, `size` its overrun past them, its depth and thickness.
+func _rail(a: float, b: float, y: float, size: Vector3, color: Color) -> void:
+	var p: Vector3 = frame_at(a).point + Vector3.UP * y
+	var q: Vector3 = frame_at(b).point + Vector3.UP * y
+	var x := (q - p).normalized()
+	var z := x.cross(Vector3.UP).normalized()
+	_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(p.distance_to(q) + size.x, size.y, size.z)), (p + q) * 0.5), color, "rail", (a + b) * 0.5)
 
 
 func _lay_pier(s: float, rng: RandomNumberGenerator, wet: RandomNumberGenerator) -> void:

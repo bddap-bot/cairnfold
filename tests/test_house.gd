@@ -290,7 +290,7 @@ func _a_resized_house_keeps_its_fittings_and_roof() -> void:
 	var at := {"center": Vector3(0, 0, 0), "yaw": 0.0, "size": Vector2(6, 4), "round": false}
 	var d := {"points": PackedVector3Array(WallTool.outline(at)), "closed": true, "rise": 0.0, "openings": PackedVector4Array([Vector4(3.0, 1.2, 0, 1), Vector4(8.0, 0.0, 0, 1), WallLayout.archway(1.0)]),
 		"lanterns": PackedVector3Array([Vector3(13.0, 2.0, -1.0)]), "flags": PackedFloat32Array([18.0]),
-		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array([Vector2(1.5, 0.8)]), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
+		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array([Vector2(1.5, 0.8)]), "dormers": PackedVector2Array([Vector2(-1.0, -1.6)]), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
 	var from := WallTool.house_of(d)
 	_check(from.center.is_equal_approx(at.center) and from.size.is_equal_approx(at.size) and WallTool.outline(from) == WallTool.outline(at), "a built house's footprint reads back from its corners: %s" % from)
 	var wide := from.duplicate()
@@ -301,6 +301,7 @@ func _a_resized_house_keeps_its_fittings_and_roof() -> void:
 	_check(is_equal_approx(r.openings[1].x, 14.0) and is_equal_approx(r.openings[2].x, 2.0), "a door on the end wall stays on it, an arch on the front in proportion: %s, %s" % [r.openings[1], r.openings])
 	_check(is_equal_approx(r.lanterns[0].x, 22.0) and r.lanterns[0].z == -1.0 and is_equal_approx(r.flags[0], 30.0), "a lantern inside keeps its face; it and a flag keep their places: %s, %s" % [r.lanterns, r.flags])
 	_check(is_equal_approx(r.roof.pitch, 1.6) and r.roof.chimneys[0].is_equal_approx(Vector2(3.0, 0.8)), "the roof keeps its slope over the same depth; a chimney moves out along the ridge: %s" % r.roof)
+	_check(r.roof.dormers.size() == 1 and r.roof.dormers[0].is_equal_approx(Vector2(-2.0, -1.6)), "a dormer moves along the ridge as a chimney does: %s" % r.roof.dormers)
 	var deep := from.duplicate()
 	deep.size = Vector2(6, 8)
 	r = WallTool.reshape_house(d, deep)
@@ -308,6 +309,7 @@ func _a_resized_house_keeps_its_fittings_and_roof() -> void:
 	_check(is_equal_approx(ridge.length(), 6.0) and absf(ridge.z) < 1e-4, "stretched deeper than long, its ridge keeps its axis")
 	_check(is_equal_approx(r.roof.pitch, 3.2), "and the rise scales with the depth under the ridge: %f" % r.roof.pitch)
 	_check(r.roof.chimneys[0].is_equal_approx(Vector2(1.5, 1.6)), "a chimney keeps its spot on the house as the depth grows: %s" % r.roof.chimneys[0])
+	_check(r.roof.dormers[0].is_equal_approx(Vector2(-1.0, -3.2)), "and a dormer its slope: %s" % r.roof.dormers[0])
 	_check(is_equal_approx(r.openings[0].x, 3.0), "the front window stays in the middle of the front as it moves out: %s" % r.openings[0])
 	var tower := {"points": PackedVector3Array(WallLayout.circle(Vector3(2, 0, 2), 2.0)), "closed": true, "rise": 0.0, "openings": PackedVector4Array([Vector4(TAU * 0.5, 0.0, 0, 1)]),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array([TAU]),

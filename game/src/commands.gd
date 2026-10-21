@@ -411,6 +411,8 @@ static func _wall(d: Variant) -> Variant:
 		var dormers: Variant = r.get("dormers")
 		if typeof(dormers) != TYPE_PACKED_VECTOR2_ARRAY or dormers.size() > MAX_DORMERS or not Array(dormers).all(func(c: Vector2) -> bool: return c.is_finite() and absf(c.x) < 40.0 and absf(c.y) < 40.0):
 			return null
+		if r.kind == RoofLayout.Kind.CONE and not dormers.is_empty():
+			return null
 		if not _at_least(r.get("overhang"), 0.0) or r.overhang > RoofLayout.MAX_OVERHANG:
 			return null
 		if typeof(r.get("deck")) != TYPE_INT or r.deck < 0 or r.deck >= RoofLayout.Deck.size():

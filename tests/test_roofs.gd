@@ -78,7 +78,7 @@ func _a_wooden_deck_is_boards_on_joists() -> void:
 	for t in boards:
 		lengths[snappedf(t.xform.basis.x.length(), 0.01)] = true
 	_check(lengths.size() > 8, "boards come in many lengths, staggered: %d" % lengths.size())
-	_check(joists.size() >= 8 and joists.all(func(t): return _top_of(t.xform) <= deck_top - RoofLayout.DECK_BOARD.y + 0.001), "joists run under the boards: %d" % joists.size())
+	_check(joists.size() >= 8 and joists.all(func(t): return _top_of(t.xform) <= deck_top - RoofLayout.PLANK.y + 0.001), "joists run under the boards: %d" % joists.size())
 	var open := 0
 	for i in 60:
 		for j in 40:
@@ -278,7 +278,7 @@ func _a_low_roof_comes_down_to_the_ground() -> void:
 	r.base = w.samples[0].y + w.height + WallLayout.CAP
 	r.foot = w.stands_at()
 	r.build()
-	_check(r.grounded(), "a long overhang on low walls comes down to the ground")
+	_check(r.eave() < r.half_span() + r.overhang - 0.1 and absf(r.eave() - r.half_span() - r.reach()) < 0.001, "a long overhang on low walls comes down to the ground")
 	_check(absf(r.base + r.rise(1.0 - r.eave() / r.half_span()) - r.foot) < 0.01, "its eave meets the ground the walls stand on: %.2f at %.2f" % [r.base + r.rise(1.0 - r.eave() / r.half_span()), r.foot])
 	var tiles := _of(r, "tile")
 	var lowest: float = tiles.reduce(func(m, t): return minf(m, t.xform.origin.y), INF)
@@ -287,7 +287,7 @@ func _a_low_roof_comes_down_to_the_ground() -> void:
 	var tall := _gable(6.0, 4.0, 2.6)
 	tall.overhang = 1.5
 	tall.build()
-	_check(not tall.grounded() and absf(tall.eave() - tall.half_span() - 1.5) < 0.001, "high walls keep the eave off the ground")
+	_check(absf(tall.eave() - tall.half_span() - 1.5) < 0.001 and tall.reach() > 1.5, "high walls keep the eave off the ground")
 	var raised := WallLayout.new()
 	raised.points = w.points
 	raised.closed = true
@@ -356,6 +356,11 @@ func _a_dormer_needs_room() -> void:
 	cone.radius = 2.0
 	cone.pitch = 4.0
 	_check(is_nan(cone.dormer_spot(Vector2(0, 1)).x), "nor a cone")
+	steep.chimneys.assign([Vector2(0.4, 1.0)])
+	_check(not steep.dormer_fits(Vector2(0, 2), []) and steep.dormer_fits(Vector2(0, -2), []) and steep.dormer_fits(Vector2(-2.0, 2), []), "a dormer keeps clear of a chimney on its slope")
+	steep.chimneys.clear()
+	steep.dormers.assign([Vector2(0, 2)])
+	_check(not steep.clear_of_dormers(Vector2(0.4, 1.0)) and steep.clear_of_dormers(Vector2(0.4, -1.0)), "and a chimney of a dormer")
 
 
 func _house_data(pitch: float) -> Dictionary:
@@ -379,6 +384,16 @@ func _the_budget_counts_eaves_and_dormers() -> void:
 	var dormered := Budget.wall(d)
 	_check(dormered.get("fitting", 0) == plain.get("fitting", 0) + 2, "each dormer counts as a fitting")
 	_check(dormered.wall_m2 > plain.wall_m2 + 2.0 and dormered.roof_m2 > plain.roof_m2 + 2.0, "and its boarded faces as wall and its slopes as roof: %.1f, %.1f m² more" % [dormered.wall_m2 - plain.wall_m2, dormered.roof_m2 - plain.roof_m2])
+	d.roof.pitch = 0.0
+	var flat := Budget.wall(d)
+	d.roof.dormers = PackedVector2Array()
+	_check(flat.get("fitting", 0) == Budget.wall(d).get("fitting", 0) and flat.roof_m2 == Budget.wall(d).roof_m2, "dormers kept by a roof pushed flat stand nowhere and count nothing")
+	var tent := _house_data(2.6)
+	tent.height = WallLayout.MIN_HEIGHT
+	tent.roof.overhang = RoofLayout.MAX_OVERHANG
+	var held := tent.duplicate(true)
+	held.height = 4.0
+	_check(Budget.wall(tent).roof_m2 < Budget.wall(held).roof_m2 - 4.0, "a tent counts its slopes only down to the ground: %.1f against %.1f m²" % [Budget.wall(tent).roof_m2, Budget.wall(held).roof_m2])
 
 
 func _the_command_carries_decks_eaves_and_dormers() -> void:
@@ -388,6 +403,9 @@ func _the_command_carries_decks_eaves_and_dormers() -> void:
 	d.roof.dormers = PackedVector2Array([Vector2(1, 2)])
 	var cleaned: Variant = Commands._wall(d)
 	_check(cleaned != null and cleaned.roof.deck == RoofLayout.Deck.WOOD and cleaned.roof.overhang == 1.5 and cleaned.roof.dormers == PackedVector2Array([Vector2(1, 2)]), "a house keeps its deck, eaves and dormers")
+	var round := d.duplicate(true)
+	round.roof.kind = RoofLayout.Kind.CONE
+	_check(Commands._wall(round) == null, "a tower's cone takes no dormer")
 	for bad in [{"deck": 2}, {"deck": -1}, {"overhang": RoofLayout.MAX_OVERHANG + 0.1}, {"overhang": -0.1}, {"dormers": [Vector2(1, 2)]}, {"dormers": PackedVector2Array([Vector2(INF, 2)])}]:
 		var broken := d.duplicate(true)
 		broken.roof.merge(bad, true)
@@ -446,6 +464,12 @@ func _in_the_glade() -> void:
 	var slope: Vector3 = ridge + r.frame().across * 1.6
 	var aim := fit.aim(Hand.Tool.WINDOWS, slope + Vector3.UP * 6.0, Vector3.DOWN)
 	_check(aim.get("what") == "dormer", "the windows tool pointed at a gable's slope opens a dormer: %s" % aim.get("what"))
+	world.submit({"op": "reshape", "of": "walls", "id": house.id, "data": {"roof": {"chimneys": PackedVector2Array([Vector2(1.5, 0.0)])}}})
+	_lay_walls()
+	var stack: Vector3 = r.frame().mid + r.frame().along * 1.5 + Vector3.UP * (r.pitch + 1.2)
+	_check(fit.aim(Hand.Tool.WINDOWS, stack + r.frame().across * 4.0, -r.frame().across).is_empty(), "the windows tool pointed at a chimney does nothing")
+	world.submit({"op": "reshape", "of": "walls", "id": house.id, "data": {"roof": {"chimneys": PackedVector2Array()}}})
+	_lay_walls()
 	_check(not fit.fit(aim), "a roof too low for one refuses it")
 	await _play([{"op": "roof", "index": 0, "pitch": 3.4}])
 	ridge = r.frame().mid + Vector3.UP * r.pitch

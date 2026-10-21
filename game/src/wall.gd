@@ -474,9 +474,7 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind],
 	shadows.resize(r.tiles.size() * shadow.stride())
 	for i in r.tiles.size():
 		var t: Dictionary = r.tiles[i]
-		var c := _painted_as(t, colours)
-		c.a = 0.0 if t.kind == "glass" else 1.0
-		tile.write(tiles, i, t.xform, c, t.ao, Palette.code(t.kind))
+		tile.write(tiles, i, t.xform, _glazed(t, colours), t.ao, Palette.code(t.kind))
 		shadow.write(shadows, i, t.xform)
 	var chunks := {Part.TILE: Masonry.split(tiles, tile), Part.TILE_SHADOW: Masonry.split(shadows, shadow), Part.COAT: Masonry.split(slabs, slab)}
 	return {"roof": r, "tiles": tiles, "shadows": shadows, "slabs": slabs, "chunks": chunks, "mortar": mortar}
@@ -557,9 +555,7 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt3
 			n[4] += 1
 		else:
 			x.basis = x.basis * Stones.FLIPS[s.variant]
-			var c := _painted_as(s, colours)
-			c.a = 0.0 if s.kind == "glass" else 1.0
-			stone.write(bufs[0], n[0], x, c, s.ao, Palette.code(s.kind))
+			stone.write(bufs[0], n[0], x, _glazed(s, colours), s.ao, Palette.code(s.kind))
 			n[0] += 1
 		if s.kind != "mortar" and not s.kind in WallLayout.FLOOR_KINDS:
 			shadow.write(bufs[2], n[2], x)
@@ -570,6 +566,13 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt3
 	for i in bufs.size():
 		chunks[parts[i]] = Masonry.split(bufs[i], ks[parts[i]])
 	return {"stone": bufs[0], "mortar": bufs[1], "shadow": bufs[2], "timber": bufs[3], "floor": bufs[4], "chunks": chunks, "bounds": box.grow(0.6), "paint": colours, "ruin_pick": _pack_ruin(built)}
+
+
+## A stone-shaded part's colour in `colours`, its alpha marking glass, which the lamps light from behind.
+static func _glazed(part: Dictionary, colours: PackedInt32Array) -> Color:
+	var c := _painted_as(part, colours)
+	c.a = 0.0 if part.kind == "glass" else 1.0
+	return c
 
 
 ## A laid part's colour in `colours`.

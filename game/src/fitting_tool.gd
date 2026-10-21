@@ -108,6 +108,8 @@ func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 		var what: String = pick.what
 		if (tool == Hand.Tool.DECORATIONS and not what in ["opening", "dormer"]) or (tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH] and what == "opening") or (tool == Hand.Tool.WINDOWS and what == "dormer"):
 			return pick
+		if pick.on_roof and tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH]:
+			return {}
 	var roof := pick if pick.get("surface") == "roof" else {}
 	var on_roof := not roof.is_empty()
 	if tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH]:
@@ -264,12 +266,11 @@ func change(target: Dictionary) -> Dictionary:
 		"chimney":
 			var spot := w.roof.chimney_spot(target.at)
 			var near := w.roof.chimneys.find_custom(func(e): return e.distance_to(spot) < RoofLayout.STACK_WIDTH + 0.3)
-			return _change(w, true, "chimneys", spot, near, true)
+			return _change(w, true, "chimneys", spot, near, near >= 0 or w.roof.clear_of_dormers(spot))
 		"dormer":
 			var placed := _placed(w, true, "dormers")
 			var spot := w.roof.dormer_spot(target.at)
-			var at: Vector2 = target.at if is_nan(spot.x) else spot
-			var near := placed.find_custom(func(e: Vector2) -> bool: return signf(e.y) == signf(at.y) and absf(e.x - at.x) < RoofLayout.DORMER_HALF + RoofLayout.DORMER_EAVE)
+			var near := placed.find_custom(func(e: Vector2) -> bool: return not RoofLayout.spots_apart(w.roof.dormer_spot(e), spot, RoofLayout.DORMER_HALF + RoofLayout.DORMER_EAVE))
 			return _change(w, true, "dormers", spot, near, near >= 0 or w.roof.dormer_fits(spot, placed))
 	return {"ok": true, "near": 0 if w.roof.flag else -1}
 

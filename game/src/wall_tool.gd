@@ -914,7 +914,7 @@ func begin_roof(m: Mason, w: Wall, hand: Vector3, at := Vector3.INF) -> void:
 	m.roofing = w
 	m.lift_hand = hand
 	m.eave_out = Vector3.ZERO if at == Vector3.INF else r.eave_way(at)
-	m.lift_start = r.pitch if m.eave_out == Vector3.ZERO else r.overhang
+	m.lift_start = r.pitch if m.eave_out == Vector3.ZERO else minf(r.overhang, r.reach())
 	m.lift_at = r.frame().mid + Vector3.UP * r.pitch if m.eave_out == Vector3.ZERO else at
 	m.lift_gain = Hand.reach_gain(hand.distance_to(m.lift_at))
 
@@ -930,7 +930,7 @@ func drag_roof(m: Mason, hand: Vector3) -> void:
 ## Lays the roof on `w` with its eaves `overhang` past its walls, on the nearest ROOF_STEP.
 func shape_eave(w: Wall, overhang: float, hand: Hand = null) -> void:
 	var r := w.roof
-	overhang = clampf(snappedf(overhang, ROOF_STEP), 0.0, RoofLayout.MAX_OVERHANG)
+	overhang = clampf(snappedf(overhang, ROOF_STEP), 0.0, r.reach())
 	if is_equal_approx(overhang, r.overhang):
 		return
 	r.overhang = overhang

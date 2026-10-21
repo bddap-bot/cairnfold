@@ -131,14 +131,16 @@ static func wall(d: Dictionary) -> Dictionary:
 		out.timber = timber
 	var fittings: int = d.lanterns.size() + d.flags.size()
 	if d.has("roof"):
-		var eave: float = WallLayout.THICKNESS * 0.5 + d.roof.overhang
-		var plan: float = PI * (d.roof.radius + eave) * (d.roof.radius + eave)
 		var slopes := RoofLayout.new()
 		slopes.kind = RoofLayout.Kind.CONE
 		slopes.radius = d.roof.radius
 		slopes.pitch = d.roof.pitch
 		slopes.curve = d.roof.curve
 		slopes.overhang = d.roof.overhang
+		slopes.base = d.height + WallLayout.CAP - WallLayout.SINK + d.rise
+		slopes.foot = 0.0
+		var eave: float = WallLayout.THICKNESS * 0.5 + minf(d.roof.overhang, slopes.reach())
+		var plan: float = PI * (d.roof.radius + eave) * (d.roof.radius + eave)
 		if d.roof.kind == RoofLayout.Kind.GABLE and d.points.size() == 4:
 			slopes.kind = RoofLayout.Kind.GABLE
 			slopes.corners.assign(Array(d.points))
@@ -152,14 +154,16 @@ static func wall(d: Dictionary) -> Dictionary:
 			var units := "wall_m2" if ends.gable_end == WallLayout.GableEnd.BOARDS else face
 			out[units] = out.get(units, 0.0) + 2.0 * ends.gable_face(half_span)
 			var ridge := Vector2(d.points[1].x - d.points[0].x, d.points[1].z - d.points[0].z).length()
-			plan = (ridge + WallLayout.THICKNESS + 2.0 * RoofLayout.GABLE_OVERHANG) * 2.0 * (half_span + d.roof.overhang)
+			plan = (ridge + WallLayout.THICKNESS + 2.0 * RoofLayout.GABLE_OVERHANG) * 2.0 * (half_span + minf(d.roof.overhang, slopes.reach()))
 			for c: Vector2 in d.roof.dormers:
 				var area := slopes.dormer_area(c)
-				out.wall_m2 = out.get("wall_m2", 0.0) + area.x
-				out.roof_m2 = out.get("roof_m2", 0.0) + area.y
+				if area != Vector2.ZERO:
+					fittings += 1
+					out.wall_m2 = out.get("wall_m2", 0.0) + area.x
+					out.roof_m2 = out.get("roof_m2", 0.0) + area.y
 		var covering := "thatch_m2" if d.roof.thatch and d.roof.pitch > 0.0 else "roof_m2"
 		out[covering] = out.get(covering, 0.0) + plan * slopes.stretch()
-		fittings += d.roof.chimneys.size() + d.roof.dormers.size() + (1 if d.roof.flag else 0)
+		fittings += d.roof.chimneys.size() + (1 if d.roof.flag else 0)
 		var upper := WallLayout.upper_floors(d.height) if d.storey_floors else 0
 		if upper > 0:
 			out.floor_m2 = upper * _plan(d.points)

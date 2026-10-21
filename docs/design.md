@@ -1904,7 +1904,7 @@ makes a tent. Every one of these is a field of the build command (`World.state.w
 undo step, every player sees it, and saves and joiners' snapshots carry it.
 
 - Decks. A roof pushed flat is a platform inside the walls (`RoofLayout`, `deck`): stone flags in running bond on a
-  mortar bed, or boards. Boards (`_lay_boards`) run along a house's ridge (straight across a tower) in rows of
+  mortar bed, or boards. Boards run along a house's ridge (straight across a tower) in rows of
   staggered lengths, 1.4 to 3.2 m, cut at the walls, on joists 0.6 m apart running the other way; a bowed deck's
   boards ride its curved surface as its flags do. The style tool's roof wheel on a flat roof turns between the two,
   each a miniature, and new houses take the deck last turned to on this machine; the colour tool paints a boarded deck
@@ -1929,11 +1929,14 @@ undo step, every player sees it, and saves and joiners' snapshots carry it.
   window, boarded cheeks back to where its eaves meet the slope, and its own little gable of tiles under a ridge
   running back into the roof; on thatch it stands out of the coat. Its front stands between the walls' centre line and
   as high up the slope as keeps its ridge 0.15 m under the roof's, clear of the gable ends; dormers on one slope keep
-  0.25 m apart. A roof too low for one turns the press down with a knock. A press on a dormer takes it away; resizing
-  the house carries its dormers along as it carries its chimneys.
+  0.25 m apart, and dormers and chimneys keep clear of each other. A roof too low for one turns the press down with a
+  knock. A press on a dormer takes it away; resizing the house carries its dormers along as it carries its chimneys. A
+  roof pushed flat, or pulled too low for its dormers, keeps them, unlaid and uncounted, and they stand again when it
+  has room. A tower's cone takes none.
 
 Cost: a dormer counts as a fitting, its front and cheeks as stone wall (boards are laid as stones are) and its slopes as
-tiled roof; a longer eave counts its plan out to the eave. A wooden deck counts as a flat roof. The stress scene's
+tiled roof; a longer eave counts its plan out to the eave, a tent's only down to the ground. A wooden deck counts as a
+flat roof. The stress scene's
 `roofs/*` phases fill its village with them in turn: three storeys decked in boards behind railings, each 0.72 the size
 of the one under it; two-storey stone terraces behind parapets; and steep houses with two dormers a slope and 0.9 m
 eaves, or one and 0.6 m.

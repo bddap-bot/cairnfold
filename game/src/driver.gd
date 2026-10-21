@@ -788,17 +788,17 @@ func _village(s: Dictionary) -> void:
 			var yaw := PI * 0.5 * (k % 2)
 			var at := Terrain.ground(c.x, c.y)
 			var on := PackedInt32Array()
-			var kind: Dictionary = s.roofs[k % s.roofs.size()] if s.has("roofs") else {}
+			var entry: Dictionary = s.roofs[k % s.roofs.size()] if s.has("roofs") else {}
 			var size := Vector2(0.7, 0.44) * step
-			for storey in int(kind.get("storeys", s.get("storeys", 1))):
+			for storey in int(entry.get("storeys", s.get("storeys", 1))):
 				tool.begin_house(at, yaw, on)
 				tool.place_house(at, yaw, size)
 				tool.house.layout.height = s.get("height", WallTool.HOUSE_HEIGHT)
 				tool.house.roof.curve = s.get("curve", 0.0)
-				tool.house.roof.pitch = kind.get("pitch", s.get("pitch", tool.house.roof.pitch))
-				_lay_roof_kind(tool.house, kind, size)
+				tool.house.roof.pitch = entry.get("pitch", s.get("pitch", tool.house.roof.pitch))
+				_dress_roof(tool.house, entry, size)
 				tool.end_house()
-				size *= kind.get("upper", 1.0)
+				size *= entry.get("upper", 1.0)
 				tool.walls[-1].ivy_age = INF
 				on = PackedInt32Array([tool.walls[-1].id])
 			if s.get("wings", false):
@@ -813,13 +813,13 @@ func _village(s: Dictionary) -> void:
 	print("village: %d buildings in %.0f ms" % [k, (Time.get_ticks_usec() - start) / 1000.0])
 
 
-## Lays `house`'s roof and top, `size` [along, across], as a village's `roofs` entry `kind` has them.
-func _lay_roof_kind(house: Wall, kind: Dictionary, size: Vector2) -> void:
+## Lays `house`'s roof and top, `size` [along, across], as a village's `roofs` entry has them.
+func _dress_roof(house: Wall, entry: Dictionary, size: Vector2) -> void:
 	var r := house.roof
-	r.deck = RoofLayout.Deck[kind.get("deck", "stone").to_upper()]
-	r.overhang = kind.get("overhang", RoofLayout.OVERHANG)
-	house.layout.top = WallLayout.Top[kind.get("top", "cap").to_upper()]
-	var n := int(kind.get("dormers", 0))
+	r.deck = RoofLayout.Deck[entry.get("deck", "stone").to_upper()]
+	r.overhang = entry.get("overhang", RoofLayout.OVERHANG)
+	house.layout.top = WallLayout.Top[entry.get("top", "cap").to_upper()]
+	var n := int(entry.get("dormers", 0))
 	r.dormers.clear()
 	for side in ([-1.0, 1.0] if n > 0 else []):
 		for i in n:
