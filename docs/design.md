@@ -990,6 +990,7 @@ fourth tried. With the wildlife the base, the meadow's own plants standing, is 9
 | Grass pool full | | 12,000 blades | 10.10 | 12.10 | 0.45 µs a blade |
 | Flower pool full | | 4,000 flowers | 8.22 | 9.43 | 0.68 µs a flower |
 | Tree pool full | | 64 trees | 11.45 | 9.63 | 70.7 µs a tree |
+| Bush pool full (a later run, [record](../perf/quest-2/costs/20261021T214216Z-e6f5b3b.json), over its bare meadow's 6.22 and 6.05 ms) | | 256 bushes | 7.37 | 6.52 | 4.54 µs a bush |
 | Walls, 10 m disc | 0.12 | 260 m² | 9.80 | 11.67 | 19.1 µs a m² |
 | Walls, 15 m disc | 0.11 | 476 m² | 10.83 | 12.08 | |
 | Walls, 20 m disc | 0.05 | 614 m² | 11.53 | 11.57 | |
