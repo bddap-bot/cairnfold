@@ -40,6 +40,15 @@ func _run() -> void:
 		await process_frame
 		await process_frame
 	_check(not hand._wheel_root.find_children("*", "Avatar", true, false).is_empty(), "the open avatar page contains figures")
+	for figure in hand._wheel_root.find_children("*", "Avatar", true, false):
+		for mesh in figure.find_children("*", "MeshInstance3D", true, false):
+			for surface in mesh.mesh.get_surface_count():
+				var material := mesh.get_active_material(surface) as BaseMaterial3D
+				_check(material != null and material.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED, "preview figures use the shared icon lighting")
+	for mesh in main.rig.body.find_children("*", "MeshInstance3D", true, false):
+		for surface in mesh.mesh.get_surface_count():
+			var material := mesh.get_active_material(surface) as BaseMaterial3D
+			_check(material != null and material.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED, "world avatars retain world lighting")
 	Buttons.injected.erase(button)
 	await process_frame
 	await process_frame
@@ -49,9 +58,16 @@ func _run() -> void:
 	Buttons.injected[button] = true
 	await process_frame
 	await process_frame
+	tree = hand.inventory()
+	for at in ToolWheel.sweep(tree, ToolWheel.paths(tree)["empty"]):
+		Hand.injected_reach[hand.tracker] = at
+		await process_frame
+		await process_frame
+	_check(hand.picking and hand._wheel_root.get_child_count() > 0, "zero-peer friends page is open before switching tools")
 	hand.tool = Hand.Tool.SEEDS
 	await process_frame
-	_check(not hand.picking and hand._wheel_root.get_child_count() == 0, "switching tools closes and frees the wheel")
+	_check(not hand.picking and hand._wheel_root.get_child_count() == 0, "zero-peer tool switch frees every menu figure")
+	Hand.injected_reach.erase(hand.tracker)
 	Buttons.injected.erase(button)
 	await process_frame
 	var bytes := FileAccess.get_file_as_bytes(Avatar.BUILT_IN[0])
@@ -62,6 +78,15 @@ func _run() -> void:
 	_check(ToolWheel.paths(hand.inventory()).has("avatar:file"), "the loaded file stays available on the wheel")
 	hand.people.activate("avatar:file")
 	_check(session.worn_key == key and main.rig.body.source == key, "the loaded file can be selected again")
+	var cached := -1
+	for repeat in 3:
+		var preview := hand.people.figure("avatar:0")
+		for mesh in preview.find_children("*", "MeshInstance3D", true, false):
+			Hand.unshade(mesh)
+		preview.free()
+		if cached >= 0:
+			_check(Hand._unshaded.size() == cached, "closing repeated previews does not retain their tint materials")
+		cached = Hand._unshaded.size()
 	var vanished := hand.people.figure("join:192.0.2.1:8000")
 	vanished.free()
 	main.queue_free()

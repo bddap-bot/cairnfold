@@ -133,13 +133,17 @@ static func unshade(mi: MeshInstance3D) -> void:
 		var mat := mi.get_active_material(i) as BaseMaterial3D
 		if mat == null or mat.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
 			continue
-		if not _unshaded.has(mat):
-			_unshaded[mat] = mat.duplicate()
-			_unshaded[mat].shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		var copy: BaseMaterial3D = _unshaded.get(mat)
+		if copy == null:
+			copy = mat.duplicate()
+			copy.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+			# Instance tints must die with their figures, rather than accumulate in the shared cache.
+			if mat == mi.mesh.surface_get_material(i):
+				_unshaded[mat] = copy
 		if mi.material_override == mat:
-			mi.material_override = _unshaded[mat]
+			mi.material_override = copy
 		else:
-			mi.set_surface_override_material(i, _unshaded[mat])
+			mi.set_surface_override_material(i, copy)
 
 
 func inventory() -> Array:
@@ -177,9 +181,8 @@ func _build_icons(items: Array, centre: Vector2, dirs: Array[Vector2], prefix: A
 		var i := icon(model)
 		if action:
 			model.transform = Transform3D(Basis.IDENTITY, Vector3(0, -0.027, 0))
-		else:
-			for mesh in i.find_children("*", "MeshInstance3D", true, false):
-				unshade(mesh)
+		for mesh in i.find_children("*", "MeshInstance3D", true, false):
+			unshade(mesh)
 		i.position = Vector3(at.x, at.y, 0)
 		i.scale = Vector3.ZERO
 		_wheel_root.add_child(i)
