@@ -184,10 +184,6 @@ func change_of(cmd: Dictionary) -> Dictionary:
 					var p: Flora.Plant = plants[i] if i >= 0 and i < plants.size() else null
 					if p != null and p.current() and p.shown() != cmd.on and not (cmd.on and _drowned(p)):
 						Budget.add(out, _unit(g, p), 1.0 if cmd.on else -1.0)
-		"tree":
-			var trunk: Flora.Plant = flora.groups[cmd.group][cmd.index]
-			if trunk.shown() and cmd.has("scale"):
-				Budget.add(out, {"tree": cmd.scale * cmd.scale - state.groups[cmd.group].scale.get(cmd.index, 1.0) ** 2})
 		"heights", "ponds":
 			var n := 0
 			for g in cmd.get("put", {}):
@@ -215,12 +211,9 @@ func change_of(cmd: Dictionary) -> Dictionary:
 	return out
 
 
-## What one plant counts as: the meadow's own plants are part of the base (Budget.COSTS), so one of its trees counts
-## only what it has grown; a tree counts by the ground its crown covers, as its scale squared.
+## The meadow's own plants are part of the base (Budget.COSTS); a planted tree costs one unit at every scale.
 func _unit(group: int, p: Flora.Plant) -> Dictionary:
 	var u := flora.unit_of(p)
-	if u == "tree":
-		return {u: state.groups[group].scale.get(p.index, 1.0) ** 2 - (1.0 if group == 0 else 0.0)}
 	return {} if u == "" or group == 0 else {u: 1}
 
 
@@ -782,8 +775,6 @@ func _apply(cmd: Dictionary) -> Dictionary:
 					g[k].erase(cmd.index)
 				else:
 					g[k][cmd.index] = cmd[k]
-			if trunk.shown() and cmd.has("scale"):
-				Budget.add(units, {"tree": cmd.scale * cmd.scale - inverse.scale ** 2})
 			flora.set_look(trunk, g.species.get(cmd.index, FloraLayout.Species.OAK), g.scale.get(cmd.index, 1.0))
 			flora.set_moss(trunk, g.moss.get(cmd.index, false))
 		"heights":

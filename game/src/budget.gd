@@ -47,7 +47,9 @@ const BOULDER_LEAST := 0.25
 const MOSS_FLOWERS := 16.0
 ## The Frame's runtime halves the rate once a frame nears 0.88 of the period: held to the governor's line under it.
 const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.33, "grass": 0.177, "flower": 0.215, "tree": 20.457, "bush": 1.599, "wall_m2": 6.901, "plaster_m2": 2.006, "fence_m2": 3.166, "pond": 19.484, "roof_m2": 6.647, "thatch_m2": 3.477, "fitting": 15.609, "easel": 532.153, "boulder": 9.068, "timber": TIMBER_US, "moss": 0.215 * MOSS_FLOWERS}
-const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.1, "grass": 0.449, "flower": 0.678, "tree": 70.711, "wall_m2": 19.054, "plaster_m2": 6.46, "fence_m2": 4.348, "pond": 89.764, "roof_m2": 30.465, "thatch_m2": 51.347, "fitting": 21.346, "bush": 0.0, "easel": 1091.208, "timber": TIMBER_US, "boulder": 20.6, "moss": 0.678 * MOSS_FLOWERS}
+## Full tree pools at scales 1, 2 and 3 cost at most 53.811 us per tree at fit_step (demo/tree-scale.json).
+## Round up and keep one unit at every scale: the dense layout measured no growth in cost, and gets no size discount.
+const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.1, "grass": 0.449, "flower": 0.678, "tree": 54.0, "wall_m2": 19.054, "plaster_m2": 6.46, "fence_m2": 4.348, "pond": 89.764, "roof_m2": 30.465, "thatch_m2": 51.347, "fitting": 21.346, "bush": 0.0, "easel": 1091.208, "timber": TIMBER_US, "boulder": 20.6, "moss": 0.678 * MOSS_FLOWERS}
 
 
 ## The ladder step `on`'s COSTS are fitted at (demo/costs.json), so a garden within its budget holds 72 Hz there: the

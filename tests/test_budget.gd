@@ -108,7 +108,7 @@ func _counts_follow_placements_and_deletions() -> void:
 		_check(Budget.room_ms(on) > 0.0 and Budget.fits(meadow, {"wall_m2": 1.0}, [on]), "a fresh garden has room to build on %s" % Budget.Device.keys()[on])
 	_check(_same(world.units, _recount()), "a fresh garden counts what it holds")
 	world._order({"op": "tree", "group": 0, "index": world.flora.meadow_trees()[0], "scale": 2.0}, world.me())
-	_check(is_equal_approx(world.units.get("tree", 0.0), 3.0), "a meadow tree grown counts only its growth: %s" % world.units)
+	_check(world.units.is_empty(), "a meadow tree stays in the base when resized: %s" % world.units)
 	world._order({"op": "undo"}, world.me())
 	_check(world.units.is_empty(), "and shrunk back counts nothing again: %s" % world.units)
 	await _play([
@@ -122,6 +122,15 @@ func _counts_follow_placements_and_deletions() -> void:
 	await _settled()
 	_check(world.units.get("wall_m2", 0.0) > 0.0 and not world.units.has("path_m2") and world.units.get("pond", 0) == 1, "walls, ponds and reserved path steps count: %s" % world.units)
 	_check(world.units.get("tree", 0) == 1 and world.units.get("flower", 0) > 0, "a planted tree and painted flowers count: %s" % world.units)
+	var planted: int = world.state.groups.keys().filter(func(g: int) -> bool: return world.state.groups[g].kind == "tree")[0]
+	var before_resize := world.units.duplicate()
+	for scale in [0.4, 2.0, 3.0]:
+		var resize := {"op": "tree", "group": planted, "index": 0, "scale": scale}
+		_check(world.change_of(resize).is_empty(), "resizing predicts no extra charge")
+		world._order(resize, world.me())
+		_check(_same(world.units, before_resize) and _same(world.units, _recount()), "resizing keeps the planted tree charged once")
+		world._order({"op": "undo"}, world.me())
+		_check(_same(world.units, before_resize), "undoing a resize preserves its charge")
 	_check(_same(world.units, _recount()), "what the garden counts matches what it holds: %s against %s" % [world.units, _recount()])
 	var wall_id: int = world.state.walls.keys()[0]
 	var wall_units := Budget.wall(world.state.walls[wall_id])

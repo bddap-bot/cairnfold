@@ -2345,13 +2345,53 @@ wine-red dome. Every species is the same trunk and eight foliage blobs placed di
 species in the slots it holds and a forest costs what it did: on a Quest 2, `demo/forest.json`'s full tree
 pool drew 24.3 ms of GPU a frame with every species in turn, against 25.2 ms all oaks. Planted trees and the meadow's own are oaks
 until styled. A tree's size is apart from its species: a grip grows or shrinks it in the slots it holds (see "VR controls"),
-and the frame budget charges a tree by its scale squared, the ground its crown covers. Fences, ladders and bushes have no style. The style tool only restyles: it never cuts or fills an opening, which
+and the frame budget charges one unit per planted tree at every scale (the measured fit below). Fences, ladders and bushes have no style. The style tool only restyles: it never cuts or fills an opening, which
 is the windows' and the arch's work. Report (verbatim): "I dont understand why the style selector is adding
 doorways. It seems the style selector seems to add archways to the house for some reason. Is that an
 accident" Directive (verbatim): "Yeah that would make more sense." (to taking arches off the style wheel as
 their own tool). A garden's arches are stored on the wall as where they stand, never as a face, so saves made
 while the face wheel cut them load with them standing. Directive (verbatim): "I think plaster is just another style
 btw." Directive (verbatim): "Let's add tree styles. Each tree style is a species."
+
+### Scaled tree cost on Quest 2
+
+`demo/tree-scale.json` fills all 64 planted-tree slots within a 14 m radius,
+cycling species with a fixed placement seed. At `Budget.fit_step` (0.7 render
+scale, 72 Hz), it measures scales 1, 2 and 3, then 3, 2 and 1, with bare baselines
+before, between and after. Each view settles for 5 s and measures for 20 s; the
+first measurement second is excluded. The aerial eye is [0, 30, 40], looking at
+[0, 4, 0]; the ground eye is [0, 1.65, 0], looking at [10, 1, 3]. CPU and GPU
+levels are held at 4 by `scripts/bench.sh`.
+
+GPU milliseconds per planted tree, subtracting the same view's bare baseline
+interpolated between the adjacent baseline phases and dividing by 64:
+
+| Scale | Aerial, viewport pass 1 / 2 | Ground, viewport pass 1 / 2 |
+| --- | --- | --- |
+| 1 | 0.053811 / 0.053692 | 0.015348 / 0.015244 |
+| 2 | 0.049387 / 0.049150 | 0.016037 / 0.014848 |
+| 3 | 0.025766 / 0.028202 | 0.008762 / 0.008716 |
+
+The viewport timer is the budget governor's signal. The runtime's independent
+`App=` timer measured total aerial GPU times of 9.24 / 9.22 ms at scale 1,
+8.96 / 8.93 ms at scale 2, and 8.20 / 8.37 ms at scale 3; bare aerial phases
+were 6.39, 6.47 and 6.45 ms. All 18 phases held 72 Hz with zero late frames.
+The phase record is `perf/quest-2/tree-scale/measured.json`.
+
+The fitted charge is constant: `scale^0`, equivalently `a + b*scale^2` with
+`a = 1`, `b = 0`. `Budget.QUEST_2_COSTS.tree` is 54 microseconds, the largest
+measured viewport increment per tree rounded up. A planted tree counts once;
+a meadow tree stays in the base, and resizing changes neither count. Smaller
+trees receive no discount, including the unmeasured 0.4-to-1 range. The Frame
+keeps its existing per-tree price and shares this unit definition; scaled trees
+were not measured there.
+
+This is a dense-pool fit in these two views, not an isolated-tree or every-view
+upper bound. Larger crowns changed the view's coverage while primitive counts
+stayed approximately constant; the cause of the lower GPU time was not isolated.
+The fit therefore grants no discount for the lower scale-3 readings.
+`demo/stress.json` now fills its tree pool at scale 3.
+
 
 Floating turns the meadow into a diorama: drawing works from any height because
 the pointer ray hits the terrain, so you can lay out a whole castle from above and
