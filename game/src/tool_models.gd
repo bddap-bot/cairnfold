@@ -821,7 +821,7 @@ static func _stones(root: Node3D, stones: Array[Dictionary], scale: float) -> vo
 	for mmi: MultiMeshInstance3D in node.get_children():
 		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		# Millimetre stones need their colour and light, not the garden shader's terrain and room probes.
-		mmi.material_override = _vertex_mat("tool_stone", 0.9)
+		mmi.material_override = _vertex_mat("tool_stone", 0.9, false)
 		if mmi.multimesh.mesh == Stones.mesh():
 			mmi.multimesh.mesh = Stones.far_mesh()
 	root.add_child(node)
