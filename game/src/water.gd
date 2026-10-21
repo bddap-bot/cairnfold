@@ -2,9 +2,12 @@ class_name Water
 extends Node3D
 
 ## Every pond, as `World` fills them (`show`). Pond levels are shared with shaders (water.gdshaderinc), so the
-## bed turns to sand and drowned plants go without touching an instance. Hands that break a surface ripple it.
+## bed turns to sand and the meadow's drowned grass and flowers go without touching an instance. Hands that break a
+## surface ripple it.
 
 const RIPPLE_MOVE := 0.07
+## Water deeper than this over a plant's root drowns it, as water.gdshaderinc's `drowned` reads it.
+const DROWNS := 0.02
 ## How finely `crosses` looks for water where a pond is near.
 const WADE := 0.1
 
@@ -145,6 +148,10 @@ func _publish() -> void:
 	for g in changed:
 		cells = cells.expand(g)
 	refilled.emit(Terrain.world_rect(cells.grow_individual(0, 0, 1, 1)))
+
+
+static func drowned(at: Vector3) -> bool:
+	return Terrain.depth_at(at.x, at.z) > DROWNS
 
 
 func floor_at(p: Vector3) -> float:

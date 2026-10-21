@@ -149,6 +149,17 @@ static func _depth(k: int) -> float:
 	return DRY if _water[k] == NO_WATER else maxf(_water[k] - _heights[k], DRY)
 
 
+## How deep pond water stands over (x, z), bilinear between grid points as the shaders read it (water.gdshaderinc):
+## DRY where no pond reaches.
+static func depth_at(x: float, z: float) -> float:
+	var u := clampf((x + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
+	var v := clampf((z + SIZE * 0.5) / STEP, 0.0, CELLS - 0.001)
+	var i := int(u)
+	var j := int(v)
+	var k := j * VERTS + i
+	return lerpf(lerpf(_depth(k), _depth(k + 1), u - i), lerpf(_depth(k + VERTS), _depth(k + VERTS + 1), u - i), v - j)
+
+
 ## The pond surface over (x, z), bilinear between grid points: far below the ground where no pond is.
 static func water_at(x: float, z: float) -> float:
 	return _height(x, z, _heights, _humps, _water)

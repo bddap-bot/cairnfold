@@ -156,6 +156,8 @@ func _handle(b: Brush, delta: float) -> void:
 		end_stroke(b)
 		return
 	if PLACES.has(held):
+		if Water.drowned(hit):
+			return
 		world.preview(b.hand, Budget.plants(PLACES[held], 1))
 		if b.buttons.pressed("tool"):
 			place(PLACES[held], hit, b.hand)

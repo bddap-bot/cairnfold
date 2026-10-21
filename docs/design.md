@@ -2419,8 +2419,10 @@ the frame back, which on a tiled GPU costs a full-frame resolve per eye:
 - **One shared level:** pond levels go to shaders as a texture on the ground grid
   (`water.gdshaderinc`), beside the ground heights. The water shader takes its depth from the heights, the
   terrain shader turns a pond's bed and a hand's breadth of bank to wet, pebbled sand under drifting
-  caustics, and grass, flowers and trees standing under water collapse in their vertex shaders. No
-  instance is touched, and undo needs no bookkeeping.
+  caustics, and the meadow's grass and flowers standing under water collapse in their vertex shaders,
+  touching no instance. A tree or bush never stands in water: the ground or pond edit that covers its root
+  takes it out as the delete tool would, out of the budget, the save and every player's garden, and undoing
+  that edit stands it back up. The flora tool plants none where water stands.
 - **Colour:** clear turquoise in the shallows to deep teal, opacity rising with depth; a broken foam
   line at the shore and faint foam bands drifting toward it.
 - **Ripples:** two scrolling normal maps for the breeze, plus up to twelve rings where a hand dips in

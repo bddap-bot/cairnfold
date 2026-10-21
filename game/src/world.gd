@@ -18,6 +18,8 @@ const WIPED := "*"
 ## A growing plant stands at its spot's height above the ground as it is when it grows, so new heights wait for
 ## every stroke to grow.
 const GROWS_FIRST := ["heights"]
+## Commands that can leave a tree or bush standing where water covers its root, which `_drown` then takes out.
+const DROWNING := ["heights", "ponds", "plant"]
 ## A saved garden from another format is moved aside rather than rebuilt into a different one: 3 paints
 ## each build its own colours.
 const FORMAT := 3
@@ -180,7 +182,7 @@ func change_of(cmd: Dictionary) -> Dictionary:
 				var plants: Array = flora.groups.get(g, [])
 				for i in cmd.plants[g]:
 					var p: Flora.Plant = plants[i] if i >= 0 and i < plants.size() else null
-					if p != null and p.current() and p.shown() != cmd.on:
+					if p != null and p.current() and p.shown() != cmd.on and not (cmd.on and _drowned(p)):
 						Budget.add(out, _unit(g, p), 1.0 if cmd.on else -1.0)
 		"tree":
 			var trunk: Flora.Plant = flora.groups[cmd.group][cmd.index]
@@ -413,6 +415,9 @@ func _order(proposed: Dictionary, by: int) -> void:
 	if cmd.op == "sky":
 		return
 	var keys := _keys(cmd)
+	for k in _keys(inverse) if inverse.has("op") else []:
+		if not k in keys:
+			keys.append(k)
 	for k in keys:
 		touched.get_or_add(k, {})[by] = seq
 	var mine: Dictionary = stacks.get_or_add(by, {"undo": [], "redo": []})
@@ -753,7 +758,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 		"show":
 			var changed := {}
 			for g in cmd.plants:
-				var did := flora.set_shown(g, cmd.plants[g], cmd.on)
+				var did := flora.set_shown(g, _dry(g, cmd.plants[g]) if cmd.on else cmd.plants[g], cmd.on)
 				if did.is_empty():
 					continue
 				changed[g] = did
@@ -872,6 +877,10 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			if boulders != null:
 				boulders.take(cmd.id)
 			_account("b%d" % cmd.id, {})
+	if cmd.op in DROWNING and flora != null:
+		var back := _drown()
+		if not back.is_empty():
+			inverse = {"op": "batch", "cmds": [inverse, back]}
 	if mine and last:
 		_settle(cmd.token)
 	applied.emit(cmd)
@@ -879,6 +888,36 @@ func _apply(cmd: Dictionary) -> Dictionary:
 		_keep_due = true
 		_keep.call_deferred()
 	return inverse
+
+
+## Takes out every tree and bush standing where water covers its root, as the delete tool takes one, so a pond never
+## hides one that still stands; returns what brings them back, or {} for none.
+func _drown() -> Dictionary:
+	var by_group := {}
+	for parts in flora.solids():
+		if Water.drowned(parts[0].anchor):
+			for p: Flora.Plant in parts:
+				by_group.get_or_add(p.group, []).append(p.index)
+	if by_group.is_empty():
+		return {}
+	for g in by_group:
+		by_group[g] = PackedInt32Array(by_group[g])
+	return _apply({"op": "show", "plants": by_group, "on": false})
+
+
+## Whether `p` is part of a tree or bush whose root water covers, which may not stand.
+func _drowned(p: Flora.Plant) -> bool:
+	return p.pool in [flora.trunks, flora.foliage, flora.bushes] and Water.drowned(p.anchor)
+
+
+## Of group `g`'s plants at `indices`, those that may stand.
+func _dry(g: int, indices: PackedInt32Array) -> PackedInt32Array:
+	var plants: Array = flora.groups.get(g, [])
+	var out := PackedInt32Array()
+	for i in indices:
+		if i < 0 or i >= plants.size() or plants[i] == null or not _drowned(plants[i]):
+			out.append(i)
+	return out
 
 
 ## Takes `cmd`'s ponds out and puts its new ones in, then fills every pond over the ground as it stands. A pond that

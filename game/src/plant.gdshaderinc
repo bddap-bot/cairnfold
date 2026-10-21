@@ -124,12 +124,11 @@ void vertex() {
 	bounce_at = bounce_coord(VERTEX, NORMAL);
 	lamp_at = lamp_coord(VERTEX, NORMAL);
 #ifdef PARTED
+	// The meadow's flowers drown; a tree or bush never stands in water (World._drown).
 	if (depth > 0.02 && wet == 0.0) {
-#else
-	if (drowned(INSTANCE_CUSTOM.zw)) {
-#endif
 		VERTEX = vec3(INSTANCE_CUSTOM.z, ground, INSTANCE_CUSTOM.w);
 	}
+#endif
 #ifdef BACKLIT
 	COLOR.rgb = seasoned(albedo * COLOR.rgb, season_foliage) * mix(vec3(1.0), CROWN_SHADE, smoothstep(0.2, -0.8, NORMAL.y));
 #endif

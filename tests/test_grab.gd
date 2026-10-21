@@ -396,11 +396,12 @@ func _run() -> void:
 	await _two_hands_stretch_an_opening(rig)
 	hand.tool = Hand.Tool.POND
 	hand.global_basis = Basis.looking_at(Vector3(0, -0.6, -1))
-	var made := _made(["ponds"])
+	var made := _made(["ponds", "groups"])
 	var heights := Terrain.read(Terrain.ALL)
 	Buttons.injected["right_hand/trigger_click"] = true
 	await _frames()
-	_check(_made(["ponds"]) == made and Terrain.read(Terrain.ALL) == heights, "the pond tool's trigger on the meadow never shapes the ground, only fills what its hollows hold")
+	_check(_made(["ponds", "groups"]) == made and Terrain.read(Terrain.ALL) == heights, "the pond tool's trigger on the meadow never shapes the ground, only fills what its hollows hold")
+	_check(not main.world.flora.solids().any(func(parts: Array) -> bool: return Water.drowned(parts[0].anchor)), "and takes out the trees and bushes its water covers")
 	_check(hand._beam.visible and hand._dot.visible, "the pond tool keeps its pointer")
 	Buttons.injected.erase("right_hand/trigger_click")
 	hand.tool = Hand.Tool.WALLS
