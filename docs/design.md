@@ -3265,8 +3265,18 @@ of the board goes to the garden as one command (`mix`, docs/multiplayer.md) carr
 brush lifts off it, so every player sees the palette as it was left, and undo takes a working back. The board draws
 as one texture over the palette's wood, the paint's amount as its alpha.
 
-What it costs: the board's work runs only while a brush touches it, about 0.1 ms a frame on a desktop CPU under a
-big brush; one draw call and one texture per easel, updated only on frames a brush changes it.
+What it costs: on a Quest 2, a full-pressure big brush (24 mm radius) takes 0.200–0.206 ms of CPU work per
+frame touching the board (six touches of 181 frames each, 0.202 ms mean, 0.293 ms worst frame, including texture
+updates). The board costs one draw call and one 48×32 texture per easel, updated only on frames a brush changes it.
+In `demo/easel-bench.json`, three fixed close-view comparisons of one easel at the Quest 2's fitted quality step
+read 6.91/6.88, 6.87/7.01 and 6.98/6.96 ms of GPU time per frame for clean/painted boards (runtime `App=` medians,
+15 seconds per phase, first sample discarded; clocks held at level 4). All six phases held 72 Hz with no late frames.
+Painting the field adds no consistent GPU cost resolved by these runs: paired differences are −0.03, +0.14 and
+−0.02 ms per easel. The second pair also varies in scene primitives, so the +0.14 ms is not isolated field cost.
+The clean board already draws the transparent quad; this comparison measures adding paint, not removing the quad.
+These costs need no lower update rate. The full bench also measures canvas painting: its watercolour and drying
+phases exceed budget independently of these mixing phases. The record is
+`perf/quest-2/easel-bench/mixing-field.json`.
 
 The stand's legs run parallel to the canvas a few centimetres behind its backing, so no plank crosses the painting
 from anywhere a player stands. A well counts as reached over its whole footprint and through the board, because no
