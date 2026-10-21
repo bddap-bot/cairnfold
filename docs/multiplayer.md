@@ -150,8 +150,8 @@ its offset in Unity's axes). That is all a head-and-hands avatar needs.
   Quests) or on a flat screen, ahead of the head, or at the nearest other player's face
   within 30 degrees of ahead and 4 m. The player's own game steadies the look before
   sending it: slowly for small movements, so tracking noise does not jitter the eyes, and
-  faster the further it lags, so a glance lands in a few frames instead of drifting. This places tracked parts only; there is no invented
-  animation. Avatars play human-made animation only. A flat-screen player waves
+  faster the further it lags, so a glance lands in a few frames instead of drifting. This places tracked parts only. Avatar
+  body motion prefers human-made recordings to invented poses. A flat-screen player waves
   with CMU mocap trial 141_16 (see `LICENSE-CMU-WAVE`); its recorded hands travel
   through the same Session poses as tracked VR hands.
   Avatars keep their own size, so a small one's feet stand off the ground under a

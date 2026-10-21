@@ -25,8 +25,11 @@ aiming at; our implementation is our own.
 - Hold the headset's refresh rate at all times, whatever is built. A frame that
   misses vsync in VR is felt, not seen; every feature is measured at worst-case
   density before it lands (see "Frame budget").
-- Original assets, generated procedurally wherever possible; avatar motion uses
-  licensed human-made recordings (`LICENSE-CMU-WAVE`), never invented animation.
+- Original assets, generated procedurally wherever possible. Human avatar motion
+  prefers licensed human-made recordings (`LICENSE-CMU-WAVE`) to invented poses; a
+  preference, not a gate. Animals move by animation made here, procedural or not.
+
+  Directive (verbatim): "if we removed bot-made animations from animals because of our bot-made animation rule, we can add them back. that rule applies to *human* posing. and it please treat it as a suggestion, not a rule. I seem to recall seeing some good wing flits on ducks before."
 - One input mapping that works on any OpenXR controller with a stick, trigger,
   grip and two face buttons.
 - No text, with one exception: the player's name in the session picker (the visit
