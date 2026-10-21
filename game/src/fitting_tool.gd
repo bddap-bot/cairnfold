@@ -95,7 +95,7 @@ func _process(delta: float) -> void:
 
 ## What a press from `origin` along `dir` would do with `tool`: a dictionary naming `what` and where, or empty.
 func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
-	var pick := pick_target(walls, origin, dir)
+	var pick := pick_target(walls, origin, dir, false, tool == Hand.Tool.DECORATIONS)
 	var ground: Variant = Terrain.raycast(origin, dir)
 	var facing := atan2(-dir.x, -dir.z)
 	if tool == Hand.Tool.DECORATIONS:
@@ -405,13 +405,16 @@ func _exit_tree() -> void:
 
 ## Placement and deletion refine the same first building surface with the fittings in front of it that the garden has:
 ## a previewed opening is the hand's own aim, never something to take away. A `held` pick also sees builds another
-## hand is pulling, as `WallTool.pick_building` does.
-static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held := false) -> Dictionary:
-	var best := builder.pick_building(origin, dir, held)
+## hand is pulling, and `through_arches` sees through an arch, as `WallTool.pick_building` does; without it a grip or
+## a delete into the hole takes the arch.
+static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held := false, through_arches := false) -> Dictionary:
+	var best := builder.pick_building(origin, dir, held, through_arches)
 	for w in builder.walls:
 		if builder._held(w) and not held:
 			continue
 		for item in targets(w):
+			if through_arches and item.what == "opening" and item.value.z == WallLayout.DoorStyle.ARCHWAY:
+				continue
 			var box: AABB = item.box
 			var local: Vector3 = item.inverse * origin
 			var direction: Vector3 = item.inverse.basis * dir

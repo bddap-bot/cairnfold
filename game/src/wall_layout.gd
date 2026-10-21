@@ -853,6 +853,15 @@ func opening_at(s: float, y: float) -> Dictionary:
 	return _opening_in(apertures, s, y)
 
 
+## Whether a face point lies in an arch's opening, down through the courses cut under it: a door's planks and a
+## window's glass close theirs, nothing an arch's. A fence's gate is open between its posts.
+func open_at(s: float, y: float) -> bool:
+	for o in apertures:
+		if o.style == DoorStyle.ARCHWAY and absf(offset(s, o.s)) < (ARCH_HALF if fence else opening(y, false, o.size)):
+			return true
+	return false
+
+
 func _opening_in(list: Array[Dictionary], s: float, y: float) -> Dictionary:
 	for o in list:
 		if absf(offset(s, o.s)) < (opening(y, false, o.size) if o.style == DoorStyle.ARCHWAY else o.half + 0.05) and y > o.sill - 0.05 and y < o.head + 0.05:

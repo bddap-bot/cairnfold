@@ -1407,14 +1407,15 @@ func _ridge(w: Wall) -> Vector3:
 
 
 ## All building tools select the first surface, before deciding what that surface allows.
-## A held pick also sees builds another hand is pulling.
-func pick_building(origin: Vector3, dir: Vector3, held := false) -> Dictionary:
+## A held pick also sees builds another hand is pulling. `through_arches` sees through an arch's opening, as the
+## teleport and a decoration placed beyond it do; a tool working the wall itself, or the arch's own ghost, does not.
+func pick_building(origin: Vector3, dir: Vector3, held := false, through_arches := false) -> Dictionary:
 	var best := {}
 	for w in walls:
 		if _held(w) and not held:
 			continue
 		if w.pick_bounds.grow(WALL_PICK).intersects_ray(origin, dir) != null:
-			var hit := w.ray_hit(origin, dir)
+			var hit := w.ray_hit(origin, dir, through_arches)
 			if not hit.is_empty() and hit.along < best.get("along", INF):
 				best = hit
 				best.wall = w
@@ -1430,7 +1431,7 @@ func pick_building(origin: Vector3, dir: Vector3, held := false) -> Dictionary:
 
 ## The first building or plant surface along a teleport ray, short of reach.
 func solid_hit(origin: Vector3, dir: Vector3, reach: float) -> Variant:
-	var hit := pick_building(origin, dir)
+	var hit := pick_building(origin, dir, false, true)
 	var best: float = minf(minf(reach, hit.get("along", INF)), pick_floor(origin, dir).get("along", INF))
 	var plant := flora.solid_hit(origin, dir, best)
 	if not plant.is_empty():

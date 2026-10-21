@@ -744,8 +744,9 @@ func ray_distance(origin: Vector3, dir: Vector3) -> Dictionary:
 	return {"distance": best_d, "s": layout.lengths[best_i] if best_d < INF else 0.0, "point": best_p, "along": best_t if best_d < INF else INF, "through": best_key.x == 0.0}
 
 
-## Intersects the continuous wall body between samples, including its foundation and top.
-func ray_hit(origin: Vector3, dir: Vector3) -> Dictionary:
+## Intersects the continuous wall body between samples, including its foundation and top; `through_arches` sees
+## through each arch's opening to the stone round it.
+func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictionary:
 	if not _ruin_pick.is_empty():
 		return _ruin_hit(origin, dir)
 	var best := {}
@@ -776,10 +777,51 @@ func ray_hit(origin: Vector3, dir: Vector3) -> Dictionary:
 		var t: float = (hit - local).dot(direction) / direction.length_squared()
 		if layout.hides(origin + dir * t):
 			continue
+		if t >= best.get("along", INF):
+			continue
+		var end := layout.lengths[j] if j > 0 else layout.length()
+		if through_arches and _open(i, end, length, local + direction * t):
+			var open := func(at: float) -> bool: return _open(i, end, length, local + direction * at)
+			t = _first_solid(open, t, _exit(box, local, direction))
+			if t == INF or layout.hides(origin + dir * t):
+				continue
 		if t < best.get("along", INF):
-			var end := layout.lengths[j] if j > 0 else layout.length()
-			best = {"along": t, "point": origin + dir * t, "s": lerpf(layout.lengths[i], end, clampf(hit.x / length, 0.0, 1.0)), "distance": 0.0}
+			var along_wall: float = (local + direction * t).x
+			best = {"along": t, "point": origin + dir * t, "s": lerpf(layout.lengths[i], end, clampf(along_wall / length, 0.0, 1.0)), "distance": 0.0}
 	return best
+
+
+## Whether point `p`, in the frame of the stretch from sample `i` to arc length `end`, `length` long, lies in an arch.
+func _open(i: int, end: float, length: float, p: Vector3) -> bool:
+	return layout.open_at(lerpf(layout.lengths[i], end, p.x / length), p.y)
+
+
+## Where a ray inside `box` leaves it.
+static func _exit(box: AABB, local: Vector3, direction: Vector3) -> float:
+	var out := INF
+	for k in 3:
+		if absf(direction[k]) > 1e-9:
+			out = minf(out, ((box.end[k] if direction[k] > 0.0 else box.position[k]) - local[k]) / direction[k])
+	return out
+
+
+## The first `along` from `from` to `to` that is not `open`, to a millimetre, or INF where the ray stays open, as it
+## does through an arch. An arch's opening narrows only upward, so stepping finer than a jamb's thickness finds it.
+static func _first_solid(open: Callable, from: float, to: float) -> float:
+	var steps := clampi(ceili((to - from) / 0.05), 1, 400)
+	var last := from
+	for k in steps:
+		var at := lerpf(from, to, float(k + 1) / steps)
+		if not open.call(at):
+			for n in 8:
+				var mid := (last + at) * 0.5
+				if open.call(mid):
+					last = mid
+				else:
+					at = mid
+			return at
+		last = at
+	return INF
 
 
 ## A ruined wall has no continuous body. Build its query trees with the masonry on the worker,
