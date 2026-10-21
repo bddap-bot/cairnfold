@@ -143,8 +143,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 				var reveal: bool = y < w.spring(k) and w.arch_style().jamb == 0.0 and absf(d) < WallLayout.ARCH_HALF * k + WallLayout.JOINT + 0.02
 				var p: Vector3 = w.frame_at(a + d).point + Vector3.UP * y
 				var hit := near.any(func(st: Dictionary) -> bool:
-					var q: Vector3 = st.xform.affine_inverse() * p
-					return absf(q.x) <= 0.5 and absf(q.y) <= 0.5 and absf(q.z) <= 0.5)
+					return _holds(st, p))
 				if absf(d) < inner - 0.03 and hit:
 					blocked.append(Vector2(d, y))
 				elif absf(d) > edge and not reveal and not hit:
@@ -177,17 +176,17 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 				if absf(d) > o.half + WallLayout.JOINT + 0.03 or y > o.head + door.course_height() + 0.03:
 					var p: Vector3 = door.frame_at(a + d).point + Vector3.UP * y
 					if not door.stones.any(func(st: Dictionary) -> bool:
-						var q: Vector3 = st.xform.affine_inverse() * p
-						return absf(q.x) <= 0.5 and absf(q.y) <= 0.5 and absf(q.z) <= 0.5):
+						return _holds(st, p)):
 						gaps.append(Vector2(d, y))
 				d += 0.04
 			y += 0.04
 		_check(gaps.is_empty(), "%s: gaps between door and wall at %s" % [name, gaps.slice(0, 8)])
 
 
-## An arch of any size is the doorway's, scaled: its opening, its ring of voussoirs and its keystone, under the top.
+## An arch of any size is the doorway's, scaled: its opening, its ring of voussoirs and its keystone, under the top,
+## every one a wedge whose joints run through the arch's centre.
 func _a_grand_arch_is_a_doorway_arch_scaled() -> void:
-	for k in [1.0, 2.0, 3.5]:
+	for k in [WallLayout.MIN_SIZE, 1.0, 2.0, 3.5]:
 		var w := WallLayout.new()
 		w.points = [Vector3(0, 0, 0), Vector3(16, 0, 0)]
 		w.height = 6.0
@@ -203,7 +202,35 @@ func _a_grand_arch_is_a_doorway_arch_scaled() -> void:
 			_check(absf(r - (WallLayout.ARCH_HALF + WallLayout.RING * 0.5) * k) < 0.05 * k, "size %.1f: voussoir off its ring: r=%f" % [k, r])
 		var key := w.stones.filter(func(st): return st.kind == "keystone")
 		_check(key.size() == 1 and key[0].y > w.apertures[0].head - WallLayout.RING * k, "size %.1f: its keystone closes the head" % k)
+		for st in ring + key:
+			var miss := _joint_miss(st, Vector2(8.0, w.spring(k) + st.xform.origin.y - st.y))
+			_check(miss < 0.01, "size %.1f: a %s's joints run %.3f m wide of the arch's centre" % [k, st.kind, miss])
 		_check(w.apertures[0].head <= w.height - 0.3 + 0.01, "size %.1f: its ring stays under the top" % k)
+
+
+## Whether `p` lies in laid piece `st` as it is drawn, its ends cut as WallLayout.drawn_corners cuts them.
+func _holds(st: Dictionary, p: Vector3) -> bool:
+	var x: Transform3D = st.xform
+	var q := x.affine_inverse() * p
+	var e: Vector2 = st.get("ends", Vector2.ZERO)
+	var axis := x.basis.y.normalized()
+	q.x -= q.z * x.basis.z.length() * tan(e.x if q.x < 0.0 else e.y) / (x.basis.x - axis * x.basis.x.dot(axis)).length()
+	return absf(q.x) <= 0.5 and absf(q.y) <= 0.5 and absf(q.z) <= 0.5
+
+
+## How far wide of `centre`, in the plane of a wall along x, the farther of a wedge's two joint lines runs, as the stone
+## shader cuts its ends (`ends`, turning about its local y), less the half joint each end stands back.
+func _joint_miss(st: Dictionary, centre: Vector2) -> float:
+	var x: Transform3D = st.xform
+	var e: Vector2 = st.get("ends", Vector2.ZERO)
+	var miss := 0.0
+	for side in [-1.0, 1.0]:
+		var p: Vector3 = x.origin + x.basis.x * 0.5 * side
+		var d: Vector3 = x.basis.z + x.basis.x.normalized() * x.basis.z.length() * tan(e.x if side < 0.0 else e.y)
+		var along := Vector2(d.x, d.y).normalized()
+		var to := centre - Vector2(p.x, p.y)
+		miss = maxf(miss, absf(to.x * along.y - to.y * along.x) - WallLayout.ARCH_STYLES[0].joint * 0.5)
+	return miss
 
 
 ## The largest arch that opens reaches up to the wall's top, ring and all, however tall the wall: a grand arch is

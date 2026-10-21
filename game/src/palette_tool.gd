@@ -417,6 +417,9 @@ static func _on_timber(layout: WallLayout, point: Vector3) -> bool:
 	for part in layout.stones:
 		if part.kind == "timber":
 			var local: Vector3 = part.xform.affine_inverse() * point
+			# An arch's wedge runs through the wall along its local y (WallLayout._wedge).
+			if part.has("ends"):
+				local = Vector3(local.x, local.z, local.y)
 			if absf(local.x) <= 0.5 and absf(local.y) <= 0.65 and absf(local.z) <= 3.5:
 				return true
 	return false

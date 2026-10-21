@@ -61,9 +61,22 @@ func lay(stones: Array[Dictionary]) -> void:
 		mm.set_instance_custom_data(i, custom(s))
 
 
-## A laid part's custom data: its occlusion, and the code of the material it is painted with.
+## A laid part's custom data: its occlusion, the code of the material it is painted with, and its end turns.
 static func custom(part: Dictionary) -> Color:
-	return Color(part.ao, Palette.code(part.get("kind", "")), 0, 0)
+	var e := ends(part)
+	return Color(part.ao, Palette.code(part.get("kind", "")), e.x, e.y)
+
+
+## A laid part's end turns (`WallLayout._wedge`) in its mesh's own frame, under the flip of its variant (FLIPS): turning
+## about local y swaps its ends, about local x reverses its z.
+static func ends(part: Dictionary) -> Vector2:
+	var e: Vector2 = part.get("ends", Vector2.ZERO)
+	match int(part.get("variant", 0)):
+		1:
+			return Vector2(e.y, e.x)
+		2:
+			return -e
+	return e
 
 
 func count() -> int:

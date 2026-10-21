@@ -33,8 +33,9 @@ void vertex() {
 	world_pos = VERTEX;
 	world_nrm = NORMAL;
 #else
-	// A wall panel's ends turn by INSTANCE_CUSTOM.zw about the vertical: each end is cut along the bisector with its
-	// neighbour, and its faces' normals turned to that bisector's, so a curved run of panels closes and shades round.
+	// A piece's ends turn by INSTANCE_CUSTOM.zw about its local y: a wall panel's each cut along the bisector with its
+	// neighbour, an arch's wedge on lines through the arch's centre; its z faces' normals turn with each end, so a
+	// curved run of panels or a ring of wedges closes and shades round.
 	#ifdef ROOF_TIMBER
 	float turn = 0.0;
 #else
@@ -42,10 +43,12 @@ void vertex() {
 #endif
 	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	if (turn != 0.0) {
-		VERTEX.x += VERTEX.z * length(MODEL_MATRIX[2].xyz) * tan(turn) / length(MODEL_MATRIX[0].xz);
+		vec3 axis = normalize(MODEL_MATRIX[1].xyz);
+		vec3 run = MODEL_MATRIX[0].xyz;
+		VERTEX.x += VERTEX.z * length(MODEL_MATRIX[2].xyz) * tan(turn) / length(run - axis * dot(run, axis));
 		if (abs(NORMAL.z) > 0.5) {
 			vec3 n = normalize(MODEL_MATRIX[2].xyz) * sign(NORMAL.z);
-			world_nrm = vec3(n.x * cos(turn) + n.z * sin(turn), 0.0, n.z * cos(turn) - n.x * sin(turn));
+			world_nrm = n * cos(turn) + cross(axis, n) * sin(turn);
 			NORMAL = transpose(mat3(MODEL_MATRIX)) * world_nrm;
 		}
 	}

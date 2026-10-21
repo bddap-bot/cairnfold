@@ -565,14 +565,14 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt3
 			mortar.write(bufs[1], n[1], x, _painted_as(s, colours), s.ao, Palette.code(s.kind), s.get("ends", Vector2.ZERO))
 			n[1] += 1
 		elif s.kind == "timber":
-			timber.write(bufs[3], n[3], x, _painted_as(s, colours), s.ao, Palette.code(s.kind))
+			timber.write(bufs[3], n[3], x, _painted_as(s, colours), s.ao, Palette.code(s.kind), s.get("ends", Vector2.ZERO))
 			n[3] += 1
 		elif s.kind in ["flagstone", "plank"]:
 			paving.write(bufs[4], n[4], x, _painted_as(s, colours), s.ao, Palette.code(s.kind))
 			n[4] += 1
 		else:
 			x.basis = x.basis * Stones.FLIPS[s.variant]
-			stone.write(bufs[0], n[0], x, _glazed(s, colours), s.ao, Palette.code(s.kind))
+			stone.write(bufs[0], n[0], x, _glazed(s, colours), s.ao, Palette.code(s.kind), Stones.ends(s))
 			n[0] += 1
 		if s.kind != "mortar" and not s.kind in WallLayout.FLOOR_KINDS:
 			shadow.write(bufs[2], n[2], x)
@@ -854,8 +854,9 @@ static func _pack_ruin(built: WallLayout) -> Array[TriangleMesh]:
 	var faces: Array[PackedVector3Array] = [PackedVector3Array(), PackedVector3Array()]
 	for stone in built.stones:
 		var kind := 1 if stone.kind == "rubble" else 0
+		var corners := WallLayout.drawn_corners(stone)
 		for index in indices:
-			faces[kind].append(stone.xform * WallLayout.BOX[index])
+			faces[kind].append(corners[index])
 	for vertices in faces:
 		var mesh: TriangleMesh
 		if not vertices.is_empty():

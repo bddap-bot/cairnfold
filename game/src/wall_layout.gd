@@ -64,12 +64,12 @@ const ARCADE_GAP := ARCH_SPACING + 0.4
 const ARCADE_PITCH := 2.3
 ## How each style of wall opens an arch, one row per style. The head is a shoulder arc of `shoulder` times
 ## ARCH_HALF turning `turn` degrees from upright, then a crown arc of `crown` times it closing at the middle (a
-## round head is the shoulder alone); `pieces` of `kind`, `ring` deep, are laid round each arc, meeting at
-## `meet` of the ring's depth less `joint`, closed at the top by a `keystone` of `capstone`; posts `jamb` wide
-## stand under the springing.
+## round head is the shoulder alone); `pieces` wedges of `kind`, `ring` deep, are laid round each arc, their ends on
+## lines through its centre `joint` apart, closed at the top by a wedge of `capstone` a `keystone` across; posts
+## `jamb` wide stand under the springing.
 const ARCH_STYLES := [
-	{"name": "stone", "shoulder": 1.0, "turn": 90.0, "crown": 1.0, "pieces": [5, 0], "ring": RING, "meet": 0.5, "joint": 0.02, "kind": "voussoir", "capstone": "keystone", "keystone": Vector3(0.34, RING * 1.15, THICKNESS * 1.1), "jamb": 0.0, "jitter": 0.015},
-	{"name": "timber", "shoulder": 0.35, "turn": 60.0, "crown": 2.0, "pieces": [3, 2], "ring": TimberFrame.WIDTH, "meet": 1.0, "joint": 0.0, "kind": "timber", "color": TimberFrame.OAK, "capstone": "timber", "keystone": Vector3(0.2, TimberFrame.WIDTH, THICKNESS * 1.04), "jamb": TimberFrame.WIDTH, "jitter": 0.0},
+	{"name": "stone", "shoulder": 1.0, "turn": 90.0, "crown": 1.0, "pieces": [5, 0], "ring": RING, "joint": 0.012, "kind": "voussoir", "capstone": "keystone", "keystone": Vector3(0.34, RING * 1.15, THICKNESS * 1.1), "jamb": 0.0, "jitter": 0.015},
+	{"name": "timber", "shoulder": 0.35, "turn": 60.0, "crown": 2.0, "pieces": [3, 2], "ring": TimberFrame.WIDTH, "joint": 0.0, "kind": "timber", "color": TimberFrame.OAK, "capstone": "timber", "keystone": Vector3(0.2, TimberFrame.WIDTH, THICKNESS * 1.04), "jamb": TimberFrame.WIDTH, "jitter": 0.0},
 ]
 ## Water under the foot deeper than this opens arches over it.
 const WADE_UNDER := 0.1
@@ -387,6 +387,19 @@ const BOX: Array[Vector3] = [Vector3(-0.5, -0.5, -0.5), Vector3(0.5, -0.5, -0.5)
 ## How far under a roof's tiles `fit_under` leaves a cut stone's top, and the thinnest stone it leaves.
 const FIT_CLEAR := 0.005
 const MIN_FIT := 0.06
+
+
+## A laid piece's corners as it is drawn, in the order of BOX: its ends cut as the stone shader cuts them (`ends`,
+## turning about its local y).
+static func drawn_corners(st: Dictionary) -> Array[Vector3]:
+	var x: Transform3D = st.xform
+	var e: Vector2 = st.get("ends", Vector2.ZERO)
+	var axis := x.basis.y.normalized()
+	var run := (x.basis.x - axis * x.basis.x.dot(axis)).length()
+	var out: Array[Vector3] = []
+	for c in BOX:
+		out.append(x * (c + Vector3.RIGHT * c.z * x.basis.z.length() * tan(e.x if c.x < 0.0 else e.y) / run))
+	return out
 
 
 ## Lowers the tops of the stones up to the wall's top that `r`'s tiles would cut, keeping their feet, and takes away
@@ -1273,9 +1286,9 @@ func _cells() -> Array[Dictionary]:
 	return out
 
 
-## An arch of `size` at `s` in its style: posts up from `bottom` to the springing, the pieces round the head, and
+## An arch of `size` at `s` in its style: posts up from `bottom` to the springing, the wedges round the head, and
 ## behind them the wall's own infill closing the ring out to the outline, so the wall's level cut meets it with no gap.
-## Its pieces, keystone and posts scale with it, so a grand arch is laid as a doorway's is, only bigger.
+## Its wedges, keystone and posts scale with it, so a grand arch is laid as a doorway's is, only bigger.
 func _lay_arch(a: float, size: float, rng: RandomNumberGenerator, bottom: float) -> void:
 	var style := arch_style()
 	var tint: Color = style.get("color", Color.WHITE) * rng.randf_range(0.88, 1.12)
@@ -1285,30 +1298,34 @@ func _lay_arch(a: float, size: float, rng: RandomNumberGenerator, bottom: float)
 	var mortar := RING * size + JOINT
 	var depth := THICKNESS * 1.04
 	var fill := THICKNESS - (PLASTER_INSET if plaster else JOINT) * 2.0 - 0.004
+	var head := arch_head(0.0, size)
+	var crown: Array = head[-1]
+	var key: Vector3 = style.keystone * Vector3(size, size, 1.0)
+	var key_y := arch_rise(0.0, size) + ring * 0.5
+	var key_half := atan(key.x * 0.5 / (crown[1] + ring * 0.5))
 	var parts: Array[Dictionary] = []
+	var infill: Array[Dictionary] = []
+	var mortared := {"kind": "plaster" if plaster else "mortar", "jitter": 0.0}
 	for side in [-1.0, 1.0]:
 		if jamb > 0.0:
 			parts.append(_arch_part(a + side * (ARCH_HALF * size + jamb * 0.5), (bottom + spring_y) * 0.5, Vector3(jamb, spring_y - bottom, depth), 0.0, style, rng))
-		var head := arch_head(0.0, size)
 		for i in head.size():
 			var arc: Array = head[i]
 			var n: int = style.pieces[i]
+			var to: float = arc[3] - (key_half if i == head.size() - 1 else 0.0)
 			for j in n:
-				var t: float = lerpf(arc[2], arc[3], (j + 0.5) / n)
-				var half: float = (arc[3] - arc[2]) * 0.5 / n
-				var length: float = 2.0 * (arc[1] + ring * style.meet) * tan(half) * (1.0 - style.joint)
-				parts.append(_arch_ring(a, spring_y, side, arc, t, ring, Vector3(length, ring, depth), style, rng))
+				parts.append(_voussoir(a, spring_y, side, arc, lerpf(arc[2], to, float(j) / n), lerpf(arc[2], to, float(j + 1) / n), 0.0, ring, depth, style.joint, style, rng))
 			var m: int = ceili((arc[3] - arc[2]) / deg_to_rad(30.0))
 			for j in m:
-				var t: float = lerpf(arc[2], arc[3], (j + 0.5) / m)
-				var half: float = (arc[3] - arc[2]) * 0.5 / m
-				var st := _arch_ring(a, spring_y, side, arc, t, mortar + 0.01, Vector3(2.0 * (arc[1] + mortar) * tan(half) + 0.02, mortar - 0.01, fill), {"kind": "plaster" if plaster else "mortar", "jitter": 0.0}, rng)
-				st.color = PLASTER if plaster else MORTAR
-				st.ao = 1.0 if plaster else 0.8
-				st.variant = 0
-				stones.append(st)
-	var key: Vector3 = style.keystone * Vector3(size, size, 1.0)
-	parts.append(_arch_part(a, spring_y + arch_rise(0.0, size) + ring * 0.5, key, 0.0, style.merged({"kind": style.capstone}, true), rng))
+				infill.append(_voussoir(a, spring_y, side, arc, lerpf(arc[2], arc[3], float(j) / m), lerpf(arc[2], arc[3], float(j + 1) / m), 0.01, mortar, fill, -0.02, mortared, rng))
+	if crown[3] < PI * 0.5 - 1e-3:
+		infill.append(_crown_wedge(a, spring_y, crown, 0.0, arch_rise(0.0, size) + (0.01 + mortar) * 0.5, Vector3(0.0, mortar - 0.01, fill), -0.02, mortared, rng))
+	for st in infill:
+		st.color = PLASTER if plaster else MORTAR
+		st.ao = 1.0 if plaster else 0.8
+		st.variant = 0
+		stones.append(st)
+	parts.append(_crown_wedge(a, spring_y, crown, key_half, key_y, key, style.joint, style.merged({"kind": style.capstone}, true), rng))
 	for st in parts:
 		if style.has("color"):
 			st.color = tint
@@ -1316,11 +1333,34 @@ func _lay_arch(a: float, size: float, rng: RandomNumberGenerator, bottom: float)
 		stones.append(st)
 
 
-## A piece of the arch on `side` of its middle `a`, springing at `spring_y`: `size.y` deep out from the head's `arc`
-## at angle `t`.
-func _arch_ring(a: float, spring_y: float, side: float, arc: Array, t: float, out: float, size: Vector3, style: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
-	var at: Vector2 = arc[0] + Vector2(cos(t), sin(t)) * (arc[1] + out * 0.5)
-	return _arch_part(a + side * at.x, spring_y + at.y, size, -side * (PI * 0.5 - t), style, rng)
+## A wedge across the middle `a` of the arch springing at `spring_y`, centred `y` over the springing, `size.y` tall and
+## `size.z` deep, between the joint lines of the head's `crown` arcs `short` of where they meet: in a pointed head
+## these run through centres either side of the middle, so they part above its point.
+func _crown_wedge(a: float, spring_y: float, crown: Array, short: float, y: float, size: Vector3, joint: float, style: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+	var joint_at: float = crown[3] - short
+	var reach: float = crown[0].x + (y - crown[0].y) / tan(joint_at)
+	return _wedge(_arch_part(a, spring_y + y, Vector3(2.0 * reach - joint, size.y, size.z), 0.0, style, rng), PI * 0.5 - joint_at)
+
+
+## A wedge of the arch on `side` of its middle `a`, springing at `spring_y`: the stretch of the head's `arc` from angle
+## `from` to `to`, `inner` to `outer` beyond it, its ends on lines through the arc's centre `joint` apart from the next.
+func _voussoir(a: float, spring_y: float, side: float, arc: Array, from: float, to: float, inner: float, outer: float, depth: float, joint: float, style: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
+	var half := (to - from) * 0.5
+	var t := from + half
+	var mid: float = arc[1] + (inner + outer) * 0.5
+	var at: Vector2 = arc[0] + Vector2(cos(t), sin(t)) * mid
+	var st := _arch_part(a + side * at.x, spring_y + at.y, Vector3(2.0 * mid * tan(half) - joint, outer - inner, depth), -side * (PI * 0.5 - t), style, rng)
+	return _wedge(st, half)
+
+
+## `st`, laid with its local y running out from an arch's centre, turned to run that way along its local z, so the
+## shader's end cut (`ends`, which turns about local y) tapers it, each end turned `turn` out from square.
+func _wedge(st: Dictionary, turn: float) -> Dictionary:
+	var x: Transform3D = st.xform
+	st.xform = Transform3D(x.basis * Basis(Vector3.RIGHT, -PI * 0.5), x.origin)
+	st.size = Vector3(st.size.x, st.size.z, st.size.y)
+	st.ends = Vector2(-turn, turn)
+	return st
 
 
 func _arch_part(s: float, y: float, size: Vector3, roll: float, style: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
