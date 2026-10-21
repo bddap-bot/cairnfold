@@ -545,6 +545,28 @@ def _grunt(seconds, f0, fall):
     return voice * env
 
 
+def _thud(fund):
+    """A boulder meeting the ground: a deep thump through a stony body, a muffled earth burst and a few small stones
+    settling; its weight sits in the low hundreds of Hz, where a headset's speakers still carry it."""
+    t = _t(0.8)
+    drop = 1 - 0.2 * np.minimum(t / 0.25, 1)
+    thump = sum(a * np.exp(-t * d) * np.sin(2 * np.pi * fund * r * t * drop + crng.uniform(0, 6.28))
+                for r, d, a in ((1.0, 12, 1.0), (2.1, 20, 0.8), (3.3, 30, 0.45), (4.6, 42, 0.2)))
+    earth = _band(crng.standard_normal(len(t)), 90, 600) * np.exp(-t * 22) * 1.4
+    x = thump + earth + np.concatenate([np.zeros(int(0.05 * SR)), _rattle(0.75, 6, 0.55, crng)])[: len(t)] * 0.3
+    return x * (1 - np.exp(-t / 0.002))
+
+
+def _whoosh(seconds, centre):
+    """Air pushed aside by a swung stone: low noise whose band rises and falls through one swell, with no edges, so
+    plays overlapping every fifth of a second blend into one stream."""
+    n = int(seconds * SR)
+    env = np.sin(np.pi * np.arange(n) / n) ** 2
+    lo = _band(crng.standard_normal(n), centre * 0.4, centre * 1.2)
+    hi = _band(crng.standard_normal(n), centre, centre * 3.0)
+    return lo * env + hi * env**2 * 0.6
+
+
 def actions():
     fx = {}
     for i in range(3):
@@ -607,6 +629,10 @@ def actions():
         fx[f"flutter{i}"] = x
     for i, (f0, fall) in enumerate(((140, 0.3), (120, 0.25))):
         fx[f"grunt{i}"] = _grunt(0.32, f0, fall)
+    for i in range(3):
+        fx[f"thud{i}"] = _thud(crng.uniform(70, 85))
+    for i in range(3):
+        fx[f"whoosh{i}"] = _whoosh(0.5, crng.uniform(170, 230))
     return {k: _fft_lowpass(v, 1800, 4) for k, v in fx.items()}
 
 

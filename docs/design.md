@@ -2658,7 +2658,7 @@ Directive (verbatim): "When something doesn't work because of the frame cap, I t
 One table, `Cues.TABLE`, keyed by `Cues.Act`, gives each player action its sound and its pulse in each hand that
 did it (both hands carrying, stretching, resizing or raising a house pulse together, one sound for the pair): the sound's family of clips, its level, its pitch and how far that varies each play, how far a stretch's
 tension bends the pitch up, the pulse as amplitude, seconds, count and gap, how much tension strengthens it, and
-the least time between two plays from one hand or pair. A call site names only the action, where it happened and the
+the least time between two plays from one hand or pair; for a boulder, how much louder and lower its size makes it (`weigh`, `deepen`) and how much louder its speed (`swell`), every level held under `Cues.LOUDEST`. A call site names only the action, where it happened and the
 hands, so no level or pulse lives anywhere else; touching a surface is felt through `HandStop.FEEL` instead, and
 both send their pulses through `Cues.feel`. Sounds play from a pool of twelve 3D voices at the action's place, the
 oldest started giving way, so a burst of actions costs nothing more. Every play varies its pitch and level a
@@ -2671,7 +2671,13 @@ small wooden bodies and the music's own felt pluck in B major, and low-passed at
 holds every clip's energy above 2, 3 and 4 kHz to no more than the stone and water sounds' (`Cues.REFERENCE`)
 and its spectral centroid to under one and a half times theirs. Stretching a building creaks like a cartoon wooden bow:
 stick-slip pulses quickening through a small wooden body, its pitch rising with how far the stretch has gone
-(`Cues.stretch`: doubling is all the way), and the pulse in the hand tightening with it.
+(`Cues.stretch`: doubling is all the way), and the pulse in the hand tightening with it. A swung boulder pushes air: half-second
+swells of low noise (`whoosh`), each band rising and falling through its swell with no edge, overlap into one stream
+while it moves (`Boulders.swing`: its centre's speed plus the speed its turn gives its surface, from 0.6 m/s to full
+at 5). One let go lands with a thump through a stony body near 80 Hz, an earth burst and a few small stones settling
+(`thud`), its weight kept in the low hundreds of hertz a headset's speakers still carry; it is as hard as the speed
+its drop would reach (`Boulders.impact`, full at 7 m/s, a 2.5 m fall), so a pebble set down gives a quiet tap and a
+house-sized boulder dropped from high a heavy one.
 
 What the frame budget turns down is plain: the hand's budget bar jumps up to three and a half times its size,
 shakes and settles, a soft cartoon grunt sounds, and the hand feels two knocks (`World.cap`). Before that, while
@@ -2703,7 +2709,8 @@ Every player action, from the code:
 | `STONE_PAINT` | Stone ground is painted, or painted back to meadow | gravel crunch | light grain |
 | `PATH_LAY` | A path grows by a point | gravel crunch | grain |
 | `TREE_PLANT` | A tree is planted | soft earth thump | knock |
-| `BOULDER_PLACE` | A boulder is set down | low stone settle | knock |
+| `BOULDER_PLACE` | A boulder is set down, or let go and lands | deep thud and a few stones settling, louder the farther it fell and the bigger it is, lower as it grows; a pebble set down still gives a quiet one | knock, harder the farther it fell |
+| `BOULDER_MOVE` | A held boulder moves or turns | low whoosh of air, at most five a second blending into one, louder and higher the faster its surface moves, louder and lower the bigger it is; silent when it is still or under 0.4 times a metre wide | none: the grip is felt |
 | `GROUND_SHAPE` | The ground in a grip rises or sinks a quarter metre | soft earth thump | click |
 | `POND_POUR` | The pond tool lets water in | none: the pond's gurgle (`POND_FILL`) plays as the water comes | long soft pulse |
 | `POND_FILL` | A new pond fills (any player's) | gurgle | none: `POND_POUR` is felt |

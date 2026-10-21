@@ -30,6 +30,7 @@ func _run() -> void:
 	await _it_stands_on_the_ground_as_it_moves()
 	await _a_grip_carries_and_turns_it_onto_the_ground()
 	await _let_go_in_the_air_it_drops()
+	await _it_whooshes_moving_and_thuds_landing()
 	await _two_hands_size_it()
 	await _pushed_into_the_ground_it_stays()
 	await _the_trigger_carries_a_new_one()
@@ -282,6 +283,36 @@ func _let_go_in_the_air_it_drops() -> void:
 	await _settled()
 	_check(b.transform.is_equal_approx(rest) and absf(_sunk(b) - BoulderLayout.BURY) < 0.01, "let go in the air, it drops back onto the ground (%.3f over)" % (b.position.y - rest.origin.y))
 	_check(absf(world.state.boulders[b.id].at.y - Terrain.height_at(b.position.x, b.position.z)) < 1e-3, "the garden keeps it on the ground")
+
+
+## A held boulder whooshes while it moves, not while still nor when pebble-sized; let go, it thuds, harder from higher.
+func _it_whooshes_moving_and_thuds_landing() -> void:
+	var still := Transform3D(Basis(), Vector3(0, 1, 0))
+	_check(Boulders.swing(still, still, 0.6, 1.0 / 60.0) == 0.0, "a still boulder swings not at all")
+	_check(Boulders.swing(still, still.translated(Vector3.RIGHT * 0.005), 0.6, 1.0 / 60.0) == 0.0, "nor one eased along slowly")
+	_check(Boulders.swing(still, still.translated(Vector3.RIGHT * 0.1), 0.6, 1.0 / 60.0) == 1.0, "one swept fast swings fully")
+	_check(Boulders.swing(still, Transform3D(Basis(Vector3.UP, 0.05), still.origin), 0.6, 1.0 / 60.0) > 0.0, "turning it swings its surface")
+	_check(Boulders.impact(0.0) == 0.0 and Boulders.impact(2.5) > 0.99 and Boulders.impact(0.5) > 0.0, "it lands as hard as its fall")
+	var b: Boulders.Boulder = main.boulders.boulders.values()[0]
+	var tool: WallTool = main.tool
+	var m := tool.mason(main.rig.right)
+	for case: Array in [[1.0, 0.0, false], [1.0, 0.05, true], [0.2, 0.05, false]]:
+		world.submit({"op": "reshape", "of": "boulders", "id": b.id, "data": {"scale": case[0]}})
+		await _settled()
+		var hand := Transform3D(Basis(), b.position + Vector3(0, 0, 2.0))
+		tool.begin_grow(m, b, hand, b.position)
+		var whooshes: int = Cues.asked.get(Cues.Act.BOULDER_MOVE, 0)
+		for f in 30:
+			await process_frame
+			m.sizing.follow.call(m, hand.translated(Vector3(case[1] * f, 0.5, 0)))
+		var heard: bool = Cues.asked.get(Cues.Act.BOULDER_MOVE, 0) > whooshes
+		_check(heard == case[2], "a boulder %s wide moved %s m a frame %s" % [case[0], case[1], "whooshes" if case[2] else "is silent"])
+		var thuds: int = Cues.asked.get(Cues.Act.BOULDER_PLACE, 0)
+		tool.end_grow(m)
+		_check(Cues.asked.get(Cues.Act.BOULDER_PLACE, 0) == thuds + 1, "let go, a boulder %s wide thuds" % case[0])
+		await _settled()
+	world.submit({"op": "reshape", "of": "boulders", "id": b.id, "data": {"scale": 1.0}})
+	await _settled()
 
 
 ## The share of its height that shows above the ground under it.

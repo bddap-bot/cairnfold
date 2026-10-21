@@ -364,10 +364,14 @@ func set_boulder(b: Brush) -> void:
 ## comes back.
 func place_boulder(at: Vector3, hand: Hand = null, shape := randi(), scale := 1.0, turn := Quaternion.IDENTITY, ghost: Boulders.Boulder = null, sink := 0.0) -> void:
 	var cmd := _boulder(at, turn.normalized(), shape, scale, sink)
-	if world.fits(cmd):
-		Cues.play(Cues.Act.BOULDER_PLACE, at, hand)
+	var from_y := ghost.position.y if ghost != null else -INF
 	if ghost != null:
 		ghost.appear(cmd)
+	if world.fits(cmd):
+		if ghost != null:
+			ghost.landed(from_y, hand)
+		else:
+			Cues.play(Cues.Act.BOULDER_PLACE, at, hand, 0.0, scale)
 	world.submit(cmd, ghost.queue_free if ghost != null else Callable(), hand)
 
 

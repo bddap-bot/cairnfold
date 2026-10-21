@@ -1078,8 +1078,10 @@ func _boulder_grip(b: Boulders.Boulder, s: Sizing, held: Callable) -> Sizing:
 		if held.call():
 			rocks.show_held(b.id, grip.pose, scale)
 		else:
+			var from_y := b.position.y
 			rocks.show_reshaped(b.id, data.call())
-			_cue(Cues.Act.BOULDER_PLACE, b.position, [])
+			built.emit()
+			b.landed(from_y)
 	s.command = func() -> Dictionary:
 		var d: Dictionary = data.call()
 		var was := b.data

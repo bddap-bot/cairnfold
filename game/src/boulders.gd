@@ -13,6 +13,13 @@ const NEAR_TO := 30.0
 const FAR_TO := 220.0
 ## Occlusion a boulder is shaded with, as a laid stone carries.
 const AO := 0.92
+## A held boulder whooshes once its surface moves faster than SWING_FROM metres a second, fully at SWING_FULL, and only
+## from WHOOSH_SIZE times a metre wide: a pebble swung about is silent.
+const SWING_FROM := 0.6
+const SWING_FULL := 5.0
+const WHOOSH_SIZE := 0.4
+## How fast a boulder meets the ground for its landing thud to be its loudest, in metres a second (a 2.5 m drop).
+const LAND_FULL := 7.0
 
 ## One standing boulder.
 class Boulder:
@@ -49,10 +56,20 @@ class Boulder:
 		ground.y = Terrain.height_at(ground.x, ground.z)
 		_show(BoulderLayout.rest(shape, turn, scale, ground.x, ground.z, Terrain.height_at, sink), scale)
 
-	## Shows it at `pose` (unscaled) grown `scale` times, where a hand holds it.
+	## Shows it at `pose` (unscaled) grown `scale` times, where a hand holds it; moving, it whooshes (`swing`).
 	func hold(pose: Transform3D, scale: float) -> void:
+		var was := pose()
+		var moving := held
 		held = true
 		_show(Transform3D(pose.basis.orthonormalized() * Basis.from_scale(Vector3.ONE * scale), pose.origin), scale)
+		if moving and scale >= WHOOSH_SIZE:
+			var swing := Boulders.swing(was, pose, shape.reach() * scale, get_process_delta_time())
+			if swing > 0.0:
+				Cues.play(Cues.Act.BOULDER_MOVE, pose.origin, null, swing, scale)
+
+	## Thuds as it lands where it now rests, let go with its centre at `from_y`.
+	func landed(from_y: float, hand: XRController3D = null) -> void:
+		Cues.play(Cues.Act.BOULDER_PLACE, position, hand, Boulders.impact(from_y - position.y), size)
 
 	## Where it is and which way it is turned, unscaled.
 	func pose() -> Transform3D:
@@ -118,6 +135,21 @@ func show_held(id: int, pose: Transform3D, scale: float) -> void:
 static func carried(pose: Transform3D, from: Transform3D, to: Transform3D, gain: float) -> Transform3D:
 	var turned := to.basis.orthonormalized() * from.basis.orthonormalized().inverse() * pose.basis
 	return Transform3D(turned.orthonormalized(), pose.origin + (to.origin - from.origin) * gain)
+
+
+## How hard a boulder moving from `from` to `to` in `seconds` swings, from 0 to 1: its centre's speed plus the speed its
+## turn gives its surface, `reach` metres out.
+static func swing(from: Transform3D, to: Transform3D, reach: float, seconds: float) -> float:
+	if seconds <= 0.0:
+		return 0.0
+	var turned := (to.basis.orthonormalized() * from.basis.orthonormalized().inverse()).get_rotation_quaternion().get_angle()
+	var speed := (from.origin.distance_to(to.origin) + turned * reach) / seconds
+	return clampf((speed - SWING_FROM) / (SWING_FULL - SWING_FROM), 0.0, 1.0)
+
+
+## How hard a boulder falling `fall` metres lands, from 0 to 1; one set down where it was held still thuds, softly.
+static func impact(fall: float) -> float:
+	return clampf(sqrt(2.0 * 9.8 * maxf(fall, 0.0)) / LAND_FULL, 0.0, 1.0)
 
 
 ## Shows boulder `id` as a reshape with `data` would leave it, here alone.

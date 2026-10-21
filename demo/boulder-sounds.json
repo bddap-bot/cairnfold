@@ -1,0 +1,19 @@
+[
+  {"op": "place", "x": 2.6, "z": 1.2},
+  {"op": "boulder", "x": 0, "z": -2, "seed": 4409, "scale": 1.8},
+  {"op": "view", "eye": [2.6, 1.7, 1.2], "at": [0.0, 1.2, -2.0]},
+  {"op": "wait", "seconds": 1.0},
+  {"op": "carry", "boulder": 0, "move": [2.0, 0.6, 0.0], "turn": [0, 0, 0], "seconds": 0.8},
+  {"op": "wait", "seconds": 0.8},
+  {"op": "carry", "boulder": 0, "move": [-2.4, 0.4, 0.0], "turn": [0, 60, 0], "seconds": 0.7},
+  {"op": "wait", "seconds": 0.8},
+  {"op": "carry", "boulder": 0, "move": [0.0, 0.3, 0.0], "turn": [0, 0, 0], "seconds": 1.2},
+  {"op": "wait", "seconds": 1.0},
+  {"op": "carry", "boulder": 0, "move": [0.0, 2.2, 0.0], "turn": [0, 0, 0], "seconds": 0.9},
+  {"op": "wait", "seconds": 1.6},
+  {"op": "boulder", "x": 1.2, "z": -0.6, "seed": 77, "scale": 0.2},
+  {"op": "wait", "seconds": 0.8},
+  {"op": "carry", "boulder": 0, "move": [0.8, 0.3, 0.0], "turn": [0, 0, 0], "seconds": 0.5},
+  {"op": "wait", "seconds": 1.5},
+  {"op": "quit"}
+]
