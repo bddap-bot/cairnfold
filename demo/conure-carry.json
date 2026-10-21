@@ -187,6 +187,11 @@
     "seconds": 12
   },
   {
+    "op": "held_cost",
+    "birds": true,
+    "seconds": 12
+  },
+  {
     "op": "release_bird",
     "hand": "left"
   },

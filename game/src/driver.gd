@@ -1950,6 +1950,8 @@ func _held_cost(s: Dictionary) -> void:
 	for brush in Brushwork.Brush.values():
 		states.append([HeldItem.Kind.BRUSH, brush, Transform3D(), Color(0.15, 0.3, 0.65), 1.0, 0, false])
 	states.append([HeldItem.Kind.BOOK, 1, Book.local(1.0), Color.WHITE, 0.0, 0, false])
+	if s.get("birds", false):
+		states = [[HeldItem.Kind.BIRD, 0, BirdCarry.HOLD, Color.WHITE, 0.0, 0, false, Vector3.ZERO]]
 	for state in states:
 		for item in items:
 			item.show_state(state)
@@ -1973,7 +1975,9 @@ func _befriend(s: Dictionary) -> void:
 		await get_tree().process_frame
 		elapsed += get_process_delta_time()
 	assert(not flock.birds.is_empty(), "no conure arrived")
-	var bird := flock.birds[s.get("index", 0)]
+	var available := flock.birds.filter(func(b: Birds.Bird) -> bool: return not b.carried)
+	assert(not available.is_empty(), "no free bird")
+	var bird: Birds.Bird = available[0]
 	while bird.state != Birds.State.PERCH and elapsed < 260.0:
 		await get_tree().process_frame
 		elapsed += get_process_delta_time()
@@ -1982,13 +1986,23 @@ func _befriend(s: Dictionary) -> void:
 	h.held_still = true
 	h.global_transform = Transform3D(Basis.IDENTITY, bird.node.global_position + Vector3(0.2, -0.15, 0.2))
 	elapsed = 0.0
-	while (bird.affection < BirdCarry.TRUST or bird.state != Birds.State.FEED) and elapsed < 90.0:
+	while elapsed < 90.0:
 		await get_tree().process_frame
 		elapsed += get_process_delta_time()
-	assert(bird.affection >= BirdCarry.TRUST and bird.state == Birds.State.FEED, "bird did not feed and trust hand")
+		var fed := flock.birds.filter(func(b: Birds.Bird) -> bool: return b.node.hand == h and b.state == Birds.State.FEED and b.affection >= BirdCarry.TRUST)
+		if not fed.is_empty():
+			bird = fed[0]
+			break
+	if bird.node.hand != h or bird.affection < BirdCarry.TRUST or bird.state != Birds.State.FEED:
+		push_error("bird did not feed and trust hand")
+		main.finish()
+		return
 	Buttons.injected["%s/%s" % [h.tracker, Controls.input("grab", h.tracker)]] = true
 	await _frames(30)
-	assert(h.carried == bird.node, "grip did not pick up fed bird")
+	if h.carried != bird.node:
+		push_error("grip did not pick up fed bird")
+		main.finish()
+		return
 	print("conure: feeding earned trust, grip carries bird")
 
 
