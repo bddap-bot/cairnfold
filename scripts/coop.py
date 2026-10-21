@@ -105,7 +105,7 @@ def held_steps(name, names, capture=False):
         if name != "join":
             steps += [{"op": "remote_holds", "name": key}]
             if capture and name == "host" and i == len(tools) + 4:
-                steps += [{"op": "view", "eye": [-2.5, 1.8, 3.8], "at": [-4, 1.3, 5.7]},
+                steps += [{"op": "view", "eye": [-3.0, 1.7, 4.8], "at": [-4, 1.25, 5.6]},
                           {"op": "wait", "seconds": 1}, {"op": "capture", "name": "remote-palette-loaded-brush"}]
         steps += [{"op": "digest", "name": f"{name}-{key}-seen"},
                   barrier([f"{n}-{key}-seen" for n in names])]
@@ -227,6 +227,28 @@ def check_spawn(out):
     assert abs(probe["feet"] - probe["terrain"]) < 0.01, "joiner stands on current ground"
 
 
+def held_scripts():
+    return {
+        "host": [
+            {"op": "easel", "x": -4, "z": 4}, {"op": "until", "seq": 1},
+            {"op": "digest", "name": "ready"}, barrier(["loaded"]),
+            {"op": "remote_holds", "name": "loaded"},
+            {"op": "view", "eye": [-3.0, 1.7, 4.8], "at": [-4, 1.25, 5.6]},
+            {"op": "wait", "seconds": 1}, {"op": "capture", "name": "remote-palette-loaded-brush"},
+            {"op": "digest", "name": "captured"}, barrier(["seen"]), {"op": "quit"},
+        ],
+        "join": [
+            barrier(["ready"]), {"op": "join"}, {"op": "until", "seq": 1},
+            {"op": "take", "what": "big"}, {"op": "dip", "what": "oil", "index": 5},
+            {"op": "take", "what": "palette", "hand": "left"},
+            {"op": "view", "eye": [-4, 1.65, 6], "at": [-4, 1.4, 4]},
+            {"op": "hands", "left": [-0.32, -0.35, -0.4], "right": [0.32, -0.3, -0.4], "tip": 20},
+            {"op": "held_snapshot", "name": "loaded", "loaded": True}, barrier(["captured"]),
+            {"op": "digest", "name": "seen"}, {"op": "quit"},
+        ],
+    }
+
+
 def reserve_beacons():
     # Reserve a fifth socket, outside the four listeners, so all four can be used.
     for base in random.sample(range(20000, 60000, 5), 8000):
@@ -246,11 +268,11 @@ def reserve_beacons():
     raise RuntimeError("no free beacon block")
 
 
-def run(out, count, spawn=False, capture=False):
+def run(out, count, spawn=False, capture=False, held=False):
     out.mkdir(parents=True, exist_ok=True)
     for path in out.glob("*.json"):
         path.unlink()
-    generated = spawn_scripts(capture) if spawn else scripts(count, capture)
+    generated = held_scripts() if held else spawn_scripts(capture) if spawn else scripts(count, capture)
     for name, steps in generated.items():
         (out / f"script-{name}.json").write_text(json.dumps(steps, indent=2))
     beacon, reservation = reserve_beacons()
@@ -308,7 +330,7 @@ def run(out, count, spawn=False, capture=False):
 
     def check():
         last = {}
-        if not spawn:
+        if not spawn and not held:
             for name in generated:
                 picked = out / f"{name}-avatar-seen.json"
                 if picked.exists():
@@ -358,13 +380,13 @@ def run(out, count, spawn=False, capture=False):
         port = host_port()
         print(f"coop: {count} players, host port {port}, beacon ports {beacon}–{beacon + 3}", flush=True)
         launch("join", port)
-        if not spawn:
+        if not spawn and not held:
             until(lambda: all((out / f"{n}-2-players-cost.json").exists() for n in ("host", "join")))
             for name in list(generated)[2:]:
                 launch(name, port)
         until(lambda: all(p.poll() is not None for p in processes.values()))
         check()
-        if not spawn:
+        if not spawn and not held:
             print("ok: inventory-wheel avatar selection is visible to every peer", flush=True)
     finally:
         for proc in processes.values():
@@ -386,6 +408,9 @@ def run(out, count, spawn=False, capture=False):
             xserver.terminate()
             xserver.wait()
     print(f"coop: longest stretch without a step took {progress['quiet']:.1f} of {QUIET_CPU} CPU-seconds", flush=True)
+    if held:
+        assert (out / "remote-palette-loaded-brush.png").is_file(), "remote held capture exists"
+        return
     if spawn:
         check_spawn(out)
         return
@@ -412,11 +437,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("out", type=Path)
     parser.add_argument("players", type=int, nargs="?", default=4)
+    parser.add_argument("--held", action="store_true", help="capture and assert a peer holding a palette and loaded brush")
     parser.add_argument("--spawn", action="store_true", help="only the late-join mountain regression")
     parser.add_argument("--capture", action="store_true", help="render the spawn regression on a virtual display")
     args = parser.parse_args()
     if not 2 <= args.players <= 8:
         parser.error("players must be 2..8 (Session.MAX_PLAYERS)")
+    if args.held:
+        run(args.out.resolve(), 2, capture=True, held=True)
+        raise SystemExit(0)
     run(args.out.resolve() / "spawn", 2, spawn=True, capture=args.capture)
     if not args.spawn:
         run(args.out.resolve(), args.players, capture=args.capture)

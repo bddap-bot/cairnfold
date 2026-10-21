@@ -1933,7 +1933,9 @@ func _held_cost(s: Dictionary) -> void:
 			item.show_state(state)
 		await get_tree().create_timer(0.1).timeout
 		var name := HeldItem.label(state)
-		await _label({"name": "held/" + name.replace(" ", "-")})
+		var label := {"op": "label", "name": "held/" + name.replace(" ", "-")}
+		print("driver: ", label)
+		await _label(label)
 		await get_tree().create_timer(s.get("seconds", 3.0)).timeout
 	await _label({"name": "-"})
 	for item in items:
