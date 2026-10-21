@@ -4001,6 +4001,15 @@ all passed `scripts/bench.sh`. The phases recorded 0, 22, 0 and 135 late frames.
 Those 157 late frames remain unattributed; the GPU-budget pass is not evidence of
 perfect frame pacing. The run is recorded in `perf/quest-2/conure-carry/`.
 
+Those totals are mostly the garden around the bird. `demo/conure-cost.json` pairs each
+view with the identical view, bird and cup hidden, alternating six pairs a phase, and
+`scripts/paired.py RECORD` turns the bench record into the bird's own share. On a
+Quest 2 one bird in view adds about 0.1 to 0.16 ms of GPU time, two draws and some
+1.8k primitives; the carry phase's view never frames it, so it costs nothing there; at the
+canvas its share is within the smear's noise; fourteen remote birds filling the view
+add 1.74 ms, which takes that phase from 11.0 ms to over the 12.5 ms budget in seven
+of its twelve readings. The runs are recorded in `perf/quest-2/conure-cost/`.
+
 To fit the added birds, their small surfaces use fewer vertices and their ambient
 lighting samples terrain height once per bird each frame. Feather variation uses
 mesh colour, and canvas relief uses screen derivatives of its existing height

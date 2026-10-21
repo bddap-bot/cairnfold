@@ -1,0 +1,1152 @@
+[
+  {
+    "op": "budget",
+    "bounded": false
+  },
+  {
+    "op": "quality",
+    "step": "fit"
+  },
+  {
+    "op": "place",
+    "x": 0,
+    "z": 3
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      1.5,
+      3
+    ],
+    "at": [
+      0,
+      1,
+      -2
+    ]
+  },
+  {
+    "op": "dig",
+    "x": -4,
+    "z": 0,
+    "seconds": 2
+  },
+  {
+    "op": "wall",
+    "points": [
+      [
+        -1,
+        -2
+      ],
+      [
+        1,
+        -2
+      ]
+    ],
+    "seconds": 1
+  },
+  {
+    "op": "easel",
+    "x": 0,
+    "z": 0,
+    "facing": [
+      0,
+      3
+    ]
+  },
+  {
+    "op": "befriend",
+    "hand": "left"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/carry/1bird/1"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/carry/none/1"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/carry/none/2"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/carry/1bird/2"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/carry/1bird/3"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/carry/none/3"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/carry/none/4"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/carry/1bird/4"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/carry/1bird/5"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/carry/none/5"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/carry/none/6"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/carry/1bird/6"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "view_held",
+    "hand": "left"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/carry-close/1bird/1"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/carry-close/none/1"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/carry-close/none/2"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/carry-close/1bird/2"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/carry-close/1bird/3"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/carry-close/none/3"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/carry-close/none/4"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/carry-close/1bird/4"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/carry-close/1bird/5"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/carry-close/none/5"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/carry-close/none/6"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/carry-close/1bird/6"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "view",
+    "subject": "easel",
+    "index": 0,
+    "eye": [
+      0,
+      1.4,
+      1.0
+    ],
+    "at": [
+      0,
+      1.32,
+      0
+    ],
+    "ground": true
+  },
+  {
+    "op": "take",
+    "what": "big",
+    "hand": "right"
+  },
+  {
+    "op": "dip",
+    "what": "pan",
+    "index": 5,
+    "hand": "right"
+  },
+  {
+    "op": "brush",
+    "hand": "right",
+    "points": [
+      [
+        0.3,
+        0.5,
+        1
+      ],
+      [
+        0.7,
+        0.5,
+        1
+      ]
+    ],
+    "seconds": 0.25
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/smear/1bird/1"
+  },
+  {
+    "op": "bird_smear",
+    "hand": "left",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/smear/none/1"
+  },
+  {
+    "op": "bird_smear",
+    "hand": "left",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/smear/none/2"
+  },
+  {
+    "op": "bird_smear",
+    "hand": "left",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/smear/1bird/2"
+  },
+  {
+    "op": "bird_smear",
+    "hand": "left",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/smear/1bird/3"
+  },
+  {
+    "op": "bird_smear",
+    "hand": "left",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/smear/none/3"
+  },
+  {
+    "op": "bird_smear",
+    "hand": "left",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/smear/none/4"
+  },
+  {
+    "op": "bird_smear",
+    "hand": "left",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/smear/1bird/4"
+  },
+  {
+    "op": "bird_smear",
+    "hand": "left",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/smear/1bird/5"
+  },
+  {
+    "op": "bird_smear",
+    "hand": "left",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/smear/none/5"
+  },
+  {
+    "op": "bird_smear",
+    "hand": "left",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/smear/none/6"
+  },
+  {
+    "op": "bird_smear",
+    "hand": "left",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/smear/1bird/6"
+  },
+  {
+    "op": "bird_smear",
+    "hand": "left",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "befriend",
+    "hand": "right",
+    "index": 1
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      1.4,
+      1.5
+    ],
+    "at": [
+      0,
+      1.3,
+      0
+    ]
+  },
+  {
+    "op": "hands",
+    "left": [
+      -0.17,
+      -0.2,
+      -0.4
+    ],
+    "right": [
+      0.17,
+      -0.2,
+      -0.4
+    ]
+  },
+  {
+    "op": "wait",
+    "seconds": 1
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "bird_shown",
+    "hand": "right",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/two-carried/2bird/1"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "bird_shown",
+    "hand": "right",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/two-carried/none/1"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "bird_shown",
+    "hand": "right",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/two-carried/none/2"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "bird_shown",
+    "hand": "right",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/two-carried/2bird/2"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "bird_shown",
+    "hand": "right",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/two-carried/2bird/3"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "bird_shown",
+    "hand": "right",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/two-carried/none/3"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "bird_shown",
+    "hand": "right",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/two-carried/none/4"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "bird_shown",
+    "hand": "right",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/two-carried/2bird/4"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "bird_shown",
+    "hand": "right",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/two-carried/2bird/5"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "bird_shown",
+    "hand": "right",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/two-carried/none/5"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": false
+  },
+  {
+    "op": "bird_shown",
+    "hand": "right",
+    "shown": false
+  },
+  {
+    "op": "label",
+    "name": "pair/two-carried/none/6"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "bird_shown",
+    "hand": "right",
+    "shown": true
+  },
+  {
+    "op": "label",
+    "name": "pair/two-carried/2bird/6"
+  },
+  {
+    "op": "wait",
+    "seconds": 8
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "bird_shown",
+    "hand": "left",
+    "shown": true
+  },
+  {
+    "op": "bird_shown",
+    "hand": "right",
+    "shown": true
+  },
+  {
+    "op": "held_cost",
+    "birds": true,
+    "shown": true,
+    "label": "pair/held/14bird/1",
+    "seconds": 8
+  },
+  {
+    "op": "held_cost",
+    "birds": true,
+    "shown": false,
+    "label": "pair/held/none/1",
+    "seconds": 8
+  },
+  {
+    "op": "held_cost",
+    "birds": true,
+    "shown": false,
+    "label": "pair/held/none/2",
+    "seconds": 8
+  },
+  {
+    "op": "held_cost",
+    "birds": true,
+    "shown": true,
+    "label": "pair/held/14bird/2",
+    "seconds": 8
+  },
+  {
+    "op": "held_cost",
+    "birds": true,
+    "shown": true,
+    "label": "pair/held/14bird/3",
+    "seconds": 8
+  },
+  {
+    "op": "held_cost",
+    "birds": true,
+    "shown": false,
+    "label": "pair/held/none/3",
+    "seconds": 8
+  },
+  {
+    "op": "held_cost",
+    "birds": true,
+    "shown": false,
+    "label": "pair/held/none/4",
+    "seconds": 8
+  },
+  {
+    "op": "held_cost",
+    "birds": true,
+    "shown": true,
+    "label": "pair/held/14bird/4",
+    "seconds": 8
+  },
+  {
+    "op": "held_cost",
+    "birds": true,
+    "shown": true,
+    "label": "pair/held/14bird/5",
+    "seconds": 8
+  },
+  {
+    "op": "held_cost",
+    "birds": true,
+    "shown": false,
+    "label": "pair/held/none/5",
+    "seconds": 8
+  },
+  {
+    "op": "held_cost",
+    "birds": true,
+    "shown": false,
+    "label": "pair/held/none/6",
+    "seconds": 8
+  },
+  {
+    "op": "held_cost",
+    "birds": true,
+    "shown": true,
+    "label": "pair/held/14bird/6",
+    "seconds": 8
+  },
+  {
+    "op": "release_bird",
+    "hand": "left"
+  },
+  {
+    "op": "release_bird",
+    "hand": "right"
+  },
+  {
+    "op": "quit"
+  }
+]

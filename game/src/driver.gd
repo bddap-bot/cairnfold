@@ -1929,6 +1929,7 @@ func _remote_holds(s: Dictionary) -> void:
 
 
 ## The maximum seven peers' fourteen held models, close enough to fill the view, through the live renderer.
+## `shown` false keeps them in place hidden, and `label` names the phase, for a pair without them.
 func _held_cost(s: Dictionary) -> void:
 	var items: Array[HeldItem] = []
 	var eye: Transform3D = main.rig.head.global_transform
@@ -1951,12 +1952,13 @@ func _held_cost(s: Dictionary) -> void:
 	for state in states:
 		for item in items:
 			item.show_state(state)
+			item.visible = s.get("shown", true)
 			if s.get("without_cup", false) and item.model is Conure:
 				for child in item.model.get_children():
 					(child as Node3D).hide()
 		await get_tree().create_timer(0.1).timeout
 		var name := HeldItem.label(state) + ("-without-cup" if s.get("without_cup", false) else "")
-		var label := {"op": "label", "name": "held/" + name.replace(" ", "-")}
+		var label := {"op": "label", "name": s.get("label", "held/" + name.replace(" ", "-"))}
 		print("driver: ", label)
 		await _label(label)
 		await get_tree().create_timer(s.get("seconds", 3.0)).timeout
@@ -2030,6 +2032,15 @@ func _bird_smear(s: Dictionary) -> void:
 	h.global_position += frame.basis.z * 0.2
 	await _frames(30)
 	print("conure: wet canvas smear submitted")
+
+
+## Shows or hides the bird the step's hand carries, cup included, leaving the hand, the carry and any smear running:
+## the paired fixture's way of taking the bird alone out of a view.
+func _bird_shown(s: Dictionary) -> void:
+	var h := _hand(s)
+	assert(h.carried != null, "no held bird")
+	h.carried.visible = s.shown
+	await _frames(2)
 
 
 func _view_held(s: Dictionary) -> void:
