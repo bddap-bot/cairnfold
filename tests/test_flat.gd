@@ -291,4 +291,4 @@ func _the_flat_wheel_selects_an_avatar() -> void:
 	_key(false, KEY_Q)
 	await _frames(3)
 	_check(main.session.avatar == 2 and not hand.picking, "releasing Q selects the avatar through the shared wheel")
-	_check(hand._wheel_root.get_child_count() == 0, "flat wheel release leaves no figures")
+	_check(not hand._wheel_root.visible and hand._wheel_root.get_children().all(func(i: Node3D) -> bool: return not i.visible), "flat wheel release leaves no figures shown")

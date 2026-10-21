@@ -57,6 +57,20 @@ func activate(key: String) -> void:
 			session.join(garden.address, garden.port)
 
 
+## What figure(key) is drawn from: a wheel keeping its figures builds one again when this changes.
+func signature(key: String) -> String:
+	if key.begins_with("avatar:"):
+		return str([session.colour, session.avatar_file.get("key", "") if key == "avatar:file" else ""])
+	if key == "name":
+		return str([session.avatar, session.colour, _tag(key)])
+	if key.begins_with("join:"):
+		var tag := key.trim_prefix("join:")
+		var garden: Dictionary = session.nearby.get(tag, {})
+		var wears: String = garden.get("wears", "")
+		return str([garden.get("avatar"), garden.get("colour"), wears, session.previews.has(wears), garden.get("joins"), _tag(tag)])
+	return ""
+
+
 func figure(key: String) -> Node3D:
 	if key == "home":
 		var home := _home()

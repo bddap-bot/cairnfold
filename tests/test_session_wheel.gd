@@ -53,7 +53,19 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	_check(session.avatar == 1, "release on the avatar slot selects it")
-	_check(hand._wheel_root.get_child_count() == 0, "release frees all wheel figures")
+	_check(not hand._wheel_root.visible and hand._wheel_root.get_children().all(func(i: Node3D) -> bool: return not i.visible), "release leaves no wheel figure shown")
+	var built: Array = hand._wheel_root.get_children()
+	Buttons.injected[button] = true
+	await process_frame
+	await process_frame
+	tree = hand.inventory()
+	for at in ToolWheel.sweep(tree, ToolWheel.paths(tree)["avatar:1"]):
+		Hand.injected_reach[hand.tracker] = at
+		await process_frame
+	_check(hand._wheel_root.get_children() == built, "opening and sweeping the wheel again builds no icon")
+	Buttons.injected.erase(button)
+	await process_frame
+	await process_frame
 	Hand.injected_reach.erase(hand.tracker)
 	Buttons.injected[button] = true
 	await process_frame
@@ -66,7 +78,7 @@ func _run() -> void:
 	_check(hand.picking and hand._wheel_root.get_child_count() > 0, "zero-peer friends page is open before switching tools")
 	hand.tool = Hand.Tool.SEEDS
 	await process_frame
-	_check(not hand.picking and hand._wheel_root.get_child_count() == 0, "zero-peer tool switch frees every menu figure")
+	_check(not hand.picking and hand._wheel_root.get_children().all(func(i: Node3D) -> bool: return not i.visible), "zero-peer tool switch leaves no menu figure shown")
 	Hand.injected_reach.erase(hand.tracker)
 	Buttons.injected.erase(button)
 	await process_frame

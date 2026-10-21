@@ -24,6 +24,9 @@ const HOT := 1.4
 const IDLE := 0.8
 ## How far a wheel icon's model tips its top toward the eye.
 const TILT := PI * 0.3
+## Seconds between looks, while the wheel is closed, for an icon to build or free: one built per look keeps a person's
+## figure changing, a friend arriving or an avatar chosen, to one figure's build in a frame.
+const PREPARE_EVERY := 0.25
 static var _disc: CylinderMesh
 static var _unshaded := {}
 
@@ -58,7 +61,11 @@ func model(t: Tool) -> Node3D:
 ## The interaction profile the runtime bound this hand to (Controls.PLACES), or "".
 var profile := ""
 var flat_only := false
-var people: SessionWheel
+var people: SessionWheel:
+	set(v):
+		people = v
+		_prepare_icons(-1)
+		_warming = 2
 var _wheel: ToolWheel
 var _drawn_levels := 0
 var _holding := false
@@ -78,6 +85,12 @@ var _models: Array[Node3D] = []
 var _wheel_root: Node3D
 ## Every wheel icon with the slot-index path to it (ToolWheel.paths), subtrees and their items alike.
 var _icons: Array[Dictionary] = []
+## Every icon the wheel could show, hidden until it does, by _icon_key.
+var _built := {}
+var _since_prepared := 0.0
+## Frames left drawing every icon once, too small to see, so the renderer compiles their pipelines while the game
+## loads: the first open compiled 21 in its frame and dropped it on a Quest 2.
+var _warming := 0
 var _beam: Beam
 var _dot: MeshInstance3D
 
@@ -163,8 +176,8 @@ func close_wheel() -> void:
 
 
 func _clear_icons() -> void:
-	for child in _wheel_root.get_children():
-		child.free()
+	for e in _icons:
+		e.node.visible = false
 	_icons.clear()
 	_drawn_levels = 0
 
@@ -176,17 +189,73 @@ func _build_icons(items: Array, centre: Vector2, dirs: Array[Vector2], prefix: A
 		var at := centre + dirs[k] * ToolWheel.RADIUS
 		var path := prefix.duplicate()
 		path.append(k)
-		var action: bool = items[k] is String and people != null
-		var model := people.figure(items[k]) if action else miniature(items[k])
-		var i := icon(model)
-		if action:
-			model.transform = Transform3D(Basis.IDENTITY, Vector3(0, -0.027, 0))
-		for mesh in i.find_children("*", "MeshInstance3D", true, false):
-			unshade(mesh)
+		var key := _icon_key(path, items[k])
+		if not _built.has(key):
+			_built[key] = _make_icon(items[k])
+		var i: Node3D = _built[key]
 		i.position = Vector3(at.x, at.y, 0)
 		i.scale = Vector3.ZERO
-		_wheel_root.add_child(i)
 		_icons.append({"path": path, "node": i})
+
+
+func _warm() -> void:
+	_warming -= 1
+	var cam := get_viewport().get_camera_3d()
+	if cam != null:
+		_wheel_root.global_transform = Transform3D(cam.global_basis, cam.global_position - cam.global_basis.z * 0.5)
+	_wheel_root.visible = _warming > 0
+	for i: Node3D in _built.values():
+		i.visible = _warming > 0
+		i.scale = Vector3.ONE * 0.001
+
+
+## Builds every icon the wheel could show now and frees those it no longer could, at most `budget` built (-1 for
+## all): opening the wheel or reaching a subtree then builds nothing, where building took 20 to 134 ms a level on a
+## Quest 2 and dropped frames.
+func _prepare_icons(budget: int) -> void:
+	var wanted := {}
+	_wanted(inventory(), [] as Array[int], wanted)
+	for key: String in _built.keys():
+		if not wanted.has(key):
+			_built[key].free()
+			_built.erase(key)
+	for key: String in wanted:
+		if budget == 0:
+			return
+		if not _built.has(key):
+			_built[key] = _make_icon(wanted[key])
+			budget -= 1
+
+
+func _wanted(items: Array, prefix: Array[int], out: Dictionary) -> void:
+	for k in items.size():
+		if items[k] == null:
+			continue
+		var path := prefix.duplicate()
+		path.append(k)
+		out[_icon_key(path, items[k])] = items[k]
+		if items[k] is Array:
+			_wanted(items[k], path, out)
+
+
+## Where an icon sits and what it shows, which for a person's figure includes what it is drawn from.
+func _icon_key(path: Array[int], item: Variant) -> String:
+	var key := "%s %s" % [path, item]
+	return key + " " + people.signature(item) if item is String and people != null else key
+
+
+func _make_icon(item: Variant) -> Node3D:
+	var action: bool = item is String and people != null
+	var model := people.figure(item) if action else miniature(item)
+	var i := icon(model)
+	if action:
+		model.transform = Transform3D(Basis.IDENTITY, Vector3(0, -0.027, 0))
+	for mesh in i.find_children("*", "MeshInstance3D", true, false):
+		unshade(mesh)
+	i.scale = Vector3.ZERO
+	i.visible = false
+	_wheel_root.add_child(i)
+	return i
 
 
 ## A tool's model, or a subtree's items in miniature, two by two.
@@ -329,8 +398,17 @@ func _log_profile() -> void:
 ## onto a tool, or onto a subtree and on into it; let go to take the tool the hand is on, or, on none, to hold nothing.
 func _select_input(delta: float) -> void:
 	if _wheel == null:
+		if _warming > 0:
+			_warm()
 		if not _buttons.pressed("wheel"):
+			_since_prepared += delta
+			if _since_prepared >= PREPARE_EVERY:
+				_since_prepared = 0.0
+				_prepare_icons(1)
 			return
+		if _warming > 0:
+			_warming = 1
+			_warm()
 		_wheel = ToolWheel.new(inventory())
 		print("wheel: %s opened" % tracker)
 		picking = true
@@ -338,8 +416,6 @@ func _select_input(delta: float) -> void:
 		var head := cam.global_position if cam != null else global_position + global_basis.z
 		var forward := -cam.global_basis.z if cam != null else -global_basis.z
 		_wheel_root.global_transform = Transform3D(ToolWheel.facing(global_position, head, forward), global_position)
-		for icon in _wheel_root.get_children():
-			icon.scale = Vector3.ZERO
 		_wheel_root.visible = true
 		Cues.play(Cues.Act.WHEEL_OPEN, global_position, self)
 	var p: Vector2 = injected_reach.get(tracker, Vector2.INF)

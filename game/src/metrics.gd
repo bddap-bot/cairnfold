@@ -33,6 +33,8 @@ var _drm_fds: PackedStringArray = []
 var _drm_scan := 0
 var _draws := 0
 var _prims := 0
+## Pipelines compiled so far, while drawing, the last frame.
+var _compiled := 0
 ## The headset whose eyes' frusta each second records the widest swing of: the sun's shadow map is fitted to them
 ## every frame, and holds still only while they do.
 var xr: XRInterface
@@ -61,9 +63,11 @@ func _process(_delta: float) -> void:
 	_deltas.append(elapsed * 1000.0)
 	_cpu.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 	var late := is_late(elapsed * 1000.0)
+	var compiled := _compilations()
 	if late and not _was_late:
 		var scripts := Performance.get_monitor(Performance.TIME_PROCESS) + Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
-		print("metrics: late frame %.1f ms, the frame before it %.1f ms in scripts and physics, %.1f ms on the GPU" % [elapsed * 1000.0, scripts * 1000.0, quality.frame_ms if quality != null else 0.0])
+		print("metrics: late frame %.1f ms, the frame before it %.1f ms in scripts and physics, %.1f ms on the GPU, %d pipelines compiled" % [elapsed * 1000.0, scripts * 1000.0, quality.frame_ms if quality != null else 0.0, compiled - _compiled])
+	_compiled = compiled
 	_was_late = late
 	_draws = maxi(_draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
@@ -140,6 +144,10 @@ func _process(_delta: float) -> void:
 		_since_flush += 1.0
 		if _since_flush >= 5.0:
 			flush()
+
+
+static func _compilations() -> int:
+	return int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_MESH))
 
 
 ## Left, right, down and up half-angles of an eye's frustum, in degrees.
