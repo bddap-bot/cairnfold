@@ -164,11 +164,14 @@ func _check_colour(_page: Dictionary, before: Dictionary) -> void:
 
 
 func _check_house(_page: Dictionary, before: Dictionary) -> void:
-	_check(main.tool.walls.size() == before.walls + 1, "the trigger and the other hand's grip build a house: %d walls" % main.tool.walls.size())
-	if main.tool.walls.size() != before.walls + 1:
+	_check(main.tool.walls.size() == before.walls and before.walls == 1 and main.tool.house == null, "the house page's grips leave the one house it has: %d walls" % main.tool.walls.size())
+	if main.tool.walls.size() != 1:
 		return
-	var house := WallTool.house_of(main.world.state.walls.values()[-1])
-	_check(not house.is_empty() and house.size.x > WallTool.HOUSE_SIZE.x + 0.5, "spreading the hands stretches it: %s" % house.get("size"))
+	var was := WallTool.house_of(str_to_var(before.state).values()[0])
+	var house := WallTool.house_of(main.world.state.walls.values()[0])
+	_check(Vector2(house.center.x - was.center.x, house.center.z - was.center.z).length() > 0.4, "the right grip carries it: %s to %s" % [was.center, house.center])
+	_check(house.size.x > was.size.x + 0.5 or house.size.y > was.size.y + 0.5, "the left grip joining and the hands spreading stretch it: %s" % house.size)
+	_check(house.height > was.height + 0.5, "drawn apart upright, they make it taller: %.1f to %.1f m" % [was.height, house.height])
 
 
 func _check_wipe(_page: Dictionary, before: Dictionary) -> void:

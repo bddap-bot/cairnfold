@@ -580,40 +580,39 @@ func _play_colour(at: float) -> void:
 	_ray("right", hit)
 
 
-# Two hands on a house: the trigger takes it up, the other hand's grip joins, and spreading the hands stretches it.
+# A house in hand: a grip on it carries it; the other hand's grip on it too stretches it as the hands spread, and makes
+# it taller as they draw apart upright.
 func _build_house() -> void:
 	_fx.house = _prop(Hand.Tool.HOUSE, _dish_at(), 1.0)
-	_fx.house.visible = false
-	_fx.spread = INF
+	_reset_house()
 
 
 func _reset_house() -> void:
-	_fx.house.visible = false
-	_fx.spread = INF
+	var h: Node3D = _fx.house
+	h.position = _dish_at()
+	h.scale = Vector3.ONE * h.get_meta("scale")
+	_fx.grip = []
+	_fx.spread = []
 
 
 func _play_house(at: float) -> void:
 	var h: Node3D = _fx.house
-	var taking := Lessons.held(page, "right", "tool", at)
-	var both := taking and Lessons.held(page, "left", "grab", at)
-	if not taking and at < page.press[0].from:
-		_ray("right", _aim_hit("right"))
-		return
-	h.visible = true
-	var hit := _aim_hit("right")
-	if taking:
-		h.position = Vector3(hit.x, GROUND, hit.z)
-		_ray("right", hit)
-	var apart: float = pads.left.position.distance_to(pads.right.position)
-	if both and _fx.spread == INF:
-		_fx.spread = apart
 	var s: float = h.get_meta("scale")
-	if _fx.spread != INF:
-		var k: float = apart / _fx.spread
-		h.scale = Vector3(s * k, s, s)
-	if not taking:
-		var k := _pop((at - page.press[0].to) / 0.25)
-		h.scale.y = s * lerpf(0.9, 1.0, k)
+	var right: Vector3 = pads.right.position
+	var left: Vector3 = pads.left.position
+	if not Lessons.held(page, "right", "grab", at):
+		if at < page.press[0].from:
+			_ray("right", _aim_hit("right"))
+		return
+	if _fx.grip.is_empty():
+		_fx.grip = [h.position, right]
+	if not Lessons.held(page, "left", "grab", at):
+		h.position = _fx.grip[0] + Vector3(right.x - _fx.grip[1].x, 0.0, right.z - _fx.grip[1].z) * 3.0
+		_ray("right", h.position + Vector3.UP * s * 0.04)
+		return
+	if _fx.spread.is_empty():
+		_fx.spread = [absf(right.x - left.x), absf(right.y - left.y)]
+	h.scale = Vector3(s * absf(right.x - left.x) / _fx.spread[0], s * (1.0 + (absf(right.y - left.y) - _fx.spread[1]) * 4.0), s)
 
 
 # The wipe: the delete tool held up at the sky for its whole hold swells an orb, then takes the garden away, each

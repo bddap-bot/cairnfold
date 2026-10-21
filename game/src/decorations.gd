@@ -4,6 +4,8 @@ extends Node3D
 var world: World
 var walls: WallTool
 var nodes := {}
+## Each decoration's place as its build was laid, which its build's carry moves it from (`carry`).
+var _frames := {}
 var _shown := {}
 var _stamp := {}
 var flames := PackedVector3Array()
@@ -24,6 +26,7 @@ func sync() -> void:
 	for n in nodes.values():
 		n.free()
 	nodes.clear()
+	_frames.clear()
 	flames.clear()
 	for id in world.state.decorations:
 		var d: Dictionary = world.state.decorations[id].merged(_shown.get(id, {}), true)
@@ -37,10 +40,11 @@ func sync() -> void:
 			for part in layout.parts:
 				part.color = Wall._painted_as(part, wall.paint)
 		var n := ToolModels.decoration(layout, d.seed)
-		n.transform = x
+		n.transform = (wall.transform if wall != null else Transform3D.IDENTITY) * x
 		n.set_meta(&"bounds", layout.bounds)
 		add_child(n)
 		nodes[id] = n
+		_frames[id] = x
 		for f in layout.flames:
 			flames.append(x * f.origin)
 
@@ -88,6 +92,13 @@ static func plan(w: Wall) -> Transform3D:
 	var inner := r.half_span() - WallLayout.THICKNESS
 	var half := Vector2(inner, inner) if r.kind == RoofLayout.Kind.CONE else Vector2(r.ridge_length() * 0.5 - WallLayout.THICKNESS * 0.5, inner)
 	return Transform3D(Basis(f.along * half.x, Vector3.UP, f.across * half.y), Vector3(f.mid.x, 0.0, f.mid.z))
+
+
+## Moves the decorations on `w` with its stones, as it is carried from where it was laid.
+func carry(w: Wall) -> void:
+	for id in nodes:
+		if world.state.decorations.has(id) and world.state.decorations[id].wall == w.id:
+			nodes[id].transform = w.transform * _frames[id]
 
 
 func targets() -> Array[Dictionary]:

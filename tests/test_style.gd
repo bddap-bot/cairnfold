@@ -349,10 +349,11 @@ func _timber_faces() -> void:
 func _towers_keep_stone() -> void:
 	main.tool.plaster = true
 	main.tool.deck = RoofLayout.Deck.STONE
-	main.tool.begin_house(Terrain.ground(-20, 10), 0.0, PackedInt32Array(), true)
-	_check(not main.tool.house.layout.plaster, "new towers use stone even after choosing plaster on a house")
-	var data: Dictionary = main.tool.house.data()
-	main.tool.end_house()
+	var tower: Wall = main.tool.new_house(WallTool.stance(Terrain.ground(-20, 10), 0.0, true))
+	_check(not tower.layout.plaster, "new towers use stone even after choosing plaster on a house")
+	var data: Dictionary = tower.data()
+	var built: Array[Wall] = [tower]
+	main.tool.build(built)
 	world.restore({"seq": 0, "cmds": []})
 	data.plaster = true
 	var snap := {"seq": 2, "cmds": [
@@ -367,11 +368,11 @@ func _towers_keep_stone() -> void:
 	for style in [WallTool.RoofStyle.PITCHED, WallTool.RoofStyle.THATCHED, WallTool.RoofStyle.FLAT]:
 		if style == WallTool.RoofStyle.FLAT:
 			wall.lay_now()
-			var mason := WallTool.Mason.new()
-			var start: Vector3 = wall.roof.frame().mid + Vector3.UP * wall.roof.pitch
-			main.tool.begin_roof(mason, wall, start)
-			main.tool.drag_roof(mason, start - Vector3.UP * wall.roof.pitch / mason.lift_gain)
-			main.tool.end_roof(mason)
+			main.tool.take_house(wall)
+			var flat: Dictionary = main.tool.house_at.duplicate()
+			flat.pitch = 0.0
+			main.tool.stand_house(flat)
+			main.tool.end_house()
 		else:
 			world._order({"op": "reshape", "of": "walls", "id": id, "data": WallTool.restyle_roof(world.state.walls[id], style)}, 1)
 		_check(WallTool.roof_style(world.state.walls[id]) == style, "tower takes the tested roof style")
@@ -488,10 +489,10 @@ func _roof_choices_keep_shape() -> void:
 			_check(world.state.walls[id].paint[element] == 1, "roof colour commits the covering's swatch")
 			_check(world.state.walls[id].roof.pitch == pitch, "colour keeps the roof shape")
 			wall.lay_now()
-			var mason := WallTool.Mason.new()
-			var start: Vector3 = wall.roof.frame().mid + Vector3.UP * pitch
-			main.tool.begin_roof(mason, wall, start)
-			main.tool.drag_roof(mason, start + Vector3.UP * (2.0 if pitch == 0.0 else -2.0) / mason.lift_gain)
-			main.tool.end_roof(mason)
-			_check((world.state.walls[id].roof.pitch == 0.0) == (pitch > 0.0), "grab and vertical pull changes roof shape")
+			main.tool.take_house(wall)
+			var hands: Array[Transform3D] = [Transform3D(Basis(), Vector3(0, 1, 0)), Transform3D(Basis(), Vector3(0, 2, 0) if pitch == 0.0 else Vector3(0, 3, 0))]
+			var drawn: Array[Transform3D] = [hands[0], Transform3D(Basis(), Vector3(0, 4, 0) if pitch == 0.0 else Vector3(0, 1, 0))]
+			main.tool.stand_house(WallTool.bend(main.tool.house_at, hands, drawn, 1.0))
+			main.tool.end_house()
+			_check((world.state.walls[id].roof.pitch == 0.0) == (pitch > 0.0), "two hands drawn apart or together upright change the roof's shape")
 			world.restore({"seq": 0, "cmds": []})

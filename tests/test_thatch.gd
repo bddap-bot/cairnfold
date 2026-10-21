@@ -218,7 +218,7 @@ func _under_the_coat(w: WallLayout, r: RoofLayout, what: String) -> void:
 
 func _thatch_follows_a_resized_house() -> void:
 	var at := {"center": Vector3(0, 0, 0), "yaw": 0.0, "size": Vector2(6, 4), "round": false}
-	var d := {"points": PackedVector3Array(WallTool.outline(at)), "closed": true, "rise": 0.0, "openings": PackedVector4Array(),
+	var d := {"points": PackedVector3Array(WallTool.outline(at)), "closed": true, "rise": 0.0, "height": 2.4, "openings": PackedVector4Array(),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
 		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.68, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": true}}
 	for size in [Vector2(12, 4), Vector2(6, 8), Vector2(2.4, 2.4), Vector2(14, 7)]:
@@ -231,7 +231,7 @@ func _thatch_follows_a_resized_house() -> void:
 		points.assign(Array(change.points))
 		var built := _built(points, RoofLayout.Kind.GABLE, roof.pitch, roof.curve, 2.0, roof.thatch)
 		_covered(built[1], "a house resized to %s" % size)
-	var tower := {"points": PackedVector3Array(WallLayout.circle(Vector3(2, 0, 2), 2.0)), "closed": true, "rise": 0.0, "openings": PackedVector4Array(),
+	var tower := {"points": PackedVector3Array(WallLayout.circle(Vector3(2, 0, 2), 2.0)), "closed": true, "rise": 0.0, "height": 4.5, "openings": PackedVector4Array(),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
 		"roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3(2, 0, 2), "radius": 2.0, "pitch": 3.2, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": true}}
 	var wider := WallTool.house_of(tower)
@@ -269,9 +269,13 @@ func _thatch_is_part_of_the_build_command() -> void:
 	d.roof.pitch = -1.0
 	_check(Commands._wall(d) == null, "and one below flat")
 	d.roof.pitch = 2.0
-	var deeper := WallTool.house_of(d)
-	deeper.size.y = 20.0
-	_check(is_equal_approx(WallTool.reshape_house(d, deeper).roof.pitch, 10.0), "deepened, its rise scales past 6 m with the depth")
+	var at := WallTool.house_of(d)
+	var across := Vector3.RIGHT.rotated(Vector3.UP, at.yaw).cross(Vector3.UP) * 0.1
+	var k: float = 20.0 / at.size.y
+	var from: Array[Transform3D] = [Transform3D(Basis(), -across), Transform3D(Basis(), across)]
+	var to: Array[Transform3D] = [Transform3D(Basis(), -across * k), Transform3D(Basis(), across * k)]
+	var deeper := WallTool.resize(at, from, to)
+	_check(is_equal_approx(deeper.size.y, 20.0) and is_equal_approx(WallTool.reshape_house(d, deeper).roof.pitch, 2.0 * k), "deepened by two hands, its rise scales past 6 m with the depth: %.1f" % deeper.pitch)
 	d.roof.thatch = 1
 	_check(Commands._wall(d) == null, "a covering that is not a yes or no is refused")
 	d.roof.erase("thatch")

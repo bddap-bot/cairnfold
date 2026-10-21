@@ -231,9 +231,10 @@ func _gable_ends_go_through_the_host() -> void:
 	_check(world.state.walls[id].gable_end == WallLayout.GableEnd.BOARDS and main.tool.gable_end == WallLayout.GableEnd.BOARDS, "a twist of the style tool on them turns them to the next style")
 	world.restore(world.snapshot())
 	_check(world.state.walls[id].gable_end == WallLayout.GableEnd.BOARDS and main.tool.find(id).layout.gable_end == WallLayout.GableEnd.BOARDS, "a save carries them")
-	main.tool.begin_house(Terrain.ground(-20, 30), 0.0)
-	_check(main.tool.house.layout.gable_end == WallLayout.GableEnd.BOARDS, "and the next house is laid with it")
-	main.tool.end_house()
+	var next: Wall = main.tool.new_house(WallTool.stance(Terrain.ground(-20, 30), 0.0))
+	_check(next.layout.gable_end == WallLayout.GableEnd.BOARDS, "and the next house is laid with it")
+	var built: Array[Wall] = [next]
+	main.tool.build(built)
 	_check(world.state.walls[world.seq * Commands.MAX_PIECES].gable_end == WallLayout.GableEnd.BOARDS, "which the garden takes from it")
 	main.tool.gable_end = WallLayout.GableEnd.WALL
 	for wall in world.state.walls.keys():

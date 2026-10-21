@@ -116,8 +116,10 @@ func _sweep_by_hand(hand: Hand, at: Vector3) -> void:
 		await process_frame
 		_check(hand.tool == tool, "sweeping the hand itself picks %s, holding %s" % [Hand.Tool.keys()[tool], Hand.Tool.keys()[hand.tool]])
 	hand.global_position = at
-## The house tool in tracked hands: the trigger takes up a square house where it points and carries it; the other
-## hand's grip joins to spread and turn it; letting go builds it.
+## Report (relay): placing a house with the trigger only places it; moving it is the grip's job, never the trigger's.
+## The house tool in tracked hands: the trigger puts up a square house where it points and holding it moves nothing; a
+## grip on the house carries it, its stones as laid, and raises it onto its plinth; the other hand's grip on it stretches
+## it across and makes it taller upright; letting go sets it, one undo step.
 func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	await _play([{"op": "place", "x": 14, "z": 12}, {"op": "pick", "hand": "right", "tool": "house"}])
 	_check(rig.right.tool == Hand.Tool.HOUSE, "the right ring picks the house")
@@ -129,78 +131,99 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	await _frames(2)
 	var before := walls.size()
 	trackers[&"right_hand"].set_input(&"trigger_click", true)
-	await _frames(2)
+	await _frames(4)
 	var tool: WallTool = main.tool
-	_check(tool.house != null, "the trigger takes up a house")
-	if tool.house == null:
+	_check(walls.size() == before + 1 and tool.house == null, "the trigger puts up a house: %d walls" % walls.size())
+	if walls.size() != before + 1:
 		return
-	_check(Vector2(tool.house_at.center.x - spot.x, tool.house_at.center.z - spot.z).length() < 0.5, "where the hand points: %s" % tool.house_at.center)
-	_check(tool.house_at.size == WallTool.HOUSE_SIZE and is_equal_approx(tool.house_at.size.x, tool.house_at.size.y), "a square house")
-	for i in 300:
-		tool.house.lay_now()
-		if not tool.house.layout.laid_points.is_empty():
-			break
-		await _frames(1)
-	var laid: int = tool.house.layout.laid
-	var start: Vector3 = tool.house_at.center
+	var w := walls[-1]
+	var data := func() -> Dictionary: return main.world.state.walls[w.id]
+	var placed := WallTool.house_of(data.call())
+	_check(Vector2(placed.center.x - spot.x, placed.center.z - spot.z).length() < 0.5, "where the hand points: %s" % placed.center)
+	_check(placed.size == WallTool.HOUSE_SIZE and w.roof != null and w.layout.closed and w.layout.openings.is_empty(), "a square roofed house with no door until one is added")
 	for i in 10:
 		hold.call(&"right_hand", Vector3(0.2 + 0.03 * (i + 1), -0.4, -0.3), spot)
 		await _frames(1)
-		var stands: Vector3 = tool.house.transform * Vector3(start.x, 0.0, start.z)
+	trackers[&"right_hand"].set_input(&"trigger_click", false)
+	await _frames(2)
+	_check(WallTool.house_of(data.call()).center == placed.center and walls.size() == before + 1, "holding the trigger and moving the hand moves nothing")
+	await _laid(w)
+	var front: Vector3 = placed.center + Vector3.UP * 1.2 + Vector3.RIGHT.rotated(Vector3.UP, placed.yaw).cross(Vector3.UP) * placed.size.y * 0.5
+	hold.call(&"right_hand", Vector3(0.2, -0.4, -0.3), front)
+	await _frames(2)
+	trackers[&"right_hand"].set_input(&"grip_click", true)
+	await _frames(2)
+	_check(tool.house == w, "a grip on its wall takes the house")
+	var laid: int = w.layout.laid
+	var start: Vector3 = tool.house_at.center
+	for i in 10:
+		hold.call(&"right_hand", Vector3(0.2 + 0.03 * (i + 1), -0.4, -0.3), front)
+		await _frames(1)
+		var stands: Vector3 = w.transform * Vector3(start.x, 0.0, start.z)
 		if Vector2(stands.x - tool.house_at.center.x, stands.z - tool.house_at.center.z).length() > 0.01:
 			_check(false, "frame %d: the laid house stands at %s, carried to %s" % [i, stands, tool.house_at.center])
 			break
-	_check(tool.house_at.center.x > spot.x + 1.0, "moving the hand carries it: %s" % tool.house_at.center)
-	_check(tool.house.layout.laid == laid, "carried, not laid again: walls, roof and all move as one")
-	_check(tool.house.roof.corners == tool.house.layout.laid_points, "the roof stands on the walls as laid")
+	_check(Vector2(tool.house_at.center.x - start.x, tool.house_at.center.z - start.z).length() > 1.0, "moving the hand carries it: %s" % tool.house_at.center)
+	_check(w.layout.laid == laid, "carried, not laid again: walls, roof and all move as one")
+	_check(data.call().points == PackedVector3Array(WallTool.outline(placed)) or WallTool.house_of(data.call()).center == placed.center, "nothing is sent while it is held")
 	# Directive (verbatim): "When placing a building, you should be able to raise it higher up by raising your controller up"
 	for i in 10:
-		hold.call(&"right_hand", Vector3(0.5, -0.4 + 0.04 * (i + 1), -0.3), spot)
+		hold.call(&"right_hand", Vector3(0.5, -0.4 + 0.04 * (i + 1), -0.3), front)
 		await _frames(1)
 	var rise: float = tool.house_at.rise
-	_check(rise >= 0.3 and tool.house.layout.rise == rise, "raising the hand raises it onto a plinth: %.1f m" % rise)
-	for i in 300:
-		tool.house.lay_now()
-		await _frames(1)
-		if tool.house.layout.laid_rise == rise:
-			break
+	_check(rise >= 0.3 and w.layout.rise == rise, "raising the hand raises it onto its plinth: %.1f m" % rise)
+	await _laid(w)
 	await _frames(1)
-	var foot: float = (tool.house.transform * tool.house.layout.samples[0]).y
+	var foot: float = (w.transform * w.layout.samples[0]).y
 	var ground := WallTool._lowest(WallTool.outline(tool.house_at))
-	_check(is_equal_approx(foot, ground + rise - WallLayout.SINK), "and shows it standing that high: foot %.2f over ground %.2f" % [foot, ground])
+	_check(is_equal_approx(foot, ground + rise - WallLayout.SINK), "and shows it standing that high, never floating: foot %.2f over ground %.2f" % [foot, ground])
+	var left_at := Vector3(-0.2, -0.4, -0.3)
+	hold.call(&"left_hand", left_at, tool.house_at.center + Vector3.UP * (rise + 1.2) + (front - placed.center).normalized() * placed.size.y * 0.5 - Vector3.UP * 1.2)
+	await _frames(1)
 	trackers[&"left_hand"].set_input(&"grip_click", true)
 	await _frames(2)
+	_check(tool._holders.size() == 2 and tool._pair == WallTool.Pair.WALLS, "the left grip on its wall joins to size it")
 	Cues.pulsed.clear()
 	var square: Vector2 = tool.house_at.size
+	var held_at: Dictionary = tool.house_at.duplicate()
 	var askew := 0
 	for i in 20:
-		hold.call(&"left_hand", Vector3(-0.2 - 0.015 * (i + 1), -0.4, -0.3), spot)
+		hold.call(&"right_hand", Vector3(0.5 + 0.015 * (i + 1), 0.0, -0.3), front)
 		await _frames(1)
-		if tool.house.roof.corners != tool.house.layout.laid_points:
+		if w.roof.corners != w.layout.laid_points:
 			askew += 1
 	_check(askew == 0, "while it stretches the roof stays on the walls as laid, askew on %d frames" % askew)
-	_check(tool.house_at.size.x > square.x * 1.3, "the left grip joins, and spreading the hands stretches it: %s" % tool.house_at.size)
+	_check(tool.house_at.size.x > square.x * 1.2 or tool.house_at.size.y > square.y * 1.2, "spreading the hands stretches it: %s" % tool.house_at.size)
+	_check(tool.house_at.rise == held_at.rise and tool.house_at.yaw == held_at.yaw, "two hands neither raise its plinth nor turn it")
 	_check(_pulsed_both(Cues.Act.HOUSE_STRETCH, rig), "the stretch pulses in both hands: %s" % Cues.pulsed)
 	_check(rig.left._holding and rig.right._holding and not rig.right._beam.visible and not rig.left._beam.visible, "both hands holding it show no pointer")
-	var yaw: float = tool.house_at.yaw
+	# Report (relay): two hands stretching a house vertically make the house itself taller.
+	var height: float = tool.house_at.height
 	for i in 10:
-		hold.call(&"left_hand", Vector3(-0.5, -0.4, -0.3 + 0.06 * (i + 1)), spot)
+		hold.call(&"right_hand", Vector3(0.8, 0.0 + 0.06 * (i + 1), -0.3), front)
 		await _frames(1)
-	_check(absf(angle_difference(yaw, tool.house_at.yaw)) > 0.3, "turning the pair turns it: %f to %f" % [yaw, tool.house_at.yaw])
+	_check(tool.house_at.height > height + 0.5 and w.layout.height == tool.house_at.height, "drawing the hands apart upright makes its walls taller: %.1f to %.1f m" % [height, tool.house_at.height])
+	var sized: Dictionary = tool.house_at.duplicate()
 	await _frames(4)
-	_check(walls.size() == before, "nothing stands while it is held")
-	trackers[&"right_hand"].set_input(&"trigger_click", false)
+	_check(walls.size() == before + 1, "nothing new stands while it is held")
+	trackers[&"right_hand"].set_input(&"grip_click", false)
 	await _frames(2)
-	_check(tool.house != null, "the left hand alone still holds it")
+	_check(tool.house == w, "the left hand alone still holds it")
 	trackers[&"left_hand"].set_input(&"grip_click", false)
 	await _frames(4)
-	_check(tool.house == null and walls.size() == before + 1, "letting go builds it, %d walls" % walls.size())
-	if walls.size() == before + 1:
-		_check(walls[-1].roof != null and walls[-1].layout.closed, "a roofed house")
-		_check(walls[-1].layout.openings.is_empty(), "with no door until one is added")
-		_check(main.world.state.walls[walls[-1].id].rise == rise, "standing as high as it was raised: %.1f m" % main.world.state.walls[walls[-1].id].rise)
+	var set_at := WallTool.house_of(data.call())
+	_check(tool.house == null and walls.size() == before + 1, "letting go leaves the one house, %d walls" % walls.size())
+	_check(set_at.center.is_equal_approx(sized.center) and set_at.size.is_equal_approx(sized.size) and set_at.rise == rise and is_equal_approx(set_at.height, sized.height), "set where and as it was let go: %s" % set_at)
+	await _laid(w)
+	await _frames(2)
+	_check(w.transform.is_equal_approx(Transform3D.IDENTITY), "laid again where it stands, carried no more")
 	await _play([{"op": "press", "button": "dpad_down"}])
-	_check(walls.size() == before, "undo takes the house away")
+	var back := WallTool.house_of(data.call())
+	_check(back.center.is_equal_approx(placed.center) and back.size == placed.size and back.rise == 0.0 and back.height == placed.height, "one undo puts it back where and as it was put up: %s" % back)
+	await _play([{"op": "press", "button": "A"}])
+	_check(WallTool.house_of(data.call()).center.is_equal_approx(sized.center), "redo carries it again")
+	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
+	_check(walls.size() == before, "and the undo before takes the house away")
 	await _play([{"op": "press", "button": "A"}])
 	_check(walls.size() == before + 1, "redo puts it back")
 	for t in trackers.values():
@@ -243,10 +266,9 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 	trackers[&"right_hand"].set_input(&"trigger_click", true)
 	await _frames(2)
 	var tool: WallTool = main.tool
-	_check(tool.house != null and tool.house_at.round and tool.house.roof.kind == RoofLayout.Kind.CONE, "the trigger takes up a round tower under a cone")
 	trackers[&"right_hand"].set_input(&"trigger_click", false)
 	await _frames(4)
-	_check(walls.size() == before + 1, "letting go builds it")
+	_check(walls.size() == before + 1 and tool.house == null, "the trigger puts up a tower")
 	if walls.size() != before + 1:
 		return
 	var w := walls[-1]
@@ -297,8 +319,9 @@ static func _centre(w: Wall) -> Vector3:
 
 
 ## Directive (verbatim): "Eventually I'd like to be able to resize a house" / "in each dimension"
-## A built house in tracked hands: one grip pulls its height, the other hand's grip joining stretches the side
-## nearest the line between the hands, and a round tower's diameter; its fittings, roof and a wall it meets follow.
+## A built house in tracked hands: one grip raises it onto its plinth and sets it back down, the other hand's grip
+## joining stretches the side nearest the line between the hands, and a round tower's diameter; its fittings, roof and a
+## wall it meets follow.
 func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	await _play([
 		{"op": "place", "x": 12, "z": -7},
@@ -330,14 +353,32 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	hold.call(&"left_hand", Vector3(-0.2, -0.4, -0.3), front)
 	await _frames(2)
 	var height: float = house.layout.height
+	await _laid(house)
+	var foot := house.layout.samples[0].y
 	await grip.call(&"right_hand", true)
 	for i in 10:
 		hold.call(&"right_hand", Vector3(0.2, -0.4 + 0.03 * (i + 1), -0.3), front)
 		await _frames(1)
 	await grip.call(&"right_hand", false)
 	await _frames(4)
-	_check(data.call().height > height + 0.2 and at.call().size.is_equal_approx(Vector2(6, 4)), "one grip on the house raises it, %.1f to %.1f m, keeping its footprint" % [height, data.call().height])
-	height = data.call().height
+	var rise: float = data.call().rise
+	_check(rise >= 0.6 and data.call().height == height and at.call().size.is_equal_approx(Vector2(6, 4)), "one grip rising raises it %.1f m onto its plinth, as large and as tall" % rise)
+	await _laid(house)
+	_check(is_equal_approx(house.layout.samples[0].y, foot + rise) and house.transform.is_equal_approx(Transform3D.IDENTITY), "it is laid that much higher: %.2f to %.2f by %.2f, carried by %s" % [foot, house.layout.samples[0].y, rise, house.transform])
+	hold.call(&"right_hand", Vector3(0.2, -0.1, -0.3), front)
+	await _frames(1)
+	await grip.call(&"right_hand", true)
+	for i in 10:
+		hold.call(&"right_hand", Vector3(0.2, -0.1 - 0.1 * (i + 1), -0.3), front)
+		await _frames(1)
+	await grip.call(&"right_hand", false)
+	await _frames(4)
+	_check(data.call().rise == 0.0, "lowered, it comes back down to its ground, no lower: %.1f" % data.call().rise)
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(is_equal_approx(data.call().rise, rise), "undo raises it again: %.1f" % data.call().rise)
+	await _play([{"op": "press", "button": "dpad_down"}])
+	_check(data.call().rise == 0.0, "and once more puts it down")
+	await _laid(house)
 	var before: Dictionary = data.call().duplicate(true)
 
 	hold.call(&"right_hand", Vector3(0.2, -0.4, -0.3), front)
@@ -346,19 +387,19 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	hold.call(&"right_hand", Vector3(0.2, -0.25, -0.3), front)
 	await _frames(2)
 	await grip.call(&"left_hand", true)
-	_check(tool.resizing == house and is_equal_approx(house.layout.height, height), "the other hand's grip on it joins, putting back the first hand's pull: %.1f m" % house.layout.height)
+	_check(tool.house == house and tool._holders.size() == 2 and is_equal_approx(house.layout.height, height), "the other hand's grip on it joins: %.1f m" % house.layout.height)
 	Cues.pulsed.clear()
 	for i in 20:
 		hold.call(&"right_hand", Vector3(0.2 + 0.015 * (i + 1), -0.25, -0.3), front)
 		await _frames(1)
-	_check(_pulsed_both(Cues.Act.WALL_STRETCH, rig), "resizing it pulses in both hands, the still one too: %s" % Cues.pulsed)
+	_check(_pulsed_both(Cues.Act.HOUSE_STRETCH, rig), "resizing it pulses in both hands, the still one too: %s" % Cues.pulsed)
 	_check(rig.left._holding and rig.right._holding, "both hands hold it")
 	_check(walls[-1] == house and world.state.walls[house.id].points == before.points, "nothing is sent while it is held")
 	await grip.call(&"left_hand", false)
 	await grip.call(&"right_hand", false)
 	await _frames(4)
 	var wide: Dictionary = at.call()
-	_check(tool.resizing == null and is_equal_approx(wide.size.x, 10.5) and is_equal_approx(wide.size.y, 4.0) and is_equal_approx(data.call().height, height), "spreading the hands across its front stretches only its width: %s, %.1f m high" % [wide.size, data.call().height])
+	_check(tool.house == null and is_equal_approx(wide.size.x, 10.5) and is_equal_approx(wide.size.y, 4.0) and is_equal_approx(data.call().height, height), "spreading the hands across its front stretches only its width: %s, %.1f m high" % [wide.size, data.call().height])
 	_check(absf(wide.center.x - wide.size.x * 0.5 - (12 - 3)) < 0.05, "the still hand's wall stays put; the house grows toward the moving hand: %s" % wide.center)
 	await _laid(house)
 	_check(house.layout.laid_points.size() == 4 and house.roof.corners == house.layout.laid_points, "its roof covers the new walls")
@@ -389,7 +430,7 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	await _frames(2)
 	await grip.call(&"right_hand", true)
 	await grip.call(&"left_hand", true)
-	_check(tool.resizing == house, "two grips take it again, the hands one behind the other")
+	_check(tool.house == house and tool._holders.size() == 2, "two grips take it again, the hands one behind the other")
 	for i in 20:
 		hold.call(&"left_hand", Vector3(0.12, -0.38, -0.55 - 0.02 * (i + 1)), flank)
 		await _frames(1)
@@ -401,8 +442,7 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 
 	await _play([{"op": "press", "button": "dpad_down"}])
 	await _frames(4)
-	_check(is_equal_approx(at.call().size.y, 4.0), "undo takes the depth back, leaving the frame budget room to raise it: %s" % at.call().size)
-	await _raise_by_both_hands(house, trackers, hold, grip, front)
+	_check(is_equal_approx(at.call().size.y, 4.0), "undo takes the depth back: %s" % at.call().size)
 
 	await _play([
 		{"op": "house", "round": true, "at": [4, -15], "size": [3.4, 3.4], "seconds": 0.3},
@@ -444,49 +484,6 @@ func _pulsed_both(act: Cues.Act, rig: Rig) -> bool:
 
 
 ## Directive (verbatim): "If I grab a house or a building with two hands, I would like to be able to lift it up, raise it a little higher"
-func _raise_by_both_hands(house: Wall, trackers: Dictionary, hold: Callable, grip: Callable, front: Vector3) -> void:
-	var world: World = main.world
-	var data := func() -> Dictionary: return world.state.walls[house.id]
-	var before: Dictionary = data.call().duplicate(true)
-	await _laid(house)
-	var foot := house.layout.samples[0].y
-	var both := func(up: float) -> void:
-		hold.call(&"right_hand", Vector3(0.2, -0.4 + up, -0.3), front)
-		hold.call(&"left_hand", Vector3(-0.2, -0.4 + up, -0.3), front)
-	both.call(0.0)
-	await _frames(2)
-	await grip.call(&"right_hand", true)
-	await grip.call(&"left_hand", true)
-	Cues.pulsed.clear()
-	for i in 20:
-		both.call(0.03 * (i + 1))
-		await _frames(1)
-	_check(_pulsed_both(Cues.Act.WALL_STRETCH, main.rig), "raising it pulses in both hands: %s" % Cues.pulsed)
-	_check(data.call().get("rise", 0.0) == 0.0, "nothing is sent while it is raised")
-	await grip.call(&"left_hand", false)
-	await grip.call(&"right_hand", false)
-	await _frames(4)
-	var rise: float = data.call().rise
-	_check(rise >= 0.6 and data.call().points == before.points and data.call().height == before.height, "both hands rising raise it %.1f m, as large and as tall" % rise)
-	await _laid(house)
-	_check(is_equal_approx(house.layout.samples[0].y, foot + rise), "it is laid that much higher: %.2f to %.2f" % [foot, house.layout.samples[0].y])
-	both.call(0.0)
-	await _frames(2)
-	await grip.call(&"right_hand", true)
-	await grip.call(&"left_hand", true)
-	for i in 20:
-		both.call(-0.1 * (i + 1))
-		await _frames(1)
-	await grip.call(&"left_hand", false)
-	await grip.call(&"right_hand", false)
-	await _frames(4)
-	_check(data.call().rise == 0.0, "both hands lowering set it back on its ground, no lower: %.1f" % data.call().rise)
-	await _play([{"op": "press", "button": "dpad_down"}])
-	_check(is_equal_approx(data.call().rise, rise), "undo raises it again: %.1f" % data.call().rise)
-	await _play([{"op": "press", "button": "dpad_down"}])
-	_check(data.call().rise == 0.0, "and once more puts it down")
-
-
 func _points(d: Dictionary) -> Array[Vector3]:
 	var out: Array[Vector3] = []
 	out.assign(Array(d.points))

@@ -494,21 +494,21 @@ func _in_the_glade() -> void:
 		_lay_walls()
 		_check(world.state.walls[house.id].roof.dormers.size() == 1, "undo puts it back")
 	var tool: WallTool = main.tool
-	var m := tool.mason(main.rig.right)
 	var hs := r.half_span()
-	var eave: Vector3 = r.frame().mid + r.frame().across * (hs + 0.15) + Vector3.UP * r.rise(1.0 - (hs + 0.15) / hs)
-	var hand: Vector3 = eave + Vector3.UP * 0.5
-	tool.begin_roof(m, house, hand, eave)
-	_check(m.eave_out.is_equal_approx(r.frame().across), "a grip on the eave holds the eave")
-	tool.drag_roof(m, hand + r.frame().across * 0.8 / m.lift_gain)
-	tool.end_roof(m)
+	var across: Vector3 = r.frame().across
+	var eave: Vector3 = r.frame().mid + across * (hs + 0.15) + Vector3.UP * r.rise(1.0 - (hs + 0.15) / hs)
+	_check(r.eave_way(eave).is_equal_approx(across) and r.eave_way(eave - across * (hs + 0.15) * 2.0).is_equal_approx(-across), "a grip on either eave, past the walls, holds that eave")
+	_check(r.eave_way(ridge) == Vector3.ZERO, "a grip on the slope over the walls holds the roof itself")
+	tool.take_house(house)
+	var from: Array[Transform3D] = [Transform3D(Basis(), eave - across * 2.0 * (hs + 0.15)), Transform3D(Basis(), eave)]
+	var to: Array[Transform3D] = [Transform3D(Basis(), from[0].origin - across * 0.8), Transform3D(Basis(), from[1].origin + across * 0.8)]
+	var out: Array[Vector3] = [-across, across]
+	tool.stand_house(WallTool.pull_eaves(tool.house_at, from, to, out, 1.0, house.roof.reach()))
+	tool.end_house()
 	for f in 4:
 		await process_frame
 	var pulled: float = world.state.walls[house.id].roof.overhang
-	_check(absf(pulled - (RoofLayout.OVERHANG + 0.8)) < 0.06 and world.state.walls[house.id].roof.pitch == r.pitch, "pulled out, the eave reaches further and the pitch stays: %.2f" % pulled)
-	tool.begin_roof(m, house, hand, ridge)
-	_check(m.eave_out == Vector3.ZERO, "a grip on the slope still pulls the ridge")
-	tool.end_roof(m)
+	_check(absf(pulled - (RoofLayout.OVERHANG + 0.8)) < 0.06 and world.state.walls[house.id].roof.pitch == r.pitch, "both eaves pulled out, they reach further and the pitch stays: %.2f" % pulled)
 	await _play([{"op": "roof", "index": 1, "pitch": 0.0, "deck": "wood"}, {"op": "top", "index": 1, "style": "rail"}])
 	var d: Dictionary = world.state.walls[deck.id]
 	_check(d.roof.pitch == 0.0 and d.roof.deck == RoofLayout.Deck.WOOD and d.top == WallLayout.Top.RAIL, "a house pushed flat takes a wooden deck and a railing")

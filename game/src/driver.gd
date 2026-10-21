@@ -165,6 +165,50 @@ func _hands(s: Dictionary) -> void:
 	await get_tree().process_frame
 
 
+## Plays both hands through a script in the picture book's form (Lessons.PAGES: `keys` posing each hand in head space
+## as the head stands when it begins, `press` holding actions, over `length` seconds), as a player's controllers would,
+## then lets go of everything it held. A hand's key may point it `toward` a spot in place of an `aim`: [right, up, ahead]
+## metres from the ground under the head, as "relative" builds are placed, so it meets them however high the head is.
+## "capture" saves the view at each of the `shots` seconds given; `tools` hands each hand that tool first.
+func _gesture(s: Dictionary) -> void:
+	for side in s.get("tools", {}):
+		(main.rig.left if side == "left" else main.rig.right).tool = Lessons.tool(s.tools[side])
+	var head: Transform3D = main.rig.head.global_transform
+	var fwd := -head.basis.z
+	fwd.y = 0.0
+	fwd = fwd.normalized() if fwd.length() > 0.01 else Vector3.FORWARD
+	var ground := Terrain.ground(head.origin.x, head.origin.z)
+	var body := Transform3D(Basis(fwd.cross(Vector3.UP), Vector3.UP, -fwd), ground)
+	s = s.duplicate(true)
+	for k: Dictionary in s.keys:
+		for side in ["left", "right"]:
+			if k.has(side) and k[side].has("toward"):
+				var at: Vector3 = head * Lessons._v(k[side].at)
+				var aim: Vector3 = head.basis.inverse() * (body * Lessons._v(k[side].toward) - at)
+				k[side].aim = [aim.x, aim.y, aim.z]
+	var shots: Array = s.get("shots", [])
+	var t := 0.0
+	while t <= s.length:
+		for side in Lessons.hands(s):
+			var hand: Hand = main.rig.left if side == "left" else main.rig.right
+			hand.held_still = true
+			hand.global_transform = head * Lessons.frame(Lessons.pose(s, side, t))
+		for p in s.press:
+			var key := "%s_hand/%s" % [p.hand, Controls.input(p.action, p.hand + "_hand")]
+			if Lessons.held(s, p.hand, p.action, t):
+				Buttons.injected[key] = true
+			else:
+				Buttons.injected.erase(key)
+		await get_tree().process_frame
+		if s.has("capture") and not shots.is_empty() and t >= shots[0]:
+			await main.capture("%s-%d" % [s.capture, s.shots.size() - shots.size()])
+			shots = shots.slice(1)
+		t += get_process_delta_time()
+	for p in s.press:
+		Buttons.injected.erase("%s_hand/%s" % [p.hand, Controls.input(p.action, p.hand + "_hand")])
+	await _frames(2)
+
+
 ## Holds `hand` beside the head, holding `tool`, pointing at `at` in the garden.
 func _point(s: Dictionary) -> void:
 	var hand := _holding(s, Hand.Tool[s.tool.to_upper()])
@@ -268,10 +312,9 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 	tool.end_stroke(m)
 
 
-## The house tool's carry: a square house taken up at `from` (default `at`) and set down at `at`, `size`
-## [along, across], its front turned `turn` degrees from the x axis (the head's right with "relative"), from
-## `turn_from` (default `turn`), moving there over `seconds` and rising `rise` metres; with "round", the tower tool's, a
-## round tower `size` [across, across]. With "capture", `shots` views named after it are saved at even steps, the last just before letting go.
+## The house tool's trigger: a square house put up at `at`, `size` [along, across], its front turned `turn` degrees
+## from the x axis (the head's right with "relative"), raised `rise` metres on its plinth; with "round", the tower
+## tool's, a round tower `size` [across, across]. "seconds" waits that long after.
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var round: bool = s.get("round", false)
@@ -279,43 +322,44 @@ func _house(s: Dictionary) -> void:
 	_lay_plaster(s)
 	var x: float = s.at[0]
 	var z: float = s.at[1]
-	var to := _spot(s, x, z)
-	var from := _spot(s, s.from[0], s.from[1]) if s.has("from") else to
-	var yaw := _turn(s, x, z, s.get("turn", 0.0))
-	var yaw_from := _turn(s, x, z, s.get("turn_from", s.get("turn", 0.0)))
-	var on: int = _target(s, from).on
+	var at := WallTool.stance(_spot(s, x, z), _turn(s, x, z, s.get("turn", 0.0)), round)
+	if s.has("size"):
+		at.size = Vector2(s.size[0], s.size[1])
+		at.pitch = WallTool.pitch_for(at)
+	at.rise = snappedf(s.get("rise", 0.0), WallLayout.COURSE)
+	var on: int = _target(s, at.center).on
 	_lay_gables(s)
-	tool.begin_house(from, yaw_from, PackedInt32Array([on]) if on >= 0 else PackedInt32Array(), round)
-	var taken_up: Vector2 = tool.house_at.size
-	var size := Vector2(s.size[0], s.size[1]) if s.has("size") else taken_up
-	var frames := maxi(1, ceili(s.get("seconds", 2.0) * 60.0))
-	var shots: int = s.get("shots", 3) if s.has("capture") else 0
-	var taken := 0
-	for f in frames:
-		await get_tree().process_frame
-		var k := float(f + 1) / frames
-		tool.place_house(from.lerp(to, k), lerp_angle(yaw_from, yaw, k), taken_up.lerp(size, k), snappedf(s.get("rise", 0.0) * k, WallLayout.COURSE))
-		if taken < shots and f + 1 >= frames * (taken + 1) / shots:
-			taken += 1
-			await get_tree().create_timer(0.4).timeout
-			await main.capture("%s-%d" % [s.capture, taken])
-	tool.end_house()
+	tool.build([tool.new_house(at, PackedInt32Array([on]) if on >= 0 else PackedInt32Array())])
+	await get_tree().create_timer(s.get("seconds", 0.0)).timeout
 
 
-## Resizes the built house `index` (or under `at`) where it stands to `size` [along its ridge, across it], or a
-## tower to `size[0]` across, and raised `rise` metres above its ground, over `seconds`, as two hands would.
+## Holds the built house `index` (or under `at`) as hands would and over `seconds` moves it by `move` [x, z] metres,
+## turns it `turn` degrees, sizes it to `size` [along its ridge, across it] (a tower to `size[0]` across), raises it
+## `rise` metres onto its plinth, its walls to `height` and its roof to `pitch`, `curve` and `overhang`; then lets go.
 func _resize(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
-	tool.begin_resize(_wall_of(s))
-	var start: Dictionary = tool.resized_to.duplicate()
+	tool.take_house(_wall_of(s))
+	var start: Dictionary = tool.house_at.duplicate()
+	var end := start.duplicate()
+	var move: Array = s.get("move", [0, 0])
+	end.center = start.center + Vector3(move[0], 0.0, move[1])
+	end.yaw = start.yaw + deg_to_rad(s.get("turn", 0.0))
+	if s.has("size"):
+		end.size = Vector2(s.size[0], s.size[0] if start.round else s.size[1])
+	for k in ["rise", "height", "pitch", "curve", "overhang"]:
+		end[k] = s.get(k, start[k])
 	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
 	for f in frames:
 		await get_tree().process_frame
+		var k := float(f + 1) / frames
 		var to := start.duplicate()
-		to.size = start.size.lerp(Vector2(s.size[0], s.size[0] if start.round else s.size[1]), float(f + 1) / frames)
-		to.rise = lerpf(start.rise, s.get("rise", start.rise), float(f + 1) / frames)
-		tool.drag_resize(to)
-	tool.end_resize()
+		to.center = start.center.lerp(end.center, k)
+		to.yaw = lerp_angle(start.yaw, end.yaw, k)
+		to.size = start.size.lerp(end.size, k)
+		for key in ["rise", "height", "pitch", "curve", "overhang"]:
+			to[key] = lerpf(start[key], end[key], k)
+		tool.stand_house(to)
+	tool.end_house()
 
 
 func _turn(s: Dictionary, x: float, z: float, degrees: float) -> float:
@@ -327,9 +371,11 @@ func _turn(s: Dictionary, x: float, z: float, degrees: float) -> float:
 ## walls, its `deck` ("stone" or "wood") and its `dormers`, each [metres along the ridge, across it].
 func _roof(s: Dictionary) -> void:
 	var w: Wall = main.tool.walls[s.index]
-	main.tool.shape_roof(w, s.get("pitch", w.roof.pitch), s.get("curve", w.roof.curve))
-	main.tool.shape_eave(w, s.get("overhang", w.roof.overhang))
-	var roof := {"pitch": w.roof.pitch, "curve": w.roof.curve, "overhang": w.roof.overhang}
+	var r := w.roof
+	r.pitch = RoofLayout.snap_pitch(s.get("pitch", r.pitch), WallTool.ROOF_STEP)
+	r.curve = clampf(s.get("curve", r.curve), -RoofLayout.CURVE, RoofLayout.CURVE)
+	r.overhang = clampf(snappedf(s.get("overhang", r.overhang), WallTool.ROOF_STEP), 0.0, r.reach())
+	var roof := {"pitch": r.pitch, "curve": r.curve, "overhang": r.overhang}
 	if s.has("deck"):
 		roof["deck"] = int(RoofLayout.Deck[s.deck.to_upper()])
 	if s.has("dormers"):
@@ -360,30 +406,38 @@ func _lift_wall(s: Dictionary) -> void:
 
 
 ## Grips wall `index` (or the one under `at`) on its top, as a hand does, and pulls it `metres` up then down again
-## `times` times, `seconds` a pull: its height, or with "roof" its roof's ridge.
+## `times` times, `seconds` a pull: its height, or a house's with two hands; with "roof", a house's ridge with two
+## hands on its roof.
 func _grip(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var w := _wall_of(s)
+	var house := not WallTool.house_of(main.world.state.walls[w.id]).is_empty()
 	var m := tool.mason(_hand(s))
-	var roof: bool = s.get("roof", false)
-	var at: Vector3 = w.roof.frame().mid + Vector3.UP * w.roof.pitch if roof else w.layout.point_at(w.layout.length() * 0.5) + Vector3.UP * w.layout.height
+	var at: Vector3 = w.layout.point_at(w.layout.length() * 0.5) + Vector3.UP * w.layout.height
 	var hand: Vector3 = at + Vector3.BACK
 	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
 	for n in int(s.get("times", 1)):
 		var metres: float = s.get("metres", 1.0) * (1.0 if n % 2 == 0 else -1.0)
-		if roof:
-			tool.begin_roof(m, w, hand)
+		var start := {}
+		if house:
+			tool.take_house(w)
+			start = tool.house_at.duplicate()
 		else:
 			tool.begin_lift(m, w, hand, at)
 		for f in frames:
 			await get_tree().process_frame
-			var to: Vector3 = hand + Vector3.UP * metres * smoothstep(0.0, 1.0, float(f + 1) / frames)
-			if roof:
-				tool.drag_roof(m, to)
+			var up := metres * smoothstep(0.0, 1.0, float(f + 1) / frames)
+			if not house:
+				tool.drag_lift(m, hand.y + up)
+				continue
+			var to := start.duplicate()
+			if s.get("roof", false):
+				to.pitch = RoofLayout.snap_pitch(start.pitch + up, WallTool.ROOF_STEP)
 			else:
-				tool.drag_lift(m, to.y)
-		if roof:
-			tool.end_roof(m)
+				to.height = maxf(start.height + snappedf(up, WallLayout.COURSE), WallLayout.MIN_HEIGHT)
+			tool.stand_house(to)
+		if house:
+			tool.end_house()
 		else:
 			tool.end_lift(m)
 		await _standing()
@@ -875,24 +929,25 @@ func _village(s: Dictionary) -> void:
 			var entry: Dictionary = s.roofs[k % s.roofs.size()] if s.has("roofs") else {}
 			var size := Vector2(0.7, 0.44) * step
 			for storey in int(entry.get("storeys", s.get("storeys", 1))):
-				tool.begin_house(at, yaw, on)
-				tool.place_house(at, yaw, size)
-				tool.house.layout.height = s.get("height", WallTool.HOUSE_HEIGHT)
-				tool.house.roof.curve = s.get("curve", 0.0)
-				tool.house.roof.pitch = entry.get("pitch", s.get("pitch", tool.house.roof.pitch))
-				_dress_roof(tool.house, entry, size)
-				tool.end_house()
+				var stance := WallTool.stance(at, yaw)
+				stance.size = size
+				stance.height = s.get("height", WallTool.HOUSE_HEIGHT)
+				stance.curve = s.get("curve", 0.0)
+				stance.pitch = entry.get("pitch", s.get("pitch", WallTool.pitch_for(stance)))
+				var house := tool.new_house(stance, on)
+				_dress_roof(house, entry, size)
+				tool.build([house])
 				size *= entry.get("upper", 1.0)
 				tool.walls[-1].ivy_age = INF
 				on = PackedInt32Array([tool.walls[-1].id])
 			if s.get("wings", false):
 				var wing := at + Vector3.RIGHT.rotated(Vector3.UP, yaw) * step * 0.2
 				wing = Terrain.ground(wing.x, wing.z)
-				tool.begin_house(wing, yaw)
-				tool.place_house(wing, yaw, Vector2(0.3, 0.6) * step)
-				tool.house.roof.curve = s.get("curve", 0.0)
-				tool.house.roof.pitch = s.get("pitch", tool.house.roof.pitch)
-				tool.end_house()
+				var wing_at := WallTool.stance(wing, yaw)
+				wing_at.size = Vector2(0.3, 0.6) * step
+				wing_at.curve = s.get("curve", 0.0)
+				wing_at.pitch = s.get("pitch", WallTool.pitch_for(wing_at))
+				tool.build([tool.new_house(wing_at)])
 				tool.walls[-1].ivy_age = INF
 	print("village: %d buildings in %.0f ms" % [k, (Time.get_ticks_usec() - start) / 1000.0])
 
