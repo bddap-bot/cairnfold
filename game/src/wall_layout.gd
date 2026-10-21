@@ -218,7 +218,11 @@ func point_at(s: float) -> Vector3:
 
 ## The springing of an arch of `size` over the floor, lowered under a wall too low for its head.
 func spring(size := 1.0) -> float:
-	return minf(floor_lift() + SPRING * size, height - arch_rise(RING * size, size) - 0.3)
+	return minf(floor_lift() + SPRING * size, _highest_spring(size))
+
+
+func _highest_spring(size: float) -> float:
+	return height - arch_rise(RING * size, size) - 0.3
 
 
 ## The arch this wall opens: a timber frame's own, else stone.
@@ -249,8 +253,10 @@ func arch_rise(out: float, size := 1.0) -> float:
 	return last[0].y + last[1] * sin(last[3])
 
 
+## Whether the wall holds an arch of `size` as it would on level ground: a raised floor only brings its springing up
+## to the top, never refuses it.
 func can_arch(size := 1.0) -> bool:
-	return fence or spring(size) - floor_lift() >= minf(0.9, SPRING * size)
+	return fence or _highest_spring(size) >= minf(0.9, SPRING * size) - 1e-4
 
 
 ## Half-width at height `y` above the foot of the opening of an arch of `size`, or with `ring` of all the arch covers,
@@ -784,14 +790,15 @@ func inner_side() -> float:
 
 
 ## The opening a placed window makes on its own, before fusing: a door if its sill would be near the ground. Its size
-## scales it every way from where it stands: an arch about its springing, a door or window up from its sill.
+## scales it every way from where it stands: an arch about its springing, a door or window up from its sill; a door,
+## like an arch, stands its height over the floor, lowered under the top of a wall that holds it on level ground.
 func opening_for(w: Vector4) -> Dictionary:
 	var c := course_height()
 	var k := w.w
 	if w.z == DoorStyle.ARCHWAY:
 		return {"s": w.x, "half": ARCH_HALF * k, "sill": 0.0, "head": spring(k) + arch_rise(0.0, k) + arch_style().ring * k, "door": true, "style": DoorStyle.ARCHWAY, "lights": 1, "size": k}
 	if w.y - WINDOW_TALL * 0.5 < DOOR_SILL:
-		return {"s": w.x, "half": DOOR_HALF * k, "sill": 0.0, "head": roundf((floor_lift() + DOOR_TALL * k) / c) * c, "door": true, "lights": 1, "style": DoorStyle.PLAIN, "size": k}
+		return {"s": w.x, "half": DOOR_HALF * k, "sill": 0.0, "head": minf(roundf((floor_lift() + DOOR_TALL * k) / c) * c, floorf((height + 0.01) / c) * c - c), "door": true, "lights": 1, "style": DoorStyle.PLAIN, "size": k}
 	var sill := roundf((w.y - WINDOW_TALL * 0.5) / c) * c
 	return {"s": w.x, "half": WINDOW_HALF * k, "sill": sill, "head": sill + roundf(WINDOW_TALL * k / c) * c, "door": false, "lights": 1, "style": DoorStyle.PLAIN, "size": k}
 
@@ -862,7 +869,7 @@ func _opening_fits(o: Dictionary, others: Array[Dictionary]) -> bool:
 	if arched:
 		if not can_arch(o.size):
 			return false
-	elif fence or o.head + course_height() > height + 0.01:
+	elif fence or o.head + course_height() > height + 0.01 or (o.door and roundf(DOOR_TALL * o.size / course_height()) * course_height() + course_height() > height + 0.01):
 		return false
 	var edge := _edge(o)
 	var side: float = o.half + edge + PIER * 0.5
