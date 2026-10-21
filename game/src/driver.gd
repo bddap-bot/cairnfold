@@ -9,7 +9,7 @@ signal finished
 
 ## The parts of the scene `layer` hides, as demo/meadow-layers.json prices the bare meadow; "all" hides every one.
 ## "mountains" are the ranges and whatever lies between them and the meadow.
-const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "sun_disc", "sun", "ambient", "fog", "post", "msaa", "water", "hands"]
+const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "sun_disc", "sun", "shadows", "masonry", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands"]
 
 var main: Node
 var steps: Array
@@ -908,6 +908,13 @@ func _layer_parts(name: String) -> Array[Array]:
 			out.append([look.disc, "visible", false])
 		"sun":
 			out.append([look.sun, "visible", false])
+		"shadows":
+			for step: Quality.Step in Quality.ladder:
+				out.append([step, "shadows", false])
+		"masonry":
+			out.append([main.tool.masonry, "visible", false])
+		"camera_previews":
+			out.append([main.photo_tool, "process_mode", Node.PROCESS_MODE_DISABLED])
 		"fog":
 			out.append([look.env, "fog_enabled", false])
 		"ambient":
