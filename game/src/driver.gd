@@ -210,8 +210,9 @@ func _gesture(s: Dictionary) -> void:
 
 
 ## Tips the rig about the head so the head looks level, as an unworn headset lying tilted would not: a scripted view
-## then sees what a standing player would.
+## then sees what a standing player would. It reads the head as tracked now, so it waits for tracking to start.
 func _level(_s: Dictionary) -> void:
+	print("driver: head before level %s" % main.rig.head.global_transform)
 	var head: Transform3D = main.rig.head.global_transform
 	var ahead := -head.basis.z
 	var flat := Vector3(ahead.x, 0.0, ahead.z)
@@ -223,6 +224,7 @@ func _level(_s: Dictionary) -> void:
 		var turn := Transform3D(Basis(axis.normalized(), ahead.angle_to(flat.normalized())), Vector3.ZERO)
 		main.rig.global_transform = Transform3D.IDENTITY.translated(head.origin) * turn * Transform3D.IDENTITY.translated(-head.origin) * main.rig.global_transform
 	await _frames(2)
+	print("driver: head after level %s" % main.rig.head.global_transform)
 
 
 ## Holds `hand` beside the head, holding `tool`, pointing at `at` in the garden.
