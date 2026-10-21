@@ -42,6 +42,10 @@ const RESHAPES := {
 	"boulders": ["at", "turn", "sink", "scale", "style"],
 	"decorations": ["style"],
 }
+## Per table of the garden, the field naming the builds an entry stands on, or "" for one standing only on the ground:
+## whatever stands on a build goes when it goes (`World._take`). Every table is named here, so a new one cannot be
+## left out of that.
+const STANDS_ON := {"walls": "on", "stairs": "on", "decorations": "wall", "paths": "", "grounds": "", "groups": "", "ponds": "", "easels": "", "boulders": ""}
 
 
 ## Length of a stroke along the ground.
@@ -91,6 +95,8 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 		"stairs":
 			out.stairs = _stairs(cmd.get("stairs"))
 			ok = out.stairs != null
+			if ok and not from_host:
+				out.stairs.on = PackedInt32Array(Array(out.stairs.on).filter(func(o: int) -> bool: return state.walls.has(o)))
 		"unstairs":
 			ok = typeof(cmd.get("id")) == TYPE_INT and state.stairs.has(cmd.id)
 			out.id = cmd.get("id")
@@ -637,4 +643,7 @@ static func _stairs(d: Variant) -> Variant:
 		return null
 	if typeof(d.get("seed")) != TYPE_INT or not d.get("rail") in StairLayout.RAILS or not Palette.valid(d.get("paint")):
 		return null
-	return {"a": d.a, "b": d.b, "width": d.width, "seed": d.seed, "rail": d.rail, "paint": d.paint}
+	var on: Variant = d.get("on")
+	if typeof(on) != TYPE_PACKED_INT32_ARRAY or on.size() > 2 or not _unique(on):
+		return null
+	return {"a": d.a, "b": d.b, "width": d.width, "seed": d.seed, "rail": d.rail, "paint": d.paint, "on": on}

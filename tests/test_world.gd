@@ -131,12 +131,14 @@ func _a_storey_follows_what_it_stands_on() -> void:
 	await _laid(upper)
 	_check(absf(_foot(upper) - (_foot(lower) + 3.5 + WallLayout.CAP - WallLayout.SINK)) < 0.01, "raising the house lifts the storey")
 	world._order({"op": "unwall", "ids": PackedInt32Array([lower])}, 1)
+	_check(not world.state.walls.has(upper) and main.tool.find(upper) == null and main.tool.find(lower) == null, "the storey goes with the house it stands on")
+	world._order({"op": "undo"}, 1)
 	await _laid(upper)
-	_check(_foot(upper) < top - 1.0, "with the house gone the storey stands on the ground")
+	_check(world.state.walls.has(lower) and world.state.walls.has(upper) and absf(_foot(upper) - (_foot(lower) + 3.5 + WallLayout.CAP - WallLayout.SINK)) < 0.01, "undo brings the storey back on its house")
 	var snap := world.snapshot()
 	world.restore(snap)
 	world._order({"op": "undo"}, 1)
-	_check(world.state.walls.size() == 1, "history went with the restore")
+	_check(world.state.walls.has(lower) and world.state.walls.has(upper), "history went with the restore")
 	var bad := _house_data(PackedInt32Array([upper + 50]))
 	world._order({"op": "wall", "walls": [_with(bad, "on", PackedInt32Array([upper]))]}, 1)
 	var later := world.seq * Commands.MAX_PIECES
@@ -145,7 +147,8 @@ func _a_storey_follows_what_it_stands_on() -> void:
 	world._order({"op": "wall", "walls": [_with(bad, "on", PackedInt32Array([123456]))]}, 1)
 	_check(world.state.walls[world.seq * Commands.MAX_PIECES].on.is_empty(), "a proposal on a build since gone stands on the ground")
 	for id in world.state.walls.keys():
-		world._order({"op": "unwall", "ids": PackedInt32Array([id])}, 1)
+		if world.state.walls.has(id):
+			world._order({"op": "unwall", "ids": PackedInt32Array([id])}, 1)
 
 
 func _bad_commands_are_dropped() -> void:

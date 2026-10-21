@@ -1748,7 +1748,10 @@ pure data; tests in `tests/test_build_on.gd`, and through the garden in `tests/t
   merlons under a tower on a wall, the roof and its plaster under an upper storey (its eaves stay as a skirt).
 - A build stands only on older ones, so what stands on what never loops. When a build changes or goes, every
   build it meets is laid again on a worker thread at the end of that frame, oldest first, so a storey rises with
-  the house under it and comes down to the ground if that house is taken away. Builds that meet nothing lay as
+  the house under it. A build taken away takes everything standing on it, all the way up: storeys, houses on its
+  deck, the furniture on its floors and deck, and stairs whose ends rest on it, in the garden, its save and on
+  every peer alike, and one undo brings all of it back. Each table of the garden names the field its entries
+  stand on (`Commands.STANDS_ON`), so nothing new can be left standing on nothing. Builds that meet nothing lay as
   before, and two open walls never meet this way, so the stress scene's walls cost nothing more; its village
   stands two storeys high, each house crossed by a wing.
 
@@ -3364,9 +3367,9 @@ undo, redo, autosave and joining a garden preserve it like other builds.
 
 A flight or landing is walkable: its treads are what a point over it stands on,
 and the teleport ray stops at its stones like any other solid, so a player lands on
-the tread, the bridge's deck or a rung. Stairs stand where they were drawn: they
-carry no supports, take no part in wall arches, and outlive a wall they were drawn
-onto. `demo/stairs.json` shows a bridge over a pond between two walls, a flight up
+the tread, the bridge's deck or a rung. Stairs stand where they were drawn and take
+no part in wall arches; the builds whose tops their ends rest on are their supports (`on`),
+and taking one away takes the stairs. `demo/stairs.json` shows a bridge over a pond between two walls, a flight up
 to it, a ladder and a flight onto a flat roof, then teleports onto the bridge; the
 stress scene fills the build budget with stairs, ladders and landings, beside a
 stepped path up a hill, for its `stairs/*` views. On the Steam Frame, governed, both views

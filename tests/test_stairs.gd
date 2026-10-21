@@ -11,7 +11,7 @@ func check(ok: bool, what: String) -> void:
 		print("FAIL: ", what)
 
 func _run() -> void:
-	var d := {"a": Vector3.ZERO, "b": Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 8, "paint": Palette.plain()}
+	var d := {"a": Vector3.ZERO, "b": Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 8, "paint": Palette.plain(), "on": PackedInt32Array()}
 	var stairs := StairLayout.new()
 	stairs.build(d)
 	check(stairs.kind == StairLayout.Kind.FLIGHT and stairs.treads.size() == 10, "two metres rise makes ten steps")
@@ -50,7 +50,7 @@ func _run() -> void:
 		var invalid := d.duplicate()
 		invalid.b = bad
 		check(Commands._stairs(invalid) == null, "reject invalid endpoint")
-	var long := {"a": Vector3(0, 2, 0), "b": Vector3(0, 2, -60), "width": 1.2, "rail": "stone", "seed": 5, "paint": Palette.plain()}
+	var long := {"a": Vector3(0, 2, 0), "b": Vector3(0, 2, -60), "width": 1.2, "rail": "stone", "seed": 5, "paint": Palette.plain(), "on": PackedInt32Array()}
 	check(Commands._stairs(long) != null, "a sixty-metre bridge is a valid command")
 	stairs.build(long)
 	check(stairs.kind == StairLayout.Kind.LANDING and is_equal_approx(stairs.surface(Vector3(0, 3, -59.5)), 2.0), "a sixty-metre bridge is walkable to its far end")
@@ -142,7 +142,7 @@ func _painted_and_styled(main: Node) -> void:
 	var stone := Palette.Element.STONE
 	world.submit({"op": "wipe"})
 	var a := Terrain.ground(10, 0)
-	world.submit({"op": "stairs", "stairs": {"a": a, "b": a + Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 5, "paint": Palette.plain()}})
+	world.submit({"op": "stairs", "stairs": {"a": a, "b": a + Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 5, "paint": Palette.plain(), "on": PackedInt32Array()}})
 	world.stairs._process(10.0)
 	var id: int = world.state.stairs.keys()[0]
 	var over := a + Vector3(0, 6, -2)
@@ -193,7 +193,7 @@ func _painted_and_styled(main: Node) -> void:
 	var fresh: Dictionary = world.state.stairs[world.state.stairs.keys().max()]
 	check(fresh.rail == "wood" and fresh.paint[stone] == 3, "new stairs take the last swatch and railings")
 	var ladder := Terrain.ground(0, 10)
-	world.submit({"op": "stairs", "stairs": {"a": ladder, "b": ladder + Vector3(0, 3, -0.5), "width": 1.2, "rail": "stone", "seed": 6, "paint": Palette.plain()}})
+	world.submit({"op": "stairs", "stairs": {"a": ladder, "b": ladder + Vector3(0, 3, -0.5), "width": 1.2, "rail": "stone", "seed": 6, "paint": Palette.plain(), "on": PackedInt32Array()}})
 	world.stairs._process(10.0)
 	var facing := ladder + Vector3(0.6, 1.5, 3)
 	check(not world.stairs.pick(facing, Vector3.FORWARD, 10.0).is_empty() and picker.aim_style(facing, Vector3.FORWARD).is_empty(), "a ladder has no style")

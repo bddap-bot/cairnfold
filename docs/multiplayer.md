@@ -11,7 +11,7 @@ internet comes next and uses the same protocol.
 ## The garden is a command log
 
 Every finished edit is a **build command**: a small dictionary of plain values. `wall`
-carries the walls a stroke built, `unwall` removes walls, and `reshape` changes a build
+carries the walls a stroke built, `unwall` removes walls and whatever stands on them, and `reshape` changes a build
 named by its table in the garden (`of`) and id: a wall's height, top, gable ends, openings, fittings, ruins, roof or paint
 (its colours), stairs' railings or paint, or a boulder's scale, paint or stone style. `path` and `unpath` lay and lift paths, `plant` grows a
 paint stroke or a tree, `show` hides or restores plants, `heights` sets an area of

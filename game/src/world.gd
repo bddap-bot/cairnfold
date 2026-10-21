@@ -652,20 +652,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				_floor_mark(cmd.ids[i])
 			inverse = {"op": "unwall", "ids": cmd.ids}
 		"unwall":
-			inverse = {"op": "wall", "ids": cmd.ids, "walls": Array(cmd.ids).map(func(id: int) -> Dictionary: return state.walls[id])}
-			var restore_decorations: Array = []
-			for id in state.decorations.keys():
-				if state.decorations[id].wall in cmd.ids:
-					restore_decorations.append(state.decorations[id].merged({"op": "decoration", "id": id}))
-					state.decorations.erase(id)
-					_account("d%d" % id, {})
-			if not restore_decorations.is_empty():
-				inverse = {"op": "batch", "cmds": [inverse] + restore_decorations}
-			for id in cmd.ids:
-				state.walls.erase(id)
-				wall_tool.take(id)
-				_account("w%d" % id, {})
-				_floor_mark(id)
+			inverse = _take("walls", cmd.ids)
 		"reshape":
 			var now: Dictionary = state[cmd.of][cmd.id]
 			var before := {}
@@ -704,10 +691,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			_account("q%d" % cmd.id, Budget.stairs(cmd.stairs))
 			inverse = {"op": "unstairs", "id": cmd.id}
 		"unstairs":
-			inverse = {"op": "stairs", "id": cmd.id, "stairs": state.stairs[cmd.id]}
-			state.stairs.erase(cmd.id)
-			stairs.take(cmd.id)
-			_account("q%d" % cmd.id, {})
+			inverse = _take("stairs", [cmd.id])
 		"path":
 			state.paths[cmd.id] = cmd.path.duplicate(true)
 			paths.put(cmd.id, state.paths[cmd.id])
@@ -852,9 +836,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			_account("d%d" % cmd.id, Budget.decoration(cmd.style))
 			inverse = {"op": "undecoration", "id": cmd.id}
 		"undecoration":
-			inverse = state.decorations[cmd.id].merged({"op": "decoration", "id": cmd.id})
-			state.decorations.erase(cmd.id)
-			_account("d%d" % cmd.id, {})
+			inverse = _take("decorations", [cmd.id])
 		"boulder":
 			state.boulders[cmd.id] = Commands._boulder(cmd)
 			if boulders != null:
@@ -909,6 +891,58 @@ func _dry(g: int, indices: PackedInt32Array) -> PackedInt32Array:
 		if i < 0 or i >= plants.size() or plants[i] == null or not _drowned(plants[i]):
 			out.append(i)
 	return out
+
+
+## Takes the builds `ids` from the garden's table `of` (Commands.STANDS_ON), and with them everything standing on them,
+## all the way up, and returns what brings all of it back, oldest builds first. What a batch took already, with what it
+## stood on, is passed over.
+func _take(of: String, ids: Array) -> Dictionary:
+	var gone := {of: {}}
+	for id: int in ids:
+		if state[of].has(id):
+			gone[of][id] = true
+	var bearing: Dictionary = gone.walls.duplicate() if of == "walls" else {}
+	var grew := not bearing.is_empty()
+	while grew:
+		grew = false
+		for table: String in Commands.STANDS_ON:
+			var field: String = Commands.STANDS_ON[table]
+			if field.is_empty():
+				continue
+			for id: int in state[table]:
+				if gone.get(table, {}).has(id):
+					continue
+				var on: Variant = state[table][id][field]
+				if not (Array(on) if on is PackedInt32Array else [on]).any(func(o: int) -> bool: return bearing.has(o)):
+					continue
+				gone.get_or_add(table, {})[id] = true
+				if table == "walls":
+					bearing[id] = true
+					grew = true
+	for table: String in gone:
+		assert(table in ["walls", "stairs", "decorations"], "World._take cannot take %s" % table)
+	var back := []
+	var walls: Array = gone.get("walls", {}).keys()
+	walls.sort()
+	for i in range(0, walls.size(), Commands.MAX_PIECES):
+		var chunk := PackedInt32Array(walls.slice(i, i + Commands.MAX_PIECES))
+		back.append({"op": "wall", "ids": chunk, "walls": Array(chunk).map(func(id: int) -> Dictionary: return state.walls[id])})
+	for id: int in gone.get("stairs", {}):
+		back.append({"op": "stairs", "id": id, "stairs": state.stairs[id]})
+		state.stairs.erase(id)
+		stairs.take(id)
+		_account("q%d" % id, {})
+	for id: int in gone.get("decorations", {}):
+		back.append(state.decorations[id].merged({"op": "decoration", "id": id}))
+		state.decorations.erase(id)
+		_account("d%d" % id, {})
+	walls.reverse()
+	for id: int in walls:
+		state.walls.erase(id)
+		wall_tool.take(id)
+		_account("w%d" % id, {})
+		_floor_mark(id)
+	return back[0] if back.size() == 1 else {"op": "batch", "cmds": back}
 
 
 ## Takes `cmd`'s ponds out and puts its new ones in, then fills every pond over the ground as it stands. A pond that
