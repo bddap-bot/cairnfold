@@ -78,7 +78,7 @@ const PAGES := [
 			{"t": 1.4, "left": {"at": [-0.12, -0.36, -0.36], "aim": [0.0, -0.5, -1.0]}, "right": {"at": [0.12, -0.36, -0.36], "aim": [0.0, -0.5, -1.0]}},
 			{"t": 2.5, "left": {"at": [-0.3, -0.36, -0.36], "aim": [0.0, -0.5, -1.0]}, "right": {"at": [0.3, -0.36, -0.36], "aim": [0.0, -0.5, -1.0]}},
 		], "press": [{"hand": "right", "action": "tool", "from": 0.4, "to": 3.0}, {"hand": "left", "action": "grab", "from": 1.0, "to": 3.0}]},
-	{"effect": "wipe", "length": 4.6, "setup": [{"op": "wall", "points": [[-3, 4], [3, 4]], "relative": true, "seconds": 0.3}, {"op": "tree", "x": 4, "z": 5, "relative": true}], "tools": {"right": "delete"},
+	{"effect": "wipe", "length": 4.6, "setup": [{"op": "wall", "points": [[-3, 4], [3, 4]], "relative": true, "seconds": 0.3}, {"op": "tree", "x": 4, "z": 5, "relative": true, "seed": 3}], "tools": {"right": "delete"},
 		"view": {"look": "side", "back": 0.48, "dish": [0.1, -0.85, -0.75]},
 		"keys": [
 			{"t": 0.0, "right": {"at": [0.2, -0.32, -0.32], "aim": [0.0, -0.3, -1.0]}},
