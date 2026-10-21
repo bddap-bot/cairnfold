@@ -17,7 +17,7 @@ const AIR_REACH := 30.0
 ## STEADY_HZ, plus STEADY_HZ_PER_RAD for each radian it lags, so a held hand stays still and a sweep catches up.
 const STEADY_HZ := 0.5
 const STEADY_HZ_PER_RAD := 60.0
-## Past MARKER_NEAR from the eyes the markers grow with distance, so they look as big as they do there.
+## Past MARKER_NEAR from the eyes the ring grows with distance, so they look as big as they do there.
 const MARKER_NEAR := 15.0
 ## Stick forward at or past FULL_STICK aims at the ray's full target; easing back to the deadzone brings it
 ## to NEAREST of the way there.
@@ -28,7 +28,7 @@ const NEAREST := 0.1
 ## target from this long before the stick reached its deadzone.
 const RELEASE_LOOKBACK := 0.1
 const MAX_LIFT := 40.0
-## A target this far over its floor floats: the markers show a lifted ring and pole.
+## A target this far over its floor floats.
 const LIFTED := 0.15
 const SNAP := deg_to_rad(30.0)
 const FADE := 0.09
@@ -66,9 +66,7 @@ var _aim_clock := 0.0
 var _aim_trail: Array = []
 var _steady_dir := Vector3.ZERO
 
-var _ground_ring: MeshInstance3D
-var _float_ring: MeshInstance3D
-var _pole: MeshInstance3D
+var _ring: MeshInstance3D
 var _fade: MeshInstance3D
 var _fade_mat: StandardMaterial3D
 
@@ -104,14 +102,7 @@ func _build_markers() -> void:
 	ring.outer_radius = 0.4
 	ring.rings = 24
 	ring.ring_segments = 6
-	_ground_ring = _marker(ring, glow)
-	_float_ring = _marker(ring, glow)
-	var pole := CylinderMesh.new()
-	pole.top_radius = 0.012
-	pole.bottom_radius = 0.012
-	pole.height = 1.0
-	pole.radial_segments = 6
-	_pole = _marker(pole, glow)
+	_ring = _marker(ring, glow)
 	_fade_mat = StandardMaterial3D.new()
 	_fade_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_fade_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -254,21 +245,14 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 		aim_hand.ray(target, Color(0.85, 0.97, 1.0, 0.75))
 	var g3: Vector3 = aim_ground
 	var size := maxf(1.0, head.global_position.distance_to(target) / MARKER_NEAR)
-	_ground_ring.visible = true
-	_ground_ring.global_transform = Transform3D(Basis().scaled(Vector3.ONE * size), g3 + Vector3.UP * 0.03 * size)
-	var lifted := aim_lift > LIFTED
-	_float_ring.visible = lifted
-	_pole.visible = lifted
-	if lifted:
-		_float_ring.global_transform = Transform3D(Basis().scaled(Vector3.ONE * size), g3 + Vector3.UP * aim_lift)
-		_pole.global_transform = Transform3D(Basis().scaled(Vector3(size, aim_lift, size)), g3 + Vector3.UP * aim_lift * 0.5)
+	_ring.visible = true
+	var up := aim_lift if aim_lift > LIFTED else 0.03 * size
+	_ring.global_transform = Transform3D(Basis().scaled(Vector3.ONE * size), g3 + Vector3.UP * up)
 
 
 func hide_markers() -> void:
 	left.clear_pointer()
-	_ground_ring.visible = false
-	_float_ring.visible = false
-	_pole.visible = false
+	_ring.visible = false
 
 
 ## Move so the head stands over `ground`, `lift` metres up. The rig then stays exactly there: in a headset

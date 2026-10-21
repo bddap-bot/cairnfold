@@ -2104,7 +2104,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | --- | --- |
 | Pick a hand's tool | Hold that hand's upper face button (right B, left Y; on the Frame right B, left D-pad right), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
 | Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it first meets something solid: the ground, a roof of any pitch, a wall's top or a tree; aimed under a roof, as through a door or window, it lands on the floor inside; release to go |
-| Teleport into the air | Aim above the horizon: with nothing on the map for the ray to hit, it targets the point in the air 30 m along it, a ring on a pole down to the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
+| Teleport into the air | Aim above the horizon: with nothing on the map for the ray to hit, it targets the point in the air 30 m along it, marked by a ring there alone: the headset's depth places it, so nothing marks the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
 | Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the ground even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
 | Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick flicked left or right: 30° snap turn |
@@ -2740,7 +2740,7 @@ The deciding head turn eases at 22/s while retaining its person-to-food glance.
 | Releasing a grab | A grip lets go of a wall, roof, the ground or the sky | the garden's answer is heard (`WALL_SETTLE`, `WALL_RESTYLE`); a sound of its own would double it |
 | Grabbing the sky or the ground | A grip takes the sky or the ground | it turns or gives way at once, heard and felt in steps |
 | Opening the colour or style wheel | Trigger held on a build | its first step is the first `DIAL_TURN` |
-| Aiming a teleport | Holding the left stick forward | the arc and rings show it; only the jump itself is heard |
+| Aiming a teleport | Holding the left stick forward | the arc and its ring show it; only the jump itself is heard |
 | Walking (flat) | Stick or keys | footsteps on every frame of a walk would tire; the flat build has no controller to feel |
 | Animals fleeing, a duck paddling off, fish scattering | Wildlife reacting to a person nearby | each animal's own calls (see "Sound") are what is heard of it; a grazer running on grass and fish under water make no sound worth adding, and nothing touches the hand |
 
