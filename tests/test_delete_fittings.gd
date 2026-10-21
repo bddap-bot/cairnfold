@@ -6,6 +6,8 @@ var main: Node
 func _initialize() -> void:
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
+	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
+	main.world.bounded = false
 	_run.call_deferred()
 
 func _check(ok: bool, what: String) -> void:
