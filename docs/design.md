@@ -3434,6 +3434,73 @@ front of the house's, so those members stay boxes and keep most of the cost. The
 worst measured with the box path (2.2 ms over 4,914 Fachwerk members), rounded up.
 
 
+### Archway GPU cost on Quest 2
+
+`demo/arch-cost.json` builds 36 timber houses with four doorway-sized arches each.
+It alternates plain, arched, plain, arched, plain, looking from above and along the
+street at each stage. Run it with `NESTCOMBE_SCENE=demo/arch-cost.json
+scripts/bench.sh OUT --android APK`, with `adb` addressing the Quest 2. For the
+historical build, replace each `fit` opening step with its former `arch` operation,
+retaining `index` and `s`; the houses, views, timing and ordering stay the same. Each phase settles before recording 25 seconds. The headset
+runs at the Quest 2 fit step, 72 Hz, with its clocks held at level 4 by
+`scripts/bench.sh`; the render target is 1008 × 1108 per eye. The first two samples
+of each phase are discarded. An arched phase's median minus the mean of its two
+neighboring plain medians, divided by 144, is the net GPU cost per placed arch.
+This includes the wall pieces removed and added around each opening, visibility,
+and ivy changes; it is not an isolated cost of the arch mesh or a cost per visible arch.
+
+On `a3454786`, the aerial pairs add 22.6 and 21.5 µs per arch in the Quest runtime's
+`App=` timer, and 26.4 and 24.8 µs in the viewport timer used by the governor.
+The ground pairs add 16.1 and 3.3 µs (`App=`), with 16.2 and 3.7 µs on the viewport
+timer. The ground view's spread is retained rather than averaged into a precise
+price. The aerial plain phases range from 60.79 to 61.30 ms and the arched phases
+from 63.99 to 64.30 ms: this unbounded dense village is a cost sweep, not evidence
+that it holds refresh. The benchmark checks that the game finishes and that no
+other process or tracked hand contaminates the labeled phases.
+
+The same scene on `027eb120`, immediately before the timber arch implementation,
+measures the former stone ring on those timber houses. Its aerial pairs add 9.1
+and 10.8 µs per arch (`App=`), or 12.9 and 12.9 µs on the viewport timer; ground
+pairs are -2.8 and -0.4 µs (`App=`), or -4.0 and +0.5 µs on the viewport timer.
+Both builds use the same render size and quality ladder. Each number subtracts
+that build's own plain baseline: other changes between the revisions affect
+whole-frame cost, so their frame totals are not a timber-versus-stone comparison.
+
+`demo/arch-sizes.json` repeats the experiment on nine 20 × 6 m houses with 9 m
+walls and two openings each, at the same fit step on `a3454786`. It measures two
+plain/arched pairs per size, with a final plain phase to bracket the last pair.
+The table retains the range of the two paired results, in GPU µs per placed arch.
+The widest ring nearly spans its 20 m wall; the clear opening spans are below.
+
+| Material | Size | Clear span (m) | Runtime `App=` µs/arch | Viewport µs/arch |
+| --- | ---: | ---: | ---: | ---: |
+| Timber | 1 | 1.50 | -28.6 to -11.1 | -30.7 to -18.4 |
+| Timber | 2.67 | 4.01 | +16.9 to +24.4 | +26.0 to +29.3 |
+| Timber | 8.9 | 13.35 | +47.8 to +48.1 | +41.1 to +49.7 |
+| Stone | 1 | 1.50 | +1.9 to +44.4 | -0.3 to +52.4 |
+| Stone | 2.67 | 4.01 | -54.7 to +49.2 | -50.3 to +49.2 |
+| Stone | 7.28 | 10.92 | -314.2 to -301.9 | -340.9 to -328.0 |
+
+These are net scene differences, including the surrounding wall and ivy and
+ambient motion. The small stone cases are too variable to support a precise
+coefficient; their spread is part of the result. A negative result does not mean
+an arch mesh renders for free: opening the wall changes the rest of the scene too.
+
+The existing timber charge grows by 1.008 ms for the 144 arches, or 7 µs each.
+The aerial viewport differences exceed that charge. In the size sweep, the
+largest timber opening reduces the existing member charge by 9 µs per arch while
+adding up to 49.7 µs on the viewport timer: the residual is 58.7 µs. That is the
+largest residual across both current-build sweeps. `Budget.ARCH_US` rounds it up
+to the next ten microseconds and reserves it for each explicit arch separately
+from timber members. This covers the observed pairs rather than fitting a size
+curve to twelve noisy observations; a large opening keeps its arch allowance
+even when it removes more wall than it adds. The Frame shares that
+allowance until measured there. `demo/stress.json` includes stone and timber
+arches at doorway, 4 m, and near-wall-spanning sizes. Its four-house arch section
+measures 27.50 ms aerial and 15.84 ms ground in the runtime timer, also an
+unbounded sweep rather than a refresh-rate pass.
+
+
 ## Moss
 
 Moss shares the grass branch on the garden wheel. Hold the trigger to paint a low,

@@ -20,6 +20,7 @@ func _run() -> void:
 	world = main.world
 	await _a_joined_quest_2_holds_the_garden_to_its_own_budget()
 	await _counts_follow_placements_and_deletions()
+	await _arches_reserve_room_until_removed()
 	await _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room()
 	await _a_capped_edit_is_heard_felt_and_shown()
 	await _painting_stops_at_the_budget()
@@ -153,6 +154,28 @@ func _counts_follow_placements_and_deletions() -> void:
 	world.undo()
 	await _settled()
 	_check(_same(world.units, _recount()), "undoing the wipe counts the garden it brings back")
+	await _play([{"op": "bare"}])
+	await _settled()
+
+
+func _arches_reserve_room_until_removed() -> void:
+	await _play([
+		{"op": "wall", "points": [[-6, -20], [6, -20]], "seconds": 0.1},
+	])
+	var plain := world.units.duplicate()
+	await _play([{"op": "fit", "what": "opening", "index": 0, "s": 6.0, "style": 1}])
+	await _settled()
+	_check(world.fill() > Budget.fill(plain, world.devices()), "an arch reserves GPU room beyond its intact stone wall")
+	var arched := world.units.duplicate()
+	world.undo()
+	await _settled()
+	_check(_same(world.units, plain), "undoing an arch frees its reserved room")
+	world.redo()
+	await _settled()
+	_check(_same(world.units, arched), "redoing an arch reserves its room again")
+	await _play([{"op": "fit", "what": "opening", "index": 0, "s": 6.0, "style": 1}])
+	await _settled()
+	_check(_same(world.units, plain), "removing an arch frees its room")
 	await _play([{"op": "bare"}])
 	await _settled()
 

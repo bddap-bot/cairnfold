@@ -21,8 +21,9 @@ enum Device { QUEST_2, FRAME }
 ## as stone wall), of tiled or flat roof and of thatch (laid along its slopes out to its eaves);
 ## fittings that add a mesh (lanterns, flags, chimneys, dormers, whose boarded faces count as stone wall and whose
 ## slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing;
-## ponds, one a seed; easels, each a canvas drawn and simulated; and boulders, a metre-wide one a unit (`boulder`).
-const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "fitting", "grass", "flower", "tree", "bush", "pond", "timber", "easel", "boulder", "moss"]
+## explicit arch openings, with timber members counted separately; ponds, one a seed; easels, each a canvas drawn
+## and simulated; and boulders, a metre-wide one a unit (`boulder`).
+const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "fitting", "grass", "flower", "tree", "bush", "pond", "timber", "easel", "boulder", "moss", "arch"]
 
 ## Per headset, in the governor's signal (the viewport's GPU time per frame, Quality) at its fit_step; fitted
 ## by `scripts/costs.py` from `demo/costs.json` played on it (see "Build budget" in docs/design.md): `budget_ms`, the
@@ -36,6 +37,9 @@ const COSTS := {
 ## The largest paired Quest 2 cost per timber member in the dense village (docs/design.md), rounded up; the Frame
 ## shares it until measured.
 const TIMBER_US := 0.5
+## Largest residual above existing wall/timber charges in paired Quest 2 arch sweeps, rounded up.
+## A larger opening still reserves a whole arch; the Frame shares this until measured there.
+const ARCH_US := 60.0
 ## The open picture book's paired Quest 2 GPU cost a frame over it tucked away in the stress scene, in milliseconds
 ## (docs/design.md, "Picture book"). A garden's room does not reserve it: the book is read between builds.
 const BOOK_OPEN_MS := 1.2
@@ -46,10 +50,10 @@ const BOULDER_LEAST := 0.25
 ## Each opaque patch is twelve triangles, with no shadow pass or CPU animation.
 const MOSS_FLOWERS := 16.0
 ## The Frame's runtime halves the rate once a frame nears 0.88 of the period: held to the governor's line under it.
-const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.33, "grass": 0.177, "flower": 0.215, "tree": 20.457, "bush": 1.599, "wall_m2": 6.901, "plaster_m2": 2.006, "fence_m2": 3.166, "pond": 19.484, "roof_m2": 6.647, "thatch_m2": 3.477, "fitting": 15.609, "easel": 532.153, "boulder": 9.068, "timber": TIMBER_US, "moss": 0.215 * MOSS_FLOWERS}
+const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.33, "grass": 0.177, "flower": 0.215, "tree": 20.457, "bush": 1.599, "wall_m2": 6.901, "plaster_m2": 2.006, "fence_m2": 3.166, "pond": 19.484, "roof_m2": 6.647, "thatch_m2": 3.477, "fitting": 15.609, "easel": 532.153, "boulder": 9.068, "timber": TIMBER_US, "moss": 0.215 * MOSS_FLOWERS, "arch": ARCH_US}
 ## Full tree pools at scales 1, 2 and 3 cost at most 53.811 us per tree at fit_step (demo/tree-scale.json).
 ## Round up and keep one unit at every scale: the dense layout measured no growth in cost, and gets no size discount.
-const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.1, "grass": 0.449, "flower": 0.678, "tree": 54.0, "wall_m2": 19.054, "plaster_m2": 6.46, "fence_m2": 4.348, "pond": 89.764, "roof_m2": 30.465, "thatch_m2": 51.347, "fitting": 21.346, "bush": 0.0, "easel": 1091.208, "timber": TIMBER_US, "boulder": 20.6, "moss": 0.678 * MOSS_FLOWERS}
+const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.1, "grass": 0.449, "flower": 0.678, "tree": 54.0, "wall_m2": 19.054, "plaster_m2": 6.46, "fence_m2": 4.348, "pond": 89.764, "roof_m2": 30.465, "thatch_m2": 51.347, "fitting": 21.346, "bush": 0.0, "easel": 1091.208, "timber": TIMBER_US, "boulder": 20.6, "moss": 0.678 * MOSS_FLOWERS, "arch": ARCH_US}
 
 
 ## The ladder step `on`'s COSTS are fitted at (demo/costs.json), so a garden within its budget holds 72 Hz there: the
@@ -131,6 +135,9 @@ static func wall(d: Dictionary) -> Dictionary:
 	var timber := TimberFrame.count(d)
 	if timber > 0:
 		out.timber = timber
+	for opening: Vector4 in d.get("openings", []):
+		if int(opening.z) == WallLayout.DoorStyle.ARCHWAY:
+			out.arch = out.get("arch", 0) + 1
 	var fittings: int = d.lanterns.size() + d.flags.size()
 	if d.has("roof"):
 		var slopes := RoofLayout.new()
