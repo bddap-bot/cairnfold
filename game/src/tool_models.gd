@@ -803,28 +803,21 @@ static func _path(root: Node3D) -> void:
 
 
 static func _stones(root: Node3D, stones: Array[Dictionary], scale: float) -> void:
-	var node := Stones.new()
-	node.lay(stones.filter(func(s: Dictionary) -> bool: return s.get("kind", "") != "plaster"))
-	var panels := stones.filter(func(s: Dictionary) -> bool: return s.get("kind", "") == "plaster")
-	if not panels.is_empty():
-		var kind := Wall.kinds()[Wall.Part.MORTAR]
-		var mi := kind.instance()
-		mi.multimesh.instance_count = panels.size()
-		var buffer := PackedFloat32Array()
-		buffer.resize(panels.size() * kind.stride())
-		for i in panels.size():
-			var panel: Dictionary = panels[i]
-			kind.write(buffer, i, panel.xform, panel.color, panel.ao, Palette.code("plaster"))
-		mi.multimesh.buffer = buffer
-		node.add_child(mi)
-	node.scale = Vector3.ONE * scale
-	for mmi: MultiMeshInstance3D in node.get_children():
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		# Millimetre stones need their colour and light, not the garden shader's terrain and room probes.
-		mmi.material_override = _vertex_mat("tool_stone", 0.9, false)
-		if mmi.multimesh.mesh == Stones.mesh():
-			mmi.multimesh.mesh = Stones.far_mesh()
-	root.add_child(node)
+	if stones.is_empty():
+		return
+	var mesh := shared("tool_stones_%s" % hash(stones), func() -> ArrayMesh:
+		var parts := []
+		for stone in stones:
+			var at: Transform3D = stone.xform
+			at.basis *= Stones.FLIPS[stone.get("variant", 0)]
+			var colour: Color = stone.color
+			colour *= Color(stone.ao, stone.ao, stone.ao)
+			parts.append([Stones.far_mesh(), at, colour])
+		var imported := ImporterMesh.new()
+		imported.add_surface(Mesh.PRIMITIVE_TRIANGLES, bake(parts).surface_get_arrays(0))
+		imported.generate_lods(60.0, 25.0, [])
+		return imported.get_mesh())
+	_piece(root, mesh, Transform3D(Basis.from_scale(Vector3.ONE * scale), Vector3.ZERO), _vertex_mat("tool_stone", 0.9, false))
 
 
 static func _flowers(root: Node3D) -> void:
