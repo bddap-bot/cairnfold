@@ -29,6 +29,7 @@ func _run() -> void:
 	await _a_fresh_sheet_clears_and_undo_brings_the_painting_back()
 	await _undoing_a_stroke_replays_nothing_however_many_came_before()
 	await _a_deleted_easel_comes_back_with_its_painting()
+	_a_grip_on_its_stand_carries_it()
 	await _the_tray_loads_the_brush()
 	_each_brush_in_the_pot_is_taken_alone()
 	_no_brush_crosses_the_pot()
@@ -201,6 +202,63 @@ func _a_deleted_easel_comes_back_with_its_painting() -> void:
 	_check(world.state.easels.is_empty() and main.easels.easels.is_empty(), "the delete tool's beam takes an easel away")
 	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(world.state.easels.has(id) and world.state.easels[id].strokes == before and main.easels.find(id) != null, "undo stands it back up with its painting")
+
+
+## A grip on an easel's legs or tray carries it along the ground and turns it with the hand, painting and all, set
+## where it is let go as one reshape; its canvas and kit keep their painting grips, and two hands size no easel.
+func _a_grip_on_its_stand_carries_it() -> void:
+	var tool: WallTool = main.tool
+	var id: int = world.state.easels.keys()[-1]
+	var e: Easels.Easel = main.easels.find(id)
+	var strokes: Array = _easel().strokes.duplicate()
+	var was := {"at": _easel().at, "yaw": _easel().yaw}
+	var right: Hand = main.rig.right
+	var left: Hand = main.rig.left
+	var leg: Array = Easels.legs()[0]
+	var aim: Vector3 = e.global_transform * leg[0].lerp(leg[1], 0.5)
+	var from := Transform3D(Basis(), e.global_transform * Vector3(0.4, 1.2, -2.0))
+	var hit: Dictionary = main.easels.pick_stand(from.origin, aim - from.origin)
+	_check(hit.get("easel") == e, "a ray from the hand meets the easel's leg")
+	var face := e.canvas_frame()
+	_check(main.easels.pick_stand(face * Vector3(0, 0, 2.0), face.basis * Vector3.FORWARD).is_empty(), "the canvas hides the stand behind it, keeping its own grip")
+	right.global_transform = Transform3D(Basis(), e.brushes[Brushwork.Brush.BIG].global_transform * Easels.grip(Brushwork.Brush.BIG))
+	_check(main.easel_tool.claims(right), "a grip at the pot is painting's")
+	right.global_transform = from
+	_check(not main.easel_tool.claims(right), "a grip away from the kit and canvas is not")
+	if hit.is_empty():
+		return
+	var m := tool.mason(right)
+	tool.grip_easel(m, id, from, hit.point)
+	_check(m.growing is WallTool.EaselGrip and tool.busy(right), "a grip on its stand takes the easel")
+	var lm := tool.mason(left)
+	left.global_transform = Transform3D(Basis(), from.origin + Vector3(-0.5, 0, 0))
+	tool.grip_easel(lm, id, left.global_transform, hit.point)
+	_check(lm.growing == null, "the other hand's grip on it takes nothing: two hands size no easel")
+	var to := Transform3D(Basis(Vector3.UP, 0.6), from.origin + Vector3(2.0, 0.4, -1.0))
+	m.sizing.follow.call(m, to)
+	var expect := WallTool.carry_easel(was, from, to, Hand.reach_gain(from.origin.distance_to(hit.point)))
+	_check(e.global_position.is_equal_approx(expect.at) and is_equal_approx(expect.yaw, wrapf(was.yaw + 0.6, -PI, PI)), "the hand's move and turn carry and turn it: %s" % [expect])
+	_check(is_equal_approx(expect.at.y, Terrain.height_at(expect.at.x, expect.at.z)), "it stays on the ground as the hand rises")
+	_check(_easel().at == was.at, "nothing is sent while it is held")
+	tool.end_grow(m)
+	_check(_easel().at.is_equal_approx(expect.at) and is_equal_approx(_easel().yaw, expect.yaw), "let go, it is set where the hand carried and turned it")
+	_check(main.easels.find(id) == e and _easel().strokes == strokes and e.canvas_frame().origin.is_equal_approx(Transform3D(Basis(Vector3.UP, expect.yaw), expect.at) * Easels.CANVAS_AT), "the same easel stands there, painting and all")
+	var moved := {"at": _easel().at, "yaw": _easel().yaw}
+	tool.grip_easel(m, id, from, hit.point)
+	m.sizing.follow.call(m, Transform3D(Basis(), from.origin + Vector3(0.01, 0, 0)))
+	tool.end_grow(m)
+	_check(_easel().at == moved.at and e.global_position.is_equal_approx(moved.at), "a trembling grip leaves it where it stood")
+	world.undo()
+	_check(_easel().at == was.at and _easel().yaw == was.yaw and e.global_position.is_equal_approx(was.at) and _easel().strokes == strokes, "one undo puts it back where it stood")
+	var state := World.blank()
+	state.easels[1] = {"at": Terrain.ground(10, 10), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}
+	state.easels[2] = {"at": Terrain.ground(20, 10), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}
+	var move := func(data: Dictionary) -> Dictionary: return Commands.clean({"op": "reshape", "of": "easels", "id": 1, "data": data}, state, false)
+	_check(not move.call({"at": Terrain.ground(14, 12), "yaw": 1.0}).is_empty(), "a reshape may move and turn an easel, as a grip does")
+	_check(not move.call({"at": Terrain.ground(10.5, 10)}).is_empty(), "a little way from where it stood")
+	_check(move.call({"at": Terrain.ground(20.5, 10)}).is_empty(), "but never onto another")
+	_check(move.call({"yaw": 99.0}).is_empty() and move.call({"at": Vector3(INF, 0, 0)}).is_empty(), "nor turned or set past what one may stand")
+	_check(move.call({"strokes": []}).is_empty(), "and a reshape paints nothing")
 
 
 func _the_tray_loads_the_brush() -> void:

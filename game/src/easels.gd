@@ -56,6 +56,8 @@ const WELL_REACH := 0.025
 const WELL_DEPTH := Vector2(-0.05, 0.03)
 ## The stand's legs run this far behind the canvas's face, clear of its backing, so none crosses the painting.
 const LEG_BACK := 0.07
+## A grip takes a leg within this of its middle line, wider than the leg so a reach for it does not slip off.
+const LEG_GRIP := 0.06
 ## Easels stand at least this far apart, and a garden holds at most so many: each canvas is a few tens of MB on the GPU.
 const SPACING := 1.4
 const MAX := 4
@@ -211,6 +213,76 @@ func repaint(id: int, strokes: Array) -> void:
 		e.canvas.rebuild(strokes)
 
 
+## Stands easel `id` at `at` facing `yaw`, its painting and kit carried with it.
+func stand(id: int, at: Vector3, yaw: float) -> void:
+	var e := find(id)
+	if e != null:
+		e.transform = Transform3D(Basis(Vector3.UP, yaw), at)
+
+
+## The easel whose stand, its legs or tray, a ray from `origin` along `dir` meets first within `reach`, the canvas in
+## front of it hiding it: {easel, along, point}, or {}.
+func pick_stand(origin: Vector3, dir: Vector3, reach := INF) -> Dictionary:
+	var best := {}
+	var d := dir.normalized()
+	for e: Easel in easels.values():
+		var inv := e.global_transform.affine_inverse()
+		var t := stand_hit(inv * origin, inv.basis * d, minf(reach, best.get("along", INF)))
+		if t < INF:
+			best = {"easel": e, "along": t, "point": origin + d * t}
+	return best
+
+
+## How far along the unit ray from `o` along `d`, in an easel's frame, it first meets the stand within `reach`, or INF;
+## INF too where the canvas is nearer.
+static func stand_hit(o: Vector3, d: Vector3, reach := INF) -> float:
+	var near := reach
+	for leg: Array in legs():
+		var t := _rod_hit(o, d, leg[0], leg[1], LEG_GRIP)
+		if t < near:
+			near = t
+	var tray: Variant = TRAY.intersects_ray(o, d)
+	if tray != null:
+		near = minf(near, maxf((tray as Vector3 - o).dot(d), 0.0))
+	if near >= reach:
+		return INF
+	var canvas := canvas_local()
+	var c := canvas.affine_inverse()
+	var face: Variant = Plane(Vector3.BACK, 0.0).intersects_ray(c * o, c.basis * d)
+	if face != null:
+		var on: Vector3 = face
+		if absf(on.x) <= Brushwork.METRES.x * 0.5 + 0.015 and absf(on.y) <= Brushwork.METRES.y * 0.5 + 0.015 and (canvas * on - o).dot(d) < near:
+			return INF
+	return near
+
+
+## Each leg of the stand, from its foot to its top in the easel's frame, and its thickness.
+static func legs() -> Array:
+	var frame := canvas_local()
+	var top := Brushwork.METRES.y * 0.5 + 0.08
+	var out := []
+	for side in [-1.0, 1.0]:
+		out.append([_foot(side * 0.62), frame * Vector3(side * 0.1, top, -LEG_BACK), 0.045])
+	out.append([Vector3(0, 0, -0.7), frame * Vector3(0, top - 0.04, -LEG_BACK - 0.04), 0.04])
+	return out
+
+
+## How far along the unit ray from `o` along `d` it first comes within `radius` of the rod from `a` to `b`, or INF.
+static func _rod_hit(o: Vector3, d: Vector3, a: Vector3, b: Vector3, radius: float) -> float:
+	var u := b - a
+	var w := o - a
+	var uu := u.dot(u)
+	var ud := u.dot(d)
+	var den := uu - ud * ud
+	var s := clampf((u.dot(w) - ud * d.dot(w)) / den if den > 1e-9 else 0.0, 0.0, 1.0)
+	var p := a + u * s
+	var t := maxf((p - o).dot(d), 0.0)
+	var miss := (o + d * t).distance_to(p)
+	if miss >= radius:
+		return INF
+	return maxf(t - sqrt(radius * radius - miss * miss), 0.0)
+
+
 ## The easel a ray from `origin` along `dir` meets first, and where: {easel, along, point}, or {}.
 func pick(origin: Vector3, dir: Vector3) -> Dictionary:
 	var best := {}
@@ -297,10 +369,8 @@ func _build(e: Easel) -> void:
 	var stand := Node3D.new()
 	stand.name = "stand"
 	e.add_child(stand)
-	var top := Brushwork.METRES.y * 0.5 + 0.08
-	for side in [-1.0, 1.0]:
-		_beam(stand, _foot(side * 0.62), frame * Vector3(side * 0.1, top, -LEG_BACK), 0.045, wood)
-	_beam(stand, Vector3(0, 0, -0.7), frame * Vector3(0, top - 0.04, -LEG_BACK - 0.04), 0.04, wood)
+	for leg: Array in legs():
+		_beam(stand, leg[0], leg[1], leg[2], wood)
 	_part(stand, ToolModels.box(TRAY.size), Transform3D(Basis(), TRAY.get_center()), wood)
 	_part(stand, ToolModels.box(Vector3(TRAY.size.x, LIP.x, LIP.y)), Transform3D(Basis(), Vector3(0, TRAY_Y + LIP.x * 0.5, TRAY.end.z - LIP.y * 0.5)), dark)
 	_part(stand, ToolModels.box(Vector3(0.3, 0.05, 0.03)), frame * Transform3D(Basis(), Vector3(0, Brushwork.METRES.y * 0.5 + 0.02, -0.048)), dark)

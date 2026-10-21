@@ -41,6 +41,7 @@ const RESHAPES := {
 	"stairs": ["rail", "a", "b", "width", "on"],
 	"boulders": ["at", "turn", "sink", "scale", "style"],
 	"decorations": ["style"],
+	"easels": ["at", "yaw"],
 }
 ## Per table of the garden, the field naming the builds an entry stands on, or "" for one standing only on the ground:
 ## whatever stands on a build goes when it goes (`World._take`). Every table is named here, so a new one cannot be
@@ -127,6 +128,10 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 				out.id = cmd.id
 				out.data = _reshape(cmd.of, cmd.data, state[cmd.of][cmd.id])
 				ok = out.data != null
+			if ok and cmd.of == "easels" and not from_host:
+				var others: Dictionary = state.easels.duplicate()
+				others.erase(cmd.id)
+				ok = Easels.room_at(out.data.get("at", state.easels[cmd.id].at), others)
 		"path":
 			out.path = _path(cmd.get("path"))
 			ok = out.path != null and not (out.has("id") and state.paths.has(out.id))
@@ -264,17 +269,20 @@ static func _boulder(d: Dictionary) -> Variant:
 ## A new easel: where it stands and which way it faces, clear of the others; from the host, also the strokes and
 ## mixing field it comes back with when a taking is undone or a garden is rebuilt.
 static func _easel(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary) -> bool:
-	var at: Variant = cmd.get("at")
-	var yaw: Variant = cmd.get("yaw")
-	if typeof(at) != TYPE_VECTOR3 or not _finite(at) or typeof(yaw) != TYPE_FLOAT or not is_finite(yaw) or absf(yaw) > TAU:
+	if not _stands(cmd) or not from_host and not Easels.room_at(cmd.at, state.easels):
 		return false
-	if not from_host and not Easels.room_at(at, state.easels):
-		return false
-	out.at = at
-	out.yaw = yaw
+	out.at = cmd.at
+	out.yaw = cmd.yaw
 	out.strokes = _strokes(cmd.get("strokes", []))
 	out.mix = cmd.get("mix", PackedByteArray())
 	return out.strokes != null and _mix(out.mix) and (from_host or (out.strokes.is_empty() and out.mix.is_empty()))
+
+
+## Whether an easel's `at` and `yaw` in `d` are a place in the garden and a facing.
+static func _stands(d: Dictionary) -> bool:
+	var at: Variant = d.get("at")
+	var yaw: Variant = d.get("yaw")
+	return typeof(at) == TYPE_VECTOR3 and _finite(at) and typeof(yaw) == TYPE_FLOAT and is_finite(yaw) and absf(yaw) <= TAU
 
 
 ## An oil palette's mixing field: empty, or one as `Mixing.bytes` holds it.
@@ -331,7 +339,7 @@ static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 			kept.erase(k)
 		var ids: Array = Array(kept.ids) if kept.has("ids") else ([kept.id] if kept.has("id") else [-1])
 		for id: int in ids:
-			var key := "%s%d" % ["w" if kept.op in ["wall", "unwall"] or kept.get("of") == "walls" else ("e" if kept.op in ["easel", "uneasel"] else ("q" if id >= 0 else "show")), id]
+			var key := "%s%d" % ["w" if kept.op in ["wall", "unwall"] or kept.get("of") == "walls" else ("e" if kept.op in ["easel", "uneasel"] or kept.get("of") == "easels" else ("q" if id >= 0 else "show")), id]
 			if seen.has(key):
 				return false
 			seen[key] = true
@@ -481,6 +489,8 @@ static func _whole(of: String, d: Dictionary) -> Variant:
 			return _stairs(d)
 		"decorations":
 			return _decoration(d)
+		"easels":
+			return d if _stands(d) else null
 	return _boulder(d)
 
 

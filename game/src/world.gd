@@ -556,6 +556,8 @@ static func _units(of: String, d: Dictionary) -> Dictionary:
 			return Budget.stairs(d)
 		"decorations":
 			return Budget.decoration(d.style)
+		"easels":
+			return {"easel": 1}
 	return {"boulder": Budget.boulder(d.scale)}
 
 
@@ -580,7 +582,7 @@ func _keys(cmd: Dictionary) -> Array:
 		"unwall":
 			return Array(cmd.ids).map(func(id: int) -> String: return "w%d" % id)
 		"reshape":
-			return ["%s%d" % [{"walls": "w", "stairs": "q", "boulders": "b", "decorations": "d"}[cmd.of], cmd.id]]
+			return ["%s%d" % [{"walls": "w", "stairs": "q", "boulders": "b", "decorations": "d", "easels": "e"}[cmd.of], cmd.id]]
 		"plant":
 			return ["p%d" % cmd.id]
 		"tree":
@@ -688,6 +690,9 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			elif cmd.of == "decorations":
 				if decorations != null:
 					decorations.settle(cmd.id)
+			elif cmd.of == "easels":
+				if easels != null:
+					easels.stand(cmd.id, now.at, now.yaw)
 			elif boulders != null:
 				boulders.put(cmd.id, now)
 			_account(_keys(cmd)[0], _units(cmd.of, now))

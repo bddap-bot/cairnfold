@@ -72,6 +72,11 @@ class StairGrip:
 	var id: int
 
 
+## An easel a grip carries, by its id in the garden.
+class EaselGrip:
+	var id: int
+
+
 class Mason:
 	var hand: Hand
 	var buttons: Buttons
@@ -127,6 +132,9 @@ var timber_style := 0
 var thatch := false
 var deck := RoofLayout.Deck.STONE
 var masons: Array[Mason] = []
+## Whether painting at an easel takes `hand`'s grip (`EaselTool.claims`): its brushes, palettes and canvas keep their
+## grips before anything a ray from the hand would carry.
+var painting := func(_hand: Hand) -> bool: return false
 ## The build in hand, a house, tower, wall or fence, and where and how it stands now (`house_of` for a house or tower,
 ## `line_of` for any other, with "grounded" true for a house on the ground, which rides the ground and its plinth).
 var held: Wall
@@ -259,7 +267,7 @@ func _handle(m: Mason) -> void:
 		elif m.buttons.held("tool") and m.stroke != null and m.ground != null:
 			extend_stroke(m, m.ground)
 
-	if m.buttons.pressed("grab") and not busy(m.hand):
+	if m.buttons.pressed("grab") and not busy(m.hand) and not painting.call(m.hand):
 		var on_held := _held_hit(origin, dir) if held != null else {}
 		var pick := FittingTool.pick_target(self, origin, dir, true)
 		var ground: Variant = Terrain.raycast(origin, dir)
@@ -268,9 +276,12 @@ func _handle(m: Mason) -> void:
 		var trunk: Flora.Plant = tree.plants[0] if not tree.is_empty() and tree.plants[0].pool == flora.trunks else null
 		var rock := world.boulders.pick(origin, dir, minf(nearest, minf(pick.get("along", INF), tree.get("along", INF)))) if world.boulders != null else {}
 		var step := world.stairs.pick(origin, dir, minf(minf(nearest, rock.get("along", INF)), minf(pick.get("along", INF), tree.get("along", INF)))) if world.stairs != null else {}
-		var before: float = minf(minf(nearest, step.get("along", INF)), minf(tree.get("along", INF), rock.get("along", INF)))
+		var stand := world.easels.pick_stand(origin, dir, minf(minf(minf(nearest, step.get("along", INF)), minf(tree.get("along", INF), rock.get("along", INF))), pick.get("along", INF))) if world.easels != null else {}
+		var before: float = minf(minf(minf(nearest, step.get("along", INF)), minf(tree.get("along", INF), rock.get("along", INF))), stand.get("along", INF))
 		if not on_held.is_empty() and on_held.along < (before if pick.get("wall") == held else minf(before, pick.get("along", INF))):
 			_join_build(m, on_held.roof, on_held.eave)
+		elif not stand.is_empty():
+			grip_easel(m, stand.easel.id, hand, stand.point)
 		elif not step.is_empty():
 			begin_grow(m, _stair_grip(step.stair), hand, step.point)
 		elif not rock.is_empty():
@@ -1106,6 +1117,8 @@ func _sizing(target: Object) -> Sizing:
 		return _boulder_grip(target, s, in_hand)
 	if target is StairGrip:
 		return _stair_sizing(target, s, in_hand)
+	if target is EaselGrip:
+		return _easel_sizing(target, s, in_hand)
 	var trunk: Flora.Plant = target
 	s.scale = flora.scale_of.bind(trunk)
 	s.top = flora.top_of.bind(trunk)
@@ -1226,6 +1239,59 @@ func stair_supports(d: Dictionary) -> PackedInt32Array:
 			if id >= 0 and not on.has(id) and on.size() < Commands.MAX_SUPPORTS:
 				on.append(id)
 	return on
+
+
+## A grip from the hand's pose `hand` on easel `id`'s stand at `at` carries it; a grip on one another hand carries
+## takes nothing, as two hands size no easel.
+func grip_easel(m: Mason, id: int, hand: Transform3D, at: Vector3) -> void:
+	if masons.any(func(o: Mason) -> bool: return o.growing is EaselGrip and o.growing.id == id):
+		m.hand.hold()
+		return
+	var grip := EaselGrip.new()
+	grip.id = id
+	begin_grow(m, grip, hand, at)
+
+
+## Carries an easel, its painting and kit with it: one hand moves it along the ground with the hand, a far one farther
+## per metre, and turns it about the vertical as the hand turns (`carry_easel`); let go, it is set as one reshape of
+## where it stands and which way it faces, or put back if it would crowd another.
+func _easel_sizing(grip: EaselGrip, s: Sizing, in_hand: Callable) -> Sizing:
+	var stands := world.easels
+	var was: Dictionary = world.state.easels[grip.id]
+	var start := {"at": was.at, "yaw": was.yaw}
+	var shown := start.duplicate()
+	var from := start.duplicate()
+	var hold := {"hand": Transform3D(), "gain": 1.0}
+	s.scale = func() -> float: return 1.0
+	s.limits = Vector2.ONE
+	s.current = func() -> bool:
+		var now: Dictionary = world.state.easels.get(grip.id, {})
+		return not now.is_empty() and now.at == start.at and now.yaw == start.yaw
+	s.show = func(_scale: float) -> void: stands.stand(grip.id, shown.at, shown.yaw)
+	s.command = func() -> Dictionary:
+		if shown.at.distance_to(start.at) < NUDGE and absf(angle_difference(shown.yaw, start.yaw)) < TURN_NUDGE:
+			return {}
+		return {"op": "reshape", "of": "easels", "id": grip.id, "data": shown.duplicate()}
+	s.take = func(m: Mason, hand: Transform3D) -> void:
+		from.merge(shown, true)
+		hold.hand = hand
+		hold.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
+	s.follow = func(_m: Mason, hand: Transform3D) -> void:
+		shown.merge(carry_easel(from, hold.hand, hand, hold.gain), true)
+		stands.stand(grip.id, shown.at, shown.yaw)
+	s.settle = func() -> void:
+		var now: Dictionary = world.state.easels.get(grip.id, {})
+		if not now.is_empty() and not in_hand.call():
+			stands.stand(grip.id, now.at, now.yaw)
+	return s
+
+
+## Where an easel standing as `at` ({at, yaw}) stands once the hand holding it moves from pose `from` to `to`: moved
+## across the ground with the hand, `gain` times as far, on the ground there, and turned with the hand's own turn about
+## the vertical.
+static func carry_easel(at: Dictionary, from: Transform3D, to: Transform3D, gain: float) -> Dictionary:
+	var move: Vector3 = at.at + (to.origin - from.origin) * gain
+	return {"at": Terrain.ground(move.x, move.z), "yaw": wrapf(at.yaw + angle_difference(angle(from.basis.x), angle(to.basis.x)), -PI, PI)}
 
 
 ## The grip a hand already holding stairs `id` holds, so a second hand's grip on them joins that one.

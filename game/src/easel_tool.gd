@@ -239,6 +239,13 @@ func grab(p: Painter) -> void:
 		Cues.play(Cues.Act.BRUSH_TAKE, at, p.hand)
 
 
+## Whether a grip of `hand`'s is painting's: it holds a palette, paints, tears a sheet or reaches an implement, palette
+## or the canvas. Any other grip on an easel's stand carries the easel (`WallTool.grip_easel`).
+func claims(hand: Hand) -> bool:
+	var p := painter(hand)
+	return p != null and (p.palette != null or busy(hand) or not candidate(p).is_empty())
+
+
 ## Touching a handle wins by proximity; approaching it distinguishes neighbours by the hand's pointing line.
 static func pick_distance(hand: Transform3D, target: Vector3) -> float:
 	var offset := target - hand.origin

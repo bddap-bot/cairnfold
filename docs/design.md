@@ -2181,6 +2181,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window or door, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top on that build (or, on the meadow, the garden's season) |
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
 | Set up an easel | Trigger of a hand holding the easel, pointing at open ground with no easel near the hand: it stands there facing the player |
+| Move an easel | Grip pointing at an easel's legs or tray, whatever the hand holds, with no brush, palette or canvas within the hand's reach: it moves along the ground with the hand and turns about the vertical as the hand turns, the gain growing with distance, its painting and kit with it; let go to set it there, one undo step, unless that is within 1.4 m of another easel, when it goes back. The other hand's grip on it does nothing: an easel has one size |
 | Paint | At an easel: grip at the pot for a small round, big round or flat brush, at the sticks for charcoal, at the watercolour box or the oil palette to carry it in that hand; dip the brush in a pan or an oil colour for that medium, in the glass to wet it; touch the canvas and push in to press harder (see "Painting") |
 | Fresh sheet | Grip on the canvas's face and pull well away: the sheet tears off, one undo step |
 
@@ -3182,6 +3183,14 @@ The brush
 reaches past the controller; touching the canvas paints, pushing in presses harder and widens the mark, moving fast
 skims the paper's tooth, and the brush runs dry as it paints. A grip on the canvas takes its sheet and pulling it
 well away tears it off for a fresh one. A garden holds four easels at most, 1.4 m apart.
+
+An easel moves as most things do: a grip on its legs or tray, whatever the hand holds, carries it along the ground
+with the hand, farther for a far one by the reach gain, and turns it about the vertical as the hand turns, its painting,
+palettes and brushes riding with it (`WallTool.grip_easel`). Let go, it is set there as one reshape of where it stands
+and which way it faces, one undo step, or put back where it stood if that is within 1.4 m of another. The canvas, the
+pot, the palettes and the charcoal keep their own grips (`EaselTool.claims`): within the hand's reach of any of them a
+grip paints, and the canvas hides the legs behind it from a ray. An easel has one size, so a second hand's grip on it
+takes nothing.
 
 Report (verbatim): "Okay, I'm looking at the easel and I have a few feedbacks. Um ,one, they're, the planks that support the easel are clipping through the the canvas. So, they're covering the canvas at a piece
 Um, when I go to grab the paints, I'm grabbing in by the wrong side, I'm holding the little paint uh- palette by the painty part. Should be grabbing it by another part"

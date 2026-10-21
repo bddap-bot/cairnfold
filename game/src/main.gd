@@ -78,6 +78,7 @@ func _ready() -> void:
 	builds.add_child(easels)
 	easel_tool = EaselTool.new(rig, easels, world)
 	add_child(easel_tool)
+	tool.painting = easel_tool.claims
 	ground_grab = GroundGrab.new(rig, world, _editing)
 	ground_grab.reshaped.connect(tool.reground)
 	ground_grab.reshaped.connect(paths.reground)
