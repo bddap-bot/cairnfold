@@ -1813,9 +1813,9 @@ func _stairs(s: Dictionary) -> void:
 	main.stair_tool.end(hand)
 
 
+## Fills the stair allowance without changing whether later scripted builds are bounded.
 func _stair_field(_s: Dictionary) -> void:
 	main.world.submit({"op": "wipe"})
-	main.world.bounded = true
 	await _sculpt({"x": 5.0, "z": -6.0, "lift": 2.0, "seconds": 0.2})
 	await _pave({"points": [[5, -2.5], [5, -6]], "radius": 0.8, "seconds": 0.2})
 	var placed := 0
@@ -1827,7 +1827,7 @@ func _stair_field(_s: Dictionary) -> void:
 				d.b = a + Vector3(0, 3, -1)
 			elif col % 3 == 2:
 				d.b = a + Vector3(0, 0, -4)
-			if not main.world.fits({"op": "stairs", "stairs": d}):
+			if not Budget.fits(main.world.units, main.world.change_of({"op": "stairs", "stairs": d}), main.world.devices()):
 				print("stairs: budget full at %d builds, fill %.3f" % [placed, main.world.fill()])
 				return
 			main.world.submit({"op": "stairs", "stairs": d})
