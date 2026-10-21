@@ -2695,7 +2695,7 @@ renders.
 
 ## Sound
 
-Every sound but the animal calls and the teleport sounds is synthesised by `scripts/compose.py` into
+Every sound but the animal calls, teleport sounds and pencil scratch is synthesised by `scripts/compose.py` into
 `game/audio/`; rerun it (`nix-shell --run 'python3 scripts/compose.py'`) after changing
 it, never edit the files by hand. The runtime only plays them: Godot mixes on its audio thread, so
 sound costs no frame time.
@@ -2749,6 +2749,26 @@ sound costs no frame time.
   OUT/animals.avi --fixed-fps 30` records five minutes of a garden the animals come to.
 - `scripts/render.sh demo/sound.json OUT --write-movie OUT/sound.avi --fixed-fps 30`
   records the game's own mix through an idle stretch, a build and the return.
+
+## Canvas contact feedback
+
+Paintbrush contact is silent for watercolour and oil. The hand gets a slight tick on
+first contact, then no feedback until the bend limit. At that limit a faint haptic
+continues while holding still or moving, ending as soon as pressure eases or contact
+ends. Feedback uses physical contact, independently of brush load and paint samples.
+
+Charcoal crosses paper teeth every 1.8 mm of travel. Pressure strengthens each short
+pulse; faster travel crosses teeth faster. Stationary charcoal is silent. Recorded
+pencil grains overlap with soft envelopes; speed raises their level and slightly
+changes playback rate, pressure raises level. Leaving or stopping stops both voices.
+The source and CC0 licence are in `game/audio/charcoal/source.json`; regenerate with
+`nix-shell --run 'python3 scripts/charcoal.py'`. Three low-pass profiles share the
+same recording: soft (950 Hz, default), paper (1250 Hz), dark (700 Hz).
+
+No pre-existing build option mechanism was found for action audio. Set the single
+`Cues.CHARCOAL_PROFILE` constant before export to `soft`, `paper`, `dark`, or `off`;
+`off` removes sound while retaining haptics. There is no settings menu. These are
+candidates for later human headset judgement, not a claim of playtest preference.
 
 ## Action feedback
 

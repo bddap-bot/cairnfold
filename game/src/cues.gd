@@ -112,12 +112,50 @@ const VOICES := 12
 const LOUDEST := 2.0
 const UNIT := 3.0
 
+## Per-build choice: soft (default), paper, dark, or off. No runtime menu.
+const CHARCOAL_PROFILE := "soft"
+const CHARCOAL_GRAINS := 8
+
+## Contact feedback is independent of paint samples and brush load. Distances are metres.
+class CanvasFeel:
+	var touching := false
+	var hard := false
+	var tooth := 0.0
+	var until_hard := 0.0
+
+	func step(stick: bool, on: bool, pressure: float, speed: float, distance: float, limit: bool, dt: float) -> Vector2:
+		var was_on := touching
+		var was_hard := hard
+		touching = on
+		hard = on and not stick and limit
+		until_hard -= dt
+		if not on:
+			tooth = 0.0
+			return Vector2.ZERO
+		if not stick:
+			if hard and (not was_hard or until_hard <= 0.0):
+				until_hard = 0.025
+				return Vector2(0.055, 0.035)
+			if not was_on:
+				return Vector2(0.025, 0.006)
+			return Vector2.ZERO
+		if speed <= 0.002 or distance <= 0.0:
+			return Vector2.ZERO
+		tooth += distance
+		if tooth < 0.0018:
+			return Vector2.ZERO
+		tooth = fmod(tooth, 0.0018)
+		return Vector2(0.015 + 0.045 * clampf(pressure, 0.0, 1.0), 0.004)
+
+
 static var _live: Cues
 ## Plays asked for per action since start, for tests.
 static var asked := {}
 ## Pulses per action per hand's instance id since start, for tests.
 static var pulsed := {}
 
+var _canvas := {}
+var _charcoal: Array[AudioStream] = []
 var _clips := {}
 var _voices: Array[AudioStreamPlayer3D] = []
 var _next_voice := 0
@@ -131,6 +169,9 @@ var _due: Array[Array] = []
 
 func _init() -> void:
 	name = "Cues"
+	if CHARCOAL_PROFILE != "off":
+		for i in CHARCOAL_GRAINS:
+			_charcoal.append(load("res://audio/charcoal/%s%d.ogg" % [CHARCOAL_PROFILE, i]))
 	for kind in SOUNDS:
 		_clips[kind] = []
 		for i in SOUNDS[kind]:
@@ -186,6 +227,59 @@ static func play_in(act: Act, at: Vector3, hands: Array, tension := 0.0, heft :=
 			feel(h, cue.get("feel", []), 1.0 + cue.get("tighten", 0.0) * clampf(tension, 0.0, 1.0))
 			var by: Dictionary = pulsed.get_or_add(act, {})
 			by[h.get_instance_id()] = by.get(h.get_instance_id(), 0) + 1
+
+
+## Called each physical-contact frame, including stationary and unloaded brushes.
+static func canvas_contact(hand: XRController3D, at: Vector3, stick: bool, touching: bool, pressure: float, speed: float, distance: float, hard: bool) -> void:
+	if _live == null or not is_instance_valid(hand):
+		return
+	_live._canvas_contact(hand, at, stick, touching, pressure, speed, distance, hard)
+
+
+static func canvas_leave(hand: XRController3D) -> void:
+	canvas_contact(hand, Vector3.ZERO, false, false, 0.0, 0.0, 0.0, false)
+
+
+func _canvas_contact(hand: XRController3D, at: Vector3, stick: bool, touching: bool, pressure: float, speed: float, distance: float, hard: bool) -> void:
+	var key := hand.get_instance_id()
+	if not _canvas.has(key):
+		if not touching:
+			return
+		var holder := Node3D.new()
+		add_child(holder)
+		var voices: Array[AudioStreamPlayer3D] = []
+		for i in 2:
+			var voice := AudioStreamPlayer3D.new()
+			voice.unit_size = 0.5
+			voice.max_distance = 4.0
+			holder.add_child(voice)
+			voices.append(voice)
+		_canvas[key] = {"feel": CanvasFeel.new(), "voices": voices, "time": _clock, "grain_at": -INF, "grain": -1, "next": 0, "hand": hand}
+	var c: Dictionary = _canvas[key]
+	var was_hard: bool = c.feel.hard
+	var pulse: Vector2 = c.feel.step(stick, touching, pressure, speed, distance, hard, _clock - c.time)
+	c.time = _clock
+	if was_hard and not c.feel.hard:
+		hand.trigger_haptic_pulse(&"haptic", 0.0, 0.0, 0.0, 0.0)
+	if pulse.x > 0.0:
+		feel(hand, [pulse.x, pulse.y, 1, 0.0])
+	if not touching or not stick or speed <= 0.002 or distance <= 0.0:
+		for voice: AudioStreamPlayer3D in c.voices:
+			voice.stop()
+		c.grain_at = -INF
+		return
+	if _charcoal.is_empty() or _clock - c.grain_at < 0.065:
+		return
+	c.grain_at = _clock
+	# Never repeat the previous excerpt; the two voices overlap their soft envelopes.
+	c.grain = (c.grain + 1 + _rng.randi_range(0, CHARCOAL_GRAINS - 2)) % CHARCOAL_GRAINS
+	var voice: AudioStreamPlayer3D = c.voices[c.next]
+	c.next = 1 - c.next
+	voice.stream = _charcoal[c.grain]
+	voice.global_position = at
+	voice.pitch_scale = clampf(0.85 + speed * 0.3, 0.85, 1.05)
+	voice.volume_db = -8.0 + linear_to_db(0.15 + 0.35 * clampf(pressure, 0.0, 1.0)) + linear_to_db(clampf(speed / 0.12, 0.0, 1.0))
+	voice.play()
 
 
 ## A pulse as the table writes one, `louder` times as strong.
