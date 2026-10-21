@@ -3706,6 +3706,15 @@ before and after; the changed exterior also exceeds it. Ivy counts differ betwee
 runs, so these totals do not isolate the ceiling's GPU cost or establish a
 whole-scene budget pass.
 
+The curved-join fix's physical Quest 2 stress run is recorded in
+`perf/quest-2/stress/20261021T115148Z-cc6d453.json`. The overlapping bowed-deck
+interior measures 9.94 ms GPU time against the 12.5 ms budget, with zero late
+frames; the existing ceiling interior measures 10.32 ms. The full benchmark
+exits 1: 71 non-sweep phases exceed budget. This is not a whole-scene pass or a
+paired attribution of those costs to the join change. Botq job 9186 carries the
+remaining performance and stress-driver errors recorded in job 9165's artifacts.
+
+
 
 ### Skipping collapsed grass work
 
