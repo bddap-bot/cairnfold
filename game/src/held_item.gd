@@ -1,0 +1,132 @@
+class_name HeldItem
+extends Node3D
+
+## A held model's description travels only when it changes; the existing hand pose carries its motion.
+enum Kind { TOOL, BRUSH, PALETTE, BOOK }
+
+var state: Array = []
+var model: Node3D
+var easels: Easels
+
+
+static func describe(hand: Hand, painting: EaselTool, book: Book) -> Array:
+	if not hand.tracked():
+		return []
+	var kind := Kind.TOOL
+	var index := int(hand.tool)
+	var source: Node3D = hand.model(hand.tool)
+	var colour := Color.WHITE
+	var load := 0.0
+	var detail := 0
+	if hand.tool == Hand.Tool.NONE:
+		return []
+	if hand.tool == Hand.Tool.EASEL:
+		if painting == null:
+			return []
+		var p := painting.painter(hand)
+		if p.peel != null:
+			return []
+		if p.palette != null:
+			kind = Kind.PALETTE
+			index = p.kit
+			detail = p.palette.id
+			source = p.palette.palettes[p.kit]
+		else:
+			kind = Kind.BRUSH
+			index = p.brush
+			source = p.models[p.brush]
+			colour = p.tip.albedo_color
+			load = p.load
+	elif hand.tool == Hand.Tool.BOOK:
+		if book == null or book.holder != hand:
+			return []
+		kind = Kind.BOOK
+		index = book.at
+		source = book
+	if not source.visible:
+		return []
+	var local := hand.body.global_transform.affine_inverse() * source.global_transform
+	return [kind, index, local, colour, load, detail, hand.holds_seeds()]
+
+
+static func same(a: Array, b: Array) -> bool:
+	if a.size() != b.size():
+		return false
+	if a.is_empty():
+		return true
+	return a[0] == b[0] and a[1] == b[1] and (a[2] as Transform3D).is_equal_approx(b[2]) and (a[3] as Color).is_equal_approx(b[3]) and is_equal_approx(a[4], b[4]) and a[5] == b[5] and a[6] == b[6]
+
+
+static func valid(s: Array) -> bool:
+	if s.is_empty():
+		return true
+	if s.size() != 7 or s[0] is not int or s[1] is not int or s[2] is not Transform3D or s[3] is not Color or s[4] is not float or s[5] is not int or s[6] is not bool:
+		return false
+	var t: Transform3D = s[2]
+	var c: Color = s[3]
+	if not t.is_finite() or t.origin.length() > 3.0 or t.basis.get_scale().length() > 4.0 or not is_finite(c.r + c.g + c.b + c.a) or not is_finite(s[4]) or s[4] < 0.0 or s[4] > 1.0:
+		return false
+	match s[0]:
+		Kind.TOOL:
+			return s[1] >= 0 and s[1] < Hand.Tool.size() and not s[1] in [Hand.Tool.NONE, Hand.Tool.EASEL, Hand.Tool.BOOK]
+		Kind.BRUSH:
+			return s[1] in Brushwork.Brush.values()
+		Kind.PALETTE:
+			return s[1] in Easels.KITS and s[5] > 0
+		Kind.BOOK:
+			return s[1] >= 0 and s[1] <= ceili(Lessons.PAGES.size() / 2.0) + 1
+	return false
+
+
+func show_state(s: Array) -> void:
+	var rebuild: bool = state.is_empty() or s.is_empty() or state[0] != s[0] or state[1] != s[1] or state[5] != s[5]
+	state = s.duplicate()
+	if rebuild and model != null:
+		remove_child(model)
+		model.queue_free()
+		model = null
+	if s.is_empty():
+		return
+	if model == null:
+		match s[0]:
+			Kind.TOOL:
+				model = ToolModels.build(s[1])
+			Kind.BRUSH:
+				model = ToolModels.brush(s[1])
+				if s[1] != Brushwork.Brush.STICK:
+					(model.get_node("tip") as MeshInstance3D).material_override = StandardMaterial3D.new()
+			Kind.PALETTE:
+				var e := easels.find(s[5]) if easels != null else null
+				model = e.palettes[s[1]].duplicate() if e != null else Easels.watercolours() if s[1] == Brushwork.Medium.WATER else Easels.oils()
+			Kind.BOOK:
+				model = Book.new(false)
+				(model as Book).at = s[1]
+				(model as Book)._lay()
+				model.set_process(false)
+		model.top_level = false
+		add_child(model)
+	model.visible = true
+	model.transform = s[2]
+	if s[0] == Kind.BRUSH and s[1] != Brushwork.Brush.STICK:
+		var tip := (model.get_node("tip") as MeshInstance3D).material_override as StandardMaterial3D
+		tip.albedo_color = s[3]
+		tip.roughness = 0.25 if s[4] > 0.02 else 0.7
+
+
+func feeds() -> bool:
+	return not state.is_empty() and state[0] == Kind.TOOL and state[1] == Hand.Tool.SEEDS and state[6]
+
+
+static func label(s: Array) -> String:
+	if s.is_empty():
+		return "none"
+	match s[0]:
+		Kind.TOOL:
+			return Hand.Tool.keys()[s[1]].to_lower()
+		Kind.BRUSH:
+			return Brushwork.Brush.keys()[s[1]].to_lower()
+		Kind.PALETTE:
+			return "%s palette" % Brushwork.Medium.keys()[s[1]].to_lower()
+		Kind.BOOK:
+			return "book"
+	return ""

@@ -8,9 +8,10 @@ extends Node3D
 var eyes := Vector3.ZERO
 
 
-func _init() -> void:
-	var model := ToolModels.build(Hand.Tool.SEEDS)
-	model.position = Hand.TOP
-	add_child(model)
+func _init(draw := true) -> void:
+	if draw:
+		var item := HeldItem.new()
+		add_child(item)
+		item.show_state([HeldItem.Kind.TOOL, Hand.Tool.SEEDS, Transform3D(Basis(), Hand.TOP), Color.WHITE, 0.0, 0, true])
 	visible = false
 	add_to_group("dishes")

@@ -73,6 +73,10 @@ var avatars := {}
 ## player's are hidden for the next to take up, never freed, so no animal is left holding a freed one.
 var dishes: Array[Dish] = []
 var _dishes := {}
+var held := {}
+var painting: EaselTool
+var book: Book
+var _sent_held: Array = []
 ## The folder whose newest .vrm is this player's avatar, or "" for a built-in one.
 var folder := ""
 ## That file once it has read as an avatar within the limits; sent to every player met.
@@ -282,8 +286,11 @@ func _process(delta: float) -> void:
 	_since_pose += delta
 	if _since_pose >= POSE_EVERY and not multiplayer.get_peers().is_empty():
 		_since_pose = 0.0
-		var seeds := int(rig.left.holds_seeds()) | int(rig.right.holds_seeds()) << 1
-		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look, seeds)
+		var items := [HeldItem.describe(rig.left, painting, book), HeldItem.describe(rig.right, painting, book)]
+		if _sent_held.is_empty() or not HeldItem.same(items[0], _sent_held[0]) or not HeldItem.same(items[1], _sent_held[1]):
+			_held.rpc(items)
+			_sent_held = items
+		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look)
 	var k := 1.0 - exp(-FOLLOW * delta)
 	for id in _targets:
 		var a: Avatar = avatars[id]
@@ -293,7 +300,10 @@ func _process(delta: float) -> void:
 			var dish: Dish = _dishes[id][s]
 			dish.transform = a.hands[s]
 			dish.eyes = a.eyes.origin
-			dish.visible = a.visible and t[4] & 1 << s
+			var item: HeldItem = held[id][s]
+			item.transform = a.hands[s]
+			item.visible = a.visible
+			dish.visible = a.visible and item.feeds()
 
 
 func _announce() -> void:
@@ -493,14 +503,25 @@ func _appear(look: int, tint: Color) -> void:
 		if pair.size() < 2 and not taken.has(dish):
 			pair.append(dish)
 	while pair.size() < 2:
-		var dish := Dish.new()
+		var dish := Dish.new(false)
 		add_child(dish)
 		dishes.append(dish)
 		pair.append(dish)
 	_dishes[id] = pair
+	var models: Array[HeldItem] = []
+	for side in 2:
+		var item := HeldItem.new()
+		item.easels = painting.easels if painting != null else null
+		add_child(item)
+		models.append(item)
+	held[id] = models
+	_sent_held.clear()
 
 
 func _drop_dishes(id: int) -> void:
+	for item: HeldItem in held.get(id, []):
+		item.queue_free()
+	held.erase(id)
 	for dish: Dish in _dishes.get(id, []):
 		dish.visible = false
 	_dishes.erase(id)
@@ -671,10 +692,9 @@ func _threw(from: Vector3, velocity: Vector3, seed: int) -> void:
 	feed.toss(from, velocity, seed)
 
 
-## A player's head, hands and where their eyes look, in their head's frame, and which hands hold seeds out (bit 0 the
-## left, bit 1 the right).
+## A player's head, hands and where their eyes look, in their head's frame.
 @rpc("any_peer", "unreliable_ordered")
-func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3, seeds: int) -> void:
+func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vector3) -> void:
 	var id := multiplayer.get_remote_sender_id()
 	var room := Terrain.bounds().grow(40.0)
 	for t in [eyes, left, right]:
@@ -682,9 +702,21 @@ func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vecto
 			return
 	if not (avatars.has(id) and look.is_finite() and look.length() > 0.1):
 		return
-	var target := [eyes.orthonormalized(), left.orthonormalized(), right.orthonormalized(), look.normalized(), seeds & 3]
+	var target := [eyes.orthonormalized(), left.orthonormalized(), right.orthonormalized(), look.normalized()]
 	var a: Avatar = avatars[id]
 	if not a.visible:
 		a.visible = true
 		a.pose(target[0], target[1], target[2], target[3])
 	_targets[id] = target
+
+
+@rpc("any_peer", "reliable")
+func _held(items: Array) -> void:
+	var id := multiplayer.get_remote_sender_id()
+	if not held.has(id) or items.size() != 2:
+		return
+	for item in items:
+		if item is not Array or not HeldItem.valid(item):
+			return
+	for side in 2:
+		(held[id][side] as HeldItem).show_state(items[side])

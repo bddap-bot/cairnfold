@@ -109,6 +109,8 @@ func _ready() -> void:
 	var played := Session.played(args, get_tree().current_scene == self)
 	var me := Persona.new(str(args.get("name", "")), int(args.get("steam-app", OS.get_environment("SteamAppId"))), "user://name" if played else "", hash(OS.get_unique_id()))
 	session = Session.new(world, rig, int(args.get("avatar", -1)), int(args.get("port", Session.PORT if played else 0)), played, int(args.get("beacon-port", Session.BEACON_PORT)), me)
+	session.painting = easel_tool
+	session.book = book
 	session.folder = args.get("avatars", Main.player_path("avatars") if played else "")
 	if played:
 		DirAccess.make_dir_recursive_absolute(session.folder)

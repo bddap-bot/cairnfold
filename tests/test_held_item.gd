@@ -1,0 +1,47 @@
+extends SceneTree
+
+var failures := 0
+
+
+func _initialize() -> void:
+	_run.call_deferred()
+
+
+func check(ok: bool, what: String) -> void:
+	if not ok:
+		failures += 1
+		print("FAIL: ", what)
+
+
+func _run() -> void:
+	var item := HeldItem.new()
+	root.add_child(item)
+	for tool in Hand.Tool.values():
+		if tool in [Hand.Tool.NONE, Hand.Tool.EASEL, Hand.Tool.BOOK]:
+			continue
+		var s := [HeldItem.Kind.TOOL, tool, Transform3D(Basis(), Hand.TOP), Color.WHITE, 0.0, 0, tool == Hand.Tool.SEEDS]
+		check(HeldItem.valid(s), "wheel tool accepted")
+		item.show_state(s)
+		check(item.model != null and item.model.get_child_count() > 0, "wheel tool builds its actual model")
+		check(item.feeds() == (tool == Hand.Tool.SEEDS), "only seeds feed animals")
+	for kind in Brushwork.Brush.values():
+		var s := [HeldItem.Kind.BRUSH, kind, Transform3D(), Color(0.2, 0.3, 0.7), 0.8, 0, false]
+		check(HeldItem.valid(s), "painting implement accepted")
+		item.show_state(s)
+		check(item.model != null, "painting implement builds")
+		if kind != Brushwork.Brush.STICK:
+			var mat: StandardMaterial3D = item.model.get_node("tip").material_override
+			check(mat.albedo_color == s[3] and is_equal_approx(mat.roughness, 0.25), "loaded paint reaches actual bristles")
+		var invalid := s.duplicate()
+		invalid[1] = 999
+		check(not HeldItem.valid(invalid), "unknown implement rejected")
+		invalid = s.duplicate()
+		invalid[4] = NAN
+		check(not HeldItem.valid(invalid), "nonfinite load rejected")
+	item.show_state([])
+	check(item.model == null and not item.feeds(), "empty hand removes model and feeding target")
+	check(not HeldItem.valid([0]) and not HeldItem.valid([0, 0, "bad", Color.WHITE, 0.0, 0, false]), "malformed state rejected")
+	item.queue_free()
+	await process_frame
+	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
+	Main.quit(self, 1 if failures else 0)

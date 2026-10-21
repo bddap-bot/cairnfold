@@ -1869,3 +1869,70 @@ func _neck_cost(s: Dictionary) -> void:
 		animal.queue_free()
 	for dish in dishes:
 		dish.queue_free()
+
+
+## Publishes the holder's actual models for another process to compare with what its network peer renders.
+func _held_snapshot(s: Dictionary) -> void:
+	await get_tree().create_timer(Hand.POP * 3.0).timeout
+	var items := [HeldItem.describe(main.rig.left, main.easel_tool, main.book), HeldItem.describe(main.rig.right, main.easel_tool, main.book)]
+	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name)
+	FileAccess.open(path + ".held", FileAccess.WRITE).store_var([multiplayer.get_unique_id(), items])
+	FileAccess.open(path + ".json", FileAccess.WRITE).store_string(JSON.stringify({"held": items.map(HeldItem.label)}))
+
+
+func _remote_holds(s: Dictionary) -> void:
+	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name)
+	var expected: Array = FileAccess.open(path + ".held", FileAccess.READ).get_var()
+	var elapsed := 0.0
+	while elapsed < 30.0:
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+		if not main.session.held.has(expected[0]):
+			continue
+		var pair: Array = main.session.held[expected[0]]
+		var matches := true
+		for side in 2:
+			var item: HeldItem = pair[side]
+			matches = matches and HeldItem.same(item.state, expected[1][side])
+			if item.state.is_empty():
+				matches = matches and item.model == null
+			else:
+				matches = matches and item.model != null and item.model.is_visible_in_tree() and item.model.transform.is_equal_approx(item.state[2])
+				matches = matches and item.transform.is_equal_approx((main.session.avatars[expected[0]] as Avatar).hands[side])
+				if item.state[0] == HeldItem.Kind.BRUSH and item.state[1] != Brushwork.Brush.STICK:
+					var tip := (item.model.get_node("tip") as MeshInstance3D).material_override as StandardMaterial3D
+					matches = matches and tip.albedo_color.is_equal_approx(item.state[3])
+		if matches:
+			print("held: peer sees %s in the other player's hands" % str(expected[1].map(HeldItem.label)))
+			return
+	assert(false, "remote held models differ from holder: " + s.name)
+
+
+## The maximum seven peers' fourteen held models, close enough to fill the view, through the live renderer.
+func _held_cost(s: Dictionary) -> void:
+	var items: Array[HeldItem] = []
+	var eye: Transform3D = main.rig.head.global_transform
+	for i in (Session.MAX_PLAYERS - 1) * 2:
+		var item := HeldItem.new()
+		add_child(item)
+		item.global_transform = eye * Transform3D(Basis(), Vector3((i % 7 - 3) * 0.2, (i / 7 - 0.5) * 0.35, -0.8))
+		items.append(item)
+	var states: Array = []
+	for tool in Hand.Tool.values():
+		if tool not in [Hand.Tool.NONE, Hand.Tool.EASEL, Hand.Tool.BOOK]:
+			states.append([HeldItem.Kind.TOOL, tool, Transform3D(Basis(), Hand.TOP), Color.WHITE, 0.0, 0, false])
+	states.append([HeldItem.Kind.PALETTE, Brushwork.Medium.OIL, Transform3D(), Color.WHITE, 0.0, 1, false])
+	states.append([HeldItem.Kind.PALETTE, Brushwork.Medium.WATER, Transform3D(), Color.WHITE, 0.0, 1, false])
+	for brush in Brushwork.Brush.values():
+		states.append([HeldItem.Kind.BRUSH, brush, Transform3D(), Color(0.15, 0.3, 0.65), 1.0, 0, false])
+	states.append([HeldItem.Kind.BOOK, 1, Book.local(1.0), Color.WHITE, 0.0, 0, false])
+	for state in states:
+		for item in items:
+			item.show_state(state)
+		await get_tree().create_timer(0.1).timeout
+		var name := HeldItem.label(state)
+		await _label({"name": "held/" + name.replace(" ", "-")})
+		await get_tree().create_timer(s.get("seconds", 3.0)).timeout
+	await _label({"name": "-"})
+	for item in items:
+		item.queue_free()

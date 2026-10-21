@@ -1,0 +1,54 @@
+[
+  {
+    "op": "quality",
+    "step": "fit"
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "wait",
+    "seconds": 10
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      1.65,
+      4
+    ],
+    "at": [
+      0,
+      1.4,
+      0
+    ]
+  },
+  {
+    "op": "label",
+    "name": "held/baseline"
+  },
+  {
+    "op": "wait",
+    "seconds": 15
+  },
+  {
+    "op": "held_cost",
+    "seconds": 5
+  },
+  {
+    "op": "label",
+    "name": "held/after"
+  },
+  {
+    "op": "wait",
+    "seconds": 15
+  },
+  {
+    "op": "label",
+    "name": "-"
+  },
+  {
+    "op": "quit"
+  }
+]

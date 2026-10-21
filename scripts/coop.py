@@ -84,7 +84,35 @@ def easel_steps(name, names, seq):
                     {"op": "digest", "name": f"{name}-easel"}, barrier([f"{n}-easel" for n in names])]
 
 
-def scripts(count):
+
+def held_steps(name, names, capture=False):
+    steps = []
+    tools = ["walls", "flowers", "grass", "trees", "delete", "pond", "fence", "windows", "decorations", "stone", "colour", "camera", "house", "seeds", "dirt_path", "style", "stairs", "tower", "arch", "book", "selfie", "bushes", "boulder", "moss", "none"]
+    phases = [[{"op": "pick", "tool": t}] for t in tools]
+    phases += [[{"op": "take", "what": b}] for b in ("small", "big", "flat", "stick")]
+    phases += [[{"op": "take", "what": "big"}, {"op": "dip", "what": "oil", "index": 5},
+                {"op": "take", "what": kit, "hand": "left"},
+                {"op": "view", "eye": [-4, 1.65, 6], "at": [-4, 1.4, 4]},
+                {"op": "hands", "left": [-0.32, -0.35, -0.4], "right": [0.32, -0.3, -0.4], "tip": 20}]
+               for kit in ("palette", "box")]
+    phases[-1].insert(0, {"op": "set_down", "hand": "left"})
+    phases += [[{"op": "set_down", "hand": "left"}, {"op": "pick", "tool": "none"}]]
+    for i, phase in enumerate(phases):
+        key = f"held-{i}"
+        if name == "join":
+            steps += phase + [{"op": "held_snapshot", "name": key}]
+        steps += [barrier([key])]
+        if name != "join":
+            steps += [{"op": "remote_holds", "name": key}]
+            if capture and name == "host" and i == len(tools) + 4:
+                steps += [{"op": "view", "eye": [-2.5, 1.8, 3.8], "at": [-4, 1.3, 5.7]},
+                          {"op": "wait", "seconds": 1}, {"op": "capture", "name": "remote-palette-loaded-brush"}]
+        steps += [{"op": "digest", "name": f"{name}-{key}-seen"},
+                  barrier([f"{n}-{key}-seen" for n in names])]
+    return steps
+
+
+def scripts(count, capture=False):
     names = ["host", "join"] + [f"late-{i}" for i in range(2, count)]
     result = {}
     for name in names:
@@ -114,6 +142,7 @@ def scripts(count):
         last = SEQ + 2 * (count - 2)
         steps += easel_steps(name, names, last)
         last += EASEL_COMMANDS
+        steps += held_steps(name, names, capture)
         for k, (shape, lift) in enumerate([("peak", EXTREME), ("pit", -2 * EXTREME)]):
             if name == "join":
                 steps += [{"op": "sculpt", "x": -50, "z": 50, "lift": lift, "seconds": 0.5}]
@@ -217,7 +246,7 @@ def run(out, count, spawn=False, capture=False):
     out.mkdir(parents=True, exist_ok=True)
     for path in out.glob("*.json"):
         path.unlink()
-    generated = spawn_scripts(capture) if spawn else scripts(count)
+    generated = spawn_scripts(capture) if spawn else scripts(count, capture)
     for name, steps in generated.items():
         (out / f"script-{name}.json").write_text(json.dumps(steps, indent=2))
     beacon, reservation = reserve_beacons()
@@ -386,4 +415,4 @@ if __name__ == "__main__":
         parser.error("players must be 2..8 (Session.MAX_PLAYERS)")
     run(args.out.resolve() / "spawn", 2, spawn=True, capture=args.capture)
     if not args.spawn:
-        run(args.out.resolve(), args.players)
+        run(args.out.resolve(), args.players, capture=args.capture)

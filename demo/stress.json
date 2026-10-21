@@ -5,6 +5,7 @@
   {"op": "hold_pose", "hand": "right", "at": [0.3, -0.55, -0.15], "aim": [0, -1, -0.3]},
   {"op": "label", "name": "-"},
   {"op": "wait", "seconds": 10},
+  {"op": "held_cost", "seconds": 3},
   {"op": "label", "name": "meadow/aerial"},
   {"op": "view", "eye": [0, 22, 32], "at": [0, 0, 0]},
   {"op": "wait", "seconds": 6},
