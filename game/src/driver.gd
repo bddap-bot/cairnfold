@@ -9,7 +9,7 @@ signal finished
 
 ## The parts of the scene `layer` hides, as demo/meadow-layers.json prices the bare meadow; "all" hides every one.
 ## "mountains" are the ranges and whatever lies between them and the meadow.
-const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "sun_disc", "sun", "shadows", "masonry", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands"]
+const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "sun_disc", "sun", "shadows", "masonry", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "ceilings"]
 
 var main: Node
 var steps: Array
@@ -928,6 +928,9 @@ func _layer_parts(name: String) -> Array[Array]:
 		"hands":
 			for h: Node3D in main.rig.hands:
 				out.append([h, "visible", false])
+		"ceilings":
+			for n: Node3D in main.get_tree().get_nodes_in_group(&"roof_ceilings"):
+				out.append([n, "visible", false])
 		_:
 			assert(false, "layer: no layer %s" % name)
 	for n in main.find_children("*", "GeometryInstance3D", true, false):
