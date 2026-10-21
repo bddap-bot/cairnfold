@@ -4621,9 +4621,9 @@ Directive (paraphrased): oil mixing should work like real life: paint taken on t
 surface, which is how colours mix, and touching that part of the surface with the brush picks up the paint there.
 
 The board is a grid of 48 by 32 texels, 7.5 mm each, over the palette's oval clear of its thumb hole, each holding an
-amount of paint and its colour. A brush touching it trades paint with every texel under it: it gives where it holds
-more than the board under it and takes where the board holds more, until its load is 1.5 times the paint there, and
-smears the two colours into each other either way, so stirring mixes and a clean brush comes away loaded. Colours mix
+amount of paint and its colour. A brush touching it trades pigment with every texel under it and smears the two
+colours into each other, so stirring mixes and a clean brush comes away loaded. Stirring preserves the brush's
+chosen load; only dipping or wiping changes it once loaded. Colours mix
 by Kubelka-Munk with one constant: a colour is its absorption over scattering (K/S) per channel, which mixes in
 proportion to the amounts, so blue and yellow make a dull green and white lightens without greying. A touch's working
 of the board goes to the garden as one command (`mix`, docs/multiplayer.md) carrying the board whole, 6 KB, when the
