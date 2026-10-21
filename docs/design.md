@@ -682,6 +682,52 @@ steps 8 to 9. With the ladder pinned instead, this garden reads 14.0 to 15.5 ms 
 to 6 with the wheel shut, half rate: a garden this far past the budget holds the rate only
 because the governor steps down for it.
 
+### Steps 9 and 10 on the Quest 2
+
+The two bottom steps were built on the Frame, so they were measured on a Quest 2 too, where the
+risk ran the other way: its driver pays a separate tonemap pass for any 3D scale off 1.0
+("Which knobs matter"), so step 10 might cost it more than it saves and, being sticky, hold it
+there. It does not. The stress scene on 88e219b8 (the Quest 2's 0.7 swapchain and 2x MSAA), the
+ladder pinned at each step, runtime `App=` GPU ms a frame and `FPS=` frames a second, the
+median of each phase's seconds after its first; governed, the step held in its last 15 s:
+
+| Phase | Step 8 | Step 9 (no sun shadows) | Step 10 (0.78 3D scale) | Governed |
+| --- | --- | --- | --- | --- |
+| `village/aerial` | 55.3, 17 fps | 55.9, 17 fps | 52.9, 18 fps | 10 |
+| `plaster-village/aerial` | 35.7, 23 fps | 36.0, 22 fps | 32.4, 24 fps | 10 |
+| `r25/aerial` | 47.6, 20 fps | 45.4, 20 fps | 44.7, 21 fps | 10 |
+| `r25/ground` | 26.0, 30 fps | 26.4, 29 fps | 23.1, 34 fps | 10 |
+| `hills/stroke` | 49.8, 19 fps | 50.2, 18 fps | 46.6, 20 fps | 10 |
+| `hills/aerial` | 46.4, 20 fps | 45.0, 20 fps | 42.6, 21 fps | 10 |
+| `hills/ground` | 26.4, 30 fps | 26.7, 30 fps | 24.6, 32 fps | 10 |
+| `hands/walls` | 26.3, 30 fps | 26.3, 31 fps | 24.7, 33 fps | 10 |
+| `camera/ground` | 28.6, 29 fps | 28.2, 28 fps | 25.9, 31 fps | 10 |
+| `camera/shutter` | 28.5, 28 fps | 28.4, 28 fps | 25.3, 31 fps | 10 |
+| `garden/aerial` | 32.5, 25 fps | 32.8, 24 fps | 30.4, 27 fps | 10 |
+
+Over the 57 phases in which no other process drew, step 10 read 2.9 ms under step 9 at the median
+and nowhere more than 0.01 ms over it. Turning the sun's shadows off (step 9) saves the Quest 2
+next to nothing, since its frame is fragments: the scaled scene loses more pixels than the
+tonemap pass adds. So no rule keeps the Quest 2 off step 10, and the governed run settled there
+in every heavy phase. Before the 0.7 swapchain (679f87e, 4x MSAA) it read the same way: step 10
+a median 3.4 ms under step 9, and the governed run at step 10 throughout. Its two higher phases
+there, gardens and lanterns from the air, were run noise: the governed run read the garden at
+64.7 ms at step 10 against 71.5 pinned at step 9. None of these phases hold 72 Hz on the
+Quest 2 at any step; the build budget, not the ladder, keeps a garden inside it.
+
+Walls drawn by their own chunks while they change (03ecac0) against the build before it
+(04fb074), the stress scene at its top step on the Quest 2 (4x MSAA then): draw calls and primitives
+at the phase's peak, and its median GPU ms:
+
+| Phase | Before | Per chunk |
+| --- | --- | --- |
+| `hills/stroke` | 542 draws, 3.35 M, 127.2 ms | 674 draws, 2.46 M, 91.2 ms |
+| `hands/walls` | 320 draws, 2.78 M, 46.0 ms | 257 draws, 2.71 M, 44.1 ms |
+| `paths/stroke` | 532 draws, 2.40 M, 87.0 ms | 460 draws, 2.41 M, 86.2 ms |
+
+The hill stroke draws 132 more calls while its walls move and 36 ms less, the coarse far stones
+outweighing the calls; a wall in hand draws fewer.
+
 ## Build budget
 
 Directive (verbatim): "I'd like an indicator somewhere. Uh, I think probably on the- on
