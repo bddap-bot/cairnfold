@@ -12,6 +12,7 @@
   {"op": "dig", "x": 22, "z": -22, "seconds": 1.5},
   {"op": "village", "radius": 9, "spacing": 7},
   {"op": "stress", "radius": 20, "spacing": 2.0, "height": 4.5},
+  {"op": "paint", "tool": "flowers", "points": [[-34, -30], [34, -30], [34, 30], [-34, 30]], "radius": 3.0, "seconds": 20},
   {"op": "wait", "seconds": 3},
   {"op": "units"},
   {"op": "view", "eye": [0, 22, 32], "at": [0, 0, 0]},
