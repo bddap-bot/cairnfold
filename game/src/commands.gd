@@ -256,7 +256,7 @@ static func _boulder(d: Dictionary) -> Variant:
 		return null
 	if typeof(turn) != TYPE_QUATERNION or not turn.is_finite() or absf(turn.length() - 1.0) > 1e-3:
 		return null
-	if typeof(scale) != TYPE_FLOAT or not (scale >= BoulderLayout.SCALES.x and scale <= BoulderLayout.SCALES.y) or not _stone_style(d.get("style")):
+	if typeof(scale) != TYPE_FLOAT or not (scale >= BoulderLayout.LEAST and scale < INF) or not _stone_style(d.get("style")):
 		return null
 	return {"at": at, "turn": turn.normalized(), "sink": sink, "seed": d.seed, "scale": scale, "paint": d.paint, "style": d.style}
 

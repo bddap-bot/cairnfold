@@ -225,6 +225,12 @@ func pick(origin: Vector3, dir: Vector3, reach := INF) -> Dictionary:
 	return best
 
 
+## The top of the boulder under `p` at or below it, so a player stands on it; -INF over none.
+func floor_under(p: Vector3) -> float:
+	var rock := pick(p, Vector3.DOWN)
+	return rock.point.y if not rock.is_empty() else -INF
+
+
 ## The boulder holding the point `p`, or null.
 func inside(p: Vector3) -> Boulder:
 	for b: Boulder in boulders.values():

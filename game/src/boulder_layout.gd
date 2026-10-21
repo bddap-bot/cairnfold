@@ -6,8 +6,8 @@ extends RefCounted
 ## the radial distance along each direction from its centre (`radius`), so one function makes its mesh, its picking and
 ## what a hand stops at. Pure data: the unit boulder is about a metre across, and the garden scales it.
 
-## How far a boulder's size goes, from a pebble a hand could hold to one a house could hide behind.
-const SCALES := Vector2(0.08, 8.0)
+## The smallest a boulder goes, a pebble a hand could hold; nothing but the budget bounds how big one grows.
+const LEAST := 0.08
 ## Fracture planes besides the bed.
 const CUTS := Vector2i(6, 10)
 ## How round worn edges are, as a share of the unit boulder.

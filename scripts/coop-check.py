@@ -95,4 +95,7 @@ check(not w["walls"] and list(w["groups"]) == ["0"] and not w["paths"] and not w
       f"the joiner's wipe left bare meadow: {len(w['walls'])} walls, groups {list(w['groups'])}, {len(w['paths'])} paths, {len(w['easels'])} easels")
 check(all(v == unwiped["host"] for v in unwiped.values()), "every peer shows the joiner's undone wipe alike")
 check(unwiped["host"] == built["host"], "the joiner's undo brings back every build of the garden as it was, every plant where it stood")
+rocks = {n: json.load(open(f"{out}/{n}-boulder.json"))["boulders"] for n in names}
+check(all(v == rocks["host"] for v in rocks.values()), "the joiner's huge boulder stands alike on every machine")
+check([b["scale"] for b in rocks["host"].values()] == [160.0], f"at twenty times the size a house could hide behind: {rocks['host']}")
 sys.exit(0 if ok else 1)

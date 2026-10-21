@@ -131,6 +131,14 @@ def scripts(count):
                 steps += [step]
             steps += [{"op": "until", "seq": last + 14 + k}, {"op": "digest", "name": f"{name}-{phase}"},
                       barrier([f"{n}-{phase}" for n in names])]
+        # The joiner sets down a boulder twenty times the size a house could hide behind, the budget aside on every
+        # peer, so what checks it is the command's own validation as it crosses the wire.
+        steps += [{"op": "budget", "bounded": False}, {"op": "digest", "name": f"{name}-unbounded"},
+                  barrier([f"{n}-unbounded" for n in names])]
+        if name == "join":
+            steps += [{"op": "boulder", "x": -30, "z": -30, "seed": 4242, "scale": 160.0}]
+        steps += [{"op": "until", "seq": last + 16}, {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": f"{name}-boulder"},
+                  barrier([f"{n}-boulder" for n in names])]
         steps += [{"op": "pick", "action": "avatar:2"},
                   {"op": "digest", "name": f"{name}-avatar-picked"},
                   barrier([f"{n}-avatar-picked" for n in names]),

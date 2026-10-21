@@ -440,6 +440,33 @@ func _carry(s: Dictionary) -> void:
 	tool.end_grow(m)
 
 
+## Grips the boulder placed `boulder` before the last (0 the last) with both hands, as two hands do, and over `seconds`
+## spreads them from `from` metres apart to `to`, sizing it by their span, then lets go; with `follow` [x, y, z] the view
+## looks at it from that offset times its size, so it holds the frame as it grows.
+func _spread(s: Dictionary) -> void:
+	var tool: WallTool = main.tool
+	var ids: Array = main.world.state.boulders.keys()
+	var b: Boulders.Boulder = main.boulders.find(ids[ids.size() - 1 - int(s.get("boulder", 0))])
+	var right := tool.mason(main.rig.right)
+	var left := tool.mason(main.rig.left)
+	var mid := b.position + Vector3.BACK * (b.shape.reach() * b.size + 1.5)
+	var from: float = s.get("from", 0.6)
+	var to: float = s.to
+	for m: WallTool.Mason in [right, left]:
+		m.hand.global_position = mid + Vector3.RIGHT * from * (0.5 if m == right else -0.5)
+		tool.begin_grow(m, b, m.hand.global_transform, b.position)
+	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
+	for f in frames:
+		await get_tree().process_frame
+		var span := from * pow(to / from, smoothstep(0.0, 1.0, float(f + 1) / frames))
+		tool.drag_pair(left, mid + Vector3.RIGHT * span * 0.5, mid + Vector3.LEFT * span * 0.5)
+		if s.has("follow"):
+			var at := b.position + Vector3.UP * b.shape.axes.y * b.size * 0.5
+			main.view(at + Lessons._v(s.follow) * b.size, at, false)
+	tool.end_grow(left)
+	tool.end_grow(right)
+
+
 ## Every wall standing now again, shifted by `offset` [x, z], one each `every` seconds, applied as the host's commands
 ## reach a visitor: checked, then played.
 func _arrive(s: Dictionary) -> void:

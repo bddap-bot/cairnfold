@@ -132,7 +132,7 @@ func _ready() -> void:
 	add_child(Cues.new())
 	add_child(sound)
 	add_child(Underwater.new(water, look))
-	rig.floor_under = func(p: Vector3) -> float: return maxf(tool.floor_under(p), world.stairs.floor_under(p))
+	rig.floor_under = func(p: Vector3) -> float: return maxf(maxf(tool.floor_under(p), world.stairs.floor_under(p)), boulders.floor_under(p))
 	rig.solid_hit = func(origin: Vector3, dir: Vector3, reach: float) -> Variant:
 		var build: Variant = tool.solid_hit(origin, dir, reach)
 		var stair := world.stairs.pick(origin, dir, reach if build == null else origin.distance_to(build))

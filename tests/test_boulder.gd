@@ -32,6 +32,7 @@ func _run() -> void:
 	await _let_go_in_the_air_it_drops()
 	await _it_whooshes_moving_and_thuds_landing()
 	await _two_hands_size_it()
+	await _two_hands_grow_one_far_past_a_house()
 	await _pushed_into_the_ground_it_stays()
 	await _the_trigger_carries_a_new_one()
 	await _the_trigger_buries_a_new_one()
@@ -114,7 +115,8 @@ func _its_mesh_is_its_surface() -> void:
 func _bad_commands_are_dropped() -> void:
 	var state := World.blank()
 	var at := Terrain.ground(10, 10)
-	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3, "scale": 20.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "past the largest size it is dropped")
+	_check(Commands.clean({"op": "boulder", "at": at, "sink": 0.0, "turn": Quaternion.IDENTITY, "seed": 3, "scale": INF, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "a boulder without end is dropped")
+	_check(Commands.clean({"op": "boulder", "at": at, "sink": 0.0, "turn": Quaternion.IDENTITY, "seed": 3, "scale": NAN, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "a boulder of no size is dropped")
 	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3, "scale": 0.01, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "under the smallest size it is dropped")
 	_check(Commands.clean({"op": "boulder", "at": at, "seed": 3.0, "scale": 1.0, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "a seed that is no whole number is dropped")
 	var q := Quaternion.IDENTITY
@@ -127,8 +129,7 @@ func _bad_commands_are_dropped() -> void:
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 1.0}}, state, false).is_empty(), "sizing a boulder that is not there is dropped")
 	state.boulders[9] = {"at": at, "turn": q, "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}
 	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"at": at + Vector3(2, 0, 1), "turn": Quaternion(Vector3.RIGHT, 1.2)}}, state, false).is_empty(), "a reshape moves and turns it")
-	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 8.0}}, state, false).is_empty(), "a boulder sizes up to a house")
-	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 9.0}}, state, false).is_empty(), "and no further")
+	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 160.0}}, state, false).is_empty(), "a boulder sizes far past a house: only the budget bounds it")
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"seed": 4}}, state, false).is_empty(), "a reshape cannot swap its shape")
 	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"sink": 0.4}}, state, false).is_empty(), "a reshape pushes it into the ground")
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"sink": -0.4}}, state, false).is_empty(), "and never out over it")
@@ -436,6 +437,50 @@ func _two_hands_size_it() -> void:
 	world.undo()
 	await _settled()
 	_check(is_equal_approx(b.size, 1.0) and absf(b.position.x - held.x) < 1e-3, "undo takes back the size and the move as one")
+
+
+## Twenty times the size a house could hide behind: only the budget bounds it, and it draws, stops a ray, holds a
+## player up and saves as any other.
+func _two_hands_grow_one_far_past_a_house() -> void:
+	world.restore({"seq": 0, "cmds": []})
+	main.flora_tool.place_boulder(Terrain.ground(10, -10), null, 29, 8.0)
+	await _settled()
+	var b: Boulders.Boulder = main.boulders.boulders.values()[0]
+	var id := b.id
+	_check(world.fits({"op": "reshape", "of": "boulders", "id": id, "data": {"scale": 9.0}}), "it grows past a house while the budget has room")
+	_check(not world.fits({"op": "reshape", "of": "boulders", "id": id, "data": {"scale": 160.0}}), "and the budget alone stops it")
+	world.bounded = false
+	var share := world.fill()
+	var tool: WallTool = main.tool
+	var right := tool.mason(main.rig.right)
+	var left := tool.mason(main.rig.left)
+	var mid := b.position + Vector3.BACK * (b.shape.reach() * b.size + 1.5)
+	main.rig.right.global_position = mid + Vector3(0.3, 0, 0)
+	main.rig.left.global_position = mid - Vector3(0.3, 0, 0)
+	tool.begin_grow(right, b, main.rig.right.global_transform, b.position)
+	tool.begin_grow(left, b, main.rig.left.global_transform, b.position)
+	tool.drag_pair(left, mid + Vector3(6.0, 0, 0), mid - Vector3(6.0, 0, 0))
+	tool.end_grow(left)
+	tool.end_grow(right)
+	await _settled()
+	_check(is_equal_approx(world.state.boulders[id].scale, 160.0) and is_equal_approx(b.size, 160.0), "spread twenty times apart, the hands grow it twenty times past a house (%.1f)" % b.size)
+	_check(world.fill() > share, "the budget's share grows with it (%.3f to %.3f)" % [share, world.fill()])
+	_check(b.near.visibility_range_end >= Boulders.NEAR_TO * 160.0 and b.far.visibility_range_end >= Boulders.FAR_TO * 160.0, "its detail reaches as far as it is big")
+	var box := b.near.global_transform * b.near.multimesh.mesh.get_aabb()
+	_check(box.size.x > 100.0, "it is culled by its grown bounds (%.0f m across)" % box.size.x)
+	var over := Vector3(b.position.x, b.position.y + b.shape.reach() * 160.0 + 5.0, b.position.z)
+	var top: Dictionary = main.boulders.pick(over, Vector3.DOWN)
+	_check(not top.is_empty() and top.point.y > Terrain.height_at(over.x, over.z) + 20.0, "a ray from above meets its top, high over the ground")
+	_check(absf(main.rig.floor_under.call(top.point + Vector3.UP * 0.3) - top.point.y) < 0.05, "a player over it stands on its top, not the ground inside it")
+	_check(main.boulders.inside(b.position + Vector3.UP * 5.0) == b, "its inside is solid")
+	world.flush()
+	var saved := var_to_str(world.digest())
+	world.restore({"seq": 0, "cmds": []})
+	await _settled()
+	world.load_from(world.save_path)
+	await _settled()
+	_check(var_to_str(world.digest()) == saved and is_equal_approx(main.boulders.find(id).size, 160.0), "it saves and loads back at its size")
+	world.bounded = true
 
 
 func _the_trigger_carries_a_new_one() -> void:
