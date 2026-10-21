@@ -36,6 +36,7 @@ const SEED_COLOURS: Array[Color] = [Color(0.93, 0.8, 0.5), Color(0.12, 0.11, 0.1
 static var _mats := {}
 static var _meshes := {}
 static var _stars := {}
+static var _boulder_preview: MultiMesh
 
 
 static func build(tool: Hand.Tool) -> Node3D:
@@ -105,7 +106,7 @@ static func build(tool: Hand.Tool) -> Node3D:
 
 ## A miniature of choice `i` of a style the style tool sets (`PaletteTool.styles`), a build's in stone or plaster,
 ## a roof's over a house or a round tower; a gable end's turned to face the eye.
-static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round := false) -> Node3D:
+static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round := false, boulder := false, house := false) -> Node3D:
 	var root := Node3D.new()
 	if restyle == PaletteTool.Restyle.DECORATION:
 		var layout := DecorationLayout.new()
@@ -124,7 +125,7 @@ static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round :
 		return root
 	match restyle:
 		PaletteTool.Restyle.GABLE:
-			_house(root, plastered, i as WallLayout.GableEnd)
+			_house(root, plastered, i as WallLayout.GableEnd, false, false, RoofLayout.Deck.STONE, false)
 		PaletteTool.Restyle.ROOF:
 			var thatched := i == WallTool.RoofStyle.THATCHED
 			var flat := i in [WallTool.RoofStyle.FLAT, WallTool.RoofStyle.BOARDED]
@@ -132,22 +133,27 @@ static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round :
 			if round:
 				_tower(root, thatched, flat, deck)
 			else:
-				_house(root, plastered, WallLayout.GableEnd.WALL, flat, thatched, deck)
+				_house(root, plastered, WallLayout.GableEnd.WALL, flat, thatched, deck, false)
 		PaletteTool.Restyle.TOP:
 			_wall(root, plastered, i as WallLayout.Top)
 		PaletteTool.Restyle.STONE:
+			if boulder:
+				_boulder_style(root, i)
+				return root
 			# Turned from lying flat to face the eye, a little from above.
 			_stone_ground(root, i)
 			for part in root.get_children():
 				part.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.62).scaled(Vector3.ONE * 1.4), Vector3.ZERO) * part.transform
 		PaletteTool.Restyle.FACE:
-			if i == PaletteTool.Face.TIMBER:
+			if house:
+				_house(root, i != PaletteTool.Face.STONE, WallLayout.GableEnd.WALL, false, false, RoofLayout.Deck.STONE, false, 0 if i == PaletteTool.Face.TIMBER else -1)
+			elif i == PaletteTool.Face.TIMBER:
 				_house(root, true)
 			else:
 				_wall(root, i == PaletteTool.Face.PLASTER, WallLayout.Top.CAP)
-	var turn := Basis(Vector3.UP, PI * 0.38) if restyle == PaletteTool.Restyle.GABLE else Basis()
+	var turn := Basis(Vector3.UP, PI * 0.38) if restyle == PaletteTool.Restyle.GABLE else Basis(Vector3.UP, PI * 0.2) if house else Basis()
 	for part in root.get_children():
-		part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22) * turn, Vector3.ZERO) * part.transform
+		part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.03 if house else -PI * 0.22) * turn, Vector3.ZERO) * part.transform
 	return root
 
 
@@ -589,8 +595,9 @@ static func _wall(root: Node3D, plastered := false, top := WallLayout.Top.CRENEL
 
 
 ## A cottage: stone walls with a door toward the eye under a tiled gable roof, or a flat one decked in `deck`.
-static func _house(root: Node3D, plastered := false, gable_end := WallLayout.GableEnd.WALL, flat := false, thatched := false, deck := RoofLayout.Deck.STONE) -> void:
+static func _house(root: Node3D, plastered := false, gable_end := WallLayout.GableEnd.WALL, flat := false, thatched := false, deck := RoofLayout.Deck.STONE, arched := true, timber_style := 0) -> void:
 	var layout := WallLayout.new()
+	layout.timber_style = timber_style
 	layout.plaster = plastered
 	layout.seed = 7
 	layout.height = 2.4
@@ -599,7 +606,8 @@ static func _house(root: Node3D, plastered := false, gable_end := WallLayout.Gab
 	layout.gable_end = gable_end
 	layout.cover = WallLayout.Cover.DECK if flat else WallLayout.Cover.ROOF
 	layout.points = WallLayout.rectangle(Vector3(-1.6, 0, 0), Vector3(1.6, 0, 0), 2.6)
-	layout.openings = [WallLayout.archway(3.2 * 1.5 + 2.6)]
+	if arched:
+		layout.openings = [WallLayout.archway(3.2 * 1.5 + 2.6)]
 	var roof := RoofLayout.new()
 	roof.seed = 7
 	roof.corners = layout.points
@@ -894,6 +902,25 @@ static func _leaf() -> StandardMaterial3D:
 	leaf.backlight_enabled = true
 	leaf.backlight = Color(0.25, 0.35, 0.08)
 	return leaf
+
+
+## The placed boulder's builder and stone material, sharing one miniature mesh across styles and wheels.
+static func _boulder_style(root: Node3D, style: int) -> void:
+	var shape := BoulderLayout.shape(7)
+	var model: MultiMeshInstance3D
+	if _boulder_preview == null:
+		model = Boulders._instance(shape, BoulderLayout.FAR + 1)
+		model.multimesh.set_instance_color(0, Color.WHITE)
+		_boulder_preview = model.multimesh
+	else:
+		model = MultiMeshInstance3D.new()
+		model.multimesh = _boulder_preview
+		model.material_override = Stones.shared_material()
+	model.set_instance_shader_parameter("stone_style", style)
+	model.set_instance_shader_parameter("miniature", true)
+	model.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	model.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.12), Vector3.ZERO) * BoulderLayout.rest(shape, Quaternion.IDENTITY, 0.065, 0, 0, _flat)
+	root.add_child(model)
 
 
 ## A boulder with a pebble beside it, in wall stone.

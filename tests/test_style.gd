@@ -447,6 +447,18 @@ func _boulders_take_a_stone_style() -> void:
 	var id := world.seq
 	var target: Dictionary = main.palette_tool.aim_style(at + Vector3(0, 4, 4), Vector3(0, -4, -4).normalized())
 	_check(target.get("restyle") == PaletteTool.Restyle.STONE and target.get("of") == "boulders" and target.get("id") == id and target.get("count") == StoneStyles.STYLES.size(), "the style tool aimed at a boulder offers the stone styles: %s" % [target])
+	var picker: PaletteTool = main.palette_tool
+	picker.open(main.rig.right, target)
+	var mesh: MultiMesh
+	for i in StoneStyles.STYLES.size():
+		var model := picker.wheels[main.rig.right].choices[i].get_child(0).get_child(0) as MultiMeshInstance3D
+		_check(model != null, "a boulder wheel entry is a solid boulder, not painted ground")
+		if model != null:
+			_check(model.material_override == main.boulders.find(id).near.material_override, "wheel and placed boulder share the stone material")
+			_check(model.get_instance_shader_parameter("stone_style") == i, "each boulder shows its own style")
+			_check(mesh == null or mesh == model.multimesh, "boulder choices share their geometry")
+			mesh = model.multimesh
+	picker.close(main.rig.right)
 	var relayed := _relayed({"op": "reshape", "of": "boulders", "id": id, "data": {"style": 1}}, 2)
 	_check(relayed.get("data", {}).get("style") == 1, "a peer takes the host's boulder style: %s" % relayed)
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": id, "data": {"style": -1}}, world.state, false).is_empty(), "no boulder style before the first")

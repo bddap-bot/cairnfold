@@ -209,7 +209,7 @@ func open(hand: Hand, target: Dictionary) -> void:
 	w.node = Node3D.new()
 	w.node.top_level = true
 	for i in target.count:
-		var choice := _swatch(target.element, i) if target.tool == Hand.Tool.COLOUR else _style(target.restyle, target.get("options", range(target.count))[i], target.wall)
+		var choice := _swatch(target.element, i) if target.tool == Hand.Tool.COLOUR else _style(target.restyle, target.get("options", range(target.count))[i], target.wall, target.of == "boulders", target.get("face_key", "") == "plaster")
 		w.node.add_child(choice)
 		w.choices.append(choice)
 	add_child(w.node)
@@ -218,9 +218,10 @@ func open(hand: Hand, target: Dictionary) -> void:
 
 
 ## A style's miniature smaller than it stands on a controller, so the wheel's choices stay apart.
-static func _style(restyle: Restyle, i: int, wall: Wall) -> Node3D:
+static func _style(restyle: Restyle, i: int, wall: Wall, boulder := false, face := false) -> Node3D:
 	var holder := Node3D.new()
-	var model := ToolModels.style(restyle, i, wall != null and wall.layout.plaster, wall != null and wall.roof != null and wall.roof.kind == RoofLayout.Kind.CONE)
+	var house := face and wall != null and wall.layout.closed and wall.layout.corners().size() == 4
+	var model := ToolModels.style(restyle, i, wall != null and wall.layout.plaster, wall != null and wall.roof != null and wall.roof.kind == RoofLayout.Kind.CONE, boulder, house)
 	model.scale = Vector3.ONE * 0.7
 	holder.add_child(model)
 	return holder

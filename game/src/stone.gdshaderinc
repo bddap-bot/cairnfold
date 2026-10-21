@@ -5,6 +5,9 @@ uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 uniform vec3 moss : source_color = vec3(0.30, 0.42, 0.14);
 // A boulder's style (StoneStyles, stone_ground.gdshaderinc), or -1 for stone in its own colour.
 instance uniform int stone_style = -1;
+// A wheel boulder keeps full-size surface detail while its lighting stays in the garden.
+instance uniform bool miniature = false;
+varying vec3 surface_pos;
 
 varying vec3 world_pos;
 varying vec3 world_nrm;
@@ -54,6 +57,7 @@ void vertex() {
 	}
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 #endif
+	surface_pos = miniature ? VERTEX : world_pos;
 	bounce_at = bounce_coord(world_pos, world_nrm);
 	lamp_at = lamp_coord(world_pos, world_nrm);
 	pane = COLOR.a < 0.5 ? textureLod(lamp_volume, lamp_coord(world_pos, -world_nrm), 0.0).r : 0.0;
@@ -74,13 +78,13 @@ void fragment() {
 	if (abs(material - 4.0) < 0.5) {
 		ALBEDO = COLOR.rgb * occlusion * plaster_surface(detail, world_pos, world_nrm, world_pos.y - ground_at(world_pos.xz));
 	} else {
-		vec3 p = world_pos * 1.7;
+		vec3 p = surface_pos * 1.7;
 		vec3 an = abs(world_nrm);
 		float tri = texture(detail, p.yz).r * an.x + texture(detail, p.xz).r * an.y + texture(detail, p.xy).r * an.z;
 		vec3 base = COLOR.rgb * (0.78 + tri * 0.45);
 		// Moss takes stone out under the sky: a floor under its roof and woodwork (Palette.Element WOOD, TIMBER) stay bare.
 		float wood = step(abs(material - 3.0), 0.5) + step(abs(material - 5.0), 0.5);
-		float patch = texture(detail, world_pos.xz * 0.3).r;
+		float patch = texture(detail, surface_pos.xz * 0.3).r;
 		float mossy = smoothstep(0.55, 0.9, world_nrm.y) * smoothstep(0.45, 0.7, patch) * smoothstep(0.35, 0.7, bounce.a) * (1.0 - wood);
 		if (style >= 0) {
 			// The styles' tones are linear where stone's own colours are not, so they come back to stone's before its
