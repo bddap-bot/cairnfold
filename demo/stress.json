@@ -850,7 +850,7 @@
   {"op": "house", "at": [-5, 16], "size": [3.2, 2.6], "seconds": 2},
   {"op": "view", "ground": true, "eye": [1.5, 1.65, 20.5], "at": [1.5, 0.5, 16]},
   {"op": "hands", "right": [0.06, -0.08, -0.32], "tip": 20},
-  {"op": "wait", "seconds": 60},
+  {"op": "wait", "seconds": 120},
   {"op": "label", "name": "wheel/boulders"},
   {"op": "style", "hand": "right", "restyle": "stone", "pick": 0, "seconds": 25, "from": [1.5, 4, 18], "at": [1.5, 0.5, 16]},
   {"op": "label", "name": "-"},
