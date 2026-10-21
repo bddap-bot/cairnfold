@@ -265,5 +265,18 @@
   {"op": "label", "name": "paint/after-replay"},
   {"op": "wait", "seconds": 8},
   {"op": "label", "name": "-"},
+  {"op": "dip", "what": "oil", "index": 5, "easel": 0},
+  {"op": "view", "subject": "easel", "index": 0, "eye": [-0.35, 1.0, 0.8], "at": [-0.35, 0.76, 0.35]},
+  {"op": "label", "name": "rag/full"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "rag_wipe", "easel": 0},
+  {"op": "label", "name": "rag/one"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
+  {"op": "rag_wipe", "times": 2, "easel": 0},
+  {"op": "label", "name": "rag/three"},
+  {"op": "wait", "seconds": 8},
+  {"op": "label", "name": "-"},
   {"op": "quit"}
 ]
