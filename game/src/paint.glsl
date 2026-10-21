@@ -246,10 +246,16 @@ void flow(ivec2 p) {
 	}
 	vec4 c = texelFetch(wet_in, p, 0);
 	// Wet tiles include a margin for future flow. Empty texels with no wet neighbour cannot change this step.
-	if (all(equal(c, vec4(0.0))) && !damp(p + ivec2(1, 0), tick) && !damp(p + ivec2(-1, 0), tick)
-			&& !damp(p + ivec2(0, 1), tick) && !damp(p + ivec2(0, -1), tick)) {
-		imageStore(wet_out, p, vec4(0.0));
-		return;
+	if (all(equal(c, vec4(0.0)))) {
+		ivec2 hi = canvas_size() - 1;
+		vec4 neighbours = vec4(texelFetch(wet_in, min(p + ivec2(1, 0), hi), 0).a,
+			texelFetch(wet_in, max(p - ivec2(1, 0), ivec2(0)), 0).a,
+			texelFetch(wet_in, min(p + ivec2(0, 1), hi), 0).a,
+			texelFetch(wet_in, max(p - ivec2(0, 1), ivec2(0)), 0).a);
+		if (all(lessThan(neighbours, vec4(WET)))) {
+			imageStore(wet_out, p, vec4(0.0));
+			return;
+		}
 	}
 	vec2 paper_here = grain(p);
 	float wc = c.a;
