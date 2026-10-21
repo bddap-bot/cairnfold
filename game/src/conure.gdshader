@@ -29,7 +29,6 @@ const vec3 BLUE = vec3(0.04, 0.2, 0.72);
 const vec3 TEAL = vec3(0.02, 0.42, 0.52);
 const vec3 GREEN = vec3(0.16, 0.56, 0.08);
 
-varying vec3 rest;
 varying vec3 tint;
 
 mat3 rot(vec3 axis, float a) {
@@ -57,7 +56,6 @@ float snap(float t, float rate, float seed) {
 }
 
 void vertex() {
-	rest = VERTEX;
 	int area = COLOR.a > 0.75 ? int(COLOR.b * float(PATCHES) + 0.5) : BILL;
 	tint = texelFetch(palette, ivec2(area, plumage), 0).rgb;
 	int part = int(UV2.x + 0.5);
