@@ -47,7 +47,10 @@ func _run() -> void:
 	var other := Massing.of(a, r)
 	a.joined = [other]
 	var original := r.timber_faces.duplicate()
+	var original_beds := r.mortar.size()
+	var original_tiles := r.tiles.size()
 	a.hide_roof(r)
+	_check(r.mortar.size() == original_beds and r.tiles.size() == original_tiles, "older roof keeps the deck and bed that seal its ceiling")
 	_check(r.timber_faces == original, "older roof keeps its ceiling under an equal-height join")
 	a.older = [other]
 	r.build()

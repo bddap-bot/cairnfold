@@ -447,8 +447,8 @@ func hide_roof(r: RoofLayout) -> void:
 	r.resting = resting.duplicate()
 	if joined.is_empty() and resting.is_empty():
 		return
-	r.tiles.assign(r.tiles.filter(func(t: Dictionary) -> bool: return not hides(t.xform.origin)))
-	r.mortar.assign(r.mortar.filter(func(m: Dictionary) -> bool: return not hides(m.xform.origin)))
+	r.tiles.assign(r.tiles.filter(func(t: Dictionary) -> bool: return not _roof_hidden(t.xform.origin, r)))
+	r.mortar.assign(r.mortar.filter(func(m: Dictionary) -> bool: return not _roof_hidden(m.xform.origin, r)))
 	r.cloths.assign(r.cloths.filter(func(c: Dictionary) -> bool: return not hides(c.xform.origin)))
 	r.keep_coat(func(p: Vector3) -> bool: return not hides(p))
 	r.gable_faces = _unhidden(r.gable_faces)
@@ -463,12 +463,18 @@ func _unhidden(tris: PackedVector3Array, ceiling: RoofLayout = null) -> PackedVe
 		var p := (tri[0] + tri[1] + tri[2]) / 3.0
 		var obscured := hides(p)
 		if ceiling != null:
-			# Equal-height roofs share the floor ownership rule; hiding both undersides would open a hole.
-			p.y = ceiling.height_at(p.x, p.z)
-			obscured = hides(p + Vector3.UP * 0.001) or hidden(p - Vector3.UP * 0.001, older, [])
+			obscured = _roof_hidden(p, ceiling)
 		if not obscured:
 			kept.append_array(tri)
 	return kept
+
+
+func _roof_hidden(p: Vector3, r: RoofLayout) -> bool:
+	if not r.flat():
+		return hides(p)
+	# The whole flat deck shares one owner at a join, including its bed and ceiling.
+	p.y = r.height_at(p.x, p.z)
+	return hides(p + Vector3.UP * 0.001) or hidden(p - Vector3.UP * 0.001, older, [])
 
 
 ## Takes away what lies where a build this one meets lays nothing.
