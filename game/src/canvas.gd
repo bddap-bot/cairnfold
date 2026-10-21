@@ -26,6 +26,7 @@ const FLOW := 2
 const CHECKPOINTS := 6
 
 static var _shader: RID
+static var _sampler: RID
 static var _pipeline: RID
 
 ## Ticks laid so far, and the tick the last stroke on this canvas ended at.
@@ -100,6 +101,7 @@ static func _compile(rd: RenderingDevice) -> void:
 	if not _shader.is_valid():
 		var file: RDShaderFile = preload("res://src/paint.glsl")
 		_shader = rd.shader_create_from_spirv(file.get_spirv())
+		_sampler = rd.sampler_create(RDSamplerState.new())
 		_pipeline = rd.compute_pipeline_create(_shader)
 
 
@@ -126,11 +128,15 @@ func _create() -> void:
 
 func _uniforms(from: RID, to: RID, dabs: RID, tiles: RID) -> RID:
 	var uniforms: Array[RDUniform] = []
-	for i in 6:
+	for i in 7:
 		var u := RDUniform.new()
 		u.binding = i
-		u.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER if i >= 4 else RenderingDevice.UNIFORM_TYPE_IMAGE
-		u.add_id([from, to, _dry, _paper, dabs, tiles][i])
+		if i == 0 or i == 6:
+			u.uniform_type = RenderingDevice.UNIFORM_TYPE_SAMPLER_WITH_TEXTURE
+			u.add_id(_sampler)
+		else:
+			u.uniform_type = RenderingDevice.UNIFORM_TYPE_STORAGE_BUFFER if i >= 4 else RenderingDevice.UNIFORM_TYPE_IMAGE
+		u.add_id([from, to, _dry, _paper, dabs, tiles, _paper][i])
 		uniforms.append(u)
 	return _rd.uniform_set_create(uniforms, _shader, 0)
 

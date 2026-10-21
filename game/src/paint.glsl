@@ -7,10 +7,12 @@
 
 layout(local_size_x = 8, local_size_y = 8, local_size_z = 1) in;
 
-layout(rgba16f, set = 0, binding = 0) uniform restrict readonly image2D wet_in;
+// Read-only neighbours use texture fetches; storage-image reads are costly on the Quest 2.
+layout(set = 0, binding = 0) uniform sampler2D wet_in;
 layout(rgba16f, set = 0, binding = 1) uniform restrict image2D wet_out;
 layout(rgba16f, set = 0, binding = 2) uniform restrict image2D dry;
 layout(rgba8, set = 0, binding = 3) uniform restrict image2D paper;
+layout(set = 0, binding = 6) uniform sampler2D paper_in;
 
 struct Dab {
 	vec4 a; // x, y, radius, pressure
@@ -102,7 +104,7 @@ bool inside(ivec2 p) {
 }
 
 vec2 grain(ivec2 p) {
-	return imageLoad(paper, p).rg;
+	return texelFetch(paper_in, p, 0).rg;
 }
 
 ivec2 tile(ivec2 p) {
@@ -234,7 +236,7 @@ float give(float wi, float wj, float hj, ivec2 dir) {
 }
 
 bool damp(ivec2 q, int tick) {
-	return inside(q) && wet_tile(q, tick) && imageLoad(wet_in, q).a >= WET;
+	return inside(q) && wet_tile(q, tick) && texelFetch(wet_in, q, 0).a >= WET;
 }
 
 void flow(ivec2 p) {
@@ -242,7 +244,13 @@ void flow(ivec2 p) {
 	if (!wet_tile(p, tick)) {
 		return;
 	}
-	vec4 c = imageLoad(wet_in, p);
+	vec4 c = texelFetch(wet_in, p, 0);
+	// Wet tiles include a margin for future flow. Empty texels with no wet neighbour cannot change this step.
+	if (all(equal(c, vec4(0.0))) && !damp(p + ivec2(1, 0), tick) && !damp(p + ivec2(-1, 0), tick)
+			&& !damp(p + ivec2(0, 1), tick) && !damp(p + ivec2(0, -1), tick)) {
+		imageStore(wet_out, p, vec4(0.0));
+		return;
+	}
 	vec2 paper_here = grain(p);
 	float wc = c.a;
 	vec3 conc = c.rgb / max(wc, 1e-4);
@@ -259,7 +267,7 @@ void flow(ivec2 p) {
 			edge += 0.1;
 			continue;
 		}
-		vec4 n = imageLoad(wet_in, q);
+		vec4 n = texelFetch(wet_in, q, 0);
 		if (n.a < WET) {
 			edge += 0.1;
 		}
