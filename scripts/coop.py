@@ -142,7 +142,6 @@ def scripts(count, capture=False):
         last = SEQ + 2 * (count - 2)
         steps += easel_steps(name, names, last)
         last += EASEL_COMMANDS
-        steps += held_steps(name, names, capture)
         for k, (shape, lift) in enumerate([("peak", EXTREME), ("pit", -2 * EXTREME)]):
             if name == "join":
                 steps += [{"op": "sculpt", "x": -50, "z": 50, "lift": lift, "seconds": 0.5}]
@@ -168,6 +167,11 @@ def scripts(count, capture=False):
             steps += [{"op": "boulder", "x": -30, "z": -30, "seed": 4242, "scale": 160.0}]
         steps += [{"op": "until", "seq": last + 16}, {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": f"{name}-boulder"},
                   barrier([f"{n}-boulder" for n in names])]
+        if name == "host":
+            steps += [{"op": "wipe", "seconds": 2.5}, {"op": "until", "seq": last + 17},
+                      {"op": "easel", "x": -4, "z": 4}]
+        steps += [{"op": "until", "seq": last + 18}]
+        steps += held_steps(name, names, capture)
         steps += [{"op": "pick", "action": "avatar:2"},
                   {"op": "digest", "name": f"{name}-avatar-picked"},
                   barrier([f"{n}-avatar-picked" for n in names]),
