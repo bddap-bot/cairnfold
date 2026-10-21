@@ -119,8 +119,6 @@ var timber_style := 0
 ## Whether new houses are thatched, and what their decks are laid in when pushed flat: the roof last turned to on this machine.
 var thatch := false
 var deck := RoofLayout.Deck.STONE
-## Whether new houses and towers are floored at every storey: the floor last turned to on this machine.
-var storey_floors := false
 var masons: Array[Mason] = []
 ## The house the hands are carrying, where it stands, and the hands holding it.
 var house: Wall
@@ -507,7 +505,6 @@ func begin_house(at: Vector3, yaw: float, on := PackedInt32Array(), round := fal
 	house.on = on
 	house.layout.plaster = plaster and not round
 	house.layout.timber_style = timber_style
-	house.layout.storey_floors = storey_floors
 	house.layout.gable_end = gable_end
 	house.layout.closed = true
 	house.layout.top = WallLayout.Top.CAP

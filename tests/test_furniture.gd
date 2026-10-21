@@ -93,19 +93,6 @@ func _run() -> void:
 	main.world.undo()
 	house.lay_now()
 
-	var height: float = main.world.state.walls[house.id].height
-	main.world.submit({"op": "reshape", "of": "walls", "id": house.id, "data": {"storey_floors": true, "height": 5.1}})
-	house.lay_now()
-	check(house.layout.floors.size() >= 2, "house floored at a storey")
-	var upper := house.layout.floors[1]
-	var shelf := _place(Vector3(-1.5, upper + 1.0, 0.8), Vector3(-2.0, upper, -0.4), "floor", house)
-	n = _node(shelf)
-	check(n != null and absf(n.position.y - upper) < 0.01, "indoor piece stands on the storey it was placed on")
-	main.world.submit({"op": "reshape", "of": "walls", "id": house.id, "data": {"storey_floors": false, "height": height}})
-	house.lay_now()
-	n = _node(shelf)
-	check(n != null and absf(n.position.y - house.layout.floors[0]) < 0.01, "an upper piece comes down when its storey goes")
-
 	n = _node(chair)
 	var top: Vector3 = (n.transform * (n.get_meta(&"bounds") as AABB)).get_center()
 	var eye := top + Vector3(0.0, 1.2, 0.6)
@@ -133,6 +120,6 @@ func _run() -> void:
 			print("furniture cost: %s %s solids=%d flames=%d flowers=%d reserved_quest2_us=%.1f" % [mount, DecorationLayout.STYLES[style].name, layout.parts.size(), layout.flames.size(), layout.flowers.size(), Budget.cost_ms(Budget.decoration(style), Budget.Device.QUEST_2) * 1000.0])
 	var saved: Dictionary = main.world.snapshot()
 	main.world.restore(saved)
-	check(main.world.state.decorations.size() == 3, "save restore keeps furniture")
+	check(main.world.state.decorations.size() == 2, "save restore keeps furniture")
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)

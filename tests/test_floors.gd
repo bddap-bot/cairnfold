@@ -10,12 +10,11 @@ func _init() -> void:
 	_a_raised_house_floors_its_foot()
 	_stone_lays_flags_and_plaster_planks()
 	_a_round_tower_is_floored_too()
-	_storey_floors_rise_a_storey_apart_under_headroom()
+	_a_house_has_one_floor_however_tall()
 	_open_walls_lay_no_floor()
 	_a_newer_house_yields_its_floor_to_an_older_one_it_joins()
 	_floors_are_stood_on_and_hit()
 	_the_meadow_is_worn_bare_inside_the_walls_only()
-	_the_budget_counts_storey_floors()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -34,7 +33,7 @@ func _flat(_x: float, _z: float) -> float:
 	return 0.0
 
 
-func _house(ground: Callable, rise := 0.0, plaster := false, height := 2.4, storeys := false) -> WallLayout:
+func _house(ground: Callable, rise := 0.0, plaster := false, height := 2.4) -> WallLayout:
 	var w := WallLayout.new()
 	w.points = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
 	w.closed = true
@@ -43,7 +42,6 @@ func _house(ground: Callable, rise := 0.0, plaster := false, height := 2.4, stor
 	w.height = height
 	w.rise = rise
 	w.plaster = plaster
-	w.storey_floors = storeys
 	w.openings.assign([3.0].map(WallLayout.archway))
 	w.build(ground)
 	return w
@@ -149,18 +147,19 @@ func _a_round_tower_is_floored_too() -> void:
 		_check(out.is_empty(), "no floor piece pokes out past a tower's outer face: %d" % out.size())
 
 
-func _storey_floors_rise_a_storey_apart_under_headroom() -> void:
-	_check(WallLayout.upper_floors(2.4) == 0 and WallLayout.upper_floors(3.6) == 1 and WallLayout.upper_floors(4.5) == 1 and WallLayout.upper_floors(9.0) == 3, "storeys fit under the top with headroom: %d %d %d %d" % [WallLayout.upper_floors(2.4), WallLayout.upper_floors(3.6), WallLayout.upper_floors(4.5), WallLayout.upper_floors(9.0)])
-	var tall := _house(_flat, 0.0, false, 7.2, true)
-	_check(tall.floors.size() == 3, "a 7.2 m house floored every storey has three floors: %s" % [tall.floors])
-	for i in range(1, tall.floors.size()):
-		_check(is_equal_approx(tall.floors[i] - tall.floors[i - 1], WallLayout.STOREY), "floors a storey apart")
-		_check(_covered(tall, tall.floors[i]) == 1.0, "an upper floor covers the room")
-	_check(_house(_flat, 0.0, false, 7.2, false).floors.size() == 1, "without storey floors, one floor at the foot")
-	var sloped := _house(_slope, 0.0, false, 7.8, true)
-	_check(sloped.floors.size() == 3 and sloped.floors[0] > sloped.samples[0].y + WallLayout.SINK and is_equal_approx(sloped.floors[1] - sloped.floors[0], WallLayout.STOREY), "up a slope the storeys rise from the raised ground floor: %s" % [sloped.floors])
-	var raised := _house(_flat, 1.5, true, 7.2, true)
-	_check(raised.floors.size() == 3 and is_equal_approx(raised.floors[1], raised.floors[0] + WallLayout.STOREY), "a raised house's storeys ride its foot")
+func _a_house_has_one_floor_however_tall() -> void:
+	for h in [2.4, 7.2, 12.0]:
+		_check(_house(_flat, 0.0, false, h).floors.size() == 1, "a %.1f m house lays one floor, at its foot" % h)
+	_check(_house(_flat, 1.5, true, 7.2).floors.size() == 1, "a raised plastered house lays one floor")
+	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "height": 7.2, "rise": 0.0, "seed": 3, "closed": true, "top": 0, "fence": false,
+		"plaster": false, "plinth_plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": true, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(),
+		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array(), "paint": Palette.plain()}
+	var kept: Variant = Commands._wall(d)
+	_check(kept != null and not kept.has("storey_floors"), "a house asking for a floor at every storey is taken with that dropped: %s" % [kept])
+	var state := {"walls": {1: kept}}
+	_check(not Commands.clean({"op": "reshape", "of": "walls", "id": 1, "data": {"height": 3.0}}, state, false).is_empty(), "a reshape of the house's height stands")
+	_check(Commands.clean({"op": "reshape", "of": "walls", "id": 1, "data": {"storey_floors": true}}, state, false).is_empty(), "no reshape gives a floor a second storey")
+	_check(not "storey_floors" in WallLayout.new(), "a house's layout has no storeys to floor")
 
 
 func _open_walls_lay_no_floor() -> void:
@@ -205,10 +204,10 @@ func _a_newer_house_yields_its_floor_to_an_older_one_it_joins() -> void:
 
 
 func _floors_are_stood_on_and_hit() -> void:
-	var w := _house(_flat, 1.5, false, 7.2, true)
+	var w := _house(_flat, 1.5, false, 7.2)
 	var mid := Vector3(3, 0, 0)
 	_check(is_equal_approx(w.floor_under(mid + Vector3.UP * (w.floors[0] + 1.0)), w.floors[0]), "standing over the ground floor stands on it")
-	_check(is_equal_approx(w.floor_under(mid + Vector3.UP * (w.floors[1] + 0.5)), w.floors[1]), "standing over an upper floor stands on that one")
+	_check(is_equal_approx(w.floor_under(mid + Vector3.UP * (w.floors[0] + 4.0)), w.floors[0]), "standing high in a tall house still stands on its one floor")
 	_check(w.floor_under(mid) == -INF, "under the raised floor stands on nothing of it")
 	_check(w.floor_under(Vector3(-2, w.floors[0] + 1.0, 0)) == -INF, "beside the house stands on nothing of it")
 	var from := mid + Vector3(0.5, w.floors[0] + 1.6, 0)
@@ -241,11 +240,3 @@ func _the_meadow_is_worn_bare_inside_the_walls_only() -> void:
 				if Array(stamps).any(func(s: Vector4) -> bool: return Vector2(s.x, s.y).distance_to(p) <= s.z):
 					bare += 1
 	_check(inside > 0 and bare == inside, "the meadow is worn bare everywhere under the floor: %d of %d" % [bare, inside])
-
-
-func _the_budget_counts_storey_floors() -> void:
-	var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 7.2, "rise": 0.0, "fence": false, "gable_end": 0,
-		"plaster": false, "plinth_plaster": false, "timber_style": 0, "storey_floors": false, "openings": [], "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
-	_check(not Budget.wall(d).has("floor_m2"), "a house floored at its foot alone is charged as before")
-	d.storey_floors = true
-	_check(is_equal_approx(Budget.wall(d).get("floor_m2", 0.0), 2.0 * 24.0), "two storey floors of 24 m² are charged: %s" % [Budget.wall(d)])

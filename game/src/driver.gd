@@ -841,7 +841,6 @@ func _village(s: Dictionary) -> void:
 	_lay_gables(s)
 	_lay_plaster(s)
 	main.tool.thatch = s.get("thatch", false)
-	main.tool.storey_floors = s.get("storey_floors", false)
 	var k := 0
 	for z in range(-int(r / step), int(r / step) + 1):
 		for x in range(-int(r / step), int(r / step) + 1):

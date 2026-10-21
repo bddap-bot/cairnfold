@@ -22,7 +22,7 @@ enum Device { QUEST_2, FRAME }
 ## fittings that add a mesh (lanterns, flags, chimneys, dormers, whose boarded faces count as stone wall and whose
 ## slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing;
 ## ponds, one a seed; easels, each a canvas drawn and simulated; and boulders, a metre-wide one a unit (`boulder`).
-const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "floor_m2", "fitting", "grass", "flower", "tree", "bush", "pond", "timber", "easel", "boulder", "moss"]
+const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "fitting", "grass", "flower", "tree", "bush", "pond", "timber", "easel", "boulder", "moss"]
 
 ## Per headset, in the governor's signal (the viewport's GPU time per frame, Quality) at its fit_step; fitted
 ## by `scripts/costs.py` from `demo/costs.json` played on it (see "Build budget" in docs/design.md): `budget_ms`, the
@@ -46,8 +46,8 @@ const BOULDER_LEAST := 0.25
 ## Each opaque patch is twelve triangles, with no shadow pass or CPU animation.
 const MOSS_FLOWERS := 16.0
 ## The Frame's runtime halves the rate once a frame nears 0.88 of the period: held to the governor's line under it.
-const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.33, "grass": 0.177, "flower": 0.215, "tree": 20.457, "bush": 1.599, "wall_m2": 6.901, "plaster_m2": 2.006, "fence_m2": 3.166, "pond": 19.484, "roof_m2": 6.647, "floor_m2": 0.0, "thatch_m2": 3.477, "fitting": 15.609, "easel": 532.153, "boulder": 9.068, "timber": TIMBER_US, "moss": 0.215 * MOSS_FLOWERS}
-const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.1, "grass": 0.449, "flower": 0.678, "tree": 70.711, "wall_m2": 19.054, "plaster_m2": 6.46, "fence_m2": 4.348, "pond": 89.764, "roof_m2": 30.465, "thatch_m2": 51.347, "fitting": 21.346, "bush": 0.0, "easel": 1091.208, "timber": TIMBER_US, "floor_m2": 22.809, "boulder": 20.6, "moss": 0.678 * MOSS_FLOWERS}
+const FRAME_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.33, "grass": 0.177, "flower": 0.215, "tree": 20.457, "bush": 1.599, "wall_m2": 6.901, "plaster_m2": 2.006, "fence_m2": 3.166, "pond": 19.484, "roof_m2": 6.647, "thatch_m2": 3.477, "fitting": 15.609, "easel": 532.153, "boulder": 9.068, "timber": TIMBER_US, "moss": 0.215 * MOSS_FLOWERS}
+const QUEST_2_COSTS := {"budget_ms": 1000.0 / REFRESH_HZ * Quality.Governor.LINE, "base_ms": 9.1, "grass": 0.449, "flower": 0.678, "tree": 70.711, "wall_m2": 19.054, "plaster_m2": 6.46, "fence_m2": 4.348, "pond": 89.764, "roof_m2": 30.465, "thatch_m2": 51.347, "fitting": 21.346, "bush": 0.0, "easel": 1091.208, "timber": TIMBER_US, "boulder": 20.6, "moss": 0.678 * MOSS_FLOWERS}
 
 
 ## The ladder step `on`'s COSTS are fitted at (demo/costs.json), so a garden within its budget holds 72 Hz there: the
@@ -164,22 +164,9 @@ static func wall(d: Dictionary) -> Dictionary:
 		var covering := "thatch_m2" if d.roof.thatch and d.roof.pitch > 0.0 else "roof_m2"
 		out[covering] = out.get(covering, 0.0) + plan * slopes.stretch()
 		fittings += d.roof.chimneys.size() + (1 if d.roof.flag else 0)
-		var upper := WallLayout.upper_floors(d.height) if d.storey_floors else 0
-		if upper > 0:
-			out.floor_m2 = upper * _plan(d.points)
 	if fittings > 0:
 		out.fitting = fittings
 	return out
-
-
-## The area a closed loop of points encloses on the ground plane.
-static func _plan(points: Variant) -> float:
-	var twice := 0.0
-	for i in points.size():
-		var a: Vector3 = points[i]
-		var b: Vector3 = points[(i + 1) % points.size()]
-		twice += a.x * b.z - b.x * a.z
-	return absf(twice) * 0.5
 
 
 ## `n` plants of a plant group's kind.

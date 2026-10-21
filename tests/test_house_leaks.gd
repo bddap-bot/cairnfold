@@ -128,8 +128,7 @@ func _commands(seed_value: int) -> Array:
 	w.layout.plaster = shape != 1 and seed_value % 3 != 1
 	w.layout.plinth_plaster = seed_value % 2 == 0
 	w.layout.timber_style = -1 if seed_value % 3 == 0 else 0
-	w.layout.storey_floors = seed_value == 60
-	if w.layout.storey_floors:
+	if seed_value == 60:
 		w.layout.height = 5.4
 	w.layout.gable_end = seed_value % WallLayout.GableEnd.size()
 	w.layout.openings.assign([WallLayout.archway(length * 0.5)] if seed_value % 2 == 0 else [Vector4(length * 0.5, 1.5, 0, 1), Vector4(length + depth * 0.5, 0.3, 0, 1)])

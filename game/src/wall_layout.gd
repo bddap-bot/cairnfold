@@ -19,11 +19,9 @@ const COURSE := 0.3
 ## The lowest a wall stands. Nothing caps how tall it stands, or how high a house rises on its plinth: the budget
 ## charges both as wall.
 const MIN_HEIGHT := 0.9
-## A house's or tower's floors: one storey's height, the least headroom a floor under its top keeps, the flags
+## A house's or tower's floor: the flags
 ## (or, under plaster, the planks: width, length range and gap) it is laid in, and how far in from the outer faces
 ## its rows end, inside the stones.
-const STOREY := 8 * COURSE
-const HEADROOM := 1.2
 const FLAG := Vector3(0.7, 0.08, 0.5)
 const PLANK := Vector4(0.2, 0.05, 1.2, 2.6)
 const FLOOR_JOINT := 0.012
@@ -138,8 +136,6 @@ var plaster := false
 var plinth_plaster := false
 var gable_end := GableEnd.WALL
 var timber_style := 0
-## A house or tower floored at every storey up its walls, not only at its foot.
-var storey_floors := false
 ## The gable roof a house's end walls rise under, course by course, as stone walls do; null for any other.
 var gable: RoofLayout
 ## Placed openings: arc length, click height above the foot, DoorStyle, and size, 1 for a doorway's (or a plain
@@ -494,11 +490,6 @@ func standing(s: float) -> float:
 
 
 ## Stones fallen from each ruin, lying in and beside its gap.
-## How many floors a house or tower `height` tall lays above its foot when floored at every storey, on level ground.
-static func upper_floors(height: float) -> int:
-	return maxi(0, floori((height - HEADROOM) / STOREY + 1e-4))
-
-
 ## Whether this is a house or tower, floored inside.
 func floored() -> bool:
 	return closed and not fence and cover != Cover.OPEN and points.size() > 2
@@ -529,9 +520,8 @@ func floor_hit(origin: Vector3, dir: Vector3) -> float:
 	return best
 
 
-## A house's or tower's floors: one at its foot, raised over any ground under it that stands higher, its bed reaching
-## down to the foot so it reads as a step at the door; with `storey_floors`, one more a storey above each, as far as
-## the walls rise with headroom to spare. Flags under stone, planks under plaster, in rows along its first side that end inside the
+## A house's or tower's floor at its foot, raised over any ground under it that stands higher, its bed reaching
+## down to the foot so it reads as a step at the door. Flags under stone, planks under plaster, in rows along its first side that end inside the
 ## walls; none in the room of an older build it joins, or under a build standing on it.
 func _lay_floors(ground: Callable) -> void:
 	if not floored() or samples.is_empty() or laid_points.size() < 3:
@@ -549,10 +539,6 @@ func _lay_floors(ground: Callable) -> void:
 	if supports.is_empty():
 		lowest = maxf(lowest, _highest_ground(outer[0], ground))
 	floors.append(lowest)
-	if storey_floors:
-		for k in range(1, upper_floors(height) + 1):
-			if lowest + k * STOREY <= foot + height - HEADROOM:
-				floors.append(lowest + k * STOREY)
 	var along := (line[1] - line[0]).normalized()
 	var across := along.orthogonal()
 	var lo := INF
@@ -1716,7 +1702,6 @@ func inputs() -> WallLayout:
 	w.plinth_plaster = plinth_plaster
 	w.gable_end = gable_end
 	w.timber_style = timber_style
-	w.storey_floors = storey_floors
 	w.gable = gable
 	w.openings = openings.duplicate()
 	w.lanterns = lanterns.duplicate()
@@ -1733,7 +1718,7 @@ func inputs() -> WallLayout:
 func same_inputs(other: WallLayout) -> bool:
 	return (points == other.points and height == other.height and rise == other.rise
 		and seed == other.seed and closed == other.closed and top == other.top
-		and cover == other.cover and fence == other.fence and plaster == other.plaster and plinth_plaster == other.plinth_plaster and gable_end == other.gable_end and timber_style == other.timber_style and storey_floors == other.storey_floors
+		and cover == other.cover and fence == other.fence and plaster == other.plaster and plinth_plaster == other.plinth_plaster and gable_end == other.gable_end and timber_style == other.timber_style
 		and openings == other.openings and lanterns == other.lanterns and flags == other.flags
 		and ruins == other.ruins and supports == other.supports and resting == other.resting
 		and joined == other.joined and older == other.older)

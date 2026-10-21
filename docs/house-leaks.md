@@ -5,7 +5,7 @@ builds fixed-seed houses through `World._order`, waits for their layouts, then
 casts fixed Fibonacci spheres from interior points on each floor. The corpus
 includes stone, plaster and timber; stone and plaster foundations; gable and
 round roofs; tiles, thatch and curved flat decks; all gable styles; windows,
-doors and arches; raised and multi-storey houses; overlapping buildings; and
+doors and arches; raised and tall houses; overlapping buildings; and
 wall strokes produced by `WallPlan`.
 
 The probe reads full-detail rendered instance buffers and their source meshes,

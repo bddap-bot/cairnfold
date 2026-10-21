@@ -1804,24 +1804,17 @@ Every house and tower is floored (`WallLayout.floors`; tests in `tests/test_floo
   included, in staggered lengths. Either is plain boxes, as timbers are, and casts no shadow, lying in the walls' own.
   They take the build's stone or woodwork paint. Moss grows on stone only under the sky, so a floor under its roof and
   every piece of woodwork stay bare of it.
-- With the style tool on a floor, a house or tower is floored at its foot alone or at every storey too: a floor each
-  2.4 m (eight courses) above the one at its foot, as far up its walls as leaves 1.2 m under its top, a loft under a roof, so a 4.5 m tower has two and a 9 m
-  house four.
-  Houses laid after take the choice let go last. An upper floor is charged against the budget by its area
-  (`floor_m2`); the floor at the foot is charged with the roof over it, since every roofed build has one (`roof_m2`).
-  On a Quest 2 (`demo/costs.json`, `perf/quest-2/costs/20261020T184905Z-9ccae17.json`) the village floored at every
-  storey, 7.2 m tall with 30.2 m² of upper floors, took 10.77 and 10.47 ms from the air and standing against 10.10 and
-  10.26 ms for the village of 2.4 m houses, its taller walls included: at most 22.2 µs a m² of upper floor were it all
-  the floors', which the 22.8 µs `floor_m2` charges covers; `costs.py` fits the floors nothing over the walls.
-- A floor is stood on: the teleport ray lands on the first floor it meets, and a point inside stands on the highest
-  floor at or below it, so a raised house is stood in on its floor, not on the ground under it.
+- A house or tower has one floor, at its foot, however tall it stands; the style tool offers nothing on it. Floors
+  at every storey up the walls were cut: they did not fit the game.
+- A floor is stood on: the teleport ray lands on the first floor it meets, and a point inside stands on the floor under
+  it, so a raised house is stood in on its floor, not on the ground under it.
 - Nothing grows through it: the meadow under a house or tower on the ground is worn bare, out to inside its walls,
   as a path wears it, as a mark in the order of its build command, so taking the house away brings the grass back.
 - Two houses joined into one room never lay two floors over each other: the newer floor lays nothing in the older
   one's room, where the older floor stays whole.
 
-`demo/floors.json` floors a stone house on a hump, a plaster one raised on its plinth and a tower floored at every
-storey through the style tool, and looks inside each.
+`demo/floors.json` floors a stone house on a hump, a plaster one raised on its plinth and a tower, and looks inside
+the first two.
 
 ## Colour per build
 
@@ -2311,7 +2304,7 @@ The style tool is the colour tool's picker with styles for swatches (`PaletteToo
 thing opens a wheel of miniatures of that thing's styles, twisting the wrist turns it, showing each on the
 build live, and letting go keeps the one at the top, one undo step. What it offers depends on what it points
 at: a gable end, its house's gable ends (the wall's, boarded, crow-stepped; houses laid after take it); a
-house's or tower's roof, pitched, a cone (standing it as a round tower, see "Towers") or flat, or pitched or a cone thatched (see "Thatch"); a house's or tower's floor, at its foot alone or at every storey (see "Floors"); a roofless
+house's or tower's roof, pitched, a cone (standing it as a round tower, see "Towers") or flat, or pitched or a cone thatched (see "Thatch"); a roofless
 wall's top, merlons, plain capping or coping; a wall's face, stone or plaster, and on a house the timber framings
 (walls and houses laid after take the material turned to last); a flight or landing, its railings, stone, wooden or
 none (stairs laid after take them); painted stone or a boulder, its stone style from the one table (see "Ground materials"; stone painted and boulders set down after take it); a tree, its species: an oak's round crown, a

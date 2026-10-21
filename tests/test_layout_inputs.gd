@@ -17,7 +17,7 @@ func _init() -> void:
 		"seed": 19, "closed": true, "top": WallLayout.Top.COPE, "cover": WallLayout.Cover.ROOF,
 		"fence": true, "plaster": true, "plinth_plaster": true, "gable_end": WallLayout.GableEnd.STEPS, "openings": [Vector4(2, 1, 0, 1)], "lanterns": [Vector3(2, 1, 1)],
 		"flags": [2.0], "ruins": [Vector2(2, 3)], "supports": [Massing.new()],
-		"resting": [Massing.new()], "joined": [Massing.new()], "older": [Massing.new()], "storey_floors": true,
+		"resting": [Massing.new()], "joined": [Massing.new()], "older": [Massing.new()],
 	})
 	_changes(roof, {
 		"kind": RoofLayout.Kind.CONE, "center": Vector3(1, 0, 1), "radius": 3.0,

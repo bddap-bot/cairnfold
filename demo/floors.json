@@ -23,15 +23,5 @@
   {"op": "view", "eye": [3.6, 1.6, -10.5], "at": [4.0, 1.2, -4]},
   {"op": "wait", "seconds": 2},
   {"op": "capture", "name": "05-raised-through-the-arch"},
-  {"op": "place", "x": 14, "z": 4},
-  {"op": "hands", "right": [0.06, -0.08, -0.32], "tip": 20},
-  {"op": "style", "hand": "right", "restyle": "floor", "pick": 1, "seconds": 0.8, "from": [14, 1.6, -3.5], "at": [14, 0.1, -4.6], "capture": "06-floor-styles"},
-  {"op": "wait", "seconds": 3},
-  {"op": "view", "eye": [14.4, 1.7, -3.4], "at": [13.6, 3.2, -4.6]},
-  {"op": "wait", "seconds": 2},
-  {"op": "capture", "name": "07-tower-storey-floor-from-below"},
-  {"op": "view", "eye": [14.4, 4.3, -3.4], "at": [13.4, 2.4, -4.8]},
-  {"op": "wait", "seconds": 2},
-  {"op": "capture", "name": "08-tower-storey-floor"},
   {"op": "quit"}
 ]
