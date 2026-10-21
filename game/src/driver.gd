@@ -723,7 +723,7 @@ func _lanterns(s: Dictionary) -> void:
 
 
 ## Fills every painted and placed flora pool to capacity within `radius` of `at` (x, z; the centre by default), or only those `pools` names
-## (grass, flowers, trees, bushes), the trees taking each species in turn. They are not build commands, so the frame budget
+## (grass, flowers, trees, bushes), the trees taking each species in turn at `scale` (1 without). They are not build commands, so the frame budget
 ## does not count them.
 func _fill_flora(s: Dictionary) -> void:
 	var flora: Flora = main.flora_tool.flora
@@ -739,7 +739,10 @@ func _fill_flora(s: Dictionary) -> void:
 	for i in Flora.PAINTED_MOSS if "moss" in pools else 0:
 		flora.add_moss(_scatter(rng, s.radius, centre), rng)
 	for i in Flora.PLACED_TREES if "trees" in pools else 0:
-		flora.add_tree(_scatter(rng, s.radius, centre), rng.randi(), i % FloraLayout.Species.size())
+		var species := i % FloraLayout.Species.size()
+		var parts := flora.add_tree(_scatter(rng, s.radius, centre), rng.randi(), species)
+		if not parts.is_empty():
+			flora.set_look(parts[0], species, clampf(s.get("scale", 1.0), FloraLayout.SCALES.x, FloraLayout.SCALES.y))
 	for i in Flora.PLACED_BUSHES if "bushes" in pools else 0:
 		flora.add_bush(_scatter(rng, s.radius, centre), rng)
 
