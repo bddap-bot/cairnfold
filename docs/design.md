@@ -2342,8 +2342,10 @@ Every player, a co-op joiner too, starts holding a small cloth-bound book shut i
 `Hand.Tool.BOOK`). Its ribbon bookmark hangs from between the pages, swaying and glowing softly; the right hand touching
 the cover or the ribbon swings the cover open onto the first page, the board overshooting a little and settling. A sweep
 of the other hand leftward across the open pages turns to the next page and rightward to the one before, wherever on the
-spread it starts; one sweep turns one leaf, so the hand lifts off the pages before the next, and the stroke back from a
-turn never undoes it. Back from the first page shuts the book. No button is pressed, so the right hand's tool never acts while it reads, and the left hand's grip still
+spread it starts; a pass of that hand through the book from behind turns the page it comes out over, the right one on
+and the left back, at any speed or angle, since the book finds where the hand's path crossed it between readings; one
+sweep or pass turns one leaf, so the hand lifts off the pages before the next, and the stroke back from a turn never
+undoes it. A hand resting on the pages, hovering over them or passing beside the book turns none (`tests/test_book_turn.gd`). Back from the first page shuts the book. No button is pressed, so the right hand's tool never acts while it reads, and the left hand's grip still
 grabs and its stick still teleports. Picking another tool for the hand tucks the book away (it shrinks into the hand in
 a fifth of a second); the wheel's lower-right slot holds it beside the people pages, and taking it brings it back at the page it
 was left on. The book is each player's own and is never sent to others.

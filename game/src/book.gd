@@ -4,7 +4,7 @@ extends Node3D
 ## The picture book: a small cloth-bound book held in a hand that holds Hand.Tool.BOOK, whose pages teach the
 ## controls a player would not guess (Lessons). It comes shut, its ribbon glowing; the other hand touching the cover
 ## or the ribbon opens it, and a sweep of that hand across the pages turns one, leftward for the next page and
-## rightward for the one before. No button is pressed, so no tool acts. Picking another tool tucks it away; the wheel's
+## rightward for the one before, as does a pass of it through a page from behind the book. No button is pressed, so no tool acts. Picking another tool tucks it away; the wheel's
 ## book brings it back where it was left. Each page is a live LessonScene, and only the faces in view render.
 ##
 ## Its frame (`local`): the spine along z at x 0, the right page over +x, y out of the page, z toward the reader.
@@ -22,6 +22,12 @@ const TUCK_S := 0.2
 const NEAR := 0.07
 const SWEEP := 0.06
 const TOUCH := 0.05
+## A hand this far behind the pages is reaching through the book, and it turns the page it comes out in front of
+## anywhere within this of the page's edges.
+const BEHIND := 0.02
+const THROUGH_MARGIN := Vector2(0.03, 0.02)
+## Farther than this between one frame's reading and the next is tracking or a teleport catching up, not a hand.
+const STEP := 0.15
 const BOARD := Vector3(W + OVER, COVER_T, H + OVER * 2.0)
 const PAGE_HZ_DIVIDER := 2
 ## Opaque draws go in ascending render_priority, so the book, after the garden at 0, draws its top layer first and
@@ -50,6 +56,9 @@ var _turn := {}
 var _open_k := 0.0
 var _shown_k := 0.0
 var _sweep_from := INF
+var _last := Vector3.INF
+var _last_frame := -1
+var _reaching := false
 var _cover: Node3D
 var _left_block: MeshInstance3D
 var _right_block: MeshInstance3D
@@ -175,15 +184,21 @@ func turn(way: int) -> void:
 
 
 ## Reads a fingertip at `tip` (global) touching the book: on the shut cover or the ribbon it opens it; swept
-## leftward across the open pages it turns to the next, rightward to the one before. A sweep turns one leaf: the hand
-## leaves the pages before it turns another, so the stroke back from a turn never undoes it.
+## leftward across the open pages it turns to the next, rightward to the one before; passed through the book from
+## behind it turns the page it comes out over, the right one on and the left back. A sweep or a pass turns one leaf:
+## the hand leaves the pages before it turns another, so the stroke back from a turn never undoes it.
 func feel(tip: Vector3) -> void:
 	var p := global_transform.affine_inverse() * tip
+	var through := _through(p)
 	if at == 0:
 		var on_cover := p.x > -0.01 and p.x < W + 0.01 and absf(p.z) < H * 0.5 + 0.01 and absf(p.y - _stack_top()) < TOUCH
 		var on_ribbon := _ribbon.visible and _ribbon.global_position.distance_to(tip) < TOUCH + 0.03
 		if on_cover or on_ribbon:
 			open()
+		return
+	if through != 0 and _turn.is_empty():
+		turn(through)
+		_sweep_from = NAN
 		return
 	var near := absf(p.z) < H * 0.5 + 0.02 and p.y > -0.01 and p.y < NEAR and absf(p.x) < W + 0.02
 	if not near:
@@ -193,6 +208,26 @@ func feel(tip: Vector3) -> void:
 	elif _turn.is_empty() and absf(p.x - _sweep_from) > SWEEP:
 		turn(1 if p.x < _sweep_from else -1)
 		_sweep_from = NAN
+
+
+## The side, 1 right and -1 left, of the page a hand at `p` (local) has just come through from behind, else 0. The
+## crossing is found on the segment from the last frame's reading, so a fast pass that no reading catches near the
+## page still counts.
+func _through(p: Vector3) -> int:
+	var from := _last if _frame - _last_frame <= 1 and _last.distance_to(p) < STEP else Vector3.INF
+	_last = p
+	_last_frame = _frame
+	if p.y < -BEHIND:
+		_reaching = true
+	if p.y < 0.0 or not _reaching:
+		return 0
+	_reaching = false
+	if not from.y < 0.0:
+		return 0
+	var c := from.lerp(p, from.y / (from.y - p.y))
+	if absf(c.x) > W + THROUGH_MARGIN.x or absf(c.z) > H * 0.5 + THROUGH_MARGIN.y:
+		return 0
+	return 1 if c.x > 0.0 else -1
 
 
 ## The page indices whose faces are in view, each rendering: none while the head looks away from the book.
