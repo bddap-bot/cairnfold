@@ -1,0 +1,8 @@
+[
+  {"op": "label", "name": "load"},
+  {"op": "place", "x": -3, "z": -8},
+  {"op": "view", "ground": true, "eye": [-3, 1.65, -8], "at": [2, 1.4, -3]},
+  {"op": "wait", "seconds": 15},
+  {"op": "label", "name": "-"},
+  {"op": "quit"}
+]

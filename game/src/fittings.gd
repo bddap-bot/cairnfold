@@ -5,11 +5,12 @@ extends Node3D
 
 const HALO := 1.1
 
-static var _flame: StandardMaterial3D
-static var _halo: ShaderMaterial
-static var _cloth: ShaderMaterial
+## Made as the game loads, as Wall's roof materials are: a shader made on first use stalls a frame.
+static var _flame := _flame_material()
+static var _halo := _shaded("res://src/halo.gdshader")
+static var _cloth := _shaded("res://src/cloth.gdshader")
 static var _box := BoxMesh.new()
-static var _disc := QuadMesh.new()
+static var _disc := _halo_disc()
 static var _strip := _flag_mesh()
 
 var _flames := _instances(_box)
@@ -17,18 +18,28 @@ var _halos := _instances(_disc)
 var _cloths := _instances(_strip)
 
 
+static func _flame_material() -> StandardMaterial3D:
+	var m := StandardMaterial3D.new()
+	m.albedo_color = Color(1.0, 0.8, 0.5)
+	m.emission_enabled = true
+	m.emission = Color(1.0, 0.68, 0.32)
+	m.emission_energy_multiplier = 2.4
+	return m
+
+
+static func _shaded(shader: String) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load(shader)
+	return m
+
+
+static func _halo_disc() -> QuadMesh:
+	var q := QuadMesh.new()
+	q.size = Vector2.ONE * HALO
+	return q
+
+
 func _init() -> void:
-	if _flame == null:
-		_disc.size = Vector2.ONE * HALO
-		_flame = StandardMaterial3D.new()
-		_flame.albedo_color = Color(1.0, 0.8, 0.5)
-		_flame.emission_enabled = true
-		_flame.emission = Color(1.0, 0.68, 0.32)
-		_flame.emission_energy_multiplier = 2.4
-		_halo = ShaderMaterial.new()
-		_halo.shader = load("res://src/halo.gdshader")
-		_cloth = ShaderMaterial.new()
-		_cloth.shader = load("res://src/cloth.gdshader")
 	_flames.material_override = _flame
 	_halos.material_override = _halo
 	_cloths.material_override = _cloth

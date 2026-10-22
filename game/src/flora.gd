@@ -635,13 +635,13 @@ func shade_of(parts: Array) -> Transform3D:
 	return Transform3D(Basis.from_scale(box.size * SHADE_FIT / crown_shade.mesh.get_aabb().size), box.get_center())
 
 
-## Moves grass and flower reach toward `step`'s at Quality.REACH_RATE and draws its blobs; whether both reaches are
+## Moves grass and flower reach toward `step`'s (Quality.reach) and draws its blobs; whether both reaches are
 ## there, since a step still under way is not yet the step's cost.
 func approach(step: Quality.Step, delta: float) -> bool:
-	var grass_m := move_toward(grass_reach, step.grass_m, Quality.REACH_RATE * delta)
+	var grass_m := Quality.reach(grass_reach, step.grass_m, delta)
 	if grass_m != grass_reach:
 		grass_reach = grass_m
-	var flowers_m := move_toward(flower_reach, step.flowers_m, Quality.REACH_RATE * delta)
+	var flowers_m := Quality.reach(flower_reach, step.flowers_m, delta)
 	if flowers_m != flower_reach:
 		flower_reach = flowers_m
 	blob_detail = step.blob_detail

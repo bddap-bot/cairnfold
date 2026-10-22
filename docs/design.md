@@ -728,6 +728,63 @@ at the phase's peak, and its median GPU ms:
 The hill stroke draws 132 more calls while its walls move and 36 ms less, the coarse far stones
 outweighing the calls; a wall in hand draws fewer.
 
+### Moving and acting at the build budget
+
+Report (verbatim): "That \"after a few seconds settle\" seems to be carrying weight. Framerate during movement and
+during actions is the actual important value for players."
+
+`demo/motion.json` builds a garden to the whole build budget the way play does (six trees, a pond, a 3.5 m house
+carried in, flowers to the limit: fill 0.999), then walks into it, turns the head, snap turns, teleports on the ground
+and into the air, tries a house it has no room for, grabs and sizes the house, paints grass at the limit, deletes the
+house, paints grass, digs a pond, puts up a house and carries a conure, every phase measured from its first frame.
+`demo/load.json` opens the same garden from its save and stands in it. On a Quest 2 (`bench.sh OUT --android APK`,
+CPU and GPU at level 4), frames over 1.5 refresh periods and the 99th percentile frame, before (b735494d) and after:
+
+| Phase | Late frames | p99 ms | Longest frame ms | Main thread ms (median) |
+| --- | --- | --- | --- | --- |
+| Carrying the session's first house in | 6 → 2 | 1757 → 24.8 | 1757 → 30 | 9.3 → 6.5 |
+| Painting flowers to the limit | 0 → 0 | 15.3 → 15.2 | 18 → 18 | 6.9 → 6.5 |
+| Walking into the garden | 36 → 12 | 26.5 → 28.5 | 52 → 29 | 7.9 → 7.6 |
+| Turning the head | 2 → 0 | 20.2 → 15.4 | 182 → 18 | 9.5 → 9.0 |
+| Snap turns | 0 → 0 | 15.8 → 15.8 | 16 → 16 | 8.3 → 7.8 |
+| Teleports, ground and air | 0 → 0 | 15.4 → 15.5 | 16 → 17 | 10.4 → 8.4 |
+| A house with no room | 0 → 3 | 19.1 → 40.0 | 21 → 55 | 9.1 → 10.8 |
+| Grabbing and turning the house | 1 → 0 | 18.1 → 17.4 | 22 → 19 | 10.1 → 11.3 |
+| Sizing it with two hands | 0 → 0 | 18.2 → 18.1 | 19 → 18 | 12.1 → 12.3 |
+| Grass at the limit | 0 → 0 | 15.3 → 15.0 | 16 → 15 | 11.3 → 11.5 |
+| Deleting the house | 1 → 2 | 20.6 → 19.0 | 36 → 37 | 40.7 → 12.2 |
+| Painting grass | 2 → 1 | 23.6 → 16.0 | 34 → 33 | 8.9 → 9.0 |
+| Digging a pond | 4 → 7 | 24.3 → 24.8 | 25 → 25 | 27.4 → 19.7 |
+| Putting up a house | 0 → 0 | 15.2 → 14.8 | 16 → 15 | 8.6 → 8.1 |
+| Carrying a conure | 0 → 0 | 14.9 → 15.4 | 15 → 20 | 9.1 → 8.8 |
+| Opening the garden, first 5 s | 38 → 32 | 80 → 32 | 15145 → 471 | |
+
+Rebased onto a later main (7b9d7cd9, the full day's sky) and run again against it, paired: the walk 40 → 19 late
+frames, turning the head 3 → 0 (longest 157 → 17 ms), the first house 6 → 2 (longest 232 → 31 ms), the rest as above.
+
+What each overrun was, and what changed:
+
+- The session's first roof made four shader materials (plaster, thatch, the torching under the tiles, the roof's
+  wood), and a wall's first fittings three more, on first use: a 0.25 to 1.5 s frame as the first house went up
+  (`scripts/hitches.py` on a simpleperf recording: `ShaderMaterial::set_shader` down to `vkCreateShaderModule`). They
+  are now made as the game loads.
+- The governor stepped down in time but the steps arrived over seconds: grass, flowers and ivy receded toward a
+  lower step at 8 m/s, so a walk from the garden's edge into it ran at 13 to 18 ms of GPU time for four seconds with
+  the governor already at step 8. A step down now takes its reaches at once; only a step up grows them out.
+- The Quest 2 misses refreshes from about 0.84 of the period, short of the governor's "over budget" (1.05): those
+  frames stepped it down only through the one-second average, a step a second. A refresh missed with the GPU over
+  the governor's line now steps down two at once, and a step settles three frames instead of six.
+- The first step to the 0.78 3D scale compiled 112 to 130 pipelines for its separate pass, a 110 to 180 ms frame
+  mid-play. The first two frames of a session now draw the last step, among loading's own late frames; reaching it
+  later in the session then compiles nothing (pinned: 112 pipelines and a 112 ms frame before, no late frame after).
+  What is built after those frames still compiles its own pipelines the first time a step draws it: the house and
+  flowers this scene builds cost 10 to 25 pipelines, a 28 to 40 ms frame, where a garden opened from its save does
+  not.
+
+Left: the walk's first second still misses 12 refreshes while the governor descends from step 0, the house turned
+down for want of room spends 53 ms of main thread on its frame, and digging a pond, deleting a house and the first
+seconds of opening a garden run 20 to 80 ms frames on the main thread.
+
 ## Build budget
 
 Directive (verbatim): "I'd like an indicator somewhere. Uh, I think probably on the- on
@@ -1033,8 +1090,8 @@ and ivy to 25 m instead of 35 m; below those, flowers to 20 m instead of 60 m, t
 coarser blobs, and stones in full to 4 m and ivy to 12 m; last, where nothing else held the
 refresh rate, the sun's shadows off and then the 3D resolution at 0.78 of the headset's own
 (see "Holding 72 Hz on the Frame"). A governor reads each
-frame's GPU time and steps down the ladder at once when frames run over the refresh period or
-their average over its line, and back up only after a calm spell with room for what the step
+frame's GPU time and steps down the ladder at once when frames run over the refresh period, a refresh
+is missed with the GPU over its line, or their average runs over the line, and back up only after a calm spell with room for what the step
 saved. The runtime holding the game at every other refresh counts as over budget, and frames
 over budget step on while a step is still arriving. Every headset starts at the top and settles on
 the prettiest step it holds at its own refresh rate. There are no per-headset presets and no

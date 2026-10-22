@@ -61,10 +61,17 @@ const LADDER_LAYER := 1 << 16
 const FULL_LAYER := 1 << 17
 const VIEW_MASK := 0xFFFFF & ~FULL_LAYER
 const PHOTO_MASK := 0xFFFFF & ~LADDER_LAYER
-## Grass and flower reach move toward their step at this many metres a second, so the edge recedes rather than jumps.
+## Grass, flower and ivy reach grow toward a step up at this many metres a second, so the edge comes out rather than
+## jumps. A step down takes its reach at once: it was taken because frames ran over, and receding at this rate held a
+## budget-full garden over budget for four seconds of a walk into it on the Quest 2.
 const REACH_RATE := 8.0
 ## Seconds of rendered frames the governor sits out at the start: loading's first frames are not the scene's cost.
 const WARMUP := 5.0
+## Rendered frames drawn at the ladder's last step as the session starts, among loading's late frames, so the
+## pipelines its knobs draw with are compiled then. A 3D scale other than the headset's own compiles every pipeline
+## afresh for its separate pass: on the Quest 2 that was a 110 to 180 ms frame the first time the governor reached
+## the last step, mid-play.
+const PRIME_FRAMES := 2
 
 var governor := Governor.new(ladder.size() - 1, popping())
 ## The step held instead of the governor's, for measuring; -1 while governed.
@@ -83,6 +90,7 @@ var view: Viewport
 ## The headset's own 3D resolution, which each step's `scale_3d` is a share of.
 var _scale := 1.0
 var _warm := 0.0
+var _primed := 0
 ## Whether the knobs had reached their step last frame: a step still under way is not judged as one that failed.
 var _settled := false
 
@@ -122,6 +130,11 @@ static func full_detail(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter(&"full_layer", FULL_LAYER)
 
 
+## A reach `now` moved toward `to` over `delta` seconds: out at REACH_RATE, in at once.
+static func reach(now: float, to: float, delta: float) -> float:
+	return to if to < now else move_toward(now, to, REACH_RATE * delta)
+
+
 ## The step the knobs are heading to.
 func step() -> int:
 	return pin if pin >= 0 else governor.level
@@ -137,9 +150,10 @@ func _process(delta: float) -> void:
 		var hz := _xr.display_refresh_rate if _xr.display_refresh_rate > 0.0 else Budget.REFRESH_HZ
 		budget_ms = 1000.0 / hz
 		_warm += delta
+		_primed += 1
 		if pin < 0 and _warm > WARMUP:
 			governor.step(frame_ms, budget_ms, delta, _settled)
-	var at := ladder[step()]
+	var at := ladder[-1] if _xr != null and _primed < PRIME_FRAMES else ladder[step()]
 	_settled = _flora.approach(at, delta)
 	if _sun != null and _sun.shadow_enabled != at.shadows:
 		_sun.shadow_enabled = at.shadows
@@ -162,9 +176,11 @@ class Governor:
 	const HOT_FRAMES := 2
 	## Frames this far over the budget take two steps instead.
 	const SEVERE := 1.25
-	## Frames ignored after any step while the GPU timer and the grass catch up with the change.
-	const SETTLE_FRAMES := 6
-	## Frames this far apart on average, as a share of the refresh period, are the runtime's every other refresh.
+	## Frames ignored after any step while the GPU timer catches up with the change. Six, from when a step down's
+	## reaches receded over seconds, left a walk into a budget-full garden on the Quest 2 missing refreshes between steps.
+	const SETTLE_FRAMES := 3
+	## Frames this far apart on average, as a share of the refresh period, are the runtime's every other refresh; one
+	## frame this far from the last is a missed refresh.
 	const HALVED := 1.5
 	## Every other refresh counts only with the timer above this share of the budget: lower, the CPU held the frame.
 	const HALVED_GPU := 0.6
@@ -257,17 +273,21 @@ class Governor:
 		if _quiet >= CALM_SECONDS_MAX:
 			_cost[level] = -1.0
 		var halved := averaged and _interval > budget_ms * HALVED and _average > budget_ms * HALVED_GPU
+		# The Quest 2 misses refreshes from about 0.84 of the period, short of HOT: walking into a budget-full garden
+		# there dropped 36 frames while the average stepped down once a second. A missed refresh with the GPU over
+		# the line steps down two at once, as a frame far over budget does; one the CPU held, the GPU under it, does not.
+		var missed := dt_ms > budget_ms * HALVED and dt_ms < budget_ms * PAUSE and frame_ms > line
 		# A step still under way has not shown what it saves, so it may not be followed into one that pops.
 		var floor := bottom if settled else mini(_unpopped, bottom)
 		_calm = _calm + dt if settled and averaged and not halved and _average + cost(level, budget_ms) < line else 0.0
-		if (_hot >= HOT_FRAMES or halved or (settled and averaged and _average > line)) and level < floor:
+		if (_hot >= HOT_FRAMES or missed or halved or (settled and averaged and _average > line)) and level < floor:
 			if _since_up < REGRET_SECONDS:
 				_wait[level] = INF if _sticky.has(level) else minf(_wait[level] * 2.0, CALM_SECONDS_MAX)
 			_since_up = INF
 			# A step down before the last one's second was in leaves the average from before both.
 			if averaged or _went_up or _measuring < 0:
 				_before = _average
-			var to := mini(level + (2 if frame_ms > budget_ms * SEVERE else 1), floor)
+			var to := mini(level + (2 if missed or frame_ms > budget_ms * SEVERE else 1), floor)
 			_measuring = to
 			_went_up = false
 			_move(to)

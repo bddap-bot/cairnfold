@@ -10,10 +10,13 @@ enum Part { STONE, MORTAR, STONE_SHADOW, TILE, TILE_SHADOW, COAT, IVY, TIMBER, F
 const PAINTED: Array[Part] = [Part.STONE, Part.MORTAR, Part.TILE, Part.COAT, Part.TIMBER, Part.FLOOR]
 
 static var _kinds: Array[Masonry.Kind] = []
-static var _plaster: ShaderMaterial
-static var _thatch: ShaderMaterial
-static var _lime: ShaderMaterial
-static var _roof_wood: ShaderMaterial
+## A roof's materials are made as the game loads: a shader made on first use stalled the Quest 2's frame 0.25 to 1.5 s
+## as the session's first house went up.
+## Color uniforms convert to linear; the wall instance buffer carries raw RGB, so plaster's albedo goes as a Vector3.
+static var _plaster := _detailed("res://src/plaster.gdshader", Vector3(WallLayout.PLASTER.r, WallLayout.PLASTER.g, WallLayout.PLASTER.b))
+static var _thatch := _detailed("res://src/thatch.gdshader")
+static var _lime := _detailed("res://src/torching.gdshader", WallLayout.PLASTER)
+static var _roof_wood := _wood()
 
 var layout := WallLayout.new()
 var masonry: Masonry
@@ -121,11 +124,11 @@ static func kinds() -> Array[Masonry.Kind]:
 	return _kinds
 
 
-## Moves ivy's reach toward `step`'s as grass reach moves (Quality.REACH_RATE), and how far stones are drawn whole
+## Moves ivy's reach toward `step`'s as grass reach moves (Quality.reach), and how far stones are drawn whole
 ## to it at once, since a chunk's stones change mesh in one frame wherever the line falls; true once there.
 static func approach(step: Quality.Step, delta: float, glade: Masonry) -> bool:
 	var ks := kinds()
-	var ivy := move_toward(ks[Part.IVY].reach, step.ivy_m, Quality.REACH_RATE * delta)
+	var ivy := Quality.reach(ks[Part.IVY].reach, step.ivy_m, delta)
 	if step.stone_near_m != ks[Part.STONE].near or ivy != ks[Part.IVY].reach:
 		_reach(step.stone_near_m, ivy)
 		glade.set_ranges()
@@ -152,21 +155,26 @@ func _init(seed: int, glade: Masonry) -> void:
 	_chunked.resize(Part.size())
 
 
+## A material of `shader` over the detail noise, its albedo `albedo` if given.
+static func _detailed(shader: String, albedo: Variant = null) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load(shader)
+	if albedo != null:
+		m.set_shader_parameter("albedo", albedo)
+	m.set_shader_parameter("detail", Look.detail_noise())
+	return m
+
+
+static func _wood() -> ShaderMaterial:
+	var m: ShaderMaterial = Stones.shared_material().duplicate()
+	m.shader = load("res://src/roof_timber.gdshader")
+	return m
+
+
 ## Puts a roof on this closed wall; its stones then stop flush under the eaves.
 func add_roof(r: RoofLayout) -> void:
 	roof = r
 	_cover()
-	if _plaster == null:
-		_plaster = ShaderMaterial.new()
-		_plaster.shader = load("res://src/plaster.gdshader")
-		# Color uniforms convert to linear; the wall instance buffer carries raw RGB.
-		var c := WallLayout.PLASTER
-		_plaster.set_shader_parameter("albedo", Vector3(c.r, c.g, c.b))
-		_plaster.set_shader_parameter("detail", Look.detail_noise())
-	if _thatch == null:
-		_thatch = ShaderMaterial.new()
-		_thatch.shader = load("res://src/thatch.gdshader")
-		_thatch.set_shader_parameter("detail", Look.detail_noise())
 	_gables = MeshInstance3D.new()
 	_gables.material_override = _plaster
 	add_child(_gables)
@@ -174,20 +182,12 @@ func add_roof(r: RoofLayout) -> void:
 	_coat.material_override = _thatch
 	_coat.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_coat)
-	if _lime == null:
-		_lime = ShaderMaterial.new()
-		_lime.shader = load("res://src/torching.gdshader")
-		_lime.set_shader_parameter("albedo", WallLayout.PLASTER)
-		_lime.set_shader_parameter("detail", Look.detail_noise())
 	_faced = []
 	_torching = MeshInstance3D.new()
 	_torching.material_override = _lime
 	# One face thick and facing down: cast from its front only, it would let the sun through the tiles' gaps.
 	_torching.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_DOUBLE_SIDED
 	add_child(_torching)
-	if _roof_wood == null:
-		_roof_wood = Stones.shared_material().duplicate()
-		_roof_wood.shader = load("res://src/roof_timber.gdshader")
 	_ceiling = MeshInstance3D.new()
 	_ceiling.material_override = _roof_wood
 	_ceiling.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF

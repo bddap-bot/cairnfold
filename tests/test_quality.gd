@@ -15,6 +15,7 @@ func _initialize() -> void:
 	_frames_over_budget_step_down_at_once()
 	_a_badly_late_frame_steps_down_two()
 	_one_late_frame_is_not_enough()
+	_a_missed_refresh_over_the_line_steps_down()
 	_calm_steps_back_up_after_a_spell()
 	_an_undone_step_up_waits_twice_as_long()
 	_a_spike_after_a_step_up_slows_only_that_step()
@@ -98,6 +99,17 @@ func _one_late_frame_is_not_enough() -> void:
 	_check(g.level == 0, "isolated late frames leave the ladder alone")
 
 
+func _a_missed_refresh_over_the_line_steps_down() -> void:
+	var g := Quality.Governor.new(10)
+	_feed(g, BUDGET * UNDER_LINE, 72)
+	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
+	_check(g.level == 2, "a refresh missed with the GPU over the line steps down two at once: %d" % g.level)
+	g = Quality.Governor.new(10)
+	_feed(g, BUDGET * 0.5, 72)
+	g.step(BUDGET * 0.5, BUDGET, DT * 2.0)
+	_check(g.level == 0, "one the CPU held leaves the ladder alone")
+
+
 func _calm_steps_back_up_after_a_spell() -> void:
 	var g := Quality.Governor.new(10)
 	_down(g)
@@ -174,8 +186,8 @@ func _a_step_up_into_every_other_refresh_is_not_retried() -> void:
 	var g := Quality.Governor.new(10)
 	_down(g)
 	_check(_feed_until(g, BUDGET * 0.4, 72 * 4, 0) == 0, "a step up with room for what the step down saved")
-	_check(_feed(g, BUDGET * 0.95, 6 + 72 + 36) == 1, "lands at every other refresh and steps back down")
-	_feed(g, BUDGET * 0.95, 6 + 72)
+	_check(_feed(g, BUDGET * 0.95, Quality.Governor.SETTLE_FRAMES + 72 + 36) == 1, "lands at every other refresh and steps back down")
+	_feed(g, BUDGET * 0.95, Quality.Governor.SETTLE_FRAMES + 72)
 	_check(_feed(g, BUDGET * 0.6, 72 * 30) == 1, "which reads no saving, yet the step up is not taken again")
 
 
@@ -198,11 +210,9 @@ func _a_held_step_reaches_its_knobs() -> void:
 	var bottom: Quality.Step = Quality.ladder[-1]
 	q.pin = Quality.ladder.size() - 1
 	q._process(0.1)
-	_check(not q._settled, "a step whose reaches are still moving is not settled")
+	q._process(0.1)
+	_check(q._settled, "a step down takes its reaches at once")
 	_check(flora.blob_detail == bottom.blob_detail, "blob detail changes at once")
-	for i in 100:
-		q._process(0.1)
-	_check(q._settled, "and settles once they arrive")
 	_check(flora.grass_reach == bottom.grass_m and flora.flower_reach == bottom.flowers_m, "grass and flowers at the step's reach")
 	var ks := Wall.kinds()
 	_check(ks[Wall.Part.STONE].near == bottom.stone_near_m and ks[Wall.Part.IVY].reach == bottom.ivy_m, "stones and ivy at the step's reach")
@@ -212,6 +222,9 @@ func _a_held_step_reaches_its_knobs() -> void:
 	var stone: Masonry.Chunk = masonry._chunks[Vector3i(0, 0, Wall.Part.STONE)]
 	_check(is_equal_approx(ivy.instance.visibility_range_end, bottom.ivy_m + ks[Wall.Part.IVY].radius()) and is_equal_approx(stone.far.visibility_range_begin, bottom.stone_near_m + ks[Wall.Part.STONE].radius()), "a chunk already standing takes the step's reaches")
 	q.pin = 0
+	q._process(0.1)
+	q._process(0.1)
+	_check(not q._settled and flora.grass_reach < Quality.ladder[0].grass_m, "a step up grows its reaches out, unsettled until they arrive")
 	for i in 100:
 		q._process(0.1)
 	_check(ks[Wall.Part.STONE].near == Quality.ladder[0].stone_near_m and ks[Wall.Part.IVY].reach == Quality.ladder[0].ivy_m, "back at the top, they return")
