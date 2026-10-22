@@ -196,24 +196,25 @@ def spawn_scripts(capture=False):
             {"op": "sculpt", "x": 0, "z": 4, "lift": 12, "radius": 9, "seconds": 0.5},
             {"op": "digest", "name": "raised"},
             barrier(["joined"]),
-            {"op": "quit"},
         ],
         "join": [
             barrier(["raised"]), {"op": "join"},
             {"op": "digest", "name": "joined", "ground": True},
-            {"op": "quit"},
         ],
     }
 
     if capture:
-        result["host"][-1:-1] = [
+        result["host"] += [
             {"op": "until", "players": 2, "worn": 1},
             {"op": "wait", "seconds": 1},
             {"op": "view", "eye": [6, 15, 11], "at": [0, 12.5, 4]},
             {"op": "capture", "name": "joiner-on-mountain"},
             {"op": "digest", "name": "captured"},
         ]
-        result["join"][-1:-1] = [barrier(["captured"])]
+        result["join"] += [barrier(["captured"])]
+    # The joiner goes home before the host may quit, so the host leaving never sends it home unasked.
+    result["host"] += [barrier(["home"]), {"op": "quit"}]
+    result["join"] += [{"op": "visit", "home": True}, {"op": "digest", "name": "home"}, {"op": "quit"}]
     return result
 
 
