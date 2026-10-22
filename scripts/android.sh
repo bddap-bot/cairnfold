@@ -21,7 +21,10 @@ number=$(build_number "$root")
 
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
-export XDG_DATA_HOME=$stage/data XDG_CONFIG_HOME=$stage/config GRADLE_USER_HOME=$cache/gradle
+# A Gradle daemon outlives its export by its 3 h default idle timeout, holding a worker's RAM; a minute still serves
+# back-to-back exports, which a single-use JVM per export would double.
+export XDG_DATA_HOME=$stage/data XDG_CONFIG_HOME=$stage/config GRADLE_USER_HOME=$cache/gradle \
+  GRADLE_OPTS=-Dorg.gradle.daemon.idletimeout=60000
 tdir=$XDG_DATA_HOME/godot/export_templates/$godot_version.stable
 mkdir -p "$tdir"
 unzip -p "$templates" templates/android_source.zip > "$tdir/android_source.zip"
