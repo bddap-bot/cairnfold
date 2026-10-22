@@ -670,6 +670,30 @@ func floor_under(p: Vector3) -> float:
 	return best
 
 
+## The top of this wall's walk under `p`, at or just below it: its cap, or the step a ruin's end has come down to;
+## -INF off it. A house's or tower's walls stand under its roof or deck, and a fence has no walk.
+func walk_under(p: Vector3) -> float:
+	var best := -INF
+	var half := THICKNESS * 0.5
+	if fence or (closed and cover != Cover.OPEN) or samples.size() < 2 or not bounds.grow(half).has_point(Vector2(p.x, p.z)):
+		return best
+	var n := samples.size()
+	for i in n if closed else n - 1:
+		var j := (i + 1) % n
+		var a := Vector2(samples[i].x, samples[i].z)
+		var b := Vector2(samples[j].x, samples[j].z)
+		var t := clampf((Vector2(p.x, p.z) - a).dot(b - a) / maxf((b - a).length_squared(), 1e-9), 0.0, 1.0)
+		if a.lerp(b, t).distance_to(Vector2(p.x, p.z)) > half:
+			continue
+		var stands := standing(lerpf(lengths[i], lengths[j] if j > 0 else length(), t))
+		if stands <= 0.0:
+			continue
+		var top := lerpf(samples[i].y, samples[j].y, t) + stands + (CAP if stands >= height else 0.0)
+		if top <= p.y + SINK and top > best and not hides(Vector3(p.x, top - SINK, p.z)):
+			best = top
+	return best
+
+
 ## How far along a ray it meets the top of one of the floors, or INF.
 func floor_hit(origin: Vector3, dir: Vector3) -> float:
 	var best := INF

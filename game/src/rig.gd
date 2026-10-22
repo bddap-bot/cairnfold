@@ -28,6 +28,10 @@ const NEAREST := 0.1
 ## target from this long before the stick reached its deadzone.
 const RELEASE_LOOKBACK := 0.1
 const MAX_LIFT := 40.0
+## A ray stopped on something with nothing this near straight under where it stopped struck a side, a wall's face, and
+## lands STAND_OFF out from it on what stands under it there.
+const FOOTING := 0.15
+const STAND_OFF := 0.3
 ## A target this far over its floor floats.
 const LIFTED := 0.15
 const SNAP := deg_to_rad(30.0)
@@ -53,7 +57,7 @@ var body: Avatar
 var aim_hand: Hand
 var aim_ground: Variant = null
 var aim_lift := 0.0
-## What a point stands on: the ground, or a flat roof's deck or a stair's tread at or below it.
+## What a point stands on: the top surface at or just below it, the ground or anything built on it.
 var floor_under := func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z)
 ## Where a ray first meets something solid short of a reach, the ground aside: a build, a plant or stairs; or null.
 var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Variant: return null
@@ -219,10 +223,10 @@ static func reach_scale(y: float) -> float:
 
 
 ## Cast the teleport ray from a pointing pose. Its full target is the first solid thing it hits anywhere on the map,
-## the ground, a roof of any pitch, a wall's top or a tree, where the player then stands; or, aimed above the horizon
-## with nothing on the map to hit, the point in the air AIR_REACH along it while that is over the map. The mountains
-## round it are sky to the ray: one that hits nothing on the map has no target. The target lies `fraction` of the way
-## there along the ray, in the air above the floor short of a hit.
+## the ground, a roof of any pitch, a wall's top or a tree, where the player then stands, or a side, as of a wall, at
+## whose foot they stand; or, aimed above the horizon with nothing on the map to hit, the point in the air AIR_REACH
+## along it while that is over the map. The mountains round it are sky to the ray: one that hits nothing on the map has
+## no target. The target lies `fraction` of the way there along the ray, in the air above the floor short of a hit.
 func aim(from: Transform3D, fraction := 1.0) -> void:
 	var origin := from.origin
 	var dir := -from.basis.z.normalized()
@@ -238,9 +242,17 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 		hide_markers()
 		return
 	var target := origin.lerp(full, fraction)
-	var g: float = full.y if hit != null and fraction >= 1.0 else floor_under.call(target)
-	aim_ground = Vector3(target.x, g, target.z)
-	aim_lift = clampf(target.y - g, 0.0, MAX_LIFT)
+	var stand := target
+	var landing := hit != null and fraction >= 1.0
+	if landing:
+		stand = full
+		var out := Vector3(dir.x, 0.0, dir.z)
+		if out.length() > 1e-3 and _beneath(full - dir * 0.02) < full.y - FOOTING:
+			stand -= out.normalized() * STAND_OFF
+			stand.y = floor_under.call(stand)
+	var g: float = stand.y if landing else floor_under.call(target)
+	aim_ground = Vector3(stand.x, g, stand.z)
+	aim_lift = clampf(stand.y - g, 0.0, MAX_LIFT)
 	if aim_hand != null:
 		aim_hand.ray(target, Color(0.85, 0.97, 1.0, 0.75))
 	var g3: Vector3 = aim_ground
@@ -248,6 +260,13 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 	_ring.visible = true
 	var up := aim_lift if aim_lift > LIFTED else 0.03 * size
 	_ring.global_transform = Transform3D(Basis().scaled(Vector3.ONE * size), g3 + Vector3.UP * up)
+
+
+## The height of the first thing straight down from `p`: the ground, or anything solid on it.
+func _beneath(p: Vector3) -> float:
+	var ground := Terrain.height_at(p.x, p.z)
+	var solid: Variant = solid_hit.call(p, Vector3.DOWN, maxf(p.y - ground, 0.0))
+	return ground if solid == null else solid.y
 
 
 func hide_markers() -> void:

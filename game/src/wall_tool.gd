@@ -1738,11 +1738,15 @@ func pick_floor(origin: Vector3, dir: Vector3) -> Dictionary:
 	return best
 
 
-## What a point stands on: the ground under it, a house's or tower's floor, or a flat roof's deck at or below it.
+## What a point stands on: the ground under it, a house's or tower's floor, a flat roof's deck or a wall's walk at
+## or below it.
 func floor_under(p: Vector3) -> float:
 	var y := Terrain.height_at(p.x, p.z)
 	for w in walls:
-		if w.roof != null and not _held(w):
+		if _held(w):
+			continue
+		y = maxf(y, w.layout.walk_under(p))
+		if w.roof != null:
 			y = maxf(y, maxf(w.roof.deck_under(p), w.layout.floor_under(p)))
 	return y
 

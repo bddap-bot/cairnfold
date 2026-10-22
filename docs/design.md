@@ -2464,9 +2464,9 @@ whole day, through the night and past midnight. The clouds stay put: they are we
 | Action | Control |
 | --- | --- |
 | Pick a hand's tool | Hold that hand's upper face button (right B, left Y; on the Frame right B, left D-pad left), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
-| Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it first meets something solid: the ground, a roof of any pitch, a wall's top or a tree; aimed under a roof, as through a door or window, it lands on the floor inside; release to go |
+| Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it first meets something solid: the ground, a roof of any pitch, a wall walk, a flat roof or platform, stairs, a bridge or a tree; aimed under a roof, as through a door or window, it lands on the floor inside; one that strikes a side, as of a wall, lands at its foot (see "Standing on what you built"); release to go |
 | Teleport into the air | Aim above the horizon: with nothing on the map for the ray to hit, it targets the point in the air 30 m along it, marked by a ring there alone: the headset's depth places it, so nothing marks the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
-| Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the ground even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
+| Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the top surface beneath it, the ground or what is built there, even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
 | Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick flicked left or right: 30° snap turn |
 | Restyle | Trigger held on a hand holding the style tool, pointing at a gable end, a roof, a roofless wall's top, along a wall, at a tree, a boulder or painted stone: twist the wrist to turn a wheel of miniatures of that thing's styles, live on the build; let go to keep the one at the top (see "Styles") |
@@ -2779,6 +2779,7 @@ the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
 11. Wildlife and photo mode.
 12. Stairs, ladders and stepped paths. (Done.)
 13. Flat roofs and platforms, railings, eaves and tents, dormers. (Done.)
+14. Standing on what you built: wall walks, flat roofs, platforms, stairs and bridges. (Done.)
 
 ## Water
 
@@ -3950,6 +3951,29 @@ stress scene fills the build budget with stairs, ladders and landings, beside a
 stepped path up a hill, for its `stairs/*` views. On the Steam Frame, governed, both views
 hold 72 Hz with no late frame: 8.9 ms of GPU time a frame from the air and 8.0 standing
 (`perf/frame/stress`), the ladder settling two steps from the top.
+
+## Standing on what you built
+
+A player stands on what they build as on the ground: a wall's walk, a flat roof's deck, a platform stacked on it,
+a flight's treads, a bridge's deck and a house's floor. Two things decide it.
+
+- Where the teleport ray lands. A full stick lands where the ray stops on anything solid, the top of a wall,
+  deck, tread or bridge as of the ground. A ray that stops on a side instead, a wall's or a house's face, with
+  nothing to stand on straight under where it stopped (`Rig.FOOTING`), lands at its foot, `Rig.STAND_OFF` out
+  from the face, rather than standing the player in the air against it.
+- What a point stands on (`Rig.floor_under`): the highest top at or just below it, the ground, a house's floor,
+  a flat roof's deck, a stair's tread, a boulder or a wall's walk (`WallLayout.walk_under`: the cap along its
+  centre line, or the step a ruin's end has come down to, never a fence's rail or the walls under a roof or
+  deck). An eased target floats over that top, so the hover counts its height, and the ring settles onto it,
+  from the wall walk or deck beneath rather than the ground under them; a flat walker on the desktop walks along
+  a wall walk instead of dropping through it.
+
+`tests/test_teleport_solids.gd` lands the ray and hovers over each, and `tests/test_standing_demo.gd` plays the
+tour. `demo/standing.json` renders that tour: down onto a railed wall walk, a bridge between two walls, a
+hover over a flat roof then onto its deck, a platform stacked on it and a flight's tread, each seen from where the
+player then stands. The stress scene draws a crenellated wall through the roofs village, from house corner to
+house corner, raises its middle stretches to 4.5 m, and measures `standing/along` (down the street from the walk)
+and `standing/across` (over the roofs) from a standing player's eyes on it.
 
 ## Timbered plaster houses
 
