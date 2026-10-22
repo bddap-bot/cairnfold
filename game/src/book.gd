@@ -5,7 +5,8 @@ extends Node3D
 ## controls a player would not guess (Lessons). It comes shut, its ribbon glowing; the other hand touching the cover
 ## or the ribbon opens it, and a sweep of that hand across the pages turns one, leftward for the next page and
 ## rightward for the one before, as does a pass of it through a page from behind the book. No button is pressed, so no tool acts. Picking another tool tucks it away; the wheel's
-## book brings it back where it was left. Each page is a live LessonScene, and only the faces in view render.
+## book brings it back where it was left. Each page is a live LessonScene, all built with the book so none is built as
+## it first opens, and only the faces in view render.
 ##
 ## Its frame (`local`): the spine along z at x 0, the right page over +x, y out of the page, z toward the reader.
 
@@ -103,6 +104,11 @@ func _init(live_pages := true) -> void:
 	_ribbon.material_override = _ribbon_mat
 	_ribbon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_ribbon)
+	if live:
+		for page in Lessons.PAGES.size():
+			var scene := LessonScene.new(page)
+			add_child(scene)
+			scenes[page] = scene
 	_lay()
 
 
@@ -394,7 +400,7 @@ func _set_face(sheet: MeshInstance3D, front: bool, page: int) -> void:
 		sheet.set_meta(key + "_painted", false)
 		mat.set_shader_parameter(key + "_seed", float(page) * 1.7 + 0.3)
 		if page >= 0 and live:
-			mat.set_shader_parameter(key + "_picture", _scene(page).get_texture())
+			mat.set_shader_parameter(key + "_picture", scenes[page].get_texture())
 	var art := Vector2i(page if live else -1, 0 if front else 1)
 	if not sheet.get_meta(key + "_painted") and _paint.has(art):
 		sheet.set_meta(key + "_painted", true)
@@ -402,15 +408,8 @@ func _set_face(sheet: MeshInstance3D, front: bool, page: int) -> void:
 		mat.set_shader_parameter(key + "_grain", _paint[art][1])
 
 
-func _scene(page: int) -> LessonScene:
-	if not scenes.has(page):
-		var s := LessonScene.new(page)
-		add_child(s)
-		scenes[page] = s
-	return scenes[page]
-
-
-## Faces in view render every PAGE_HZ_DIVIDER-th frame, the rest not at all, their scenes paused.
+## Faces in view render every PAGE_HZ_DIVIDER-th frame, the rest not at all, their scenes paused. On the book's first
+## frame every page renders once, so no page compiles its pipelines when first opened.
 func _render_pages() -> void:
 	var shown: Array[int] = faces_in_view() if live else ([] as Array[int])
 	var due := _frame % PAGE_HZ_DIVIDER == 0
@@ -418,7 +417,7 @@ func _render_pages() -> void:
 		var s: LessonScene = scenes[page]
 		var on: bool = page in shown
 		s.process_mode = Node.PROCESS_MODE_INHERIT if on else Node.PROCESS_MODE_DISABLED
-		s.render_target_update_mode = SubViewport.UPDATE_ONCE if on and due else SubViewport.UPDATE_DISABLED
+		s.render_target_update_mode = SubViewport.UPDATE_ONCE if on and due or _frame == 1 else SubViewport.UPDATE_DISABLED
 	for sheet in _sheets:
 		var mat := sheet.material_override as ShaderMaterial
 		for key in ["front", "back"]:
