@@ -3,12 +3,15 @@ extends Node
 
 ## Frame-time record: every frame's delta summarised per second with the GPU time the process used in it, the
 ## most draw calls and primitives any frame drew, and the viewport's GPU time per frame and the lowest quality
-## step the governor took (see Quality), flushed to JSON as it goes.
+## step the governor took (see Quality), and the frames again by what the player was doing in each (ACTIVITIES),
+## flushed to JSON as it goes.
 
 var path: String
 var info := {}
 var play_log: PlayLog
 var context: Callable
+## The tags (ACTIVITIES) of what the player is doing this frame besides moving, which the head's own motion decides.
+var activity: Callable
 var _cpu: PackedFloat32Array = []
 var _gpu: PackedFloat32Array = []
 var _logging_us := 0
@@ -40,6 +43,16 @@ var _compiled := 0
 var xr: XRInterface
 var _eye_lo := PackedFloat32Array()
 var _eye_hi := PackedFloat32Array()
+## A frame's tags: each frame counts once in each of its tags, and in "still" when it has none of the first three.
+const ACTIVITIES := ["moving", "building", "wheel", "still", "coop"]
+## Faster than this the head is moving: what a player feels is the frame rate while it does.
+const MOVING_DEG_S := 30.0
+const MOVING_M_S := 0.3
+## Frame-time histogram bins per millisecond: fine enough for p99 against a 11 ms refresh, and merges exactly.
+const BINS_PER_MS := 2
+## This second's frames by tag, as `tally` keeps them.
+var _by_activity := {}
+var _head_was: Variant = null
 ## Seconds not yet written.
 var _seconds: Array = []
 var _file: FileAccess
@@ -69,6 +82,10 @@ func _process(_delta: float) -> void:
 		print("metrics: late frame %.1f ms, the frame before it %.1f ms in scripts and physics, %.1f ms on the GPU, %d pipelines compiled" % [elapsed * 1000.0, scripts * 1000.0, quality.frame_ms if quality != null else 0.0, compiled - _compiled])
 	_compiled = compiled
 	_was_late = late
+	var cpu_ms := _cpu[-1]
+	var gpu_ms := quality.frame_ms if quality != null and quality.fresh else -1.0
+	for tag in _tags(elapsed):
+		tally(_by_activity, tag, elapsed * 1000.0, late, cpu_ms, gpu_ms)
 	_draws = maxi(_draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 	if quality != null and quality.fresh:
@@ -108,6 +125,8 @@ func _process(_delta: float) -> void:
 			row.eye_fov_spread_deg = spread(_eye_lo, _eye_hi)
 			_eye_lo = PackedFloat32Array()
 			_eye_hi = PackedFloat32Array()
+		row.activity = _by_activity
+		_by_activity = {}
 		if world != null:
 			row.fill = snappedf(world.fill(), 0.001)
 		_draws = 0
@@ -144,6 +163,39 @@ func _process(_delta: float) -> void:
 		_since_flush += 1.0
 		if _since_flush >= 5.0:
 			flush()
+
+
+## This frame's tags: moving from the head's motion over `elapsed` seconds, the rest from `activity`.
+func _tags(elapsed: float) -> Array:
+	var tags: Array = activity.call() if activity.is_valid() else []
+	if head != null:
+		var now := head.global_transform
+		if _head_was != null and elapsed > 0.0:
+			var was: Transform3D = _head_was
+			var turned := rad_to_deg(was.basis.get_rotation_quaternion().angle_to(now.basis.get_rotation_quaternion()))
+			if turned / elapsed > MOVING_DEG_S or was.origin.distance_to(now.origin) / elapsed > MOVING_M_S:
+				tags.append("moving")
+		_head_was = now
+	if not ("moving" in tags or "building" in tags or "wheel" in tags):
+		tags.append("still")
+	return tags
+
+
+## Counts a frame of `ms` under `tag` in `into`: frames, late frames, the worst, a histogram of BINS_PER_MS bins a
+## millisecond keyed by bin, and the CPU and, where `gpu_ms` is not negative, GPU time summed.
+static func tally(into: Dictionary, tag: String, ms: float, late: bool, cpu_ms: float, gpu_ms: float) -> void:
+	if not into.has(tag):
+		into[tag] = {"frames": 0, "late": 0, "max": 0.0, "hist": {}, "cpu_ms": 0.0, "gpu_ms": 0.0, "gpu_frames": 0}
+	var t: Dictionary = into[tag]
+	t.frames += 1
+	t.late += int(late)
+	t.max = maxf(t.max, ms)
+	var bin := str(int(ms * BINS_PER_MS))
+	t.hist[bin] = t.hist.get(bin, 0) + 1
+	t.cpu_ms += cpu_ms
+	if gpu_ms >= 0.0:
+		t.gpu_ms += gpu_ms
+		t.gpu_frames += 1
 
 
 static func _compilations() -> int:

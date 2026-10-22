@@ -11,6 +11,13 @@ func _initialize() -> void:
 	check(not PlayLog.enabled({}), "default does not opt in")
 	check(PlayLog.open_enabled({}) == null, "default creates no recorder")
 	check(PlayLog.enabled({"record-sessions": true}), "explicit launch opts in")
+	FileAccess.open(Main.player_path(PlayLog.SWITCH), FileAccess.WRITE).close()
+	var switched := PlayLog.open_enabled({})
+	check(switched != null and switched.directory == Main.player_path("sessions"), "the switch file in the player folder opts in, recording beside it")
+	switched.finish()
+	for name in DirAccess.get_files_at(switched.directory):
+		DirAccess.remove_absolute(switched.directory.path_join(name))
+	check(PlayLog.open_enabled({"forget-sessions": true}) == null and not PlayLog.enabled({}), "forgetting removes the switch")
 	var folder := "user://test-play-%d" % OS.get_process_id()
 	check(not DirAccess.dir_exists_absolute(folder), "default constructs no logger and writes nothing")
 	var logger := PlayLog.new(folder)

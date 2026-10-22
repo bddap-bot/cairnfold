@@ -3616,11 +3616,15 @@ Grass techniques (public material from other games):
 
 ### Local play-session history
 
-Session logging is off by default. Explicit `--record-sessions` opts this device in persistently via
-`user://record-sessions`; `--forget-sessions` or removing that file opts out.
-An optional `--session-directory PATH` with the opt-in chooses another local
-folder for developer inspection (for example app-owned external data on Android). Enabled play records one-second frame summaries in `user://sessions/`, without
-sending them anywhere. Sixteen JSONL chunks of at most 1 MiB retain recent history;
+Session logging is off by default. A `record-sessions` file in the player folder (`Main.player_path`: user data,
+or on a Quest `/sdcard/Android/data/io.github.bddapbot.nestcombe/files/`, which adb reaches) opts that device in;
+explicit `--record-sessions` writes it, and `--forget-sessions` or removing the file opts out. A path in the file, or
+`--session-directory PATH` with the opt-in, chooses another local folder. Enabled play records the one-second rows
+`Metrics` writes (the same rows as a bench's `--metrics` record) in the player folder's `sessions/`, without
+sending them anywhere: a dev tool pulls them off a device of ours, and `scripts/sessions.py DIR` reads them. Each
+row's `activity` holds that second's frames by what the player was doing (`Metrics.ACTIVITIES`): frames, late
+frames, the worst, a half-millisecond frame-time histogram and summed CPU and GPU ms, so a session's in-motion p99
+merges exactly. Sixteen JSONL chunks of at most 1 MiB retain recent history;
 rotation can discard the beginning of a long session. Each chunk repeats the
 session start, build revision and device model; a chunk is renamed into place
 holding that start record, and every line is flushed as it is written. A quit the

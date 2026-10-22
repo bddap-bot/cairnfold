@@ -1,7 +1,9 @@
 class_name PlayLog
 extends RefCounted
 
-const DIRECTORY := "user://sessions"
+## Recording is on only where this file is in the player folder (Main.player_path): written by --record-sessions or
+## by a dev tool on a device of ours, never by the game unasked. It may name another folder to record into.
+const SWITCH := "record-sessions"
 const MAX_BYTES := 1048576
 const MAX_FILES := 16
 var directory: String
@@ -16,29 +18,29 @@ var _write_us := 0
 
 
 static func enabled(args: Dictionary) -> bool:
-	return args.has("record-sessions") or FileAccess.file_exists("user://record-sessions")
+	return args.has("record-sessions") or FileAccess.file_exists(Main.player_path(SWITCH))
 
 
 static func open_enabled(args: Dictionary) -> PlayLog:
 	if args.has("forget-sessions"):
-		DirAccess.remove_absolute("user://record-sessions")
+		DirAccess.remove_absolute(Main.player_path(SWITCH))
 		return null
 	if not enabled(args):
 		return null
-	var folder := DIRECTORY
-	if FileAccess.file_exists("user://record-sessions"):
-		var saved := FileAccess.get_file_as_string("user://record-sessions").strip_edges()
+	var folder := Main.player_path("sessions")
+	if FileAccess.file_exists(Main.player_path(SWITCH)):
+		var saved := FileAccess.get_file_as_string(Main.player_path(SWITCH)).strip_edges()
 		if not saved.is_empty():
 			folder = saved
 	if args.has("record-sessions"):
 		folder = str(args.get("session-directory", folder))
-		var consent := FileAccess.open("user://record-sessions", FileAccess.WRITE)
+		var consent := FileAccess.open(Main.player_path(SWITCH), FileAccess.WRITE)
 		if consent != null:
 			consent.store_string(folder)
 	return PlayLog.new(folder)
 
 
-func _init(folder := DIRECTORY) -> void:
+func _init(folder: String) -> void:
 	directory = folder
 	DirAccess.make_dir_recursive_absolute(directory)
 	var started := Time.get_unix_time_from_system()

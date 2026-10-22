@@ -9,6 +9,8 @@ func _initialize() -> void:
 	_every_flush_leaves_whole_json_with_every_second()
 	_stalls_are_not_capped_by_engine_delta()
 	_eye_frusta_swing_is_the_widest_edge_change()
+	_frames_tally_by_activity()
+	await _head_motion_is_moving()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -64,3 +66,37 @@ func _eye_frusta_swing_is_the_widest_edge_change() -> void:
 		hi[i] = maxf(hi[i], b[i])
 	_check(absf(Metrics.spread(lo, hi) - (rad_to_deg(atan(1.2)) - 45.0)) < 0.001, "the swing is the widest edge's change")
 	_check(Metrics.spread(a, a) == 0.0, "frusta that hold still swing 0")
+
+
+func _frames_tally_by_activity() -> void:
+	var by := {}
+	Metrics.tally(by, "moving", 13.9, false, 2.0, 9.0)
+	Metrics.tally(by, "moving", 30.2, true, 4.0, -1.0)
+	Metrics.tally(by, "still", 13.9, false, 1.0, 8.0)
+	var m: Dictionary = by.moving
+	_check(m.frames == 2 and m.late == 1 and is_equal_approx(m.max, 30.2), "a tag counts its frames, late ones and the worst: %s" % [m])
+	_check(m.hist == {"27": 1, "60": 1}, "frame times fall in half-millisecond bins: %s" % [m.hist])
+	_check(is_equal_approx(m.cpu_ms, 6.0) and is_equal_approx(m.gpu_ms, 9.0) and m.gpu_frames == 1, "GPU time sums only over frames that have one")
+	_check(by.still.frames == 1, "tags count apart")
+	var row: Variant = JSON.parse_string(JSON.stringify(by))
+	_check(row.moving.hist["27"] == 1, "the histogram survives JSON")
+
+
+func _head_motion_is_moving() -> void:
+	var m := Metrics.new("")
+	var head := Node3D.new()
+	root.add_child(head)
+	await process_frame
+	m.head = head
+	_check(m._tags(1.0 / 72.0) == ["still"], "the first frame has no motion to measure")
+	_check(m._tags(1.0 / 72.0) == ["still"], "a head holding still is still")
+	head.rotate_y(deg_to_rad(1.0))
+	_check(m._tags(1.0 / 72.0) == ["moving"], "a head turning 72 degrees a second is moving")
+	head.position.x += 0.001
+	_check(m._tags(1.0 / 72.0) == ["still"], "a head drifting 7 cm a second is still")
+	m.activity = func() -> Array: return ["building", "coop"]
+	_check(m._tags(1.0 / 72.0) == ["building", "coop"], "building is not still, and co-op counts beside it")
+	m.activity = func() -> Array: return ["coop"]
+	_check(m._tags(1.0 / 72.0) == ["coop", "still"], "co-op alone is still too")
+	head.free()
+	m.free()

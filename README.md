@@ -97,8 +97,9 @@ dirt paths, stone, flowers, grass, trees, boulders, pond, colour, style, camera,
   `adb push avatar.vrm /sdcard/Android/data/io.github.bddapbot.nestcombe/files/avatars/`.
 
 Session telemetry is off by default and never sent by the game. Launch with
-`--record-sessions` to opt this device into bounded local frame and head-pose
-history under its user-data `sessions/` directory; `--forget-sessions` opts out.
+`--record-sessions`, or put a `record-sessions` file in the player folder, to opt this
+device into bounded local frame and head-pose history in that folder's `sessions/`;
+`--forget-sessions` opts out. `scripts/sessions.py DIR` summarises a pulled folder.
 See [local play-session history](docs/design.md#local-play-session-history).
 
 ## Quest

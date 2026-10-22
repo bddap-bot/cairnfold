@@ -173,6 +173,18 @@ func _ready() -> void:
 		return {"garden_counts": counts, "masonry_instances": Array(tool.masonry.counts()),
 			"tools": [Hand.Tool.keys()[rig.hands[0].tool], Hand.Tool.keys()[rig.hands[1].tool]],
 			"visiting": not session.visiting.is_empty(), "players": session.players()}
+	var editors: Array = [tool, stair_tool, flora_tool, delete_tool, easel_tool, ground_grab, palette_tool]
+	metrics.activity = func() -> Array:
+		var tags := []
+		if rig.aim_hand != null:
+			tags.append("moving")
+		if editors.any(func(e) -> bool: return e.busy()):
+			tags.append("building")
+		if rig.hands.any(func(h: Hand) -> bool: return h.picking):
+			tags.append("wheel")
+		if session.players() > 1:
+			tags.append("coop")
+		return tags
 	add_child(metrics)
 	var garden: String = args.get("garden", player_path("garden.save") if played and not args.has("photo") else "")
 	if garden != "":
