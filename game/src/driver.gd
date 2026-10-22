@@ -21,6 +21,8 @@ var _hidden := {}
 ## The share of their area the builds a `sized` step lays take: walls farther apart, a village over a smaller disc,
 ## paths shorter.
 var _area := 1.0
+## Players `figures` stood, posed again every frame as streamed poses pose another player.
+var _stood: Array[Avatar] = []
 
 
 func _init(owner: Node, script: Array) -> void:
@@ -1128,6 +1130,32 @@ func _flat(s: Dictionary) -> void:
 	await get_tree().create_timer(s.get("seconds", 0.1)).timeout
 	Input.action_release(action)
 	await _frames(2)
+
+
+## Stands a player at each of `spots` [[x, z], ...], looking at the middle of the garden, in the VRM at `file`, a path
+## under the player's files where it is relative (a built-in avatar without one), each posed again every frame with its hands swaying, as another player's streamed
+## poses pose them; [] takes them away. Prices another player's avatar on one headset, with no network in the way.
+func _figures(s: Dictionary) -> void:
+	for a in _stood:
+		a.queue_free()
+	_stood.clear()
+	var path: String = s.get("file", "")
+	var scene := Avatar.read(FileAccess.get_file_as_bytes(path if path.is_absolute_path() else Main.player_path(path))) if path else Avatar.built_in(0)
+	assert(scene != null, "driver: %s is not an avatar within the limits" % s.get("file"))
+	for at: Array in s.spots:
+		var a := Avatar.open(scene, Color.WHITE, path)
+		var foot := Terrain.ground(at[0], at[1])
+		a.transform = Transform3D(Basis.looking_at(Vector3(-foot.x, 0, -foot.z)), foot)
+		main.add_child(a)
+		_stood.append(a)
+
+
+func _process(_delta: float) -> void:
+	var t := Time.get_ticks_msec() / 1000.0
+	for i in _stood.size():
+		var sway := 0.1 * sin(t * 2.0 + i)
+		var eyes := Transform3D(Basis.IDENTITY, Vector3(0, Rig.EYE, 0))
+		_stood[i].pose(eyes, eyes * Avatar.AT_SIDES[0].translated(Vector3(0, sway, -0.3)), eyes * Avatar.AT_SIDES[1].translated(Vector3(0, -sway, -0.3)))
 
 
 ## Turns the view to `at`, or to the figure of the host's garden with "figure", or to the eyes of the first other

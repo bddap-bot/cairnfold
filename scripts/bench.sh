@@ -25,7 +25,8 @@
 # NESTCOMBE_ARGS="--quality 8" passes more game arguments on a Quest, each word its own.
 # NESTCOMBE_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
 # streaming their heads and hands. NESTCOMBE_WAVE=1 makes them flat-screen players repeatedly waving. NESTCOMBE_GUEST_AVATAR=FILE.vrm has each of them wear that VRM in place of a
-# built-in avatar, to measure what a player's own avatar costs the others.
+# built-in avatar, to measure what a player's own avatar costs the others; on a Quest it is also pushed as bench/guest.vrm,
+# which a scene's "figures" step stands in view with no other player or network (demo/avatar-cost.json).
 set -euo pipefail
 here=$(cd "$(dirname "$0")" && pwd)
 out=$(realpath -m "$1")
@@ -133,6 +134,7 @@ if [ "${2:-}" = --android ]; then
   same "$build" --short HEAD
   adb shell "rm -rf $dir"
   adb push "$out/stress.json" "$files/bench.json" > /dev/null
+  [ -z "${NESTCOMBE_GUEST_AVATAR:-}" ] || adb push "$NESTCOMBE_GUEST_AVATAR" "$dir/guest.vrm" > /dev/null
   # Off the head the headset loses tracking, and its Guardian then puts up a dialog the shell keeps drawing beside
   # the game, at the cost of the game's GPU time, so the Guardian is held paused. The clocks are held at level 4,
   # the highest the headset sustains warm, so runs compare: left free it moves the GPU between 525 and 587 MHz as
