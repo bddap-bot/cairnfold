@@ -31,6 +31,9 @@ const NO_HAND := Vector3(0, -1000, 0)
 const BRUSHES := ["grass", "flowers", "moss"]
 const PLACED := ["tree", "bush"]
 const SOLID_CELL := 8.0
+## The meadow's own trunks, crowns and bushes each bake into one MultiMesh, not one a square: the Quest 2 pays 7 to
+## 19 µs a draw whatever it holds, more than their few thousand triangles cost off screen (docs/design.md, "Crowns").
+const SOLID_POOL_CELL := INF
 ## How long a frame spends growing committed strokes: a stroke of thousands of plants grows over a few frames
 ## rather than in the one its command applied in.
 const GROW_USEC := 1500
@@ -532,14 +535,14 @@ func _init() -> void:
 	trunk.height = 1.0
 	trunk.radial_segments = 8
 	trunk.rings = 1
-	trunks = Pool.new(self, trunk, Meadow.TREES + PLACED_TREES, _plant_material("plant", Color.WHITE, 1.0), true)
+	trunks = Pool.new(self, trunk, Meadow.TREES + PLACED_TREES, _plant_material("plant", Color.WHITE, 1.0), true, SOLID_POOL_CELL)
 	var leaf_mat := _plant_material("leaf", Color.WHITE, 1.0)
 	leaf_mat.set_shader_parameter("backlight", Color(0.25, 0.35, 0.08))
 	leaf_mat.set_shader_parameter("crown_lump", Meshes.BLOB_LUMP)
 	for step in Quality.ladder:
 		_blobs.get_or_add(step.blob_detail, Meshes.blob(4, step.blob_detail))
-	foliage = Pool.new(self, _blobs[blob_detail], (Meadow.TREES + PLACED_TREES) * FloraLayout.BLOBS, leaf_mat, false)
-	bushes = Pool.new(self, _blobs[blob_detail], Meadow.BUSHES + PLACED_BUSHES, leaf_mat, false)
+	foliage = Pool.new(self, _blobs[blob_detail], (Meadow.TREES + PLACED_TREES) * FloraLayout.BLOBS, leaf_mat, false, SOLID_POOL_CELL)
+	bushes = Pool.new(self, _blobs[blob_detail], Meadow.BUSHES + PLACED_BUSHES, leaf_mat, false, SOLID_POOL_CELL)
 	crown_shade.transform_format = MultiMesh.TRANSFORM_3D
 	crown_shade.use_colors = true
 	crown_shade.use_custom_data = true
