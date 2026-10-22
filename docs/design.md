@@ -1073,6 +1073,18 @@ the 20 m disc 202 to 204 against 16 m chunks' 202 to 203 and 8 m chunks' 262 to 
 Among the 20 m disc's walls, the densest measured, standing costs 3 to 4 ms less than with
 16 m chunks, as much as with 8 m chunks, and from the air no more than with 16 m chunks.
 
+The same build and run on the Quest 2, whose bare meadow ran 22 to 29 ms, at half rate, so only
+the differences count ([record](../perf/quest-2/chunks/20261022T112953Z-359736d.json)):
+
+| Walls 2 m apart, 4.5 m tall | Standing, 16 m | Standing, 8 m | Standing, decided | From the air, 16 m | From the air, 8 m | From the air, decided |
+| --- | --- | --- | --- | --- | --- | --- |
+| 15 m disc | 17.3, 16.0 | 13.1, 11.1 | 13.9, 12.6 | 11.5, 11.4 | 11.4, 11.6 | 11.6, 11.6 |
+| 20 m disc | 22.7, 20.4 | 17.1, 13.6 | 16.8, 14.8 | 20.4, 20.0 | 20.8, 20.4 | 20.4, 20.1 |
+
+There too the decided chunks stand among the 20 m disc's walls about 6 ms cheaper than 16 m
+chunks, within the runs' spread of 8 m chunks, and cost the same from the air as 16 m chunks
+(draw calls 179 to 181 against 178 to 179, and 8 m chunks' 239 to 240).
+
 Standing, a wall's cost no longer grows with the garden past the chunks around the eye, so
 a linear price per m² undercharges the first walls and overcharges a wide garden. Over the
 15 m disc standing, each kind of piece hidden in turn (paired runs, 8 m chunks): ivy 5.3 to
