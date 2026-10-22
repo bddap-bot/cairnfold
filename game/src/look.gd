@@ -169,7 +169,6 @@ func _disc(size: Dictionary, moon: float) -> MeshInstance3D:
 	return disc_mi
 
 
-## Sets the time of day, wrapping round midnight.
 ## Stands the lake round the meadow, or the plain.
 func show_lake(on: bool) -> void:
 	for m in _lake:
@@ -177,6 +176,7 @@ func show_lake(on: bool) -> void:
 	_plain.visible = not on
 
 
+## Sets the time of day, wrapping round midnight.
 func set_time(t: float) -> void:
 	t = fposmod(t, 1.0)
 	if t == time:

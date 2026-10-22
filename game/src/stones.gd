@@ -17,7 +17,7 @@ static func shared_material() -> ShaderMaterial:
 		_material = ShaderMaterial.new()
 		_material.shader = preload("res://src/stone.gdshader")
 		_material.set_shader_parameter("detail", Look.detail_noise())
-		_material.set_shader_parameter("window_glow", Lamps.window_glow())
+		_material.set_shader_parameter("window_glow", Lamps.WINDOW_GLOW)
 		StoneStyles.apply(_material)
 	return _material
 

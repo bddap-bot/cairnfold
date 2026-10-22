@@ -258,12 +258,16 @@ func _every_other_refresh_steps_down_whatever_the_timer_reads() -> void:
 ## The play log alone records the device's name.
 func _nothing_branches_on_the_headset_or_the_build() -> void:
 	var model := RegEx.create_from_string("get_model_name|OS\\.get_name\\(\\)|\"(Quest|Steam Frame|Lepton|Pico)[^\"]*\"")
+	# Android keeps photos in its own folder: a storage fact, not a choice of what to draw.
+	var feature := RegEx.create_from_string("OS\\.has_feature\\((?!\"android\"\\))[^)]*\\)")
 	for f in DirAccess.get_files_at("res://src"):
 		if not f.ends_with(".gd") or f == "play_log.gd":
 			continue
 		var text := FileAccess.get_file_as_string("res://src".path_join(f))
 		for m in model.search_all(text):
 			_check(false, "%s reads the headset or the platform: %s" % [f, m.get_string()])
+		for m in feature.search_all(text):
+			_check(false, "%s branches on the build: %s" % [f, m.get_string()])
 	for line in FileAccess.get_file_as_string("res://export_presets.cfg").split("\n"):
 		if line.begins_with("custom_features="):
 			_check(line == "custom_features=\"\"", "an export preset carries a feature the game could branch on: %s" % line)

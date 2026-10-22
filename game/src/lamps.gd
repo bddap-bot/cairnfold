@@ -36,10 +36,6 @@ var _out := {}
 var _flicker := false
 
 
-static func window_glow() -> float:
-	return WINDOW_GLOW * (0.5 if OS.has_feature("subtle_windows") else 1.0)
-
-
 func _init() -> void:
 	for k in Bounce.LAYERS:
 		_layers.append(Image.create(Bounce.CELLS, Bounce.CELLS, false, Image.FORMAT_R8))
@@ -81,7 +77,7 @@ class Room:
 		if layout.cover != WallLayout.Cover.OPEN:
 			r.top = massing.feet[0] + massing.rise
 		for o in layout.apertures:
-			r._open(layout, o.s, (o.sill + o.head) * 0.5, DOOR if o.door else Lamps.window_glow())
+			r._open(layout, o.s, (o.sill + o.head) * 0.5, DOOR if o.door else WINDOW_GLOW)
 		return r
 
 	func _open(layout: WallLayout, s: float, y: float, gives: float) -> void:

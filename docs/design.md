@@ -1836,9 +1836,7 @@ A lit window's pane and outward spill share `Lamps.WINDOW_GLOW`. The pane is opa
 into the room: it emits the light sampled behind it, so a lit house remains recognizable beside an outdoor
 lantern's flame. The multiplier changes neither the room's light nor a doorway's spill, and adds no light,
 mesh or texture read. `demo/window-glow.json` compares the unlit and lit room, nearby outdoor lanterns,
-and the house from across the meadow. For a subtler build, add `subtle_windows` to the export preset's
-`custom_features`: it halves that same strength for both the pane and the spill. The default is the stronger
-variant. Neither variant brightens a house without an interior lantern.
+and the house from across the meadow. It brightens no house without an interior lantern.
 The paired Quest 2 run in `perf/window-glow/quest-2.json` measures a median GPU difference of +0.09 ms
 across nine views (11–13 runtime samples per phase per build), ranging from -0.78 to +1.02 ms.
 Both builds exceed the frame budget in this scene; these paired differences include unisolated variation,
