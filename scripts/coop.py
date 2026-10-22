@@ -345,7 +345,7 @@ def run(out, count, spawn=False, capture=False, held=False):
                 # A crashing player writes its backtrace and core before it aborts; ending it first would lose both.
                 proc.wait()
                 fail(name, "crashed")
-            if any(s in text for s in ("SCRIPT ERROR", "timed out", "cannot apply", "tree_exited")):
+            if any(s in text for s in ("SCRIPT ERROR", "must be normalized", "timed out", "cannot apply", "tree_exited")):
                 fail(name, "failed")
             if "session: home from" in HOME_CUE.split(text, 1)[0]:
                 fail(name, "lost the garden it visited")
