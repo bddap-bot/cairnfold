@@ -229,6 +229,61 @@ by cause.
 `scripts/bench.sh` with `NESTCOMBE_SCENE=demo/headset.json` runs this check on the Frame; its
 `late` column counts every frame of a phase.
 
+### Foveation on the Frame
+
+On 2026-10-22, build `6df1dc9c`, the Frame's SteamVR OpenXR runtime advertised
+`XR_EXT_eye_gaze_interaction` (version 1), `XR_FB_foveation` (1),
+`XR_FB_foveation_configuration` (1), `XR_FB_foveation_vulkan` (1),
+`XR_META_foveation_eye_tracked` (1) and `XR_META_vulkan_swapchain_create_info` (1).
+These came from `xrEnumerateInstanceExtensionProperties` on the headset's
+`/opt/steamvr/bin/linuxarm64/libopenxr_loader.so`, with the same list when Valve's
+injection layer was disabled. This supersedes the assumption that this runtime
+has no FB foveation. The full lists and loader logs are job 9323's artifacts.
+
+The implicit layer manifest
+`/usr/share/openxr/1/api_layers/implicit.d/XrApiLayer_VALVE_fdm_injection.json`
+names `DISABLE_VULKAN_FDM_INJECTION_LAYER`; setting it to `1` for the game process
+makes the loader log that the layer is disabled. Unset, the log confirms loading
+`XR_APILAYER_VALVE_fdm_injection`. No global runtime setting was changed for that A/B.
+
+Four fresh processes ran layer on/off/off/on through `frame-unworn`, at the fixed
+calibration scale 0.70, with MSAA **4x** in every measured phase. Each repeated the
+air and standing views from `demo/antialias.json`, four alternating AB/BA pairs per
+view, in the seed-25 meadow. The existing driver's `foveation: 0` selects VRS disabled
+and FB level 0; `foveation: 3` selects `VRS_XR` and FB level 3. Thus this compares
+those complete states, not VRS alone at a constant FB level. Each entry is the median
+of 20 one-second viewport GPU samples (five per phase after discarding its first second):
+
+| Layer / run order | Air, VRS off | Air, XR VRS / level 3 | Standing, VRS off | Standing, XR VRS / level 3 |
+| --- | ---: | ---: | ---: | ---: |
+| on0 | 3.303 ms | 3.835 ms | 3.232 ms | 3.623 ms |
+| off1 | 3.427 ms | 3.881 ms | 3.245 ms | 3.617 ms |
+| off2 | 3.407 ms | 3.873 ms | 3.206 ms | 3.620 ms |
+| on3 | 3.412 ms | 3.882 ms | 3.202 ms | 3.624 ms |
+
+The [record](../perf/frame/foveation/20261022T211737Z-6df1dc9.json) preserves the
+samples. XR VRS / level 3 added 0.454–0.532 ms in the air and 0.372–0.422 ms standing
+within these runs. Layer on/off ranges overlap; this experiment establishes no
+repeatable saving from disabling the layer. These are whole viewport costs, not
+an attribution of the remaining GPU work. Stock clocks, the small meadow and
+0.70 scale limit generalization to other loads and full-resolution play.
+
+Godot 4.6's `OpenXRInterface::get_vrs_texture` first returns a valid runtime density
+map; only without one does it generate its own texture from eye focus.
+`OpenXRFBFoveationExtension::_update_profile_rt` chains the eye-tracked profile when
+the runtime reports the required support. An advertised extension or an unworn run
+alone does not prove that the gaze follows correctly in the image. The measurements
+therefore do not establish two independent, stacked gaze maps.
+
+No rendering default changes on this evidence. Fixed foveation remains load-driven
+in the shared quality controller; any eye-tracked path must use capabilities, remain
+outside that ladder, and avoid headset-model or build checks. The worn same-view,
+gaze-following pair is carried by job 9454, parked on `hand:frame-foveation-pair`;
+MSAA stays 4x. The current compositor screenshot restriction to unworn captures
+must be respected when arranging its worn evidence method. No screenshot ran during
+these timings. All four processes exited 0 and `frame-unworn` restored
+`steamvr.vrsettings` before the TV lease was released.
+
 ### Quest 2 measurements
 
 The Quest 2 (XR2 Gen 1, Adreno 650) is the weakest headset and sets the one
