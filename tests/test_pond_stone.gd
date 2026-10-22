@@ -38,8 +38,9 @@ func _play(steps: Array) -> void:
 	d.queue_free()
 
 
-## Lets a refill and the walls' rebuilds on worker threads finish.
+## Lets the fills, refills and walls' rebuilds on worker threads finish, and the commands waiting on them apply.
 func _settle() -> void:
+	main.water_tool.settle()
 	await process_frame
 	for w in main.tool.walls:
 		while w.laying():

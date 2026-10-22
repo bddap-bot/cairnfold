@@ -75,6 +75,7 @@ func _play(steps: Array) -> void:
 
 
 func _settled() -> void:
+	main.water_tool.settle()
 	for i in 3:
 		await process_frame
 	main.flora_tool.flora.grow_now()
