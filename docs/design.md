@@ -3658,6 +3658,23 @@ Measured on a Quest 2 in the stress run, GPU time a frame: the scene with no cam
 and a camera in each hand 33.2 (`camera/two`): each held camera's view adds about 2.7 ms averaged over
 the frames, the selfie camera no more than the camera.
 
+The stress scene on 7e3167d on each headset, the bench's GPU time a frame (the median of each phase's seconds after
+its first: the Quest 2 runtime's `App=`, the Frame's fdinfo, unworn) and its most draw calls in any second, the
+seconds with a photo's render included; the budget is `Budget.gpu_ms()`, 12.5 ms:
+
+| Phase | Quest 2: GPU ms, draws | Steam Frame: GPU ms, draws |
+| --- | --- | --- |
+| `hands/walls` (no camera) | 26.9, 229 | 18.3, 247 |
+| `camera/ground` | 28.8, 421 | 19.4, 442 |
+| `camera/shutter` | 29.2, 572 | 18.7, 592 |
+| `camera/selfie` | 29.1, 564 | 19.2, 580 |
+| `camera/two` | 31.0, 427 | 20.4, 445 |
+
+Each photo the selfie camera took there shows the holder's avatar. It still draws a few calls fewer than the camera
+(the Frame's preview seconds: 428 against 438), since its lens looks back into the walls the player stands among and
+culls more of the garden than the avatar adds. Every camera phase is over the budget by what the scene under it
+already costs (`hands/walls`), which no camera change can recover.
+
 Directive (verbatim):
 > I'd like to be able to take a super graphics quality photo that just turns everything all the way up, no level of detail or anything; it can take a long time to render that frame. ... I would like to take very fancy photos. Also give a way to embed metadata about where and how the photo was taken, that'd be cool. I don't know if you can embed a whole world in it, but if the world is small enough, then maybe you could.
 
