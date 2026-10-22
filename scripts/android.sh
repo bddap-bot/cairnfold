@@ -13,6 +13,7 @@ case $target in quest) preset=Quest ;; lepton) preset=Lepton ;; *) echo "android
 out=$(realpath -m "$2")
 steam=${3:-}
 case $target:$steam in quest:|lepton:|lepton:steam) ;; *) echo "android: steam is a lepton variant only" >&2; exit 1 ;; esac
+# shellcheck source=scripts/pins.sh
 . "$root/scripts/pins.sh"
 case $(godot4 --version) in "$godot_version".stable*) ;; *) echo "android: godot4 is not $godot_version" >&2; exit 1 ;; esac
 templates=$(fetch "${godot_templates[@]}")
@@ -22,9 +23,12 @@ number=$(build_number "$root")
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 # A Gradle daemon outlives its export by its 3 h default idle timeout, holding a worker's RAM; a minute still serves
-# back-to-back exports, which a single-use JVM per export would double.
+# back-to-back exports, which a single-use JVM per export would double. The daemon lives in the cgroup of the export
+# that spawned it and dies with it, so only exports in that cgroup may reuse it: a daemon a finished job left was
+# killed mid-export under the packaging service.
+daemons=$cache/gradle/daemons/$(cksum < /proc/self/cgroup | cut -d' ' -f1)
 export XDG_DATA_HOME=$stage/data XDG_CONFIG_HOME=$stage/config GRADLE_USER_HOME=$cache/gradle \
-  GRADLE_OPTS=-Dorg.gradle.daemon.idletimeout=60000
+  GRADLE_OPTS="-Dorg.gradle.daemon.idletimeout=60000 -Dorg.gradle.daemon.registry.base=$daemons"
 tdir=$XDG_DATA_HOME/godot/export_templates/$godot_version.stable
 mkdir -p "$tdir"
 unzip -p "$templates" templates/android_source.zip > "$tdir/android_source.zip"
