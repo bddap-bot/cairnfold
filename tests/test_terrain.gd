@@ -140,13 +140,19 @@ func _texture_matches_the_heights() -> void:
 	tool.pull(tool.rig.right, 2.0)
 	tool.end_stroke(tool.rig.right)
 	var worst := 0.0
-	var cells := Terrain.cells_around(20, -20, 3.0)
+	var tilt := 0.0
+	var cells := Terrain.cells_around(20, -20, 3.0).grow(1)
+	var e := Terrain.STEP
 	for j in range(cells.position.y, cells.end.y):
 		for i in range(cells.position.x, cells.end.x):
-			var h := Terrain.height_at(-Terrain.SIZE * 0.5 + i * Terrain.STEP, -Terrain.SIZE * 0.5 + j * Terrain.STEP)
+			var x := -Terrain.SIZE * 0.5 + i * e
+			var z := -Terrain.SIZE * 0.5 + j * e
 			var t := Terrain._image.get_pixel(i, j)
-			worst = maxf(worst, absf(t.r + t.b - h))
+			worst = maxf(worst, absf(t.r + t.b - Terrain.height_at(x, z)))
+			var n := Vector3(Terrain.height_at(x - e, z) - Terrain.height_at(x + e, z), 2.0 * e, Terrain.height_at(x, z - e) - Terrain.height_at(x, z + e)).normalized()
+			tilt = maxf(tilt, Vector2(t.g - n.x, t.a - n.z).length())
 	_check(worst < 0.02, "the GPU's heights match the CPU's after an edit, worst %f" % worst)
+	_check(tilt < 0.002, "the GPU's normals match the CPU's heights after an edit, around it too, worst %f" % tilt)
 	main.world.undo()
 
 

@@ -40,9 +40,12 @@ void vertex() {
 	VERTEX.y = ground_at(world_pos.xz);
 	world_pos.y = VERTEX.y;
 	world_xz = world_pos.xz;
-	NORMAL = ground_normal(world_pos.xz);
-	// Per vertex: the height grid's texels are these vertices, and the Quest 2 is bound by ground fragments.
-	steep = ground_humps[0].w != 0.0 || ground_humps[1].w != 0.0 ? 1.0 - NORMAL.y : ground_steepness(world_pos.xz);
+	if (ground_humps[0].w != 0.0 || ground_humps[1].w != 0.0) {
+		NORMAL = ground_normal(world_pos.xz);
+	} else {
+		NORMAL = ground_point_normal(world_pos.xz);
+	}
+	steep = 1.0 - NORMAL.y;
 	vec3 bounce_at = bounce_on_ground(world_pos.xz);
 	vec4 bounce = textureLod(bounce_volume, bounce_at, 0.0);
 	given = given_back(bounce_at, bounce_at, bounce);

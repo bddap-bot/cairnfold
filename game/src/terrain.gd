@@ -383,7 +383,7 @@ static func write(cells: Rect2i, values: PackedFloat32Array) -> void:
 
 
 ## Shares the heights with shaders (ground.gdshaderinc) as a texture, one texel per grid point: red the height
-## to half precision, blue what that rounding left, green the steepness. Half floats because only 16-bit float
+## to half precision, blue what that rounding left, green and alpha the normal's x and z there. Half floats because only 16-bit float
 ## textures are filterable on every Vulkan device; filtering is linear, so red plus blue filters to the height
 ## itself, true to a fraction of a millimetre on ground a kilometre high.
 static func install() -> void:
@@ -432,25 +432,26 @@ static func _fit() -> void:
 		target.custom_aabb = box
 
 
-## 1 - the ground normal's y at grid point (i, j), as ground_normal in ground.gdshaderinc finds it there.
-static func _steepness(i: int, j: int) -> float:
+## The ground's normal at grid point (i, j), as ground_normal in ground.gdshaderinc finds it there.
+static func _normal(i: int, j: int) -> Vector3:
 	var row := j * VERTS
 	var dx := _heights[row + mini(i + 1, CELLS)] - _heights[row + maxi(i - 1, 0)]
 	var dz := _heights[mini(j + 1, CELLS) * VERTS + i] - _heights[maxi(j - 1, 0) * VERTS + i]
-	return 1.0 - 2.0 * STEP / sqrt(dx * dx + dz * dz + 4.0 * STEP * STEP)
+	return Vector3(-dx, 2.0 * STEP, -dz).normalized()
 
 
 static func _sync(cells: Rect2i) -> void:
 	if _image == null:
 		return
-	# Green is each point's steepness, from its neighbours' heights, so it changes a step around the edit too.
+	# The normal is each point's from its neighbours' heights, so it changes a step around the edit too.
 	var around := cells.grow(1).intersection(ALL)
 	for j in range(around.position.y, around.end.y):
 		for i in range(around.position.x, around.end.x):
 			var h := _heights[j * VERTS + i]
 			_half.encode_half(0, h)
 			var hi := _half.decode_half(0)
-			_image.set_pixel(i, j, Color(hi, _steepness(i, j), h - hi))
+			var n := _normal(i, j)
+			_image.set_pixel(i, j, Color(hi, n.x, h - hi, n.z))
 	_texture.update(_image)
 	if _water_image == null:
 		return

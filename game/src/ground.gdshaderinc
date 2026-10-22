@@ -75,9 +75,8 @@ vec3 ground_normal(vec2 xz) {
 	return normalize(vec3(-dx, 2.0 * e, -dz));
 }
 
-// 1 - the ground normal's y, bilinear between grid points: a fragment's own, not its triangle's. Live humps are
-// not in the texture.
-float ground_steepness(vec2 xz) {
-	vec2 g = (xz - ground_grid.x) / ground_grid.y;
-	return textureLod(ground_height, (g + 0.5) / ground_grid.z, 0.0).g;
+// ground_normal at a grid point, one read where it takes five: Terrain stores it there. Live humps are not in it.
+vec3 ground_point_normal(vec2 xz) {
+	vec2 n = textureLod(ground_height, ((xz - ground_grid.x) / ground_grid.y + 0.5) / ground_grid.z, 0.0).ga;
+	return vec3(n.x, sqrt(max(1.0 - dot(n, n), 0.0)), n.y);
 }
