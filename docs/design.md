@@ -798,33 +798,32 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
 - What a garden holds counts in units (`Budget.UNITS`): square metres of stone wall,
   plaster wall, fence and path face, and of a tiled or flat roof and a thatched one laid along their slopes out to their eaves; fittings that add a mesh (lanterns, flags,
   chimneys, dormers, each dormer's boarded faces counted as stone wall and its slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing; square metres of pond water, all of it charged at most what a view full of water adds. The
-  meadow's own trees and bushes count as planted ones do, so a fresh garden starts 47% full and clearing them frees
+  meadow's own trees and bushes count as planted ones do, so a fresh garden starts 38% full and clearing them frees
   their share; its own grass and flowers are part of the base and count nothing (below). A tree counts one unit at
   every scale. `World` keeps the count as every command applies, so deleting
   frees exactly what placing took, and undo, wipes and a garden loaded or joined count
   alike on every machine.
 - `Budget.COSTS` is one fixed table in GPU microseconds per unit, and
-  `Budget.CAPACITY_MS` is one fixed 3.23 ms-equivalent capacity. Fill is
+  `Budget.CAPACITY_MS` is one fixed 4.16 ms-equivalent capacity. Fill is
   the cost of the garden divided by that capacity, on Frame, Quest, desktop and tests.
   Neither the running quality step, refresh rate nor the visitors present changes it.
   The host and visitor apply the same check; removing cost still works in older gardens
   already over capacity, and undo uses the same limit.
 - The fixed table takes the larger measured price for each unit from the Quest 2 and
-  Frame calibrations below: the Quest 2 prices throughout, except fittings at the
-  Frame's 15.609 µs, and grass at 0.706 µs a clump, the pool packed into a 1.8 m disc and seen standing over it
+  Frame calibrations below: the Quest 2 prices throughout, each the larger of two interleaved costs runs
+  ([record](../perf/quest-2/costs/20261022T103832Z-6c986f4.json),
+  [record](../perf/quest-2/costs/20261022T110509Z-6c986f4.json)), and grass at 0.706 µs a clump, the pool packed into a 1.8 m disc and seen standing over it
   ("Water plants"). Each price a record carries (`prices`, added by `scripts/prices.py`) is held by
   `tests/test_prices.py`: no unit is charged below the latest one recorded for it. Capacity takes the smaller measured room: the 72 Hz calibration
-  line of 11.111111111111111 ms less the Quest 2's 7.88 ms base, the meadow without its own trees and bushes plus
-  wildlife, rounded down to 3.23 ms. That base is the 9.38 ms one the costs run fitted
-  ([record](../perf/quest-2/costs/20261021T214216Z-e6f5b3b.json)) less what `demo/meadow-flora.json` measured the
-  meadow's trees and bushes to cost in each of its views, interleaved, the run's absolute times drifting too far to
-  read (below): from the air 8.28 less 1.50, standing 7.50 less 0.81, from the shore 8.05 less 1.96, the dearest
-  6.78, plus 1.10 of wildlife. Its 46 trees and 60 bushes are charged 1.53 ms, at least the 1.50 the room gained.
+  line of 11.111111111111111 ms less the Quest 2's 6.94 ms base, the meadow without its own trees and bushes plus
+  wildlife, rounded down to 4.16 ms. That base is the meadow the two costs runs measured, the larger of each view,
+  less what `demo/meadow-flora.json` measured the meadow's trees and bushes to cost in each of its views,
+  interleaved ([record](../perf/quest-2/meadow-flora/20261022T104528Z-6c986f4.json)): from the air 6.61 less 2.10,
+  standing 6.28 less 0.81, from the shore 6.29 less 2.15, the dearest 5.47, plus the larger run's 1.47 of wildlife.
+  Its 46 trees and 60 bushes are charged 1.61 ms, at least the 0.81 the room gained.
   The meadow's grass and flowers stay in the base: priced as painted plants, at their densest beside the eye, its
-  22,000 clumps and 3,200 flowers would charge 19.1 ms, where clearing them with its trees and bushes saves 2.95 ms
-  from the air, 3.89 standing and 2.76 from the shore
-  ([record](../perf/quest-2/meadow-flora/20261022T054109Z-fe18765.json); another Quest 2,
-  [record](../perf/quest-2/meadow-flora/20261022T042448Z-fe18765.json), read 2.97, 3.51 and 2.81 for them alone). These are fixed design numbers, independent of future governor tuning.
+  22,000 clumps and 3,200 flowers would charge 18.5 ms, where clearing them with its trees and bushes saves 2.90 ms
+  from the air, 3.31 standing and 2.40 from the shore (the same record). These are fixed design numbers, independent of future governor tuning.
   The Quest 2 is the weakest supported target; its full-garden runs below held 72 fps
   once the ladder settled. This choice admits no more cost than either measured table.
   The measurements bound the tested scenes, not every possible arrangement; the initial

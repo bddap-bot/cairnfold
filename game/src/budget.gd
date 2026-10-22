@@ -39,8 +39,8 @@ const MOSS_FLOWERS := 16.0
 ## The smaller measured room, over the meadow without its own trees and bushes, and the larger unit costs of Quest 2
 ## and Frame; see docs/design.md.
 ## Fixed independently of the running device, refresh rate and quality governor.
-const CAPACITY_MS := 3.23
-const COSTS := {"grass": 0.706, "flower": 1.124, "tree": 27.429, "bush": 4.538, "wall_m2": 23.842, "plaster_m2": 6.517, "fence_m2": 3.661, "pond_m2": 5.329, "roof_m2": 18.694, "thatch_m2": 6.754, "fitting": 15.609, "easel": 1091.069, "boulder": 14.287, "water": 1993.014, "timber": TIMBER_US, "arch": ARCH_US, "moss": 1.124 * MOSS_FLOWERS}
+const CAPACITY_MS := 4.16
+const COSTS := {"grass": 0.706, "flower": 0.918, "tree": 28.491, "bush": 5.01, "wall_m2": 8.843, "plaster_m2": 2.396, "fence_m2": 4.372, "pond_m2": 15.9, "roof_m2": 22.091, "thatch_m2": 12.449, "fitting": 16.415, "easel": 876.552, "boulder": 25.861, "water": 1318.084, "timber": TIMBER_US, "arch": ARCH_US, "moss": 0.918 * MOSS_FLOWERS}
 
 
 static func fit_step() -> int:
