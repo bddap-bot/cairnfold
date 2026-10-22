@@ -34,7 +34,9 @@ class Sessions(unittest.TestCase):
                                        "activity": {"moving": tally([13.9] * 100, gpu=11.0), "coop": tally([13.9] * 100)}}], part=1)
             out = subprocess.run([sys.executable, str(READER), d, "--json"], capture_output=True, text=True, check=True)
             [s] = json.loads(out.stdout)
-            self.assertEqual(s["where"], "quest2")
+            self.assertEqual(s["where"], f"{Path(d).resolve().name}/quest2")
+            one = subprocess.run([sys.executable, str(READER), str(folder), "--json"], capture_output=True, text=True, check=True)
+            self.assertEqual(json.loads(one.stdout)[0]["where"], "quest2", "a device's own folder is named by itself")
             self.assertEqual(s["seconds"], 2)
             self.assertEqual(s["players"], 2)
             self.assertEqual(s["ended"], 2000.0)
@@ -48,7 +50,7 @@ class Sessions(unittest.TestCase):
             self.assertEqual(s["steps"], {"0": 1, "1": 1})
             self.assertEqual(s["fill"], {"max": 0.5, "last": 0.5})
             text = subprocess.run([sys.executable, str(READER), d], capture_output=True, text=True, check=True).stdout
-            self.assertIn("quest2 Quest 2 abc1234def s1", text)
+            self.assertIn("/quest2 Quest 2 abc1234def s1", text)
             self.assertIn("moving", text)
             self.assertIn("coop", text)
 

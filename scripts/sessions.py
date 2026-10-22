@@ -17,14 +17,15 @@ BINS_PER_MS = 2
 
 
 def read(folder):
+    folder = Path(folder).resolve()
     sessions = {}
-    for chunk in sorted(Path(folder).rglob("*.jsonl")):
+    for chunk in sorted(folder.rglob("*.jsonl")):
         for line in chunk.read_text().splitlines():
             try:
                 record = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            s = sessions.setdefault(record.get("session"), {"rows": [], "where": str(chunk.parent.relative_to(folder))})
+            s = sessions.setdefault(record.get("session"), {"rows": [], "where": chunk.parent.relative_to(folder.parent).as_posix()})
             event = record.get("event")
             if event == "start":
                 s.setdefault("start", record)
