@@ -145,6 +145,8 @@ func _grip_on_a_pond_moves_its_bed(hand: Hand) -> void:
 	d.queue_free()
 	hand.tool = Hand.Tool.FLOWERS
 	await _frames()
+	while not main.world.idle():
+		await process_frame
 	var pond := water.pond_at(spot.x, spot.z)
 	_check(pond != null, "the dig holds a pond")
 	for lift in [-0.2, 0.2]:
@@ -437,6 +439,9 @@ func _run() -> void:
 	_check(sky.holder == null, "release lets the sky go")
 	for t in [0.0, 0.22, 0.5, 0.78]:
 		for side in [1.0, -1.0]:
+			# The last release's sky command may still wait behind a water refill; when it runs it sets the time.
+			while not main.world.idle():
+				await process_frame
 			main.world.time = t
 			main.look.set_time(t)
 			var toward: Vector3 = side * Daylight.toward_sun(t)

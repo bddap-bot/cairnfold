@@ -323,6 +323,11 @@ func _refill_ahead(e: Dictionary) -> Refill:
 	return Refill.of(ponds, put.duplicate(), _fills.duplicate(), ground, heights)
 
 
+## Whether every submitted command has run: none waits behind a water refill.
+func idle() -> bool:
+	return _queue.is_empty()
+
+
 ## Writes a save still due and waits for the last one to land.
 func flush() -> void:
 	if _keep_due:
