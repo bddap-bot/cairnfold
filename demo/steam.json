@@ -49,7 +49,7 @@
   {"op": "view", "eye": [0, 1.65, 0], "at": [0, -9, -14], "relative": true},
   {"op": "capture", "name": "shot-above"},
   {"op": "view", "eye": [5.5, 1.5, 7.5], "at": [3.2, 0.2, 2.6]},
-  {"op": "sun", "time": 0.97, "seconds": 3},
+  {"op": "sun", "time": 0.7637, "seconds": 3},
   {"op": "wait", "seconds": 5},
   {"op": "capture", "name": "shot-dusk"},
   {"op": "quit"}

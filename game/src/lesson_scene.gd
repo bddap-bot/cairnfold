@@ -22,7 +22,7 @@ const GHOST := 1.7
 const SUN := 1.4
 ## Each page is painted at its own hour of the morning, up to this far either side of the garden's, so neighbouring
 ## pages do not share a sky.
-const HOURS := 0.06
+const HOURS := 0.034
 
 var page: Dictionary
 var ghost := GHOST
@@ -61,7 +61,7 @@ func _init(i: int, see_through := false) -> void:
 	env.ambient_light_color = Color(0.78, 0.84, 0.92)
 	env.ambient_light_energy = 0.5
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
-	env.tonemap_exposure = Look.EXPOSURE
+	env.tonemap_exposure = Daylight.light(Daylight.DEFAULT).exposure
 	env.adjustment_enabled = true
 	env.adjustment_saturation = 1.3
 	env.adjustment_contrast = 1.1
@@ -510,7 +510,7 @@ func _play_sky(at: float) -> void:
 	var to_sun := Quaternion(start.normalized(), aim.normalized()) * from
 	var sun: Node3D = _fx.sun
 	sun.position = _dish_at() + Vector3.UP * 0.2 + to_sun * SUN
-	var time := Daylight.DEFAULT + 0.12 * (to_sun.x + 0.35)
+	var time := Daylight.DEFAULT + 0.067 * (to_sun.x + 0.35)
 	var l := Daylight.light(time)
 	_sun_light.light_color = l.sun
 	_sun_light.light_energy = l.energy

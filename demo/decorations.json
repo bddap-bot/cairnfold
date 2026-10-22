@@ -38,7 +38,7 @@
   {"op": "capture", "name": "06-foundation"},
   {"op": "view", "eye": [32.4, 1.8, -5.5], "at": [30, 0.5, -1.6], "ground": true},
   {"op": "capture", "name": "07-foundation"},
-  {"op": "sun", "time": 1.0, "seconds": 0.5},
+  {"op": "sun", "time": 0.7806, "seconds": 0.5},
   {"op": "fit", "what": "decoration", "x": 0, "z": 10, "style": 7},
   {"op": "wait", "seconds": 3},
   {"op": "view", "eye": [2.0, 1.6, 13.8], "at": [0, 0.6, 10], "ground": true},

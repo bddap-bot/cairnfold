@@ -918,12 +918,13 @@ func _layer_parts(name: String) -> Array[Array]:
 			materials = [flora.trunks.live.material_override, flora.foliage.live.material_override]
 		"mountains":
 			for n in look.get_children():
-				if n is MeshInstance3D and n != look.disc:
+				if n is MeshInstance3D and n != look.disc and n != look.moon_disc:
 					out.append([n, "visible", false])
 		"sky":
 			out.append([look.env, "background_mode", Environment.BG_COLOR])
 		"sun_disc":
 			out.append([look.disc, "visible", false])
+			out.append([look.moon_disc, "visible", false])
 		"sun":
 			out.append([look.sun, "visible", false])
 		"shadows":
@@ -1207,15 +1208,15 @@ func _toss(s: Dictionary) -> void:
 	main.feed_tool.throw(main.feed_tool.dish(hand), main.feed_tool.launch(hand, v))
 
 
-## Turns the sky as a player does, until the sun stands at `time` (0 dawn, 1 dusk) over `seconds`: `hand`
-## (right by default) beside the head grips open sky high off the sun's arc and turns its aim about the arc.
+## Turns the sky as a player does, until the sun stands at `time` (0 midnight, 0.5 noon; the short way round) over
+## `seconds`: `hand` (right by default) beside the head grips open sky high off the sun's arc and turns its aim about the arc.
 func _sun(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var was := hand.global_transform
 	var still := hand.held_still
 	var axis := Daylight.RISE.cross(Daylight.ARC_UP)
 	var grab := Daylight.toward_sun(0.5).rotated(Daylight.RISE, 0.25)
-	var turn := Daylight.angle(s.time) - Daylight.angle(main.look.time)
+	var turn := wrapf(Daylight.angle(s.time) - Daylight.angle(main.look.time), -PI, PI)
 	var head: Transform3D = main.rig.head.global_transform
 	hand.held_still = true
 	hand.global_transform = Transform3D(Basis.looking_at(grab), head * Vector3(0.18 if hand == main.rig.right else -0.18, -0.25, -0.3))

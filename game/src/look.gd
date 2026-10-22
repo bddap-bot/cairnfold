@@ -5,12 +5,12 @@ extends Node
 
 ## Each change to the sky restarts its radiance update, which takes several frames and is where the ambient
 ## light comes from; so while the sky is turned the sky changes this often, letting each update finish,
-## and the light and the sun's disc, which follow every frame, stay out of the sky.
+## and the light and the discs of sun and moon, which follow every frame, stay out of the sky.
 const SKY_EVERY := 0.2
 const DISC_DISTANCE := 2400.0
-## Degrees from the sun's centre: the quad's half-width and the disc's radius.
-const DISC_SPAN_DEG := 6.5
-const DISC_RADIUS_DEG := 1.8
+## Degrees from each disc's centre: its quad's half-width and its radius.
+const SUN_DISC := {"span": 6.5, "radius": 1.8}
+const MOON_DISC := {"span": 9.0, "radius": 2.5}
 
 # A fade or split selected by view depth changes a fixed object's shade when the head turns.
 # One stabilized map covers the garden's diagonal, including its height and floating views.
@@ -27,7 +27,6 @@ const UNDER_KEEPS := Color(0.55, 0.92, 1.0)
 ## The eye adapts to the sky it sees (Bounce.sky_at): under a roof with none, exposure rises this many times
 ## over the open garden's, closing most of the gap in ADAPT_SECONDS, so a house's inside reads once entered
 ## and its doorway glows.
-const EXPOSURE := 1.05
 const ADAPT_INDOOR := 1.8
 const ADAPT_SECONDS := 0.7
 
@@ -40,7 +39,7 @@ var photo_sun: DirectionalLight3D
 var env: Environment
 var sky_mat: ShaderMaterial
 var disc: MeshInstance3D
-var disc_mat := ShaderMaterial.new()
+var moon_disc: MeshInstance3D
 var mountains_mat := ShaderMaterial.new()
 var lake_mat := ShaderMaterial.new()
 var bounce := Bounce.new()
@@ -49,6 +48,7 @@ var time := -1.0
 var _sky_time := -1.0
 var _since_sky := INF
 var _adapt := 1.0
+var _exposure := 1.0
 var under := false
 
 
@@ -100,14 +100,12 @@ static func build(parent: Node) -> Look:
 	env.ambient_light_sky_contribution = 1.0
 	env.reflected_light_source = Quality.HEADSET.reflections
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
-	env.tonemap_exposure = EXPOSURE
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
 	env.fog_light_energy = 1.0
 	for k in AIR_FOG:
 		env.set(k, AIR_FOG[k])
 	env.adjustment_enabled = true
-	env.adjustment_saturation = 1.12
 	env.adjustment_contrast = 1.04
 	var we := WorldEnvironment.new()
 	we.environment = env
@@ -133,18 +131,8 @@ static func build(parent: Node) -> Look:
 	sun.add_child(look.photo_sun)
 	look.env = env
 	look.sky_mat = sky_mat
-	var quad := QuadMesh.new()
-	var half := DISC_DISTANCE * tan(deg_to_rad(DISC_SPAN_DEG))
-	quad.size = Vector2.ONE * 2.0 * half
-	look.disc = MeshInstance3D.new()
-	look.disc.mesh = quad
-	look.disc_mat.shader = load("res://src/sun_disc.gdshader")
-	look.disc.material_override = look.disc_mat
-	look.disc.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	# The quad turns to the eye in its shader, so its bounds must hold it facing any way.
-	look.disc.custom_aabb = AABB(-Vector3.ONE * half * sqrt(2.0), Vector3.ONE * half * 2.0 * sqrt(2.0))
-	look.add_child(look.disc)
-	look.disc_mat.set_shader_parameter("radius", DISC_RADIUS_DEG / DISC_SPAN_DEG)
+	look.disc = look._disc(SUN_DISC, 0.0)
+	look.moon_disc = look._disc(MOON_DISC, 1.0)
 	look.mountains_mat.shader = load("res://src/mountains.gdshader")
 	look.lake_mat.shader = load("res://src/lake.gdshader")
 	for m in Mountains.build(look.mountains_mat, look.lake_mat):
@@ -156,28 +144,52 @@ static func build(parent: Node) -> Look:
 	return look
 
 
+func _disc(size: Dictionary, moon: float) -> MeshInstance3D:
+	var quad := QuadMesh.new()
+	var half := DISC_DISTANCE * tan(deg_to_rad(size.span))
+	quad.size = Vector2.ONE * 2.0 * half
+	var disc_mi := MeshInstance3D.new()
+	disc_mi.mesh = quad
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://src/disc.gdshader")
+	mat.set_shader_parameter("moon", moon)
+	mat.set_shader_parameter("radius", size.radius / size.span)
+	disc_mi.material_override = mat
+	disc_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	# The quad turns to the eye in its shader, so its bounds must hold it facing any way.
+	disc_mi.custom_aabb = AABB(-Vector3.ONE * half * sqrt(2.0), Vector3.ONE * half * 2.0 * sqrt(2.0))
+	add_child(disc_mi)
+	return disc_mi
+
+
+## Sets the time of day, wrapping round midnight.
 func set_time(t: float) -> void:
-	t = clampf(t, 0.0, 1.0)
+	t = fposmod(t, 1.0)
 	if t == time:
 		return
 	time = t
 	var l := Daylight.light(t)
-	sun.basis = Basis.looking_at(-Daylight.toward_sun(t))
+	var toward := Daylight.toward_light(t)
+	sun.basis = Basis.looking_at(-toward)
 	for light in [sun, photo_sun]:
 		light.light_color = l.sun
 		light.light_energy = l.energy
-	disc_mat.set_shader_parameter("tint", l.sun)
+	disc.material_override.set_shader_parameter("tint", l.sun if toward == Daylight.toward_sun(t) else Color.BLACK)
+	moon_disc.material_override.set_shader_parameter("tint", l.moon)
 	env.ambient_light_energy = l.ambient
+	env.adjustment_saturation = l.saturation
+	_exposure = l.exposure
+	env.tonemap_exposure = _exposure * _adapt
 	env.fog_light_color = UNDER_FOG * under_light(l) if under else l.fog
 	for mat in [mountains_mat, lake_mat]:
-		mat.set_shader_parameter("sun_dir", Daylight.toward_sun(t))
+		mat.set_shader_parameter("sun_dir", toward)
 		mat.set_shader_parameter("sun", l.sun)
 		mat.set_shader_parameter("energy", l.energy)
 		mat.set_shader_parameter("sky", l.zenith)
 		mat.set_shader_parameter("ambient", l.ambient)
 		mat.set_shader_parameter("horizon", l.horizon)
 		mat.set_shader_parameter("haze", l.fog)
-	bounce.set_sun(Daylight.toward_sun(t), l.sun * l.energy)
+	bounce.set_sun(toward, l.sun * l.energy)
 
 
 static func fog_at_height(lift: float) -> Dictionary:
@@ -227,8 +239,8 @@ func _set_fog(fog: Dictionary) -> void:
 func adapt(sky: float, delta: float) -> void:
 	var to := lerpf(ADAPT_INDOOR, 1.0, sky)
 	_adapt = lerpf(_adapt, to, 1.0 - exp(-delta / ADAPT_SECONDS))
-	if absf(env.tonemap_exposure - EXPOSURE * _adapt) > 0.002:
-		env.tonemap_exposure = EXPOSURE * _adapt
+	if absf(env.tonemap_exposure - _exposure * _adapt) > 0.002:
+		env.tonemap_exposure = _exposure * _adapt
 
 
 func _exit_tree() -> void:
@@ -240,6 +252,7 @@ func _process(delta: float) -> void:
 	if eye != null:
 		var at := eye.global_position
 		disc.global_position = at + Daylight.toward_sun(time) * DISC_DISTANCE
+		moon_disc.global_position = at + Daylight.toward_moon(time) * DISC_DISTANCE
 		lift_to(at.y - Terrain.height_at(at.x, at.z))
 		adapt(bounce.sky_at(at), delta)
 	bounce.update()
@@ -257,5 +270,7 @@ func _paint_sky() -> void:
 	sky_mat.set_shader_parameter("horizon", l.horizon)
 	sky_mat.set_shader_parameter("sun_glow", l.glow)
 	sky_mat.set_shader_parameter("cloud_light", l.clouds)
+	sky_mat.set_shader_parameter("moon_glow", l.moon)
+	sky_mat.set_shader_parameter("stars", l.stars)
 	var overhead: Color = l.zenith.lerp(l.horizon, 0.3)
 	RenderingServer.global_shader_parameter_set("sky_overhead", Vector3(overhead.r, overhead.g, overhead.b))

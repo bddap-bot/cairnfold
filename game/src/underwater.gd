@@ -70,7 +70,7 @@ func _process(_delta: float) -> void:
 		var l := Daylight.light(look.time)
 		var sun: Color = l.sun * l.energy
 		_mat.set_shader_parameter("level", pond.surface_y())
-		_mat.set_shader_parameter("ray", into_water(-Daylight.toward_sun(look.time)))
+		_mat.set_shader_parameter("ray", into_water(-Daylight.toward_light(look.time)))
 		_mat.set_shader_parameter("sun", Vector3(sun.r, sun.g, sun.b))
 		_mat.set_shader_parameter("ambient", Vector3(Look.UNDER_FOG.r, Look.UNDER_FOG.g, Look.UNDER_FOG.b) * Look.under_light(l))
 

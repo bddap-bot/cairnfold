@@ -3,7 +3,7 @@
   {"op":"house","at":[0,0],"size":[7,5],"seconds":0.2},
   {"op":"house","at":[0,3],"size":[7,5],"seconds":0.2},
   {"op":"house","at":[0,6],"size":[7,5],"seconds":0.2},
-  {"op":"sun","time":1.0,"seconds":0.2},
+  {"op":"sun","time":0.7806,"seconds":0.2},
   {"op":"fit","what":"lantern","index":0,"s":3.5,"y":1.9,"side":1},
   {"op":"wait","seconds":4},
   {"op":"view","eye":[0,1.65,-1.5],"at":[0,1.0,6],"ground":true},

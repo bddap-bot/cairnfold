@@ -67,8 +67,8 @@ for v in painted.values():
 check(all(v == painted["host"] for v in painted.values()), "every peer shows the easel alike after the host and the joiner took charcoal, switched, set down and tore there together")
 check([e["strokes"] for e in painted["host"]["easels"].values()] == [2], f"the joiner's sheet tore off both first strokes; its charcoal stroke and the host's after stand: {painted['host']['easels']}")
 turned = json.load(open(f"{out}/host-sun.json"))["sun"]
-check(abs(turned - 0.8) < 0.02, f"the host sees the sun where the joiner turned it: {turned:.3f}")
-check(abs(g["sun"] - 0.3) < 0.02, f"every peer sees the sun where the host turned it back: {g['sun']:.3f}")
+check(abs(turned - 0.6683) < 0.02, f"the host sees the sun where the joiner turned it: {turned:.3f}")
+check(abs(g["sun"] - 0.3878) < 0.02, f"every peer sees the sun where the host turned it back: {g['sun']:.3f}")
 fed = {n: json.load(open(f"{out}/{n}-fed.json")) for n in names}
 landed = {n: f["handfuls"] for n, f in fed.items()}
 check(all(len(h) == 1 for h in landed.values()) and all(math.dist(h[0], landed["host"][0]) < 0.03 for h in landed.values()),

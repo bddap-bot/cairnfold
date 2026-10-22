@@ -46,8 +46,8 @@ dirt paths, stone, flowers, grass, trees, boulders, pond, colour, style, camera,
 - Grip, whatever the hand holds: grab what you point at and drag it. Grab the
   ground (a pond's bed too) and raise the hand to pull a hill or lower it to press
   a hollow; grab a wall, fence, house, tower, boulder or stairs to carry and turn it, a
-  house rising onto a plinth as the hand rises; grab open sky to turn it by aiming, the sun
-  riding on it from dawn to dusk. Two hands size: grip a house with both and spread them for
+  house rising onto a plinth as the hand rises; grab open sky, or the sun or the moon, to turn
+  it by aiming, round the whole day: the moon stands opposite the sun and lights the night. Two hands size: grip a house with both and spread them for
   width or depth, a wall for its length, stairs for their width; draw them apart upright for
   taller walls; both on a roof raise the ridge upright and bow it across; both on its eaves
   pull them out. Grip never builds anything.

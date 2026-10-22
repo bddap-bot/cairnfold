@@ -18,7 +18,7 @@
   {"op": "view", "eye": [-1.5, 1.2, -6], "at": [0.5, 4.5, -9]},
   {"op": "wait", "seconds": 1},
   {"op": "capture", "name": "under"},
-  {"op": "sun", "time": 0.8, "seconds": 2},
+  {"op": "sun", "time": 0.6683, "seconds": 2},
   {"op": "view", "eye": [0, 1.65, 1], "at": [0, 3.2, -10]},
   {"op": "wait", "seconds": 1},
   {"op": "capture", "name": "evening"},

@@ -5,7 +5,7 @@
   {"op": "hold_pose", "hand": "left", "at": [-0.06, -0.3, -0.34], "aim": [0.15, -0.55, -1.0]},
   {"op": "hold_pose", "hand": "right", "at": [0.3, -0.55, -0.15], "aim": [0, -1, -0.3]},
   {"op": "fill_flora", "pools": ["grass", "flowers", "trees", "bushes", "moss"], "radius": 20, "scale": 3},
-  {"op": "sun", "time": 0.287, "seconds": 1},
+  {"op": "sun", "time": 0.3805, "seconds": 1},
   {"op": "clear"},
   {"op": "stress", "radius": 25, "spacing": 2.0, "height": 4.5},
   {"op": "view", "eye": [0, 22, 32], "at": [0, 0, 0]},

@@ -435,6 +435,22 @@ func _run() -> void:
 	Buttons.injected.erase("right_hand/grip_click")
 	await _frames()
 	_check(sky.holder == null, "release lets the sky go")
+	for t in [0.0, 0.22, 0.5, 0.78]:
+		for side in [1.0, -1.0]:
+			main.world.time = t
+			main.look.set_time(t)
+			var toward: Vector3 = side * Daylight.toward_sun(t)
+			var body := "sun" if side > 0.0 else "moon"
+			hand.global_basis = Basis.looking_at(toward)
+			await _frames()
+			Buttons.injected["right_hand/grip_click"] = true
+			await _frames()
+			_check(sky.holder == hand and not main.ground_grab.busy(hand), "pointing straight at the %s at %.2f (%.0f° up) takes the sky, the ground in the way or not" % [body, t, rad_to_deg(asin(toward.y))])
+			hand.global_basis = Basis.looking_at(toward.rotated(axis, 0.1))
+			await _frames()
+			_check(absf(angle_difference(Daylight.angle(t), Daylight.angle(main.look.time)) - 0.1) < 1e-3, "and turns it with the pointer, from the %s at %.2f: now %.4f" % [body, t, main.look.time])
+			Buttons.injected.erase("right_hand/grip_click")
+			await _frames()
 	Hand.injected_sticks.clear()
 	Buttons.injected.clear()
 	await _frames()

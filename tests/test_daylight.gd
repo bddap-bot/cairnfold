@@ -35,44 +35,62 @@ func _flat(_x: float, _z: float) -> float:
 
 
 func _the_sun_rises_and_sets() -> void:
-	_check(Daylight.elevation(0.0) < -5.0 and Daylight.elevation(1.0) < -5.0, "the sun is under the horizon at 0 (%.1f°) and 1 (%.1f°)" % [Daylight.elevation(0.0), Daylight.elevation(1.0)])
+	_check(absf(Daylight.elevation(0.25)) < 1e-3 and absf(Daylight.elevation(0.75)) < 1e-3, "the sun rises at 0.25 and sets at 0.75")
 	var noon := Daylight.elevation(0.5)
 	_check(absf(noon - (90.0 - rad_to_deg(Daylight.TILT))) < 0.5, "the noon sun stands %.1f° high" % noon)
-	var prev := -INF
-	for i in 21:
-		var e := Daylight.elevation(i / 40.0)
-		_check(e > prev, "the morning sun climbs at %.3f" % (i / 40.0))
+	_check(absf(Daylight.elevation(0.0) + noon) < 0.5 and is_equal_approx(Daylight.elevation(0.0), Daylight.elevation(1.0)), "at midnight it is as far under as it stood high at noon")
+	var prev := Daylight.elevation(0.0)
+	for i in range(1, 49):
+		var e := Daylight.elevation(i / 96.0)
+		_check(e > prev, "the sun climbs from midnight to noon at %.3f" % (i / 96.0))
 		prev = e
-	for i in range(21, 41):
-		var e := Daylight.elevation(i / 40.0)
-		_check(e < prev, "the afternoon sun sinks at %.3f" % (i / 40.0))
+	for i in range(49, 97):
+		var e := Daylight.elevation(i / 96.0)
+		_check(e < prev, "and sinks from noon to midnight at %.3f" % (i / 96.0))
 		prev = e
-	_check(Daylight.toward_sun(0.1).x < 0.0 and Daylight.toward_sun(0.9).x > 0.0, "it rises on the left and sets on the right")
+	_check(Daylight.toward_sun(0.3).x < 0.0 and Daylight.toward_sun(0.7).x > 0.0, "it rises on the left and sets on the right")
 	_check(Daylight.toward_sun(0.5).z < 0.0, "at noon it stands in front of the starting view")
+	for i in 24:
+		var t := i / 24.0
+		_check(Daylight.toward_moon(t).is_equal_approx(-Daylight.toward_sun(t)), "the moon stands opposite the sun at %.2f" % t)
+	_check(Daylight.toward_moon(0.0).is_equal_approx(Daylight.toward_sun(0.5)), "the midnight moon hangs where the noon sun stood")
 
 
 func _the_sky_turns_about_the_arc() -> void:
-	for i in 21:
-		var t := i / 20.0
-		_check(absf(wrapf(Daylight.turn_of(Daylight.toward_sun(t)) - Daylight.angle(t), -PI, PI)) < 1e-4, "the sun at %.2f stands as far round as its hour" % t)
+	for i in 48:
+		var t := i / 48.0
+		_check(absf(wrapf(Daylight.turn_of(Daylight.toward_sun(t)) - Daylight.angle(t), -PI, PI)) < 1e-4, "the sun at %.3f stands as far round as its hour, day or night" % t)
+		_check(absf(Daylight.time_at(Daylight.turn_of(Daylight.toward_sun(t))) - t) < 1e-4, "the hour of the sun at %.3f is found again" % t)
+	for t in [0.999, 0.001]:
+		var found := Daylight.time_at(Daylight.angle(t) + TAU)
+		_check(found >= 0.0 and found < 1.0 and absf(found - t) < 1e-4, "a turn past midnight wraps into the day: %.3f is %.4f" % [t, found])
 	var axis := Daylight.RISE.cross(Daylight.ARC_UP)
 	var d := Vector3(0.3, 0.6, -0.5).normalized()
 	_check(absf(Daylight.turn_of(d.rotated(axis, 0.4)) - Daylight.turn_of(d) - 0.4) < 1e-4, "turning a direction about the arc's axis turns it as far round")
 	_check(absf(Daylight.turn_of(d + axis * 0.5) - Daylight.turn_of(d)) < 1e-4, "moving along the axis turns nothing")
+	for t in [0.0, 0.2, 0.5, 0.78]:
+		_check(Daylight.aims_at_body(Daylight.toward_sun(t), t) and Daylight.aims_at_body(Daylight.toward_moon(t), t), "pointing at the sun or the moon at %.2f, up or under the ground, aims at a body" % t)
+		_check(not Daylight.aims_at_body(Daylight.toward_sun(t).rotated(Vector3.UP if absf(Daylight.toward_sun(t).y) < 0.9 else Vector3.RIGHT, deg_to_rad(15.0)), t), "15° off the sun at %.2f aims at neither" % t)
 
 
 func _light_follows_the_sun() -> void:
-	_check(Daylight.light(0.0).energy == 0.0 and Daylight.light(1.0).energy == 0.0, "no sunlight with the sun down")
-	var prev := -1.0
-	for i in 21:
-		var l := Daylight.light(i / 40.0)
-		_check(l.energy >= prev, "sunlight grows through the morning at %.3f" % (i / 40.0))
-		prev = l.energy
-	var dusk := Daylight.light(0.97)
 	var noon := Daylight.light(0.5)
+	var dusk := Daylight.light(0.76)
 	_check(dusk.sun.b < noon.sun.b * 0.6 and dusk.horizon.r > dusk.horizon.b, "the low sun and horizon run warm")
-	_check(Daylight.light(0.0).zenith.get_luminance() < noon.zenith.get_luminance() * 0.4, "the sky darkens with the sun down")
+	var prev := -1.0
+	for i in range(23, 49):
+		var l := Daylight.light(i / 96.0)
+		_check(l.energy >= prev, "sunlight grows through the morning at %.3f" % (i / 96.0))
+		prev = l.energy
 	_check(absf(Daylight.light(0.3).energy - Daylight.light(0.7).energy) < 1e-3, "mirror hours light alike")
+	var night := Daylight.light(0.0)
+	_check(night.zenith.get_luminance() < noon.zenith.get_luminance() * 0.4, "the sky darkens with the sun down")
+	_check(Daylight.toward_light(0.5) == Daylight.toward_sun(0.5) and Daylight.toward_light(0.0) == Daylight.toward_moon(0.0), "the sun lights the day, the moon the night")
+	_check(night.energy > 0.3 and night.sun.b > night.sun.r, "moonlight is cool and enough to build by")
+	_check(night.moon.get_luminance() > 0.5 and noon.moon == Color.BLACK and night.stars == 1.0 and noon.stars == 0.0, "the moon glows and the stars show only at night")
+	for t in [0.75, 0.25]:
+		var at: float = t + (-1.0 if t > 0.5 else 1.0) * asin(sin(deg_to_rad(Daylight.HANDOVER)) / cos(Daylight.TILT)) / TAU
+		_check(absf(Daylight.elevation(at) - Daylight.HANDOVER) < 0.01 and Daylight.light(at).energy < 1e-4, "the light passes between sun and moon dark, at %.3f" % at)
 
 
 func _the_default_hour_keeps_the_tuned_look() -> void:
@@ -366,22 +384,24 @@ func _in_the_glade() -> void:
 	sky.aim(grab.rotated(axis, 0.3))
 	_check(absf(Daylight.angle(look.time) - Daylight.angle(Daylight.DEFAULT) - 0.3) < 1e-4, "the sky turns as far as the pointer")
 	_check(Daylight.toward_sun(look.time).is_equal_approx(sun_at.rotated(axis, 0.3)), "the sun turns with it")
-	for k in range(1, 8):
-		sky.aim(grab.rotated(axis, k * 0.5))
-	_check(look.time == 1.0, "past dusk the sky waits")
-	for k in range(6, 0, -1):
-		sky.aim(grab.rotated(axis, k * 0.5))
-	sky.aim(grab.rotated(axis, 0.3))
+	for k in range(1, 14):
+		sky.aim(grab.rotated(axis, 0.3 + k * 0.5))
+	_check(absf(look.time - Daylight.time_at(Daylight.angle(Daylight.DEFAULT) + 0.3 + 6.5)) < 1e-4, "the sky turns on through the night, round past midnight")
+	for k in range(12, -1, -1):
+		sky.aim(grab.rotated(axis, 0.3 + k * 0.5))
 	_check(absf(Daylight.angle(look.time) - Daylight.angle(Daylight.DEFAULT) - 0.3) < 1e-4, "and the grabbed point is under the pointer again when it comes back")
 	sky.holder = null
-	await _play([{"op": "sun", "time": 0.9, "seconds": 0.2}])
-	_check(absf(look.time - 0.9) < 1e-4, "the sky is turned to late afternoon")
-	_check((-look.sun.global_basis.z).is_equal_approx(-Daylight.toward_sun(0.9)), "the sunlight shines from where the sun stands")
+	await _play([{"op": "sun", "time": 0.7, "seconds": 0.2}])
+	_check(absf(look.time - 0.7) < 1e-4, "the sky is turned to late afternoon")
+	_check((-look.sun.global_basis.z).is_equal_approx(-Daylight.toward_sun(0.7)), "the sunlight shines from where the sun stands")
 	_check(look.sun.light_energy < Daylight.light(0.5).energy, "the evening sun is weaker")
-	look.set_time(0.9)
+	await _play([{"op": "sun", "time": 1.02, "seconds": 0.2}])
+	_check(absf(look.time - 0.02) < 1e-4, "turned on past midnight the day starts again: %.4f" % look.time)
+	_check((-look.sun.global_basis.z).is_equal_approx(-Daylight.toward_moon(0.02)) and look.sun.light_energy > 0.3, "at night the moon lights the garden")
+	look.set_time(0.7)
 	await create_timer(Look.SKY_EVERY * 2.0).timeout
 	var sky_sun: Vector3 = look.sky_mat.get_shader_parameter("sun_dir")
-	_check(sky_sun.is_equal_approx(Daylight.toward_sun(0.9)), "the sky catches up with the sun once it rests")
+	_check(sky_sun.is_equal_approx(Daylight.toward_sun(0.7)), "the sky catches up with the sun once it rests")
 	_check(look.sun.sky_mode == DirectionalLight3D.SKY_MODE_LIGHT_ONLY, "moving the light leaves the sky's radiance alone")
 	_done()
 

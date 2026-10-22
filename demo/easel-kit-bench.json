@@ -11,7 +11,7 @@
   {"op": "wait", "seconds": 7},
   {"op": "label", "name": "-"},
   {"op": "capture", "name": "bare-close"},
-  {"op": "sun", "time": 0.287, "seconds": 1},
+  {"op": "sun", "time": 0.3805, "seconds": 1},
   {"op": "bare"},
   {"op": "bare"},
   {"op": "place", "x": 0, "z": 0},

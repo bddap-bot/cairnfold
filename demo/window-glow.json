@@ -13,7 +13,7 @@
   {"op": "fit", "what": "lantern", "index": 1, "s": 1},
   {"op": "fence", "points": [[5, -6], [7, -6]], "seconds": 1},
   {"op": "fit", "what": "lantern", "index": 2, "s": 1},
-  {"op": "sun", "time": 1.0, "seconds": 1},
+  {"op": "sun", "time": 0.7806, "seconds": 1},
   {"op": "wait", "seconds": 3},
   {"op": "view", "eye": [-2.2, 1.6, -2], "at": [2, 0.4, -2], "ground": true},
   {"op": "wait", "seconds": 3},

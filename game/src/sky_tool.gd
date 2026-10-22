@@ -1,8 +1,9 @@
 class_name SkyTool
 extends Node
 
-## Time of day, whatever a hand holds: grip with the hand pointed at open sky to grab the sky, and it turns
-## about the sun's arc with the pointer, the sun riding on it, until the grip lets go and every player's sky
+## Time of day, whatever a hand holds: grip with the hand pointed at open sky, or at the sun or the moon
+## wherever they stand, under the ground too, to grab the sky, and it turns round the whole day about the
+## sun's arc with the pointer, sun and moon riding on it, until the grip lets go and every player's sky
 ## turns to it (World's `sky`). Not an edit, so undo leaves it be.
 
 const BEAM := Color(1.0, 0.9, 0.6, 0.6)
@@ -42,7 +43,7 @@ func _process(_delta: float) -> void:
 			if holder == hand:
 				aim(dir)
 				hand.point(null, BEAM, 30.0)
-			elif holder == null and b.pressed("grab") and not hand.taken() and not editing.call(hand) and Terrain.raycast(hand.global_position, dir) == null:
+			elif holder == null and b.pressed("grab") and not hand.taken() and not editing.call(hand) and (Terrain.raycast(hand.global_position, dir) == null or Daylight.aims_at_body(dir, look.time)):
 				take(hand, dir)
 				hand.point(null, BEAM, 30.0)
 		b.latch()
@@ -57,12 +58,12 @@ func take(hand: Hand, dir: Vector3) -> void:
 
 
 ## Turns the sky by however far `dir` went round the arc's axis since the last aim, so the point grabbed
-## stays under the pointer; past dawn or dusk the sky waits for the pointer to come back.
+## stays under the pointer.
 func aim(dir: Vector3) -> void:
 	var now := Daylight.turn_of(dir)
 	_turned += wrapf(now - _last, -PI, PI)
 	_last = now
-	look.set_time(inverse_lerp(Daylight.DAWN, Daylight.DUSK, _start + _turned))
+	look.set_time(Daylight.time_at(_start + _turned))
 	var tick := floori(look.time / TICK)
 	if tick != _ticked:
 		Cues.play(Cues.Act.SKY_TURN, holder.global_position, holder)

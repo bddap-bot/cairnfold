@@ -77,7 +77,7 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	wildlife.set_process(false)
 	var ff := wildlife.fireflies
 
-	look.set_time(0.98)
+	look.set_time(0.77)
 	_run(wildlife, 5.0)
 	_check(ff.count() == 0, "a dusk without a pond or flowers has no fireflies")
 
@@ -87,7 +87,7 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	_run(wildlife, 5.0)
 	_check(ff.count() == 0 and ff.mm.visible_instance_count == 0, "none by day")
 
-	look.set_time(0.98)
+	look.set_time(0.77)
 	_run(wildlife, 3.0)
 	var n := ff.count()
 	_check(n >= Fireflies.PER_HABITAT.x and n <= Fireflies.PER_HABITAT.y, "a pond at dusk has its fireflies, %d" % n)
@@ -103,8 +103,10 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 			near = near and shore <= Fireflies.SHORE_SPREAD + 0.01 and s.y - ground >= Fireflies.HEIGHT.x - 0.01 and s.y - ground <= Fireflies.HEIGHT.y + 0.01
 	_check(near, "they hover low by the pond's shore")
 	_check(ff.dusk() > 0.9, "it is dark at the end of the day, %.2f" % ff.dusk())
-	look.set_time(0.02)
+	look.set_time(0.23)
 	_check(ff.dusk() > 0.9, "and before dawn")
+	look.set_time(0.0)
+	_check(ff.dusk() > 0.9, "and all night")
 
 	palette.season = 4
 	_run(wildlife, 1.5)

@@ -44,7 +44,7 @@
   {"op": "dip", "what": "pan", "index": 5},
   {"op": "brush", "points": [[0.1, 0.2, 0.9], [0.9, 0.25, 0.9]], "seconds": 0.4},
   {"op": "until", "seq": 31},
-  {"op": "sun", "time": 0.8, "seconds": 0.5},
+  {"op": "sun", "time": 0.6683, "seconds": 0.5},
   {"op": "until", "seq": 32},
   {"op": "until", "seq": 33},
   {"op": "grow", "tree": 0, "metres": 3, "seconds": 0.4},

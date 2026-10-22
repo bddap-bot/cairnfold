@@ -24,7 +24,7 @@
   {"op": "capture", "name": "05-wider-tower"},
   {"op": "view", "eye": [2, 12, 10], "at": [-1, 0, -3]},
   {"op": "capture", "name": "06-from-above"},
-  {"op": "sun", "time": 1.0, "seconds": 1},
+  {"op": "sun", "time": 0.7806, "seconds": 1},
   {"op": "wait", "seconds": 2},
   {"op": "view", "eye": [1.5, 1.6, -3], "at": [-2.5, 0.6, 0], "ground": true},
   {"op": "capture", "name": "07-inside-after"},

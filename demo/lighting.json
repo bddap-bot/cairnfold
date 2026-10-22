@@ -8,7 +8,7 @@
   {"op": "house", "at": [10.0, -1.0], "size": [6.3, 3.9], "turn": 18, "seconds": 1.5},
   {"op": "tree", "x": -10, "z": -6},
   {"op": "paint", "tool": "flowers", "points": [[-6, 4], [-2, 3], [2, 3.5]], "radius": 1.2, "seconds": 1.5},
-  {"op": "sun", "time": 0.78, "seconds": 1},
+  {"op": "sun", "time": 0.6571, "seconds": 1},
   {"op": "wait", "seconds": 4},
   {"op": "label", "name": "ground"},
   {"op": "view", "eye": [-1, 1.65, 8], "at": [0, 1.4, -3]},

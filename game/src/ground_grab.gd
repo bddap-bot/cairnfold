@@ -6,7 +6,8 @@ extends Node3D
 ## Letting go sends the ground's new heights as a build command, one step per grab; the hump shows until it
 ## is in. Farther ground grabs a wider hill and rises faster than the hand. Each hand grabs on its own, with
 ## its own hump, so two hands pull two hills at once; on the same ground their humps add. The ground is the
-## last thing a grip takes: a wall, roof or carried house it points at takes it first; open sky is the sky's.
+## last thing a grip takes: a wall, roof or carried house it points at takes it first; open sky, and the sun
+## or the moon even under the ground, is the sky's.
 
 const MIN_RADIUS := 2.0
 const MAX_RADIUS := 9.0
@@ -115,7 +116,7 @@ func _handle(g: Grab, delta: float) -> void:
 		return
 	var t := hand.global_transform
 	var hit: Variant = Terrain.raycast(t.origin, -t.basis.z)
-	if hit == null:
+	if hit == null or Daylight.aims_at_body(-t.basis.z, world.time):
 		return
 	var reach := t.origin.distance_to(hit)
 	begin(hand, hit, reach * RADIUS_PER_METRE)

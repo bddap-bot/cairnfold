@@ -15,7 +15,7 @@
   {"op": "fit", "what": "flag", "index": 0, "s": 6.0},
   {"op": "fit", "what": "lantern", "index": 1, "s": 3.0},
   {"op": "fit", "what": "lantern", "index": 2, "s": 2.5},
-  {"op": "sun", "time": 1.0, "seconds": 1},
+  {"op": "sun", "time": 0.7806, "seconds": 1},
   {"op": "label", "name": "waiting"},
   {"op": "wait", "seconds": 200},
   {"op": "label", "name": "ivy"},

@@ -10,7 +10,7 @@
  {"op":"capture","name":"front"},
  {"op":"view","eye":[11,3,-5],"at":[1,2.6,0]},
  {"op":"capture","name":"gable"},
- {"op":"sun","time":1.0,"seconds":1},
+ {"op":"sun","time":0.7806,"seconds":1},
  {"op":"wait","seconds":3},
  {"op":"capture","name":"dusk"},
  {"op":"quit"}
