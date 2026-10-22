@@ -695,12 +695,17 @@ static func carried_by(d: Dictionary, x: Transform3D) -> Dictionary:
 	return out
 
 
-## The garden has answered for a house let go and the builds on it, taking them as they stood or turning them down: any
-## not yet laid as the garden has them are laid so.
+## The garden has answered for a house let go and the builds on it, taking them as they stood or turning them down. It
+## answers before it applies what it took, so any not laid as the garden has them are laid so once it has.
 func _build_back(ids: Array) -> void:
 	for id: int in ids:
 		if _settling.has(id):
 			_settling[id].back = true
+	_relay_unlike_garden.call_deferred(ids)
+
+
+func _relay_unlike_garden(ids: Array) -> void:
+	for id: int in ids:
 		var w := find(id)
 		if w != null and not _held(w) and world.state.walls.has(id) and not _shows_garden(w):
 			_relay(w)

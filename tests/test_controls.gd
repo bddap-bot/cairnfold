@@ -139,6 +139,7 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	var w := walls[-1]
 	var data := func() -> Dictionary: return main.world.state.walls[w.id]
 	var placed := WallTool.house_of(data.call())
+	var placed_points: PackedVector3Array = data.call().points
 	_check(Vector2(placed.center.x - spot.x, placed.center.z - spot.z).length() < 0.5, "where the hand points: %s" % placed.center)
 	_check(placed.size == WallTool.HOUSE_SIZE and w.roof != null and w.layout.closed and w.layout.openings.is_empty(), "a square roofed house with no door until one is added")
 	for i in 10:
@@ -216,7 +217,12 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	await _frames(2)
 	_check(tool.held == w, "the left hand alone still holds it")
 	trackers[&"left_hand"].set_input(&"grip_click", false)
-	await _frames(4)
+	var back_home := 0
+	for i in 60:
+		await _frames(1)
+		if PackedVector3Array(w.layout.laid_points) == placed_points:
+			back_home += 1
+	_check(back_home == 0, "once let go it never shows where it stood before: %d frames" % back_home)
 	var set_at := WallTool.house_of(data.call())
 	_check(tool.held == null and walls.size() == before + 1, "letting go leaves the one house, %d walls" % walls.size())
 	_check(set_at.center.is_equal_approx(sized.center) and set_at.size.is_equal_approx(sized.size) and set_at.rise == rise and is_equal_approx(set_at.height, sized.height), "set where and as it was let go: %s" % set_at)

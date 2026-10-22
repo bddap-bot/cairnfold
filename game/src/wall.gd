@@ -697,8 +697,9 @@ func draw_live() -> void:
 		_sync()
 
 
-## Puts each part where it belongs: with the glade's Masonry once settled (ivy once grown), else drawn here; a part
-## moving between the two is drawn by both this frame, so none blinks out.
+## Puts each part where it belongs: with the glade's Masonry once settled (ivy once grown), else drawn here, uploaded
+## at once so the stones drawn here are always the ones laid, which a carry's transform is placed for; a part moving
+## between the two is uploaded by both this frame, so none blinks out.
 func _sync() -> void:
 	var placed: Array[Dictionary] = []
 	var drawn: Array[Dictionary] = []
@@ -715,8 +716,8 @@ func _sync() -> void:
 			_drawn = Masonry.new(kinds())
 			add_child(_drawn)
 		_drawn.place(get_instance_id(), drawn)
+		_drawn.flush()
 		if fresh:
-			_drawn.flush()
 			masonry.flush()
 	elif _drawn != null:
 		masonry.flush()

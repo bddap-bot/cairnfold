@@ -240,7 +240,12 @@ func _edits_made_meanwhile_stay() -> void:
 	tool.stand_build(to)
 	await _play([{"op": "wait", "seconds": 0.1}, {"op": "fit", "what": "opening", "index": -1, "s": 3.0, "y": 1.0}, {"op": "wait", "seconds": 0.1}])
 	_check(world.state.walls[w.id].openings.size() == 1, "a window opens in the house in hand")
+	var stood: PackedVector3Array = world.state.walls[w.id].points
+	var wider: Dictionary = tool.held_at.duplicate()
+	wider.size += Vector2(1, 0)
+	tool.stand_build(wider)
 	tool.end_build()
+	_check(PackedVector3Array(w._build.job.points) != stood, "let go, it is never laid again where it stood: the garden answers before it applies the move")
 	await _frames()
 	var d: Dictionary = world.state.walls[w.id]
-	_check(d.openings.size() == 1 and absf(WallTool.house_of(d).center.x - to.center.x) < 0.01, "let go, it stands where it was carried with the window still in it: %s" % d.openings)
+	_check(d.openings.size() == 1 and absf(WallTool.house_of(d).center.x - to.center.x) < 0.01 and is_equal_approx(WallTool.house_of(d).size.x, wider.size.x), "let go, it stands where it was carried and as wide with the window still in it: %s" % d.openings)
