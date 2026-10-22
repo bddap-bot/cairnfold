@@ -812,15 +812,16 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
 - The fixed table takes the larger measured price for each unit from the Quest 2 and
   Frame calibrations below: the Quest 2 prices throughout, each the larger of two interleaved costs runs
   ([record](../perf/quest-2/costs/20261022T103832Z-6c986f4.json),
-  [record](../perf/quest-2/costs/20261022T110509Z-6c986f4.json)), and grass at 0.706 µs a clump, the pool packed into a 1.8 m disc and seen standing over it
-  ("Water plants"). Each price a record carries (`prices`, added by `scripts/prices.py`) is held by
+  [record](../perf/quest-2/costs/20261022T110509Z-6c986f4.json)), except the flora "Cheaper flora" made cheaper,
+  refitted on that build: a tree 26.628 µs, a bush 4.712, and grass and flowers at their pools packed into a 1.8 m
+  disc beside the eye, 2.449 µs a clump and 3.447 µs a flower. Each price a record carries (`prices`, added by `scripts/prices.py`) is held by
   `tests/test_prices.py`: no unit is charged below the latest one recorded for it. Capacity takes the smaller measured room: the 72 Hz calibration
   line of 11.111111111111111 ms less the Quest 2's 6.94 ms base, the meadow without its own trees and bushes plus
   wildlife, rounded down to 4.16 ms. That base is the meadow the two costs runs measured, the larger of each view,
   less what `demo/meadow-flora.json` measured the meadow's trees and bushes to cost in each of its views,
   interleaved ([record](../perf/quest-2/meadow-flora/20261022T104528Z-6c986f4.json)): from the air 6.61 less 2.10,
   standing 6.28 less 0.81, from the shore 6.29 less 2.15, the dearest 5.47, plus the larger run's 1.47 of wildlife.
-  Its 46 trees and 60 bushes are charged 1.61 ms, at least the 0.81 the room gained.
+  Its 46 trees and 60 bushes are charged 1.51 ms, at least the 0.81 the room gained.
   The meadow's grass and flowers stay in the base: priced as painted plants, at their densest beside the eye, its
   22,000 clumps and 3,200 flowers would charge 18.5 ms, where clearing them with its trees and bushes saves 2.90 ms
   from the air, 3.31 standing and 2.40 from the shore (the same record). These are fixed design numbers, independent of future governor tuning.
@@ -1414,6 +1415,59 @@ rendering beside the game while a Store or Library panel is open, or, unworn, wh
 Guardian's dialog is up, taking GPU time the game's own `App=` line does not show.
 `bench.sh --android` closes the panels, restarts the shell and holds the Guardian paused
 before each run, and fails if another process renders during a measured phase.
+
+### Cheaper flora
+
+Directive (verbatim): "It is worth trying to optimize flowers and grass even more, even if it makes them look a little
+different. Also, it's worth I'd like to try to optimize trees and bushes some more."
+
+Measured on a Quest 2 at the fit step, the meadow from the air and standing (`demo/flora-layers.json`, read by
+`scripts/layers.py`), each build run twice and the builds interleaved
+([records](../perf/quest-2/flora-layers/)). Milliseconds a frame; "hidden" columns are what hiding that layer alone
+saves:
+
+| Build | View | Meadow shown | Trees and bushes hidden | Grass hidden | Flowers hidden | Everything hidden |
+| --- | --- | --- | --- | --- | --- | --- |
+| Before | from the air | 7.20 | 2.15 | 0.37 | 0.50 | 6.07 |
+| Before | standing | 6.59 | 0.76 | 2.39 | 0.82 | 5.52 |
+| One MultiMesh a tree pool | from the air | 6.59 | 1.21 | 0.44 | 0.49 | 5.46 |
+| One MultiMesh a tree pool | standing | 6.32 | 0.47 | 2.31 | 1.05 | 5.27 |
+| Then grass and flowers | from the air | 6.40 | 1.69 | 0.37 | 0.47 | 5.30 |
+| Then grass and flowers | standing | 5.79 | 1.28 | 1.86 | 1.28 | 4.74 |
+| Then bounce a vertex (main) | from the air | 6.28 | 1.46 | 0.50 | 0.58 | 5.13 |
+| Then bounce a vertex (main) | standing | 5.57 | 1.00 | 1.72 | 1.08 | 4.49 |
+
+The meadow shown is the number to read: 0.92 ms cheaper from the air and 1.02 standing. A single layer's saving
+depends on what else is drawn, so hiding one does not split the whole: the trees' share standing rose when only the
+grass changed.
+
+- **One MultiMesh a tree pool** (image unchanged). The meadow's trunks, crowns and bushes each bake into one
+  MultiMesh, not one per 16 m square (`Flora.SOLID_POOL_CELL`): 51 fewer draws from the air, 21 standing. The Quest 2
+  pays 7 to 19 µs a draw whatever it holds: hiding the 46 trunks (19 draws, 1,600 triangles) saved 0.36 ms from the
+  air, and the 60 bushes (24 draws, 4,600 triangles) 0.36. One MultiMesh a pool saved 0.35 and 0.37 ms from the air
+  and 0.20 and 0.33 standing in two runs; 32 m squares saved 0.30 and 0.11.
+- **Grass**: a clump draws five blades 1.4 times as wide instead of seven (`Flora.CLUMP_BLADES`, `CLUMP_WIDE`), the
+  far clump's three kept blades as wide as before. Near grass reads as fewer, broader blades.
+- **Flowers**: four petals instead of six (`Flora.PETALS`), and land flowers hand off to their far patches from 12 m
+  instead of 18 (`Flora.FLOWER_NEAR`). Heads read as four-pointed stars; the band from 12 to 18 m shows colour patches
+  a little sooner.
+- **Bounce a vertex** (image nearly unchanged): plants read bounce and lantern light once a vertex from the ground they
+  stand on (`given_over`), as grass does, not once a fragment: 0.17 ms from the air and 0.27 standing in two
+  interleaved pairs.
+
+Before (left) and after (right), from the air, standing, and standing looking a little down: [cheaper-flora.jpg](cheaper-flora.jpg).
+
+Measured and left as options (savings from one interleaved run, from the air and standing): blobs from a bare
+icosahedron (0.29, 0.13; visibly faceted crowns); four blades a clump instead of seven unwidened (0.14, 0.37; visibly
+thinner grass). Swapping a material's shader at run time, even for an identical copy, cost 0.25 to 1.3 ms on the Quest 2
+for as long as it lasted, so shader changes are measured only as separate builds.
+
+Prices refitted on the after build ([costs](../perf/quest-2/costs/20261022T104636Z-eda9e72.json),
+[pondweed](../perf/quest-2/pondweed/)): a tree 26.628 µs and a bush 4.712, both from the costs fit, against the 28.491 and
+5.01 fitted on the build before them. The costs scene's packed discs fall under the refresh rate, so its fit leaves them out; priced directly
+(`scripts/prices.py`), a packed flower costs 3.447 µs and a packed grass clump 2.099 there and up to 2.449 in the
+pondweed scene, where main read 3.3. Grass and flowers are charged those, up from 0.706 and 0.918: the grass charge no
+longer covered main's packed disc, and no packed flower view had been priced before.
 
 ### Crowns
 
@@ -2921,7 +2975,9 @@ deep water and irises in the shallows.
   stays one grass unit wherever the water stands, since a pond can rise over it later; land grass's charge covers
   pondweed's. The 1.73 ms room now holds about 2,450 clumps: from above the pond, 9.92 + 1.02 = 10.9 ms; from the bed,
   7.38 + 1.08 = 8.5 ms; the land disc standing, 9.14 + 1.73 = 10.9 ms, and from the bed's height 8.81 + 1.50 =
-  10.3 ms, all under the line. Flowers, the pool full (4,000) seen standing on the shore: irises over a shallow pond
+  10.3 ms, all under the line. The same scene a day later on main read 3.3 µs a land clump on a Quest 2, and
+  2.3 to 2.4 µs on the build with five wider blades a clump, so grass is now charged 2.449 ("Cheaper flora").
+  Flowers, the pool full (4,000) seen standing on the shore: irises over a shallow pond
   29.7 ms, the same disc of flowers on land 34.1 ms.
 
 Sound: each pond laps softly from its middle (slow, low-passed sloshes with rare bubbles), a hand

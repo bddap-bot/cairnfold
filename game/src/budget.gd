@@ -40,7 +40,7 @@ const MOSS_FLOWERS := 16.0
 ## and Frame; see docs/design.md.
 ## Fixed independently of the running device, refresh rate and quality governor.
 const CAPACITY_MS := 4.16
-const COSTS := {"grass": 0.706, "flower": 0.918, "tree": 28.491, "bush": 5.01, "wall_m2": 8.843, "plaster_m2": 2.396, "fence_m2": 4.372, "pond_m2": 15.9, "roof_m2": 22.091, "thatch_m2": 12.449, "fitting": 16.415, "easel": 876.552, "boulder": 25.861, "water": 1318.084, "timber": TIMBER_US, "arch": ARCH_US, "moss": 0.918 * MOSS_FLOWERS}
+const COSTS := {"grass": 2.449, "flower": 3.447, "tree": 26.628, "bush": 4.712, "wall_m2": 8.843, "plaster_m2": 2.396, "fence_m2": 4.372, "pond_m2": 15.9, "roof_m2": 22.091, "thatch_m2": 12.449, "fitting": 16.415, "easel": 876.552, "boulder": 25.861, "water": 1318.084, "timber": TIMBER_US, "arch": ARCH_US, "moss": 3.447 * MOSS_FLOWERS}
 
 
 static func fit_step() -> int:
