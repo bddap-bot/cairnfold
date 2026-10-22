@@ -45,7 +45,7 @@ const CAPACITY_MS := 4.68
 ## adds, charged however much is painted (docs/design.md, "Ground materials").
 const STONE_M2_US := 0.468
 const STONE_VIEW_US := 590.0
-const COSTS := {"grass": 2.449, "flower": 3.447, "tree": 26.628, "bush": 4.712, "wall_m2": 8.843, "plaster_m2": 2.396, "fence_m2": 4.372, "pond_m2": 15.9, "roof_m2": 22.091, "thatch_m2": 12.449, "fitting": 16.415, "easel": 876.552, "boulder": 25.861, "water": 1318.084, "stone_m2": STONE_M2_US, "stone": STONE_VIEW_US, "timber": TIMBER_US, "arch": ARCH_US, "moss": 3.447 * MOSS_FLOWERS}
+const COSTS := {"grass": 2.449, "flower": 3.447, "tree": 26.628, "bush": 4.712, "wall_m2": 8.843, "plaster_m2": 2.396, "fence_m2": 4.372, "pond_m2": 15.9, "roof_m2": 22.091, "thatch_m2": 12.449, "fitting": 16.415, "easel": 876.552, "boulder": 25.861, "water": 1908.364, "stone_m2": STONE_M2_US, "stone": STONE_VIEW_US, "timber": TIMBER_US, "arch": ARCH_US, "moss": 3.447 * MOSS_FLOWERS}
 
 
 static func fit_step() -> int:

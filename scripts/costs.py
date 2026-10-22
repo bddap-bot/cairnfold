@@ -67,7 +67,7 @@ def extras(phase, unit):
             print(f"{name}: below the refresh rate, left out", file=sys.stderr)
         if name not in gpu or name in halved:
             continue
-        extra = gpu[name] - base[v] - sum(have[k] * cost[k] for k in have if k != unit) / 1000.0
+        extra = gpu[name] - base[v] - sum(have[k] * cost.get(k, 0.0) for k in have if k != unit) / 1000.0
         print(f"{name:20} {gpu[name]:6.2f} ms, {extra:+6.2f} ms over the base and what is fitted, units {have}", file=sys.stderr)
         yield extra, have
 

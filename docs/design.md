@@ -823,7 +823,10 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   ([record](../perf/quest-2/costs/20261022T103832Z-6c986f4.json),
   [record](../perf/quest-2/costs/20261022T110509Z-6c986f4.json)), except the flora "Cheaper flora" made cheaper,
   refitted on that build: a tree 26.628 µs, a bush 4.712, and grass and flowers at their pools packed into a 1.8 m
-  disc beside the eye, 2.449 µs a clump and 3.447 µs a flower. Each price a record carries (`prices`, added by `scripts/prices.py`) is held by
+  disc beside the eye, 2.449 µs a clump and 3.447 µs a flower. The Frame sets one unit: `water`, 1,908.364 µs, its
+lake 1.91 ms over the meadow from the air against the Quest 2's 1.32 ms. Refitted on 0774568 (below), every other
+Frame price fell under the Quest 2's: `fitting`, the Frame's 15.609 µs until then, fits to 3.852 there against the
+Quest 2's 16.415, so the Frame no longer sets it. Each price a record carries (`prices`, added by `scripts/prices.py`) is held by
   `tests/test_prices.py`: no unit is charged below the latest one recorded for it. Capacity is the Quest 2's room, every device priced on its table: the 72 Hz calibration
   line of 11.111111111111111 ms less the Quest 2's 6.42 ms base, the meadow without its own trees and bushes plus
   wildlife, rounded down to 4.68 ms. That base is the meadow two costs runs measured, the larger of each view
@@ -869,42 +872,40 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   the budget on purpose (`{"op": "budget", "bounded": false}`), to measure what lies
   beyond it.
 
-On the Steam Frame (`NESTCOMBE_SCENE=demo/costs.json bench.sh OUT SSH_HOST BUNDLE UNWORN...`, unworn,
-the ladder held at step 8; [record](../perf/frame/costs/20261020T213034Z-b717f4b.json)), viewport GPU
-milliseconds a frame, from the air and standing, every phase at 72 Hz, over the bare meadow's
-7.33 and 6.56 ms (7.32 at dusk). The base is the meadow with its own plants, 8.94 ms from the
-air, plus 0.39 ms of the wildlife builds draw (flowers 0.01, trees 0.05, fences 0.06, ponds
-0.27): 9.33 ms, so the room is 11.1 ms (the governor's line) less 9.33, 1.77 ms:
+On the Steam Frame (`NESTCOMBE_SCENE=demo/costs.json bench.sh OUT SSH_HOST BUNDLE UNWORN...`, unworn, at
+`Budget.fit_step()`; [record](../perf/frame/costs/20261022T185026Z-0774568.json)), viewport GPU milliseconds a frame,
+from the air and standing, every phase at 72 Hz, over the bare meadow's 5.05 and 4.54 ms (5.11 beside the eye, 4.81 at
+dusk). `scripts/costs.py` fits each unit below; the Frame's base and room are no input to `Budget`. Its prices before
+this run, on b717f4b before the specular cut, are in [that record](../perf/frame/costs/20261020T213034Z-b717f4b.json):
 
-| Phase | Units | From the air | Standing | Fitted cost |
-| --- | --- | --- | --- | --- |
-| Grass pool full | 12,000 blades | 7.96 | 8.69 | 0.177 µs a blade |
-| Flower pool full | 4,000 flowers | 7.74 | 7.42 | 0.215 µs a flower |
-| Tree pool full | 64 trees | 8.15 | 7.87 | 20.5 µs a tree |
-| Bush pool full | 256 bushes | 7.74 | 6.79 | 1.60 µs a bush |
-| Walls, 10 m disc | 553 m² | 8.58 | 10.38 | 6.90 µs a m² |
-| Walls, 15 m disc | 1,122 m² | 9.51 | 10.57 | |
-| Walls, 20 m disc | 1,197 m² | 10.49 | 10.29 | |
-| Plaster walls, 15 m disc | 1,562 m² | 8.25 | 9.69 | 2.01 µs a m² |
-| Fences, 15 m disc | 416 m² | 7.78 | 7.88 | 3.17 µs a m² |
-| Ponds | 7 | 7.46 | 6.67 | 19.5 µs a pond |
-| Village | 215 m² of wall, 158 m² of roof | 9.07 | 9.10 | 6.65 µs a m² of roof |
-| Village floored | 598 m² of wall, 158 m² of roof, 151 m² of floor | 9.64 | 9.50 | nothing: under its walls and roofs |
-| Village thatched | 215 m² of wall, 158 m² of thatch | 9.09 | 8.60 | 3.48 µs a m² of thatch |
-| Lanterns | 58 on 454 m² of wall | 8.43 | 10.60 | 15.6 µs a lantern |
-| Easels | 4 | 7.96 | 8.69 | 532 µs an easel |
-| Boulders | 78 | 8.03 | 7.06 | 9.07 µs a boulder |
-| Moss, not measured | | | | 3.44 µs a patch, sixteen flowers' worth (`Budget.MOSS_FLOWERS`) |
-| Paths | | 7.40 | 6.33 | nothing |
-| The meadow's own flowers, trees and bushes | 3,200, 46, 60 | 8.94 | 7.44 | the base |
-| Hills | | 7.34 | 6.59 | nothing |
-| Stone ground | | 7.51 | 6.42 | charged at the Quest 2's price (see "Ground materials") |
+| Phase | Units | From the air | Standing | Fitted cost | b717f4b |
+| --- | --- | --- | --- | --- | --- |
+| Grass pool full | 12,000 clumps | 5.20 | 5.41 | 0.198 µs a clump, packed beside the eye (7.48) | 0.177 |
+| Flower pool full | 4,000 flowers | 5.38 | 4.99 | 0.300 µs a flower, packed beside the eye (6.31) | 0.215 |
+| Tree pool full | 64 trees | 5.68 | 5.18 | 9.99 µs a tree | 20.5 |
+| Bush pool full | 256 bushes | 5.31 | 4.65 | 0.994 µs a bush | 1.60 |
+| Walls, 10 m disc | 714 m² | 6.18 | 7.76 | 4.50 µs a m² | 6.90 |
+| Walls, 15 m disc | 1,562 m² | 7.39 | 8.25 | | |
+| Walls, 20 m disc | 2,837 m² | 9.31 | 8.80 | | |
+| Plaster walls, 15 m disc | 1,562 m² | 5.78 | 6.85 | 1.48 µs a m² | 2.01 |
+| Fences, 15 m disc | 416 m² | 5.32 | 5.12 | 1.37 µs a m² | 3.17 |
+| Ponds | 71 m² | 4.95 | 4.27 | nothing over the bare meadow | 19.5 a pond |
+| Lake, the meadow's bowl filled | | 7.72 | 3.52 | 1,908 µs, all of a garden's water (`water`) | |
+| Village | 215 m² of wall, 158 m² of roof | 6.39 | 5.74 | 2.35 µs a m² of roof | 6.65 |
+| Village thatched | 215 m² of wall, 158 m² of thatch | 6.20 | 5.53 | 1.14 µs a m² of thatch | 3.48 |
+| Lanterns | 90 on 714 m² of wall | 6.36 | 8.10 | 3.85 µs a lantern | 15.6 |
+| Easels | 4 | 5.17 | 5.19 | 162 µs an easel | 532 |
+| Boulders | 78 | 5.19 | 4.50 | 1.80 µs a boulder | 9.07 |
+| Paths | | 4.85 | 4.14 | nothing | |
+| The meadow's own trees and bushes | 46, 60 | 5.81 | 4.93 | the base | |
+| Hills | | 4.78 | 4.24 | nothing | |
+| Stone ground | 1,304 m² | 4.96 | 4.29 | charged at the Quest 2's price (see "Ground materials") | |
 
-The walls, village and paths are laid by `sized` steps, so their units are what the run laid,
-not the script's full discs: the 15 and 20 m discs were thinned to stay under the line.
-Walls cost most per square metre standing among the first ones: each wall near the eye
-is drawn in full, while those further off draw 12-triangle stones. So the fit takes the
-10 m disc standing, and a wide garden fills its bar faster than it fills the frame.
+The lake's view from the air is the meadow's 5.81 ms plus 1.91; standing in it, it drowns the plants around the eye
+and reads 1.40 ms under the meadow. The walls, village and paths are laid by `sized` steps, so their units are what
+the run laid; on this build none was thinned. Walls cost most per square metre standing among the first ones: each
+wall near the eye is drawn in full, while those further off draw 12-triangle stones. So the fit takes the 10 m disc
+standing.
 
 The meadow's own scenery is the base, measured whole, not counted at the pool-full prices:
 its plants stand spread across the whole meadow, where a pool-full phase packs as many
@@ -2928,7 +2929,7 @@ much, so over the meadow as it stands the lake adds 0.37 ms from the air and sav
 under it. `Budget` prices water by the square metre, 5.15 µs, the most seven small ponds (71 m²) wholly in view
 gave over the bare meadow in either run (0.37 and 0.08 ms), and all of a garden's water at most 0.37 ms
 (`water`), what the lake adds to the meadow from its dearest view: a pond of 72 m² or more costs that, a fifth of
-the Quest 2's 2 ms of room. The Frame shares these prices until the lake is measured there.
+the Quest 2's 2 ms of room. The Frame's lake, measured since, costs more and sets `water` ("Build budget").
 
 Filling a lake never holds the main thread. Done on it, putting the lake held the Quest 2's for one frame of 476 to
 1,617 ms, and each ground edit inside it for one of 123 to 169 ms, 53 and 12 refresh periods or more. Timers placed
