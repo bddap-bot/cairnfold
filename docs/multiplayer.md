@@ -487,7 +487,8 @@ it where it was, and one VRM costs about what two do. So lowering these limits w
 the frame back; the limits stay at 20,000 triangles, 20 surfaces and 1024 px until what does
 cost is found. Against a 12.5 ms budget, 2 to 3 ms for the first VRM in view is too much.
 
-Not every file arrives. With the Quest 2 hosting over Wi-Fi, one or two of the three
-other players' files arrived, within about 30 s, and the last never did, even after four
-minutes. The Frame and one machine got all three within seconds. Until that is fixed, a player's
-own avatar can stay unseen by some of the others.
+Every file arrives. With the Quest 2 hosting over Wi-Fi, the three 16.6 MB files cross the
+link at once, and a burst of loss leaves some of a sender's packets unacknowledged for seconds.
+ENet's default timeout dropped a live player for that within about 15 s, so the files that player
+was sending and relaying never arrived. A player is now dropped only after 30 s without an
+acknowledgement; on the Quest 2, all three files arrive and are worn within 25 s.
