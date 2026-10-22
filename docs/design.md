@@ -728,6 +728,15 @@ at the phase's peak, and its median GPU ms:
 The hill stroke draws 132 more calls while its walls move and 36 ms less, the coarse far stones
 outweighing the calls; a wall in hand draws fewer.
 
+On the Frame, with these steps and the governor as they stand (07745685), a governed run of the
+whole stress scene (each phase 20 s, unworn through `frame-unworn`) held 72 Hz in every phase its
+last 15 s, the heaviest at step 10: the village from the air 8.7 ms, the r25 walls 8.0 and 8.8,
+the hill stroke 8.0, the camera held up 9.6 to 10.3, the garden from the air 8.5. The two phases
+standing on a wall walk through the roofs village did not: `standing/along` and `standing/across`
+sat at every other refresh all 20 s at step 10, reading 13.8 and 14.8 ms with 1.28 and 1.10 M
+primitives, against 8.9 ms and 0.93 M for the same village from the ground. There the scene is
+past the ladder's last step, not a step that costs more than it saves.
+
 ### Moving and acting at the build budget
 
 Report (verbatim): "That \"after a few seconds settle\" seems to be carrying weight. Framerate during movement and
