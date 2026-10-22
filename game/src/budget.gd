@@ -19,8 +19,9 @@ const GPU_SHARE := 0.9
 ## fittings that add a mesh (lanterns, flags, chimneys, dormers, whose boarded faces count as stone wall and whose
 ## slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing;
 ## explicit arch openings, with timber members counted separately; square metres of pond water; easels, each a canvas
-## drawn and simulated; and boulders, a metre-wide one a unit (`boulder`).
-const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "fitting", "grass", "flower", "tree", "bush", "pond_m2", "timber", "easel", "boulder", "moss", "arch"]
+## drawn and simulated; boulders, a metre-wide one a unit (`boulder`); and square metres of painted stone ground, each
+## stroke the ground its discs reach, a stroke over another counted again.
+const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "fitting", "grass", "flower", "tree", "bush", "pond_m2", "timber", "easel", "boulder", "moss", "arch", "stone_m2"]
 
 ## The largest paired Quest 2 cost per timber member in the dense village, rounded up (docs/design.md).
 const TIMBER_US := 0.5
@@ -40,7 +41,11 @@ const MOSS_FLOWERS := 16.0
 ## and Frame; see docs/design.md.
 ## Fixed independently of the running device, refresh rate and quality governor.
 const CAPACITY_MS := 4.16
-const COSTS := {"grass": 2.449, "flower": 3.447, "tree": 26.628, "bush": 4.712, "wall_m2": 8.843, "plaster_m2": 2.396, "fence_m2": 4.372, "pond_m2": 15.9, "roof_m2": 22.091, "thatch_m2": 12.449, "fitting": 16.415, "easel": 876.552, "boulder": 25.861, "water": 1318.084, "timber": TIMBER_US, "arch": ARCH_US, "moss": 3.447 * MOSS_FLOWERS}
+## Painted stone ground's paired Quest 2 cost a square metre over the bare meadow, and at most what a view full of it
+## adds, charged however much is painted (docs/design.md, "Ground materials").
+const STONE_M2_US := 0.468
+const STONE_VIEW_US := 590.0
+const COSTS := {"grass": 2.449, "flower": 3.447, "tree": 26.628, "bush": 4.712, "wall_m2": 8.843, "plaster_m2": 2.396, "fence_m2": 4.372, "pond_m2": 15.9, "roof_m2": 22.091, "thatch_m2": 12.449, "fitting": 16.415, "easel": 876.552, "boulder": 25.861, "water": 1318.084, "stone_m2": STONE_M2_US, "stone": STONE_VIEW_US, "timber": TIMBER_US, "arch": ARCH_US, "moss": 3.447 * MOSS_FLOWERS}
 
 
 static func fit_step() -> int:
@@ -58,7 +63,8 @@ static func info() -> Dictionary:
 static func cost_ms(units: Dictionary) -> float:
 	var us := 0.0
 	for k in units:
-		us += minf(units[k] * COSTS[k], COSTS.water) if k == "pond_m2" else units[k] * COSTS[k]
+		var cap: float = {"pond_m2": COSTS.water, "stone_m2": COSTS.stone}.get(k, INF)
+		us += minf(units[k] * COSTS[k], cap)
 	return us / 1000.0
 
 
@@ -156,6 +162,37 @@ static func stairs(d: Dictionary) -> Dictionary:
 	var run := d.a.distance_to(d.b) as float
 	# Charge the treads and both rails against the existing stone-face budget.
 	return {"wall_m2": run * (d.width + 2.0 * StairLayout.RAIL_HEIGHT)}
+
+
+## A stroke of stone ground: the texels of Ground's mask its discs reach, fade included. Other kinds count nothing.
+static func ground(d: Dictionary) -> Dictionary:
+	if d.kind != Ground.Kind.STONE:
+		return {}
+	var reached := Image.create(Ground.SIZE, Ground.SIZE, false, Image.FORMAT_L8)
+	for st: Vector4 in d.stamps:
+		reach(st, reached)
+	return stone(reached)
+
+
+## Marks on `onto`, an L8 image the size of Ground's mask, the texels the disc `stamp` reaches, fade included.
+static func reach(stamp: Vector4, onto: Image) -> void:
+	var at := (Vector2(stamp.x, stamp.y) / Terrain.SIZE + Vector2(0.5, 0.5)) * Ground.SIZE
+	var r := (stamp.z + stamp.w) / Ground.TEXEL
+	for j in range(maxi(0, floori(at.y - r)), mini(Ground.SIZE - 1, ceili(at.y + r)) + 1):
+		var dy := j + 0.5 - at.y
+		if dy * dy > r * r:
+			continue
+		var half := sqrt(r * r - dy * dy)
+		var x0 := maxi(0, ceili(at.x - half - 0.5))
+		var x1 := mini(Ground.SIZE - 1, floori(at.x + half - 0.5))
+		if x1 >= x0:
+			onto.fill_rect(Rect2i(x0, j, x1 - x0 + 1, 1), Color.WHITE)
+
+
+## The square metres of stone the texels marked on `reached` (`reach`) count as.
+static func stone(reached: Image) -> Dictionary:
+	var n := reached.get_data().count(255)
+	return {"stone_m2": n * Ground.TEXEL * Ground.TEXEL} if n > 0 else {}
 
 
 ## Reserve the whole path for treads, so raising ground cannot exceed the build budget.

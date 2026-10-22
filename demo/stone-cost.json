@@ -1,0 +1,1216 @@
+[
+ {
+  "op": "budget",
+  "bounded": false
+ },
+ {
+  "op": "quality",
+  "step": "fit"
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "wait",
+  "seconds": 45
+ },
+ {
+  "op": "bare"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "sweep/meadow-1"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -14
+   ],
+   [
+    34,
+    -14
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -10
+   ],
+   [
+    34,
+    -10
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -6
+   ],
+   [
+    34,
+    -6
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -2
+   ],
+   [
+    34,
+    -2
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    2
+   ],
+   [
+    34,
+    2
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    6
+   ],
+   [
+    34,
+    6
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    10
+   ],
+   [
+    34,
+    10
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    14
+   ],
+   [
+    34,
+    14
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "sweep/stone-1"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "capture",
+  "name": "stone-1"
+ },
+ {
+  "op": "bare"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "sweep/meadow-2"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -14
+   ],
+   [
+    34,
+    -14
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -10
+   ],
+   [
+    34,
+    -10
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -6
+   ],
+   [
+    34,
+    -6
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -2
+   ],
+   [
+    34,
+    -2
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    2
+   ],
+   [
+    34,
+    2
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    6
+   ],
+   [
+    34,
+    6
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    10
+   ],
+   [
+    34,
+    10
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    14
+   ],
+   [
+    34,
+    14
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "sweep/stone-2"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "capture",
+  "name": "stone-2"
+ },
+ {
+  "op": "bare"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "sweep/meadow-3"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -14
+   ],
+   [
+    34,
+    -14
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -10
+   ],
+   [
+    34,
+    -10
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -6
+   ],
+   [
+    34,
+    -6
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -2
+   ],
+   [
+    34,
+    -2
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    2
+   ],
+   [
+    34,
+    2
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    6
+   ],
+   [
+    34,
+    6
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    10
+   ],
+   [
+    34,
+    10
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    14
+   ],
+   [
+    34,
+    14
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "sweep/stone-3"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "capture",
+  "name": "stone-3"
+ },
+ {
+  "op": "bare"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "sweep/meadow-4"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -14
+   ],
+   [
+    34,
+    -14
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -10
+   ],
+   [
+    34,
+    -10
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -6
+   ],
+   [
+    34,
+    -6
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -2
+   ],
+   [
+    34,
+    -2
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    2
+   ],
+   [
+    34,
+    2
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    6
+   ],
+   [
+    34,
+    6
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    10
+   ],
+   [
+    34,
+    10
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    14
+   ],
+   [
+    34,
+    14
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "sweep/stone-4"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "capture",
+  "name": "stone-4"
+ },
+ {
+  "op": "bare"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "sweep/meadow-5"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -14
+   ],
+   [
+    34,
+    -14
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -10
+   ],
+   [
+    34,
+    -10
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -6
+   ],
+   [
+    34,
+    -6
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -2
+   ],
+   [
+    34,
+    -2
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    2
+   ],
+   [
+    34,
+    2
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    6
+   ],
+   [
+    34,
+    6
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    10
+   ],
+   [
+    34,
+    10
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    14
+   ],
+   [
+    34,
+    14
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "sweep/stone-5"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "capture",
+  "name": "stone-5"
+ },
+ {
+  "op": "bare"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "sweep/meadow-6"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -14
+   ],
+   [
+    34,
+    -14
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -10
+   ],
+   [
+    34,
+    -10
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -6
+   ],
+   [
+    34,
+    -6
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    -2
+   ],
+   [
+    34,
+    -2
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    2
+   ],
+   [
+    34,
+    2
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    6
+   ],
+   [
+    34,
+    6
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    10
+   ],
+   [
+    34,
+    10
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "paint",
+  "tool": "stone",
+  "points": [
+   [
+    1,
+    14
+   ],
+   [
+    34,
+    14
+   ]
+  ],
+  "radius": 3,
+  "seconds": 2
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 3
+ },
+ {
+  "op": "label",
+  "name": "sweep/stone-6"
+ },
+ {
+  "op": "wait",
+  "seconds": 10
+ },
+ {
+  "op": "label",
+  "name": "-"
+ },
+ {
+  "op": "capture",
+  "name": "stone-6"
+ },
+ {
+  "op": "bare"
+ },
+ {
+  "op": "view",
+  "ground": true,
+  "eye": [
+   0,
+   1.65,
+   0
+  ],
+  "at": [
+   20,
+   1.2,
+   0
+  ]
+ },
+ {
+  "op": "capture",
+  "name": "meadow-end"
+ },
+ {
+  "op": "quit"
+ }
+]

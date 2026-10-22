@@ -37,6 +37,8 @@ class Brush:
 	var ground: Ground.Stroke
 	## A stone hold begun on stone paints it back to meadow.
 	var meadow := false
+	## The ground this hold's stone reaches, as the budget counts it (Budget.reach).
+	var reached := Image.create(Ground.SIZE, Ground.SIZE, false, Image.FORMAT_L8)
 	var since_stamp := 0.0
 	var last_stamp := Vector3.INF
 	var owed := 0.0
@@ -234,8 +236,21 @@ func _lay_ground(b: Brush, kind: Ground.Kind, center: Vector3, radius: float, de
 	if b.ground != null and (b.ground.kind != kind or b.ground.stamps.size() >= Commands.MAX_STAMPS):
 		_send_ground(b)
 	b.since_stamp += delta
+	if kind == Ground.Kind.STONE:
+		world.preview(b.hand, Budget.stone(b.reached))
 	if paths.busy() or (b.ground == null and _ground_held()) or (b.ground != null and b.since_stamp < STAMP_EVERY and center.distance_to(b.last_stamp) < radius * STAMP_MOVE):
 		return
+	if kind == Ground.Kind.STONE:
+		if b.full:
+			return
+		# A hold paints stone up to the budget and no further, as plants stop coming.
+		var trial := b.reached.duplicate() as Image
+		Budget.reach(Vector4(center.x, center.z, radius * 0.4, radius * 0.8), trial)
+		if not Budget.fits(world.units, Budget.stone(trial)):
+			b.full = true
+			world.cap(b.hand)
+			return
+		b.reached = trial
 	if b.ground == null:
 		b.ground = Ground.Stroke.new(kind, Ground.style)
 		Ground.hold(b.ground)
@@ -270,6 +285,7 @@ func _send_plants(b: Brush) -> void:
 func _send_ground(b: Brush) -> void:
 	var stroke := b.ground
 	b.ground = null
+	b.reached.fill(Color.BLACK)
 	if stroke == null:
 		return
 	if stroke.stamps.is_empty():

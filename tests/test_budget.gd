@@ -27,6 +27,7 @@ func _run() -> void:
 	await _painting_stops_at_the_budget()
 	await _the_bar_shows_the_share()
 	_water_costs_at_most_a_view_full()
+	_stone_ground_counts_its_square_metres()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -61,6 +62,32 @@ func _water_costs_at_most_a_view_full() -> void:
 	_check(Budget.fits(lake, {"pond_m2": 500.0}), "more water beside a full view's worth costs nothing more")
 
 
+func _stone_ground_counts_its_square_metres() -> void:
+	var before: Dictionary = world.units.duplicate()
+	var r := FloraTool.MAX_RADIUS * 0.4
+	var disc := PackedVector4Array([Vector4(40, -40, r, r * 2.0)])
+	var meadow := {"op": "ground", "kind": int(Ground.Kind.MEADOW), "stamps": disc}
+	_check(Budget.ground(meadow).is_empty(), "painting meadow back counts nothing")
+	var stone := {"op": "ground", "kind": int(Ground.Kind.STONE), "stamps": disc, "style": 0}
+	var area: float = Budget.ground(stone).get("stone_m2", 0.0)
+	_check(absf(area - PI * 9.0 * r * r) < PI * 9.0 * r * r * 0.1, "a stone disc counts the ground it reaches, fade included: %.1f m²" % area)
+	var twice := {"op": "ground", "kind": int(Ground.Kind.STONE), "stamps": PackedVector4Array([disc[0], disc[0] + Vector4(0.5, 0, 0, 0)]), "style": 0}
+	_check(Budget.ground(twice).stone_m2 < area * 1.5, "a stroke counts the ground its discs share once")
+	var bounded := world.bounded
+	world.bounded = false
+	world._order(stone, world.me())
+	var id := world.seq
+	_check(world.state.grounds.has(id), "the stone stroke goes into the garden")
+	_check(is_equal_approx(world.units.get("stone_m2", 0.0) - before.get("stone_m2", 0.0), area), "laying stone counts it")
+	_check(_same(world.units, _recount()), "stone's count matches a recount")
+	world._order({"op": "unground", "id": id}, world.me())
+	_check(_same(world.units, before), "taking the stone away frees it")
+	world.bounded = bounded
+	var q: Dictionary = Budget.COSTS
+	_check(is_equal_approx(Budget.cost_ms({"stone_m2": 100.0}), 100.0 * q.stone_m2 / 1000.0), "a little stone costs its square metres")
+	_check(is_equal_approx(Budget.cost_ms({"stone_m2": 25600.0}), q.stone / 1000.0), "the whole meadow in stone costs a view full of it")
+
+
 func _check(ok: bool, what: String) -> void:
 	if not ok:
 		failures += 1
@@ -88,6 +115,8 @@ func _recount() -> Dictionary:
 		Budget.add(out, Budget.wall(d))
 	for d: Dictionary in world.state.paths.values():
 		Budget.add(out, Budget.path(d))
+	for d: Dictionary in world.state.grounds.values():
+		Budget.add(out, Budget.ground(d))
 	for g in world.state.groups:
 		for p: Flora.Plant in world.flora.groups[g]:
 			if p != null and not world.state.groups[g].hidden.has(p.index):
@@ -286,10 +315,24 @@ func _painting_stops_at_the_budget() -> void:
 	var walls: Array = world.state.walls.keys()
 	world.submit({"op": "unwall", "ids": PackedInt32Array([walls.max()])})
 	await _settled()
+	await _play([{"op": "paint", "tool": "stone", "points": [[-40, -20], [40, -20], [40, -30], [-40, -30], [-40, -40], [40, -40]], "radius": 3.0, "seconds": 8.0}])
+	await _settled()
+	_check(world.units.get("stone_m2", 0.0) * Budget.COSTS.stone_m2 > Budget.COSTS.stone, "a long stroke of stone lays more than a view full")
+	_check(is_equal_approx(Budget.cost_ms(world.units) - Budget.cost_ms({"wall_m2": world.units.wall_m2}), Budget.COSTS.stone / 1000.0), "and is charged a view full of it")
+	for id: int in world.state.grounds.keys():
+		world.submit({"op": "unground", "id": id})
+	await _settled()
+	_check(not world.units.has("stone_m2"), "taking it away frees it")
 	await _play([{"op": "paint", "tool": "flowers", "points": [[-20, 20], [20, 20]], "radius": 3.0, "seconds": 6.0}])
 	await _settled()
 	_check(world.fill() <= 1.0, "a long paint stroke stops at the budget: %.3f" % world.fill())
 	_check(world.units.get("flower", 0) > 0, "it painted up to it")
+	world.submit({"op": "unwall", "ids": PackedInt32Array([world.state.walls.keys().max()])})
+	await _settled()
+	await _play([{"op": "paint", "tool": "stone", "points": [[-40, -20], [40, -20], [40, -30], [-40, -30]], "radius": 3.0, "seconds": 6.0}])
+	await _settled()
+	_check(world.fill() <= 1.0 and world.fill() > 0.97, "where a view full of stone would not fit, a long stroke of it stops at the budget: %.3f" % world.fill())
+	_check(world.units.get("stone_m2", 0.0) > 0.0, "it painted stone up to it")
 
 
 func _the_bar_shows_the_share() -> void:

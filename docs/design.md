@@ -797,7 +797,7 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
 
 - What a garden holds counts in units (`Budget.UNITS`): square metres of stone wall,
   plaster wall, fence and path face, and of a tiled or flat roof and a thatched one laid along their slopes out to their eaves; fittings that add a mesh (lanterns, flags,
-  chimneys, dormers, each dormer's boarded faces counted as stone wall and its slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing; square metres of pond water, all of it charged at most what a view full of water adds. The
+  chimneys, dormers, each dormer's boarded faces counted as stone wall and its slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing; square metres of pond water, all of it charged at most what a view full of water adds; square metres of painted stone ground, all of it charged at most what a view full of stone adds (see "Ground materials"). The
   meadow's own trees and bushes count as planted ones do, so a fresh garden starts 38% full and clearing them frees
   their share; its own grass and flowers are part of the base and count nothing (below). A tree counts one unit at
   every scale. `World` keeps the count as every command applies, so deleting
@@ -843,8 +843,8 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   game's GPU time. Grass and flowers are measured twice: their pool spread over a 20 m disc, and packed into a 1.8 m disc
   seen standing over it (`grass-dense`, `flowers-dense`, the `near` view), where each plant covers the most. A unit's
   cost is the highest any view gives; a view whose frames fell below the refresh rate is left out, its GPU time not the scene's.
-  Hills and painted stone ground measured within noise of the bare meadow, so terrain
-  counts nothing. Lantern light is baked (`Lamps`); a lantern counts by its meshes.
+  Hills measured within noise of the bare meadow, so shaped ground counts nothing; painted stone ground does
+  not on the Quest 2 (see "Ground materials", Cost). Lantern light is baked (`Lamps`); a lantern counts by its meshes.
 - A roof counts the area along its slopes: its plan out to the eaves times `RoofLayout.stretch`, the slope's length
   over its run for a gable, the cone's surface over its disc for a tower, 1 for a flat deck. Tiles and straw courses
   are laid a fixed distance apart along the slope, so they grow with that area, not the plan. The Frame's `roof_m2`
@@ -884,7 +884,7 @@ air, plus 0.39 ms of the wildlife builds draw (flowers 0.01, trees 0.05, fences 
 | Paths | | 7.40 | 6.33 | nothing |
 | The meadow's own flowers, trees and bushes | 3,200, 46, 60 | 8.94 | 7.44 | the base |
 | Hills | | 7.34 | 6.59 | nothing |
-| Stone ground | | 7.51 | 6.42 | nothing |
+| Stone ground | | 7.51 | 6.42 | charged at the Quest 2's price (see "Ground materials") |
 
 The walls, village and paths are laid by `sized` steps, so their units are what the run laid,
 not the script's full discs: the 15 and 20 m discs were thinned to stay under the line.
@@ -3035,15 +3035,30 @@ is bare (earth or stone), and the brushes plant nothing there.
   stones drop out, the lowest-valued first, so it frays into the meadow as scattered stones rather than
   ending in a line, while the grass thins over the same fade.
 - **Cost:** the terrain and plant shaders read the mask once per fragment or vertex; only stone ground
-  adds its reads, behind a branch: the style's texel, the pattern layer and one more noise tap. Desktop
-  RTX 2080 at 1600×1200, standing over a strip of stone that fills the view (`render.sh`, Godot's viewport
-  GPU timer, median of 15 one-second samples, four meadow/stone pairs a run, two runs each tree,
-  alternated): the flat flagstones read 4.31–4.40 ms against the meadow's 4.36–4.48 (nothing), the styled,
-  normal-mapped stone 4.72–4.80 against 4.38–4.48, so about 0.35 ms a frame when stone fills the screen.
-  Memory: the pattern array is 2 × 512² RGBA8 with mipmaps, 2.8 MB, and the mask grows from RG8 to RGBA8
-  (+0.5 MB). The bake at load takes 0.4–1.4 s on that desktop (a local RenderingDevice, ~0.3 s; the
-  dispatch, 20 ms; mipmaps, 10 ms; the first run on a machine also compiles the compute pipeline, 2.7 s
-  once). Headset cost is not yet measured.
+  adds its reads, behind a branch: the style's texel, the pattern layer and one more noise tap. On the Quest 2
+  (`bench.sh OUT --android APK` at `Budget.fit_step()`, the frame's GPU time a frame as the bench records it), stone
+  ground costs above noise, so it is charged (`stone_m2`):
+  - Standing over a field of stone that fills the lower half of the view (`demo/stone-cost.json`: six meadow/stone
+    pairs, alternated, each the same view; [record](../perf/quest-2/stone-cost/20261022T151558Z-d4a9c75.json)), the
+    meadow read 4.75–4.81 ms and the stone 5.27–5.34, 0.46 to 0.59 ms more by every neighbouring pair (the first
+    meadow, 5.59, read high, as a fresh launch's first phase does). The viewport's own GPU timer read the same
+    pairs 4.62–5.01 against 5.70–5.78, about 1.1 ms; a later run of three pairs read 4.42 against 4.69–5.17, its
+    stone seconds swinging between 4.7 and 5.7, so that timer swings with the headset's state, and the charge
+    takes the bench's frame time, as every unit's does (`scripts/prices.py`).
+  - `demo/costs.json`'s four strips, 1,281 m², read 5.05 ms from the air and 5.27 standing against the hills'
+    4.55 and 4.79 and the paths' 4.57 and 4.67 just before them
+    ([record](../perf/quest-2/costs/20261022T150519Z-d4a9c75.json)): at most 0.468 µs a square metre.
+  So a stroke counts the ground its discs reach on the mask, fade included (`Budget.ground`, overlapping strokes each
+  counting theirs), at 0.468 µs a square metre, and all the garden's stone at most 590 µs, the dearest pair of the
+  view full, as pond water is held to a view full of water. A stone stroke stops at the budget as a plant stroke
+  does. Memory: the pattern array is 2 × 512² RGBA8 with mipmaps, 2.8 MB, and the mask grows from RG8 to RGBA8
+  (+0.5 MB). The bake at load took 511, 484 and 520 ms on three launches of the Quest 2 (the first after installing
+  the build), logged as `stone: 2 styles baked in … ms` while the game loads, 8 s before its XR session begins, under
+  the shell's loading view, so nothing stalls in the headset; a first-ever pipeline compile was not isolated, since
+  the pipeline cache outlives an install. On a desktop RTX 2080 at 1600×1200 (`render.sh`, viewport GPU timer,
+  standing over stone filling the view), the styled stone read about 0.35 ms over the meadow, and the bake 0.4–1.4 s
+  (a local RenderingDevice, ~0.3 s; the dispatch, 20 ms; mipmaps, 10 ms; the first run on a machine also compiles
+  the compute pipeline, 2.7 s once).
 
 What Tiny Glade does, from public material only: grass and rocky terrain are separate surface kinds
 (beta 1.16.0 notes fix "terrain cracks and 'astroturf' popping on top of grass and rocky terrain"); rock

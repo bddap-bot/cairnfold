@@ -157,8 +157,10 @@ func change_of(cmd: Dictionary) -> Dictionary:
 			Budget.add(out, _units_of.get("q%d" % cmd.id, {}), -1.0)
 		"path":
 			Budget.add(out, Budget.path(cmd.path))
-		"unpath":
+		"unpath", "unground":
 			Budget.add(out, _units_of.get("q%d" % cmd.id, {}), -1.0)
+		"ground":
+			Budget.add(out, Budget.ground(cmd))
 		"plant":
 			var n := 1
 			if not cmd.kind in Flora.PLACED:
@@ -827,12 +829,14 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			stroke.stamps = cmd.stamps
 			_strokes[cmd.id] = stroke
 			Ground.lay(stroke, cmd.id)
+			_account("q%d" % cmd.id, Budget.ground(cmd))
 			inverse = {"op": "unground", "id": cmd.id}
 		"unground":
 			inverse = _ground(state.grounds[cmd.id], cmd.id)
 			state.grounds.erase(cmd.id)
 			Ground.lift(_strokes[cmd.id])
 			_strokes.erase(cmd.id)
+			_account("q%d" % cmd.id, {})
 		"restone":
 			inverse = {"op": "restone", "id": cmd.id, "style": state.grounds[cmd.id].style}
 			state.grounds[cmd.id].style = cmd.style
