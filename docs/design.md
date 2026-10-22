@@ -3377,6 +3377,26 @@ its ground and its way, and a sheep checks walls and water whenever it picks whe
 every nudge apart, where it would stand. Water along a way is looked for closely only in the grid
 squares a pond reaches (`Water.crosses`).
 
+## Night stars
+
+The sky shader draws soft points from view direction alone, with fixed warm/cool tints and
+brightness variation. `Daylight.light(time).stars` fades them through twilight and makes
+them zero by day; the shader skips their calculation then. They have no position-dependent
+parallax or animated twinkle. Clouds and the moon glow soften them.
+
+`demo/stars.json` pairs stars off/on twice with the whole view looking up at midnight,
+from 0.2 m above dry terrain. On Quest 2 at 72 Hz and render scale 0.7, the pairs measured
+6.09 → 6.41 ms and 6.04 → 6.40 ms of GPU time per frame: +0.32 and +0.36 ms.
+Median frame time stayed at 13.93 ms and 13.92 ms respectively, with zero late frames in
+all four intervals. `perf/quest-2/stars/` records the run. There is no separate sky entry
+in `Budget.COSTS`; this is fixed scene cost, not a charge per garden object.
+`demo/stress.json` includes the same upward midnight view.
+
+At that low dry-ground pose, `test_stars.gd` checks that the head stays put, with no
+teleport fade or underwater state. The 2 cm near clip leaves terrain below the eyes;
+underwater effects require an actual pond above them. No separate lying-pose classifier
+is introduced. The upward captures show the sky clear of vegetation at the sampled spot.
+
 ## Photos
 
 The camera is a tool on the wheel (`PhotoTool`). Held, a small camera stands on the controller with

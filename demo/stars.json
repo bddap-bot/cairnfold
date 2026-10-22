@@ -1,228 +1,44 @@
 [
-  {
-    "op": "place",
-    "x": 0,
-    "z": 12
-  },
-  {
-    "op": "sun",
-    "time": 0,
-    "seconds": 0.1
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      0.2,
-      12
-    ],
-    "at": [
-      0,
-      10,
-      11.999
-    ],
-    "ground": true
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "layer",
-    "name": "stars",
-    "mode": "off"
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "stars/off-a"
-  },
-  {
-    "op": "wait",
-    "seconds": 20
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "layer",
-    "name": "stars",
-    "mode": "on"
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "stars/on-a"
-  },
-  {
-    "op": "wait",
-    "seconds": 20
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "layer",
-    "name": "stars",
-    "mode": "off"
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "stars/off-b"
-  },
-  {
-    "op": "wait",
-    "seconds": 20
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "layer",
-    "name": "stars",
-    "mode": "on"
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "label",
-    "name": "stars/on-b"
-  },
-  {
-    "op": "wait",
-    "seconds": 20
-  },
-  {
-    "op": "label",
-    "name": "-"
-  },
-  {
-    "op": "capture",
-    "name": "midnight-ground-up"
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      0.2,
-      12
-    ],
-    "at": [
-      0,
-      0.2,
-      0
-    ],
-    "ground": true
-  },
-  {
-    "op": "wait",
-    "seconds": 2
-  },
-  {
-    "op": "capture",
-    "name": "midnight-ground-level"
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      0.2,
-      12
-    ],
-    "at": [
-      0,
-      10,
-      11.999
-    ],
-    "ground": true
-  },
-  {
-    "op": "sun",
-    "time": 0.22,
-    "seconds": 0.1
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "capture",
-    "name": "dawn-ground-up"
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      0.2,
-      12
-    ],
-    "at": [
-      0,
-      10,
-      11.999
-    ],
-    "ground": true
-  },
-  {
-    "op": "sun",
-    "time": 0.5,
-    "seconds": 0.1
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "capture",
-    "name": "noon-ground-up"
-  },
-  {
-    "op": "view",
-    "eye": [
-      0,
-      0.2,
-      12
-    ],
-    "at": [
-      0,
-      10,
-      11.999
-    ],
-    "ground": true
-  },
-  {
-    "op": "sun",
-    "time": 0.78,
-    "seconds": 0.1
-  },
-  {
-    "op": "wait",
-    "seconds": 3
-  },
-  {
-    "op": "capture",
-    "name": "dusk-ground-up"
-  },
-  {
-    "op": "quit"
-  }
+  {"op": "place", "x": 0, "z": 12},
+  {"op": "sun", "time": 0, "seconds": 0.1},
+  {"op": "view", "eye": [0, 0.2, 12], "at": [0, 10, 11.999], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "-"},
+  {"op": "layer", "name": "stars", "mode": "off"},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "stars/off-a"},
+  {"op": "wait", "seconds": 20},
+  {"op": "label", "name": "-"},
+  {"op": "layer", "name": "stars", "mode": "on"},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "stars/on-a"},
+  {"op": "wait", "seconds": 20},
+  {"op": "label", "name": "-"},
+  {"op": "layer", "name": "stars", "mode": "off"},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "stars/off-b"},
+  {"op": "wait", "seconds": 20},
+  {"op": "label", "name": "-"},
+  {"op": "layer", "name": "stars", "mode": "on"},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "stars/on-b"},
+  {"op": "wait", "seconds": 20},
+  {"op": "label", "name": "-"},
+  {"op": "capture", "name": "midnight-ground-up"},
+  {"op": "view", "eye": [0, 0.2, 12], "at": [0, 0.2, 0], "ground": true},
+  {"op": "wait", "seconds": 2},
+  {"op": "capture", "name": "midnight-ground-level"},
+  {"op": "view", "eye": [0, 0.2, 12], "at": [0, 10, 11.999], "ground": true},
+  {"op": "sun", "time": 0.22, "seconds": 0.1},
+  {"op": "wait", "seconds": 3},
+  {"op": "capture", "name": "dawn-ground-up"},
+  {"op": "view", "eye": [0, 0.2, 12], "at": [0, 10, 11.999], "ground": true},
+  {"op": "sun", "time": 0.5, "seconds": 0.1},
+  {"op": "wait", "seconds": 3},
+  {"op": "capture", "name": "noon-ground-up"},
+  {"op": "view", "eye": [0, 0.2, 12], "at": [0, 10, 11.999], "ground": true},
+  {"op": "sun", "time": 0.78, "seconds": 0.1},
+  {"op": "wait", "seconds": 3},
+  {"op": "capture", "name": "dusk-ground-up"},
+  {"op": "quit"}
 ]

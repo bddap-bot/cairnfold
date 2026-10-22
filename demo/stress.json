@@ -869,5 +869,11 @@
   {"op": "style", "hand": "right", "restyle": "face", "pick": 0, "seconds": 25, "from": [-5, 1.2, 20], "at": [-5, 1.2, 16]},
   {"op": "label", "name": "-"},
   {"op": "style", "hand": "right", "restyle": "face", "pick": 1, "seconds": 0.5, "from": [-5, 1.2, 20], "at": [-5, 1.2, 16], "capture": "house-wheel"},
+  {"op": "sun", "time": 0.0, "seconds": 0.5},
+  {"op": "view", "eye": [0, 0.2, 12], "at": [0, 10, 11.999], "ground": true},
+  {"op": "wait", "seconds": 3},
+  {"op": "label", "name": "sky/stars"},
+  {"op": "wait", "seconds": 20},
+  {"op": "capture", "name": "sky-stars"},
   {"op": "quit"}
 ]
