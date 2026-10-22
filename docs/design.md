@@ -1687,6 +1687,9 @@ and establish neither zero cost nor a fix for that existing budget excess.
 
 Holding the light in rooms cost the Frame nothing measurable (stress scene, GPU ms a frame, before and after):
 9.43 and 9.46 with lanterns hung standing, 19.18 and 19.20 from the air, 9.39 and 9.40 on the bare meadow.
+On the Quest 2 (one run of each build, the runtime's GPU ms a frame): 43.12 and 43.73 with lanterns hung standing,
+76.26 and 79.33 from the air, 43.23 and 43.89 on the bare meadow standing, 76.05 and 79.25 from the air. The bare
+meadow moved as much as the lit one, so none of that shift is the rooms' light.
 
 Godot's own omni lights were the first try and are gone. Three of them, moved to the lanterns nearest the head,
 reached only 4.5 m, so a lantern hung 3 m up a tall house's wall left its floor dark; given 9 m, they cost the
