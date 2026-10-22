@@ -232,7 +232,7 @@ by cause.
 ### Foveation on the Frame
 
 On 2026-10-22, build `6df1dc9c`, the Frame's SteamVR OpenXR runtime advertised
-`XR_EXT_eye_gaze_interaction` (version 1), `XR_FB_foveation` (1),
+`XR_EXT_eye_gaze_interaction` (version 2), `XR_FB_foveation` (1),
 `XR_FB_foveation_configuration` (1), `XR_FB_foveation_vulkan` (1),
 `XR_META_foveation_eye_tracked` (1) and `XR_META_vulkan_swapchain_create_info` (1).
 These came from `xrEnumerateInstanceExtensionProperties` on the headset's
