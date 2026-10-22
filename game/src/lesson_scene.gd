@@ -542,6 +542,7 @@ func _build_colour() -> void:
 		_fx.swatches.append(disc)
 	_fx.tint = StandardMaterial3D.new()
 	_fx.tint.vertex_color_use_as_albedo = true
+	_fx.tint.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 
 
 func _reset_colour() -> void:
@@ -575,7 +576,6 @@ func _play_colour(at: float) -> void:
 		d.scale = Vector3.ONE * (1.5 if i == chosen else 1.0)
 	var m: StandardMaterial3D = _fx.tint
 	m.albedo_color = Color(Palette.swatch(Palette.Element.PLASTER, chosen), 0.45)
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	_tint(_fx.house, m)
 	_ray("right", hit)
 
