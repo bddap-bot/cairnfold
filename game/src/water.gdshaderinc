@@ -28,3 +28,14 @@ vec3 caustic(sampler2D noise, vec2 xz) {
 	float b = texture(noise, uv * 1.37 - TIME * vec2(0.017, 0.024)).r;
 	return vec3(0.85, 0.95, 0.8) * smoothstep(0.045, 0.0, abs(a - b));
 }
+
+// 1 when a pond's depth reaches within a grid step of `xz`, along either axis, so a fragment of the triangles around
+// a grid point skips the depth read where every point its bilinear read would blend is DRY: the four corners of
+// its cell lie a step along an axis from one of its triangle's vertices.
+float pond_near(vec2 xz) {
+	vec2 t = ((xz - ground_grid.x) / ground_grid.y + 0.5) / ground_grid.z;
+	vec2 e = vec2(1.0 / ground_grid.z, 0.0);
+	float deepest = max(max(textureLod(water_depth, t, 0.0).r, textureLod(water_depth, t + e, 0.0).r),
+		max(textureLod(water_depth, t - e, 0.0).r, max(textureLod(water_depth, t + e.yx, 0.0).r, textureLod(water_depth, t - e.yx, 0.0).r)));
+	return deepest > -0.55 ? 1.0 : 0.0;
+}

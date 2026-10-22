@@ -43,6 +43,9 @@ func _ground() -> void:
 	mi.mesh = Terrain.build_mesh()
 	Terrain.lift(mi, Terrain.bounds())
 	mi.material_override = mat
+	# Opaque draws go in ascending render_priority: the ground draws after the plants and builds standing on it, so
+	# what they cover fails the depth test unshaded, as the book's layers do.
+	mat.render_priority = 1
 	flora.paint_ground(mat)
 	add_child(mi)
 
