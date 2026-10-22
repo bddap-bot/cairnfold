@@ -127,6 +127,8 @@ func _eaves() -> void:
 	var tool: WallTool = main.tool
 	var w: Wall = tool.walls[0]
 	var rig: Rig = main.rig
+	# Eave positions and ray hits must read the same completed roof after reshaping.
+	w.lay_now()
 	var out := w.roof.half_span() + minf(w.roof.overhang, w.roof.reach()) * 0.6
 	var overhang := w.roof.overhang
 	_over(rig.left, w, 0.0, -out)
