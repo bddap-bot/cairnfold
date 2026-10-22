@@ -2322,6 +2322,7 @@ stops and waits for the pointer to come back. The clouds stay put: they are weat
 | Turn the sky | Point either hand at open sky, whatever it holds, grip and aim: the sky turns with the pointer, carrying the sun from dawn to dusk |
 | Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window or door, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top on that build (or, on the meadow, the garden's season) |
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
+| Record a video | Hold the trigger of a hand holding the camera: its shutter button glows red while it records; let go to stop |
 | Set up an easel | Trigger of a hand holding the easel, pointing at open ground with no easel near the hand: it stands there facing the player |
 | Move an easel | Grip pointing at an easel's legs or tray, whatever the hand holds, with no brush, palette or canvas within the hand's reach: it moves along the ground with the hand and turns about the vertical as the hand turns, the gain growing with distance, its painting and kit with it; let go to set it there, one undo step, unless that is within 1.4 m of another easel, when it goes back. The other hand's grip on it does nothing: an easel has one size |
 | Paint | At an easel: grip at the pot for a small round, big round or flat brush, at the sticks for charcoal, at the watercolour box or the oil palette to carry it in that hand; dip the brush in a pan or an oil colour for that medium, in the glass to wet it; touch the canvas and push in to press harder (see "Painting") |
@@ -2424,6 +2425,7 @@ right hand before the eye, or none, both hands then hanging at its sides, as oth
 | Look | The mouse, once a click in the window takes it; Escape lets it go | Right stick |
 | Take up the camera, the seed dish, or none, in turn | Tab or the right button | Y |
 | Take a photo or throw a handful of seeds | Left button | Right trigger or A |
+| Record a video with the camera up | Hold the left button | Hold the right trigger or A |
 
 With empty hands, F or gamepad X plays the human-recorded wave. Taking up a tool
 ends it. In VR, wave with the tracked hand.
@@ -3396,6 +3398,44 @@ kilobytes; ground shaped across the whole meadow adds its heights. `nestcombe --
 opens a photo's garden at its time of day, seen from its lens, and keeps nothing of it; a photo
 without one opens nothing.
 
+### Video
+
+Directive (verbatim):
+> I'd like to be able to record video. The video one might be a little harder, so if it's too much of a mess, maybe we just leave that out.
+
+Holding the camera's trigger past `PhotoTool.HOLD` (0.3 s) records instead of taking a photo, until it is let go
+or the camera is put away; a tap still takes a photo, on release. The shutter button glows red while it records,
+and the hand gets a buzz at the start and the end. The video is an AVI of JPEG frames (`Avi`) with the game's own
+sound, saved beside the photos, named by the date and time; it plays in common players and imports into editors.
+
+What it costs, and why it is this way: the video is the screen's own view. The screen already draws a second view
+of the garden on one frame in three; while recording that view is drawn at `PhotoTool.VIDEO_SIZE` (640×480)
+instead of 256×192, and every drawing is read back from the GPU asynchronously and handed to a worker thread,
+which encodes it as a JPEG and appends it to the file, one task at a time so frames stay in order. So a video
+costs the frame no extra draw of the scene, only the larger preview's pixels and the readback. A frame is a
+moment on the video's own clock (`VIDEO_FPS`, 24, a third of 72 Hz): when play runs slower, the last frame is
+written again for the moments no drawing came back for, so a video always lasts as long as it was held. More
+than `VIDEO_QUEUE` frames waiting to be written drop the newest instead of holding play up. Sound is taken from
+the master bus (an `AudioEffectCapture` there while recording only) as 32-bit float stereo. A second of video is
+about 1.1 MB; plain AVI stops at 1 GiB, about 15 minutes, where recording stops by itself. On an APK the file
+is written through java.io into `Pictures/Nestcombe`, as a photo is.
+
+Measured with `demo/video.json` (`bench.sh`), held against recording over the same pan, milliseconds:
+
+| Headset | Held: GPU, frame p50 | Recording: GPU, frame p50 |
+| --- | --- | --- |
+| Steam Frame, unworn, 72 Hz | 5.25, 13.92 | 5.31, 13.90 |
+| Quest 2, 72 Hz, ladder held at its top step | 27.72, 35.97 | 28.22, 36.29 |
+
+On the Frame recording holds 72 Hz with no late frame, at 0.06 ms of GPU time, and every one of a clip's
+137 frames is a fresh drawing. On the Quest 2 it adds 0.5 ms of GPU time to a held camera, which on its
+own already runs there below the refresh rate (see "Photos" above): the second view of the garden is
+the cost, not the recording, and as play slows the clip repeats frames to keep its length (77 fresh of
+137). The file on an APK lands in `Pictures/Nestcombe` beside the photos and plays back whole.
+
+Left out: Godot's MovieWriter, which renders the main view at a fixed time step and so slows play to the
+encoder's pace, and platform video encoders, which Godot does not reach from a script on either target.
+
 ## Painting
 
 Directive (verbatim): "There's a feature that I would like. That is a big painting easel that you can place on the ground and paint on. I'd like the painting to be pretty expressive. For example watercolors or just multiple different mediums."
@@ -3572,7 +3612,7 @@ walls in each top style, and shapes the roofs; `demo/paths.json` lays paths thro
 arcade), draws a wall across a wide path and raises the ground under a path; `demo/fittings.json` opens windows
 and doors in a wall, a house and a round wall, hangs lanterns, flies flags, builds a chimney and draws a fence a
 path crosses; `demo/stone.json` paints stone ground into the meadow, paints part of it back and
-walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete, empties the hand, then goes up to colour and style; `demo/photo.json` takes the camera from the wheel and takes two photos, each beside the view through the same lens as the headset draws it, the second at the ladder's bottom step; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
+walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete, empties the hand, then goes up to colour and style; `demo/photo.json` takes the camera from the wheel and takes two photos, each beside the view through the same lens as the headset draws it, the second at the ladder's bottom step; `demo/video.json` pans the held camera across a wall and a pond with the ladder held at its top step, twice without recording and twice recording, so `bench.sh` compares the two; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks
 at a perched one from in front and from the side;
 `demo/feeding.json` builds a pond, trees, a wall and a fence, waits for the animals, then holds seeds out to a conure, the ducks and the sheep, throws handfuls to the sheep and onto the pond and watches the uneaten ones sink away;

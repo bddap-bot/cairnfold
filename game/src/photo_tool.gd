@@ -2,14 +2,17 @@ class_name PhotoTool
 extends Node3D
 
 ## For a hand holding the camera: the screen on the back of the camera model (ToolModels._camera) shows what
-## its lens sees, unmirrored for the selfie camera too, so the screen and the photo match, and the trigger takes the photo, saved as a PNG that says where and how it was taken (PhotoMeta).
-## The shot stays on the screen a moment after. The player's own avatar stands in the lens's view while a camera is
+## its lens sees, unmirrored for the selfie camera too, so the screen and the photo match. A tap of the trigger takes a
+## photo, saved as a PNG that says where and how it was taken (PhotoMeta); the shot stays on the screen a moment after.
+## Held, the trigger records a video of what that camera's screen shows, with the game's sound, until let go. The player's own avatar stands in the lens's view while a camera is
 ## held, and in no other.
 ##
 ## A photo is drawn as well as this game can draw: whatever the headset's step on the quality ladder, it sees
 ## Quality.FULL_LAYER instead of LADDER_LAYER (every plant, stone and leaf whole at every distance, and a sun whose
 ## shadows reach the garden's edge in four splits), at PHOTO_SIZE with 8x MSAA, a shadow atlas of PHOTO_SHADOWS and
 ## the foliage's finest blobs. A view capture (Main.capture) is drawn as the eyes see it.
+
+signal recorded(path: String)
 
 const PREVIEW_SIZE := Vector2i(256, 192)
 ## Each hand's preview redraws on one frame in this many, its own, so two cameras held never draw on one frame.
@@ -22,6 +25,15 @@ const FOV := 55.0
 const SHOT_HOLD := 1.2
 const DARK := Color(0.06, 0.06, 0.07)
 const CAMERAS: Array[Hand.Tool] = [Hand.Tool.CAMERA, Hand.Tool.SELFIE]
+## A trigger held this long records instead of taking a photo on release.
+const HOLD := 0.3
+## While recording, the camera's preview is drawn at this size and every drawing is a frame of the video.
+const VIDEO_SIZE := Vector2i(640, 480)
+const VIDEO_FPS := 24
+const VIDEO_QUALITY := 0.8
+## Frames read back but not yet written, past which a frame is dropped rather than queued: writing never
+## holds up play, and a dropped frame's time goes to the next one.
+const VIDEO_QUEUE := 6
 
 var rig: Rig
 var folder := Main.photos_folder()
@@ -40,12 +52,29 @@ var _shots := {}
 var _busy := false
 ## Photo paths chosen but not yet written, so two quick shots never share one.
 var _reserved := {}
+var _pressed_for: Array[float] = []
+var _clip: Avi
+## The hand recording, and the camera it holds, while a video records.
+var _clip_hand: Hand
+var _clip_tool: Hand.Tool
+var _clip_path := ""
+var _clip_time := 0.0
+var _clip_slot := -1
+var _owed := 0
+var _sound: AudioEffectCapture
+var _heard := PackedByteArray()
+## The frame last written, which the worker writes again for a frame time no drawing came back for.
+var _last_jpg := PackedByteArray()
+var _queue: Array[Dictionary] = []
+var _reading := 0
+var _writing := -1
 
 
 func _init(player: Rig) -> void:
 	rig = player
 	for h in rig.hands:
 		_buttons.append(Buttons.new(h).watch(["tool"]))
+		_pressed_for.append(-1.0)
 
 
 ## Godot draws a frame whose pipelines are still compiling without the photo sun's shadows, and the photo sun lights
@@ -111,6 +140,12 @@ func _process(delta: float) -> void:
 	var held := holders()
 	for h in _shots:
 		_shots[h] = maxf(_shots[h] - delta, 0.0)
+	_write()
+	if _clip_hand != null:
+		_clip_time += delta
+		_heard.append_array(_take_sound())
+		if not held.has(_clip_hand) or _clip_hand.tool != _clip_tool or _clip.full:
+			stop()
 	if rig.body != null:
 		rig.body.visible = not held.is_empty()
 	if _photo != null and not _busy and _shots.values().all(func(left: float) -> bool: return left == 0.0):
@@ -125,22 +160,38 @@ func _process(delta: float) -> void:
 		if not held.has(h):
 			continue
 		var left: float = _shots.get(h, 0.0)
-		if left > 0.0 and _photo != null:
+		if left > 0.0 and _photo != null and h != _clip_hand:
 			_show(screen(h, h.tool), _photo.get_texture(), Color.WHITE.lerp(Color(2.5, 2.5, 2.5), clampf((left - SHOT_HOLD + 0.15) / 0.15, 0.0, 1.0)))
 			continue
 		var preview: SubViewport = _previews.get(h)
 		if preview == null:
-			preview = _viewport(PREVIEW_SIZE, Viewport.MSAA_DISABLED)
+			preview = _viewport(VIDEO_SIZE if h == _clip_hand else PREVIEW_SIZE, Viewport.MSAA_DISABLED)
 			_previews[h] = preview
 		_show(screen(h, h.tool), preview.get_texture(), Color.WHITE)
 		if _frame == i:
 			_aim(preview, lens(h), FOV, Quality.VIEW_MASK)
 			preview.render_target_update_mode = SubViewport.UPDATE_ONCE
+			if h == _clip_hand:
+				_grab(preview)
 	for h in held:
-		if _buttons[rig.hands.find(h)].pressed("tool") and not _busy:
-			shoot(h)
-	for b in _buttons:
-		b.latch()
+		var i := rig.hands.find(h)
+		var b := _buttons[i]
+		if b.pressed("tool"):
+			_pressed_for[i] = 0.0
+		elif b.held("tool") and _pressed_for[i] >= 0.0:
+			_pressed_for[i] += delta
+			if _pressed_for[i] >= HOLD and _clip == null:
+				record(h)
+		elif b.released("tool") and _pressed_for[i] >= 0.0:
+			if _clip_hand == h:
+				stop()
+			elif _pressed_for[i] < HOLD and not _busy:
+				shoot(h)
+			_pressed_for[i] = -1.0
+	for i in _buttons.size():
+		if not _buttons[i].held("tool"):
+			_pressed_for[i] = -1.0
+		_buttons[i].latch()
 
 
 ## The screen of `hand`'s camera model for `tool`.
@@ -195,14 +246,7 @@ func shoot(hand: Hand) -> String:
 	for h in _shots:
 		_shots[h] = 0.0
 	_shots[hand] = SHOT_HOLD
-	DirAccess.make_dir_recursive_absolute(folder)
-	var stamp := Time.get_datetime_string_from_system().replace(":", "-")
-	var path := folder.path_join(stamp + ".png")
-	var n := 1
-	while FileAccess.file_exists(path) or _reserved.has(path):
-		n += 1
-		path = folder.path_join("%s-%d.png" % [stamp, n])
-	_reserved[path] = true
+	var path := _reserve("png")
 	var about: Dictionary = around.about.duplicate()
 	about.merge({"taken": Time.get_datetime_string_from_system(), "build": Main.revision(), "settings": settings(),
 		"camera": {"position": _floats(at.origin), "rotation": _floats(at.basis.get_rotation_quaternion()), "fov": FOV}})
@@ -213,6 +257,148 @@ func shoot(hand: Hand) -> String:
 		return ""
 	print("photo: ", path)
 	return path
+
+
+## A new file under `folder` named by the date and time.
+func _reserve(ext: String) -> String:
+	DirAccess.make_dir_recursive_absolute(folder)
+	var stamp := Time.get_datetime_string_from_system().replace(":", "-")
+	var path := folder.path_join("%s.%s" % [stamp, ext])
+	var n := 1
+	while FileAccess.file_exists(path) or _reserved.has(path):
+		n += 1
+		path = folder.path_join("%s-%d.%s" % [stamp, n, ext])
+	_reserved[path] = true
+	return path
+
+
+## Starts recording through the hand's lens into a video file beside the photos. That camera's preview grows to
+## VIDEO_SIZE and keeps its pace, one frame in PREVIEW_EVERY, and each drawing is read back and handed to a worker
+## thread to be written; the game's sound is taken from the master bus as it plays.
+func record(hand: Hand) -> void:
+	hand.trigger_haptic_pulse(&"haptic", 0.0, 0.4, 0.08, 0.0)
+	_clip_path = _reserve("avi")
+	_clip = Avi.open(ProjectSettings.globalize_path(_clip_path), VIDEO_SIZE, VIDEO_FPS, roundi(AudioServer.get_mix_rate()))
+	if _clip == null:
+		push_error("video: could not write %s: %s" % [_clip_path, error_string(FileAccess.get_open_error())])
+		_reserved.erase(_clip_path)
+		_clip_path = ""
+		return
+	_clip_hand = hand
+	_clip_tool = hand.tool
+	_clip_time = 0.0
+	_clip_slot = -1
+	_last_jpg = PackedByteArray()
+	_owed = 0
+	_heard = PackedByteArray()
+	_sound = AudioEffectCapture.new()
+	_sound.buffer_length = 1.0
+	AudioServer.add_bus_effect(0, _sound)
+	_shots[hand] = 0.0
+	if _previews.has(hand):
+		(_previews[hand] as SubViewport).size = VIDEO_SIZE
+	ToolModels.button(hand.model(_clip_tool)).emission = ToolModels.RECORDING
+
+
+## Stops recording and finishes the file once every frame read back is written. Returns where it was
+## saved, or "" if it could not be.
+func stop() -> String:
+	var hand := _clip_hand
+	if hand == null:
+		return ""
+	hand.trigger_haptic_pulse(&"haptic", 0.0, 0.4, 0.08, 0.0)
+	_clip_hand = null
+	ToolModels.button(hand.model(_clip_tool)).emission = Color.BLACK
+	if _previews.has(hand):
+		(_previews[hand] as SubViewport).size = PREVIEW_SIZE
+	while _reading > 0:
+		await get_tree().process_frame
+	_heard.append_array(_take_sound())
+	_queue.append({"sound": _heard, "repeats": _owed + maxi(roundi(_clip_time * VIDEO_FPS) - _clip_slot - 1, 0)})
+	_heard = PackedByteArray()
+	AudioServer.remove_bus_effect(0, _effect_index())
+	_sound = null
+	while _writing != -1 or not _queue.is_empty():
+		await get_tree().process_frame
+	var path := _clip_path
+	var closed := [ERR_BUG]
+	var clip := _clip
+	var task := WorkerThreadPool.add_task(func() -> void: closed[0] = clip.close())
+	while not WorkerThreadPool.is_task_completed(task):
+		await get_tree().process_frame
+	WorkerThreadPool.wait_for_task_completion(task)
+	_reserved.erase(path)
+	_clip = null
+	_clip_path = ""
+	if closed[0] != OK:
+		push_error("video: could not write %s: %s" % [path, error_string(closed[0])])
+		path = ""
+	else:
+		print("video: ", path, " ", clip.frames, " frames")
+	recorded.emit(path)
+	return path
+
+
+func _effect_index() -> int:
+	for i in AudioServer.get_bus_effect_count(0):
+		if AudioServer.get_bus_effect(0, i) == _sound:
+			return i
+	return -1
+
+
+func _take_sound() -> PackedByteArray:
+	if _sound == null:
+		return PackedByteArray()
+	return _sound.get_buffer(_sound.get_frames_available()).to_byte_array()
+
+
+## Reads back what `preview` draws this frame as the video's frame for the moment it shows, repeated over any frame
+## times since the last, as when play drops below the refresh rate.
+func _grab(preview: SubViewport) -> void:
+	var slot := roundi(_clip_time * VIDEO_FPS)
+	var repeats := slot - _clip_slot
+	if repeats <= 0:
+		return
+	var rd := RenderingServer.get_rendering_device()
+	if rd == null:
+		return
+	_clip_slot = slot
+	repeats += _owed
+	_owed = 0
+	_reading += 1
+	await RenderingServer.frame_post_draw
+	var tex := RenderingServer.texture_get_rd_texture(preview.get_texture().get_rid())
+	var fmt := rd.texture_get_format(tex)
+	rd.texture_get_data_async(tex, 0, func(data: PackedByteArray) -> void:
+		_reading -= 1
+		if _queue.size() >= VIDEO_QUEUE:
+			_owed += repeats
+			return
+		_queue.append({"pixels": data, "size": Vector2i(fmt.width, fmt.height), "repeats": repeats, "sound": _heard})
+		_heard = PackedByteArray())
+
+
+## Hands what is queued to one worker task at a time, so frames reach the file in order.
+func _write() -> void:
+	if _writing != -1 and WorkerThreadPool.is_task_completed(_writing):
+		WorkerThreadPool.wait_for_task_completion(_writing)
+		_writing = -1
+	if _writing != -1 or _queue.is_empty():
+		return
+	var batch := _queue
+	_queue = []
+	var clip := _clip
+	_writing = WorkerThreadPool.add_task(func() -> void:
+		for item in batch:
+			if not item.sound.is_empty():
+				clip.sound(item.sound)
+			if item.has("pixels"):
+				var img := Image.create_from_data(item.size.x, item.size.y, false, Image.FORMAT_RGBA8, item.pixels)
+				img.convert(Image.FORMAT_RGB8)
+				_last_jpg = img.save_jpg_to_buffer(VIDEO_QUALITY)
+			if not _last_jpg.is_empty():
+				for r in item.repeats:
+					clip.frame(_last_jpg))
 
 
 static func _floats(v: Variant) -> Array:

@@ -1183,6 +1183,17 @@ func _photo(s: Dictionary) -> void:
 	await main.photo_tool.shoot(hand)
 
 
+## Records a video with the camera in `hand` (right by default) for `seconds`, holding its trigger through the
+## same edges the controller feeds, and waits until the file is written.
+func _video(s: Dictionary) -> void:
+	var hand := _holding(s, Hand.Tool[str(s.get("tool", "camera")).to_upper()])
+	var key := "%s/%s" % [hand.tracker, Controls.input("tool", hand.tracker)]
+	Buttons.injected[key] = true
+	await get_tree().create_timer(s.seconds).timeout
+	Buttons.injected.erase(key)
+	await main.photo_tool.recorded
+
+
 ## Throws a handful of seeds from the dish in `hand` (right by default), or from `from` ([x, height over the ground, z]),
 ## at `velocity`, as pulling its trigger while swinging the hand at `velocity` does.
 func _toss(s: Dictionary) -> void:

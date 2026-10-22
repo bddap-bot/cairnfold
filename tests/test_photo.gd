@@ -15,6 +15,7 @@ func _initialize() -> void:
 	await _the_selfie_camera_looks_back_at_its_holder()
 	_player_data_lives_outside_the_app()
 	_a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows()
+	await _holding_the_trigger_records_until_it_is_let_go()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -241,3 +242,58 @@ func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
 	_check(glade._chunks[Vector3i(0, 0, Wall.Part.STONE_SHADOW)].full == null, "what is drawn whole anyway has no second instance")
 	for n in [tool, flora, parent, glade, rig]:
 		n.queue_free()
+
+
+## Waits up to three seconds for `done`.
+func _until(done: Callable) -> void:
+	var left := 3.0
+	while not done.call() and left > 0.0:
+		await process_frame
+		left -= get_root().get_process_delta_time()
+
+
+func _holding_the_trigger_records_until_it_is_let_go() -> void:
+	var rig := Rig.new()
+	root.add_child(rig)
+	var tool := PhotoTool.new(rig)
+	tool.folder = "user://test-videos"
+	root.add_child(tool)
+	rig.right.tool = Hand.Tool.CAMERA
+	await process_frame
+	var effects := AudioServer.get_bus_effect_count(0)
+	var shutter := ToolModels.button(rig.right.model(Hand.Tool.CAMERA))
+	var saved := []
+	tool.recorded.connect(func(path: String) -> void: saved.append(path))
+	var key := "%s/%s" % [rig.right.tracker, Controls.input("tool", rig.right.tracker)]
+	Buttons.injected[key] = true
+	await create_timer(PhotoTool.HOLD * 0.3).timeout
+	Buttons.injected.erase(key)
+	await process_frame
+	await process_frame
+	_check(tool._clip == null and saved.is_empty(), "a tap of the trigger takes a photo, not a video")
+	Buttons.injected[key] = true
+	await create_timer(PhotoTool.HOLD * 1.5).timeout
+	_check(tool._clip_hand == rig.right, "held, the trigger records")
+	_check(tool._previews[rig.right].size == PhotoTool.VIDEO_SIZE, "the camera's view grows to the video's size while recording")
+	_check(shutter.emission == ToolModels.RECORDING, "the shutter button glows while recording")
+	await create_timer(0.5).timeout
+	_check(tool._clip_hand == rig.right, "and keeps recording while it is held")
+	Buttons.injected.erase(key)
+	await _until(func() -> bool: return not saved.is_empty())
+	_check(tool._clip == null and tool._clip_hand == null, "letting go stops recording")
+	if saved.is_empty():
+		return
+	_check(saved[0].ends_with(".avi") and FileAccess.file_exists(saved[0]), "the video is saved beside the photos: %s" % saved[0])
+	_check(tool._previews[rig.right].size == PhotoTool.PREVIEW_SIZE and shutter.emission == Color.BLACK, "the screen and button go back as they were")
+	_check(AudioServer.get_bus_effect_count(0) == effects, "the game's sound is no longer taken")
+	Buttons.injected[key] = true
+	await create_timer(PhotoTool.HOLD * 1.5).timeout
+	_check(tool._clip_hand == rig.right, "a second hold records again")
+	rig.right.tool = Hand.Tool.WALLS
+	await _until(func() -> bool: return saved.size() == 2)
+	Buttons.injected.erase(key)
+	_check(saved.size() == 2 and tool._clip == null and saved[1] != saved[0] and FileAccess.file_exists(saved[1]), "putting the camera away stops and saves the video")
+	for f in saved:
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(f))
+	rig.queue_free()
+	tool.queue_free()

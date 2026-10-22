@@ -449,6 +449,8 @@
   {"op": "wait", "seconds": 0.6},
   {"op": "photo"},
   {"op": "wait", "seconds": 0.6},
+  {"op": "label", "name": "camera/recording"},
+  {"op": "video", "seconds": 6},
   {"op": "pick", "hand": "right", "tool": "selfie"},
   {"op": "hands", "right": [0.15, 0.0, -0.6], "tip": 0},
   {"op": "label", "name": "camera/selfie"},
