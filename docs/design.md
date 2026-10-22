@@ -969,6 +969,46 @@ the lanterns' phase reads under its walls' price, so `fitting` fits to nothing.
 The lake drowns the plants the cut made cheaper, so its view reads as before (9.56 ms App time) over a meadow 0.7 ms
 cheaper: a view full of water now costs 1.99 ms, more than the room, and the whole bowl no longer fits an empty garden.
 
+### Anti-aliasing on the Quest 2
+
+Anti-aliasing stays on every headset. `demo/antialias.json` (driver step `antialias`) holds each state for 5 s, three
+times in alternating order, from the air and standing, at the fit step
+([record](../perf/quest-2/antialias/20261022T041131Z-5b9fdbe.json)); viewport GPU ms a frame:
+
+| State | From the air | Standing |
+| --- | --- | --- |
+| 2x MSAA (as shipped before) | 8.51 | 7.22 |
+| No MSAA | 7.10 (−1.42) | 6.12 (−1.10) |
+| 4x MSAA | 11.17 (+2.65) | 8.74 (+1.52) |
+| 2x MSAA, fixed foveation 1 | 8.24 (−0.27) | 7.09 (−0.13) |
+| 2x MSAA, fixed foveation 2 | 8.07 (−0.44) | 6.95 (−0.27) |
+| 2x MSAA, fixed foveation 3 | 7.30 (−1.22) | 6.55 (−0.68) |
+| FXAA, no MSAA | 10.70 (+2.17) | 10.02 (+2.79) |
+| SMAA, no MSAA | 7.31 (−1.19) | 11.01 (+3.79) |
+
+Where 2x MSAA's cost goes. The Adreno draws the scene in tiles of on-chip memory, and 2x samples double each pixel's
+bytes there: the render-stage trace (`ovrgpuprofiler -t`) shows the scene pass going from 12 tiles of 288×256 to 25 of
+192×176 (4x: 45), and the extra time is in the tiles' Render stage, which runs every draw once per tile it touches
+(aerial: Render 4.07 → 5.49 ms, StoreColor 0.13 → 0.36, Binning 1.25 → 1.08). It is not bandwidth: the bus read about
+26 MB a frame either way and sat under 20% busy. It is not extra shading: drawn unshaded, 2x still costs 2.0 ms both
+ways. And it follows no one part of the meadow: with the ground, grass, flowers or trees hidden in turn, 2x costs about
+the same as with all of them drawn (the part's cost with and without MSAA differs by −0.41 to +0.43 ms, summing to
++0.14 from the air and −0.47 standing). Edges are few: 2x changes 3.4% of the pixels from the air and 4.8% standing,
+most of them grass blades.
+
+Fixed foveation (`XR_FB_foveation`) works through the Mobile renderer only with the view's VRS mode at `VRS_XR`
+(Godot 4.6 `render_forward_mobile.cpp`, `get_color_fbs`: the runtime's density map joins the scene pass only then); the
+row in "Which knobs matter" set the level without it, so its map was never applied. With it, level 3 draws 15 of the 25
+tiles, merging the outer ones, which is where it saves. Its outer edges are coarser, close to no MSAA at the rim, and
+the middle keeps 2x. The Quest 2 ships at level 3, a per-build option to judge in the headset. Its saving
+only lowers what a frame costs, so `Budget.COSTS` were not refitted: every charge still bounds its unit, and a fit from
+the one foveated `demo/costs.json` run, which the system shell drew beside, scattered both ways (roofs 41 µs a m²
+against the 18.7 charged, walls 11 against 23.8), wider than any change foveation could make.
+
+None of the meadow's plants cut out by alpha (`grass`, `flower`, `leaf` and `plant` shaders write no `ALPHA` and do
+not discard), so alpha-to-coverage has nothing to act on. FXAA and SMAA blur textures and cost more standing; temporal
+AA is out in VR.
+
 What walls cost the Quest 2 (`NESTCOMBE_SCENE=demo/costs.json bench.sh OUT --android APK`,
 the ladder at its bottom step): GPU milliseconds a frame over the bare meadow of the same run,
 whose own time read 19 to 27 ms here, so only the differences count. Before is 16 m masonry
@@ -1119,7 +1159,7 @@ the runtime's `App=` time per frame, the median of 7 seconds:
 | Grass drawn to 13 m instead of 24 m | 12.2 ms | 72 |
 | Render resolution 0.5 of each eye's width and height (the OpenXR render region) | 14.0 ms | 67 |
 | Render resolution 0.7 | 13.9 ms | 67 |
-| Fixed foveation level 3 (`XR_FB_foveation`) | 13.9 ms | 67 |
+| Fixed foveation level 3 (`XR_FB_foveation`, never applied: see "Anti-aliasing on the Quest 2") | 13.9 ms | 67 |
 | Sun shadows to 20 m instead of 45 m | 13.8 ms | 68 |
 | Mesh LOD threshold 4 px instead of 1 | 14.0 ms | 67 |
 

@@ -62,7 +62,7 @@ func _standing() -> void:
 
 
 func _wait(s: Dictionary) -> void:
-	await get_tree().create_timer(s.seconds).timeout
+	await get_tree().create_timer(s.seconds, true, false, true).timeout
 
 
 ## Holds a control of `device` (default the Frame; see Controls.DEVICES) for `seconds`, as the controller
@@ -1770,6 +1770,26 @@ static func _along(path: Array[Vector3], fraction: float) -> Vector3:
 func _quality(s: Dictionary) -> void:
 	var step: Variant = s.get("step", -1)
 	main.quality.pin = Budget.fit_step() if step is String and step == "fit" else int(step)
+
+
+## Holds the view's anti-aliasing for measuring: `msaa` samples (0, 2, 4 or 8), `screen` ("none", "fxaa" or "smaa"),
+## `foveation` 0 to 3 through the runtime's density map (XR_FB_foveation, which the Mobile renderer reads only with
+## the view's VRS mode at XR), `unshaded`, which draws every surface its albedo alone, and `frozen`, which stops the wind
+## so two shots of one view differ only by what changed. A key left out is left as is.
+func _antialias(s: Dictionary) -> void:
+	var vp: Viewport = main.get_viewport()
+	if s.has("msaa"):
+		vp.msaa_3d = {0: Viewport.MSAA_DISABLED, 2: Viewport.MSAA_2X, 4: Viewport.MSAA_4X, 8: Viewport.MSAA_8X}[int(s.msaa)]
+	if s.has("screen"):
+		vp.screen_space_aa = {"none": Viewport.SCREEN_SPACE_AA_DISABLED, "fxaa": Viewport.SCREEN_SPACE_AA_FXAA, "smaa": Viewport.SCREEN_SPACE_AA_SMAA}[s.screen]
+	if s.has("foveation") and main.xr != null and main.metrics.info.xr:
+		vp.vrs_mode = Viewport.VRS_XR if int(s.foveation) > 0 else Viewport.VRS_DISABLED
+		main.xr.foveation_level = int(s.foveation)
+		print("driver: foveation %d supported %s" % [main.xr.foveation_level, main.xr.is_foveation_supported()])
+	if s.has("unshaded"):
+		vp.debug_draw = Viewport.DEBUG_DRAW_UNSHADED if s.unshaded else Viewport.DEBUG_DRAW_DISABLED
+	if s.has("frozen"):
+		Engine.time_scale = 0.0 if s.frozen else 1.0
 
 
 func _label(s: Dictionary) -> void:

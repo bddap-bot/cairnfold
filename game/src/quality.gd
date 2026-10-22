@@ -51,9 +51,11 @@ const FRAME_SCALE_3D := 0.9
 ## by fragments: a smaller swapchain draws the same single pass, which the 3D scale does not on its driver, and the
 ## compositor stretches it to the display; 4x MSAA over 2x, and the sky's reflections on surfaces nearly all rough,
 ## cost its bare meadow 2.5 and 0.7 to 1.9 ms a frame at the ladder's bottom (see "Which knobs matter" in
-## docs/design.md).
-const QUEST_2 := {"render_scale": 0.7, "msaa": Viewport.MSAA_2X, "reflections": Environment.REFLECTION_SOURCE_DISABLED}
-const HEADSET := {"render_scale": 1.0, "msaa": Viewport.MSAA_4X, "reflections": Environment.REFLECTION_SOURCE_SKY}
+## docs/design.md). `foveation` is the runtime's fixed foveation level (XR_FB_foveation, 0 to 3): on the Quest 2 its
+## MSAA costs by the tiles the scene is drawn in, which 2x doubles, and level 3 draws the outer tiles merged, saving
+## 1.2 ms from the air and 0.7 standing for coarser edges toward the rim ("Anti-aliasing on the Quest 2" in docs/design.md).
+const QUEST_2 := {"render_scale": 0.7, "msaa": Viewport.MSAA_2X, "reflections": Environment.REFLECTION_SOURCE_DISABLED, "foveation": 3}
+const HEADSET := {"render_scale": 1.0, "msaa": Viewport.MSAA_4X, "reflections": Environment.REFLECTION_SOURCE_SKY, "foveation": 0}
 ## What the ladder cuts is drawn on LADDER_LAYER, which the headset's views see, and again whole on FULL_LAYER, which
 ## only a photo sees (PhotoTool): grass and flowers to the garden's edge, every stone whole, ivy at every distance.
 ## Shaders that shrink things with distance take the photo's camera by `full_layer` (full_detail).

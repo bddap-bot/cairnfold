@@ -259,9 +259,15 @@ func _start_xr() -> bool:
 	xr = XRServer.find_interface("OpenXR")
 	if args.has("desktop") or xr == null or not xr.is_initialized():
 		return false
-	xr.render_target_size_multiplier = float(args.get("render-scale", Quality.session(OS.get_model_name()).render_scale))
+	var drawn := Quality.session(OS.get_model_name())
+	xr.render_target_size_multiplier = float(args.get("render-scale", drawn.render_scale))
 	var vp := get_viewport()
 	vp.use_xr = true
+	if drawn.foveation > 0:
+		# The runtime drops a level set before its session begins. The Mobile renderer reads the runtime's foveation
+		# map only with the view's VRS mode at XR.
+		xr.session_begun.connect(func() -> void: xr.foveation_level = drawn.foveation)
+		vp.vrs_mode = Viewport.VRS_XR
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	var rates := xr.get_available_display_refresh_rates()
 	if args.has("refresh"):
