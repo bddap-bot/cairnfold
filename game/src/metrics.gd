@@ -41,6 +41,9 @@ var _compiled := 0
 ## The headset whose eyes' frusta each second records the widest swing of: the sun's shadow map is fitted to them
 ## every frame, and holds still only while they do.
 var xr: XRInterface
+## The refresh rate the runtime runs at now, read every frame: a Quest begins the session at the shell's rate and
+## switches the panel to the game's a few seconds later, so the rate read as the session begins can be stale.
+var refresh: Callable
 var _eye_lo := PackedFloat32Array()
 var _eye_hi := PackedFloat32Array()
 ## A frame's tags: each frame counts once in each of its tags, and in "still" when it has none of the first three.
@@ -69,6 +72,11 @@ func _init(out: String) -> void:
 func _process(_delta: float) -> void:
 	if play_log == null and path.is_empty():
 		return
+	if refresh.is_valid():
+		var hz: float = refresh.call()
+		if hz > 0.0 and hz != info.get("refresh_hz", 0.0):
+			print("metrics: running at %s Hz" % hz)
+			info.refresh_hz = hz
 	var now := Time.get_ticks_usec()
 	# Engine delta is capped during stalls.
 	var elapsed := (now - _last_tick) / 1000000.0

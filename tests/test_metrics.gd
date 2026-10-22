@@ -10,6 +10,7 @@ func _initialize() -> void:
 	_stalls_are_not_capped_by_engine_delta()
 	_eye_frusta_swing_is_the_widest_edge_change()
 	_frames_tally_by_activity()
+	_late_and_refresh_follow_the_runtime_rate()
 	await _head_motion_is_moving()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
@@ -66,6 +67,26 @@ func _eye_frusta_swing_is_the_widest_edge_change() -> void:
 		hi[i] = maxf(hi[i], b[i])
 	_check(absf(Metrics.spread(lo, hi) - (rad_to_deg(atan(1.2)) - 45.0)) < 0.001, "the swing is the widest edge's change")
 	_check(Metrics.spread(a, a) == 0.0, "frusta that hold still swing 0")
+
+
+## A Quest 3 began the session at the shell's 90 Hz and ran it at 72: every second then read 90 Hz with 72 frames,
+## and an 18 ms frame, on time at 72 Hz, counted late against 90 Hz's 16.7 ms line.
+func _late_and_refresh_follow_the_runtime_rate() -> void:
+	var m := Metrics.new(OS.get_cache_dir().path_join("nestcombe-test-refresh-%d.json" % OS.get_process_id()))
+	m.info = {"refresh_hz": 90.0}
+	var hz := [90.0]
+	m.refresh = func() -> float: return hz[0]
+	hz[0] = 72.0
+	for i in 50:
+		m._last_tick = Time.get_ticks_usec() - 18000
+		m._process(0.018)
+	m._acc = 1.0
+	m._last_tick = Time.get_ticks_usec() - 13900
+	m._process(0.0139)
+	var row: Dictionary = m._seconds[-1]
+	_check(row.refresh_hz == 72.0 and row.late == 0 and row.frames == 51, "a second at 72 Hz reads 72 Hz with no 18 ms frame late: %s" % [row])
+	_check(m.is_late(21.0) and not m.is_late(20.0), "late is past 1.5 refresh periods of the rate the runtime runs")
+	m.free()
 
 
 func _frames_tally_by_activity() -> void:

@@ -163,6 +163,7 @@ func _ready() -> void:
 	metrics.head = rig.head
 	if metrics.info.xr:
 		metrics.xr = xr
+		metrics.refresh = func() -> float: return xr.display_refresh_rate
 	metrics.world = world
 	if get_tree().current_scene == self:
 		metrics.play_log = PlayLog.open_enabled(args)
@@ -294,7 +295,6 @@ func _xr_state(state: int) -> void:
 
 
 func _note_session() -> void:
-	metrics.info.refresh_hz = xr.display_refresh_rate
 	metrics.info.available_hz = Array(xr.get_available_display_refresh_rates())
 	metrics.info.render_size = [xr.get_render_target_size().x, xr.get_render_target_size().y] if xr.has_method("get_render_target_size") else []
 	metrics.info.render_scale = xr.render_target_size_multiplier
