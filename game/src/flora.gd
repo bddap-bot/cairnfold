@@ -18,7 +18,14 @@ const GRASS_LOD_BEGIN := 8.0
 const GRASS_LOD_BAND := 4.0
 const GRASS_SURVIVORS := 0.25
 const GRASS_SURVIVORS_FROM := 0.5
-const FLOWER_NEAR := 18.0
+## A clump draws CLUMP_BLADES blades, each CLUMP_WIDE times a blade's width, covering what seven narrower ones did:
+## near grass costs the Quest 2 its triangles as well as its pixels.
+const CLUMP_BLADES := 5
+const CLUMP_WIDE := 1.4
+## Land flowers past this distance draw as their far patches (flora_far.gdshader).
+const FLOWER_NEAR := 12.0
+## Petals a flower head opens.
+const PETALS := 4
 const PAINTED_MOSS := 256
 const PAINTED_FLOWERS := 4000
 const PLACED_TREES := 64
@@ -497,10 +504,10 @@ func _init() -> void:
 	grass_mat.set_shader_parameter(&"survivors_from", GRASS_SURVIVORS_FROM)
 	Quality.full_detail(grass_mat)
 	part(NO_HAND, NO_HAND)
-	var clump := Meshes.grass_clump(7, 1, 3)
-	var bloom := Meshes.flower(6, Color.WHITE, true)
+	var clump := Meshes.grass_clump(CLUMP_BLADES, 1, 3, false, CLUMP_WIDE)
+	var bloom := Meshes.flower(PETALS, Color.WHITE, true)
 	grass = Pool.new(self, clump, Meadow.GRASS_CLUMPS + PAINTED_GRASS, grass_mat, false, GRASS_CELL)
-	grass.sparse = Meshes.grass_clump(7, 1, 3, true)
+	grass.sparse = Meshes.grass_clump(CLUMP_BLADES, 1, 3, true, CLUMP_WIDE)
 	grass.survivors = GRASS_SURVIVORS
 	grass.sparse_from = GRASS_LOD_BEGIN + GRASS_LOD_BAND
 	flower_mat = _plant_material("flower", Color.WHITE, 0.8)
@@ -512,7 +519,7 @@ func _init() -> void:
 	flower_mat.set_shader_parameter(&"water_reach", flower_reach)
 	Quality.full_detail(flower_mat)
 	flowers = Pool.new(self, bloom, Meadow.FLOWERS + PAINTED_FLOWERS, flower_mat, false)
-	flowers.kept_mesh = Meshes.flower(6)
+	flowers.kept_mesh = Meshes.flower(PETALS)
 	grass.indexed = true
 	flowers.indexed = true
 	ghost_grass = Pool.new(self, clump, Commands.MAX_STROKE * 2, grass_mat, false)

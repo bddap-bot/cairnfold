@@ -87,7 +87,8 @@ static func plain_box() -> ArrayMesh:
 ## `kept` blades, each widened by its CUSTOM0.xz, so they cover the ground all `blades` did; CUSTOM0.z is 1 on the
 ## blades it drops.
 ## With `only_kept`, the blades past `kept` are left out rather than marked to shrink: the clump as it stands far away.
-static func grass_clump(blades: int, seed: int, kept := blades, only_kept := false) -> ArrayMesh:
+## `wide` scales every blade's width.
+static func grass_clump(blades: int, seed: int, kept := blades, only_kept := false, wide := 1.0) -> ArrayMesh:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var st := SurfaceTool.new()
@@ -99,7 +100,7 @@ static func grass_clump(blades: int, seed: int, kept := blades, only_kept := fal
 		var side := Vector3(-dir.z, 0, dir.x)
 		var root := Vector3(rng.randf_range(-0.12, 0.12), 0, rng.randf_range(-0.12, 0.12))
 		var h := rng.randf_range(0.12, 0.27)
-		var w := rng.randf_range(0.016, 0.026)
+		var w := rng.randf_range(0.016, 0.026) * wide
 		var lean := dir * rng.randf_range(0.04, 0.14)
 		var top := root + Vector3.UP * h + lean
 		var nrm := side.cross(top - root).normalized()
