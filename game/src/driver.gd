@@ -1018,6 +1018,20 @@ func _layer_parts(name: String) -> Array[Array]:
 		"ceilings":
 			for n: Node3D in main.get_tree().get_nodes_in_group(&"roof_ceilings"):
 				out.append([n, "visible", false])
+		_ when name.begins_with("part/"):
+			var bits := name.split("/")
+			var kind: int = Wall.Part[bits[1].to_upper()]
+			var near := bits.size() < 3 or bits[2] == "near"
+			var far := bits.size() < 3 or bits[2] == "far"
+			for m in main.find_children("*", "Node3D", true, false):
+				if m is Masonry:
+					for n: MultiMeshInstance3D in (m as Masonry).parts(kind, near, far):
+						out.append([n, "visible", false])
+		"wall_meshes":
+			for w in main.find_children("*", "Node3D", true, false):
+				for n in w.get_children() if w is Wall else []:
+					if n is MeshInstance3D:
+						out.append([n, "visible", false])
 		_:
 			assert(false, "layer: no layer %s" % name)
 	for n in main.find_children("*", "GeometryInstance3D", true, false):

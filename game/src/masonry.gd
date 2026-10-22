@@ -232,6 +232,23 @@ func counts() -> PackedInt32Array:
 	return out
 
 
+## The instances drawing `kind`'s pieces near or far, for measuring what each costs.
+func parts(kind: int, near: bool, far: bool) -> Array[MultiMeshInstance3D]:
+	var out: Array[MultiMeshInstance3D] = []
+	for key: Vector3i in _chunks:
+		if key.z == kind:
+			var c: Chunk = _chunks[key]
+			if near:
+				out.append(c.instance)
+			if far and c.far != null:
+				out.append(c.far)
+	if far:
+		for key: Vector3i in _coarse:
+			if key.z == kind:
+				out.append(_coarse[key])
+	return out
+
+
 func _chunk(key: Vector3i) -> Chunk:
 	if not _chunks.has(key):
 		var k := kinds[key.z]
