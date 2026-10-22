@@ -28,9 +28,10 @@ const NEAREST := 0.1
 ## target from this long before the stick reached its deadzone.
 const RELEASE_LOOKBACK := 0.1
 const MAX_LIFT := 40.0
-## A ray stopped on something with nothing this near straight under where it stopped struck a side, a wall's face, and
-## lands STAND_OFF out from it on what stands under it there.
+## A ray that stops on something solid struck its side, as of a wall, when nothing lies this near straight under where
+## it stopped.
 const FOOTING := 0.15
+## How far back along a ray that struck a side the player lands, on whatever stands there.
 const STAND_OFF := 0.3
 ## A target this far over its floor floats.
 const LIFTED := 0.15
@@ -223,8 +224,8 @@ static func reach_scale(y: float) -> float:
 
 
 ## Cast the teleport ray from a pointing pose. Its full target is the first solid thing it hits anywhere on the map,
-## the ground, a roof of any pitch, a wall's top or a tree, where the player then stands, or a side, as of a wall, at
-## whose foot they stand; or, aimed above the horizon with nothing on the map to hit, the point in the air AIR_REACH
+## the ground, a roof of any pitch, a wall's top, a tree's crown from above, where the player then stands, or a side,
+## as of a wall, at whose foot they stand; or, aimed above the horizon with nothing on the map to hit, the point in the air AIR_REACH
 ## along it while that is over the map. The mountains round it are sky to the ray: one that hits nothing on the map has
 ## no target. The target lies `fraction` of the way there along the ray, in the air above the floor short of a hit.
 func aim(from: Transform3D, fraction := 1.0) -> void:
@@ -246,9 +247,9 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 	var landing := hit != null and fraction >= 1.0
 	if landing:
 		stand = full
-		var out := Vector3(dir.x, 0.0, dir.z)
-		if out.length() > 1e-3 and _beneath(full - dir * 0.02) < full.y - FOOTING:
-			stand -= out.normalized() * STAND_OFF
+		var back := Vector3(dir.x, 0.0, dir.z)
+		if solid != null and back.length() > 1e-3 and _beneath(full - dir * 0.02) < full.y - FOOTING:
+			stand -= back.normalized() * STAND_OFF
 			stand.y = floor_under.call(stand)
 	var g: float = stand.y if landing else floor_under.call(target)
 	aim_ground = Vector3(stand.x, g, stand.z)

@@ -803,7 +803,7 @@ func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictiona
 		var local := Vector3(ox, offset.y - slope * ox, offset.dot(z))
 		var direction := Vector3(dx, dir.y - slope * dx, dir.dot(z))
 		var under := maxf(layout.depths[i], layout.depths[j]) if layout.depths.size() == n else 0.0
-		var height := layout.height + WallLayout.CAP
+		var height := layout.height + layout.top_rise()
 		var box := AABB(Vector3(0, -under, -half), Vector3(length, height + under, half * 2.0))
 		var hit: Variant = local if box.has_point(local) else box.intersects_ray(local, direction)
 		if hit == null:

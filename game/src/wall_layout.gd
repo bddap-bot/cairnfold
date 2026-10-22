@@ -36,6 +36,9 @@ const BARE_STAMP := Vector4(0.4, 0.15, 0.3, 0.1)
 const PLINTH := Vector2(0.05, 0.86)
 const THICKNESS := 0.62
 const CAP := 0.14
+## A dry-stone coping's stones on edge stand tall and short in turn, between these heights.
+const COPE_TALL := Vector2(0.34, 0.42)
+const COPE_SHORT := Vector2(0.22, 0.28)
 const PARAPET := 0.34
 ## A wooden railing along a capped top: how tall it stands over the cap, the most its posts stand apart, and the
 ## heights of its two rails.
@@ -670,28 +673,35 @@ func floor_under(p: Vector3) -> float:
 	return best
 
 
-## The top of this wall's walk under `p`, at or just below it: its cap, or the step a ruin's end has come down to;
-## -INF off it. A house's or tower's walls stand under its roof or deck, and a fence has no walk.
+## The top of this wall's walk under `p`, at or just below it: its cap or coping, or the step a ruin's end has come down
+## to; -INF off it. A house's or tower's walls stand under its roof or deck, and a fence has no walk.
 func walk_under(p: Vector3) -> float:
 	var best := -INF
-	var half := THICKNESS * 0.5
-	if fence or (closed and cover != Cover.OPEN) or samples.size() < 2 or not bounds.grow(half).has_point(Vector2(p.x, p.z)):
+	var at := Vector2(p.x, p.z)
+	if fence or (closed and cover != Cover.OPEN) or samples.size() < 2 or not bounds.grow(THICKNESS).has_point(at):
 		return best
-	var n := samples.size()
-	for i in n if closed else n - 1:
-		var j := (i + 1) % n
-		var a := Vector2(samples[i].x, samples[i].z)
-		var b := Vector2(samples[j].x, samples[j].z)
-		var t := clampf((Vector2(p.x, p.z) - a).dot(b - a) / maxf((b - a).length_squared(), 1e-9), 0.0, 1.0)
-		if a.lerp(b, t).distance_to(Vector2(p.x, p.z)) > half:
-			continue
-		var stands := standing(lerpf(lengths[i], lengths[j] if j > 0 else length(), t))
-		if stands <= 0.0:
-			continue
-		var top := lerpf(samples[i].y, samples[j].y, t) + stands + (CAP if stands >= height else 0.0)
-		if top <= p.y + SINK and top > best and not hides(Vector3(p.x, top - SINK, p.z)):
-			best = top
+	var cells := segment_cells()
+	var c := Vector2i((at / PathLayout.CELL).floor())
+	for dz in range(-1, 2):
+		for dx in range(-1, 2):
+			for i: int in cells.get(c + Vector2i(dx, dz), []):
+				var a := Vector2(samples[i].x, samples[i].z)
+				var b := Vector2(samples[i + 1].x, samples[i + 1].z)
+				var t := clampf((at - a).dot(b - a) / maxf((b - a).length_squared(), 1e-9), 0.0, 1.0)
+				if a.lerp(b, t).distance_to(at) > THICKNESS * 0.5:
+					continue
+				var stands := standing(lerpf(lengths[i], lengths[i + 1], t))
+				if stands <= 0.0:
+					continue
+				var top := lerpf(samples[i].y, samples[i + 1].y, t) + stands + (top_rise() if stands >= height else 0.0)
+				if top <= p.y + SINK and top > best and not hides(Vector3(p.x, top - SINK, p.z)):
+					best = top
 	return best
+
+
+## How far a full-height wall's top stands over its height: the tall stones of a coping, else its cap.
+func top_rise() -> float:
+	return (COPE_TALL.x + COPE_TALL.y) * 0.5 if top == Top.COPE and cover != Cover.ROOF else CAP
 
 
 ## How far along a ray it meets the top of one of the floors, or INF.
@@ -1639,7 +1649,7 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		var tall := true
 		while total - s > 0.001:
 			var l := minf(rng.randf_range(0.11, 0.17), total - s)
-			var h := rng.randf_range(0.34, 0.42) if tall else rng.randf_range(0.22, 0.28)
+			var h := rng.randf_range(COPE_TALL.x, COPE_TALL.y) if tall else rng.randf_range(COPE_SHORT.x, COPE_SHORT.y)
 			_add(s + l * 0.5, height + h * 0.5, Vector3(l, h, THICKNESS * 0.86), rng, "cope", 0.97, 0.06)
 			tall = not tall
 			s += l + 0.012

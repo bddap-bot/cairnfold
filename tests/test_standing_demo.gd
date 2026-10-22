@@ -65,6 +65,9 @@ func _tour() -> void:
 func _stress_wall_walk() -> void:
 	var steps := Driver.read("res://../demo/stress.json")
 	var first := steps.find_custom(func(s: Dictionary) -> bool: return s.get("name", "").begins_with("standing/"))
+	check(first >= 0, "the stress scene has standing/* phases")
+	if first < 0:
+		return
 	var village := first
 	while steps[village].op != "village":
 		village -= 1

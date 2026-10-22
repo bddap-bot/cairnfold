@@ -52,7 +52,7 @@ func _wall_data(points: PackedVector3Array) -> Dictionary:
 func _lands(rig: Rig, from: Vector3, at: Vector3, surface: Callable, what: String) -> void:
 	rig.aim(_pose(from, at - from))
 	var g: Variant = rig.aim_ground
-	_check(g != null and rig.aim_lift < 1e-4, "a ray %s has a landing where it hits: %s up %s" % [what, g, rig.aim_lift])
+	_check(g != null and rig.aim_lift == 0.0, "a ray %s has a landing where it hits: %s up %.2f" % [what, g, rig.aim_lift])
 	if g == null:
 		return
 	rig.place(g, rig.aim_lift)
@@ -179,10 +179,25 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	var gap := l.point_at(9.0)
 	_check(l.standing(9.0) == 0.0, "the ruin breaks the wall to the ground at its middle")
 	_stands(gap + Vector3.UP * top, 0.0, Terrain.height_at(gap.x, gap.z), "over a ruin's gap, a point")
-	var step := l.point_at(8.5 - 0.5)
-	var stepped := l.standing(8.0)
-	if stepped > 0.0 and stepped < l.height:
-		_stands(step, stepped + 0.5, step.y + stepped, "a point over a ruin's stepped end")
+	var at := 8.5
+	while at > 6.0 and not (l.standing(at) > 0.0 and l.standing(at) < l.height):
+		at -= 0.05
+	var stepped := l.standing(at)
+	_check(stepped > 0.0 and stepped < l.height, "the ruin's end steps down: %.2f at %.2f" % [stepped, at])
+	var step := l.point_at(at)
+	_stands(step, stepped + 0.5, step.y + stepped, "a point over a ruin's stepped end")
+	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	var coped := _wall_data(PackedVector3Array([Terrain.ground(-6, -18), Terrain.ground(6, -18)]))
+	coped.top = WallLayout.Top.COPE
+	world._order({"op": "wall", "walls": [coped]}, 1)
+	w = main.tool.walls[-1]
+	w.lay_now()
+	var over := w.layout.point_at(3.0)
+	var stones := w.layout.stones.filter(func(st: Dictionary) -> bool: return st.kind == "cope" and Vector2(st.xform.origin.x - over.x, st.xform.origin.z - over.z).length() < 0.3)
+	var tallest: float = stones.map(func(st: Dictionary) -> float: return st.xform.origin.y + st.xform.basis.y.length() * 0.5).max()
+	var coping: float = rig.solid_hit.call(over + Vector3.UP * 20.0, Vector3.DOWN, 40.0).y
+	_check(absf(coping - tallest) < 0.1, "a ray lands on a coping's tall stones: %.2f for %.2f" % [coping, tallest])
+	_stands(over + Vector3.UP * (coping - over.y), 0.3, coping, "a point over a coped wall's walk")
 	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
 	var house := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(-4, -6), Terrain.ground(2, -6), 4.0)))
 	house.closed = true
@@ -221,7 +236,8 @@ func _on_flat_roofs_and_platforms(rig: Rig, world: World) -> void:
 	_lands(rig, Vector3(at.x, upper, at.z) + Vector3(0, 6, 5), Vector3(at.x, upper, at.z), on_upper, "down onto a platform stacked on the flat roof")
 	_hovers(rig, Vector3(at.x, upper, at.z), upper, "a platform")
 	_stands(terrace, 0.5, deck, "a point over the terrace")
-	_stands(Vector3(at.x + 1.0, deck, at.z), 1.0, above.layout.floors[0] if not above.layout.floors.is_empty() else deck, "a point inside the platform's room")
+	_check(above.layout.floors.size() == 1, "the platform has its floor: %s" % above.layout.floors)
+	_stands(Vector3(at.x + 1.0, deck, at.z), 1.0, above.layout.floors[0], "a point inside the platform's room")
 	world._order({"op": "unwall", "ids": PackedInt32Array([above.id, below.id])}, 1)
 
 
