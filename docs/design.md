@@ -1452,6 +1452,15 @@ tell apart from the top. On the Quest 2 dense walls were beyond what the ladder 
 On the Steam Frame, the stress scene played governed holds 72 Hz in every phase: see
 "Holding 72 Hz on the Frame" for what it took and the table.
 
+The sky's light is read from one radiance map per roughness, not a texture array of them
+(`rendering/reflections/sky_reflections/texture_array_reflections=false`, Godot's own default on
+Android, so the Quest draws the same). Godot 4.6 moved sky radiance from cube maps to octahedral
+maps, and the array form reads two layers per sample with a level of detail from screen-space
+derivatives, for the ambient light, the reflections and the fog's aerial perspective. The arm64
+Linux export is not a mobile platform to Godot, so it took the array: on the Frame (`frame-unworn`,
+the meadow and full flora pools, the GPU time a frame) 4.5.1 drew 10.0 ms, 4.6 13.0 ms, and 4.6
+with one map 8.7 ms, the view captures the same.
+
 ### Detail by gaze
 
 Directive (verbatim): "I am curious about foviated LOD."
