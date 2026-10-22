@@ -701,7 +701,7 @@ func walk_under(p: Vector3) -> float:
 
 ## How far a full-height wall's top stands over its height: the tall stones of a coping, else its cap.
 func top_rise() -> float:
-	return (COPE_TALL.x + COPE_TALL.y) * 0.5 if top == Top.COPE and cover != Cover.ROOF else CAP
+	return (COPE_TALL.x + COPE_TALL.y) * 0.5 if top == Top.COPE and cover != Cover.ROOF and not fence and not TimberFrame.applies(self) else CAP
 
 
 ## How far along a ray it meets the top of one of the floors, or INF.
