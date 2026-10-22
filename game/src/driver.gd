@@ -9,7 +9,7 @@ signal finished
 
 ## The parts of the scene `layer` hides, as demo/meadow-layers.json prices the bare meadow; "all" hides every one.
 ## "mountains" are the ranges and whatever lies between them and the meadow.
-const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "sun_disc", "sun", "shadows", "masonry", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "ceilings"]
+const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "ceilings"]
 
 var main: Node
 var steps: Array
@@ -920,6 +920,8 @@ func _layer_parts(name: String) -> Array[Array]:
 			for n in look.get_children():
 				if n is MeshInstance3D and n != look.disc and n != look.moon_disc:
 					out.append([n, "visible", false])
+		"stars":
+			out.append([look.sky_mat, "shader_parameter/stars", 0.0])
 		"sky":
 			out.append([look.env, "background_mode", Environment.BG_COLOR])
 		"sun_disc":

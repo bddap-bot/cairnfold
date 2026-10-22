@@ -11,13 +11,14 @@ uniform vec3 sun_dir = vec3(0.0, 1.0, 0.0);
 uniform vec3 moon_glow : source_color = vec3(0.0);
 uniform float stars = 0.0;
 
-float star_field(vec3 d) {
+vec3 star_field(vec3 d) {
 	vec3 s = d * 150.0;
 	vec3 cell = floor(s);
 	float h = fract(sin(dot(cell, vec3(127.1, 311.7, 74.7))) * 43758.5453);
 	vec3 at = vec3(fract(h * 17.0), fract(h * 131.0), fract(h * 1031.0)) * 0.5 + 0.25;
 	float lit = smoothstep(0.975, 1.0, h);
-	return lit * smoothstep(0.32, 0.0, length(fract(s) - at)) * (0.4 + 0.6 * fract(h * 7.0));
+	vec3 tint = mix(vec3(0.72, 0.82, 1.0), vec3(1.0, 0.88, 0.72), fract(h * 43.0));
+	return tint * lit * (1.0 - smoothstep(0.0, 0.32, length(fract(s) - at))) * (0.4 + 0.6 * fract(h * 7.0));
 }
 
 void sky() {
@@ -32,7 +33,9 @@ void sky() {
 	float md = max(-dot(d, sun_dir), 0.0);
 	col += moon_glow * (pow(md, 6.0) * 0.06 + pow(md, 80.0) * 0.12);
 	if (d.y > 0.0) {
-		col += vec3(0.85, 0.9, 1.0) * stars * star_field(d) * smoothstep(0.02, 0.25, d.y) * (1.0 - pow(md, 12.0));
+		if (stars > 0.0) {
+			col += stars * star_field(d) * smoothstep(0.02, 0.25, d.y) * (1.0 - pow(md, 12.0));
+		}
 		vec2 uv = d.xz / (d.y + 0.12) * 0.18;
 		float c = texture(clouds, uv).r * 0.7 + texture(clouds, uv * 2.7 + 0.3).r * 0.3;
 		float a = smoothstep(cloud_cover, cloud_cover + 0.22, c) * smoothstep(0.0, 0.18, d.y);
