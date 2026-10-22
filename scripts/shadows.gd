@@ -89,7 +89,7 @@ func _run() -> void:
 	await driver.finished
 	main.world.submit({"op": "plant", "kind": "tree", "seed": 7948,
 		"at": Vector3(-6, Terrain.height_at(-6, -25), -25)})
-	main.quality.pin = 0
+	main.quality.pin = Quality.START
 	var settings := {"fov": main.metrics.info.get("eye_fov_deg", []), "sun": str(main.look.sun.basis), "head": str(main.rig.head.transform)}
 	print("shadows: ", JSON.stringify(settings))
 	var scene := OS.get_environment("NESTCOMBE_SHADOW_SCENE")
@@ -102,7 +102,7 @@ func _run() -> void:
 	elif scene == "tree":
 		eye = Vector3(-6, Terrain.height_at(-6, -20) + 1.4, -20)
 		facing = Vector3(-6, Terrain.height_at(-6, -25) + 4, -25) - eye
-		main.quality.pin = 8
+		main.quality.pin = 14
 		yaws = [-20, 0, 20]
 	var folder := OS.get_environment("NESTCOMBE_SHADOW_OUT")
 	assert(not folder.is_empty(), "Set NESTCOMBE_SHADOW_OUT to the capture directory")

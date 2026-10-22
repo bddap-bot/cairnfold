@@ -1,0 +1,934 @@
+{
+ "build": "bfc51ed",
+ "scene": "demo/stress.json",
+ "steps": "on the ladder of one ladder for every headset; a base build's steps are counted +6",
+ "late_whole_run": 18682,
+ "phases": {
+  "held/walls": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.8,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/flowers": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.01,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/grass": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.85,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/trees": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.38,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/delete": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 7.97,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/pond": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.15,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/fence": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.82,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/windows": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 8.0,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/decorations": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 8.5,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/stone": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 8.01,
+   "seconds_at_step": {
+    "6": 4
+   }
+  },
+  "held/colour": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.43,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/camera": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.19,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/house": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 10.07,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/seeds": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 8.05,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/dirt_path": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.82,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/style": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.18,
+   "seconds_at_step": {
+    "6": 4
+   }
+  },
+  "held/stairs": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.78,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/tower": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 8.99,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/arch": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 7.91,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/selfie": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.4,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/bushes": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.01,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/boulder": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 7.83,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/moss": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.85,
+   "seconds_at_step": {
+    "6": 4
+   }
+  },
+  "held/oil-palette": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.19,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/water-palette": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.03,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/small": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.04,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/big": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.05,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/flat": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.04,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/stick": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.86,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "held/book": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 11.15,
+   "seconds_at_step": {
+    "6": 3
+   }
+  },
+  "meadow/aerial": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 11.72,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "meadow/ground": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.04,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "hints/none": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.56,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "hints/every": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.7,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "book/tucked": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.13,
+   "seconds_at_step": {
+    "6": 18
+   }
+  },
+  "book/shut": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.39,
+   "seconds_at_step": {
+    "6": 18
+   }
+  },
+  "book/open": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.54,
+   "seconds_at_step": {
+    "6": 18
+   }
+  },
+  "book/turning": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 9.03,
+   "seconds_at_step": {
+    "6": 18
+   }
+  },
+  "meadow/edge": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.79,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "paths/ground": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.71,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "flora/aerial": {
+   "late": 112,
+   "viewport_gpu_ms_p50": 15.72,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "flora/ground": {
+   "late": 57,
+   "viewport_gpu_ms_p50": 13.9,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "butterflies/aerial": {
+   "late": 108,
+   "viewport_gpu_ms_p50": 16.47,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "butterflies/ground": {
+   "late": 100,
+   "viewport_gpu_ms_p50": 14.38,
+   "seconds_at_step": {
+    "6": 7
+   }
+  },
+  "drawing": {
+   "late": 119,
+   "viewport_gpu_ms_p50": 17.24,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "r10/aerial": {
+   "late": 129,
+   "viewport_gpu_ms_p50": 17.77,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "r10/ground": {
+   "late": 113,
+   "viewport_gpu_ms_p50": 17.47,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "r15/aerial": {
+   "late": 255,
+   "viewport_gpu_ms_p50": 20.04,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "r15/ground": {
+   "late": 260,
+   "viewport_gpu_ms_p50": 20.95,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "r20/aerial": {
+   "late": 76,
+   "viewport_gpu_ms_p50": 104.95,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "r20/ground": {
+   "late": 197,
+   "viewport_gpu_ms_p50": 24.43,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "r25/aerial": {
+   "late": 64,
+   "viewport_gpu_ms_p50": 167.79,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "r25/ground": {
+   "late": 163,
+   "viewport_gpu_ms_p50": 28.91,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "r15-tall/aerial": {
+   "late": 116,
+   "viewport_gpu_ms_p50": 57.82,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "r15-tall/ground": {
+   "late": 181,
+   "viewport_gpu_ms_p50": 27.67,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "village/aerial": {
+   "late": 30,
+   "viewport_gpu_ms_p50": 266.9,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "village/ground": {
+   "late": 158,
+   "viewport_gpu_ms_p50": 29.36,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "village-boards/aerial": {
+   "late": 48,
+   "viewport_gpu_ms_p50": 263.7,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "village-boards/ground": {
+   "late": 353,
+   "viewport_gpu_ms_p50": 28.71,
+   "seconds_at_step": {
+    "6": 13
+   }
+  },
+  "village-steps/aerial": {
+   "late": 37,
+   "viewport_gpu_ms_p50": 240.5,
+   "seconds_at_step": {
+    "6": 5
+   }
+  },
+  "village-steps/ground": {
+   "late": 615,
+   "viewport_gpu_ms_p50": 26.84,
+   "seconds_at_step": {
+    "6": 23
+   }
+  },
+  "thatched/aerial": {
+   "late": 74,
+   "viewport_gpu_ms_p50": 118.63,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "thatched/ground": {
+   "late": 252,
+   "viewport_gpu_ms_p50": 27.91,
+   "seconds_at_step": {
+    "6": 10
+   }
+  },
+  "plaster/aerial": {
+   "late": 207,
+   "viewport_gpu_ms_p50": 21.37,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "plaster/ground": {
+   "late": 255,
+   "viewport_gpu_ms_p50": 20.45,
+   "seconds_at_step": {
+    "6": 9
+   }
+  },
+  "plaster-village/aerial": {
+   "late": 97,
+   "viewport_gpu_ms_p50": 65.61,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "plaster-village/ground": {
+   "late": 219,
+   "viewport_gpu_ms_p50": 14.72,
+   "seconds_at_step": {
+    "6": 16
+   }
+  },
+  "ponds/aerial": {
+   "late": 103,
+   "viewport_gpu_ms_p50": 15.73,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "ponds/ground": {
+   "late": 95,
+   "viewport_gpu_ms_p50": 14.92,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "underwater/level": {
+   "late": 93,
+   "viewport_gpu_ms_p50": 14.42,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "underwater/up": {
+   "late": 100,
+   "viewport_gpu_ms_p50": 15.54,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "ducks/aerial": {
+   "late": 102,
+   "viewport_gpu_ms_p50": 16.23,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "ducks/ground": {
+   "late": 72,
+   "viewport_gpu_ms_p50": 15.09,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "snails/underwater": {
+   "late": 76,
+   "viewport_gpu_ms_p50": 13.48,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "conures/aerial": {
+   "late": 123,
+   "viewport_gpu_ms_p50": 17.61,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "conures/ground": {
+   "late": 91,
+   "viewport_gpu_ms_p50": 14.9,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "conures/carried": {
+   "late": 3,
+   "viewport_gpu_ms_p50": 14.97,
+   "seconds_at_step": {
+    "6": 12
+   }
+  },
+  "sheep/ground": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 14.84,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "fish-frenzy/ground": {
+   "late": 22,
+   "viewport_gpu_ms_p50": 13.96,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "neck/clips": {
+   "late": 150,
+   "viewport_gpu_ms_p50": 15.46,
+   "seconds_at_step": {
+    "6": 10
+   }
+  },
+  "neck/feeding": {
+   "late": 133,
+   "viewport_gpu_ms_p50": 15.48,
+   "seconds_at_step": {
+    "6": 10
+   }
+  },
+  "deer/ground": {
+   "late": 68,
+   "viewport_gpu_ms_p50": 13.66,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "fox/ground": {
+   "late": 85,
+   "viewport_gpu_ms_p50": 14.75,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "daylight/aerial": {
+   "late": 138,
+   "viewport_gpu_ms_p50": 16.94,
+   "seconds_at_step": {
+    "6": 7
+   }
+  },
+  "fireflies/aerial": {
+   "late": 105,
+   "viewport_gpu_ms_p50": 16.12,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "fireflies/ground": {
+   "late": 108,
+   "viewport_gpu_ms_p50": 14.95,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "paths/stroke": {
+   "late": 504,
+   "viewport_gpu_ms_p50": 204.69,
+   "seconds_at_step": {
+    "6": 99
+   }
+  },
+  "hills/stroke": {
+   "late": 75,
+   "viewport_gpu_ms_p50": 179.49,
+   "seconds_at_step": {
+    "6": 13
+   }
+  },
+  "hills/aerial": {
+   "late": 30,
+   "viewport_gpu_ms_p50": 200.73,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "hills/ground": {
+   "late": 154,
+   "viewport_gpu_ms_p50": 32.22,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "hands/walls": {
+   "late": 196,
+   "viewport_gpu_ms_p50": 27.01,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "camera/ground": {
+   "late": 157,
+   "viewport_gpu_ms_p50": 30.87,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "camera/shutter": {
+   "late": 1093,
+   "viewport_gpu_ms_p50": 30.92,
+   "seconds_at_step": {
+    "6": 42
+   }
+  },
+  "camera/recording": {
+   "late": 176,
+   "viewport_gpu_ms_p50": 32.14,
+   "seconds_at_step": {
+    "6": 7
+   }
+  },
+  "camera/selfie": {
+   "late": 464,
+   "viewport_gpu_ms_p50": 31.68,
+   "seconds_at_step": {
+    "6": 18
+   }
+  },
+  "camera/two": {
+   "late": 99,
+   "viewport_gpu_ms_p50": 29.43,
+   "seconds_at_step": {
+    "6": 4
+   }
+  },
+  "garden/aerial": {
+   "late": 202,
+   "viewport_gpu_ms_p50": 23.69,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "garden/ground": {
+   "late": 184,
+   "viewport_gpu_ms_p50": 17.93,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "lanterns/ground": {
+   "late": 203,
+   "viewport_gpu_ms_p50": 18.22,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "lanterns/aerial": {
+   "late": 212,
+   "viewport_gpu_ms_p50": 22.95,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "stairs/aerial": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.03,
+   "seconds_at_step": {
+    "8": 10
+   }
+  },
+  "stairs/ground": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 11.01,
+   "seconds_at_step": {
+    "8": 10
+   }
+  },
+  "timber-village/aerial": {
+   "late": 54,
+   "viewport_gpu_ms_p50": 111.9,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "timber-village/ground": {
+   "late": 66,
+   "viewport_gpu_ms_p50": 13.47,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "avatars/wave": {
+   "late": 168,
+   "viewport_gpu_ms_p50": 14.76,
+   "seconds_at_step": {
+    "16": 14
+   }
+  },
+  "curved-tile/aerial": {
+   "late": 83,
+   "viewport_gpu_ms_p50": 69.39,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "curved-tile/ground": {
+   "late": 32,
+   "viewport_gpu_ms_p50": 11.08,
+   "seconds_at_step": {
+    "16": 11
+   }
+  },
+  "curved-thatch/aerial": {
+   "late": 92,
+   "viewport_gpu_ms_p50": 15.81,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "curved-thatch/ground": {
+   "late": 24,
+   "viewport_gpu_ms_p50": 8.77,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "curved-deck/aerial": {
+   "late": 107,
+   "viewport_gpu_ms_p50": 18.43,
+   "seconds_at_step": {
+    "16": 5
+   }
+  },
+  "curved-deck/ground": {
+   "late": 57,
+   "viewport_gpu_ms_p50": 10.41,
+   "seconds_at_step": {
+    "16": 12
+   }
+  },
+  "roofs/aerial": {
+   "late": 61,
+   "viewport_gpu_ms_p50": 87.3,
+   "seconds_at_step": {
+    "16": 5
+   }
+  },
+  "roofs/ground": {
+   "late": 71,
+   "viewport_gpu_ms_p50": 13.44,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "sweep/foundation-stone": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.02,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "sweep/foundation-plaster": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 6.85,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "sweep/foundation-stone-repeat": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.0,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "ruins/no-delete": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.32,
+   "seconds_at_step": {
+    "15": 12
+   }
+  },
+  "ruins/pick-gap": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 10.45,
+   "seconds_at_step": {
+    "15": 11,
+    "14": 1
+   }
+  },
+  "ruins/pick-rubble": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.95,
+   "seconds_at_step": {
+    "16": 12
+   }
+  },
+  "easels/preview": {
+   "late": 6,
+   "viewport_gpu_ms_p50": 10.48,
+   "seconds_at_step": {
+    "16": 9
+   }
+  },
+  "decorations/night": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.62,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "furniture/night": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 9.9,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "wheel/avatars": {
+   "late": 5,
+   "viewport_gpu_ms_p50": 8.52,
+   "seconds_at_step": {
+    "16": 16
+   }
+  },
+  "wheel/empty": {
+   "late": 13,
+   "viewport_gpu_ms_p50": 8.21,
+   "seconds_at_step": {
+    "16": 30
+   }
+  },
+  "ceilings/inside": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 6.94,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "ceilings/curved-join": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 6.78,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "sweep/arches/aerial": {
+   "late": 203,
+   "viewport_gpu_ms_p50": 71.82,
+   "seconds_at_step": {
+    "16": 14
+   }
+  },
+  "sweep/arches/ground": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 11.44,
+   "seconds_at_step": {
+    "16": 15
+   }
+  },
+  "canvas-contact": {
+   "late": 3,
+   "viewport_gpu_ms_p50": 7.16,
+   "seconds_at_step": {
+    "16": 71,
+    "15": 57
+   }
+  },
+  "wheel/boulders": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.09,
+   "seconds_at_step": {
+    "15": 25
+   }
+  },
+  "wheel/houses": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 8.39,
+   "seconds_at_step": {
+    "15": 25
+   }
+  },
+  "sky/stars": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 3.96,
+   "seconds_at_step": {
+    "15": 22
+   }
+  }
+ }
+}

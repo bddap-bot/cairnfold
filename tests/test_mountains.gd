@@ -14,7 +14,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	var a := Mountains.arrays()
+	var a := Mountains.arrays(false)
 	var verts: PackedVector3Array = a[Mesh.ARRAY_VERTEX]
 	var normals: PackedVector3Array = a[Mesh.ARRAY_NORMAL]
 	var indices: PackedInt32Array = a[Mesh.ARRAY_INDEX]
@@ -24,13 +24,11 @@ func _run() -> void:
 	_slopes_shade_smoothly_and_ridges_crisply(verts, normals, indices)
 	_the_sun_rises_and_sets_through_a_pass()
 	_they_cost_a_few_thousand_triangles(verts, indices)
-	Mountains.lake = true
-	var l := Mountains.arrays()
+	var l := Mountains.arrays(true)
 	_every_face_faces_the_garden(l[Mesh.ARRAY_VERTEX], l[Mesh.ARRAY_NORMAL], l[Mesh.ARRAY_INDEX])
 	_the_lake_stands_under_the_meadow_and_over_the_feet(l[Mesh.ARRAY_VERTEX])
 	_the_lake_reaches_past_the_first_ridge()
 	_the_water_mirrors_the_ridges_as_they_stand()
-	Mountains.lake = false
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -120,7 +118,7 @@ func _the_sun_rises_and_sets_through_a_pass() -> void:
 			var clear := true
 			for k in Mountains.RANGES.size():
 				var r: Dictionary = Mountains.RANGES[k]
-				var top := Vector3(cos(az) * r.radius, Mountains.foot_high() + Mountains.ridge(r, noises[k], az), sin(az) * r.radius)
+				var top := Vector3(cos(az) * r.radius, Mountains.foot_high(false) + Mountains.ridge(r, noises[k], az), sin(az) * r.radius)
 				clear = clear and toward.y > (top - eye).normalized().y
 			if clear:
 				first = Daylight.elevation(t)
@@ -147,7 +145,7 @@ func _the_lake_stands_under_the_meadow_and_over_the_feet(verts: PackedVector3Arr
 		var out := maxf(absf(p.x), absf(p.z)) - half
 		if out > 1.0 and out < Mountains.BANK + 1.0:
 			dry += 1 if p.y >= Mountains.LAKE else 0
-	_check(Mountains.foot_high() < Mountains.LAKE, "the ranges' feet stand at %.1f m, over the lake" % Mountains.foot_high())
+	_check(Mountains.foot_high(true) < Mountains.LAKE, "the ranges' feet stand at %.1f m, over the lake" % Mountains.foot_high(true))
 	_check(dry == 0, "%d points of the bank's foot stand out of the water" % dry)
 
 
@@ -172,5 +170,5 @@ func _the_water_mirrors_the_ridges_as_they_stand() -> void:
 		for i in range(0, Mountains.RIDGE_SAMPLES, 7):
 			var az := TAU * i / Mountains.RIDGE_SAMPLES
 			var mirrored: float = img.get_pixel(i, 0)[k] * top + Mountains.LAKE
-			worst = maxf(worst, absf(mirrored - Mountains.foot_high() - Mountains.ridge(r, noise, az)))
+			worst = maxf(worst, absf(mirrored - Mountains.foot_high(true) - Mountains.ridge(r, noise, az)))
 	_check(worst < 0.05, "the mirrored ridge strays %.2f m from the ridge" % worst)

@@ -1,5 +1,5 @@
 [
-  {"op": "quality", "step": 0},
+  {"op": "quality", "step": 6},
   {"op": "label", "name": "-"},
   {"op": "wait", "seconds": 60},
   {"op": "label", "name": "avatars/close"},

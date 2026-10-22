@@ -20,7 +20,7 @@
 # measured, for scripts/trend.py to follow.
 # NESTCOMBE_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
 # frames over 1.5x the refresh period from its first second, where its edits land; the others leave that second out.
-# NESTCOMBE_ARGS="--render-scale 0.5" passes more game arguments on a Quest, each word its own.
+# NESTCOMBE_ARGS="--quality 8" passes more game arguments on a Quest, each word its own.
 # NESTCOMBE_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
 # streaming their heads and hands. NESTCOMBE_WAVE=1 makes them flat-screen players repeatedly waving. NESTCOMBE_GUEST_AVATAR=FILE.vrm has each of them wear that VRM in place of a
 # built-in avatar, to measure what a player's own avatar costs the others.

@@ -1,6 +1,6 @@
 [
   {"op": "budget", "bounded": false},
-  {"op": "quality", "step": 0},
+  {"op": "quality", "step": 6},
   {"op": "wait", "seconds": 5},
   {"op": "view", "eye": [0, 1.65, 0], "at": [20, 1.2, 0], "ground": true},
   {"op": "layer", "name": "grass", "mode": "on"},

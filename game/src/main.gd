@@ -146,16 +146,13 @@ func _ready() -> void:
 		return near if rock.is_empty() else rock.point
 	world.loaded.connect(rig.respawn)
 	rig.respawn()
-	var drawn := Quality.session(OS.get_model_name())
-	get_viewport().msaa_3d = drawn.msaa
-	look.env.reflected_light_source = drawn.reflections
 	metrics = Metrics.new(args.get("metrics", ""))
 	metrics.info = {"xr": _start_xr(), "label": "-", "budget": Budget.info()}
 	metrics.info.flat = Main.flat_wanted(args, metrics.info.xr, played)
 	if metrics.info.flat:
 		flat = Flat.new(rig)
 		add_child(flat)
-	quality = Quality.new(xr if metrics.info.xr else null, flora, tool.masonry, look.sun)
+	quality = Quality.new(xr if metrics.info.xr else null, flora, tool.masonry, look)
 	if args.has("quality"):
 		quality.pin = int(args.quality)
 	add_child(quality)
@@ -259,15 +256,7 @@ func _start_xr() -> bool:
 	xr = XRServer.find_interface("OpenXR")
 	if args.has("desktop") or xr == null or not xr.is_initialized():
 		return false
-	var drawn := Quality.session(OS.get_model_name())
-	xr.render_target_size_multiplier = float(args.get("render-scale", drawn.render_scale))
-	var vp := get_viewport()
-	vp.use_xr = true
-	if drawn.foveation > 0:
-		# The runtime drops a level set before its session begins. The Mobile renderer reads the runtime's foveation
-		# map only with the view's VRS mode at XR.
-		xr.session_begun.connect(func() -> void: xr.foveation_level = drawn.foveation)
-		vp.vrs_mode = Viewport.VRS_XR
+	get_viewport().use_xr = true
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
 	var rates := xr.get_available_display_refresh_rates()
 	if args.has("refresh"):

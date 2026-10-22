@@ -152,8 +152,8 @@ scripts and on the GPU, between the script steps around it.
 
 The runtime's recommended render target is 1728×1728 per eye on a 2160×2160 panel,
 and Valve's foveation layer (`VK_LAYER_VALVE_fdm_injection`) lowers shading density
-outside the gaze in every frame. `--render-scale` sets the render target relative
-to the runtime's recommendation.
+outside the gaze in every frame. The ladder's swapchain rungs set the render target relative
+to the runtime's recommendation (see "One ladder for every headset").
 
 `demo/headset.json` unworn with the standby pause off, rendering (about 8 ms of
 GPU time per frame), first three phases:
@@ -585,13 +585,13 @@ What the bottom step still costs, every part hidden in turn after the scene had 
 
 Hiding the terrain and holding shadows to 64 m instead of 256 m each saved nothing. So the
 ladder gained two steps below the old bottom: the sun's shadows off, then the 3D resolution
-at 0.78 of the headset's own (0.70 on the Frame). Both show at once across the whole view, so
+at 0.78 of the swapchain's (0.70 on the Frame then). Both show at once across the whole view, so
 a step up out of either waits the governor's longest calm (64 s), and one undone is not taken
 again that session. Ending the ladder above a step that saved nothing was tried and cut: the
 village appeared in the same second the resolution step landed, read as a step that cost 1.6 ms,
 and held the governor two steps up for the rest of the run. On the Quest 2 the bottom step's bare
 meadow took 16.5 ms of App GPU time from the air and 14.2 standing at full swapchain size, so
-the Quest 2 draws a smaller swapchain for the whole session (below). Without the resolution step the village from the air stayed
+the Quest 2 draws a smaller swapchain (below). Without the resolution step the village from the air stayed
 at every other refresh at the shadows-off step (14.7 ms). Every step up out of them in a
 governed run of the stress scene cost no late frame (the longest 18.8 ms). A garden within the
 build budget never reaches them on the Frame: its `Budget.COSTS` are fitted at step 8, the last
@@ -936,7 +936,7 @@ step, half rate for about ten seconds.
 stretch against the part shown beside it, from the air and standing, at the fit step; `scripts/layers.py OUT` reads it.
 Milliseconds a frame in the governor's signal, on main before the cut below
 ([record](../perf/quest-2/meadow-layers/20261021T203327Z-ab7159c.json)), and the share of each kept at a 0.5 swapchain
-(`NESTCOMBE_ARGS="--render-scale 0.5"`, 51% of the pixels; [record](../perf/quest-2/meadow-layers/20261021T204840Z-ab7159c.json)):
+(a render target multiplier of 0.5, 51% of the pixels; [record](../perf/quest-2/meadow-layers/20261021T204840Z-ab7159c.json)):
 
 | Hidden | From the air | Standing | Kept at 0.5, air and standing |
 | --- | --- | --- | --- |
@@ -1014,7 +1014,8 @@ Fixed foveation (`XR_FB_foveation`) works through the Mobile renderer only with 
 (Godot 4.6 `render_forward_mobile.cpp`, `get_color_fbs`: the runtime's density map joins the scene pass only then); the
 row in "Which knobs matter" set the level without it, so its map was never applied. With it, level 3 draws 15 of the 25
 tiles, merging the outer ones, which is where it saves. Its outer edges are coarser, close to no MSAA at the rim, and
-the middle keeps 2x. The Quest 2 ships at level 3, a per-build option to judge in the headset. Its saving
+the middle keeps 2x. Fixed foveation is now one of the ladder's knobs on every runtime that supports it, level 3
+from the start rung down and 0 above it (see "One ladder for every headset"). Its saving
 only lowers what a frame costs, so `Budget.COSTS` were not refitted: every charge still bounds its unit, and a fit from
 the one foveated `demo/costs.json` run, which the system shell drew beside, scattered both ways (roofs 41 µs a m²
 against the 18.7 charged, walls 11 against 23.8), wider than any change foveation could make.
@@ -1160,18 +1161,94 @@ Directive (verbatim):
 > My motivation for these thoughts are not wanting myself or my players to need to think about or tweak settings, but still see things as pretty as possible but still experience buttery framerate.
 
 **Decision: the one graphics configuration is a ladder of steps, walked by the GPU time of
-every frame.** `Quality` (`game/src/quality.gd`) first draws the meadow's sparse far grass to 60,
+every frame, the same on every headset.** `Quality` (`game/src/quality.gd`) first decides how the
+view is drawn: the sky's reflections, then fixed foveation's rim, then 4x MSAA against 2x, then the
+swapchain at 0.85 and 0.7 of the runtime's size a side, then the lake round the meadow. Below that it first draws the meadow's sparse far grass to 60,
 48, 36 or 30 m before holding it at 24 m, then settled stones in full only to 8 m instead of 16 m
 and ivy to 25 m instead of 35 m; below those, flowers to 20 m instead of 60 m, then foliage from
 coarser blobs, and stones in full to 4 m and ivy to 12 m; last, where nothing else held the
-refresh rate, the sun's shadows off and then the 3D resolution at 0.78 of the headset's own
+refresh rate, the sun's shadows off and then the 3D scale at 0.78 of the swapchain's
 (see "Holding 72 Hz on the Frame"). A governor reads each
 frame's GPU time and steps down the ladder at once when frames run over the refresh period, a refresh
 is missed with the GPU over its line, or their average runs over the line, and back up only after a calm spell with room for what the step
 saved. The runtime holding the game at every other refresh counts as over budget, and frames
-over budget step on while a step is still arriving. Every headset starts at the top and settles on
-the prettiest step it holds at its own refresh rate. There are no per-headset presets and no
-settings menu.
+over budget step on while a step is still arriving. Every headset starts at the cheapest way of
+drawing the view with every reach whole (`Quality.START`) and settles on the prettiest step it
+holds at its own refresh rate. There are no per-headset presets, nothing reads which headset or
+build it runs on, and there is no settings menu.
+
+### One ladder for every headset
+
+Directive (verbatim): "I usually prefer all hardware use the same dynamic quality systems, Branching on IS_QUEST2 is
+an antipattern, but fixed foveation and eye tracked foveation are likely legitimately different user experiences. Good
+eye-tracked fovation is free ux-wise. I'm thinking eye-tracked and fixed should be treated differently."
+
+**Decision: how the view is drawn is the ladder's top seven rungs (`Quality.DRAWN`), not a table per headset.**
+Each rung drops what loses least for what it saves, as measured on the Quest 2 at the ladder's bottom ("Which knobs
+matter" and "Anti-aliasing on the Quest 2"):
+
+| Step | Swapchain | MSAA | Sky reflections | Fixed foveation | Lake | Estimated cost over the next step |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0 | 1.0 | 4x | on | 0 | on | 0.25 of the frame |
+| 1 | 1.0 | 4x | off | 0 | on | 0.17 |
+| 2 | 1.0 | 4x | off | 3 | on | 0.31 |
+| 3 | 1.0 | 2x | off | 3 | on | 0.38 |
+| 4 | 0.85 | 2x | off | 3 | on | 0.47 |
+| 5 | 0.7 | 2x | off | 3 | on | 0.15 |
+| 6, the start | 0.7 | 2x | off | 3 | off, the plain | |
+
+Steps 7 to 16 are the reach, shadow and 3D scale cuts above, drawn as step 6. Step numbers in measurements recorded
+before this ladder count from the start: their step N is step N + 6 now, and the demo scripts' pins were moved
+with it. Step 6 is what the Quest 2 drew
+for its whole session before (its tuned table), so a Quest 2 starts where it was tuned and the build budget,
+fitted at the bottom step (`Budget.fit_step`), prices the same frame as before. A headset with room climbs out of it:
+
+- The estimate. A step up across a rung not yet measured in the scene is expected to cost its share of the current
+  frame (the last column, from the Quest 2's measurements; the swapchain's is its pixels': first estimated from the
+  0.7, 0.8 and 1.0 rows of "Which knobs matter" at 0.27, a governed stress run on the Quest 2 climbed from 0.7 to
+  0.85 at 7.3 ms and read 10.7, and stepped back within seven seconds), and is taken only when the average plus that stays under the line. A measured step
+  takes its measured cost, as every step does.
+- Pops. The steps into 2x MSAA and each smaller swapchain reallocate what the view is drawn into, as the bottom
+  steps' shadows and 3D scale do, and the step to the plain swaps the whole horizon (`Quality.popping`). Above the start the governor crosses them at the calm of any
+  step until the scene first asks for less; once a step down has crossed one, a step back up across it waits the
+  longest calm (64 s), and one undone within ten seconds is not taken again that session.
+- Priming. Among loading's late frames, before the governor starts, the view is drawn for two frames each at the
+  bottom step and at every rung whose swapchain, MSAA, reflections or lake differ, so their pipelines are compiled then
+  and not mid-play. Changing the render target size multiplier mid-session recreates the swapchain, which the
+  Quest 2's runtime takes in its stride (the log's `quality: step` lines and the compositor's swapchain lines).
+- MSAA is never off: no rung has fewer than 2x samples, and a test holds every step to it.
+- Fixed foveation (`XR_FB_foveation`) is a knob only where the runtime supports it and the eyes are not tracked
+  (`is_foveation_supported`, `is_eye_gaze_interaction_supported`); the view's VRS mode is XR only then. Elsewhere
+  its rung changes nothing, so the governor passes it by (`Quality.idle`). Foveation that follows tracked eyes, as
+  Valve's runtime layer does on the Steam Frame, costs the player nothing to look at, so it stays on whole and is no
+  knob of the ladder.
+
+Measured on a Quest 2 against the tuned table it replaced (main before, `d4a9c75`), each one run of the stress
+scene ([records](../perf/quest-2/quality-ladder/)); late frames, phases split by whether the tuned build's median
+viewport GPU time sat under the governor's line:
+
+| Stress scene | Phases under the line | Phases over it | Whole run | First 30 s |
+| --- | --- | --- | --- | --- |
+| As scripted, the quality pinned | 155 → 138 | 10,600 → 10,752 | 17,882 → 18,682 | 119 → 47 |
+| Every pin released, governed throughout | 345 → 244 | 7,121 → 7,093 | 8,984 → 8,872 | 122 → 44 |
+
+Two runs of one build on the same headset earlier read 182 and 437 late frames under the line and 12,008 and
+11,788 over it, so every change but the start's, which priming moved, is within a run's spread. Governed, the Quest 2
+spent 152 s of the run at step 5, the lake standing, 75 s at step 6 and the rest at the ladder's bottom, where the
+tuned build sat at its step 0 (step 6 now) for 256 s; it never held a rung above 5, so its fixed foveation stayed at
+level 3 and the rim is as sharp as before. With the swapchain first estimated at 0.27 of the frame it climbed to 0.85
+and stepped back within seven seconds, one late frame a second meanwhile, which set that estimate to the pixels'.
+
+The lake (see "Look on a mobile budget") was the Steam Frame's build's alone, an export feature. No build chooses
+content now, and the lake is no near-free option: on the Quest 2 `demo/edge.json` read 8.52 and 8.24 ms with it
+against 7.37 and 7.16 over the plain, ground and air
+([with](../perf/quest-2/edge/20261022T154215Z-5ef92f8.json), [without](../perf/quest-2/edge/20261022T154823Z-d4a9c75.json)),
+1.1 ms of the 4.16 the build budget leaves a garden. So it is a rung: every headset stands the lake round the meadow
+whenever the frame has room for it, and the plain otherwise.
+
+The 3D scale is exactly 1.0 on every step but the last. The Frame's Turnip driver tonemaps more cheaply at any scale
+off 1.0 (below), so the Frame no longer gets its 0.9 for the session from a check of its platform; it draws the
+swapchain rungs like any other headset.
 
 ### Which knobs matter
 
@@ -1197,10 +1274,11 @@ only with a measured saving. Grass reach changes at no frame cost:
 `Flora.grass_reach` hides whole 8 m grass cells beyond it and sets one shader uniform over
 whose second half the surviving clumps sink into the ground one at a time, and it moves toward
 each new step at 8 m a second, so the meadow thins rather than ends. Ruled out for any later knob
-because they reallocate or recompile mid-play: MSAA level, shadow atlas size, toggling
-shadows or glow (pipeline variants), the render-target multiplier (Godot frees and
-recreates the swapchain when it changes) and `Viewport.scaling_3d_scale` (see "Which knobs
-matter" below for the frame it cost on the Frame).
+because they reallocate or recompile mid-play: shadow atlas size and toggling glow
+(pipeline variants). MSAA level, the render-target multiplier (Godot frees and recreates the
+swapchain when it changes), the sun's shadows and `Viewport.scaling_3d_scale` (see below for
+the frame it cost on the Frame) are on the ladder only as pops, primed at load ("One ladder for
+every headset").
 
 On the Steam Frame the pixels are the cost. The houses phase of `demo/headset.json` (a tower
 and a house with two roofs 3 to 10 m from a floating eye) took the game's GPU time from 8.3 ms
@@ -1220,9 +1298,9 @@ GPU time per frame (fdinfo), median of each phase:
 | 3D resolution 0.8, the ladder's bottom step | 5.7 ms | 7.3 ms |
 
 A tenth off the 3D resolution saves more there than every reach step together, at a loss of
-sharpness that is hard to see, so the Frame renders the 3D scene at 0.9 for the whole session
-(`Quality.FRAME_SCALE_3D`), upscaled into the same swapchain; the ladder's last step takes it
-lower, once every cheaper step has failed. It was the ladder's first step
+sharpness that is hard to see, so the Frame rendered the 3D scene at 0.9 for the whole session,
+upscaled into the same swapchain, until the ladder took the swapchain's size instead ("One ladder
+for every headset"). It was the ladder's first step
 until the step itself proved the cost: changing the scale reallocates the scene's buffers, and
 stepping down to 0.9 mid-play cost a 25 to 72 ms frame now and then, which in the houses phase
 of `demo/headset.json` took the runtime to every other refresh for a second in two of three
@@ -1240,16 +1318,17 @@ to 10.6 ms a frame on the governor's timer against 11.5 to 11.8 ms at 1.0 (three
 0 late frames at 1.0001), and compositor captures showed the meadow in both eyes. The Quest
 2's driver goes the other way: the stress scene at 1.0001 took a median 2.75 ms more App time
 a phase than at 1.0, every one of its 34 phases between 1.4 and 3.2 ms more. So a full-resolution
-scale on the Frame is 1.0001, never 1.0, and the Quest 2 stays at exactly 1.0.
+scale on the Frame was 1.0001, never 1.0, and the Quest 2 stayed at exactly 1.0. Which
+render path a driver prefers is not something the game asks about, so every step but the last
+now draws at exactly 1.0.
 
 The Meta plugin's separate dynamic-resolution controller is disabled: its explicit render
 region can exceed the framebuffer once the 3D scale shrinks it, making both eyes
 black while timing reports an apparent improvement. The benchmark rejects this framebuffer
 error. Resolution changes must be checked against rendered eye images as well as timings.
 
-The Quest 2 asks its runtime for a swapchain 0.7 of its own size a side
-(`Quality.QUEST_2_RENDER_SCALE`, OpenXR's render target size multiplier), held for the
-session: 1008x1108 an eye instead of 1440x1584. Its scene is bound by fragments, and a smaller
+The Quest 2 settles on a swapchain 0.7 of its own size a side (the ladder's start, OpenXR's
+render target size multiplier): 1008x1108 an eye instead of 1440x1584. Its scene is bound by fragments, and a smaller
 swapchain is drawn in the same single pass, where a 3D scale off 1.0 adds the tonemap pass this
 driver pays for; the compositor stretches it to the display. Measured on a Quest 2 with the
 bare meadow at the ladder's bottom step, `App=` ms a frame and the frame time's median:
@@ -1268,8 +1347,8 @@ governor still walks the ladder. The render region is not used, so the eyes cann
 they did under the plugin's controller; the game's view captures at each eye's pixel count show
 grass blades softer at 0.7 and the scene otherwise unchanged.
 
-For the session the Quest 2 also draws 2x MSAA instead of 4x and takes no reflected light from
-the sky (`Quality.QUEST_2`), and the ground reads the light builds give back once a vertex, the
+At the start rung every headset also draws 2x MSAA instead of 4x and takes no reflected light from
+the sky (`Quality.DRAWN`), and on the Quest 2 the ground reads the light builds give back once a vertex, the
 probes lying a grid cell apart as its vertices do. At the ladder's bottom the bare meadow went
 from 12.3 ms from the air and 10.5 standing to 6.9 and 6.7 in the governor's signal, so a garden
 has 3.8 ms of room under the 11.1 ms line (the then-current Quest 2 table) where it had none. Found by hiding each part of the bare
@@ -1639,8 +1718,7 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
   They are real geometry far enough off that both eyes and every step through the garden
   see them as distant. The ridges dip where the sun crosses them low, so it rises and sets
   through a pass. The eyes' far clip (`Rig.FAR`) and the sun's disc stand beyond them.
-  With the `lake_ring` export feature (on in the "Linux arm64" preset, the Steam Frame's
-  build) a lake replaces the plain: a bank drops from the meadow's edge under the water,
+  Where the frame has room (the ladder's lake rung, "One ladder for every headset"), a lake replaces the plain: a bank drops from the meadow's edge under the water,
   which stands at `Mountains.LAKE` out past the first ridge, and the ranges' feet sink
   `Mountains.SUNK` under it, so the water floods their lower slopes and meets them along a
   contour. The water is one opaque, unshaded surface of 256 triangles (`lake.gdshader`) that

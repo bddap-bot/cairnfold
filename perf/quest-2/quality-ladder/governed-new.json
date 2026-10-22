@@ -1,0 +1,940 @@
+{
+ "build": "be44123",
+ "scene": "demo/stress.json with every quality pin released",
+ "steps": "on the ladder of one ladder for every headset; a base build's steps are counted +6",
+ "late_whole_run": 8872,
+ "phases": {
+  "held/walls": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.84,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/flowers": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.03,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/grass": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.79,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/trees": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.36,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/delete": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.12,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/pond": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.22,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/fence": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.83,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/windows": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 7.87,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/decorations": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 8.27,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/stone": {
+   "late": 3,
+   "viewport_gpu_ms_p50": 8.34,
+   "seconds_at_step": {
+    "5": 4
+   }
+  },
+  "held/colour": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.44,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/camera": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.22,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/house": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 10.11,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/seeds": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 8.09,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/dirt_path": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.88,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/style": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.15,
+   "seconds_at_step": {
+    "5": 4
+   }
+  },
+  "held/stairs": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.82,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/tower": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 8.95,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/arch": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 7.94,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/selfie": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.44,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/bushes": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.04,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/boulder": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 7.92,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/moss": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.84,
+   "seconds_at_step": {
+    "5": 4
+   }
+  },
+  "held/oil-palette": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.19,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/water-palette": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.05,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/small": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.04,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/big": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.06,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/flat": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.07,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/stick": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.85,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "held/book": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 11.2,
+   "seconds_at_step": {
+    "5": 3
+   }
+  },
+  "meadow/aerial": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 11.05,
+   "seconds_at_step": {
+    "6": 1,
+    "7": 1,
+    "8": 4
+   }
+  },
+  "meadow/ground": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.05,
+   "seconds_at_step": {
+    "8": 1,
+    "7": 4,
+    "6": 1
+   }
+  },
+  "hints/none": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.57,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "hints/every": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.7,
+   "seconds_at_step": {
+    "6": 6
+   }
+  },
+  "book/tucked": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.14,
+   "seconds_at_step": {
+    "6": 12,
+    "5": 6
+   }
+  },
+  "book/shut": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.42,
+   "seconds_at_step": {
+    "6": 12,
+    "5": 6
+   }
+  },
+  "book/open": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.59,
+   "seconds_at_step": {
+    "6": 9,
+    "5": 9
+   }
+  },
+  "book/turning": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 9.11,
+   "seconds_at_step": {
+    "6": 6,
+    "5": 12
+   }
+  },
+  "meadow/edge": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.87,
+   "seconds_at_step": {
+    "5": 6
+   }
+  },
+  "paths/ground": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.81,
+   "seconds_at_step": {
+    "5": 6
+   }
+  },
+  "flora/aerial": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 8.4,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "flora/ground": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.38,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "butterflies/aerial": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.34,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "butterflies/ground": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 10.51,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "drawing": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.47,
+   "seconds_at_step": {
+    "16": 4
+   }
+  },
+  "r10/aerial": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.43,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "r10/ground": {
+   "late": 41,
+   "viewport_gpu_ms_p50": 13.19,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "r15/aerial": {
+   "late": 165,
+   "viewport_gpu_ms_p50": 33.14,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "r15/ground": {
+   "late": 77,
+   "viewport_gpu_ms_p50": 14.14,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "r20/aerial": {
+   "late": 72,
+   "viewport_gpu_ms_p50": 103.44,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "r20/ground": {
+   "late": 97,
+   "viewport_gpu_ms_p50": 15.4,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "r25/aerial": {
+   "late": 51,
+   "viewport_gpu_ms_p50": 121.0,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "r25/ground": {
+   "late": 100,
+   "viewport_gpu_ms_p50": 16.45,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "r15-tall/aerial": {
+   "late": 69,
+   "viewport_gpu_ms_p50": 100.76,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "r15-tall/ground": {
+   "late": 117,
+   "viewport_gpu_ms_p50": 18.22,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "village/aerial": {
+   "late": 40,
+   "viewport_gpu_ms_p50": 157.86,
+   "seconds_at_step": {
+    "16": 5
+   }
+  },
+  "village/ground": {
+   "late": 111,
+   "viewport_gpu_ms_p50": 18.84,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "village-boards/aerial": {
+   "late": 45,
+   "viewport_gpu_ms_p50": 156.25,
+   "seconds_at_step": {
+    "16": 5
+   }
+  },
+  "village-boards/ground": {
+   "late": 271,
+   "viewport_gpu_ms_p50": 18.64,
+   "seconds_at_step": {
+    "16": 13
+   }
+  },
+  "village-steps/aerial": {
+   "late": 42,
+   "viewport_gpu_ms_p50": 156.26,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "village-steps/ground": {
+   "late": 549,
+   "viewport_gpu_ms_p50": 20.87,
+   "seconds_at_step": {
+    "16": 23
+   }
+  },
+  "thatched/aerial": {
+   "late": 53,
+   "viewport_gpu_ms_p50": 146.16,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "thatched/ground": {
+   "late": 235,
+   "viewport_gpu_ms_p50": 20.55,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "plaster/aerial": {
+   "late": 53,
+   "viewport_gpu_ms_p50": 14.28,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "plaster/ground": {
+   "late": 132,
+   "viewport_gpu_ms_p50": 15.8,
+   "seconds_at_step": {
+    "16": 9
+   }
+  },
+  "plaster-village/aerial": {
+   "late": 58,
+   "viewport_gpu_ms_p50": 115.64,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "plaster-village/ground": {
+   "late": 58,
+   "viewport_gpu_ms_p50": 10.59,
+   "seconds_at_step": {
+    "16": 15
+   }
+  },
+  "ponds/aerial": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.91,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "ponds/ground": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.58,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "underwater/level": {
+   "late": 4,
+   "viewport_gpu_ms_p50": 9.92,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "underwater/up": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.44,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "ducks/aerial": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 10.67,
+   "seconds_at_step": {
+    "15": 6
+   }
+  },
+  "ducks/ground": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.84,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "snails/underwater": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 9.37,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "conures/aerial": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 10.51,
+   "seconds_at_step": {
+    "15": 6
+   }
+  },
+  "conures/ground": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.49,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "conures/carried": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.77,
+   "seconds_at_step": {
+    "16": 12
+   }
+  },
+  "sheep/ground": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 11.04,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "fish-frenzy/ground": {
+   "late": 5,
+   "viewport_gpu_ms_p50": 10.45,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "neck/clips": {
+   "late": 3,
+   "viewport_gpu_ms_p50": 11.27,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "neck/feeding": {
+   "late": 6,
+   "viewport_gpu_ms_p50": 11.2,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "deer/ground": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 11.08,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "fox/ground": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.99,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "daylight/aerial": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 9.41,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "fireflies/aerial": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 9.39,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "fireflies/ground": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 10.75,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "paths/stroke": {
+   "late": 507,
+   "viewport_gpu_ms_p50": 127.28,
+   "seconds_at_step": {
+    "16": 64
+   }
+  },
+  "hills/stroke": {
+   "late": 78,
+   "viewport_gpu_ms_p50": 150.52,
+   "seconds_at_step": {
+    "16": 11
+   }
+  },
+  "hills/aerial": {
+   "late": 48,
+   "viewport_gpu_ms_p50": 126.45,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "hills/ground": {
+   "late": 105,
+   "viewport_gpu_ms_p50": 18.03,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "hands/walls": {
+   "late": 117,
+   "viewport_gpu_ms_p50": 17.89,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "camera/ground": {
+   "late": 175,
+   "viewport_gpu_ms_p50": 18.22,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "camera/shutter": {
+   "late": 1296,
+   "viewport_gpu_ms_p50": 18.91,
+   "seconds_at_step": {
+    "16": 42
+   }
+  },
+  "camera/recording": {
+   "late": 233,
+   "viewport_gpu_ms_p50": 19.0,
+   "seconds_at_step": {
+    "16": 7
+   }
+  },
+  "camera/selfie": {
+   "late": 484,
+   "viewport_gpu_ms_p50": 18.77,
+   "seconds_at_step": {
+    "16": 17
+   }
+  },
+  "camera/two": {
+   "late": 139,
+   "viewport_gpu_ms_p50": 19.16,
+   "seconds_at_step": {
+    "16": 4
+   }
+  },
+  "garden/aerial": {
+   "late": 107,
+   "viewport_gpu_ms_p50": 57.03,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "garden/ground": {
+   "late": 58,
+   "viewport_gpu_ms_p50": 12.41,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "lanterns/ground": {
+   "late": 32,
+   "viewport_gpu_ms_p50": 12.07,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "lanterns/aerial": {
+   "late": 117,
+   "viewport_gpu_ms_p50": 41.04,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "stairs/aerial": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 6.46,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "stairs/ground": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.13,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "timber-village/aerial": {
+   "late": 55,
+   "viewport_gpu_ms_p50": 158.67,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "timber-village/ground": {
+   "late": 65,
+   "viewport_gpu_ms_p50": 15.06,
+   "seconds_at_step": {
+    "16": 5
+   }
+  },
+  "avatars/wave": {
+   "late": 259,
+   "viewport_gpu_ms_p50": 17.06,
+   "seconds_at_step": {
+    "16": 15
+   }
+  },
+  "curved-tile/aerial": {
+   "late": 50,
+   "viewport_gpu_ms_p50": 98.72,
+   "seconds_at_step": {
+    "16": 5
+   }
+  },
+  "curved-tile/ground": {
+   "late": 37,
+   "viewport_gpu_ms_p50": 12.68,
+   "seconds_at_step": {
+    "16": 12
+   }
+  },
+  "curved-thatch/aerial": {
+   "late": 133,
+   "viewport_gpu_ms_p50": 18.78,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "curved-thatch/ground": {
+   "late": 9,
+   "viewport_gpu_ms_p50": 10.79,
+   "seconds_at_step": {
+    "16": 9
+   }
+  },
+  "curved-deck/aerial": {
+   "late": 160,
+   "viewport_gpu_ms_p50": 20.59,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "curved-deck/ground": {
+   "late": 89,
+   "viewport_gpu_ms_p50": 9.72,
+   "seconds_at_step": {
+    "16": 11
+   }
+  },
+  "roofs/aerial": {
+   "late": 63,
+   "viewport_gpu_ms_p50": 117.38,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "roofs/ground": {
+   "late": 99,
+   "viewport_gpu_ms_p50": 17.07,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "sweep/foundation-stone": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.12,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "sweep/foundation-plaster": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.08,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "sweep/foundation-stone-repeat": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.11,
+   "seconds_at_step": {
+    "16": 6
+   }
+  },
+  "ruins/no-delete": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.42,
+   "seconds_at_step": {
+    "16": 12
+   }
+  },
+  "ruins/pick-gap": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.13,
+   "seconds_at_step": {
+    "16": 12
+   }
+  },
+  "ruins/pick-rubble": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 8.15,
+   "seconds_at_step": {
+    "16": 12
+   }
+  },
+  "easels/preview": {
+   "late": 4,
+   "viewport_gpu_ms_p50": 7.76,
+   "seconds_at_step": {
+    "16": 9
+   }
+  },
+  "decorations/night": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 11.12,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "furniture/night": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 10.39,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "wheel/avatars": {
+   "late": 9,
+   "viewport_gpu_ms_p50": 10.79,
+   "seconds_at_step": {
+    "16": 17
+   }
+  },
+  "wheel/empty": {
+   "late": 8,
+   "viewport_gpu_ms_p50": 10.47,
+   "seconds_at_step": {
+    "16": 30
+   }
+  },
+  "ceilings/inside": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 6.95,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "ceilings/curved-join": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 6.97,
+   "seconds_at_step": {
+    "16": 10
+   }
+  },
+  "sweep/arches/aerial": {
+   "late": 136,
+   "viewport_gpu_ms_p50": 109.15,
+   "seconds_at_step": {
+    "16": 14
+   }
+  },
+  "sweep/arches/ground": {
+   "late": 153,
+   "viewport_gpu_ms_p50": 13.6,
+   "seconds_at_step": {
+    "16": 15
+   }
+  },
+  "canvas-contact": {
+   "late": 13,
+   "viewport_gpu_ms_p50": 7.2,
+   "seconds_at_step": {
+    "16": 128
+   }
+  },
+  "wheel/boulders": {
+   "late": 0,
+   "viewport_gpu_ms_p50": 7.02,
+   "seconds_at_step": {
+    "16": 25
+   }
+  },
+  "wheel/houses": {
+   "late": 2,
+   "viewport_gpu_ms_p50": 7.38,
+   "seconds_at_step": {
+    "16": 25
+   }
+  },
+  "sky/stars": {
+   "late": 1,
+   "viewport_gpu_ms_p50": 3.21,
+   "seconds_at_step": {
+    "16": 22
+   }
+  }
+ }
+}

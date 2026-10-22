@@ -19,7 +19,7 @@ func _run() -> void:
 	await process_frame
 	world = main.world
 	await _joining_does_not_change_the_budget()
-	_device_profiles_keep_the_same_fill()
+	_every_step_keeps_the_same_fill()
 	await _counts_follow_placements_and_deletions()
 	await _arches_reserve_room_until_removed()
 	await _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room()
@@ -32,23 +32,14 @@ func _run() -> void:
 	Main.quit(self, 1 if failures else 0)
 
 
-func _device_profiles_keep_the_same_fill() -> void:
+func _every_step_keeps_the_same_fill() -> void:
 	var garden := {"wall_m2": 20.0, "flower": 100, "fitting": 2}
 	var expected := Budget.fill(garden)
-	var viewport := root
-	var msaa := viewport.msaa_3d
-	var scale := viewport.scaling_3d_scale
 	var pin: int = main.quality.pin
-	for model in ["Quest 2", "Steam Frame", "Desktop", "Headless"]:
-		var profile := Quality.session(model)
-		viewport.msaa_3d = profile.msaa
-		viewport.scaling_3d_scale = profile.render_scale
-		for step in [0, Budget.fit_step()]:
-			main.quality.pin = step
-			_check(is_equal_approx(Budget.fill(garden), expected), "%s quality %d keeps the same fill" % [model, step])
-			_check(not Budget.fits(garden, {"wall_m2": 1000.0}), "%s refuses an over-capacity edit" % model)
-	viewport.msaa_3d = msaa
-	viewport.scaling_3d_scale = scale
+	for step in Quality.ladder.size():
+		main.quality.pin = step
+		_check(is_equal_approx(Budget.fill(garden), expected), "quality %d keeps the same fill" % step)
+		_check(not Budget.fits(garden, {"wall_m2": 1000.0}), "quality %d refuses an over-capacity edit" % step)
 	main.quality.pin = pin
 
 

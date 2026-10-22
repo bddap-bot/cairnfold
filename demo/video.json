@@ -7,7 +7,7 @@
   {"op": "dig", "x": -4, "z": 1, "seconds": 1.8},
   {"op": "view", "eye": [0, 1.6, 4], "at": [0, 0.8, -3]},
   {"op": "point", "tool": "camera", "at": [-5, 0.8, -2]},
-  {"op": "quality", "step": 0},
+  {"op": "quality", "step": 6},
   {"op": "wait", "seconds": 3},
   {"op": "label", "name": "camera/held"},
   {"op": "point", "tool": "camera", "at": [-5.0, 0.8, -2.25]},

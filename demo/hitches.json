@@ -1,5 +1,5 @@
 [
-  {"op": "quality", "step": 0},
+  {"op": "quality", "step": 6},
   {"op": "budget", "bounded": false},
   {"op": "place", "x": -20, "z": 16},
   {"op": "label", "name": "-"},

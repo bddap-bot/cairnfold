@@ -29,7 +29,9 @@ func _initialize() -> void:
 	_a_step_under_way_is_judged_only_by_frames_over_budget()
 	_a_pause_is_not_every_other_refresh()
 	_every_other_refresh_held_by_the_cpu_steps_nothing_down()
-	_each_headset_draws_its_session()
+	_nothing_branches_on_the_headset_or_the_build()
+	_every_headset_starts_conservative_and_climbs_to_what_it_holds()
+	_a_rung_no_knob_of_the_headset_tells_apart_is_passed_by()
 	_an_unsettled_step_is_not_followed_into_one_that_pops()
 	_a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -69,9 +71,12 @@ func _every_step_draws_less() -> void:
 	for i in steps.size() - 1:
 		var a := steps[i]
 		var b := steps[i + 1]
-		_check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.stone_near_m <= a.stone_near_m and b.ivy_m <= a.ivy_m and (a.shadows or not b.shadows) and b.scale_3d <= a.scale_3d, "step %d draws no more than step %d" % [i + 1, i])
-		_check(b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail or b.stone_near_m < a.stone_near_m or b.ivy_m < a.ivy_m or (a.shadows and not b.shadows) or b.scale_3d < a.scale_3d, "step %d draws less than step %d" % [i + 1, i])
+		var drawn_less := b.render_scale < a.render_scale or b.msaa < a.msaa or (a.reflections and not b.reflections) or b.foveation > a.foveation or (a.lake and not b.lake)
+		_check(b.grass_m <= a.grass_m and b.flowers_m <= a.flowers_m and b.blob_detail <= a.blob_detail and b.stone_near_m <= a.stone_near_m and b.ivy_m <= a.ivy_m and (a.shadows or not b.shadows) and b.scale_3d <= a.scale_3d and b.render_scale <= a.render_scale and b.msaa <= a.msaa and (a.reflections or not b.reflections) and b.foveation >= a.foveation and (a.lake or not b.lake), "step %d draws no more than step %d" % [i + 1, i])
+		_check(drawn_less or b.grass_m < a.grass_m or b.flowers_m < a.flowers_m or b.blob_detail < a.blob_detail or b.stone_near_m < a.stone_near_m or b.ivy_m < a.ivy_m or (a.shadows and not b.shadows) or b.scale_3d < a.scale_3d, "step %d draws less than step %d" % [i + 1, i])
+		_check(not drawn_less or i < Quality.START, "only the steps above the start change how the view is drawn, step %d does" % (i + 1))
 	for i in steps.size():
+		_check(steps[i].msaa != Viewport.MSAA_DISABLED, "step %d keeps anti-aliasing on" % i)
 		_check(steps[i].grass_m * Flora.GRASS_SURVIVORS_FROM >= Flora.GRASS_LOD_BEGIN + Flora.GRASS_LOD_BAND, "step %d keeps its survivors until the rest have sunk away" % i)
 	var q := Quality.new(null, null)
 	_check(q.governor.bottom == steps.size() - 1, "the governor's bottom is the ladder's last step")
@@ -202,9 +207,10 @@ func _a_held_step_reaches_its_knobs() -> void:
 		buf.resize(k.stride())
 		parts.append(Masonry.split(buf, k))
 	masonry.place(1, parts)
-	var sun := DirectionalLight3D.new()
+	var look := Look.build(root)
+	var sun := look.sun
 	sun.shadow_enabled = true
-	var q := Quality.new(null, flora, masonry, sun)
+	var q := Quality.new(null, flora, masonry, look)
 	root.add_child(q)
 	q.view = SubViewport.new()
 	var bottom: Quality.Step = Quality.ladder[-1]
@@ -218,6 +224,7 @@ func _a_held_step_reaches_its_knobs() -> void:
 	_check(ks[Wall.Part.STONE].near == bottom.stone_near_m and ks[Wall.Part.IVY].reach == bottom.ivy_m, "stones and ivy at the step's reach")
 	_check(ks[Wall.Part.IVY].material.get_shader_parameter("reach") == bottom.ivy_m, "and the leaves shrink away by it")
 	_check(sun.shadow_enabled == bottom.shadows and is_equal_approx(q.view.scaling_3d_scale, bottom.scale_3d), "the sun's shadows and the 3D resolution at the step's")
+	_check(q.view.msaa_3d == bottom.msaa and look.env.reflected_light_source == Environment.REFLECTION_SOURCE_DISABLED and not look._lake[1].visible and look._plain.visible, "the step's MSAA, without reflections, over the plain")
 	var ivy: Masonry.Chunk = masonry._chunks[Vector3i(0, 0, Wall.Part.IVY)]
 	var stone: Masonry.Chunk = masonry._chunks[Vector3i(0, 0, Wall.Part.STONE)]
 	_check(is_equal_approx(ivy.instance.visibility_range_end, bottom.ivy_m + ks[Wall.Part.IVY].radius()) and is_equal_approx(stone.far.visibility_range_begin, bottom.stone_near_m + ks[Wall.Part.STONE].radius()), "a chunk already standing takes the step's reaches")
@@ -229,7 +236,8 @@ func _a_held_step_reaches_its_knobs() -> void:
 		q._process(0.1)
 	_check(ks[Wall.Part.STONE].near == Quality.ladder[0].stone_near_m and ks[Wall.Part.IVY].reach == Quality.ladder[0].ivy_m, "back at the top, they return")
 	_check(sun.shadow_enabled and q.view.scaling_3d_scale == 1.0, "and so do the shadows and the full 3D resolution")
-	sun.free()
+	_check(q.view.msaa_3d == Viewport.MSAA_4X and look.env.reflected_light_source == Environment.REFLECTION_SOURCE_SKY and look._lake[1].visible and not look._plain.visible, "and 4x MSAA, the sky's reflections and the lake")
+	look.free()
 	q.view.free()
 	q.free()
 	masonry.free()
@@ -246,10 +254,48 @@ func _every_other_refresh_steps_down_whatever_the_timer_reads() -> void:
 	_check(g.level == 10, "and it keeps stepping down, never up, while the runtime holds that rate")
 
 
-func _each_headset_draws_its_session() -> void:
-	_check(Quality.session("Quest 2") == Quality.QUEST_2, "the Quest 2 draws its smaller swapchain at 2x MSAA, without the sky's reflections")
-	_check(Quality.session("Quest 3") == Quality.HEADSET, "a Quest 3 draws the runtime's own size")
-	_check(Quality.session("") == Quality.HEADSET, "a machine with no model name draws the runtime's own size")
+## Every headset runs the one ladder: nothing in the game reads which headset or build it is to choose what it draws.
+## The play log alone records the device's name.
+func _nothing_branches_on_the_headset_or_the_build() -> void:
+	var model := RegEx.create_from_string("get_model_name|OS\\.get_name\\(\\)|\"(Quest|Steam Frame|Lepton|Pico)[^\"]*\"")
+	for f in DirAccess.get_files_at("res://src"):
+		if not f.ends_with(".gd") or f == "play_log.gd":
+			continue
+		var text := FileAccess.get_file_as_string("res://src".path_join(f))
+		for m in model.search_all(text):
+			_check(false, "%s reads the headset or the platform: %s" % [f, m.get_string()])
+	for line in FileAccess.get_file_as_string("res://export_presets.cfg").split("\n"):
+		if line.begins_with("custom_features="):
+			_check(line == "custom_features=\"\"", "an export preset carries a feature the game could branch on: %s" % line)
+
+
+func _every_headset_starts_conservative_and_climbs_to_what_it_holds() -> void:
+	var shares := Quality.shares(true)
+	var fast := Quality.Governor.new(Quality.ladder.size() - 1, Quality.popping(), Quality.START, shares)
+	_check(Quality.START == Quality.DRAWN.size() - 1, "the start is the last of the ways of drawing the view")
+	_check(fast.level == Quality.START, "a headset starts at the cheapest view with every reach whole")
+	_check(_feed_until(fast, BUDGET * 0.3, 72 * 60, 0) == 0, "one with room climbs to the top")
+	var tight := Quality.Governor.new(Quality.ladder.size() - 1, Quality.popping(), Quality.START, shares)
+	_check(_feed(tight, BUDGET * 0.7, 72 * 120) == Quality.START, "one whose frame would not hold the next rung's estimated cost stays at the start")
+	var near := Quality.Governor.new(Quality.ladder.size() - 1, Quality.popping(), Quality.START, shares)
+	near.step(BUDGET * 0.3, BUDGET, DT)
+	_check(near.cost(Quality.START, BUDGET) > BUDGET * Quality.Governor.UNMEASURED, "a larger swapchain's estimate is its share of the frame, not the flat guess")
+
+
+func _a_rung_no_knob_of_the_headset_tells_apart_is_passed_by() -> void:
+	var idle := Quality.idle(false)
+	_check(idle.size() == 1 and Quality.ladder[idle[0]].foveation > Quality.ladder[idle[0] - 1].foveation, "without fixed foveation its rung changes nothing, got %s" % [idle])
+	_check(Quality.idle(true).is_empty(), "with it every rung changes something")
+	var g := Quality.Governor.new(Quality.ladder.size() - 1, Quality.popping(), Quality.START, Quality.shares(false), idle)
+	var seen := {}
+	for i in 72 * 120:
+		g.step(BUDGET * 0.3, BUDGET, DT)
+		seen[g.level] = true
+	_check(not seen.has(idle[0]) and seen.has(0), "climbing to the top passes it by")
+	for i in 72 * 10:
+		g.step(BUDGET * 1.1, BUDGET, DT)
+		seen[g.level] = true
+	_check(not seen.has(idle[0]), "and so does stepping down")
 
 
 func _every_other_refresh_held_by_the_cpu_steps_nothing_down() -> void:
@@ -295,7 +341,7 @@ func _a_pause_is_not_every_other_refresh() -> void:
 
 func _a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds() -> void:
 	var pops := Quality.popping()
-	_check(pops == PackedInt32Array([Quality.ladder.size() - 3, Quality.ladder.size() - 2]), "the steps into shadows off and a lower resolution pop, got %s" % [pops])
+	_check(pops == PackedInt32Array([Quality.START - 4, Quality.START - 3, Quality.START - 2, Quality.START - 1, Quality.ladder.size() - 3, Quality.ladder.size() - 2]), "the steps into 2x MSAA, each smaller swapchain, the plain, shadows off and a lower 3D scale pop, got %s" % [pops])
 	var g := Quality.Governor.new(10, PackedInt32Array([0]))
 	_down(g)
 	_check(_feed(g, BUDGET * 0.1, 72 * 30) == 1, "a step up that pops waits more than a calm spell")

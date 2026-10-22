@@ -17,7 +17,7 @@
   {"op": "capture", "name": "03-shot"},
   {"op": "wait", "seconds": 2},
   {"op": "label", "name": "far"},
-  {"op": "quality", "step": 10},
+  {"op": "quality", "step": 16},
   {"op": "view", "eye": [8, 1.7, 6], "at": [0, 1.0, -30]},
   {"op": "hands", "right": [0.0, -0.1, -0.3], "tip": 0},
   {"op": "wait", "seconds": 3},

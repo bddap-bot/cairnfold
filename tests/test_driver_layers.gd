@@ -27,7 +27,7 @@ func _run() -> void:
 	await process_frame
 	check(not main.look.sun.shadow_enabled, "the governor respects the shadow diagnostic at full detail")
 	driver._layer({"name": "shadows", "mode": "off"})
-	main.quality.pin = 9
+	main.quality.pin = 15
 	await process_frame
 	driver._layer({"name": "shadows", "mode": "on"})
 	await process_frame

@@ -29,6 +29,14 @@ controls and the build order.
   function's doc block, never between a doc block and its function.
 - Edit by subtraction: fix problems by removing code where possible, one
   implementation per thing.
+- Branch on what a thing can do, never on what it is; better still, need no branch. Ask "does this support X?" or
+  "is the frame on time?", never "which model, platform or build target is this?": one path that adapts by
+  measurement serves every device, and a capability branch stays only where one path cannot serve both, where users
+  get a genuinely different experience. Here: one quality ladder walked by frame time on every headset; eye-tracked
+  foveation, which follows the gaze and costs the player nothing, is kept apart from fixed foveation, a knob of the
+  ladder. Directives (verbatim): "I usually prefer all hardware use the same dynamic quality systems, Branching on
+  IS_QUEST2 is an antipattern, but fixed foveation and eye tracked foveation are likely legitimately different user
+  experiences." "Even better when you can avoid the branch altogether."
 - Nestcombe is unreleased, so code carries no backwards compatibility. Save, network and
   config formats change freely: no migrations, version branches, aliases for old names or
   compat shims. An old save that no longer loads fails loudly, and nothing is added to rescue it.

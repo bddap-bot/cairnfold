@@ -42,6 +42,9 @@ var disc: MeshInstance3D
 var moon_disc: MeshInstance3D
 var mountains_mat := ShaderMaterial.new()
 var lake_mat := ShaderMaterial.new()
+## The ranges over the lake with its water, and the ranges over the plain (Mountains.build).
+var _lake: Array[MeshInstance3D] = []
+var _plain: MeshInstance3D
 var bounce := Bounce.new()
 var _lift := -1.0
 var time := -1.0
@@ -98,7 +101,7 @@ static func build(parent: Node) -> Look:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_sky_contribution = 1.0
-	env.reflected_light_source = Quality.HEADSET.reflections
+	env.reflected_light_source = Environment.REFLECTION_SOURCE_SKY
 	env.tonemap_mode = Environment.TONE_MAPPER_AGX
 	env.fog_enabled = true
 	env.fog_mode = Environment.FOG_MODE_DEPTH
@@ -135,8 +138,12 @@ static func build(parent: Node) -> Look:
 	look.moon_disc = look._disc(MOON_DISC, 1.0)
 	look.mountains_mat.shader = load("res://src/mountains.gdshader")
 	look.lake_mat.shader = load("res://src/lake.gdshader")
-	for m in Mountains.build(look.mountains_mat, look.lake_mat):
+	var horizon := Mountains.build(look.mountains_mat, look.lake_mat)
+	for m in horizon:
 		look.add_child(m)
+	look._lake = horizon.slice(0, 2)
+	look._plain = horizon[2]
+	look.show_lake(true)
 	look.bounce.install()
 	look.lift_to(0.0)
 	look.set_time(Daylight.DEFAULT)
@@ -163,6 +170,13 @@ func _disc(size: Dictionary, moon: float) -> MeshInstance3D:
 
 
 ## Sets the time of day, wrapping round midnight.
+## Stands the lake round the meadow, or the plain.
+func show_lake(on: bool) -> void:
+	for m in _lake:
+		m.visible = on
+	_plain.visible = not on
+
+
 func set_time(t: float) -> void:
 	t = fposmod(t, 1.0)
 	if t == time:

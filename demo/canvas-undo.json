@@ -1,6 +1,6 @@
 [
   {"op": "budget", "bounded": false},
-  {"op": "quality", "step": 8},
+  {"op": "quality", "step": 14},
   {"op": "label", "name": "-"},
   {"op": "wait", "seconds": 10},
   {"op": "bare"},
