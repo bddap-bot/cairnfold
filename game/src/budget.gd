@@ -37,10 +37,10 @@ const BOULDER_LEAST := 0.25
 ## This is conservative accounting until moss is measured on a headset.
 ## Each opaque patch is twelve triangles, with no shadow pass or CPU animation.
 const MOSS_FLOWERS := 16.0
-## The smaller measured room, over the meadow without its own trees and bushes, and the larger unit costs of Quest 2
+## The Quest 2's measured room, over the meadow without its own trees and bushes, and the larger unit costs of Quest 2
 ## and Frame; see docs/design.md.
 ## Fixed independently of the running device, refresh rate and quality governor.
-const CAPACITY_MS := 4.16
+const CAPACITY_MS := 4.68
 ## Painted stone ground's paired Quest 2 cost a square metre over the bare meadow, and at most what a view full of it
 ## adds, charged however much is painted (docs/design.md, "Ground materials").
 const STONE_M2_US := 0.468
