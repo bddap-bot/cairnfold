@@ -57,8 +57,7 @@ float water_form(float placed, float depth) {
 varying float moss_coat;
 varying vec2 bark_uv;
 #endif
-varying vec3 bounce_at;
-varying vec3 lamp_at;
+varying vec4 given;
 #ifdef FLOWER
 varying float far_head;
 varying float lily;
@@ -121,8 +120,7 @@ void vertex() {
 		VERTEX = mix(VERTEX, root, flora_fade(dist, mix(draw_reach, water_reach, wet), draw_fade));
 	}
 #endif
-	bounce_at = bounce_coord(VERTEX, NORMAL);
-	lamp_at = lamp_coord(VERTEX, NORMAL);
+	given = given_over(VERTEX, NORMAL, ground);
 #ifdef PARTED
 	// The meadow's flowers drown; a tree or bush never stands in water (World._drown).
 	if (depth > 0.02 && wet == 0.0) {
@@ -157,9 +155,8 @@ void fragment() {
 	}
 #endif
 	ROUGHNESS = roughness;
-	vec4 bounce = texture(bounce_volume, bounce_at);
-	AO = bounce.a;
-	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce);
+	AO = given.a;
+	EMISSION = ALBEDO * given.rgb;
 #ifdef BACKLIT
 	BACKLIGHT = seasoned(backlight, season_foliage);
 #endif
