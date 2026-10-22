@@ -22,6 +22,7 @@ func _run() -> void:
 	main.world.bounded = false
 	await driver._stair_field({})
 	check(not main.world.bounded, "the bounded stair fixture restores the unbounded stress workload")
+	await driver._bare({})
 	await driver._clear({})
 	var before: int = main.tool.walls.size()
 	await driver._house({"at": [-4, -3], "size": [5, 4], "rise": 1.5, "plaster": true, "timber_style": -1, "seconds": 0.3})
