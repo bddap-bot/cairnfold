@@ -62,6 +62,7 @@ func _a_pond_takes_out_what_it_covers() -> void:
 
 	var rim := Vector3(AT.x, Water.brim(AT.x, AT.y, 2.8 * GroundGrab.SPREAD), AT.y)
 	tool.fill(hand, rim)
+	tool.settle()
 	await process_frame
 	await process_frame
 	_check(water.pond_at(AT.x, AT.y) != null and Water.drowned(tree[0][0].anchor), "the pond covers the tree's root")

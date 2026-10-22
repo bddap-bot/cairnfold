@@ -23,6 +23,9 @@ var _ponds: Array[PondLayout.Pond] = []
 var _asked: Array[Vector3] = []
 var _tasks: Array[int] = []
 var _boxes: Array[Array] = []
+## Fills let in before their hand's preview had caught up, each worked out off the main thread: [hand, the pointed
+## spot, its task, the box the task leaves its pond in].
+var _fires: Array[Array] = []
 var _ghost_material := StandardMaterial3D.new()
 
 
@@ -55,12 +58,30 @@ func _exit_tree() -> void:
 		if t >= 0:
 			WorkerThreadPool.wait_for_task_completion(t)
 	_tasks.fill(-1)
+	settle()
 
 
 func _process(_delta: float) -> void:
+	var _pt := Time.get_ticks_usec()
+	_process_timed(_delta)
+	var _pms := (Time.get_ticks_usec() - _pt) / 1000.0
+	if _pms > 3.0:
+		print("prof: water_tool.gd _process %.1f" % _pms)
+
+
+func _process_timed(_delta: float) -> void:
 	for i in _buttons.size():
 		_handle(i)
 		_buttons[i].latch()
+	while not _fires.is_empty() and WorkerThreadPool.is_task_completed(_fires[0][2]):
+		_let_in(_fires.pop_front())
+
+
+## Lets in every fill still being worked out, waiting for each and for the garden to take it.
+func settle() -> void:
+	while not _fires.is_empty():
+		_let_in(_fires.pop_front())
+	world.settle()
 
 
 func _handle(i: int) -> void:
@@ -86,7 +107,7 @@ func _show(i: int, hit: Variant) -> void:
 		_at[i] = _asked[i]
 		_ponds[i] = _boxes[i][0]
 		if _ponds[i] != null:
-			_ghosts[i].mesh = PondWater.sheet(_ponds[i])
+			_ghosts[i].mesh = PondWater.sheet(PondWater.quads(_ponds[i]))
 			_ghosts[i].position = Vector3(0, _ponds[i].level + 0.01, 0)
 	if hit == null:
 		_at[i] = Vector3.INF
@@ -97,17 +118,34 @@ func _show(i: int, hit: Variant) -> void:
 		_boxes[i] = box
 		var from := Water.candidates(hit)
 		var level: float = hit.y
-		_tasks[i] = WorkerThreadPool.add_task(func() -> void: box[0] = Water.deepest(from, level))
+		_tasks[i] = WorkerThreadPool.add_task(func() -> void:
+			box[0] = Water.deepest(from, level)
+			if box[0] != null:
+				PondWater.quads(box[0]))
 	_ghosts[i].visible = _ponds[i] != null
 
 
 ## Lets in the water that filling to ground point `hit` would hold, as a build command: what the hand's preview
-## shows when it is of that point. With none, the hand bumps.
+## shows when it is of that point, else what it would show, worked out off the main thread and let in a frame or two
+## later. With none, the hand bumps.
 func fill(hand: Hand, hit: Vector3) -> void:
 	var i := rig.hands.find(hand)
-	var shown := i >= 0 and _at[i].distance_to(hit) <= FOLLOW
-	var at: Vector3 = _at[i] if shown else hit
-	var p: PondLayout.Pond = _ponds[i] if shown else Water.pointed(hit)
+	if i >= 0 and _at[i].distance_to(hit) <= FOLLOW and _fires.is_empty():
+		_pour(hand, _at[i], _ponds[i])
+		return
+	var box := [null]
+	var from := Water.candidates(hit)
+	var level := hit.y
+	_fires.append([hand, hit, WorkerThreadPool.add_task(func() -> void: box[0] = Water.deepest(from, level)), box])
+
+
+## Lets in a fill worked out off the main thread, waiting for it if need be.
+func _let_in(fire: Array) -> void:
+	WorkerThreadPool.wait_for_task_completion(fire[2])
+	_pour(fire[0], fire[1], fire[3][0])
+
+
+func _pour(hand: Hand, at: Vector3, p: PondLayout.Pond) -> void:
 	if p == null:
 		Cues.play(Cues.Act.REFUSED, hand.global_position, hand)
 		return

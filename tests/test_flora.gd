@@ -219,14 +219,16 @@ func _planted_flowers_take_their_water_form_by_depth() -> void:
 	_check(form.parse(pick.get_string(3), [pick.get_string(1), pick.get_string(2), "lily_depth"]) == OK, "the pick parses")
 	Terrain.dry_water()
 	var spots := {Vector2i(60, 60): 0.15, Vector2i(70, 60): 0.8, Vector2i(80, 60): Terrain.DRY}
-	var water := {}
+	var levels := Terrain.water_levels()
+	var wet := PackedInt32Array()
 	for g: Vector2i in spots:
 		if spots[g] != Terrain.DRY:
 			for dz in range(-1, 2):
 				for dx in range(-1, 2):
-					var at := g + Vector2i(dx, dz)
-					water[at] = Terrain._heights[at.y * Terrain.VERTS + at.x] + spots[g]
-	Terrain.set_water(water)
+					var k := (g.y + dz) * Terrain.VERTS + g.x + dx
+					levels[k] = Terrain._heights[k] + spots[g]
+					wet.append(k)
+	Terrain.set_water(levels, Terrain.depth_image(levels, Terrain.read(Terrain.ALL), wet))
 	var forms := []
 	for g: Vector2i in spots:
 		var p := Vector3(g.x * Terrain.STEP - Terrain.SIZE * 0.5, 0, g.y * Terrain.STEP - Terrain.SIZE * 0.5)

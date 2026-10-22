@@ -2632,9 +2632,8 @@ pond's level before, which the fill checks against the new ground. A fill reads 
 needs (`Pond.ground`), and only an edit there fills that pond again. Measured headless on a desktop
 CPU (`demo/lake.json`'s lake against the largest pond the 24-point limit allowed before, a 46 m dish:
 1,237 wet points then, 2,439 now): frames stay at 0.2 ms of script with either; filling the bowl
-takes 50 to 100 ms held under its rim and 230 to 320 ms pointed over it; putting it as a command
-takes 320 to 580 ms against 60 to 200 ms for the old largest; a ground edit inside it 160 ms against
-30 to 40 ms. Fish (`Fish.CAP`), ripples and the lapping sound are capped per garden or per pond already.
+takes 50 to 100 ms held under its rim and 230 to 320 ms pointed over it, work done off the main thread
+(below). Fish (`Fish.CAP`), ripples and the lapping sound are capped per garden or per pond already.
 
 What that lake costs a Quest 2, in `demo/costs.json` at the ladder's fit step (`NESTCOMBE_SCENE=demo/costs.json
 bench.sh OUT --android APK`), viewport GPU milliseconds a frame as `scripts/costs.py` reads them (the median of the
@@ -2656,10 +2655,22 @@ gave over the bare meadow in either run (0.37 and 0.08 ms), and all of a garden'
 (`water`), what the lake adds to the meadow from its dearest view: a pond of 72 m² or more costs that, a fifth of
 the Quest 2's 2 ms of room. The Frame shares these prices until the lake is measured there.
 
-Putting the lake as a command holds the Quest 2's main thread for one frame of 730 to 745 ms (726 to 742 ms of it
-script), and each ground edit inside it for one of 166 to 169 ms (158 to 161 ms of script), over three runs: 53 and
-12 refresh periods. That stall is not bounded yet: the fill, its
-surface and the refill after an edit still run on the main thread.
+Filling a lake never holds the main thread. Done on it, putting the lake held the Quest 2's for one frame of 476 to
+1,617 ms, and each ground edit inside it for one of 123 to 169 ms, 53 and 12 refresh periods or more. Timers placed
+466 ms of the put: the flood three times over, 127 to 146 ms each (the trigger pulled before the tool's preview had
+caught up, `Commands`' check that the put holds water, the apply), then 52 ms laying its surface and writing its
+levels; the rest, up to 1,150 ms in one run, fell in that frame's other script and did not come back once every
+`_process` was timed. An edit's 108 to 154 ms went to its refill (58 to 77 ms), the surface (24 to 38), the levels
+(17 to 27) and the check that no two ponds share water (6 to 9). So what a ponds or ground command does to the water
+is worked out from plain values on another thread (`Refill`): the fills, which ponds stay, each surface's quads,
+every grid point's level and the depth texture's image. `World` queues commands; one whose water fills again over
+`World.AHEAD` grid points or more (256, about 2.5 ms of fill on a Quest 2) waits for that, and every command behind it
+waits its turn, so every machine still applies the same commands in the same order and a fill is still one undo step.
+Applying it then takes the results: 5.7 to 8.6 ms for the lake. A trigger pulled before the preview caught up fills
+off the main thread too, a frame or two later, and `Commands`' check takes the fill worked out ahead
+(`Water.know`). In `demo/costs.json` on a Quest 2 ([run](../perf/quest-2/costs/20261022T014818Z-4ee6416.json)), and
+in its lake phases played alone, the longest frame putting the lake is 21.3 to 24.3 ms, one late frame, and while
+ground inside it is dug 15.8 to 16.0 ms, none: under two refresh periods of 13.9 ms each.
 
 The look follows the usual recipe for stylised water (Sea of Thieves' blend of deep and shallow
 colour, the common stylised-water shaders' depth bands and shore foam), adapted so nothing reads

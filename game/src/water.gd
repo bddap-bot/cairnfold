@@ -18,8 +18,11 @@ var hands: Array[Node3D] = []
 var ponds: Array[PondWater] = []
 ## Index into `ponds` of the pond over each grid point, wet or shore; -1 elsewhere.
 var _owner := PackedInt32Array()
-var _written: Array[Vector2i] = []
+## The grid points `_owner` and the levels were last written at.
+var _written := PackedInt32Array()
 var _wet := {}
+## Fills worked out ahead of a command on another thread, as [heights, grid point, level, near, pond], for `fill`.
+static var _known: Array = []
 
 
 ## A hand's last contact with the water.
@@ -40,7 +43,16 @@ func _init(touching: Array[Node3D]) -> void:
 ## The pond grid point `at` fills over the ground as it stands, with water no higher than `level`, or null; `near`
 ## as `PondLayout.fill` takes it.
 static func fill(at: Vector2i, level: float, near := -INF) -> PondLayout.Pond:
-	return PondLayout.fill(Terrain.read(Terrain.ALL), Terrain.ALL, at, level, near)
+	var heights := Terrain.read(Terrain.ALL)
+	for k: Array in _known:
+		if k[1] == at and k[2] == level and k[3] == near and k[0] == heights:
+			return k[4]
+	return PondLayout.fill(heights, Terrain.ALL, at, level, near)
+
+
+## Keeps `known` ([heights, grid point, level, near, pond] each) for `fill`, in place of those kept before.
+static func know(known: Array) -> void:
+	_known = known
 
 
 ## The level a hollow pressed at (x, z) out to `radius` holds to its brim, 8 cm under the lowest point of its rim,
@@ -95,13 +107,37 @@ func _process(delta: float) -> void:
 			_wade(h, delta)
 
 
-## Shows `found` as the ponds. A pond that covers water already shown keeps that surface and its water.
-func show_ponds(found: Array[PondLayout.Pond]) -> void:
-	var shown := ponds
+## What `Refill.publish` works out from: the ponds shown, the grid points their levels were written at and the index
+## of the one over each grid point.
+func shown() -> Array[PondLayout.Pond]:
+	var out: Array[PondLayout.Pond] = []
+	for w in ponds:
+		out.append(w.pond)
+	return out
+
+
+func written() -> PackedInt32Array:
+	return _written
+
+
+func owners() -> PackedInt32Array:
+	return _owner
+
+
+## Shows `found` as the ponds, as `refill` worked out when it has (Refill.publish). A pond that covers water already
+## shown keeps that surface and its water.
+func show_ponds(found: Array[PondLayout.Pond], refill: Refill = null) -> void:
+	if refill == null or refill.image == null:
+		refill = Refill.new()
+		refill.found = found
+		refill.heights = Terrain.read(Terrain.ALL)
+		refill.publish(Terrain.water_levels(), _written, _owner, shown())
+	var was := ponds
 	var old := ponds.duplicate()
 	ponds = []
-	for p in found:
-		var w := _covering(p, shown)
+	for n in found.size():
+		var p := found[n]
+		var w: PondWater = was[refill.covers[n]] if refill.covers[n] >= 0 else null
 		old.erase(w)
 		if w == null:
 			w = PondWater.new()
@@ -113,41 +149,11 @@ func show_ponds(found: Array[PondLayout.Pond]) -> void:
 		ponds.append(w)
 	for w in old:
 		w.queue_free()
-	_publish()
-
-
-## The surface in `shown` whose water covered `p`'s bottom, else any of its ground, before this refill.
-func _covering(p: PondLayout.Pond, shown: Array[PondWater]) -> PondWater:
-	for g in [p.bottom] + p.cells:
-		var i := _owner[g.y * Terrain.VERTS + g.x]
-		if i >= 0 and not ponds.has(shown[i]) and g in shown[i].pond.cells:
-			return shown[i]
-	return null
-
-
-## Writes each pond's level at its wet and shore grid points, for `pond_at`, the shaders and what stands in it.
-func _publish() -> void:
-	var changed := {}
-	for g in _written:
-		_owner[g.y * Terrain.VERTS + g.x] = -1
-		changed[g] = Terrain.NO_WATER
-	_written.clear()
-	for i in ponds.size():
-		var p := ponds[i].pond
-		for g in p.cells + p.shore:
-			_owner[g.y * Terrain.VERTS + g.x] = i
-			changed[g] = p.level
-			_written.append(g)
-	for g in changed.keys():
-		if absf(Terrain.water_level(g) - changed[g]) < 1e-4:
-			changed.erase(g)
-	if changed.is_empty():
-		return
-	Terrain.set_water(changed)
-	var cells := Rect2i(changed.keys()[0], Vector2i.ONE)
-	for g in changed:
-		cells = cells.expand(g)
-	refilled.emit(Terrain.world_rect(cells.grow_individual(0, 0, 1, 1)))
+	_owner = refill.owner
+	_written = refill.written
+	Terrain.set_water(refill.levels, refill.image)
+	if refill.changed.has_area():
+		refilled.emit(Terrain.world_rect(refill.changed.grow_individual(0, 0, 1, 1)))
 
 
 static func drowned(at: Vector3) -> bool:

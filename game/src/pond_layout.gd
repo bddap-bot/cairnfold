@@ -29,6 +29,8 @@ class Pond:
 	var ground := Rect2i()
 	## Water over the bottom.
 	var depth := 0.0
+	## Its surface's triangles, once `PondWater.quads` has laid them.
+	var quads := PackedVector3Array()
 
 
 ## The pond in the basin below grid point `at` with water no higher than `cap`, or null when it drains to the

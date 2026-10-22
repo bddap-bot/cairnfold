@@ -28,7 +28,8 @@ one undo, and its inverse is the batch of their inverses. `World` (game/src/worl
 `sky` sets where the sun stands, sent once the sky tool lets the sky go; it is not an edit, so it
 goes on nobody's undo stack, and a wipe leaves it be.
 Every machine applies the same commands in the same order, so every copy of the garden
-comes out the same.
+comes out the same. A ponds or ground command whose water fills again over many grid points has that worked
+out on another thread first (`Refill`), and the commands after it wait behind it, on every machine alike.
 
 - **The host orders the commands.** A tool sends its command to the host
   (`World.submit`). The host checks it, stamps it with its author and the next sequence

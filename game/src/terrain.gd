@@ -132,17 +132,31 @@ static func dry_water() -> void:
 	revision += 1
 
 
-## The pond surface at grid point `g`.
-static func water_level(g: Vector2i) -> float:
-	return _water[g.y * VERTS + g.x]
+## The pond surface at every grid point, NO_WATER where none is.
+static func water_levels() -> PackedFloat32Array:
+	return _water.duplicate()
 
 
-static func set_water(changed: Dictionary) -> void:
-	for g: Vector2i in changed:
-		_water[g.y * VERTS + g.x] = changed[g]
-		_water_image.set_pixelv(g, Color(_depth(g.y * VERTS + g.x), 0, 0))
+## Takes `levels` as the pond surface at every grid point and `image` (`depth_image`) as what shaders read of it.
+static func set_water(levels: PackedFloat32Array, image: Image) -> void:
+	_water = levels
+	_water_image = image
 	_water_texture.update(_water_image)
 	revision += 1
+
+
+## What shaders read of the water at `levels` over the ground at `heights`, both at every grid point, as a texture's
+## image: the depth at the grid points `wet` and DRY everywhere else. Reads no shared state, so any thread may run it.
+static func depth_image(levels: PackedFloat32Array, heights: PackedFloat32Array, wet: PackedInt32Array) -> Image:
+	var depth := PackedFloat32Array()
+	depth.resize(levels.size())
+	depth.fill(DRY)
+	for k in wet:
+		if levels[k] != NO_WATER:
+			depth[k] = maxf(levels[k] - heights[k], DRY)
+	var image := Image.create_from_data(VERTS, VERTS, false, Image.FORMAT_RF, depth.to_byte_array())
+	image.convert(Image.FORMAT_RH)
+	return image
 
 
 static func _depth(k: int) -> float:

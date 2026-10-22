@@ -198,6 +198,7 @@ func _dig(tool: WaterTool, x: float, z: float, frames: int) -> void:
 	tool.world.ground_grab.pull(hand, -depth)
 	tool.world.ground_grab.end_stroke(hand)
 	tool.fill(hand, Vector3(x, Water.brim(x, z, maxf(2.8, depth * GroundGrab.SPREAD)), z))
+	tool.settle()
 	await process_frame
 	await process_frame
 

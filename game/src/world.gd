@@ -26,6 +26,10 @@ const FORMAT := 3
 ## A command applying for longer than this is logged.
 const SLOW_MS := 4.0
 const OVER := "over the frame budget"
+## A ponds or ground command whose water fills again over at least this many grid points is worked out on another
+## thread before it applies (Refill), and the commands after it wait for it: on a Quest 2 a fill takes about 10 µs a
+## grid point of script, and a lake is tens of thousands.
+const AHEAD := 256
 
 signal applied(cmd: Dictionary)
 ## The whole garden was swapped (joining or leaving someone's): tools drop what they were doing.
@@ -89,6 +93,15 @@ var _pending := {}
 var _hands := {}
 ## The op of each of our sent commands, by token, for the log line when one is turned down.
 var _ops := {}
+## Commands waiting to be ordered (host) or applied (others), oldest first, as {cmd, by, run}: the first may wait for
+## its water to be worked out on another thread, and the rest wait behind it, so every machine still applies the same
+## commands in the same order.
+var _queue: Array[Dictionary] = []
+var _ahead_task := -1
+## What the task leaves: the refill, and the fills `Commands` checks a pond put against (Water.know).
+var _ahead := []
+## The refill worked out for the command now applying, for `_set_ponds`.
+var _ready_refill: Refill
 
 
 ## A garden with nothing in it.
@@ -203,7 +216,108 @@ func _account(key: String, now: Dictionary) -> void:
 
 
 func _exit_tree() -> void:
+	if _ahead_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_ahead_task)
+		_ahead_task = -1
 	flush()
+
+
+func _process(_delta: float) -> void:
+	if not _queue.is_empty():
+		_drain()
+
+
+## Runs `run`, which orders or applies `cmd` (by player `by` on the host), once every command before it has run and
+## the water it changes is worked out.
+func _enqueue(cmd: Dictionary, by: int, run: Callable) -> void:
+	_queue.append({"cmd": cmd, "by": by, "run": run})
+	_drain()
+
+
+## Runs the waiting commands in turn until one waits for its water; with `wait`, waits for each.
+func _drain(wait := false) -> void:
+	while not _queue.is_empty():
+		if _ahead_task >= 0:
+			if not wait and not WorkerThreadPool.is_task_completed(_ahead_task):
+				return
+			WorkerThreadPool.wait_for_task_completion(_ahead_task)
+			_ahead_task = -1
+			_ready_refill = _ahead[0]
+			Water.know(_ahead[1])
+			_queue.pop_front().run.call()
+			_ready_refill = null
+			Water.know([])
+			continue
+		var r := _refill_ahead(_queue[0])
+		if r == null:
+			_queue.pop_front().run.call()
+			continue
+		var before := Terrain.water_levels()
+		var written := water.written() if water != null else PackedInt32Array()
+		var owners := water.owners() if water != null else PackedInt32Array()
+		var shown: Array[PondLayout.Pond] = water.shown() if water != null else []
+		var checks: Dictionary = _queue[0].cmd.get("put", {}) if _queue[0].by >= 0 else {}
+		var box := [r, []]
+		_ahead = box
+		_ahead_task = WorkerThreadPool.add_task(func() -> void:
+			r.work()
+			if water != null:
+				r.publish(before, written, owners, shown)
+			for g: Vector2i in checks:
+				var p: PondLayout.Pond = r.filled.get(g) if not r.fills.has(g) else PondLayout.fill(r.heights, Terrain.ALL, g, checks[g])
+				box[1].append([r.heights, g, checks[g], -INF, p]))
+
+
+## Every waiting command run.
+func settle() -> void:
+	_drain(true)
+
+
+## The refill the command `e` waits for, its inputs set but not worked out, or null when it changes too little water
+## to work out ahead: a ponds or ground command, or the first of a batch's, an undo or redo by what it undoes.
+func _refill_ahead(e: Dictionary) -> Refill:
+	var cmd: Dictionary = e.cmd
+	if cmd.get("op") in ["undo", "redo"] and e.by >= 0:
+		cmd = _resolve(e.by, cmd.op, false).get("inverse", {})
+	if cmd.get("op") == "batch" and cmd.get("cmds") is Array:
+		var first: Array = cmd.cmds.filter(func(c: Variant) -> bool: return c is Dictionary and c.get("op") in ["heights", "ponds"])
+		cmd = first[0] if not first.is_empty() else {}
+	if not cmd.get("op") in ["heights", "ponds"]:
+		return null
+	var put: Variant = cmd.get("put", {})
+	var drop: Variant = cmd.get("drop", [])
+	if not put is Dictionary or not drop is Array:
+		return null
+	var ponds: Dictionary = state.ponds.duplicate()
+	for g: Variant in drop:
+		ponds.erase(g)
+	for g: Variant in put:
+		if typeof(g) != TYPE_VECTOR2I or not Terrain.ALL.has_point(g) or typeof(put[g]) != TYPE_FLOAT or not is_finite(put[g]):
+			return null
+		ponds[g] = put[g]
+	var heights := Terrain.read(Terrain.ALL)
+	var ground := Rect2i()
+	if cmd.op == "heights":
+		ground = cmd.get("cells", Rect2i())
+		var values: Variant = cmd.get("values")
+		if typeof(ground) != TYPE_RECT2I or not Terrain.ALL.encloses(ground) or not values is PackedFloat32Array or values.size() != ground.get_area():
+			return null
+		var n := 0
+		for j in range(ground.position.y, ground.end.y):
+			for i in range(ground.position.x, ground.end.x):
+				heights[j * Terrain.VERTS + i] = values[n]
+				n += 1
+	var work := 0
+	for g: Vector2i in ponds:
+		var was: Array = _fills.get(g, [])
+		if was.is_empty() or was[0] != ponds[g]:
+			var wet: Variant = cmd.get("wet", 0)
+			work += maxi(wet if typeof(wet) == TYPE_INT else 0, was[1].cells.size() if not was.is_empty() else 0)
+		elif was[1].ground.intersects(ground):
+			work += was[1].cells.size()
+	if work < AHEAD:
+		return null
+	return Refill.of(ponds, put.duplicate(), _fills.duplicate(), ground, heights)
 
 
 ## Writes a save still due and waits for the last one to land.
@@ -302,7 +416,7 @@ func submit(cmd: Dictionary, done := Callable(), hand: XRController3D = null) ->
 		_turned_down(_next_token, OVER)
 		return
 	if multiplayer.is_server():
-		_order(cmd, me())
+		_enqueue(cmd, me(), _order.bind(cmd, me()))
 	else:
 		_propose.rpc_id(1, cmd)
 
@@ -332,7 +446,7 @@ func _propose(cmd: Dictionary) -> void:
 	if not _spend(by, 1.0):
 		_refuse(by, cmd, "more commands a second than it takes")
 		return
-	_order(cmd, by)
+	_enqueue(cmd, by, _order.bind(cmd, by))
 
 
 ## Takes `cost` from a player's allowance, which refills at RATE a second up to BURST; false if it is short.
@@ -445,6 +559,10 @@ func cap(hand: XRController3D) -> void:
 
 @rpc("authority", "reliable")
 func _commit(sent: Dictionary) -> void:
+	_enqueue(sent, -1, _apply_sent.bind(sent))
+
+
+func _apply_sent(sent: Dictionary) -> void:
 	var cmd := {} if _awaiting else Commands.clean(sent, state, true)
 	if cmd.is_empty():
 		# Our own stroke's ghost stays until the garden it is in comes back: `restore` settles it.
@@ -490,14 +608,19 @@ static func _push(stack: Array, entry: Dictionary) -> void:
 
 ## The player's latest undo (or redo) step that nobody else has changed anything of since, taken off its stack; steps
 ## others built on are dropped on the way. A dropped wipe takes every step below it, all on a garden it took away.
-func _resolve(by: int, which: String) -> Dictionary:
+## Without `take`, finds it and changes no stack.
+func _resolve(by: int, which: String, take := true) -> Dictionary:
 	var stack: Array = stacks.get(by, {}).get(which, [])
-	while not stack.is_empty():
-		var e: Dictionary = stack.pop_back()
+	for i in range(stack.size() - 1, -1, -1):
+		var e: Dictionary = stack[i]
+		if take:
+			stack.pop_back()
 		if _untouched_by_others(e, by):
 			return e
 		if WIPED in e.keys:
-			stack.clear()
+			if take:
+				stack.clear()
+			return {}
 	return {}
 
 
@@ -952,47 +1075,26 @@ func _take(of: String, ids: Array) -> Dictionary:
 	return back[0] if back.size() == 1 else {"op": "batch", "cmds": back}
 
 
-## Takes `cmd`'s ponds out and puts its new ones in, then fills every pond over the ground as it stands. A pond that
-## holds no water any more, or whose water another's covers, goes: the ones `cmd` puts win, then the higher.
+## Takes `cmd`'s ponds out and puts its new ones in, then fills every pond over the ground as it stands (Refill). A
+## pond that holds no water any more, or whose water another's covers, goes: the ones `cmd` puts win, then the higher.
 ## What brings back the ponds as they were `before` goes on `inverse`. Only ponds whose fill read the `ground` the
-## command changed, or at a new level, fill again.
+## command changed, or at a new level, fill again. A refill worked out ahead (`_ahead`) is applied as it stands.
 func _set_ponds(cmd: Dictionary, before: Dictionary, inverse: Dictionary, ground: Rect2i) -> void:
 	for g in cmd.get("drop", []):
 		state.ponds.erase(g)
 	var put: Dictionary = cmd.get("put", {})
 	state.ponds.merge(put, true)
-	var filled := {}
-	for g in state.ponds:
-		var was: Array = _fills.get(g, [])
-		if not was.is_empty() and was[0] == state.ponds[g] and not was[1].ground.intersects(ground):
-			filled[g] = was[1]
-		elif not was.is_empty() and was[0] == state.ponds[g]:
-			filled[g] = _refilled(g, state.ponds[g], was[1])
-		else:
-			filled[g] = Water.fill(g, state.ponds[g], was[1].level if not was.is_empty() else -INF)
-	var order: Array = state.ponds.keys()
-	order.sort_custom(func(a: Vector2i, b: Vector2i) -> bool:
-		if put.has(a) != put.has(b):
-			return put.has(a)
-		var la: float = filled[a].level if filled[a] != null else -INF
-		var lb: float = filled[b].level if filled[b] != null else -INF
-		return la > lb if la != lb else a.y < b.y or a.y == b.y and a.x < b.x)
-	var taken := {}
-	for g in order:
-		var p: PondLayout.Pond = filled[g]
-		if p == null or p.cells.any(func(c: Vector2i) -> bool: return taken.has(c)):
-			state.ponds.erase(g)
-			continue
-		for c in p.cells:
-			taken[c] = true
+	var r := _ready_refill
+	if r == null or not r.matches(state.ponds, put, _fills, ground):
+		r = Refill.make(state.ponds.duplicate(), put.duplicate(), _fills.duplicate(), ground, Terrain.read(Terrain.ALL))
+	_ready_refill = null
+	for g in r.gone:
+		state.ponds.erase(g)
 	_fills.clear()
 	for g in state.ponds:
-		_fills[g] = [state.ponds[g], filled[g]]
+		_fills[g] = [state.ponds[g], r.filled[g]]
 	if water != null:
-		var found: Array[PondLayout.Pond] = []
-		for g in state.ponds:
-			found.append(filled[g])
-		water.show_ponds(found)
+		water.show_ponds(r.found, r)
 	var back := {}
 	for g in before:
 		if not state.ponds.has(g) or state.ponds[g] != before[g]:
@@ -1002,23 +1104,7 @@ func _set_ponds(cmd: Dictionary, before: Dictionary, inverse: Dictionary, ground
 		inverse.put = back
 	if not gone.is_empty():
 		inverse.drop = gone
-	_account("ponds", {"pond_m2": taken.size()} if not taken.is_empty() else {})
-
-
-## Pond `was`, at `level`, filled again over the ground as it stands, or null when none of its water is left where it
-## stood: filled in, it is gone, rather than running downhill into whatever hollow holds its level.
-static func _refilled(g: Vector2i, level: float, was: PondLayout.Pond) -> PondLayout.Pond:
-	var p := Water.fill(g, level, was.level)
-	if p == null:
-		return null
-	var wet := PackedByteArray()
-	wet.resize(Terrain.VERTS * Terrain.VERTS)
-	for c in p.cells:
-		wet[c.y * Terrain.VERTS + c.x] = 1
-	for c in was.cells:
-		if wet[c.y * Terrain.VERTS + c.x]:
-			return p
-	return null
+	_account("ponds", {"pond_m2": r.wet} if r.wet > 0 else {})
 
 
 func _show_sky(t: float) -> void:
@@ -1094,6 +1180,7 @@ func snapshot() -> Dictionary:
 ## Back to the empty meadow, then the snapshot's garden, and how many of its commands applied. Undo history
 ## goes with the old garden.
 func restore(snap: Dictionary) -> int:
+	settle()
 	var applied: int = _hushed(func() -> int:
 		_clear()
 		Ground.clear()

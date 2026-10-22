@@ -110,6 +110,7 @@ func _dig(g: Glade, x: float, z: float, frames: int) -> void:
 	g.terrain.pull(hand, -depth)
 	g.terrain.end_stroke(hand)
 	g.digger.fill(hand, Vector3(x, Water.brim(x, z, maxf(2.8, depth * GroundGrab.SPREAD)), z))
+	g.digger.settle()
 	await process_frame
 	await process_frame
 

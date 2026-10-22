@@ -68,7 +68,7 @@ func _ready() -> void:
 
 func show_pond(p: PondLayout.Pond) -> void:
 	pond = p
-	mesh = sheet(p)
+	mesh = sheet(quads(p))
 	position = Vector3(0, p.level, 0)
 	var mid := Terrain.grid_xz(p.bottom)
 	_lap.position = Vector3(mid.x, 0, mid.y)
@@ -80,8 +80,11 @@ func show_pond(p: PondLayout.Pond) -> void:
 
 ## Quads over every grid cell with a wet corner and the rest on its shore: they reach each shore and no
 ## further, and never over a hollow that only touches the pond at a corner. Each run of such cells along a row is
-## one quad, so a lake's mesh grows with its rows, not its area.
-static func sheet(p: PondLayout.Pond) -> ArrayMesh:
+## one quad, so a lake's mesh grows with its rows, not its area. Worked out once a pond and kept on it; reads no
+## shared state, so any thread may run it.
+static func quads(p: PondLayout.Pond) -> PackedVector3Array:
+	if not p.quads.is_empty():
+		return p.quads
 	var area := p.box.grow(1)
 	var w := area.size.x
 	var ours := PackedByteArray()
@@ -108,6 +111,12 @@ static func sheet(p: PondLayout.Pond) -> ArrayMesh:
 			var a := Terrain.grid_xz(area.position + Vector2i(from, j))
 			var b := Terrain.grid_xz(area.position + Vector2i(i, j + 1))
 			verts.append_array([Vector3(a.x, 0, a.y), Vector3(b.x, 0, a.y), Vector3(a.x, 0, b.y), Vector3(b.x, 0, a.y), Vector3(b.x, 0, b.y), Vector3(a.x, 0, b.y)])
+	p.quads = verts
+	return verts
+
+
+## The surface `quads` lays, flat at height 0.
+static func sheet(verts: PackedVector3Array) -> ArrayMesh:
 	var normals := PackedVector3Array()
 	normals.resize(verts.size())
 	normals.fill(Vector3.UP)
