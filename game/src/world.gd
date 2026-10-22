@@ -200,10 +200,11 @@ func change_of(cmd: Dictionary) -> Dictionary:
 	return out
 
 
-## The meadow's own plants are part of the base (Budget.COSTS); a planted tree costs one unit at every scale.
+## The meadow's own grass and flowers are part of the base (Budget.CAPACITY_MS): priced as painted ones, packed
+## beside the eye, its spread pool would charge several times what it measures. A tree costs one unit at every scale.
 func _unit(group: int, p: Flora.Plant) -> Dictionary:
 	var u := flora.unit_of(p)
-	return {} if u == "" or group == 0 else {u: 1}
+	return {} if u == "" or group == 0 and not u in Flora.PLACED else {u: 1}
 
 
 func _account(key: String, now: Dictionary) -> void:
@@ -389,12 +390,16 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 	easels = stands
 	boulders = rocks
 	if flora != null and flora.groups.has(0):
-		state.groups[0] = _meadow()
+		_grow_meadow()
 
 
-## The meadow's own group as it grows: every plant standing, every tree an oak.
-func _meadow() -> Dictionary:
-	return {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees(), "bushes": flora.meadow_bushes(), "species": {}, "scale": {}, "moss": {}, "places": {}}
+## The meadow's own group as it grows, every plant standing and every tree an oak, its trees and bushes charged as
+## planted ones are.
+func _grow_meadow() -> void:
+	state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees(), "bushes": flora.meadow_bushes(), "species": {}, "scale": {}, "moss": {}, "places": {}}
+	for p: Flora.Plant in flora.groups[0]:
+		if p != null:
+			Budget.add(units, _unit(0, p))
 
 
 func me() -> int:
@@ -1249,7 +1254,7 @@ func _clear() -> void:
 	palette.season = Palette.SUMMER
 	palette.apply()
 	_show_sky(Daylight.DEFAULT)
-	state.groups[0] = _meadow()
+	_grow_meadow()
 	if sculpted:
 		ground_grab.restore(Terrain.ALL, Terrain.base_heights())
 		sculpted = false

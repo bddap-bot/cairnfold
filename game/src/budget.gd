@@ -36,9 +36,10 @@ const BOULDER_LEAST := 0.25
 ## This is conservative accounting until moss is measured on a headset.
 ## Each opaque patch is twelve triangles, with no shadow pass or CPU animation.
 const MOSS_FLOWERS := 16.0
-## The smaller measured room and the larger unit costs of Quest 2 and Frame; see docs/design.md.
+## The smaller measured room, over the meadow without its own trees and bushes, and the larger unit costs of Quest 2
+## and Frame; see docs/design.md.
 ## Fixed independently of the running device, refresh rate and quality governor.
-const CAPACITY_MS := 1.73
+const CAPACITY_MS := 3.23
 const COSTS := {"grass": 0.706, "flower": 1.124, "tree": 27.429, "bush": 4.538, "wall_m2": 23.842, "plaster_m2": 6.517, "fence_m2": 3.661, "pond_m2": 5.329, "roof_m2": 18.694, "thatch_m2": 6.754, "fitting": 15.609, "easel": 1091.069, "boulder": 14.287, "water": 1993.014, "timber": TIMBER_US, "arch": ARCH_US, "moss": 1.124 * MOSS_FLOWERS}
 
 

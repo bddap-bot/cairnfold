@@ -92,7 +92,7 @@ func _recount() -> Dictionary:
 		for p: Flora.Plant in world.flora.groups[g]:
 			if p != null and not world.state.groups[g].hidden.has(p.index):
 				var u := world.flora.unit_of(p)
-				if u != "" and g != 0:
+				if u != "" and (g != 0 or u in Flora.PLACED):
 					Budget.add(out, {u: 1})
 	var wet := 0
 	for w: PondWater in world.water.ponds:
@@ -131,13 +131,20 @@ func _build(walls: Array) -> bool:
 
 func _counts_follow_placements_and_deletions() -> void:
 	var meadow := world.units.duplicate()
-	_check(meadow.is_empty(), "the meadow's own plants are the base and count nothing: %s" % meadow)
-	_check(Budget.CAPACITY_MS > 0.0 and Budget.fits(meadow, {"wall_m2": 1.0}), "a fresh garden has room to build")
+	var stand := {"tree": world.flora.meadow_trees().size(), "bush": world.flora.meadow_bushes().size()}
+	_check(_same(meadow, stand), "the meadow's own trees and bushes count as planted ones, its grass and flowers nothing: %s" % meadow)
+	_check(Budget.CAPACITY_MS > 0.0 and Budget.fits(meadow, {"wall_m2": 1.0}), "a fresh garden has room to build: %.2f full" % world.fill())
 	_check(_same(world.units, _recount()), "a fresh garden counts what it holds")
-	world._order({"op": "tree", "group": 0, "index": world.flora.meadow_trees()[0], "scale": 2.0}, world.me())
-	_check(world.units.is_empty(), "a meadow tree stays in the base when resized: %s" % world.units)
+	var oak: int = world.flora.meadow_trees()[0]
+	world._order({"op": "tree", "group": 0, "index": oak, "scale": 2.0}, world.me())
+	_check(_same(world.units, meadow), "a meadow tree counts one tree when resized: %s" % world.units)
 	world._order({"op": "undo"}, world.me())
-	_check(world.units.is_empty(), "and shrunk back counts nothing again: %s" % world.units)
+	_check(_same(world.units, meadow), "and shrunk back too: %s" % world.units)
+	var full := world.fill()
+	world._order({"op": "show", "plants": {0: PackedInt32Array([oak])}, "on": false}, world.me())
+	_check(is_equal_approx(full - world.fill(), Budget.COSTS.tree / 1000.0 / Budget.CAPACITY_MS), "clearing a meadow tree frees one tree's share of the bar: %.4f to %.4f" % [full, world.fill()])
+	world._order({"op": "undo"}, world.me())
+	_check(is_equal_approx(world.fill(), full), "and putting it back takes the share again")
 	await _play([
 		{"op": "place", "x": 0, "z": 8},
 		{"op": "wall", "points": [[-6, -2], [-1, -3]], "seconds": 0.3},
@@ -148,7 +155,7 @@ func _counts_follow_placements_and_deletions() -> void:
 	])
 	await _settled()
 	_check(world.units.get("wall_m2", 0.0) > 0.0 and not world.units.has("path_m2") and world.units.get("pond_m2", 0) > 0, "walls, ponds and reserved path steps count: %s" % world.units)
-	_check(world.units.get("tree", 0) == 1 and world.units.get("flower", 0) > 0, "a planted tree and painted flowers count: %s" % world.units)
+	_check(world.units.get("tree", 0) == meadow.tree + 1 and world.units.get("flower", 0) > 0, "a planted tree and painted flowers count: %s" % world.units)
 	var planted: int = world.state.groups.keys().filter(func(g: int) -> bool: return world.state.groups[g].kind == "tree")[0]
 	var before_resize := world.units.duplicate()
 	for scale in [FloraLayout.SCALES.x, 2.0, FloraLayout.SCALES.y]:
@@ -168,7 +175,7 @@ func _counts_follow_placements_and_deletions() -> void:
 	_check(is_equal_approx(world.units.get("wall_m2", 0.0), with_wall.wall_m2 - wall_units.wall_m2), "deleting a wall frees what it counted")
 	await _play([{"op": "delete", "x": -6, "z": 4, "height": 3.0}])
 	await _settled()
-	_check(not world.units.has("tree"), "deleting the tree frees it: %s" % world.units)
+	_check(world.units.get("tree", 0) == meadow.tree, "deleting the tree frees it: %s" % world.units)
 	_check(_same(world.units, _recount()), "after deletions the count still matches the garden")
 	for i in 8:
 		world.undo()
@@ -176,7 +183,7 @@ func _counts_follow_placements_and_deletions() -> void:
 	_check(_same(world.units, _recount()), "undo and redo keep the count matching the garden")
 	await _play([{"op": "bare"}])
 	await _settled()
-	_check(_same(world.units, _recount()) and not world.units.has("wall_m2") and not world.units.has("flower"), "a wipe leaves nothing counted but the bare meadow: %s" % world.units)
+	_check(_same(world.units, _recount()) and not world.units.has("wall_m2") and not world.units.has("flower"), "a wipe leaves nothing counted but the meadow: %s" % world.units)
 	world.undo()
 	await _settled()
 	_check(_same(world.units, _recount()), "undoing the wipe counts the garden it brings back")

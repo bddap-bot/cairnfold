@@ -12,7 +12,8 @@ its caps bound, however much is built, so what a phase's animals add once they h
 fitted to cost, is charged once to the base: the room is what is left with every kind of animal there, each phase's
 animals counted whole even where two phases bring the same kind. The base is the dearest view of the meadow with its
 own plants standing or of the bare meadow, dusk included: the meadow's plants spread far wider than a pool-full phase
-packs them, so it is measured whole rather than counted at their prices. Water costs by the pixels it covers: a square
+packs them, so it is measured whole rather than counted at their prices. Its trees and bushes are charged as planted ones, so the room
+is this base less what demo/meadow-flora.json reads them to cost (scripts/layers.py), view by view (docs/design.md). Water costs by the pixels it covers: a square
 metre of it costs what small ponds wholly in view give, and all of it at most `water`, the lake phase's dearest view over
 the meadow with its own plants, the meadow's whole bowl filled."""
 import json
