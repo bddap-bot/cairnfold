@@ -1,0 +1,29 @@
+{
+ "budget_gpu_ms": 12.5,
+ "phases": {
+  "mountains/day-east": {
+   "p50": 13.9180002212524,
+   "p99": 14.798999786377,
+   "late": 0,
+   "draws": 72,
+   "prims": 179497,
+   "gpu_ms": 7.98
+  },
+  "mountains/day-north": {
+   "p50": 13.91100025177,
+   "p99": 14.5319995880127,
+   "late": 0,
+   "draws": 71,
+   "prims": 173165,
+   "gpu_ms": 7.82
+  },
+  "mountains/evening-east": {
+   "p50": 13.91100025177,
+   "p99": 14.7180004119873,
+   "late": 0,
+   "draws": 75,
+   "prims": 181182,
+   "gpu_ms": 7.99
+  }
+ }
+}
