@@ -6,20 +6,21 @@ extends Node3D
 ## any two calls but the soft ones are a little apart, no clip plays twice running, and an animal near the head makes
 ## only its close calls.
 
-## Clips per call, and the least time between two calls of it.
-const CLIPS := {
-	"murmur": 8, "grind": 4, "click": 4, "chatter": 5, "chirp": 8, "contact": 4,
-	"quack": 4, "peep": 4, "bleat": 10, "mew": 6, "yip": 4,
-}
-const GAP := {
-	"murmur": 4.0, "grind": 3.0, "click": 2.5, "chatter": 8.0, "chirp": 6.0, "contact": 15.0,
-	"quack": 8.0, "peep": 12.0, "bleat": 14.0, "mew": 12.0, "yip": 20.0,
-}
-## Level at UNIT metres, before the distance falls it off: the conures' contact call softest, as it is their
-## loudest. At 2 m and 6 dB lower, an animal 5 to 10 m off called 18 to 28 dB under the music, which no one heard.
-const LEVEL := {
-	"murmur": -8.0, "grind": -10.0, "click": -12.0, "chatter": -8.0, "chirp": -9.0, "contact": -15.0,
-	"quack": -3.0, "peep": -10.0, "bleat": -4.0, "mew": -6.0, "yip": -9.0,
+## Per call: its clips, the least time between two calls of it, and its level at UNIT metres, before the distance
+## falls it off: the conures' contact call softest, as it is their loudest. At 2 m and 6 dB lower, an animal 5 to 10 m
+## off called 18 to 28 dB under the music, which no one heard.
+const CALLS := {
+	"murmur": {"clips": 8, "gap": 4.0, "level": -8.0},
+	"grind": {"clips": 4, "gap": 3.0, "level": -10.0},
+	"click": {"clips": 4, "gap": 2.5, "level": -12.0},
+	"chatter": {"clips": 5, "gap": 8.0, "level": -8.0},
+	"chirp": {"clips": 8, "gap": 6.0, "level": -9.0},
+	"contact": {"clips": 4, "gap": 15.0, "level": -15.0},
+	"quack": {"clips": 4, "gap": 8.0, "level": -3.0},
+	"peep": {"clips": 4, "gap": 12.0, "level": -10.0},
+	"bleat": {"clips": 10, "gap": 14.0, "level": -4.0},
+	"mew": {"clips": 6, "gap": 12.0, "level": -6.0},
+	"yip": {"clips": 4, "gap": 20.0, "level": -9.0},
 }
 ## Calls quiet enough that no other call waits on them: a conure on the hand or watching a face up close murmurs and
 ## works its beak.
@@ -51,9 +52,9 @@ var played := {}
 func _init(eyes: Node3D, seed: int) -> void:
 	viewer = eyes
 	rng.seed = seed
-	for kind in CLIPS:
+	for kind in CALLS:
 		_clips[kind] = []
-		for i in CLIPS[kind]:
+		for i in CALLS[kind].clips:
 			_clips[kind].append(load("res://audio/animals/%s%d.ogg" % [kind, i]))
 		_since[kind] = INF
 		_last[kind] = -1
@@ -77,7 +78,7 @@ func tick(delta: float) -> void:
 ## `kind` from `at` now, unless one was too lately. True if it called.
 func call_out(kind: String, at: Vector3) -> bool:
 	var soft := kind in SOFT
-	if _since[kind] < GAP[kind] or (_since_any < ANY_GAP and not soft):
+	if _since[kind] < CALLS[kind].gap or (_since_any < ANY_GAP and not soft):
 		return false
 	_since[kind] = 0.0
 	if not soft:
@@ -90,7 +91,7 @@ func call_out(kind: String, at: Vector3) -> bool:
 	var v := _voices[_next_voice]
 	_next_voice = (_next_voice + 1) % _voices.size()
 	v.stream = options[pick]
-	v.volume_db = LEVEL[kind] + rng.randf_range(-2.0, 1.0)
+	v.volume_db = CALLS[kind].level + rng.randf_range(-2.0, 1.0)
 	v.pitch_scale = rng.randf_range(0.93, 1.06)
 	v.position = at
 	v.play()

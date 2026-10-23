@@ -33,8 +33,8 @@ func _every_clip_is_sourced() -> void:
 		for name in s.clips:
 			cut[name] = true
 	var played := {}
-	for kind in Calls.CLIPS:
-		for i in Calls.CLIPS[kind]:
+	for kind in Calls.CALLS:
+		for i in Calls.CALLS[kind].clips:
 			var name := "%s%d" % [kind, i]
 			played[name] = true
 			_check(cut.has(name), "%s is cut from a listed recording" % name)
@@ -55,7 +55,7 @@ func _every_conure_doing_has_its_calls() -> void:
 		var calls: Array = Birds.VOICE.get(doing, [])
 		_check(not calls.is_empty(), "a conure says something while %s" % doing)
 		for call: Array in calls:
-			_check(Calls.CLIPS.has(call[0]) and call[1] > 0.0, "%s's %s is a call with clips" % [doing, call[0]])
+			_check(Calls.CALLS.has(call[0]) and call[1] > 0.0, "%s's %s is a call with clips" % [doing, call[0]])
 			kinds[call[0]] = true
 	_check(kinds.size() >= 6, "conures have %d kinds of call" % kinds.size())
 
@@ -93,7 +93,7 @@ func _calls_are_sparse_and_varied() -> void:
 			var playing := c._voices[(c._next_voice + Calls.VOICES - 1) % Calls.VOICES].stream
 			repeats += int(playing == last)
 			last = playing
-	_check(heard >= 600.0 / 40.0 and heard <= 600.0 / Calls.GAP["quack"], "%d quacks in ten minutes at one each 20 s" % heard)
+	_check(heard >= 600.0 / 40.0 and heard <= 600.0 / Calls.CALLS.quack.gap, "%d quacks in ten minutes at one each 20 s" % heard)
 	_check(repeats == 0, "%d quacks repeated the one before" % repeats)
 	await process_frame
 
