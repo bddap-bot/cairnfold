@@ -1,6 +1,9 @@
 // What every destination halo shares: its pieces stand about the node's origin at the node's scale.
 uniform float clock = 0.0;
 uniform int count = 1;
+// The height the halo stands at and its scale, for pieces that are not placed by it.
+uniform float base = 0.0;
+uniform float size = 1.0;
 
 float hash(float n) {
 	return fract(sin(n * 12.9898 + 4.1414) * 43758.5453);

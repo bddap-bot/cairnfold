@@ -2694,7 +2694,7 @@ Directive (verbatim): "Let's uh, let's keep the destination halo, but let's make
 
 Where a teleport will set the player down is marked by a small scene about 0.85 m across that plays from the start each
 time the aim finds a target (`Landing`): one MultiMesh of a few pieces placed and animated wholly in its shader, so the
-CPU only moves it. Five looks are built, one per build, chosen by `Landing.LOOK` before export (toadstools by default):
+CPU only moves it. Nine looks are built, one per build, chosen by `Landing.LOOK` before export (toadstools by default):
 
 1. `TOADSTOOLS`: a fairy ring of nine red, white-spotted toadstools that pop up one after another.
 2. `FLOWERS`: thirteen little flowers on stems that bloom round the ring in turn.
@@ -2706,8 +2706,23 @@ Each is unlit and unfogged, so it reads the same by day and by night ([day, near
 `demo/halo.json`). The toadstools and flowers are solid and read at a glance by day; the fireflies, petals and seeds are
 lighter and read best at dusk and night.
 
-Each draws as one draw call: the toadstools 720 triangles, the others 9 to 25 quads, where the plain torus it replaced
-was 288 triangles. On the desktop renderer the shared GPU's load swamped any difference; `demo/halo-cost.json`
+Directive (verbatim): "Sketch some more outside the box approaches, including the players own avatar. Consider cool visual effects if free."
+
+A second round turns to face where the player will face (`Landing.put`'s `ahead`):
+
+6. `GHOST`: the player's own avatar standing at the target, a translucent copy of whatever they wear
+   (`Avatar.scene`), its rim glowing, slow bands of light rising through it, drawn up from the feet as it appears.
+7. `FOOTPRINTS`: two glowing bare footprints, left then right, stepping in where the player will stand.
+8. `SUNBEAM`: a soft shaft of sunlight four metres tall falling on the spot, motes drifting up in it over a pool of light.
+9. `BUBBLE`: a soap bubble where the player's head will be, wobbling, its film running with colour, little bubbles
+   rising to it from the ground ([day, near and night](halos-2.jpg)).
+
+The sunbeam reads farthest by day; the ghost and the bubble say where the head will be and which way it will face; the
+footprints are flat and the grass hides most of them beyond a few metres. The effects are unlit shader arithmetic on
+the few pixels each covers: the ghost's rim and bands, the bubble's thin-film colour, the beam's drifting rays.
+
+Each draws as one draw call, the ghost as its avatar's parts: the toadstools 720 triangles, the others 2 to 25 quads,
+where the plain torus it replaced was 288 triangles. On the desktop renderer the shared GPU's load swamped any difference; `demo/halo-cost.json`
 alternates six seconds aiming a near halo with six at rest, for the Quest 2 bench.
 
 Directive (verbatim): "I'd like to be able to use the grab button to grab the ground so ground terraforming becomes um... not a tool, it's just something that's always available. I just grab something. Grab the ground and push it down or pull it up"

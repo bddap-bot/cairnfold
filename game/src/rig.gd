@@ -134,6 +134,7 @@ func wear(a: Avatar) -> void:
 	for v: VisualInstance3D in a.find_children("*", "VisualInstance3D", true, false):
 		v.layers = SELF_LAYER
 	add_child(a)
+	_landing.wear(a)
 
 
 ## Poses the body from the head and hands; a hand holding a tool is drawn as the tool alone, so its fingers never
@@ -267,7 +268,7 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 	aim_lift = clampf(stand.y - g, 0.0, MAX_LIFT)
 	var g3: Vector3 = aim_ground
 	var size := maxf(1.0, head.global_position.distance_to(target) / MARKER_NEAR)
-	_landing.put(g3 + Vector3.UP * (aim_lift if aim_lift > LIFTED else 0.0), size)
+	_landing.put(g3 + Vector3.UP * (aim_lift if aim_lift > LIFTED else 0.0), size, -head.global_basis.z)
 
 
 ## Whether a surface with outward normal `normal` is a side.
