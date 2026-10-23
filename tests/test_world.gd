@@ -97,7 +97,7 @@ func _redo_waits_on_the_same_condition() -> void:
 	var before := world.seq
 	world._order({"op": "redo"}, 1)
 	_check(world.seq == before and is_equal_approx(_height(a), 2.6), "a redo of a step someone has since built on does nothing")
-	world._order({"op": "unwall", "ids": PackedInt32Array([a])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([a])}, 1)
 
 
 func _wall_data(points: PackedVector3Array) -> Dictionary:
@@ -133,7 +133,7 @@ func _a_storey_follows_what_it_stands_on() -> void:
 	world._order({"op": "reshape", "of": "walls", "id": lower, "data": {"height": 3.5}}, 1)
 	await _laid(upper)
 	_check(absf(_foot(upper) - (_foot(lower) + 3.5 + WallLayout.CAP - WallLayout.SINK)) < 0.01, "raising the house lifts the storey")
-	world._order({"op": "unwall", "ids": PackedInt32Array([lower])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([lower])}, 1)
 	_check(not world.state.walls.has(upper) and main.tool.find(upper) == null and main.tool.find(lower) == null, "the storey goes with the house it stands on")
 	world._order({"op": "undo"}, 1)
 	await _laid(upper)
@@ -151,7 +151,7 @@ func _a_storey_follows_what_it_stands_on() -> void:
 	_check(world.state.walls[world.seq * Commands.MAX_PIECES].on.is_empty(), "a proposal on a build since gone stands on the ground")
 	for id in world.state.walls.keys():
 		if world.state.walls.has(id):
-			world._order({"op": "unwall", "ids": PackedInt32Array([id])}, 1)
+			world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([id])}, 1)
 
 
 func _bad_commands_are_dropped() -> void:
@@ -159,7 +159,7 @@ func _bad_commands_are_dropped() -> void:
 	var good := _wall_data(PackedVector3Array([Terrain.ground(0, 0), Terrain.ground(3, 0)]))
 	var cases := {
 		"unknown op": {"op": "explode"},
-		"unwall of nothing": {"op": "unwall", "ids": PackedInt32Array([9999])},
+		"taking a wall that is not there": {"op": "take", "of": "walls", "ids": PackedInt32Array([9999])},
 		"reshape of nothing": {"op": "reshape", "of": "walls", "id": 9999, "data": {"height": 3.0}},
 		"reshape of an unknown field": {"op": "reshape", "of": "walls", "id": a, "data": {"points": 5}},
 		"reshape below the lowest wall": {"op": "reshape", "of": "walls", "id": a, "data": {"height": 0.5}},
@@ -173,7 +173,7 @@ func _bad_commands_are_dropped() -> void:
 		"stroke of too many walls": {"op": "wall", "walls": range(Commands.MAX_PIECES + 1).map(func(_i: int) -> Dictionary: return good)},
 		"no walls": {"op": "wall", "walls": []},
 		"wall longer than any stroke": {"op": "wall", "walls": [_with(good, "points", PackedVector3Array(range(200).map(func(i: int) -> Vector3: return Vector3(-70 if i % 2 else 70, 0, 0))))]},
-		"unwall of one wall twice": {"op": "unwall", "ids": PackedInt32Array([a, a])},
+		"taking one wall twice": {"op": "take", "of": "walls", "ids": PackedInt32Array([a, a])},
 		"dabs whose count overflows": {"op": "plant", "kind": "grass", "seed": 1, "dabs": [[Vector3.ZERO, 1.0, 1 << 62], [Vector3.ZERO, 1.0, 1 << 62], [Vector3.ZERO, 1.0, 1 << 62], [Vector3.ZERO, 1.0, 1 << 62]]},
 		"reshape to no gable end": {"op": "reshape", "of": "walls", "id": a, "data": {"gable_end": WallLayout.GableEnd.size()}},
 		"reshape to a named gable end": {"op": "reshape", "of": "walls", "id": a, "data": {"gable_end": "steps"}},
@@ -207,9 +207,9 @@ func _bad_commands_are_dropped() -> void:
 		world._order(cases[what], 2)
 	_check(world.seq == before, "and none of them reaches the garden")
 	_check(not Commands.clean({"op": "wall", "ids": PackedInt32Array([world.seq * 8 + 40]), "walls": [good]}, world.state, false).has("ids"), "a player cannot choose a new wall's id")
-	var extra := Commands.clean({"op": "unwall", "ids": PackedInt32Array([a]), "junk": "x".repeat(1000)}, world.state, false)
-	_check(extra.keys().map(str) == ["op", "ids"], "fields a command does not define are dropped: %s" % [extra.keys()])
-	world._order({"op": "unwall", "ids": PackedInt32Array([a])}, 1)
+	var extra := Commands.clean({"op": "take", "of": "walls", "ids": PackedInt32Array([a]), "junk": "x".repeat(1000)}, world.state, false)
+	_check(extra.keys().map(str) == ["op", "of", "ids"], "fields a command does not define are dropped: %s" % [extra.keys()])
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([a])}, 1)
 
 
 ## A house's gable ends travel as any other reshape: a player turns them, the host's cleaned command passes a peer's
@@ -243,7 +243,7 @@ func _gable_ends_go_through_the_host() -> void:
 	_check(world.state.walls[world.seq * Commands.MAX_PIECES].gable_end == WallLayout.GableEnd.BOARDS, "which the garden takes from it")
 	main.tool.gable_end = WallLayout.GableEnd.WALL
 	for wall in world.state.walls.keys():
-		world._order({"op": "unwall", "ids": PackedInt32Array([wall])}, 1)
+		world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([wall])}, 1)
 
 
 func _with(d: Dictionary, k: String, v: Variant) -> Dictionary:
@@ -298,14 +298,14 @@ func _a_mix_undo_waits_on_its_easel() -> void:
 	mix.resize(Mixing.SIZE.x * Mixing.SIZE.y * 4)
 	mix.fill(200)
 	world._order({"op": "mix", "easel": id, "mix": mix}, 31)
-	world._order({"op": "uneasel", "id": id}, 32)
+	world._order({"op": "take", "of": "easels", "ids": PackedInt32Array([id])}, 32)
 	var before := world.seq
 	world._order({"op": "undo"}, 31)
 	_check(world.seq == before, "a mix on an easel someone has since taken away is not undone")
 	world._order({"op": "undo"}, 32)
 	world._order({"op": "undo"}, 31)
 	_check(world.state.easels.has(id) and world.state.easels[id].mix == mix, "nor once they put it back: it keeps the mix")
-	world._order({"op": "uneasel", "id": id}, 32)
+	world._order({"op": "take", "of": "easels", "ids": PackedInt32Array([id])}, 32)
 
 
 func _a_pond_undo_waits_on_the_ground_that_drained_it() -> void:
@@ -329,7 +329,7 @@ func _stacks_keep_their_newest_steps() -> void:
 	_check(world.stacks[3].undo.size() == World.LIMIT, "a stack holds %d steps" % World.LIMIT)
 	world._order({"op": "undo"}, 3)
 	_check(world.state.walls[a].top == (World.LIMIT + 3) % 3, "and undo takes the newest first")
-	world._order({"op": "unwall", "ids": PackedInt32Array([a])}, 3)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([a])}, 3)
 
 
 func _undo_restores_exact_values() -> void:
@@ -351,7 +351,7 @@ func _undo_restores_exact_values() -> void:
 	world._order(sent, 1)
 	sent.data.height = 7.0
 	_check(is_equal_approx(world.state.walls[a].height, 3.0), "the garden keeps its own copy of a command's values")
-	world._order({"op": "unwall", "ids": PackedInt32Array([a])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([a])}, 1)
 
 
 func _ghosts_go_when_their_command_settles() -> void:
@@ -361,9 +361,9 @@ func _ghosts_go_when_their_command_settles() -> void:
 	await _play([{"op": "wall", "points": [[-40, 20], [-35, 20]], "seconds": 0.2}])
 	_check(ghosts.call() == before + 1, "a drawn wall leaves one wall standing, not its ghost as well (%d more)" % (ghosts.call() - before))
 	var settled := [false]
-	world.submit({"op": "unwall", "ids": PackedInt32Array([9999])}, func() -> void: settled[0] = true)
+	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([9999])}, func() -> void: settled[0] = true)
 	_check(settled[0], "a refused command's ghost goes")
-	world._order({"op": "unwall", "ids": PackedInt32Array([tool.walls[-1].id])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([tool.walls[-1].id])}, 1)
 
 
 func _a_seed_decides_its_plants() -> void:

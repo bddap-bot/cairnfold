@@ -224,7 +224,7 @@ func _path_steps_follow_terrain(main: Node3D) -> void:
 	world.submit({"op": "heights", "cells": cells, "values": flat})
 	check(not main.tool.masonry._owners.has(owner), "flattening removes the old treads")
 	world.submit({"op": "heights", "cells": cells, "values": slope})
-	world.submit({"op": "unpath", "id": id})
+	world.submit({"op": "take", "of": "paths", "ids": PackedInt32Array([id])})
 	check(not main.tool.masonry._owners.has(owner), "deleting steep path removes its masonry")
 	check(world.units == before, "deleting path refunds its steps")
 	world.submit({"op": "heights", "cells": cells, "values": original})

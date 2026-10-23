@@ -58,7 +58,7 @@ func _run() -> void:
 	check(snapshot.filter(func(c): return c.op == "decoration").size() == 9, "snapshot carries styles and seeds")
 	for item in main.world.decorations.targets():
 		var cmd := FittingTool.removal(main.world.state, item)
-		check(cmd.op == "undecoration", "single removal identity")
+		check(cmd.op == "take" and cmd.of == "decorations", "single removal identity")
 		var before: Dictionary = main.world.state.decorations[item.decoration].duplicate()
 		main.world.submit(cmd)
 		check(main.world.state.decorations.size() == 8 and main.world.state.walls.size() == 1, "single deletion preserves house and siblings")
@@ -113,7 +113,7 @@ func _run() -> void:
 	main.delete_tool.let_go(self)
 	check(not main.world.state.decorations.has(torch.decoration) and main.world.state.walls.size() == 1, "delete tool removes only the ground torch")
 	main.world.undo()
-	main.world.submit({"op": "unwall", "ids": PackedInt32Array([w.id])})
+	main.world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])})
 	check(main.world.state.decorations.size() == 2, "house deletion removes its attached decorations")
 	main.world.undo()
 	check(main.world.state.decorations.size() == 9, "house undo restores attached styles")

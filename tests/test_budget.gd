@@ -71,7 +71,7 @@ func _stone_ground_counts_its_square_metres() -> void:
 	_check(world.state.grounds.has(id), "the stone stroke goes into the garden")
 	_check(is_equal_approx(world.units.get("stone_m2", 0.0) - before.get("stone_m2", 0.0), area), "laying stone counts it")
 	_check(_same(world.units, _recount()), "stone's count matches a recount")
-	world._order({"op": "unground", "id": id}, world.me())
+	world._order({"op": "take", "of": "grounds", "ids": PackedInt32Array([id])}, world.me())
 	_check(_same(world.units, before), "taking the stone away frees it")
 	world.bounded = bounded
 	var q: Dictionary = Budget.COSTS
@@ -187,7 +187,7 @@ func _counts_follow_placements_and_deletions() -> void:
 	var wall_id: int = world.state.walls.keys()[0]
 	var wall_units := Budget.wall(world.state.walls[wall_id])
 	var with_wall := world.units.duplicate()
-	world.submit({"op": "unwall", "ids": PackedInt32Array([wall_id])})
+	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([wall_id])})
 	await _settled()
 	_check(is_equal_approx(world.units.get("wall_m2", 0.0), with_wall.wall_m2 - wall_units.wall_m2), "deleting a wall frees what it counted")
 	await _play([{"op": "delete", "x": -6, "z": 4, "height": 3.0}])
@@ -249,7 +249,7 @@ func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 	_check(world.fill() + share > 1.0, "the wall turned down would have passed it: %.3f + %.3f" % [world.fill(), share])
 	var full := world.units.duplicate()
 	var last: int = world.state.walls.keys().max()
-	world.submit({"op": "unwall", "ids": PackedInt32Array([last])})
+	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([last])})
 	await _settled()
 	_check(world.fill() < Budget.fill(full), "deleting a wall frees its share")
 	_check(await _build([_wall(Vector2(-6, -50), Vector2(6, -50), 4.5)]), "the room it freed takes another wall")
@@ -293,21 +293,21 @@ func _painting_stops_at_the_budget() -> void:
 		if not await _build([_wall(Vector2(-6, at), Vector2(6, at), 4.5)]):
 			break
 	var walls: Array = world.state.walls.keys()
-	world.submit({"op": "unwall", "ids": PackedInt32Array([walls.max()])})
+	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([walls.max()])})
 	await _settled()
 	await _play([{"op": "paint", "tool": "stone", "points": [[-40, -20], [40, -20], [40, -30], [-40, -30], [-40, -40], [40, -40]], "radius": 3.0, "seconds": 8.0}])
 	await _settled()
 	_check(world.units.get("stone_m2", 0.0) * Budget.COSTS.stone_m2 > Budget.COSTS.stone, "a long stroke of stone lays more than a view full")
 	_check(is_equal_approx(Budget.cost_ms(world.units) - Budget.cost_ms({"wall_m2": world.units.wall_m2}), Budget.COSTS.stone / 1000.0), "and is charged a view full of it")
 	for id: int in world.state.grounds.keys():
-		world.submit({"op": "unground", "id": id})
+		world.submit({"op": "take", "of": "grounds", "ids": PackedInt32Array([id])})
 	await _settled()
 	_check(not world.units.has("stone_m2"), "taking it away frees it")
 	await _play([{"op": "paint", "tool": "flowers", "points": [[-20, 20], [20, 20]], "radius": 3.0, "seconds": 6.0}])
 	await _settled()
 	_check(world.fill() <= 1.0, "a long paint stroke stops at the budget: %.3f" % world.fill())
 	_check(world.units.get("flower", 0) > 0, "it painted up to it")
-	world.submit({"op": "unwall", "ids": PackedInt32Array([world.state.walls.keys().max()])})
+	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([world.state.walls.keys().max()])})
 	await _settled()
 	await _play([{"op": "paint", "tool": "stone", "points": [[-40, -20], [40, -20], [40, -30], [-40, -30]], "radius": 3.0, "seconds": 6.0}])
 	await _settled()

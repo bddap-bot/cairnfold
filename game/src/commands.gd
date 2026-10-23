@@ -5,9 +5,9 @@ extends RefCounted
 ## defines, each checked for type and range against what a tool can make, or {} for anything else:
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
-const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "mix", "sheet", "restone", "boulder", "unboulder", "decoration", "undecoration"]
+const OPS := ["stairs", "wall", "take", "reshape", "path", "ground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "paint", "unpaint", "mix", "sheet", "restone", "boulder", "decoration"]
 ## What a batch may carry: from a player, takings; from the host, also the undo of them (PUTS) and of what water drowned.
-const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show", "uneasel", "unboulder", "undecoration"]
+const BATCHED := ["take", "reshape", "show"]
 const HOST_BATCHED := ["heights", "ponds", "tree"]
 ## Most commands one batch carries.
 const MAX_BATCH := 128
@@ -100,9 +100,6 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			ok = out.stairs != null
 			if ok and not from_host:
 				out.stairs.on = PackedInt32Array(Array(out.stairs.on).filter(func(o: int) -> bool: return state.walls.has(o)))
-		"unstairs":
-			ok = typeof(cmd.get("id")) == TYPE_INT and state.stairs.has(cmd.id)
-			out.id = cmd.get("id")
 		"wall":
 			var ws: Variant = cmd.get("walls")
 			ok = ws is Array and ws.size() >= 1 and ws.size() <= MAX_PIECES
@@ -119,9 +116,11 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			elif ok:
 				for w: Dictionary in out.walls:
 					w.on = PackedInt32Array(Array(w.on).filter(func(o: int) -> bool: return state.walls.has(o)))
-		"unwall":
+		"take":
+			var of: Variant = cmd.get("of")
 			var ids: Variant = cmd.get("ids")
-			ok = typeof(ids) == TYPE_PACKED_INT32_ARRAY and ids.size() >= 1 and ids.size() <= MAX_PIECES and _unique(ids) and Array(ids).all(func(id: int) -> bool: return state.walls.has(id))
+			ok = PUTS.has(of) and typeof(ids) == TYPE_PACKED_INT32_ARRAY and ids.size() >= 1 and ids.size() <= (MAX_PIECES if of == "walls" else 1) and _unique(ids) and Array(ids).all(func(id: int) -> bool: return state[of].has(id))
+			out.of = of
 			out.ids = ids
 		"reshape":
 			ok = RESHAPES.has(cmd.get("of")) and typeof(cmd.get("id")) == TYPE_INT and state[cmd.of].has(cmd.id) and cmd.get("data") is Dictionary
@@ -137,14 +136,8 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 		"path":
 			out.path = _path(cmd.get("path"))
 			ok = out.path != null and not (out.has("id") and state.paths.has(out.id))
-		"unpath":
-			ok = typeof(cmd.get("id")) == TYPE_INT and state.paths.has(cmd.id)
-			out.id = cmd.get("id")
 		"ground":
 			ok = _ground(cmd, out)
-		"unground":
-			ok = typeof(cmd.get("id")) == TYPE_INT and state.grounds.has(cmd.id)
-			out.id = cmd.get("id")
 		"restone":
 			ok = typeof(cmd.get("id")) == TYPE_INT and state.grounds.get(cmd.id, {}).has("style") and _stone_style(cmd.get("style"))
 			out.id = cmd.get("id")
@@ -181,9 +174,6 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			ok = _batch(cmd, state, from_host, out)
 		"easel":
 			ok = _easel(cmd, state, from_host, out)
-		"uneasel":
-			ok = typeof(cmd.get("id")) == TYPE_INT and state.easels.has(cmd.id)
-			out.id = cmd.get("id")
 		"paint":
 			var e: Variant = cmd.get("easel")
 			ok = typeof(e) == TYPE_INT and state.easels.has(e)
@@ -214,17 +204,11 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			ok = d != null and (from_host or d.wall < 0 or state.walls.has(d.wall) and _holds(state.walls[d.wall], d.mount))
 			if ok:
 				out.merge(d)
-		"undecoration":
-			ok = typeof(cmd.get("id")) == TYPE_INT and state.decorations.has(cmd.id)
-			out.id = cmd.get("id")
 		"boulder":
 			var b: Variant = _boulder(cmd)
 			ok = b != null
 			if ok:
 				out.merge(b)
-		"unboulder":
-			ok = typeof(cmd.get("id")) == TYPE_INT and state.boulders.has(cmd.id)
-			out.id = cmd.get("id")
 	return out if ok else {}
 
 
@@ -345,7 +329,7 @@ static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 		# The host's undo of a drowning shows plants again beside what it undoes, which may itself show some.
 		var ids: Array = Array(kept.ids) if kept.has("ids") else ([kept.id] if kept.has("id") else ([] if from_host and kept.op == "show" else [-1]))
 		for id: int in ids:
-			var key := "%s%d" % ["w" if kept.op in ["wall", "unwall"] or kept.get("of") == "walls" else ("e" if kept.op in ["easel", "uneasel"] or kept.get("of") == "easels" else ("q" if id >= 0 else kept.op)), id]
+			var key := "%s%d" % ["w" if kept.op == "wall" or kept.get("of") == "walls" else ("e" if kept.op == "easel" or kept.get("of") == "easels" else ("q" if id >= 0 else kept.op)), id]
 			if seen.has(key):
 				return false
 			seen[key] = true

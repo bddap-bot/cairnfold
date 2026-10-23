@@ -528,7 +528,7 @@ static func _target(w: Wall, what: String, key: String, index: int, value: Varia
 
 static func removal(state: Dictionary, target: Dictionary) -> Dictionary:
 	if target.has("decoration"):
-		return {"op": "undecoration", "id": target.decoration} if state.decorations.has(target.decoration) else {}
+		return {"op": "take", "of": "decorations", "ids": PackedInt32Array([target.decoration])} if state.decorations.has(target.decoration) else {}
 	if not is_instance_valid(target.wall):
 		return {}
 	var w: Wall = target.wall

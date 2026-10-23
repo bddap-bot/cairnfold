@@ -62,7 +62,7 @@ func _through(world: World, fence: bool, size: float) -> void:
 	var w := _wall(world, fence, [WallLayout.archway(3.0, size)])
 	_check(w.layout.archways().size() == 1, "%s opens" % what)
 	if w.layout.archways().is_empty():
-		world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+		world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 		return
 	var ray := _ray(w, 3.0, 0.8 * size)
 	var origin: Vector3 = ray[0]
@@ -87,7 +87,7 @@ func _through(world: World, fence: bool, size: float) -> void:
 	var beside := _ray(w, 0.8 if fence else 1.0, 0.8 * size)
 	var stone: Variant = main.rig.solid_hit.call(beside[0], beside[1], 30.0).get("point")
 	_check(fence or (stone != null and absf(_past(stone, beside) + WallLayout.THICKNESS * 0.5) < 0.05), "the teleport ray stops on %s's face beside the arch: %s" % [what, stone])
-	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 
 
 ## A door's planks and a window's glass close their openings: rays stop on them, and pick them.
@@ -100,4 +100,4 @@ func _closed_openings(world: World) -> void:
 		_check(solid != null and _past(solid, ray) < 0.0, "the teleport ray stops at a %s: %s" % ["door" if o.door else "window", solid])
 		var pick: Dictionary = main.fitting_tool.aim(Hand.Tool.WINDOWS, ray[0], ray[1])
 		_check(pick.get("what") == "opening" and pick.get("fitting", false), "a %s is picked where it closes its opening: %s" % ["door" if o.door else "window", pick])
-	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)

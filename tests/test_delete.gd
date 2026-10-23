@@ -153,7 +153,7 @@ func _one_stroke() -> void:
 	await _play([{"op": "press", "button": "A"}])
 	_check(not trees.any(_standing) and world.state.paths.is_empty(), "redo takes the whole stroke again")
 	var show := {"op": "show", "plants": {}, "on": false}
-	var gone := {"op": "unpath", "id": 999999}
+	var gone := {"op": "take", "of": "paths", "ids": PackedInt32Array([999999])}
 	_check(Commands.clean({"op": "batch", "cmds": [gone, show]}, world.state, false).get("cmds", []).size() == 1, "a stroke whose path went meanwhile still takes the rest")
 	_check(Commands.clean({"op": "batch", "cmds": [gone]}, world.state, false).is_empty(), "one with nothing left to take is turned down")
 	_check(Commands.clean({"op": "batch", "cmds": [show, show]}, world.state, false).is_empty(), "a batch shows plants once")

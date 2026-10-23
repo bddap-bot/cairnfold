@@ -63,8 +63,8 @@ func _run() -> void:
 	w = main.tool.find(id)
 	w.lay_now()
 	tool.press(self, eye, Vector3.DOWN)
-	var cmd := {"op": "unwall", "ids": PackedInt32Array([id])}
-	_check(not Commands.clean(cmd, main.world.state, false).is_empty(), "host accepts rubble removal through existing unwall")
+	var cmd := {"op": "take", "of": "walls", "ids": PackedInt32Array([id])}
+	_check(not Commands.clean(cmd, main.world.state, false).is_empty(), "host accepts rubble removal through an existing take")
 	main.world._order(cmd, 42)
 	await process_frame
 	await process_frame

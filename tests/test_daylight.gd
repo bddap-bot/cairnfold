@@ -292,7 +292,7 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 	_check(world.state.walls[first.id].paint[stone] == 2 and world.state.walls[other.id].paint[stone] == 0, "redo paints the first wall again, and only it")
 
 	var first_id := first.id
-	world.submit({"op": "unwall", "ids": PackedInt32Array([first_id])})
+	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([first_id])})
 	_check(not world.state.walls.has(first_id), "the painted wall is deleted")
 	await _play([{"op": "press", "button": "dpad_down"}])
 	_check(world.state.walls.get(first_id, {}).get("paint", Palette.plain())[stone] == 2, "undoing the delete brings it back in its colour")

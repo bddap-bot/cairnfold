@@ -564,7 +564,7 @@ func _a_perch_taken_away_sends_them_elsewhere() -> void:
 	await process_frame
 	await _play(g, 1.5)
 	_check(g.wildlife.birds.sites.size() == 2, "a second wall to perch on, %d sites" % g.wildlife.birds.sites.size())
-	g.world.submit({"op": "unwall", "ids": PackedInt32Array([first.id])})
+	g.world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([first.id])})
 	await process_frame
 	await process_frame
 	_check(not is_instance_valid(first), "the first wall is gone")

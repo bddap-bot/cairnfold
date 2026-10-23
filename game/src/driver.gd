@@ -1049,7 +1049,7 @@ func _dress_roof(house: Wall, entry: Dictionary, size: Vector2) -> void:
 
 func _clear(_s: Dictionary) -> void:
 	for w in main.tool.walls.duplicate():
-		main.world.submit({"op": "unwall", "ids": PackedInt32Array([w.id])})
+		main.world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])})
 	await get_tree().process_frame
 
 

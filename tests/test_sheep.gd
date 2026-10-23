@@ -538,7 +538,7 @@ func _leaving_sheep_keep_out_of_walls_and_water() -> void:
 	outside.global_transform = Transform3D(Basis(), Vector3(0, 6, 30)).looking_at(Vector3(0, 0, -4))
 	g.wildlife.viewer = outside
 	_run(g, 1.0, see)
-	g.world.submit({"op": "unwall", "ids": PackedInt32Array([fence.id])})
+	g.world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([fence.id])})
 	await process_frame
 	await process_frame
 	_check(not is_instance_valid(fence), "the fence is erased")

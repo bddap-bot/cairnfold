@@ -38,7 +38,7 @@ var _rings: Array[MeshInstance3D] = []
 ## boulders, ray}.
 ## `walls` holds by wall id the stretches swept along it, Vector2(from, to) unwrapped round a loop, and `moved` those
 ## walls swept since last shown; `wall` is the sweep along the wall the beam is on, {wall, id, span, at, last};
-## `plants` the plants taken; `marks` the ops taking paths and stone strokes, by id; `easels` and `boulders` those taken, by id;
+## `plants` the plants taken; `marks` the tables of the stairs, paths and stone strokes taken, by id; `easels` and `boulders` those taken, by id;
 ## `ray` the last ray, [origin, dir, where it struck].
 var _cuts := {}
 ## Wipes charging, by whoever holds the trigger up: {t, orb}.
@@ -267,11 +267,11 @@ func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 			p.draw(false)
 			cut.plants[p] = true
 	elif target.has("stair"):
-		cut.marks[target.stair] = "unstairs"
+		cut.marks[target.stair] = "stairs"
 	elif target.has("laid"):
 		var id := Ground.mark_at(target.point.x, target.point.z)
 		if id >= 0:
-			cut.marks[id] = "unpath" if world.state.paths.has(id) else "unground"
+			cut.marks[id] = "paths" if world.state.paths.has(id) else "grounds"
 	elif target.has("mow"):
 		_mow(cut, target.point, target.mow)
 	return target
@@ -338,7 +338,7 @@ func let_go(who: Object) -> void:
 		var cmd := {}
 		if target.get("rubble", false):
 			if is_instance_valid(target.wall) and _standing(target.wall):
-				cmd = {"op": "unwall", "ids": PackedInt32Array([target.wall.id])}
+				cmd = {"op": "take", "of": "walls", "ids": PackedInt32Array([target.wall.id])}
 		else:
 			cmd = FittingTool.removal(world.state, target)
 		if not cmd.is_empty():
@@ -353,20 +353,20 @@ func let_go(who: Object) -> void:
 		swept.append(id)
 		var ruins := _ruins(id, cut.walls[id])
 		if ruins.is_empty():
-			cmds.append({"op": "unwall", "ids": PackedInt32Array([id])})
+			cmds.append({"op": "take", "of": "walls", "ids": PackedInt32Array([id])})
 		elif ruins != Array(world.state.walls[id].ruins):
 			cmds.append({"op": "reshape", "of": "walls", "id": id, "data": {"ruins": PackedVector2Array(ruins)}})
 	for id: int in cut.marks:
-		cmds.append({"op": cut.marks[id], "id": id})
+		cmds.append({"op": "take", "of": cut.marks[id], "ids": PackedInt32Array([id])})
 	for id: int in cut.easels:
 		if world.state.easels.has(id):
-			cmds.append({"op": "uneasel", "id": id})
+			cmds.append({"op": "take", "of": "easels", "ids": PackedInt32Array([id])})
 	for item: Dictionary in cut.get("decorations", {}).values():
 		var cmd := FittingTool.removal(world.state, item)
 		if not cmd.is_empty():
 			cmds.append(cmd)
 	for id: int in cut.fittings:
-		if not world.state.walls.has(id) or cmds.any(func(c: Dictionary) -> bool: return c.op == "unwall" and id in c.ids):
+		if not world.state.walls.has(id) or cmds.any(func(c: Dictionary) -> bool: return c.op == "take" and c.of == "walls" and id in c.ids):
 			continue
 		var data: Dictionary = world.state.walls[id].duplicate(true)
 		var changed := {}
@@ -389,7 +389,7 @@ func let_go(who: Object) -> void:
 			cmds.append({"op": "reshape", "of": "walls", "id": id, "data": changed})
 	for id: int in cut.boulders:
 		if world.state.boulders.has(id):
-			cmds.append({"op": "unboulder", "id": id})
+			cmds.append({"op": "take", "of": "boulders", "ids": PackedInt32Array([id])})
 	var settle := func() -> void:
 		for id in swept:
 			walls.settle(id)

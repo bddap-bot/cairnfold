@@ -41,7 +41,7 @@ func _run() -> void:
 	var before := world.snapshot()
 	var sent := []
 	world.applied.connect(func(c: Dictionary) -> void: sent.append(c.duplicate(true)))
-	world.submit({"op": "unwall", "ids": PackedInt32Array([house.id])})
+	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([house.id])})
 	await _settle()
 	_none_left(owned, "deleting the house")
 	_check(_scene() == kept, "the scene is as it was before the house: %s against %s" % [_scene(), kept])
@@ -262,10 +262,10 @@ func _a_sweep_takes_the_house_and_its_things(before: Dictionary, owned: Dictiona
 	world.restore(before)
 	await _settle()
 	world.submit({"op": "batch", "cmds": [
-		{"op": "unwall", "ids": PackedInt32Array([owned.walls[0]])},
-		{"op": "unwall", "ids": PackedInt32Array([owned.walls[1]])},
+		{"op": "take", "of": "walls", "ids": PackedInt32Array([owned.walls[0]])},
+		{"op": "take", "of": "walls", "ids": PackedInt32Array([owned.walls[1]])},
 		{"op": "reshape", "of": "walls", "id": owned.walls[2], "data": {"lanterns": PackedVector3Array()}},
-		{"op": "undecoration", "id": owned.decorations[1]},
+		{"op": "take", "of": "decorations", "ids": PackedInt32Array([owned.decorations[1]])},
 	]})
 	await _settle()
 	_none_left(owned, "a sweep")

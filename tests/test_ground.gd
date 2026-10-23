@@ -158,7 +158,7 @@ func _lifting_a_path_keeps_the_stone_laid_after_it() -> void:
 	var world: World = nodes[2]
 	var path := _lay(nodes, Vector2(-6, 50), Vector2(6, 50), 0.8)
 	_stroke(nodes[0], 0, Hand.Tool.STONE, Vector2(0, 46), Vector2(0, 54), 1.5)
-	world._order({"op": "unpath", "id": path}, world.me())
+	world._order({"op": "take", "of": "paths", "ids": PackedInt32Array([path])}, world.me())
 	_check(Ground.stone(0, 50) > 0.99, "stone laid over a path stays when the path is lifted (%.2f)" % Ground.stone(0, 50))
 	_check(Ground.bare(5, 50) == 0.0, "the path's own wear goes with it (%.2f)" % Ground.bare(5, 50))
 	_teardown(nodes)

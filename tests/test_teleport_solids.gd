@@ -103,7 +103,7 @@ func _onto_a_pitched_roof(rig: Rig, world: World) -> void:
 	var on_roof := func(p: Vector3) -> float: return r.height_at(p.x, p.z)
 	_lands(rig, slope + Vector3(0, 9, 0) + f.across * 6.0, slope, on_roof, "from the air down onto a pitched roof")
 	_lands(rig, Terrain.ground(slope.x, slope.z) + f.across * (r.half_span() + 3.0) + Vector3.UP * 1.2, slope, on_roof, "from the ground up onto a pitched roof")
-	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 
 
 func _onto_a_tree(rig: Rig, world: World) -> void:
@@ -129,7 +129,7 @@ func _onto_a_wall_top(rig: Rig, world: World) -> void:
 	var top := mid + Vector3.UP * (w.layout.height + WallLayout.CAP)
 	var on_top := func(_p: Vector3) -> float: return top.y
 	_lands(rig, top + Vector3(0, 5, 6), top, on_top, "down onto a wall's top")
-	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 
 
 ## A ruined wall's face is its stones', each leaning a little and some standing proud of the one above: aims at it
@@ -142,7 +142,7 @@ func _onto_a_wall_face(rig: Rig, world: World) -> void:
 	for s: float in [2.0, 6.0, 10.0]:
 		for up: float in [0.5, 1.45, 1.55, 2.2]:
 			_onto_a_face(rig, w.layout.point_at(s), up)
-	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 	d.top = WallLayout.Top.CAP
 	d.ruins = PackedVector2Array([Vector2(8.5, 9.5)])
 	world._order({"op": "wall", "walls": [d]}, 1)
@@ -152,7 +152,7 @@ func _onto_a_wall_face(rig: Rig, world: World) -> void:
 	for k in 13:
 		for up: float in [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4]:
 			_onto_a_face(rig, w.layout.point_at(0.5 + k * 0.5), up)
-	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 
 
 ## Where a ruin steps down, each course's broken top is a ledge: a ray pointed at one, from above in front or behind,
@@ -208,7 +208,7 @@ func _onto_ruin_ledges(rig: Rig, world: World, seed: int) -> void:
 			_check(absf(rig.global_position.y - struck.point.y) < 0.05, "aimed %s, the player stands on it: %.2f for %.2f" % [what, rig.global_position.y, struck.point.y])
 	_check(heights.size() >= 6 and aims >= 60, "seed %d's ruin steps down through several heights, each pointed at: %d aims, heights %s" % [seed, aims, heights.keys()])
 	print("ruin ledges, seed %d: %d aims, heights %s" % [seed, aims, heights.keys()])
-	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 
 
 func _onto_a_raised_floor(rig: Rig, world: World) -> void:
@@ -230,7 +230,7 @@ func _onto_a_raised_floor(rig: Rig, world: World) -> void:
 	Ground.settle()
 	_check(Ground.laid_bare(middle.x, middle.z) > 0.99, "the meadow under the floor is worn bare: %.2f" % Ground.laid_bare(middle.x, middle.z))
 	_check(Ground.laid_bare(33.0, 30.0 + 2.0 + 1.0) < 0.01, "the meadow outside the walls is not")
-	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 	Ground.settle()
 	_check(Ground.laid_bare(middle.x, middle.z) < 0.01, "taken away, the house gives the meadow back")
 
@@ -262,7 +262,7 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	_check(stepped > 0.0 and stepped < l.height, "the ruin's end steps down: %.2f at %.2f" % [stepped, at])
 	var step := l.point_at(at)
 	_stands(step, stepped + 0.5, step.y + stepped, "a point over a ruin's stepped end")
-	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 	var coped := _wall_data(PackedVector3Array([Terrain.ground(-6, -18), Terrain.ground(6, -18)]))
 	coped.top = WallLayout.Top.COPE
 	world._order({"op": "wall", "walls": [coped]}, 1)
@@ -274,7 +274,7 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	var coping: float = rig.solid_hit.call(over + Vector3.UP * 20.0, Vector3.DOWN, 40.0).point.y
 	_check(absf(coping - tallest) < 0.1, "a ray lands on a coping's tall stones: %.2f for %.2f" % [coping, tallest])
 	_stands(over + Vector3.UP * (coping - over.y), 0.3, coping, "a point over a coped wall's walk")
-	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 	var house := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(-4, -6), Terrain.ground(2, -6), 4.0)))
 	house.closed = true
 	house.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(-1, -6), "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
@@ -285,7 +285,7 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	var side: Vector3 = w.layout.points[1]
 	var along := corner.lerp(side, 0.5)
 	_check(w.layout.walk_under(along + Vector3.UP * (w.layout.height + 1.0)) == -INF, "a house's walls under its roof are no wall walk")
-	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])}, 1)
 
 
 ## Aims from 6 m out at the wall's face `up` metres over the floor in front of `mid`: struck within 1.5 m of that floor,
@@ -341,7 +341,7 @@ func _on_flat_roofs_and_platforms(rig: Rig, world: World) -> void:
 	_stands(terrace, 0.5, deck, "a point over the terrace")
 	_check(above.layout.floors.size() == 1, "the platform has its floor: %s" % above.layout.floors)
 	_stands(Vector3(at.x + 1.0, deck, at.z), 1.0, above.layout.floors[0], "a point inside the platform's room")
-	world._order({"op": "unwall", "ids": PackedInt32Array([above.id, below.id])}, 1)
+	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([above.id, below.id])}, 1)
 
 
 func _on_stairs_and_a_bridge(rig: Rig, world: World) -> void:
@@ -382,5 +382,5 @@ func _on_stairs_and_a_bridge(rig: Rig, world: World) -> void:
 	var walk := Terrain.ground(3, 2)
 	var far_top: float = rig.solid_hit.call(walk + Vector3.UP * 20.0, Vector3.DOWN, 40.0).point.y
 	_hovers(rig, Vector3(walk.x, far_top, walk.z), far_top, "the far wall walk the bridge reaches")
-	world._order({"op": "unwall", "ids": ids}, 1)
+	world._order({"op": "take", "of": "walls", "ids": ids}, 1)
 	_check(world.stairs.layouts.size() == keys.size() - 2, "taking the walls away takes the stairs standing on them")

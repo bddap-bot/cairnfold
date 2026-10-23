@@ -10,6 +10,8 @@ extends Node
 const LIMIT := 200
 ## Ground and the meadow's own plants are tracked for undo in square patches of this many metres.
 const PATCH := 8.0
+## Per table of the garden holding builds, the letter its builds' keys in `touched` and `_units_of` start with.
+const KEYS := {"walls": "w", "stairs": "q", "paths": "q", "grounds": "q", "easels": "e", "decorations": "d", "boulders": "b"}
 ## Commands a player may send per second, and in one burst; a command counts once more for each COMMAND_BYTES it carries.
 const RATE := 20.0
 const BURST := 60.0
@@ -152,17 +154,13 @@ func change_of(cmd: Dictionary) -> Dictionary:
 		"stairs", "path", "ground", "easel", "decoration", "boulder":
 			# Stairs and a path carry their build in the field their op names; the rest are their build.
 			Budget.add(out, _units(Commands.PUTS.find_key(cmd.op), cmd.get(cmd.op, cmd)))
-		"unwall":
+		"take":
 			for id in cmd.ids:
-				Budget.add(out, _units_of.get("w%d" % id, {}), -1.0)
+				Budget.add(out, _units_of.get("%s%d" % [KEYS[cmd.of], id], {}), -1.0)
 		"reshape":
 			if state[cmd.of].has(cmd.id):
 				var trial := reshaped(state[cmd.of][cmd.id], cmd.data)
 				Budget.add(Budget.add(out, _units(cmd.of, trial)), _units_of.get(_keys(cmd)[0], {}), -1.0)
-		"unstairs":
-			Budget.add(out, _units_of.get("q%d" % cmd.id, {}), -1.0)
-		"unpath", "unground":
-			Budget.add(out, _units_of.get("q%d" % cmd.id, {}), -1.0)
 		"plant":
 			var n := 1
 			if not cmd.kind in Flora.PLACED:
@@ -185,13 +183,6 @@ func change_of(cmd: Dictionary) -> Dictionary:
 				wet -= _wet(g)
 			if wet != 0:
 				out.pond_m2 = wet
-		"uneasel":
-			if state.easels.has(cmd.id):
-				out.easel = -1
-		"undecoration":
-			Budget.add(out, _units_of.get("d%d" % cmd.id, {}), -1.0)
-		"unboulder":
-			Budget.add(out, _units_of.get("b%d" % cmd.id, {}), -1.0)
 		"batch":
 			for c: Dictionary in cmd.cmds:
 				Budget.add(out, change_of(c))
@@ -767,10 +758,13 @@ func _keys(cmd: Dictionary) -> Array:
 			for w: Dictionary in cmd.walls:
 				out.append_array(Array(w.on).map(func(id: int) -> String: return "w%d" % id))
 			return out
-		"unwall":
-			return Array(cmd.ids).map(func(id: int) -> String: return "w%d" % id)
+		"take":
+			var out := Array(cmd.ids).map(func(id: int) -> String: return "%s%d" % [KEYS[cmd.of], id])
+			if cmd.of == "easels":
+				out.append_array(Array(cmd.ids).map(func(id: int) -> String: return "x%d" % id))
+			return out
 		"reshape":
-			return ["%s%d" % [{"walls": "w", "stairs": "q", "boulders": "b", "decorations": "d", "easels": "e"}[cmd.of], cmd.id]]
+			return ["%s%d" % [KEYS[cmd.of], cmd.id]]
 		"plant":
 			return ["p%d" % cmd.id]
 		"tree":
@@ -781,17 +775,15 @@ func _keys(cmd: Dictionary) -> Array:
 			return ["m%d,%d" % [floori(at.x / PATCH), floori(at.z / PATCH)]]
 		"stairs":
 			return ["q%d" % cmd.id] + Array(cmd.stairs.on).map(func(id: int) -> String: return "w%d" % id)
-		"unstairs", "path", "unpath", "ground", "unground", "restone":
+		"path", "ground", "restone":
 			return ["q%d" % cmd.id]
 		"season":
 			return ["season"]
-		"easel", "uneasel":
+		"easel":
 			return ["e%d" % cmd.id, "x%d" % cmd.id]
 		"decoration":
 			return ["d%d" % cmd.id] + (["w%d" % cmd.wall] if cmd.wall >= 0 else [])
-		"undecoration":
-			return ["d%d" % cmd.id]
-		"boulder", "unboulder":
+		"boulder":
 			return ["b%d" % cmd.id]
 
 		"ponds":
@@ -851,11 +843,10 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			for i in cmd.ids.size():
 				state.walls[cmd.ids[i]] = cmd.walls[i].duplicate(true)
 				wall_tool.put(cmd.ids[i], handed)
-				_account("w%d" % cmd.ids[i], _units("walls", state.walls[cmd.ids[i]]))
 				_floor_mark(cmd.ids[i])
-			inverse = {"op": "unwall", "ids": cmd.ids}
-		"unwall":
-			inverse = _take("walls", cmd.ids)
+			inverse = _built("walls", cmd.ids)
+		"take":
+			inverse = _take(cmd.of, cmd.ids)
 		"reshape":
 			var now: Dictionary = state[cmd.of][cmd.id]
 			var before := {}
@@ -894,34 +885,18 @@ func _apply(cmd: Dictionary) -> Dictionary:
 		"stairs":
 			state.stairs[cmd.id] = cmd.stairs.duplicate(true)
 			stairs.put(cmd.id, state.stairs[cmd.id])
-			_account("q%d" % cmd.id, _units("stairs", cmd.stairs))
-			inverse = {"op": "unstairs", "id": cmd.id}
-		"unstairs":
-			inverse = _take("stairs", [cmd.id])
+			inverse = _built("stairs", PackedInt32Array([cmd.id]))
 		"path":
 			state.paths[cmd.id] = cmd.path.duplicate(true)
 			paths.put(cmd.id, state.paths[cmd.id])
-			_account("q%d" % cmd.id, _units("paths", cmd.path))
-			inverse = {"op": "unpath", "id": cmd.id}
-		"unpath":
-			inverse = _put("paths", cmd.id)
-			state.paths.erase(cmd.id)
-			paths.take(cmd.id)
-			_account("q%d" % cmd.id, {})
+			inverse = _built("paths", PackedInt32Array([cmd.id]))
 		"ground":
 			state.grounds[cmd.id] = _ground(cmd)
 			var stroke := Ground.Stroke.new(cmd.kind as Ground.Kind, cmd.get("style", 0))
 			stroke.stamps = cmd.stamps
 			_strokes[cmd.id] = stroke
 			Ground.lay(stroke, cmd.id)
-			_account("q%d" % cmd.id, _units("grounds", cmd))
-			inverse = {"op": "unground", "id": cmd.id}
-		"unground":
-			inverse = _put("grounds", cmd.id)
-			state.grounds.erase(cmd.id)
-			Ground.lift(_strokes[cmd.id])
-			_strokes.erase(cmd.id)
-			_account("q%d" % cmd.id, {})
+			inverse = _built("grounds", PackedInt32Array([cmd.id]))
 		"restone":
 			inverse = {"op": "restone", "id": cmd.id, "style": state.grounds[cmd.id].style}
 			state.grounds[cmd.id].style = cmd.style
@@ -1020,14 +995,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			state.easels[cmd.id] = {"at": cmd.at, "yaw": cmd.yaw, "strokes": cmd.strokes.duplicate(), "mix": cmd.mix}
 			if easels != null:
 				easels.put(cmd.id, state.easels[cmd.id])
-			_account("e%d" % cmd.id, _units("easels", cmd))
-			inverse = {"op": "uneasel", "id": cmd.id}
-		"uneasel":
-			inverse = _put("easels", cmd.id)
-			state.easels.erase(cmd.id)
-			if easels != null:
-				easels.take(cmd.id)
-			_account("e%d" % cmd.id, {})
+			inverse = _built("easels", PackedInt32Array([cmd.id]))
 		"paint":
 			state.easels[cmd.easel].strokes.append(cmd.stroke)
 			if easels != null:
@@ -1050,22 +1018,12 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				easels.repaint(cmd.easel, state.easels[cmd.easel].strokes)
 		"decoration":
 			state.decorations[cmd.id] = Commands._decoration(cmd)
-			_account("d%d" % cmd.id, _units("decorations", cmd))
-			inverse = {"op": "undecoration", "id": cmd.id}
-		"undecoration":
-			inverse = _take("decorations", [cmd.id])
+			inverse = _built("decorations", PackedInt32Array([cmd.id]))
 		"boulder":
 			state.boulders[cmd.id] = Commands._boulder(cmd)
 			if boulders != null:
 				boulders.put(cmd.id, state.boulders[cmd.id])
-			_account("b%d" % cmd.id, _units("boulders", cmd))
-			inverse = {"op": "unboulder", "id": cmd.id}
-		"unboulder":
-			inverse = _put("boulders", cmd.id)
-			state.boulders.erase(cmd.id)
-			if boulders != null:
-				boulders.take(cmd.id)
-			_account("b%d" % cmd.id, {})
+			inverse = _built("boulders", PackedInt32Array([cmd.id]))
 	if cmd.op in DROWNING and flora != null:
 		var back := _drown()
 		if not back.is_empty():
@@ -1118,7 +1076,7 @@ func _dry(g: int, indices: PackedInt32Array) -> PackedInt32Array:
 ## Takes the builds `ids` from the garden's table `of` (Commands.STANDS_ON), and with them everything standing on them,
 ## all the way up, and returns what brings all of it back, oldest builds first. What a batch took already, with what it
 ## stood on, is passed over.
-func _take(of: String, ids: Array) -> Dictionary:
+func _take(of: String, ids: PackedInt32Array) -> Dictionary:
 	var gone := {of: {}}
 	for id: int in ids:
 		if state[of].has(id):
@@ -1141,23 +1099,33 @@ func _take(of: String, ids: Array) -> Dictionary:
 				if table == "walls":
 					bearing[id] = true
 					grew = true
-	for table: String in gone:
-		assert(table in ["walls", "stairs", "decorations"], "World._take cannot take %s" % table)
 	var back := []
 	var walls: Array = gone.get("walls", {}).keys()
 	walls.sort()
 	for i in range(0, walls.size(), Commands.MAX_PIECES):
 		var chunk := PackedInt32Array(walls.slice(i, i + Commands.MAX_PIECES))
 		back.append({"op": "wall", "ids": chunk, "walls": Array(chunk).map(func(id: int) -> Dictionary: return state.walls[id])})
-	for id: int in gone.get("stairs", {}):
-		back.append(_put("stairs", id))
-		state.stairs.erase(id)
-		stairs.take(id)
-		_account("q%d" % id, {})
-	for id: int in gone.get("decorations", {}):
-		back.append(_put("decorations", id))
-		state.decorations.erase(id)
-		_account("d%d" % id, {})
+	for table: String in Commands.PUTS:
+		if table == "walls":
+			continue
+		for id: int in gone.get(table, {}):
+			back.append(_put(table, id))
+			state[table].erase(id)
+			match table:
+				"stairs":
+					stairs.take(id)
+				"paths":
+					paths.take(id)
+				"grounds":
+					Ground.lift(_strokes[id])
+					_strokes.erase(id)
+				"easels":
+					if easels != null:
+						easels.take(id)
+				"boulders":
+					if boulders != null:
+						boulders.take(id)
+			_account("%s%d" % [KEYS[table], id], {})
 	walls.reverse()
 	for id: int in walls:
 		state.walls.erase(id)
@@ -1165,6 +1133,13 @@ func _take(of: String, ids: Array) -> Dictionary:
 		_account("w%d" % id, {})
 		_floor_mark(id)
 	return back[0] if back.size() == 1 else {"op": "batch", "cmds": back}
+
+
+## Counts the builds `ids` just put in the garden's table `of` in the frame budget; returns what takes them away.
+func _built(of: String, ids: PackedInt32Array) -> Dictionary:
+	for id in ids:
+		_account("%s%d" % [KEYS[of], id], _units(of, state[of][id]))
+	return {"op": "take", "of": of, "ids": ids}
 
 
 ## Takes `cmd`'s ponds out and puts its new ones in, then fills every pond over the ground as it stands (Refill). A

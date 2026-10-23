@@ -11,19 +11,17 @@ internet comes next and uses the same protocol.
 ## The garden is a command log
 
 Every finished edit is a **build command**: a small dictionary of plain values. `wall`
-carries the walls a stroke built, `unwall` removes walls and whatever stands on them, and `reshape` changes a build
+carries the walls a stroke built, `take` removes builds of one table (`of`) by id, with whatever stands on them, and `reshape` changes a build
 named by its table in the garden (`of`) and id: a wall's height, top, gable ends, openings, fittings, ruins, roof or paint
-(its colours), stairs' railings or paint, or a boulder's scale, paint or stone style. `path` and `unpath` lay and lift paths, `plant` grows a
+(its colours), stairs' railings or paint, or a boulder's scale, paint or stone style. `path` lays a path, `plant` grows a
 paint stroke or a tree, `show` hides or restores plants, `heights` sets an area of
 ground, `ponds` puts a pond at its level by the grid point it fills from (from a player, one; from the
 host, undoing or rebuilding, any, and it may take ponds out, as a `heights` from the host may too), and
 `season` sets the garden's season. `easel` sets an easel up (from the host, with its strokes and its oil palette's
-mixing field) and `uneasel` takes it away; `paint` adds a stroke to its canvas, `unpaint` takes the last one off,
+mixing field); `paint` adds a stroke to its canvas, `unpaint` takes the last one off,
 `mix` sets its oil palette's mixing field whole and `sheet` sets its strokes whole (a player's only ever a fresh,
-empty sheet). `boulder` sets down a boulder grown from its seed, at its scale, and
-`unboulder` takes it away. `wipe` takes the garden back to bare meadow, and
-`garden` (only ever the undo of a wipe) rebuilds it from the snapshot the wipe took. `batch` carries several takings (`unwall`, `reshape`, `unpath`,
-`unground`, `show`, `uneasel`, `unboulder`) of different things, applied in order as one step: a delete stroke across many things is
+empty sheet). `boulder` sets down a boulder grown from its seed, at its scale. `wipe` takes the garden back to bare meadow, and
+`garden` (only ever the undo of a wipe) rebuilds it from the snapshot the wipe took. `batch` carries several takings (`take`, `reshape`, `show`) of different things, applied in order as one step: a delete stroke across many things is
 one undo, and its inverse is the batch of their inverses. `World` (game/src/world.gd) applies them, and nothing else changes the garden.
 `sky` sets where the sun stands, sent once the sky tool lets the sky go; it is not an edit, so it
 goes on nobody's undo stack, and a wipe leaves it be.
@@ -68,7 +66,7 @@ out on another thread first (`Refill`), and the commands after it wait behind it
   commands a second, in bursts of up to 60. A device on the network can therefore not
   wedge or corrupt anyone's garden.
 - **Applying returns the inverse.** `World._apply` returns the command that would take
-  its command back: `reshape height 2.6` for `reshape height 4.2`, `unwall` for `wall`,
+  its command back: `reshape height 2.6` for `reshape height 4.2`, `take` for `wall`,
   the old heights for `heights`. The host keeps these for undo; nobody else needs them.
 - **Single player is the same game with nobody connected.** Every instance starts as a
   host with no one else on it and runs the one code path above; its broadcasts reach
