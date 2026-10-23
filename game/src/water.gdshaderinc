@@ -4,8 +4,7 @@
 global uniform sampler2D water_depth : filter_linear, repeat_disable;
 
 float water_depth_at(vec2 xz) {
-	vec2 g = (xz - ground_grid.x) / ground_grid.y;
-	return textureLod(water_depth, (g + 0.5) / ground_grid.z, 0.0).r;
+	return textureLod(water_depth, grid_uv(xz), 0.0).r;
 }
 
 float planted_water(float planted, float depth) {
@@ -33,7 +32,7 @@ vec3 caustic(sampler2D noise, vec2 xz) {
 // a grid point skips the depth read where every point its bilinear read would blend is DRY: the four corners of
 // its cell lie a step along an axis from one of its triangle's vertices.
 float pond_near(vec2 xz) {
-	vec2 t = ((xz - ground_grid.x) / ground_grid.y + 0.5) / ground_grid.z;
+	vec2 t = grid_uv(xz);
 	vec2 e = vec2(1.0 / ground_grid.z, 0.0);
 	float deepest = max(max(textureLod(water_depth, t, 0.0).r, textureLod(water_depth, t + e, 0.0).r),
 		max(textureLod(water_depth, t - e, 0.0).r, max(textureLod(water_depth, t + e.yx, 0.0).r, textureLod(water_depth, t - e.yx, 0.0).r)));

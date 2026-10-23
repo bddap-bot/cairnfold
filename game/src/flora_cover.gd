@@ -36,12 +36,8 @@ static func look(color: Color, custom: Color) -> Color:
 	return Color.hex(Color(f.r, f.g, f.b, 1.0).to_rgba32())
 
 
-func texel_of(at: Vector3) -> Vector2i:
-	return Vector2i(clampi(roundi((at.x + Terrain.SIZE * 0.5) / Terrain.STEP), 0, size - 1), clampi(roundi((at.z + Terrain.SIZE * 0.5) / Terrain.STEP), 0, size - 1))
-
-
 func touch(at: Vector3) -> void:
-	_dirty[texel_of(at)] = true
+	_dirty[Terrain.grid_point(at.x, at.z)] = true
 
 
 func touch_all() -> void:
@@ -58,7 +54,7 @@ func flush(pool: Flora.Pool) -> void:
 		for i in pool.size():
 			var p: Flora.Plant = pool.plants[i]
 			if _stands(p):
-				image.set_pixelv(texel_of(p.anchor), looks[i])
+				image.set_pixelv(Terrain.grid_point(p.anchor.x, p.anchor.z), looks[i])
 	else:
 		# Each grid square under a dirty texel is read once, not once for each texel it holds.
 		var best := {}
@@ -74,7 +70,7 @@ func flush(pool: Flora.Pool) -> void:
 					squares[Vector2i(i, j)] = true
 		for square: Vector2i in squares:
 			for slot: int in pool.in_square(square):
-				var t := texel_of(pool.anchors[slot])
+				var t := Terrain.grid_point(pool.anchors[slot].x, pool.anchors[slot].z)
 				if best.has(t) and slot > best[t] and _stands(pool.plants[slot]):
 					best[t] = slot
 		for t: Vector2i in best:

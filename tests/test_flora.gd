@@ -467,7 +467,7 @@ func _ground_paints_far_grass() -> void:
 	var pool := flora.grass
 	var cover := pool.cover
 	var at := Vector3(4.1, 0, 5.1)
-	var t := cover.texel_of(at)
+	var t := Terrain.grid_point(at.x, at.z)
 	var p := flora.add_grass(at, rng)
 	cover.flush(pool)
 	_check(cover.image.get_pixelv(t) == cover.looks[p.slot] and cover.looks[p.slot].a == 1.0, "a clump paints its square")

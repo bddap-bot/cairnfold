@@ -7,6 +7,11 @@ global uniform mat4 ground_humps;
 // What the ground is made of (Ground): red trodden earth, green stone, neither meadow; blue the stone's style.
 global uniform sampler2D ground_mask : filter_linear, repeat_disable;
 
+// The texture coordinate of `xz` in a one-texel-per-grid-point texture.
+vec2 grid_uv(vec2 xz) {
+	return ((xz - ground_grid.x) / ground_grid.y + 0.5) / ground_grid.z;
+}
+
 float bell(float t) {
 	float s = max(1.0 - t * t, 0.0);
 	return s * s * s;
@@ -77,6 +82,6 @@ vec3 ground_normal(vec2 xz) {
 
 // ground_normal at a grid point, one read where it takes five: Terrain stores it there. Live humps are not in it.
 vec3 ground_point_normal(vec2 xz) {
-	vec2 n = textureLod(ground_height, ((xz - ground_grid.x) / ground_grid.y + 0.5) / ground_grid.z, 0.0).ga;
+	vec2 n = textureLod(ground_height, grid_uv(xz), 0.0).ga;
 	return vec3(n.x, sqrt(max(1.0 - dot(n, n), 0.0)), n.y);
 }

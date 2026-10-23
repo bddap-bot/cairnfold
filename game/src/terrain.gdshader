@@ -64,7 +64,7 @@ void vertex() {
 	bool painted = far_grass && (CAMERA_VISIBLE_LAYERS & full_layer) == 0u;
 	// The share of clumps sunk away here (grass.gdshader's `gone`): all but the survivors over the LOD band, then they.
 	float sunk = painted ? (1.0 - survivors) * smoothstep(lod_begin, lod_begin + lod_band, dist) + survivors * smoothstep(draw_reach * survivors_from - sink, draw_reach, dist) : 0.0;
-	vec4 clump = textureLod(flora_grass, ((world_pos.xz - ground_grid.x) / ground_grid.y + 0.5) / ground_grid.z, 0.0);
+	vec4 clump = textureLod(flora_grass, grid_uv(world_pos.xz), 0.0);
 	vec3 tuft = 1.0 + (2.0 * clump.rgb - clump.a) * sunk;
 	meadow_lush = blade_color(blade_top(0.0, 0.5), canopy) * tuft;
 	meadow_dry = blade_color(blade_top(1.0, 0.5), canopy) * tuft;
