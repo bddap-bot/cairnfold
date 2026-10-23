@@ -16,7 +16,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await process_frame
 	world = main.world
-	world.load_from(OS.get_temp_dir().path_join("nestcombe-boulder-%d.garden" % OS.get_process_id()))
+	world.load_from(OS.get_user_data_dir().path_join("nestcombe-boulder-%d.garden" % OS.get_process_id()))
 	_a_seed_grows_the_same_shape()
 	_seeds_differ()
 	_a_boulder_is_faceted_not_a_ball()

@@ -49,7 +49,7 @@ func _write_until_killed(into: String) -> void:
 
 
 func _run() -> void:
-	dir = OS.get_temp_dir().path_join("nestcombe-kill-%d" % OS.get_process_id())
+	dir = OS.get_user_data_dir().path_join("nestcombe-kill-%d" % OS.get_process_id())
 	DirAccess.make_dir_recursive_absolute(dir)
 	var path := dir.path_join("garden.save")
 	World._write(path, _garden(0))

@@ -13,7 +13,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	await process_frame
-	dir = OS.get_temp_dir().path_join("nestcombe-photo-%d" % OS.get_process_id())
+	dir = OS.get_user_data_dir().path_join("nestcombe-photo-%d" % OS.get_process_id())
 	DirAccess.make_dir_recursive_absolute(dir)
 	check(PhotoMeta.crc32("123456789".to_ascii_buffer()) == 0xCBF43926, "the chunk checksum is PNG's CRC-32")
 	await _a_photo_carries_where_and_how_and_opens_as_its_garden()
