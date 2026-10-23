@@ -91,13 +91,12 @@ func _process(_delta: float) -> void:
 ## What the colour tool's trigger would recolour from `origin` along `dir`: `element`, `point` and the build's garden
 ## table `of` and `id` ("" and -1 on the meadow), or empty.
 func aim(origin: Vector3, dir: Vector3) -> Dictionary:
-	var pick := walls.pick_building(origin, dir)
+	var hits := world.pick(origin, dir, {World.Kind.BUILDING: INF, World.Kind.GROUND: INF, World.Kind.BOULDER: INF, World.Kind.STAIRS: INF})
+	var pick: Dictionary = hits.get(World.Kind.BUILDING, {})
 	var roof := pick if pick.get("surface") == "roof" else {}
 	var gable := pick if pick.get("surface") == "gable" else {}
-	var ground: Variant = Terrain.raycast(origin, dir)
-	var nearest := minf(pick.get("along", INF), origin.distance_to(ground) if ground != null else INF)
-	var rock := world.boulders.pick(origin, dir, nearest) if world.boulders != null else {}
-	var stair := world.stairs.pick(origin, dir, minf(nearest, rock.get("along", INF)))
+	var rock: Dictionary = hits.get(World.Kind.BOULDER, {})
+	var stair: Dictionary = hits.get(World.Kind.STAIRS, {})
 	if not stair.is_empty():
 		return colour_target(Palette.KINDS[stair.kind], stair.point, "stairs", stair.stair)
 	if not rock.is_empty():
@@ -118,8 +117,8 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 			return colour_target(Palette.Element.TIMBER, pick.point, "walls", pick.wall.id)
 		var wood := layout.fence or not layout.opening_at(pick.s, pick.point.y - layout.point_at(pick.s).y).is_empty()
 		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if layout.plaster_at(pick.point.y - layout.point_at(pick.s).y) else Palette.Element.STONE, pick.point, "walls", pick.wall.id)
-	if ground != null:
-		return colour_target(Palette.Element.MEADOW, ground)
+	if hits.has(World.Kind.GROUND):
+		return colour_target(Palette.Element.MEADOW, hits[World.Kind.GROUND].point)
 	return {}
 
 
@@ -131,18 +130,17 @@ func colour_target(element: Palette.Element, point: Vector3, of := "", id := -1)
 ## element, or empty: the tree, stairs, boulder, floor, gable end, roof, wall or painted stone it meets first, a
 ## roofless wall's top near it; fences, ladders, bushes and unpaved ground have no style.
 func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
-	var pick := FittingTool.pick_target(walls, origin, dir)
+	var hits := world.pick(origin, dir, {World.Kind.TARGET: INF, World.Kind.PLANT: DeleteTool.REACH, World.Kind.FLOOR: INF, World.Kind.STAIRS: INF, World.Kind.BOULDER: INF, World.Kind.GROUND: INF})
+	var pick: Dictionary = hits.get(World.Kind.TARGET, {})
 	var roof := pick if pick.get("surface") == "roof" else {}
 	var gable := pick if pick.get("surface") == "gable" else {}
-	var solid := walls.flora.solid_hit(origin, dir, DeleteTool.REACH)
-	var floor := walls.pick_floor(origin, dir)
-	var nearest: float = pick.get("along", INF)
-	var ground: Variant = Terrain.raycast(origin, dir)
+	var solid: Dictionary = hits.get(World.Kind.PLANT, {})
+	var floor: Dictionary = hits.get(World.Kind.FLOOR, {})
+	var stair: Dictionary = hits.get(World.Kind.STAIRS, {})
+	var rock: Dictionary = hits.get(World.Kind.BOULDER, {})
+	var ground: Variant = hits[World.Kind.GROUND].point if hits.has(World.Kind.GROUND) else null
 	var stroke := Ground.mark_at(ground.x, ground.z) if ground != null and Ground.stone(ground.x, ground.z) > 0.5 else -1
-	var stair := world.stairs.pick(origin, dir, minf(minf(nearest, solid.get("along", INF)), floor.get("along", INF)))
-	var built := minf(minf(minf(nearest, solid.get("along", INF)), floor.get("along", INF)), stair.get("along", INF))
-	var rock := world.boulders.pick(origin, dir, built) if world.boulders != null else {}
-	if world.state.grounds.has(stroke) and origin.distance_to(ground) < minf(built, rock.get("along", INF)):
+	if world.state.grounds.has(stroke):
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.STONE, "count": styles(Restyle.STONE), "point": ground, "of": "", "id": -1, "wall": null, "stroke": stroke}
 	if not rock.is_empty():
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.STONE, "count": styles(Restyle.STONE), "point": rock.point, "of": "boulders", "id": rock.boulder.id, "wall": null}
@@ -150,9 +148,9 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 		if world.stairs.layouts[stair.stair].kind == StairLayout.Kind.LADDER:
 			return {}
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.RAIL, "count": styles(Restyle.RAIL), "point": stair.point, "of": "stairs", "id": stair.stair, "wall": null}
-	if floor.get("along", INF) < minf(nearest, solid.get("along", INF)):
+	if not floor.is_empty():
 		return style_target(Restyle.FLOOR, floor.wall, floor.point)
-	if solid.get("along", INF) < nearest and solid.plants[0].pool == walls.flora.trunks:
+	if not solid.is_empty() and solid.plants[0].pool == walls.flora.trunks:
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.TREE, "count": FloraLayout.Species.size(), "point": solid.point, "of": "", "id": -1, "wall": null, "tree": solid.plants[0]}
 	if pick.has("decoration"):
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.DECORATION, "options": range(DecorationLayout.STYLES.size()), "count": DecorationLayout.STYLES.size(), "point": pick.point, "of": "decorations", "id": pick.decoration, "wall": pick.wall}

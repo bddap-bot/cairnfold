@@ -104,15 +104,18 @@ func _process(delta: float) -> void:
 
 ## What a press from `origin` along `dir` would do with `tool`: a dictionary naming `what` and where, or empty.
 func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
-	var pick := pick_target(walls, origin, dir, false, tool == Hand.Tool.DECORATIONS)
-	var ground: Variant = Terrain.raycast(origin, dir)
+	var decoration := tool == Hand.Tool.DECORATIONS
+	var target := World.Kind.TARGET_PAST_ARCHES if decoration else World.Kind.TARGET
+	var hits := world.pick(origin, dir, {target: INF, World.Kind.GROUND: INF, World.Kind.FLOOR: INF} if decoration else {target: INF})
+	var pick: Dictionary = hits.get(target, {})
 	var facing := atan2(-dir.x, -dir.z)
-	if tool == Hand.Tool.DECORATIONS:
-		var floor := walls.pick_floor(origin, dir)
-		if floor.get("along", INF) < minf(pick.get("along", INF), origin.distance_to(ground) if ground != null else INF):
-			return {"what": "decoration", "mount": "floor", "point": floor.point, "wall": floor.wall, "turn": facing}
-		if ground != null and origin.distance_to(ground) < pick.get("along", INF):
-			return {"what": "decoration", "mount": "ground", "point": ground, "wall": null, "s": 0.0, "side": 1.0, "turn": facing}
+	if not hits.is_empty():
+		var hit: Dictionary = hits.values().back()
+		match hits.keys().back():
+			World.Kind.FLOOR:
+				return {"what": "decoration", "mount": "floor", "point": hit.point, "wall": hit.wall, "turn": facing}
+			World.Kind.GROUND:
+				return {"what": "decoration", "mount": "ground", "point": hit.point, "wall": null, "s": 0.0, "side": 1.0, "turn": facing}
 	if pick.has("fitting"):
 		var what: String = pick.what
 		if (tool == Hand.Tool.DECORATIONS and not what in ["opening", "dormer"]) or (tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH] and what == "opening") or (tool == Hand.Tool.WINDOWS and what == "dormer"):

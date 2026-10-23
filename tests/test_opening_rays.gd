@@ -67,7 +67,7 @@ func _through(world: World, fence: bool, size: float) -> void:
 	var ray := _ray(w, 3.0, 0.8 * size)
 	var origin: Vector3 = ray[0]
 	var dir: Vector3 = ray[1]
-	var solid: Variant = main.tool.solid_hit(origin, dir, 30.0).get("point")
+	var solid: Variant = main.rig.solid_hit.call(origin, dir, 30.0).get("point")
 	_check(_past(solid, ray) > WallLayout.THICKNESS * 0.5 or solid == null, "the teleport ray passes through %s: stopped at %s, %.2f past its middle" % [what, solid, _past(solid, ray)])
 	main.rig.aim(Transform3D(Basis.looking_at(dir, Vector3.UP), origin))
 	_check(_past(main.rig.aim_ground, ray) > 1.0, "the teleport lands past %s: %s" % [what, main.rig.aim_ground])
@@ -79,13 +79,13 @@ func _through(world: World, fence: bool, size: float) -> void:
 		var erase: Dictionary = main.delete_tool.aim(origin, dir)
 		_check(erase.get("what") == "opening" and erase.get("wall") == w, "a delete into %s takes the arch: %s" % [what, erase.get("what", erase.get("surface"))])
 		var jamb := _ray(w, 3.0 + w.layout.opening(0.8 * size, false, size) - 0.1, 0.8 * size, 0.4)
-		var at: Variant = main.tool.solid_hit(jamb[0], jamb[1], 30.0).get("point")
+		var at: Variant = main.rig.solid_hit.call(jamb[0], jamb[1], 30.0).get("point")
 		_check(at != null and absf(_past(at, jamb)) < WallLayout.THICKNESS * 0.5 + 0.01, "a slant ray into %s stops on its jamb: %s" % [what, at])
 		var crown := _ray(w, 3.0, w.layout.spring(size) + w.layout.arch_rise(0.0, size) + 0.05 - WallLayout.SINK, 0.0, true)
-		var ring: Variant = main.tool.solid_hit(crown[0], crown[1], 30.0).get("point")
+		var ring: Variant = main.rig.solid_hit.call(crown[0], crown[1], 30.0).get("point")
 		_check(ring != null and absf(_past(ring, crown) + WallLayout.THICKNESS * 0.5) < 0.05, "a level ray just over %s's crown stops on its ring: %s" % [what, ring])
 	var beside := _ray(w, 0.8 if fence else 1.0, 0.8 * size)
-	var stone: Variant = main.tool.solid_hit(beside[0], beside[1], 30.0).get("point")
+	var stone: Variant = main.rig.solid_hit.call(beside[0], beside[1], 30.0).get("point")
 	_check(fence or (stone != null and absf(_past(stone, beside) + WallLayout.THICKNESS * 0.5) < 0.05), "the teleport ray stops on %s's face beside the arch: %s" % [what, stone])
 	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
 
@@ -96,7 +96,7 @@ func _closed_openings(world: World) -> void:
 	_check(w.layout.apertures.size() == 2, "a door and a window open: %d" % w.layout.apertures.size())
 	for o in w.layout.apertures:
 		var ray := _ray(w, o.s, (o.sill + o.head) * 0.5)
-		var solid: Variant = main.tool.solid_hit(ray[0], ray[1], 30.0).get("point")
+		var solid: Variant = main.rig.solid_hit.call(ray[0], ray[1], 30.0).get("point")
 		_check(solid != null and _past(solid, ray) < 0.0, "the teleport ray stops at a %s: %s" % ["door" if o.door else "window", solid])
 		var pick: Dictionary = main.fitting_tool.aim(Hand.Tool.WINDOWS, ray[0], ray[1])
 		_check(pick.get("what") == "opening" and pick.get("fitting", false), "a %s is picked where it closes its opening: %s" % ["door" if o.door else "window", pick])

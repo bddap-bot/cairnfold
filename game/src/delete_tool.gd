@@ -156,42 +156,22 @@ func _orb() -> MeshInstance3D:
 ## when it meets nothing. It passes through the plants in `taken`, which a stroke has already taken, and the easels and
 ## boulders by id in `gone`.
 func aim(origin: Vector3, dir: Vector3, taken := {}, gone := {}) -> Dictionary:
-	var ground: Variant = Terrain.raycast(origin, dir, REACH)
-	var reach: float = (ground - origin).dot(dir) if ground != null else REACH
-	var pick := FittingTool.pick_target(walls, origin, dir)
-	if pick.get("along", INF) > reach:
-		pick = {}
-	var easel := world.easels.pick(origin, dir) if world.easels != null else {}
-	if not easel.is_empty() and (gone.has(easel.easel.id) or easel.along > reach or (not pick.is_empty() and pick.along <= easel.along)):
-		easel = {}
-	if not easel.is_empty():
-		reach = easel.along
-	if not pick.is_empty():
-		reach = minf(reach, pick.along)
-	var rock := world.boulders.pick(origin, dir, reach) if world.boulders != null else {}
-	if not rock.is_empty() and gone.has(rock.boulder.id):
-		rock = {}
-	if not rock.is_empty():
-		reach = rock.along
-		pick = {}
-		easel = {}
-	var solid := flora.solid_hit(origin, dir, reach, taken)
-	var stair := world.stairs.pick(origin, dir, minf(reach, minf(pick.get("along", INF), solid.get("along", INF)))) if world.stairs != null else {}
-	if not stair.is_empty():
-		return stair
-	if not pick.is_empty() and pick.along <= reach and (solid.is_empty() or pick.along <= solid.along):
-		return pick
-	if not solid.is_empty():
-		return {"plants": solid.plants, "point": solid.point}
-	if not easel.is_empty():
-		return {"easel": easel.easel, "point": easel.point}
-	if not rock.is_empty():
-		return {"boulder": rock.boulder, "point": rock.point}
-	if ground == null:
+	var hits := world.pick(origin, dir, {World.Kind.GROUND: REACH, World.Kind.EASEL: REACH, World.Kind.TARGET: REACH, World.Kind.BOULDER: REACH, World.Kind.PLANT: REACH, World.Kind.STAIRS: REACH}, taken.merged(gone), [World.Kind.EASEL, World.Kind.TARGET])
+	if hits.is_empty():
 		return {}
-	if Ground.laid_bare(ground.x, ground.z) >= 0.5:
-		return {"laid": true, "point": ground}
-	return {"mow": FloraTool.brush_radius(origin, ground), "point": ground}
+	var hit: Dictionary = hits.values().back()
+	match hits.keys().back():
+		World.Kind.STAIRS, World.Kind.TARGET:
+			return hit
+		World.Kind.PLANT:
+			return {"plants": hit.plants, "point": hit.point}
+		World.Kind.EASEL:
+			return {"easel": hit.easel, "point": hit.point}
+		World.Kind.BOULDER:
+			return {"boulder": hit.boulder, "point": hit.point}
+	if Ground.laid_bare(hit.point.x, hit.point.z) >= 0.5:
+		return {"laid": true, "point": hit.point}
+	return {"mow": FloraTool.brush_radius(origin, hit.point), "point": hit.point}
 
 
 ## Starts `who`'s stroke. Strokes still growing grow at once, so it takes plants not yet grown under it.

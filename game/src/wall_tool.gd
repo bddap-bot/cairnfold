@@ -260,30 +260,31 @@ func _handle(m: Mason) -> void:
 	if m.buttons.pressed("grab") and not busy(m.hand) and not painting.call(m.hand):
 		var from := m.hand.grip_from()
 		var on_held := _held_hit(from, dir) if held != null else {}
-		var pick := FittingTool.pick_target(self, from, dir, true)
 		var ground: Variant = Terrain.raycast(from, dir, m.hand.grip_reach())
 		var nearest: float = from.distance_to(ground) if ground != null else m.hand.grip_reach()
-		var tree := flora.solid_hit(from, dir, nearest)
-		var plant: Flora.Plant = tree.plants[0] if not tree.is_empty() else null
-		var rock := world.boulders.pick(from, dir, minf(nearest, minf(pick.get("along", INF), tree.get("along", INF)))) if world.boulders != null else {}
-		var step := world.stairs.pick(from, dir, minf(minf(nearest, rock.get("along", INF)), minf(pick.get("along", INF), tree.get("along", INF)))) if world.stairs != null else {}
-		var stand := world.easels.pick_stand(from, dir, minf(minf(minf(nearest, step.get("along", INF)), minf(tree.get("along", INF), rock.get("along", INF))), pick.get("along", INF))) if world.easels != null else {}
-		var before: float = minf(minf(minf(nearest, step.get("along", INF)), minf(tree.get("along", INF), rock.get("along", INF))), stand.get("along", INF))
+		var hits := world.pick(from, dir, {World.Kind.PLANT: nearest, World.Kind.HELD_TARGET: nearest, World.Kind.BOULDER: nearest, World.Kind.STAIRS: nearest, World.Kind.STAND: nearest}, {}, [World.Kind.HELD_TARGET])
+		var pick: Dictionary = hits.get(World.Kind.HELD_TARGET, {})
+		var before := nearest
+		for kind: World.Kind in hits:
+			if kind != World.Kind.HELD_TARGET:
+				before = hits[kind].along
+		var first: int = hits.keys().back() if not hits.is_empty() else -1
+		var hit: Dictionary = hits.get(first, {})
 		if not on_held.is_empty() and on_held.along < (before if pick.get("wall") == held else minf(before, pick.get("along", INF))):
 			_join_build(m, on_held.roof, on_held.eave)
-		elif not stand.is_empty():
-			grip_easel(m, stand.easel.id, hand, stand.point)
-		elif not step.is_empty():
-			begin_grow(m, _stair_grip(step.stair), hand, step.point)
-		elif not rock.is_empty():
-			begin_grow(m, rock.boulder, hand, rock.point)
-		elif plant != null and tree.along < pick.get("along", INF):
-			begin_grow(m, plant, hand, tree.point)
-		elif pick.has("fitting") and pick.what != "tower_flag" and pick.along < nearest:
+		elif first == World.Kind.STAND:
+			grip_easel(m, hit.easel.id, hand, hit.point)
+		elif first == World.Kind.STAIRS:
+			begin_grow(m, _stair_grip(hit.stair), hand, hit.point)
+		elif first == World.Kind.BOULDER:
+			begin_grow(m, hit.boulder, hand, hit.point)
+		elif first == World.Kind.PLANT:
+			begin_grow(m, hit.plants[0], hand, hit.point)
+		elif pick.has("fitting") and pick.what != "tower_flag":
 			var grip := _fitting_grip(pick)
 			if grip != null:
 				begin_grow(m, grip, hand, pick.point)
-		elif not pick.is_empty() and pick.along < nearest:
+		elif not pick.is_empty():
 			if held != null or not world.state.walls.has(pick.wall.id):
 				m.hand.hold()
 			else:
@@ -1719,22 +1720,6 @@ func pick_building(origin: Vector3, dir: Vector3, with_held := false, through_ar
 				if t < best.get("along", INF):
 					var point := origin + dir * t
 					best = {"wall": w, "surface": surface, "along": t, "point": point, "s": w.layout.closest_s(point), "distance": 0.0, "side": surface == "gable"}
-	return best
-
-
-## The first building or plant surface along a teleport ray, short of reach, as {point, along, side}, `side` whether it
-## struck a side, as of a wall, not a top; or {}.
-func solid_hit(origin: Vector3, dir: Vector3, reach: float) -> Dictionary:
-	var best := {"along": reach}
-	for hit in [pick_building(origin, dir, false, true), pick_floor(origin, dir)]:
-		if hit.get("along", INF) < best.along:
-			best = {"along": hit.along, "side": hit.get("side", false)}
-	var plant := flora.solid_hit(origin, dir, best.along)
-	if not plant.is_empty():
-		best = {"along": plant.along, "side": plant.side}
-	if best.along >= reach:
-		return {}
-	best.point = origin + dir * best.along
 	return best
 
 

@@ -26,6 +26,12 @@ const OVER := "over the frame budget"
 ## grid point of script, and a lake is tens of thousands.
 const AHEAD := 256
 
+## What `pick` meets along a ray: the ground; a build's first surface (WallTool.pick_building), or past an arch's
+## opening, as the teleport sees; that surface or a fitting in front of it (FittingTool.pick_target), also on builds in
+## hand, or past an arch, as a decoration is placed; a house's or tower's floor; a tree or bush; a boulder; stairs; an
+## easel; an easel's stand.
+enum Kind { GROUND, BUILDING, BUILDING_PAST_ARCHES, TARGET, HELD_TARGET, TARGET_PAST_ARCHES, FLOOR, PLANT, BOULDER, STAIRS, EASEL, STAND }
+
 signal applied(cmd: Dictionary)
 ## The whole garden was swapped (joining or leaving someone's): tools drop what they were doing.
 signal restored
@@ -384,6 +390,61 @@ static func _write(path: String, bytes: PackedByteArray) -> void:
 	var err := DirAccess.rename_absolute(path + ".new", path)
 	if err != OK:
 		push_error("world: cannot save the garden at %s: %s" % [path, error_string(err)])
+
+
+## The first hit of each of `kinds`, an ordered {Kind: reach}, along the ray from `origin` along `dir`, as its own pick
+## gives it, by kind and nearest last: each kind in turn gives its first hit short of its reach and of the nearest hit
+## before it, or at that hit for a kind in `ties`, so the order says which kind keeps a tie; a boulder keeps one too, as
+## its pick does. `skip` holds the plants, and the easels and boulders by id, to see past.
+func pick(origin: Vector3, dir: Vector3, kinds: Dictionary, skip := {}, ties: Array[Kind] = []) -> Dictionary:
+	var hits := {}
+	var near := INF
+	for kind: Kind in kinds:
+		var reach: float = kinds[kind]
+		var within := minf(reach, near)
+		var hit: Dictionary
+		match kind:
+			Kind.PLANT:
+				hit = flora.solid_hit(origin, dir, within, skip)
+			Kind.BOULDER:
+				hit = boulders.pick(origin, dir, within) if boulders != null else {}
+				if not hit.is_empty() and skip.has(hit.boulder.id):
+					hit = {}
+			Kind.STAIRS:
+				hit = stairs.pick(origin, dir, within) if stairs != null else {}
+			Kind.STAND:
+				hit = easels.pick_stand(origin, dir, within) if easels != null else {}
+			_:
+				hit = _unbounded(kind, origin, dir, reach, skip)
+				if not hit.is_empty() and (hit.along > near or hit.along == near and not kind in ties or kind != Kind.GROUND and hit.along >= reach):
+					hit = {}
+		if not hit.is_empty():
+			hits[kind] = hit
+			near = hit.along
+	return hits
+
+
+func _unbounded(kind: Kind, origin: Vector3, dir: Vector3, reach: float, skip: Dictionary) -> Dictionary:
+	match kind:
+		Kind.GROUND:
+			var at: Variant = Terrain.raycast(origin, dir, reach)
+			return {} if at == null else {"point": at, "along": origin.distance_to(at)}
+		Kind.BUILDING:
+			return wall_tool.pick_building(origin, dir)
+		Kind.BUILDING_PAST_ARCHES:
+			return wall_tool.pick_building(origin, dir, false, true)
+		Kind.TARGET:
+			return FittingTool.pick_target(wall_tool, origin, dir)
+		Kind.HELD_TARGET:
+			return FittingTool.pick_target(wall_tool, origin, dir, true)
+		Kind.TARGET_PAST_ARCHES:
+			return FittingTool.pick_target(wall_tool, origin, dir, false, true)
+		Kind.FLOOR:
+			return wall_tool.pick_floor(origin, dir)
+		Kind.EASEL:
+			var hit := easels.pick(origin, dir) if easels != null else {}
+			return {} if hit.is_empty() or skip.has(hit.easel.id) else hit
+	return {}
 
 
 func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, ponds: Water = null, stands: Easels = null, rocks: Boulders = null) -> void:

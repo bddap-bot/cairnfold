@@ -140,15 +140,18 @@ func _ready() -> void:
 	add_child(Underwater.new(water, look))
 	rig.floor_under = func(p: Vector3) -> float: return maxf(maxf(tool.floor_under(p), world.stairs.floor_under(p)), boulders.floor_under(p))
 	rig.solid_hit = func(origin: Vector3, dir: Vector3, reach: float) -> Dictionary:
-		var build := tool.solid_hit(origin, dir, reach)
-		var stair := world.stairs.pick(origin, dir, build.get("along", reach))
-		var near := build if stair.is_empty() else stair
-		var rock := boulders.pick(origin, dir, near.get("along", reach))
-		if not rock.is_empty():
-			var b: Boulders.Boulder = rock.boulder
-			var inv := b.transform.affine_inverse()
-			return {"point": rock.point, "side": Rig.side(inv.basis.transposed() * b.shape.normal(inv * rock.point))}
-		return {} if near.is_empty() else {"point": near.point, "side": near.side}
+		var hits := world.pick(origin, dir, {World.Kind.BUILDING_PAST_ARCHES: reach, World.Kind.FLOOR: reach, World.Kind.PLANT: reach, World.Kind.STAIRS: reach, World.Kind.BOULDER: reach})
+		if hits.is_empty():
+			return {}
+		var hit: Dictionary = hits.values().back()
+		match hits.keys().back():
+			World.Kind.BOULDER:
+				var b: Boulders.Boulder = hit.boulder
+				var inv := b.transform.affine_inverse()
+				return {"point": hit.point, "side": Rig.side(inv.basis.transposed() * b.shape.normal(inv * hit.point))}
+			World.Kind.STAIRS:
+				return {"point": hit.point, "side": hit.side}
+		return {"point": origin + dir * hit.along, "side": hit.get("side", false)}
 	world.loaded.connect(rig.respawn)
 	rig.respawn()
 	metrics = Metrics.new(args.get("metrics", ""))
