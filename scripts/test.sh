@@ -17,8 +17,8 @@ scripts/check.sh
 status=0
 if grep -nE "^\s+quit\(" tests/*.gd; then echo "tests exit through Main.quit, which waits for playing sounds"; status=1; fi
 # Tests run side by side, largest first so the longest start early; each gets its own user:// under its own XDG data
-# home. Each frame advances the game a fixed 1/60 s however long it took, so a test counts frames and never races the
-# host; the timeout only turns a deadlock into a failure.
+# home. Each frame advances the game a fixed 1/60 s however long it took, so a test counts frames, or waits on what the
+# game's workers are doing, and never races the host; the timeout only turns a deadlock into a failure.
 # shellcheck disable=SC2011,SC2016
 ls -S tests/test_*.gd | xargs -P "$(( $(nproc) / 2 ))" -I{} sh -c '
   log="$1/$(basename "$2").log"

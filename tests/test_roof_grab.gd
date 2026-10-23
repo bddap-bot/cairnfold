@@ -194,8 +194,7 @@ func _storeys_ride_along() -> void:
 		return true
 	check(lands.call(base.id) and lands.call(upper.id) and lands.call(top.id), "let go, the house, its storey and the wall on that are all set where they were carried")
 	check(upper.on == PackedInt32Array([base.id]) and top.on.has(upper.id), "each still standing on the one under it")
-	await settled()
-	check([base, upper, top].all(func(w: Wall) -> bool: return w.transform.is_equal_approx(Transform3D.IDENTITY)), "laid again where they stand, carried no more")
+	await until(func() -> bool: return [base, upper, top].all(func(w: Wall) -> bool: return w.transform.is_equal_approx(Transform3D.IDENTITY)), "laid again where they stand, carried no more")
 	world.undo()
 	await frames(4)
 	check([base, upper, top].all(func(w: Wall) -> bool: return world.state.walls[w.id].points == before[w.id]), "one undo puts all three back")

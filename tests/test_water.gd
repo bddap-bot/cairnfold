@@ -213,7 +213,7 @@ func _a_lake_is_worked_out_off_the_main_thread() -> void:
 	var season := (world.palette.season + 1) % Palette.SEASONS.size()
 	world.submit({"op": "season", "index": season})
 	check(world.seq == seq and world.state.ponds.is_empty() and world.palette.season != season, "the lake waits for its water, and the season after it waits too")
-	await until(world.idle)
+	await until(world.idle, "the lake and the season after it apply")
 	check(world.seq == seq + 2 and world.palette.season == season, "both apply, in order")
 	check(water.ponds.size() == 1 and water.ponds[0].pond.cells == lake.cells and world.stacks[world.me()].undo.size() == 2, "the lake fills as pointed, one undo step")
 	_same_as_on_the_spot(world, "the lake")

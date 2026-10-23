@@ -291,7 +291,7 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 	var world: World = main.world
 	world.submit({"op": "reshape", "of": "walls", "id": wall.id, "data": {"height": 6.0}})
 	main.fitting_tool.fit({"what": "opening", "wall": wall, "s": 3.0, "y": 0.0, "style": WallLayout.DoorStyle.ARCHWAY})
-	await until(func() -> bool: return world.state.walls[wall.id].openings.size() == 1 and wall.layout.archways().size() == 1)
+	await until(func() -> bool: return world.state.walls[wall.id].openings.size() == 1 and wall.layout.archways().size() == 1, "the tall wall's doorway is laid")
 	await _laid(wall)
 	check(world.state.walls[wall.id].openings.size() == 1 and wall.layout.archways().size() == 1, "the tall wall opens a doorway arch")
 	var f := wall.layout.frame_at(3.0)
@@ -308,7 +308,7 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 	await _frames()
 	check(main.tool.mason(rig.left).partner == main.tool.mason(rig.right), "the other hand's grip on it joins the first")
 	rig.left.global_position -= f.tangent * 0.4
-	await until(func() -> bool: return wall.layout.apertures.size() == 1 and absf(wall.layout.apertures[0].size - 2.0) < 0.05)
+	await until(func() -> bool: return wall.layout.apertures.size() == 1 and absf(wall.layout.apertures[0].size - 2.0) < 0.05, "the sized window is laid")
 	await _laid(wall)
 	var shown: Dictionary = wall.layout.apertures[0] if wall.layout.apertures.size() == 1 else {}
 	check(not shown.is_empty() and absf(shown.size - 2.0) < 0.05 and shown.head > head * 1.8, "the hands pulled twice as far apart show it twice as big, its head as high: %s" % shown)
@@ -322,7 +322,7 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 	var kept: Vector4 = Array(world.state.walls[wall.id].openings)[0]
 	check(absf(kept.w - 2.0) < 0.05 and world.stacks[world.me()].undo.size() == steps + 1, "let go, the garden keeps the grand arch, one undo step: %s" % kept)
 	world.undo()
-	await until(func() -> bool: return wall.layout.apertures.size() == 1 and is_equal_approx(wall.layout.apertures[0].head, head))
+	await until(func() -> bool: return wall.layout.apertures.size() == 1 and is_equal_approx(wall.layout.apertures[0].head, head), "the undone doorway is laid")
 	await _laid(wall)
 	check(Array(world.state.walls[wall.id].openings)[0].w == 1.0 and is_equal_approx(wall.layout.apertures[0].head, head), "undo makes it a doorway again")
 	world.undo()

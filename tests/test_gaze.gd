@@ -103,17 +103,17 @@ func _the_look_reaches_the_other_players() -> void:
 	var joiner := sessions[1]
 	await process_frame
 	joiner.join("127.0.0.1", host.port)
-	await until(func() -> bool: return not host.avatars.is_empty() and (host.avatars.values()[0] as Avatar).visible)
-	var seen: Avatar = host.avatars.values()[0]
-	await frames(30)
-	var want := gaze_in_head * Vector3.FORWARD
-	check(seen.look.angle_to(want) < 0.02, "the joiner's avatar looks where the joiner's eyes do (%s vs %s)" % [seen.look, want])
-	var eye := seen.bone("leftEye")
-	var rest: Transform3D = seen._joints.leftEye.rest
-	var face: Vector3 = seen.bone("head").basis * seen._joints.head.rest.basis.inverse() * (seen._model.get_meta("forward") as Vector3)
-	var points: Vector3 = eye.basis * rest.basis.inverse() * (seen._model.get_meta("forward") as Vector3)
-	var right := seen.eyes.basis.x
-	check(points.dot(right) > face.dot(right) + 0.1 and points.dot(Vector3.UP) > face.dot(Vector3.UP) + 0.1, "and its eyes turn right and up with it")
+	if await until(func() -> bool: return not host.avatars.is_empty() and (host.avatars.values()[0] as Avatar).visible, "the host sees the joiner"):
+		var seen: Avatar = host.avatars.values()[0]
+		await frames(30)
+		var want := gaze_in_head * Vector3.FORWARD
+		check(seen.look.angle_to(want) < 0.02, "the joiner's avatar looks where the joiner's eyes do (%s vs %s)" % [seen.look, want])
+		var eye := seen.bone("leftEye")
+		var rest: Transform3D = seen._joints.leftEye.rest
+		var face: Vector3 = seen.bone("head").basis * seen._joints.head.rest.basis.inverse() * (seen._model.get_meta("forward") as Vector3)
+		var points: Vector3 = eye.basis * rest.basis.inverse() * (seen._model.get_meta("forward") as Vector3)
+		var right := seen.eyes.basis.x
+		check(points.dot(right) > face.dot(right) + 0.1 and points.dot(Vector3.UP) > face.dot(Vector3.UP) + 0.1, "and its eyes turn right and up with it")
 	for s in sessions:
 		s.get_parent().queue_free()
 	XRServer.remove_tracker(eyes)

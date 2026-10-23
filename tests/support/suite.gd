@@ -2,6 +2,9 @@ extends SceneTree
 
 ## What every headless test shares: failures counted and reported on the `tests:` and `FAIL:` lines scripts/test.sh
 ## reads, and an exit through Main.quit, which waits for playing sounds.
+## Seconds of the host's time an until() waits before it calls the wait a hang.
+const HANG := 120
+
 var failures := 0
 var main: Main
 
@@ -27,11 +30,17 @@ func frames(n: int) -> void:
 		await process_frame
 
 
-## Waits frame by frame until `done` holds. No frame count bounds it: worker threads and sockets keep the host's clock
-## while frames run as fast as it allows, so a loaded host outruns any count; test.sh's timeout ends a hang.
-func until(done: Callable) -> void:
+## Waits frame by frame until `done` holds, and whether it did. No frame count bounds it: worker threads and sockets keep
+## the host's clock while frames run as fast as it allows, so a loaded host outruns any count. A wait still unmet after
+## HANG of the host's own time fails as `what` instead of stalling the run.
+func until(done: Callable, what: String) -> bool:
+	var start := Time.get_ticks_msec()
 	while not done.call():
+		if Time.get_ticks_msec() - start > HANG * 1000:
+			check(false, what)
+			return false
 		await process_frame
+	return true
 
 
 ## A straight wall `length` along x on flat ground: its windows as (s, sill) cut first, then its archways at `arches`.
@@ -55,19 +64,12 @@ static func wall_data(with: Dictionary) -> Dictionary:
 	return d
 
 
-## Waits until every command the garden was sent has run and nothing it built is still being laid.
-func settled() -> void:
-	await process_frame
-	await until(func() -> bool: return main.world.idle() and not main.world.stairs.laying() and not main.tool.walls.any(func(w: Wall) -> bool: return w.laying()))
-
-
-## Runs `steps` through a Driver and waits for it, connecting before it starts since a run whose every step returns at
-## once finishes inside add_child.
+## Runs `steps` through a Driver and waits for it; a run whose every step returns at once finishes inside add_child.
 func play(steps: Array) -> void:
 	var d := Driver.new(main, steps)
 	var ran := [false]
 	d.finished.connect(func() -> void: ran[0] = true)
 	main.add_child(d)
-	while not ran[0]:
-		await process_frame
+	if not ran[0]:
+		await d.finished
 	d.queue_free()

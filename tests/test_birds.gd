@@ -43,14 +43,14 @@ func _plumages() -> void:
 	check(seen.size() == Conure.PLUMAGES.size(), "a conure wears the plumage it is given")
 
 
-## A wall's perches stand on its top: on the cap, on merlons, on piers, on a fence's top rail and posts; none
-## beside a flag, none on a roofed wall.
 func _only_birds_make_conures() -> void:
 	for f in DirAccess.get_files_at("res://src"):
 		if f.ends_with(".gd") and f not in ["birds.gd", "conure.gd", "held_item.gd"]:
 			check(not FileAccess.get_file_as_string("res://src/" + f).contains("Conure.new("), "%s makes no conure" % f)
 
 
+## A wall's perches stand on its top: on the cap, on merlons, on piers, on a fence's top rail and posts; none
+## beside a flag, none on a roofed wall.
 func _wall_tops_are_perches() -> void:
 	for top in WallLayout.Top.values():
 		var w := WallLayout.new()

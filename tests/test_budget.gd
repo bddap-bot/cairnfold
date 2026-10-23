@@ -323,7 +323,7 @@ func _joining_does_not_change_the_budget() -> void:
 	check(peers[1].create_client("127.0.0.1", peers[0].host.get_local_port()) == OK, "the visitor connects")
 	guest.multiplayer.multiplayer_peer = peers[1]
 	await process_frame
-	await until(func() -> bool: return host.multiplayer.get_peers().size() == 1 and guest.multiplayer.get_peers().size() == 1)
+	await until(func() -> bool: return host.multiplayer.get_peers().size() == 1 and guest.multiplayer.get_peers().size() == 1, "the guest joins the host")
 	for i in 30:
 		await process_frame
 	check(host.multiplayer.get_peers().size() == 1 and guest.multiplayer.get_peers().size() == 1, "host and visitor connected")
