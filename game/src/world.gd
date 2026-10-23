@@ -148,7 +148,10 @@ func change_of(cmd: Dictionary) -> Dictionary:
 	match cmd.get("op"):
 		"wall":
 			for w: Dictionary in cmd.walls:
-				Budget.add(out, Budget.wall(w))
+				Budget.add(out, _units("walls", w))
+		"stairs", "path", "ground", "easel", "decoration", "boulder":
+			# Stairs and a path carry their build in the field their op names; the rest are their build.
+			Budget.add(out, _units(Commands.PUTS.find_key(cmd.op), cmd.get(cmd.op, cmd)))
 		"unwall":
 			for id in cmd.ids:
 				Budget.add(out, _units_of.get("w%d" % id, {}), -1.0)
@@ -156,16 +159,10 @@ func change_of(cmd: Dictionary) -> Dictionary:
 			if state[cmd.of].has(cmd.id):
 				var trial := reshaped(state[cmd.of][cmd.id], cmd.data)
 				Budget.add(Budget.add(out, _units(cmd.of, trial)), _units_of.get(_keys(cmd)[0], {}), -1.0)
-		"stairs":
-			Budget.add(out, Budget.stairs(cmd.stairs))
 		"unstairs":
 			Budget.add(out, _units_of.get("q%d" % cmd.id, {}), -1.0)
-		"path":
-			Budget.add(out, Budget.path(cmd.path))
 		"unpath", "unground":
 			Budget.add(out, _units_of.get("q%d" % cmd.id, {}), -1.0)
-		"ground":
-			Budget.add(out, Budget.ground(cmd))
 		"plant":
 			var n := 1
 			if not cmd.kind in Flora.PLACED:
@@ -188,17 +185,11 @@ func change_of(cmd: Dictionary) -> Dictionary:
 				wet -= _wet(g)
 			if wet != 0:
 				out.pond_m2 = wet
-		"easel":
-			out.easel = 1
 		"uneasel":
 			if state.easels.has(cmd.id):
 				out.easel = -1
-		"decoration":
-			out = Budget.decoration(cmd.style)
 		"undecoration":
 			Budget.add(out, _units_of.get("d%d" % cmd.id, {}), -1.0)
-		"boulder":
-			out.boulder = Budget.boulder(cmd.scale)
 		"unboulder":
 			Budget.add(out, _units_of.get("b%d" % cmd.id, {}), -1.0)
 		"batch":
@@ -737,6 +728,10 @@ static func _units(of: String, d: Dictionary) -> Dictionary:
 			return Budget.wall(d)
 		"stairs":
 			return Budget.stairs(d)
+		"paths":
+			return Budget.path(d)
+		"grounds":
+			return Budget.ground(d)
 		"decorations":
 			return Budget.decoration(d.style)
 		"easels":
@@ -856,7 +851,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			for i in cmd.ids.size():
 				state.walls[cmd.ids[i]] = cmd.walls[i].duplicate(true)
 				wall_tool.put(cmd.ids[i], handed)
-				_account("w%d" % cmd.ids[i], Budget.wall(state.walls[cmd.ids[i]]))
+				_account("w%d" % cmd.ids[i], _units("walls", state.walls[cmd.ids[i]]))
 				_floor_mark(cmd.ids[i])
 			inverse = {"op": "unwall", "ids": cmd.ids}
 		"unwall":
@@ -899,14 +894,14 @@ func _apply(cmd: Dictionary) -> Dictionary:
 		"stairs":
 			state.stairs[cmd.id] = cmd.stairs.duplicate(true)
 			stairs.put(cmd.id, state.stairs[cmd.id])
-			_account("q%d" % cmd.id, Budget.stairs(cmd.stairs))
+			_account("q%d" % cmd.id, _units("stairs", cmd.stairs))
 			inverse = {"op": "unstairs", "id": cmd.id}
 		"unstairs":
 			inverse = _take("stairs", [cmd.id])
 		"path":
 			state.paths[cmd.id] = cmd.path.duplicate(true)
 			paths.put(cmd.id, state.paths[cmd.id])
-			_account("q%d" % cmd.id, Budget.path(cmd.path))
+			_account("q%d" % cmd.id, _units("paths", cmd.path))
 			inverse = {"op": "unpath", "id": cmd.id}
 		"unpath":
 			inverse = _put("paths", cmd.id)
@@ -919,7 +914,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			stroke.stamps = cmd.stamps
 			_strokes[cmd.id] = stroke
 			Ground.lay(stroke, cmd.id)
-			_account("q%d" % cmd.id, Budget.ground(cmd))
+			_account("q%d" % cmd.id, _units("grounds", cmd))
 			inverse = {"op": "unground", "id": cmd.id}
 		"unground":
 			inverse = _put("grounds", cmd.id)
@@ -1025,7 +1020,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			state.easels[cmd.id] = {"at": cmd.at, "yaw": cmd.yaw, "strokes": cmd.strokes.duplicate(), "mix": cmd.mix}
 			if easels != null:
 				easels.put(cmd.id, state.easels[cmd.id])
-			_account("e%d" % cmd.id, {"easel": 1})
+			_account("e%d" % cmd.id, _units("easels", cmd))
 			inverse = {"op": "uneasel", "id": cmd.id}
 		"uneasel":
 			inverse = _put("easels", cmd.id)
@@ -1055,7 +1050,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 				easels.repaint(cmd.easel, state.easels[cmd.easel].strokes)
 		"decoration":
 			state.decorations[cmd.id] = Commands._decoration(cmd)
-			_account("d%d" % cmd.id, Budget.decoration(cmd.style))
+			_account("d%d" % cmd.id, _units("decorations", cmd))
 			inverse = {"op": "undecoration", "id": cmd.id}
 		"undecoration":
 			inverse = _take("decorations", [cmd.id])
@@ -1063,7 +1058,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			state.boulders[cmd.id] = Commands._boulder(cmd)
 			if boulders != null:
 				boulders.put(cmd.id, state.boulders[cmd.id])
-			_account("b%d" % cmd.id, {"boulder": Budget.boulder(cmd.scale)})
+			_account("b%d" % cmd.id, _units("boulders", cmd))
 			inverse = {"op": "unboulder", "id": cmd.id}
 		"unboulder":
 			inverse = _put("boulders", cmd.id)

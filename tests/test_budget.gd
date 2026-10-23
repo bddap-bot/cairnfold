@@ -102,12 +102,9 @@ func _settled() -> void:
 ## What the garden holds, counted afresh from its state rather than kept command by command.
 func _recount() -> Dictionary:
 	var out := {}
-	for d: Dictionary in world.state.walls.values():
-		Budget.add(out, Budget.wall(d))
-	for d: Dictionary in world.state.paths.values():
-		Budget.add(out, Budget.path(d))
-	for d: Dictionary in world.state.grounds.values():
-		Budget.add(out, Budget.ground(d))
+	for of in ["walls", "paths", "grounds"]:
+		for d: Dictionary in world.state[of].values():
+			Budget.add(out, World._units(of, d))
 	for g in world.state.groups:
 		for p: Flora.Plant in world.flora.groups[g]:
 			if p != null and not world.state.groups[g].hidden.has(p.index):
