@@ -45,7 +45,7 @@ func _relayed(cmd: Dictionary, by: int) -> Dictionary:
 func _turn(target: Dictionary, steps: int) -> void:
 	var picker: PaletteTool = main.palette_tool
 	picker.open(main.rig.right, target)
-	picker.twist(main.rig.right, Palette.TWIST_STEP * steps)
+	picker.twist(main.rig.right, Palette.twist_step(target.count) * steps)
 	picker.close(main.rig.right)
 
 
@@ -193,7 +193,7 @@ func _faces_cut_no_opening() -> void:
 			var target := picker.style_target(PaletteTool.Restyle.FACE, wall, wall.layout.point_at(at))
 			for pick in target.count:
 				picker.open(main.rig.right, target)
-				picker.twist(main.rig.right, (pick - picker.wheels[main.rig.right].start) * Palette.TWIST_STEP)
+				picker.twist(main.rig.right, (pick - picker.wheels[main.rig.right].start) * Palette.twist_step(target.count))
 				check(PackedVector4Array(wall.layout.openings) == before, "face %d shown at %.1f m keeps the arches: %s" % [pick, at, wall.layout.openings])
 				picker.close(main.rig.right)
 				check(PackedVector4Array(world.state.walls[id].openings) == before, "face %d sent at %.1f m keeps the arches: %s" % [pick, at, world.state.walls[id].openings])

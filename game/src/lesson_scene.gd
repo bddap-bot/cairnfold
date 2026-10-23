@@ -506,7 +506,7 @@ func _play_colour(at: float) -> void:
 	var twist := deg_to_rad(Lessons.pose(page, "right", at).roll)
 	var n: int = _fx.swatches.size()
 	wheel.transform = Transform3D(f.basis, f * PaletteTool.WHEEL_AT)
-	var chosen := posmod(roundi(-rad_to_deg(twist) / Palette.TWIST_STEP), n)
+	var chosen := posmod(roundi(-rad_to_deg(twist) / Palette.twist_step(n)), n)
 	for i in n:
 		var a := float(i - chosen) / n * TAU + twist
 		var d: MeshInstance3D = _fx.swatches[i]

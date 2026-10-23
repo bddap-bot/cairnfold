@@ -141,6 +141,11 @@ func _twisting_wraps_round_the_wheel() -> void:
 	check(PaletteTool.twisted(n, 0, Palette.TWIST_STEP) == 1, "one step clockwise is the next swatch")
 	check(PaletteTool.twisted(n, 0, -Palette.TWIST_STEP) == n - 1, "one step back wraps to the last")
 	check(PaletteTool.twisted(n, 2, Palette.TWIST_STEP * 0.4) == 2, "a small twist stays put")
+	var styles := DecorationLayout.STYLES.size()
+	var reached := {}
+	for degrees in range(-180, 181):
+		reached[PaletteTool.twisted(styles, 0, degrees)] = true
+	check(reached.size() == styles, "half a turn either way reaches all %d decoration styles, not %d" % [styles, reached.size()])
 
 
 func _every_laid_kind_is_painted_or_kept() -> void:

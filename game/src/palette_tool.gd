@@ -75,7 +75,7 @@ func _process(_delta: float) -> void:
 		if wheel != null and (hand.tool != wheel.target.tool or b.released("tool")):
 			close(hand)
 		elif wheel != null and b.held("tool"):
-			twist(hand, _roll(wheel.basis, hand.global_basis))
+			twist(hand, wheel.degrees + wrapf(_roll(wheel.basis, hand.global_basis) - wheel.degrees, -180.0, 180.0))
 		elif wheel == null and hand.tool in [Hand.Tool.COLOUR, Hand.Tool.STYLE] and rig.aim_hand != hand and hand.tracked():
 			var t := hand.global_transform
 			var target := aim(t.origin, -t.basis.z) if hand.tool == Hand.Tool.COLOUR else aim_style(t.origin, -t.basis.z)
@@ -408,13 +408,13 @@ func _place(w: Wheel, hand: Hand) -> void:
 	w.node.global_transform = Transform3D(w.basis, hand.global_position + w.basis * WHEEL_AT)
 	var n := w.choices.size()
 	for k in n:
-		var a := (w.degrees / Palette.TWIST_STEP - (k - w.start)) * TAU / n
+		var a := (w.degrees / Palette.twist_step(n) - (k - w.start)) * TAU / n
 		w.choices[k].position = Vector3(sin(a), cos(a), 0.0) * maxf(WHEEL_RADIUS, n * CHOICE_GAP / TAU)
 		w.choices[k].scale = Vector3.ONE * (1.6 if k == w.pick else 1.0)
 
 
 static func twisted(count: int, start: int, degrees: float) -> int:
-	return posmod(start + roundi(degrees / Palette.TWIST_STEP), count)
+	return posmod(start + roundi(degrees / Palette.twist_step(count)), count)
 
 
 ## Degrees the hand has turned about its pointing axis since `start`, clockwise as the hand sees it.

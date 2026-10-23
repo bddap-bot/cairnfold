@@ -1352,7 +1352,7 @@ func _dial(s: Dictionary, hand: Hand, target: Dictionary, to: int) -> void:
 	var tool: PaletteTool = main.palette_tool
 	tool.open(hand, target)
 	var from: int = tool.wheels[hand].start
-	var turn := (to - from) * Palette.TWIST_STEP
+	var turn := (to - from) * Palette.twist_step(target.count)
 	var t := 0.0
 	var seconds: float = s.get("seconds", 1.0)
 	while t < seconds:
