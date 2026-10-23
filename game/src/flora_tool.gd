@@ -80,11 +80,11 @@ func _init(player: Rig, plants: Flora, ways: Paths, garden: World) -> void:
 
 
 ## A brush's ring on the ground, of radius 1 until it is placed with `put_ring`.
-static func ring(tint: Color) -> MeshInstance3D:
+static func ring(tint: Color, segments := 32, inner := 0.96) -> MeshInstance3D:
 	var torus := TorusMesh.new()
-	torus.inner_radius = 0.96
+	torus.inner_radius = inner
 	torus.outer_radius = 1.0
-	torus.rings = 32
+	torus.rings = segments
 	torus.ring_segments = 4
 	var mat := StandardMaterial3D.new()
 	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -99,9 +99,9 @@ static func ring(tint: Color) -> MeshInstance3D:
 	return out
 
 
-static func put_ring(r: MeshInstance3D, at: Vector3, radius: float) -> void:
+static func put_ring(r: MeshInstance3D, at: Vector3, radius: float, lift := 0.04) -> void:
 	r.visible = true
-	r.global_transform = Transform3D(Basis().scaled(Vector3(radius, 1.0, radius)), at + Vector3.UP * 0.04)
+	r.global_transform = Transform3D(Basis().scaled(Vector3(radius, 1.0, radius)), at + Vector3.UP * lift)
 
 
 ## Whether `hand`, or with none any hand, has a stroke under way.

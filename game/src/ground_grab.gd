@@ -22,15 +22,14 @@ const TINT := Color(0.92, 0.85, 0.66, 0.6)
 signal reshaped(area: Rect2, settled: bool)
 
 
-## One hand's stroke on the ground, by its grip or by a tool it holds (WaterTool), and its strokes sent
-## whose hump still shows.
+## One hand's stroke on the ground, and its strokes sent whose hump still shows.
 class Grab:
 	var hand: Hand
 	var slot := 0
 	var grip: Buttons
 	var ring: MeshInstance3D
 	var at: Variant = null
-	## The grip holds this stroke; a tool's stroke is moved by the tool.
+	## The grip holds this stroke; a stroke begun by a script is moved by it.
 	var gripped := false
 	var hand_y := 0.0
 	var gain := 1.0
@@ -57,26 +56,12 @@ func _init(player: Rig, garden: World, busy: Callable = func(_hand: Hand) -> boo
 	editing = busy
 	process_priority = 10
 	world.restored.connect(drop)
-	var ring := TorusMesh.new()
-	ring.inner_radius = 0.97
-	ring.outer_radius = 1.0
-	ring.rings = 48
-	ring.ring_segments = 4
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = TINT
 	for h in rig.hands:
 		var g := Grab.new()
 		g.hand = h
 		g.slot = _grabs.size()
 		g.grip = Buttons.new(h).watch(["grab"])
-		g.ring = MeshInstance3D.new()
-		g.ring.mesh = ring
-		g.ring.material_override = mat
-		g.ring.top_level = true
-		g.ring.visible = false
-		g.ring.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		g.ring = FloraTool.ring(TINT, 48, 0.97)
 		add_child(g.ring)
 		_grabs.append(g)
 
@@ -105,7 +90,7 @@ func _handle(g: Grab, delta: float) -> void:
 		if rig.aim_hand == hand or hand.taken() or not g.grip.held("grab"):
 			end_stroke(hand)
 			return
-		_show_ring(g.ring, g.at, g.radius)
+		FloraTool.put_ring(g.ring, g.at, g.radius, 0.05)
 		if not hand.tracked():
 			return
 		pull(hand, (hand.position.y - g.hand_y) * g.gain)
@@ -123,12 +108,7 @@ func _handle(g: Grab, delta: float) -> void:
 	g.hand_y = hand.position.y
 	g.gain = Hand.reach_gain(hand.global_position.distance_to(hit))
 	g.ticked = 0.0
-	_show_ring(g.ring, hit, g.radius)
-
-
-func _show_ring(ring: MeshInstance3D, at: Vector3, radius: float) -> void:
-	ring.visible = true
-	ring.global_transform = Transform3D(Basis().scaled(Vector3(radius, 1.0, radius)), at + Vector3.UP * 0.05)
+	FloraTool.put_ring(g.ring, hit, g.radius, 0.05)
 
 
 ## A soft click in the hand for every TICK of height, so the ground feels like it gives way in steps.
@@ -176,12 +156,10 @@ func stroke(hand: Hand) -> Dictionary:
 	return {"op": "heights", "cells": cells, "values": Terrain.raised(cells, g.slot)}
 
 
-## Sends `hand`'s stroke to the garden as one step, with `extra` fields riding on it (a pond's seed); a tap
-## that barely moved leaves the ground as it was.
-func end_stroke(hand: Hand, extra := {}) -> void:
+## Sends `hand`'s stroke to the garden as one step; a tap that barely moved leaves the ground as it was.
+func end_stroke(hand: Hand) -> void:
 	var g := _grab(hand)
 	var cmd := stroke(hand)
-	cmd.merge(extra)
 	g.at = null
 	g.gripped = false
 	if absf(g.lift) < 0.01:
