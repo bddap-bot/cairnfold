@@ -32,9 +32,9 @@ func _init(home: Wildlife, seed: int) -> void:
 static func body() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	_oval(st, Vector3(0, 0.009, 0), Vector3(0.022, 0.009, 0.052), Color("9ebf85"), 1.0)
-	_oval(st, Vector3(0, 0.021, -0.033), Vector3(0.019, 0.017, 0.019), Color("bdd39a"), 1.0)
-	_oval(st, Vector3(0, 0.037, 0.012), Vector3(0.028, 0.031, 0.032), Color("c98b4d"), 0.0)
+	Meshes.ellipsoid(st, 1, Vector3(0, 0.009, 0), Vector3(0.022, 0.009, 0.052), Color("9ebf85"), 7, 12)
+	Meshes.ellipsoid(st, 1, Vector3(0, 0.021, -0.033), Vector3(0.019, 0.017, 0.019), Color("bdd39a"), 7, 12)
+	Meshes.ellipsoid(st, 0, Vector3(0, 0.037, 0.012), Vector3(0.028, 0.031, 0.032), Color("c98b4d"), 7, 12)
 	# Raised whorls on both sides remain legible from either side at hand distance.
 	for side in [-1.0, 1.0]:
 		for i in 48:
@@ -47,27 +47,12 @@ static func body() -> ArrayMesh:
 					var v := TAU * corner.y / 5.0
 					var n := Vector3(cos(v) * side, sin(v) * sin(a), sin(v) * cos(a))
 					st.set_color(Color("71472f"))
-					st.set_uv(Vector2.ZERO)
+					st.set_uv2(Vector2.ZERO)
 					st.set_normal(n)
 					st.add_vertex(at + n * 0.0016)
-		_oval(st, Vector3(side * 0.013, 0.043, -0.044), Vector3(0.0025, 0.022, 0.0025), Color("bdd39a"), 2.0, 6, 3)
-		_oval(st, Vector3(side * 0.013, 0.064, -0.044), Vector3.ONE * 0.004, Color("313f32"), 2.0, 8, 4)
+		Meshes.ellipsoid(st, 2, Vector3(side * 0.013, 0.043, -0.044), Vector3(0.0025, 0.022, 0.0025), Color("bdd39a"), 4, 6, Callable(), Basis(Vector3.UP, PI / 6.0))
+		Meshes.ellipsoid(st, 2, Vector3(side * 0.013, 0.064, -0.044), Vector3.ONE * 0.004, Color("313f32"), 5, 8)
 	return st.commit()
-
-static func _oval(st: SurfaceTool, at: Vector3, size: Vector3, colour: Color, motion: float, sides := 12, rings := 6) -> void:
-	var sphere := SphereMesh.new()
-	sphere.radius = 1.0
-	sphere.height = 2.0
-	sphere.radial_segments = sides
-	sphere.rings = rings
-	var arrays := sphere.get_mesh_arrays()
-	var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	for index: int in arrays[Mesh.ARRAY_INDEX]:
-		st.set_color(colour)
-		st.set_uv(Vector2(motion, 0))
-		st.set_normal((normals[index] / size).normalized())
-		st.add_vertex(at + vertices[index] * size)
 
 func _wet(p: PondWater, at: Vector3) -> bool:
 	return wildlife.water.pond_at(at.x, at.z) == p and p.surface_y() - Terrain.height_at(at.x, at.z) >= DEPTH

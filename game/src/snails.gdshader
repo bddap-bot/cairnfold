@@ -5,9 +5,9 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 varying vec4 given;
 void vertex() {
 	float phase = INSTANCE_CUSTOM.x;
-	if (UV.x > 0.5 && UV.x < 1.5) {
+	if (UV2.x > 0.5 && UV2.x < 1.5) {
 		VERTEX.x *= 1.0 + 0.07 * sin(phase * 3.0 + VERTEX.z * 150.0);
-	} else if (UV.x > 1.5) {
+	} else if (UV2.x > 1.5) {
 		VERTEX.x += 0.003 * sin(phase * 1.4) * smoothstep(0.025, 0.065, VERTEX.y);
 	}
 	VERTEX *= INSTANCE_CUSTOM.y;
