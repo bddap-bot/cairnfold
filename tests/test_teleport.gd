@@ -30,6 +30,7 @@ func _finish(rig: Rig) -> void:
 	_the_preview_holds_the_players_pose(rig)
 	_mountains_are_sky(rig)
 	await _stick_teleports_with_every_tool(rig)
+	await _either_hand_moves(rig)
 	await _eased_stick_lands_nearer(rig, Vector3(0, -0.3, -1), "ground")
 	await _eased_stick_lands_nearer(rig, Vector3(0, 1, -1), "air")
 	await _ground_pull_back_walks_the_ray(rig)
@@ -259,6 +260,34 @@ func _no_teleport_tool() -> void:
 
 
 ## Through real frames, as a player: the rig's own _process reads the stick.
+## Either stick forward aims from its own hand and goes; either flicked sideways snap-turns, back turns round.
+func _either_hand_moves(rig: Rig) -> void:
+	for h in rig.hands:
+		rig.place(Vector3(0, Terrain.height_at(0, 0), 0), 0.0)
+		await _frame(rig)
+		var from := rig.head.global_position
+		h.global_transform = Transform3D(Basis.looking_at(Vector3(0, -0.3, -1), Vector3.UP), from + Vector3(0, -0.4, -0.3))
+		Hand.injected_sticks[h.tracker] = Vector2(0, 1)
+		await _frame(rig)
+		await _frame(rig)
+		var aimed: bool = rig.aim_hand == h and rig.aim_ground != null
+		Hand.injected_sticks[h.tracker] = Vector2.ZERO
+		for f in 30:
+			await _frame(rig)
+		var moved := Vector2(rig.head.global_position.x - from.x, rig.head.global_position.z - from.z).length()
+		_check(aimed and moved > 2.0, "%s stick forward aims from its hand and goes (moved %.1f m)" % [h.tracker, moved])
+		for turn: Array in [[Vector2(-1, 0), Rig.SNAP], [Vector2(1, 0), -Rig.SNAP], [Vector2(0, -1), PI]]:
+			var yaw := rig.global_basis.get_euler().y
+			Hand.injected_sticks[h.tracker] = turn[0]
+			await _frame(rig)
+			await _frame(rig)
+			Hand.injected_sticks[h.tracker] = Vector2.ZERO
+			await _frame(rig)
+			var turned := wrapf(rig.global_basis.get_euler().y - yaw, -PI, PI)
+			_check(absf(absf(turned) - absf(turn[1])) < 0.01 and signf(turned) == signf(turn[1]) or absf(turn[1]) == PI and absf(absf(turned) - PI) < 0.01, "%s stick %s turns %.0f deg: %.0f" % [h.tracker, turn[0], rad_to_deg(turn[1]), rad_to_deg(turned)])
+		Hand.injected_sticks.erase(h.tracker)
+
+
 func _stick_teleports_with_every_tool(rig: Rig) -> void:
 	for t in Hand.Tool.values():
 		rig.left.tool = t

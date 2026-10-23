@@ -9,9 +9,10 @@ const ACTIONS := {
 	"wheel": {"left_hand": "by_button", "right_hand": "by_button"},
 	"undo": {"left_hand": "ax_button"},
 	"redo": {"right_hand": "ax_button"},
-	"teleport": {"left_hand": "primary_up"},
-	"turn_left": {"right_hand": "primary_left"},
-	"turn_right": {"right_hand": "primary_right"},
+	"teleport": {"left_hand": "primary_up", "right_hand": "primary_up"},
+	"turn_left": {"left_hand": "primary_left", "right_hand": "primary_left"},
+	"turn_right": {"left_hand": "primary_right", "right_hand": "primary_right"},
+	"turn_round": {"left_hand": "primary_down", "right_hand": "primary_down"},
 	"reach": {"left_hand": "primary_click", "right_hand": "primary_click"},
 }
 

@@ -2,8 +2,9 @@ class_name Rig
 extends XROrigin3D
 
 ## The player: head, two hands, and locomotion by teleport — onto the ground or into the air to float.
-## The left stick pushed forward aims from the left hand whatever it holds, so no choice of tools leaves the
-## player unable to move; how far forward it is pushed sets how far along the aim the target lies.
+## Either stick pushed forward aims from its own hand whatever it holds, so no choice of tools or hands leaves the
+## player unable to move; how far forward it is pushed sets how far along the aim the target lies. Either stick
+## flicked sideways snap-turns, and flicked back turns the player round.
 
 ## The eyes' near clip: at 5 cm a face leaned in to a conure cut it open, and its far side, culled from inside,
 ## left nothing. Godot's reversed depth keeps far stone and paving apart at this near.
@@ -39,6 +40,8 @@ const CLIMB := 1.5
 ## A target this far over its floor floats.
 const LIFTED := 0.15
 const SNAP := deg_to_rad(30.0)
+## Each turning flick as the angle it turns the player.
+const TURNS := {"turn_left": SNAP, "turn_right": -SNAP, "turn_round": PI}
 const FADE := 0.09
 
 ## The player was set down somewhere else.
@@ -67,8 +70,8 @@ var floor_under := func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z)
 ## Where a ray first meets something solid short of a reach, the ground aside: a build, a plant or stairs, as
 ## {point, side}, `side` whether it struck a side; or {}.
 var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Dictionary: return {}
-var _moves: Buttons
-var _turns: Buttons
+## Each hand's stick, as `hands`.
+var _sticks: Array[Buttons] = []
 var _reach_switch: Array[Buttons] = []
 var _fade_t := -1.0
 var _pending: Variant = null
@@ -96,9 +99,8 @@ func _init() -> void:
 	hands = [left, right]
 	for h in hands:
 		add_child(h)
-	_moves = Buttons.new(left).watch(["teleport"])
-	_turns = Buttons.new(right).watch(["turn_left", "turn_right"])
 	for h in hands:
+		_sticks.append(Buttons.new(h).watch(["teleport", "turn_left", "turn_right", "turn_round"]))
 		_reach_switch.append(Buttons.new(h).watch(["reach"]))
 	_build_markers()
 
@@ -165,8 +167,8 @@ func _process(delta: float) -> void:
 	head.far = Look.WATER_FOG.fog_depth_end if under else far()
 	_locomotion_input(delta)
 	_switch_reach()
-	_moves.latch()
-	_turns.latch()
+	for b in _sticks:
+		b.latch()
 	_fade_step(delta)
 
 
@@ -182,12 +184,13 @@ func _switch_reach() -> void:
 
 
 func _locomotion_input(delta: float) -> void:
-	if aim_hand == null and _moves.held("teleport"):
-		aim_hand = left
+	for b in _sticks:
+		if aim_hand == null and b.held("teleport"):
+			aim_hand = b.hand
 	if aim_hand != null and aim_hand.picking:
 		_end_aim()
 	if aim_hand != null:
-		var stick := left.stick()
+		var stick := aim_hand.stick()
 		if stick.length() < DEADZONE:
 			var held: Array = _aim_trail[0] if not _aim_trail.is_empty() else [0.0, null, 0.0]
 			if held[1] != null:
@@ -199,11 +202,11 @@ func _locomotion_input(delta: float) -> void:
 		_aim_trail.append([_aim_clock, aim_ground, aim_lift])
 		while _aim_trail.size() > 1 and _aim_trail[1][0] <= _aim_clock - RELEASE_LOOKBACK:
 			_aim_trail.pop_front()
-	else:
-		if _turns.pressed("turn_left"):
-			snap_turn(SNAP)
-		if _turns.pressed("turn_right"):
-			snap_turn(-SNAP)
+		return
+	for b in _sticks:
+		for turn: String in TURNS:
+			if b.pressed(turn):
+				snap_turn(TURNS[turn], b.hand)
 
 
 func _end_aim() -> void:
@@ -297,7 +300,7 @@ func hide_markers() -> void:
 func teleport(ground: Vector3, lift_m: float) -> void:
 	var at := ground + Vector3.UP * (lift_m + head.position.y)
 	var landing := lift_m <= LIFTED and head.global_position.distance_to(at) > MARKER_NEAR
-	Cues.play(Cues.Act.TELEPORT_ONTO if landing else Cues.Act.TELEPORT, at, left)
+	Cues.play(Cues.Act.TELEPORT_ONTO if landing else Cues.Act.TELEPORT, at, left if aim_hand == null else aim_hand)
 	_pending = [ground, lift_m]
 	_fade_t = 0.0
 	_fade.visible = true
@@ -314,12 +317,12 @@ func place(ground: Vector3, lift_m: float) -> void:
 	placed.emit()
 
 
-func snap_turn(angle: float) -> void:
+func snap_turn(angle: float, hand := right) -> void:
 	var pivot := head.global_position
 	var t := Transform3D(Basis(Vector3.UP, angle), Vector3.ZERO)
 	global_transform = Transform3D(t.basis * global_transform.basis, pivot + t.basis * (global_position - pivot))
 	jumped.emit()
-	Cues.play(Cues.Act.TURN, pivot, right)
+	Cues.play(Cues.Act.TURN, pivot, hand)
 
 
 func _fade_step(delta: float) -> void:

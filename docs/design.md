@@ -2826,12 +2826,13 @@ subtree means letting go and opening the wheel again.
 
 Directive (verbatim): "I think making teleport its own item was- was a mistake for me. And I think we can get rid of it, and keep the- the old teleport"
 
-Teleport is not a tool. The left stick pushed forward aims from the left hand whatever it holds, so no
-choice of tools leaves you unable to move, and aiming at the ground is how you come back down.
+Teleport is not a tool. Either stick pushed forward aims from its own hand whatever it holds, so no
+choice of tools leaves you unable to move, and aiming at the ground is how you come back down. Both hands move
+alike, with no option: a left-handed player, or one with a single controller, teleports and turns with one stick.
 
 Directive (verbatim): "When I'm teleporting... I'd like to be able to... hold forward on the teleport button... and then... lean my stick back just a little bit... and I'll teleport... less far when I do that. Teleport... For example, into the sky. slowly bring the stick back"
 
-How far the left stick is pushed sets how far along the aim the target lies, so the reach is the
+How far the stick is pushed sets how far along the aim the target lies, so the reach is the
 same stick as the aim. The other stick no longer moves an air target nearer or farther: two controls
 for one distance did not read together, and the air reach is a fixed 30 m to ease back from. A
 released stick springs through every smaller deflection on its way to centre, so the release takes
@@ -2968,11 +2969,12 @@ calibration of a short and a long arm, and a far house taken, moved and reeled i
 | Action | Control |
 | --- | --- |
 | Pick a hand's tool | Hold that hand's upper face button (right B, left Y; on the Frame right B, left D-pad left), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
-| Teleport onto the ground | Left stick forward, with any tool: aimed straight from the left hand, it lands where it first meets something solid: the ground, a roof of any pitch, a wall walk, a flat roof or platform, stairs, a bridge or a tree's crown from above; aimed under a roof, as through a door or window, it lands on the floor inside; one that strikes a side, as of a wall or a crown, lands at its foot (see "Standing on what you built"); release to go |
+| Teleport onto the ground | Either stick forward, with any tool: aimed straight from that hand, it lands where it first meets something solid: the ground, a roof of any pitch, a wall walk, a flat roof or platform, stairs, a bridge or a tree's crown from above; aimed under a roof, as through a door or window, it lands on the floor inside; one that strikes a side, as of a wall or a crown, lands at its foot (see "Standing on what you built"); release to go |
 | Teleport into the air | Aim above the horizon: with nothing on the map for the ray to hit, it targets the point in the air 30 m along it, marked by a ring there alone: the headset's depth places it, so nothing marks the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
-| Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the top surface beneath it, the ground or what is built there, even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
+| Teleport less far | Ease the stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the top surface beneath it, the ground or what is built there, even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
 | Come back down | Aim the teleport ray at the ground |
-| Turn | Right stick flicked left or right: 30° snap turn |
+| Turn | Either stick flicked left or right, while it aims no teleport: 30° snap turn |
+| Turn round | Either stick flicked back: 180° snap turn, for seated play |
 | Restyle | Trigger held on a hand holding the style tool, pointing at a gable end, a roof, a roofless wall's top, along a wall, at a floor, at a tree, a boulder or painted stone: twist the wrist to turn a wheel of miniatures of that thing's styles, live on the build; let go to keep the one at the top (see "Styles") |
 | Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground, or along a build's top to build on it; release to finish. Strokes under 1 m are discarded, and a stroke near a standing wall merges into it |
 | Move a wall or fence | Grip pointing at a wall or fence, whatever the hand holds: it moves along the ground with the hand and turns about its middle as the hand turns, the gain growing with distance so far walls are easy to carry; let go to set it there, one undo step |
@@ -3030,7 +3032,7 @@ controllers is played by hand with nothing more. No tool and no action knows whi
 | Fist | The grip | Grabs what the hand points at: the ground, a build, the sky, a brush at the easel |
 | Thumb to middle | The upper face button | Opens the wheel; held, sweep the hand onto a tool and let go |
 | Thumb to ring | The lower face button | Undo on the left hand, redo on the right |
-| Thumb to little | The stick, pushed by the hand | Held, the hand moved from where it pinched pushes it: forward 10 cm on the left is the stick full forward, so the left hand pinched and pushed out aims a teleport, eased back toward where it pinched brings the target back along the ray, and letting go goes; on the right, a swing sideways snap-turns that way |
+| Thumb to little | The stick, pushed by the hand | Held, the hand moved from where it pinched pushes it: forward 10 cm is the stick full forward, so a hand pinched and pushed out aims a teleport, eased back toward where it pinched brings the target back along the ray, and letting go goes; a swing sideways snap-turns that way, and one back turns round |
 
 A pinch closes when the thumb tip comes within a fifth of the hand's length (wrist to the middle knuckle) of a
 fingertip and opens past two fifths, so it neither flickers nor sticks; only one is held at a time, the first to
@@ -3098,7 +3100,7 @@ hour it sets. `demo/book-view.json` renders every spread from the player's own e
 | Page | What the hands do | Why it is not obvious |
 | --- | --- | --- |
 | Pick a tool | Hold the right upper face button, move the hand onto a slot, let go | The wheel opens only while its button is held |
-| Teleport | Left stick forward, a halo shows where it lands, let go to go there | Left only; movement is not a tool |
+| Teleport | Left stick forward, a halo shows where it lands, let go to go there | Movement is not a tool |
 | Undo, redo | Tap the left lower face button, then the right one | Two hands, no tool shows it |
 | Shape the ground | Right grip on the meadow, raise the hand | The grip shapes the ground whatever the hand holds |
 | Turn the sky | Right grip on open sky, sweep the pointer | The sky is grabbable and carries the sun |
@@ -3191,8 +3193,8 @@ as, so each device's bindings derive from the one table; `tests/test_bindings.gd
 every device and checks it does its action alone, that every action reaches a control on every hand it
 names, that no wheel opens on a stick click, and that each device's profile binds every control. The Frame's
 bumpers, Menu and View, the
-Quest's left menu button, either stick's click alone and the right stick's up and down do nothing; both
-clicks together are the reach debug switch (see "Reaching far").
+Quest's left menu button and either stick's click alone do nothing; both clicks together are the reach debug switch
+(see "Reaching far").
 The Frame binds bumpers and Menu to their own inputs so they cannot open a wheel accidentally;
 the system buttons remain reserved for the runtime. Changing how a
 thing looks is a tool, not a button: every style change lives in the style tool. `tests/test_controls.gd`
@@ -3898,7 +3900,7 @@ The deciding head turn eases at 22/s while retaining its person-to-food glance.
 | Releasing a grab | A grip lets go of a wall, roof, the ground or the sky | the garden's answer is heard (`WALL_SETTLE`, `WALL_RESTYLE`); a sound of its own would double it |
 | Grabbing the sky or the ground | A grip takes the sky or the ground | it turns or gives way at once, heard and felt in steps |
 | Opening the colour or style wheel | Trigger held on a build | its first step is the first `DIAL_TURN` |
-| Aiming a teleport | Holding the left stick forward | the arc and its ring show it; only the jump itself is heard |
+| Aiming a teleport | Holding a stick forward | the arc and its ring show it; only the jump itself is heard |
 | Walking (flat) | Stick or keys | footsteps on every frame of a walk would tire; the flat build has no controller to feel |
 | Animals fleeing, a duck paddling off, fish scattering | Wildlife reacting to a person nearby | each animal's own calls (see "Sound") are what is heard of it; a grazer running on grass and fish under water make no sound worth adding, and nothing touches the hand |
 
