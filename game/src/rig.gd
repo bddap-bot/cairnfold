@@ -28,9 +28,9 @@ const NEAREST := 0.1
 ## target from this long before the stick reached its deadzone.
 const RELEASE_LOOKBACK := 0.1
 const MAX_LIFT := 40.0
-## A ray that stops on something solid struck its side, as of a wall, when nothing lies this near straight under where
-## it stopped.
-const FOOTING := 0.15
+## A surface whose outward normal rises less than this, steeper than 70 degrees or facing down, is a side, as of a
+## wall; anything flatter is stood on. A ruin's stones lean a little and stand proud of each other, well inside it.
+const STEEP := 0.34
 ## How far back along a ray that struck a side the player lands or floats.
 const STAND_OFF := 0.3
 ## A side struck at most this far over the floor in front of it lands the player on that floor; higher, they float at
@@ -67,8 +67,9 @@ var aim_ground: Variant = null
 var aim_lift := 0.0
 ## What a point stands on: the top surface at or just below it, the ground or anything built on it.
 var floor_under := func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z)
-## Where a ray first meets something solid short of a reach, the ground aside: a build, a plant or stairs; or null.
-var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Variant: return null
+## Where a ray first meets something solid short of a reach, the ground aside: a build, a plant or stairs, as
+## {point, side}, `side` whether it struck a side; or {}.
+var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Dictionary: return {}
 var _moves: Buttons
 var _turns: Buttons
 var _fade_t := -1.0
@@ -227,9 +228,9 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 	var upward := dir.y > 0.0
 	var reach := Terrain.exit_along(origin, dir)
 	var hit: Variant = Terrain.raycast(origin, dir, reach)
-	var solid: Variant = solid_hit.call(origin, dir, reach if hit == null else origin.distance_to(hit))
-	if solid != null:
-		hit = solid
+	var solid: Dictionary = solid_hit.call(origin, dir, reach if hit == null else origin.distance_to(hit))
+	if not solid.is_empty():
+		hit = solid.point
 	var full: Vector3 = hit if hit != null else origin + dir * AIR_REACH
 	if hit == null and (not upward or not Terrain.over_map(full)):
 		aim_ground = null
@@ -242,7 +243,7 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 		stand = full
 		g = full.y
 		var back := Vector3(dir.x, 0.0, dir.z)
-		if solid != null and back.length() > 1e-3 and _beneath(full - dir * 0.02) < full.y - FOOTING:
+		if solid.get("side", false) and back.length() > 1e-3:
 			stand -= back.normalized() * STAND_OFF
 			g = floor_under.call(stand)
 			if full.y - g <= CLIMB:
@@ -254,11 +255,23 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 	_landing.put(g3 + Vector3.UP * (aim_lift if aim_lift > LIFTED else 0.0), size)
 
 
-## The height of the first thing straight down from `p`: the ground, or anything solid on it.
-func _beneath(p: Vector3) -> float:
-	var ground := Terrain.height_at(p.x, p.z)
-	var solid: Variant = solid_hit.call(p, Vector3.DOWN, maxf(p.y - ground, 0.0))
-	return ground if solid == null else solid.y
+## Whether a surface with outward normal `normal` is a side.
+static func side(normal: Vector3) -> bool:
+	return normal.normalized().y < STEEP
+
+
+## The outward normal of the face of `box` that the point `p` on its surface lies on.
+static func box_normal(box: AABB, p: Vector3) -> Vector3:
+	var best := INF
+	var n := Vector3.ZERO
+	for k in 3:
+		for end in [false, true]:
+			var d := absf(p[k] - (box.end[k] if end else box.position[k]))
+			if d < best:
+				best = d
+				n = Vector3.ZERO
+				n[k] = 1.0 if end else -1.0
+	return n
 
 
 func hide_markers() -> void:

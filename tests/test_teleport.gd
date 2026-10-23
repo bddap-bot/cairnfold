@@ -225,9 +225,9 @@ func _a_ray_lands_on_any_roof_it_hits(rig: Rig) -> void:
 	r.pitch = 0.0
 	r.build()
 	rig.floor_under = func(p: Vector3) -> float: return maxf(Terrain.height_at(p.x, p.z), r.deck_under(p))
-	rig.solid_hit = func(o: Vector3, d: Vector3, reach: float) -> Variant:
+	rig.solid_hit = func(o: Vector3, d: Vector3, reach: float) -> Dictionary:
 		var t := r.ray_hit(o, d)
-		return o + d * t if t < reach else null
+		return {"point": o + d * t, "side": false} if t < reach else {}
 	var o := Vector3(0, r.base + 4.0, -14)
 	rig.aim(_pose(o, Vector3(0, -4.0, -5.0)))
 	_check(rig.aim_ground != null and absf(rig.aim_ground.y - r.base) < 0.01 and rig.aim_lift < 0.15, "a ray onto a flat roof lands on its deck: %s" % [rig.aim_ground])
@@ -259,7 +259,7 @@ func _a_ray_lands_on_any_roof_it_hits(rig: Rig) -> void:
 		_check(rig.global_basis.y.is_equal_approx(Vector3.UP), "aimed %s, the player stands upright on the slope" % what)
 	_aims_into_the_house_land_on_its_floor(rig, r, "pitched")
 	rig.floor_under = func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z)
-	rig.solid_hit = func(_o: Vector3, _d: Vector3, _reach: float) -> Variant: return null
+	rig.solid_hit = func(_o: Vector3, _d: Vector3, _reach: float) -> Dictionary: return {}
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 
 

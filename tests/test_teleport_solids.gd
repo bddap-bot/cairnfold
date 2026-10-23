@@ -131,13 +131,26 @@ func _onto_a_wall_top(rig: Rig, world: World) -> void:
 	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
 
 
+## A ruined wall's face is its stones', each leaning a little and some standing proud of the one above: aims at it
+## behave as at a plain wall's, at every height and all along it.
 func _onto_a_wall_face(rig: Rig, world: World) -> void:
-	world._order({"op": "wall", "walls": [_wall_data(PackedVector3Array([Terrain.ground(-6, -14), Terrain.ground(6, -14)]))]}, 1)
+	var d := _wall_data(PackedVector3Array([Terrain.ground(-6, -14), Terrain.ground(6, -14)]))
+	world._order({"op": "wall", "walls": [d]}, 1)
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()
 	for s: float in [2.0, 6.0, 10.0]:
 		for up: float in [0.5, 1.45, 1.55, 2.2]:
 			_onto_a_face(rig, w.layout.point_at(s), up)
+	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+	d.top = WallLayout.Top.CAP
+	d.ruins = PackedVector2Array([Vector2(8.5, 9.5)])
+	world._order({"op": "wall", "walls": [d]}, 1)
+	w = main.tool.walls[-1]
+	w.lay_now()
+	_check(not w.layout.ruins.is_empty(), "the wall is ruined")
+	for k in 13:
+		for up: float in [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4]:
+			_onto_a_face(rig, w.layout.point_at(0.5 + k * 0.5), up)
 	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
 
 
@@ -174,7 +187,7 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	w.lay_now()
 	var l := w.layout
 	var mid := l.point_at(3.0)
-	var top: float = rig.solid_hit.call(mid + Vector3.UP * 20.0, Vector3.DOWN, 40.0).y
+	var top: float = rig.solid_hit.call(mid + Vector3.UP * 20.0, Vector3.DOWN, 40.0).point.y
 	_check(absf(top - (mid.y + l.height + WallLayout.CAP)) < 0.1, "the wall walk is the wall's cap: %.2f over a foot at %.2f" % [top, mid.y])
 	var on_top := func(_p: Vector3) -> float: return top
 	_lands(rig, Vector3(mid.x - 4, top + 5, mid.z + 6), mid + Vector3.UP * (top - mid.y), on_top, "down onto a wall walk")
@@ -201,7 +214,7 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	var over := w.layout.point_at(3.0)
 	var stones := w.layout.stones.filter(func(st: Dictionary) -> bool: return st.kind == "cope" and Vector2(st.xform.origin.x - over.x, st.xform.origin.z - over.z).length() < 0.3)
 	var tallest: float = stones.map(func(st: Dictionary) -> float: return st.xform.origin.y + st.xform.basis.y.length() * 0.5).max()
-	var coping: float = rig.solid_hit.call(over + Vector3.UP * 20.0, Vector3.DOWN, 40.0).y
+	var coping: float = rig.solid_hit.call(over + Vector3.UP * 20.0, Vector3.DOWN, 40.0).point.y
 	_check(absf(coping - tallest) < 0.1, "a ray lands on a coping's tall stones: %.2f for %.2f" % [coping, tallest])
 	_stands(over + Vector3.UP * (coping - over.y), 0.3, coping, "a point over a coped wall's walk")
 	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
@@ -225,22 +238,22 @@ func _onto_a_face(rig: Rig, mid: Vector3, up: float) -> void:
 	var front := Terrain.ground(face.x, face.z + Rig.STAND_OFF)
 	var from := Vector3(face.x, front.y + 1.6, face.z + 6.0)
 	var dir := (Vector3(face.x, front.y + up, face.z) - from).normalized()
-	var struck: Variant = rig.solid_hit.call(from, dir, 20.0)
+	var struck: Variant = rig.solid_hit.call(from, dir, 20.0).get("point")
 	rig.aim(_pose(from, dir))
 	var g: Variant = rig.aim_ground
 	_check(struck != null and g != null, "a ray %.2f m up the wall's face strikes it and has a target" % up)
 	if struck == null or g == null:
 		return
 	var floor_y := Terrain.height_at(g.x, g.z)
-	var high: bool = struck.y - floor_y > 1.5
-	_check(high == (up > 1.5), "aimed %.2f m up the face, it is struck %.2f m over the floor in front" % [up, struck.y - floor_y])
+	var high: bool = struck.y - floor_y > Rig.CLIMB
+	_check(high == (up > Rig.CLIMB), "aimed %.2f m up the face, it is struck %.2f m over the floor in front" % [up, struck.y - floor_y])
 	_check(absf(g.y - floor_y) < 0.05, "aimed %.2f m up the face, the target stands over the floor in front: %s" % [up, g])
 	var at: float = g.y + rig.aim_lift
 	if high:
 		_check(absf(at - struck.y) < 0.05, "aimed %.2f m up the face, the player floats where it struck: %.2f for %.2f" % [up, at, struck.y])
 	else:
 		_check(rig.aim_lift < 0.01, "aimed %.2f m up the face, the player lands at its foot, not on the face: up %.2f" % [up, rig.aim_lift])
-	_check(g.z - mid.z > WallLayout.THICKNESS * 0.5 + Rig.STAND_OFF * 0.8, "aimed %.2f m up the face, the target stands clear of it: %s" % [up, g])
+	_check(g.z - struck.z > Rig.STAND_OFF * 0.99 and struck.z - mid.z > WallLayout.THICKNESS * 0.3, "aimed %.2f m up the face, the target stands clear of it: %s, struck at %s" % [up, g, struck])
 	rig.place(g, rig.aim_lift)
 	_check(absf(rig.global_position.y - at) < 0.01, "let go aimed %.2f m up the face, the player is where the halo showed: %.2f for %.2f" % [up, rig.global_position.y, at])
 
@@ -287,7 +300,7 @@ func _on_stairs_and_a_bridge(rig: Rig, world: World) -> void:
 		w.lay_now()
 		ids.append(w.id)
 		var on := w.layout.point_at(3.5)
-		tops.append(rig.solid_hit.call(on + Vector3.UP * 20.0, Vector3.DOWN, 40.0).y)
+		tops.append(rig.solid_hit.call(on + Vector3.UP * 20.0, Vector3.DOWN, 40.0).point.y)
 	var deck := maxf(tops[0], tops[1])
 	var bridge := {"a": Vector3(-4, deck, -0.5), "b": Vector3(3, deck, -0.5), "width": 1.2, "rail": "wood", "seed": 5, "paint": Palette.plain(), "on": ids}
 	var foot := Terrain.ground(-9, 1.5)
@@ -310,7 +323,7 @@ func _on_stairs_and_a_bridge(rig: Rig, world: World) -> void:
 	_lands(rig, Vector3(tread.x + 5, tread_y + 4, tread.z), Vector3(tread.x, tread_y, tread.z), on_tread, "down onto a flight's tread")
 	_hovers(rig, Vector3(tread.x, tread_y, tread.z), tread_y, "a flight of stairs")
 	var walk := Terrain.ground(3, 2)
-	var far_top: float = rig.solid_hit.call(walk + Vector3.UP * 20.0, Vector3.DOWN, 40.0).y
+	var far_top: float = rig.solid_hit.call(walk + Vector3.UP * 20.0, Vector3.DOWN, 40.0).point.y
 	_hovers(rig, Vector3(walk.x, far_top, walk.z), far_top, "the far wall walk the bridge reaches")
 	world._order({"op": "unwall", "ids": ids}, 1)
 	_check(world.stairs.layouts.size() == keys.size() - 2, "taking the walls away takes the stairs standing on them")

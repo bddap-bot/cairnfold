@@ -139,12 +139,16 @@ func _ready() -> void:
 	add_child(sound)
 	add_child(Underwater.new(water, look))
 	rig.floor_under = func(p: Vector3) -> float: return maxf(maxf(tool.floor_under(p), world.stairs.floor_under(p)), boulders.floor_under(p))
-	rig.solid_hit = func(origin: Vector3, dir: Vector3, reach: float) -> Variant:
-		var build: Variant = tool.solid_hit(origin, dir, reach)
-		var stair := world.stairs.pick(origin, dir, reach if build == null else origin.distance_to(build))
-		var near: Variant = build if stair.is_empty() else stair.point
-		var rock := boulders.pick(origin, dir, reach if near == null else origin.distance_to(near))
-		return near if rock.is_empty() else rock.point
+	rig.solid_hit = func(origin: Vector3, dir: Vector3, reach: float) -> Dictionary:
+		var build := tool.solid_hit(origin, dir, reach)
+		var stair := world.stairs.pick(origin, dir, build.get("along", reach))
+		var near := build if stair.is_empty() else stair
+		var rock := boulders.pick(origin, dir, near.get("along", reach))
+		if not rock.is_empty():
+			var b: Boulders.Boulder = rock.boulder
+			var inv := b.transform.affine_inverse()
+			return {"point": rock.point, "side": Rig.side(inv.basis.transposed() * b.shape.normal(inv * rock.point))}
+		return {} if near.is_empty() else {"point": near.point, "side": near.side}
 	world.loaded.connect(rig.respawn)
 	rig.respawn()
 	metrics = Metrics.new(args.get("metrics", ""))

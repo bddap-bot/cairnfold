@@ -69,7 +69,8 @@ func _place(id: int) -> void:
 func laying() -> bool:
 	return not _growing.is_empty()
 
-## The nearest stone of any stairs along a ray short of `reach`, as {stair, point, along, kind} (the stone's), or empty.
+## The nearest stone of any stairs along a ray short of `reach`, as {stair, point, along, kind, side} (the stone's,
+## `side` whether a side of it was struck), or empty.
 func pick(origin: Vector3, direction: Vector3, reach: float) -> Dictionary:
 	var best := {}
 	for id: int in layouts:
@@ -80,13 +81,15 @@ func pick(origin: Vector3, direction: Vector3, reach: float) -> Dictionary:
 		for piece: Dictionary in layout.stones:
 			var x: Transform3D = piece.xform
 			var inverse := x.affine_inverse()
-			var hit: Variant = AABB(-Vector3.ONE * 0.5, Vector3.ONE).intersects_ray(inverse * origin, inverse.basis * direction)
+			var box := AABB(-Vector3.ONE * 0.5, Vector3.ONE)
+			var hit: Variant = box.intersects_ray(inverse * origin, inverse.basis * direction)
 			if hit != null:
 				var point: Vector3 = x * hit
 				var distance := origin.distance_to(point)
 				if distance < reach:
 					reach = distance
-					best = {"stair": id, "point": point, "along": distance, "kind": piece.kind}
+					var side := Rig.side(inverse.basis.transposed() * Rig.box_normal(box, hit))
+					best = {"stair": id, "point": point, "along": distance, "kind": piece.kind, "side": side}
 	return best
 
 

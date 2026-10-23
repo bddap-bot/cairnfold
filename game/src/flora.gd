@@ -1016,7 +1016,7 @@ func reset() -> void:
 
 
 ## The standing tree or bush a ray from `origin` along `dir` strikes first within `reach`: its parts, where it
-## strikes and how far along `dir`, or {} for none. Each part is struck within its mesh's box, set on the ground as
+## strikes, how far along `dir` and whether on a side, or {} for none. Each part is struck within its mesh's box, set on the ground as
 ## its shader sets it. Solids whose parts are keys of `skip` let the ray through.
 func solid_hit(origin: Vector3, dir: Vector3, reach: float, skip := {}) -> Dictionary:
 	var best := {}
@@ -1041,14 +1041,15 @@ func solid_hit(origin: Vector3, dir: Vector3, reach: float, skip := {}) -> Dicti
 		for part in solid.parts:
 			var at := part.xform.translated(Vector3.UP * Terrain.base_at(part.anchor.x, part.anchor.z))
 			var inv := at.affine_inverse()
-			var local: Variant = part.pool.mesh.get_aabb().intersects_ray(inv * origin, inv.basis * dir)
+			var box := part.pool.mesh.get_aabb()
+			var local: Variant = box.intersects_ray(inv * origin, inv.basis * dir)
 			if local == null:
 				continue
 			var hit: Vector3 = at * local
 			var t := (hit - origin).dot(dir)
 			if t < best_t:
 				best_t = t
-				best = {"plants": solid.parts, "point": hit, "along": t}
+				best = {"plants": solid.parts, "point": hit, "along": t, "side": Rig.side(inv.basis.transposed() * Rig.box_normal(box, local))}
 	return best
 
 

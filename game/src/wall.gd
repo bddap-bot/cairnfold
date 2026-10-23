@@ -836,14 +836,17 @@ func ray_hit(origin: Vector3, dir: Vector3, through_arches := false) -> Dictiona
 		if t >= best.get("along", INF):
 			continue
 		var end := layout.lengths[j] if j > 0 else layout.length()
-		if through_arches and _open(i, end, length, local + direction * t):
+		var arched := through_arches and _open(i, end, length, local + direction * t)
+		if arched:
 			var open := func(at: float) -> bool: return _open(i, end, length, local + direction * at)
 			t = _first_solid(open, t, _exit(box, local, direction))
 			if t == INF or layout.hides(origin + dir * t):
 				continue
 		if t < best.get("along", INF):
-			var along_wall: float = (local + direction * t).x
-			best = {"along": t, "point": origin + dir * t, "s": lerpf(layout.lengths[i], end, clampf(along_wall / length, 0.0, 1.0)), "distance": 0.0}
+			var at: Vector3 = local + direction * t
+			var face := Rig.box_normal(box, at)
+			var side := arched or Rig.side(x * face.x + (Vector3.UP - x * slope) * face.y + z * face.z)
+			best = {"along": t, "point": origin + dir * t, "s": lerpf(layout.lengths[i], end, clampf(at.x / length, 0.0, 1.0)), "distance": 0.0, "side": side}
 	return best
 
 
@@ -902,6 +905,7 @@ static func _pack_ruin(built: WallLayout) -> Array[TriangleMesh]:
 	return out
 
 
+## A stone's top below where the masonry round it stands, a proud stone's lip, is part of the face, not a ledge.
 func _ruin_hit(origin: Vector3, dir: Vector3) -> Dictionary:
 	var best := {}
 	for i in _ruin_pick.size():
@@ -911,5 +915,8 @@ func _ruin_hit(origin: Vector3, dir: Vector3) -> Dictionary:
 			continue
 		var along: float = (hit.position - origin).dot(dir) / dir.length_squared()
 		if along < best.get("along", INF):
-			best = {"along": along, "point": hit.position, "s": layout.closest_s(hit.position), "distance": 0.0, "rubble": i == 1}
+			var normal: Vector3 = hit.normal if hit.normal.dot(dir) < 0.0 else -hit.normal
+			var s := layout.closest_s(hit.position)
+			var face: bool = i == 0 and hit.position.y < layout.point_at(s).y + layout.standing(s) - layout.course_height() * 0.5
+			best = {"along": along, "point": hit.position, "s": s, "distance": 0.0, "rubble": i == 1, "side": face or Rig.side(normal)}
 	return best

@@ -192,7 +192,7 @@ func _process(delta: float) -> void:
 func _walk(step: Vector3) -> void:
 	var head := rig.head.global_position
 	for y in [rig.global_position.y + STEP_UP, head.y]:
-		if rig.solid_hit.call(Vector3(head.x, y, head.z), step.normalized(), step.length() + BODY) != null:
+		if not rig.solid_hit.call(Vector3(head.x, y, head.z), step.normalized(), step.length() + BODY).is_empty():
 			return
 	var room := Terrain.bounds()
 	var to := head + step

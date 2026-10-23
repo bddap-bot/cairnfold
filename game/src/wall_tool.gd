@@ -1717,18 +1717,24 @@ func pick_building(origin: Vector3, dir: Vector3, with_held := false, through_ar
 				var t := w.roof.ray_hit(origin, dir) if surface == "roof" else w.roof.gable_hit(origin, dir)
 				if t < best.get("along", INF):
 					var point := origin + dir * t
-					best = {"wall": w, "surface": surface, "along": t, "point": point, "s": w.layout.closest_s(point), "distance": 0.0}
+					best = {"wall": w, "surface": surface, "along": t, "point": point, "s": w.layout.closest_s(point), "distance": 0.0, "side": surface == "gable"}
 	return best
 
 
-## The first building or plant surface along a teleport ray, short of reach.
-func solid_hit(origin: Vector3, dir: Vector3, reach: float) -> Variant:
-	var hit := pick_building(origin, dir, false, true)
-	var best: float = minf(minf(reach, hit.get("along", INF)), pick_floor(origin, dir).get("along", INF))
-	var plant := flora.solid_hit(origin, dir, best)
+## The first building or plant surface along a teleport ray, short of reach, as {point, along, side}, `side` whether it
+## struck a side, as of a wall, not a top; or {}.
+func solid_hit(origin: Vector3, dir: Vector3, reach: float) -> Dictionary:
+	var best := {"along": reach}
+	for hit in [pick_building(origin, dir, false, true), pick_floor(origin, dir)]:
+		if hit.get("along", INF) < best.along:
+			best = {"along": hit.along, "side": hit.get("side", false)}
+	var plant := flora.solid_hit(origin, dir, best.along)
 	if not plant.is_empty():
-		best = plant.along
-	return origin + dir * best if best < reach else null
+		best = {"along": plant.along, "side": plant.side}
+	if best.along >= reach:
+		return {}
+	best.point = origin + dir * best.along
+	return best
 
 
 ## The nearest floor inside a house or tower along a ray, as {wall, along, point}, or empty.

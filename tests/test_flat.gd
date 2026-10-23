@@ -166,7 +166,7 @@ func _the_hands_hang_at_the_sides_until_a_tool_is_raised() -> void:
 	await _frames(1)
 	var eye := rig.head.global_position
 	var solid := rig.solid_hit
-	rig.solid_hit = func(origin: Vector3, _dir: Vector3, reach: float) -> Variant: return origin if reach > Flat.BODY else null
+	rig.solid_hit = func(origin: Vector3, _dir: Vector3, reach: float) -> Dictionary: return {"point": origin, "side": true} if reach > Flat.BODY else {}
 	await _tap(_key.bind(KEY_W), 20)
 	_check(rig.head.global_position.distance_to(eye) < 1e-4, "a build in the way stops the walk")
 	rig.solid_hit = solid
