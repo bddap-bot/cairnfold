@@ -1,6 +1,6 @@
 extends SceneTree
 
-## Furniture through the one decoration path: a present on a house's floors or a flat roof's deck, which the style
+## Furniture through the one decoration path: a present on a house's floor or a flat roof's deck, which the style
 ## tool turns into any decoration.
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_furniture.gd
 
@@ -95,7 +95,7 @@ func _run() -> void:
 
 	var chair := _place(Vector3(0.5, 1.6, 1.2), Vector3(1.2, 0.0, -0.6), "floor", house)
 	var n := _node(chair)
-	check(n != null and absf(n.position.y - house.layout.floors[0]) < 0.01, "indoor piece stands on the floor")
+	check(n != null and absf(n.position.y - house.layout.floor_y) < 0.01, "indoor piece stands on the floor")
 	var deck := _place(Vector3(12.5, 9.0, 0.5), Vector3(12.5, 0.0, 0.5), "deck", decked)
 	n = _node(deck)
 	check(n != null and absf(n.position.y - decked.roof.height_at(n.position.x, n.position.z)) < 0.01, "outdoor piece stands on the deck")
@@ -126,7 +126,7 @@ func _run() -> void:
 	n = _node(chair)
 	var r1 := house.roof.frame()
 	var o1: Vector3 = n.position - r1.mid if n != null else Vector3.INF
-	check(n != null and absf(n.position.y - house.layout.floors[0]) < 0.01 and house.layout.floors[0] > 0.8, "indoor piece rises with its floor")
+	check(n != null and absf(n.position.y - house.layout.floor_y) < 0.01 and house.layout.floor_y > 0.8, "indoor piece rises with its floor")
 	check(absf(o0.dot(r0.along) - o1.dot(r1.along)) < 0.05 and absf(o0.dot(r0.across) - o1.dot(r1.across)) < 0.05, "indoor piece moves and turns with its house")
 	check(n != null and absf(face0.dot(r0.along) - n.transform.basis.z.dot(r1.along)) < 0.01, "indoor piece keeps its facing in the room")
 	main.world.undo()

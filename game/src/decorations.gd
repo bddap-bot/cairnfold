@@ -53,8 +53,8 @@ func sync() -> void:
 
 
 ## Where a decoration stands, or null where its surface is gone: on the ground; at a house's foot, out from the wall
-## at `s` on `side`; or, for furniture, at `at` in its house's plan (`plan`), turned `turn` from its ridge, on the floor
-## nearest `at.y` over its lowest or on a flat roof's deck, so it moves, turns, grows and rises with the house.
+## at `s` on `side`; or, for furniture, at `at` in its house's plan (`plan`), turned `turn` from its ridge, on its floor
+## or on a flat roof's deck, so it moves, turns, grows and rises with the house.
 func frame(d: Dictionary) -> Variant:
 	if d.wall < 0:
 		return Transform3D(Basis(Vector3.UP, d.turn), Vector3(d.at.x, Terrain.height_at(d.at.x, d.at.z), d.at.z))
@@ -63,7 +63,7 @@ func frame(d: Dictionary) -> Variant:
 		return null
 	var mount: String = d.mount
 	if mount != "foundation":
-		if w.roof == null or w.layout.floors.is_empty():
+		if w.roof == null or w.layout.floor_y == -INF:
 			return null
 		var x := plan(w)
 		var p: Vector3 = x * Vector3(d.at.x, 0.0, d.at.z)
@@ -75,11 +75,7 @@ func frame(d: Dictionary) -> Variant:
 			return Transform3D(Basis(Vector3.UP, turn), Vector3(p.x, w.roof.height_at(p.x, p.z), p.z))
 		if not Geometry2D.is_point_in_polygon(Vector2(p.x, p.z), l.floor_outline):
 			return null
-		var best := l.floors[0]
-		for y in l.floors:
-			if absf(y - l.floors[0] - d.at.y) < absf(best - l.floors[0] - d.at.y):
-				best = y
-		return Transform3D(Basis(Vector3.UP, turn), Vector3(p.x, best, p.z))
+		return Transform3D(Basis(Vector3.UP, turn), Vector3(p.x, l.floor_y, p.z))
 	var f := w.layout.frame_at(d.s)
 	var normal: Vector3 = f.tangent.cross(Vector3.UP) * d.side
 	var at: Vector3 = f.point + normal * (WallLayout.THICKNESS * 0.5 + 0.02)

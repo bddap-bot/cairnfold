@@ -1343,7 +1343,7 @@ func digest() -> Dictionary:
 	var heights := Array(Terrain.read(Terrain.ALL))
 	var out := {"seq": seq, "walls": {}, "groups": {}, "ground": hash(heights), "heights": [heights.min(), heights.max()]}
 	for w: Wall in wall_tool.walls:
-		out.walls[str(w.id)] = {"data": var_to_str(state.walls[w.id]), "stones": w.layout.stones.size(), "height": w.layout.height, "floors": Array(w.layout.floors)}
+		out.walls[str(w.id)] = {"data": var_to_str(state.walls[w.id]), "stones": w.layout.stones.size(), "height": w.layout.height, "floor": w.layout.floor_y}
 	for g in flora.groups:
 		var shown := 0
 		var spot := Vector3.ZERO

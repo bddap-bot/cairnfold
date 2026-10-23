@@ -195,8 +195,8 @@ var apertures: Array[Dictionary] = []
 ## Lantern flames and flag cloths, laid with the stones; flames are unit boxes, cloths unit quads off the pole.
 var flames: Array[Transform3D] = []
 var cloths: Array[Dictionary] = []
-## The heights of the floors' tops, lowest first, and the outline they cover: empty but for a house or tower.
-var floors := PackedFloat32Array()
+## The height of the floor's top, and the outline it covers: -INF and empty but for a house or tower.
+var floor_y := -INF
 var floor_outline := PackedVector2Array()
 ## Per course from the foot up, the stretches broken away there: each ruin, wider every course up.
 var breaks: Array[PackedVector2Array] = []
@@ -292,7 +292,7 @@ func build(ground: Callable, water := Callable()) -> void:
 	flames.clear()
 	cloths.clear()
 	apertures.clear()
-	floors.clear()
+	floor_y = -INF
 	floor_outline.clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
@@ -302,7 +302,7 @@ func build(ground: Callable, water := Callable()) -> void:
 	var total := length()
 	if total < 0.3:
 		return
-	_level_floors(ground)
+	_level_floor(ground)
 	apertures = openings_for(openings)
 	if fence:
 		_build_fence(rng)
@@ -388,7 +388,7 @@ func build(ground: Callable, water := Callable()) -> void:
 			_world(parts.finial, FINIAL, "finial", f)
 			cloths.append(parts.cloth)
 	_hide()
-	_lay_floors()
+	_lay_floor()
 
 
 ## A stone's corners, before its transform.
@@ -668,15 +668,9 @@ func floored() -> bool:
 	return closed and not fence and cover != Cover.OPEN and points.size() > 2
 
 
-## The floor under `p` inside this house or tower: the height of the highest floor at or just below it, or -INF.
+## The floor under `p` inside this house or tower, at or just below it, or -INF.
 func floor_under(p: Vector3) -> float:
-	var best := -INF
-	if floors.is_empty() or not Geometry2D.is_point_in_polygon(Vector2(p.x, p.z), floor_outline):
-		return best
-	for y in floors:
-		if y <= p.y + SINK:
-			best = y
-	return best
+	return floor_y if floor_y <= p.y + SINK and Geometry2D.is_point_in_polygon(Vector2(p.x, p.z), floor_outline) else -INF
 
 
 ## The top of this wall's walk under `p`, at or just below it: its cap or coping, or the step a ruin's end has come down
@@ -710,22 +704,17 @@ func top_rise() -> float:
 	return (COPE_TALL.x + COPE_TALL.y) * 0.5 if top == Top.COPE and cover != Cover.ROOF and not fence and not TimberFrame.applies(self) else CAP
 
 
-## How far along a ray it meets the top of one of the floors, or INF.
+## How far along a ray it meets the top of the floor, or INF.
 func floor_hit(origin: Vector3, dir: Vector3) -> float:
-	var best := INF
 	if dir.y >= 0.0:
-		return best
-	for y in floors:
-		var t := (y - origin.y) / dir.y
-		if t >= 0.0 and t < best:
-			var at := origin + dir * t
-			if Geometry2D.is_point_in_polygon(Vector2(at.x, at.z), floor_outline):
-				best = t
-	return best
+		return INF
+	var t := (floor_y - origin.y) / dir.y
+	var at := origin + dir * t
+	return t if t >= 0.0 and Geometry2D.is_point_in_polygon(Vector2(at.x, at.z), floor_outline) else INF
 
 
 ## The height of a house's or tower's floor: at its foot, raised over any ground under it that stands higher.
-func _level_floors(ground: Callable) -> void:
+func _level_floor(ground: Callable) -> void:
 	var outer := _floor_bounds()
 	if outer.is_empty():
 		return
@@ -734,19 +723,19 @@ func _level_floors(ground: Callable) -> void:
 	var lowest := foot
 	if supports.is_empty():
 		lowest = maxf(lowest, _highest_ground(outer, ground))
-	floors.append(lowest)
+	floor_y = lowest
 
 
 ## How high over the foot a house's or tower's floor stands, where its doors and arches open from: the foundation stays
 ## whole under it. An open wall's arch opens all the way down, to a pond's bed.
 func threshold() -> float:
-	return floors[0] - samples[0].y if not floors.is_empty() else -INF
+	return floor_y - samples[0].y if floor_y != -INF else -INF
 
 
 ## How far the ground floor stands above the foot: the height a door's is counted from, so a floor raised over higher
 ## ground inside takes nothing from the doors onto it.
 func floor_lift() -> float:
-	return floors[0] - samples[0].y - SINK if not floors.is_empty() else 0.0
+	return floor_y - samples[0].y - SINK if floor_y != -INF else 0.0
 
 
 func _floor_line() -> PackedVector2Array:
@@ -766,11 +755,11 @@ func _floor_bounds() -> PackedVector2Array:
 	return outer[0] if not inner.is_empty() and not outer.is_empty() else PackedVector2Array()
 
 
-## Lays the floors `_level_floors` set, the lowest's bed reaching down to the foot so it reads as a step at the door. Flags
+## Lays the floor `_level_floor` set, its bed reaching down to the foot so it reads as a step at the door. Flags
 ## or `planks`, in rows along its first side that end inside the walls; none in the room of an older
 ## build it joins, or under a build standing on it.
-func _lay_floors() -> void:
-	if floors.is_empty():
+func _lay_floor() -> void:
+	if floor_y == -INF:
 		return
 	var foot := samples[0].y + SINK
 	var outer := _floor_bounds()
@@ -783,28 +772,25 @@ func _lay_floors() -> void:
 		lo = minf(lo, q.dot(across))
 		hi = maxf(hi, q.dot(across))
 	var rng := RandomNumberGenerator.new()
-	for f in floors.size():
-		var top_y := floors[f]
-		var bottom := foot - SINK if f == 0 else top_y - (PLANK.y if planks else FLAG.y) - 0.06
-		var row := 0
-		var z := lo
-		while z < hi - 0.01:
-			rng.seed = hash([seed, "floor", f, row])
-			var depth := minf(PLANK.x if planks else FLAG.z, hi - z)
-			var near := _chord(outer, along, across, z)
-			var far := _chord(outer, along, across, z + depth)
-			var a := maxf(near.x, far.x)
-			var b := minf(near.y, far.y)
-			var x := a - (rng.randf_range(0.0, PLANK.w) if planks else (FLAG.x * 0.5 if row % 2 == 1 else 0.0))
-			while x < b - 0.01:
-				var size := rng.randf_range(PLANK.z, PLANK.w) if planks else FLAG.x
-				var middle := across * (z + depth * 0.5)
-				var open := _floor_open(along, middle, maxf(x, a), minf(x + size, b), top_y - (PLANK.y if planks else FLAG.y) * 0.5)
-				if open.y - open.x > 0.05:
-					_lay_floor_piece(along * (open.x + open.y) * 0.5 + middle, Vector2(open.y - open.x, depth), top_y, bottom, along, planks, rng)
-				x += size
-			z += depth
-			row += 1
+	var row := 0
+	var z := lo
+	while z < hi - 0.01:
+		rng.seed = hash([seed, "floor", 0, row])
+		var depth := minf(PLANK.x if planks else FLAG.z, hi - z)
+		var near := _chord(outer, along, across, z)
+		var far := _chord(outer, along, across, z + depth)
+		var a := maxf(near.x, far.x)
+		var b := minf(near.y, far.y)
+		var x := a - (rng.randf_range(0.0, PLANK.w) if planks else (FLAG.x * 0.5 if row % 2 == 1 else 0.0))
+		while x < b - 0.01:
+			var size := rng.randf_range(PLANK.z, PLANK.w) if planks else FLAG.x
+			var middle := across * (z + depth * 0.5)
+			var open := _floor_open(along, middle, maxf(x, a), minf(x + size, b), floor_y - (PLANK.y if planks else FLAG.y) * 0.5)
+			if open.y - open.x > 0.05:
+				_lay_floor_piece(along * (open.x + open.y) * 0.5 + middle, Vector2(open.y - open.x, depth), floor_y, foot - SINK, along, planks, rng)
+			x += size
+		z += depth
+		row += 1
 
 
 ## One flag or plank with its top at `top_y`, on a bed down to `bottom` that shows in its joints.
@@ -2014,7 +2000,7 @@ func adopt(built: WallLayout) -> void:
 	flames = built.flames
 	cloths = built.cloths
 	breaks = built.breaks
-	floors = built.floors
+	floor_y = built.floor_y
 	floor_outline = built.floor_outline
 	_laid_count += 1
 	laid = _laid_count

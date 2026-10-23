@@ -562,6 +562,5 @@ static func decoration_command(target: Dictionary) -> Dictionary:
 	if mount in ["floor", "deck"]:
 		var x := Decorations.plan(w)
 		at = x.affine_inverse() * Vector3(at.x, 0.0, at.z)
-		at.y = target.point.y - w.layout.floors[0] if mount == "floor" else 0.0
 		turn -= atan2(-x.basis.x.z, x.basis.x.x)
 	return {"op": "decoration", "wall": w.id if w != null else -1, "mount": mount, "at": at, "s": float(target.get("s", 0.0)), "side": float(target.get("side", 1.0)), "turn": turn, "seed": int(target.get("seed", 0)), "style": int(target.get("style", DecorationLayout.PRESENT))}

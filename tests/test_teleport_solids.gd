@@ -220,7 +220,7 @@ func _onto_a_raised_floor(rig: Rig, world: World) -> void:
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()
-	var level := w.layout.floors[0]
+	var level := w.layout.floor_y
 	var inside := Vector3(33.5, level, 30.0)
 	var on_floor := func(_p: Vector3) -> float: return level
 	_check(level > Terrain.height_at(inside.x, inside.z) + 1.0, "the raised house's floor stands over the ground: %.2f" % level)
@@ -339,8 +339,8 @@ func _on_flat_roofs_and_platforms(rig: Rig, world: World) -> void:
 	_lands(rig, Vector3(at.x, upper, at.z) + Vector3(0, 6, 5), Vector3(at.x, upper, at.z), on_upper, "down onto a platform stacked on the flat roof")
 	_hovers(rig, Vector3(at.x, upper, at.z), upper, "a platform")
 	_stands(terrace, 0.5, deck, "a point over the terrace")
-	_check(above.layout.floors.size() == 1, "the platform has its floor: %s" % above.layout.floors)
-	_stands(Vector3(at.x + 1.0, deck, at.z), 1.0, above.layout.floors[0], "a point inside the platform's room")
+	_check(above.layout.floor_y != -INF, "the platform has its floor")
+	_stands(Vector3(at.x + 1.0, deck, at.z), 1.0, above.layout.floor_y, "a point inside the platform's room")
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([above.id, below.id])}, 1)
 
 

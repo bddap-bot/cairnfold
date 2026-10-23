@@ -233,11 +233,9 @@ func _house(seed_value: int, count: int) -> void:
 		if not w.layout.closed:
 			continue
 		var center := w.massing.rect.get_center()
-		for floor_y in w.layout.floors:
+		var floor_y := w.layout.floor_y
+		if floor_y != -INF:
 			var ceiling := w.roof.height_at(center.x, center.y) - 0.25
-			for other_floor in w.layout.floors:
-				if other_floor > floor_y:
-					ceiling = minf(ceiling, other_floor - 0.25)
 			for offset in [Vector2.ZERO, Vector2(-0.5, -0.5), Vector2(0.5, 0.5)]:
 				var origin := Vector3(center.x + offset.x, lerpf(floor_y, ceiling, 0.5), center.y + offset.y)
 				_check(w.massing.holds(origin), "seed %d probe starts inside its room" % seed_value)
@@ -283,7 +281,7 @@ func _trace(probe: RefCounted, origin: Vector3, direction: Vector3, room: Array[
 	var p: Vector3 = collision if collision != null else Probe.exit_point(origin, direction, room)
 	if collision != null:
 		record.collision_hits_on_render_leaks += 1
-	var band := "floor/foundation" if p.y < w.layout.floors[0] + 0.05 else ("wall/gable/roof" if p.y > w.layout.samples[0].y + w.layout.height - 0.1 else "wall")
+	var band := "floor/foundation" if p.y < w.layout.floor_y + 0.05 else ("wall/gable/roof" if p.y > w.layout.samples[0].y + w.layout.height - 0.1 else "wall")
 	record.rays.append({"origin": _v(origin), "direction": _v(direction), "position": _v(p), "position_basis": "collision shell" if collision != null else "room volume exit", "band": band, "first_hit": result.first_hit, "first_hit_position": [] if result.first_hit == "sky" else _v(result.hit_position), "collision_hit": _v(collision) if collision != null else []})
 	if not record.groups.has(band):
 		record.groups[band] = {"count": 0, "position": _v(p), "origin": _v(origin), "direction": _v(direction), "nearest_parts": probe.neighbours(p), "first_hit": result.first_hit}

@@ -200,7 +200,7 @@ func _run() -> void:
 	_lay()
 	var set_at: Dictionary = world.state.decorations[chair]
 	node = world.decorations.nodes[chair]
-	check(node.position.distance_to(p0 + Vector3(0.6, 0, -0.3)) < 0.06 and absf(node.position.y - house.layout.floors[0]) < 0.01, "let go, the chair stands where it was carried, on its floor: %s" % node.position)
+	check(node.position.distance_to(p0 + Vector3(0.6, 0, -0.3)) < 0.06 and absf(node.position.y - house.layout.floor_y) < 0.01, "let go, the chair stands where it was carried, on its floor: %s" % node.position)
 	check(absf(angle_difference(was.turn, set_at.turn) - snappedf(0.5, FittingGrip.TURN_STEP)) < 0.001 and set_at.style == was.style and set_at.seed == was.seed, "and turned with the hand: %.3f from %.3f" % [set_at.turn, was.turn])
 	world.undo()
 	_lay()

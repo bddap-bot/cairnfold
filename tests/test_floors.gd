@@ -84,20 +84,20 @@ func _covered(w: WallLayout, level: float) -> float:
 
 func _a_house_is_floored_wall_to_wall_over_its_highest_ground() -> void:
 	var w := _house(_slope)
-	_check(w.floors.size() == 1, "a house has one floor, got %s" % [w.floors])
+	_check(w.floor_y != -INF, "a house has one floor, got %s" % [w.floor_y])
 	var highest := -INF
 	for s in _pieces(w):
 		for c in [Vector3(-0.5, 0, -0.5), Vector3(0.5, 0, -0.5), Vector3(-0.5, 0, 0.5), Vector3(0.5, 0, 0.5)]:
 			var q: Vector3 = s.xform * c
 			highest = maxf(highest, _slope(q.x, q.z))
-	_check(w.floors[0] >= highest - 1e-4, "no ground under the floor, a doorway's included, rises through it: floor %.2f, ground up to %.2f" % [w.floors[0], highest])
-	_check(w.floors[0] > w.samples[0].y + WallLayout.SINK, "on a slope the floor stands over the foot, at the uphill ground")
-	_check(_covered(w, w.floors[0]) == 1.0, "the floor covers everything inside the walls: %.3f" % _covered(w, w.floors[0]))
+	_check(w.floor_y >= highest - 1e-4, "no ground under the floor, a doorway's included, rises through it: floor %.2f, ground up to %.2f" % [w.floor_y, highest])
+	_check(w.floor_y > w.samples[0].y + WallLayout.SINK, "on a slope the floor stands over the foot, at the uphill ground")
+	_check(_covered(w, w.floor_y) == 1.0, "the floor covers everything inside the walls: %.3f" % _covered(w, w.floor_y))
 	var beds := w.stones.filter(func(s: Dictionary) -> bool: return s.kind == "bed")
 	_check(beds.size() == _pieces(w).size() and beds.all(func(s: Dictionary) -> bool: return s.xform.origin.y - s.xform.basis.y.length() * 0.5 <= w.samples[0].y + 1e-3), "the floor's bed reaches down to the walls' foot")
 	var flat := _house(_flat)
-	_check(is_equal_approx(flat.floors[0], flat.samples[0].y + WallLayout.SINK), "on level ground the floor is the walls' foot")
-	_check(_pieces(flat).all(func(s: Dictionary) -> bool: return absf(_top(s) - flat.floors[0]) < 0.01), "every piece's top lies on the floor")
+	_check(is_equal_approx(flat.floor_y, flat.samples[0].y + WallLayout.SINK), "on level ground the floor is the walls' foot")
+	_check(_pieces(flat).all(func(s: Dictionary) -> bool: return absf(_top(s) - flat.floor_y) < 0.01), "every piece's top lies on the floor")
 
 
 func _a_raised_house_floors_its_foot() -> void:
@@ -106,14 +106,14 @@ func _a_raised_house_floors_its_foot() -> void:
 		var lowest := INF
 		for p in w.points:
 			lowest = minf(lowest, _slope(p.x, p.z))
-		_check(is_equal_approx(w.floors[0], w.samples[0].y + WallLayout.SINK) and absf(w.floors[0] - (lowest + rise)) < 0.05, "raised %.1f, the floor rides the foot: %.2f over ground %.2f" % [rise, w.floors[0], lowest])
-		_check(_covered(w, w.floors[0]) == 1.0, "raised %.1f, the floor still covers the room" % rise)
+		_check(is_equal_approx(w.floor_y, w.samples[0].y + WallLayout.SINK) and absf(w.floor_y - (lowest + rise)) < 0.05, "raised %.1f, the floor rides the foot: %.2f over ground %.2f" % [rise, w.floor_y, lowest])
+		_check(_covered(w, w.floor_y) == 1.0, "raised %.1f, the floor still covers the room" % rise)
 
 
 func _doors_stand_their_height_over_the_floor() -> void:
 	for plaster in [false, true]:
 		var w := _house(_slope, 0.0, plaster, 4.8)
-		var lift := w.floors[0] - w.samples[0].y - WallLayout.SINK
+		var lift := w.floor_y - w.samples[0].y - WallLayout.SINK
 		_check(lift > 0.3 and is_equal_approx(w.floor_lift(), lift), "up a slope the floor stands %.2f over the foot" % lift)
 		_check(is_equal_approx(w.spring() - lift, WallLayout.SPRING), "the doorway arch springs its full height over the floor: %.2f" % (w.spring() - lift))
 		var door := w.opening_for(Vector4(1.5, 0.0, WallLayout.DoorStyle.PLAIN, 1.0))
@@ -211,8 +211,8 @@ func _a_round_tower_is_floored_too() -> void:
 
 func _a_house_has_one_floor_however_tall() -> void:
 	for h in [2.4, 7.2, 12.0]:
-		_check(_house(_flat, 0.0, false, h).floors.size() == 1, "a %.1f m house lays one floor, at its foot" % h)
-	_check(_house(_flat, 1.5, true, 7.2).floors.size() == 1, "a raised plastered house lays one floor")
+		_check(_house(_flat, 0.0, false, h).floor_y != -INF, "a %.1f m house lays one floor, at its foot" % h)
+	_check(_house(_flat, 1.5, true, 7.2).floor_y != -INF, "a raised plastered house lays one floor")
 	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "height": 7.2, "rise": 0.0, "seed": 3, "closed": true, "top": 0, "fence": false,
 		"plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0, "timber_style": 0, "storey_floors": true, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(),
 		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array(), "paint": Palette.plain()}
@@ -229,11 +229,11 @@ func _open_walls_lay_no_floor() -> void:
 	w.points = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
 	w.closed = true
 	w.build(_flat)
-	_check(w.floors.is_empty() and _pieces(w).is_empty(), "a roofless loop of wall is a wall, not a room")
+	_check(w.floor_y == -INF and _pieces(w).is_empty(), "a roofless loop of wall is a wall, not a room")
 	var line := WallLayout.new()
 	line.points = [Vector3.ZERO, Vector3(6, 0, 0)]
 	line.build(_flat)
-	_check(line.floors.is_empty() and _pieces(line).is_empty(), "an open wall lays no floor")
+	_check(line.floor_y == -INF and _pieces(line).is_empty(), "an open wall lays no floor")
 
 
 ## Joined across the side its rows start from, past its end, and corner to corner, on level and sloping ground.
@@ -254,7 +254,7 @@ func _a_newer_house_yields_its_floor_to_an_older_one_it_joins() -> void:
 			old.joined.assign([Massing.of(new, null)])
 			old.build(ground)
 			_check(_pieces(new).all(func(s: Dictionary) -> bool: return not room.holds(s.xform.origin)), "the newer floor lays nothing in the older room")
-			_check(_covered(old, old.floors[0]) == 1.0, "the older floor stays whole")
+			_check(_covered(old, old.floor_y) == 1.0, "the older floor stays whole")
 			var pieces := _pieces(old) + _pieces(new)
 			var gap := 0
 			for j in range(-110, 311):
@@ -268,15 +268,15 @@ func _a_newer_house_yields_its_floor_to_an_older_one_it_joins() -> void:
 func _floors_are_stood_on_and_hit() -> void:
 	var w := _house(_flat, 1.5, false, 7.2)
 	var mid := Vector3(3, 0, 0)
-	_check(is_equal_approx(w.floor_under(mid + Vector3.UP * (w.floors[0] + 1.0)), w.floors[0]), "standing over the ground floor stands on it")
-	_check(is_equal_approx(w.floor_under(mid + Vector3.UP * (w.floors[0] + 4.0)), w.floors[0]), "standing high in a tall house still stands on its one floor")
+	_check(is_equal_approx(w.floor_under(mid + Vector3.UP * (w.floor_y + 1.0)), w.floor_y), "standing over the ground floor stands on it")
+	_check(is_equal_approx(w.floor_under(mid + Vector3.UP * (w.floor_y + 4.0)), w.floor_y), "standing high in a tall house still stands on its one floor")
 	_check(w.floor_under(mid) == -INF, "under the raised floor stands on nothing of it")
-	_check(w.floor_under(Vector3(-2, w.floors[0] + 1.0, 0)) == -INF, "beside the house stands on nothing of it")
-	var from := mid + Vector3(0.5, w.floors[0] + 1.6, 0)
+	_check(w.floor_under(Vector3(-2, w.floor_y + 1.0, 0)) == -INF, "beside the house stands on nothing of it")
+	var from := mid + Vector3(0.5, w.floor_y + 1.6, 0)
 	var dir := Vector3(-0.3, -1, 0).normalized()
 	var t := w.floor_hit(from, dir)
-	_check(t < INF and absf((from + dir * t).y - w.floors[0]) < 0.01, "a ray down from inside meets the floor under it: %.2f" % t)
-	_check(w.floor_hit(mid + Vector3.UP * (w.floors[0] + 1.6), Vector3.UP) == INF, "a ray upward meets no floor's top")
+	_check(t < INF and absf((from + dir * t).y - w.floor_y) < 0.01, "a ray down from inside meets the floor under it: %.2f" % t)
+	_check(w.floor_hit(mid + Vector3.UP * (w.floor_y + 1.6), Vector3.UP) == INF, "a ray upward meets no floor's top")
 
 
 func _the_meadow_is_worn_bare_inside_the_walls_only() -> void:

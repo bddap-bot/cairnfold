@@ -2365,7 +2365,7 @@ that every player sees the joiner's raised wing.
 
 Directive (playtest, paraphrased): give buildings floors.
 
-Every house and tower is floored (`WallLayout.floors`; tests in `tests/test_floors.gd`):
+Every house and tower is floored (`WallLayout.floor_y`; tests in `tests/test_floors.gd`):
 
 - At its foot, inside the walls and under them to just short of their outer faces, so nothing shows between floor
   and wall. It rides the foot: raised on a plinth, the floor is raised with it, and a stretched or resized house lays

@@ -144,7 +144,6 @@ func _foundations_turn_to_plaster() -> void:
 	world.restore({"seq": 0, "cmds": []})
 
 
-## The style tool aimed at a tall tower's floor floors it at every storey, on every machine, and towers laid after too.
 ## The style tool aimed at a floor offers flags or planks: turned, a peer takes it, an undo puts it back, a save as
 ## written to disk carries it, and houses laid after take it. The floor and the walls never move each other.
 func _floors_take_a_style() -> void:
@@ -156,7 +155,7 @@ func _floors_take_a_style() -> void:
 	var id := world.seq * Commands.MAX_PIECES
 	var w: Wall = main.tool.find(id)
 	w.lay_now()
-	var inside := Vector3(-12.3, w.layout.floors[0] + 1.6, 24.2)
+	var inside := Vector3(-12.3, w.layout.floor_y + 1.6, 24.2)
 	var down := Vector3(0.1, -1, -0.1).normalized()
 	var target: Dictionary = main.palette_tool.aim_style(inside, down)
 	_check(target.get("restyle") == PaletteTool.Restyle.FLOOR and target.get("count") == 2, "a house's floor offers flags and planks: %s" % target)
