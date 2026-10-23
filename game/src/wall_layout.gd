@@ -2050,17 +2050,21 @@ func snapshot() -> WallLayout:
 
 ## Ground point and unit tangent at arc length `s`.
 func frame_at(s: float) -> Dictionary:
-	if closed and lengths.size() > 1:
-		s = fposmod(s, length())
-	var i := lengths.bsearch(s)
-	i = clampi(i, 1, samples.size() - 1)
-	var l0 := lengths[i - 1]
-	var l1 := lengths[i]
-	var t := 0.0 if l1 <= l0 else clampf((s - l0) / (l1 - l0), 0.0, 1.0)
-	var p := samples[i - 1].lerp(samples[i], t)
+	var at := _segment(s)
+	var i: int = at[0]
 	var tan := samples[i] - samples[i - 1]
 	tan.y = 0.0
-	return {"point": p, "tangent": tan.normalized() if tan.length() > 1e-5 else Vector3.RIGHT}
+	return {"point": samples[i - 1].lerp(samples[i], at[1]), "tangent": tan.normalized() if tan.length() > 1e-5 else Vector3.RIGHT}
+
+
+## The sample `i` ending the segment that holds arc length `s`, and the fraction `t` along it, as [i, t].
+func _segment(s: float) -> Array:
+	if closed and lengths.size() > 1:
+		s = fposmod(s, length())
+	var i := clampi(lengths.bsearch(s), 1, samples.size() - 1)
+	var l0 := lengths[i - 1]
+	var l1 := lengths[i]
+	return [i, 0.0 if l1 <= l0 else clampf((s - l0) / (l1 - l0), 0.0, 1.0)]
 
 
 ## How far the ground lies below the foot at arc length `s`.
@@ -2081,12 +2085,8 @@ func plinth_at(s: float) -> float:
 func _along(per_sample: PackedFloat32Array, s: float) -> float:
 	if per_sample.size() < 2:
 		return 0.0
-	if closed:
-		s = fposmod(s, length())
-	var i := clampi(lengths.bsearch(s), 1, samples.size() - 1)
-	var l0 := lengths[i - 1]
-	var l1 := lengths[i]
-	return lerpf(per_sample[i - 1], per_sample[i], 0.0 if l1 <= l0 else clampf((s - l0) / (l1 - l0), 0.0, 1.0))
+	var at := _segment(s)
+	return lerpf(per_sample[at[0] - 1], per_sample[at[0]], at[1])
 
 
 ## The stretches where the ground lies deeper below the foot than `drop`, as spans of arc length.
@@ -2237,10 +2237,7 @@ func resample(ground: Callable, water := Callable()) -> void:
 	var footing := ground
 	if water.is_valid():
 		footing = func(x: float, z: float) -> float: return maxf(ground.call(x, z), water.call(x, z))
-	if closed:
-		_resample_loop(footing)
-	else:
-		_resample_open(footing)
+	_resample_curve(footing)
 	for q in samples:
 		grounds.append(ground.call(q.x, q.z))
 		depths.append(maxf(q.y - grounds[-1], 0.0))
@@ -2250,47 +2247,31 @@ func resample(ground: Callable, water := Callable()) -> void:
 		bounds = bounds.expand(Vector2(q.x, q.z))
 
 
-func _resample_open(ground: Callable) -> void:
+func _resample_curve(ground: Callable) -> void:
 	var dense: Array[Vector3] = []
-	for i in points.size() - 1:
-		var count := maxi(1, ceili(points[i].distance_to(points[i + 1]) / SAMPLE))
+	var n := points.size()
+	for i in n if closed else n - 1:
+		var a := points[i]
+		var b := points[(i + 1) % n]
+		var count := maxi(1, ceili(a.distance_to(b) / SAMPLE))
 		for j in count:
-			dense.append(points[i].lerp(points[i + 1], float(j) / count))
-	if not points.is_empty():
-		dense.append(points[-1])
+			dense.append(a.lerp(b, float(j) / count))
+	dense.append(points[0] if closed else points[-1])
+	var foot := INF
+	if closed:
+		# On the ground a loop stands level on its lowest ground, raised by `rise`; on other builds, on the highest top under it.
+		var held := -INF
+		for q in dense:
+			foot = minf(foot, ground.call(q.x, q.z))
+			held = maxf(held, _rest(q.x, q.z))
+		if held > -INF:
+			foot = held
+		else:
+			foot += rise
 	var acc := 0.0
 	for i in dense.size():
 		var q := dense[i]
-		q.y = maxf(ground.call(q.x, q.z), _rest(q.x, q.z)) - SINK
-		if i > 0:
-			acc += Vector2(q.x - samples[-1].x, q.z - samples[-1].z).length()
-		samples.append(q)
-		lengths.append(acc)
-
-
-func _resample_loop(ground: Callable) -> void:
-	var dense: Array[Vector3] = []
-	var n := points.size()
-	for i in n:
-		var a := points[i]
-		var b := points[(i + 1) % n]
-		var seg := maxi(1, int(ceil(a.distance_to(b) / SAMPLE)))
-		for j in seg:
-			dense.append(a.lerp(b, float(j) / seg))
-	dense.append(points[0])
-	# On the ground a loop stands level on its lowest ground, raised by `rise`; on other builds, on the highest top under it.
-	var foot := INF
-	var held := -INF
-	for q in dense:
-		foot = minf(foot, ground.call(q.x, q.z))
-		held = maxf(held, _rest(q.x, q.z))
-	if held > -INF:
-		foot = held
-	else:
-		foot += rise
-	var acc := 0.0
-	for i in dense.size():
-		var q := Vector3(dense[i].x, foot - SINK, dense[i].z)
+		q.y = (foot if closed else maxf(ground.call(q.x, q.z), _rest(q.x, q.z))) - SINK
 		if i > 0:
 			acc += Vector2(q.x - samples[-1].x, q.z - samples[-1].z).length()
 		samples.append(q)
