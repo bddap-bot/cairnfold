@@ -3,6 +3,7 @@ render_mode diffuse_lambert_wrap, shadows_disabled;
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
+#include "res://src/turn.gdshaderinc"
 
 varying vec4 given;
 
@@ -14,20 +15,6 @@ instance uniform float gait = 0.0;
 instance uniform vec3 wool = vec3(1.0);
 
 varying float fleece;
-
-mat3 rot(vec3 axis, float a) {
-	axis = normalize(axis);
-	float s = sin(a), c = cos(a), oc = 1.0 - c;
-	return mat3(
-		vec3(oc * axis.x * axis.x + c, oc * axis.x * axis.y + axis.z * s, oc * axis.z * axis.x - axis.y * s),
-		vec3(oc * axis.x * axis.y - axis.z * s, oc * axis.y * axis.y + c, oc * axis.y * axis.z + axis.x * s),
-		vec3(oc * axis.z * axis.x + axis.y * s, oc * axis.y * axis.z - axis.x * s, oc * axis.z * axis.z + c));
-}
-
-void turn(inout vec3 v, inout vec3 n, vec3 pivot, mat3 m) {
-	v = m * (v - pivot) + pivot;
-	n = m * n;
-}
 
 void vertex() {
 	int part = int(UV2.x + 0.5);

@@ -3,6 +3,7 @@ render_mode diffuse_lambert_wrap, specular_schlick_ggx, shadows_disabled;
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
+#include "res://src/turn.gdshaderinc"
 
 varying vec4 given;
 
@@ -31,20 +32,6 @@ const vec3 TEAL = vec3(0.02, 0.42, 0.52);
 const vec3 GREEN = vec3(0.16, 0.56, 0.08);
 
 varying vec3 tint;
-
-mat3 rot(vec3 axis, float a) {
-	axis = normalize(axis);
-	float s = sin(a), c = cos(a), oc = 1.0 - c;
-	return mat3(
-		vec3(oc * axis.x * axis.x + c, oc * axis.x * axis.y + axis.z * s, oc * axis.z * axis.x - axis.y * s),
-		vec3(oc * axis.x * axis.y - axis.z * s, oc * axis.y * axis.y + c, oc * axis.y * axis.z + axis.x * s),
-		vec3(oc * axis.z * axis.x + axis.y * s, oc * axis.y * axis.z - axis.x * s, oc * axis.z * axis.z + c));
-}
-
-void turn(inout vec3 v, inout vec3 n, vec3 pivot, mat3 m) {
-	v = m * (v - pivot) + pivot;
-	n = m * n;
-}
 
 float hash(float n) {
 	return fract(sin(n * 127.1 + 311.7) * 43758.547) * 2.0 - 1.0;
