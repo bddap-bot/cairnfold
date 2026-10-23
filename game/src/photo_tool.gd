@@ -39,8 +39,9 @@ var rig: Rig
 var folder := Main.photos_folder()
 ## Whose blobs a photo draws finest, if any.
 var flora: Flora
-## Returns what a photo records of the garden around it: {"about": Dictionary, "world": World.snapshot or null}.
-var scene := func() -> Dictionary: return {"about": {}, "world": null}
+## Returns what a photo records of the garden around it: {"about": Dictionary, "world": World.snapshot's bytes or none},
+## taken when the shutter is pressed: the garden changes on while the photo is drawn and written.
+var scene := func() -> Dictionary: return {"about": {}, "world": PackedByteArray()}
 var _buttons: Array[Buttons] = []
 ## Per hand that has held a camera, its preview's view.
 var _previews := {}
@@ -414,7 +415,7 @@ static func lens_of(about: Dictionary) -> Transform3D:
 
 ## Writes `img` as a PNG on a worker thread, with `about` and `world` written into it when `about` is given (PhotoMeta):
 ## converting and encoding a photo-sized image takes longer than a frame.
-func save(img: Image, path: String, about: Variant = null, world: Variant = null) -> Error:
+func save(img: Image, path: String, about: Variant = null, world := PackedByteArray()) -> Error:
 	var file := ProjectSettings.globalize_path(path)
 	var saved := [ERR_BUG]
 	var task := WorkerThreadPool.add_task(func() -> void:

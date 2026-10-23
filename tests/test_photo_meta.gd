@@ -17,6 +17,7 @@ func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
 	check(PhotoMeta.crc32("123456789".to_ascii_buffer()) == 0xCBF43926, "the chunk checksum is PNG's CRC-32")
 	await _a_photo_carries_where_and_how_and_opens_as_its_garden()
+	await _a_photo_keeps_the_garden_as_it_was_shot()
 	_a_garden_too_big_is_left_out_and_says_so()
 	_a_damaged_chunk_is_not_read()
 	for f in DirAccess.get_files_at(dir):
@@ -51,7 +52,7 @@ func _a_photo_carries_where_and_how_and_opens_as_its_garden() -> void:
 	check(got.about.time_of_day == 0.8 and got.about.garden.commands == main.world.seq and got.about.garden.meadow_seed == Meadow.SEED and got.about.build == Main.revision(), "the photo says when in the day, which garden and which build: %s" % got.get("about"))
 	check(got.about.settings.msaa == 8 and got.about.settings.size == [3200.0, 2400.0], "and what it was drawn with")
 	check(PhotoTool.lens_of(got.about).is_equal_approx(lens), "and where the lens stood and looked")
-	check(var_to_str(got.world) == var_to_str(around.world), "the garden comes back as it went in")
+	check(var_to_bytes(got.world) == around.world, "the garden comes back as it went in")
 	var path := dir.path_join("photo.png")
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	f.store_buffer(png)
@@ -66,6 +67,17 @@ func _a_photo_carries_where_and_how_and_opens_as_its_garden() -> void:
 	check(not main.open_photo(dir.path_join("none.png")), "what is not a photo opens nothing")
 
 
+## The photo is written over several frames on a worker while the garden goes on changing.
+func _a_photo_keeps_the_garden_as_it_was_shot() -> void:
+	var around := main._photo_scene()
+	var shot := var_to_str(main.world.snapshot())
+	main.world.submit({"op": "reshape", "of": "walls", "id": main.world.state.walls.keys()[0], "data": {"height": 3.7}})
+	await frames(2)
+	check(var_to_str(main.world.snapshot()) != shot, "the wall was raised after the shot")
+	var got := PhotoMeta.read(PhotoMeta.embed(_png(), {"time_of_day": 0.5}, around.world))
+	check(var_to_str(got.world) == shot, "and the photo keeps the garden as it was shot")
+
+
 func _a_garden_too_big_is_left_out_and_says_so() -> void:
 	var noise := PackedByteArray()
 	noise.resize(PhotoMeta.WORLD_MAX + 1024)
@@ -73,13 +85,13 @@ func _a_garden_too_big_is_left_out_and_says_so() -> void:
 	for i in noise.size():
 		noise[i] = rng.randi() & 0xFF
 	var about := {"time_of_day": 0.5}
-	var got := PhotoMeta.read(PhotoMeta.embed(_png(), about, {"format": World.FORMAT, "seq": 0, "cmds": [noise]}))
+	var got := PhotoMeta.read(PhotoMeta.embed(_png(), about, var_to_bytes({"format": World.FORMAT, "seq": 0, "cmds": [noise]})))
 	check(about.world.has("left out") and got.about.world == about.world, "a garden over %d bytes packed stays out, and the photo says so: %s" % [PhotoMeta.WORLD_MAX, about.world])
 	check(got.world == null and got.about.time_of_day == 0.5, "the rest is still written")
 
 
 func _a_damaged_chunk_is_not_read() -> void:
-	var png := PhotoMeta.embed(_png(), {"time_of_day": 0.25}, main.world.snapshot())
+	var png := PhotoMeta.embed(_png(), {"time_of_day": 0.25}, var_to_bytes(main.world.snapshot()))
 	var at := png.size() - 12 - 8
 	png[at] ^= 0xFF
 	var got := PhotoMeta.read(png)

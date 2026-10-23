@@ -15,15 +15,14 @@ const _SIGNATURE := [137, 80, 78, 71, 13, 10, 26, 10]
 static var _crc_table := PackedInt64Array()
 
 
-## `png` with `about` and, if it fits, `world` (World.snapshot) written into it. Sets `about.world` to what became
-## of the garden: "embedded" with its packed size, or "left out" and why.
-static func embed(png: PackedByteArray, about: Dictionary, world: Variant = null) -> PackedByteArray:
+## `png` with `about` and, if it fits, `world` (var_to_bytes of World.snapshot) written into it. Sets `about.world` to
+## what became of the garden: "embedded" with its packed size, or "left out" and why.
+static func embed(png: PackedByteArray, about: Dictionary, world := PackedByteArray()) -> PackedByteArray:
 	var packed := PackedByteArray()
-	if world == null:
+	if world.is_empty():
 		about.world = {"left out": "no garden given"}
 	else:
-		var raw := var_to_bytes(world)
-		packed = _u32(raw.size()) + raw.compress(FileAccess.COMPRESSION_ZSTD)
+		packed = _u32(world.size()) + world.compress(FileAccess.COMPRESSION_ZSTD)
 		if packed.size() > WORLD_MAX:
 			about.world = {"left out": "%d bytes packed, over %d" % [packed.size(), WORLD_MAX]}
 			packed = PackedByteArray()

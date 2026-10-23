@@ -218,7 +218,7 @@ func _photo_scene() -> Dictionary:
 	var away := not session.visiting.is_empty()
 	var host: String = session.nearby.get("%s:%d" % [session.visiting.address, session.visiting.port], {}).get("name", "") if away else session.me.name
 	return {"about": {"time_of_day": look.time, "garden": {"host": host, "visiting": away,
-		"commands": world.seq, "meadow_seed": Meadow.SEED, "wildlife_seed": str(wildlife.rng.seed)}}, "world": world.snapshot()}
+		"commands": world.seq, "meadow_seed": Meadow.SEED, "wildlife_seed": str(wildlife.rng.seed)}}, "world": var_to_bytes(world.snapshot())}
 
 
 ## Opens a photo this game took as the garden it shows, if it carries one, at its time of day, seen from its lens;
