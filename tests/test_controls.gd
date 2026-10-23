@@ -54,7 +54,7 @@ func _run() -> void:
 	var patch := Vector3(9, 0, 9)
 	await play([
 		{"op": "paint", "tool": "flowers", "points": [[9, 9], [9.5, 9]], "radius": 1.0, "seconds": 0.5},
-		{"op": "tree", "x": -9, "z": 9},
+		{"op": "tree", "x": -9, "z": 9, "seed": 1},
 		{"op": "delete", "x": 0, "z": -4.4},
 	])
 	var tree: Array = flora.placed("tree")[0] if flora.placed("tree").size() == 1 else []
@@ -70,7 +70,8 @@ func _run() -> void:
 	check(_painted(flora, patch).is_empty(), "and the next the painted flowers")
 	await play([{"op": "press", "button": "A"}])
 	check(not _painted(flora, patch).is_empty(), "redo paints them back")
-	await play([{"op": "tree", "x": 9, "z": -9}, {"op": "press", "button": "A"}])
+	# Seeded: some random crowns reach across the ray from the hand to the house _resize_a_built_house grips.
+	await play([{"op": "tree", "x": 9, "z": -9, "seed": 1}, {"op": "press", "button": "A"}])
 	check(not tree[0].shown() and walls.size() == 2, "a new edit after an undo drops the redo steps")
 
 	await play([
