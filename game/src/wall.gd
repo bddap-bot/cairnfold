@@ -489,29 +489,12 @@ static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind],
 	r.build()
 	built.hide_roof(r)
 	built.fit_under(r)
-	var tile := ks[Part.TILE]
-	var shadow := ks[Part.TILE_SHADOW]
-	var bed := ks[Part.MORTAR]
-	var mortar := PackedFloat32Array()
-	mortar.resize(r.mortar.size() * bed.stride())
-	for i in r.mortar.size():
-		var m: Dictionary = r.mortar[i]
-		bed.write(mortar, i, m.xform, _painted_as(m, colours), m.ao, Palette.code(m.kind))
-	var slab := ks[Part.COAT]
-	var slabs := PackedFloat32Array()
-	slabs.resize(r.slabs.size() * slab.stride())
-	for i in r.slabs.size():
-		var m: Dictionary = r.slabs[i]
-		slab.write(slabs, i, m.xform, _painted_as(m, colours), m.ao, Palette.code(m.kind))
-	var tiles := PackedFloat32Array()
-	tiles.resize(r.tiles.size() * tile.stride())
-	var shadows := PackedFloat32Array()
-	shadows.resize(r.tiles.size() * shadow.stride())
-	for i in r.tiles.size():
-		var t: Dictionary = r.tiles[i]
-		tile.write(tiles, i, t.xform, _glazed(t, colours), t.ao, Palette.code(t.kind))
-		shadow.write(shadows, i, t.xform)
-	var chunks := {Part.TILE: Masonry.split(tiles, tile), Part.TILE_SHADOW: Masonry.split(shadows, shadow), Part.COAT: Masonry.split(slabs, slab)}
+	var mortar: PackedFloat32Array = _pack_parts(r.mortar, func(_m: Dictionary) -> Array: return [Part.MORTAR], ks, colours)[Part.MORTAR]
+	var slabs: PackedFloat32Array = _pack_parts(r.slabs, func(_m: Dictionary) -> Array: return [Part.COAT], ks, colours)[Part.COAT]
+	var tiled := _pack_parts(r.tiles, func(_t: Dictionary) -> Array: return [Part.TILE, Part.TILE_SHADOW], ks, colours)
+	var tiles := tiled[Part.TILE]
+	var shadows := tiled[Part.TILE_SHADOW]
+	var chunks := {Part.TILE: Masonry.split(tiles, ks[Part.TILE]), Part.TILE_SHADOW: Masonry.split(shadows, ks[Part.TILE_SHADOW]), Part.COAT: Masonry.split(slabs, ks[Part.COAT])}
 	return {"roof": r, "tiles": tiles, "shadows": shadows, "slabs": slabs, "chunks": chunks, "mortar": mortar}
 
 
@@ -561,50 +544,46 @@ static func _faces_mesh(tris: PackedVector3Array, flat_normals := false) -> Arra
 ## A built layout's stones as instance buffers by Part, and the box enclosing them. Reads nothing but its
 ## arguments, so it runs on a worker thread.
 static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Dictionary:
-	var stone := ks[Part.STONE]
-	var mortar := ks[Part.MORTAR]
-	var shadow := ks[Part.STONE_SHADOW]
-	var timber := ks[Part.TIMBER]
-	var paving := ks[Part.FLOOR]
-	var counts := {}
-	for s in built.stones:
-		counts[s.kind] = counts.get(s.kind, 0) + 1
-	var mortars: int = counts.get("mortar", 0) + counts.get("plaster", 0) + counts.get("bed", 0)
-	var floor: int = counts.get("flagstone", 0) + counts.get("plank", 0)
-	var beams: int = counts.get("timber", 0)
-	var stones := built.stones.size() - mortars - beams - floor
-	var bufs: Array[PackedFloat32Array] = [PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array(), PackedFloat32Array()]
-	bufs[0].resize(stones * stone.stride())
-	bufs[1].resize(mortars * mortar.stride())
-	bufs[2].resize((built.stones.size() - counts.get("mortar", 0) - counts.get("bed", 0) - floor) * shadow.stride())
-	bufs[3].resize(beams * timber.stride())
-	bufs[4].resize(floor * paving.stride())
-	var n := [0, 0, 0, 0, 0]
+	var route := func(s: Dictionary) -> Array:
+		var own := Part.MORTAR if s.kind in ["mortar", "plaster", "bed"] else Part.TIMBER if s.kind == "timber" else Part.FLOOR if s.kind in ["flagstone", "plank"] else Part.STONE
+		return [own] if s.kind == "mortar" or s.kind in WallLayout.FLOOR_KINDS else [own, Part.STONE_SHADOW]
+	var bufs := _pack_parts(built.stones, route, ks, colours)
 	var box := AABB(built.samples[0] if built.samples.size() > 0 else Vector3.ZERO, Vector3.ZERO)
 	for s in built.stones:
-		var x: Transform3D = s.xform
-		if s.kind in ["mortar", "plaster", "bed"]:
-			mortar.write(bufs[1], n[1], x, _painted_as(s, colours), s.ao, Palette.code(s.kind), s.get("ends", Vector2.ZERO))
-			n[1] += 1
-		elif s.kind == "timber":
-			timber.write(bufs[3], n[3], x, _painted_as(s, colours), s.ao, Palette.code(s.kind), s.get("ends", Vector2.ZERO))
-			n[3] += 1
-		elif s.kind in ["flagstone", "plank"]:
-			paving.write(bufs[4], n[4], x, _painted_as(s, colours), s.ao, Palette.code(s.kind))
-			n[4] += 1
-		else:
-			x.basis = x.basis * Stones.FLIPS[s.variant]
-			stone.write(bufs[0], n[0], x, _glazed(s, colours), s.ao, Palette.code(s.kind), Stones.ends(s))
-			n[0] += 1
-		if s.kind != "mortar" and not s.kind in WallLayout.FLOOR_KINDS:
-			shadow.write(bufs[2], n[2], x)
-			n[2] += 1
-		box = box.expand(x.origin)
+		box = box.expand(s.xform.origin)
 	var chunks := {}
-	var parts: Array[Part] = [Part.STONE, Part.MORTAR, Part.STONE_SHADOW, Part.TIMBER, Part.FLOOR]
-	for i in bufs.size():
-		chunks[parts[i]] = Masonry.split(bufs[i], ks[parts[i]])
-	return {"stone": bufs[0], "mortar": bufs[1], "shadow": bufs[2], "timber": bufs[3], "floor": bufs[4], "chunks": chunks, "bounds": box.grow(0.6), "paint": colours, "ruin_pick": _pack_ruin(built)}
+	for part in [Part.STONE, Part.MORTAR, Part.STONE_SHADOW, Part.TIMBER, Part.FLOOR]:
+		chunks[part] = Masonry.split(bufs[part], ks[part])
+	return {"stone": bufs[Part.STONE], "mortar": bufs[Part.MORTAR], "shadow": bufs[Part.STONE_SHADOW], "timber": bufs[Part.TIMBER], "floor": bufs[Part.FLOOR], "chunks": chunks, "bounds": box.grow(0.6), "paint": colours, "ruin_pick": _pack_ruin(built)}
+
+
+## `parts` as instance buffers by Part, in their order: each in the Parts `into` names for it, its own first and then
+## its shadow's if it casts one. A stone turns by its variant (FLIPS); stones and tiles are glazed.
+static func _pack_parts(parts: Array, into: Callable, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Array[PackedFloat32Array]:
+	var routes := parts.map(into)
+	var n := PackedInt32Array()
+	n.resize(Part.size())
+	for route: Array in routes:
+		for part: Part in route:
+			n[part] += 1
+	var bufs: Array[PackedFloat32Array] = []
+	for part in Part.size():
+		bufs.append(PackedFloat32Array())
+		bufs[part].resize(n[part] * ks[part].stride())
+	n.fill(0)
+	for i in parts.size():
+		var s: Dictionary = parts[i]
+		var x: Transform3D = s.xform
+		var ends: Vector2 = s.get("ends", Vector2.ZERO)
+		var own: Part = routes[i][0]
+		if own == Part.STONE:
+			x.basis = x.basis * Stones.FLIPS[s.variant]
+			ends = Stones.ends(s)
+		var colour := _glazed(s, colours) if own == Part.STONE or own == Part.TILE else _painted_as(s, colours)
+		for part: Part in routes[i]:
+			ks[part].write(bufs[part], n[part], x, colour, s.ao, Palette.code(s.kind), ends)
+			n[part] += 1
+	return bufs
 
 
 ## A stone-shaded part's colour in `colours`, its alpha marking glass, which the lamps light from behind.
