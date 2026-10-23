@@ -307,6 +307,8 @@ func _process(delta: float) -> void:
 			var item: HeldItem = held[id][s]
 			item.transform = a.hands[s]
 			item.visible = a.visible
+			if item.replaces_hand():
+				a.fold(s)
 			dish.visible = a.visible and item.feeds()
 		for item: HeldItem in held[id].slice(2):
 			item.transform = Torso.frame(a.eyes, a.torso)

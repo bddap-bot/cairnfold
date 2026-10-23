@@ -24,6 +24,9 @@ func _run() -> void:
 		item.show_state(s)
 		check(item.model != null and item.model.get_child_count() > 0, "wheel tool builds its actual model")
 		check(item.feeds() == (tool == Hand.Tool.SEEDS), "only seeds feed animals")
+		check(item.replaces_hand(), "a held tool is drawn in place of the holder's hand")
+	var long := [HeldItem.Kind.TOOL, Hand.Tool.STYLE, Transform3D(Basis().scaled(Vector3.ONE * Hand.HELD[Hand.Tool.STYLE] * 1.1), Hand.TOP), Color.WHITE, 0.0, 0, false, Vector3.ZERO]
+	check(HeldItem.valid(long), "a wand held as long as a hand's tool, popping in, is accepted")
 	for kind in Brushwork.Brush.values():
 		var s := [HeldItem.Kind.BRUSH, kind, Transform3D(), Color(0.2, 0.3, 0.7), 0.8, 0, false, Vector3.ZERO]
 		check(HeldItem.valid(s), "painting implement accepted")
@@ -58,11 +61,12 @@ func _run() -> void:
 	check(HeldItem.valid(bird), "remote bird descriptor accepted")
 	item.show_state(bird)
 	check(item.model is Conure and not item.feeds(), "remote carry shows bird without offering seeds")
+	check(not item.replaces_hand(), "a bird perches on the carrier's hand")
 	var old := item.model
 	item.show_state(bird)
 	check(item.model == old, "unchanged bird state preserves model")
 	item.show_state([])
-	check(item.model == null and not item.feeds(), "empty hand removes model and feeding target")
+	check(item.model == null and not item.feeds() and not item.replaces_hand(), "empty hand removes model and feeding target")
 	check(not HeldItem.valid([0]) and not HeldItem.valid([0, 0, "bad", Color.WHITE, 0.0, 0, false]), "malformed state rejected")
 	item.queue_free()
 	await process_frame

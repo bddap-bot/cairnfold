@@ -118,6 +118,7 @@ func _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not() -> void:
 	rig.head.position = Vector3(0.4, 1.6, 0.2)
 	rig.right.transform = Transform3D(Basis(Vector3.UP, PI), Vector3(0.6, 1.3, -0.4))
 	rig.right.tool = Hand.Tool.CAMERA
+	rig.left.tool = Hand.Tool.NONE
 	for i in PhotoTool.PREVIEW_EVERY:
 		await process_frame
 	var cam: Camera3D = tool._previews[rig.right].get_child(0)
@@ -126,7 +127,7 @@ func _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not() -> void:
 	_check(seen.distance_to(rig.head.global_position) < 0.001, "the avatar's eyes are at the player's head")
 	var holding := rig.body.bone("rightHand")
 	_check(holding.origin.distance_to(rig.right.global_position) < 0.001, "and its hand holds the camera")
-	_check(holding.basis.get_scale().x < 0.01 and rig.body.bone("leftHand").basis.get_scale().x > 0.9, "folded into its wrist, so no finger reaches in front of the lens")
+	_check(holding.basis.get_scale().x < 0.01 and rig.body.bone("leftHand").basis.get_scale().x > 0.9, "folded into its wrist, so no finger reaches in front of the lens, while an empty hand keeps its fingers")
 	rig.wear(Avatar.open(Avatar.built_in(1), Color.RED))
 	await process_frame
 	_check(rig.body.visible and rig.find_children("*", "Avatar", false, false).size() == 1, "a newly worn avatar replaces the last")

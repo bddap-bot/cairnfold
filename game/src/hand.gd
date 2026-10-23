@@ -1,8 +1,9 @@
 class_name Hand
 extends XRController3D
 
-## A controller and the tool it holds. Every tool's input code dispatches on `tool`, and the object on top
-## of the controller and the selection wheel show it, so they cannot disagree.
+## A controller and the tool it holds. Every tool's input code dispatches on `tool`, and the object held and the
+## selection wheel show it, so they cannot disagree. A hand holding a tool is drawn as that tool alone; only an empty
+## hand shows the controller.
 
 enum Tool { WALLS, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, COLOUR, CAMERA, HOUSE, NONE, SEEDS, DIRT_PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK, SELFIE, BUSHES, BOULDER, MOSS }
 
@@ -19,6 +20,12 @@ const TREE := [
 	[Tool.HOUSE, Tool.TOWER, Tool.DECORATIONS, Tool.BOULDER],
 ]
 const TOP := Vector3(0, 0.0075, 0.045)
+## How many times its size on the wheel a tool is held, so a wand or a spade is as long as a hand's.
+const HELD := {Tool.STYLE: 3.0, Tool.DELETE: 3.0}
+## Past this many metres from the eyes the mark where a hand points grows with distance, so it never shrinks to nothing.
+const MARK_NEAR := 4.0
+## The controller's front, where an empty hand's sight stands.
+const CONTROLLER_TIP := Vector3(0, -0.01, -0.015)
 const POP := 0.18
 const HOT := 1.4
 const IDLE := 0.8
@@ -53,7 +60,7 @@ var flick := ""
 var picking := false
 ## What the hand's tool shows would not fit the frame budget: its pointer shows it refused (BudgetBar).
 var capped := false
-## The model standing on the controller while it holds `t`.
+## The model held while the hand holds `t`.
 func model(t: Tool) -> Node3D:
 	return _models[t]
 
@@ -90,7 +97,8 @@ var _since_prepared := 0.0
 ## Frames left drawing every icon once, too small to see, so the renderer compiles their pipelines while the game
 ## loads: the first open compiled 21 in its frame and dropped it on a Quest 2.
 var _warming := 0
-var _beam: Beam
+var _controller := MeshInstance3D.new()
+var _sight: Sight
 var _dot: MeshInstance3D
 
 
@@ -100,15 +108,14 @@ func _init(tracker_name: String, held: Tool) -> void:
 	tool = held
 	process_priority = -10
 	add_child(body)
-	var mi := MeshInstance3D.new()
-	mi.mesh = Meshes.rounded_box(0.3, 2, 7)
-	mi.scale = Vector3(0.05, 0.035, 0.11)
-	mi.position = Vector3(0, -0.01, 0.04)
+	_controller.mesh = Meshes.rounded_box(0.3, 2, 7)
+	_controller.scale = Vector3(0.05, 0.035, 0.11)
+	_controller.position = Vector3(0, -0.01, 0.04)
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.93, 0.9, 0.84)
 	mat.roughness = 0.6
-	mi.material_override = mat
-	body.add_child(mi)
+	_controller.material_override = mat
+	body.add_child(_controller)
 	for t in Tool.size():
 		var m := Node3D.new() if t in [Tool.NONE, Tool.EASEL, Tool.BOOK] else ToolModels.build(t)
 		m.position = TOP
@@ -117,14 +124,15 @@ func _init(tracker_name: String, held: Tool) -> void:
 		body.add_child(m)
 		_models.append(m)
 	_build_wheel()
-	_beam = Beam.new(Color.WHITE)
-	add_child(_beam)
+	# Both sights stay until a headset playtest culls one: the right hand's is the ring, the left's the bead.
+	_sight = Sight.new(tracker_name == "right_hand")
+	body.add_child(_sight)
 	var dot := SphereMesh.new()
 	dot.radius = 0.05
 	dot.height = 0.1
 	_dot = MeshInstance3D.new()
 	_dot.mesh = dot
-	_dot.material_override = _beam.material_override
+	_dot.material_override = _sight.material_override
 	_dot.top_level = true
 	_dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_dot)
@@ -356,24 +364,23 @@ func holds_seeds() -> bool:
 	return tool == Tool.SEEDS and tracked() and not picking
 
 
-## Tools call this each frame they point; the pointer hides on frames nobody does.
-func point(hit: Variant, tint: Color, reach := 20.0) -> void:
-	if not tracked():
+## Tools call this each frame they point: the held tool's sight shows, and a mark where it meets `hit`. Both hide on
+## frames nobody does.
+func point(hit: Variant, tint: Color) -> void:
+	if not tracked() or _holding:
 		return
-	if not ray(hit if hit != null else global_position - global_basis.z * reach, tint):
-		return
+	_sight.visible = true
+	_sight.tint(BudgetBar.REFUSED if capped else tint)
 	_dot.visible = hit != null
 	if hit != null:
-		_dot.global_position = hit
+		var cam := get_viewport().get_camera_3d()
+		var far := cam.global_position.distance_to(hit) if cam != null else 0.0
+		_dot.global_transform = Transform3D(Basis().scaled(Vector3.ONE * maxf(1.0, far / MARK_NEAR)), hit)
 
 
-func ray(target: Vector3, tint: Color) -> bool:
-	if _holding:
-		return false
-	_beam.visible = true
-	_beam.span(body.global_position, target)
-	(_beam.material_override as StandardMaterial3D).albedo_color = BudgetBar.REFUSED if capped else tint
-	return true
+## Whether the hand shows its sight this frame.
+func aiming() -> bool:
+	return _sight.visible
 
 
 ## Whether a tool already holds this hand this frame.
@@ -382,7 +389,7 @@ func taken() -> bool:
 
 
 func clear_pointer() -> void:
-	_beam.visible = false
+	_sight.visible = false
 	_dot.visible = false
 
 
@@ -516,15 +523,17 @@ func _show_tool(delta: float) -> void:
 		_shown = tool
 		_pop_t = 0.0
 		_models[_shown].visible = true
+		_controller.visible = tool == Tool.NONE
+		_sight.position = CONTROLLER_TIP if tool == Tool.NONE else TOP + ToolModels.tip(tool) * HELD.get(tool, 1.0)
 	if _pop_t >= POP:
 		return
 	_pop_t = minf(_pop_t + delta, POP)
 	var out := clampf(_pop_t / (POP * 0.4), 0.0, 1.0)
 	if _leaving >= 0:
-		_models[_leaving].scale = Vector3.ONE * (1.0 - out)
+		_models[_leaving].scale = Vector3.ONE * (1.0 - out) * HELD.get(_leaving, 1.0)
 		if out >= 1.0:
 			_models[_leaving].visible = false
 			_leaving = -1
 	var k := clampf((_pop_t - POP * 0.3) / (POP * 0.7), 0.0, 1.0)
 	var overshoot := 1.0 + 2.2 * pow(k - 1.0, 3) + 1.2 * pow(k - 1.0, 2)
-	_models[_shown].scale = Vector3.ONE * overshoot
+	_models[_shown].scale = Vector3.ONE * overshoot * HELD.get(_shown, 1.0)

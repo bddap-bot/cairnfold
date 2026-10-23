@@ -116,7 +116,7 @@ func _grip_shapes_the_ground_and_makes_nothing(hand: Hand) -> void:
 			Buttons.injected["right_hand/grip_click"] = true
 			await _frames()
 			_check(main.ground_grab.busy(), "grip takes the ground, holding %s" % name)
-			_check(not hand._beam.visible and not hand._dot.visible, "the ground in hand hides the pointer, holding %s" % name)
+			_check(not hand.aiming() and not hand._dot.visible, "the ground in hand hides the pointer, holding %s" % name)
 			hand.position.y += lift
 			await _frames()
 			var moved := Terrain.height_at(g.x, g.z) - g.y
@@ -370,14 +370,14 @@ func _run() -> void:
 		hand.global_transform = Transform3D(Basis.looking_at(target - at), at)
 	await _frames()
 	var hand := rig.right
-	_check(hand._beam.visible and hand._dot.visible, "idle hand points at the wall")
+	_check(hand.aiming() and hand._dot.visible, "idle hand points at the wall")
 	Buttons.injected["right_hand/grip_click"] = true
 	await _frames()
 	_check(main.tool.held != null, "grip takes the wall")
-	_check(not hand._beam.visible and not hand._dot.visible, "wall grab hides beam and dot")
+	_check(not hand.aiming() and not hand._dot.visible, "wall grab hides sight and dot")
 	hand.point(Vector3.ZERO, Color.WHITE)
-	_check(not hand._beam.visible and not hand._dot.visible, "a later tool cannot redraw a held hand pointer")
-	_check(rig.left._beam.visible, "other hand can still point")
+	_check(not hand.aiming() and not hand._dot.visible, "a later tool cannot redraw a held hand pointer")
+	_check(rig.left.aiming(), "other hand can still point")
 	await _capture("grab")
 	var height: float = main.tool.walls[0].layout.height
 	var center: Vector3 = main.tool.held_at.center
@@ -390,7 +390,7 @@ func _run() -> void:
 	Buttons.injected.erase("right_hand/grip_click")
 	await _frames()
 	_check(main.tool.held == null, "release drops the wall")
-	_check(hand._beam.visible, "pointer returns on release")
+	_check(hand.aiming(), "pointer returns on release")
 	await _capture("released")
 	await _grip_carries_the_wall_whatever_the_hand_holds(hand)
 	await _grip_carries_a_tree_whatever_the_hand_holds(hand)
@@ -409,7 +409,7 @@ func _run() -> void:
 	await _frames()
 	_check(_made(["ponds", "groups"]) == made and Terrain.read(Terrain.ALL) == heights, "the pond tool's trigger on the meadow never shapes the ground, only fills what its hollows hold")
 	_check(not main.world.flora.solids().any(func(parts: Array) -> bool: return Water.drowned(parts[0].anchor)), "and takes out the trees and bushes its water covers")
-	_check(hand._beam.visible and hand._dot.visible, "the pond tool keeps its pointer")
+	_check(hand.aiming() and hand._dot.visible, "the pond tool keeps its pointer")
 	Buttons.injected.erase("right_hand/trigger_click")
 	hand.tool = Hand.Tool.WALLS
 	await _frames()
@@ -421,7 +421,7 @@ func _run() -> void:
 	Buttons.injected["right_hand/grip_click"] = true
 	await _frames()
 	_check(sky.holder == hand, "grip on open sky takes the sky")
-	_check(hand._beam.visible, "the pointer stays while it turns the sky")
+	_check(hand.aiming(), "the pointer stays while it turns the sky")
 	hand.position += -Daylight.RISE * 0.3
 	await _frames()
 	_check(is_equal_approx(main.look.time, time), "moving the hand without turning its aim leaves the sky")

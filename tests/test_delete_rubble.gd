@@ -90,6 +90,6 @@ func _capture(label: String, w: Wall, eye: Vector3, highlight: bool) -> void:
 		await process_frame
 	if highlight and w != null:
 		_check(main.delete_tool._rings[1].visible, "live rubble hover shows whole-wall highlight")
-		_check(main.rig.right._beam.visible, "live rubble hover shows beam")
+		_check(main.rig.right.aiming(), "live rubble hover shows the sight")
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(OS.get_environment("RUBBLE_CAPTURE").path_join(label + ".png"))

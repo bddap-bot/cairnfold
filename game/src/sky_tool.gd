@@ -42,10 +42,10 @@ func _process(_delta: float) -> void:
 			var dir := -hand.global_basis.z
 			if holder == hand:
 				aim(dir)
-				hand.point(null, BEAM, 30.0)
+				hand.point(null, BEAM)
 			elif holder == null and b.pressed("grab") and not hand.taken() and not editing.call(hand) and (Terrain.raycast(hand.global_position, dir) == null or Daylight.aims_at_body(dir, look.time)):
 				take(hand, dir)
-				hand.point(null, BEAM, 30.0)
+				hand.point(null, BEAM)
 		b.latch()
 
 

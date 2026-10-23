@@ -220,7 +220,7 @@ func _aim(vp: SubViewport, at: Transform3D, fov: float, mask: int) -> void:
 	cam.fov = fov
 	cam.cull_mask = mask
 	if rig.body != null and rig.body.visible and mask & Rig.SELF_LAYER:
-		rig.pose_body(holders())
+		rig.pose_body()
 
 
 ## The view the camera's screen would show from `at`, drawn once by a viewport made as the screen's is.

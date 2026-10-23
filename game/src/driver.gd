@@ -219,11 +219,12 @@ func _level(_s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Holds `hand` beside the head, holding `tool`, pointing at `at` in the garden.
+## Holds `hand` beside the head, or at `from` in head space, holding `tool`, pointing at `at` in the garden.
 func _point(s: Dictionary) -> void:
 	var hand := _holding(s, Hand.Tool[s.tool.to_upper()])
 	var head: Transform3D = main.rig.head.global_transform
-	var from := head * Vector3(0.18 if s.get("hand", "right") == "right" else -0.18, -0.25, -0.3)
+	var beside := Vector3(0.18 if s.get("hand", "right") == "right" else -0.18, -0.25, -0.3)
+	var from := head * (Lessons._v(s.from) if s.has("from") else beside)
 	var at := Vector3(s.at[0], s.at[1], s.at[2])
 	hand.global_transform = Transform3D(Basis.looking_at(at - from, Vector3.UP), from)
 	hand.held_still = true
@@ -1964,6 +1965,7 @@ func _remote_holds(s: Dictionary) -> void:
 			else:
 				matches = matches and item.model != null and item.model.is_visible_in_tree() and item.model.transform.is_equal_approx(item.state[2])
 				matches = matches and item.transform.is_equal_approx(avatar.hands[side] if side < 2 else Torso.frame(avatar.eyes, avatar.torso))
+				matches = matches and (side >= 2 or avatar.folded(side) == item.replaces_hand())
 				if item.state[0] == HeldItem.Kind.BRUSH and item.state[1] != Brushwork.Brush.STICK:
 					var tip := (item.model.get_node("tip") as MeshInstance3D).material_override as StandardMaterial3D
 					matches = matches and tip.albedo_color.is_equal_approx(item.state[3])

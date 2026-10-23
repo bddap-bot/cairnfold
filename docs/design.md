@@ -2163,7 +2163,7 @@ Stage numbers refer to the build order at the end.
 | Fog | Froxel fog with density and height controls | Depth fog with aerial perspective and sun scatter, thinning as the eye lifts | 1 (done), 2 (done) |
 | Post | Tilt-shift depth of field, custom tonemapper, grading, bloom | AgX tonemap and grading (done); glow cut for the Quest 2. No depth of field: in a headset your eyes focus for themselves | 1 (done) |
 | Time of day | Continuous, lockable, sun-angle slider | A full 24-hour cycle. Grip any hand on open sky, or pointed at the sun or the moon wherever they stand, under the ground too, to grab the sky, and aim to turn it about the sun's arc, round the whole day: the sun rises on the left, stands high in front at noon and sets on the right; below the horizon it is night, and the moon, riding the same arc 100° behind the sun, stands high in front at dusk, a soft full disc with faint seas in a gentle halo, lighting the garden cool and dim but bright enough to build by while it is up; it sets soon after midnight, and the hours before dawn, with neither up, are dark but for lanterns and stars; the point grabbed stays under the pointer, and moving the hand without turning its aim leaves the sky be; a soft click in the hand each hour. The light's colour and strength, sky, fog, ambient and exposure follow. Letting go turns every player's sky to it. Not an edit: undo leaves it be | 8 (done) |
-| Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette on the controller): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. The style tool (a wand with a star at its tip on the controller) works the same way with a miniature of each style of what it points at (see "Styles"). On a build its stone, roof tiles, thatch, woodwork (fences, window frames, doors) or plaster (plaster walls and their gable ends) each take one of 6–8 curated swatches for that build alone (see "Colour per build"); on the meadow the wheel holds the garden's five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch | 8 (done) |
+| Seasons and palettes | Five glade palettes, colour wheel per element | The colour tool (a painter's palette held in the hand): its trigger on a thing opens a wheel of swatches over the controller, and twisting the wrist turns it like a dial, recolouring live; letting go keeps the swatch at the top, one undo step. The style tool (a wand held with a star at its tip) works the same way with a miniature of each style of what it points at (see "Styles"). On a build its stone, roof tiles, thatch, woodwork (fences, window frames, doors) or plaster (plaster walls and their gable ends) each take one of 6–8 curated swatches for that build alone (see "Colour per build"); on the meadow the wheel holds the garden's five seasons (spring, summer, late summer, autumn, winter), presets for grass, ground, foliage, ivy and how many flowers bloom. Laid parts keep their colour variation: a pick scales them onto the swatch | 8 (done) |
 | Sound | Treated real recordings, granular bricks, adaptive music that thins while you build | Synthesised stone effects, spatialised at the stone that made them; a meadow bed of wind, grass and distant birds; music as layered sections whose tune recedes while you build (see "Sound") | 9 (done) |
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of left X (the Frame's D-pad down) undoes a step, right A redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it, so a process killed mid-write leaves the last one whole (`tests/test_kill.gd`); a quit writes one still due before the sounds wind down. It is loaded at start. Only your own garden is kept, never one you are visiting. A file of another format, or one the game cannot read whole, is moved aside to `garden.save.bad` before the garden is saved again, and the log says which. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
@@ -2516,21 +2516,62 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, decorations, paths, stone, flowers, grass, trees, bushes, boulders, ponds, colour, style, camera, selfie camera, seeds, easel, delete and visit. The tool a hand
-holds stands on top of its controller as a small object, built from the same generators as the full-size
-thing: a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
+windows, decorations, paths, stone, flowers, grass, trees, bushes, boulders, ponds, colour, style, camera, selfie camera, seeds, easel, delete and visit. A hand
+holding a tool is drawn as that tool alone, with no controller, built from the same generators as the full-size
+thing (see "Held tools and aiming"): a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
 flag with lanterns on it, a bend of dirt, a disc of stone ground
 fraying into meadow, three flowers, a grass tuft, a tree, three bushes, a pond in a
-sandy dish, a painter's palette with dabs of colour, a small camera (for the selfie camera, its lens beside the screen on the back), a clay dish heaped with bird seed, a paintbrush reaching past the controller for the easel, a spade for delete, and a little avatar
+sandy dish, a painter's palette with dabs of colour, a small camera (for the selfie camera, its lens beside the screen on the back), a clay dish heaped with bird seed, a paintbrush reaching past the hand for the easel, a spade held blade ahead for delete, and a little avatar
 figure for visit. A new tool
-pops up in place of the old one, which shrinks away, in under a fifth of a second. The controller's own
-rounded body is unchanged, and there is no text anywhere.
+pops up in place of the old one, which shrinks away, in under a fifth of a second. There is no text anywhere.
 
 A hand can also hold nothing, for when the building is done and the player just wants to be in the garden.
 No slot holds that: opening the wheel and letting go with nothing picked empties the hand (`Hand.Tool.NONE`).
-On the controller nothing stands, and no tool draws a ray from it. It still does what every hand does whatever it holds: its grip grabs what it points at, and
-the stick's teleport arc and a grab of the sky still show their rays while in use. Picking any tool from
-the wheel brings that tool's ray back. Nothing hides on a timer.
+An empty hand is drawn as the controller's own rounded body, with nothing on it, and no tool aims from it. It still does
+what every hand does whatever it holds: its grip grabs what it points at, and a grab of the sky shows the sight at the
+controller's front while in use. Picking any tool brings that tool's sight back. Nothing hides on a timer.
+
+### Held tools and aiming
+
+Directive (verbatim): "I've learned that it is I think it's more fun to aim down some sort of reticle or aiming
+affordance than it is to use a laser pointer. I think each of our tools or at least many of them can be just the objects
+themselves held in your hand No, uh, no hand object, just the object, just the tool you're holding"
+
+Directive (verbatim): "The magic wand is a good example of this"
+
+Directive (verbatim): "Teleport does not need the pointer" ... "Well, teleport doesn't need the ray."
+
+No ray leaves any hand. A hand holding a tool is drawn as that tool alone where the hand is; the controller's body
+shows only on an empty hand. Every tool that points, and an empty hand grabbing the sky, aims through one path
+(`Hand.point`): a sight stands at the tip of what the hand holds (`ToolModels.tip`), tinted as the tool's ray was and red
+when the budget refuses, and a mark sits where the aim meets something, growing past 4 m from the eyes
+(`Hand.MARK_NEAR`) so it keeps its apparent size with no line leading the eye to it. Each tool's own highlight (the
+delete ring, a wall's preview, a fitting's outline) is unchanged. Teleport draws nothing from the hand: its halo alone
+shows where it lands.
+
+The wand is the pattern: a thing whose shape already points. It is held pointing ahead along the aim, as long as a
+hand's tool (`Hand.HELD`, three times its wheel icon), its star at the tip with the sight just past it; the spade is
+held the same way, blade ahead. Every other tool is held as the miniature it was, and its sight stands just ahead of
+it. The split, by how each aims:
+
+| Tools | Held as | Aims with |
+| --- | --- | --- |
+| Style | The wand, star ahead, hand-long | Sight past the star |
+| Delete | The spade, blade ahead, hand-long | Sight past the blade |
+| Walls, fences, windows, arches, house, tower, decorations, boulders, stairs, paths, stone, flowers, grass, moss, trees, bushes, ponds, colour | Its miniature | Sight just ahead of it: these aim at the ground or a build, and their own previews mark the target |
+| Camera, selfie camera | The camera | Its lens and screen, unchanged: it never had a ray |
+| Seeds, easel, picture book | The dish, the brush or palette, the book | Unchanged: they work by reach and touch, not by aim |
+| Nothing | The controller | Sight at its front, only while it grabs the sky |
+
+Two sights, both kept until a headset playtest culls one: the left hand's is a glowing bead at the tip, the right
+hand's a ring standing across the aim to look down the tool through, so one session compares them side by side. A
+per-build option would branch on which build runs, which the game never does (`tests/test_quality.gd`). Each is one
+small unshaded mesh per hand in place of the old beam, with the same mark at the target, so the frame costs what the
+ray did: one draw each, under 200 triangles.
+
+Other players see the held tool where the hand was: their avatar's hand folds away while it holds anything but a bird
+(`HeldItem.replaces_hand`), as the player's own body does in a selfie. `demo/held-aim.json` renders the held tools,
+both sights and the teleport halo from the eyes.
 
 One value per hand, `Hand.tool`, is what the input code dispatches on and what the object on top and
 the wheel show, so they cannot disagree. The hands start as walls in the right and the picture book in the left (see "Picture book").
@@ -2670,7 +2711,7 @@ A grip on open sky (no ground or build on the ray), or pointed within 7° of the
 they stand, grabs the sky, so a sun under the ground can be brought back by pointing at it. Held, the sky turns about
 the axis of the sun's arc by however far the pointer turns about it, so the point grabbed stays under the
 pointer as far as the sky can turn; the sun's disc, glow and light ride on it, and the hand's position
-counts for nothing. The pointer stays drawn, since aiming is the control. The sky turns on round the
+counts for nothing. The sight stays shown, since aiming is the control. The sky turns on round the
 whole day, through the night and past midnight. The clouds stay put: they are weather, not the dome.
 
 ## VR controls
@@ -2678,7 +2719,7 @@ whole day, through the night and past midnight. The clouds stay put: they are we
 | Action | Control |
 | --- | --- |
 | Pick a hand's tool | Hold that hand's upper face button (right B, left Y; on the Frame right B, left D-pad left), sweep the hand onto a tool, or onto a subtree and back across onto a tool in it, let go |
-| Teleport onto the ground | Left stick forward, with any tool: a straight ray from the left hand lands where it first meets something solid: the ground, a roof of any pitch, a wall walk, a flat roof or platform, stairs, a bridge or a tree's crown from above; aimed under a roof, as through a door or window, it lands on the floor inside; one that strikes a side, as of a wall or a crown, lands at its foot (see "Standing on what you built"); release to go |
+| Teleport onto the ground | Left stick forward, with any tool: aimed straight from the left hand, it lands where it first meets something solid: the ground, a roof of any pitch, a wall walk, a flat roof or platform, stairs, a bridge or a tree's crown from above; aimed under a roof, as through a door or window, it lands on the floor inside; one that strikes a side, as of a wall or a crown, lands at its foot (see "Standing on what you built"); release to go |
 | Teleport into the air | Aim above the horizon: with nothing on the map for the ray to hit, it targets the point in the air 30 m along it, marked by a ring there alone: the headset's depth places it, so nothing marks the ground below. Release to arrive there in one cut; the view then stays put until the player moves or acts |
 | Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the top surface beneath it, the ground or what is built there, even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
 | Come back down | Aim the teleport ray at the ground |
@@ -2806,7 +2847,7 @@ hour it sets. `demo/book-view.json` renders every spread from the player's own e
 | Page | What the hands do | Why it is not obvious |
 | --- | --- | --- |
 | Pick a tool | Hold the right upper face button, move the hand onto a slot, let go | The wheel opens only while its button is held |
-| Teleport | Left stick forward, the ray lands on a ring, let go to go there | Left only; movement is not a tool |
+| Teleport | Left stick forward, a halo shows where it lands, let go to go there | Left only; movement is not a tool |
 | Undo, redo | Tap the left lower face button, then the right one | Two hands, no tool shows it |
 | Shape the ground | Right grip on the meadow, raise the hand | The grip shapes the ground whatever the hand holds |
 | Turn the sky | Right grip on open sky, sweep the pointer | The sky is grabbable and carries the sun |
@@ -2875,7 +2916,7 @@ The hand you see stops where the controller pushes into something solid, as in H
 a wall or fence (not its doors, windows or arches), a roof, a trunk or an animal. It slides along the surface
 to the point nearest the controller and is back on the controller as soon as the way is clear; held more than
 1 m away it lets go. Leaves and pond water are passed through and felt. Every tool still aims, points and grabs
-from the controller itself; the pointer's beam starts at the hand you see, and other players see that hand.
+from the controller itself; the sight stands on the tool you see, and other players see that tool.
 `HandStop` sweeps a ball the size of the hand from where it was to where the controller is each frame, against
 the world near that sweep alone, so no physics bodies exist.
 
@@ -3415,7 +3456,7 @@ house-sized boulder dropped from high a heavy one.
 
 What the frame budget turns down is plain: the hand's budget bar jumps up to three and a half times its size,
 shakes and settles, a soft cartoon grunt sounds, and the hand feels two knocks (`World.cap`). Before that, while
-what the tool shows would not fit, the bar swells and trembles in red and the hand's pointer turns red, so a
+what the tool shows would not fit, the bar swells and trembles in red and the held tool's sight turns red, so a
 preview that will be refused already looks refused. `tests/test_budget.gd` checks both. Anything else turned down
 (a crowded easel, no hollow to fill, the host refusing) gets the plain `REFUSED` knock.
 
@@ -3451,7 +3492,7 @@ Every player action, from the code:
 | `DIP` | A hand, or a duck coming down, enters a pond | water dip | none: `HandStop.FEEL`'s water is felt |
 | `PLOP` | Thrown seeds land on a pond | bubble plop | none: the seeds left the hand already |
 | `NIBBLE` | A fish takes a grain | soft nibble, at most every 0.12 s | tick in a hand within 0.6 m |
-| `DELETE_SWEEP` | The delete beam takes something, or breaks along a wall | low gravel crunch | grain |
+| `DELETE_SWEEP` | The delete tool's aim takes something, or breaks along a wall | low gravel crunch | grain |
 | `WIPE_CHARGE` | The orb swells while delete points at the sky | none: one sustained sound would be the game's only drone; the orb shows it | pulses quickening with it |
 | `WIPE` | The garden is wiped | long soft gust and rattle | two strong pulses |
 | `DIAL_TURN` | The colour or style wheel turns to the next swatch | wooden tock | click |
@@ -3666,7 +3707,7 @@ At the budget's fitted quality step, GPU time was 6.18 → 6.19 ms and 6.20 → 
 with the same 41 draws and 157,633 primitives. All four phases passed the GPU budget check;
 each recorded two late frames, including the clip-only phases. Their cause was not isolated.
 
-The seed tool is a clay dish of bird seed on the controller, beside the camera on the wheel. Held out calmly, it
+The seed tool is a clay dish of bird seed held in the hand, beside the camera on the wheel. Held out calmly, it
 draws the animals that eat from a hand, one animal to a hand, through one mechanism in `Wildlife`: each
 kind declares an `Appetite`, whether it eats standing on the hand (`Eat.ON_HAND`) or under it
 (`Eat.UNDER_HAND`), how far off it sees seeds, how high over the ground or water the hand may be, how
@@ -3770,7 +3811,7 @@ is introduced. The upward captures show the sky clear of vegetation at the sampl
 
 ## Photos
 
-The camera is a tool on the wheel (`PhotoTool`). Held, a small camera stands on the controller with
+The camera is a tool on the wheel (`PhotoTool`). Held, a small camera stands in the hand with
 its lens along the aim and a screen on its back toward the eye, showing what the lens sees. The
 lens keeps the horizon level however the wrist rolls, so photos never come out tilted; pointed
 straight up or down, the top of the controller is up. The trigger takes a photo

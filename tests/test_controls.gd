@@ -203,7 +203,7 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	_check(tool.held_at.size.x > square.x * 1.2 or tool.held_at.size.y > square.y * 1.2, "spreading the hands stretches it: %s" % tool.held_at.size)
 	_check(tool.held_at.rise == held_at.rise and tool.held_at.yaw == held_at.yaw, "two hands neither raise its plinth nor turn it")
 	_check(_pulsed_both(Cues.Act.HOUSE_STRETCH, rig), "the stretch pulses in both hands: %s" % Cues.pulsed)
-	_check(rig.left._holding and rig.right._holding and not rig.right._beam.visible and not rig.left._beam.visible, "both hands holding it show no pointer")
+	_check(rig.left._holding and rig.right._holding and not rig.right.aiming() and not rig.left.aiming(), "both hands holding it show no pointer")
 	# Report (relay): two hands stretching a house vertically make the house itself taller.
 	var height: float = tool.held_at.height
 	for i in 10:

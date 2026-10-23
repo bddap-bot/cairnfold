@@ -8,6 +8,9 @@ extends RefCounted
 
 ## The camera model's lens, from the model's origin; PhotoTool takes photos from here.
 const CAMERA_LENS := Vector3(0, 0.024, -0.0302)
+## Where the wand's star and the spade's blade end, in their models' space.
+const WAND_STAR := Vector3(0, 0, -0.055)
+const SPADE_EDGE := Vector3(0, 0, -0.052)
 const CAMERA_SCREEN := Vector2(0.048, 0.036)
 ## A camera's shutter button glows this colour while it records.
 const RECORDING := Color(1.0, 0.12, 0.08)
@@ -222,21 +225,33 @@ static func _palette(root: Node3D) -> void:
 		root.add_child(mi)
 
 
-## A wand lying flat with a star at its tip and two sparkles off it: it turns what it points at into another
-## of its kind, and it is no build, so the icon cannot read as a thing it builds.
+## A wand pointing ahead with a star standing at its tip and two sparkles off it: it turns what it points at into
+## another of its kind, and it is no build, so the icon cannot read as a thing it builds.
 static func _wand(root: Node3D) -> void:
-	var along := Vector3(1, 0, -1).normalized()
 	var stick := CylinderMesh.new()
-	stick.top_radius = 0.0022
-	stick.bottom_radius = 0.003
-	stick.height = 0.042
+	stick.top_radius = 0.0012
+	stick.bottom_radius = 0.0022
+	stick.height = 0.062
 	stick.radial_segments = 8
 	stick.rings = 1
-	_piece(root, stick, Transform3D(Basis(Quaternion(Vector3.UP, along)), along * -0.004 + Vector3(0, 0.0025, 0)), _plain("wand", Color(0.32, 0.2, 0.13)))
+	var ahead := Basis(Vector3.RIGHT, -PI * 0.5)
+	_piece(root, stick, Transform3D(ahead, Vector3(0, 0, -0.021)), _plain("wand", Color(0.32, 0.2, 0.13)))
 	var gold := _plain("star", Color(1.0, 0.82, 0.3))
-	_piece(root, _star(5, 0.012, 0.005), Transform3D(Basis(), along * 0.019 + Vector3(0, 0.003, 0)), gold)
-	for spark in [[Vector3(0.02, 0.003, 0.007), 0.004], [Vector3(-0.002, 0.003, -0.029), 0.003]]:
-		_piece(root, _star(4, spark[1], spark[1] * 0.35), Transform3D(Basis(), spark[0]), gold)
+	var upright := Basis(Vector3.RIGHT, PI * 0.5)
+	_piece(root, _star(5, 0.009, 0.0038), Transform3D(upright, WAND_STAR), gold)
+	for spark in [[Vector3(0.008, 0.006, -0.06), 0.003], [Vector3(-0.007, -0.004, -0.044), 0.0022]]:
+		_piece(root, _star(4, spark[1], spark[1] * 0.35), Transform3D(upright, spark[0]), gold)
+
+
+## Where a tool's sight stands, in its model's space: just past the wand's star or the spade's blade, and ahead of
+## every other model.
+static func tip(tool: Hand.Tool) -> Vector3:
+	match tool:
+		Hand.Tool.STYLE:
+			return WAND_STAR + Vector3(0, 0, -0.006)
+		Hand.Tool.DELETE:
+			return SPADE_EDGE + Vector3(0, 0, -0.004)
+	return Vector3(0, 0.02, -0.065)
 
 
 ## A flat star of `points` points, `outer` to their tips and `inner` to the notches between, 3 mm thick.
@@ -997,7 +1012,7 @@ static func _boulders(root: Node3D) -> void:
 		root.add_child(m)
 
 
-## A garden spade, blade down: it digs things up.
+## A garden spade held blade ahead: it digs things up.
 static func _spade(root: Node3D) -> void:
 	var steel: StandardMaterial3D = _mats.get("steel")
 	if steel == null:
@@ -1010,15 +1025,12 @@ static func _spade(root: Node3D) -> void:
 		wood.albedo_color = Color(0.55, 0.38, 0.22)
 		wood.roughness = 0.9
 		_mats["wood"] = wood
-	var tilt := Node3D.new()
-	tilt.rotation = Vector3(0, 0.6, -0.35)
-	root.add_child(tilt)
 	var blade := BoxMesh.new()
-	blade.size = Vector3(0.02, 0.022, 0.003)
+	blade.size = Vector3(0.02, 0.0015, 0.024)
 	var shaft := CylinderMesh.new()
 	shaft.top_radius = 0.0022
 	shaft.bottom_radius = 0.0022
-	shaft.height = 0.026
+	shaft.height = 0.04
 	shaft.radial_segments = 6
 	shaft.rings = 1
 	var grip := CylinderMesh.new()
@@ -1027,14 +1039,14 @@ static func _spade(root: Node3D) -> void:
 	grip.height = 0.012
 	grip.radial_segments = 6
 	grip.rings = 1
-	for part in [[blade, Vector3(0, 0.011, 0), Vector3.ZERO, "steel"], [shaft, Vector3(0, 0.035, 0), Vector3.ZERO, "wood"], [grip, Vector3(0, 0.049, 0), Vector3(0, 0, PI / 2), "wood"]]:
+	var ahead := Basis(Vector3.RIGHT, -PI * 0.5)
+	for part in [[blade, SPADE_EDGE + Vector3(0, 0, 0.012), Basis(), "steel"], [shaft, Vector3(0, 0, -0.008), ahead, "wood"], [grip, Vector3(0, 0, 0.012), Basis(Vector3.FORWARD, PI * 0.5), "wood"]]:
 		var mi := MeshInstance3D.new()
 		mi.mesh = part[0]
-		mi.position = part[1]
-		mi.rotation = part[2]
+		mi.transform = Transform3D(part[2], part[1])
 		mi.material_override = _mats[part[3]]
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		tilt.add_child(mi)
+		root.add_child(mi)
 
 
 ## A small clay dish heaped with bird seed: striped sunflower seeds among round millet.

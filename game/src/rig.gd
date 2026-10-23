@@ -143,13 +143,14 @@ func wear(a: Avatar) -> void:
 	add_child(a)
 
 
-## Poses the body from the head and hands; a hand in `holding` holds a camera, whose model stands in for it, so its
-## fingers never reach in front of the lens.
-func pose_body(holding: Array[Hand]) -> void:
+## Poses the body from the head and hands; a hand holding a tool is drawn as the tool alone, so its fingers never
+## reach in front of a camera's lens.
+func pose_body() -> void:
 	body.torso = torso().basis.get_euler().y
 	body.pose(head.global_transform, left.global_transform, right.global_transform, gaze.look)
-	for h in holding:
-		body.fold(hands.find(h))
+	for h in hands:
+		if h.tool != Hand.Tool.NONE:
+			body.fold(hands.find(h))
 
 
 ## The torso under the head, in the world's space (`Torso`).
@@ -270,8 +271,6 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 				stand.y = g
 	aim_ground = Vector3(stand.x, g, stand.z)
 	aim_lift = clampf(stand.y - g, 0.0, MAX_LIFT)
-	if aim_hand != null:
-		aim_hand.ray(target, Color(0.85, 0.97, 1.0, 0.75))
 	var g3: Vector3 = aim_ground
 	var size := maxf(1.0, head.global_position.distance_to(target) / MARKER_NEAR)
 	_ring.visible = true
@@ -287,7 +286,6 @@ func _beneath(p: Vector3) -> float:
 
 
 func hide_markers() -> void:
-	left.clear_pointer()
 	_ring.visible = false
 
 

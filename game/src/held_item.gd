@@ -80,7 +80,7 @@ static func valid(s: Array) -> bool:
 	var bend: Vector3 = s[7]
 	if not bend.is_finite() or bend.length() > CanvasContact.BEND + CanvasContact.SKIN:
 		return false
-	if not t.is_finite() or t.origin.length() > 3.0 or t.basis.get_scale().length() > 4.0 or not is_finite(c.r + c.g + c.b + c.a) or not is_finite(s[4]) or s[4] < 0.0 or s[4] > 1.0:
+	if not t.is_finite() or t.origin.length() > 3.0 or t.basis.get_scale().length() > 6.0 or not is_finite(c.r + c.g + c.b + c.a) or not is_finite(s[4]) or s[4] < 0.0 or s[4] > 1.0:
 		return false
 	match s[0]:
 		Kind.TOOL:
@@ -134,6 +134,11 @@ func show_state(s: Array) -> void:
 		tip.albedo_color = s[3]
 		tip.roughness = 0.25 if s[4] > 0.02 else 0.7
 		ToolModels.bend(model, s[1], s[7])
+
+
+## Whether the holder's hand is drawn as what it holds alone, as their own view draws it: a bird perches on a hand.
+func replaces_hand() -> bool:
+	return not state.is_empty() and state[0] != Kind.BIRD
 
 
 func feeds() -> bool:

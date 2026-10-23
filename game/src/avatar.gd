@@ -414,6 +414,11 @@ func fold(side: int) -> void:
 	_place(_arms[side].hand, Transform3D(at.basis.scaled_local(Vector3.ONE * 0.001), at.origin))
 
 
+## Whether hand `side` is folded away this pose.
+func folded(side: int) -> bool:
+	return _get_joint(_arms[side].hand).basis.get_scale().x < 0.01
+
+
 func _arm(arm: Arm, to: Vector3, turn: Basis) -> void:
 	var shoulder := _get_joint(arm.upper).origin
 	var a := arm.upper_length
