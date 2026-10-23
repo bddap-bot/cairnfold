@@ -480,7 +480,11 @@ func _order(proposed: Dictionary, by: int) -> void:
 		var step := _resolve(by, kind)
 		if step.is_empty():
 			return
-		cmd = step.inverse.duplicate(true)
+		# Every visitor checks what the host sends, and one that fails asks for the whole garden again.
+		cmd = Commands.clean(step.inverse.merged({"seq": seq + 1, "by": by}).duplicate(true), state, true)
+		if cmd.is_empty():
+			_refuse(by, proposed, "the garden has moved on from what it takes back")
+			return
 		if not fits(cmd):
 			stacks[by][kind].append(step)
 			_refuse(by, proposed, OVER)

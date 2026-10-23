@@ -21,6 +21,8 @@ SEQ = 35
 # After the final digest the joiner pulls the ground this far up in one stroke and then twice as far down, each
 # step digested on every peer: one stroke of a guest's spans the whole ground.
 EXTREME = 500
+# Where the joiner drowns a tree under a pond and undoes it, clear of the easel and the held tools' wall.
+DROWN = (14, -14)
 HOME_CUE = re.compile(r'"home": true|"digests": \["home"\]')
 
 
@@ -173,6 +175,18 @@ def scripts(count, capture=False):
             steps += [{"op": "wipe", "seconds": 2.5}, {"op": "until", "seq": last + 17},
                       {"op": "easel", "x": -4, "z": 4}]
         steps += [{"op": "until", "seq": last + 18}]
+        # The joiner presses a hollow, plants a tree in it and pours a pond over the tree, which drowns it, then undoes
+        # the pond: every peer takes the undo as sent and sees the tree stand again.
+        if name == "join":
+            steps += [{"op": "sculpt", "x": DROWN[0], "z": DROWN[1], "lift": -1.0, "radius": 2.8, "seconds": 0.4},
+                      {"op": "until", "seq": last + 19}, {"op": "tree", "x": DROWN[0], "z": DROWN[1], "seed": 4},
+                      {"op": "until", "seq": last + 20}, {"op": "pond", "x": DROWN[0], "z": DROWN[1], "brim": 8.4}]
+        steps += [{"op": "until", "seq": last + 21}, {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": f"{name}-drowned"},
+                  barrier([f"{n}-drowned" for n in names])]
+        if name == "join":
+            steps += [{"op": "press", "button": "dpad_down"}]
+        steps += [{"op": "until", "seq": last + 22}, {"op": "wait", "seconds": 0.5}, {"op": "digest", "name": f"{name}-undrowned"},
+                  barrier([f"{n}-undrowned" for n in names])]
         steps += held_steps(name, names, capture)
         steps += [{"op": "pick", "action": "avatar:2"},
                   {"op": "digest", "name": f"{name}-avatar-picked"},

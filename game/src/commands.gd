@@ -6,9 +6,9 @@ extends RefCounted
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
 const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "mix", "sheet", "restone", "boulder", "unboulder", "decoration", "undecoration"]
-## What a batch may carry: from a player, takings; from the host, also the undo of them.
+## What a batch may carry: from a player, takings; from the host, also the undo of them and of what water drowned.
 const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show", "uneasel", "unboulder", "undecoration"]
-const UNBATCHED := ["stairs", "wall", "path", "ground", "easel", "boulder", "decoration"]
+const HOST_BATCHED := ["stairs", "wall", "path", "ground", "easel", "boulder", "decoration", "heights", "ponds", "tree"]
 ## Most commands one batch carries.
 const MAX_BATCH := 128
 ## A stroke builds at most this many walls; their ids follow from the command's sequence number.
@@ -314,15 +314,15 @@ static func _samples(strokes: Array) -> int:
 
 
 ## Each command of a batch is checked against the garden as it stands, so no two may change the same thing, and
-## one batch takes at most MAX_BATCH things and one `show`. From a player, a command that no longer applies (what it
-## takes went meanwhile) is dropped and the rest stand; from the host, every one must apply.
+## one batch takes at most MAX_BATCH things and, from a player, one `show`. From a player, a command that no longer
+## applies (what it takes went meanwhile) is dropped and the rest stand; from the host, every one must apply.
 static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dictionary) -> bool:
 	var cmds: Variant = cmd.get("cmds")
 	# The host's batches include undoing a build taken with all that stood on it, however much that was.
 	var most := MAX_SNAPSHOT if from_host else MAX_BATCH
 	if not cmds is Array or cmds.is_empty() or cmds.size() > most:
 		return false
-	var allowed := BATCHED + (UNBATCHED if from_host else [])
+	var allowed := BATCHED + (HOST_BATCHED if from_host else [])
 	var seen := {}
 	out.cmds = []
 	for c: Variant in cmds:
@@ -340,9 +340,10 @@ static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 			continue
 		for k in ["seq", "by"]:
 			kept.erase(k)
-		var ids: Array = Array(kept.ids) if kept.has("ids") else ([kept.id] if kept.has("id") else [-1])
+		# The host's undo of a drowning shows plants again beside what it undoes, which may itself show some.
+		var ids: Array = Array(kept.ids) if kept.has("ids") else ([kept.id] if kept.has("id") else ([] if from_host and kept.op == "show" else [-1]))
 		for id: int in ids:
-			var key := "%s%d" % ["w" if kept.op in ["wall", "unwall"] or kept.get("of") == "walls" else ("e" if kept.op in ["easel", "uneasel"] or kept.get("of") == "easels" else ("q" if id >= 0 else "show")), id]
+			var key := "%s%d" % ["w" if kept.op in ["wall", "unwall"] or kept.get("of") == "walls" else ("e" if kept.op in ["easel", "uneasel"] or kept.get("of") == "easels" else ("q" if id >= 0 else kept.op)), id]
 			if seen.has(key):
 				return false
 			seen[key] = true

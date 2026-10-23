@@ -60,6 +60,15 @@ for shape, reach in [("peak", lambda h: h[1] > 450), ("pit", lambda h: h[0] < -4
             v.pop(k)
     check(all(v == seen_shape["host"] for v in seen_shape.values()), f"every peer shows the joiner's {shape} the same")
     check(reach(seen_shape["host"]["heights"]), f"the joiner's one stroke {shape} reaches past 450 m: {seen_shape['host']['heights']}")
+for phase, shown in [("drowned", False), ("undrowned", True)]:
+    seen_phase = {n: json.load(open(f"{out}/{n}-{phase}.json")) for n in names}
+    for v in seen_phase.values():
+        for k in ("avatars", "worn", "handfuls", "frenzy"):
+            v.pop(k)
+    check(all(v == seen_phase["host"] for v in seen_phase.values()), f"every peer shows the garden alike once {phase}")
+    trees = [v for v in seen_phase["host"]["groups"].values() if v["kind"] == "tree"]
+    check(len(trees) == 1 and (trees[0]["shown"] == trees[0]["plants"] if shown else trees[0]["shown"] == 0)
+          and seen_phase["host"]["ponds"] == int(not shown), f"the joiner's pond {'came away and the tree stands' if shown else 'drowned its tree'}: {trees}, {seen_phase['host']['ponds']} ponds")
 painted = {n: json.load(open(f"{out}/{n}-easel.json")) for n in names}
 for v in painted.values():
     for k in ("avatars", "worn", "handfuls", "frenzy"):
