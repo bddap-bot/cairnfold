@@ -213,11 +213,8 @@ func _a_lake_is_worked_out_off_the_main_thread() -> void:
 	var season := (world.palette.season + 1) % Palette.SEASONS.size()
 	world.submit({"op": "season", "index": season})
 	check(world.seq == seq and world.state.ponds.is_empty() and world.palette.season != season, "the lake waits for its water, and the season after it waits too")
-	var frames := 0
-	while world.seq < seq + 2 and frames < 600:
-		await process_frame
-		frames += 1
-	check(world.seq == seq + 2 and world.palette.season == season, "both apply, in order, %d frames on" % frames)
+	await until(world.idle)
+	check(world.seq == seq + 2 and world.palette.season == season, "both apply, in order")
 	check(water.ponds.size() == 1 and water.ponds[0].pond.cells == lake.cells and world.stacks[world.me()].undo.size() == 2, "the lake fills as pointed, one undo step")
 	_same_as_on_the_spot(world, "the lake")
 	var cells := Terrain.cells_around(0, -20, 4.0)

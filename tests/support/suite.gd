@@ -27,6 +27,13 @@ func frames(n: int) -> void:
 		await process_frame
 
 
+## Waits frame by frame until `done` holds. No frame count bounds it: worker threads and sockets keep the host's clock
+## while frames run as fast as it allows, so a loaded host outruns any count; test.sh's timeout ends a hang.
+func until(done: Callable) -> void:
+	while not done.call():
+		await process_frame
+
+
 ## A straight wall `length` along x on flat ground: its windows as (s, sill) cut first, then its archways at `arches`.
 static func straight_wall(length: float, height: float, arches: Array[float] = [], seed := 1, windows: Array[Vector2] = []) -> WallLayout:
 	var w := WallLayout.new()
@@ -46,6 +53,12 @@ static func wall_data(with: Dictionary) -> Dictionary:
 	w.free()
 	d.merge(with, true)
 	return d
+
+
+## Waits until every command the garden was sent has run and nothing it built is still being laid.
+func settled() -> void:
+	await process_frame
+	await until(func() -> bool: return main.world.idle() and not main.world.stairs.laying() and not main.tool.walls.any(func(w: Wall) -> bool: return w.laying()))
 
 
 ## Runs `steps` through a Driver and waits for it, connecting before it starts since a run whose every step returns at
