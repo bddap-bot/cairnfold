@@ -162,10 +162,18 @@ func _they_swim_in_the_ponds() -> void:
 
 	var start := fish.swimming.map(func(f: Fish.One) -> Vector3: return f.at)
 	var kept := true
+	var tail_first := 0.0
 	for i in int(60.0 / STEP):
+		var was: Array = fish.swimming.map(func(f: Fish.One) -> Vector3: return f.at)
 		wildlife.tick(STEP)
 		kept = kept and _in_water(fish, water)
+		for k in mini(was.size(), fish.swimming.size()):
+			var f := fish.swimming[k]
+			var moved := Vector2(f.at.x - was[k].x, f.at.z - was[k].z)
+			if moved.dot(Vector2(sin(f.heading), cos(f.heading))) < 0.0:
+				tail_first += moved.length()
 	check(kept, "a minute on, every one has stayed in the water")
+	check(tail_first < 0.01, "none swims tail first, %.2f m in all" % tail_first)
 	var moved := 0.0
 	var now := fish.swimming
 	for i in now.size():

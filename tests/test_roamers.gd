@@ -14,6 +14,7 @@ func _initialize() -> void:
 	await process_frame
 	_each_is_one_draw_call()
 	await _a_fox_and_a_doe_stand_true_to_life()
+	await _a_deer_turns_before_it_runs()
 	await _deer_then_a_fox_come_out_of_sight()
 	await _a_sudden_move_sends_a_deer_off_and_stillness_lets_it_near()
 	await _food_held_still_draws_one_to_eat()
@@ -117,6 +118,27 @@ func _a_fox_and_a_doe_stand_true_to_life() -> void:
 		check(absf(withers - want[1]) < 0.04, "a %s stands %.2f m at the shoulder" % [kind, withers])
 		check(absf(bounds.size.z - want[2]) < 0.06, "a %s is %.2f m nose to tail" % [kind, bounds.size.z])
 		b.free()
+
+
+## A deer facing a fright runs from it the other way: it wheels round first, so it never gallops backwards.
+func _a_deer_turns_before_it_runs() -> void:
+	var grazers := Grazers.new(null, 1)
+	var a := Beast.new(Beast.Kind.DEER, 1.0, 0.0)
+	root.add_child(a)
+	await process_frame
+	a.position = Terrain.ground(0, 0)
+	Wildlife._face(a, Vector3.FORWARD, 1.0)
+	var backwards := 0.0
+	for i in int(2.0 / STEP):
+		var was := a.position
+		grazers._go(a, Vector3(0, 0, 10), 6.0, STEP, Grazers.Motion.RUN)
+		var moved := Vector3(a.position.x - was.x, 0, a.position.z - was.z)
+		if moved.dot(grazers._forward(a)) < 0.0:
+			backwards += moved.length()
+	check(backwards < 0.15, "a deer bolting from what it faces goes %.2f m backwards" % backwards)
+	check(a.position.z > 5.0, "and is off, %.1f m" % a.position.z)
+	a.free()
+	grazers.free()
 
 
 func _each_is_one_draw_call() -> void:

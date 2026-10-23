@@ -24,7 +24,7 @@ const DART := 0.75
 ## Per second, how quickly a dart slows back to cruising.
 const CALM_DOWN := 1.6
 ## Radians a second the body turns to the way it swims; a fish swims straight between spots, so the way
-## checked clear of walls is the way it goes.
+## checked clear of walls is the way it goes, and turns before it swims off, so it never swims tail first.
 const TURN := 6.0
 const SHY := 0.55
 const DART_FOR := 0.9
@@ -337,12 +337,12 @@ func _swim(f: One, startling: Array[Vector3], delta: float) -> void:
 		if f.goal == Vector2.INF:
 			return
 	var to := f.goal - here
-	var next := here + to.limit_length(f.speed * delta)
+	var want := atan2(to.x, to.y)
+	f.heading += clampf(wrapf(want - f.heading, -PI, PI), -TURN * delta, TURN * delta)
+	var next := here + to.limit_length(f.speed * delta * maxf(cos(want - f.heading), 0.0))
 	if not _deep(f.pond, next):
 		f.goal = Vector2.INF
 		return
-	var want := atan2(to.x, to.y)
-	f.heading += clampf(wrapf(want - f.heading, -PI, PI), -TURN * delta, TURN * delta)
 	f.at = Vector3(next.x, lerpf(f.at.y, _swim_y(f.pond, next), 1.0 - exp(-delta * 2.0)), next.y)
 
 

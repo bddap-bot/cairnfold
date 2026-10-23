@@ -12,6 +12,9 @@ enum State { ENTER, GRAZE, STAND, WALK, LIE, WARY, FLEE, LEAVE, FEED }
 enum Motion { IDLE, GRAZE, STEP, WALK, RUN, LIE }
 
 const TURN := 3.0
+## Metres a second an animal steps back or sideways without turning first, as it shuffles up to food; faster than
+## that it turns to face the way it goes before it gets up to speed.
+const SIDLE := 0.3
 ## A grazing animal steps on this far every so often.
 const NIBBLE_STEP := Vector2(0.2, 0.6)
 ## Seconds before a cornered animal looks again for a way to run.
@@ -400,14 +403,17 @@ func _gone(b: Band) -> bool:
 	return true
 
 
-## True once it is there; it shows `motion` on the way, paced to the ground covered.
+## True once it is there; it shows `motion` on the way, paced to the ground covered. It turns
+## to face the way before it goes at `speed`.
 func _go(a: Node3D, goal: Vector3, speed: float, delta: float, motion := Motion.WALK) -> bool:
 	var to := Vector3(goal.x - a.position.x, 0, goal.z - a.position.z)
 	var d := to.length()
-	var step := minf(d, speed * delta)
+	var step := 0.0
 	if d > 1e-4:
-		a.position += to / d * step
 		Wildlife._face(a, to, delta * TURN)
+		var pace: float = lerpf(minf(speed, SIDLE), speed, maxf(_forward(a).dot(to / d), 0.0))
+		step = minf(d, pace * delta)
+		a.position += to / d * step
 	a.position.y = Terrain.height_at(a.position.x, a.position.z)
 	a.walked(motion, step, delta)
 	return d <= speed * delta
