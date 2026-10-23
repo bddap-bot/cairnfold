@@ -29,6 +29,11 @@ controls and the build order.
   function's doc block, never between a doc block and its function.
 - Edit by subtraction: fix problems by removing code where possible, one
   implementation per thing.
+- The history of a codebase should not be encoded in or inferrable from the codebase itself. Systems
+  at rest should look as if they were designed this way from the start. Exceptions exist, including
+  git history and changelogs. Implications include immediate refactors to simplify and remove old
+  patterns, and immediate sweeps and cleanups of code and documentation included with each
+  modification.
 - Branch on what a thing can do, never on what it is; better still, need no branch. Ask "does this support X?" or
   "is the frame on time?", never "which model, platform or build target is this?": one path that adapts by
   measurement serves every device, and a capability branch stays only where one path cannot serve both, where users
