@@ -44,6 +44,8 @@ const SPARE := 0.2
 const ROOF_SHELL := 0.14
 const FENCE_HALF := 0.06
 
+## Whether the eyes are tested too; off only for the bench to price them.
+var eyes := true
 var _rig: Rig
 var _walls: WallTool
 var _flora: Flora
@@ -92,6 +94,9 @@ func _process(delta: float) -> void:
 		var pulse := _feels[i].step(now, delta, touched, near.passing(at), from.distance_to(to), from.distance_to(at))
 		if pulse.x > 0.0:
 			Cues.feel(hand, [pulse.x, pulse.y, 1, 0.0])
+	if not eyes:
+		_rig.inside = false
+		return
 	var eye := _rig.head.global_position
 	var seen := _near_for(_rig.hands.size(), AABB(eye, Vector3.ZERO).grow(RADIUS + STEP)).touch(eye)
 	_rig.inside = not seen in [Surface.NONE, Surface.LEAVES, Surface.WATER]
