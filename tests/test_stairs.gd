@@ -17,6 +17,8 @@ func _run() -> void:
 	for i in 30:
 		var piece: Dictionary = stairs.stones[i]
 		check(is_equal_approx(piece.xform.origin.y + piece.xform.basis.y.length() * 0.5, stairs.treads[i / 3].y), "blocks meet the tread top")
+		check(is_zero_approx(piece.xform.origin.y - piece.xform.basis.y.length() * 0.5), "blocks reach down to the foot, a solid flight with no air under its steps")
+	_posts_on_treads(d)
 	_walkable(d)
 	_walkable({"a": Vector3(1, 0.5, 2), "b": Vector3(-3, 0.5, -1), "width": 2.0, "rail": "none", "seed": 3, "paint": Palette.plain()})
 	_walkable({"a": Vector3(2, 3.1, 0), "b": Vector3(-1, 0.2, 2.5), "width": 0.8, "rail": "wood", "seed": 4, "paint": Palette.plain()})
@@ -104,6 +106,19 @@ func _run() -> void:
 	_painted_and_styled(main)
 	_gripped(main)
 	finish()
+
+
+func _posts_on_treads(d: Dictionary) -> void:
+	var railed := d.duplicate()
+	railed.rail = "wood"
+	var stairs := StairLayout.new()
+	stairs.build(railed)
+	var tops := stairs.treads.map(func(t: Vector3) -> float: return t.y)
+	var posts := stairs.stones.filter(func(p: Dictionary) -> bool: return p.kind == "rail" and is_equal_approx(p.xform.basis.y.normalized().y, 1.0))
+	check(posts.size() >= 4, "a railed flight has posts on both sides")
+	for post: Dictionary in posts:
+		var foot: float = post.xform.origin.y - post.xform.basis.y.length() * 0.5
+		check(tops.any(func(y: float) -> bool: return is_equal_approx(y, foot)), "a railing post stands on a tread, not in the air: %.3f" % foot)
 
 
 ## Walking the centre line from one end to the other meets a tread everywhere, no step higher than a stair's rise,

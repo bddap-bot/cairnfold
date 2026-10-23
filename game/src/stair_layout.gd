@@ -69,12 +69,12 @@ func build(d: Dictionary) -> void:
 	var n := maxi(maxi(1, ceili(run / TREAD)), ceili(rise / RISE) if kind == Kind.FLIGHT else 0)
 	var depth := run / n
 	_depth = depth
-	var height := maxf(rise / n, 0.12)
 	var columns := maxi(1, ceili(width / 0.5))
 	for i in n:
 		var p := a + along * (i + 0.5) * depth
 		p.y = lerpf(a.y, b.y, float(i + 1) / n)
 		treads.append(p)
+		var height := maxf(p.y - a.y, 0.12)
 		for col in columns:
 			var centre := p + side * ((col + 0.5) / columns - 0.5) * width
 			centre.y -= height * 0.5
@@ -85,7 +85,9 @@ func build(d: Dictionary) -> void:
 			var offset: Vector3 = side * (width * 0.5 - 0.06) * sign_x
 			for i in posts + 1:
 				var p := a.lerp(b, float(i) / posts) + offset
-				_piece(p + Vector3.UP * RAIL_HEIGHT * 0.5, basis, Vector3(0.12, RAIL_HEIGHT, 0.12), d.rail, rng)
+				var foot := treads[mini(floori(float(i) * n / posts), n - 1)].y
+				var tall := p.y + RAIL_HEIGHT - foot
+				_piece(Vector3(p.x, foot + tall * 0.5, p.z), basis, Vector3(0.12, tall, 0.12), d.rail, rng)
 			_beam(a + offset + Vector3.UP * RAIL_HEIGHT, b + offset + Vector3.UP * RAIL_HEIGHT, 0.12, d.rail, rng)
 	_bound()
 
