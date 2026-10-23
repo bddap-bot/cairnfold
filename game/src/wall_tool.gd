@@ -47,8 +47,8 @@ signal built
 
 ## A thing a grip holds and two grips size by their span: how to read and show its scale, the range it may take, and
 ## the command that sets it in the garden as shown ({} while it is as the garden has it); and what one hand alone does with it,
-## `take` holding it from the hand's pose and `follow` moving it with the hand's pose: a tree, bush, boulder, stairs or
-## fitting is carried.
+## `take` holding it from where it stands now and `follow` moving it with the mason's hand from the pose it `took`: a
+## tree, bush, boulder, stairs or fitting is carried.
 class Sizing:
 	var scale: Callable
 	var limits: Vector2
@@ -78,10 +78,13 @@ class Mason:
 	## there; zero on its walls or the roof over them.
 	var took_roof := false
 	var eave_out := Vector3.ZERO
-	## What the grip holds (a tree's trunk, a bush, a boulder, stairs or a fitting), how, and where it took it; with the
-	## other hand's grip on it too, that mason, its scale `lift_start` and the hands' span when it joined.
+	## What the grip holds (a tree's trunk, a bush, a boulder, stairs or a fitting), how, where it took it, the hand's pose
+	## `took` then and the `gain` it carries by; with the other hand's grip on it too, that mason, its scale `lift_start`
+	## and the hands' span when it joined.
 	var growing: Object
 	var sizing: Sizing
+	var took := Transform3D()
+	var gain := 1.0
 	var partner: Mason
 	var pair_span := 0.0
 	var lift_start := 0.0
@@ -941,7 +944,7 @@ static func stretch_line(start: Dictionary, from: Array[Transform3D], to: Array[
 static func carry(start: Dictionary, from: Transform3D, to: Transform3D, gain: float) -> Dictionary:
 	var out := start.duplicate()
 	out.center = start.center + _flat(to.origin - from.origin) * gain
-	out.yaw = start.yaw + angle_difference(angle(from.basis.x), angle(to.basis.x))
+	out.yaw = start.yaw + turned(from, to)
 	if start.grounded:
 		out.rise = maxf(snappedf(start.rise + (to.origin.y - from.origin.y) * gain, WallLayout.COURSE), 0.0)
 	return out
@@ -1020,6 +1023,11 @@ static func angle(v: Vector3) -> float:
 	return atan2(-v.z, v.x)
 
 
+## How far a hand turned about the vertical from pose `from` to `to`.
+static func turned(from: Transform3D, to: Transform3D) -> float:
+	return angle_difference(angle(from.basis.x), angle(to.basis.x))
+
+
 ## Where a ray meets the house in hand as it is shown, carried from where it was laid: {along, roof, eave}, `eave` the
 ## way out from its walls for a roof hit past them (`RoofLayout.eave_way`), else zero; {} if it misses.
 func _held_hit(origin: Vector3, dir: Vector3) -> Dictionary:
@@ -1056,7 +1064,14 @@ func begin_grow(m: Mason, target: Object, hand: Transform3D, at: Vector3) -> voi
 			m.pair_span = o.hand.global_position.distance_to(hand.origin)
 			return
 	m.sizing = _sizing(target)
-	m.sizing.take.call(m, hand)
+	_take(m, hand)
+
+
+## `m` takes what it grows from the hand's pose `hand` on: a far one moves farther per metre of hand.
+func _take(m: Mason, hand: Transform3D) -> void:
+	m.took = hand
+	m.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
+	m.sizing.take.call()
 
 
 ## The two hands sizing what `m` joined, now at `a` and `b`.
@@ -1083,7 +1098,7 @@ func end_grow(m: Mason) -> void:
 	if other != null:
 		other.partner = null
 		other.pair_span = 0.0
-		s.take.call(other, other.hand.global_transform)
+		_take(other, other.hand.global_transform)
 		return
 	if not s.current.call():
 		s.settle.call()
@@ -1120,7 +1135,7 @@ func _plant_grip(first: Flora.Plant, s: Sizing, in_hand: Callable) -> Sizing:
 	var tree := first.pool == flora.trunks
 	var placed := func() -> Vector3:
 		return world.state.groups.get(first.group, {}).get("places", {}).get(first.index, flora.home_of(first))
-	var hold := {"from": Vector3.ZERO, "hand": Vector3.ZERO, "gain": 1.0}
+	var hold := {"from": Vector3.ZERO}
 	s.scale = flora.scale_of.bind(first) if tree else func() -> float: return 1.0
 	s.limits = FloraLayout.SCALES if tree else Vector2.ONE
 	s.current = first.current
@@ -1139,12 +1154,9 @@ func _plant_grip(first: Flora.Plant, s: Sizing, in_hand: Callable) -> Sizing:
 		if tree and not is_equal_approx(flora.scale_of(first), g.scale.get(first.index, 1.0)):
 			cmd.scale = flora.scale_of(first)
 		return {} if cmd.size() == 3 else cmd
-	s.take = func(m: Mason, hand: Transform3D) -> void:
-		hold.from = first.foot()
-		hold.hand = hand.origin
-		hold.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
-	s.follow = func(_m: Mason, hand: Transform3D) -> void:
-		flora.move(first, hold.from + (hand.origin - hold.hand) * hold.gain)
+	s.take = func() -> void: hold.from = first.foot()
+	s.follow = func(m: Mason, hand: Transform3D) -> void:
+		flora.move(first, hold.from + (hand.origin - m.took.origin) * m.gain)
 	s.settle = func() -> void:
 		var g: Dictionary = world.state.groups.get(first.group, {})
 		if first.current() and not g.is_empty() and not in_hand.call():
@@ -1160,7 +1172,7 @@ func _plant_grip(first: Flora.Plant, s: Sizing, in_hand: Callable) -> Sizing:
 func _boulder_grip(b: Boulders.Boulder, s: Sizing, in_hand: Callable) -> Sizing:
 	var rocks := world.boulders
 	var standing := func() -> bool: return is_instance_valid(b) and rocks.find(b.id) == b
-	var grip := {"pose": b.pose(), "scale": b.size, "from": b.pose(), "hand": Transform3D(), "gain": 1.0}
+	var grip := {"pose": b.pose(), "scale": b.size, "from": b.pose()}
 	var data := func() -> Dictionary:
 		var p: Transform3D = grip.pose
 		var turn := p.basis.get_rotation_quaternion().normalized()
@@ -1183,12 +1195,9 @@ func _boulder_grip(b: Boulders.Boulder, s: Sizing, in_hand: Callable) -> Sizing:
 		if is_equal_approx(d.scale, was.scale) and d.turn.is_equal_approx(was.turn) and is_equal_approx(d.sink, was.sink) and is_equal_approx(d.at.x, was.at.x) and is_equal_approx(d.at.z, was.at.z):
 			return {}
 		return {"op": "reshape", "of": "boulders", "id": b.id, "data": d}
-	s.take = func(m: Mason, hand: Transform3D) -> void:
-		grip.from = grip.pose
-		grip.hand = hand
-		grip.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
-	s.follow = func(_m: Mason, hand: Transform3D) -> void:
-		grip.pose = Boulders.carried(grip.from, grip.hand, hand, grip.gain)
+	s.take = func() -> void: grip.from = grip.pose
+	s.follow = func(m: Mason, hand: Transform3D) -> void:
+		grip.pose = Boulders.carried(grip.from, m.took, hand, m.gain)
 		rocks.show_held(b.id, grip.pose, grip.scale)
 	s.settle = func() -> void:
 		if standing.call() and not in_hand.call():
@@ -1204,7 +1213,6 @@ func _stair_sizing(grip: StairGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	var was: Dictionary = world.state.stairs[grip.id].duplicate()
 	var shown := {"a": was.a, "b": was.b, "width": was.width}
 	var from := shown.duplicate()
-	var hold := {"hand": Transform3D(), "gain": 1.0}
 	var current := func() -> bool:
 		var now: Dictionary = world.state.stairs.get(grip.id, {})
 		return not now.is_empty() and now.a == was.a and now.b == was.b and now.width == was.width
@@ -1217,12 +1225,9 @@ func _stair_sizing(grip: StairGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	s.command = func() -> Dictionary:
 		var same: bool = shown.a.is_equal_approx(was.a) and shown.b.is_equal_approx(was.b) and is_equal_approx(shown.width, was.width)
 		return {} if same else {"op": "reshape", "of": "stairs", "id": grip.id, "data": shown.merged({"on": stair_supports(shown)})}
-	s.take = func(m: Mason, hand: Transform3D) -> void:
-		from.merge(shown, true)
-		hold.hand = hand
-		hold.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
-	s.follow = func(_m: Mason, hand: Transform3D) -> void:
-		shown.merge(carry_stairs(from, hold.hand, hand, hold.gain), true)
+	s.take = func() -> void: from.merge(shown, true)
+	s.follow = func(m: Mason, hand: Transform3D) -> void:
+		shown.merge(carry_stairs(from, m.took, hand, m.gain), true)
 		stairs.show_reshaped(grip.id, shown)
 	s.settle = func() -> void:
 		if world.state.stairs.has(grip.id) and not in_hand.call():
@@ -1235,7 +1240,7 @@ func _stair_sizing(grip: StairGrip, s: Sizing, in_hand: Callable) -> Sizing:
 ## their lower end never under the ground.
 static func carry_stairs(at: Dictionary, from: Transform3D, to: Transform3D, gain: float) -> Dictionary:
 	var mid: Vector3 = (at.a + at.b) * 0.5
-	var turn := Basis(Vector3.UP, angle_difference(angle(from.basis.x), angle(to.basis.x)))
+	var turn := Basis(Vector3.UP, turned(from, to))
 	var move := (to.origin - from.origin) * gain
 	var a: Vector3 = mid + move + turn * (at.a - mid)
 	var b: Vector3 = mid + move + turn * (at.b - mid)
@@ -1279,7 +1284,6 @@ func _easel_sizing(grip: EaselGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	var start := {"at": was.at, "yaw": was.yaw}
 	var shown := start.duplicate()
 	var from := start.duplicate()
-	var hold := {"hand": Transform3D(), "gain": 1.0}
 	s.scale = func() -> float: return 1.0
 	s.limits = Vector2.ONE
 	s.current = func() -> bool:
@@ -1290,12 +1294,9 @@ func _easel_sizing(grip: EaselGrip, s: Sizing, in_hand: Callable) -> Sizing:
 		if shown.at.distance_to(start.at) < NUDGE and absf(angle_difference(shown.yaw, start.yaw)) < TURN_NUDGE:
 			return {}
 		return {"op": "reshape", "of": "easels", "id": grip.id, "data": shown.duplicate()}
-	s.take = func(m: Mason, hand: Transform3D) -> void:
-		from.merge(shown, true)
-		hold.hand = hand
-		hold.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
-	s.follow = func(_m: Mason, hand: Transform3D) -> void:
-		shown.merge(carry_easel(from, hold.hand, hand, hold.gain), true)
+	s.take = func() -> void: from.merge(shown, true)
+	s.follow = func(m: Mason, hand: Transform3D) -> void:
+		shown.merge(carry_easel(from, m.took, hand, m.gain), true)
 		stands.stand(grip.id, shown.at, shown.yaw)
 	s.settle = func() -> void:
 		var now: Dictionary = world.state.easels.get(grip.id, {})
@@ -1309,7 +1310,7 @@ func _easel_sizing(grip: EaselGrip, s: Sizing, in_hand: Callable) -> Sizing:
 ## the vertical.
 static func carry_easel(at: Dictionary, from: Transform3D, to: Transform3D, gain: float) -> Dictionary:
 	var move: Vector3 = at.at + (to.origin - from.origin) * gain
-	return {"at": Terrain.ground(move.x, move.z), "yaw": wrapf(at.yaw + angle_difference(angle(from.basis.x), angle(to.basis.x)), -PI, PI)}
+	return {"at": Terrain.ground(move.x, move.z), "yaw": wrapf(at.yaw + turned(from, to), -PI, PI)}
 
 
 ## The grip a hand already holding stairs `id` holds, so a second hand's grip on them joins that one.
@@ -1338,7 +1339,7 @@ func _fitting_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 		return Array((d.roof if grip.on_roof else d)[key])
 	var start: Variant = stored.call()[grip.index]
 	var shown := {"value": start, "laid": start}
-	var hold := {"from": start, "hand": Transform3D(), "gain": 1.0}
+	var hold := {"from": start}
 	var others := func() -> Array:
 		var rest: Array = stored.call()
 		rest.remove_at(grip.index)
@@ -1376,12 +1377,9 @@ func _fitting_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 			if not is_equal_approx(size, at.w) and fits.call(sized.call(size)):
 				shown.value = sized.call(size)
 		lay.call()
-	s.take = func(m: Mason, hand: Transform3D) -> void:
-		hold.from = shown.value
-		hold.hand = hand
-		hold.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
-	s.follow = func(_m: Mason, hand: Transform3D) -> void:
-		var by: Vector3 = FittingGrip.step((hand.origin - hold.hand.origin) * hold.gain, 0.0)[0]
+	s.take = func() -> void: hold.from = shown.value
+	s.follow = func(m: Mason, hand: Transform3D) -> void:
+		var by: Vector3 = FittingGrip.step((hand.origin - m.took.origin) * m.gain, 0.0)[0]
 		var v: Variant = FittingGrip.moved(w, key, hold.from, by)
 		if v != shown.value and fits.call(v):
 			shown.value = v
@@ -1400,18 +1398,15 @@ func _decoration_grip(id: int, s: Sizing, in_hand: Callable) -> Sizing:
 	var decorations := world.decorations
 	var start: Dictionary = world.state.decorations[id].duplicate()
 	var shown := {"d": start}
-	var hold := {"from": start, "hand": Transform3D(), "gain": 1.0}
+	var hold := {"from": start}
 	var current := func() -> bool: return world.state.decorations.get(id) == start
 	s.current = current
 	s.scale = func() -> float: return 1.0
 	s.limits = Vector2.ONE
 	s.show = func(_size: float) -> void: pass
-	s.take = func(m: Mason, hand: Transform3D) -> void:
-		hold.from = shown.d
-		hold.hand = hand
-		hold.gain = Hand.reach_gain(hand.origin.distance_to(m.lift_at))
-	s.follow = func(_m: Mason, hand: Transform3D) -> void:
-		var step: Array = FittingGrip.step((hand.origin - hold.hand.origin) * hold.gain, angle_difference(angle(hold.hand.basis.x), angle(hand.basis.x)))
+	s.take = func() -> void: hold.from = shown.d
+	s.follow = func(m: Mason, hand: Transform3D) -> void:
+		var step: Array = FittingGrip.step((hand.origin - m.took.origin) * m.gain, turned(m.took, hand))
 		var d := FittingGrip.carried(hold.from, find(start.wall), step[0], step[1])
 		if d != shown.d and decorations.frame(d) != null:
 			shown.d = d
