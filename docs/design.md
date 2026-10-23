@@ -432,6 +432,10 @@ density, and no build the player can make may bring the frame rate down.
 - Each run records its phases under `perf/HEADSET/SCENE/`, named by the build measured; `scripts/trend.py` prints the
   latest run of each beside the median of the three before and the best, marking a rise of a quarter and 2 ms; on a
   named scene a GPU-time rise fails it, and bench.sh runs it on the scene it recorded.
+- Nothing the player does waits on a build or a compile. Every Vulkan export ships its shaders baked (`shader_baker`,
+  run by `scripts/export.sh` in an editor with a RenderingDevice): a Quest 2 compiling them itself after an install
+  sat 50 s on its first frame and 11 s on its first easel; baked, 0.5 s and 84 ms. `demo/first-use.json` plays each
+  tool's first use, and `NESTCOMBE_COLD=1 scripts/bench.sh` empties the headset's caches first, as an install does.
 
 What makes building cheap:
 
