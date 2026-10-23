@@ -831,12 +831,28 @@ static func _stretch(layout: WallLayout, from: float, to: float) -> Array[Vector
 	return out
 
 
-## Fills a disc at once with parallel walls (see StressLayout) of one height, their ivy fully grown.
+## Fills a disc of `radius` at once with parallel walls `spacing` apart of one height, their ivy fully grown, each a stroke
+## of ground points every couple of metres. The rows straddle the centre line, so a viewer at the centre stands between
+## two of them.
 func _stress(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var m := tool.mason(_holding(s, Hand.Tool.FENCE if s.get("fence", false) else Hand.Tool.WALLS))
 	_lay_materials(s)
-	var rows := StressLayout.walls(s.radius, s.spacing / sqrt(_area))
+	var radius: float = s.radius
+	var spacing: float = s.spacing / sqrt(_area)
+	var rows: Array[PackedVector2Array] = []
+	var length := 0.0
+	var z := -(floorf(radius / spacing - 0.5) + 0.5) * spacing
+	while z < radius:
+		var half := sqrt(radius * radius - z * z)
+		if half >= 1.0:
+			var row := PackedVector2Array()
+			var n := maxi(1, ceili(half))
+			for i in n + 1:
+				row.append(Vector2(lerpf(-half, half, float(i) / n), z))
+			rows.append(row)
+			length += row[0].distance_to(row[-1])
+		z += spacing
 	var start := Time.get_ticks_usec()
 	for row in rows:
 		tool.begin_stroke(m, Terrain.ground(row[0].x, row[0].y))
@@ -851,7 +867,7 @@ func _stress(s: Dictionary) -> void:
 	var stones := 0
 	for w in tool.walls:
 		stones += w.layout.stones.size()
-	print("stress: %d walls, %.0f m, %d stones, laid in %.0f ms" % [tool.walls.size(), StressLayout.length(rows), stones, ms])
+	print("stress: %d walls, %.0f m, %d stones, laid in %.0f ms" % [tool.walls.size(), length, stones, ms])
 
 
 ## Hangs a lantern every `every` metres along each wall within `radius` of the centre, alternating faces.
