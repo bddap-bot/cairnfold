@@ -2751,7 +2751,6 @@ hour it sets. `demo/book-view.json` renders every spread from the player's own e
 
 | Page | What the hands do | Why it is not obvious |
 | --- | --- | --- |
-| Turn the page | Right hand sweeps leftward across the pages, then rightward to turn back | The book's own gesture, on its first page |
 | Pick a tool | Hold the right upper face button, move the hand onto a slot, let go | The wheel opens only while its button is held |
 | Teleport | Left stick forward, the ray lands on a ring, let go to go there | Left only; movement is not a tool |
 | Undo, redo | Tap the left lower face button, then the right one | Two hands, no tool shows it |

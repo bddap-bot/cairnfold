@@ -3,6 +3,9 @@ extends SceneTree
 ## Each picture-book page's script (Lessons.PAGES), played through the real hands into a garden, does what its
 ## picture shows, and every action it presses is still a control: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_lessons.gd
 
+## The left hand holding the book open to read, in head space.
+var held_book := Lessons.frame({"at": Vector3(-0.06, -0.3, -0.34), "aim": Vector3(0.15, -0.55, -1.0).normalized(), "roll": 0.0})
+
 var failures := 0
 var main: Node
 var trackers: Array[XRControllerTracker] = []
@@ -76,18 +79,15 @@ func _fresh() -> void:
 
 
 ## Plays `page` through the real hands: each frame poses them where the page does, in the head's frame as it stood
-## when the page began (or the held book's), and holds the actions it holds there.
+## when the page began, and holds the actions it holds there.
 func _replay(page: Dictionary) -> void:
-	var rig: Rig = main.rig
-	var head: Transform3D = rig.head.global_transform
+	var head: Transform3D = main.rig.head.global_transform
 	for side in page.get("tools", {}):
 		_hand(side).tool = Lessons.tool(page.tools[side])
 	var t := 0.0
 	while t <= page.length:
 		for side in Lessons.hands(page):
-			var f := Lessons.frame(Lessons.pose(page, side, t))
-			var hand := _hand(side)
-			hand.global_transform = (rig.left.global_transform * Book.local(1.0) if side in page.get("book", []) else head) * f
+			_hand(side).global_transform = head * Lessons.frame(Lessons.pose(page, side, t))
 		for p in page.press:
 			var tracker: String = p.hand + "_hand"
 			var input := Controls.input(p.action, tracker)
@@ -117,21 +117,14 @@ func _read(page: Dictionary) -> Dictionary:
 	var rig: Rig = main.rig
 	var f := rig.head.global_transform * Lessons.frame(Lessons.pose(page, "right", 0.0)) if "right" in Lessons.hands(page) else Transform3D.IDENTITY
 	var ground: Variant = Terrain.raycast(f.origin, -f.basis.z)
-	effects = {"least_walls": main.tool.walls.size(), "most_book": main.book.at}
-	return {"at": rig.global_position, "walls": main.tool.walls.size(), "time": main.look.time, "book": main.book.at,
+	effects = {"least_walls": main.tool.walls.size()}
+	return {"at": rig.global_position, "walls": main.tool.walls.size(), "time": main.look.time,
 		"ground": ground, "height": Terrain.height_at(ground.x, ground.z) if ground != null else 0.0,
 		"state": var_to_str(main.world.state.walls), "trees": main.flora_tool.flora.placed("tree").size()}
 
 
 func _watch(_page: Dictionary) -> void:
 	effects.least_walls = mini(effects.least_walls, main.tool.walls.size())
-	effects.most_book = maxi(effects.most_book, main.book.at)
-
-
-func _check_page(_page: Dictionary, before: Dictionary) -> void:
-	_check(before.book == 1, "the book opened at its first page before the sweep")
-	_check(effects.most_book == before.book + 1, "the right hand swept leftward across the pages turns to the next: leaf %d to %d" % [before.book, effects.most_book])
-	_check(main.book.at == before.book, "swept rightward it turns back: leaf %d" % main.book.at)
 
 
 func _check_tool(page: Dictionary, _before: Dictionary) -> void:
@@ -187,7 +180,7 @@ func _shut_book_turns_nothing() -> void:
 	await _fresh()
 	var book: Book = main.book
 	var rig: Rig = main.rig
-	rig.left.global_transform = rig.head.global_transform * Lessons.frame(Lessons.pose(Lessons.PAGES[0], "left", 0.0))
+	rig.left.global_transform = rig.head.global_transform * held_book
 	await _frames(30)
 	var cover := rig.left.global_transform * Book.local(0.0) * Vector3(Book.W * 0.5, Book.leaves_t() + 0.01, 0)
 	rig.right.global_transform = Transform3D(Basis.IDENTITY, cover + Vector3(0.3, 0.3, 0.3))
@@ -216,7 +209,7 @@ func _sweeps_turn_one_leaf_each_way() -> void:
 	var rig: Rig = main.rig
 	rig.right.global_position = rig.head.global_position + Vector3(1, 1, 1)
 	await _fresh()
-	rig.left.global_transform = rig.head.global_transform * Lessons.frame(Lessons.pose(Lessons.PAGES[0], "left", 0.0))
+	rig.left.global_transform = rig.head.global_transform * held_book
 	book.at = 3
 	await _sweep([[0.2, 0.12], [0.12, 0.03], [-0.05, 0.03], [0.12, 0.03], [0.2, 0.12]])
 	_check(book.at == 4, "a leftward sweep and the stroke back over the pages turn one leaf on: leaf %d" % book.at)

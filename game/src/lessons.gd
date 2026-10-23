@@ -8,29 +8,13 @@ extends RefCounted
 ## does what the page shows. A changed control breaks the test until its page is redrawn.
 ##
 ## A key's hand pose is `at` and `aim` (the way the controller points) and `roll` (degrees about the aim);
-## a hand missing from a key keeps its pose. `book` hands are posed in the held book's frame (Book.local),
-## as a hand that touches the page must be. `press` holds an action (Controls.ACTIONS) over [from, to) seconds.
+## a hand missing from a key keeps its pose. `press` holds an action (Controls.ACTIONS) over [from, to) seconds.
 ## `setup` is the garden the test plays it in, as Driver steps; `effect` names what the page shows and the test checks; `view` places the page's camera `back` metres behind the hands from what they act on, beside and
-## under them for a trigger or grip (`side`) or over them for a button or stick (`top`), widened to hold it all, or from `eye`, with its
-## meadow where the first press points or at `dish`, its ghost controllers `ghost` times life size; `tools` what
+## under them for a trigger or grip (`side`) or over them for a button or stick (`top`), widened to hold it all, with its
+## meadow where the first press points or at `dish`; `tools` what
 ## each ghost holds at the start, as Hand.Tool names.
 
-const HELD_BOOK := {"at": [-0.06, -0.3, -0.34], "aim": [0.15, -0.55, -1.0]}
-
 const PAGES := [
-	{"effect": "page", "length": 5.8, "setup": [{"op": "book", "do": "open", "seconds": 1.2}], "tools": {"left": "book", "right": "walls"}, "book": ["right"],
-		"view": {"eye": [0.03, 0.02, 0.02], "ghost": 1.3},
-		"keys": [
-			{"t": 0.0, "left": HELD_BOOK, "right": {"at": [0.2, 0.09, 0.12], "aim": [-0.2, -1.0, -0.5]}},
-			{"t": 0.7, "right": {"at": [0.125, 0.03, 0.07], "aim": [-0.2, -1.0, -0.5]}},
-			{"t": 1.5, "right": {"at": [-0.05, 0.035, 0.07], "aim": [-0.3, -1.0, -0.5]}},
-			{"t": 2.2, "right": {"at": [-0.06, 0.12, 0.12], "aim": [-0.2, -1.0, -0.5]}},
-			{"t": 2.9, "right": {"at": [0.02, 0.1, 0.12], "aim": [-0.2, -1.0, -0.5]}},
-			{"t": 3.5, "right": {"at": [0.03, 0.03, 0.07], "aim": [-0.2, -1.0, -0.5]}},
-			{"t": 4.3, "right": {"at": [0.14, 0.035, 0.07], "aim": [-0.1, -1.0, -0.5]}},
-			{"t": 5.0, "right": {"at": [0.16, 0.12, 0.12], "aim": [-0.2, -1.0, -0.5]}},
-			{"t": 5.8, "right": {"at": [0.2, 0.09, 0.12], "aim": [-0.2, -1.0, -0.5]}},
-		], "press": []},
 	{"effect": "tool", "length": 3.2, "tools": {"right": "walls"}, "to": "delete",
 		"view": {"look": "top", "back": 0.3},
 		"keys": [

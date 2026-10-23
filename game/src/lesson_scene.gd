@@ -15,8 +15,7 @@ const FADE_S := 0.25
 const GROUND := -0.95
 const K := 0.5
 const PROP := 14.0 * K
-## The ghost controllers are drawn this much larger than life, so their buttons read on a page, or as the page's
-## view says.
+## The ghost controllers are drawn this much larger than life, so their buttons read on a page.
 const GHOST := 1.7
 ## How far the sun stands from the sky page's meadow.
 const SUN := 1.4
@@ -25,7 +24,6 @@ const SUN := 1.4
 const HOURS := 0.034
 
 var page: Dictionary
-var ghost := GHOST
 var index := 0
 var t := 0.0
 ## Stepped by its owner rather than by the frame, as a capture steps it.
@@ -48,7 +46,6 @@ var _fx := {}
 func _init(i: int, see_through := false) -> void:
 	index = i
 	page = Lessons.PAGES[i]
-	ghost = page.view.get("ghost", GHOST)
 	size = SIZE
 	own_world_3d = true
 	transparent_bg = true
@@ -82,7 +79,7 @@ func _init(i: int, see_through := false) -> void:
 	_build_dish()
 	for side in Lessons.hands(page):
 		var pad := Pad.new(side == "right", see_through)
-		pad.scale = Vector3.ONE * ghost
+		pad.scale = Vector3.ONE * GHOST
 		pad.hold(Lessons.tool(page.tools.get(side, "none")))
 		stage.add_child(pad)
 		pads[side] = pad
@@ -115,16 +112,13 @@ func _frame() -> void:
 		points.append_array(extra)
 		for p in extra:
 			target += (p - target) / (extra.size() + 1.0)
-	if page.effect != "page":
-		points.append(_dish_at())
+	points.append(_dish_at())
 	var t := 0.0
 	while t <= page.length:
 		for side in Lessons.hands(page):
 			var f := Lessons.frame(Lessons.pose(page, side, t))
-			if side in page.get("book", []):
-				f = Lessons.frame(Lessons.pose(page, "left", t)) * Book.local(1.0) * f
-			for c in [Vector3.ZERO] if page.view.has("eye") else [Vector3.ZERO, Vector3(0, -0.13, 0.11), Vector3(0, 0.05, 0.07)]:
-				hands.append(f * (c * ghost))
+			for c in [Vector3.ZERO, Vector3(0, -0.13, 0.11), Vector3(0, 0.05, 0.07)]:
+				hands.append(f * (c * GHOST))
 		t += 0.25
 	var mid := Vector3.ZERO
 	for h in hands:
@@ -133,13 +127,12 @@ func _frame() -> void:
 	var acting: String = page.press[0].hand if not page.press.is_empty() else "right"
 	var outward := along.cross(Vector3.UP).normalized() * (1.0 if acting == "right" else -1.0)
 	var lift := Vector3(0, 0.6, 0) if page.view.get("look", "top") == "top" else Vector3(0, -0.25, 0) + outward * 0.55
-	var eye: Vector3 = Lessons._v(page.view.eye) if page.view.has("eye") else mid + (-along + lift).normalized() * page.view.back
+	var eye: Vector3 = mid + (-along + lift).normalized() * page.view.back
 	for h in hands:
 		for c in [Vector3(-1, -1, -1), Vector3(1, 1, 1), Vector3(-1, 1, 1), Vector3(1, -1, -1), Vector3(1, -1, 1), Vector3(-1, 1, -1)]:
-			points.append(h + c * 0.06 * ghost)
-	if page.effect != "page":
-		for c in [Vector3(-0.42, 0, 0), Vector3(0.42, 0, 0), Vector3(0, 0, -0.35), Vector3(0, 0, 0.35)]:
-			points.append(_dish_at() + c * 0.7)
+			points.append(h + c * 0.06 * GHOST)
+	for c in [Vector3(-0.42, 0, 0), Vector3(0.42, 0, 0), Vector3(0, 0, -0.35), Vector3(0, 0, 0.35)]:
+		points.append(_dish_at() + c * 0.7)
 	var look := Vector3.ZERO
 	for p in points:
 		look += (p - eye).normalized()
@@ -182,10 +175,7 @@ func _pose(at: float) -> void:
 	for side in pads:
 		var pad: Pad = pads[side]
 		var p := Lessons.pose(page, side, at)
-		var f := Lessons.frame(p)
-		if side in page.get("book", []):
-			f = _book_frame() * f
-		pad.transform = f.scaled_local(Vector3.ONE * ghost)
+		pad.transform = Lessons.frame(p).scaled_local(Vector3.ONE * GHOST)
 		var tracker: String = side + "_hand"
 		for press in page.press:
 			if press.hand != side:
@@ -260,7 +250,6 @@ func _build_dish() -> void:
 		tuft.position = dish.position + Vector3(cos(a) * r, 0, sin(a) * r)
 		tuft.rotation.y = rng.randf() * TAU
 		stage.add_child(tuft)
-		_fx.get_or_add("tufts", []).append(tuft)
 
 
 func _prop(tool: Hand.Tool, at: Vector3, scale_k := 1.0, yaw := 0.0) -> Node3D:
@@ -280,38 +269,6 @@ func _prop(tool: Hand.Tool, at: Vector3, scale_k := 1.0, yaw := 0.0) -> Node3D:
 static func _pop(k: float) -> float:
 	k = clampf(k, 0.0, 1.0)
 	return 1.0 + 2.2 * pow(k - 1.0, 3) + 1.2 * pow(k - 1.0, 2)
-
-
-# The page that teaches turning the page: a little open book in the left hand, turned by the right's sweep.
-func _build_page() -> void:
-	dish.visible = false
-	for tuft in _fx.tufts:
-		tuft.visible = false
-	pads.left.visible = false
-	var b := Book.new(false)
-	b.at = 1
-	stage.add_child(b)
-	_fx.book = b
-
-
-func _focus_page() -> Array[Vector3]:
-	var f := Lessons.frame(Lessons.pose(page, "left", 0.0)) * Book.local(1.0)
-	return [f * Vector3(-Book.W, 0, -Book.H * 0.5), f * Vector3(Book.W, 0, -Book.H * 0.5), f * Vector3(-Book.W, 0, Book.H * 0.5), f * Vector3(Book.W, 0, Book.H * 0.5)]
-
-
-func _book_frame() -> Transform3D:
-	return pads.left.transform * Book.local(1.0)
-
-
-func _reset_page() -> void:
-	_fx.book.at = 1
-	_fx.book._turn.clear()
-
-
-func _play_page(_at: float) -> void:
-	var b: Book = _fx.book
-	b.transform = _book_frame()
-	b.feel(pads.right.global_position)
 
 
 # Picking a tool: the wheel opens at the hand while its button is held, the slot the hand moves onto grows, and
