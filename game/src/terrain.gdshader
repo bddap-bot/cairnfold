@@ -8,6 +8,7 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 #include "res://src/meadow.gdshaderinc"
 #include "res://src/stone_ground.gdshaderinc"
 #include "res://src/flora_lod.gdshaderinc"
+#include "res://src/noise.gdshaderinc"
 
 // The meadow's colour maths runs at half precision: the Quest 2 is bound by ground fragments and its GPU runs
 // mediump at twice the rate. Positions and texture coordinates stay highp, 160 m wide at millimetres, and the stone
@@ -70,13 +71,6 @@ void vertex() {
 	meadow_dry = blade_color(blade_top(1.0, 0.5), canopy) * tuft;
 }
 
-// Multiplies and adds alone: the Quest 2 pays dearly for a full-precision sine a fragment.
-highp float cliff_hash(highp vec2 p) {
-	highp vec3 q = fract(p.xyx * 0.1031);
-	q += dot(q, q.yzx + 33.33);
-	return fract((q.x + q.y) * q.z);
-}
-
 // Bedded rock on a face too steep to hold soil, as `rock` (0 to 1) reaches over `under`: beds about half a metre
 // thick in units of a few metres, pale and dark by turns, undulating with `d`. Each bed's top is a lit ledge over the
 // shadowed undercut of the one above; joints cut a unit into tall blocks and stain dark down from its lips. `tilt` leans
@@ -88,14 +82,14 @@ vec3 cliff(highp vec3 p, float along, float rock, vec3 under, vec3 green, float 
 	highp float layer = floor(b);
 	float f = float(b - layer);
 	highp float unit = floor(y / 2.6);
-	float bv = float(cliff_hash(vec2(layer, 3.0)));
+	float bv = float(hash(vec2(layer, 3.0)));
 	// Golden-ratio steps keep neighbouring units apart in tone, where a hash of neighbours can bunch.
 	float uv = float(fract(unit * 0.618034 + 0.3));
 	highp float u = mix(p.x, p.z, along) + (fine - 0.5) * 0.25;
 	highp float ju = u / (1.4 + uv * 1.6) + uv * 5.3 + step(0.6, bv) * 0.5;
 	highp float col = floor(ju);
 	float jf = float(ju - col);
-	float vb = float(cliff_hash(vec2(layer, col)));
+	float vb = float(hash(vec2(layer, col)));
 	float thin_u = fwidth(float(ju));
 	float thin_b = thin_u * 3.0;
 	float joint = (1.0 - smoothstep(0.0, 0.04 + thin_u, min(jf, 1.0 - jf))) * (1.0 - smoothstep(0.1, 0.35, thin_u));

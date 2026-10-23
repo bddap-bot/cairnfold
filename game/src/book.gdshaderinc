@@ -1,3 +1,5 @@
+#include "res://src/noise.gdshaderinc"
+
 // The picture book's paint, shared by its shaders and the bake (book_paint.gdshader, Book): the paper, ink and cover
 // colours (sRGB), where a page's picture window sits in the page's coordinates (x from the spine, y down the page),
 // and a cover's stamp; the cover's cloth and leather are Book's (CLOTH, LEATHER), which the wheel's icon draws too.
@@ -21,20 +23,6 @@ float gutter_rise(float x, float width, float bow) {
 
 vec3 srgb_to_linear(vec3 c) {
 	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
-}
-
-// Sine-free, so it stays smooth at the mobile renderer's precision.
-float hash(vec2 p) {
-	vec3 q = fract(vec3(p.xyx) * 0.1031);
-	q += dot(q, q.yzx + 33.33);
-	return fract((q.x + q.y) * q.z);
-}
-
-float noise(vec2 p) {
-	vec2 i = floor(p);
-	vec2 f = fract(p);
-	f = f * f * (3.0 - 2.0 * f);
-	return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
 }
 
 float ellipse(vec2 p, vec2 c, vec2 r, float a) {
