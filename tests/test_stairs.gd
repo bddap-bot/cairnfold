@@ -69,6 +69,15 @@ func _run() -> void:
 	main.stair_tool.extend(main.rig.left, long.b)
 	check(is_equal_approx(main.stair_tool._strokes[main.rig.left].data.b.z, -60.0), "the tool draws a bridge past twenty-four metres")
 	main.stair_tool._cancel(main.rig.left)
+	var foot := Terrain.ground(-20, 10)
+	var clicks: int = Cues.asked.get(Cues.Act.STAIRS_LAY, 0)
+	main.stair_tool.begin(main.rig.left, foot)
+	for i in 200:
+		main.stair_tool.extend(main.rig.left, foot + Vector3(0, 2, -4) * (i + 1) / 200.0)
+	var laid := StairLayout.new()
+	laid.build(main.stair_tool._strokes[main.rig.left].data)
+	check(Cues.asked.get(Cues.Act.STAIRS_LAY, 0) - clicks == laid.treads.size() - 1, "drawing a flight clicks once per tread: %d clicks, %d treads" % [Cues.asked.get(Cues.Act.STAIRS_LAY, 0) - clicks, laid.treads.size()])
+	main.stair_tool._cancel(main.rig.left)
 	d.a.y = 2.0
 	d.b.y = 2.0
 	var units_before := world.units.duplicate(true)

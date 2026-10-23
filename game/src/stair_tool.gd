@@ -32,13 +32,12 @@ func extend(hand: Hand, at: Vector3) -> void:
 	var s: Dictionary = _strokes[hand]
 	var d: Vector3 = at - s.data.a
 	s.data.b = s.data.a + d.limit_length(Commands.STROKE_LENGTH)
-	var steps := floori(s.data.a.distance_to(s.data.b) / WallLayout.COURSE)
-	if steps != s.get("steps", 0):
-		s.steps = steps
-		Cues.play(Cues.Act.STAIRS_LAY, s.data.b, hand)
 	s.data.rail = world.stairs.rail
 	var layout := StairLayout.new()
 	layout.build(s.data)
+	if layout.treads.size() != s.get("steps", 1):
+		s.steps = layout.treads.size()
+		Cues.play(Cues.Act.STAIRS_LAY, s.data.b, hand)
 	s.ghost.lay(layout.stones)
 	world.preview(hand, Budget.stairs(s.data))
 
