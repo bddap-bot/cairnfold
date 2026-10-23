@@ -62,6 +62,10 @@ func _a_window_cuts_its_opening() -> void:
 		check(not _kind(w, k).is_empty(), "a window has a %s" % k)
 	var lintel: Dictionary = _kind(w, "lintel")[0]
 	check(lintel.size.x > o.half * 2.0 and lintel.y > o.head, "the lintel spans the opening above its head")
+	var set_back := (_kind(w, "glass") + _kind(w, "frame")).all(func(p): return is_equal_approx(p.xform.origin.z, -WallLayout.THICKNESS * 0.12))
+	check(set_back, "the casement's glass, frame and bars lie in one plane, none sunk behind the glass")
+	var surround := _kind(w, "plaster").all(func(p): return is_equal_approx(absf(p.xform.origin.z) - p.size.z * 0.5, WallLayout.THICKNESS * 0.5 - WallLayout.PLASTER_INSET))
+	check(surround, "the plaster surround lies on a plastered face")
 
 
 func _a_low_window_reaches_the_ground_as_a_door() -> void:
@@ -73,6 +77,7 @@ func _a_low_window_reaches_the_ground_as_a_door() -> void:
 	check(o.sill == 0.0 and o.head >= 1.9, "a door runs from the ground to %.2f" % o.head)
 	check(_intruders(w, o).is_empty(), "no coursed stone fills the door")
 	check(_kind(w, "door").size() >= 3 and _kind(w, "sill").is_empty(), "a door is planks with no sill")
+	check((_kind(w, "door") + _kind(w, "iron")).all(func(p): return is_equal_approx(p.xform.origin.z, -WallLayout.THICKNESS * 0.15)), "a door's planks and straps lie in one plane")
 
 
 func _neighbours_fuse() -> void:

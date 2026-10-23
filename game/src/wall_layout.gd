@@ -1141,11 +1141,14 @@ func _lay_opening(o: Dictionary, rng: RandomNumberGenerator, bottom: float) -> v
 	_part(s, o.head + c * 0.5, Vector3(half * 2.0 + LINTEL_EAR * 2.0, c, THICKNESS * 1.04), stone_color(rng) * 1.05, rng, "lintel")
 	if not o.door:
 		_part(s, o.sill + 0.04, Vector3(half * 2.0 + 0.16, 0.08, THICKNESS + 0.1), stone_color(rng) * 1.05, rng, "sill")
+	# The surround's back lies on a plaster wall's face, and its front stands proud of a stone one's.
+	var back := THICKNESS * 0.5 - PLASTER_INSET
+	var front := THICKNESS * 0.5 + 0.025
 	for face in [-1.0, 1.0]:
 		for edge in [-1.0, 1.0]:
-			_part(s + edge * (half + 0.09), o.sill + tall * 0.5, Vector3(0.18, tall, 0.03), PLASTER * rng.randf_range(0.94, 1.02), rng, "plaster", face * (THICKNESS * 0.5 + 0.01))
+			_part(s + edge * (half + 0.09), o.sill + tall * 0.5, Vector3(0.18, tall, front - back), PLASTER * rng.randf_range(0.94, 1.02), rng, "plaster", face * (back + front) * 0.5)
 		if not o.door:
-			_part(s, o.sill - 0.1, Vector3(half * 2.0 + 0.36, 0.14, 0.03), PLASTER * rng.randf_range(0.94, 1.02), rng, "plaster", face * (THICKNESS * 0.5 + 0.01))
+			_part(s, o.sill - 0.1, Vector3(half * 2.0 + 0.36, 0.14, front - back), PLASTER * rng.randf_range(0.94, 1.02), rng, "plaster", face * (back + front) * 0.5)
 	var n: int = o.lights
 	var light := (half * 2.0 - (n - 1) * MULLION) / n
 	for i in n:
@@ -1285,9 +1288,10 @@ static func stone_color(rng: RandomNumberGenerator) -> Color:
 	return Color(STONE.r + warm, STONE.g, STONE.b - warm * 1.5) * rng.randf_range(0.82, 1.08)
 
 
-## A coloured part on the wall's frame at `s`, `y`, `out` metres off the centre plane toward face +1.
+## A coloured part on the wall's frame at `s`, `y`, `out` metres off the centre plane toward face +1. It keeps its depth:
+## a glazing bar or strap jittered like rubble sinks into the glass or plank behind it.
 func _part(s: float, y: float, size: Vector3, color: Color, rng: RandomNumberGenerator, kind: String, out := 0.0, wobble := 0.0, face := INF) -> void:
-	var st := _stone(s, y, size, rng, kind, 1.0, wobble, 0.0, 0.015, face)
+	var st := _stone(s, y, size, rng, kind, 1.0, wobble, 0.0, 0.0, face)
 	st.xform.origin += _normal(s) * out
 	st.color = color
 	stones.append(st)
