@@ -4140,7 +4140,10 @@ tour. `demo/standing.json` renders that tour: down onto a railed wall walk, a br
 hover over a flat roof then onto its deck, a platform stacked on it and a flight's tread, each seen from where the
 player then stands. The stress scene draws a crenellated wall through the roofs village, from house corner to
 house corner, raises its middle stretches to 4.5 m, and measures `standing/along` (down the street from the walk)
-and `standing/across` (over the roofs) from a standing player's eyes on it.
+and `standing/across` (over the roofs) from a standing player's eyes on it. On the Steam Frame, governed, both views
+hold 72 Hz (`perf/frame/stress`): 6.1 and 6.4 ms of GPU time a frame, and no late frame as the player lands on the
+walk. Eight single frames of 21 to 23 ms fall later in the twelve seconds, the GPU idle half the period, as in
+most of the stress scene's phases.
 
 ## Timbered plaster houses
 
