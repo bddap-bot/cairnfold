@@ -18,8 +18,6 @@ const TRUNK_CLEAR := 0.9
 const BARE := 0.4
 const SHORE := 0.4
 const TURN := 3.0
-## How readily one that sees food held out goes for it, per second.
-const DRAWN := 0.4
 ## A grazing animal steps on this far every so often.
 const NIBBLE_STEP := Vector2(0.2, 0.6)
 ## Seconds before a cornered animal looks again for a way to run.
@@ -211,7 +209,7 @@ func _think(b: Band, a: Node3D, delta: float) -> void:
 	a.full = maxf(a.full - delta, 0.0)
 	a.retry = maxf(a.retry - delta, 0.0)
 	_alarm(b, a, delta)
-	if a.state in [State.GRAZE, State.STAND, State.WALK] and a.full <= 0.0 and rng.randf() < delta * DRAWN:
+	if a.state in [State.GRAZE, State.STAND, State.WALK] and _appetite(a).tempted(a.full, delta, rng):
 		_come_for_food(a)
 	if _settled(a):
 		_settled_tick(a, delta)

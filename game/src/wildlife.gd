@@ -77,14 +77,21 @@ class Appetite:
 	var eats_for: Vector2
 	## How long after eating it comes back for more.
 	var full_for: Vector2
+	## How readily, per second, one that sees seeds held out goes for them; INF, at once.
+	var drawn: float
 
-	func _init(how: Eat, sees: float, up: float, to_mouth: float, eating: Vector2, full: Vector2) -> void:
+	func _init(how: Eat, sees: float, up: float, to_mouth: float, eating: Vector2, full: Vector2, draw: float) -> void:
 		eat = how
 		notice = sees
 		reach = up
 		mouth = to_mouth
 		eats_for = eating
 		full_for = full
+		drawn = draw
+
+	## Whether one no longer full goes for seeds this tick.
+	func tempted(full: float, delta: float, random: RandomNumberGenerator) -> bool:
+		return full <= 0.0 and (drawn == INF or random.randf() < delta * drawn)
 
 
 var water: Water
@@ -121,7 +128,7 @@ var _velocity := {}
 var _eaters := {}
 var handfuls: Array[Handful] = []
 ## A duck paddles or waddles over to peck seeds held low over its pond or the bank.
-static var duck_appetite := Appetite.new(Eat.UNDER_HAND, 3.5, 0.6, 0.16, Vector2(6.0, 12.0), Vector2(8.0, 20.0))
+static var duck_appetite := Appetite.new(Eat.UNDER_HAND, 3.5, 0.6, 0.16, Vector2(6.0, 12.0), Vector2(8.0, 20.0), INF)
 
 
 class Family:
@@ -321,7 +328,7 @@ func _think(f: Family, delta: float) -> void:
 		if f.ducks.size() > 1:
 			calls.now_and_then("peep", f.ducks[1 + calls.rng.randi() % (f.ducks.size() - 1)].position, PEEP_EVERY, delta)
 	f.full = maxf(f.full - delta, 0.0)
-	if f.state in [State.SWIM, State.ASHORE, State.REST] and f.full <= 0.0:
+	if f.state in [State.SWIM, State.ASHORE, State.REST] and duck_appetite.tempted(f.full, delta, rng):
 		_come_for_seeds(f)
 	var eating := false
 	match f.state:

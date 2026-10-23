@@ -23,7 +23,7 @@ const LIE_FOR := Vector2(20.0, 45.0)
 ## A sudden move nearer than this to a sheep's back sends it off.
 const SCARE := 1.0
 ## A sheep walks up to seeds held out below its head and nibbles them, its muzzle at the hand.
-static var appetite := Wildlife.Appetite.new(Wildlife.Eat.UNDER_HAND, 4.0, 0.9, 0.55, Vector2(6.0, 12.0), Vector2(10.0, 25.0))
+static var appetite := Wildlife.Appetite.new(Wildlife.Eat.UNDER_HAND, 4.0, 0.9, 0.55, Vector2(6.0, 12.0), Vector2(10.0, 25.0), 0.4)
 ## Seconds, on average, between one settled sheep's bleats.
 const BLEAT_EVERY := 75.0
 

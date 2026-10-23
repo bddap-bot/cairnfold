@@ -50,7 +50,7 @@ class Visit extends Band:
 
 ## Eating from under a hand, its reach and mouth in the model's units (`Beast.SCALE`).
 static func _appetite_of(kind: Beast.Kind, sees: float, up: float, to_mouth: float, eating: Vector2) -> Wildlife.Appetite:
-	return Wildlife.Appetite.new(Wildlife.Eat.UNDER_HAND, sees, Beast.metres(kind, up), Beast.metres(kind, to_mouth), eating, Vector2(15.0, 30.0))
+	return Wildlife.Appetite.new(Wildlife.Eat.UNDER_HAND, sees, Beast.metres(kind, up), Beast.metres(kind, to_mouth), eating, Vector2(15.0, 30.0), 0.4)
 
 
 func _init(home: Wildlife, seed: int) -> void:

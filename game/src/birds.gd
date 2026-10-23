@@ -34,8 +34,6 @@ const STARTLE_TO := Vector2(0.6, 3.0)
 const WATCH := 1.5
 ## A face this near a bird has it shuffle aside, so no eye ever ends up inside one; a slow hand may touch it.
 const SHUFFLE := 0.12
-## How readily a perched bird that sees seeds held out goes for them, per second.
-const DRAWN := 0.6
 ## How long one looks over seeds held out before it goes for them or not, how likely it goes, and how long one that
 ## did not waits before looking again.
 const DECIDE_FOR := Vector2(1.5, 5.0)
@@ -53,7 +51,7 @@ const SHOO_SPEED := 1.2
 ## turn carries it whole.
 const RIDE := 14.0
 ## A conure flies to seeds held out anywhere near and eats them standing on the hand.
-static var appetite := Wildlife.Appetite.new(Wildlife.Eat.ON_HAND, 6.0, INF, 0.0, Vector2(8.0, 16.0), Vector2(10.0, 25.0))
+static var appetite := Wildlife.Appetite.new(Wildlife.Eat.ON_HAND, 6.0, INF, 0.0, Vector2(8.0, 16.0), Vector2(10.0, 25.0), 0.6)
 const PAUSE := Vector2(1.5, 5.0)
 const PREEN_FOR := Vector2(3.0, 7.0)
 const PECK_FOR := Vector2(5.0, 11.0)
@@ -329,7 +327,7 @@ func _think(b: Bird, delta: float) -> void:
 	if b.state == State.HOP:
 		_voice(b, "HOP", delta)
 		return
-	if b.full <= 0.0 and rng.randf() < delta * DRAWN:
+	if appetite.tempted(b.full, delta, rng):
 		var h := wildlife.offer_for(appetite, at)
 		if h != null:
 			wildlife.claim(h, b)
