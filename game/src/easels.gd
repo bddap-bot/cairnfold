@@ -163,7 +163,7 @@ func put(id: int, data: Dictionary) -> Easel:
 	e.id = id
 	e.name = "Easel%d" % id
 	e.add_to_group("easel")
-	e.transform = _on_ground(data.at, data.yaw)
+	e.transform = on_ground(data.at, data.yaw)
 	e.canvas = Canvas.new()
 	e.add_child(e.canvas)
 	_build(e)
@@ -217,7 +217,7 @@ func repaint(id: int, strokes: Array) -> void:
 func stand(id: int, at: Vector3, yaw: float) -> void:
 	var e := find(id)
 	if e != null:
-		e.transform = _on_ground(at, yaw)
+		e.transform = on_ground(at, yaw)
 
 
 ## Stands each easel over the ground reshaped in `area` on it again.
@@ -227,7 +227,7 @@ func reseat(area: Rect2, _settled := true) -> void:
 			e.position.y = Terrain.height_at(e.position.x, e.position.z)
 
 
-static func _on_ground(at: Vector3, yaw: float) -> Transform3D:
+static func on_ground(at: Vector3, yaw: float) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, Terrain.height_at(at.x, at.z), at.z))
 
 
@@ -373,20 +373,26 @@ static func _beam(root: Node3D, from: Vector3, to: Vector3, thickness: float, ma
 	_part(root, ToolModels.box(Vector3(thickness, along.length(), thickness)), Transform3D(Basis(x, y, x.cross(y)), (from + to) * 0.5), mat)
 
 
-func _build(e: Easel) -> void:
+## An easel's legs and tray under `stand` and its stretched canvas board under `board`, standing in their parent's
+## frame: the easel's own, and the easel tool's ghost of it.
+static func lay_frame(stand: Node3D, board: Node3D) -> void:
 	var wood := _mat("wood", Color(0.62, 0.45, 0.3))
 	var dark := _mat("dark_wood", Color(0.42, 0.3, 0.2))
 	var frame := canvas_local()
-	var stand := Node3D.new()
-	stand.name = "stand"
-	e.add_child(stand)
 	for leg: Array in legs():
 		_beam(stand, leg[0], leg[1], leg[2], wood)
 	_part(stand, ToolModels.box(TRAY.size), Transform3D(Basis(), TRAY.get_center()), wood)
 	_part(stand, ToolModels.box(Vector3(TRAY.size.x, LIP.x, LIP.y)), Transform3D(Basis(), Vector3(0, TRAY_Y + LIP.x * 0.5, TRAY.end.z - LIP.y * 0.5)), dark)
 	_part(stand, ToolModels.box(Vector3(0.3, 0.05, 0.03)), frame * Transform3D(Basis(), Vector3(0, Brushwork.METRES.y * 0.5 + 0.02, -0.048)), dark)
-	_part(e, ToolModels.box(Vector3(Brushwork.METRES.x + 0.03, Brushwork.METRES.y + 0.03, 0.03)), frame * Transform3D(Basis(), Vector3(0, 0, -0.017)), _mat("linen", Color(0.86, 0.82, 0.74), 0.9))
-	e.canvas_mesh = _part(e, _quad("canvas", Brushwork.METRES), frame, null, false)
+	_part(board, ToolModels.box(Vector3(Brushwork.METRES.x + 0.03, Brushwork.METRES.y + 0.03, 0.03)), frame * Transform3D(Basis(), Vector3(0, 0, -0.017)), _mat("linen", Color(0.86, 0.82, 0.74), 0.9))
+
+
+func _build(e: Easel) -> void:
+	var stand := Node3D.new()
+	stand.name = "stand"
+	e.add_child(stand)
+	lay_frame(stand, e)
+	e.canvas_mesh = _part(e, _quad("canvas", Brushwork.METRES), canvas_local(), null, false)
 	var implements := Node3D.new()
 	implements.name = "implements"
 	e.add_child(implements)

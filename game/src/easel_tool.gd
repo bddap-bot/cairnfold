@@ -116,8 +116,8 @@ func _init(player: Rig, stands: Easels, garden: World) -> void:
 
 
 func _ghost() -> Node3D:
-	var g := ToolModels.build(Hand.Tool.EASEL)
-	g.scale = Vector3.ONE * 32.0
+	var g := Node3D.new()
+	Easels.lay_frame(g, g)
 	g.top_level = true
 	g.visible = false
 	Meshes.ghostly(g, Meshes.glow(TINT))
@@ -203,7 +203,7 @@ func _aim_ground(p: Painter) -> void:
 		return
 	var yaw := Easels.facing(hit, rig.head.global_position)
 	p.ghost.visible = true
-	p.ghost.global_transform = Transform3D(Basis(Vector3.UP, yaw).scaled(Vector3.ONE * 32.0), hit)
+	p.ghost.global_transform = Easels.on_ground(hit, yaw)
 	world.preview(p.hand, {"easel": 1})
 	if p.buttons.pressed("tool"):
 		place(hit, yaw, p.hand)

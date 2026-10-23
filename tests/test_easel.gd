@@ -36,6 +36,7 @@ func _run() -> void:
 	_no_plank_crosses_the_canvas()
 	_no_implement_crosses_the_easel()
 	_easels_share_their_geometry()
+	_the_ghost_is_the_easel()
 	await _the_palette_stays_in_the_hand_by_its_thumb_hole()
 	await _every_way_out_lets_the_palette_go()
 	await _every_held_change_logs_a_line()
@@ -816,3 +817,16 @@ func _changing_canvases_ends_the_previous_stroke() -> void:
 	main.easel_tool.end_stroke(p)
 	world.flush()
 	check(world.state.easels[stands[1].id].strokes.size() == 1, "the next canvas receives its own stroke command")
+
+
+func _the_ghost_is_the_easel() -> void:
+	var g: Node3D = main.easel_tool.painters[0].ghost
+	var bounds := AABB()
+	var first := true
+	for mi: MeshInstance3D in g.find_children("*", "MeshInstance3D", true, false):
+		var x := Transform3D(g.global_transform.basis, Vector3.ZERO) * g.global_transform.affine_inverse() * mi.global_transform
+		var b := x * mi.get_aabb()
+		bounds = b if first else bounds.merge(b)
+		first = false
+	check(bounds.grow(0.001).encloses(Easels.TRAY), "the easel's ghost carries its tray: %s" % bounds)
+	check(absf(bounds.end.y - (Easels.canvas_local() * Vector3(0, Brushwork.METRES.y * 0.5, 0)).y) < 0.1, "the ghost stands as tall as the easel's canvas: top %.2f" % bounds.end.y)
