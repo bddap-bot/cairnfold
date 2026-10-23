@@ -400,7 +400,10 @@ func _reach(delta: float) -> void:
 		controller = transform
 	var rig := get_parent() as Rig
 	if rig != null and reaches() and tracked() and not picking and not _buttons.held("wheel") and not tool in STAYS:
-		transform = reach.project(controller, rig.head.transform, delta)
+		# Upright at the floor, so a script tipping the rig to level an unworn headset still measures across the ground.
+		var floor := Transform3D(Basis(), rig.global_position)
+		var to_floor := floor.affine_inverse()
+		global_transform = floor * reach.project(to_floor * rig.global_transform * controller, to_floor * rig.head.global_transform, delta)
 	else:
 		reach.rest()
 		transform = controller
