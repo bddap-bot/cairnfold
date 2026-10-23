@@ -34,6 +34,7 @@ func _initialize() -> void:
 	_a_rung_no_knob_of_the_headset_tells_apart_is_passed_by()
 	_an_unsettled_step_is_not_followed_into_one_that_pops()
 	_a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds()
+	_every_pipeline_a_rung_draws_with_is_primed()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -153,6 +154,19 @@ func _the_ladder_has_ends() -> void:
 	var g := Quality.Governor.new(3)
 	_check(_feed(g, BUDGET * 2.0, 200) == 3, "it stops at the bottom")
 	_check(_feed(g, 1.0, 72 * 400) == 0, "and at the top")
+
+
+## The governor may reach any rung mid-play, so each combination of the knobs that switch pipelines is drawn as the
+## session starts, the sun's shadows off at the swapchain's scale among them, and priming ends on START.
+func _every_pipeline_a_rung_draws_with_is_primed() -> void:
+	var primed := Quality.primed()
+	var drawn := {}
+	for n in primed:
+		var s := Quality.ladder[n]
+		drawn[[s.render_scale, s.msaa, s.reflections, s.lake, s.shadows, s.scale_3d]] = true
+	for s in Quality.ladder:
+		_check(drawn.has([s.render_scale, s.msaa, s.reflections, s.lake, s.shadows, s.scale_3d]), "a rung's pipelines are primed")
+	_check(primed[-1] == Quality.START, "priming ends where the governor starts")
 
 
 func _an_average_over_the_line_steps_down_before_frames_run_late() -> void:

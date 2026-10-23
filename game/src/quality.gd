@@ -178,17 +178,16 @@ static func popping() -> PackedInt32Array:
 	return out
 
 
-## The rungs drawn for PRIME_FRAMES each as the session starts: the bottom, then the top and every rung whose swapchain,
-## MSAA, reflections or lake differ from the one above, down to START, where the governor takes over.
+## The rungs drawn for PRIME_FRAMES each as the session starts: the top and every rung whose swapchain, MSAA,
+## reflections, lake, sun's shadows or 3D scale differ from the one above, then START, where the governor takes over.
 static func primed() -> PackedInt32Array:
-	var out := PackedInt32Array([ladder.size() - 1, 0])
-	for i in range(1, START + 1):
+	var out := PackedInt32Array([0])
+	for i in range(1, ladder.size()):
 		var a := ladder[i - 1]
 		var b := ladder[i]
-		if a.render_scale != b.render_scale or a.msaa != b.msaa or a.reflections != b.reflections or a.lake != b.lake:
+		if a.render_scale != b.render_scale or a.msaa != b.msaa or a.reflections != b.reflections or a.lake != b.lake or a.shadows != b.shadows or a.scale_3d != b.scale_3d:
 			out.append(i)
-	if out[-1] != START:
-		out.append(START)
+	out.append(START)
 	return out
 
 
