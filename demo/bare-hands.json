@@ -28,13 +28,15 @@
     "press": [{"hand": "right", "action": "redo", "from": 0.3, "to": 0.5}]},
   {"op": "wait", "seconds": 1},
   {"op": "digest", "name": "03-redone", "ground": true},
-  {"op": "gesture", "bare": true, "length": 2.4,
+  {"op": "gesture", "bare": true, "length": 3.6,
     "keys": [
-      {"t": 0.0, "right": {"at": [0.2, -0.4, -0.35], "toward": [0.5, 0, -3.5]}},
-      {"t": 0.6, "right": {"at": [0.2, -0.4, -0.35], "toward": [0.5, 0, -3.5]}},
-      {"t": 1.8, "right": {"at": [0.2, -0.12, -0.35], "aim": [0, -0.45, -1]}}
+      {"t": 0.0, "right": {"at": [0.18, -0.35, -0.3], "aim": [0, -0.6, -1]}},
+      {"t": 0.8, "right": {"at": [0.18, -0.55, -0.46], "aim": [0, -0.74, -1]}},
+      {"t": 1.8, "right": {"at": [0.18, -0.55, -0.46], "aim": [0, -0.74, -1]}},
+      {"t": 3.0, "right": {"at": [0.18, -0.25, -0.46], "aim": [0, -0.74, -1]}}
     ],
-    "press": [{"hand": "right", "action": "grab", "from": 0.4, "to": 2.2}]},
+    "press": [{"hand": "right", "action": "grab", "from": 1.8, "to": 3.3}]},
+  {"op": "digest", "name": "04-hill", "ground": true},
   {"op": "wait", "seconds": 1},
   {"op": "capture", "name": "04-hill"},
   {"op": "gesture", "bare": true, "length": 2.2,
