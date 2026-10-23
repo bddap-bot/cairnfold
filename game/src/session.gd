@@ -210,7 +210,7 @@ func go_home() -> void:
 	_drop_avatars()
 	host()
 	if not _home.is_empty():
-		world.restore(_home)
+		world.swap(_home)
 	_home = {}
 	changed.emit()
 

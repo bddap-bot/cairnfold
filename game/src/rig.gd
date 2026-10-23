@@ -43,6 +43,13 @@ const SNAP := deg_to_rad(30.0)
 ## Each turning flick as the angle it turns the player.
 const TURNS := {"turn_left": SNAP, "turn_right": -SNAP, "turn_round": PI}
 const FADE := 0.09
+## Where on the ground the player starts, as x and z.
+const SPAWN := Vector2(0, 4)
+## How far from SPAWN a spawn looks for open ground, and how far apart the points it tries stand.
+const SPAWN_SEARCH := 30.0
+const SPAWN_STEP := 1.5
+## How high over a spawn point nothing may stand: above the tallest build.
+const SPAWN_CLEAR := 200.0
 
 ## The player was set down somewhere else.
 signal placed
@@ -74,6 +81,8 @@ var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Diction
 var _sticks: Array[Buttons] = []
 var _reach_switch: Array[Buttons] = []
 var _fade_t := -1.0
+## The view is held dark until `respawn`.
+var _covered := false
 var _pending: Variant = null
 var _aim_clock := 0.0
 ## [time, aim_ground, aim_lift] over the last RELEASE_LOOKBACK of aiming, oldest first.
@@ -184,6 +193,8 @@ func _switch_reach() -> void:
 
 
 func _locomotion_input(delta: float) -> void:
+	if _covered:
+		return
 	for b in _sticks:
 		if aim_hand == null and b.held("teleport"):
 			aim_hand = b.hand
@@ -306,9 +317,40 @@ func teleport(ground: Vector3, lift_m: float) -> void:
 	_fade.visible = true
 
 
+## Fades the view to black and holds it there until `respawn` sets the player down in the garden that follows.
+func cover() -> void:
+	end_aim()
+	_pending = null
+	_covered = true
+	_fade_t = 0.0 if _fade_t < 0.0 else minf(_fade_t, FADE * 2.0 - _fade_t)
+	_fade.visible = true
+
+
+## Whether the view is black under a cover.
+func dark() -> bool:
+	return _covered and _fade_t >= FADE
+
+
+## Sets the player down on open ground at SPAWN, or the nearest open ground to it, and lifts a cover.
 func respawn() -> void:
 	_pending = null
-	place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
+	place(spawn(), 0.0)
+	_covered = false
+
+
+## The open ground nearest SPAWN, tried ring by ring SPAWN_STEP apart: a point nothing is built, planted or set down
+## over, so the player never arrives inside a build. With none within SPAWN_SEARCH, the top of what stands at SPAWN.
+func spawn() -> Vector3:
+	for ring in int(SPAWN_SEARCH / SPAWN_STEP) + 1:
+		var r := ring * SPAWN_STEP
+		var n := maxi(1, int(TAU * r / SPAWN_STEP))
+		for k in n:
+			var at := Vector2(SPAWN.x, SPAWN.y) + Vector2.from_angle(TAU * k / n) * r
+			var g := Terrain.ground(at.x, at.y)
+			if solid_hit.call(g + Vector3.UP * SPAWN_CLEAR, Vector3.DOWN, SPAWN_CLEAR).is_empty():
+				return g
+	var top := Vector3(SPAWN.x, Terrain.height_at(SPAWN.x, SPAWN.y) + MAX_LIFT, SPAWN.y)
+	return Vector3(top.x, floor_under.call(top), top.z)
 
 
 func place(ground: Vector3, lift_m: float) -> void:
@@ -329,6 +371,8 @@ func _fade_step(delta: float) -> void:
 	if _fade_t < 0.0:
 		return
 	_fade_t += delta
+	if _covered:
+		_fade_t = minf(_fade_t, FADE)
 	var a := 1.0 - absf(_fade_t / FADE - 1.0)
 	if _pending != null and _fade_t >= FADE:
 		place(_pending[0], _pending[1])

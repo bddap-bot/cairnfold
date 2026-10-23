@@ -41,6 +41,8 @@ signal applied(cmd: Dictionary)
 signal restored
 ## The replacement garden, including its terrain, is ready for the player.
 signal loaded
+## A garden swap waits for the player's view to go dark (`dark`).
+signal leaving
 ## The frame budget turned down what `hand` tried (null for a hand we cannot tell).
 signal capped(hand: XRController3D)
 
@@ -74,6 +76,9 @@ var _allowance := {}
 var _next_token := 0
 ## True from asking the host for its garden again until it arrives; commands meanwhile are moot.
 var _awaiting := false
+## Whether the player's view is dark enough to swap the garden under it, so they never see the jump or the frame
+## the rebuild holds.
+var dark := func() -> bool: return true
 ## The ground strokes standing, by id.
 var _strokes := {}
 ## The meadow worn bare under each house's or tower's floor on the ground, by its wall's id, so no grass shows through.
@@ -277,9 +282,12 @@ func _enqueue(cmd: Dictionary, by: int, run: Callable) -> void:
 	_drain()
 
 
-## Runs the waiting commands in turn until one waits for its water; with `wait`, waits for each.
+## Runs the waiting commands in turn until one waits for its water or a swap for the dark; with `wait`, waits for
+## neither.
 func _drain(wait := false) -> void:
 	while not _queue.is_empty():
+		if not wait and _queue[0].get("swap", false) and not dark.call():
+			return
 		if _ahead_task >= 0:
 			if not wait and not WorkerThreadPool.is_task_completed(_ahead_task):
 				return
@@ -1275,8 +1283,16 @@ func _welcome(snap: Dictionary) -> void:
 	if not (snap.get("cmds") is Array and typeof(snap.get("seq")) == TYPE_INT):
 		push_error("world: the host sent a garden this one cannot read")
 		return
-	_awaiting = false
-	restore(snap)
+	swap(snap)
+
+
+## Swaps in the garden `snap` once the player's view is dark, in turn with the commands around it.
+func swap(snap: Dictionary) -> void:
+	leaving.emit()
+	_queue.append({"cmd": {}, "by": -1, "swap": true, "run": func() -> void:
+		_awaiting = false
+		restore(snap)})
+	_drain()
 
 
 ## Commands that rebuild this garden from an empty meadow, and the sequence number they stand for.

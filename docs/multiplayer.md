@@ -87,6 +87,9 @@ snapshot's sequence number on. ENet delivers reliable messages in order, so noth
 broadcast after the snapshot can overtake it. While you visit, your own garden waits in
 memory as a snapshot and comes back when you leave or the host goes away. Undo history
 stays with the garden it belongs to: visiting starts fresh, and so does coming home.
+Either swap (`World.swap`) waits in the command queue until the player's view has faded to black, rebuilds there,
+and sets the player down on open ground at the spawn point, or the nearest open ground to it, before the view fades
+in: nobody sees the jump or the frame the rebuild holds, and nobody arrives inside a build.
 
 The same snapshot keeps your garden between sessions: the host writes it to disk after every frame in which
 a command changed its garden, and loads it at start. A player visiting writes nothing, so a visit never

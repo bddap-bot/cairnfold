@@ -33,7 +33,7 @@ func _run() -> void:
 	_snapshot_rebuilds_the_garden()
 	_restore_forgets_history()
 	await _a_storey_follows_what_it_stands_on()
-	_a_stroke_painted_out_of_step_stays_shown()
+	await _a_stroke_painted_out_of_step_stays_shown()
 	_gable_ends_go_through_the_host()
 	finish()
 
@@ -487,6 +487,10 @@ func _a_stroke_painted_out_of_step_stays_shown() -> void:
 	cmd.merge({"id": home.seq + 1, "seq": home.seq + 1, "by": world.me()})
 	cmds.append(cmd)
 	world._welcome({"seq": home.seq + 1, "cmds": cmds})
+	for frame in 30:
+		if world.seq == home.seq + 1:
+			break
+		await process_frame
 	var grown: Array = flora.groups.get(home.seq + 1, []).filter(func(p: Variant) -> bool: return p != null and p.shown())
 	check(grown.size() == painted.size(), "and stands in the garden the host sends: %d of %d" % [grown.size(), painted.size()])
 	check(flora.ghost_flowers.size() == 0, "its ghost gone once it stands")
