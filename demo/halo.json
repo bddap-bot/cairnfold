@@ -1,0 +1,12 @@
+[
+  {"op": "place", "x": 0, "z": 6},
+  {"op": "paint", "tool": "flowers", "points": [[3, -2], [-4, -6]], "radius": 1.5, "seconds": 2},
+  {"op": "view", "eye": [0, 1.65, 6], "at": [0, 0, -6], "ground": true},
+  {"op": "wait", "seconds": 4},
+  {"op": "aim", "dir": [0.03, -0.06, -1], "stick": 1.0, "seconds": 2.0, "capture": "01-day", "settle": 1.0},
+  {"op": "aim", "dir": [0.02, 0.05, -1], "stick": 1.0, "seconds": 2.0, "capture": "02-day-far", "settle": 1.0},
+  {"op": "sun", "time": 0.8, "seconds": 1},
+  {"op": "wait", "seconds": 4},
+  {"op": "aim", "dir": [0.03, -0.06, -1], "stick": 1.0, "seconds": 2.0, "capture": "03-night", "settle": 1.0},
+  {"op": "quit"}
+]

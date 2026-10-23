@@ -17,7 +17,7 @@ const AIR_REACH := 30.0
 ## STEADY_HZ, plus STEADY_HZ_PER_RAD for each radian it lags, so a held hand stays still and a sweep catches up.
 const STEADY_HZ := 0.5
 const STEADY_HZ_PER_RAD := 60.0
-## Past MARKER_NEAR from the eyes the ring grows with distance, so they look as big as they do there.
+## Past MARKER_NEAR from the eyes the halo grows with distance, so they look as big as they do there.
 const MARKER_NEAR := 15.0
 ## Stick forward at or past FULL_STICK aims at the ray's full target; easing back to the deadzone brings it
 ## to NEAREST of the way there.
@@ -78,7 +78,7 @@ var _aim_clock := 0.0
 var _aim_trail: Array = []
 var _steady_dir := Vector3.ZERO
 
-var _ring: MeshInstance3D
+var _landing := Landing.new()
 var _fade: MeshInstance3D
 var _fade_mat: StandardMaterial3D
 
@@ -103,18 +103,7 @@ func _init() -> void:
 
 
 func _build_markers() -> void:
-	var glow := StandardMaterial3D.new()
-	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	glow.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	glow.albedo_color = Color(0.85, 0.97, 1.0, 0.75)
-	glow.no_depth_test = false
-	glow.disable_fog = true
-	var ring := TorusMesh.new()
-	ring.inner_radius = 0.32
-	ring.outer_radius = 0.4
-	ring.rings = 24
-	ring.ring_segments = 6
-	_ring = _marker(ring, glow)
+	add_child(_landing)
 	_fade_mat = StandardMaterial3D.new()
 	_fade_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_fade_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -157,17 +146,6 @@ func pose_body() -> void:
 func torso() -> Transform3D:
 	_torso = Torso.follow(_torso, head.transform.basis)
 	return global_transform * Torso.frame(head.transform, _torso)
-
-
-func _marker(mesh: Mesh, mat: Material) -> MeshInstance3D:
-	var mi := MeshInstance3D.new()
-	mi.mesh = mesh
-	mi.material_override = mat
-	mi.top_level = true
-	mi.visible = false
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mi)
-	return mi
 
 
 ## Whether the head is under a pond, where the water's fog takes everything past its end: the eyes clip there, so
@@ -273,9 +251,7 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 	aim_lift = clampf(stand.y - g, 0.0, MAX_LIFT)
 	var g3: Vector3 = aim_ground
 	var size := maxf(1.0, head.global_position.distance_to(target) / MARKER_NEAR)
-	_ring.visible = true
-	var up := aim_lift if aim_lift > LIFTED else 0.03 * size
-	_ring.global_transform = Transform3D(Basis().scaled(Vector3.ONE * size), g3 + Vector3.UP * up)
+	_landing.put(g3 + Vector3.UP * (aim_lift if aim_lift > LIFTED else 0.0), size)
 
 
 ## The height of the first thing straight down from `p`: the ground, or anything solid on it.
@@ -286,7 +262,7 @@ func _beneath(p: Vector3) -> float:
 
 
 func hide_markers() -> void:
-	_ring.visible = false
+	_landing.hide()
 
 
 ## Move so the head stands over `ground`, `lift` metres up. The rig then stays exactly there: in a headset

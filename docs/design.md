@@ -2672,8 +2672,8 @@ Directive (verbatim): "I see that there's a distance limit on my teleport raycas
 The ray reaches as far as the map does: anything on it the player can see, one teleport reaches. An upward ray
 also looks for ground across the map and floats only when it meets none. Hand tremor of a fraction of a degree
 moves a target 200 m away by metres, so the aim follows the hand through a filter that holds still against small
-wobble and catches up with a deliberate turn. Past 15 m the rings and pole grow with distance and ignore the fog,
-so they look the same size far away as they do nearby. The march along the ray skips each 8 m block of ground
+wobble and catches up with a deliberate turn. Past 15 m the halo grows with distance and ignores the fog,
+so it looks the same size far away as it does nearby. The march along the ray skips each 8 m block of ground
 it stays above, so a ray across the whole map costs less than the old 80 m one did. `demo/teleport-far.json` aims
 from one corner of the map to the other.
 
@@ -2685,6 +2685,28 @@ Everything past the map's side, the mountains and the ground before them, is sky
 Aimed at a mountain, the ray gives what the sky there gives: the point in the air at the 30 m reach while that is
 over the map, and otherwise no target at all, so the player never floats out past the edge. Ground, roofs, walls
 and trees on the map stay targets up to the edge.
+
+### The destination halo
+
+Directive (verbatim): "Let's uh, let's keep the destination halo, but let's make it give me some uh mockups, some ideas for something pretty to make it, something pretty and whimsical"
+
+Where a teleport will set the player down is marked by a small scene about 0.85 m across that plays from the start each
+time the aim finds a target (`Landing`): one MultiMesh of a few pieces placed and animated wholly in its shader, so the
+CPU only moves it. Five looks are built, one per build, chosen by `Landing.LOOK` before export (toadstools by default):
+
+1. `TOADSTOOLS`: a fairy ring of nine red, white-spotted toadstools that pop up one after another.
+2. `FLOWERS`: thirteen little flowers on stems that bloom round the ring in turn.
+3. `FIREFLIES`: twenty-two fireflies spill out from the centre, circle and blink.
+4. `PETALS`: blossom petals spiral down and flutter onto the spot over a ripple that spreads from it.
+5. `DANDELION`: dandelion seeds lift off a ring on the ground and drift up on the breeze.
+
+Each is unlit and unfogged, so it reads the same by day and by night ([day, near and night](halos.jpg),
+`demo/halo.json`). The toadstools and flowers are solid and read at a glance by day; the fireflies, petals and seeds are
+lighter and read best at dusk and night.
+
+Each draws as one draw call: the toadstools 720 triangles, the others 9 to 25 quads, where the plain torus it replaced
+was 288 triangles. On the desktop renderer the shared GPU's load swamped any difference; `demo/halo-cost.json`
+alternates six seconds aiming a near halo with six at rest, for the Quest 2 bench.
 
 Directive (verbatim): "I'd like to be able to use the grab button to grab the ground so ground terraforming becomes um... not a tool, it's just something that's always available. I just grab something. Grab the ground and push it down or pull it up"
 
