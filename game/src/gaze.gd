@@ -77,9 +77,7 @@ func show_marker(on: bool) -> void:
 
 
 static func _build_marker() -> Node3D:
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.albedo_color = Color(1.0, 0.25, 0.6)
+	var mat := Meshes.glow(Color(1.0, 0.25, 0.6), false)
 	var root := Node3D.new()
 	var ray := CylinderMesh.new()
 	ray.top_radius = 0.002

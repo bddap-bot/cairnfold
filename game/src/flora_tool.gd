@@ -86,13 +86,9 @@ static func ring(tint: Color, segments := 32, inner := 0.96) -> MeshInstance3D:
 	torus.outer_radius = 1.0
 	torus.rings = segments
 	torus.ring_segments = 4
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = tint
 	var out := MeshInstance3D.new()
 	out.mesh = torus
-	out.material_override = mat
+	out.material_override = Meshes.glow(tint)
 	out.top_level = true
 	out.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	out.visible = false

@@ -7,6 +7,22 @@ const ROUND := 0.6
 const BLOB_LUMP := 0.35
 
 
+## A flat, unlit `colour`, blended by its alpha when `see_through`.
+static func glow(colour: Color, see_through := true) -> StandardMaterial3D:
+	var mat := StandardMaterial3D.new()
+	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	if see_through:
+		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	mat.albedo_color = colour
+	return mat
+
+
+## Draws everything under `node` in `look`.
+static func ghostly(node: Node, look: Material) -> void:
+	for g: GeometryInstance3D in node.find_children("*", "GeometryInstance3D", true, false):
+		g.material_override = look
+
+
 static func moss() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)

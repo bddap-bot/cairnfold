@@ -5,10 +5,6 @@ extends MeshInstance3D
 var thick := 1.0
 
 func _init(color: Color) -> void:
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = color
 	var cyl := CylinderMesh.new()
 	cyl.top_radius = 0.004
 	cyl.bottom_radius = 0.004
@@ -16,7 +12,7 @@ func _init(color: Color) -> void:
 	cyl.radial_segments = 5
 	cyl.rings = 1
 	mesh = cyl
-	material_override = mat
+	material_override = Meshes.glow(color)
 	top_level = true
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 

@@ -114,12 +114,8 @@ func figure(key: String) -> Node3D:
 ## A figure as a faint, colourless outline of one: the place a person would stand, with no one in it.
 static func _ghost(figure: Node3D) -> void:
 	if _ghost_mat == null:
-		_ghost_mat = StandardMaterial3D.new()
-		_ghost_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		_ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		_ghost_mat.albedo_color = Color(0.25, 0.25, 0.28, 0.45)
-	for mi: MeshInstance3D in figure.find_children("*", "MeshInstance3D", true, false):
-		mi.material_override = _ghost_mat
+		_ghost_mat = Meshes.glow(Color(0.25, 0.25, 0.28, 0.45))
+	Meshes.ghostly(figure, _ghost_mat)
 
 
 func _tag(k: String) -> Array:

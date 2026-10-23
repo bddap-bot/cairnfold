@@ -84,15 +84,12 @@ var easels: Easels
 var world: World
 var painters: Array[Painter] = []
 var highlighted: Array[Node3D] = []
-var highlight := StandardMaterial3D.new()
+var highlight := Meshes.glow(Color(1.0, 0.8, 0.3, 0.45))
 ## Each palette on its way back to its tray, by its node: [easel, kit, where it set off from, how far along (0..1)].
 var returning := {}
 
 
 func _init(player: Rig, stands: Easels, garden: World) -> void:
-	highlight.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	highlight.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	highlight.albedo_color = Color(1.0, 0.8, 0.3, 0.45)
 	rig = player
 	easels = stands
 	world = garden
@@ -123,12 +120,7 @@ func _ghost() -> Node3D:
 	g.scale = Vector3.ONE * 32.0
 	g.top_level = true
 	g.visible = false
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = TINT
-	for mi in g.find_children("*", "MeshInstance3D", true, false):
-		(mi as MeshInstance3D).material_override = mat
+	Meshes.ghostly(g, Meshes.glow(TINT))
 	return g
 
 

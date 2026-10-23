@@ -6,10 +6,7 @@ extends MeshInstance3D
 
 
 func _init(ring: bool) -> void:
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	material_override = mat
+	material_override = Meshes.glow(Color.WHITE)
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	visible = false
 	if ring:

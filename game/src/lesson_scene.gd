@@ -90,10 +90,7 @@ func _init(i: int, see_through := false) -> void:
 	ring.inner_radius = 0.16
 	ring.outer_radius = 0.2
 	_mark.mesh = ring
-	var glow := StandardMaterial3D.new()
-	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	glow.albedo_color = Color(1.0, 0.95, 0.8)
-	_mark.material_override = glow
+	_mark.material_override = Meshes.glow(Color(1.0, 0.95, 0.8), false)
 	_mark.visible = false
 	stage.add_child(_mark)
 	call("_build_" + page.effect)
@@ -361,12 +358,7 @@ func _build_undo() -> void:
 	for part in _fx.wall.get_children():
 		if part is Node3D:
 			ghost.get_child(part.get_index()).transform = part.transform
-	var pale := StandardMaterial3D.new()
-	pale.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	pale.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	pale.albedo_color = Color(1.0, 0.98, 0.92, 0.35)
-	for c in ghost.find_children("*", "GeometryInstance3D", true, false):
-		(c as GeometryInstance3D).material_override = pale
+	Meshes.ghostly(ghost, Meshes.glow(Color(1.0, 0.98, 0.92, 0.35)))
 	stage.add_child(ghost)
 	_fx.ghost = ghost
 
@@ -425,10 +417,7 @@ func _build_sky() -> void:
 	ball.radius = 0.19
 	ball.height = 0.38
 	sun.mesh = ball
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.albedo_color = Color(1.0, 0.82, 0.4)
-	sun.material_override = m
+	sun.material_override = Meshes.glow(Color(1.0, 0.82, 0.4), false)
 	stage.add_child(sun)
 	_fx.sun = sun
 	var halo := MeshInstance3D.new()
@@ -436,11 +425,7 @@ func _build_sky() -> void:
 	glow.radius = 0.3
 	glow.height = 0.6
 	halo.mesh = glow
-	var h := StandardMaterial3D.new()
-	h.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	h.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	h.albedo_color = Color(1.0, 0.95, 0.7, 0.35)
-	halo.material_override = h
+	halo.material_override = Meshes.glow(Color(1.0, 0.95, 0.7, 0.35))
 	sun.add_child(halo)
 	_prop(Hand.Tool.HOUSE, _dish_at() + K * Vector3(0.3, 0, 0.2), 1.0, 0.4)
 	_prop(Hand.Tool.TREES, _dish_at() + K * Vector3(-0.5, 0, -0.1), 1.0)
@@ -581,10 +566,7 @@ func _build_wipe() -> void:
 	ball.radius = 0.3
 	ball.height = 0.6
 	orb.mesh = ball
-	var m := StandardMaterial3D.new()
-	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	orb.material_override = m
+	orb.material_override = Meshes.glow(Color.WHITE)
 	stage.add_child(orb)
 	_fx.orb = orb
 	_fx.puffs = []
@@ -594,11 +576,7 @@ func _build_wipe() -> void:
 		cloud.radius = 0.12
 		cloud.height = 0.24
 		puff.mesh = cloud
-		var pm := StandardMaterial3D.new()
-		pm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		pm.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		pm.albedo_color = Color(1.0, 0.95, 0.88, 0.0)
-		puff.material_override = pm
+		puff.material_override = Meshes.glow(Color(1.0, 0.95, 0.88, 0.0))
 		puff.position = p.position + Vector3.UP * 0.08
 		puff.visible = false
 		stage.add_child(puff)

@@ -138,13 +138,9 @@ func _orb() -> MeshInstance3D:
 	var sphere := SphereMesh.new()
 	sphere.radius = ORB_RADIUS
 	sphere.height = ORB_RADIUS * 2.0
-	var mat := StandardMaterial3D.new()
-	mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-	mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	mat.albedo_color = TINT
 	var orb := MeshInstance3D.new()
 	orb.mesh = sphere
-	orb.material_override = mat
+	orb.material_override = Meshes.glow(TINT)
 	orb.top_level = true
 	orb.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(orb)
