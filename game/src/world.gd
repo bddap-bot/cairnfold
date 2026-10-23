@@ -41,8 +41,6 @@ signal applied(cmd: Dictionary)
 signal restored
 ## The replacement garden, including its terrain, is ready for the player.
 signal loaded
-## A garden swap waits for the player's view to go dark (`dark`).
-signal leaving
 ## The frame budget turned down what `hand` tried (null for a hand we cannot tell).
 signal capped(hand: XRController3D)
 
@@ -76,9 +74,9 @@ var _allowance := {}
 var _next_token := 0
 ## True from asking the host for its garden again until it arrives; commands meanwhile are moot.
 var _awaiting := false
-## Whether the player's view is dark enough to swap the garden under it, so they never see the jump or the frame
-## the rebuild holds.
-var dark := func() -> bool: return true
+## Darkens the player's view for a garden swap, so they never see the jump or the frame the rebuild holds, and says
+## whether it is black yet.
+var blackout := func() -> bool: return true
 ## The ground strokes standing, by id.
 var _strokes := {}
 ## The meadow worn bare under each house's or tower's floor on the ground, by its wall's id, so no grass shows through.
@@ -286,7 +284,7 @@ func _enqueue(cmd: Dictionary, by: int, run: Callable) -> void:
 ## neither.
 func _drain(wait := false) -> void:
 	while not _queue.is_empty():
-		if not wait and _queue[0].get("swap", false) and not dark.call():
+		if not wait and _queue[0].get("swap", false) and not blackout.call():
 			return
 		if _ahead_task >= 0:
 			if not wait and not WorkerThreadPool.is_task_completed(_ahead_task):
@@ -397,8 +395,8 @@ func load_from(path: String) -> void:
 	var snap: Variant = bytes_to_var(FileAccess.get_file_as_bytes(path))
 	if restore_whole(snap):
 		print("world: loaded %s" % path)
-		if Daylight.dark(time):
-			_show_sky(Daylight.dusk())
+		if Daylight.moonless(time):
+			_show_sky(Daylight.sun_at(Daylight.DUSK, false))
 		return
 	var why := "held a garden this game cannot read whole"
 	if snap is Dictionary and snap.get("format") != FORMAT:
@@ -1288,12 +1286,11 @@ func _welcome(snap: Dictionary) -> void:
 	swap(snap)
 
 
-## Swaps in the garden `snap` once the player's view is dark, in turn with the commands around it.
+## Swaps in the garden `snap` once the player's view is black (`blackout`), in turn with the commands around it.
 func swap(snap: Dictionary) -> void:
-	leaving.emit()
 	_queue.append({"cmd": {}, "by": -1, "swap": true, "run": func() -> void:
 		_awaiting = false
-		restore(snap)})
+		_restore(snap)})
 	_drain()
 
 
@@ -1338,8 +1335,13 @@ func snapshot() -> Dictionary:
 ## Back to the empty meadow, then the snapshot's garden, and how many of its commands applied. Undo history
 ## goes with the old garden.
 func restore(snap: Dictionary) -> int:
-	var start := Time.get_ticks_usec()
 	settle()
+	return _restore(snap)
+
+
+## `restore` with every command before it already run, and those after it left waiting.
+func _restore(snap: Dictionary) -> int:
+	var start := Time.get_ticks_usec()
 	var applied: int = _hushed(func() -> int:
 		_clear()
 		Ground.clear()

@@ -79,16 +79,19 @@ static func hides(from: Vector3, dir: Vector3, lake: bool) -> bool:
 	var rise := dir.y / flat.length()
 	for r: Dictionary in RANGES:
 		var along := _crossing(Vector2(from.x, from.z), flat.normalized(), r.radius)
+		if is_nan(along):
+			continue
 		var at := Vector2(from.x, from.z) + flat.normalized() * along
 		if from.y + rise * along < foot_high(lake) + ridge(r, noise_for(r), at.angle()):
 			return true
 	return false
 
 
-## How far along the unit `way` from `p`, inside the circle, it reaches the circle of `radius`.
+## How far along the unit `way` from `p` it reaches the circle of `radius` the last time, or NAN if it misses it.
 static func _crossing(p: Vector2, way: Vector2, radius: float) -> float:
 	var b := p.dot(way)
-	return -b + sqrt(b * b - p.length_squared() + radius * radius)
+	var d := b * b - p.length_squared() + radius * radius
+	return -b + sqrt(d) if d >= 0.0 else NAN
 
 
 ## 1 in the middle of a pass toward the rising or setting sun, 0 away from both.

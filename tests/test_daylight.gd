@@ -23,12 +23,12 @@ func _initialize() -> void:
 
 ## The hours before dawn with no moon up are dark; dusk is just after sunset; the eye adapts to that dark alone.
 func _the_dark_before_dawn() -> void:
-	var dark: Array = range(0, 96).map(func(q: int) -> float: return q / 96.0).filter(Daylight.dark)
+	var dark: Array = range(0, 96).map(func(q: int) -> float: return q / 96.0).filter(Daylight.moonless)
 	check(not dark.is_empty() and dark.all(func(t: float) -> bool: return t > 0.0 and t < 0.25), "the dark falls between midnight and dawn: %s to %s" % [dark.front(), dark.back()])
-	var dusk := Daylight.dusk()
-	check(dusk > 0.75 and absf(Daylight.elevation(dusk) - Daylight.DUSK) < 0.01 and not Daylight.dark(dusk), "dusk is the evening's sun at %.1f°" % Daylight.elevation(dusk))
+	var dusk := Daylight.sun_at(Daylight.DUSK, false)
+	check(dusk > 0.75 and absf(Daylight.elevation(dusk) - Daylight.DUSK) < 0.01 and not Daylight.moonless(dusk), "dusk is the evening's sun at %.1f°" % Daylight.elevation(dusk))
 	check(Look.night_adapted(Daylight.light(0.12)) > 1.5, "before dawn the eye adapts: x%.2f" % Look.night_adapted(Daylight.light(0.12)))
-	for t in [0.5, Daylight.dusk(), 0.9]:
+	for t in [0.5, Daylight.sun_at(Daylight.DUSK, false), 0.9]:
 		check(Look.night_adapted(Daylight.light(t)) == 1.0, "at %.2f, sun or moon up, the eye needs no adapting" % t)
 
 
@@ -42,7 +42,7 @@ func _a_garden_kept_in_the_dark_starts_at_dusk() -> void:
 		f.store_buffer(var_to_bytes(world.snapshot()))
 		f.close()
 		world.load_from(path)
-		var want := Daylight.dusk() if kept == 0.12 else kept
+		var want := Daylight.sun_at(Daylight.DUSK, false) if kept == 0.12 else kept
 		check(absf(world.time - want) < 1e-4 and absf(main.look.time - want) < 1e-4, "a garden kept at %.2f starts at %.4f: %.4f" % [kept, want, world.time])
 	world.save_path = ""
 

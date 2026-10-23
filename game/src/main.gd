@@ -156,8 +156,7 @@ func _ready() -> void:
 			World.Kind.STAIRS:
 				return {"point": hit.point, "side": hit.side}
 		return {"point": origin + dir * hit.along, "side": hit.get("side", false)}
-	world.dark = rig.dark
-	world.leaving.connect(rig.cover)
+	world.blackout = rig.blackout
 	world.loaded.connect(rig.respawn)
 	rig.respawn()
 	metrics = Metrics.new(args.get("metrics", ""))

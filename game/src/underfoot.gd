@@ -5,7 +5,7 @@ extends Node3D
 ## height alone: standing on nothing tens of metres up is the classic trigger of fear of heights and of lost balance.
 
 ## Floating this much over LIFTED shows both at full strength.
-const FULL := 1.0
+const FULL_ABOVE := 1.0
 const RING := 1.2
 const RING_ALPHA := 0.3
 const SHADOW := 1.6
@@ -54,7 +54,7 @@ func _disc(size: float, offsets: Array, alphas: Array, colour: Color) -> MeshIns
 
 ## Shows both under `head`, the player's feet at `feet` over a floor at `floor_y`.
 func follow(head: Vector3, feet: float, floor_y: float) -> void:
-	var k := clampf((feet - floor_y - Rig.LIFTED) / FULL, 0.0, 1.0)
+	var k := clampf((feet - floor_y - Rig.LIFTED) / FULL_ABOVE, 0.0, 1.0)
 	visible = k > 0.0
 	if not visible:
 		return

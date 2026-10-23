@@ -487,10 +487,12 @@ func _a_stroke_painted_out_of_step_stays_shown() -> void:
 	cmd.merge({"id": home.seq + 1, "seq": home.seq + 1, "by": world.me()})
 	cmds.append(cmd)
 	world._welcome({"seq": home.seq + 1, "cmds": cmds})
+	world._commit({"op": "sky", "time": 0.6, "seq": home.seq + 2, "by": 1})
 	for frame in 30:
-		if world.seq == home.seq + 1:
+		if world.seq == home.seq + 2:
 			break
 		await process_frame
+	_check(world.seq == home.seq + 2 and absf(world.time - 0.6) < 1e-4, "a command sent after the garden applies to it, after it arrives: seq %d of %d, sky %.2f" % [world.seq, home.seq + 2, world.time])
 	var grown: Array = flora.groups.get(home.seq + 1, []).filter(func(p: Variant) -> bool: return p != null and p.shown())
 	check(grown.size() == painted.size(), "and stands in the garden the host sends: %d of %d" % [grown.size(), painted.size()])
 	check(flora.ghost_flowers.size() == 0, "its ghost gone once it stands")

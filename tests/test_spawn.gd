@@ -43,7 +43,7 @@ func _spawns_on_open_ground() -> void:
 	rig.respawn()
 	var h := rig.head.global_position
 	var g := Vector2(h.x, h.z)
-	check(not house.has_point(g) and g.distance_to(Rig.SPAWN) < 4.0 and absf(rig.global_position.y - Terrain.height_at(h.x, h.z)) < 0.01, "a house at the spawn sends the player to open ground beside it: %s" % g)
+	check(not house.has_point(g) and g.distance_to(Rig.SPAWN) <= 2.0 * Rig.SPAWN_STEP + 0.01 and absf(rig.global_position.y - Terrain.height_at(h.x, h.z)) < 0.01, "a house at the spawn sends the player to open ground beside it: %s" % g)
 	rig.solid_hit = func(origin: Vector3, _dir: Vector3, _reach: float) -> Dictionary: return {"point": origin, "side": false}
 	rig.floor_under = func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z) + 7.0
 	rig.respawn()
@@ -71,6 +71,12 @@ func _a_swap_happens_in_the_dark() -> void:
 	for frame in 30:
 		await process_frame
 	check(not rig._fade.visible, "the view fades in again")
+	before = world.seq
+	world.swap({"seq": before + 1, "cmds": []})
+	world.swap({"seq": before + 2, "cmds": []})
+	for frame in 60:
+		await process_frame
+	check(world.seq == before + 2 and not rig._fade.visible and world._queue.is_empty(), "two swaps in a row each go dark and the second lands: seq %d of %d" % [world.seq, before + 2])
 
 
 func _grounded(rig: Rig, what: String) -> void:

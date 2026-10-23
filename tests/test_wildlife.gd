@@ -221,7 +221,7 @@ func _teleport_is_no_motion() -> void:
 	rig.teleport(Terrain.ground(0, -6), 0.0)
 	rig._fade_step(Rig.FADE)
 	wildlife.tick(STEP)
-	rig.snap_turn(Rig.SNAP)
+	rig.snap_turn(Rig.SNAP, rig.right)
 	wildlife.tick(STEP)
 	for n: Node3D in [rig.head, rig.right]:
 		check(not wildlife.sudden(n) and not wildlife.approaching(n, ahead), "a teleport and a snap turn startle nothing, %s at %.2f m/s" % [n.name, wildlife._speed[n]])

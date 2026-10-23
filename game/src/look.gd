@@ -30,7 +30,8 @@ const UNDER_KEEPS := Color(0.55, 0.92, 1.0)
 const ADAPT_INDOOR := 1.8
 const ADAPT_SECONDS := 0.7
 ## Per-build: the eye's night adaptation. Under a sky darker than NIGHT_FLOOR the exposure rises with the dark, up to
-## NIGHT_MOST times, so builds read before dawn; the night's own sky and light stay as dark (Daylight.KEYS).
+## NIGHT_MOST times, so builds read before dawn; the night's sky and light keep their keys (Daylight.KEYS), and only
+## what the eye makes of them changes.
 const NIGHT_ADAPT := true
 const NIGHT_FLOOR := 0.12
 const NIGHT_MOST := 4.0
@@ -174,12 +175,12 @@ static func _disc(size: Dictionary, moon: float) -> MeshInstance3D:
 	return disc_mi
 
 
-## Stands the lake round the meadow, or the plain.
 ## Whether the lake stands round the garden, rather than the plain.
 func lake() -> bool:
 	return _plain != null and not _plain.visible
 
 
+## Stands the lake round the meadow, or the plain.
 func show_lake(on: bool) -> void:
 	for m in _lake:
 		m.visible = on

@@ -50,8 +50,8 @@ const INSIDE_TIME := 0.15
 ## Where on the ground the player starts, as x and z.
 const SPAWN := Vector2(0, 4)
 ## How far from SPAWN a spawn looks for open ground, and how far apart the points it tries stand.
-const SPAWN_SEARCH := 30.0
-const SPAWN_STEP := 1.5
+const SPAWN_SEARCH := 20.0
+const SPAWN_STEP := 2.0
 ## How high over a spawn point nothing may stand: above the tallest build.
 const SPAWN_CLEAR := 200.0
 
@@ -81,11 +81,11 @@ var floor_under := func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z)
 ## Where a ray first meets something solid short of a reach, the ground aside: a build, a plant or stairs, as
 ## {point, side}, `side` whether it struck a side; or {}.
 var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Dictionary: return {}
-## Each hand's stick, as `hands`.
+## Each hand's stick flicks, in the order of `hands`.
 var _sticks: Array[Buttons] = []
 var _reach_switch: Array[Buttons] = []
 var _fade_t := -1.0
-## The view is held dark until `respawn`.
+## The view is held black for a garden swap until `respawn` (`blackout`).
 var _covered := false
 ## Whether the eyes are inside something solid (`HandStop`).
 var inside := false
@@ -98,7 +98,8 @@ var _steady_dir := Vector3.ZERO
 
 var _landing := Landing.new()
 var _underfoot := Underfoot.new()
-## The floor the player was last set down over, which a float is measured from.
+## The floor the player was last set down over, which a float is measured from: what is built or shaped under a
+## floating player afterwards leaves the ring and shadow where they began.
 var _floor_y := 0.0
 var _fade: MeshInstance3D
 var _fade_mat: StandardMaterial3D
@@ -329,18 +330,16 @@ func teleport(ground: Vector3, lift_m: float) -> void:
 	_fade.visible = true
 
 
-## Fades the view to black and holds it there until `respawn` sets the player down in the garden that follows.
-func cover() -> void:
-	end_aim()
-	_pending = null
-	_covered = true
-	_fade_t = 0.0 if _fade_t < 0.0 else minf(_fade_t, FADE * 2.0 - _fade_t)
-	_fade.visible = true
-
-
-## Whether the view is black under a cover.
-func dark() -> bool:
-	return _covered and _fade_t >= FADE
+## Fades the view to black and holds it there until `respawn` sets the player down in the garden that follows, and
+## says whether it is black yet (`World.blackout`).
+func blackout() -> bool:
+	if not _covered:
+		end_aim()
+		_pending = null
+		_covered = true
+		_fade_t = 0.0 if _fade_t < 0.0 else minf(_fade_t, FADE * 2.0 - _fade_t)
+		_fade.visible = true
+	return _fade_t >= FADE
 
 
 ## Sets the player down on open ground at SPAWN, or the nearest open ground to it, and lifts a cover.
@@ -372,7 +371,7 @@ func place(ground: Vector3, lift_m: float) -> void:
 	placed.emit()
 
 
-func snap_turn(angle: float, hand := right) -> void:
+func snap_turn(angle: float, hand: Hand) -> void:
 	var pivot := head.global_position
 	var t := Transform3D(Basis(Vector3.UP, angle), Vector3.ZERO)
 	global_transform = Transform3D(t.basis * global_transform.basis, pivot + t.basis * (global_position - pivot))

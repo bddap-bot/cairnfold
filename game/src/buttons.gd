@@ -16,6 +16,7 @@ var _resumes := 0
 
 func _init(controller: Hand) -> void:
 	hand = controller
+	_resumes = resumes
 
 
 func pressed(action: String) -> bool:

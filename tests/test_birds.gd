@@ -649,7 +649,7 @@ func _shoulder() -> void:
 	rig.head.transform = ahead
 	_tick(g, 0.5)
 	var worst := 0.0
-	rig.snap_turn(Rig.SNAP)
+	rig.snap_turn(Rig.SNAP, rig.right)
 	for i in 10:
 		_tick(g, STEP)
 		worst = maxf(worst, _on_its_shoulder(g, b))
