@@ -2,6 +2,7 @@ extends "res://../tests/support/suite.gd"
 
 ## Headless checks of wildlife: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wildlife.gd
 
+const GladeBase = preload("res://../tests/support/glade.gd")
 const STEP := 1.0 / 30.0
 
 var feed: FeedTool
@@ -240,19 +241,6 @@ func _from_shore(p: PondWater, at: Vector3) -> float:
 	return best
 
 
-## Every duck that disappears was out of the viewer's sight in its last frame.
-func _watch_vanishing(wildlife: Wildlife, seen: Dictionary) -> Callable:
-	return func() -> void:
-		var now := {}
-		for d in wildlife.ducks():
-			now[d] = wildlife._in_sight(d.position)
-		for d in seen:
-			if not now.has(d) and seen[d]:
-				check(false, "a duck vanished in sight")
-		seen.clear()
-		seen.merge(now)
-
-
 func _ducks_come_only_to_ponds() -> void:
 	Terrain.install()
 	var rig := Rig.new()
@@ -283,8 +271,7 @@ func _ducks_come_only_to_ponds() -> void:
 	var pond := water.ponds[0]
 	pond._process(PondWater.FILL)
 	check(rig.head.global_position.direction_to(Vector3(3.75, pond.surface_y(), -4)).dot(-rig.head.global_basis.z) > Wildlife.SIGHT, "the viewer looks at the pond")
-	var seen := {}
-	var vanishing := _watch_vanishing(wildlife, seen)
+	var vanishing := GladeBase.watch_vanishing(self, wildlife, wildlife.ducks, "duck")
 	var arrived := [false]
 	var first_sight := func() -> void:
 		vanishing.call()
@@ -375,7 +362,7 @@ func _ducks_come_only_to_ponds() -> void:
 	await process_frame
 	await process_frame
 	check(water.ponds.is_empty(), "the pond drains")
-	var flying := _watch_vanishing(flier, {})
+	var flying := GladeBase.watch_vanishing(self, flier, flier.ducks, "duck")
 	flying.call()
 	var climbing := func() -> void:
 		flying.call()
@@ -385,7 +372,7 @@ func _ducks_come_only_to_ponds() -> void:
 	_run(flier, 30.0, climbing)
 	check(flier.families.is_empty() and low[1] >= 0.0, "a duck flying in to a drained pond turns back up and away")
 	flier.queue_free()
-	var walking := _watch_vanishing(walker, {})
+	var walking := GladeBase.watch_vanishing(self, walker, walker.ducks, "duck")
 	walking.call()
 	_run(walker, 400.0, walking)
 	check(walker.families.is_empty(), "a family walks away from a drained pond")

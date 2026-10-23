@@ -1,0 +1,106 @@
+extends RefCounted
+
+## A garden without main.tscn for the wildlife tests: the wildlife and its tools are ticked by hand, never processed,
+## and the hands are held far away. Without walls the glade has no wall tool, ground grab or kept
+## meadow, as the butterflies'.
+const STEP := 1.0 / 30.0
+const AWAY := Vector3(0, -50, 0)
+
+var tree: SceneTree
+var rig: Rig
+var world: World
+var paths: Paths
+var flora: Flora
+var walls: WallTool
+var terrain: GroundGrab
+var water: Water
+var palette := Palette.new()
+var wildlife: Wildlife
+## Extra tools a test adds; teardown frees them first.
+var tools: Array[Node] = []
+
+
+func build(suite: SceneTree, seed: int, with_walls := true) -> void:
+	tree = suite
+	rig = _add(Rig.new())
+	world = _add(World.new())
+	paths = _add(Paths.new())
+	flora = _add(Flora.new())
+	water = Water.new([])
+	if with_walls:
+		flora.keep()
+		walls = _add(WallTool.new(rig, world, flora, paths))
+		walls.set_process(false)
+		terrain = _add(GroundGrab.new(rig, world))
+		terrain.process_mode = Node.PROCESS_MODE_DISABLED
+		terrain.reshaped.connect(walls.reground)
+	_add(water)
+	world.attach(walls, flora, paths, terrain, water)
+	var hands: Array[Node3D] = []
+	hands.assign(rig.hands)
+	await tree.process_frame
+	wildlife = _add(Wildlife.new(water, flora, walls, palette, rig.head, hands, seed))
+	wildlife.set_process(false)
+	for h in rig.hands:
+		h.global_position = AWAY
+
+
+func add_tool(tool: Node) -> Node:
+	tools.append(_add(tool))
+	return tool
+
+
+func teardown() -> void:
+	wildlife.free()
+	if walls:
+		for w in walls.walls:
+			w.free()
+	for n: Node in tools + [terrain, water, walls, flora, paths, world, rig]:
+		if n:
+			n.queue_free()
+	await tree.process_frame
+
+
+## Ticks the wildlife without frames, the walls' stones and perches first laid as they stand, so what the animals see
+## does not hang on how far a worker thread got.
+func run(seconds: float, each := Callable()) -> void:
+	lay()
+	for i in int(seconds / STEP):
+		wildlife.tick(STEP)
+		if each.is_valid():
+			each.call()
+
+
+func lay() -> void:
+	if walls:
+		for w in walls.walls:
+			w.perches(true)
+
+
+## As `run`, a frame at a time, so walls lay their stones again as they would in play.
+func play(seconds: float, each := Callable()) -> void:
+	for i in int(seconds / STEP):
+		await tree.process_frame
+		lay()
+		wildlife.tick(STEP)
+		if each.is_valid():
+			each.call()
+
+
+## A check, run after each tick, that none of `animals()` left while `wildlife` could see it.
+static func watch_vanishing(suite: SceneTree, wildlife: Wildlife, animals: Callable, what: String) -> Callable:
+	var seen := {}
+	return func() -> void:
+		var now := {}
+		for a: Node3D in animals.call():
+			now[a] = wildlife._in_sight(a.position)
+		for a in seen:
+			if not now.has(a) and seen[a]:
+				suite.check(false, "a %s vanished in sight" % what)
+		seen.clear()
+		seen.merge(now)
+
+
+func _add(n: Node) -> Node:
+	tree.root.add_child(n)
+	return n

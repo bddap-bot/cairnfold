@@ -2,7 +2,8 @@ extends "res://../tests/support/suite.gd"
 
 ## Headless checks of conures: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_birds.gd
 
-const STEP := 1.0 / 30.0
+const GladeBase = preload("res://../tests/support/glade.gd")
+const STEP := GladeBase.STEP
 const AWAY := Vector3(0, -50, 0)
 
 
@@ -90,13 +91,8 @@ func _wall_tops_are_perches() -> void:
 	check(roofed.perches().is_empty(), "a roofed house has no perches")
 
 
-class Glade:
-	var rig: Rig
-	var world: World
-	var flora: Flora
+class Glade extends GladeBase:
 	var tool: WallTool
-	var terrain: GroundGrab
-	var wildlife: Wildlife
 
 	func birds() -> Array[Birds.Bird]:
 		return wildlife.birds.birds
@@ -104,73 +100,13 @@ class Glade:
 
 func _glade(seed: int) -> Glade:
 	var g := Glade.new()
-	g.rig = Rig.new()
-	root.add_child(g.rig)
-	g.world = World.new()
-	root.add_child(g.world)
-	var paths := Paths.new()
-	root.add_child(paths)
-	g.flora = Flora.new()
-	root.add_child(g.flora)
-	g.flora.keep()
-	g.tool = WallTool.new(g.rig, g.world, g.flora, paths)
-	root.add_child(g.tool)
-	g.tool.set_process(false)
-	g.terrain = GroundGrab.new(g.rig, g.world)
-	g.terrain.process_mode = Node.PROCESS_MODE_DISABLED
-	root.add_child(g.terrain)
-	var water := Water.new([])
-	g.terrain.reshaped.connect(g.tool.reground)
-	root.add_child(water)
-	g.world.attach(g.tool, g.flora, paths, g.terrain, water)
-	var hands: Array[Node3D] = []
-	hands.assign(g.rig.hands)
-	await process_frame
-	g.wildlife = Wildlife.new(water, g.flora, g.tool, Palette.new(), g.rig.head, hands, seed)
-	root.add_child(g.wildlife)
-	g.wildlife.set_process(false)
-	for h in g.rig.hands:
-		h.global_position = AWAY
+	await g.build(self, seed)
 	return g
-
-
-## Ticks the wildlife without frames, the walls' stones and perches first laid as they stand, so what the
-## animals see does not hang on how far a worker thread got.
-func _run(g: Glade, seconds: float, each := Callable()) -> void:
-	_lay(g)
-	for i in int(seconds / STEP):
-		g.wildlife.tick(STEP)
-		if each.is_valid():
-			each.call()
-
-
-func _lay(g: Glade) -> void:
-	for w in g.tool.walls:
-		w.perches(true)
-
-
-## As `_run`, a frame at a time, so walls lay their stones again as they would in play.
-func _play(g: Glade, seconds: float, each := Callable()) -> void:
-	for i in int(seconds / STEP):
-		await process_frame
-		_lay(g)
-		g.wildlife.tick(STEP)
-		if each.is_valid():
-			each.call()
-
-
-func _teardown(g: Glade) -> void:
-	g.wildlife.free()
-	for w in g.tool.walls:
-		w.free()
-	for n: Node in [g.terrain, g.tool, g.flora, g.world, g.rig]:
-		n.queue_free()
-	await process_frame
 
 
 ## Runs until a flock has come and every bird of it perches, or `seconds` have passed.
 func _until_perched(g: Glade, seconds: float) -> void:
-	_lay(g)
+	g.lay()
 	for i in int(seconds / STEP):
 		g.wildlife.tick(STEP)
 		if g.birds().size() >= Birds.FLOCK.x and g.birds().all(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH):
@@ -187,23 +123,9 @@ func _draw_wall(tool: WallTool, a: Vector3, b: Vector3) -> Wall:
 	return tool.walls[-1]
 
 
-## Every bird that disappears was out of the viewer's sight in its last frame.
-func _watch_vanishing(g: Glade, seen: Dictionary) -> Callable:
-	return func() -> void:
-		var now := {}
-		for b in g.birds():
-			now[b] = g.wildlife._in_sight(b.node.position)
-
-		for b in seen:
-			if not now.has(b) and seen[b]:
-				check(false, "a bird vanished in sight")
-		seen.clear()
-		seen.merge(now)
-
-
 ## Whether `at` is on top of a standing wall, or on the surface of a planted tree's crown and inside none of its blobs.
 func _on_perch(g: Glade, at: Vector3) -> bool:
-	for w in g.tool.walls:
+	for w in g.walls.walls:
 		var s := w.layout.closest_s(at)
 		var foot: Vector3 = w.layout.frame_at(s).point
 		if Vector2(at.x - foot.x, at.z - foot.z).length() < WallLayout.THICKNESS and at.y > foot.y + w.layout.height and at.y < foot.y + w.layout.height + 1.0:
@@ -225,15 +147,15 @@ func _on_perch(g: Glade, at: Vector3) -> bool:
 
 func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 	var g := await _glade(3)
-	_run(g, 300.0)
+	g.run(300.0)
 	check(g.birds().is_empty(), "a garden without perches draws no conures")
 
 	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": Terrain.ground(-2.5, -9)})
-	var wall := _draw_wall(g.tool, Vector3(0, 0, -7), Vector3(5, 0, -8))
+	var wall := _draw_wall(g.walls, Vector3(0, 0, -7), Vector3(5, 0, -8))
 	await process_frame
-	check(g.flora.placed("tree").size() == 1 and g.tool.walls.size() == 1 and wall.finished, "a planted tree and a finished wall")
+	check(g.flora.placed("tree").size() == 1 and g.walls.walls.size() == 1 and wall.finished, "a planted tree and a finished wall")
 	check(g.rig.head.global_position.direction_to(Terrain.ground(1, -8)).dot(-g.rig.head.global_basis.z) > Wildlife.SIGHT, "the viewer looks at them")
-	_run(g, 200.0)
+	g.run(200.0)
 	check(g.birds().is_empty(), "no conure comes before the ducks")
 
 	var duck := Duck.new(false, 0.0)
@@ -243,8 +165,7 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 	duck.free()
 	check(g.wildlife.ducks_came, "a duck coming counts")
 
-	var seen := {}
-	var vanishing := _watch_vanishing(g, seen)
+	var vanishing := GladeBase.watch_vanishing(self, g.wildlife, func() -> Array: return g.birds().map(func(b: Birds.Bird) -> Conure: return b.node), "bird")
 	var appeared := [false]
 	var first := func() -> void:
 		vanishing.call()
@@ -252,9 +173,9 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 			appeared[0] = true
 			for b in g.birds():
 				check(not g.wildlife._in_sight(b.node.position), "a conure first appears out of sight")
-	_run(g, Wildlife.ARRIVE_AFTER.x - 1.0, first)
+	g.run(Wildlife.ARRIVE_AFTER.x - 1.0, first)
 	check(g.birds().is_empty(), "no conure before its time")
-	_run(g, Wildlife.ARRIVE_AFTER.y - Wildlife.ARRIVE_AFTER.x + 2.0, first)
+	g.run(Wildlife.ARRIVE_AFTER.y - Wildlife.ARRIVE_AFTER.x + 2.0, first)
 	check(g.birds().size() >= Birds.FLOCK.x and g.birds().size() <= Birds.FLOCK.y, "a pair or a trio flies in, %d" % g.birds().size())
 
 	var states := {}
@@ -267,7 +188,7 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 				off_perch[0] = maxf(off_perch[0], 1.0)
 			if b.preening > 0.0:
 				states["preen"] = true
-	_run(g, 240.0, watch)
+	g.run(240.0, watch)
 	check(g.birds().size() >= Birds.FLOCK.x and g.birds().size() <= Birds.CAP, "they stay while there are perches")
 	check(off_perch[0] == 0.0, "every perched conure stands on a wall top or a crown")
 	for s in [Birds.State.PERCH, Birds.State.HOP, Birds.State.FLY, Birds.State.PECK, "preen"]:
@@ -280,7 +201,7 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 				perched = b
 		if perched != null:
 			break
-		_run(g, STEP)
+		g.run(STEP)
 	check(perched != null, "a conure sits on its perch")
 	await _a_calm_approach_lets_him_close(g, perched, vanishing)
 	await _a_sudden_move_startles_it_a_short_way(g, perched, vanishing)
@@ -291,16 +212,16 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 	g.world.undo()
 	g.world.undo()
 	await process_frame
-	check(g.flora.placed("tree").is_empty() and g.tool.walls.is_empty(), "the tree and the wall are gone")
-	_run(g, 120.0, vanishing)
+	check(g.flora.placed("tree").is_empty() and g.walls.walls.is_empty(), "the tree and the wall are gone")
+	g.run(120.0, vanishing)
 	check(g.birds().all(func(b: Birds.Bird) -> bool: return b.state == Birds.State.SHOULDER), "the conures leave once no perch stands, but for one riding your shoulder")
 	g.rig.under = true
-	_run(g, 120.0, vanishing)
+	g.run(120.0, vanishing)
 	check(g.birds().is_empty(), "and that one leaves too once sent off it")
 	g.rig.under = false
-	_run(g, 200.0)
+	g.run(200.0)
 	check(g.birds().is_empty(), "and none come back without one")
-	await _teardown(g)
+	await g.teardown()
 
 
 ## A hand or a head moved from `from` to `to` at `speed` metres a second, a tick at a time.
@@ -308,7 +229,7 @@ func _move(g: Glade, n: Node3D, from: Vector3, to: Vector3, speed: float, each :
 	var steps := maxi(int(from.distance_to(to) / speed / STEP), 1)
 	for i in steps + 1:
 		n.global_position = from.lerp(to, float(i) / steps)
-		_run(g, STEP, each)
+		g.run(STEP, each)
 
 
 ## A hand brought slowly right up to a perched conure, then a face: it stays, turned to watch, and steps aside
@@ -319,26 +240,26 @@ func _a_calm_approach_lets_him_close(g: Glade, b: Birds.Bird, each: Callable) ->
 	var side := Vector3(0.7, 0.3, 0.7).normalized()
 	var start := at + side * Birds.WATCH * 0.9
 	hand.global_position = start
-	_run(g, 1.0, each)
+	g.run(1.0, each)
 	var left := [false]
 	var watching := func() -> void:
 		each.call()
 		left[0] = left[0] or b.state != Birds.State.PERCH
 	_move(g, hand, start, at + side * 0.06, 0.3, watching)
 	check(not left[0], "a hand coming slowly right up to a conure leaves it on its perch")
-	_run(g, 4.0, watching)
+	g.run(4.0, watching)
 	check(not left[0] and b.node.position == at, "held still beside it, it stays, %.2f m from the hand" % b.node.position.distance_to(hand.global_position))
 	var facing := -b.node.global_basis.z
 	var to_hand := hand.global_position - at
 	check(Vector2(facing.x, facing.z).normalized().dot(Vector2(to_hand.x, to_hand.z).normalized()) > 0.9, "and turns to watch it")
 	_move(g, hand, hand.global_position, AWAY.lerp(at, 0.99), 0.4, each)
 	hand.global_position = AWAY
-	_run(g, 0.5, each)
+	g.run(0.5, each)
 
 	for i in 600:
 		if b.state == Birds.State.PERCH:
 			break
-		_run(g, STEP, each)
+		g.run(STEP, each)
 	at = b.node.position
 	var head: Node3D = g.rig.head
 	var home := head.global_position
@@ -350,7 +271,7 @@ func _a_calm_approach_lets_him_close(g: Glade, b: Birds.Bird, each: Callable) ->
 		early[0] = early[0] or (eye > Birds.SHUFFLE and b.state != Birds.State.PERCH)
 	_move(g, head, centre + Vector3(0, 0.1, Birds.WATCH * 0.9), centre + Vector3(0, 0.02, 0.05), 0.3, leaning)
 	check(not early[0], "a face leaning in slowly startles it not until it is about to touch")
-	_run(g, 1.0, each)
+	g.run(1.0, each)
 	var off := (b.node.position + Conure.BODY).distance_to(head.global_position)
 	var hopped := b.node.position.distance_to(at)
 	var along := b.state == Birds.State.PERCH and hopped > 0.0 and hopped < b.site.hop()
@@ -358,7 +279,7 @@ func _a_calm_approach_lets_him_close(g: Glade, b: Birds.Bird, each: Callable) ->
 	check(off > Birds.SHUFFLE and (along or away), "it shuffles aside along its perch, or with no room flies a short way, %.2f m, to %.2f m from the eye" % [hopped, off])
 	check(off - 0.07 > Rig.NEAR, "so the eye's near clip never cuts it")
 	head.global_position = home
-	_run(g, 1.0, each)
+	g.run(1.0, each)
 
 
 ## A hand jerked at a perched conure: it flies off a short way to a perch, in sight, and stays in the garden.
@@ -366,22 +287,22 @@ func _a_sudden_move_startles_it_a_short_way(g: Glade, b: Birds.Bird, each: Calla
 	for i in 300:
 		if b.state == Birds.State.PERCH:
 			break
-		_run(g, STEP, each)
+		g.run(STEP, each)
 	var hand: Node3D = g.rig.hands[0]
 	var at := b.node.position
 	hand.global_position = at + Vector3(1.2, 0.2, 0)
-	_run(g, 1.0, each)
+	g.run(1.0, each)
 	_move(g, hand, hand.global_position, at + Vector3(0.3, 0.1, 0), 3.0, each)
-	_run(g, STEP * 2, each)
+	g.run(STEP * 2, each)
 	check(b.state == Birds.State.FLY, "a sudden hand startles it up, state %s" % Birds.State.keys()[b.state])
 	var from := hand.global_position
-	_run(g, 4.0, each)
+	g.run(4.0, each)
 	var moved := b.node.position.distance_to(at)
 	check(b.state != Birds.State.LEAVE and b in g.birds(), "it stays in the garden")
 	check(moved <= Birds.STARTLE_TO.y + 0.01 and b.node.position.distance_to(from) > Birds.STARTLE, "a short way off, %.2f m, out of reach" % moved)
 	check(g.wildlife._in_sight(b.node.position), "and in sight")
 	hand.global_position = AWAY
-	_run(g, 1.0, each)
+	g.run(1.0, each)
 
 
 ## A hand held out with seeds draws one conure onto it, one at a time, once it has stood looking at whoever holds
@@ -413,7 +334,7 @@ func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 				d.head = maxf(d.head, aim.dot(eye.direction_to(head.global_position)))
 				d.hand = maxf(d.hand, aim.dot(eye.direction_to(hand.global_position)))
 	for i in int(40.0 / STEP):
-		_run(g, STEP, eating)
+		g.run(STEP, eating)
 		if not on.is_empty():
 			break
 	check(on.size() == 1 and flew[0] == 1, "one conure comes to the seeds, %d" % on.size())
@@ -437,13 +358,13 @@ func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 			pecks[0] += 1
 	b.node.animation_event.connect(watch_peck)
 	var pecks_before: int = Cues.asked.get(Cues.Act.HAND_PECK, 0)
-	_run(g, 6.0, eating)
+	g.run(6.0, eating)
 	check(pecks[0] > 0 and Cues.asked.get(Cues.Act.HAND_PECK, 0) - pecks_before == pecks[0], "mounted pecks each produce one cue, without a second feeding timer")
 	b.node.animation_event.disconnect(watch_peck)
 	var spot := hand.global_transform * Wildlife.ON_HAND
 	check(b.node.position.distance_to(spot) < 0.001, "and stands on the hand behind them")
 	var stayed := [true]
-	_run(g, Birds.appetite.eats_for.y * 3.0, func() -> void:
+	g.run(Birds.appetite.eats_for.y * 3.0, func() -> void:
 		eating.call()
 		stayed[0] = stayed[0] and b.state == Birds.State.FEED)
 	check(stayed[0], "it stays on the hand while the seeds are held out, %.0f s" % (Birds.appetite.eats_for.y * 3.0))
@@ -457,11 +378,11 @@ func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 			peak[0] = maxf(peak[0], g.wildlife._speed.get(hand, 0.0)))
 		check(b.state == Birds.State.FEED, "normal gesture/light flick %.1f m/s keeps the bird" % speed)
 		print("motion: %.1f m/s gesture, smoothed peak %.3f, old release=%s new release=%s" % [speed, peak[0], peak[0] > Wildlife.CALM, b.state != Birds.State.FEED])
-		_run(g, 0.5, eating)
+		g.run(0.5, eating)
 	var pivot := hand.global_position - Vector3(0.4, 0, 0)
 	for i in 30:
 		hand.global_transform = Transform3D(Basis(Vector3.UP, i * PI / 60.0), pivot + Vector3(0.4, 0, 0).rotated(Vector3.UP, i * PI / 60.0))
-		_run(g, STEP, eating)
+		g.run(STEP, eating)
 	check(b.state == Birds.State.FEED, "90 degree turn with arm extended keeps the bird")
 	print("motion: 90 degree turn in 1 s, new release=", b.state != Birds.State.FEED)
 	var flick_peak := [0.0]
@@ -469,13 +390,13 @@ func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 		eating.call()
 		flick_peak[0] = maxf(flick_peak[0], g.wildlife._speed.get(hand, 0.0)))
 	print("motion: 3.0 m/s deliberate flick, smoothed peak %.3f, old release=%s new release=%s" % [flick_peak[0], flick_peak[0] > Wildlife.CALM, b.state != Birds.State.FEED])
-	_run(g, STEP * 2, eating)
+	g.run(STEP * 2, eating)
 	check(b.state == Birds.State.FLY and b.node.hand == null, "jerked, the hand sends it off")
-	_run(g, 4.0, each)
+	g.run(4.0, each)
 	check(b in g.birds() and b.state != Birds.State.LEAVE, "to a perch nearby, staying, state %s" % Birds.State.keys()[b.state])
 	check(not g.wildlife._eaters.has(hand) or g.wildlife._eaters[hand] != b, "and lets the hand go")
 	hand.tool = Hand.Tool.WALLS
-	_run(g, 1.0, each)
+	g.run(1.0, each)
 	check(g.birds().all(func(b: Birds.Bird) -> bool: return b.node.hand == null), "seeds put away keep nobody")
 	hand.held_still = false
 	hand.global_position = AWAY
@@ -493,12 +414,12 @@ func _two_hands_with_seeds_feed_two(g: Glade, each: Callable) -> void:
 	var on := func() -> Array:
 		return g.rig.hands.map(func(h: Hand) -> int: return g.birds().filter(func(b: Birds.Bird) -> bool: return b.state == Birds.State.FEED and b.node.hand == h).size())
 	for i in int(120.0 / STEP):
-		_run(g, STEP, each)
+		g.run(STEP, each)
 		if on.call() == [1, 1]:
 			break
 	check(on.call() == [1, 1], "a conure on each hand at once, %s" % [on.call()])
 	var both := [true]
-	_run(g, 30.0, func() -> void:
+	g.run(30.0, func() -> void:
 		each.call()
 		both[0] = both[0] and on.call() == [1, 1])
 	check(both[0], "and both stay")
@@ -506,7 +427,7 @@ func _two_hands_with_seeds_feed_two(g: Glade, each: Callable) -> void:
 		h.tool = Hand.Tool.WALLS
 		h.held_still = false
 		h.global_position = AWAY
-	_run(g, 4.0, each)
+	g.run(4.0, each)
 
 
 ## Another player's dish held out, as `Session` shows it in their avatar's hand, draws a conure onto it as a hand here
@@ -522,7 +443,7 @@ func _another_players_dish_draws_one(g: Glade, each: Callable) -> void:
 		return g.birds().filter(func(b: Birds.Bird) -> bool: return b.state == Birds.State.FEED and b.node.hand == dish)
 	var looked := [0.0]
 	for i in int(120.0 / STEP):
-		_run(g, STEP, each)
+		g.run(STEP, each)
 		for b in g.birds():
 			if b.state == Birds.State.DECIDE and b.node.hand == dish and b.node._gaze.z > 0.9:
 				var aim := b.node.transform.basis * (Basis(Vector3.UP, b.node._gaze.x) * Basis(Vector3.RIGHT, b.node._gaze.y) * Vector3.FORWARD)
@@ -531,16 +452,16 @@ func _another_players_dish_draws_one(g: Glade, each: Callable) -> void:
 			break
 	check(on.call().size() == 1, "a conure comes to another player's dish, %d" % on.call().size())
 	check(looked[0] > 0.95, "having looked at that player first, %.2f" % looked[0])
-	_run(g, 2.0, each)
+	g.run(2.0, each)
 	if not on.call().is_empty():
 		var b: Birds.Bird = on.call()[0]
 		check(b.node.position.distance_to(dish.global_transform * Wildlife.ON_HAND) < 0.001, "and stands on that hand behind the seeds")
 	dish.visible = false
-	_run(g, 1.0, each)
+	g.run(1.0, each)
 	check(g.birds().all(func(b: Birds.Bird) -> bool: return b.node.hand != dish), "hidden, the dish keeps nobody")
 	g.wildlife.dishes.erase(dish)
 	dish.free()
-	_run(g, 4.0, each)
+	g.run(4.0, each)
 
 
 ## A wall taken away under perched conures, with another perch standing: from the next frame none counts on
@@ -548,12 +469,12 @@ func _another_players_dish_draws_one(g: Glade, each: Callable) -> void:
 func _a_perch_taken_away_sends_them_elsewhere() -> void:
 	var g := await _glade(5)
 	g.wildlife.ducks_came = true
-	var first := _draw_wall(g.tool, Vector3(0, 0, -7), Vector3(5, 0, -8))
+	var first := _draw_wall(g.walls, Vector3(0, 0, -7), Vector3(5, 0, -8))
 	_until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
 	check(g.birds().size() >= Birds.FLOCK.x and g.birds().all(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH), "conures perch on the only wall")
-	var second := _draw_wall(g.tool, Vector3(-9, 0, -6), Vector3(-4, 0, -8))
+	var second := _draw_wall(g.walls, Vector3(-9, 0, -6), Vector3(-4, 0, -8))
 	await process_frame
-	await _play(g, 1.5)
+	await g.play(1.5)
 	check(g.wildlife.birds.sites.size() == 2, "a second wall to perch on, %d sites" % g.wildlife.birds.sites.size())
 	g.world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([first.id])})
 	await process_frame
@@ -562,14 +483,14 @@ func _a_perch_taken_away_sends_them_elsewhere() -> void:
 	g.wildlife.tick(STEP)
 	check(g.birds().all(func(b: Birds.Bird) -> bool: return b.site == null or b.site.standing()), "from the next frame no conure counts on the wall taken away")
 	var off := [0, 0]
-	await _play(g, 12.0, func() -> void:
+	await g.play(12.0, func() -> void:
 		for b in g.birds():
 			if b.state == Birds.State.PERCH:
 				off[int(_on_perch(g, b.node.position))] += 1)
 	check(off[0] == 0, "no conure perches where the wall stood, %d frames" % off[0])
 	check(g.birds().size() >= Birds.FLOCK.x and g.birds().all(func(b: Birds.Bird) -> bool: return b.state != Birds.State.LEAVE), "they stay, with a wall still standing")
 	check(off[1] > 0, "and settle on it")
-	await _teardown(g)
+	await g.teardown()
 
 
 ## A site with the one point to stand on.
@@ -609,7 +530,7 @@ func _with_no_room_they_leave() -> void:
 		birds.sites.assign([one])
 		birds._flutter(lost)
 		check(lost.state == Birds.State.LEAVE, "a bird whose perch is gone and finds no room leaves, state %d" % lost.state)
-	await _teardown(g)
+	await g.teardown()
 
 
 ## Ground pulled up under a perched flock: once the wall is laid on it again they stand on its top as it now
@@ -618,24 +539,24 @@ func _a_reshape_carries_them_with_their_perch() -> void:
 	var g := await _glade(3)
 	g.wildlife.ducks_came = true
 	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": Terrain.ground(-2.5, -9)})
-	_draw_wall(g.tool, Vector3(0, 0, -7), Vector3(5, 0, -8))
+	_draw_wall(g.walls, Vector3(0, 0, -7), Vector3(5, 0, -8))
 	await process_frame
 	_until_perched(g, Wildlife.ARRIVE_AFTER.y + 30.0)
 	check(g.birds().any(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH), "conures perch")
 	g.terrain.begin(g.terrain.rig.right, Terrain.ground(1, -8), 8.0)
 	g.terrain.pull(g.terrain.rig.right, 1.5)
 	g.terrain.end_stroke(g.terrain.rig.right)
-	_run(g, 1.0)
-	await _play(g, 4.0)
+	g.run(1.0)
+	await g.play(4.0)
 	var off := [0, 0]
-	await _play(g, 6.0, func() -> void:
+	await g.play(6.0, func() -> void:
 		for b in g.birds():
 			if b.state == Birds.State.PERCH:
 				off[1] += 1
 				if not _on_perch(g, b.node.position):
 					off[0] += 1)
 	check(off[1] > 0 and off[0] == 0, "perched conures stand on the wall top or crown as they are after the reshape, %d of %d frames off" % off)
-	await _teardown(g)
+	await g.teardown()
 
 
 func _carry() -> void:
@@ -693,15 +614,15 @@ func _torso_lags_the_head() -> void:
 ## it can be taken from there like any carried conure. Peers get it as a held model standing on the shoulder.
 func _shoulder() -> void:
 	var g := await _glade(31)
-	_draw_wall(g.tool, Vector3(-1.5, 0, -3), Vector3(1.5, 0, -3))
-	_lay(g)
+	_draw_wall(g.walls, Vector3(-1.5, 0, -3), Vector3(1.5, 0, -3))
+	g.lay()
 	var flock := g.wildlife.birds
 	flock.look()
 	flock.arrive()
 	_until_perched(g, 30.0)
 	check(g.birds().size() >= 2, "a flock perched on the wall")
 	if g.birds().size() < 2:
-		await _teardown(g)
+		await g.teardown()
 		return
 	var b: Birds.Bird = g.birds()[0]
 	var shy := g.birds().slice(1)
@@ -780,7 +701,7 @@ func _shoulder() -> void:
 	h.global_position = AWAY
 	for n: Node in [carry, painting, easels]:
 		n.free()
-	await _teardown(g)
+	await g.teardown()
 
 
 func _tick(g: Glade, seconds: float) -> void:
@@ -791,7 +712,7 @@ func _tick(g: Glade, seconds: float) -> void:
 ## Ticks until `b` stands on a shoulder, or `seconds` pass; whether it does.
 func _until_shouldered(g: Glade, b: Birds.Bird, seconds: float) -> bool:
 	for i in int(seconds / STEP):
-		_lay(g)
+		g.lay()
 		g.wildlife.tick(STEP)
 		if b.state == Birds.State.SHOULDER:
 			return true

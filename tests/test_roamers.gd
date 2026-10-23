@@ -2,7 +2,8 @@ extends "res://../tests/support/suite.gd"
 
 ## Headless checks of the deer and the fox: godot4 --headless --path game --script ../tests/test_roamers.gd
 
-const STEP := 1.0 / 30.0
+const GladeBase = preload("res://../tests/support/glade.gd")
+const STEP := GladeBase.STEP
 const AWAY := Vector3(0, -50, 0)
 
 
@@ -23,15 +24,7 @@ func _initialize() -> void:
 	finish()
 
 
-class Glade:
-	var rig: Rig
-	var world: World
-	var walls: WallTool
-	var water: Water
-	var flora: Flora
-	var paths: Paths
-	var terrain: GroundGrab
-	var wildlife: Wildlife
+class Glade extends GladeBase:
 	var feed: FeedTool
 
 	func beasts(kind: Beast.Kind) -> Array[Beast]:
@@ -42,47 +35,12 @@ class Glade:
 
 func _glade(seed: int) -> Glade:
 	var g := Glade.new()
-	g.rig = Rig.new()
-	root.add_child(g.rig)
-	g.world = World.new()
-	root.add_child(g.world)
-	g.paths = Paths.new()
-	root.add_child(g.paths)
-	g.flora = Flora.new()
-	root.add_child(g.flora)
-	g.flora.keep()
-	g.walls = WallTool.new(g.rig, g.world, g.flora, g.paths)
-	root.add_child(g.walls)
-	g.walls.set_process(false)
-	g.terrain = GroundGrab.new(g.rig, g.world)
-	g.terrain.process_mode = Node.PROCESS_MODE_DISABLED
-	root.add_child(g.terrain)
-	g.water = Water.new([])
-	root.add_child(g.water)
-	g.world.attach(g.walls, g.flora, g.paths, g.terrain, g.water)
-	var hands: Array[Node3D] = []
-	hands.assign(g.rig.hands)
-	await process_frame
-	g.wildlife = Wildlife.new(g.water, g.flora, g.walls, Palette.new(), g.rig.head, hands, seed)
-	root.add_child(g.wildlife)
-	g.wildlife.set_process(false)
-	g.feed = FeedTool.new(g.rig, g.water)
-	root.add_child(g.feed)
+	await g.build(self, seed)
+	g.feed = g.add_tool(FeedTool.new(g.rig, g.water))
 	g.feed.set_process(false)
 	g.feed.rng.seed = seed
 	g.wildlife.handfuls = g.feed.handfuls
-	for h in g.rig.hands:
-		h.global_position = AWAY
 	return g
-
-
-func _teardown(g: Glade) -> void:
-	g.wildlife.free()
-	for w in g.walls.walls:
-		w.free()
-	for n: Node in [g.feed, g.terrain, g.water, g.walls, g.flora, g.paths, g.world, g.rig]:
-		n.queue_free()
-	await process_frame
 
 
 func _run(g: Glade, seconds: float, each := Callable()) -> void:
@@ -214,7 +172,7 @@ func _deer_then_a_fox_come_out_of_sight() -> void:
 		if r >= Roamers.RING.x - 0.5 and r <= Roamers.RING.y + 0.5:
 			rim += 1
 	check(rim == g.wildlife.roamers.all().size(), "out on the meadow's rim, %d of %d" % [rim, g.wildlife.roamers.all().size()])
-	await _teardown(g)
+	await g.teardown()
 
 
 func _a_sudden_move_sends_a_deer_off_and_stillness_lets_it_near() -> void:
@@ -240,7 +198,7 @@ func _a_sudden_move_sends_a_deer_off_and_stillness_lets_it_near() -> void:
 	check(deer.calm >= 3.0, "a person standing still calms it, %.0f calm spells" % deer.calm)
 	check(_walk_up(g, deer, 0.5, Roamers.FLIGHT[Beast.Kind.DEER] - 1.0), "and may then walk nearer than it first let them before it runs")
 	check(not _walk_up(g, deer, 0.5, 0.8), "though not right up to it")
-	await _teardown(g)
+	await g.teardown()
 
 
 func _food_held_still_draws_one_to_eat() -> void:
@@ -299,7 +257,7 @@ func _food_held_still_draws_one_to_eat() -> void:
 		hand.global_position = AWAY
 		g.rig.head.global_position = Vector3(0, 1.6, 0)
 		_run(g, 1.0)
-	await _teardown(g)
+	await g.teardown()
 
 
 func _a_wall_drawn_under_one_moves_it() -> void:
@@ -320,7 +278,7 @@ func _a_wall_drawn_under_one_moves_it() -> void:
 	check(deer.state == Grazers.State.WALK or deer.state == Grazers.State.LEAVE, "it walks off within a second, %s" % Grazers.State.keys()[deer.state])
 	_run(g, 15.0)
 	check(g.wildlife.roamers.allowed(deer.position) or deer.state == Grazers.State.LEAVE, "to ground it may stand on")
-	await _teardown(g)
+	await g.teardown()
 
 
 func _they_leave_out_of_sight_and_come_again() -> void:
@@ -337,7 +295,7 @@ func _they_leave_out_of_sight_and_come_again() -> void:
 	check(gone[0], "the deer leave after their stay")
 	_run(g, Roamers.AGAIN.y + 60.0, each)
 	check(not g.beasts(Beast.Kind.DEER).is_empty(), "and others come later")
-	await _teardown(g)
+	await g.teardown()
 
 
 ## Seeds tossed from a still hand land a little way along its aim on the grass, and draw a deer, and the fox, to eat
@@ -387,4 +345,4 @@ func _thrown_seeds_draw_them_to_eat() -> void:
 			g.rig.head.global_position = eater.position + side * (Roamers.FLIGHT[kind] + 1.5) + Vector3.UP * 1.6
 			check(not _walk_up(g, eater, 0.6, 1.0), "but a person coming up to it there still sends it off")
 		_run(g, Handful.LASTS.y + 2.0)
-	await _teardown(g)
+	await g.teardown()
