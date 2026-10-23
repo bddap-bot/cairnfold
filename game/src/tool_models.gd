@@ -1151,7 +1151,10 @@ static func decoration(layout: DecorationLayout, seed: int) -> Node3D:
 	if not layout.pictures.is_empty():
 		var drawn := MeshInstance3D.new()
 		drawn.mesh = bake(layout.pictures.map(func(x: Transform3D) -> Array: return [picture(Hand.Tool.STYLE), x, null]))
-		drawn.material_override = _vertex_mat("decoration_picture", 0.6, false)
+		var mat := _vertex_mat("decoration_picture", 0.6, false)
+		# The picture's colours are the wand's albedos, which are sRGB.
+		mat.vertex_color_is_srgb = true
+		drawn.material_override = mat
 		drawn.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(drawn)
 	return root
