@@ -15,6 +15,8 @@ var main: Main
 var steps: Array
 var _eye := Vector3.ZERO
 var _at := Vector3.FORWARD
+## A view found nothing to look at: the steps after it would capture the wrong thing under their names, so none run.
+var failed := false
 var _waiting := {}
 ## What `layer` hid: each property it turned off, by object and property, and the value it had before.
 var _hidden := {}
@@ -45,6 +47,10 @@ func _ready() -> void:
 func _run() -> void:
 	await _drawing()
 	for step in steps:
+		if failed:
+			print("driver: failed")
+			finished.emit()
+			return
 		await _standing()
 		print("driver: ", step)
 		if step.get("background", false):
@@ -1282,7 +1288,7 @@ func _until(s: Dictionary) -> void:
 ## Writes `World.digest`, where the sun stands, how many other players' avatars stand here and the hashes of their own files, and how many eat from held dishes, to `name`.json in the capture
 ## directory, for comparing machines.
 func _digest(s: Dictionary) -> void:
-	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name + ".json")
+	var path: String = main.capture_path(s.name + ".json")
 	var out: Dictionary = main.world.digest()
 	if s.get("ground", false):
 		var h: Vector3 = main.rig.head.global_position
@@ -1325,7 +1331,7 @@ func _network_sample(s: Dictionary) -> void:
 		"tx_bytes_s": connection.pop_statistic(ENetConnection.HOST_TOTAL_SENT_DATA) / seconds,
 		"rx_bytes_s": connection.pop_statistic(ENetConnection.HOST_TOTAL_RECEIVED_DATA) / seconds,
 		"process_ms_frame": process_ms / frames, "physics_ms_frame": physics_ms / frames}
-	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name + ".json")
+	var path: String = main.capture_path(s.name + ".json")
 	FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify(out, " ", true))
 	print("driver: network sample ", path)
 
@@ -1494,6 +1500,7 @@ func _pose(s: Dictionary) -> Array[Vector3]:
 		var found := get_tree().get_nodes_in_group(s.subject)
 		if found.is_empty():
 			push_error("driver: nothing in %s to view" % s.subject)
+			failed = true
 			return []
 		var frame: Transform3D = found[s.get("index", 0)].global_transform
 		if s.get("ground", false):
@@ -1507,6 +1514,7 @@ func _pose(s: Dictionary) -> Array[Vector3]:
 		var found := get_tree().get_nodes_in_group(s.toward)
 		if found.is_empty():
 			push_error("driver: nothing in %s to look toward" % s.toward)
+			failed = true
 			return []
 		var eye_at: Vector3 = eye + (main.rig.head.global_position if s.get("relative", false) else Vector3.ZERO)
 		found.sort_custom(func(a: Node3D, b: Node3D) -> bool: return a.global_position.distance_to(eye_at) < b.global_position.distance_to(eye_at))
@@ -2089,13 +2097,13 @@ func _held_snapshot(s: Dictionary) -> void:
 	var items := [HeldItem.describe(main.rig.left, main.easel_tool, main.book), HeldItem.describe(main.rig.right, main.easel_tool, main.book), HeldItem.perched(main.rig, 0), HeldItem.perched(main.rig, 1)]
 	if s.get("loaded", false):
 		assert(items[1].size() == 8 and items[1][0] == HeldItem.Kind.BRUSH and items[1][4] > 0.5, "capture holds a loaded brush")
-	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name)
+	var path: String = main.capture_path(s.name)
 	FileAccess.open(path + ".held", FileAccess.WRITE).store_var([multiplayer.get_unique_id(), items])
 	FileAccess.open(path + ".json", FileAccess.WRITE).store_string(JSON.stringify({"held": items.map(HeldItem.label)}))
 
 
 func _remote_holds(s: Dictionary) -> void:
-	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name)
+	var path: String = main.capture_path(s.name)
 	var expected: Array = FileAccess.open(path + ".held", FileAccess.READ).get_var()
 	var elapsed := 0.0
 	while elapsed < 30.0:

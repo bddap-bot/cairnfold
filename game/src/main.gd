@@ -204,7 +204,9 @@ func _ready() -> void:
 	if args.has("photo"):
 		open_photo(args.photo)
 	if args.has("script"):
-		add_child(Driver.new(self, Driver.read(args.script)))
+		var driver := Driver.new(self, Driver.read(args.script))
+		driver.finished.connect(func() -> void: if driver.failed: finish(1))
+		add_child(driver)
 	if args.has("quit-after"):
 		get_tree().create_timer(float(args["quit-after"])).timeout.connect(finish)
 	get_tree().auto_accept_quit = false
@@ -335,8 +337,6 @@ func view(eye: Vector3, at: Vector3, relative: bool) -> void:
 ## With `screen`, saves the camera screen's view from the eyes instead: a headset's tracked hand points wherever
 ## the controller lies. With `lens`, saves that lens's view as the eyes would see it, to set beside a photo.
 func capture(name: String, screen := false, lens: Variant = null) -> void:
-	var dir: String = args.get("capture-dir", "user://captures")
-	DirAccess.make_dir_recursive_absolute(dir)
 	var img: Image
 	if screen:
 		img = await photo_tool.render_screen(rig.head.global_transform)
@@ -347,12 +347,18 @@ func capture(name: String, screen := false, lens: Variant = null) -> void:
 	else:
 		await RenderingServer.frame_post_draw
 		img = get_viewport().get_texture().get_image()
-	var path := dir.path_join(name + ".png")
+	var path := capture_path(name + ".png")
 	var saved := await photo_tool.save(img, path)
 	if saved != OK:
 		push_error("capture: could not write %s: %s" % [path, error_string(saved)])
 		return
 	print("capture: ", path)
+
+
+func capture_path(name: String) -> String:
+	var dir: String = args.get("capture-dir", "user://captures")
+	DirAccess.make_dir_recursive_absolute(dir)
+	return dir.path_join(name)
 
 
 func _notification(what: int) -> void:
@@ -362,10 +368,10 @@ func _notification(what: int) -> void:
 
 ## The garden and the session log are written before the sounds wind down: a platform that asked us to
 ## quit may kill the process soon after.
-func finish() -> void:
+func finish(code := 0) -> void:
 	world.flush()
 	metrics.close()
-	Main.quit(get_tree())
+	Main.quit(get_tree(), code)
 
 
 ## Where photos go: in user data, except on Android, where an uninstall erases user data and the app's own folders;
