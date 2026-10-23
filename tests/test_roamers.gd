@@ -156,8 +156,8 @@ func _idle_clips_follow_the_seed() -> void:
 		shown.append(clips)
 		a.free()
 	seed(1)
-	_check(shown[0] == shown[1], "a deer of one seed idles the same whatever else drew random numbers, %s vs %s" % shown)
-	_check(shown[0].has(Beast.IDLE_CLIPS[0]) and shown[0].has(Beast.IDLE_CLIPS[1]), "and shows each idle clip")
+	check(shown[0] == shown[1], "a deer of one seed idles the same whatever else drew random numbers, %s vs %s" % shown)
+	check(shown[0].has(Beast.IDLE_CLIPS[0]) and shown[0].has(Beast.IDLE_CLIPS[1]), "and shows each idle clip")
 
 
 func _each_is_one_draw_call() -> void:
