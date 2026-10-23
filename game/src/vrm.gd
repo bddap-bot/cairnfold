@@ -250,7 +250,7 @@ static func _doc() -> GLTFDocument:
 ## Reads a .vrm (binary glTF) into a scene whose root carries the humanoid metadata; `fits`, given each image's size
 ## before it is decoded, refuses the file by answering false; `image` may change each image as it is decoded, `shape`, given the parsed state, its meshes and materials before the scene is made, and `built`,
 ## given the state and the scene, the scene. Null if the file is not one.
-static func read(bytes: PackedByteArray, fits := Callable(), shape := Callable(), image := Callable(), built := Callable()) -> Node3D:
+static func read(bytes: PackedByteArray, fits: Callable, shape: Callable, image: Callable, built: Callable) -> Node3D:
 	var doc := _doc()
 	var state := GLTFState.new()
 	state.set_additional_data(&"vrm_fits", fits)
@@ -259,10 +259,9 @@ static func read(bytes: PackedByteArray, fits := Callable(), shape := Callable()
 	state.create_animations = false
 	if doc.append_from_buffer(bytes, "", state) != OK or state.get_additional_data(&"vrm_refused") == true:
 		return null
-	if shape.is_valid() and not shape.call(state):
-		return null
+	shape.call(state)
 	var root := doc.generate_scene(state) as Node3D
-	if root != null and built.is_valid():
+	if root != null:
 		built.call(state, root)
 	return root
 

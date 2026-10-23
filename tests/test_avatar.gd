@@ -145,7 +145,7 @@ func _within_limits(scene: PackedScene, what: String) -> void:
 		_check(mi.mesh.get_blend_shape_count() <= mini(looks, Vrm.LOOKS.size() * Vrm.BINDS_PER_LOOK), "%s drops every expression but its eyes' (%d kept)" % [what, mi.mesh.get_blend_shape_count()])
 	_check(triangles > 0 and triangles <= Avatar.MAX_TRIANGLES, "%s keeps to the triangle limit (%d)" % [what, triangles])
 	_check(surfaces <= Avatar.MAX_SURFACES, "%s keeps to the draw limit (%d)" % [what, surfaces])
-	_check(skinned == 0 and a.find_children("*", "Skeleton3D", true, false).is_empty() and a._joints.head.bone < 0, "%s stands in rigid parts on its moving bones, with no skeleton to skin" % what)
+	_check(skinned == 0 and a.find_children("*", "Skeleton3D", true, false).is_empty(), "%s stands in rigid parts on its moving bones, with no skeleton to skin" % what)
 	_check(plain == materials, "%s draws its colour alone, lit once a vertex, front faces only, cut out where see-through (%d of %d)" % [what, plain, materials])
 	_check(not textures.is_empty(), "%s keeps its textures" % what)
 	for tex: Texture2D in textures:

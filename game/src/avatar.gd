@@ -28,15 +28,14 @@ const ELBOW := Vector3(0.5, -1.0, 0.4)
 ## The left and right hands' aim poses hanging at the sides, from eyes looking level.
 const AT_SIDES: Array[Transform3D] = [Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(-0.3, -0.65, 0.05)), Transform3D(Basis(Vector3.RIGHT, -1.2), Vector3(0.3, -0.65, 0.05))]
 
-## One humanoid bone: a node, or a bone of a skeleton.
+## One humanoid bone's node.
 class Joint:
 	var node: Node3D
-	var bone := -1
 	## At rest, relative to the model.
 	var rest: Transform3D
-	## Where it is now, relative to the model, while it is a placed node.
+	## Where it is now, relative to the model, while it is placed.
 	var at: Transform3D
-	## Its frame (its skeleton, or its node's parent) is `offset` from the nearest placed node above it, or from
+	## Its frame (its node's parent) is `offset` from the nearest placed node above it, or from
 	## the model; nothing between them moves, so a pose finds the frame without walking the tree.
 	var base: Joint
 	var offset: Transform3D
@@ -344,7 +343,7 @@ static func _pick(arrays: Array, kept: Array, place: Array[Transform3D], to: Tra
 	return out
 
 
-static func _shape(state: GLTFState) -> bool:
+static func _shape(state: GLTFState) -> void:
 	var looks := {}
 	var binds := Vrm.look_binds(state)
 	for dir: String in binds:
@@ -371,7 +370,6 @@ static func _shape(state: GLTFState) -> bool:
 	for m in state.get_materials():
 		if m is BaseMaterial3D:
 			_plain(m)
-	return true
 
 
 ## Draws a material with its colour texture alone, lit once a vertex, front faces only, and cut out where it is
@@ -481,13 +479,8 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	var bones: Dictionary = a._model.get_meta("humanoid")
 	for b: String in bones:
 		var j := Joint.new()
-		var path: NodePath = bones[b]
-		j.node = a._model.get_node(path)
-		if j.node is Skeleton3D:
-			j.bone = (j.node as Skeleton3D).find_bone(path.get_concatenated_subnames())
-			j.rest = _space(j.node, a._model) * (j.node as Skeleton3D).get_bone_global_rest(j.bone)
-		else:
-			j.rest = _space(j.node, a._model)
+		j.node = a._model.get_node(bones[b])
+		j.rest = _space(j.node, a._model)
 		j.at = j.rest
 		a._joints[b] = j
 	a._hips = a._joints.hips
@@ -543,11 +536,11 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 ## Finds the placed node nearest above a joint's frame, and the frame's offset from it. A pose places the
 ## joints parents first, so each one's base is already where this pose puts it.
 func _find_base(j: Joint, placed: Array[Joint]) -> void:
-	var n := j.node if j.bone >= 0 else j.node.get_parent_node_3d()
+	var n := j.node.get_parent_node_3d()
 	var t := Transform3D.IDENTITY
 	while n != _model:
 		for p in placed:
-			if p.bone < 0 and p.node == n:
+			if p.node == n:
 				j.base = p
 				j.offset = t
 				return
@@ -578,18 +571,13 @@ static func _frame_of(j: Joint) -> Transform3D:
 
 
 func _get_joint(j: Joint) -> Transform3D:
-	if j.bone >= 0:
-		return _frame_of(j) * (j.node as Skeleton3D).get_bone_global_pose(j.bone)
 	return _frame_of(j) * j.node.transform
 
 
 ## Puts a bone at `xform` in this node's space, whatever its parent bones' poses.
 func _place(j: Joint, xform: Transform3D) -> void:
-	if j.bone >= 0:
-		(j.node as Skeleton3D).set_bone_global_pose(j.bone, _frame_of(j).affine_inverse() * xform)
-	else:
-		j.node.transform = _frame_of(j).affine_inverse() * xform
-		j.at = xform
+	j.node.transform = _frame_of(j).affine_inverse() * xform
+	j.at = xform
 
 
 ## A bone's transform in the world, by its VRM name.
