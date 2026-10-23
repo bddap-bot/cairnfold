@@ -4,14 +4,17 @@ A cozy VR building toy, inspired by Tiny Glade. Draw stone or plaster walls acro
 and watch them grow courses of stone, crenellated tops and arches; teleport onto
 the grass to stand beside them, or into the air to float above your build.
 
-Runs standalone on the Steam Frame and on Meta Quest 2 and later (Godot 4.6, OpenXR). All assets are generated
-by the code here; see [docs/design.md](docs/design.md) for the full design and
+Runs standalone on the Steam Frame and on Meta Quest 2 and later (Godot 4.6, OpenXR). Its assets are generated
+by the code here or made for it, except a few CC0 recordings and models whose sources
+[AGENTS.md](AGENTS.md) lists; see [docs/design.md](docs/design.md) for the full design and
 build order.
 
 ## Controls
 
 Each hand holds a tool, shown as a small object on top of its controller: walls,
-dirt paths, stone, flowers, grass, trees, boulders, pond, colour, style, camera, seeds, delete or visit.
+fences, windows, arches, houses, towers, decorations, stairs, dirt paths, stone, flowers, grass, moss, trees,
+bushes, boulders, pond, colour, style, camera, selfie camera, seeds, easel, the picture book or delete. The wheel
+also holds the people: avatars to wear, and nearby gardens to join.
 
 - Hold the upper face button (B on the right, Y on the left; on the Steam Frame B
   on the right, D-pad left on the left), and a wheel of tools stands up in front of that
@@ -29,7 +32,7 @@ dirt paths, stone, flowers, grass, trees, boulders, pond, colour, style, camera,
   the meadow, and twist your wrist to turn a wheel of swatches for that material, or
   of seasons for the meadow; let go to keep the one at the top.
 - Holding style: the same, with a little model of each style of what you point
-  at: a gable end's, a roof's (pitched, a tower's cone, flat), a wall's top, along
+  at: a gable end's, a roof's covering (tile or thatch on a pitched roof, stone or boards on a flat one), a wall's top, along
   a wall stone or plaster (a house's timber framings too), or a tree's species.
 - Holding the arch: the trigger on a wall cuts an archway there; on an arch, it fills it.
 - Holding camera: the screen on its back shows what its lens sees, tilted as you
@@ -89,8 +92,8 @@ dirt paths, stone, flowers, grass, trees, boulders, pond, colour, style, camera,
 - The game keeps its garden, photos and engine logs in Godot's user
   directory: `~/.local/share/godot/app_userdata/Nestcombe` on Linux,
   `%APPDATA%\Godot\app_userdata\Nestcombe` on Windows. An APK keeps the garden
-  (`garden.save`), photos and avatars in `/sdcard/Android/data/io.github.bddapbot.nestcombe/files`,
-  where adb reads them.
+  (`garden.save`) and avatars in `/sdcard/Android/data/io.github.bddapbot.nestcombe/files`,
+  where adb reads them, and photos in `Pictures/Nestcombe` in shared storage.
   Put a VRM avatar (1.0 or 0.x) in its `avatars` folder to wear it: the newest file there
   is yours, and other players see it (see [docs/multiplayer.md](docs/multiplayer.md)). On a
   Quest the folder is `/sdcard/Android/data/io.github.bddapbot.nestcombe/files/avatars`:

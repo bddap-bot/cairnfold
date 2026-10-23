@@ -22,7 +22,7 @@ hit. A hit on the shell is contained regardless of whether the ray passed
 through another room opening on its way there.
 
 The default corpus is an **inventory**, not a claim that all generated houses
-are sealed. The probe's positive/negative controls and twelve currently sealed seeds are gates. Discovered cases
+are sealed. The probe's positive/negative controls and thirteen currently sealed seeds are gates. Discovered cases
 are repaired separately, then added to the sealed-case gates with their fix.
 No known failing case is skipped. The known cap-band case also has fixed
 near-wall rays at several heights and slopes: a sphere from the middle of a
@@ -53,10 +53,10 @@ prove mathematical watertightness or coverage of every possible generated
 room. Use the larger sweep and preserve a directed repro whenever a new gap
 is found.
 
-The initial normal corpus records one cap-band escape in seed `8756` and five
-floor-join escapes in seed `31`. These remain report cases pending their
-geometry fixes; the other twelve seeds are in `SEALED_SEEDS`. A repaired case
+The normal corpus records one cap-band escape in seed `8756`, a report case
+pending its geometry fix; the other thirteen seeds, `31` among them since its
+floor joins were sealed, are in `SEALED_SEEDS`. A repaired case
 belongs in that list, keeping the same generator and rays. An escape only the larger sweep finds is
 kept as a fixed origin and direction in `SEALED_RAYS`, checked on every run, since the normal sphere
 would not meet it again. `--leak-strict`
-turns both report cases into failures without changing what is measured.
+turns the report case into a failure without changing what is measured.
