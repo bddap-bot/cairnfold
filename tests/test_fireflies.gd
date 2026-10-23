@@ -2,6 +2,7 @@ extends "res://../tests/support/suite.gd"
 
 ## Headless checks of fireflies: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_fireflies.gd
 
+const GladeBase = preload("res://../tests/support/glade.gd")
 const STEP := 1.0 / 30.0
 
 
@@ -15,19 +16,6 @@ func _initialize() -> void:
 func _run(wildlife: Wildlife, seconds: float) -> void:
 	for i in int(seconds / STEP):
 		wildlife.tick(STEP)
-
-
-## Presses a hollow at x, z as a grip does, then fills it to its brim with the pond tool.
-func _dig(tool: WaterTool, x: float, z: float, frames := 90) -> void:
-	var depth := clampf(0.7 * frames / 60.0, 0.45, 1.3)
-	var hand := tool.world.ground_grab.rig.right
-	tool.world.ground_grab.begin(hand, Terrain.ground(x, z), 2.8)
-	tool.world.ground_grab.pull(hand, -depth)
-	tool.world.ground_grab.end_stroke(hand)
-	tool.fill(hand, Vector3(x, Water.brim(x, z, maxf(2.8, depth * GroundGrab.SPREAD)), z))
-	tool.settle()
-	await process_frame
-	await process_frame
 
 
 func _they_come_out_at_dusk_over_what_is_made() -> void:
@@ -62,7 +50,7 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	_run(wildlife, 5.0)
 	check(ff.count() == 0, "a dusk without a pond or flowers has no fireflies")
 
-	await _dig(tool, 3, -4)
+	await GladeBase.dig(tool, 3, -4)
 	water.ponds[0]._process(PondWater.FILL)
 	look.set_time(Daylight.DEFAULT)
 	_run(wildlife, 5.0)
@@ -98,7 +86,7 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	_run(wildlife, 1.5)
 	check(ff.count() >= Fireflies.PER_HABITAT.x, "summer brings them back")
 
-	await _dig(tool, 4.2, -4)
+	await GladeBase.dig(tool, 4.2, -4)
 	_run(wildlife, Fireflies.REFRESH + 0.5)
 	var reshaped := ff.spots.keys().filter(func(k: Variant) -> bool: return ff.spots[k].any(func(s: Vector4) -> bool: return s.w > 0.0))
 	check(ff.spots.size() == 2 and reshaped.size() == 1 and reshaped[0] == water.ponds[0].pond.shore.hash(), "a pond dug wider moves its fireflies to its new shore")

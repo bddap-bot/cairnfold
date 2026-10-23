@@ -236,19 +236,6 @@ func _teleport_is_no_motion() -> void:
 		n.free()
 
 
-## Presses a hollow at x, z as a grip does, then fills it to its brim with the pond tool.
-func _dig(tool: WaterTool, x: float, z: float, frames: int) -> void:
-	var depth := clampf(0.7 * frames / 60.0, 0.45, 1.3)
-	var hand := tool.world.ground_grab.rig.right
-	tool.world.ground_grab.begin(hand, Terrain.ground(x, z), 2.8)
-	tool.world.ground_grab.pull(hand, -depth)
-	tool.world.ground_grab.end_stroke(hand)
-	tool.fill(hand, Vector3(x, Water.brim(x, z, maxf(2.8, depth * GroundGrab.SPREAD)), z))
-	tool.settle()
-	await process_frame
-	await process_frame
-
-
 func _from_shore(p: PondWater, at: Vector3) -> float:
 	var best := INF
 	for g in p.pond.shore:
@@ -280,8 +267,8 @@ func _ducks_come_only_to_ponds() -> void:
 	_run(wildlife, 600.0)
 	check(wildlife.ducks().is_empty(), "a meadow without a pond draws no ducks")
 
-	await _dig(tool, 3, -4, 90)
-	await _dig(tool, 4.5, -4, 90)
+	await GladeBase.dig(tool, 3, -4, 90)
+	await GladeBase.dig(tool, 4.5, -4, 90)
 	check(water.ponds.size() == 1 and water.ponds[0].pond.cells.size() >= Wildlife.MIN_POND, "a dug pond, %d wet points" % (water.ponds[0].pond.cells.size() if water.ponds.size() else 0))
 	var pond := water.ponds[0]
 	pond._process(PondWater.FILL)

@@ -101,6 +101,20 @@ static func watch_vanishing(suite: SceneTree, wildlife: Wildlife, animals: Calla
 		seen.merge(now)
 
 
+## Presses a hollow at x, z as a grip held `frames` does, then fills it to its brim with the pond tool, at once.
+static func dig(tool: WaterTool, x: float, z: float, frames := 90) -> void:
+	var depth := GroundGrab.dig_depth(frames / 60.0)
+	var grab := tool.world.ground_grab
+	var hand := grab.rig.right
+	grab.begin(hand, Terrain.ground(x, z), 2.8)
+	grab.pull(hand, -depth)
+	grab.end_stroke(hand)
+	tool.fill(hand, Vector3(x, Water.brim(x, z, GroundGrab.reach(2.8, depth)), z))
+	tool.settle()
+	await tool.get_tree().process_frame
+	await tool.get_tree().process_frame
+
+
 func _add(n: Node) -> Node:
 	tree.root.add_child(n)
 	return n

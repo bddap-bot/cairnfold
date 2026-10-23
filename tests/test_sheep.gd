@@ -52,19 +52,6 @@ func _draw(g: Glade, tool: Hand.Tool, a: Vector3, b: Vector3) -> Wall:
 	return g.walls.walls[-1]
 
 
-## Presses a hollow at x, z as a grip does, then fills it to its brim with the pond tool.
-func _dig(g: Glade, x: float, z: float, frames: int) -> void:
-	var depth := clampf(0.7 * frames / 60.0, 0.45, 1.3)
-	var hand := g.terrain.rig.right
-	g.terrain.begin(hand, Terrain.ground(x, z), 2.8)
-	g.terrain.pull(hand, -depth)
-	g.terrain.end_stroke(hand)
-	g.digger.fill(hand, Vector3(x, Water.brim(x, z, maxf(2.8, depth * GroundGrab.SPREAD)), z))
-	g.digger.settle()
-	await process_frame
-	await process_frame
-
-
 ## Counts, over the frames it is called on, steps through a wall, frames in water, frames resting on ground
 ## kept off, and frames off the ground.
 class Watch:
@@ -203,8 +190,8 @@ func _fences_draw_a_flock() -> void:
 	var fence := _draw(g, Hand.Tool.FENCE, Vector3(-6, 0, -4), Vector3(6, 0, -4))
 	check(fence.layout.fence and fence.finished and Herds.standing_length(fence.layout) >= Herds.MIN_FENCE, "a fence of %.1f m" % fence.layout.length())
 	_draw(g, Hand.Tool.WALLS, Vector3(-2, 0, -0.5), Vector3(-2, 0, 4))
-	await _dig(g, 3.5, -0.5, 90)
-	await _dig(g, 3.5, -7.5, 90)
+	await GladeBase.dig(g.digger, 3.5, -0.5, 90)
+	await GladeBase.dig(g.digger, 3.5, -7.5, 90)
 	for p in g.water.ponds:
 		p._process(PondWater.FILL)
 	check(g.water.ponds.size() == 2, "a pond on each side of the fence, %d" % g.water.ponds.size())
@@ -362,7 +349,7 @@ func _settled_sheep_follow_their_ground() -> void:
 		await g.teardown()
 		return
 
-	await _dig(g, some.position.x, some.position.z, 90)
+	await GladeBase.dig(g.digger, some.position.x, some.position.z, 90)
 	for p in g.water.ponds:
 		p._process(PondWater.FILL)
 	var pond := g.water.pond_at(some.position.x, some.position.z)
@@ -426,7 +413,7 @@ func _leaving_sheep_keep_out_of_walls_and_water() -> void:
 	check(g.sheep().size() >= Herds.FLOCK.x, "a flock grazes by the fence")
 	for side in [[Vector3(-14, 0, 6), Vector3(-14, 0, -14)], [Vector3(-13, 0, -15), Vector3(13, 0, -15)], [Vector3(14, 0, -14), Vector3(14, 0, 6)], [Vector3(13, 0, 7), Vector3(-13, 0, 7)]]:
 		_draw(g, Hand.Tool.WALLS, side[0], side[1])
-	await _dig(g, 0.0, -12.0, 90)
+	await GladeBase.dig(g.digger, 0.0, -12.0, 90)
 	for p in g.water.ponds:
 		p._process(PondWater.FILL)
 	g.run(10.0)

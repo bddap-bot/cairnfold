@@ -50,6 +50,16 @@ var _grabs: Array[Grab] = []
 var _due := Rect2()
 
 
+## How far a stroke begun at `radius` and lifted `lift` moves the ground.
+static func reach(radius: float, lift: float) -> float:
+	return maxf(radius, absf(lift) * SPREAD)
+
+
+## How deep a grip pressing the ground for `seconds` digs, as a demo's dig and the tests' hollows do.
+static func dig_depth(seconds: float) -> float:
+	return clampf(0.7 * seconds, 0.45, 1.3)
+
+
 func _init(player: Rig, garden: World, busy: Callable = func(_hand: Hand) -> bool: return false) -> void:
 	rig = player
 	world = garden

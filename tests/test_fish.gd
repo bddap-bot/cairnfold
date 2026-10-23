@@ -2,6 +2,7 @@ extends "res://../tests/support/suite.gd"
 
 ## Headless checks of fish: godot4 --headless --path game --script ../tests/test_fish.gd
 
+const GladeBase = preload("res://../tests/support/glade.gd")
 const STEP := 1.0 / 30.0
 
 
@@ -44,19 +45,6 @@ func _faces_out() -> void:
 	check(fins.size() == 6, "six fin faces, found %d" % fins.size())
 	for f: String in fins:
 		check(fins[f].size() == 2 and 1.0 in fins[f] and -1.0 in fins[f], "fin %s is a face either way up" % f)
-
-
-## Presses a hollow at x, z as a grip does, then fills it to its brim with the pond tool.
-func _dig(tool: WaterTool, x: float, z: float, frames := 90) -> void:
-	var depth := clampf(0.7 * frames / 60.0, 0.45, 1.3)
-	var hand := tool.world.ground_grab.rig.right
-	tool.world.ground_grab.begin(hand, Terrain.ground(x, z), 2.8)
-	tool.world.ground_grab.pull(hand, -depth)
-	tool.world.ground_grab.end_stroke(hand)
-	tool.fill(hand, Vector3(x, Water.brim(x, z, maxf(2.8, depth * GroundGrab.SPREAD)), z))
-	tool.settle()
-	await process_frame
-	await process_frame
 
 
 func _run(wildlife: Wildlife, seconds: float, feed: FeedTool = null, each := Callable()) -> void:
@@ -160,8 +148,8 @@ func _they_swim_in_the_ponds() -> void:
 	wildlife.tick(STEP)
 	check(fish.swimming.size() == 0 and fish.mm.visible_instance_count == 0, "no pond, no fish")
 
-	await _dig(tool, 3, -4)
-	await _dig(tool, 4.5, -4)
+	await GladeBase.dig(tool, 3, -4)
+	await GladeBase.dig(tool, 4.5, -4)
 	water.ponds[0]._process(PondWater.FILL)
 	_run(wildlife, Wildlife.ARRIVE_AFTER.x - 1.0)
 	check(fish.swimming.is_empty(), "a filled pond has no fish at first")
@@ -201,7 +189,7 @@ func _they_swim_in_the_ponds() -> void:
 	check(one.speed < Fish.CRUISE * 1.5, "a hand held still beside one frightens it no more, %.2f m/s" % one.speed)
 	hand.global_position = Vector3(0, 30, 0)
 
-	await _dig(tool, 5.8, -4.2)
+	await GladeBase.dig(tool, 5.8, -4.2)
 	water.ponds[0]._process(PondWater.FILL)
 	var kept_on := true
 	for i in int(5.0 / STEP):
@@ -209,7 +197,7 @@ func _they_swim_in_the_ponds() -> void:
 		kept_on = kept_on and _in_water(fish, water)
 	check(kept_on and not fish.swimming.is_empty(), "a pond dug wider keeps its fish in its water")
 
-	await _dig(tool, -6, 5)
+	await GladeBase.dig(tool, -6, 5)
 	check(fish.swimming.all(func(f: Fish.One) -> bool: return f.pond != water.ponds[-1]), "none in a pond still filling")
 	water.ponds[-1]._process(PondWater.FILL)
 	_run(wildlife, Fish.FADE)

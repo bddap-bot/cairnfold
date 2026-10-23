@@ -715,8 +715,8 @@ func _touch(s: Dictionary) -> void:
 ## Digs a hollow at x, z, deeper the more `seconds` (as a grip pressing the ground), and fills it to its brim
 ## (`Water.brim`), so the pond stays in it.
 func _dig(s: Dictionary) -> void:
-	var depth := clampf(0.7 * s.get("seconds", 1.5), 0.45, 1.3)
-	var radius := maxf(2.8, depth * GroundGrab.SPREAD)
+	var depth := GroundGrab.dig_depth(s.get("seconds", 1.5))
+	var radius := GroundGrab.reach(2.8, depth)
 	await _sculpt({"x": s.x, "z": s.z, "lift": -depth, "radius": 2.8, "seconds": 0.3, "relative": s.get("relative", false), "hand": s.get("hand", "right")})
 	await get_tree().process_frame
 	await _pond({"x": s.x, "z": s.z, "brim": radius, "relative": s.get("relative", false), "hand": s.get("hand", "right")})
