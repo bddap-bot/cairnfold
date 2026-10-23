@@ -130,7 +130,7 @@ func _arrived(g: Glade) -> void:
 	_settle(g.wildlife.roamers.all())
 
 
-func _settle(beasts: Array[Beast]) -> void:
+func _settle(beasts: Array) -> void:
 	for b in beasts:
 		b.goal = b.position
 		b.state = Grazers.State.GRAZE

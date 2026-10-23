@@ -28,6 +28,16 @@ const RETRY := 1.0
 var wildlife: Wildlife
 var bands: Array[Band] = []
 var rng := RandomNumberGenerator.new()
+## How long a spell of grazing lasts, and how long a band rests where it is once one ends.
+var graze_for := Vector2(6.0, 16.0)
+var stand_for := Vector2(3.0, 8.0)
+## Chances, once a spell of grazing ends, of lying down and of walking on rather than looking up.
+var lie_chance := 0.0
+var walk_chance := 0.45
+## Fresh grass lies this far from where an animal is.
+var roam := Vector2(1.5, 4.5)
+## How far a fright sends one.
+var flee_reach := Vector2(2.5, 4.0)
 
 
 class Band:
@@ -37,6 +47,13 @@ class Band:
 func _init(home: Wildlife, seed: int) -> void:
 	wildlife = home
 	rng.seed = seed
+
+
+func all() -> Array[Node3D]:
+	var out: Array[Node3D] = []
+	for b in bands:
+		out.append_array(b.animals)
+	return out
 
 
 func count() -> int:
@@ -98,40 +115,13 @@ func _appetite(_a: Node3D) -> Wildlife.Appetite:
 	return null
 
 
-## What a fright does: false unless it took the animal over this tick.
-func _alarm(_b: Band, _a: Node3D, _delta: float) -> bool:
-	return false
-
-
-## How long a band rests where it is once a spell of grazing ends, and how readily it lies down.
-func _stand_for() -> Vector2:
-	return Vector2(3.0, 8.0)
-
-
-func _graze_for() -> Vector2:
-	return Vector2(6.0, 16.0)
-
-
-func _lie_chance() -> float:
-	return 0.0
+## What a fright does.
+func _alarm(_b: Band, _a: Node3D, _delta: float) -> void:
+	pass
 
 
 func _lie(_a: Node3D) -> void:
 	pass
-
-
-func _walk_chance() -> float:
-	return 0.45
-
-
-## Fresh grass lies this far from where an animal is.
-func _roam() -> Vector2:
-	return Vector2(1.5, 4.5)
-
-
-## How far a fright sends one.
-func _flee_reach() -> Vector2:
-	return Vector2(2.5, 4.0)
 
 
 ## The level way off from a fright at `from`.
@@ -220,8 +210,7 @@ func _think(b: Band, a: Node3D, delta: float) -> void:
 		_fed(a)
 	a.full = maxf(a.full - delta, 0.0)
 	a.retry = maxf(a.retry - delta, 0.0)
-	if _alarm(b, a, delta):
-		return
+	_alarm(b, a, delta)
 	if a.state in [State.GRAZE, State.STAND, State.WALK] and a.full <= 0.0 and rng.randf() < delta * DRAWN:
 		_come_for_food(a)
 	if _settled(a):
@@ -338,7 +327,7 @@ func _fed(a: Node3D) -> void:
 	a.full = rng.randf_range(appetite.full_for.x, appetite.full_for.y)
 	if a.state == State.FEED:
 		a.state = State.STAND
-		a.timer = rng.randf_range(_stand_for().x, _stand_for().y)
+		a.timer = rng.randf_range(stand_for.x, stand_for.y)
 
 
 ## Whether a grazing animal is still stepping to the grass it chose.
@@ -348,25 +337,25 @@ func _off_goal(a: Node3D) -> bool:
 
 func _next(b: Band, a: Node3D) -> void:
 	var roll := rng.randf()
-	if roll < _lie_chance():
+	if roll < lie_chance:
 		_lie(a)
-	elif roll < _lie_chance() + _walk_chance():
+	elif roll < lie_chance + walk_chance:
 		_walk_on(b, a)
 	else:
 		a.state = State.STAND
-		a.timer = rng.randf_range(_stand_for().x, _stand_for().y)
+		a.timer = rng.randf_range(stand_for.x, stand_for.y)
 
 
 func _graze(a: Node3D) -> void:
 	a.state = State.GRAZE
-	a.timer = rng.randf_range(_graze_for().x, _graze_for().y)
+	a.timer = rng.randf_range(graze_for.x, graze_for.y)
 	a.goal = a.position
 
 
 ## Off to fresh grass nearby, else anywhere its band keeps to that it can walk to; else, if it stands on grass it
 ## may, it grazes there, and if not, its band leaves. False unless it walks off.
 func _walk_on(b: Band, a: Node3D) -> bool:
-	var to: Variant = _spot(b, a, a.position, _roam().y, _roam().x)
+	var to: Variant = _spot(b, a, a.position, roam.y, roam.x)
 	if to == null:
 		to = _spot(b, a)
 	if to != null:
@@ -385,10 +374,9 @@ func _flee(b: Band, a: Node3D, from: Vector3) -> void:
 	if a.retry > 0.0:
 		return
 	var away := _away(a, from)
-	var reach := _flee_reach()
 	for attempt in 10:
 		var dir := away.rotated(Vector3.UP, rng.randf_range(-0.7, 0.7) * (1.0 + attempt * 0.25))
-		var to: Vector3 = a.position + dir * rng.randf_range(reach.x, reach.y)
+		var to: Vector3 = a.position + dir * rng.randf_range(flee_reach.x, flee_reach.y)
 		if allowed(to) and _refuge(b, to) and clear_way(a.position, to):
 			a.state = State.FLEE
 			a.goal = Terrain.ground(to.x, to.z)

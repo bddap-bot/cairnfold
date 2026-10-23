@@ -43,7 +43,9 @@ class Glade:
 	var wildlife: Wildlife
 
 	func sheep() -> Array[Sheep]:
-		return wildlife.herds.all()
+		var out: Array[Sheep] = []
+		out.assign(wildlife.herds.all())
+		return out
 
 
 func _glade(seed: int) -> Glade:

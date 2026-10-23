@@ -19,17 +19,9 @@ const END := 0.5
 ## or has no clear way.
 const WALK_FROM := 12.0
 const SPEED := {State.ENTER: 0.5, State.WALK: 0.45, State.FLEE: 1.5, State.LEAVE: 0.55, State.GRAZE: 0.12}
-const GRAZE_FOR := Vector2(6.0, 16.0)
-const STAND_FOR := Vector2(3.0, 8.0)
 const LIE_FOR := Vector2(20.0, 45.0)
-const CALM_FOR := Vector2(4.0, 8.0)
-## Chances, once a spell of grazing ends, of lying down and of walking on rather than looking up.
-const LIE_CHANCE := 0.12
-const WALK_CHANCE := 0.45
-const ROAM := Vector2(1.5, 4.5)
-## A sudden move nearer than this to a sheep's back sends it off this far.
+## A sudden move nearer than this to a sheep's back sends it off.
 const SCARE := 1.0
-const FLEE := Vector2(2.5, 4.0)
 ## A sheep walks up to seeds held out below its head and nibbles them, its muzzle at the hand.
 static var appetite := Wildlife.Appetite.new(Wildlife.Eat.UNDER_HAND, 4.0, 0.9, 0.55, Vector2(6.0, 12.0), Vector2(10.0, 25.0))
 ## Seconds, on average, between one settled sheep's bleats.
@@ -45,11 +37,9 @@ class Flock extends Band:
 	var side := 1.0
 
 
-func all() -> Array[Sheep]:
-	var out: Array[Sheep] = []
-	for b in bands:
-		out.append_array(b.animals)
-	return out
+func _init(home: Wildlife, seed: int) -> void:
+	super(home, seed)
+	lie_chance = 0.12
 
 
 ## Pastures no flock is staying at: where an arrival may be due.
@@ -115,20 +105,14 @@ func _appetite(_a: Node3D) -> Wildlife.Appetite:
 	return appetite
 
 
-func _alarm(_b: Band, a: Node3D, _delta: float) -> bool:
+func _alarm(b: Band, a: Node3D, _delta: float) -> void:
 	if a.state == State.ENTER or a.state == State.FLEE:
-		return false
+		return
 	var fright: Node3D = wildlife._startled(a.position + Vector3.UP * 0.55 * a.size, SCARE)
 	if fright != null:
 		if a.hand != null:
 			_fed(a)
-		_flee(_b, a, fright.global_position)
-	return false
-
-
-func _after_flight(a: Node3D) -> void:
-	a.state = State.STAND
-	a.timer = rng.randf_range(CALM_FOR.x, CALM_FOR.y)
+		_flee(b, a, fright.global_position)
 
 
 func _settled_tick(a: Node3D, delta: float) -> void:
@@ -142,36 +126,12 @@ func _other(_b: Band, a: Node3D, delta: float) -> void:
 	a.timer -= delta
 	if a.timer <= 0.0:
 		a.state = State.STAND
-		a.timer = rng.randf_range(STAND_FOR.x, STAND_FOR.y)
-
-
-func _stand_for() -> Vector2:
-	return STAND_FOR
-
-
-func _graze_for() -> Vector2:
-	return GRAZE_FOR
-
-
-func _lie_chance() -> float:
-	return LIE_CHANCE
+		a.timer = rng.randf_range(stand_for.x, stand_for.y)
 
 
 func _lie(a: Node3D) -> void:
 	a.state = State.LIE
 	a.timer = rng.randf_range(LIE_FOR.x, LIE_FOR.y)
-
-
-func _walk_chance() -> float:
-	return WALK_CHANCE
-
-
-func _roam() -> Vector2:
-	return ROAM
-
-
-func _flee_reach() -> Vector2:
-	return FLEE
 
 
 ## Whether the flock's fence still stands as a pasture.

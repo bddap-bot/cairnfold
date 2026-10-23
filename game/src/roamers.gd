@@ -20,10 +20,6 @@ const SPEED := {
 	Beast.Kind.DEER: {State.ENTER: 0.9, State.WALK: 0.8, State.GRAZE: 0.5, State.FLEE: 6.0, State.LEAVE: 0.9},
 	Beast.Kind.FOX: {State.ENTER: 0.9, State.WALK: 0.85, State.GRAZE: 0.45, State.FLEE: 4.5, State.LEAVE: 0.9},
 }
-const GRAZE_FOR := Vector2(8.0, 20.0)
-const STAND_FOR := Vector2(3.0, 9.0)
-const ROAM := Vector2(3.0, 9.0)
-const FLEE := Vector2(12.0, 20.0)
 ## Within WATCH of a person who comes nearer than FLIGHT * NOTICE, or moves suddenly, it stops to watch; within
 ## FLIGHT of one coming toward it, or STARTLE of a sudden move, it runs.
 const WATCH := {Beast.Kind.DEER: 12.0, Beast.Kind.FOX: 9.0}
@@ -59,15 +55,12 @@ static func _appetite_of(kind: Beast.Kind, sees: float, up: float, to_mouth: flo
 
 func _init(home: Wildlife, seed: int) -> void:
 	super(home, seed)
+	graze_for = Vector2(8.0, 20.0)
+	stand_for = Vector2(3.0, 9.0)
+	roam = Vector2(3.0, 9.0)
+	flee_reach = Vector2(12.0, 20.0)
 	for kind in FIRST:
 		due[kind] = rng.randf_range(FIRST[kind].x, FIRST[kind].y)
-
-
-func all() -> Array[Beast]:
-	var out: Array[Beast] = []
-	for b in bands:
-		out.append_array(b.animals)
-	return out
 
 
 func tick(delta: float) -> void:
@@ -107,9 +100,9 @@ static func flight(a: Beast) -> float:
 	return FLIGHT[a.kind] * maxf(NEAREST, 1.0 - CLOSER * a.calm)
 
 
-func _alarm(b: Band, a: Node3D, _delta: float) -> bool:
+func _alarm(b: Band, a: Node3D, _delta: float) -> void:
 	if a.state == State.ENTER or a.state == State.FLEE:
-		return false
+		return
 	var eating: bool = a.state == State.FEED and Wildlife.in_hand(a.hand)
 	var runs_at := flight(a)
 	for n in wildlife._watched():
@@ -125,7 +118,7 @@ func _alarm(b: Band, a: Node3D, _delta: float) -> bool:
 			_flee(b, a, at)
 			if a.state != State.FLEE:
 				_watch(a)
-			return false
+			return
 		if eating or d >= WATCH[a.kind]:
 			continue
 		if a.state == State.WARY:
@@ -133,7 +126,6 @@ func _alarm(b: Band, a: Node3D, _delta: float) -> bool:
 				a.timer = CALM_FOR
 		elif sudden or d < runs_at * NOTICE:
 			_watch(a)
-	return false
 
 
 func _watch(a: Beast) -> void:
@@ -191,22 +183,6 @@ func _speed(a: Node3D, state: State) -> float:
 
 func _appetite(a: Node3D) -> Wildlife.Appetite:
 	return appetite[a.kind]
-
-
-func _stand_for() -> Vector2:
-	return STAND_FOR
-
-
-func _graze_for() -> Vector2:
-	return GRAZE_FOR
-
-
-func _roam() -> Vector2:
-	return ROAM
-
-
-func _flee_reach() -> Vector2:
-	return FLEE
 
 
 func _within(_b: Band, p: Vector3) -> bool:
