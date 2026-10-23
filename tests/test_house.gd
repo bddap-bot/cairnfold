@@ -42,10 +42,6 @@ func _slope(x: float, z: float) -> float:
 	return x * 0.1 + z * 0.05
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
-
 func _blocks(w: WallLayout) -> Array:
 	return w.stones.filter(func(s): return s.kind == "block")
 
@@ -93,7 +89,7 @@ func _house(length: float, depth: float) -> WallLayout:
 	w.top = WallLayout.Top.CAP
 	w.height = 2.4
 	w.openings.assign([length * 0.5].map(WallLayout.archway))
-	w.build(_flat)
+	w.build(Terrain.flat)
 	return w
 
 
@@ -106,7 +102,7 @@ func _a_house_has_corner_piers_and_a_door() -> void:
 		check(absf(c[1] - 6.0) < 0.01 and absf(c[2] - 10.0) < 0.01 and absf(c[3] - 16.0) < 0.01, "corners at %s" % [c])
 	check(w.archways() == [3.0], "a door in the middle of the front wall, got %s" % [w.archways()])
 	w.openings.assign([6.2, 8.0].map(WallLayout.archway))
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.archways() == [8.0], "no arch through a corner pier, got %s" % [w.archways()])
 	var top := w.height + WallLayout.CAP
 	check(w.stones.all(func(s): return s.y + s.size.y * 0.5 <= top + 0.05), "nothing stands above the cap under a roof")
@@ -250,7 +246,7 @@ func _a_raised_house_stands_on_a_plinth() -> void:
 	var plaster := _house(6.0, 4.0)
 	plaster.plaster = true
 	plaster.rise = 1.2
-	plaster.build(_flat)
+	plaster.build(Terrain.flat)
 	check(plaster.stones.any(func(st: Dictionary) -> bool: return st.kind == "block" and st.y < 0.0), "a plaster house stands on a stone plinth")
 	var supported := _house(6.0, 4.0)
 	supported.rise = 1.2
@@ -440,13 +436,13 @@ func _top_styles() -> void:
 	var w := WallLayout.new()
 	w.points = [Vector3(0, 0, 0), Vector3(6, 0, 0)]
 	var count := func(kind: String) -> int: return w.stones.filter(func(s): return s.kind == kind).size()
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(count.call("merlon") > 0 and count.call("cap") > 0, "crenellated by default")
 	w.top = WallLayout.Top.CAP
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(count.call("merlon") == 0 and count.call("cap") > 0, "a capped top has no merlons")
 	w.top = WallLayout.Top.COPE
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(count.call("cope") > 20 and count.call("cap") == 0 and count.call("merlon") == 0, "coping stones on edge")
 	var covered := 0.0
 	for s in w.stones.filter(func(s): return s.kind == "cope"):
@@ -550,7 +546,7 @@ func _a_flat_roof_is_a_deck_inside_the_walls() -> void:
 func _a_deck_is_rimmed_by_the_top_style() -> void:
 	var w := _house(6.0, 4.0)
 	w.cover = WallLayout.Cover.DECK
-	w.build(_flat)
+	w.build(Terrain.flat)
 	var top := w.height + WallLayout.CAP
 	var rim := w.stones.filter(func(s): return s.y > top)
 	check(rim.any(func(s): return s.kind == "cap" and s.y > top + WallLayout.PARAPET), "a cap top on a deck rises into a coped parapet")
@@ -559,10 +555,10 @@ func _a_deck_is_rimmed_by_the_top_style() -> void:
 	var piers := w.stones.filter(func(s): return s.kind == "pier")
 	check(piers.reduce(func(m, s): return maxf(m, s.y), 0.0) > top + WallLayout.PARAPET, "corner piers rise past the parapet")
 	w.top = WallLayout.Top.CRENEL
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.stones.any(func(s): return s.kind == "merlon") and not w.stones.any(func(s): return s.kind == "block" and s.y > top), "a crenellated top rims a deck with merlons, no parapet")
 	w.cover = WallLayout.Cover.ROOF
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(not w.stones.any(func(s): return s.kind == "merlon"), "under a pitched roof the merlons go")
 
 
@@ -613,7 +609,7 @@ func _gabled(plaster: bool, curve := 0.0, style := WallLayout.GableEnd.WALL, poi
 	r.pitch = pitch
 	r.curve = curve
 	w.gable = r
-	w.build(_flat)
+	w.build(Terrain.flat)
 	r.base = w.samples[0].y + w.height + WallLayout.CAP
 	r.stepped = style == WallLayout.GableEnd.STEPS
 	r.build()
@@ -782,7 +778,7 @@ func _a_gable_continues_the_wall_under_the_slopes() -> void:
 	low.closed = true
 	low.height = 2.4
 	low.cover = WallLayout.Cover.ROOF
-	low.build(_flat)
+	low.build(Terrain.flat)
 	check(low.stones.all(func(s): return s.y <= low.height + WallLayout.CAP), "with no gable over it a house's walls stop at the cap")
 
 
@@ -840,7 +836,7 @@ func _no_wall_rises_through_a_steep_roof() -> void:
 				w.height = 2.4
 				w.gable_end = shape.end
 				w.gable = r
-				w.build(_flat)
+				w.build(Terrain.flat)
 				Wall.pack_roof(w, r, Wall.kinds(), Palette.plain())
 				var worst := -INF
 				var what := ""
@@ -877,7 +873,7 @@ func _gable_ends_keep_to_their_wall_under_the_roof() -> void:
 						r.pitch = pitch
 						r.curve = curve
 						w.gable = r
-						w.build(_flat)
+						w.build(Terrain.flat)
 						Wall.pack_roof(w, r, Wall.kinds(), Palette.plain())
 						var f := r.frame()
 						var turned := 0
@@ -921,7 +917,7 @@ func _roofed() -> Array[Dictionary]:
 		w.closed = true
 		w.cover = WallLayout.Cover.ROOF
 		w.height = 3.0
-		w.build(_flat)
+		w.build(Terrain.flat)
 		var r := RoofLayout.new()
 		r.kind = RoofLayout.Kind.CONE
 		r.center = Vector3(1, 0, 1)

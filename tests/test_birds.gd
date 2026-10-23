@@ -57,7 +57,7 @@ func _wall_tops_are_perches() -> void:
 		w.points.assign([Vector3(0, 0, 0), Vector3(6, 0, 0)])
 		w.top = top
 		w.flags.assign([3.0])
-		w.build(func(_x: float, _z: float) -> float: return 0.0)
+		w.build(Terrain.flat)
 		var perches := w.perches()
 		var low := INF
 		var high := -INF
@@ -73,14 +73,14 @@ func _wall_tops_are_perches() -> void:
 	var f := WallLayout.new()
 	f.points.assign([Vector3(0, 0, 0), Vector3(6, 0, 0)])
 	f.fence = true
-	f.build(func(_x: float, _z: float) -> float: return 0.0)
+	f.build(Terrain.flat)
 	var rails := f.perches()
 	check(rails.size() > 20 and Array(rails).all(func(p: Vector3) -> bool: return p.y - f.frame_at(p.x).point.y > 0.85 and p.y - f.frame_at(p.x).point.y < WallLayout.FENCE_HEIGHT + 0.2), "a fence's perches are on its top rail and posts")
 	var roofed := WallLayout.new()
 	roofed.points.assign([Vector3(0, 0, 0), Vector3(4, 0, 0), Vector3(4, 0, 3), Vector3(0, 0, 3)])
 	roofed.closed = true
 	roofed.cover = WallLayout.Cover.ROOF
-	roofed.build(func(_x: float, _z: float) -> float: return 0.0)
+	roofed.build(Terrain.flat)
 	check(roofed.perches().is_empty(), "a roofed house has no perches")
 
 

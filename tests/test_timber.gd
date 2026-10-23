@@ -1,9 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
 func _init() -> void:
 	var wall := Wall.new(1, null)
 	wall.layout.points = WallLayout.rectangle(Vector3.ZERO, Vector3(7, 0, 0), 5.0)
@@ -26,13 +23,13 @@ func _init() -> void:
 		var w := wall.layout
 		w.gable = wall.roof
 		w.cover = WallLayout.Cover.ROOF
-		w.build(_flat)
+		w.build(Terrain.flat)
 		var parts := w.stones.filter(func(p): return p.kind == "timber")
 		check(parts.size() > 30, "timber frames walls and gables")
 		check(TimberFrame.count(d) == parts.size(), "budget counts the exact generated members after resize")
 		check(w.inputs().timber_style == 0 and w.same_inputs(w.inputs()), "worker inputs retain pattern")
 		var copy := w.inputs()
-		copy.build(_flat)
+		copy.build(Terrain.flat)
 		check(copy.stones == w.stones, "layout and colour deterministic")
 		for c in w.corners():
 			check(parts.any(func(p): return absf(absf(w.offset(p.beam.a.x, c)) - 0.23) < 0.001 and is_equal_approx(p.beam.a.x, p.beam.b.x) and p.beam.a.y < 0.5 and p.beam.b.y > w.height), "full-height corner post survives resize")
@@ -56,7 +53,7 @@ func _init() -> void:
 		check(parts.any(func(p): return p.y > w.height + 0.5), "gable has framing")
 		var stone := w.inputs()
 		stone.plaster = false
-		stone.build(_flat)
+		stone.build(Terrain.flat)
 		check(stone.stones.all(func(p): return p.kind != "timber"), "stone houses unchanged")
 	var plain := original.duplicate(true)
 	plain.timber_style = -1

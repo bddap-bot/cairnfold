@@ -49,6 +49,11 @@ static var _lifted := {}
 static var _half := PackedByteArray([0, 0])
 
 
+## Level ground at zero, for layouts built off the garden's terrain.
+static func flat(_x: float, _z: float) -> float:
+	return 0.0
+
+
 static func base_heights() -> PackedFloat32Array:
 	var noise := FastNoiseLite.new()
 	noise.seed = 7

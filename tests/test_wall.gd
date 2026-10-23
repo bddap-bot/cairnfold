@@ -35,25 +35,12 @@ func _init() -> void:
 	finish()
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
-
-func _wall(length: float, height: float, arches: Array[float]) -> WallLayout:
-	var w := WallLayout.new()
-	w.points = [Vector3(0, 0, 0), Vector3(length, 0, 0)]
-	w.height = height
-	w.openings.append_array(arches.map(WallLayout.archway))
-	w.build(_flat)
-	return w
-
-
 func _blocks(w: WallLayout) -> Array:
 	return w.stones.filter(func(s): return s.kind == "block")
 
 
 func _straight_wall_fills_its_length() -> void:
-	var w := _wall(6.0, 2.4, [])
+	var w := straight_wall(6.0, 2.4, [])
 	check(absf(w.length() - 6.0) < 0.01, "length %f" % w.length())
 	var courses := int(round(2.4 / WallLayout.COURSE))
 	for k in courses:
@@ -67,7 +54,7 @@ func _straight_wall_fills_its_length() -> void:
 
 
 func _arch_ring_closes_over_the_opening() -> void:
-	var w := _wall(8.0, 2.7, [4.0])
+	var w := straight_wall(8.0, 2.7, [4.0])
 	var ring := w.stones.filter(func(s): return s.kind == "voussoir")
 	check(ring.size() == 10, "10 voussoirs, got %d" % ring.size())
 	check(w.stones.filter(func(s): return s.kind == "keystone").size() == 1, "one keystone")
@@ -101,7 +88,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 		arc.points.append(Vector3(cos(i / 8.0 * PI) * 5.0, 0.0, sin(i / 8.0 * PI) * 5.0))
 	arc.height = 3.0
 	arc.plaster = true
-	arc.build(_flat)
+	arc.build(Terrain.flat)
 	arc.openings.assign([arc.length() * 0.5].map(WallLayout.archway))
 	walls.append(arc)
 	for style in ["stone", "plaster", "timber"]:
@@ -117,7 +104,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 		grand.height = 6.3
 		walls.append(grand)
 	for w in walls:
-		w.build(_flat)
+		w.build(Terrain.flat)
 		check(w.archways().size() == 1, "%s wall %.1f m high opens its arch" % [w.arch_style().name, w.height])
 		if w.archways().is_empty():
 			continue
@@ -154,7 +141,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 			continue
 		var door := w.inputs()
 		door.openings = [Vector4(a, 0.0, WallLayout.DoorStyle.PLAIN, 1)]
-		door.build(_flat)
+		door.build(Terrain.flat)
 		check(door.apertures.size() == 1 and door.apertures[0].door, "%s: the same opening list takes a door" % name)
 		if door.apertures.is_empty():
 			continue
@@ -183,7 +170,7 @@ func _a_grand_arch_is_a_doorway_arch_scaled() -> void:
 		w.points = [Vector3(0, 0, 0), Vector3(16, 0, 0)]
 		w.height = 6.0
 		w.openings.assign([WallLayout.archway(8.0, k)])
-		w.build(_flat)
+		w.build(Terrain.flat)
 		check(w.apertures.size() == 1 and is_equal_approx(w.apertures[0].half, WallLayout.ARCH_HALF * k), "an arch of size %.1f opens %.2f m wide: %s" % [k, WallLayout.ARCH_HALF * k * 2.0, w.apertures])
 		if w.apertures.size() != 1:
 			continue
@@ -232,7 +219,7 @@ func _an_arch_grows_up_to_the_wall_top() -> void:
 		var w := WallLayout.new()
 		w.points = [Vector3(0, 0, 0), Vector3(40, 0, 0)]
 		w.height = height
-		w.build(_flat)
+		w.build(Terrain.flat)
 		var placed: Array[Vector4] = []
 		var k := 1.0
 		while w.opening_fits(WallLayout.archway(20.0, k + 0.05), placed):
@@ -247,7 +234,7 @@ func _doors_and_windows_scale_from_where_they_stand() -> void:
 	w.points = [Vector3(0, 0, 0), Vector3(14, 0, 0)]
 	w.height = 6.0
 	w.openings.assign([Vector4(3.0, 0.5, WallLayout.DoorStyle.PLAIN, 1.5), Vector4(9.0, 2.0, WallLayout.DoorStyle.PLAIN, 2.0)])
-	w.build(_flat)
+	w.build(Terrain.flat)
 	var c := w.course_height()
 	var unit := w.opening_for(Vector4(9.0, 2.0, WallLayout.DoorStyle.PLAIN, 1.0))
 	check(w.apertures.size() == 2, "a big door and a big window both open: %s" % [w.apertures])
@@ -261,13 +248,13 @@ func _doors_and_windows_scale_from_where_they_stand() -> void:
 
 
 func _short_or_low_walls_take_no_arch() -> void:
-	check(_wall(1.5, 2.7, [0.75]).stones.all(func(s): return s.kind != "voussoir"), "a 1.5 m wall has no room for an arch")
-	check(_wall(8.0, 1.2, [4.0]).stones.all(func(s): return s.kind != "voussoir"), "a 1.2 m wall is too low for an arch")
+	check(straight_wall(1.5, 2.7, [0.75]).stones.all(func(s): return s.kind != "voussoir"), "a 1.5 m wall has no room for an arch")
+	check(straight_wall(8.0, 1.2, [4.0]).stones.all(func(s): return s.kind != "voussoir"), "a 1.2 m wall is too low for an arch")
 
 
 func _layout_is_deterministic() -> void:
-	var a := _wall(7.0, 2.4, [3.5])
-	var b := _wall(7.0, 2.4, [3.5])
+	var a := straight_wall(7.0, 2.4, [3.5])
+	var b := straight_wall(7.0, 2.4, [3.5])
 	check(a.stones.size() == b.stones.size() and a.stones.all(func(s): return true), "same stone count")
 	for i in a.stones.size():
 		if not a.stones[i].xform.is_equal_approx(b.stones[i].xform):
@@ -293,9 +280,9 @@ func _a_copy_built_elsewhere_lays_the_same_stones() -> void:
 	fence.points = [Vector3(0, 0, 0), Vector3(6, 0, 1)]
 	fence.fence = true
 	for a: WallLayout in [loop, flagged, fence]:
-		a.build(_flat)
+		a.build(Terrain.flat)
 		var copy := a.inputs()
-		copy.build(_flat)
+		copy.build(Terrain.flat)
 		var b := WallLayout.new()
 		b.adopt(copy)
 		check(b.stones.size() == a.stones.size() and b.archways() == a.archways() and b.samples == a.samples and b.apertures.size() == a.apertures.size() and b.flames == a.flames and b.cloths.size() == a.cloths.size(), "a copy's build matches: %d vs %d stones" % [b.stones.size(), a.stones.size()])
@@ -308,8 +295,8 @@ func _a_copy_built_elsewhere_lays_the_same_stones() -> void:
 
 
 func _raising_the_wall_adds_courses() -> void:
-	var low := _wall(5.0, 1.8, [])
-	var high := _wall(5.0, 3.6, [])
+	var low := straight_wall(5.0, 1.8, [])
+	var high := straight_wall(5.0, 3.6, [])
 	var top := func(w: WallLayout) -> float:
 		var m := 0.0
 		for s in w.stones:
@@ -320,14 +307,14 @@ func _raising_the_wall_adds_courses() -> void:
 
 
 func _point_at_follows_the_curve() -> void:
-	var w := _wall(6.0, 2.4, [])
+	var w := straight_wall(6.0, 2.4, [])
 	check(w.point_at(3.0).distance_to(Vector3(3, -0.12, 0)) < WallLayout.SAMPLE * 2.0, "point_at(3) is %s" % w.point_at(3.0))
 	check(w.point_at(99.0) == w.samples[-1], "point_at past the end is the end")
 
 
 func _a_long_wall_splits_by_the_ground_under_each_stone() -> void:
 	var stone := Wall.kinds()[Wall.Part.STONE]
-	var w := _wall(40.0, 1.5, [])
+	var w := straight_wall(40.0, 1.5, [])
 	var packed := Wall.pack(w, Wall.kinds(), Palette.plain())
 	var chunks: Dictionary = packed.chunks[Wall.Part.STONE]
 	check(chunks.size() >= 3, "a 40 m wall spans at least three chunks, got %d" % chunks.size())
@@ -559,7 +546,7 @@ func _a_wall_over_water_stands_on_its_bed() -> void:
 	var footing := w.stones.filter(func(st): return st.y < 0.0)
 	check(not footing.is_empty() and footing.all(func(st): return st.s > 2.5 and st.s < 9.5), "stones under the foot only over the water")
 	check(w.archways().size() == 3 and w.archways()[-1] - w.archways()[0] + WallLayout.ARCH_HALF * 2.0 > 5.5, "the arcade spans the water: %s" % [w.archways()])
-	var dry := _wall(12.0, 2.6, [])
+	var dry := straight_wall(12.0, 2.6, [])
 	check(dry.depths.size() == dry.samples.size() and not dry.stones.any(func(st): return st.y < 0.0), "a wall on dry ground lays nothing under its foot")
 	var again := WallLayout.new()
 	again.points = w.points
@@ -668,7 +655,7 @@ func _mortar_stops_short_of_a_doorway_and_the_ends() -> void:
 	w.points = [Vector3(0, 0, 0), Vector3(9, 0, 0)]
 	w.height = 3.0
 	w.openings = [Vector4(3.0, 0.3, 0, 1)]
-	w.build(_flat)
+	w.build(Terrain.flat)
 	var o: Dictionary = w.apertures[0]
 	var reach := WallLayout.JOINT - 0.001
 	var bad := []
@@ -694,7 +681,7 @@ func _a_drawn_bend_is_a_corner() -> void:
 			w.points.append(a.lerp(b, float(j) / n))
 	w.points.append(loop[0])
 	w.height = 3.6
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.corners().size() == 5, "a pier at each end and each of the 3 bends: %s" % [w.corners()])
 	var off := 0.0
 	for m in w.stones.filter(func(s): return s.kind == "mortar"):

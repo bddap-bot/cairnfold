@@ -20,10 +20,6 @@ func _init() -> void:
 	finish()
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
-
 func _line(a: Vector2, b: Vector2) -> Array[Vector3]:
 	var out: Array[Vector3] = []
 	var n := maxi(1, int(ceil(a.distance_to(b) / 0.45)))
@@ -37,7 +33,7 @@ func _standing(arches: Array[float] = []) -> Array[WallLayout]:
 	var w := WallLayout.new()
 	w.points = _line(Vector2(-6, 0), Vector2(6, 0))
 	w.openings.append_array(arches.map(WallLayout.archway))
-	w.build(_flat)
+	w.build(Terrain.flat)
 	return [w]
 
 
@@ -46,7 +42,7 @@ func _plan(a: Vector2, b: Vector2, obstacles := PackedVector3Array(), standing :
 
 
 func _plan_stroke(stroke: Array[Vector3], obstacles := PackedVector3Array(), standing := _standing()) -> Array[WallLayout]:
-	return WallPlan.new(standing, obstacles, 1).pieces(stroke, _flat)
+	return WallPlan.new(standing, obstacles, 1).pieces(stroke, Terrain.flat)
 
 
 ## Smallest centre-line distance from any sample of `w` to the standing wall at z = 0, x in [-6, 6].
@@ -89,7 +85,7 @@ func _a_crossing_stroke_meets_the_wall_from_both_sides() -> void:
 func _a_wall_arches_over_a_plant() -> void:
 	var got := _plan(Vector2(-3, 6), Vector2(3, 6), PackedVector3Array([Vector3(-1.2, 0, 6.2)]))
 	for w in got:
-		w.build(_flat)
+		w.build(Terrain.flat)
 	check(got.size() == 1 and got[0].openings.size() == 1, "a wall over a bush has one arch")
 	if got.size() == 1 and got[0].openings.size() == 1:
 		check(absf(got[0].point_at(got[0].openings[0].x).x + 1.2) < 0.25, "the arch stands over the bush")
@@ -157,7 +153,7 @@ func _a_junction_among_crowded_arches_takes_the_widest_pier() -> void:
 	var w := WallLayout.new()
 	w.points = _line(Vector2(0, 0), Vector2(5.4, 0))
 	w.openings.assign([1.4, 3.94].map(WallLayout.archway))
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.archways().size() == 2, "a 5.4 m wall opens both arches")
 	var s := WallPlan._clear_of_arches(w, 1.5)
 	check(absf(s - 1.4) > 0.9 and absf(s - 3.94) > 0.9, "with no clear spot the junction stands off both arches, at s=%.2f" % s)

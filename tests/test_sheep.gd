@@ -311,7 +311,7 @@ func _the_same_seed_brings_the_same_flock() -> void:
 ## A curved wall is kept clear of along its curve, not along the chords between the points it was drawn through.
 func _curved_walls_are_kept_off_where_they_curve() -> void:
 	var stroke: Array[Vector3] = [Vector3(0, 0, 0), Vector3(3, 0, 1), Vector3(6, 0, 1), Vector3(9, 0, 0)]
-	var w := WallPlan.new([], PackedVector3Array(), 1).pieces(stroke, func(_x: float, _z: float) -> float: return 0.0, true)[0]
+	var w := WallPlan.new([], PackedVector3Array(), 1).pieces(stroke, Terrain.flat, true)[0]
 	var chords := PackedVector2Array()
 	for p in stroke:
 		chords.append(Vector2(p.x, p.z))

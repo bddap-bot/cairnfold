@@ -34,18 +34,8 @@ func _initialize() -> void:
 	_in_the_glade.call_deferred()
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
-
 func _wall(length: float, height: float, windows: Array[Vector2], arches: Array[float] = []) -> WallLayout:
-	var w := WallLayout.new()
-	w.points = [Vector3(0, 0, 0), Vector3(length, 0, 0)]
-	w.height = height
-	w.openings.assign(windows.map(func(v): return Vector4(v.x, v.y, 0, 1)))
-	w.openings.append_array(arches.map(WallLayout.archway))
-	w.build(_flat)
-	return w
+	return straight_wall(length, height, arches, 1, windows)
 
 
 func _kind(w: Variant, kind: String) -> Array:
@@ -114,10 +104,10 @@ func _windows_keep_clear() -> void:
 	check(_wall(8.0, 1.2, [Vector2(4.0, 1.0)]).apertures.is_empty(), "a wall too low for a door takes none")
 	var w := _wall(8.0, 2.7, [Vector2(4.0, 1.5)])
 	w.height = 1.5
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.apertures.is_empty(), "lowering the wall under a window closes it")
 	w.height = 2.7
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.apertures.size() == 1, "raising it again opens it")
 
 
@@ -158,16 +148,16 @@ func _windows_fuse_across_a_loop_seam() -> void:
 	w.points = WallLayout.circle(Vector3.ZERO, 2.5)
 	w.closed = true
 	w.height = 4.5
-	w.build(_flat)
+	w.build(Terrain.flat)
 	w.openings = [Vector4(0.2, 2.0, 0, 1), Vector4(w.length() - 0.3, 2.0, 0, 1)]
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.apertures.size() == 1 and w.apertures[0].lights == 2, "two windows either side of a tower's seam fuse: %s" % [w.apertures])
 	if w.apertures.size() == 1:
 		check(absf(w.offset(w.apertures[0].s, 0.0) + 0.05) < 0.01, "the fused opening is centred between them, across the seam: s=%.2f" % w.apertures[0].s)
 		check(_intruders(w, w.apertures[0]).is_empty(), "the opening across the seam is clear")
 	for start in [w.length() - 0.4, w.length() - 1.1, 0.3]:
 		w.openings = [Vector4(start, 2.0, 0, 1), Vector4(start + 0.7, 2.0, 0, 1), Vector4(fposmod(start + 1.4, w.length()), 2.0, 0, 1)]
-		w.build(_flat)
+		w.build(Terrain.flat)
 		check(w.apertures.size() == 1 and w.apertures[0].lights == 3, "three windows in a row fuse into one of three lights, starting at s=%.2f by the seam: %s" % [start, w.apertures])
 		if w.apertures.size() == 1:
 			check(absf(w.offset(w.apertures[0].s, start + 0.7)) < 0.01, "and it is centred on the middle one")
@@ -175,31 +165,31 @@ func _windows_fuse_across_a_loop_seam() -> void:
 	low.points = WallLayout.circle(Vector3.ZERO, 0.7)
 	low.closed = true
 	low.height = 4.5
-	low.build(_flat)
+	low.build(Terrain.flat)
 	var spaced: Array[Vector4] = [Vector4(0.0, 1.5, 0, 1), Vector4(0.7, 1.5, 0, 1)]
 	for k in 5:
 		spaced.append(Vector4(1.3 + 0.6 * k, 3.3, 0, 1))
 	low.openings = spaced
-	low.build(_flat)
+	low.build(Terrain.flat)
 	check(low.apertures.any(func(o): return o.lights == 2 and o.sill < 1.5), "a pair on one course fuses whatever stands on the course above: %s" % [low.apertures])
 
 
 func _flags_keep_their_colour() -> void:
 	var w := _wall(8.0, 2.7, [])
 	w.flags = [2.0, 6.0]
-	w.build(_flat)
+	w.build(Terrain.flat)
 	var before := w.cloths.map(func(c): return c.color)
 	w.lanterns = [Vector3(4.0, 1.5, 1.0)]
 	w.openings = [Vector4(4.0, 0.8, 0, 1)]
 	w.height = 3.0
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.cloths.map(func(c): return c.color) == before, "a flag keeps its colour while its wall is raised, lit and given a door")
 
 
 func _a_house_takes_windows() -> void:
 	var w := _house()
 	w.openings = [Vector4(2.0, 1.5, 0, 1), Vector4(4.0, 0.8, 0, 1), Vector4(8.0, 1.5, 0, 1)]
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.apertures.size() == 2, "a house takes a window and a door on its long wall, not one on its corner: %d" % w.apertures.size())
 	check(w.apertures.any(func(o): return o.door), "the house's door")
 
@@ -207,7 +197,7 @@ func _a_house_takes_windows() -> void:
 func _lanterns_hang_off_the_face() -> void:
 	var w := _wall(8.0, 2.7, [Vector2(5.0, 1.5)])
 	w.lanterns = [Vector3(2.5, 1.6, 1.0), Vector3(2.5, 1.6, -1.0), Vector3(5.0, 1.6, 1.0), Vector3(1.0, 0.3, 1.0)]
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.flames.size() == 2, "lanterns hang on both faces, not in the window nor down at the ground: %d flames" % w.flames.size())
 	var out := Vector3(0, 0, -1)
 	for f in w.flames:
@@ -219,20 +209,20 @@ func _lanterns_hang_off_the_face() -> void:
 	check(_kind(w, "iron").size() >= 4, "lanterns hang from iron arms")
 	var arched := _wall(8.0, 2.7, [], [4.0])
 	arched.lanterns = [Vector3(4.6, 1.6, 1.0)]
-	arched.build(_flat)
+	arched.build(Terrain.flat)
 	check(arched.flames.is_empty(), "no lantern in an arch")
 
 
 func _flags_fly_from_open_tops() -> void:
 	var w := _wall(8.0, 2.7, [])
 	w.flags = [4.0]
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.cloths.size() == 1 and _kind(w, "pole").size() == 1, "a flag on the wall's top")
 	if w.cloths.size() == 1:
 		check(w.cloths[0].xform.origin.y > w.height + 1.0, "the cloth flies above the top, at %.2f" % w.cloths[0].xform.origin.y)
 	var h := _house()
 	h.flags = [2.0]
-	h.build(_flat)
+	h.build(Terrain.flat)
 	check(h.cloths.is_empty(), "no flag on a roofed wall's top")
 
 
@@ -243,7 +233,7 @@ func _fence(length: float, arches: Array[float] = []) -> WallLayout:
 	w.height = WallLayout.FENCE_HEIGHT
 	w.openings.append_array(arches.map(WallLayout.archway))
 	w.openings.append(Vector4(length * 0.5, 1.5, 0, 1))
-	w.build(_flat)
+	w.build(Terrain.flat)
 	return w
 
 
@@ -257,10 +247,10 @@ func _a_fence_is_posts_and_rails() -> void:
 		var top: float = p.xform.origin.y + p.size.y * 0.5
 		check(top > WallLayout.FENCE_HEIGHT - 0.1 and top < WallLayout.FENCE_HEIGHT + 0.15, "a post's top at %.2f" % top)
 	w.lanterns = [Vector3(3.0, 1.0, 1.0)]
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.flames.size() == 1 and absf(w.flames[0].origin.x - 3.2) < 0.01, "a lantern on a fence stands on the nearest post, at %s" % (w.flames[0].origin if w.flames.size() else null))
 	w.lanterns = [Vector3(3.0, 1.0, 1.0), Vector3(3.6, 1.0, 1.0)]
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.flames.size() == 1, "two lanterns for one post light it once, %d flames" % w.flames.size())
 
 
@@ -278,10 +268,10 @@ func _a_gate_in_a_fence() -> void:
 func _fences_never_arch_over_plants() -> void:
 	var stroke: Array[Vector3] = [Vector3(0, 0, 0), Vector3(4, 0, 0), Vector3(8, 0, 0)]
 	var plants := PackedVector3Array([Vector3(4, 0, 0.1)])
-	var walls := WallPlan.new([], plants, 1).pieces(stroke, _flat)
+	var walls := WallPlan.new([], plants, 1).pieces(stroke, Terrain.flat)
 	var plan := WallPlan.new([], plants, 1)
 	plan.fence = true
-	var fences := plan.pieces(stroke, _flat)
+	var fences := plan.pieces(stroke, Terrain.flat)
 	check(walls.size() == 1 and walls[0].openings.size() == 1, "a wall arches over the plant")
 	check(fences.size() == 1 and fences[0].fence and fences[0].openings.is_empty() and is_equal_approx(fences[0].height, WallLayout.FENCE_HEIGHT), "a fence goes by it, low and unarched")
 
@@ -342,7 +332,7 @@ func _fittings_are_deterministic() -> void:
 		var w := _wall(9.0, 3.0, [Vector2(3.0, 0.8), Vector2(6.0, 1.6), Vector2(6.8, 1.6)])
 		w.lanterns = [Vector3(4.5, 1.5, 1.0)]
 		w.flags = [4.5]
-		w.build(_flat)
+		w.build(Terrain.flat)
 		return w
 	var a: WallLayout = make.call()
 	var b: WallLayout = make.call()

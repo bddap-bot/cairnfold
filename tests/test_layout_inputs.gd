@@ -4,7 +4,7 @@ extends "res://../tests/support/suite.gd"
 func _init() -> void:
 	var wall := WallLayout.new()
 	wall.points = [Vector3.ZERO, Vector3(6, 0, 0)]
-	wall.build(func(_x: float, _z: float) -> float: return 0.0)
+	wall.build(Terrain.flat)
 	var roof := RoofLayout.new()
 	roof.corners = WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)
 	roof.build()

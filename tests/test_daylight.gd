@@ -20,10 +20,6 @@ func _initialize() -> void:
 	_in_the_glade.call_deferred()
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
-
 func _the_sun_rises_and_sets() -> void:
 	check(absf(Daylight.elevation(0.25)) < 1e-3 and absf(Daylight.elevation(0.75)) < 1e-3, "the sun rises at 0.25 and sets at 0.75")
 	var noon := Daylight.elevation(0.5)
@@ -157,18 +153,18 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	wall.openings.append_array([10.5, 12.8].map(WallLayout.archway))
 	wall.flags = [1.5]
 	wall.lanterns = [Vector3(8.5, 1.6, 1.0)]
-	wall.build(_flat)
+	wall.build(Terrain.flat)
 	var coped := WallLayout.new()
 	coped.points = [Vector3(0, 0, -4), Vector3(6, 0, -4)]
 	coped.top = WallLayout.Top.COPE
 	coped.ruins = [Vector2(2.0, 3.5)]
-	coped.build(_flat)
+	coped.build(Terrain.flat)
 	var fence := WallLayout.new()
 	fence.fence = true
 	fence.height = WallLayout.FENCE_HEIGHT
 	fence.points = [Vector3(0, 0, 4), Vector3(8, 0, 4)]
 	fence.openings.assign([4.0].map(WallLayout.archway))
-	fence.build(_flat)
+	fence.build(Terrain.flat)
 	var roof := RoofLayout.new()
 	roof.kind = RoofLayout.Kind.GABLE
 	roof.corners = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
@@ -184,12 +180,12 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	boarded.cover = WallLayout.Cover.ROOF
 	boarded.gable = roof
 	boarded.gable_end = WallLayout.GableEnd.BOARDS
-	boarded.build(_flat)
+	boarded.build(Terrain.flat)
 	var timber := boarded.inputs()
 	timber.plaster = true
 	timber.planks = true
 	timber.gable_end = WallLayout.GableEnd.WALL
-	timber.build(_flat)
+	timber.build(Terrain.flat)
 	var thatched := RoofLayout.new()
 	thatched.corners = roof.corners
 	thatched.thatch = true

@@ -14,19 +14,10 @@ func _init() -> void:
 	finish()
 
 
-func _wall(length: float, height: float) -> WallLayout:
-	var w := WallLayout.new()
-	w.points = [Vector3.ZERO, Vector3(length, 0, 0)]
-	w.height = height
-	w.seed = 17
-	w.build(func(_x, _z): return 0.0)
-	return w
-
-
 func _wall_growth_keeps_interior_stones() -> void:
-	var a := _wall(5.0, 2.4)
+	var a := straight_wall(5.0, 2.4, [], 17)
 	for length in [5.2, 5.4, 5.8, 6.0]:
-		var b := _wall(length, 2.4)
+		var b := straight_wall(length, 2.4, [], 17)
 		for stone in a.stones:
 			if stone.kind != "block" or stone.s > 3.0:
 				continue
@@ -37,9 +28,9 @@ func _wall_growth_keeps_interior_stones() -> void:
 
 
 func _height_keeps_lower_courses() -> void:
-	var a := _wall(5.0, 2.549)
+	var a := straight_wall(5.0, 2.549, [], 17)
 	for height in [2.551, 2.7, 2.701, 3.0]:
-		var b := _wall(5.0, height)
+		var b := straight_wall(5.0, height, [], 17)
 		for stone in a.stones:
 			if stone.kind == "block" and stone.y < 2.4:
 				check(b.stones.has(stone), "raising a wall preserves its lower courses")
@@ -69,9 +60,9 @@ func _roof_growth_keeps_tiles() -> void:
 
 
 func _edge_stones_grow_without_splitting() -> void:
-	var previous := _wall(5.0, 0.9)
+	var previous := straight_wall(5.0, 0.9, [], 17)
 	for i in 20:
-		var next := _wall(5.0 + (i + 1) * 0.02, 0.9)
+		var next := straight_wall(5.0 + (i + 1) * 0.02, 0.9, [], 17)
 		for stone in previous.stones:
 			if stone.kind != "block":
 				continue
@@ -102,7 +93,7 @@ func _flat_roof_growth_keeps_slabs() -> void:
 
 
 func _openings_keep_their_courses() -> void:
-	var w := _wall(8.0, 3.0)
+	var w := straight_wall(8.0, 3.0, [], 17)
 	w.openings.assign([2.0].map(WallLayout.archway))
 	w.openings.append_array([Vector4(5.5, 1.65, 0, 1)])
 	w.build(func(_x, _z): return 0.0)
@@ -118,7 +109,7 @@ func _openings_keep_their_courses() -> void:
 
 func _wall_tops_keep_their_pieces() -> void:
 	for deck in [false, true]:
-		var a := _wall(5.0, 2.4)
+		var a := straight_wall(5.0, 2.4, [], 17)
 		a.top = WallLayout.Top.CAP if deck else WallLayout.Top.CRENEL
 		a.cover = WallLayout.Cover.DECK if deck else WallLayout.Cover.OPEN
 		a.build(func(_x, _z): return 0.0)
@@ -130,11 +121,11 @@ func _wall_tops_keep_their_pieces() -> void:
 				check(b.stones.any(func(s): return s.kind == stone.kind and s.color == stone.color and s.xform.is_equal_approx(stone.xform)), "extending the wall preserves its interior top pieces")
 	for style in [WallLayout.Top.CRENEL, WallLayout.Top.COPE]:
 		var kind := "merlon" if style == WallLayout.Top.CRENEL else "cope"
-		var previous := _wall(5.0, 2.4)
+		var previous := straight_wall(5.0, 2.4, [], 17)
 		previous.top = style
 		previous.build(func(_x, _z): return 0.0)
 		for i in 40:
-			var next := _wall(5.0 + (i + 1) * 0.02, 2.4)
+			var next := straight_wall(5.0 + (i + 1) * 0.02, 2.4, [], 17)
 			next.top = style
 			next.build(func(_x, _z): return 0.0)
 			for stone in next.stones:

@@ -167,7 +167,7 @@ static func count(d: Dictionary) -> int:
 	w.height = d.height
 	w.timber_style = d.timber_style
 	w.gable_end = d.gable_end
-	w.resample(func(_x: float, _z: float) -> float: return 0.0)
+	w.resample(Terrain.flat)
 	w.openings.assign(Array(d.openings))
 	w.apertures = w.openings_for(w.openings)
 	if d.has("roof"):

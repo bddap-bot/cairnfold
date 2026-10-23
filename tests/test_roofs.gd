@@ -23,10 +23,6 @@ func _initialize() -> void:
 	_in_the_glade.call_deferred()
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
-
 func _gable(length: float, depth: float, pitch: float, curve := 0.0) -> RoofLayout:
 	var r := RoofLayout.new()
 	r.corners = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(length, 0, 0), depth)
@@ -130,7 +126,7 @@ func _house(length: float, depth: float, top: WallLayout.Top, cover: WallLayout.
 	w.cover = cover
 	w.top = top
 	w.height = 2.4
-	w.build(_flat)
+	w.build(Terrain.flat)
 	return w
 
 
@@ -151,7 +147,7 @@ func _a_railing_rims_a_deck_and_tops_a_wall() -> void:
 	open.points = [Vector3(0, 0, 0), Vector3(8, 0, 0)]
 	open.height = 2.7
 	open.top = WallLayout.Top.RAIL
-	open.build(_flat)
+	open.build(Terrain.flat)
 	check(open.stones.any(func(s): return s.kind == "post") and not open.stones.any(func(s): return s.kind == "merlon"), "an open wall takes a railing as its top too")
 	var roofed := _house(6.0, 4.0, WallLayout.Top.RAIL, WallLayout.Cover.ROOF)
 	check(not roofed.stones.any(func(s): return s.kind in ["post", "rail"]), "under a pitched roof the railing goes")
@@ -174,7 +170,7 @@ func _storey(a: Vector3, b: Vector3, depth: float, on: Array[Massing], top := Wa
 	w.cover = WallLayout.Cover.DECK
 	w.height = 2.4
 	w.supports = on
-	w.resample(_flat)
+	w.resample(Terrain.flat)
 	var r := RoofLayout.new()
 	r.corners = w.points
 	r.pitch = 0.0
@@ -183,7 +179,7 @@ func _storey(a: Vector3, b: Vector3, depth: float, on: Array[Massing], top := Wa
 
 func _lay(h: Dictionary) -> void:
 	var w: WallLayout = h.wall
-	w.build(_flat)
+	w.build(Terrain.flat)
 	h.roof.base = w.samples[0].y + w.height + WallLayout.CAP
 	h.roof.foot = w.stands_at()
 	h.roof.build()
@@ -260,7 +256,7 @@ func _a_low_roof_comes_down_to_the_ground() -> void:
 	w.closed = true
 	w.cover = WallLayout.Cover.ROOF
 	w.height = WallLayout.MIN_HEIGHT
-	w.build(_flat)
+	w.build(Terrain.flat)
 	var r := RoofLayout.new()
 	r.corners = w.points
 	r.pitch = 2.6
@@ -283,7 +279,7 @@ func _a_low_roof_comes_down_to_the_ground() -> void:
 	raised.closed = true
 	raised.height = WallLayout.MIN_HEIGHT
 	raised.rise = 1.2
-	raised.build(_flat)
+	raised.build(Terrain.flat)
 	check(absf(raised.stands_at()) < 0.001, "a raised house's eaves may come down past its plinth to the ground")
 
 

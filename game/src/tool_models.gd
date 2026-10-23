@@ -543,7 +543,7 @@ static func _wall(root: Node3D, plastered := false, top := WallLayout.Top.CRENEL
 	layout.points = [Vector3(-1.4, 0, 0), Vector3(1.4, 0, 0)]
 	if arched:
 		layout.openings = [WallLayout.archway(1.4)]
-	layout.build(_flat)
+	layout.build(Terrain.flat)
 	_stones(root, layout.stones, 0.015)
 
 
@@ -557,7 +557,7 @@ static func _floor(root: Node3D, planks: bool) -> void:
 	layout.top = WallLayout.Top.CAP
 	layout.cover = WallLayout.Cover.ROOF
 	layout.points = WallLayout.rectangle(Vector3(-1.4, 0, 0), Vector3(1.4, 0, 0), 2.8)
-	layout.build(_flat)
+	layout.build(Terrain.flat)
 	var floor: Array[Dictionary] = layout.stones.filter(func(s: Dictionary) -> bool: return s.kind in WallLayout.FLOOR_KINDS)
 	_stones(root, floor, 0.017)
 	root.get_child(0).transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.36), Vector3.ZERO) * root.get_child(0).transform
@@ -585,7 +585,7 @@ static func _house(root: Node3D, plastered := false, gable_end := WallLayout.Gab
 	roof.thatch = thatched
 	roof.deck = deck
 	layout.gable = roof
-	layout.build(_flat)
+	layout.build(Terrain.flat)
 	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
 	roof.build()
 	layout.fit_under(roof)
@@ -609,7 +609,7 @@ static func _tower(root: Node3D, thatched := false, flat := false, deck := RoofL
 	roof.thatch = thatched
 	roof.deck = deck
 	layout.gable = roof
-	layout.build(_flat)
+	layout.build(Terrain.flat)
 	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
 	roof.build()
 	layout.fit_under(roof)
@@ -639,7 +639,7 @@ static func _fence(root: Node3D) -> void:
 	layout.fence = true
 	layout.height = WallLayout.FENCE_HEIGHT
 	layout.points = [Vector3(-1.2, 0, 0), Vector3(1.2, 0, 0)]
-	layout.build(_flat)
+	layout.build(Terrain.flat)
 	_stones(root, layout.stones, 0.021)
 
 
@@ -686,7 +686,7 @@ static func fitting(what: String) -> Node3D:
 		layout.top = WallLayout.Top.CAP
 		layout.fence = what == "post_lantern"
 		layout.points = [Vector3(-2, 0, 0), Vector3(2, 0, 0)]
-		layout.resample(_flat)
+		layout.resample(Terrain.flat)
 		var s := layout.nearest_post(2.0) if layout.fence else 2.0
 		match what:
 			"window":
@@ -695,7 +695,7 @@ static func fitting(what: String) -> Node3D:
 				layout.lanterns = [Vector3(s, 1.5, 1.0)]
 			"flag":
 				layout.flags = [s]
-		layout.build(_flat)
+		layout.build(Terrain.flat)
 		parts = layout.stones
 		flames = layout.flames
 		cloths = layout.cloths
@@ -735,10 +735,6 @@ static func fitting(what: String) -> Node3D:
 	for g in root.find_children("*", "GeometryInstance3D", true, false):
 		(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	return root
-
-
-static func _flat(_x: float, _z: float) -> float:
-	return 0.0
 
 
 ## A short dirt stroke.
@@ -840,7 +836,7 @@ static func _boulder_style(root: Node3D, style: int) -> void:
 	model.set_instance_shader_parameter("stone_style", style)
 	model.set_instance_shader_parameter("miniature", true)
 	model.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	model.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.12), Vector3.ZERO) * BoulderLayout.rest(shape, Quaternion.IDENTITY, 0.065, 0, 0, _flat)
+	model.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.12), Vector3.ZERO) * BoulderLayout.rest(shape, Quaternion.IDENTITY, 0.065, 0, 0, Terrain.flat)
 	root.add_child(model)
 
 

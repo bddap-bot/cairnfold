@@ -24,10 +24,6 @@ func _run() -> void:
 	finish()
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
-
 func _wall(length: float, height: float, ruins: Array[Vector2], closed := false) -> WallLayout:
 	var w := WallLayout.new()
 	if closed:
@@ -37,7 +33,7 @@ func _wall(length: float, height: float, ruins: Array[Vector2], closed := false)
 	w.closed = closed
 	w.height = height
 	w.ruins = ruins
-	w.build(_flat)
+	w.build(Terrain.flat)
 	return w
 
 
@@ -101,17 +97,17 @@ func _a_ruin_drops_what_stood_in_it() -> void:
 	w.openings.append_array([Vector4(7.0, 1.6, 0, 1)])
 	w.lanterns = [Vector3(12.0, 1.5, 1.0)]
 	w.flags = [12.0]
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.archways().size() == 2 and w.apertures.size() == 3 and w.flames.size() == 1 and w.cloths.size() == 1, "whole, it has two arches, a window, a lantern and a flag")
 	w.ruins = [Vector2(9.5, 13.0)]
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.archways() == [4.0], "an arch in the ruin closes: %s" % [w.archways()])
 	check(w.apertures.size() == 2, "the window clear of it stays")
 	check(w.flames.is_empty() and w.cloths.is_empty(), "the lantern and flag in it go")
 	var piers := w.stones.filter(func(s): return s.kind == "pier")
 	check(piers.all(func(s): return s.s < 1.0), "the ruined end loses its pier")
 	w.ruins = [Vector2(6.5, 7.5)]
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.apertures.all(func(o): return o.style == WallLayout.DoorStyle.ARCHWAY), "a window in a ruin closes")
 	check(not w.lantern_fits(7.0, 1.5) and w.lantern_fits(12.0, 1.5), "no lantern hangs in a ruin")
 
@@ -153,7 +149,7 @@ func _erase_round_a_loop() -> void:
 	check(seam.size() == 2 and is_equal_approx(seam[0].x, 0.0) and is_equal_approx(seam[0].y, 2.0) and is_equal_approx(seam[1].y, total), "a sweep across a loop's seam breaks both sides: %s" % [seam])
 	check(_after(w, 0.0, total) == [Vector2(0.0, total)], "sweeping all the way round takes it all")
 	w.ruins.assign(seam)
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(_standing_in(w, 0.0, 1.9, 1.0).is_empty() and _standing_in(w, total - 0.9, total, 1.0).is_empty(), "the loop stands broken either side of its seam")
 
 

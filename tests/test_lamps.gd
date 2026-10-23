@@ -24,10 +24,6 @@ func _check(ok: bool, what: String) -> void:
 		print("FAIL: ", what)
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
-
 ## A 7×5 house on flat ground from x 0 to 7 and z -2.5 to 2.5, with an arched door in the middle of the wall at
 ## z -2.5 and a window in the middle of the wall at z 2.5.
 func _house(cover := WallLayout.Cover.ROOF) -> Lamps.Room:
@@ -39,7 +35,7 @@ func _house(cover := WallLayout.Cover.ROOF) -> Lamps.Room:
 	w.height = 2.4
 	w.openings.assign([3.5].map(WallLayout.archway))
 	w.openings.append_array([Vector4(15.5, 1.6, 0, 1)])
-	w.build(_flat)
+	w.build(Terrain.flat)
 	var roof: RoofLayout = null
 	if cover == WallLayout.Cover.ROOF:
 		roof = RoofLayout.new()
@@ -116,7 +112,7 @@ func _merged_rooms_share_light() -> void:
 		w.closed = true
 		w.cover = WallLayout.Cover.DECK
 		w.height = 3.0
-		w.build(_flat)
+		w.build(Terrain.flat)
 		layouts.append(w)
 		masses.append(Massing.of(w, null))
 	var rooms: Array[Lamps.Room] = []

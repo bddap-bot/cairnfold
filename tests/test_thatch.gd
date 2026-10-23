@@ -14,10 +14,6 @@ func _init() -> void:
 	finish()
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
-
 ## A house or tower and its roof laid as a Wall lays them: [WallLayout, RoofLayout].
 func _built(points: Array[Vector3], kind: RoofLayout.Kind, pitch: float, curve: float, radius := 2.0, thatch := true) -> Array:
 	var w := WallLayout.new()
@@ -35,7 +31,7 @@ func _built(points: Array[Vector3], kind: RoofLayout.Kind, pitch: float, curve: 
 	r.seed = 7
 	r.thatch = thatch
 	w.gable = r
-	w.build(_flat)
+	w.build(Terrain.flat)
 	Wall.pack_roof(w, r, Wall.kinds(), Palette.plain())
 	return [w, r]
 

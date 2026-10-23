@@ -95,7 +95,7 @@ func _contract() -> void:
 	w.layout.height = 3.0
 	for opening in [Vector4(3, 1.5, 0, 1), Vector4(3, 0.3, 0, 1), WallLayout.archway(3)]:
 		w.layout.openings.assign([opening])
-		w.layout.build(func(_x: float, _z: float) -> float: return 0.0)
+		w.layout.build(Terrain.flat)
 		var y := 1.5 if opening.y == 1.5 else 0.8
 		var origin := Vector3(0, w.layout.samples[0].y + y, 0)
 		check(Probe.aperture(w, origin, Vector3.FORWARD, 10.0), "window, door and arch interiors are intended openings")

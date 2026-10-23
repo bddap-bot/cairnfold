@@ -13,10 +13,6 @@ func _init() -> void:
 	finish()
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
-
 func _house(a: Vector3, b: Vector3, depth: float, on: Array[Massing] = []) -> Dictionary:
 	var w := WallLayout.new()
 	w.points = WallLayout.rectangle(a, b, depth)
@@ -25,7 +21,7 @@ func _house(a: Vector3, b: Vector3, depth: float, on: Array[Massing] = []) -> Di
 	w.cover = WallLayout.Cover.ROOF
 	w.height = 2.4
 	w.supports = on
-	w.resample(_flat)
+	w.resample(Terrain.flat)
 	var r := RoofLayout.new()
 	r.corners = w.points
 	r.pitch = depth * 0.42
@@ -34,7 +30,7 @@ func _house(a: Vector3, b: Vector3, depth: float, on: Array[Massing] = []) -> Di
 
 func _lay(h: Dictionary) -> void:
 	var w: WallLayout = h.wall
-	w.build(_flat)
+	w.build(Terrain.flat)
 	h.roof.base = w.samples[0].y + w.height + WallLayout.CAP
 	h.roof.build()
 	w.hide_roof(h.roof)
@@ -48,7 +44,7 @@ func _tower(center: Vector3, radius: float, on: Array[Massing] = []) -> Dictiona
 	w.cover = WallLayout.Cover.ROOF
 	w.height = 4.5
 	w.supports = on
-	w.resample(_flat)
+	w.resample(Terrain.flat)
 	var r := RoofLayout.new()
 	r.kind = RoofLayout.Kind.CONE
 	r.center = center
@@ -65,7 +61,7 @@ func _wall(from: Vector3, to: Vector3) -> WallLayout:
 	w.points = pts
 	w.height = 2.7
 	w.top = WallLayout.Top.CRENEL
-	w.resample(_flat)
+	w.resample(Terrain.flat)
 	return w
 
 
@@ -109,9 +105,9 @@ func _a_tower_on_a_wall_stands_on_its_top_and_takes_its_merlons() -> void:
 	var top: float = ws.feet[0] + ws.rise
 	check(absf(t.wall.samples[0].y - (top - WallLayout.SINK)) < 0.01, "the tower stands on the wall's top")
 	var bare := _wall(Vector3(-6, 0, 0), Vector3(6, 0, 0))
-	bare.build(_flat)
+	bare.build(Terrain.flat)
 	w.resting.assign([t.massing])
-	w.build(_flat)
+	w.build(Terrain.flat)
 	var merlons := func(l: WallLayout, near: bool) -> int:
 		return l.stones.filter(func(s: Dictionary) -> bool: return s.kind == "merlon" and (absf(s.xform.origin.x) < 1.2 if near else absf(s.xform.origin.x) > 2.3)).size()
 	check(merlons.call(bare, true) > 0 and merlons.call(w, true) == 0, "no merlons under the tower (%d of %d)" % [merlons.call(w, true), merlons.call(bare, true)])
@@ -165,7 +161,7 @@ func _a_wall_into_a_tower_stops_inside_it() -> void:
 	var t := _tower(Vector3(0, 0, 0), 2.0)
 	var w := _wall(Vector3(-8, 0, 0), Vector3(0, 0, 0))
 	w.joined.assign([t.massing])
-	w.build(_flat)
+	w.build(Terrain.flat)
 	var past: Array = w.stones.filter(func(s: Dictionary) -> bool: return s.xform.origin.x > -2.0 + Massing.SLACK + 0.3)
 	check(past.is_empty(), "the wall ends at the tower's centre line: %d stones inside" % past.size())
 	var reach: Array = w.stones.filter(func(s: Dictionary) -> bool: return s.xform.origin.x > -2.4)

@@ -27,6 +27,18 @@ func frames(n: int) -> void:
 		await process_frame
 
 
+## A straight wall `length` along x on flat ground: its windows as (s, sill) cut first, then its archways at `arches`.
+static func straight_wall(length: float, height: float, arches: Array[float] = [], seed := 1, windows: Array[Vector2] = []) -> WallLayout:
+	var w := WallLayout.new()
+	w.points = [Vector3(0, 0, 0), Vector3(length, 0, 0)]
+	w.height = height
+	w.openings.assign(windows.map(func(v: Vector2) -> Vector4: return Vector4(v.x, v.y, 0, 1)))
+	w.openings.append_array(arches.map(WallLayout.archway))
+	w.seed = seed
+	w.build(Terrain.flat)
+	return w
+
+
 ## Runs `steps` through a Driver and waits for it, connecting before it starts since a run whose every step returns at
 ## once finishes inside add_child.
 func play(steps: Array) -> void:

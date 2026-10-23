@@ -20,33 +20,19 @@ func _init() -> void:
 	finish()
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
-
 func _slope(x: float, z: float) -> float:
 	return x * 0.1 + z * 0.05
 
 
-func _wall(length: float, height: float, arches: Array[float], seed := 1) -> WallLayout:
-	var w := WallLayout.new()
-	w.points = [Vector3(0, 0, 0), Vector3(length, 0, 0)]
-	w.height = height
-	w.openings.append_array(arches.map(WallLayout.archway))
-	w.seed = seed
-	w.build(_flat)
-	return w
-
-
 func _ivy_climbs_both_faces() -> void:
-	var leaves := IvyLayout.grow(_wall(12.0, 2.7, []))
+	var leaves := IvyLayout.grow(straight_wall(12.0, 2.7, []))
 	check(leaves.size() > 100, "a 12 m wall grows a good spread of ivy, got %d leaves" % leaves.size())
 	check(leaves.any(func(l): return l.side < 0.0) and leaves.any(func(l): return l.side > 0.0), "ivy on both faces")
 	check(leaves.any(func(l): return l.y > 1.5), "ivy climbs well up the wall")
 
 
 func _ivy_stays_on_the_wall() -> void:
-	var w := _wall(10.0, 2.4, [])
+	var w := straight_wall(10.0, 2.4, [])
 	for l in IvyLayout.grow(w):
 		var p: Vector3 = l.xform.origin
 		if p.x < IvyLayout.END - 0.01 or p.x > w.length() - IvyLayout.END + 0.01 or l.y < 0.0 or l.y > w.height:
@@ -59,7 +45,7 @@ func _ivy_stays_on_the_wall() -> void:
 
 
 func _ivy_keeps_out_of_arches() -> void:
-	var w := _wall(10.0, 3.3, [5.0])
+	var w := straight_wall(10.0, 3.3, [5.0])
 	check(w.archways() == [5.0], "the test wall has its arch")
 	var leaves := IvyLayout.grow(w)
 	var near := 0
@@ -74,7 +60,7 @@ func _ivy_keeps_out_of_arches() -> void:
 
 
 func _ivy_grows_over_time() -> void:
-	var leaves := IvyLayout.grow(_wall(10.0, 2.7, []))
+	var leaves := IvyLayout.grow(straight_wall(10.0, 2.7, []))
 	var sorted := true
 	for i in range(1, leaves.size()):
 		sorted = sorted and leaves[i].t >= leaves[i - 1].t
@@ -85,37 +71,37 @@ func _ivy_grows_over_time() -> void:
 
 
 func _ivy_is_deterministic() -> void:
-	var a := IvyLayout.grow(_wall(9.0, 2.4, [], 4))
-	var b := IvyLayout.grow(_wall(9.0, 2.4, [], 4))
-	var c := IvyLayout.grow(_wall(9.0, 2.4, [], 5))
+	var a := IvyLayout.grow(straight_wall(9.0, 2.4, [], 4))
+	var b := IvyLayout.grow(straight_wall(9.0, 2.4, [], 4))
+	var c := IvyLayout.grow(straight_wall(9.0, 2.4, [], 5))
 	check(a.size() == b.size() and a[7].xform == b[7].xform, "the same wall grows the same ivy")
 	check(a.size() != c.size() or a[7].xform != c[7].xform, "another wall grows its own ivy")
 
 
 func _short_walls_take_no_ivy() -> void:
-	check(IvyLayout.grow(_wall(1.2, 2.4, [])).is_empty(), "a stub between two piers takes no ivy")
+	check(IvyLayout.grow(straight_wall(1.2, 2.4, [])).is_empty(), "a stub between two piers takes no ivy")
 
 
 func _tall_walls_stay_bounded() -> void:
-	var low := IvyLayout.grow(_wall(15.0, 2.7, [])).size()
-	var tall := IvyLayout.grow(_wall(15.0, 9.0, [])).size()
+	var low := IvyLayout.grow(straight_wall(15.0, 2.7, [])).size()
+	var tall := IvyLayout.grow(straight_wall(15.0, 9.0, [])).size()
 	check(tall < low * 2.5, "ivy on a 9 m wall stays within a small multiple of a 2.7 m one, %d against %d leaves" % [tall, low])
 
 
 func _raising_a_wall_keeps_its_ivy() -> void:
 	var before := {}
-	for l in IvyLayout.grow(_wall(10.0, 2.7, [], 3)):
+	for l in IvyLayout.grow(straight_wall(10.0, 2.7, [], 3)):
 		if l.y < 1.0:
 			before[l.xform.origin] = true
 	var kept := 0
-	for l in IvyLayout.grow(_wall(10.0, 3.3, [], 3)):
+	for l in IvyLayout.grow(straight_wall(10.0, 3.3, [], 3)):
 		if before.has(l.xform.origin):
 			kept += 1
 	check(kept == before.size(), "raising a wall leaves the ivy below where it was, %d of %d leaves" % [kept, before.size()])
 
 
 func _bake_packs_each_leaf() -> void:
-	var w := _wall(8.0, 2.4, [])
+	var w := straight_wall(8.0, 2.4, [])
 	var leaves := IvyLayout.grow(w)
 	var baked := IvyLayout.bake(w.snapshot())
 	check(baked.buffer.size() == leaves.size() * 16 and baked.times.size() == leaves.size(), "a transform and a colour per leaf")
@@ -149,7 +135,7 @@ func _loop(cover: WallLayout.Cover, reverse: bool) -> WallLayout:
 	w.cover = cover
 	w.height = 2.7
 	w.seed = 6
-	w.build(_flat)
+	w.build(Terrain.flat)
 	return w
 
 

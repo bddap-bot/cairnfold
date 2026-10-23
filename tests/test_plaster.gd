@@ -1,9 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
 func _hill(x: float, z: float) -> float:
 	return 0.15 * x + 0.3 * sin(z)
 
@@ -46,10 +43,10 @@ func _init() -> void:
 			stone.height = 4.5
 			stone.openings.assign([6.0].map(WallLayout.archway))
 			stone.openings.append_array([Vector4(2, 1.6, 0, 1), Vector4(10, 0.4, 0, 1)])
-			stone.build(_flat)
+			stone.build(Terrain.flat)
 			var plaster := stone.inputs()
 			plaster.plaster = true
-			plaster.build(_flat)
+			plaster.build(Terrain.flat)
 			check(plaster.inputs().plaster and plaster.snapshot().plaster, "workers preserve plaster")
 			check(not plaster.same_inputs(stone), "material invalidates cached layout")
 			check(plaster.archways() == stone.archways() and plaster.apertures == stone.apertures, "same arches, windows and doors")

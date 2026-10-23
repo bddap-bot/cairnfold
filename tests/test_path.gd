@@ -31,10 +31,6 @@ func _run() -> void:
 	finish()
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
-
 func _path(points: Array, half: float) -> PathLayout:
 	var p := PathLayout.new()
 	for q in points:
@@ -48,7 +44,7 @@ func _wall(points: Array, height := 2.6) -> WallLayout:
 	for q in points:
 		w.points.append(Vector3(q[0], 0, q[1]))
 	w.height = height
-	w.build(_flat)
+	w.build(Terrain.flat)
 	return w
 
 
@@ -90,7 +86,7 @@ func _crossings_test_every_segment_pair_that_meets() -> void:
 		tower.points.append(Vector3(cos(k * TAU / 7) * 4.0, 0, sin(k * TAU / 7) * 4.0))
 	tower.closed = true
 	tower.height = 3.0
-	tower.build(_flat)
+	tower.build(Terrain.flat)
 	var walls: Array[WallLayout] = [_wall([[0, 0], [16, 0]]), _wall([[-6, -5], [-1, 3], [6, 4], [9, -3]]), tower]
 	var rng := RandomNumberGenerator.new()
 	rng.seed = 7
@@ -134,7 +130,7 @@ func _every_pair(path: PathLayout, wall: WallLayout) -> Array[float]:
 func _arcades_stand_on_pillars() -> void:
 	var w := _wall([[0, 0], [16, 0]], 3.2)
 	w.openings.assign(_path([[8, -6], [8, 6]], 2.5).crossings(w).map(WallLayout.archway))
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.archways().size() == w.openings.size(), "every arcade arch opens: %s of %s" % [w.archways(), w.openings])
 	var pillars := w.pillars()
 	check(pillars.size() == w.archways().size() - 1, "%d pillars between %d arches" % [pillars.size(), w.archways().size()])
@@ -157,7 +153,7 @@ func _arcades_stand_on_pillars() -> void:
 func _overlapping_arches_do_not_both_open() -> void:
 	var w := _wall([[0, 0], [12, 0]])
 	w.openings.assign([5.0, 6.0].map(WallLayout.archway))
-	w.build(_flat)
+	w.build(Terrain.flat)
 	check(w.archways().size() == 1, "two arches whose rings overlap open as one: %s" % [w.archways()])
 
 
@@ -264,28 +260,28 @@ func _a_tower_opens_a_doorway_across_its_seam() -> void:
 	w.points = WallLayout.circle(Vector3.ZERO, 1.3)
 	w.closed = true
 	w.height = 4.5
-	w.build(_flat)
+	w.build(Terrain.flat)
 	var cut := _path([[-1, 0.15], [4, 0.15]], 0.5).crossings(w)
 	check(cut.size() == 1, "a path into a tower crosses its wall once there, got %s" % [cut])
 	if cut.size() == 1:
 		var a := w.wrap(cut[0])
 		check(w.opening_fits(WallLayout.archway(a), []), "a doorway fits beside the tower's seam at %.2f of %.2f" % [a, w.length()])
 		w.openings.assign([a].map(WallLayout.archway))
-		w.build(_flat)
+		w.build(Terrain.flat)
 		check(w.archways().size() == 1, "the doorway opens")
 		var t := WallLayout.new()
 		t.points = w.points
 		t.closed = true
 		t.height = 4.5
 		t.openings.assign([w.wrap(a - 1.0)].map(WallLayout.archway))
-		t.build(_flat)
+		t.build(Terrain.flat)
 		var nodes := _setup()
 		var tower := Wall.new(1, nodes[0].masonry)
 		tower.layout = t
 		nodes[0].walls.append(tower)
 		var opened: Array[float] = nodes[0]._cut_crossings(tower, _path([[-1, 0.15], [4, 0.15]], 0.5))
 		check(opened.size() == 1 and absf(t.offset(opened[0], w.wrap(a - 1.0))) > WallLayout.ARCH_SPACING - 0.01, "a crossing beside an arch across the seam stands a pitch from it: %s beside %.2f" % [opened, w.wrap(a - 1.0)])
-		t.build(_flat)
+		t.build(Terrain.flat)
 		check(t.pillars().size() == 1, "the pair across the seam shares a pillar: %s" % [t.pillars()])
 		nodes[0].walls.clear()
 		tower.free()
@@ -494,7 +490,7 @@ func _steep_paths_lay_level_treads() -> void:
 	path.add(Vector3.ZERO, 0.8)
 	path.add(Vector3(0, 0, -4), 0.8)
 	path.plan()
-	var flat := func(_x: float, _z: float) -> float: return 0.0
+	var flat := Terrain.flat
 	var slope := func(_x: float, z: float) -> float: return -z * 0.8
 	check(path.steps(flat).is_empty(), "flat dirt has no treads")
 	var pieces := path.steps(slope)
