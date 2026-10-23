@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Headless checks of easels: strokes painted through the brush are build commands, kept with the garden and loaded
 ## back whole, taken back and put back by undo and redo, cleared by a fresh sheet, carried by a deleted easel's undo,
-## and checked like every command: godot4 --headless --path game --script ../tests/test_easel.gd
+## stands on the ground as it is reshaped, and checked like every command: godot4 --headless --path game --script ../tests/test_easel.gd
 
 var failures := 0
 var main: Node
@@ -30,6 +30,7 @@ func _run() -> void:
 	await _undoing_a_stroke_replays_nothing_however_many_came_before()
 	await _a_deleted_easel_comes_back_with_its_painting()
 	_a_grip_on_its_stand_carries_it()
+	await _it_rides_the_ground_as_it_is_reshaped()
 	await _the_tray_loads_the_brush()
 	_each_brush_in_the_pot_is_taken_alone()
 	_no_brush_crosses_the_pot()
@@ -208,6 +209,37 @@ func _a_deleted_easel_comes_back_with_its_painting() -> void:
 
 ## A grip on an easel's legs or tray carries it along the ground and turns it with the hand, painting and all, set
 ## where it is let go as one reshape; its canvas and kit keep their painting grips, and two hands size no easel.
+func _it_rides_the_ground_as_it_is_reshaped() -> void:
+	var id: int = world.state.easels.keys()[-1]
+	var e: Easels.Easel = main.easels.find(id)
+	var at: Vector3 = _easel().at
+	var was := e.position.y
+	var cells := Terrain.cells_around(at.x, at.z, 3.0)
+	var values := Terrain.read(cells)
+	for i in values.size():
+		values[i] += 1.5
+	world.submit({"op": "heights", "cells": cells, "values": values})
+	await _settled()
+	_check(absf(e.position.y - was - 1.5) < 0.05, "an easel rises with the ground raised under it (%.2f)" % (e.position.y - was))
+	for i in values.size():
+		values[i] -= 3.0
+	world.submit({"op": "heights", "cells": cells, "values": values})
+	await _settled()
+	_check(absf(e.position.y - was + 1.5) < 0.05, "and sinks into the ground dug under it (%.2f)" % (e.position.y - was))
+	world.undo()
+	await _settled()
+	_check(absf(e.position.y - was - 1.5) < 0.05, "undoing the digging lifts it back (%.2f)" % (e.position.y - was))
+	world.restore(world.snapshot())
+	await _settled()
+	e = main.easels.find(id)
+	_check(e != null and absf(e.position.y - was - 1.5) < 0.05, "a garden loaded whole, as a joining peer gets it, stands it on the raised ground")
+	for i in values.size():
+		values[i] += 1.5
+	world.submit({"op": "heights", "cells": cells, "values": values})
+	await _settled()
+	_check(e != null and absf(e.position.y - was) < 0.01, "the ground set back sets it back where it stood")
+
+
 func _a_grip_on_its_stand_carries_it() -> void:
 	var tool: WallTool = main.tool
 	var id: int = world.state.easels.keys()[-1]

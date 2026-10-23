@@ -84,6 +84,7 @@ func _ready() -> void:
 	ground_grab.reshaped.connect(tool.reground)
 	ground_grab.reshaped.connect(paths.reground)
 	ground_grab.reshaped.connect(boulders.reseat)
+	ground_grab.reshaped.connect(easels.reseat)
 	add_child(ground_grab)
 	var hands: Array[Node3D] = []
 	hands.assign(rig.hands)

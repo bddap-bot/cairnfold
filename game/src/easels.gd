@@ -4,7 +4,7 @@ extends Node3D
 ## The garden's easels, each a big canvas on an A-frame with a tray in front holding a painter's kit for each medium: a
 ## box of watercolour pans beside a glass of water, a wooden oil palette with its paint squeezed out round the edge,
 ## sticks of charcoal, and a pot of brushes. `World` puts and takes them and hands them their strokes; `EaselTool`
-## paints on them. An easel's local frame stands on the ground under it, the canvas facing +z.
+## paints on them. An easel's local frame stands on the ground under it as the ground is now, the canvas facing +z.
 
 ## The canvas tilts its top back from the painter this far.
 const TILT := deg_to_rad(10.0)
@@ -163,7 +163,7 @@ func put(id: int, data: Dictionary) -> Easel:
 	e.id = id
 	e.name = "Easel%d" % id
 	e.add_to_group("easel")
-	e.transform = Transform3D(Basis(Vector3.UP, data.yaw), data.at)
+	e.transform = _on_ground(data.at, data.yaw)
 	e.canvas = Canvas.new()
 	e.add_child(e.canvas)
 	_build(e)
@@ -217,7 +217,18 @@ func repaint(id: int, strokes: Array) -> void:
 func stand(id: int, at: Vector3, yaw: float) -> void:
 	var e := find(id)
 	if e != null:
-		e.transform = Transform3D(Basis(Vector3.UP, yaw), at)
+		e.transform = _on_ground(at, yaw)
+
+
+## Stands each easel over the ground reshaped in `area` on it again.
+func reseat(area: Rect2, _settled := true) -> void:
+	for e: Easel in easels.values():
+		if area.grow(Terrain.STEP).has_point(Vector2(e.position.x, e.position.z)):
+			e.position.y = Terrain.height_at(e.position.x, e.position.z)
+
+
+static func _on_ground(at: Vector3, yaw: float) -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, yaw), Vector3(at.x, Terrain.height_at(at.x, at.z), at.z))
 
 
 ## The easel whose stand, its legs or tray, a ray from `origin` along `dir` meets first within `reach`, the canvas in
