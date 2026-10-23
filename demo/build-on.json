@@ -1,4 +1,5 @@
 [
+  {"op": "budget", "bounded": false},
   {"op": "label", "name": "build"},
   {"op": "place", "x": 0, "z": 14},
   {"op": "house", "at": [0, 0], "size": [6, 3.7], "seconds": 0.5},

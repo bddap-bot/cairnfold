@@ -1,4 +1,5 @@
 [
+  {"op": "budget", "bounded": false},
   {"op":"place","x":0,"z":-8},
   {"op":"house","at":[0,0],"size":[7,5],"seconds":0.2},
   {"op":"house","at":[0,3],"size":[7,5],"seconds":0.2},

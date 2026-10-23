@@ -1075,6 +1075,7 @@ func _village(s: Dictionary) -> void:
 	_lay_gables(s)
 	_lay_materials(s)
 	main.tool.thatch = s.get("thatch", false)
+	var stood := tool.walls.size()
 	var k := 0
 	var fronts: Array[Dictionary] = []
 	for z in range(-int(r / step), int(r / step) + 1):
@@ -1101,6 +1102,9 @@ func _village(s: Dictionary) -> void:
 				_dress_roof(house, entry, size)
 				if s.get("windows", false) and not round:
 					_open_windows(house, k + storey, on.is_empty())
+				if not main.world.fits({"op": "wall", "walls": [house.data()]}):
+					house.free()
+					break
 				tool.build([house])
 				if s.has("doors") and on.is_empty():
 					var front := house.layout.points[0].lerp(house.layout.points[1], 0.5)
@@ -1115,8 +1119,12 @@ func _village(s: Dictionary) -> void:
 				wing_at.size = Vector2(0.3, 0.6) * step
 				wing_at.curve = s.get("curve", 0.0)
 				wing_at.pitch = s.get("pitch", WallTool.pitch_for(wing_at))
-				tool.build([tool.new_house(wing_at)])
-				tool.walls[-1].ivy_age = INF
+				var wing_house := tool.new_house(wing_at)
+				if main.world.fits({"op": "wall", "walls": [wing_house.data()]}):
+					tool.build([wing_house])
+					tool.walls[-1].ivy_age = INF
+				else:
+					wing_house.free()
 	for n in fronts.size():
 		var f := fronts[n]
 		var path := PathLayout.new()
@@ -1125,7 +1133,7 @@ func _village(s: Dictionary) -> void:
 			var p: Vector3 = f.at + f.out * lerpf(2.2, -1.0, i / 8.0)
 			path.add(Terrain.ground(p.x, p.z), f.half)
 		main.world.submit({"op": "path", "path": path.data()})
-	print("village: %d buildings in %.0f ms" % [k, (Time.get_ticks_usec() - start) / 1000.0])
+	print("village: %d buildings in %.0f ms" % [tool.walls.size() - stood, (Time.get_ticks_usec() - start) / 1000.0])
 
 
 ## Opens windows round square house `house` in family `k` of WallLayout.WINDOW_FAMILIES: two on its front side either
