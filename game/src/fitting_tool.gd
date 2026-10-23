@@ -465,6 +465,9 @@ static func targets(w: Wall) -> Array[Dictionary]:
 		return w.get_meta(&"fitting_targets")
 	var out: Array[Dictionary] = []
 	var l := w.layout
+	# A wall the garden just brought back shows nothing until its stones are laid, and a gable's frame comes from them.
+	if l.laid == 0:
+		return out
 	for i in l.lanterns.size():
 		var v := l.lanterns[i]
 		if not l.lantern_fits(v.x, v.y):
