@@ -148,6 +148,6 @@ func _the_preview_is_what_a_press_places(p: Vector3) -> void:
 	Buttons.injected["right_hand/trigger_click"] = true
 	await frames(2)
 	Buttons.injected.erase("right_hand/trigger_click")
-	await settled()
+	await until(func() -> bool: return main.world.idle(), "the press is applied")
 	var placed: Array = main.world.state.decorations.keys().filter(func(id: int) -> bool: return not before.has(id))
 	check(placed.size() == 1 and main.world.state.decorations[placed[0]].seed == shown[1], "a press places the decoration its preview showed")
