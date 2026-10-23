@@ -238,15 +238,24 @@ func _wanted(items: Array, prefix: Array[int], out: Dictionary) -> void:
 
 ## Where an icon sits and what it shows, which for a person's figure includes what it is drawn from.
 func _icon_key(path: Array[int], item: Variant) -> String:
-	var key := "%s %s" % [path, item]
-	return key + " " + people.signature(item) if item is String and people != null else key
+	return "%s %s %s" % [path, item, _signature(item)]
+
+
+## What the people an icon draws are drawn from, through every subtree it shows in miniature.
+func _signature(item: Variant) -> String:
+	if people == null:
+		return ""
+	if item is String:
+		return people.signature(item)
+	if item is Array:
+		return " ".join(item.map(_signature))
+	return ""
 
 
 func _make_icon(item: Variant) -> Node3D:
-	var action: bool = item is String and people != null
-	var model := people.figure(item) if action else miniature(item)
+	var model := miniature(item, people.figure if people != null else Callable())
 	var i := icon(model)
-	if action:
+	if item is String and people != null:
 		model.transform = Transform3D(Basis.IDENTITY, Vector3(0, -0.027, 0))
 	for mesh in i.find_children("*", "MeshInstance3D", true, false):
 		unshade(mesh)
@@ -256,19 +265,26 @@ func _make_icon(item: Variant) -> Node3D:
 	return i
 
 
-## A tool's model, or a subtree's items in miniature, two by two.
-static func miniature(item: Variant) -> Node3D:
+## A tool's model, or a subtree's items in miniature, two by two, each drawn as its own icon draws it: a person by
+## `figure` (SessionWheel.figure), or a generic figure without one, and a nested subtree in miniature again, `depth`
+## levels down at most so a long page of friends stays a few figures to build.
+static func miniature(item: Variant, figure := Callable(), depth := 2) -> Node3D:
 	if item is String:
-		var figure := Node3D.new()
-		ToolModels._figure(figure)
-		return figure
+		if figure.is_valid():
+			return figure.call(item)
+		var generic := Node3D.new()
+		ToolModels._figure(generic)
+		return generic
 	if not item is Array:
 		return ToolModels.build(item)
 	var model := Node3D.new()
 	for j in mini(item.size(), 4):
-		var mini := miniature("friends" if item[j] is Array else item[j])
+		if item[j] is Array and depth <= 1:
+			continue
+		var mini := miniature(item[j], figure, depth - 1)
 		mini.scale = Vector3.ONE * 0.5
-		mini.position = Vector3((j % 2 - 0.5) * 0.03, 0, (floorf(j * 0.5) - 0.5) * 0.03)
+		if item.size() > 1:
+			mini.position = Vector3((j % 2 - 0.5) * 0.03, 0, (floorf(j * 0.5) - 0.5) * 0.03)
 		model.add_child(mini)
 	return model
 

@@ -11,6 +11,30 @@ func _check(ok: bool, what: String) -> void:
 		failures += 1
 		print("FAIL: ", what)
 
+## Every subtree's icon in `tree` draws its items as their own icons draw them, so none shows what its menu lacks.
+func _check_icons(tree: Array, people: SessionWheel) -> void:
+	for item in tree:
+		if item is Array:
+			var model := Hand.miniature(item, people.figure)
+			_check(_shows(model, item, people, 2), "the icon of %s shows what it holds" % [item])
+			model.free()
+			_check_icons(item, people)
+
+
+func _shows(model: Node3D, item: Variant, people: SessionWheel, depth: int) -> bool:
+	if item is Array:
+		var shown := range(mini(item.size(), 4)).filter(func(j: int) -> bool: return depth > 1 or not item[j] is Array)
+		return model.get_child_count() == shown.size() and range(shown.size()).all(func(c: int) -> bool: return _shows(model.get_child(c), item[shown[c]], people, depth - 1))
+	var drawn := people.figure(item) if item is String else Hand.miniature(item)
+	var same := _meshes(model) == _meshes(drawn)
+	drawn.free()
+	return same
+
+
+func _meshes(model: Node) -> Array:
+	return model.find_children("*", "MeshInstance3D", true, false).map(func(m: MeshInstance3D) -> Array: return [m.mesh.get_class(), m.mesh.get_aabb()])
+
+
 func _run() -> void:
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
@@ -18,9 +42,16 @@ func _run() -> void:
 	var hand: Hand = main.rig.right
 	var session: Session = main.session
 	_check(hand.people.friends() == ["empty"], "zero peers has one empty slot")
+	_check_icons(hand.inventory(), hand.people)
+	var empty := hand.people.figure("empty")
+	_check(not _meshes(empty).any(func(m: Array) -> bool: return m[0] == "TorusMesh") and not empty.find_children("*", "Avatar", true, false).is_empty(), "no one to join shows a figure's outline")
+	for mesh: MeshInstance3D in empty.find_children("*", "MeshInstance3D", true, false):
+		_check(mesh.material_override is BaseMaterial3D and mesh.material_override.albedo_color.a < 0.5, "the outline of no one is faint")
+	empty.free()
 	for i in 25:
 		session.nearby["192.0.2.1:%d" % (8000 + i)] = {"address": "192.0.2.1", "port": 8000 + i, "key": i, "avatar": i % 3, "colour": Color.WHITE, "name": "Friend %d" % i, "joins": true, "seen": INF}
 	var tree := hand.inventory()
+	_check_icons(tree, hand.people)
 	var paths := ToolWheel.paths(tree)
 	for i in 25:
 		var key := "join:192.0.2.1:%d" % (8000 + i)

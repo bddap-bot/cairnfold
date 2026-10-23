@@ -7,6 +7,7 @@ const TAG_PIXEL := 0.00012
 const PICTURE := 0.012
 const GAP := 0.002
 var session: Session
+static var _ghost_mat: StandardMaterial3D
 
 
 func _init(people: Session) -> void:
@@ -77,15 +78,6 @@ func figure(key: String) -> Node3D:
 		home.scale = Vector3.ONE * 0.25
 		return home
 	var root := Node3D.new()
-	if key == "empty":
-		var ring := MeshInstance3D.new()
-		var mesh := TorusMesh.new()
-		mesh.inner_radius = 0.012
-		mesh.outer_radius = 0.018
-		ring.mesh = mesh
-		ring.rotation.x = PI * 0.5
-		root.add_child(ring)
-		return root
 	var garden := {"avatar": session.avatar, "colour": session.colour, "wears": "", "joins": true}
 	var tag := ""
 	if key.begins_with("join:"):
@@ -105,6 +97,8 @@ func figure(key: String) -> Node3D:
 	a.rotation.y = PI
 	a.scale = Vector3.ONE * 0.032
 	root.add_child(a)
+	if key == "empty":
+		_ghost(a)
 	if not garden.joins:
 		var cross := Label3D.new()
 		cross.text = "×"
@@ -115,6 +109,17 @@ func figure(key: String) -> Node3D:
 		var info := _tag(tag)
 		_retag(root, info[0], info[1], info[2])
 	return root
+
+
+## A figure as a faint, colourless outline of one: the place a person would stand, with no one in it.
+static func _ghost(figure: Node3D) -> void:
+	if _ghost_mat == null:
+		_ghost_mat = StandardMaterial3D.new()
+		_ghost_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+		_ghost_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+		_ghost_mat.albedo_color = Color(0.25, 0.25, 0.28, 0.45)
+	for mi: MeshInstance3D in figure.find_children("*", "MeshInstance3D", true, false):
+		mi.material_override = _ghost_mat
 
 
 func _tag(k: String) -> Array:
