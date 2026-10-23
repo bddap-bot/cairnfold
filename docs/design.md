@@ -2707,6 +2707,42 @@ whole day, through the night and past midnight. The clouds stay put: they are we
 | Paint | At an easel: grip at the pot for a small round, big round or flat brush, at the sticks for charcoal, at the watercolour box or the oil palette to carry it in that hand; dip the brush in a pan or an oil colour for that medium, in the glass to wet it; touch the canvas and push in to press harder (see "Painting") |
 | Fresh sheet | Grip on the canvas's face and pull well away: the sheet tears off, one undo step |
 
+### Tracked hands
+
+Directive (verbatim): "Let's support hand tracking."
+
+Put the controllers down and the game plays the same with bare hands. A tracked hand stands in for the controller it
+replaces: each gesture presses the input that controller's finger would, so every action in the controls table
+(`Controls.ACTIONS`) reaches the hands through one small table beside it (`Controls.HAND`), and a control added for
+controllers is played by hand with nothing more. No tool and no action knows which it is reading.
+
+| Gesture | Presses | So it |
+| --- | --- | --- |
+| Thumb to index | The trigger | Uses the held tool: draws, plants, paints, takes a photo, deletes |
+| Fist | The grip | Grabs what the hand points at: the ground, a build, the sky, a brush at the easel |
+| Thumb to middle | The upper face button | Opens the wheel; held, sweep the hand onto a tool and let go |
+| Thumb to ring | The lower face button | Undo on the left hand, redo on the right |
+| Thumb to little | The stick, pushed by the hand | Held, the hand moved from where it pinched pushes it: forward 10 cm on the left is the stick full forward, so the left hand pinched and pushed out aims a teleport, eased back toward where it pinched brings the target back along the ray, and letting go goes; on the right, a swing sideways snap-turns that way |
+
+A pinch closes when the thumb tip comes within a fifth of the hand's length (wrist to the middle knuckle) of a
+fingertip and opens past two fifths, so it neither flickers nor sticks; only one is held at a time, the first to
+close. A fist is the middle, ring and little fingertips all curled within half the hand's length of the palm; it holds no
+pinch, since the thumb lies against the index in a fist. The hand aims where it points: its pose is the palm's, the
+fingers ahead and the back of the hand up, as a controller is held, so a tool aims, twists (colour, style) and sweeps
+the wheel with the same code and the held tool stands in the palm. Nothing on a bare hand rumbles; every cue still
+sounds.
+
+Which a hand is comes from what the runtime reports, never from the headset: a hand is played by its joints while the
+runtime reports them as seen from the hand itself (OpenXR's unobstructed hand-tracking data source), or, where it
+cannot say where they come from, while it reports no controller pose for that hand. One hand can be bare while the
+other holds a controller.
+
+Choices left to the in-headset check: the pinch distances, whether an empty bare hand should still show the
+controller's rounded body (it does now, one look either way), whether the aim needs steadying against joint tremor as
+the teleport ray has, and whether the picture book's pages, which show controllers, should show hands to a player
+without them. `tests/test_lessons.gd` plays every page twice, once by controller and once by tracked hands made into each
+page's gestures (`HandShape`), and checks the same effects.
+
 ## Picture book
 
 Report (verbatim): "a picture book does sound kind of fun. It could be really cute. Maybe a picture book of little videos"
