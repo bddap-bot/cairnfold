@@ -87,7 +87,7 @@ static func bound(device: String, action: String, tracker: String) -> Array[Stri
 
 
 ## The flat-screen controls (`Flat`): each action as the keys, mouse buttons and gamepad inputs that do it, a stick's
-## half axis by its sign. The camera and the visit tool fire on "tool", as a controller's trigger does.
+## half axis by its sign. The camera fires on "tool", as a controller's trigger does.
 const FLAT := {
 	"wheel": [["key", KEY_Q], ["button", JOY_BUTTON_LEFT_SHOULDER]],
 	"forward": [["key", KEY_W], ["key", KEY_UP], ["axis", JOY_AXIS_LEFT_Y, -1.0]],

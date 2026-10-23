@@ -1,7 +1,7 @@
 class_name Persona
 extends RefCounted
 
-## Who this player is to the others in the visit picker (docs/multiplayer.md, "Finding each other"). Nothing
+## Who this player is to the others on the wheel's friends page (docs/multiplayer.md, "Finding each other"). Nothing
 ## identifying rides the always-on garden beacon. With Steam, a host's name and picture reach only their Steam
 ## friends, through Steam: the host puts its beacon's random key in its Steam rich presence, and a friend's
 ## game matches that key to the beacon. Without Steam, a name goes out only once the player has picked it.

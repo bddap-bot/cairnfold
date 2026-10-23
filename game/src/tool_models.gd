@@ -456,7 +456,7 @@ static func _camera(root: Node3D, selfie: bool) -> void:
 	_piece(root, quad, Transform3D(Basis(), Vector3(screen_x, y, 0.0141)), glow).name = "Screen"
 
 
-## A little person: the visit tool goes to see other players.
+## A little person: the wheel's people, the avatars to wear and the gardens to join.
 static func _figure(root: Node3D) -> void:
 	var a := Avatar.open(Avatar.built_in(0), Session.COLOURS[0])
 	a.scale = Vector3.ONE * 0.026

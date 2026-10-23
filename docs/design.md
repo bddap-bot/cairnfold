@@ -2171,7 +2171,7 @@ Stage numbers refer to the build order at the end.
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of left X (the Frame's D-pad down) undoes a step, right A redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it, so a process killed mid-write leaves the last one whole (`tests/test_kill.gd`); a quit writes one still due before the sounds wind down. It is loaded at start. Only your own garden is kept, never one you are visiting. A file of another format, or one the game cannot read whole, is moved aside to `garden.save.bad` before the garden is saved again, and the log says which. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
 | Wildlife | Sheep, birds, ducks, fireflies, deer, a fox | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, fish swim in it, butterflies gather over painted flowers, fireflies come out over both at dusk and stay all night, conures perch on a tree or wall, sheep graze beside a fence; deer and a fox come out of the trees round the meadow (see "Wildlife") | 11 |
-| Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 3200×2400 photo at full quality, saved as a PNG under `user://photos` that records where and how it was taken (see "Photos") | 11 (done) |
+| Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 3200×2400 photo at full quality, saved as a PNG under `user://photos` (`Pictures/Nestcombe` in shared storage on Android) that records where and how it was taken (see "Photos") | 11 (done) |
 | Painting | None | A big easel set up on the ground, painted with a brush held in the hand in watercolour, oil or charcoal (see "Painting") | done |
 | Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network through the wheel's people branch (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
 
@@ -2525,7 +2525,7 @@ something, like walls, we could display a representation of the item that we've 
 top of the little controller."
 
 Each hand holds one tool, any tool in either hand, so the two can be dual-wielded: walls, fences,
-windows, decorations, paths, stone, flowers, grass, trees, bushes, boulders, ponds, colour, style, camera, selfie camera, seeds, easel, the picture book and delete. A hand
+windows, arches, houses, towers, stairs, decorations, paths, stone, flowers, grass, moss, trees, bushes, boulders, ponds, colour, style, camera, selfie camera, seeds, easel, the picture book and delete. A hand
 holding a tool is drawn as that tool alone, with no controller, built from the same generators as the full-size
 thing (see "Held tools and aiming"): a short wall of stones, a short fence, a wall pierced by a pair of windows, a low wall flying a
 flag with lanterns on it, a bend of dirt, a disc of stone ground
@@ -2623,10 +2623,10 @@ The slots never move, so each tool is one learnable motion:
 | --- | --- |
 | Top | Colour, style |
 | Upper right | The cameras (camera, selfie camera), seeds, easel |
-| Right | Flowers, grass, the placed plants (trees, bushes), ponds |
+| Right | Flowers, grass and moss, the placed plants (trees, bushes), ponds |
 | Lower right | The people (avatars to wear, nearby gardens to join), the picture book |
 | Bottom | Delete |
-| Lower left | Paths, stone |
+| Lower left | Paths, stone, stairs |
 | Left | Walls, fences, windows, arches |
 | Upper left | House, tower, decorations, boulders |
 
@@ -4372,7 +4372,7 @@ a flight's treads, a bridge's deck and a house's floor. Two things decide it.
   deck, tread or bridge, just as it lands on the ground. A ray that stops on a side instead, a surface steeper than 70 degrees such as a
   wall's or a house's face or a ruin stone's (`Rig.STEEP`), lands at its foot, `Rig.STAND_OFF` back along the ray,
   rather than standing the player in the air against it; struck more than `Rig.CLIMB` over that foot, the player
-  floats where it was struck.
+  floats there at the height struck.
 - What a point stands on (`Rig.floor_under`): the highest top at or just below it, the ground, a house's floor,
   a flat roof's deck, a stair's tread, a boulder or a wall's walk (`WallLayout.walk_under`: the cap or coping
   along its centre line, or the step a ruin's end has come down to; never a fence's rail, or walls under a roof

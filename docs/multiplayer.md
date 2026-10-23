@@ -167,7 +167,7 @@ its offset in Unity's axes). That is all a head-and-hands avatar needs.
   `/sdcard/Android/data/io.github.bddapbot.nestcombe/files/avatars`, the one place
   there that both the game and `adb push` or a file manager reach.
 - **Seeing yourself.** Your own avatar is opened by the same `Avatar` path as everyone
-  else's and posed from your head and hands, on a render layer (`Rig.SELF_LAYER`) only
+  else's and posed from your head and hands, on a render layer (`Quality.SELF_LAYER`) only
   the camera's lens sees: it is in your photos and on the camera's screen, never in your
   own view. It is drawn only while you hold a camera, and the hand holding it folds into
   its wrist there, so the camera stands in for it and no finger crosses the lens.

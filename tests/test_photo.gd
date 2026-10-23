@@ -111,10 +111,10 @@ func _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not() -> void:
 	root.add_child(tool)
 	rig.wear(Avatar.open(Avatar.built_in(0), Color.RED))
 	var meshes := rig.body.find_children("*", "VisualInstance3D", true, false)
-	_check(not meshes.is_empty() and meshes.all(func(v: VisualInstance3D) -> bool: return v.layers == Rig.SELF_LAYER), "the player's own avatar is drawn on the camera's layer alone")
-	_check(rig.head.cull_mask & Rig.SELF_LAYER == 0, "the player's eyes never see their own avatar")
+	_check(not meshes.is_empty() and meshes.all(func(v: VisualInstance3D) -> bool: return v.layers == Quality.SELF_LAYER), "the player's own avatar is drawn on the camera's layer alone")
+	_check(rig.head.cull_mask & Quality.SELF_LAYER == 0, "the player's eyes never see their own avatar")
 	var icons := rig.right.find_children("*", "VisualInstance3D", true, false)
-	_check(not icons.is_empty() and icons.all(func(v: VisualInstance3D) -> bool: return v.layers & rig.head.cull_mask and not v.layers & Rig.SELF_LAYER), "while they still see the tool wheel")
+	_check(not icons.is_empty() and icons.all(func(v: VisualInstance3D) -> bool: return v.layers & rig.head.cull_mask and not v.layers & Quality.SELF_LAYER), "while they still see the tool wheel")
 	rig.head.position = Vector3(0.4, 1.6, 0.2)
 	rig.right.transform = Transform3D(Basis(Vector3.UP, PI), Vector3(0.6, 1.3, -0.4))
 	rig.right.tool = Hand.Tool.CAMERA
@@ -122,7 +122,7 @@ func _the_lens_sees_the_players_own_avatar_and_their_eyes_do_not() -> void:
 	for i in PhotoTool.PREVIEW_EVERY:
 		await process_frame
 	var cam: Camera3D = tool._previews[rig.right].get_child(0)
-	_check(rig.body.visible and cam.cull_mask & Rig.SELF_LAYER != 0, "the lens sees the avatar while the camera is held")
+	_check(rig.body.visible and cam.cull_mask & Quality.SELF_LAYER != 0, "the lens sees the avatar while the camera is held")
 	var seen: Vector3 = rig.body.bone("head") * (rig.body._model.get_meta("eyes") as Vector3)
 	_check(seen.distance_to(rig.head.global_position) < 0.001, "the avatar's eyes are at the player's head")
 	var holding := rig.body.bone("rightHand")
@@ -172,7 +172,7 @@ func _the_selfie_camera_looks_back_at_its_holder() -> void:
 	_check(lift >= ToolModels.SELFIE_LIFT, "its lens stands above the hand, so the shot frames the face over the arm: %.3f m" % lift)
 	var cam: Camera3D = tool._previews[rig.right].get_child(0)
 	_check(_screen_shows(tool, rig.right) and cam.global_transform.is_equal_approx(lens), "its screen shows what its lens sees")
-	_check(rig.body.visible and cam.cull_mask & Rig.SELF_LAYER != 0 and cam.is_position_in_frustum(rig.body.bone("head").origin), "which is the holder's own avatar, head and all")
+	_check(rig.body.visible and cam.cull_mask & Quality.SELF_LAYER != 0 and cam.is_position_in_frustum(rig.body.bone("head").origin), "which is the holder's own avatar, head and all")
 	var near := []
 	for v: VisualInstance3D in rig.find_children("*", "VisualInstance3D", true, false):
 		if v.is_visible_in_tree() and v.layers & cam.cull_mask and not rig.body.is_ancestor_of(v):
@@ -204,7 +204,7 @@ func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
 	var vp := tool.photo_viewport()
 	_check(vp.size == Vector2i(3200, 2400) and vp.msaa_3d == Viewport.MSAA_8X, "a photo is 3200x2400 at 8x MSAA: %s, %d" % [vp.size, vp.msaa_3d])
 	_check(vp.mesh_lod_threshold == 0.0 and vp.anisotropic_filtering_level == Viewport.ANISOTROPY_16X, "a photo draws every mesh whole and filters textures 16x")
-	_check(Quality.PHOTO_MASK & Quality.FULL_LAYER and not Quality.PHOTO_MASK & Quality.LADDER_LAYER and Quality.PHOTO_MASK & Rig.SELF_LAYER, "a photo sees the whole garden, not the ladder's cut of it, and the player's own avatar")
+	_check(Quality.PHOTO_MASK & Quality.FULL_LAYER and not Quality.PHOTO_MASK & Quality.LADDER_LAYER and Quality.PHOTO_MASK & Quality.SELF_LAYER, "a photo sees the whole garden, not the ladder's cut of it, and the player's own avatar")
 	_check(rig.head.cull_mask & Quality.LADDER_LAYER and not rig.head.cull_mask & Quality.FULL_LAYER, "the headset sees the ladder's cut and not the whole")
 	_check(Quality.VIEW_MASK & Quality.LADDER_LAYER and not Quality.VIEW_MASK & Quality.FULL_LAYER and tool._view_viewport().msaa_3d == tool.get_viewport().msaa_3d, "a view capture is drawn as the eyes see it")
 	var flora := Flora.new()
