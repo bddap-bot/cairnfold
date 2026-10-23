@@ -9,6 +9,7 @@ func _init() -> void:
 	_a_house_is_floored_wall_to_wall_over_its_highest_ground()
 	_a_raised_house_floors_its_foot()
 	_doors_stand_their_height_over_the_floor()
+	_doors_and_arches_stop_at_the_floor()
 	_stone_lays_flags_and_plaster_planks()
 	_a_round_tower_is_floored_too()
 	_a_house_has_one_floor_however_tall()
@@ -119,6 +120,44 @@ func _doors_stand_their_height_over_the_floor() -> void:
 		var pet := w.opening_for(Vector4(1.5, 0.0, WallLayout.DoorStyle.ARCHWAY, WallLayout.MIN_SIZE))
 		_check(w.can_arch(WallLayout.MIN_SIZE) and pet.head - lift < 1.2, "a pet door still opens small over the floor: %.2f" % (pet.head - lift))
 		_check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind in ["block", "plaster"] and absf(st.s - 3.0) < WallLayout.ARCH_HALF - 0.1 and st.y > lift and st.y < w.spring()), "nothing of the wall stands in the doorway over the floor")
+
+
+## A doorway, arched or planked, opens from the floor: under it the wall stands whole down to the foundation's foot, on a
+## slope, raised on a plinth, in stone, plaster or timber framing, so nothing under the floor shows through it.
+func _doors_and_arches_stop_at_the_floor() -> void:
+	for ground in [_flat, _slope]:
+		for rise in [0.0, 1.2]:
+			for finish in ["stone", "plaster", "timber"]:
+				for style in [WallLayout.DoorStyle.ARCHWAY, WallLayout.DoorStyle.PLAIN]:
+					var w := _house(_flat, rise, finish != "stone", 3.0)
+					w.timber_style = 0 if finish == "timber" else -1
+					w.openings.assign([Vector4(3.0, 0.0, style, 1.0)])
+					w.build(ground)
+					var name := "%s %s %s, raised %.1f" % ["arch" if style == WallLayout.DoorStyle.ARCHWAY else "door", finish, "up a slope" if ground == _slope else "on the flat", rise]
+					var t := w.threshold()
+					_check(w.apertures.size() == 1 and is_equal_approx(w.apertures[0].sill, t), "%s: it opens from the floor at %.2f: %s" % [name, t, w.apertures])
+					var low := w.stones.filter(func(st: Dictionary) -> bool: return (st.kind in ["door", "iron"] or st.kind == "timber" and absf(absf(st.s - 3.0) - WallLayout.ARCH_HALF - TimberFrame.WIDTH * 0.5) < 0.01) and st.y - st.size.y * 0.5 < t - 0.01)
+					_check(low.is_empty(), "%s: nothing of it reaches under the floor: %s" % [name, low.map(func(st: Dictionary) -> String: return "%s at %.2f" % [st.kind, st.y])])
+					var walls := w.stones.filter(func(st: Dictionary) -> bool: return not st.kind in WallLayout.FLOOR_KINDS)
+					var open := []
+					var y := -w.plinth_at(3.0) + 0.05
+					while y < t - w.course_height():
+						for d in [-0.4, 0.0, 0.4]:
+							var p: Vector3 = w.frame_at(3.0 + d).point + Vector3.UP * y
+							if not walls.any(func(st: Dictionary) -> bool: return _holds(st, p)):
+								open.append(Vector2(d, y))
+						y += 0.1
+					_check(open.is_empty(), "%s: the wall stands whole under the floor, not at %s" % [name, open.slice(0, 6)])
+
+
+## Whether `p` lies in laid piece `st` as it is drawn, its ends cut as WallLayout.drawn_corners cuts them.
+func _holds(st: Dictionary, p: Vector3) -> bool:
+	var x: Transform3D = st.xform
+	var q := x.affine_inverse() * p
+	var e: Vector2 = st.get("ends", Vector2.ZERO)
+	var axis := x.basis.y.normalized()
+	q.x -= q.z * x.basis.z.length() * tan(e.x if q.x < 0.0 else e.y) / (x.basis.x - axis * x.basis.x.dot(axis)).length()
+	return absf(q.x) <= 0.5 and absf(q.y) <= 0.5 and absf(q.z) <= 0.5
 
 
 func _stone_lays_flags_and_plaster_planks() -> void:

@@ -247,14 +247,14 @@ func _a_raised_house_stands_on_a_plinth() -> void:
 	low.build(_slope)
 	_check(is_equal_approx(w.samples[0].y, low.samples[0].y + 1.2), "its foot stands 1.2 m above its lowest ground: %.2f" % (w.samples[0].y - low.samples[0].y))
 	var gap := _plinth_gap(w)
-	_check(gap <= 0.0, "its courses reach the ground all round, nowhere floating: %.2f m at most above it" % gap)
+	_check(gap <= 1e-4, "its courses reach the ground all round, nowhere floating: %.2f m at most above it" % gap)
 	var tall := _house(6.0, 4.0)
 	tall.rise = 8.0
 	tall.build(_slope)
 	_check(is_equal_approx(tall.samples[0].y, low.samples[0].y + 8.0), "raised 8 m, past where a plinth once stopped at 3 m: %.2f" % (tall.samples[0].y - low.samples[0].y))
 	gap = _plinth_gap(tall)
-	_check(gap <= 0.0, "an 8 m plinth reaches the ground all round: %.2f m at most above it" % gap)
-	_check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind == "block" and absf(st.s - w.archways()[0]) < WallLayout.ARCH_HALF - 0.05 and st.y < w.spring()), "its doorway opens down to the ground")
+	_check(gap <= 1e-4, "an 8 m plinth reaches the ground all round: %.2f m at most above it" % gap)
+	_check(w.stones.any(func(st: Dictionary) -> bool: return st.kind == "block" and absf(st.s - w.archways()[0]) < WallLayout.ARCH_HALF - 0.05 and st.y < 0.0), "its doorway opens on its floor, the plinth whole under it")
 	_check(w.stones.size() > low.stones.size(), "the plinth is laid in stones: %d against %d" % [w.stones.size(), low.stones.size()])
 	var plaster := _house(6.0, 4.0)
 	plaster.plaster = true

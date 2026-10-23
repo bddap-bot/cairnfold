@@ -219,17 +219,17 @@ func _holds(st: Dictionary, p: Vector3) -> bool:
 
 
 ## How far wide of `centre`, in the plane of a wall along x, the farther of a wedge's two joint lines runs, as the stone
-## shader cuts its ends (`ends`, turning about its local y), less the half joint each end stands back.
+## shader cuts its ends (`ends`, turning about its local y), where its faces stop standing full and the next wedge's meet.
 func _joint_miss(st: Dictionary, centre: Vector2) -> float:
 	var x: Transform3D = st.xform
 	var e: Vector2 = st.get("ends", Vector2.ZERO)
 	var miss := 0.0
 	for side in [-1.0, 1.0]:
-		var p: Vector3 = x.origin + x.basis.x * 0.5 * side
+		var p: Vector3 = x.origin + x.basis.x * 0.5 * WallLayout.MEET * side
 		var d: Vector3 = x.basis.z + x.basis.x.normalized() * x.basis.z.length() * tan(e.x if side < 0.0 else e.y)
 		var along := Vector2(d.x, d.y).normalized()
 		var to := centre - Vector2(p.x, p.y)
-		miss = maxf(miss, absf(to.x * along.y - to.y * along.x) - WallLayout.ARCH_STYLES[0].joint * 0.5)
+		miss = maxf(miss, absf(to.x * along.y - to.y * along.x))
 	return miss
 
 
