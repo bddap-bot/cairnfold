@@ -71,13 +71,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 		Hand.Tool.FLOWERS:
 			_flowers(root)
 		Hand.Tool.MOSS:
-			var mi := MeshInstance3D.new()
-			mi.mesh = Meshes.moss()
-			mi.scale = Vector3.ONE * 0.14
-			var mat := StandardMaterial3D.new()
-			mat.albedo_color = Color(0.3, 0.5, 0.08)
-			mi.material_override = mat
-			root.add_child(mi)
+			var moss := _piece(root, Meshes.moss(), Transform3D(Basis.from_scale(Vector3.ONE * 0.14), Vector3.ZERO), _plain("moss", Color(0.3, 0.5, 0.08), {"roughness": 1.0}))
+			moss.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		Hand.Tool.GRASS:
 			_grass(root)
 		Hand.Tool.TREES:
@@ -196,49 +191,25 @@ static func _stairs(root: Node3D, rail: String) -> void:
 
 ## A painter's palette: a wooden board with a dab of each roof colour round its edge.
 static func _palette(root: Node3D) -> void:
-	var board := CylinderMesh.new()
-	board.top_radius = 0.026
-	board.bottom_radius = 0.026
-	board.height = 0.003
-	board.radial_segments = 24
-	board.rings = 1
 	var dab := SphereMesh.new()
 	dab.radius = 0.0055
 	dab.height = 0.004
 	dab.radial_segments = 10
 	dab.rings = 4
 	var swatches: Array = Palette.SWATCHES[Palette.Element.ROOF]
-	var parts := [[board, Vector3(0, 0.0015, 0), Color(0.62, 0.46, 0.3)]]
+	var parts := [[cylinder(0.026, 0.026, 0.003, 24), Vector3(0, 0.0015, 0), Color(0.62, 0.46, 0.3)]]
 	for i in swatches.size():
 		var a := TAU * (0.12 + 0.76 * i / (swatches.size() - 1))
 		parts.append([dab, Vector3(cos(a), 0, sin(a)) * 0.018 + Vector3(0, 0.0035, 0), swatches[i]])
 	for part in parts:
-		var key := "palette_%s" % part[2].to_html()
-		var mat: StandardMaterial3D = _mats.get(key)
-		if mat == null:
-			mat = StandardMaterial3D.new()
-			mat.albedo_color = part[2]
-			mat.roughness = 0.6
-			_mats[key] = mat
-		var mi := MeshInstance3D.new()
-		mi.mesh = part[0]
-		mi.position = part[1]
-		mi.material_override = mat
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(mi)
+		_piece(root, part[0], Transform3D(Basis(), part[1]), _plain("palette_%s" % part[2].to_html(), part[2]))
 
 
 ## A wand pointing ahead with a star standing at its tip and two sparkles off it: it turns what it points at into
 ## another of its kind, and it is no build, so the icon cannot read as a thing it builds.
 static func _wand(root: Node3D) -> void:
-	var stick := CylinderMesh.new()
-	stick.top_radius = 0.0012
-	stick.bottom_radius = 0.0022
-	stick.height = 0.062
-	stick.radial_segments = 8
-	stick.rings = 1
 	var ahead := Basis(Vector3.RIGHT, -PI * 0.5)
-	_piece(root, stick, Transform3D(ahead, Vector3(0, 0, -0.021)), _plain("wand", Color(0.32, 0.2, 0.13)))
+	_piece(root, cylinder(0.0012, 0.0022, 0.062, 8), Transform3D(ahead, Vector3(0, 0, -0.021)), _plain("wand", Color(0.32, 0.2, 0.13)))
 	var gold := _plain("star", Color(1.0, 0.82, 0.3))
 	var upright := Basis(Vector3.RIGHT, PI * 0.5)
 	_piece(root, _star(5, 0.009, 0.0038), Transform3D(upright, WAND_STAR), gold)
@@ -284,15 +255,11 @@ static func _star(points: int, outer: float, inner: float) -> ArrayMesh:
 ## A little easel holding a painted canvas.
 static func _easel(root: Node3D) -> void:
 	var wood := _plain("easel_wood", Color(0.62, 0.45, 0.3))
-	var leg := BoxMesh.new()
-	leg.size = Vector3(0.003, 0.06, 0.003)
 	for x in [-0.014, 0.014]:
-		var mi := _piece(root, leg, Transform3D(Basis(Vector3.BACK, -x * 9.0), Vector3(x, 0.028, 0.004)), wood)
+		var mi := _piece(root, box(Vector3(0.003, 0.06, 0.003)), Transform3D(Basis(Vector3.BACK, -x * 9.0), Vector3(x, 0.028, 0.004)), wood)
 		mi.rotate_x(-0.2)
-	var canvas := BoxMesh.new()
-	canvas.size = Vector3(0.04, 0.03, 0.002)
 	var tilt := Basis(Vector3.RIGHT, -0.17)
-	_piece(root, canvas, Transform3D(tilt, Vector3(0, 0.036, 0.0)), _plain("easel_canvas", Color(0.95, 0.93, 0.88)))
+	_piece(root, box(Vector3(0.04, 0.03, 0.002)), Transform3D(tilt, Vector3(0, 0.036, 0.0)), _plain("easel_canvas", Color(0.95, 0.93, 0.88)))
 	var dab := SphereMesh.new()
 	dab.radius = 0.006
 	dab.height = 0.002
@@ -333,14 +300,7 @@ static func bend(model: Node3D, kind: Brushwork.Brush, offset: Vector3) -> void:
 
 ## Charcoal's matte black, which no sky glints off, coloured by vertex.
 static func charcoal_material() -> StandardMaterial3D:
-	var mat: StandardMaterial3D = _mats.get("charcoal")
-	if mat == null:
-		mat = _plain("charcoal", Color.WHITE)
-		mat.roughness = 1.0
-		mat.metallic_specular = 0.0
-		mat.vertex_color_use_as_albedo = true
-		mat.vertex_color_is_srgb = true
-	return mat
+	return _plain("charcoal", Color.WHITE, {"roughness": 1.0, "metallic_specular": 0.0, "vertex_color_use_as_albedo": true, "vertex_color_is_srgb": true})
 
 
 ## A stick of willow charcoal `length` long along y, centred on its middle: six-sided and uneven, crooked toward z as
@@ -428,12 +388,15 @@ static func box(size: Vector3) -> BoxMesh:
 		return b)
 
 
-static func _plain(key: String, colour: Color) -> StandardMaterial3D:
+## The material under `key`, made once: `colour`, roughness 0.6, then each of `extra`'s properties.
+static func _plain(key: String, colour: Color, extra := {}) -> StandardMaterial3D:
 	var mat: StandardMaterial3D = _mats.get(key)
 	if mat == null:
 		mat = StandardMaterial3D.new()
 		mat.albedo_color = colour
 		mat.roughness = 0.6
+		for property: String in extra:
+			mat.set(property, extra[property])
 		_mats[key] = mat
 	return mat
 
@@ -462,24 +425,8 @@ static func button(camera: Node3D) -> StandardMaterial3D:
 ## A small camera, its screen toward the eye and its lens along the controller's aim, or for a selfie beside the
 ## screen, looking back at the holder.
 static func _camera(root: Node3D, selfie: bool) -> void:
-	var lens := CylinderMesh.new()
-	lens.top_radius = 0.008 if selfie else 0.012
-	lens.bottom_radius = 0.008 if selfie else 0.013
-	lens.height = 0.006 if selfie else 0.018
-	lens.radial_segments = 16
-	lens.rings = 1
-	var glass := CylinderMesh.new()
-	glass.top_radius = 0.006 if selfie else 0.009
-	glass.bottom_radius = glass.top_radius
-	glass.height = 0.001
-	glass.radial_segments = 16
-	glass.rings = 1
-	var button := CylinderMesh.new()
-	button.top_radius = 0.004
-	button.bottom_radius = 0.0045
-	button.height = 0.004
-	button.radial_segments = 10
-	button.rings = 1
+	var lens := cylinder(0.008, 0.008, 0.006, 16) if selfie else cylinder(0.012, 0.013, 0.018, 16)
+	var glass := cylinder(0.006 if selfie else 0.009, 0.006 if selfie else 0.009, 0.001, 16)
 	var facing := Basis(Vector3.RIGHT, PI * 0.5)
 	var y := SELFIE_LENS.y if selfie else CAMERA_LENS.y
 	var size := SELFIE_SCREEN if selfie else CAMERA_SCREEN
@@ -491,57 +438,22 @@ static func _camera(root: Node3D, selfie: bool) -> void:
 		[glass, Transform3D(facing, SELFIE_LENS if selfie else CAMERA_LENS), Color(0.08, 0.1, 0.16)],
 	]
 	for part in parts:
-		var key := "camera_%s" % part[2].to_html()
-		var mat: StandardMaterial3D = _mats.get(key)
-		if mat == null:
-			mat = StandardMaterial3D.new()
-			mat.albedo_color = part[2]
-			mat.roughness = 0.35 if part[0] == glass else 0.7
-			_mats[key] = mat
-		var mi := MeshInstance3D.new()
-		mi.mesh = part[0]
-		mi.transform = part[1]
-		mi.material_override = mat
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(mi)
+		_piece(root, part[0], part[1], _plain("camera_%s" % part[2].to_html(), part[2], {"roughness": 0.35 if part[0] == glass else 0.7}))
 	if selfie:
-		var stalk := CylinderMesh.new()
-		stalk.top_radius = 0.006
-		stalk.bottom_radius = 0.007
-		stalk.height = SELFIE_LIFT
-		stalk.radial_segments = 10
-		stalk.rings = 1
-		var mi := MeshInstance3D.new()
-		mi.mesh = stalk
-		mi.position = Vector3(0, SELFIE_LIFT * 0.5, 0)
-		mi.material_override = _mats["camera_%s" % Color(0.22, 0.2, 0.19).to_html()]
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(mi)
+		_piece(root, cylinder(0.006, 0.007, SELFIE_LIFT, 10), Transform3D(Basis(), Vector3(0, SELFIE_LIFT * 0.5, 0)), _mats["camera_%s" % Color(0.22, 0.2, 0.19).to_html()])
 	var shutter := StandardMaterial3D.new()
 	shutter.albedo_color = Color(0.72, 0.56, 0.3)
 	shutter.roughness = 0.7
 	shutter.emission_enabled = true
 	shutter.emission = Color.BLACK
 	shutter.emission_energy_multiplier = 2.0
-	var press := MeshInstance3D.new()
-	press.name = "Button"
-	press.mesh = button
-	press.position = Vector3(0.019, y + 0.024, 0.002)
-	press.material_override = shutter
-	press.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(press)
+	_piece(root, cylinder(0.004, 0.0045, 0.004, 10), Transform3D(Basis(), Vector3(0.019, y + 0.024, 0.002)), shutter).name = "Button"
 	var quad := QuadMesh.new()
 	quad.size = size
-	var screen := MeshInstance3D.new()
-	screen.name = "Screen"
-	screen.mesh = quad
-	screen.position = Vector3(screen_x, y, 0.0141)
 	var glow := StandardMaterial3D.new()
 	glow.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	glow.albedo_color = PhotoTool.DARK
-	screen.material_override = glow
-	screen.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(screen)
+	_piece(root, quad, Transform3D(Basis(), Vector3(screen_x, y, 0.0141)), glow).name = "Screen"
 
 
 ## A little person: the visit tool goes to see other players.
@@ -555,12 +467,7 @@ static func _figure(root: Node3D) -> void:
 ## A disc of stone ground as the stone tool lays it in `style`, shaded as the ground shades it, fraying toward the rim
 ## into meadow as scattered stones.
 static func _stone_ground(root: Node3D, style: int) -> void:
-	var turf := CylinderMesh.new()
-	turf.top_radius = 0.026
-	turf.bottom_radius = 0.024
-	turf.height = 0.004
-	turf.radial_segments = 24
-	turf.rings = 1
+	var turf := cylinder(0.026, 0.024, 0.004, 24)
 	var face := shared("stone_ground_face", func() -> ArrayMesh:
 		var st := SurfaceTool.new()
 		st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -577,18 +484,8 @@ static func _stone_ground(root: Node3D, style: int) -> void:
 		mat = _stone_disc(preload("res://src/stone_disc.gdshader"), style)
 		mat.set_meta("icon_material", _stone_disc(preload("res://src/stone_disc_icon.gdshader"), style))
 		_mats[key] = mat
-	if not _mats.has("stone_ground_side"):
-		var side := StandardMaterial3D.new()
-		side.albedo_color = Meadow.GROUND[&"earth"]
-		side.roughness = 1.0
-		_mats["stone_ground_side"] = side
-	for part in [[turf, Vector3(0, 0.002, 0), _mats["stone_ground_side"]], [face, Vector3(0, 0.0041, 0), mat]]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = part[0]
-		mi.position = part[1]
-		mi.material_override = part[2]
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(mi)
+	_piece(root, turf, Transform3D(Basis(), Vector3(0, 0.002, 0)), _plain("stone_ground_side", Meadow.GROUND[&"earth"], {"roughness": 1.0}))
+	_piece(root, face, Transform3D(Basis(), Vector3(0, 0.0041, 0)), mat)
 
 
 static func _stone_disc(shader: Shader, style: int) -> ShaderMaterial:
@@ -604,54 +501,21 @@ static func _stone_disc(shader: Shader, style: int) -> ShaderMaterial:
 
 ## A pond in small: a sandy dish holding a disc of glinting water inside a line of foam, pebbles on its bank.
 static func _pond(root: Node3D) -> void:
-	var sand: StandardMaterial3D = _mats.get("sand")
-	if sand == null:
-		sand = StandardMaterial3D.new()
-		sand.albedo_color = Color(0.62, 0.53, 0.38)
-		sand.roughness = 1.0
-		_mats["sand"] = sand
-		var water := StandardMaterial3D.new()
-		water.albedo_color = Color(0.16, 0.48, 0.52)
-		water.roughness = 0.08
-		water.metallic_specular = 0.7
-		_mats["water"] = water
-		var foam := StandardMaterial3D.new()
-		foam.albedo_color = Color(0.95, 0.97, 0.94)
-		foam.roughness = 0.6
-		_mats["foam"] = foam
-		var pebble := StandardMaterial3D.new()
-		pebble.albedo_color = Color(0.6, 0.6, 0.57)
-		pebble.roughness = 0.9
-		_mats["pebble"] = pebble
-	var dish := CylinderMesh.new()
-	dish.top_radius = 0.026
-	dish.bottom_radius = 0.021
-	dish.height = 0.006
-	dish.radial_segments = 20
-	dish.rings = 1
-	var disc := CylinderMesh.new()
-	disc.top_radius = 0.019
-	disc.bottom_radius = 0.019
-	disc.height = 0.001
-	disc.radial_segments = 20
-	disc.rings = 1
 	var ring := TorusMesh.new()
 	ring.inner_radius = 0.0185
 	ring.outer_radius = 0.0205
 	ring.rings = 24
 	ring.ring_segments = 4
-	var parts := [[dish, Vector3(0, 0.003, 0), Vector3.ONE, "sand"], [disc, Vector3(0, 0.0063, 0), Vector3.ONE, "water"], [ring, Vector3(0, 0.0064, 0), Vector3(1, 0.3, 1), "foam"]]
+	var parts := [
+		[cylinder(0.026, 0.021, 0.006, 20), Vector3(0, 0.003, 0), Vector3.ONE, _plain("sand", Color(0.62, 0.53, 0.38), {"roughness": 1.0})],
+		[cylinder(0.019, 0.019, 0.001, 20), Vector3(0, 0.0063, 0), Vector3.ONE, _plain("water", Color(0.16, 0.48, 0.52), {"roughness": 0.08, "metallic_specular": 0.7})],
+		[ring, Vector3(0, 0.0064, 0), Vector3(1, 0.3, 1), _plain("foam", Color(0.95, 0.97, 0.94))],
+	]
 	for k in 3:
 		var a := TAU * (0.1 + k * 0.13)
-		parts.append([Meshes.rounded_box(0.3, 2, 5), Vector3(cos(a), 0, sin(a)) * 0.024 + Vector3(0, 0.0068, 0), Vector3(0.005, 0.003, 0.004) * (1.0 - k * 0.15), "pebble"])
+		parts.append([Meshes.rounded_box(0.3, 2, 5), Vector3(cos(a), 0, sin(a)) * 0.024 + Vector3(0, 0.0068, 0), Vector3(0.005, 0.003, 0.004) * (1.0 - k * 0.15), _plain("pebble", Color(0.6, 0.6, 0.57), {"roughness": 0.9})])
 	for part in parts:
-		var mi := MeshInstance3D.new()
-		mi.mesh = part[0]
-		mi.position = part[1]
-		mi.scale = part[2]
-		mi.material_override = _mats[part[3]]
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(mi)
+		_piece(root, part[0], Transform3D(Basis.from_scale(part[2]), part[1]), part[3])
 
 
 static func _wall(root: Node3D, plastered := false, top := WallLayout.Top.CRENEL, arched := false) -> void:
@@ -742,18 +606,7 @@ static func _roofed(root: Node3D, layout: WallLayout, roof: RoofLayout, plastere
 	if not roof.coat.is_empty():
 		var coat := ArrayMesh.new()
 		coat.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, roof.coat)
-		var straw: StandardMaterial3D = _mats.get("thatch")
-		if straw == null:
-			straw = StandardMaterial3D.new()
-			straw.vertex_color_use_as_albedo = true
-			straw.roughness = 0.95
-			_mats["thatch"] = straw
-		var mi := MeshInstance3D.new()
-		mi.mesh = coat
-		mi.scale = Vector3.ONE * 0.012
-		mi.material_override = straw
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(mi)
+		_piece(root, coat, Transform3D(Basis.from_scale(Vector3.ONE * 0.012), Vector3.ZERO), _vertex_mat("thatch", 0.95, false))
 	if not plastered:
 		return
 	var st := SurfaceTool.new()
@@ -761,17 +614,7 @@ static func _roofed(root: Node3D, layout: WallLayout, roof: RoofLayout, plastere
 	for p in roof.gable_faces:
 		st.add_vertex(p * 0.012)
 	st.generate_normals()
-	var plaster: StandardMaterial3D = _mats.get("plaster")
-	if plaster == null:
-		plaster = StandardMaterial3D.new()
-		plaster.albedo_color = WallLayout.PLASTER
-		plaster.roughness = 0.9
-		_mats["plaster"] = plaster
-	var gables := MeshInstance3D.new()
-	gables.mesh = st.commit()
-	gables.material_override = plaster
-	gables.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(gables)
+	_piece(root, st.commit(), Transform3D(), _plain("plaster", WallLayout.PLASTER, {"roughness": 0.9}))
 
 
 static func _fence(root: Node3D) -> void:
@@ -900,11 +743,7 @@ static func _path(root: Node3D) -> void:
 			st.set_normal(Vector3.UP)
 			st.set_color(Color(0.48, 0.31, 0.16))
 			st.add_vertex(v * 0.024)
-	var mi := MeshInstance3D.new()
-	mi.mesh = st.commit()
-	mi.material_override = _vertex_mat("dirt", 1.0, false)
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(mi)
+	_piece(root, st.commit(), Transform3D(), _vertex_mat("dirt", 1.0, false))
 
 
 static func _stones(root: Node3D, stones: Array[Dictionary], scale: float) -> void:
@@ -929,40 +768,17 @@ static func _flowers(root: Node3D) -> void:
 	var spots := [Vector3(0, 0, 0), Vector3(0.09, 0, 0.05), Vector3(-0.07, 0, 0.07)]
 	var sizes := [1.15, 0.8, 0.9]
 	for i in 3:
-		var mi := MeshInstance3D.new()
-		mi.mesh = Meshes.flower(6, FloraLayout.FLOWER_COLORS[[4, 7, 1][i]])
-		mi.material_override = _vertex_mat("flower", 0.8, true)
-		mi.transform = Transform3D(Basis(Vector3.UP, i * 1.3).scaled(Vector3.ONE * sizes[i] * 0.17), spots[i] * 0.17)
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(mi)
+		_piece(root, Meshes.flower(6, FloraLayout.FLOWER_COLORS[[4, 7, 1][i]]), Transform3D(Basis(Vector3.UP, i * 1.3).scaled(Vector3.ONE * sizes[i] * 0.17), spots[i] * 0.17), _vertex_mat("flower", 0.8, true))
 
 
 static func _grass(root: Node3D) -> void:
-	var mi := MeshInstance3D.new()
-	mi.mesh = Meshes.grass_clump(16, 3)
-	mi.scale = Vector3.ONE * 0.16
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var mat: StandardMaterial3D = _mats.get("grass")
-	if mat == null:
-		mat = StandardMaterial3D.new()
-		mat.albedo_color = Color(0.36, 0.6, 0.16)
-		mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		mat.roughness = 0.9
-		_mats["grass"] = mat
-	mi.material_override = mat
-	root.add_child(mi)
+	_piece(root, Meshes.grass_clump(16, 3), Transform3D(Basis.from_scale(Vector3.ONE * 0.16), Vector3.ZERO), _plain("grass", Color(0.36, 0.6, 0.16), {"cull_mode": BaseMaterial3D.CULL_DISABLED, "roughness": 0.9}))
 
 
 static func _tree(root: Node3D, species := FloraLayout.Species.OAK) -> void:
 	var t := FloraLayout.tree(Vector3(0, 0.2, 0), 11, species)
-	var trunk := CylinderMesh.new()
-	trunk.top_radius = 0.16
-	trunk.bottom_radius = 0.3
-	trunk.height = 1.0
-	trunk.radial_segments = 8
-	trunk.rings = 1
 	var bark := _vertex_mat("bark", 1.0, false)
-	var trunk_mm := multimesh(trunk, 1)
+	var trunk_mm := multimesh(cylinder(0.16, 0.3, 1.0, 8), 1)
 	trunk_mm.set_instance_transform(0, t.trunk)
 	trunk_mm.set_instance_color(0, t.bark)
 	var scale := 0.006
@@ -1014,81 +830,25 @@ static func _boulder_style(root: Node3D, style: int) -> void:
 
 ## A boulder with a pebble beside it, in wall stone.
 static func _boulders(root: Node3D) -> void:
-	var stone: StandardMaterial3D = _mats.get("boulder")
-	if stone == null:
-		stone = StandardMaterial3D.new()
-		stone.albedo_color = WallLayout.STONE
-		stone.roughness = 0.9
-		_mats["boulder"] = stone
+	var stone := _plain("boulder", WallLayout.STONE, {"roughness": 0.9})
 	for b in [[7, Vector3(-0.004, 0, 0), 0.042], [3, Vector3(0.024, 0, 0.008), 0.016]]:
 		var shape := BoulderLayout.shape(b[0])
 		var mesh := ArrayMesh.new()
 		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, BoulderLayout.arrays(shape, BoulderLayout.FAR + 1))
-		var m := MeshInstance3D.new()
-		m.mesh = mesh
-		m.material_override = stone
-		m.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		m.transform = BoulderLayout.rest(shape, Quaternion.IDENTITY, b[2], b[1].x, b[1].z, func(_x: float, _z: float) -> float: return b[1].y)
-		root.add_child(m)
+		_piece(root, mesh, BoulderLayout.rest(shape, Quaternion.IDENTITY, b[2], b[1].x, b[1].z, func(_x: float, _z: float) -> float: return b[1].y), stone)
 
 
 ## A garden spade held blade ahead: it digs things up.
 static func _spade(root: Node3D) -> void:
-	var steel: StandardMaterial3D = _mats.get("steel")
-	if steel == null:
-		steel = StandardMaterial3D.new()
-		steel.albedo_color = Color(0.62, 0.64, 0.66)
-		steel.metallic = 0.6
-		steel.roughness = 0.4
-		_mats["steel"] = steel
-		var wood := StandardMaterial3D.new()
-		wood.albedo_color = Color(0.55, 0.38, 0.22)
-		wood.roughness = 0.9
-		_mats["wood"] = wood
-	var blade := BoxMesh.new()
-	blade.size = Vector3(0.02, 0.0015, 0.024)
-	var shaft := CylinderMesh.new()
-	shaft.top_radius = 0.0022
-	shaft.bottom_radius = 0.0022
-	shaft.height = 0.04
-	shaft.radial_segments = 6
-	shaft.rings = 1
-	var grip := CylinderMesh.new()
-	grip.top_radius = 0.002
-	grip.bottom_radius = 0.002
-	grip.height = 0.012
-	grip.radial_segments = 6
-	grip.rings = 1
-	var ahead := Basis(Vector3.RIGHT, -PI * 0.5)
-	for part in [[blade, SPADE_EDGE + Vector3(0, 0, 0.012), Basis(), "steel"], [shaft, Vector3(0, 0, -0.008), ahead, "wood"], [grip, Vector3(0, 0, 0.012), Basis(Vector3.FORWARD, PI * 0.5), "wood"]]:
-		var mi := MeshInstance3D.new()
-		mi.mesh = part[0]
-		mi.transform = Transform3D(part[2], part[1])
-		mi.material_override = _mats[part[3]]
-		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-		root.add_child(mi)
+	var wood := _plain("wood", Color(0.55, 0.38, 0.22), {"roughness": 0.9})
+	_piece(root, box(Vector3(0.02, 0.0015, 0.024)), Transform3D(Basis(), SPADE_EDGE + Vector3(0, 0, 0.012)), _plain("steel", Color(0.62, 0.64, 0.66), {"metallic": 0.6, "roughness": 0.4}))
+	_piece(root, cylinder(0.0022, 0.0022, 0.04, 6), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(0, 0, -0.008)), wood)
+	_piece(root, cylinder(0.002, 0.002, 0.012, 6), Transform3D(Basis(Vector3.FORWARD, PI * 0.5), Vector3(0, 0, 0.012)), wood)
 
 
 ## A small clay dish heaped with bird seed: striped sunflower seeds among round millet.
 static func _seeds(root: Node3D) -> void:
-	var dish := CylinderMesh.new()
-	dish.top_radius = 0.022
-	dish.bottom_radius = 0.016
-	dish.height = 0.007
-	dish.radial_segments = 20
-	dish.rings = 1
-	var clay: StandardMaterial3D = _mats.get("clay")
-	if clay == null:
-		clay = StandardMaterial3D.new()
-		clay.albedo_color = Color(0.72, 0.42, 0.28)
-		clay.roughness = 0.85
-		_mats["clay"] = clay
-	var mi := MeshInstance3D.new()
-	mi.mesh = dish
-	mi.position = Vector3(0, 0.0035, 0)
-	mi.material_override = clay
-	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(mi)
+	_piece(root, cylinder(0.022, 0.016, 0.007, 20), Transform3D(Basis(), Vector3(0, 0.0035, 0)), _plain("clay", Color(0.72, 0.42, 0.28), {"roughness": 0.85}))
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	var rng := RandomNumberGenerator.new()
@@ -1104,11 +864,7 @@ static func _seeds(root: Node3D) -> void:
 			var dark := SEED_COLOURS[1] if i % 2 else SEED_COLOURS[2]
 			Meshes.ellipsoid(st, 0, at, Vector3(0.0022, 0.0055, 0.0014), dark, 3, 6, Callable(), turn)
 			Meshes.ellipsoid(st, 0, at + turn * Vector3(0, 0, 0.0009), Vector3(0.0007, 0.0052, 0.0007), Color(0.86, 0.84, 0.78), 2, 4, Callable(), turn)
-	var heap := MeshInstance3D.new()
-	heap.mesh = st.commit()
-	heap.material_override = seed_material()
-	heap.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	root.add_child(heap)
+	_piece(root, st.commit(), Transform3D(), seed_material())
 
 
 static func seed_material() -> StandardMaterial3D:
@@ -1134,15 +890,7 @@ static func _add(root: Node3D, mm: MultiMesh, mat: Material, scale: float) -> vo
 
 
 static func _vertex_mat(key: String, roughness: float, two_sided: bool) -> StandardMaterial3D:
-	var mat: StandardMaterial3D = _mats.get(key)
-	if mat == null:
-		mat = StandardMaterial3D.new()
-		mat.vertex_color_use_as_albedo = true
-		mat.roughness = roughness
-		if two_sided:
-			mat.cull_mode = BaseMaterial3D.CULL_DISABLED
-		_mats[key] = mat
-	return mat
+	return _plain(key, Color.WHITE, {"vertex_color_use_as_albedo": true, "roughness": roughness, "cull_mode": BaseMaterial3D.CULL_DISABLED if two_sided else BaseMaterial3D.CULL_BACK})
 
 
 static func decoration(layout: DecorationLayout, seed: int) -> Node3D:
