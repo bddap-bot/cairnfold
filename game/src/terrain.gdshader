@@ -44,7 +44,8 @@ void vertex() {
 	vec2 out_to = world_pos.xz - rim;
 	if (dot(out_to, out_to) > 0.0) {
 		// The bank's foot (Terrain.BANK_FOOT) stays where the mesh lays it; it slopes up to the edge as it stands now.
-		NORMAL = normalize(vec3(out_to * (ground_at(rim) - VERTEX.y) / dot(out_to, out_to), 1.0));
+		vec2 slope = out_to * (ground_at(rim) - VERTEX.y) / dot(out_to, out_to);
+		NORMAL = normalize(vec3(slope.x, 1.0, slope.y));
 	} else {
 		VERTEX.y = ground_at(world_pos.xz);
 		if (ground_humps[0].w != 0.0 || ground_humps[1].w != 0.0) {
