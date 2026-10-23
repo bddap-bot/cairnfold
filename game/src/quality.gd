@@ -158,9 +158,6 @@ func _init(xr: OpenXRInterface, flora: Flora, masonry: Masonry = null, look: Loo
 
 func _ready() -> void:
 	view = get_viewport()
-	if _foveates:
-		# The Mobile renderer reads the runtime's foveation map only with the view's VRS mode at XR.
-		view.vrs_mode = Viewport.VRS_XR
 	_apply(ladder[step()], step())
 	RenderingServer.viewport_set_measure_render_time(view.get_viewport_rid(), true)
 
@@ -179,13 +176,16 @@ static func popping() -> PackedInt32Array:
 
 
 ## The rungs drawn for PRIME_FRAMES each as the session starts: the top and every rung whose swapchain, MSAA,
-## reflections, lake, sun's shadows or 3D scale differ from the one above, then START, where the governor takes over.
+## reflections, lake, sun's shadows, 3D scale or foveation on or off differ from the one above, then START, where the
+## governor takes over. On the Quest 2 a session that first draws the foveation map at the first foveated rung, after
+## the top drew without it, keeps built walls from the air at 20 ms; one that first draws it at 2x MSAA, or from the
+## start, takes 250 ms ("Anti-aliasing on the Quest 2" in docs/design.md).
 static func primed() -> PackedInt32Array:
 	var out := PackedInt32Array([0])
 	for i in range(1, ladder.size()):
 		var a := ladder[i - 1]
 		var b := ladder[i]
-		if a.render_scale != b.render_scale or a.msaa != b.msaa or a.reflections != b.reflections or a.lake != b.lake or a.shadows != b.shadows or a.scale_3d != b.scale_3d:
+		if a.render_scale != b.render_scale or a.msaa != b.msaa or a.reflections != b.reflections or a.lake != b.lake or a.shadows != b.shadows or a.scale_3d != b.scale_3d or (a.foveation > 0) != (b.foveation > 0):
 			out.append(i)
 	out.append(START)
 	return out
@@ -272,6 +272,8 @@ func _apply(at: Step, n: int) -> void:
 		_xr.render_target_size_multiplier = at.render_scale
 		print("quality: step %d swapchain %.2f msaa %dx foveation %d" % [n, at.render_scale, 2 << (at.msaa - 1), at.foveation])
 	if _foveates:
+		# The Mobile renderer reads the runtime's foveation map only with the view's VRS mode at XR.
+		view.vrs_mode = Viewport.VRS_XR if at.foveation > 0 else Viewport.VRS_DISABLED
 		_xr.foveation_level = at.foveation
 
 

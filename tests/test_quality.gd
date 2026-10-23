@@ -161,9 +161,9 @@ func _every_pipeline_a_rung_draws_with_is_primed() -> void:
 	var drawn := {}
 	for n in primed:
 		var s := Quality.ladder[n]
-		drawn[[s.render_scale, s.msaa, s.reflections, s.lake, s.shadows, s.scale_3d]] = true
+		drawn[[s.render_scale, s.msaa, s.reflections, s.lake, s.shadows, s.scale_3d, s.foveation > 0]] = true
 	for s in Quality.ladder:
-		_check(drawn.has([s.render_scale, s.msaa, s.reflections, s.lake, s.shadows, s.scale_3d]), "a rung's pipelines are primed")
+		_check(drawn.has([s.render_scale, s.msaa, s.reflections, s.lake, s.shadows, s.scale_3d, s.foveation > 0]), "a rung's pipelines are primed")
 	_check(primed[-1] == Quality.START, "priming ends where the governor starts")
 
 

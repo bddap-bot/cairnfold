@@ -1124,6 +1124,30 @@ only lowers what a frame costs, so `Budget.COSTS` were not refitted: every charg
 the one foveated `demo/costs.json` run, which the system shell drew beside, scattered both ways (roofs 41 µs a m²
 against the 18.7 charged, walls 11 against 23.8), wider than any change foveation could make.
 
+That saving was measured over the bare meadow. Over built walls seen from the air, the density map is the dearest
+thing the Quest 2 draws. Bisected on the device, the stress scene's village/aerial went from 29 ms (36f3888f) to 291
+(9ad5a2ba), r25/aerial from 27 to 191. On one build at step 5, with the village held from the air, viewport GPU ms
+a frame ([records](../perf/quest-2/foveation/README.md)):
+
+| State | village/aerial |
+| --- | --- |
+| VRS mode XR, foveation 3 (main) | 249 |
+| VRS mode never set (foveation 3 asked of the runtime, no map applied) | 27 |
+| VRS mode XR with foveation 1 / 2 / 3, interleaved | 263 / 249 / 171 |
+| VRS mode off, foveation 0, interleaved | 32 |
+
+The cost belongs to the mode, not the level. It is not the sun's shadows: 119 ms with them at step 14, 117 without at
+step 15. It is not shading: 164 ms drawn unshaded, against 184. It is not MSAA: 149 ms without, 186 with 2x, 314 with
+4x. Ground views of the same village are unaffected, at 25 ms either way.
+
+What clears it is the order in which the session first draws the map. The mode now follows the rung, off at foveation
+0, and priming draws a rung on each side of the switch. So the map is first drawn at rung 2, at 4x MSAA, after the
+top rung drew without it. With that order, the village from the air takes 19.8 ms at step 6 and 20.3 at step 5,
+against 257 for main at step 6. The meadow costs the same either way (10.9 against 11.1 ms), so the map is still
+applied. A build whose mode follows the rung but whose priming first draws the map at rung 3, at 2x, stays at
+265 ms at step 6. Which engine or driver state that order sets is not known; the stress scene's aerial wall phases
+are what show it if it returns.
+
 None of the meadow's plants cut out by alpha (`grass`, `flower`, `leaf` and `plant` shaders write no `ALPHA` and do
 not discard), so alpha-to-coverage has nothing to act on. FXAA and SMAA blur textures and cost more standing; temporal
 AA is out in VR.
