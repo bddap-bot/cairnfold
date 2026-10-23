@@ -21,6 +21,9 @@ uniform float fore_side = 1.0;
 uniform vec3 cloth;
 uniform vec3 leather;
 uniform vec3 paper : source_color;
+// The bow of the leaf lying on it, and that leaf's width, its spine at the block's middle less half of it.
+uniform float gutter_bow = 0.0;
+uniform float leaf_width = 0.15;
 uniform vec3 edge_paint : source_color = vec3(0.86, 0.6, 0.32);
 
 varying vec3 local;
@@ -28,6 +31,9 @@ varying vec3 local_n;
 varying vec4 given;
 
 void vertex() {
+	if (VERTEX.y > 0.0) {
+		VERTEX.y += gutter_rise(leaf_width * 0.5 + fore_side * VERTEX.x * size.x, leaf_width, gutter_bow) / size.y;
+	}
 	local = VERTEX;
 	local_n = NORMAL;
 	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));

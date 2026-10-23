@@ -13,6 +13,12 @@ vec2 window_uv(vec2 p) {
 	return (p - (WINDOW_CENTRE - WINDOW_HALF)) / (2.0 * WINDOW_HALF);
 }
 
+// How far a resting leaf stands up `x` from the spine, bowing `bow` out of the gutter as a bound page does; the block
+// under it rises as far, so nothing shows between them.
+float gutter_rise(float x, float width, float bow) {
+	return bow * sin(min(x / (width * 0.3), 1.0) * PI * 0.5) * (1.0 - 0.35 * smoothstep(0.3, 1.0, x / width));
+}
+
 vec3 srgb_to_linear(vec3 c) {
 	return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c));
 }

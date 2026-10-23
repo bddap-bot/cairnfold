@@ -37,7 +37,7 @@ void vertex() {
 	float k = bend * sin(angle) / width;
 	float a = angle - k * x;
 	vec2 at = abs(k) < 1e-4 ? vec2(cos(angle), sin(angle)) * x : vec2(sin(angle) - sin(a), cos(a) - cos(angle)) / k;
-	float rise = gutter_bow * sin(min(x / (width * 0.3), 1.0) * PI * 0.5) * (1.0 - 0.35 * smoothstep(0.3, 1.0, x / width));
+	float rise = gutter_rise(x, width, gutter_bow);
 	float slope = gutter_bow * cos(min(x / (width * 0.3), 1.0) * PI * 0.5) * PI * 0.5 / (width * 0.3) * step(x, width * 0.3);
 	vec2 up_ = vec2(-sin(angle), cos(angle)) * (angle > PI * 0.5 ? -1.0 : 1.0);
 	VERTEX = vec3(at.x + up_.x * rise, at.y + up_.y * rise + VERTEX.y, VERTEX.z);

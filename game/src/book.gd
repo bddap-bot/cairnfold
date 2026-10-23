@@ -35,6 +35,8 @@ const BEHIND := 0.02
 const THROUGH_MARGIN := Vector2(0.03, 0.02)
 ## Farther than this between one frame's reading and the next is tracking or a teleport catching up, not a hand.
 const STEP := 0.15
+## How high a resting leaf bows up out of the gutter.
+const BOW := 0.006
 const BOARD := Vector3(W + OVER, COVER_T, H + OVER * 2.0)
 const PAGE_HZ_DIVIDER := 2
 ## Opaque draws go in ascending render_priority, so the book, after the garden at 0, draws its top layer first and
@@ -348,8 +350,6 @@ func _lay() -> void:
 			right_n += 1
 	var cover_a := _angle(0)
 	_cover.transform = Transform3D(Basis(Vector3.BACK, cover_a), Vector3(0, _stack_top() * (1.0 - cover_a / PI), 0))
-	_place_block(_right_block, right_n, 1.0)
-	_place_block(_left_block, left_n, -1.0)
 	var top_right := -1
 	for j in range(1, leaves + 1):
 		if j != turning and _angle(j) < PI * 0.5:
@@ -363,6 +363,8 @@ func _lay() -> void:
 	_show_sheet(_sheets[0], top_left, PI, left_n)
 	_show_sheet(_sheets[1], top_right if top_right >= 0 else leaves + 1, 0.0, right_n)
 	_sheets[1].visible = cover_a > 0.02
+	_place_block(_right_block, right_n, 1.0, _sheets[1])
+	_place_block(_left_block, left_n, -1.0, _sheets[0])
 	if turning >= 1:
 		var a := _angle(turning)
 		_show_sheet(_sheets[2], turning, a, lerpf(right_n, left_n, a / PI))
@@ -381,13 +383,15 @@ func _lay() -> void:
 	_ribbon_mat.set_shader_parameter("glow", 1.0 if live and shut else 0.0)
 
 
-func _place_block(block: MeshInstance3D, n: int, side: float) -> void:
+## `top` the resting leaf on it, whose bow it takes.
+func _place_block(block: MeshInstance3D, n: int, side: float, top: MeshInstance3D) -> void:
 	block.visible = n > 0
 	var t := maxf(n * LEAF_T, 0.0005)
 	block.scale = Vector3(W - 0.002, t, H - 0.002)
 	block.position = Vector3(side * W * 0.5, t * 0.5 - 0.0002, 0)
 	(block.material_override as ShaderMaterial).set_shader_parameter("size", block.scale)
 	(block.material_override as ShaderMaterial).set_shader_parameter("fore_side", side)
+	(block.material_override as ShaderMaterial).set_shader_parameter("gutter_bow", BOW if top.visible else 0.0)
 
 
 ## Lays `sheet` as leaf `leaf` (leaves + 1: the back cover's inside) at `a`, on a stack `under` leaves deep.
@@ -399,7 +403,7 @@ func _show_sheet(sheet: MeshInstance3D, leaf: int, a: float, under: float) -> vo
 	var mat := sheet.material_override as ShaderMaterial
 	mat.set_shader_parameter("angle", a)
 	mat.set_shader_parameter("bend", 0.0)
-	mat.set_shader_parameter("gutter_bow", 0.006 if sheet != _sheets[2] else 0.0)
+	mat.set_shader_parameter("gutter_bow", BOW if sheet != _sheets[2] else 0.0)
 	_set_face(sheet, true, _face(leaf, false))
 	_set_face(sheet, false, _face(leaf, true))
 
@@ -496,13 +500,16 @@ static func _bind(mat: ShaderMaterial) -> void:
 func _block() -> MeshInstance3D:
 	if _block_mesh == null:
 		_block_mesh = BoxMesh.new()
+		_block_mesh.subdivide_width = 14
 	var mi := MeshInstance3D.new()
 	mi.mesh = _block_mesh
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/book.gdshader")
 	mat.set_shader_parameter("kind", 1)
 	mat.set_shader_parameter("paper", PAPER)
+	mat.set_shader_parameter("leaf_width", W)
 	mat.render_priority = Layer.BLOCK
+	mi.extra_cull_margin = BOW
 	mi.material_override = mat
 	add_child(mi)
 	return mi
