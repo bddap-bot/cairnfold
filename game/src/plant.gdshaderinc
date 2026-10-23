@@ -3,7 +3,6 @@
 #include "res://src/palette.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 
-uniform vec3 albedo : source_color = vec3(1.0);
 uniform float roughness = 1.0;
 #ifdef BACKLIT
 uniform vec3 backlight : source_color = vec3(0.0);
@@ -128,7 +127,7 @@ void vertex() {
 	}
 #endif
 #ifdef BACKLIT
-	COLOR.rgb = seasoned(albedo * COLOR.rgb, season_foliage) * mix(vec3(1.0), CROWN_SHADE, smoothstep(0.2, -0.8, NORMAL.y));
+	COLOR.rgb = seasoned(COLOR.rgb, season_foliage) * mix(vec3(1.0), CROWN_SHADE, smoothstep(0.2, -0.8, NORMAL.y));
 #endif
 }
 
@@ -139,13 +138,11 @@ uniform vec3 eye : source_color;
 
 void fragment() {
 #ifdef FLOWER
-	vec3 bloom = mix(albedo * COLOR.rgb, pad_green, lily * (1.0 - smoothstep(0.45, 0.6, UV.y)));
+	vec3 bloom = mix(COLOR.rgb, pad_green, lily * (1.0 - smoothstep(0.45, 0.6, UV.y)));
 	vec3 head = mix(bloom, eye, smoothstep(0.55 + 0.3 * lily, 0.9 + 0.08 * lily, UV.y));
 	ALBEDO = mix(stalk, mix(head, stalk, far_head), UV.x);
-#elif defined(BACKLIT)
-	ALBEDO = COLOR.rgb;
 #else
-	ALBEDO = albedo * COLOR.rgb;
+	ALBEDO = COLOR.rgb;
 #endif
 #ifdef BARK
 	if (moss_coat > 0.0) {

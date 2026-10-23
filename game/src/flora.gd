@@ -513,7 +513,7 @@ func _init() -> void:
 	grass.sparse = Meshes.grass_clump(CLUMP_BLADES, 1, 3, true, CLUMP_WIDE)
 	grass.survivors = GRASS_SURVIVORS
 	grass.sparse_from = GRASS_LOD_BEGIN + GRASS_LOD_BAND
-	flower_mat = _plant_material("flower", Color.WHITE, 0.8)
+	flower_mat = _plant_material("flower", 0.8)
 	flower_mat.set_shader_parameter("stalk", Meshes.STALK)
 	flower_mat.set_shader_parameter("eye", Meshes.EYE)
 	flower_mat.set_shader_parameter(&"stem", Meshes.FLOWER_HEIGHT)
@@ -545,8 +545,8 @@ func _init() -> void:
 	trunk.height = 1.0
 	trunk.radial_segments = 8
 	trunk.rings = 1
-	trunks = Pool.new(self, trunk, Meadow.TREES + PLACED_TREES, _plant_material("plant", Color.WHITE, 1.0), true, SOLID_POOL_CELL)
-	var leaf_mat := _plant_material("leaf", Color.WHITE, 1.0)
+	trunks = Pool.new(self, trunk, Meadow.TREES + PLACED_TREES, _plant_material("plant", 1.0), true, SOLID_POOL_CELL)
+	var leaf_mat := _plant_material("leaf", 1.0)
 	leaf_mat.set_shader_parameter("backlight", Color(0.25, 0.35, 0.08))
 	leaf_mat.set_shader_parameter("crown_lump", Meshes.BLOB_LUMP)
 	for step in Quality.ladder:
@@ -603,10 +603,9 @@ func _grass_lod(mat: ShaderMaterial) -> void:
 	Quality.full_detail(mat)
 
 
-static func _plant_material(shader: String, albedo: Color, roughness: float) -> ShaderMaterial:
+static func _plant_material(shader: String, roughness: float) -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://src/%s.gdshader" % shader)
-	mat.set_shader_parameter("albedo", albedo)
 	mat.set_shader_parameter("roughness", roughness)
 	return mat
 
