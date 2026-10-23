@@ -282,10 +282,13 @@ def flat_scripts():
 def check_flat(out):
     worn = json.loads((out / "host-seen.json").read_text())["worn"]
     own = hashlib.sha256((out / "avatars-join" / FLAT_AVATARS["join"]).read_bytes()).hexdigest()
-    assert worn == [own], "the host sees the flat-screen player's own avatar"
+    if worn != [own]:
+        raise RuntimeError("the host does not see the flat-screen player's own avatar")
     fed = json.loads((out / "host-fed.json").read_text())["fed"]["dish"]
-    assert fed >= 1, "the host sees an animal eating at the flat-screen player's dish"
-    assert any((out / "photos").glob("*.png")), f"a photo in {out / 'photos'}"
+    if fed < 1:
+        raise RuntimeError("the host sees no animal eating at the flat-screen player's dish")
+    if not any((out / "photos").glob("*.png")):
+        raise RuntimeError(f"no photo in {out / 'photos'}")
 
 
 def reserve_beacons():
@@ -351,6 +354,7 @@ def run(out, count, mode="full", capture=False):
         vrm = None
         if mode == "flat":
             vrm = FLAT_AVATARS[name]
+            args += ["--quit-after", "600"]
             if name == "join":
                 args.append("--flat")
         elif name != "host":
@@ -366,9 +370,10 @@ def run(out, count, mode="full", capture=False):
             args += ["--avatars", str(folder)]
         log = (out / f"{name}.log").open("w")
         logs.append(log)
-        icd = os.environ.get("NESTCOMBE_ICD", "/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json")
-        processes[name] = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT,
-                                           env=dict(os.environ, DISPLAY=display, VK_ICD_FILENAMES=icd) if rendered else None)
+        env = dict(os.environ, DISPLAY=display) if rendered else None
+        if mode == "flat":
+            env["VK_ICD_FILENAMES"] = os.environ.get("NESTCOMBE_ICD", "/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json")
+        processes[name] = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT, env=env)
 
     progress = {"steps": 0, "cpu": 0.0, "quiet": 0.0}
 
