@@ -68,7 +68,7 @@ static func fits(w: Wall, key: String, v: Variant, others: Array, openings: Arra
 		"lanterns":
 			return l.lantern_fits(v.x, v.y)
 		"flags":
-			return l.flag_fits(v) and not l.broken(v, 0.3)
+			return l.flag_fits(v)
 		"chimneys":
 			return not is_nan(v.x) and w.roof.clear_of_dormers(v)
 	return not is_nan(v.x) and w.roof.dormer_fits(v, others)

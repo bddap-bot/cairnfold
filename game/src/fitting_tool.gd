@@ -488,7 +488,7 @@ static func targets(w: Wall) -> Array[Dictionary]:
 		out.append(_target(w, "opening", "openings", i, v, box, false, xform))
 	for i in l.flags.size():
 		var v := l.flags[i]
-		if l.flag_fits(v) and not l.broken(v, 0.3):
+		if l.flag_fits(v):
 			var f := l.frame_at(v)
 			out.append(_target(w, "flag", "flags", i, v, _flag_bounds(f.point + Vector3.UP * (l.height + WallLayout.CAP), f.tangent)))
 	if w.roof != null:

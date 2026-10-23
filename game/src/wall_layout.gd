@@ -382,7 +382,7 @@ func build(ground: Callable, water := Callable()) -> void:
 		if lantern_fits(l.x, l.y):
 			_lay_lantern(l.x, frame_at(l.x).point + Vector3.UP * l.y, _normal(l.x) * l.z, rng)
 	for f in flags:
-		if flag_fits(f) and not broken(f, 0.3):
+		if flag_fits(f):
 			var parts := flag(frame_at(f).point + Vector3.UP * (height + CAP), frame_at(f).tangent, flag_color(seed, f))
 			_world(parts.pole, POLE, "pole", f)
 			_world(parts.finial, FINIAL, "finial", f)
@@ -1141,7 +1141,7 @@ func lantern_fits(s: float, y: float) -> bool:
 
 
 func flag_fits(s: float) -> bool:
-	return not fence and cover != Cover.ROOF and (closed or (s > PIER * 0.5 and s < length() - PIER * 0.5))
+	return not fence and cover != Cover.ROOF and not broken(s, 0.3) and (closed or (s > PIER * 0.5 and s < length() - PIER * 0.5))
 
 
 func _lay_opening(o: Dictionary, rng: RandomNumberGenerator, bottom: float) -> void:

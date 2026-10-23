@@ -536,8 +536,21 @@ func _in_the_glade() -> void:
 	_lay_walls()
 	var reloaded: Wall = main.tool.find(wall.id)
 	_check(cut.size() == 2 and PackedVector4Array(world.state.walls[wall.id].openings) == cut and reloaded.layout.archways().size() == 1, "a save keeps the cut arch")
+	await _a_ruin_flies_no_flag(fit, world)
 	_shared_opening_cap(reloaded)
 	_done()
+
+
+func _a_ruin_flies_no_flag(fit: FittingTool, world: World) -> void:
+	var stood: Array = world.state.walls.keys()
+	world.submit({"op": "wall", "walls": [{"points": PackedVector3Array([Terrain.ground(-14, -30), Terrain.ground(-2, -30)]), "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array([Vector2(3.0, 5.0)]), "rise": 0.0, "plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain()}]})
+	for f in 3:
+		await process_frame
+	var ruin: Wall = main.tool.walls.filter(func(w: Wall) -> bool: return not w.id in stood)[0]
+	_lay_walls()
+	_check(ruin.layout.broken(4.0) and not ruin.layout.broken(9.5, 0.3), "the ruined wall stands, broken at 4 m and whole at 9.5 m")
+	_check(not _fit(fit, {"what": "flag", "wall": ruin, "s": 4.0}) and Array(world.state.walls[ruin.id].flags).is_empty(), "a flag pressed onto a ruined stretch is refused, not stored unflown")
+	_check(_fit(fit, {"what": "flag", "wall": ruin, "s": 9.5}) and Array(world.state.walls[ruin.id].flags).any(func(e): return is_equal_approx(e, 9.5)) and ruin.layout.cloths.size() == 1, "beside the ruin a flag flies as ever")
 
 
 func _shared_opening_cap(w: Wall) -> void:
@@ -573,7 +586,6 @@ func _shared_opening_cap(w: Wall) -> void:
 	world.state.walls[w.id] = before
 
 
-## A press of the fitting tool, and the walls it changed laid, for a test reading them at once.
 ## A tower as a garden built before keeps one: no tool draws one any more.
 static func _tower(center: Vector3, radius: float) -> Dictionary:
 	return {
@@ -584,6 +596,7 @@ static func _tower(center: Vector3, radius: float) -> Dictionary:
 	}
 
 
+## A press of the fitting tool, and the walls it changed laid, for a test reading them at once.
 func _fit(fit: FittingTool, target: Dictionary) -> bool:
 	var placed := fit.fit(target)
 	_lay_walls()
