@@ -535,7 +535,6 @@ func _init() -> void:
 		pool.live.set_instance_shader_parameter(&"planted", 1.0)
 	var moss_mat := ShaderMaterial.new()
 	moss_mat.shader = load("res://src/moss.gdshader")
-	moss_mat.set_shader_parameter("detail", Look.detail_noise())
 	moss = Pool.new(self, Meshes.moss(), PAINTED_MOSS, moss_mat, false)
 	moss.indexed = true
 	ghost_moss = Pool.new(self, moss.mesh, PAINTED_MOSS, moss_mat, false)

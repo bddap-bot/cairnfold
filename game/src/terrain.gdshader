@@ -8,12 +8,12 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 #include "res://src/meadow.gdshaderinc"
 #include "res://src/stone_ground.gdshaderinc"
 #include "res://src/flora_lod.gdshaderinc"
+#include "res://src/detail.gdshaderinc"
 #include "res://src/noise.gdshaderinc"
 
 // The meadow's colour maths runs at half precision: the Quest 2 is bound by ground fragments and its GPU runs
 // mediump at twice the rate. Positions and texture coordinates stay highp, 160 m wide at millimetres, and the stone
 // path keeps full precision for its divide by a cover that can be tiny.
-uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 // Set from Meadow.GROUND.
 uniform mediump vec3 earth : source_color;
 uniform mediump vec3 trodden : source_color = vec3(0.52, 0.45, 0.33);

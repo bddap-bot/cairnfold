@@ -2,11 +2,11 @@ shader_type spatial;
 render_mode blend_mix, depth_draw_never, cull_disabled, specular_schlick_ggx;
 
 #include "res://src/ground.gdshaderinc"
+#include "res://src/detail.gdshaderinc"
 
 // Depth comes from the shared ground heights, not the depth buffer: on a tiled GPU reading the depth
 // buffer back costs a full-frame resolve per eye.
 uniform sampler2D waves : hint_normal, filter_linear_mipmap, repeat_enable;
-uniform sampler2D breakup : filter_linear_mipmap, repeat_enable;
 uniform float level;
 uniform float drop = 0.0;
 uniform vec4 ripples[12];
@@ -48,7 +48,7 @@ void fragment() {
 		float c = dot(up, normalize(vec3(-slope.x, 2.5, -slope.y)));
 		float window = smoothstep(WINDOW_COS - 0.03, WINDOW_COS + 0.03, c);
 		float rim = smoothstep(0.09, 0.0, abs(c - WINDOW_COS - 0.035));
-		float glint = texture(breakup, s * 1.3 - slope * 2.0 + TIME * vec2(0.03, 0.02)).r;
+		float glint = texture(detail, s * 1.3 - slope * 2.0 + TIME * vec2(0.03, 0.02)).r;
 		vec3 air = sky_overhead * (1.7 + 0.8 * smoothstep(0.75, 1.0, c)) * (0.85 + glint * 0.3);
 		vec3 mirror = mix(deep, shallow, 0.3) * dot(sky_overhead, vec3(0.3, 0.55, 0.15)) * (0.8 + glint * 0.4);
 		NORMAL = normalize((VIEW_MATRIX * vec4(-n, 0.0)).xyz);
@@ -64,7 +64,7 @@ void fragment() {
 		vec3 col = mix(shallow, deep, body);
 		float alpha = mix(0.2, 0.93, body);
 
-		float grain = texture(breakup, s * 0.6 + TIME * vec2(0.01, -0.008)).r;
+		float grain = texture(detail, s * 0.6 + TIME * vec2(0.01, -0.008)).r;
 		// The ground mesh is 1 m triangles while depth here is a smooth spline, so the surface fades out over the
 		// last few centimetres and the foam line sits just inside where it meets the ground.
 		float shore = smoothstep(0.03, 0.08, depth) * smoothstep(0.16, 0.09, depth + (grain - 0.5) * 0.05);

@@ -3,10 +3,10 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
+#include "res://src/detail.gdshaderinc"
 
 // Its build's thatch swatch over the first (Palette.tint).
 instance uniform vec3 tint = vec3(1.0);
-uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 uniform vec3 moss : source_color = vec3(0.30, 0.42, 0.14);
 
 varying vec3 world_pos;

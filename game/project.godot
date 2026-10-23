@@ -90,6 +90,10 @@ season_bloom={
 "type": "float",
 "value": 1.0
 }
+detail={
+"type": "sampler2D",
+"value": ""
+}
 
 [xr]
 openxr/enabled=true

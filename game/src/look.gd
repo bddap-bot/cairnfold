@@ -30,7 +30,6 @@ const UNDER_KEEPS := Color(0.55, 0.92, 1.0)
 const ADAPT_INDOOR := 1.8
 const ADAPT_SECONDS := 0.7
 
-static var _detail: NoiseTexture2D
 static var _absorb: GradientTexture1D
 
 var sun: DirectionalLight3D
@@ -55,19 +54,19 @@ var _exposure := 1.0
 var under := false
 
 
+## The noise surfaces break their flat colour up with (detail.gdshaderinc).
 static func detail_noise() -> NoiseTexture2D:
-	if _detail == null:
-		var n := FastNoiseLite.new()
-		n.seed = 3
-		n.frequency = 0.02
-		n.fractal_octaves = 4
-		_detail = NoiseTexture2D.new()
-		_detail.width = 256
-		_detail.height = 256
-		_detail.seamless = true
-		_detail.generate_mipmaps = true
-		_detail.noise = n
-	return _detail
+	var n := FastNoiseLite.new()
+	n.seed = 3
+	n.frequency = 0.02
+	n.fractal_octaves = 4
+	var t := NoiseTexture2D.new()
+	t.width = 256
+	t.height = 256
+	t.seamless = true
+	t.generate_mipmaps = true
+	t.noise = n
+	return t
 
 
 static func cloud_noise() -> NoiseTexture2D:
@@ -146,6 +145,7 @@ static func build(parent: Node) -> Look:
 	look._plain = horizon[2]
 	look.show_lake(true)
 	look.bounce.install()
+	RenderingServer.global_shader_parameter_set(&"detail", detail_noise())
 	look.lift_to(0.0)
 	look.set_time(Daylight.DEFAULT)
 	look._paint_sky()

@@ -3,8 +3,7 @@ render_mode world_vertex_coords, cull_disabled;
 #include "res://src/ground.gdshaderinc"
 #include "res://src/water.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
-
-uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
+#include "res://src/detail.gdshaderinc"
 
 varying float wet;
 varying vec3 bounce_at;

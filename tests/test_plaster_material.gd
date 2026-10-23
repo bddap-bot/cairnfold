@@ -42,11 +42,9 @@ func run() -> void:
 
 	im = Image.create(2, 2, false, Image.FORMAT_RGBA8)
 	im.fill(Color(0.5, 0.5, 0.5))
-	var detail := ImageTexture.create_from_image(im)
+	RenderingServer.global_shader_parameter_set("detail", ImageTexture.create_from_image(im))
 	var stone := Stones.shared_material()
-	stone.set_shader_parameter("detail", detail)
 	var plaster := w._gables.material_override as ShaderMaterial
-	plaster.set_shader_parameter("detail", detail)
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.use_colors = true

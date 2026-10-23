@@ -33,7 +33,6 @@ func _ready() -> void:
 func _ground() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://src/terrain.gdshader")
-	mat.set_shader_parameter("detail", Look.detail_noise())
 	StoneStyles.apply(mat)
 	for k in GROUND:
 		mat.set_shader_parameter(k, GROUND[k])

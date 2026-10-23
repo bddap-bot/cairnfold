@@ -2,12 +2,12 @@ shader_type spatial;
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
+#include "res://src/detail.gdshaderinc"
 
 // Raw like the stones' instance colours, as plaster is.
 uniform vec3 albedo;
 // Its build's plaster swatch over the first (Palette.tint).
 instance uniform vec3 tint = vec3(1.0);
-uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 
 varying vec3 world_pos;
 varying vec3 bounce_at;

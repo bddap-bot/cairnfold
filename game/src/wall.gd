@@ -155,19 +155,19 @@ func _init(seed: int, glade: Masonry) -> void:
 	_chunked.resize(Part.size())
 
 
-## A material of `shader` over the detail noise, its albedo `albedo` if given.
+## A material of `shader`, its albedo `albedo` if given.
 static func _detailed(shader: String, albedo: Variant = null) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = load(shader)
 	if albedo != null:
 		m.set_shader_parameter("albedo", albedo)
-	m.set_shader_parameter("detail", Look.detail_noise())
 	return m
 
 
 static func _wood() -> ShaderMaterial:
-	var m: ShaderMaterial = Stones.shared_material().duplicate()
-	m.shader = load("res://src/roof_timber.gdshader")
+	var m := _material("res://src/roof_timber.gdshader")
+	m.set_shader_parameter("window_glow", Lamps.WINDOW_GLOW)
+	StoneStyles.apply(m)
 	return m
 
 

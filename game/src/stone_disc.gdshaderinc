@@ -1,7 +1,7 @@
 // A disc of stone ground in small, as the ground shades it (stone_ground.gdshaderinc): `span` metres of style `style`
 // across, fraying toward its rim into meadow as scattered stones. Include after stone_ground.gdshaderinc.
 
-uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
+#include "res://src/detail.gdshaderinc"
 uniform int style;
 uniform float span = 2.0;
 uniform vec3 earth : source_color;

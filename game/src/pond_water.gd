@@ -50,7 +50,6 @@ func _init() -> void:
 	prepare()
 	_mat.shader = _shader
 	_mat.set_shader_parameter("waves", _waves)
-	_mat.set_shader_parameter("breakup", Look.detail_noise())
 	material_override = _mat
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	top_level = true

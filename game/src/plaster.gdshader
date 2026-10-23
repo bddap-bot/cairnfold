@@ -4,12 +4,12 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/plaster.gdshaderinc"
+#include "res://src/detail.gdshaderinc"
 
 // Raw like the stones' instance colours, so a gable matches the wall it continues.
 uniform vec3 albedo;
 // Its build's plaster swatch over the first (Palette.tint).
 instance uniform vec3 tint = vec3(1.0);
-uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 
 // Probes up among a roof's tiles cannot tell a house's inside from its outside, so a gable reads the air a metre
 // before it, no higher than LOW over the ground.

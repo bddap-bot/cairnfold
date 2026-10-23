@@ -509,7 +509,6 @@ static func _stone_disc(shader: Shader, style: int) -> ShaderMaterial:
 	mat.shader = shader
 	StoneStyles.apply(mat)
 	mat.set_shader_parameter("style", style)
-	mat.set_shader_parameter("detail", Look.detail_noise())
 	mat.set_shader_parameter("earth", Meadow.GROUND[&"earth"])
 	mat.set_shader_parameter("meadow", Meadow.GRASS[&"root_color"].lerp(Meadow.GRASS[&"tip_lush"].lerp(Meadow.GRASS[&"tip_dry"], 0.5), 0.6))
 	return mat

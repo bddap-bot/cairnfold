@@ -1,7 +1,7 @@
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/plaster.gdshaderinc"
+#include "res://src/detail.gdshaderinc"
 
-uniform sampler2D detail : filter_linear_mipmap, repeat_enable;
 uniform vec3 moss : source_color = vec3(0.30, 0.42, 0.14);
 // A boulder's style (StoneStyles, stone_ground.gdshaderinc), or -1 for stone in its own colour.
 instance uniform int stone_style = -1;
