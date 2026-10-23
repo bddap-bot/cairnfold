@@ -26,8 +26,6 @@ const HOURS := 0.034
 var page: Dictionary
 var index := 0
 var t := 0.0
-## Stepped by its owner rather than by the frame, as a capture steps it.
-var manual := false
 var wash := Color(0.6, 0.77, 0.93)
 var horizon := 0.5
 var fade := 1.0
@@ -157,8 +155,7 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
-	if not manual:
-		advance(delta)
+	advance(delta)
 
 
 func advance(delta: float) -> void:

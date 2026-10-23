@@ -587,33 +587,6 @@ func _carry(s: Dictionary) -> void:
 	tool.end_grow(m)
 
 
-## Grips the boulder placed `boulder` before the last (0 the last) with both hands, as two hands do, and over `seconds`
-## spreads them from `from` metres apart to `to`, sizing it by their span, then lets go; with `follow` [x, y, z] the view
-## looks at it from that offset times its size, so it holds the frame as it grows.
-func _spread(s: Dictionary) -> void:
-	var tool: WallTool = main.tool
-	var ids: Array = main.world.state.boulders.keys()
-	var b: Boulders.Boulder = main.boulders.find(ids[ids.size() - 1 - int(s.get("boulder", 0))])
-	var right := tool.mason(main.rig.right)
-	var left := tool.mason(main.rig.left)
-	var mid := b.position + Vector3.BACK * (b.shape.reach() * b.size + 1.5)
-	var from: float = s.get("from", 0.6)
-	var to: float = s.to
-	for m: WallTool.Mason in [right, left]:
-		m.hand.global_position = mid + Vector3.RIGHT * from * (0.5 if m == right else -0.5)
-		tool.begin_grow(m, b, m.hand.global_transform, b.position)
-	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
-	for f in frames:
-		await get_tree().process_frame
-		var span := from * pow(to / from, smoothstep(0.0, 1.0, float(f + 1) / frames))
-		tool.drag_pair(left, mid + Vector3.RIGHT * span * 0.5, mid + Vector3.LEFT * span * 0.5)
-		if s.has("follow"):
-			var at := b.position + Vector3.UP * b.shape.axes.y * b.size * 0.5
-			main.view(at + Lessons._v(s.follow) * b.size, at, false)
-	tool.end_grow(left)
-	tool.end_grow(right)
-
-
 ## Every wall standing now again, shifted by `offset` [x, z], one each `every` seconds, applied as the host's commands
 ## reach a visitor: checked, then played.
 func _arrive(s: Dictionary) -> void:
@@ -1705,26 +1678,6 @@ func _hold_pose(s: Dictionary) -> void:
 	hand.global_transform = main.rig.head.global_transform * Lessons.frame({"at": Lessons._v(s.at), "aim": Lessons._v(s.aim).normalized(), "roll": s.get("roll", 0.0)})
 	hand.held_still = true
 	await _frames(2)
-
-
-## Renders page `page`'s live picture alone at `size`, stepping it at 30 Hz and saving it at each of `times` as
-## "<name>-<time>", so its loop can be read frame by frame; with "see_through", its controllers' shells half clear.
-func _lesson_frames(s: Dictionary) -> void:
-	var scene := LessonScene.new(int(s.page), s.get("see_through", false))
-	scene.size = Vector2i(s.get("size", [768, 576])[0], s.get("size", [768, 576])[1])
-	scene.manual = true
-	add_child(scene)
-	scene.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	var dir: String = main.args.get("capture-dir", "user://captures")
-	for at in s.times:
-		while scene.t + 1.0 / 30.0 <= at:
-			scene.advance(1.0 / 30.0)
-		await RenderingServer.frame_post_draw
-		await RenderingServer.frame_post_draw
-		var path := dir.path_join("%s-%04.1f.png" % [s.name, at])
-		scene.get_texture().get_image().save_png(path)
-		print("capture: ", path)
-	scene.queue_free()
 
 
 ## Prints what the held book's live pages cost the GPU over `seconds`, from the renderer's timestamps around each
