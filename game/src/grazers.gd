@@ -403,7 +403,7 @@ func _gone(b: Band) -> bool:
 	return true
 
 
-## True once it is there; it shows `motion` on the way, paced to the ground covered. It turns
+## True once it is there; it shows `motion` on the way, paced to the ground covered. It gets to its feet and turns
 ## to face the way before it goes at `speed`.
 func _go(a: Node3D, goal: Vector3, speed: float, delta: float, motion := Motion.WALK) -> bool:
 	var to := Vector3(goal.x - a.position.x, 0, goal.z - a.position.z)
@@ -411,7 +411,7 @@ func _go(a: Node3D, goal: Vector3, speed: float, delta: float, motion := Motion.
 	var step := 0.0
 	if d > 1e-4:
 		Wildlife._face(a, to, delta * TURN)
-		var pace: float = lerpf(minf(speed, SIDLE), speed, maxf(_forward(a).dot(to / d), 0.0))
+		var pace: float = lerpf(minf(speed, SIDLE), speed, maxf(_forward(a).dot(to / d), 0.0)) * a.afoot()
 		step = minf(d, pace * delta)
 		a.position += to / d * step
 	a.position.y = Terrain.height_at(a.position.x, a.position.z)

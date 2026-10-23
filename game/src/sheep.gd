@@ -76,6 +76,11 @@ func eat(height: float, delta: float) -> void:
 	blend(IDLE.lerp(GRAZE, clampf((muzzle - height) / muzzle, 0.0, 1.0)), delta)
 
 
+## How far it has got to its feet, from 0 lying to 1 standing.
+func afoot() -> float:
+	return 1.0 - mode.w
+
+
 func radius() -> float:
 	return RADIUS * size
 

@@ -164,6 +164,10 @@ func eat(_height: float, _delta: float) -> void:
 	_play(EAT_CLIP)
 
 
+func afoot() -> float:
+	return 1.0
+
+
 func radius() -> float:
 	return metres(kind, RADIUS[kind] * size)
 

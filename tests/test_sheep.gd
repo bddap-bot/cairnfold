@@ -14,6 +14,7 @@ func _initialize() -> void:
 	Ground.install()
 	await process_frame
 	_the_sheep_is_one_small_mesh()
+	_a_lying_sheep_stands_before_it_walks()
 	await _fences_draw_a_flock()
 	await _the_same_seed_brings_the_same_flock()
 	_curved_walls_are_kept_off_where_they_curve()
@@ -141,6 +142,24 @@ func _a_resting(g: Glade, but: Array = []) -> Sheep:
 			room = near
 			best = s
 	return best
+
+
+## A lying sheep sent walking gets to its feet first, rather than sliding off on its belly.
+func _a_lying_sheep_stands_before_it_walks() -> void:
+	var grazers := Grazers.new(null, 1)
+	var s := Sheep.new(0.0, 1.0, Color.WHITE)
+	s.position = Terrain.ground(0, 0)
+	s.blend(Sheep.LIE, 100.0)
+	var lying := 0.0
+	for i in int(3.0 / STEP):
+		var was := s.position
+		grazers._go(s, Vector3(0, 0, -10), Herds.SPEED[Grazers.State.FLEE], STEP, Grazers.Motion.RUN)
+		if s.mode.w > 0.5:
+			lying += Vector2(s.position.x - was.x, s.position.z - was.z).length()
+	check(lying < 0.2, "a lying sheep sent running slides %.2f m before it is half up" % lying)
+	check(s.position.z < -2.0, "and then runs, %.1f m" % -s.position.z)
+	s.free()
+	grazers.free()
 
 
 func _the_sheep_is_one_small_mesh() -> void:
