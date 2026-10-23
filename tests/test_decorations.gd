@@ -8,10 +8,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	main.world.bounded = false
-	var driver := Driver.new(main, [{"op": "house", "at": [0, 0], "size": [8, 6], "seconds": 0.2}])
-	main.add_child(driver)
-	await driver.finished
-	driver.queue_free()
+	await play([{"op": "house", "at": [0, 0], "size": [8, 6], "seconds": 0.2}])
 	var w: Wall = main.tool.walls[0]
 	w.lay_now()
 	for style in DecorationLayout.STYLES.size():

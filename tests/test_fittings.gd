@@ -358,13 +358,13 @@ func _in_the_glade() -> void:
 	var fit: FittingTool = main.fitting_tool
 	var world: World = main.world
 	var steps_now := func() -> int: return world.stacks.get(world.me(), {"undo": []}).undo.size()
-	await _play([
+	await play([
 		{"op": "place", "x": 0, "z": 12},
 		{"op": "wall", "points": [[-8, 0], [-3, 0], [2, 0]], "seconds": 0.3},
 		{"op": "house", "at": [11.0, 0.0], "size": [6.0, 3.7], "seconds": 0.2},
 	])
 	world.submit({"op": "wall", "walls": [_tower(Terrain.ground(-12, 8), 2.0)]})
-	await _play([
+	await play([
 		{"op": "fence", "points": [[-6, 8], [0, 8], [5, 8]], "seconds": 0.3},
 	])
 	check(walls.size() == 4, "a wall, a house, a tower and a fence stand: %d" % walls.size())
@@ -515,7 +515,7 @@ func _in_the_glade() -> void:
 	_undo(world)
 	check(not tower.roof.flag, "undo lowers it")
 
-	await _play([{"op": "pave", "points": [[1.5, 12], [1.5, 4], [1.5, -4]], "radius": 0.6, "seconds": 0.3}])
+	await play([{"op": "pave", "points": [[1.5, 12], [1.5, 4], [1.5, -4]], "radius": 0.6, "seconds": 0.3}])
 	check(fence.layout.archways().size() == 1 and _kind(fence.layout, "gate").size() == 9, "a path through the fence opens a wooden gate")
 	var gate: Vector3 = fence.layout.point_at(fence.layout.archways()[0]) + Vector3.UP * 0.8
 	check(not _fit(fit, {"what": "opening", "style": WallLayout.DoorStyle.ARCHWAY, "y": 0.0, "wall": fence, "s": fence.layout.archways()[0], "point": gate}) and fence.layout.archways().size() == 1, "the arch leaves a path's gate to the path")
@@ -634,13 +634,6 @@ func _each_fitting_stands_alone() -> void:
 
 func _done() -> void:
 	finish()
-
-
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
 
 
 func _every_flag_triangle_faces_its_normal() -> void:

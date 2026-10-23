@@ -49,5 +49,3 @@ func _roughness(w: WallLayout) -> float:
 
 func _flat(_x: float, _z: float) -> float:
 	return 0.0
-
-

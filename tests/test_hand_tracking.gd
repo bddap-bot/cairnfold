@@ -84,5 +84,3 @@ func _shape(t: XRHandTracker, palm: Transform3D, gesture: String, source: XRHand
 		t.set_hand_joint_flags(j, XRHandTracker.HAND_JOINT_FLAG_POSITION_VALID | XRHandTracker.HAND_JOINT_FLAG_ORIENTATION_VALID)
 	t.hand_tracking_source = source
 	t.has_tracking_data = true
-
-

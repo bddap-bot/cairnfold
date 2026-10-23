@@ -26,7 +26,7 @@ func _run() -> void:
 	var bush := _spawned(flora.bushes)
 	await _takes_solid(tree, "a spawned tree")
 	await _takes_solid(bush, "a spawned bush")
-	await _play([{"op": "tree", "x": 6, "z": 6}, {"op": "wait", "seconds": 0.1}])
+	await play([{"op": "tree", "x": 6, "z": 6}, {"op": "wait", "seconds": 0.1}])
 	await _takes_solid(flora.placed("tree")[0], "a planted tree")
 	await _no_strike_through_hills()
 	await _takes_marks()
@@ -82,31 +82,31 @@ func _no_strike_through_hills() -> void:
 	var eye := _eye(parts)
 	var dir := _toward(parts)
 	var mid := eye + dir * eye.distance_to(_centre(parts)) * 0.5
-	await _play([{"op": "sculpt", "x": mid.x, "z": mid.z, "lift": 4.0, "radius": 1.5, "seconds": 0.5}])
+	await play([{"op": "sculpt", "x": mid.x, "z": mid.z, "lift": 4.0, "radius": 1.5, "seconds": 0.5}])
 	check(Terrain.height_at(mid.x, mid.z) > mid.y, "a hill rises between the eye and a tree")
 	check(not tool.aim(eye, dir).has("plants"), "the beam does not strike the tree behind the hill")
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 
 
 func _takes_marks() -> void:
-	await _play([
+	await play([
 		{"op": "pave", "points": [[-6, -12], [0, -12]], "radius": 0.8, "seconds": 0.4},
 		{"op": "paint", "tool": "stone", "points": [[8, -12], [11, -12]], "radius": 1.5, "seconds": 0.4},
 	])
 	check(world.state.paths.size() == 1 and world.state.grounds.size() == 1, "a path and a stone stroke are laid")
 	check(Ground.laid_bare(-3, -12) > 0.9 and Ground.stone(9.5, -12) > 0.5, "they show in the ground")
-	await _play([{"op": "delete", "x": -3, "z": -12}])
+	await play([{"op": "delete", "x": -3, "z": -12}])
 	check(world.state.paths.is_empty(), "delete takes the path it points at")
 	check(Ground.laid_bare(-3, -12) < 0.1, "the ground under the path is meadow again")
 	check(world.state.grounds.size() == 1, "and leaves the stone")
-	await _play([{"op": "delete", "x": 9.5, "z": -12}])
+	await play([{"op": "delete", "x": 9.5, "z": -12}])
 	check(world.state.grounds.is_empty() and Ground.stone(9.5, -12) < 0.1, "delete takes the stone stroke it points at")
 
 
 func _mows() -> void:
 	var meadow := Terrain.ground(4, 3)
 	check(not flora.plants_near(meadow, 0.5).is_empty(), "the meadow's own grass grows at the mown spot")
-	await _play([
+	await play([
 		{"op": "paint", "tool": "flowers", "points": [[-4, 3], [-3.5, 3]], "radius": 1.0, "seconds": 0.5},
 		{"op": "erase", "points": [[-4, 3], [4, 3]], "height": 6, "seconds": 0.6},
 	])
@@ -115,15 +115,15 @@ func _mows() -> void:
 	left = flora.plants_near(meadow, 0.5)
 	check(left.is_empty(), "and the meadow's own grass and flowers: %d left" % left.size())
 	check(not flora.plants_near(Terrain.ground(4, 6), 0.5).is_empty(), "beyond the ring the meadow stands")
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(not flora.plants_near(meadow, 0.5).is_empty(), "undo stands the mown meadow back up")
-	await _play([{"op": "press", "button": "A"}])
+	await play([{"op": "press", "button": "A"}])
 	check(flora.plants_near(meadow, 0.5).is_empty(), "redo mows it again")
 
 
 ## One held sweep across two trees, a wall, a path and the meadow takes them all, and one undo puts them all back.
 func _one_stroke() -> void:
-	await _play([
+	await play([
 		{"op": "wall", "points": [[2, -26], [2, -18]], "seconds": 0.6},
 		{"op": "tree", "x": -2, "z": -22},
 		{"op": "tree", "x": 6, "z": -22},
@@ -135,18 +135,18 @@ func _one_stroke() -> void:
 	check(trees.size() == 2 and world.state.paths.size() == 1, "two trees and a path stand in the stroke's way")
 	check(not flora.plants_near(grass, 0.5).is_empty(), "and the meadow grows at its far end")
 	var steps: int = world.stacks[world.me()].undo.size()
-	await _play([{"op": "erase", "points": [[-4, -22], [13, -22]], "height": 14, "seconds": 1.5}])
+	await play([{"op": "erase", "points": [[-4, -22], [13, -22]], "height": 14, "seconds": 1.5}])
 	check(not trees.any(_standing), "one held sweep takes both trees it passes over")
 	check(not Array(world.state.walls[wall.id].ruins).is_empty(), "breaks the wall it crosses into a ruin")
 	check(world.state.paths.is_empty(), "lifts the path")
 	check(flora.plants_near(grass, 0.5).is_empty(), "and mows the meadow")
 	check(world.stacks[world.me()].undo.size() == steps + 1, "as one undo step: %d" % (world.stacks[world.me()].undo.size() - steps))
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(trees.all(_standing), "one undo stands both trees back up")
 	check(Array(world.state.walls[wall.id].ruins).is_empty(), "makes the wall whole")
 	check(world.state.paths.size() == 1, "lays the path again")
 	check(not flora.plants_near(grass, 0.5).is_empty(), "and the meadow")
-	await _play([{"op": "press", "button": "A"}])
+	await play([{"op": "press", "button": "A"}])
 	check(not trees.any(_standing) and world.state.paths.is_empty(), "redo takes the whole stroke again")
 	var show := {"op": "show", "plants": {}, "on": false}
 	var gone := {"op": "take", "of": "paths", "ids": PackedInt32Array([999999])}
@@ -177,13 +177,6 @@ func _eye(parts: Array) -> Vector3:
 	var a: Vector3 = parts[0].anchor
 	var toward := Vector3(-a.x, 0, -a.z).normalized()
 	return Terrain.ground(a.x + toward.x * 3.0, a.z + toward.z * 3.0) + Vector3.UP * 1.6
-
-
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
 
 
 ## A swipe of a wide ring across the meadow in one frame mows the whole band it crossed, taking rays half a ring

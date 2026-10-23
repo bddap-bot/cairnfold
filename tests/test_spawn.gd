@@ -34,5 +34,3 @@ func _initialize() -> void:
 func _grounded(rig: Rig, what: String) -> void:
 	var h := rig.head.global_position
 	check(absf(rig.global_position.y - Terrain.height_at(h.x, h.z)) < 0.01 and Vector2(h.x, h.z).distance_to(Vector2(0, 4)) < 0.01, what)
-
-

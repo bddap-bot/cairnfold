@@ -59,10 +59,7 @@ func _run() -> void:
 	main.world.bounded = false
 	var rig: Rig = main.rig
 	var hand: Hand = rig.right
-	var d := Driver.new(main, [{"op": "place", "x": 0, "z": 6}, {"op": "house", "relative": true, "at": [0, 12], "size": [4.5, 4.5], "seconds": 0.5}])
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
+	await play([{"op": "place", "x": 0, "z": 6}, {"op": "house", "relative": true, "at": [0, 12], "size": [4.5, 4.5], "seconds": 0.5}])
 	var house: Wall = main.tool.walls[-1]
 	var was: Vector3 = WallTool.house_of(main.world.state.walls[house.id]).center
 	hand.tool = Hand.Tool.NONE

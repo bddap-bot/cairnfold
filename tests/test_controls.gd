@@ -15,21 +15,21 @@ func _run() -> void:
 	main.world.bounded = false
 	var rig: Rig = main.rig
 	var walls: Array[Wall] = main.tool.walls
-	await _play([
+	await play([
 		{"op": "place", "x": 0, "z": 6},
 		{"op": "wall", "points": [[-6, -1], [-3, -3.5], [1, -4.5], [5, -3]], "seconds": 0.5},
 		{"op": "wall", "points": [[-7, 3], [-6.5, 0]], "seconds": 0.3},
 	])
 	for b in ["B", "X", "Y", "dpad_up", "dpad_left", "dpad_right", "view", "menu", "left_bumper", "right_bumper", "left_stick_click", "right_stick_click", "left_stick_down", "left_stick_left", "left_stick_right", "right_stick_up", "right_stick_down"]:
-		await _play([{"op": "press", "button": b}])
+		await play([{"op": "press", "button": b}])
 	check(walls.size() == 2, "a tap of every button but undo and redo, and a flick of a stick that neither moves nor turns, leaves %d of 2 walls" % walls.size())
 	check(rig.left.tool == Hand.Tool.NONE and rig.right.tool == Hand.Tool.NONE, "a tap of a wheel button without a sweep empties both hands, holding %s and %s" % [Hand.Tool.keys()[rig.left.tool], Hand.Tool.keys()[rig.right.tool]])
 	rig.left.tool = Hand.Tool.BOOK
 	rig.right.tool = Hand.Tool.WALLS
 
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(walls.size() == 1, "a tap of D-pad down (Quest: left X) undoes one wall, leaving %d" % walls.size())
-	await _play([{"op": "press", "button": "A"}])
+	await play([{"op": "press", "button": "A"}])
 	check(walls.size() == 2, "a tap of A redoes it, %d walls" % walls.size())
 
 	var stood := rig.global_position
@@ -38,12 +38,12 @@ func _run() -> void:
 	for t in ToolWheel.paths(Hand.TREE):
 		if t is String:
 			continue
-		await _play([{"op": "pick", "hand": "left", "tool": Hand.Tool.keys()[t].to_lower()}])
+		await play([{"op": "pick", "hand": "left", "tool": Hand.Tool.keys()[t].to_lower()}])
 		check(rig.left.tool == t, "the left wheel picks %s, holding %s" % [Hand.Tool.keys()[t], Hand.Tool.keys()[rig.left.tool]])
 	check(rig.right.tool == Hand.Tool.WALLS, "the left wheel leaves the right hand's tool alone")
-	await _play([{"op": "wait", "seconds": 0.3}])
+	await play([{"op": "wait", "seconds": 0.3}])
 	check(rig.global_position.is_equal_approx(stood), "picking from the left wheel never teleports")
-	await _play([{"op": "pick", "hand": "right", "tool": "trees"}])
+	await play([{"op": "pick", "hand": "right", "tool": "trees"}])
 	check(rig.right.tool == Hand.Tool.TREES, "the right wheel picks trees")
 	await _sweep_by_hand(rig.left, at)
 
@@ -52,7 +52,7 @@ func _run() -> void:
 
 	var flora: Flora = main.flora_tool.flora
 	var patch := Vector3(9, 0, 9)
-	await _play([
+	await play([
 		{"op": "paint", "tool": "flowers", "points": [[9, 9], [9.5, 9]], "radius": 1.0, "seconds": 0.5},
 		{"op": "tree", "x": -9, "z": 9},
 		{"op": "delete", "x": 0, "z": -4.4},
@@ -63,22 +63,22 @@ func _run() -> void:
 	var ruined := func() -> int: return walls.filter(func(w: Wall) -> bool: return not w.layout.ruins.is_empty()).size()
 	check(walls.size() == 2 and ruined.call() == 1, "a tap of delete breaks a gap in the one wall it points at: %d walls, %d ruined" % [walls.size(), ruined.call()])
 
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(walls.size() == 2 and ruined.call() == 0, "undo closes the gap")
-	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
 	check(not tree[0].shown(), "the next undo takes the tree away")
 	check(_painted(flora, patch).is_empty(), "and the next the painted flowers")
-	await _play([{"op": "press", "button": "A"}])
+	await play([{"op": "press", "button": "A"}])
 	check(not _painted(flora, patch).is_empty(), "redo paints them back")
-	await _play([{"op": "tree", "x": 9, "z": -9}, {"op": "press", "button": "A"}])
+	await play([{"op": "tree", "x": 9, "z": -9}, {"op": "press", "button": "A"}])
 	check(not tree[0].shown() and walls.size() == 2, "a new edit after an undo drops the redo steps")
 
-	await _play([
+	await play([
 		{"op": "delete", "x": 9.2, "z": 9, "height": 14},
 		{"op": "delete", "x": -9, "z": 9},
 	])
 	check(_painted(flora, patch).is_empty(), "delete clears the painted patch it points at")
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(not _painted(flora, patch).is_empty(), "undo brings a deleted patch back")
 
 	await _carry_a_house(rig, walls)
@@ -119,7 +119,7 @@ func _sweep_by_hand(hand: Hand, at: Vector3) -> void:
 ## grip on the house carries it, its stones as laid, and raises it onto its plinth; the other hand's grip on it stretches
 ## it across and makes it taller upright; letting go sets it, one undo step.
 func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
-	await _play([{"op": "place", "x": 14, "z": 12}, {"op": "pick", "hand": "right", "tool": "house"}])
+	await play([{"op": "place", "x": 14, "z": 12}, {"op": "pick", "hand": "right", "tool": "house"}])
 	check(rig.right.tool == Hand.Tool.HOUSE, "the right ring picks the house")
 	var trackers := _track_hands()
 	var hold := _holder(rig, trackers)
@@ -227,14 +227,14 @@ func _carry_a_house(rig: Rig, walls: Array[Wall]) -> void:
 	await _laid(w)
 	await frames(2)
 	check(w.transform.is_equal_approx(Transform3D.IDENTITY), "laid again where it stands, carried no more")
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	var back := WallTool.house_of(data.call())
 	check(back.center.is_equal_approx(placed.center) and back.size == placed.size and back.rise == 0.0 and back.height == placed.height, "one undo puts it back where and as it was put up: %s" % back)
-	await _play([{"op": "press", "button": "A"}])
+	await play([{"op": "press", "button": "A"}])
 	check(WallTool.house_of(data.call()).center.is_equal_approx(sized.center), "redo carries it again")
-	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
 	check(walls.size() == before, "and the undo before takes the house away")
-	await _play([{"op": "press", "button": "A"}])
+	await play([{"op": "press", "button": "A"}])
 	check(walls.size() == before + 1, "redo puts it back")
 	for t in trackers.values():
 		XRServer.remove_tracker(t)
@@ -265,7 +265,7 @@ func _holder(rig: Rig, trackers: Dictionary) -> Callable:
 ## The tower tool in tracked hands takes up a round tower under a cone and sets it down; the style tool on its roof
 ## switches tile and thatch without changing its pitch or round footprint, each one undo step.
 func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
-	await _play([{"op": "place", "x": -14, "z": 12}, {"op": "pick", "hand": "right", "tool": "tower"}])
+	await play([{"op": "place", "x": -14, "z": 12}, {"op": "pick", "hand": "right", "tool": "tower"}])
 	check(rig.right.tool == Hand.Tool.TOWER, "the right ring picks the tower")
 	var trackers := _track_hands()
 	var hold := _holder(rig, trackers)
@@ -287,7 +287,7 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 	check(round.call(), "its wall runs round under its cone, %.1f m across" % (w.roof.radius * 2.0))
 	check(is_equal_approx(w.roof.radius * 2.0, WallTool.TOWER_SIZE.x) and Vector2(w.roof.center.x - spot.x, w.roof.center.z - spot.z).length() < 0.5, "where the hand pointed, %.1f m across" % (w.roof.radius * 2.0))
 	check(is_equal_approx(w.layout.height, WallTool.TOWER_HEIGHT), "and stands a tower's height: %.1f m" % w.layout.height)
-	await _play([{"op": "pick", "hand": "right", "tool": "style"}])
+	await play([{"op": "pick", "hand": "right", "tool": "style"}])
 	var picker: PaletteTool = main.palette_tool
 	var restyle := func(steps: int) -> void:
 		var roof := _centre(w) + Vector3.UP * w.layout.height
@@ -313,9 +313,9 @@ func _round_a_tower(rig: Rig, walls: Array[Wall]) -> void:
 	check(main.tool.thatch, "and builds laid after are thatched")
 	await restyle.call(-1)
 	check(not w.roof.thatch and is_equal_approx(w.roof.pitch, pitch) and round.call(), "a twist back tiles it, keeping pitch and round footprint")
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(w.roof.thatch and not w.roof.flat() and round.call(), "undo stands the thatched cone again")
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(not w.roof.thatch and not coat.call() and round.call(), "and the next tiles it again")
 	for t in trackers.values():
 		XRServer.remove_tracker(t)
@@ -333,7 +333,7 @@ static func _centre(w: Wall) -> Vector3:
 ## joining stretches the side nearest the line between the hands, and a round tower's diameter; its fittings, roof and a
 ## wall it meets follow.
 func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
-	await _play([
+	await play([
 		{"op": "place", "x": 12, "z": -7},
 		{"op": "wall", "points": [[22, -14], [17.5, -14]], "seconds": 0.3},
 		{"op": "house", "at": [12, -14], "size": [6, 4], "seconds": 0.3},
@@ -385,9 +385,9 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	await grip.call(&"right_hand", false)
 	await frames(4)
 	check(data.call().rise == 0.0, "lowered, it comes back down to its ground, no lower: %.1f" % data.call().rise)
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(is_equal_approx(data.call().rise, rise), "undo raises it again: %.1f" % data.call().rise)
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(data.call().rise == 0.0, "and once more puts it down")
 	await _laid(house)
 	var before: Dictionary = data.call().duplicate(true)
@@ -428,11 +428,11 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	side.lay_now()
 	check(side.layout.stones.size() < side_stones, "the wall it now meets lays nothing inside it: %d of %d stones" % [side.layout.stones.size(), side_stones])
 
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(at.call().size.is_equal_approx(Vector2(6, 4)) and data.call().openings == before.openings and data.call().roof.chimneys == before.roof.chimneys, "undo puts its width, window and chimney back: %s" % at.call().size)
 	side.lay_now()
 	check(side.layout.stones.size() == side_stones, "and the wall it met whole again")
-	await _play([{"op": "press", "button": "A"}])
+	await play([{"op": "press", "button": "A"}])
 	check(is_equal_approx(at.call().size.x, 10.5), "redo stretches it again: %s" % at.call().size)
 
 	var flank := Terrain.ground(13, -12) + Vector3.UP * 1.2
@@ -451,11 +451,11 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	var deep: Dictionary = at.call()
 	check(is_equal_approx(deep.size.x, 10.5) and deep.size.y > 7.0 and is_equal_approx(data.call().height, height), "hands along its flank stretch only its depth, past the 7 m it once stopped at: %s" % deep.size)
 
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	await frames(4)
 	check(is_equal_approx(at.call().size.y, 4.0), "undo takes the depth back: %s" % at.call().size)
 
-	await _play([
+	await play([
 		{"op": "house", "round": true, "at": [4, -15], "size": [3.4, 3.4], "seconds": 0.3},
 		{"op": "wait", "seconds": 0.3},
 	])
@@ -482,7 +482,7 @@ func _resize_a_built_house(rig: Rig, walls: Array[Wall]) -> void:
 	var round := WallTool.house_of(d)
 	var off := Array(d.points).filter(func(p: Vector3) -> bool: return absf(Vector2(p.x - round.center.x, p.z - round.center.z).length() - round.size.x * 0.5) > 0.01)
 	check(round.round and round.size.x > 5.0 and off.is_empty() and is_equal_approx(d.height, tall), "two hands spread a round tower's diameter, round and as tall: %s" % round.size)
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(is_equal_approx(WallTool.house_of(world.state.walls[tower.id]).size.x, 3.4), "undo narrows it back")
 	for t in trackers.values():
 		XRServer.remove_tracker(t)
@@ -534,10 +534,3 @@ func _a_loop_stays_a_wall(walls: Array[Wall]) -> void:
 
 func _painted(flora: Flora, at: Vector3) -> Array:
 	return flora.plants_near(at, 1.5).filter(func(p: Flora.Plant) -> bool: return p.group != 0)
-
-
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()

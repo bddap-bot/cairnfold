@@ -39,7 +39,7 @@ func _run() -> void:
 		for page in Lessons.PAGES:
 			await _fresh()
 			if page.has("setup"):
-				await _play(page.setup)
+				await play(page.setup)
 			var before := _read(page)
 			await _replay(page)
 			await frames(30)
@@ -256,10 +256,3 @@ func check(ok: bool, what: String) -> void:
 	if not ok:
 		failures += 1
 		print("FAIL: ", "bare hands: " + what if bare else what)
-
-
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()

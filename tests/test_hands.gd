@@ -10,7 +10,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	var rig: Rig = main.rig
-	await _play([{"op": "place", "x": 0, "z": 6}, {"op": "wait", "seconds": 0.2}])
+	await play([{"op": "place", "x": 0, "z": 6}, {"op": "wait", "seconds": 0.2}])
 	var tracker := XRPositionalTracker.new()
 	tracker.type = XRServer.TRACKER_CONTROLLER
 	tracker.name = &"right_hand"
@@ -33,7 +33,7 @@ func _run() -> void:
 	check((hand._sight.global_position - hand.body.global_position).dot(-hand.body.global_basis.z) > 0.1, "the wand reaches ahead of the hand, along its aim")
 	hand.tool = Hand.Tool.FLOWERS
 	await frames(3)
-	await _play([{"op": "pick", "hand": "right", "tool": "none"}])
+	await play([{"op": "pick", "hand": "right", "tool": "none"}])
 	check(hand.tool == Hand.Tool.NONE, "opening the wheel and letting go with nothing picked empties the hand")
 	var shown := 0
 	for i in 30:
@@ -48,7 +48,7 @@ func _run() -> void:
 	await frames(2)
 	var on_top := hand._models[Hand.Tool.NONE]
 	check(on_top.get_child_count() == 0, "nothing stands on an empty hand's controller")
-	await _play([{"op": "pick", "hand": "right", "tool": "dirt_path"}])
+	await play([{"op": "pick", "hand": "right", "tool": "dirt_path"}])
 	await frames(3)
 	check(hand.aiming(), "picking a tool brings its sight back")
 	await _teleport_draws_no_ray(rig)
@@ -69,10 +69,3 @@ func _teleport_draws_no_ray(rig: Rig) -> void:
 	await frames(3)
 	Hand.injected_sticks.erase(rig.left.tracker)
 	rig.left.held_still = false
-
-
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()

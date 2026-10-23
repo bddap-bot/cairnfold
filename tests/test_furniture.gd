@@ -70,14 +70,11 @@ func _held_preview() -> void:
 
 func _run() -> void:
 	main.world.bounded = false
-	var driver := Driver.new(main, [
+	await play([
 		{"op": "house", "at": [0, 0], "size": [7, 5], "seconds": 0.2},
 		{"op": "house", "at": [12, 0], "size": [6, 5], "seconds": 0.2, "rise": 0.6},
 		{"op": "roof", "index": 1, "pitch": 0.0},
 	])
-	main.add_child(driver)
-	await driver.finished
-	driver.queue_free()
 	var house: Wall = main.tool.walls[0]
 	var decked: Wall = main.tool.walls[1]
 	house.lay_now()

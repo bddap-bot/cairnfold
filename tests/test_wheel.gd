@@ -146,5 +146,3 @@ func _the_wheel_faces_the_head_wherever_the_hand_is() -> void:
 	check(ahead.y.dot(Vector3.UP) > 0.9999 and ahead.z.dot(Vector3.BACK) > 0.9999, "level with the head it stands upright")
 	var side := ToolWheel.facing(head + Vector3(0.4, -0.3, -0.3), head, forward)
 	check(side.z.dot((head - (head + Vector3(0.4, -0.3, -0.3))).normalized()) > 0.9999, "off to one side it still faces the head")
-
-

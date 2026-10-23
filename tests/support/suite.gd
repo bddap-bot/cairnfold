@@ -25,3 +25,15 @@ func boot_main() -> void:
 func frames(n: int) -> void:
 	for i in n:
 		await process_frame
+
+
+## Runs `steps` through a Driver and waits for it, connecting before it starts since a run whose every step returns at
+## once finishes inside add_child.
+func play(steps: Array) -> void:
+	var d := Driver.new(main, steps)
+	var ran := [false]
+	d.finished.connect(func() -> void: ran[0] = true)
+	main.add_child(d)
+	while not ran[0]:
+		await process_frame
+	d.queue_free()

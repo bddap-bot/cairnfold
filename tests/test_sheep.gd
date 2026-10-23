@@ -572,5 +572,3 @@ func _a_sheep_off_its_grass_goes_back() -> void:
 	var off := _off_fence(fence, s.position)
 	check(s.state != Herds.State.LEAVE and off.x <= Herds.BAND.y + 0.6 and off.y == flock.side, "with nothing in its way it walks back to its grass, %.1f m out" % off.x)
 	await _teardown(g)
-
-

@@ -34,5 +34,3 @@ func _changes(layout: RefCounted, changes: Dictionary) -> void:
 			copy.set(field, changes[field])
 		check(not layout.same_inputs(copy) and not copy.same_inputs(layout), "%s invalidates reuse in either direction" % field)
 		check(copy.same_inputs(copy.inputs()), "%s survives an independent worker copy" % field)
-
-

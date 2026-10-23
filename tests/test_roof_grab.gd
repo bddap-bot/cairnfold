@@ -18,10 +18,7 @@ func _run() -> void:
 	await process_frame
 	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
 	main.world.bounded = false
-	var driver := Driver.new(main, [{"op": "house", "at": [0, 0], "size": [6, 4], "seconds": 0.1}])
-	main.add_child(driver)
-	await driver.finished
-	driver.queue_free()
+	await play([{"op": "house", "at": [0, 0], "size": [6, 4], "seconds": 0.1}])
 	await frames(30)
 	var rig: Rig = main.rig
 	for hand in rig.hands:
@@ -145,19 +142,12 @@ func _eaves() -> void:
 	check(is_equal_approx(main.world.state.walls[w.id].roof.overhang, pulled), "letting go sets the eaves: %.2f" % main.world.state.walls[w.id].roof.overhang)
 
 
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
-
-
 ## A storey standing on a carried house, and a wall on that storey, ride along with it and are set where it is let go,
 ## one undo step; a grip that only trembles sends nothing.
 func _storeys_ride_along() -> void:
 	var tool: WallTool = main.tool
 	var world: World = main.world
-	await _play([
+	await play([
 		{"op": "budget", "bounded": false},
 		{"op": "house", "at": [20, -20], "size": [6, 5], "seconds": 0.2},
 		{"op": "house", "at": [20, -20], "size": [4, 3.5], "seconds": 0.2, "on": true},
@@ -221,13 +211,13 @@ func _storeys_ride_along() -> void:
 func _edits_made_meanwhile_stay() -> void:
 	var tool: WallTool = main.tool
 	var world: World = main.world
-	await _play([{"op": "house", "at": [-20, -20], "size": [6, 4], "seconds": 0.2}])
+	await play([{"op": "house", "at": [-20, -20], "size": [6, 4], "seconds": 0.2}])
 	var w: Wall = tool.walls[-1]
 	tool.take_build(w)
 	var to: Dictionary = tool.held_at.duplicate()
 	to.center += Vector3(2, 0, 0)
 	tool.stand_build(to)
-	await _play([{"op": "wait", "seconds": 0.1}, {"op": "fit", "what": "opening", "index": -1, "s": 3.0, "y": 1.0}, {"op": "wait", "seconds": 0.1}])
+	await play([{"op": "wait", "seconds": 0.1}, {"op": "fit", "what": "opening", "index": -1, "s": 3.0, "y": 1.0}, {"op": "wait", "seconds": 0.1}])
 	check(world.state.walls[w.id].openings.size() == 1, "a window opens in the house in hand")
 	var stood: PackedVector3Array = world.state.walls[w.id].points
 	var wider: Dictionary = tool.held_at.duplicate()

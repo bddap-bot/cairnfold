@@ -223,13 +223,13 @@ func _settles(w: Wall, what: String) -> void:
 
 
 func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
-	await _play([
+	await play([
 		{"op": "place", "x": 0, "z": 8},
 		{"op": "wall", "points": [[-4, -2], [0, -3], [4, -2]], "seconds": 0.4},
 	])
 	var w: Wall = main.tool.walls[-1]
 	var mid := w.layout.samples[w.layout.samples.size() / 2]
-	await _play([{"op": "sculpt", "x": mid.x, "z": mid.z, "lift": 2.5, "radius": 5.0, "seconds": 0.5}])
+	await play([{"op": "sculpt", "x": mid.x, "z": mid.z, "lift": 2.5, "radius": 5.0, "seconds": 0.5}])
 	await _settles(w, "a wall the ground rose under settles")
 	check(_on_ground(w) < 0.01, "after the ground rose under it every wall sample sits on the ground, worst gap %f" % _on_ground(w))
 	check(w.layout.samples[w.layout.samples.size() / 2].y > mid.y + 2.0, "the wall rose with the hill")
@@ -239,7 +239,7 @@ func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
 		if o.y < Terrain.height_at(o.x, o.z) - 0.6:
 			buried += 1
 	check(buried == 0, "no stone is left buried under the raised ground, %d are" % buried)
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	await _settles(w, "a wall the ground sank back under settles")
 	check(_on_ground(w) < 0.01 and absf(w.layout.samples[w.layout.samples.size() / 2].y - mid.y) < 0.01, "undoing the hill sets the wall back down on the ground")
 
@@ -280,10 +280,3 @@ func _a_lay_reads_the_ground_it_started_on() -> void:
 	Terrain.write(cells, before)
 	w.rebuild()
 	w.lay_now()
-
-
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()

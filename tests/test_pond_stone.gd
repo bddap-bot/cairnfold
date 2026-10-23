@@ -21,13 +21,6 @@ func _run() -> void:
 	finish()
 
 
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
-
-
 ## Lets the fills, refills and walls' rebuilds on worker threads finish, and the commands waiting on them apply.
 func _settle() -> void:
 	main.water_tool.settle()
@@ -39,7 +32,7 @@ func _settle() -> void:
 
 
 func _dig(x: float, z: float) -> void:
-	await _play([{"op": "dig", "x": x, "z": z, "seconds": 1.8}, {"op": "dig", "x": x + 2.5, "z": z, "seconds": 1.8}])
+	await play([{"op": "dig", "x": x, "z": z, "seconds": 1.8}, {"op": "dig", "x": x + 2.5, "z": z, "seconds": 1.8}])
 	await _settle()
 
 
@@ -61,7 +54,7 @@ func _stone_lines_a_pond() -> void:
 	var cells := pond.pond.cells.size()
 	var hit: Variant = Terrain.raycast(Vector3(-29, level + 3, 33), Vector3(0, -3, -3).normalized())
 	check(hit != null and hit.y < level - 0.2, "the stone tool's ray reaches the bed through the water")
-	await _play([{"op": "paint", "tool": "stone", "hand": "right", "points": [[-32, 30], [-26, 30]], "radius": 2.5, "seconds": 1.5}])
+	await play([{"op": "paint", "tool": "stone", "hand": "right", "points": [[-32, 30], [-26, 30]], "radius": 2.5, "seconds": 1.5}])
 	await _settle()
 	check(Ground.stone(-29, 30) > 0.99 and Ground.stone(-31.5, 30) > 0.99, "stone lies on the bed (%.2f)" % Ground.stone(-29, 30))
 	check(water.pond_at(-29, 30) == pond and pond.pond.level == level and pond.pond.cells.size() == cells, "and the pond is as it was dug")
@@ -80,7 +73,7 @@ func _a_wall_drawn_across_a_pond_arches_over_it() -> void:
 	check(pond != null, "a pond to cross")
 	if pond == null:
 		return
-	await _play([{"op": "wall", "points": [[25, 30], [37, 30]], "seconds": 0.5}])
+	await play([{"op": "wall", "points": [[25, 30], [37, 30]], "seconds": 0.5}])
 	await _settle()
 	var w := _wall_at(31, 30)
 	check(w != null, "a wall across it")
@@ -99,7 +92,7 @@ func _a_wall_drawn_across_a_pond_arches_over_it() -> void:
 
 
 func _a_pond_dug_under_a_wall_opens_its_arches() -> void:
-	await _play([{"op": "wall", "points": [[-36, -30], [-24, -30]], "seconds": 0.5}])
+	await play([{"op": "wall", "points": [[-36, -30], [-24, -30]], "seconds": 0.5}])
 	await _settle()
 	var w := _wall_at(-30, -30)
 	var dry := var_to_str(w.layout.stones)

@@ -30,13 +30,6 @@ func _run() -> void:
 	finish()
 
 
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
-
-
 func _settled() -> void:
 	main.water_tool.settle()
 	await process_frame
@@ -61,7 +54,7 @@ func _kept() -> PackedByteArray:
 
 
 func _build() -> void:
-	await _play([
+	await play([
 		{"op": "place", "x": 0, "z": 8},
 		{"op": "wall", "points": [[-6, -2], [-1, -3]], "seconds": 0.3},
 		{"op": "tree", "x": -6, "z": 4},
@@ -81,9 +74,9 @@ func _build() -> void:
 func _letting_go_early_wipes_nothing() -> void:
 	var seq := world.seq
 	var picture := _picture()
-	await _play([{"op": "wipe", "seconds": 1.5}])
+	await play([{"op": "wipe", "seconds": 1.5}])
 	check(world.seq == seq and _picture() == picture, "letting go before the charge is full wipes nothing")
-	await _play([{"op": "wipe", "seconds": 3.0, "dir": [0, -1, -1]}])
+	await play([{"op": "wipe", "seconds": 3.0, "dir": [0, -1, -1]}])
 	check(world.seq == seq and _picture() == picture, "nor does holding the trigger at the ground")
 	check(not main.delete_tool.busy(), "and no charge is left behind")
 
@@ -93,7 +86,7 @@ func _a_wipe_empties_every_layer_and_undo_brings_it_all_back() -> void:
 	var picture := _picture()
 	var season := world.palette.season
 	var seq := world.seq
-	await _play([{"op": "wipe", "seconds": 2.5}])
+	await play([{"op": "wipe", "seconds": 2.5}])
 	await _settled()
 	check(world.seq == seq + 1, "a full charge wipes in one command")
 	var s := world.state
@@ -109,11 +102,11 @@ func _a_wipe_empties_every_layer_and_undo_brings_it_all_back() -> void:
 	check(flora.grass.size() == flora.grass.kept and flora.flowers.size() == flora.flowers.kept and flora.trunks.size() == flora.trunks.kept, "and nothing painted or planted")
 	check(world.palette.season == season, "the garden keeps its season")
 	var wiped := _picture()
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	await _settled()
 	check(world.seq == seq + 2 and _picture() == picture, "one undo brings the whole garden back")
 	check(_kept() == before, "and keeps it exactly as it was kept before the wipe")
-	await _play([{"op": "press", "button": "A"}])
+	await play([{"op": "press", "button": "A"}])
 	await _settled()
 	check(_picture() == wiped, "redo wipes it again")
 	world.restore({"seq": 0, "cmds": []})

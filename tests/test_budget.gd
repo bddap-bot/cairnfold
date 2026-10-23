@@ -75,13 +75,6 @@ func _stone_ground_counts_its_square_metres() -> void:
 	check(is_equal_approx(Budget.cost_ms({"stone_m2": 25600.0}), q.stone / 1000.0), "the whole meadow in stone costs a view full of it")
 
 
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
-
-
 func _settled() -> void:
 	main.water_tool.settle()
 	for i in 3:
@@ -152,7 +145,7 @@ func _counts_follow_placements_and_deletions() -> void:
 	check(is_equal_approx(full - world.fill(), Budget.COSTS.tree / 1000.0 / Budget.CAPACITY_MS), "clearing a meadow tree frees one tree's share of the bar: %.4f to %.4f" % [full, world.fill()])
 	world._order({"op": "undo"}, world.me())
 	check(is_equal_approx(world.fill(), full), "and putting it back takes the share again")
-	await _play([
+	await play([
 		{"op": "place", "x": 0, "z": 8},
 		{"op": "wall", "points": [[-6, -2], [-1, -3]], "seconds": 0.3},
 		{"op": "tree", "x": -6, "z": 4},
@@ -180,7 +173,7 @@ func _counts_follow_placements_and_deletions() -> void:
 	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([wall_id])})
 	await _settled()
 	check(is_equal_approx(world.units.get("wall_m2", 0.0), with_wall.wall_m2 - wall_units.wall_m2), "deleting a wall frees what it counted")
-	await _play([{"op": "delete", "x": -6, "z": 4, "height": 3.0}])
+	await play([{"op": "delete", "x": -6, "z": 4, "height": 3.0}])
 	await _settled()
 	check(world.units.get("tree", 0) == meadow.tree, "deleting the tree frees it: %s" % world.units)
 	check(_same(world.units, _recount()), "after deletions the count still matches the garden")
@@ -188,22 +181,22 @@ func _counts_follow_placements_and_deletions() -> void:
 		world.undo()
 		await _settled()
 	check(_same(world.units, _recount()), "undo and redo keep the count matching the garden")
-	await _play([{"op": "bare"}])
+	await play([{"op": "bare"}])
 	await _settled()
 	check(_same(world.units, _recount()) and not world.units.has("wall_m2") and not world.units.has("flower"), "a wipe leaves nothing counted but the meadow: %s" % world.units)
 	world.undo()
 	await _settled()
 	check(_same(world.units, _recount()), "undoing the wipe counts the garden it brings back")
-	await _play([{"op": "bare"}])
+	await play([{"op": "bare"}])
 	await _settled()
 
 
 func _arches_reserve_room_until_removed() -> void:
-	await _play([
+	await play([
 		{"op": "wall", "points": [[-6, -20], [6, -20]], "seconds": 0.1},
 	])
 	var plain := world.units.duplicate()
-	await _play([{"op": "fit", "what": "opening", "index": 0, "s": 6.0, "style": 1}])
+	await play([{"op": "fit", "what": "opening", "index": 0, "s": 6.0, "style": 1}])
 	await _settled()
 	check(world.fill() > Budget.fill(plain), "an arch reserves GPU room beyond its intact stone wall")
 	var arched := world.units.duplicate()
@@ -213,10 +206,10 @@ func _arches_reserve_room_until_removed() -> void:
 	world.redo()
 	await _settled()
 	check(_same(world.units, arched), "redoing an arch reserves its room again")
-	await _play([{"op": "fit", "what": "opening", "index": 0, "s": 6.0, "style": 1}])
+	await play([{"op": "fit", "what": "opening", "index": 0, "s": 6.0, "style": 1}])
 	await _settled()
 	check(_same(world.units, plain), "removing an arch frees its room")
-	await _play([{"op": "bare"}])
+	await play([{"op": "bare"}])
 	await _settled()
 
 
@@ -247,7 +240,7 @@ func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 	world.submit({"op": "reshape", "of": "walls", "id": tall_id, "data": {"height": 9.0}})
 	await _settled()
 	check(world.state.walls[tall_id].height == 4.5, "pulling a wall taller than the budget allows is turned down")
-	await _play([{"op": "bare"}])
+	await play([{"op": "bare"}])
 	await _settled()
 
 
@@ -285,7 +278,7 @@ func _painting_stops_at_the_budget() -> void:
 	var walls: Array = world.state.walls.keys()
 	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([walls.max()])})
 	await _settled()
-	await _play([{"op": "paint", "tool": "stone", "points": [[-40, -20], [40, -20], [40, -30], [-40, -30], [-40, -40], [40, -40]], "radius": 3.0, "seconds": 8.0}])
+	await play([{"op": "paint", "tool": "stone", "points": [[-40, -20], [40, -20], [40, -30], [-40, -30], [-40, -40], [40, -40]], "radius": 3.0, "seconds": 8.0}])
 	await _settled()
 	check(world.units.get("stone_m2", 0.0) * Budget.COSTS.stone_m2 > Budget.COSTS.stone, "a long stroke of stone lays more than a view full")
 	check(is_equal_approx(Budget.cost_ms(world.units) - Budget.cost_ms({"wall_m2": world.units.wall_m2}), Budget.COSTS.stone / 1000.0), "and is charged a view full of it")
@@ -293,13 +286,13 @@ func _painting_stops_at_the_budget() -> void:
 		world.submit({"op": "take", "of": "grounds", "ids": PackedInt32Array([id])})
 	await _settled()
 	check(not world.units.has("stone_m2"), "taking it away frees it")
-	await _play([{"op": "paint", "tool": "flowers", "points": [[-20, 20], [20, 20]], "radius": 3.0, "seconds": 6.0}])
+	await play([{"op": "paint", "tool": "flowers", "points": [[-20, 20], [20, 20]], "radius": 3.0, "seconds": 6.0}])
 	await _settled()
 	check(world.fill() <= 1.0, "a long paint stroke stops at the budget: %.3f" % world.fill())
 	check(world.units.get("flower", 0) > 0, "it painted up to it")
 	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([world.state.walls.keys().max()])})
 	await _settled()
-	await _play([{"op": "paint", "tool": "stone", "points": [[-40, -20], [40, -20], [40, -30], [-40, -30]], "radius": 3.0, "seconds": 6.0}])
+	await play([{"op": "paint", "tool": "stone", "points": [[-40, -20], [40, -20], [40, -30], [-40, -30]], "radius": 3.0, "seconds": 6.0}])
 	await _settled()
 	check(world.fill() <= 1.0 and world.fill() > 0.97, "where a view full of stone would not fit, a long stroke of it stops at the budget: %.3f" % world.fill())
 	check(world.units.get("stone_m2", 0.0) > 0.0, "it painted stone up to it")
@@ -307,7 +300,7 @@ func _painting_stops_at_the_budget() -> void:
 
 func _joining_does_not_change_the_budget() -> void:
 	var meadow := world.units.duplicate()
-	await _play([{"op": "place", "x": 0, "z": 8}, {"op": "house", "at": [0, 0], "size": [2.4, 2.4], "seconds": 0.3}])
+	await play([{"op": "place", "x": 0, "z": 8}, {"op": "house", "at": [0, 0], "size": [2.4, 2.4], "seconds": 0.3}])
 	check(world.state.walls.size() == 1, "the solo host can place a small stone house")
 	var house := Budget.add(world.units.duplicate(), meadow, -1.0)
 	var branches: Array[Node] = []

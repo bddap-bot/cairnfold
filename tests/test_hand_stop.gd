@@ -14,12 +14,9 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	var d := Driver.new(main, [
+	await play([
 		{"op": "wall", "points": [[-3, -6], [3, -6]], "seconds": 0.2},
 	])
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
 	var wall: Wall = main.tool.walls[0]
 	await _the_ground_stops_a_hand()
 	await _a_wall_stops_a_hand_that_catches_up_when_it_comes_back(wall)

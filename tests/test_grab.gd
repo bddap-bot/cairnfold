@@ -132,10 +132,7 @@ func _grip_on_a_pond_moves_its_bed(hand: Hand) -> void:
 	var water: Water = main.water
 	hand.global_basis = Basis.looking_at(Vector3(1, -0.6, 0.5))
 	var spot: Vector3 = Terrain.raycast(hand.global_position, -hand.global_basis.z)
-	var d := Driver.new(main, [{"op": "dig", "x": spot.x, "z": spot.z, "seconds": 1.5}])
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
+	await play([{"op": "dig", "x": spot.x, "z": spot.z, "seconds": 1.5}])
 	hand.tool = Hand.Tool.FLOWERS
 	await _frames()
 	while not main.world.idle():
@@ -345,10 +342,7 @@ func _two_hands_stretch_an_opening(rig: Rig) -> void:
 
 
 func _run() -> void:
-	var d := Driver.new(main, [{"op": "wall", "points": [[-3, 0], [3, 0]], "seconds": 0.2}])
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
+	await play([{"op": "wall", "points": [[-3, 0], [3, 0]], "seconds": 0.2}])
 	var rig: Rig = main.rig
 	rig.left.tool = Hand.Tool.FLOWERS
 	for hand in rig.hands:

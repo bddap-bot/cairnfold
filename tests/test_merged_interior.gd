@@ -9,10 +9,7 @@ func _initialize() -> void:
 func _run() -> void:
 	main.world.bounded = false
 	var steps := Driver.read("res://../demo/merged-interior.json").slice(0, 7)
-	var driver := Driver.new(main, steps)
-	main.add_child(driver)
-	await driver.finished
-	driver.queue_free()
+	await play(steps)
 	var lamps: Lamps = main.fitting_tool.lamps
 	lamps.light(main.tool.walls)
 	lamps.finish()
@@ -37,10 +34,7 @@ func _run() -> void:
 	var old_roof := Vector3(0, roof.height_at(0, 2), 2)
 	var roof_contact := HandStop.Near.gather(main.tool, main.flora_tool.flora, AABB(old_roof - Vector3.ONE, Vector3.ONE * 2))
 	check(not roof_contact.solid(old_roof), "hand contact skips the removed inner roof slope")
-	var seam := Driver.new(main, [{"op": "fit", "what": "lantern", "index": 0, "s": 15.5, "y": 1.9, "side": 1}])
-	main.add_child(seam)
-	await seam.finished
-	seam.queue_free()
+	await play([{"op": "fit", "what": "lantern", "index": 0, "s": 15.5, "y": 1.9, "side": 1}])
 	var w: Wall = main.tool.walls[0]
 	check(w.layout.lanterns.size() == 2 and w.layout.flames.size() == 1, "merge removes the seam lantern geometry and flame")
 	var f := w.layout.frame_at(15.5)

@@ -10,10 +10,7 @@ func _run() -> void:
 	await process_frame
 	# Fixture geometry exceeds capacity; test_budget covers the shared limit.
 	main.world.bounded = false
-	var d := Driver.new(main, [{"op": "house", "at": [0, 0], "size": [6, 5], "seconds": 0.2}])
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
+	await play([{"op": "house", "at": [0, 0], "size": [6, 5], "seconds": 0.2}])
 	var w: Wall = main.tool.walls[0]
 	w.lay_now()
 	var f := w.layout.frame_at(2)
@@ -110,19 +107,13 @@ func _other_fittings(w: Wall) -> void:
 	w.lay_now()
 	await _takes_kind(w, "opening")
 	await _takes_kind(w, "chimney")
-	var d := Driver.new(main, [{"op": "wall", "points": [[-10, -8], [-2, -8]], "seconds": 0.2}])
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
+	await play([{"op": "wall", "points": [[-10, -8], [-2, -8]], "seconds": 0.2}])
 	var wall: Wall = main.tool.walls[-1]
 	main.world.submit({"op": "reshape", "of": "walls", "id": wall.id, "data": {"flags": PackedFloat32Array([2]), "openings": PackedVector4Array([5].map(WallLayout.archway))}})
 	wall.lay_now()
 	await _takes_kind(wall, "flag")
 	await _takes_kind(wall, "opening")
-	d = Driver.new(main, [{"op": "house", "at": [10, 6], "size": [4, 4], "round": true, "seconds": 0.2}])
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
+	await play([{"op": "house", "at": [10, 6], "size": [4, 4], "round": true, "seconds": 0.2}])
 	var tower: Wall = main.tool.walls[-1]
 	main.world.submit({"op": "reshape", "of": "walls", "id": tower.id, "data": {"roof": {"flag": true}}})
 	tower.lay_now()

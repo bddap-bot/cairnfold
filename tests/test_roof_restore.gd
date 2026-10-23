@@ -14,14 +14,11 @@ func _initialize() -> void:
 func _run() -> void:
 	await process_frame
 	world = main.world
-	var d := Driver.new(main, [
+	await play([
 		{"op": "place", "x": 0, "z": 8},
 		{"op": "pick", "hand": "right", "tool": "house"},
 		{"op": "house", "at": [-4, -2], "size": [5, 4], "seconds": 0.5},
 	])
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
 	world.submit({"op": "wipe"})
 	world.submit({"op": "undo"})
 	var house: Wall = main.tool.walls[0]
@@ -34,5 +31,3 @@ func _run() -> void:
 	house.lay_now()
 	check(picker.aim_style(from, dir).get("restyle") == PaletteTool.Restyle.ROOF, "once laid, the style tool aims at its roof")
 	finish()
-
-

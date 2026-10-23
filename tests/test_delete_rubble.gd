@@ -7,10 +7,7 @@ func _initialize() -> void:
 
 
 func _run() -> void:
-	var d := Driver.new(main, [{"op": "wall", "points": [[-8, 0], [8, 0]], "seconds": 0.2}])
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
+	await play([{"op": "wall", "points": [[-8, 0], [8, 0]], "seconds": 0.2}])
 	var w: Wall = main.tool.walls[0]
 	w.lay_now()
 	var id := w.id

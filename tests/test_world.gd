@@ -348,7 +348,7 @@ func _ghosts_go_when_their_command_settles() -> void:
 	var tool: WallTool = main.tool
 	var ghosts := func() -> int: return main.get_node("Builds").get_children().filter(func(n: Node) -> bool: return n is Wall and not n.is_queued_for_deletion()).size()
 	var before: int = ghosts.call()
-	await _play([{"op": "wall", "points": [[-40, 20], [-35, 20]], "seconds": 0.2}])
+	await play([{"op": "wall", "points": [[-40, 20], [-35, 20]], "seconds": 0.2}])
 	check(ghosts.call() == before + 1, "a drawn wall leaves one wall standing, not its ghost as well (%d more)" % (ghosts.call() - before))
 	var settled := [false]
 	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([9999])}, func() -> void: settled[0] = true)
@@ -396,13 +396,6 @@ func _restore_forgets_history() -> void:
 	world.restore({"seq": 0, "cmds": []})
 	check(flora.groups[0].all(func(p: Flora.Plant) -> bool: return p.shown()), "the meadow stands whole again")
 	check(flora.grass.size() == flora.grass.kept and flora.ghost_grass.size() == 0, "with no painted or ghost plants left")
-
-
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
 
 
 func _snapshot_rebuilds_the_garden() -> void:

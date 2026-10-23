@@ -25,20 +25,13 @@ func _run() -> void:
 	finish()
 
 
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
-
-
 func _png() -> PackedByteArray:
 	return Image.create(64, 48, false, Image.FORMAT_RGB8).save_png_to_buffer()
 
 
 func _a_photo_carries_where_and_how_and_opens_as_its_garden() -> void:
 	var bare := main.world.snapshot()
-	await _play([
+	await play([
 		{"op": "wall", "points": [[-6, -4], [6, -4]], "seconds": 0.3},
 		{"op": "tree", "x": 4, "z": 4},
 		{"op": "paint", "tool": "flowers", "points": [[-4, 4], [-3, 4]], "radius": 1.0, "seconds": 0.3},

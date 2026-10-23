@@ -13,16 +13,6 @@ func _run() -> void:
 	finish()
 
 
-func _play(step: Dictionary) -> void:
-	var d := Driver.new(main, [step])
-	var ran := [false]
-	d.finished.connect(func() -> void: ran[0] = true)
-	main.add_child(d)
-	while not ran[0]:
-		await process_frame
-	d.queue_free()
-
-
 ## Every teleport in `demo/standing.json` lets go on what was built, never the ground: a full stick stands the player
 ## on the top surface beneath, and an eased one floats over it.
 func _tour() -> void:
@@ -32,7 +22,7 @@ func _tour() -> void:
 		if step.op in ["capture", "quit"]:
 			continue
 		step.erase("capture")
-		await _play(step)
+		await play([step])
 		if step.op != "aim":
 			continue
 		aims += 1
@@ -60,8 +50,8 @@ func _stress_wall_walk() -> void:
 	var village := first
 	while steps[village].op != "village":
 		village -= 1
-	await _play({"op": "clear"})
-	await _play(steps[0])
+	await play([{"op": "clear"}])
+	await play([steps[0]])
 	var views := 0
 	for k in range(village, steps.size()):
 		var step: Dictionary = steps[k]
@@ -69,7 +59,7 @@ func _stress_wall_walk() -> void:
 			break
 		if step.op == "capture":
 			continue
-		await _play(step)
+		await play([step])
 		if step.op != "view" or not main.metrics.info.label.begins_with("standing/"):
 			continue
 		views += 1

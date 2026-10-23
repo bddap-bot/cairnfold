@@ -424,12 +424,8 @@ func _lay_walls() -> void:
 
 
 func _play(script: Array) -> void:
-	var driver := Driver.new(main, script)
-	main.add_child(driver)
-	await driver.finished
-	driver.queue_free()
-	for f in 10:
-		await process_frame
+	await play(script)
+	await frames(10)
 	_lay_walls()
 
 

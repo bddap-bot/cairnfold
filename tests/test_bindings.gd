@@ -140,5 +140,3 @@ func _a_flick_is_one_way() -> void:
 	check(turns == 2 and seen == ["primary_right", "primary_right", "primary_right", "primary_right", "", "primary_right", ""], "a flick right drifting down stays right until the stick comes back: %d turns, %s" % [turns, seen])
 	for h in hands.values():
 		h.free()
-
-

@@ -182,25 +182,18 @@ func _the_schema_checks_ruins() -> void:
 	check(Commands._wall(missing) == null, "a wall states its ruins")
 
 
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
-
-
 func _the_eraser_sweeps_a_ruin_and_undo_mends_it() -> void:
 	var world: World = main.world
 	var walls: Array[Wall] = main.tool.walls
-	await _play([{"op": "wall", "points": [[-10, -10], [10, -10]], "seconds": 0.5}])
+	await play([{"op": "wall", "points": [[-10, -10], [10, -10]], "seconds": 0.5}])
 	check(walls.size() == 1, "a long wall stands")
 	var w := walls[0]
 	var stones := w.layout.stones.size()
-	await _play([{"op": "erase", "points": [[-2, -10], [2, -10]], "seconds": 0.3}])
+	await play([{"op": "erase", "points": [[-2, -10], [2, -10]], "seconds": 0.3}])
 	var ruins: PackedVector2Array = world.state.walls[w.id].ruins
 	check(ruins.size() == 1 and ruins[0].y - ruins[0].x > 3.5 and ruins[0].y - ruins[0].x < 4.5, "a sweep along it breaks that stretch away: %s" % ruins)
 	check(Array(w.layout.ruins) == Array(ruins) and w.layout.stones.size() < stones, "the wall shows the ruin it holds")
-	await _play([{"op": "erase", "points": [[7.5, -10], [5, -10]], "seconds": 0.3}])
+	await play([{"op": "erase", "points": [[7.5, -10], [5, -10]], "seconds": 0.3}])
 	ruins = world.state.walls[w.id].ruins
 	check(ruins.size() == 2 and ruins[1].y - ruins[1].x > 2.0, "a second sweep, leftward, breaks all of its stretch: %s" % ruins)
 	var steps: int = world.stacks[world.me()].undo.size()
@@ -210,21 +203,21 @@ func _the_eraser_sweeps_a_ruin_and_undo_mends_it() -> void:
 	main.fitting_tool.fit({"what": "opening", "style": WallLayout.DoorStyle.ARCHWAY, "y": 0.0, "wall": w, "s": w.layout.closest_s(Terrain.ground(6.2, -10))})
 	await process_frame
 	check(world.state.walls[w.id].openings == arches and world.stacks[world.me()].undo.size() == steps, "no arch opens in a ruin")
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(world.state.walls[w.id].ruins.size() == 1, "undo mends the last one")
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(world.state.walls[w.id].ruins.is_empty() and w.layout.ruins.is_empty(), "and the next the first")
-	await _play([{"op": "erase", "points": [[-6, -10], [-4, -10], [-8, -10]], "seconds": 0.4}])
+	await play([{"op": "erase", "points": [[-6, -10], [-4, -10], [-8, -10]], "seconds": 0.4}])
 	ruins = world.state.walls[w.id].ruins
 	check(ruins.size() == 1 and ruins[0].y - ruins[0].x > 3.5 and ruins[0].y - ruins[0].x < 4.5, "a sweep that turns back breaks everything it passed over: %s" % ruins)
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	# The turn must survive even when the entire gesture fits between two frames.
 	for seconds in [0.4, 0.000001]:
-		await _play([{"op": "erase", "points": [[-9.8, -10], [11, -10], [-11, -10]], "seconds": seconds}])
+		await play([{"op": "erase", "points": [[-9.8, -10], [11, -10], [-11, -10]], "seconds": seconds}])
 		check(walls.is_empty(), "sweeping the whole wall takes it")
-		await _play([{"op": "press", "button": "dpad_down"}])
+		await play([{"op": "press", "button": "dpad_down"}])
 		check(walls.size() == 1, "undo stands it again")
-	await _play([{"op": "house", "at": [0.0, 8.0], "size": [8.0, 5.0], "seconds": 0.3}])
+	await play([{"op": "house", "at": [0.0, 8.0], "size": [8.0, 5.0], "seconds": 0.3}])
 	var house := walls[-1]
-	await _play([{"op": "delete", "x": house.layout.samples[0].x, "z": house.layout.samples[0].z}])
+	await play([{"op": "delete", "x": house.layout.samples[0].x, "z": house.layout.samples[0].z}])
 	check(walls.size() == 1, "the eraser takes a house whole")

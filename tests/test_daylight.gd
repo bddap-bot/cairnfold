@@ -254,7 +254,7 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 	var other_was := other._parts[Wall.Part.STONE].duplicate()
 	var steps: int = world.stacks.get(world.me(), {"undo": []}).undo.size()
 	var at := face
-	await _play([{"op": "colour", "hand": "left", "element": "stone", "swatch": 2, "seconds": 0.2, "from": _above(at + Vector3(0, 0, 3)), "at": _above(at)}])
+	await play([{"op": "colour", "hand": "left", "element": "stone", "swatch": 2, "seconds": 0.2, "from": _above(at + Vector3(0, 0, 3)), "at": _above(at)}])
 	var stone := Palette.Element.STONE
 	check(world.state.walls[first.id].paint[stone] == 2 and tool.wheels.is_empty(), "a twist to the third swatch on the first wall keeps it there")
 	check(world.state.walls[other.id].paint[stone] == 0 and world.state.walls[house.id].paint[stone] == 0, "the other wall and the house keep their stone")
@@ -263,28 +263,28 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 	check(_scaled_by(first_was, first._parts[Wall.Part.STONE], Palette.tint(stone, 2)), "the first wall's stones are drawn in the new swatch")
 	check(other._parts[Wall.Part.STONE] == other_was, "the other wall's stones are drawn as they were")
 	var top: Vector3 = roof.mid
-	await _play([{"op": "colour", "hand": "left", "element": "roof", "swatch": 3, "seconds": 0.2, "from": _above(top + Vector3.UP * 12.0), "at": _above(top)}])
+	await play([{"op": "colour", "hand": "left", "element": "roof", "swatch": 3, "seconds": 0.2, "from": _above(top + Vector3.UP * 12.0), "at": _above(top)}])
 	check(world.state.walls[house.id].paint[Palette.Element.ROOF] == 3, "the house's roof takes the fourth swatch")
 	var end: Vector3 = roof.mid + roof.along * (house.roof.ridge_length() * 0.5 + 4.0) + Vector3.UP * house.roof.pitch * 0.35
 	var gable: Vector3 = end - roof.along
-	await _play([{"op": "colour", "hand": "left", "element": "stone", "swatch": 2, "seconds": 0.2, "from": _above(end), "at": _above(gable)}])
+	await play([{"op": "colour", "hand": "left", "element": "stone", "swatch": 2, "seconds": 0.2, "from": _above(end), "at": _above(gable)}])
 	check(world.state.walls[house.id].paint[stone] == 2, "a stone house's gable paints its stone")
-	await _play([{"op": "colour", "hand": "left", "element": "meadow", "swatch": 4, "seconds": 0.2}])
+	await play([{"op": "colour", "hand": "left", "element": "meadow", "swatch": 4, "seconds": 0.2}])
 	check(Palette.globals(world.palette.season).season_bloom == 0.0, "winter takes the flowers")
 
 	var snap := world.snapshot().duplicate(true)
 	check(snap.cmds.filter(func(c: Dictionary) -> bool: return c.op == "season").size() == 1, "a joiner's snapshot carries the season")
-	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
 	check(world.palette.season == Palette.SUMMER and world.state.walls.values().all(func(d: Dictionary) -> bool: return d.paint == Palette.plain()), "undo takes every pick back")
 	first.lay_now()
 	check(_scaled_by(first_was, first._parts[Wall.Part.STONE], Color.WHITE), "the first wall's stones are drawn as laid again")
-	await _play([{"op": "press", "button": "A"}])
+	await play([{"op": "press", "button": "A"}])
 	check(world.state.walls[first.id].paint[stone] == 2 and world.state.walls[other.id].paint[stone] == 0, "redo paints the first wall again, and only it")
 
 	var first_id := first.id
 	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([first_id])})
 	check(not world.state.walls.has(first_id), "the painted wall is deleted")
-	await _play([{"op": "press", "button": "dpad_down"}])
+	await play([{"op": "press", "button": "dpad_down"}])
 	check(world.state.walls.get(first_id, {}).get("paint", Palette.plain())[stone] == 2, "undoing the delete brings it back in its colour")
 	var back := main.tool.find(first_id) as Wall
 	back.lay_now()
@@ -292,7 +292,7 @@ func _per_build(face: Vector3, walls: Array[Wall], roof: Dictionary) -> void:
 
 	check(main.tool.paint[stone] == 2 and main.tool.paint[Palette.Element.ROOF] == 3, "the swatches last picked are the ones new builds take")
 	var before: Array = world.state.walls.keys()
-	await _play([{"op": "wall", "points": [[-8, -12], [2, -12]], "seconds": 0.3}])
+	await play([{"op": "wall", "points": [[-8, -12], [2, -12]], "seconds": 0.3}])
 	var fresh: Array = world.state.walls.keys().filter(func(id: int) -> bool: return not id in before)
 	check(fresh.size() == 1 and world.state.walls[fresh[0]].paint[stone] == 2, "a new wall is laid in the stone last picked")
 
@@ -348,7 +348,7 @@ func _in_the_glade() -> void:
 	main.world.bounded = false
 	var tool: PaletteTool = main.palette_tool
 	var walls: Array[Wall] = main.tool.walls
-	await _play([
+	await play([
 		{"op": "place", "x": 0, "z": 12},
 		{"op": "wall", "points": [[-8, 0], [-3, 0], [2, 0]], "seconds": 0.3},
 		{"op": "house", "at": [11.0, 0.0], "size": [6.0, 3.7], "seconds": 0.2},
@@ -395,11 +395,11 @@ func _in_the_glade() -> void:
 		sky.aim(grab.rotated(axis, 0.3 + k * 0.5))
 	check(absf(Daylight.angle(look.time) - Daylight.angle(Daylight.DEFAULT) - 0.3) < 1e-4, "and the grabbed point is under the pointer again when it comes back")
 	sky.holder = null
-	await _play([{"op": "sun", "time": 0.7, "seconds": 0.2}])
+	await play([{"op": "sun", "time": 0.7, "seconds": 0.2}])
 	check(absf(look.time - 0.7) < 1e-4, "the sky is turned to late afternoon")
 	check((-look.sun.global_basis.z).is_equal_approx(-Daylight.toward_sun(0.7)), "the sunlight shines from where the sun stands")
 	check(look.sun.light_energy < Daylight.light(0.5).energy, "the evening sun is weaker")
-	await _play([{"op": "sun", "time": 1.02, "seconds": 0.2}])
+	await play([{"op": "sun", "time": 1.02, "seconds": 0.2}])
 	check(absf(look.time - 0.02) < 1e-4, "turned on past midnight the day starts again: %.4f" % look.time)
 	check((-look.sun.global_basis.z).is_equal_approx(-Daylight.toward_moon(0.02)) and is_equal_approx(look.sun.light_energy, Daylight.light(0.02).energy), "at night the light comes from the moon, as strong as it stands high")
 	look.set_time(0.7)
@@ -412,10 +412,3 @@ func _in_the_glade() -> void:
 
 func _done() -> void:
 	finish()
-
-
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()

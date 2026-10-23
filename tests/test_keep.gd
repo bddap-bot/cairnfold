@@ -34,13 +34,6 @@ func _run() -> void:
 	finish()
 
 
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
-
-
 ## Saves are written on a worker thread; this waits for the last one to land.
 func _settled() -> void:
 	await process_frame
@@ -55,11 +48,11 @@ func _every_edit_is_kept_and_loads_whole() -> void:
 	var path := dir.path_join("garden.save")
 	world.load_from(path)
 	check(not FileAccess.file_exists(path), "with nothing kept yet, the meadow starts empty and nothing is written")
-	await _play([{"op": "wall", "points": [[-6, -4], [6, -4]], "seconds": 0.3}])
+	await play([{"op": "wall", "points": [[-6, -4], [6, -4]], "seconds": 0.3}])
 	await _settled()
 	check(FileAccess.file_exists(path), "the first edit is kept")
 	var after_wall := FileAccess.get_file_as_bytes(path)
-	await _play([
+	await play([
 		{"op": "tree", "x": 4, "z": 4},
 		{"op": "paint", "tool": "flowers", "points": [[-4, 4], [-3, 4]], "radius": 1.0, "seconds": 0.3},
 		{"op": "pave", "points": [[0, 2], [0, -8]], "radius": 1.5, "seconds": 0.3},
@@ -78,14 +71,14 @@ func _every_edit_is_kept_and_loads_whole() -> void:
 	world.load_from(path)
 	check(_picture() == picture, "loading rebuilds every wall, ruin, plant, path and height")
 	var seq := world.seq
-	await _play([{"op": "tree", "x": -8, "z": 8}, {"op": "wait", "seconds": 0.1}])
+	await play([{"op": "tree", "x": -8, "z": 8}, {"op": "wait", "seconds": 0.1}])
 	check(world.seq == seq + 1 and world.state.groups.has(world.seq), "commands go on numbering from the loaded garden")
 
 
 func _a_flat_roof_is_kept() -> void:
 	var path := dir.path_join("garden.save")
 	world.restore({"seq": 0, "cmds": []})
-	await _play([
+	await play([
 		{"op": "house", "at": [5, 1], "size": [4, 2.5], "seconds": 0.3},
 		{"op": "house", "at": [-4, -4], "size": [4, 2.5], "seconds": 0.3},
 		{"op": "roof", "index": 0, "pitch": 0.2},
@@ -111,7 +104,7 @@ func _a_placed_bush_counts_and_is_kept() -> void:
 	await _settled()
 	var flora: Flora = main.flora_tool.flora
 	var before := world.units.duplicate()
-	await _play([{"op": "bush", "x": 3, "z": -6}, {"op": "bush", "x": 5, "z": -6}, {"op": "wait", "seconds": 0.1}])
+	await play([{"op": "bush", "x": 3, "z": -6}, {"op": "bush", "x": 5, "z": -6}, {"op": "wait", "seconds": 0.1}])
 	await _settled()
 	check(flora.placed("bush").size() == 2, "two placed bushes stand: %d" % flora.placed("bush").size())
 	check(world.units.get("bush", 0) == before.get("bush", 0) + 2, "each counts one bush: %s" % world.units)
@@ -123,7 +116,7 @@ func _a_placed_bush_counts_and_is_kept() -> void:
 	world.load_from(path)
 	await _settled()
 	check(flora.placed("bush").size() == 2 and _picture() == picture, "loading grows the kept bushes where they stood")
-	await _play([{"op": "delete", "x": 3, "z": -6, "height": 2.0}])
+	await play([{"op": "delete", "x": 3, "z": -6, "height": 2.0}])
 	await _settled()
 	check(flora.placed("bush").size() == 1 and world.units.get("bush", 0) == before.get("bush", 0) + 1, "deleting a bush frees what it counted: %s" % world.units)
 

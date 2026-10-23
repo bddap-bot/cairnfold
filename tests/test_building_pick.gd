@@ -10,10 +10,7 @@ func _initialize() -> void:
 
 func _run() -> void:
 	main.world.bounded = false
-	var d := Driver.new(main, [{"op": "house", "at": [0, 0], "size": [6, 5], "seconds": 0.2}])
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
+	await play([{"op": "house", "at": [0, 0], "size": [6, 5], "seconds": 0.2}])
 	var w: Wall = main.tool.walls[0]
 	w.lay_now()
 	var missed := []
@@ -48,13 +45,6 @@ func _run() -> void:
 	finish()
 
 
-func _play(steps: Array) -> void:
-	var d := Driver.new(main, steps)
-	main.add_child(d)
-	await d.finished
-	d.queue_free()
-
-
 func _capture(name: String, eye: Vector3, at: Vector3) -> void:
 	if OS.get_environment("PICK_CAPTURE").is_empty():
 		return
@@ -68,7 +58,7 @@ func _capture(name: String, eye: Vector3, at: Vector3) -> void:
 
 
 func _overlapping_roofs() -> void:
-	await _play([{"op": "house", "at": [1, 0], "size": [6, 5], "seconds": 0.2}])
+	await play([{"op": "house", "at": [1, 0], "size": [6, 5], "seconds": 0.2}])
 	var near: Wall = main.tool.walls[-1]
 	main.world.submit({"op": "reshape", "of": "walls", "id": near.id, "data": {"height": 6.0}})
 	for wall: Wall in main.tool.walls:
