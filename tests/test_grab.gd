@@ -444,7 +444,7 @@ func _run() -> void:
 				await process_frame
 			main.world.time = t
 			main.look.set_time(t)
-			var toward: Vector3 = side * Daylight.toward_sun(t)
+			var toward: Vector3 = Daylight.toward_sun(t) if side > 0.0 else Daylight.toward_moon(t)
 			var body := "sun" if side > 0.0 else "moon"
 			hand.global_basis = Basis.looking_at(toward)
 			await _frames()

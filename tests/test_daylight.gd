@@ -50,10 +50,15 @@ func _the_sun_rises_and_sets() -> void:
 		prev = e
 	_check(Daylight.toward_sun(0.3).x < 0.0 and Daylight.toward_sun(0.7).x > 0.0, "it rises on the left and sets on the right")
 	_check(Daylight.toward_sun(0.5).z < 0.0, "at noon it stands in front of the starting view")
-	for i in 24:
-		var t := i / 24.0
-		_check(Daylight.toward_moon(t).is_equal_approx(-Daylight.toward_sun(t)), "the moon stands opposite the sun at %.2f" % t)
-	_check(Daylight.toward_moon(0.0).is_equal_approx(Daylight.toward_sun(0.5)), "the midnight moon hangs where the noon sun stood")
+	var dark := 0
+	for i in 96:
+		var t := i / 96.0
+		var apart := rad_to_deg(Daylight.toward_moon(t).angle_to(Daylight.toward_sun(t)))
+		_check(absf(apart - 100.0) < 0.01, "the moon stands 100° from the sun at %.2f, not %.2f°" % [t, apart])
+		if Daylight.elevation(t) < 0.0 and Daylight.moon_elevation(t) < 0.0:
+			dark += 1
+	_check(Daylight.moon_elevation(0.75) > 40.0, "the moon stands high at sunset")
+	_check(dark / 4.0 >= 5.0, "neither sun nor moon is up for %.2f hours" % (dark / 4.0))
 
 
 func _the_sky_turns_about_the_arc() -> void:
@@ -83,11 +88,19 @@ func _light_follows_the_sun() -> void:
 		_check(l.energy >= prev, "sunlight grows through the morning at %.3f" % (i / 96.0))
 		prev = l.energy
 	_check(absf(Daylight.light(0.3).energy - Daylight.light(0.7).energy) < 1e-3, "mirror hours light alike")
-	var night := Daylight.light(0.0)
+	var night := Daylight.light(0.85)
+	var moonless := Daylight.light(0.15)
+	_check(Daylight.moon_elevation(0.85) > 30.0 and Daylight.moon_elevation(0.15) < -20.0, "the moon is up at 0.85 and down at 0.15")
 	_check(night.zenith.get_luminance() < noon.zenith.get_luminance() * 0.4, "the sky darkens with the sun down")
-	_check(Daylight.toward_light(0.5) == Daylight.toward_sun(0.5) and Daylight.toward_light(0.0) == Daylight.toward_moon(0.0), "the sun lights the day, the moon the night")
+	_check(Daylight.toward_light(0.5) == Daylight.toward_sun(0.5) and Daylight.toward_light(0.85) == Daylight.toward_moon(0.85), "the sun lights the day, the moon the night")
 	_check(night.energy > 0.3 and night.sun.b > night.sun.r, "moonlight is cool and enough to build by")
-	_check(night.moon.get_luminance() > 0.5 and noon.moon == Color.BLACK and night.stars == 1.0 and noon.stars == 0.0, "the moon glows and the stars show only at night")
+	_check(moonless.energy == 0.0 and moonless.zenith.get_luminance() < night.zenith.get_luminance() * 0.3 and moonless.ambient < night.ambient * 0.5, "with the moon down the night is dark")
+	_check(night.moon.get_luminance() > 0.5 and noon.moon == Color.BLACK and Daylight.light(0.0).stars == 1.0 and noon.stars == 0.0, "the moon glows and the stars show only at night")
+	var last := Daylight.light(0.0)
+	for i in range(1, 2001):
+		var l := Daylight.light(i / 2000.0)
+		_check(absf(l.energy - last.energy) < 0.05 and absf(l.ambient - last.ambient) < 0.05 and absf(l.exposure - last.exposure) < 0.05, "the light changes smoothly at %.4f" % (i / 2000.0))
+		last = l
 	for t in [0.75, 0.25]:
 		var at: float = t + (-1.0 if t > 0.5 else 1.0) * asin(sin(deg_to_rad(Daylight.HANDOVER)) / cos(Daylight.TILT)) / TAU
 		_check(absf(Daylight.elevation(at) - Daylight.HANDOVER) < 0.01 and Daylight.light(at).energy < 1e-4, "the light passes between sun and moon dark, at %.3f" % at)
@@ -397,7 +410,7 @@ func _in_the_glade() -> void:
 	_check(look.sun.light_energy < Daylight.light(0.5).energy, "the evening sun is weaker")
 	await _play([{"op": "sun", "time": 1.02, "seconds": 0.2}])
 	_check(absf(look.time - 0.02) < 1e-4, "turned on past midnight the day starts again: %.4f" % look.time)
-	_check((-look.sun.global_basis.z).is_equal_approx(-Daylight.toward_moon(0.02)) and look.sun.light_energy > 0.3, "at night the moon lights the garden")
+	_check((-look.sun.global_basis.z).is_equal_approx(-Daylight.toward_moon(0.02)) and is_equal_approx(look.sun.light_energy, Daylight.light(0.02).energy), "at night the light comes from the moon, as strong as it stands high")
 	look.set_time(0.7)
 	await create_timer(Look.SKY_EVERY * 2.0).timeout
 	var sky_sun: Vector3 = look.sky_mat.get_shader_parameter("sun_dir")

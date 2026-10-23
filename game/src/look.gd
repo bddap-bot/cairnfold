@@ -279,6 +279,7 @@ func _paint_sky() -> void:
 	_since_sky = 0.0
 	var l := Daylight.light(time)
 	sky_mat.set_shader_parameter("sun_dir", Daylight.toward_sun(time))
+	sky_mat.set_shader_parameter("moon_dir", Daylight.toward_moon(time))
 	sky_mat.set_shader_parameter("zenith", l.zenith)
 	sky_mat.set_shader_parameter("horizon", l.horizon)
 	sky_mat.set_shader_parameter("sun_glow", l.glow)

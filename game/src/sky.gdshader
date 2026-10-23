@@ -6,8 +6,9 @@ uniform vec3 sun_glow : source_color = vec3(1.0, 0.82, 0.55);
 uniform sampler2D clouds : filter_linear_mipmap, repeat_enable;
 uniform float cloud_cover = 0.48;
 uniform vec3 cloud_light : source_color = vec3(1.0);
-// Toward the sun, the moon opposite; the light does not drive the sky (Look), and the discs are drawn apart from it.
+// The light does not drive the sky (Look), and the discs are drawn apart from it.
 uniform vec3 sun_dir = vec3(0.0, 1.0, 0.0);
+uniform vec3 moon_dir = vec3(0.0, -1.0, 0.0);
 uniform vec3 moon_glow : source_color = vec3(0.0);
 uniform float stars = 0.0;
 
@@ -30,7 +31,7 @@ void sky() {
 	}
 	float sd = max(dot(d, sun_dir), 0.0);
 	col += sun_glow * (pow(sd, 6.0) * 0.25 + pow(sd, 64.0) * 0.6);
-	float md = max(-dot(d, sun_dir), 0.0);
+	float md = max(dot(d, moon_dir), 0.0);
 	col += moon_glow * (pow(md, 6.0) * 0.06 + pow(md, 80.0) * 0.12);
 	if (d.y > 0.0) {
 		if (stars > 0.0) {
