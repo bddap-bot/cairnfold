@@ -314,6 +314,7 @@ func ghost_of(target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -
 	var what: String = target.what
 	var at: Vector3
 	var face := Vector3.ZERO
+	var ghost := {}
 	match what:
 		"lantern":
 			if layout.fence:
@@ -332,11 +333,12 @@ func ghost_of(target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -
 			var r := w.roof.frame()
 			at = r.mid + r.along * c.value.x + r.across * c.value.y + Vector3.UP * w.roof.rise(1.0 - absf(c.value.y) / w.roof.half_span())
 			face = r.across
+			ghost = {"roof": w.roof, "spot": c.value, "shape": [w.roof.seed, w.roof.chimneys.size(), w.roof.thatched(), snappedf(w.roof.chimney_top(c.value) - at.y + r.mid.y, 0.05)]}
 		"tower_flag":
 			what = "flag"
 			at = w.roof.flag_top()
 			face = RoofLayout.FLAG_ALONG.normalized().cross(Vector3.UP)
-	return {"what": what, "xform": _facing(at, face), "fits": c.ok}
+	return ghost.merged({"what": what, "xform": _facing(at, face), "fits": c.ok})
 
 
 ## Upright at `at`, its face turned toward `face` across the ground.
@@ -369,6 +371,14 @@ func _show_ghost(i: int, ghost: Dictionary, delta: float) -> void:
 		n.set_meta(&"shape", [ghost.style, ghost.seed, ghost.rise, ghost.mount])
 		add_child(n)
 		_ghosts[i].decoration = n
+	# A chimney stands taller down its slope: its ghost is laid again as its height moves 5 cm, by the roof it goes on.
+	if ghost.get("what") == "chimney" and _ghosts[i].chimney.get_meta(&"shape", []) != ghost.shape:
+		_ghosts[i].chimney.free()
+		var g := ToolModels.fitting("chimney", ghost.roof, ghost.spot)
+		g.top_level = true
+		g.set_meta(&"shape", ghost.shape)
+		add_child(g)
+		_ghosts[i].chimney = g
 	for what in _ghosts[i]:
 		var g: Node3D = _ghosts[i][what]
 		var on: bool = ghost.get("what") == what
@@ -490,7 +500,7 @@ static func targets(w: Wall) -> Array[Dictionary]:
 			var v := r.chimneys[i]
 			var foot: Vector3 = f.mid + f.along * v.x + f.across * v.y
 			var surface := r.rise(1.0 - absf(v.y) / r.half_span())
-			var top := maxf(r.pitch + 0.7, surface + 1.0) + r.coat_rise() + 0.34
+			var top := r.chimney_top(v) + 0.34
 			var half := (RoofLayout.STACK_WIDTH + 0.14) * 0.5
 			var xform := Transform3D(Basis(f.along, Vector3.UP, f.across), foot)
 			out.append(_target(w, "chimney", "chimneys", i, v, AABB(Vector3(-half, surface, -half), Vector3(half * 2, top - surface, half * 2)), true, xform))

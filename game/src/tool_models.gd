@@ -666,8 +666,25 @@ static func _decor(root: Node3D) -> void:
 ## A fitting on its own at full size, laid by the generator that lays it on a wall or roof: a key of
 ## FITTING_PARTS. Its face looks along +z, and its mount is the origin: the back of a window
 ## (centred on it), where a lantern's bracket or a flag's pole leaves the
-## wall's centre line, a post lantern's foot, or where a chimney rises through the ridge.
-static func fitting(what: String) -> Node3D:
+## wall's centre line, a post lantern's foot, or where a chimney rises through the slope: the one `on` would lay next
+## at `spot`, or one through a small roof's ridge.
+static func fitting(what: String, on: RoofLayout = null, spot := Vector2.ZERO) -> Node3D:
+	var laid := fitting_parts(what, on, spot)
+	var root := Node3D.new()
+	var stones := Stones.new()
+	stones.lay(laid.parts)
+	root.add_child(stones)
+	if not laid.flames.is_empty() or not laid.cloths.is_empty():
+		var lit := Fittings.new()
+		lit.lay(laid.flames, laid.cloths)
+		root.add_child(lit)
+	for g in root.find_children("*", "GeometryInstance3D", true, false):
+		(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	return root
+
+
+## What `fitting` draws, as {parts, flames, cloths} about its mount.
+static func fitting_parts(what: String, on: RoofLayout = null, spot := Vector2.ZERO) -> Dictionary:
 	var parts: Array[Dictionary] = []
 	var flames: Array[Transform3D] = []
 	var cloths: Array[Dictionary] = []
@@ -675,9 +692,15 @@ static func fitting(what: String) -> Node3D:
 	if what == "chimney":
 		var roof := RoofLayout.new()
 		roof.corners = [Vector3(-2, 0, -1.5), Vector3(2, 0, -1.5), Vector3(2, 0, 1.5), Vector3(-2, 0, 1.5)]
-		roof._lay_chimney(Vector2.ZERO, RandomNumberGenerator.new())
+		var rng := RandomNumberGenerator.new()
+		if on != null:
+			roof = on.inputs()
+			roof.corners = on.corners
+			rng.seed = hash([on.seed, "chimney", on.chimneys.size()])
+		roof._lay_chimney(spot, rng)
 		parts = roof.tiles
-		mount = roof.frame().mid + Vector3.UP * roof.rise(1.0)
+		var f := roof.frame()
+		mount = f.mid + f.along * spot.x + f.across * spot.y + Vector3.UP * roof.rise(1.0 - absf(spot.y) / roof.half_span())
 	else:
 		var layout := WallLayout.new()
 		layout.seed = 5
@@ -711,29 +734,19 @@ static func fitting(what: String) -> Node3D:
 				mount = layout.frame_at(s).point + Vector3.UP * (WallLayout.FENCE_HEIGHT + 0.25)
 			"flag":
 				mount = Vector3(0, layout.height + WallLayout.CAP, 0)
-	var root := Node3D.new()
 	var kept: Array[Dictionary] = []
 	for p in parts:
 		if p.kind in FITTING_PARTS[what]:
 			var q := p.duplicate()
 			q.xform = Transform3D(p.xform.basis, p.xform.origin - mount)
 			kept.append(q)
-	var stones := Stones.new()
-	stones.lay(kept)
-	root.add_child(stones)
-	if not flames.is_empty() or not cloths.is_empty():
-		var moved_flames: Array[Transform3D] = []
-		for f in flames:
-			moved_flames.append(Transform3D(f.basis, f.origin - mount))
-		var moved_cloths: Array[Dictionary] = []
-		for c in cloths:
-			moved_cloths.append({"xform": Transform3D(c.xform.basis, c.xform.origin - mount), "color": c.color})
-		var lit := Fittings.new()
-		lit.lay(moved_flames, moved_cloths)
-		root.add_child(lit)
-	for g in root.find_children("*", "GeometryInstance3D", true, false):
-		(g as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	return root
+	var moved_flames: Array[Transform3D] = []
+	for f in flames:
+		moved_flames.append(Transform3D(f.basis, f.origin - mount))
+	var moved_cloths: Array[Dictionary] = []
+	for c in cloths:
+		moved_cloths.append({"xform": Transform3D(c.xform.basis, c.xform.origin - mount), "color": c.color})
+	return {"parts": kept, "flames": moved_flames, "cloths": moved_cloths}
 
 
 ## A short dirt stroke.

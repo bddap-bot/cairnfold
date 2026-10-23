@@ -499,6 +499,18 @@ func _in_the_glade() -> void:
 	_undo(world)
 	check(wall.layout.flames.size() == 1, "undo hangs it again")
 
+	var r := house.roof
+	var low: Vector3 = r.frame().mid + r.frame().across * r.half_span() * 0.7 + Vector3.UP * 8.0
+	var aimed := fit.aim(Hand.Tool.DECORATIONS, low, Vector3.DOWN)
+	var ghost := fit.ghost_of(aimed, low, Vector3.DOWN, null)
+	fit._show_ghost(0, ghost, 1.0)
+	check(fit._ghosts[0].chimney.get_meta(&"shape", []) == ghost.get("shape"), "the chimney ghost shown is the one laid for its spot")
+	var ghost_top: float = ToolModels.fitting_parts("chimney", r, aimed.get("value", r.chimney_spot(aimed.at))).parts.reduce(func(m: float, p: Dictionary) -> float: return maxf(m, (ghost.xform * p.xform * AABB(Vector3.ONE * -0.5, Vector3.ONE)).end.y), -INF)
+	_fit(fit, aimed)
+	house.lay_now()
+	var real_top: float = r.tiles.filter(func(t): return t.kind in ["chimney", "pot"]).reduce(func(m: float, t: Dictionary) -> float: return maxf(m, (house.transform * t.xform * AABB(Vector3.ONE * -0.5, Vector3.ONE)).end.y), -INF)
+	check(absf(ghost_top - real_top) < 0.026, "a chimney's ghost low on the slope stands as tall as the chimney it places: %.2f for %.2f" % [ghost_top, real_top])
+	_undo(world)
 	_fit(fit, {"what": "chimney", "wall": house, "at": Vector2(1.0, 1.0)})
 	check(house.roof.chimneys.size() == 1 and not _kind(house.roof, "chimney").is_empty(), "a chimney stands on the house")
 	house.layout.height += WallLayout.COURSE * 2.0

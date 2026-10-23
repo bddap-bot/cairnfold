@@ -567,12 +567,18 @@ func spot_of(p: Vector3) -> Vector2:
 	return Vector2(d.dot(f.along), d.dot(f.across))
 
 
+## How high over the roof's base a chimney at `c` stands, under its cap: clear of the ridge, and a metre over its own
+## slope.
+func chimney_top(c: Vector2) -> float:
+	return maxf(pitch + 0.7, rise(1.0 - absf(c.y) / half_span()) + 1.0) + coat_rise()
+
+
 ## A stone stack rising from the slope to clear the ridge, with a cap slab and two clay pots.
 func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
 	var f := frame()
 	var foot: Vector3 = f.mid + f.along * c.x + f.across * c.y
 	var surface := rise(1.0 - absf(c.y) / half_span())
-	var top := maxf(pitch + 0.7, surface + 1.0) + coat_rise()
+	var top := chimney_top(c)
 	var basis := Basis(f.along, Vector3.UP, f.across)
 	var y := surface - 0.3
 	while y < top - 0.05:
