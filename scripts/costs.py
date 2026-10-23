@@ -29,18 +29,13 @@ ORDER = [("grass", "grass"), ("grass-dense", "grass"), ("flowers", "flower"), ("
 WILD = ["flowers-wild", "trees-wild", "fences-wild", "ponds-wild"]
 
 units = {}
-# fill_flora is no build command, so the game does not count its plants; the driver prints what they would count as,
-# and those are the units of the phase it fills.
-flora = None
+# fill_flora is no build command, so the game does not count its plants; the units line after it carries what they would
+# count as, and those are the units of its phase.
 log = next(p for p in ("godot.log", "logcat.txt") if os.path.exists(os.path.join(out, p)))
 for line in open(os.path.join(out, log), errors="replace"):
-    m = re.search(r"flora: units (\{.*?\})", line)
+    m = re.search(r"budget: (\S+) units (\{.*?\}) ms .* flora (\{.*?\})", line)
     if m:
-        flora = json.loads(m.group(1))
-    m = re.search(r"budget: (\S+) units (\{.*?\}) ms", line)
-    if m:
-        units[m.group(1)] = flora if flora is not None else json.loads(m.group(2))
-        flora = None
+        units[m.group(1)] = json.loads(m.group(3)) or json.loads(m.group(2))
 units["base"] = {}
 
 d = json.load(open(os.path.join(out, "metrics.json")))

@@ -23,6 +23,8 @@ var _hidden := {}
 var _area := 1.0
 ## Players `figures` stood, posed again every frame as streamed poses pose another player.
 var _stood: Array[Avatar] = []
+## The units the last fill_flora's plants would count as, carried on the next units line.
+var _flora_units := {}
 
 
 func _init(owner: Node, script: Array) -> void:
@@ -890,7 +892,7 @@ func _lanterns(s: Dictionary) -> void:
 
 ## Fills every painted and placed flora pool to capacity within `radius` of `at` (x, z; the centre by default), or only those `pools` names
 ## (grass, flowers, trees, bushes), the trees taking each species in turn at `scale` (1 without). They are not build commands, so the frame budget
-## does not count them; the units they would count as are printed for scripts/costs.py.
+## does not count them; the next units line carries the units they would count as, for scripts/costs.py.
 func _fill_flora(s: Dictionary) -> void:
 	var flora: Flora = main.flora_tool.flora
 	var pools: Array = s.get("pools", ["grass", "flowers", "trees", "bushes", "moss"])
@@ -911,11 +913,10 @@ func _fill_flora(s: Dictionary) -> void:
 			flora.set_look(parts[0], species, clampf(s.get("scale", 1.0), FloraLayout.SCALES.x, FloraLayout.SCALES.y))
 	for i in Flora.PLACED_BUSHES if "bushes" in pools else 0:
 		flora.add_bush(_scatter(rng, s.radius, centre), rng)
-	var units := {}
+	_flora_units = {}
 	for pool: String in pools:
 		var fill: Array = {"grass": ["grass", Flora.PAINTED_GRASS], "flowers": ["flower", Flora.PAINTED_FLOWERS], "moss": ["moss", Flora.PAINTED_MOSS], "trees": ["tree", Flora.PLACED_TREES], "bushes": ["bush", Flora.PLACED_BUSHES]}[pool]
-		units[fill[0]] = fill[1]
-	print("flora: units %s" % JSON.stringify(units))
+		_flora_units[fill[0]] = fill[1]
 
 
 ## Measures distant flora in the same scene, off or on: the flowers' triangles and the grass the ground paints.
@@ -1903,7 +1904,8 @@ func _budget(s: Dictionary) -> void:
 
 
 func _units(_s: Dictionary) -> void:
-	print("budget: %s units %s ms %.3f fill %.3f" % [main.metrics.info.label, JSON.stringify(main.world.units), Budget.cost_ms(main.world.units), main.world.fill()])
+	print("budget: %s units %s ms %.3f fill %.3f flora %s" % [main.metrics.info.label, JSON.stringify(main.world.units), Budget.cost_ms(main.world.units), main.world.fill(), JSON.stringify(_flora_units)])
+	_flora_units = {}
 
 
 func _stairs(s: Dictionary) -> void:
