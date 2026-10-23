@@ -16,6 +16,13 @@ func _run() -> void:
 		layout.build(style, 53)
 		check(not layout.parts.is_empty() and layout.bounds.size.length() > 0.0, "geometry %d" % style)
 		print("decoration cost: %s solids=%d triangles=%d flowers=%d flames=%d" % [DecorationLayout.STYLES[style].name, layout.parts.size(), layout.parts.size() * 108 + layout.flames.size() * 14, layout.flowers.size(), layout.flames.size()])
+	var stool := DecorationLayout.new()
+	stool.build(DecorationLayout.STYLES.map(func(st: Dictionary) -> String: return st.name).find("Stool"), 0)
+	for leg: Dictionary in stool.parts.slice(1):
+		var x: Transform3D = leg.xform
+		var top := x * Vector3(0, 0.5, 0)
+		var foot := x * Vector3(0, -0.5, 0)
+		check(Vector2(foot.x, foot.z).length() > Vector2(top.x, top.z).length(), "a stool's legs splay out to their feet")
 	var present := DecorationLayout.new()
 	present.build(DecorationLayout.PRESENT, 0)
 	check(present.pictures.size() == 1, "a present carries a picture")

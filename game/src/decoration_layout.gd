@@ -168,7 +168,7 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground") -> void:
 			box(Vector3(0, 0.46, 0), Vector3(0.34, 0.05, 0.34), OAK.lightened(0.12), "board")
 			for i in 3:
 				var a := i * TAU / 3.0
-				box(Vector3(sin(a) * 0.1, 0.22, cos(a) * 0.1), Vector3(0.045, 0.46, 0.045), OAK, "board", a, 0.16)
+				box(Vector3(sin(a) * 0.1, 0.22, cos(a) * 0.1), Vector3(0.045, 0.46, 0.045), OAK, "board", a, -0.16)
 		"Chest":
 			box(Vector3(0, 0.22, 0), Vector3(0.8, 0.44, 0.48), OAK, "board")
 			box(Vector3(0, 0.49, 0), Vector3(0.84, 0.1, 0.52), OAK.lightened(0.12), "board")
