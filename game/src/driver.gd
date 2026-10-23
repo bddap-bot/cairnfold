@@ -11,7 +11,7 @@ signal finished
 ## "mountains" are the ranges and whatever lies between them and the meadow.
 const LAYERS := ["terrain", "grass", "flowers", "trees", "mountains", "sky", "stars", "sun_disc", "sun", "shadows", "masonry", "camera_previews", "ambient", "fog", "post", "msaa", "water", "hands", "ceilings"]
 
-var main: Node
+var main: Main
 var steps: Array
 var _eye := Vector3.ZERO
 var _at := Vector3.FORWARD
@@ -27,7 +27,7 @@ var _stood: Array[Avatar] = []
 var _flora_units := {}
 
 
-func _init(owner: Node, script: Array) -> void:
+func _init(owner: Main, script: Array) -> void:
 	main = owner
 	steps = script
 
