@@ -1,5 +1,5 @@
 class_name Lamps
-extends RefCounted
+extends Bake
 
 ## Lantern light, baked: how much reaches each of Bounce's probes, on its grid so shaders read it where they read
 ## the bounce (bounce.gdshaderinc), shared as the global lamp_volume. Every lantern lights and none costs the frame:
@@ -34,8 +34,6 @@ var _shells := []
 var _heights := PackedFloat32Array()
 var _ground := -1
 var _dirty := false
-var _task := -1
-var _out := {}
 var _flicker := false
 
 
@@ -47,7 +45,6 @@ func _init() -> void:
 
 func install() -> void:
 	RenderingServer.global_shader_parameter_set(&"lamp_volume", texture)
-	RenderingServer.global_shader_parameter_set(&"lamp_light", Vector3(LIGHT.r, LIGHT.g, LIGHT.b) * ENCODE)
 
 
 ## The air inside a house or tower: inside its walls' inner faces, from its floor up to its roof, and through
@@ -139,15 +136,15 @@ func light(walls: Array, extra := PackedVector3Array()) -> void:
 		_dirty = true
 
 
-## Takes a finished solve and starts one for whatever changed since; called once a frame.
+## Flickers the flames, then as Bake.update.
 func update() -> void:
 	var t := Time.get_ticks_msec() * 0.001
 	var pulse := 0.96 + 0.04 * sin(t * 7.0) * sin(t * 11.0) if _flicker else 1.0
 	RenderingServer.global_shader_parameter_set(&"lamp_light", Vector3(LIGHT.r, LIGHT.g, LIGHT.b) * ENCODE * pulse)
-	if _task >= 0:
-		if not WorkerThreadPool.is_task_completed(_task):
-			return
-		_collect()
+	super()
+
+
+func _next() -> Callable:
 	if _ground != Terrain.revision and (_dirty or not _flames.is_empty()):
 		_ground = Terrain.revision
 		var heights := Terrain.read(Terrain.ALL)
@@ -155,28 +152,12 @@ func update() -> void:
 			_heights = heights
 			_dirty = true
 	if not _dirty:
-		return
+		return Callable()
 	_dirty = false
 	var flames := _flames
 	var rooms := _rooms.duplicate()
 	var heights := _heights
-	var out := {}
-	_out = out
-	_task = WorkerThreadPool.add_task(func() -> void: out.layers = shine(flames, Bounce.grounds(heights), rooms), false)
-
-
-## Solves everything changed so far before returning.
-func finish() -> void:
-	update()
-	while _task >= 0:
-		_collect()
-		update()
-
-
-func stop() -> void:
-	if _task >= 0:
-		WorkerThreadPool.wait_for_task_completion(_task)
-		_task = -1
+	return func() -> Dictionary: return {"layers": shine(flames, Bounce.grounds(heights), rooms)}
 
 
 ## The light probe `layer` over column (x, z) holds, as shaders add it.
@@ -185,10 +166,9 @@ func at(x: float, z: float, layer: int) -> float:
 	return _layers[layer].get_pixel(c.x, c.y).r * ENCODE
 
 
-func _collect() -> void:
-	stop()
+func _take(out: Dictionary) -> void:
 	for k in Bounce.LAYERS:
-		_layers[k].set_data(Bounce.CELLS, Bounce.CELLS, false, Image.FORMAT_R8, _out.layers[k])
+		_layers[k].set_data(Bounce.CELLS, Bounce.CELLS, false, Image.FORMAT_R8, out.layers[k])
 	texture.update(_layers)
 
 

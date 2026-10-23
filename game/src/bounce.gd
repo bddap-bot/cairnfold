@@ -1,5 +1,5 @@
 class_name Bounce
-extends RefCounted
+extends Bake
 
 ## Light the built garden gives back: a probe per ground cell over the play area in LAYERS a metre apart that
 ## follow the ground, shared with shaders as the global bounce_volume (bounce.gdshaderinc). Alpha is how
@@ -38,8 +38,6 @@ var _relight := false
 ## hump moves the revision without them.
 var _heights := PackedFloat32Array()
 var _ground := -1
-var _task := -1
-var _out := {}
 var _layers: Array[Image] = []
 var texture := ImageTexture3D.new()
 
@@ -123,12 +121,7 @@ func set_sun(toward_sun: Vector3, light: Color) -> void:
 	_relight = true
 
 
-## Takes a finished solve and starts one for whatever changed since; called once a frame.
-func update() -> void:
-	if _task >= 0:
-		if not WorkerThreadPool.is_task_completed(_task):
-			return
-		_collect()
+func _next() -> Callable:
 	if _ground != Terrain.revision:
 		_ground = Terrain.revision
 		var heights := Terrain.read(Terrain.ALL)
@@ -136,36 +129,18 @@ func update() -> void:
 			_heights = heights
 			_relight = true
 	if _pending.is_empty() and not _relight:
-		return
+		return Callable()
 	var job := {"pending": _pending, "sun": _sun, "relight": _relight, "heights": _heights}
 	_pending = {}
 	_relight = false
-	var out := {}
-	_out = out
-	_task = WorkerThreadPool.add_task(func() -> void: out.merge(_work(job)), false)
+	return _work.bind(job)
 
 
-## Solves everything changed so far before returning.
-func finish() -> void:
-	update()
-	while _task >= 0:
-		_collect()
-		update()
-
-
-## Lets a solve under way end, so none outlives the game.
-func stop() -> void:
-	if _task >= 0:
-		WorkerThreadPool.wait_for_task_completion(_task)
-		_task = -1
-
-
-func _collect() -> void:
-	stop()
-	if _out.has("layers"):
-		var area: Rect2i = _out.area
+func _take(out: Dictionary) -> void:
+	if out.has("layers"):
+		var area: Rect2i = out.area
 		for k in LAYERS:
-			var region := Image.create_from_data(area.size.x, area.size.y, false, Image.FORMAT_RGBA8, _out.layers[k])
+			var region := Image.create_from_data(area.size.x, area.size.y, false, Image.FORMAT_RGBA8, out.layers[k])
 			_layers[k].blit_rect(region, Rect2i(Vector2i.ZERO, area.size), area.position)
 		texture.update(_layers)
 
