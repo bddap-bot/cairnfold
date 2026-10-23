@@ -4,7 +4,7 @@ extends Node3D
 ## The animals' voices: short recordings (scripts/animals.py, game/audio/animals/sources.json) played at the
 ## animal that calls. Calls stay rare and quiet under the music: each kind waits its own while between calls,
 ## any two calls but the soft ones are a little apart, no clip plays twice running, and an animal near the head makes
-## only its soft calls.
+## only its close calls.
 
 ## Clips per call, and the least time between two calls of it.
 const CLIPS := {
@@ -21,15 +21,18 @@ const LEVEL := {
 	"murmur": -8.0, "grind": -10.0, "click": -12.0, "chatter": -8.0, "chirp": -9.0, "contact": -15.0,
 	"quack": -3.0, "peep": -10.0, "bleat": -4.0, "mew": -6.0, "yip": -9.0,
 }
-## Calls quiet and close enough for beside the head, which no other call waits on: a conure on the hand or watching a
-## face up close murmurs and works its beak.
+## Calls quiet enough that no other call waits on them: a conure on the hand or watching a face up close murmurs and
+## works its beak.
 const SOFT := ["murmur", "grind", "click"]
+## Calls an animal still makes beside the head: the soft ones, and the ducks' low quacks and peeps, as a family fed from
+## a hand held over the pond is that near.
+const CLOSE := ["murmur", "grind", "click", "quack", "peep"]
 const ANY_GAP := 3.0
 const UNIT := 6.0
 ## How much the distance takes off above CUTOFF Hz; the clips are already rolled off there.
 const FAR_SHELF := -12.0
 const CUTOFF := 3000.0
-## An animal nearer the head than this makes no call of its own but its SOFT ones, and those its doings bring.
+## An animal nearer the head than this makes no call of its own but its CLOSE ones, and those its doings bring.
 const CALM := 2.5
 const VOICES := 6
 
@@ -41,6 +44,8 @@ var _since := {}
 var _since_any := INF
 var _voices: Array[AudioStreamPlayer3D] = []
 var _next_voice := 0
+## Per kind, the calls played and how far from the head the last was, for the play log.
+var played := {}
 
 
 func _init(eyes: Node3D, seed: int) -> void:
@@ -89,13 +94,16 @@ func call_out(kind: String, at: Vector3) -> bool:
 	v.pitch_scale = rng.randf_range(0.93, 1.06)
 	v.position = at
 	v.play()
+	var heard: Array = played.get_or_add(kind, [0, 0.0])
+	heard[0] += 1
+	heard[1] = snappedf(viewer.global_position.distance_to(at), 0.1) if viewer != null and viewer.is_inside_tree() else -1.0
 	return true
 
 
 ## `kind` from `at` about once every `every` seconds of an animal's doing something, while the head keeps its
 ## distance.
 func now_and_then(kind: String, at: Vector3, every: float, delta: float) -> bool:
-	if rng.randf() >= delta / every or (calm(at) and kind not in SOFT):
+	if rng.randf() >= delta / every or (calm(at) and kind not in CLOSE):
 		return false
 	return call_out(kind, at)
 

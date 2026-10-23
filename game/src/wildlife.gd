@@ -46,8 +46,8 @@ const FAR := 60.0
 const EDGE := Terrain.SIZE * 0.5 - 1.0
 ## Seconds between looks over the walls and trees for where conures may perch and sheep graze.
 const LOOK_EVERY := 0.5
-## Seconds, on average, between a family's quacks and its ducklings' peeps.
-const QUACK_EVERY := 45.0
+## Seconds, on average, between a family's quacks and its ducklings' peeps while it is at its pond.
+const QUACK_EVERY := 20.0
 const PEEP_EVERY := 30.0
 ## A hand or the head moving faster than this, in metres a second, startles an animal near it; slower, it may
 ## come right up.
@@ -316,7 +316,7 @@ func _think(f: Family, delta: float) -> void:
 		f.pond = _pond_near(f.home)
 		if f.pond == null:
 			_leave(f)
-	if f.state in [State.SWIM, State.REST]:
+	if f.state in [State.SWIM, State.ASHORE, State.REST, State.FEED]:
 		calls.now_and_then("quack", lead.position, QUACK_EVERY, delta)
 		if f.ducks.size() > 1:
 			calls.now_and_then("peep", f.ducks[1 + calls.rng.randi() % (f.ducks.size() - 1)].position, PEEP_EVERY, delta)
@@ -330,6 +330,7 @@ func _think(f: Family, delta: float) -> void:
 		State.ENTER, State.ASHORE:
 			if _go(lead, f.goal, delta):
 				if f.state == State.ENTER:
+					calls.call_out("quack", lead.position)
 					_swim(f)
 				else:
 					f.state = State.REST

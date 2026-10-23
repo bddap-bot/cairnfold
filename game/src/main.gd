@@ -171,7 +171,8 @@ func _ready() -> void:
 			counts[category] = world.state[category].size()
 		return {"garden_counts": counts, "masonry_instances": Array(tool.masonry.counts()),
 			"tools": [Hand.Tool.keys()[rig.hands[0].tool], Hand.Tool.keys()[rig.hands[1].tool]],
-			"visiting": not session.visiting.is_empty(), "players": session.players()}
+			"visiting": not session.visiting.is_empty(), "players": session.players(),
+			"ponds": water.ponds.size(), "ducks": wildlife.ducks().size(), "calls": wildlife.calls.played.duplicate(true)}
 	var editors: Array = [tool, stair_tool, flora_tool, delete_tool, easel_tool, ground_grab, palette_tool]
 	metrics.activity = func() -> Array:
 		var tags := []

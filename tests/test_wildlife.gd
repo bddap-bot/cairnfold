@@ -65,6 +65,44 @@ func _seeds_held_low_draw_the_ducks(wildlife: Wildlife, hand: Hand, pond: PondWa
 	wildlife.hands.clear()
 
 
+## A family at its pond quacks often enough to be heard in a few minutes there, and goes on quacking while it eats
+## from a hand held over the water by someone kneeling at the bank.
+func _ducks_are_heard(wildlife: Wildlife, rig: Rig, pond: PondWater) -> void:
+	var f: Wildlife.Family = wildlife.families[0]
+	var quacks := func() -> int: return wildlife.calls.played.get("quack", [0])[0]
+	var before: int = quacks.call()
+	_run(wildlife, 600.0)
+	var heard: int = quacks.call() - before
+	_check(heard >= 600.0 / 40.0, "a family at its pond quacked %d times in ten minutes" % heard)
+	var mid := Terrain.grid_xz(pond.pond.bottom)
+	var at := Vector3(mid.x, pond.surface_y() + 0.3, mid.y)
+	var eyes := rig.head.global_position
+	rig.head.global_position = at + Vector3(0.6, 0.6, 0)
+	f.full = 0.0
+	rig.right.global_position = at
+	rig.right.held_still = true
+	rig.right.tool = Hand.Tool.SEEDS
+	wildlife.hands.assign([rig.right])
+	var near := [0, 0.0]
+	for i in int(240.0 / STEP):
+		var was: int = quacks.call()
+		_run(wildlife, STEP)
+		if f.state == Wildlife.State.FEED:
+			near[1] += STEP
+			near[0] += quacks.call() - was
+		elif f.full <= 0.0:
+			continue
+		else:
+			f.full = 0.0
+	_check(near[1] > 60.0 and wildlife.calls.calm(f.leader().position), "the family ate from the hand beside the head for %.0f s" % near[1])
+	_check(near[0] >= 1, "and quacked %d times while eating there" % near[0])
+	rig.right.tool = Hand.Tool.WALLS
+	rig.right.held_still = false
+	wildlife.hands.clear()
+	rig.head.global_position = eyes
+	_run(wildlife, 2.0)
+
+
 ## A handful thrown out over the pond plunges in, spreads apart under the water, rises slowly and bobs on the surface,
 ## and the ducks come and peck it up grain by grain.
 func _seeds_thrown_on_the_pond_are_eaten(wildlife: Wildlife, pond: PondWater) -> void:
@@ -324,8 +362,13 @@ func _ducks_come_only_to_ponds() -> void:
 		walker.families[-1].leader().free()
 		walker.families.pop_back()
 	_check(walker.families.size() == 1 and walker.families[0].ducks.size() > 2, "a mother walks in with ducklings")
-	_run(walker, 90.0)
+	var entered := [Wildlife.State.ENTER, false]
+	_run(walker, 90.0, func() -> void:
+		var now: Wildlife.State = walker.families[0].state
+		entered[1] = entered[1] or (entered[0] == Wildlife.State.ENTER and now == Wildlife.State.SWIM and walker.calls._since["quack"] == 0.0)
+		entered[0] = now)
 	_check(walker.families[0].state in [Wildlife.State.SWIM, Wildlife.State.ASHORE, Wildlife.State.REST], "and they reach the water")
+	_check(entered[1], "the mother quacks as she takes to the water")
 	_seeds_held_low_draw_the_ducks(walker, rig.right, pond)
 	feed = FeedTool.new(rig, water)
 	root.add_child(feed)
@@ -333,6 +376,7 @@ func _ducks_come_only_to_ponds() -> void:
 	walker.handfuls = feed.handfuls
 	_seeds_thrown_on_the_pond_are_eaten(walker, pond)
 	_seeds_thrown_on_the_grass_fade(walker)
+	_ducks_are_heard(walker, rig, pond)
 
 	for step in 4:
 		world.undo()
