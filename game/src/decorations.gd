@@ -53,8 +53,9 @@ func sync() -> void:
 
 
 ## Where a decoration stands, or null where its surface is gone: on the ground; at a house's foot, out from the wall
-## at `s` on `side`; or, for furniture, at `at` in its house's plan (`plan`), turned `turn` from its ridge, on its floor
-## or on a flat roof's deck, so it moves, turns, grows and rises with the house.
+## at `s` on `side`, on the ground or the top of a build the house stands on; or, for furniture, at `at` in its
+## house's plan (`plan`), turned `turn` from its ridge, on its floor or on a flat roof's deck, so it moves, turns, grows
+## and rises with the house.
 func frame(d: Dictionary) -> Variant:
 	if d.wall < 0:
 		return Transform3D(Basis(Vector3.UP, d.turn), Vector3(d.at.x, Terrain.height_at(d.at.x, d.at.z), d.at.z))
@@ -79,7 +80,7 @@ func frame(d: Dictionary) -> Variant:
 	var f := w.layout.frame_at(d.s)
 	var normal: Vector3 = f.tangent.cross(Vector3.UP) * d.side
 	var at: Vector3 = f.point + normal * (WallLayout.THICKNESS * 0.5 + 0.02)
-	at.y = Terrain.height_at(at.x, at.z)
+	at.y = maxf(Terrain.height_at(at.x, at.z), w.layout.rest(at.x, at.z))
 	return FittingTool._facing(at, normal)
 
 

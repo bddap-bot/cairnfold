@@ -2227,7 +2227,7 @@ func resample(ground: Callable, water := Callable()) -> void:
 	for q in samples:
 		grounds.append(ground.call(q.x, q.z))
 		depths.append(maxf(q.y - grounds[-1], 0.0))
-		plinths.append(maxf(q.y + SINK - maxf(footing.call(q.x, q.z), _rest(q.x, q.z)), 0.0))
+		plinths.append(maxf(q.y + SINK - maxf(footing.call(q.x, q.z), rest(q.x, q.z)), 0.0))
 	bounds = Rect2(Vector2(samples[0].x, samples[0].z), Vector2.ZERO)
 	for q in samples:
 		bounds = bounds.expand(Vector2(q.x, q.z))
@@ -2249,7 +2249,7 @@ func _resample_curve(ground: Callable) -> void:
 		var held := -INF
 		for q in dense:
 			foot = minf(foot, ground.call(q.x, q.z))
-			held = maxf(held, _rest(q.x, q.z))
+			held = maxf(held, rest(q.x, q.z))
 		if held > -INF:
 			foot = held
 		else:
@@ -2257,7 +2257,7 @@ func _resample_curve(ground: Callable) -> void:
 	var acc := 0.0
 	for i in dense.size():
 		var q := dense[i]
-		q.y = (foot if closed else maxf(ground.call(q.x, q.z), _rest(q.x, q.z))) - SINK
+		q.y = (foot if closed else maxf(ground.call(q.x, q.z), rest(q.x, q.z))) - SINK
 		if i > 0:
 			acc += Vector2(q.x - samples[-1].x, q.z - samples[-1].z).length()
 		samples.append(q)
@@ -2270,7 +2270,7 @@ func stands_at() -> float:
 
 
 ## The highest top of the builds under (x, z), or -INF.
-func _rest(x: float, z: float) -> float:
+func rest(x: float, z: float) -> float:
 	var best := -INF
 	for s in supports:
 		var h := s.rest(x, z)

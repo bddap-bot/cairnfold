@@ -107,4 +107,26 @@ func _run() -> void:
 	var saved: Dictionary = main.world.snapshot()
 	main.world.restore(saved)
 	check(main.world.state.decorations.size() == 9, "save restore keeps all nine styles")
+	await _on_a_build()
 	finish()
+
+
+func _on_a_build() -> void:
+	var driver := Driver.new(main, [
+		{"op": "house", "at": [30, -30], "size": [9, 7], "seconds": 0.2},
+		{"op": "roof", "index": -1, "pitch": 0},
+		{"op": "house", "at": [30, -30], "size": [4, 3], "seconds": 0.2, "on": true},
+	])
+	main.add_child(driver)
+	await driver.finished
+	driver.queue_free()
+	var upper: Wall = main.tool.walls[-1]
+	upper.lay_now()
+	var f := upper.layout.frame_at(1.5)
+	var side := signf((f.point - upper.roof.frame().mid).dot(f.tangent.cross(Vector3.UP)))
+	check(main.fitting_tool.fit({"what": "decoration", "mount": "foundation", "wall": upper, "s": 1.5, "side": side, "point": f.point, "style": 5}), "steps at the foot of a house on a deck")
+	main.world.decorations.sync()
+	var steps: Dictionary = main.world.state.decorations.values().filter(func(d: Dictionary) -> bool: return d.wall == upper.id)[0]
+	var x: Transform3D = main.world.decorations.frame(steps)
+	check(x.origin.y > f.point.y - 0.5, "a decoration at the foot of a house on a deck stands on the deck, at %.2f under a foot at %.2f" % [x.origin.y, f.point.y])
+	check(main.world.decorations.rise(steps) < 0.5, "its steps rise only to the storey's foot, not from the ground: %.2f" % main.world.decorations.rise(steps))
