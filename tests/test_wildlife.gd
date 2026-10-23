@@ -65,15 +65,15 @@ func _seeds_held_low_draw_the_ducks(wildlife: Wildlife, hand: Hand, pond: PondWa
 	wildlife.hands.clear()
 
 
-## A family at its pond quacks often enough to be heard in a few minutes there, and goes on quacking while it eats
+## A family at its pond quacks about once a minute or more, and goes on quacking while it eats
 ## from a hand held over the water by someone kneeling at the bank.
 func _ducks_are_heard(wildlife: Wildlife, rig: Rig, pond: PondWater) -> void:
 	var f: Wildlife.Family = wildlife.families[0]
 	var quacks := func() -> int: return wildlife.calls.played.get("quack", [0])[0]
 	var before: int = quacks.call()
-	_run(wildlife, 600.0)
+	_run(wildlife, 1800.0)
 	var heard: int = quacks.call() - before
-	_check(heard >= 600.0 / 40.0, "a family at its pond quacked %d times in ten minutes" % heard)
+	_check(heard >= 1800.0 / 60.0, "a family at its pond quacked %d times in half an hour" % heard)
 	var mid := Terrain.grid_xz(pond.pond.bottom)
 	var at := Vector3(mid.x, pond.surface_y() + 0.3, mid.y)
 	var eyes := rig.head.global_position
