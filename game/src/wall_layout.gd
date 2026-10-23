@@ -1173,7 +1173,7 @@ static func casement(w: float, tall: float, rng: RandomNumberGenerator) -> Array
 	var out: Array[Dictionary] = [{"at": Vector2.ZERO, "size": Vector3(w - 0.02, tall - 0.02, 0.02), "color": GLASS * rng.randf_range(0.9, 1.1), "kind": "glass"}]
 	for edge in [-1.0, 1.0]:
 		out.append({"at": Vector2(edge * (w * 0.5 - 0.03), 0.0), "size": Vector3(0.06, tall, 0.08), "color": WOOD * rng.randf_range(0.85, 1.05), "kind": "frame"})
-		out.append({"at": Vector2(0.0, edge * (tall * 0.5 - 0.03)), "size": Vector3(w, 0.06, 0.08), "color": WOOD * rng.randf_range(0.85, 1.05), "kind": "frame"})
+		out.append({"at": Vector2(0.0, edge * (tall * 0.5 - 0.03)), "size": Vector3(w - 0.12, 0.06, 0.08), "color": WOOD * rng.randf_range(0.85, 1.05), "kind": "frame"})
 	out.append({"at": Vector2.ZERO, "size": Vector3(0.035, tall, 0.05), "color": WOOD, "kind": "frame"})
 	out.append({"at": Vector2(0.0, tall * 0.08), "size": Vector3(w, 0.035, 0.05), "color": WOOD, "kind": "frame"})
 	return out

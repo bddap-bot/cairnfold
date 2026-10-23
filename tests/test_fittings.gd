@@ -64,6 +64,14 @@ func _a_window_cuts_its_opening() -> void:
 	check(lintel.size.x > o.half * 2.0 and lintel.y > o.head, "the lintel spans the opening above its head")
 	var set_back := (_kind(w, "glass") + _kind(w, "frame")).all(func(p): return is_equal_approx(p.xform.origin.z, -WallLayout.THICKNESS * 0.12))
 	check(set_back, "the casement's glass, frame and bars lie in one plane, none sunk behind the glass")
+	var rect := func(p: Dictionary) -> Rect2: return Rect2(p.s - p.size.x * 0.5, p.y - p.size.y * 0.5, p.size.x, p.size.y)
+	var deep := _kind(w, "frame").filter(func(p): return is_equal_approx(p.size.z, 0.08))
+	var crossing := 0
+	for i in deep.size():
+		for j in i:
+			if rect.call(deep[i]).intersection(rect.call(deep[j])).get_area() > 1e-6:
+				crossing += 1
+	check(deep.size() == 4 and crossing == 0, "the casement's stiles and rails meet without overlapping faces: %d of %d overlap" % [crossing, deep.size()])
 	var surround := _kind(w, "plaster").all(func(p): return is_equal_approx(absf(p.xform.origin.z) - p.size.z * 0.5, WallLayout.THICKNESS * 0.5 - WallLayout.PLASTER_INSET))
 	check(surround, "the plaster surround lies on a plastered face")
 
