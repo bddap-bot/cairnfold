@@ -1,16 +1,9 @@
 shader_type spatial;
 render_mode unshaded, cull_disabled, shadows_disabled, fog_disabled;
 
-uniform vec3 sun_dir = vec3(0.0, 1.0, 0.0);
-uniform vec3 sun : source_color = vec3(1.0);
-uniform float energy = 1.0;
-uniform vec3 sky : source_color = vec3(0.3, 0.5, 0.85);
-uniform vec3 horizon : source_color = vec3(0.86, 0.88, 0.84);
-uniform float ambient = 0.7;
-uniform vec3 haze : source_color = vec3(0.86, 0.88, 0.84);
+#include "res://src/horizon.gdshaderinc"
+
 uniform vec3 deep : source_color = vec3(0.08, 0.27, 0.34);
-uniform vec3 stone : source_color = vec3(0.56, 0.52, 0.48);
-uniform vec3 slope : source_color = vec3(0.26, 0.38, 0.20);
 // Mountains.ridge_image: each range's ridge over the water round the circle.
 uniform sampler2D ridges : filter_linear, repeat_enable;
 uniform float level = 3.5;
