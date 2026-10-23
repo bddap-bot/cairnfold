@@ -65,6 +65,20 @@ class BenchmarkRendering(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("paths/stroke", result.stdout)
 
+    def test_a_phases_stalls_are_kept_in_its_record(self):
+        stall = {"ms": 412.5, "tags": ["build"], "scripts_ms": 400.1, "compiled": [0, 2], "notes": [{"what": "wipe", "ms": 390.0}]}
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            out = Path(folder)
+            (out / "metrics.json").write_text(json.dumps({
+                "info": {"budget": {"gpu_ms": 12.5, "refresh_hz": 72}},
+                "seconds": [{"label": "wipe/village", "p50": 13.89, "p99": 13.89, "late": 1, "draws": 100, "prims": 1000,
+                             **({"stalls": [stall]} if i == 0 else {})} for i in range(3)],
+            }))
+            result = subprocess.run([sys.executable, "-c", REPORT, str(out), "desktop", str(out / "record.json"), "1"], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            phase = json.loads((out / "record.json").read_text())["phases"]["wipe/village"]
+            self.assertEqual(phase["stalls"], [{"ms": 412.5, "notes": [{"what": "wipe", "ms": 390.0}], "compiled": [0, 2]}])
+
 
 class Trend(unittest.TestCase):
     def record(self, folder, name, phases, **more):
@@ -107,3 +121,25 @@ class Trend(unittest.TestCase):
                 self.record(out, "20261023T000000Z-bbbbbbb.json", {"a": latest})
                 self.assertEqual(trend.report("rig", "scene", out), risen)
 
+
+class StressScene(unittest.TestCase):
+    def test_only_a_wipe_phase_measures_taking_a_garden_away(self):
+        """A second's row takes the label current when it is written, which can be a long frame after the second
+        ends, so a clear or wipe is two seconds clear of the next measured phase."""
+        steps = json.loads((SCRIPTS.parent / "demo/stress.json").read_text())
+        label, since, measured = "-", None, []
+        for i, step in enumerate(steps):
+            if step["op"] == "label":
+                label = step["name"]
+                if since is not None and since < 2 and label != "-":
+                    measured.append(f"{label} starts {since:g} s after a clear")
+                if label != "-":
+                    since = None
+            elif step["op"] in ("clear", "bare") and not label.startswith("wipe/"):
+                if label != "-":
+                    measured.append(f"step {i} {step['op']} in {label}")
+                since = 0.0
+            elif since is not None:
+                since += step.get("seconds", 0)
+        self.assertEqual(measured, [])
+        self.assertIn({"op": "label", "name": "wipe/village"}, steps)

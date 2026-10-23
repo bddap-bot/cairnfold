@@ -334,6 +334,9 @@ for name, secs in phases.items():
                      "draws": max(s["draws"] for s in secs), "prims": max(s["prims"] for s in secs)}
     if windows:
         summary[name]["landings"] = windows
+    stalls = [{k: st[k] for k in ("ms", "notes", "compiled")} for s in phases[name] for st in s.get("stalls", [])]
+    if stalls:
+        summary[name]["stalls"] = stalls
     if gpu.get(name):
         g = mid(gpu[name])
         summary[name]["gpu_ms"] = round(g, 3)
