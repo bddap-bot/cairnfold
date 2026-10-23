@@ -322,7 +322,7 @@ schema and the snapshot round trip. `tests/test_avatar.gd` reads the public samp
 `tests/avatars/` (VRM 1.0 and 0.x) and checks the limits, the pose, the arms' reach, and that
 one model in both versions stands alike.
 
-`scripts/flat.sh OUT` renders a host and a flat-screen player (`--flat`) on one machine,
+`scripts/coop.sh OUT --flat` renders a host and a flat-screen player (`--flat`) on one machine,
 each wearing a sample avatar from its own avatars folder: the flat-screen player hears the
 host's beacon, opens the shared inventory wheel and picks the host's figure (in
 the host's file), walks up to the host and takes a photo of it into `OUT/photos`; the

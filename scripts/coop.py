@@ -1,5 +1,6 @@
 """Drive the existing build gestures with N peers, then check every peer's view."""
 import argparse
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -266,6 +267,27 @@ def held_scripts():
     }
 
 
+# A flat-screen player joins a VR host's garden through the visit tool's figures, walks up and takes a photo; both games
+# render under one virtual display. Each wears its own VRM from its avatars folder: the flat-screen player's picker
+# shows the host's, the host's captures show the flat-screen player's standing in its garden, and the photo lands in
+# OUT/photos. Then the flat-screen player holds out the seed dish by the host's wall: a conure comes to stand on it in
+# its own game, and in the host's another stands on the dish its avatar holds.
+FLAT_AVATARS = {"host": "godette-0.x.vrm", "join": "crimsom-1.0.vrm"}
+
+
+def flat_scripts():
+    return {name: json.loads((ROOT / f"demo/flat-{name}.json").read_text()) for name in FLAT_AVATARS}
+
+
+def check_flat(out):
+    worn = json.loads((out / "host-seen.json").read_text())["worn"]
+    own = hashlib.sha256((out / "avatars-join" / FLAT_AVATARS["join"]).read_bytes()).hexdigest()
+    assert worn == [own], "the host sees the flat-screen player's own avatar"
+    fed = json.loads((out / "host-fed.json").read_text())["fed"]["dish"]
+    assert fed >= 1, "the host sees an animal eating at the flat-screen player's dish"
+    assert any((out / "photos").glob("*.png")), f"a photo in {out / 'photos'}"
+
+
 def reserve_beacons():
     # Reserve a fifth socket, outside the four listeners, so all four can be used.
     for base in random.sample(range(20000, 60000, 5), 8000):
@@ -285,11 +307,13 @@ def reserve_beacons():
     raise RuntimeError("no free beacon block")
 
 
-def run(out, count, spawn=False, capture=False, held=False):
+def run(out, count, mode="full", capture=False):
     out.mkdir(parents=True, exist_ok=True)
     for path in out.glob("*.json"):
         path.unlink()
-    generated = held_scripts() if held else spawn_scripts(capture) if spawn else scripts(count, capture)
+    full = mode == "full"
+    generated = {"full": lambda: scripts(count, capture), "spawn": lambda: spawn_scripts(capture),
+                 "held": held_scripts, "flat": flat_scripts}[mode]()
     for name, steps in generated.items():
         (out / f"script-{name}.json").write_text(json.dumps(steps, indent=2))
     beacon, reservation = reserve_beacons()
@@ -318,24 +342,33 @@ def run(out, count, spawn=False, capture=False, held=False):
     files = ["crimsom-1.0.vrm", "godette-0.x.vrm", "crimsom-0.x.vrm"]
 
     def launch(name, port):
-        args = ["godot4", "--headless", "--path", str(ROOT / "game"), "--xr-mode", "off",
-                "--", "--desktop", "--script", str(out / f"script-{name}.json"),
-                "--capture-dir", str(out), "--host-port", str(port),
-                "--beacon-port", str(beacon), "--port", str(port if name == "host" else first)]
-        if capture and name == "host":
-            args.remove("--headless")
-        if name != "host":
+        rendered = mode == "flat" or capture and name == "host"
+        args = ["godot4", "--path", str(ROOT / "game"), "--xr-mode", "off"]
+        args += ["--resolution", "1200x900"] if mode == "flat" else [] if rendered else ["--headless"]
+        args += ["--", "--desktop", "--script", str(out / f"script-{name}.json"),
+                 "--capture-dir", str(out), "--host-port", str(port),
+                 "--beacon-port", str(beacon), "--port", str(port if name == "host" else first)]
+        vrm = None
+        if mode == "flat":
+            vrm = FLAT_AVATARS[name]
+            if name == "join":
+                args.append("--flat")
+        elif name != "host":
             i = list(generated).index(name) - 1
+            vrm = files[i % len(files)]
+            args += ["--avatar", str(i + 1)]
+        if vrm:
             folder = out / f"avatars-{name}"
             folder.mkdir(exist_ok=True)
             for path in folder.glob("*.vrm"):
                 path.unlink()
-            (folder / files[i % len(files)]).write_bytes((ROOT / "tests/avatars" / files[i % len(files)]).read_bytes())
-            args += ["--avatars", str(folder), "--avatar", str(i + 1)]
+            (folder / vrm).write_bytes((ROOT / "tests/avatars" / vrm).read_bytes())
+            args += ["--avatars", str(folder)]
         log = (out / f"{name}.log").open("w")
         logs.append(log)
+        icd = os.environ.get("NESTCOMBE_ICD", "/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json")
         processes[name] = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT,
-                                           env=dict(os.environ, DISPLAY=display) if capture and name == "host" else None)
+                                           env=dict(os.environ, DISPLAY=display, VK_ICD_FILENAMES=icd) if rendered else None)
 
     progress = {"steps": 0, "cpu": 0.0, "quiet": 0.0}
 
@@ -347,7 +380,7 @@ def run(out, count, spawn=False, capture=False, held=False):
 
     def check():
         last = {}
-        if not spawn and not held:
+        if full:
             for name in generated:
                 picked = out / f"{name}-avatar-seen.json"
                 if picked.exists():
@@ -382,9 +415,11 @@ def run(out, count, spawn=False, capture=False, held=False):
             time.sleep(0.1)
 
     try:
-        if capture:
+        if capture or mode == "flat":
+            # The flat-screen run puts both players' windows side by side.
+            screen = "2560x1024x24" if mode == "flat" else "1600x1200x24"
             reader, writer = os.pipe()
-            xserver = subprocess.Popen(["Xvfb", "-displayfd", str(writer), "-screen", "0", "1600x1200x24", "-nolisten", "tcp"], pass_fds=(writer,))
+            xserver = subprocess.Popen(["Xvfb", "-displayfd", str(writer), "-screen", "0", screen, "-nolisten", "tcp"], pass_fds=(writer,))
             os.close(writer)
             with os.fdopen(reader) as ready:
                 display = ":" + ready.readline().strip()
@@ -397,13 +432,13 @@ def run(out, count, spawn=False, capture=False, held=False):
         port = host_port()
         print(f"coop: {count} players, host port {port}, beacon ports {beacon}–{beacon + 3}", flush=True)
         launch("join", port)
-        if not spawn and not held:
+        if full:
             until(lambda: all((out / f"{n}-2-players-cost.json").exists() for n in ("host", "join")))
             for name in list(generated)[2:]:
                 launch(name, port)
         until(lambda: all(p.poll() is not None for p in processes.values()))
         check()
-        if not spawn and not held:
+        if full:
             print("ok: inventory-wheel avatar selection is visible to every peer", flush=True)
     finally:
         for proc in processes.values():
@@ -425,11 +460,14 @@ def run(out, count, spawn=False, capture=False, held=False):
             xserver.terminate()
             xserver.wait()
     print(f"coop: longest stretch without a step took {progress['quiet']:.1f} of {QUIET_CPU} CPU-seconds", flush=True)
-    if held:
+    if mode == "held":
         assert (out / "remote-palette-loaded-brush.png").is_file(), "remote held capture exists"
         return
-    if spawn:
+    if mode == "spawn":
         check_spawn(out)
+        return
+    if mode == "flat":
+        check_flat(out)
         return
     subprocess.run(["python3", str(ROOT / "scripts/coop-check.py"), str(out),
                     str(ROOT / "tests/avatars"), str(count)], check=True)
@@ -457,12 +495,16 @@ if __name__ == "__main__":
     parser.add_argument("--held", action="store_true", help="capture and assert a peer holding a palette and loaded brush")
     parser.add_argument("--spawn", action="store_true", help="only the late-join mountain regression")
     parser.add_argument("--capture", action="store_true", help="render the spawn regression on a virtual display")
+    parser.add_argument("--flat", action="store_true", help="only a flat-screen player visiting a rendered host")
     args = parser.parse_args()
     if not 2 <= args.players <= 8:
         parser.error("players must be 2..8 (Session.MAX_PLAYERS)")
     if args.held:
-        run(args.out.resolve(), 2, capture=True, held=True)
+        run(args.out.resolve(), 2, "held", capture=True)
         raise SystemExit(0)
-    run(args.out.resolve() / "spawn", 2, spawn=True, capture=args.capture)
+    if args.flat:
+        run(args.out.resolve(), 2, "flat")
+        raise SystemExit(0)
+    run(args.out.resolve() / "spawn", 2, "spawn", capture=args.capture)
     if not args.spawn:
         run(args.out.resolve(), args.players, capture=args.capture)
