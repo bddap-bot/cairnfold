@@ -55,6 +55,15 @@ func _run() -> void:
 	check(_feel(_line(Vector3(-0.12, 0.03, 0.0), Vector3(0.05, 0.03, 0.0), 0.5)) == -1, "a rightward sweep over the pages turns back")
 	check(_feel(_line(Vector3(0.07, -0.2, 0.0), Vector3(0.07, 0.2, 0.0), 1.0) + _line(Vector3(0.07, 0.2, 0.0), Vector3(-0.07, 0.03, 0.0), 0.6)) == 1,
 		"a pass through the page and on across the spread turns one leaf")
+	var heard := func(act: String) -> int: return Cues.asked.get(Cues.Act.get(act, -1), 0)
+	var hover: int = heard.call("WHEEL_HOVER")
+	var page: int = heard.call("BOOK_PAGE")
+	var shut := Book.new(false)
+	shut.set_process(false)
+	root.add_child(shut)
+	shut.open()
+	check(heard.call("WHEEL_HOVER") == hover and heard.call("BOOK_PAGE") == page + 1, "the book opens with its own page sound, not the tool wheel's tick")
+	shut.queue_free()
 	book.queue_free()
 	await process_frame
 	finish()

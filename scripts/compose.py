@@ -631,6 +631,16 @@ def actions():
         fx[f"thud{i}"] = _thud(crng.uniform(70, 85))
     for i in range(3):
         fx[f"whoosh{i}"] = _whoosh(0.5, crng.uniform(170, 230))
+    for i in range(3):
+        n = int(0.32 * SR)
+        swish = _band(crng.standard_normal(n), 200, 850) * np.sin(np.pi * _t(0.32) / 0.32) ** 3
+        fx[f"page{i}"] = swish + _grains(0.32, 6, 0.012, 250, 750, 0.7) * 0.3
+    for name, (a, b) in (("roll0", (440, 560)), ("cut0", (560, 440))):
+        x = np.zeros(int(0.22 * SR))
+        first, second = _knock(a, 0.1, 80.0), _knock(b, 0.1, 80.0) * 0.8
+        x[: len(first)] += first
+        x[int(0.08 * SR) : int(0.08 * SR) + len(second)] += second
+        fx[name] = x
     return {k: _fft_lowpass(v, 1800, 4) for k, v in fx.items()}
 
 

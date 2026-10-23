@@ -276,7 +276,7 @@ func _reserve(ext: String) -> String:
 ## VIDEO_SIZE and keeps its pace, one frame in PREVIEW_EVERY, and each drawing is read back and handed to a worker
 ## thread to be written; the game's sound is taken from the master bus as it plays.
 func record(hand: Hand) -> void:
-	hand.trigger_haptic_pulse(&"haptic", 0.0, 0.4, 0.08, 0.0)
+	Cues.play(Cues.Act.VIDEO_START, hand.global_position, hand)
 	_clip_path = _reserve("avi")
 	_clip = Avi.open(ProjectSettings.globalize_path(_clip_path), VIDEO_SIZE, VIDEO_FPS, roundi(AudioServer.get_mix_rate()))
 	if _clip == null:
@@ -306,7 +306,7 @@ func stop() -> String:
 	var hand := _clip_hand
 	if hand == null:
 		return ""
-	hand.trigger_haptic_pulse(&"haptic", 0.0, 0.4, 0.08, 0.0)
+	Cues.play(Cues.Act.VIDEO_STOP, hand.global_position, hand)
 	_clip_hand = null
 	ToolModels.button(hand.model(_clip_tool)).emission = Color.BLACK
 	if _previews.has(hand):

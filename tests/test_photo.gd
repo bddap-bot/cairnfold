@@ -265,7 +265,9 @@ func _holding_the_trigger_records_until_it_is_let_go() -> void:
 	check(tool._clip == null and saved.is_empty(), "a tap of the trigger takes a photo, not a video")
 	Buttons.injected[key] = true
 	await create_timer(PhotoTool.HOLD * 1.5).timeout
+	var heard := func(act: String) -> int: return Cues.asked.get(Cues.Act.get(act, -1), 0)
 	check(tool._clip_hand == rig.right, "held, the trigger records")
+	check(heard.call("VIDEO_START") == 1 and heard.call("VIDEO_STOP") == 0, "starting a video has its own cue")
 	check(tool._previews[rig.right].size == PhotoTool.VIDEO_SIZE, "the camera's view grows to the video's size while recording")
 	check(shutter.emission == ToolModels.RECORDING, "the shutter button glows while recording")
 	await create_timer(0.5).timeout
@@ -274,6 +276,7 @@ func _holding_the_trigger_records_until_it_is_let_go() -> void:
 	await _until(func() -> bool: return not saved.is_empty())
 	check(tool._clip == null and tool._clip_hand == null, "letting go stops recording")
 	check(not saved.is_empty(), "letting go saves the video")
+	check(heard.call("VIDEO_STOP") == 1, "and stopping one its own, apart from starting")
 	if saved.is_empty():
 		return
 	check(saved[0].ends_with(".avi") and FileAccess.file_exists(saved[0]), "the video is saved beside the photos: %s" % saved[0])

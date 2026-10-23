@@ -309,7 +309,7 @@ func _follow(delta: float) -> void:
 
 func _begin(leaf: int, way: int) -> void:
 	_turn = {"leaf": leaf, "way": way, "t": 0.0, "span": OPEN_S if leaf == 0 else TURN_S, "to": at + way}
-	Cues.play(Cues.Act.WHEEL_HOVER, global_position, holder)
+	Cues.play(Cues.Act.BOOK_PAGE, global_position, holder)
 
 
 ## Each leaf's angle now: turned ones lie on the left (PI).

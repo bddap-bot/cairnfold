@@ -19,7 +19,8 @@ enum Act {
 	DIAL_TURN, DIAL_SET,
 	SKY_TURN,
 	EASEL_PLACE, BRUSH_TAKE, BRUSH_DIP, SHEET_TEAR,
-	PHOTO, SEEDS_THROW,
+	PHOTO, VIDEO_START, VIDEO_STOP, SEEDS_THROW,
+	BOOK_PAGE,
 	WHEEL_OPEN, WHEEL_HOVER, WHEEL_PICK,
 	UNDO, REDO,
 	TELEPORT, TELEPORT_ONTO, TURN,
@@ -74,6 +75,9 @@ const TABLE := {
 	Act.BRUSH_DIP: {"sound": "dip", "db": -18.0, "spread": 0.1, "tune": 1.3, "feel": [0.2, 0.02, 1, 0.0]},
 	Act.SHEET_TEAR: {"sound": "tear", "db": -8.0, "spread": 0.06, "feel": [0.3, 0.06, 1, 0.0]},
 	Act.PHOTO: {"sound": "shutter", "db": -8.0, "spread": 0.04, "feel": [0.4, 0.04, 1, 0.0]},
+	Act.VIDEO_START: {"sound": "roll", "db": -12.0, "spread": 0.03, "feel": [0.3, 0.03, 2, 0.08]},
+	Act.VIDEO_STOP: {"sound": "cut", "db": -12.0, "spread": 0.03, "feel": [0.45, 0.07, 1, 0.0]},
+	Act.BOOK_PAGE: {"sound": "page", "db": -16.0, "spread": 0.08, "feel": [0.08, 0.015, 1, 0.0]},
 	Act.SEEDS_THROW: {"sound": "scatter", "db": -8.0, "spread": 0.1, "feel": [0.2, 0.03, 1, 0.0]},
 	Act.WHEEL_OPEN: {"sound": "tock", "db": -14.0, "spread": 0.03, "tune": 0.8, "feel": [0.15, 0.02, 1, 0.0]},
 	Act.WHEEL_HOVER: {"sound": "tock", "db": -18.0, "spread": 0.05, "tune": 1.15, "feel": [0.1, 0.012, 1, 0.0], "every": 0.05},
@@ -99,7 +103,7 @@ const SOUNDS := {
 	"stone": 5, "settle": 3, "arch": 2, "crumble": 2, "dip": 3, "fill": 2, "plop": 3, "nibble": 4,
 	"bow": 3, "lift": 2, "scrape": 4, "wood": 3, "rustle": 4, "gravel": 4, "soil": 3, "sweep": 1, "tock": 3,
 	"pick": 3, "tear": 2, "shutter": 2, "scatter": 3, "undo": 1, "redo": 1, "swish": 1, "cloth": 1, "hello": 1,
-	"bye": 1, "flutter": 3, "grunt": 2, "thud": 3, "whoosh": 3,
+	"bye": 1, "flutter": 3, "grunt": 2, "thud": 3, "whoosh": 3, "page": 3, "roll": 1, "cut": 1,
 }
 ## The sounds there were before this table; every other one is checked for band energy against them
 ## (tests/test_cues.py).

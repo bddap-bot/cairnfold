@@ -3629,12 +3629,15 @@ Every player action, from the code:
 | `BRUSH_DIP` | A brush dips into paint, the jar or the tin | quiet dip | tick |
 | `SHEET_TEAR` | The sheet is torn off | paper tear | pulse |
 | `PHOTO` | The camera takes a photo (flat players too) | wooden shutter | knock |
+| `VIDEO_START` | Holding the camera's trigger starts a video | two soft knocks rising | two knocks |
+| `VIDEO_STOP` | A video stops: the trigger let go or the camera put away | two soft knocks falling | one long pulse |
 | `SEEDS_THROW` | A handful of seeds leaves the dish | soft scatter | knock |
+| `BOOK_PAGE` | The picture book opens or turns a page | soft paper swish | light tick |
 | `WHEEL_OPEN` | The tool wheel opens | low tock | tick |
 | `WHEEL_HOVER` | The hand moves onto another slot or into a subtree | quiet high tock | light tick |
 | `WHEEL_PICK` | Letting go takes the tool | felt pluck | knock |
-| `UNDO` | One step back | two plucks falling | tick |
-| `REDO` | One step forward | two plucks rising | tick |
+| `UNDO` | One step back, as it comes back; with none to take back it is `REFUSED` | two plucks falling | tick |
+| `REDO` | One step forward, as it comes back; with none to put back it is `REFUSED` | two plucks rising | tick |
 | `TELEPORT` | A teleport is let go | quick cloth swish where the player lands | pulse in the aiming hand |
 | `TELEPORT_ONTO` | A teleport past `Rig.MARKER_NEAR` (15 m) from the eyes lets go standing on something: the ground, a roof, a wall's top, a tree; one into the air is a `TELEPORT` | cloth rustle landing | pulse in the aiming hand |
 | `TURN` | A snap turn | none: the most frequent motion, a sound on each would become a tic | light tick |
