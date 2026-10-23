@@ -523,7 +523,7 @@ func _play_colour(at: float) -> void:
 	wheel.transform = Transform3D(f.basis, f * PaletteTool.WHEEL_AT)
 	var chosen := posmod(roundi(-rad_to_deg(twist) / Palette.TWIST_STEP), n)
 	for i in n:
-		var a := float(i - chosen) / n * TAU + twist + float(chosen) / n * TAU * 0.0
+		var a := float(i - chosen) / n * TAU + twist
 		var d: MeshInstance3D = _fx.swatches[i]
 		d.position = Vector3(sin(a), cos(a), 0) * PaletteTool.WHEEL_RADIUS
 		d.rotation = Vector3(PI * 0.5, 0, 0)

@@ -153,7 +153,6 @@ func _retag(root: Node3D, who: String, picture: Texture2D, shown: bool) -> void:
 	var tag := Node3D.new()
 	tag.name = "Tag"
 	tag.position.y = -0.008
-	tag.rotation.y = 0.0
 	root.add_child(tag)
 	var label := Label3D.new()
 	label.text = who

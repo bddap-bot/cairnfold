@@ -94,7 +94,7 @@ func show_input(input: String, held_s: float, hold_s := 0.0) -> void:
 		var k := fposmod(held_s, PULSE) / PULSE
 		var m: ShaderMaterial = pulse.material_override
 		m.set_shader_parameter("radius", lerpf(0.02, 0.075, k))
-		m.set_shader_parameter("alpha", (1.0 - k) * 1.0)
+		m.set_shader_parameter("alpha", 1.0 - k)
 		pulse.global_position = part.global_position
 	var ring: MeshInstance3D = _rings[key]
 	ring.visible = on and hold_s > 0.0

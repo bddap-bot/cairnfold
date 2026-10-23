@@ -108,10 +108,6 @@ func _scene() -> Dictionary:
 	}
 
 
-func _flat(_x: float, _z: float) -> float:
-	return 0.0
-
-
 func _wall_data(a: Vector3, b: Vector3, depth: float, on: PackedInt32Array, pitch: float) -> Dictionary:
 	var points := WallLayout.rectangle(Terrain.ground(a.x, a.z), Terrain.ground(b.x, b.z), depth)
 	var centre := Terrain.ground((a.x + b.x) * 0.5, (a.z + b.z) * 0.5)
