@@ -76,8 +76,11 @@ var easels := {}
 
 func _init() -> void:
 	name = "Easels"
-	# The shared geometry, the paint pipeline and the easel's draw pipelines are built as the game loads, by an easel
-	# that stands hidden for its first frame, so not even the first placement in a session builds any of them.
+
+
+## Builds the shared geometry, the paint pipeline and the easel's draw pipelines by an easel that stands hidden for its
+## first frame, so not even the first placement in a session builds any of them (`Warmup`).
+func warm() -> void:
 	var warm := Easel.new()
 	_build(warm)
 	var look := ShaderMaterial.new()

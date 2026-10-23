@@ -42,9 +42,20 @@ static var _mats := {}
 static var _meshes := {}
 static var _stars := {}
 static var _boulder_preview: MultiMesh
-## The pieces of each build style's miniature, by its `style` arguments: laying out its walls and roof in script on
-## every opening of the style wheel held a Quest's frame for hundreds of milliseconds, and it is the same every time.
+## The pieces of each build style's miniature, by `_style_key`, built on a worker thread: laid out on the frame, a
+## Quest 2's first roof wheel held it 214 ms. `_lock` guards these and every cache the worker fills.
 static var _styled := {}
+## The miniatures each key's pieces are laid into when the worker brings them, held weakly: a wheel closed meanwhile
+## frees its own.
+static var _waiting := {}
+## The keys the worker builds next, the one a wheel waits on first, and those it has built since `deliver` last ran.
+static var _queue: Array = []
+static var _built: Array = []
+static var _building := false
+## Its own thread at low priority, not the worker pool: a pool task held the pool's low-priority share, which compiles
+## pipelines, and a Quest 2's first easel waited 11 s on them.
+static var _thread: Thread
+static var _lock := Mutex.new()
 ## Each mesh `bake` has read or built, by mesh, as its surface arrays: reading a mesh's arrays back from the GPU stalls
 ## the frame for every frame in flight, a Quest's style wheel hundreds of milliseconds on its first opening.
 static var _arrays := {}
@@ -111,22 +122,117 @@ static func build(tool: Hand.Tool) -> Node3D:
 
 
 ## A miniature of choice `i` of a style the style tool sets (`PaletteTool.styles`), a build's in stone or plaster,
-## a roof's over a house or a round tower; a gable end's turned to face the eye.
+## a roof's over a house or a round tower; a gable end's turned to face the eye. A build style's comes back empty
+## until the worker has built it, then fills: nothing waits on it.
 static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round := false, boulder := false, house := false) -> Node3D:
-	if restyle not in [PaletteTool.Restyle.GABLE, PaletteTool.Restyle.ROOF, PaletteTool.Restyle.TOP, PaletteTool.Restyle.FACE]:
+	if restyle not in BUILT_STYLES:
 		return _style(restyle, i, plastered, round, boulder, house)
-	var key := [restyle, i, plastered, round, house]
-	if not _styled.has(key):
-		var built := _style(restyle, i, plastered, round, boulder, house)
+	var key := _style_key(restyle, i, plastered, round, house)
+	var root := Node3D.new()
+	_lock.lock()
+	var pieces: Variant = _styled.get(key)
+	if pieces == null:
+		_waiting.get_or_add(key, []).append(weakref(root))
+		_queue.erase(key)
+		_queue.push_front(key)
+	_lock.unlock()
+	if pieces == null:
+		_build_styles()
+	else:
+		_lay(root, pieces)
+	return root
+
+
+## The build styles whose miniatures the worker builds.
+const BUILT_STYLES: Array[PaletteTool.Restyle] = [PaletteTool.Restyle.GABLE, PaletteTool.Restyle.ROOF, PaletteTool.Restyle.TOP, PaletteTool.Restyle.FACE]
+
+
+## Queues every build style's miniature for the worker, so a wheel opened later finds it built.
+static func prepare_styles() -> void:
+	_lock.lock()
+	for restyle in BUILT_STYLES:
+		for i in PaletteTool.styles(restyle):
+			for flags in 8:
+				var key := _style_key(restyle, i, flags & 1, flags & 2, flags & 4)
+				if not _styled.has(key) and key not in _queue:
+					_queue.append(key)
+	_lock.unlock()
+	_build_styles()
+
+
+## Waits out the worker, its queue dropped: nothing it holds may outlive the game.
+static func stop_styles() -> void:
+	_lock.lock()
+	_queue.clear()
+	_lock.unlock()
+	if _thread != null:
+		_thread.wait_to_finish()
+		_thread = null
+
+
+## The arguments a build style's miniature differs by: plaster shows on a house's or wall's stone, not a tower's, and a
+## face's choice of house or wall is its own.
+static func _style_key(restyle: PaletteTool.Restyle, i: int, plastered: bool, round: bool, house: bool) -> Array:
+	var tower := restyle == PaletteTool.Restyle.ROOF and round
+	return [restyle, i, plastered and not tower and restyle != PaletteTool.Restyle.FACE, tower, house and restyle == PaletteTool.Restyle.FACE]
+
+
+static func _build_styles() -> void:
+	_lock.lock()
+	var start := not _building and not _queue.is_empty()
+	_building = _building or start
+	_lock.unlock()
+	if not start:
+		return
+	if _thread != null:
+		_thread.wait_to_finish()
+	# Read back once here, on the main thread, the one mesh every stone is baked from.
+	_arrays_of(Stones.far_mesh())
+	_thread = Thread.new()
+	_thread.start(_build_queued, Thread.PRIORITY_LOW)
+
+
+static func _build_queued() -> void:
+	while true:
+		_lock.lock()
+		var key: Variant = _queue.pop_front()
+		while key != null and _styled.has(key):
+			key = _queue.pop_front()
+		_building = key != null
+		_lock.unlock()
+		if key == null:
+			return
+		var built := _style(key[0], key[1], key[2], key[3], false, key[4])
 		var pieces := []
 		for mi: MeshInstance3D in built.get_children():
 			pieces.append([mi.mesh, mi.transform, mi.material_override])
 		built.free()
+		_lock.lock()
 		_styled[key] = pieces
-	var root := Node3D.new()
-	for piece: Array in _styled[key]:
+		_built.append(key)
+		_lock.unlock()
+
+
+## Lays what the worker has built into the miniatures waiting on it; called on the main thread every frame
+## (`Warmup`), where the miniatures live.
+static func deliver() -> void:
+	_lock.lock()
+	var due := []
+	for key: Array in _built:
+		due.append([_styled[key], _waiting.get(key, [])])
+		_waiting.erase(key)
+	_built.clear()
+	_lock.unlock()
+	for d: Array in due:
+		for ref: WeakRef in d[1]:
+			var root := ref.get_ref() as Node3D
+			if root != null:
+				_lay(root, d[0])
+
+
+static func _lay(root: Node3D, pieces: Array) -> void:
+	for piece: Array in pieces:
 		_piece(root, piece[0], piece[1], piece[2])
-	return root
 
 
 static func _style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round: bool, boulder: bool, house: bool) -> Node3D:
@@ -334,7 +440,9 @@ static func bake(parts: Array) -> ArrayMesh:
 	var arrays := bake_arrays(parts)
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_lock.lock()
 	_arrays[mesh] = arrays
+	_lock.unlock()
 	return mesh
 
 
@@ -371,18 +479,28 @@ static func bake_arrays(parts: Array) -> Array:
 
 
 static func _arrays_of(mesh: Mesh) -> Array:
-	if not _arrays.has(mesh):
-		_arrays[mesh] = (mesh as PrimitiveMesh).get_mesh_arrays() if mesh is PrimitiveMesh else mesh.surface_get_arrays(0)
-	return _arrays[mesh]
+	_lock.lock()
+	var arrays: Variant = _arrays.get(mesh)
+	_lock.unlock()
+	if arrays == null:
+		arrays = (mesh as PrimitiveMesh).get_mesh_arrays() if mesh is PrimitiveMesh else mesh.surface_get_arrays(0)
+		_lock.lock()
+		_arrays[mesh] = arrays
+		_lock.unlock()
+	return arrays
 
 
 ## The mesh `make` builds, built once under `key`: every easel and hand holding the same kit shares its geometry, so
 ## setting one up in play builds and uploads none.
 static func shared(key: String, make: Callable) -> Mesh:
+	_lock.lock()
 	var m: Mesh = _meshes.get(key)
+	_lock.unlock()
 	if m == null:
 		m = make.call()
-		_meshes[key] = m
+		_lock.lock()
+		m = _meshes.get_or_add(key, m)
+		_lock.unlock()
 	return m
 
 
@@ -406,6 +524,7 @@ static func box(size: Vector3) -> BoxMesh:
 
 ## The material under `key`, made once: `colour`, roughness 0.6, then each of `extra`'s properties.
 static func _plain(key: String, colour: Color, extra := {}) -> StandardMaterial3D:
+	_lock.lock()
 	var mat: StandardMaterial3D = _mats.get(key)
 	if mat == null:
 		mat = StandardMaterial3D.new()
@@ -414,6 +533,7 @@ static func _plain(key: String, colour: Color, extra := {}) -> StandardMaterial3
 		for property: String in extra:
 			mat.set(property, extra[property])
 		_mats[key] = mat
+	_lock.unlock()
 	return mat
 
 
@@ -456,7 +576,7 @@ static func _camera(root: Node3D, selfie: bool) -> void:
 	for part in parts:
 		_piece(root, part[0], part[1], _plain("camera_%s" % part[2].to_html(), part[2], {"roughness": 0.35 if part[0] == glass else 0.7}))
 	if selfie:
-		_piece(root, cylinder(0.006, 0.007, SELFIE_LIFT, 10), Transform3D(Basis(), Vector3(0, SELFIE_LIFT * 0.5, 0)), _mats["camera_%s" % Color(0.22, 0.2, 0.19).to_html()])
+		_piece(root, cylinder(0.006, 0.007, SELFIE_LIFT, 10), Transform3D(Basis(), Vector3(0, SELFIE_LIFT * 0.5, 0)), _plain("camera_%s" % Color(0.22, 0.2, 0.19).to_html(), Color(0.22, 0.2, 0.19)))
 	var shutter := StandardMaterial3D.new()
 	shutter.albedo_color = Color(0.72, 0.56, 0.3)
 	shutter.roughness = 0.7
@@ -495,11 +615,15 @@ static func _stone_ground(root: Node3D, style: int) -> void:
 				st.add_vertex(Vector3(at.x, 0.0, at.y) * turf.top_radius)
 		return st.commit())
 	var key := "stone_ground_%d" % style
+	_lock.lock()
 	var mat: ShaderMaterial = _mats.get(key)
+	_lock.unlock()
 	if mat == null:
 		mat = _stone_disc(preload("res://src/stone_disc.gdshader"), style)
 		mat.set_meta("icon_material", _stone_disc(preload("res://src/stone_disc_icon.gdshader"), style))
+		_lock.lock()
 		_mats[key] = mat
+		_lock.unlock()
 	_piece(root, turf, Transform3D(Basis(), Vector3(0, 0.002, 0)), _plain("stone_ground_side", Meadow.GROUND[&"earth"], {"roughness": 1.0}))
 	_piece(root, face, Transform3D(Basis(), Vector3(0, 0.0041, 0)), mat)
 
@@ -949,8 +1073,7 @@ static func decoration(layout: DecorationLayout, seed: int) -> Node3D:
 
 ## `tool`'s own model (`build`) as one mesh, each piece in its material's colour, so a picture of it is the tool.
 static func picture(tool: Hand.Tool) -> ArrayMesh:
-	var key := "picture_%d" % tool
-	if not _meshes.has(key):
+	return shared("picture_%d" % tool, func() -> ArrayMesh:
 		var model := build(tool)
 		var parts := []
 		var pending: Array[Node] = [model]
@@ -961,8 +1084,7 @@ static func picture(tool: Hand.Tool) -> ArrayMesh:
 				var mi := n as MeshInstance3D
 				parts.append([mi.mesh, _within(model, mi), (mi.material_override as BaseMaterial3D).albedo_color])
 		model.free()
-		_meshes[key] = bake(parts)
-	return _meshes[key]
+		return bake(parts))
 
 
 static func _within(root: Node3D, n: Node3D) -> Transform3D:

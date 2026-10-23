@@ -138,6 +138,7 @@ func _ready() -> void:
 	session.feed = feed_tool
 	sound = Soundscape.new(tool, flora_tool)
 	add_child(Cues.new())
+	add_child(Warmup.new([ToolModels.prepare_styles, easels.warm, PondWater.prepare]))
 	add_child(sound)
 	add_child(Underwater.new(water, look))
 	rig.floor_under = func(p: Vector3) -> float: return maxf(maxf(tool.floor_under(p), world.stairs.floor_under(p)), boulders.floor_under(p))

@@ -24,7 +24,7 @@ var _lap := AudioStreamPlayer3D.new()
 
 
 ## Godot compiles a shader when a material first takes it, 10 ms on the Frame and a late frame as the first pond
-## fills, so `Water` calls this before any is dug and `get_rid` compiles it here.
+## fills, so `Warmup` calls this before any is dug and `get_rid` compiles it here.
 static func prepare() -> void:
 	if _shader != null:
 		return

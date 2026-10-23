@@ -37,7 +37,6 @@ func _init(touching: Array[Node3D]) -> void:
 	_owner.resize(Terrain.VERTS * Terrain.VERTS)
 	_owner.fill(-1)
 	Terrain.dry_water()
-	PondWater.prepare()
 
 
 ## The pond grid point `at` fills over the ground as it stands, with water no higher than `level`, or null; `near`
