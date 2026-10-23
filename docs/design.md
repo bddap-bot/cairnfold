@@ -1618,9 +1618,7 @@ to 25 m (each within noise); grass lit per vertex (near blades lose the rounded 
 of row 3 of the grass table). MSAA, which sets the bin size, stays at 4×:
 fewer samples would buy time at the cost of edges.
 
-Measuring this, two traps. Godot's Android override of `soft_shadow_filter_quality`, which
-`project.godot` leaves at its default, gives the Quest hard shadows, so a probe that sets the
-filter quality at run time measures a different game. And the headset's system shell keeps
+Measuring this, one trap. The headset's system shell keeps
 rendering beside the game while a Store or Library panel is open, or, unworn, while the
 Guardian's dialog is up, taking GPU time the game's own `App=` line does not show.
 `bench.sh --android` closes the panels, restarts the shell and holds the Guardian paused
@@ -1701,9 +1699,17 @@ A crown is lit and shaded as one soft mass, at no measured cost
   hatching and stair-steps a shadow-map texel wide across the crown's lit side, changing as the
   head moved. Moved along the rays, the shade on the ground keeps its shape. On the Steam Frame
   (fixed head, wind stilled, shadows-off control) this removed the stair-steps and about 40% of
-  the shadow-made hatching on a side-lit crown; fainter hatching remains in the crown's shaded
-  half. GPU time a frame: 7.69 ms both before and after close under a crown, 6.79 then 6.87 ms
-  looking over the meadow.
+  the shadow-made hatching on a side-lit crown. GPU time a frame: 7.69 ms both before and after
+  close under a crown, 6.79 then 6.87 ms looking over the meadow.
+- The sun's shadows take one hardware-filtered sample (`soft_shadow_filter_quality` 0), as
+  Godot's Android default already gave the Quests. The soft filter rotated its samples per
+  pixel, and the crown's caster lies within the filter's reach of the crown over a wide band,
+  so that band took the rotation as a fixed diagonal grain one to two pixels wide. Hiding the
+  caster left the crown exactly as with shadows off; backlight off, normal bias and a deeper
+  caster did not remove the grain short of losing the crown's own shade, more blur strengthened
+  it, and one sample removed it. On the Steam Frame (side-lit crown, both eyes, shadows-off control) the grain the
+  shadows add at the finest scale fell from 0.19 and 0.14 to 0.05 and 0.03, all of what is
+  left on the shade's own edge; off that edge the crown matches the control.
 
 GPU time a frame on the Quest 2 (`demo/crowns-bench.json`: the meadow and the tree pool
 filled to 20 m, ladder pinned; two passes of each build in one session, mean of the two),
