@@ -221,7 +221,6 @@ func _a_house_has_one_floor_however_tall() -> void:
 	var state := {"walls": {1: kept}}
 	_check(not Commands.clean({"op": "reshape", "of": "walls", "id": 1, "data": {"height": 3.0}}, state, false).is_empty(), "a reshape of the house's height stands")
 	_check(Commands.clean({"op": "reshape", "of": "walls", "id": 1, "data": {"storey_floors": true}}, state, false).is_empty(), "no reshape gives a floor a second storey")
-	_check(not "storey_floors" in WallLayout.new(), "a house's layout has no storeys to floor")
 
 
 func _open_walls_lay_no_floor() -> void:

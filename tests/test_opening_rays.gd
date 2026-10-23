@@ -33,7 +33,7 @@ func _check(ok: bool, what: String) -> void:
 
 
 func _wall(world: World, fence: bool, openings: Array) -> Wall:
-	var d := {"points": PackedVector3Array([Terrain.ground(10, -30), Terrain.ground(16, -30)]), "height": WallLayout.FENCE_HEIGHT if fence else 2.6, "seed": 3, "closed": false, "top": 0, "fence": fence, "openings": PackedVector4Array(openings), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": PackedInt32Array(), "paint": Palette.plain()}
+	var d := {"points": PackedVector3Array([Terrain.ground(10, -30), Terrain.ground(16, -30)]), "height": WallLayout.FENCE_HEIGHT if fence else 2.6, "seed": 3, "closed": false, "top": 0, "fence": fence, "openings": PackedVector4Array(openings), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain()}
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var w: Wall = main.tool.walls[-1]
 	w.lay_now()

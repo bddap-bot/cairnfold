@@ -122,11 +122,8 @@ static func wall(d: Dictionary) -> Dictionary:
 			slopes.kind = RoofLayout.Kind.GABLE
 			slopes.corners.assign(Array(d.points))
 			var ends := WallLayout.new()
-			ends.height = d.height
 			ends.gable_end = d.gable_end
-			ends.gable = RoofLayout.new()
-			ends.gable.pitch = d.roof.pitch
-			ends.gable.curve = d.roof.curve
+			ends.gable = slopes
 			var half_span: float = (Vector2(d.points[3].x - d.points[0].x, d.points[3].z - d.points[0].z).length() + WallLayout.THICKNESS) * 0.5
 			var units := "wall_m2" if ends.gable_end == WallLayout.GableEnd.BOARDS else face
 			out[units] = out.get(units, 0.0) + 2.0 * ends.gable_face(half_span)

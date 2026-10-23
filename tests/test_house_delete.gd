@@ -111,7 +111,7 @@ func _scene() -> Dictionary:
 func _wall_data(a: Vector3, b: Vector3, depth: float, on: PackedInt32Array, pitch: float) -> Dictionary:
 	var points := WallLayout.rectangle(Terrain.ground(a.x, a.z), Terrain.ground(b.x, b.z), depth)
 	var centre := Terrain.ground((a.x + b.x) * 0.5, (a.z + b.z) * 0.5)
-	return {"points": PackedVector3Array(points), "height": 2.6, "seed": 3, "closed": true, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0, "timber_style": 0, "storey_floors": false, "on": on, "paint": Palette.plain(),
+	return {"points": PackedVector3Array(points), "height": 2.6, "seed": 3, "closed": true, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0, "timber_style": 0, "on": on, "paint": Palette.plain(),
 		"roof": {"kind": RoofLayout.Kind.GABLE, "center": centre, "radius": depth * 0.5, "pitch": pitch, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
 
 
@@ -166,7 +166,6 @@ func _house() -> Dictionary:
 	data.flags = PackedFloat32Array([0.5])
 	data.plaster = true
 	data.plinth_plaster = true
-	data.storey_floors = true
 	data.height = 5.4
 	data.roof.chimneys = PackedVector2Array([Vector2(1.5, 0.0)])
 	data.roof.dormers = PackedVector2Array([Vector2(-1.0, -2.5), Vector2(1.0, 2.5)])

@@ -134,29 +134,33 @@ var timber_faces := PackedVector3Array()
 var bounds := AABB()
 
 
+const INPUTS: Array[StringName] = [&"kind", &"center", &"radius", &"pitch", &"curve", &"seed", &"chimneys", &"dormers", &"overhang", &"deck", &"flag", &"thatch"]
+
+
 ## What the roof is laid from, copied to lay on another thread.
 func inputs() -> RoofLayout:
 	var r := RoofLayout.new()
-	r.kind = kind
-	r.center = center
-	r.radius = radius
-	r.pitch = pitch
-	r.curve = curve
-	r.seed = seed
-	r.chimneys = chimneys.duplicate()
-	r.dormers = dormers.duplicate()
-	r.overhang = overhang
-	r.deck = deck
-	r.flag = flag
-	r.thatch = thatch
+	for k in INPUTS:
+		var v: Variant = get(k)
+		r.set(k, v.duplicate() if v is Array else v)
 	return r
 
 
 func same_inputs(other: RoofLayout) -> bool:
-	return (kind == other.kind and center == other.center and radius == other.radius
-		and pitch == other.pitch and curve == other.curve and seed == other.seed
-		and chimneys == other.chimneys and dormers == other.dormers and overhang == other.overhang and deck == other.deck
-		and flag == other.flag and thatch == other.thatch)
+	for k in INPUTS:
+		if get(k) != other.get(k):
+			return false
+	return true
+
+
+## Takes a build command's roof.
+func set_data(d: Dictionary) -> void:
+	for k in ["center", "radius", "pitch", "curve", "seed", "overhang", "flag", "thatch"]:
+		set(k, d[k])
+	kind = d.kind as Kind
+	deck = d.deck as Deck
+	chimneys.assign(Array(d.chimneys))
+	dormers.assign(Array(d.dormers))
 
 
 ## Takes what `built` laid, as if `build` had run here.

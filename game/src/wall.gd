@@ -212,33 +212,13 @@ func data() -> Dictionary:
 
 func set_data(d: Dictionary) -> void:
 	reshaped = {}
-	layout.points.assign(Array(d.points))
-	layout.height = d.height
-	layout.rise = d.rise
-	layout.seed = d.seed
-	layout.closed = d.closed
-	layout.top = d.top as WallLayout.Top
-	layout.fence = d.fence
-	layout.plaster = d.plaster
-	layout.plinth_plaster = d.plinth_plaster
-	layout.planks = d.planks
-	layout.timber_style = d.timber_style
-	layout.gable_end = d.gable_end as WallLayout.GableEnd
-	layout.openings.assign(Array(d.openings))
-	layout.lanterns.assign(Array(d.lanterns))
-	layout.flags.assign(Array(d.flags))
-	layout.ruins.assign(Array(d.ruins))
+	layout.set_data(d)
 	on = d.on
 	repaint(d.paint)
 	if d.has("roof"):
 		if roof == null:
 			add_roof(RoofLayout.new())
-		for k in ["center", "radius", "pitch", "curve", "seed", "overhang", "flag", "thatch"]:
-			roof.set(k, d.roof[k])
-		roof.kind = d.roof.kind as RoofLayout.Kind
-		roof.deck = d.roof.deck as RoofLayout.Deck
-		roof.chimneys.assign(Array(d.roof.chimneys))
-		roof.dormers.assign(Array(d.roof.dormers))
+		roof.set_data(d.roof)
 		_cover()
 
 

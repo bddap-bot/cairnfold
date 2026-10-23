@@ -1944,42 +1944,46 @@ func perches() -> PackedVector3Array:
 	return out
 
 
+## What `build` reads but `gable`: a wall lays its copy of the gable from its roof and compares the roof's own inputs.
+const INPUTS: Array[StringName] = [&"points", &"height", &"rise", &"seed", &"closed", &"top", &"cover", &"fence", &"plaster", &"plinth_plaster", &"planks", &"gable_end", &"timber_style", &"openings", &"lanterns", &"flags", &"ruins", &"supports", &"resting", &"joined", &"older"]
+
+
 ## A copy of what `build` reads, to build on another thread while this one is edited.
 func inputs() -> WallLayout:
 	var w := WallLayout.new()
-	w.points = points.duplicate()
-	w.height = height
-	w.rise = rise
-	w.seed = seed
-	w.closed = closed
-	w.top = top
-	w.cover = cover
-	w.fence = fence
-	w.plaster = plaster
-	w.plinth_plaster = plinth_plaster
-	w.planks = planks
-	w.gable_end = gable_end
-	w.timber_style = timber_style
+	for k in INPUTS:
+		var v: Variant = get(k)
+		w.set(k, v.duplicate() if v is Array else v)
 	w.gable = gable
-	w.openings = openings.duplicate()
-	w.lanterns = lanterns.duplicate()
-	w.flags = flags.duplicate()
-	w.ruins = ruins.duplicate()
-	w.supports = supports.duplicate()
-	w.resting = resting.duplicate()
-	w.joined = joined.duplicate()
-	w.older = older.duplicate()
 	return w
 
 
 ## Whether `other` would lay the same stones on the same ground.
 func same_inputs(other: WallLayout) -> bool:
-	return (points == other.points and height == other.height and rise == other.rise
-		and seed == other.seed and closed == other.closed and top == other.top
-		and cover == other.cover and fence == other.fence and plaster == other.plaster and plinth_plaster == other.plinth_plaster and planks == other.planks and gable_end == other.gable_end and timber_style == other.timber_style
-		and openings == other.openings and lanterns == other.lanterns and flags == other.flags
-		and ruins == other.ruins and supports == other.supports and resting == other.resting
-		and joined == other.joined and older == other.older)
+	for k in INPUTS:
+		if get(k) != other.get(k):
+			return false
+	return true
+
+
+## Takes the wall's part of a build command.
+func set_data(d: Dictionary) -> void:
+	points.assign(Array(d.points))
+	height = d.height
+	rise = d.rise
+	seed = d.seed
+	closed = d.closed
+	top = d.top as Top
+	fence = d.fence
+	plaster = d.plaster
+	plinth_plaster = d.plinth_plaster
+	planks = d.planks
+	timber_style = d.timber_style
+	gable_end = d.gable_end as GableEnd
+	openings.assign(Array(d.openings))
+	lanterns.assign(Array(d.lanterns))
+	flags.assign(Array(d.flags))
+	ruins.assign(Array(d.ruins))
 
 
 ## Takes what `built` laid, as if `build` had run here.
