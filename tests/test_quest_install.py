@@ -52,9 +52,10 @@ FAKE_ADB = textwrap.dedent('''\
     ''')
 
 
-def apk(path, package):
-    """A zip holding only an AndroidManifest.xml in Android's binary XML: <manifest package=...>."""
-    strings = ['manifest', 'package', package]
+def apk(path, package, quest=True):
+    """A zip holding only an AndroidManifest.xml in Android's binary XML: <manifest package=...>, whose string pool
+    names the Quest's VR category when quest."""
+    strings = ['manifest', 'package', package] + ['com.oculus.intent.category.VR'] * quest
     offsets, data = [], b''
     for t in strings:
         offsets.append(len(data))
@@ -95,8 +96,8 @@ class QuestInstallKeepsSaves(unittest.TestCase):
     def tearDown(self):
         self.temporary.cleanup()
 
-    def install(self, package='io.github.bddapbot.nestcombe', **env):
-        path = apk(self.root / 'old.apk', package)
+    def install(self, package='io.github.bddapbot.nestcombe', quest=True, **env):
+        path = apk(self.root / 'old.apk', package, quest)
         return subprocess.run([str(script), str(path)], env=dict(self.env, **env), capture_output=True, text=True)
 
     def test_a_build_installed_as_another_package_never_touches_the_game(self):
@@ -106,6 +107,12 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.assertIn('uninstall io.github.bddapbot.nestbisect', log)
         self.assertNotIn('nestcombe', log)
         self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
+
+    def test_an_apk_without_the_vr_category_is_refused(self):
+        run = self.install(quest=False)
+        self.assertNotEqual(run.returncode, 0)
+        self.assertIn('no Quest APK', run.stderr)
+        self.assertFalse((self.quest / 'adb.log').exists())
 
     def test_the_package_is_read_from_the_apk(self):
         run = subprocess.run([str(script), '--package', str(apk(self.root / 'x.apk', 'a.b.c'))], capture_output=True, text=True)
