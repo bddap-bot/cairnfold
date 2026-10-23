@@ -33,6 +33,9 @@ const ARCH_US := 60.0
 const BOOK_OPEN_MS := 1.2
 ## The least a boulder counts, however small: a pebble still draws its mesh.
 const BOULDER_LEAST := 0.25
+## The most one boulder costs the Quest 2 however large, in microseconds: its dearest paired cost, carried or still, near
+## or far, from 1 to 80 times a metre wide (docs/design.md, "Boulder cost by size").
+const BOULDER_MOST_US := 470.0
 ## A moss patch spans roughly four flower widths: reserve sixteen flower allowances for its pixels.
 ## This is conservative accounting until moss is measured on a headset.
 ## Each opaque patch is twelve triangles, with no shadow pass or CPU animation.
@@ -153,9 +156,10 @@ static func plants(kind: String, n: int) -> Dictionary:
 	return {("flower" if kind == "flowers" else kind): n}
 
 
-## What a boulder grown `scale` times counts as: the ground it covers and the face it shows grow as its scale squared.
+## What a boulder grown `scale` times counts as: the face it shows grows as its scale squared until near the eye it
+## fills the view, past which a larger one costs no more.
 static func boulder(scale: float) -> float:
-	return maxf(scale * scale, BOULDER_LEAST)
+	return clampf(scale * scale, BOULDER_LEAST, BOULDER_MOST_US / COSTS.boulder)
 
 
 static func stairs(d: Dictionary) -> Dictionary:

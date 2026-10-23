@@ -129,7 +129,7 @@ func _bad_commands_are_dropped() -> void:
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 1.0}}, state, false).is_empty(), "sizing a boulder that is not there is dropped")
 	state.boulders[9] = {"at": at, "turn": q, "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}
 	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"at": at + Vector3(2, 0, 1), "turn": Quaternion(Vector3.RIGHT, 1.2)}}, state, false).is_empty(), "a reshape moves and turns it")
-	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 160.0}}, state, false).is_empty(), "a boulder sizes far past a house: only the budget bounds it")
+	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 160.0}}, state, false).is_empty(), "a boulder sizes far past a house, unbounded")
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"seed": 4}}, state, false).is_empty(), "a reshape cannot swap its shape")
 	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"sink": 0.4}}, state, false).is_empty(), "a reshape pushes it into the ground")
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"sink": -0.4}}, state, false).is_empty(), "and never out over it")
@@ -147,7 +147,7 @@ func _a_placed_boulder_sizes_undoes_and_reloads() -> void:
 	await _settled()
 	var b: Boulders.Boulder = main.boulders.find(id)
 	_check(is_equal_approx(b.size, 6.0) and is_equal_approx(b.transform.basis.get_scale().x, 6.0), "a resize grows it where it stands")
-	_check(is_equal_approx(world.units.boulder, 36.0), "a boulder six times as wide counts its scale squared (%s)" % world.units.boulder)
+	_check(is_equal_approx(world.units.boulder * Budget.COSTS.boulder, Budget.BOULDER_MOST_US), "a boulder six times as wide costs the most one does (%s)" % world.units.boulder)
 	_check(b.data.paint[Palette.Element.STONE] == 4, "it takes a stone swatch from the colour wheel")
 	_check(b.far.visibility_range_begin > b.near.visibility_range_end - 0.01 and b.near.visibility_range_end > 100.0, "its detail reaches farther as it grows")
 	world.undo()
@@ -439,8 +439,8 @@ func _two_hands_size_it() -> void:
 	_check(is_equal_approx(b.size, 1.0) and absf(b.position.x - held.x) < 1e-3, "undo takes back the size and the move as one")
 
 
-## Twenty times the size a house could hide behind: only the budget bounds it, and it draws, stops a ray, holds a
-## player up and saves as any other.
+## Twenty times the size a house could hide behind: nothing bounds it, and it draws, stops a ray, holds a player up
+## and saves as any other.
 func _two_hands_grow_one_far_past_a_house() -> void:
 	world.restore({"seq": 0, "cmds": []})
 	main.flora_tool.place_boulder(Terrain.ground(10, -10), null, 29, 8.0)
@@ -448,8 +448,7 @@ func _two_hands_grow_one_far_past_a_house() -> void:
 	var b: Boulders.Boulder = main.boulders.boulders.values()[0]
 	var id := b.id
 	_check(world.fits({"op": "reshape", "of": "boulders", "id": id, "data": {"scale": 9.0}}), "it grows past a house while the budget has room")
-	_check(not world.fits({"op": "reshape", "of": "boulders", "id": id, "data": {"scale": 160.0}}), "and the budget alone stops it")
-	world.bounded = false
+	_check(world.fits({"op": "reshape", "of": "boulders", "id": id, "data": {"scale": 160.0}}), "and past any size, costing no more once it fills the view")
 	var share := world.fill()
 	var tool: WallTool = main.tool
 	var right := tool.mason(main.rig.right)
@@ -464,7 +463,7 @@ func _two_hands_grow_one_far_past_a_house() -> void:
 	tool.end_grow(right)
 	await _settled()
 	_check(is_equal_approx(world.state.boulders[id].scale, 160.0) and is_equal_approx(b.size, 160.0), "spread twenty times apart, the hands grow it twenty times past a house (%.1f)" % b.size)
-	_check(world.fill() > share, "the budget's share grows with it (%.3f to %.3f)" % [share, world.fill()])
+	_check(is_equal_approx(world.fill(), share), "the budget's share stays what the dearest boulder costs (%.3f to %.3f)" % [share, world.fill()])
 	_check(b.near.visibility_range_end >= Boulders.NEAR_TO * 160.0 and b.far.visibility_range_end >= Boulders.FAR_TO * 160.0, "its detail reaches as far as it is big")
 	var box := b.near.global_transform * b.near.multimesh.mesh.get_aabb()
 	_check(box.size.x > 100.0, "it is culled by its grown bounds (%.0f m across)" % box.size.x)
@@ -480,7 +479,6 @@ func _two_hands_grow_one_far_past_a_house() -> void:
 	world.load_from(world.save_path)
 	await _settled()
 	_check(var_to_str(world.digest()) == saved and is_equal_approx(main.boulders.find(id).size, 160.0), "it saves and loads back at its size")
-	world.bounded = true
 
 
 func _the_trigger_carries_a_new_one() -> void:

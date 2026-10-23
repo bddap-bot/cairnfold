@@ -27,6 +27,7 @@ func _run() -> void:
 	await _painting_stops_at_the_budget()
 	_water_costs_at_most_a_view_full()
 	_stone_ground_counts_its_square_metres()
+	_a_boulder_costs_no_more_once_it_fills_the_view()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -361,3 +362,11 @@ func _joining_does_not_change_the_budget() -> void:
 		branch.queue_free()
 	world.undo()
 	await _settled()
+
+
+func _a_boulder_costs_no_more_once_it_fills_the_view() -> void:
+	_check(is_equal_approx(Budget.boulder(2.0), 4.0), "a small boulder counts its scale squared")
+	_check(is_equal_approx(Budget.boulder(0.1), Budget.BOULDER_LEAST), "a pebble counts the least")
+	var most := Budget.cost_ms({"boulder": Budget.boulder(80.0)})
+	_check(is_equal_approx(most, Budget.BOULDER_MOST_US / 1000.0), "a boulder 80 metres wide costs the most one does")
+	_check(Budget.fits({}, {"boulder": Budget.boulder(1000.0)}), "an empty garden takes a boulder of any size")
