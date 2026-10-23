@@ -3360,8 +3360,23 @@ is bare (earth or stone), and the brushes plant nothing there.
 - **Painting:** the stone tool's trigger lays stone under the brush; a stroke begun on stone paints meadow back, which
   takes away only stone, so a path through the area keeps its wear. The meadow's own grass and flowers
   stand up again where the stone goes. A stroke is one history step.
-- **Slopes:** the terrain shader treats a slope too steep to hold soil as stone ground too: one stone
-  look, fed by the mask's green channel or by the slope, whichever is higher.
+- **Cliffs:** a slope too steep to hold soil (`rock` in `ground.gdshaderinc`, the one threshold) is bedded rock, not
+  laid stone. Report (verbatim): "I think that it is appropriate that a very steep cliff look stony. But the current
+  stone texture on very steep cliffs does not look like a cliff." The paving seen from above read, on a face, as
+  cobbles smeared down it. Drawn from photographs of sea cliffs, bedded limestone and sandstone and jointed granite
+  (kept with the work that made it, never shipped), the terrain shader's `cliff` lays horizontal beds half a metre
+  thick in units of about 2.6 m, pale and dark by turns, so far off the units alone read as strata; each bed's top
+  is a lit lip, grassed in patches, over the shadowed undercut of the bed above, its normal leaning up on the lip and
+  down under it; vertical joints cut each unit into tall blocks, and stains run down the face from them. Beds follow
+  the ground's height, joints count along whichever plan axis the face looks across. Toward a gentler slope whole
+  blocks drop out into the earth. Painted stone keeps its style where it is not rock. Cost on a Quest 2
+  (`demo/cliff-cost.json`, gliding past a ridge of sculpted cliffs and across the meadow, two runs of each build
+  interleaved, the bench's GPU ms a frame): the cliff from afar 5.59 and 5.58 before, 5.56 and 5.59 after; beside it
+  4.68 and 4.71 before, 4.67 and 4.63 after; the meadow 4.25 and 4.24 before, 4.32 and 4.32 after
+  ([before](../perf/quest-2/cliff-cost/20261023T070655Z-0ea7e5a.json),
+  [after](../perf/quest-2/cliff-cost/20261023T070028Z-3bd2619.json)). Sinking grass and flowers on rock by the
+  grid's normal, read from the texel their vertex already fetches, cost 0.27 to 0.75 ms in the same scene, the cliff
+  look alone none, so plants still stand on a cliff face.
 - **Styles:** each stroke of stone carries a style from one table (`StoneStyles`): mossy (the
   default) and river cobble; a boulder with lines on it did not fit, so no other style earned its place. The mask's blue channel holds the style of the stroke that laid most of the stone at each texel, read
   nearest-texel at a jittered spot so two styles meet along a ragged line. The style tool on painted stone
