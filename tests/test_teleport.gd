@@ -28,7 +28,8 @@ func _finish(rig: Rig) -> void:
 	rig.set_process(false)
 	_a_ray_lands_on_any_roof_it_hits(rig)
 	_reaches_across_the_map(rig)
-	_air_target_shows_one_ring(rig)
+	_air_target_shows_the_preview(rig)
+	_the_preview_holds_the_players_pose(rig)
 	_mountains_are_sky(rig)
 	await _stick_teleports_with_every_tool(rig)
 	await _eased_stick_lands_nearer(rig, Vector3(0, -0.3, -1), "ground")
@@ -152,7 +153,7 @@ func _mountains_are_sky(rig: Rig) -> void:
 	rig.hide_markers()
 
 
-## From one corner of the map, high enough to see it, the ray lands on the far corner's ground, and a ring there
+## From one corner of the map, high enough to see it, the ray lands on the far corner's ground, and the preview there
 ## looks as big as one nearby.
 func _reaches_across_the_map(rig: Rig) -> void:
 	var half := Terrain.SIZE * 0.5 - 4.0
@@ -163,20 +164,19 @@ func _reaches_across_the_map(rig: Rig) -> void:
 	rig.aim(_pose(o, dir))
 	var g: Variant = rig.aim_ground
 	_check(o.distance_to(far) > 200.0 and g != null and g.distance_to(far) < 0.1 and rig.aim_lift < 0.15, "a ray %.0f m across the map lands where it hits: %s for %s" % [o.distance_to(far), g, far])
-	var ring := rig._landing.global_transform
-	_check(rig._landing.visible and ring.basis.get_scale().x > o.distance_to(far) / Rig.MARKER_NEAR * 0.9, "the far ring grows with its distance: %.1f" % ring.basis.get_scale().x)
+	var preview := rig._landing.global_transform
+	_check(rig._landing.visible and preview.basis.get_scale().x > o.distance_to(far) / Rig.MARKER_NEAR * 0.9, "the far preview grows with its distance: %.1f" % preview.basis.get_scale().x)
 	rig.hide_markers()
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 
 
-## An air target shows its one halo on the target itself; depth in the headset places it, so nothing marks the
-## ground below.
-func _air_target_shows_one_ring(rig: Rig) -> void:
+## An air target stands the player's preview on the target itself; depth in the headset places it, so nothing marks
+## the ground below.
+func _air_target_shows_the_preview(rig: Rig) -> void:
 	var o := Vector3(0, Terrain.height_at(0, 0) + 1.5, 0)
 	rig.aim(_pose(o, Vector3(0, 1, -1).normalized()))
 	var target: Vector3 = rig.aim_ground + Vector3.UP * rig.aim_lift
-	var rings := rig.find_children("*", "GeometryInstance3D", false, false).filter(func(m: GeometryInstance3D) -> bool: return m.visible)
-	_check(rings.size() == 1 and rings[0].global_position.distance_to(target) < 0.01, "an air target shows one marker, on the target: %s" % [rings.map(func(m: GeometryInstance3D) -> Vector3: return m.global_position)])
+	_check(rig._landing.visible and rig._landing.global_position.distance_to(target) < 0.01, "an air target shows the preview on the target: %s for %s" % [rig._landing.global_position, target])
 	rig.hide_markers()
 
 
@@ -449,3 +449,26 @@ func _view_holds_after_teleport(rig: Rig, lift_m: float) -> void:
 	_check(trace.size() == 2, "a %s m teleport moves the origin once, then holds it: %s" % [lift_m, trace])
 	var h := rig.head.global_position
 	_check(Vector2(h.x - ground.x, h.z - ground.z).length() < 1e-4 and absf(rig.global_position.y - ground.y - lift_m) < 1e-4, "a %s m teleport lands exactly on its target" % lift_m)
+
+
+## The preview is the player's own avatar standing at the target, turned as they face and holding their head and hands
+## where they hold them now, about the floor under their head.
+func _the_preview_holds_the_players_pose(rig: Rig) -> void:
+	rig.wear(Avatar.open(Avatar.built_in(0), Color.WHITE))
+	rig.head.position = Vector3(0.1, 1.5, 0.2)
+	rig.head.rotation = Vector3(-0.3, 0.8, 0.0)
+	rig.left.position = Vector3(-0.3, 1.1, -0.2)
+	var o := rig.head.global_position
+	rig.aim(_pose(o, (rig.head.global_basis * Vector3(0, -0.3, -1)).normalized()))
+	var avatar: Avatar = rig._landing._avatar
+	var at := rig._landing.global_transform
+	var ahead := -rig.head.global_basis.z
+	var facing := -at.basis.z.normalized()
+	_check(rig._landing.visible and absf(Vector2(facing.x, facing.z).angle_to(Vector2(ahead.x, ahead.z))) < 0.01, "the preview faces as the player does: %s for %s" % [facing, ahead])
+	_check(absf(avatar.eyes.origin.y - 1.5) < 0.01 and absf(avatar.eyes.basis.get_euler().x + 0.3) < 0.01, "the preview's eyes stand and tilt as the player's: %s" % avatar.eyes)
+	var hand := avatar.hands[0].origin - avatar.eyes.origin
+	var real := rig.left.global_position - rig.head.global_position
+	_check(absf(hand.length() - real.length()) < 0.01 and absf(hand.y - real.y) < 0.01, "the preview's left hand is where the player's is from the head: %s for %s" % [hand, real])
+	rig.hide_markers()
+	rig.head.transform = Transform3D(Basis.IDENTITY, Vector3(0, Rig.EYE, 0))
+	rig.left.transform = Transform3D.IDENTITY

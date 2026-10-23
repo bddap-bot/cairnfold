@@ -2688,42 +2688,24 @@ Aimed at a mountain, the ray gives what the sky there gives: the point in the ai
 over the map, and otherwise no target at all, so the player never floats out past the edge. Ground, roofs, walls
 and trees on the map stay targets up to the edge.
 
-### The destination halo
+### The landing preview
 
 Directive (verbatim): "Let's uh, let's keep the destination halo, but let's make it give me some uh mockups, some ideas for something pretty to make it, something pretty and whimsical"
 
-Where a teleport will set the player down is marked by a small scene about 0.85 m across that plays from the start each
-time the aim finds a target (`Landing`): one MultiMesh of a few pieces placed and animated wholly in its shader, so the
-CPU only moves it. Nine looks are built, one per build, chosen by `Landing.LOOK` before export (toadstools by default):
-
-1. `TOADSTOOLS`: a fairy ring of nine red, white-spotted toadstools that pop up one after another.
-2. `FLOWERS`: thirteen little flowers on stems that bloom round the ring in turn.
-3. `FIREFLIES`: twenty-two fireflies spill out from the centre, circle and blink.
-4. `PETALS`: blossom petals spiral down and flutter onto the spot over a ripple that spreads from it.
-5. `DANDELION`: dandelion seeds lift off a ring on the ground and drift up on the breeze.
-
-Each is unlit and unfogged, so it reads the same by day and by night ([day, near and night](halos.jpg),
-`demo/halo.json`). The toadstools and flowers are solid and read at a glance by day; the fireflies, petals and seeds are
-lighter and read best at dusk and night.
-
 Directive (verbatim): "Sketch some more outside the box approaches, including the players own avatar. Consider cool visual effects if free."
 
-A second round turns to face where the player will face (`Landing.put`'s `ahead`):
+Directive (verbatim): "Let's do avatar preview, but not ghostified. And show current pose."
 
-6. `GHOST`: the player's own avatar standing at the target, a translucent copy of whatever they wear
-   (`Avatar.scene`), its rim glowing, slow bands of light rising through it, drawn up from the feet as it appears.
-7. `FOOTPRINTS`: two glowing bare footprints, left then right, stepping in where the player will stand.
-8. `SUNBEAM`: a soft shaft of sunlight four metres tall falling on the spot, motes drifting up in it over a pool of light.
-9. `BUBBLE`: a soap bubble where the player's head will be, wobbling, its film running with colour, little bubbles
-   rising to it from the ground ([day, near and night](halos-2.jpg)).
+Where a teleport will set the player down, their own avatar stands, drawn as everyone sees it (`Landing`): a second
+copy of what they wear (`Avatar.scene`, `Avatar.tint`), turned to face as they face, its head and hands held each frame
+where the player holds theirs now about the floor under their head, so they see themselves arrive before they go. Past
+15 m it grows with distance, as the ring did. Nine looks were tried first, flowers, fireflies, dandelion seeds,
+toadstools, petals, a ghost of the avatar, footprints, a sunbeam and a bubble; the plain avatar was kept.
+`demo/landing-preview.json` aims beside the head and waves the other hand, so the preview shows in profile waving
+with it. `tests/test_teleport.gd` checks it faces as the player does and holds their eyes and hands.
 
-The sunbeam reads farthest by day; the ghost and the bubble say where the head will be and which way it will face; the
-footprints are flat and the grass hides most of them beyond a few metres. The effects are unlit shader arithmetic on
-the few pixels each covers: the ghost's rim and bands, the bubble's thin-film colour, the beam's drifting rays.
-
-Each draws as one draw call, the ghost as its avatar's parts: the toadstools 720 triangles, the others 2 to 25 quads,
-where the plain torus it replaced was 288 triangles. On the desktop renderer the shared GPU's load swamped any difference; `demo/halo-cost.json`
-alternates six seconds aiming a near halo with six at rest, for the Quest 2 bench.
+Its cost while aiming is a second avatar's draw: avatars are rigid parts with no skinning and cast no shadow (`Avatar._dress`).
+`demo/landing-cost.json` alternates six seconds aiming a near preview with six at rest, for the Quest 2 bench.
 
 Directive (verbatim): "I'd like to be able to use the grab button to grab the ground so ground terraforming becomes um... not a tool, it's just something that's always available. I just grab something. Grab the ground and push it down or pull it up"
 

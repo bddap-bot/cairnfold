@@ -55,8 +55,9 @@ class Arm:
 
 ## A file's identity: a built-in's path, or the hash of a player's own file.
 var source := ""
-## What it was opened from, so another can be opened of it.
+## What it was opened from and tinted with, so another can be opened of it.
 var scene: PackedScene
+var tint: Color
 ## The last pose given: eyes, left and right hands, and where the eyes look in the eyes' frame (-Z ahead).
 var eyes := Transform3D.IDENTITY
 var hands: Array[Transform3D] = [Transform3D.IDENTITY, Transform3D.IDENTITY]
@@ -463,6 +464,7 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 	var a := Avatar.new()
 	a.source = from
 	a.scene = scene
+	a.tint = tint
 	a._model = scene.instantiate()
 	a.add_child(a._model)
 	a._facing = FACING if (a._model.get_meta("forward", Vector3.BACK) as Vector3).z > 0.0 else Basis.IDENTITY

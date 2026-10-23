@@ -17,7 +17,7 @@ const AIR_REACH := 30.0
 ## STEADY_HZ, plus STEADY_HZ_PER_RAD for each radian it lags, so a held hand stays still and a sweep catches up.
 const STEADY_HZ := 0.5
 const STEADY_HZ_PER_RAD := 60.0
-## Past MARKER_NEAR from the eyes the halo grows with distance, so they look as big as they do there.
+## Past MARKER_NEAR from the eyes the landing preview grows with distance, so it looks as big as it does there.
 const MARKER_NEAR := 15.0
 ## Stick forward at or past FULL_STICK aims at the ray's full target; easing back to the deadzone brings it
 ## to NEAREST of the way there.
@@ -268,7 +268,7 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 	aim_lift = clampf(stand.y - g, 0.0, MAX_LIFT)
 	var g3: Vector3 = aim_ground
 	var size := maxf(1.0, head.global_position.distance_to(target) / MARKER_NEAR)
-	_landing.put(g3 + Vector3.UP * (aim_lift if aim_lift > LIFTED else 0.0), size, -head.global_basis.z)
+	_landing.put(g3 + Vector3.UP * (aim_lift if aim_lift > LIFTED else 0.0), size, self)
 
 
 ## Whether a surface with outward normal `normal` is a side.

@@ -79,7 +79,7 @@ func _teleport_draws_no_ray(rig: Rig) -> void:
 	rig.left.global_transform = Driver.aim_pose(rig.head.global_transform, [0, -0.3, -1])
 	Hand.injected_sticks[rig.left.tracker] = Vector2(0, 1)
 	await _frames(5)
-	_check(rig.aim_hand == rig.left and rig._landing.visible, "the stick aims a teleport and its halo shows where it lands")
+	_check(rig.aim_hand == rig.left and rig._landing.visible, "the stick aims a teleport and its preview shows where it lands")
 	_check(not rig.left.aiming() and not rig.left._dot.visible, "a teleport draws no ray from the hand")
 	Hand.injected_sticks[rig.left.tracker] = Vector2.ZERO
 	await _frames(3)

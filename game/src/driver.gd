@@ -1693,6 +1693,12 @@ static func painting(n: int) -> Array:
 	return out
 
 
+## The player wears built-in avatar `avatar`, tinted `tint`.
+func _wear(s: Dictionary) -> void:
+	main.rig.wear(Avatar.open(Avatar.built_in(int(s.avatar)), Color(s.get("tint", "#d9824b"))))
+	await _frames(2)
+
+
 ## Desktop only: holds `hand` at `at`, pointing along `aim`, rolled `roll` degrees, all in head space, as a lesson poses it.
 func _hold_pose(s: Dictionary) -> void:
 	var hand := _hand(s)
