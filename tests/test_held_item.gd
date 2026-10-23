@@ -60,6 +60,19 @@ func _run() -> void:
 	item.show_state([])
 	check(item.model == null and not item.feeds() and not item.replaces_hand(), "empty hand removes model and feeding target")
 	check(not HeldItem.valid([0]) and not HeldItem.valid([0, 0, "bad", Color.WHITE, 0.0, 0, false]), "malformed state rejected")
+	var shut := [HeldItem.Kind.BOOK, 0, Book.local(0.0), Color.WHITE, 0.0, 0, false, Vector3.ZERO]
+	item.show_state(shut)
+	var prop := item.model
+	for page in [1, 2, 1, 0]:
+		var turned := shut.duplicate()
+		turned[1] = page
+		item.show_state(turned)
+		check(item.model == prop and not (prop as Book)._turn.is_empty() and (prop as Book)._turn.to == page, "a peer's book turns to page %d as theirs does, not rebuilt there" % page)
+	var leaps := shut.duplicate()
+	leaps[1] = 4
+	item.show_state(leaps)
+	check(item.model == prop and (prop as Book).at == 4, "a jump of more than a leaf lands at once")
+	item.show_state([])
 	item.queue_free()
 	await process_frame
 	finish()

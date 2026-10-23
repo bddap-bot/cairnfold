@@ -211,6 +211,26 @@ func turn(way: int) -> void:
 		_begin(at - 1, -1)
 
 
+## The page the book is at, or the one it is turning to.
+func page() -> int:
+	return _turn.get("to", at)
+
+
+## Goes to page `to`, as a prop following another player's book: a leaf away it turns there, finishing any turn
+## under way; further it is there at once.
+func turn_to(to: int) -> void:
+	if not _turn.is_empty():
+		at = _turn.to
+		_turn.clear()
+	if to == 1 and at == 0:
+		open()
+	elif absi(to - at) == 1:
+		turn(to - at)
+	else:
+		at = to
+	_lay()
+
+
 ## Reads a fingertip at `tip` (global) touching the book: on the shut cover or the ribbon it opens it; swept
 ## leftward across the open pages it turns to the next, rightward to the one before; passed through the book from
 ## behind it turns the page it comes out over, the right one on and the left back. A sweep or a pass turns one leaf:
