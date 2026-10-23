@@ -238,11 +238,9 @@ func open_photo(path: String) -> bool:
 func _process(_delta: float) -> void:
 	if not _editing():
 		if _undo.pressed("undo"):
-			Cues.play(Cues.Act.UNDO, rig.left.global_position, rig.left)
-			world.undo()
+			world.undo(rig.left)
 		if _redo.pressed("redo"):
-			Cues.play(Cues.Act.REDO, rig.right.global_position, rig.right)
-			world.redo()
+			world.redo(rig.right)
 	_undo.latch()
 	_redo.latch()
 

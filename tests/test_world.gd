@@ -26,6 +26,7 @@ func _run() -> void:
 	_a_pond_undo_waits_on_the_ground_that_drained_it()
 	_stacks_keep_their_newest_steps()
 	_undo_restores_exact_values()
+	await _undo_sounds_only_when_a_step_comes_back()
 	await _ghosts_go_when_their_command_settles()
 	_a_seed_decides_its_plants()
 	_ghost_paths_never_change_what_grows()
@@ -323,6 +324,40 @@ func _stacks_keep_their_newest_steps() -> void:
 	world._order({"op": "undo"}, 3)
 	check(world.state.walls[a].top == (World.LIMIT + 3) % 3, "and undo takes the newest first")
 	world._order({"op": "take", "of": "walls", "ids": PackedInt32Array([a])}, 3)
+
+
+## An undo or redo press sounds as its step comes back; with nothing to take back it is refused, and leaves nothing
+## waiting.
+func _undo_sounds_only_when_a_step_comes_back() -> void:
+	world.stacks.erase(world.me())
+	var heard := func(act: Cues.Act) -> int: return Cues.asked.get(act, 0)
+	var undo: int = heard.call(Cues.Act.UNDO)
+	var redo: int = heard.call(Cues.Act.REDO)
+	var refused: int = heard.call(Cues.Act.REFUSED)
+	await _press("undo", main.rig.left)
+	_check(heard.call(Cues.Act.UNDO) == undo and heard.call(Cues.Act.REFUSED) == refused + 1, "an undo with nothing to take back is refused, not played as an undo")
+	_check(world._ops.is_empty(), "and leaves no command waiting")
+	world._order({"op": "wall", "walls": [_wall_data(PackedVector3Array([Terrain.ground(50, -5), Terrain.ground(54, -5)]))]}, world.me())
+	var a := world.seq * Commands.MAX_PIECES
+	await _press("undo", main.rig.left)
+	_check(not world.state.walls.has(a) and heard.call(Cues.Act.UNDO) == undo + 1, "an undo that takes a step back sounds")
+	await _press("redo", main.rig.right)
+	_check(heard.call(Cues.Act.REDO) == redo + 1, "so does a redo that puts it back")
+	await _press("redo", main.rig.right)
+	_check(heard.call(Cues.Act.REDO) == redo + 1 and heard.call(Cues.Act.REFUSED) == refused + 2, "a redo with nothing to put back is refused")
+	world._order({"op": "unwall", "ids": PackedInt32Array([a])}, world.me())
+
+
+## Presses `action` on `hand` for a frame, as a player does.
+func _press(action: String, hand: Hand) -> void:
+	var key := "%s/%s" % [hand.tracker, Controls.input(action, hand.tracker)]
+	Buttons.injected[key] = true
+	await process_frame
+	Buttons.injected.erase(key)
+	for i in 60:
+		await process_frame
+		if world._queue.is_empty():
+			return
 
 
 func _undo_restores_exact_values() -> void:

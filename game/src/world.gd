@@ -487,12 +487,13 @@ func _settle(token: int) -> void:
 		done.call()
 
 
-func undo() -> void:
-	submit({"op": "undo"})
+## Takes back our latest step; `hand` hears it come back, or feels it refused when there is none.
+func undo(hand: XRController3D = null) -> void:
+	submit({"op": "undo"}, Callable(), hand)
 
 
-func redo() -> void:
-	submit({"op": "redo"})
+func redo(hand: XRController3D = null) -> void:
+	submit({"op": "redo"}, Callable(), hand)
 
 
 @rpc("any_peer", "reliable")
@@ -530,6 +531,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 	if kind == "undo" or kind == "redo":
 		var step := _resolve(by, kind)
 		if step.is_empty():
+			_refuse(by, proposed, "nothing to %s" % kind)
 			return
 		# Every visitor checks what the host sends, and one that fails asks for the whole garden again.
 		cmd = Commands.clean(step.inverse.merged({"seq": seq + 1, "by": by}).duplicate(true), state, true)
@@ -835,6 +837,10 @@ func _apply(cmd: Dictionary) -> Dictionary:
 	var mine: bool = cmd.get("by") == me() and cmd.has("token")
 	# An undo or redo carries its own token but no walls in hand.
 	var handed := mine and _done.has(cmd.token)
+	if mine and _ops.get(cmd.token) in ["undo", "redo"]:
+		var hand: XRController3D = _hands.get(cmd.token)
+		if hand != null and is_instance_valid(hand):
+			Cues.play(Cues.Act.UNDO if _ops[cmd.token] == "undo" else Cues.Act.REDO, hand.global_position, hand)
 	if mine and not last:
 		_settle(cmd.token)
 	var inverse := {}
