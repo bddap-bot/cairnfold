@@ -41,10 +41,8 @@ func _down(action: String) -> bool:
 	return down(hand, Controls.input(action, hand.tracker))
 
 
-## Whether `controller`'s `input` is held: a button pressed or touched, or the stick flicked that way.
+## Whether `controller`'s `input` is held: a button pressed, or the stick flicked that way.
 static func down(controller: Hand, input: String) -> bool:
 	if injected.has("%s/%s" % [controller.tracker, input]):
 		return true
-	if input == "grip_touch" and controller.profile != Controls.FRAME_PROFILE:
-		return controller.get_float("grip") >= Controls.GRIP_TOUCH
 	return controller.flick == input if Hand.FLICKS.has(input) else controller.is_button_pressed(input)

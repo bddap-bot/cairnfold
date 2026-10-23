@@ -20,7 +20,7 @@ func _run() -> void:
 	_no_two_actions_share_an_input()
 	_a_tool_is_picked_without_a_stick_click()
 	_each_device_profile_binds_its_controls()
-	_frame_touches_bind_to_the_native_controls()
+	_only_one_control_opens_each_frame_wheel()
 	await _unused_frame_controls_do_nothing()
 	await _each_control_does_its_action_alone()
 	await _a_flick_is_one_way()
@@ -68,19 +68,7 @@ func _each_device_profile_binds_its_controls() -> void:
 			_check(input in bound.get(path, []), "%s's %s (%s) arrives as %s/%s: bound to %s" % [device, name, path, to[0], input, bound.get(path, [])])
 
 
-func _frame_touches_bind_to_the_native_controls() -> void:
-	var map: OpenXRActionMap = load("res://openxr_action_map.tres")
-	var bound := {}
-	for profile in map.interaction_profiles:
-		if profile.interaction_profile_path == Controls.FRAME_PROFILE:
-			for binding in profile.bindings:
-				bound[binding.binding_path] = binding.action.resource_name
-	for hand in ["left", "right"]:
-		var paths := {"squeeze/touch": "grip_touch", "trigger/touch": "trigger_touch", "thumbstick/touch": "primary_touch"}
-		paths["dpad_down/touch" if hand == "left" else "a/touch"] = "ax_touch"
-		paths["dpad_left/touch" if hand == "left" else "b/touch"] = "by_touch"
-		for path in paths:
-			_check(bound.get("/user/hand/%s/input/%s" % [hand, path], "") == paths[path], "Frame %s %s binds %s" % [hand, path, paths[path]])
+func _only_one_control_opens_each_frame_wheel() -> void:
 	_check(Controls.bound("frame", "wheel", "left_hand") == ["dpad_left"], "only D-pad left opens the left Frame wheel")
 	_check(Controls.bound("frame", "wheel", "right_hand") == ["B"], "only B opens the right Frame wheel")
 

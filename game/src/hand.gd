@@ -40,8 +40,6 @@ const LET_GO := 0.3
 static var injected_sticks := {}
 ## Hand positions in the wheel's plane the driver injects, keyed by tracker, in place of the hand's own.
 static var injected_reach := {}
-## The interaction profile the driver gives the hands in place of the runtime's, or "".
-static var injected_profile := ""
 
 var carried: Node3D
 
@@ -60,8 +58,7 @@ func model(t: Tool) -> Node3D:
 	return _models[t]
 
 
-## The interaction profile the runtime bound this hand to (Controls.PLACES), or "".
-var profile := ""
+var _profile := ""
 var flat_only := false
 var people: SessionWheel:
 	set(v):
@@ -131,7 +128,6 @@ func _init(tracker_name: String, held: Tool) -> void:
 	_dot.top_level = true
 	_dot.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_dot)
-	add_child(TouchHints.new(self))
 	_buttons = Buttons.new(self).watch(["wheel"])
 
 
@@ -390,10 +386,10 @@ func _flick_input() -> void:
 ## device's log shows which of its controls the controls table landed on.
 func _log_profile() -> void:
 	var t := XRServer.get_tracker(tracker) as XRPositionalTracker
-	var bound := injected_profile if injected_profile != "" else t.profile if t != null else ""
-	if bound != profile:
-		profile = bound
-		print("controls: %s on %s, wheel %s" % [tracker, profile, Controls.input("wheel", tracker)])
+	var bound := t.profile if t != null else ""
+	if bound != _profile:
+		_profile = bound
+		print("controls: %s on %s, wheel %s" % [tracker, _profile, Controls.input("wheel", tracker)])
 
 
 ## Hold the wheel button and the wheel opens where the hand is, facing the head; sweep the hand
