@@ -39,6 +39,9 @@ static var _mats := {}
 static var _meshes := {}
 static var _stars := {}
 static var _boulder_preview: MultiMesh
+## The pieces of each build style's miniature, by its `style` arguments: laying out its walls and roof in script on
+## every opening of the style wheel held a Quest's frame for hundreds of milliseconds, and it is the same every time.
+static var _styled := {}
 
 
 static func build(tool: Hand.Tool) -> Node3D:
@@ -109,6 +112,23 @@ static func build(tool: Hand.Tool) -> Node3D:
 ## A miniature of choice `i` of a style the style tool sets (`PaletteTool.styles`), a build's in stone or plaster,
 ## a roof's over a house or a round tower; a gable end's turned to face the eye.
 static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round := false, boulder := false, house := false) -> Node3D:
+	if restyle not in [PaletteTool.Restyle.GABLE, PaletteTool.Restyle.ROOF, PaletteTool.Restyle.TOP, PaletteTool.Restyle.FACE]:
+		return _style(restyle, i, plastered, round, boulder, house)
+	var key := [restyle, i, plastered, round, house]
+	if not _styled.has(key):
+		var built := _style(restyle, i, plastered, round, boulder, house)
+		var pieces := []
+		for mi: MeshInstance3D in built.get_children():
+			pieces.append([mi.mesh, mi.transform, mi.material_override])
+		built.free()
+		_styled[key] = pieces
+	var root := Node3D.new()
+	for piece: Array in _styled[key]:
+		_piece(root, piece[0], piece[1], piece[2])
+	return root
+
+
+static func _style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round: bool, boulder: bool, house: bool) -> Node3D:
 	var root := Node3D.new()
 	if restyle == PaletteTool.Restyle.DECORATION:
 		var layout := DecorationLayout.new()
