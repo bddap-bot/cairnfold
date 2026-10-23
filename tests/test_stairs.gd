@@ -43,6 +43,13 @@ func _run() -> void:
 	check(stairs.treads.all(func(p): return is_zero_approx(p.y)), "landing stays level")
 	check(stairs.stones.any(func(p): return p.kind == "rail"), "wooden railing")
 	check(Commands._stairs(d) != null, "valid stair command")
+	var bare := d.duplicate()
+	bare.rail = "none"
+	check(is_equal_approx(Budget.stairs(bare).wall_m2, 3.0 * d.width), "a flight without railings is charged for its treads alone")
+	check(is_equal_approx(Budget.stairs(d).wall_m2, 3.0 * (d.width + 2.0 * StairLayout.RAIL_HEIGHT)), "railings are charged on a railed flight")
+	var climb := d.duplicate()
+	climb.b = Vector3(0, 3, -0.5)
+	check(is_equal_approx(Budget.stairs(climb).wall_m2, d.a.distance_to(climb.b) * d.width), "a ladder, which has no railings, is charged for none")
 	for bad in [Vector3(NAN, 0, 0), Vector3(0, 0, -Commands.MAX_LENGTH - 1.0), d.a]:
 		var invalid := d.duplicate()
 		invalid.b = bad
