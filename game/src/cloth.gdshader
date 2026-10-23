@@ -13,7 +13,7 @@ void vertex() {
 	float k = VERTEX.x;
 	VERTEX.z += sin(phase - k * 5.5) * k * 0.14;
 	VERTEX.y += sin(phase * 0.6 - k * 3.0) * k * 0.04 - k * k * 0.05;
-	NORMAL = normalize(vec3(-cos(phase - k * 5.5) * k * 0.14 * 5.5, 0.0, 1.0));
+	NORMAL = normalize(vec3(0.14 * (5.5 * k * cos(phase - k * 5.5) - sin(phase - k * 5.5)), 0.0, 1.0));
 	given = given_at((MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz, normalize(mat3(MODEL_MATRIX) * NORMAL));
 }
 
