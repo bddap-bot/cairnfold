@@ -1,12 +1,10 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## The canvas on the GPU, pixel for pixel: a painting undone through a checkpoint, or rebuilt from one with strokes
 ## replayed after it, dries to exactly what a fresh replay of the same strokes dries to. Needs a RenderingDevice, so
 ## scripts/test.sh runs it on the desktop renderer: godot4 --path game --xr-mode off --script ../tests/gpu_canvas.gd
 
 const N := 40
-
-var failures := 0
 
 
 func _initialize() -> void:
@@ -15,8 +13,8 @@ func _initialize() -> void:
 
 func _run() -> void:
 	if RenderingServer.get_rendering_device() == null:
-		print("FAIL: no RenderingDevice; run on the desktop renderer")
-		Main.quit(self, 1)
+		check(false, "no RenderingDevice; run on the desktop renderer")
+		finish()
 		return
 	await _smear()
 	await _charcoal_contact()
@@ -35,19 +33,18 @@ func _run() -> void:
 	while undone.last_end == at:
 		await process_frame
 	undone.rebuild(kept)
-	_check(not undone.catching_up(), "the undo is a checkpoint, with nothing to replay")
+	check(not undone.catching_up(), "the undo is a checkpoint, with nothing to replay")
 	var got := await _dried(undone)
-	_check(got == want, "undone through a checkpoint, the canvas dries to what a fresh replay dries to")
+	check(got == want, "undone through a checkpoint, the canvas dries to what a fresh replay dries to")
 
 	var resumed := await _canvas()
 	resumed.rebuild(strokes.slice(0, N - 3))
 	await _caught_up(resumed)
 	resumed.rebuild(kept)
-	_check(resumed.catching_up() and resumed._pending == 3, "only the strokes after the checkpoint replay")
-	_check(await _dried(resumed) == want, "a checkpoint and the strokes after it dry to what a fresh replay dries to")
+	check(resumed.catching_up() and resumed._pending == 3, "only the strokes after the checkpoint replay")
+	check(await _dried(resumed) == want, "a checkpoint and the strokes after it dry to what a fresh replay dries to")
 
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 func _canvas() -> Canvas:
@@ -82,12 +79,6 @@ func _pixels(c: Canvas) -> Array:
 	return out
 
 
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
-
-
 func _charcoal_image(side: float, drag: bool) -> Dictionary:
 	var c := await _canvas()
 	var samples := Brushwork.pack(Vector2(0.5, 0.5), 0.8, 0.0, 0, side)
@@ -118,8 +109,8 @@ func _charcoal_contact() -> void:
 	var tap := await _charcoal_image(0.0, false)
 	var drag := await _charcoal_image(0.0, true)
 	var side := await _charcoal_image(1.0, false)
-	_check(tap.total > 0.0 and tap.total < drag.total * 0.01 and tap.peak < drag.peak * 0.05, "rendered tap is faint beside drag at equal pressure: %s / %s" % [tap, drag])
-	_check(side.span.x > tap.span.x * 10 and side.span.y < tap.span.y * 1.5, "rendered side footprint follows stick length and width: %s / %s" % [side, tap])
+	check(tap.total > 0.0 and tap.total < drag.total * 0.01 and tap.peak < drag.peak * 0.05, "rendered tap is faint beside drag at equal pressure: %s / %s" % [tap, drag])
+	check(side.span.x > tap.span.x * 10 and side.span.y < tap.span.y * 1.5, "rendered side footprint follows stick length and width: %s / %s" % [side, tap])
 
 
 func _smear() -> void:
@@ -137,21 +128,21 @@ func _smear() -> void:
 		rd.free_rid(initial))
 	var before := await _pixels(c)
 	var stroke := {"medium": Brushwork.Medium.SMEAR, "brush": Brushwork.Brush.FLAT, "colour": Vector3.ZERO, "strength": 0.0, "load": 1.0, "gap": 0, "samples": Brushwork.pack(Vector2(0.5, 0.5), 1.0, 0.0, 0)}
-	_check(Brushwork.clean(stroke) != null, "smear stroke validates")
+	check(Brushwork.clean(stroke) != null, "smear stroke validates")
 	var forged := stroke.duplicate()
 	forged.colour = Vector3.ONE
-	_check(Brushwork.clean(forged) == null, "smear cannot introduce pigment")
+	check(Brushwork.clean(forged) == null, "smear cannot introduce pigment")
 	c.lay(stroke, Brushwork.Stroker.new(stroke).add(Brushwork.unpack(stroke.samples, 0)))
 	c._process(0.0)
 	var after := await _pixels(c)
-	_check(before[0] != after[0], "feathers move existing wet paint")
-	_check(before[1] == after[1], "smear leaves dry paint untouched")
+	check(before[0] != after[0], "feathers move existing wet paint")
+	check(before[1] == after[1], "smear leaves dry paint untouched")
 	var moved := Image.create_from_data(Brushwork.SIZE.x, Brushwork.SIZE.y, false, Image.FORMAT_RGBAH, after[0])
 	var total := Vector4.ZERO
 	for y in range(500, 650):
 		for x in range(700, 850):
 			var pixel := moved.get_pixel(x, y)
 			total += Vector4(pixel.r, pixel.g, pixel.b, pixel.a)
-	_check((total - Vector4(500,250,125,750)).length() < 1.0, "smear conserves pigment and water within half-float rounding")
+	check((total - Vector4(500,250,125,750)).length() < 1.0, "smear conserves pigment and water within half-float rounding")
 	c.queue_free()
 	await process_frame

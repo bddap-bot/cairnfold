@@ -1,14 +1,9 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
-var failures := 0
 
 func _initialize() -> void:
 	_run.call_deferred()
 
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 func pose(tip: Vector3, basis := Basis()) -> Transform3D:
 	return Transform3D(basis, tip - basis * ToolModels.BRUSH_TIP)
@@ -79,5 +74,4 @@ func _run() -> void:
 	var side_dab := Brushwork.Stroker.new(data).add(sample)
 	check(side_dab[2] > tap[2] * 10.0 and side_dab[4] < side_dab[2] * 0.1, "side footprint longer than tip with a narrow width")
 	check(side_dab == Brushwork.Stroker.new(data).add(Brushwork.unpack(packed, 0)), "peer replay produces identical contact footprint")
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

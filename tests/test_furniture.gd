@@ -1,23 +1,13 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Furniture through the one decoration path: a present on a house's floor or a flat roof's deck, which the style
 ## tool turns into any decoration.
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_furniture.gd
 
-var failures := 0
-var main: Node
-
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
-
-
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 
 func _node(id: int) -> Node3D:
@@ -160,5 +150,4 @@ func _run() -> void:
 	var saved: Dictionary = main.world.snapshot()
 	main.world.restore(saved)
 	check(main.world.state.decorations.size() == 3, "save restore keeps furniture")
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

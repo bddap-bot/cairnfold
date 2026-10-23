@@ -1,21 +1,12 @@
-extends SceneTree
-
-var failures := 0
+extends "res://../tests/support/suite.gd"
 
 
 func _initialize() -> void:
 	_run.call_deferred()
 
 
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
-
-
 func _run() -> void:
-	var main := (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	await process_frame
 	var driver := Driver.new(main, [])
 	main.add_child(driver)
@@ -31,5 +22,4 @@ func _run() -> void:
 	var step := {"from": [-4, 0.7, 2], "at": [-4, 0.7, -3]}
 	var target: Dictionary = main.palette_tool.aim_style(driver._dial_from(step), driver._dial_dir(step))
 	check(target.get("restyle") == PaletteTool.Restyle.FACE, "the stress style ray hits the foundation face")
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

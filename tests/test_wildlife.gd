@@ -1,10 +1,9 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of wildlife: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wildlife.gd
 
 const STEP := 1.0 / 30.0
 
-var failures := 0
 var feed: FeedTool
 
 
@@ -12,14 +11,7 @@ func _initialize() -> void:
 	_no_tool_places_an_animal()
 	await _teleport_is_no_motion()
 	await _ducks_come_only_to_ponds()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 func _run(wildlife: Wildlife, seconds: float, each := Callable()) -> void:
@@ -51,15 +43,15 @@ func _seeds_held_low_draw_the_ducks(wildlife: Wildlife, hand: Hand, pond: PondWa
 			break
 	var lead := f.leader()
 	var off := Vector2(lead.position.x - at.x, lead.position.z - at.z).length()
-	_check(f.state == Wildlife.State.FEED and absf(off - Wildlife.duck_appetite.mouth) < 0.05, "a duck comes under the hand, its bill %.2f m from under it" % off)
-	_check(f.ducks.all(func(d: Duck) -> bool: return d.pecking > 0.5), "and pecks there, the ducklings with it")
+	check(f.state == Wildlife.State.FEED and absf(off - Wildlife.duck_appetite.mouth) < 0.05, "a duck comes under the hand, its bill %.2f m from under it" % off)
+	check(f.ducks.all(func(d: Duck) -> bool: return d.pecking > 0.5), "and pecks there, the ducklings with it")
 	var steps := 4
 	for i in steps:
 		hand.global_position = at + Vector3(0, 0.12 * (i + 1), 0)
 		_run(wildlife, STEP)
-	_check(f.state != Wildlife.State.FEED and f.full > 0.0, "a jerk of the hand sends them back to swimming")
+	check(f.state != Wildlife.State.FEED and f.full > 0.0, "a jerk of the hand sends them back to swimming")
 	_run(wildlife, 2.0)
-	_check(f.state != Wildlife.State.FEED, "fed, they come back only later")
+	check(f.state != Wildlife.State.FEED, "fed, they come back only later")
 	hand.tool = Hand.Tool.WALLS
 	hand.held_still = false
 	wildlife.hands.clear()
@@ -73,7 +65,7 @@ func _ducks_are_heard(wildlife: Wildlife, rig: Rig, pond: PondWater) -> void:
 	var before: int = quacks.call()
 	_run(wildlife, 1800.0)
 	var heard: int = quacks.call() - before
-	_check(heard >= 1800.0 / 60.0, "a family at its pond quacked %d times in half an hour" % heard)
+	check(heard >= 1800.0 / 60.0, "a family at its pond quacked %d times in half an hour" % heard)
 	var mid := Terrain.grid_xz(pond.pond.bottom)
 	var at := Vector3(mid.x, pond.surface_y() + 0.3, mid.y)
 	var eyes := rig.head.global_position
@@ -94,8 +86,8 @@ func _ducks_are_heard(wildlife: Wildlife, rig: Rig, pond: PondWater) -> void:
 			continue
 		else:
 			f.full = 0.0
-	_check(near[1] > 60.0 and wildlife.calls.calm(f.leader().position), "the family ate from the hand beside the head for %.0f s" % near[1])
-	_check(near[0] >= 1, "and quacked %d times while eating there" % near[0])
+	check(near[1] > 60.0 and wildlife.calls.calm(f.leader().position), "the family ate from the hand beside the head for %.0f s" % near[1])
+	check(near[0] >= 1, "and quacked %d times while eating there" % near[0])
 	rig.right.tool = Hand.Tool.WALLS
 	rig.right.held_still = false
 	wildlife.hands.clear()
@@ -118,29 +110,29 @@ func _seeds_thrown_on_the_pond_are_eaten(wildlife: Wildlife, pond: PondWater) ->
 			if now[i].y < pond.surface_y() - 0.02:
 				deep[1] = maxf(deep[1], s._vel[i].y))
 	var under := _spread(s)
-	_check(deep[0] > 0.1 and not s.landed(), "thrown seeds plunge into the water, %.2f m under" % deep[0])
+	check(deep[0] > 0.1 and not s.landed(), "thrown seeds plunge into the water, %.2f m under" % deep[0])
 	_run(wildlife, 8.0, func() -> void:
 		var now := s.grains()
 		for i in now.size():
 			if now[i].y < pond.surface_y() - 0.02:
 				deep[1] = maxf(deep[1], s._vel[i].y))
-	_check(deep[1] > 0.0 and deep[1] < Handful.RISE * 1.1, "rising slowly, %.2f m/s at most" % deep[1])
+	check(deep[1] > 0.0 and deep[1] < Handful.RISE * 1.1, "rising slowly, %.2f m/s at most" % deep[1])
 	var off := 0.0
 	for p in s.grains():
 		off = maxf(off, absf(p.y - pond.surface_y()))
-	_check(s.landed() and s.left() > 0 and off < 0.01, "to float on the surface, %d still under, %.3f m off it at most" % [s.flying, off])
-	_check(under > 0.3 and _spread(s) >= under, "spread apart under it, %.2f m across" % under)
+	check(s.landed() and s.left() > 0 and off < 0.01, "to float on the surface, %d still under, %.3f m off it at most" % [s.flying, off])
+	check(under > 0.3 and _spread(s) >= under, "spread apart under it, %.2f m across" % under)
 	var heights := range(s.left()).map(func(i: int) -> float: return s.drawn(i).y)
 	_run(wildlife, 0.5)
 	var bob := 0.0
 	for i in s.left():
 		bob = maxf(bob, absf(s.drawn(i).y - heights[i]))
-	_check(bob > 1e-4 and bob <= 2.0 * Handful.BOB, "bobbing there, %.4f m in half a second" % bob)
+	check(bob > 1e-4 and bob <= 2.0 * Handful.BOB, "bobbing there, %.4f m in half a second" % bob)
 	var ate := [false]
 	_run(wildlife, 40.0, func() -> void: ate[0] = ate[0] or (f.state == Wildlife.State.FEED and f.hand == s and s.left() < Handful.GRAINS))
-	_check(ate[0], "a duck comes and pecks them up, %d grains left" % s.left())
+	check(ate[0], "a duck comes and pecks them up, %d grains left" % s.left())
 	_run(wildlife, Handful.LASTS.y + 2.0)
-	_check(s.left() == 0 and not wildlife.offers().has(s) and f.state != Wildlife.State.FEED, "eaten or faded, they are gone and the ducks swim again")
+	check(s.left() == 0 and not wildlife.offers().has(s) and f.state != Wildlife.State.FEED, "eaten or faded, they are gone and the ducks swim again")
 
 
 ## Seeds thrown on grass nothing eats sink away after a while.
@@ -148,19 +140,19 @@ func _seeds_thrown_on_the_grass_fade(wildlife: Wildlife) -> void:
 	var at := Terrain.ground(14.0, -14.0)
 	var s := feed.throw(at + Vector3(0, 1.0, 0), Vector3(1.5, 1.0, 0))
 	_run(wildlife, 1.5)
-	_check(s.landed() and absf(s.position.y - Terrain.height_at(s.position.x, s.position.z)) < 0.01, "seeds thrown on grass lie on the ground")
-	_check(s.position.x > at.x + 0.5, "carried the way they were thrown, %.2f m" % (s.position.x - at.x))
+	check(s.landed() and absf(s.position.y - Terrain.height_at(s.position.x, s.position.z)) < 0.01, "seeds thrown on grass lie on the ground")
+	check(s.position.x > at.x + 0.5, "carried the way they were thrown, %.2f m" % (s.position.x - at.x))
 	_run(wildlife, s.lasts - 3.5)
-	_check(wildlife.offers().has(s) and s.left() == Handful.GRAINS, "uneaten, they lie a while")
+	check(wildlife.offers().has(s) and s.left() == Handful.GRAINS, "uneaten, they lie a while")
 	_run(wildlife, 4.0)
-	_check(not wildlife.offers().has(s) and not s.visible, "then sink away")
+	check(not wildlife.offers().has(s) and not s.visible, "then sink away")
 	var many: Array[Handful] = []
 	for i in FeedTool.HANDFULS + 1:
 		many.append(feed.throw(at + Vector3(0, 1.0, 0), Vector3.ZERO))
 	_run(wildlife, 1.5)
-	_check(wildlife.offers().size() == FeedTool.HANDFULS and many[0] == many[-1], "only the latest %d handfuls lie about" % FeedTool.HANDFULS)
+	check(wildlife.offers().size() == FeedTool.HANDFULS and many[0] == many[-1], "only the latest %d handfuls lie about" % FeedTool.HANDFULS)
 	_run(wildlife, Handful.LASTS.y + 2.0)
-	_check(wildlife.offers().is_empty(), "and they all sink away")
+	check(wildlife.offers().is_empty(), "and they all sink away")
 
 
 func _spread(s: Handful) -> float:
@@ -175,14 +167,14 @@ func _spread(s: Handful) -> float:
 ## Tools do not place animals; Wildlife offers no public spawning entry point.
 func _no_tool_places_an_animal() -> void:
 	for key in Hand.Tool.keys():
-		_check(not key in ["DUCK", "DUCKS", "ANIMAL", "ANIMALS", "WILDLIFE"], "no hand tool %s" % key)
+		check(not key in ["DUCK", "DUCKS", "ANIMAL", "ANIMALS", "WILDLIFE"], "no hand tool %s" % key)
 	for f in DirAccess.get_files_at("res://src"):
 		if f.ends_with("_tool.gd") or f in ["hand.gd", "buttons.gd"]:
 			var code := FileAccess.get_file_as_string("res://src/" + f)
-			_check(not code.contains("Duck") and not code.contains("ildlife"), "%s reaches no animal" % f)
-	_check(FileAccess.get_file_as_string("res://src/main.gd").count("Wildlife.new(") == 1, "main makes one Wildlife")
+			check(not code.contains("Duck") and not code.contains("ildlife"), "%s reaches no animal" % f)
+	check(FileAccess.get_file_as_string("res://src/main.gd").count("Wildlife.new(") == 1, "main makes one Wildlife")
 	for m in (load("res://src/wildlife.gd") as Script).get_script_method_list():
-		_check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "still", "approaching", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble", "in_hand", "feeding"], "Wildlife exposes no way to add an animal, found %s" % m.name)
+		check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "still", "approaching", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble", "in_hand", "feeding"], "Wildlife exposes no way to add an animal, found %s" % m.name)
 
 
 ## A teleport or a snap turn moves the head and hands across the garden in a frame; no animal takes that for a
@@ -210,12 +202,12 @@ func _teleport_is_no_motion() -> void:
 	rig.snap_turn(Rig.SNAP)
 	wildlife.tick(STEP)
 	for n: Node3D in [rig.head, rig.right]:
-		_check(not wildlife.sudden(n) and not wildlife.approaching(n, ahead), "a teleport and a snap turn startle nothing, %s at %.2f m/s" % [n.name, wildlife._speed[n]])
+		check(not wildlife.sudden(n) and not wildlife.approaching(n, ahead), "a teleport and a snap turn startle nothing, %s at %.2f m/s" % [n.name, wildlife._speed[n]])
 	for i in 4:
 		rig.right.position += Vector3(0, 0, -0.12)
 		wildlife.tick(STEP)
 	var toward := rig.right.global_position + rig.global_basis * Vector3(0, 0, -5)
-	_check(wildlife.sudden(rig.right) and wildlife.approaching(rig.right, toward), "a hand swung out still does, at %.2f m/s" % wildlife._speed[rig.right])
+	check(wildlife.sudden(rig.right) and wildlife.approaching(rig.right, toward), "a hand swung out still does, at %.2f m/s" % wildlife._speed[rig.right])
 	_run(wildlife, 1.0)
 	var flat := Flat.new(rig)
 	var deer := rig.head.global_position + Vector3(0, 0, -8)
@@ -223,7 +215,7 @@ func _teleport_is_no_motion() -> void:
 		var to := deer - rig.head.global_position
 		flat._walk(Vector3(to.x, 0, to.z).normalized() * Flat.WALK * STEP)
 		wildlife.tick(STEP)
-	_check(wildlife.approaching(rig.head, deer) and wildlife.sudden(rig.head), "a flat player walking up to a deer still comes at it, at %.2f m/s" % wildlife._speed[rig.head])
+	check(wildlife.approaching(rig.head, deer) and wildlife.sudden(rig.head), "a flat player walking up to a deer still comes at it, at %.2f m/s" % wildlife._speed[rig.head])
 	for n: Node in [flat, wildlife, flora, water, rig]:
 		n.free()
 
@@ -256,7 +248,7 @@ func _watch_vanishing(wildlife: Wildlife, seen: Dictionary) -> Callable:
 			now[d] = wildlife._in_sight(d.position)
 		for d in seen:
 			if not now.has(d) and seen[d]:
-				_check(false, "a duck vanished in sight")
+				check(false, "a duck vanished in sight")
 		seen.clear()
 		seen.merge(now)
 
@@ -283,14 +275,14 @@ func _ducks_come_only_to_ponds() -> void:
 	wildlife.set_process(false)
 
 	_run(wildlife, 600.0)
-	_check(wildlife.ducks().is_empty(), "a meadow without a pond draws no ducks")
+	check(wildlife.ducks().is_empty(), "a meadow without a pond draws no ducks")
 
 	await _dig(tool, 3, -4, 90)
 	await _dig(tool, 4.5, -4, 90)
-	_check(water.ponds.size() == 1 and water.ponds[0].pond.cells.size() >= Wildlife.MIN_POND, "a dug pond, %d wet points" % (water.ponds[0].pond.cells.size() if water.ponds.size() else 0))
+	check(water.ponds.size() == 1 and water.ponds[0].pond.cells.size() >= Wildlife.MIN_POND, "a dug pond, %d wet points" % (water.ponds[0].pond.cells.size() if water.ponds.size() else 0))
 	var pond := water.ponds[0]
 	pond._process(PondWater.FILL)
-	_check(rig.head.global_position.direction_to(Vector3(3.75, pond.surface_y(), -4)).dot(-rig.head.global_basis.z) > Wildlife.SIGHT, "the viewer looks at the pond")
+	check(rig.head.global_position.direction_to(Vector3(3.75, pond.surface_y(), -4)).dot(-rig.head.global_basis.z) > Wildlife.SIGHT, "the viewer looks at the pond")
 	var seen := {}
 	var vanishing := _watch_vanishing(wildlife, seen)
 	var arrived := [false]
@@ -298,12 +290,12 @@ func _ducks_come_only_to_ponds() -> void:
 		vanishing.call()
 		for d in wildlife.ducks():
 			if not arrived[0]:
-				_check(not wildlife._in_sight(d.position), "a duck first appears out of sight")
+				check(not wildlife._in_sight(d.position), "a duck first appears out of sight")
 		arrived[0] = arrived[0] or not wildlife.ducks().is_empty()
 	_run(wildlife, Wildlife.ARRIVE_AFTER.x - 1.0, first_sight)
-	_check(wildlife.ducks().is_empty(), "no duck before its time")
+	check(wildlife.ducks().is_empty(), "no duck before its time")
 	_run(wildlife, Wildlife.ARRIVE_AFTER.y - Wildlife.ARRIVE_AFTER.x + 2.0, first_sight)
-	_check(wildlife.families.size() == 1, "a duck comes to the pond some time after it appears")
+	check(wildlife.families.size() == 1, "a duck comes to the pond some time after it appears")
 
 	var states := {}
 	var worst := [0.0, 0.0, 0]
@@ -319,9 +311,9 @@ func _ducks_come_only_to_ponds() -> void:
 			if d.afloat:
 				worst[1] = maxf(worst[1], absf(d.position.y - (pond.surface_y() - Wildlife.SINK * d.size)))
 	_run(wildlife, 240.0, watch)
-	_check(wildlife.families.size() == 1 and states.has(Wildlife.State.SWIM) and states.has(Wildlife.State.REST), "it swims, then rests on the bank, states %s" % [states.keys()])
-	_check(worst[2] == 0 and worst[0] <= Wildlife.BANK.y + 0.75, "it rests on dry grass near the water, at most %.2f m from the shore" % worst[0])
-	_check(worst[1] < 0.02, "afloat, each duck sits at the waterline, off by %.3f" % worst[1])
+	check(wildlife.families.size() == 1 and states.has(Wildlife.State.SWIM) and states.has(Wildlife.State.REST), "it swims, then rests on the bank, states %s" % [states.keys()])
+	check(worst[2] == 0 and worst[0] <= Wildlife.BANK.y + 0.75, "it rests on dry grass near the water, at most %.2f m from the shore" % worst[0])
+	check(worst[1] < 0.02, "afloat, each duck sits at the waterline, off by %.3f" % worst[1])
 
 	var flier := Wildlife.new(water, flora, null, Palette.new(), rig.head, no_hands, 0)
 	root.add_child(flier)
@@ -338,17 +330,17 @@ func _ducks_come_only_to_ponds() -> void:
 		for d in flier.families[-1].ducks:
 			d.free()
 		flier.families.pop_back()
-	_check(lone != null, "a lone duck flies in")
+	check(lone != null, "a lone duck flies in")
 	var high := lone.position.y - pond.surface_y()
 	_run(flier, 10.0)
-	_check(high > 5.0 and flier.families[-1].state == Wildlife.State.SWIM and lone.afloat, "it comes down from %.1f m and settles on the water" % high)
+	check(high > 5.0 and flier.families[-1].state == Wildlife.State.SWIM and lone.afloat, "it comes down from %.1f m and settles on the water" % high)
 	_seeds_held_low_draw_the_ducks(flier, rig.right, pond)
 	flier.families.clear()
 	lone.free()
 	flier.rng.seed = lone_seed
 	flier._arrive(pond)
 	var midair := flier.families[-1]
-	_check(midair.state == Wildlife.State.FLY_IN, "the same seed flies in again")
+	check(midair.state == Wildlife.State.FLY_IN, "the same seed flies in again")
 	_run(flier, 1.0)
 	var low := [midair.leader().position.y, 0.0]
 	var walker := Wildlife.new(water, flora, null, Palette.new(), rig.head, no_hands, 0)
@@ -361,14 +353,14 @@ func _ducks_come_only_to_ponds() -> void:
 			break
 		walker.families[-1].leader().free()
 		walker.families.pop_back()
-	_check(walker.families.size() == 1 and walker.families[0].ducks.size() > 2, "a mother walks in with ducklings")
+	check(walker.families.size() == 1 and walker.families[0].ducks.size() > 2, "a mother walks in with ducklings")
 	var entered := [Wildlife.State.ENTER, false]
 	_run(walker, 90.0, func() -> void:
 		var now: Wildlife.State = walker.families[0].state
 		entered[1] = entered[1] or (entered[0] == Wildlife.State.ENTER and now == Wildlife.State.SWIM and walker.calls._since["quack"] == 0.0)
 		entered[0] = now)
-	_check(walker.families[0].state in [Wildlife.State.SWIM, Wildlife.State.ASHORE, Wildlife.State.REST], "and they reach the water")
-	_check(entered[1], "the mother quacks as she takes to the water")
+	check(walker.families[0].state in [Wildlife.State.SWIM, Wildlife.State.ASHORE, Wildlife.State.REST], "and they reach the water")
+	check(entered[1], "the mother quacks as she takes to the water")
 	_seeds_held_low_draw_the_ducks(walker, rig.right, pond)
 	feed = FeedTool.new(rig, water)
 	root.add_child(feed)
@@ -382,7 +374,7 @@ func _ducks_come_only_to_ponds() -> void:
 		world.undo()
 	await process_frame
 	await process_frame
-	_check(water.ponds.is_empty(), "the pond drains")
+	check(water.ponds.is_empty(), "the pond drains")
 	var flying := _watch_vanishing(flier, {})
 	flying.call()
 	var climbing := func() -> void:
@@ -391,15 +383,15 @@ func _ducks_come_only_to_ponds() -> void:
 			low[1] = minf(low[1], flier.families[0].leader().position.y - low[0])
 			low[0] = flier.families[0].leader().position.y
 	_run(flier, 30.0, climbing)
-	_check(flier.families.is_empty() and low[1] >= 0.0, "a duck flying in to a drained pond turns back up and away")
+	check(flier.families.is_empty() and low[1] >= 0.0, "a duck flying in to a drained pond turns back up and away")
 	flier.queue_free()
 	var walking := _watch_vanishing(walker, {})
 	walking.call()
 	_run(walker, 400.0, walking)
-	_check(walker.families.is_empty(), "a family walks away from a drained pond")
+	check(walker.families.is_empty(), "a family walks away from a drained pond")
 	walker.queue_free()
 
 	_run(wildlife, 400.0, vanishing)
-	_check(wildlife.families.is_empty(), "the ducks leave a drained pond")
+	check(wildlife.families.is_empty(), "the ducks leave a drained pond")
 	_run(wildlife, 300.0)
-	_check(wildlife.ducks().is_empty(), "and none come back without water")
+	check(wildlife.ducks().is_empty(), "and none come back without water")

@@ -1,19 +1,9 @@
-extends SceneTree
-
-var failures := 0
-var main: Node
+extends "res://../tests/support/suite.gd"
 
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
-
-
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 
 func _run() -> void:
@@ -120,5 +110,4 @@ func _run() -> void:
 	var saved: Dictionary = main.world.snapshot()
 	main.world.restore(saved)
 	check(main.world.state.decorations.size() == 9, "save restore keeps all nine styles")
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

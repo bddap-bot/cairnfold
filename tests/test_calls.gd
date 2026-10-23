@@ -1,10 +1,8 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of the animals' calls: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_calls.gd
 
 const STEP := 1.0 / 30.0
-
-var failures := 0
 
 
 func _initialize() -> void:
@@ -12,14 +10,7 @@ func _initialize() -> void:
 	_every_conure_doing_has_its_calls()
 	await _calls_are_sparse_and_varied()
 	await _animals_near_the_head_stay_calm()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 ## Each clip the game plays is cut by sources.json from a recording whose page, author and licence it names,
@@ -28,8 +19,8 @@ func _every_clip_is_sourced() -> void:
 	var sources: Array = JSON.parse_string(FileAccess.get_file_as_string("res://audio/animals/sources.json"))
 	var cut := {}
 	for s: Dictionary in sources:
-		_check(s.page.begins_with("https://") and s.audio.begins_with("https://") and not s.author.is_empty(), "%s names where it is from" % s.title)
-		_check(s.licence.begins_with("CC0"), "%s is CC0" % s.title)
+		check(s.page.begins_with("https://") and s.audio.begins_with("https://") and not s.author.is_empty(), "%s names where it is from" % s.title)
+		check(s.licence.begins_with("CC0"), "%s is CC0" % s.title)
 		for name in s.clips:
 			cut[name] = true
 	var played := {}
@@ -37,27 +28,27 @@ func _every_clip_is_sourced() -> void:
 		for i in Calls.CALLS[kind].clips:
 			var name := "%s%d" % [kind, i]
 			played[name] = true
-			_check(cut.has(name), "%s is cut from a listed recording" % name)
-			_check(load("res://audio/animals/%s.ogg" % name) != null, "%s loads" % name)
+			check(cut.has(name), "%s is cut from a listed recording" % name)
+			check(load("res://audio/animals/%s.ogg" % name) != null, "%s loads" % name)
 	for name in cut:
-		_check(played.has(name), "%s is played" % name)
+		check(played.has(name), "%s is played" % name)
 	for f in DirAccess.get_files_at("res://audio/animals"):
 		if f.ends_with(".ogg"):
-			_check(played.has(f.get_basename()), "%s is played" % f)
+			check(played.has(f.get_basename()), "%s is played" % f)
 
 
 ## Whatever a conure is doing, it has calls of its own for it, and each is a call with clips.
 func _every_conure_doing_has_its_calls() -> void:
 	var doings: Array = Birds.State.keys() + ["PREEN", "WATCH"]
-	_check(Birds.VOICE.keys().all(func(d: String) -> bool: return d in doings), "every voiced doing is one a conure does")
+	check(Birds.VOICE.keys().all(func(d: String) -> bool: return d in doings), "every voiced doing is one a conure does")
 	var kinds := {}
 	for doing: String in doings:
 		var calls: Array = Birds.VOICE.get(doing, [])
-		_check(not calls.is_empty(), "a conure says something while %s" % doing)
+		check(not calls.is_empty(), "a conure says something while %s" % doing)
 		for call: Array in calls:
-			_check(Calls.CALLS.has(call[0]) and call[1] > 0.0, "%s's %s is a call with clips" % [doing, call[0]])
+			check(Calls.CALLS.has(call[0]) and call[1] > 0.0, "%s's %s is a call with clips" % [doing, call[0]])
 			kinds[call[0]] = true
-	_check(kinds.size() >= 6, "conures have %d kinds of call" % kinds.size())
+	check(kinds.size() >= 6, "conures have %d kinds of call" % kinds.size())
 
 
 func _calls(far := true) -> Calls:
@@ -73,16 +64,16 @@ func _calls(far := true) -> Calls:
 func _calls_are_sparse_and_varied() -> void:
 	var c: Calls = await _calls()
 	var at := Vector3(10, 1, 0)
-	_check(c.call_out("chirp", at), "a first chirp calls")
-	_check(not c.call_out("chirp", at), "a second chirp right after does not")
-	_check(not c.call_out("bleat", at), "nor does another kind right after")
+	check(c.call_out("chirp", at), "a first chirp calls")
+	check(not c.call_out("chirp", at), "a second chirp right after does not")
+	check(not c.call_out("bleat", at), "nor does another kind right after")
 	for i in int(Calls.ANY_GAP / STEP) + 1:
 		c.tick(STEP)
-	_check(c.call_out("bleat", at), "another kind calls once the calls are apart")
+	check(c.call_out("bleat", at), "another kind calls once the calls are apart")
 	for i in int(Calls.ANY_GAP / STEP) + 1:
 		c.tick(STEP)
-	_check(c.call_out("murmur", at), "a murmur calls")
-	_check(c.call_out("quack", at), "and holds off no other call")
+	check(c.call_out("murmur", at), "a murmur calls")
+	check(c.call_out("quack", at), "and holds off no other call")
 	var heard := 0
 	var last: AudioStream = null
 	var repeats := 0
@@ -93,8 +84,8 @@ func _calls_are_sparse_and_varied() -> void:
 			var playing := c._voices[(c._next_voice + Calls.VOICES - 1) % Calls.VOICES].stream
 			repeats += int(playing == last)
 			last = playing
-	_check(heard >= 600.0 / 40.0 and heard <= 600.0 / Calls.CALLS.quack.gap, "%d quacks in ten minutes at one each 20 s" % heard)
-	_check(repeats == 0, "%d quacks repeated the one before" % repeats)
+	check(heard >= 600.0 / 40.0 and heard <= 600.0 / Calls.CALLS.quack.gap, "%d quacks in ten minutes at one each 20 s" % heard)
+	check(repeats == 0, "%d quacks repeated the one before" % repeats)
 	await process_frame
 
 
@@ -105,9 +96,9 @@ func _animals_near_the_head_stay_calm() -> void:
 	for i in int(300.0 / STEP):
 		c.tick(STEP)
 		heard += int(c.now_and_then("chatter", near, 10.0, STEP))
-	_check(heard == 0, "a conure beside the head chattered %d times" % heard)
+	check(heard == 0, "a conure beside the head chattered %d times" % heard)
 	for i in int(60.0 / STEP):
 		c.tick(STEP)
 		heard += int(c.now_and_then("murmur", near, 10.0, STEP))
-	_check(heard > 0, "a conure beside the head murmurs")
-	_check(c.call_out("quack", near), "a duck landing beside the head still quacks")
+	check(heard > 0, "a conure beside the head murmurs")
+	check(c.call_out("quack", near), "a duck landing beside the head still quacks")

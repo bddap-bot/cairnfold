@@ -1,11 +1,9 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of butterflies: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_butterflies.gd
 
 const STEP := 1.0 / 30.0
 const AWAY := Vector3(0, -50, 0)
-
-var failures := 0
 
 
 func _initialize() -> void:
@@ -17,14 +15,7 @@ func _initialize() -> void:
 	await _they_leave_when_the_flowers_go()
 	await _a_path_over_flowers_takes_them_away()
 	_seasons_take_flowers_by_rank()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 class Glade:
@@ -93,16 +84,16 @@ func _run(g: Glade, seconds: float, each := Callable()) -> void:
 
 func _arrived(g: Glade) -> void:
 	_run(g, Wildlife.BUTTERFLIES_AFTER.y + 3.0)
-	_check(not g.all().is_empty(), "butterflies came")
+	check(not g.all().is_empty(), "butterflies came")
 
 
 func _no_tool_places_butterflies() -> void:
 	for key: String in Hand.Tool.keys():
-		_check(not key.begins_with("BUTTERFL"), "no hand tool %s" % key)
+		check(not key.begins_with("BUTTERFL"), "no hand tool %s" % key)
 	for f in DirAccess.get_files_at("res://src"):
 		if f.ends_with("_tool.gd") or f in ["hand.gd", "driver.gd", "buttons.gd"]:
-			_check(not FileAccess.get_file_as_string("res://src/" + f).contains("utterfl"), "%s reaches no butterfly" % f)
-	_check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Butterflies.new(") == 1, "Wildlife alone makes butterflies")
+			check(not FileAccess.get_file_as_string("res://src/" + f).contains("utterfl"), "%s reaches no butterfly" % f)
+	check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Butterflies.new(") == 1, "Wildlife alone makes butterflies")
 
 
 func _only_painted_flowers_draw_them() -> void:
@@ -112,14 +103,14 @@ func _only_painted_flowers_draw_them() -> void:
 		g.flora.add_flower(Terrain.ground(rng.randf_range(-3, 3), rng.randf_range(-7, -1)), rng)
 	g.flora.keep()
 	_run(g, 120.0)
-	_check(g.all().is_empty(), "the meadow's own flowers draw no butterflies")
+	check(g.all().is_empty(), "the meadow's own flowers draw no butterflies")
 	_paint(g, Vector3(0.5, 0, -4.5), 0.15)
 	_run(g, 60.0)
-	_check(g.all().is_empty(), "a few painted flowers are not yet a patch")
+	check(g.all().is_empty(), "a few painted flowers are not yet a patch")
 	_paint(g, Vector3(0.5, 0, -4.5), 3.0)
-	_check(g.all().is_empty(), "painting flowers puts no butterfly down")
+	check(g.all().is_empty(), "painting flowers puts no butterfly down")
 	_run(g, Wildlife.BUTTERFLIES_AFTER.x - 1.0)
-	_check(g.all().is_empty(), "none before their time")
+	check(g.all().is_empty(), "none before their time")
 	var first := {}
 	var watch := func() -> void:
 		for b in g.all():
@@ -127,14 +118,14 @@ func _only_painted_flowers_draw_them() -> void:
 				first[b] = g.wildlife._in_sight(b.at)
 	_run(g, Wildlife.BUTTERFLIES_AFTER.y - Wildlife.BUTTERFLIES_AFTER.x + 3.0, watch)
 	var n := g.all().size()
-	_check(n >= Butterflies.PER_PATCH.x, "butterflies come to a painted patch some time after it appears, %d" % n)
-	_check(not first.values().has(true), "each first appears out of sight")
+	check(n >= Butterflies.PER_PATCH.x, "butterflies come to a painted patch some time after it appears, %d" % n)
+	check(not first.values().has(true), "each first appears out of sight")
 	var painted := g.painted()
 	for b in g.all():
 		var near := false
 		for p in painted:
 			near = near or Vector2(p.x - b.goal.x, p.z - b.goal.z).length() < 1e-3
-		_check(near, "each makes for a painted bloom")
+		check(near, "each makes for a painted bloom")
 
 
 func _they_settle_on_blooms_and_scatter_from_a_hand() -> void:
@@ -144,20 +135,20 @@ func _they_settle_on_blooms_and_scatter_from_a_hand() -> void:
 	var n := g.all().size()
 	var perched := [0]
 	_run(g, 40.0, func() -> void: perched[0] = maxi(perched[0], g.in_state(Butterflies.State.PERCH).size()))
-	_check(n > 0 and perched[0] == n, "every one settles on a bloom, %d of %d" % [perched[0], n])
+	check(n > 0 and perched[0] == n, "every one settles on a bloom, %d of %d" % [perched[0], n])
 	var sitting := g.in_state(Butterflies.State.PERCH)
 	if sitting.is_empty():
-		_check(false, "one is sitting to be scattered")
+		check(false, "one is sitting to be scattered")
 		return
 	var b: Butterflies.Butterfly = sitting[0]
 	var at := b.at
 	g.rig.right.global_position = at + Vector3(0.2, 0.05, 0)
 	_run(g, 1.0)
-	_check(b.state == Butterflies.State.FLEE and b.at.distance_to(at) > 0.8 and b.at.y > at.y, "a hand near sends it up and away, %.2f m" % b.at.distance_to(at))
+	check(b.state == Butterflies.State.FLEE and b.at.distance_to(at) > 0.8 and b.at.y > at.y, "a hand near sends it up and away, %.2f m" % b.at.distance_to(at))
 	g.rig.right.global_position = AWAY
 	var back := [false]
 	_run(g, 40.0, func() -> void: back[0] = back[0] or (b.state == Butterflies.State.PERCH and g.wildlife.butterflies.patches.has(b.patch)))
-	_check(back[0], "a scattered one comes back and settles in its patch")
+	check(back[0], "a scattered one comes back and settles in its patch")
 
 
 func _they_leave_when_the_flowers_go() -> void:
@@ -166,16 +157,16 @@ func _they_leave_when_the_flowers_go() -> void:
 	_arrived(g)
 	g.palette.season = Palette.SEASONS.size() - 1
 	_run(g, 2.0)
-	_check(g.wildlife.butterflies.patches.is_empty(), "flowers out of season are no patch")
-	_check(g.in_state(Butterflies.State.LEAVE).size() == g.all().size(), "so they leave")
+	check(g.wildlife.butterflies.patches.is_empty(), "flowers out of season are no patch")
+	check(g.in_state(Butterflies.State.LEAVE).size() == g.all().size(), "so they leave")
 	g.palette.season = Palette.SUMMER
 	_run(g, 60.0)
-	_check(not g.in_state(Butterflies.State.PERCH).is_empty(), "in bloom again, they come back")
+	check(not g.in_state(Butterflies.State.PERCH).is_empty(), "in bloom again, they come back")
 	for p in g.flora.plants_near(Terrain.ground(3, -4), 4.0).filter(func(p: Flora.Plant) -> bool: return p.group != 0):
 		p.set_shown(false)
 	_run(g, 2.0)
-	_check(g.wildlife.butterflies.patches.is_empty(), "a cleared patch is no longer a patch")
-	_check(not g.all().is_empty() and g.in_state(Butterflies.State.LEAVE).size() == g.all().size(), "they leave when its flowers are gone")
+	check(g.wildlife.butterflies.patches.is_empty(), "a cleared patch is no longer a patch")
+	check(not g.all().is_empty() and g.in_state(Butterflies.State.LEAVE).size() == g.all().size(), "they leave when its flowers are gone")
 	var popped := [false]
 	var last := {}
 	_run(g, 60.0, func() -> void:
@@ -185,8 +176,8 @@ func _they_leave_when_the_flowers_go() -> void:
 		last.clear()
 		for b in g.all():
 			last[b] = b.at)
-	_check(g.all().is_empty(), "and are gone")
-	_check(not popped[0], "none vanishes in sight")
+	check(g.all().is_empty(), "and are gone")
+	check(not popped[0], "none vanishes in sight")
 
 
 func _a_path_over_flowers_takes_them_away() -> void:
@@ -203,12 +194,12 @@ func _a_path_over_flowers_takes_them_away() -> void:
 	for i in 2:
 		await process_frame
 	_run(g, 2.0)
-	_check(g.wildlife.butterflies.patches.is_empty(), "flowers a path parts are no patch, %d left" % g.wildlife.butterflies.patches.size())
+	check(g.wildlife.butterflies.patches.is_empty(), "flowers a path parts are no patch, %d left" % g.wildlife.butterflies.patches.size())
 
 
 func _seasons_take_flowers_by_rank() -> void:
-	_check(FileAccess.get_file_as_string("res://src/plant.gdshaderinc").contains("INSTANCE_CUSTOM.r >= season_bloom"), "the flower shader folds flowers by their rank")
+	check(FileAccess.get_file_as_string("res://src/plant.gdshaderinc").contains("INSTANCE_CUSTOM.r >= season_bloom"), "the flower shader folds flowers by their rank")
 	var share := 0
 	for i in 2000:
 		share += int(FloraLayout.bloom_rank(Vector3(i * 0.37 - 50.0, 0, i * 0.61 - 80.0)) < 0.55)
-	_check(absi(share - 1100) < 100, "ranks spread evenly, %d of 2000 under 0.55" % share)
+	check(absi(share - 1100) < 100, "ranks spread evenly, %d of 2000 under 0.55" % share)

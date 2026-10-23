@@ -1,24 +1,15 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks that deleting a house takes everything belonging to it, in the scene, the saved garden and on a
 ## peer, and that undo brings all of it back: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_house_delete.gd
 
-var failures := 0
-var main: Main
 var world: World
 var save := ""
 
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 
 func _run() -> void:
@@ -44,15 +35,15 @@ func _run() -> void:
 	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([house.id])})
 	await _settle()
 	_none_left(owned, "deleting the house")
-	_check(_scene() == kept, "the scene is as it was before the house: %s against %s" % [_scene(), kept])
+	check(_scene() == kept, "the scene is as it was before the house: %s against %s" % [_scene(), kept])
 	_neighbour_stands(neighbour)
 	world.flush()
 	var saved: Dictionary = bytes_to_var(FileAccess.get_file_as_bytes(save))
-	_check(_cmds_naming(saved.cmds, owned).is_empty(), "the saved garden holds none of it: %s" % [_cmds_naming(saved.cmds, owned)])
+	check(_cmds_naming(saved.cmds, owned).is_empty(), "the saved garden holds none of it: %s" % [_cmds_naming(saved.cmds, owned)])
 	var gone := world.digest()
 	world.undo()
 	await _settle()
-	_check(world.digest().merged({"seq": 0}, true) == built.merged({"seq": 0}, true), "one undo brings back the house and everything on it")
+	check(world.digest().merged({"seq": 0}, true) == built.merged({"seq": 0}, true), "one undo brings back the house and everything on it")
 	world.redo()
 	await _settle()
 	_none_left(owned, "redoing the delete")
@@ -61,10 +52,9 @@ func _run() -> void:
 	await _undo_spares_what_another_built_on_it()
 	world.restore({"seq": 0, "cmds": []})
 	await _settle()
-	_check(_scene() == bare, "an emptied garden is the bare meadow again")
+	check(_scene() == bare, "an emptied garden is the bare meadow again")
 	DirAccess.remove_absolute(save)
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 ## Every table of the garden names what its entries stand on, so a new kind of thing goes with its build by default.
@@ -73,7 +63,7 @@ func _every_table_says_what_it_stands_on() -> void:
 	var named := Commands.STANDS_ON.keys()
 	tables.sort()
 	named.sort()
-	_check(tables == named, "Commands.STANDS_ON names every table of the garden: %s against %s" % [named, tables])
+	check(tables == named, "Commands.STANDS_ON names every table of the garden: %s against %s" % [named, tables])
 
 
 ## Lets the frame's relaying and the workers finish, every build laid and its ivy grown.
@@ -123,7 +113,7 @@ func _build(data: Dictionary) -> int:
 func _decorate(w: int, mount: String, point: Vector3, s := 0.0, style := DecorationLayout.PRESENT) -> int:
 	var cmd := FittingTool.decoration_command({"wall": main.tool.find(w) if w >= 0 else null, "mount": mount, "point": point, "s": s, "side": 1.0, "style": style})
 	world.submit(cmd)
-	_check(world.state.decorations.has(world.seq), "a %s decoration is placed" % mount)
+	check(world.state.decorations.has(world.seq), "a %s decoration is placed" % mount)
 	return world.seq
 
 
@@ -131,7 +121,7 @@ func _stairs(a: Vector3, b: Vector3) -> int:
 	var d := {"a": a, "b": b, "width": 1.2, "rail": "stone", "seed": 7, "paint": Palette.plain()}
 	d.on = main.tool.stair_supports(d)
 	world.submit({"op": "stairs", "stairs": d})
-	_check(world.state.stairs.has(world.seq), "stairs are laid")
+	check(world.state.stairs.has(world.seq), "stairs are laid")
 	return world.seq
 
 
@@ -150,9 +140,9 @@ func _neighbour() -> Dictionary:
 
 
 func _neighbour_stands(n: Dictionary) -> void:
-	_check(world.state.walls.has(n.wall) and main.tool.find(n.wall) != null, "the house next door stands")
-	_check(n.decorations.all(func(id: int) -> bool: return world.state.decorations.has(id)), "the next house's and the ground's decorations stay")
-	_check(n.stairs.all(func(id: int) -> bool: return world.state.stairs.has(id)), "stairs on the ground stay")
+	check(world.state.walls.has(n.wall) and main.tool.find(n.wall) != null, "the house next door stands")
+	check(n.decorations.all(func(id: int) -> bool: return world.state.decorations.has(id)), "the next house's and the ground's decorations stay")
+	check(n.stairs.all(func(id: int) -> bool: return world.state.stairs.has(id)), "stairs on the ground stay")
 
 
 ## A house with every fitting, an upper storey on it with a flat roof's deck, and a house on that deck, each with its
@@ -193,7 +183,7 @@ func _house() -> Dictionary:
 	var foot := Terrain.ground(-1.0, -24.0)
 	var landing := Vector3(-1.0, deck_y, -28.5)
 	owned.stairs.append(_stairs(foot, landing))
-	_check(world.state.stairs[owned.stairs[0]].on == PackedInt32Array([storey]), "stairs onto the deck stand on the storey: %s" % world.state.stairs[owned.stairs[0]].on)
+	check(world.state.stairs[owned.stairs[0]].on == PackedInt32Array([storey]), "stairs onto the deck stand on the storey: %s" % world.state.stairs[owned.stairs[0]].on)
 	await _settle()
 	return {"id": house, "owned": owned}
 
@@ -204,38 +194,38 @@ func _covers_every_kind(owned: Dictionary) -> void:
 	var house: Dictionary = world.state.walls[owned.walls[0]]
 	var storey: Dictionary = world.state.walls[owned.walls[1]]
 	for k in ["openings", "lanterns", "flags"]:
-		_check(not house[k].is_empty(), "the house has %s" % k)
+		check(not house[k].is_empty(), "the house has %s" % k)
 	for k in ["chimneys", "dormers"]:
-		_check(not house.roof[k].is_empty(), "the house's roof has %s" % k)
-	_check(storey.roof.pitch == 0.0 and storey.roof.flag, "the storey has a flat roof's deck and its flag")
+		check(not house.roof[k].is_empty(), "the house's roof has %s" % k)
+	check(storey.roof.pitch == 0.0 and storey.roof.flag, "the storey has a flat roof's deck and its flag")
 	var mounts := {}
 	for id in owned.decorations:
 		mounts[world.state.decorations[id].mount] = true
 	for m in ["foundation", "floor", "deck"]:
-		_check(mounts.has(m), "a decoration stands on the house's %s" % m)
+		check(mounts.has(m), "a decoration stands on the house's %s" % m)
 	for table: String in Commands.STANDS_ON:
 		if not Commands.STANDS_ON[table].is_empty():
-			_check(not owned.get(table, []).is_empty(), "the house carries something from %s" % table)
+			check(not owned.get(table, []).is_empty(), "the house carries something from %s" % table)
 	var h := main.tool.find(owned.walls[0])
-	_check(h._parts[Wall.Part.IVY].size() > 0, "ivy has grown on the house")
-	_check(not world.decorations.flames.is_empty(), "the house's decorations have flames")
+	check(h._parts[Wall.Part.IVY].size() > 0, "ivy has grown on the house")
+	check(not world.decorations.flames.is_empty(), "the house's decorations have flames")
 
 
 func _none_left(owned: Dictionary, what: String) -> void:
 	for table: String in owned:
 		for id: int in owned[table]:
-			_check(not world.state[table].has(id), "after %s, %s %d is gone from the garden" % [what, table, id])
+			check(not world.state[table].has(id), "after %s, %s %d is gone from the garden" % [what, table, id])
 	for id: int in owned.walls:
-		_check(main.tool.find(id) == null, "after %s, wall %d is gone from the scene" % [what, id])
-		_check(not world._floor_marks.has(id), "after %s, wall %d's floor mark is gone" % [what, id])
+		check(main.tool.find(id) == null, "after %s, wall %d is gone from the scene" % [what, id])
+		check(not world._floor_marks.has(id), "after %s, wall %d's floor mark is gone" % [what, id])
 	for id: int in owned.stairs:
-		_check(not world.stairs.layouts.has(id), "after %s, stairs %d are gone from the scene" % [what, id])
+		check(not world.stairs.layouts.has(id), "after %s, stairs %d are gone from the scene" % [what, id])
 	for table: String in Commands.STANDS_ON:
 		var field: String = Commands.STANDS_ON[table]
 		for id in world.state[table] if not field.is_empty() else []:
 			var on: Variant = world.state[table][id][field]
 			for o in (Array(on) if on is PackedInt32Array else [on]):
-				_check(not o in owned.walls, "after %s, nothing in %s stands on a build that went" % [what, table])
+				check(not o in owned.walls, "after %s, nothing in %s stands on a build that went" % [what, table])
 
 
 ## The commands of `cmds` that put back anything in `owned`.
@@ -266,7 +256,7 @@ func _a_sweep_takes_the_house_and_its_things(before: Dictionary, owned: Dictiona
 	_none_left(owned, "a sweep")
 	world.undo()
 	await _settle()
-	_check(owned.walls.all(func(id: int) -> bool: return world.state.walls.has(id)) and owned.decorations.all(func(id: int) -> bool: return world.state.decorations.has(id)) and owned.stairs.all(func(id: int) -> bool: return world.state.stairs.has(id)), "undoing the sweep brings all of it back")
+	check(owned.walls.all(func(id: int) -> bool: return world.state.walls.has(id)) and owned.decorations.all(func(id: int) -> bool: return world.state.decorations.has(id)) and owned.stairs.all(func(id: int) -> bool: return world.state.stairs.has(id)), "undoing the sweep brings all of it back")
 
 
 ## A peer holding the garden as it stood applies the host's delete as sent and shows what the host shows.
@@ -276,7 +266,7 @@ func _a_peer_sees_the_same(before: Dictionary, sent: Dictionary, host: Dictionar
 	world._commit(sent)
 	await _settle()
 	_none_left(owned, "a peer applying the host's delete")
-	_check(world.digest() == host, "the peer's garden matches the host's")
+	check(world.digest() == host, "the peer's garden matches the host's")
 
 
 ## Another player's chair in my house is building on it: my undo of the house is dropped rather than taking the chair.
@@ -292,4 +282,4 @@ func _undo_spares_what_another_built_on_it() -> void:
 	var id := world.seq
 	world.undo()
 	await _settle()
-	_check(world.state.walls.has(house) and world.state.decorations.has(id), "my undo leaves the house another player furnished, and their chair")
+	check(world.state.walls.has(house) and world.state.decorations.has(id), "my undo leaves the house another player furnished, and their chair")

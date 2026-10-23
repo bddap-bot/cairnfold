@@ -1,8 +1,6 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of paths and wall chemistry: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_path.gd
-
-var failures := 0
 
 
 func _initialize() -> void:
@@ -30,14 +28,7 @@ func _run() -> void:
 	await _a_path_opens_its_arch_before_release()
 	await _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame()
 	await _dirt_wears_without_stones()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 func _flat(_x: float, _z: float) -> float:
@@ -64,32 +55,32 @@ func _wall(points: Array, height := 2.6) -> WallLayout:
 func _a_path_across_a_wall_opens_one_arch() -> void:
 	var w := _wall([[0, 0], [10, 0]])
 	var cut := _path([[4, -4], [4, 4]], 0.6).crossings(w)
-	_check(cut.size() == 1, "a narrow square crossing opens one arch, got %s" % [cut])
+	check(cut.size() == 1, "a narrow square crossing opens one arch, got %s" % [cut])
 	if cut.size() == 1:
-		_check(absf(cut[0] - 4.0) < 0.05, "the arch opens where the path crosses, at %.2f" % cut[0])
+		check(absf(cut[0] - 4.0) < 0.05, "the arch opens where the path crosses, at %.2f" % cut[0])
 
 
 func _a_wide_or_slanted_crossing_opens_an_arcade() -> void:
 	var w := _wall([[0, 0], [16, 0]])
 	var cut := _path([[8, -6], [8, 6]], 2.5).crossings(w)
-	_check(cut.size() >= 2, "a 5 m wide crossing opens an arcade, got %s" % [cut])
+	check(cut.size() >= 2, "a 5 m wide crossing opens an arcade, got %s" % [cut])
 	if not cut.is_empty():
 		var lo: float = cut.min() - WallLayout.ARCH_HALF
 		var hi: float = cut.max() + WallLayout.ARCH_HALF
-		_check(lo <= 8.0 - 2.5 and hi >= 8.0 + 2.5, "the arcade's openings span the whole path: %.2f to %.2f" % [lo, hi])
+		check(lo <= 8.0 - 2.5 and hi >= 8.0 + 2.5, "the arcade's openings span the whole path: %.2f to %.2f" % [lo, hi])
 	cut.sort()
 	for i in range(1, cut.size()):
-		_check(is_equal_approx(cut[i] - cut[i - 1], WallLayout.ARCADE_PITCH), "arcade arches stand a pitch apart: %s" % [cut])
+		check(is_equal_approx(cut[i] - cut[i - 1], WallLayout.ARCADE_PITCH), "arcade arches stand a pitch apart: %s" % [cut])
 	if not cut.is_empty():
-		_check(absf((cut[0] + cut[-1]) * 0.5 - 8.0) < 0.05, "the arcade centres on the crossing: %s" % [cut])
+		check(absf((cut[0] + cut[-1]) * 0.5 - 8.0) < 0.05, "the arcade centres on the crossing: %s" % [cut])
 	var slant := _path([[2, -1.2], [14, 1.2]], 0.9).crossings(w)
-	_check(slant.size() >= 2, "a path meeting the wall at a shallow angle opens an arcade, got %s" % [slant])
+	check(slant.size() >= 2, "a path meeting the wall at a shallow angle opens an arcade, got %s" % [slant])
 
 
 func _a_path_beside_a_wall_opens_nothing() -> void:
 	var w := _wall([[0, 0], [10, 0]])
-	_check(_path([[0, 2], [10, 2]], 1.2).crossings(w).is_empty(), "a path alongside a wall opens nothing")
-	_check(_path([[4, 1.5], [4, 6]], 1.2).crossings(w).is_empty(), "a path that stops short of a wall opens nothing")
+	check(_path([[0, 2], [10, 2]], 1.2).crossings(w).is_empty(), "a path alongside a wall opens nothing")
+	check(_path([[4, 1.5], [4, 6]], 1.2).crossings(w).is_empty(), "a path that stops short of a wall opens nothing")
 
 
 ## Crossings found through the grid match testing every path segment against every wall segment.
@@ -113,7 +104,7 @@ func _crossings_test_every_segment_pair_that_meets() -> void:
 			var shared := p.segment_cells().keys().filter(func(c: Vector2i) -> bool: return w.segment_cells().has(c))
 			if p.crossings(w) != _every_pair(p, w) or (not shared.is_empty() and p.crossings(w, shared) != _every_pair(p, w)):
 				mismatched += 1
-	_check(mismatched == 0, "crossings match every segment pair tested: %d of 90 differ" % mismatched)
+	check(mismatched == 0, "crossings match every segment pair tested: %d of 90 differ" % mismatched)
 
 
 func _every_pair(path: PathLayout, wall: WallLayout) -> Array[float]:
@@ -144,30 +135,30 @@ func _arcades_stand_on_pillars() -> void:
 	var w := _wall([[0, 0], [16, 0]], 3.2)
 	w.openings.assign(_path([[8, -6], [8, 6]], 2.5).crossings(w).map(WallLayout.archway))
 	w.build(_flat)
-	_check(w.archways().size() == w.openings.size(), "every arcade arch opens: %s of %s" % [w.archways(), w.openings])
+	check(w.archways().size() == w.openings.size(), "every arcade arch opens: %s of %s" % [w.archways(), w.openings])
 	var pillars := w.pillars()
-	_check(pillars.size() == w.archways().size() - 1, "%d pillars between %d arches" % [pillars.size(), w.archways().size()])
+	check(pillars.size() == w.archways().size() - 1, "%d pillars between %d arches" % [pillars.size(), w.archways().size()])
 	var pillar_stones := w.stones.filter(func(s): return s.kind == "pillar")
-	_check(pillar_stones.size() >= pillars.size() * 4, "each pillar is a stack of drums with plinth and capital (%d stones)" % pillar_stones.size())
+	check(pillar_stones.size() >= pillars.size() * 4, "each pillar is a stack of drums with plinth and capital (%d stones)" % pillar_stones.size())
 	var lo: float = w.archways()[0] - WallLayout.ARCH_HALF
 	var hi: float = w.archways()[-1] + WallLayout.ARCH_HALF
 	for s in w.stones:
 		if s.kind == "block" and s.y < w.spring() - 0.2 and absf(s.s - (lo + hi) * 0.5) < (hi - lo) * 0.5 - s.size.x * 0.5 + 0.01:
-			_check(false, "a coursed block at s=%.2f y=%.2f fills the arcade below its springing" % [s.s, s.y])
+			check(false, "a coursed block at s=%.2f y=%.2f fills the arcade below its springing" % [s.s, s.y])
 			return
 	for p in pillars:
 		var here := pillar_stones.filter(func(s): return absf(s.s - p.s) < 0.01)
 		var top := 0.0
 		for s in here:
 			top = maxf(top, s.y + s.size.y * 0.5)
-		_check(top >= w.spring() - 0.05, "a pillar rises to the springing (%.2f of %.2f)" % [top, w.spring()])
+		check(top >= w.spring() - 0.05, "a pillar rises to the springing (%.2f of %.2f)" % [top, w.spring()])
 
 
 func _overlapping_arches_do_not_both_open() -> void:
 	var w := _wall([[0, 0], [12, 0]])
 	w.openings.assign([5.0, 6.0].map(WallLayout.archway))
 	w.build(_flat)
-	_check(w.archways().size() == 1, "two arches whose rings overlap open as one: %s" % [w.archways()])
+	check(w.archways().size() == 1, "two arches whose rings overlap open as one: %s" % [w.archways()])
 
 
 func _the_mask_parts_the_path_only() -> void:
@@ -177,12 +168,12 @@ func _the_mask_parts_the_path_only() -> void:
 	for i in 30:
 		paths.extend(Vector3(-10 + i * 0.3, 0, 20), 0.8)
 	var p := paths.end()
-	_check(not p.is_empty() and p.layout.length() > 8.0, "a 9 m stroke is a path")
+	check(not p.is_empty() and p.layout.length() > 8.0, "a 9 m stroke is a path")
 	Ground.settle()
-	_check(Ground.bare(-5, 20) > 0.99, "the stroke centre is fully worn (%.2f)" % Ground.bare(-5, 20))
-	_check(Ground.bare(-5, 20.7) > 0.5, "the stroke edge is worn (%.2f)" % Ground.bare(-5, 20.7))
-	_check(Ground.bare(-5, 21.6) == 0.0, "the meadow a metre past the edge is untouched (%.2f)" % Ground.bare(-5, 21.6))
-	_check(Ground.bare(10, 20) == 0.0, "the meadow past the end is untouched")
+	check(Ground.bare(-5, 20) > 0.99, "the stroke centre is fully worn (%.2f)" % Ground.bare(-5, 20))
+	check(Ground.bare(-5, 20.7) > 0.5, "the stroke edge is worn (%.2f)" % Ground.bare(-5, 20.7))
+	check(Ground.bare(-5, 21.6) == 0.0, "the meadow a metre past the edge is untouched (%.2f)" % Ground.bare(-5, 21.6))
+	check(Ground.bare(10, 20) == 0.0, "the meadow past the end is untouched")
 	paths.queue_free()
 
 
@@ -191,8 +182,8 @@ func _a_short_stroke_leaves_no_trace() -> void:
 	root.add_child(paths)
 	paths.begin(Vector3(30, 0, 30), 1.0)
 	paths.extend(Vector3(30.4, 0, 30), 1.0)
-	_check(paths.end().is_empty() and paths.layouts.is_empty(), "a stroke under a metre is dropped")
-	_check(Ground.bare(30, 30) == 0.0, "a dropped stroke unwears the ground (%.2f)" % Ground.bare(30, 30))
+	check(paths.end().is_empty() and paths.layouts.is_empty(), "a stroke under a metre is dropped")
+	check(Ground.bare(30, 30) == 0.0, "a dropped stroke unwears the ground (%.2f)" % Ground.bare(30, 30))
 	paths.queue_free()
 
 
@@ -203,12 +194,12 @@ func _chemistry_works_in_either_order() -> void:
 	var first := _draw_wall(tool, Vector3(-8, 0, -12), Vector3(8, 0, -12))
 	_reshape(nodes, first, {"openings": PackedVector4Array()})
 	_lay(nodes, Vector3(2, 0, -18), Vector3(2, 0, -6), 0.6)
-	_check(first.layout.archways().size() == 1 and absf(first.layout.archways()[0] - 10.0) < 0.1, "a path laid through a wall cuts an arch at the crossing: %s" % [first.layout.archways()])
+	check(first.layout.archways().size() == 1 and absf(first.layout.archways()[0] - 10.0) < 0.1, "a path laid through a wall cuts an arch at the crossing: %s" % [first.layout.archways()])
 	_lay(nodes, Vector3(-30, 0, -2), Vector3(-30, 0, 10), 2.5)
 	var second := _draw_wall(tool, Vector3(-38, 0, 4), Vector3(-22, 0, 4))
-	_check(second.layout.archways().size() >= 2 and second.layout.pillars().size() >= 1, "a wall drawn across a wide path opens an arcade: %s" % [second.layout.archways()])
+	check(second.layout.archways().size() >= 2 and second.layout.pillars().size() >= 1, "a wall drawn across a wide path opens an arcade: %s" % [second.layout.archways()])
 	for a in second.layout.archways():
-		_check(absf(a - 8.0) < WallLayout.ARCADE_PITCH * 1.5, "arcade arches stand over the path, not the wall's middle: %s" % [second.layout.archways()])
+		check(absf(a - 8.0) < WallLayout.ARCADE_PITCH * 1.5, "arcade arches stand over the path, not the wall's middle: %s" % [second.layout.archways()])
 	_teardown(nodes)
 
 
@@ -248,10 +239,10 @@ func _a_second_path_beside_an_arch_makes_an_arcade() -> void:
 	_reshape(nodes, w, {"openings": PackedVector4Array([8.0].map(WallLayout.archway))})
 	var before := w.layout.archways().duplicate()
 	_lay(nodes, Vector3(1.5, 0, 24), Vector3(1.5, 0, 36), 0.5)
-	_check(before.all(func(a): return w.layout.archways().has(a)), "a path beside the middle arch closes nothing: %s then %s" % [before, w.layout.archways()])
-	_check(w.layout.archways().size() == before.size() + 1 and w.layout.pillars().size() == 1, "it opens a second arch on a shared pillar: %s" % [w.layout.archways()])
+	check(before.all(func(a): return w.layout.archways().has(a)), "a path beside the middle arch closes nothing: %s then %s" % [before, w.layout.archways()])
+	check(w.layout.archways().size() == before.size() + 1 and w.layout.pillars().size() == 1, "it opens a second arch on a shared pillar: %s" % [w.layout.archways()])
 	_lay(nodes, Vector3(0.2, 0, 24), Vector3(0.2, 0, 36), 0.5)
-	_check(w.layout.archways().size() == before.size() + 1, "a path through an opening that is already there adds none: %s" % [w.layout.archways()])
+	check(w.layout.archways().size() == before.size() + 1, "a path through an opening that is already there adds none: %s" % [w.layout.archways()])
 	_teardown(nodes)
 
 
@@ -260,11 +251,11 @@ func _a_crossing_that_cannot_open_leaves_no_arch() -> void:
 	var w := _draw_wall(nodes[0], Vector3(-8, 0, 40), Vector3(8, 0, 40))
 	var before := w.layout.openings.duplicate()
 	_lay(nodes, Vector3(-7.6, 0, 34), Vector3(-7.6, 0, 46), 0.5)
-	_check(w.layout.openings == before, "a crossing at a wall's end records no arch: %s" % [w.layout.openings])
+	check(w.layout.openings == before, "a crossing at a wall's end records no arch: %s" % [w.layout.openings])
 	var low := _draw_wall(nodes[0], Vector3(-8, 0, 50), Vector3(8, 0, 50))
 	_reshape(nodes, low, {"height": 1.2, "openings": PackedVector4Array()})
 	_lay(nodes, Vector3(0, 0, 44), Vector3(0, 0, 56), 0.5)
-	_check(low.layout.openings.is_empty(), "a wall too low to arch records none: %s" % [low.layout.openings])
+	check(low.layout.openings.is_empty(), "a wall too low to arch records none: %s" % [low.layout.openings])
 	_teardown(nodes)
 
 
@@ -275,13 +266,13 @@ func _a_tower_opens_a_doorway_across_its_seam() -> void:
 	w.height = 4.5
 	w.build(_flat)
 	var cut := _path([[-1, 0.15], [4, 0.15]], 0.5).crossings(w)
-	_check(cut.size() == 1, "a path into a tower crosses its wall once there, got %s" % [cut])
+	check(cut.size() == 1, "a path into a tower crosses its wall once there, got %s" % [cut])
 	if cut.size() == 1:
 		var a := w.wrap(cut[0])
-		_check(w.opening_fits(WallLayout.archway(a), []), "a doorway fits beside the tower's seam at %.2f of %.2f" % [a, w.length()])
+		check(w.opening_fits(WallLayout.archway(a), []), "a doorway fits beside the tower's seam at %.2f of %.2f" % [a, w.length()])
 		w.openings.assign([a].map(WallLayout.archway))
 		w.build(_flat)
-		_check(w.archways().size() == 1, "the doorway opens")
+		check(w.archways().size() == 1, "the doorway opens")
 		var t := WallLayout.new()
 		t.points = w.points
 		t.closed = true
@@ -293,14 +284,14 @@ func _a_tower_opens_a_doorway_across_its_seam() -> void:
 		tower.layout = t
 		nodes[0].walls.append(tower)
 		var opened: Array[float] = nodes[0]._cut_crossings(tower, _path([[-1, 0.15], [4, 0.15]], 0.5))
-		_check(opened.size() == 1 and absf(t.offset(opened[0], w.wrap(a - 1.0))) > WallLayout.ARCH_SPACING - 0.01, "a crossing beside an arch across the seam stands a pitch from it: %s beside %.2f" % [opened, w.wrap(a - 1.0)])
+		check(opened.size() == 1 and absf(t.offset(opened[0], w.wrap(a - 1.0))) > WallLayout.ARCH_SPACING - 0.01, "a crossing beside an arch across the seam stands a pitch from it: %s beside %.2f" % [opened, w.wrap(a - 1.0)])
 		t.build(_flat)
-		_check(t.pillars().size() == 1, "the pair across the seam shares a pillar: %s" % [t.pillars()])
+		check(t.pillars().size() == 1, "the pair across the seam shares a pillar: %s" % [t.pillars()])
 		nodes[0].walls.clear()
 		tower.free()
 		_teardown(nodes)
 		var blocks := w.stones.filter(func(s): return s.kind == "block" and s.y < w.spring())
-		_check(not blocks.any(func(s): return Vector2(s.xform.origin.x - 1.3, s.xform.origin.z - 0.15).length() < WallLayout.ARCH_HALF - 0.2), "no block fills the doorway across the seam")
+		check(not blocks.any(func(s): return Vector2(s.xform.origin.x - 1.3, s.xform.origin.z - 0.15).length() < WallLayout.ARCH_HALF - 0.2), "no block fills the doorway across the seam")
 
 
 func _painting_skips_a_path() -> void:
@@ -313,9 +304,9 @@ func _painting_skips_a_path() -> void:
 	var b := t.brushes[0]
 	b.hand.tool = Hand.Tool.GRASS
 	t.paint(b, Terrain.ground(25, -20), 0.8, 1.0)
-	_check(flora.ghost_grass.size() == 0, "grass painted on a path shows no plants (%d)" % flora.ghost_grass.size())
+	check(flora.ghost_grass.size() == 0, "grass painted on a path shows no plants (%d)" % flora.ghost_grass.size())
 	t.end_stroke(b)
-	_check(flora.grass.size() == before, "and grows none in the garden (%d added)" % (flora.grass.size() - before))
+	check(flora.grass.size() == before, "and grows none in the garden (%d added)" % (flora.grass.size() - before))
 	t.free()
 	_teardown(nodes)
 
@@ -332,7 +323,7 @@ func _a_scripted_stroke_outlasts_the_hand() -> void:
 	rig.aim_hand = b.hand
 	t._handle(b, 1.0 / 60.0)
 	rig.aim_hand = null
-	_check(paths.drawing != null, "a stroke no button holds outlasts the hand's own frame")
+	check(paths.drawing != null, "a stroke no button holds outlasts the hand's own frame")
 	t.end_path(b)
 	t.free()
 	_teardown(nodes)
@@ -354,25 +345,25 @@ func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.DIRT_PATH) -> void:
 	t.end_path(b)
 	_lay_walls(nodes[0])
 	var paths: Paths = nodes[1]
-	_check(paths.layouts.size() == 1 and w.layout.archways().size() == 1, "the path is laid and opens its arch: %s" % [w.layout.archways()])
+	check(paths.layouts.size() == 1 and w.layout.archways().size() == 1, "the path is laid and opens its arch: %s" % [w.layout.archways()])
 	world.undo()
 	_lay_walls(nodes[0])
-	_check(paths.layouts.is_empty() and Ground.bare(2, 57) == 0.0, "undo lifts the path and its wear (%.2f)" % Ground.bare(2, 57))
-	_check(w.layout.archways().is_empty(), "undo closes the arch the path opened: %s" % [w.layout.archways()])
+	check(paths.layouts.is_empty() and Ground.bare(2, 57) == 0.0, "undo lifts the path and its wear (%.2f)" % Ground.bare(2, 57))
+	check(w.layout.archways().is_empty(), "undo closes the arch the path opened: %s" % [w.layout.archways()])
 	world.redo()
 	_lay_walls(nodes[0])
 	Ground.settle()
-	_check(paths.layouts.size() == 1 and Ground.bare(2, 57) > 0.99 and w.layout.archways().size() == 1, "redo lays it again, arch and all: %s" % [w.layout.archways()])
+	check(paths.layouts.size() == 1 and Ground.bare(2, 57) > 0.99 and w.layout.archways().size() == 1, "redo lays it again, arch and all: %s" % [w.layout.archways()])
 	var deleter := DeleteTool.new(nodes[3], nodes[0], t, world)
 	var target := deleter.aim(Terrain.ground(2, 57) + Vector3.UP * 2, Vector3.DOWN)
-	_check(target.has("laid"), "Delete selects a path away from its wall crossing")
+	check(target.has("laid"), "Delete selects a path away from its wall crossing")
 	deleter.press(deleter, Terrain.ground(2, 57) + Vector3.UP * 2, Vector3.DOWN)
 	deleter.let_go(deleter)
 	_lay_walls(nodes[0])
-	_check(paths.layouts.is_empty() and w.layout.archways().is_empty(), "Delete lifts path and closes its arch")
+	check(paths.layouts.is_empty() and w.layout.archways().is_empty(), "Delete lifts path and closes its arch")
 	world.undo()
 	_lay_walls(nodes[0])
-	_check(paths.layouts.size() == 1 and w.layout.archways().size() == 1, "undo restores deleted path and arch")
+	check(paths.layouts.size() == 1 and w.layout.archways().size() == 1, "undo restores deleted path and arch")
 	deleter.free()
 	t.free()
 	_teardown(nodes)
@@ -419,39 +410,39 @@ func _a_path_opens_its_arch_before_release() -> void:
 	paths.begin(Terrain.ground(3, 4), 0.6)
 	paths.extend(Terrain.ground(3, 1), 0.6)
 	paths._relay()
-	_check(w.layout.openings.is_empty(), "a path approaching a wall leaves it solid")
+	check(w.layout.openings.is_empty(), "a path approaching a wall leaves it solid")
 	paths.extend(Terrain.ground(3, -1), 0.6)
 	paths._relay()
-	_check(w.layout.openings.size() == 1 and paths.drawing != null, "crossing opens an arch while the stroke is held")
-	_check(world.state.paths.is_empty() and world.state.walls[w.id].openings.is_empty(), "the preview changes no saved garden data")
+	check(w.layout.openings.size() == 1 and paths.drawing != null, "crossing opens an arch while the stroke is held")
+	check(world.state.paths.is_empty() and world.state.walls[w.id].openings.is_empty(), "the preview changes no saved garden data")
 	while w.laying():
 		await process_frame
-	_check(w.layout.archways().size() == 1, "the worker renders the arch before release")
+	check(w.layout.archways().size() == 1, "the worker renders the arch before release")
 	var laid := w.layout.laid
 	paths.extend(Terrain.ground(3, -2), 0.6)
 	paths._relay()
-	_check(not w.laying() and w.layout.laid == laid, "an unchanged crossing does not rebuild the wall")
+	check(not w.laying() and w.layout.laid == laid, "an unchanged crossing does not rebuild the wall")
 	var ghost := paths.end()
-	_check(w.layout.openings.size() == 1, "the sent ghost keeps its arch while awaiting acceptance")
+	check(w.layout.openings.size() == 1, "the sent ghost keeps its arch while awaiting acceptance")
 	paths.drop(ghost)
 	while w.laying():
 		await process_frame
-	_check(w.layout.archways().is_empty(), "a rejected ghost closes its preview arch")
+	check(w.layout.archways().is_empty(), "a rejected ghost closes its preview arch")
 	paths.begin(Terrain.ground(3, 4), 0.6)
 	paths.extend(Terrain.ground(3, -1), 0.6)
 	paths._relay()
 	paths.forget()
 	while w.laying():
 		await process_frame
-	_check(w.layout.archways().is_empty(), "forgetting the stroke closes its preview arch")
+	check(w.layout.archways().is_empty(), "forgetting the stroke closes its preview arch")
 	paths.begin(Terrain.ground(3, 0.1), 0.6)
 	paths.extend(Terrain.ground(3, -0.1), 0.6)
 	paths._relay()
-	_check(w.layout.openings.size() == 1, "a short crossing previews its opening")
+	check(w.layout.openings.size() == 1, "a short crossing previews its opening")
 	paths.extend(Terrain.ground(3, 0.3), 0.6)
 	paths._relay()
-	_check(w.layout.openings.is_empty(), "moving the unsettled tip back closes the crossing")
-	_check(paths.end().is_empty() and paths.previews.is_empty(), "a discarded short stroke leaves no preview")
+	check(w.layout.openings.is_empty(), "moving the unsettled tip back closes the crossing")
+	check(paths.end().is_empty() and paths.previews.is_empty(), "a discarded short stroke leaves no preview")
 	_teardown(nodes)
 
 
@@ -461,12 +452,12 @@ func _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame() -> void
 	Ground.install()
 	var nodes := _setup()
 	_lay(nodes, Vector3(-40, 0, 70), Vector3(-30, 0, 70), 0.8)
-	_check(Ground.bare(-35, 70) == 0.0, "the landing frame leaves the shown mask as it was (%.2f)" % Ground.bare(-35, 70))
+	check(Ground.bare(-35, 70) == 0.0, "the landing frame leaves the shown mask as it was (%.2f)" % Ground.bare(-35, 70))
 	for i in 2:
 		await process_frame
-	_check(Ground.bare(-35, 70) > 0.99, "the next frame shows the path's wear (%.2f)" % Ground.bare(-35, 70))
+	check(Ground.bare(-35, 70) > 0.99, "the next frame shows the path's wear (%.2f)" % Ground.bare(-35, 70))
 	_lay(nodes, Vector3(-40, 0, 75), Vector3(-30, 0, 75), 0.8)
-	_check(Ground.laid_bare(-35, 75) > 0.99, "the garden's mask has it as soon as it is read (%.2f)" % Ground.laid_bare(-35, 75))
+	check(Ground.laid_bare(-35, 75) > 0.99, "the garden's mask has it as soon as it is read (%.2f)" % Ground.laid_bare(-35, 75))
 	_teardown(nodes)
 
 
@@ -477,24 +468,24 @@ func _dirt_wears_without_stones() -> void:
 	paths.begin(Vector3(-20, 0, -20), 0.8)
 	paths.extend(Vector3(-10, 0, -20), 0.8)
 	var ghost := paths.end()
-	_check(paths.get_child_count() == 0, "dirt creates no stones or stone nodes")
+	check(paths.get_child_count() == 0, "dirt creates no stones or stone nodes")
 	Ground.settle()
-	_check(Ground.bare(-15, -20) > 0.99, "dirt wears the stroke centre")
+	check(Ground.bare(-15, -20) > 0.99, "dirt wears the stroke centre")
 	var soft := false
 	for i in 20:
 		var edge := Ground.bare(-15, -20 + i * 0.1)
 		soft = soft or (edge > 0.0 and edge < 1.0)
-	_check(soft, "dirt has partially worn texels along its edge")
-	_check(Ground.bare(-15, -18) == 0.0, "ground outside dirt stays meadow")
+	check(soft, "dirt has partially worn texels along its edge")
+	check(Ground.bare(-15, -18) == 0.0, "ground outside dirt stays meadow")
 	var data: Dictionary = Commands._path(ghost.data)
 	paths.drop(ghost)
 	paths.put(123, data)
-	_check(Ground.mark_at(-15, -20) == 123 and Ground.mark_at(-15, -18) == -1, "path selection follows the stroke width")
+	check(Ground.mark_at(-15, -20) == 123 and Ground.mark_at(-15, -18) == -1, "path selection follows the stroke width")
 	paths.take(123)
 	await process_frame
-	_check(Ground.bare(-15, -20) == 0.0, "taking dirt restores the meadow")
+	check(Ground.bare(-15, -20) == 0.0, "taking dirt restores the meadow")
 	data.style = "invalid"
-	_check(Commands._path(data) == null, "extra path fields are rejected")
+	check(Commands._path(data) == null, "extra path fields are rejected")
 	paths.free()
 
 
@@ -505,22 +496,22 @@ func _steep_paths_lay_level_treads() -> void:
 	path.plan()
 	var flat := func(_x: float, _z: float) -> float: return 0.0
 	var slope := func(_x: float, z: float) -> float: return -z * 0.8
-	_check(path.steps(flat).is_empty(), "flat dirt has no treads")
+	check(path.steps(flat).is_empty(), "flat dirt has no treads")
 	var pieces := path.steps(slope)
-	_check(pieces.size() > 30, "steep dirt lays a flight of stone treads")
+	check(pieces.size() > 30, "steep dirt lays a flight of stone treads")
 	for piece in pieces:
 		var x: Transform3D = piece.xform
-		_check(x.basis.y.normalized().is_equal_approx(Vector3.UP), "tread top is horizontal")
+		check(x.basis.y.normalized().is_equal_approx(Vector3.UP), "tread top is horizontal")
 		var back := x.origin + x.basis.z * 0.5
 		var front := x.origin - x.basis.z * 0.5
 		var top := x.origin.y + x.basis.y.length() * 0.5
-		_check(top >= maxf(slope.call(back.x, back.z), slope.call(front.x, front.z)) - 0.01, "tread is above its sloping ground")
+		check(top >= maxf(slope.call(back.x, back.z), slope.call(front.x, front.z)) - 0.01, "tread is above its sloping ground")
 	var extreme := path.steps(func(_x: float, z: float) -> float: return -z * 100.0)
-	_check(extreme.size() == pieces.size(), "raising terrain cannot multiply reserved geometry")
+	check(extreme.size() == pieces.size(), "raising terrain cannot multiply reserved geometry")
 	for piece in extreme:
 		var x: Transform3D = piece.xform
 		var uphill := x.origin - x.basis.z * 0.5
-		_check(x.origin.y + x.basis.y.length() * 0.5 >= -uphill.z * 100.0, "the full tread footprint clears very steep ground")
-	_check(path.steps(slope) == pieces, "steps rebuild deterministically")
-	_check(path.steps(flat).is_empty(), "flattening a path removes its steps")
-	_check(Budget.path(path.data()).wall_m2 >= pieces.size() * 0.1, "flat paths reserve their possible steps before terrain is raised")
+		check(x.origin.y + x.basis.y.length() * 0.5 >= -uphill.z * 100.0, "the full tread footprint clears very steep ground")
+	check(path.steps(slope) == pieces, "steps rebuild deterministically")
+	check(path.steps(flat).is_empty(), "flattening a path removes its steps")
+	check(Budget.path(path.data()).wall_m2 >= pieces.size() * 0.1, "flat paths reserve their possible steps before terrain is raised")

@@ -1,9 +1,7 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of thatched roofs: godot4 --headless --path game --script ../tests/test_thatch.gd
 ## Directive (verbatim): "Thatched roofs I want them as an option."
-
-var failures := 0
 
 
 func _init() -> void:
@@ -13,14 +11,7 @@ func _init() -> void:
 	_thatch_is_part_of_the_build_command()
 	_the_budget_counts_thatch()
 	_thatch_is_painted_as_thatch()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 func _flat(_x: float, _z: float) -> float:
@@ -137,33 +128,33 @@ func _surface(r: RoofLayout, xs := PackedFloat32Array()) -> Array:
 ## before the wall; and one up from under the overhang meets its underside.
 func _covered(r: RoofLayout, what: String) -> void:
 	var coat := Coat.new(r)
-	_check(coat.verts.size() > 600 and _of(r, "tile").is_empty() and _of(r, "ridge").is_empty(), "%s: thatched in straw, no tiles: %d triangles" % [what, coat.verts.size() / 3])
+	check(coat.verts.size() > 600 and _of(r, "tile").is_empty() and _of(r, "ridge").is_empty(), "%s: thatched in straw, no tiles: %d triangles" % [what, coat.verts.size() / 3])
 	var thin := []
 	for p in _surface(r):
 		var d := coat.hit(p[0] + p[1] * 1.5, p[0] + p[1] * 0.01)
 		if 1.5 - d < RoofLayout.COAT - RoofLayout.LUMPS - 0.02:
 			thin.append(p[0])
-	_check(thin.is_empty(), "%s: the coat lies a coat deep over the whole roof; thin or bare at %d of its points, the first %s" % [what, thin.size(), thin[0] if not thin.is_empty() else null])
+	check(thin.is_empty(), "%s: the coat lies a coat deep over the whole roof; thin or bare at %d of its points, the first %s" % [what, thin.size(), thin[0] if not thin.is_empty() else null])
 	var f := r.frame()
 	var top := r.base + r.pitch
 	var ridge := [f.mid] if r.kind == RoofLayout.Kind.CONE else range(-10, 11).map(func(k: int) -> Vector3: return f.mid + f.along * r.ridge_length() * 0.5 * k / 10.0)
 	for p: Vector3 in ridge:
 		var d := coat.hit(Vector3(p.x, top + 3.0, p.z), Vector3(p.x, top, p.z))
 		if 3.0 - d < RoofLayout.COAT:
-			_check(false, "%s: straw stands %.2f over the ridge at %s" % [what, 3.0 - d, p])
+			check(false, "%s: straw stands %.2f over the ridge at %s" % [what, 3.0 - d, p])
 			return
 	var hs := r.half_span()
 	var edge := r.eave() + RoofLayout.THATCH_EAVE
 	var eaves := _surface(r, PackedFloat32Array([hs])).filter(func(p: Array) -> bool: return r.kind == RoofLayout.Kind.CONE or absf(p[3].dot(p[0] - f.mid)) < r.ridge_length() * 0.5)
-	_check(eaves.size() >= 10, "%s: probed along its eaves" % what)
+	check(eaves.size() >= 10, "%s: probed along its eaves" % what)
 	for p in eaves:
 		var foot: Vector3 = p[0]
 		var lifted: Vector3 = foot + p[1] * RoofLayout.COAT * 0.5
 		if coat.hit(lifted + p[2] * ((edge - hs) / cos(r.slope_at(hs)) + 0.6), lifted) == INF:
-			_check(false, "%s: a ray in under the eave at %s meets no straw before the wall" % [what, foot])
+			check(false, "%s: a ray in under the eave at %s meets no straw before the wall" % [what, foot])
 			return
 		if coat.hit(foot - Vector3.UP * 0.6 + p[2] * 0.15, foot + p[2] * 0.15 + Vector3.UP * 0.01) == INF:
-			_check(false, "%s: no underside over the eave at %s" % [what, foot])
+			check(false, "%s: no underside over the eave at %s" % [what, foot])
 			return
 	if r.kind == RoofLayout.Kind.GABLE:
 		var end := r.ridge_length() * 0.5 + WallLayout.THICKNESS * 0.5
@@ -172,7 +163,7 @@ func _covered(r: RoofLayout, what: String) -> void:
 				var foot: Vector3 = f.mid + f.along * e * end + f.across * x + Vector3.UP * r.rise(1.0 - x / hs)
 				var lifted := foot + Vector3.UP * RoofLayout.COAT * 0.5
 				if coat.hit(lifted + f.along * e * (RoofLayout.THATCH_VERGE + 0.6), lifted) == INF:
-					_check(false, "%s: a ray in at the verge at %s meets no straw before the gable" % [what, foot])
+					check(false, "%s: a ray in at the verge at %s meets no straw before the gable" % [what, foot])
 					return
 
 
@@ -186,7 +177,7 @@ func _thatch_covers_every_roof_shape() -> void:
 		_covered(built[1], "a %.1f m cone at pitch %.1f, curve %.1f" % c)
 		_under_the_coat(built[0], built[1], "the %.1f m cone" % c[0])
 		var crown := _of(built[1], "finial")
-		_check(crown.size() == 1 and crown[0].xform.origin.y > built[1].base + c[1] + built[1].coat_rise(), "its finial stands clear of the straw")
+		check(crown.size() == 1 and crown[0].xform.origin.y > built[1].base + c[1] + built[1].coat_rise(), "its finial stands clear of the straw")
 
 
 ## No stone of the walls reaches through the coat anywhere under the roof, and the slabs standing in for the coat in
@@ -205,14 +196,14 @@ func _under_the_coat(w: WallLayout, r: RoofLayout, what: String) -> void:
 		for c in [Vector3(-0.5, 0.5, -0.5), Vector3(0.5, 0.5, -0.5), Vector3(-0.5, 0.5, 0.5), Vector3(0.5, 0.5, 0.5)]:
 			var p: Vector3 = x * c
 			if depth.call(p) > RoofLayout.COAT - RoofLayout.LUMPS - 0.02:
-				_check(false, "%s: a %s's corner at %s stands %.2f out of the slope, through the coat" % [what, s.kind, p, depth.call(p)])
+				check(false, "%s: a %s's corner at %s stands %.2f out of the slope, through the coat" % [what, s.kind, p, depth.call(p)])
 				return
-	_check(not r.slabs.is_empty(), "%s: slabs stand in for the coat" % what)
+	check(not r.slabs.is_empty(), "%s: slabs stand in for the coat" % what)
 	for slab in r.slabs:
 		var x: Transform3D = slab.xform
 		var crown: Vector3 = x.origin + x.basis.y * 0.5
 		if depth.call(crown) > RoofLayout.COAT - RoofLayout.LUMPS:
-			_check(false, "%s: a slab's top at %s stands out of the coat" % [what, crown])
+			check(false, "%s: a slab's top at %s stands out of the coat" % [what, crown])
 			return
 
 
@@ -225,7 +216,7 @@ func _thatch_follows_a_resized_house() -> void:
 		var to := WallTool.house_of(d)
 		to.size = size
 		var change := WallTool.reshape_house(d, to)
-		_check(not change.roof.has("thatch"), "a resize leaves the roof's covering as it is")
+		check(not change.roof.has("thatch"), "a resize leaves the roof's covering as it is")
 		var roof: Dictionary = d.roof.merged(change.roof, true)
 		var points: Array[Vector3] = []
 		points.assign(Array(change.points))
@@ -244,30 +235,30 @@ func _a_thatched_gable_has_no_stone_verge() -> void:
 	var tiled: WallLayout = _gabled(6.0, 4.0, 2.0, 0.0, false)[0]
 	var thatched: WallLayout = _gabled(6.0, 4.0, 2.0)[0]
 	var verge := func(w: WallLayout) -> int: return w.stones.filter(func(s): return s.kind == "cope" and s.y > w.height + WallLayout.CAP).size()
-	_check(verge.call(tiled) >= 8 and verge.call(thatched) == 0, "the thatch rolls over the gable's rakes in place of a stone verge: %d tiled, %d thatched" % [verge.call(tiled), verge.call(thatched)])
+	check(verge.call(tiled) >= 8 and verge.call(thatched) == 0, "the thatch rolls over the gable's rakes in place of a stone verge: %d tiled, %d thatched" % [verge.call(tiled), verge.call(thatched)])
 	var courses := func(w: WallLayout) -> Array: return w.stones.filter(func(s): return s.kind == "block" and s.y > w.height + WallLayout.CAP)
-	_check(courses.call(thatched) == courses.call(tiled), "and the gable's stones stay the same beneath either covering")
+	check(courses.call(thatched) == courses.call(tiled), "and the gable's stones stay the same beneath either covering")
 
 
 func _thatch_is_part_of_the_build_command() -> void:
 	var r := RoofLayout.new()
 	var copy := r.inputs()
 	copy.thatch = true
-	_check(not copy.same_inputs(r), "a thatched roof is another roof")
+	check(not copy.same_inputs(r), "a thatched roof is another roof")
 	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "height": 2.4,
 		"seed": 3, "closed": true, "top": int(WallLayout.Top.CAP), "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(),
 		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "plaster": false, "plinth_plaster": false, "planks": false, "rise": 0.0, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain(),
 		"roof": {"kind": int(RoofLayout.Kind.GABLE), "center": Vector3.ZERO, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 3, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
-	_check(Commands._wall(d) != null, "a tiled house is a valid build")
+	check(Commands._wall(d) != null, "a tiled house is a valid build")
 	d.roof.thatch = true
-	_check(Commands._wall(d) != null and Commands._wall(d).roof.thatch, "and a thatched one")
-	_check(Commands._reshape("walls", {"roof": {"thatch": false}}, Commands._wall(d)).roof == {"thatch": false}, "a reshape tiles it again")
+	check(Commands._wall(d) != null and Commands._wall(d).roof.thatch, "and a thatched one")
+	check(Commands._reshape("walls", {"roof": {"thatch": false}}, Commands._wall(d)).roof == {"thatch": false}, "a reshape tiles it again")
 	d.roof.pitch = 9.0
-	_check(Commands._wall(d) != null, "a roof rising 9 m is a valid build")
+	check(Commands._wall(d) != null, "a roof rising 9 m is a valid build")
 	d.roof.pitch = INF
-	_check(Commands._wall(d) == null, "an endless one is refused")
+	check(Commands._wall(d) == null, "an endless one is refused")
 	d.roof.pitch = -1.0
-	_check(Commands._wall(d) == null, "and one below flat")
+	check(Commands._wall(d) == null, "and one below flat")
 	d.roof.pitch = 2.0
 	var at := WallTool.house_of(d)
 	var across := Vector3.RIGHT.rotated(Vector3.UP, at.yaw).cross(Vector3.UP) * 0.1
@@ -275,11 +266,11 @@ func _thatch_is_part_of_the_build_command() -> void:
 	var from: Array[Transform3D] = [Transform3D(Basis(), -across), Transform3D(Basis(), across)]
 	var to: Array[Transform3D] = [Transform3D(Basis(), -across * k), Transform3D(Basis(), across * k)]
 	var deeper := WallTool.resize(at, from, to)
-	_check(is_equal_approx(deeper.size.y, 20.0) and is_equal_approx(WallTool.reshape_house(d, deeper).roof.pitch, 2.0 * k), "deepened by two hands, its rise scales past 6 m with the depth: %.1f" % deeper.pitch)
+	check(is_equal_approx(deeper.size.y, 20.0) and is_equal_approx(WallTool.reshape_house(d, deeper).roof.pitch, 2.0 * k), "deepened by two hands, its rise scales past 6 m with the depth: %.1f" % deeper.pitch)
 	d.roof.thatch = 1
-	_check(Commands._wall(d) == null, "a covering that is not a yes or no is refused")
+	check(Commands._wall(d) == null, "a covering that is not a yes or no is refused")
 	d.roof.erase("thatch")
-	_check(Commands._wall(d) == null, "a roof without a covering is refused")
+	check(Commands._wall(d) == null, "a roof without a covering is refused")
 
 
 func _the_budget_counts_thatch() -> void:
@@ -289,33 +280,33 @@ func _the_budget_counts_thatch() -> void:
 	var hs := 2.0 + WallLayout.THICKNESS * 0.5
 	var sloped := plan * sqrt(1.0 + pow(2.0 / hs, 2.0))
 	var thatched := Budget.wall(d)
-	_check(is_equal_approx(thatched.get("thatch_m2", 0.0), sloped) and not thatched.has("roof_m2"), "a thatched house counts its roof's slopes out to the eaves as thatch: %s" % thatched)
+	check(is_equal_approx(thatched.get("thatch_m2", 0.0), sloped) and not thatched.has("roof_m2"), "a thatched house counts its roof's slopes out to the eaves as thatch: %s" % thatched)
 	d.roof.thatch = false
-	_check(is_equal_approx(Budget.wall(d).get("roof_m2", 0.0), sloped) and not Budget.wall(d).has("thatch_m2"), "a tiled one as roof")
+	check(is_equal_approx(Budget.wall(d).get("roof_m2", 0.0), sloped) and not Budget.wall(d).has("thatch_m2"), "a tiled one as roof")
 	d.roof.pitch = 9.0
 	var steep: float = Budget.wall(d).get("roof_m2", 0.0)
-	_check(is_equal_approx(steep, plan * sqrt(1.0 + pow(9.0 / hs, 2.0))) and steep > plan * 4.0, "a 9 m rise counts its long slopes, over four times its plan: %.1f m² over %.1f" % [steep, plan])
+	check(is_equal_approx(steep, plan * sqrt(1.0 + pow(9.0 / hs, 2.0))) and steep > plan * 4.0, "a 9 m rise counts its long slopes, over four times its plan: %.1f m² over %.1f" % [steep, plan])
 	var tower := {"points": WallLayout.circle(Vector3.ZERO, 2.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0,
 		"lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.CONE, "radius": 2.0, "pitch": 9.0, "curve": 0.0, "chimneys": [], "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
 	var disc := PI * pow(hs + RoofLayout.OVERHANG, 2.0)
-	_check(is_equal_approx(Budget.wall(tower).roof_m2, disc * sqrt(1.0 + pow(9.0 / hs, 2.0))), "a cone counts its surface, not its disc: %s" % Budget.wall(tower))
+	check(is_equal_approx(Budget.wall(tower).roof_m2, disc * sqrt(1.0 + pow(9.0 / hs, 2.0))), "a cone counts its surface, not its disc: %s" % Budget.wall(tower))
 	d.roof.pitch = 2.0
 	d.roof.thatch = true
 	d.points = WallLayout.rectangle(Vector3.ZERO, Vector3(12, 0, 0), 4.0)
-	_check(Budget.wall(d).thatch_m2 > thatched.thatch_m2 * 1.8, "a house twice as long counts nearly twice the thatch")
+	check(Budget.wall(d).thatch_m2 > thatched.thatch_m2 * 1.8, "a house twice as long counts nearly twice the thatch")
 	d.roof.pitch = 0.0
-	_check(Budget.wall(d).has("roof_m2") and not Budget.wall(d).has("thatch_m2"), "pushed flat it is a stone deck")
-	_check(Budget.COSTS.has("thatch_m2") and "thatch_m2" in Budget.UNITS, "thatch has its own measured cost")
+	check(Budget.wall(d).has("roof_m2") and not Budget.wall(d).has("thatch_m2"), "pushed flat it is a stone deck")
+	check(Budget.COSTS.has("thatch_m2") and "thatch_m2" in Budget.UNITS, "thatch has its own measured cost")
 
 
 func _thatch_is_painted_as_thatch() -> void:
 	var r: RoofLayout = _gabled(6.0, 4.0, 2.0)[1]
-	_check(Palette.code("thatch") == Palette.Element.THATCH and Palette.SWATCHES[Palette.Element.THATCH][0] == RoofLayout.STRAW, "straw takes the thatch swatches, laid in straw")
+	check(Palette.code("thatch") == Palette.Element.THATCH and Palette.SWATCHES[Palette.Element.THATCH][0] == RoofLayout.STRAW, "straw takes the thatch swatches, laid in straw")
 	var colours: PackedColorArray = r.coat[Mesh.ARRAY_COLOR]
 	var mean := Color(0, 0, 0)
 	for c in colours:
 		mean += c / colours.size()
-	_check(mean.r > mean.g and mean.g > mean.b and mean.b < 0.35, "it reads as straw: %s" % mean)
+	check(mean.r > mean.g and mean.g > mean.b and mean.b < 0.35, "it reads as straw: %s" % mean)
 	var other := RoofLayout.new()
 	other.corners = r.corners
 	other.base = r.base
@@ -323,4 +314,4 @@ func _thatch_is_painted_as_thatch() -> void:
 	other.thatch = true
 	other.seed = 8
 	other.build()
-	_check(other.coat[Mesh.ARRAY_COLOR][0] != colours[0], "each roof weathers its own way")
+	check(other.coat[Mesh.ARRAY_COLOR][0] != colours[0], "each roof weathers its own way")

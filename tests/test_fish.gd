@@ -1,10 +1,8 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of fish: godot4 --headless --path game --script ../tests/test_fish.gd
 
 const STEP := 1.0 / 30.0
-
-var failures := 0
 
 
 func _initialize() -> void:
@@ -13,27 +11,20 @@ func _initialize() -> void:
 	_no_tool_places_fish()
 	_faces_out()
 	await _they_swim_in_the_ponds()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 func _no_tool_places_fish() -> void:
 	for f in DirAccess.get_files_at("res://src"):
 		if f.ends_with("_tool.gd") or f in ["hand.gd", "driver.gd", "buttons.gd"]:
-			_check(not FileAccess.get_file_as_string("res://src/" + f).contains("Fish"), "%s reaches no fish" % f)
-	_check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Fish.new(") == 1, "Wildlife alone makes fish")
+			check(not FileAccess.get_file_as_string("res://src/" + f).contains("Fish"), "%s reaches no fish" % f)
+	check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Fish.new(") == 1, "Wildlife alone makes fish")
 
 
 ## The fish draws see-through, so a face turned from the eye would show its inside over its outside: it draws only
 ## faces turned to the eye, its body is closed with every face turned out, and each fin is a face either way up.
 func _faces_out() -> void:
-	_check(not (load("res://src/fish.gdshader") as Shader).code.contains("cull_"), "a fish draws only the faces turned to the eye")
+	check(not (load("res://src/fish.gdshader") as Shader).code.contains("cull_"), "a fish draws only the faces turned to the eye")
 	var arrays := Fish.body().surface_get_arrays(0)
 	var v: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var n: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
@@ -45,22 +36,22 @@ func _faces_out() -> void:
 		var front := (v[t + 2] - v[t]).cross(v[t + 1] - v[t])
 		if front.length() < 1e-9:
 			continue
-		_check(front.dot(n[t] + n[t + 1] + n[t + 2]) > 0.0, "triangle %d faces the way its normals do" % (t / 3))
+		check(front.dot(n[t] + n[t + 1] + n[t + 2]) > 0.0, "triangle %d faces the way its normals do" % (t / 3))
 		if uv[t].x == 1.0:
 			var corners := [key.call(v[t]), key.call(v[t + 1]), key.call(v[t + 2])]
 			corners.sort()
 			fins.get_or_add(str(corners), []).append(signf(front.y))
 			continue
-		_check(front.dot((v[t] + v[t + 1] + v[t + 2]) / 3.0) > 0.0, "body triangle %d faces out" % (t / 3))
+		check(front.dot((v[t] + v[t + 1] + v[t + 2]) / 3.0) > 0.0, "body triangle %d faces out" % (t / 3))
 		for k in 3:
 			var edge := "%s>%s" % [key.call(v[t + k]), key.call(v[t + (k + 1) % 3])]
 			edges[edge] = edges.get(edge, 0) + 1
 	for edge: String in edges:
 		var back := "%s>%s" % [edge.get_slice(">", 1), edge.get_slice(">", 0)]
-		_check(edges[edge] == 1 and edges.get(back, 0) == 1, "the body is closed, edge %s met once each way" % edge)
-	_check(fins.size() == 6, "six fin faces, found %d" % fins.size())
+		check(edges[edge] == 1 and edges.get(back, 0) == 1, "the body is closed, edge %s met once each way" % edge)
+	check(fins.size() == 6, "six fin faces, found %d" % fins.size())
 	for f: String in fins:
-		_check(fins[f].size() == 2 and 1.0 in fins[f] and -1.0 in fins[f], "fin %s is a face either way up" % f)
+		check(fins[f].size() == 2 and 1.0 in fins[f] and -1.0 in fins[f], "fin %s is a face either way up" % f)
 
 
 ## Presses a hollow at x, z as a grip does, then fills it to its brim with the pond tool.
@@ -99,23 +90,23 @@ func _seeds_on_the_water_draw_every_fish(wildlife: Wildlife, feed: FeedTool, wat
 	var rose := [false]
 	var fast := [0.0]
 	_run(wildlife, 8.0, feed)
-	_check(s.landed() and pond == water.pond_at(s.position.x, s.position.z), "the seeds come down on the pond")
-	_check(Cues.asked.get(Cues.Act.PLOP, 0) - heard.get(Cues.Act.PLOP, 0) == 1, "with a plop")
+	check(s.landed() and pond == water.pond_at(s.position.x, s.position.z), "the seeds come down on the pond")
+	check(Cues.asked.get(Cues.Act.PLOP, 0) - heard.get(Cues.Act.PLOP, 0) == 1, "with a plop")
 	_run(wildlife, 20.0, feed, func() -> void:
 		for f: Fish.One in mine:
 			if f.feeding:
 				fed[f] = true
 				fast[0] = maxf(fast[0], f.speed)
 			rose[0] = rose[0] or f.at.y > pond.pond.level - Fish.NIBBLE_AT - 1e-3)
-	_check(not mine.is_empty() and fed.size() == mine.size(), "every fish of the pond swarms the seeds, %d of %d" % [fed.size(), mine.size()])
-	_check(fast[0] > Fish.CRUISE * 3.0, "darting in, %.2f m/s" % fast[0])
-	_check(rose[0], "and rising to the surface to take them")
-	_check(s.left() == 0, "the seeds are eaten, %d left" % s.left())
-	_check(Cues.asked.get(Cues.Act.NIBBLE, 0) > heard.get(Cues.Act.NIBBLE, 0), "with a nibble as they are taken")
-	_check(fish.swimming.all(func(f: Fish.One) -> bool: return not f.feeding), "then the fish scatter back to cruising")
-	_check(_in_water(fish, water), "every fish still in the water")
+	check(not mine.is_empty() and fed.size() == mine.size(), "every fish of the pond swarms the seeds, %d of %d" % [fed.size(), mine.size()])
+	check(fast[0] > Fish.CRUISE * 3.0, "darting in, %.2f m/s" % fast[0])
+	check(rose[0], "and rising to the surface to take them")
+	check(s.left() == 0, "the seeds are eaten, %d left" % s.left())
+	check(Cues.asked.get(Cues.Act.NIBBLE, 0) > heard.get(Cues.Act.NIBBLE, 0), "with a nibble as they are taken")
+	check(fish.swimming.all(func(f: Fish.One) -> bool: return not f.feeding), "then the fish scatter back to cruising")
+	check(_in_water(fish, water), "every fish still in the water")
 	_run(wildlife, 4.0, feed)
-	_check(mine.all(func(f: Fish.One) -> bool: return f.speed < Fish.CRUISE * 1.5 and f.pitch == 0.0), "and calm, swimming level")
+	check(mine.all(func(f: Fish.One) -> bool: return f.speed < Fish.CRUISE * 1.5 and f.pitch == 0.0), "and calm, swimming level")
 	var a := Handful.new(water)
 	var b := Handful.new(water)
 	root.add_child(a)
@@ -132,7 +123,7 @@ func _seeds_on_the_water_draw_every_fish(wildlife: Wildlife, feed: FeedTool, wat
 	var apart := a.position.distance_to(b.position)
 	for i in Handful.GRAINS:
 		apart = maxf(apart, a._at[i].distance_to(b._at[i]))
-	_check(a.landed() and b.landed() and apart < 0.001, "one throw lands the same grains however a loaded machine's frames fall, %.4f m at most" % apart)
+	check(a.landed() and b.landed() and apart < 0.001, "one throw lands the same grains however a loaded machine's frames fall, %.4f m at most" % apart)
 	a.queue_free()
 	b.queue_free()
 
@@ -175,47 +166,47 @@ func _they_swim_in_the_ponds() -> void:
 	var fish := wildlife.fish
 
 	wildlife.tick(STEP)
-	_check(fish.swimming.size() == 0 and fish.mm.visible_instance_count == 0, "no pond, no fish")
+	check(fish.swimming.size() == 0 and fish.mm.visible_instance_count == 0, "no pond, no fish")
 
 	await _dig(tool, 3, -4)
 	await _dig(tool, 4.5, -4)
 	water.ponds[0]._process(PondWater.FILL)
 	_run(wildlife, Wildlife.ARRIVE_AFTER.x - 1.0)
-	_check(fish.swimming.is_empty(), "a filled pond has no fish at first")
+	check(fish.swimming.is_empty(), "a filled pond has no fish at first")
 	_run(wildlife, Wildlife.ARRIVE_AFTER.y - Wildlife.ARRIVE_AFTER.x + Fish.FADE + 1.5)
 	var n := fish.swimming.size()
-	_check(n >= 1 and n <= Fish.PER_POND, "a pond has a few fish, %d" % n)
-	_check(n >= 1 and fish.swimming.all(func(f: Fish.One) -> bool: return f.shown >= 1.0), "a while later they have come, faded in")
-	_check(fish.mm.visible_instance_count == n, "each is drawn")
-	_check(_in_water(fish, water), "under the surface, over the ground")
+	check(n >= 1 and n <= Fish.PER_POND, "a pond has a few fish, %d" % n)
+	check(n >= 1 and fish.swimming.all(func(f: Fish.One) -> bool: return f.shown >= 1.0), "a while later they have come, faded in")
+	check(fish.mm.visible_instance_count == n, "each is drawn")
+	check(_in_water(fish, water), "under the surface, over the ground")
 
 	var start := fish.swimming.map(func(f: Fish.One) -> Vector3: return f.at)
 	var kept := true
 	for i in int(60.0 / STEP):
 		wildlife.tick(STEP)
 		kept = kept and _in_water(fish, water)
-	_check(kept, "a minute on, every one has stayed in the water")
+	check(kept, "a minute on, every one has stayed in the water")
 	var moved := 0.0
 	var now := fish.swimming
 	for i in now.size():
 		moved += now[i].at.distance_to(start[i])
-	_check(moved / now.size() > 0.3, "and they swim about, %.2f m on average" % (moved / now.size()))
+	check(moved / now.size() > 0.3, "and they swim about, %.2f m on average" % (moved / now.size()))
 
 	var one: Fish.One = now[0]
 	hand.global_position = one.at + Vector3(0.1, 0.05, 0)
 	wildlife.tick(STEP)
 	wildlife.tick(STEP)
-	_check(one.speed > Fish.CRUISE * 2.0, "a hand coming near makes a fish dart, %.2f m/s" % one.speed)
+	check(one.speed > Fish.CRUISE * 2.0, "a hand coming near makes a fish dart, %.2f m/s" % one.speed)
 	var from := one.at
 	for i in int(Fish.DART_FOR / STEP):
 		wildlife.tick(STEP)
-	_check(one.at.distance_to(hand.global_position) > from.distance_to(hand.global_position), "away from it")
-	_check(_in_water(fish, water), "and still in the water")
+	check(one.at.distance_to(hand.global_position) > from.distance_to(hand.global_position), "away from it")
+	check(_in_water(fish, water), "and still in the water")
 	await _seeds_on_the_water_draw_every_fish(wildlife, feed, water)
 	hand.global_position = one.at + Vector3(0.1, 0.05, 0)
 	_run(wildlife, 0.5)
 	_run(wildlife, 3.0)
-	_check(one.speed < Fish.CRUISE * 1.5, "a hand held still beside one frightens it no more, %.2f m/s" % one.speed)
+	check(one.speed < Fish.CRUISE * 1.5, "a hand held still beside one frightens it no more, %.2f m/s" % one.speed)
 	hand.global_position = Vector3(0, 30, 0)
 
 	await _dig(tool, 5.8, -4.2)
@@ -224,14 +215,14 @@ func _they_swim_in_the_ponds() -> void:
 	for i in int(5.0 / STEP):
 		wildlife.tick(STEP)
 		kept_on = kept_on and _in_water(fish, water)
-	_check(kept_on and not fish.swimming.is_empty(), "a pond dug wider keeps its fish in its water")
+	check(kept_on and not fish.swimming.is_empty(), "a pond dug wider keeps its fish in its water")
 
 	await _dig(tool, -6, 5)
-	_check(fish.swimming.all(func(f: Fish.One) -> bool: return f.pond != water.ponds[-1]), "none in a pond still filling")
+	check(fish.swimming.all(func(f: Fish.One) -> bool: return f.pond != water.ponds[-1]), "none in a pond still filling")
 	water.ponds[-1]._process(PondWater.FILL)
 	_run(wildlife, Fish.FADE)
-	_check(fish.swimming.all(func(f: Fish.One) -> bool: return f.pond != water.ponds[-1]), "nor at once in one filled")
+	check(fish.swimming.all(func(f: Fish.One) -> bool: return f.pond != water.ponds[-1]), "nor at once in one filled")
 	_run(wildlife, Wildlife.ARRIVE_AFTER.y)
-	_check(fish.swimming.any(func(f: Fish.One) -> bool: return f.pond == water.ponds[-1]), "a second pond has its own fish a while after")
-	_check(_in_water(fish, water), "every fish in water")
-	_check(fish.swimming.size() <= Fish.CAP, "never more than the cap, %d" % fish.swimming.size())
+	check(fish.swimming.any(func(f: Fish.One) -> bool: return f.pond == water.ponds[-1]), "a second pond has its own fish a while after")
+	check(_in_water(fish, water), "every fish in water")
+	check(fish.swimming.size() <= Fish.CAP, "never more than the cap, %d" % fish.swimming.size())

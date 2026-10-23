@@ -1,16 +1,12 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Where a player's eyes look, and how others see it: the tracked gaze or a natural look stands in, steadied, and
 ## travels to the other players' copies of their avatar:
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_gaze.gd
 
-var failures := 0
-var main: Node
-
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
 
 
@@ -19,19 +15,7 @@ func _run() -> void:
 	_the_look_is_steady_but_quick()
 	await _tracked_eyes_lead_the_look()
 	await _the_look_reaches_the_other_players()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
-
-
-func _frames(n: int) -> void:
-	for i in n:
-		await process_frame
+	finish()
 
 
 func _an_untracked_look_glances_at_the_nearest_face() -> void:
@@ -40,10 +24,10 @@ func _an_untracked_look_glances_at_the_nearest_face() -> void:
 	var near := head.origin + ahead.rotated(Vector3.UP, 0.3) * 1.5 + Vector3.UP * 0.1
 	var far := head.origin + ahead.rotated(Vector3.UP, -0.2) * 3.0
 	var looked: Vector3 = head.basis * Gaze.glance(head, [far, near])
-	_check(looked.is_equal_approx((near - head.origin).normalized()), "an untracked look turns to the nearest face near ahead")
-	_check(Gaze.glance(head, [head.origin - ahead * 1.5]).is_equal_approx(Vector3.FORWARD), "but not to one behind")
-	_check(Gaze.glance(head, [head.origin + ahead * (Gaze.FACE_NEAR + 1.0)]).is_equal_approx(Vector3.FORWARD), "nor to one far off")
-	_check(Gaze.glance(head, []).is_equal_approx(Vector3.FORWARD), "with nobody near, it looks ahead")
+	check(looked.is_equal_approx((near - head.origin).normalized()), "an untracked look turns to the nearest face near ahead")
+	check(Gaze.glance(head, [head.origin - ahead * 1.5]).is_equal_approx(Vector3.FORWARD), "but not to one behind")
+	check(Gaze.glance(head, [head.origin + ahead * (Gaze.FACE_NEAR + 1.0)]).is_equal_approx(Vector3.FORWARD), "nor to one far off")
+	check(Gaze.glance(head, []).is_equal_approx(Vector3.FORWARD), "with nobody near, it looks ahead")
 
 
 ## A jump lands within a few frames, but frame-to-frame tracking noise barely moves the look.
@@ -53,14 +37,14 @@ func _the_look_is_steady_but_quick() -> void:
 	var look := Vector3.FORWARD
 	for i in 6:
 		look = Gaze.steady(look, to, dt)
-	_check(rad_to_deg(look.angle_to(to)) < 2.0, "a 20 degree jump lands within 6 frames (%.1f degrees off)" % rad_to_deg(look.angle_to(to)))
+	check(rad_to_deg(look.angle_to(to)) < 2.0, "a 20 degree jump lands within 6 frames (%.1f degrees off)" % rad_to_deg(look.angle_to(to)))
 	var wobble := 0.0
 	for i in 90:
 		var noisy := to.rotated(Vector3.RIGHT, deg_to_rad(0.5 if i % 2 else -0.5))
 		look = Gaze.steady(look, noisy, dt)
 		if i > 30:
 			wobble = maxf(wobble, rad_to_deg(look.angle_to(to)))
-	_check(wobble < 0.2, "half a degree of noise moves it less than 0.2 degrees (%.2f)" % wobble)
+	check(wobble < 0.2, "half a degree of noise moves it less than 0.2 degrees (%.2f)" % wobble)
 	# Looks ahead that differ only by float noise; Vector3.slerp errored on these (an axis not of unit length).
 	var noise := RandomNumberGenerator.new()
 	noise.seed = 1
@@ -70,7 +54,7 @@ func _the_look_is_steady_but_quick() -> void:
 		var a := Vector3(noise.randf_range(-s, s), noise.randf_range(-s, s), -1)
 		var b := Vector3(noise.randf_range(-s, s), noise.randf_range(-s, s), -1)
 		ahead += 1 if Gaze.steady(a, b, dt).is_equal_approx(Vector3.FORWARD) else 0
-	_check(ahead == 200, "looks ahead that differ by float noise stay ahead (%d of 200)" % ahead)
+	check(ahead == 200, "looks ahead that differ by float noise stay ahead (%d of 200)" % ahead)
 
 
 func _eyes_tracker() -> XRPositionalTracker:
@@ -87,16 +71,16 @@ func _tracked_eyes_lead_the_look() -> void:
 	var eyes := _eyes_tracker()
 	var gaze_in_head := Basis(Vector3.UP, 0.4) * Basis(Vector3.RIGHT, -0.2)
 	eyes.set_pose(&"default", rig.head.transform * Transform3D(gaze_in_head, Vector3.ZERO), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
-	await _frames(20)
+	await frames(20)
 	var want := gaze_in_head * Vector3.FORWARD
-	_check(rig.gaze.look.angle_to(want) < 0.01, "tracked eyes set the look (%s vs %s)" % [rig.gaze.look, want])
+	check(rig.gaze.look.angle_to(want) < 0.01, "tracked eyes set the look (%s vs %s)" % [rig.gaze.look, want])
 	eyes.invalidate_pose(&"default")
-	await _frames(int(Gaze.BLINK * 60.0 * 0.5))
-	_check(rig.gaze.look.angle_to(want) < 0.01, "a blink holds it")
-	await _frames(60)
-	_check(rig.gaze.look.angle_to(Vector3.FORWARD) < 0.01, "lost tracking falls back to looking ahead (%s)" % rig.gaze.look)
+	await frames(int(Gaze.BLINK * 60.0 * 0.5))
+	check(rig.gaze.look.angle_to(want) < 0.01, "a blink holds it")
+	await frames(60)
+	check(rig.gaze.look.angle_to(Vector3.FORWARD) < 0.01, "lost tracking falls back to looking ahead (%s)" % rig.gaze.look)
 	eyes.set_pose(&"default", rig.head.transform * Transform3D(gaze_in_head, Vector3.ZERO), Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
-	await _frames(20)
+	await frames(20)
 	XRServer.remove_tracker(eyes)
 
 
@@ -125,18 +109,18 @@ func _the_look_reaches_the_other_players() -> void:
 			seen = host.avatars.values()[0]
 			break
 		await process_frame
-	_check(seen != null, "the host sees the joiner")
+	check(seen != null, "the host sees the joiner")
 	if seen != null:
-		await _frames(30)
+		await frames(30)
 		var want := gaze_in_head * Vector3.FORWARD
-		_check(seen.look.angle_to(want) < 0.02, "the joiner's avatar looks where the joiner's eyes do (%s vs %s)" % [seen.look, want])
+		check(seen.look.angle_to(want) < 0.02, "the joiner's avatar looks where the joiner's eyes do (%s vs %s)" % [seen.look, want])
 		var eye := seen.bone("leftEye")
 		var rest: Transform3D = seen._joints.leftEye.rest
 		var face: Vector3 = seen.bone("head").basis * seen._joints.head.rest.basis.inverse() * (seen._model.get_meta("forward") as Vector3)
 		var points: Vector3 = eye.basis * rest.basis.inverse() * (seen._model.get_meta("forward") as Vector3)
 		var right := seen.eyes.basis.x
-		_check(points.dot(right) > face.dot(right) + 0.1 and points.dot(Vector3.UP) > face.dot(Vector3.UP) + 0.1, "and its eyes turn right and up with it")
+		check(points.dot(right) > face.dot(right) + 0.1 and points.dot(Vector3.UP) > face.dot(Vector3.UP) + 0.1, "and its eyes turn right and up with it")
 	for s in sessions:
 		s.get_parent().queue_free()
 	XRServer.remove_tracker(eyes)
-	await _frames(2)
+	await frames(2)

@@ -1,21 +1,12 @@
-extends SceneTree
-
-var failures := 0
+extends "res://../tests/support/suite.gd"
 
 
 func _initialize() -> void:
 	_run.call_deferred()
 
 
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
-
-
 func _run() -> void:
-	var main := (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	await process_frame
 	var driver := Driver.new(main, [])
 	var original: Array[bool] = []
@@ -47,5 +38,4 @@ func _run() -> void:
 	check(not main.tool.masonry.visible, "an already hidden layer stays hidden")
 	main.tool.masonry.visible = true
 	driver.free()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

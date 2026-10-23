@@ -1,6 +1,5 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
-var failures := 0
 
 class Simulation:
 	extends Node
@@ -11,12 +10,6 @@ class Simulation:
 
 func _initialize() -> void:
 	_run.call_deferred()
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 
 func _game(label: String) -> Main:
@@ -35,13 +28,13 @@ func _run() -> void:
 	var guest := _game("Guest")
 	host.session.first_port = Session.PORT + 48
 	host.session.host()
-	_check(host.session.port != 0, "host opens a local co-op session")
+	check(host.session.port != 0, "host opens a local co-op session")
 	guest.session.join("127.0.0.1", host.session.port)
 	for frame in 600:
 		await process_frame
 		if host.session.players() == 2 and guest.session.avatars.has(1):
 			break
-	_check(host.session.players() == 2 and guest.session.avatars.has(1), "co-op peer joins before focus loss")
+	check(host.session.players() == 2 and guest.session.avatars.has(1), "co-op peer joins before focus loss")
 	var peer := guest.multiplayer.multiplayer_peer
 	var ids := host.multiplayer.get_peers()
 	# This pause must survive a played session's timeouts, not the scripted co-op exemption.
@@ -62,7 +55,7 @@ func _run() -> void:
 	guest._watch_xr()
 	guest.xr.session_focussed.emit()
 	await process_frame
-	_check(not paused and not audio.stream_paused, "focused game runs with audio")
+	check(not paused and not audio.stream_paused, "focused game runs with audio")
 	for signal_name in ["session_visible", "session_synchronized", "session_stopping", "idle", "session_begun"]:
 		if signal_name == "idle":
 			guest._xr_state(OpenXRInterface.SESSION_STATE_IDLE)
@@ -79,24 +72,23 @@ func _run() -> void:
 				await process_frame
 				OS.delay_msec(10)
 			print("tests: co-op paused for %d ms with normal ENet timeouts" % (Time.get_ticks_msec() - started))
-		_check(paused and sim.frames == frames and audio.stream_paused, "%s pauses simulation and audio" % signal_name)
-		_check(not guest.rig.left.visible and not guest.rig.right.visible, "%s hides the player's hands" % signal_name)
-		_check(cue_voice.stream_paused and cues._clock == cue_clock, "%s pauses action sounds and queued haptics" % signal_name)
-		_check(guest.session._clock > network_clock, "%s keeps networking processing" % signal_name)
-		_check(not root.get_node("AudioLifetime")._quitting and is_instance_valid(guest), "%s never quits" % signal_name)
-		_check(host.multiplayer.get_peers() == ids and guest.multiplayer.multiplayer_peer == peer and guest.session.avatars.has(1), "%s preserves the same co-op peer" % signal_name)
+		check(paused and sim.frames == frames and audio.stream_paused, "%s pauses simulation and audio" % signal_name)
+		check(not guest.rig.left.visible and not guest.rig.right.visible, "%s hides the player's hands" % signal_name)
+		check(cue_voice.stream_paused and cues._clock == cue_clock, "%s pauses action sounds and queued haptics" % signal_name)
+		check(guest.session._clock > network_clock, "%s keeps networking processing" % signal_name)
+		check(not root.get_node("AudioLifetime")._quitting and is_instance_valid(guest), "%s never quits" % signal_name)
+		check(host.multiplayer.get_peers() == ids and guest.multiplayer.multiplayer_peer == peer and guest.session.avatars.has(1), "%s preserves the same co-op peer" % signal_name)
 	guest.xr.session_focussed.emit()
 	var before := sim.frames
 	for frame in 12:
 		await process_frame
-	_check(not paused and sim.frames > before and not audio.stream_paused, "focus return resumes simulation and audio")
-	_check(guest.rig.left.visible and guest.rig.right.visible, "focus return shows the player's hands")
-	_check(not root.get_node("AudioLifetime")._quitting and host.multiplayer.get_peers() == ids and guest.multiplayer.multiplayer_peer == peer, "return retains the game and co-op connection")
+	check(not paused and sim.frames > before and not audio.stream_paused, "focus return resumes simulation and audio")
+	check(guest.rig.left.visible and guest.rig.right.visible, "focus return shows the player's hands")
+	check(not root.get_node("AudioLifetime")._quitting and host.multiplayer.get_peers() == ids and guest.multiplayer.multiplayer_peer == peer, "return retains the game and co-op connection")
 	guest.args["script"] = "demo/costs.json"
 	guest.xr.session_visible.emit()
 	before = sim.frames
 	for frame in 12:
 		await process_frame
-	_check(not paused and sim.frames > before, "a scripted game plays on without focus")
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	check(not paused and sim.frames > before, "a scripted game plays on without focus")
+	finish()

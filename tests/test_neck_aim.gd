@@ -1,6 +1,4 @@
-extends SceneTree
-
-var failures := 0
+extends "res://../tests/support/suite.gd"
 
 
 func _initialize() -> void:
@@ -8,14 +6,7 @@ func _initialize() -> void:
 	for kind in [Beast.Kind.DEER, Beast.Kind.FOX]:
 		await _feeding(kind)
 		await _live(kind)
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, why: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", why)
+	finish()
 
 
 func _feeding(kind: Beast.Kind) -> void:
@@ -48,20 +39,20 @@ func _feeding(kind: Beast.Kind) -> void:
 			animal.neck._process_modification()
 			worst = maxf(worst, animal.neck.error)
 			clearance = minf(clearance, dish.to_local(animal.neck.mouth).y - Hand.TOP.y)
-			_check(s.get_bone_pose(s.find_bone("Torso3")).is_equal_approx(body), "body keeps its clip")
-			_check(s.get_bone_pose(s.find_bone("Ear1.L")).is_equal_approx(ear), "ear keeps its clip")
+			check(s.get_bone_pose(s.find_bone("Torso3")).is_equal_approx(body), "body keeps its clip")
+			check(s.get_bone_pose(s.find_bone("Ear1.L")).is_equal_approx(ear), "ear keeps its clip")
 			for i in animal.neck.chain.size():
 				var bone := animal.neck.chain[i]
 				var rest := s.get_bone_rest(bone).basis.get_rotation_quaternion()
-				_check(rest.angle_to(s.get_bone_pose_rotation(bone)) <= NeckAim.LIMITS[i] + 0.002, "neck stays within its joint limits")
+				check(rest.angle_to(s.get_bone_pose_rotation(bone)) <= NeckAim.LIMITS[i] + 0.002, "neck stays within its joint limits")
 	print("neck: kind %d, moving hand over three heights, worst error %.5f m, palm clearance %.5f m" % [kind, worst, clearance])
-	_check(worst < NeckAim.CONTACT, "muzzle stays at food across the clip and a drifting hand")
-	_check(clearance > 0.01, "muzzle stays above the palm")
+	check(worst < NeckAim.CONTACT, "muzzle stays at food across the clip and a drifting hand")
+	check(clearance > 0.01, "muzzle stays above the palm")
 	dish.position.y = 3.0
-	_check(not animal.neck.reachable(animal, dish, 0.0), "a high hand is unreachable")
+	check(not animal.neck.reachable(animal, dish, 0.0), "a high hand is unreachable")
 	dish.position.y = 0.4
 	dish.rotation.z = PI
-	_check(not animal.neck.reachable(animal, dish, 0.0), "an overturned hand is not approached through its palm")
+	check(not animal.neck.reachable(animal, dish, 0.0), "an overturned hand is not approached through its palm")
 	animal.free()
 	dish.free()
 	await process_frame
@@ -81,11 +72,11 @@ func _live(kind: Beast.Kind) -> void:
 		h.position.x = sin(frame * 0.04) * 0.02
 		await process_frame
 		if frame > 30:
-			_check(a.neck.touching(h), "live modifier keeps contact after the authored clip evaluates")
+			check(a.neck.touching(h), "live modifier keeps contact after the authored clip evaluates")
 	a.hand = null
 	for frame in 30:
 		await process_frame
-	_check(a.neck.amount == 0.0, "neck blends fully out after the offer ends")
+	check(a.neck.amount == 0.0, "neck blends fully out after the offer ends")
 	a.free()
 	h.free()
 	await process_frame

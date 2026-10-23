@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks that the controls table reaches every action on every device we ship, each control
 ## held through the same path the controller feeds:
@@ -7,8 +7,6 @@ extends SceneTree
 const PER_HAND := ["tool", "grab", "wheel"]
 ## The interaction profile each device's controls arrive through.
 const PROFILES := {"frame": "/interaction_profiles/valve/frame_controller_valve", "quest": "/interaction_profiles/oculus/touch_controller"}
-
-var failures := 0
 
 
 func _initialize() -> void:
@@ -24,17 +22,16 @@ func _run() -> void:
 	await _unused_frame_controls_do_nothing()
 	await _each_control_does_its_action_alone()
 	await _a_flick_is_one_way()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 func _every_action_is_reachable_on_every_device() -> void:
 	for action in PER_HAND:
-		_check(Controls.ACTIONS[action].keys().size() == 2, "%s is on both hands" % action)
+		check(Controls.ACTIONS[action].keys().size() == 2, "%s is on both hands" % action)
 	for device in Controls.DEVICES:
 		for action in Controls.ACTIONS:
 			for tracker in Controls.ACTIONS[action]:
-				_check(not Controls.bound(device, action, tracker).is_empty(), "%s reaches %s on its %s" % [device, action, tracker])
+				check(not Controls.bound(device, action, tracker).is_empty(), "%s reaches %s on its %s" % [device, action, tracker])
 
 
 func _no_two_actions_share_an_input() -> void:
@@ -42,7 +39,7 @@ func _no_two_actions_share_an_input() -> void:
 	for action in Controls.ACTIONS:
 		for tracker in Controls.ACTIONS[action]:
 			var key := "%s/%s" % [tracker, Controls.input(action, tracker)]
-			_check(not seen.has(key), "%s and %s share %s" % [seen.get(key, ""), action, key])
+			check(not seen.has(key), "%s and %s share %s" % [seen.get(key, ""), action, key])
 			seen[key] = action
 
 
@@ -50,7 +47,7 @@ func _a_tool_is_picked_without_a_stick_click() -> void:
 	for device in Controls.DEVICES:
 		for tracker in Controls.ACTIONS.wheel:
 			for name in Controls.bound(device, "wheel", tracker):
-				_check(Controls.DEVICES[device][name][1] != "primary_click", "%s opens the wheel with %s, a stick click" % [device, name])
+				check(Controls.DEVICES[device][name][1] != "primary_click", "%s opens the wheel with %s, a stick click" % [device, name])
 
 
 func _each_device_profile_binds_its_controls() -> void:
@@ -65,12 +62,12 @@ func _each_device_profile_binds_its_controls() -> void:
 			var to: Array = Controls.DEVICES[device][name]
 			var input: String = "primary" if Hand.FLICKS.has(to[1]) else to[1]
 			var path := _path(name, to[0])
-			_check(input in bound.get(path, []), "%s's %s (%s) arrives as %s/%s: bound to %s" % [device, name, path, to[0], input, bound.get(path, [])])
+			check(input in bound.get(path, []), "%s's %s (%s) arrives as %s/%s: bound to %s" % [device, name, path, to[0], input, bound.get(path, [])])
 
 
 func _only_one_control_opens_each_frame_wheel() -> void:
-	_check(Controls.bound("frame", "wheel", "left_hand") == ["dpad_left"], "only D-pad left opens the left Frame wheel")
-	_check(Controls.bound("frame", "wheel", "right_hand") == ["B"], "only B opens the right Frame wheel")
+	check(Controls.bound("frame", "wheel", "left_hand") == ["dpad_left"], "only D-pad left opens the left Frame wheel")
+	check(Controls.bound("frame", "wheel", "right_hand") == ["B"], "only B opens the right Frame wheel")
 
 
 func _unused_frame_controls_do_nothing() -> void:
@@ -80,7 +77,7 @@ func _unused_frame_controls_do_nothing() -> void:
 		await process_frame
 		for action in Controls.ACTIONS:
 			for tracker in Controls.ACTIONS[action]:
-				_check(not Buttons.new(hands[tracker]).held(action), "%s does not trigger %s on %s" % [control, action, tracker])
+				check(not Buttons.new(hands[tracker]).held(action), "%s does not trigger %s on %s" % [control, action, tracker])
 		Driver.hold("frame", control, false)
 	for hand in hands.values():
 		hand.free()
@@ -117,11 +114,11 @@ func _each_control_does_its_action_alone() -> void:
 					await process_frame
 					await process_frame
 					var also: Array = b._was.keys().filter(func(a: String) -> bool: return a != action and b.held(a))
-					_check(b.held(action) and also.is_empty(), "%s's %s holds %s alone, held %s, also %s" % [device, control, action, b.held(action), also])
+					check(b.held(action) and also.is_empty(), "%s's %s holds %s alone, held %s, also %s" % [device, control, action, b.held(action), also])
 					Driver.hold(device, control, false)
 					await process_frame
 					await process_frame
-					_check(not b.held(action), "letting go of %s's %s lets go of %s" % [device, control, action])
+					check(not b.held(action), "letting go of %s's %s lets go of %s" % [device, control, action])
 	for h in hands.values():
 		h.free()
 
@@ -140,12 +137,8 @@ func _a_flick_is_one_way() -> void:
 		seen.append(right.flick)
 		b.latch()
 	Hand.injected_sticks.clear()
-	_check(turns == 2 and seen == ["primary_right", "primary_right", "primary_right", "primary_right", "", "primary_right", ""], "a flick right drifting down stays right until the stick comes back: %d turns, %s" % [turns, seen])
+	check(turns == 2 and seen == ["primary_right", "primary_right", "primary_right", "primary_right", "", "primary_right", ""], "a flick right drifting down stays right until the stick comes back: %d turns, %s" % [turns, seen])
 	for h in hands.values():
 		h.free()
 
 
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)

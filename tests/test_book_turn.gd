@@ -1,20 +1,13 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Sweeps the hand paths that read the picture book: a pass through a page from behind it to in front, at every
 ## speed, angle and tracking rate a player would make it, turns that page once; brushes and hovers turn none.
 
-var failures := 0
 var book: Book
 
 
 func _initialize() -> void:
 	_run.call_deferred()
-
-
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 
 func _run() -> void:
@@ -64,8 +57,7 @@ func _run() -> void:
 		"a pass through the page and on across the spread turns one leaf")
 	book.queue_free()
 	await process_frame
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 ## Which way the book turned a hand sampled `hz` times a second along `dir` from 25 cm behind the page through

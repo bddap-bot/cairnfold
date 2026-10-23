@@ -1,18 +1,15 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of easels: strokes painted through the brush are build commands, kept with the garden and loaded
 ## back whole, taken back and put back by undo and redo, cleared by a fresh sheet, carried by a deleted easel's undo,
 ## stands on the ground as it is reshaped, and checked like every command: godot4 --headless --path game --script ../tests/test_easel.gd
 
-var failures := 0
-var main: Node
 var world: World
 var dir := ""
 
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
 
 
@@ -54,14 +51,7 @@ func _run() -> void:
 	for f in DirAccess.get_files_at(dir):
 		DirAccess.remove_absolute(dir.path_join(f))
 	DirAccess.remove_absolute(dir)
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 func _play(steps: Array) -> void:
@@ -104,7 +94,7 @@ func _paint_some() -> void:
 func _samples_keep_what_the_brush_did() -> void:
 	var s := Brushwork.pack(Vector2(0.25, 0.75), 0.5, PI * 0.5, 7)
 	var back := Brushwork.unpack(s, 0)
-	_check(back[0].distance_to(Vector2(0.25, 0.75)) < 1e-4 and absf(back[1] - 0.5) < 0.01 and absf(back[2] - PI * 0.5) < 0.02 and back[3] == 7, "a sample keeps where, how hard, which way and when: %s" % [back])
+	check(back[0].distance_to(Vector2(0.25, 0.75)) < 1e-4 and absf(back[1] - 0.5) < 0.01 and absf(back[2] - PI * 0.5) < 0.02 and back[3] == 7, "a sample keeps where, how hard, which way and when: %s" % [back])
 
 
 func _a_stroke_lays_the_same_dabs_every_time() -> void:
@@ -119,11 +109,11 @@ func _a_stroke_lays_the_same_dabs_every_time() -> void:
 			out.append_array(s.add(Brushwork.unpack(samples, i)))
 		return out
 	var once: PackedFloat32Array = lay.call()
-	_check(once == lay.call() and once.size() > 5 * Brushwork.DAB, "a stroke's samples lay the same dabs every time: %d" % (once.size() / Brushwork.DAB))
+	check(once == lay.call() and once.size() > 5 * Brushwork.DAB, "a stroke's samples lay the same dabs every time: %d" % (once.size() / Brushwork.DAB))
 	var s := Brushwork.Stroker.new(stroke)
 	for i in 5:
 		s.add(Brushwork.unpack(samples, i))
-	_check(s.left() < 1.0 and s.left() > 0.0, "and spend some of the paint on the brush: %.3f left" % s.left())
+	check(s.left() < 1.0 and s.left() > 0.0, "and spend some of the paint on the brush: %.3f left" % s.left())
 
 
 func _strokes_are_kept_and_load_whole() -> void:
@@ -133,38 +123,38 @@ func _strokes_are_kept_and_load_whole() -> void:
 	await _settled()
 	var e := _easel()
 	var media: Array = e.strokes.map(func(s: Dictionary) -> int: return s.medium)
-	_check(media == [Brushwork.Medium.WATER, Brushwork.Medium.OIL, Brushwork.Medium.CHARCOAL], "a watercolour, an oil and a charcoal stroke are on the canvas: %s" % [media])
-	_check(e.strokes.all(func(s: Dictionary) -> bool: return Brushwork.count(s) >= 2), "each stroke kept its samples")
-	_check(main.easels.easels.size() == 1 and main.easels.easels.values()[0].canvas.ticks > 0, "the easel stands and its canvas has run")
-	_check(not e.mix.is_empty() and e.mix == main.easels.easels.values()[0].mixing.bytes, "the oil painted onto the palette held in a hand is kept as the palette shows it")
+	check(media == [Brushwork.Medium.WATER, Brushwork.Medium.OIL, Brushwork.Medium.CHARCOAL], "a watercolour, an oil and a charcoal stroke are on the canvas: %s" % [media])
+	check(e.strokes.all(func(s: Dictionary) -> bool: return Brushwork.count(s) >= 2), "each stroke kept its samples")
+	check(main.easels.easels.size() == 1 and main.easels.easels.values()[0].canvas.ticks > 0, "the easel stands and its canvas has run")
+	check(not e.mix.is_empty() and e.mix == main.easels.easels.values()[0].mixing.bytes, "the oil painted onto the palette held in a hand is kept as the palette shows it")
 	var picture := var_to_str(world.digest())
 	world.restore({"seq": 0, "cmds": []})
 	await _settled()
-	_check(world.state.easels.is_empty() and main.easels.easels.is_empty(), "an empty garden holds no easel")
+	check(world.state.easels.is_empty() and main.easels.easels.is_empty(), "an empty garden holds no easel")
 	world.load_from(path)
-	_check(var_to_str(world.digest()) == picture, "loading puts the easel back where it stood with every stroke as painted and its palette as mixed")
-	_check(main.easels.easels.values()[0].mixing.bytes == e.mix, "and the palette shows its paint again")
-	_check(main.easels.easels.size() == 1 and main.easels.easels.values()[0].canvas.catching_up(), "and replays its painting")
+	check(var_to_str(world.digest()) == picture, "loading puts the easel back where it stood with every stroke as painted and its palette as mixed")
+	check(main.easels.easels.values()[0].mixing.bytes == e.mix, "and the palette shows its paint again")
+	check(main.easels.easels.size() == 1 and main.easels.easels.values()[0].canvas.catching_up(), "and replays its painting")
 
 
 func _undo_takes_back_a_stroke_and_redo_paints_it_again() -> void:
 	await _play([{"op": "take", "what": "big"}, {"op": "dip", "what": "jar"}, {"op": "dip", "what": "pan", "index": 4}, {"op": "brush", "points": [[0.3, 0.4, 0.9], [0.6, 0.45, 0.9]], "seconds": 0.2}])
 	var before: Array = _easel().strokes.duplicate()
-	_check(before.size() == 4, "a loaded painting takes more strokes: %d" % before.size())
+	check(before.size() == 4, "a loaded painting takes more strokes: %d" % before.size())
 	await _play([{"op": "press", "button": "dpad_down"}])
-	_check(_easel().strokes == before.slice(0, before.size() - 1), "undo takes the last stroke off the canvas")
+	check(_easel().strokes == before.slice(0, before.size() - 1), "undo takes the last stroke off the canvas")
 	await _play([{"op": "press", "button": "A"}])
-	_check(_easel().strokes == before, "redo paints it again")
+	check(_easel().strokes == before, "redo paints it again")
 
 
 func _a_fresh_sheet_clears_and_undo_brings_the_painting_back() -> void:
 	var before: Array = _easel().strokes.duplicate()
 	await _play([{"op": "sheet", "pull": 0.1}])
-	_check(_easel().strokes == before, "a sheet pulled a little and let go stays on")
+	check(_easel().strokes == before, "a sheet pulled a little and let go stays on")
 	await _play([{"op": "sheet", "pull": 0.45}])
-	_check(_easel().strokes.is_empty(), "a sheet pulled well off tears away, leaving a fresh one")
+	check(_easel().strokes.is_empty(), "a sheet pulled well off tears away, leaving a fresh one")
 	await _play([{"op": "press", "button": "dpad_down"}])
-	_check(_easel().strokes == before, "undo puts the painting back")
+	check(_easel().strokes == before, "undo puts the painting back")
 
 
 ## Undo's cost does not grow with the painting: the canvas goes back to the checkpoint the stroke before kept, at its
@@ -184,13 +174,13 @@ func _undoing_a_stroke_replays_nothing_however_many_came_before() -> void:
 		while canvas.last_end == at:
 			await process_frame
 		canvas.rebuild(kept)
-		_check(not canvas.catching_up() and canvas.ticks == at and canvas.last_end == at, "undo at %d strokes goes straight back to the stroke before, tick %d: %d" % [n, at, canvas.ticks])
+		check(not canvas.catching_up() and canvas.ticks == at and canvas.last_end == at, "undo at %d strokes goes straight back to the stroke before, tick %d: %d" % [n, at, canvas.ticks])
 		canvas.rebuild(strokes.slice(0, 2))
-		_check(canvas.catching_up() and canvas.ticks == 0, "a stroke before any checkpoint replays from a blank sheet")
+		check(canvas.catching_up() and canvas.ticks == 0, "a stroke before any checkpoint replays from a blank sheet")
 		while canvas.catching_up():
 			await process_frame
 		canvas.rebuild(strokes.slice(0, 3))
-		_check(canvas.catching_up() and canvas._pending == 1, "the stroke after a checkpoint is all that replays: %d" % canvas._pending)
+		check(canvas.catching_up() and canvas._pending == 1, "the stroke after a checkpoint is all that replays: %d" % canvas._pending)
 		canvas.queue_free()
 
 
@@ -201,10 +191,10 @@ func _a_deleted_easel_comes_back_with_its_painting() -> void:
 	var from: Vector3 = main.rig.head.global_position
 	main.delete_tool.press(main.rig.right, from, e.canvas_frame().origin - from)
 	main.delete_tool.let_go(main.rig.right)
-	await _frames(2)
-	_check(world.state.easels.is_empty() and main.easels.easels.is_empty(), "the delete tool's beam takes an easel away")
+	await frames(2)
+	check(world.state.easels.is_empty() and main.easels.easels.is_empty(), "the delete tool's beam takes an easel away")
 	await _play([{"op": "press", "button": "dpad_down"}])
-	_check(world.state.easels.has(id) and world.state.easels[id].strokes == before and main.easels.find(id) != null, "undo stands it back up with its painting")
+	check(world.state.easels.has(id) and world.state.easels[id].strokes == before and main.easels.find(id) != null, "undo stands it back up with its painting")
 
 
 ## Ground raised, dug, undone, loaded whole or set back under an easel leaves it standing on that ground.
@@ -219,24 +209,24 @@ func _it_rides_the_ground_as_it_is_reshaped() -> void:
 		values[i] += 1.5
 	world.submit({"op": "heights", "cells": cells, "values": values})
 	await _settled()
-	_check(absf(e.position.y - was - 1.5) < 0.05, "an easel rises with the ground raised under it (%.2f)" % (e.position.y - was))
+	check(absf(e.position.y - was - 1.5) < 0.05, "an easel rises with the ground raised under it (%.2f)" % (e.position.y - was))
 	for i in values.size():
 		values[i] -= 3.0
 	world.submit({"op": "heights", "cells": cells, "values": values})
 	await _settled()
-	_check(absf(e.position.y - was + 1.5) < 0.05, "and sinks into the ground dug under it (%.2f)" % (e.position.y - was))
+	check(absf(e.position.y - was + 1.5) < 0.05, "and sinks into the ground dug under it (%.2f)" % (e.position.y - was))
 	world.undo()
 	await _settled()
-	_check(absf(e.position.y - was - 1.5) < 0.05, "undoing the digging lifts it back (%.2f)" % (e.position.y - was))
+	check(absf(e.position.y - was - 1.5) < 0.05, "undoing the digging lifts it back (%.2f)" % (e.position.y - was))
 	world.restore(world.snapshot())
 	await _settled()
 	e = main.easels.find(id)
-	_check(e != null and absf(e.position.y - was - 1.5) < 0.05, "a garden loaded whole, as a joining peer gets it, stands it on the raised ground")
+	check(e != null and absf(e.position.y - was - 1.5) < 0.05, "a garden loaded whole, as a joining peer gets it, stands it on the raised ground")
 	for i in values.size():
 		values[i] += 1.5
 	world.submit({"op": "heights", "cells": cells, "values": values})
 	await _settled()
-	_check(e != null and absf(e.position.y - was) < 0.01, "the ground set back sets it back where it stood")
+	check(e != null and absf(e.position.y - was) < 0.01, "the ground set back sets it back where it stood")
 
 
 ## A grip on an easel's legs or tray carries it along the ground and turns it with the hand, painting and all, set
@@ -253,47 +243,47 @@ func _a_grip_on_its_stand_carries_it() -> void:
 	var aim: Vector3 = e.global_transform * leg[0].lerp(leg[1], 0.5)
 	var from := Transform3D(Basis(), e.global_transform * Vector3(0.4, 1.2, -2.0))
 	var hit: Dictionary = main.easels.pick_stand(from.origin, aim - from.origin)
-	_check(hit.get("easel") == e, "a ray from the hand meets the easel's leg")
+	check(hit.get("easel") == e, "a ray from the hand meets the easel's leg")
 	var face := e.canvas_frame()
-	_check(main.easels.pick_stand(face * Vector3(0, 0, 2.0), face.basis * Vector3.FORWARD).is_empty(), "the canvas hides the stand behind it, keeping its own grip")
+	check(main.easels.pick_stand(face * Vector3(0, 0, 2.0), face.basis * Vector3.FORWARD).is_empty(), "the canvas hides the stand behind it, keeping its own grip")
 	right.global_transform = Transform3D(Basis(), e.brushes[Brushwork.Brush.BIG].global_transform * Easels.grip(Brushwork.Brush.BIG))
-	_check(main.easel_tool.claims(right), "a grip at the pot is painting's")
+	check(main.easel_tool.claims(right), "a grip at the pot is painting's")
 	right.global_transform = from
-	_check(not main.easel_tool.claims(right), "a grip away from the kit and canvas is not")
+	check(not main.easel_tool.claims(right), "a grip away from the kit and canvas is not")
 	if hit.is_empty():
 		return
 	var m := tool.mason(right)
 	tool.grip_easel(m, id, from, hit.point)
-	_check(m.growing is WallTool.EaselGrip and tool.busy(right), "a grip on its stand takes the easel")
+	check(m.growing is WallTool.EaselGrip and tool.busy(right), "a grip on its stand takes the easel")
 	var lm := tool.mason(left)
 	left.global_transform = Transform3D(Basis(), from.origin + Vector3(-0.5, 0, 0))
 	tool.grip_easel(lm, id, left.global_transform, hit.point)
-	_check(lm.growing == null, "the other hand's grip on it takes nothing: two hands size no easel")
+	check(lm.growing == null, "the other hand's grip on it takes nothing: two hands size no easel")
 	var to := Transform3D(Basis(Vector3.UP, 0.6), from.origin + Vector3(2.0, 0.4, -1.0))
 	m.sizing.follow.call(m, to)
 	var expect := WallTool.carry_easel(was, from, to, Hand.reach_gain(from.origin.distance_to(hit.point)))
-	_check(e.global_position.is_equal_approx(expect.at) and is_equal_approx(expect.yaw, wrapf(was.yaw + 0.6, -PI, PI)), "the hand's move and turn carry and turn it: %s" % [expect])
-	_check(is_equal_approx(expect.at.y, Terrain.height_at(expect.at.x, expect.at.z)), "it stays on the ground as the hand rises")
-	_check(_easel().at == was.at, "nothing is sent while it is held")
+	check(e.global_position.is_equal_approx(expect.at) and is_equal_approx(expect.yaw, wrapf(was.yaw + 0.6, -PI, PI)), "the hand's move and turn carry and turn it: %s" % [expect])
+	check(is_equal_approx(expect.at.y, Terrain.height_at(expect.at.x, expect.at.z)), "it stays on the ground as the hand rises")
+	check(_easel().at == was.at, "nothing is sent while it is held")
 	tool.end_grow(m)
-	_check(_easel().at.is_equal_approx(expect.at) and is_equal_approx(_easel().yaw, expect.yaw), "let go, it is set where the hand carried and turned it")
-	_check(main.easels.find(id) == e and _easel().strokes == strokes and e.canvas_frame().origin.is_equal_approx(Transform3D(Basis(Vector3.UP, expect.yaw), expect.at) * Easels.CANVAS_AT), "the same easel stands there, painting and all")
+	check(_easel().at.is_equal_approx(expect.at) and is_equal_approx(_easel().yaw, expect.yaw), "let go, it is set where the hand carried and turned it")
+	check(main.easels.find(id) == e and _easel().strokes == strokes and e.canvas_frame().origin.is_equal_approx(Transform3D(Basis(Vector3.UP, expect.yaw), expect.at) * Easels.CANVAS_AT), "the same easel stands there, painting and all")
 	var moved := {"at": _easel().at, "yaw": _easel().yaw}
 	tool.grip_easel(m, id, from, hit.point)
 	m.sizing.follow.call(m, Transform3D(Basis(), from.origin + Vector3(0.01, 0, 0)))
 	tool.end_grow(m)
-	_check(_easel().at == moved.at and e.global_position.is_equal_approx(moved.at), "a trembling grip leaves it where it stood")
+	check(_easel().at == moved.at and e.global_position.is_equal_approx(moved.at), "a trembling grip leaves it where it stood")
 	world.undo()
-	_check(_easel().at == was.at and _easel().yaw == was.yaw and e.global_position.is_equal_approx(was.at) and _easel().strokes == strokes, "one undo puts it back where it stood")
+	check(_easel().at == was.at and _easel().yaw == was.yaw and e.global_position.is_equal_approx(was.at) and _easel().strokes == strokes, "one undo puts it back where it stood")
 	var state := World.blank()
 	state.easels[1] = {"at": Terrain.ground(10, 10), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}
 	state.easels[2] = {"at": Terrain.ground(20, 10), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}
 	var move := func(data: Dictionary) -> Dictionary: return Commands.clean({"op": "reshape", "of": "easels", "id": 1, "data": data}, state, false)
-	_check(not move.call({"at": Terrain.ground(14, 12), "yaw": 1.0}).is_empty(), "a reshape may move and turn an easel, as a grip does")
-	_check(not move.call({"at": Terrain.ground(10.5, 10)}).is_empty(), "a little way from where it stood")
-	_check(move.call({"at": Terrain.ground(20.5, 10)}).is_empty(), "but never onto another")
-	_check(move.call({"yaw": 99.0}).is_empty() and move.call({"at": Vector3(INF, 0, 0)}).is_empty(), "nor turned or set past what one may stand")
-	_check(move.call({"strokes": []}).is_empty(), "and a reshape paints nothing")
+	check(not move.call({"at": Terrain.ground(14, 12), "yaw": 1.0}).is_empty(), "a reshape may move and turn an easel, as a grip does")
+	check(not move.call({"at": Terrain.ground(10.5, 10)}).is_empty(), "a little way from where it stood")
+	check(move.call({"at": Terrain.ground(20.5, 10)}).is_empty(), "but never onto another")
+	check(move.call({"yaw": 99.0}).is_empty() and move.call({"at": Vector3(INF, 0, 0)}).is_empty(), "nor turned or set past what one may stand")
+	check(move.call({"strokes": []}).is_empty(), "and a reshape paints nothing")
 
 
 func _the_tray_loads_the_brush() -> void:
@@ -303,24 +293,24 @@ func _the_tray_loads_the_brush() -> void:
 	var blue := Brushwork.absorbance(Brushwork.PIGMENTS[5])
 	var lemon := Brushwork.absorbance(Brushwork.PIGMENTS[1])
 	var red := Brushwork.absorbance(Brushwork.PIGMENTS[3])
-	_check(p.brush == Brushwork.Brush.SMALL and p.medium == Brushwork.Medium.WATER and main.rig.right.tool == Hand.Tool.EASEL, "a grip at the pot takes a brush; the watercolour pans make it watercolour")
-	_check(p.colour.distance_to((blue + lemon) * 0.5) < 1e-3, "two pans mix on the brush")
-	_check(e.wash.albedo_color.is_equal_approx(main.easel_tool._paint_colour(p)), "the box's mixing field shows the mix")
+	check(p.brush == Brushwork.Brush.SMALL and p.medium == Brushwork.Medium.WATER and main.rig.right.tool == Hand.Tool.EASEL, "a grip at the pot takes a brush; the watercolour pans make it watercolour")
+	check(p.colour.distance_to((blue + lemon) * 0.5) < 1e-3, "two pans mix on the brush")
+	check(e.wash.albedo_color.is_equal_approx(main.easel_tool._paint_colour(p)), "the box's mixing field shows the mix")
 	var clear := e.water.albedo_color
 	await _play([{"op": "dip", "what": "jar"}])
-	_check(e.water.albedo_color != clear and p.medium == Brushwork.Medium.WATER, "rinsing in the jar clouds its water: %s from %s" % [e.water.albedo_color, clear])
+	check(e.water.albedo_color != clear and p.medium == Brushwork.Medium.WATER, "rinsing in the jar clouds its water: %s from %s" % [e.water.albedo_color, clear])
 	await _play([{"op": "dip", "what": "oil", "index": 3}])
-	_check(p.medium == Brushwork.Medium.OIL and p.colour.distance_to(red) < 1e-4 and p.strength == 1.0 and p.load == 1.0, "the oil palette's paint makes it oil, its own colour, not the watercolour's")
+	check(p.medium == Brushwork.Medium.OIL and p.colour.distance_to(red) < 1e-4 and p.strength == 1.0 and p.load == 1.0, "the oil palette's paint makes it oil, its own colour, not the watercolour's")
 	await _play([{"op": "dip", "what": "oil", "index": 1}])
-	_check(p.colour.distance_to(lemon) < 1e-4, "a second oil colour replaces the first: oils mix on the palette's board, not in the paint")
+	check(p.colour.distance_to(lemon) < 1e-4, "a second oil colour replaces the first: oils mix on the palette's board, not in the paint")
 	await _play([{"op": "dip", "what": "pan", "index": 5}])
-	_check(p.medium == Brushwork.Medium.WATER and p.colour.distance_to(blue) < 1e-4, "and a pan makes it watercolour again, clean of the oil")
+	check(p.medium == Brushwork.Medium.WATER and p.colour.distance_to(blue) < 1e-4, "and a pan makes it watercolour again, clean of the oil")
 	await _play([{"op": "take", "what": "stick"}])
-	_check(p.brush == Brushwork.Brush.STICK and p.medium == Brushwork.Medium.CHARCOAL, "the stick is charcoal")
+	check(p.brush == Brushwork.Brush.STICK and p.medium == Brushwork.Medium.CHARCOAL, "the stick is charcoal")
 	await _play([{"op": "dip", "what": "jar"}, {"op": "dip", "what": "pan", "index": 2}, {"op": "dip", "what": "oil", "index": 2}])
-	_check(p.medium == Brushwork.Medium.CHARCOAL and p.load == 1.0, "and stays charcoal whatever it is dipped in")
+	check(p.medium == Brushwork.Medium.CHARCOAL and p.load == 1.0, "and stays charcoal whatever it is dipped in")
 	await _play([{"op": "take", "what": "box"}, {"op": "set_down"}, {"op": "take", "what": "big"}])
-	_check(p.brush == Brushwork.Brush.BIG and p.palette == null and main.rig.right.tool == Hand.Tool.EASEL, "from the charcoal a hand takes a palette, sets it down and takes a brush")
+	check(p.brush == Brushwork.Brush.BIG and p.palette == null and main.rig.right.tool == Hand.Tool.EASEL, "from the charcoal a hand takes a palette, sets it down and takes a brush")
 
 
 ## Every brush standing in the pot keeps its whole surface inside the pot's inner wall from the pot's foot to its rim,
@@ -348,7 +338,7 @@ func _no_brush_crosses_the_pot() -> void:
 							below += 1
 						elif at.y <= Easels.POT_SIZE.y:
 							worst = maxf(worst, Vector2(at.x, at.z).length())
-		_check(below == 0 and worst < inner, "the %s stands inside the pot: %d points below its foot, %.4f m out where its inner wall is %.4f m" % [Brushwork.Brush.keys()[kind], below, worst, inner])
+		check(below == 0 and worst < inner, "the %s stands inside the pot: %d points below its foot, %.4f m out where its inner wall is %.4f m" % [Brushwork.Brush.keys()[kind], below, worst, inner])
 
 
 ## The brushes splay out of the pot, each handle leaving through its mouth, and a grip anywhere within a few
@@ -360,19 +350,19 @@ func _each_brush_in_the_pot_is_taken_alone() -> void:
 	var grips := {}
 	for kind: Brushwork.Brush in e.brushes:
 		grips[kind] = e.brushes[kind].global_transform * Easels.grip(kind)
-		_check((e.global_transform.affine_inverse() * grips[kind]).y > Easels.POT.y + Easels.POT_SIZE.y, "the %s is gripped above the pot's rim" % Brushwork.Brush.keys()[kind])
+		check((e.global_transform.affine_inverse() * grips[kind]).y > Easels.POT.y + Easels.POT_SIZE.y, "the %s is gripped above the pot's rim" % Brushwork.Brush.keys()[kind])
 	grips[Brushwork.Brush.STICK] = e.stick.global_transform * Easels.grip(Brushwork.Brush.STICK)
 	for kind: Brushwork.Brush in e.brushes:
 		var offsets: Array[Vector3] = [Vector3.ZERO, Vector3.LEFT, Vector3.RIGHT, Vector3.UP, Vector3.DOWN, Vector3.FORWARD, Vector3.BACK]
 		for other: Brushwork.Brush in grips:
 			if other != kind:
-				_check(grips[kind].distance_to(grips[other]) > SLACK * 2.0, "the %s's grip is %.3f m from the %s's" % [Brushwork.Brush.keys()[kind], grips[kind].distance_to(grips[other]), Brushwork.Brush.keys()[other]])
+				check(grips[kind].distance_to(grips[other]) > SLACK * 2.0, "the %s's grip is %.3f m from the %s's" % [Brushwork.Brush.keys()[kind], grips[kind].distance_to(grips[other]), Brushwork.Brush.keys()[other]])
 				offsets.append((grips[other] - grips[kind]).normalized())
 		for o: Vector3 in offsets:
 			p.brush = Brushwork.Brush.STICK if kind != Brushwork.Brush.STICK else Brushwork.Brush.BIG
 			main.rig.right.global_transform = Transform3D(e.global_basis, grips[kind] + o * SLACK)
 			main.easel_tool.grab(p)
-			_check(p.brush == kind and p.palette == null, "a grip %s %.0f cm off the %s's handle takes it, not the %s" % [o, SLACK * 100.0, Brushwork.Brush.keys()[kind], Brushwork.Brush.keys()[p.brush]])
+			check(p.brush == kind and p.palette == null, "a grip %s %.0f cm off the %s's handle takes it, not the %s" % [o, SLACK * 100.0, Brushwork.Brush.keys()[kind], Brushwork.Brush.keys()[p.brush]])
 
 
 ## Every part of the stand lies wholly behind the canvas's face, or wholly below its bottom edge, so from anywhere a
@@ -382,7 +372,7 @@ func _no_plank_crosses_the_canvas() -> void:
 	var face := e.canvas_frame()
 	var bottom := (face * Vector3(0, -Brushwork.METRES.y * 0.5, 0)).y
 	var planks := e.get_node("stand").get_children()
-	_check(planks.size() >= 5, "the stand has its legs, tray and rail: %d parts" % planks.size())
+	check(planks.size() >= 5, "the stand has its legs, tray and rail: %d parts" % planks.size())
 	for mi: MeshInstance3D in planks:
 		var box := mi.get_aabb()
 		var behind := true
@@ -391,7 +381,7 @@ func _no_plank_crosses_the_canvas() -> void:
 			var corner := mi.global_transform * box.get_endpoint(k)
 			behind = behind and (face.affine_inverse() * corner).z < 0.0
 			below = below and corner.y < bottom
-		_check(behind or below, "a plank at %s stays behind the canvas's face or below it" % (e.global_transform.affine_inverse() * mi.global_position))
+		check(behind or below, "a plank at %s stays behind the canvas's face or below it" % (e.global_transform.affine_inverse() * mi.global_position))
 
 
 func _no_implement_crosses_the_easel() -> void:
@@ -400,13 +390,13 @@ func _no_implement_crosses_the_easel() -> void:
 	for n in e.get_node("stand").get_children() + e.get_children():
 		if n is MeshInstance3D:
 			parts.append(n)
-	_check(parts.size() >= 7, "the easel has its stand, backing and face: %d parts" % parts.size())
+	check(parts.size() >= 7, "the easel has its stand, backing and face: %d parts" % parts.size())
 	var implements := e.get_node("implements").find_children("*", "MeshInstance3D", true, false)
-	_check(implements.size() >= 10, "the tray holds its pot, jar, brushes, charcoal and palettes: %d meshes" % implements.size())
+	check(implements.size() >= 10, "the tray holds its pot, jar, brushes, charcoal and palettes: %d meshes" % implements.size())
 	for mi: MeshInstance3D in implements:
 		for part in parts:
 			var into := part.global_transform.affine_inverse() * mi.global_transform
-			_check(not _inside(part.get_aabb()).intersects(into * mi.get_aabb()), "%s on the tray stays clear of %s at %s %s" % [e.get_node("implements").get_path_to(mi), e.get_path_to(part), e.global_transform.affine_inverse() * part.global_position, part.get_aabb()])
+			check(not _inside(part.get_aabb()).intersects(into * mi.get_aabb()), "%s on the tray stays clear of %s at %s %s" % [e.get_node("implements").get_path_to(mi), e.get_path_to(part), e.global_transform.affine_inverse() * part.global_position, part.get_aabb()])
 
 
 ## Setting an easel up builds no geometry: every mesh it shows is the one the easel before it shows, so a placement
@@ -418,7 +408,7 @@ func _easels_share_their_geometry() -> void:
 	for id in 2:
 		var e := stands.put(id, {"at": Vector3(id * 2.0, 0, 0), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()})
 		meshes.append(e.find_children("*", "MeshInstance3D", true, false).map(func(mi: MeshInstance3D) -> Mesh: return mi.mesh))
-	_check(meshes[0].size() >= 17 and meshes[0] == meshes[1], "a second easel shows the first one's %d meshes" % meshes[0].size())
+	check(meshes[0].size() >= 17 and meshes[0] == meshes[1], "a second easel shows the first one's %d meshes" % meshes[0].size())
 	stands.free()
 
 
@@ -439,47 +429,47 @@ func _the_palette_stays_in_the_hand_by_its_thumb_hole() -> void:
 		var node: Node3D = e.palettes[kit]
 		var rest := Transform3D(Basis(), Easels.KITS[kit])
 		var paint := Easels.MIX_AT if kit == Brushwork.Medium.WATER else Vector3.ZERO
-		_check(Easels.THUMB.x < paint.x - 0.08, "the %s's thumb hole is at the end away from the paint" % name)
+		check(Easels.THUMB.x < paint.x - 0.08, "the %s's thumb hole is at the end away from the paint" % name)
 		for side in ["left", "right"]:
 			var hand: Hand = main.rig.left if side == "left" else main.rig.right
 			var p: EaselTool.Painter = main.easel_tool.painter(hand)
 			var held := EaselTool.held(hand)
-			_check((held * Easels.THUMB).distance_to(EaselTool.GRIP) < 1e-5, "the %s hand holds the %s at its thumb hole" % [side, name])
-			_check((held.basis * Vector3.UP).dot(Vector3.UP) > 0.99, "the %s hand holds its paint up" % side)
+			check((held * Easels.THUMB).distance_to(EaselTool.GRIP) < 1e-5, "the %s hand holds the %s at its thumb hole" % [side, name])
+			check((held.basis * Vector3.UP).dot(Vector3.UP) > 0.99, "the %s hand holds its paint up" % side)
 			var controller := held.affine_inverse() * Vector3.ZERO
 			var grip := held.affine_inverse() * EaselTool.GRIP
 			for i in Brushwork.PIGMENTS.size():
 				var w := Easels.well(kit, i)
 				for at: Vector3 in [controller, grip]:
-					_check(Vector2(at.x - w.x, at.z - w.z).length() > Easels.WELL_REACH + 0.04, "the %s hand's grip is clear of the %s's colour %d" % [side, name, i])
-				_check((held * w).x * (1.0 if side == "left" else -1.0) > 0.0, "the %s's colour %d lies toward the other hand from the %s hand" % [name, i, side])
-			_check((held * paint).z < 0.0, "the %s hand's %s reaches forward" % [side, name])
+					check(Vector2(at.x - w.x, at.z - w.z).length() > Easels.WELL_REACH + 0.04, "the %s hand's grip is clear of the %s's colour %d" % [side, name, i])
+				check((held * w).x * (1.0 if side == "left" else -1.0) > 0.0, "the %s's colour %d lies toward the other hand from the %s hand" % [name, i, side])
+			check((held * paint).z < 0.0, "the %s hand's %s reaches forward" % [side, name])
 			var tool := hand.tool
 			await _play([{"op": "take", "what": name, "hand": side}, {"op": "hold", "hand": side, "at": [-0.5 if side == "left" else 0.5, 1.0, 0.5]}])
-			await _frames(10)
-			_check(p.palette == e and p.kit == kit and node.global_transform.is_equal_approx(hand.global_transform * held), "the %s stays in the %s hand once the grip lets go" % [name, side])
+			await frames(10)
+			check(p.palette == e and p.kit == kit and node.global_transform.is_equal_approx(hand.global_transform * held), "the %s stays in the %s hand once the grip lets go" % [name, side])
 			await _play([{"op": "hold", "hand": side, "at": [0.0, 1.1, 0.6]}])
-			_check(node.global_transform.is_equal_approx(hand.global_transform * held), "and goes where that hand goes")
+			check(node.global_transform.is_equal_approx(hand.global_transform * held), "and goes where that hand goes")
 			var from := node.global_transform
-			_check(hand.global_position.distance_to(e.tray(Easels.KITS[kit])) > Easels.KIT_REACH[kit] + EaselTool.REACH, "the %s hand is well away from the %s's place on the tray" % [side, name])
+			check(hand.global_position.distance_to(e.tray(Easels.KITS[kit])) > Easels.KIT_REACH[kit] + EaselTool.REACH, "the %s hand is well away from the %s's place on the tray" % [side, name])
 			main.easel_tool.grab(p)
-			_check(p.palette == null and hand.tool == tool, "a grip there lets go of the %s and gives the %s hand back its %s" % [name, side, Hand.Tool.keys()[tool]])
-			await _frames(int(EaselTool.RETURN * 30.0))
+			check(p.palette == null and hand.tool == tool, "a grip there lets go of the %s and gives the %s hand back its %s" % [name, side, Hand.Tool.keys()[tool]])
+			await frames(int(EaselTool.RETURN * 30.0))
 			var rest_at: Vector3 = e.global_transform * Easels.KITS[kit]
 			var along: float = node.global_position.distance_to(rest_at) / from.origin.distance_to(rest_at)
-			_check(along > 0.05 and along < 0.95, "halfway through its return the %s is on its way to the tray, not jumped there: %.2f of the way left" % [name, along])
-			await _frames(int(EaselTool.RETURN * 60.0))
-			_check(not node.top_level and node.transform.is_equal_approx(rest) and main.easel_tool.returning.is_empty(), "and the %s comes to rest at its place on the tray" % name)
+			check(along > 0.05 and along < 0.95, "halfway through its return the %s is on its way to the tray, not jumped there: %.2f of the way left" % [name, along])
+			await frames(int(EaselTool.RETURN * 60.0))
+			check(not node.top_level and node.transform.is_equal_approx(rest) and main.easel_tool.returning.is_empty(), "and the %s comes to rest at its place on the tray" % name)
 		var left: EaselTool.Painter = main.easel_tool.painter(main.rig.left)
 		left.brush = Brushwork.Brush.SMALL
 		await _play([{"op": "take", "what": name, "hand": "left"}, {"op": "take", "what": "big", "hand": "left"}])
-		await _frames(int(EaselTool.RETURN * 60.0) + 1)
-		_check(left.palette == null and node.transform.is_equal_approx(rest) and left.brush == Brushwork.Brush.SMALL, "a grip at a brush while holding the %s sends it back and takes no brush" % name)
+		await frames(int(EaselTool.RETURN * 60.0) + 1)
+		check(left.palette == null and node.transform.is_equal_approx(rest) and left.brush == Brushwork.Brush.SMALL, "a grip at a brush while holding the %s sends it back and takes no brush" % name)
 	await _play([{"op": "take", "what": "box", "hand": "left"}, {"op": "take", "what": "box", "hand": "right"}])
 	var right: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
-	_check(right.palette == null, "the box in one hand is not the other's to take")
+	check(right.palette == null, "the box in one hand is not the other's to take")
 	await _play([{"op": "take", "what": "palette", "hand": "right"}])
-	_check(right.kit == Brushwork.Medium.OIL and right.palette == e, "while the other hand takes the oil palette")
+	check(right.kit == Brushwork.Medium.OIL and right.palette == e, "while the other hand takes the oil palette")
 	await _play([{"op": "set_down", "hand": "left"}, {"op": "set_down", "hand": "right"}])
 	await _play([{"op": "rests"}])
 
@@ -491,16 +481,16 @@ func _every_way_out_lets_the_palette_go() -> void:
 	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.left)
 	var node: Node3D = e.palettes[Brushwork.Medium.OIL]
 	await _play([{"op": "take", "what": "palette", "hand": "left"}, {"op": "pick", "hand": "left", "tool": "seeds"}, {"op": "rests"}])
-	_check(p.palette == null and main.rig.left.tool == Hand.Tool.SEEDS and not node.top_level and node.transform.is_equal_approx(Transform3D(Basis(), Easels.KITS[Brushwork.Medium.OIL])), "picking seeds from the wheel sends the palette home and holds seeds")
+	check(p.palette == null and main.rig.left.tool == Hand.Tool.SEEDS and not node.top_level and node.transform.is_equal_approx(Transform3D(Basis(), Easels.KITS[Brushwork.Medium.OIL])), "picking seeds from the wheel sends the palette home and holds seeds")
 	await _play([{"op": "pick", "hand": "left", "tool": "easel"}, {"op": "take", "what": "palette", "hand": "left"}])
 	var id := e.id
 	var from: Vector3 = main.rig.head.global_position
 	main.delete_tool.press(main.rig.right, from, e.canvas_frame().origin - from)
 	main.delete_tool.let_go(main.rig.right)
-	await _frames(int(EaselTool.RETURN * 60.0) + 2)
-	_check(main.easels.find(id) == null and p.palette == null and main.easel_tool.returning.is_empty() and EaselTool.holding(p) != "oil palette", "an easel taken away while its palette is held leaves the hand holding none")
+	await frames(int(EaselTool.RETURN * 60.0) + 2)
+	check(main.easels.find(id) == null and p.palette == null and main.easel_tool.returning.is_empty() and EaselTool.holding(p) != "oil palette", "an easel taken away while its palette is held leaves the hand holding none")
 	await _play([{"op": "press", "button": "dpad_down"}])
-	_check(main.easels.find(id) != null, "and undo stands it back up")
+	check(main.easels.find(id) != null, "and undo stands it back up")
 
 
 class Lines:
@@ -536,11 +526,11 @@ func _every_held_change_logs_a_line() -> void:
 		var tracker := "%s_hand " % t[0]
 		var from := log.lines.size()
 		await _play(t[2])
-		await _frames(2)
+		await frames(2)
 		var said := Array(log.lines.slice(from)).filter(func(l: String) -> bool: return l.begins_with("easel: " + tracker))
-		_check(said.size() == (2 if t[1] == "sheet" else 1) and said[0].contains("holds %s," % t[1]), "%s to %s logs one line: %s" % [t[2], t[1], said])
+		check(said.size() == (2 if t[1] == "sheet" else 1) and said[0].contains("holds %s," % t[1]), "%s to %s logs one line: %s" % [t[2], t[1], said])
 		if t[1] == "sheet":
-			_check(said.size() == 2 and said[1].contains("holds stick,"), "letting the sheet go logs one line: %s" % [said])
+			check(said.size() == 2 and said[1].contains("holds stick,"), "letting the sheet go logs one line: %s" % [said])
 	OS.remove_logger(log)
 
 
@@ -567,18 +557,18 @@ func _a_tip_in_each_well_loads_its_colour() -> void:
 					tool._take_brush(p, Brushwork.Brush.BIG)
 					var into: Vector3 = e.palettes[kit].global_transform * (w + spot)
 					tip_at.call(into - along * 0.1)
-					await _frames(2)
+					await frames(2)
 					tip_at.call(into)
-					await _frames(2)
+					await frames(2)
 					var shown := p.tip.albedo_color
-					_check(p.medium == kit and p.colour.distance_to(Brushwork.absorbance(Brushwork.PIGMENTS[i])) < 1e-4 and p.load > 0.5, "a tip at %s in %s %d of a palette %s loads its colour" % [spot, EaselTool.PAINTS[kit], i, "in hand" if held else "on the tray"])
-					_check(shown.is_equal_approx(tool._paint_colour(p)), "the bristles show %s %d's colour" % [EaselTool.PAINTS[kit], i])
+					check(p.medium == kit and p.colour.distance_to(Brushwork.absorbance(Brushwork.PIGMENTS[i])) < 1e-4 and p.load > 0.5, "a tip at %s in %s %d of a palette %s loads its colour" % [spot, EaselTool.PAINTS[kit], i, "in hand" if held else "on the tray"])
+					check(shown.is_equal_approx(tool._paint_colour(p)), "the bristles show %s %d's colour" % [EaselTool.PAINTS[kit], i])
 			if held:
 				await _play([{"op": "set_down", "hand": "left"}])
 	await _play([{"op": "brush", "points": [[0.3, 0.3, 0.8], [0.6, 0.32, 0.9]], "seconds": 0.2}])
 	await _settled()
 	var strokes: Array = world.state.easels[e.id].strokes
-	_check(not strokes.is_empty() and Vector3(strokes[-1].colour).distance_to(Brushwork.absorbance(Brushwork.PIGMENTS[-1])) < 1e-4 and strokes[-1].medium == Brushwork.Medium.OIL, "the stroke after paints in the last oil colour")
+	check(not strokes.is_empty() and Vector3(strokes[-1].colour).distance_to(Brushwork.absorbance(Brushwork.PIGMENTS[-1])) < 1e-4 and strokes[-1].medium == Brushwork.Medium.OIL, "the stroke after paints in the last oil colour")
 
 
 ## Blue painted onto the oil palette's board and yellow painted over it and stirred make green there, which a clean
@@ -591,35 +581,35 @@ func _oil_mixes_by_painting_onto_the_board_and_picking_up_from_it() -> void:
 	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
 	var spot := Vector2(0.0, 0.0)
 	var colour := func() -> Color: return Brushwork.colour(Mixing.density_of(e.mixing.at(spot).ks))
-	_check(e.mixing.empty(), "a new easel's palette has a clean board")
+	check(e.mixing.empty(), "a new easel's palette has a clean board")
 	await _play([{"op": "mix", "points": [[-0.3, 0.0, 0.7], [0.1, 0.0, 0.7]], "seconds": 0.3}])
 	var blue: Color = colour.call()
-	_check(e.mixing.at(spot).amount > 0.05 and blue.b > blue.g and blue.b > blue.r, "blue painted onto the board lies there: %s, %.2f" % [blue, e.mixing.at(spot).amount])
-	_check(p.load < 1.0 and p.load > 0.2, "and leaves the brush: %.2f left" % p.load)
+	check(e.mixing.at(spot).amount > 0.05 and blue.b > blue.g and blue.b > blue.r, "blue painted onto the board lies there: %s, %.2f" % [blue, e.mixing.at(spot).amount])
+	check(p.load < 1.0 and p.load > 0.2, "and leaves the brush: %.2f left" % p.load)
 	await _settled()
 	var after_blue: PackedByteArray = _easel().mix
-	_check(after_blue == e.mixing.bytes, "the garden has the board as it was left")
+	check(after_blue == e.mixing.bytes, "the garden has the board as it was left")
 	await _play([{"op": "dip", "what": "oil", "index": 1}, {"op": "mix", "points": [[0.1, -0.1, 0.7], [-0.1, 0.1, 0.8], [0.1, 0.1, 0.8], [-0.1, -0.1, 0.8], [0.0, 0.0, 0.8], [0.1, -0.1, 0.8], [-0.1, 0.1, 0.8]], "seconds": 1.5}])
 	var green: Color = colour.call()
-	_check(green.g > green.r and green.g > green.b and green.g < 0.7, "yellow stirred into the blue makes green: %s" % green)
+	check(green.g > green.r and green.g > green.b and green.g < 0.7, "yellow stirred into the blue makes green: %s" % green)
 	await _play([{"op": "take", "what": "small"}])
-	_check(p.load == 0.0, "a fresh brush is clean")
+	check(p.load == 0.0, "a fresh brush is clean")
 	await _play([{"op": "mix", "points": [[0.0, 0.0, 0.6], [0.02, 0.0, 0.6]], "seconds": 0.3}])
 	var tip := Brushwork.colour(p.colour)
-	_check(p.medium == Brushwork.Medium.OIL and p.load > 0.1 and tip.g > tip.r and tip.g > tip.b, "touching the green picks it up: %s, load %.2f" % [tip, p.load])
+	check(p.medium == Brushwork.Medium.OIL and p.load > 0.1 and tip.g > tip.r and tip.g > tip.b, "touching the green picks it up: %s, load %.2f" % [tip, p.load])
 	await _play([{"op": "brush", "points": [[0.3, 0.3, 0.8], [0.4, 0.32, 0.8]], "seconds": 0.2}])
 	await _settled()
 	var strokes: Array = _easel().strokes
-	_check(strokes.size() == 1 and strokes[0].medium == Brushwork.Medium.OIL and Vector3(strokes[0].colour).distance_to(p.colour) < 0.2, "and paints with it on the canvas")
+	check(strokes.size() == 1 and strokes[0].medium == Brushwork.Medium.OIL and Vector3(strokes[0].colour).distance_to(p.colour) < 0.2, "and paints with it on the canvas")
 	var mixed: PackedByteArray = _easel().mix
 	await _play([{"op": "press", "button": "dpad_down"}, {"op": "press", "button": "dpad_down"}])
-	_check(_easel().strokes.is_empty() and _easel().mix != mixed and e.mixing.bytes == _easel().mix, "undo takes the stroke off, then the pick-up's working of the board")
+	check(_easel().strokes.is_empty() and _easel().mix != mixed and e.mixing.bytes == _easel().mix, "undo takes the stroke off, then the pick-up's working of the board")
 	await _play([{"op": "press", "button": "A"}, {"op": "press", "button": "A"}])
-	_check(_easel().mix == mixed and e.mixing.bytes == mixed and _easel().strokes.size() == 1, "and redo puts both back")
+	check(_easel().mix == mixed and e.mixing.bytes == mixed and _easel().strokes.size() == 1, "and redo puts both back")
 	var state := {"stairs": {}, "easels": {7: {"at": Vector3.ZERO, "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}}, "walls": {}, "paths": {}, "grounds": {}, "groups": {}, "ponds": {}}
-	_check(not Commands.clean({"op": "mix", "easel": 7, "mix": mixed}, state, false).is_empty(), "a board as the palette holds it is a command")
-	_check(Commands.clean({"op": "mix", "easel": 7, "mix": mixed.slice(4)}, state, false).is_empty(), "a board of the wrong size is not")
-	_check(Commands.clean({"op": "mix", "easel": 8, "mix": mixed}, state, false).is_empty(), "nor one for an easel that is not there")
+	check(not Commands.clean({"op": "mix", "easel": 7, "mix": mixed}, state, false).is_empty(), "a board as the palette holds it is a command")
+	check(Commands.clean({"op": "mix", "easel": 7, "mix": mixed.slice(4)}, state, false).is_empty(), "a board of the wrong size is not")
+	check(Commands.clean({"op": "mix", "easel": 8, "mix": mixed}, state, false).is_empty(), "nor one for an easel that is not there")
 
 
 ## Mixing on the board, without the game: paint trades both ways, the amounts hold, and the colours mix as pigments.
@@ -631,18 +621,18 @@ func _mixing_trades_paint_as_pigment() -> void:
 	for f in 60:
 		brush = m.touch(brush, Vector2.ZERO, 0.02, 1.0 / 60.0)[0]
 	var laid: float = m.at(Vector2.ZERO).amount
-	_check(laid > 0.2 and brush.load < 0.8 and brush.load > laid, "a full brush held on a clean board lays paint and keeps more than it laid: %.2f laid, %.2f kept" % [laid, brush.load])
+	check(laid > 0.2 and brush.load < 0.8 and brush.load > laid, "a full brush held on a clean board lays paint and keeps more than it laid: %.2f laid, %.2f kept" % [laid, brush.load])
 	brush = {"ks": white, "load": 1.0}
 	for f in 60:
 		brush = m.touch(brush, Vector2.ZERO, 0.02, 1.0 / 60.0)[0]
 	var tint := Brushwork.colour(Mixing.density_of(m.at(Vector2.ZERO).ks))
 	var pure := Brushwork.PIGMENTS[5]
-	_check(tint.b > pure.b and tint.r > pure.r and tint.b > tint.r, "white worked into blue lightens it and keeps it blue: %s from %s" % [tint, pure])
+	check(tint.b > pure.b and tint.r > pure.r and tint.b > tint.r, "white worked into blue lightens it and keeps it blue: %s from %s" % [tint, pure])
 	var back := PackedByteArray(m.bytes)
 	var again := Mixing.new()
 	again.load_bytes(back)
-	_check(again.bytes == m.bytes and absf(again.at(Vector2.ZERO).amount - m.at(Vector2.ZERO).amount) < 0.01, "the board loads back from what the garden keeps")
-	_check(not Mixing.open_at(Vector2(Easels.THUMB.x, Easels.THUMB.z)) and not Mixing.open_at(Easels.PALETTE_SIZE * 0.5) and Mixing.open_at(Vector2.ZERO), "paint lies on the open board, not over the thumb hole or off its edge")
+	check(again.bytes == m.bytes and absf(again.at(Vector2.ZERO).amount - m.at(Vector2.ZERO).amount) < 0.01, "the board loads back from what the garden keeps")
+	check(not Mixing.open_at(Vector2(Easels.THUMB.x, Easels.THUMB.z)) and not Mixing.open_at(Easels.PALETTE_SIZE * 0.5) and Mixing.open_at(Vector2.ZERO), "paint lies on the open board, not over the thumb hole or off its edge")
 
 
 ## The trigger path a headset player uses: the easel tool taken from the wheel, the hand pointed at the ground, the
@@ -664,41 +654,36 @@ func _the_trigger_sets_one_up_or_says_why_not() -> void:
 	for t in [["right", "quest", [-6, 0, 0]], ["left", "quest", [6, 0, 0]], ["right", "frame", [0, 0, -2]], ["left", "frame", [-3, 0, -6]]]:
 		var before: int = world.state.easels.size()
 		await press.call(t[0], t[1], t[2])
-		_check(world.state.easels.size() == before + 1 and why.is_empty(), "the %s trigger on the %s sets an easel up from the wheel: %d easels, %s" % [t[0], t[1], world.state.easels.size(), why])
+		check(world.state.easels.size() == before + 1 and why.is_empty(), "the %s trigger on the %s sets an easel up from the wheel: %d easels, %s" % [t[0], t[1], world.state.easels.size(), why])
 	await press.call("right", "quest", [3, 0, 10])
-	_check(world.state.easels.size() == Easels.MAX and why.size() == 1 and why[0].contains("holds its"), "past the garden's easels a press sets none up and says so: %s" % [why])
+	check(world.state.easels.size() == Easels.MAX and why.size() == 1 and why[0].contains("holds its"), "past the garden's easels a press sets none up and says so: %s" % [why])
 	await _play([{"op": "press", "button": "dpad_down"}])
 	await press.call("right", "quest", [-6.5, 0, 0.3])
-	_check(world.state.easels.size() == Easels.MAX - 1 and why.size() == 1 and why[0].contains("another easel"), "nor beside another easel: %s" % [why])
+	check(world.state.easels.size() == Easels.MAX - 1 and why.size() == 1 and why[0].contains("another easel"), "nor beside another easel: %s" % [why])
 	await press.call("right", "quest", [0, 30, -10])
-	_check(why.size() == 1 and why[0].contains("no ground"), "nor at the sky: %s" % [why])
+	check(why.size() == 1 and why[0].contains("no ground"), "nor at the sky: %s" % [why])
 	var first: Vector3 = world.state.easels.values()[0].at
 	await _play([{"op": "place", "x": first.x, "z": first.z + 1.0}, {"op": "wait", "seconds": 0.05}])
 	await press.call("right", "quest", [first.x, 0, first.z - 8])
-	_check(world.state.easels.size() == Easels.MAX - 1 and why.size() == 1 and why[0].contains("of an easel"), "nor from a hand at an easel: %s" % [why])
-
-
-func _frames(n: int) -> void:
-	for f in n:
-		await process_frame
+	check(world.state.easels.size() == Easels.MAX - 1 and why.size() == 1 and why[0].contains("of an easel"), "nor from a hand at an easel: %s" % [why])
 
 
 func _easels_keep_their_distance_and_number() -> void:
 	var state := World.blank()
 	var at := Terrain.ground(10, 10)
 	var cmd := {"op": "easel", "at": at, "yaw": 0.5}
-	_check(not Commands.clean(cmd, state, false).is_empty(), "an easel may stand on open ground")
+	check(not Commands.clean(cmd, state, false).is_empty(), "an easel may stand on open ground")
 	state.easels[1] = {"at": at, "yaw": 0.0, "strokes": []}
-	_check(Commands.clean(cmd, state, false).is_empty(), "but not on another")
+	check(Commands.clean(cmd, state, false).is_empty(), "but not on another")
 	for i in Easels.MAX - 1:
 		state.easels[i + 2] = {"at": Terrain.ground(-20 + i * 5, -20), "yaw": 0.0, "strokes": []}
-	_check(Commands.clean({"op": "easel", "at": Terrain.ground(20, 20), "yaw": 0.0}, state, false).is_empty(), "nor one more than a garden holds")
-	_check(Commands.clean({"op": "easel", "at": Terrain.ground(20, 20), "yaw": 0.0, "strokes": [{}]}, World.blank(), false).is_empty(), "a player's new easel brings no painting with it")
+	check(Commands.clean({"op": "easel", "at": Terrain.ground(20, 20), "yaw": 0.0}, state, false).is_empty(), "nor one more than a garden holds")
+	check(Commands.clean({"op": "easel", "at": Terrain.ground(20, 20), "yaw": 0.0, "strokes": [{}]}, World.blank(), false).is_empty(), "a player's new easel brings no painting with it")
 
 
 func _bad_strokes_are_dropped() -> void:
 	var good := {"medium": Brushwork.Medium.OIL, "brush": Brushwork.Brush.FLAT, "colour": Vector3(1, 2, 3), "strength": 1.0, "load": 0.5, "gap": 3, "samples": Brushwork.pack(Vector2(0.5, 0.5), 0.5, 0.0, 0) + Brushwork.pack(Vector2(0.6, 0.5), 0.5, 0.0, 2)}
-	_check(Brushwork.clean(good) != null, "a stroke a brush could paint is kept")
+	check(Brushwork.clean(good) != null, "a stroke a brush could paint is kept")
 	var bad := {
 		"no samples": {"samples": PackedInt32Array()},
 		"half a sample": {"samples": PackedInt32Array([1, 2, 3])},
@@ -715,11 +700,11 @@ func _bad_strokes_are_dropped() -> void:
 	for what in bad:
 		var s := good.duplicate()
 		s.merge(bad[what], true)
-		_check(Brushwork.clean(s) == null, "a stroke with %s is dropped" % what)
+		check(Brushwork.clean(s) == null, "a stroke with %s is dropped" % what)
 	var state := {"easels": {4: {"at": Vector3.ZERO, "yaw": 0.0, "strokes": []}}}
-	_check(not Commands.clean({"op": "paint", "easel": 4, "stroke": good}, state, false).is_empty(), "a good stroke paints a standing easel")
-	_check(Commands.clean({"op": "paint", "easel": 5, "stroke": good}, state, false).is_empty(), "but no easel that is not there")
-	_check(Commands.clean({"op": "sheet", "easel": 4, "strokes": [good]}, state, false).is_empty(), "a player's fresh sheet is blank")
+	check(not Commands.clean({"op": "paint", "easel": 4, "stroke": good}, state, false).is_empty(), "a good stroke paints a standing easel")
+	check(Commands.clean({"op": "paint", "easel": 5, "stroke": good}, state, false).is_empty(), "but no easel that is not there")
+	check(Commands.clean({"op": "sheet", "easel": 4, "strokes": [good]}, state, false).is_empty(), "a player's fresh sheet is blank")
 	var full: Array = []
 	var each := _many(Brushwork.MAX_SAMPLES)
 	for i in Brushwork.MAX_TOTAL / Brushwork.MAX_SAMPLES:
@@ -730,7 +715,7 @@ func _bad_strokes_are_dropped() -> void:
 	rest.samples = _many(Brushwork.MAX_TOTAL % Brushwork.MAX_SAMPLES)
 	full.append(rest)
 	state.easels[4].strokes = full
-	_check(Commands.clean({"op": "paint", "easel": 4, "stroke": good}, state, false).is_empty(), "a full canvas takes no more")
+	check(Commands.clean({"op": "paint", "easel": 4, "stroke": good}, state, false).is_empty(), "a full canvas takes no more")
 
 
 ## Each demo script's dips name the jar or a palette's paint, so none plays a dip the driver cannot place.
@@ -742,7 +727,7 @@ func _every_demo_dips_into_something_on_the_tray() -> void:
 			continue
 		for step: Dictionary in JSON.parse_string(FileAccess.get_file_as_string(demos.path_join(f))):
 			if step.get("op") == "dip":
-				_check(step.what in known, "%s dips into %s, which is on no tray" % [f, step.what])
+				check(step.what in known, "%s dips into %s, which is on no tray" % [f, step.what])
 
 
 func _many(n: int) -> PackedInt32Array:
@@ -755,7 +740,7 @@ func _many(n: int) -> PackedInt32Array:
 func _reaches_for_each_implement() -> void:
 	var e: Easels.Easel = main.easels.easels.values()[-1]
 	var p: EaselTool.Painter = main.easel_tool.painter(main.rig.right)
-	_check(is_inf(EaselTool.pick_distance(Transform3D.IDENTITY, Vector3.FORWARD * 0.13)), "pointing does not extend grab reach")
+	check(is_inf(EaselTool.pick_distance(Transform3D.IDENTITY, Vector3.FORWARD * 0.13)), "pointing does not extend grab reach")
 	var hits := 0
 	var total := 0
 	for kind: Brushwork.Brush in Brushwork.Brush.values():
@@ -780,7 +765,7 @@ func _reaches_for_each_implement() -> void:
 		print("pick-rate: %s %d/90" % [Brushwork.Brush.keys()[kind], correct])
 		hits += correct
 	print("pick-rate: total %d/%d (%.2f%%)" % [hits, total, 100.0 * hits / total])
-	_check(hits >= 338, "aimed reaches take the intended implement at least 338/360 times")
+	check(hits >= 338, "aimed reaches take the intended implement at least 338/360 times")
 	main.easel_tool._set_down(p)
 	p.peel = null
 
@@ -791,14 +776,14 @@ func _preview_matches_the_grip() -> void:
 	for kind: Brushwork.Brush in Brushwork.Brush.values():
 		await _play([{"op": "take", "what": Brushwork.Brush.keys()[kind].to_lower(), "preview": true}])
 		var node: Node3D = e.stick if kind == Brushwork.Brush.STICK else e.brushes[kind]
-		_check(main.easel_tool.highlighted.has(node), "the approached %s is highlighted before grip" % Brushwork.Brush.keys()[kind])
+		check(main.easel_tool.highlighted.has(node), "the approached %s is highlighted before grip" % Brushwork.Brush.keys()[kind])
 		for mesh: MeshInstance3D in node.find_children("*", "MeshInstance3D", true, false):
-			_check(mesh.material_overlay == main.easel_tool.highlight, "the preview visibly highlights its meshes")
+			check(mesh.material_overlay == main.easel_tool.highlight, "the preview visibly highlights its meshes")
 		main.easel_tool.grab(p)
-		_check(p.brush == kind and p.palette == null, "grip takes the highlighted implement")
+		check(p.brush == kind and p.palette == null, "grip takes the highlighted implement")
 	p.hand.global_position += Vector3.UP * 2.0
 	await _settled()
-	_check(main.easel_tool.highlighted.is_empty(), "moving away clears the highlight")
+	check(main.easel_tool.highlighted.is_empty(), "moving away clears the highlight")
 
 
 func _held_brush_stops_with_its_hand() -> void:
@@ -815,11 +800,11 @@ func _held_brush_stops_with_its_hand() -> void:
 	await process_frame
 	var tracked := e.on_canvas(p.hand.global_transform * ToolModels.BRUSH_TIP)
 	var visible := e.on_canvas(p.hand.body.global_transform * ToolModels.BRUSH_TIP)
-	_check(tracked.z < -0.29 and visible.z >= -CanvasContact.BEND - 0.001, "tracked hand passes the canvas while visible brush and hand stop: %s / %s" % [tracked, visible])
-	_check(p.models[p.brush].get_parent() == p.hand.body, "brush follows the collision-stopped visible hand")
+	check(tracked.z < -0.29 and visible.z >= -CanvasContact.BEND - 0.001, "tracked hand passes the canvas while visible brush and hand stop: %s / %s" % [tracked, visible])
+	check(p.models[p.brush].get_parent() == p.hand.body, "brush follows the collision-stopped visible hand")
 	p.hand.tool = Hand.Tool.WALLS
 	await process_frame
-	_check(p.hand.body.basis.is_equal_approx(Basis()), "dropping a tool restores the tracked hand orientation")
+	check(p.hand.body.basis.is_equal_approx(Basis()), "dropping a tool restores the tracked hand orientation")
 
 
 func _changing_canvases_ends_the_previous_stroke() -> void:
@@ -834,7 +819,7 @@ func _changing_canvases_ends_the_previous_stroke() -> void:
 		p.hand.body.global_transform = Transform3D(frame.basis, frame * Vector3(0, 0, -0.01) - frame.basis * ToolModels.BRUSH_TIP)
 		main.easel_tool._touch(p, e, 1.0 / 60.0)
 	world.flush()
-	_check(world.state.easels[stands[0].id].strokes.size() == 1 and p.stroke.easel == stands[1], "crossing to another canvas commits the old stroke to its own canvas")
+	check(world.state.easels[stands[0].id].strokes.size() == 1 and p.stroke.easel == stands[1], "crossing to another canvas commits the old stroke to its own canvas")
 	main.easel_tool.end_stroke(p)
 	world.flush()
-	_check(world.state.easels[stands[1].id].strokes.size() == 1, "the next canvas receives its own stroke command")
+	check(world.state.easels[stands[1].id].strokes.size() == 1, "the next canvas receives its own stroke command")

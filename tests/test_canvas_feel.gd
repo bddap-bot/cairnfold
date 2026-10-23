@@ -1,6 +1,5 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
-var failures := 0
 
 func _initialize() -> void:
 	var brush := Cues.CanvasFeel.new()
@@ -26,13 +25,8 @@ func _initialize() -> void:
 		counts.append(count)
 	check(counts[1] > counts[0] * 3, "four times drag speed crosses four times as many teeth")
 	await audio_stops()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 func audio_stops() -> void:
 	var cues := Cues.new()

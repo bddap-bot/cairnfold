@@ -1,16 +1,8 @@
-extends SceneTree
-
-var failures := 0
+extends "res://../tests/support/suite.gd"
 
 
 func _initialize() -> void:
 	_run.call_deferred()
-
-
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 
 func _run() -> void:
@@ -70,5 +62,4 @@ func _run() -> void:
 	check(not HeldItem.valid([0]) and not HeldItem.valid([0, 0, "bad", Color.WHITE, 0.0, 0, false]), "malformed state rejected")
 	item.queue_free()
 	await process_frame
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## The sun's and the moon's discs stay round wherever they sit in a wide headset view: measured as the angles
 ## the eye sees, not the flat image's pixels, a disc at the view's edge is as wide toward the centre as across.
@@ -11,17 +11,9 @@ const FOV := 100.0
 ## Degrees off the view's axis each disc is seen at: centre, the right edge, and toward a corner.
 const PLACES := [Vector2(0, 0), Vector2(42, 0), Vector2(30, -30)]
 
-var failures := 0
-
 
 func _initialize() -> void:
 	_run.call_deferred()
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 
 func _run() -> void:
@@ -53,12 +45,11 @@ func _run() -> void:
 			var span := _span(image, eye, toward)
 			var round := span.x / span.y
 			print("%s: %.2f° toward the centre, %.2f° across, ratio %.3f" % [name, span.x, span.y, round])
-			_check(span.y > 0.5 and absf(round - 1.0) < 0.04, "%s is round (ratio %.3f)" % [name, round])
+			check(span.y > 0.5 and absf(round - 1.0) < 0.04, "%s is round (ratio %.3f)" % [name, round])
 		disc.queue_free()
 	view.queue_free()
 	await process_frame
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 ## The lit disc's extent in degrees as the eye sees it, along the line from the view's centre through `toward`

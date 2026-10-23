@@ -1,8 +1,6 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of the wall layout: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wall.gd
-
-var failures := 0
 
 
 func _init() -> void:
@@ -34,14 +32,7 @@ func _init() -> void:
 	_water_leaves_the_dry_stones_as_they_were()
 	_mortar_stops_short_of_a_doorway_and_the_ends()
 	_a_drawn_bend_is_a_corner()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 func _flat(_x: float, _z: float) -> float:
@@ -63,26 +54,26 @@ func _blocks(w: WallLayout) -> Array:
 
 func _straight_wall_fills_its_length() -> void:
 	var w := _wall(6.0, 2.4, [])
-	_check(absf(w.length() - 6.0) < 0.01, "length %f" % w.length())
+	check(absf(w.length() - 6.0) < 0.01, "length %f" % w.length())
 	var courses := int(round(2.4 / WallLayout.COURSE))
 	for k in courses:
 		var covered := 0.0
 		for s in _blocks(w):
 			if absf(s.y - (k + 0.5) * 2.4 / courses) < 0.01:
 				covered += s.size.x
-		_check(absf(covered - 6.0) < 0.02, "course %d covers %f of 6 m" % [k, covered])
-	_check(w.stones.any(func(s): return s.kind == "merlon"), "a crenellated top")
-	_check(w.stones.filter(func(s): return s.kind == "pier").size() >= 4, "piers at both ends")
+		check(absf(covered - 6.0) < 0.02, "course %d covers %f of 6 m" % [k, covered])
+	check(w.stones.any(func(s): return s.kind == "merlon"), "a crenellated top")
+	check(w.stones.filter(func(s): return s.kind == "pier").size() >= 4, "piers at both ends")
 
 
 func _arch_ring_closes_over_the_opening() -> void:
 	var w := _wall(8.0, 2.7, [4.0])
 	var ring := w.stones.filter(func(s): return s.kind == "voussoir")
-	_check(ring.size() == 10, "10 voussoirs, got %d" % ring.size())
-	_check(w.stones.filter(func(s): return s.kind == "keystone").size() == 1, "one keystone")
+	check(ring.size() == 10, "10 voussoirs, got %d" % ring.size())
+	check(w.stones.filter(func(s): return s.kind == "keystone").size() == 1, "one keystone")
 	for s in ring:
 		var r := Vector2(s.s - 4.0, s.y - w.spring()).length()
-		_check(absf(r - (WallLayout.ARCH_HALF + WallLayout.RING * 0.5)) < 0.05, "voussoir off the ring: r=%f" % r)
+		check(absf(r - (WallLayout.ARCH_HALF + WallLayout.RING * 0.5)) < 0.05, "voussoir off the ring: r=%f" % r)
 
 
 ## Across every style, height and stretch, every point of the wall's middle plane round an arch is either in its
@@ -127,7 +118,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 		walls.append(grand)
 	for w in walls:
 		w.build(_flat)
-		_check(w.archways().size() == 1, "%s wall %.1f m high opens its arch" % [w.arch_style().name, w.height])
+		check(w.archways().size() == 1, "%s wall %.1f m high opens its arch" % [w.arch_style().name, w.height])
 		if w.archways().is_empty():
 			continue
 		var a: float = w.archways()[0]
@@ -152,19 +143,19 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 				d += 0.04
 			y += 0.04
 		var name := "%s wall %.1f m high, %.1f m long, arch %.1f" % [w.arch_style().name, w.height, w.length(), k]
-		_check(gaps.is_empty(), "%s: gaps between arch and wall at %s" % [name, gaps.slice(0, 8)])
-		_check(blocked.is_empty(), "%s: pieces in the opening at %s" % [name, blocked.slice(0, 8)])
+		check(gaps.is_empty(), "%s: gaps between arch and wall at %s" % [name, gaps.slice(0, 8)])
+		check(blocked.is_empty(), "%s: pieces in the opening at %s" % [name, blocked.slice(0, 8)])
 		var styled := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == w.arch_style().kind and absf(w.offset(st.s, a)) < 1.2 * k and st.y < w.spring(k) + 1.2 * k)
-		_check(not styled.is_empty(), "%s: the arch is laid in %s" % [name, w.arch_style().kind])
+		check(not styled.is_empty(), "%s: the arch is laid in %s" % [name, w.arch_style().kind])
 		if w.arch_style().name == "timber":
-			_check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind in ["voussoir", "keystone"]), "%s: no stone in a timber frame's arch" % name)
+			check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind in ["voussoir", "keystone"]), "%s: no stone in a timber frame's arch" % name)
 
 		if w.height < WallLayout.DOOR_TALL + w.course_height() * 1.4 or k != 1.0:
 			continue
 		var door := w.inputs()
 		door.openings = [Vector4(a, 0.0, WallLayout.DoorStyle.PLAIN, 1)]
 		door.build(_flat)
-		_check(door.apertures.size() == 1 and door.apertures[0].door, "%s: the same opening list takes a door" % name)
+		check(door.apertures.size() == 1 and door.apertures[0].door, "%s: the same opening list takes a door" % name)
 		if door.apertures.is_empty():
 			continue
 		var o := door.apertures[0]
@@ -181,7 +172,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 						gaps.append(Vector2(d, y))
 				d += 0.04
 			y += 0.04
-		_check(gaps.is_empty(), "%s: gaps between door and wall at %s" % [name, gaps.slice(0, 8)])
+		check(gaps.is_empty(), "%s: gaps between door and wall at %s" % [name, gaps.slice(0, 8)])
 
 
 ## An arch of any size is the doorway's, scaled: its opening, its ring of voussoirs and its keystone, under the top,
@@ -193,20 +184,20 @@ func _a_grand_arch_is_a_doorway_arch_scaled() -> void:
 		w.height = 6.0
 		w.openings.assign([WallLayout.archway(8.0, k)])
 		w.build(_flat)
-		_check(w.apertures.size() == 1 and is_equal_approx(w.apertures[0].half, WallLayout.ARCH_HALF * k), "an arch of size %.1f opens %.2f m wide: %s" % [k, WallLayout.ARCH_HALF * k * 2.0, w.apertures])
+		check(w.apertures.size() == 1 and is_equal_approx(w.apertures[0].half, WallLayout.ARCH_HALF * k), "an arch of size %.1f opens %.2f m wide: %s" % [k, WallLayout.ARCH_HALF * k * 2.0, w.apertures])
 		if w.apertures.size() != 1:
 			continue
 		var ring := w.stones.filter(func(st): return st.kind == "voussoir")
-		_check(ring.size() == 10, "size %.1f: 10 voussoirs, got %d" % [k, ring.size()])
+		check(ring.size() == 10, "size %.1f: 10 voussoirs, got %d" % [k, ring.size()])
 		for st in ring:
 			var r := Vector2(st.s - 8.0, st.y - w.spring(k)).length()
-			_check(absf(r - (WallLayout.ARCH_HALF + WallLayout.RING * 0.5) * k) < 0.05 * k, "size %.1f: voussoir off its ring: r=%f" % [k, r])
+			check(absf(r - (WallLayout.ARCH_HALF + WallLayout.RING * 0.5) * k) < 0.05 * k, "size %.1f: voussoir off its ring: r=%f" % [k, r])
 		var key := w.stones.filter(func(st): return st.kind == "keystone")
-		_check(key.size() == 1 and key[0].y > w.apertures[0].head - WallLayout.RING * k, "size %.1f: its keystone closes the head" % k)
+		check(key.size() == 1 and key[0].y > w.apertures[0].head - WallLayout.RING * k, "size %.1f: its keystone closes the head" % k)
 		for st in ring + key:
 			var miss := _joint_miss(st, Vector2(8.0, w.spring(k) + st.xform.origin.y - st.y))
-			_check(miss < 0.01, "size %.1f: a %s's joints run %.3f m wide of the arch's centre" % [k, st.kind, miss])
-		_check(w.apertures[0].head <= w.height - 0.3 + 0.01, "size %.1f: its ring stays under the top" % k)
+			check(miss < 0.01, "size %.1f: a %s's joints run %.3f m wide of the arch's centre" % [k, st.kind, miss])
+		check(w.apertures[0].head <= w.height - 0.3 + 0.01, "size %.1f: its ring stays under the top" % k)
 
 
 ## Whether `p` lies in laid piece `st` as it is drawn, its ends cut as WallLayout.drawn_corners cuts them.
@@ -247,7 +238,7 @@ func _an_arch_grows_up_to_the_wall_top() -> void:
 		while w.opening_fits(WallLayout.archway(20.0, k + 0.05), placed):
 			k += 0.05
 		var head: float = w.opening_for(WallLayout.archway(20.0, k)).head
-		_check(k > 1.0 and head > height - 0.3 - 0.1, "on a wall %.1f m high an arch grows to size %.2f, its ring %.2f m up" % [height, k, head])
+		check(k > 1.0 and head > height - 0.3 - 0.1, "on a wall %.1f m high an arch grows to size %.2f, its ring %.2f m up" % [height, k, head])
 
 
 ## A door or window of any size stands where it was placed, grown up from its sill: still a window, still a door.
@@ -259,28 +250,28 @@ func _doors_and_windows_scale_from_where_they_stand() -> void:
 	w.build(_flat)
 	var c := w.course_height()
 	var unit := w.opening_for(Vector4(9.0, 2.0, WallLayout.DoorStyle.PLAIN, 1.0))
-	_check(w.apertures.size() == 2, "a big door and a big window both open: %s" % [w.apertures])
+	check(w.apertures.size() == 2, "a big door and a big window both open: %s" % [w.apertures])
 	if w.apertures.size() != 2:
 		return
 	var door := w.apertures[0]
 	var window := w.apertures[1]
-	_check(door.door and is_equal_approx(door.half, WallLayout.DOOR_HALF * 1.5) and is_equal_approx(door.head, roundf(WallLayout.DOOR_TALL * 1.5 / c) * c), "the door is half again as wide and tall: %s" % door)
-	_check(not window.door and is_equal_approx(window.sill, unit.sill) and is_equal_approx(window.half, WallLayout.WINDOW_HALF * 2.0) and window.head - window.sill > (unit.head - unit.sill) * 1.8, "the window keeps its sill and doubles: %s" % window)
-	_check(w.stones.any(func(st): return st.kind == "lintel" and absf(st.s - 9.0) < 0.1 and st.size.x > WallLayout.WINDOW_HALF * 4.0), "its lintel spans it")
+	check(door.door and is_equal_approx(door.half, WallLayout.DOOR_HALF * 1.5) and is_equal_approx(door.head, roundf(WallLayout.DOOR_TALL * 1.5 / c) * c), "the door is half again as wide and tall: %s" % door)
+	check(not window.door and is_equal_approx(window.sill, unit.sill) and is_equal_approx(window.half, WallLayout.WINDOW_HALF * 2.0) and window.head - window.sill > (unit.head - unit.sill) * 1.8, "the window keeps its sill and doubles: %s" % window)
+	check(w.stones.any(func(st): return st.kind == "lintel" and absf(st.s - 9.0) < 0.1 and st.size.x > WallLayout.WINDOW_HALF * 4.0), "its lintel spans it")
 
 
 func _short_or_low_walls_take_no_arch() -> void:
-	_check(_wall(1.5, 2.7, [0.75]).stones.all(func(s): return s.kind != "voussoir"), "a 1.5 m wall has no room for an arch")
-	_check(_wall(8.0, 1.2, [4.0]).stones.all(func(s): return s.kind != "voussoir"), "a 1.2 m wall is too low for an arch")
+	check(_wall(1.5, 2.7, [0.75]).stones.all(func(s): return s.kind != "voussoir"), "a 1.5 m wall has no room for an arch")
+	check(_wall(8.0, 1.2, [4.0]).stones.all(func(s): return s.kind != "voussoir"), "a 1.2 m wall is too low for an arch")
 
 
 func _layout_is_deterministic() -> void:
 	var a := _wall(7.0, 2.4, [3.5])
 	var b := _wall(7.0, 2.4, [3.5])
-	_check(a.stones.size() == b.stones.size() and a.stones.all(func(s): return true), "same stone count")
+	check(a.stones.size() == b.stones.size() and a.stones.all(func(s): return true), "same stone count")
 	for i in a.stones.size():
 		if not a.stones[i].xform.is_equal_approx(b.stones[i].xform):
-			_check(false, "stone %d differs between identical builds" % i)
+			check(false, "stone %d differs between identical builds" % i)
 			break
 
 
@@ -307,13 +298,13 @@ func _a_copy_built_elsewhere_lays_the_same_stones() -> void:
 		copy.build(_flat)
 		var b := WallLayout.new()
 		b.adopt(copy)
-		_check(b.stones.size() == a.stones.size() and b.archways() == a.archways() and b.samples == a.samples and b.apertures.size() == a.apertures.size() and b.flames == a.flames and b.cloths.size() == a.cloths.size(), "a copy's build matches: %d vs %d stones" % [b.stones.size(), a.stones.size()])
+		check(b.stones.size() == a.stones.size() and b.archways() == a.archways() and b.samples == a.samples and b.apertures.size() == a.apertures.size() and b.flames == a.flames and b.cloths.size() == a.cloths.size(), "a copy's build matches: %d vs %d stones" % [b.stones.size(), a.stones.size()])
 		for i in mini(a.stones.size(), b.stones.size()):
 			if not a.stones[i].xform.is_equal_approx(b.stones[i].xform) or a.stones[i].kind != b.stones[i].kind:
-				_check(false, "stone %d differs in the copy's build" % i)
+				check(false, "stone %d differs in the copy's build" % i)
 				break
-	_check(loop.archways().size() == 1 and not loop.apertures.is_empty() and not loop.flames.is_empty(), "the loop opens its arch and window and hangs its lantern")
-	_check(not flagged.cloths.is_empty(), "the flag flies")
+	check(loop.archways().size() == 1 and not loop.apertures.is_empty() and not loop.flames.is_empty(), "the loop opens its arch and window and hangs its lantern")
+	check(not flagged.cloths.is_empty(), "the flag flies")
 
 
 func _raising_the_wall_adds_courses() -> void:
@@ -324,14 +315,14 @@ func _raising_the_wall_adds_courses() -> void:
 		for s in w.stones:
 			m = maxf(m, s.y + s.size.y * 0.5)
 		return m
-	_check(top.call(high) > top.call(low) + 1.5, "raising 1.8 m adds height")
-	_check(_blocks(high).size() > _blocks(low).size() * 1.6, "raising adds courses of stone")
+	check(top.call(high) > top.call(low) + 1.5, "raising 1.8 m adds height")
+	check(_blocks(high).size() > _blocks(low).size() * 1.6, "raising adds courses of stone")
 
 
 func _point_at_follows_the_curve() -> void:
 	var w := _wall(6.0, 2.4, [])
-	_check(w.point_at(3.0).distance_to(Vector3(3, -0.12, 0)) < WallLayout.SAMPLE * 2.0, "point_at(3) is %s" % w.point_at(3.0))
-	_check(w.point_at(99.0) == w.samples[-1], "point_at past the end is the end")
+	check(w.point_at(3.0).distance_to(Vector3(3, -0.12, 0)) < WallLayout.SAMPLE * 2.0, "point_at(3) is %s" % w.point_at(3.0))
+	check(w.point_at(99.0) == w.samples[-1], "point_at past the end is the end")
 
 
 func _a_long_wall_splits_by_the_ground_under_each_stone() -> void:
@@ -339,7 +330,7 @@ func _a_long_wall_splits_by_the_ground_under_each_stone() -> void:
 	var w := _wall(40.0, 1.5, [])
 	var packed := Wall.pack(w, Wall.kinds(), Palette.plain())
 	var chunks: Dictionary = packed.chunks[Wall.Part.STONE]
-	_check(chunks.size() >= 3, "a 40 m wall spans at least three chunks, got %d" % chunks.size())
+	check(chunks.size() >= 3, "a 40 m wall spans at least three chunks, got %d" % chunks.size())
 	var total := 0
 	for key in chunks:
 		var buf: PackedFloat32Array = chunks[key]
@@ -347,17 +338,17 @@ func _a_long_wall_splits_by_the_ground_under_each_stone() -> void:
 		for i in range(0, buf.size(), stone.stride()):
 			var at := Vector2i(floori(buf[i + 3] / stone.cell()), floori(buf[i + 11] / stone.cell()))
 			if at != key:
-				_check(false, "a stone at %s sits in chunk %s" % [at, key])
+				check(false, "a stone at %s sits in chunk %s" % [at, key])
 				return
-	_check(total == packed.stone.size(), "every stone in exactly one chunk")
+	check(total == packed.stone.size(), "every stone in exactly one chunk")
 
 
 func _stone_faces_share_their_borders() -> void:
 	for segments in [1, 2, 3]:
 		var a := Meshes.rounded_box(0.14, segments, 100).surface_get_arrays(0)
 		var row: int = segments + 1
-		_check(a[Mesh.ARRAY_VERTEX].size() == 6 * row * row - 12 * row + 8, "%d segments: one vertex per lattice point, got %d" % [segments, a[Mesh.ARRAY_VERTEX].size()])
-		_check(a[Mesh.ARRAY_INDEX].size() == 36 * segments * segments, "%d segments: every face's triangles" % segments)
+		check(a[Mesh.ARRAY_VERTEX].size() == 6 * row * row - 12 * row + 8, "%d segments: one vertex per lattice point, got %d" % [segments, a[Mesh.ARRAY_VERTEX].size()])
+		check(a[Mesh.ARRAY_INDEX].size() == 36 * segments * segments, "%d segments: every face's triangles" % segments)
 
 
 func _settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach() -> void:
@@ -372,28 +363,28 @@ func _settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach() -> void:
 		parts.append(Masonry.split(buf, ks[k]))
 	m.place(1, parts)
 	var stones := m._chunks.keys().filter(func(key: Vector3i) -> bool: return key.z == Wall.Part.STONE)
-	_check(stones.size() == 2, "stones 39 m apart stand in two chunks")
+	check(stones.size() == 2, "stones 39 m apart stand in two chunks")
 	for key: Vector3i in m._chunks:
 		var c: Masonry.Chunk = m._chunks[key]
 		match key.z:
 			Wall.Part.STONE:
-				_check(c.far != null and c.far.multimesh.mesh == Stones.far_mesh(), "a chunk draws far stones with the far mesh")
-				_check(c.far.multimesh.instance_count == 0 and c.instance.multimesh.instance_count == 0, "nothing drawn before the chunk is processed")
-				_check(is_equal_approx(c.instance.visibility_range_end, ks[Wall.Part.STONE].near + ks[Wall.Part.STONE].radius()) and is_equal_approx(c.far.visibility_range_begin, c.instance.visibility_range_end), "near and far stones meet at the near distance")
+				check(c.far != null and c.far.multimesh.mesh == Stones.far_mesh(), "a chunk draws far stones with the far mesh")
+				check(c.far.multimesh.instance_count == 0 and c.instance.multimesh.instance_count == 0, "nothing drawn before the chunk is processed")
+				check(is_equal_approx(c.instance.visibility_range_end, ks[Wall.Part.STONE].near + ks[Wall.Part.STONE].radius()) and is_equal_approx(c.far.visibility_range_begin, c.instance.visibility_range_end), "near and far stones meet at the near distance")
 			Wall.Part.IVY:
-				_check(is_equal_approx(c.instance.visibility_range_end, ks[Wall.Part.IVY].reach + ks[Wall.Part.IVY].radius()), "ivy stops at its reach")
+				check(is_equal_approx(c.instance.visibility_range_end, ks[Wall.Part.IVY].reach + ks[Wall.Part.IVY].radius()), "ivy stops at its reach")
 			Wall.Part.MORTAR:
-				_check(c.far == null and c.instance.visibility_range_end == 0.0, "mortar has no far mesh and no limit")
-	_check(ks[Wall.Part.STONE].cell() < ks[Wall.Part.MORTAR].cell(), "what is cut by distance stands in finer chunks than what is drawn at every distance")
+				check(c.far == null and c.instance.visibility_range_end == 0.0, "mortar has no far mesh and no limit")
+	check(ks[Wall.Part.STONE].cell() < ks[Wall.Part.MORTAR].cell(), "what is cut by distance stands in finer chunks than what is drawn at every distance")
 	m._process(0.0)
 	for key in stones:
 		var c: Masonry.Chunk = m._chunks[key]
-		_check(c.instance.multimesh.instance_count == 1 and c.far.multimesh.instance_count == 1, "near and far hold the chunk's one stone")
+		check(c.instance.multimesh.instance_count == 1 and c.far.multimesh.instance_count == 1, "near and far hold the chunk's one stone")
 	m.place(1, parts)
 	m.remove(1)
 	m._process(0.0)
 	for c: Masonry.Chunk in m._chunks.values():
-		_check(c.instance.multimesh.instance_count == 0, "a removed owner leaves every chunk it stood in")
+		check(c.instance.multimesh.instance_count == 0, "a removed owner leaves every chunk it stood in")
 	m.free()
 
 
@@ -413,13 +404,13 @@ func _far_stones_draw_by_coarse_chunks() -> void:
 		parts.append(Masonry.split(buf, stone) if k == Wall.Part.STONE else {})
 	m.place(1, parts)
 	m._process(0.0)
-	_check(m._chunks.size() == 3 and m._coarse.size() == 2, "three 8 m chunks under two 16 m ones, got %d and %d" % [m._chunks.size(), m._coarse.size()])
+	check(m._chunks.size() == 3 and m._coarse.size() == 2, "three 8 m chunks under two 16 m ones, got %d and %d" % [m._chunks.size(), m._coarse.size()])
 	var coarse: MultiMeshInstance3D = m._coarse.get(Vector3i(0, 0, Wall.Part.STONE))
-	_check(coarse != null and coarse.multimesh.instance_count == 2 and coarse.multimesh.mesh == Stones.far_mesh(), "the 16 m chunk draws both its 8 m chunks' stones far")
-	_check(is_equal_approx(coarse.visibility_range_begin, stone.near + Masonry.radius(Masonry.COARSE)), "once the whole 16 m chunk is past the near distance")
+	check(coarse != null and coarse.multimesh.instance_count == 2 and coarse.multimesh.mesh == Stones.far_mesh(), "the 16 m chunk draws both its 8 m chunks' stones far")
+	check(is_equal_approx(coarse.visibility_range_begin, stone.near + Masonry.radius(Masonry.COARSE)), "once the whole 16 m chunk is past the near distance")
 	for x in [0, 1]:
 		var c: Masonry.Chunk = m._chunks[Vector3i(x, 0, Wall.Part.STONE)]
-		_check(c.far.get_node(c.far.visibility_parent) == coarse and c.instance.get_node(c.instance.visibility_parent) == coarse, "chunk %d draws only while its 16 m chunk does not" % x)
+		check(c.far.get_node(c.far.visibility_parent) == coarse and c.instance.get_node(c.instance.visibility_parent) == coarse, "chunk %d draws only while its 16 m chunk does not" % x)
 	m.free()
 
 
@@ -442,7 +433,7 @@ func _far_pieces_reach_the_near_pieces_faces() -> void:
 			var reach := -INF
 			for v in far:
 				reach = maxf(reach, v.dot(axis))
-			_check(n > 0 and reach >= face / n - 0.01, "the far mesh reaches the near face toward %s: %.3f, near %.3f" % [axis, reach, face / maxi(n, 1)])
+			check(n > 0 and reach >= face / n - 0.01, "the far mesh reaches the near face toward %s: %.3f, near %.3f" % [axis, reach, face / maxi(n, 1)])
 
 
 ## A wall still changing, as one over a hill being pulled, draws its own chunks, far ones in coarse stones, and
@@ -459,17 +450,17 @@ func _a_changing_wall_draws_far_stones_by_its_own_chunks() -> void:
 	w.rebuild(false)
 	w.lay_now()
 	var id := w.get_instance_id()
-	_check(w._drawn != null and w._drawn._owners.has(id) and not glade._owners.has(id), "a changing wall draws its own pieces")
+	check(w._drawn != null and w._drawn._owners.has(id) and not glade._owners.has(id), "a changing wall draws its own pieces")
 	if w._drawn != null:
 		var stones := w._drawn._chunks.keys().filter(func(key: Vector3i) -> bool: return key.z == Wall.Part.STONE)
-		_check(stones.size() >= 4, "by the ground chunk under each, got %d chunks" % stones.size())
+		check(stones.size() >= 4, "by the ground chunk under each, got %d chunks" % stones.size())
 		for key in stones:
 			var far: MultiMeshInstance3D = w._drawn._chunks[key].far
-			_check(far != null and far.multimesh.mesh == Stones.far_mesh() and is_equal_approx(far.visibility_range_begin, Wall.kinds()[Wall.Part.STONE].near + Wall.kinds()[Wall.Part.STONE].radius()), "beyond the near distance in coarse stones")
+			check(far != null and far.multimesh.mesh == Stones.far_mesh() and is_equal_approx(far.visibility_range_begin, Wall.kinds()[Wall.Part.STONE].near + Wall.kinds()[Wall.Part.STONE].radius()), "beyond the near distance in coarse stones")
 	w.finished = true
 	w.rebuild(true)
 	w.lay_now()
-	_check(glade._owners.has(id) and w._drawn == null, "once settled the glade draws them, and the wall's own Masonry goes")
+	check(glade._owners.has(id) and w._drawn == null, "once settled the glade draws them, and the wall's own Masonry goes")
 	w.free()
 	glade.free()
 
@@ -489,14 +480,14 @@ func _grown_ivy_moves_to_the_glade_in_one_frame() -> void:
 	while not WorkerThreadPool.is_task_completed(w._ivy_task):
 		OS.delay_msec(1)
 	w._process(0.0)
-	_check(w._ivy != null and w._ivy.multimesh.instance_count > 0, "growing ivy is drawn by its wall")
+	check(w._ivy != null and w._ivy.multimesh.instance_count > 0, "growing ivy is drawn by its wall")
 	w.ivy_age = INF
 	w._process(0.0)
 	var leaves := 0
 	for key: Vector3i in glade._chunks:
 		if key.z == Wall.Part.IVY:
 			leaves += glade._chunks[key].instance.multimesh.instance_count
-	_check(w._ivy.multimesh.instance_count == 0 and leaves > 0, "grown ivy is drawn by the glade the frame its wall lets it go, got %d leaves" % leaves)
+	check(w._ivy.multimesh.instance_count == 0 and leaves > 0, "grown ivy is drawn by the glade the frame its wall lets it go, got %d leaves" % leaves)
 	w.free()
 	glade.free()
 
@@ -545,78 +536,78 @@ func _full_stones_stand_only_near_the_eye() -> void:
 		var centre := Vector3(key.x + 0.5, 0.0, key.y + 0.5) * stone.cell() + Vector3.UP * Masonry.TALL * 0.5
 		if eye.distance_to(centre) < m._chunks[key].instance.visibility_range_end:
 			full += stone.cell() * stone.cell()
-	_check(full <= 256.0, "stones drawn in full over at most 256 m² around the eye at the bottom step, got %.0f" % full)
+	check(full <= 256.0, "stones drawn in full over at most 256 m² around the eye at the bottom step, got %.0f" % full)
 	Wall.approach(Quality.ladder[0], INF, m)
 	m.free()
 
 
 func _a_wall_over_water_stands_on_its_bed() -> void:
 	var w := _wet(6.0, 2.6)
-	_check(absf(w.point_at(6.0).y - (0.0 - 0.12)) < 1e-3, "over water the foot is at the surface, %f" % w.point_at(6.0).y)
-	_check(absf(w.depth_at(6.0) - 0.88) < 1e-3 and w.depth_at(1.0) == 0.0, "the bed lies 0.88 m under the foot there, none on the bank")
-	_check(w.archways().size() >= 2 and w.archways().all(func(a): return a > 3.0 and a < 9.0), "the crossing opens an arcade over the water: %s" % [w.archways()])
+	check(absf(w.point_at(6.0).y - (0.0 - 0.12)) < 1e-3, "over water the foot is at the surface, %f" % w.point_at(6.0).y)
+	check(absf(w.depth_at(6.0) - 0.88) < 1e-3 and w.depth_at(1.0) == 0.0, "the bed lies 0.88 m under the foot there, none on the bank")
+	check(w.archways().size() >= 2 and w.archways().all(func(a): return a > 3.0 and a < 9.0), "the crossing opens an arcade over the water: %s" % [w.archways()])
 	var bays := w.pillars()
-	_check(bays.size() == w.archways().size() - 1, "pillars between its arches")
+	check(bays.size() == w.archways().size() - 1, "pillars between its arches")
 	for b in bays:
 		var lowest := INF
 		for st in w.stones:
 			if st.kind == "pillar" and absf(st.s - b.s) < 0.01:
 				lowest = minf(lowest, st.y - st.size.y * 0.5)
-		_check(absf(lowest + 0.88) < 0.02, "a pillar stands on the bed, its foot %f" % lowest)
+		check(absf(lowest + 0.88) < 0.02, "a pillar stands on the bed, its foot %f" % lowest)
 	for a in w.archways():
-		_check(not w.stones.any(func(st): return st.kind in ["block", "pillar", "mortar"] and absf(st.s - a) < WallLayout.ARCH_HALF - 0.1 and st.y < w.spring()), "water flows under the arch at %f" % a)
+		check(not w.stones.any(func(st): return st.kind in ["block", "pillar", "mortar"] and absf(st.s - a) < WallLayout.ARCH_HALF - 0.1 and st.y < w.spring()), "water flows under the arch at %f" % a)
 	var footing := w.stones.filter(func(st): return st.y < 0.0)
-	_check(not footing.is_empty() and footing.all(func(st): return st.s > 2.5 and st.s < 9.5), "stones under the foot only over the water")
-	_check(w.archways().size() == 3 and w.archways()[-1] - w.archways()[0] + WallLayout.ARCH_HALF * 2.0 > 5.5, "the arcade spans the water: %s" % [w.archways()])
+	check(not footing.is_empty() and footing.all(func(st): return st.s > 2.5 and st.s < 9.5), "stones under the foot only over the water")
+	check(w.archways().size() == 3 and w.archways()[-1] - w.archways()[0] + WallLayout.ARCH_HALF * 2.0 > 5.5, "the arcade spans the water: %s" % [w.archways()])
 	var dry := _wall(12.0, 2.6, [])
-	_check(dry.depths.size() == dry.samples.size() and not dry.stones.any(func(st): return st.y < 0.0), "a wall on dry ground lays nothing under its foot")
+	check(dry.depths.size() == dry.samples.size() and not dry.stones.any(func(st): return st.y < 0.0), "a wall on dry ground lays nothing under its foot")
 	var again := WallLayout.new()
 	again.points = w.points
 	again.build(func(x: float, _z: float) -> float: return -1.0 if x > 3.0 and x < 9.0 else 0.08, _surface)
-	_check(var_to_str(again.stones) == var_to_str(w.stones), "the same ground and water lay the same stones")
+	check(var_to_str(again.stones) == var_to_str(w.stones), "the same ground and water lay the same stones")
 
 
 func _a_narrow_crossing_takes_one_arch() -> void:
 	var w := _wet(1.8, 2.6)
-	_check(w.archways().size() == 1 and absf(w.archways()[0] - 6.0) < 0.3, "a narrow pond takes one arch at its middle: %s" % [w.archways()])
-	_check(w.pillars().is_empty(), "and no pillars")
+	check(w.archways().size() == 1 and absf(w.archways()[0] - 6.0) < 0.3, "a narrow pond takes one arch at its middle: %s" % [w.archways()])
+	check(w.pillars().is_empty(), "and no pillars")
 
 
 func _a_low_wall_crosses_as_a_causeway() -> void:
 	var w := _wet(6.0, 1.2)
-	_check(w.archways().is_empty(), "a wall too low to arch opens none")
+	check(w.archways().is_empty(), "a wall too low to arch opens none")
 	var under := w.stones.filter(func(st): return st.kind == "block" and st.y < 0.0)
 	var covered := 0.0
 	for st in under:
 		if absf(st.y - under.map(func(u): return u.y).min()) < 0.01:
 			covered += st.size.x
-	_check(covered > 5.5, "its lowest course runs along the bed, %f m" % covered)
+	check(covered > 5.5, "its lowest course runs along the bed, %f m" % covered)
 
 
 func _ducks_pass_only_under_arches() -> void:
 	var w := _wet(6.0, 2.6)
 	var a: float = w.archways()[0]
-	_check(not w.opening_fits(Vector4(a, 1.5, WallLayout.DoorStyle.PLAIN, 1), w.openings), "placement respects the water opening it previews")
+	check(not w.opening_fits(Vector4(a, 1.5, WallLayout.DoorStyle.PLAIN, 1), w.openings), "placement respects the water opening it previews")
 	var x := w.point_at(a).x
-	_check(not w.blocks_swim(Vector2(x, -2), Vector2(x, 2)), "a duck swims under an arch")
+	check(not w.blocks_swim(Vector2(x, -2), Vector2(x, 2)), "a duck swims under an arch")
 	var pillar: float = w.pillars()[0].s
-	_check(w.blocks_swim(Vector2(pillar, -2), Vector2(pillar, 2)), "but not through a pillar")
-	_check(not w.blocks_swim(Vector2(x, 1), Vector2(x + 1, 2)), "nor is it stopped by a wall it never reaches")
-	_check(w.blocks_swim(Vector2(x + 1.15, -2), Vector2(x + 1.15, 0.1)), "nor stop beside a pillar")
+	check(w.blocks_swim(Vector2(pillar, -2), Vector2(pillar, 2)), "but not through a pillar")
+	check(not w.blocks_swim(Vector2(x, 1), Vector2(x + 1, 2)), "nor is it stopped by a wall it never reaches")
+	check(w.blocks_swim(Vector2(x + 1.15, -2), Vector2(x + 1.15, 0.1)), "nor stop beside a pillar")
 	var ruin := WallLayout.new()
 	ruin.points = w.points
 	ruin.ruins = [Vector2(4.0, 8.0)]
 	ruin.height = 1.2
 	ruin.build(_bowl, _surface)
-	_check(not ruin.blocks_swim(Vector2(6, -2), Vector2(6, 2)), "a duck swims through a ruin's gap")
+	check(not ruin.blocks_swim(Vector2(6, -2), Vector2(6, 2)), "a duck swims through a ruin's gap")
 	var f := WallLayout.new()
 	f.points = w.points
 	f.fence = true
 	f.height = WallLayout.FENCE_HEIGHT
 	f.build(_bowl, _surface)
-	_check(not f.blocks_swim(Vector2(pillar, -2), Vector2(pillar, 2)), "a fence's rails stand over the water")
+	check(not f.blocks_swim(Vector2(pillar, -2), Vector2(pillar, 2)), "a fence's rails stand over the water")
 	var post := f.stones.filter(func(st): return st.kind == "post" and absf(st.s - 6.0) < 1.0)
-	_check(not post.is_empty() and post.all(func(st): return absf(st.y - st.size.y * 0.5 + 0.88) < 0.1), "its posts stand on the bed")
+	check(not post.is_empty() and post.all(func(st): return absf(st.y - st.size.y * 0.5 + 0.88) < 0.1), "its posts stand on the bed")
 
 
 func _a_path_arch_beside_a_pond_stays_open() -> void:
@@ -624,8 +615,8 @@ func _a_path_arch_beside_a_pond_stays_open() -> void:
 	w.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
 	w.openings.assign([2.6].map(WallLayout.archway))
 	w.build(_bowl, _surface)
-	_check(w.archways().any(func(a): return is_equal_approx(a, 2.6)), "a path's arch beside the water stays open: %s" % [w.archways()])
-	_check(w.archways().size() >= 3, "and arches still cross the water")
+	check(w.archways().any(func(a): return is_equal_approx(a, 2.6)), "a path's arch beside the water stays open: %s" % [w.archways()])
+	check(w.archways().size() >= 3, "and arches still cross the water")
 
 
 func _water_leaves_the_dry_stones_as_they_were() -> void:
@@ -640,7 +631,7 @@ func _water_leaves_the_dry_stones_as_they_were() -> void:
 	var key := func(st: Dictionary) -> String: return var_to_str([st.xform, st.color])
 	var before := dry.stones.filter(func(st): return st.kind == "block" and st.s < 2.0).map(key)
 	var after := wet.stones.filter(func(st): return st.kind == "block" and st.s < 2.0).map(key)
-	_check(not before.is_empty() and before == after, "water under a causeway leaves its dry end's stones as they were")
+	check(not before.is_empty() and before == after, "water under a causeway leaves its dry end's stones as they were")
 
 
 ## A wall's ivy settling after its stones draws its chunk's ivy again and nothing else, and does not stir the light;
@@ -664,11 +655,11 @@ func _a_chunk_draws_again_only_the_pieces_that_changed() -> void:
 	told[0] = 0
 	m.place(1, parts)
 	var redrawn: Array = m._dirty.keys()
-	_check(redrawn == [Vector3i(0, 0, Wall.Part.IVY)], "ivy settling draws the chunk's ivy again, nothing else: %s" % [redrawn])
-	_check(told[0] == 0, "ivy settling does not stir the light")
+	check(redrawn == [Vector3i(0, 0, Wall.Part.IVY)], "ivy settling draws the chunk's ivy again, nothing else: %s" % [redrawn])
+	check(told[0] == 0, "ivy settling does not stir the light")
 	m._process(0.0)
 	m.place(1, parts)
-	_check(m._dirty.is_empty(), "placing the same pieces again draws nothing")
+	check(m._dirty.is_empty(), "placing the same pieces again draws nothing")
 	m.free()
 
 
@@ -687,7 +678,7 @@ func _mortar_stops_short_of_a_doorway_and_the_ends() -> void:
 		var through: bool = m.y - m.size.y * 0.5 < o.head - 0.05 and hi > o.s - o.half - reach and lo < o.s + o.half + reach
 		if through or lo < reach or hi > w.length() - reach:
 			bad.append([lo, hi, m.y])
-	_check(bad.is_empty(), "mortar stops JOINT behind a doorway's jambs and the wall's ends: %s" % [bad])
+	check(bad.is_empty(), "mortar stops JOINT behind a doorway's jambs and the wall's ends: %s" % [bad])
 
 
 ## A hand draws a corner as a tight bend in an open wall: it stands a pier there, and no mortar runs on straight
@@ -704,13 +695,13 @@ func _a_drawn_bend_is_a_corner() -> void:
 	w.points.append(loop[0])
 	w.height = 3.6
 	w.build(_flat)
-	_check(w.corners().size() == 5, "a pier at each end and each of the 3 bends: %s" % [w.corners()])
+	check(w.corners().size() == 5, "a pier at each end and each of the 3 bends: %s" % [w.corners()])
 	var off := 0.0
 	for m in w.stones.filter(func(s): return s.kind == "mortar"):
 		var x: Transform3D = m.xform
 		for p in [x.origin - x.basis.x * 0.5, x.origin, x.origin + x.basis.x * 0.5]:
 			off = maxf(off, _off_line(w, p))
-	_check(off < 0.05, "mortar keeps to the wall's line round its bends: %.3f off" % off)
+	check(off < 0.05, "mortar keeps to the wall's line round its bends: %.3f off" % off)
 
 
 func _off_line(w: WallLayout, p: Vector3) -> float:

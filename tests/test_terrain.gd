@@ -1,15 +1,12 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of shaping the ground: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_terrain.gd
 
-var failures := 0
-var main: Node
 var tool: GroundGrab
 
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
 
 
@@ -25,14 +22,7 @@ func _run() -> void:
 	await _raising_ground_under_a_wall_keeps_it_on_the_ground()
 	_a_lay_reads_the_ground_it_started_on()
 	_raycast_skips_only_open_air()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 ## The ray passes over blocks it stays above without sampling them, and finds the same ground as one that samples
@@ -61,7 +51,7 @@ func _raycast_skips_only_open_air() -> void:
 			var want: Variant = _sampled_raycast(o, dir, reach)
 			if (got == null) != (want == null) or (got != null and got.distance_to(want) > 0.05):
 				wrong += 1
-		_check(wrong == 0, "%s, %d of 200 rays find other ground than a ray sampling all the way" % [phase, wrong])
+		check(wrong == 0, "%s, %d of 200 rays find other ground than a ray sampling all the way" % [phase, wrong])
 	Terrain.clear_hump(0)
 	Terrain.write(spike, before)
 
@@ -97,28 +87,28 @@ func _pull_raises_a_smooth_hill() -> void:
 	var far := Terrain.ground(10, 30)
 	tool.begin(tool.rig.right, c, 4.0)
 	tool.pull(tool.rig.right, 3.0)
-	_check(absf(Terrain.height_at(10, 10) - c.y - 3.0) < 0.01, "a live pull lifts the grabbed point by the pull")
-	_check(absf(Terrain.height_at(10, 30) - far.y) < 1e-4, "ground beyond the hill stays put")
+	check(absf(Terrain.height_at(10, 10) - c.y - 3.0) < 0.01, "a live pull lifts the grabbed point by the pull")
+	check(absf(Terrain.height_at(10, 30) - far.y) < 1e-4, "ground beyond the hill stays put")
 	tool.end_stroke(tool.rig.right)
-	_check(absf(Terrain.height_at(10, 10) - c.y - 3.0) < 0.01, "the baked hill keeps its height, %f" % (Terrain.height_at(10, 10) - c.y))
+	check(absf(Terrain.height_at(10, 10) - c.y - 3.0) < 0.01, "the baked hill keeps its height, %f" % (Terrain.height_at(10, 10) - c.y))
 	var steepest := 0.0
 	for i in 60:
 		var x := 10.0 + i * 0.25
 		steepest = maxf(steepest, absf(Terrain.height_at(x + 0.05, 10) - Terrain.height_at(x - 0.05, 10)) / 0.1)
-	_check(steepest < 0.8, "the hill's flank stays walkable, slope %f" % steepest)
+	check(steepest < 0.8, "the hill's flank stays walkable, slope %f" % steepest)
 	var raised := _all()
 	main.world.undo()
-	_check(_all() == original, "undo takes the hill away exactly")
+	check(_all() == original, "undo takes the hill away exactly")
 	main.world.redo()
-	_check(_all() == raised, "redo puts it back exactly")
+	check(_all() == raised, "redo puts it back exactly")
 	main.world.undo()
 	var d := Terrain.ground(-5, 3)
 	tool.begin(tool.rig.right, d, 3.0)
 	tool.pull(tool.rig.right, -2.0)
 	tool.end_stroke(tool.rig.right)
-	_check(absf(Terrain.height_at(-5, 3) - d.y + 2.0) < 0.01, "a downward pull digs")
+	check(absf(Terrain.height_at(-5, 3) - d.y + 2.0) < 0.01, "a downward pull digs")
 	main.world.undo()
-	_check(_all() == original, "undo fills the dig")
+	check(_all() == original, "undo fills the dig")
 
 
 func _baking_a_live_hump_moves_nothing() -> void:
@@ -131,7 +121,7 @@ func _baking_a_live_hump_moves_nothing() -> void:
 	var worst := 0.0
 	for i in 50:
 		worst = maxf(worst, absf(live[i] - Terrain.height_at(-14.0 + i * 0.06, 7.5 + i * 0.013)))
-	_check(worst < 1e-4, "ground under a hump grabbed between grid points stays put when it bakes, worst %f" % worst)
+	check(worst < 1e-4, "ground under a hump grabbed between grid points stays put when it bakes, worst %f" % worst)
 	main.world.undo()
 
 
@@ -151,8 +141,8 @@ func _texture_matches_the_heights() -> void:
 			worst = maxf(worst, absf(t.r + t.b - Terrain.height_at(x, z)))
 			var n := Vector3(Terrain.height_at(x - e, z) - Terrain.height_at(x + e, z), 2.0 * e, Terrain.height_at(x, z - e) - Terrain.height_at(x, z + e)).normalized()
 			tilt = maxf(tilt, Vector2(t.g - n.x, t.a - n.z).length())
-	_check(worst < 0.02, "the GPU's heights match the CPU's after an edit, worst %f" % worst)
-	_check(tilt < 0.002, "the GPU's normals match the CPU's heights after an edit, around it too, worst %f" % tilt)
+	check(worst < 0.02, "the GPU's heights match the CPU's after an edit, worst %f" % worst)
+	check(tilt < 0.002, "the GPU's normals match the CPU's heights after an edit, around it too, worst %f" % tilt)
 	main.world.undo()
 
 
@@ -175,19 +165,19 @@ func _pulls_go_as_far_as_the_hand() -> void:
 	for lift in [600.0, -900.0]:
 		tool.begin(tool.rig.right, c, 4.0)
 		tool.pull(tool.rig.right, lift)
-		_check(absf(Terrain.height_at(c.x, c.z) - c.y - lift) < 0.01, "a live pull of %d m moves the grabbed point all the way, %f" % [lift, Terrain.height_at(c.x, c.z) - c.y])
-		_check(meadow.custom_aabb.has_point(Terrain.ground(c.x, c.z)), "the ground's box holds a live pull of %d m" % lift)
+		check(absf(Terrain.height_at(c.x, c.z) - c.y - lift) < 0.01, "a live pull of %d m moves the grabbed point all the way, %f" % [lift, Terrain.height_at(c.x, c.z) - c.y])
+		check(meadow.custom_aabb.has_point(Terrain.ground(c.x, c.z)), "the ground's box holds a live pull of %d m" % lift)
 		tool.end_stroke(tool.rig.right)
 		var h := Terrain.height_at(c.x, c.z)
-		_check(absf(h - c.y - lift) < 0.01, "a stroke of %d m bakes all the way, %f" % [lift, h - c.y])
-		_check(_texture_error() < 0.001, "the GPU's heights match the CPU's to a millimetre %d m off, worst %f" % [lift, _texture_error()])
-		_check(Terrain.bounds().has_point(Terrain.ground(c.x, c.z)) and meadow.custom_aabb.has_point(Terrain.ground(c.x, c.z)), "the ground's box holds a %d m stroke" % lift)
-		_check(Rig.far() > Terrain.bounds().size.length(), "the eyes see the whole ground %d m off" % lift)
+		check(absf(h - c.y - lift) < 0.01, "a stroke of %d m bakes all the way, %f" % [lift, h - c.y])
+		check(_texture_error() < 0.001, "the GPU's heights match the CPU's to a millimetre %d m off, worst %f" % [lift, _texture_error()])
+		check(Terrain.bounds().has_point(Terrain.ground(c.x, c.z)) and meadow.custom_aabb.has_point(Terrain.ground(c.x, c.z)), "the ground's box holds a %d m stroke" % lift)
+		check(Rig.far() > Terrain.bounds().size.length(), "the eyes see the whole ground %d m off" % lift)
 		var kept: Variant = bytes_to_var(var_to_bytes(main.world.snapshot()))
 		main.world.undo()
-		_check(_all() == original, "undo takes a %d m stroke away exactly" % lift)
-		_check(main.world.restore_whole(kept) and absf(Terrain.height_at(c.x, c.z) - h) < 1e-4, "a saved garden keeps a %d m stroke" % lift)
-		_check(main.world.restore_whole(bytes_to_var(var_to_bytes(clean))) and _all() == original, "the garden as it was comes back after a %d m stroke" % lift)
+		check(_all() == original, "undo takes a %d m stroke away exactly" % lift)
+		check(main.world.restore_whole(kept) and absf(Terrain.height_at(c.x, c.z) - h) < 1e-4, "a saved garden keeps a %d m stroke" % lift)
+		check(main.world.restore_whole(bytes_to_var(var_to_bytes(clean))) and _all() == original, "the garden as it was comes back after a %d m stroke" % lift)
 
 
 func _a_guest_may_reshape_the_whole_ground() -> void:
@@ -195,17 +185,17 @@ func _a_guest_may_reshape_the_whole_ground() -> void:
 	for n in values.size():
 		values[n] += 2000.0 if n % 2 else -2000.0
 	var cmd := {"op": "heights", "cells": Terrain.ALL, "values": values}
-	_check(not Commands.clean(cmd, main.world.state, false).is_empty(), "a guest's stroke may cover the whole ground and reach 2 km either way")
+	check(not Commands.clean(cmd, main.world.state, false).is_empty(), "a guest's stroke may cover the whole ground and reach 2 km either way")
 	values[7] = NAN
-	_check(Commands.clean(cmd, main.world.state, false).is_empty(), "a guest's stroke with no height is turned down")
+	check(Commands.clean(cmd, main.world.state, false).is_empty(), "a guest's stroke with no height is turned down")
 
 
 func _a_ray_reaches_ground_across_the_garden() -> void:
 	var from := Terrain.ground(-70, 0) + Vector3.UP * 20.0
 	var to := Terrain.ground(70, 0)
 	var hit: Variant = Terrain.raycast(from, (to - from).normalized())
-	_check(hit != null and (hit as Vector3).distance_to(to) < 1.0, "a hand reaches ground across the whole garden, %s for %s" % [hit, to])
-	_check(Terrain.raycast(from, Vector3(1, 0.2, 0).normalized()) == null, "a ray into the sky still meets nothing")
+	check(hit != null and (hit as Vector3).distance_to(to) < 1.0, "a hand reaches ground across the whole garden, %s for %s" % [hit, to])
+	check(Terrain.raycast(from, Vector3(1, 0.2, 0).normalized()) == null, "a ray into the sky still meets nothing")
 
 
 func _height_between_grid_points_is_continuous() -> void:
@@ -213,7 +203,7 @@ func _height_between_grid_points_is_continuous() -> void:
 	for i in 400:
 		var x := -20.0 + i * 0.1
 		worst = maxf(worst, absf(Terrain.height_at(x + 0.001, 1.3) - Terrain.height_at(x, 1.3)))
-	_check(worst < 0.01, "the ground has no steps between grid points, worst %f" % worst)
+	check(worst < 0.01, "the ground has no steps between grid points, worst %f" % worst)
 
 
 func _on_ground(w: Wall) -> float:
@@ -229,7 +219,7 @@ func _settles(w: Wall, what: String) -> void:
 		if w._settled:
 			break
 		await process_frame
-	_check(w._settled, what)
+	check(w._settled, what)
 
 
 func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
@@ -241,17 +231,17 @@ func _raising_ground_under_a_wall_keeps_it_on_the_ground() -> void:
 	var mid := w.layout.samples[w.layout.samples.size() / 2]
 	await _play([{"op": "sculpt", "x": mid.x, "z": mid.z, "lift": 2.5, "radius": 5.0, "seconds": 0.5}])
 	await _settles(w, "a wall the ground rose under settles")
-	_check(_on_ground(w) < 0.01, "after the ground rose under it every wall sample sits on the ground, worst gap %f" % _on_ground(w))
-	_check(w.layout.samples[w.layout.samples.size() / 2].y > mid.y + 2.0, "the wall rose with the hill")
+	check(_on_ground(w) < 0.01, "after the ground rose under it every wall sample sits on the ground, worst gap %f" % _on_ground(w))
+	check(w.layout.samples[w.layout.samples.size() / 2].y > mid.y + 2.0, "the wall rose with the hill")
 	var buried := 0
 	for s in w.layout.stones:
 		var o: Vector3 = s.xform.origin
 		if o.y < Terrain.height_at(o.x, o.z) - 0.6:
 			buried += 1
-	_check(buried == 0, "no stone is left buried under the raised ground, %d are" % buried)
+	check(buried == 0, "no stone is left buried under the raised ground, %d are" % buried)
 	await _play([{"op": "press", "button": "dpad_down"}])
 	await _settles(w, "a wall the ground sank back under settles")
-	_check(_on_ground(w) < 0.01 and absf(w.layout.samples[w.layout.samples.size() / 2].y - mid.y) < 0.01, "undoing the hill sets the wall back down on the ground")
+	check(_on_ground(w) < 0.01 and absf(w.layout.samples[w.layout.samples.size() / 2].y - mid.y) < 0.01, "undoing the hill sets the wall back down on the ground")
 
 
 ## A dig while a wall is being laid: the worker threads are held until the dig is done, and the lay must read
@@ -286,7 +276,7 @@ func _a_lay_reads_the_ground_it_started_on() -> void:
 	var worst := 0.0
 	for n in laid.size():
 		worst = maxf(worst, absf(w.layout.samples[n].y - laid[n].y))
-	_check(w.layout.samples.size() == laid.size() and worst < 0.001, "a lay begun before a dig stands on the ground it began on, worst %f" % worst)
+	check(w.layout.samples.size() == laid.size() and worst < 0.001, "a lay begun before a dig stands on the ground it began on, worst %f" % worst)
 	Terrain.write(cells, before)
 	w.rebuild()
 	w.lay_now()

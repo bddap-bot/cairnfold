@@ -1,14 +1,9 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
-var failures := 0
 
 func _initialize() -> void:
 	_run.call_deferred()
 
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 func _run() -> void:
 	var d := {"a": Vector3.ZERO, "b": Vector3(0, 2, -4), "width": 1.2, "rail": "stone", "seed": 8, "paint": Palette.plain(), "on": PackedInt32Array()}
@@ -57,8 +52,7 @@ func _run() -> void:
 	long.b.y = 2.15
 	stairs.build(long)
 	check(stairs.kind == StairLayout.Kind.FLIGHT and stairs.treads.size() == ceili(60.0 / StairLayout.TREAD), "a gently sloped long bridge climbs in shallow treads, not a few long ones: %d" % stairs.treads.size())
-	var main := (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	await process_frame
 	var world: World = main.world
 	_path_steps_follow_terrain(main)
@@ -109,8 +103,7 @@ func _run() -> void:
 	check(world.state.stairs.size() == 1, "erased stairs return on undo")
 	_painted_and_styled(main)
 	_gripped(main)
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 ## Walking the centre line from one end to the other meets a tread everywhere, no step higher than a stair's rise,

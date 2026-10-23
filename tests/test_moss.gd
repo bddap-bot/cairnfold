@@ -1,17 +1,10 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
-var failures := 0
-var main: Node
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
 
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 func _run() -> void:
 	await process_frame
@@ -48,5 +41,4 @@ func _run() -> void:
 	for i in Flora.PAINTED_MOSS:
 		flora.add_moss(Terrain.ground(rng.randf_range(-2, 2), rng.randf_range(-2, 2)), rng)
 	print("moss cost: %d patches, %d triangles, %.3f ms to fill; Quest 2 reserved %.3f ms" % [Flora.PAINTED_MOSS, Flora.PAINTED_MOSS * 12, (Time.get_ticks_usec() - start) / 1000.0, Budget.cost_ms({"moss": Flora.PAINTED_MOSS})])
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

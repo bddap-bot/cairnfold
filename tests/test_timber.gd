@@ -1,11 +1,5 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
-var failures := 0
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 func _flat(_x: float, _z: float) -> float:
 	return 0.0
@@ -34,21 +28,21 @@ func _init() -> void:
 		w.cover = WallLayout.Cover.ROOF
 		w.build(_flat)
 		var parts := w.stones.filter(func(p): return p.kind == "timber")
-		_check(parts.size() > 30, "timber frames walls and gables")
-		_check(TimberFrame.count(d) == parts.size(), "budget counts the exact generated members after resize")
-		_check(w.inputs().timber_style == 0 and w.same_inputs(w.inputs()), "worker inputs retain pattern")
+		check(parts.size() > 30, "timber frames walls and gables")
+		check(TimberFrame.count(d) == parts.size(), "budget counts the exact generated members after resize")
+		check(w.inputs().timber_style == 0 and w.same_inputs(w.inputs()), "worker inputs retain pattern")
 		var copy := w.inputs()
 		copy.build(_flat)
-		_check(copy.stones == w.stones, "layout and colour deterministic")
+		check(copy.stones == w.stones, "layout and colour deterministic")
 		for c in w.corners():
-			_check(parts.any(func(p): return absf(absf(w.offset(p.beam.a.x, c)) - 0.23) < 0.001 and is_equal_approx(p.beam.a.x, p.beam.b.x) and p.beam.a.y < 0.5 and p.beam.b.y > w.height), "full-height corner post survives resize")
+			check(parts.any(func(p): return absf(absf(w.offset(p.beam.a.x, c)) - 0.23) < 0.001 and is_equal_approx(p.beam.a.x, p.beam.b.x) and p.beam.a.y < 0.5 and p.beam.b.y > w.height), "full-height corner post survives resize")
 		for o in w.apertures:
 			for sign_x in [-1, 1]:
-				_check(parts.any(func(p): return absf(p.s - (o.s + sign_x * (o.half + 0.1252))) < 0.01 and absf(p.xform.basis.x.normalized().y) > 0.99), "opening jamb stud follows resized opening")
+				check(parts.any(func(p): return absf(p.s - (o.s + sign_x * (o.half + 0.1252))) < 0.01 and absf(p.xform.basis.x.normalized().y) > 0.99), "opening jamb stud follows resized opening")
 			for y: float in [o.head + 0.1252, o.sill - 0.1252]:
 				if y < w.course_height():
 					continue
-				_check(parts.any(func(p): return absf(p.y - y) < 0.01 and absf(p.s - o.s) < 0.01 and p.size.x >= o.half * 2.0), "opening head and sill rails follow resized opening")
+				check(parts.any(func(p): return absf(p.y - y) < 0.01 and absf(p.s - o.s) < 0.01 and p.size.x >= o.half * 2.0), "opening head and sill rails follow resized opening")
 			for p in parts:
 				var frame := w.frame_at(p.beam.face)
 				if absf(o.s - p.beam.face) > _side_half(w, p.beam.face):
@@ -58,27 +52,26 @@ func _init() -> void:
 					var at: Vector3 = p.xform * corner - frame.point
 					polygon.append(Vector2(p.beam.face + at.dot(frame.tangent), at.y))
 				var hole := PackedVector2Array([Vector2(o.s-o.half, o.sill), Vector2(o.s+o.half, o.sill), Vector2(o.s+o.half, o.head), Vector2(o.s-o.half, o.head)])
-				_check(Geometry2D.intersect_polygons(polygon, hole).is_empty(), "rendered timber volume never intersects a window or door")
-		_check(parts.any(func(p): return p.y > w.height + 0.5), "gable has framing")
+				check(Geometry2D.intersect_polygons(polygon, hole).is_empty(), "rendered timber volume never intersects a window or door")
+		check(parts.any(func(p): return p.y > w.height + 0.5), "gable has framing")
 		var stone := w.inputs()
 		stone.plaster = false
 		stone.build(_flat)
-		_check(stone.stones.all(func(p): return p.kind != "timber"), "stone houses unchanged")
+		check(stone.stones.all(func(p): return p.kind != "timber"), "stone houses unchanged")
 	var plain := original.duplicate(true)
 	plain.timber_style = -1
-	_check(TimberFrame.count(plain) == 0 and not Budget.wall(plain).has("timber"), "explicit plain plaster has no timber charge")
+	check(TimberFrame.count(plain) == 0 and not Budget.wall(plain).has("timber"), "explicit plain plaster has no timber charge")
 	var charge := Budget.wall(original)
-	_check(charge.timber > 0 and Budget.cost_ms({"timber": charge.timber}) > 0, "timber is charged separately")
-	_check(not Budget.fits({"timber": Budget.CAPACITY_MS * 1000.0 / Budget.TIMBER_US}, {"timber": 1}), "a timber member cannot exceed the remaining frame budget")
+	check(charge.timber > 0 and Budget.cost_ms({"timber": charge.timber}) > 0, "timber is charged separately")
+	check(not Budget.fits({"timber": Budget.CAPACITY_MS * 1000.0 / Budget.TIMBER_US}, {"timber": 1}), "a timber member cannot exceed the remaining frame budget")
 	var paint := Palette.plain()
 	paint[Palette.Element.PLASTER] = 2
 	paint[Palette.Element.TIMBER] = 3
 	var timber := {"kind": "timber", "color": TimberFrame.OAK}
-	_check(Wall._painted_as(timber, paint).is_equal_approx(Palette.swatch(Palette.Element.TIMBER, 3)), "timber uses its own oak family")
-	_check(PaletteTool.styles(PaletteTool.Restyle.FACE) == 3, "stone, plain plaster and timber are selectable")
+	check(Wall._painted_as(timber, paint).is_equal_approx(Palette.swatch(Palette.Element.TIMBER, 3)), "timber uses its own oak family")
+	check(PaletteTool.styles(PaletteTool.Restyle.FACE) == 3, "stone, plain plaster and timber are selectable")
 	wall.free()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 func _side_half(w: WallLayout, mid: float) -> float:
 	var corners := w.corners()

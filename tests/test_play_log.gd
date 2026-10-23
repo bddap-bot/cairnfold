@@ -1,11 +1,5 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
-var failures := 0
-
-func check(ok: bool, why: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", why)
 
 func _initialize() -> void:
 	check(not PlayLog.enabled({}), "default does not opt in")
@@ -38,5 +32,4 @@ func _initialize() -> void:
 		f.close()
 		DirAccess.remove_absolute(folder.path_join(name))
 	DirAccess.remove_absolute(folder)
-	print("tests: %s" % ("FAILED" if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

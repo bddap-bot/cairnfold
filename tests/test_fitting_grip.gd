@@ -1,22 +1,12 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## A grip carries a placed fitting along the surface it stands on and sets it where let go, one reshape and one undo step:
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_fitting_grip.gd
 
-var failures := 0
-var main: Node
-
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
-
-
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 
 func _lay() -> void:
@@ -269,5 +259,4 @@ func _real_grip(wall: Wall) -> void:
 
 
 func _done() -> void:
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

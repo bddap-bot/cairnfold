@@ -1,23 +1,14 @@
-extends SceneTree
-
-var failures := 0
+extends "res://../tests/support/suite.gd"
 
 
 func _initialize() -> void:
 	_run.call_deferred()
 
 
-func check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
-
-
 ## The demo's teleport onto the bridge must land there for any head pose an unworn headset settles in: its aim once
 ## grazed the deck's far edge, so a millimetre of head tracking decided between the deck and the grass 16 m beyond.
 func _run() -> void:
-	var main := (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	await process_frame
 	# The bridge fixture exceeds capacity; this test checks its teleport landing.
 	main.world.bounded = false
@@ -41,5 +32,4 @@ func _run() -> void:
 	main.add_child(d)
 	await d.finished
 	check(rig.global_position.y > 2.0 and absf(rig.head.global_position.z - -0.5) < 0.6, "the demo's teleport stands on the bridge: %s" % rig.head.global_position)
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

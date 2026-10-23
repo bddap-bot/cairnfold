@@ -1,6 +1,4 @@
-extends SceneTree
-
-var failures := 0
+extends "res://../tests/support/suite.gd"
 
 
 func _init() -> void:
@@ -10,31 +8,30 @@ func _init() -> void:
 	var plan := WallPlan.new([], PackedVector3Array(), 42)
 	var before := plan.pieces(raw, _flat)[0]
 	var after := plan.pieces(raw, _flat, true)[0]
-	_check(after.points[0] == raw[0] and after.points[-1] == raw[-1], "endpoints stay exact")
-	_check(_roughness(after) < _roughness(before) * 0.6, "curvature jitter reduced: %s -> %s" % [_roughness(before), _roughness(after)])
-	_check(after.corners().size() == 2, "a gentle curve has only end piers")
+	check(after.points[0] == raw[0] and after.points[-1] == raw[-1], "endpoints stay exact")
+	check(_roughness(after) < _roughness(before) * 0.6, "curvature jitter reduced: %s -> %s" % [_roughness(before), _roughness(after)])
+	check(after.corners().size() == 2, "a gentle curve has only end piers")
 	var stable := after.points.duplicate()
 	after.resample(_flat)
 	after.build(_flat)
-	_check(after.points == stable, "downstream lays do not smooth again")
+	check(after.points == stable, "downstream lays do not smooth again")
 	var corner: Array[Vector3] = []
 	for i in 11:
 		corner.append(Vector3(i * 0.4, 0, 0))
 	for i in range(1, 11):
 		corner.append(Vector3(4, 0, i * 0.4))
 	var bent := plan.pieces(corner, _flat, true)[0]
-	_check(bent.points.has(Vector3(4, 0, 0)), "sharp corner stays at drawn vertex")
-	_check(bent.corners().size() == 3, "sharp corner keeps its pier")
+	check(bent.points.has(Vector3(4, 0, 0)), "sharp corner stays at drawn vertex")
+	check(bent.corners().size() == 3, "sharp corner keeps its pier")
 	for p in bent.points:
-		_check(is_zero_approx(p.z) or is_equal_approx(p.x, 4), "corner legs stay straight")
+		check(is_zero_approx(p.z) or is_equal_approx(p.x, 4), "corner legs stay straight")
 	var long_stroke: Array[Vector3] = []
 	for i in 499:
 		long_stroke.append(Vector3(i * 0.45, 0, 0.02 * sin(i)))
 	var long_wall := plan.pieces(long_stroke, _flat, true)[0]
-	_check(long_wall.points.size() <= Commands.MAX_POINTS, "maximum-length committed stroke fits schema")
+	check(long_wall.points.size() <= Commands.MAX_POINTS, "maximum-length committed stroke fits schema")
 	print("smoothing: roughness %.5f -> %.5f; points %d -> %d; max-stroke points %d" % [_roughness(before), _roughness(after), before.points.size(), after.points.size(), long_wall.points.size()])
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 func _roughness(w: WallLayout) -> float:
@@ -54,7 +51,3 @@ func _flat(_x: float, _z: float) -> float:
 	return 0.0
 
 
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)

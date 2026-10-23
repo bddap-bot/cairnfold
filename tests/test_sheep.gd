@@ -1,11 +1,9 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of sheep: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_sheep.gd
 
 const STEP := 1.0 / 30.0
 const AWAY := Vector3(0, -50, 0)
-
-var failures := 0
 
 
 func _initialize() -> void:
@@ -22,14 +20,7 @@ func _initialize() -> void:
 	await _settled_sheep_follow_their_ground()
 	await _leaving_sheep_keep_out_of_walls_and_water()
 	await _a_sheep_off_its_grass_goes_back()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 class Glade:
@@ -173,7 +164,7 @@ func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
 		if s.state in [Herds.State.GRAZE, Herds.State.STAND, Herds.State.WALK]:
 			near = s
 			break
-	_check(near != null, "a sheep to feed")
+	check(near != null, "a sheep to feed")
 	if near == null:
 		return
 	var hand: Hand = g.rig.right
@@ -183,7 +174,7 @@ func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
 		if g.wildlife.herds.allowed(p) and g.wildlife.herds.clear_way(near.position, p):
 			at = Terrain.ground(p.x, p.z) + Vector3.UP * 0.45
 			break
-	_check(at != Vector3.INF, "open grass beside it to hold seeds over")
+	check(at != Vector3.INF, "open grass beside it to hold seeds over")
 	if at == Vector3.INF:
 		return
 	# A conure on the hand would keep it as long as the seeds are held out.
@@ -198,19 +189,19 @@ func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
 		eater.assign(g.sheep().filter(func(s: Sheep) -> bool: return s.state == Herds.State.FEED))
 		if not eater.is_empty() and Vector2(eater[0].goal.x - eater[0].position.x, eater[0].goal.z - eater[0].position.z).length() < 1e-3:
 			break
-	_check(eater.size() == 1, "one sheep comes to the seeds, %d; the nearest %s" % [eater.size(), Herds.State.keys()[near.state]])
+	check(eater.size() == 1, "one sheep comes to the seeds, %d; the nearest %s" % [eater.size(), Herds.State.keys()[near.state]])
 	if eater.size() == 1:
 		var s := eater[0]
 		_run(g, 1.5, each)
 		var reach := Vector2(at.x - s.position.x, at.z - s.position.z).length()
 		var facing := -s.basis.z
 		var to := Vector2(at.x - s.position.x, at.z - s.position.z).normalized()
-		_check(s.state == Herds.State.FEED and absf(reach - Herds.appetite.mouth) < 0.1, "and stands with its muzzle at the hand, %.2f m off" % reach)
-		_check(Vector2(facing.x, facing.z).normalized().dot(to) > 0.95, "facing it")
-		_check(s.mode.y > 0.2, "its head lowered to the hand, graze %.2f" % s.mode.y)
+		check(s.state == Herds.State.FEED and absf(reach - Herds.appetite.mouth) < 0.1, "and stands with its muzzle at the hand, %.2f m off" % reach)
+		check(Vector2(facing.x, facing.z).normalized().dot(to) > 0.95, "facing it")
+		check(s.mode.y > 0.2, "its head lowered to the hand, graze %.2f" % s.mode.y)
 		hand.tool = Hand.Tool.WALLS
 		_run(g, 0.5, each)
-		_check(s.state != Herds.State.FEED and s.hand == null, "seeds put away, it stops")
+		check(s.state != Herds.State.FEED and s.hand == null, "seeds put away, it stops")
 	hand.held_still = false
 	hand.global_position = AWAY
 	_run(g, 1.0, each)
@@ -241,28 +232,28 @@ func _watch_vanishing(g: Glade, seen: Dictionary) -> Callable:
 			now[s] = g.wildlife._in_sight(s.position)
 		for s in seen:
 			if not now.has(s) and seen[s]:
-				_check(false, "a sheep vanished in sight")
+				check(false, "a sheep vanished in sight")
 		seen.clear()
 		seen.merge(now)
 
 
 func _no_tool_places_a_sheep() -> void:
 	for key: String in Hand.Tool.keys():
-		_check(not key.begins_with("SHEEP") and not key.begins_with("HERD"), "no hand tool %s" % key)
+		check(not key.begins_with("SHEEP") and not key.begins_with("HERD"), "no hand tool %s" % key)
 	for f in DirAccess.get_files_at("res://src"):
 		if f.ends_with("_tool.gd") or f in ["hand.gd", "driver.gd", "buttons.gd"]:
 			var code := FileAccess.get_file_as_string("res://src/" + f)
-			_check(not code.contains("Sheep") and not code.contains("Herds"), "%s reaches no sheep" % f)
-	_check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Herds.new(") == 1, "Wildlife alone makes the herds")
+			check(not code.contains("Sheep") and not code.contains("Herds"), "%s reaches no sheep" % f)
+	check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Herds.new(") == 1, "Wildlife alone makes the herds")
 
 
 func _the_sheep_is_one_small_mesh() -> void:
 	var tris := Sheep.build().get_faces().size() / 3
-	_check(tris >= 500 and tris <= 900, "a sheep is a few hundred triangles, %d" % tris)
+	check(tris >= 500 and tris <= 900, "a sheep is a few hundred triangles, %d" % tris)
 	var a := Sheep.new(0.0, 1.0, Color.WHITE)
 	var b := Sheep.new(1.0, 0.9, Color.WHITE)
-	_check(a.mesh == b.mesh and a.material_override == b.material_override, "every sheep shares one mesh and one material")
-	_check(a.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "a sheep casts no shadow")
+	check(a.mesh == b.mesh and a.material_override == b.material_override, "every sheep shares one mesh and one material")
+	check(a.cast_shadow == GeometryInstance3D.SHADOW_CASTING_SETTING_OFF, "a sheep casts no shadow")
 	a.free()
 	b.free()
 
@@ -291,24 +282,24 @@ func _crosses_a_wall(g: Glade, a: Vector3, b: Vector3) -> bool:
 func _fences_draw_a_flock() -> void:
 	var g := await _glade(4)
 	_run(g, 300.0)
-	_check(g.sheep().is_empty(), "a meadow without a fence draws no sheep")
+	check(g.sheep().is_empty(), "a meadow without a fence draws no sheep")
 	var wall := _draw(g, Hand.Tool.WALLS, Vector3(-6, 0, -8), Vector3(6, 0, -8))
 	_run(g, 120.0)
-	_check(g.sheep().is_empty(), "a stone wall draws no sheep")
+	check(g.sheep().is_empty(), "a stone wall draws no sheep")
 	var short := _draw(g, Hand.Tool.FENCE, Vector3(-14, 0, -2), Vector3(-14, 0, 2))
-	_check(short.layout.fence and short.layout.length() < Herds.MIN_FENCE, "a short fence, %.1f m" % short.layout.length())
+	check(short.layout.fence and short.layout.length() < Herds.MIN_FENCE, "a short fence, %.1f m" % short.layout.length())
 	_run(g, 120.0)
-	_check(g.sheep().is_empty(), "a short fence draws no sheep")
+	check(g.sheep().is_empty(), "a short fence draws no sheep")
 
 	var fence := _draw(g, Hand.Tool.FENCE, Vector3(-6, 0, -4), Vector3(6, 0, -4))
-	_check(fence.layout.fence and fence.finished and Herds.standing_length(fence.layout) >= Herds.MIN_FENCE, "a fence of %.1f m" % fence.layout.length())
+	check(fence.layout.fence and fence.finished and Herds.standing_length(fence.layout) >= Herds.MIN_FENCE, "a fence of %.1f m" % fence.layout.length())
 	_draw(g, Hand.Tool.WALLS, Vector3(-2, 0, -0.5), Vector3(-2, 0, 4))
 	await _dig(g, 3.5, -0.5, 90)
 	await _dig(g, 3.5, -7.5, 90)
 	for p in g.water.ponds:
 		p._process(PondWater.FILL)
-	_check(g.water.ponds.size() == 2, "a pond on each side of the fence, %d" % g.water.ponds.size())
-	_check(g.rig.head.global_position.direction_to(Vector3(0, 0.5, -4)).dot(-g.rig.head.global_basis.z) > Wildlife.SIGHT, "the viewer looks at the fence")
+	check(g.water.ponds.size() == 2, "a pond on each side of the fence, %d" % g.water.ponds.size())
+	check(g.rig.head.global_position.direction_to(Vector3(0, 0.5, -4)).dot(-g.rig.head.global_basis.z) > Wildlife.SIGHT, "the viewer looks at the fence")
 
 	var seen := {}
 	var vanishing := _watch_vanishing(g, seen)
@@ -317,15 +308,15 @@ func _fences_draw_a_flock() -> void:
 		vanishing.call()
 		if not arrived[0]:
 			for s in g.sheep():
-				_check(not g.wildlife._in_sight(s.position), "a sheep first appears out of sight")
+				check(not g.wildlife._in_sight(s.position), "a sheep first appears out of sight")
 		arrived[0] = arrived[0] or not g.sheep().is_empty()
 	_run(g, Wildlife.SHEEP_AFTER.x - 1.0, first_sight)
-	_check(g.sheep().is_empty(), "no sheep before its time")
+	check(g.sheep().is_empty(), "no sheep before its time")
 	_run(g, Wildlife.SHEEP_AFTER.y - Wildlife.SHEEP_AFTER.x + 2.0, first_sight)
 	var herds := g.wildlife.herds
-	_check(herds.bands.size() == 1 and herds.bands[0].fence == fence, "a flock comes to the fence some time after it stands")
+	check(herds.bands.size() == 1 and herds.bands[0].fence == fence, "a flock comes to the fence some time after it stands")
 	var n := g.sheep().size()
-	_check(n >= Herds.FLOCK.x and n <= Herds.FLOCK.y, "two to four sheep, %d" % n)
+	check(n >= Herds.FLOCK.x and n <= Herds.FLOCK.y, "two to four sheep, %d" % n)
 
 	var states := {}
 	var worst := {"band": Vector2(INF, 0.0), "sides": {}, "wet": 0, "crossed": 0, "near": 0, "kept": 0}
@@ -351,16 +342,16 @@ func _fences_draw_a_flock() -> void:
 				if t != s and _resting(s) and _resting(t) and Vector2(s.position.x - t.position.x, s.position.z - t.position.z).length() < Sheep.RADIUS * Sheep.SIZE.x * 1.5:
 					worst.near += 1
 	_run(g, 400.0, watch)
-	_check(states.has(Herds.State.GRAZE) and states.has(Herds.State.STAND) and states.has(Herds.State.WALK) and states.has(Herds.State.LIE), "they graze, look about, walk on and lie down, states %s" % [states.keys()])
-	_check(worst.band.x >= Herds.BAND.x - 0.4 and worst.band.y <= Herds.BAND.y + 0.6, "they graze beside the fence, %.2f to %.2f m from it" % [worst.band.x, worst.band.y])
-	_check(worst.sides.size() == 1, "on one side of it")
-	_check(worst.wet == 0, "never in water, %d frames" % worst.wet)
-	_check(worst.crossed == 0, "never through a wall, %d steps" % worst.crossed)
-	_check(worst.kept == 0, "never on ground they keep off, %d frames" % worst.kept)
-	_check(worst.near <= 30, "standing, they keep a little apart, crowded for %d frames" % worst.near)
+	check(states.has(Herds.State.GRAZE) and states.has(Herds.State.STAND) and states.has(Herds.State.WALK) and states.has(Herds.State.LIE), "they graze, look about, walk on and lie down, states %s" % [states.keys()])
+	check(worst.band.x >= Herds.BAND.x - 0.4 and worst.band.y <= Herds.BAND.y + 0.6, "they graze beside the fence, %.2f to %.2f m from it" % [worst.band.x, worst.band.y])
+	check(worst.sides.size() == 1, "on one side of it")
+	check(worst.wet == 0, "never in water, %d frames" % worst.wet)
+	check(worst.crossed == 0, "never through a wall, %d steps" % worst.crossed)
+	check(worst.kept == 0, "never on ground they keep off, %d frames" % worst.kept)
+	check(worst.near <= 30, "standing, they keep a little apart, crowded for %d frames" % worst.near)
 
 	var calm := g.sheep().filter(func(s: Sheep) -> bool: return s.state != Herds.State.ENTER)
-	_check(not calm.is_empty(), "a sheep to approach")
+	check(not calm.is_empty(), "a sheep to approach")
 	if not calm.is_empty():
 		var target: Sheep = calm[0]
 		var hand: Hand = g.rig.right
@@ -373,34 +364,34 @@ func _fences_draw_a_flock() -> void:
 			hand.global_position = (back + Vector3(2.0, 0, 2.0)).lerp(back, float(i) / steps)
 			_run(g, STEP, func() -> void: fled[0] = fled[0] or target.state == Herds.State.FLEE)
 		_run(g, 2.0, func() -> void: fled[0] = fled[0] or target.state == Herds.State.FLEE)
-		_check(not fled[0], "a hand brought slowly to its back leaves a sheep be")
+		check(not fled[0], "a hand brought slowly to its back leaves a sheep be")
 		# The sheep may have walked during the slow approach. Startle where it is now.
 		back = target.position + Vector3(0.3, 0.6, 0.3)
 		hand.global_position = back + Vector3(0.6, 0.2, 0.6)
 		_run(g, STEP)
 		hand.global_position = back
 		_run(g, 0.2)
-		_check(target.state == Herds.State.FLEE, "a sudden hand at its back sends a sheep off, state %d" % target.state)
+		check(target.state == Herds.State.FLEE, "a sudden hand at its back sends a sheep off, state %d" % target.state)
 		var from := hand.global_position
 		_run(g, 5.0, watch)
 		var off := Vector2(target.position.x - from.x, target.position.z - from.z).length()
-		_check(off > 2.0 and target.state != Herds.State.FLEE, "it trots %.1f m away and settles" % off)
+		check(off > 2.0 and target.state != Herds.State.FLEE, "it trots %.1f m away and settles" % off)
 		hand.global_position = AWAY
 		_run(g, 30.0, watch)
-		_check(worst.crossed == 0 and worst.wet == 0, "fleeing, it keeps out of water and walls")
+		check(worst.crossed == 0 and worst.wet == 0, "fleeing, it keeps out of water and walls")
 		await _seeds_held_low_draw_a_sheep(g, watch)
 
 	for step in 6:
 		g.world.undo()
 	await process_frame
 	await process_frame
-	_check(not is_instance_valid(fence), "the fence is erased")
+	check(not is_instance_valid(fence), "the fence is erased")
 	_run(g, 1.0, vanishing)
-	_check(herds.bands.size() == 1 and herds.bands[0].animals.all(func(s: Sheep) -> bool: return s.state == Herds.State.LEAVE), "the flock sets off")
+	check(herds.bands.size() == 1 and herds.bands[0].animals.all(func(s: Sheep) -> bool: return s.state == Herds.State.LEAVE), "the flock sets off")
 	_run(g, 400.0, vanishing)
-	_check(g.sheep().is_empty(), "the sheep leave an erased fence")
+	check(g.sheep().is_empty(), "the sheep leave an erased fence")
 	_run(g, 120.0)
-	_check(g.sheep().is_empty(), "and none come back without it")
+	check(g.sheep().is_empty(), "and none come back without it")
 	await _teardown(g)
 
 
@@ -415,10 +406,10 @@ func _the_same_seed_brings_the_same_flock() -> void:
 			at.append(s.position.snapped(Vector3.ONE * 0.001))
 		places.append(at)
 		await _teardown(g)
-	_check(not places[0].is_empty() and places[0] == places[1], "the same seed brings the same flock to the same grass: %s vs %s" % places)
+	check(not places[0].is_empty() and places[0] == places[1], "the same seed brings the same flock to the same grass: %s vs %s" % places)
 	var g := await _glade(9)
 	var seeds := [g.wildlife.rng.seed, g.wildlife.butterflies.rng.seed, g.wildlife.fireflies.rng.seed, g.wildlife.birds.rng.seed, g.wildlife.herds.rng.seed]
-	_check(seeds.all(func(n: int) -> bool: return seeds.count(n) == 1), "each kind of animal draws its own numbers, seeds %s" % [seeds])
+	check(seeds.all(func(n: int) -> bool: return seeds.count(n) == 1), "each kind of animal draws its own numbers, seeds %s" % [seeds])
 	await _teardown(g)
 
 
@@ -436,8 +427,8 @@ func _curved_walls_are_kept_off_where_they_curve() -> void:
 		if _off_line(chords, q) > worst:
 			worst = _off_line(chords, q)
 			at = q
-	_check(worst > 0.1, "the curve strays %.2f m from its chords" % worst)
-	_check(_off_line(Herds._line(w), at) < 0.01, "the line sheep keep off runs along the curve, %.2f m off it" % _off_line(Herds._line(w), at))
+	check(worst > 0.1, "the curve strays %.2f m from its chords" % worst)
+	check(_off_line(Herds._line(w), at) < 0.01, "the line sheep keep off runs along the curve, %.2f m off it" % _off_line(Herds._line(w), at))
 
 
 func _off_line(line: PackedVector2Array, q: Vector2) -> float:
@@ -454,11 +445,11 @@ func _settled_sheep_follow_their_ground() -> void:
 	_draw(g, Hand.Tool.FENCE, Vector3(-6, 0, -4), Vector3(6, 0, -4))
 	_run(g, Wildlife.SHEEP_AFTER.y + 90.0)
 	var herds := g.wildlife.herds
-	_check(herds.bands.size() == 1 and g.sheep().size() >= Herds.FLOCK.x, "a flock grazes by the fence")
+	check(herds.bands.size() == 1 and g.sheep().size() >= Herds.FLOCK.x, "a flock grazes by the fence")
 	var watch := Watch.new()
 	var see := func() -> void: watch.see(self, g)
 	var some := _a_resting(g)
-	_check(some != null, "a sheep rests")
+	check(some != null, "a sheep rests")
 	if some == null:
 		await _teardown(g)
 		return
@@ -467,30 +458,30 @@ func _settled_sheep_follow_their_ground() -> void:
 	for p in g.water.ponds:
 		p._process(PondWater.FILL)
 	var pond := g.water.pond_at(some.position.x, some.position.z)
-	_check(pond != null and pond.pond.level - Terrain.height_at(some.position.x, some.position.z) > 0.05, "a pond is dug under a resting sheep")
+	check(pond != null and pond.pond.level - Terrain.height_at(some.position.x, some.position.z) > 0.05, "a pond is dug under a resting sheep")
 	_run(g, 10.0, func() -> void:
 		watch.see(self, g)
 		watch.wet = 0
 		watch.kept = 0)
 	_run(g, 20.0, see)
-	_check(watch.wet == 0 and watch.kept == 0, "it walks out of the new pond and stays out, %d frames in water" % watch.wet)
+	check(watch.wet == 0 and watch.kept == 0, "it walks out of the new pond and stays out, %d frames in water" % watch.wet)
 
 	var other := _a_resting(g)
-	_check(other != null, "another sheep rests")
+	check(other != null, "another sheep rests")
 	if other != null:
 		var fence_z := -4.0
 		var out := signf(other.position.z - fence_z)
 		var x := other.position.x + 0.25
 		_draw(g, Hand.Tool.WALLS, Vector3(x, 0, fence_z + out * 1.0), Vector3(x, 0, fence_z + out * 8.0))
 		await process_frame
-		_check(not herds.allowed(other.position), "a wall is drawn under a resting sheep")
+		check(not herds.allowed(other.position), "a wall is drawn under a resting sheep")
 		watch.kept = 0
 		_run(g, 10.0, func() -> void:
 			watch.see(self, g)
 			watch.kept = 0)
 		_run(g, 20.0, see)
-		_check(watch.kept == 0, "it moves off the wall's ground and keeps off, %d frames on it" % watch.kept)
-	_check(watch.crossed == 0, "never through a wall, %d steps" % watch.crossed)
+		check(watch.kept == 0, "it moves off the wall's ground and keeps off, %d frames on it" % watch.kept)
+	check(watch.crossed == 0, "never through a wall, %d steps" % watch.crossed)
 
 	var middle := Vector3.ZERO
 	for s in g.sheep():
@@ -512,9 +503,9 @@ func _settled_sheep_follow_their_ground() -> void:
 		for s in g.sheep():
 			if before.has(s) and s.state != before[s]:
 				changed[s] = true)
-	_check(watch.floating == 0, "they stand on the ground as it moves, %d frames off it" % watch.floating)
-	_check(changed.size() == before.size(), "and go on from what they were doing, %d of %d" % [changed.size(), before.size()])
-	_check(watch.crossed == 0 and watch.wet == 0, "still never in water or through a wall")
+	check(watch.floating == 0, "they stand on the ground as it moves, %d frames off it" % watch.floating)
+	check(changed.size() == before.size(), "and go on from what they were doing, %d of %d" % [changed.size(), before.size()])
+	check(watch.crossed == 0 and watch.wet == 0, "still never in water or through a wall")
 	await _teardown(g)
 
 
@@ -524,7 +515,7 @@ func _leaving_sheep_keep_out_of_walls_and_water() -> void:
 	var g := await _glade(4)
 	var fence := _draw(g, Hand.Tool.FENCE, Vector3(-6, 0, -4), Vector3(6, 0, -4))
 	_run(g, Wildlife.SHEEP_AFTER.y + 60.0)
-	_check(g.sheep().size() >= Herds.FLOCK.x, "a flock grazes by the fence")
+	check(g.sheep().size() >= Herds.FLOCK.x, "a flock grazes by the fence")
 	for side in [[Vector3(-14, 0, 6), Vector3(-14, 0, -14)], [Vector3(-13, 0, -15), Vector3(13, 0, -15)], [Vector3(14, 0, -14), Vector3(14, 0, 6)], [Vector3(13, 0, 7), Vector3(-13, 0, 7)]]:
 		_draw(g, Hand.Tool.WALLS, side[0], side[1])
 	await _dig(g, 0.0, -12.0, 90)
@@ -541,16 +532,16 @@ func _leaving_sheep_keep_out_of_walls_and_water() -> void:
 	g.world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([fence.id])})
 	await process_frame
 	await process_frame
-	_check(not is_instance_valid(fence), "the fence is erased")
+	check(not is_instance_valid(fence), "the fence is erased")
 	_run(g, 1.0, see)
 	var herds := g.wildlife.herds
-	_check(herds.bands.size() == 1 and herds.bands[0].animals.all(func(s: Sheep) -> bool: return s.state == Herds.State.LEAVE), "the flock sets off")
+	check(herds.bands.size() == 1 and herds.bands[0].animals.all(func(s: Sheep) -> bool: return s.state == Herds.State.LEAVE), "the flock sets off")
 	_run(g, 90.0, see)
-	_check(watch.crossed == 0, "leaving, no sheep walks through a wall, %d steps" % watch.crossed)
-	_check(watch.wet == 0, "or into the water, %d frames" % watch.wet)
+	check(watch.crossed == 0, "leaving, no sheep walks through a wall, %d steps" % watch.crossed)
+	check(watch.wet == 0, "or into the water, %d frames" % watch.wet)
 	outside.global_transform = Transform3D(Basis(), Vector3(0, 6, 30)).looking_at(Vector3(0, 6, 60))
 	_run(g, 30.0, see)
-	_check(g.sheep().is_empty(), "once nobody looks they are let go, %d left" % g.sheep().size())
+	check(g.sheep().is_empty(), "once nobody looks they are let go, %d left" % g.sheep().size())
 	g.wildlife.viewer = g.rig.head
 	outside.free()
 	await _teardown(g)
@@ -562,7 +553,7 @@ func _a_sheep_off_its_grass_goes_back() -> void:
 	var fence := _draw(g, Hand.Tool.FENCE, Vector3(-6, 0, -4), Vector3(6, 0, -4))
 	_run(g, Wildlife.SHEEP_AFTER.y + 30.0)
 	var flock: Herds.Flock = g.wildlife.herds.bands[0] if not g.wildlife.herds.bands.is_empty() else null
-	_check(flock != null, "a flock grazes by the fence")
+	check(flock != null, "a flock grazes by the fence")
 	if flock == null:
 		await _teardown(g)
 		return
@@ -576,12 +567,10 @@ func _a_sheep_off_its_grass_goes_back() -> void:
 	s.goal = stray
 	s.state = Herds.State.STAND
 	s.timer = 0.0
-	_check(_off_fence(fence, s.position).x > Herds.BAND.y + 4.0, "a sheep stands %.1f m out from its fence" % _off_fence(fence, s.position).x)
+	check(_off_fence(fence, s.position).x > Herds.BAND.y + 4.0, "a sheep stands %.1f m out from its fence" % _off_fence(fence, s.position).x)
 	_run(g, 60.0)
 	var off := _off_fence(fence, s.position)
-	_check(s.state != Herds.State.LEAVE and off.x <= Herds.BAND.y + 0.6 and off.y == flock.side, "with nothing in its way it walks back to its grass, %.1f m out" % off.x)
+	check(s.state != Herds.State.LEAVE and off.x <= Herds.BAND.y + 0.6 and off.y == flock.side, "with nothing in its way it walks back to its grass, %.1f m out" % off.x)
 	await _teardown(g)
-
-
 
 

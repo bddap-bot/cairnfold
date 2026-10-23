@@ -1,17 +1,10 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
-var failures := 0
-var main: Node
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
 
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 func _run() -> void:
 	await process_frame
@@ -36,22 +29,22 @@ func _run() -> void:
 	var id := w.id
 	var tool: DeleteTool = main.delete_tool
 	var target := tool.aim(eye, -out)
-	_check(not tool.aim(at - out * 12.0, out).has("fitting"), "the house body occludes the lamp on its far side")
-	_check(target.has("fitting"), "delete identifies the lamp rather than its house")
+	check(not tool.aim(at - out * 12.0, out).has("fitting"), "the house body occludes the lamp on its far side")
+	check(target.has("fitting"), "delete identifies the lamp rather than its house")
 	await _capture("lamp-highlight", eye, -out, at)
 	var body_eye: Vector3 = w.layout.frame_at(5).point + Vector3.UP * 1.6 + out * 3.0
 	var body := tool.aim(body_eye, -out)
-	_check(body.get("wall") == w and not body.has("fitting"), "bare house body selects the house")
-	_check(tool.target_bounds(body).size.length() > tool.target_bounds(target).size.length() * 5, "hover extent distinguishes house from lamp")
+	check(body.get("wall") == w and not body.has("fitting"), "bare house body selects the house")
+	check(tool.target_bounds(body).size.length() > tool.target_bounds(target).size.length() * 5, "hover extent distinguishes house from lamp")
 	await _capture("house-highlight", body_eye, -out, at)
 	tool.press(self, eye, -out)
 	for i in 3:
 		tool.hold(self, body_eye, -out)
 	tool.let_go(self)
 	await process_frame
-	_check(main.world.state.walls.has(id), "deleting a lamp leaves its house standing")
+	check(main.world.state.walls.has(id), "deleting a lamp leaves its house standing")
 	if main.world.state.walls.has(id):
-		_check(main.world.state.walls[id].lanterns == PackedVector3Array([other]), "only the aimed lamp is deleted")
+		check(main.world.state.walls[id].lanterns == PackedVector3Array([other]), "only the aimed lamp is deleted")
 	if not main.world.state.walls.has(id):
 		print("tests: FAILED %d" % failures)
 		Main.quit(self, 1)
@@ -59,43 +52,42 @@ func _run() -> void:
 	main.world.undo()
 	w = main.tool.find(id)
 	w.lay_now()
-	_check(w.layout.lanterns.size() == 2, "one undo restores the lamp")
+	check(w.layout.lanterns.size() == 2, "one undo restores the lamp")
 	main.world.redo()
 	w.lay_now()
-	_check(w.layout.lanterns == [other], "redo removes only that lamp")
+	check(w.layout.lanterns == [other], "redo removes only that lamp")
 	main.world.undo()
 	w.lay_now()
 	# A peer's delete travels through host validation and the same replicated reshape.
 	var before: Dictionary = main.world.state.walls[id].duplicate(true)
 	var cmd := FittingTool.removal(main.world.state, target)
 	var accepted := Commands.clean(cmd, main.world.state, false)
-	_check(not accepted.is_empty(), "host accepts the single-fitting command")
+	check(not accepted.is_empty(), "host accepts the single-fitting command")
 	tool.press(self, eye, -out)
 	main.world._order(cmd, 42)
 	var seq: int = main.world.seq
 	tool.let_go(self)
-	_check(main.world.seq == seq, "a peer taking the selected lamp does not retarget the held delete")
+	check(main.world.seq == seq, "a peer taking the selected lamp does not retarget the held delete")
 	w.lay_now()
-	_check(w.layout.lanterns == [other], "peer deletion changes one lamp")
+	check(w.layout.lanterns == [other], "peer deletion changes one lamp")
 	main.world._order({"op": "undo"}, 42)
 	w.lay_now()
-	_check(main.world.state.walls[id] == before, "peer undo restores the exact house and fittings")
+	check(main.world.state.walls[id] == before, "peer undo restores the exact house and fittings")
 	tool.press(self, eye + Vector3.UP * 20, Vector3.UP)
 	tool._stroke(tool._cuts[self], eye, -out)
 	var other_eye: Vector3 = w.layout.frame_at(4).point + Vector3.UP * 1.6 + out * 3
 	tool._stroke(tool._cuts[self], other_eye, -out)
 	tool.let_go(self)
 	w.lay_now()
-	_check(w.layout.lanterns.is_empty(), "a stroke combines two fitting removals on the same house")
+	check(w.layout.lanterns.is_empty(), "a stroke combines two fitting removals on the same house")
 	main.world.undo()
 	w.lay_now()
-	_check(main.world.state.walls[id] == before, "one undo restores a multi-fitting stroke")
+	check(main.world.state.walls[id] == before, "one undo restores a multi-fitting stroke")
 	await _other_fittings(w)
 	tool.press(self, body_eye, -out)
 	tool.let_go(self)
-	_check(not main.world.state.walls.has(id), "a body hit still removes the house")
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	check(not main.world.state.walls.has(id), "a body hit still removes the house")
+	finish()
 
 
 func _capture(name: String, eye: Vector3, dir: Vector3, at: Vector3) -> void:
@@ -106,7 +98,7 @@ func _capture(name: String, eye: Vector3, dir: Vector3, at: Vector3) -> void:
 	hand.global_transform = Transform3D(Basis.looking_at(dir), eye)
 	for i in 6:
 		await process_frame
-	_check(main.delete_tool._rings[1].visible, "live delete hover shows " + name)
+	check(main.delete_tool._rings[1].visible, "live delete hover shows " + name)
 	if not OS.get_environment("DELETE_CAPTURE").is_empty():
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png(OS.get_environment("DELETE_CAPTURE").path_join(name + ".png"))
@@ -138,14 +130,14 @@ func _other_fittings(w: Wall) -> void:
 	var flag: Dictionary = FittingTool.targets(tower).filter(func(t: Dictionary) -> bool: return t.what == "tower_flag")[0]
 	var centre: Vector3 = flag.bounds.get_center()
 	var origin := centre - Vector3.UP * 0.5
-	_check(main.delete_tool.aim(origin, Vector3.UP).get("what") == "tower_flag", "an upward ray hits the tower flag")
-	_check(not main.delete_tool.charge(self, origin, Vector3.UP, 0.1), "aiming upward at a fitting does not charge a garden wipe")
+	check(main.delete_tool.aim(origin, Vector3.UP).get("what") == "tower_flag", "an upward ray hits the tower flag")
+	check(not main.delete_tool.charge(self, origin, Vector3.UP, 0.1), "aiming upward at a fitting does not charge a garden wipe")
 	main.delete_tool.cancel(self)
 
 
 func _takes_kind(w: Wall, kind: String) -> void:
 	var items := FittingTool.targets(w).filter(func(t: Dictionary) -> bool: return t.what == kind)
-	_check(not items.is_empty(), "fixture has " + kind)
+	check(not items.is_empty(), "fixture has " + kind)
 	if items.is_empty():
 		return
 	var item: Dictionary = items[0]
@@ -160,18 +152,18 @@ func _takes_kind(w: Wall, kind: String) -> void:
 			ray = -outward
 			origin = eye
 			break
-	_check(ray != Vector3.ZERO, "a ray selects " + kind)
+	check(ray != Vector3.ZERO, "a ray selects " + kind)
 	if ray == Vector3.ZERO:
 		return
 	var before: Dictionary = main.world.state.walls[w.id].duplicate(true)
 	var placement: Dictionary = main.fitting_tool.aim(Hand.Tool.WINDOWS if kind == "opening" else Hand.Tool.DECORATIONS, origin, ray)
-	_check(placement.get("what") == kind and placement.get("fitting", false), "placement and delete share " + kind + " identity")
+	check(placement.get("what") == kind and placement.get("fitting", false), "placement and delete share " + kind + " identity")
 	tool.press(self, origin, ray)
 	tool.hold(self, origin, ray)
 	tool.let_go(self)
 	w.lay_now()
-	_check(FittingTool.targets(w).filter(func(t: Dictionary) -> bool: return t.what == kind).size() == items.size() - 1, "delete removes only " + kind)
-	_check(main.world.state.walls.has(w.id), kind + " leaves its wall")
+	check(FittingTool.targets(w).filter(func(t: Dictionary) -> bool: return t.what == kind).size() == items.size() - 1, "delete removes only " + kind)
+	check(main.world.state.walls.has(w.id), kind + " leaves its wall")
 	main.world.undo()
 	w.lay_now()
-	_check(main.world.state.walls[w.id] == before, "undo restores exact state for " + kind)
+	check(main.world.state.walls[w.id] == before, "undo restores exact state for " + kind)

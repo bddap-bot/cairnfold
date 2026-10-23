@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 const Probe = preload("res://../tests/support/house_leaks.gd")
 const SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 60]
@@ -24,22 +24,13 @@ const SEALED_RAYS := {
 	],
 }
 var started := Time.get_ticks_msec()
-var failures := 0
-var main: Main
 var inventory: Array = []
 var ground_part: Dictionary
 
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 
 func _run() -> void:
@@ -69,8 +60,7 @@ func _run() -> void:
 	if not path.is_empty():
 		FileAccess.open(path, FileAccess.WRITE).store_string(JSON.stringify({"cases": inventory, "milliseconds": elapsed}, "\t"))
 	print("tests: house leak inventory: %d cases in %.3f s (report only; promote repaired cases to gates)" % [inventory.size(), elapsed / 1000.0])
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 func _contract() -> void:
@@ -82,7 +72,7 @@ func _contract() -> void:
 	w.id = 1
 	var room: Array[Wall] = [w]
 	for dir in Probe.directions(256):
-		_check(probe.probe(Vector3.ZERO, dir, room).status == "shell", "a closed rendered box contains every ray")
+		check(probe.probe(Vector3.ZERO, dir, room).status == "shell", "a closed rendered box contains every ray")
 	probe.parts.clear()
 	var faces := box.get_faces()
 	var hole := PackedVector3Array()
@@ -91,15 +81,15 @@ func _contract() -> void:
 			continue
 		hole.append_array(faces.slice(i, i + 3))
 	probe.add_faces(hole, "shell-with-hole", 1)
-	_check(probe.probe(Vector3.ZERO, Vector3.FORWARD, room).status == "leak", "removing rendered triangles creates a leak")
+	check(probe.probe(Vector3.ZERO, Vector3.FORWARD, room).status == "leak", "removing rendered triangles creates a leak")
 	var outside := box.get_faces()
 	for i in outside.size():
 		outside[i] += Vector3(0, 0, -8)
 	probe.add_faces(outside, "unrelated-building", 2)
-	_check(probe.probe(Vector3.ZERO, Vector3.FORWARD, room).status == "leak", "hitting another building through a gap still leaks")
+	check(probe.probe(Vector3.ZERO, Vector3.FORWARD, room).status == "leak", "hitting another building through a gap still leaks")
 	probe.parts.pop_back()
 	probe.add_faces(outside, "ground-or-water", -1)
-	_check(probe.probe(Vector3.ZERO, Vector3.FORWARD, room).status == "leak", "outside ground/water cannot plug a room's gap")
+	check(probe.probe(Vector3.ZERO, Vector3.FORWARD, room).status == "leak", "outside ground/water cannot plug a room's gap")
 	w.layout.points = WallLayout.rectangle(Vector3(-3, 0, 0), Vector3(3, 0, 0), 4.0)
 	w.layout.closed = true
 	w.layout.height = 3.0
@@ -108,12 +98,12 @@ func _contract() -> void:
 		w.layout.build(func(_x: float, _z: float) -> float: return 0.0)
 		var y := 1.5 if opening.y == 1.5 else 0.8
 		var origin := Vector3(0, w.layout.samples[0].y + y, 0)
-		_check(Probe.aperture(w, origin, Vector3.FORWARD, 10.0), "window, door and arch interiors are intended openings")
-		_check(not Probe.aperture(w, origin, Vector3.FORWARD, 1.0), "an opening behind the first hit cannot excuse a leak")
-		_check(not Probe.aperture(w, origin + Vector3.RIGHT * 2.0, Vector3.FORWARD, 10.0), "solid wall beside an opening is not exempt")
-		_check(not Probe.aperture(w, origin + Vector3.UP * 3.0, Vector3.FORWARD, 10.0), "space above an opening is not exempt")
+		check(Probe.aperture(w, origin, Vector3.FORWARD, 10.0), "window, door and arch interiors are intended openings")
+		check(not Probe.aperture(w, origin, Vector3.FORWARD, 1.0), "an opening behind the first hit cannot excuse a leak")
+		check(not Probe.aperture(w, origin + Vector3.RIGHT * 2.0, Vector3.FORWARD, 10.0), "solid wall beside an opening is not exempt")
+		check(not Probe.aperture(w, origin + Vector3.UP * 3.0, Vector3.FORWARD, 10.0), "space above an opening is not exempt")
 	w.free()
-	_check(Probe.directions(256) == Probe.directions(256), "ray sets repeat exactly")
+	check(Probe.directions(256) == Probe.directions(256), "ray sets repeat exactly")
 
 
 func _commands(seed_value: int) -> Array:
@@ -185,16 +175,16 @@ func _house(seed_value: int, count: int) -> void:
 	main.world.restore({"seq": 0, "cmds": []})
 	await process_frame
 	var commands := _commands(seed_value)
-	_check(not commands.is_empty(), "seed produces build commands")
-	_check(var_to_str(commands) == var_to_str(_commands(seed_value)), "seed %d commands repeat" % seed_value)
+	check(not commands.is_empty(), "seed produces build commands")
+	check(var_to_str(commands) == var_to_str(_commands(seed_value)), "seed %d commands repeat" % seed_value)
 	for cmd in commands:
 		main.world._order(cmd, 1)
 	main.tool._relay_due()
 	for w in main.tool.walls:
 		w.lay_now()
-	_check(main.tool._due.is_empty() and main.tool.walls.all(func(w: Wall) -> bool: return not w.laying()), "all command geometry has settled")
+	check(main.tool._due.is_empty() and main.tool.walls.all(func(w: Wall) -> bool: return not w.laying()), "all command geometry has settled")
 	var room: Array[Wall] = main.tool.walls.duplicate()
-	_check(room.size() == commands.size(), "seed %d accepted every real build command" % seed_value)
+	check(room.size() == commands.size(), "seed %d accepted every real build command" % seed_value)
 	if room.is_empty():
 		return
 	if seed_value == 35:
@@ -205,7 +195,7 @@ func _house(seed_value: int, count: int) -> void:
 					continue
 				for c in WallLayout.BOX:
 					var p: Vector3 = x * c
-					_check(not w.layout.joined.any(func(other: Massing) -> bool: return Massing.encloses(Vector2(p.x, p.z), other.centre)), "curved join keeps deck corners outside the adjoining ceiling")
+					check(not w.layout.joined.any(func(other: Massing) -> bool: return Massing.encloses(Vector2(p.x, p.z), other.centre)), "curved join keeps deck corners outside the adjoining ceiling")
 		for w in room:
 			for piece in w.roof.mortar + w.roof.tiles:
 				if piece.kind not in ["mortar", "deck"]:
@@ -219,11 +209,11 @@ func _house(seed_value: int, count: int) -> void:
 							continue
 						var higher := other.roof.height_at(p.x, p.z)
 						if higher > w.roof.height_at(p.x, p.z) + 0.001:
-							_check(p.y >= higher - RoofLayout.CEILING_DROP - RoofLayout.CEILING_DEPTH - 0.005, "crossing domes keep deck undersides above the higher ceiling boards")
+							check(p.y >= higher - RoofLayout.CEILING_DROP - RoofLayout.CEILING_DEPTH - 0.005, "crossing domes keep deck undersides above the higher ceiling boards")
 		var ceiling := Probe.new()
 		for w in room:
 			ceiling.add_faces(w.roof.timber_faces, "ceiling", w.id)
-		_check(not ceiling.first(Vector3(-0.5, 1.3, -18.2), Vector3.UP).is_empty(), "boards meet across a curved join without a missing triangle exposing the bed")
+		check(not ceiling.first(Vector3(-0.5, 1.3, -18.2), Vector3.UP).is_empty(), "boards meet across a curved join without a missing triangle exposing the bed")
 	var probe := Probe.new()
 	for w in room:
 		probe.add_wall(w)
@@ -238,7 +228,7 @@ func _house(seed_value: int, count: int) -> void:
 			var ceiling := w.roof.height_at(center.x, center.y) - 0.25
 			for offset in [Vector2.ZERO, Vector2(-0.5, -0.5), Vector2(0.5, 0.5)]:
 				var origin := Vector3(center.x + offset.x, lerpf(floor_y, ceiling, 0.5), center.y + offset.y)
-				_check(w.massing.holds(origin), "seed %d probe starts inside its room" % seed_value)
+				check(w.massing.holds(origin), "seed %d probe starts inside its room" % seed_value)
 				for direction in Probe.directions(count):
 					_trace(probe, origin, direction, room, w, record)
 		if seed_value == 8756:
@@ -258,14 +248,14 @@ func _house(seed_value: int, count: int) -> void:
 								_trace(probe, origin, direction, room, w, record)
 	for ray: Array in SEALED_RAYS.get(seed_value, []):
 		var sealed: Dictionary = probe.probe(ray[0], ray[1], room)
-		_check(sealed.status == "shell", "seed %d ray from %s along %s is sealed: %s" % [seed_value, ray[0], ray[1], sealed])
+		check(sealed.status == "shell", "seed %d ray from %s along %s is sealed: %s" % [seed_value, ray[0], ray[1], sealed])
 	if seed_value in SEALED_SEEDS:
-		_check(record.totals.leak == 0, "sealed seed %d has %d escapes" % [seed_value, record.totals.leak])
+		check(record.totals.leak == 0, "sealed seed %d has %d escapes" % [seed_value, record.totals.leak])
 	inventory.append(record)
 	print("tests: leak seed=%d totals=%s groups=%s" % [seed_value, JSON.stringify(record.totals), JSON.stringify(record.groups)])
 	if record.totals.leak > 0 and OS.get_cmdline_user_args().has("--leak-strict"):
 		print("rebuild seed=%d commands=%s" % [seed_value, var_to_str(commands)])
-		_check(false, "seed %d has %d render leaks" % [seed_value, record.totals.leak])
+		check(false, "seed %d has %d render leaks" % [seed_value, record.totals.leak])
 
 
 func _trace(probe: RefCounted, origin: Vector3, direction: Vector3, room: Array[Wall], w: Wall, record: Dictionary) -> void:

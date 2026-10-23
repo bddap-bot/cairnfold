@@ -1,11 +1,5 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
-var failures := 0
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 func _flat(_x: float, _z: float) -> float:
 	return 0.0
@@ -26,7 +20,7 @@ func _continuous() -> void:
 	w.plaster = true
 	w.build(_hill)
 	var panels := w.stones.filter(func(s): return s.kind == "plaster")
-	_check(panels.size() > 3, "a curved plaster wall lays panels")
+	check(panels.size() > 3, "a curved plaster wall lays panels")
 	var joints := 0
 	for a in panels:
 		if a.ends.y == 0.0:
@@ -34,11 +28,11 @@ func _continuous() -> void:
 		var x: Transform3D = a.xform
 		var edge := x.origin + x.basis.x * 0.5 - x.basis.y * 0.5
 		var next := panels.filter(func(b): return (b.xform.origin - b.xform.basis.x * 0.5 - b.xform.basis.y * 0.5).distance_to(edge) < 0.001)
-		_check(next.size() == 1, "a panel's end meets the next panel's start at %.2f" % a.s)
+		check(next.size() == 1, "a panel's end meets the next panel's start at %.2f" % a.s)
 		if next.size() == 1:
-			_check(is_equal_approx(next[0].ends.x, -a.ends.y), "the joint turns both panels to one bisector at %.2f" % a.s)
+			check(is_equal_approx(next[0].ends.x, -a.ends.y), "the joint turns both panels to one bisector at %.2f" % a.s)
 			joints += 1
-	_check(joints >= panels.size() - 1, "every panel but the last is mitred into the next")
+	check(joints >= panels.size() - 1, "every panel but the last is mitred into the next")
 
 
 func _init() -> void:
@@ -56,33 +50,32 @@ func _init() -> void:
 			var plaster := stone.inputs()
 			plaster.plaster = true
 			plaster.build(_flat)
-			_check(plaster.inputs().plaster and plaster.snapshot().plaster, "workers preserve plaster")
-			_check(not plaster.same_inputs(stone), "material invalidates cached layout")
-			_check(plaster.archways() == stone.archways() and plaster.apertures == stone.apertures, "same arches, windows and doors")
-			_check(plaster.stones.size() < stone.stones.size(), "plaster replaces stones instead of overlaying them")
+			check(plaster.inputs().plaster and plaster.snapshot().plaster, "workers preserve plaster")
+			check(not plaster.same_inputs(stone), "material invalidates cached layout")
+			check(plaster.archways() == stone.archways() and plaster.apertures == stone.apertures, "same arches, windows and doors")
+			check(plaster.stones.size() < stone.stones.size(), "plaster replaces stones instead of overlaying them")
 			var packed := Wall.pack(plaster, Wall.kinds(), Palette.plain())
 			var old := Wall.pack(stone, Wall.kinds(), Palette.plain())
-			_check(packed.stone.size() < old.stone.size() and packed.shadow.size() <= old.shadow.size(), "fewer stone vertices and shadow instances")
-			_check(packed.mortar.size() <= old.mortar.size() * 2, "plaster splits from the footing's mortar, no finer")
+			check(packed.stone.size() < old.stone.size() and packed.shadow.size() <= old.shadow.size(), "fewer stone vertices and shadow instances")
+			check(packed.mortar.size() <= old.mortar.size() * 2, "plaster splits from the footing's mortar, no finer")
 			for panel in plaster.stones.filter(func(s): return s.kind == "plaster"):
-				_check(panel.y > plaster.course_height(), "stone base retained")
+				check(panel.y > plaster.course_height(), "stone base retained")
 				for o in plaster.apertures:
-					_check(not (panel.y > o.sill and panel.y < o.head and absf(panel.s - o.s) < (plaster.opening(panel.y, false) if o.style == WallLayout.DoorStyle.ARCHWAY else o.half)), "plaster does not fill an opening")
+					check(not (panel.y > o.sill and panel.y < o.head and absf(panel.s - o.s) < (plaster.opening(panel.y, false) if o.style == WallLayout.DoorStyle.ARCHWAY else o.half)), "plaster does not fill an opening")
 			print("plaster: closed=%s cover=%d pieces %d -> %d" % [closed, cover, stone.stones.size(), plaster.stones.size()])
 	var wall := Wall.new(1, null)
 	wall.layout.points = [Vector3.ZERO, Vector3(8, 0, 0)]
 	wall.layout.plaster = true
 	var data := wall.data()
 	var clean: Variant = Commands._wall(data)
-	_check(clean != null and clean.plaster, "commands preserve plaster")
+	check(clean != null and clean.plaster, "commands preserve plaster")
 	var restored := Wall.new(2, null)
 	restored.set_data(clean)
-	_check(restored.layout.plaster, "saved plaster restores")
+	check(restored.layout.plaster, "saved plaster restores")
 	data.erase("plaster")
-	_check(Commands._wall(data) == null, "a wall without a material is rejected")
+	check(Commands._wall(data) == null, "a wall without a material is rejected")
 	data.plaster = "yes"
-	_check(Commands._wall(data) == null, "reject malformed material")
+	check(Commands._wall(data) == null, "reject malformed material")
 	wall.free()
 	restored.free()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

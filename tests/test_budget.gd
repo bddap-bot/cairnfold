@@ -1,17 +1,14 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of the frame budget: what the garden counts follows every placement and deletion, an edit that
 ## would take it past the budget is turned down whole, and deleting makes room again:
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_budget.gd
 
-var failures := 0
-var main: Node
 var world: World
 
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
 
 
@@ -28,8 +25,7 @@ func _run() -> void:
 	_water_costs_at_most_a_view_full()
 	_stone_ground_counts_its_square_metres()
 	_a_boulder_costs_no_more_once_it_fills_the_view()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 func _every_step_keeps_the_same_fill() -> void:
@@ -38,19 +34,19 @@ func _every_step_keeps_the_same_fill() -> void:
 	var pin: int = main.quality.pin
 	for step in Quality.ladder.size():
 		main.quality.pin = step
-		_check(is_equal_approx(Budget.fill(garden), expected), "quality %d keeps the same fill" % step)
-		_check(not Budget.fits(garden, {"wall_m2": 1000.0}), "quality %d refuses an over-capacity edit" % step)
+		check(is_equal_approx(Budget.fill(garden), expected), "quality %d keeps the same fill" % step)
+		check(not Budget.fits(garden, {"wall_m2": 1000.0}), "quality %d refuses an over-capacity edit" % step)
 	main.quality.pin = pin
 
 
 func _water_costs_at_most_a_view_full() -> void:
 	var q: Dictionary = Budget.COSTS
 	var pond := {"pond_m2": 20.0}
-	_check(is_equal_approx(Budget.cost_ms(pond), 20.0 * q.pond_m2 / 1000.0), "a small pond costs its square metres")
+	check(is_equal_approx(Budget.cost_ms(pond), 20.0 * q.pond_m2 / 1000.0), "a small pond costs its square metres")
 	var lake := {"pond_m2": 13158.0}
-	_check(is_equal_approx(Budget.cost_ms(lake), q.water / 1000.0), "the meadow's whole bowl costs a view full of water")
-	_check(Budget.fits({}, lake) == (q.water / 1000.0 <= Budget.CAPACITY_MS), "and fits an empty garden exactly when that view fits the room")
-	_check(Budget.fits(lake, {"pond_m2": 500.0}), "more water beside a full view's worth costs nothing more")
+	check(is_equal_approx(Budget.cost_ms(lake), q.water / 1000.0), "the meadow's whole bowl costs a view full of water")
+	check(Budget.fits({}, lake) == (q.water / 1000.0 <= Budget.CAPACITY_MS), "and fits an empty garden exactly when that view fits the room")
+	check(Budget.fits(lake, {"pond_m2": 500.0}), "more water beside a full view's worth costs nothing more")
 
 
 func _stone_ground_counts_its_square_metres() -> void:
@@ -58,31 +54,25 @@ func _stone_ground_counts_its_square_metres() -> void:
 	var r := FloraTool.MAX_RADIUS * 0.4
 	var disc := PackedVector4Array([Vector4(40, -40, r, r * 2.0)])
 	var meadow := {"op": "ground", "kind": int(Ground.Kind.MEADOW), "stamps": disc}
-	_check(Budget.ground(meadow).is_empty(), "painting meadow back counts nothing")
+	check(Budget.ground(meadow).is_empty(), "painting meadow back counts nothing")
 	var stone := {"op": "ground", "kind": int(Ground.Kind.STONE), "stamps": disc, "style": 0}
 	var area: float = Budget.ground(stone).get("stone_m2", 0.0)
-	_check(absf(area - PI * 9.0 * r * r) < PI * 9.0 * r * r * 0.1, "a stone disc counts the ground it reaches, fade included: %.1f m²" % area)
+	check(absf(area - PI * 9.0 * r * r) < PI * 9.0 * r * r * 0.1, "a stone disc counts the ground it reaches, fade included: %.1f m²" % area)
 	var twice := {"op": "ground", "kind": int(Ground.Kind.STONE), "stamps": PackedVector4Array([disc[0], disc[0] + Vector4(0.5, 0, 0, 0)]), "style": 0}
-	_check(Budget.ground(twice).stone_m2 < area * 1.5, "a stroke counts the ground its discs share once")
+	check(Budget.ground(twice).stone_m2 < area * 1.5, "a stroke counts the ground its discs share once")
 	var bounded := world.bounded
 	world.bounded = false
 	world._order(stone, world.me())
 	var id := world.seq
-	_check(world.state.grounds.has(id), "the stone stroke goes into the garden")
-	_check(is_equal_approx(world.units.get("stone_m2", 0.0) - before.get("stone_m2", 0.0), area), "laying stone counts it")
-	_check(_same(world.units, _recount()), "stone's count matches a recount")
+	check(world.state.grounds.has(id), "the stone stroke goes into the garden")
+	check(is_equal_approx(world.units.get("stone_m2", 0.0) - before.get("stone_m2", 0.0), area), "laying stone counts it")
+	check(_same(world.units, _recount()), "stone's count matches a recount")
 	world._order({"op": "take", "of": "grounds", "ids": PackedInt32Array([id])}, world.me())
-	_check(_same(world.units, before), "taking the stone away frees it")
+	check(_same(world.units, before), "taking the stone away frees it")
 	world.bounded = bounded
 	var q: Dictionary = Budget.COSTS
-	_check(is_equal_approx(Budget.cost_ms({"stone_m2": 100.0}), 100.0 * q.stone_m2 / 1000.0), "a little stone costs its square metres")
-	_check(is_equal_approx(Budget.cost_ms({"stone_m2": 25600.0}), q.stone / 1000.0), "the whole meadow in stone costs a view full of it")
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	check(is_equal_approx(Budget.cost_ms({"stone_m2": 100.0}), 100.0 * q.stone_m2 / 1000.0), "a little stone costs its square metres")
+	check(is_equal_approx(Budget.cost_ms({"stone_m2": 25600.0}), q.stone / 1000.0), "the whole meadow in stone costs a view full of it")
 
 
 func _play(steps: Array) -> void:
@@ -141,7 +131,7 @@ func _build(walls: Array) -> bool:
 	var before: int = world.state.walls.size()
 	var settled := [false]
 	world.submit({"op": "wall", "walls": walls}, func() -> void: settled[0] = true, main.rig.right)
-	_check(settled[0], "a wall command settles at once on the host")
+	check(settled[0], "a wall command settles at once on the host")
 	await _settled()
 	return world.state.walls.size() > before
 
@@ -149,19 +139,19 @@ func _build(walls: Array) -> bool:
 func _counts_follow_placements_and_deletions() -> void:
 	var meadow := world.units.duplicate()
 	var stand := {"tree": world.flora.meadow_trees().size(), "bush": world.flora.meadow_bushes().size()}
-	_check(_same(meadow, stand), "the meadow's own trees and bushes count as planted ones, its grass and flowers nothing: %s" % meadow)
-	_check(Budget.CAPACITY_MS > 0.0 and Budget.fits(meadow, {"wall_m2": 1.0}), "a fresh garden has room to build: %.2f full" % world.fill())
-	_check(_same(world.units, _recount()), "a fresh garden counts what it holds")
+	check(_same(meadow, stand), "the meadow's own trees and bushes count as planted ones, its grass and flowers nothing: %s" % meadow)
+	check(Budget.CAPACITY_MS > 0.0 and Budget.fits(meadow, {"wall_m2": 1.0}), "a fresh garden has room to build: %.2f full" % world.fill())
+	check(_same(world.units, _recount()), "a fresh garden counts what it holds")
 	var oak: int = world.flora.meadow_trees()[0]
 	world._order({"op": "tree", "group": 0, "index": oak, "scale": 2.0}, world.me())
-	_check(_same(world.units, meadow), "a meadow tree counts one tree when resized: %s" % world.units)
+	check(_same(world.units, meadow), "a meadow tree counts one tree when resized: %s" % world.units)
 	world._order({"op": "undo"}, world.me())
-	_check(_same(world.units, meadow), "and shrunk back too: %s" % world.units)
+	check(_same(world.units, meadow), "and shrunk back too: %s" % world.units)
 	var full := world.fill()
 	world._order({"op": "show", "plants": {0: PackedInt32Array([oak])}, "on": false}, world.me())
-	_check(is_equal_approx(full - world.fill(), Budget.COSTS.tree / 1000.0 / Budget.CAPACITY_MS), "clearing a meadow tree frees one tree's share of the bar: %.4f to %.4f" % [full, world.fill()])
+	check(is_equal_approx(full - world.fill(), Budget.COSTS.tree / 1000.0 / Budget.CAPACITY_MS), "clearing a meadow tree frees one tree's share of the bar: %.4f to %.4f" % [full, world.fill()])
 	world._order({"op": "undo"}, world.me())
-	_check(is_equal_approx(world.fill(), full), "and putting it back takes the share again")
+	check(is_equal_approx(world.fill(), full), "and putting it back takes the share again")
 	await _play([
 		{"op": "place", "x": 0, "z": 8},
 		{"op": "wall", "points": [[-6, -2], [-1, -3]], "seconds": 0.3},
@@ -171,39 +161,39 @@ func _counts_follow_placements_and_deletions() -> void:
 		{"op": "dig", "x": 10, "z": -8, "seconds": 0.5},
 	])
 	await _settled()
-	_check(world.units.get("wall_m2", 0.0) > 0.0 and not world.units.has("path_m2") and world.units.get("pond_m2", 0) > 0, "walls, ponds and reserved path steps count: %s" % world.units)
-	_check(world.units.get("tree", 0) == meadow.tree + 1 and world.units.get("flower", 0) > 0, "a planted tree and painted flowers count: %s" % world.units)
+	check(world.units.get("wall_m2", 0.0) > 0.0 and not world.units.has("path_m2") and world.units.get("pond_m2", 0) > 0, "walls, ponds and reserved path steps count: %s" % world.units)
+	check(world.units.get("tree", 0) == meadow.tree + 1 and world.units.get("flower", 0) > 0, "a planted tree and painted flowers count: %s" % world.units)
 	var planted: int = world.state.groups.keys().filter(func(g: int) -> bool: return world.state.groups[g].kind == "tree")[0]
 	var before_resize := world.units.duplicate()
 	for scale in [FloraLayout.SCALES.x, 2.0, FloraLayout.SCALES.y]:
 		var resize := {"op": "tree", "group": planted, "index": 0, "scale": scale}
-		_check(world.change_of(resize).is_empty(), "resizing predicts no extra charge")
+		check(world.change_of(resize).is_empty(), "resizing predicts no extra charge")
 		world._order(resize, world.me())
-		_check(is_equal_approx(world.state.groups[planted].scale.get(0, 1.0), scale), "the resize was accepted before undoing it")
-		_check(_same(world.units, before_resize) and _same(world.units, _recount()), "resizing keeps the planted tree charged once")
+		check(is_equal_approx(world.state.groups[planted].scale.get(0, 1.0), scale), "the resize was accepted before undoing it")
+		check(_same(world.units, before_resize) and _same(world.units, _recount()), "resizing keeps the planted tree charged once")
 		world._order({"op": "undo"}, world.me())
-		_check(_same(world.units, before_resize), "undoing a resize preserves its charge")
-	_check(_same(world.units, _recount()), "what the garden counts matches what it holds: %s against %s" % [world.units, _recount()])
+		check(_same(world.units, before_resize), "undoing a resize preserves its charge")
+	check(_same(world.units, _recount()), "what the garden counts matches what it holds: %s against %s" % [world.units, _recount()])
 	var wall_id: int = world.state.walls.keys()[0]
 	var wall_units := Budget.wall(world.state.walls[wall_id])
 	var with_wall := world.units.duplicate()
 	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([wall_id])})
 	await _settled()
-	_check(is_equal_approx(world.units.get("wall_m2", 0.0), with_wall.wall_m2 - wall_units.wall_m2), "deleting a wall frees what it counted")
+	check(is_equal_approx(world.units.get("wall_m2", 0.0), with_wall.wall_m2 - wall_units.wall_m2), "deleting a wall frees what it counted")
 	await _play([{"op": "delete", "x": -6, "z": 4, "height": 3.0}])
 	await _settled()
-	_check(world.units.get("tree", 0) == meadow.tree, "deleting the tree frees it: %s" % world.units)
-	_check(_same(world.units, _recount()), "after deletions the count still matches the garden")
+	check(world.units.get("tree", 0) == meadow.tree, "deleting the tree frees it: %s" % world.units)
+	check(_same(world.units, _recount()), "after deletions the count still matches the garden")
 	for i in 8:
 		world.undo()
 		await _settled()
-	_check(_same(world.units, _recount()), "undo and redo keep the count matching the garden")
+	check(_same(world.units, _recount()), "undo and redo keep the count matching the garden")
 	await _play([{"op": "bare"}])
 	await _settled()
-	_check(_same(world.units, _recount()) and not world.units.has("wall_m2") and not world.units.has("flower"), "a wipe leaves nothing counted but the meadow: %s" % world.units)
+	check(_same(world.units, _recount()) and not world.units.has("wall_m2") and not world.units.has("flower"), "a wipe leaves nothing counted but the meadow: %s" % world.units)
 	world.undo()
 	await _settled()
-	_check(_same(world.units, _recount()), "undoing the wipe counts the garden it brings back")
+	check(_same(world.units, _recount()), "undoing the wipe counts the garden it brings back")
 	await _play([{"op": "bare"}])
 	await _settled()
 
@@ -215,17 +205,17 @@ func _arches_reserve_room_until_removed() -> void:
 	var plain := world.units.duplicate()
 	await _play([{"op": "fit", "what": "opening", "index": 0, "s": 6.0, "style": 1}])
 	await _settled()
-	_check(world.fill() > Budget.fill(plain), "an arch reserves GPU room beyond its intact stone wall")
+	check(world.fill() > Budget.fill(plain), "an arch reserves GPU room beyond its intact stone wall")
 	var arched := world.units.duplicate()
 	world.undo()
 	await _settled()
-	_check(_same(world.units, plain), "undoing an arch frees its reserved room")
+	check(_same(world.units, plain), "undoing an arch frees its reserved room")
 	world.redo()
 	await _settled()
-	_check(_same(world.units, arched), "redoing an arch reserves its room again")
+	check(_same(world.units, arched), "redoing an arch reserves its room again")
 	await _play([{"op": "fit", "what": "opening", "index": 0, "s": 6.0, "style": 1}])
 	await _settled()
-	_check(_same(world.units, plain), "removing an arch frees its room")
+	check(_same(world.units, plain), "removing an arch frees its room")
 	await _play([{"op": "bare"}])
 	await _settled()
 
@@ -233,30 +223,30 @@ func _arches_reserve_room_until_removed() -> void:
 func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 	var piece := _wall(Vector2(-6, -20), Vector2(6, -20), 4.5)
 	var share := Budget.fill(Budget.wall(piece))
-	_check(share > 0.02 and share < 1.0, "one test wall takes a measurable share: %.3f" % share)
+	check(share > 0.02 and share < 1.0, "one test wall takes a measurable share: %.3f" % share)
 	var too_big := [_wall(Vector2(-40, 30), Vector2(40, 30), 9.0), _wall(Vector2(-40, 34), Vector2(40, 34), 9.0), _wall(Vector2(-40, 38), Vector2(40, 38), 9.0)]
 	var before := world.units.duplicate()
-	_check(not await _build(too_big), "a build past the whole budget is turned down")
-	_check(_same(world.units, before), "a turned-down build counts nothing")
+	check(not await _build(too_big), "a build past the whole budget is turned down")
+	check(_same(world.units, before), "a turned-down build counts nothing")
 	var built := 0
 	for i in 40:
 		var at := -30.0 + i * 3.0
 		if not await _build([_wall(Vector2(-6, at), Vector2(6, at), 4.5)]):
 			break
 		built += 1
-	_check(built > 0 and built < 40, "walls go up until the budget is full: %d" % built)
-	_check(world.fill() <= 1.0, "the garden never passes its budget: %.3f" % world.fill())
-	_check(world.fill() + share > 1.0, "the wall turned down would have passed it: %.3f + %.3f" % [world.fill(), share])
+	check(built > 0 and built < 40, "walls go up until the budget is full: %d" % built)
+	check(world.fill() <= 1.0, "the garden never passes its budget: %.3f" % world.fill())
+	check(world.fill() + share > 1.0, "the wall turned down would have passed it: %.3f + %.3f" % [world.fill(), share])
 	var full := world.units.duplicate()
 	var last: int = world.state.walls.keys().max()
 	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([last])})
 	await _settled()
-	_check(world.fill() < Budget.fill(full), "deleting a wall frees its share")
-	_check(await _build([_wall(Vector2(-6, -50), Vector2(6, -50), 4.5)]), "the room it freed takes another wall")
+	check(world.fill() < Budget.fill(full), "deleting a wall frees its share")
+	check(await _build([_wall(Vector2(-6, -50), Vector2(6, -50), 4.5)]), "the room it freed takes another wall")
 	var tall_id: int = world.state.walls.keys().max()
 	world.submit({"op": "reshape", "of": "walls", "id": tall_id, "data": {"height": 9.0}})
 	await _settled()
-	_check(world.state.walls[tall_id].height == 4.5, "pulling a wall taller than the budget allows is turned down")
+	check(world.state.walls[tall_id].height == 4.5, "pulling a wall taller than the budget allows is turned down")
 	await _play([{"op": "bare"}])
 	await _settled()
 
@@ -272,19 +262,19 @@ func _a_capped_edit_is_heard_felt_and_shown() -> void:
 	world.capped.connect(func(h: XRController3D) -> void: capped[0] = h, CONNECT_ONE_SHOT)
 	var grunts: int = Cues.asked.get(Cues.Act.CAPPED, 0)
 	var too_big := [_wall(Vector2(-40, 30), Vector2(40, 30), 9.0), _wall(Vector2(-40, 34), Vector2(40, 34), 9.0), _wall(Vector2(-40, 38), Vector2(40, 38), 9.0)]
-	_check(not await _build(too_big), "a build past the whole budget is turned down")
-	_check(capped[0] == hand, "the hand that tried it is the one capped")
-	_check(Cues.asked.get(Cues.Act.CAPPED, 0) == grunts + 1, "the frame cap grunts once")
+	check(not await _build(too_big), "a build past the whole budget is turned down")
+	check(capped[0] == hand, "the hand that tried it is the one capped")
+	check(Cues.asked.get(Cues.Act.CAPPED, 0) == grunts + 1, "the frame cap grunts once")
 	var change := {}
 	for w: Dictionary in too_big:
 		Budget.add(change, Budget.wall(w))
 	for i in 3:
 		world.preview(hand, change)
 		await process_frame
-	_check(hand.capped, "a preview that will not fit shows refused before it is let go")
+	check(hand.capped, "a preview that will not fit shows refused before it is let go")
 	for i in 3:
 		await process_frame
-	_check(not hand.capped, "and stops once nothing over is shown")
+	check(not hand.capped, "and stops once nothing over is shown")
 
 
 func _painting_stops_at_the_budget() -> void:
@@ -297,28 +287,28 @@ func _painting_stops_at_the_budget() -> void:
 	await _settled()
 	await _play([{"op": "paint", "tool": "stone", "points": [[-40, -20], [40, -20], [40, -30], [-40, -30], [-40, -40], [40, -40]], "radius": 3.0, "seconds": 8.0}])
 	await _settled()
-	_check(world.units.get("stone_m2", 0.0) * Budget.COSTS.stone_m2 > Budget.COSTS.stone, "a long stroke of stone lays more than a view full")
-	_check(is_equal_approx(Budget.cost_ms(world.units) - Budget.cost_ms({"wall_m2": world.units.wall_m2}), Budget.COSTS.stone / 1000.0), "and is charged a view full of it")
+	check(world.units.get("stone_m2", 0.0) * Budget.COSTS.stone_m2 > Budget.COSTS.stone, "a long stroke of stone lays more than a view full")
+	check(is_equal_approx(Budget.cost_ms(world.units) - Budget.cost_ms({"wall_m2": world.units.wall_m2}), Budget.COSTS.stone / 1000.0), "and is charged a view full of it")
 	for id: int in world.state.grounds.keys():
 		world.submit({"op": "take", "of": "grounds", "ids": PackedInt32Array([id])})
 	await _settled()
-	_check(not world.units.has("stone_m2"), "taking it away frees it")
+	check(not world.units.has("stone_m2"), "taking it away frees it")
 	await _play([{"op": "paint", "tool": "flowers", "points": [[-20, 20], [20, 20]], "radius": 3.0, "seconds": 6.0}])
 	await _settled()
-	_check(world.fill() <= 1.0, "a long paint stroke stops at the budget: %.3f" % world.fill())
-	_check(world.units.get("flower", 0) > 0, "it painted up to it")
+	check(world.fill() <= 1.0, "a long paint stroke stops at the budget: %.3f" % world.fill())
+	check(world.units.get("flower", 0) > 0, "it painted up to it")
 	world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([world.state.walls.keys().max()])})
 	await _settled()
 	await _play([{"op": "paint", "tool": "stone", "points": [[-40, -20], [40, -20], [40, -30], [-40, -30]], "radius": 3.0, "seconds": 6.0}])
 	await _settled()
-	_check(world.fill() <= 1.0 and world.fill() > 0.97, "where a view full of stone would not fit, a long stroke of it stops at the budget: %.3f" % world.fill())
-	_check(world.units.get("stone_m2", 0.0) > 0.0, "it painted stone up to it")
+	check(world.fill() <= 1.0 and world.fill() > 0.97, "where a view full of stone would not fit, a long stroke of it stops at the budget: %.3f" % world.fill())
+	check(world.units.get("stone_m2", 0.0) > 0.0, "it painted stone up to it")
 
 
 func _joining_does_not_change_the_budget() -> void:
 	var meadow := world.units.duplicate()
 	await _play([{"op": "place", "x": 0, "z": 8}, {"op": "house", "at": [0, 0], "size": [2.4, 2.4], "seconds": 0.3}])
-	_check(world.state.walls.size() == 1, "the solo host can place a small stone house")
+	check(world.state.walls.size() == 1, "the solo host can place a small stone house")
 	var house := Budget.add(world.units.duplicate(), meadow, -1.0)
 	var branches: Array[Node] = []
 	var peers: Array[ENetMultiplayerPeer] = []
@@ -337,9 +327,9 @@ func _joining_does_not_change_the_budget() -> void:
 	var guest := worlds[1]
 	var solo := host.fill()
 	var fits_solo := Budget.fits(host.units, house)
-	_check(peers[0].create_server(0) == OK, "the budget test host opens ENet")
+	check(peers[0].create_server(0) == OK, "the budget test host opens ENet")
 	host.multiplayer.multiplayer_peer = peers[0]
-	_check(peers[1].create_client("127.0.0.1", peers[0].host.get_local_port()) == OK, "the visitor connects")
+	check(peers[1].create_client("127.0.0.1", peers[0].host.get_local_port()) == OK, "the visitor connects")
 	guest.multiplayer.multiplayer_peer = peers[1]
 	for i in 600:
 		await process_frame
@@ -347,14 +337,14 @@ func _joining_does_not_change_the_budget() -> void:
 			break
 	for i in 30:
 		await process_frame
-	_check(host.multiplayer.get_peers().size() == 1 and guest.multiplayer.get_peers().size() == 1, "host and visitor connected")
-	_check(is_equal_approx(host.fill(), solo) and is_equal_approx(guest.fill(), solo), "host and visitor keep the solo garden fill")
-	_check(Budget.fits(host.units, house) == fits_solo and Budget.fits(guest.units, house) == fits_solo, "host and visitor agree on a second house")
+	check(host.multiplayer.get_peers().size() == 1 and guest.multiplayer.get_peers().size() == 1, "host and visitor connected")
+	check(is_equal_approx(host.fill(), solo) and is_equal_approx(guest.fill(), solo), "host and visitor keep the solo garden fill")
+	check(Budget.fits(host.units, house) == fits_solo and Budget.fits(guest.units, house) == fits_solo, "host and visitor agree on a second house")
 	for peer in peers:
 		peer.close()
 	host.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
 	guest.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
-	_check(is_equal_approx(host.fill(), solo), "leaving does not change the garden fill")
+	check(is_equal_approx(host.fill(), solo), "leaving does not change the garden fill")
 	for branch in branches:
 		branch.queue_free()
 	world.undo()
@@ -362,8 +352,8 @@ func _joining_does_not_change_the_budget() -> void:
 
 
 func _a_boulder_costs_no_more_once_it_fills_the_view() -> void:
-	_check(is_equal_approx(Budget.boulder(2.0), 4.0), "a small boulder counts its scale squared")
-	_check(is_equal_approx(Budget.boulder(0.1), Budget.BOULDER_LEAST), "a pebble counts the least")
+	check(is_equal_approx(Budget.boulder(2.0), 4.0), "a small boulder counts its scale squared")
+	check(is_equal_approx(Budget.boulder(0.1), Budget.BOULDER_LEAST), "a pebble counts the least")
 	var most := Budget.cost_ms({"boulder": Budget.boulder(80.0)})
-	_check(is_equal_approx(most, Budget.BOULDER_MOST_US / 1000.0), "a boulder 80 metres wide costs the most one does")
-	_check(Budget.fits({}, {"boulder": Budget.boulder(1000.0)}), "an empty garden takes a boulder of any size")
+	check(is_equal_approx(most, Budget.BOULDER_MOST_US / 1000.0), "a boulder 80 metres wide costs the most one does")
+	check(Budget.fits({}, {"boulder": Budget.boulder(1000.0)}), "an empty garden takes a boulder of any size")

@@ -1,10 +1,8 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks that the delete tool takes every kind of thing a garden holds, pointed at as a player points,
 ## and that what it took stays gone in the saved garden: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_delete.gd
 
-var failures := 0
-var main: Node
 var tool: DeleteTool
 var flora: Flora
 var world: World
@@ -12,8 +10,7 @@ var save := ""
 
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
 
 
@@ -39,13 +36,12 @@ func _run() -> void:
 	await process_frame
 	world.flush()
 	world.restore(bytes_to_var(FileAccess.get_file_as_bytes(save)))
-	_check(not _standing(tree) and not _standing(bush), "the spawned tree and bush stay gone in the saved garden")
-	_check(flora.placed("tree").is_empty(), "the planted tree stays gone in the saved garden")
-	_check(world.state.paths.is_empty() and world.state.grounds.is_empty(), "the path and stone stay gone in the saved garden")
-	_check(flora.plants_near(Terrain.ground(4, 3), 0.5).is_empty(), "the mown meadow stays mown in the saved garden")
+	check(not _standing(tree) and not _standing(bush), "the spawned tree and bush stay gone in the saved garden")
+	check(flora.placed("tree").is_empty(), "the planted tree stays gone in the saved garden")
+	check(world.state.paths.is_empty() and world.state.grounds.is_empty(), "the path and stone stay gone in the saved garden")
+	check(flora.plants_near(Terrain.ground(4, 3), 0.5).is_empty(), "the mown meadow stays mown in the saved garden")
 	DirAccess.remove_absolute(save)
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 ## Every tree and bush the meadow grows, aimed at from beside it at head height, is what the beam strikes, or one
@@ -58,8 +54,8 @@ func _every_spawned_solid_is_struck() -> void:
 			var aim := tool.aim(_eye(parts), _toward(parts))
 			if not aim.has("plants") or _eye(parts).distance_to(aim.point) > _eye(parts).distance_to(_centre(parts)):
 				missed += 1
-	_check(solids.size() == Meadow.TREES + Meadow.BUSHES, "the meadow's %d trees and bushes are all solids: %d" % [Meadow.TREES + Meadow.BUSHES, solids.size()])
-	_check(missed == 0, "a beam aimed at each spawned tree or bush strikes it or one in front: %d of %d missed" % [missed, solids.size()])
+	check(solids.size() == Meadow.TREES + Meadow.BUSHES, "the meadow's %d trees and bushes are all solids: %d" % [Meadow.TREES + Meadow.BUSHES, solids.size()])
+	check(missed == 0, "a beam aimed at each spawned tree or bush strikes it or one in front: %d of %d missed" % [missed, solids.size()])
 
 
 func _struck(parts: Array) -> bool:
@@ -72,12 +68,12 @@ func _toward(parts: Array) -> Vector3:
 
 func _takes_solid(parts: Array, what: String) -> void:
 	tool.press(self, _eye(parts), _toward(parts))
-	_check(tool.hold(self, _eye(parts), _toward(parts)).get("plants") != parts, "a held beam passes through %s once it took it" % what)
+	check(tool.hold(self, _eye(parts), _toward(parts)).get("plants") != parts, "a held beam passes through %s once it took it" % what)
 	tool.let_go(self)
 	await process_frame
-	_check(not _standing(parts), "delete takes %s it points at" % what)
+	check(not _standing(parts), "delete takes %s it points at" % what)
 	var group: int = parts[0].group
-	_check(parts.all(func(p: Flora.Plant) -> bool: return world.state.groups[group].hidden.has(p.index)), "%s's taking is in the garden's state" % what)
+	check(parts.all(func(p: Flora.Plant) -> bool: return world.state.groups[group].hidden.has(p.index)), "%s's taking is in the garden's state" % what)
 
 
 ## A tree behind a hill is out of reach: the beam stops at the ground it meets first.
@@ -87,8 +83,8 @@ func _no_strike_through_hills() -> void:
 	var dir := _toward(parts)
 	var mid := eye + dir * eye.distance_to(_centre(parts)) * 0.5
 	await _play([{"op": "sculpt", "x": mid.x, "z": mid.z, "lift": 4.0, "radius": 1.5, "seconds": 0.5}])
-	_check(Terrain.height_at(mid.x, mid.z) > mid.y, "a hill rises between the eye and a tree")
-	_check(not tool.aim(eye, dir).has("plants"), "the beam does not strike the tree behind the hill")
+	check(Terrain.height_at(mid.x, mid.z) > mid.y, "a hill rises between the eye and a tree")
+	check(not tool.aim(eye, dir).has("plants"), "the beam does not strike the tree behind the hill")
 	await _play([{"op": "press", "button": "dpad_down"}])
 
 
@@ -97,32 +93,32 @@ func _takes_marks() -> void:
 		{"op": "pave", "points": [[-6, -12], [0, -12]], "radius": 0.8, "seconds": 0.4},
 		{"op": "paint", "tool": "stone", "points": [[8, -12], [11, -12]], "radius": 1.5, "seconds": 0.4},
 	])
-	_check(world.state.paths.size() == 1 and world.state.grounds.size() == 1, "a path and a stone stroke are laid")
-	_check(Ground.laid_bare(-3, -12) > 0.9 and Ground.stone(9.5, -12) > 0.5, "they show in the ground")
+	check(world.state.paths.size() == 1 and world.state.grounds.size() == 1, "a path and a stone stroke are laid")
+	check(Ground.laid_bare(-3, -12) > 0.9 and Ground.stone(9.5, -12) > 0.5, "they show in the ground")
 	await _play([{"op": "delete", "x": -3, "z": -12}])
-	_check(world.state.paths.is_empty(), "delete takes the path it points at")
-	_check(Ground.laid_bare(-3, -12) < 0.1, "the ground under the path is meadow again")
-	_check(world.state.grounds.size() == 1, "and leaves the stone")
+	check(world.state.paths.is_empty(), "delete takes the path it points at")
+	check(Ground.laid_bare(-3, -12) < 0.1, "the ground under the path is meadow again")
+	check(world.state.grounds.size() == 1, "and leaves the stone")
 	await _play([{"op": "delete", "x": 9.5, "z": -12}])
-	_check(world.state.grounds.is_empty() and Ground.stone(9.5, -12) < 0.1, "delete takes the stone stroke it points at")
+	check(world.state.grounds.is_empty() and Ground.stone(9.5, -12) < 0.1, "delete takes the stone stroke it points at")
 
 
 func _mows() -> void:
 	var meadow := Terrain.ground(4, 3)
-	_check(not flora.plants_near(meadow, 0.5).is_empty(), "the meadow's own grass grows at the mown spot")
+	check(not flora.plants_near(meadow, 0.5).is_empty(), "the meadow's own grass grows at the mown spot")
 	await _play([
 		{"op": "paint", "tool": "flowers", "points": [[-4, 3], [-3.5, 3]], "radius": 1.0, "seconds": 0.5},
 		{"op": "erase", "points": [[-4, 3], [4, 3]], "height": 6, "seconds": 0.6},
 	])
 	var left := flora.plants_near(Terrain.ground(-3.75, 3), 0.5)
-	_check(left.is_empty(), "a held sweep mows the painted flowers: %d left" % left.size())
+	check(left.is_empty(), "a held sweep mows the painted flowers: %d left" % left.size())
 	left = flora.plants_near(meadow, 0.5)
-	_check(left.is_empty(), "and the meadow's own grass and flowers: %d left" % left.size())
-	_check(not flora.plants_near(Terrain.ground(4, 6), 0.5).is_empty(), "beyond the ring the meadow stands")
+	check(left.is_empty(), "and the meadow's own grass and flowers: %d left" % left.size())
+	check(not flora.plants_near(Terrain.ground(4, 6), 0.5).is_empty(), "beyond the ring the meadow stands")
 	await _play([{"op": "press", "button": "dpad_down"}])
-	_check(not flora.plants_near(meadow, 0.5).is_empty(), "undo stands the mown meadow back up")
+	check(not flora.plants_near(meadow, 0.5).is_empty(), "undo stands the mown meadow back up")
 	await _play([{"op": "press", "button": "A"}])
-	_check(flora.plants_near(meadow, 0.5).is_empty(), "redo mows it again")
+	check(flora.plants_near(meadow, 0.5).is_empty(), "redo mows it again")
 
 
 ## One held sweep across two trees, a wall, a path and the meadow takes them all, and one undo puts them all back.
@@ -136,28 +132,28 @@ func _one_stroke() -> void:
 	var trees := flora.placed("tree")
 	var wall: Wall = main.tool.walls[-1]
 	var grass := Terrain.ground(12, -22)
-	_check(trees.size() == 2 and world.state.paths.size() == 1, "two trees and a path stand in the stroke's way")
-	_check(not flora.plants_near(grass, 0.5).is_empty(), "and the meadow grows at its far end")
+	check(trees.size() == 2 and world.state.paths.size() == 1, "two trees and a path stand in the stroke's way")
+	check(not flora.plants_near(grass, 0.5).is_empty(), "and the meadow grows at its far end")
 	var steps: int = world.stacks[world.me()].undo.size()
 	await _play([{"op": "erase", "points": [[-4, -22], [13, -22]], "height": 14, "seconds": 1.5}])
-	_check(not trees.any(_standing), "one held sweep takes both trees it passes over")
-	_check(not Array(world.state.walls[wall.id].ruins).is_empty(), "breaks the wall it crosses into a ruin")
-	_check(world.state.paths.is_empty(), "lifts the path")
-	_check(flora.plants_near(grass, 0.5).is_empty(), "and mows the meadow")
-	_check(world.stacks[world.me()].undo.size() == steps + 1, "as one undo step: %d" % (world.stacks[world.me()].undo.size() - steps))
+	check(not trees.any(_standing), "one held sweep takes both trees it passes over")
+	check(not Array(world.state.walls[wall.id].ruins).is_empty(), "breaks the wall it crosses into a ruin")
+	check(world.state.paths.is_empty(), "lifts the path")
+	check(flora.plants_near(grass, 0.5).is_empty(), "and mows the meadow")
+	check(world.stacks[world.me()].undo.size() == steps + 1, "as one undo step: %d" % (world.stacks[world.me()].undo.size() - steps))
 	await _play([{"op": "press", "button": "dpad_down"}])
-	_check(trees.all(_standing), "one undo stands both trees back up")
-	_check(Array(world.state.walls[wall.id].ruins).is_empty(), "makes the wall whole")
-	_check(world.state.paths.size() == 1, "lays the path again")
-	_check(not flora.plants_near(grass, 0.5).is_empty(), "and the meadow")
+	check(trees.all(_standing), "one undo stands both trees back up")
+	check(Array(world.state.walls[wall.id].ruins).is_empty(), "makes the wall whole")
+	check(world.state.paths.size() == 1, "lays the path again")
+	check(not flora.plants_near(grass, 0.5).is_empty(), "and the meadow")
 	await _play([{"op": "press", "button": "A"}])
-	_check(not trees.any(_standing) and world.state.paths.is_empty(), "redo takes the whole stroke again")
+	check(not trees.any(_standing) and world.state.paths.is_empty(), "redo takes the whole stroke again")
 	var show := {"op": "show", "plants": {}, "on": false}
 	var gone := {"op": "take", "of": "paths", "ids": PackedInt32Array([999999])}
-	_check(Commands.clean({"op": "batch", "cmds": [gone, show]}, world.state, false).get("cmds", []).size() == 1, "a stroke whose path went meanwhile still takes the rest")
-	_check(Commands.clean({"op": "batch", "cmds": [gone]}, world.state, false).is_empty(), "one with nothing left to take is turned down")
-	_check(Commands.clean({"op": "batch", "cmds": [show, show]}, world.state, false).is_empty(), "a batch shows plants once")
-	_check(Commands.clean({"op": "batch", "cmds": [{"op": "wipe"}]}, world.state, false).is_empty(), "a batch carries only takings")
+	check(Commands.clean({"op": "batch", "cmds": [gone, show]}, world.state, false).get("cmds", []).size() == 1, "a stroke whose path went meanwhile still takes the rest")
+	check(Commands.clean({"op": "batch", "cmds": [gone]}, world.state, false).is_empty(), "one with nothing left to take is turned down")
+	check(Commands.clean({"op": "batch", "cmds": [show, show]}, world.state, false).is_empty(), "a batch shows plants once")
+	check(Commands.clean({"op": "batch", "cmds": [{"op": "wipe"}]}, world.state, false).is_empty(), "a batch carries only takings")
 
 
 func _spawned(pool: Flora.Pool) -> Array:
@@ -183,12 +179,6 @@ func _eye(parts: Array) -> Vector3:
 	return Terrain.ground(a.x + toward.x * 3.0, a.z + toward.z * 3.0) + Vector3.UP * 1.6
 
 
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
-
-
 func _play(steps: Array) -> void:
 	var d := Driver.new(main, steps)
 	main.add_child(d)
@@ -211,5 +201,5 @@ func _a_wide_swipe_mows_its_band_in_few_rays() -> void:
 		var p := a.lerp(b, i / 12.0)
 		standing += flora.plants_near(p, 0.2 * radius).filter(func(q: Flora.Plant) -> bool: return not taken.has(q) and not Flora.on_path(q.anchor)).size()
 	tool.let_go(self)
-	_check(standing == 0, "a wide ring swiped in one frame mows its whole band: %d standing" % standing)
-	_check(DeleteTool.steps(a.distance_to(b), radius) == ceili(a.distance_to(b) / (radius * 0.5)), "a %.1f m ring's swipe takes rays half a ring apart" % radius)
+	check(standing == 0, "a wide ring swiped in one frame mows its whole band: %d standing" % standing)
+	check(DeleteTool.steps(a.distance_to(b), radius) == ceili(a.distance_to(b) / (radius * 0.5)), "a %.1f m ring's swipe takes rays half a ring apart" % radius)

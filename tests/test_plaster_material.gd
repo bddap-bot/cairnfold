@@ -1,8 +1,7 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## The production wall and gable materials on the same face, with constant grain and light to isolate colour
 ## encoding. Run with scripts/render.sh demo/gables.json out --script ../tests/test_plaster_material.gd.
-var failures := 0
 
 func _initialize() -> void:
 	if DisplayServer.get_name() == "headless":
@@ -10,12 +9,9 @@ func _initialize() -> void:
 		w.add_roof(RoofLayout.new())
 		var raw: Variant = w._gables.material_override.get_shader_parameter("albedo")
 		var c := WallLayout.PLASTER
-		var matches: bool = raw is Vector3 and raw == Vector3(c.r, c.g, c.b)
-		if not matches:
-			print("FAIL: plaster uniform must carry raw RGB like the wall instance buffer")
+		check(raw is Vector3 and raw == Vector3(c.r, c.g, c.b), "plaster uniform must carry raw RGB like the wall instance buffer")
 		w.free()
-		print("tests: %s" % ("ok" if matches else "FAILED"))
-		Main.quit(self, 0 if matches else 1)
+		finish()
 	else:
 		run.call_deferred()
 
@@ -83,9 +79,6 @@ func run() -> void:
 		else:
 			var error := maxf(absf(pixel.r - reference.r), maxf(absf(pixel.g - reference.g), absf(pixel.b - reference.b)))
 			print("plaster pixels: wall=", reference, " gable=", pixel, " max channel difference=", error)
-			if error > 2.0 / 255.0:
-				failures += 1
-				print("FAIL: identical plaster surfaces must render the same colour")
+			check(error <= 2.0 / 255.0, "identical plaster surfaces must render the same colour")
 	w.free()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()

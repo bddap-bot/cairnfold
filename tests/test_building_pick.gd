@@ -1,21 +1,11 @@
-extends SceneTree
-
-var failures := 0
-var main: Node
+extends "res://../tests/support/suite.gd"
 
 
 func _initialize() -> void:
 	# These grips point at what they take: the reach they check is the pointing grab, until a playtest keeps one.
 	Reach.mode = Reach.Mode.AIM
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 
 func _run() -> void:
@@ -38,25 +28,24 @@ func _run() -> void:
 			var hit: Dictionary = main.fitting_tool.aim(Hand.Tool.DECORATIONS, origin, dir)
 			if hit.get("what") != "lantern":
 				missed.append([origin, dir, hit.get("what")])
-	_check(missed.is_empty(), "standing oblique wall rays offer lanterns: %s" % [missed.slice(0, 5)])
+	check(missed.is_empty(), "standing oblique wall rays offer lanterns: %s" % [missed.slice(0, 5)])
 	var origin := Vector3(-0.3, w.layout.samples[0].y + 1.2, -4.5)
 	var dir := Vector3(-0.431934, 0.259161, 0.863868).normalized()
 	var surface: Dictionary = main.tool.pick_building(origin, dir)
 	var contact := HandStop.Near.gather(main.tool, main.flora_tool.flora, AABB(surface.point - Vector3.ONE, Vector3.ONE * 2.0))
-	_check(contact.solid(surface.point + dir * 0.03), "touch stops on the same wall body")
+	check(contact.solid(surface.point + dir * 0.03), "touch stops on the same wall body")
 	var teleported: Dictionary = main.rig.solid_hit.call(origin, dir, 30.0)
-	_check(not teleported.is_empty() and teleported.point.distance_to(surface.point) < 0.01, "teleport stops at the near wall surface")
+	check(not teleported.is_empty() and teleported.point.distance_to(surface.point) < 0.01, "teleport stops at the near wall surface")
 	var target: Dictionary = main.fitting_tool.aim(Hand.Tool.DECORATIONS, origin, dir)
-	_check(target.get("what") == "lantern" and main.fitting_tool.fit(target), "the failing angle places a wall lantern")
+	check(target.get("what") == "lantern" and main.fitting_tool.fit(target), "the failing angle places a wall lantern")
 	w.lay_now()
-	_check(w.layout.lanterns.size() == 1 and w.roof.chimneys.is_empty(), "a lantern is placed and no chimney is added")
+	check(w.layout.lanterns.size() == 1 and w.roof.chimneys.is_empty(), "a lantern is placed and no chimney is added")
 	main.rig.right.tool = Hand.Tool.DECORATIONS
 	main.rig.right.held_still = true
 	main.rig.right.global_transform = Transform3D(Basis.looking_at(dir), origin)
 	await _capture("wall-lantern", origin + Vector3.UP * 0.35, origin + dir * 3.0)
 	await _overlapping_roofs()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 func _play(steps: Array) -> void:
@@ -91,16 +80,16 @@ func _overlapping_roofs() -> void:
 	var dir := Vector3.DOWN
 	var near_t := near.roof.ray_hit(origin, dir)
 	var far_t := far.roof.ray_hit(origin, dir)
-	_check(near_t < far_t and far_t < INF, "two roofs overlap along the test ray: %s before %s" % [near_t, far_t])
+	check(near_t < far_t and far_t < INF, "two roofs overlap along the test ray: %s before %s" % [near_t, far_t])
 	var hit: Dictionary = main.tool.pick_building(origin, dir, true)
-	_check(hit.get("wall") == near and hit.get("surface") == "roof", "grab query hits the near roof")
+	check(hit.get("wall") == near and hit.get("surface") == "roof", "grab query hits the near roof")
 	var fit: Dictionary = main.fitting_tool.aim(Hand.Tool.DECORATIONS, origin, dir)
-	_check(fit.get("wall") == near and fit.get("what") == "chimney", "decoration hits the near roof")
+	check(fit.get("wall") == near and fit.get("what") == "chimney", "decoration hits the near roof")
 	var colour: Dictionary = main.palette_tool.aim(origin, dir)
 	var style: Dictionary = main.palette_tool.aim_style(origin, dir)
-	_check(colour.get("id") == near.id and style.get("id") == near.id, "colour and style hit the near roof")
+	check(colour.get("id") == near.id and style.get("id") == near.id, "colour and style hit the near roof")
 	var erased: Dictionary = main.delete_tool.aim(origin, dir)
-	_check(erased.get("wall") == near and erased.get("point", Vector3.INF).distance_to(origin + dir * near_t) < 0.01, "delete stops at the near roof surface")
+	check(erased.get("wall") == near and erased.get("point", Vector3.INF).distance_to(origin + dir * near_t) < 0.01, "delete stops at the near roof surface")
 	await _grab(near, origin)
 	await _capture("overlapping-roofs", f.mid + Vector3(9, 7, 10), f.mid - Vector3.UP * 2.0)
 	_foundation_and_deck(near)
@@ -117,13 +106,12 @@ func _foundation_and_deck(w: Wall) -> void:
 	out *= signf((f.point - w.roof.frame().mid).dot(out))
 	var origin: Vector3 = f.point + Vector3.DOWN * 0.4 + out * 2.0
 	var foundation: Dictionary = main.tool.pick_building(origin, -out)
-	_check(foundation.get("wall") == w and foundation.get("surface") == "wall" and foundation.point.y < f.point.y, "the raised foundation stops the building ray: hit %s, wanted %d at %s (foot %s, depth %s, rise %s)" % [foundation, w.id, origin, f.point, w.layout.depth_at(s), w.layout.rise])
+	check(foundation.get("wall") == w and foundation.get("surface") == "wall" and foundation.point.y < f.point.y, "the raised foundation stops the building ray: hit %s, wanted %d at %s (foot %s, depth %s, rise %s)" % [foundation, w.id, origin, f.point, w.layout.depth_at(s), w.layout.rise])
 	origin = w.roof.frame().mid + Vector3.UP * 8.0
 	var deck: Dictionary = main.tool.pick_building(origin, Vector3.DOWN)
-	_check(deck.get("wall") == w and deck.get("surface") == "roof" and absf(deck.point.y - w.roof.height_at(origin.x, origin.z)) < 0.01, "the flat deck stops the ray above the lower roof")
+	check(deck.get("wall") == w and deck.get("surface") == "roof" and absf(deck.point.y - w.roof.height_at(origin.x, origin.z)) < 0.01, "the flat deck stops the ray above the lower roof")
 	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": before})
 	w.lay_now()
-
 
 
 func _thatched_eave(near: Wall, far: Wall) -> void:
@@ -137,16 +125,16 @@ func _thatched_eave(near: Wall, far: Wall) -> void:
 	var mesh := TriangleMesh.new()
 	mesh.create_from_faces(roof.coat[Mesh.ARRAY_VERTEX])
 	var visible := mesh.intersect_ray(origin, Vector3.DOWN)
-	_check(not visible.is_empty() and far.roof.ray_hit(origin, Vector3.DOWN) < INF, "visible thatch eave overlaps a farther roof along the ray: visible %s far %s origin %s" % [visible, far.roof.ray_hit(origin, Vector3.DOWN), origin])
+	check(not visible.is_empty() and far.roof.ray_hit(origin, Vector3.DOWN) < INF, "visible thatch eave overlaps a farther roof along the ray: visible %s far %s origin %s" % [visible, far.roof.ray_hit(origin, Vector3.DOWN), origin])
 	if visible.is_empty():
 		return
 	var picked: Dictionary = main.tool.pick_building(origin, Vector3.DOWN, true)
-	_check(picked.get("wall") == near and picked.point.distance_to(visible.position) < 0.01, "the visible thatch eave occludes the farther roof")
-	_check(main.fitting_tool.aim(Hand.Tool.DECORATIONS, origin, Vector3.DOWN).get("wall") == near, "decorations stop on thatch beyond the tiled bed")
-	_check(main.palette_tool.aim_style(origin, Vector3.DOWN).get("id") == near.id, "style stops on the thatch eave")
-	_check(main.delete_tool.aim(origin, Vector3.DOWN).get("wall") == near, "delete stops on the thatch eave")
+	check(picked.get("wall") == near and picked.point.distance_to(visible.position) < 0.01, "the visible thatch eave occludes the farther roof")
+	check(main.fitting_tool.aim(Hand.Tool.DECORATIONS, origin, Vector3.DOWN).get("wall") == near, "decorations stop on thatch beyond the tiled bed")
+	check(main.palette_tool.aim_style(origin, Vector3.DOWN).get("id") == near.id, "style stops on the thatch eave")
+	check(main.delete_tool.aim(origin, Vector3.DOWN).get("wall") == near, "delete stops on the thatch eave")
 	var teleported: Dictionary = main.rig.solid_hit.call(origin, Vector3.DOWN, 30.0)
-	_check(not teleported.is_empty() and teleported.point.distance_to(visible.position) < 0.01, "teleport stops on the visible thatch")
+	check(not teleported.is_empty() and teleported.point.distance_to(visible.position) < 0.01, "teleport stops on the visible thatch")
 	await _grab(near, origin)
 	await _capture("thatch-overlapping-roofs", f.mid + Vector3(10, 6, 12), f.mid - Vector3.UP * 2.0)
 
@@ -165,7 +153,7 @@ func _grab(near: Wall, origin: Vector3) -> void:
 	Buttons.injected["%s/%s" % [hand.tracker, Controls.input("grab", hand.tracker)]] = true
 	for frame in 3:
 		await process_frame
-	_check(main.tool.held == near and main.tool.mason(hand).took_roof, "grip grabs the near roof, not the roof behind it")
+	check(main.tool.held == near and main.tool.mason(hand).took_roof, "grip grabs the near roof, not the roof behind it")
 	Buttons.injected.clear()
 	for frame in 3:
 		await process_frame

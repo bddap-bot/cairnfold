@@ -1,21 +1,18 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of flat mode: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_flat.gd
 ## Taking a photo and joining a garden need a renderer and a second game: demo/flat-host.json and demo/flat-join.json.
 
-var failures := 0
-var main: Main
 var flat: Flat
 
 
 func _initialize() -> void:
 	_only_a_game_without_a_headset_comes_up_flat()
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	await process_frame
 	flat = Flat.new(main.rig)
 	main.add_child(flat)
-	await _frames(2)
+	await frames(2)
 	var sent := main.world._next_token
 	await _keys_and_a_gamepad_walk_and_look()
 	await _the_hands_hang_at_the_sides_until_a_tool_is_raised()
@@ -24,19 +21,7 @@ func _initialize() -> void:
 	await _wave_plays_recorded_hands()
 	await _the_seed_dish_is_held_out_level_and_low_looking_down()
 	await _every_control_on_every_tool_sends_no_edit(sent)
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
-
-
-func _frames(n: int) -> void:
-	for i in n:
-		await process_frame
+	finish()
 
 
 func _key(down: bool, code: Key) -> void:
@@ -70,17 +55,17 @@ func _mouse(down: bool, button: MouseButton) -> void:
 ## `press(down)`: a control's helper bound to it, `down` first since bound arguments follow the call's.
 func _tap(press: Callable, frames := 3) -> void:
 	press.call(true)
-	await _frames(frames)
+	await frames(frames)
 	press.call(false)
-	await _frames(2)
+	await frames(2)
 
 
 func _only_a_game_without_a_headset_comes_up_flat() -> void:
-	_check(Main.flat_wanted({}, false, true), "a game played without a headset comes up flat")
-	_check(not Main.flat_wanted({}, true, true), "one played in a headset does not")
-	_check(not Main.flat_wanted({"desktop": true}, false, true), "nor one rendering on the desktop")
-	_check(not Main.flat_wanted({}, false, false), "nor a script or test, unless it asks")
-	_check(Main.flat_wanted({"flat": true}, false, false), "which --flat does")
+	check(Main.flat_wanted({}, false, true), "a game played without a headset comes up flat")
+	check(not Main.flat_wanted({}, true, true), "one played in a headset does not")
+	check(not Main.flat_wanted({"desktop": true}, false, true), "nor one rendering on the desktop")
+	check(not Main.flat_wanted({}, false, false), "nor a script or test, unless it asks")
+	check(Main.flat_wanted({"flat": true}, false, false), "which --flat does")
 
 
 func _forward() -> Vector3:
@@ -93,44 +78,44 @@ func _keys_and_a_gamepad_walk_and_look() -> void:
 	var ahead := _forward()
 	await _tap(_key.bind(KEY_W), 60)
 	var moved := main.rig.head.global_position - eye
-	_check(absf(moved.dot(ahead) - Flat.WALK) < 0.2, "W walks ahead at walking pace: %.2f m in a second" % moved.dot(ahead))
+	check(absf(moved.dot(ahead) - Flat.WALK) < 0.2, "W walks ahead at walking pace: %.2f m in a second" % moved.dot(ahead))
 	var feet := main.rig.head.global_position
-	_check(absf(feet.y - Terrain.height_at(feet.x, feet.z) - Rig.EYE) < 0.05, "with the eyes at standing height over the ground")
+	check(absf(feet.y - Terrain.height_at(feet.x, feet.z) - Rig.EYE) < 0.05, "with the eyes at standing height over the ground")
 	eye = main.rig.head.global_position
 	_axis(JOY_AXIS_LEFT_X, 1.0)
-	await _frames(30)
+	await frames(30)
 	_axis(JOY_AXIS_LEFT_X, 0.0)
-	await _frames(2)
+	await frames(2)
 	var right := ahead.cross(Vector3.UP)
-	_check((main.rig.head.global_position - eye).dot(right) > Flat.WALK * 0.4, "the left stick steps sideways")
+	check((main.rig.head.global_position - eye).dot(right) > Flat.WALK * 0.4, "the left stick steps sideways")
 
 	var yaw := flat.yaw
 	var e := InputEventMouseMotion.new()
 	e.relative = Vector2(100, 0)
 	Input.parse_input_event(e)
-	await _frames(2)
-	_check(flat.yaw == yaw, "the mouse turns nothing before a click in the window takes it")
+	await frames(2)
+	check(flat.yaw == yaw, "the mouse turns nothing before a click in the window takes it")
 	await _tap(_mouse.bind(MOUSE_BUTTON_LEFT))
-	_check(flat.mouse_held, "a click takes the mouse")
+	check(flat.mouse_held, "a click takes the mouse")
 	Input.parse_input_event(e)
-	await _frames(2)
-	_check(absf(flat.yaw - (yaw - 100 * Flat.MOUSE_LOOK)) < 1e-4, "moving it right turns the view right")
-	_check(_forward().dot(ahead.rotated(Vector3.UP, -100 * Flat.MOUSE_LOOK)) > 0.999, "and the head with it")
+	await frames(2)
+	check(absf(flat.yaw - (yaw - 100 * Flat.MOUSE_LOOK)) < 1e-4, "moving it right turns the view right")
+	check(_forward().dot(ahead.rotated(Vector3.UP, -100 * Flat.MOUSE_LOOK)) > 0.999, "and the head with it")
 	await _tap(_key.bind(KEY_ESCAPE))
-	_check(not flat.mouse_held, "Escape lets it go")
+	check(not flat.mouse_held, "Escape lets it go")
 	var pitch := flat.pitch
 	_axis(JOY_AXIS_RIGHT_Y, -1.0)
-	await _frames(20)
+	await frames(20)
 	_axis(JOY_AXIS_RIGHT_Y, 0.0)
-	await _frames(2)
-	_check(flat.pitch > pitch + 0.5, "the right stick pushed up looks up")
+	await frames(2)
+	check(flat.pitch > pitch + 0.5, "the right stick pushed up looks up")
 	_axis(JOY_AXIS_RIGHT_Y, -1.0)
-	await _frames(120)
+	await frames(120)
 	_axis(JOY_AXIS_RIGHT_Y, 0.0)
-	await _frames(2)
-	_check(absf(flat.pitch - Flat.PITCH) < 1e-4, "never past straight up")
+	await frames(2)
+	check(absf(flat.pitch - Flat.PITCH) < 1e-4, "never past straight up")
 	flat.pitch = 0.0
-	await _frames(1)
+	await frames(1)
 
 
 func _near(a: Transform3D, b: Transform3D) -> bool:
@@ -139,36 +124,36 @@ func _near(a: Transform3D, b: Transform3D) -> bool:
 
 func _the_hands_hang_at_the_sides_until_a_tool_is_raised() -> void:
 	var rig := main.rig
-	_check(rig.hands.all(func(h: Hand) -> bool: return h.tool == Hand.Tool.NONE), "flat mode starts with empty hands")
+	check(rig.hands.all(func(h: Hand) -> bool: return h.tool == Hand.Tool.NONE), "flat mode starts with empty hands")
 	flat.pitch = -0.6
-	await _frames(2)
+	await frames(2)
 	var level := Transform3D(Basis(Vector3.UP, rig.head.global_basis.get_euler().y), rig.head.global_position)
 	for s in 2:
-		_check(_near(rig.hands[s].body.global_transform, level * Avatar.AT_SIDES[s]), "the %s hand hangs at the side as others see it, however the head tips" % ["left", "right"][s])
+		check(_near(rig.hands[s].body.global_transform, level * Avatar.AT_SIDES[s]), "the %s hand hangs at the side as others see it, however the head tips" % ["left", "right"][s])
 	await _tap(_key.bind(KEY_TAB))
-	_check(rig.right.tool == Hand.Tool.CAMERA, "Tab takes up the camera")
-	_check(_near(rig.right.global_transform, rig.head.global_transform * Flat.held(Hand.Tool.CAMERA, flat.pitch)), "raised before the eye")
-	_check(PhotoTool.lens(rig.right).basis.z.dot(rig.head.global_basis.z) > 0.999, "its lens looking where the view does")
-	_check(_near(rig.left.body.global_transform, level * Avatar.AT_SIDES[0]), "the other hand still at its side")
+	check(rig.right.tool == Hand.Tool.CAMERA, "Tab takes up the camera")
+	check(_near(rig.right.global_transform, rig.head.global_transform * Flat.held(Hand.Tool.CAMERA, flat.pitch)), "raised before the eye")
+	check(PhotoTool.lens(rig.right).basis.z.dot(rig.head.global_basis.z) > 0.999, "its lens looking where the view does")
+	check(_near(rig.left.body.global_transform, level * Avatar.AT_SIDES[0]), "the other hand still at its side")
 	var trigger := "right_hand/" + Controls.input("tool", "right_hand")
 	_mouse(true, MOUSE_BUTTON_LEFT)
-	await _frames(3)
-	_check(flat.mouse_held and not Buttons.injected.has(trigger), "the click that takes the mouse takes no photo")
+	await frames(3)
+	check(flat.mouse_held and not Buttons.injected.has(trigger), "the click that takes the mouse takes no photo")
 	_mouse(false, MOUSE_BUTTON_LEFT)
-	await _frames(2)
+	await frames(2)
 	await _tap(_button.bind(JOY_BUTTON_Y))
-	_check(rig.right.tool == Hand.Tool.SEEDS, "the gamepad's Y takes up the seed dish")
+	check(rig.right.tool == Hand.Tool.SEEDS, "the gamepad's Y takes up the seed dish")
 	await _tap(_key.bind(KEY_TAB))
-	_check(rig.right.tool == Hand.Tool.NONE, "and Tab puts it away")
-	await _frames(1)
-	_check(_near(rig.right.body.global_transform, level * Avatar.AT_SIDES[1]), "the hand dropping back to the side")
+	check(rig.right.tool == Hand.Tool.NONE, "and Tab puts it away")
+	await frames(1)
+	check(_near(rig.right.body.global_transform, level * Avatar.AT_SIDES[1]), "the hand dropping back to the side")
 	flat.pitch = 0.0
-	await _frames(1)
+	await frames(1)
 	var eye := rig.head.global_position
 	var solid := rig.solid_hit
 	rig.solid_hit = func(origin: Vector3, _dir: Vector3, reach: float) -> Dictionary: return {"point": origin, "side": true} if reach > Flat.BODY else {}
 	await _tap(_key.bind(KEY_W), 20)
-	_check(rig.head.global_position.distance_to(eye) < 1e-4, "a build in the way stops the walk")
+	check(rig.head.global_position.distance_to(eye) < 1e-4, "a build in the way stops the walk")
 	rig.solid_hit = solid
 
 
@@ -176,19 +161,19 @@ func _the_trigger_reaches_only_the_camera_and_the_seed_dish() -> void:
 	var rig := main.rig
 	var trigger := "right_hand/" + Controls.input("tool", "right_hand")
 	_mouse(true, MOUSE_BUTTON_LEFT)
-	await _frames(2)
-	_check(not Buttons.injected.has(trigger), "with empty hands a click pulls no trigger")
+	await frames(2)
+	check(not Buttons.injected.has(trigger), "with empty hands a click pulls no trigger")
 	_mouse(false, MOUSE_BUTTON_LEFT)
 	rig.right.tool = Hand.Tool.SEEDS
-	await _frames(2)
+	await frames(2)
 	_axis(JOY_AXIS_TRIGGER_RIGHT, 1.0)
-	await _frames(2)
-	_check(Buttons.new(rig.right).held("tool"), "holding the seed dish, the right trigger pulls the hand's")
+	await frames(2)
+	check(Buttons.new(rig.right).held("tool"), "holding the seed dish, the right trigger pulls the hand's")
 	_axis(JOY_AXIS_TRIGGER_RIGHT, 0.0)
-	await _frames(2)
-	_check(not Buttons.injected.has(trigger), "and lets go with it")
+	await frames(2)
+	check(not Buttons.injected.has(trigger), "and lets go with it")
 	rig.right.tool = Hand.Tool.NONE
-	await _frames(1)
+	await frames(1)
 
 
 ## Every flat control, and every other key, mouse and gamepad button, pressed holding each tool flat mode can hold.
@@ -196,7 +181,7 @@ func _every_control_on_every_tool_sends_no_edit(sent: int) -> void:
 	var rig := main.rig
 	for t in Flat.TOOLS:
 		rig.right.tool = t
-		await _frames(2)
+		await frames(2)
 		for key in range(KEY_SPACE, KEY_ASCIITILDE + 1) + [KEY_TAB, KEY_ESCAPE, KEY_ENTER, KEY_BACKSPACE, KEY_DELETE, KEY_CTRL, KEY_SHIFT, KEY_ALT, KEY_UP, KEY_DOWN, KEY_LEFT, KEY_RIGHT]:
 			if key in [KEY_TAB, KEY_Q]:
 				continue
@@ -210,9 +195,9 @@ func _every_control_on_every_tool_sends_no_edit(sent: int) -> void:
 				await _tap(_button.bind(b), 2)
 		for a in [JOY_AXIS_TRIGGER_LEFT, JOY_AXIS_TRIGGER_RIGHT]:
 			await _tap(func(on: bool) -> void: _axis(a, 1.0 if on else 0.0), 2)
-		_check(rig.right.tool == t, "no key changes the tool but the next-tool and wheel controls")
-	_check(rig.hands.all(func(h: Hand) -> bool: return Flat.TOOLS.has(h.tool)), "no hand ever holds an edit tool")
-	_check(main.world._next_token == sent, "and no edit command is ever sent: %d sent" % (main.world._next_token - sent))
+		check(rig.right.tool == t, "no key changes the tool but the next-tool and wheel controls")
+	check(rig.hands.all(func(h: Hand) -> bool: return Flat.TOOLS.has(h.tool)), "no hand ever holds an edit tool")
+	check(main.world._next_token == sent, "and no edit command is ever sent: %d sent" % (main.world._next_token - sent))
 
 
 ## The dish is held out before the eye, level for an animal to stand on, and an offer to the animals. Looking down
@@ -222,13 +207,13 @@ func _the_seed_dish_is_held_out_level_and_low_looking_down() -> void:
 	var rig := main.rig
 	flat.pitch = -0.3
 	rig.right.tool = Hand.Tool.SEEDS
-	await _frames(2)
-	_check(_near(rig.right.global_transform, rig.head.global_transform * Flat.held(Hand.Tool.SEEDS, flat.pitch)), "the dish is held out before the eye")
-	_check(rig.right.body.global_basis.y.dot(Vector3.UP) > 0.999, "level however the head tips")
-	_check(main.wildlife.offers().has(rig.right), "an offer to the animals")
+	await frames(2)
+	check(_near(rig.right.global_transform, rig.head.global_transform * Flat.held(Hand.Tool.SEEDS, flat.pitch)), "the dish is held out before the eye")
+	check(rig.right.body.global_basis.y.dot(Vector3.UP) > 0.999, "level however the head tips")
+	check(main.wildlife.offers().has(rig.right), "an offer to the animals")
 	var next := main.feed_tool._next
 	await _tap(func(on: bool) -> void: _axis(JOY_AXIS_TRIGGER_RIGHT, 1.0 if on else 0.0))
-	_check(main.feed_tool._next == (next + 1) % FeedTool.HANDFULS, "the trigger throws a handful from it")
+	check(main.feed_tool._next == (next + 1) % FeedTool.HANDFULS, "the trigger throws a handful from it")
 	var ground := func() -> float: return rig.right.body.global_position.y - Terrain.height_at(rig.right.body.global_position.x, rig.right.body.global_position.z)
 	var standing: float = ground.call()
 	flat.pitch = -1.2
@@ -238,16 +223,16 @@ func _the_seed_dish_is_held_out_level_and_low_looking_down() -> void:
 		await process_frame
 		fastest = maxf(fastest, (head - rig.head.global_position.y) * 60.0)
 		head = rig.head.global_position.y
-	_check(fastest <= Flat.STOOP_SPEED + 1e-3 and fastest < Wildlife.CALM, "looking down stoops no faster than a calm move: %.2f m/s" % fastest)
+	check(fastest <= Flat.STOOP_SPEED + 1e-3 and fastest < Wildlife.CALM, "looking down stoops no faster than a calm move: %.2f m/s" % fastest)
 	var low: float = ground.call()
-	_check(low < standing - 0.5 and low < Wildlife.duck_appetite.reach, "the dish comes low enough for a duck: %.2f m from %.2f" % [low, standing])
-	_check(rig.right.body.global_basis.y.dot(Vector3.UP) > 0.999, "still level")
+	check(low < standing - 0.5 and low < Wildlife.duck_appetite.reach, "the dish comes low enough for a duck: %.2f m from %.2f" % [low, standing])
+	check(rig.right.body.global_basis.y.dot(Vector3.UP) > 0.999, "still level")
 	rig.right.tool = Hand.Tool.NONE
 	for i in 150:
 		await process_frame
-	_check(flat.stoop == 0.0 and absf(rig.head.position.y - Rig.EYE) < 1e-4, "put away, the player stands again")
+	check(flat.stoop == 0.0 and absf(rig.head.position.y - Rig.EYE) < 1e-4, "put away, the player stands again")
 	flat.pitch = 0.0
-	await _frames(1)
+	await frames(1)
 
 
 func _wave_plays_recorded_hands() -> void:
@@ -256,39 +241,39 @@ func _wave_plays_recorded_hands() -> void:
 	main.rig.right.tool = Hand.Tool.NONE
 	for press in [_key.bind(KEY_F), _button.bind(JOY_BUTTON_X)]:
 		await _tap(press, 1)
-		_check(flat._wave_time >= 0.0, "keyboard and gamepad start the recorded wave")
+		check(flat._wave_time >= 0.0, "keyboard and gamepad start the recorded wave")
 		var highest := -INF
 		for i in 160:
 			await process_frame
 			if flat._wave_time >= 0.0:
 				var level := Transform3D(Basis(Vector3.UP, flat.yaw), main.rig.head.position)
 				var expected := Transform3D(Basis(Flat.WAVE.rotation_track_interpolate(3, flat._wave_time)), Flat.WAVE.position_track_interpolate(2, flat._wave_time))
-				_check(_near(main.rig.right.transform, level * expected), "wave follows source recording independent of look pitch")
+				check(_near(main.rig.right.transform, level * expected), "wave follows source recording independent of look pitch")
 				highest = maxf(highest, expected.origin.y)
-		_check(highest > -0.2, "the recorded hand rises to head height: %.3f" % highest)
-		_check(flat._wave_time < 0.0, "wave finishes once without looping")
+		check(highest > -0.2, "the recorded hand rises to head height: %.3f" % highest)
+		check(flat._wave_time < 0.0, "wave finishes once without looping")
 		var level := Transform3D(Basis(Vector3.UP, flat.yaw), main.rig.head.position)
-		_check(_near(main.rig.right.transform, level * Avatar.AT_SIDES[1]), "hand returns to its side")
+		check(_near(main.rig.right.transform, level * Avatar.AT_SIDES[1]), "hand returns to its side")
 	await _tap(_key.bind(KEY_F), 1)
 	main.rig.right.tool = Hand.Tool.CAMERA
-	await _frames(2)
-	_check(flat._wave_time < 0.0, "taking a tool ends the wave")
+	await frames(2)
+	check(flat._wave_time < 0.0, "taking a tool ends the wave")
 	await _tap(_key.bind(KEY_F))
-	_check(flat._wave_time < 0.0, "wave does not move a held tool")
+	check(flat._wave_time < 0.0, "wave does not move a held tool")
 	main.rig.right.tool = Hand.Tool.NONE
 
 
 func _the_flat_wheel_selects_an_avatar() -> void:
 	var hand: Hand = main.rig.right
 	var tree := hand.inventory()
-	_check(not ToolWheel.paths(tree).has(Hand.Tool.WALLS), "flat wheel offers no building tools")
+	check(not ToolWheel.paths(tree).has(Hand.Tool.WALLS), "flat wheel offers no building tools")
 	_key(true, KEY_Q)
-	await _frames(3)
-	_check(hand.picking, "Q opens the shared inventory wheel")
+	await frames(3)
+	check(hand.picking, "Q opens the shared inventory wheel")
 	for at in ToolWheel.sweep(tree, ToolWheel.paths(tree)["avatar:2"]):
 		flat._reach = at
-		await _frames(3)
+		await frames(3)
 	_key(false, KEY_Q)
-	await _frames(3)
-	_check(main.session.avatar == 2 and not hand.picking, "releasing Q selects the avatar through the shared wheel")
-	_check(not hand._wheel_root.visible and hand._wheel_root.get_children().all(func(i: Node3D) -> bool: return not i.visible), "flat wheel release leaves no figures shown")
+	await frames(3)
+	check(main.session.avatar == 2 and not hand.picking, "releasing Q selects the avatar through the shared wheel")
+	check(not hand._wheel_root.visible and hand._wheel_root.get_children().all(func(i: Node3D) -> bool: return not i.visible), "flat wheel release leaves no figures shown")

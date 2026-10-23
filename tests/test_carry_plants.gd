@@ -1,20 +1,17 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of a grip carrying trees and bushes, planted and the meadow's own: one hand moves one along the
 ## ground, farther for a far one; let go, it is set as one `tree` command, one undo step, which a peer takes and a
 ## snapshot keeps; two hands still size a tree and leave a bush as it is:
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_carry_plants.gd
 
-var failures := 0
-var main: Node
 var world: World
 var flora: Flora
 var tool: WallTool
 
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
 
 
@@ -27,14 +24,7 @@ func _run() -> void:
 	_meadow_plants_are_carried()
 	_bushes_are_carried_not_sized()
 	_commands_are_checked()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 ## A cleaned command as the host would send it on, checked again as a peer checks it.
@@ -84,31 +74,31 @@ func _a_planted_tree_is_carried() -> void:
 	m.sizing.follow.call(m, hand.translated(move))
 	var gain := Hand.reach_gain(2.0)
 	var to := _across(at) + _across(move) * gain
-	_check(_across(trunk.anchor).distance_to(to) < 0.01, "a grip carries a tree along the ground, %.2f times as far as the hand: %s, not %s" % [gain, _across(trunk.anchor), to])
-	_check(is_equal_approx(trunk.anchor.y, 0.0) and (parts[1].xform.origin - trunk.anchor).is_equal_approx(crown) and is_equal_approx(flora.top_of(trunk), top), "its crown goes with it, as tall, on the ground there")
-	_check(world.state.groups[g].places.is_empty(), "shown here alone while held")
+	check(_across(trunk.anchor).distance_to(to) < 0.01, "a grip carries a tree along the ground, %.2f times as far as the hand: %s, not %s" % [gain, _across(trunk.anchor), to])
+	check(is_equal_approx(trunk.anchor.y, 0.0) and (parts[1].xform.origin - trunk.anchor).is_equal_approx(crown) and is_equal_approx(flora.top_of(trunk), top), "its crown goes with it, as tall, on the ground there")
+	check(world.state.groups[g].places.is_empty(), "shown here alone while held")
 	tool.end_grow(m)
 	var placed: Vector3 = world.state.groups[g].places.get(0, Vector3.INF)
-	_check(_across(placed).distance_to(to) < 0.01 and _across(trunk.anchor).distance_to(to) < 0.01, "let go, the garden sets it there: %s" % placed)
-	_check(flora.species_of(trunk) == FloraLayout.Species.FIR and world.state.groups[g].moss.get(0, false) and flora.scale_of(trunk) == 1.0, "a fir still, with its moss, as tall")
+	check(_across(placed).distance_to(to) < 0.01 and _across(trunk.anchor).distance_to(to) < 0.01, "let go, the garden sets it there: %s" % placed)
+	check(flora.species_of(trunk) == FloraLayout.Species.FIR and world.state.groups[g].moss.get(0, false) and flora.scale_of(trunk) == 1.0, "a fir still, with its moss, as tall")
 	await process_frame
-	_check(flora.shade_of(parts).origin.is_equal_approx(trunk.anchor + shade), "its shade goes with it")
+	check(flora.shade_of(parts).origin.is_equal_approx(trunk.anchor + shade), "its shade goes with it")
 	var struck := func(over: Vector2) -> bool: return flora.solid_hit(Vector3(over.x, 40.0, over.y), Vector3.DOWN, 60.0).get("plants", []) == parts
-	_check(struck.call(to), "a ray down onto it where it stands now strikes it")
-	_check(not struck.call(_across(at)), "and one where it stood does not")
-	_check(Array(flora.obstacles()).any(func(p: Vector3) -> bool: return _across(p).distance_to(to) < 0.01), "a wall arches over it where it stands now")
+	check(struck.call(to), "a ray down onto it where it stands now strikes it")
+	check(not struck.call(_across(at)), "and one where it stood does not")
+	check(Array(flora.obstacles()).any(func(p: Vector3) -> bool: return _across(p).distance_to(to) < 0.01), "a wall arches over it where it stands now")
 	var seq := world.seq
 	_carry(trunk, Vector3(0.02, 0.0, 0.0))
-	_check(world.seq == seq and _across(trunk.anchor).distance_to(to) < 0.01, "let go within a trembling hand's nudge, nothing is sent and it stays")
+	check(world.seq == seq and _across(trunk.anchor).distance_to(to) < 0.01, "let go within a trembling hand's nudge, nothing is sent and it stays")
 	world._order({"op": "undo"}, world.me())
-	_check(_across(trunk.anchor).distance_to(_across(at)) < 0.01 and flora.species_of(trunk) == FloraLayout.Species.FIR, "one undo sets it back where it was planted, still a fir")
-	_check(struck.call(_across(at)), "and a ray strikes it there again")
+	check(_across(trunk.anchor).distance_to(_across(at)) < 0.01 and flora.species_of(trunk) == FloraLayout.Species.FIR, "one undo sets it back where it was planted, still a fir")
+	check(struck.call(_across(at)), "and a ray strikes it there again")
 	world._order({"op": "redo"}, world.me())
-	_check(_across(trunk.anchor).distance_to(to) < 0.01, "a redo carries it again")
+	check(_across(trunk.anchor).distance_to(to) < 0.01, "a redo carries it again")
 	var picture := var_to_str(world.digest())
 	world.restore(world.snapshot())
 	trunk = flora.groups[g][0]
-	_check(var_to_str(world.digest()) == picture and _across(trunk.anchor).distance_to(to) < 0.01 and flora.species_of(trunk) == FloraLayout.Species.FIR, "a snapshot keeps it there, a fir")
+	check(var_to_str(world.digest()) == picture and _across(trunk.anchor).distance_to(to) < 0.01 and flora.species_of(trunk) == FloraLayout.Species.FIR, "a snapshot keeps it there, a fir")
 	world.restore({"seq": 0, "cmds": []})
 
 
@@ -120,12 +110,12 @@ func _meadow_plants_are_carried() -> void:
 		_carry(first, Vector3(-1.0, 0.0, 1.0))
 		var to := home + Vector2(-1.0, 1.0) * Hand.reach_gain(2.0)
 		var placed: Vector3 = world.state.groups[0].places.get(first.index, Vector3.INF)
-		_check(_across(first.anchor).distance_to(to) < 0.01 and _across(placed).distance_to(to) < 0.01, "a meadow %s is carried and set" % what)
+		check(_across(first.anchor).distance_to(to) < 0.01 and _across(placed).distance_to(to) < 0.01, "a meadow %s is carried and set" % what)
 		var snap := world.snapshot()
 		world.restore({"seq": 0, "cmds": []})
-		_check(_across(first.anchor).distance_to(home) < 0.01, "an empty garden has the meadow %s where it grew" % what)
+		check(_across(first.anchor).distance_to(home) < 0.01, "an empty garden has the meadow %s where it grew" % what)
 		world.restore(snap)
-		_check(_across(first.anchor).distance_to(to) < 0.01, "and its snapshot where it was carried")
+		check(_across(first.anchor).distance_to(to) < 0.01, "and its snapshot where it was carried")
 		world.restore({"seq": 0, "cmds": []})
 
 
@@ -138,8 +128,8 @@ func _bushes_are_carried_not_sized() -> void:
 	var look := blob.xform.basis
 	_carry(blob, Vector3(0.0, 0.0, 1.2))
 	var to := _across(at) + Vector2(0.0, 1.2) * Hand.reach_gain(2.0)
-	_check(_across(blob.anchor).distance_to(to) < 0.01 and _across(world.state.groups[g].places.get(0, Vector3.INF)).distance_to(to) < 0.01, "a bush is carried and set")
-	_check(flora.solid_hit(Vector3(to.x, 40.0, to.y), Vector3.DOWN, 60.0).get("plants", []) == flora.groups[g], "a ray strikes it where it stands now")
+	check(_across(blob.anchor).distance_to(to) < 0.01 and _across(world.state.groups[g].places.get(0, Vector3.INF)).distance_to(to) < 0.01, "a bush is carried and set")
+	check(flora.solid_hit(Vector3(to.x, 40.0, to.y), Vector3.DOWN, 60.0).get("plants", []) == flora.groups[g], "a ray strikes it where it stands now")
 	var seq := world.seq
 	var right := tool.mason(main.rig.right)
 	var left := tool.mason(main.rig.left)
@@ -150,9 +140,9 @@ func _bushes_are_carried_not_sized() -> void:
 	tool.drag_pair(left, mid + Vector3.RIGHT, mid + Vector3.LEFT)
 	tool.end_grow(left)
 	tool.end_grow(right)
-	_check(world.seq == seq and blob.xform.basis.is_equal_approx(look), "two hands leave a bush its size, and send nothing")
+	check(world.seq == seq and blob.xform.basis.is_equal_approx(look), "two hands leave a bush its size, and send nothing")
 	world._order({"op": "undo"}, world.me())
-	_check(_across(blob.anchor).distance_to(_across(at)) < 0.01, "an undo sets it back")
+	check(_across(blob.anchor).distance_to(_across(at)) < 0.01, "an undo sets it back")
 	world.restore({"seq": 0, "cmds": []})
 
 
@@ -163,16 +153,16 @@ func _commands_are_checked() -> void:
 	world._order({"op": "plant", "kind": "bush", "seed": 6, "at": Terrain.ground(3, 12)}, world.me())
 	var bush := world.seq
 	var there := Terrain.ground(5, 14)
-	_check(_relayed({"op": "tree", "group": tree, "index": 0, "at": there}, 2).get("at") == there, "a peer takes a tree's new place")
-	_check(_relayed({"op": "tree", "group": bush, "index": 0, "at": there}, 2).get("at") == there, "and a bush's")
+	check(_relayed({"op": "tree", "group": tree, "index": 0, "at": there}, 2).get("at") == there, "a peer takes a tree's new place")
+	check(_relayed({"op": "tree", "group": bush, "index": 0, "at": there}, 2).get("at") == there, "and a bush's")
 	var meadow_bush: int = flora.meadow_bushes()[0]
-	_check(_relayed({"op": "tree", "group": 0, "index": meadow_bush, "at": there}, 2).get("at") == there, "and a meadow bush's")
-	_check(Commands.clean({"op": "tree", "group": bush, "index": 0, "at": there, "scale": 1.5}, world.state, false).is_empty(), "a bush takes no size")
-	_check(Commands.clean({"op": "tree", "group": 0, "index": meadow_bush, "species": 1}, world.state, false).is_empty(), "nor a species")
+	check(_relayed({"op": "tree", "group": 0, "index": meadow_bush, "at": there}, 2).get("at") == there, "and a meadow bush's")
+	check(Commands.clean({"op": "tree", "group": bush, "index": 0, "at": there, "scale": 1.5}, world.state, false).is_empty(), "a bush takes no size")
+	check(Commands.clean({"op": "tree", "group": 0, "index": meadow_bush, "species": 1}, world.state, false).is_empty(), "nor a species")
 	var grass := Array(flora.groups[0]).find_custom(func(p: Flora.Plant) -> bool: return p != null and p.pool == flora.grass)
-	_check(Commands.clean({"op": "tree", "group": 0, "index": grass, "at": there}, world.state, false).is_empty(), "grass is not carried")
+	check(Commands.clean({"op": "tree", "group": 0, "index": grass, "at": there}, world.state, false).is_empty(), "grass is not carried")
 	for bad: Variant in [Vector2(5, 14), Vector3(NAN, 0, 0), Vector3(1e6, 0, 0), "here"]:
-		_check(Commands.clean({"op": "tree", "group": tree, "index": 0, "at": bad}, world.state, false).is_empty(), "no place %s" % [bad])
+		check(Commands.clean({"op": "tree", "group": tree, "index": 0, "at": bad}, world.state, false).is_empty(), "no place %s" % [bad])
 	world._order({"op": "tree", "group": tree, "index": 0, "at": there}, 2)
-	_check(_across(flora.groups[tree][0].anchor).distance_to(_across(there)) < 0.01, "a peer's carry moves it here too")
+	check(_across(flora.groups[tree][0].anchor).distance_to(_across(there)) < 0.01, "a peer's carry moves it here too")
 	world.restore({"seq": 0, "cmds": []})

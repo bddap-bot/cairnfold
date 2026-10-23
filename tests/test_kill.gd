@@ -1,4 +1,4 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## A process killed while it writes leaves the garden it last finished saving and session chunks that each
 ## open with their start record; a quit writes the garden and the end record before anything else:
@@ -8,7 +8,6 @@ extends SceneTree
 const ROUNDS := 6
 const FILL := 1 << 22
 
-var failures := 0
 var dir := ""
 
 
@@ -18,12 +17,6 @@ func _initialize() -> void:
 		_write_until_killed(args[1])
 		return
 	_run.call_deferred()
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
 
 
 static func _garden(n: int) -> PackedByteArray:
@@ -72,27 +65,25 @@ func _run() -> void:
 		OS.kill(pid)
 		while OS.is_process_running(pid):
 			OS.delay_msec(1)
-		_check(_read(path) >= 0, "round %d: a kill mid-write leaves a whole garden" % round)
+		check(_read(path) >= 0, "round %d: a kill mid-write leaves a whole garden" % round)
 	_check_chunks()
 	await _quit_writes_first()
 	_remove(dir)
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 func _check_chunks() -> void:
 	var sessions := dir.path_join("sessions")
 	var chunks := Array(DirAccess.get_files_at(sessions)).filter(func(f: String) -> bool: return f.ends_with(".jsonl"))
-	_check(chunks.size() > 0, "the killed writer left session chunks")
+	check(chunks.size() > 0, "the killed writer left session chunks")
 	for name: String in chunks:
 		var text := FileAccess.get_file_as_string(sessions.path_join(name))
 		var first: Variant = JSON.parse_string(text.get_slice("\n", 0))
-		_check(first is Dictionary and first.get("event") == "start", "%s opens with its start record" % name)
+		check(first is Dictionary and first.get("event") == "start", "%s opens with its start record" % name)
 
 
 func _quit_writes_first() -> void:
-	var main: Node = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	await process_frame
 	var world: World = main.world
 	var sessions := dir.path_join("quit")
@@ -104,11 +95,11 @@ func _quit_writes_first() -> void:
 	main.finish()
 	root.get_node("AudioLifetime")._quitting = false
 	var kept: Variant = bytes_to_var(FileAccess.get_file_as_bytes(path))
-	_check(kept is Dictionary and kept.get("cmds") is Array and kept.cmds.size() == 1, "a quit writes the garden changed in its own frame")
+	check(kept is Dictionary and kept.get("cmds") is Array and kept.cmds.size() == 1, "a quit writes the garden changed in its own frame")
 	var chunk: String = Array(DirAccess.get_files_at(sessions)).filter(func(f: String) -> bool: return f.ends_with(".jsonl"))[0]
 	var lines := FileAccess.get_file_as_string(sessions.path_join(chunk)).strip_edges().split("\n")
 	var last: Variant = JSON.parse_string(lines[-1])
-	_check(last is Dictionary and last.get("event") == "end", "and ends the session log")
+	check(last is Dictionary and last.get("event") == "end", "and ends the session log")
 	world.save_path = ""
 	main.queue_free()
 	await process_frame

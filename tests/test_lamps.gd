@@ -1,8 +1,7 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of baked lantern light in and around a house: godot4 --headless --path game --script ../tests/test_lamps.gd
 
-var failures := 0
 var ground := PackedFloat32Array()
 
 
@@ -58,10 +57,10 @@ func _a_house_keeps_its_light_in() -> void:
 	var flame := PackedVector3Array([Vector3(1.0, 1.8, 0.0)])
 	var open := Lamps.shine(flame, ground)
 	var held := Lamps.shine(flame, ground, [house])
-	_check(_at(held, 3.5, 0.5, 0) > 0.1 and _at(held, 3.5, 0.5, 0) == _at(open, 3.5, 0.5, 0), "the floor is as lit as without walls: %.2f, %.2f" % [_at(held, 3.5, 0.5, 0), _at(open, 3.5, 0.5, 0)])
-	_check(_at(held, 6.5, 1.5, 3) == _at(open, 6.5, 1.5, 3), "and so is the far end under the roof")
-	_check(_at(open, 3.5, 0.5, 5) > 0.05 and _at(held, 3.5, 0.5, 5) == 0.0, "the air over the roof stays dark: %.2f without walls" % _at(open, 3.5, 0.5, 5))
-	_check(_at(open, -1.5, 0.5, 1) > 0.1 and _at(held, -1.5, 0.5, 1) == 0.0, "and the air beyond a wall without openings")
+	check(_at(held, 3.5, 0.5, 0) > 0.1 and _at(held, 3.5, 0.5, 0) == _at(open, 3.5, 0.5, 0), "the floor is as lit as without walls: %.2f, %.2f" % [_at(held, 3.5, 0.5, 0), _at(open, 3.5, 0.5, 0)])
+	check(_at(held, 6.5, 1.5, 3) == _at(open, 6.5, 1.5, 3), "and so is the far end under the roof")
+	check(_at(open, 3.5, 0.5, 5) > 0.05 and _at(held, 3.5, 0.5, 5) == 0.0, "the air over the roof stays dark: %.2f without walls" % _at(open, 3.5, 0.5, 5))
+	check(_at(open, -1.5, 0.5, 1) > 0.1 and _at(held, -1.5, 0.5, 1) == 0.0, "and the air beyond a wall without openings")
 
 
 func _windows_and_doors_let_it_out() -> void:
@@ -69,19 +68,19 @@ func _windows_and_doors_let_it_out() -> void:
 	var held := Lamps.shine(PackedVector3Array([Vector3(3.5, 1.8, 0.0)]), ground, [house])
 	var window := _at(held, 3.5, 4.5, 0)
 	var door := _at(held, 3.5, -4.5, 0)
-	_check(window > 0.1, "light falls on the ground outside a window: %.2f" % window)
-	_check(_at(held, 3.5, 6.5, 0) == 0.0, "and is gone a few metres out")
-	_check(_at(held, 3.5, 4.5, 2) == 0.0, "and none rises toward the eaves over it")
-	_check(door > 0.0 and door < window * 0.5, "a doorway lets a little out: %.2f beside the window's %.2f" % [door, window])
+	check(window > 0.1, "light falls on the ground outside a window: %.2f" % window)
+	check(_at(held, 3.5, 6.5, 0) == 0.0, "and is gone a few metres out")
+	check(_at(held, 3.5, 4.5, 2) == 0.0, "and none rises toward the eaves over it")
+	check(door > 0.0 and door < window * 0.5, "a doorway lets a little out: %.2f beside the window's %.2f" % [door, window])
 
 
 func _a_house_keeps_light_out() -> void:
 	var house := _house()
 	var flame := PackedVector3Array([Vector3(7.8, 1.8, 0.5)])
 	var held := Lamps.shine(flame, ground, [house])
-	_check(_at(held, 3.5, 0.5, 1) == 0.0, "a lantern outside lights nothing inside")
-	_check(_at(Lamps.shine(flame, ground), -0.5, 0.5, 1) > 0.0 and _at(held, -0.5, 0.5, 1) == 0.0, "nor beyond the house")
-	_check(_at(held, 8.5, 0.5, 0) > 0.3, "but lights its own side")
+	check(_at(held, 3.5, 0.5, 1) == 0.0, "a lantern outside lights nothing inside")
+	check(_at(Lamps.shine(flame, ground), -0.5, 0.5, 1) > 0.0 and _at(held, -0.5, 0.5, 1) == 0.0, "nor beyond the house")
+	check(_at(held, 8.5, 0.5, 0) > 0.3, "but lights its own side")
 
 
 func _window_strength_does_not_brighten_the_room() -> void:
@@ -92,20 +91,20 @@ func _window_strength_does_not_brighten_the_room() -> void:
 		if o.gives != Lamps.DOOR:
 			o.gives = 1.0
 	var plain := Lamps.shine(flames, ground, [house])
-	_check(absf(_at(bright, 3.5, 4.5, 0) - _at(plain, 3.5, 4.5, 0) * Lamps.WINDOW_GLOW) < Lamps.ENCODE / 255.0 * Lamps.WINDOW_GLOW,
+	check(absf(_at(bright, 3.5, 4.5, 0) - _at(plain, 3.5, 4.5, 0) * Lamps.WINDOW_GLOW) < Lamps.ENCODE / 255.0 * Lamps.WINDOW_GLOW,
 		"the window strength reaches the ground outside")
-	_check(_at(bright, 3.5, 0.5, 1) == _at(plain, 3.5, 0.5, 1), "window strength leaves the interior's light alone")
-	_check(_at(bright, 3.5, -4.5, 0) == _at(plain, 3.5, -4.5, 0), "window strength leaves the doorway's spill alone")
+	check(_at(bright, 3.5, 0.5, 1) == _at(plain, 3.5, 0.5, 1), "window strength leaves the interior's light alone")
+	check(_at(bright, 3.5, -4.5, 0) == _at(plain, 3.5, -4.5, 0), "window strength leaves the doorway's spill alone")
 	var dark := Lamps.shine(PackedVector3Array(), ground, [house])
-	_check(_at(dark, 3.5, 4.5, 0) == 0.0, "without an interior flame the window gives no light")
-	_check(Stones.shared_material().get_shader_parameter("window_glow") == Lamps.WINDOW_GLOW, "the pane and spill share their strength")
+	check(_at(dark, 3.5, 4.5, 0) == 0.0, "without an interior flame the window gives no light")
+	check(Stones.shared_material().get_shader_parameter("window_glow") == Lamps.WINDOW_GLOW, "the pane and spill share their strength")
 
 
 func _an_open_loop_lets_light_up() -> void:
 	var yard := _house(WallLayout.Cover.OPEN)
 	var held := Lamps.shine(PackedVector3Array([Vector3(1.0, 1.8, 0.0)]), ground, [yard])
-	_check(_at(held, 3.5, 0.5, 4) > 0.0, "over a loop without a roof the light goes up")
-	_check(_at(held, -1.5, 0.5, 1) == 0.0, "its walls still hold it in")
+	check(_at(held, 3.5, 0.5, 4) > 0.0, "over a loop without a roof the light goes up")
+	check(_at(held, -1.5, 0.5, 1) == 0.0, "its walls still hold it in")
 
 
 func _merged_rooms_share_light() -> void:
@@ -131,12 +130,12 @@ func _merged_rooms_share_light() -> void:
 	var merged := Lamps.shine(flame, ground, rooms)
 	for x in [4.5, 5.5, 7.5]:
 		print("merge light x=%.1f: %.6f; unobstructed %.6f" % [x, _at(merged, x, 0.5, 1), _at(open, x, 0.5, 1)])
-		_check(_at(open, x, 0.5, 1) > 0.0 and _at(merged, x, 0.5, 1) == _at(open, x, 0.5, 1), "light crosses both old seams, including the third room")
-	_check(_at(merged, 5.5, 3.5, 1) == 0.0, "merged outer walls keep their light in")
+		check(_at(open, x, 0.5, 1) > 0.0 and _at(merged, x, 0.5, 1) == _at(open, x, 0.5, 1), "light crosses both old seams, including the third room")
+	check(_at(merged, 5.5, 3.5, 1) == 0.0, "merged outer walls keep their light in")
 
 	rooms.reverse()
 	var reversed := Lamps.shine(flame, ground, rooms)
-	_check(reversed == merged, "merged light does not depend on building order")
+	check(reversed == merged, "merged light does not depend on building order")
 	layouts[1].joined.clear()
 	layouts[2].joined.clear()
 	layouts[0].joined.clear()

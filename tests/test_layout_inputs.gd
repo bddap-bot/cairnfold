@@ -1,6 +1,4 @@
-extends SceneTree
-
-var failures := 0
+extends "res://../tests/support/suite.gd"
 
 
 func _init() -> void:
@@ -10,8 +8,8 @@ func _init() -> void:
 	var roof := RoofLayout.new()
 	roof.corners = WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)
 	roof.build()
-	_check(wall.same_inputs(wall.inputs()), "laid wall output does not change its inputs")
-	_check(roof.same_inputs(roof.inputs()), "laid roof output and derived footprint do not change its inputs")
+	check(wall.same_inputs(wall.inputs()), "laid wall output does not change its inputs")
+	check(roof.same_inputs(roof.inputs()), "laid roof output and derived footprint do not change its inputs")
 	_changes(wall, {
 		"points": [Vector3.ZERO, Vector3(7, 0, 0)], "height": 4.0,
 		"seed": 19, "closed": true, "top": WallLayout.Top.COPE, "cover": WallLayout.Cover.ROOF,
@@ -24,8 +22,7 @@ func _init() -> void:
 		"pitch": 3.0, "curve": 0.5, "seed": 19, "chimneys": [Vector2(1, 1)], "dormers": [Vector2(1, 1.5)], "overhang": 0.8,
 		"deck": RoofLayout.Deck.WOOD, "flag": true, "thatch": true,
 	})
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 func _changes(layout: RefCounted, changes: Dictionary) -> void:
@@ -35,11 +32,7 @@ func _changes(layout: RefCounted, changes: Dictionary) -> void:
 			copy.get(field).assign(changes[field])
 		else:
 			copy.set(field, changes[field])
-		_check(not layout.same_inputs(copy) and not copy.same_inputs(layout), "%s invalidates reuse in either direction" % field)
-		_check(copy.same_inputs(copy.inputs()), "%s survives an independent worker copy" % field)
+		check(not layout.same_inputs(copy) and not copy.same_inputs(layout), "%s invalidates reuse in either direction" % field)
+		check(copy.same_inputs(copy.inputs()), "%s survives an independent worker copy" % field)
 
 
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)

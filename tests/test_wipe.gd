@@ -1,17 +1,14 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of wiping the garden: the delete tool held at the sky empties every layer in one step, undo
 ## brings back the garden as it was kept, and a visitor's wipe is the host's: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_wipe.gd
 
-var failures := 0
-var main: Node
 var world: World
 var dir := ""
 
 
 func _initialize() -> void:
-	main = (load("res://main.tscn") as PackedScene).instantiate()
-	root.add_child(main)
+	boot_main()
 	_run.call_deferred()
 
 
@@ -30,14 +27,7 @@ func _run() -> void:
 	for f in DirAccess.get_files_at(dir):
 		DirAccess.remove_absolute(dir.path_join(f))
 	DirAccess.remove_absolute(dir)
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 func _play(steps: Array) -> void:
@@ -85,17 +75,17 @@ func _build() -> void:
 	])
 	await _settled()
 	var s := world.state
-	_check(s.walls.size() == 1 and s.paths.size() == 1 and s.grounds.size() == 1 and s.groups.size() == 3 and s.ponds.size() == 1 and world.sculpted, "the garden holds a wall, a path, stone, a tree, flowers, shaped ground and a pond: %s" % [s.keys().map(func(k: String) -> int: return s[k].size())])
+	check(s.walls.size() == 1 and s.paths.size() == 1 and s.grounds.size() == 1 and s.groups.size() == 3 and s.ponds.size() == 1 and world.sculpted, "the garden holds a wall, a path, stone, a tree, flowers, shaped ground and a pond: %s" % [s.keys().map(func(k: String) -> int: return s[k].size())])
 
 
 func _letting_go_early_wipes_nothing() -> void:
 	var seq := world.seq
 	var picture := _picture()
 	await _play([{"op": "wipe", "seconds": 1.5}])
-	_check(world.seq == seq and _picture() == picture, "letting go before the charge is full wipes nothing")
+	check(world.seq == seq and _picture() == picture, "letting go before the charge is full wipes nothing")
 	await _play([{"op": "wipe", "seconds": 3.0, "dir": [0, -1, -1]}])
-	_check(world.seq == seq and _picture() == picture, "nor does holding the trigger at the ground")
-	_check(not main.delete_tool.busy(), "and no charge is left behind")
+	check(world.seq == seq and _picture() == picture, "nor does holding the trigger at the ground")
+	check(not main.delete_tool.busy(), "and no charge is left behind")
 
 
 func _a_wipe_empties_every_layer_and_undo_brings_it_all_back() -> void:
@@ -105,37 +95,37 @@ func _a_wipe_empties_every_layer_and_undo_brings_it_all_back() -> void:
 	var seq := world.seq
 	await _play([{"op": "wipe", "seconds": 2.5}])
 	await _settled()
-	_check(world.seq == seq + 1, "a full charge wipes in one command")
+	check(world.seq == seq + 1, "a full charge wipes in one command")
 	var s := world.state
-	_check(s.walls.is_empty() and main.tool.walls.is_empty(), "no walls stand")
-	_check(s.paths.is_empty() and s.grounds.is_empty(), "no paths or stone are laid")
-	_check(Ground.laid.get_data().count(0) == Ground.laid.get_data().size(), "and the ground shows no wear from them")
-	_check(s.groups.keys() == [0], "no planted groups are left")
-	_check(s.ponds.is_empty() and main.water.ponds.is_empty(), "no ponds hold water")
-	_check(not world.sculpted and Terrain.read(Terrain.ALL) == Terrain.base_heights(), "the ground lies as it first did")
+	check(s.walls.is_empty() and main.tool.walls.is_empty(), "no walls stand")
+	check(s.paths.is_empty() and s.grounds.is_empty(), "no paths or stone are laid")
+	check(Ground.laid.get_data().count(0) == Ground.laid.get_data().size(), "and the ground shows no wear from them")
+	check(s.groups.keys() == [0], "no planted groups are left")
+	check(s.ponds.is_empty() and main.water.ponds.is_empty(), "no ponds hold water")
+	check(not world.sculpted and Terrain.read(Terrain.ALL) == Terrain.base_heights(), "the ground lies as it first did")
 	var flora: Flora = main.flora_tool.flora
 	var meadow: Array = flora.groups[0]
-	_check(meadow.all(func(p: Flora.Plant) -> bool: return p.shown() == (p.pool == flora.grass)), "of the meadow's own plants only its grass stands")
-	_check(flora.grass.size() == flora.grass.kept and flora.flowers.size() == flora.flowers.kept and flora.trunks.size() == flora.trunks.kept, "and nothing painted or planted")
-	_check(world.palette.season == season, "the garden keeps its season")
+	check(meadow.all(func(p: Flora.Plant) -> bool: return p.shown() == (p.pool == flora.grass)), "of the meadow's own plants only its grass stands")
+	check(flora.grass.size() == flora.grass.kept and flora.flowers.size() == flora.flowers.kept and flora.trunks.size() == flora.trunks.kept, "and nothing painted or planted")
+	check(world.palette.season == season, "the garden keeps its season")
 	var wiped := _picture()
 	await _play([{"op": "press", "button": "dpad_down"}])
 	await _settled()
-	_check(world.seq == seq + 2 and _picture() == picture, "one undo brings the whole garden back")
-	_check(_kept() == before, "and keeps it exactly as it was kept before the wipe")
+	check(world.seq == seq + 2 and _picture() == picture, "one undo brings the whole garden back")
+	check(_kept() == before, "and keeps it exactly as it was kept before the wipe")
 	await _play([{"op": "press", "button": "A"}])
 	await _settled()
-	_check(_picture() == wiped, "redo wipes it again")
+	check(_picture() == wiped, "redo wipes it again")
 	world.restore({"seq": 0, "cmds": []})
 	world.load_from(world.save_path)
-	_check(_picture() == wiped, "the wiped garden is kept and loads back bare")
+	check(_picture() == wiped, "the wiped garden is kept and loads back bare")
 
 
 func _a_visitor_wipes() -> void:
 	world._order({"op": "plant", "kind": "tree", "seed": 4, "at": Terrain.ground(-8, 6)}, 1)
 	var seq := world.seq
 	world._order({"op": "wipe"}, 2)
-	_check(world.seq == seq + 1 and world.state.groups.keys() == [0], "the host applies a visitor's wipe")
+	check(world.seq == seq + 1 and world.state.groups.keys() == [0], "the host applies a visitor's wipe")
 
 
 func _a_wipe_someone_built_on_stays() -> void:
@@ -143,9 +133,9 @@ func _a_wipe_someone_built_on_stays() -> void:
 	var wall := _wall(2)
 	var seq := world.seq
 	world._order({"op": "undo"}, 1)
-	_check(world.seq == seq and world.state.walls.keys() == [wall], "the host's undo leaves a wipe a visitor has since built on, and every step of theirs before it")
+	check(world.seq == seq and world.state.walls.keys() == [wall], "the host's undo leaves a wipe a visitor has since built on, and every step of theirs before it")
 	world._order({"op": "undo"}, 2)
-	_check(world.state.walls.is_empty(), "while the visitor still takes back their own wall")
+	check(world.state.walls.is_empty(), "while the visitor still takes back their own wall")
 
 
 func _wall(by: int) -> int:

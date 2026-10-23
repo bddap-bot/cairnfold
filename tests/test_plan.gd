@@ -1,8 +1,6 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
 ## Headless checks of how a stroke meets standing walls: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_plan.gd
-
-var failures := 0
 
 
 func _init() -> void:
@@ -19,14 +17,7 @@ func _init() -> void:
 	_a_junction_among_crowded_arches_takes_the_widest_pier()
 	_a_wall_arches_over_a_plant()
 	_a_wall_over_open_ground_stays_solid()
-	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
-	Main.quit(self, 1 if failures else 0)
-
-
-func _check(ok: bool, what: String) -> void:
-	if not ok:
-		failures += 1
-		print("FAIL: ", what)
+	finish()
 
 
 func _flat(_x: float, _z: float) -> float:
@@ -69,51 +60,51 @@ func _gap(w: WallLayout) -> float:
 func _a_stroke_alongside_a_wall_merges_into_it() -> void:
 	for gap in [0.0, 0.5, 1.2]:
 		var got := _plan(Vector2(-5, gap), Vector2(5, gap))
-		_check(got.is_empty(), "a stroke %.1f m from a wall builds %d walls, not none" % [gap, got.size()])
+		check(got.is_empty(), "a stroke %.1f m from a wall builds %d walls, not none" % [gap, got.size()])
 
 
 func _a_stroke_a_walkway_away_stands_free() -> void:
 	var got := _plan(Vector2(-5, 2.5), Vector2(5, 2.5))
-	_check(got.size() == 1, "a stroke 2.5 m away builds %d walls, not one" % got.size())
+	check(got.size() == 1, "a stroke 2.5 m away builds %d walls, not one" % got.size())
 	if got.size() == 1:
-		_check(_gap(got[0]) >= WallPlan.REACH - 0.01, "it keeps %.2f m from the wall" % _gap(got[0]))
+		check(_gap(got[0]) >= WallPlan.REACH - 0.01, "it keeps %.2f m from the wall" % _gap(got[0]))
 
 
 func _a_stroke_from_a_wall_starts_on_it() -> void:
 	var got := _plan(Vector2(1, 0.4), Vector2(1, 6))
-	_check(got.size() == 1, "a stroke away from a wall builds %d walls, not one" % got.size())
+	check(got.size() == 1, "a stroke away from a wall builds %d walls, not one" % got.size())
 	if got.size() == 1:
-		_check(absf(got[0].samples[0].z) < 0.01, "it starts on the wall's centre line, at z=%.2f" % got[0].samples[0].z)
-		_check(got[0].samples.all(func(p): return p.z > -0.01), "it does not poke through")
+		check(absf(got[0].samples[0].z) < 0.01, "it starts on the wall's centre line, at z=%.2f" % got[0].samples[0].z)
+		check(got[0].samples.all(func(p): return p.z > -0.01), "it does not poke through")
 
 
 func _a_crossing_stroke_meets_the_wall_from_both_sides() -> void:
 	var got := _plan(Vector2(2, -5), Vector2(2, 5))
-	_check(got.size() == 2, "a crossing stroke builds %d walls, not two" % got.size())
+	check(got.size() == 2, "a crossing stroke builds %d walls, not two" % got.size())
 	for w in got:
 		var on := [w.samples[0], w.samples[-1]].filter(func(p): return absf(p.z) < 0.01)
-		_check(on.size() == 1, "each half has one end on the wall")
+		check(on.size() == 1, "each half has one end on the wall")
 
 
 func _a_wall_arches_over_a_plant() -> void:
 	var got := _plan(Vector2(-3, 6), Vector2(3, 6), PackedVector3Array([Vector3(-1.2, 0, 6.2)]))
 	for w in got:
 		w.build(_flat)
-	_check(got.size() == 1 and got[0].openings.size() == 1, "a wall over a bush has one arch")
+	check(got.size() == 1 and got[0].openings.size() == 1, "a wall over a bush has one arch")
 	if got.size() == 1 and got[0].openings.size() == 1:
-		_check(absf(got[0].point_at(got[0].openings[0].x).x + 1.2) < 0.25, "the arch stands over the bush")
-		_check(got[0].archways() == got[0].openings.map(func(o): return o.x), "and the layout opens it")
+		check(absf(got[0].point_at(got[0].openings[0].x).x + 1.2) < 0.25, "the arch stands over the bush")
+		check(got[0].archways() == got[0].openings.map(func(o): return o.x), "and the layout opens it")
 
 
 func _a_wall_over_open_ground_stays_solid() -> void:
 	for length in [3.0, 5.0, 8.0, 27.0, 120.0]:
 		var got := _plan(Vector2(-length * 0.5, 6), Vector2(length * 0.5, 6))
-		_check(got.size() == 1 and got[0].openings.is_empty(), "a %s m wall over open ground stays solid" % length)
+		check(got.size() == 1 and got[0].openings.is_empty(), "a %s m wall over open ground stays solid" % length)
 
 
 func _a_short_wall_can_meet_another() -> void:
 	var got := _plan(Vector2(2, 0.3), Vector2(2, 2.6))
-	_check(got.size() == 1, "a 2.6 m stroke from a wall builds %d walls, not one" % got.size())
+	check(got.size() == 1, "a 2.6 m stroke from a wall builds %d walls, not one" % got.size())
 
 
 func _a_stroke_drifting_near_a_wall_grows_no_spur() -> void:
@@ -122,24 +113,24 @@ func _a_stroke_drifting_near_a_wall_grows_no_spur() -> void:
 		var x := -6.0 + i * 0.4
 		stroke.append(Vector3(x, 0, 2.0 - 0.4 * exp(-pow(x, 2))))
 	for w in _plan_stroke(stroke):
-		_check(_gap(w) >= WallPlan.REACH - 0.05, "a stroke dipping toward a wall keeps %.2f m from it" % _gap(w))
+		check(_gap(w) >= WallPlan.REACH - 0.05, "a stroke dipping toward a wall keeps %.2f m from it" % _gap(w))
 
 
 func _a_stroke_passing_a_walls_end_meets_it_there() -> void:
 	var got := _plan(Vector2(7, -5), Vector2(7, 5))
-	_check(got.size() == 2, "a stroke passing 1 m from a wall's end builds %d walls, not two" % got.size())
+	check(got.size() == 2, "a stroke passing 1 m from a wall's end builds %d walls, not two" % got.size())
 	for w in got:
 		var tip := [w.samples[0], w.samples[-1]].filter(func(p): return Vector2(p.x - 6.0, p.z).length() < 0.05)
-		_check(tip.size() == 1, "each meets the wall at its end")
+		check(tip.size() == 1, "each meets the wall at its end")
 
 
 func _a_junction_keeps_out_of_an_arch() -> void:
 	var standing := _standing([0.0 + 6.0])
 	var got := _plan(Vector2(0, 0.5), Vector2(0, 6), PackedVector3Array(), standing)
-	_check(got.size() == 1, "a stroke from an arch builds %d walls, not one" % got.size())
+	check(got.size() == 1, "a stroke from an arch builds %d walls, not one" % got.size())
 	if got.size() == 1:
 		var x := got[0].samples[0].x
-		_check(absf(x) >= WallLayout.ARCH_HALF + WallLayout.RING, "its junction stands clear of the arch, at x=%.2f" % x)
+		check(absf(x) >= WallLayout.ARCH_HALF + WallLayout.RING, "its junction stands clear of the arch, at x=%.2f" % x)
 
 
 func _a_junction_keeps_out_of_neighbouring_arches() -> void:
@@ -148,9 +139,9 @@ func _a_junction_keeps_out_of_neighbouring_arches() -> void:
 	if got.size() == 1:
 		var x := got[0].samples[0].x
 		for a in [-1.27, 1.27]:
-			_check(absf(x - a) >= WallLayout.ARCH_HALF + WallLayout.RING, "a junction between two arches stands clear of both, at x=%.2f" % x)
+			check(absf(x - a) >= WallLayout.ARCH_HALF + WallLayout.RING, "a junction between two arches stands clear of both, at x=%.2f" % x)
 	else:
-		_check(false, "a stroke between two arches builds %d walls, not one" % got.size())
+		check(false, "a stroke between two arches builds %d walls, not one" % got.size())
 
 
 func _a_merged_stroke_wavering_past_reach_stays_merged() -> void:
@@ -159,7 +150,7 @@ func _a_merged_stroke_wavering_past_reach_stays_merged() -> void:
 		var x := -5.0 + i * 0.35
 		stroke.append(Vector3(x, 0, 1.0 if i < 5 else 1.9 + 0.2 * sin(i * 1.7)))
 	var got := _plan_stroke(stroke)
-	_check(got.is_empty(), "a stroke wavering between 1.7 and 2.1 m from a wall after merging builds %d walls" % got.size())
+	check(got.is_empty(), "a stroke wavering between 1.7 and 2.1 m from a wall after merging builds %d walls" % got.size())
 
 
 func _a_junction_among_crowded_arches_takes_the_widest_pier() -> void:
@@ -167,6 +158,6 @@ func _a_junction_among_crowded_arches_takes_the_widest_pier() -> void:
 	w.points = _line(Vector2(0, 0), Vector2(5.4, 0))
 	w.openings.assign([1.4, 3.94].map(WallLayout.archway))
 	w.build(_flat)
-	_check(w.archways().size() == 2, "a 5.4 m wall opens both arches")
+	check(w.archways().size() == 2, "a 5.4 m wall opens both arches")
 	var s := WallPlan._clear_of_arches(w, 1.5)
-	_check(absf(s - 1.4) > 0.9 and absf(s - 3.94) > 0.9, "with no clear spot the junction stands off both arches, at s=%.2f" % s)
+	check(absf(s - 1.4) > 0.9 and absf(s - 3.94) > 0.9, "with no clear spot the junction stands off both arches, at s=%.2f" % s)
