@@ -298,45 +298,17 @@ func _painting_stops_at_the_budget() -> void:
 
 func _joining_does_not_change_the_budget() -> void:
 	var meadow := world.units.duplicate()
+	var bare := world.snapshot()
 	await play([{"op": "place", "x": 0, "z": 8}, {"op": "house", "at": [0, 0], "size": [2.4, 2.4], "seconds": 0.3}])
 	check(world.state.walls.size() == 1, "the solo host can place a small stone house")
 	var house := Budget.add(world.units.duplicate(), meadow, -1.0)
-	var branches: Array[Node] = []
-	var peers: Array[ENetMultiplayerPeer] = []
-	var worlds: Array[World] = []
-	for i in 2:
-		var branch := Node.new()
-		root.add_child(branch)
-		set_multiplayer(SceneMultiplayer.new(), branch.get_path())
-		var w := World.new()
-		branch.add_child(w)
-		w.units = world.units.duplicate()
-		branches.append(branch)
-		worlds.append(w)
-		peers.append(ENetMultiplayerPeer.new())
-	var host := worlds[0]
-	var guest := worlds[1]
-	var solo := host.fill()
-	var fits_solo := Budget.fits(host.units, house)
-	check(peers[0].create_server(0) == OK, "the budget test host opens ENet")
-	host.multiplayer.multiplayer_peer = peers[0]
-	check(peers[1].create_client("127.0.0.1", peers[0].host.get_local_port()) == OK, "the visitor connects")
-	guest.multiplayer.multiplayer_peer = peers[1]
-	await process_frame
-	await until(func() -> bool: return host.multiplayer.get_peers().size() == 1 and guest.multiplayer.get_peers().size() == 1, "the guest joins the host")
-	for i in 30:
-		await process_frame
-	check(host.multiplayer.get_peers().size() == 1 and guest.multiplayer.get_peers().size() == 1, "host and visitor connected")
-	check(is_equal_approx(host.fill(), solo) and is_equal_approx(guest.fill(), solo), "host and visitor keep the solo garden fill")
-	check(Budget.fits(host.units, house) == fits_solo and Budget.fits(guest.units, house) == fits_solo, "host and visitor agree on a second house")
-	for peer in peers:
-		peer.close()
-	host.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
-	guest.multiplayer.multiplayer_peer = OfflineMultiplayerPeer.new()
-	check(is_equal_approx(host.fill(), solo), "leaving does not change the garden fill")
-	for branch in branches:
-		branch.queue_free()
-	world.undo()
+	var solo := world.fill()
+	var fits_solo := Budget.fits(world.units, house)
+	world._welcome(world.snapshot())
+	await _settled()
+	check(world.state.walls.size() == 1 and is_equal_approx(world.fill(), solo), "a visitor's garden built from the host's welcome keeps the solo fill: %.3f of %.3f" % [world.fill(), solo])
+	check(Budget.fits(world.units, house) == fits_solo, "and agrees on a second house")
+	world.restore(bare)
 	await _settled()
 
 

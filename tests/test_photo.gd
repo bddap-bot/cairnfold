@@ -273,6 +273,7 @@ func _holding_the_trigger_records_until_it_is_let_go() -> void:
 	Buttons.injected.erase(key)
 	await _until(func() -> bool: return not saved.is_empty())
 	check(tool._clip == null and tool._clip_hand == null, "letting go stops recording")
+	check(not saved.is_empty(), "letting go saves the video")
 	if saved.is_empty():
 		return
 	check(saved[0].ends_with(".avi") and FileAccess.file_exists(saved[0]), "the video is saved beside the photos: %s" % saved[0])

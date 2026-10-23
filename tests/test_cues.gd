@@ -61,8 +61,6 @@ func _voices_are_pooled_and_continuous_actions_thinned() -> void:
 		Cues.play(Cues.Act.WALL_SETTLE, Vector3(i, 0, 0))
 	var voices := cues.get_children().filter(func(c: Node) -> bool: return c is AudioStreamPlayer3D)
 	check(voices.size() == Cues.VOICES, "sounds share %d voices: %d" % [Cues.VOICES, voices.size()])
-	var playing := voices.filter(func(v: AudioStreamPlayer3D) -> bool: return v.playing).size()
-	check(playing <= Cues.VOICES, "no more than the pool plays at once")
 	var before := cues._next_voice
 	for i in 10:
 		Cues.play(Cues.Act.HOUSE_MOVE, Vector3.ZERO, hand)

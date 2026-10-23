@@ -492,6 +492,7 @@ func _in_the_glade() -> void:
 	var eave: Vector3 = r.frame().mid + across * (hs + 0.15) + Vector3.UP * r.rise(1.0 - (hs + 0.15) / hs)
 	check(r.eave_way(eave).is_equal_approx(across) and r.eave_way(eave - across * (hs + 0.15) * 2.0).is_equal_approx(-across), "a grip on either eave, past the walls, holds that eave")
 	check(r.eave_way(ridge) == Vector3.ZERO, "a grip on the slope over the walls holds the roof itself")
+	var pitch: float = world.state.walls[house.id].roof.pitch
 	tool.take_build(house)
 	var from: Array[Transform3D] = [Transform3D(Basis(), eave - across * 2.0 * (hs + 0.15)), Transform3D(Basis(), eave)]
 	var to: Array[Transform3D] = [Transform3D(Basis(), from[0].origin - across * 0.8), Transform3D(Basis(), from[1].origin + across * 0.8)]
@@ -501,7 +502,7 @@ func _in_the_glade() -> void:
 	for f in 4:
 		await process_frame
 	var pulled: float = world.state.walls[house.id].roof.overhang
-	check(absf(pulled - (RoofLayout.OVERHANG + 0.8)) < 0.06 and world.state.walls[house.id].roof.pitch == r.pitch, "both eaves pulled out, they reach further and the pitch stays: %.2f" % pulled)
+	check(absf(pulled - (RoofLayout.OVERHANG + 0.8)) < 0.06 and world.state.walls[house.id].roof.pitch == pitch, "both eaves pulled out, they reach further and the pitch stays: %.2f" % pulled)
 	await _play([{"op": "roof", "index": 1, "pitch": 0.0, "deck": "wood"}, {"op": "top", "index": 1, "style": "rail"}])
 	var d: Dictionary = world.state.walls[deck.id]
 	check(d.roof.pitch == 0.0 and d.roof.deck == RoofLayout.Deck.WOOD and d.top == WallLayout.Top.RAIL, "a house pushed flat takes a wooden deck and a railing")

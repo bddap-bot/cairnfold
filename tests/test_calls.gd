@@ -101,4 +101,10 @@ func _animals_near_the_head_stay_calm() -> void:
 		c.tick(STEP)
 		heard += int(c.now_and_then("murmur", near, 10.0, STEP))
 	check(heard > 0, "a conure beside the head murmurs")
-	check(c.call_out("quack", near), "a duck landing beside the head still quacks")
+	var quacks := 0
+	var peeps := 0
+	for i in int(300.0 / STEP):
+		c.tick(STEP)
+		quacks += int(c.now_and_then("quack", near, Wildlife.QUACK_EVERY, STEP))
+		peeps += int(c.now_and_then("peep", near, Wildlife.PEEP_EVERY, STEP))
+	check(quacks > 0 and peeps > 0, "a duck family at its pond beside the head still quacks and peeps: %d, %d" % [quacks, peeps])

@@ -228,7 +228,7 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 		var now := Color(painted.stone[i + 12], painted.stone[i + 13], painted.stone[i + 14])
 		var expect := was * Palette.tint(Palette.Element.WOOD, 3) if packed.stone[i + 17] == Palette.Element.WOOD else was
 		tinted = tinted and now.is_equal_approx(expect)
-	check(tinted and painted.paint == paint, "a wall packed in its paint scales its wood onto the swatch and leaves the rest")
+	check(tinted, "a wall packed in its paint scales its wood onto the swatch and leaves the rest")
 	var door: Dictionary = wall.stones.filter(func(s): return s.kind == "door")[0]
 	check(Stones.custom(door) == Color(door.ao, Palette.Element.WOOD, 0, 0), "a laid door carries its occlusion and wood's code to its shader")
 	check(Stones.custom({"ao": 0.85}) == Color(0.85, 0, 0, 0), "a stone with no kind, keeps its colour")

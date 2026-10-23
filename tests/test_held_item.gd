@@ -11,7 +11,7 @@ func _run() -> void:
 	for tool in Hand.Tool.values():
 		if tool in [Hand.Tool.NONE, Hand.Tool.EASEL, Hand.Tool.BOOK]:
 			continue
-		var s := [HeldItem.Kind.TOOL, tool, Transform3D(Basis(), Hand.TOP), Color.WHITE, 0.0, 0, tool == Hand.Tool.SEEDS, Vector3.ZERO]
+		var s := [HeldItem.Kind.TOOL, tool, Transform3D(Basis(), Hand.TOP), Color.WHITE, 0.0, 0, true, Vector3.ZERO]
 		check(HeldItem.valid(s), "wheel tool accepted")
 		item.show_state(s)
 		check(item.model != null and item.model.get_child_count() > 0, "wheel tool builds its actual model")

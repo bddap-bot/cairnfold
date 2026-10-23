@@ -208,7 +208,10 @@ func _bad_commands_are_dropped() -> void:
 func _gable_ends_go_through_the_host() -> void:
 	world._order({"op": "wall", "walls": [_house_data(PackedInt32Array())]}, 1)
 	var id := world.seq * Commands.MAX_PIECES
-	check(world.state.walls[id].gable_end == WallLayout.GableEnd.WALL, "a house sent without a gable end has the wall's")
+	check(world.state.walls[id].gable_end == WallLayout.GableEnd.WALL, "a house sent with the wall's gable end has it")
+	var unset := _house_data(PackedInt32Array())
+	unset.erase("gable_end")
+	check(Commands.clean({"op": "wall", "walls": [unset]}, world.state, false).is_empty(), "a house sent without a gable end is refused")
 	var turn := {"op": "reshape", "of": "walls", "id": id, "data": {"gable_end": WallLayout.GableEnd.STEPS}}
 	var hosted := Commands.clean(turn, world.state, false)
 	hosted.seq = world.seq + 1
