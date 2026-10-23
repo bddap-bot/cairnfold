@@ -216,7 +216,8 @@ func inventory() -> Array:
 	if people != null:
 		tree[3] = [people.avatars(), people.friends(), Tool.BOOK]
 	if flat_only:
-		return [null, [Tool.CAMERA, Tool.SEEDS], null, tree[3], null, null, null, null]
+		# The book opens only to the other hand's touch, which a flat player's never reaches.
+		return [null, [Tool.CAMERA, Tool.SEEDS], null, tree[3].slice(0, 2), null, null, null, null]
 	return tree
 
 

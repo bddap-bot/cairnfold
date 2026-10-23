@@ -267,6 +267,7 @@ func _the_flat_wheel_selects_an_avatar() -> void:
 	var hand: Hand = main.rig.right
 	var tree := hand.inventory()
 	check(not ToolWheel.paths(tree).has(Hand.Tool.WALLS), "flat wheel offers no building tools")
+	check(not ToolWheel.paths(tree).has(Hand.Tool.BOOK), "nor the picture book, which opens only to the other hand's touch")
 	_key(true, KEY_Q)
 	await frames(3)
 	check(hand.picking, "Q opens the shared inventory wheel")
