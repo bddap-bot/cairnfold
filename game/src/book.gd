@@ -429,10 +429,10 @@ func _render_pages() -> void:
 
 
 static var _page_mesh: PlaneMesh
-## Per board (front or back), its box with the inside cut to the margin left around the pages.
-static var _boards := {}
-## A block's top lies under the leaf on it and its bottom on a board, so it has neither.
-static var _block_mesh: ArrayMesh
+## Whole boxes, though a page covers a block's top and a board's inside: a page bowing out of the gutter shows what lies
+## under it, and drawn after the pages (Layer) the covered faces fail the depth test unshaded.
+static var _board_mesh: BoxMesh
+static var _block_mesh: BoxMesh
 
 
 func _sheet() -> MeshInstance3D:
@@ -453,10 +453,11 @@ func _sheet() -> MeshInstance3D:
 
 
 func _board(front: bool) -> MeshInstance3D:
-	if not _boards.has(front):
-		_boards[front] = _framed_board(-1.0 if front else 1.0)
+	if _board_mesh == null:
+		_board_mesh = BoxMesh.new()
+		_board_mesh.size = BOARD
 	var mi := MeshInstance3D.new()
-	mi.mesh = _boards[front]
+	mi.mesh = _board_mesh
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/book.gdshader")
 	mat.set_shader_parameter("size", BOARD)
@@ -468,7 +469,7 @@ func _board(front: bool) -> MeshInstance3D:
 
 func _block() -> MeshInstance3D:
 	if _block_mesh == null:
-		_block_mesh = _sides()
+		_block_mesh = BoxMesh.new()
 	var mi := MeshInstance3D.new()
 	mi.mesh = _block_mesh
 	var mat := ShaderMaterial.new()
@@ -478,60 +479,3 @@ func _block() -> MeshInstance3D:
 	mi.material_override = mat
 	add_child(mi)
 	return mi
-
-
-## A unit box's four sides.
-static func _sides() -> ArrayMesh:
-	var box := BoxMesh.new()
-	var arrays := box.get_mesh_arrays()
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var all: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	var kept := PackedInt32Array()
-	for i in range(0, all.size(), 3):
-		if absf(normals[all[i]].y) < 0.5:
-			kept.append_array([all[i], all[i + 1], all[i + 2]])
-	arrays[Mesh.ARRAY_INDEX] = kept
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
-
-
-## A board whose inside, the face with normal y `inside`, is only the margin around the pages: under the pages it is
-## never seen.
-static func _framed_board(inside: float) -> ArrayMesh:
-	var box := BoxMesh.new()
-	box.size = BOARD
-	var arrays := box.get_mesh_arrays()
-	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
-	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
-	var uvs: PackedVector2Array = arrays[Mesh.ARRAY_TEX_UV]
-	var tangents: PackedFloat32Array = arrays[Mesh.ARRAY_TANGENT]
-	var all: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-	var from := PackedInt32Array()
-	var at := PackedVector3Array()
-	var face := PackedInt32Array()
-	for i in range(0, all.size(), 3):
-		for j in all.slice(i, i + 3):
-			if roundf(normals[all[i]].y) == inside:
-				face.append(j)
-			else:
-				from.append(j)
-				at.append(verts[j])
-	var h := BOARD * 0.5
-	var fore := W - h.x
-	for strip: Array in [[fore, h.x, -h.z, h.z], [-h.x, fore, -h.z, -H * 0.5], [-h.x, fore, H * 0.5, h.z]]:
-		for j in face:
-			from.append(j)
-			at.append(Vector3(strip[1] if verts[j].x > 0.0 else strip[0], verts[j].y, strip[3] if verts[j].z > 0.0 else strip[2]))
-	var out := []
-	out.resize(Mesh.ARRAY_MAX)
-	out[Mesh.ARRAY_VERTEX] = at
-	out[Mesh.ARRAY_NORMAL] = PackedVector3Array(Array(from).map(func(j: int) -> Vector3: return normals[j]))
-	out[Mesh.ARRAY_TEX_UV] = PackedVector2Array(Array(from).map(func(j: int) -> Vector2: return uvs[j]))
-	var t := PackedFloat32Array()
-	for j in from:
-		t.append_array(tangents.slice(j * 4, j * 4 + 4))
-	out[Mesh.ARRAY_TANGENT] = t
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out)
-	return mesh
