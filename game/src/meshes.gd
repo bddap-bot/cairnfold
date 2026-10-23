@@ -329,3 +329,19 @@ static func ellipsoid(st: SurfaceTool, part: int, c: Vector3, r: Vector3, col: C
 					st.set_uv2(Vector2(part, 0))
 					st.set_normal(quad[v][1])
 					st.add_vertex(quad[v][0])
+
+
+## Appends a surface's (or a blend shape's) arrays to `into`, each where both have it, the indices moved past `into`'s
+## vertices.
+static func join(into: Array, arrays: Array) -> void:
+	if into[Mesh.ARRAY_INDEX] != null and arrays[Mesh.ARRAY_INDEX] != null:
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var base: int = into[Mesh.ARRAY_VERTEX].size()
+		for j in idx.size():
+			idx[j] += base
+		arrays[Mesh.ARRAY_INDEX] = idx
+	for k in mini(into.size(), arrays.size()):
+		if into[k] != null and arrays[k] != null:
+			var joined: Variant = into[k]
+			joined.append_array(arrays[k])
+			into[k] = joined

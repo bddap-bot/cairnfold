@@ -415,15 +415,9 @@ static func _merged(im: ImporterMesh, morphs: Array) -> ImporterMesh:
 		if at.is_empty():
 			at.append_array([arrays, im.get_surface_format(i) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS, im.get_surface_name(i), shapes])
 			continue
-		var into: Array = at[0]
-		var base: int = into[Mesh.ARRAY_VERTEX].size()
-		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-		for j in idx.size():
-			idx[j] += base
-		arrays[Mesh.ARRAY_INDEX] = idx
-		_join(into, arrays)
+		Meshes.join(at[0], arrays)
 		for k in shapes.size():
-			_join(at[3][k], shapes[k])
+			Meshes.join(at[3][k], shapes[k])
 	var out := ImporterMesh.new()
 	out.resource_name = im.resource_name
 	out.set_blend_shape_mode(im.get_blend_shape_mode())
@@ -433,14 +427,6 @@ static func _merged(im: ImporterMesh, morphs: Array) -> ImporterMesh:
 		var g: Array = groups[key]
 		out.add_surface(Mesh.PRIMITIVE_TRIANGLES, g[0], g[3], {}, key[0], g[2], g[1])
 	return out
-
-
-static func _join(into: Array, arrays: Array) -> void:
-	for k in mini(into.size(), arrays.size()):
-		if into[k] != null and arrays[k] != null:
-			var joined: Variant = into[k]
-			joined.append_array(arrays[k])
-			into[k] = joined
 
 
 ## Generates each surface's levels of detail, which the renderer picks by size on screen, and keeps as the full

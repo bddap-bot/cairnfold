@@ -73,26 +73,23 @@ static func _share(k: Kind) -> Dictionary:
 static func _merged(mesh: Mesh) -> ArrayMesh:
 	var kept := [Mesh.ARRAY_VERTEX, Mesh.ARRAY_NORMAL, Mesh.ARRAY_COLOR, Mesh.ARRAY_BONES, Mesh.ARRAY_WEIGHTS, Mesh.ARRAY_INDEX]
 	var out := []
-	out.resize(Mesh.ARRAY_MAX)
 	var format: int = mesh.surface_get_format(0) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS
 	for i in mesh.get_surface_count():
 		assert(mesh.surface_get_format(i) & Mesh.ARRAY_FLAG_USE_8_BONE_WEIGHTS == format)
 		var arrays := mesh.surface_get_arrays(i)
-		var base: int = 0 if out[Mesh.ARRAY_VERTEX] == null else out[Mesh.ARRAY_VERTEX].size()
 		var colours := PackedColorArray()
 		colours.resize(arrays[Mesh.ARRAY_VERTEX].size())
 		colours.fill((mesh.surface_get_material(i) as BaseMaterial3D).albedo_color.srgb_to_linear())
 		arrays[Mesh.ARRAY_COLOR] = colours
-		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
-		for j in indices.size():
-			indices[j] += base
-		arrays[Mesh.ARRAY_INDEX] = indices
-		for a in kept:
-			assert(arrays[a] != null)
-			if out[a] == null:
-				out[a] = arrays[a]
+		for a in Mesh.ARRAY_MAX:
+			if a in kept:
+				assert(arrays[a] != null)
 			else:
-				out[a].append_array(arrays[a])
+				arrays[a] = null
+		if out.is_empty():
+			out = arrays
+		else:
+			Meshes.join(out, arrays)
 	var merged := ArrayMesh.new()
 	merged.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, out, [], {}, format)
 	return merged
