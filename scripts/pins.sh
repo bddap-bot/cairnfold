@@ -23,6 +23,8 @@ android_ndk_notice_sha256=faf0dc52cf6ce9ab09a04b0c074a378dd2565ee1ed9bc1179d8379
 android_ndk_toolchain_sha256=789714a9076571c580cf531bdcebec776a4d889c12c3c1108adafc6e4338710a
 cache=${XDG_CACHE_HOME:-$HOME/.cache}/nestcombe
 mkdir -p "$cache"
+# The certificate of the key every deployed APK carries (AGENTS.md, "Signing"); release.sh refuses any other.
+android_cert_sha256=b417fa20e582ad40db3284aefc0f5a248366d7e2ebf82c98178fe7e1a4183f61
 android_key=${NESTCOMBE_ANDROID_KEY:-${XDG_CONFIG_HOME:-$HOME/.config}/nestcombe/android-key}
 
 # fetch URL SHA256: prints the cached path, downloading and verifying it first if needed.

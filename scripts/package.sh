@@ -34,17 +34,7 @@ if [ -n "$steam" ]; then
 fi
 printf '[gd_resource type="Resource" format=3]\n[resource]\nmetadata/revision = "%s"\n' "$(git -C "$root" rev-parse HEAD)" > "$stage/game/revision.tres"
 mkdir -p "$stage/nestcombe"
-# Godot 4.5 and 4.6 segfault in about one cold import of twenty, in ClassDB's default-value cache while saving an
-# imported scene; the second attempt starts from the first one's import cache, so only a crash is retried.
-for attempt in 1 2; do
-  if "$root/scripts/export.sh" "$stage/game" "$preset" "$stage/nestcombe/$binary" "$stage/export.log" &&
-    [ -f "$stage/nestcombe/$binary" ]; then
-    break
-  fi
-  grep -v Fontconfig "$stage/export.log" | tail -60
-  if [ "$attempt" = 2 ] || ! grep -q handle_crash "$stage/export.log"; then exit 1; fi
-  echo "package: Godot crashed exporting; retrying once" >&2
-done
+"$root/scripts/export.sh" "$stage/game" "$preset" "$stage/nestcombe/$binary" "$stage/export.log"
 if [ "$target" = linux-arm64 ]; then git -C "$root" archive HEAD steam | tar -x -C "$stage/nestcombe"; fi
 git -C "$root" rev-parse HEAD > "$stage/nestcombe/REVISION"
 "$root/scripts/notices.sh" "$target" "$stage/nestcombe/notices" "$steam"

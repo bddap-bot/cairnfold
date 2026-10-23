@@ -45,15 +45,17 @@ controls and the build order.
   scripts, `game/project.godot` or `game/export_presets.cfg` also owes a
   green `scripts/android.sh quest` and `scripts/android.sh lepton` under `nix-shell android.nix`.
 - Deploying main is `scripts/release.sh`, which publishes the Windows, Linux and
-  Frame exports and both APKs together; the Frame's install and library shortcut are kept outside
-  this repo (README, "Running").
+  Frame exports and both APKs together, marking the release Latest only when HEAD is origin/main's
+  tip; `scripts/release.sh --rollback TAG` marks an older release Latest. The Frame's install and
+  library shortcut are kept outside this repo (README, "Running").
 - Signing: every APK, bench or release, signs with one key read from the directory
   `$NESTCOMBE_ANDROID_KEY` (default `~/.config/nestcombe/android-key`), holding
   `release.keystore` (alias `nestcombe`) and `password`, its store and key password. The key
   never enters the repo, and `scripts/android.sh` refuses to build without it. Build and deploy
   with the same key, so a bench build installs over the deployed one and keeps the garden saved
-  on the device; a new key stops every installed APK from updating in place. Without the
-  deploying key, make your own once:
+  on the device; a new key stops every installed APK from updating in place, so `release.sh`
+  refuses an APK whose certificate is not `android_cert_sha256` in `scripts/pins.sh`. Without the
+  deploying key, make your own once for bench builds:
   `keytool -genkeypair -keystore release.keystore -alias nestcombe -keyalg RSA -keysize 2048 -validity 10000 -dname CN=Nestcombe`
   with the password you write to `password`.
 - Put an APK on a Quest only with `scripts/quest-install.sh APK`, never a bare `adb install` or

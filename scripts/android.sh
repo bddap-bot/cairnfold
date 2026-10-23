@@ -66,10 +66,7 @@ fi
 cp "$root/scripts/android-notices.gradle" "$stage/game/android/build/"
 printf '\napply from: "android-notices.gradle"\n' >> "$stage/game/android/build/build.gradle"
 rm -f "$out"
-if ! "$root/scripts/export.sh" . "$preset" "$out" "$stage/export.log" || [ ! -f "$out" ]; then
-  grep -v Fontconfig "$stage/export.log" | tail -60
-  exit 1
-fi
+"$root/scripts/export.sh" . "$preset" "$out" "$stage/export.log"
 
 tools=$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS
 "$tools/apksigner" verify "$out"

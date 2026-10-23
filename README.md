@@ -120,7 +120,8 @@ Each [release](https://github.com/bddap-bot/nestcombe/releases) carries
 Build it yourself with `nix-shell android.nix --run 'scripts/android.sh quest nestcombe.apk'`;
 it signs with your own key (AGENTS.md, "Signing"), so a release install must go before yours does:
 `scripts/quest-install.sh nestcombe.apk` uninstalls it when it must and puts your garden and avatars back.
-`scripts/release.sh` publishes the desktop and Frame builds and both APKs together.
+`scripts/release.sh` publishes the desktop and Frame builds and both APKs together; `--rollback TAG` makes an
+older release Latest again.
 
 ## Privacy
 
