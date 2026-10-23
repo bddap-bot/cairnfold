@@ -2144,13 +2144,17 @@ func _swims_through(s: float) -> bool:
 
 ## Closest arc length on the wall to a world point, measured on the ground plane.
 func closest_s(p: Vector3) -> float:
+	var at := Vector2(p.x, p.z)
 	var best := INF
-	var best_s := 0.0
-	for i in samples.size():
-		var d := Vector2(samples[i].x - p.x, samples[i].z - p.z).length()
+	var best_s := lengths[0] if lengths.size() > 0 else 0.0
+	for i in samples.size() - 1:
+		var a := Vector2(samples[i].x, samples[i].z)
+		var b := Vector2(samples[i + 1].x, samples[i + 1].z)
+		var t := clampf((at - a).dot(b - a) / maxf((b - a).length_squared(), 1e-9), 0.0, 1.0)
+		var d := a.lerp(b, t).distance_to(at)
 		if d < best:
 			best = d
-			best_s = lengths[i]
+			best_s = lerpf(lengths[i], lengths[i + 1], t)
 	return best_s
 
 

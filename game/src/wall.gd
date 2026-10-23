@@ -914,6 +914,6 @@ func _ruin_hit(origin: Vector3, dir: Vector3) -> Dictionary:
 		if along < best.get("along", INF):
 			var normal: Vector3 = hit.normal if hit.normal.dot(dir) < 0.0 else -hit.normal
 			var s := layout.closest_s(hit.position)
-			var face: bool = i == 0 and hit.position.y < layout.point_at(s).y + layout.standing(s) - layout.course_height() * 0.5
+			var face: bool = i == 0 and hit.position.y < layout.frame_at(s).point.y + layout.standing(s) - layout.course_height() * 0.5
 			best = {"along": along, "point": hit.position, "s": s, "distance": 0.0, "rubble": i == 1, "side": face or Rig.side(normal)}
 	return best

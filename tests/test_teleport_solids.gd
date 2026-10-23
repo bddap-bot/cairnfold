@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Headless checks that the teleport ray lands on whatever solid it meets in the garden, a pitched roof, a tree, a
 ## wall's top, and that what the player stands on and hovers over is the top surface beneath: a wall walk, a flat
-## roof, a platform, stairs and a bridge; and that a wall's face, struck low, lands at its foot and, struck high, floats there: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_teleport_solids.gd
+## roof, a platform, stairs and a bridge; and that a wall's face, struck low, lands at its foot and, struck high, floats there, while a ruin's stepped ledge, pointed at, is stood on: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_teleport_solids.gd
 
 var failures := 0
 var main: Node
@@ -27,6 +27,7 @@ func _run() -> void:
 	_onto_a_tree(rig, world)
 	_onto_a_wall_top(rig, world)
 	_onto_a_wall_face(rig, world)
+	_onto_a_ruin_ledge(rig, world)
 	_onto_a_raised_floor(rig, world)
 	_on_a_wall_walk(rig, world)
 	_on_flat_roofs_and_platforms(rig, world)
@@ -151,6 +152,62 @@ func _onto_a_wall_face(rig: Rig, world: World) -> void:
 	for k in 13:
 		for up: float in [0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4]:
 			_onto_a_face(rig, w.layout.point_at(0.5 + k * 0.5), up)
+	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+
+
+## Where a ruin steps down, each course's broken top is a ledge: a ray pointed at one, from above in front or behind,
+## or from the ground in front, lands the player standing on it where it struck. Ledges are found by looking straight
+## down every 2 cm along the wall, wherever the stone struck is flat for 4 cm either way.
+func _onto_a_ruin_ledge(rig: Rig, world: World) -> void:
+	for seed: int in [3, 8]:
+		_onto_ruin_ledges(rig, world, seed)
+
+
+func _onto_ruin_ledges(rig: Rig, world: World, seed: int) -> void:
+	var d := _wall_data(PackedVector3Array([Terrain.ground(-6, -14), Terrain.ground(6, -14)]))
+	d.top = WallLayout.Top.CAP
+	d.seed = seed
+	d.ruins = PackedVector2Array([Vector2(5.0, 6.5)])
+	world._order({"op": "wall", "walls": [d]}, 1)
+	var w: Wall = main.tool.walls[-1]
+	w.lay_now()
+	var l := w.layout
+	var top_at := func(s: float) -> float:
+		var hit: Dictionary = rig.solid_hit.call(l.frame_at(s).point + Vector3.UP * 20.0, Vector3.DOWN, 40.0)
+		return hit.point.y if not hit.is_empty() else -INF
+	var heights := {}
+	var aims := 0
+	var s := 2.0
+	while s < 9.5:
+		s += 0.02
+		var foot: Vector3 = l.frame_at(s).point
+		var top: float = top_at.call(s)
+		var up := top - foot.y
+		if up < 0.15 or up > l.height - 0.05 or absf(top_at.call(s - 0.04) - top) > 0.02 or absf(top_at.call(s + 0.04) - top) > 0.02:
+			continue
+		heights[snappedf(up, 0.3)] = true
+		var ledge := Vector3(foot.x, top, foot.z)
+		var normal: Vector3 = l.frame_at(s).tangent.cross(Vector3.UP)
+		var froms: Array[Vector3] = [ledge + Vector3.UP * 2.5 + normal * 1.5, ledge + Vector3.UP * 2.5 - normal * 1.5]
+		if up < 1.2:
+			froms.append(Terrain.ground(foot.x + normal.x * 3.0, foot.z + normal.z * 3.0) + Vector3.UP * 1.6)
+		for from in froms:
+			var dir := (ledge - from).normalized()
+			var struck: Dictionary = rig.solid_hit.call(from, dir, 20.0)
+			var what := "at the ruin's ledge %.2f up at %.2f from %s" % [up, s, from]
+			if struck.is_empty() or struck.point.distance_to(ledge) > 0.03:
+				continue
+			aims += 1
+			rig.aim(_pose(from, dir))
+			var g: Variant = rig.aim_ground
+			_check(g != null and rig.aim_lift < 0.01, "aimed %s, it has a landing on it: %s up %.2f" % [what, g, rig.aim_lift])
+			if g == null:
+				continue
+			_check(g.distance_to(struck.point) < 0.05, "aimed %s, the target is where it struck: %s for %s" % [what, g, struck.point])
+			rig.place(g, rig.aim_lift)
+			_check(absf(rig.global_position.y - struck.point.y) < 0.05, "aimed %s, the player stands on it: %.2f for %.2f" % [what, rig.global_position.y, struck.point.y])
+	_check(heights.size() >= 6 and aims >= 60, "seed %d's ruin steps down through several heights, each pointed at: %d aims, heights %s" % [seed, aims, heights.keys()])
+	print("ruin ledges, seed %d: %d aims, heights %s" % [seed, aims, heights.keys()])
 	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
 
 
