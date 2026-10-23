@@ -18,12 +18,12 @@ exists() {
   return 1
 }
 
-if [ "${1:-}" = --rollback ]; then
-  exists "${2:?release: --rollback TAG}" || { echo "release: no release $2" >&2; exit 1; }
-  gh release edit "$2" --latest
-  exit 0
-fi
-dry=$([ "${1:-}" = --dry-run ] && echo 1 || true)
+case ${1:-} in
+  --rollback) exec gh release edit "${2:?release: --rollback TAG}" --latest ;;
+  --dry-run) dry=1 ;;
+  '') dry= ;;
+  *) echo "release: usage: release.sh [--dry-run | --rollback TAG]" >&2; exit 1 ;;
+esac
 rev=$(git rev-parse HEAD)
 tag=r$(build_number .)
 git fetch -q origin
