@@ -1,10 +1,9 @@
 import hashlib
 import json
 from pathlib import Path
-import subprocess
 import unittest
 
-import numpy as np
+from test_cues import _bands
 
 ANIMALS = Path(__file__).parents[1] / 'game/audio/animals'
 MODELS = Path(__file__).parents[1] / 'game/animals'
@@ -15,14 +14,10 @@ class AnimalCalls(unittest.TestCase):
         clips = sorted(ANIMALS.glob('*.ogg'))
         self.assertTrue(clips)
         for clip in clips:
-            pcm = subprocess.run(['ffmpeg', '-v', 'error', '-i', str(clip), '-ac', '1', '-ar', '44100', '-f', 'f32le', '-'],
-                                 capture_output=True, check=True).stdout
-            x = np.frombuffer(pcm, np.float32)
-            power = np.abs(np.fft.rfft(x)) ** 2
-            hz = np.fft.rfftfreq(len(x), 1 / 44100)
-            self.assertLess(power[hz > 4000].sum() / power.sum(), 0.02, f'{clip.name} keeps its highs')
-            self.assertLess(np.abs(x).max(), 0.75, f'{clip.name} is too loud')
-            self.assertLess(len(x) / 44100, 1.5, f'{clip.name} is too long')
+            b = _bands(clip)
+            self.assertLess(b['above 4000'], 0.02, f'{clip.name} keeps its highs')
+            self.assertLess(b['peak'], 0.75, f'{clip.name} is too loud')
+            self.assertLess(b['seconds'], 1.5, f'{clip.name} is too long')
 
     def test_every_source_is_public_domain(self):
         for s in json.loads((ANIMALS / 'sources.json').read_text()):

@@ -25,7 +25,7 @@ def _bands(clip: Path) -> dict[str, float]:
     power = np.abs(np.fft.rfft(x)) ** 2
     hz = np.fft.rfftfreq(len(x), 1 / 44100)
     total = power.sum()
-    out = {'centroid': float((power * hz).sum() / total), 'peak': float(np.abs(x).max())}
+    out = {'centroid': float((power * hz).sum() / total), 'peak': float(np.abs(x).max()), 'seconds': len(x) / 44100}
     for edge in (2000, 3000, 4000):
         out[f'above {edge}'] = float(power[hz > edge].sum() / total)
     return out
