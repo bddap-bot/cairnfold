@@ -1,5 +1,5 @@
 # Android toolchain for scripts/android.sh: nix-shell android.nix --run 'scripts/android.sh quest|lepton OUT.apk'
-{ pkgs ? import <nixpkgs> { config = { android_sdk.accept_license = true; allowUnfree = true; }; } }:
+{ pkgs ? import ./nixpkgs.nix { config = { android_sdk.accept_license = true; allowUnfree = true; }; } }:
 let
   buildTools = "35.0.1";
   sdk = (pkgs.androidenv.composeAndroidPackages {
