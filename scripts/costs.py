@@ -95,4 +95,5 @@ meadow = [gpu[f"meadow/{v}"] for v in views if f"meadow/{v}" in gpu and f"meadow
 line = {**{k: round(v, 3) for k, v in cost.items()}, "water": round(water * 1000.0, 3), "timber": "TIMBER_US", "arch": "ARCH_US", "moss": f"{round(cost['flower'], 3)} * MOSS_FLOWERS"}
 print(", ".join(f'"{k}": {v}' for k, v in line.items()))
 base_ms = max([*base.values(), *meadow]) + wild
-print(f"base {base_ms:.2f} ms, room {d['info']['budget']['gpu_ms'] - base_ms:.2f} ms under the {d['info']['budget']['gpu_ms']:.2f} ms line")
+print(f"base {base_ms:.2f} ms against the {d['info']['budget']['gpu_ms']:.2f} ms line (Budget.line_ms()); CAPACITY_MS is the line less "
+      f"this base less what demo/meadow-flora.json reads the meadow's trees and bushes to cost")

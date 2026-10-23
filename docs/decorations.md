@@ -35,7 +35,7 @@ all 24 treads, or 2,592 triangles. Solids use one draw, planters two, and lit
 decorations three. The geometry counts include flower, flame and halo triangles.
 
 The sweep deliberately disables the construction limit. Several 24-copy scenes
-exceed the 12.5 ms runtime GPU line; the sweep is a cost measurement, not a
+exceed the then 12.5 ms runtime GPU line; the sweep is a cost measurement, not a
 claim that those unbounded gardens hold refresh.
 
 Reproduce the visual review with `scripts/render.sh demo/decorations.json OUT`.

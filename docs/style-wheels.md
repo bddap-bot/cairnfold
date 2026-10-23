@@ -24,7 +24,7 @@ The same wheel fixtures are appended to `demo/stress.json`.
 
 On the physical Quest 2 at 72 Hz, CPU/GPU levels 4/4, the open boulder wheel
 measured 9.73 ms before and 9.76 ms after; the open house wheel measured 10.42 ms
-before and 11.05 ms after. Both pass the 12.5 ms GPU budget. The benchmark exited
+before and 11.05 ms after. Both pass the then 12.5 ms GPU budget, and the 11.1 ms line (`Budget.line_ms()`) that replaced it. The benchmark exited
 0 for both accepted runs, including its contamination and completion checks.
 The boulder phase had zero late frames in each run; the house phase had two in
 each. These are paired whole-scene measurements, not an isolated attribution of

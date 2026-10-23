@@ -437,7 +437,7 @@ Each phase ended with a view capture, which on a headset renders the view again 
 the photo viewport. Whichever second caught that frame doubled the phase's draw calls and
 primitives. The captures now stand outside the phases.
 
-Every phase is over the 12.5 ms budget in these runs, the bare meadow included, so the
+Every phase is over the then 12.5 ms budget in these runs, the bare meadow included, so the
 budget verdict belongs to the stress scene and the headset's state. Co-op costs a fraction
 of a millisecond per player against it.
 

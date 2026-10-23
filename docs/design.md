@@ -384,7 +384,7 @@ is left out of the fit, or, for the stress scene, the whole scene is.
 | Stress-scene frame, calibrated on the costs scene | 8.24 | 27.63 | 9.74 | 21.83 |
 | Frame, a local curve over both scenes | 2.44 | 5.85 | 4.32 | 4.48 |
 
-The room for a garden's builds on the Quest 2 is `budget_ms - base_ms`, about 2 ms, so an
+The room for a garden's builds on the Quest 2 is `Budget.line_ms()` less the meadow's base cost, about 2 ms, so an
 estimator would need a p90 error near 0.25 ms, an eighth of that room, to say whether a change fits. None of these
 comes close. The ratio is not one number. Foliage costs the Quest 2 1.7 to 10 times what it
 costs the Quest 3, masonry mostly 0.7 to 1.7 times, and wildlife 4 to 5 times. It also
