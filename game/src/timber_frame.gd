@@ -8,6 +8,8 @@ const EAVE_DROP := 0.04
 const OAK := Color(0.12, 0.075, 0.045)
 const SPACING := 1.8
 const BRACES := [Vector4(0, 0, 1, 1), Vector4(1, 0, 0, 1)]
+## How far rails sit behind posts, and braces behind rails: members laid in one plane fight wherever they cross.
+const STEP := 0.006
 
 static func applies(w: WallLayout) -> bool:
 	return w.timber_style >= 0 and w.plaster and w.closed and not w.fence and w.corners().size() == 4
@@ -152,9 +154,16 @@ static func lay(w: WallLayout) -> void:
 		var normal := tangent.cross(Vector3.UP)
 		var x := (tangent * run.x + Vector3.UP * run.y).normalized()
 		var origin: Vector3 = frame.point + tangent * (center.x - beam.face) + Vector3.UP * center.y
-		origin -= normal * w.inner_side() * (WallLayout.THICKNESS * 0.5 - WallLayout.PLASTER_INSET + DEPTH * 0.35)
+		origin -= normal * w.inner_side() * (WallLayout.THICKNESS * 0.5 - WallLayout.PLASTER_INSET + DEPTH * 0.35 - STEP * rank(beam))
 		var size := Vector3(run.length() + 0.02, WIDTH, DEPTH)
 		w.stones.append({"xform": Transform3D(Basis(x, normal.cross(x), normal).scaled_local(size), origin), "color": OAK * rng.randf_range(0.88, 1.12), "kind": "timber", "s": center.x, "y": center.y, "size": size, "ao": 1.0, "variant": 0, "beam": beam})
+
+
+## 0 for a post, 1 for a rail, 2 for a brace or rake.
+static func rank(beam: Dictionary) -> int:
+	if is_equal_approx(beam.a.x, beam.b.x):
+		return 0
+	return 1 if is_equal_approx(beam.a.y, beam.b.y) else 2
 
 
 static func count(d: Dictionary) -> int:

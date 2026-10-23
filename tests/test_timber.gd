@@ -51,6 +51,12 @@ func _init() -> void:
 				var hole := PackedVector2Array([Vector2(o.s-o.half, o.sill), Vector2(o.s+o.half, o.sill), Vector2(o.s+o.half, o.head), Vector2(o.s-o.half, o.head)])
 				check(Geometry2D.intersect_polygons(polygon, hole).is_empty(), "rendered timber volume never intersects a window or door")
 		check(parts.any(func(p): return p.y > w.height + 0.5), "gable has framing")
+		var proud := {}
+		for p in parts:
+			var frame := w.frame_at(p.beam.face)
+			var out: float = -(p.xform.origin - frame.point).dot(frame.tangent.cross(Vector3.UP)) * w.inner_side()
+			proud[snappedf(out, 0.0001)] = proud.get(snappedf(out, 0.0001), {}).merged({TimberFrame.rank(p.beam): true})
+		check(proud.size() == 3 and proud.values().all(func(ranks: Dictionary) -> bool: return ranks.size() == 1), "posts, rails and braces each lie in their own plane: %s" % proud)
 		var stone := w.inputs()
 		stone.plaster = false
 		stone.build(Terrain.flat)
