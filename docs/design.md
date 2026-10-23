@@ -2548,8 +2548,24 @@ head (`Hand.TREE`, `ToolWheel`). Sweeping the hand toward a slot makes it hot, a
 go of the button takes the hot tool, and letting go with nothing hot empties the hand. A slot is a
 tool or a subtree, drawn as its tools in miniature; every icon is tipped toward the eye, as a
 controller's top is seen, on a pale disc. Each icon is a miniature of what its tool makes: stone ground's
-is a disc of mossy stone shaded by the ground's own stone code, fraying into meadow at the rim. Reaching a
-subtree hides the rest of the wheel and opens its tools beside it. Reached by a sideways swing, three or
+is a disc of mossy stone painted by the ground's own stone code, fraying into meadow at the rim. Reaching a
+subtree hides the rest of the wheel and opens its tools beside it.
+
+The wheel's icons take no light from the garden. Directive (verbatim): "I think the lighting on the objects in
+your inventory wheel need to be cleaned up. Some of them are too bright, some of them are too dark I think um it
+would be worthwhile simplifying that system, whatever it is. Seems like there's some accretions going on in there I
+don't think world lighting should be applied to those things at all. Not the things in your wheel". At night the
+icons had split three ways: those with plain materials were drawn unshaded and so took the night's higher exposure,
+paling toward white; the trees, bushes and stone fittings, drawn as multimeshes, and everything with a shader of its
+own (stone ground, the book, stairs, windows, flags) still took the moon, the ambient sky and the lanterns' bounce,
+and went near black. Now one rule draws every surface of an icon (`Hand.unlit`) in one look (`icon.gdshaderinc`):
+its colour, shaded by a light fixed to the eye so its form reads, with no fog, and with the view's exposure and
+saturation divided back out (the global `view_grade`, which `Look` sets beside the exposure), so an icon looks the
+same at noon, under the moon and on a moonless night. A plain material gives its colour, picture and vertex colours
+(`icon.gdshader`); the two surfaces that paint themselves, stone ground and the book's cover, each have a twin that
+paints the same and ends in that look (`stone_disc_icon.gdshader`, `book_icon.gdshader`); any other shader gives its
+vertex colours, tinted by the colour it names, and a lantern's glow, which has no colour of its own, is left out.
+The pale disc behind each icon is opaque, so the meadow behind it no longer shows through darker at night. Reached by a sideways swing, three or
 four stand in a column on the side away from that swing, so a deep pick zig-zags: right onto planting, left
 onto trees. The top slot holds two, opening one to each side: up, then left for colour or right for style.
 The slots never move, so each tool is one learnable motion:

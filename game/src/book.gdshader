@@ -18,7 +18,9 @@ uniform sampler2D cover_paint : source_color, filter_linear_mipmap, repeat_disab
 uniform sampler2D cover_rough : filter_linear_mipmap, repeat_disable;
 // For a block of pages: which way its fore-edge faces, +1 the right block's, -1 the left's.
 uniform float fore_side = 1.0;
-uniform vec3 paper : source_color = vec3(0.96, 0.9, 0.77);
+uniform vec3 cloth;
+uniform vec3 leather;
+uniform vec3 paper : source_color;
 uniform vec3 edge_paint : source_color = vec3(0.86, 0.6, 0.32);
 
 varying vec3 local;
@@ -44,7 +46,7 @@ void fragment() {
 			metal = paint.a;
 			rough = texture(cover_rough, uv).r;
 		} else {
-			c = cover(local, n, size, front, rough, metal);
+			c = cover(local, n, size, front, cloth, leather, rough, metal);
 		}
 		ALBEDO = c;
 		METALLIC = metal;

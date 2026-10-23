@@ -1,11 +1,9 @@
 // The picture book's paint, shared by its shaders and the bake (book_paint.gdshader, Book): the paper, ink and cover
 // colours (sRGB), where a page's picture window sits in the page's coordinates (x from the spine, y down the page),
-// and a cover's cloth, leather and stamp.
+// and a cover's stamp; the cover's cloth and leather are Book's (CLOTH, LEATHER), which the wheel's icon draws too.
 const vec3 PAPER = vec3(0.97, 0.91, 0.78);
 const vec3 INK = vec3(0.33, 0.3, 0.24);
 const vec3 LEAF = vec3(0.47, 0.6, 0.41);
-const vec3 CLOTH = vec3(0.27, 0.42, 0.33);
-const vec3 LEATHER = vec3(0.36, 0.21, 0.12);
 const vec3 FOIL = vec3(0.86, 0.71, 0.44);
 const vec3 EGG = vec3(0.72, 0.84, 0.86);
 const vec2 WINDOW_CENTRE = vec2(0.5, 0.48);
@@ -69,7 +67,7 @@ float stamp(vec2 p, out float eggs) {
 
 // A cover's cloth over board at `local` on the face with normal `n`, `size` the board: leather at the spine and
 // corners, worn pale at its edges, the front's top stamped in foil. Linear albedo, with its roughness and metal.
-vec3 cover(vec3 local, vec3 n, vec3 size, bool front, out float rough, out float metal) {
+vec3 cover(vec3 local, vec3 n, vec3 size, bool front, vec3 cloth, vec3 leather, out float rough, out float metal) {
 	vec3 h = size * 0.5;
 	vec2 xz = local.xz;
 	vec2 to_edge = h.xz - abs(xz);
@@ -77,9 +75,9 @@ vec3 cover(vec3 local, vec3 n, vec3 size, bool front, out float rough, out float
 	float edge = 1.0 - smoothstep(0.0, 0.0025, min(to_edge.x, to_edge.y));
 	float grain = noise(xz * vec2(2600.0, 300.0)) * 0.5 + noise(xz * vec2(300.0, 2600.0)) * 0.5;
 	float mottle = noise(xz * 90.0 + float(front) * 7.0);
-	vec3 c = srgb_to_linear(CLOTH) * (0.86 + 0.14 * grain) * (0.92 + 0.12 * mottle);
+	vec3 c = srgb_to_linear(cloth) * (0.86 + 0.14 * grain) * (0.92 + 0.12 * mottle);
 	float worn = clamp(edge * 0.8 + (1.0 - abs(n.y)) * 0.35 + smoothstep(0.7, 0.95, noise(xz * 160.0)) * 0.3, 0.0, 1.0) * (0.45 + 0.55 * noise(xz * 700.0));
-	c = mix(c, mix(srgb_to_linear(CLOTH), vec3(0.78, 0.74, 0.62), 0.45), worn * 0.7);
+	c = mix(c, mix(srgb_to_linear(cloth), vec3(0.78, 0.74, 0.62), 0.45), worn * 0.7);
 	float spine = 1.0 - smoothstep(0.022, 0.024, local.x + h.x + (noise(xz * 400.0) - 0.5) * 0.001);
 	vec2 out_ = vec2(h.x - local.x, h.z - abs(local.z));
 	vec2 o = max(out_, vec2(0.0));
@@ -87,7 +85,7 @@ vec3 cover(vec3 local, vec3 n, vec3 size, bool front, out float rough, out float
 	float cap = 1.0 - smoothstep(0.019, 0.0205, cap_d + (noise(xz * 400.0) - 0.5) * 0.0012);
 	float hide = max(spine, cap);
 	float scuff = smoothstep(0.55, 0.8, noise(xz * 520.0)) * (edge + 0.3);
-	vec3 hidec = srgb_to_linear(LEATHER) * (0.8 + 0.3 * noise(xz * 260.0)) * mix(1.0, 1.5, clamp(scuff, 0.0, 1.0));
+	vec3 hidec = srgb_to_linear(leather) * (0.8 + 0.3 * noise(xz * 260.0)) * mix(1.0, 1.5, clamp(scuff, 0.0, 1.0));
 	c = mix(c, hidec, hide);
 	metal = 0.0;
 	rough = mix(mix(0.85, 0.95, worn), 0.55, hide);

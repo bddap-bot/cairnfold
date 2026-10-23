@@ -542,18 +542,21 @@ static func _stone_ground(root: Node3D, style: int) -> void:
 	turf.height = 0.004
 	turf.radial_segments = 24
 	turf.rings = 1
-	var face := PlaneMesh.new()
-	face.size = Vector2(0.052, 0.052)
+	var face := shared("stone_ground_face", func() -> ArrayMesh:
+		var st := SurfaceTool.new()
+		st.begin(Mesh.PRIMITIVE_TRIANGLES)
+		st.set_normal(Vector3.UP)
+		for i in turf.radial_segments:
+			for a in [-1.0, float(i), float(i + 1)]:
+				var at := Vector2.ZERO if a < 0.0 else Vector2.from_angle(TAU * a / turf.radial_segments)
+				st.set_uv(at * 0.5 + Vector2.ONE * 0.5)
+				st.add_vertex(Vector3(at.x, 0.0, at.y) * turf.top_radius)
+		return st.commit())
 	var key := "stone_ground_%d" % style
 	var mat: ShaderMaterial = _mats.get(key)
 	if mat == null:
-		mat = ShaderMaterial.new()
-		mat.shader = preload("res://src/stone_disc.gdshader")
-		StoneStyles.apply(mat)
-		mat.set_shader_parameter("style", style)
-		mat.set_shader_parameter("detail", Look.detail_noise())
-		mat.set_shader_parameter("earth", Meadow.GROUND[&"earth"])
-		mat.set_shader_parameter("meadow", Meadow.GRASS[&"root_color"].lerp(Meadow.GRASS[&"tip_lush"].lerp(Meadow.GRASS[&"tip_dry"], 0.5), 0.6))
+		mat = _stone_disc(preload("res://src/stone_disc.gdshader"), style)
+		mat.set_meta("icon_material", _stone_disc(preload("res://src/stone_disc_icon.gdshader"), style))
 		_mats[key] = mat
 	if not _mats.has("stone_ground_side"):
 		var side := StandardMaterial3D.new()
@@ -567,6 +570,17 @@ static func _stone_ground(root: Node3D, style: int) -> void:
 		mi.material_override = part[2]
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(mi)
+
+
+static func _stone_disc(shader: Shader, style: int) -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = shader
+	StoneStyles.apply(mat)
+	mat.set_shader_parameter("style", style)
+	mat.set_shader_parameter("detail", Look.detail_noise())
+	mat.set_shader_parameter("earth", Meadow.GROUND[&"earth"])
+	mat.set_shader_parameter("meadow", Meadow.GRASS[&"root_color"].lerp(Meadow.GRASS[&"tip_lush"].lerp(Meadow.GRASS[&"tip_dry"], 0.5), 0.6))
+	return mat
 
 
 ## A pond in small: a sandy dish holding a disc of glinting water inside a line of foam, pebbles on its bank.

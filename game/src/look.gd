@@ -193,7 +193,7 @@ func set_time(t: float) -> void:
 	env.ambient_light_energy = l.ambient
 	env.adjustment_saturation = l.saturation
 	_exposure = l.exposure
-	env.tonemap_exposure = _exposure * _adapt
+	_grade()
 	env.fog_light_color = UNDER_FOG * under_light(l) if under else l.fog
 	for mat in [mountains_mat, lake_mat]:
 		mat.set_shader_parameter("sun_dir", toward)
@@ -254,7 +254,13 @@ func adapt(sky: float, delta: float) -> void:
 	var to := lerpf(ADAPT_INDOOR, 1.0, sky)
 	_adapt = lerpf(_adapt, to, 1.0 - exp(-delta / ADAPT_SECONDS))
 	if absf(env.tonemap_exposure - _exposure * _adapt) > 0.002:
-		env.tonemap_exposure = _exposure * _adapt
+		_grade()
+
+
+## Sets the view's exposure, and hands it and the saturation to what undoes them (icon.gdshader).
+func _grade() -> void:
+	env.tonemap_exposure = _exposure * _adapt
+	RenderingServer.global_shader_parameter_set("view_grade", Vector2(env.tonemap_exposure, env.adjustment_saturation))
 
 
 func _exit_tree() -> void:

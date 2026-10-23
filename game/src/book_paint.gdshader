@@ -15,6 +15,8 @@ uniform bool face_drawn = false;
 uniform bool back_face = false;
 uniform int part = 0;
 uniform vec3 board = vec3(0.155, 0.0042, 0.16);
+uniform vec3 cloth;
+uniform vec3 leather;
 
 vec3 encoded(vec3 c) {
 	c = clamp(c, 0.0, 1.0);
@@ -114,7 +116,7 @@ void fragment() {
 	} else {
 		float rough;
 		float metal;
-		vec3 c = cover(vec3(UV.x - 0.5, 0.0, UV.y - 0.5) * board, vec3(0.0, 1.0, 0.0), board, true, rough, metal);
+		vec3 c = cover(vec3(UV.x - 0.5, 0.0, UV.y - 0.5) * board, vec3(0.0, 1.0, 0.0), board, true, cloth, leather, rough, metal);
 		COLOR = part == 2 ? vec4(encoded(c), metal) : vec4(rough, 0.0, 0.0, 1.0);
 	}
 }

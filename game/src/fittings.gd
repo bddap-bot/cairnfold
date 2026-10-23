@@ -7,7 +7,8 @@ const HALO := 1.1
 
 ## Made as the game loads, as Wall's roof materials are: a shader made on first use stalls a frame.
 static var _flame := _flame_material()
-static var _halo := _shaded("res://src/halo.gdshader")
+## A glow in the air has no colour of its own for an icon to draw (Hand.unlit).
+static var _halo := _shaded("res://src/halo.gdshader", Color.TRANSPARENT)
 static var _cloth := _shaded("res://src/cloth.gdshader")
 static var _box := BoxMesh.new()
 static var _disc := _halo_disc()
@@ -27,9 +28,10 @@ static func _flame_material() -> StandardMaterial3D:
 	return m
 
 
-static func _shaded(shader: String) -> ShaderMaterial:
+static func _shaded(shader: String, icon_colour := Color.WHITE) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = load(shader)
+	m.set_meta("icon_colour", icon_colour)
 	return m
 
 

@@ -26,6 +26,10 @@ textures/vram_compression/import_etc2_astc=true
 
 [shader_globals]
 
+view_grade={
+"type": "vec2",
+"value": Vector2(1, 1)
+}
 lamp_volume={
 "type": "sampler3D",
 "value": ""

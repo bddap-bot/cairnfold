@@ -28,7 +28,7 @@ const TILT := PI * 0.3
 ## figure changing, a friend arriving or an avatar chosen, to one figure's build in a frame.
 const PREPARE_EVERY := 0.25
 static var _disc: CylinderMesh
-static var _unshaded := {}
+static var _icon_mats := {}
 
 ## The stick pushed one way, as the input named for it: past PUSH, along whichever way it is pushed most, it
 ## holds that way until it comes back inside LET_GO, so one flick is one input.
@@ -138,23 +138,43 @@ func _build_wheel() -> void:
 	add_child(_wheel_root)
 
 
-## Swaps `mi`'s standard materials for unshaded copies, so those icons read the same at any hour.
-static func unshade(mi: MeshInstance3D) -> void:
-	for i in mi.get_surface_override_material_count():
-		var mat := mi.get_active_material(i) as BaseMaterial3D
-		if mat == null or mat.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
-			continue
-		var copy: BaseMaterial3D = _unshaded.get(mat)
-		if copy == null:
-			copy = mat.duplicate()
-			copy.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-			# Instance tints must die with their figures, rather than accumulate in the shared cache.
-			if mat == mi.mesh.surface_get_material(i):
-				_unshaded[mat] = copy
-		if mi.material_override == mat:
-			mi.material_override = copy
+## Draws every surface under `root` in the one icon look (icon.gdshaderinc), lit by nothing in the garden: a standard
+## material gives its colour, picture and whether its vertex colours count (icon.gdshader); a shader material that paints
+## its own surface names its twin in that look in its "icon_material" meta; any other draws its vertex colours, tinted
+## by its "icon_colour" meta where it sets one, and not at all where that colour is clear.
+static func unlit(root: Node) -> void:
+	for g: GeometryInstance3D in root.find_children("*", "MeshInstance3D", true, false) + root.find_children("*", "MultiMeshInstance3D", true, false):
+		g.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		var mi := g as MeshInstance3D
+		if g.material_override != null or mi == null:
+			var mesh: Mesh = mi.mesh if mi != null else (g as MultiMeshInstance3D).multimesh.mesh
+			g.material_override = _icon_material(g.material_override if g.material_override != null else mesh.surface_get_material(0), g)
 		else:
-			mi.set_surface_override_material(i, copy)
+			for i in mi.get_surface_override_material_count():
+				mi.set_surface_override_material(i, _icon_material(mi.get_active_material(i), g))
+
+
+static func _icon_material(mat: Material, g: GeometryInstance3D) -> ShaderMaterial:
+	var look := {"colour": Color.WHITE, "use_vertex": true, "picture": null, "uv_scale": Vector2.ONE, "uv_offset": Vector2.ZERO}
+	var base := mat as BaseMaterial3D
+	if base != null:
+		look = {"colour": base.albedo_color, "use_vertex": base.vertex_color_use_as_albedo, "picture": base.albedo_texture,
+			"uv_scale": Vector2(base.uv1_scale.x, base.uv1_scale.y), "uv_offset": Vector2(base.uv1_offset.x, base.uv1_offset.y)}
+	elif mat != null and mat.has_meta("icon_material"):
+		return mat.get_meta("icon_material")
+	elif mat != null:
+		look.colour = mat.get_meta("icon_colour", Color.WHITE)
+		g.visible = g.visible and look.colour.a > 0.0
+	# Keyed by what it draws, not by the material it stands for, so a figure's own tints share and never pile up.
+	var key := str(look.values())
+	var out: ShaderMaterial = _icon_mats.get(key)
+	if out == null:
+		out = ShaderMaterial.new()
+		out.shader = preload("res://src/icon.gdshader")
+		for k in look:
+			out.set_shader_parameter(k, look[k])
+		_icon_mats[key] = out
+	return out
 
 
 func inventory() -> Array:
@@ -257,8 +277,7 @@ func _make_icon(item: Variant) -> Node3D:
 	var i := icon(model)
 	if item is String and people != null:
 		model.transform = Transform3D(Basis.IDENTITY, Vector3(0, -0.027, 0))
-	for mesh in i.find_children("*", "MeshInstance3D", true, false):
-		unshade(mesh)
+	unlit(i)
 	i.scale = Vector3.ZERO
 	i.visible = false
 	_wheel_root.add_child(i)
@@ -290,7 +309,7 @@ static func miniature(item: Variant, figure := Callable(), depth := 2) -> Node3D
 
 
 ## A wheel icon: `model` tipped toward the eye, as a controller's top is seen, on a pale disc facing the eye (+z) so
-## it reads against the meadow.
+## it reads against the meadow at any hour.
 static func icon(model: Node3D) -> Node3D:
 	if _disc == null:
 		_disc = CylinderMesh.new()
@@ -300,9 +319,7 @@ static func icon(model: Node3D) -> Node3D:
 		_disc.radial_segments = 24
 		_disc.rings = 1
 		var mat := StandardMaterial3D.new()
-		mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
-		mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-		mat.albedo_color = Color(1.0, 0.98, 0.92, 0.45)
+		mat.albedo_color = Color(0.86, 0.85, 0.8)
 		_disc.material = mat
 	var out := Node3D.new()
 	var back := MeshInstance3D.new()

@@ -15,6 +15,12 @@ const H := 0.15
 const LEAF_T := 0.0028
 const COVER_T := 0.0042
 const OVER := 0.005
+## The cover's cloth and the leather at its spine and corners, the pages' edges and the ribbon (sRGB), for its shaders
+## and the wheel's icon alike.
+const CLOTH := Color(0.27, 0.42, 0.33)
+const LEATHER := Color(0.36, 0.21, 0.12)
+const PAPER := Color(0.96, 0.9, 0.77)
+const RIBBON := Color(0.55, 0.08, 0.16)
 const TILT := deg_to_rad(68.0)
 const OPEN_S := 0.85
 const TURN_S := 0.7
@@ -101,6 +107,7 @@ func _init(live_pages := true) -> void:
 	_ribbon.mesh = strip
 	_ribbon_mat = ShaderMaterial.new()
 	_ribbon_mat.shader = preload("res://src/book_ribbon.gdshader")
+	_ribbon_mat.set_shader_parameter("colour", RIBBON)
 	_ribbon.material_override = _ribbon_mat
 	_ribbon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_ribbon)
@@ -129,6 +136,7 @@ func _bake() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/book_paint.gdshader")
 	mat.set_shader_parameter("board", BOARD)
+	_bind(mat)
 	rect.material = mat
 	vp.size = Vector2i.ONE * PAINT_PX
 	rect.size = vp.size
@@ -155,7 +163,8 @@ func _bake() -> void:
 	vp.queue_free()
 
 
-## A shut book a few centimetres across, for the wheel and for a ghost hand that holds it.
+## A shut book a few centimetres across, for the wheel and for a ghost hand that holds it, each material naming how
+## the wheel draws it (Hand.unlit).
 static func miniature() -> Node3D:
 	var root := Node3D.new()
 	var b := Book.new(false)
@@ -163,6 +172,17 @@ static func miniature() -> Node3D:
 	b.position = Vector3(-W * 0.14, 0, 0)
 	b.set_process(false)
 	root.add_child(b)
+	for mi: MeshInstance3D in b.find_children("*", "MeshInstance3D", true, false):
+		var mat: ShaderMaterial = mi.material_override
+		if mat.get_shader_parameter("cloth") != null:
+			var icon := ShaderMaterial.new()
+			icon.shader = preload("res://src/book_icon.gdshader")
+			icon.set_shader_parameter("size", BOARD)
+			icon.set_shader_parameter("front", mat.get_shader_parameter("front"))
+			_bind(icon)
+			mat.set_meta("icon_material", icon)
+		else:
+			mat.set_meta("icon_colour", RIBBON if mat == b._ribbon_mat else PAPER)
 	return root
 
 
@@ -462,9 +482,15 @@ func _board(front: bool) -> MeshInstance3D:
 	mat.shader = preload("res://src/book.gdshader")
 	mat.set_shader_parameter("size", BOARD)
 	mat.set_shader_parameter("front", front)
+	_bind(mat)
 	mat.render_priority = Layer.BOARD
 	mi.material_override = mat
 	return mi
+
+
+static func _bind(mat: ShaderMaterial) -> void:
+	mat.set_shader_parameter("cloth", Vector3(CLOTH.r, CLOTH.g, CLOTH.b))
+	mat.set_shader_parameter("leather", Vector3(LEATHER.r, LEATHER.g, LEATHER.b))
 
 
 func _block() -> MeshInstance3D:
@@ -475,6 +501,7 @@ func _block() -> MeshInstance3D:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://src/book.gdshader")
 	mat.set_shader_parameter("kind", 1)
+	mat.set_shader_parameter("paper", PAPER)
 	mat.render_priority = Layer.BLOCK
 	mi.material_override = mat
 	add_child(mi)

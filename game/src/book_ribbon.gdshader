@@ -8,7 +8,7 @@ render_mode cull_disabled, diffuse_lambert_wrap;
 #include "res://src/bounce.gdshaderinc"
 
 uniform float glow = 0.0;
-uniform vec3 colour : source_color = vec3(0.55, 0.08, 0.16);
+uniform vec3 colour : source_color;
 
 varying vec4 given;
 

@@ -71,15 +71,16 @@ func _run() -> void:
 		await process_frame
 		await process_frame
 	_check(not hand._wheel_root.find_children("*", "Avatar", true, false).is_empty(), "the open avatar page contains figures")
-	for figure in hand._wheel_root.find_children("*", "Avatar", true, false):
-		for mesh in figure.find_children("*", "MeshInstance3D", true, false):
-			for surface in mesh.mesh.get_surface_count():
-				var material := mesh.get_active_material(surface) as BaseMaterial3D
-				_check(material != null and material.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED, "preview figures use the shared icon lighting")
-	for mesh in main.rig.body.find_children("*", "MeshInstance3D", true, false):
-		for surface in mesh.mesh.get_surface_count():
-			var material := mesh.get_active_material(surface) as BaseMaterial3D
-			_check(material != null and material.shading_mode != BaseMaterial3D.SHADING_MODE_UNSHADED, "world avatars retain world lighting")
+	var drawn_as_icons := func(n: Node) -> bool:
+		return (n.find_children("*", "MeshInstance3D", true, false) + n.find_children("*", "MultiMeshInstance3D", true, false)).all(func(g: GeometryInstance3D) -> bool:
+			var mi := g as MeshInstance3D
+			var count := mi.mesh.get_surface_count() if mi != null and g.material_override == null else 1
+			return range(count).all(func(i: int) -> bool:
+				var m: Material = g.material_override if g.material_override != null else mi.get_active_material(i)
+				return m is ShaderMaterial and m.shader.code.contains('#include "res://src/icon.gdshaderinc"')))
+	_check(not hand._wheel_root.find_children("*", "Avatar", true, false).is_empty() and hand._wheel_root.find_children("*", "Avatar", true, false).all(drawn_as_icons), "preview figures draw in the icon look")
+	_check(hand._built.size() > 20 and hand._built.values().all(drawn_as_icons), "every wheel icon draws in the icon look alone, lit by nothing in the garden")
+	_check(not drawn_as_icons.call(main.rig.body), "world avatars keep the garden's light")
 	Buttons.injected.erase(button)
 	await process_frame
 	await process_frame
@@ -124,12 +125,11 @@ func _run() -> void:
 	var cached := -1
 	for repeat in 3:
 		var preview := hand.people.figure("avatar:0")
-		for mesh in preview.find_children("*", "MeshInstance3D", true, false):
-			Hand.unshade(mesh)
+		Hand.unlit(preview)
 		preview.free()
 		if cached >= 0:
-			_check(Hand._unshaded.size() == cached, "closing repeated previews does not retain their tint materials")
-		cached = Hand._unshaded.size()
+			_check(Hand._icon_mats.size() == cached, "closing repeated previews does not retain their tint materials")
+		cached = Hand._icon_mats.size()
 	var vanished := hand.people.figure("join:192.0.2.1:8000")
 	vanished.free()
 	main.queue_free()
