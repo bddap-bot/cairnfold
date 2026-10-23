@@ -338,7 +338,7 @@ func _spawn(chick: bool) -> Duck:
 
 func _think(f: Family, delta: float) -> void:
 	var lead := f.leader()
-	if f.state != State.FLY_OUT and f.state != State.WALK_OUT and not water.ponds.has(f.pond):
+	if f.state != State.FLY_OUT and f.state != State.WALK_OUT and (not is_instance_valid(f.pond) or not water.ponds.has(f.pond)):
 		f.pond = _pond_near(f.home)
 		if f.pond == null:
 			_leave(f)
