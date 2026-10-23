@@ -2,6 +2,7 @@
 # Regenerates the store art in steam/ (store and library art, screenshots) and meta/ (Horizon Store covers, icon,
 # logo, screenshots) from one set of desktop captures of demo/steam.json and demo/steam-coop.json: store-art.sh
 set -euo pipefail
+font=${NESTCOMBE_TITLE_FONT:?store-art: no title font, which nix-shell sets}
 root=$(cd "$(dirname "$0")/.." && pwd)
 title=$(sed -n 's/^config\/name="\(.*\)"$/\1/p' "$root/game/project.godot")
 out=$root/steam
@@ -17,7 +18,7 @@ port=$((7480 + 8 * (RANDOM % 7)))
 (cd "$root/game" && exec timeout 1800 godot4 --headless --path . --xr-mode off -- --desktop --script "$root/demo/steam-coop-join.json" \
   --host-port "$port" --port $((port + 8)) --avatar 1 >"$shots/join.log" 2>&1) &
 join=$!
-NESTCOMBE_QUIT_AFTER=600 "$root/scripts/render.sh" "$root/demo/steam-coop.json" "$shots" --resolution 3840x2160 -- --port "$port" | tee "$shots/host.log"
+NESTCOMBE_QUIT_AFTER=600 "$root/scripts/render.sh" "$root/demo/steam-coop.json" "$shots" --resolution 3840x2160 -- --port "$port" 2>&1 | tee "$shots/host.log"
 kill "$join"
 wait "$join" || true
 ! grep -h "driver: until" "$shots/host.log" "$shots/join.log" || { echo "store-art: the visitor never arrived" >&2; exit 1; }
@@ -39,7 +40,7 @@ cut() {
 
 rm -rf "$out"/*.png "$out"/*.jpg "$out/screenshots" "$meta"
 mkdir -p "$out/screenshots" "$meta/screenshots"
-magick -size 4000x700 xc:none -font "$NESTCOMBE_TITLE_FONT" -pointsize 320 -gravity center \
+magick -size 4000x700 xc:none -font "$font" -pointsize 320 -gravity center \
   -stroke '#26340f' -strokewidth 30 -fill '#26340f' -annotate +0+0 "$title" \
   -stroke none -tile 'gradient:#f1eee6-#b4b0a6' -annotate +0+0 "$title" \
   \( +clone -background '#10160a' -shadow 70x14+8+14 \) +swap -background none -layers merge +repage \

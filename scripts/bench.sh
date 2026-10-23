@@ -150,7 +150,6 @@ if [ "${2:-}" = --android ]; then
   # it warms.
   saved_props=$(for k in guardian_pause cpuLevel gpuLevel; do printf '%s=%s ' "$k" "$(adb shell getprop "debug.oculus.$k" | tr -d '\r')"; done)
   logcat_pid=
-  snoozed=
   restore_headset() {
     local kv
     set +e
@@ -186,7 +185,6 @@ if [ "${2:-}" = --android ]; then
     sleep 10
     for key in $(adb shell dumpsys notification --noredact | sed -n 's/.*NotificationRecord(.* key=\([^:]*\): Notification(channel=vr_notifications_toast .*/\1/p'); do
       adb shell "cmd notification snooze --for 3600000 '$key'" > /dev/null
-      snoozed="$snoozed $key"
     done
   }
   fresh_shell
@@ -241,7 +239,7 @@ elif [ $# -ge 4 ]; then
   wait "$remote" || game=$?
   scp -rq "$2:nestcombe-bench/nestcombe/log/*" "$out/"
 else
-  setsid env NESTCOMBE_QUIT_AFTER="$limit" "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" ${hosting:+--port "$hosting"} > "$out/godot.log" 2>&1 &
+  setsid env NESTCOMBE_QUIT_AFTER="$limit" NESTCOMBE_TIMEOUT=$((limit + 300)) "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" ${hosting:+--port "$hosting"} > "$out/godot.log" 2>&1 &
   measured=$!
   [ "$players" -eq 1 ] || join cat "$out/godot.log" -- 127.0.0.1
   wait "$measured"

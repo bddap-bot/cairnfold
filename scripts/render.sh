@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Plays a demo script on the desktop renderer under a virtual display: render.sh SCRIPT.json OUT_DIR [ENGINE_ARGS...]
 # Recording a movie records the game's own audio mix too: render.sh SCRIPT OUT --write-movie OUT/x.avi --fixed-fps 30
+# NESTCOMBE_QUIT_AFTER: game seconds before it quits (120). NESTCOMBE_TIMEOUT: wall seconds before it is killed (1800).
+# NESTCOMBE_ICD: the Vulkan driver's ICD file (the NVIDIA one).
 set -euo pipefail
 script=$(realpath "$1")
 out=$(realpath -m "$2")
