@@ -79,7 +79,7 @@ static func fits(w: Wall, key: String, v: Variant, others: Array, openings: Arra
 static func carried(d: Dictionary, w: Wall, by: Vector3, turn: float) -> Dictionary:
 	var out := d.duplicate()
 	var flat := Vector3(by.x, 0.0, by.z)
-	match DecorationLayout.mount_of(d.style):
+	match d.mount:
 		"foundation":
 			out.s = slid(w.layout, d.s, by)
 			return out

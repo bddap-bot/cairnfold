@@ -209,7 +209,7 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 				ok = out.strokes != null and (from_host or out.strokes.is_empty())
 		"decoration":
 			var d: Variant = _decoration(cmd)
-			ok = d != null and (from_host or d.wall < 0 or state.walls.has(d.wall) and _holds(state.walls[d.wall], DecorationLayout.mount_of(d.style)))
+			ok = d != null and (from_host or d.wall < 0 or state.walls.has(d.wall) and _holds(state.walls[d.wall], d.mount))
 			if ok:
 				out.merge(d)
 		"undecoration":
@@ -239,7 +239,7 @@ static func _holds(wall: Dictionary, mount: String) -> bool:
 static func _decoration(d: Dictionary) -> Variant:
 	if typeof(d.get("wall")) != TYPE_INT or typeof(d.get("style")) != TYPE_INT or typeof(d.get("seed")) != TYPE_INT:
 		return null
-	if d.style < 0 or d.style >= DecorationLayout.STYLES.size() or (d.wall < 0) != (DecorationLayout.mount_of(d.style) == "ground"):
+	if d.style < 0 or d.style >= DecorationLayout.STYLES.size() or not d.get("mount") in DecorationLayout.MOUNTS or (d.wall < 0) != (d.mount == "ground"):
 		return null
 	if typeof(d.get("at")) != TYPE_VECTOR3 or not _finite(d.at):
 		return null
@@ -248,7 +248,7 @@ static func _decoration(d: Dictionary) -> Variant:
 			return null
 	if d.s < 0.0 or d.s >= 4000.0 or absf(d.side) != 1.0:
 		return null
-	return {"wall": d.wall, "style": d.style, "seed": d.seed, "at": d.at, "turn": d.turn, "s": d.s, "side": d.side}
+	return {"wall": d.wall, "mount": d.mount, "style": d.style, "seed": d.seed, "at": d.at, "turn": d.turn, "s": d.s, "side": d.side}
 
 
 ## A boulder: the ground point under its centre, which way it is turned, how far it is pushed into the ground, the seed
@@ -474,9 +474,6 @@ static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 			return null
 	var cleaned: Variant = _whole(of, trial)
 	if cleaned == null:
-		return null
-	# A decoration's `at` means a different thing on each mount, so a restyle keeps the surface it was placed on.
-	if of == "decorations" and DecorationLayout.mount_of(cleaned.style) != DecorationLayout.mount_of(now.style):
 		return null
 	if of == "walls" and cleaned.plaster != trial.plaster:
 		out["plaster"] = cleaned.plaster

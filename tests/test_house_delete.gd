@@ -124,8 +124,8 @@ func _build(data: Dictionary) -> int:
 	return world.seq * Commands.MAX_PIECES
 
 
-func _decorate(w: int, mount: String, point: Vector3, s := 0.0) -> int:
-	var cmd := FittingTool.decoration_command({"wall": main.tool.find(w) if w >= 0 else null, "mount": mount, "point": point, "s": s, "side": 1.0, "style": DecorationLayout.options(mount)[0]})
+func _decorate(w: int, mount: String, point: Vector3, s := 0.0, style := DecorationLayout.PRESENT) -> int:
+	var cmd := FittingTool.decoration_command({"wall": main.tool.find(w) if w >= 0 else null, "mount": mount, "point": point, "s": s, "side": 1.0, "style": style})
 	world.submit(cmd)
 	_check(world.state.decorations.has(world.seq), "a %s decoration is placed" % mount)
 	return world.seq
@@ -147,7 +147,7 @@ func _neighbour() -> Dictionary:
 	var inside := w.massing.rect.get_center()
 	var out := {"wall": id, "decorations": [], "stairs": []}
 	out.decorations.append(_decorate(id, "floor", Vector3(inside.x, w.layout.floors[0], inside.y)))
-	out.decorations.append(_decorate(-1, "ground", Terrain.ground(4, -24)))
+	out.decorations.append(_decorate(-1, "ground", Terrain.ground(4, -24), 0.0, DecorationLayout.STYLES.find({"name": "Standing torch"})))
 	out.stairs.append(_stairs(Terrain.ground(2, -26), Terrain.ground(2, -26) + Vector3(0, 2, -4)))
 	await _settle()
 	return out
@@ -219,7 +219,7 @@ func _covers_every_kind(owned: Dictionary) -> void:
 	_check(storey.roof.pitch == 0.0 and storey.roof.flag, "the storey has a flat roof's deck and its flag")
 	var mounts := {}
 	for id in owned.decorations:
-		mounts[DecorationLayout.mount_of(world.state.decorations[id].style)] = true
+		mounts[world.state.decorations[id].mount] = true
 	for m in ["foundation", "floor", "deck"]:
 		_check(mounts.has(m), "a decoration stands on the house's %s" % m)
 	for table: String in Commands.STANDS_ON:
@@ -296,7 +296,7 @@ func _undo_spares_what_another_built_on_it() -> void:
 	await _settle()
 	var h := main.tool.find(house)
 	var inside := h.massing.rect.get_center()
-	var chair := FittingTool.decoration_command({"wall": h, "mount": "floor", "point": Vector3(inside.x, h.layout.floors[0], inside.y), "style": DecorationLayout.options("floor")[0]})
+	var chair := FittingTool.decoration_command({"wall": h, "mount": "floor", "point": Vector3(inside.x, h.layout.floors[0], inside.y)})
 	world._order(chair, 42)
 	var id := world.seq
 	world.undo()

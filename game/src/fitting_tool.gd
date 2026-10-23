@@ -25,6 +25,8 @@ var _ghosts: Array[Dictionary] = []
 var _shaken: Array[float] = []
 ## Per hand, the opening target its wall was last laid for.
 var _aims: Array[Dictionary] = []
+## Per hand, the seed of the decoration its next press places, drawn once per placement so its preview holds still.
+var _draws: Array[int] = []
 ## The reshape data each wall is laid with that the garden does not have yet, by id.
 var _previewed := {}
 ## Fitting lists sent and not yet back, by wall id and key, so a quick second press builds on the first.
@@ -56,6 +58,7 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 		_ghosts.append(ghosts)
 		_shaken.append(INF)
 		_aims.append({})
+		_draws.append(randi())
 
 
 func _process(delta: float) -> void:
@@ -68,6 +71,9 @@ func _process(delta: float) -> void:
 		if hand.tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH, Hand.Tool.DECORATIONS] and rig.aim_hand != hand and hand.tracked():
 			var t := hand.global_transform
 			var target := _steady(i, aim(hand.tool, t.origin, -t.basis.z))
+			var placing: bool = target.get("what") == "decoration" and not target.has("fitting")
+			if placing:
+				target.seed = _draws[i]
 			var hit: Variant = target.point if not target.is_empty() else Terrain.raycast(t.origin, -t.basis.z)
 			hand.point(hit, TINT)
 			if not target.is_empty():
@@ -76,9 +82,12 @@ func _process(delta: float) -> void:
 				world.preview(hand, world.change_of(cmd))
 				if target.what == "opening" and c.near < 0 and not cmd.is_empty():
 					shown.get_or_add(cmd.id, {}).merge(cmd.data, true)
-			if b.pressed("tool") and not walls.busy(hand) and not fit(target, hand):
-				_shaken[i] = 0.0
-				Cues.play(Cues.Act.REFUSED, hand.global_position, hand)
+			if b.pressed("tool") and not walls.busy(hand):
+				if not fit(target, hand):
+					_shaken[i] = 0.0
+					Cues.play(Cues.Act.REFUSED, hand.global_position, hand)
+				elif placing:
+					_draws[i] = randi()
 			if not hand.picking and hand.tool == Hand.Tool.DECORATIONS:
 				ghost = ghost_of(target, t.origin, -t.basis.z, hit)
 		_show_ghost(i, ghost, delta)
@@ -307,7 +316,7 @@ func ghost_of(target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -
 		var d := decoration_command(target)
 		if world.decorations.frame(d) == null:
 			return {}
-		return {"what": "decoration", "style": d.style, "seed": d.seed, "rise": world.decorations.rise(d), "xform": world.decorations.frame(d), "fits": true}
+		return {"what": "decoration", "style": d.style, "seed": d.seed, "mount": d.mount, "rise": world.decorations.rise(d), "xform": world.decorations.frame(d), "fits": true}
 	var w: Wall = target.wall
 	var layout := w.layout
 	var what: String = target.what
@@ -358,14 +367,14 @@ static func _ghost_material(tint: Color, glow: float) -> StandardMaterial3D:
 
 func _show_ghost(i: int, ghost: Dictionary, delta: float) -> void:
 	_shaken[i] += delta
-	if ghost.get("what") == "decoration" and (not _ghosts[i].has("decoration") or _ghosts[i].decoration.get_meta(&"shape") != [ghost.style, ghost.seed, ghost.rise]):
+	if ghost.get("what") == "decoration" and (not _ghosts[i].has("decoration") or _ghosts[i].decoration.get_meta(&"shape") != [ghost.style, ghost.seed, ghost.rise, ghost.mount]):
 		if _ghosts[i].has("decoration"):
 			_ghosts[i].decoration.free()
 		var layout := DecorationLayout.new()
-		layout.build(ghost.style, ghost.seed, ghost.rise)
+		layout.build(ghost.style, ghost.seed, ghost.rise, ghost.mount)
 		var n := ToolModels.decoration(layout, ghost.seed)
 		n.top_level = true
-		n.set_meta(&"shape", [ghost.style, ghost.seed, ghost.rise])
+		n.set_meta(&"shape", [ghost.style, ghost.seed, ghost.rise, ghost.mount])
 		add_child(n)
 		_ghosts[i].decoration = n
 	for what in _ghosts[i]:
@@ -542,7 +551,6 @@ static func removal(state: Dictionary, target: Dictionary) -> Dictionary:
 static func decoration_command(target: Dictionary) -> Dictionary:
 	var w: Wall = target.get("wall")
 	var mount: String = target.get("mount", "ground" if w == null else "foundation")
-	var seed: int = target.get("seed", hash([target.point.snapped(Vector3.ONE * 0.05), w.layout.seed if w != null else 0]))
 	var at: Vector3 = target.point
 	var turn: float = target.get("turn", 0.0)
 	if mount in ["floor", "deck"]:
@@ -550,4 +558,4 @@ static func decoration_command(target: Dictionary) -> Dictionary:
 		at = x.affine_inverse() * Vector3(at.x, 0.0, at.z)
 		at.y = target.point.y - w.layout.floors[0] if mount == "floor" else 0.0
 		turn -= atan2(-x.basis.x.z, x.basis.x.x)
-	return {"op": "decoration", "wall": w.id if w != null else -1, "at": at, "s": float(target.get("s", 0.0)), "side": float(target.get("side", 1.0)), "turn": turn, "seed": seed, "style": target.get("style", DecorationLayout.choose(mount, seed))}
+	return {"op": "decoration", "wall": w.id if w != null else -1, "mount": mount, "at": at, "s": float(target.get("s", 0.0)), "side": float(target.get("side", 1.0)), "turn": turn, "seed": int(target.get("seed", 0)), "style": int(target.get("style", DecorationLayout.PRESENT))}

@@ -210,8 +210,9 @@ static func path(d: Dictionary) -> Dictionary:
 	return {"wall_m2": stones * 0.1}
 
 
-## Reserve the instanced solid pieces plus flowers and flame overlays against measured fitting units.
+## Reserve the instanced solid pieces plus flowers, flame overlays and pictures against measured fitting units; a
+## picture is its own draw, priced as two flame overlays until it is measured.
 static func decoration(style: int) -> Dictionary:
 	var layout := DecorationLayout.new()
 	layout.build(style, 0, 4.8)
-	return {"fitting": float(layout.parts.size() + layout.flames.size() * 2), "flower": float(layout.flowers.size())}
+	return {"fitting": float(layout.parts.size() + (layout.flames.size() + layout.pictures.size() * 2) * 2), "flower": float(layout.flowers.size())}

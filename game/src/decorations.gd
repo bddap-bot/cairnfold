@@ -37,7 +37,7 @@ func sync() -> void:
 		if x == null:
 			continue
 		var layout := DecorationLayout.new()
-		layout.build(d.style, d.seed, rise(d))
+		layout.build(d.style, d.seed, rise(d), d.mount)
 		var wall := walls.find(d.wall)
 		if wall != null:
 			for part in layout.parts:
@@ -61,7 +61,7 @@ func frame(d: Dictionary) -> Variant:
 	var w := walls.find(d.wall)
 	if w == null:
 		return null
-	var mount := DecorationLayout.mount_of(d.style)
+	var mount: String = d.mount
 	if mount != "foundation":
 		if w.roof == null or w.layout.floors.is_empty():
 			return null
@@ -154,7 +154,7 @@ func settle(id: int) -> void:
 
 func rise(d: Dictionary) -> float:
 	var w := walls.find(d.wall)
-	if w == null or DecorationLayout.mount_of(d.style) != "foundation":
+	if w == null or d.mount != "foundation":
 		return 0.6
 	var x: Transform3D = frame(d)
 	return maxf(0.1, w.layout.point_at(d.s).y - x.origin.y)

@@ -2,32 +2,36 @@ class_name DecorationLayout
 extends RefCounted
 
 ## One catalogue for placement, style choices and geometry. The stored style never changes on reload.
+## Every style stands on every mount; a new decoration is a present the style tool turns into the rest.
 const STYLES := [
-	{"name": "Planter", "mount": "foundation"},
-	{"name": "Bench", "mount": "foundation"},
-	{"name": "Rain barrel", "mount": "foundation"},
-	{"name": "Woodpile", "mount": "foundation"},
-	{"name": "Steps", "mount": "foundation"},
-	{"name": "Gatepost lantern", "mount": "foundation"},
-	{"name": "Bracket lantern", "mount": "foundation"},
-	{"name": "Standing torch", "mount": "ground"},
-	{"name": "Campfire", "mount": "ground"},
-	{"name": "Chair", "mount": "floor"},
-	{"name": "Table", "mount": "floor"},
-	{"name": "Settle", "mount": "floor"},
-	{"name": "Bed", "mount": "floor"},
-	{"name": "Shelf", "mount": "floor"},
-	{"name": "Rug", "mount": "floor"},
-	{"name": "Stool", "mount": "floor"},
-	{"name": "Chest", "mount": "floor"},
-	{"name": "Potted plant", "mount": "floor"},
-	{"name": "Candle stand", "mount": "floor"},
-	{"name": "Table and chairs", "mount": "deck"},
-	{"name": "Garden bench", "mount": "deck"},
-	{"name": "Trough planter", "mount": "deck"},
-	{"name": "Parasol", "mount": "deck"},
-	{"name": "String lights", "mount": "deck"},
+	{"name": "Present"},
+	{"name": "Planter"},
+	{"name": "Bench"},
+	{"name": "Rain barrel"},
+	{"name": "Woodpile"},
+	{"name": "Steps"},
+	{"name": "Gatepost lantern"},
+	{"name": "Standing torch"},
+	{"name": "Campfire"},
+	{"name": "Chair"},
+	{"name": "Table"},
+	{"name": "Settle"},
+	{"name": "Bed"},
+	{"name": "Shelf"},
+	{"name": "Rug"},
+	{"name": "Stool"},
+	{"name": "Chest"},
+	{"name": "Potted plant"},
+	{"name": "Candle stand"},
+	{"name": "Table and chairs"},
+	{"name": "Garden bench"},
+	{"name": "Trough planter"},
+	{"name": "Parasol"},
+	{"name": "String lights"},
 ]
+const PRESENT := 0
+## The surface a decoration stands on: at a house's "foundation", on the "ground", on a house's "floor" or on a flat roof's "deck".
+const MOUNTS := ["foundation", "ground", "floor", "deck"]
 const WOOD := Color(0.30, 0.19, 0.10)
 ## Furniture: indoors, under dim light, it wants a paler wood than the weathered outdoor pieces.
 const OAK := Color(0.54, 0.38, 0.22)
@@ -37,30 +41,16 @@ const LINEN := Color(0.86, 0.82, 0.72)
 const CLAY := Color(0.62, 0.33, 0.2)
 const SOIL := Color(0.12, 0.09, 0.06)
 const WAX := Color(0.93, 0.88, 0.74)
+const PAPER := Color(0.62, 0.12, 0.14)
+const RIBBON := Color(0.9, 0.78, 0.4)
 ## Cloth: rugs, blankets and canvas take one of these by seed.
 const DYES: Array[Color] = [Color(0.55, 0.16, 0.12), Color(0.17, 0.27, 0.48), Color(0.66, 0.5, 0.16), Color(0.24, 0.4, 0.26)]
 var parts: Array[Dictionary] = []
 var flames: Array[Transform3D] = []
 var flowers: Array[Transform3D] = []
+## Where the style tool's own model is drawn flat, as on a present's lid.
+var pictures: Array[Transform3D] = []
 var bounds := AABB()
-
-
-static func options(mount: String) -> Array[int]:
-	var out: Array[int] = []
-	for i in STYLES.size():
-		if STYLES[i].mount == mount:
-			out.append(i)
-	return out
-
-
-## The surface a style stands on: "foundation", "ground", a house's "floor" or a flat roof's "deck".
-static func mount_of(style: int) -> String:
-	return STYLES[style].mount
-
-
-static func choose(mount: String, seed: int) -> int:
-	var choices := options(mount)
-	return choices[posmod(seed, choices.size())]
 
 
 ## A box `size` centred `at`, turned `turn` about the vertical and then leaning `tilt` about its own width, its
@@ -81,12 +71,21 @@ func _part(x: Transform3D, color: Color, kind: String) -> void:
 	bounds = b if parts.size() == 1 else bounds.merge(b)
 
 
-func build(style: int, seed: int, rise := 0.6) -> void:
+## Style `style` as it stands on `mount`: backed against the wall at a house's foundation, else centred where it is put.
+func build(style: int, seed: int, rise := 0.6, mount := "ground") -> void:
 	parts.clear()
 	flames.clear()
 	flowers.clear()
+	pictures.clear()
 	var dye := DYES[posmod(seed, DYES.size())]
 	match STYLES[style].name:
+		"Present":
+			box(Vector3(0, 0.17, 0), Vector3(0.42, 0.34, 0.42), PAPER, "")
+			for turn in [0.0, PI * 0.5]:
+				box(Vector3(0, 0.17, 0), Vector3(0.43, 0.06, 0.43), RIBBON, "", turn)
+			for side in [-1.0, 1.0]:
+				box(Vector3(0.13 + side * 0.05, 0.37, -0.13), Vector3(0.1, 0.05, 0.04), RIBBON, "", side * 0.6)
+			pictures.append(Transform3D(Basis().scaled(Vector3(5.5, 0.4, 5.5)), Vector3(-0.02, 0.342, 0.02)))
 		"Planter":
 			box(Vector3(0, 0.18, 0.33), Vector3(1.1, 0.32, 0.5), WOOD, "board")
 			box(Vector3(0, 0.35, 0.33), Vector3(0.96, 0.04, 0.36), Color(0.12, 0.09, 0.06), "")
@@ -122,10 +121,6 @@ func build(style: int, seed: int, rise := 0.6) -> void:
 				box(Vector3(0, 0.12 + i * 0.23, 0.35), Vector3(0.38, 0.22, 0.38), STONE, "block", 0.035 * (i % 2))
 			box(Vector3(0, 0.95, 0.35), Vector3(0.48, 0.1, 0.48), STONE, "block")
 			lantern(Vector3(0, 1.08, 0.35))
-		"Bracket lantern":
-			box(Vector3(0, 0.9, 0.04), Vector3(0.08, 0.45, 0.08), IRON, "iron")
-			box(Vector3(0, 1.08, 0.25), Vector3(0.055, 0.055, 0.5), IRON, "iron")
-			lantern(Vector3(0, 0.85, 0.47))
 		"Standing torch":
 			box(Vector3(0, 0.65, 0), Vector3(0.09, 1.3, 0.09), WOOD, "board")
 			box(Vector3(0, 1.27, 0), Vector3(0.16, 0.22, 0.16), IRON, "iron")
@@ -227,6 +222,14 @@ func build(style: int, seed: int, rise := 0.6) -> void:
 				beam(hang[i], hang[i + 1], 0.02, IRON, "iron")
 			for i in range(1, 6):
 				flame(hang[i] - Vector3.UP * 0.07, Vector3(0.06, 0.09, 0.06))
+
+	var shift := Vector3(-bounds.get_center().x, 0.0, -bounds.position.z + 0.04 if mount == "foundation" else -bounds.get_center().z)
+	for part in parts:
+		part.xform.origin += shift
+	for list: Array[Transform3D] in [flames, flowers, pictures]:
+		for i in list.size():
+			list[i].origin += shift
+	bounds.position += shift
 
 
 func _chair(at: Vector3, turn: float) -> void:

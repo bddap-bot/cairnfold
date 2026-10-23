@@ -1,20 +1,23 @@
 # Decoration measurements
 
-Seven foundation decorations and two ground decorations share `DecorationLayout.STYLES`.
-Placement stores a seeded style; the Style wheel filters that table by mount.
+Every decoration style in `DecorationLayout.STYLES` stands on every mount: a house's foundation, the ground,
+a house's floor or a flat roof's deck. Placement stores the mount and places a present, whose lid carries a
+picture built from the Style tool's own model; the Style wheel turns it into any other style.
 Each decoration keeps its own command identity for save, co-op, delete and undo.
 Foundation pieces follow the house frame. Planters use the existing flower meshes and colours.
 Lanterns, torches and campfires feed the shared baked lamp volume; no dynamic lights are added.
 
 ## Quest 2 paired cost
 
-`demo/decoration-costs.json` measures 24 copies of each style against a matching
+`demo/decoration-costs.json` measures 24 copies of each of its first nine styles against a matching
 night baseline at the budget fitting quality step. Viewport GPU medians exclude
 the first second of each eight-second phase. The difference divided by 24 is
 the per-piece estimate below. Runtime GPU is the independent VrApi App signal.
 The budget uses viewport GPU; its existing conservative solid/flower reservations
 cover every measured increment. These are one-run estimates, not isolated mesh
 costs: scene rebuilding and normal frame variation remain in the differences.
+
+The present replaced the bracket lantern in the sweep and is not yet measured.
 
 | Style | Triangles | Viewport GPU µs/piece | Runtime GPU µs/piece | Reserved µs/piece |
 | --- | ---: | ---: | ---: | ---: |
@@ -24,7 +27,6 @@ costs: scene rebuilding and normal frame variation remain in the differences.
 | Woodpile | 972 | 105.51 | 124.58 | 192.11 |
 | Steps | 324 | 55.90 | 55.42 | 512.30 |
 | Gatepost lantern | 770 | 68.13 | 96.25 | 192.11 |
-| Bracket lantern | 446 | 70.92 | 63.75 | 128.08 |
 | Standing torch | 230 | 47.47 | 51.25 | 85.38 |
 | Campfire | 1338 | 95.18 | 118.33 | 384.23 |
 

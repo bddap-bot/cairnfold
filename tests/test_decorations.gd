@@ -29,10 +29,11 @@ func _run() -> void:
 		layout.build(style, 53)
 		check(not layout.parts.is_empty() and layout.bounds.size.length() > 0.0, "geometry %d" % style)
 		print("decoration cost: %s solids=%d triangles=%d flowers=%d flames=%d" % [DecorationLayout.STYLES[style].name, layout.parts.size(), layout.parts.size() * 108 + layout.flames.size() * 14, layout.flowers.size(), layout.flames.size()])
-	for style in DecorationLayout.options("foundation") + DecorationLayout.options("ground"):
+	for style in 9:
 		var f := w.layout.frame_at(0.5 + style * 0.9)
 		var side := signf((f.point - w.roof.frame().mid).dot(f.tangent.cross(Vector3.UP)))
-		var target := {"what": "decoration", "wall": w if DecorationLayout.mount_of(style) == "foundation" else null, "s": 0.5 + style * 0.9, "side": side, "point": f.point if DecorationLayout.mount_of(style) == "foundation" else Vector3(12 + style, 0, 12), "style": style}
+		var foundation := style < 7
+		var target := {"what": "decoration", "mount": "foundation" if foundation else "ground", "wall": w if foundation else null, "s": 0.5 + style * 0.9, "side": side, "point": f.point if foundation else Vector3(12 + style, 0, 12), "style": style}
 		check(main.fitting_tool.fit(target), "place %d" % style)
 	main.world.decorations.sync()
 	check(main.world.state.decorations.size() == 9, "all styles saved")
@@ -51,11 +52,11 @@ func _run() -> void:
 	var aim: Dictionary = main.fitting_tool.aim(Hand.Tool.DECORATIONS, p + Vector3.UP * 3, Vector3.DOWN)
 	check(aim.get("what") == "decoration" and aim.get("wall") == null, "bare ground accepts decorations")
 	var cmd := FittingTool.decoration_command(aim)
-	check(cmd.style in DecorationLayout.options("ground"), "ground random style from table")
+	check(cmd.style == DecorationLayout.PRESENT and cmd.mount == "ground", "a present by default on bare ground")
 	check(cmd == FittingTool.decoration_command(aim), "placement choice stable while aiming")
 	var bad := cmd.duplicate()
-	bad.style = 0
-	check(Commands.clean(bad, main.world.state, false).is_empty(), "reject wrong mount style")
+	bad.mount = "floor"
+	check(Commands.clean(bad, main.world.state, false).is_empty(), "reject a house's mount without its house")
 	main.world.decorations.sync()
 	for item in main.world.decorations.targets():
 		var centre: Vector3 = item.bounds.get_center()
@@ -64,7 +65,7 @@ func _run() -> void:
 		var picked := FittingTool.pick_target(main.tool, origin, (centre - origin).normalized())
 		check(picked.get("along", INF) <= near.get("along", INF) + 0.001, "decoration refinement never skips nearer building")
 	var items: Array[Dictionary] = main.world.decorations.targets()
-	var post: Dictionary = items.filter(func(i): return i.value.style == 5)[0]
+	var post: Dictionary = items.filter(func(i): return i.value.style == 6)[0]
 	var post_at: Vector3 = post.bounds.get_center()
 	var frame := w.layout.frame_at(post.value.s)
 	var normal: Vector3 = frame.tangent.cross(Vector3.UP) * post.value.side
@@ -78,16 +79,16 @@ func _run() -> void:
 	var roof_blocked := FittingTool.pick_target(main.tool, above, down)
 	check(roof_blocked.get("surface") == "roof", "near roof blocks foundation decoration below")
 	var foundation_style: Dictionary = main.palette_tool.aim_style(outside, -normal)
-	check(foundation_style.get("options") == DecorationLayout.options("foundation"), "foundation Style wheel lists catalogue")
+	check(foundation_style.get("options") == range(DecorationLayout.STYLES.size()), "foundation Style wheel lists every style")
 	var torch: Dictionary = items.filter(func(i): return i.value.style == 7)[0]
 	var at: Vector3 = torch.bounds.get_center()
 	var eye := at + Vector3(0, 0, 3)
 	var picked: Dictionary = main.delete_tool.aim(eye, Vector3.FORWARD)
 	check(picked.get("decoration") == torch.decoration, "ground torch shares delete picker")
 	var style_target: Dictionary = main.palette_tool.aim_style(eye, Vector3.FORWARD)
-	check(style_target.get("options") == DecorationLayout.options("ground"), "Style wheel lists ground catalogue")
+	check(style_target.get("options") == range(DecorationLayout.STYLES.size()), "Style wheel lists every style")
 	main.palette_tool.open(main.rig.right, style_target)
-	main.palette_tool.wheels[main.rig.right].pick = 1
+	main.palette_tool.wheels[main.rig.right].pick = 8
 	main.palette_tool.close(main.rig.right)
 	check(main.world.state.decorations[torch.decoration].style == 8, "Style changes only chosen torch to campfire")
 	main.world.undo()

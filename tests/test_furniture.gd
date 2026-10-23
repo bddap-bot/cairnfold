@@ -1,6 +1,7 @@
 extends SceneTree
 
-## Furniture through the one decoration path: indoor pieces on a house's floors, outdoor pieces on a flat roof's deck.
+## Furniture through the one decoration path: a present on a house's floors or a flat roof's deck, which the style
+## tool turns into any decoration.
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_furniture.gd
 
 var failures := 0
@@ -28,13 +29,53 @@ func _place(origin: Vector3, at: Vector3, mount: String, wall: Wall) -> int:
 	var aim: Dictionary = main.fitting_tool.aim(Hand.Tool.DECORATIONS, origin, (at - origin).normalized())
 	check(aim.get("what") == "decoration" and aim.get("mount") == mount and aim.get("wall") == wall, "%s aimed at %s" % [mount, at])
 	var cmd := FittingTool.decoration_command(aim)
-	check(cmd.style in DecorationLayout.options(mount), "%s style drawn from its own table" % mount)
+	check(cmd.style == DecorationLayout.PRESENT and cmd.mount == mount, "a present is placed on the %s" % mount)
 	check(main.world.change_of(cmd).get("fitting", 0.0) > 0.0, "%s piece charged against the budget" % mount)
 	var before: Array = main.world.state.decorations.keys()
 	check(main.fitting_tool.fit(aim), "%s placed" % mount)
 	var added: Array = main.world.state.decorations.keys().filter(func(k): return k not in before)
 	check(added.size() == 1, "one %s piece saved" % mount)
 	return added[0] if added.size() == 1 else -1
+
+
+## A hand holding decorations swept across open ground, a house's floor and a flat roof's deck shows one present
+## the whole way, and a press places that present.
+func _held_preview() -> void:
+	var hand: Hand = main.rig.right
+	var fit: FittingTool = main.fitting_tool
+	var i: int = fit._buttons.find_custom(func(b: Buttons) -> bool: return b.hand == hand)
+	hand.tool = Hand.Tool.DECORATIONS
+	hand.held_still = true
+	var shapes := {}
+	var mounts := {}
+	for sweep in [[Vector3(-7.0, 1.6, 8.0), Vector3(-8.0, 0.0, 6.0)], [Vector3(-1.0, 1.6, 1.4), Vector3(-2.4, 0.0, 0.4)], [Vector3(12.5, 9.0, 1.5), Vector3(11.8, 0.0, 0.5)]]:
+		for k in 12:
+			var at: Vector3 = sweep[1] + Vector3(0.07 * k, 0.0, 0.0)
+			hand.global_transform = Transform3D(Basis.looking_at(at - sweep[0]), sweep[0])
+			await process_frame
+			await process_frame
+			var ghost: Node3D = fit._ghosts[i].get("decoration")
+			if ghost == null or not ghost.visible:
+				check(false, "a present is shown aimed at %s" % at)
+				continue
+			var shape: Array = ghost.get_meta(&"shape")
+			shapes[shape.slice(0, 2)] = true
+			mounts[fit.aim(Hand.Tool.DECORATIONS, sweep[0], (at - sweep[0]).normalized()).get("mount")] = true
+	check(shapes.size() == 1 and shapes.keys()[0][0] == DecorationLayout.PRESENT, "one present is shown while aiming across ground, floor and deck: %s" % [shapes.keys()])
+	check(mounts.keys() == ["ground", "floor", "deck"], "the sweep crossed ground, floor and deck: %s" % [mounts.keys()])
+	var before: Array = main.world.state.decorations.keys()
+	var shown: Array = fit._ghosts[i].decoration.get_meta(&"shape")
+	Buttons.injected["%s/trigger_click" % hand.tracker] = true
+	await process_frame
+	Buttons.injected.erase("%s/trigger_click" % hand.tracker)
+	main.world.decorations.sync()
+	var added: Array = main.world.state.decorations.keys().filter(func(k): return k not in before)
+	check(added.size() == 1, "a press places one piece")
+	if added.size() == 1:
+		var d: Dictionary = main.world.state.decorations[added[0]]
+		check([d.style, d.seed] == shown.slice(0, 2), "the piece placed is the present shown: %s against %s" % [[d.style, d.seed], shown])
+	hand.tool = Hand.Tool.WALLS
+	hand.held_still = false
 
 
 func _run() -> void:
@@ -63,15 +104,13 @@ func _run() -> void:
 	check(pitched.get("what") == "chimney", "a pitched roof still takes a chimney, not furniture")
 
 	var bad: Dictionary = main.world.state.decorations[chair].merged({"op": "decoration", "wall": -1}, true)
-	check(Commands.clean(bad, main.world.state, false).is_empty(), "indoor style refused on open ground")
-	for style in [DecorationLayout.options("deck")[0], DecorationLayout.options("foundation")[0]]:
-		var across := {"op": "reshape", "of": "decorations", "id": chair, "data": {"style": style}}
-		check(Commands.clean(across, main.world.state, false).is_empty(), "restyle to %s refused across mounts" % DecorationLayout.STYLES[style].name)
+	check(Commands.clean(bad, main.world.state, false).is_empty(), "a floor piece refused without its house")
+	for style in DecorationLayout.STYLES.size():
+		var any := {"op": "reshape", "of": "decorations", "id": chair, "data": {"style": style}}
+		check(not Commands.clean(any, main.world.state, false).is_empty(), "a floor piece restyles to %s" % DecorationLayout.STYLES[style].name)
 	var pitched_deck: Dictionary = main.world.state.decorations[deck].merged({"op": "decoration", "wall": house.id}, true)
 	check(Commands.clean(pitched_deck, main.world.state, false).is_empty(), "deck piece refused on a pitched roof")
 	check(not Commands.clean(main.world.state.decorations[deck].merged({"op": "decoration"}), main.world.state, false).is_empty(), "deck piece accepted on a flat roof")
-	var within := {"op": "reshape", "of": "decorations", "id": chair, "data": {"style": DecorationLayout.options("floor")[1]}}
-	check(not Commands.clean(within, main.world.state, false).is_empty(), "restyle within the floor table accepted")
 
 	n = _node(chair)
 	var r0 := house.roof.frame()
@@ -97,7 +136,7 @@ func _run() -> void:
 	var top: Vector3 = (n.transform * (n.get_meta(&"bounds") as AABB)).get_center()
 	var eye := top + Vector3(0.0, 1.2, 0.6)
 	var style_target: Dictionary = main.palette_tool.aim_style(eye, (top - eye).normalized())
-	check(style_target.get("id") == chair and style_target.get("options") == DecorationLayout.options("floor"), "Style on an indoor piece offers the indoor table")
+	check(style_target.get("id") == chair and style_target.get("options") == range(DecorationLayout.STYLES.size()), "Style on an indoor piece offers every style")
 	var picked: Dictionary = main.delete_tool.aim(eye, (top - eye).normalized())
 	check(picked.get("decoration") == chair, "delete picks the single indoor piece")
 	var walls: int = main.world.state.walls.size()
@@ -113,13 +152,13 @@ func _run() -> void:
 	decked.lay_now()
 	check(_node(deck) != null, "and stands again on the flat deck")
 
-	for mount in ["floor", "deck"]:
-		for style in DecorationLayout.options(mount):
-			var layout := DecorationLayout.new()
-			layout.build(style, 0)
-			print("furniture cost: %s %s solids=%d flames=%d flowers=%d reserved_quest2_us=%.1f" % [mount, DecorationLayout.STYLES[style].name, layout.parts.size(), layout.flames.size(), layout.flowers.size(), Budget.cost_ms(Budget.decoration(style)) * 1000.0])
+	for style in DecorationLayout.STYLES.size():
+		var layout := DecorationLayout.new()
+		layout.build(style, 0)
+		print("furniture cost: %s solids=%d flames=%d flowers=%d pictures=%d reserved_quest2_us=%.1f" % [DecorationLayout.STYLES[style].name, layout.parts.size(), layout.flames.size(), layout.flowers.size(), layout.pictures.size(), Budget.cost_ms(Budget.decoration(style)) * 1000.0])
+	await _held_preview()
 	var saved: Dictionary = main.world.snapshot()
 	main.world.restore(saved)
-	check(main.world.state.decorations.size() == 2, "save restore keeps furniture")
+	check(main.world.state.decorations.size() == 3, "save restore keeps furniture")
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)

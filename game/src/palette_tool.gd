@@ -15,6 +15,8 @@ extends Node3D
 
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
 const WHEEL_RADIUS := 0.07
+## A wheel of many choices widens so neighbours stay this far apart around it.
+const CHOICE_GAP := 0.03
 ## Where the wheel stands from the controller, in its frame when the trigger went down.
 const WHEEL_AT := Vector3(0, 0.06, -0.05)
 
@@ -151,9 +153,7 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	if solid.get("along", INF) < nearest and solid.plants[0].pool == walls.flora.trunks:
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.TREE, "count": FloraLayout.Species.size(), "point": solid.point, "of": "", "id": -1, "wall": null, "tree": solid.plants[0]}
 	if pick.has("decoration"):
-		var d: Dictionary = world.state.decorations[pick.decoration]
-		var options := DecorationLayout.options(DecorationLayout.mount_of(d.style))
-		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.DECORATION, "options": options, "count": options.size(), "point": pick.point, "of": "decorations", "id": pick.decoration, "wall": pick.wall}
+		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.DECORATION, "options": range(DecorationLayout.STYLES.size()), "count": DecorationLayout.STYLES.size(), "point": pick.point, "of": "decorations", "id": pick.decoration, "wall": pick.wall}
 	if not gable.is_empty():
 		return style_target(Restyle.GABLE, gable.wall, gable.point)
 	if not roof.is_empty() and not WallTool.house_of(world.state.walls.get(roof.wall.id, {})).is_empty():
@@ -401,7 +401,7 @@ func _place(w: Wheel, hand: Hand) -> void:
 	var n := w.choices.size()
 	for k in n:
 		var a := (w.degrees / Palette.TWIST_STEP - (k - w.start)) * TAU / n
-		w.choices[k].position = Vector3(sin(a), cos(a), 0.0) * WHEEL_RADIUS
+		w.choices[k].position = Vector3(sin(a), cos(a), 0.0) * maxf(WHEEL_RADIUS, n * CHOICE_GAP / TAU)
 		w.choices[k].scale = Vector3.ONE * (1.6 if k == w.pick else 1.0)
 
 
