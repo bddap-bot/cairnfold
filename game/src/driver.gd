@@ -39,6 +39,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
+	await _drawing()
 	for step in steps:
 		await _standing()
 		print("driver: ", step)
@@ -54,6 +55,15 @@ func _run() -> void:
 func _exit_tree() -> void:
 	if not _waiting.is_empty():
 		push_error("driver: until %s timed out" % _waiting)
+
+
+## A headset runs the main loop for seconds before its session draws a frame, and its shell keeps drawing its launch
+## transition meanwhile: a script's clock starts with the first frame the game draws.
+func _drawing() -> void:
+	if not main.get_viewport().use_xr:
+		return
+	while main.xr.get_session_state() not in [OpenXRInterface.SESSION_STATE_SYNCHRONIZED, OpenXRInterface.SESSION_STATE_VISIBLE, OpenXRInterface.SESSION_STATE_FOCUSED]:
+		await get_tree().process_frame
 
 
 func _standing() -> void:
