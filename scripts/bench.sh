@@ -184,7 +184,7 @@ if [ "${2:-}" = --android ]; then
     adb shell am force-stop "$pkg"
     [ -z "$logcat_pid" ] || adb shell kill "$logcat_pid"
     adb logcat -c
-    logcat_pid=$(adb shell "rm -f $log; nohup logcat -v threadtime -f $log > /dev/null 2>&1 < /dev/null & echo \$!" | tr -d '\r')
+    logcat_pid=$(adb shell "rm -f $log; nohup logcat -v threadtime -v epoch -f $log > /dev/null 2>&1 < /dev/null & echo \$!" | tr -d '\r')
     printf '%s\n' --script "$files/bench.json" --metrics "$dir/metrics.json" --capture-dir "$dir" --seed "$seed" \
       ${hosting:+--port "$hosting"} "${extra[@]}" > "$out/launch.args"
     adb push "$out/launch.args" "$files/launch.args" > /dev/null
@@ -244,7 +244,7 @@ fi
 scene=$(basename "${NESTCOMBE_SCENE:-stress.json}" .json)
 record=$here/../perf/$rig/$scene/$(date -u +%Y%m%dT%H%M%SZ)-${build:0:7}.json
 python3 - "$out" "$device" "$record" <<'PY'
-import json, os, re, sys
+import bisect, json, os, re, sys
 out, device, record = sys.argv[1], sys.argv[2], sys.argv[3]
 for name in ["logcat.txt", "godot.log"]:
     path = os.path.join(out, name)
@@ -268,21 +268,26 @@ if device == "frame":
     for name, secs in phases.items():
         gpu[name] = [s["gpu_ms"] / s["frames"] for s in secs[1:] if "gpu_ms" in s]
 elif device == "quest":
-    # Only the game's process counts, the one printing the labels. Another process rendering during a phase, as the
+    # Only the game's process counts, the one printing as godot. Another process rendering during a phase, as the
     # shell does under an open panel, shares the GPU with the game, so that phase's times are not the game's.
     # A game that dies hands the compositor to the shell, which then renders in its phase: the death is the finding.
     # A hand the headset's cameras track, someone's near it, is drawn by the game with its tool and the tool's
     # preview, so a phase it shows in measures more than its scene.
-    label, phase, game_pid, crash, done = "-", "-", None, None, False
+    # Each line's phase is the metrics second it falls in, by the headset's clock: logcat drops lines under load, the
+    # game's own label prints among them.
+    ends = [s["unix"] for s in d["seconds"]]
+    at = lambda t: d["seconds"][bisect.bisect_left(ends, t)]["label"] if t <= ends[-1] else "-"
+    phase, game_pid, crash, done = "-", None, None, False
     shared, hands, handed = {}, set(), set()
     for line in open(os.path.join(out, "logcat.txt"), errors="replace"):
-        fields = line.split()
-        pid = fields[2] if len(fields) > 2 else None
-        m = re.search(r'"op": "label", "name": "([^"]*)"', line)
-        if m:
-            label, game_pid = m.group(1), pid
-            if label != "-":
-                phase = label
+        m = re.match(r"\s*(\d+\.\d+)\s+(\d+)\s+\d+\s+\w\s+(\S+)", line)
+        if not m:
+            continue
+        label, pid = at(float(m.group(1))), m.group(2)
+        if game_pid is None and m.group(3).startswith("godot"):
+            game_pid = pid
+        if label != "-":
+            phase = label
         m = re.search(r"HANDTRACKING hand (\d+) status set to (\w+)", line)
         if m:
             (hands.add if m.group(2) == "Tracked" else hands.discard)(m.group(1))
