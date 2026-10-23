@@ -733,18 +733,15 @@ func _sync() -> void:
 		live = live or not drawn[p].is_empty()
 	masonry.place(get_instance_id(), placed)
 	if live:
-		var fresh := _drawn == null
-		if fresh:
+		if _drawn == null:
 			_drawn = Masonry.new(kinds())
 			add_child(_drawn)
 		_drawn.place(get_instance_id(), drawn)
 		_drawn.flush()
-		if fresh:
-			masonry.flush()
 	elif _drawn != null:
-		masonry.flush()
 		_drawn.queue_free()
 		_drawn = null
+	masonry.flush()
 	_show_ivy(_settled and _ivy_growing())
 	if _stand_in != null:
 		_stand_in.queue_free()

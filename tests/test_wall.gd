@@ -24,6 +24,7 @@ func _init() -> void:
 	_far_pieces_reach_the_near_pieces_faces()
 	_full_stones_stand_only_near_the_eye()
 	_a_changing_wall_draws_far_stones_by_its_own_chunks()
+	_grown_ivy_moves_to_the_glade_in_one_frame()
 	_a_chunk_draws_again_only_the_pieces_that_changed()
 	_a_wall_over_water_stands_on_its_bed()
 	_a_narrow_crossing_takes_one_arch()
@@ -469,6 +470,33 @@ func _a_changing_wall_draws_far_stones_by_its_own_chunks() -> void:
 	w.rebuild(true)
 	w.lay_now()
 	_check(glade._owners.has(id) and w._drawn == null, "once settled the glade draws them, and the wall's own Masonry goes")
+	w.free()
+	glade.free()
+
+
+## Ivy that finishes growing leaves the wall's own instance for the glade's chunks in the frame it stops, so it never
+## blinks out for the frame before the glade next processes.
+func _grown_ivy_moves_to_the_glade_in_one_frame() -> void:
+	var glade := Masonry.new(Wall.kinds())
+	root.add_child(glade)
+	var w := Wall.new(1, glade)
+	root.add_child(w)
+	w.layout.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
+	w.layout.height = 2.4
+	w.finished = true
+	w.rebuild(true)
+	w.lay_now()
+	while not WorkerThreadPool.is_task_completed(w._ivy_task):
+		OS.delay_msec(1)
+	w._process(0.0)
+	_check(w._ivy != null and w._ivy.multimesh.instance_count > 0, "growing ivy is drawn by its wall")
+	w.ivy_age = INF
+	w._process(0.0)
+	var leaves := 0
+	for key: Vector3i in glade._chunks:
+		if key.z == Wall.Part.IVY:
+			leaves += glade._chunks[key].instance.multimesh.instance_count
+	_check(w._ivy.multimesh.instance_count == 0 and leaves > 0, "grown ivy is drawn by the glade the frame its wall lets it go, got %d leaves" % leaves)
 	w.free()
 	glade.free()
 
