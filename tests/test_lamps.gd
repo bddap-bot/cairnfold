@@ -14,6 +14,7 @@ func _init() -> void:
 	_window_strength_does_not_brighten_the_room()
 	_a_house_keeps_light_out()
 	_an_open_loop_lets_light_up()
+	_a_live_hump_solves_nothing()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -144,3 +145,24 @@ func _merged_rooms_share_light() -> void:
 		rooms.append(Lamps.Room.of(layouts[i], Massing.of(layouts[i], null)))
 	var apart := Lamps.shine(flame, ground, rooms)
 	_check(_at(apart, 7.5, 0.5, 1) == 0.0, "overlapping outlines alone do not connect rooms without removed walls")
+
+
+func _a_live_hump_solves_nothing() -> void:
+	var lamps := Lamps.new()
+	lamps.light([], PackedVector3Array([Vector3(1.0, 1.8, 0.0)]))
+	lamps.finish()
+	Terrain.set_hump(0, 1.0, 0.0, 3.0, 1.0)
+	lamps.update()
+	_check(lamps._task < 0, "a stroke's live hump, which the light never stands on, starts no solve")
+	Terrain.clear_hump(0)
+	lamps.finish()
+	var cells := Terrain.cells_around(1.0, 0.0, 3)
+	var before := Terrain.read(cells)
+	var raised := before.duplicate()
+	for i in raised.size():
+		raised[i] += 1.0
+	Terrain.write(cells, raised)
+	lamps.update()
+	_check(lamps._task >= 0, "ground raised under a lantern solves its light again")
+	lamps.stop()
+	Terrain.write(cells, before)

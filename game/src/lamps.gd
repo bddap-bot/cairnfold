@@ -29,6 +29,9 @@ var _layers: Array[Image] = []
 var _flames := PackedVector3Array()
 var _rooms: Array[Room] = []
 var _shells := []
+## The ground's heights the last solve stood on, and the Terrain.revision they were read at. A stroke's live
+## hump moves the revision without them.
+var _heights := PackedFloat32Array()
 var _ground := -1
 var _dirty := false
 var _task := -1
@@ -145,15 +148,18 @@ func update() -> void:
 		if not WorkerThreadPool.is_task_completed(_task):
 			return
 		_collect()
-	if _ground != Terrain.revision:
+	if _ground != Terrain.revision and (_dirty or not _flames.is_empty()):
 		_ground = Terrain.revision
-		_dirty = not _flames.is_empty() or _dirty
+		var heights := Terrain.read(Terrain.ALL)
+		if heights != _heights:
+			_heights = heights
+			_dirty = true
 	if not _dirty:
 		return
 	_dirty = false
 	var flames := _flames
 	var rooms := _rooms.duplicate()
-	var heights := Terrain.read(Terrain.ALL)
+	var heights := _heights
 	var out := {}
 	_out = out
 	_task = WorkerThreadPool.add_task(func() -> void: out.layers = shine(flames, Bounce.grounds(heights), rooms), false)
