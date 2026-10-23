@@ -12,7 +12,6 @@ func _initialize() -> void:
 	Terrain.install()
 	Ground.install()
 	await process_frame
-	_no_tool_places_a_deer_or_a_fox()
 	_each_is_one_draw_call()
 	await _a_fox_and_a_doe_stand_true_to_life()
 	await _deer_then_a_fox_come_out_of_sight()
@@ -97,14 +96,6 @@ func _walk_up(g: Glade, a: Beast, speed: float, stop: float) -> bool:
 		if a.state == Grazers.State.FLEE:
 			return false
 	return true
-
-
-func _no_tool_places_a_deer_or_a_fox() -> void:
-	for f in DirAccess.get_files_at("res://src"):
-		if f.ends_with("_tool.gd") or f in ["hand.gd", "buttons.gd"]:
-			var code := FileAccess.get_file_as_string("res://src/" + f)
-			check(not code.contains("Beast") and not code.contains("Roamers"), "%s reaches no deer or fox" % f)
-	check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Roamers.new(") == 1, "Wildlife alone makes them")
 
 
 ## A grown red fox stands about 0.4 m at the shoulder and 1.1 m nose to tail tip; a doe about 1 m at the shoulder.

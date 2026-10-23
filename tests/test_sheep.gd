@@ -13,7 +13,6 @@ func _initialize() -> void:
 	Terrain.install()
 	Ground.install()
 	await process_frame
-	_no_tool_places_a_sheep()
 	_the_sheep_is_one_small_mesh()
 	await _fences_draw_a_flock()
 	await _the_same_seed_brings_the_same_flock()
@@ -155,16 +154,6 @@ func _a_resting(g: Glade, but: Array = []) -> Sheep:
 			room = near
 			best = s
 	return best
-
-
-func _no_tool_places_a_sheep() -> void:
-	for key: String in Hand.Tool.keys():
-		check(not key.begins_with("SHEEP") and not key.begins_with("HERD"), "no hand tool %s" % key)
-	for f in DirAccess.get_files_at("res://src"):
-		if f.ends_with("_tool.gd") or f in ["hand.gd", "driver.gd", "buttons.gd"]:
-			var code := FileAccess.get_file_as_string("res://src/" + f)
-			check(not code.contains("Sheep") and not code.contains("Herds"), "%s reaches no sheep" % f)
-	check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Herds.new(") == 1, "Wildlife alone makes the herds")
 
 
 func _the_sheep_is_one_small_mesh() -> void:

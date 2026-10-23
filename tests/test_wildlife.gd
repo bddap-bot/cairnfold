@@ -4,6 +4,17 @@ extends "res://../tests/support/suite.gd"
 
 const GladeBase = preload("res://../tests/support/glade.gd")
 const STEP := 1.0 / 30.0
+## What no tool may place: [the animal, what no hand tool's name begins with, what no tool's source may name, whether the
+## driver's source is held to that too, the one file that makes it, how it makes it].
+const UNPLACEABLE := [
+	["animal", ["DUCK", "ANIMAL", "WILDLIFE"], ["Duck", "ildlife"], false, "main.gd", "Wildlife.new("],
+	["bird", ["BIRD", "CONURE"], ["Birds", "onure"], false, "wildlife.gd", "Birds.new("],
+	["sheep", ["SHEEP", "HERD"], ["Sheep", "Herds"], true, "wildlife.gd", "Herds.new("],
+	["butterfly", ["BUTTERFL"], ["utterfl"], true, "wildlife.gd", "Butterflies.new("],
+	["firefly", ["FIREFL"], ["irefl"], true, "wildlife.gd", "Fireflies.new("],
+	["fish", [], ["Fish"], true, "wildlife.gd", "Fish.new("],
+	["deer or fox", [], ["Beast", "Roamers"], false, "wildlife.gd", "Roamers.new("],
+]
 
 var feed: FeedTool
 
@@ -167,13 +178,17 @@ func _spread(s: Handful) -> float:
 
 ## Tools do not place animals; Wildlife offers no public spawning entry point.
 func _no_tool_places_an_animal() -> void:
-	for key in Hand.Tool.keys():
-		check(not key in ["DUCK", "DUCKS", "ANIMAL", "ANIMALS", "WILDLIFE"], "no hand tool %s" % key)
-	for f in DirAccess.get_files_at("res://src"):
-		if f.ends_with("_tool.gd") or f in ["hand.gd", "buttons.gd"]:
-			var code := FileAccess.get_file_as_string("res://src/" + f)
-			check(not code.contains("Duck") and not code.contains("ildlife"), "%s reaches no animal" % f)
-	check(FileAccess.get_file_as_string("res://src/main.gd").count("Wildlife.new(") == 1, "main makes one Wildlife")
+	for row: Array in UNPLACEABLE:
+		var what: String = row[0]
+		for key: String in Hand.Tool.keys():
+			for prefix: String in row[1]:
+				check(not key.begins_with(prefix), "no hand tool %s" % key)
+		for f in DirAccess.get_files_at("res://src"):
+			if f.ends_with("_tool.gd") or f in ["hand.gd", "buttons.gd"] or (row[3] and f == "driver.gd"):
+				var code := FileAccess.get_file_as_string("res://src/" + f)
+				for part: String in row[2]:
+					check(not code.contains(part), "%s reaches no %s" % [f, what])
+		check(FileAccess.get_file_as_string("res://src/" + row[4]).count(row[5]) == 1, "%s alone makes the %s" % [row[4], what])
 	for m in (load("res://src/wildlife.gd") as Script).get_script_method_list():
 		check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "still", "approaching", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble", "in_hand", "feeding"], "Wildlife exposes no way to add an animal, found %s" % m.name)
 

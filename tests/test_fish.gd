@@ -8,17 +8,9 @@ const STEP := 1.0 / 30.0
 func _initialize() -> void:
 	Terrain.install()
 	await process_frame
-	_no_tool_places_fish()
 	_faces_out()
 	await _they_swim_in_the_ponds()
 	finish()
-
-
-func _no_tool_places_fish() -> void:
-	for f in DirAccess.get_files_at("res://src"):
-		if f.ends_with("_tool.gd") or f in ["hand.gd", "driver.gd", "buttons.gd"]:
-			check(not FileAccess.get_file_as_string("res://src/" + f).contains("Fish"), "%s reaches no fish" % f)
-	check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Fish.new(") == 1, "Wildlife alone makes fish")
 
 
 ## The fish draws see-through, so a face turned from the eye would show its inside over its outside: it draws only

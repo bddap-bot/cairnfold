@@ -8,7 +8,6 @@ const STEP := 1.0 / 30.0
 func _initialize() -> void:
 	Terrain.install()
 	await process_frame
-	_no_tool_places_fireflies()
 	await _they_come_out_at_dusk_over_what_is_made()
 	finish()
 
@@ -16,15 +15,6 @@ func _initialize() -> void:
 func _run(wildlife: Wildlife, seconds: float) -> void:
 	for i in int(seconds / STEP):
 		wildlife.tick(STEP)
-
-
-func _no_tool_places_fireflies() -> void:
-	for key: String in Hand.Tool.keys():
-		check(not key.begins_with("FIREFL"), "no hand tool %s" % key)
-	for f in DirAccess.get_files_at("res://src"):
-		if f.ends_with("_tool.gd") or f in ["hand.gd", "driver.gd", "buttons.gd"]:
-			check(not FileAccess.get_file_as_string("res://src/" + f).contains("irefl"), "%s reaches no firefly" % f)
-	check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Fireflies.new(") == 1, "Wildlife alone makes fireflies")
 
 
 ## Presses a hollow at x, z as a grip does, then fills it to its brim with the pond tool.

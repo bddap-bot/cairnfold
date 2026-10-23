@@ -10,7 +10,6 @@ const AWAY := Vector3(0, -50, 0)
 func _initialize() -> void:
 	Terrain.install()
 	await process_frame
-	_no_tool_places_butterflies()
 	await _only_painted_flowers_draw_them()
 	await _they_settle_on_blooms_and_scatter_from_a_hand()
 	await _they_leave_when_the_flowers_go()
@@ -56,15 +55,6 @@ func _paint(g: Glade, at: Vector3, seconds: float) -> void:
 func _arrived(g: Glade) -> void:
 	g.run(Wildlife.BUTTERFLIES_AFTER.y + 3.0)
 	check(not g.all().is_empty(), "butterflies came")
-
-
-func _no_tool_places_butterflies() -> void:
-	for key: String in Hand.Tool.keys():
-		check(not key.begins_with("BUTTERFL"), "no hand tool %s" % key)
-	for f in DirAccess.get_files_at("res://src"):
-		if f.ends_with("_tool.gd") or f in ["hand.gd", "driver.gd", "buttons.gd"]:
-			check(not FileAccess.get_file_as_string("res://src/" + f).contains("utterfl"), "%s reaches no butterfly" % f)
-	check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Butterflies.new(") == 1, "Wildlife alone makes butterflies")
 
 
 func _only_painted_flowers_draw_them() -> void:

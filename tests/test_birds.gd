@@ -12,7 +12,7 @@ func _initialize() -> void:
 	seed(1)
 	Terrain.install()
 	await process_frame
-	_no_tool_places_a_bird()
+	_only_birds_make_conures()
 	_wall_tops_are_perches()
 	_plumages()
 	await _carry()
@@ -23,19 +23,6 @@ func _initialize() -> void:
 	_torso_lags_the_head()
 	await _shoulder()
 	finish()
-
-
-func _no_tool_places_a_bird() -> void:
-	for key: String in Hand.Tool.keys():
-		check(not key in ["BIRD", "BIRDS", "CONURE", "CONURES"], "no hand tool %s" % key)
-	for f in DirAccess.get_files_at("res://src"):
-		if f.ends_with("_tool.gd") or f in ["hand.gd", "buttons.gd"]:
-			var code := FileAccess.get_file_as_string("res://src/" + f)
-			check(not code.contains("Birds") and not code.contains("onure"), "%s reaches no bird" % f)
-	check(FileAccess.get_file_as_string("res://src/wildlife.gd").count("Birds.new(") == 1, "Wildlife alone makes the birds")
-	for f in DirAccess.get_files_at("res://src"):
-		if f.ends_with(".gd") and f not in ["birds.gd", "conure.gd", "held_item.gd"]:
-			check(not FileAccess.get_file_as_string("res://src/" + f).contains("Conure.new("), "%s makes no conure" % f)
 
 
 ## Every plumage colours each patch, the first stays iridescent, and a conure wears the one it is given.
@@ -58,6 +45,12 @@ func _plumages() -> void:
 
 ## A wall's perches stand on its top: on the cap, on merlons, on piers, on a fence's top rail and posts; none
 ## beside a flag, none on a roofed wall.
+func _only_birds_make_conures() -> void:
+	for f in DirAccess.get_files_at("res://src"):
+		if f.ends_with(".gd") and f not in ["birds.gd", "conure.gd", "held_item.gd"]:
+			check(not FileAccess.get_file_as_string("res://src/" + f).contains("Conure.new("), "%s makes no conure" % f)
+
+
 func _wall_tops_are_perches() -> void:
 	for top in WallLayout.Top.values():
 		var w := WallLayout.new()
