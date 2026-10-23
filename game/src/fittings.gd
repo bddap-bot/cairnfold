@@ -14,9 +14,9 @@ static var _box := BoxMesh.new()
 static var _disc := _halo_disc()
 static var _strip := _flag_mesh()
 
-var _flames := _instances(_box)
-var _halos := _instances(_disc)
-var _cloths := _instances(_strip)
+var _flames := Masonry.Kind.new(_box, _flame, true, false, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF).instance()
+var _halos := Masonry.Kind.new(_disc, _halo, true, false, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF).instance()
+var _cloths := Masonry.Kind.new(_strip, _cloth, true, false, GeometryInstance3D.SHADOW_CASTING_SETTING_ON).instance()
 
 
 static func _flame_material() -> StandardMaterial3D:
@@ -42,11 +42,6 @@ static func _halo_disc() -> QuadMesh:
 
 
 func _init() -> void:
-	_flames.material_override = _flame
-	_halos.material_override = _halo
-	_cloths.material_override = _cloth
-	for mmi in [_flames, _halos]:
-		mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	for mmi in [_flames, _halos, _cloths]:
 		add_child(mmi)
 
@@ -76,16 +71,6 @@ func ghostly(mat: Material) -> void:
 		mmi.material_override = mat
 	_halos.hide()
 	_halos.multimesh.instance_count = 0
-
-
-static func _instances(mesh: Mesh) -> MultiMeshInstance3D:
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.mesh = mesh
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	return mmi
 
 
 ## A cloth strip from the pole (x = 0) out to x = 1, y from -0.5 to 0.5, cut into columns so it can wave. Each triangle

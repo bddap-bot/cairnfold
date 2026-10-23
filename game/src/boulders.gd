@@ -168,17 +168,10 @@ func settle(id: int) -> void:
 static func _instance(shape: BoulderLayout.Shape, subdiv: int) -> MultiMeshInstance3D:
 	var mesh := ArrayMesh.new()
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, BoulderLayout.arrays(shape, subdiv))
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.use_custom_data = true
-	mm.mesh = mesh
-	mm.instance_count = 1
-	mm.set_instance_transform(0, Transform3D.IDENTITY)
-	mm.set_instance_custom_data(0, Stones.custom({"ao": AO, "kind": "rubble"}))
-	var mi := MultiMeshInstance3D.new()
-	mi.multimesh = mm
-	mi.material_override = Stones.shared_material()
+	var mi := Masonry.Kind.new(mesh, Stones.shared_material(), true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_ON).instance()
+	mi.multimesh.instance_count = 1
+	mi.multimesh.set_instance_transform(0, Transform3D.IDENTITY)
+	mi.multimesh.set_instance_custom_data(0, Stones.custom({"ao": AO, "kind": "rubble"}))
 	return mi
 
 

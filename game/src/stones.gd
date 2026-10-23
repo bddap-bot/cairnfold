@@ -9,7 +9,7 @@ static var _mesh: ArrayMesh
 static var _far_mesh: ArrayMesh
 static var _material: ShaderMaterial
 
-var _instance := MultiMeshInstance3D.new()
+var _instance := Masonry.Kind.new(mesh(), shared_material(), true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_ON).instance()
 
 
 static func shared_material() -> ShaderMaterial:
@@ -37,13 +37,6 @@ static func far_mesh() -> ArrayMesh:
 
 
 func _init() -> void:
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.use_custom_data = true
-	mm.mesh = mesh()
-	_instance.multimesh = mm
-	_instance.material_override = shared_material()
 	add_child(_instance)
 
 
