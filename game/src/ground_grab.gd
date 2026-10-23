@@ -114,15 +114,14 @@ func _handle(g: Grab, delta: float) -> void:
 		return
 	if not g.grip.pressed("grab") or g.at != null or hand.taken() or hand.picking or rig.aim_hand == hand or not hand.get_has_tracking_data() or editing.call(hand):
 		return
-	var t := hand.global_transform
-	var hit: Variant = Terrain.raycast(t.origin, -t.basis.z)
-	if hit == null or Daylight.aims_at_body(-t.basis.z, world.time):
+	var dir := -hand.global_basis.z
+	var hit: Variant = Terrain.raycast(hand.grip_from(), dir, hand.grip_reach())
+	if hit == null or Daylight.aims_at_body(dir, world.time):
 		return
-	var reach := t.origin.distance_to(hit)
-	begin(hand, hit, reach * RADIUS_PER_METRE)
+	begin(hand, hit, hand.at_controller().distance_to(hit) * RADIUS_PER_METRE)
 	g.gripped = true
 	g.hand_y = hand.position.y
-	g.gain = Hand.reach_gain(reach)
+	g.gain = Hand.reach_gain(hand.global_position.distance_to(hit))
 	g.ticked = 0.0
 	_show_ring(g.ring, hit, g.radius)
 

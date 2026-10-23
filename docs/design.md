@@ -2742,6 +2742,47 @@ pointer as far as the sky can turn; the sun's disc, glow and light ride on it, a
 counts for nothing. The sight stays shown, since aiming is the control. The sky turns on round the
 whole day, through the night and past midnight. The clouds stay put: they are weather, not the dome.
 
+### Reaching far
+
+First contact with grabbing should be satisfying: reach out to a building far away and take it, then stretch it or
+move it, with no pointing, since pointing suits a gun and little else. Go-Go reach (Poupyrev et al., 1996) does that,
+calibrated to each player's own arm so a child with short arms reaches as far as an adult (`Reach`).
+
+- The hand follows the controller one to one out to two thirds of the player's arm. Past that, each further
+  centimetre throws the hand much farther, along the line from the player's shoulder through the controller: by the
+  square of how far into the last third the arm is stretched, up to 24 m at full stretch (`Reach.FAR`). Drawing the
+  arm back reels the hand in along the same curve.
+- The grip takes what the hand touches: the first thing within 0.3 m of it along its aim, before or after it
+  (`Reach.TOUCH`), by the grip's existing order (a build, a fitting, a plant, a boulder, stairs, an easel, the
+  ground). Nothing far is taken by pointing at it. A grab of the sky stays aimed, since turning the sky by pointing is
+  its control. What is taken then moves with the hand one to one, a house too, which a pointing grip moves farther the
+  farther its middle is: the projection already carries a far hand far, so a held house moves, turns, is stretched by
+  two hands and is reeled in by the existing operations. A hump of ground is as wide as one pulled from where the
+  controller is.
+- The arm is measured, never assumed: its length is the farthest the controller has been held from the shoulder,
+  across the ground. The shoulder stands below the eyes and to that hand's side by fixed fractions of the arm, so a
+  small player's shoulder is as near their eyes as their arm is short. Until the player has stretched out, the arm
+  is taken as 0.36 of the eyes' height above the floor, a proportion a child and an adult share; any stretch past it
+  replaces it, and while the arm is not stretched the learned arm shrinks by half a percent a second, never below
+  that first guess, so the next player to wear the headset is learned anew within minutes and a hand held out never
+  creeps. No age, height preset, profile or device enters it, and a child and an adult throw the hand equally
+  far at the same fraction of their own arm.
+- Across the ground, so a hand hanging at the side is never stretched, and reaching forward and down still
+  throws the hand along the arm's line onto the ground ahead.
+- How far the hand is thrown follows the stretch at 4 Hz, plus 2 Hz for each metre it lags, so a held arm holds the
+  hand still against tremor and a deliberate reach catches up, as the teleport ray's aim does.
+- It reaches with the build tools and with an empty hand. A hand holding the seed dish, the easel's brushes, a
+  camera or the picture book stays where the controller is, since those work by touch at arm's length, as does a
+  hand opening the wheel. Tracked hands reach as controllers do: the mapping reads the hand's pose alone.
+
+Until a headset playtest keeps one, reach is a debug switch rather than a choice of builds: clicking both sticks in
+together cycles every hand between Go-Go reach and the pointing grab it replaces (`Reach.mode`), so one session
+compares them. No action uses either stick's click, and both at once is not pressed by accident; nothing shows the
+switch to a player. The picture book's pages still teach the pointing grab, and the tests that grip by pointing
+check it. Once one is kept, the switch and the other go. `tests/test_reach.gd` checks the mapping, the
+calibration of a short and a long arm, and a far house taken, moved and reeled in through the grip;
+`demo/reach.json` films it.
+
 ## VR controls
 
 | Action | Control |

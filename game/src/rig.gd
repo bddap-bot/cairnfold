@@ -72,6 +72,7 @@ var floor_under := func(p: Vector3) -> float: return Terrain.height_at(p.x, p.z)
 var solid_hit := func(_origin: Vector3, _dir: Vector3, _reach: float) -> Dictionary: return {}
 var _moves: Buttons
 var _turns: Buttons
+var _reach_switch: Array[Buttons] = []
 var _fade_t := -1.0
 var _pending: Variant = null
 var _aim_clock := 0.0
@@ -100,6 +101,8 @@ func _init() -> void:
 		add_child(h)
 	_moves = Buttons.new(left).watch(["teleport"])
 	_turns = Buttons.new(right).watch(["turn_left", "turn_right"])
+	for h in hands:
+		_reach_switch.append(Buttons.new(h).watch(["reach"]))
 	_build_markers()
 
 
@@ -163,9 +166,21 @@ static func far() -> float:
 func _process(delta: float) -> void:
 	head.far = Look.WATER_FOG.fog_depth_end if under else far()
 	_locomotion_input(delta)
+	_switch_reach()
 	_moves.latch()
 	_turns.latch()
 	_fade_step(delta)
+
+
+## Both sticks clicked in together cycle every hand's reach (`Reach.mode`): a debug switch for comparing them in one
+## session, gone once a playtest keeps one.
+func _switch_reach() -> void:
+	if _reach_switch.all(func(b: Buttons) -> bool: return b.held("reach")) and _reach_switch.any(func(b: Buttons) -> bool: return b.pressed("reach")):
+		Reach.mode = (Reach.mode + 1) % Reach.Mode.size() as Reach.Mode
+		print("reach: %s" % Reach.Mode.keys()[Reach.mode])
+		Cues.play_in(Cues.Act.WHEEL_PICK, head.global_position, hands)
+	for b in _reach_switch:
+		b.latch()
 
 
 func _locomotion_input(delta: float) -> void:

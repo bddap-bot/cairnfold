@@ -164,7 +164,8 @@ func _hands(s: Dictionary) -> void:
 ## as the head stands when it begins, `press` holding actions, over `length` seconds), as a player's controllers would,
 ## then lets go of everything it held. A hand's key may point it `toward` a spot in place of an `aim`: [right, up, ahead]
 ## metres from the ground under the head, as "relative" builds are placed, so it meets them however high the head is.
-## "capture" saves the view at each of the `shots` seconds given; `tools` hands each hand that tool first.
+## "capture" saves the view at each of the `shots` seconds given; `tools` hands each hand that tool first. With
+## "reach" the keys pose the controllers, and each hand reaches from its own as a player's would (`Reach`).
 func _gesture(s: Dictionary) -> void:
 	for side in s.get("tools", {}):
 		(main.rig.left if side == "left" else main.rig.right).tool = Lessons.tool(s.tools[side])
@@ -187,6 +188,7 @@ func _gesture(s: Dictionary) -> void:
 		for side in Lessons.hands(s):
 			var hand: Hand = main.rig.left if side == "left" else main.rig.right
 			hand.held_still = true
+			hand.held_reaches = s.get("reach", false)
 			hand.global_transform = head * Lessons.frame(Lessons.pose(s, side, t))
 		for p in s.press:
 			var key := "%s_hand/%s" % [p.hand, Controls.input(p.action, p.hand + "_hand")]
@@ -201,6 +203,8 @@ func _gesture(s: Dictionary) -> void:
 		t += get_process_delta_time()
 	for p in s.press:
 		Buttons.injected.erase("%s_hand/%s" % [p.hand, Controls.input(p.action, p.hand + "_hand")])
+	for h in main.rig.hands:
+		h.held_reaches = false
 	await _frames(2)
 
 

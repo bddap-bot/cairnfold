@@ -10,6 +10,8 @@ var trackers: Array[XRControllerTracker] = []
 
 
 func _initialize() -> void:
+	# These grips point at what they take: the reach they check is the pointing grab, until a playtest keeps one.
+	Reach.mode = Reach.Mode.AIM
 	main = (load("res://main.tscn") as PackedScene).instantiate()
 	root.add_child(main)
 	_run.call_deferred()

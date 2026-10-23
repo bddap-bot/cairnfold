@@ -31,6 +31,8 @@ const CONTROLLER_TIP := Vector3(0, -0.01, -0.015)
 const POP := 0.18
 const HOT := 1.4
 const IDLE := 0.8
+## Tools that work by touch at arm's length: a hand holding one stays where the controller is.
+const STAYS := [Tool.SEEDS, Tool.EASEL, Tool.CAMERA, Tool.SELFIE, Tool.BOOK]
 ## How far a wheel icon's model tips its top toward the eye.
 const TILT := PI * 0.3
 ## Seconds between looks, while the wheel is closed, for an icon to build or free: one built per look keeps a person's
@@ -51,6 +53,13 @@ static var injected_sticks := {}
 static var injected_reach := {}
 
 var carried: Node3D
+## The controller's pose over the floor, which a reaching hand is thrown out from (`Reach`).
+var controller := Transform3D()
+## The driver holds the controller rather than the hand, which reaches from it as a tracked one does.
+var held_reaches := false
+var reach: Reach
+## The pose this hand last set itself to: one the runtime or the driver did not move since.
+var _placed := Transform3D()
 
 var tool := Tool.WALLS:
 	set(value):
@@ -110,6 +119,7 @@ func _init(tracker_name: String, held: Tool) -> void:
 	tracker = tracker_name
 	pose = &"aim"
 	tool = held
+	reach = Reach.new(tracker_name == "right_hand")
 	process_priority = -10
 	add_child(body)
 	_controller.mesh = Meshes.rounded_box(0.3, 2, 7)
@@ -363,6 +373,40 @@ func tracked() -> bool:
 	return held_still or get_has_tracking_data()
 
 
+## Whether this hand reaches far by stretching (`Reach`), grabbing by touch, rather than by pointing.
+func reaches() -> bool:
+	return Reach.mode == Reach.Mode.GOGO and (held_reaches or not held_still)
+
+
+## Where the grip looks for what it takes, from along the aim, and how far it looks: a reaching hand what it touches,
+## before or after it, any other what it points at.
+func grip_from() -> Vector3:
+	return global_position + global_basis.z * Reach.TOUCH if reaches() else global_position
+
+
+func grip_reach() -> float:
+	return 2.0 * Reach.TOUCH if reaches() else INF
+
+
+## Where the controller is in the garden.
+func at_controller() -> Vector3:
+	return (get_parent() as Node3D).global_transform * controller.origin
+
+
+## Throws the hand out from the controller by `reach` while it holds a build tool or nothing; a pose the runtime or
+## the driver set since the last frame is the controller's.
+func _reach(delta: float) -> void:
+	if transform != _placed:
+		controller = transform
+	var rig := get_parent() as Rig
+	if rig != null and reaches() and tracked() and not picking and not _buttons.held("wheel") and not tool in STAYS:
+		transform = reach.project(controller, rig.head.transform, delta)
+	else:
+		reach.rest()
+		transform = controller
+	_placed = transform
+
+
 ## Whether it holds the seed dish out: animals eat from it, here and, through `Session`, in every other player's game.
 func holds_seeds() -> bool:
 	return tool == Tool.SEEDS and tracked() and not picking
@@ -404,6 +448,7 @@ func hold() -> void:
 
 
 func _process(delta: float) -> void:
+	_reach(delta)
 	_log_profile()
 	_flick_input()
 	_holding = false

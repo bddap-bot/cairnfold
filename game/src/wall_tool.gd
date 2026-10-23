@@ -258,15 +258,16 @@ func _handle(m: Mason) -> void:
 			extend_stroke(m, m.ground)
 
 	if m.buttons.pressed("grab") and not busy(m.hand) and not painting.call(m.hand):
-		var on_held := _held_hit(origin, dir) if held != null else {}
-		var pick := FittingTool.pick_target(self, origin, dir, true)
-		var ground: Variant = Terrain.raycast(origin, dir)
-		var nearest: float = origin.distance_to(ground) if ground != null else INF
-		var tree := flora.solid_hit(origin, dir, nearest)
+		var from := m.hand.grip_from()
+		var on_held := _held_hit(from, dir) if held != null else {}
+		var pick := FittingTool.pick_target(self, from, dir, true)
+		var ground: Variant = Terrain.raycast(from, dir, m.hand.grip_reach())
+		var nearest: float = from.distance_to(ground) if ground != null else m.hand.grip_reach()
+		var tree := flora.solid_hit(from, dir, nearest)
 		var plant: Flora.Plant = tree.plants[0] if not tree.is_empty() else null
-		var rock := world.boulders.pick(origin, dir, minf(nearest, minf(pick.get("along", INF), tree.get("along", INF)))) if world.boulders != null else {}
-		var step := world.stairs.pick(origin, dir, minf(minf(nearest, rock.get("along", INF)), minf(pick.get("along", INF), tree.get("along", INF)))) if world.stairs != null else {}
-		var stand := world.easels.pick_stand(origin, dir, minf(minf(minf(nearest, step.get("along", INF)), minf(tree.get("along", INF), rock.get("along", INF))), pick.get("along", INF))) if world.easels != null else {}
+		var rock := world.boulders.pick(from, dir, minf(nearest, minf(pick.get("along", INF), tree.get("along", INF)))) if world.boulders != null else {}
+		var step := world.stairs.pick(from, dir, minf(minf(nearest, rock.get("along", INF)), minf(pick.get("along", INF), tree.get("along", INF)))) if world.stairs != null else {}
+		var stand := world.easels.pick_stand(from, dir, minf(minf(minf(nearest, step.get("along", INF)), minf(tree.get("along", INF), rock.get("along", INF))), pick.get("along", INF))) if world.easels != null else {}
 		var before: float = minf(minf(minf(nearest, step.get("along", INF)), minf(tree.get("along", INF), rock.get("along", INF))), stand.get("along", INF))
 		if not on_held.is_empty() and on_held.along < (before if pick.get("wall") == held else minf(before, pick.get("along", INF))):
 			_join_build(m, on_held.roof, on_held.eave)
@@ -539,7 +540,7 @@ func _restart_hold() -> void:
 	for m in _holders:
 		_hold_from.append(m.hand.global_transform)
 		mid += m.hand.global_position / _holders.size()
-	_hold_gain = Hand.reach_gain(mid.distance_to(held_at.center))
+	_hold_gain = 1.0 if _holders[0].hand.reaches() else Hand.reach_gain(mid.distance_to(held_at.center))
 	_pair = Pair.WALLS
 	if _holders.size() == 2 and held.roof != null and _holders.all(func(m: Mason) -> bool: return m.took_roof):
 		_pair = Pair.EAVES if _holders.all(func(m: Mason) -> bool: return m.eave_out != Vector3.ZERO) else Pair.ROOF

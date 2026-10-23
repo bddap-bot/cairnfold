@@ -12,6 +12,7 @@ const ACTIONS := {
 	"teleport": {"left_hand": "primary_up"},
 	"turn_left": {"right_hand": "primary_left"},
 	"turn_right": {"right_hand": "primary_right"},
+	"reach": {"left_hand": "primary_click", "right_hand": "primary_click"},
 }
 
 ## Native layouts. Extra Frame buttons have distinct inputs but no game action; only B and D-pad left open wheels.

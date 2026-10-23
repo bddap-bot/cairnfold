@@ -75,7 +75,7 @@ func _only_one_control_opens_each_frame_wheel() -> void:
 
 func _unused_frame_controls_do_nothing() -> void:
 	var hands := _hands()
-	for control in ["X", "Y", "dpad_up", "dpad_right", "left_bumper", "right_bumper", "menu", "view", "left_stick_click", "right_stick_click"]:
+	for control in ["X", "Y", "dpad_up", "dpad_right", "left_bumper", "right_bumper", "menu", "view"]:
 		Driver.hold("frame", control, true)
 		await process_frame
 		for action in Controls.ACTIONS:
