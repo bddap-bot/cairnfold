@@ -33,6 +33,7 @@ var quality: Quality
 var hand_stop: HandStop
 var flat: Flat
 var book: Book
+var _editors: Array
 
 
 func _ready() -> void:
@@ -98,6 +99,7 @@ func _ready() -> void:
 		h.world = world
 	palette_tool = PaletteTool.new(rig, tool, world)
 	add_child(palette_tool)
+	_editors = [tool, stair_tool, flora_tool, delete_tool, easel_tool, ground_grab, palette_tool]
 	sky_tool = SkyTool.new(rig, look, world, _editing)
 	add_child(sky_tool)
 	photo_tool = PhotoTool.new(rig)
@@ -180,12 +182,11 @@ func _ready() -> void:
 			"tools": [Hand.Tool.keys()[rig.hands[0].tool], Hand.Tool.keys()[rig.hands[1].tool]],
 			"visiting": not session.visiting.is_empty(), "players": session.players(),
 			"ponds": water.ponds.size(), "ducks": wildlife.ducks().size(), "calls": wildlife.calls.played.duplicate(true)}
-	var editors: Array = [tool, stair_tool, flora_tool, delete_tool, easel_tool, ground_grab, palette_tool]
 	metrics.activity = func() -> Array:
 		var tags := []
 		if rig.aim_hand != null:
 			tags.append("moving")
-		if editors.any(func(e) -> bool: return e.busy()):
+		if _editing():
 			tags.append("building")
 		if rig.hands.any(func(h: Hand) -> bool: return h.picking):
 			tags.append("wheel")
@@ -248,7 +249,7 @@ func _process(_delta: float) -> void:
 
 ## Whether `hand`, or with none any hand, has an edit under way: a grip takes nothing from a hand mid-edit.
 func _editing(hand: Hand = null) -> bool:
-	return stair_tool.busy(hand) or tool.busy(hand) or flora_tool.busy(hand) or ground_grab.busy(hand) or palette_tool.busy(hand) or delete_tool.busy(hand) or easel_tool.busy(hand)
+	return _editors.any(func(e) -> bool: return e.busy(hand))
 
 
 ## `Wildlife.feeding`, for a script to wait on: the driver reaches no animal.
@@ -267,13 +268,10 @@ func _start_xr() -> bool:
 		return false
 	get_viewport().use_xr = true
 	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
-	var rates := xr.get_available_display_refresh_rates()
-	if args.has("refresh"):
-		xr.display_refresh_rate = float(args.refresh)
 	xr.session_begun.connect(_note_session)
 	_watch_xr()
 	xr.instance_exiting.connect(finish)
-	print("xr: rates ", rates, " requested ", args.get("refresh", "runtime default"))
+	print("xr: rates ", xr.get_available_display_refresh_rates())
 	return true
 
 
