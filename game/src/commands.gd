@@ -6,9 +6,9 @@ extends RefCounted
 ## every machine runs it on every command it is handed, so a peer cannot wedge or corrupt a garden.
 
 const OPS := ["stairs", "unstairs", "wall", "unwall", "reshape", "path", "unpath", "ground", "unground", "plant", "show", "tree", "heights", "ponds", "season", "sky", "wipe", "garden", "batch", "easel", "uneasel", "paint", "unpaint", "mix", "sheet", "restone", "boulder", "unboulder", "decoration", "undecoration"]
-## What a batch may carry: from a player, takings; from the host, also the undo of them and of what water drowned.
+## What a batch may carry: from a player, takings; from the host, also the undo of them (PUTS) and of what water drowned.
 const BATCHED := ["unstairs", "unwall", "reshape", "unpath", "unground", "show", "uneasel", "unboulder", "undecoration"]
-const HOST_BATCHED := ["stairs", "wall", "path", "ground", "easel", "boulder", "decoration", "heights", "ponds", "tree"]
+const HOST_BATCHED := ["heights", "ponds", "tree"]
 ## Most commands one batch carries.
 const MAX_BATCH := 128
 ## A stroke builds at most this many walls; their ids follow from the command's sequence number.
@@ -48,6 +48,8 @@ const RESHAPES := {
 ## left out of that.
 const STANDS_ON := {"walls": "on", "stairs": "on", "decorations": "wall", "paths": "", "grounds": "", "groups": "", "ponds": "", "easels": "", "boulders": ""}
 
+## Per table of the garden holding builds, the command that puts one back, in the order a snapshot rebuilds them.
+const PUTS := {"stairs": "stairs", "paths": "path", "grounds": "ground", "walls": "wall", "easels": "easel", "decorations": "decoration", "boulders": "boulder"}
 
 ## Length of a stroke along the ground.
 static func length(points: Variant) -> float:
@@ -85,11 +87,11 @@ static func clean(cmd: Dictionary, state: Dictionary, from_host: bool) -> Dictio
 			out[k] = cmd[k]
 	if typeof(cmd.get("token")) == TYPE_INT:
 		out.token = cmd.token
-	if op in ["stairs", "plant", "path", "ground", "easel", "boulder", "decoration"] and from_host:
+	if ((op in PUTS.values() and op != "wall") or op == "plant") and from_host:
 		if typeof(cmd.get("id")) != TYPE_INT or state.groups.has(cmd.id) or state.paths.has(cmd.id) or state.grounds.has(cmd.id) or state.stairs.has(cmd.id) or state.easels.has(cmd.id) or state.boulders.has(cmd.id) or state.decorations.has(cmd.id):
 			return {}
 		out.id = cmd.id
-	if op in ["stairs", "wall", "path", "ground", "plant", "easel", "boulder", "decoration"] and not from_host and _things(state) >= MAX_THINGS:
+	if (op in PUTS.values() or op == "plant") and not from_host and _things(state) >= MAX_THINGS:
 		return {}
 	var ok := false
 	match op:
@@ -322,7 +324,7 @@ static func _batch(cmd: Dictionary, state: Dictionary, from_host: bool, out: Dic
 	var most := MAX_SNAPSHOT if from_host else MAX_BATCH
 	if not cmds is Array or cmds.is_empty() or cmds.size() > most:
 		return false
-	var allowed := BATCHED + (HOST_BATCHED if from_host else [])
+	var allowed := BATCHED + (PUTS.values() + HOST_BATCHED if from_host else [])
 	var seen := {}
 	out.cmds = []
 	for c: Variant in cmds:

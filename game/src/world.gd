@@ -573,7 +573,7 @@ func _order(proposed: Dictionary, by: int) -> void:
 		cmd.token = proposed.token
 	if cmd.op == "wall" and not cmd.has("ids"):
 		cmd.ids = PackedInt32Array(range(seq * Commands.MAX_PIECES, seq * Commands.MAX_PIECES + cmd.walls.size()))
-	elif cmd.op in ["stairs", "plant", "path", "ground", "easel", "boulder", "decoration"] and not cmd.has("id"):
+	elif cmd.op != "wall" and (cmd.op in Commands.PUTS.values() or cmd.op == "plant") and not cmd.has("id"):
 		cmd.id = seq
 	var inverse := _timed(cmd)
 	if cmd.op == "plant" and not cmd.kind in Flora.PLACED:
@@ -744,14 +744,24 @@ static func _units(of: String, d: Dictionary) -> Dictionary:
 	return {"boulder": Budget.boulder(d.scale)}
 
 
-## A ground stroke as the garden keeps it, from its command; given its `id`, the command that lays it again.
-static func _ground(d: Dictionary, id := -1) -> Dictionary:
+## A ground stroke as the garden keeps it, from its command.
+static func _ground(d: Dictionary) -> Dictionary:
 	var out := {"kind": d.kind, "stamps": d.stamps}
 	if d.has("style"):
 		out.style = d.style
-	if id >= 0:
-		out.merge({"op": "ground", "id": id})
 	return out
+
+
+## The command that puts build `id` of the garden's table `of` back as it stands (Commands.PUTS).
+func _put(of: String, id: int) -> Dictionary:
+	var d: Dictionary = state[of][id]
+	var op: String = Commands.PUTS[of]
+	match of:
+		"walls":
+			return {"op": op, "ids": PackedInt32Array([id]), "walls": [d]}
+		"stairs", "paths":
+			return {"op": op, "id": id, op: d}
+	return d.merged({"op": op, "id": id})
 
 
 ## What a command changes, as keys `touched` tracks: a wall, a painted group, patches of ground and meadow.
@@ -899,7 +909,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			_account("q%d" % cmd.id, Budget.path(cmd.path))
 			inverse = {"op": "unpath", "id": cmd.id}
 		"unpath":
-			inverse = {"op": "path", "id": cmd.id, "path": state.paths[cmd.id]}
+			inverse = _put("paths", cmd.id)
 			state.paths.erase(cmd.id)
 			paths.take(cmd.id)
 			_account("q%d" % cmd.id, {})
@@ -912,7 +922,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			_account("q%d" % cmd.id, Budget.ground(cmd))
 			inverse = {"op": "unground", "id": cmd.id}
 		"unground":
-			inverse = _ground(state.grounds[cmd.id], cmd.id)
+			inverse = _put("grounds", cmd.id)
 			state.grounds.erase(cmd.id)
 			Ground.lift(_strokes[cmd.id])
 			_strokes.erase(cmd.id)
@@ -1018,8 +1028,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			_account("e%d" % cmd.id, {"easel": 1})
 			inverse = {"op": "uneasel", "id": cmd.id}
 		"uneasel":
-			var e: Dictionary = state.easels[cmd.id]
-			inverse = {"op": "easel", "id": cmd.id, "at": e.at, "yaw": e.yaw, "strokes": e.strokes, "mix": e.mix}
+			inverse = _put("easels", cmd.id)
 			state.easels.erase(cmd.id)
 			if easels != null:
 				easels.take(cmd.id)
@@ -1057,8 +1066,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 			_account("b%d" % cmd.id, {"boulder": Budget.boulder(cmd.scale)})
 			inverse = {"op": "unboulder", "id": cmd.id}
 		"unboulder":
-			var b: Dictionary = state.boulders[cmd.id]
-			inverse = b.merged({"op": "boulder", "id": cmd.id})
+			inverse = _put("boulders", cmd.id)
 			state.boulders.erase(cmd.id)
 			if boulders != null:
 				boulders.take(cmd.id)
@@ -1147,12 +1155,12 @@ func _take(of: String, ids: Array) -> Dictionary:
 		var chunk := PackedInt32Array(walls.slice(i, i + Commands.MAX_PIECES))
 		back.append({"op": "wall", "ids": chunk, "walls": Array(chunk).map(func(id: int) -> Dictionary: return state.walls[id])})
 	for id: int in gone.get("stairs", {}):
-		back.append({"op": "stairs", "id": id, "stairs": state.stairs[id]})
+		back.append(_put("stairs", id))
 		state.stairs.erase(id)
 		stairs.take(id)
 		_account("q%d" % id, {})
 	for id: int in gone.get("decorations", {}):
-		back.append(state.decorations[id].merged({"op": "decoration", "id": id}))
+		back.append(_put("decorations", id))
 		state.decorations.erase(id)
 		_account("d%d" % id, {})
 	walls.reverse()
@@ -1224,21 +1232,9 @@ func snapshot() -> Dictionary:
 		cmds.append({"op": "heights", "cells": Terrain.ALL, "values": Terrain.read(Terrain.ALL)})
 	if not state.ponds.is_empty():
 		cmds.append({"op": "ponds", "put": state.ponds.duplicate()})
-	for id in state.stairs:
-		cmds.append({"op": "stairs", "id": id, "stairs": state.stairs[id]})
-	for id in state.paths:
-		cmds.append({"op": "path", "id": id, "path": state.paths[id]})
-	for id in state.grounds:
-		cmds.append(_ground(state.grounds[id], id))
-	for id in state.walls:
-		cmds.append({"op": "wall", "ids": PackedInt32Array([id]), "walls": [state.walls[id]]})
-	for id in state.easels:
-		var e: Dictionary = state.easels[id]
-		cmds.append({"op": "easel", "id": id, "at": e.at, "yaw": e.yaw, "strokes": e.strokes, "mix": e.mix})
-	for id in state.decorations:
-		cmds.append(state.decorations[id].merged({"op": "decoration", "id": id}))
-	for id in state.boulders:
-		cmds.append(state.boulders[id].merged({"op": "boulder", "id": id}))
+	for of: String in Commands.PUTS:
+		for id: int in state[of]:
+			cmds.append(_put(of, id))
 	for id in state.groups:
 		var g: Dictionary = state.groups[id]
 		if g.kind != "meadow":
