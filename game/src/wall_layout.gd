@@ -20,7 +20,7 @@ const COURSE := 0.3
 ## charges both as wall.
 const MIN_HEIGHT := 0.9
 ## A house's or tower's floor: the flags
-## (or, under plaster, the planks: width, length range and gap) it is laid in, and how far in from the outer faces
+## (or the planks: width, length range and gap) it is laid in, and how far in from the outer faces
 ## its rows end, inside the stones.
 const FLAG := Vector3(0.7, 0.08, 0.5)
 const PLANK := Vector4(0.2, 0.05, 1.2, 2.6)
@@ -144,6 +144,8 @@ var cover := Cover.OPEN
 var fence := false
 var plaster := false
 var plinth_plaster := false
+## Whether the floor is laid in planks rather than flags: its own choice, apart from the walls' material.
+var planks := false
 var gable_end := GableEnd.WALL
 var timber_style := 0
 ## The gable roof a house's end walls rise under, course by course, as stone walls do; null for any other.
@@ -766,7 +768,7 @@ func _floor_bounds() -> PackedVector2Array:
 
 
 ## Lays the floors `_level_floors` set, the lowest's bed reaching down to the foot so it reads as a step at the door. Flags
-## under stone, planks under plaster, in rows along its first side that end inside the walls; none in the room of an older
+## or `planks`, in rows along its first side that end inside the walls; none in the room of an older
 ## build it joins, or under a build standing on it.
 func _lay_floors() -> void:
 	if floors.is_empty():
@@ -781,7 +783,6 @@ func _lay_floors() -> void:
 	for q in outer:
 		lo = minf(lo, q.dot(across))
 		hi = maxf(hi, q.dot(across))
-	var planks := plaster
 	var rng := RandomNumberGenerator.new()
 	for f in floors.size():
 		var top_y := floors[f]
@@ -1974,6 +1975,7 @@ func inputs() -> WallLayout:
 	w.fence = fence
 	w.plaster = plaster
 	w.plinth_plaster = plinth_plaster
+	w.planks = planks
 	w.gable_end = gable_end
 	w.timber_style = timber_style
 	w.gable = gable
@@ -1992,7 +1994,7 @@ func inputs() -> WallLayout:
 func same_inputs(other: WallLayout) -> bool:
 	return (points == other.points and height == other.height and rise == other.rise
 		and seed == other.seed and closed == other.closed and top == other.top
-		and cover == other.cover and fence == other.fence and plaster == other.plaster and plinth_plaster == other.plinth_plaster and gable_end == other.gable_end and timber_style == other.timber_style
+		and cover == other.cover and fence == other.fence and plaster == other.plaster and plinth_plaster == other.plinth_plaster and planks == other.planks and gable_end == other.gable_end and timber_style == other.timber_style
 		and openings == other.openings and lanterns == other.lanterns and flags == other.flags
 		and ruins == other.ruins and supports == other.supports and resting == other.resting
 		and joined == other.joined and older == other.older)
@@ -2039,6 +2041,7 @@ func snapshot() -> WallLayout:
 	w.fence = fence
 	w.plaster = plaster
 	w.plinth_plaster = plinth_plaster
+	w.planks = planks
 	w.cover = cover
 	w.resting = resting.duplicate()
 	w.joined = joined.duplicate()

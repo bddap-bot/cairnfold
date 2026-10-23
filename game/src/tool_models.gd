@@ -143,6 +143,9 @@ static func _style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round:
 	if restyle == PaletteTool.Restyle.RAIL:
 		_stairs(root, StairLayout.RAILS[i])
 		return root
+	if restyle == PaletteTool.Restyle.FLOOR:
+		_floor(root, i == PaletteTool.Floor.PLANKS)
+		return root
 	if restyle == PaletteTool.Restyle.TREE:
 		_tree(root, i as FloraLayout.Species)
 		for part in root.get_children():
@@ -662,6 +665,22 @@ static func _wall(root: Node3D, plastered := false, top := WallLayout.Top.CRENEL
 		layout.openings = [WallLayout.archway(1.4)]
 	layout.build(_flat)
 	_stones(root, layout.stones, 0.015)
+
+
+## A square of a house's floor, flags or `planks` on their bed, turned from lying flat to face the eye a little from above.
+static func _floor(root: Node3D, planks: bool) -> void:
+	var layout := WallLayout.new()
+	layout.planks = planks
+	layout.seed = 5
+	layout.height = 2.4
+	layout.closed = true
+	layout.top = WallLayout.Top.CAP
+	layout.cover = WallLayout.Cover.ROOF
+	layout.points = WallLayout.rectangle(Vector3(-1.4, 0, 0), Vector3(1.4, 0, 0), 2.8)
+	layout.build(_flat)
+	var floor: Array[Dictionary] = layout.stones.filter(func(s: Dictionary) -> bool: return s.kind in WallLayout.FLOOR_KINDS)
+	_stones(root, floor, 0.017)
+	root.get_child(0).transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.36), Vector3.ZERO) * root.get_child(0).transform
 
 
 ## A cottage: stone walls with a door toward the eye under a tiled gable roof, or a flat one decked in `deck`.

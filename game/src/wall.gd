@@ -203,7 +203,7 @@ func data() -> Dictionary:
 		"points": PackedVector3Array(layout.points), "height": layout.height, "rise": layout.rise,
 		"seed": layout.seed, "closed": layout.closed, "top": int(layout.top), "fence": layout.fence,
 		"openings": PackedVector4Array(layout.openings), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags),
-		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "plinth_plaster": layout.plinth_plaster, "gable_end": int(layout.gable_end), "timber_style": layout.timber_style, "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
+		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "plinth_plaster": layout.plinth_plaster, "planks": layout.planks, "gable_end": int(layout.gable_end), "timber_style": layout.timber_style, "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
 	}
 	if roof != null:
 		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "dormers": PackedVector2Array(roof.dormers), "overhang": roof.overhang, "deck": int(roof.deck), "flag": roof.flag, "thatch": roof.thatch}
@@ -221,6 +221,7 @@ func set_data(d: Dictionary) -> void:
 	layout.fence = d.fence
 	layout.plaster = d.plaster
 	layout.plinth_plaster = d.plinth_plaster
+	layout.planks = d.planks
 	layout.timber_style = d.timber_style
 	layout.gable_end = d.gable_end as WallLayout.GableEnd
 	layout.openings.assign(Array(d.openings))

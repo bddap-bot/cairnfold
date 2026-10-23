@@ -25,6 +25,7 @@ var seed: int
 ## The stroke draws a fence: low posts and rails, with no arches over plants.
 var fence := false
 var plaster := false
+var planks := false
 ## The builds the stroke is drawn on top of.
 var supports: Array[Massing] = []
 ## Each stroke point's nearest standing wall, kept while the point stays put: only the newest point moves.
@@ -46,6 +47,7 @@ func pieces(stroke: Array[Vector3], ground: Callable, commit := false) -> Array[
 		w.points = run
 		w.fence = fence
 		w.plaster = plaster
+		w.planks = planks
 		if fence:
 			w.height = WallLayout.FENCE_HEIGHT
 		w.supports = supports.duplicate()

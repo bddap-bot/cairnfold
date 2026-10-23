@@ -2365,11 +2365,16 @@ Every house and tower is floored (`WallLayout.floors`; tests in `tests/test_floo
   its floor again with its walls. Where the ground inside stands higher than the foot, as up a slope, the floor
   stands at the highest of it, so no ground shows through, on a bed reaching down to the foot that reads as a step
   at a door low on the downhill side.
-- Flags under stone, laid in running bond on mortar that shows in their joints; boards under plaster, timber framing
-  included, in staggered lengths. Either is plain boxes, as timbers are, and casts no shadow, lying in the walls' own.
+- Flags laid in running bond on mortar that shows in their joints, or boards in staggered lengths: the floor's own
+  material, apart from the walls'. Directive (verbatim): "Let's make the floor itself a thing that is swappable. You
+  use the wand on the floor to select whether it is stone or wood. And that selection is orthogonal to the selection
+  of the other building materials." The style tool on a floor turns it between the two (`planks` on the build), and
+  houses and towers laid after take the floor turned to last; turning the walls never turns the floor, nor the floor
+  the walls. Boards lay about as many pieces as flags (`tests/test_floors.gd`), so the walls' budget rates, measured
+  over both, price either. Either is plain boxes, as timbers are, and casts no shadow, lying in the walls' own.
   They take the build's stone or woodwork paint. Moss grows on stone only under the sky, so a floor under its roof and
   every piece of woodwork stay bare of it.
-- A house or tower has one floor, at its foot, however tall it stands; the style tool offers nothing on it. Floors
+- A house or tower has one floor, at its foot, however tall it stands. Floors
   at every storey up the walls were cut: they did not fit the game.
 - A floor is stood on: the teleport ray lands on the first floor it meets, and a point inside stands on the floor under
   it, so a raised house is stood in on its floor, not on the ground under it.
@@ -2378,8 +2383,8 @@ Every house and tower is floored (`WallLayout.floors`; tests in `tests/test_floo
 - Two houses joined into one room never lay two floors over each other: the newer floor lays nothing in the older
   one's room, where the older floor stays whole.
 
-`demo/floors.json` floors a stone house on a hump, a plaster one raised on its plinth and a tower, and looks inside
-the first two.
+`demo/floors.json` floors a stone house on a hump, a plaster one raised on its plinth and boarded, and a tower, and
+looks inside the first two; `demo/floor-style.json` turns one house's floor from flags to boards with the style tool.
 
 ## Colour per build
 
@@ -2725,7 +2730,7 @@ whole day, through the night and past midnight. The clouds stay put: they are we
 | Teleport less far | Ease the left stick back while aiming: full forward reaches the ray's target, and the target slides back along the ray as the stick comes back, down to a tenth of the way, floating above the top surface beneath it, the ground or what is built there, even when the ray ends on it. Release from there to go there: the snap back to centre does not pull the target in |
 | Come back down | Aim the teleport ray at the ground |
 | Turn | Right stick flicked left or right: 30° snap turn |
-| Restyle | Trigger held on a hand holding the style tool, pointing at a gable end, a roof, a roofless wall's top, along a wall, at a tree, a boulder or painted stone: twist the wrist to turn a wheel of miniatures of that thing's styles, live on the build; let go to keep the one at the top (see "Styles") |
+| Restyle | Trigger held on a hand holding the style tool, pointing at a gable end, a roof, a roofless wall's top, along a wall, at a floor, at a tree, a boulder or painted stone: twist the wrist to turn a wheel of miniatures of that thing's styles, live on the build; let go to keep the one at the top (see "Styles") |
 | Draw a wall | Trigger held on a hand holding walls, sweep the pointer across the ground, or along a build's top to build on it; release to finish. Strokes under 1 m are discarded, and a stroke near a standing wall merges into it |
 | Move a wall or fence | Grip pointing at a wall or fence, whatever the hand holds: it moves along the ground with the hand and turns about its middle as the hand turns, the gain growing with distance so far walls are easy to carry; let go to set it there, one undo step |
 | Size a wall or fence | Holding it with one grip, grip it with the other hand too: spread or close the hands to draw it longer or shorter along its line, about its middle; one over the other, draw them apart for a taller wall or together for a lower one, a course at a time (a fence keeps its height) |
@@ -2956,7 +2961,8 @@ build live, and letting go keeps the one at the top, one undo step. What it offe
 at: a gable end, its house's gable ends (the wall's, boarded, crow-stepped; houses laid after take it); a
 house's or tower's roof, pitched, a cone (standing it as a round tower, see "Towers") or flat, or pitched or a cone thatched (see "Thatch"); a roofless
 wall's top, merlons, plain capping or coping; a wall's face, stone or plaster, and on a house the timber framings
-(walls and houses laid after take the material turned to last); a flight or landing, its railings, stone, wooden or
+(walls and houses laid after take the material turned to last); a house's or tower's floor, flags or boards, apart
+from its walls (see "Floors"); a flight or landing, its railings, stone, wooden or
 none (stairs laid after take them); painted stone or a boulder, its stone style from the one table (see "Ground materials"; stone painted and boulders set down after take it); a tree, its species: an oak's round crown, a
 fir's dark cone, a poplar's column, a birch's pale trunk under a light open crown, a copper beech's low
 wine-red dome. Every species is the same trunk and eight foliage blobs placed differently, so a tree changes

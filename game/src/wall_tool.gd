@@ -118,6 +118,8 @@ var gable_end := WallLayout.GableEnd.WALL
 ## Whether new walls and houses are laid in plaster: the face last turned to on this machine.
 var plaster := false
 var timber_style := 0
+## Whether new houses' floors are laid in planks: the floor last turned to on this machine.
+var planks := false
 ## Whether new houses are thatched, and what their decks are laid in when pushed flat: the roof last turned to on this machine.
 var thatch := false
 var deck := RoofLayout.Deck.STONE
@@ -353,6 +355,7 @@ func begin_stroke(m: Mason, p: Vector3, on := -1) -> void:
 	m.stroke.plan = WallPlan.new(standing, flora.obstacles() if on < 0 else PackedVector3Array(), randi())
 	m.stroke.plan.fence = m.hand.tool == Hand.Tool.FENCE
 	m.stroke.plan.plaster = plaster and not m.stroke.plan.fence
+	m.stroke.plan.planks = planks
 	m.stroke.plan.supports = _solids(m.stroke.on)
 	_dirty = true
 
@@ -458,6 +461,7 @@ func new_house(at: Dictionary, on := PackedInt32Array()) -> Wall:
 	var w := _new_wall()
 	w.on = on
 	w.layout.plaster = plaster and not at.round
+	w.layout.planks = planks
 	w.layout.timber_style = timber_style
 	w.layout.gable_end = gable_end
 	w.layout.closed = true

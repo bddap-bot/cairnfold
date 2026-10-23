@@ -10,7 +10,7 @@ func _init() -> void:
 	_a_raised_house_floors_its_foot()
 	_doors_stand_their_height_over_the_floor()
 	_doors_and_arches_stop_at_the_floor()
-	_stone_lays_flags_and_plaster_planks()
+	_the_floor_is_flags_or_planks_apart_from_the_walls()
 	_a_round_tower_is_floored_too()
 	_a_house_has_one_floor_however_tall()
 	_open_walls_lay_no_floor()
@@ -35,7 +35,7 @@ func _flat(_x: float, _z: float) -> float:
 	return 0.0
 
 
-func _house(ground: Callable, rise := 0.0, plaster := false, height := 2.4) -> WallLayout:
+func _house(ground: Callable, rise := 0.0, plaster := false, height := 2.4, planks := false) -> WallLayout:
 	var w := WallLayout.new()
 	w.points = WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
 	w.closed = true
@@ -44,6 +44,7 @@ func _house(ground: Callable, rise := 0.0, plaster := false, height := 2.4) -> W
 	w.height = height
 	w.rise = rise
 	w.plaster = plaster
+	w.planks = planks
 	w.openings.assign([3.0].map(WallLayout.archway))
 	w.build(ground)
 	return w
@@ -160,23 +161,31 @@ func _holds(st: Dictionary, p: Vector3) -> bool:
 	return absf(q.x) <= 0.5 and absf(q.y) <= 0.5 and absf(q.z) <= 0.5
 
 
-func _stone_lays_flags_and_plaster_planks() -> void:
-	var stone := _pieces(_house(_flat))
-	var plaster := _pieces(_house(_flat, 0.0, true))
-	_check(not stone.is_empty() and stone.all(func(s: Dictionary) -> bool: return s.kind == "flagstone"), "a stone house is flagged")
-	_check(not plaster.is_empty() and plaster.all(func(s: Dictionary) -> bool: return s.kind == "plank"), "a plaster house is boarded")
-	_check(plaster.all(func(s: Dictionary) -> bool: return s.xform.basis.z.length() <= WallLayout.PLANK.x + 1e-3 and s.xform.basis.x.length() <= WallLayout.PLANK.w), "planks are narrow boards")
+## Either face takes either floor, and the floor changes nothing of the walls. Planks lay about as many pieces as flags,
+## so the budget's wall rates, measured over both, price either.
+func _the_floor_is_flags_or_planks_apart_from_the_walls() -> void:
+	for plaster in [false, true]:
+		var flagged := _house(_flat, 0.0, plaster)
+		var boarded := _house(_flat, 0.0, plaster, 2.4, true)
+		var flags := _pieces(flagged)
+		var planks := _pieces(boarded)
+		_check(not flags.is_empty() and flags.all(func(s: Dictionary) -> bool: return s.kind == "flagstone"), "plaster %s: flags unless planked" % plaster)
+		_check(not planks.is_empty() and planks.all(func(s: Dictionary) -> bool: return s.kind == "plank"), "plaster %s: boarded when planked" % plaster)
+		_check(planks.all(func(s: Dictionary) -> bool: return s.xform.basis.z.length() <= WallLayout.PLANK.x + 1e-3 and s.xform.basis.x.length() <= WallLayout.PLANK.w), "planks are narrow boards")
+		var walls := func(w: WallLayout) -> Array: return w.stones.filter(func(s: Dictionary) -> bool: return not s.kind in WallLayout.FLOOR_KINDS)
+		_check(walls.call(flagged) == walls.call(boarded), "plaster %s: the floor leaves the walls as they were" % plaster)
+		_check(absf(planks.size() - flags.size()) <= flags.size() * 0.25, "plaster %s: planks lay about as many pieces as flags (%d, %d)" % [plaster, planks.size(), flags.size()])
 	_check(Palette.code("plank") == Palette.Element.WOOD and Palette.code("flagstone") == Palette.Element.STONE, "planks take the woodwork's paint, flags the stone's")
 
 
 func _a_round_tower_is_floored_too() -> void:
-	for plaster in [false, true]:
+	for planks in [false, true]:
 		var w := WallLayout.new()
 		w.points = WallLayout.circle(Vector3(1, 0, 1), 1.7)
 		w.closed = true
 		w.cover = WallLayout.Cover.ROOF
 		w.height = 4.5
-		w.plaster = plaster
+		w.planks = planks
 		w.build(_slope)
 		var on := _pieces(w)
 		var inside := 0
@@ -188,7 +197,7 @@ func _a_round_tower_is_floored_too() -> void:
 					inside += 1
 					if on.any(func(s: Dictionary) -> bool: return _over(s, p)):
 						hit += 1
-		_check(inside > 100 and hit == inside, "a %s tower's floor covers its room: %d of %d" % ["plaster" if plaster else "stone", hit, inside])
+		_check(inside > 100 and hit == inside, "a %s tower's floor covers its room: %d of %d" % ["planked" if planks else "flagged", hit, inside])
 		var outer := Geometry2D.offset_polygon(PackedVector2Array(w.points.map(func(p: Vector3) -> Vector2: return Vector2(p.x, p.z))), WallLayout.THICKNESS * 0.5)[0]
 		var out := on.filter(func(s: Dictionary) -> bool:
 			var x: Transform3D = s.xform
@@ -205,7 +214,7 @@ func _a_house_has_one_floor_however_tall() -> void:
 		_check(_house(_flat, 0.0, false, h).floors.size() == 1, "a %.1f m house lays one floor, at its foot" % h)
 	_check(_house(_flat, 1.5, true, 7.2).floors.size() == 1, "a raised plastered house lays one floor")
 	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "height": 7.2, "rise": 0.0, "seed": 3, "closed": true, "top": 0, "fence": false,
-		"plaster": false, "plinth_plaster": false, "gable_end": 0, "timber_style": 0, "storey_floors": true, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(),
+		"plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0, "timber_style": 0, "storey_floors": true, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(),
 		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array(), "paint": Palette.plain()}
 	var kept: Variant = Commands._wall(d)
 	_check(kept != null and not kept.has("storey_floors"), "a house asking for a floor at every storey is taken with that dropped: %s" % [kept])

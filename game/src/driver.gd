@@ -292,13 +292,15 @@ func _aim(s: Dictionary) -> void:
 
 
 func _wall(s: Dictionary) -> void:
-	_lay_plaster(s)
+	_lay_materials(s)
 	await _stroke(s, Hand.Tool.WALLS)
 
 
-## Walls and houses a step lays are plaster with `plaster`, else stone, as if the style tool had last turned a face to it.
-func _lay_plaster(s: Dictionary) -> void:
+## Walls and houses a step lays are plaster with `plaster`, else stone, and floored in planks with `planks`, else flags,
+## as if the style tool had last turned a face and a floor to them.
+func _lay_materials(s: Dictionary) -> void:
 	main.tool.plaster = s.get("plaster", false)
+	main.tool.planks = s.get("planks", false)
 	main.tool.timber_style = int(s.get("timber_style", 0))
 
 
@@ -332,7 +334,7 @@ func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var round: bool = s.get("round", false)
 	_holding(s, Hand.Tool.TOWER if round else Hand.Tool.HOUSE)
-	_lay_plaster(s)
+	_lay_materials(s)
 	var x: float = s.at[0]
 	var z: float = s.at[1]
 	var at := WallTool.stance(_spot(s, x, z), _turn(s, x, z, s.get("turn", 0.0)), round)
@@ -811,7 +813,7 @@ static func _stretch(layout: WallLayout, from: float, to: float) -> Array[Vector
 func _stress(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var m := tool.mason(_holding(s, Hand.Tool.FENCE if s.get("fence", false) else Hand.Tool.WALLS))
-	_lay_plaster(s)
+	_lay_materials(s)
 	var rows := StressLayout.walls(s.radius, s.spacing / sqrt(_area))
 	var start := Time.get_ticks_usec()
 	for row in rows:
@@ -972,7 +974,7 @@ func _village(s: Dictionary) -> void:
 	var r: float = s.radius * sqrt(_area)
 	var step: float = s.spacing
 	_lay_gables(s)
-	_lay_plaster(s)
+	_lay_materials(s)
 	main.tool.thatch = s.get("thatch", false)
 	var k := 0
 	for z in range(-int(r / step), int(r / step) + 1):

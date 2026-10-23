@@ -1,0 +1,17 @@
+[
+  {"op": "place", "x": 0, "z": 12},
+  {"op": "house", "at": [-5, -4], "size": [6, 4], "plaster": true, "seconds": 0.5},
+  {"op": "fit", "what": "opening", "index": 0, "s": 3.0, "style": 1},
+  {"op": "sun", "time": 0.4158, "seconds": 0.5},
+  {"op": "wait", "seconds": 4},
+  {"op": "view", "eye": [-3.5, 1.7, -3.2], "at": [-6.5, 0.0, -5]},
+  {"op": "wait", "seconds": 2},
+  {"op": "capture", "name": "01-flags"},
+  {"op": "hands", "right": [0.06, -0.08, -0.32], "tip": 20},
+  {"op": "style", "hand": "right", "restyle": "floor", "pick": 1, "seconds": 0.8, "from": [-4, 1.6, -3.5], "at": [-5.5, 0.0, -4.5], "capture": "02-floor-styles"},
+  {"op": "wait", "seconds": 2},
+  {"op": "view", "eye": [-3.5, 1.7, -3.2], "at": [-6.5, 0.0, -5]},
+  {"op": "wait", "seconds": 2},
+  {"op": "capture", "name": "03-planks"},
+  {"op": "quit"}
+]

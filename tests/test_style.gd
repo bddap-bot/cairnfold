@@ -24,7 +24,7 @@ func _run() -> void:
 	_species_differ()
 	_faces_turn_to_plaster()
 	_foundations_turn_to_plaster()
-	_floors_take_no_style()
+	_floors_take_a_style()
 	_faces_cut_no_opening()
 	_timber_faces()
 	_towers_keep_stone()
@@ -145,19 +145,45 @@ func _foundations_turn_to_plaster() -> void:
 
 
 ## The style tool aimed at a tall tower's floor floors it at every storey, on every machine, and towers laid after too.
-func _floors_take_no_style() -> void:
-	var d := _wall_data(PackedVector3Array(WallLayout.circle(Terrain.ground(-12, 24), 1.7)))
+## The style tool aimed at a floor offers flags or planks: turned, a peer takes it, an undo puts it back, a save as
+## written to disk carries it, and houses laid after take it. The floor and the walls never move each other.
+func _floors_take_a_style() -> void:
+	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(-14, 24), Terrain.ground(-10, 24), 4.0)))
 	d.closed = true
-	d.height = 4.5
-	d.roof = {"kind": RoofLayout.Kind.CONE, "center": Terrain.ground(-12, 24), "radius": 1.7, "pitch": 2.7, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
+	d.height = 2.6
+	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(-12, 24), "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var id := world.seq * Commands.MAX_PIECES
 	var w: Wall = main.tool.find(id)
 	w.lay_now()
-	_check(w.layout.floors.size() == 1, "a tower is floored at its foot: %s" % [w.layout.floors])
 	var inside := Vector3(-12.3, w.layout.floors[0] + 1.6, 24.2)
-	_check(main.palette_tool.aim_style(inside, Vector3(0.1, -1, -0.1).normalized()).is_empty(), "the style tool aimed at a floor offers nothing, no storey above it")
-	_check(main.palette_tool.aim_style(inside, Vector3(1, -0.1, 0).normalized()).get("restyle") == PaletteTool.Restyle.FACE, "the tower's wall beside the floor still takes a style")
+	var down := Vector3(0.1, -1, -0.1).normalized()
+	var target: Dictionary = main.palette_tool.aim_style(inside, down)
+	_check(target.get("restyle") == PaletteTool.Restyle.FLOOR and target.get("count") == 2, "a house's floor offers flags and planks: %s" % target)
+	_check(main.palette_tool.aim_style(inside, Vector3(1, -0.1, 0).normalized()).get("restyle") == PaletteTool.Restyle.FACE, "the wall beside the floor still takes its own style")
+	var relayed := _relayed({"op": "reshape", "of": "walls", "id": id, "data": {"planks": true}}, 2)
+	_check(relayed.get("data", {}).get("planks") == true, "a peer takes the host's turn of a floor to planks: %s" % relayed)
+	_turn(target, PaletteTool.Floor.PLANKS)
+	w.lay_now()
+	var floor_kinds := func(of: Wall) -> Array: return of.layout.stones.filter(func(st): return st.kind in ["flagstone", "plank"]).map(func(st): return st.kind)
+	_check(world.state.walls[id].planks and floor_kinds.call(w).all(func(k): return k == "plank"), "a twist of the style tool boards the floor")
+	_check(not world.state.walls[id].plaster and not world.state.walls[id].plinth_plaster, "boarding the floor leaves the walls stone")
+	_check(main.tool.planks and not main.tool.plaster, "houses laid after are boarded, their walls still stone")
+	world._order({"op": "undo"}, world.me())
+	w.lay_now()
+	_check(not world.state.walls[id].planks and floor_kinds.call(w).all(func(k): return k == "flagstone"), "an undo puts the flags back")
+	world._order({"op": "redo"}, world.me())
+	_check(world.restore_whole(bytes_to_var(var_to_bytes(world.snapshot()))), "the garden as saved to disk loads")
+	w = main.tool.find(id)
+	w.lay_now()
+	_check(w.layout.planks and floor_kinds.call(w).all(func(k): return k == "plank"), "a save carries the boarded floor")
+	world._order({"op": "reshape", "of": "walls", "id": id, "data": {"plaster": true}}, world.me())
+	w.lay_now()
+	_check(w.layout.planks and w.layout.plaster, "plastering the walls keeps the floor boarded")
+	_turn(main.palette_tool.aim_style(inside, down), -1)
+	w.lay_now()
+	_check(not w.layout.planks and w.layout.plaster, "turning the floor back to flags keeps the walls plastered")
+	_check(not main.tool.planks, "and houses laid after are flagged again")
 	world.restore({"seq": 0, "cmds": []})
 
 
@@ -186,7 +212,7 @@ func _faces_cut_no_opening() -> void:
 
 
 func _wall_data(points: PackedVector3Array) -> Dictionary:
-	return {"points": points, "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "plinth_plaster": false, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain()}
+	return {"points": points, "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain()}
 
 
 ## A planted tree grows an oak; the style tool aimed at it offers each species and turns it to one through the host,
