@@ -133,7 +133,6 @@ func _on_a_build() -> void:
 	check(main.world.decorations.rise(steps) < 0.5, "its steps rise only to the storey's foot, not from the ground: %.2f" % main.world.decorations.rise(steps))
 
 
-
 func _the_preview_is_what_a_press_places(p: Vector3) -> void:
 	var hand := main.rig.right
 	var i := main.rig.hands.find(hand)
