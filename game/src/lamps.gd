@@ -44,6 +44,7 @@ func _init() -> void:
 
 func install() -> void:
 	RenderingServer.global_shader_parameter_set(&"lamp_volume", texture)
+	RenderingServer.global_shader_parameter_set(&"lamp_light", Vector3(LIGHT.r, LIGHT.g, LIGHT.b) * ENCODE)
 
 
 ## The air inside a house or tower: inside its walls' inner faces, from its floor up to its roof, and through

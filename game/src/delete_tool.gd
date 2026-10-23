@@ -51,6 +51,9 @@ func _init(player: Rig, builder: WallTool, plants: FloraTool, garden: World) -> 
 	flora = plants.flora
 	world = garden
 	world.restored.connect(func() -> void:
+		for cut: Dictionary in _cuts.values():
+			for id: int in cut.get("decorations", {}):
+				world.decorations.unsweep(id)
 		_cuts.clear()
 		for who in _charges.keys():
 			cancel(who))
