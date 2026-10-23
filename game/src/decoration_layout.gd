@@ -82,10 +82,10 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground") -> void:
 		"Present":
 			box(Vector3(0, 0.17, 0), Vector3(0.42, 0.34, 0.42), PAPER, "")
 			for turn in [0.0, PI * 0.5]:
-				box(Vector3(0, 0.17, 0), Vector3(0.43, 0.06, 0.43), RIBBON, "", turn)
+				box(Vector3(0, 0.17, 0), Vector3(0.43, 0.345, 0.07), RIBBON, "", turn)
 			for side in [-1.0, 1.0]:
 				box(Vector3(0.13 + side * 0.05, 0.37, -0.13), Vector3(0.1, 0.05, 0.04), RIBBON, "", side * 0.6)
-			pictures.append(Transform3D(Basis().scaled(Vector3(5.5, 0.4, 5.5)), Vector3(-0.02, 0.342, 0.02)))
+			pictures.append(Transform3D(Basis().scaled(Vector3(5.5, 0.4, 5.5)), Vector3(-0.02, 0.346, 0.02)))
 		"Planter":
 			box(Vector3(0, 0.18, 0.33), Vector3(1.1, 0.32, 0.5), WOOD, "board")
 			box(Vector3(0, 0.35, 0.33), Vector3(0.96, 0.04, 0.36), Color(0.12, 0.09, 0.06), "")

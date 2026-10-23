@@ -16,7 +16,7 @@ extends Node3D
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
 const WHEEL_RADIUS := 0.07
 ## A wheel of many choices widens so neighbours stay this far apart around it.
-const CHOICE_GAP := 0.03
+const CHOICE_GAP := 0.045
 ## Where the wheel stands from the controller, in its frame when the trigger went down.
 const WHEEL_AT := Vector3(0, 0.06, -0.05)
 

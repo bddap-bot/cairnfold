@@ -383,7 +383,8 @@ static func bake(parts: Array) -> ArrayMesh:
 				colours.append(part[2])
 		for n: Vector3 in arrays[Mesh.ARRAY_NORMAL]:
 			normals.append((normal * n).normalized())
-		for i: int in arrays[Mesh.ARRAY_INDEX]:
+		var indices: Variant = arrays[Mesh.ARRAY_INDEX]
+		for i: int in indices if indices != null else range(arrays[Mesh.ARRAY_VERTEX].size()):
 			index.append(base + i)
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
@@ -1148,12 +1149,8 @@ static func decoration(layout: DecorationLayout, seed: int) -> Node3D:
 		flower.material_override = _vertex_mat("decoration_flowers", 0.8, true)
 		root.add_child(flower)
 	if not layout.pictures.is_empty():
-		var surface := SurfaceTool.new()
-		surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-		for x in layout.pictures:
-			surface.append_from(picture(Hand.Tool.STYLE), 0, x)
 		var drawn := MeshInstance3D.new()
-		drawn.mesh = surface.commit()
+		drawn.mesh = bake(layout.pictures.map(func(x: Transform3D) -> Array: return [picture(Hand.Tool.STYLE), x, null]))
 		drawn.material_override = _vertex_mat("decoration_picture", 0.6, false)
 		drawn.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		root.add_child(drawn)
@@ -1163,32 +1160,24 @@ static func decoration(layout: DecorationLayout, seed: int) -> Node3D:
 ## `tool`'s own model (`build`) as one mesh, each piece in its material's colour, so a picture of it is the tool.
 static func picture(tool: Hand.Tool) -> ArrayMesh:
 	var key := "picture_%d" % tool
-	if _meshes.has(key):
-		return _meshes[key]
-	var surface := SurfaceTool.new()
-	surface.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var model := build(tool)
-	var pending: Array[Node] = [model]
-	while not pending.is_empty():
-		var n: Node = pending.pop_back()
-		pending.append_array(n.get_children())
-		if n is MeshInstance3D:
-			var mi := n as MeshInstance3D
-			var x := Transform3D.IDENTITY
-			var up: Node = mi
-			while up != model:
-				x = (up as Node3D).transform * x
-				up = up.get_parent()
-			var arrays := mi.mesh.surface_get_arrays(0)
-			var colour: Color = (mi.material_override as BaseMaterial3D).albedo_color
-			var colours := PackedColorArray()
-			colours.resize((arrays[Mesh.ARRAY_VERTEX] as PackedVector3Array).size())
-			colours.fill(colour)
-			arrays[Mesh.ARRAY_COLOR] = colours
-			var piece := ArrayMesh.new()
-			piece.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-			surface.append_from(piece, 0, x)
-	model.free()
-	var mesh := surface.commit()
-	_meshes[key] = mesh
-	return mesh
+	if not _meshes.has(key):
+		var model := build(tool)
+		var parts := []
+		var pending: Array[Node] = [model]
+		while not pending.is_empty():
+			var n: Node = pending.pop_back()
+			pending.append_array(n.get_children())
+			if n is MeshInstance3D:
+				var mi := n as MeshInstance3D
+				parts.append([mi.mesh, _within(model, mi), (mi.material_override as BaseMaterial3D).albedo_color])
+		model.free()
+		_meshes[key] = bake(parts)
+	return _meshes[key]
+
+
+static func _within(root: Node3D, n: Node3D) -> Transform3D:
+	var x := Transform3D.IDENTITY
+	while n != root:
+		x = n.transform * x
+		n = n.get_parent()
+	return x

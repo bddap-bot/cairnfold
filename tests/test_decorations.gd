@@ -29,6 +29,22 @@ func _run() -> void:
 		layout.build(style, 53)
 		check(not layout.parts.is_empty() and layout.bounds.size.length() > 0.0, "geometry %d" % style)
 		print("decoration cost: %s solids=%d triangles=%d flowers=%d flames=%d" % [DecorationLayout.STYLES[style].name, layout.parts.size(), layout.parts.size() * 108 + layout.flames.size() * 14, layout.flowers.size(), layout.flames.size()])
+	var present := DecorationLayout.new()
+	present.build(DecorationLayout.PRESENT, 0)
+	check(present.pictures.size() == 1, "a present carries a picture")
+	var wand := ToolModels.build(Hand.Tool.STYLE)
+	var pieces: Array[MeshInstance3D] = []
+	pieces.assign(wand.find_children("*", "MeshInstance3D", true, false))
+	var drawn := ToolModels.picture(Hand.Tool.STYLE).surface_get_arrays(0)
+	var reached := {}
+	for i: int in drawn[Mesh.ARRAY_INDEX]:
+		reached[i] = true
+	check(drawn[Mesh.ARRAY_VERTEX].size() == pieces.reduce(func(n: int, m: MeshInstance3D) -> int: return n + m.mesh.surface_get_arrays(0)[Mesh.ARRAY_VERTEX].size(), 0) and reached.size() == drawn[Mesh.ARRAY_VERTEX].size(), "the picture draws every piece of the wand")
+	var tinted := func(m: MeshInstance3D) -> bool:
+		var want := (m.material_override as BaseMaterial3D).albedo_color
+		return Array(drawn[Mesh.ARRAY_COLOR]).any(func(c: Color) -> bool: return Vector4(c.r - want.r, c.g - want.g, c.b - want.b, 0).length() < 0.01)
+	check(pieces.all(tinted), "the picture takes the wand's own colours")
+	wand.free()
 	for style in 9:
 		var f := w.layout.frame_at(0.5 + style * 0.9)
 		var side := signf((f.point - w.roof.frame().mid).dot(f.tangent.cross(Vector3.UP)))

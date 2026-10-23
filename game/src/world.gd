@@ -17,9 +17,9 @@ const BURST := 60.0
 const WIPED := "*"
 ## Commands that can leave a tree or bush standing where water covers its root, which `_drown` then takes out.
 const DROWNING := ["heights", "ponds", "plant", "tree"]
-## A saved garden from another format is moved aside rather than rebuilt into a different one: 3 paints
-## each build its own colours.
-const FORMAT := 3
+## A saved garden from another format is moved aside rather than rebuilt into a different one: 4 stores where each
+## decoration stands, every style standing anywhere.
+const FORMAT := 4
 const OVER := "over the frame budget"
 ## A ponds or ground command whose water fills again over at least this many grid points is worked out on another
 ## thread before it applies (Refill), and the commands after it wait for it: on a Quest 2 a fill takes about 10 µs a
