@@ -4,6 +4,7 @@ config_version=5
 config/name="Nestcombe"
 run/main_scene="res://main.tscn"
 run/flush_stdout_on_print=true
+boot_splash/image="res://splash.png"
 
 [autoload]
 AudioLifetime="*res://src/audio_lifetime.gd"

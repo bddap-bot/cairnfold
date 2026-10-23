@@ -60,7 +60,7 @@ tools=$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS
 manifest=$("$tools/aapt" dump xmltree "$out" AndroidManifest.xml)
 wants=(org.khronos.openxr.intent.category.IMMERSIVE_HMD android.hardware.vr.headtracking android.hardware.vulkan.level
   org.khronos.openxr.permission.OPENXR android.permission.INTERNET)
-[ "$target" = lepton ] || wants+=(com.oculus.intent.category.VR oculus.software.handtracking)
+[ "$target" = lepton ] || wants+=(com.oculus.intent.category.VR oculus.software.handtracking com.oculus.ossplash)
 for want in "${wants[@]}"; do
   grep -q "\"$want\"" <<<"$manifest" || { echo "android: manifest lacks $want" >&2; exit 1; }
 done
@@ -76,6 +76,7 @@ if [ "$target" = lepton ] && grep -q -i -E 'oculus|horizonos|com\.meta\.' <<<"$m
   exit 1
 fi
 unzip -l "$out" lib/arm64-v8a/libopenxr_loader.so > /dev/null || { echo "android: no OpenXR loader in the APK" >&2; exit 1; }
+[ "$target" = lepton ] || unzip -l "$out" assets/vr_splash.png > /dev/null || { echo "android: no system splash in the Quest APK" >&2; exit 1; }
 steamed=$(unzip -Z1 "$out" | grep -c -E 'lib/arm64-v8a/lib(godotsteam|steam_api)' || true)
 [ "$steamed" -eq $((${#steam} ? 2 : 0)) ] || { echo "android: $steamed Steam libraries in a ${steam:-plain} APK" >&2; exit 1; }
 python3 "$root/scripts/notices.py" check "$out" "$stage/game/android/build/noticeAssets/notices"

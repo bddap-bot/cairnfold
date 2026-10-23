@@ -25,7 +25,7 @@ wait "$join" || true
 # PNG time chunks would make every regeneration a diff. The wanted size is a glob, so the logo can fix only its width.
 save() {
   local file=$1 size
-  [[ $file == meta/* ]] && file=$root/$file || file=$out/$file
+  [[ $file == meta/* || $file == game/* ]] && file=$root/$file || file=$out/$file
   magick - -depth 8 -strip -define png:exclude-chunks=date,time -quality 92 "$file"
   size=$(magick identify -format %wx%h "$file")
   # shellcheck disable=SC2053
@@ -73,6 +73,8 @@ cut arch 1512x2160+1354+0 1008x1440 | title 880 north +0+300 | save meta/cover-p
 cut hero 3840x1152+0+344 3000x900 | title 1400 center +0+0 | save meta/hero.png 3000x900
 cut wide 3840x1280+0+383 1080x360 | title 760 center +0+0 | save meta/mini-landscape.png 1080x360
 cut arch 1024x1024+1600+820 512x512 | save meta/icon.png 512x512
+# The Quest's system splash shows it while the game loads; the store asks for one within four seconds of launch.
+magick "$meta/cover-landscape.png" -resize 1280x720 miff:- | save game/splash.png 1280x720
 magick "$shots/title.png" miff:- | save meta/logo.png '*x*'
 n=0
 for shot in stroke round pond together dusk; do
