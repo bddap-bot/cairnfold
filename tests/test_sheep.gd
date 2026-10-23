@@ -423,7 +423,7 @@ func _leaving_sheep_keep_out_of_walls_and_water() -> void:
 	root.add_child(outside)
 	outside.global_transform = Transform3D(Basis(), Vector3(0, 6, 30)).looking_at(Vector3(0, 0, -4))
 	g.wildlife.viewer = outside
-	_run(g, 1.0, see)
+	g.run(1.0, see)
 	g.world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([fence.id])})
 	await process_frame
 	await process_frame

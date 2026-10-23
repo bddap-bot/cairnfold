@@ -144,7 +144,7 @@ func pull(hand: Hand, metres: float) -> void:
 	var g := _grab(hand)
 	var at: Vector3 = g.at
 	g.lift = clampf(metres, -Terrain.RELIEF, Terrain.RELIEF)
-	g.radius = maxf(g.base_radius, absf(g.lift) * SPREAD)
+	g.radius = reach(g.base_radius, g.lift)
 	Terrain.set_hump(g.slot, at.x, at.z, g.radius, g.lift)
 	g.moved = g.moved.merge(_span(g, g.radius))
 
