@@ -293,6 +293,10 @@ func _xr_state(state: int) -> void:
 	# Paused hands stop following their controllers; the system menu draws its own.
 	rig.left.visible = not pause
 	rig.right.visible = not pause
+	if pause:
+		rig.end_aim()
+	else:
+		Buttons.resumes += 1
 	print("xr: %s state=%d peers=%s" % ["paused" if pause else "resumed", state, session.multiplayer.get_peers()])
 
 

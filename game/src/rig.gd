@@ -188,14 +188,14 @@ func _locomotion_input(delta: float) -> void:
 		if aim_hand == null and b.held("teleport"):
 			aim_hand = b.hand
 	if aim_hand != null and aim_hand.picking:
-		_end_aim()
+		end_aim()
 	if aim_hand != null:
 		var stick := aim_hand.stick()
 		if stick.length() < DEADZONE:
 			var held: Array = _aim_trail[0] if not _aim_trail.is_empty() else [0.0, null, 0.0]
 			if held[1] != null:
 				teleport(held[1], held[2])
-			_end_aim()
+			end_aim()
 			return
 		aim(_steadied(aim_hand.global_transform, delta), reach_scale(stick.y))
 		_aim_clock += delta
@@ -209,7 +209,7 @@ func _locomotion_input(delta: float) -> void:
 				snap_turn(TURNS[turn], b.hand)
 
 
-func _end_aim() -> void:
+func end_aim() -> void:
 	aim_hand = null
 	_aim_clock = 0.0
 	_aim_trail.clear()

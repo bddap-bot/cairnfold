@@ -23,6 +23,26 @@ func _game(label: String) -> Main:
 	return game
 
 
+## Pausing mid-aim drops the aim and its halo, and the stick let go in the system menu teleports nowhere.
+func _pause_drops_the_aim(game: Main) -> void:
+	var rig := game.rig
+	rig.left.global_transform = Transform3D(Basis.looking_at(Vector3(0, -0.3, -1), Vector3.UP), rig.head.global_position + Vector3(0, -0.4, -0.3))
+	Hand.injected_sticks["left_hand"] = Vector2(0, 1)
+	for frame in 4:
+		await process_frame
+	check(rig.aim_hand == rig.left and rig._landing.visible, "the left stick aims a teleport")
+	var at := rig.global_position
+	game.xr.session_visible.emit()
+	await process_frame
+	check(rig.aim_hand == null and not rig._landing.visible, "pausing drops the aim and hides its halo")
+	Hand.injected_sticks.clear()
+	await process_frame
+	game.xr.session_focussed.emit()
+	for frame in 12:
+		await process_frame
+	check(rig.global_position == at, "the stick let go during the pause teleports nowhere")
+
+
 func _run() -> void:
 	var host := _game("Host")
 	var guest := _game("Guest")
@@ -78,11 +98,16 @@ func _run() -> void:
 		check(guest.session._clock > network_clock, "%s keeps networking processing" % signal_name)
 		check(not root.get_node("AudioLifetime")._quitting and is_instance_valid(guest), "%s never quits" % signal_name)
 		check(host.multiplayer.get_peers() == ids and guest.multiplayer.multiplayer_peer == peer and guest.session.avatars.has(1), "%s preserves the same co-op peer" % signal_name)
+	Buttons.injected["left_hand/ax_button"] = true
+	var undos: int = Cues.asked.get(Cues.Act.UNDO, 0)
 	guest.xr.session_focussed.emit()
 	var before := sim.frames
 	for frame in 12:
 		await process_frame
 	check(not paused and sim.frames > before and not audio.stream_paused, "focus return resumes simulation and audio")
+	check(Cues.asked.get(Cues.Act.UNDO, 0) == undos, "a button pressed in the system menu and still held fires nothing on return")
+	Buttons.injected.clear()
+	await _pause_drops_the_aim(guest)
 	check(guest.rig.left.visible and guest.rig.right.visible, "focus return shows the player's hands")
 	check(not root.get_node("AudioLifetime")._quitting and host.multiplayer.get_peers() == ids and guest.multiplayer.multiplayer_peer == peer, "return retains the game and co-op connection")
 	guest.args["script"] = "demo/costs.json"
