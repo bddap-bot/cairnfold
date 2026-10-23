@@ -180,16 +180,24 @@ its offset in Unity's axes). That is all a head-and-hands avatar needs.
 - **Limits.** `Avatar.read` cuts every file the same way, the player's own before
   it is sent, so all players see the same avatar: at most 24 MB, surfaces merged per
   material within a mesh, animations and every expression (blend shape) but the four that
-  point the eyes dropped,
-  triangles simplified to at most 20,000, at most 20 surfaces (draw calls), and
-  textures shrunk to 1024 px with mipmaps. Every surface also gets levels of detail,
-  which the renderer picks by size on screen, so a player across the garden costs a
-  fraction of one up close. The quality ladder already changes how much of the scene
-  draws; avatars need no setting of their own. A VRoid avatar (34,000 triangles,
-  65 primitives, 17 materials, 16 MB) reads as 15,000 triangles in 17 surfaces.
+  point the eyes dropped, triangles simplified to at most 20,000, and textures shrunk to
+  1024 px with mipmaps. Every surface also gets levels of detail, which the renderer picks
+  by size on screen, so a player across the garden costs a fraction of one up close. The
+  quality ladder already changes how much of the scene draws; avatars need no setting of
+  their own.
+- **Rigid parts.** A pose moves only the hips, head, eyes, upper and lower arms and hands,
+  so each skinned mesh is cut into one rigid part per moving bone, every triangle going to
+  the bone that weighs most on its corners, and the skeleton is dropped: nothing is skinned
+  on the GPU. A forearm stretches along its length where a hand is held past the arm's reach,
+  so the hand stays on its arm and at the controller. A material spanning several moving
+  bones draws once for each, so the limit is 32 surfaces (draw calls) after the cut. A VRoid
+  avatar (34,000 triangles, 65 primitives, 17 materials, 16 MB) reads as 15,000 triangles in
+  28 surfaces. Where a rigid part meets the next, a bent joint can open a thin crack.
 - **Materials.** Godot's glTF reader reads each VRM material's glTF base: its
-  colour, texture and alpha. Unlit (toon) surfaces are lit like the rest of the
-  garden, so an avatar darkens at dusk instead of glowing.
+  colour, texture and alpha. Each is then lit once a vertex rather than once a pixel, draws
+  front faces only, and is cut out, never blended, where it is see-through; normal maps and
+  emission are dropped. Unlit (toon) surfaces are lit like the rest of the garden, so an
+  avatar darkens at dusk instead of glowing.
 
 The V-Sekai [godot-vrm](https://github.com/V-Sekai/godot-vrm) addon would add MToon,
 spring bones and the rest of the expressions. Nestcombe does not use it. MToon's outline pass draws every
@@ -446,7 +454,7 @@ lacks it.
 `NESTCOMBE_SCENE=demo/avatars.json` looks at them three ways, three times over: close
 (one of them 3.6 m away, the others behind), across the meadow (all three, 6 to 18 m)
 and away (none in view). The VRM is the CC0 VRoid sample AvatarSample_D (VRM 1.0, 16.6 MB),
-which reads as 15,000 triangles in 17 surfaces.
+which read as 15,000 triangles in 17 surfaces when these runs were made (28 now, see "Rigid parts").
 
 On the Quest 2, `NESTCOMBE_PLAYERS=4 bench.sh OUT --android APK`, the game's GPU
 milliseconds per frame, median of each phase. "Arrived" counts the other players whose
@@ -481,13 +489,38 @@ the game's GPU milliseconds per frame, two runs each. All three files arrived ev
 Three VRMs cost the Frame 0.9 ms close and 0.75 ms across the meadow, and nothing out of
 view: under a millisecond for all three, well inside its frame.
 
-On the Quest 2, the VRM in view costs the headset 2 to 3 ms a frame: one at 3.6 m adds 2.6 to 3.2 ms,
-and one or two across the meadow add 1.8 to 3.2 ms. Out of view it costs nothing (away:
-23.4 to 23.8 ms against 23.4). The cost does not follow the triangles, the texture size or
-alpha blending: cutting to 5,000 triangles and 512 px, and alpha blending to a cut-out, leave
-it where it was, and one VRM costs about what two do. So lowering these limits would not buy
-the frame back; the limits stay at 20,000 triangles, 20 surfaces and 1024 px until what does
-cost is found. Against a 12.5 ms budget, 2 to 3 ms for the first VRM in view is too much.
+On the Quest 2, the VRM in view cost the headset 2 to 3 ms a frame, and neither the triangles,
+the texture size nor alpha blending was what cost. `NESTCOMBE_SCENE=demo/avatar-cost.json`
+finds what does on one headset with no network in the way: its `figures` step stands three
+other players, re-posed every frame as streamed poses pose them, at the spots above, in
+built-in avatars or in the VRM, which `bench.sh` pushes from `NESTCOMBE_GUEST_AVATAR`, and
+looks at them close (one in view), across the meadow (all three) and away, three times over,
+built-in and VRM in turn. Taking one thing at a time off the VRM as it was then read, the one at 3.6 m
+cost a Quest 2 1.94 ms a frame over built-ins, at the top of the quality ladder of the time,
+and each took off:
+
+| Taken off | Saved |
+| --- | --- |
+| Skinning (its GPU pass over every vertex, every frame) | 0.79 |
+| Both sides drawn | 0.45 |
+| Normal maps | 0.39 |
+| Emission | 0.21 |
+| Alpha | 0.19 |
+| All five | 1.68 of 1.94 |
+
+The VRM now reads as rigid parts with plain materials (see "Rigid parts" and "Materials"
+above), and lighting each pixel was the largest share left, 0.6 ms of the three across the
+meadow, so avatars are lit once a vertex. Quest 2, quality step 6, median GPU milliseconds
+of three runs of each phase:
+
+| Other players wear | Close (one in view) | Across (three) | Away (none) |
+| --- | --- | --- | --- |
+| built-in | 7.23 | 7.88 | 7.86 |
+| the VRM, skinned, as read before | 8.85 | 10.00 | 7.90 |
+| the VRM, rigid and plain | 7.71 | 8.88 | 7.88 |
+
+The VRM in view costs 0.5 ms close and 0.34 ms each across the meadow, from 1.6 and 0.7, and
+nothing out of view.
 
 Every file arrives. With the Quest 2 hosting over Wi-Fi, the three 16.6 MB files cross the
 link at once, and a burst of loss leaves some of a sender's packets unacknowledged for seconds.

@@ -9,11 +9,15 @@ extends Node3D
 const BUILT_IN: Array[String] = ["res://avatars/pebble.vrm", "res://avatars/acorn.vrm", "res://avatars/hood.vrm"]
 const MAX_BYTES := 24 << 20
 const MAX_TRIANGLES := 20000
-const MAX_SURFACES := 20
+## Draw calls, counted once the meshes are cut into rigid parts: a material spanning several moving bones draws once
+## for each.
+const MAX_SURFACES := 32
 const MAX_TEXTURE := 1024
 ## A built-in VRM 1.0 avatar faces +Z; a Godot camera looks down -Z.
 const FACING := Basis(Vector3.UP, PI)
 const NEEDS: Array[String] = ["hips", "head", "leftHand", "rightHand"]
+## The bones a pose moves; every other bone stays at rest with the nearest of these above it.
+const MOVED: Array[String] = ["hips", "head", "leftEye", "rightEye", "leftUpperArm", "leftLowerArm", "leftHand", "rightUpperArm", "rightLowerArm", "rightHand"]
 ## Where elbows point, in the body's frame (forward -Z): down, out to the side, and a little back.
 const ELBOW := Vector3(0.5, -1.0, 0.4)
 ## The left and right hands' aim poses hanging at the sides, from eyes looking level.
@@ -46,6 +50,8 @@ class Arm:
 	## Each bone's rest turn from the frame that its length and the body's back make.
 	var upper_bind: Basis
 	var lower_bind: Basis
+	## The forearm's direction from elbow to wrist, in its own frame.
+	var lower_axis: Vector3
 
 ## A file's identity: a built-in's path, or the hash of a player's own file.
 var source := ""
@@ -88,14 +94,17 @@ static func built_in(i: int) -> PackedScene:
 static func read(bytes: PackedByteArray) -> PackedScene:
 	if bytes.size() > MAX_BYTES:
 		return null
-	var model := Vrm.read(bytes, _shape, _shrink)
+	var model := Vrm.read(bytes, _shape, _shrink, _rigid)
 	if model == null:
 		return null
 	var bones: Dictionary = model.get_meta("humanoid")
+	if not NEEDS.all(func(b: String) -> bool: return bones.has(b)):
+		model.free()
+		return null
 	var surfaces := 0
 	for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
 		surfaces += mi.mesh.get_surface_count()
-	if not NEEDS.all(func(b: String) -> bool: return bones.has(b)) or surfaces > MAX_SURFACES:
+	if surfaces > MAX_SURFACES:
 		model.free()
 		return null
 	for n in model.find_children("*", "", true, false):
@@ -104,6 +113,222 @@ static func read(bytes: PackedByteArray) -> PackedScene:
 	scene.pack(model)
 	model.free()
 	return scene
+
+
+## Cuts each skinned mesh into rigid parts, one for each bone a pose moves (MOVED), each hung from a node standing in
+## for that bone, and drops the skeletons. Skinning runs a GPU pass over every vertex of every avatar in view each
+## frame, the largest single share of what a VRM cost the Quest 2; a part per moved bone costs nothing to pose.
+static func _rigid(state: GLTFState, model: Node3D) -> void:
+	var bones: Dictionary = model.get_meta("humanoid")
+	var look: Dictionary = model.get_meta("look")
+	var looked := []
+	for dir: String in look.get("shapes", {}):
+		for b: Array in look.shapes[dir]:
+			looked.append([b, model.get_node_or_null(b[0])])
+	for sk: Skeleton3D in model.find_children("*", "Skeleton3D", true, false):
+		var moved := {}
+		for b: String in bones.keys():
+			var path: NodePath = bones[b]
+			if path.get_subname_count() > 0 and model.get_node(NodePath(str(path).get_slice(":", 0))) == sk:
+				if b in MOVED:
+					moved[sk.find_bone(path.get_concatenated_subnames())] = b
+				else:
+					bones.erase(b)
+		var group := PackedInt32Array()
+		for i in sk.get_bone_count():
+			var g := i
+			while g >= 0 and not moved.has(g):
+				g = sk.get_bone_parent(g)
+			group.append(g)
+		var rest := func(g: int) -> Transform3D: return sk.get_bone_global_rest(g) if g >= 0 else Transform3D.IDENTITY
+		var root := Node3D.new()
+		root.name = String(sk.name) + "Parts"
+		root.transform = sk.transform
+		sk.get_parent().add_child(root)
+		var nodes := {-1: root}
+		var order: Array = moved.keys()
+		order.sort_custom(func(a: int, b: int) -> bool: return _depth(sk, a) < _depth(sk, b))
+		for m: int in order:
+			var up := group[sk.get_bone_parent(m)] if sk.get_bone_parent(m) >= 0 else -1
+			var n := Node3D.new()
+			n.name = sk.get_bone_name(m)
+			n.transform = (rest.call(up) as Transform3D).affine_inverse() * rest.call(m)
+			(nodes[up] as Node3D).add_child(n)
+			nodes[m] = n
+			bones[moved[m]] = model.get_path_to(n)
+		for mi: MeshInstance3D in model.find_children("*", "MeshInstance3D", true, false):
+			if mi.skin == null or mi.get_node_or_null(mi.skeleton) != sk:
+				continue
+			var old_path := model.get_path_to(mi)
+			var parts := _cut(mi, state.get_meshes()[int(mi.mesh.resource_name)].mesh, sk, group, rest)
+			for g: int in parts:
+				var part := MeshInstance3D.new()
+				part.name = String(mi.name)
+				part.mesh = parts[g]
+				(nodes[g] as Node3D).add_child(part)
+				for dir: String in look.get("shapes", {}):
+					for b: Array in look.shapes[dir].duplicate():
+						if str(b[0]) == str(old_path) and part.find_blend_shape_by_name(b[1]) >= 0:
+							look.shapes[dir].append([model.get_path_to(part), b[1], b[2]])
+			for dir: String in look.get("shapes", {}):
+				look.shapes[dir] = look.shapes[dir].filter(func(b: Array) -> bool: return str(b[0]) != str(old_path))
+			mi.get_parent().remove_child(mi)
+			mi.free()
+		# Godot's glTF reader hangs a node under a bone (glasses, a hat) from a BoneAttachment3D, which only a skeleton moves.
+		for c in sk.get_children():
+			if c is BoneAttachment3D:
+				var bone: int = (c as BoneAttachment3D).bone_idx if (c as BoneAttachment3D).bone_idx >= 0 else sk.find_bone((c as BoneAttachment3D).bone_name)
+				var holder := Node3D.new()
+				holder.name = c.name
+				holder.transform = (rest.call(group[bone]) as Transform3D).affine_inverse() * rest.call(bone)
+				(nodes[group[bone]] as Node3D).add_child(holder)
+				for held in c.get_children():
+					held.reparent(holder, false)
+			else:
+				c.reparent(root, false)
+		sk.get_parent().remove_child(sk)
+		sk.free()
+	for t: Array in looked:
+		if is_instance_valid(t[1]) and model.is_ancestor_of(t[1]):
+			t[0][0] = model.get_path_to(t[1])
+
+
+static func _depth(sk: Skeleton3D, bone: int) -> int:
+	var d := 0
+	while sk.get_bone_parent(bone) >= 0:
+		bone = sk.get_bone_parent(bone)
+		d += 1
+	return d
+
+
+## A skinned mesh at rest, as one mesh per group (a moved bone, or -1 for the skeleton itself) in that bone's frame:
+## each triangle goes whole to the group that weighs most on its corners. Reads the mesh's arrays from `mesh`, the
+## ImporterMesh it was made from: reading them back from the rendering server would wait on the main thread.
+static func _cut(mi: MeshInstance3D, mesh: ImporterMesh, sk: Skeleton3D, group: PackedInt32Array, rest: Callable) -> Dictionary:
+	var skin := mi.skin
+	var binds: Array[Transform3D] = []
+	var bind_group := PackedInt32Array()
+	var at := _space(sk, sk.get_parent()).affine_inverse() * _space(mi, sk.get_parent())
+	for i in skin.get_bind_count():
+		var b := skin.get_bind_bone(i)
+		if b < 0:
+			b = sk.find_bone(skin.get_bind_name(i))
+		binds.append(at * sk.get_bone_global_rest(maxi(b, 0)) * skin.get_bind_pose(i))
+		bind_group.append(group[maxi(b, 0)])
+	var names: Array[String] = []
+	for k in mesh.get_blend_shape_count():
+		names.append(mesh.get_blend_shape_name(k))
+	var relative := mesh.get_blend_shape_mode() == Mesh.BLEND_SHAPE_MODE_RELATIVE
+	var by_group := {}
+	for s in mesh.get_surface_count():
+		var arrays := mesh.get_surface_arrays(s)
+		var shapes := range(names.size()).map(func(k: int) -> Array: return mesh.get_surface_blend_shape_arrays(s, k))
+		var vertex: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+		var n := vertex.size()
+		var bone: PackedInt32Array = arrays[Mesh.ARRAY_BONES] if arrays[Mesh.ARRAY_BONES] != null else PackedInt32Array()
+		var weight: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS] if arrays[Mesh.ARRAY_WEIGHTS] != null else PackedFloat32Array()
+		var stride := bone.size() / n if n > 0 else 0
+		var place: Array[Transform3D] = []
+		var weighs: Array[Dictionary] = []
+		for v in n:
+			var x := Vector3.ZERO
+			var y := Vector3.ZERO
+			var z := Vector3.ZERO
+			var o := Vector3.ZERO
+			var w := {}
+			for c in stride:
+				var k := v * stride + c
+				if weight[k] > 0.0:
+					var m := binds[bone[k]]
+					x += m.basis.x * weight[k]
+					y += m.basis.y * weight[k]
+					z += m.basis.z * weight[k]
+					o += m.origin * weight[k]
+					w[bind_group[bone[k]]] = w.get(bind_group[bone[k]], 0.0) + weight[k]
+			place.append(Transform3D(Basis(x, y, z), o) if not w.is_empty() else at)
+			weighs.append(w)
+		var idx: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var out := {}
+		for f in idx.size() / 3:
+			var total := {}
+			for c in 3:
+				var w: Dictionary = weighs[idx[f * 3 + c]]
+				for g: int in w:
+					total[g] = total.get(g, 0.0) + w[g]
+			var best := -1
+			for g: int in total:
+				if best == -1 or total[g] > total.get(best, 0.0):
+					best = g
+			var o: Array = out.get_or_add(best, [{}, PackedInt32Array()])
+			for c in 3:
+				var v := idx[f * 3 + c]
+				o[1].append(o[0].get_or_add(v, o[0].size()))
+		for g: int in out:
+			var to: Transform3D = (rest.call(g) as Transform3D).affine_inverse()
+			var kept: Array = out[g][0].keys()
+			var cut := _pick(arrays, kept, place, to, false)
+			cut[Mesh.ARRAY_INDEX] = out[g][1]
+			cut[Mesh.ARRAY_BONES] = null
+			cut[Mesh.ARRAY_WEIGHTS] = null
+			var cut_shapes := shapes.map(func(sh: Array) -> Array: return _pick(sh, kept, place, to, relative))
+			by_group.get_or_add(g, []).append([cut, cut_shapes, mesh.get_surface_material(s), mesh.get_surface_name(s)])
+	var meshes := {}
+	for g: int in by_group:
+		# A part keeps only the blend shapes that move it: each one kept is a GPU pass over its vertices.
+		var moves := range(names.size()).filter(func(k: int) -> bool:
+			return by_group[g].any(func(sf: Array) -> bool: return _moves(sf[0][Mesh.ARRAY_VERTEX], sf[1][k][Mesh.ARRAY_VERTEX], relative)))
+		var im := ImporterMesh.new()
+		im.set_blend_shape_mode(mesh.get_blend_shape_mode())
+		for k: int in moves:
+			im.add_blend_shape(names[k])
+		for sf: Array in by_group[g]:
+			im.add_surface(Mesh.PRIMITIVE_TRIANGLES, sf[0], moves.map(func(k: int) -> Array: return sf[1][k]), {}, sf[2], sf[3])
+		im.generate_lods(60.0, 25.0, [])
+		meshes[g] = im.get_mesh()
+	return meshes
+
+
+static func _moves(base: PackedVector3Array, shape: PackedVector3Array, relative: bool) -> bool:
+	for v in base.size():
+		if not (shape[v] if relative else shape[v] - base[v]).is_zero_approx():
+			return true
+	return false
+
+
+## The vertices `kept` names out of `arrays`, each placed by its skin at rest and then by `to`; a relative blend
+## shape's offsets only turn.
+static func _pick(arrays: Array, kept: Array, place: Array[Transform3D], to: Transform3D, relative: bool) -> Array:
+	var out := []
+	out.resize(Mesh.ARRAY_MAX)
+	for k in mini(arrays.size(), Mesh.ARRAY_MAX):
+		var a: Variant = arrays[k]
+		if a == null or k == Mesh.ARRAY_INDEX or k == Mesh.ARRAY_BONES or k == Mesh.ARRAY_WEIGHTS:
+			continue
+		var n: int = arrays[Mesh.ARRAY_VERTEX].size() if arrays[Mesh.ARRAY_VERTEX] != null else 0
+		if n == 0 or a.size() == 0:
+			continue
+		var stride: int = a.size() / n
+		var b: Variant = a.slice(0, 0)
+		b.resize(kept.size() * stride)
+		for j in kept.size():
+			var v: int = kept[j]
+			var t: Transform3D = to * place[v]
+			match k:
+				Mesh.ARRAY_VERTEX:
+					b[j] = t.basis * a[v] if relative else t * a[v]
+				Mesh.ARRAY_NORMAL:
+					b[j] = t.basis * a[v] if relative else (t.basis * a[v]).normalized()
+				Mesh.ARRAY_TANGENT:
+					var d := (t.basis * Vector3(a[v * 4], a[v * 4 + 1], a[v * 4 + 2])).normalized()
+					b[j * 4] = d.x
+					b[j * 4 + 1] = d.y
+					b[j * 4 + 2] = d.z
+					b[j * 4 + 3] = a[v * 4 + 3]
+				_:
+					for c in stride:
+						b[j * stride + c] = a[v * stride + c]
+		out[k] = b
+	return out
 
 
 static func _shape(state: GLTFState) -> bool:
@@ -122,19 +347,36 @@ static func _shape(state: GLTFState) -> bool:
 		gm.blend_weights = PackedFloat32Array()
 		gm.blend_weights.resize(keep.size())
 		gm.mesh = _merged(gm.mesh, keep)
+		# The mesh made from it keeps this name, by which _rigid finds its arrays again.
+		gm.mesh.resource_name = str(m)
 		meshes.append(gm.mesh)
 		for i in gm.mesh.get_surface_count():
 			triangles += gm.mesh.get_surface_arrays(i)[Mesh.ARRAY_INDEX].size() / 3
 	var keep := minf(1.0, float(MAX_TRIANGLES) / maxi(triangles, 1))
 	for im in meshes:
 		_simplify(im, keep)
-	# Avatars stand in the garden's light: an unlit (toon) surface would glow at night.
 	for m in state.get_materials():
-		if m is BaseMaterial3D and m.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
-			m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
-			m.roughness = 1.0
-			m.metallic = 0.0
+		if m is BaseMaterial3D:
+			_plain(m)
 	return true
+
+
+## Draws a material with its colour texture alone, lit once a vertex, front faces only, and cut out where it is
+## see-through. Lighting each pixel, normal maps, emission, both sides and blending each cost the Quest 2 GPU time
+## over every pixel an avatar covers (docs/multiplayer.md, "A player's own avatar").
+static func _plain(m: BaseMaterial3D) -> void:
+	# Avatars stand in the garden's light: an unlit (toon) surface would glow at night.
+	if m.shading_mode == BaseMaterial3D.SHADING_MODE_UNSHADED:
+		m.roughness = 1.0
+		m.metallic = 0.0
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_PER_VERTEX
+	m.normal_enabled = false
+	m.normal_texture = null
+	m.emission_enabled = false
+	m.emission_texture = null
+	m.cull_mode = BaseMaterial3D.CULL_BACK
+	if m.transparency != BaseMaterial3D.TRANSPARENCY_DISABLED:
+		m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR
 
 
 static func _shrink(img: Image) -> void:
@@ -272,6 +514,7 @@ static func open(scene: PackedScene, tint: Color, from := "") -> Avatar:
 			# The arm's bend is solved in the body's frame, so the body's turn cancels from these.
 			arm.upper_bind = _frame(a._facing * (low - up), Vector3.BACK).transposed() * a._facing * arm.upper.rest.basis
 			arm.lower_bind = _frame(a._facing * (hand - low), Vector3.BACK).transposed() * a._facing * arm.lower.rest.basis
+			arm.lower_axis = (arm.lower.rest.basis.inverse() * (hand - low)).normalized()
 			placed.append_array([arm.upper, arm.lower])
 		placed.append(arm.hand)
 		a._arms.append(arm)
@@ -419,6 +662,8 @@ func folded(side: int) -> bool:
 	return _get_joint(_arms[side].hand).basis.get_scale().x < 0.01
 
 
+## Bends the arm to reach `to`, stretching the forearm along its length where the arm is too short, so the hand stays
+## on its arm and at the controller, where held things are.
 func _arm(arm: Arm, to: Vector3, turn: Basis) -> void:
 	var shoulder := _get_joint(arm.upper).origin
 	var a := arm.upper_length
@@ -431,7 +676,9 @@ func _arm(arm: Arm, to: Vector3, turn: Basis) -> void:
 	var cos_a := (a * a + c * c - b * b) / (2.0 * a * c)
 	var elbow := shoulder + u * a * cos_a + p * a * sqrt(maxf(0.0, 1.0 - cos_a * cos_a))
 	_place(arm.upper, Transform3D(_frame(elbow - shoulder, p) * arm.upper_bind, shoulder))
-	_place(arm.lower, Transform3D(_frame(to - elbow, p) * arm.lower_bind, elbow))
+	var d := arm.lower_axis * (elbow.distance_to(to) / b - 1.0)
+	var stretch := Basis(Vector3.RIGHT + d * arm.lower_axis.x, Vector3.UP + d * arm.lower_axis.y, Vector3.BACK + d * arm.lower_axis.z)
+	_place(arm.lower, Transform3D(_frame(to - elbow, p) * arm.lower_bind * stretch, elbow))
 
 
 ## Standing still with the hands at the sides, as a figure.

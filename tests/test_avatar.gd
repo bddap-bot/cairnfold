@@ -71,6 +71,8 @@ func _within_limits(scene: PackedScene, what: String) -> void:
 	var triangles := 0
 	var surfaces := 0
 	var skinned := 0
+	var plain := 0
+	var materials := 0
 	var textures := {}
 	for mi: MeshInstance3D in a.find_children("*", "MeshInstance3D", true, false):
 		surfaces += mi.mesh.get_surface_count()
@@ -79,12 +81,16 @@ func _within_limits(scene: PackedScene, what: String) -> void:
 			var m := mi.mesh.surface_get_material(s) as BaseMaterial3D
 			if m != null and m.albedo_texture != null:
 				textures[m.albedo_texture] = true
+			if m != null:
+				plain += 1 if m.shading_mode == BaseMaterial3D.SHADING_MODE_PER_VERTEX and not m.normal_enabled and not m.emission_enabled and m.cull_mode == BaseMaterial3D.CULL_BACK and m.transparency in [BaseMaterial3D.TRANSPARENCY_DISABLED, BaseMaterial3D.TRANSPARENCY_ALPHA_SCISSOR] else 0
+				materials += 1
 			triangles += mi.mesh.surface_get_arrays(s)[Mesh.ARRAY_INDEX].size() / 3
 		var looks: int = a._shapes.reduce(func(n: int, sets: Array) -> int: return n + sets.size(), 0)
 		_check(mi.mesh.get_blend_shape_count() <= mini(looks, Vrm.LOOKS.size() * Vrm.BINDS_PER_LOOK), "%s drops every expression but its eyes' (%d kept)" % [what, mi.mesh.get_blend_shape_count()])
 	_check(triangles > 0 and triangles <= Avatar.MAX_TRIANGLES, "%s keeps to the triangle limit (%d)" % [what, triangles])
 	_check(surfaces <= Avatar.MAX_SURFACES, "%s keeps to the draw limit (%d)" % [what, surfaces])
-	_check(skinned > 0 and a._joints.head.bone >= 0, "%s is skinned to a skeleton's bones" % what)
+	_check(skinned == 0 and a.find_children("*", "Skeleton3D", true, false).is_empty() and a._joints.head.bone < 0, "%s stands in rigid parts on its moving bones, with no skeleton to skin" % what)
+	_check(plain == materials, "%s draws its colour alone, lit once a vertex, front faces only, cut out where see-through (%d of %d)" % [what, plain, materials])
 	_check(not textures.is_empty(), "%s keeps its textures" % what)
 	for tex: Texture2D in textures:
 		_check(maxi(tex.get_width(), tex.get_height()) <= Avatar.MAX_TEXTURE and tex.get_image().has_mipmaps(), "%s keeps its textures to the size limit, mipmapped (%dx%d)" % [what, tex.get_width(), tex.get_height()])
@@ -165,7 +171,7 @@ func _both_versions_stand_alike() -> void:
 		var a := Avatar.open(Avatar.read(FileAccess.get_file_as_bytes(_sample(path))), Color.WHITE)
 		root.add_child(a)
 		a.pose(at, l, r)
-		posed.append([a.bone("hips").origin, a.bone("leftLowerArm").origin, a.bone("rightUpperArm").origin, a.bone("leftUpperLeg").origin])
+		posed.append([a.bone("hips").origin, a.bone("leftLowerArm").origin, a.bone("rightUpperArm").origin, a.bone("leftHand").origin])
 		a.free()
 	for k in 4:
 		_check(posed[0][k].distance_to(posed[1][k]) < 0.01, "VRM 1.0 and 0.x stand alike (%d: %s vs %s)" % [k, posed[0][k], posed[1][k]])
