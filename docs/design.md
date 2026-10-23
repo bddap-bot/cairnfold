@@ -3201,12 +3201,13 @@ Buttons are named as on the Steam Frame: A, B, X and Y on the right controller,
 a D-pad on the left. The Frame binds its own interaction profile (Godot 4.6's
 `frame_controller_valve`): B opens the right wheel, D-pad left the left wheel,
 A redoes and D-pad down undoes. X, Y and the other D-pad directions have separate inputs
-and no game action. On Quest the Touch bindings arrive unremapped.
+and no game action. On Quest the Touch bindings arrive unremapped, and the Touch Plus (Quest 3) and Touch Pro
+profiles are bound exactly as the Touch is, so neither runtime falls back to it.
 
 One table, `Controls.ACTIONS`, says what each hand's inputs do, and both hands are alike: trigger for the
 tool, grip to grab, upper face button held for the wheel. The lower face buttons walk the history: left X
-undoes, right A redoes. The sticks move the body: left forward teleports, right left or right turns; a stick
-flick reads as a button (`Hand.FLICKS`). `Controls.DEVICES` lists what each shipped device's controls arrive
+undoes, right A redoes. The sticks move the body alike: either forward teleports from its hand, either left or
+right turns, either back turns round; a stick flick reads as a button (`Hand.FLICKS`). `Controls.DEVICES` lists what each shipped device's controls arrive
 as, so each device's bindings derive from the one table; `tests/test_bindings.gd` holds every control of
 every device and checks it does its action alone, that every action reaches a control on every hand it
 names, that no wheel opens on a stick click, and that each device's profile binds every control. The Frame's

@@ -8,6 +8,9 @@ const PER_HAND := ["tool", "grab", "wheel"]
 ## The interaction profile each device's controls arrive through.
 const PROFILES := {"frame": "/interaction_profiles/valve/frame_controller_valve", "quest": "/interaction_profiles/oculus/touch_controller"}
 
+## The Quest's controllers after the Touch, each its own profile.
+const TOUCH_LATER := ["/interaction_profiles/meta/touch_plus_controller", "/interaction_profiles/meta/touch_pro_controller"]
+
 
 func _initialize() -> void:
 	_run.call_deferred()
@@ -19,6 +22,7 @@ func _run() -> void:
 	_a_tool_is_picked_without_a_stick_click()
 	_each_device_profile_binds_its_controls()
 	_only_one_control_opens_each_frame_wheel()
+	_every_touch_controller_binds_alike()
 	await _unused_frame_controls_do_nothing()
 	await _each_control_does_its_action_alone()
 	await _a_flick_is_one_way()
@@ -63,6 +67,20 @@ func _each_device_profile_binds_its_controls() -> void:
 			var input: String = "primary" if Hand.FLICKS.has(to[1]) else to[1]
 			var path := _path(name, to[0])
 			check(input in bound.get(path, []), "%s's %s (%s) arrives as %s/%s: bound to %s" % [device, name, path, to[0], input, bound.get(path, [])])
+
+
+## The Quest's later controllers arrive through their own profiles, each bound exactly as the Touch controller is, so
+## no runtime falls back to a guess.
+func _every_touch_controller_binds_alike() -> void:
+	var map: OpenXRActionMap = load("res://openxr_action_map.tres")
+	var bindings := {}
+	for profile in map.interaction_profiles:
+		var pairs: Array = profile.bindings.map(func(b: OpenXRIPBinding) -> String: return "%s=%s" % [b.binding_path, b.action.resource_name])
+		pairs.sort()
+		bindings[profile.interaction_profile_path] = pairs
+	var touch: Array = bindings[PROFILES.quest]
+	for path in TOUCH_LATER:
+		check(bindings.get(path) == touch, "%s binds as the Touch controller: %d of %d bindings" % [path, bindings.get(path, []).size(), touch.size()])
 
 
 func _only_one_control_opens_each_frame_wheel() -> void:
