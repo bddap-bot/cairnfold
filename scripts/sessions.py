@@ -11,10 +11,12 @@ the background), and the worst stalls (Metrics.STALL_MS), each with what the gam
 import argparse
 import json
 from pathlib import Path
+import re
 import sys
 
-ACTIVITIES = ["moving", "building", "wheel", "still", "coop"]
-BINS_PER_MS = 2
+METRICS = (Path(__file__).resolve().parents[1] / "game/src/metrics.gd").read_text()
+ACTIVITIES = json.loads(re.search(r"^const ACTIVITIES := (\[.*\])$", METRICS, re.M).group(1))
+BINS_PER_MS = int(re.search(r"^const BINS_PER_MS := (\d+)$", METRICS, re.M).group(1))
 STALLS_SHOWN = 20
 
 
