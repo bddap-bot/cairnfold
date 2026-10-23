@@ -8,6 +8,7 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 #include "res://src/meadow.gdshaderinc"
 #include "res://src/stone_ground.gdshaderinc"
 #include "res://src/flora_lod.gdshaderinc"
+#include "res://src/held_shadow.gdshaderinc"
 
 // The meadow's colour maths runs at half precision: the Quest 2 is bound by ground fragments and its GPU runs
 // mediump at twice the rate. Positions and texture coordinates stay highp, 160 m wide at millimetres, and the stone
@@ -36,6 +37,7 @@ varying mediump vec3 meadow_lush;
 varying mediump vec3 meadow_dry;
 // 1 where a pond reaches within a grid step: only there does a fragment read the water's depth.
 varying mediump float pond;
+varying highp vec3 held;
 
 void vertex() {
 	vec3 world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
@@ -54,6 +56,7 @@ void vertex() {
 	}
 	world_pos.y = VERTEX.y;
 	world_xz = world_pos.xz;
+	held = held_coord(world_pos);
 	steep = 1.0 - NORMAL.y;
 	vec3 bounce_at = bounce_on_ground(world_pos.xz);
 	vec4 bounce = textureLod(bounce_volume, bounce_at, 0.0);
@@ -164,4 +167,5 @@ void fragment() {
 	ROUGHNESS = 1.0;
 	AO = sky_seen;
 	EMISSION = ALBEDO * given;
+	ALBEDO *= held_lit(held);
 }

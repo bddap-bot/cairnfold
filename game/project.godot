@@ -26,6 +26,14 @@ textures/vram_compression/import_etc2_astc=true
 
 [shader_globals]
 
+held_shadow={
+"type": "mat4",
+"value": Projection(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
+}
+held_shade={
+"type": "float",
+"value": 0.0
+}
 view_grade={
 "type": "vec2",
 "value": Vector2(1, 1)

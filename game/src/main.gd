@@ -47,6 +47,7 @@ func _ready() -> void:
 	add_child(rig)
 	book = Book.new()
 	book.rig = rig
+	book.look = look
 	add_child(book)
 	world = World.new()
 	world.look = look

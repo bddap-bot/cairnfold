@@ -58,6 +58,35 @@ camera preview re-rendering the shadow every third frame and the governor's step
 logged per second (its highest), which stays on a shadowed step through such a
 report.
 
+## Held objects
+
+One map over the whole garden has texels about 0.2 m across: the map is fitted
+to a sphere round the eyes' combined frustum out to `Look.SHADOW_REACH`, about
+450 m in radius for a Quest's field of view. A held book is 0.15 m, so it
+covered a texel's centre in some frames and none in others, and its shadow
+blinked on and off as the hand trembled. A session log through the report held
+one quality step and zero `eye_fov_spread_deg`, so the map stood still and only
+the book moved across it. Each eye reads the same map, so both eyes saw the
+same blink.
+
+A near split 8 m deep drew the book whole and steady, but on the Quest 2 stress
+scene it cost a median 1.3 ms of GPU time a phase (1.6 ms with a 4096 atlas,
+so the cost came from the split, not the atlas): every garden caster near the eye is
+drawn twice. A decal laid along the light cost 3.5 ms whenever it showed, at
+any length. So the book casts nothing into the map, and the ground's
+shader darkens what lies behind it itself (`held_shadow.gdshaderinc`):
+`HeldShadow` sets one matrix taking a world point into the box behind the
+book along the light, each vertex carries its point there, and each fragment
+tests that box. Taking albedo cannot only take the sun away, so it cannot
+match a real shadow on every surface. Its strength is fitted on the meadow's
+ground against the book's real shadow from that split, at 11°, 34° and 50°
+up, to within 0.03 of the shaded share of luminance. It costs the Quest 2
+about 0.15 ms while the book is out. Reading it in the grass too cost twice
+that, so grass blades stand lit over it; walls and stones do not read it, and
+on ground already in a building's shade it still darkens.
+`tests/gpu_held_shadow.gd` moves a book-sized board over ground reading the
+box and fails if its shadow is missing from any frame.
+
 ## A photo's sun
 
 A photo is lit by its own sun (`Look.photo_sun`, four blended splits), which no
