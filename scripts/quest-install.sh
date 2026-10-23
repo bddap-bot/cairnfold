@@ -6,15 +6,18 @@
 #   quest-install.sh --restore DIR  pushes such a copy back by itself.
 #   quest-install.sh --package APK  prints the package APK installs as, read from its manifest: every step acts on
 #                                 that package, so a build renamed to stand beside the game never touches the game.
+# An APK whose manifest lacks the Quest's VR launcher category is refused: the Lepton APK shares the Quest build's
+# package and version code, so adb would install the Frame's build over the Quest's.
 # Saves never block an install: a copy that fails is reported and the install goes on. A push that fails to land every
 # file byte for byte fails the run, naming the copy to restore by hand. The copies stay under $NESTCOMBE_QUEST_SAVES
 # (default ~/.local/state/nestcombe/quest-saves). Bench output, bench/ and bench.json, is not a save and is left out.
 set -euo pipefail
 pkg=io.github.bddapbot.nestcombe
 
-# package APK: the manifest's package attribute, from the APK's binary XML.
+# package APK [quest]: the manifest's package attribute, from the APK's binary XML; with quest, failing unless the
+# manifest names the Quest's VR category.
 package() {
-  python3 - "$1" <<'PY'
+  python3 - "$@" <<'PY'
 import struct, sys, zipfile
 x = zipfile.ZipFile(sys.argv[1]).read("AndroidManifest.xml")
 strings, at = [], 8
@@ -35,6 +38,8 @@ while at < len(x):
             else:
                 n = struct.unpack_from("<H", x, p)[0]
                 strings.append(x[p + 2:p + 2 + 2 * n].decode("utf-16le"))
+        if sys.argv[2:] == ["quest"] and "com.oculus.intent.category.VR" not in strings:
+            sys.exit(f"quest-install: {sys.argv[1]} is no Quest APK: its manifest lacks com.oculus.intent.category.VR")
     elif kind == 0x0102 and strings[struct.unpack_from("<I", x, at + 20)[0]] == "manifest":
         first, step, count = struct.unpack_from("<HHH", x, at + 24)
         for i in range(count):
@@ -51,7 +56,7 @@ if [ "$1" = --package ]; then
   package "$2"
   exit 0
 fi
-[ "$1" = --restore ] || pkg=$(package "$1")
+[ "$1" = --restore ] || pkg=$(package "$1" quest)
 files=/sdcard/Android/data/$pkg/files
 
 backup() {

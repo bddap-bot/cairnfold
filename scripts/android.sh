@@ -80,6 +80,8 @@ wants=(org.khronos.openxr.intent.category.IMMERSIVE_HMD android.hardware.vr.head
 for want in "${wants[@]}"; do
   grep -q "\"$want\"" <<<"$manifest" || { echo "android: manifest lacks $want" >&2; exit 1; }
 done
+# Lepton's target SDK 32 has no reason of its own: its preset copied the Quest's, which went to 34 for the Horizon
+# Store (5e71dfb1) after the copy. Raising it is a change to check on the Frame.
 if [ "$target" = quest ]; then
   attribute() { awk -v n="$1" -v a="$2" '$0 ~ n { f = 1 } f && $0 ~ a { sub(/.*\)/, ""); print; exit }' <<<"$manifest"; }
   [ "$(attribute '"android.hardware.vr.headtracking"' android:required)" = 0xffffffff ] || { echo "android: the Quest manifest does not require head tracking" >&2; exit 1; }
