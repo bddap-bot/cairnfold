@@ -52,6 +52,8 @@ func _run() -> void:
 	await _frames(1)
 	_check(right.gesture == "fist" and not pressed.held("tool"), "a fist, its thumb on the index, is a grip, not the trigger: %s" % right.gesture)
 
+	await _stick_reads_the_palm(right)
+
 	joints.has_tracking_data = false
 	await _frames(2)
 	_check(not right.bare, "a hand lost hands back to the controller")
@@ -59,6 +61,25 @@ func _run() -> void:
 	XRServer.remove_tracker(controller)
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
+
+
+## A little pinch pushed sideways flicks the stick that way even with the arm stretched, so a reaching hand is thrown
+## far: the stick reads the hand's own move, not the thrown hand's.
+func _stick_reads_the_palm(right: Hand) -> void:
+	var head: Transform3D = main.rig.head.global_transform
+	var at := head * Lessons.frame({"at": Vector3(0.45, -0.3, -0.5), "aim": Vector3(0, -0.3, -1), "roll": 0.0})
+	for f in 30:
+		Hand.injected_joints[right.tracker] = HandShape.make(at, false, "")
+		await _frames(1)
+	_check(right.global_position.distance_to(at.origin) > 0.5, "the stretched hand is thrown out: %.2f m" % right.global_position.distance_to(at.origin))
+	var flicked := false
+	for f in 30:
+		Hand.injected_joints[right.tracker] = HandShape.pressing(at, false, "primary_right", head.basis, clampf(f / 10.0 - 1.0, 0.0, 1.0))
+		await _frames(1)
+		flicked = flicked or right.flick == "primary_right"
+	_check(flicked, "thumb to little pushed right flicks the stick right with the arm stretched: %s %s" % [right.stick(), right.flick])
+	Hand.injected_joints.clear()
+	await _frames(2)
 
 
 func _shape(t: XRHandTracker, palm: Transform3D, gesture: String, source: XRHandTracker.HandTrackingSource) -> void:

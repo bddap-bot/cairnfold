@@ -369,7 +369,8 @@ func wheel_frame() -> Transform3D:
 	return _wheel_root.global_transform
 
 
-## The thumbstick as locomotion reads it; on a bare hand, its move from where the little finger pinched.
+## The thumbstick as locomotion reads it; on a bare hand, the hand's own move (not where reach throws it) from where
+## the little finger pinched.
 func stick() -> Vector2:
 	if injected_sticks.has(tracker):
 		return injected_sticks[tracker]
@@ -379,7 +380,7 @@ func stick() -> Vector2:
 		return Vector2.ZERO
 	var right := (get_parent() as Rig).head.global_basis.x
 	right = Vector3(right.x, 0.0, right.z).normalized()
-	var moved := (get_parent() as Node3D).global_basis * (position - _stick_from)
+	var moved := (get_parent() as Node3D).global_basis * (controller.origin - _stick_from)
 	return (Vector2(moved.dot(right), moved.dot(Vector3.UP.cross(right))) / STICK_REACH).limit_length(1.0)
 
 
