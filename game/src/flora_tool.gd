@@ -149,13 +149,16 @@ func _handle(b: Brush, delta: float) -> void:
 			if b.buttons.pressed("tool"):
 				coat_tree(solid.plants[0], b.hand)
 			return
-	b.hand.point(hit, TINTS[held])
+	var drowned: bool = hit != null and PLACES.has(held) and Water.drowned(hit)
+	b.hand.point(hit, Hand.REFUSED if drowned else TINTS[held])
 	if hit == null:
 		end_stroke(b)
 		return
+	if drowned:
+		if b.buttons.pressed("tool"):
+			Cues.play(Cues.Act.REFUSED, hit, b.hand)
+		return
 	if PLACES.has(held):
-		if Water.drowned(hit):
-			return
 		world.preview(b.hand, Budget.plants(PLACES[held], 1))
 		if b.buttons.pressed("tool"):
 			place(PLACES[held], hit, b.hand)

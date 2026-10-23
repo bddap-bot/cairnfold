@@ -71,6 +71,26 @@ func _a_pond_takes_out_what_it_covers() -> void:
 	world.submit({"op": "plant", "kind": "tree", "seed": 6, "at": Terrain.ground(AT.x, AT.y)})
 	await process_frame
 	check(flora.placed("tree").is_empty() and world.units.get("tree", 0.0) == bare.get("tree", 0.0), "a tree planted in the water does not stand")
+	var trees := FloraTool.new(rig, flora, paths, world)
+	root.add_child(trees)
+	trees.set_process(false)
+	hand.tool = Hand.Tool.TREES
+	hand.held_still = true
+	hand.global_transform = Transform3D(Basis(Vector3.RIGHT, -PI / 2), rim + Vector3.UP * 2.0)
+	var refused: int = Cues.asked.get(Cues.Act.REFUSED, 0)
+	var press := "%s/%s" % [hand.tracker, Controls.input("tool", hand.tracker)]
+	var brush := trees.brush(hand)
+	trees._handle(brush, 1.0 / 60.0)
+	brush.buttons.latch()
+	Buttons.injected[press] = true
+	trees._handle(brush, 1.0 / 60.0)
+	Buttons.injected.erase(press)
+	brush.buttons.latch()
+	check(Cues.asked.get(Cues.Act.REFUSED, 0) == refused + 1, "a tree aimed into the water is refused, not silently dropped")
+	await process_frame
+	check(flora.placed("tree").is_empty(), "and none is planted there")
+	trees.queue_free()
+	hand.tool = Hand.Tool.WALLS
 	for i in 3:
 		world.undo()
 		await process_frame
