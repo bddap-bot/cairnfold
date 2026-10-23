@@ -285,6 +285,15 @@ func _frames(n: int) -> void:
 		await get_tree().process_frame
 
 
+## Calls `step` after each frame of `seconds` (the step's own, else `default`) with the share of them done, 1/frames
+## to 1; seconds × 60 frames, as tests count them under --fixed-fps 60.
+func _over(s: Dictionary, default: float, step: Callable) -> void:
+	var frames := maxi(1, ceili(s.get("seconds", default) * 60.0))
+	for f in frames:
+		await get_tree().process_frame
+		step.call(float(f + 1) / frames)
+
+
 func _hand(s: Dictionary) -> Hand:
 	return main.rig.left if s.get("hand", "right") == "left" else main.rig.right
 
@@ -448,17 +457,14 @@ func _resize(s: Dictionary) -> void:
 		end.size = Vector2(s.size[0], s.size[0] if start.round else s.size[1])
 	for k in ["rise", "height", "pitch", "curve", "overhang"]:
 		end[k] = s.get(k, start[k])
-	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
-	for f in frames:
-		await get_tree().process_frame
-		var k := float(f + 1) / frames
+	await _over(s, 1.0, func(k: float) -> void:
 		var to := start.duplicate()
 		to.center = start.center.lerp(end.center, k)
 		to.yaw = lerp_angle(start.yaw, end.yaw, k)
 		to.size = start.size.lerp(end.size, k)
 		for key in ["rise", "height", "pitch", "curve", "overhang"]:
 			to[key] = lerpf(start[key], end[key], k)
-		tool.stand_build(to)
+		tool.stand_build(to))
 	if tool.held != null:
 		tool.end_build()
 
@@ -511,20 +517,18 @@ func _lift_wall(s: Dictionary) -> void:
 func _grip(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var w := _wall_of(s)
-	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
 	for n in int(s.get("times", 1)):
 		var metres: float = s.get("metres", 1.0) * (1.0 if n % 2 == 0 else -1.0)
 		tool.take_build(w)
 		var start: Dictionary = tool.held_at.duplicate()
-		for f in frames:
-			await get_tree().process_frame
-			var up := metres * smoothstep(0.0, 1.0, float(f + 1) / frames)
+		await _over(s, 1.0, func(k: float) -> void:
+			var up := metres * smoothstep(0.0, 1.0, k)
 			var to := start.duplicate()
 			if s.get("roof", false):
 				to.pitch = RoofLayout.snap_pitch(start.pitch + up, WallTool.ROOF_STEP)
 			else:
 				to.height = maxf(start.height + snappedf(up, WallLayout.COURSE), WallLayout.MIN_HEIGHT)
-			tool.stand_build(to)
+			tool.stand_build(to))
 		if tool.held != null:
 			tool.end_build()
 		await _standing()
@@ -552,11 +556,9 @@ func _grow(s: Dictionary) -> void:
 	for m: WallTool.Mason in [right, left]:
 		m.hand.global_position = mid + Vector3.RIGHT * (1.0 if m == right else -1.0)
 		tool.begin_grow(m, trunk, m.hand.global_transform, at)
-	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
-	for f in frames:
-		await get_tree().process_frame
-		var half: float = 1.0 + s.metres * 0.5 * smoothstep(0.0, 1.0, float(f + 1) / frames)
-		tool.drag_pair(left, mid + Vector3.RIGHT * half, mid + Vector3.LEFT * half)
+	await _over(s, 1.0, func(k: float) -> void:
+		var half: float = 1.0 + s.metres * 0.5 * smoothstep(0.0, 1.0, k)
+		tool.drag_pair(left, mid + Vector3.RIGHT * half, mid + Vector3.LEFT * half))
 	if s.has("capture"):
 		await main.capture(s.capture)
 	tool.end_grow(left)
@@ -576,12 +578,10 @@ func _carry(s: Dictionary) -> void:
 	tool.begin_grow(m, b, from, rock.get("point", b.position))
 	var move: Array = s.get("move", [0, 0, 0])
 	var turn: Array = s.get("turn", [0, 0, 0])
-	var frames := maxi(1, ceili(s.get("seconds", 1.0) * 60.0))
-	for f in frames:
-		await get_tree().process_frame
-		var k := smoothstep(0.0, 1.0, float(f + 1) / frames)
+	await _over(s, 1.0, func(done: float) -> void:
+		var k := smoothstep(0.0, 1.0, done)
 		var basis := Basis.from_euler(Vector3(deg_to_rad(turn[0]), deg_to_rad(turn[1]), deg_to_rad(turn[2])) * k)
-		m.sizing.follow.call(m, Transform3D(basis, from.origin + Vector3(move[0], move[1], move[2]) * k))
+		m.sizing.follow.call(m, Transform3D(basis, from.origin + Vector3(move[0], move[1], move[2]) * k)))
 	if s.has("capture"):
 		await main.capture(s.capture)
 	tool.end_grow(m)
