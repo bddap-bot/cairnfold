@@ -200,9 +200,7 @@ func _a_house_has_one_floor_however_tall() -> void:
 	for h in [2.4, 7.2, 12.0]:
 		check(_house(Terrain.flat, 0.0, false, h).floor_y != -INF, "a %.1f m house lays one floor, at its foot" % h)
 	check(_house(Terrain.flat, 1.5, true, 7.2).floor_y != -INF, "a raised plastered house lays one floor")
-	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "height": 7.2, "rise": 0.0, "seed": 3, "closed": true, "top": 0, "fence": false,
-		"plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0, "timber_style": 0, "storey_floors": true, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(),
-		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array(), "paint": Palette.plain()}
+	var d := wall_data({"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "height": 7.2, "seed": 3, "closed": true, "storey_floors": true})
 	var kept: Variant = Commands._wall(d)
 	check(kept != null and not kept.has("storey_floors"), "a house asking for a floor at every storey is taken with that dropped: %s" % [kept])
 	var state := {"walls": {1: kept}}
