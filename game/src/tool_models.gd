@@ -45,6 +45,9 @@ static var _boulder_preview: MultiMesh
 ## The pieces of each build style's miniature, by its `style` arguments: laying out its walls and roof in script on
 ## every opening of the style wheel held a Quest's frame for hundreds of milliseconds, and it is the same every time.
 static var _styled := {}
+## Each mesh `bake` has read or built, by mesh, as its surface arrays: reading a mesh's arrays back from the GPU stalls
+## the frame for every frame in flight, a Quest's style wheel hundreds of milliseconds on its first opening.
+static var _arrays := {}
 
 
 static func build(tool: Hand.Tool) -> Node3D:
@@ -328,12 +331,21 @@ static func _charcoal(length: float) -> ArrayMesh:
 ## `parts` ([mesh, transform, colour] each, a null colour keeping the mesh's own) as one mesh coloured by vertex, drawn
 ## in one call.
 static func bake(parts: Array) -> ArrayMesh:
+	var arrays := bake_arrays(parts)
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	_arrays[mesh] = arrays
+	return mesh
+
+
+## What `bake` makes of `parts`, as surface arrays.
+static func bake_arrays(parts: Array) -> Array:
 	var verts := PackedVector3Array()
 	var normals := PackedVector3Array()
 	var colours := PackedColorArray()
 	var index := PackedInt32Array()
 	for part: Array in parts:
-		var arrays := (part[0] as Mesh).surface_get_arrays(0)
+		var arrays := _arrays_of(part[0])
 		var t: Transform3D = part[1]
 		var normal := t.basis.inverse().transposed()
 		var base := verts.size()
@@ -355,9 +367,13 @@ static func bake(parts: Array) -> ArrayMesh:
 	arrays[Mesh.ARRAY_NORMAL] = normals
 	arrays[Mesh.ARRAY_COLOR] = colours
 	arrays[Mesh.ARRAY_INDEX] = index
-	var mesh := ArrayMesh.new()
-	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	return mesh
+	return arrays
+
+
+static func _arrays_of(mesh: Mesh) -> Array:
+	if not _arrays.has(mesh):
+		_arrays[mesh] = (mesh as PrimitiveMesh).get_mesh_arrays() if mesh is PrimitiveMesh else mesh.surface_get_arrays(0)
+	return _arrays[mesh]
 
 
 ## The mesh `make` builds, built once under `key`: every easel and hand holding the same kit shares its geometry, so
@@ -758,7 +774,7 @@ static func _stones(root: Node3D, stones: Array[Dictionary], scale: float) -> vo
 			colour *= Color(stone.ao, stone.ao, stone.ao)
 			parts.append([Stones.far_mesh(), at, colour])
 		var imported := ImporterMesh.new()
-		imported.add_surface(Mesh.PRIMITIVE_TRIANGLES, bake(parts).surface_get_arrays(0))
+		imported.add_surface(Mesh.PRIMITIVE_TRIANGLES, bake_arrays(parts))
 		imported.generate_lods(60.0, 25.0, [])
 		return imported.get_mesh())
 	_piece(root, mesh, Transform3D(Basis.from_scale(Vector3.ONE * scale), Vector3.ZERO), _vertex_mat("tool_stone", 0.9, false))
