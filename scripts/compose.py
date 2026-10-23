@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes every sound in game/audio: the music sections as three synchronized stems
-each, the meadow bed, the stone sounds, the water sounds and the other action sounds. Deterministic; run under nix-shell."""
+each, the meadow's wind, its birds and its night, the stone sounds, the water sounds and the other action sounds. Deterministic; run under nix-shell."""
 
 import json
 import pathlib
@@ -355,6 +355,8 @@ def effects():
 
 
 def meadow(seconds=48.0):
+    """The wind in the grass, the one bed that turns with the head: the birds and the night's crickets come from
+    `birds` and `night` instead, placed in the world or faded by the hour."""
     n = int(seconds * SR)
     t = np.arange(n) / SR
     out = np.zeros((n, 2))
@@ -366,27 +368,85 @@ def meadow(seconds=48.0):
         hiss = rng.standard_normal(n)
         rustle = _fft_lowpass(hiss, 2600) - _fft_lowpass(hiss, 700)
         out[:, c] = wind / np.std(wind) * 0.05 + rustle / np.std(rustle) * 0.008 * gust**2
-    for _ in range(9):
-        at = rng.uniform(0, seconds - 1.5)
-        call = _bird()
-        start = int(at * SR)
-        out[start : start + len(call)] += _pan(call, rng.uniform(-0.8, 0.8))
-    fade = int(4 * SR)
+    return _loop(out, 4.0)
+
+
+def _loop(x, fade_seconds):
+    fade = int(fade_seconds * SR)
     # Crossfade the end into the start so the loop point is inaudible.
-    ramp = np.linspace(0, 1, fade)[:, None]
-    out[:fade] = out[:fade] * ramp + out[-fade:] * (1 - ramp)
-    return out[:-fade]
+    ramp = np.linspace(0, 1, fade)[:, None] if x.ndim == 2 else np.linspace(0, 1, fade)
+    x[:fade] = x[:fade] * ramp + x[-fade:] * (1 - ramp)
+    return x[:-fade]
+
+
+# ---------------------------------------------------------------- birds and the night
+
+# Their own generators, so changing one changes no other sound.
+brng = np.random.default_rng(43)
+nrng = np.random.default_rng(47)
 
 
 def _bird():
     notes = []
-    base = rng.uniform(1700, 2400)
-    for k in range(rng.integers(2, 5)):
-        t = _t(rng.uniform(0.07, 0.14))
-        f = base * (1 + 0.25 * np.sin(np.pi * t / t[-1])) * rng.uniform(0.9, 1.1)
+    base = brng.uniform(1700, 2400)
+    for k in range(brng.integers(2, 5)):
+        t = _t(brng.uniform(0.07, 0.14))
+        f = base * (1 + 0.25 * np.sin(np.pi * t / t[-1])) * brng.uniform(0.9, 1.1)
         notes.append(np.sin(2 * np.pi * np.cumsum(f) / SR) * np.sin(np.pi * t / t[-1]) ** 2)
-        notes.append(np.zeros(int(rng.uniform(0.04, 0.09) * SR)))
-    return np.concatenate(notes) * 0.012
+        notes.append(np.zeros(int(brng.uniform(0.04, 0.09) * SR)))
+    return np.concatenate(notes)
+
+
+def _hoot(f0):
+    """A tawny owl's soft hoo, hoo-oo: low sines with a little second harmonic, swelling and falling in pitch."""
+    parts = []
+    for seconds, gap, fall in ((0.38, 0.55, 0.04), (0.22, 0.12, 0.02), (0.75, 0.0, 0.08)):
+        t = _t(seconds)
+        f = f0 * (1 + fall * np.sin(np.pi * t / t[-1]) - fall * t / t[-1])
+        ph = 2 * np.pi * np.cumsum(f) / SR
+        env = np.sin(np.pi * t / t[-1]) ** 1.5
+        parts.append((np.sin(ph) + 0.12 * np.sin(2 * ph)) * env)
+        parts.append(np.zeros(int(gap * SR)))
+    return _fft_lowpass(np.concatenate(parts), 1200)
+
+
+def birds():
+    """Short calls played one at a time out in the world (Soundscape): a phrase of one to three songs by day, an
+    owl's hoot at night."""
+    calls = {}
+    for i in range(8):
+        phrase = []
+        for _ in range(brng.integers(1, 4)):
+            phrase += [_bird(), np.zeros(int(brng.uniform(0.15, 0.5) * SR))]
+        calls[f"song{i}"] = _fft_lowpass(np.concatenate(phrase), 3600)
+    for i in range(3):
+        calls[f"hoot{i}"] = _hoot(brng.uniform(330, 420))
+    return calls
+
+
+def night(seconds=40.0):
+    """The night's bed: crickets far off over the meadow, soft chirps of a few pulses each, every voice on its own
+    beat and swelling and fading slowly. Pitched low for crickets, about 2 kHz, and low-passed there, so nothing
+    rings."""
+    n = int(seconds * SR)
+    t = np.arange(n) / SR
+    out = np.zeros((n, 2))
+    for v in range(7):
+        carrier = nrng.uniform(1800, 2300)
+        tone = np.sin(2 * np.pi * carrier * t + nrng.uniform(0, 6.28))
+        gate = np.zeros(n)
+        period = nrng.uniform(0.7, 1.3)
+        at = nrng.uniform(0, period)
+        while at < seconds - 0.2:
+            for k in range(nrng.integers(2, 5)):
+                s = int((at + k * 0.034) * SR)
+                w = int(0.018 * SR)
+                gate[s : s + w] += np.sin(np.pi * np.arange(w) / w) ** 2
+            at += period * nrng.uniform(0.9, 1.1)
+        swell = 0.35 + 0.65 * np.sin(2 * np.pi * t / seconds * nrng.integers(1, 4) + nrng.uniform(0, 6.28)) ** 2
+        out += _pan(tone * gate * swell, nrng.uniform(-0.9, 0.9))
+    out = _fft_lowpass(out, 2000, 3)
+    return _loop(out, 3.0)
 
 
 # ---------------------------------------------------------------- water
@@ -683,6 +743,11 @@ def main():
         write_ogg(fx / f"{name}.ogg", x / np.abs(x).max() * 0.6)
     for name, x in actions().items():
         write_ogg(fx / f"{name}.ogg", x / np.abs(x).max() * 0.7)
+    (ROOT / "birds").mkdir(exist_ok=True)
+    for name, x in birds().items():
+        write_ogg(ROOT / "birds" / f"{name}.ogg", x / np.abs(x).max() * 0.7)
+    crickets = night()
+    write_ogg(ROOT / "night.ogg", crickets / np.abs(crickets).max() * 0.5, 2)
     lap = lapping()
     write_ogg(ROOT / "lap.ogg", lap / np.abs(lap).max() * 0.6, 2)
     print(f"audio: {ROOT}")

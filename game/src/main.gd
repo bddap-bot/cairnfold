@@ -142,7 +142,7 @@ func _ready() -> void:
 	add_child(BirdCarry.new(rig, wildlife.birds, easel_tool))
 	fish = wildlife.fish
 	session.feed = feed_tool
-	sound = Soundscape.new(tool, flora_tool)
+	sound = Soundscape.new(tool, flora_tool, rig, look, wildlife.rng.seed + 9)
 	add_child(Cues.new())
 	add_child(Warmup.new([ToolModels.prepare_styles, easels.warm, PondWater.prepare]))
 	add_child(sound)
