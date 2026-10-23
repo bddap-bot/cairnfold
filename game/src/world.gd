@@ -394,8 +394,9 @@ static func _write(path: String, bytes: PackedByteArray) -> void:
 
 ## The first hit of each of `kinds`, an ordered {Kind: reach}, along the ray from `origin` along `dir`, as its own pick
 ## gives it, by kind and nearest last: each kind in turn gives its first hit short of its reach and of the nearest hit
-## before it, or at that hit for a kind in `ties`, so the order says which kind keeps a tie; a boulder keeps one too, as
-## its pick does. `skip` holds the plants, and the easels and boulders by id, to see past.
+## before it, so a kind's hit may lie behind a later kind's. The order says which kind keeps a tie: a kind in `ties`
+## takes one from those before it, as a boulder always does; plants, stairs and stands never do, whatever `ties` says.
+## `skip` holds the plants, and the easels and boulders by id, to see past.
 func pick(origin: Vector3, dir: Vector3, kinds: Dictionary, skip := {}, ties: Array[Kind] = []) -> Dictionary:
 	var hits := {}
 	var near := INF
