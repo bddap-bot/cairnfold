@@ -222,10 +222,8 @@ func turn_to(to: int) -> void:
 	if not _turn.is_empty():
 		at = _turn.to
 		_turn.clear()
-	if to == 1 and at == 0:
-		open()
-	elif absi(to - at) == 1:
-		turn(to - at)
+	if absi(to - at) == 1:
+		_begin(mini(at, to), to - at)
 	else:
 		at = to
 	set_process(not _turn.is_empty())

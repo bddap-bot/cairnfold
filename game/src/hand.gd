@@ -217,7 +217,8 @@ func inventory() -> Array:
 		tree[3] = [people.avatars(), people.friends(), Tool.BOOK]
 	if flat_only:
 		# The book opens only to the other hand's touch, which a flat player's never reaches.
-		return [null, [Tool.CAMERA, Tool.SEEDS], null, tree[3].slice(0, 2), null, null, null, null]
+		var people_slot: Array = tree[3].filter(func(t: Variant) -> bool: return typeof(t) != TYPE_INT or t != Tool.BOOK)
+		return [null, [Tool.CAMERA, Tool.SEEDS], null, people_slot, null, null, null, null]
 	return tree
 
 

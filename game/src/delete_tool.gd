@@ -229,7 +229,7 @@ func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 	var target := aim(origin, dir, cut.plants, _gone(cut))
 	if target.has("decoration"):
 		cut.decorations[target.decoration] = target
-		world.decorations.nodes[target.decoration].visible = false
+		world.decorations.sweep(target.decoration)
 		return target
 	if target.has("fitting"):
 		cut.wall = {}
@@ -392,9 +392,11 @@ func let_go(who: Object) -> void:
 			walls.settle(id)
 		for p: Flora.Plant in plants:
 			p.draw(p.shown())
-		for e: Node3D in cut.easels.values() + cut.boulders.values() + cut.decorations.keys().map(func(id: int) -> Variant: return world.decorations.nodes.get(id)):
+		for e: Node3D in cut.easels.values() + cut.boulders.values():
 			if is_instance_valid(e):
 				e.visible = true
+		for id: int in cut.decorations:
+			world.decorations.unsweep(id)
 	if cmds.is_empty():
 		settle.call()
 	else:

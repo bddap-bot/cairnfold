@@ -837,10 +837,11 @@ func _apply(cmd: Dictionary) -> Dictionary:
 	var mine: bool = cmd.get("by") == me() and cmd.has("token")
 	# An undo or redo carries its own token but no walls in hand.
 	var handed := mine and _done.has(cmd.token)
-	if mine and _ops.get(cmd.token) in ["undo", "redo"]:
+	var op: Variant = _ops.get(cmd.token) if mine else null
+	if op in ["undo", "redo"]:
 		var hand: XRController3D = _hands.get(cmd.token)
 		if hand != null and is_instance_valid(hand):
-			Cues.play(Cues.Act.UNDO if _ops[cmd.token] == "undo" else Cues.Act.REDO, hand.global_position, hand)
+			Cues.play(Cues.Act.UNDO if op == "undo" else Cues.Act.REDO, hand.global_position, hand)
 	if mine and not last:
 		_settle(cmd.token)
 	var inverse := {}
@@ -1249,7 +1250,7 @@ func restore(snap: Dictionary) -> int:
 		flora.clear_ghosts()
 		stacks.clear()
 		touched.clear()
-		for t in _done.keys():
+		for t in _ops.keys():
 			_settle(t)
 		restored.emit()
 		return _rebuild(snap.cmds))

@@ -97,11 +97,10 @@ static func valid(s: Array) -> bool:
 
 
 func show_state(s: Array) -> void:
-	var turned: bool = not state.is_empty() and not s.is_empty() and state[0] == Kind.BOOK and s[0] == Kind.BOOK and state[1] != s[1]
-	var rebuild: bool = state.is_empty() or s.is_empty() or state[0] != s[0] or (state[1] != s[1] and not turned) or state[5] != s[5]
-	state = s.duplicate()
-	if turned and model != null:
+	var rebuild: bool = state.is_empty() or s.is_empty() or state[0] != s[0] or state[5] != s[5] or state[1] != s[1] and s[0] != Kind.BOOK
+	if not rebuild and state[1] != s[1] and model != null:
 		(model as Book).turn_to(s[1])
+	state = s.duplicate()
 	if rebuild and model != null:
 		remove_child(model)
 		model.queue_free()

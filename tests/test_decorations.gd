@@ -103,6 +103,9 @@ func _run() -> void:
 	var node: Node3D = main.world.decorations.nodes[torch.decoration]
 	check(main.delete_tool._cuts[self].decorations.has(torch.decoration), "a delete sweep takes the ground torch")
 	check(Cues.asked.get(Cues.Act.DELETE_SWEEP, 0) > swept and not node.visible, "taking it sounds and hides it while the sweep goes on")
+	main.world.decorations._stamp.clear()
+	main.world.decorations.sync()
+	check(not main.world.decorations.nodes[torch.decoration].visible, "it stays hidden when the decorations are laid again mid-sweep")
 	check(main.delete_tool.hold(self, eye, Vector3.FORWARD).get("decoration") != torch.decoration, "and the beam passes through it")
 	main.delete_tool.let_go(self)
 	check(not main.world.state.decorations.has(torch.decoration) and main.world.state.walls.size() == 1, "delete tool removes only the ground torch")

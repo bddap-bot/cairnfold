@@ -3630,7 +3630,7 @@ Every player action, from the code:
 | `SHEET_TEAR` | The sheet is torn off | paper tear | pulse |
 | `PHOTO` | The camera takes a photo (flat players too) | wooden shutter | knock |
 | `VIDEO_START` | Holding the camera's trigger starts a video | two soft knocks rising | two knocks |
-| `VIDEO_STOP` | A video stops: the trigger let go or the camera put away | two soft knocks falling | one long pulse |
+| `VIDEO_STOP` | A video stops: the trigger let go or the camera put away | two soft knocks falling | one firmer knock |
 | `SEEDS_THROW` | A handful of seeds leaves the dish | soft scatter | knock |
 | `BOOK_PAGE` | The picture book opens or turns a page | soft paper swish | light tick |
 | `WHEEL_OPEN` | The tool wheel opens | low tock | tick |

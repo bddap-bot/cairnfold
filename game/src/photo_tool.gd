@@ -276,7 +276,6 @@ func _reserve(ext: String) -> String:
 ## VIDEO_SIZE and keeps its pace, one frame in PREVIEW_EVERY, and each drawing is read back and handed to a worker
 ## thread to be written; the game's sound is taken from the master bus as it plays.
 func record(hand: Hand) -> void:
-	Cues.play(Cues.Act.VIDEO_START, hand.global_position, hand)
 	_clip_path = _reserve("avi")
 	_clip = Avi.open(ProjectSettings.globalize_path(_clip_path), VIDEO_SIZE, VIDEO_FPS, roundi(AudioServer.get_mix_rate()))
 	if _clip == null:
@@ -284,6 +283,7 @@ func record(hand: Hand) -> void:
 		_reserved.erase(_clip_path)
 		_clip_path = ""
 		return
+	Cues.play(Cues.Act.VIDEO_START, hand.global_position, hand)
 	_clip_hand = hand
 	_clip_tool = hand.tool
 	_clip_time = 0.0

@@ -11,6 +11,8 @@ var _shown := {}
 ## Decorations a hand carries, as it shows them; moving one moves its node alone.
 var _held := {}
 var _stamp := {}
+## Decorations a delete sweep has taken, hidden until it lets go; the beam passes through them.
+var _swept := {}
 var flames := PackedVector3Array()
 
 
@@ -45,6 +47,7 @@ func sync() -> void:
 		var n := ToolModels.decoration(layout, d.seed)
 		n.transform = (wall.transform if wall != null else Transform3D.IDENTITY) * x
 		n.set_meta(&"bounds", layout.bounds)
+		n.visible = not _swept.has(id)
 		add_child(n)
 		nodes[id] = n
 		_frames[id] = x
@@ -113,10 +116,9 @@ func _gather() -> void:
 func targets() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for id in nodes:
-		var n: Node3D = nodes[id]
-		# One a delete sweep has taken is hidden, and its beam passes through it.
-		if not world.state.decorations.has(id) or not n.visible:
+		if not world.state.decorations.has(id) or _swept.has(id):
 			continue
+		var n: Node3D = nodes[id]
 		var d: Dictionary = world.state.decorations[id]
 		var b: AABB = n.get_meta(&"bounds")
 		out.append({"decoration": id, "fitting": true, "what": "decoration", "index": id, "value": d, "bounds": n.transform * b, "box": b, "inverse": n.transform.affine_inverse(), "wall": walls.find(d.wall), "on_roof": false})
@@ -141,6 +143,18 @@ func show_held(id: int, d: Dictionary) -> void:
 	_flames[id] = PackedVector3Array(Array(layout_flames).map(func(f: Vector3) -> Vector3: return x * (was.affine_inverse() * f)))
 	_frames[id] = x
 	_gather()
+
+
+func sweep(id: int) -> void:
+	_swept[id] = true
+	if nodes.has(id):
+		nodes[id].visible = false
+
+
+## Shows a swept decoration again on the next sync, by when the garden has taken it or kept it.
+func unsweep(id: int) -> void:
+	_swept.erase(id)
+	_stamp.clear()
 
 
 func settle(id: int) -> void:
