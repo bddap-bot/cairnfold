@@ -2,7 +2,7 @@ extends SceneTree
 
 ## Headless checks that the teleport ray lands on whatever solid it meets in the garden, a pitched roof, a tree, a
 ## wall's top, and that what the player stands on and hovers over is the top surface beneath: a wall walk, a flat
-## roof, a platform, stairs and a bridge: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_teleport_solids.gd
+## roof, a platform, stairs and a bridge; and that a wall's face, struck low, lands at its foot and, struck high, floats there: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_teleport_solids.gd
 
 var failures := 0
 var main: Node
@@ -26,6 +26,7 @@ func _run() -> void:
 	_onto_a_pitched_roof(rig, world)
 	_onto_a_tree(rig, world)
 	_onto_a_wall_top(rig, world)
+	_onto_a_wall_face(rig, world)
 	_onto_a_raised_floor(rig, world)
 	_on_a_wall_walk(rig, world)
 	_on_flat_roofs_and_platforms(rig, world)
@@ -130,6 +131,16 @@ func _onto_a_wall_top(rig: Rig, world: World) -> void:
 	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
 
 
+func _onto_a_wall_face(rig: Rig, world: World) -> void:
+	world._order({"op": "wall", "walls": [_wall_data(PackedVector3Array([Terrain.ground(-6, -14), Terrain.ground(6, -14)]))]}, 1)
+	var w: Wall = main.tool.walls[-1]
+	w.lay_now()
+	for s: float in [2.0, 6.0, 10.0]:
+		for up: float in [0.5, 1.45, 1.55, 2.2]:
+			_onto_a_face(rig, w.layout.point_at(s), up)
+	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+
+
 func _onto_a_raised_floor(rig: Rig, world: World) -> void:
 	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(30, 30), Terrain.ground(36, 30), 4.0)))
 	d.closed = true
@@ -171,11 +182,6 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	_stands(Vector3(mid.x, top, mid.z), Flat.STEP_UP, top, "walking along a wall walk, the next step")
 	_stands(Vector3(mid.x, top, mid.z + WallLayout.THICKNESS * 0.5 + 0.1), 0.5, Terrain.height_at(mid.x, mid.z + WallLayout.THICKNESS * 0.5 + 0.1), "a step off the wall walk's side")
 	_stands(Vector3(mid.x, top - 1.0, mid.z), 0.0, Terrain.height_at(mid.x, mid.z), "a point inside the wall, under its walk,")
-	var face_from := Vector3(mid.x, mid.y + 1.6, mid.z + 6.0)
-	rig.aim(_pose(face_from, Vector3(mid.x, top - 0.4, mid.z) - face_from))
-	var foot: Variant = rig.aim_ground
-	_check(foot != null and rig.aim_lift == 0.0 and absf(foot.y - Terrain.height_at(foot.x, foot.z)) < 0.05, "a ray that strikes the wall's face under its walk lands at its foot, not on the face: %s" % [foot])
-	_check(foot != null and foot.z - mid.z > WallLayout.THICKNESS * 0.5 + Rig.STAND_OFF * 0.8, "landing at the face's foot stands clear of the face: %s" % [foot])
 	var gap := l.point_at(9.0)
 	_check(l.standing(9.0) == 0.0, "the ruin breaks the wall to the ground at its middle")
 	_stands(gap + Vector3.UP * top, 0.0, Terrain.height_at(gap.x, gap.z), "over a ruin's gap, a point")
@@ -210,6 +216,33 @@ func _on_a_wall_walk(rig: Rig, world: World) -> void:
 	var along := corner.lerp(side, 0.5)
 	_check(w.layout.walk_under(along + Vector3.UP * (w.layout.height + 1.0)) == -INF, "a house's walls under its roof are no wall walk")
 	world._order({"op": "unwall", "ids": PackedInt32Array([w.id])}, 1)
+
+
+## Aims from 6 m out at the wall's face `up` metres over the floor in front of `mid`: struck within 1.5 m of that floor,
+## the player lands on that floor; higher, they float at the height struck. Either way clear of the face.
+func _onto_a_face(rig: Rig, mid: Vector3, up: float) -> void:
+	var face := mid + Vector3(0, 0, WallLayout.THICKNESS * 0.5)
+	var front := Terrain.ground(face.x, face.z + Rig.STAND_OFF)
+	var from := Vector3(face.x, front.y + 1.6, face.z + 6.0)
+	var dir := (Vector3(face.x, front.y + up, face.z) - from).normalized()
+	var struck: Variant = rig.solid_hit.call(from, dir, 20.0)
+	rig.aim(_pose(from, dir))
+	var g: Variant = rig.aim_ground
+	_check(struck != null and g != null, "a ray %.2f m up the wall's face strikes it and has a target" % up)
+	if struck == null or g == null:
+		return
+	var floor_y := Terrain.height_at(g.x, g.z)
+	var high: bool = struck.y - floor_y > 1.5
+	_check(high == (up > 1.5), "aimed %.2f m up the face, it is struck %.2f m over the floor in front" % [up, struck.y - floor_y])
+	_check(absf(g.y - floor_y) < 0.05, "aimed %.2f m up the face, the target stands over the floor in front: %s" % [up, g])
+	var at: float = g.y + rig.aim_lift
+	if high:
+		_check(absf(at - struck.y) < 0.05, "aimed %.2f m up the face, the player floats where it struck: %.2f for %.2f" % [up, at, struck.y])
+	else:
+		_check(rig.aim_lift < 0.01, "aimed %.2f m up the face, the player lands at its foot, not on the face: up %.2f" % [up, rig.aim_lift])
+	_check(g.z - mid.z > WallLayout.THICKNESS * 0.5 + Rig.STAND_OFF * 0.8, "aimed %.2f m up the face, the target stands clear of it: %s" % [up, g])
+	rig.place(g, rig.aim_lift)
+	_check(absf(rig.global_position.y - at) < 0.01, "let go aimed %.2f m up the face, the player is where the halo showed: %.2f for %.2f" % [up, rig.global_position.y, at])
 
 
 func _on_flat_roofs_and_platforms(rig: Rig, world: World) -> void:

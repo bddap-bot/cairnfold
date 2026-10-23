@@ -31,8 +31,11 @@ const MAX_LIFT := 40.0
 ## A ray that stops on something solid struck its side, as of a wall, when nothing lies this near straight under where
 ## it stopped.
 const FOOTING := 0.15
-## How far back along a ray that struck a side the player lands, on whatever stands there.
+## How far back along a ray that struck a side the player lands or floats.
 const STAND_OFF := 0.3
+## A side struck at most this far over the floor in front of it lands the player on that floor; higher, they float at
+## the height struck.
+const CLIMB := 1.5
 ## A target this far over its floor floats.
 const LIFTED := 0.15
 const SNAP := deg_to_rad(30.0)
@@ -236,7 +239,7 @@ static func reach_scale(y: float) -> float:
 
 ## Cast the teleport ray from a pointing pose. Its full target is the first solid thing it hits anywhere on the map,
 ## the ground, a roof of any pitch, a wall's top, a tree's crown from above, where the player then stands, or a side,
-## as of a wall, at whose foot they stand; or, aimed above the horizon with nothing on the map to hit, the point in the air AIR_REACH
+## as of a wall, at whose foot they stand if it was struck within CLIMB of the floor there, else floating where it was struck; or, aimed above the horizon with nothing on the map to hit, the point in the air AIR_REACH
 ## along it while that is over the map. The mountains round it are sky to the ray: one that hits nothing on the map has
 ## no target. The target lies `fraction` of the way there along the ray, in the air above the floor short of a hit.
 func aim(from: Transform3D, fraction := 1.0) -> void:
@@ -255,14 +258,16 @@ func aim(from: Transform3D, fraction := 1.0) -> void:
 		return
 	var target := origin.lerp(full, fraction)
 	var stand := target
-	var landing := hit != null and fraction >= 1.0
-	if landing:
+	var g: float = floor_under.call(target)
+	if hit != null and fraction >= 1.0:
 		stand = full
+		g = full.y
 		var back := Vector3(dir.x, 0.0, dir.z)
 		if solid != null and back.length() > 1e-3 and _beneath(full - dir * 0.02) < full.y - FOOTING:
 			stand -= back.normalized() * STAND_OFF
-			stand.y = floor_under.call(stand)
-	var g: float = stand.y if landing else floor_under.call(target)
+			g = floor_under.call(stand)
+			if full.y - g <= CLIMB:
+				stand.y = g
 	aim_ground = Vector3(stand.x, g, stand.z)
 	aim_lift = clampf(stand.y - g, 0.0, MAX_LIFT)
 	if aim_hand != null:
