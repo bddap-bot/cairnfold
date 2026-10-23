@@ -926,7 +926,7 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   disc beside the eye, 2.449 µs a clump and 3.447 µs a flower. The Frame sets one unit: `water`, 1,908.364 µs, its
 lake 1.91 ms over the meadow from the air against the Quest 2's 1.32 ms. Refitted on 0774568 (below), every other
 Frame price fell under the Quest 2's: `fitting`, the Frame's 15.609 µs until then, fits to 3.852 there against the
-Quest 2's 16.415, so the Frame no longer sets it. Each price a record carries (`prices`, added by `scripts/prices.py`) is held by
+Quest 2's 16.415, so the Frame no longer sets it. Each price a record carries (`prices`, added by `scripts/paired.py --price`) is held by
   `tests/test_prices.py`: no unit is charged below the latest one recorded for it. Capacity is the Quest 2's room, every device priced on its table: the 72 Hz calibration
   line of 11.111111111111111 ms less the Quest 2's 6.42 ms base, the meadow without its own trees and bushes plus
   wildlife, rounded down to 4.68 ms. That base is the meadow two costs runs measured, the larger of each view
@@ -1678,7 +1678,7 @@ for as long as it lasted, so shader changes are measured only as separate builds
 Prices refitted on the after build ([costs](../perf/quest-2/costs/20261022T104636Z-eda9e72.json),
 [pondweed](../perf/quest-2/pondweed/)): a tree 26.628 µs and a bush 4.712, both from the costs fit, against the 28.491 and
 5.01 fitted on the build before them. The costs scene's packed discs fall under the refresh rate, so its fit leaves them out; priced directly
-(`scripts/prices.py`), a packed flower costs 3.447 µs and a packed grass clump 2.099 there and up to 2.449 in the
+(`scripts/paired.py --price`), a packed flower costs 3.447 µs and a packed grass clump 2.099 there and up to 2.449 in the
 pondweed scene, where main read 3.3. Grass and flowers are charged those, up from 0.706 and 0.918: the grass charge no
 longer covered main's packed disc, and no packed flower view had been priced before.
 
@@ -3365,7 +3365,7 @@ deep water and irises in the shallows.
   eye than the 0.184 µs a clump grass was charged from the costs scene's pool spread over 20 m: 0.44 µs a pondweed
   clump, 0.71 a land clump. Charged that, 9,400 clumps would reach 13.8 ms of pondweed from above the pond and
   15.8 ms of land grass standing over it, past the 12.5 ms line. So `Budget.COSTS.grass` is the dearest of these,
-  0.706 µs a clump, the land disc standing (`scripts/prices.py` adds each kind's price to its record, and
+  0.706 µs a clump, the land disc standing (`scripts/paired.py --price` adds each kind's price to its record, and
   `tests/test_prices.py` fails while any unit is charged below the latest price recorded for it). A placed clump
   stays one grass unit wherever the water stands, since a pond can rise over it later; land grass's charge covers
   pondweed's. The 1.73 ms room now holds about 2,450 clumps: from above the pond, 9.92 + 1.02 = 10.9 ms; from the bed,
@@ -3441,7 +3441,7 @@ is bare (earth or stone), and the brushes plant nothing there.
     meadow, 5.59, read high, as a fresh launch's first phase does). The viewport's own GPU timer read the same
     pairs 4.62–5.01 against 5.70–5.78, about 1.1 ms; a later run of three pairs read 4.42 against 4.69–5.17, its
     stone seconds swinging between 4.7 and 5.7, so that timer swings with the headset's state, and the charge
-    takes the bench's frame time, as every unit's does (`scripts/prices.py`).
+    takes the bench's frame time, as every unit's does (`scripts/paired.py --price`).
   - `demo/costs.json`'s four strips, 1,281 m², read 5.05 ms from the air and 5.27 standing against the hills'
     4.55 and 4.79 and the paths' 4.57 and 4.67 just before them
     ([record](../perf/quest-2/costs/20261022T150519Z-d4a9c75.json)): at most 0.468 µs a square metre.

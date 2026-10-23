@@ -22,9 +22,6 @@ import re
 import sys
 
 out = sys.argv[1]
-# fill_flora is no build command, so the game does not count these; the pools' sizes are Flora's.
-FLORA = {"grass": {"grass": 12000}, "flowers": {"flower": 4000}, "trees": {"tree": 64}, "bushes": {"bush": 256}}
-FLORA.update({"flowers-wild": FLORA["flowers"], "trees-wild": FLORA["trees"], "grass-dense": FLORA["grass"], "flowers-dense": FLORA["flowers"]})
 # Each phase and the unit it fits, over what earlier phases fitted of its others.
 ORDER = [("grass", "grass"), ("grass-dense", "grass"), ("flowers", "flower"), ("flowers-dense", "flower"), ("trees", "tree"), ("bushes", "bush"), ("walls-r10", "wall_m2"), ("walls-r15", "wall_m2"),
          ("walls-r20", "wall_m2"), ("plaster", "plaster_m2"), ("fences", "fence_m2"), ("ponds", "pond_m2"),
@@ -32,12 +29,18 @@ ORDER = [("grass", "grass"), ("grass-dense", "grass"), ("flowers", "flower"), ("
 WILD = ["flowers-wild", "trees-wild", "fences-wild", "ponds-wild"]
 
 units = {}
+# fill_flora is no build command, so the game does not count its plants; the driver prints what they would count as,
+# and those are the units of the phase it fills.
+flora = None
 log = next(p for p in ("godot.log", "logcat.txt") if os.path.exists(os.path.join(out, p)))
 for line in open(os.path.join(out, log), errors="replace"):
+    m = re.search(r"flora: units (\{.*?\})", line)
+    if m:
+        flora = json.loads(m.group(1))
     m = re.search(r"budget: (\S+) units (\{.*?\}) ms", line)
     if m:
-        units[m.group(1)] = json.loads(m.group(2))
-units.update(FLORA)
+        units[m.group(1)] = flora if flora is not None else json.loads(m.group(2))
+        flora = None
 units["base"] = {}
 
 d = json.load(open(os.path.join(out, "metrics.json")))
@@ -89,7 +92,7 @@ print(f"lake over the meadow: {', '.join(f'{x:+.2f}' for x in lake)} ms", file=s
 water = max(lake)
 wild = sum(max([extra for extra, _ in extras(phase, None)] + [0.0]) for phase in WILD)
 meadow = [gpu[f"meadow/{v}"] for v in views if f"meadow/{v}" in gpu and f"meadow/{v}" not in halved]
-line = {"budget_ms": "1000.0 / REFRESH_HZ * Quality.Governor.LINE", "base_ms": round(max([*base.values(), *meadow]) + wild, 2),
-        **{k: round(v, 3) for k, v in cost.items()}, "water": round(water * 1000.0, 3), "timber": "TIMBER_US", "arch": "ARCH_US", "moss": f"{round(cost['flower'], 3)} * MOSS_FLOWERS"}
-text = ", ".join(f'"{k}": {v}' for k, v in line.items())
-print(text)
+line = {**{k: round(v, 3) for k, v in cost.items()}, "water": round(water * 1000.0, 3), "timber": "TIMBER_US", "arch": "ARCH_US", "moss": f"{round(cost['flower'], 3)} * MOSS_FLOWERS"}
+print(", ".join(f'"{k}": {v}' for k, v in line.items()))
+base_ms = max([*base.values(), *meadow]) + wild
+print(f"base {base_ms:.2f} ms, room {d['info']['budget']['gpu_ms'] - base_ms:.2f} ms under the {d['info']['budget']['gpu_ms']:.2f} ms line")
