@@ -48,7 +48,7 @@ func _initialize() -> void:
 			check(absf(s.position.y - Terrain.height_at(s.position.x, s.position.z)) < 0.0001, "foot stays on bed")
 			check(snails._wet(s.pond, s.position), "stays submerged")
 	check(moved > 0.2 and moved < 1.0, "slow sustained crawl: %.3f m" % moved)
-	print("snail_cost: %d animals; 3600 ticks simulation only: %.3f ms/tick; %d triangles/animal; one draw; travel %.3f m" % [snails.crawling.size(), elapsed / 3600000.0, snails.mm.mesh.get_surface_count() * snails.mm.mesh.surface_get_array_len(0) / 3, moved])
+	print("snail_cost: %d animals; 3600 ticks simulation only: %.3f ms/tick; %d triangles/animal; one draw; travel %.3f m" % [snails.crawling.size(), elapsed / 3600000.0, snails.crowd.multimesh.mesh.get_surface_count() * snails.crowd.multimesh.mesh.surface_get_array_len(0) / 3, moved])
 	water.reset()
 	await process_frame
 	snails.tick(0.1)

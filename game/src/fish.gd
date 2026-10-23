@@ -31,7 +31,6 @@ const DART_FOR := 0.9
 const ARRIVED := 0.05
 const FADE := 1.5
 const LENGTH := 0.24
-const STRIDE := 20
 ## In a frenzy: how fast a fish darts at the seeds, how far its mouth reaches for a grain, the seconds between its
 ## bites, and how far under the surface its middle comes up to bite, its nose tilted up to the grain.
 const FRENZY := 0.6
@@ -48,8 +47,7 @@ const COLOURS: Array[Color] = [Color(1.0, 0.47, 0.12), Color(1.0, 0.95, 0.86), C
 
 var wildlife: Wildlife
 var rng := RandomNumberGenerator.new()
-var mm := MultiMesh.new()
-var mat := ShaderMaterial.new()
+var crowd: Crowd
 var swimming: Array[One] = []
 ## How many fish each pond is to have, worked out again whenever the ponds change.
 var _want := {}
@@ -57,7 +55,6 @@ var _want := {}
 var _came := {}
 var _due := {}
 var _layouts := []
-var _buffer := PackedFloat32Array()
 
 
 class One:
@@ -81,24 +78,14 @@ class One:
 func _init(home: Wildlife, seed: int) -> void:
 	wildlife = home
 	rng.seed = seed
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.use_custom_data = true
-	mm.mesh = body()
-	mm.instance_count = CAP
-	mm.visible_instance_count = 0
-	Terrain.lift(mm, Terrain.bounds())
-	_buffer.resize(CAP * STRIDE)
 	var water: Shader = load("res://src/water.gdshader")
+	var mat := ShaderMaterial.new()
 	mat.shader = load("res://src/fish.gdshader")
 	for tint in ["shallow", "deep"]:
 		mat.set_shader_parameter(tint, RenderingServer.shader_get_parameter_default(water.get_rid(), tint))
 	mat.render_priority = 1
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	mmi.material_override = mat
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mmi)
+	crowd = Crowd.new(body(), CAP, mat, true)
+	add_child(crowd)
 
 
 ## A fish LENGTH long along +z, nose at -z: a closed round body tapering to the tail, a tail fanned flat like a koi's
@@ -375,21 +362,5 @@ func _upload() -> void:
 	for i in swimming.size():
 		var f := swimming[i]
 		var b := Basis(Vector3.UP, f.heading + PI) * Basis(Vector3.RIGHT, f.pitch)
-		var at := i * STRIDE
-		for r in 3:
-			for c in 3:
-				_buffer[at + r * 4 + c] = b[c][r]
-		_buffer[at + 3] = f.at.x
-		_buffer[at + 7] = f.at.y
-		_buffer[at + 11] = f.at.z
-		_buffer[at + 12] = f.tint.r
-		_buffer[at + 13] = f.tint.g
-		_buffer[at + 14] = f.tint.b
-		_buffer[at + 15] = 1.0
-		_buffer[at + 16] = f.phase
-		_buffer[at + 17] = f.speed / CRUISE
-		_buffer[at + 18] = f.shown
-		_buffer[at + 19] = 0.0
-	if not swimming.is_empty() or mm.visible_instance_count > 0:
-		mm.buffer = _buffer
-	mm.visible_instance_count = swimming.size()
+		crowd.put(i, Transform3D(b, f.at), Color(f.phase, f.speed / CRUISE, f.shown, 0.0), f.tint)
+	crowd.upload(swimming.size())

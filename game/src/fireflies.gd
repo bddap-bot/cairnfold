@@ -17,19 +17,17 @@ const BLOOM_SPREAD := 1.3
 const FADE := 2.0
 const REFRESH := 1.0
 const SIZE := 0.22
-const STRIDE := 16
 
 var wildlife: Wildlife
 var sky: Look
 var rng := RandomNumberGenerator.new()
-var mm := MultiMesh.new()
+var crowd: Crowd
 var mat := ShaderMaterial.new()
 ## Spots by habitat key: each a Vector4 of position and the clock time it came, or went if negative.
 var spots := {}
 ## Starts a fade in, so a death back-dated to its fade-in's brightness still lies in the past.
 var _clock := FADE
 var _since := INF
-var _buffer := PackedFloat32Array()
 
 
 class Habitat:
@@ -45,22 +43,12 @@ func _init(home: Wildlife, light: Look, seed: int) -> void:
 	wildlife = home
 	sky = light
 	rng.seed = seed
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_custom_data = true
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE
-	mm.mesh = quad
-	mm.instance_count = CAP
-	mm.visible_instance_count = 0
-	Terrain.lift(mm, Terrain.bounds())
-	_buffer.resize(CAP * STRIDE)
 	mat.shader = load("res://src/firefly.gdshader")
 	mat.set_shader_parameter("fade", FADE)
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
-	mmi.material_override = mat
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mmi)
+	crowd = Crowd.new(quad, CAP, mat)
+	add_child(crowd)
 
 
 ## 0 in daylight to 1 once the sun is well down.
@@ -85,7 +73,7 @@ func tick(delta: float) -> void:
 	_clock += delta
 	_since += delta
 	if not active() and spots.is_empty():
-		mm.visible_instance_count = 0
+		crowd.multimesh.visible_instance_count = 0
 		return
 	if _since >= REFRESH:
 		_since = 0.0
@@ -167,17 +155,6 @@ func _upload() -> void:
 	var i := 0
 	for k in spots:
 		for s: Vector4 in spots[k]:
-			var at := i * STRIDE
-			for r in 3:
-				for c in 3:
-					_buffer[at + r * 4 + c] = SIZE if r == c else 0.0
-			_buffer[at + 3] = s.x
-			_buffer[at + 7] = s.y
-			_buffer[at + 11] = s.z
-			_buffer[at + 12] = s.w
-			_buffer[at + 13] = fposmod(s.x * 12.9898 + s.z * 78.233, 1.0) * 100.0
-			_buffer[at + 14] = 0.0
-			_buffer[at + 15] = 0.0
+			crowd.put(i, Transform3D(Basis.from_scale(Vector3.ONE * SIZE), Vector3(s.x, s.y, s.z)), Color(s.w, fposmod(s.x * 12.9898 + s.z * 78.233, 1.0) * 100.0, 0.0, 0.0))
 			i += 1
-	mm.buffer = _buffer
-	mm.visible_instance_count = i
+	crowd.upload(i)

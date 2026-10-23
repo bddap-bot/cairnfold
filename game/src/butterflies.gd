@@ -34,16 +34,13 @@ const BASK_HZ := 0.5
 ## Wing angle about which a beat swings, and how far, in flight and perched.
 const FLIGHT_WINGS := Vector2(0.3, 1.0)
 const PERCH_WINGS := Vector2(0.65, 0.6)
-## Floats per instance in the MultiMesh buffer: a 3x4 transform, a colour, custom data.
-const STRIDE := 20
 
 var wildlife: Wildlife
 var butterflies: Array[Butterfly] = []
 ## Each patch with enough blooms, by its cell, as (x, head height above the ground, z) per bloom.
 var patches := {}
 var rng := RandomNumberGenerator.new()
-var mm := MultiMesh.new()
-var _buffer := PackedFloat32Array()
+var crowd: Crowd
 ## The next painted slot to look at, or -1 to start over.
 var _next := -1
 var _filling := {}
@@ -74,21 +71,10 @@ class Butterfly:
 func _init(home: Wildlife, seed: int) -> void:
 	wildlife = home
 	rng.seed = seed
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_colors = true
-	mm.use_custom_data = true
-	mm.mesh = Meshes.butterfly()
-	mm.instance_count = CAP
-	mm.visible_instance_count = 0
-	Terrain.lift(mm, Terrain.bounds())
-	_buffer.resize(CAP * STRIDE)
-	var mmi := MultiMeshInstance3D.new()
-	mmi.multimesh = mm
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://src/butterfly.gdshader")
-	mmi.material_override = mat
-	mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(mmi)
+	crowd = Crowd.new(Meshes.butterfly(), CAP, mat, true)
+	add_child(crowd)
 
 
 ## Patches that no butterfly is staying at: where an arrival may be due.
@@ -244,24 +230,11 @@ func _move(b: Butterfly, delta: float) -> void:
 		b.yaw = lerp_angle(b.yaw, atan2(-b.vel.x, -b.vel.z), 1.0 - exp(-6.0 * delta))
 
 
-## Writes every butterfly into the MultiMesh in one buffer upload.
 func _upload() -> void:
-	mm.visible_instance_count = butterflies.size()
 	for i in butterflies.size():
 		var b := butterflies[i]
 		var wings := FLIGHT_WINGS.lerp(PERCH_WINGS, b.settled)
 		var o := b.at + Vector3.UP * 0.012 * sin(b.phase) * (1.0 - b.settled)
 		var x := Basis(Vector3.UP, b.yaw).scaled(Vector3.ONE * b.size)
-		var k := i * STRIDE
-		for r in 3:
-			_buffer[k + r * 4] = x.x[r]
-			_buffer[k + r * 4 + 1] = x.y[r]
-			_buffer[k + r * 4 + 2] = x.z[r]
-			_buffer[k + r * 4 + 3] = o[r]
-		for c in 4:
-			_buffer[k + 12 + c] = b.color[c]
-		_buffer[k + 16] = b.phase
-		_buffer[k + 17] = wings.y
-		_buffer[k + 18] = wings.x
-		_buffer[k + 19] = b.stalk * b.settled
-	mm.buffer = _buffer
+		crowd.put(i, Transform3D(x, o), Color(b.phase, wings.y, wings.x, b.stalk * b.settled), b.color)
+	crowd.upload(butterflies.size())

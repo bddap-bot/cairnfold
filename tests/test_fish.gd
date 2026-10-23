@@ -146,7 +146,7 @@ func _they_swim_in_the_ponds() -> void:
 	var fish := wildlife.fish
 
 	wildlife.tick(STEP)
-	check(fish.swimming.size() == 0 and fish.mm.visible_instance_count == 0, "no pond, no fish")
+	check(fish.swimming.size() == 0 and fish.crowd.multimesh.visible_instance_count == 0, "no pond, no fish")
 
 	await GladeBase.dig(tool, 3, -4)
 	await GladeBase.dig(tool, 4.5, -4)
@@ -157,7 +157,7 @@ func _they_swim_in_the_ponds() -> void:
 	var n := fish.swimming.size()
 	check(n >= 1 and n <= Fish.PER_POND, "a pond has a few fish, %d" % n)
 	check(n >= 1 and fish.swimming.all(func(f: Fish.One) -> bool: return f.shown >= 1.0), "a while later they have come, faded in")
-	check(fish.mm.visible_instance_count == n, "each is drawn")
+	check(fish.crowd.multimesh.visible_instance_count == n, "each is drawn")
 	check(_in_water(fish, water), "under the surface, over the ground")
 
 	var start := fish.swimming.map(func(f: Fish.One) -> Vector3: return f.at)

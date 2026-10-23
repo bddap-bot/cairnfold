@@ -54,13 +54,13 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	water.ponds[0]._process(PondWater.FILL)
 	look.set_time(Daylight.DEFAULT)
 	_run(wildlife, 5.0)
-	check(ff.count() == 0 and ff.mm.visible_instance_count == 0, "none by day")
+	check(ff.count() == 0 and ff.crowd.multimesh.visible_instance_count == 0, "none by day")
 
 	look.set_time(0.77)
 	_run(wildlife, 3.0)
 	var n := ff.count()
 	check(n >= Fireflies.PER_HABITAT.x and n <= Fireflies.PER_HABITAT.y, "a pond at dusk has its fireflies, %d" % n)
-	check(ff.mm.visible_instance_count == n, "each is drawn")
+	check(ff.crowd.multimesh.visible_instance_count == n, "each is drawn")
 	var pond := water.ponds[0]
 	var near := true
 	for k in ff.spots:
@@ -81,7 +81,7 @@ func _they_come_out_at_dusk_over_what_is_made() -> void:
 	_run(wildlife, 1.5)
 	check(ff.count() == n and ff.spots.values().all(func(l: Array) -> bool: return l.all(func(s: Vector4) -> bool: return s.w < 0.0)), "in winter they fade out")
 	_run(wildlife, Fireflies.FADE + 1.5)
-	check(ff.count() == 0 and ff.mm.visible_instance_count == 0, "and are gone once faded")
+	check(ff.count() == 0 and ff.crowd.multimesh.visible_instance_count == 0, "and are gone once faded")
 	palette.season = Palette.SUMMER
 	_run(wildlife, 1.5)
 	check(ff.count() >= Fireflies.PER_HABITAT.x, "summer brings them back")

@@ -10,7 +10,7 @@ const DEPTH := 0.12
 var wildlife: Wildlife
 var rng := RandomNumberGenerator.new()
 var crawling: Array[One] = []
-var mm := MultiMesh.new()
+var crowd: Crowd
 var _due := {}
 var _came := {}
 
@@ -24,19 +24,10 @@ class One extends Node3D:
 func _init(home: Wildlife, seed: int) -> void:
 	wildlife = home
 	rng.seed = seed
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	mm.use_custom_data = true
-	mm.mesh = body()
-	mm.instance_count = CAP
-	mm.visible_instance_count = 0
-	Terrain.lift(mm, Terrain.bounds())
-	var draw := MultiMeshInstance3D.new()
-	draw.multimesh = mm
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://src/snails.gdshader")
-	draw.material_override = mat
-	draw.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(draw)
+	crowd = Crowd.new(body(), CAP, mat)
+	add_child(crowd)
 
 static func body() -> ArrayMesh:
 	var st := SurfaceTool.new()
@@ -137,9 +128,8 @@ func tick(delta: float) -> void:
 		var right := normal.cross(s.basis.z).normalized()
 		s.basis = Basis(right, normal, right.cross(normal))
 		s.shown = minf(s.shown + delta / 1.5, 1.0)
-		mm.set_instance_transform(i, s.transform)
-		mm.set_instance_custom_data(i, Color(s.phase, s.shown, 0, 0))
-	mm.visible_instance_count = crawling.size()
+		crowd.put(i, s.transform, Color(s.phase, s.shown, 0, 0))
+	crowd.upload(crawling.size())
 
 static func wanted(p: PondWater, share: int) -> int:
 	return clampi(p.pond.cells.size() / CELLS_EACH, mini(1, share), mini(PER_POND, share))
