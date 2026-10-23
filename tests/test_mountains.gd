@@ -27,6 +27,8 @@ func _run() -> void:
 	var l := Mountains.arrays(true)
 	_every_face_faces_the_garden(l[Mesh.ARRAY_VERTEX], l[Mesh.ARRAY_NORMAL], l[Mesh.ARRAY_INDEX])
 	_the_lake_stands_under_the_meadow_and_over_the_feet(l[Mesh.ARRAY_VERTEX])
+	_the_ground_and_the_plain_share_the_banks_foot(verts)
+	_the_ground_and_the_plain_share_the_banks_foot(l[Mesh.ARRAY_VERTEX])
 	_the_lake_reaches_past_the_first_ridge()
 	_the_water_mirrors_the_ridges_as_they_stand()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -45,8 +47,9 @@ func _flat(p: Vector3) -> float:
 
 func _the_ranges_read_as_far_from_anywhere_in_the_garden(verts: PackedVector3Array) -> void:
 	var nearest := INF
+	var bank_corner := (Terrain.SIZE * 0.5 + Terrain.BANK) * sqrt(2.0)
 	for p in verts:
-		if _flat(p) > GARDEN_CORNER + 1.0:
+		if _flat(p) > bank_corner + 1.0:
 			nearest = minf(nearest, _flat(p))
 	_check(nearest - GARDEN_CORNER > STEREO_FAR, "past the meadow, the ground stands %.0f m from the garden's corner" % (nearest - GARDEN_CORNER))
 
@@ -138,10 +141,29 @@ func _the_lake_stands_under_the_meadow_and_over_the_feet(verts: PackedVector3Arr
 	var dry := 0
 	for p in verts:
 		var out := maxf(absf(p.x), absf(p.z)) - half
-		if out > 1.0 and out < Mountains.BANK + 1.0:
+		if out > 1.0 and out < Terrain.BANK + 1.0:
 			dry += 1 if p.y >= Mountains.LAKE else 0
 	_check(Mountains.foot_high(true) < Mountains.LAKE, "the ranges' feet stand at %.1f m, over the lake" % Mountains.foot_high(true))
+	_check(Terrain.BANK_FOOT < Mountains.LAKE, "the bank's foot at %.1f m stands out of the lake" % Terrain.BANK_FOOT)
 	_check(dry == 0, "%d points of the bank's foot stand out of the water" % dry)
+
+
+## Every point of the ground's bank's foot is a point of the plain's (or the lake bed's) edge, and the bank ends there,
+## so the two meet with no crack between them however the meadow's edge is reshaped above.
+func _the_ground_and_the_plain_share_the_banks_foot(verts: PackedVector3Array) -> void:
+	var plain := {}
+	for p in verts:
+		plain[p] = true
+	var ground: PackedVector3Array = Terrain.build_mesh().surface_get_arrays(0)[Mesh.ARRAY_VERTEX]
+	var half := Terrain.SIZE * 0.5
+	var feet := 0
+	var missed := 0
+	for p in ground:
+		if maxf(absf(p.x), absf(p.z)) > half:
+			feet += 1
+			missed += 0 if plain.has(p) else 1
+	_check(feet == Terrain.edge(Terrain.BANK).size(), "the ground's bank has %d feet" % feet)
+	_check(missed == 0, "%d of the bank's feet are no point of the plain's edge" % missed)
 
 
 func _the_lake_reaches_past_the_first_ridge() -> void:

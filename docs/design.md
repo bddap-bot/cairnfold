@@ -1821,16 +1821,18 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
   diffuse for soft terminators; foliage backlight for the glowing-leaf look.
 - **Atmosphere:** depth fog with aerial perspective and sun scatter, tinted towards
   the sky, so distant hills fade and the near meadow stays saturated.
-- **Horizon:** two rings of stone-faced mountains, 300 to 2100 m out, with a plain from the
-  meadow's edge to their feet (`Mountains`): one indexed mesh of about 7k triangles in one
+- **Horizon:** the ground's own mesh runs a bank `Terrain.BANK` out from every point of the meadow's edge, read
+  from the heights as they stand so it follows the ground as it is reshaped, down to `Terrain.BANK_FOOT`; from that
+  foot, vertex for vertex, two rings of stone-faced mountains, 300 to 2100 m out, stand with a plain to their feet
+  (`Mountains`): one indexed mesh of about 8k triangles in one
   draw, its top rows cut finer (`Mountains.DETAIL`) so the skyline breaks into crags, its normals smoothed across every fold gentler than `Mountains.CREASE` so the slopes
   shade softly while ridges and crags keep their edge, unshaded, lit and hazed in its own
   shader from the hour's light, casting no shadow.
   They are real geometry far enough off that both eyes and every step through the garden
   see them as distant. The ridges dip where the sun crosses them low, so it rises and sets
   through a pass. The eyes' far clip (`Rig.FAR`) and the sun's disc stand beyond them.
-  Where the frame has room (the ladder's lake rung, "One ladder for every headset"), a lake replaces the plain: a bank drops from the meadow's edge under the water,
-  which stands at `Mountains.LAKE` out past the first ridge, and the ranges' feet sink
+  Where the frame has room (the ladder's lake rung, "One ladder for every headset"), a lake replaces the plain: water stands at `Mountains.LAKE`
+  over the bank's foot out past the first ridge, and the ranges' feet sink
   `Mountains.SUNK` under it, so the water floods their lower slopes and meets them along a
   contour. The water is one opaque, unshaded surface of 256 triangles (`lake.gdshader`) that
   mirrors the ranges without drawing them twice: each fragment follows its reflected ray to

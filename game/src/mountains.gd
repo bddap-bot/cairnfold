@@ -15,17 +15,15 @@ const RANGES := [
 ## Rows from foot to ridge, each its share of the height; the last rows stand steep, a stone face over its talus.
 const ROWS := [0.0, 0.12, 0.3, 0.5, 0.68, 0.84, 1.0]
 const REACH := [0.0, 0.42, 0.66, 0.8, 0.88, 0.95, 1.0]
-## Without the lake a plain runs from the meadow's edge, just under it, out to the first range's foot at this height.
+## Without the lake a plain runs from the meadow's bank (Terrain.BANK) out to the first range's foot at this height.
 const PLAIN_HIGH := 6.0
-## The meadow's edge is sampled RIM_STEP apart, RIM_SAG under the ground.
-const RIM_SAG := 0.5
-const RIM_STEP := 5.0
-## With the lake, water stands round the meadow at LAKE, under every point of the meadow's edge, from a bank BANK out from
-## that edge to past the first range's ridge; the ranges' feet stand SUNK under it, so the water floods their lower slopes
+## With the lake, water stands round the meadow at LAKE, under every point of the meadow's edge and over its bank's
+## foot, out past the first range's ridge; the ranges' feet stand SUNK under it, so the water floods their lower slopes
 ## and meets them along a contour, not at a straight foot. Quality draws it whenever the frame has room for it.
 const LAKE := 3.5
-const BANK := 10.0
 const SUNK := 12.0
+## The water's edge round the meadow's square is cut this far apart.
+const SHORE_STEP := 5.0
 const LAKE_OUT := 600.0
 ## The ridge heights the water mirrors, sampled round the circle (ridge_image).
 const RIDGE_SAMPLES := 512
@@ -104,14 +102,14 @@ static func noise_for(r: Dictionary) -> FastNoiseLite:
 	return n
 
 
-## The bank from the meadow's edge down under the `lake`, or the plain out to the first range's foot, then each range's facing slopes, as one indexed
+## The plain, or the `lake`'s bed, from the meadow's bank's foot out to the first range's foot, then each range's facing slopes, as one indexed
 ## surface whose normals are smoothed across every fold gentler than CREASE. COLOR.r is the height as a share of the
 ## farthest range's highest, COLOR.g the haze of the air in front, COLOR.b where snow may lie.
 static func arrays(lake: bool) -> Array:
 	var corners := PackedVector3Array()
 	var colors := PackedColorArray()
 	var foot := foot_high(lake)
-	_edge(corners, colors, lake, foot)
+	_edge(corners, colors, foot)
 	for r: Dictionary in RANGES:
 		_range(corners, colors, r, foot)
 	return _smooth(corners, colors)
@@ -198,41 +196,27 @@ static func foot_high(lake: bool) -> float:
 	return LAKE - SUNK if lake else PLAIN_HIGH
 
 
-static func _edge(corners: PackedVector3Array, colors: PackedColorArray, lake: bool, foot: float) -> void:
+## Starts at the bank's foot point for point, so the ground's own bank (Terrain.build_mesh) meets it with no crack.
+static func _edge(corners: PackedVector3Array, colors: PackedColorArray, foot: float) -> void:
 	var r: Dictionary = RANGES[0]
-	var rim := _rim()
-	for k in rim.size():
-		var a := rim[k]
-		var b := rim[(k + 1) % rim.size()]
-		var out_a := Vector3(a.x, 0, a.z).normalized()
-		var out_b := Vector3(b.x, 0, b.z).normalized()
-		var fa: Vector3 = Vector3(a.x, LAKE - 1.0, a.z) + out_a * BANK if lake else out_a * (r.radius - r.depth) + Vector3.UP * PLAIN_HIGH
-		var fb: Vector3 = Vector3(b.x, LAKE - 1.0, b.z) + out_b * BANK if lake else out_b * (r.radius - r.depth) + Vector3.UP * PLAIN_HIGH
+	var bank := Terrain.edge(Terrain.BANK)
+	for k in bank.size():
+		var a := Vector3(bank[k].x, Terrain.BANK_FOOT, bank[k].y)
+		var b := Vector3(bank[(k + 1) % bank.size()].x, Terrain.BANK_FOOT, bank[(k + 1) % bank.size()].y)
+		var fa: Vector3 = Vector3(a.x, 0, a.z).normalized() * (r.radius - r.depth) + Vector3.UP * foot
+		var fb: Vector3 = Vector3(b.x, 0, b.z).normalized() * (r.radius - r.depth) + Vector3.UP * foot
 		_face(corners, colors, r, [a, fa, b], foot)
 		_face(corners, colors, r, [b, fa, fb], foot)
-
-
-## The meadow's edge, RIM_STEP apart round its square, RIM_SAG under the ground.
-static func _rim() -> PackedVector3Array:
-	var edge := Terrain.SIZE * 0.5
-	var heights := Terrain.base_heights()
-	var rim := PackedVector3Array()
-	for side in 4:
-		for k in int(Terrain.SIZE / RIM_STEP):
-			var t := -edge + k * RIM_STEP
-			var p: Vector2 = [Vector2(t, -edge), Vector2(edge, t), Vector2(-t, edge), Vector2(-edge, -t)][side]
-			var g := Vector2i(clampi(roundi((p.x + edge) / Terrain.STEP), 0, Terrain.CELLS), clampi(roundi((p.y + edge) / Terrain.STEP), 0, Terrain.CELLS))
-			rim.append(Vector3(p.x, heights[g.y * Terrain.VERTS + g.x] - RIM_SAG, p.y))
-	return rim
 
 
 ## The lake's surface: flat at LAKE from the meadow's edge out to LAKE_OUT.
 static func lake_arrays() -> Array:
 	var verts := PackedVector3Array()
-	var rim := _rim()
-	for k in rim.size():
-		var a := Vector3(rim[k].x, LAKE, rim[k].z)
-		var b := Vector3(rim[(k + 1) % rim.size()].x, LAKE, rim[(k + 1) % rim.size()].z)
+	var shore := Terrain.edge(0.0)
+	var every := int(SHORE_STEP / Terrain.STEP)
+	for k in range(0, shore.size(), every):
+		var a := Vector3(shore[k].x, LAKE, shore[k].y)
+		var b := Vector3(shore[(k + every) % shore.size()].x, LAKE, shore[(k + every) % shore.size()].y)
 		var fa := Vector3(a.x, 0, a.z).normalized() * LAKE_OUT + Vector3.UP * LAKE
 		var fb := Vector3(b.x, 0, b.z).normalized() * LAKE_OUT + Vector3.UP * LAKE
 		verts.append_array([a, b, fa, b, fb, fa])

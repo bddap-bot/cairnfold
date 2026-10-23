@@ -9,6 +9,10 @@ const STEP := 1.0
 const CELLS := int(SIZE / STEP)
 const VERTS := CELLS + 1
 const NO_HUMP := Vector4(0, 0, 1, 0)
+## A bank runs BANK out from every point of the ground's edge, as that point stands now, down to BANK_FOOT, where the
+## plain or the lake's bed (Mountains) begins; the lake stands over the foot, so the water meets the bank.
+const BANK := 10.0
+const BANK_FOOT := 2.5
 
 static var _heights := base_heights()
 ## The humps strokes are pulling, one per hand, not yet baked into the heights: centre x, z, radius and lift.
@@ -397,7 +401,8 @@ static func install() -> void:
 
 ## A box holding the ground and anything standing on it, for meshes the GPU lifts onto the heights.
 static func bounds() -> AABB:
-	return AABB(Vector3(-SIZE * 0.5, _low - 2.0, -SIZE * 0.5), Vector3(SIZE, _high - _low + 32.0, SIZE))
+	var low := minf(_low, BANK_FOOT) - 2.0
+	return AABB(Vector3(-SIZE * 0.5 - BANK, low, -SIZE * 0.5 - BANK), Vector3(SIZE + 2.0 * BANK, _high - low + 30.0, SIZE + 2.0 * BANK))
 
 
 ## Sets `target`'s custom_aabb (a GeometryInstance3D's or a MultiMesh's) to `box`, which spans bounds()' heights,
@@ -465,7 +470,8 @@ static func _sync(cells: Rect2i) -> void:
 		_water_texture.update(_water_image)
 
 
-## A flat grid the terrain shader lifts onto the heights; vertex colour red is how dry the meadow's grass is there.
+## A flat grid the terrain shader lifts onto the heights, ringed by the bank's foot, which it leaves where it lies;
+## vertex colour red is how dry the meadow's grass is there.
 static func build_mesh() -> ArrayMesh:
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
@@ -484,4 +490,38 @@ static func build_mesh() -> ArrayMesh:
 			var d := c + 1
 			st.add_index(a); st.add_index(b); st.add_index(c)
 			st.add_index(b); st.add_index(d); st.add_index(c)
+	var rim := edge(0.0)
+	var foot := edge(BANK)
+	for p in foot:
+		st.set_color(Color(FloraLayout.dryness(Vector3(p.x, 0, p.y)), 0, 0))
+		st.set_normal(Vector3.UP)
+		st.add_vertex(Vector3(p.x, BANK_FOOT, p.y))
+	var n := rim.size()
+	for k in n:
+		var a := _rim_vertex(k)
+		var b := _rim_vertex((k + 1) % n)
+		var c := VERTS * VERTS + k
+		var d := VERTS * VERTS + (k + 1) % n
+		st.add_index(a); st.add_index(c); st.add_index(b)
+		st.add_index(b); st.add_index(c); st.add_index(d)
 	return st.commit()
+
+
+## The points round the ground's edge a STEP apart, starting at its -x, -z corner, each pushed `out` from the edge
+## away from the centre: the bank's top at 0, its foot at BANK.
+static func edge(out: float) -> PackedVector2Array:
+	var half := SIZE * 0.5
+	var points := PackedVector2Array()
+	for side in 4:
+		for k in CELLS:
+			var t := -half + k * STEP
+			var p: Vector2 = [Vector2(t, -half), Vector2(half, t), Vector2(-t, half), Vector2(-half, -t)][side]
+			points.append(p * ((half + out) / half))
+	return points
+
+
+## The grid vertex at edge(0.0)'s `k`th point.
+static func _rim_vertex(k: int) -> int:
+	var side := k / CELLS
+	var t := k % CELLS
+	return [t, t * VERTS + CELLS, CELLS * VERTS + CELLS - t, (CELLS - t) * VERTS][side]

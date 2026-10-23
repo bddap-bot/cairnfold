@@ -37,14 +37,21 @@ varying mediump float pond;
 
 void vertex() {
 	vec3 world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-	VERTEX.y = ground_at(world_pos.xz);
+	vec2 rim = clamp(world_pos.xz, ground_grid.x, -ground_grid.x);
+	vec2 out_to = world_pos.xz - rim;
+	if (dot(out_to, out_to) > 0.0) {
+		// The bank's foot (Terrain.BANK_FOOT) stays where the mesh lays it; it slopes up to the edge as it stands now.
+		NORMAL = normalize(vec3(out_to * (ground_at(rim) - VERTEX.y) / dot(out_to, out_to), 1.0));
+	} else {
+		VERTEX.y = ground_at(world_pos.xz);
+		if (ground_humps[0].w != 0.0 || ground_humps[1].w != 0.0) {
+			NORMAL = ground_normal(world_pos.xz);
+		} else {
+			NORMAL = ground_point_normal(world_pos.xz);
+		}
+	}
 	world_pos.y = VERTEX.y;
 	world_xz = world_pos.xz;
-	if (ground_humps[0].w != 0.0 || ground_humps[1].w != 0.0) {
-		NORMAL = ground_normal(world_pos.xz);
-	} else {
-		NORMAL = ground_point_normal(world_pos.xz);
-	}
 	steep = 1.0 - NORMAL.y;
 	vec3 bounce_at = bounce_on_ground(world_pos.xz);
 	vec4 bounce = textureLod(bounce_volume, bounce_at, 0.0);
