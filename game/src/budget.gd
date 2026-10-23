@@ -159,8 +159,11 @@ static func boulder(scale: float) -> float:
 
 static func stairs(d: Dictionary) -> Dictionary:
 	var run := d.a.distance_to(d.b) as float
-	var railed: bool = d.rail != "none" and StairLayout.classify(d.a, d.b) != StairLayout.Kind.LADDER
-	return {"wall_m2": run * (d.width + (2.0 * StairLayout.RAIL_HEIGHT if railed else 0.0))}
+	var rails := 2.0 * StairLayout.RAIL_HEIGHT * run if StairLayout.railed(d) else 0.0
+	var sides := 0.0
+	if StairLayout.classify(d.a, d.b) == StairLayout.Kind.FLIGHT:
+		sides = Vector2(d.b.x - d.a.x, d.b.z - d.a.z).length() * absf(d.b.y - d.a.y) * 0.5
+	return {"wall_m2": run * d.width + rails + sides}
 
 
 ## A stroke of stone ground: the texels of Ground's mask its discs reach, fade included. Other kinds count nothing.

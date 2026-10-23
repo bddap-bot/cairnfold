@@ -45,7 +45,9 @@ func _run() -> void:
 	check(Commands._stairs(d) != null, "valid stair command")
 	var bare := d.duplicate()
 	bare.rail = "none"
-	check(is_equal_approx(Budget.stairs(bare).wall_m2, 3.0 * d.width), "a flight without railings is charged for its treads alone")
+	check(is_equal_approx(Budget.stairs(bare).wall_m2, 3.0 * d.width), "a landing without railings is charged for its treads alone")
+	var solid := {"a": Vector3.ZERO, "b": Vector3(0, 2, -4), "width": 1.2, "rail": "none"}
+	check(is_equal_approx(Budget.stairs(solid).wall_m2, Vector3(0, 2, -4).length() * 1.2 + 4.0 * 2.0 * 0.5), "a flight is charged for its treads and its solid side, as a wall for one face")
 	check(is_equal_approx(Budget.stairs(d).wall_m2, 3.0 * (d.width + 2.0 * StairLayout.RAIL_HEIGHT)), "railings are charged on a railed flight")
 	var climb := d.duplicate()
 	climb.b = Vector3(0, 3, -0.5)
