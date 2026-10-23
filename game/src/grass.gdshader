@@ -7,20 +7,12 @@ render_mode world_vertex_coords, cull_disabled, diffuse_lambert_wrap, specular_d
 #include "res://src/bounce.gdshaderinc"
 #include "res://src/wind.gdshaderinc"
 #include "res://src/meadow.gdshaderinc"
+#include "res://src/flora_lod.gdshaderinc"
 
 uniform float backlight = 1.0;
 uniform float gust_brighten = 0.22;
 uniform float far_begin = 8.0;
 uniform float far_end = 20.0;
-// Past `draw_reach` Flora draws no meadow grass.
-uniform float draw_reach;
-// Set from Flora's GRASS_ constants, which say what each does.
-uniform float lod_begin;
-uniform float lod_band;
-uniform float survivors;
-uniform float survivors_from;
-// Each clump sinks into the ground over this distance, at a distance set by its rank.
-uniform float sink = 1.5;
 // Survivors spread wider and stand taller across that band, holding the meadow's cover with a quarter of its clumps.
 uniform vec2 survivor_scale = vec2(2.0, 1.25);
 // A camera seeing this layer (Quality.FULL_LAYER) draws every clump whole at every distance.

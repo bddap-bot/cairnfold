@@ -503,14 +503,9 @@ var _blobs := {}
 
 func _init() -> void:
 	grass_mat.shader = load("res://src/grass.gdshader")
-	grass_mat.set_shader_parameter(&"draw_reach", grass_reach)
 	for k in Meadow.GRASS:
 		grass_mat.set_shader_parameter(k, Meadow.GRASS[k])
-	grass_mat.set_shader_parameter(&"lod_begin", GRASS_LOD_BEGIN)
-	grass_mat.set_shader_parameter(&"lod_band", GRASS_LOD_BAND)
-	grass_mat.set_shader_parameter(&"survivors", GRASS_SURVIVORS)
-	grass_mat.set_shader_parameter(&"survivors_from", GRASS_SURVIVORS_FROM)
-	Quality.full_detail(grass_mat)
+	_grass_lod(grass_mat)
 	part(NO_HAND, NO_HAND)
 	var clump := Meshes.grass_clump(CLUMP_BLADES, 1, 3, false, CLUMP_WIDE)
 	var bloom := Meshes.flower(PETALS, Color.WHITE, true)
@@ -595,6 +590,11 @@ func _far_material() -> ShaderMaterial:
 ## Has the ground `mat` paint the grass where its clumps have sunk away.
 func paint_ground(mat: ShaderMaterial) -> void:
 	ground_mat = mat
+	_grass_lod(mat)
+
+
+## Gives `mat` the grass's reach and LOD band (flora_lod.gdshaderinc), so the ground paints the grass where it sinks.
+func _grass_lod(mat: ShaderMaterial) -> void:
 	mat.set_shader_parameter(&"draw_reach", grass_reach)
 	mat.set_shader_parameter(&"lod_begin", GRASS_LOD_BEGIN)
 	mat.set_shader_parameter(&"lod_band", GRASS_LOD_BAND)
