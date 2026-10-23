@@ -13,6 +13,11 @@ const MAX_TRIANGLES := 20000
 ## for each.
 const MAX_SURFACES := 32
 const MAX_TEXTURE := 1024
+## A file's images are measured from their headers, and the file refused past these, before any is decoded: a beacon
+## makes every Quest nearby read the file it names, and a few MB of blank images decode for tens of seconds.
+const MAX_IMAGES := 32
+const MAX_IMAGE_SIDE := 4096
+const MAX_PIXELS := 4 * MAX_IMAGE_SIDE * MAX_IMAGE_SIDE
 ## A built-in VRM 1.0 avatar faces +Z; a Godot camera looks down -Z.
 const FACING := Basis(Vector3.UP, PI)
 const NEEDS: Array[String] = ["hips", "head", "leftHand", "rightHand"]
@@ -97,7 +102,12 @@ static func built_in(i: int) -> PackedScene:
 static func read(bytes: PackedByteArray) -> PackedScene:
 	if bytes.size() > MAX_BYTES:
 		return null
-	var model := Vrm.read(bytes, _shape, _shrink, _rigid)
+	var seen := {"images": 0, "pixels": 0}
+	var fits := func(size: Vector2i) -> bool:
+		seen.images += 1
+		seen.pixels += size.x * size.y
+		return maxi(size.x, size.y) <= MAX_IMAGE_SIDE and seen.images <= MAX_IMAGES and seen.pixels <= MAX_PIXELS
+	var model := Vrm.read(bytes, fits, _shape, _shrink, _rigid)
 	if model == null:
 		return null
 	var bones: Dictionary = model.get_meta("humanoid")

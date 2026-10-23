@@ -37,7 +37,8 @@ const SILENCE := 30000
 ## ENet's longest silence in milliseconds, past what its clock can tell apart: a link set to it never times out.
 const PATIENT := 0x7fffffff
 const CHUNK := 1 << 16
-## A file that could not be fetched or read is tried again after this many seconds.
+## A file that could not be fetched, or was not the one named, is tried again after this many seconds; one that was
+## and did not read is not, while a beacon still names it.
 const RETRY := 30.0
 ## A thrown handful flies slower than this, in metres a second; a player's throws come at most this often, in seconds.
 const MAX_THROW := 20.0
@@ -113,7 +114,7 @@ var _shelved := PackedByteArray()
 var _handing: Array[Dictionary] = []
 ## Files being fetched from nearby gardens, by hash: {peer, got, since}, then {} while one is read.
 var _fetches := {}
-## When each file last failed to fetch or read, by hash.
+## When each file last failed to fetch, by hash; INF for one that arrived and did not read.
 var _failed := {}
 var _targets := {}
 ## When each remote player last threw.
@@ -494,7 +495,7 @@ func _previewed(key: String, _bytes: PackedByteArray, scene: PackedScene, wanted
 		previews[wanted] = scene
 		changed.emit()
 	else:
-		_failed[wanted] = _clock
+		_failed[wanted] = INF if key == wanted else _clock
 	print("session: a nearby garden's host wears %s%s" % [wanted, "" if previews.has(wanted) else ", which did not match or read"])
 
 

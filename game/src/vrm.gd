@@ -20,6 +20,7 @@ const RANGES := ["rangeMapHorizontalInner", "rangeMapHorizontalOuter", "rangeMap
 const LOOKS := ["lookLeft", "lookRight", "lookUp", "lookDown"]
 ## Each kept blend shape is a pass over its mesh's vertices every frame, so a file's look binds are cut to these.
 const BINDS_PER_LOOK := 2
+const PNG := [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
 
 
 func _get_supported_extensions() -> PackedStringArray:
@@ -82,24 +83,56 @@ func _import_post(state: GLTFState, root: Node) -> Error:
 	return OK
 
 
-## Decodes each image as Godot's glTF reader does and hands it to the read's `image` before it becomes a texture:
-## reading a texture back calls the rendering server, which answers a worker thread only from the main thread, so a
-## game quitting mid-read would wait on the read forever.
-func _parse_image_data(state: GLTFState, data: PackedByteArray, mime: String, out: Image) -> Error:
-	var image: Variant = state.get_additional_data(&"vrm_image")
-	if not (image is Callable and image.is_valid()):
+## Measures each image from its PNG or JPEG header and, if the read's `fits` takes that size, decodes it as the format
+## measured and hands it to the read's `image` before it becomes a texture; anything else, or an image that does not
+## decode, marks the read refused and leaves Godot's decoders nothing to try. Registered ahead of Godot's own decoders, so it sees every image first, apart from Vrm, whose import
+## follows Godot's. Reading a texture back calls the rendering server, which answers a worker thread only from the main
+## thread, so a game quitting mid-read would wait on the read forever.
+class Images extends GLTFDocumentExtension:
+	func _parse_image_data(state: GLTFState, data: PackedByteArray, _mime: String, out: Image) -> Error:
+		var fits: Variant = state.get_additional_data(&"vrm_fits")
+		if not (fits is Callable and fits.is_valid()):
+			return OK
+		var size := Vrm._image_size(data)
+		if size.x > 0 and size.y > 0 and fits.call(size):
+			if data[0] == Vrm.PNG[0]:
+				out.load_png_from_buffer(data)
+			else:
+				out.load_jpg_from_buffer(data)
+		if out.is_empty():
+			state.set_additional_data(&"vrm_refused", true)
+			out.set_data(1, 1, false, Image.FORMAT_L8, PackedByteArray([0]))
+			return OK
+		var image: Variant = state.get_additional_data(&"vrm_image")
+		if image is Callable and image.is_valid():
+			image.call(out)
 		return OK
-	if mime == "image/png":
-		out.load_png_from_buffer(data)
-	elif mime == "image/jpeg":
-		out.load_jpg_from_buffer(data)
-	if out.is_empty():
-		out.load_png_from_buffer(data)
-	if out.is_empty():
-		out.load_jpg_from_buffer(data)
-	if not out.is_empty():
-		image.call(out)
-	return OK
+
+
+## The width and height in the header of a PNG or a JPEG; zero if it is neither.
+static func _image_size(d: PackedByteArray) -> Vector2i:
+	if d.size() >= 24 and Array(d.slice(0, 8)) == PNG and d.slice(12, 16).get_string_from_ascii() == "IHDR":
+		return Vector2i(_u16(d, 16) << 16 | _u16(d, 18), _u16(d, 20) << 16 | _u16(d, 22))
+	if d.size() < 4 or d[0] != 0xFF or d[1] != 0xD8:
+		return Vector2i.ZERO
+	var i := 2
+	while i + 8 < d.size() and d[i] == 0xFF:
+		var marker := d[i + 1]
+		if marker == 0xFF:
+			i += 1
+		elif marker == 0x01 or marker >= 0xD0 and marker <= 0xD7:
+			i += 2
+		elif marker >= 0xC0 and marker <= 0xCF and not marker in [0xC4, 0xC8, 0xCC]:
+			return Vector2i(_u16(d, i + 7), _u16(d, i + 5))
+		elif marker == 0xD9 or marker == 0xDA:
+			break
+		else:
+			i += 2 + _u16(d, i + 2)
+	return Vector2i.ZERO
+
+
+static func _u16(d: PackedByteArray, at: int) -> int:
+	return d[at] << 8 | d[at + 1]
 
 
 static func look_type(state: GLTFState) -> String:
@@ -208,21 +241,23 @@ static var _registered := false
 
 static func _doc() -> GLTFDocument:
 	if not _registered:
+		GLTFDocument.register_gltf_document_extension(Images.new(), true)
 		GLTFDocument.register_gltf_document_extension(Vrm.new())
 		_registered = true
 	return GLTFDocument.new()
 
 
-## Reads a .vrm (binary glTF) into a scene whose root carries the humanoid metadata; `image` may change each image
-## as it is decoded, `shape`, given the parsed state, its meshes and materials before the scene is made, and `built`,
+## Reads a .vrm (binary glTF) into a scene whose root carries the humanoid metadata; `fits`, given each image's size
+## before it is decoded, refuses the file by answering false; `image` may change each image as it is decoded, `shape`, given the parsed state, its meshes and materials before the scene is made, and `built`,
 ## given the state and the scene, the scene. Null if the file is not one.
-static func read(bytes: PackedByteArray, shape := Callable(), image := Callable(), built := Callable()) -> Node3D:
+static func read(bytes: PackedByteArray, fits := Callable(), shape := Callable(), image := Callable(), built := Callable()) -> Node3D:
 	var doc := _doc()
 	var state := GLTFState.new()
+	state.set_additional_data(&"vrm_fits", fits)
 	state.set_additional_data(&"vrm_image", image)
 	state.handle_binary_image = GLTFState.HANDLE_BINARY_EMBED_AS_UNCOMPRESSED
 	state.create_animations = false
-	if doc.append_from_buffer(bytes, "", state) != OK:
+	if doc.append_from_buffer(bytes, "", state) != OK or state.get_additional_data(&"vrm_refused") == true:
 		return null
 	if shape.is_valid() and not shape.call(state):
 		return null

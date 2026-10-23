@@ -210,6 +210,22 @@ func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
 		await process_frame
 	_check(not viewer.previews.has(forged) and viewer._failed.has(forged), "a file whose hash is not the one its beacon names is not shown")
 	viewer.nearby.erase("127.0.0.1:1")
+	var junk := "not a vrm".to_utf8_buffer()
+	var junk_key := Session._hash(junk)
+	var shelved := host._shelved
+	host._shelved = PackedByteArray([0, 0, 0, 0]) + junk
+	host._shelved.encode_u32(0, junk.size())
+	viewer.nearby["127.0.0.1:1"] = viewer.nearby[where].merged({"wears": junk_key, "seen": INF}, true)
+	await process_frame
+	while viewer.previewing():
+		await process_frame
+	_check(not viewer.previews.has(junk_key) and viewer._failed.has(junk_key), "a file that is the one named but does not read is not shown")
+	viewer._clock += Session.RETRY + 1.0
+	await process_frame
+	await process_frame
+	_check(not viewer.previewing() and viewer._failed.get(junk_key) == INF, "and while its beacon names it, it is not fetched again")
+	host._shelved = shelved
+	viewer.nearby.erase("127.0.0.1:1")
 	for s in sessions:
 		s.get_parent().queue_free()
 	main.queue_free()

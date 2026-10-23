@@ -31,8 +31,64 @@ func _run() -> void:
 	var big := PackedByteArray()
 	big.resize(Avatar.MAX_BYTES + 1)
 	_check(Avatar.read(big) == null, "a file over the size limit is not read")
+	_images_are_measured_before_decoding()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
+
+
+## A file naming images too large or too many is refused from their headers, before any is decoded: a beacon makes every
+## Quest nearby read the file it names.
+func _images_are_measured_before_decoding() -> void:
+	var bytes := FileAccess.get_file_as_bytes(_sample("crimsom-1.0.vrm"))
+	var png := func(w: int, h: int) -> PackedByteArray: return Image.create_empty(w, h, false, Image.FORMAT_L8).save_png_to_buffer()
+	var jpg := func(w: int, h: int) -> PackedByteArray: return Image.create_empty(w, h, false, Image.FORMAT_RGB8).save_jpg_to_buffer()
+	var side := Avatar.MAX_IMAGE_SIDE
+	_check(Avatar.read(_with_images(bytes, [png.call(side, 1), jpg.call(1, side)])) != null, "images at the side limit are read")
+	_check(Avatar.read(_with_images(bytes, [png.call(side + 1, 1)])) == null, "a PNG wider than the limit is refused")
+	_check(Avatar.read(_with_images(bytes, [jpg.call(1, side + 1)])) == null, "a JPEG taller than the limit is refused")
+	var cut: PackedByteArray = png.call(64, 64)
+	_check(Avatar.read(_with_images(bytes, [cut.slice(0, cut.size() - 20)])) == null, "an image that does not decode is refused, not handed to other decoders")
+	_check(Avatar.read(_with_images(bytes, [Image.create_empty(4, 4, false, Image.FORMAT_RGBA8).save_webp_to_buffer()])) == null, "an image that is neither PNG nor JPEG is refused")
+	var many := []
+	for i in Avatar.MAX_IMAGES:
+		many.append(png.call(1, 1))
+	_check(Avatar.read(_with_images(bytes, many)) != null, "a file with as many images as the limit is read")
+	_check(Avatar.read(_with_images(bytes, many + [png.call(1, 1)])) == null, "a file with more images than the limit is refused")
+	var full: PackedByteArray = png.call(side, side)
+	var fill := Avatar.MAX_PIXELS / (side * side)
+	_check(Avatar.read(_with_images(bytes, Array(range(fill)).map(func(_i: int) -> PackedByteArray: return full))) != null, "images filling the pixel limit are read")
+	_check(Avatar.read(_with_images(bytes, Array(range(fill)).map(func(_i: int) -> PackedByteArray: return full) + [png.call(1, 1)])) == null, "a file with more pixels than the limit is refused")
+
+
+## `bytes`, a binary glTF, holding `images` in place of its own, each in a buffer view appended to its binary chunk.
+func _with_images(bytes: PackedByteArray, images: Array) -> PackedByteArray:
+	var length := bytes.decode_u32(12)
+	var json: Dictionary = JSON.parse_string(bytes.slice(20, 20 + length).get_string_from_utf8())
+	var bin := bytes.slice(28 + length, 28 + length + bytes.decode_u32(20 + length))
+	json.images = []
+	for image: PackedByteArray in images:
+		json.images.append({"bufferView": json.bufferViews.size(), "mimeType": "image/png"})
+		json.bufferViews.append({"buffer": 0, "byteOffset": bin.size(), "byteLength": image.size()})
+		bin.append_array(image)
+		while bin.size() % 4:
+			bin.append(0)
+	json.buffers[0].byteLength = bin.size()
+	var text := JSON.stringify(json).to_utf8_buffer()
+	while text.size() % 4:
+		text.append(0x20)
+	var out := PackedByteArray()
+	out.resize(20)
+	out.encode_u32(0, 0x46546C67)
+	out.encode_u32(4, 2)
+	out.encode_u32(8, 28 + text.size() + bin.size())
+	out.encode_u32(12, text.size())
+	out.encode_u32(16, 0x4E4F534A)
+	out.append_array(text)
+	var head := PackedByteArray()
+	head.resize(8)
+	head.encode_u32(0, bin.size())
+	head.encode_u32(4, 0x004E4942)
+	return out + head + bin
 
 
 func _sample(name: String) -> String:
