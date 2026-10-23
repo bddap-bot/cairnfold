@@ -57,7 +57,7 @@ func hold(tool: Hand.Tool) -> void:
 		return
 	_tool = ToolModels.build(tool)
 	_tool.position = TOOL_AT
-	_tool.scale = Vector3.ONE * 0.85
+	_tool.scale = Vector3.ONE * 0.85 * Hand.HELD.get(tool, 1.0)
 	add_child(_tool)
 
 
