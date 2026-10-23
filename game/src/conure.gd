@@ -53,8 +53,8 @@ const GAZE_TURN := Vector2(1.7, 0.9)
 const GAZE_EASE := 4.0
 const GAZE_TURN_EASE := 22.0
 
-## What it looks at this tick, Vector3.INF to look about; `look` eases the head there.
 var colouring := 0
+## What it looks at this tick, Vector3.INF to look about; `look` eases the head there.
 var looking := Vector3.INF
 var _gaze := Vector3.ZERO
 var animation_time := 0.0

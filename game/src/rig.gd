@@ -40,9 +40,6 @@ const CLIMB := 1.5
 const LIFTED := 0.15
 const SNAP := deg_to_rad(30.0)
 const FADE := 0.09
-## The render layers with a private use, one table so no two uses share a bit; everything else draws on layer 1.
-## The player's own avatar, which only the camera sees: their eyes would see it from inside.
-const SELF_LAYER := 1 << 18
 
 ## The player was set down somewhere else.
 signal placed
@@ -90,7 +87,7 @@ func _init() -> void:
 	head.position = Vector3(0, EYE, 0)
 	head.near = NEAR
 	head.far = far()
-	head.cull_mask = Quality.VIEW_MASK & ~SELF_LAYER
+	head.cull_mask = Quality.VIEW_MASK & ~Quality.SELF_LAYER
 	add_child(head)
 	gaze = Gaze.new()
 	add_child(gaze)
@@ -132,7 +129,7 @@ func wear(a: Avatar) -> void:
 	a.top_level = true
 	a.visible = false
 	for v: VisualInstance3D in a.find_children("*", "VisualInstance3D", true, false):
-		v.layers = SELF_LAYER
+		v.layers = Quality.SELF_LAYER
 	add_child(a)
 	_landing.wear(a)
 

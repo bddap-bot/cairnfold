@@ -118,6 +118,7 @@ func _sweep_by_hand(hand: Hand, at: Vector3) -> void:
 		await process_frame
 		_check(hand.tool == tool, "sweeping the hand itself picks %s, holding %s" % [Hand.Tool.keys()[tool], Hand.Tool.keys()[hand.tool]])
 	hand.global_position = at
+## Directive (verbatim): "If I grab a house or a building with two hands, I would like to be able to lift it up, raise it a little higher"
 ## Report (relay): placing a house with the trigger only places it; moving it is the grip's job, never the trigger's.
 ## The house tool in tracked hands: the trigger puts up a square house where it points and holding it moves nothing; a
 ## grip on the house carries it, its stones as laid, and raises it onto its plinth; the other hand's grip on it stretches
@@ -498,7 +499,6 @@ func _pulsed_both(act: Cues.Act, rig: Rig) -> bool:
 	return by.get(rig.left.get_instance_id(), 0) > 0 and by.get(rig.right.get_instance_id(), 0) > 0
 
 
-## Directive (verbatim): "If I grab a house or a building with two hands, I would like to be able to lift it up, raise it a little higher"
 func _points(d: Dictionary) -> Array[Vector3]:
 	var out: Array[Vector3] = []
 	out.assign(Array(d.points))

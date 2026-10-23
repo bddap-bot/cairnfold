@@ -28,7 +28,7 @@ const RADII := {Brush.SMALL: Vector2(1.5, 8.0), Brush.BIG: Vector2(6.0, 40.0), B
 const HOLDS := {Brush.SMALL: 40000.0, Brush.BIG: 400000.0, Brush.FLAT: 400000.0, Brush.STICK: 1.0e12}
 ## Oil is spent a little sooner than a wet brush.
 const OIL_HOLDS := 0.8
-## Dabs overlap by this fraction of their radius.
+## Dabs are laid this fraction of their radius apart.
 const SPACING := 0.2
 ## Speed, in texels a tick, at which a stroke skips over the paper's dips (dry-brush), and how much it does per medium:
 ## a wet brush skims most, thick oil little, charcoal not at all.

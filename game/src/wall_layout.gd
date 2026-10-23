@@ -663,7 +663,6 @@ func standing(s: float) -> float:
 	return height
 
 
-## Stones fallen from each ruin, lying in and beside its gap.
 ## Whether this is a house or tower, floored inside.
 func floored() -> bool:
 	return closed and not fence and cover != Cover.OPEN and points.size() > 2
@@ -909,6 +908,7 @@ static func _highest_ground(outline: PackedVector2Array, ground: Callable) -> fl
 	return top
 
 
+## Stones fallen from each ruin, lying in and beside its gap.
 func _lay_rubble() -> void:
 	for r in ruins:
 		var rng := RandomNumberGenerator.new()
@@ -1546,10 +1546,6 @@ func _wedge(st: Dictionary, turn: float) -> Dictionary:
 
 func _arch_part(s: float, y: float, size: Vector3, roll: float, style: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	return _stone(s, y, size, rng, style.kind, 1.0, 0.0, roll, style.jitter)
-
-
-## Whether an arch can open at `s` beside `others`: clear of an open wall's ends, a loop's corner piers,
-## ruins and the others' rings, measured round a loop.
 
 
 ## How far along the wall `a` lies past `b`, the short way round a closed loop.

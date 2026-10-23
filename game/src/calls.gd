@@ -33,7 +33,7 @@ const UNIT := 6.0
 const FAR_SHELF := -12.0
 const CUTOFF := 3000.0
 ## An animal nearer the head than this makes no call of its own but its CLOSE ones, and those its doings bring.
-const CALM := 2.5
+const NEAR := 2.5
 const VOICES := 6
 
 var viewer: Node3D
@@ -109,4 +109,4 @@ func now_and_then(kind: String, at: Vector3, every: float, delta: float) -> bool
 
 
 func calm(at: Vector3) -> bool:
-	return viewer != null and viewer.is_inside_tree() and viewer.global_position.distance_to(at) < CALM
+	return viewer != null and viewer.is_inside_tree() and viewer.global_position.distance_to(at) < NEAR

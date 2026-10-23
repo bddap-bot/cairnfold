@@ -1,7 +1,7 @@
 class_name Snails
 extends Node3D
 
-## Pond-bed grazers, sharing one mesh and material. No physics or per-animal processing.
+## Pond-bed grazers, drawn as one MultiMesh sharing one mesh and material.
 const CAP := 24
 const PER_POND := 7
 const CELLS_EACH := 8

@@ -68,13 +68,13 @@ static func base_heights() -> PackedFloat32Array:
 	return out
 
 
-## Bilinear between the four grid heights around (x, z), as the GPU's filtered texture reads them; a
-## live hump is sampled on the same grid points, so baking it moves nothing.
 ## The ground without strokes' live humps, which only their own player sees.
 static func base_at(x: float, z: float) -> float:
 	return height_at(x, z, false)
 
 
+## Bilinear between the four grid heights around (x, z), as the GPU's filtered texture reads them; a
+## live hump is sampled on the same grid points, so baking it moves nothing.
 static func height_at(x: float, z: float, with_hump := true) -> float:
 	return _height(x, z, _heights, _humps if with_hump else _flat)
 

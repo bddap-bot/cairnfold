@@ -219,7 +219,7 @@ func _aim(vp: SubViewport, at: Transform3D, fov: float, mask: int) -> void:
 	cam.global_transform = at
 	cam.fov = fov
 	cam.cull_mask = mask
-	if rig.body != null and rig.body.visible and mask & Rig.SELF_LAYER:
+	if rig.body != null and rig.body.visible and mask & Quality.SELF_LAYER:
 		rig.pose_body()
 
 

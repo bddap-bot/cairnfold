@@ -93,11 +93,14 @@ static func rungs() -> Array[Step]:
 	return out
 
 
+## The render layers with a private use, one table so no two uses share a bit; everything else draws on layer 1.
 ## What the ladder cuts is drawn on LADDER_LAYER, which the headset's views see, and again whole on FULL_LAYER, which
 ## only a photo sees (PhotoTool): grass and flowers to the garden's edge, every stone whole, ivy at every distance.
 ## Shaders that shrink things with distance take the photo's camera by `full_layer` (full_detail).
 const LADDER_LAYER := 1 << 16
 const FULL_LAYER := 1 << 17
+## The player's own avatar, which only the camera sees: their eyes would see it from inside.
+const SELF_LAYER := 1 << 18
 const VIEW_MASK := 0xFFFFF & ~FULL_LAYER
 const PHOTO_MASK := 0xFFFFF & ~LADDER_LAYER
 ## Grass, flower and ivy reach grow toward a step up at this many metres a second, so the edge comes out rather than

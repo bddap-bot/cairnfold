@@ -165,7 +165,6 @@ class Watch:
 				floating += 1
 
 
-## A sheep of the flock resting on its spot, preferring the one furthest from the others; null if none rests.
 ## Seeds held out low beside a grazing flock: one sheep walks up and nibbles from the hand, head lowered to
 ## it, and stops once the seeds are put away.
 func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
@@ -217,6 +216,7 @@ func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
 	_run(g, 1.0, each)
 
 
+## A sheep of the flock resting on its spot, preferring the one furthest from the others; null if none rests.
 func _a_resting(g: Glade, but: Array = []) -> Sheep:
 	var best: Sheep = null
 	var room := -1.0
