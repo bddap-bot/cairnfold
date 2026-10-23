@@ -2182,7 +2182,7 @@ or the ground moves. A house or tower is a room to it: the air inside its walls'
 A lantern in a room lights only that room, and one outside lights no room, nor what stands behind one, so roofs and
 outer walls stay dark. Each window and doorway shines outward and down with the light the room has at it, fading over 3 m
 and brightest straight out from a point half a metre before its face, so it lights the ground below more than the
-wall around it and never the eaves; a doorway lets out a fifth. Surfaces read the volume a metre out (`lamp_coord`), so a face of the shell
+wall around it and never the eaves; a doorway lets out a fifth. Surfaces read the volume a metre out (`lamp_over`), so a face of the shell
 reads the air on its own side, and a pane of glass also shows the light a metre behind it.
 
 A lit window's pane and outward spill share `Lamps.WINDOW_GLOW`. The pane is opaque glass, not a view

@@ -25,8 +25,9 @@ void vertex() {
 	vec3 n = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	world_nrm = n;
 	vec3 q = world_pos + n;
-	bounce_at = vec3((q.xz - bounce_grid.x) / bounce_grid.y, min(q.y - ground_at(q.xz), LOW) / bounce_grid.z);
-	lamp_at = lamp_coord(world_pos, n);
+	float ground = ground_at(q.xz);
+	bounce_at = vec3((q.xz - bounce_grid.x) / bounce_grid.y, min(q.y - ground, LOW) / bounce_grid.z);
+	lamp_at = volume_coord(q, ground);
 }
 
 void fragment() {

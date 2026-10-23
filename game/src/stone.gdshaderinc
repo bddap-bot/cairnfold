@@ -36,20 +36,10 @@ varying flat int style;
 varying flat float tone;
 
 void vertex() {
-#ifdef RIDES_GROUND
-	// Sheared onto the ground's plane under the stone's centre, so it lies along a slope however the ground was shaped.
-	vec2 c = MODEL_MATRIX[3].xz;
-	vec3 n = ground_normal(c);
-	vec2 slope = n.xz / n.y;
-	VERTEX.y += ground_at(c) - dot(slope, VERTEX.xz - c);
-	NORMAL = normalize(vec3(NORMAL.x + slope.x * NORMAL.y, NORMAL.y, NORMAL.z + slope.y * NORMAL.y));
-	world_pos = VERTEX;
-	world_nrm = NORMAL;
-#else
 	// A piece's ends turn by INSTANCE_CUSTOM.zw about its local y: a wall panel's each cut along the bisector with its
 	// neighbour, an arch's wedge on lines through the arch's centre; its z faces' normals turn with each end, so a
 	// curved run of panels or a ring of wedges closes and shades round.
-	#ifdef ROOF_TIMBER
+#ifdef ROOF_TIMBER
 	float turn = 0.0;
 #else
 	float turn = VERTEX.x < 0.0 ? INSTANCE_CUSTOM.z : INSTANCE_CUSTOM.w;
@@ -66,16 +56,16 @@ void vertex() {
 		}
 	}
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
-#endif
 	surface_pos = miniature ? VERTEX : world_pos;
+	float ground = ground_at(world_pos.xz);
 #ifdef GIVEN_PER_VERTEX
-	given = given_at(world_pos, world_nrm);
+	given = given_over(world_pos, world_nrm, ground);
 #else
-	bounce_at = bounce_coord(world_pos, world_nrm);
-	lamp_at = lamp_coord(world_pos, world_nrm);
+	bounce_at = bounce_over(world_pos, world_nrm, ground);
+	lamp_at = lamp_over(world_pos, world_nrm, ground);
 #endif
 	glass = COLOR.a < 0.5 ? 1.0 : 0.0;
-	pane = glass > 0.5 ? textureLod(lamp_volume, lamp_coord(world_pos, -world_nrm), 0.0).rgb : vec3(0.0);
+	pane = glass > 0.5 ? textureLod(lamp_volume, lamp_over(world_pos, -world_nrm, ground), 0.0).rgb : vec3(0.0);
 #ifdef ROOF_TIMBER
 	COLOR = vec4(timber_color, 1.0);
 	occlusion = 0.85;

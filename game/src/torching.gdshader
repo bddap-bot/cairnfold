@@ -17,7 +17,7 @@ void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	// The probes beside it stand among the tiles; the floor's see what the room does through its doors.
 	bounce_at = bounce_on_ground(world_pos.xz);
-	lamp_at = lamp_coord(world_pos, normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz));
+	lamp_at = lamp_over(world_pos, normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz), ground_at(world_pos.xz));
 }
 
 void fragment() {

@@ -19,8 +19,9 @@ void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 	world_nrm = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
 	fall = normalize((MODEL_MATRIX * vec4(TANGENT, 0.0)).xyz);
-	bounce_at = bounce_coord(world_pos, world_nrm);
-	lamp_at = lamp_coord(world_pos, world_nrm);
+	float ground = ground_at(world_pos.xz);
+	bounce_at = bounce_over(world_pos, world_nrm, ground);
+	lamp_at = lamp_over(world_pos, world_nrm, ground);
 }
 
 void fragment() {

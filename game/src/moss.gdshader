@@ -14,11 +14,12 @@ void vertex() {
 	wet = planted_water(1.0, water_depth_at(INSTANCE_CUSTOM.zw));
 	patch = VERTEX.xz;
 	float mound = VERTEX.y - MODEL_MATRIX[3].y;
-	VERTEX.y = ground_at(VERTEX.xz) + 0.012 + mound * mix(1.0, 0.35, wet);
+	float ground = ground_at(VERTEX.xz);
+	VERTEX.y = ground + 0.012 + mound * mix(1.0, 0.35, wet);
 	VERTEX.xz += wet * mound * 0.5 * vec2(sin(TIME * 1.4 + patch.x * 5.0), cos(TIME * 1.1 + patch.y * 4.0));
 	NORMAL = normalize(NORMAL + ground_normal(VERTEX.xz) - vec3(0.0, 1.0, 0.0));
-	bounce_at = bounce_coord(VERTEX, NORMAL);
-	lamp_at = lamp_coord(VERTEX, NORMAL);
+	bounce_at = bounce_over(VERTEX, NORMAL, ground);
+	lamp_at = lamp_over(VERTEX, NORMAL, ground);
 }
 
 void fragment() {
