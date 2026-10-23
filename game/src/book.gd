@@ -228,6 +228,7 @@ func turn_to(to: int) -> void:
 		turn(to - at)
 	else:
 		at = to
+	set_process(not _turn.is_empty())
 	_lay()
 
 
@@ -301,6 +302,8 @@ func _process(delta: float) -> void:
 		if _turn.t >= _turn.span:
 			at = _turn.to
 			_turn.clear()
+			if rig == null:
+				set_process(false)
 	_lay()
 	_render_pages()
 

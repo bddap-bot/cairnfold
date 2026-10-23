@@ -127,6 +127,7 @@ func show_state(s: Array) -> void:
 				model = Book.new(false)
 				(model as Book).at = s[1]
 				(model as Book)._lay()
+				model.set_process(false)
 		model.top_level = false
 		add_child(model)
 	model.visible = true

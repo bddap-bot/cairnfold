@@ -72,6 +72,7 @@ func _run() -> void:
 	leaps[1] = 4
 	item.show_state(leaps)
 	check(item.model == prop and (prop as Book).at == 4, "a jump of more than a leaf lands at once")
+	check(not prop.is_processing(), "and a peer's book costs nothing a frame once still")
 	item.show_state([])
 	item.queue_free()
 	await process_frame
