@@ -255,11 +255,7 @@ func _short_or_low_walls_take_no_arch() -> void:
 func _layout_is_deterministic() -> void:
 	var a := straight_wall(7.0, 2.4, [3.5])
 	var b := straight_wall(7.0, 2.4, [3.5])
-	check(a.stones.size() == b.stones.size() and a.stones.all(func(s): return true), "same stone count")
-	for i in a.stones.size():
-		if not a.stones[i].xform.is_equal_approx(b.stones[i].xform):
-			check(false, "stone %d differs between identical builds" % i)
-			break
+	check(a.stones == b.stones, "identical builds lay identical stones")
 
 
 func _a_copy_built_elsewhere_lays_the_same_stones() -> void:

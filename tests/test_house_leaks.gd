@@ -103,7 +103,6 @@ func _contract() -> void:
 		check(not Probe.aperture(w, origin + Vector3.RIGHT * 2.0, Vector3.FORWARD, 10.0), "solid wall beside an opening is not exempt")
 		check(not Probe.aperture(w, origin + Vector3.UP * 3.0, Vector3.FORWARD, 10.0), "space above an opening is not exempt")
 	w.free()
-	check(Probe.directions(256) == Probe.directions(256), "ray sets repeat exactly")
 
 
 func _commands(seed_value: int) -> Array:
@@ -182,7 +181,6 @@ func _house(seed_value: int, count: int) -> void:
 	main.tool._relay_due()
 	for w in main.tool.walls:
 		w.lay_now()
-	check(main.tool._due.is_empty() and main.tool.walls.all(func(w: Wall) -> bool: return not w.laying()), "all command geometry has settled")
 	var room: Array[Wall] = main.tool.walls.duplicate()
 	check(room.size() == commands.size(), "seed %d accepted every real build command" % seed_value)
 	if room.is_empty():

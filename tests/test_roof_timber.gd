@@ -20,9 +20,13 @@ func _run() -> void:
 			for p in roof.timber_faces:
 				check(p.y < roof.height_at(p.x, p.z) - RoofLayout.DECK_DROP - RoofLayout.SLAB.y, "wood remains below the deck")
 				check(roof.over(p.x, p.z), "wood stays within walls")
-			var copy := roof.inputs()
-			copy.adopt(roof)
-			check(copy.timber_faces == roof.timber_faces, "worker handoff retains framing")
+			var job := roof.inputs()
+			job.base = roof.base
+			job.corners = roof.corners
+			job.build()
+			var shown := roof.inputs()
+			shown.adopt(job)
+			check(shown.timber_faces == roof.timber_faces, "worker handoff retains framing")
 			roof.pitch = 2.0
 			roof.build()
 			check(roof.timber_faces.is_empty(), "pulling to pitched removes flat framing")

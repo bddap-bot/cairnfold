@@ -73,5 +73,7 @@ func _run() -> void:
 	check(sample[4] == 1.0 and sample[3] == 6, "stroke command retains contact angle and tick")
 	var side_dab := Brushwork.Stroker.new(data).add(sample)
 	check(side_dab[2] > tap[2] * 10.0 and side_dab[4] < side_dab[2] * 0.1, "side footprint longer than tip with a narrow width")
-	check(side_dab == Brushwork.Stroker.new(data).add(Brushwork.unpack(packed, 0)), "peer replay produces identical contact footprint")
+	var sent := {"medium": Brushwork.Medium.CHARCOAL, "brush": Brushwork.Brush.STICK, "colour": Vector3.ZERO, "strength": 1.0, "load": 1.0, "gap": 0, "samples": packed}
+	var arrived: Variant = Brushwork.clean(bytes_to_var(var_to_bytes(sent)))
+	check(arrived != null and Brushwork.Stroker.new(arrived).add(Brushwork.unpack(arrived.samples, 0)) == side_dab, "peer replay produces identical contact footprint")
 	finish()

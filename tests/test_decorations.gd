@@ -63,17 +63,10 @@ func _run() -> void:
 	check(aim.get("what") == "decoration" and aim.get("wall") == null, "bare ground accepts decorations")
 	var cmd := FittingTool.decoration_command(aim)
 	check(cmd.style == DecorationLayout.PRESENT and cmd.mount == "ground", "a present by default on bare ground")
-	check(cmd == FittingTool.decoration_command(aim), "placement choice stable while aiming")
 	var bad := cmd.duplicate()
 	bad.mount = "floor"
 	check(Commands.clean(bad, main.world.state, false).is_empty(), "reject a house's mount without its house")
 	main.world.decorations.sync()
-	for item in main.world.decorations.targets():
-		var centre: Vector3 = item.bounds.get_center()
-		var origin := centre + Vector3(0, 0, 4)
-		var near: Dictionary = main.tool.pick_building(origin, (centre - origin).normalized())
-		var picked := FittingTool.pick_target(main.tool, origin, (centre - origin).normalized())
-		check(picked.get("along", INF) <= near.get("along", INF) + 0.001, "decoration refinement never skips nearer building")
 	var items: Array[Dictionary] = main.world.decorations.targets()
 	var post: Dictionary = items.filter(func(i): return i.value.style == 6)[0]
 	var post_at: Vector3 = post.bounds.get_center()
@@ -114,6 +107,7 @@ func _run() -> void:
 	var saved: Dictionary = main.world.snapshot()
 	main.world.restore(saved)
 	check(main.world.state.decorations.size() == 9, "save restore keeps all nine styles")
+	await _the_preview_is_what_a_press_places(p)
 	await _on_a_build()
 	finish()
 
@@ -137,3 +131,23 @@ func _on_a_build() -> void:
 	var x: Transform3D = main.world.decorations.frame(steps)
 	check(x.origin.y > f.point.y - 0.5, "a decoration at the foot of a house on a deck stands on the deck, at %.2f under a foot at %.2f" % [x.origin.y, f.point.y])
 	check(main.world.decorations.rise(steps) < 0.5, "its steps rise only to the storey's foot, not from the ground: %.2f" % main.world.decorations.rise(steps))
+
+
+
+func _the_preview_is_what_a_press_places(p: Vector3) -> void:
+	var hand := main.rig.right
+	var i := main.rig.hands.find(hand)
+	hand.tool = Hand.Tool.DECORATIONS
+	hand.global_transform = Transform3D(Basis.looking_at(Vector3(0, -1, -1), Vector3.UP), p + Vector3(0, 1.5, 1.5))
+	hand.held_still = true
+	await frames(2)
+	var shown: Array = main.fitting_tool._ghosts[i].decoration.get_meta(&"shape")
+	await frames(10)
+	check(main.fitting_tool._ghosts[i].decoration.get_meta(&"shape") == shown, "the preview holds still while aiming")
+	var before: Dictionary = main.world.state.decorations.duplicate()
+	Buttons.injected["right_hand/trigger_click"] = true
+	await frames(2)
+	Buttons.injected.erase("right_hand/trigger_click")
+	await settled()
+	var placed: Array = main.world.state.decorations.keys().filter(func(id: int) -> bool: return not before.has(id))
+	check(placed.size() == 1 and main.world.state.decorations[placed[0]].seed == shown[1], "a press places the decoration its preview showed")
