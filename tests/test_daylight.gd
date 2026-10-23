@@ -197,6 +197,7 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	boarded.build(_flat)
 	var timber := boarded.inputs()
 	timber.plaster = true
+	timber.planks = true
 	timber.gable_end = WallLayout.GableEnd.WALL
 	timber.build(_flat)
 	var thatched := RoofLayout.new()
