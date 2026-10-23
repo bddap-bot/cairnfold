@@ -38,6 +38,7 @@ func _finish(rig: Rig) -> void:
 	await _view_holds_after_teleport(rig, 0.0)
 	await _view_holds_after_teleport(rig, 12.0)
 	_landing_sounds(rig)
+	_floating_shows_what_is_underfoot(rig)
 	finish()
 
 
@@ -275,7 +276,7 @@ func _either_hand_moves(rig: Rig) -> void:
 		for f in 30:
 			await _frame(rig)
 		var moved := Vector2(rig.head.global_position.x - from.x, rig.head.global_position.z - from.z).length()
-		_check(aimed and moved > 2.0, "%s stick forward aims from its hand and goes (moved %.1f m)" % [h.tracker, moved])
+		check(aimed and moved > 2.0, "%s stick forward aims from its hand and goes (moved %.1f m)" % [h.tracker, moved])
 		for turn: Array in [[Vector2(-1, 0), Rig.SNAP], [Vector2(1, 0), -Rig.SNAP], [Vector2(0, -1), PI]]:
 			var yaw := rig.global_basis.get_euler().y
 			Hand.injected_sticks[h.tracker] = turn[0]
@@ -284,7 +285,7 @@ func _either_hand_moves(rig: Rig) -> void:
 			Hand.injected_sticks[h.tracker] = Vector2.ZERO
 			await _frame(rig)
 			var turned := wrapf(rig.global_basis.get_euler().y - yaw, -PI, PI)
-			_check(absf(absf(turned) - absf(turn[1])) < 0.01 and signf(turned) == signf(turn[1]) or absf(turn[1]) == PI and absf(absf(turned) - PI) < 0.01, "%s stick %s turns %.0f deg: %.0f" % [h.tracker, turn[0], rad_to_deg(turn[1]), rad_to_deg(turned)])
+			check(absf(absf(turned) - absf(turn[1])) < 0.01 and signf(turned) == signf(turn[1]) or absf(turn[1]) == PI and absf(absf(turned) - PI) < 0.01, "%s stick %s turns %.0f deg: %.0f" % [h.tracker, turn[0], rad_to_deg(turn[1]), rad_to_deg(turned)])
 		Hand.injected_sticks.erase(h.tracker)
 
 
@@ -466,3 +467,20 @@ func _the_preview_holds_the_players_pose(rig: Rig) -> void:
 	rig.hide_markers()
 	rig.head.transform = Transform3D(Basis.IDENTITY, Vector3(0, Rig.EYE, 0))
 	rig.left.transform = Transform3D.IDENTITY
+
+
+## Floating, a ring marks the floor the player floats on and a shadow the ground below; standing, neither shows.
+func _floating_shows_what_is_underfoot(rig: Rig) -> void:
+	var g := Terrain.ground(0, 0)
+	rig.place(g, 0.0)
+	rig._process(STEP)
+	check(not rig._underfoot.visible, "standing shows nothing underfoot")
+	rig.place(g, 12.0)
+	rig._process(STEP)
+	var h := rig.head.global_position
+	var ring: Vector3 = rig._underfoot._ring.global_position
+	var shadow: Vector3 = rig._underfoot._shadow.global_position
+	check(rig._underfoot.visible and absf(ring.y - g.y - 12.0) < 0.1 and absf(shadow.y - g.y) < 0.1 and Vector2(ring.x - h.x, ring.z - h.z).length() < 0.01 and Vector2(shadow.x - h.x, shadow.z - h.z).length() < 0.01, "floating 12 m up shows a ring at the feet, %s, and a shadow on the ground, %s" % [ring, shadow])
+	rig.place(g, 0.0)
+	rig._process(STEP)
+	check(not rig._underfoot.visible, "coming back down hides both")

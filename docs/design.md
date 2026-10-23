@@ -2889,6 +2889,15 @@ with it. `tests/test_teleport.gd` checks it faces as the player does and holds t
 Its cost while aiming is a second avatar's draw: avatars are rigid parts with no skinning and cast no shadow (`Avatar._dress`).
 `demo/landing-cost.json` alternates six seconds aiming a near preview with six at rest, for the Quest 2 bench.
 
+### Something underfoot
+
+While the player floats more than `Rig.LIFTED` over the floor they were set down over, a faint ring lies at their feet
+and a soft round shadow on that floor straight below their head, both fading in over the first metre (`Underfoot`):
+standing on nothing tens of metres up is the classic trigger of fear of heights and of lost balance, and the ring
+gives the feet a floor while the shadow ties them to the ground. Both are one unshaded quad each, placed from the
+height alone, with no query a frame. `tests/test_teleport.gd` checks where each stands and that neither shows on the
+ground.
+
 Directive (verbatim): "I'd like to be able to use the grab button to grab the ground so ground terraforming becomes um... not a tool, it's just something that's always available. I just grab something. Grab the ground and push it down or pull it up"
 
 Directive (verbatim): "The grab button should always be grab"

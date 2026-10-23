@@ -97,6 +97,9 @@ var _aim_trail: Array = []
 var _steady_dir := Vector3.ZERO
 
 var _landing := Landing.new()
+var _underfoot := Underfoot.new()
+## The floor the player was last set down over, which a float is measured from.
+var _floor_y := 0.0
 var _fade: MeshInstance3D
 var _fade_mat: StandardMaterial3D
 
@@ -123,6 +126,7 @@ func _init() -> void:
 
 func _build_markers() -> void:
 	add_child(_landing)
+	add_child(_underfoot)
 	_fade_mat = StandardMaterial3D.new()
 	_fade_mat.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	_fade_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
@@ -186,6 +190,7 @@ func _process(delta: float) -> void:
 	for b in _sticks:
 		b.latch()
 	_fade_step(delta)
+	_underfoot.follow(head.global_position, global_position.y, _floor_y)
 
 
 ## Both sticks clicked in together cycle every hand's reach (`Reach.mode`): a debug switch for comparing them in one
@@ -362,7 +367,8 @@ func spawn() -> Vector3:
 
 func place(ground: Vector3, lift_m: float) -> void:
 	var h := head.global_position
-	global_position = Vector3(global_position.x + ground.x - h.x, maxf(ground.y + lift_m, Terrain.height_at(ground.x, ground.z)), global_position.z + ground.z - h.z)
+	_floor_y = maxf(ground.y, Terrain.height_at(ground.x, ground.z))
+	global_position = Vector3(global_position.x + ground.x - h.x, maxf(ground.y + lift_m, _floor_y), global_position.z + ground.z - h.z)
 	placed.emit()
 
 
