@@ -16,8 +16,13 @@ const RELIEF := 10000.0
 ## plain or the lake's bed (Mountains) begins; the lake stands over the foot, so the water meets the bank.
 const BANK := 10.0
 const BANK_FOOT := 2.5
+## Ground this steep (1 - its normal's y) is rock, too steep to hold soil: the terrain shader's rock rises over this
+## span, and no grass or flower stands from where it begins (Flora).
+const ROCK := Vector2(0.36, 0.48)
 
 static var _heights := base_heights()
+## Each grid point's steepness, 1 - its normal's y.
+static var _steep := _steeps()
 ## The humps strokes are pulling, one per hand, not yet baked into the heights: centre x, z, radius and lift.
 ## Shaders add them through ground_humps' columns, so a stroke moves the ground without rewriting the grid every frame.
 static var _humps: Array[Vector4] = [NO_HUMP, NO_HUMP]
@@ -82,6 +87,26 @@ static func base_at(x: float, z: float) -> float:
 ## live hump is sampled on the same grid points, so baking it moves nothing.
 static func height_at(x: float, z: float, with_hump := true) -> float:
 	return _height(x, z, _heights, _humps if with_hump else _flat)
+
+
+## How steep the ground is at (x, z), 1 - its normal's y, as its fragments interpolate it between grid points; live
+## humps are not in it.
+static func steep_at(x: float, z: float) -> float:
+	return _height(x, z, _steep, _flat)
+
+
+## Whether the ground at (x, z) is rock (ROCK) as it settles, which holds no grass or flowers.
+static func rock_at(x: float, z: float) -> bool:
+	return steep_at(x, z) >= ROCK.x
+
+
+static func _steeps() -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	out.resize(VERTS * VERTS)
+	for j in VERTS:
+		for i in VERTS:
+			out[j * VERTS + i] = 1.0 - _normal(i, j).y
+	return out
 
 
 ## The ground and the water as they stand now, for a worker thread to read while this one goes on shaping them.
@@ -388,6 +413,11 @@ static func write(cells: Rect2i, values: PackedFloat32Array) -> void:
 			_floor = minf(_floor, values[n])
 			_crest = maxf(_crest, values[n])
 			n += 1
+	# A point's normal is from its neighbours' heights, so it changes a step around the edit too.
+	var around := cells.grow(1).intersection(ALL)
+	for j in range(around.position.y, around.end.y):
+		for i in range(around.position.x, around.end.x):
+			_steep[j * VERTS + i] = 1.0 - _normal(i, j).y
 	_raise_tops(cells)
 	revision += 1
 	_fit()

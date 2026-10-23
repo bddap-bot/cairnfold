@@ -99,6 +99,9 @@ class Pool:
 	## pass over all.
 	var indexed := false
 	var _grid := {}
+	## Its plants grow in soil: one standing on rock (Terrain.ROCK) is not drawn, and is again once the ground under it
+	## is gentle enough to hold soil.
+	var soil := false
 
 	func _init(parent: Node3D, m: Mesh, capacity: int, mat: Material, shadows: bool, size := 16.0) -> void:
 		mesh = m
@@ -138,12 +141,13 @@ class Pool:
 		anchor.y -= ground
 		custom.b = anchor.x
 		custom.a = anchor.z
-		mm.set_instance_transform(i - kept, xform)
+		var rock := soil and Terrain.rock_at(anchor.x, anchor.z)
+		mm.set_instance_transform(i - kept, _drawn_as(xform, rock))
 		mm.set_instance_color(i - kept, color)
 		mm.set_instance_custom_data(i - kept, custom)
 		if far != null:
 			far.visible_instance_count = kept + mm.visible_instance_count
-			far.set_instance_transform(i, xform)
+			far.set_instance_transform(i, _drawn_as(xform, rock))
 			far.set_instance_color(i, color)
 			far.set_instance_custom_data(i, custom)
 		if i < _colors.size():
@@ -152,6 +156,7 @@ class Pool:
 		stamps[i] += 1
 		anchors[i] = anchor
 		plants[i] = Plant.new(self, i, xform, anchor)
+		plants[i].rock = rock
 		if indexed:
 			_grid.get_or_add(square(anchor), []).append(i)
 		if cover != null:
@@ -224,7 +229,7 @@ class Pool:
 		var box: AABB = plants[slots[0]].xform * mesh.get_aabb()
 		for j in slots.size():
 			var i: int = slots[j]
-			m.set_instance_transform(j, plants[i].xform)
+			m.set_instance_transform(j, _drawn_as(plants[i].xform, plants[i].rock))
 			m.set_instance_color(j, _colors[i])
 			m.set_instance_custom_data(j, _customs[i])
 			box = box.merge(plants[i].xform * mesh.get_aabb())
@@ -253,6 +258,7 @@ class Pool:
 		_next = 0
 
 	func place(slot: int, xform: Transform3D) -> void:
+		xform = _drawn_as(xform, plants[slot].rock)
 		if slot < kept:
 			_cell_of[slot].set_instance_transform(_index_in_cell[slot], xform)
 			if _sparse_cell_of[slot] != null:
@@ -291,6 +297,7 @@ class Pool:
 			cover.touch(p.anchor)
 		p.anchor += by
 		p.xform.origin += by
+		p.rock = soil and Terrain.rock_at(p.anchor.x, p.anchor.z)
 		if anchors[p.slot] != GONE:
 			anchors[p.slot] = p.anchor
 		if indexed:
@@ -300,6 +307,31 @@ class Pool:
 			place(p.slot, p.xform)
 		if p.slot < kept:
 			_cover_cell(p.slot)
+
+	## Finds again which of its plants standing in `area` across the ground are on rock, as the ground now lies.
+	func reground(area: Rect2) -> void:
+		if not soil:
+			return
+		var slots: Array = range(size())
+		if indexed:
+			slots = []
+			var lo := square(Vector3(area.position.x, 0, area.position.y))
+			var hi := square(Vector3(area.end.x, 0, area.end.y))
+			for j in range(lo.y, hi.y + 1):
+				for i in range(lo.x, hi.x + 1):
+					slots.append_array(_grid.get(Vector2i(i, j), []))
+		for slot: int in slots:
+			var p := plants[slot]
+			if p == null or not area.has_point(Vector2(p.anchor.x, p.anchor.z)):
+				continue
+			var rock := Terrain.rock_at(p.anchor.x, p.anchor.z)
+			if rock != p.rock:
+				p.rock = rock
+				if p.drawn:
+					place(slot, p.xform)
+
+	static func _drawn_as(xform: Transform3D, rock: bool) -> Transform3D:
+		return Transform3D(Basis.from_scale(Vector3.ZERO), xform.origin) if rock else xform
 
 	func set_custom(slot: int, custom: Color) -> void:
 		if slot < kept:
@@ -405,6 +437,8 @@ class Plant:
 	var group := -1
 	var index := -1
 	var drawn := true
+	## On rock its pool's soil does not reach, so not drawn, though it stands.
+	var rock := false
 
 	func _init(p: Pool, i: int, x: Transform3D, a: Vector3) -> void:
 		pool = p
@@ -527,6 +561,8 @@ func _init() -> void:
 	flowers.indexed = true
 	ghost_grass = Pool.new(self, clump, Commands.MAX_STROKE * 2, grass_mat, false)
 	ghost_flowers = Pool.new(self, bloom, Commands.MAX_STROKE * 2, flower_mat, false)
+	for pool in [grass, flowers, ghost_grass, ghost_flowers]:
+		pool.soil = true
 	grass.cover = FloraCover.new(grass.plants.size())
 	flower_far = _far_material()
 	for pool in [flowers, ghost_flowers]:
@@ -662,6 +698,17 @@ func approach(step: Quality.Step, delta: float) -> bool:
 		flower_reach = flowers_m
 	blob_detail = step.blob_detail
 	return grass_reach == step.grass_m and flower_reach == step.flowers_m
+
+
+## The ground under `area` moved (GroundGrab.reshaped): grass and flowers there that now stand on rock go, and those
+## the ground gives soil again come back. A stroke's live hump moves no heights, so only a settled one is read; a
+## plant is found again the moment it is added or moved, so the GPU never tests it a frame.
+func reground(area: Rect2, settled: bool) -> void:
+	if not settled:
+		return
+	area = area.grow(Terrain.STEP * 2.0)
+	for pool in [grass, flowers, ghost_grass, ghost_flowers]:
+		pool.reground(area)
 
 
 func part(left: Vector3, right: Vector3) -> void:

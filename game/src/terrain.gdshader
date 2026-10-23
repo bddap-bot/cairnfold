@@ -20,6 +20,8 @@ uniform mediump vec3 trodden : source_color = vec3(0.52, 0.45, 0.33);
 uniform mediump vec3 bed : source_color = vec3(0.50, 0.44, 0.32);
 uniform mediump vec3 cliff_light : source_color = vec3(0.80, 0.74, 0.63);
 uniform mediump vec3 cliff_dark : source_color = vec3(0.34, 0.32, 0.30);
+// Terrain.ROCK: the steepness over which rock rises.
+uniform mediump vec2 rock_steep;
 // The grass past its clumps' reach (FloraCover): a clump at each vertex as half the factor it makes of the meadow's
 // colour, over its presence in alpha, painted in as the clumps there sink away.
 global uniform sampler2D flora_grass : filter_nearest, repeat_disable;
@@ -120,7 +122,7 @@ void fragment() {
 	mediump float s = steep + (fine - 0.5) * 0.06;
 	mediump vec3 c = mix(grass, earth, smoothstep(0.2, 0.32, s));
 	vec2 cover = ground_cover(world_xz);
-	float rocky = smoothstep(0.36, 0.48, s);
+	float rocky = smoothstep(rock_steep.x, rock_steep.y, s);
 	// Painted slabs line a pond's bed and banks; a slope's own rock goes under the sand like any ground.
 	float paved = 0.0;
 	if (cover.g > 0.0) {

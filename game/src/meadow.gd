@@ -36,6 +36,7 @@ func _ground() -> void:
 	StoneStyles.apply(mat)
 	for k in GROUND:
 		mat.set_shader_parameter(k, GROUND[k])
+	mat.set_shader_parameter(&"rock_steep", Terrain.ROCK)
 	for k in GRASS:
 		mat.set_shader_parameter(k, GRASS[k])
 	var mi := MeshInstance3D.new()

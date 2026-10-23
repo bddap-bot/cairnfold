@@ -22,6 +22,7 @@ func _run() -> void:
 	_grass_thins_with_distance()
 	_flowers_out_of_reach_are_not_drawn()
 	_ground_paints_far_grass()
+	_rock_holds_no_grass_or_flowers()
 	_blob_detail_changes_only_what_is_drawn()
 	_crowns_cast_one_shade_each()
 	finish()
@@ -453,3 +454,39 @@ func _ground_paints_far_grass() -> void:
 	cover.flush(pool)
 	check(cover.image.get_pixelv(t) == cover.looks[kept.slot], "kept clumps stay painted through a reset")
 	flora.queue_free()
+
+
+func _rock_holds_no_grass_or_flowers() -> void:
+	var flora := Flora.new()
+	root.add_child(flora)
+	var rng := _rng(93)
+	var cells := Rect2i(Terrain.grid_point(10, 10), Vector2i(8, 8))
+	var area := Terrain.world_rect(cells)
+	var at := Terrain.grid_xz(cells.get_center())
+	var spot := Vector3(at.x, 0, at.y)
+	var was := Terrain.read(cells)
+	var cliff := was.duplicate()
+	for j in cells.size.y:
+		for i in cells.size.x:
+			cliff[j * cells.size.x + i] += i * 1.5
+	var grass := flora.add_grass(spot, rng)
+	var cover := flora.grass.cover
+	var t := cover.texel_of(spot)
+	check(not grass.rock, "grass stands on the meadow")
+	Terrain.write(cells, cliff)
+	check(Terrain.rock_at(at.x, at.y), "ground rising 1.5 m a metre is rock, %.2f steep" % Terrain.steep_at(at.x, at.y))
+	flora.reground(area, false)
+	check(not grass.rock, "a stroke still pulling is not read")
+	flora.reground(area, true)
+	check(grass.rock, "ground pulled into a cliff takes the grass on it")
+	cover.flush(flora.grass)
+	check(cover.image.get_pixelv(t).a == 0.0, "far off too")
+	var flower := flora.add_flower(spot, rng)
+	check(flower.rock, "a flower painted on rock does not stand")
+	Terrain.write(cells, was)
+	flora.reground(area, true)
+	check(not grass.rock and not flower.rock, "both come back as the ground is laid gentle again")
+	cover.flush(flora.grass)
+	check(cover.image.get_pixelv(t).a == 1.0, "and the far grass with them")
+	flora.queue_free()
+

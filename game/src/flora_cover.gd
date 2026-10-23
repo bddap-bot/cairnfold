@@ -88,4 +88,4 @@ func settle(pool: Flora.Pool) -> void:
 
 
 func _stands(p: Flora.Plant) -> bool:
-	return p != null and p.shown() and p.drawn
+	return p != null and p.shown() and p.drawn and not p.rock
