@@ -696,11 +696,15 @@ func _lay_dormer(c: Vector2, hue: float, rng: RandomNumberGenerator) -> void:
 	var t := -DORMER_HALF
 	while t < DORMER_HALF - 0.001:
 		var w := minf(DORMER_BOARD.x, DORMER_HALF - t)
+		# A board ends at the window's edge, so none half over it is cut whole and leaves a slot beside the frame.
+		for edge in [-DORMER_WINDOW, DORMER_WINDOW]:
+			if t < edge - 0.001:
+				w = minf(w, edge - t)
 		var m := t + w * 0.5
 		var bottom := rise(1.0 - x / hs) - 0.12
 		var top := eave_y + DORMER_PITCH * (1.0 - (absf(m) + w * 0.5) / DORMER_HALF)
 		var spans: Array[Vector2] = [Vector2(bottom, top)]
-		if absf(m) < DORMER_WINDOW + 0.04:
+		if absf(m) < DORMER_WINDOW:
 			spans = [Vector2(bottom, sill), Vector2(head, top)]
 		var colour := WallLayout.WOOD * rng.randf_range(0.82, 1.08)
 		for span in spans:

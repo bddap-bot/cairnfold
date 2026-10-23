@@ -311,6 +311,17 @@ func _a_dormer_stands_out_of_the_slope() -> void:
 		check(pane.size() == 1 and absf(pane[0].xform.basis.z.normalized().dot(out)) > 0.99, "dormer %d's pane faces out of the slope" % i)
 		var pane_at: Vector3 = pane[0].xform.origin if pane.size() == 1 else Vector3.ZERO
 		check(pane_at.y > r.base + r.rise(1.0 - absf(spot.y) / hs) + 0.15, "dormer %d's window stands clear of the slope" % i)
+		var across: Array[Vector2] = []
+		for t in mine.filter(func(t): return t.kind in ["board", "frame", "glass"] and absf(t.xform.basis.z.normalized().dot(out)) > 0.99):
+			var half_height: float = t.xform.basis.y.length() * 0.5
+			if absf(t.xform.origin.y - pane_at.y) < half_height:
+				var c: float = (t.xform.origin - pane_at).dot(f.along)
+				across.append(Vector2(c - t.xform.basis.x.length() * 0.5, c + t.xform.basis.x.length() * 0.5))
+		across.sort_custom(func(a: Vector2, b: Vector2) -> bool: return a.x < b.x)
+		var widest := 0.0
+		for j in range(1, across.size()):
+			widest = maxf(widest, across[j].x - across.slice(0, j).reduce(func(m: float, v: Vector2) -> float: return maxf(m, v.y), -INF))
+		check(widest < 0.015, "dormer %d's front closes round its window: a %.3f m slot" % [i, widest])
 		var top: float = r.tiles.filter(func(t): return box.has_point(inverse * t.xform.origin)).reduce(func(m, t): return maxf(m, t.xform.origin.y), -INF)
 		check(top < r.base + r.pitch, "dormer %d's own ridge stays under the roof's: %.2f under %.2f" % [i, top, r.base + r.pitch])
 	check(r.dormer_spot(Vector2(-1.5, -10.0)).y < 0.0 and absf(r.dormer_spot(Vector2(-1.5, -10.0)).y) <= hs - WallLayout.THICKNESS * 0.5 + 0.001, "a dormer placed past the eave stands over the wall")
