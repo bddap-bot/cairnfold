@@ -25,7 +25,27 @@ func _run() -> void:
 	_surfaces_come_from_what_is_touched(wall)
 	_animals_are_solid_in_their_coats()
 	await _a_hand_does_not_stop_against_the_bird_it_carries()
+	await _an_eye_inside_a_wall_or_hill_sees_dark()
 	finish()
+
+
+## The view darkens while the eye is inside a wall or under the ground, and clears once it is out; nothing moves it.
+func _an_eye_inside_a_wall_or_hill_sees_dark() -> void:
+	var rig: Rig = main.rig
+	var dim := func() -> float: return rig._fade_mat.albedo_color.a if rig._fade.visible else 0.0
+	for case: Array in [["in a wall", Terrain.ground(-2, -6), 0.0], ["under a hill", Terrain.ground(0, 10), -3.0]]:
+		rig.place(Terrain.ground(0, 0), 0.0)
+		await _frames(30)
+		var clear: float = dim.call()
+		rig.place(case[1], 0.0)
+		rig.global_position.y += case[2]
+		var at := rig.global_position
+		await _frames(30)
+		var inside: float = dim.call()
+		check(clear == 0.0 and inside >= Rig.INSIDE_DIM - 0.01 and rig.global_position == at, "an eye %s sees dark, %.2f from %.2f, unmoved" % [case[0], inside, clear])
+		rig.place(Terrain.ground(0, 0), 0.0)
+		await _frames(30)
+		check(dim.call() == 0.0, "and clear once out of it")
 
 
 static func _past_one(p: Vector3) -> bool:

@@ -43,6 +43,10 @@ const SNAP := deg_to_rad(30.0)
 ## Each turning flick as the angle it turns the player.
 const TURNS := {"turn_left": SNAP, "turn_right": -SNAP, "turn_round": PI}
 const FADE := 0.09
+## While the eyes are inside something solid, a wall or the ground, the view dims this far over INSIDE_TIME, and
+## clears as fast once they are out: the view is never moved to push them out.
+const INSIDE_DIM := 0.9
+const INSIDE_TIME := 0.15
 ## Where on the ground the player starts, as x and z.
 const SPAWN := Vector2(0, 4)
 ## How far from SPAWN a spawn looks for open ground, and how far apart the points it tries stand.
@@ -83,6 +87,9 @@ var _reach_switch: Array[Buttons] = []
 var _fade_t := -1.0
 ## The view is held dark until `respawn`.
 var _covered := false
+## Whether the eyes are inside something solid (`HandStop`).
+var inside := false
+var _dim := 0.0
 var _pending: Variant = null
 var _aim_clock := 0.0
 ## [time, aim_ground, aim_lift] over the last RELEASE_LOOKBACK of aiming, oldest first.
@@ -368,17 +375,20 @@ func snap_turn(angle: float, hand := right) -> void:
 
 
 func _fade_step(delta: float) -> void:
-	if _fade_t < 0.0:
-		return
-	_fade_t += delta
-	if _covered:
-		_fade_t = minf(_fade_t, FADE)
-	var a := 1.0 - absf(_fade_t / FADE - 1.0)
-	if _pending != null and _fade_t >= FADE:
-		place(_pending[0], _pending[1])
-		_pending = null
-		jumped.emit()
-	_fade_mat.albedo_color = Color(0, 0, 0, clampf(a, 0.0, 1.0))
-	if _fade_t >= FADE * 2.0:
-		_fade_t = -1.0
-		_fade.visible = false
+	_dim = move_toward(_dim, INSIDE_DIM if inside else 0.0, INSIDE_DIM * delta / INSIDE_TIME)
+	var a := 0.0
+	if _fade_t >= 0.0:
+		_fade_t += delta
+		if _covered:
+			_fade_t = minf(_fade_t, FADE)
+		a = clampf(1.0 - absf(_fade_t / FADE - 1.0), 0.0, 1.0)
+		if _pending != null and _fade_t >= FADE:
+			place(_pending[0], _pending[1])
+			_pending = null
+			jumped.emit()
+		if _fade_t >= FADE * 2.0:
+			_fade_t = -1.0
+			a = 0.0
+	a = maxf(a, _dim)
+	_fade_mat.albedo_color = Color(0, 0, 0, a)
+	_fade.visible = a > 0.0

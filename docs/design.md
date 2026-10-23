@@ -3173,6 +3173,11 @@ from the controller itself; the sight stands on the tool you see, and other play
 `HandStop` sweeps a ball the size of the hand from where it was to where the controller is each frame, against
 the world near that sweep alone, so no physics bodies exist.
 
+The eyes are tested the same way: while they are inside the ground, a wall or fence, a roof, a trunk or a boulder
+(not leaves or water), the view dims to 90% black over 0.15 s and clears as fast once they are out. The view is never
+moved to push the head out, which would be motion the player's head did not make. `tests/test_hand_stop.gd`
+checks an eye in a wall and under a hill.
+
 Touch is felt through one table, `HandStop.FEEL`, keyed by the surface touched: a first touch pulses with how
 fast the hand came in and the surface's hardness, and moving along a surface, or through leaves or water,
 plays its grain: stone rough and grainy, plaster smooth, wood and roof tiles ridged, ground soft, bark coarse,

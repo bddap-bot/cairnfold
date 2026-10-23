@@ -63,6 +63,7 @@ func _init(player: Rig, walls: WallTool, plants: Flora, rocks: Boulders = null) 
 	for h in _rig.hands:
 		_held.append(Vector3.INF)
 		_feels.append(Feel.new())
+	for i in _rig.hands.size() + 1:
 		_gathered.append(null)
 		_stamps.append(Vector4i.ZERO)
 
@@ -91,9 +92,12 @@ func _process(delta: float) -> void:
 		var pulse := _feels[i].step(now, delta, touched, near.passing(at), from.distance_to(to), from.distance_to(at))
 		if pulse.x > 0.0:
 			Cues.feel(hand, [pulse.x, pulse.y, 1, 0.0])
+	var eye := _rig.head.global_position
+	var seen := _near_for(_rig.hands.size(), AABB(eye, Vector3.ZERO).grow(RADIUS + STEP)).touch(eye)
+	_rig.inside = not seen in [Surface.NONE, Surface.LEAVES, Surface.WATER]
 
 
-## The world round `box` for hand `i`: what was gathered last time while the box stays inside the region it was
+## The world round `box` for hand `i`, or the eyes after the hands: what was gathered last time while the box stays inside the region it was
 ## gathered for and nothing built or planted since, else gathered afresh for a region SPARE wider.
 func _near_for(i: int, box: AABB) -> Near:
 	var stamp := Vector4i(WallLayout._laid_count, _walls.walls.size() if _walls != null else 0, _flora.changes if _flora != null else 0, _boulders.changes if _boulders != null else 0)
