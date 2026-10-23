@@ -121,7 +121,7 @@ func _a_slow_hand_scatters_none_a_sudden_face_does() -> void:
 	_run(g, 40.0)
 	var sitting := g.in_state(Butterflies.State.PERCH)
 	if sitting.is_empty():
-		_check(false, "one is sitting to be come up to")
+		check(false, "one is sitting to be come up to")
 		return
 	var b: Butterflies.Butterfly = sitting[0]
 	var hand := g.rig.right
@@ -133,17 +133,17 @@ func _a_slow_hand_scatters_none_a_sudden_face_does() -> void:
 		hand.global_position = hand.global_position.move_toward(b.at + Vector3(0.12, 0.05, 0), 0.3 * STEP)
 		nearest[0] = minf(nearest[0], hand.global_position.distance_to(b.at))
 		fled[0] = fled[0] or b.state == Butterflies.State.FLEE)
-	_check(nearest[0] < 0.3 and not fled[0], "a hand coming up slowly to %.2f m scatters none" % nearest[0])
+	check(nearest[0] < 0.3 and not fled[0], "a hand coming up slowly to %.2f m scatters none" % nearest[0])
 	hand.global_position = AWAY
 	_run(g, 1.0)
 	sitting = g.in_state(Butterflies.State.PERCH)
 	if sitting.is_empty():
-		_check(false, "one is sitting to be faced")
+		check(false, "one is sitting to be faced")
 		return
 	b = sitting[0]
 	g.rig.head.global_position = b.at + Vector3(0, 0.05, 0.25)
 	_run(g, 0.2)
-	_check(b.state == Butterflies.State.FLEE, "a face brought suddenly near scatters it")
+	check(b.state == Butterflies.State.FLEE, "a face brought suddenly near scatters it")
 
 
 func _they_leave_when_the_flowers_go() -> void:

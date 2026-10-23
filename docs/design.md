@@ -3580,8 +3580,8 @@ sound costs no frame time.
   watching, preening or flying; now about 60. A settled sheep bleats about once a minute and a quarter, a settled deer
   mews about every minute and a half, and a fox yips about every two and a half. Fish make
   no call: their nibbles are water sounds. An animal within 2.5 m of
-  the head makes none but its soft calls: it stays calm, and only a duck splashing down
-  still quacks there.
+  the head makes none but its soft calls (`Calls.CLOSE`): it stays calm. Ducks' quacks and
+  peeps are close calls too, as a family fed from a hand held over the pond is that near.
   `NESTCOMBE_QUIT_AFTER=420 scripts/render.sh demo/animals.json OUT --write-movie
   OUT/animals.avi --fixed-fps 30` records five minutes of a garden the animals come to.
 - `scripts/render.sh demo/sound.json OUT --write-movie OUT/sound.avi --fixed-fps 30`
