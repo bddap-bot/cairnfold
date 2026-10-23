@@ -712,7 +712,7 @@ func _keys(cmd: Dictionary) -> Array:
 		"season":
 			return ["season"]
 		"easel", "uneasel":
-			return ["e%d" % cmd.id]
+			return ["e%d" % cmd.id, "x%d" % cmd.id]
 		"decoration":
 			return ["d%d" % cmd.id] + (["w%d" % cmd.wall] if cmd.wall >= 0 else [])
 		"undecoration":
@@ -721,7 +721,7 @@ func _keys(cmd: Dictionary) -> Array:
 			return ["b%d" % cmd.id]
 
 		"ponds":
-			return (cmd.get("put", {}).keys() + cmd.get("drop", [])).map(func(g: Vector2i) -> String: return "o%d,%d" % [g.x, g.y])
+			return _pond_keys(cmd)
 		"paint", "unpaint", "sheet":
 			return ["e%d" % cmd.easel]
 		"mix":
@@ -751,8 +751,13 @@ func _keys(cmd: Dictionary) -> Array:
 			for j in range(floori(r.position.y / PATCH), floori(r.end.y / PATCH) + 1):
 				for i in range(floori(r.position.x / PATCH), floori(r.end.x / PATCH) + 1):
 					out.append("t%d,%d" % [i, j])
-			return out
+			# A sculpt's inverse puts back the ponds its refill drained.
+			return out + _pond_keys(cmd)
 	return []
+
+
+static func _pond_keys(cmd: Dictionary) -> Array:
+	return (cmd.get("put", {}).keys() + cmd.get("drop", [])).map(func(g: Vector2i) -> String: return "o%d,%d" % [g.x, g.y])
 
 
 ## Changes the garden by one command and returns the command that takes it back. The author's ghost

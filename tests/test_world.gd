@@ -24,6 +24,8 @@ func _run() -> void:
 	_redo_waits_on_the_same_condition()
 	_bad_commands_are_dropped()
 	_ground_undo_waits_on_overlapping_ground()
+	_a_mix_undo_waits_on_its_easel()
+	_a_pond_undo_waits_on_the_ground_that_drained_it()
 	_stacks_keep_their_newest_steps()
 	_undo_restores_exact_values()
 	await _ghosts_go_when_their_command_settles()
@@ -268,6 +270,37 @@ func _ground_undo_waits_on_overlapping_ground() -> void:
 	_check(world.seq == before + 4, "but one with another player's edit far off is")
 	world._order({"op": "undo"}, 22)
 	world._order({"op": "heights", "cells": Rect2i(60, 60, 12, 12), "values": original}, 21)
+
+
+func _a_mix_undo_waits_on_its_easel() -> void:
+	world._order({"op": "easel", "at": Terrain.ground(-40, -40), "yaw": 0.0, "strokes": [], "mix": PackedByteArray()}, 31)
+	var id := world.seq
+	var mix := PackedByteArray()
+	mix.resize(Mixing.SIZE.x * Mixing.SIZE.y * 4)
+	mix.fill(200)
+	world._order({"op": "mix", "easel": id, "mix": mix}, 31)
+	world._order({"op": "uneasel", "id": id}, 32)
+	var before := world.seq
+	world._order({"op": "undo"}, 31)
+	_check(world.seq == before, "a mix on an easel someone has since taken away is not undone")
+	world._order({"op": "undo"}, 32)
+	world._order({"op": "undo"}, 31)
+	_check(world.state.easels.has(id) and world.state.easels[id].mix == mix, "nor once they put it back: it keeps the mix")
+	world._order({"op": "uneasel", "id": id}, 32)
+
+
+func _a_pond_undo_waits_on_the_ground_that_drained_it() -> void:
+	var cells := Terrain.cells_around(-40, 40, 2.8)
+	world._order(_hill(cells, -1.0), 33)
+	var hit := Vector3(-40, Water.brim(-40, 40, 2.8 * GroundGrab.SPREAD), 40)
+	var p: PondLayout.Pond = Water.deepest(Water.candidates(hit), hit.y)
+	world._order({"op": "ponds", "put": {p.at: hit.y}, "wet": p.cells.size()}, 33)
+	_check(world.state.ponds.has(p.at), "a pond fills the hollow")
+	world._order(_hill(cells, 1.0), 34)
+	_check(not world.state.ponds.has(p.at), "and drains when someone fills the hollow in")
+	_check(world._resolve(33, "undo", false).is_empty(), "so its pourer's undo waits on that sculpt, which took the pond")
+	world._order({"op": "undo"}, 34)
+	world._order({"op": "undo"}, 33)
 
 
 func _stacks_keep_their_newest_steps() -> void:
