@@ -430,7 +430,8 @@ density, and no build the player can make may bring the frame rate down.
   companions playing the recorded wave throughout the tour, including its final
   `avatars/wave` view.
 - Each run records its phases under `perf/HEADSET/SCENE/`, named by the build measured; `scripts/trend.py` prints the
-  latest run of each beside the one before and the best, marking a rise of a tenth. It only reports.
+  latest run of each beside the median of the three before and the best, marking a rise of a quarter and 2 ms; on a
+  named scene a GPU-time rise fails it, and bench.sh runs it on the scene it recorded.
 
 What makes building cheap:
 

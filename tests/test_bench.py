@@ -5,11 +5,15 @@ import sys
 import tempfile
 import unittest
 
+SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
+REPORT = (SCRIPTS / "bench.sh").read_text().split('python3 - "$out" "$device" "$record" "$players" <<\'PY\'', 1)[1].split("\n", 1)[1].rsplit("\nPY", 1)[0]
+sys.path.insert(0, str(SCRIPTS))
+import trend  # noqa: E402
+
 
 class BenchmarkRendering(unittest.TestCase):
     def test_failed_rendering_cannot_pass_the_frame_budget(self):
-        source = (Path(__file__).resolve().parents[1] / "scripts/bench.sh").read_text()
-        report = source.split('python3 - "$out" "$device" "$record" <<\'PY\'\n', 1)[1].rsplit("\nPY", 1)[0]
+        report = REPORT
         with tempfile.TemporaryDirectory(dir=".") as folder:
             out = Path(folder)
             (out / "metrics.json").write_text(json.dumps({
@@ -21,17 +25,16 @@ class BenchmarkRendering(unittest.TestCase):
                 with self.subTest(log=log):
                     path = out / log
                     path.write_text('ERROR: When supplying a custom region, it must be contained within the framebuffer rectangle\n')
-                    result = subprocess.run([sys.executable, "-c", report, str(out), "desktop", str(out / "record.json")], capture_output=True, text=True)
+                    result = subprocess.run([sys.executable, "-c", report, str(out), "desktop", str(out / "record.json"), "1"], capture_output=True, text=True)
                     self.assertNotEqual(result.returncode, 0)
                     self.assertIn("invalid framebuffer region; rendering failed", result.stderr)
                     path.unlink()
-            result = subprocess.run([sys.executable, "-c", report, str(out), "desktop", str(out / "record.json")], capture_output=True, text=True)
+            result = subprocess.run([sys.executable, "-c", report, str(out), "desktop", str(out / "record.json"), "1"], capture_output=True, text=True)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("drag", result.stdout)
 
     def test_a_quest_game_crash_is_named_a_crash(self):
-        source = (Path(__file__).resolve().parents[1] / "scripts/bench.sh").read_text()
-        report = source.split('python3 - "$out" "$device" "$record" <<\'PY\'\n', 1)[1].rsplit("\nPY", 1)[0]
+        report = REPORT
         game = '17923700{s}.000  6423  6467 I godot   : {text}\n'
         vrapi = '17923700{s}.000  {pid}  6717 I VrApi   : FPS=72/72,Prd=40ms,App=10.00ms,GPU%=0.5\n'
         ran = (game.format(s=20, text="xr: session at 72.0 Hz")
@@ -50,7 +53,7 @@ class BenchmarkRendering(unittest.TestCase):
                 "seconds": [{"label": "-" if s == 20 else "paths/stroke", "unix": 1792370000 + s, "p50": 13.89, "p99": 13.89,
                              "late": 0, "draws": 100, "prims": 1000} for s in range(20, 26)],
             }))
-            run = lambda: subprocess.run([sys.executable, "-c", report, str(out), "quest", str(out / "record.json")], capture_output=True, text=True)
+            run = lambda: subprocess.run([sys.executable, "-c", report, str(out), "quest", str(out / "record.json"), "1"], capture_output=True, text=True)
             for name, (log, message) in logs.items():
                 with self.subTest(log=name):
                     (out / "logcat.txt").write_text(log)
@@ -61,3 +64,46 @@ class BenchmarkRendering(unittest.TestCase):
             result = run()
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn("paths/stroke", result.stdout)
+
+
+class Trend(unittest.TestCase):
+    def record(self, folder, name, phases, **more):
+        (folder / name).write_text(json.dumps({"budget_gpu_ms": 12.5, **more, "phases": phases}))
+
+    def test_the_latest_run_is_the_newest_timestamp_and_other_files_are_no_runs(self):
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            out = Path(folder)
+            self.record(out, "20261023T140141Z-d334474.json", {"village/aerial": {"p50": 280.0, "gpu_ms": 271.4}})
+            self.record(out, "20261021T140221Z-fe69646.json", {"village/aerial": {"p50": 33.0, "gpu_ms": 31.4}})
+            self.record(out, "audio-lifetime-control.json", {"village/aerial": {"p50": 75.0, "gpu_ms": 71.0}})
+            (out / "foveation.json").write_text(json.dumps({"runs": []}))
+            self.assertEqual([name for name, _ in trend.runs(out)], ["20261021T140221Z-fe69646", "20261023T140141Z-d334474"])
+            self.assertEqual(trend.report("quest-2", "stress", out), ["village/aerial"])
+
+    def test_a_rise_stays_one_when_rerun_and_other_player_counts_are_no_base(self):
+        with tempfile.TemporaryDirectory(dir=".") as folder:
+            out = Path(folder)
+            for day in range(1, 4):
+                self.record(out, f"2026100{day}T000000Z-aaaaaaa.json", {"a": {"gpu_ms": 30.0}})
+            self.record(out, "20261005T000000Z-ccccccc.json", {"a": {"gpu_ms": 90.0}}, players=8)
+            self.record(out, "20261006T000000Z-bbbbbbb.json", {"a": {"gpu_ms": 40.0}})
+            self.assertEqual(trend.report("rig", "scene", out), ["a"])
+            self.record(out, "20261007T000000Z-bbbbbbb.json", {"a": {"gpu_ms": 40.0}})
+            self.assertEqual(trend.report("rig", "scene", out), ["a"])
+            self.record(out, "20261008T000000Z-ddddddd.json", {"a": {"gpu_ms": 100.0}}, players=8)
+            self.assertEqual(trend.report("rig", "scene", out), [])
+
+    def test_only_a_gpu_rise_past_the_noise_fails(self):
+        cases = {
+            "steady": ({"gpu_ms": 30.0}, {"gpu_ms": 36.0}, []),
+            "light": ({"gpu_ms": 4.0}, {"gpu_ms": 5.9}, []),
+            "risen": ({"gpu_ms": 30.0}, {"gpu_ms": 40.0}, ["a"]),
+            "desktop": ({"p50": 10.0}, {"p50": 20.0}, []),
+        }
+        for case, (before, latest, risen) in cases.items():
+            with self.subTest(case=case), tempfile.TemporaryDirectory(dir=".") as folder:
+                out = Path(folder)
+                self.record(out, "20261022T000000Z-aaaaaaa.json", {"a": before})
+                self.record(out, "20261023T000000Z-bbbbbbb.json", {"a": latest})
+                self.assertEqual(trend.report("rig", "scene", out), risen)
+

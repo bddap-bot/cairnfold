@@ -17,7 +17,7 @@
 # On a Quest, exits 1 when a phase the build must hold goes over budget; phases named "sweep/..." only measure.
 # On a Frame, exits 1 when the game exits non-zero, a crash at quit included; the desktop run stops with its status.
 # Each run's phases are recorded in perf/RIG/SCENE/, RIG the headset's model; commit the record with the change it
-# measured, for scripts/trend.py to follow.
+# measured. scripts/trend.py then compares it with the runs before, and a phase's GPU time rising fails the bench.
 # NESTCOMBE_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
 # frames over 1.5x the refresh period from its first second, where its edits land; the others leave that second out.
 # The land max and land late columns are the longest frame and the late frames over the phase's landings: each window of
@@ -243,9 +243,10 @@ if [ "$players" -gt 1 ] && grep -qs "driver: until .* timed out" "$out"/godot.lo
 fi
 scene=$(basename "${NESTCOMBE_SCENE:-stress.json}" .json)
 record=$here/../perf/$rig/$scene/$(date -u +%Y%m%dT%H%M%SZ)-${build:0:7}.json
-python3 - "$out" "$device" "$record" <<'PY'
+failed=
+python3 - "$out" "$device" "$record" "$players" <<'PY' || failed=1
 import bisect, json, os, re, sys
-out, device, record = sys.argv[1], sys.argv[2], sys.argv[3]
+out, device, record, players = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
 for name in ["logcat.txt", "godot.log"]:
     path = os.path.join(out, name)
     if os.path.exists(path):
@@ -345,10 +346,12 @@ for name, secs in phases.items():
     print(row)
 os.makedirs(os.path.dirname(record), exist_ok=True)
 with open(record, "w") as f:
-    json.dump({"budget_gpu_ms": budget["gpu_ms"], "phases": summary}, f, indent=1)
+    json.dump({"budget_gpu_ms": budget["gpu_ms"], **({"players": players} if players > 1 else {}), "phases": summary}, f, indent=1)
 print(f"recorded {os.path.relpath(record)}")
 if over:
     print("over budget: " + ", ".join(over))
     sys.exit(1)
 PY
+[ ! -f "$record" ] || python3 "$here/trend.py" "$rig" "$scene" || failed=1
 [ "$game" = 0 ] || { echo "bench: the game exited $game; see $out/godot.log" >&2; exit 1; }
+[ -z "$failed" ] || exit 1
