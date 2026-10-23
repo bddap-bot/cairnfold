@@ -10,6 +10,27 @@ func _initialize() -> void:
 	_run.call_deferred()
 
 
+## A grip that takes the ground or the sky, held still, pulses in the hand at once, so a far catch reads from a miss.
+func _a_still_catch_is_felt(hand: Hand) -> void:
+	var pulses := func() -> int:
+		var n := 0
+		for by: Dictionary in Cues.pulsed.values():
+			n += by.get(hand.get_instance_id(), 0)
+		return n
+	main.look.set_time(0.5)
+	for what: Array in [["ground", Vector3(0.1, -1, -0.6)], ["sky", Vector3(0.1, 1, -0.6)]]:
+		hand.global_basis = Basis.looking_at(what[1])
+		await _frames()
+		var before: int = pulses.call()
+		Buttons.injected["right_hand/grip_click"] = true
+		await _frames()
+		var took: bool = main.ground_grab.busy(hand) if what[0] == "ground" else main.sky_tool.holder == hand
+		check(took and pulses.call() > before, "a still grip on the %s takes it (%s) and is felt: %d pulses" % [what[0], took, pulses.call() - before])
+		Buttons.injected.erase("right_hand/grip_click")
+		await _frames()
+		main.sky_tool.holder = null
+
+
 ## A grip pointed at a range round the garden, under its ridge, takes nothing: the mountains stand in front of the sky.
 func _the_mountains_are_not_sky(hand: Hand) -> void:
 	var sky: SkyTool = main.sky_tool
@@ -454,6 +475,7 @@ func _run() -> void:
 			Buttons.injected.erase("right_hand/grip_click")
 			await _frames()
 	await _the_mountains_are_not_sky(hand)
+	await _a_still_catch_is_felt(hand)
 	Hand.injected_sticks.clear()
 	Buttons.injected.clear()
 	await _frames()

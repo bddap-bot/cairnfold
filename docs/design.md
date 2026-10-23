@@ -3850,7 +3850,7 @@ Every player action, from the code:
 | `ARCH` | A path opens or closes arches in a wall | gravel trickle | none: the path being laid is felt |
 | `ROOF_SHAPE` | A roof's pitch or curve steps | wooden knock | tick |
 | `ROOF_FLAT` | A roof pulled all the way down snaps flat | settling rattle | knock |
-| `HOUSE_TAKE` | The house tool takes up a new house | low lift thump | knock |
+| `HOUSE_TAKE` | A first grip takes a built wall, fence, house, tower or roof in hand | low lift thump | knock |
 | `HOUSE_MOVE` | A house in hand is carried or turned | stone scrape, every 0.12 m | light grain |
 | `HOUSE_STRETCH` | A house in hand is stretched between two hands | wooden bow creak, higher as it goes | a pulse tightening with it |
 | `STAIRS_LAY` | A stair being drawn gains a step | stone clack | tick |
@@ -3863,6 +3863,7 @@ Every player action, from the code:
 | `TREE_PLANT` | A tree is planted | soft earth thump | knock |
 | `BOULDER_PLACE` | A boulder is set down, or let go and lands | deep thud and a few stones settling, louder the farther it fell and the bigger it is, lower as it grows; a pebble set down still gives a quiet one | knock, harder the farther it fell |
 | `BOULDER_MOVE` | A held boulder moves or turns | low whoosh of air, at most five a second blending into one, louder and higher the faster its surface moves, louder and lower the bigger it is; silent when it is still or under 0.4 times a metre wide | none: the grip is felt |
+| `GROUND_TAKE` | A grip takes the ground | none: what the ground does next is heard | a soft pulse, so a still catch at reach reads from a miss |
 | `GROUND_SHAPE` | The ground in a grip rises or sinks a quarter metre | soft earth thump | click |
 | `POND_POUR` | The pond tool lets water in | none: the pond's gurgle (`POND_FILL`) plays as the water comes | long soft pulse |
 | `POND_FILL` | A new pond fills (any player's) | gurgle | none: `POND_POUR` is felt |
@@ -3874,6 +3875,7 @@ Every player action, from the code:
 | `WIPE` | The garden is wiped | long soft gust and rattle | two strong pulses |
 | `DIAL_TURN` | The colour or style wheel turns to the next swatch | wooden tock | click |
 | `DIAL_SET` | Letting go of the wheel sends a new choice | felt pluck | knock |
+| `SKY_TAKE` | A grip takes the sky | none | a faint tick |
 | `SKY_TURN` | The grabbed sky turns past an hour | low tock | click |
 | `EASEL_PLACE` | An easel is set up | low wooden knock | knock |
 | `BRUSH_TAKE` | A grip takes a brush, charcoal, the palette or the sheet's corner | tock | knock |
@@ -3914,9 +3916,8 @@ The deciding head turn eases at 22/s while retaining its person-to-food glance.
 | Action | What it is | Why it has no entry |
 | --- | --- | --- |
 | Touching a surface | A hand pressing on or sliding along walls, ground, roofs, trunks, leaves, water or an animal | felt through `HandStop.FEEL`, by surface (see "Hands at surfaces"); its pulses go out through `Cues.feel` |
-| Grabbing a wall or roof, a house's second grip | A grip takes a build | the pull that follows is heard and felt (`WALL_STRETCH`, `ROOF_SHAPE`, `HOUSE_STRETCH`) |
+| A build's second grip | A second grip joins the first on a build in hand | the first grip's `HOUSE_TAKE` was felt, and the pull that follows is heard and felt (`WALL_STRETCH`, `ROOF_SHAPE`, `HOUSE_STRETCH`) |
 | Releasing a grab | A grip lets go of a wall, roof, the ground or the sky | the garden's answer is heard (`WALL_SETTLE`, `WALL_RESTYLE`); a sound of its own would double it |
-| Grabbing the sky or the ground | A grip takes the sky or the ground | it turns or gives way at once, heard and felt in steps |
 | Opening the colour or style wheel | Trigger held on a build | its first step is the first `DIAL_TURN` |
 | Aiming a teleport | Holding a stick forward | the arc and its ring show it; only the jump itself is heard |
 | Walking (flat) | Stick or keys | footsteps on every frame of a walk would tire; the flat build has no controller to feel |

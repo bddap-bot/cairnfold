@@ -55,6 +55,7 @@ func take(hand: Hand, dir: Vector3) -> void:
 	_turned = 0.0
 	_last = Daylight.turn_of(dir)
 	_ticked = floori(look.time / TICK)
+	Cues.play(Cues.Act.SKY_TAKE, hand.global_position, hand)
 
 
 ## Turns the sky by however far `dir` went round the arc's axis since the last aim, so the point grabbed

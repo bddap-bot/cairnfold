@@ -114,6 +114,7 @@ func _handle(g: Grab, delta: float) -> void:
 	if hit == null or Daylight.aims_at_body(dir, world.time):
 		return
 	begin(hand, hit, hand.at_controller().distance_to(hit) * RADIUS_PER_METRE)
+	Cues.play(Cues.Act.GROUND_TAKE, hit, hand)
 	g.gripped = true
 	g.hand_y = hand.position.y
 	g.gain = Hand.reach_gain(hand.global_position.distance_to(hit))
