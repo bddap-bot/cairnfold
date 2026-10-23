@@ -1836,7 +1836,9 @@ colour and dense, touchable detail. On a mobile GPU in stereo at the headset's r
   mirrors the ranges without drawing them twice: each fragment follows its reflected ray to
   each range's circle and compares its climb with the ridge there, read from a 512-texel
   ring of ridge heights (`Mountains.ridge_image`). `demo/edge.json` measures it against the
-  plain from the garden and from the air.
+  plain from the garden and from the air: on a Quest 2 (`perf/quest-2/edge/20261023T03*`, two
+  rounds of each build, GPU ms a frame) it adds 256 primitives and one draw, and costs 0.00 ms
+  standing (10.66 both) and +0.14 ms from 22 m up (11.02 to 11.16).
 - **Sun shadows:** one stabilized orthogonal map reaches 256 m, covering the garden
   without a fade or cascade boundary inside it. Godot's Mobile renderer selects
   cascades and fades shadows by view depth: a fixed distant tree used to lose its
