@@ -129,12 +129,15 @@ func _posts_on_treads(d: Dictionary) -> void:
 	railed.rail = "wood"
 	var stairs := StairLayout.new()
 	stairs.build(railed)
-	var tops := stairs.treads.map(func(t: Vector3) -> float: return t.y)
 	var posts := stairs.stones.filter(func(p: Dictionary) -> bool: return p.kind == "rail" and is_equal_approx(p.xform.basis.y.normalized().y, 1.0))
 	check(posts.size() >= 4, "a railed flight has posts on both sides")
+	var low: Vector3 = d.a if d.a.y <= d.b.y else d.b
+	var up := Vector3(d.b.x - d.a.x, 0, d.b.z - d.a.z).normalized() * signf(d.b.y - d.a.y)
 	for post: Dictionary in posts:
 		var foot: float = post.xform.origin.y - post.xform.basis.y.length() * 0.5
-		check(tops.any(func(y: float) -> bool: return is_equal_approx(y, foot)), "a railing post stands on a tread, not in the air: %.3f" % foot)
+		var downhill: Vector3 = post.xform.origin - up * 0.06
+		var under := stairs.surface(Vector3(downhill.x, 0, downhill.z) - (downhill - low).dot(up.cross(Vector3.UP)) * up.cross(Vector3.UP))
+		check(is_equal_approx(foot, low.y if is_nan(under) else under), "a railing post stands on the tread or ground under its downhill face: %.3f, not %.3f" % [foot, under])
 
 
 ## Walking the centre line from one end to the other meets a tread everywhere, no step higher than a stair's rise,

@@ -32,6 +32,10 @@ static func classify(a: Vector3, b: Vector3) -> Kind:
 		return Kind.LANDING
 	return Kind.LADDER if rise > run * LADDER_SLOPE else Kind.FLIGHT
 
+## Whether stairs `d` lay railings: a ladder never does.
+static func railed(d: Dictionary) -> bool:
+	return d.rail != "none" and classify(d.a, d.b) != Kind.LADDER
+
 func build(d: Dictionary) -> void:
 	stones.clear()
 	treads.clear()
@@ -79,15 +83,16 @@ func build(d: Dictionary) -> void:
 			var centre := p + side * ((col + 0.5) / columns - 0.5) * width
 			centre.y -= height * 0.5
 			_piece(centre, basis, Vector3(width / columns - 0.015, height, depth + 0.02), "stone", rng)
-	if d.rail != "none":
+	if railed(d):
 		var posts := maxi(1, ceili(run / 1.0))
 		for sign_x: float in [-1.0, 1.0]:
 			var offset: Vector3 = side * (width * 0.5 - 0.06) * sign_x
 			for i in posts + 1:
 				var p := a.lerp(b, float(i) / posts) + offset
-				var foot := treads[mini(floori(float(i) * n / posts), n - 1)].y
-				var tall := p.y + RAIL_HEIGHT - foot
-				_piece(Vector3(p.x, foot + tall * 0.5, p.z), basis, Vector3(0.12, tall, 0.12), d.rail, rng)
+				var under := floori((float(i) / posts * run - 0.06) / depth)
+				var base := a.y if under < 0 else treads[mini(under, n - 1)].y
+				var tall := p.y + RAIL_HEIGHT - base
+				_piece(Vector3(p.x, base + tall * 0.5, p.z), basis, Vector3(0.12, tall, 0.12), d.rail, rng)
 			_beam(a + offset + Vector3.UP * RAIL_HEIGHT, b + offset + Vector3.UP * RAIL_HEIGHT, 0.12, d.rail, rng)
 	_bound()
 
