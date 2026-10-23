@@ -34,7 +34,6 @@ var _shells := []
 var _heights := PackedFloat32Array()
 var _ground := -1
 var _dirty := false
-var _flicker := false
 
 
 func _init() -> void:
@@ -117,7 +116,6 @@ class Room:
 
 ## The lanterns hung on `walls` and the rooms of the houses and towers among them, wherever they stand now.
 func light(walls: Array, extra := PackedVector3Array()) -> void:
-	_flicker = not extra.is_empty()
 	var flames := extra.duplicate()
 	var shells := []
 	for w: Wall in walls:
@@ -134,14 +132,6 @@ func light(walls: Array, extra := PackedVector3Array()) -> void:
 	if flames != _flames:
 		_flames = flames
 		_dirty = true
-
-
-## Flickers the flames, then as Bake.update.
-func update() -> void:
-	var t := Time.get_ticks_msec() * 0.001
-	var pulse := 0.96 + 0.04 * sin(t * 7.0) * sin(t * 11.0) if _flicker else 1.0
-	RenderingServer.global_shader_parameter_set(&"lamp_light", Vector3(LIGHT.r, LIGHT.g, LIGHT.b) * ENCODE * pulse)
-	super()
 
 
 func _next() -> Callable:
