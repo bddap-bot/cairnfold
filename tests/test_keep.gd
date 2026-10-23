@@ -22,6 +22,7 @@ func _run() -> void:
 	DirAccess.make_dir_recursive_absolute(dir)
 	check(world.save_path == "", "a test or scripted run keeps no garden unless told to")
 	await _every_edit_is_kept_and_loads_whole()
+	await _a_burst_of_edits_is_kept_once()
 	await _a_flat_roof_is_kept()
 	await _a_placed_bush_counts_and_is_kept()
 	await _a_visited_garden_is_not_kept()
@@ -73,6 +74,30 @@ func _every_edit_is_kept_and_loads_whole() -> void:
 	var seq := world.seq
 	await play([{"op": "tree", "x": -8, "z": 8}, {"op": "wait", "seconds": 0.1}])
 	check(world.seq == seq + 1 and world.state.groups.has(world.seq), "commands go on numbering from the loaded garden")
+
+
+## Keeping copies the whole garden in the frame it is kept, so a burst of edits waits to be kept together.
+func _a_burst_of_edits_is_kept_once() -> void:
+	var path := dir.path_join("garden.save")
+	await _settled()
+	var before := FileAccess.get_file_as_bytes(path)
+	var burst := []
+	for i in 6:
+		burst.append_array([{"op": "tree", "x": -6 + 2 * i, "z": 12}, {"op": "wait", "seconds": 0.1}])
+	await _play(burst)
+	_landed()
+	_check(FileAccess.get_file_as_bytes(path) == before, "edits in a burst are not kept one by one")
+	for f in ceili(World.KEEP_EVERY * 60):
+		await process_frame
+	_landed()
+	_check(FileAccess.get_file_as_bytes(path) == var_to_bytes(world.snapshot()), "but together, once the burst has waited its turn")
+
+
+## Waits for a save already being written, without writing one still due.
+func _landed() -> void:
+	if world._keep_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(world._keep_task)
+		world._keep_task = -1
 
 
 func _a_flat_roof_is_kept() -> void:

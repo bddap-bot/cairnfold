@@ -190,6 +190,7 @@ func join(address: String, at_port: int) -> bool:
 		push_error("session: could not open a connection to %s:%d" % [address, at_port])
 		return false
 	if visiting.is_empty():
+		world.flush()
 		_home = world.snapshot()
 	_shelf.stop()
 	_handing.clear()

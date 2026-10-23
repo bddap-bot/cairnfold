@@ -23,6 +23,8 @@ const DROWNING := ["heights", "ponds", "plant", "tree"]
 ## A saved garden from another format is moved aside rather than rebuilt into a different one: 5 lays each floor
 ## in its own material.
 const FORMAT := 5
+## The garden is kept at most this often while it changes: keeping it takes the frame a copy of the whole garden.
+const KEEP_EVERY := 5.0
 const OVER := "over the frame budget"
 ## A ponds or ground command whose water fills again over at least this many grid points is worked out on another
 ## thread before it applies (Refill), and the commands after it wait for it: on a Quest 2 a fill takes about 10 µs a
@@ -84,6 +86,8 @@ var _done := {}
 var save_path := ""
 var _keep_due := false
 var _keep_task := -1
+## Seconds until the garden may be kept again: a burst of edits is kept once, not once a frame.
+var _keep_wait := 0.0
 ## What the garden's builds count as in the frame budget (Budget.UNITS), kept as each command applies; walls and paths
 ## by key too, so taking one away takes back what it added.
 var units := {}
@@ -212,9 +216,17 @@ func _exit_tree() -> void:
 	flush()
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if not _queue.is_empty():
 		_drain()
+	_keep_wait -= delta
+	if _keep_due and _keep_wait <= 0.0 and (_keep_task < 0 or WorkerThreadPool.is_task_completed(_keep_task)):
+		_keep()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_PAUSED:
+		flush()
 
 
 ## Runs `run`, which orders or applies `cmd` (by player `by` on the host), once every command before it has run and
@@ -325,7 +337,8 @@ func flush() -> void:
 
 
 ## Loads the garden saved at `path`, if there is one, and from then on saves this garden there: rewritten
-## after every frame in which a command changed it while it was our own (not one we are visiting). A file
+## at most every KEEP_EVERY seconds after a command changed it while it was our own (not one we are visiting), and
+## whenever the game is paused, quits or leaves for another's garden (flush). A file
 ## of another format, or one this game cannot read whole, is moved aside to `path`.bad before anything is
 ## written over it.
 func load_from(path: String) -> void:
@@ -354,10 +367,14 @@ func restore_whole(snap: Variant) -> bool:
 ## The snapshot is taken here, so the garden it describes cannot change under the writer.
 func _keep() -> void:
 	_keep_due = false
-	if save_path == "":
+	if save_path == "" or not multiplayer.is_server():
 		return
+	var start := Time.get_ticks_usec()
 	var bytes := var_to_bytes(snapshot())
-	flush()
+	if _keep_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(_keep_task)
+	Metrics.note("world: keeping the garden", (Time.get_ticks_usec() - start) / 1000.0)
+	_keep_wait = KEEP_EVERY
 	var path := ProjectSettings.globalize_path(save_path)
 	_keep_task = WorkerThreadPool.add_task(func() -> void: World._write(path, bytes))
 
@@ -1045,9 +1062,8 @@ func _apply(cmd: Dictionary) -> Dictionary:
 	if mine and last:
 		_settle(cmd.token)
 	applied.emit(cmd)
-	if save_path != "" and not _keep_due and multiplayer.is_server():
+	if save_path != "" and multiplayer.is_server():
 		_keep_due = true
-		_keep.call_deferred()
 	return inverse
 
 
