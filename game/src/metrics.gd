@@ -3,8 +3,8 @@ extends Node
 
 ## Frame-time record: every frame's delta summarised per second with the GPU time the process used in it, the
 ## most draw calls and primitives any frame drew, and the viewport's GPU time per frame and the lowest quality
-## step the governor took (see Quality), and the frames again by what the player was doing in each (ACTIVITIES),
-## flushed to JSON as it goes.
+## step the governor took (see Quality), the frames again by what the player was doing in each (ACTIVITIES), and
+## each frame of every landing's window (LANDING_S), flushed to JSON as it goes.
 
 var path: String
 var info := {}
@@ -22,8 +22,12 @@ var quality: Quality
 var head: Node3D
 ## The garden, whose share of the frame budget (World.fill) each second records.
 var world: World
-var _origin: Vector3
+var _origin: Transform3D
 var _origin_moves := 0
+## The open landing window: {label, frames_ms, s}, s its time so far.
+var _landing := {}
+var _landings: Array = []
+var _moved := false
 var _step := 0
 var _viewport_ms := 0.0
 var _viewport_frames := 0
@@ -53,6 +57,11 @@ const MOVING_DEG_S := 30.0
 const MOVING_M_S := 0.3
 ## Frame-time histogram bins per millisecond: fine enough for p99 against a 11 ms refresh, and merges exactly.
 const BINS_PER_MS := 2
+## A landing's window: the frame the origin is seen moved in, whose interval holds the move's own scripts when they
+## ran after this node last frame, and the frames after it until this much time has passed, where the new view's
+## first draws, the hover settling and anything else the move starts fall. A glide moves the origin every frame, so
+## only a move after a frame without one opens a window.
+const LANDING_S := 0.5
 ## This second's frames by tag, as `tally` keeps them.
 var _by_activity := {}
 var _head_was: Variant = null
@@ -110,10 +119,20 @@ func _process(_delta: float) -> void:
 			_eye_lo[i] = minf(_eye_lo[i], now_eyes[i])
 			_eye_hi[i] = maxf(_eye_hi[i], now_eyes[i])
 	if head != null:
-		var o := head.get_parent_node_3d().global_position
-		if o != _origin:
+		var o := head.get_parent_node_3d().global_transform
+		var moved := o != _origin
+		if moved:
 			_origin_moves += 1
 			_origin = o
+			if not _moved:
+				_close_landing()
+				_landing = {"label": info.get("label", ""), "frames_ms": [], "s": 0.0}
+		_moved = moved
+	if not _landing.is_empty():
+		_landing.frames_ms.append(snappedf(elapsed * 1000.0, 0.001))
+		_landing.s += elapsed
+		if _landing.s >= LANDING_S:
+			_close_landing()
 	_acc += elapsed
 	if _acc >= 1.0:
 		var begin := Time.get_ticks_usec()
@@ -125,9 +144,12 @@ func _process(_delta: float) -> void:
 		row.draws = _draws
 		if head != null:
 			row.head_m = snappedf(head.position.y, 0.01)
-			row.origin = [snappedf(_origin.x, 0.001), snappedf(_origin.y, 0.001), snappedf(_origin.z, 0.001)]
+			row.origin = [snappedf(_origin.origin.x, 0.001), snappedf(_origin.origin.y, 0.001), snappedf(_origin.origin.z, 0.001)]
 			row.origin_moves = _origin_moves
 			_origin_moves = 0
+			if not _landings.is_empty():
+				row.landings = _landings
+				_landings = []
 		row.prims = _prims
 		if not _eye_lo.is_empty():
 			row.eye_fov_spread_deg = spread(_eye_lo, _eye_hi)
@@ -171,6 +193,15 @@ func _process(_delta: float) -> void:
 		_since_flush += 1.0
 		if _since_flush >= 5.0:
 			flush()
+
+
+func _close_landing() -> void:
+	if _landing.is_empty():
+		return
+	var frames: Array = _landing.frames_ms
+	_landings.append({"label": _landing.label, "frames_ms": frames, "max": frames.max(),
+		"late": frames.filter(func(ms: float) -> bool: return is_late(ms)).size()})
+	_landing = {}
 
 
 ## This frame's tags: moving from the head's motion over `elapsed` seconds, the rest from `activity`.

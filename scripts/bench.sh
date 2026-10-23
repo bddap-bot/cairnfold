@@ -20,6 +20,8 @@
 # measured, for scripts/trend.py to follow.
 # NESTCOMBE_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
 # frames over 1.5x the refresh period from its first second, where its edits land; the others leave that second out.
+# The land max and land late columns are the longest frame and the late frames over the phase's landings: each window of
+# game/src/metrics.gd's LANDING_S from a move of the play space's origin, a teleport or view; "-" for none.
 # NESTCOMBE_ARGS="--quality 8" passes more game arguments on a Quest, each word its own.
 # NESTCOMBE_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
 # streaming their heads and hands. NESTCOMBE_WAVE=1 makes them flat-screen players repeatedly waving. NESTCOMBE_GUEST_AVATAR=FILE.vrm has each of them wear that VRM in place of a
@@ -306,16 +308,24 @@ elif device == "quest":
     if unmeasured:
         sys.exit("bench: no runtime GPU time for " + ", ".join(unmeasured) + "; see logcat.txt")
 print(f"{device}: budget {budget['gpu_ms']:.2f} ms of GPU time a frame at {budget['refresh_hz']:.0f} Hz, held on a Quest")
-print(f"{'phase':18} {'frame p50':>9} {'p99':>7} {'late':>5} {'draws':>6} {'prims':>9} {'gpu ms':>7}")
+landings = {}
+for s in d["seconds"]:
+    for w in s.get("landings", []):
+        landings.setdefault(w["label"], []).append(w)
+print(f"{'phase':18} {'frame p50':>9} {'p99':>7} {'late':>5} {'draws':>6} {'prims':>9} {'land max':>8} {'land late':>9} {'gpu ms':>7}")
 over = []
 summary = {}
 for name, secs in phases.items():
     late = sum(s["late"] for s in secs)
     secs = secs[1:] or secs
     mid = lambda xs: sorted(xs)[len(xs) // 2] if xs else float("nan")
-    row = f"{name:18} {mid([s['p50'] for s in secs]):9.2f} {max(s['p99'] for s in secs):7.2f} {late:5} {max(s['draws'] for s in secs):6} {max(s['prims'] for s in secs):9}"
+    windows = [{"frames": len(w["frames_ms"]), "max": w["max"], "late": w["late"]} for w in landings.get(name, [])]
+    landed = f"{max(w['max'] for w in windows):8.2f} {sum(w['late'] for w in windows):9}" if windows else f"{'-':>8} {'-':>9}"
+    row = f"{name:18} {mid([s['p50'] for s in secs]):9.2f} {max(s['p99'] for s in secs):7.2f} {late:5} {max(s['draws'] for s in secs):6} {max(s['prims'] for s in secs):9} {landed}"
     summary[name] = {"p50": mid([s["p50"] for s in secs]), "p99": max(s["p99"] for s in secs), "late": late,
                      "draws": max(s["draws"] for s in secs), "prims": max(s["prims"] for s in secs)}
+    if windows:
+        summary[name]["landings"] = windows
     if gpu.get(name):
         g = mid(gpu[name])
         summary[name]["gpu_ms"] = round(g, 3)

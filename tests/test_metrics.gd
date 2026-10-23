@@ -11,6 +11,7 @@ func _initialize() -> void:
 	_eye_frusta_swing_is_the_widest_edge_change()
 	_frames_tally_by_activity()
 	_late_and_refresh_follow_the_runtime_rate()
+	await _a_landing_keeps_every_frame_of_its_window()
 	await _head_motion_is_moving()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
@@ -101,6 +102,56 @@ func _frames_tally_by_activity() -> void:
 	_check(by.still.frames == 1, "tags count apart")
 	var row: Variant = JSON.parse_string(JSON.stringify(by))
 	_check(row.moving.hist["27"] == 1, "the histogram survives JSON")
+
+
+## The Frame's bench read a landing's one moving frame, 15 ms, as the worst of its second, which held a 21 ms frame.
+func _a_landing_keeps_every_frame_of_its_window() -> void:
+	var m := Metrics.new(OS.get_cache_dir().path_join("nestcombe-test-landing-%d.json" % OS.get_process_id()))
+	m.info = {"refresh_hz": 72.0, "label": "-"}
+	var origin := Node3D.new()
+	var head := Node3D.new()
+	origin.add_child(head)
+	root.add_child(origin)
+	await process_frame
+	m.head = head
+	var frame := func(ms: float) -> void:
+		m._last_tick = Time.get_ticks_usec() - int(ms * 1000.0)
+		m._process(ms / 1000.0)
+	frame.call(13.9)
+	m._acc = 0.0
+	m.info.label = "standing/along"
+	origin.position = Vector3(-10.5, 4.5, 3.5)
+	frame.call(15.0)
+	for i in 10:
+		frame.call(13.9)
+	frame.call(21.3)
+	for i in 40:
+		frame.call(13.9)
+	frame.call(30.0)
+	var w: Dictionary = m._landings[0]
+	_check(m._landings.size() == 1 and w.label == "standing/along", "one move opens one window under its phase: %s" % [m._landings])
+	_check(w.frames_ms[0] >= 15.0 and w.frames_ms[0] < 15.5, "the window starts at the frame the origin is seen moved in: %s" % [w.frames_ms.slice(0, 3)])
+	_check(w.max >= 21.3 and w.max < 22.0 and w.late == 1, "a late frame after the move frame counts against the landing: %s" % [w])
+	var lasted: float = w.frames_ms.reduce(func(a: float, b: float) -> float: return a + b, 0.0)
+	_check(lasted >= Metrics.LANDING_S * 1000.0 and lasted < Metrics.LANDING_S * 1000.0 + 25.0, "the window lasts LANDING_S: %s ms" % lasted)
+	m._landings.clear()
+	for i in 10:
+		origin.position.x += 0.01
+		frame.call(13.9)
+	_check(m._landings.is_empty() and m._landing.frames_ms.size() == 10, "a glide is one landing, not one a frame: %s" % [m._landing])
+	m._landing = {}
+	frame.call(13.9)
+	origin.rotate_y(0.5)
+	frame.call(13.9)
+	_check(not m._landing.is_empty(), "turning the play space in place is a landing")
+	frame.call(13.9)
+	origin.position.x += 1.0
+	m._acc = 1.0
+	frame.call(13.9)
+	var row: Dictionary = m._seconds[-1]
+	_check(m._landings.is_empty() and row.landings.size() == 1 and row.landings[0].frames_ms.size() == 2, "a window closed by the next move goes out with its second: %s" % [row.get("landings")])
+	origin.free()
+	m.free()
 
 
 func _head_motion_is_moving() -> void:
