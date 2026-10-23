@@ -137,7 +137,7 @@ func _mountains_are_sky(rig: Rig) -> void:
 				_check(Terrain.raycast(o, dir) == null, what + " clears the map's ground")
 				var air := o + dir * Rig.AIR_REACH
 				if dir.y <= 0.0 or not Terrain.over_map(air):
-					_check(g == null and not rig._ring.visible, what + " has no target, as the sky has none: %s" % g)
+					_check(g == null and not rig._landing.visible, what + " has no target, as the sky has none: %s" % g)
 				else:
 					_check(g != null and (g + Vector3.UP * rig.aim_lift).distance_to(air) < 0.01, what + " targets the air at the reach, as the sky does: %s" % g)
 				if from == half - 6.0:
@@ -163,20 +163,20 @@ func _reaches_across_the_map(rig: Rig) -> void:
 	rig.aim(_pose(o, dir))
 	var g: Variant = rig.aim_ground
 	_check(o.distance_to(far) > 200.0 and g != null and g.distance_to(far) < 0.1 and rig.aim_lift < 0.15, "a ray %.0f m across the map lands where it hits: %s for %s" % [o.distance_to(far), g, far])
-	var ring := rig._ring.global_transform
-	_check(rig._ring.visible and ring.basis.get_scale().x > o.distance_to(far) / Rig.MARKER_NEAR * 0.9, "the far ring grows with its distance: %.1f" % ring.basis.get_scale().x)
+	var ring := rig._landing.global_transform
+	_check(rig._landing.visible and ring.basis.get_scale().x > o.distance_to(far) / Rig.MARKER_NEAR * 0.9, "the far ring grows with its distance: %.1f" % ring.basis.get_scale().x)
 	rig.hide_markers()
 	rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 
 
-## An air target shows its one ring on the target itself; depth in the headset places it, so nothing marks the
+## An air target shows its one halo on the target itself; depth in the headset places it, so nothing marks the
 ## ground below.
 func _air_target_shows_one_ring(rig: Rig) -> void:
 	var o := Vector3(0, Terrain.height_at(0, 0) + 1.5, 0)
 	rig.aim(_pose(o, Vector3(0, 1, -1).normalized()))
 	var target: Vector3 = rig.aim_ground + Vector3.UP * rig.aim_lift
-	var rings := rig.find_children("*", "MeshInstance3D", false, false).filter(func(m: MeshInstance3D) -> bool: return m.visible)
-	_check(rings.size() == 1 and rings[0].global_position.distance_to(target) < 0.01, "an air target shows one marker, on the target: %s" % [rings.map(func(m: MeshInstance3D) -> Vector3: return m.global_position)])
+	var rings := rig.find_children("*", "GeometryInstance3D", false, false).filter(func(m: GeometryInstance3D) -> bool: return m.visible)
+	_check(rings.size() == 1 and rings[0].global_position.distance_to(target) < 0.01, "an air target shows one marker, on the target: %s" % [rings.map(func(m: GeometryInstance3D) -> Vector3: return m.global_position)])
 	rig.hide_markers()
 
 
