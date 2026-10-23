@@ -158,7 +158,7 @@ func _after(w: WallLayout, lo: float, hi: float) -> Array[Vector2]:
 
 
 func _the_schema_checks_ruins() -> void:
-	var good := {"points": PackedVector3Array([Terrain.ground(0, 0), Terrain.ground(6, 0)]), "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array([Vector2(2, 3)]), "rise": 0.0, "plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain()}
+	var good := wall_data({"points": PackedVector3Array([Terrain.ground(0, 0), Terrain.ground(6, 0)]), "seed": 3, "ruins": PackedVector2Array([Vector2(2, 3)])})
 	check(Commands._wall(good) != null, "a wall with a ruin is a wall")
 	var bad := {
 		"backwards": PackedVector2Array([Vector2(3, 2)]),

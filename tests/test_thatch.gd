@@ -241,10 +241,7 @@ func _thatch_is_part_of_the_build_command() -> void:
 	var copy := r.inputs()
 	copy.thatch = true
 	check(not copy.same_inputs(r), "a thatched roof is another roof")
-	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "height": 2.4,
-		"seed": 3, "closed": true, "top": int(WallLayout.Top.CAP), "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(),
-		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "plaster": false, "plinth_plaster": false, "planks": false, "rise": 0.0, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain(),
-		"roof": {"kind": int(RoofLayout.Kind.GABLE), "center": Vector3.ZERO, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 3, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
+	var d := wall_data({"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "height": 2.4, "seed": 3, "closed": true, "top": int(WallLayout.Top.CAP), "roof": {"kind": int(RoofLayout.Kind.GABLE), "center": Vector3.ZERO, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 3, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
 	check(Commands._wall(d) != null, "a tiled house is a valid build")
 	d.roof.thatch = true
 	check(Commands._wall(d) != null and Commands._wall(d).roof.thatch, "and a thatched one")

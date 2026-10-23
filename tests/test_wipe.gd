@@ -132,5 +132,5 @@ func _a_wipe_someone_built_on_stays() -> void:
 
 
 func _wall(by: int) -> int:
-	world._order({"op": "wall", "walls": [{"points": PackedVector3Array([Terrain.ground(0, -5), Terrain.ground(4, -5)]), "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain()}]}, by)
+	world._order({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([Terrain.ground(0, -5), Terrain.ground(4, -5)]), "seed": 3})]}, by)
 	return world.seq * Commands.MAX_PIECES

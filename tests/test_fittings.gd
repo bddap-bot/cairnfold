@@ -523,7 +523,7 @@ func _in_the_glade() -> void:
 
 func _a_ruin_flies_no_flag(fit: FittingTool, world: World) -> void:
 	var stood: Array = world.state.walls.keys()
-	world.submit({"op": "wall", "walls": [{"points": PackedVector3Array([Terrain.ground(-14, -30), Terrain.ground(-2, -30)]), "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array([Vector2(3.0, 5.0)]), "rise": 0.0, "plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain()}]})
+	world.submit({"op": "wall", "walls": [wall_data({"points": PackedVector3Array([Terrain.ground(-14, -30), Terrain.ground(-2, -30)]), "seed": 3, "ruins": PackedVector2Array([Vector2(3.0, 5.0)])})]})
 	for f in 3:
 		await process_frame
 	var ruin: Wall = main.tool.walls.filter(func(w: Wall) -> bool: return not w.id in stood)[0]

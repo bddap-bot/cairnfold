@@ -39,6 +39,15 @@ static func straight_wall(length: float, height: float, arches: Array[float] = [
 	return w
 
 
+## The data a wall sends: `with`'s fields, the rest as a fresh Wall has them.
+static func wall_data(with: Dictionary) -> Dictionary:
+	var w := Wall.new(0, null)
+	var d := w.data()
+	w.free()
+	d.merge(with, true)
+	return d
+
+
 ## Runs `steps` through a Driver and waits for it, connecting before it starts since a run whose every step returns at
 ## once finishes inside add_child.
 func play(steps: Array) -> void:

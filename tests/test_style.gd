@@ -201,7 +201,7 @@ func _faces_cut_no_opening() -> void:
 
 
 func _wall_data(points: PackedVector3Array) -> Dictionary:
-	return {"points": points, "height": 2.6, "seed": 3, "closed": false, "top": 0, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "rise": 0.0, "plaster": false, "plinth_plaster": false, "planks": false, "gable_end": 0, "timber_style": 0, "on": PackedInt32Array(), "paint": Palette.plain()}
+	return wall_data({"points": points, "seed": 3})
 
 
 ## A planted tree grows an oak; the style tool aimed at it offers each species and turns it to one through the host,
