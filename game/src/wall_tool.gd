@@ -1763,7 +1763,7 @@ func _top_hit(w: Wall, origin: Vector3, dir: Vector3) -> float:
 			return INF
 		top = w.layout.point_at(w.ray_distance(origin, dir).s).y + w.layout.height + WallLayout.CAP
 	var hit := _at_level(origin, dir, top)
-	if hit.is_empty() or absf(w.massing.rest(hit.point.x, hit.point.z) - top) > TOP_BAND:
+	if hit.is_empty() or not absf(w.massing.rest(hit.point.x, hit.point.z) - top) <= TOP_BAND:
 		return INF
 	return origin.distance_to(hit.point)
 

@@ -17,6 +17,10 @@ func _run() -> void:
 	var aim: Dictionary = steps[at]
 	aim.erase("capture")
 	await play(steps.slice(0, at))
+	var house: Dictionary = main.world.state.stairs.values().filter(func(s: Dictionary) -> bool: return s.rail == "wood")[0]
+	var foot: Vector3 = house.a if house.a.y < house.b.y else house.b
+	check(absf(foot.y - Terrain.height_at(foot.x, foot.z)) < 0.05, "the flight up to the flat-roofed house starts on the lawn, not at roof height: %s" % foot)
+	check(main.tool.aim(Vector3(9, 60, 0), Vector3.DOWN).on == -1, "a ray straight down beside a flat roof meets the ground, not the roof's level")
 	var rig: Rig = main.rig
 	var head: Transform3D = rig.head.global_transform
 	for pitch in [-0.3, 0.0, 0.3]:
