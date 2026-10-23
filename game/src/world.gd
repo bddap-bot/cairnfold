@@ -362,14 +362,21 @@ func _keep() -> void:
 	_keep_task = WorkerThreadPool.add_task(func() -> void: World._write(path, bytes))
 
 
-## Written beside the garden and renamed over it, so a crash mid-write leaves the last one whole.
+## Written beside the garden and renamed over it, so a crash mid-write leaves the last one whole. Godot reports
+## nothing of a write the disk refused on close, so the file is measured before it replaces the garden.
 static func _write(path: String, bytes: PackedByteArray) -> void:
 	var f := FileAccess.open(path + ".new", FileAccess.WRITE)
 	if f == null:
 		push_error("world: cannot save the garden at %s: %s" % [path, error_string(FileAccess.get_open_error())])
 		return
-	f.store_buffer(bytes)
+	var stored := f.store_buffer(bytes)
 	f.close()
+	var back := FileAccess.open(path + ".new", FileAccess.READ)
+	if not stored or back == null or back.get_length() != bytes.size():
+		push_error("world: the disk did not take the garden at %s; the last one stays" % path)
+		DirAccess.remove_absolute(path + ".new")
+		return
+	back.close()
 	var err := DirAccess.rename_absolute(path + ".new", path)
 	if err != OK:
 		push_error("world: cannot save the garden at %s: %s" % [path, error_string(err)])
