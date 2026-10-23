@@ -21,16 +21,15 @@ const GPU_SHARE := 0.9
 ## explicit arch openings, with timber members counted separately; square metres of pond water; easels, each a canvas
 ## drawn and simulated; boulders, a metre-wide one a unit (`boulder`); and square metres of painted stone ground, each
 ## stroke the ground its discs reach, a stroke over another counted again.
-const UNITS := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2", "fitting", "grass", "flower", "tree", "bush", "pond_m2", "timber", "easel", "boulder", "moss", "arch", "stone_m2"]
+static var UNITS: Array = COSTS.keys().filter(func(k: String) -> bool: return not k in CAPS.values())
+## The COSTS entry that caps a unit's whole charge: what a view full of it adds.
+const CAPS := {"pond_m2": "water", "stone_m2": "stone"}
 
 ## The largest paired Quest 2 cost per timber member in the dense village, rounded up (docs/design.md).
 const TIMBER_US := 0.5
 ## Largest residual above existing wall/timber charges in paired Quest 2 arch sweeps, rounded up.
 ## A larger opening still reserves a whole arch.
 const ARCH_US := 60.0
-## The open picture book's paired Quest 2 GPU cost a frame over it tucked away in the stress scene, in milliseconds
-## (docs/design.md, "Picture book"). A garden's room does not reserve it: the book is read between builds.
-const BOOK_OPEN_MS := 1.2
 ## The least a boulder counts, however small: a pebble still draws its mesh.
 const BOULDER_LEAST := 0.25
 ## The most one boulder costs the Quest 2 however large, in microseconds: its dearest paired cost, carried or still, near
@@ -66,7 +65,7 @@ static func info() -> Dictionary:
 static func cost_ms(units: Dictionary) -> float:
 	var us := 0.0
 	for k in units:
-		var cap: float = {"pond_m2": COSTS.water, "stone_m2": COSTS.stone}.get(k, INF)
+		var cap: float = COSTS[CAPS[k]] if k in CAPS else INF
 		us += minf(units[k] * COSTS[k], cap)
 	return us / 1000.0
 

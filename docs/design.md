@@ -2959,7 +2959,7 @@ and paints only the picture's backdrop live, where the picture leaves it showing
 (`Book.Layer`), its page blocks have no top or bottom, its boards' insides are only the margin around the pages and the
 endpaper hides under a leaf. The same pairs now read 0.90 and 0.76 ms; in the stress scene's `book/` phases
 (`perf/quest-2/stress/20261019T163748Z-10ca290.json`) the open book costs 1.2 ms over tucked, shut 0.4 ms and mid-turn
-1.7 ms, the page's own render about 0.3 ms of the open book's. `Budget.BOOK_OPEN_MS` keeps the figure.
+1.7 ms, the page's own render about 0.3 ms of the open book's.
 
 ## Flat-screen controls
 
