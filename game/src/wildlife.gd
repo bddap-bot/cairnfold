@@ -35,6 +35,12 @@ const SINK := 0.06
 const SWIM_FOR := Vector2(25.0, 50.0)
 const REST_FOR := Vector2(15.0, 35.0)
 const BANK := Vector2(0.5, 1.4)
+## Clearance from a wall's centre line beyond its half thickness, and from a trunk, for an animal standing.
+const WALL_CLEAR := 0.55
+const TRUNK_CLEAR := 0.9
+## Ground barer than this is a path or paving.
+const BARE := 0.4
+const SHORE := 0.4
 const RIPPLE_EVERY := 1.6
 ## Cosine of the widest angle from the gaze a headset still shows.
 const SIGHT := 0.5
@@ -143,7 +149,7 @@ class Family:
 	var sky := Vector3.ZERO
 	var flight := 0.0
 	var ripple := 0.0
-	## The level way out, once leaving.
+	## The level way out, once leaving; none for a family walled in.
 	var heading := Vector3.ZERO
 	## The hand it feeds from, and how long until it eats again.
 	var hand: Node3D
@@ -287,17 +293,19 @@ func _family_at(p: PondWater) -> Family:
 
 func _arrive(p: PondWater) -> void:
 	var land := _deep_point(p)
-	var chicks := rng.randf() < FAMILY_CHANCE
+	var chicks := 0
+	if rng.randf() < FAMILY_CHANCE:
+		chicks = rng.randi_range(DUCKLINGS.x, DUCKLINGS.y)
+	var reach := sqrt(p.pond.cells.size() / PI) + WALK_FROM
+	var away := _way_in(land, reach, chicks + 1) if chicks > 0 else Vector3.ZERO
 	var f := Family.new(_spawn(false))
 	f.pond = p
 	f.home = land
 	f.goal = land
 	families.append(f)
-	if chicks:
-		for i in rng.randi_range(DUCKLINGS.x, DUCKLINGS.y):
+	if away != Vector3.ZERO:
+		for i in chicks:
 			f.ducks.append(_spawn(true))
-		var reach := sqrt(p.pond.cells.size() / PI) + WALK_FROM
-		var away := _unseen_direction(land, reach, 0.0)
 		for i in f.ducks.size():
 			var at := land + away * (reach + LENGTH * 1.5 * i)
 			f.ducks[i].position = Terrain.ground(at.x, at.z)
@@ -309,6 +317,17 @@ func _arrive(p: PondWater) -> void:
 		f.leader().position = f.sky
 		_face(f.leader(), land - f.sky, 1.0)
 		f.state = State.FLY_IN
+
+
+## A level direction from `land`, out of sight `reach` away, along which a line of `n` ducks stands on ground they may
+## and walks to `land` through no wall and no other water; Vector3.ZERO where none is found.
+func _way_in(land: Vector3, reach: float, n: int) -> Vector3:
+	for attempt in 6:
+		var away := _unseen_direction(land, reach, 0.0)
+		var starts := range(n).map(func(i: int) -> Vector3: return land + away * (reach + LENGTH * 1.5 * i))
+		if starts.all(standable) and clear_way(land, starts[-1]):
+			return away
+	return Vector3.ZERO
 
 
 func _spawn(chick: bool) -> Duck:
@@ -361,8 +380,8 @@ func _think(f: Family, delta: float) -> void:
 			if f.timer <= 0.0:
 				_swim(f)
 		State.WALK_OUT:
-			if _go(lead, f.goal, delta):
-				f.goal = _onward(f.goal, f.heading)
+			if _go(lead, f.goal, delta) and f.heading != Vector3.ZERO:
+				_walk_away(f, f.goal, f.heading)
 		State.FEED:
 			eating = _eat(f, delta)
 	for d in f.ducks:
@@ -437,15 +456,32 @@ func _leave(f: Family) -> void:
 		f.state = State.FLY_OUT
 	else:
 		f.state = State.WALK_OUT
-		f.heading = _unseen_direction(at, WALK_AWAY, 0.0, LEAVE_SIGHT)
-		f.goal = _onward(at, f.heading)
+		_walk_away(f, at, _unseen_direction(at, WALK_AWAY, 0.0, LEAVE_SIGHT))
 
 
-## A leaving duck keeps on its way until it is out of sight and some way off.
+## The next leg of a family's walk away from `at`, along `heading` where that way is clear.
+func _walk_away(f: Family, at: Vector3, heading: Vector3) -> void:
+	f.goal = _head_off(at, heading)
+	f.heading = Vector3(f.goal.x - at.x, 0, f.goal.z - at.z).normalized()
+
+
+## WALK_AWAY on from `at` along `heading`, or, if a wall or water is in that way, along another way out of sight;
+## `at` itself with none clear, to stand there until it can be let go.
+func _head_off(at: Vector3, heading: Vector3, random := rng) -> Vector3:
+	for attempt in 6:
+		var to := _onward(at, heading)
+		if clear_way(at, to):
+			return to
+		heading = _unseen_direction(at, WALK_AWAY, 0.0, LEAVE_SIGHT, random)
+	return at
+
+
+## A leaving duck keeps on its way until it is out of sight and some way off; a family walled in, or at the edge of the
+## garden, once out of sight.
 func _gone(f: Family) -> bool:
 	if f.state != State.WALK_OUT and (f.state != State.FLY_OUT or f.flight > 0.0):
 		return false
-	return f.ducks.all(func(d: Duck) -> bool: return _let_go(d.position, 0.0 if _at_edge(d.position) else GONE))
+	return f.ducks.all(func(d: Duck) -> bool: return _let_go(d.position, 0.0 if f.heading == Vector3.ZERO or _at_edge(d.position) else GONE))
 
 
 ## Whether a leaving animal at `at` may be let go: FAR off, or out of sight and at least `near` off.
@@ -706,18 +742,77 @@ func _swims_clear(from: Vector3, to: Vector2) -> bool:
 	return not walls.walls.any(func(w: Wall) -> bool: return w.layout.blocks_swim(a, to))
 
 
-## On the grass a little way up the bank from a shore point, reached from `from` without paddling into a wall;
-## Vector3.INF where none is, as on a stretch of water a wall cuts off from the banks.
+## Ground a duck may stand on a little way up the bank from a shore point, reached straight from `from` across no wall
+## or fence; Vector3.INF where none is found, as on a stretch of water a wall cuts off from the banks.
 func _bank_point(p: PondWater, from: Vector3) -> Vector3:
 	var mid := Terrain.grid_xz(p.pond.bottom)
 	for attempt in 12:
 		var s := Terrain.grid_xz(p.pond.shore[rng.randi() % p.pond.shore.size()])
 		var out := (s - mid).normalized() if s != mid else Vector2.RIGHT
 		var at := s + out * rng.randf_range(BANK.x, BANK.y)
-		if water.pond_at(at.x, at.y) == null and _swims_clear(from, at):
-			return Terrain.ground(at.x, at.y)
-	var s := Terrain.grid_xz(p.pond.shore[0])
-	return Terrain.ground(s.x, s.y) if _swims_clear(from, s) else Vector3.INF
+		var ground := Terrain.ground(at.x, at.y)
+		if standable(ground) and clear_way(from, ground):
+			return ground
+	return Vector3.INF
+
+
+## Where an animal may stand on the ground: on unpaved grass in the garden, back from the water, clear of every wall,
+## inside no house or tower, and away from trunks.
+func standable(p: Vector3) -> bool:
+	if maxf(absf(p.x), absf(p.z)) > EDGE - 1.0:
+		return false
+	if Ground.bare(p.x, p.z) > BARE:
+		return false
+	for o in [Vector2.ZERO, Vector2(SHORE, 0), Vector2(-SHORE, 0), Vector2(0, SHORE), Vector2(0, -SHORE)]:
+		if water.pond_at(p.x + o.x, p.z + o.y) != null:
+			return false
+	if flora != null:
+		var trunks := flora.trunks
+		for i in trunks.size():
+			var t := trunks.anchors[i]
+			if Vector2(t.x - p.x, t.z - p.z).length() < TRUNK_CLEAR:
+				return false
+	var q := Vector2(p.x, p.z)
+	for w in _walls():
+		var layout := w.layout
+		var clear := (0.1 if layout.fence else WallLayout.THICKNESS * 0.5) + WALL_CLEAR
+		if not layout.bounds.grow(clear).has_point(q):
+			continue
+		var pts := _line(layout)
+		for i in pts.size() - 1:
+			if Geometry2D.get_closest_point_to_segment(q, pts[i], pts[i + 1]).distance_to(q) < clear:
+				return false
+		if layout.closed and Geometry2D.is_point_in_polygon(q, pts):
+			return false
+	return true
+
+
+## Whether a straight walk from `a` to `b` crosses no wall's centre line and, once out of the water it starts in, goes
+## into none.
+func clear_way(a: Vector3, b: Vector3) -> bool:
+	var p := Vector2(a.x, a.z)
+	var q := Vector2(b.x, b.z)
+	var span := Rect2(p, Vector2.ZERO).expand(q)
+	for w in _walls():
+		if not w.layout.bounds.grow(0.5).intersects(span.grow(0.01)):
+			continue
+		var pts := _line(w.layout)
+		for i in pts.size() - 1:
+			if Geometry2D.segment_intersects_segment(p, q, pts[i], pts[i + 1]) != null:
+				return false
+	return not water.crosses(p, q)
+
+
+func _walls() -> Array[Wall]:
+	return walls.walls if walls != null else ([] as Array[Wall])
+
+
+## A wall's centre line on the ground plane as laid, closed round a loop.
+static func _line(layout: WallLayout) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	for p in layout.samples:
+		out.append(Vector2(p.x, p.z))
+	return out
 
 
 ## Whichever pond is over `at` or within a couple of metres of it.

@@ -23,6 +23,7 @@ func _initialize() -> void:
 	_no_tool_places_an_animal()
 	await _teleport_is_no_motion()
 	await _ducks_come_only_to_ponds()
+	await _ducks_keep_out_of_walls()
 	finish()
 
 
@@ -190,7 +191,7 @@ func _no_tool_places_an_animal() -> void:
 					check(not code.contains(part), "%s reaches no %s" % [f, what])
 		check(FileAccess.get_file_as_string("res://src/" + row[4]).count(row[5]) == 1, "%s alone makes the %s" % [row[4], what])
 	for m in (load("res://src/wildlife.gd") as Script).get_script_method_list():
-		check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "still", "approaching", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble", "in_hand", "feeding"], "Wildlife exposes no way to add an animal, found %s" % m.name)
+		check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "still", "approaching", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble", "in_hand", "feeding", "standable", "clear_way"], "Wildlife exposes no way to add an animal, found %s" % m.name)
 
 
 ## A teleport or a snap turn moves the head and hands across the garden in a frame; no animal takes that for a
@@ -384,3 +385,86 @@ func _ducks_come_only_to_ponds() -> void:
 	check(wildlife.families.is_empty(), "the ducks leave a drained pond")
 	_run(wildlife, 300.0)
 	check(wildlife.ducks().is_empty(), "and none come back without water")
+
+
+## A fence drawn three quarters of the way round a pond, close along its bank: no duck rests on it or beyond it, a family
+## never walks in through it, and one inside never walks out through it; all of them use the open quarter.
+func _ducks_keep_out_of_walls() -> void:
+	seed(1)
+	Terrain.install()
+	var g := GladeBase.new()
+	await g.build(self, 1)
+	var walls := g.walls
+	var water := g.water
+	var wildlife := g.wildlife
+	await GladeBase.dig(g.add_tool(WaterTool.new(g.rig, g.world)), 3, -4, 90)
+	var pond := water.ponds[0]
+	pond._process(PondWater.FILL)
+	var mid := Terrain.grid_xz(pond.pond.bottom)
+	var far := 0.0
+	for c in pond.pond.shore:
+		far = maxf(far, Terrain.grid_xz(c).distance_to(mid))
+	var ring := walls._new_wall()
+	ring.layout.fence = true
+	for i in 37:
+		var a := 1.5 * PI * i / 36.0
+		ring.layout.points.append(Terrain.ground(mid.x + cos(a) * (far + 0.3), mid.y + sin(a) * (far + 0.3)))
+	walls.build([ring])
+	await process_frame
+	walls.walls[-1].lay_now()
+	var line := PackedVector2Array()
+	for q in walls.walls[-1].layout.samples:
+		line.append(Vector2(q.x, q.z))
+	var on_wall := func(at: Vector3) -> bool:
+		for i in line.size() - 1:
+			if Geometry2D.get_closest_point_to_segment(Vector2(at.x, at.z), line[i], line[i + 1]).distance_to(Vector2(at.x, at.z)) < 0.2:
+				return true
+		return false
+	var through := func(a: Vector3, b: Vector3) -> bool:
+		for i in line.size() - 1:
+			if Geometry2D.segment_intersects_segment(Vector2(a.x, a.z), Vector2(b.x, b.z), line[i], line[i + 1]) != null:
+				return true
+		return false
+	check(walls.walls.size() == 1 and walls.walls[0].layout.fence, "a fence curves round the pond")
+	var from := Vector3(mid.x, pond.surface_y(), mid.y)
+	var banks := 0
+	var walled := 0
+	for i in 200:
+		var at := wildlife._bank_point(pond, from)
+		if at != Vector3.INF:
+			banks += 1
+			walled += int(on_wall.call(at) or through.call(from, at))
+	check(walled == 0 and banks > 0, "no duck rests on the fence or beyond it, %d of %d bank points" % [walled, banks])
+	var crossed := 0
+	var families := 0
+	for seed in 60:
+		wildlife.rng.seed = seed
+		var before := wildlife.families.size()
+		wildlife._arrive(pond)
+		if wildlife.families.size() == before:
+			continue
+		var f: Wildlife.Family = wildlife.families[-1]
+		if f.ducks.size() > 1:
+			families += 1
+			crossed += int(f.ducks.any(func(d: Duck) -> bool: return through.call(d.position, f.goal)))
+		for d in f.ducks:
+			d.free()
+		wildlife.families.pop_back()
+	check(crossed == 0 and families > 0, "no family walks in through the fence, %d of %d" % [crossed, families])
+	var out := 0
+	var moved := 0
+	for seed in 20:
+		wildlife.rng.seed = seed
+		var f := Wildlife.Family.new(wildlife._spawn(false))
+		f.ducks.append(wildlife._spawn(true))
+		f.pond = pond
+		f.leader().position = Terrain.ground(mid.x, mid.y)
+		wildlife.families.append(f)
+		wildlife._leave(f)
+		out += int(through.call(f.leader().position, f.goal))
+		moved += int(f.goal.distance_to(f.leader().position) > 1.0)
+		for d in f.ducks:
+			d.free()
+		wildlife.families.clear()
+	check(out == 0 and moved > 0, "nor walks out through it, %d of %d" % [out, moved])
+	await g.teardown()

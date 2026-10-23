@@ -352,7 +352,7 @@ func _think(b: Bird, delta: float) -> void:
 		elif rng.randf() < delta * 0.4:
 			var to := b.node.position + Vector3.FORWARD.rotated(Vector3.UP, rng.randf() * TAU) * rng.randf_range(0.08, 0.2)
 			to = Terrain.ground(to.x, to.z)
-			if _open_ground(to):
+			if _peckable(to):
 				_hop(b, to, State.PECK)
 		return
 	b.preening = maxf(b.preening - delta, 0.0)
@@ -636,20 +636,16 @@ func _swoop(b: Bird) -> void:
 	for attempt in 6:
 		var off := Vector3.FORWARD.rotated(Vector3.UP, rng.randf() * TAU) * rng.randf_range(PECK_REACH.x, PECK_REACH.y)
 		var at := Terrain.ground(b.spot.x + off.x, b.spot.z + off.z)
-		if _open_ground(at):
+		if _peckable(at):
 			_fly_to(b, null, at, State.FLY)
 			b.then = State.PECK
 			return
 
 
-func _open_ground(at: Vector3) -> bool:
-	if absf(at.x) > Wildlife.EDGE or absf(at.z) > Wildlife.EDGE or wildlife.water.pond_at(at.x, at.z) != null:
-		return false
-	if wildlife.walls != null:
-		for w in wildlife.walls.walls:
-			if w.pick_bounds.grow(0.3).has_point(at + Vector3.UP * 0.05):
-				return false
-	return true
+## Ground an animal may stand on and under no bush.
+func _peckable(at: Vector3) -> bool:
+	var flora := wildlife.flora
+	return wildlife.standable(at) and (flora == null or flora.solids_in(Rect2(at.x, at.z, 0, 0)).all(func(s: Array) -> bool: return s[0].pool != flora.bushes))
 
 
 func _fly_to(b: Bird, site: Site, to: Vector3, state: State) -> void:

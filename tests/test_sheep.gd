@@ -69,7 +69,7 @@ class Watch:
 			var pond := g.water.pond_at(s.position.x, s.position.z)
 			if pond != null and pond.pond.level - Terrain.height_at(s.position.x, s.position.z) > 0.01:
 				wet += 1
-			if t._resting(s) and not g.wildlife.herds.allowed(s.position):
+			if t._resting(s) and not g.wildlife.standable(s.position):
 				kept += 1
 			if absf(s.position.y - Terrain.height_at(s.position.x, s.position.z)) > 0.01:
 				floating += 1
@@ -90,7 +90,7 @@ func _seeds_held_low_draw_a_sheep(g: Glade, each: Callable) -> void:
 	var at := Vector3.INF
 	for k in 8:
 		var p := near.position + Vector3.RIGHT.rotated(Vector3.UP, TAU * k / 8.0) * 1.5
-		if g.wildlife.herds.allowed(p) and g.wildlife.herds.clear_way(near.position, p):
+		if g.wildlife.standable(p) and g.wildlife.clear_way(near.position, p):
 			at = Terrain.ground(p.x, p.z) + Vector3.UP * 0.45
 			break
 	check(at != Vector3.INF, "open grass beside it to hold seeds over")
@@ -168,7 +168,7 @@ func _resting(s: Sheep) -> bool:
 
 func _crosses_a_wall(g: Glade, a: Vector3, b: Vector3) -> bool:
 	for w in g.walls.walls:
-		var pts := Herds._line(w.layout)
+		var pts := Wildlife._line(w.layout)
 		for i in pts.size() - 1:
 			if Geometry2D.segment_intersects_segment(Vector2(a.x, a.z), Vector2(b.x, b.z), pts[i], pts[i + 1]) != null:
 				return true
@@ -231,7 +231,7 @@ func _fences_draw_a_flock() -> void:
 				var off := _off_fence(fence, s.position)
 				worst.band = Vector2(minf(worst.band.x, off.x), maxf(worst.band.y, off.x))
 				worst.sides[off.y] = true
-				if not herds.allowed(s.position):
+				if not herds.wildlife.standable(s.position):
 					worst.kept += 1
 			for t in flock:
 				if t != s and _resting(s) and _resting(t) and Vector2(s.position.x - t.position.x, s.position.z - t.position.z).length() < Sheep.RADIUS * Sheep.SIZE.x * 1.5:
@@ -323,7 +323,7 @@ func _curved_walls_are_kept_off_where_they_curve() -> void:
 			worst = _off_line(chords, q)
 			at = q
 	check(worst > 0.1, "the curve strays %.2f m from its chords" % worst)
-	check(_off_line(Herds._line(w), at) < 0.01, "the line sheep keep off runs along the curve, %.2f m off it" % _off_line(Herds._line(w), at))
+	check(_off_line(Wildlife._line(w), at) < 0.01, "the line sheep keep off runs along the curve, %.2f m off it" % _off_line(Wildlife._line(w), at))
 
 
 func _off_line(line: PackedVector2Array, q: Vector2) -> float:
@@ -369,7 +369,7 @@ func _settled_sheep_follow_their_ground() -> void:
 		var x := other.position.x + 0.25
 		_draw(g, Hand.Tool.WALLS, Vector3(x, 0, fence_z + out * 1.0), Vector3(x, 0, fence_z + out * 8.0))
 		await process_frame
-		check(not herds.allowed(other.position), "a wall is drawn under a resting sheep")
+		check(not herds.wildlife.standable(other.position), "a wall is drawn under a resting sheep")
 		watch.kept = 0
 		g.run(10.0, func() -> void:
 			watch.see(self, g)
@@ -456,7 +456,7 @@ func _a_sheep_off_its_grass_goes_back() -> void:
 	var stray := Vector3.ZERO
 	for i in 20:
 		stray = Terrain.ground(-4.0 + i * 0.4, -4.0 + flock.side * 13.0)
-		if g.wildlife.herds.allowed(stray):
+		if g.wildlife.standable(stray):
 			break
 	s.position = stray
 	s.goal = stray

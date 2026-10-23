@@ -20,6 +20,7 @@ func _initialize() -> void:
 	await _a_perch_taken_away_sends_them_elsewhere()
 	await _with_no_room_they_leave()
 	await _a_reshape_carries_them_with_their_perch()
+	await _they_peck_on_open_ground()
 	_torso_lags_the_head()
 	await _shoulder()
 	finish()
@@ -430,7 +431,11 @@ func _another_players_dish_draws_one(g: Glade, each: Callable) -> void:
 	root.add_child(dish)
 	g.wildlife.dishes.append(dish)
 	dish.visible = true
-	dish.global_transform = Transform3D(Basis(Vector3.UP, 0.4), g.birds()[0].spot + Vector3(1.5, -0.4, 1.0))
+	var perched := g.birds().filter(func(b: Birds.Bird) -> bool: return b.state == Birds.State.PERCH)
+	check(not perched.is_empty(), "a conure perches near where the dish is held out")
+	if perched.is_empty():
+		return
+	dish.global_transform = Transform3D(Basis(Vector3.UP, 0.4), perched[0].spot + Vector3(1.5, -0.4, 1.0))
 	dish.eyes = dish.global_position + Vector3(0.3, 0.5, 0.4)
 	var on := func() -> Array[Birds.Bird]:
 		return g.birds().filter(func(b: Birds.Bird) -> bool: return b.state == Birds.State.FEED and b.node.hand == dish)
@@ -720,3 +725,29 @@ func _on_its_shoulder(g: Glade, b: Birds.Bird) -> float:
 func _off_view(rig: Rig, b: Birds.Bird) -> float:
 	var eyes := rig.head.global_transform
 	return (-eyes.basis.z).angle_to(b.node.global_transform * Conure.BODY - eyes.origin)
+
+
+## A conure comes down to peck on the lawn a ring wall curves round, but never inside a house, a bush or a tree.
+func _they_peck_on_open_ground() -> void:
+	var g := await _glade(3)
+	var lawn := Terrain.ground(8, 6)
+	var ring := g.walls._new_wall()
+	ring.layout.points.assign(WallLayout.circle(lawn, 5.0))
+	g.walls.build([ring])
+	var house := Terrain.ground(-10, 8)
+	g.walls.build([g.walls.new_house(WallTool.stance(house, 0.0))])
+	var tree := Terrain.ground(-2.5, -9)
+	var bush := Terrain.ground(4, -9)
+	g.world.submit({"op": "plant", "kind": "tree", "seed": 7, "at": tree})
+	g.world.submit({"op": "plant", "kind": "bush", "seed": 7, "at": bush})
+	await process_frame
+	for w in g.walls.walls:
+		w.lay_now()
+	check(g.walls.walls.size() == 2 and g.flora.placed("tree").size() == 1 and g.flora.placed("bush").size() == 1, "a ring wall, a house, a tree and a bush")
+	check(Array(g.flora.obstacles()).all(func(o: Vector3) -> bool: return Vector2(o.x - lawn.x, o.z - lawn.z).length() > 1.5), "nothing grows mid-lawn")
+	var birds := g.wildlife.birds
+	check(birds._peckable(lawn), "it may peck on the lawn inside the ring")
+	check(not birds._peckable(house), "not inside the house")
+	check(not birds._peckable(tree), "nor at a tree's foot")
+	check(not birds._peckable(bush + Vector3(0.3, 0, 0)), "nor inside a bush")
+	await g.teardown()

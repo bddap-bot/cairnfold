@@ -11,12 +11,6 @@ enum State { ENTER, GRAZE, STAND, WALK, LIE, WARY, FLEE, LEAVE, FEED }
 ## How an animal shows what it does; each kind poses these its own way.
 enum Motion { IDLE, GRAZE, STEP, WALK, RUN, LIE }
 
-## Clearance from a wall's centre line beyond its half thickness, and from a trunk.
-const WALL_CLEAR := 0.55
-const TRUNK_CLEAR := 0.9
-## Ground barer than this is a path or paving.
-const BARE := 0.4
-const SHORE := 0.4
 const TURN := 3.0
 ## A grazing animal steps on this far every so often.
 const NIBBLE_STEP := Vector2(0.2, 0.6)
@@ -84,7 +78,7 @@ func look() -> void:
 			continue
 		for a in b.animals:
 			var moving: bool = a.state in [State.ENTER, State.WALK, State.FLEE] or (a.state == State.GRAZE and _off_goal(a))
-			if moving and not (allowed(a.goal) and clear_way(a.position, a.goal)) or not moving and not allowed(a.position):
+			if moving and not (wildlife.standable(a.goal) and wildlife.clear_way(a.position, a.goal)) or not moving and not wildlife.standable(a.position):
 				_walk_on(b, a)
 			if _leaving(b):
 				break
@@ -190,7 +184,7 @@ func _starts_ok(first: Vector3, starts: PackedVector3Array) -> bool:
 		if maxf(absf(at.x), absf(at.z)) > Wildlife.EDGE or wildlife._in_sight(at):
 			return false
 	for at in starts:
-		if not clear_way(at, first):
+		if not wildlife.clear_way(at, first):
 			return false
 	return true
 
@@ -202,7 +196,7 @@ func _think(b: Band, a: Node3D, delta: float) -> void:
 		if way.length() < 1e-3:
 			a.pose(Motion.IDLE, delta)
 		elif _go(a, a.goal, _speed(a, State.LEAVE), delta):
-			_head_off(a, way.normalized())
+			a.goal = wildlife._head_off(a.position, way.normalized(), rng)
 		return
 	if a.hand != null and a.state != State.FEED:
 		_fed(a)
@@ -252,7 +246,7 @@ func _come_for_food(a: Node3D) -> void:
 		var spot := _eat_spot(a, o)
 		if a is Beast and Wildlife.in_hand(o) and not a.neck.reachable(a, o, spot.y):
 			return false
-		return allowed(spot) and clear_way(a.position, spot)
+		return wildlife.standable(spot) and wildlife.clear_way(a.position, spot)
 	var h := wildlife.offer_for(appetite, a.position, reaches)
 	if h == null:
 		return
@@ -275,7 +269,7 @@ func _eat(a: Node3D, delta: float) -> void:
 		_back_off(a)
 		return
 	if Vector2(spot.x - a.goal.x, spot.z - a.goal.z).length() > (0.02 if a is Beast and Wildlife.in_hand(a.hand) else 0.15):
-		if not allowed(spot) or not clear_way(a.position, spot):
+		if not wildlife.standable(spot) or not wildlife.clear_way(a.position, spot):
 			_fed(a)
 			return
 		a.goal = spot
@@ -302,7 +296,7 @@ func _back_off(a: Beast) -> void:
 	var to := a.position + away.normalized() * 0.4
 	to.y = wildlife.water.floor_at(to)
 	_fed(a)
-	if allowed(to) and clear_way(a.position, to):
+	if wildlife.standable(to) and wildlife.clear_way(a.position, to):
 		a.goal = to
 		a.state = State.WALK
 
@@ -360,7 +354,7 @@ func _walk_on(b: Band, a: Node3D) -> bool:
 		a.state = State.WALK
 		a.goal = to
 		return true
-	if allowed(a.position) and _within(b, a.position):
+	if wildlife.standable(a.position) and _within(b, a.position):
 		_graze(a)
 	else:
 		_leave(b)
@@ -375,7 +369,7 @@ func _flee(b: Band, a: Node3D, from: Vector3) -> void:
 	for attempt in 10:
 		var dir := away.rotated(Vector3.UP, rng.randf_range(-0.7, 0.7) * (1.0 + attempt * 0.25))
 		var to: Vector3 = a.position + dir * rng.randf_range(flee_reach.x, flee_reach.y)
-		if allowed(to) and _refuge(b, to) and clear_way(a.position, to):
+		if wildlife.standable(to) and _refuge(b, to) and wildlife.clear_way(a.position, to):
 			a.state = State.FLEE
 			a.goal = Terrain.ground(to.x, to.z)
 			return
@@ -393,19 +387,7 @@ func _leave(b: Band) -> void:
 		wildlife.release(a)
 		a.hand = null
 		a.state = State.LEAVE
-		_head_off(a, heading)
-
-
-## Sends a leaving animal WALK_AWAY on along `heading`, or, if a wall or water is in that way, along another way
-## out of sight; with none clear it stands where it is until it can be let go.
-func _head_off(a: Node3D, heading: Vector3) -> void:
-	for attempt in 6:
-		var to := wildlife._onward(a.position, heading)
-		if clear_way(a.position, to):
-			a.goal = to
-			return
-		heading = wildlife._unseen_direction(a.position, Wildlife.WALK_AWAY, 0.0, Wildlife.LEAVE_SIGHT, rng)
-	a.goal = a.position
+		a.goal = wildlife._head_off(a.position, heading, rng)
 
 
 ## A leaving band is let go once every one is out of sight and some way off, as a duck family is; one that has
@@ -468,7 +450,7 @@ func _nudge(b: Band, a: Node3D, by: Vector3) -> void:
 	if a.state == State.ENTER or a.state == State.LIE:
 		return
 	var to := a.position + by
-	if not allowed(to) or (a.state != State.FLEE and not _within(b, to)):
+	if not wildlife.standable(to) or (a.state != State.FLEE and not _within(b, to)):
 		return
 	a.position = Terrain.ground(to.x, to.z)
 	if a.state == State.GRAZE:
@@ -484,9 +466,9 @@ func _settled(a: Node3D) -> bool:
 func _spot(b: Band, a: Node3D, near: Variant = null, reach := 0.0, least := 0.0) -> Variant:
 	for attempt in 16:
 		var p: Vector3 = _anywhere(b) if near == null else near + Vector3.FORWARD.rotated(Vector3.UP, rng.randf() * TAU) * rng.randf_range(least, reach)
-		if not _within(b, p) or not allowed(p) or _crowded(b, a, p):
+		if not _within(b, p) or not wildlife.standable(p) or _crowded(b, a, p):
 			continue
-		if a != null and not clear_way(a.position, p):
+		if a != null and not wildlife.clear_way(a.position, p):
 			continue
 		return Terrain.ground(p.x, p.z)
 	return null
@@ -501,61 +483,3 @@ func _crowded(b: Band, a: Node3D, p: Vector3) -> bool:
 		if Vector2(o.goal.x - p.x, o.goal.z - p.z).length() < room or Vector2(o.position.x - p.x, o.position.z - p.z).length() < room:
 			return true
 	return false
-
-
-## Where a grazer may stand: on unpaved grass in the garden, back from the water, clear of every wall, inside no
-## house or tower, and away from trunks.
-func allowed(p: Vector3) -> bool:
-	if maxf(absf(p.x), absf(p.z)) > Wildlife.EDGE - 1.0:
-		return false
-	if Ground.bare(p.x, p.z) > BARE:
-		return false
-	for o in [Vector2.ZERO, Vector2(SHORE, 0), Vector2(-SHORE, 0), Vector2(0, SHORE), Vector2(0, -SHORE)]:
-		if wildlife.water.pond_at(p.x + o.x, p.z + o.y) != null:
-			return false
-	if wildlife.flora != null:
-		var trunks := wildlife.flora.trunks
-		for i in trunks.size():
-			var t := trunks.anchors[i]
-			if Vector2(t.x - p.x, t.z - p.z).length() < TRUNK_CLEAR:
-				return false
-	var q := Vector2(p.x, p.z)
-	for w in _walls():
-		var layout := w.layout
-		var clear := (0.1 if layout.fence else WallLayout.THICKNESS * 0.5) + WALL_CLEAR
-		if not layout.bounds.grow(clear).has_point(q):
-			continue
-		var pts := _line(layout)
-		for i in pts.size() - 1:
-			if Geometry2D.get_closest_point_to_segment(q, pts[i], pts[i + 1]).distance_to(q) < clear:
-				return false
-		if layout.closed and Geometry2D.is_point_in_polygon(q, pts):
-			return false
-	return true
-
-
-## Whether a straight walk from `a` to `b` crosses no wall's centre line and goes into no water.
-func clear_way(a: Vector3, b: Vector3) -> bool:
-	var p := Vector2(a.x, a.z)
-	var q := Vector2(b.x, b.z)
-	var span := Rect2(p, Vector2.ZERO).expand(q)
-	for w in _walls():
-		if not w.layout.bounds.grow(0.5).intersects(span.grow(0.01)):
-			continue
-		var pts := _line(w.layout)
-		for i in pts.size() - 1:
-			if Geometry2D.segment_intersects_segment(p, q, pts[i], pts[i + 1]) != null:
-				return false
-	return not wildlife.water.crosses(p, q)
-
-
-func _walls() -> Array[Wall]:
-	return wildlife.walls.walls if wildlife.walls != null else ([] as Array[Wall])
-
-
-## A wall's centre line on the ground plane as laid, closed round a loop.
-static func _line(layout: WallLayout) -> PackedVector2Array:
-	var out := PackedVector2Array()
-	for p in layout.samples:
-		out.append(Vector2(p.x, p.z))
-	return out

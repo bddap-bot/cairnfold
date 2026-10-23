@@ -61,7 +61,7 @@ func _watch(g: Glade, seen: Dictionary) -> Callable:
 		var now := {}
 		for b in g.wildlife.roamers.all():
 			now[b] = g.wildlife._in_sight(b.position)
-			if b.state != Grazers.State.ENTER and b.state != Grazers.State.LEAVE and not g.wildlife.roamers.allowed(b.position):
+			if b.state != Grazers.State.ENTER and b.state != Grazers.State.LEAVE and not g.wildlife.standable(b.position):
 				check(false, "a %s stands where it may not, %s" % [Beast.Kind.keys()[b.kind], b.position])
 		for b in seen:
 			if not now.has(b) and seen[b]:
@@ -202,7 +202,7 @@ func _food_held_still_draws_one_to_eat() -> void:
 		var at := Vector3.INF
 		for k in 12:
 			var p := near.position + Vector3.RIGHT.rotated(Vector3.UP, TAU * k / 12.0) * off
-			if g.wildlife.roamers.allowed(p) and g.wildlife.roamers.clear_way(near.position, p):
+			if g.wildlife.standable(p) and g.wildlife.clear_way(near.position, p):
 				at = Terrain.ground(p.x, p.z)
 				break
 		check(at != Vector3.INF, "open grass to hold food over")
@@ -264,11 +264,11 @@ func _a_wall_drawn_under_one_moves_it() -> void:
 		var q := p + across * lerpf(-3.0, 3.0, i / 40.0)
 		g.walls.extend_stroke(m, Terrain.ground(q.x, q.z))
 	g.walls.end_stroke(m)
-	check(not g.wildlife.roamers.allowed(deer.position), "a wall is drawn under a grazing deer")
+	check(not g.wildlife.standable(deer.position), "a wall is drawn under a grazing deer")
 	_run(g, 1.0 + Wildlife.LOOK_EVERY)
 	check(deer.state == Grazers.State.WALK or deer.state == Grazers.State.LEAVE, "it walks off within a second, %s" % Grazers.State.keys()[deer.state])
 	_run(g, 15.0)
-	check(g.wildlife.roamers.allowed(deer.position) or deer.state == Grazers.State.LEAVE, "to ground it may stand on")
+	check(g.wildlife.standable(deer.position) or deer.state == Grazers.State.LEAVE, "to ground it may stand on")
 	await g.teardown()
 
 
@@ -299,7 +299,7 @@ func _thrown_seeds_draw_them_to_eat() -> void:
 		var at := Vector3.INF
 		for k in 12:
 			var p := near.position + Vector3.RIGHT.rotated(Vector3.UP, TAU * k / 12.0) * 5.0
-			if g.wildlife.roamers.allowed(p) and g.wildlife.roamers.clear_way(near.position, p):
+			if g.wildlife.standable(p) and g.wildlife.clear_way(near.position, p):
 				at = Terrain.ground(p.x, p.z)
 				break
 		check(at != Vector3.INF, "open grass to throw seeds onto")
