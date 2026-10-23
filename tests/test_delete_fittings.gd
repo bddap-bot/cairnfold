@@ -124,6 +124,18 @@ func _other_fittings(w: Wall) -> void:
 	check(main.delete_tool.aim(origin, Vector3.UP).get("what") == "tower_flag", "an upward ray hits the tower flag")
 	check(not main.delete_tool.charge(self, origin, Vector3.UP, 0.1), "aiming upward at a fitting does not charge a garden wipe")
 	main.delete_tool.cancel(self)
+	main.world.submit({"op": "reshape", "of": "walls", "id": tower.id, "data": {"roof": {"thatch": true}}})
+	tower.lay_now()
+	var finial: Dictionary = tower.roof.tiles.filter(func(t: Dictionary) -> bool: return t.kind == "finial")[0]
+	var pole_top: Vector3 = tower.transform * finial.xform.origin
+	flag = FittingTool.targets(tower).filter(func(t: Dictionary) -> bool: return t.what == "tower_flag")[0]
+	check(flag.bounds.has_point(pole_top), "a thatched tower's flag is picked round its pole's top at %s: %s" % [pole_top, flag.bounds])
+	var pole: Dictionary = tower.roof.tiles.filter(func(t: Dictionary) -> bool: return t.kind == "pole")[0]
+	var foot: Vector3 = pole.xform * Vector3(0, -0.5, 0)
+	main.world.submit({"op": "reshape", "of": "walls", "id": tower.id, "data": {"roof": {"flag": false}}})
+	tower.lay_now()
+	var ghost: Dictionary = main.fitting_tool.ghost_of(flag, pole_top + Vector3(0, 0, 3), Vector3.FORWARD, pole_top)
+	check(ghost.get("xform", Transform3D()).origin.distance_to(foot) < 0.05, "a thatched tower's flag ghost stands where its pole does: %s for %s" % [ghost.get("xform", Transform3D()).origin, foot])
 
 
 func _takes_kind(w: Wall, kind: String) -> void:

@@ -12,6 +12,8 @@ extends RefCounted
 enum Kind { GABLE, CONE }
 enum Deck { STONE, WOOD }
 
+## The way a cone's flag flies.
+const FLAG_ALONG := Vector3(1, 0, 0.4)
 ## How far the eaves reach past the walls' outer faces as a roof is first laid, and the furthest a pull takes them.
 const OVERHANG := 0.3
 const MAX_OVERHANG := 2.5
@@ -346,7 +348,7 @@ func build() -> void:
 			rng.seed = hash([seed, "chimney", i])
 			_lay_chimney(chimney_spot(chimneys[i]), rng)
 		if flag:
-			_fly_flag(f.mid)
+			_fly_flag(flag_top())
 		return
 	if thatch:
 		_lay_thatch(rng)
@@ -365,7 +367,6 @@ func build() -> void:
 		if kind == Kind.GABLE:
 			rng.seed = hash([seed, "ridge"])
 			_lay_ridge(hue, rng)
-	var top := pitch + coat_rise()
 	if kind == Kind.GABLE:
 		for i in chimneys.size():
 			rng.seed = hash([seed, "chimney", i])
@@ -374,9 +375,9 @@ func build() -> void:
 			rng.seed = hash([seed, "dormer", i])
 			_lay_dormer(dormers[i], hue, rng)
 	elif flag:
-		_fly_flag(f.mid + Vector3.UP * top)
+		_fly_flag(flag_top())
 	else:
-		_add(Transform3D(Basis().scaled(Vector3(0.16, 0.5, 0.16)), f.mid + Vector3.UP * (top + 0.2)), "finial", Color(0.6, 0.56, 0.5), 1.0)
+		_add(Transform3D(Basis().scaled(Vector3(0.16, 0.5, 0.16)), flag_top() + Vector3.UP * 0.2), "finial", Color(0.6, 0.56, 0.5), 1.0)
 
 
 ## The rectangular bound also bounds a round ceiling's box segments. Each is charged as an existing timber.
@@ -445,7 +446,7 @@ func _ceiling_strip(along: Vector3, across: Vector3, a: float, b: float, reach: 
 
 
 func _fly_flag(foot: Vector3) -> void:
-	var parts := WallLayout.flag(foot, Vector3(1, 0, 0.4), WallLayout.flag_color(seed, 0.0))
+	var parts := WallLayout.flag(foot, FLAG_ALONG, WallLayout.flag_color(seed, 0.0))
 	_add(parts.pole, "pole", WallLayout.POLE, 1.0)
 	_add(parts.finial, "finial", WallLayout.FINIAL, 1.0)
 	cloths.append(parts.cloth)
@@ -839,6 +840,11 @@ func _tile(p: Vector3, basis: Basis, hue: float, rng: RandomNumberGenerator, wid
 
 
 ## How far the thatch's outer face stands above the ridge: the coat and its band, measured square to the slopes there.
+## Where a cone's flag pole, or its finial, stands: on its tip, over the thatch where it is thatched.
+func flag_top() -> Vector3:
+	return frame().mid + Vector3.UP * (pitch + coat_rise())
+
+
 func coat_rise() -> float:
 	return _crest().y + ROLL.y if thatched() else 0.0
 

@@ -334,8 +334,8 @@ func ghost_of(target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -
 			face = r.across
 		"tower_flag":
 			what = "flag"
-			at = w.roof.frame().mid + Vector3.UP * w.roof.pitch
-			face = Vector3(1, 0, 0.4).normalized().cross(Vector3.UP)
+			at = w.roof.flag_top()
+			face = RoofLayout.FLAG_ALONG.normalized().cross(Vector3.UP)
 	return {"what": what, "xform": _facing(at, face), "fits": c.ok}
 
 
@@ -499,7 +499,7 @@ static func targets(w: Wall) -> Array[Dictionary]:
 			if not room.is_empty():
 				out.append(_target(w, "dormer", "dormers", i, r.dormers[i], room[1], true, room[0]))
 		if r.flag:
-			out.append(_target(w, "tower_flag", "flag", 0, true, _flag_bounds(f.mid + Vector3.UP * r.pitch, Vector3(1, 0, 0.4)), true))
+			out.append(_target(w, "tower_flag", "flag", 0, true, _flag_bounds(r.flag_top(), RoofLayout.FLAG_ALONG), true))
 	w.set_meta(&"fitting_laid", w.layout.laid)
 	w.set_meta(&"fitting_targets", out)
 	return out
