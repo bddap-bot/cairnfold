@@ -148,8 +148,11 @@ func _seeds_thrown_on_the_pond_are_eaten(wildlife: Wildlife, pond: PondWater) ->
 	check(s.left() == 0 and not wildlife.offers().has(s) and f.state != Wildlife.State.FEED, "eaten or faded, they are gone and the ducks swim again")
 
 
-## Seeds thrown on grass nothing eats sink away after a while.
+## Seeds thrown on grass nothing eats sink away after a while: the deer and sheep about are kept full meanwhile.
 func _seeds_thrown_on_the_grass_fade(wildlife: Wildlife) -> void:
+	var grazing := wildlife.roamers.all() + wildlife.herds.all()
+	for a in grazing:
+		a.full = INF
 	var at := Terrain.ground(14.0, -14.0)
 	var s := feed.throw(at + Vector3(0, 1.0, 0), Vector3(1.5, 1.0, 0))
 	_run(wildlife, 1.5)
@@ -159,6 +162,8 @@ func _seeds_thrown_on_the_grass_fade(wildlife: Wildlife) -> void:
 	check(wildlife.offers().has(s) and s.left() == Handful.GRAINS, "uneaten, they lie a while")
 	_run(wildlife, 4.0)
 	check(not wildlife.offers().has(s) and not s.visible, "then sink away")
+	for a in grazing:
+		a.full = 0.0
 	var many: Array[Handful] = []
 	for i in FeedTool.HANDFULS + 1:
 		many.append(feed.throw(at + Vector3(0, 1.0, 0), Vector3.ZERO))

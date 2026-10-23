@@ -24,7 +24,7 @@ const DART := 0.75
 ## Per second, how quickly a dart slows back to cruising.
 const CALM_DOWN := 1.6
 ## Radians a second the body turns to the way it swims; a fish swims straight between spots, so the way
-## checked clear of walls is the way it goes, and turns before it swims off, so it never swims tail first.
+## checked clear of walls is the way it goes.
 const TURN := 6.0
 const SHY := 0.55
 const DART_FOR := 0.9

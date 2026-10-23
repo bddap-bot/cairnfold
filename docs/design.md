@@ -3580,8 +3580,9 @@ sound costs no frame time.
   watching, preening or flying; now about 60. A settled sheep bleats about once a minute and a quarter, a settled deer
   mews about every minute and a half, and a fox yips about every two and a half. Fish make
   no call: their nibbles are water sounds. An animal within 2.5 m of
-  the head makes none but its soft calls (`Calls.CLOSE`): it stays calm. Ducks' quacks and
-  peeps are close calls too, as a family fed from a hand held over the pond is that near.
+  the head makes only its close calls (`Calls.CLOSE`): the soft ones, and a duck family's
+  quacks and peeps, as a family fed from a hand held over the pond is that near. A duck
+  splashing down quacks there too.
   `NESTCOMBE_QUIT_AFTER=420 scripts/render.sh demo/animals.json OUT --write-movie
   OUT/animals.avi --fixed-fps 30` records five minutes of a garden the animals come to.
 - `scripts/render.sh demo/sound.json OUT --write-movie OUT/sound.avi --fixed-fps 30`
@@ -3770,8 +3771,8 @@ or thrown only draw those already there (see "Feeding").
   (`Butterflies.MIN_BLOOMS`) is a patch, and 8 to 25 seconds after it appears two to four
   butterflies flutter in from out of sight. They wander from bloom to bloom, settle on one with
   their wings slowly opening and closing, scatter up and away when a hand or the head comes
-  suddenly within 0.6 m (a slow one may come right up to them), and drift back. They leave, out of sight, when their patch is erased, drowned or out of season; the
-  meadow's own flowers draw none. Wings come in five soft colours (butter, apricot, sky, chalk,
+  suddenly within 0.6 m, and drift back. They leave, out of sight, when their patch is erased,
+  drowned or out of season; the meadow's own flowers draw none. Wings come in five soft colours (butter, apricot, sky, chalk,
   lilac), darker at the rim.
 - **Fireflies** come out once the sun is low, in spring and summer, over what you have made:
   six to ten over each pond's shore and each painted flower patch, 48 in all, shared evenly

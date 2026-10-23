@@ -77,7 +77,7 @@ func eat(height: float, delta: float) -> void:
 
 
 ## How far it has got to its feet, from 0 lying to 1 standing.
-func afoot() -> float:
+func upright() -> float:
 	return 1.0 - mode.w
 
 

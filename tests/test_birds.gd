@@ -91,6 +91,13 @@ class Glade extends GladeBase:
 	func birds() -> Array[Birds.Bird]:
 		return wildlife.birds.birds
 
+	## Where a conure perches, rather than one riding a shoulder.
+	func perch() -> Vector3:
+		for b in birds():
+			if b.state != Birds.State.SHOULDER:
+				return b.spot
+		return birds()[0].spot
+
 
 func _glade(seed: int) -> Glade:
 	var g := Glade.new()
@@ -305,7 +312,7 @@ func _a_sudden_move_startles_it_a_short_way(g: Glade, b: Birds.Bird, each: Calla
 func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 	var hand: Hand = g.rig.right
 	var head: Node3D = g.rig.head
-	var perch := g.birds()[0].spot
+	var perch := g.perch()
 	hand.global_transform = Transform3D(Basis(Vector3.UP, 0.4), perch + Vector3(1.5, -0.4, 1.0))
 	hand.held_still = true
 	hand.tool = Hand.Tool.SEEDS
@@ -398,7 +405,7 @@ func _seeds_held_out_draw_one_onto_the_hand(g: Glade, each: Callable) -> void:
 
 ## Seeds held out in both hands: a conure stands on each, both at once, and both stay.
 func _two_hands_with_seeds_feed_two(g: Glade, each: Callable) -> void:
-	var perch := g.birds()[0].spot
+	var perch := g.perch()
 	var sides := [Vector3(1.0, -0.4, 1.0), Vector3(-1.0, -0.4, 1.0)]
 	for i in 2:
 		var hand: Hand = g.rig.hands[i]

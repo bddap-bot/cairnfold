@@ -167,7 +167,8 @@ func eat(_height: float, _delta: float) -> void:
 	_play(EAT_CLIP)
 
 
-func afoot() -> float:
+## A deer or a fox never lies down.
+func upright() -> float:
 	return 1.0
 
 

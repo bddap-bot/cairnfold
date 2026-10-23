@@ -124,6 +124,7 @@ func _a_slow_hand_scatters_none_a_sudden_face_does() -> void:
 		check(false, "one is sitting to be come up to")
 		return
 	var b: Butterflies.Butterfly = sitting[0]
+	b.timer = 60.0
 	var hand := g.rig.right
 	hand.global_position = b.at + Vector3(1.2, 0.05, 0)
 	_run(g, 1.0)
