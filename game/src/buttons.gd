@@ -45,4 +45,8 @@ func _down(action: String) -> bool:
 static func down(controller: Hand, input: String) -> bool:
 	if injected.has("%s/%s" % [controller.tracker, input]):
 		return true
-	return controller.flick == input if Hand.FLICKS.has(input) else controller.is_button_pressed(input)
+	if Hand.FLICKS.has(input):
+		return controller.flick == input
+	if controller.bare:
+		return Controls.HAND.get(controller.gesture, "") == input
+	return controller.is_button_pressed(input)

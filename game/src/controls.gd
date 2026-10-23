@@ -15,6 +15,10 @@ const ACTIONS := {
 	"reach": {"left_hand": "primary_click", "right_hand": "primary_click"},
 }
 
+## A tracked hand as the controller it stands in for: each gesture (`HandShape`) as the input it presses. The little
+## pinch holds the stick, which the hand then pushes by moving from where it pinched (`Hand.STICK_REACH`).
+const HAND := {"index": "trigger_click", "fist": "grip_click", "middle": "by_button", "ring": "ax_button", "little": "primary"}
+
 ## Native layouts. Extra Frame buttons have distinct inputs but no game action; only B and D-pad left open wheels.
 ## The Quest's left menu is left out: held, it did not open the wheel on a Quest 3.
 const DEVICES := {

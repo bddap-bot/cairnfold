@@ -121,7 +121,7 @@ func brush(hand: Hand) -> Brush:
 
 
 func _process(delta: float) -> void:
-	flora.part(rig.left.global_position if rig.left.get_has_tracking_data() else stand_in, _reach(rig.right))
+	flora.part(rig.left.global_position if rig.left.tracked() else stand_in, _reach(rig.right))
 	for b in brushes:
 		_handle(b, delta)
 		b.buttons.latch()
@@ -138,7 +138,7 @@ func _handle(b: Brush, delta: float) -> void:
 		return
 	if b.buttons.released("tool"):
 		end_stroke(b)
-	if not b.hand.get_has_tracking_data():
+	if not b.hand.tracked():
 		return
 	var hand := b.hand.global_transform
 	if b.rock != null:
@@ -185,7 +185,7 @@ func _handle(b: Brush, delta: float) -> void:
 
 
 static func _reach(hand: XRController3D) -> Vector3:
-	return hand.global_position if hand.get_has_tracking_data() else Flora.NO_HAND
+	return hand.global_position if hand.tracked() else Flora.NO_HAND
 
 
 ## A stone stroke begun on stone paints the ground back to meadow.

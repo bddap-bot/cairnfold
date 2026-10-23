@@ -2869,7 +2869,9 @@ Choices left to the in-headset check: the pinch distances, whether an empty bare
 controller's rounded body (it does now, one look either way), whether the aim needs steadying against joint tremor as
 the teleport ray has, and whether the picture book's pages, which show controllers, should show hands to a player
 without them. `tests/test_lessons.gd` plays every page twice, once by controller and once by tracked hands made into each
-page's gestures (`HandShape`), and checks the same effects.
+page's gestures (`HandShape`), and checks the same effects; `tests/test_hand_tracking.gd` checks which joints the runtime
+reports play a hand. `demo/bare-hands.json` plays a session by bare hands alone (pick, plant, draw a wall, undo, redo,
+pull a hill, teleport, turn, pick with the left hand) and digests the garden after each, on a headset or the desktop.
 
 ## Picture book
 

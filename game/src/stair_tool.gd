@@ -65,7 +65,7 @@ func _process(_delta: float) -> void:
 		var hand := buttons.hand as Hand
 		if hand.tool != Hand.Tool.STAIRS or rig.aim_hand == hand:
 			_cancel(hand)
-		elif hand.get_has_tracking_data():
+		elif hand.tracked():
 			var t := hand.global_transform
 			var hit := aim(t.origin, -t.basis.z)
 			hand.point(hit.get("point"), WallTool.TINT)

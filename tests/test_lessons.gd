@@ -10,6 +10,8 @@ var failures := 0
 var main: Node
 var trackers: Array[XRControllerTracker] = []
 var effects := {}
+## Pages play through bare hands (`Lessons.bare`), not by controller.
+var bare := false
 
 
 func _initialize() -> void:
@@ -35,15 +37,17 @@ func _run() -> void:
 		XRServer.add_tracker(tracker)
 		trackers.append(tracker)
 	_every_press_is_a_control()
-	for i in Lessons.PAGES.size():
-		var page: Dictionary = Lessons.PAGES[i]
-		await _fresh()
-		if page.has("setup"):
-			await _play(page.setup)
-		var before := _read(page)
-		await _replay(page)
-		await _frames(30)
-		call("_check_" + page.effect, page, before)
+	for by_hand in [false, true]:
+		bare = by_hand
+		for page in Lessons.PAGES:
+			await _fresh()
+			if page.has("setup"):
+				await _play(page.setup)
+			var before := _read(page)
+			await _replay(page)
+			await _frames(30)
+			call("_check_" + page.effect, page, before)
+	bare = false
 	await _shut_book_turns_nothing()
 	await _sweeps_turn_one_leaf_each_way()
 	for t in trackers:
@@ -68,6 +72,7 @@ func _every_press_is_a_control() -> void:
 func _fresh() -> void:
 	Buttons.injected.clear()
 	Hand.injected_sticks.clear()
+	Hand.injected_joints.clear()
 	main.world.submit({"op": "wipe"})
 	main.rig.place(Vector3(0, Terrain.height_at(0, 4), 4), 0.0)
 	main.rig.rotation = Vector3.ZERO
@@ -88,6 +93,13 @@ func _replay(page: Dictionary) -> void:
 		_hand(side).tool = Lessons.tool(page.tools[side])
 	var t := 0.0
 	while t <= page.length:
+		if bare:
+			for side in Lessons.hands(page):
+				Hand.injected_joints[side + "_hand"] = Lessons.bare(page, side, head, t)
+			_watch(page)
+			await process_frame
+			t += 1.0 / 60.0
+			continue
 		for side in Lessons.hands(page):
 			_hand(side).global_transform = head * Lessons.frame(Lessons.pose(page, side, t))
 		for p in page.press:
@@ -108,6 +120,15 @@ func _replay(page: Dictionary) -> void:
 		t += 1.0 / 60.0
 	Buttons.injected.clear()
 	Hand.injected_sticks.clear()
+	if bare:
+		for side in Lessons.hands(page):
+			Hand.injected_joints[side + "_hand"] = HandShape.make(_hand(side).global_transform, side == "left", "")
+		await process_frame
+		# Handed back, a hand takes its controller's pose at once: the test's controller is where the hand was.
+		for i in trackers.size():
+			var h: Hand = main.rig.hands[i]
+			trackers[i].set_pose("aim", h.transform, Vector3.ZERO, Vector3.ZERO, XRPose.XR_TRACKING_CONFIDENCE_HIGH)
+		Hand.injected_joints.clear()
 
 
 func _hand(side: String) -> Hand:
@@ -243,7 +264,7 @@ func _frames(n: int) -> void:
 func _check(ok: bool, what: String) -> void:
 	if not ok:
 		failures += 1
-		print("FAIL: ", what)
+		print("FAIL: ", "bare hands: " + what if bare else what)
 
 
 func _play(steps: Array) -> void:

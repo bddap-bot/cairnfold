@@ -104,6 +104,19 @@ static func frame(p: Dictionary) -> Transform3D:
 	return Transform3D(b, p.at)
 
 
+## A bare hand playing `side` of `page` at `t`, `head` being the head as the page began: each press made as its gesture
+## (`HandShape.pressing`), a stick pinched for a tenth of a second and then pushed over the next, as a hand moves: the
+## pinch sets where the stick's centre is, so a push begun with it would read short.
+static func bare(page: Dictionary, side: String, head: Transform3D, t: float) -> Array[Transform3D]:
+	var input := ""
+	var push := 0.0
+	for p in page.press:
+		if p.hand == side and held(page, side, p.action, t):
+			input = Controls.input(p.action, side + "_hand")
+			push = clampf((t - p.from) / 0.1 - 1.0, 0.0, 1.0)
+	return HandShape.pressing(head * frame(pose(page, side, t)), side == "left", input, head.basis, push)
+
+
 ## Whether `hand` holds `action` on `page` at `t`.
 static func held(page: Dictionary, hand: String, action: String, t: float) -> bool:
 	for p in page.press:

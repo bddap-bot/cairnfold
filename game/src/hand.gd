@@ -51,6 +51,10 @@ const LET_GO := 0.3
 static var injected_sticks := {}
 ## Hand positions in the wheel's plane the driver injects, keyed by tracker, in place of the hand's own.
 static var injected_reach := {}
+## Tracked hands' joints the driver injects, keyed by tracker, global, in place of the runtime's (`HandShape`).
+static var injected_joints := {}
+## A bare hand moved this far from where its little finger pinched pushes the stick all the way.
+const STICK_REACH := 0.1
 
 var carried: Node3D
 ## The controller's pose over the floor, which a reaching hand is thrown out from (`Reach`).
@@ -93,7 +97,13 @@ var _holding := false
 var held_still := false:
 	set(v):
 		held_still = v
-		pose = &"held" if v else &"aim"
+		_follow()
+## Played by its joints, not a controller (see "Tracked hands"): its pose is the palm's, its inputs its gesture's.
+var bare := false
+## What the bare hand's fingers make (`HandShape.read`), pressing the input `Controls.HAND` gives it.
+var gesture := ""
+## Where, in the rig, the bare hand's little finger pinched: the stick's centre.
+var _stick_from := Vector3.ZERO
 var _buttons: Buttons
 ## The hand as seen, with the tool on top: HandStop holds it at what the controller pushes into.
 var body := Node3D.new()
@@ -359,9 +369,18 @@ func wheel_frame() -> Transform3D:
 	return _wheel_root.global_transform
 
 
-## The thumbstick as locomotion reads it.
+## The thumbstick as locomotion reads it; on a bare hand, its move from where the little finger pinched.
 func stick() -> Vector2:
-	return injected_sticks.get(tracker, get_vector2("primary"))
+	if injected_sticks.has(tracker):
+		return injected_sticks[tracker]
+	if not bare:
+		return get_vector2("primary")
+	if gesture != "little":
+		return Vector2.ZERO
+	var right := (get_parent() as Rig).head.global_basis.x
+	right = Vector3(right.x, 0.0, right.z).normalized()
+	var moved := (get_parent() as Node3D).global_basis * (position - _stick_from)
+	return (Vector2(moved.dot(right), moved.dot(Vector3.UP.cross(right))) / STICK_REACH).limit_length(1.0)
 
 
 ## How many metres a thing pulled at `reach` metres moves per metre of hand, so far things keep up.
@@ -370,7 +389,7 @@ static func reach_gain(reach: float) -> float:
 
 
 func tracked() -> bool:
-	return held_still or get_has_tracking_data()
+	return held_still or bare or get_has_tracking_data()
 
 
 ## Whether this hand reaches far by stretching (`Reach`), grabbing by touch, rather than by pointing.
@@ -451,6 +470,7 @@ func hold() -> void:
 
 
 func _process(delta: float) -> void:
+	_read_hand()
 	_reach(delta)
 	_log_profile()
 	_flick_input()
@@ -462,6 +482,55 @@ func _process(delta: float) -> void:
 	_select_input(delta)
 	_buttons.latch()
 	_show_tool(delta)
+
+
+## Follows the hand's joints while the runtime reports them as the hand's own, or while it cannot say whose they are and
+## reports no controller pose for this hand; otherwise the controller.
+func _read_hand() -> void:
+	var joints: Array = injected_joints.get(tracker, [])
+	if joints.is_empty() and not held_still:
+		joints = _runtime_joints()
+	var was := bare
+	bare = not joints.is_empty()
+	if bare != was:
+		print("controls: %s %s" % [tracker, "bare" if bare else "on its controller"])
+		_follow()
+	if not bare:
+		gesture = ""
+		return
+	global_transform = joints[HandShape.PALM].orthonormalized()
+	var g := HandShape.read(joints, gesture)
+	if g == "little" and gesture != "little":
+		_stick_from = position
+	gesture = g
+
+
+func _runtime_joints() -> Array:
+	var side := "left" if tracker == &"left_hand" else "right"
+	var t := XRServer.get_tracker("/user/hand_tracker/" + side) as XRHandTracker
+	if t == null or not t.has_tracking_data or t.hand_tracking_source == XRHandTracker.HAND_TRACKING_SOURCE_CONTROLLER:
+		return []
+	if t.hand_tracking_source != XRHandTracker.HAND_TRACKING_SOURCE_UNOBSTRUCTED and _controller_posed():
+		return []
+	var origin := (get_parent() as Node3D).global_transform
+	var out: Array[Transform3D] = []
+	for j in HandShape.JOINTS:
+		if not t.get_hand_joint_flags(j) & XRHandTracker.HAND_JOINT_FLAG_POSITION_VALID:
+			return []
+		out.append(origin * t.get_hand_joint_transform(j))
+	return out
+
+
+func _controller_posed() -> bool:
+	var t := XRServer.get_tracker(tracker) as XRPositionalTracker
+	var p := t.get_pose(&"aim") if t != null else null
+	return p != null and p.has_tracking_data
+
+
+## The controller's aim moves the hand unless the driver holds it or its joints do: then the hand follows a pose the
+## runtime does not have, which stops the controller moving it.
+func _follow() -> void:
+	pose = &"held" if held_still else &"joints" if bare else &"aim"
 
 
 func _flick_input() -> void:

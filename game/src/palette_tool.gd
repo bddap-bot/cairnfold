@@ -76,7 +76,7 @@ func _process(_delta: float) -> void:
 			close(hand)
 		elif wheel != null and b.held("tool"):
 			twist(hand, _roll(wheel.basis, hand.global_basis))
-		elif wheel == null and hand.tool in [Hand.Tool.COLOUR, Hand.Tool.STYLE] and rig.aim_hand != hand and hand.get_has_tracking_data():
+		elif wheel == null and hand.tool in [Hand.Tool.COLOUR, Hand.Tool.STYLE] and rig.aim_hand != hand and hand.tracked():
 			var t := hand.global_transform
 			var target := aim(t.origin, -t.basis.z) if hand.tool == Hand.Tool.COLOUR else aim_style(t.origin, -t.basis.z)
 			hand.point(target.get("point", null), BEAM)

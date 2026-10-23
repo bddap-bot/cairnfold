@@ -104,8 +104,11 @@ static func hold(device: String, control: String, on: bool) -> void:
 ## Takes a tool from a hand's wheel as a player does: hold the wheel button, sweep the hand through each
 ## level of the tool's path, let go; "none" lets go at the centre, emptying the hand. An untracked hand is moved itself; a tracked one sweeps by injected
 ## reach. "capture" saves a view at the opening and at each level reached, as "<capture>-<level>",
-## "popping" one the frame after the pick.
+## "popping" one the frame after the pick. "bare" picks with a bare hand before the head: thumb to middle, the palm swept.
 func _pick(s: Dictionary) -> void:
+	if s.get("bare", false):
+		await _pick_bare(s)
+		return
 	var hand: Hand = _hand(s)
 	var key := "%s/%s" % [hand.tracker, Controls.input("wheel", hand.tracker)]
 	var tree := hand.inventory()
@@ -143,6 +146,31 @@ func _pick(s: Dictionary) -> void:
 	await _frames(2)
 
 
+func _pick_bare(s: Dictionary) -> void:
+	var hand: Hand = _hand(s)
+	var left: bool = hand == main.rig.left
+	var head: Transform3D = main.rig.head.global_transform
+	var palm := head * Lessons.frame({"at": Vector3(-0.2 if left else 0.2, -0.3, -0.4), "aim": Vector3(0, -0.35, -1), "roll": 0.0})
+	var leaf: Variant = Hand.Tool.get(str(s.get("tool", "none")).to_upper(), Hand.Tool.NONE)
+	var path: Array[int] = ToolWheel.paths(hand.inventory()).get(leaf, [] as Array[int])
+	Hand.injected_joints[hand.tracker] = HandShape.make(palm, left, "")
+	await _frames(2)
+	Hand.injected_joints[hand.tracker] = HandShape.make(palm, left, "middle")
+	await _frames(3)
+	var wheel := hand.wheel_frame()
+	var from := Vector2.ZERO
+	for to in ToolWheel.sweep(hand.inventory(), path):
+		for f in 6:
+			var p := from.lerp(to, (f + 1) / 6.0)
+			Hand.injected_joints[hand.tracker] = HandShape.make(Transform3D(palm.basis, wheel * Vector3(p.x, p.y, 0)), left, "middle")
+			await _frames(1)
+		from = to
+	Hand.injected_joints[hand.tracker] = HandShape.make(Transform3D(palm.basis, wheel * Vector3(from.x, from.y, 0)), left, "")
+	await _frames(2)
+	Hand.injected_joints.erase(hand.tracker)
+	await _frames(2)
+
+
 ## Holds both controllers in front of the head, `left` and `right` in head space, tops tipped toward the eye,
 ## then turned `turn` degrees about the vertical (180 points them back at the head) and rolled `roll` degrees.
 func _hands(s: Dictionary) -> void:
@@ -165,7 +193,8 @@ func _hands(s: Dictionary) -> void:
 ## then lets go of everything it held. A hand's key may point it `toward` a spot in place of an `aim`: [right, up, ahead]
 ## metres from the ground under the head, as "relative" builds are placed, so it meets them however high the head is.
 ## "capture" saves the view at each of the `shots` seconds given; `tools` hands each hand that tool first. With
-## "reach" the keys pose the controllers, and each hand reaches from its own as a player's would (`Reach`).
+## "reach" the keys pose the controllers, and each hand reaches from its own as a player's would (`Reach`). "bare"
+## plays it with bare hands (`Lessons.bare`).
 func _gesture(s: Dictionary) -> void:
 	for side in s.get("tools", {}):
 		(main.rig.left if side == "left" else main.rig.right).tool = Lessons.tool(s.tools[side])
@@ -184,13 +213,17 @@ func _gesture(s: Dictionary) -> void:
 				k[side].aim = [aim.x, aim.y, aim.z]
 	var shots: Array = s.get("shots", [])
 	var t := 0.0
+	var bare: bool = s.get("bare", false)
 	while t <= s.length:
 		for side in Lessons.hands(s):
 			var hand: Hand = main.rig.left if side == "left" else main.rig.right
+			if bare:
+				Hand.injected_joints[hand.tracker] = Lessons.bare(s, side, head, t)
+				continue
 			hand.held_still = true
 			hand.held_reaches = s.get("reach", false)
 			hand.global_transform = head * Lessons.frame(Lessons.pose(s, side, t))
-		for p in s.press:
+		for p in (s.press if not bare else []):
 			var key := "%s_hand/%s" % [p.hand, Controls.input(p.action, p.hand + "_hand")]
 			if Lessons.held(s, p.hand, p.action, t):
 				Buttons.injected[key] = true
@@ -205,6 +238,12 @@ func _gesture(s: Dictionary) -> void:
 		Buttons.injected.erase("%s_hand/%s" % [p.hand, Controls.input(p.action, p.hand + "_hand")])
 	for h in main.rig.hands:
 		h.held_reaches = false
+	if bare:
+		for side in Lessons.hands(s):
+			var tracker := side + "_hand"
+			Hand.injected_joints[tracker] = HandShape.make(Hand.injected_joints[tracker][HandShape.PALM], side == "left", "")
+		await _frames(1)
+		Hand.injected_joints.clear()
 	await _frames(2)
 
 
@@ -1134,7 +1173,7 @@ func _digest(s: Dictionary) -> void:
 	var out: Dictionary = main.world.digest()
 	if s.get("ground", false):
 		var h: Vector3 = main.rig.head.global_position
-		out.ground = {"feet": main.rig.global_position.y, "terrain": Terrain.height_at(h.x, h.z), "head": h.y, "x": h.x, "z": h.z}
+		out.ground = {"feet": main.rig.global_position.y, "terrain": Terrain.height_at(h.x, h.z), "head": h.y, "x": h.x, "z": h.z, "yaw": rad_to_deg(main.rig.global_rotation.y), "held": [Hand.Tool.keys()[main.rig.left.tool], Hand.Tool.keys()[main.rig.right.tool]]}
 	out.sun = main.look.time
 	out.avatars = main.session.avatars.values().filter(func(a: Avatar) -> bool: return a.visible).size()
 	out.avatar_choices = main.session._looks.values().map(func(v: Array) -> int: return v[0])

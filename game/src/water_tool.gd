@@ -79,7 +79,7 @@ func settle() -> void:
 func _handle(i: int) -> void:
 	var b := _buttons[i]
 	var hand: Hand = b.hand
-	if hand.tool != Hand.Tool.POND or rig.aim_hand == hand or not hand.get_has_tracking_data():
+	if hand.tool != Hand.Tool.POND or rig.aim_hand == hand or not hand.tracked():
 		_show(i, null)
 		return
 	var t := hand.global_transform

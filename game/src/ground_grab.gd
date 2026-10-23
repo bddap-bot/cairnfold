@@ -106,13 +106,13 @@ func _handle(g: Grab, delta: float) -> void:
 			end_stroke(hand)
 			return
 		_show_ring(g.ring, g.at, g.radius)
-		if not hand.get_has_tracking_data():
+		if not hand.tracked():
 			return
 		pull(hand, (hand.position.y - g.hand_y) * g.gain)
 		follow(hand, delta)
 		_tick(g)
 		return
-	if not g.grip.pressed("grab") or g.at != null or hand.taken() or hand.picking or rig.aim_hand == hand or not hand.get_has_tracking_data() or editing.call(hand):
+	if not g.grip.pressed("grab") or g.at != null or hand.taken() or hand.picking or rig.aim_hand == hand or not hand.tracked() or editing.call(hand):
 		return
 	var dir := -hand.global_basis.z
 	var hit: Variant = Terrain.raycast(hand.grip_from(), dir, hand.grip_reach())
