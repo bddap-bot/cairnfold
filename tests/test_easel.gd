@@ -207,8 +207,7 @@ func _a_deleted_easel_comes_back_with_its_painting() -> void:
 	_check(world.state.easels.has(id) and world.state.easels[id].strokes == before and main.easels.find(id) != null, "undo stands it back up with its painting")
 
 
-## A grip on an easel's legs or tray carries it along the ground and turns it with the hand, painting and all, set
-## where it is let go as one reshape; its canvas and kit keep their painting grips, and two hands size no easel.
+## Ground raised, dug, undone, loaded whole or set back under an easel leaves it standing on that ground.
 func _it_rides_the_ground_as_it_is_reshaped() -> void:
 	var id: int = world.state.easels.keys()[-1]
 	var e: Easels.Easel = main.easels.find(id)
@@ -240,6 +239,8 @@ func _it_rides_the_ground_as_it_is_reshaped() -> void:
 	_check(e != null and absf(e.position.y - was) < 0.01, "the ground set back sets it back where it stood")
 
 
+## A grip on an easel's legs or tray carries it along the ground and turns it with the hand, painting and all, set
+## where it is let go as one reshape; its canvas and kit keep their painting grips, and two hands size no easel.
 func _a_grip_on_its_stand_carries_it() -> void:
 	var tool: WallTool = main.tool
 	var id: int = world.state.easels.keys()[-1]
