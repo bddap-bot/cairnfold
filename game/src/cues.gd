@@ -308,7 +308,7 @@ func _sound(cue: Dictionary, at: Vector3, tension: float, heft: float) -> void:
 	v.stream = options[_rng.randi() % options.size()]
 	var spread: float = cue.get("spread", 0.0)
 	v.pitch_scale = cue.get("tune", 1.0) * (1.0 + cue.get("bend", 0.0) * tension) * pow(heft, -cue.get("deepen", 0.0)) * _rng.randf_range(1.0 - spread, 1.0 + spread)
-	v.volume_db = minf(cue.db + cue.get("swell", 0.0) * tension + cue.get("weigh", 0.0) * log(heft) / log(2.0), LOUDEST) + _rng.randf_range(-1.5, 1.0)
+	v.volume_db = minf(cue.db + cue.get("swell", 0.0) * tension + cue.get("weigh", 0.0) * log(heft) / log(2.0) + _rng.randf_range(-1.5, 1.0), LOUDEST)
 	v.global_position = at
 	v.play()
 
