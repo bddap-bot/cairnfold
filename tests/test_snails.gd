@@ -35,7 +35,7 @@ func _initialize() -> void:
 	check(snails.crawling.size() == Snails.CAP, "global cap")
 	print("snail_population: %d ponds; %d snails; cells %s" % [water.ponds.size(), snails.crawling.size(), water.ponds.map(func(p: PondWater) -> int: return p.pond.cells.size())])
 	for p in water.ponds:
-		check(snails.crawling.filter(func(s: Snails.One) -> bool: return s.pond == p).size() == Snails.wanted(p, Snails.CAP / water.ponds.size()), "pond size determines population")
+		check(snails.crawling.filter(func(s: Snails.One) -> bool: return s.pond == p).size() == Wildlife._pond_quota(p, water.ponds.size(), Snails.CAP, Snails.CELLS_EACH, Snails.PER_POND), "pond size determines population")
 	var moved := 0.0
 	var elapsed := 0
 	for i in 3600:

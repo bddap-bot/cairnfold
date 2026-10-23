@@ -63,12 +63,11 @@ func tick(delta: float) -> void:
 		if not is_instance_valid(p) or not ponds.has(p):
 			_came.erase(p)
 	var have := {}
-	var share := CAP / maxi(1, ponds.size())
 	for i in range(crawling.size() - 1, -1, -1):
 		var s := crawling[i]
 		s.pond = wildlife.water.pond_at(s.position.x, s.position.z)
 		var count: int = have.get(s.pond, 0)
-		if s.pond == null or not _wet(s.pond, s.position) or count >= wanted(s.pond, share):
+		if s.pond == null or not _wet(s.pond, s.position) or count >= Wildlife._pond_quota(s.pond, ponds.size(), CAP, CELLS_EACH, PER_POND):
 			crawling.remove_at(i)
 			s.queue_free()
 		else:
@@ -78,7 +77,7 @@ func tick(delta: float) -> void:
 	for p in wildlife._ripe(_due, waiting, Wildlife.ARRIVE_AFTER, delta, true, rng):
 		_came[p] = true
 	for p: PondWater in ponds:
-		if not _came.has(p) or have.get(p, 0) >= wanted(p, share) or crawling.size() >= CAP:
+		if not _came.has(p) or have.get(p, 0) >= Wildlife._pond_quota(p, ponds.size(), CAP, CELLS_EACH, PER_POND) or crawling.size() >= CAP:
 			continue
 		for attempt in 8:
 			var xz := Terrain.grid_xz(p.pond.cells[rng.randi() % p.pond.cells.size()])
@@ -115,6 +114,3 @@ func tick(delta: float) -> void:
 		s.shown = minf(s.shown + delta / 1.5, 1.0)
 		crowd.put(i, s.transform, Color(s.phase, s.shown, 0, 0))
 	crowd.upload(crawling.size())
-
-static func wanted(p: PondWater, share: int) -> int:
-	return clampi(p.pond.cells.size() / CELLS_EACH, mini(1, share), mini(PER_POND, share))

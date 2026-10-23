@@ -275,9 +275,8 @@ func _rehome() -> void:
 		return f.pond != null and _deep(f.pond, Vector2(f.at.x, f.at.z)))
 	var deep := wildlife.water.ponds.filter(func(p: PondWater) -> bool: return p.pond.cells.any(func(g: Vector2i) -> bool: return _deep(p, Terrain.grid_xz(g), p)))
 	_want.clear()
-	var share := CAP / maxi(1, deep.size())
 	for p: PondWater in deep:
-		_want[p] = clampi(p.pond.cells.size() / CELLS_EACH, mini(1, share), mini(PER_POND, share))
+		_want[p] = Wildlife._pond_quota(p, deep.size(), CAP, CELLS_EACH, PER_POND)
 	var came := {}
 	for p in _came.keys() + swimming.map(func(f: One) -> PondWater: return f.pond):
 		if _want.has(p):

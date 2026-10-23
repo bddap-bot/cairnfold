@@ -692,6 +692,13 @@ func _deep_point(p: PondWater, from := Vector3.INF) -> Vector3:
 	return Vector3(b.x, p.pond.level, b.y)
 
 
+## How many of a kind capped at `cap` pond `p` is to have, of `ponds` sharing them: one per `each` of its wet grid
+## points, at least one and at most `most`, and never more than its even share.
+static func _pond_quota(p: PondWater, ponds: int, cap: int, each: int, most: int) -> int:
+	var share := cap / maxi(1, ponds)
+	return clampi(p.pond.cells.size() / each, mini(1, share), mini(most, share))
+
+
 func _swims_clear(from: Vector3, to: Vector2) -> bool:
 	if walls == null or from == Vector3.INF:
 		return true
