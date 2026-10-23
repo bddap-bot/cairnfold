@@ -36,8 +36,8 @@ var _drm_fds: PackedStringArray = []
 var _drm_scan := 0
 var _draws := 0
 var _prims := 0
-## Pipelines compiled so far, while drawing, the last frame.
-var _compiled := 0
+## Pipelines compiled so far, the last frame: x while drawing, which holds the frame, y on worker threads.
+var _compiled := Vector2i()
 ## The headset whose eyes' frusta each second records the widest swing of: the sun's shadow map is fitted to them
 ## every frame, and holds still only while they do.
 var xr: XRInterface
@@ -87,7 +87,7 @@ func _process(_delta: float) -> void:
 	var compiled := _compilations()
 	if late and not _was_late:
 		var scripts := Performance.get_monitor(Performance.TIME_PROCESS) + Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
-		print("metrics: late frame %.1f ms, the frame before it %.1f ms in scripts and physics, %.1f ms on the GPU, %d pipelines compiled" % [elapsed * 1000.0, scripts * 1000.0, quality.frame_ms if quality != null else 0.0, compiled - _compiled])
+		print("metrics: late frame %.1f ms, the frame before it %.1f ms in scripts and physics, %.1f ms on the GPU, %d pipelines compiled while drawing and %d on worker threads" % [elapsed * 1000.0, scripts * 1000.0, quality.frame_ms if quality != null else 0.0, compiled.x - _compiled.x, compiled.y - _compiled.y])
 	_compiled = compiled
 	_was_late = late
 	var cpu_ms := _cpu[-1]
@@ -206,8 +206,8 @@ static func tally(into: Dictionary, tag: String, ms: float, late: bool, cpu_ms: 
 		t.gpu_frames += 1
 
 
-static func _compilations() -> int:
-	return int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_MESH))
+static func _compilations() -> Vector2i:
+	return Vector2i(int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_DRAW)), int(Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SPECIALIZATION) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_SURFACE) + Performance.get_monitor(Performance.PIPELINE_COMPILATIONS_MESH)))
 
 
 ## Left, right, down and up half-angles of an eye's frustum, in degrees.

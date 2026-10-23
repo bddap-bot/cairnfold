@@ -85,6 +85,10 @@ static func install() -> void:
 static func _texel(x: float, z: float, from := image) -> Color:
 	if from == laid:
 		settle()
+	return _pixel(from, x, z)
+
+
+static func _pixel(from: Image, x: float, z: float) -> Color:
 	return from.get_pixel(clampi(int((x / Terrain.SIZE + 0.5) * SIZE), 0, SIZE - 1), clampi(int((z / Terrain.SIZE + 0.5) * SIZE), 0, SIZE - 1))
 
 
@@ -96,7 +100,17 @@ static func bare(x: float, z: float) -> float:
 
 ## The same from the garden's marks alone.
 static func laid_bare(x: float, z: float) -> float:
-	var c := _texel(x, z, laid)
+	return bare_in(laid_image(), x, z)
+
+
+## The garden's marks, settled, for reading many points with `bare_in`.
+static func laid_image() -> Image:
+	settle()
+	return laid
+
+
+static func bare_in(from: Image, x: float, z: float) -> float:
+	var c := _pixel(from, x, z)
 	return minf(c.r + c.g, 1.0)
 
 

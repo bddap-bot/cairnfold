@@ -60,13 +60,25 @@ func flush(pool: Flora.Pool) -> void:
 			if _stands(p):
 				image.set_pixelv(texel_of(p.anchor), looks[i])
 	else:
+		# Each grid square under a dirty texel is read once, not once for each texel it holds.
+		var best := {}
+		var squares := {}
+		var reach := Vector3(Terrain.STEP, 0, Terrain.STEP)
 		for t: Vector2i in _dirty:
+			best[t] = -1
 			var centre := Vector3(t.x * Terrain.STEP - Terrain.SIZE * 0.5, 0, t.y * Terrain.STEP - Terrain.SIZE * 0.5)
-			var best := -1
-			for p in pool.near(centre, Terrain.STEP):
-				if p.slot > best and _stands(p) and texel_of(p.anchor) == t:
-					best = p.slot
-			image.set_pixelv(t, looks[best] if best >= 0 else Color(0, 0, 0, 0))
+			var lo := Flora.Pool.square(centre - reach)
+			var hi := Flora.Pool.square(centre + reach)
+			for j in range(lo.y, hi.y + 1):
+				for i in range(lo.x, hi.x + 1):
+					squares[Vector2i(i, j)] = true
+		for square: Vector2i in squares:
+			for slot: int in pool.in_square(square):
+				var t := texel_of(pool.anchors[slot])
+				if best.has(t) and slot > best[t] and _stands(pool.plants[slot]):
+					best[t] = slot
+		for t: Vector2i in best:
+			image.set_pixelv(t, looks[best[t]] if best[t] >= 0 else Color(0, 0, 0, 0))
 	_whole = false
 	_dirty.clear()
 	texture.update(image)

@@ -96,6 +96,10 @@ static func flower(p: Vector3, rng: RandomNumberGenerator) -> Transform3D:
 	return Transform3D(Basis(Vector3.UP, rng.randf() * TAU).scaled(Vector3.ONE * s), p)
 
 
+## How far below the ground a painted plant's spot is set.
+const SINK := 0.02
+
+
 static func brush(center: Vector3, radius: float, count: int, rng: RandomNumberGenerator, ground: Callable) -> Array[Vector3]:
 	var out: Array[Vector3] = []
 	for i in count:
@@ -103,7 +107,9 @@ static func brush(center: Vector3, radius: float, count: int, rng: RandomNumberG
 		var a := rng.randf() * TAU
 		var x := center.x + cos(a) * r
 		var z := center.z + sin(a) * r
-		out.append(Vector3(x, ground.call(x, z) - 0.02, z))
+		var spot := Vector3(x, 0, z)
+		spot.y = ground.call(spot.x, spot.z) - SINK
+		out.append(spot)
 	return out
 
 

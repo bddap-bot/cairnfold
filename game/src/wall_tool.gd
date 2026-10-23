@@ -208,6 +208,7 @@ func busy(hand: Hand = null) -> bool:
 
 
 func _process(delta: float) -> void:
+	Wall.reap()
 	_let_go_handed()
 	for m in masons:
 		_handle(m)

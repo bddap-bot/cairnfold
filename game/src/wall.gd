@@ -307,12 +307,33 @@ func _exit_tree() -> void:
 		_stand_in.queue_free()
 
 
-## A wall freed outside the tree never exits it, and a worker task outliving its wall crashes the engine at exit.
+## A worker task outliving its wall crashes the engine at exit, so its tasks are waited for at quit. A wall freed in play
+## leaves them running to `reap`, which takes them as they finish: waiting here held a deleting frame for a whole
+## wall's ivy, 25 ms on a Quest 2. A wall freed outside the tree never exits it, so this is where its tasks are left.
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE:
 		for t in [_ivy_task, _build_task, _perch_task, _recolour_task]:
 			if t >= 0:
-				WorkerThreadPool.wait_for_task_completion(t)
+				_orphans.append(t)
+		if quitting:
+			reap(true)
+
+
+## Tasks left running by walls since freed.
+static var _orphans := PackedInt32Array()
+## Set as the game quits, after which a freed wall waits for its tasks.
+static var quitting := false
+
+
+## Takes the finished tasks walls left behind, or with `all` waits for every one.
+static func reap(all := false) -> void:
+	var left := PackedInt32Array()
+	for t in _orphans:
+		if all or WorkerThreadPool.is_task_completed(t):
+			WorkerThreadPool.wait_for_task_completion(t)
+		else:
+			left.append(t)
+	_orphans = left
 
 
 ## Where a bird can stand on the wall's top, as last worked out. Working them out reads every stone, several

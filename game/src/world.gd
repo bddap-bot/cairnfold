@@ -15,9 +15,6 @@ const RATE := 20.0
 const BURST := 60.0
 ## The key a wipe, and the undo of one, touches: everything.
 const WIPED := "*"
-## A growing plant stands at its spot's height above the ground as it is when it grows, so new heights wait for
-## every stroke to grow.
-const GROWS_FIRST := ["heights"]
 ## Commands that can leave a tree or bush standing where water covers its root, which `_drown` then takes out.
 const DROWNING := ["heights", "ponds", "plant", "tree"]
 ## A saved garden from another format is moved aside rather than rebuilt into a different one: 3 paints
@@ -758,8 +755,6 @@ func _keys(cmd: Dictionary) -> Array:
 ## garden's sky again if the host turned it down.
 func _apply(cmd: Dictionary) -> Dictionary:
 	var last: bool = cmd.op == "sky" or cmd.op == "plant" and not cmd.kind in Flora.PLACED
-	if flora != null and cmd.op in GROWS_FIRST:
-		flora.grow_now()
 	var mine: bool = cmd.get("by") == me() and cmd.has("token")
 	# An undo or redo carries its own token but no walls in hand.
 	var handed := mine and _done.has(cmd.token)

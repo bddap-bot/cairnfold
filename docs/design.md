@@ -845,9 +845,49 @@ What each overrun was, and what changed:
   flowers this scene builds cost 10 to 25 pipelines, a 28 to 40 ms frame, where a garden opened from its save does
   not.
 
-Left: the walk's first second still misses 12 refreshes while the governor descends from step 0, the house turned
-down for want of room spends 53 ms of main thread on its frame, and digging a pond, deleting a house and the first
-seconds of opening a garden run 20 to 80 ms frames on the main thread.
+The main thread's share, found per frame with a debug build on the Quest 2 sending each frame's GDScript profile to
+the remote debugger (`--remote-debug` written into the APK's `_cl_`, `adb reverse`), and fixed. Late frames, p99 and
+longest frame in ms, two runs of main (d64f3924) before and two after, the garden saved as play saves it:
+
+| Phase | Before | After |
+| --- | --- | --- |
+| Deleting the house | 2, 21.7, 35.5 · 3, 21.2, 35.8 | 0, 16.5, 20.2 · 1, 20.8, 21.4 |
+| Painting grass | 2, 24.8, 34.2 · 1, 16.4, 34.9 | 1, 16.2, 28.4 · 1, 16.4, 28.2 |
+| Digging a pond | 5, 27.0, 29.0 · 6, 25.3, 25.8 | 2, 23.1, 25.1 · 3, 23.7, 27.7 |
+| Walking into the garden | 17, 45.4, 56.5 · 14, 35.8, 61.5 | 20, 44.5, 115.9 · 12, 42.6, 51.0 |
+| A house with no room | 0, 15.1, 15.2 · 1, 16.7, 26.4 | 0, 15.1, 15.2 · 0, 15.6, 16.2 |
+
+- A wall freed while its ivy was still being laid on a worker thread waited for it: 25 ms of a deleting frame. A
+  freed wall's tasks now finish on their own and are collected as they do (`Wall.reap`); only quitting waits.
+- Digging forced every stroke still growing to grow at once, so its plants stood on the old ground: 68 of an 80 ms
+  frame after a grass stroke. A stroke's spots now keep only where they are across the ground and take its height as
+  each plant grows.
+- The grass cover (FloraCover) found each changed texel's plants by a radius search of their grid squares, every
+  quarter second while a stroke grew: 10 to 25 ms frames. It now reads each square under the changed texels once.
+- A grown stroke hid its ghost a plant at a time, 17 ms for 1900 plants, though the ghosts go together once the last
+  stroke has grown; that case now clears them in one call.
+
+What is left, measured: letting go of a grass stroke works out all its spots and which fall on bare ground in that
+frame (`Flora.grow`, 17 of the frame's 37 ms in the debug build), one 28 ms frame; a dig fills its pond on the main
+thread when the fill looks small (`World.AHEAD`), and pouring it in applies the fill and repaints the grass cover, two
+or three frames of 23 to 28 ms; working the fill out ahead of every dig instead let the next dig find the ground not
+yet dug and refuse its pond. Deleting is at the line: its frame is 20 to 21 ms, of which the bench driver stepping
+its script (`Driver._run`) is 6 in the debug build. The house with no room was late in 1 of 9 runs, 26 ms, which no
+profiled run caught.
+
+The walk's late frames are the governor's, logged now as it moves (`quality: step 6 to 8, the GPU at 22.0 ms of
+13.9`): the walk's first frame compiles 4 or 5 pipelines while drawing (28 ms; the metrics line now tells those
+from the ones compiled on worker threads); a step down not yet far enough misses refreshes until the next (step 8
+held 13.3 ms of GPU for half a second); and the step to the 0.78 3D scale reallocates the scene's buffers in one
+50 to 58 ms frame. Dropping straight to the last step that pops nothing on a frame a quarter over budget measured
+the same 20 late frames, so it was taken back out.
+
+Opening the garden from its save: its first frame is the load itself, 490 to 510 ms; the next two seconds run 30 to
+40 late frames of 22 to 45 ms, the first two rendered frames at the last step reallocating the 3D buffers and
+compiling 10 to 20 pipelines while drawing, the rest frames at 10 to 13 ms of GPU while the governor sits out its
+warm-up and the main thread finishes laying. Reading the picture book's pages back from the GPU without waiting
+(`texture_get_data_async`) delivered the same 103 frames in the first three seconds, and a 1 s warm-up the same 36 to
+40 late frames, so neither was kept.
 
 ## Build budget
 

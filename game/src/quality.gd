@@ -238,7 +238,10 @@ func _process(delta: float) -> void:
 		_warm += delta
 		_primed += 1
 		if pin < 0 and _warm > WARMUP:
+			var was := governor.level
 			governor.step(frame_ms, budget_ms, delta, _settled)
+			if governor.level != was:
+				print("quality: step %d to %d, the GPU at %.1f ms of %.1f" % [was, governor.level, frame_ms, budget_ms])
 	var priming := _primed < _priming.size() * PRIME_FRAMES
 	var n := _priming[_primed / PRIME_FRAMES] if priming else step()
 	var at := ladder[n]

@@ -62,14 +62,6 @@ func _exit_tree() -> void:
 
 
 func _process(_delta: float) -> void:
-	var _pt := Time.get_ticks_usec()
-	_process_timed(_delta)
-	var _pms := (Time.get_ticks_usec() - _pt) / 1000.0
-	if _pms > 3.0:
-		print("prof: water_tool.gd _process %.1f" % _pms)
-
-
-func _process_timed(_delta: float) -> void:
 	for i in _buttons.size():
 		_handle(i)
 		_buttons[i].latch()

@@ -153,24 +153,28 @@ class Pool:
 		anchors[i] = anchor
 		plants[i] = Plant.new(self, i, xform, anchor)
 		if indexed:
-			_grid.get_or_add(_square(anchor), []).append(i)
+			_grid.get_or_add(square(anchor), []).append(i)
 		if cover != null:
 			cover.looks[i] = FloraCover.look(color, custom)
 			cover.touch(anchor)
 		return plants[i]
 
-	static func _square(at: Vector3) -> Vector2i:
+	static func square(at: Vector3) -> Vector2i:
 		return Vector2i(floori(at.x / GRID), floori(at.z / GRID))
 
+	## The slots indexed in a grid square (`square`).
+	func in_square(at: Vector2i) -> Array:
+		return _grid.get(at, [])
+
 	func _unindex(i: int) -> void:
-		_grid[_square(plants[i].anchor)].erase(i)
+		_grid[square(plants[i].anchor)].erase(i)
 
 	## The standing plants within `radius` of `p` across the ground.
 	func near(p: Vector3, radius: float) -> Array[Plant]:
 		var out: Array[Plant] = []
 		var r2 := radius * radius
-		var lo := _square(p - Vector3(radius, 0, radius))
-		var hi := _square(p + Vector3(radius, 0, radius))
+		var lo := square(p - Vector3(radius, 0, radius))
+		var hi := square(p + Vector3(radius, 0, radius))
 		for j in range(lo.y, hi.y + 1):
 			for i in range(lo.x, hi.x + 1):
 				for slot: int in _grid.get(Vector2i(i, j), []):
@@ -290,7 +294,7 @@ class Pool:
 		if anchors[p.slot] != GONE:
 			anchors[p.slot] = p.anchor
 		if indexed:
-			_grid.get_or_add(_square(p.anchor), []).append(p.slot)
+			_grid.get_or_add(square(p.anchor), []).append(p.slot)
 		set_custom(p.slot, Color(custom.r, custom.g, p.anchor.x, p.anchor.z))
 		if p.drawn:
 			place(p.slot, p.xform)
@@ -864,7 +868,8 @@ func _paint(kind: String, p: Vector3, rng: RandomNumberGenerator, ghost: bool) -
 ## Grows a group from its build command: a seeded paint stroke, which grows exactly the plants its
 ## author's ghost showed, or a placed tree or bush. A stroke records in `skip` the plants that fell on bare ground when it
 ## grew, so a garden rebuilt later grows the same plants whatever paths and stone stand by then.
-## A stroke's plants are null until they grow, over the frames that follow (see `grow_now`).
+## A stroke's plants are null until they grow, over the frames that follow (see `grow_now`), each on the ground as
+## it is then.
 func grow(id: int, g: Dictionary) -> Array[Plant]:
 	var plants: Array[Plant] = []
 	var rng := RandomNumberGenerator.new()
@@ -883,9 +888,10 @@ func grow(id: int, g: Dictionary) -> Array[Plant]:
 	for i in g.get("skip", []):
 		skip[i] = true
 	var skipped := PackedInt32Array()
+	var laid := Ground.laid_image() if record and g.kind != "moss" else null
 	for d in g.dabs:
-		for p in FloraLayout.brush(d[0], d[1], d[2], rng, Terrain.base_at):
-			if skip.has(growth.spots.size()) or record and g.kind != "moss" and on_path(p):
+		for p in FloraLayout.brush(d[0], d[1], d[2], rng, _level):
+			if skip.has(growth.spots.size()) or laid != null and Ground.bare_in(laid, p.x, p.z) > 0.9:
 				skipped.append(growth.spots.size())
 				growth.spots.append(null)
 			else:
@@ -914,6 +920,10 @@ class Growth:
 	var next := 0
 
 
+static func _level(_x: float, _z: float) -> float:
+	return 0.0
+
+
 ## Grows every committed stroke now.
 func grow_now() -> void:
 	_grow(-1)
@@ -933,7 +943,7 @@ func _grow(usec: int, clock := Time.get_ticks_usec) -> void:
 		while g.next < g.spots.size():
 			var spot: Variant = g.spots[g.next]
 			if spot != null:
-				var p := _paint(g.kind, spot, g.looks, false)
+				var p := _paint(g.kind, Vector3(spot.x, Terrain.base_at(spot.x, spot.z) - FloraLayout.SINK, spot.z), g.looks, false)
 				if p != null:
 					p.group = g.group
 					p.index = g.next
