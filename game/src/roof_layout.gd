@@ -345,8 +345,7 @@ func build() -> void:
 			_lay_deck(rng)
 		_lay_ceiling()
 		for i in chimneys.size():
-			rng.seed = hash([seed, "chimney", i])
-			_lay_chimney(chimney_spot(chimneys[i]), rng)
+			_lay_chimney(chimney_spot(chimneys[i]), _chimney_rng(i))
 		if flag:
 			_fly_flag(flag_top())
 		return
@@ -369,8 +368,7 @@ func build() -> void:
 			_lay_ridge(hue, rng)
 	if kind == Kind.GABLE:
 		for i in chimneys.size():
-			rng.seed = hash([seed, "chimney", i])
-			_lay_chimney(chimney_spot(chimneys[i]), rng)
+			_lay_chimney(chimney_spot(chimneys[i]), _chimney_rng(i))
 		for i in dormers.size():
 			rng.seed = hash([seed, "dormer", i])
 			_lay_dormer(dormers[i], hue, rng)
@@ -570,17 +568,36 @@ func spot_of(p: Vector3) -> Vector2:
 ## How high over the roof's base a chimney at `c` stands, under its cap: clear of the ridge, and a metre over its own
 ## slope.
 func chimney_top(c: Vector2) -> float:
-	return maxf(pitch + 0.7, rise(1.0 - absf(c.y) / half_span()) + 1.0) + coat_rise()
+	return maxf(pitch + 0.7, spot_height(c) + 1.0) + coat_rise()
+
+
+## How high over the roof's base its slope stands at the chimney spot `c`.
+func spot_height(c: Vector2) -> float:
+	return rise(1.0 - absf(c.y) / half_span())
+
+
+## The pieces the `i`th chimney would be laid with at `c`, alone.
+func chimney_parts(c: Vector2, i: int) -> Array[Dictionary]:
+	var r := inputs()
+	r.corners = corners
+	r.base = base
+	r._lay_chimney(c, _chimney_rng(i))
+	return r.tiles
+
+
+func _chimney_rng(i: int) -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([seed, "chimney", i])
+	return rng
 
 
 ## A stone stack rising from the slope to clear the ridge, with a cap slab and two clay pots.
 func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
 	var f := frame()
 	var foot: Vector3 = f.mid + f.along * c.x + f.across * c.y
-	var surface := rise(1.0 - absf(c.y) / half_span())
+	var y := spot_height(c) - 0.3
 	var top := chimney_top(c)
 	var basis := Basis(f.along, Vector3.UP, f.across)
-	var y := surface - 0.3
 	while y < top - 0.05:
 		var h := minf(rng.randf_range(0.26, 0.34), top - y)
 		var stone := WallLayout.stone_color(rng)
@@ -845,12 +862,12 @@ func _tile(p: Vector3, basis: Basis, hue: float, rng: RandomNumberGenerator, wid
 	_add(Transform3D(b.scaled_local(Vector3(TILE.x * width, TILE.y, run)), p + basis.z * (NOSE - run * 0.5)), "tile", _clay(hue, rng), 1.0)
 
 
-## How far the thatch's outer face stands above the ridge: the coat and its band, measured square to the slopes there.
 ## Where a cone's flag pole, or its finial, stands: on its tip, over the thatch where it is thatched.
 func flag_top() -> Vector3:
 	return frame().mid + Vector3.UP * (pitch + coat_rise())
 
 
+## How far the thatch's outer face stands above the ridge: the coat and its band, measured square to the slopes there.
 func coat_rise() -> float:
 	return _crest().y + ROLL.y if thatched() else 0.0
 

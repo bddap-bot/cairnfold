@@ -314,7 +314,6 @@ func ghost_of(target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -
 	var what: String = target.what
 	var at: Vector3
 	var face := Vector3.ZERO
-	var ghost := {}
 	match what:
 		"lantern":
 			if layout.fence:
@@ -331,14 +330,16 @@ func ghost_of(target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -
 			face = f.tangent.cross(Vector3.UP)
 		"chimney":
 			var r := w.roof.frame()
-			at = r.mid + r.along * c.value.x + r.across * c.value.y + Vector3.UP * w.roof.rise(1.0 - absf(c.value.y) / w.roof.half_span())
-			face = r.across
-			ghost = {"roof": w.roof, "spot": c.value, "shape": [w.roof.seed, w.roof.chimneys.size(), w.roof.thatched(), snappedf(w.roof.chimney_top(c.value) - at.y + r.mid.y, 0.05)]}
+			at = r.mid + r.along * c.value.x + r.across * c.value.y + Vector3.UP * w.roof.spot_height(c.value)
+			var index := _placed(w, true, "chimneys").size()
+			var height := snappedf(w.roof.chimney_top(c.value) - w.roof.spot_height(c.value), 0.05)
+			# Laid along the roof's own ridge, the ghost needs no turn of its own.
+			return {"what": what, "xform": Transform3D(Basis(), at), "fits": c.ok, "roof": w.roof, "spot": c.value, "index": index, "shape": [w.roof.seed, index, w.roof.thatched(), height]}
 		"tower_flag":
 			what = "flag"
 			at = w.roof.flag_top()
 			face = RoofLayout.FLAG_ALONG.normalized().cross(Vector3.UP)
-	return ghost.merged({"what": what, "xform": _facing(at, face), "fits": c.ok})
+	return {"what": what, "xform": _facing(at, face), "fits": c.ok}
 
 
 ## Upright at `at`, its face turned toward `face` across the ground.
@@ -374,7 +375,7 @@ func _show_ghost(i: int, ghost: Dictionary, delta: float) -> void:
 	# A chimney stands taller down its slope: its ghost is laid again as its height moves 5 cm, by the roof it goes on.
 	if ghost.get("what") == "chimney" and _ghosts[i].chimney.get_meta(&"shape", []) != ghost.shape:
 		_ghosts[i].chimney.free()
-		var g := ToolModels.fitting("chimney", ghost.roof, ghost.spot)
+		var g := ToolModels.fitting("chimney", ghost.roof, ghost.spot, ghost.index)
 		g.top_level = true
 		g.set_meta(&"shape", ghost.shape)
 		add_child(g)
@@ -499,7 +500,7 @@ static func targets(w: Wall) -> Array[Dictionary]:
 		for i in r.chimneys.size():
 			var v := r.chimneys[i]
 			var foot: Vector3 = f.mid + f.along * v.x + f.across * v.y
-			var surface := r.rise(1.0 - absf(v.y) / r.half_span())
+			var surface := r.spot_height(v)
 			var top := r.chimney_top(v) + 0.34
 			var half := (RoofLayout.STACK_WIDTH + 0.14) * 0.5
 			var xform := Transform3D(Basis(f.along, Vector3.UP, f.across), foot)

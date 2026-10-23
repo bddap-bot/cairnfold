@@ -668,8 +668,8 @@ static func _decor(root: Node3D) -> void:
 ## (centred on it), where a lantern's bracket or a flag's pole leaves the
 ## wall's centre line, a post lantern's foot, or where a chimney rises through the slope: the one `on` would lay next
 ## at `spot`, or one through a small roof's ridge.
-static func fitting(what: String, on: RoofLayout = null, spot := Vector2.ZERO) -> Node3D:
-	var laid := fitting_parts(what, on, spot)
+static func fitting(what: String, on: RoofLayout = null, spot := Vector2.ZERO, index := 0) -> Node3D:
+	var laid := fitting_parts(what, on, spot, index)
 	var root := Node3D.new()
 	var stones := Stones.new()
 	stones.lay(laid.parts)
@@ -684,23 +684,19 @@ static func fitting(what: String, on: RoofLayout = null, spot := Vector2.ZERO) -
 
 
 ## What `fitting` draws, as {parts, flames, cloths} about its mount.
-static func fitting_parts(what: String, on: RoofLayout = null, spot := Vector2.ZERO) -> Dictionary:
+static func fitting_parts(what: String, on: RoofLayout = null, spot := Vector2.ZERO, index := 0) -> Dictionary:
 	var parts: Array[Dictionary] = []
 	var flames: Array[Transform3D] = []
 	var cloths: Array[Dictionary] = []
 	var mount := Vector3.ZERO
 	if what == "chimney":
-		var roof := RoofLayout.new()
-		roof.corners = [Vector3(-2, 0, -1.5), Vector3(2, 0, -1.5), Vector3(2, 0, 1.5), Vector3(-2, 0, 1.5)]
-		var rng := RandomNumberGenerator.new()
-		if on != null:
-			roof = on.inputs()
-			roof.corners = on.corners
-			rng.seed = hash([on.seed, "chimney", on.chimneys.size()])
-		roof._lay_chimney(spot, rng)
-		parts = roof.tiles
+		var roof := on
+		if roof == null:
+			roof = RoofLayout.new()
+			roof.corners = [Vector3(-2, 0, -1.5), Vector3(2, 0, -1.5), Vector3(2, 0, 1.5), Vector3(-2, 0, 1.5)]
+		parts = roof.chimney_parts(spot, index)
 		var f := roof.frame()
-		mount = f.mid + f.along * spot.x + f.across * spot.y + Vector3.UP * roof.rise(1.0 - absf(spot.y) / roof.half_span())
+		mount = f.mid + f.along * spot.x + f.across * spot.y + Vector3.UP * roof.spot_height(spot)
 	else:
 		var layout := WallLayout.new()
 		layout.seed = 5

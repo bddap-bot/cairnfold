@@ -507,18 +507,9 @@ func _in_the_glade() -> void:
 	_undo(world)
 	check(wall.layout.flames.size() == 1, "undo hangs it again")
 
-	var r := house.roof
-	var low: Vector3 = r.frame().mid + r.frame().across * r.half_span() * 0.7 + Vector3.UP * 8.0
-	var aimed := fit.aim(Hand.Tool.DECORATIONS, low, Vector3.DOWN)
-	var ghost := fit.ghost_of(aimed, low, Vector3.DOWN, null)
-	fit._show_ghost(0, ghost, 1.0)
-	check(fit._ghosts[0].chimney.get_meta(&"shape", []) == ghost.get("shape"), "the chimney ghost shown is the one laid for its spot")
-	var ghost_top: float = ToolModels.fitting_parts("chimney", r, aimed.get("value", r.chimney_spot(aimed.at))).parts.reduce(func(m: float, p: Dictionary) -> float: return maxf(m, (ghost.xform * p.xform * AABB(Vector3.ONE * -0.5, Vector3.ONE)).end.y), -INF)
-	_fit(fit, aimed)
-	house.lay_now()
-	var real_top: float = r.tiles.filter(func(t): return t.kind in ["chimney", "pot"]).reduce(func(m: float, t: Dictionary) -> float: return maxf(m, (house.transform * t.xform * AABB(Vector3.ONE * -0.5, Vector3.ONE)).end.y), -INF)
-	check(absf(ghost_top - real_top) < 0.026, "a chimney's ghost low on the slope stands as tall as the chimney it places: %.2f for %.2f" % [ghost_top, real_top])
-	_undo(world)
+	_chimney_ghost_is_the_chimney(fit, world, house)
+	await play([{"op": "house", "at": [30.0, -30.0], "size": [6.0, 4.0], "turn": 30, "seconds": 0.2}])
+	_chimney_ghost_is_the_chimney(fit, world, walls[-1])
 	_fit(fit, {"what": "chimney", "wall": house, "at": Vector2(1.0, 1.0)})
 	check(house.roof.chimneys.size() == 1 and not _kind(house.roof, "chimney").is_empty(), "a chimney stands on the house")
 	house.layout.height += WallLayout.COURSE * 2.0
@@ -606,6 +597,32 @@ func _fit(fit: FittingTool, target: Dictionary) -> bool:
 	var placed := fit.fit(target)
 	_lay_walls()
 	return placed
+
+
+## A chimney's ghost low on `house`'s slope against the chimney a press there lays: as tall, its pots where the real
+## pots stand.
+func _chimney_ghost_is_the_chimney(fit: FittingTool, world: World, house: Wall) -> void:
+	house.lay_now()
+	var r := house.roof
+	var low: Vector3 = house.transform * (r.frame().mid + r.frame().across * r.half_span() * 0.7) + Vector3.UP * 8.0
+	var aimed := fit.aim(Hand.Tool.DECORATIONS, low, Vector3.DOWN)
+	check(aimed.get("what") == "chimney", "aimed at a slope, a chimney: %s" % aimed.get("what"))
+	if aimed.get("what") != "chimney":
+		return
+	var ghost := fit.ghost_of(aimed, low, Vector3.DOWN, null)
+	fit._show_ghost(0, ghost, 1.0)
+	check(fit._ghosts[0].chimney.get_meta(&"shape", []) == ghost.get("shape"), "the chimney ghost shown is the one laid for its spot")
+	var box := AABB(Vector3.ONE * -0.5, Vector3.ONE)
+	var shown: Array = ToolModels.fitting_parts("chimney", r, ghost.spot, ghost.index).parts.map(func(p: Dictionary) -> Dictionary: return {"kind": p.kind, "box": ghost.xform * p.xform * box})
+	_fit(fit, aimed)
+	house.lay_now()
+	var laid: Array = r.tiles.filter(func(t): return t.kind in ["chimney", "pot"]).map(func(t: Dictionary) -> Dictionary: return {"kind": t.kind, "box": house.transform * t.xform * box})
+	var top := func(parts: Array) -> float: return parts.reduce(func(m: float, p: Dictionary) -> float: return maxf(m, p.box.end.y), -INF)
+	check(absf(top.call(shown) - top.call(laid)) < 0.026, "a chimney's ghost low on the slope stands as tall as the chimney it places: %.2f for %.2f" % [top.call(shown), top.call(laid)])
+	var pots := func(parts: Array) -> Array: return parts.filter(func(p): return p.kind == "pot").map(func(p): return p.box.get_center())
+	var near: bool = pots.call(laid).all(func(c: Vector3) -> bool: return pots.call(shown).any(func(g: Vector3) -> bool: return Vector2(g.x - c.x, g.z - c.z).length() < 0.03))
+	check(pots.call(shown).size() == 2 and near, "the ghost's pots stand where the chimney's do on a house turned %.0f degrees" % rad_to_deg(house.roof.frame().along.signed_angle_to(Vector3.RIGHT, Vector3.UP)))
+	_undo(world)
 
 
 func _undo(world: World) -> void:
