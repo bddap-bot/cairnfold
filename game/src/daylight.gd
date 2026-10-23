@@ -26,6 +26,10 @@ const NIGHT := -18.0
 const MOONRISE := Vector2(-2.0, 12.0)
 ## The sun's elevations between which a room's windows come on, from dark to glowing whole.
 const LIT := Vector2(6.0, -4.0)
+## A night with the sun past HANDOVER and the moon risen less than this much of the way to lighting the garden is dark.
+const DARK := 0.3
+## The sun's elevation in the evening where a garden kept in the dark starts again.
+const DUSK := -1.0
 ## How near the sun or moon, in degrees, a pointing hand takes the sky by it, under the ground too.
 const REACH := 7.0
 
@@ -101,6 +105,29 @@ static func aims_at_body(dir: Vector3, time: float) -> bool:
 ## The time whose `angle` is `a`, wrapped into one day.
 static func time_at(a: float) -> float:
 	return fposmod(a / TAU + 0.25, 1.0)
+
+
+## The time the sun stands `degrees` up, in the morning when `rising`, else in the evening.
+static func sun_at(degrees: float, rising: bool) -> float:
+	var lo := 0.0 if rising else 1.0
+	var hi := 0.5
+	for i in 30:
+		var mid := (lo + hi) * 0.5
+		if elevation(mid) < degrees:
+			lo = mid
+		else:
+			hi = mid
+	return (lo + hi) * 0.5
+
+
+## Whether `time` falls in the dark before dawn: the sun past HANDOVER and the moon risen under DARK of the way.
+static func dark(time: float) -> bool:
+	return elevation(time) < HANDOVER and smoothstep(MOONRISE.x, MOONRISE.y, moon_elevation(time)) < DARK
+
+
+## When a garden kept in the dark (`dark`) starts again: the sun just set, the sky still glowing.
+static func dusk() -> float:
+	return sun_at(DUSK, false)
 
 
 ## Every light value for `time`, blended between the keys around the sun's elevation, then toward MOONLIT as far

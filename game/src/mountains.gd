@@ -70,26 +70,34 @@ static func _crags(r: Dictionary, noise: FastNoiseLite, azimuth: float) -> float
 	return JAG * r.high * pow(tooth, 3.0) * (1.0 - passes(azimuth))
 
 
+## Whether a ray from `from` along `dir` meets a range before the sky, with every foot under the `lake` or on the
+## plain: whether it passes under some range's ridge where it crosses it.
+static func hides(from: Vector3, dir: Vector3, lake: bool) -> bool:
+	var flat := Vector2(dir.x, dir.z)
+	if flat.length() < 1e-6:
+		return false
+	var rise := dir.y / flat.length()
+	for r: Dictionary in RANGES:
+		var along := _crossing(Vector2(from.x, from.z), flat.normalized(), r.radius)
+		var at := Vector2(from.x, from.z) + flat.normalized() * along
+		if from.y + rise * along < foot_high(lake) + ridge(r, noise_for(r), at.angle()):
+			return true
+	return false
+
+
+## How far along the unit `way` from `p`, inside the circle, it reaches the circle of `radius`.
+static func _crossing(p: Vector2, way: Vector2, radius: float) -> float:
+	var b := p.dot(way)
+	return -b + sqrt(b * b - p.length_squared() + radius * radius)
+
+
 ## 1 in the middle of a pass toward the rising or setting sun, 0 away from both.
 static func passes(azimuth: float) -> float:
 	var out := 0.0
-	for toward in [Daylight.toward_sun(sun_at(PASS_SUN, true)), Daylight.toward_sun(sun_at(PASS_SUN, false))]:
+	for toward in [Daylight.toward_sun(Daylight.sun_at(PASS_SUN, true)), Daylight.toward_sun(Daylight.sun_at(PASS_SUN, false))]:
 		var off: float = absf(angle_difference(azimuth, atan2(toward.z, toward.x)))
 		out = maxf(out, smoothstep(PASS_WIDTH, 0.0, off))
 	return out
-
-
-## The time the sun stands `elevation` degrees up, in the morning when `rising`, else in the evening.
-static func sun_at(elevation: float, rising: bool) -> float:
-	var lo := 0.0 if rising else 1.0
-	var hi := 0.5
-	for i in 30:
-		var mid := (lo + hi) * 0.5
-		if Daylight.elevation(mid) < elevation:
-			lo = mid
-		else:
-			hi = mid
-	return (lo + hi) * 0.5
 
 
 static func noise_for(r: Dictionary) -> FastNoiseLite:

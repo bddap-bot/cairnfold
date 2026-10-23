@@ -16,8 +16,35 @@ func _initialize() -> void:
 	_every_laid_kind_is_painted_or_kept()
 	_shaders_read_the_codes_and_globals_palette_writes()
 	_a_clockwise_twist_counts_up()
+	_the_dark_before_dawn()
 	boot_main()
 	_in_the_glade.call_deferred()
+
+
+## The hours before dawn with no moon up are dark; dusk is just after sunset; the eye adapts to that dark alone.
+func _the_dark_before_dawn() -> void:
+	var dark: Array = range(0, 96).map(func(q: int) -> float: return q / 96.0).filter(Daylight.dark)
+	check(not dark.is_empty() and dark.all(func(t: float) -> bool: return t > 0.0 and t < 0.25), "the dark falls between midnight and dawn: %s to %s" % [dark.front(), dark.back()])
+	var dusk := Daylight.dusk()
+	check(dusk > 0.75 and absf(Daylight.elevation(dusk) - Daylight.DUSK) < 0.01 and not Daylight.dark(dusk), "dusk is the evening's sun at %.1f°" % Daylight.elevation(dusk))
+	check(Look.night_adapted(Daylight.light(0.12)) > 1.5, "before dawn the eye adapts: x%.2f" % Look.night_adapted(Daylight.light(0.12)))
+	for t in [0.5, Daylight.dusk(), 0.9]:
+		check(Look.night_adapted(Daylight.light(t)) == 1.0, "at %.2f, sun or moon up, the eye needs no adapting" % t)
+
+
+## A garden kept in the dark before dawn starts again at dusk; one kept by day starts at its hour.
+func _a_garden_kept_in_the_dark_starts_at_dusk() -> void:
+	var world: World = main.world
+	for kept: float in [0.12, 0.4]:
+		world.time = kept
+		var path := "user://dark-%.2f.save" % kept
+		var f := FileAccess.open(path, FileAccess.WRITE)
+		f.store_buffer(var_to_bytes(world.snapshot()))
+		f.close()
+		world.load_from(path)
+		var want := Daylight.dusk() if kept == 0.12 else kept
+		check(absf(world.time - want) < 1e-4 and absf(main.look.time - want) < 1e-4, "a garden kept at %.2f starts at %.4f: %.4f" % [kept, want, world.time])
+	world.save_path = ""
 
 
 func _the_sun_rises_and_sets() -> void:
@@ -415,6 +442,7 @@ func _in_the_glade() -> void:
 	var sky_sun: Vector3 = look.sky_mat.get_shader_parameter("sun_dir")
 	check(sky_sun.is_equal_approx(Daylight.toward_sun(0.7)), "the sky catches up with the sun once it rests")
 	check(look.sun.sky_mode == DirectionalLight3D.SKY_MODE_LIGHT_ONLY, "moving the light leaves the sky's radiance alone")
+	_a_garden_kept_in_the_dark_starts_at_dusk()
 	_done()
 
 

@@ -397,6 +397,8 @@ func load_from(path: String) -> void:
 	var snap: Variant = bytes_to_var(FileAccess.get_file_as_bytes(path))
 	if restore_whole(snap):
 		print("world: loaded %s" % path)
+		if Daylight.dark(time):
+			_show_sky(Daylight.dusk())
 		return
 	var why := "held a garden this game cannot read whole"
 	if snap is Dictionary and snap.get("format") != FORMAT:

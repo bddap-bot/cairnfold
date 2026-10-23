@@ -10,6 +10,25 @@ func _initialize() -> void:
 	_run.call_deferred()
 
 
+## A grip pointed at a range round the garden, under its ridge, takes nothing: the mountains stand in front of the sky.
+func _the_mountains_are_not_sky(hand: Hand) -> void:
+	var sky: SkyTool = main.sky_tool
+	main.look.set_time(0.5)
+	var r: Dictionary = Mountains.RANGES[0]
+	for az in [-PI / 2.0, 0.0, PI / 2.0, PI]:
+		var ridge: float = Mountains.foot_high(true) + Mountains.ridge(r, Mountains.noise_for(r), az) * 0.5
+		var flat := Vector3(cos(az), 0.0, sin(az))
+		var toward: Vector3 = (flat * float(r.radius) + Vector3.UP * (ridge - hand.global_position.y)).normalized()
+		hand.global_basis = Basis.looking_at(toward)
+		await _frames()
+		Buttons.injected["right_hand/grip_click"] = true
+		await _frames()
+		check(sky.holder != hand, "a grip on the mountains half up their ridge at %.0f° takes no sky" % rad_to_deg(az))
+		Buttons.injected.erase("right_hand/grip_click")
+		await _frames()
+		sky.holder = null
+
+
 func _frames() -> void:
 	for i in 3:
 		await process_frame
@@ -434,6 +453,7 @@ func _run() -> void:
 			check(absf(angle_difference(Daylight.angle(t), Daylight.angle(main.look.time)) - 0.1) < 1e-3, "and turns it with the pointer, from the %s at %.2f: now %.4f" % [body, t, main.look.time])
 			Buttons.injected.erase("right_hand/grip_click")
 			await _frames()
+	await _the_mountains_are_not_sky(hand)
 	Hand.injected_sticks.clear()
 	Buttons.injected.clear()
 	await _frames()

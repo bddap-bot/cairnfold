@@ -29,6 +29,11 @@ const UNDER_KEEPS := Color(0.55, 0.92, 1.0)
 ## and its doorway glows.
 const ADAPT_INDOOR := 1.8
 const ADAPT_SECONDS := 0.7
+## Per-build: the eye's night adaptation. Under a sky darker than NIGHT_FLOOR the exposure rises with the dark, up to
+## NIGHT_MOST times, so builds read before dawn; the night's own sky and light stay as dark (Daylight.KEYS).
+const NIGHT_ADAPT := true
+const NIGHT_FLOOR := 0.12
+const NIGHT_MOST := 4.0
 
 static var _absorb: GradientTexture1D
 
@@ -170,6 +175,11 @@ static func _disc(size: Dictionary, moon: float) -> MeshInstance3D:
 
 
 ## Stands the lake round the meadow, or the plain.
+## Whether the lake stands round the garden, rather than the plain.
+func lake() -> bool:
+	return _plain != null and not _plain.visible
+
+
 func show_lake(on: bool) -> void:
 	for m in _lake:
 		m.visible = on
@@ -193,7 +203,7 @@ func set_time(t: float) -> void:
 	env.ambient_light_energy = l.ambient
 	RenderingServer.global_shader_parameter_set(&"window_night", Daylight.lit(t) * Lamps.NIGHT_GLOW)
 	env.adjustment_saturation = l.saturation
-	_exposure = l.exposure
+	_exposure = l.exposure * night_adapted(l)
 	_grade()
 	env.fog_light_color = UNDER_FOG * under_light(l) if under else l.fog
 	for mat in [mountains_mat, lake_mat]:
@@ -205,6 +215,14 @@ func set_time(t: float) -> void:
 		mat.set_shader_parameter("horizon", l.horizon)
 		mat.set_shader_parameter("haze", l.fog)
 	bounce.set_sun(toward, l.sun * l.energy)
+
+
+## How many times the night's dark raises the exposure at the hour's `l` (Daylight.light).
+static func night_adapted(l: Dictionary) -> float:
+	if not NIGHT_ADAPT:
+		return 1.0
+	var sky: Color = l.horizon
+	return clampf(NIGHT_FLOOR / maxf(sky.get_luminance(), 1e-4), 1.0, NIGHT_MOST)
 
 
 static func fog_at_height(lift: float) -> Dictionary:

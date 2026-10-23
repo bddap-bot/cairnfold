@@ -1,7 +1,7 @@
 class_name SkyTool
 extends Node
 
-## Time of day, whatever a hand holds: grip with the hand pointed at open sky, or at the sun or the moon
+## Time of day, whatever a hand holds: grip with the hand pointed at open sky, over the mountains, or at the sun or the moon
 ## wherever they stand, under the ground too, to grab the sky, and it turns round the whole day about the
 ## sun's arc with the pointer, sun and moon riding on it, until the grip lets go and every player's sky
 ## turns to it (World's `sky`). Not an edit, so undo leaves it be.
@@ -43,7 +43,7 @@ func _process(_delta: float) -> void:
 			if holder == hand:
 				aim(dir)
 				hand.point(null, BEAM)
-			elif holder == null and b.pressed("grab") and not hand.taken() and not editing.call(hand) and (Terrain.raycast(hand.global_position, dir) == null or Daylight.aims_at_body(dir, look.time)):
+			elif holder == null and b.pressed("grab") and not hand.taken() and not editing.call(hand) and (Daylight.aims_at_body(dir, look.time) or Terrain.raycast(hand.global_position, dir) == null and not Mountains.hides(hand.global_position, dir, look.lake())):
 				take(hand, dir)
 				hand.point(null, BEAM)
 		b.latch()
