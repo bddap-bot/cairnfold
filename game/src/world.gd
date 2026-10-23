@@ -84,6 +84,9 @@ var _units_of := {}
 ## False lets the garden take builds past the frame budget, as the stress scene does to find what they cost.
 var bounded := true
 var _fills := {}
+## What the meadow's own plants, all standing, count as: summed once, since the meadow never changes, where summing it
+## on every wipe and garden swap held a Quest's frame for hundreds of milliseconds.
+var _meadow_units := {}
 ## Per hand, what the edit its tool is showing would add, and the frame it said so.
 var _pending := {}
 ## The hand each of our sent commands came from, by token, so the one turned down feels it.
@@ -401,9 +404,11 @@ func attach(walls: WallTool, plants: Flora, ways: Paths, ground: GroundGrab, pon
 ## planted ones are.
 func _grow_meadow() -> void:
 	state.groups[0] = {"kind": "meadow", "size": flora.groups[0].size(), "hidden": {}, "trees": flora.meadow_trees(), "bushes": flora.meadow_bushes(), "species": {}, "scale": {}, "moss": {}, "places": {}}
-	for p: Flora.Plant in flora.groups[0]:
-		if p != null:
-			Budget.add(units, _unit(0, p))
+	if _meadow_units.is_empty():
+		for p: Flora.Plant in flora.groups[0]:
+			if p != null:
+				Budget.add(_meadow_units, _unit(0, p))
+	Budget.add(units, _meadow_units)
 
 
 func me() -> int:
@@ -1280,12 +1285,8 @@ func _rebuild(cmds: Array) -> int:
 
 ## Hides the meadow's own flowers, bushes and trees, leaving its grass.
 func _bare_meadow() -> void:
-	var scenery := PackedInt32Array()
-	for p: Flora.Plant in flora.groups[0]:
-		if p.pool != flora.grass:
-			scenery.append(p.index)
 	var hidden: Dictionary = state.groups[0].hidden
-	for i in flora.set_shown(0, scenery, false):
+	for i in flora.set_shown(0, flora.meadow_scenery(), false):
 		hidden[i] = true
 		Budget.add(units, _unit(0, flora.groups[0][i]), -1.0)
 

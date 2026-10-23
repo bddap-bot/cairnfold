@@ -452,6 +452,10 @@ var _shaded := -1
 ## Every tree and bush, meadow's own and planted, by its first part's pool and slot.
 var _solids := {}
 var _kept_solids := {}
+## The meadow never changes once kept, so which of its plants are which is worked out then, not on every wipe.
+var _meadow_trees := PackedInt32Array()
+var _meadow_bushes := PackedInt32Array()
+var _meadow_scenery := PackedInt32Array()
 ## The keys of the solids whose circles reach into each SOLID_CELL square, so a beam tests only those it passes
 ## over; a key may linger where its slot's earlier tree stood.
 var _solid_cells := {}
@@ -802,21 +806,29 @@ func keep() -> void:
 		p.keep()
 	_name(0, meadow)
 	_kept_solids = _solids.duplicate()
+	_meadow_trees = _meadow_where(func(p: Plant) -> bool: return p.pool == trunks)
+	_meadow_bushes = _meadow_where(func(p: Plant) -> bool: return p.pool == bushes)
+	_meadow_scenery = _meadow_where(func(p: Plant) -> bool: return p.pool != grass)
 
 
 ## Where the meadow's own trees' trunks stand in its group.
 func meadow_trees() -> PackedInt32Array:
-	return _meadow_in(trunks)
+	return _meadow_trees
 
 
 func meadow_bushes() -> PackedInt32Array:
-	return _meadow_in(bushes)
+	return _meadow_bushes
 
 
-func _meadow_in(pool: Pool) -> PackedInt32Array:
+## The meadow's own flowers, bushes and trees: all of it but its grass.
+func meadow_scenery() -> PackedInt32Array:
+	return _meadow_scenery
+
+
+func _meadow_where(take: Callable) -> PackedInt32Array:
 	var out := PackedInt32Array()
 	for p: Plant in groups[0]:
-		if p.pool == pool:
+		if take.call(p):
 			out.append(p.index)
 	return out
 
@@ -981,14 +993,18 @@ func reset() -> void:
 	if growing():
 		_growing.clear()
 		grown.emit()
-	for p in [grass, flowers, trunks, foliage, bushes, moss]:
+	for p: Pool in [grass, flowers, trunks, foliage, bushes, moss]:
 		p.reset()
-	var meadow: Array[Plant] = groups[0]
-	groups = {0: meadow}
-	for plant in meadow:
-		plant.set_shown(true)
-		if plant.pool == trunks:
-			set_moss(plant, false)
+		# Only the taken are stood again, found natively: visiting each of the meadow's tens of thousands of plants
+		# in script held a Quest's frame for hundreds of milliseconds. A plant a tool shows taken is the tool's to
+		# draw again once its command settles.
+		var at := p.anchors.find(Pool.GONE)
+		while at >= 0 and at < p.kept:
+			p.plants[at].set_shown(true)
+			at = p.anchors.find(Pool.GONE, at + 1)
+	groups = {0: groups[0]}
+	for i in _meadow_trees:
+		set_moss(groups[0][i], false)
 	_solids = _kept_solids.duplicate()
 	_solid_cells.clear()
 	for key: Vector2i in _solids:
