@@ -34,7 +34,7 @@ var _sent := {}
 var lamps := Lamps.new()
 var _since_lights := INF
 var _ghost_fits := _ghost_material(Color(1.0, 0.96, 0.88, 0.7), 0.25)
-var _ghost_astray := _ghost_material(Color(0.72, 0.76, 0.86, 0.5), 0.0)
+var _ghost_astray := _ghost_material(WaterTool.REFUSED, 0.0)
 
 
 func _init(player: Rig, builder: WallTool, garden: World) -> void:

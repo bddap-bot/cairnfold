@@ -33,6 +33,8 @@ const HOT := 1.4
 const IDLE := 0.8
 ## Tools that work by touch at arm's length: a hand holding one stays where the controller is.
 const STAYS := [Tool.SEEDS, Tool.EASEL, Tool.CAMERA, Tool.SELFIE, Tool.BOOK]
+## Tools with no model in the hand.
+const UNMODELLED := [Tool.NONE, Tool.EASEL, Tool.BOOK]
 ## How far a wheel icon's model tips its top toward the eye.
 const TILT := PI * 0.3
 ## Seconds between looks, while the wheel is closed, for an icon to build or free: one built per look keeps a person's
@@ -134,14 +136,14 @@ func _init(tracker_name: String, held: Tool) -> void:
 	add_child(body)
 	_controller.mesh = Meshes.rounded_box(0.3, 2, 7)
 	_controller.scale = Vector3(0.05, 0.035, 0.11)
-	_controller.position = Vector3(0, -0.01, 0.04)
+	_controller.position = HandStop.CENTRE
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color(0.93, 0.9, 0.84)
 	mat.roughness = 0.6
 	_controller.material_override = mat
 	body.add_child(_controller)
 	for t in Tool.size():
-		var m := Node3D.new() if t in [Tool.NONE, Tool.EASEL, Tool.BOOK] else ToolModels.build(t)
+		var m := Node3D.new() if t in UNMODELLED else ToolModels.build(t)
 		m.position = TOP
 		m.scale = Vector3.ZERO
 		m.visible = false

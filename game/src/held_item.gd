@@ -84,7 +84,7 @@ static func valid(s: Array) -> bool:
 		return false
 	match s[0]:
 		Kind.TOOL:
-			return s[1] >= 0 and s[1] < Hand.Tool.size() and not s[1] in [Hand.Tool.NONE, Hand.Tool.EASEL, Hand.Tool.BOOK]
+			return s[1] >= 0 and s[1] < Hand.Tool.size() and not s[1] in Hand.UNMODELLED
 		Kind.BRUSH:
 			return s[1] in Brushwork.Brush.values()
 		Kind.PALETTE:
