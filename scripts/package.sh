@@ -37,7 +37,7 @@ mkdir -p "$stage/nestcombe"
 # Godot 4.5 and 4.6 segfault in about one cold import of twenty, in ClassDB's default-value cache while saving an
 # imported scene; the second attempt starts from the first one's import cache, so only a crash is retried.
 for attempt in 1 2; do
-  if godot4 --headless --path "$stage/game" --export-release "$preset" "$stage/nestcombe/$binary" > "$stage/export.log" 2>&1 &&
+  if "$root/scripts/export.sh" "$stage/game" "$preset" "$stage/nestcombe/$binary" "$stage/export.log" &&
     [ -f "$stage/nestcombe/$binary" ]; then
     break
   fi

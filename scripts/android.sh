@@ -66,7 +66,7 @@ fi
 cp "$root/scripts/android-notices.gradle" "$stage/game/android/build/"
 printf '\napply from: "android-notices.gradle"\n' >> "$stage/game/android/build/build.gradle"
 rm -f "$out"
-if ! godot4 --headless --path . --export-release "$preset" "$out" > "$stage/export.log" 2>&1 || [ ! -f "$out" ]; then
+if ! "$root/scripts/export.sh" . "$preset" "$out" "$stage/export.log" || [ ! -f "$out" ]; then
   grep -v Fontconfig "$stage/export.log" | tail -60
   exit 1
 fi
