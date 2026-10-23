@@ -84,15 +84,15 @@ func same(other: Massing) -> bool:
 	return other != null and _key == other._key
 
 
-## Height of the top a build standing at (x, z) rests on, or NAN where this one is not under it.
+## Height of the top a build standing at (x, z) rests on, or -INF where this one is not under it.
 func rest(x: float, z: float) -> float:
 	var p := Vector2(x, z)
 	if not rect.has_point(p):
-		return NAN
+		return -INF
 	if closed:
-		return feet[0] + rise if encloses(p, outer) else NAN
+		return feet[0] + rise if encloses(p, outer) else -INF
 	var i := _nearest(p, WallLayout.THICKNESS * 0.5 + REACH)
-	return feet[i] + rise if i >= 0 else NAN
+	return feet[i] + rise if i >= 0 else -INF
 
 
 ## Whether `p` lies in the room inside this house or tower, between its feet and its roof or top: a joined

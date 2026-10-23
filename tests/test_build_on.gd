@@ -70,10 +70,10 @@ func _a_wall_top_holds_what_stands_on_it() -> void:
 	var s := Massing.of(w, null)
 	var top := -WallLayout.SINK + w.height + WallLayout.CAP
 	check(is_equal_approx(s.rest(1.0, 0.2), top), "a wall's top holds at %f, not %f" % [s.rest(1.0, 0.2), top])
-	check(is_nan(s.rest(1.0, 1.2)), "a metre off its face is not on it")
+	check(s.rest(1.0, 1.2) == -INF, "a metre off its face is not on it")
 	var h := _house(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)
 	check(is_equal_approx(h.massing.rest(3.0, 0.5), -WallLayout.SINK + 2.4 + WallLayout.CAP), "a house's top holds anywhere over it")
-	check(is_nan(h.massing.rest(3.0, 3.0)), "and nowhere beside it")
+	check(h.massing.rest(3.0, 3.0) == -INF, "and nowhere beside it")
 
 
 func _an_upper_storey_stands_on_the_house_and_takes_its_roof() -> void:

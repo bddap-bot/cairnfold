@@ -2277,9 +2277,7 @@ func stands_at() -> float:
 func rest(x: float, z: float) -> float:
 	var best := -INF
 	for s in supports:
-		var h := s.rest(x, z)
-		if not is_nan(h):
-			best = maxf(best, h)
+		best = maxf(best, s.rest(x, z))
 	return best
 
 
