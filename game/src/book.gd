@@ -59,7 +59,6 @@ var leaves := ceili(Lessons.PAGES.size() / 2.0)
 var at := 0
 var live := true
 var rig: Rig
-var look: Look
 var holder: Hand
 var scenes := {}
 var _turn := {}
@@ -112,9 +111,8 @@ func _init(live_pages := true) -> void:
 	_ribbon_mat.shader = preload("res://src/book_ribbon.gdshader")
 	_ribbon_mat.set_shader_parameter("colour", RIBBON)
 	_ribbon.material_override = _ribbon_mat
+	_ribbon.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	add_child(_ribbon)
-	for mi in find_children("*", "GeometryInstance3D", true, false):
-		(mi as GeometryInstance3D).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	if live:
 		for page in Lessons.PAGES.size():
 			var scene := LessonScene.new(page)
@@ -299,14 +297,10 @@ func _follow(delta: float) -> void:
 	_shown_k = move_toward(_shown_k, target, delta / TUCK_S)
 	visible = _shown_k > 0.0
 	if holder == null or not visible:
-		HeldShadow.clear()
 		return
 	_open_k = move_toward(_open_k, 1.0 if at > 0 or not _turn.is_empty() else 0.0, delta / OPEN_S)
 	var k := ease(_shown_k, 0.4)
-	var o := smoothstep(0.0, 1.0, _open_k)
-	global_transform = holder.global_transform * local(o) * Transform3D(Basis.from_scale(Vector3.ONE * maxf(k, 0.01)), Vector3.ZERO)
-	var reach := W + OVER
-	HeldShadow.cast(global_transform, Rect2(-reach * o, -H * 0.5 - OVER, reach * (1.0 + o), H + OVER * 2.0), look.time)
+	global_transform = holder.global_transform * local(smoothstep(0.0, 1.0, _open_k)) * Transform3D(Basis.from_scale(Vector3.ONE * maxf(k, 0.01)), Vector3.ZERO)
 	if held != null:
 		for h in rig.hands:
 			if h != held and h.tracked():
