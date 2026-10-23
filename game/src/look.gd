@@ -133,8 +133,10 @@ static func build(parent: Node) -> Look:
 	sun.add_child(look.photo_sun)
 	look.env = env
 	look.sky_mat = sky_mat
-	look.disc = look._disc(SUN_DISC, 0.0)
-	look.moon_disc = look._disc(MOON_DISC, 1.0)
+	look.disc = _disc(SUN_DISC, 0.0)
+	look.moon_disc = _disc(MOON_DISC, 1.0)
+	look.add_child(look.disc)
+	look.add_child(look.moon_disc)
 	look.mountains_mat.shader = load("res://src/mountains.gdshader")
 	look.lake_mat.shader = load("res://src/lake.gdshader")
 	var horizon := Mountains.build(look.mountains_mat, look.lake_mat)
@@ -150,7 +152,7 @@ static func build(parent: Node) -> Look:
 	return look
 
 
-func _disc(size: Dictionary, moon: float) -> MeshInstance3D:
+static func _disc(size: Dictionary, moon: float) -> MeshInstance3D:
 	var quad := QuadMesh.new()
 	var half := DISC_DISTANCE * tan(deg_to_rad(size.span))
 	quad.size = Vector2.ONE * 2.0 * half
@@ -164,7 +166,6 @@ func _disc(size: Dictionary, moon: float) -> MeshInstance3D:
 	disc_mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	# The quad turns to the eye in its shader, so its bounds must hold it facing any way.
 	disc_mi.custom_aabb = AABB(-Vector3.ONE * half * sqrt(2.0), Vector3.ONE * half * 2.0 * sqrt(2.0))
-	add_child(disc_mi)
 	return disc_mi
 
 
