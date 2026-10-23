@@ -54,6 +54,18 @@ class Sessions(unittest.TestCase):
             self.assertIn("moving", text)
             self.assertIn("coop", text)
 
+    def test_stalls_and_pauses_are_listed(self):
+        with tempfile.TemporaryDirectory() as d:
+            stall = {"ms": 437.0, "tags": ["still"], "scripts_ms": 12.0, "scripts_after_ms": 436.0, "compiled": [0, 2],
+                     "notes": [{"what": "world: applying wipe", "ms": 431.0}, {"what": "wheel: right opened"}]}
+            self.write(Path(d), "s", [{"unix": 1.0, "t": 10.0, "paused_s": 52.5, "stalls": [stall]}, {"unix": 2.0, "t": 11.0, "paused_s": 1.0}])
+            [s] = json.loads(subprocess.run([sys.executable, str(READER), d, "--json"], capture_output=True, text=True, check=True).stdout)
+            self.assertEqual(s["paused_s"], 53.5)
+            self.assertEqual(s["stalls"], [dict(stall, t=10.0)])
+            text = subprocess.run([sys.executable, str(READER), d], capture_output=True, text=True, check=True).stdout
+            self.assertIn("paused: 53.5 s", text)
+            self.assertIn("437 ms  still  scripts 12.0/436.0 ms, pipelines 0+2: world: applying wipe 431 ms; wheel: right opened", text)
+
     def test_last_keeps_the_newest_and_an_empty_folder_fails(self):
         with tempfile.TemporaryDirectory() as d:
             self.write(Path(d), "old", [{"unix": 1.0}], part=0)

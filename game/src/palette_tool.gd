@@ -194,6 +194,7 @@ static func styles(restyle: Restyle) -> int:
 ## Opens the wheel for `target` (as `aim` or `aim_style` gives it) over `hand`, turning from its choice in the
 ## garden. While the trigger is held the hand's twist turns it; the driver, holding no trigger, turns it with `twist`.
 func open(hand: Hand, target: Dictionary) -> void:
+	var start := Time.get_ticks_usec()
 	var w := Wheel.new()
 	w.target = target
 	w.of = target.of
@@ -215,6 +216,7 @@ func open(hand: Hand, target: Dictionary) -> void:
 	add_child(w.node)
 	wheels[hand] = w
 	_place(w, hand)
+	Metrics.note("style wheel: opened on %s" % Restyle.find_key(target.get("restyle", -1)) if target.tool == Hand.Tool.STYLE else "colour wheel: opened", (Time.get_ticks_usec() - start) / 1000.0)
 
 
 ## A style's miniature smaller than it stands on a controller, so the wheel's choices stay apart.

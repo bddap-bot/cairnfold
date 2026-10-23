@@ -426,7 +426,7 @@ func _select_input(delta: float) -> void:
 			_warming = 1
 			_warm()
 		_wheel = ToolWheel.new(inventory())
-		print("wheel: %s opened" % tracker)
+		Metrics.note("wheel: %s opened" % tracker)
 		picking = true
 		var cam := get_viewport().get_camera_3d()
 		var head := cam.global_position if cam != null else global_position + global_basis.z

@@ -444,6 +444,7 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	if full:
 		await RenderingServer.frame_pre_draw
+		Metrics.note("photo: drawn at its finest")
 		var undo := draw_finest()
 		await RenderingServer.frame_post_draw
 		undo.call()

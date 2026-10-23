@@ -72,10 +72,43 @@ var _rows := 0
 var _rows_end := 0
 var _acc := 0.0
 var _since_flush := 0.0
+## A frame longer than this is a stall the player sees: each second's row lists them (STALLS_A_SECOND at most), each
+## with what was noted as running long in it (`note`), so a session record names a stall's cause.
+const STALL_MS := 50.0
+const STALLS_A_SECOND := 4
+const NOTES_A_FRAME := 8
+## Timed work shorter than this is too short to explain a stall, and is not noted.
+const SLOW_MS := 4.0
+var _stalls: Array = []
+## What ran long since the last frame, as `note` records it.
+static var _notes: Array = []
+## Whether the time until the next frame is none the player saw: the game loading, or the tree paused while the
+## headset is off or the app is in the background. It is counted as paused, never as a frame.
+var _unplayed := false
+var _paused_s := 0.0
 
 
 func _init(out: String) -> void:
 	path = out
+
+
+## Records that `what` ran for `ms` (negative: it happened, untimed) in the frame now under way, for the stall it may
+## explain, and logs it; work under SLOW_MS is not noted.
+static func note(what: String, ms := -1.0) -> void:
+	if ms >= 0.0 and ms <= SLOW_MS:
+		return
+	print(what if ms < 0.0 else "%s took %.1f ms" % [what, ms])
+	if _notes.size() < NOTES_A_FRAME:
+		_notes.append({"what": what} if ms < 0.0 else {"what": what, "ms": snappedf(ms, 0.1)})
+
+
+func _ready() -> void:
+	_unplayed = true
+
+
+func _notification(what: int) -> void:
+	if what in [NOTIFICATION_UNPAUSED, NOTIFICATION_APPLICATION_RESUMED]:
+		_unplayed = true
 
 
 func _process(_delta: float) -> void:
@@ -90,6 +123,12 @@ func _process(_delta: float) -> void:
 	# Engine delta is capped during stalls.
 	var elapsed := (now - _last_tick) / 1000000.0
 	_last_tick = now
+	if _unplayed:
+		_unplayed = false
+		_paused_s += elapsed
+		_notes.clear()
+		_head_was = null
+		return
 	_deltas.append(elapsed * 1000.0)
 	_cpu.append(Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0)
 	var late := is_late(elapsed * 1000.0)
@@ -97,12 +136,20 @@ func _process(_delta: float) -> void:
 	if late and not _was_late:
 		var scripts := Performance.get_monitor(Performance.TIME_PROCESS) + Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
 		print("metrics: late frame %.1f ms, the frame before it %.1f ms in scripts and physics, %.1f ms on the GPU, %d pipelines compiled while drawing and %d on worker threads" % [elapsed * 1000.0, scripts * 1000.0, quality.frame_ms if quality != null else 0.0, compiled.x - _compiled.x, compiled.y - _compiled.y])
-	_compiled = compiled
-	_was_late = late
 	var cpu_ms := _cpu[-1]
 	var gpu_ms := quality.frame_ms if quality != null and quality.fresh else -1.0
-	for tag in _tags(elapsed):
+	var tags := _tags(elapsed)
+	for tag in tags:
 		tally(_by_activity, tag, elapsed * 1000.0, late, cpu_ms, gpu_ms)
+	if not _stalls.is_empty() and not _stalls[-1].has("scripts_after_ms"):
+		# The engine reports a frame's script time once it has finished, so the stall's own may show only now.
+		_stalls[-1].scripts_after_ms = snappedf(cpu_ms, 0.1)
+	if elapsed * 1000.0 > STALL_MS and _stalls.size() < STALLS_A_SECOND:
+		_stalls.append({"ms": snappedf(elapsed * 1000.0, 0.1), "tags": tags, "scripts_ms": snappedf(cpu_ms, 0.1),
+			"compiled": [compiled.x - _compiled.x, compiled.y - _compiled.y], "notes": _notes.duplicate()})
+	_notes.clear()
+	_compiled = compiled
+	_was_late = late
 	_draws = maxi(_draws, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME))
 	_prims = maxi(_prims, RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_PRIMITIVES_IN_FRAME))
 	if quality != null and quality.fresh:
@@ -134,7 +181,8 @@ func _process(_delta: float) -> void:
 		if _landing.s >= LANDING_S:
 			_close_landing()
 	_acc += elapsed
-	if _acc >= 1.0:
+	# A stall's script time shows only on the frame after it, so its second waits for that frame.
+	if _acc >= 1.0 and (_stalls.is_empty() or _stalls[-1].has("scripts_after_ms")):
 		var begin := Time.get_ticks_usec()
 		var gpu := gpu_ns() if not path.is_empty() else -1
 		var row := summary(_deltas)
@@ -157,6 +205,12 @@ func _process(_delta: float) -> void:
 			_eye_hi = PackedFloat32Array()
 		row.activity = _by_activity
 		_by_activity = {}
+		if not _stalls.is_empty():
+			row.stalls = _stalls
+			_stalls = []
+		if _paused_s > 0.0:
+			row.paused_s = snappedf(_paused_s, 0.001)
+			_paused_s = 0.0
 		if world != null:
 			row.fill = snappedf(world.fill(), 0.001)
 		_draws = 0

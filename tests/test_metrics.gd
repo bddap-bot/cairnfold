@@ -13,6 +13,8 @@ func _initialize() -> void:
 	_late_and_refresh_follow_the_runtime_rate()
 	await _a_landing_keeps_every_frame_of_its_window()
 	await _head_motion_is_moving()
+	_a_stall_names_what_ran_in_it()
+	_a_pause_is_no_frame()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -171,4 +173,48 @@ func _head_motion_is_moving() -> void:
 	m.activity = func() -> Array: return ["coop"]
 	_check(m._tags(1.0 / 72.0) == ["coop", "still"], "co-op alone is still too")
 	head.free()
+	m.free()
+
+
+## A wipe held a Quest 3's frame for 437 ms in a played session whose record could not say what had run.
+func _a_stall_names_what_ran_in_it() -> void:
+	var m := Metrics.new(OS.get_cache_dir().path_join("nestcombe-test-stall-%d.json" % OS.get_process_id()))
+	m.info = {"refresh_hz": 72.0, "label": "-"}
+	var frame := func(ms: float) -> void:
+		m._last_tick = Time.get_ticks_usec() - int(ms * 1000.0)
+		m._process(ms / 1000.0)
+	frame.call(13.9)
+	Metrics.note("world: applying wipe", 420.0)
+	Metrics.note("world: applying paint", 1.0)
+	m._acc = 1.0
+	frame.call(430.0)
+	_check(m._seconds.is_empty(), "the stall's second waits for the frame after it, which reports its script time")
+	frame.call(13.9)
+	var row: Dictionary = m._seconds[-1]
+	var stalls: Array = row.get("stalls", [])
+	_check(stalls.size() == 1 and stalls[0].ms >= 430.0 and stalls[0].ms < 435.0, "the stall is listed with its length: %s" % [stalls])
+	_check(not stalls.is_empty() and stalls[0].notes == [{"what": "world: applying wipe", "ms": 420.0}], "with the long work noted in it and not the short: %s" % [stalls])
+	_check(not stalls.is_empty() and stalls[0].has("scripts_after_ms") and stalls[0].tags == ["still"], "its script time after it, and what the player was doing")
+	frame.call(13.9)
+	m._acc = 1.0
+	frame.call(13.9)
+	_check(not m._seconds[-1].has("stalls"), "a second without one lists none")
+	m.free()
+
+
+## Headset-off spans read as frames of a minute and more in a played session's worst frames.
+func _a_pause_is_no_frame() -> void:
+	var m := Metrics.new(OS.get_cache_dir().path_join("nestcombe-test-pause-%d.json" % OS.get_process_id()))
+	m.info = {"refresh_hz": 72.0, "label": "-"}
+	var frame := func(ms: float) -> void:
+		m._last_tick = Time.get_ticks_usec() - int(ms * 1000.0)
+		m._process(ms / 1000.0)
+	frame.call(13.9)
+	m._notification(Node.NOTIFICATION_UNPAUSED)
+	frame.call(60000.0)
+	m._acc = 1.0
+	frame.call(13.9)
+	var row: Dictionary = m._seconds[-1]
+	_check(absf(row.get("paused_s", 0.0) - 60.0) < 0.1, "the paused span is counted as paused: %s" % [row])
+	_check(row.max < 20.0 and row.frames == 2 and not row.has("stalls"), "and is no frame, nor a stall: %s" % [row])
 	m.free()

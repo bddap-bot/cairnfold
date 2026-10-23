@@ -6,7 +6,8 @@ player was doing.
 
 Sessions print oldest first, each with where its chunks were found, its device, build revision, id and length, then
 per activity (Metrics.ACTIVITIES) its frames, late frames, p50, p99 and worst frame time, and mean CPU and GPU ms a
-frame; then the seconds spent at each quality step and the garden's budget fill."""
+frame; then the seconds spent at each quality step, the garden's budget fill, the time paused (headset off, app in
+the background), and the worst stalls (Metrics.STALL_MS), each with what the game noted as running long in it."""
 import argparse
 import json
 from pathlib import Path
@@ -14,6 +15,7 @@ import sys
 
 ACTIVITIES = ["moving", "building", "wheel", "still", "coop"]
 BINS_PER_MS = 2
+STALLS_SHOWN = 20
 
 
 def read(folder):
@@ -86,6 +88,7 @@ def summarise(sid, start, ended, where, rows):
         if "step" in row:
             steps[row["step"]] = steps.get(row["step"], 0) + 1
     fills = [row["fill"] for row in rows if "fill" in row]
+    stalls = [dict(s, t=row.get("t")) for row in rows for s in row.get("stalls", [])]
     return {
         "session": sid,
         "where": where,
@@ -99,6 +102,8 @@ def summarise(sid, start, ended, where, rows):
         "activity": activity,
         "steps": {str(k): v for k, v in sorted(steps.items())},
         "fill": {"max": max(fills), "last": fills[-1]} if fills else None,
+        "paused_s": round(sum(row.get("paused_s", 0.0) for row in rows), 1),
+        "stalls": stalls,
     }
 
 
@@ -120,6 +125,15 @@ def text(s):
         lines.append("  quality steps (s): " + ", ".join(f"{k}: {v}" for k, v in s["steps"].items()))
     if s["fill"]:
         lines.append(f"  budget fill: max {s['fill']['max']:.3f}, last {s['fill']['last']:.3f}")
+    if s["paused_s"]:
+        lines.append(f"  paused: {s['paused_s']} s")
+    if s["stalls"]:
+        worst = sorted(sorted(s["stalls"], key=lambda x: -x["ms"])[:STALLS_SHOWN], key=lambda x: x["t"] or 0)
+        lines.append(f"  stalls: {len(s['stalls'])}, the worst {len(worst)}:")
+        for x in worst:
+            noted = "; ".join(n["what"] + (f" {n['ms']:.0f} ms" if "ms" in n else "") for n in x.get("notes", [])) or "nothing noted"
+            lines.append(f"    {fmt(x['t']):>8} s {x['ms']:7.0f} ms  {','.join(x.get('tags', []))}  scripts {fmt(x.get('scripts_ms'))}/"
+                         f"{fmt(x.get('scripts_after_ms'))} ms, pipelines {'+'.join(str(c) for c in x.get('compiled', []))}: {noted}")
     return "\n".join(lines)
 
 

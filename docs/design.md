@@ -4132,7 +4132,12 @@ null. Kernel fdinfo probes run only for explicit benchmark output, so ordinary
 local logging does no per-sample filesystem reads on the frame thread. Runtime dropped/reprojected counts are unavailable through this recorder;
 `late` is an application-cadence estimate, not a runtime dropped-frame counter.
 Context includes category counts, settled masonry instance counts, tools and
-visit/player state. `logging_us` measures the previous second's sampling and
+visit/player state. A row lists each frame over `Metrics.STALL_MS` (50 ms) in `stalls`: its length, what the player was doing, the
+script time read on it and on the frame after (the engine reports a frame's script time once it has finished), the
+pipelines compiled, and what the game noted as running long in it (`Metrics.note`: a build command applying, a garden
+restored, a style wheel opening, a photo drawn at its finest, a wheel opened), so a stall in a played session is named
+from its record. Time the tree spent paused (the headset off, the app in the background) and the game's loading is
+`paused_s`, never a frame. `logging_us` measures the previous second's sampling and
 worker submission work, excluding per-frame sample collection. Disk writes run
 on the engine worker pool, with at most one pending sample; a slow write skips
 samples instead of delaying a frame. `writer_us` measures the previous write

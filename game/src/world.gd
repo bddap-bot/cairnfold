@@ -20,8 +20,6 @@ const DROWNING := ["heights", "ponds", "plant", "tree"]
 ## A saved garden from another format is moved aside rather than rebuilt into a different one: 3 paints
 ## each build its own colours.
 const FORMAT := 3
-## A command applying for longer than this is logged.
-const SLOW_MS := 4.0
 const OVER := "over the frame budget"
 ## A ponds or ground command whose water fills again over at least this many grid points is worked out on another
 ## thread before it applies (Refill), and the commands after it wait for it: on a Quest 2 a fill takes about 10 µs a
@@ -589,13 +587,12 @@ func _apply_sent(sent: Dictionary) -> void:
 	_timed(cmd)
 
 
-## Applies a played command, logging one that takes most of a frame, so a hitch it causes is placed without guessing.
+## Applies a played command, noting one that takes most of a frame, so a hitch it causes is placed without guessing.
 func _timed(cmd: Dictionary) -> Dictionary:
 	var start := Time.get_ticks_usec()
 	var inverse := _apply(cmd)
 	var ms := (Time.get_ticks_usec() - start) / 1000.0
-	if ms > SLOW_MS:
-		print("world: applying %s took %.1f ms" % [cmd.op, ms])
+	Metrics.note("world: applying %s" % cmd.op, ms)
 	return inverse
 
 
@@ -1194,6 +1191,7 @@ func snapshot() -> Dictionary:
 ## Back to the empty meadow, then the snapshot's garden, and how many of its commands applied. Undo history
 ## goes with the old garden.
 func restore(snap: Dictionary) -> int:
+	var start := Time.get_ticks_usec()
 	settle()
 	var applied: int = _hushed(func() -> int:
 		_clear()
@@ -1208,6 +1206,7 @@ func restore(snap: Dictionary) -> int:
 	seq = snap.seq
 	flora.grow_now()
 	loaded.emit()
+	Metrics.note("world: restoring a garden of %d commands" % snap.cmds.size(), (Time.get_ticks_usec() - start) / 1000.0)
 	return applied
 
 
