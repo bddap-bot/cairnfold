@@ -496,14 +496,6 @@ func _at_edge(at: Vector3) -> bool:
 	return maxf(absf(at.x), absf(at.z)) >= EDGE - 0.5
 
 
-## The first of `hands` within `reach` of `p`, or null.
-func _hand_within(p: Vector3, reach: float) -> Node3D:
-	for h in hands:
-		if h.is_inside_tree() and p.distance_to(h.global_position) < reach:
-			return h
-	return null
-
-
 ## Eases how fast each hand and the head is moving, and lets go of hands no longer holding seeds out.
 func _watch(delta: float) -> void:
 	if delta <= 0.0:

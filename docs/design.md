@@ -3769,8 +3769,8 @@ or thrown only draw those already there (see "Feeding").
   Painted flowers are grouped into 3 m squares; one holding at least twelve in bloom
   (`Butterflies.MIN_BLOOMS`) is a patch, and 8 to 25 seconds after it appears two to four
   butterflies flutter in from out of sight. They wander from bloom to bloom, settle on one with
-  their wings slowly opening and closing, scatter up and away when a hand comes within 0.6 m, and
-  drift back. They leave, out of sight, when their patch is erased, drowned or out of season; the
+  their wings slowly opening and closing, scatter up and away when a hand or the head comes
+  suddenly within 0.6 m (a slow one may come right up to them), and drift back. They leave, out of sight, when their patch is erased, drowned or out of season; the
   meadow's own flowers draw none. Wings come in five soft colours (butter, apricot, sky, chalk,
   lilac), darker at the rim.
 - **Fireflies** come out once the sun is low, in spring and summer, over what you have made:

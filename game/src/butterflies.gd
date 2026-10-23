@@ -2,8 +2,8 @@ class_name Butterflies
 extends Node3D
 
 ## Butterflies over the flowers the player has painted: a few fly in to a patch, flit from bloom to bloom
-## and settle on them with their wings slowly opening and closing, scatter up and away when a hand comes
-## near, and leave once their patch is gone. All of them are one MultiMesh; the wingbeat is in its shader.
+## and settle on them with their wings slowly opening and closing, scatter up and away when a hand or the
+## head comes suddenly near, and leave once their patch is gone. All of them are one MultiMesh; the wingbeat is in its shader.
 ## Part of `Wildlife`, which decides when they come and where nobody is looking.
 
 enum State { ARRIVE, FLIT, PERCH, FLEE, LEAVE }
@@ -26,7 +26,7 @@ const SPEED := {State.ARRIVE: 1.4, State.FLIT: 0.6, State.FLEE: 2.4, State.LEAVE
 const PERCH_FOR := Vector2(3.0, 10.0)
 const FLEE_FOR := Vector2(4.0, 8.0)
 const HOP := 1.5
-## A hand closer than this sends a butterfly off.
+## A hand or the head moving suddenly closer than this sends a butterfly off.
 const SCATTER := 0.6
 const CRUISE := 0.15
 const BEAT_HZ := 9.0
@@ -171,11 +171,11 @@ func _think(b: Butterfly, delta: float) -> void:
 	if not patches.has(b.patch):
 		_leave(b)
 		return
-	var hand := wildlife._hand_within(b.at, SCATTER)
-	if b.state != State.FLEE and hand != null:
+	var fright := wildlife._startled(b.at, SCATTER)
+	if b.state != State.FLEE and fright != null:
 		b.state = State.FLEE
 		b.timer = rng.randf_range(FLEE_FOR.x, FLEE_FOR.y)
-		var off := b.at - hand.global_position
+		var off := b.at - fright.global_position
 		off.y = 0.0
 		b.goal = b.at + (off.normalized() + Vector3.UP * 1.2).normalized() * 3.0
 	match b.state:
