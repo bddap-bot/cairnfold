@@ -1169,7 +1169,7 @@ func _boulder_grip(b: Boulders.Boulder, s: Sizing, in_hand: Callable) -> Sizing:
 		var turn := p.basis.get_rotation_quaternion().normalized()
 		return {"at": Terrain.ground(p.origin.x, p.origin.z), "turn": turn, "sink": BoulderLayout.sink(b.shape, turn, grip.scale, p.origin, Terrain.height_at), "scale": grip.scale}
 	s.scale = func() -> float: return grip.scale
-	s.limits = Vector2(BoulderLayout.LEAST, INF)
+	s.limits = Vector2(BoulderLayout.LEAST, BoulderLayout.MOST)
 	s.current = standing
 	s.show = func(scale: float) -> void:
 		grip.scale = scale

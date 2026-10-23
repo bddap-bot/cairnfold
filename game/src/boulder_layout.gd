@@ -6,8 +6,11 @@ extends RefCounted
 ## the radial distance along each direction from its centre (`radius`), so one function makes its mesh, its picking and
 ## what a hand stops at. Pure data: the unit boulder is about a metre across, and the garden scales it.
 
-## The smallest a boulder goes, a pebble a hand could hold; nothing but the budget bounds how big one grows.
+## The smallest a boulder goes, a pebble a hand could hold.
 const LEAST := 0.08
+## The biggest a boulder grows, far past any hand's spread: the sizing tool stops there, and no command makes one
+## bigger.
+const MOST := 10000.0
 ## Fracture planes besides the bed.
 const CUTS := Vector2i(6, 10)
 ## How round worn edges are, as a share of the unit boulder.

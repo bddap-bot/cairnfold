@@ -264,7 +264,7 @@ static func _boulder(d: Dictionary) -> Variant:
 		return null
 	if typeof(turn) != TYPE_QUATERNION or not turn.is_finite() or absf(turn.length() - 1.0) > 1e-3:
 		return null
-	if typeof(scale) != TYPE_FLOAT or not (scale >= BoulderLayout.LEAST and scale < INF) or not _stone_style(d.get("style")):
+	if typeof(scale) != TYPE_FLOAT or not (scale >= BoulderLayout.LEAST and scale <= BoulderLayout.MOST) or not _stone_style(d.get("style")):
 		return null
 	return {"at": at, "turn": turn.normalized(), "sink": sink, "seed": d.seed, "scale": scale, "paint": d.paint, "style": d.style}
 
@@ -618,7 +618,7 @@ static func _heights(cmd: Dictionary, from_host: bool, out: Dictionary) -> bool:
 	if cells.size.x < 1 or cells.size.y < 1 or not Rect2i(0, 0, Terrain.VERTS, Terrain.VERTS).encloses(cells) or values.size() != cells.get_area():
 		return false
 	for v in values:
-		if not is_finite(v):
+		if not absf(v) <= Terrain.RELIEF:
 			return false
 	out.cells = cells
 	out.values = values

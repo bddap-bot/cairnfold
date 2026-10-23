@@ -129,7 +129,9 @@ func _bad_commands_are_dropped() -> void:
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 1.0}}, state, false).is_empty(), "sizing a boulder that is not there is dropped")
 	state.boulders[9] = {"at": at, "turn": q, "sink": 0.0, "seed": 3, "scale": 1.0, "paint": Palette.plain(), "style": 0}
 	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"at": at + Vector3(2, 0, 1), "turn": Quaternion(Vector3.RIGHT, 1.2)}}, state, false).is_empty(), "a reshape moves and turns it")
-	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 160.0}}, state, false).is_empty(), "a boulder sizes far past a house, unbounded")
+	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": 160.0}}, state, false).is_empty(), "a boulder sizes far past a house")
+	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"scale": BoulderLayout.MOST * 1.01}}, state, false).is_empty(), "but no bigger than the biggest a hand can grow")
+	_check(Commands.clean({"op": "boulder", "at": at, "turn": q, "sink": 0.0, "seed": 3, "scale": 1e30, "paint": Palette.plain(), "style": 0}, state, false).is_empty(), "nor placed bigger")
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"seed": 4}}, state, false).is_empty(), "a reshape cannot swap its shape")
 	_check(not Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"sink": 0.4}}, state, false).is_empty(), "a reshape pushes it into the ground")
 	_check(Commands.clean({"op": "reshape", "of": "boulders", "id": 9, "data": {"sink": -0.4}}, state, false).is_empty(), "and never out over it")

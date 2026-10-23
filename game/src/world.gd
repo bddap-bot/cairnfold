@@ -10,9 +10,10 @@ extends Node
 const LIMIT := 200
 ## Ground and the meadow's own plants are tracked for undo in square patches of this many metres.
 const PATCH := 8.0
-## Commands a player may send per second, and in one burst.
+## Commands a player may send per second, and in one burst; a command counts once more for each COMMAND_BYTES it carries.
 const RATE := 20.0
 const BURST := 60.0
+const COMMAND_BYTES := 4096
 ## The key a wipe, and the undo of one, touches: everything.
 const WIPED := "*"
 ## Commands that can leave a tree or bush standing where water covers its root, which `_drown` then takes out.
@@ -517,10 +518,16 @@ func _propose(cmd: Dictionary) -> void:
 	if not multiplayer.is_server():
 		return
 	var by := multiplayer.get_remote_sender_id()
-	if not _spend(by, 1.0):
+	if not _spend(by, cost(cmd)):
 		_refuse(by, cmd, "more commands a second than it takes")
 		return
 	_enqueue(cmd, by, _order.bind(cmd, by))
+
+
+## What a peer's command takes from its allowance: one, and one more for every COMMAND_BYTES it carries, up to a
+## whole burst, so the largest a tool makes still goes through.
+static func cost(cmd: Dictionary) -> float:
+	return minf(BURST, 1.0 + var_to_bytes(cmd).size() / float(COMMAND_BYTES))
 
 
 ## Takes `cost` from a player's allowance, which refills at RATE a second up to BURST; false if it is short.

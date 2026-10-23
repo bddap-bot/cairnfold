@@ -9,6 +9,9 @@ const STEP := 1.0
 const CELLS := int(SIZE / STEP)
 const VERTS := CELLS + 1
 const NO_HUMP := Vector4(0, 0, 1, 0)
+## The ground lies within this many metres above or below zero, past any hand's pull and within what the GPU's half-float
+## heights carry: the ground tool stops there, and no command lays it past.
+const RELIEF := 10000.0
 ## A bank runs BANK out from every point of the ground's edge, as that point stands now, down to BANK_FOOT, where the
 ## plain or the lake's bed (Mountains) begins; the lake stands over the foot, so the water meets the bank.
 const BANK := 10.0
@@ -354,7 +357,7 @@ static func raised(cells: Rect2i, slot: int) -> PackedFloat32Array:
 	var n := 0
 	for j in range(cells.position.y, cells.end.y):
 		for i in range(cells.position.x, cells.end.x):
-			out[n] += _lift(_humps[slot], i, j)
+			out[n] = clampf(out[n] + _lift(_humps[slot], i, j), -RELIEF, RELIEF)
 			n += 1
 	return out
 

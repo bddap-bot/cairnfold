@@ -23,6 +23,7 @@ func _run() -> void:
 	_a_step_someone_built_on_is_skipped()
 	_redo_waits_on_the_same_condition()
 	_bad_commands_are_dropped()
+	_commands_cost_by_size()
 	_ground_undo_waits_on_overlapping_ground()
 	_a_mix_undo_waits_on_its_easel()
 	_a_pond_undo_waits_on_the_ground_that_drained_it()
@@ -196,6 +197,8 @@ func _bad_commands_are_dropped() -> void:
 		"dab of a huge brush": {"op": "plant", "kind": "grass", "seed": 1, "dabs": [[Vector3.ZERO, 1000.0, 3]]},
 		"heights off the grid": {"op": "heights", "cells": Rect2i(-5, 0, 10, 10), "values": PackedFloat32Array()},
 		"heights of NaN": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": PackedFloat32Array([NAN])},
+		"heights over the highest hill": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": PackedFloat32Array([Terrain.RELIEF * 1.01])},
+		"heights under the deepest hollow": {"op": "heights", "cells": Rect2i(0, 0, 1, 1), "values": PackedFloat32Array([-1e30])},
 	}
 	for what in cases:
 		_check(Commands.clean(cases[what], world.state, false).is_empty(), "refused: %s" % what)
@@ -254,6 +257,22 @@ func _hill(at: Rect2i, lift: float) -> Dictionary:
 	for i in v.size():
 		v[i] += lift
 	return {"op": "heights", "cells": at, "values": v}
+
+
+## A peer's allowance pays for what a command carries, so a burst of the largest commands costs what it sends; the
+## largest a tool makes still goes through on a full allowance.
+func _commands_cost_by_size() -> void:
+	var small := World.cost({"op": "sky", "time": 0.5})
+	var whole := World.cost({"op": "heights", "cells": Terrain.ALL, "values": Terrain.read(Terrain.ALL)})
+	_check(small >= 1.0 and small < 1.1, "a small command costs one (%.2f)" % small)
+	_check(whole > 20.0 and whole <= World.BURST, "the whole ground costs as much as it carries, within a burst (%.1f)" % whole)
+	var wall := _wall_data(PackedVector3Array(range(Commands.MAX_POINTS).map(func(i: int) -> Vector3: return Terrain.ground(i * 0.1, 0))))
+	var stroke := {"op": "wall", "walls": range(Commands.MAX_PIECES).map(func(_i: int) -> Dictionary: return wall)}
+	_check(var_to_bytes(stroke).size() / float(World.COMMAND_BYTES) < World.BURST - 1.0, "the largest stroke fits a full allowance (%d bytes)" % var_to_bytes(stroke).size())
+	Terrain.set_hump(0, 0, 0, 9, 1e6)
+	var raised := Terrain.raised(Rect2i(80, 80, 1, 1), 0)
+	Terrain.clear_hump(0)
+	_check(raised[0] == Terrain.RELIEF, "the ground tool raises the ground no higher than the highest hill (%s)" % raised[0])
 
 
 func _ground_undo_waits_on_overlapping_ground() -> void:
