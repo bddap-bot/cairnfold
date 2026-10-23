@@ -7,9 +7,10 @@ func _initialize() -> void:
 	if DisplayServer.get_name() == "headless":
 		var w := Wall.new(1, null)
 		w.add_roof(RoofLayout.new())
-		var raw: Variant = w._gables.material_override.get_shader_parameter("albedo")
 		var c := WallLayout.PLASTER
-		check(raw is Vector3 and raw == Vector3(c.r, c.g, c.b), "plaster uniform must carry raw RGB like the wall instance buffer")
+		for part: MeshInstance3D in [w._gables, w._torching]:
+			var raw: Variant = part.material_override.get_shader_parameter("albedo")
+			check(raw is Vector3 and raw == Vector3(c.r, c.g, c.b), "%s's plaster uniform must carry raw RGB like the wall instance buffer" % part.material_override.shader.resource_path)
 		w.free()
 		finish()
 	else:

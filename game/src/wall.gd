@@ -12,8 +12,7 @@ const PAINTED: Array[Part] = [Part.STONE, Part.MORTAR, Part.TILE, Part.COAT, Par
 static var _kinds: Array[Masonry.Kind] = []
 ## A roof's materials are made as the game loads: a shader made on first use stalled the Quest 2's frame 0.25 to 1.5 s
 ## as the session's first house went up.
-## Color uniforms convert to linear; the wall instance buffer carries raw RGB, so plaster's albedo goes as a Vector3.
-static var _plaster := _material("res://src/plaster.gdshader", Vector3(WallLayout.PLASTER.r, WallLayout.PLASTER.g, WallLayout.PLASTER.b))
+static var _plaster := _material("res://src/plaster.gdshader", WallLayout.PLASTER)
 static var _thatch := _material("res://src/thatch.gdshader")
 static var _lime := _material("res://src/torching.gdshader", WallLayout.PLASTER)
 static var _roof_wood := _wood()
@@ -155,12 +154,14 @@ func _init(seed: int, glade: Masonry) -> void:
 	_chunked.resize(Part.size())
 
 
-## A material of `shader`, its albedo `albedo` if given.
+## A material of `shader`, its albedo `albedo` if given. Color uniforms convert to linear; the wall instance buffer
+## carries raw RGB, so the albedo goes as a Vector3.
 static func _material(shader: String, albedo: Variant = null) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = load(shader)
 	if albedo != null:
-		m.set_shader_parameter("albedo", albedo)
+		var c: Color = albedo
+		m.set_shader_parameter("albedo", Vector3(c.r, c.g, c.b))
 	return m
 
 
