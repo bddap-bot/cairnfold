@@ -60,11 +60,15 @@ func _exit_tree() -> void:
 
 
 ## A headset runs the main loop for seconds before its session draws a frame, and its shell keeps drawing its launch
-## transition meanwhile: a script's clock starts with the first frame the game draws.
+## transition meanwhile: a script's clock starts once the game draws. The frame the session starts in carries the
+## whole wait as its delta, which would end the first timer at once.
 func _drawing() -> void:
 	if not main.get_viewport().use_xr:
 		return
 	while main.xr.get_session_state() not in [OpenXRInterface.SESSION_STATE_SYNCHRONIZED, OpenXRInterface.SESSION_STATE_VISIBLE, OpenXRInterface.SESSION_STATE_FOCUSED]:
+		await get_tree().process_frame
+	await get_tree().process_frame
+	while get_process_delta_time() > 0.25:
 		await get_tree().process_frame
 
 
