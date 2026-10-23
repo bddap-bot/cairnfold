@@ -36,6 +36,8 @@ var neck: NeckAim
 var missed_food := 0.0
 var player: AnimationPlayer
 var _clip := ""
+## Seeded by its phase, which its band's generator drew, so a seeded garden's animals idle the same each time.
+var _rng := RandomNumberGenerator.new()
 ## What `Roamers` has this animal doing, until when, and where to.
 var state := Grazers.State.ENTER
 var timer := 0.0
@@ -98,6 +100,7 @@ static func _merged(mesh: Mesh) -> ArrayMesh:
 func _init(of: Kind, scale_by: float, phase: float) -> void:
 	kind = of
 	size = scale_by
+	_rng.seed = hash(phase)
 	add_to_group(GROUPS[kind])
 	var shared := _share(kind)
 	var model: Node3D = shared.scene.instantiate()
@@ -148,7 +151,7 @@ func pose(m: Grazers.Motion, _delta: float) -> void:
 	elif _clip in IDLE_CLIPS:
 		player.speed_scale = 1.0
 	else:
-		_play(IDLE_CLIPS[randi() % IDLE_CLIPS.size()])
+		_play(IDLE_CLIPS[_rng.randi() % IDLE_CLIPS.size()])
 
 
 ## Moves `distance` this tick showing `m`, a walk or gallop paced to the ground covered so the feet keep their place.

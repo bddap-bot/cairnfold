@@ -15,6 +15,7 @@ func _initialize() -> void:
 	_each_is_one_draw_call()
 	await _a_fox_and_a_doe_stand_true_to_life()
 	await _a_deer_turns_before_it_runs()
+	_idle_clips_follow_the_seed()
 	await _deer_then_a_fox_come_out_of_sight()
 	await _a_sudden_move_sends_a_deer_off_and_stillness_lets_it_near()
 	await _food_held_still_draws_one_to_eat()
@@ -139,6 +140,24 @@ func _a_deer_turns_before_it_runs() -> void:
 	check(a.position.z > 5.0, "and is off, %.1f m" % a.position.z)
 	a.free()
 	grazers.free()
+
+
+## Which idle clip a deer shows comes from its own seed, so a seeded replay's deer stand as they did.
+func _idle_clips_follow_the_seed() -> void:
+	var shown := []
+	for global in [11, 12]:
+		seed(global)
+		var a := Beast.new(Beast.Kind.DEER, 1.0, 0.3)
+		var clips := []
+		for i in 16:
+			a.pose(Grazers.Motion.WALK, STEP)
+			a.pose(Grazers.Motion.IDLE, STEP)
+			clips.append(a.player.current_animation)
+		shown.append(clips)
+		a.free()
+	seed(1)
+	_check(shown[0] == shown[1], "a deer of one seed idles the same whatever else drew random numbers, %s vs %s" % shown)
+	_check(shown[0].has(Beast.IDLE_CLIPS[0]) and shown[0].has(Beast.IDLE_CLIPS[1]), "and shows each idle clip")
 
 
 func _each_is_one_draw_call() -> void:
