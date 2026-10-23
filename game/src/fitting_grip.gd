@@ -16,6 +16,16 @@ var index := -1
 var on_roof := false
 
 
+## A wall's `reshape` data setting its list `key`, or its roof's, to `list`.
+static func data(key: String, list: Variant, on_roof: bool) -> Dictionary:
+	return {"roof": {key: list}} if on_roof else {key: list}
+
+
+## `list` as the garden stores list `key`.
+static func packed(key: String, list: Array) -> Variant:
+	return type_convert(list, {"openings": TYPE_PACKED_VECTOR4_ARRAY, "lanterns": TYPE_PACKED_VECTOR3_ARRAY, "flags": TYPE_PACKED_FLOAT32_ARRAY}.get(key, TYPE_PACKED_VECTOR2_ARRAY))
+
+
 ## Openings alone have a size for two hands to set.
 func sized() -> bool:
 	return key == "openings"

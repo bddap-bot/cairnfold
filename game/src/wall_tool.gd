@@ -810,16 +810,7 @@ static func reshape_house(d: Dictionary, to: Dictionary) -> Dictionary:
 	var was: Array[Vector3] = []
 	was.assign(Array(d.points))
 	var now := outline(to)
-	var moved := func(s: float) -> float: return _loop_s(now, _scaled(from, to, _loop_point(was, s)))
-	var openings := PackedVector4Array()
-	for w: Vector4 in d.openings:
-		openings.append(Vector4(moved.call(w.x), w.y, w.z, w.w))
-	var lanterns := PackedVector3Array()
-	for l: Vector3 in d.lanterns:
-		lanterns.append(Vector3(moved.call(l.x), l.y, l.z))
-	var flags := PackedFloat32Array()
-	for f: float in d.flags:
-		flags.append(moved.call(f))
+	var fits := _fittings_moved(d, func(s: float) -> float: return _loop_s(now, _scaled(from, to, _loop_point(was, s))))
 	var roof := {}
 	if to.round:
 		roof = {"center": to.center, "radius": to.size.x * 0.5}
@@ -834,7 +825,21 @@ static func reshape_house(d: Dictionary, to: Dictionary) -> Dictionary:
 			return out
 		roof = {"chimneys": moved_on.call(d.roof.chimneys), "dormers": moved_on.call(d.roof.dormers)}
 	roof.merge({"pitch": to.pitch, "curve": to.curve, "overhang": to.overhang})
-	return {"points": PackedVector3Array(now), "rise": to.rise, "height": to.height, "openings": openings, "lanterns": lanterns, "flags": flags, "roof": roof}
+	return {"points": PackedVector3Array(now), "rise": to.rise, "height": to.height, "openings": fits.openings, "lanterns": fits.lanterns, "flags": fits.flags, "roof": roof}
+
+
+## The openings, lanterns and flags of the wall with garden data `d`, each taken from its arc length `s` to `moved(s)`.
+static func _fittings_moved(d: Dictionary, moved: Callable) -> Dictionary:
+	var openings := PackedVector4Array()
+	for o: Vector4 in d.openings:
+		openings.append(Vector4(moved.call(o.x), o.y, o.z, o.w))
+	var lanterns := PackedVector3Array()
+	for l: Vector3 in d.lanterns:
+		lanterns.append(Vector3(moved.call(l.x), l.y, l.z))
+	var flags := PackedFloat32Array()
+	for f: float in d.flags:
+		flags.append(moved.call(f))
+	return {"openings": openings, "lanterns": lanterns, "flags": flags}
 
 
 static func _ridge_of(at: Dictionary) -> Vector3:
@@ -909,19 +914,11 @@ static func reshape_line(d: Dictionary, to: Dictionary) -> Dictionary:
 	for p: Vector3 in d.points:
 		var q: Vector3 = to.center + turn * (_flat(p - from.center) * k)
 		points.append(Vector3(q.x, p.y, q.z))
-	var openings := PackedVector4Array()
-	for o: Vector4 in d.openings:
-		openings.append(Vector4(o.x * k, o.y, o.z, o.w))
-	var lanterns := PackedVector3Array()
-	for l: Vector3 in d.lanterns:
-		lanterns.append(Vector3(l.x * k, l.y, l.z))
-	var flags := PackedFloat32Array()
-	for f: float in d.flags:
-		flags.append(f * k)
+	var fits := _fittings_moved(d, func(s: float) -> float: return s * k)
 	var ruins := PackedVector2Array()
 	for r: Vector2 in d.ruins:
 		ruins.append(r * k)
-	return {"points": points, "height": to.height, "openings": openings, "lanterns": lanterns, "flags": flags, "ruins": ruins}
+	return {"points": points, "height": to.height, "openings": fits.openings, "lanterns": fits.lanterns, "flags": fits.flags, "ruins": ruins}
 
 
 ## Where a wall held from `start` stands once two hands move from poses `from` to `to`: drawn out or in along its line,
@@ -1349,8 +1346,7 @@ func _fitting_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	var data := func(v: Variant) -> Dictionary:
 		var placed: Array = stored.call()
 		placed[grip.index] = v
-		var packed: Variant = {"openings": PackedVector4Array(placed), "lanterns": PackedVector3Array(placed), "flags": PackedFloat32Array(placed)}.get(key, PackedVector2Array(placed))
-		return {"roof": {key: packed}} if grip.on_roof else {key: packed}
+		return FittingGrip.data(key, FittingGrip.packed(key, placed), grip.on_roof)
 	var fits := func(v: Variant) -> bool:
 		var rest: Array = others.call()
 		return FittingGrip.fits(w, key, v, rest, standing_openings(w, rest) if key == "openings" else ([] as Array[Vector4]))

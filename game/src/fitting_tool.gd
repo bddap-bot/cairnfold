@@ -232,18 +232,7 @@ func _command(target: Dictionary, c: Dictionary) -> Dictionary:
 	var w: Wall = target.wall
 	if target.what == "tower_flag":
 		return {"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"flag": not w.roof.flag}}}
-	var after: Array = c.after
-	var packed: Variant
-	match c.key:
-		"openings":
-			packed = PackedVector4Array(after)
-		"lanterns":
-			packed = PackedVector3Array(after)
-		"flags":
-			packed = PackedFloat32Array(after)
-		_:
-			packed = PackedVector2Array(after)
-	return {"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {c.key: packed}} if c.on_roof else {c.key: packed}}
+	return {"op": "reshape", "of": "walls", "id": w.id, "data": FittingGrip.data(c.key, FittingGrip.packed(c.key, c.after), c.on_roof)}
 
 
 ## What a press on `target` would do: `ok` false where nothing; otherwise the list `key` on the wall (or
@@ -550,8 +539,7 @@ static func removal(state: Dictionary, target: Dictionary) -> Dictionary:
 		if index < 0:
 			return {}
 		after.remove_at(index)
-	var change := {target.key: after}
-	return {"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": change} if target.on_roof else change}
+	return {"op": "reshape", "of": "walls", "id": w.id, "data": FittingGrip.data(target.key, after, target.on_roof)}
 
 
 static func decoration_command(target: Dictionary) -> Dictionary:
