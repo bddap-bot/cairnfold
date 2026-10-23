@@ -113,9 +113,10 @@ func _gather() -> void:
 func targets() -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for id in nodes:
-		if not world.state.decorations.has(id):
-			continue
 		var n: Node3D = nodes[id]
+		# One a delete sweep has taken is hidden, and its beam passes through it.
+		if not world.state.decorations.has(id) or not n.visible:
+			continue
 		var d: Dictionary = world.state.decorations[id]
 		var b: AABB = n.get_meta(&"bounds")
 		out.append({"decoration": id, "fitting": true, "what": "decoration", "index": id, "value": d, "bounds": n.transform * b, "box": b, "inverse": n.transform.affine_inverse(), "wall": walls.find(d.wall), "on_roof": false})

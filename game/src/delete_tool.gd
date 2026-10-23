@@ -177,7 +177,7 @@ func press(who: Object, origin: Vector3, dir: Vector3) -> void:
 		_cuts[who] = {"single": target}
 		return
 	flora.grow_now()
-	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}, "easels": {}, "fittings": {}, "boulders": {}}
+	_cuts[who] = {"walls": {}, "wall": {}, "plants": {}, "marks": {}, "moved": {}, "easels": {}, "fittings": {}, "boulders": {}, "decorations": {}}
 	target = _stroke(_cuts[who], origin, dir)
 	_cuts[who].ray = [origin, dir, target.get("point", origin + dir)]
 	_preview(_cuts[who])
@@ -211,7 +211,7 @@ func hold(who: Object, origin: Vector3, dir: Vector3) -> Dictionary:
 
 
 static func _taken(cut: Dictionary) -> int:
-	return cut.walls.size() + cut.plants.size() + cut.marks.size() + cut.easels.size() + cut.fittings.size() + cut.boulders.size()
+	return cut.walls.size() + cut.plants.size() + cut.marks.size() + cut.easels.size() + cut.fittings.size() + cut.boulders.size() + cut.decorations.size()
 
 
 static func _gone(cut: Dictionary) -> Dictionary:
@@ -228,7 +228,8 @@ static func steps(metres: float, mow := 0.0) -> int:
 func _stroke(cut: Dictionary, origin: Vector3, dir: Vector3) -> Dictionary:
 	var target := aim(origin, dir, cut.plants, _gone(cut))
 	if target.has("decoration"):
-		cut.get_or_add("decorations", {})[target.decoration] = target
+		cut.decorations[target.decoration] = target
+		world.decorations.nodes[target.decoration].visible = false
 		return target
 	if target.has("fitting"):
 		cut.wall = {}
@@ -357,7 +358,7 @@ func let_go(who: Object) -> void:
 	for id: int in cut.easels:
 		if world.state.easels.has(id):
 			cmds.append({"op": "take", "of": "easels", "ids": PackedInt32Array([id])})
-	for item: Dictionary in cut.get("decorations", {}).values():
+	for item: Dictionary in cut.decorations.values():
 		var cmd := FittingTool.removal(world.state, item)
 		if not cmd.is_empty():
 			cmds.append(cmd)
@@ -391,7 +392,7 @@ func let_go(who: Object) -> void:
 			walls.settle(id)
 		for p: Flora.Plant in plants:
 			p.draw(p.shown())
-		for e: Node3D in cut.easels.values() + cut.boulders.values():
+		for e: Node3D in cut.easels.values() + cut.boulders.values() + cut.decorations.keys().map(func(id: int) -> Variant: return world.decorations.nodes.get(id)):
 			if is_instance_valid(e):
 				e.visible = true
 	if cmds.is_empty():
