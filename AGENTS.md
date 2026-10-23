@@ -48,7 +48,9 @@ controls and the build order.
   Directive (verbatim): "remember we haven't released yet so don't sacrifice maintainability for backwards compatibility"
 - `nix-shell --run scripts/test.sh` must pass before landing; a change to the build
   scripts, `game/project.godot` or `game/export_presets.cfg` also owes a
-  green `scripts/android.sh quest` and `scripts/android.sh lepton` under `nix-shell android.nix`.
+  green `scripts/android.sh quest` and `scripts/android.sh lepton` under `nix-shell android.nix`, and a changed shell
+  script owes a clean `shellcheck`. `scripts/gate.sh` runs every check the diff from origin/main owes, the co-op run
+  below included.
 - Deploying main is `scripts/release.sh`, which publishes the Windows, Linux and
   Frame exports and both APKs together, marking the release Latest only when HEAD is origin/main's
   tip; `scripts/release.sh --rollback TAG` marks an older release Latest. The Frame's install and
