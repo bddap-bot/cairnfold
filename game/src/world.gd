@@ -120,7 +120,7 @@ func fill(hand: Node = null) -> float:
 	return Budget.fill(Budget.add(units.duplicate(), pending(hand)) if hand != null else units)
 
 
-## Tools say each frame what the edit they show would add, so the bar can show whether it fits.
+## Tools say each frame what the edit they show would add, so the hand can show whether it fits.
 func preview(hand: Node, change: Dictionary) -> void:
 	_pending[hand] = [Engine.get_process_frames(), change]
 
@@ -562,7 +562,7 @@ func _turned_down(token: int, why: String) -> void:
 	_settle(token)
 
 
-## The frame budget turns down what `hand` tried: its budget bar grows and shakes, it grunts, and the hand feels it.
+## The frame budget turns down what `hand` tried: it grunts, and the hand feels it.
 func cap(hand: XRController3D) -> void:
 	if hand != null:
 		Cues.play(Cues.Act.CAPPED, hand.global_position, hand)

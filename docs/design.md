@@ -941,9 +941,9 @@ Quest 2's 16.415, so the Frame no longer sets it. Each price a record carries (`
   once the ladder settled. This choice admits no more cost than either measured table.
   The measurements bound the tested scenes, not every possible arrangement; the initial
   quality-settling frames remain as documented below.
-- On each controller the bar shows this same garden fill, moss green warming to amber
-  near full. The hand's preview adds a paler stretch and pulses red when it would not
-  fit. Refused actions knock twice; painting stops at capacity and knocks once.
+- Nothing shows the garden's fill in the hand: a held tool is the tool alone. A preview
+  that would not fit turns the held tool's sight red. Refused actions knock twice;
+  painting stops at capacity and knocks once.
 - `demo/costs.json`, played by `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT ...`
   and fitted by `scripts/costs.py OUT`, which prints a candidate table for review, measures each kind of build alone over the bare
   meadow at `Budget.fit_step()` (the bottom of the quality ladder), from the air and standing. Each phase of walls, a
@@ -2295,7 +2295,7 @@ moves one.
 - Letting go of both grips sets the house as one `reshape` command (its points, height, plinth, the fittings' places
   and its roof), with one more for each build carried on it, all one undo step, and every player sees it as they see a
   raised wall. Let go within 5 cm and a degree of where it stood, unsized, it is left as it was and nothing is sent, so
-  a trembling grip is no edit. The budget bar shows what the house as held would cost, and a house the garden turns
+  a trembling grip is no edit. A house as held that would not fit turns the sight red, and a house the garden turns
   down goes back where it stood.
 
 `demo/resize.json` widens, deepens and raises a house with doors, a lantern inside and a chimney, widens a
@@ -3454,10 +3454,12 @@ at 5). One let go lands with a thump through a stony body near 80 Hz, an earth b
 its drop would reach (`Boulders.impact`, full at 7 m/s, a 2.5 m fall), so a pebble set down gives a quiet tap and a
 house-sized boulder dropped from high a heavy one.
 
-What the frame budget turns down is plain: the hand's budget bar jumps up to three and a half times its size,
-shakes and settles, a soft cartoon grunt sounds, and the hand feels two knocks (`World.cap`). Before that, while
-what the tool shows would not fit, the bar swells and trembles in red and the held tool's sight turns red, so a
-preview that will be refused already looks refused. `tests/test_budget.gd` checks both. Anything else turned down
+What the frame budget turns down is plain: a soft cartoon grunt sounds, and the hand feels two knocks (`World.cap`).
+Before that, while what the tool shows would not fit, the held tool's sight turns red, so a preview that will be
+refused already looks refused. `tests/test_budget.gd` checks both. The bar that once showed the garden's share on each
+controller is gone. Directive (verbatim): "Earlier we mentioned not showing hands, just showing tools. We can do that
+with the book. We don't need to show a hand underneath the book. It can just be the book. Don't need to show the build
+budget bar either." Anything else turned down
 (a crowded easel, no hollow to fill, the host refusing) gets the plain `REFUSED` knock.
 
 Every player action, from the code:
@@ -3522,7 +3524,7 @@ Every player action, from the code:
 | `HAND_PREEN` | A preening stroke reaches its shoulder | none | one 0.008 pulse, 5 ms |
 | `HAND_LOOK` | An idle head turn begins | none | one 0.005 pulse, 4 ms |
 | `REFUSED` | Something other than the frame budget turns an action down | low tock | two knocks |
-| `CAPPED` | The frame budget turns an action down | soft grunt | two knocks, and the bar jumps and shakes |
+| `CAPPED` | The frame budget turns an action down | soft grunt | two knocks |
 
 Conure pulses follow `Conure.animation_event`, on the same clock as its shader motion.
 The tail shake and wing flit share one fluff-up and one pulse; breathing has none.

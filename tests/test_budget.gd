@@ -25,7 +25,6 @@ func _run() -> void:
 	await _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room()
 	await _a_capped_edit_is_heard_felt_and_shown()
 	await _painting_stops_at_the_budget()
-	await _the_bar_shows_the_share()
 	_water_costs_at_most_a_view_full()
 	_stone_ground_counts_its_square_metres()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
@@ -266,14 +265,11 @@ func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 
 ## Directive (verbatim): "When something doesn't work because of the frame cap, I think it should be obvious to the
 ## player. I think maybe we can do that by embiggening the little bar that represents frame cap and shaking it around
-## and making a little sound, like a [grunt ]sound".
+## and making a little sound, like a [grunt ]sound". The bar has since gone from the hand; the grunt, the knocks and
+## the sight turning red stay.
 func _a_capped_edit_is_heard_felt_and_shown() -> void:
 	var hand: Hand = main.rig.right
 	hand.tool = Hand.Tool.WALLS
-	var bar: BudgetBar = null
-	for c in hand.get_children():
-		if c is BudgetBar:
-			bar = c
 	var capped := [null]
 	world.capped.connect(func(h: XRController3D) -> void: capped[0] = h, CONNECT_ONE_SHOT)
 	var grunts: int = Cues.asked.get(Cues.Act.CAPPED, 0)
@@ -281,18 +277,13 @@ func _a_capped_edit_is_heard_felt_and_shown() -> void:
 	_check(not await _build(too_big), "a build past the whole budget is turned down")
 	_check(capped[0] == hand, "the hand that tried it is the one capped")
 	_check(Cues.asked.get(Cues.Act.CAPPED, 0) == grunts + 1, "the frame cap grunts once")
-	await process_frame
-	_check(bar.scale.x > 1.5, "its bar jumps up: %.2f" % bar.scale.x)
-	for i in 60:
-		await process_frame
-	_check(is_equal_approx(bar.scale.x, 1.0), "and settles back: %.2f" % bar.scale.x)
 	var change := {}
 	for w: Dictionary in too_big:
 		Budget.add(change, Budget.wall(w))
 	for i in 3:
 		world.preview(hand, change)
 		await process_frame
-	_check(hand.capped and bar.scale.x > 1.1, "a preview that will not fit shows refused before it is let go: %.2f" % bar.scale.x)
+	_check(hand.capped, "a preview that will not fit shows refused before it is let go")
 	for i in 3:
 		await process_frame
 	_check(not hand.capped, "and stops once nothing over is shown")
@@ -324,20 +315,6 @@ func _painting_stops_at_the_budget() -> void:
 	await _settled()
 	_check(world.fill() <= 1.0 and world.fill() > 0.97, "where a view full of stone would not fit, a long stroke of it stops at the budget: %.3f" % world.fill())
 	_check(world.units.get("stone_m2", 0.0) > 0.0, "it painted stone up to it")
-
-
-func _the_bar_shows_the_share() -> void:
-	var bars := []
-	for h in main.rig.hands:
-		for c in h.get_children():
-			if c is BudgetBar:
-				bars.append(c)
-	_check(bars.size() == 2, "each controller carries a bar")
-	for i in 60:
-		await process_frame
-	for b: BudgetBar in bars:
-		var shown: float = b.material_override.get_shader_parameter("fill")
-		_check(absf(shown - world.fill()) < 0.01, "the bar shows the garden's share: %.3f against %.3f" % [shown, world.fill()])
 
 
 func _joining_does_not_change_the_budget() -> void:

@@ -95,7 +95,7 @@ func _ready() -> void:
 	add_child(water_tool)
 	world.attach(tool, flora, paths, ground_grab, water, easels, boulders)
 	for h in rig.hands:
-		h.add_child(BudgetBar.new(world, h))
+		h.world = world
 	palette_tool = PaletteTool.new(rig, tool, world)
 	add_child(palette_tool)
 	sky_tool = SkyTool.new(rig, look, world, _editing)

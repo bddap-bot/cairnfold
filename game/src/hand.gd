@@ -22,6 +22,8 @@ const TREE := [
 const TOP := Vector3(0, 0.0075, 0.045)
 ## How many times its size on the wheel a tool is held, so a wand or a spade is as long as a hand's.
 const HELD := {Tool.STYLE: 3.0, Tool.DELETE: 3.0}
+## A sight's colour while what the tool shows would not fit.
+const REFUSED := Color(0.92, 0.3, 0.26, 0.75)
 ## Past this many metres from the eyes the mark where a hand points grows with distance, so it never shrinks to nothing.
 const MARK_NEAR := 4.0
 ## The controller's front, where an empty hand's sight stands.
@@ -58,7 +60,9 @@ var tool := Tool.WALLS:
 ## The way the stick is flicked (a FLICKS key), or "".
 var flick := ""
 var picking := false
-## What the hand's tool shows would not fit the frame budget: its pointer shows it refused (BudgetBar).
+## The garden whose frame budget the hand's tool previews against.
+var world: World
+## What the hand's tool shows would not fit the frame budget: its sight shows it refused.
 var capped := false
 ## The model held while the hand holds `t`.
 func model(t: Tool) -> Node3D:
@@ -370,7 +374,7 @@ func point(hit: Variant, tint: Color) -> void:
 	if not tracked() or _holding:
 		return
 	_sight.visible = true
-	_sight.tint(BudgetBar.REFUSED if capped else tint)
+	_sight.tint(REFUSED if capped else tint)
 	_dot.visible = hit != null
 	if hit != null:
 		var cam := get_viewport().get_camera_3d()
@@ -404,6 +408,9 @@ func _process(delta: float) -> void:
 	_flick_input()
 	_holding = false
 	clear_pointer()
+	if world != null:
+		var with := world.fill(self)
+		capped = with > 1.0 and with > world.fill() + 0.0001
 	_select_input(delta)
 	_buttons.latch()
 	_show_tool(delta)
