@@ -17,7 +17,7 @@ class BenchmarkRendering(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=".") as folder:
             out = Path(folder)
             (out / "metrics.json").write_text(json.dumps({
-                "info": {"budget": {"gpu_ms": 12.5, "refresh_hz": 72}},
+                "info": {"budget": {"gpu_ms": 11.111, "refresh_hz": 72}},
                 "seconds": [{"label": "drag", "p50": 13.89, "p99": 13.89,
                              "late": 0, "draws": 100, "prims": 1000}],
             }))
@@ -49,7 +49,7 @@ class BenchmarkRendering(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=".") as folder:
             out = Path(folder)
             (out / "metrics.json").write_text(json.dumps({
-                "info": {"budget": {"gpu_ms": 12.5, "refresh_hz": 72}},
+                "info": {"budget": {"gpu_ms": 11.111, "refresh_hz": 72}},
                 "seconds": [{"label": "-" if s == 20 else "paths/stroke", "unix": 1792370000 + s, "p50": 13.89, "p99": 13.89,
                              "late": 0, "draws": 100, "prims": 1000} for s in range(20, 26)],
             }))

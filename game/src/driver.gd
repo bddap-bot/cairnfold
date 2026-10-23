@@ -1854,7 +1854,7 @@ func _label(s: Dictionary) -> void:
 ## would bring it under, so every phase of demo/costs.json is measured at the refresh rate, on any headset, from one
 ## script.
 func _sized(s: Dictionary) -> void:
-	var line: float = (1000.0 / Budget.REFRESH_HZ * Quality.Governor.LINE) * 0.95
+	var line := Budget.line_ms() * 0.95
 	var base: Array[float] = []
 	for v: Dictionary in s.views:
 		base.append(await _gpu_ms(v))

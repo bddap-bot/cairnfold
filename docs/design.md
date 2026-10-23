@@ -328,7 +328,7 @@ shadows 2.0 ms, flowers 1.0 ms; one shadow split instead of two, or 30 m of shad
 instead of 45 m, saved nothing.
 
 The animals on the stress scene (`bench.sh OUT --android APK`, the ladder at its top, median of each
-phase; frames are over the budget's 12.5 ms everywhere at the top, the bare meadow standing included at
+phase; frames are over the then 12.5 ms budget everywhere at the top, the bare meadow standing included at
 26.5 ms):
 
 | Phase | GPU per frame | Draw calls | Primitives |
@@ -413,8 +413,11 @@ focus on... making it run fast, because it's in VR. That's important"
 So speed is a standing focus: every feature holds the refresh rate at worst-case
 density, and no build the player can make may bring the frame rate down.
 
-- `game/src/budget.gd` holds the budget: the refresh rate of the weakest headset
-  and the share of each frame the game's GPU work may take. Nothing else states it.
+- `game/src/budget.gd` holds the budget: the refresh rate of the weakest headset,
+  and `Budget.line_ms()`, the GPU time a frame may take there: the governor's own line (`Quality.Governor.LINE`,
+  0.8 of the period), 11.1 ms at 72 Hz, so the bench holds a phase to the line the running game holds. Nothing else
+  states it. Passages and records from before held Quest phases to 0.9 of the period, 12.5 ms; their verdicts
+  below are against that then line.
 - `demo/stress.json` is the worst case: the bare meadow, then every flora pool full,
   a 27 m wall drawn live, walls 2 m apart (the closest `WallPlan` lets them stand)
   over discs of 10 to 25 m radius at 4.5 m tall, 9 m walls, a village of houses
@@ -548,7 +551,7 @@ What is left grows with what is built, so building needs a bound: "Build budget"
 Measured on a Quest 2 (`NESTCOMBE_SCENE=demo/costs.json bench.sh OUT --android APK` on
 ecef026: in the headset with its proximity sensor held closed, the runtime's `App=` GPU time
 per frame, median of each phase, CPU and GPU held at level 4, 525 MHz, the ladder at its
-bottom step, no other process rendering). GPU milliseconds a frame against a 12.5 ms budget;
+bottom step, no other process rendering). GPU milliseconds a frame against the then 12.5 ms budget;
 every phase ran at half rate, 36 fps:
 
 | Phase | From the air | Standing |
@@ -1026,8 +1029,8 @@ Once the ladder settles (step 10 on both):
 | Quest 2, 99.9 to 100% (four runs) | 72 fps, 9.7 to 9.8 ms App | 72 fps, 7.6 ms | 72 fps, 8.0 to 8.1 ms | 72 fps, 7.9 to 8.0 ms |
 | Steam Frame, 97.7% (the next wall turned down) | 72 to 73 fps, 7.5 ms viewport | 72 to 73 fps, 5.9 ms | 72 to 73 fps, 5.6 ms | 72 to 73 fps, 6.0 ms |
 
-The Quest 2's budget is 12.5 ms of App time and the Frame's line 11.1 ms of viewport time; at the
-limit the Quest 2 keeps 2.7 ms and the Frame 3.6 ms. In the first two or three seconds from the
+Both are held to the 11.1 ms line, the Quest 2 in App time and the Frame in viewport time; at the
+limit the Quest 2 keeps 1.4 ms and the Frame 3.6 ms. In the first two or three seconds from the
 air, while the ladder walked down, the Quest 2 ran 52 to 70 fps and the Frame, from the top
 step, half rate for about ten seconds.
 
@@ -3290,7 +3293,7 @@ One look, no options. Nothing blurs or sways: in a headset both read as bad eyes
   above, and the fog and colour correction are the ones already applied. Under water the eyes clip where the
   water's fog ends (`Rig.under`) and the fog takes the sky whole, so nothing past 7 m is drawn and none could be
   seen. `demo/underwater.json` plays a pond at the ladder's fit step (`Budget.fit_step`), the step play holds;
-  GPU ms a frame, 12.5 the budget at 72 Hz, no late frame under water past the first second on either headset:
+  GPU ms a frame, 12.5 the then budget at 72 Hz, no late frame under water past the first second on either headset:
 
   | | above | under, level | under, looking up | under, straight up |
   |---|---|---|---|---|
@@ -3364,7 +3367,7 @@ deep water and irises in the shallows.
   A pondweed clump costs about two thirds of a land clump in matching views, and both cost far more packed beside the
   eye than the 0.184 µs a clump grass was charged from the costs scene's pool spread over 20 m: 0.44 µs a pondweed
   clump, 0.71 a land clump. Charged that, 9,400 clumps would reach 13.8 ms of pondweed from above the pond and
-  15.8 ms of land grass standing over it, past the 12.5 ms line. So `Budget.COSTS.grass` is the dearest of these,
+  15.8 ms of land grass standing over it, past the then 12.5 ms line. So `Budget.COSTS.grass` is the dearest of these,
   0.706 µs a clump, the land disc standing (`scripts/paired.py --price` adds each kind's price to its record, and
   `tests/test_prices.py` fails while any unit is charged below the latest price recorded for it). A placed clump
   stays one grass unit wherever the water stands, since a pond can rise over it later; land grass's charge covers
@@ -3967,7 +3970,7 @@ the frames, the selfie camera no more than the camera.
 
 The stress scene on 7e3167d on each headset, the bench's GPU time a frame (the median of each phase's seconds after
 its first: the Quest 2 runtime's `App=`, the Frame's fdinfo, unworn) and its most draw calls in any second, the
-seconds with a photo's render included; the budget is `Budget.gpu_ms()`, 12.5 ms:
+seconds with a photo's render included; the line is `Budget.line_ms()`, 11.1 ms:
 
 | Phase | Quest 2: GPU ms, draws | Steam Frame: GPU ms, draws |
 | --- | --- | --- |
@@ -4181,7 +4184,7 @@ other texel runs the same equations. Canvas resolution, wet-tile margins, drying
 unchanged. `demo/canvas-water-bench.json` reproduces the loaded big-water-brush phase on a single easel; run it with
 `NESTCOMBE_SCENE=demo/canvas-water-bench.json scripts/bench.sh OUT --android APK` on a Quest.
 
-On Quest 2, the loaded-water phase measured 15.52 ms before these changes, against 12.50 ms. A first candidate
+On Quest 2, the loaded-water phase measured 15.52 ms before these changes, against the then 12.50 ms. A first candidate
 measured 12.11 ms but a repeat took 12.64 ms, so the empty-region check was simplified again: it fetches four water
 values without querying their tiles. The next two runs measured 11.51 and 11.68 ms; the latter used the original
 four-phase fixture and held all phases (idle 10.23 ms, charcoal 10.52/10.35 ms). It recorded 29 late painting frames
@@ -4193,7 +4196,7 @@ still exceeded budget (13.42 ms with the original empty-texel exit alone, 13.16 
 Passing the GPU-time gate does not establish zero missed frames. Original and optimized textures matched bit for
 bit at 16 wet/dry snapshots across watercolour, oil, charcoal, edge strokes and complete drying.
 
-On the Steam Frame (`demo/easel-bench.json`, 72 Hz, the build budget 12.5 ms of GPU time), frame milliseconds at the
+On the Steam Frame (`demo/easel-bench.json`, 72 Hz, the then build budget 12.5 ms of GPU time), frame milliseconds at the
 median and 99th percentile, late frames, and viewport GPU milliseconds, for the canvas's budget before (8 million
 texel-steps a frame catching up, at most 4,000 dabs) and after (one budget of 3 million, dabs charged):
 
@@ -4620,7 +4623,7 @@ whole-scene budget pass.
 
 The curved-join fix's physical Quest 2 stress run is recorded in
 `perf/quest-2/stress/20261021T115148Z-cc6d453.json`. The overlapping bowed-deck
-interior measures 9.94 ms GPU time against the 12.5 ms budget, with zero late
+interior measures 9.94 ms GPU time against the then 12.5 ms budget, with zero late
 frames; the existing ceiling interior measures 10.32 ms. The full benchmark
 exits 1: 71 non-sweep phases exceed budget. This is not a whole-scene pass or a
 paired attribution of those costs to the join change. Botq job 9186 carries the
@@ -4644,7 +4647,7 @@ controls. Whole-scene times vary between runs: the grass-hidden control moved fr
 credited to the shader. The records are in `perf/quest-2/grass-collapse/`.
 
 This is a partial saving, not a frame-budget pass. The candidate's visible-grass
-phases still take 29.67/29.63 ms against the 12.5 ms budget. The full stress scene
+phases still take 29.67/29.63 ms against the then 12.5 ms budget. The full stress scene
 and its validation remain unchanged.
 
 ### Dense-scene lighting remainder
@@ -4668,12 +4671,12 @@ The records are in `perf/quest-2/dense-sun-shadows/`. The fixture omits the earl
 pond and wildlife edits from the full stress tour. Its conditional differences
 are not additive across comparisons or transferable to individual stress phases.
 The entire time left with each control disabled remains unisolated; even the
-lowest control exceeds 12.5 ms. This establishes costs to investigate, not a
+lowest control exceeds the then 12.5 ms budget. This establishes costs to investigate, not a
 quality-preserving optimization or a budget pass.
 
 The unmodified stress run on the same revision, recorded in
 `perf/quest-2/stress/20261021T122615Z-21b182e.json`, held 52 of 120 non-sweep phases;
-68 failed, with `camera/two` at 38.67 ms (26.17 ms over budget). The five sweep
+68 failed, with `camera/two` at 38.67 ms (26.17 ms over the then 12.5 ms budget). The five sweep
 phases are retained separately. All 69 previously failing phases were measured:
 `hints/every` and `decorations/night` held, while the other 67 still failed;
 `ruins/no-delete` also failed at 12.64 ms. The added held-object phases remain in
@@ -4720,7 +4723,7 @@ sunlight as a whole. Hiding trees makes the frame slower; exposing occluded work
 is a hypothesis, not a separately isolated cause. Water has no consistent saving.
 
 Each disabled-state total remains an explicit unassigned remainder. Even hiding
-all settled masonry leaves 20.84–20.94 ms, 8.34–8.44 ms over budget. These effects
+all settled masonry leaves 20.84–20.94 ms, 8.34–8.44 ms over the then 12.5 ms budget. These effects
 include interactions and the camera previews' views, and cannot be summed into a
 frame decomposition or transferred to every stress phase. They identify larger
 costs to investigate; they do not justify hiding geometry, removing lighting or
@@ -4754,7 +4757,7 @@ view with the identical view, bird and cup hidden, alternating six pairs a phase
 Quest 2 one bird in view adds about 0.1 to 0.16 ms of GPU time, two draws and some
 1.8k primitives; the carry phase's view never frames it, so it costs nothing there; at the
 canvas its share is within the smear's noise; fourteen remote birds filling the view
-add 1.74 ms, which takes that phase from 11.0 ms to over the 12.5 ms budget in seven
+add 1.74 ms, which takes that phase from 11.0 ms to over the then 12.5 ms budget in seven
 of its twelve readings. The runs are recorded in `perf/quest-2/conure-cost/`.
 
 To fit the added birds, their small surfaces use fewer vertices and their ambient

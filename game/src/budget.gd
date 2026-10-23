@@ -10,8 +10,6 @@ extends RefCounted
 const REFRESH_HZ := 72.0
 ## Fixed tread density keeps raising terrain from multiplying a path's geometry.
 const PATH_TREADS_PER_ROW := 2
-## The share of each refresh period the game's GPU work may take; the compositor's warp needs the rest.
-const GPU_SHARE := 0.9
 
 ## What a garden's builds count as, the units COSTS prices: square metres of face of stone walls, plaster walls and
 ## fences (length along the ground by height, and a house's two gable ends: boards, laid as stones are but fewer, count
@@ -54,12 +52,13 @@ static func fit_step() -> int:
 	return Quality.ladder.size() - 1
 
 
-static func gpu_ms() -> float:
-	return 1000.0 / REFRESH_HZ * GPU_SHARE
+## The GPU time a frame may take: the line the running game's governor holds (Quality.Governor.LINE), at REFRESH_HZ.
+static func line_ms() -> float:
+	return 1000.0 / REFRESH_HZ * Quality.Governor.LINE
 
 
 static func info() -> Dictionary:
-	return {"refresh_hz": REFRESH_HZ, "gpu_ms": gpu_ms()}
+	return {"refresh_hz": REFRESH_HZ, "gpu_ms": line_ms()}
 
 
 static func cost_ms(units: Dictionary) -> float:
