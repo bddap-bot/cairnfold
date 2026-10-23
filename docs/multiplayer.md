@@ -203,7 +203,9 @@ three transforms and the look direction in the head's frame, unreliable and orde
 smoothed on arrival. Held implements use the same hand transforms. A reliable description of
 both hands travels on change and when a peer arrives: model kind, variant, transform relative
 to the visible hand, paint colour and load, source easel or book page, and whether seeds are
-being offered. An idle implement sends no repeated description.
+being offered. The same description carries a conure on either shoulder, standing on it in the
+torso's frame (`Torso`), which every peer works out from the head pose as the avatar's body does.
+An idle implement sends no repeated description.
 
 `HeldItem` builds ordinary wheel tools, brushes and charcoal, both palettes and the book from
 the holder's model builders. Empty or untracked hands remove their model. Painting models

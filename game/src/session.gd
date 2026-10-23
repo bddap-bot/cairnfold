@@ -290,8 +290,8 @@ func _process(delta: float) -> void:
 	_since_pose += delta
 	if _since_pose >= POSE_EVERY and not multiplayer.get_peers().is_empty():
 		_since_pose = 0.0
-		var items := [HeldItem.describe(rig.left, painting, book), HeldItem.describe(rig.right, painting, book)]
-		if _sent_held.is_empty() or not HeldItem.same(items[0], _sent_held[0]) or not HeldItem.same(items[1], _sent_held[1]):
+		var items := [HeldItem.describe(rig.left, painting, book), HeldItem.describe(rig.right, painting, book), HeldItem.perched(rig, 0), HeldItem.perched(rig, 1)]
+		if _sent_held.is_empty() or range(items.size()).any(func(i: int) -> bool: return not HeldItem.same(items[i], _sent_held[i])):
 			_held.rpc(items)
 			_sent_held = items
 		_pose.rpc(rig.head.global_transform, rig.left.body.global_transform, rig.right.body.global_transform, rig.gaze.look)
@@ -308,6 +308,9 @@ func _process(delta: float) -> void:
 			item.transform = a.hands[s]
 			item.visible = a.visible
 			dish.visible = a.visible and item.feeds()
+		for item: HeldItem in held[id].slice(2):
+			item.transform = Torso.frame(a.eyes, a.torso)
+			item.visible = a.visible
 
 
 func _announce() -> void:
@@ -513,7 +516,7 @@ func _appear(look: int, tint: Color) -> void:
 		pair.append(dish)
 	_dishes[id] = pair
 	var models: Array[HeldItem] = []
-	for side in 2:
+	for side in 4:
 		var item := HeldItem.new()
 		item.easels = painting.easels if painting != null else null
 		add_child(item)
@@ -717,10 +720,10 @@ func _pose(eyes: Transform3D, left: Transform3D, right: Transform3D, look: Vecto
 @rpc("any_peer", "reliable")
 func _held(items: Array) -> void:
 	var id := multiplayer.get_remote_sender_id()
-	if not held.has(id) or items.size() != 2:
+	if not held.has(id) or items.size() != 4:
 		return
 	for item in items:
 		if item is not Array or not HeldItem.valid(item):
 			return
-	for side in 2:
+	for side in 4:
 		(held[id][side] as HeldItem).show_state(items[side])

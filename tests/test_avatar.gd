@@ -116,7 +116,11 @@ func _pose_puts_the_eyes_on_the_head(scene: PackedScene, what: String) -> void:
 	var hips: Basis = a.bone("hips").basis * a._joints.hips.rest.basis.inverse()
 	_check(hips.y.is_equal_approx(Vector3.UP), "%s: the body stays upright when the head tips" % what)
 	var ahead: Vector3 = hips * a._facing.inverse() * Vector3.FORWARD
-	_check(Vector2(ahead.x, ahead.z).normalized().is_equal_approx(Vector2(-sin(1.1), -cos(1.1))), "%s: and faces where the head turns" % what)
+	_check(Vector2(ahead.x, ahead.z).normalized().is_equal_approx(Vector2(-sin(0.7), -cos(0.7))), "%s: and keeps facing as it was while the head turns within a neck's reach" % what)
+	a.pose(Transform3D(Basis(Vector3.UP, 0.7 + Torso.TURN + 0.3), tilted.origin), l, r)
+	hips = a.bone("hips").basis * a._joints.hips.rest.basis.inverse()
+	ahead = hips * a._facing.inverse() * Vector3.FORWARD
+	_check(Vector2(ahead.x, ahead.z).normalized().is_equal_approx(Vector2(-sin(1.0), -cos(1.0))), "%s: and turns once the head turns further" % what)
 	a.free()
 
 

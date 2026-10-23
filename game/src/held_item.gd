@@ -1,7 +1,8 @@
 class_name HeldItem
 extends Node3D
 
-## A held model's description travels only when it changes; the existing hand pose carries its motion.
+## A held model's description travels only when it changes; the existing hand pose carries its motion. A conure's
+## detail is 1 when it stands on a shoulder (`perched`) rather than in a cupped hand.
 enum Kind { TOOL, BRUSH, PALETTE, BOOK, BIRD }
 
 var state: Array = []
@@ -53,6 +54,14 @@ static func describe(hand: Hand, painting: EaselTool, book: Book) -> Array:
 	return [kind, index, local, colour, load, detail, hand.holds_seeds(), bend]
 
 
+## The conure on `rig`'s shoulder `side`, standing on it in the torso's frame, without the hand's cup.
+static func perched(rig: Rig, side: int) -> Array:
+	var c := rig.shoulders[side]
+	if c == null:
+		return []
+	return [Kind.BIRD, c.colouring, Transform3D(Basis.IDENTITY, Torso.SHOULDERS[side]), Color.WHITE, 0.0, 1, false, Vector3.ZERO]
+
+
 static func same(a: Array, b: Array) -> bool:
 	if a.size() != b.size():
 		return false
@@ -81,7 +90,7 @@ static func valid(s: Array) -> bool:
 		Kind.PALETTE:
 			return s[1] in Easels.KITS and s[5] > 0
 		Kind.BIRD:
-			return s[1] >= 0 and s[1] < Conure.PLUMAGES.size()
+			return s[1] >= 0 and s[1] < Conure.PLUMAGES.size() and s[5] in [0, 1]
 		Kind.BOOK:
 			return s[1] >= 0 and s[1] <= ceili(Lessons.PAGES.size() / 2.0) + 1
 	return false
@@ -109,7 +118,8 @@ func show_state(s: Array) -> void:
 				model = e.palettes[s[1]].duplicate() if e != null else Easels.watercolours() if s[1] == Brushwork.Medium.WATER else Easels.oils()
 			Kind.BIRD:
 				model = Conure.new(0.0, s[1])
-				model.add_child(BirdCarry.cup())
+				if s[5] == 0:
+					model.add_child(BirdCarry.cup())
 			Kind.BOOK:
 				model = Book.new(false)
 				(model as Book).at = s[1]

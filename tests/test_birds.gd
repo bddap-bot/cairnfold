@@ -21,6 +21,8 @@ func _initialize() -> void:
 	await _a_perch_taken_away_sends_them_elsewhere()
 	await _with_no_room_they_leave()
 	await _a_reshape_carries_them_with_their_perch()
+	_torso_lags_the_head()
+	await _shoulder()
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)
 
@@ -300,7 +302,11 @@ func _they_come_after_the_ducks_and_leave_with_the_perches() -> void:
 	await process_frame
 	_check(g.flora.placed("tree").is_empty() and g.tool.walls.is_empty(), "the tree and the wall are gone")
 	_run(g, 120.0, vanishing)
-	_check(g.birds().is_empty(), "the conures leave once no perch stands")
+	_check(g.birds().all(func(b: Birds.Bird) -> bool: return b.state == Birds.State.SHOULDER), "the conures leave once no perch stands, but for one riding your shoulder")
+	g.rig.under = true
+	_run(g, 120.0, vanishing)
+	_check(g.birds().is_empty(), "and that one leaves too once sent off it")
+	g.rig.under = false
 	_run(g, 200.0)
 	_check(g.birds().is_empty(), "and none come back without one")
 	await _teardown(g)
@@ -681,3 +687,131 @@ func _carry() -> void:
 	carry._process(STEP)
 	_check(h.carried == null and not b.carried and b.node.hand == null, "letting go clears ownership")
 	_check(b.state in [Birds.State.FLY, Birds.State.LEAVE], "release flies rather than falls")
+
+
+## The torso stays put while the head turns within a neck's reach, and follows once it turns further.
+func _torso_lags_the_head() -> void:
+	_check(is_equal_approx(Torso.follow(NAN, Basis(Vector3.UP, 0.4)), 0.4), "a first look sets the torso under the head")
+	_check(Torso.follow(0.0, Basis(Vector3.UP, 1.0)) == 0.0, "a head turned aside leaves the torso")
+	_check(is_equal_approx(Torso.follow(0.0, Basis(Vector3.UP, -1.6)), -1.6 + Torso.TURN), "a head turned past a neck's reach brings the torso round")
+	_check(is_equal_approx(Torso.follow(3.0, Basis(Vector3.UP, -3.0)), 3.0), "the torso turns the short way round")
+
+
+## A conure that trusts you comes to the outer edge of your shoulder, out of sight ahead and in sight turned to it; it
+## rides teleports and snap turns, a hand brushed at it or your head under water sends it off to come back later, and
+## it can be taken from there like any carried conure. Peers get it as a held model standing on the shoulder.
+func _shoulder() -> void:
+	var g := await _glade(31)
+	_draw_wall(g.tool, Vector3(-1.5, 0, -3), Vector3(1.5, 0, -3))
+	_lay(g)
+	var flock := g.wildlife.birds
+	flock.look()
+	flock.arrive()
+	_until_perched(g, 30.0)
+	_check(g.birds().size() >= 2, "a flock perched on the wall")
+	if g.birds().size() < 2:
+		await _teardown(g)
+		return
+	var b: Birds.Bird = g.birds()[0]
+	var shy := g.birds().slice(1)
+	_check(not _until_shouldered(g, b, 30.0), "a conure that does not trust you keeps off your shoulder")
+	b.affection = BirdCarry.TRUST
+	_check(_until_shouldered(g, b, 60.0), "a conure that trusts you comes to your shoulder")
+	_check(shy.all(func(o: Birds.Bird) -> bool: return o.shoulder < 0), "only the trusting one rides")
+	var rig := g.rig
+	_check(rig.shoulders[b.shoulder] == b.node, "the rig knows who rides its shoulder")
+	_check(_on_its_shoulder(g, b) < 0.01, "it stands on the shoulder, %.3f m off" % _on_its_shoulder(g, b))
+	var outer: float = (rig.torso().affine_inverse() * b.node.global_position).x * (1.0 if b.shoulder == 1 else -1.0)
+	_check(outer > 0.18, "it stands out at the shoulder's edge, %.2f m from the neck" % outer)
+	_check(_off_view(rig, b) > deg_to_rad(50.0), "looking ahead it is out of view, %.0f° off" % rad_to_deg(_off_view(rig, b)))
+	var ahead := rig.head.transform
+	rig.head.transform.basis = Basis.from_euler(Vector3(-0.6, Torso.TURN * (-1.0 if b.shoulder == 1 else 1.0), 0))
+	_tick(g, 0.5)
+	_check(_off_view(rig, b) < deg_to_rad(35.0), "turned to it and looking down it is in view, %.0f° off" % rad_to_deg(_off_view(rig, b)))
+	_check(_on_its_shoulder(g, b) < 0.01, "turning the head leaves it on the shoulder")
+	rig.head.transform = ahead
+	_tick(g, 0.5)
+	var worst := 0.0
+	rig.snap_turn(Rig.SNAP)
+	for i in 10:
+		_tick(g, STEP)
+		worst = maxf(worst, _on_its_shoulder(g, b))
+	rig.place(rig.head.global_position + Vector3(2.5, 0, 1.5) - Vector3.UP * rig.head.global_position.y, 0.0)
+	for i in 10:
+		_tick(g, STEP)
+		worst = maxf(worst, _on_its_shoulder(g, b))
+	_check(b.state == Birds.State.SHOULDER and worst < 0.02, "it rides snap turns and teleports, %.3f m off at worst" % worst)
+
+	var description := HeldItem.perched(rig, b.shoulder)
+	_check(HeldItem.valid(description) and description[0] == HeldItem.Kind.BIRD and description[5] == 1, "peers get a shoulder conure as a held model")
+	var seen := HeldItem.new()
+	root.add_child(seen)
+	seen.show_state(description)
+	var bare := Conure.new(0.0, 0)
+	_check(seen.model is Conure and seen.model.get_child_count() == bare.get_child_count(), "the peers' shoulder conure stands without the hand's cup")
+	bare.free()
+	seen.free()
+	_check(HeldItem.perched(rig, 1 - b.shoulder).is_empty(), "the other shoulder is bare")
+
+	var h := rig.right
+	var at := b.node.global_position + Conure.BODY
+	for i in 20:
+		h.global_position = at + Vector3(0.1 if i % 2 else -0.1, 0, 0)
+		_tick(g, STEP)
+		if b.shoulder < 0:
+			break
+	h.global_position = AWAY
+	_check(b.shoulder < 0 and b.state in [Birds.State.FLY, Birds.State.LEAVE] and rig.shoulders.all(func(c: Conure) -> bool: return c == null), "a hand brushed at it shoos it off")
+	_check(_until_shouldered(g, b, Birds.AWAY_FOR.y + 60.0), "a shooed conure that still trusts you comes back later")
+
+	rig.under = true
+	_tick(g, STEP)
+	_check(b.shoulder < 0 and rig.shoulders.all(func(c: Conure) -> bool: return c == null), "your head under water sends it off")
+	_check(not _until_shouldered(g, b, Birds.AWAY_FOR.y + 10.0), "it keeps off while you are under water")
+	rig.under = false
+	_check(_until_shouldered(g, b, 60.0), "it comes back once you are out of the water")
+
+	var easels := Easels.new()
+	root.add_child(easels)
+	var painting := EaselTool.new(rig, easels, g.world)
+	root.add_child(painting)
+	painting.set_process(false)
+	var carry := BirdCarry.new(rig, flock, painting)
+	root.add_child(carry)
+	carry.set_process(false)
+	h.tool = Hand.Tool.NONE
+	h.held_still = true
+	h.global_position = b.node.global_position + Vector3(0, 0.03, 0)
+	_check(carry.take(h, b), "a conure on your shoulder can be taken in the hand")
+	_check(b.shoulder < 0 and rig.shoulders.all(func(c: Conure) -> bool: return c == null), "taken, it leaves the shoulder free")
+	carry.release(h)
+	_check(b.state in [Birds.State.FLY, Birds.State.LEAVE], "let go, it flies")
+	h.global_position = AWAY
+	for n: Node in [carry, painting, easels]:
+		n.free()
+	await _teardown(g)
+
+
+func _tick(g: Glade, seconds: float) -> void:
+	for i in maxi(1, int(seconds / STEP)):
+		g.wildlife.tick(STEP)
+
+
+## Ticks until `b` stands on a shoulder, or `seconds` pass; whether it does.
+func _until_shouldered(g: Glade, b: Birds.Bird, seconds: float) -> bool:
+	for i in int(seconds / STEP):
+		_lay(g)
+		g.wildlife.tick(STEP)
+		if b.state == Birds.State.SHOULDER:
+			return true
+	return false
+
+
+func _on_its_shoulder(g: Glade, b: Birds.Bird) -> float:
+	return b.node.global_position.distance_to(Birds._shoulder_at(g.rig, b.shoulder).origin) if b.shoulder >= 0 else INF
+
+
+## How far off the middle of the view the bird's body is.
+func _off_view(rig: Rig, b: Birds.Bird) -> float:
+	var eyes := rig.head.global_transform
+	return (-eyes.basis.z).angle_to(b.node.global_transform * Conure.BODY - eyes.origin)

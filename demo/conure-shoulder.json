@@ -1,0 +1,108 @@
+[
+  {
+    "op": "budget",
+    "bounded": false
+  },
+  {
+    "op": "quality",
+    "step": "fit"
+  },
+  {
+    "op": "place",
+    "x": 0,
+    "z": 3
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      1.5,
+      3
+    ],
+    "at": [
+      0,
+      1,
+      -2
+    ]
+  },
+  {
+    "op": "dig",
+    "x": -4,
+    "z": 0,
+    "seconds": 2
+  },
+  {
+    "op": "wall",
+    "points": [
+      [
+        -1,
+        -2
+      ],
+      [
+        1,
+        -2
+      ]
+    ],
+    "seconds": 1
+  },
+  {
+    "op": "befriend",
+    "hand": "left"
+  },
+  {
+    "op": "release_bird",
+    "hand": "left"
+  },
+  {
+    "op": "view",
+    "eye": [
+      0,
+      1.65,
+      3
+    ],
+    "at": [
+      0,
+      1.4,
+      -2
+    ]
+  },
+  {
+    "op": "hands",
+    "left": [
+      -0.25,
+      -0.55,
+      -0.15
+    ],
+    "right": [
+      0.25,
+      -0.55,
+      -0.15
+    ]
+  },
+  {
+    "op": "shoulder_bird"
+  },
+  {
+    "op": "wait",
+    "seconds": 2
+  },
+  {
+    "op": "capture",
+    "name": "shoulder-ahead"
+  },
+  {
+    "op": "shoulder_bird",
+    "look": true
+  },
+  {
+    "op": "wait",
+    "seconds": 1
+  },
+  {
+    "op": "capture",
+    "name": "shoulder-aside"
+  },
+  {
+    "op": "quit"
+  }
+]

@@ -56,6 +56,10 @@ var body: Avatar
 
 ## The hand whose teleport ray is out, or null.
 var aim_hand: Hand
+## The conure on each shoulder, left then right, or null.
+var shoulders: Array[Conure] = [null, null]
+## The torso's turn in this node's space, so a snap turn or a teleport carries it with the player.
+var _torso := NAN
 var aim_ground: Variant = null
 var aim_lift := 0.0
 ## What a point stands on: the top surface at or just below it, the ground or anything built on it.
@@ -139,9 +143,16 @@ func wear(a: Avatar) -> void:
 ## Poses the body from the head and hands; a hand in `holding` holds a camera, whose model stands in for it, so its
 ## fingers never reach in front of the lens.
 func pose_body(holding: Array[Hand]) -> void:
+	body.torso = torso().basis.get_euler().y
 	body.pose(head.global_transform, left.global_transform, right.global_transform, gaze.look)
 	for h in holding:
 		body.fold(hands.find(h))
+
+
+## The torso under the head, in the world's space (`Torso`).
+func torso() -> Transform3D:
+	_torso = Torso.follow(_torso, head.transform.basis)
+	return global_transform * Torso.frame(head.transform, _torso)
 
 
 func _marker(mesh: Mesh, mat: Material) -> MeshInstance3D:

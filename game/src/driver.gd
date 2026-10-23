@@ -1936,7 +1936,7 @@ func _neck_cost(s: Dictionary) -> void:
 ## Publishes the holder's actual models for another process to compare with what its network peer renders.
 func _held_snapshot(s: Dictionary) -> void:
 	await get_tree().create_timer(Hand.POP * 3.0).timeout
-	var items := [HeldItem.describe(main.rig.left, main.easel_tool, main.book), HeldItem.describe(main.rig.right, main.easel_tool, main.book)]
+	var items := [HeldItem.describe(main.rig.left, main.easel_tool, main.book), HeldItem.describe(main.rig.right, main.easel_tool, main.book), HeldItem.perched(main.rig, 0), HeldItem.perched(main.rig, 1)]
 	if s.get("loaded", false):
 		assert(items[1].size() == 8 and items[1][0] == HeldItem.Kind.BRUSH and items[1][4] > 0.5, "capture holds a loaded brush")
 	var path: String = str(main.args.get("capture-dir", "user://captures")).path_join(s.name)
@@ -1955,19 +1955,20 @@ func _remote_holds(s: Dictionary) -> void:
 			continue
 		var pair: Array = main.session.held[expected[0]]
 		var matches := true
-		for side in 2:
+		var avatar: Avatar = main.session.avatars[expected[0]]
+		for side in 4:
 			var item: HeldItem = pair[side]
 			matches = matches and HeldItem.same(item.state, expected[1][side])
 			if item.state.is_empty():
 				matches = matches and item.model == null
 			else:
 				matches = matches and item.model != null and item.model.is_visible_in_tree() and item.model.transform.is_equal_approx(item.state[2])
-				matches = matches and item.transform.is_equal_approx((main.session.avatars[expected[0]] as Avatar).hands[side])
+				matches = matches and item.transform.is_equal_approx(avatar.hands[side] if side < 2 else Torso.frame(avatar.eyes, avatar.torso))
 				if item.state[0] == HeldItem.Kind.BRUSH and item.state[1] != Brushwork.Brush.STICK:
 					var tip := (item.model.get_node("tip") as MeshInstance3D).material_override as StandardMaterial3D
 					matches = matches and tip.albedo_color.is_equal_approx(item.state[3])
 		if matches:
-			print("held: peer sees %s in the other player's hands" % str(expected[1].map(HeldItem.label)))
+			print("held: peer sees %s in the other player's hands and on their shoulders" % str(expected[1].map(HeldItem.label)))
 			return
 	assert(false, "remote held models differ from holder: " + s.name)
 
@@ -2049,6 +2050,33 @@ func _befriend(s: Dictionary) -> void:
 		main.finish()
 		return
 	print("conure: feeding earned trust, grip carries bird")
+
+
+## Waits for a conure that trusts this player to come to their shoulder; with `trust`, the first to perch is given the
+## trust feeding would earn, and with no conure about a flock is brought to the garden's perches. With `look`, the head
+## then turns to that shoulder as far as a neck turns and looks down at it.
+func _shoulder_bird(s: Dictionary) -> void:
+	var flock: Birds = main.wildlife.birds
+	var elapsed := 0.0
+	if flock.birds.is_empty():
+		flock.look()
+		assert(not flock.sites.is_empty(), "no perch for a conure")
+		flock.arrive()
+	while elapsed < 120.0:
+		if s.get("trust", false):
+			for b in flock.birds:
+				if b.state == Birds.State.PERCH:
+					b.affection = BirdCarry.TRUST
+		var side: int = main.rig.shoulders.find_custom(func(c: Conure) -> bool: return c != null)
+		if side >= 0:
+			print("conure: rides the player's shoulder")
+			if s.get("look", false):
+				var yaw: float = main.rig.torso().basis.get_euler().y - main.rig.global_basis.get_euler().y
+				main.rig.head.transform.basis = Basis.from_euler(Vector3(-0.6, yaw + Torso.TURN * (1.0 if side == 0 else -1.0), 0))
+			return
+		await get_tree().process_frame
+		elapsed += get_process_delta_time()
+	assert(false, "no conure came to the shoulder")
 
 
 ## Carries the bird to the canvas and sweeps its feathers across it, then lifts away.

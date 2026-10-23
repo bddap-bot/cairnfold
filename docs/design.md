@@ -4538,3 +4538,25 @@ lighting samples terrain height once per bird each frame. Feather variation uses
 mesh colour, and canvas relief uses screen derivatives of its existing height
 sample rather than eight neighbouring texture reads. Removing the supporting
 palms did not improve the measured GPU total, so the cupped hold stays intact.
+
+### A conure on your shoulder
+
+Directive (verbatim): "I'd like it so that um once it Conure likes you it will follow you around." ... "let's try putting it out on the edge of your shoulder so you can to your side and see it there and grab it. Um, and then it, it goes away if you go underwater or if you flick it off. Like if you shoo it away"
+
+Liking you is the trust above: eight seconds eating from your hands. A conure that trusts you,
+perched or pecking within 12 m, now and then (`Birds.FOLLOWS`) flies to whichever of your
+shoulders is free and nearer it, one bird to a shoulder, and rides there as you walk, teleport
+and snap turn: it sits in the rig's space, eased only against head jitter. It stands out on the
+shoulder's outer edge (`Torso.SHOULDERS`), facing as your body does. Your body (`Torso`) hangs
+from the neck and turns only once your head has turned further from it than a neck turns, 70°,
+so looking ahead the bird is out of view, and turning your head to it and looking down brings it
+into view. It murmurs and grinds its beak, preens now and then, turns its head to you when you
+look at it and otherwise looks where you look. Close a hand on it and it is carried like any
+trusted conure. A hand brushed or flicked at it, within 30 cm and faster than 1.2 m/s (a reach to
+take it is slower), or your head going under a pond's surface, sends it off to a perch a short
+way off; it keeps away 20 to 45 s and then may come back while it still trusts you. A bird on
+your shoulder has a perch, so it stays when every wall and tree is gone, and leaves the garden
+only once sent off it. Peers see it standing on your avatar's shoulder; the avatar's body turns
+the same way (see docs/multiplayer.md). It adds no draw: the bird was in the garden already, and
+a peer's shoulder bird is one held conure, the cost measured above.
+`demo/conure-shoulder.json` feeds one, lets it go and captures the view ahead and turned to it.

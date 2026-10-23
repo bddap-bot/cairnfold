@@ -7,10 +7,11 @@ extends Node3D
 ## up to slowly turns to watch and stays, shuffling aside only from a face about to touch it; a sudden
 ## move startles it a short way to a perch still in view. One that sees seeds held out looks at whoever holds them
 ## and at the hand a while, and then flies to it, or thinks better of it; on the hand it eats as long as the seeds are
-## held out, and each hand holding seeds has its own. They leave, out of sight, once no perch stands. Part of `Wildlife`, which decides when they come
+## held out, and each hand holding seeds has its own. One that trusts you comes to ride on your shoulder now and then,
+## until you shoo it off or duck under water. They leave, out of sight, once no perch stands. Part of `Wildlife`, which decides when they come
 ## and knows where nobody is looking.
 
-enum State { ARRIVE, PERCH, HOP, FLY, PECK, LEAVE, DECIDE, FEED }
+enum State { ARRIVE, PERCH, HOP, FLY, PECK, LEAVE, DECIDE, FEED, SHOULDER }
 
 const CAP := 3
 const FLOCK := Vector2i(2, 3)
@@ -40,6 +41,17 @@ const DRAWN := 0.6
 const DECIDE_FOR := Vector2(1.5, 5.0)
 const TAKES := 0.75
 const PUT_OFF := Vector2(2.0, 6.0)
+## How readily one that trusts you (`BirdCarry.TRUST`) leaves its perch for a free shoulder of yours within FOLLOW_FROM,
+## per second, and how long one off your shoulder keeps away before it may come back.
+const FOLLOWS := 0.2
+const FOLLOW_FROM := 12.0
+const AWAY_FOR := Vector2(20.0, 45.0)
+## A hand this near a bird on your shoulder and moving faster than this, in m/s, shoos it; a reach to take it is slower.
+const SHOO := 0.3
+const SHOO_SPEED := 1.2
+## How fast a bird on your shoulder settles to it as you move, per second, in your rig's space so a teleport or a snap
+## turn carries it whole.
+const RIDE := 14.0
 ## A conure flies to seeds held out anywhere near and eats them standing on the hand.
 static var appetite := Wildlife.Appetite.new(Wildlife.Eat.ON_HAND, 6.0, INF, 0.0, Vector2(8.0, 16.0), Vector2(10.0, 25.0))
 const PAUSE := Vector2(1.5, 5.0)
@@ -65,6 +77,7 @@ const VOICE := {
 	"PECK": [["click", 12.0], ["chatter", 25.0]],
 	"DECIDE": [["murmur", 4.0]],
 	"FEED": [["murmur", 10.0], ["grind", 30.0]],
+	"SHOULDER": [["murmur", 15.0], ["grind", 30.0]],
 	"FLY": [["contact", 20.0]],
 	"ARRIVE": [["contact", 8.0]],
 	"LEAVE": [["contact", 12.0]],
@@ -99,6 +112,12 @@ class Bird:
 	var full := 0.0
 	var affection := 0.0
 	var carried := false
+	## The shoulder it rides or makes for, `Torso.SHOULDERS`'s index, or -1.
+	var shoulder := -1
+	## How long until it may come to your shoulder again.
+	var away := 0.0
+	## Where it sits on your shoulder, in your rig's space.
+	var ride := Transform3D.IDENTITY
 
 
 ## Something a bird may stand on, and the points on it where it may.
@@ -232,7 +251,7 @@ func look() -> void:
 	for s in sites:
 		s.listed = true
 	for b in birds:
-		if b.state == State.LEAVE or b.carried:
+		if b.state == State.LEAVE or b.carried or b.shoulder >= 0:
 			continue
 		if sites.is_empty():
 			_leave(b)
@@ -291,6 +310,10 @@ func _think(b: Bird, delta: float) -> void:
 			b.node.looking = wildlife.viewer.global_position
 		return
 	b.full = maxf(b.full - delta, 0.0)
+	b.away = maxf(b.away - delta, 0.0)
+	if b.shoulder >= 0:
+		_on_shoulder(b, delta)
+		return
 	if b.node.hand != null:
 		_voice(b, State.keys()[b.state], delta)
 		_to_hand(b, delta)
@@ -316,6 +339,8 @@ func _think(b: Bird, delta: float) -> void:
 			b.duration = rng.randf_range(DECIDE_FOR.x, DECIDE_FOR.y)
 			b.timer = b.duration
 			return
+	if b.affection >= BirdCarry.TRUST and b.away <= 0.0 and rng.randf() < delta * FOLLOWS and _to_shoulder(b):
+		return
 	var near := wildlife._nearest(at, WATCH) if b.state == State.PERCH else null
 	if near != null:
 		_voice(b, "WATCH", delta)
@@ -436,6 +461,83 @@ func _short_flight(b: Bird, from: Vector3) -> bool:
 		return false
 	_fly_to(b, best_site, best, State.FLY)
 	return true
+
+
+func _rig() -> Rig:
+	var v := wildlife.viewer
+	return v.get_parent() as Rig if v != null and v.is_inside_tree() else null
+
+
+## The shoulder `side` of `rig`'s torso, where a bird stands facing as the torso does.
+static func _shoulder_at(rig: Rig, side: int) -> Transform3D:
+	var t := rig.torso()
+	return Transform3D(t.basis, t * Torso.SHOULDERS[side])
+
+
+## Off to the free shoulder of yours nearer it, if you are near and above water and one is free.
+func _to_shoulder(b: Bird) -> bool:
+	var rig := _rig()
+	if rig == null or rig.under or rig.head.global_position.distance_to(b.node.position) > FOLLOW_FROM:
+		return false
+	var free := [0, 1].filter(func(side: int) -> bool: return not birds.any(func(o: Bird) -> bool: return o.shoulder == side))
+	if free.is_empty():
+		return false
+	var side: int = free[0]
+	if free.size() == 2:
+		side = 1 if (rig.torso().affine_inverse() * b.node.position).x > 0.0 else 0
+	_fly_to(b, null, _shoulder_at(rig, side).origin, State.FLY)
+	b.shoulder = side
+	b.then = State.SHOULDER
+	return true
+
+
+## Making for your shoulder, or riding it: it keeps its place there however you move, turns its head to you when you
+## look at it and else looks where you look. A hand brushed at it or your head under water sends it off.
+func _on_shoulder(b: Bird, delta: float) -> void:
+	var rig := _rig()
+	if rig == null or rig.under:
+		_off_shoulder(b, b.node.position)
+		return
+	var spot := _shoulder_at(rig, b.shoulder)
+	if b.state != State.SHOULDER:
+		if b.to.distance_to(spot.origin) > 1.0:
+			b.from = b.node.position
+			b.flight = 0.0
+			b.duration = maxf(b.from.distance_to(spot.origin) / SPEED, 0.5)
+		b.to = spot.origin
+		_voice(b, "FLY", delta)
+		return
+	for h in rig.hands:
+		if h.global_position.distance_to(b.node.position + Conure.BODY) < SHOO and wildlife._speed.get(h, 0.0) > SHOO_SPEED:
+			_off_shoulder(b, h.global_position)
+			return
+	b.ride = b.ride.interpolate_with(rig.global_transform.affine_inverse() * spot, 1.0 - exp(-delta * RIDE))
+	b.node.global_transform = rig.global_transform * b.ride
+	var eyes := rig.head.global_transform
+	var seen := (b.node.position - eyes.origin).normalized().dot(-eyes.basis.z) > 0.8
+	b.node.looking = eyes.origin if seen else eyes * Vector3(0, 0, -3)
+	b.preening = maxf(b.preening - delta, 0.0)
+	if b.preening <= 0.0 and rng.randf() < delta * 0.05:
+		b.preening = rng.randf_range(PREEN_FOR.x, PREEN_FOR.y)
+	b.node.blend(Conure.PREEN if b.preening > 0.0 else Conure.IDLE, delta)
+	_voice(b, "SHOULDER", delta)
+
+
+## Off your shoulder to a perch a short way from `from`, to keep away a while.
+func _off_shoulder(b: Bird, from: Vector3) -> void:
+	let_go_shoulder(b)
+	b.away = rng.randf_range(AWAY_FOR.x, AWAY_FOR.y)
+	b.state = State.FLY
+	if not _short_flight(b, from):
+		_flutter(b)
+
+
+## Frees the shoulder `b` rides or makes for.
+func let_go_shoulder(b: Bird) -> void:
+	var rig := _rig()
+	if rig != null and b.shoulder >= 0 and rig.shoulders[b.shoulder] == b.node:
+		rig.shoulders[b.shoulder] = null
+	b.shoulder = -1
 
 
 ## Looking the seeds over, flying to them, then standing on the hand eating for as long as it is held out calmly
@@ -627,7 +729,7 @@ func _move(b: Bird, delta: float) -> void:
 			return
 	if n.is_in_group(&"perched"):
 		n.remove_from_group(&"perched")
-	if b.state == State.FEED:
+	if b.state in [State.FEED, State.SHOULDER]:
 		return
 	b.flight = minf(b.flight + delta / b.duration, 1.0)
 	if b.flight < 0.0:
@@ -654,6 +756,11 @@ func _land(b: Bird) -> void:
 	b.then = State.PERCH
 	if b.state == State.FEED:
 		b.timer = rng.randf_range(appetite.eats_for.x, appetite.eats_for.y)
+	elif b.state == State.SHOULDER:
+		var rig := _rig()
+		b.ride = rig.global_transform.affine_inverse() * _shoulder_at(rig, b.shoulder)
+		b.node.global_transform = rig.global_transform * b.ride
+		rig.shoulders[b.shoulder] = b.node
 	elif b.state == State.PECK:
 		if flew:
 			b.timer = rng.randf_range(PECK_FOR.x, PECK_FOR.y)

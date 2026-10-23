@@ -97,6 +97,8 @@ def held_steps(name, names, capture=False):
                for kit in ("palette", "box")]
     phases[-1].insert(0, {"op": "set_down", "hand": "left"})
     phases += [[{"op": "set_down", "hand": "left"}, {"op": "pick", "tool": "none"}]]
+    phases += [[{"op": "wall", "points": [[-2, 9], [0, 9]], "seconds": 1}, {"op": "wait", "seconds": 1},
+                {"op": "shoulder_bird", "trust": True}]]
     for i, phase in enumerate(phases):
         key = f"held-{i}"
         if name == "join":

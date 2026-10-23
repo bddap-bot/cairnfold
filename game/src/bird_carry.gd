@@ -38,11 +38,12 @@ func _process(delta: float) -> void:
 
 
 func take(h: Hand, b: Birds.Bird) -> bool:
-	if held.has(h) or b.carried or b.affection < TRUST or b.state not in [Birds.State.PERCH, Birds.State.FEED, Birds.State.PECK]:
+	if held.has(h) or b.carried or b.affection < TRUST or b.state not in [Birds.State.PERCH, Birds.State.FEED, Birds.State.PECK, Birds.State.SHOULDER]:
 		return false
 	if b.node.global_position.distance_to(h.body.global_position) > REACH:
 		return false
 	birds.wildlife.release(b)
+	birds.let_go_shoulder(b)
 	b.carried = true
 	b.node.hand = h
 	h.carried = b.node
