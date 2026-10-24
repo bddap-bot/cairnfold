@@ -2482,11 +2482,21 @@ block-cut into points and pinned by hazel liggers. So a thatched roof lays (`Roo
   `Wall.Part.COAT`) cast its shadow and stand in for it in the bounce light; the coat itself casts none.
 
 Cost: a thatched roof is one mesh drawn per build (a draw call each, not chunked like tiles) at about a third
-of a tiled roof's triangles. In the stress scene's village two storeys high, tiled and then thatched, on the desktop
-renderer: from the air 429 draws and 2.78 M primitives tiled, 514 and 2.10 M thatched; standing, 201 and 2.65 M
-against 233 and 2.21 M. Both now count the ground they cover out to their eaves (a resized house counts its new
-size; tiles counted a fixed circle before), and `demo/costs.json` fits `thatch_m2` beside `roof_m2`; until it is
-played on a headset both hold the tiled roof's fitted cost rescaled to the new measure.
+fewer triangles than a tiled one. Both count the area along their slopes out to the eaves, and `demo/costs.json` fits
+`thatch_m2` beside `roof_m2` on each headset (see "Build budget"): thatch fits cheaper than tiles on both, 1.14 µs a m²
+against 2.35 on the Frame, and the Quest 2's 12.4 against 22.1 in `Budget.COSTS`. A build's extra draw call costs
+less than the tiles it replaces, so the coats stay one mesh a build. The stress scene's village two storeys high,
+tiled and then thatched, in viewport GPU milliseconds a frame, draws and primitives:
+
+| Phase | Steam Frame ([record](../perf/frame/stress/20261023T001249Z-f1d7d2d.json)) | Quest 2 ([record](../perf/quest-2/stress/20261022T232134Z-276e1cf.json)) |
+| --- | --- | --- |
+| Tiled, from the air | 9.68 ms, 344 draws, 1.89 M | 251 ms, 343 draws, 1.90 M |
+| Thatched, from the air | 10.23 ms, 417 draws, 1.78 M | 105 ms, 416 draws, 1.78 M |
+| Tiled, standing | 16.41 ms, 235 draws, 2.99 M | 27.0 ms, 201 draws, 2.72 M |
+| Thatched, standing | 15.49 ms, 331 draws, 2.40 M | 25.1 ms, 294 draws, 2.19 M |
+
+From the air the Quest 2 draws the tiled village at under four frames a second, the thatched one at under ten; both
+lie far past the budget, as the stress scene means them to.
 
 `tests/test_thatch.gd` casts rays at every roof shape the game builds (gables shallow to 6 m steep, bowed and swept,
 cones) and after resizes: straw a coat deep over every point of the roof, over the ridge, round the eaves and verges
