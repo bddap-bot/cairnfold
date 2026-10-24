@@ -1,6 +1,5 @@
-extends SceneTree
+extends "res://../tests/support/suite.gd"
 
-var failures := 0
 var probes := 0
 var cases := 0
 var triangles := 0
@@ -29,7 +28,7 @@ func _run() -> void:
 				for thatch in [false, true]:
 					_case(plaster, 0 if plaster else -1, 1.2, curve, thatch, 1.5, RoofLayout.Kind.GABLE, end)
 	print("tests: roof closure: %d cases, %d probes, %d leaks; %d instances, %d triangles" % [cases, probes, failures, instances, triangles])
-	Main.quit(self, 1 if failures else 0)
+	finish()
 
 
 func _case(plaster: bool, timber: int, pitch: float, curve: float, thatch: bool, raised: float, kind := RoofLayout.Kind.GABLE, end_style := WallLayout.GableEnd.WALL) -> void:
@@ -64,7 +63,7 @@ func _case(plaster: bool, timber: int, pitch: float, curve: float, thatch: bool,
 	for part in [Wall.Part.STONE, Wall.Part.MORTAR, Wall.Part.TIMBER, Wall.Part.TILE]:
 		faces.append_array(_instances(rendered._parts[part], kinds[part]))
 		instances += rendered._parts[part].size() / kinds[part].stride()
-	for node in [rendered._gables, rendered._torching, rendered._coat]:
+	for node in [rendered._gables, rendered._torching, rendered._coat, rendered._ceiling]:
 		if node.mesh != null:
 			faces.append_array(node.mesh.get_faces())
 	triangles += faces.size() / 3

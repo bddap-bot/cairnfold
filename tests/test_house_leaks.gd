@@ -2,7 +2,7 @@ extends "res://../tests/support/suite.gd"
 
 const Probe = preload("res://../tests/support/house_leaks.gd")
 const SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 60]
-const SEALED_SEEDS := [24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 60]
+const SEALED_SEEDS := [8756, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 60]
 ## Escapes the dense sweep found, as [origin, direction]: the normal sphere is too sparse to meet them again.
 const SEALED_RAYS := {
 	35: [
