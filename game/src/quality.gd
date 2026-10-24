@@ -345,6 +345,8 @@ class Governor:
 	## Seconds averaged since the last step settled; the average steps down only once a whole one is in.
 	var _averaged := 0.0
 	var _before := 0.0
+	## The frame time that took the last step down.
+	var _took := INF
 	## The level whose step up the average after the last step measures, or -1, and whether that step was up.
 	var _measuring := -1
 	var _went_up := false
@@ -432,6 +434,10 @@ class Governor:
 		# there dropped 36 frames while the average stepped down once a second. A missed refresh with the GPU over
 		# the line steps down two at once, as a frame far over budget does; one the CPU held, the GPU under it, does not.
 		var missed := dt_ms > budget_ms * HALVED and frame_ms > line
+		# A refresh missed after a step down, before the average shows what it saved, at no lower a reading than the one
+		# that took it, reads what the ladder does not draw: on the Steam Frame, after a village was laid at once, the
+		# timer read 12.6 to 14.3 ms at every step from 5 to 16 while each miss took two more.
+		missed = missed and (averaged or _went_up or frame_ms < _took)
 		# A step still under way has not shown what it saves, so it may not be followed into one that pops.
 		var floor := bottom if settled else _unpopped()
 		_calm = _calm + dt if settled and averaged and not halved and _average + cost(level, budget_ms) < line else 0.0
@@ -451,6 +457,7 @@ class Governor:
 					_wait[i] = maxf(_wait[i], CALM_SECONDS_MAX)
 			_measuring = to
 			_went_up = false
+			_took = frame_ms
 			why = "%s, %.1f ms since the last frame, averaging %.1f ms" % ["over budget" if _hot >= HOT_FRAMES else "missed" if missed else "every other refresh" if halved else "average over the line", dt_ms, _average]
 			_move(to)
 		elif level > 0 and _calm >= _climb_wait():

@@ -113,6 +113,14 @@ func _a_missed_refresh_over_the_line_steps_down() -> void:
 	_feed(g, BUDGET * 0.5, 72)
 	g.step(BUDGET * 0.5, BUDGET, DT * 2.0)
 	check(g.level == 0, "one the CPU held leaves the ladder alone")
+	g = Quality.Governor.new(10)
+	_feed(g, BUDGET * UNDER_LINE, 72)
+	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
+	_feed(g, BUDGET * 0.9, Quality.Governor.SETTLE_FRAMES)
+	g.step(BUDGET * 0.9, BUDGET, DT * 2.0)
+	check(g.level == 2, "a miss reading no lower than the one that stepped down waits for the average: %d" % g.level)
+	g.step(BUDGET * 0.85, BUDGET, DT * 2.0)
+	check(g.level == 4, "one reading lower steps on: %d" % g.level)
 
 
 func _calm_steps_back_up_after_a_spell() -> void:
