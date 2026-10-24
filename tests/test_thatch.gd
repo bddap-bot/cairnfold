@@ -53,8 +53,8 @@ class Coat:
 	var verts: PackedVector3Array
 	var cells := {}
 
-	func _init(r: RoofLayout) -> void:
-		verts = r.coat[Mesh.ARRAY_VERTEX] if not r.coat.is_empty() else PackedVector3Array()
+	func _init(arrays: Array) -> void:
+		verts = arrays[Mesh.ARRAY_VERTEX] if not arrays.is_empty() else PackedVector3Array()
 		for i in range(0, verts.size(), 3):
 			var box := AABB(verts[i], Vector3.ZERO).expand(verts[i + 1]).expand(verts[i + 2])
 			for x in range(floori(box.position.x * 2.0), floori(box.end.x * 2.0) + 1):
@@ -123,7 +123,12 @@ func _surface(r: RoofLayout, xs := PackedFloat32Array()) -> Array:
 ## down onto the ridge meets straw above the slopes' meeting; one in under the eave or a verge meets its rounded edge
 ## before the wall; and one up from under the overhang meets its underside.
 func _covered(r: RoofLayout, what: String) -> void:
-	var coat := Coat.new(r)
+	_covered_by(r, Coat.new(r.coat), what)
+	_covered_by(r, Coat.new(r.coat_far), what + ", far")
+	check(r.coat_far[Mesh.ARRAY_VERTEX].size() * 2 < r.coat[Mesh.ARRAY_VERTEX].size(), "%s: the far coat has under half the near one's triangles" % what)
+
+
+func _covered_by(r: RoofLayout, coat: Coat, what: String) -> void:
 	check(coat.verts.size() > 600 and _of(r, "tile").is_empty() and _of(r, "ridge").is_empty(), "%s: thatched in straw, no tiles: %d triangles" % [what, coat.verts.size() / 3])
 	var thin := []
 	for p in _surface(r):

@@ -57,6 +57,7 @@ var _drawn: Masonry
 var _ivy: MultiMeshInstance3D
 var _gables: MeshInstance3D
 var _coat: MeshInstance3D
+var _coat_far: MeshInstance3D
 var _torching: MeshInstance3D
 var _ceiling: MeshInstance3D
 ## The roof faces its meshes were built from; a lay that leaves them alone keeps the meshes.
@@ -89,8 +90,8 @@ var _perch_out := {}
 ## How each Part is drawn. Stones, roof tiles and the mortar between stones cast no shadow; a plain box per
 ## stone or tile does, at a ninth of the triangles. Far off, a tile is a plain box too: from the air a roof's rounded
 ## tiles cost the Quest 2 ten times what plain ones do. Mortar only shows in the gaps, so it is a plain box too. A
-## thatched roof's coat is a mesh of its own; its slabs cast its shadow and stand in it for the bounce light. A
-## timber is a plain box near, where a stone's lumps would cost it nine times the triangles; far it is the coarse
+## thatched roof's coat is a mesh of its own, from rows RoofLayout.FAR_STEP apart past the near distance; its slabs cast
+## its shadow and stand in it for the bounce light. A timber is a plain box near, where a stone's lumps would cost it nine times the triangles; far it is the coarse
 ## stone in a shader that reads nothing per pixel, since a few pixels wide its shading is what it costs. A floor's
 ## flags and planks are drawn as timbers are, but lie in the walls' own shade and the light around them: they cast
 ## no shadow and shade no bounce light, which reads a room's builds from its roof down.
@@ -181,9 +182,11 @@ func add_roof(r: RoofLayout) -> void:
 	_gables.material_override = _plaster
 	add_child(_gables)
 	_coat = MeshInstance3D.new()
-	_coat.material_override = _thatch
-	_coat.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(_coat)
+	_coat_far = MeshInstance3D.new()
+	for coat in [_coat, _coat_far]:
+		coat.material_override = _thatch
+		coat.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+		add_child(coat)
 	_faced = []
 	_torching = MeshInstance3D.new()
 	_torching.material_override = _lime
@@ -499,15 +502,22 @@ func _pack_roof(roofed := {}) -> void:
 	if faces == _faced:
 		return
 	_faced = faces.duplicate(true)
-	_coat.mesh = null
-	if not roof.coat.is_empty() and not roof.coat[Mesh.ARRAY_VERTEX].is_empty():
-		var mesh := ArrayMesh.new()
-		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, roof.coat)
-		_coat.mesh = mesh
+	_coat.mesh = _coat_mesh(roof.coat)
+	_coat_far.mesh = _coat_mesh(roof.coat_far)
+	_coat.visibility_range_end = kinds()[Part.STONE].near + (_coat.mesh.get_aabb().size.length() * 0.5 if _coat.mesh != null else 0.0)
+	_coat_far.visibility_range_begin = _coat.visibility_range_end
 	_gables.mesh = _faces_mesh(faces[1])
 	_torching.mesh = _faces_mesh(faces[2])
 	_ceiling.mesh = _faces_mesh(faces[3], true)
 	_ceiling.visibility_range_end = kinds()[Part.TIMBER].near + (_ceiling.mesh.get_aabb().size.length() * 0.5 if _ceiling.mesh != null else 0.0)
+
+
+static func _coat_mesh(arrays: Array) -> ArrayMesh:
+	if arrays.is_empty() or arrays[Mesh.ARRAY_VERTEX].is_empty():
+		return null
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	return mesh
 
 
 static func _faces_mesh(tris: PackedVector3Array, flat_normals := false) -> ArrayMesh:
@@ -596,7 +606,8 @@ func _tint_roof() -> void:
 		var t := Palette.tint(Palette.Element.PLASTER, paint[Palette.Element.PLASTER])
 		_gables.set_instance_shader_parameter(&"tint", Vector3(t.r, t.g, t.b))
 		var straw := Palette.tint(Palette.Element.THATCH, paint[Palette.Element.THATCH])
-		_coat.set_instance_shader_parameter(&"tint", Vector3(straw.r, straw.g, straw.b))
+		for coat in [_coat, _coat_far]:
+			coat.set_instance_shader_parameter(&"tint", Vector3(straw.r, straw.g, straw.b))
 		_torching.set_instance_shader_parameter(&"tint", Vector3(t.r, t.g, t.b))
 		var wood := WallLayout.WOOD * Palette.tint(Palette.Element.TIMBER, paint[Palette.Element.TIMBER])
 		_ceiling.set_instance_shader_parameter(&"timber_color", Vector3(wood.r, wood.g, wood.b))

@@ -2557,8 +2557,15 @@ block-cut into points and pinned by hazel liggers. So a thatched roof lays (`Roo
 Cost: a thatched roof is one mesh drawn per build (a draw call each, not chunked like tiles) at about a third
 fewer triangles than a tiled one. Both count the area along their slopes out to the eaves, and `demo/costs.json` fits
 `thatch_m2` beside `roof_m2` on each headset (see "Build budget"): thatch fits cheaper than tiles on both, 1.14 µs a m²
-against 2.35 on the Frame, and the Quest 2's 12.4 against 22.1 in `Budget.COSTS`. A build's extra draw call costs
-less than the tiles it replaces, so the coats stay one mesh a build. The stress scene's village two storeys high,
+against 2.35 on the Frame. A build's extra draw call costs less than the tiles it replaces, so the coats stay one mesh
+a build. Past the stones' near distance the coat is drawn from rows `RoofLayout.FAR_STEP` (0.36 m) apart instead of
+`COAT_STEP` (0.12), a fifth of the triangles: on the Quest 2 five thatched houses from the air read 7.66 ms drawn fine
+at every distance against 6.62 coarse far off, over a bare 5.16, four pairs interleaved in one run, and look the same
+there. Before that cut, hiding each part in turn put 2.6 ms of their 4.0 in the coat, its shadow slabs, liggers and
+chimneys nothing measurable, and a far coat lit once a vertex with no texture reads cost 0.3 ms more than its own
+shader. `thatch_m2` and `thatch_m2_near` in `Budget.COSTS` are this build's fit
+([record](../perf/quest-2/costs/20261024T133151Z-14ca646.json)): 3.834 µs a m² from the air, down from 10.177, and
+8.116 standing, where the village's fit had charged it nothing. The stress scene's village two storeys high,
 tiled and then thatched, in viewport GPU milliseconds a frame, draws and primitives:
 
 | Phase | Steam Frame ([record](../perf/frame/stress/20261023T001249Z-f1d7d2d.json)) | Quest 2 ([record](../perf/quest-2/stress/20261022T232134Z-276e1cf.json)) |

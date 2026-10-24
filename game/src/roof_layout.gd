@@ -86,8 +86,11 @@ const POINT := Vector2(0.7, 0.28)
 ## crest, how far past it each side and how far above.
 const CREST := 2.5
 const ROLL := Vector2(0.12, 0.16)
-## The coat's mesh: the most its rows lie apart, and how many steps round its rounded edges.
+## The coat's mesh: the most its rows lie apart, and how many steps round its rounded edges. Past the stones' near
+## distance it is drawn from rows FAR_STEP apart: from the air the fine coat cost the Quest 2 a millisecond over five
+## roofs and looked the same.
 const COAT_STEP := 0.12
+const FAR_STEP := 0.36
 const EDGE_STEPS := 5
 const HAZEL := Color(0.45, 0.36, 0.24)
 var kind := Kind.GABLE
@@ -117,8 +120,9 @@ var stepped := false
 var thatch := false
 
 var tiles: Array[Dictionary] = []
-## A thatched roof's coat, as Mesh arrays, and the slabs standing in for it in shadows and bounce light.
+## A thatched roof's coat, as Mesh arrays, near and far, and the slabs standing in for it in shadows and bounce light.
 var coat: Array = []
+var coat_far: Array = []
 var _coat_pick: TriangleMesh
 var slabs: Array[Dictionary] = []
 ## Plain mortar boxes bedding a deck's flags, so its joints show mortar rather than the floor below.
@@ -172,6 +176,7 @@ func adopt(built: RoofLayout) -> void:
 	corners = built.corners
 	tiles = built.tiles
 	coat = built.coat
+	coat_far = built.coat_far
 	_coat_pick = built._coat_pick
 	slabs = built.slabs
 	mortar = built.mortar
@@ -330,6 +335,7 @@ func build() -> void:
 		bounds = bounds.expand(p)
 	tiles.clear()
 	coat = []
+	coat_far = []
 	_coat_pick = null
 	slabs.clear()
 	mortar.clear()
@@ -891,68 +897,83 @@ func _lay_thatch(rng: RandomNumberGenerator) -> void:
 	var lumps := FastNoiseLite.new()
 	lumps.seed = seed
 	lumps.frequency = 0.8
-	var c := Coat.new()
-	c.straw = STRAW.lerp(WEATHERED, weather)
-	c.ridge = STRAW.lerp(WEATHERED, weather * 0.3)
-	c.moss = weather * 1.4
-	c.lumps = lumps
-	if kind == Kind.GABLE:
-		_coat_gable(c)
-	else:
-		_coat_cone(c)
-	coat = c.arrays()
+	var straw := STRAW.lerp(WEATHERED, weather)
+	for step in [COAT_STEP, FAR_STEP]:
+		var c := Coat.new()
+		c.step = step
+		c.straw = straw
+		c.ridge = STRAW.lerp(WEATHERED, weather * 0.3)
+		c.moss = weather * 1.4
+		c.lumps = lumps
+		if kind == Kind.GABLE:
+			_coat_gable(c)
+		else:
+			_coat_cone(c)
+		if step == COAT_STEP:
+			coat = c.arrays()
+		else:
+			coat_far = c.arrays()
 	_pick_coat()
+	var f := frame()
+	if kind == Kind.GABLE:
+		for side in [-1.0, 1.0]:
+			_coat_liggers(f.mid, f.across * side, f.along, _coat_reach())
+			_coat_slabs(f.mid, f.across * side, f.along, _coat_reach() * 2.0, straw)
+	else:
+		for k in 8:
+			var a := TAU * k / 8.0
+			var out := Vector3(cos(a), 0.0, sin(a))
+			_coat_slabs(f.mid, out, out.cross(Vector3.UP), TAU * eave() / 8.0, straw)
+
+
+## How far the coat runs each way along a gable's ridge from its middle.
+func _coat_reach() -> float:
+	return ridge_length() * 0.5 + (0.0 if stepped else WallLayout.THICKNESS * 0.5 + THATCH_VERGE)
 
 
 ## A gable's coat: each slope a grid from the ridge to past the eave and past both verges, its edges rounded under, then
-## the ridge's roll, the liggers on its band, and the slabs.
+## the ridge's roll.
 func _coat_gable(c: Coat) -> void:
 	var f := frame()
-	var reach := ridge_length() * 0.5 + (0.0 if stepped else WallLayout.THICKNESS * 0.5 + THATCH_VERGE)
-	var ts := _edged(_spaced(-reach, reach, COAT_STEP))
-	var xs := _coat_rows()
+	var reach := _coat_reach()
+	var ts := _edged(_spaced(-reach, reach, c.step))
+	var xs := _coat_rows(c.step)
 	for side in [-1.0, 1.0]:
 		var out: Vector3 = f.across * side
 		c.grid(ts.size(), xs.size(), func(i: int, j: int) -> Array:
 			var t: float = ts[i].x
 			return _coat_node(f.mid + f.along * t, out, f.along * signf(t), t, xs[j].x, ts[i].y, xs[j].y, c))
-		var under := _spaced(half_span() - 0.1, eave() + THATCH_EAVE, COAT_STEP * 2.0)
-		var ends := _spaced(0.0, eave() + THATCH_EAVE, COAT_STEP * 2.0)
-		var lengthwise := _spaced(-reach, reach, COAT_STEP * 2.0)
+		var under := _spaced(half_span() - 0.1, eave() + THATCH_EAVE, c.step * 2.0)
+		var ends := _spaced(0.0, eave() + THATCH_EAVE, c.step * 2.0)
+		var lengthwise := _spaced(-reach, reach, c.step * 2.0)
 		c.grid(lengthwise.size(), under.size(), func(i: int, j: int) -> Array:
 			return _under_node(f.mid + f.along * lengthwise[i], out, under[j]))
 		for end in ([] if stepped else [-1.0, 1.0]):
-			var gable := _spaced(ridge_length() * 0.5 + WallLayout.THICKNESS * 0.5 - 0.05, reach, COAT_STEP)
+			var gable := _spaced(ridge_length() * 0.5 + WallLayout.THICKNESS * 0.5 - 0.05, reach, c.step)
 			c.grid(gable.size(), ends.size(), func(i: int, j: int) -> Array:
 				return _under_node(f.mid + f.along * end * gable[i], out, ends[j]))
-		_coat_liggers(f.mid, out, f.along, reach)
-		_coat_slabs(f.mid, out, f.along, reach * 2.0, c)
 	_ridge_roll(c, f.mid, f.along, f.across, reach)
 
 
 func _coat_cone(c: Coat) -> void:
 	var f := frame()
-	var xs := _coat_rows()
-	var n := maxi(24, ceili(TAU * (eave() + THATCH_EAVE) / (COAT_STEP * 1.5)))
+	var xs := _coat_rows(c.step)
+	var n := maxi(24, ceili(TAU * (eave() + THATCH_EAVE) / (c.step * 1.5)))
 	var points := maxi(6, roundi(TAU * BAND.y / POINT.x))
 	c.grid(n + 1, xs.size(), func(i: int, j: int) -> Array:
 		var a := TAU * i / n
 		var out := Vector3(cos(a), 0.0, sin(a))
 		return _coat_node(f.mid, out, Vector3.ZERO, float(i) / n * points * POINT.x, xs[j].x, 0.0, xs[j].y, c))
-	var under := _spaced(half_span() - 0.1, eave() + THATCH_EAVE, COAT_STEP * 2.0)
+	var under := _spaced(half_span() - 0.1, eave() + THATCH_EAVE, c.step * 2.0)
 	c.grid(n + 1, under.size(), func(i: int, j: int) -> Array:
 		var a := TAU * i / n
 		return _under_node(f.mid, Vector3(cos(a), 0.0, sin(a)), under[j]))
 	_knob(c, f.mid)
-	for k in 8:
-		var a := TAU * k / 8.0
-		var out := Vector3(cos(a), 0.0, sin(a))
-		_coat_slabs(f.mid, out, out.cross(Vector3.UP), TAU * eave() / 8.0, c)
 
 
 ## Rows down a slope as Vector2(distance out from the ridge, how far round the eave's edge): close together about the
 ## band's cut, the last EDGE_STEPS turning under the eave.
-func _coat_rows() -> PackedVector2Array:
+func _coat_rows(step: float) -> PackedVector2Array:
 	var out := PackedVector2Array()
 	var cut := _along(0.0, -BAND.y)
 	var tip := _along(0.0, -(BAND.y + POINT.y))
@@ -960,7 +981,7 @@ func _coat_rows() -> PackedVector2Array:
 	var end := eave() + THATCH_EAVE
 	while x < end:
 		out.append(Vector2(x, 0.0))
-		x += COAT_STEP * (0.3 if x > cut - 0.1 and x < tip + 0.06 else 1.0)
+		x += step * (0.3 if x > cut - 0.1 and x < tip + 0.06 else 1.0)
 	out.append(Vector2(end, 0.0))
 	for k in EDGE_STEPS:
 		out.append(Vector2(end, PI * (k + 1) / EDGE_STEPS))
@@ -1049,7 +1070,7 @@ func _ridge_roll(c: Coat, mid: Vector3, along: Vector3, across: Vector3, reach: 
 	var wide := crest.x + ROLL.x
 	var deep := ROLL.y + wide * tan(slope_at(0.0))
 	var centre := mid + Vector3.UP * (pitch + crest.y)
-	var ts := _spaced(-reach + 0.05, reach - 0.05, COAT_STEP * 2.0)
+	var ts := _spaced(-reach + 0.05, reach - 0.05, c.step * 2.0)
 	var around := 16
 	c.grid(ts.size() + 2, around + 1, func(i: int, j: int) -> Array:
 		var k := clampi(i - 1, 0, ts.size() - 1)
@@ -1089,7 +1110,7 @@ func _coat_liggers(mid: Vector3, out: Vector3, along: Vector3, reach: float) -> 
 
 
 ## Slabs down a slope of `width` along `along`, inside the coat: what shadows and the bounce light see of it.
-func _coat_slabs(mid: Vector3, out: Vector3, along: Vector3, width: float, c: Coat) -> void:
+func _coat_slabs(mid: Vector3, out: Vector3, along: Vector3, width: float, straw: Color) -> void:
 	var end := eave() + THATCH_EAVE
 	var xs := _spaced(0.0, end, 0.9)
 	for i in xs.size() - 1:
@@ -1100,12 +1121,13 @@ func _coat_slabs(mid: Vector3, out: Vector3, along: Vector3, width: float, c: Co
 		var at := mid + out * x + Vector3.UP * rise(1.0 - x / half_span()) + basis.y * COAT * 0.4
 		var crown := at + basis.y * COAT * 0.4
 		at.y = minf(at.y, height_at(crown.x, crown.z) + COAT - LUMPS - basis.y.y * COAT * 0.4)
-		slabs.append({"xform": Transform3D(basis.scaled_local(Vector3(width, COAT * 0.8, length)), at), "color": c.straw, "kind": "thatch", "ao": 1.0})
+		slabs.append({"xform": Transform3D(basis.scaled_local(Vector3(width, COAT * 0.8, length)), at), "color": straw, "kind": "thatch", "ao": 1.0})
 
 
 ## Builds the coat's triangles: grids of nodes ([position, normal, straw direction, colour]) joined into quads, each
 ## triangle wound to face its nodes' normals.
 class Coat:
+	var step := COAT_STEP
 	var straw: Color
 	var ridge: Color
 	var moss := 0.0
@@ -1151,12 +1173,18 @@ class Coat:
 		return out
 
 
-## Keeps the coat's triangles and slabs `kept` takes, by their middles.
+## Keeps the coat's triangles, near and far, and slabs `kept` takes, by their middles.
 func keep_coat(kept: Callable) -> void:
 	slabs.assign(slabs.filter(func(s: Dictionary) -> bool: return kept.call(s.xform.origin)))
 	if coat.is_empty():
 		return
-	var verts: PackedVector3Array = coat[Mesh.ARRAY_VERTEX]
+	coat = _kept(coat, kept)
+	coat_far = _kept(coat_far, kept)
+	_pick_coat()
+
+
+static func _kept(arrays: Array, kept: Callable) -> Array:
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 	var out := []
 	out.resize(Mesh.ARRAY_MAX)
 	out[Mesh.ARRAY_VERTEX] = PackedVector3Array()
@@ -1168,11 +1196,10 @@ func keep_coat(kept: Callable) -> void:
 			continue
 		for k in 3:
 			out[Mesh.ARRAY_VERTEX].append(verts[i + k])
-			out[Mesh.ARRAY_NORMAL].append(coat[Mesh.ARRAY_NORMAL][i + k])
-			out[Mesh.ARRAY_COLOR].append(coat[Mesh.ARRAY_COLOR][i + k])
-			out[Mesh.ARRAY_TANGENT].append_array(coat[Mesh.ARRAY_TANGENT].slice((i + k) * 4, (i + k) * 4 + 4))
-	coat = out
-	_pick_coat()
+			out[Mesh.ARRAY_NORMAL].append(arrays[Mesh.ARRAY_NORMAL][i + k])
+			out[Mesh.ARRAY_COLOR].append(arrays[Mesh.ARRAY_COLOR][i + k])
+			out[Mesh.ARRAY_TANGENT].append_array(arrays[Mesh.ARRAY_TANGENT].slice((i + k) * 4, (i + k) * 4 + 4))
+	return out
 
 
 func _clay(hue: float, rng: RandomNumberGenerator) -> Color:

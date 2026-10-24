@@ -48,7 +48,7 @@ const CAPACITY_MS := 4.68
 ## adds, charged however much is painted (docs/design.md, "Ground materials").
 const STONE_M2_US := 0.468
 const STONE_VIEW_US := 590.0
-const COSTS := {"grass": 2.503, "flower": 1.832, "tree": 26.628, "bush": 4.712, "wall_m2": 4.293, "plaster_m2": 1.105, "fence_m2": 2.271, "pond_m2": 15.9, "roof_m2": 9.437, "thatch_m2": 10.177, "fitting": 15.187, "easel": 876.552, "boulder": 37.518, "water": 1908.364, "stone_m2": STONE_M2_US, "stone": STONE_VIEW_US, "timber": TIMBER_US, "arch": ARCH_US, "moss": MOSS_US, "wall_m2_near": 6.233, "plaster_m2_near": 4.282, "fence_m2_near": 3.381, "roof_m2_near": 0.0, "thatch_m2_near": 0.0}
+const COSTS := {"grass": 2.503, "flower": 1.832, "tree": 26.628, "bush": 4.712, "wall_m2": 4.293, "plaster_m2": 1.105, "fence_m2": 2.271, "pond_m2": 15.9, "roof_m2": 9.437, "thatch_m2": 3.834, "fitting": 15.187, "easel": 876.552, "boulder": 37.518, "water": 1908.364, "stone_m2": STONE_M2_US, "stone": STONE_VIEW_US, "timber": TIMBER_US, "arch": ARCH_US, "moss": MOSS_US, "wall_m2_near": 6.233, "plaster_m2_near": 4.282, "fence_m2_near": 3.381, "roof_m2_near": 0.0, "thatch_m2_near": 8.116}
 
 
 static func fit_step() -> int:
