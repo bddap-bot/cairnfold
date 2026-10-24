@@ -4,7 +4,9 @@ costs.py OUT_DIR
 
 OUT_DIR is what `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT_DIR ...` left on that headset. Each phase is the
 bare meadow plus one kind of build, at the fixed calibration step (Budget.fit_step), from the air and standing; its cost is its
-median viewport GPU time (the governor's signal) over the bare meadow's from the same view. A view whose frames fell
+median viewport GPU time (the governor's signal) over the bare meadow's from the same view, or over the phase it is built on
+(ON) for one that adds to another's builds. Masonry is fitted twice: its far rate on all its area from the air, where every
+chunk draws far meshes, and its near excess on the area near one eye (`<unit>_near`, Budget.near) standing among it. A view whose frames fell
 below the refresh rate is left out: GPU time read there is not the scene's. A unit's cost is the most any view of any phase
 holding it as the one unknown gives, so the bound holds from every view measured: grass and flowers are measured
 both spread over 20 m and packed into the 1.8 m disc a garden can paint beside the eye, where each covers the most. Wildlife comes to builds in numbers
@@ -22,10 +24,21 @@ import re
 import sys
 
 out = sys.argv[1]
-# Each phase and the unit it fits, over what earlier phases fitted of its others.
-ORDER = [("grass", "grass"), ("grass-dense", "grass"), ("flowers", "flower"), ("flowers-dense", "flower"), ("trees", "tree"), ("bushes", "bush"), ("walls-r10", "wall_m2"), ("walls-r15", "wall_m2"),
-         ("walls-r20", "wall_m2"), ("plaster", "plaster_m2"), ("fences", "fence_m2"), ("ponds", "pond_m2"),
-         ("village", "roof_m2"), ("thatch", "thatch_m2"), ("lanterns", "fitting"), ("meadow", None), ("hills", None), ("stone", None), ("easels", "easel"), ("boulders", "boulder")]
+# Each phase, the unit it fits over what earlier phases fitted of its others, and the views it fits from: from the air
+# every chunk draws its far meshes.
+FAR, NEAR = ("aerial",), ("ground",)
+ORDER = [("grass", "grass", None), ("grass-dense", "grass", None), ("flowers", "flower", None), ("flowers-dense", "flower", None),
+         ("trees", "tree", None), ("bushes", "bush", None),
+         ("walls-r10", "wall_m2", FAR), ("walls-r15", "wall_m2", FAR), ("walls-r20", "wall_m2", FAR),
+         ("walls-r10", "wall_m2_near", NEAR), ("walls-r15", "wall_m2_near", NEAR), ("walls-r20", "wall_m2_near", NEAR),
+         ("plaster", "plaster_m2", FAR), ("plaster", "plaster_m2_near", NEAR), ("fences", "fence_m2", FAR), ("fences", "fence_m2_near", NEAR),
+         ("ponds", "pond_m2", None), ("village", "roof_m2", FAR), ("hamlet", "roof_m2", FAR), ("village", "roof_m2_near", NEAR),
+         ("hamlet", "roof_m2_near", NEAR), ("thatch", "thatch_m2", FAR),
+         ("thatch", "thatch_m2_near", NEAR), ("hamlet", None, None), ("lanterns", "fitting", None), ("meadow", None, None),
+         ("hills", None, None), ("stone", None, None), ("easels", "easel", None), ("boulders", "boulder", None)]
+# A phase built on another's builds left standing, fitted against it from the same view: only what it changed counts, so
+# its unit is not charged the error of prices fitted on other layouts.
+ON = {"lanterns": "walls-r10", "thatch": "village"}
 WILD = ["flowers-wild", "trees-wild", "fences-wild", "ponds-wild"]
 
 units = {}
@@ -56,25 +69,32 @@ base = {v: gpu[f"base/{v}"] for v in views}
 cost = {}
 
 
-def extras(phase, unit):
-    """What each measured view of `phase` takes over the base and over what is fitted of its units other than `unit`."""
+def extras(phase, unit, only=None):
+    """What each measured view of `phase` (of `only` views) takes over the base, or over the phase it is built on (ON),
+    and over what is fitted of its units other than `unit`, with the units it has."""
     have = units.get(phase, {})
+    under = ON.get(phase)
+    if under is not None:
+        have = {k: have.get(k, 0.0) - units.get(under, {}).get(k, 0.0) for k in {*have, *units.get(under, {})}}
     for v in views:
-        name = f"{phase}/{v}"
-        if name in halved:
-            print(f"{name}: below the refresh rate, left out", file=sys.stderr)
-        if name not in gpu or name in halved:
+        name, ref = f"{phase}/{v}", f"{under}/{v}" if under else f"base/{v}"
+        if only is not None and v not in only:
             continue
-        extra = gpu[name] - base[v] - sum(have[k] * cost.get(k, 0.0) for k in have if k != unit) / 1000.0
-        print(f"{name:20} {gpu[name]:6.2f} ms, {extra:+6.2f} ms over the base and what is fitted, units {have}", file=sys.stderr)
+        for n in (name, ref):
+            if n in halved:
+                print(f"{n}: below the refresh rate, {name} left out", file=sys.stderr)
+        if name not in gpu or ref not in gpu or name in halved or ref in halved:
+            continue
+        extra = gpu[name] - gpu[ref] - sum(have[k] * cost.get(k, 0.0) for k in have if k != unit) / 1000.0
+        print(f"{name:20} {gpu[name]:6.2f} ms, {extra:+6.2f} ms over {ref} and what is fitted, units {have}", file=sys.stderr)
         yield extra, have
 
 
-for phase, unit in ORDER:
-    for extra, have in extras(phase, unit):
-        if unit is not None:
+for phase, unit, only in ORDER:
+    for extra, have in extras(phase, unit, only):
+        if unit is not None and have.get(unit, 0.0) > 0.0:
             cost[unit] = max(cost.get(unit, 0.0), extra * 1000.0 / have[unit])
-missing = [unit for _, unit in ORDER if unit is not None and unit not in cost]
+missing = [unit for _, unit, _ in ORDER if unit is not None and unit not in cost]
 if missing:
     sys.exit(f"costs: no view measured {', '.join(missing)}; nothing written")
 # Water costs by the pixels it covers, so a view full of it is the most any garden's water can cost: the meadow's whole

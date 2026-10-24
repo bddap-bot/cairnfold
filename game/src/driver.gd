@@ -492,6 +492,13 @@ func _roof(s: Dictionary) -> void:
 	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": roof}})
 
 
+## Thatches every roof standing, as the roof style pick does, so a phase measures thatch against the same houses tiled.
+func _thatch(_s: Dictionary) -> void:
+	for id: int in main.world.state.walls:
+		if main.world.state.walls[id].has("roof"):
+			main.world.submit({"op": "reshape", "of": "walls", "id": id, "data": {"roof": {"thatch": true}}})
+
+
 func _top(s: Dictionary) -> void:
 	var w: Wall = main.tool.walls[s.index]
 	if w.roof == null or w.roof.flat():

@@ -23,6 +23,7 @@ func _run() -> void:
 	await _a_capped_edit_is_heard_felt_and_shown()
 	await _painting_stops_at_the_budget()
 	_water_costs_at_most_a_view_full()
+	_masonry_near_one_eye_is_charged_once()
 	_stone_ground_counts_its_square_metres()
 	_a_boulder_costs_no_more_once_it_fills_the_view()
 	finish()
@@ -37,6 +38,35 @@ func _every_step_keeps_the_same_fill() -> void:
 		check(is_equal_approx(Budget.fill(garden), expected), "quality %d keeps the same fill" % step)
 		check(not Budget.fits(garden, {"wall_m2": 1000.0}), "quality %d refuses an over-capacity edit" % step)
 	main.quality.pin = pin
+
+
+static func _near(cells: Dictionary) -> Dictionary:
+	var near := Budget.Near.new()
+	near.add(cells)
+	return near.units()
+
+
+func _masonry_near_one_eye_is_charged_once() -> void:
+	var house := _wall(Vector2(0, 0), Vector2(4, 0), 2.5)
+	var units := Budget.wall(house)
+	var near := _near(World._spread("walls", house))
+	check(is_equal_approx(near.get("wall_m2_near", 0.0), units.wall_m2), "a lone wall stands wholly near one eye: %s" % near)
+	var span := (Budget.near_span() * 2 + 1) * Masonry.FINE
+	var apart := {}
+	for i in 3:
+		World._add_cells(apart, World._spread("walls", _wall(Vector2(i * span * 2.0, 0), Vector2(i * span * 2.0 + 4, 0), 2.5)))
+	check(is_equal_approx(_near(apart).get("wall_m2_near", 0.0), units.wall_m2), "walls too far apart to stand near one eye count near once")
+	var close := {}
+	for i in 3:
+		World._add_cells(close, World._spread("walls", _wall(Vector2(0, i * 2.0), Vector2(4, i * 2.0), 2.5)))
+	check(is_equal_approx(_near(close).get("wall_m2_near", 0.0), 3.0 * units.wall_m2), "walls side by side all count near")
+	var long := _wall(Vector2(-60, 0), Vector2(60, 0), 2.5)
+	var spread := World._spread("walls", long)
+	var total := 0.0
+	for c in spread:
+		total += spread[c].wall_m2
+	check(is_equal_approx(total, Budget.wall(long).wall_m2) and spread.size() >= 15, "a long wall's face spreads along the chunks it crosses: %d" % spread.size())
+	check(_near(spread).wall_m2_near < Budget.wall(long).wall_m2 * 0.3, "and only the stretch near one eye counts near")
 
 
 func _water_costs_at_most_a_view_full() -> void:
@@ -85,9 +115,12 @@ func _settled() -> void:
 ## What the garden holds, counted afresh from its state rather than kept command by command.
 func _recount() -> Dictionary:
 	var out := {}
-	for of in ["walls", "paths", "grounds"]:
+	var cells := {}
+	for of in ["walls", "stairs", "paths", "grounds"]:
 		for d: Dictionary in world.state[of].values():
 			Budget.add(out, World._units(of, d))
+			World._add_cells(cells, World._spread(of, d))
+	Budget.add(out, _near(cells))
 	for g in world.state.groups:
 		for p: Flora.Plant in world.flora.groups[g]:
 			if p != null and not world.state.groups[g].hidden.has(p.index):
@@ -234,10 +267,12 @@ func _an_edit_past_the_budget_is_turned_down_and_deleting_makes_room() -> void:
 	await _settled()
 	check(world.fill() < Budget.fill(full), "deleting a wall frees its share")
 	check(await _build([_wall(Vector2(-6, -50), Vector2(6, -50), 4.5)]), "the room it freed takes another wall")
-	var tall_id: int = world.state.walls.keys().max()
+	var ids: Array = world.state.walls.keys()
+	ids.sort()
+	var tall_id: int = ids[ids.size() / 2 - 1]
 	world.submit({"op": "reshape", "of": "walls", "id": tall_id, "data": {"height": 9.0}})
 	await _settled()
-	check(world.state.walls[tall_id].height == 4.5, "pulling a wall taller than the budget allows is turned down")
+	check(world.state.walls[tall_id].height == 4.5, "pulling a wall among the others taller than the budget allows is turned down")
 	await play([{"op": "bare"}])
 	await _settled()
 
@@ -279,7 +314,7 @@ func _painting_stops_at_the_budget() -> void:
 	await play([{"op": "paint", "tool": "stone", "points": [[-40, -20], [40, -20], [40, -30], [-40, -30], [-40, -40], [40, -40]], "radius": 3.0, "seconds": 8.0}])
 	await _settled()
 	check(world.units.get("stone_m2", 0.0) * Budget.COSTS.stone_m2 > Budget.COSTS.stone, "a long stroke of stone lays more than a view full")
-	check(is_equal_approx(Budget.cost_ms(world.units) - Budget.cost_ms({"wall_m2": world.units.wall_m2}), Budget.COSTS.stone / 1000.0), "and is charged a view full of it")
+	check(is_equal_approx(Budget.cost_ms(world.units) - Budget.cost_ms({"wall_m2": world.units.wall_m2, "wall_m2_near": world.units.wall_m2_near}), Budget.COSTS.stone / 1000.0), "and is charged a view full of it")
 	for id: int in world.state.grounds.keys():
 		world.submit({"op": "take", "of": "grounds", "ids": PackedInt32Array([id])})
 	await _settled()

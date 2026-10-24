@@ -39,7 +39,7 @@ func extend(hand: Hand, at: Vector3) -> void:
 		s.steps = layout.treads.size()
 		Cues.play(Cues.Act.STAIRS_LAY, s.data.b, hand)
 	s.ghost.lay(layout.stones)
-	world.preview(hand, Budget.stairs(s.data))
+	world.preview(hand, world.change_of({"op": "stairs", "stairs": s.data}))
 
 func end(hand: Hand) -> void:
 	if not _strokes.has(hand):

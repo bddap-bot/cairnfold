@@ -305,8 +305,7 @@ func _handle(m: Mason) -> void:
 func _preview(m: Mason) -> void:
 	var change := {}
 	if m.stroke != null:
-		for w in m.stroke.walls:
-			Budget.add(change, Budget.wall(w.data()))
+		change = world.change_of({"op": "wall", "walls": m.stroke.walls.map(func(w: Wall) -> Dictionary: return w.data())})
 	elif m.growing != null and m.sizing.current.call() and not m.sizing.command.call().is_empty():
 		change = world.change_of(m.sizing.command.call())
 	elif not _holders.is_empty() and m == _holders[0]:

@@ -91,6 +91,11 @@ var _keep_wait := 0.0
 ## by key too, so taking one away takes back what it added.
 var units := {}
 var _units_of := {}
+## Each build's masonry by Masonry's chunk (Budget.spread), by key; the garden's, and the `<unit>_near` units it gives,
+## which `units` holds.
+var _cells_of := {}
+var _near := Budget.Near.new()
+var _near_units := {}
 ## False lets the garden take builds past the frame budget, as the stress scene does to find what they cost.
 var bounded := true
 var _fills := {}
@@ -149,21 +154,37 @@ func fits(cmd: Dictionary) -> bool:
 ## What `cmd` would add to `units`, without applying it: negative for what it takes away. A paint stroke counts every
 ## plant its dabs hold, though some may fall on paths.
 func change_of(cmd: Dictionary) -> Dictionary:
+	var cells := {}
+	var out := _change(cmd, cells)
+	if not cells.is_empty():
+		Budget.add(Budget.add(out, _near.units(cells)), _near_units, -1.0)
+	return out
+
+
+## `cmd`'s change to the garden's units, its masonry's by chunk added into `cells`.
+func _change(cmd: Dictionary, cells: Dictionary) -> Dictionary:
 	var out := {}
 	match cmd.get("op"):
 		"wall":
 			for w: Dictionary in cmd.walls:
 				Budget.add(out, _units("walls", w))
+				_add_cells(cells, _spread("walls", w))
 		"stairs", "path", "ground", "easel", "decoration", "boulder":
 			# Stairs and a path carry their build in the field their op names; the rest are their build.
-			Budget.add(out, _units(Commands.PUTS.find_key(cmd.op), cmd.get(cmd.op, cmd)))
+			var of: String = Commands.PUTS.find_key(cmd.op)
+			Budget.add(out, _units(of, cmd.get(cmd.op, cmd)))
+			_add_cells(cells, _spread(of, cmd.get(cmd.op, cmd)))
 		"take":
 			for id in cmd.ids:
-				Budget.add(out, _units_of.get("%s%d" % [KEYS[cmd.of], id], {}), -1.0)
+				var key := "%s%d" % [KEYS[cmd.of], id]
+				Budget.add(out, _units_of.get(key, {}), -1.0)
+				_add_cells(cells, _cells_of.get(key, {}), -1.0)
 		"reshape":
 			if state[cmd.of].has(cmd.id):
 				var trial := reshaped(state[cmd.of][cmd.id], cmd.data)
-				Budget.add(Budget.add(out, _units(cmd.of, trial)), _units_of.get(_keys(cmd)[0], {}), -1.0)
+				var key: String = _keys(cmd)[0]
+				Budget.add(Budget.add(out, _units(cmd.of, trial)), _units_of.get(key, {}), -1.0)
+				_add_cells(_add_cells(cells, _spread(cmd.of, trial)), _cells_of.get(key, {}), -1.0)
 		"plant":
 			var n := 1
 			if not cmd.kind in Flora.PLACED:
@@ -188,7 +209,7 @@ func change_of(cmd: Dictionary) -> Dictionary:
 				out.pond_m2 = wet
 		"batch":
 			for c: Dictionary in cmd.cmds:
-				Budget.add(out, change_of(c))
+				Budget.add(out, _change(c, cells))
 	return out
 
 
@@ -199,13 +220,35 @@ func _unit(group: int, p: Flora.Plant) -> Dictionary:
 	return {} if u == "" or group == 0 and not u in Flora.PLACED else {u: 1}
 
 
-func _account(key: String, now: Dictionary) -> void:
+## Counts the build `key` as `now`, its masonry standing in `cells` (Budget.spread).
+func _account(key: String, now: Dictionary, cells := {}) -> void:
 	Budget.add(units, _units_of.get(key, {}), -1.0)
 	Budget.add(units, now)
 	if now.is_empty():
 		_units_of.erase(key)
 	else:
 		_units_of[key] = now
+	if cells.is_empty() and not _cells_of.has(key):
+		return
+	_near.add(_cells_of.get(key, {}), -1.0)
+	_near.add(cells)
+	if cells.is_empty():
+		_cells_of.erase(key)
+	else:
+		_cells_of[key] = cells
+	Budget.add(units, _near_units, -1.0)
+	_near_units = _near.units()
+	Budget.add(units, _near_units)
+
+
+static func _add_cells(into: Dictionary, cells: Dictionary, times := 1.0) -> Dictionary:
+	for c in cells:
+		var now: Dictionary = Budget.add(into.get(c, {}), cells[c], times)
+		if now.is_empty():
+			into.erase(c)
+		else:
+			into[c] = now
+	return into
 
 
 func _exit_tree() -> void:
@@ -735,6 +778,22 @@ static func reshaped(now: Dictionary, data: Dictionary) -> Dictionary:
 	return out
 
 
+## Where a build from the garden's table `of` stands its masonry (Budget.spread): walls along their points, stairs from
+## foot to head, paths along their line.
+static func _spread(of: String, d: Dictionary) -> Dictionary:
+	match of:
+		"walls":
+			var points := Array(d.points)
+			if d.closed and points.size() > 2:
+				points.append(points[0])
+			return Budget.spread(Budget.wall(d), points)
+		"stairs":
+			return Budget.spread(Budget.stairs(d), [d.a, d.b])
+		"paths":
+			return Budget.spread(Budget.path(d), Array(d.points))
+	return {}
+
+
 ## What a build from the garden's table `of` counts as in the frame budget.
 static func _units(of: String, d: Dictionary) -> Dictionary:
 	match of:
@@ -906,7 +965,7 @@ func _apply(cmd: Dictionary) -> Dictionary:
 					easels.stand(cmd.id, now.at, now.yaw)
 			elif boulders != null:
 				boulders.put(cmd.id, now)
-			_account(_keys(cmd)[0], _units(cmd.of, now))
+			_account(_keys(cmd)[0], _units(cmd.of, now), _spread(cmd.of, now))
 			if cmd.of == "walls":
 				_floor_mark(cmd.id)
 			inverse = {"op": "reshape", "of": cmd.of, "id": cmd.id, "data": before}
@@ -1165,7 +1224,7 @@ func _take(of: String, ids: PackedInt32Array) -> Dictionary:
 ## Counts the builds `ids` just put in the garden's table `of` in the frame budget; returns what takes them away.
 func _built(of: String, ids: PackedInt32Array) -> Dictionary:
 	for id in ids:
-		_account("%s%d" % [KEYS[of], id], _units(of, state[of][id]))
+		_account("%s%d" % [KEYS[of], id], _units(of, state[of][id]), _spread(of, state[of][id]))
 	return {"op": "take", "of": of, "ids": ids}
 
 
@@ -1329,6 +1388,9 @@ func _clear() -> void:
 	_fills.clear()
 	units = {}
 	_units_of.clear()
+	_cells_of.clear()
+	_near = Budget.Near.new()
+	_near_units = {}
 	flora.reset()
 	palette.season = Palette.SUMMER
 	palette.apply()

@@ -924,6 +924,27 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   Neither the running quality step, refresh rate nor the visitors present changes it.
   The host and visitor apply the same check; removing cost still works in older gardens
   already over capacity, and undo uses the same limit.
+- Masonry (stone, plaster and fence faces, tiled roofs and thatch) is charged as the frame pays for it: `Masonry`
+  draws a chunk's stones whole only while it stands within the fit step's `stone_near_m` of the eye, and 12-triangle
+  stones past it. So each masonry unit costs a far rate on all of it, fitted from the air, where every chunk draws far
+  meshes, and a near excess (`wall_m2_near` and the like) on what stands in the chunks one eye can have near at once
+  (`Budget.near`): `World` bins each build's masonry into Masonry's 8 m chunks along its line (`Budget.spread`), and
+  the near units are what the 3 by 3 chunks around the dearest one hold (`Budget.near_span`; a chunk draws near while
+  its centre is within 4 m and a chunk's radius, 7.2 m, of the eye, which never reaches past the chunks beside the
+  eye's own). The excess is fitted standing among the walls, over what their far rate already charges. Timber stays
+  counted per member at its dense-village price (`TIMBER_US`). Two interleaved Quest 2 runs on 2eb107d
+  ([record](../perf/quest-2/costs/20261024T035706Z-2eb107d.json),
+  [record](../perf/quest-2/costs/20261024T041730Z-2eb107d.json)), the larger of each, µs a m², far + near: stone wall
+  4.29 + 6.23 (each from the 10 m disc), plaster 1.11 + 4.28, fence 2.27 + 3.38, tiled roof 9.44 + 0, thatch
+  10.18 + 0. Lanterns and thatch are measured on the builds before them left standing (the 10 m disc of walls, the
+  village re-thatched) and fitted against those from the same view, so they are charged only what they add:
+  `fitting` 15.19 µs. A hamlet of five default stone houses 14 to 25 m apart (`hamlet`, its walls 264 m² and roofs
+  200 m²) held 72 Hz from the air and standing and measured 3.42 ms from the air, its dearest view; it is charged
+  3.60 ms, where the per-square-metre table before (wall 8.84, roof 22.09, both from their densest views) charged it
+  6.75 ms, 144% of the capacity. A default stone house alone (53 m² of wall, 40 of roof) takes 20.0% of the capacity
+  where it took 28.9%; each more one out of its near chunks takes 12.9%. `demo/full.json` filled to 100.0% on this
+  table held 72 Hz from the air, standing, among the walls and by the house
+  ([record](../perf/quest-2/full/20261024T042238Z-6833585.json): 9.62, 7.83, 9.30 and 9.17 ms).
 - The fixed table takes the larger measured price for each unit from the Quest 2 and
   Frame calibrations below: the Quest 2 prices throughout, each the larger of two interleaved costs runs
   ([record](../perf/quest-2/costs/20261022T103832Z-6c986f4.json),

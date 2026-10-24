@@ -20,6 +20,10 @@ const PATH_TREADS_PER_ROW := 2
 ## drawn and simulated; boulders, a metre-wide one a unit (`boulder`); and square metres of painted stone ground, each
 ## stroke the ground its discs reach, a stroke over another counted again.
 static var UNITS: Array = COSTS.keys().filter(func(k: String) -> bool: return not k in CAPS.values())
+## Masonry draws a chunk's stones whole only near the eye (Quality.Step.stone_near_m) and coarser past it, so each of
+## these costs a far rate on all of it and, as `<unit>_near` (World counts them, `Near`), a near excess on what stands in
+## the chunks one eye has near.
+const MASONRY := ["wall_m2", "plaster_m2", "fence_m2", "roof_m2", "thatch_m2"]
 ## The COSTS entry that caps a unit's whole charge: what a view full of it adds.
 const CAPS := {"pond_m2": "water", "stone_m2": "stone"}
 
@@ -45,7 +49,7 @@ const CAPACITY_MS := 4.68
 ## adds, charged however much is painted (docs/design.md, "Ground materials").
 const STONE_M2_US := 0.468
 const STONE_VIEW_US := 590.0
-const COSTS := {"grass": 2.449, "flower": 3.447, "tree": 26.628, "bush": 4.712, "wall_m2": 8.843, "plaster_m2": 2.396, "fence_m2": 4.372, "pond_m2": 15.9, "roof_m2": 22.091, "thatch_m2": 12.449, "fitting": 16.415, "easel": 876.552, "boulder": 25.861, "water": 1908.364, "stone_m2": STONE_M2_US, "stone": STONE_VIEW_US, "timber": TIMBER_US, "arch": ARCH_US, "moss": 3.447 * MOSS_FLOWERS}
+const COSTS := {"grass": 2.449, "flower": 3.447, "tree": 26.628, "bush": 4.712, "wall_m2": 4.293, "plaster_m2": 1.105, "fence_m2": 2.271, "pond_m2": 15.9, "roof_m2": 9.437, "thatch_m2": 10.177, "fitting": 15.187, "easel": 876.552, "boulder": 25.861, "water": 1908.364, "stone_m2": STONE_M2_US, "stone": STONE_VIEW_US, "timber": TIMBER_US, "arch": ARCH_US, "moss": 3.447 * MOSS_FLOWERS, "wall_m2_near": 6.233, "plaster_m2_near": 4.282, "fence_m2_near": 3.381, "roof_m2_near": 0.0, "thatch_m2_near": 0.0}
 
 
 static func fit_step() -> int:
@@ -59,6 +63,119 @@ static func line_ms() -> float:
 
 static func info() -> Dictionary:
 	return {"refresh_hz": REFRESH_HZ, "gpu_ms": line_ms()}
+
+
+## The chunk of Masonry's near meshes `p` stands in.
+static func cell(p: Vector3) -> Vector2i:
+	return Vector2i(floori(p.x / Masonry.FINE), floori(p.z / Masonry.FINE))
+
+
+## How many chunks out from the one under the eye can draw their near meshes at the fit step: those whose
+## centre is within its stone_near_m and a chunk's radius of the eye.
+static func near_span() -> int:
+	var reach := Quality.ladder[fit_step()].stone_near_m + Masonry.radius(Masonry.FINE)
+	return floori((reach + Masonry.FINE * 0.5) / Masonry.FINE)
+
+
+## `units`' masonry over the chunks along `points` (Vector3, ground positions), as the polyline's length falls in each:
+## chunk -> units. Without length it all stands in the first point's chunk.
+static func spread(units: Dictionary, points: Array) -> Dictionary:
+	var stone := {}
+	for k in MASONRY:
+		if units.has(k):
+			stone[k] = units[k]
+	if stone.is_empty() or points.is_empty():
+		return {}
+	var share := {}
+	var total := 0.0
+	for i in range(1, points.size()):
+		var a: Vector3 = points[i - 1]
+		var b: Vector3 = points[i]
+		var n := maxi(1, ceili(Vector2(b.x - a.x, b.z - a.z).length() / 0.5))
+		var step := Vector2(b.x - a.x, b.z - a.z).length() / n
+		for j in n:
+			var c := cell(a.lerp(b, (j + 0.5) / n))
+			share[c] = share.get(c, 0.0) + step
+			total += step
+	if total <= 0.0:
+		share = {cell(points[0]): 1.0}
+		total = 1.0
+	var out := {}
+	for c in share:
+		out[c] = add({}, stone, share[c] / total)
+	return out
+
+
+## A garden's masonry by chunk (`spread`), and the `<unit>_near` units of what the chunks within near_span of one hold,
+## around whichever chunk makes that dearest. Each window's near excess is kept as builds come and go, so a change
+## reads only the windows it touches.
+class Near:
+	var cells := {}
+	## Per chunk, its near excess and its area: the area picks between windows that cost alike.
+	var _dear := {}
+	var _windows := {}
+
+	func add(change: Dictionary, times := 1.0) -> void:
+		for c: Vector2i in change:
+			var now: Dictionary = Budget.add(cells.get(c, {}).duplicate(), change[c], times)
+			var d := Near._weigh(now)
+			var delta: Vector2 = d - _dear.get(c, Vector2.ZERO)
+			if now.is_empty():
+				cells.erase(c)
+				_dear.erase(c)
+			else:
+				cells[c] = now
+				_dear[c] = d
+			for o in Near._around(c):
+				var w: Vector2 = _windows.get(o, Vector2.ZERO) + delta
+				if w.y < 1e-6:
+					_windows.erase(o)
+				else:
+					_windows[o] = w
+
+	## The near units with `change` (chunk -> units) added, without keeping it.
+	func units(change := {}) -> Dictionary:
+		var after := {}
+		for c: Vector2i in change:
+			after[c] = Budget.add(cells.get(c, {}).duplicate(), change[c])
+		var touched := {}
+		for c: Vector2i in change:
+			for o in Near._around(c):
+				touched[o] = true
+		var best := Vector2(-1.0, -1.0)
+		var at := Vector2i.ZERO
+		for o: Vector2i in _windows:
+			if not touched.has(o) and _windows[o] > best:
+				best = _windows[o]
+				at = o
+		for o: Vector2i in touched:
+			var w := Vector2.ZERO
+			for c in Near._around(o):
+				w += Near._weigh(after[c]) if after.has(c) else _dear.get(c, Vector2.ZERO)
+			if w.y >= 1e-6 and w > best:
+				best = w
+				at = o
+		var out := {}
+		if best.y < 0.0:
+			return out
+		for c in Near._around(at):
+			for k in after.get(c, cells.get(c, {})):
+				Budget.add(out, {k + "_near": after.get(c, cells.get(c, {}))[k]})
+		return out
+
+	static func _weigh(units: Dictionary) -> Vector2:
+		var out := Vector2.ZERO
+		for k in units:
+			out += Vector2(COSTS[k + "_near"], 1.0) * units[k]
+		return out
+
+	static func _around(c: Vector2i) -> Array[Vector2i]:
+		var span := Budget.near_span()
+		var out: Array[Vector2i] = []
+		for dx in range(-span, span + 1):
+			for dz in range(-span, span + 1):
+				out.append(c + Vector2i(dx, dz))
+		return out
 
 
 static func cost_ms(units: Dictionary) -> float:
