@@ -1,10 +1,10 @@
 class_name Metrics
 extends Node
 
-## Frame-time record: every frame's delta summarised per second with the GPU time the process used in it, the
-## most draw calls and primitives any frame drew, and the viewport's GPU time per frame and the lowest quality
-## step the governor took (see Quality), the frames again by what the player was doing in each (ACTIVITIES), and
-## each frame of every landing's window (LANDING_S), flushed to JSON as it goes.
+## Frame-time record: every frame's delta summarised per second with the GPU time the process used in it and the
+## clock it ran at, the most draw calls and primitives any frame drew, and the viewport's GPU time per frame and the
+## lowest quality step the governor took (see Quality), the frames again by what the player was doing in each
+## (ACTIVITIES), and each frame of every landing's window (LANDING_S), flushed to JSON as it goes.
 
 var path: String
 var info := {}
@@ -35,6 +35,8 @@ var _deltas: PackedFloat32Array = []
 ## Whether the last frame ran over 1.5× the refresh period; only the first of a run of late frames is logged.
 var _was_late := false
 var _gpu_ns := -1
+var _gpu_cycles := -1
+var _gpu_counted_ns := 0
 var _drm_fds: PackedStringArray = []
 ## Counts readings; every tenth looks for the DRM clients again, since the runtime may open more later.
 var _drm_scan := 0
@@ -184,11 +186,15 @@ func _process(_delta: float) -> void:
 	# A stall's script time shows only on the frame after it, so its second waits for that frame.
 	if _acc >= 1.0 and (_stalls.is_empty() or _stalls[-1].has("scripts_after_ms")):
 		var begin := Time.get_ticks_usec()
-		var gpu := gpu_ns() if not path.is_empty() else -1
+		var gpu := gpu_time() if not path.is_empty() else PackedInt64Array([-1, -1, 0])
 		var row := summary(_deltas)
-		if gpu >= 0 and _gpu_ns >= 0:
-			row.gpu_ms = (gpu - _gpu_ns) / 1e6
-		_gpu_ns = gpu
+		if gpu[0] >= 0 and _gpu_ns >= 0:
+			row.gpu_ms = (gpu[0] - _gpu_ns) / 1e6
+			if gpu[1] >= 0 and _gpu_cycles >= 0 and gpu[2] > _gpu_counted_ns:
+				row.gpu_mhz = snappedf(float(gpu[1] - _gpu_cycles) / (gpu[2] - _gpu_counted_ns) * 1000.0, 1.0)
+		_gpu_ns = gpu[0]
+		_gpu_cycles = gpu[1]
+		_gpu_counted_ns = gpu[2]
 		row.draws = _draws
 		if head != null:
 			row.head_m = snappedf(head.position.y, 0.01)
@@ -325,12 +331,14 @@ func is_late(ms: float) -> bool:
 	return hz > 0.0 and ms > 1500.0 / hz
 
 
-## GPU time this process has used, summed over its DRM clients, from the kernel's fdinfo; -1 where the driver reports none.
-func gpu_ns() -> int:
+## GPU nanoseconds and clock cycles this process has used, summed over its DRM clients from the kernel's fdinfo, -1
+## where the driver reports none, then the nanoseconds of the clients that count cycles. Busy time stretches as the
+## driver clocks the GPU down and cycles do not, so the two together tell more work from a slower clock.
+func gpu_time() -> PackedInt64Array:
 	if _drm_scan % 10 == 0:
 		var dir := DirAccess.open("/proc/self/fd")
 		if dir == null:
-			return -1
+			return PackedInt64Array([-1, -1, 0])
 		_drm_fds.clear()
 		# Reading every fd's info held the Steam Frame's main thread for up to 15 ms, enough to drop a second to every
 		# other refresh. A link is read without the kernel writing anything, and a DRM fd's info is read once a second.
@@ -341,19 +349,25 @@ func gpu_ns() -> int:
 	var by_client := {}
 	for fd in _drm_fds:
 		var client := ""
-		var ns := 0
+		var used := PackedInt64Array([0, -1])
 		for line in _fdinfo(fd).split("\n"):
+			var value := line.get_slice(":", 1).strip_edges().get_slice(" ", 0)
 			if line.begins_with("drm-client-id:"):
-				client = line.get_slice(":", 1).strip_edges()
+				client = value
 			elif line.begins_with("drm-engine-") and not line.begins_with("drm-engine-capacity"):
-				ns += int(line.get_slice(":", 1).strip_edges().get_slice(" ", 0))
+				used[0] += int(value)
+			elif line.begins_with("drm-cycles-"):
+				used[1] = maxi(used[1], 0) + int(value)
 		if client != "":
-			by_client[client] = ns
+			by_client[client] = used
 	if by_client.is_empty():
-		return -1
-	var total := 0
-	for v in by_client.values():
-		total += v
+		return PackedInt64Array([-1, -1, 0])
+	var total := PackedInt64Array([0, -1, 0])
+	for v: PackedInt64Array in by_client.values():
+		total[0] += v[0]
+		if v[1] >= 0:
+			total[1] = maxi(total[1], 0) + v[1]
+			total[2] += v[0]
 	return total
 
 

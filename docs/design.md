@@ -836,6 +836,17 @@ roofs village from the ground 4.6 ms. That ladder's bottom rungs draw the Quest 
 drawing (0.7 swapchain, 2x MSAA, no lake) as well as 07745685's step 10; which of the commits
 between the two builds made the difference was not isolated.
 
+Governed, the walk reads one of two figures run to run on one build, by the step the phases before it
+leave the governor on. Two stress runs of the same build, back to back (`perf/frame/stress`), drew
+the same 0.70 to 0.74 M primitives and 152 to 166 draws with the GPU clocked at 903 MHz throughout:
+at step 16 (3D scale 0.78) `standing/along` read 6.1 ms and `standing/across` 6.0, at step 15 (the
+3D scene at the swapchain's resolution, shadows still off) 8.7 and 8.4. Both hold 72 Hz. A scene of
+the roofs village and the walk three times over landed on step 15 or 16 at each pass and read the
+same two figures. The earlier records, 8.2 to 8.7 ms on some builds and 5.9 to 6.4 on others with
+the same primitives, carried no step and match these two. Bench records now carry each phase's step
+and GPU clock (`gpu_mhz`, from the driver's cycle count), and `scripts/trend.py` compares a phase only
+with runs on its step.
+
 ### Moving and acting at the build budget
 
 Report (verbatim): "That \"after a few seconds settle\" seems to be carrying weight. Framerate during movement and

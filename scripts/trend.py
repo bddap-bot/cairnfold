@@ -2,10 +2,12 @@
 """Frame time per scene across the runs bench.sh recorded under perf/RIG/SCENE/: trend.py [RIG [SCENE]]
 
 Per phase, the GPU milliseconds a frame (the desktop, with no GPU target, its median frame time) of the latest run
-beside its base, the median of the BASE runs before it with as many players, and the best run, marking a rise of more
-than RISE times and FLOOR_MS over the base. Runs are the records bench.sh names TIMESTAMP-REVISION.json, ordered by that
-timestamp; any other file is no run. Given a scene, exits 1 when a phase's GPU time rose, so a bench run recording a
-regression fails, and fails again when rerun once."""
+beside its base, the median of the BASE runs before it with as many players and the phase on the same quality step, and
+the best run, marking a rise of more than RISE times and FLOOR_MS over the base. A phase the governor walks settles on
+whichever step the phases before it leave it at, and its GPU time is that step's, so only runs on one step compare.
+Runs are the records bench.sh names TIMESTAMP-REVISION.json, ordered by that timestamp; any other file is no run. Given
+a scene, exits 1 when a phase's GPU time rose, so a bench run recording a regression fails, and fails again when
+rerun once."""
 import json
 import os
 import re
@@ -41,18 +43,18 @@ def report(rig, scene, folder):
     players = latest.get("players", 1)
     earlier = [r["phases"] for _, r in found[:-1] if r.get("players", 1) == players]
     print(f"{rig} {scene}: {len(found)} runs, latest {latest_name}" + (f", {players} players" if players > 1 else ""))
-    print(f"  {'phase':24} {'latest':>7} {'base':>7} {'best':>7}")
+    print(f"  {'phase':24} {'step':>4} {'latest':>7} {'base':>7} {'best':>7}")
     risen = []
     show = lambda v: f"{v:7.2f}" if v is not None else f"{'-':>7}"
     for phase, row in latest["phases"].items():
         key = "gpu_ms" if "gpu_ms" in row else "p50"
-        seen = [r[phase][key] for r in earlier if key in r.get(phase, {})]
+        seen = [r[phase][key] for r in earlier if key in r.get(phase, {}) and r[phase].get("step") == row.get("step")]
         base = statistics.median(seen[-BASE:]) if seen else None
         best = min(seen + [row[key]])
         rose = base is not None and row[key] > base * RISE and row[key] - base > FLOOR_MS
         if rose and key == "gpu_ms":
             risen.append(phase)
-        print(f"  {phase:24} {show(row[key])} {show(base)} {show(best)}{' rose' if rose else ''}")
+        print(f"  {phase:24} {row.get('step', '-'):>4} {show(row[key])} {show(base)} {show(best)}{' rose' if rose else ''}")
     return risen
 
 

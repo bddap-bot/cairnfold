@@ -332,7 +332,7 @@ landings = {}
 for s in d["seconds"]:
     for w in s.get("landings", []):
         landings.setdefault(w["label"], []).append(w)
-print(f"{'phase':18} {'frame p50':>9} {'p99':>7} {'late':>5} {'draws':>6} {'prims':>9} {'land max':>8} {'land late':>9} {'gpu ms':>7}")
+print(f"{'phase':18} {'frame p50':>9} {'p99':>7} {'late':>5} {'draws':>6} {'prims':>9} {'land max':>8} {'land late':>9} {'gpu ms':>7}" + (f" {'MHz':>5} {'step':>4}" if device == "frame" else ""))
 over = []
 summary = {}
 for name, secs in phases.items():
@@ -349,10 +349,18 @@ for name, secs in phases.items():
     stalls = [{k: st[k] for k in ("ms", "notes", "compiled")} for s in phases[name] for st in s.get("stalls", [])]
     if stalls:
         summary[name]["stalls"] = stalls
+    steps = [s["step"] for s in secs if "step" in s]
+    if steps:
+        summary[name]["step"] = mid(steps)
+    mhz = [s["gpu_mhz"] for s in secs if "gpu_mhz" in s]
+    if mhz:
+        summary[name]["gpu_mhz"] = mid(mhz)
     if gpu.get(name):
         g = mid(gpu[name])
         summary[name]["gpu_ms"] = round(g, 3)
         row += f" {g:7.2f}"
+        if device == "frame":
+            row += (f" {mid(mhz):5.0f}" if mhz else f" {'-':>5}") + (f" {mid(steps):4}" if steps else f" {'-':>4}")
         if device == "quest":
             held = g <= budget["gpu_ms"]
             row += " holds" if held else " OVER"
