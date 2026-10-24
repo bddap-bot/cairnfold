@@ -1766,6 +1766,12 @@ func _painting(s: Dictionary) -> void:
 	await _caught_up(s)
 
 
+## Takes back this player's last step, as the undo button does whatever the hands hold.
+func _undo(_s: Dictionary) -> void:
+	main.world.undo()
+	await _frames(1)
+
+
 ## Waits until the easel's canvas has caught up with its painting.
 func _caught_up(s: Dictionary) -> void:
 	var e := _easel_of(s)
