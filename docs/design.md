@@ -4743,7 +4743,9 @@ of the `village/*` phases (two storeys with wings), the budget charges plain pla
 quarter, a half and three quarters 22.11, 24.52 and 26.93, timber 22.16, planks upright 23.27 and planks across 29.48:
 the `finishes/aerial` and `finishes/ground` phases stand it in planks across, the dearest finish over its stone.
 `tests/test_finishes.gd` checks every finish clear of every opening on a house and a bent wall, the wear, the planks,
-the frame and walk, fences, the command, the budget, the wheel, `demo/finishes.json` and the stress village.
+the frame and walk, fences, the command, the budget, the wheel, `demo/finishes.json` and the stress village. On the
+Steam Frame, governed, both `finishes/*` views hold 72 Hz (`perf/frame/stress`): 4.8 to 5.5 ms of GPU time a frame, no
+frame over 1.5× the refresh period at the view's landing, and one in the phase, of the game-wide single late frames.
 
 ## Moss
 
