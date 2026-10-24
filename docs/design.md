@@ -986,7 +986,8 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   is measured at the refresh rate on every headset. It opens on 30 s of the bare meadow unmeasured: a
   Quest's shell draws a tip beside a freshly launched game for its first 30 s, at the cost of the
   game's GPU time. Grass and flowers are measured twice: their pool spread over a 20 m disc, and packed into a 1.8 m disc
-  seen standing over it (`grass-dense`, `flowers-dense`, the `near` view), where each plant covers the most. A unit's
+  seen standing over it (`sweep/grass-dense`, `sweep/flowers-dense`, the `near` view), where each plant covers the most: packed past
+  any budget a garden holds, they only measure. A unit's
   cost is the highest any view gives; a view whose frames fell below the refresh rate is left out, its GPU time not the scene's.
   Hills measured within noise of the bare meadow, so shaped ground counts nothing; painted stone ground does
   not on the Quest 2 (see "Ground materials", Cost). Lantern light is baked (`Lamps`); a lantern counts by its meshes.

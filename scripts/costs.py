@@ -27,7 +27,7 @@ out = sys.argv[1]
 # Each phase, the unit it fits over what earlier phases fitted of its others, and the views it fits from: from the air
 # every chunk draws its far meshes.
 FAR, NEAR = ("aerial",), ("ground",)
-ORDER = [("grass", "grass", None), ("grass-dense", "grass", None), ("flowers", "flower", None), ("flowers-dense", "flower", None),
+ORDER = [("grass", "grass", None), ("sweep/grass-dense", "grass", None), ("flowers", "flower", None), ("sweep/flowers-dense", "flower", None),
          ("trees", "tree", None), ("bushes", "bush", None),
          ("walls-r10", "wall_m2", FAR), ("walls-r15", "wall_m2", FAR), ("walls-r20", "wall_m2", FAR),
          ("walls-r10", "wall_m2_near", NEAR), ("walls-r15", "wall_m2_near", NEAR), ("walls-r20", "wall_m2_near", NEAR),

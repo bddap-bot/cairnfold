@@ -14,7 +14,8 @@
 #                                             session's eye tracking and passthrough cameras are not in them
 #   bench.sh OUT_DIR --android APK            the one Quest adb reaches, in the headset proper, its
 #                                             proximity sensor held closed so no one need wear it: the budget check
-# On a Quest, exits 1 when a phase the build must hold goes over budget; phases named "sweep/..." only measure.
+# On a Quest, exits 1 when a phase the build must hold goes over budget; phases named "sweep/..." only measure, as a pricing
+# phase built past any budget a garden holds does.
 # On a Frame, exits 1 when the game exits non-zero, a crash at quit included; the desktop run stops with its status.
 # Each run's phases are recorded in perf/RIG/SCENE/, RIG the headset's model; commit the record with the change it
 # measured. scripts/trend.py then compares it with the runs before, and a phase's GPU time rising fails the bench.
