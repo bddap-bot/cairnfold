@@ -388,9 +388,17 @@ static func path(d: Dictionary) -> Dictionary:
 	return {"wall_m2": stones * 0.1}
 
 
-## Reserve the instanced solid pieces plus flowers, flame overlays and pictures against measured fitting units; a
-## picture is its own draw, priced as two flame overlays until it is measured.
+## A decoration's paired Quest 2 cost, the least linear rule at or over every style's dearest of two 24-copy runs of
+## demo/decoration-costs.json (docs/decorations.md): a piece's own draws, each solid, each flame overlay with its halo (a
+## picture counted as two), in microseconds; its flowers are charged as painted ones.
+const DECORATION_PIECE_US := 52.5
+const DECORATION_SOLID_US := 2.8
+const DECORATION_FLAME_US := 11.2
+
+
 static func decoration(style: int) -> Dictionary:
 	var layout := DecorationLayout.new()
 	layout.build(style, 0, 4.8)
-	return {"fitting": float(layout.parts.size() + (layout.flames.size() + layout.pictures.size() * 2) * 2), "flower": float(layout.flowers.size())}
+	var flames := layout.flames.size() + layout.pictures.size() * 2
+	var us := DECORATION_PIECE_US + DECORATION_SOLID_US * layout.parts.size() + DECORATION_FLAME_US * flames
+	return {"fitting": us / COSTS.fitting, "flower": float(layout.flowers.size())}
