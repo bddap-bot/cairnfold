@@ -342,6 +342,11 @@ func _an_unsettled_step_is_not_followed_into_one_that_pops() -> void:
 	check(g.level == 3, "frames far over budget walk down to the pop and wait there while the knobs move, got %d" % g.level)
 	_feed(g, BUDGET * 1.5, 2 + Quality.Governor.SETTLE_FRAMES)
 	check(g.level > 3, "and once they arrive, step past it")
+	g = Quality.Governor.new(10, PackedInt32Array([3]))
+	_feed(g, BUDGET * 1.5, 36)
+	check(g.level == 3, "a step down not yet averaged is not followed into a pop on single frames, got %d" % g.level)
+	_feed(g, BUDGET * 1.5, 72)
+	check(g.level > 3, "once its second is in, it is")
 
 
 func _a_step_under_way_is_judged_only_by_frames_over_budget() -> void:

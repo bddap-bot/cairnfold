@@ -438,8 +438,10 @@ class Governor:
 		# that took it, reads what the ladder does not draw: on the Steam Frame, after a village was laid at once, the
 		# timer read 12.6 to 14.3 ms at every step from 5 to 16 while each miss took two more.
 		missed = missed and (averaged or _went_up or frame_ms < _took)
-		# A step still under way has not shown what it saves, so it may not be followed into one that pops.
-		var floor := bottom if settled else _unpopped()
+		# A step still under way, or a step down whose second is not yet in, has not shown what it saves, so it may not be followed
+		# into one that pops: on the Steam Frame two seconds of a village and the garden it replaced drawn at once took
+		# the governor through the shadows and the 3D scale on single frames, and each pop crossed holds the longest calm.
+		var floor := bottom if settled and (_went_up or _measuring < 0) else _unpopped()
 		_calm = _calm + dt if settled and averaged and not halved and _average + cost(level, budget_ms) < line else 0.0
 		if (_hot >= HOT_FRAMES or missed or halved or (settled and averaged and _average > line)) and level < floor:
 			if _since_up < REGRET_SECONDS:
