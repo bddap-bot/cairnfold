@@ -147,8 +147,11 @@ func _frame() -> void:
 		camera.fov = clampf(rad_to_deg(2.0 * atan(maxf(half.y, half.x / aspect) * 1.1)), 24.0, 84.0)
 
 
+## The book renders every page once as it is built, so each poses then halfway through its first press, everything it
+## shows drawn and its shaders compiled; its loop starts over from the top on its first step.
 func _ready() -> void:
-	_pose(0.0)
+	_pose((page.press[0].from + page.press[0].to) * 0.5 if not page.press.is_empty() else 0.0)
+	t = page.length + REST
 
 
 func _process(delta: float) -> void:
