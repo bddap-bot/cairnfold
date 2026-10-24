@@ -36,7 +36,7 @@ func _every_step_keeps_the_same_fill() -> void:
 	for step in Quality.ladder.size():
 		main.quality.pin = step
 		check(is_equal_approx(Budget.fill(garden), expected), "quality %d keeps the same fill" % step)
-		check(not Budget.fits(garden, {"wall_m2": 1000.0}), "quality %d refuses an over-capacity edit" % step)
+		check(not Budget.fits(garden, {"wall_m2": Budget.CAPACITY_MS * 1000.0 / Budget.COSTS.wall_m2 + 1.0}), "quality %d refuses an over-capacity edit" % step)
 	main.quality.pin = pin
 
 

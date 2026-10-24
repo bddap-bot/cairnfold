@@ -949,8 +949,9 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   Frame calibrations below: the Quest 2 prices throughout, each the larger of two interleaved costs runs
   ([record](../perf/quest-2/costs/20261022T103832Z-6c986f4.json),
   [record](../perf/quest-2/costs/20261022T110509Z-6c986f4.json)), except the flora "Cheaper flora" made cheaper,
-  refitted on that build (trees and bushes from its costs fit, grass and flowers at their pools packed into a 1.8 m
-  disc beside the eye). The Frame sets one unit, `water`: its lake read 1.91 ms over the meadow from the air against
+  refitted on that build (trees and bushes from its costs fit), and grass and flowers, refitted on 5728d72, at the
+  dearest view of their pools packed into a 1.8 m disc, in the costs scene beside the eye or the pondweed scene from
+  the bed and the shore. The Frame sets one unit, `water`: its lake read 1.91 ms over the meadow from the air against
   the Quest 2's 1.32 ms. Refitted on 0774568 (below), every other Frame price fell under the Quest 2's: `fitting`, the
   Frame's 15.609 µs until then, fit to 3.852 in that run, under the Quest 2's, so the Frame no longer sets it. The prices
   themselves live only in `Budget.COSTS`; this document cites the runs they came from. Each price a record carries (`prices`, added by `scripts/paired.py --price`) is held by
@@ -1734,6 +1735,24 @@ Prices refitted on the after build ([costs](../perf/quest-2/costs/20261022T10463
 pondweed scene, where main read 3.3. Grass and flowers were charged those from then (`Budget.COSTS`), up from 0.706
 and 0.918: the grass charge no
 longer covered main's packed disc, and no packed flower view had been priced before.
+
+Refitted again on 5728d72, on one Quest 2, from both scenes' packed discs ([costs](../perf/quest-2/costs/20261024T055916Z-5728d72.json),
+[pondweed](../perf/quest-2/pondweed/20261024T053845Z-5728d72.json)), each over an empty view of the same spot:
+
+| Packed 1.8 m disc, pool full | View | Empty | Full | Per plant |
+| --- | --- | --- | --- | --- |
+| Grass, 12,000 clumps (costs) | standing over it | 4.74 ms | 28.56 ms | 1.985 µs |
+| Grass, 12,000 clumps (pondweed) | standing over it | 5.17 ms | 35.21 ms | 2.503 µs |
+| Grass, 12,000 clumps (pondweed) | from the bed's height | 5.06 ms | 30.46 ms | 2.117 µs |
+| Flowers, 4,000 (costs) | standing over it | 4.74 ms | 10.62 ms | 1.470 µs |
+| Flowers, 4,000 (pondweed) | from 3.2 m off | 5.63 ms | 12.84 ms | 1.802 µs |
+| Irises, 4,000 (pondweed) | from the shore | 5.84 ms | 11.69 ms | 1.462 µs |
+
+App time throughout; read in viewport time, as `scripts/costs.py` fits, the costs scene's packed flowers come to
+1.832 µs. Each plant unit is charged its dearest view: a grass clump 2.503 µs, up from 2.449, and a flower 1.832,
+down from 3.447, which the two runs on 2eb107d had already read at 1.51 (moss, sixteen flowers, follows). Trees and
+bushes keep their charges: this run fitted them at 10.816 and 2.121 µs, under both. The packed grass and flower views,
+and the irises', fall under the refresh rate, so they are priced directly (`scripts/paired.py --price`), not by the fit.
 
 ### Crowns
 
@@ -3438,6 +3457,22 @@ deep water and irises in the shallows.
   10.3 ms, all under the line. The same scene a day later on main read 3.3 µs a land clump on a Quest 2, and
   2.3 to 2.4 µs on the build with five wider blades a clump, so grass was refitted to those ("Cheaper flora";
   the price is `Budget.COSTS.grass`).
+
+  The scene also measures each flower view over the same spot empty (`bare/shore`, `bare/bloom-shore`; the shallow
+  pond is filled before the empty views). On 5728d72
+  ([record](../perf/quest-2/pondweed/20261024T053845Z-5728d72.json)):
+
+  | View | Empty | Pool full | Per plant |
+  | --- | --- | --- | --- |
+  | Pondweed, from the bed beside it | 4.05 ms | 8.16 ms | 0.34 µs |
+  | Pondweed, from above the pond | 6.13 ms | 9.59 ms | 0.29 µs |
+  | Land grass, standing | 5.17 ms | 35.21 ms | 2.50 µs |
+  | Land grass, from the bed's height | 5.06 ms | 30.46 ms | 2.12 µs |
+  | Irises (4,000 flowers), from the shore | 5.84 ms | 11.69 ms | 1.46 µs |
+  | Land flowers (4,000), from 3.2 m off | 5.63 ms | 12.84 ms | 1.80 µs |
+
+  An iris costs less than the same flower on land, so a placed flower stays one flower unit wherever the water
+  stands, as a clump stays one grass unit. Both charges cover every view here (`Budget.COSTS`; "Cheaper flora").
   Flowers, the pool full (4,000) seen standing on the shore: irises over a shallow pond
   29.7 ms, the same disc of flowers on land 34.1 ms.
 
