@@ -1185,12 +1185,14 @@ func _opening_fits(o: Dictionary, others: Array[Dictionary]) -> bool:
 	var end: float = o.half + edge + END_CLEAR if arched else side
 	if broken(o.s, o.half + edge) or (not closed and (o.s < end or o.s > length() - end)):
 		return false
-	var turns := corners()
-	var own := func(c: float) -> bool: return o.style == Family.CORNER and absf(offset(o.s, c)) < 1e-3 and _corner(c, turns)
-	if o.style == Family.CORNER and (TimberFrame.applies(self) or not turns.any(own)):
-		return false
-	if (closed or not arched) and not turns.all(func(c): return own.call(c) or absf(offset(o.s, c)) > side):
-		return false
+	# Finding an open wall's bends walks every sample of it, and an arch in one needs none.
+	if closed or not arched:
+		var turns := corners()
+		var own := func(c: float) -> bool: return o.style == Family.CORNER and absf(offset(o.s, c)) < 1e-3 and _corner(c, turns)
+		if o.style == Family.CORNER and (TimberFrame.applies(self) or not turns.any(own)):
+			return false
+		if not turns.all(func(c): return own.call(c) or absf(offset(o.s, c)) > side):
+			return false
 	return others.all(func(e): return absf(offset(o.s, e.s)) >= o.half + e.half + edge + _edge(e) or (not arched and e.style != Family.ARCHWAY and (o.sill > e.head + e.ring + course_height() * 0.5 or e.sill > o.head + o.ring + course_height() * 0.5)))
 
 
