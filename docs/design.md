@@ -3106,7 +3106,7 @@ times, against it standing still. Viewport GPU milliseconds one boulder adds on 
 ([record](../perf/quest-2/boulder-scale/20261023T035459Z-7f86f7c.json)); every phase held 72 Hz:
 
 | Scale | From the air | Standing near | Carried, over still | Charged before |
-| --- | --- | --- | --- | --- | --- |
+| --- | --- | --- | --- | --- |
 | 1 | 0.05 | 0.16 | -0.01 | 0.026 |
 | 4 | 0.04 | 0.34 | 0.06 | 0.414 |
 | 12 | 0.07 | 0.34 | -0.10 | 3.724 |
