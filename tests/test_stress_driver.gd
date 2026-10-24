@@ -21,5 +21,5 @@ func _run() -> void:
 	check(main.tool.walls.size() == before + 1, "the following foundation fixture is actually built")
 	var step := {"from": [-4, 0.7, 2], "at": [-4, 0.7, -3]}
 	var target: Dictionary = main.palette_tool.aim_style(driver._dial_from(step), driver._dial_dir(step))
-	check(target.get("restyle") == PaletteTool.Restyle.FACE, "the stress style ray hits the foundation face")
+	check(target.get("restyle") == PaletteTool.Restyle.FOUNDATION, "the stress style ray hits the foundation")
 	finish()

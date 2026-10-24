@@ -191,11 +191,15 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	timber.planks = true
 	timber.gable_end = WallLayout.GableEnd.WALL
 	timber.build(Terrain.flat)
+	var posted := boarded.inputs()
+	posted.rise = 1.5
+	posted.stilts = WallLayout.Stilts.POSTS
+	posted.build(Terrain.flat)
 	var thatched := RoofLayout.new()
 	thatched.corners = roof.corners
 	thatched.thatch = true
 	thatched.build()
-	for s in wall.stones + coped.stones + fence.stones + boarded.stones + timber.stones + roof.tiles + deck.tiles + thatched.tiles + thatched.slabs:
+	for s in wall.stones + coped.stones + fence.stones + boarded.stones + timber.stones + posted.stones + roof.tiles + deck.tiles + thatched.tiles + thatched.slabs:
 		kinds[s.kind] = true
 	for k in kinds:
 		check(Palette.KINDS.has(k) != kept.has(k), "a laid %s is either painted with a material or kept on purpose" % k)
@@ -204,7 +208,7 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	var want := {
 		Palette.Element.STONE: ["block", "mortar", "voussoir", "keystone", "pillar", "cope", "cap", "merlon", "pier", "lintel", "sill", "mullion", "chimney", "rubble"],
 		Palette.Element.ROOF: ["tile", "ridge"],
-		Palette.Element.WOOD: ["post", "rail", "gate", "frame", "door", "pole"],
+		Palette.Element.WOOD: ["post", "beam", "rail", "gate", "frame", "door", "pole"],
 		Palette.Element.PLASTER: ["plaster"],
 		Palette.Element.TIMBER: ["timber"],
 	}

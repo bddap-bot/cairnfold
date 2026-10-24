@@ -107,8 +107,8 @@ func _foundations_turn_to_plaster() -> void:
 	var out: Vector3 = f.tangent.cross(Vector3.UP)
 	var origin: Vector3 = f.point + Vector3.DOWN * 0.6 + out * 2.0
 	var target: Dictionary = main.palette_tool.aim_style(origin, -out)
-	check(target.get("restyle") == PaletteTool.Restyle.FACE and target.get("count") == 2, "a foundation uses the face wheel with stone and plaster: %s" % target)
-	_turn(target, PaletteTool.Face.PLASTER)
+	check(target.get("restyle") == PaletteTool.Restyle.FOUNDATION and target.get("count") == PaletteTool.Foundation.size(), "a house's foundation offers stone, plaster, pillars and posts: %s" % target)
+	_turn(target, PaletteTool.Foundation.PLASTER)
 	w.lay_now()
 	check(w.layout.stones.any(func(st): return st.kind == "plaster" and st.y < 0.0), "the foundation wheel lays plaster below the foot")
 	check(not w.layout.plaster, "styling a foundation leaves the upper wall stone")
@@ -130,6 +130,14 @@ func _foundations_turn_to_plaster() -> void:
 	_turn(main.palette_tool.aim_style(origin, -out), -1)
 	w.lay_now()
 	check(not w.layout.plinth_plaster and w.layout.plaster, "turning the foundation back to stone keeps the wall plastered")
+	_turn(main.palette_tool.aim_style(origin, -out), PaletteTool.Foundation.POSTS)
+	w.lay_now()
+	check(world.state.walls[id].stilts == WallLayout.Stilts.POSTS and w.layout.stones.any(func(st): return st.kind == "post" and st.y < 0.0), "turned to posts, the raised house stands on timber posts")
+	check(main.tool.stilts == WallLayout.Stilts.POSTS, "houses laid after stand on posts once raised")
+	world._order({"op": "undo"}, world.me())
+	w.lay_now()
+	check(world.state.walls[id].stilts == WallLayout.Stilts.NONE and not w.layout.stones.any(func(st): return st.kind == "post"), "an undo stands it back on its plinth")
+	main.tool.stilts = WallLayout.Stilts.NONE
 
 	world.restore({"seq": 0, "cmds": []})
 

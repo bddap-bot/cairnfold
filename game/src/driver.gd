@@ -356,11 +356,13 @@ func _wall(s: Dictionary) -> void:
 	await _stroke(s, Hand.Tool.WALLS)
 
 
-## Walls and houses a step lays are plaster with `plaster`, else stone, and floored in planks with `planks`, else flags,
-## as if the style tool had last turned a face and a floor to them.
+## Walls and houses a step lays are plaster with `plaster`, else stone, floored in planks with `planks`, else flags,
+## and raised on `stilts` ("pillars" or "posts"), else a plinth, as if the style tool had last turned a face, a floor and
+## a foundation to them.
 func _lay_materials(s: Dictionary) -> void:
 	main.tool.plaster = s.get("plaster", false)
 	main.tool.planks = s.get("planks", false)
+	main.tool.stilts = WallLayout.Stilts[String(s.get("stilts", "none")).to_upper()]
 	main.tool.timber_style = int(s.get("timber_style", 0))
 
 
@@ -1014,11 +1016,14 @@ func _layer_parts(name: String) -> Array[Array]:
 	return out
 
 
-## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter; with `storeys`,
+## Fills a disc at once with a grid of houses, `spacing` apart, every other one turned a quarter, or with `inner` the
+## ring of it outside that radius; with `storeys`,
 ## each stands that many high, with `wings`, a wing crosses each house, with `gable`, their gable ends take it, and
 ## with `thatch`, their roofs are thatched. With `roofs`, a list the houses take in turn, each house's roof is laid as
 ## its entry has it: `pitch` (0 flat), `deck` and `top` ("stone" or "wood"; a WallLayout.Top), `dormers` on each slope,
-## `overhang`, and `storeys` high, each storey above the first `upper` times the size of the one under it.
+## `overhang`, and `storeys` high, each storey above the first `upper` times the size of the one under it; a `round`
+## entry is a round house as across as the others are deep, and one with `rise` stands raised that high on its plinth,
+## or on `stilts` ("pillars" or "posts").
 func _village(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var start := Time.get_ticks_usec()
@@ -1031,7 +1036,7 @@ func _village(s: Dictionary) -> void:
 	for z in range(-int(r / step), int(r / step) + 1):
 		for x in range(-int(r / step), int(r / step) + 1):
 			var c := Vector2(x, z) * step
-			if c.length() > r - step * 0.5:
+			if c.length() > r - step * 0.5 or c.length() < s.get("inner", 0.0) * sqrt(_area):
 				continue
 			k += 1
 			var yaw := PI * 0.5 * (k % 2)
@@ -1040,12 +1045,15 @@ func _village(s: Dictionary) -> void:
 			var entry: Dictionary = s.roofs[k % s.roofs.size()] if s.has("roofs") else {}
 			var size := Vector2(0.7, 0.44) * step
 			for storey in int(entry.get("storeys", s.get("storeys", 1))):
-				var stance := WallTool.stance(at, yaw)
-				stance.size = size
+				var round: bool = entry.get("round", false)
+				var stance := WallTool.stance(at, yaw, round)
+				stance.size = Vector2.ONE * size.y if round else size
 				stance.height = s.get("height", WallTool.HOUSE_HEIGHT)
 				stance.curve = s.get("curve", 0.0)
+				stance.rise = entry.get("rise", 0.0) if on.is_empty() else 0.0
 				stance.pitch = entry.get("pitch", s.get("pitch", WallTool.pitch_for(stance)))
 				var house := tool.new_house(stance, on)
+				house.layout.stilts = WallLayout.Stilts[String(entry.get("stilts", "none")).to_upper()]
 				_dress_roof(house, entry, size)
 				tool.build([house])
 				size *= entry.get("upper", 1.0)

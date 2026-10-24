@@ -254,7 +254,7 @@ func _a_raised_house_stands_on_a_plinth() -> void:
 	supported.supports = [under]
 	supported.build(_slope)
 	check(is_equal_approx(supported.samples[0].y, under.rest(supported.points[0].x, supported.points[0].z) - WallLayout.SINK), "a house standing on a build stays on its top")
-	var d := {"points": PackedVector3Array(w.points), "height": 2.4, "rise": 1.2, "closed": true, "fence": false, "plaster": false, "plinth_plaster": false, "planks": false, "lanterns": PackedVector3Array(), "flags": PackedFloat32Array()}
+	var d := {"points": PackedVector3Array(w.points), "height": 2.4, "rise": 1.2, "closed": true, "fence": false, "plaster": false, "plinth_plaster": false, "stilts": 0, "planks": false, "lanterns": PackedVector3Array(), "flags": PackedFloat32Array()}
 	var flat := d.duplicate()
 	flat.rise = 0.0
 	check(is_equal_approx(Budget.wall(d).wall_m2 - Budget.wall(flat).wall_m2, 20.0 * 1.2), "the budget counts the plinth as stone wall")
@@ -728,7 +728,7 @@ func _the_budget_counts_each_gable_end_as_laid() -> void:
 		for curve in [0.0, 0.8, -0.8]:
 			for pitch in [0.8, 2.0, 5.0]:
 				var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "gable_end": 0,
-					"plaster": plaster, "plinth_plaster": false, "planks": false, "timber_style": 0, "openings": [], "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": pitch, "curve": curve, "chimneys": [], "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
+					"plaster": plaster, "plinth_plaster": false, "stilts": 0, "planks": false, "timber_style": 0, "openings": [], "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": pitch, "curve": curve, "chimneys": [], "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
 				var walls := 20.0 * 2.4
 				var wall := Budget.wall(d)
 				d.gable_end = WallLayout.GableEnd.BOARDS
@@ -800,7 +800,7 @@ func _gable_faces_face_out_of_the_wall() -> void:
 
 func _the_budget_counts_gable_ends() -> void:
 	var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "gable_end": 0,
-		"plaster": false, "plinth_plaster": false, "planks": false, "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
+		"plaster": false, "plinth_plaster": false, "stilts": 0, "planks": false, "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
 	var hs := (4.0 + WallLayout.THICKNESS) * 0.5
 	check(is_equal_approx(Budget.wall(d).wall_m2, 20.0 * 2.4 + 2.0 * hs * 2.0), "a house counts its two gable ends as wall: %s" % Budget.wall(d))
 	d.roof.pitch = 0.0

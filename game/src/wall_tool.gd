@@ -123,6 +123,8 @@ var plaster := false
 var timber_style := 0
 ## Whether new houses' floors are laid in planks: the floor last turned to on this machine.
 var planks := false
+## What new houses and towers stand on once raised: the stilts last turned to on this machine.
+var stilts := WallLayout.Stilts.NONE
 ## Whether new houses are thatched, and what their decks are laid in when pushed flat: the roof last turned to on this machine.
 var thatch := false
 var deck := RoofLayout.Deck.STONE
@@ -466,6 +468,7 @@ func new_house(at: Dictionary, on := PackedInt32Array()) -> Wall:
 	w.on = on
 	w.layout.plaster = plaster and not at.round
 	w.layout.planks = planks
+	w.layout.stilts = stilts
 	w.layout.timber_style = timber_style
 	w.layout.gable_end = gable_end
 	w.layout.closed = true

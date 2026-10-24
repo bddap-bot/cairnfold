@@ -2224,7 +2224,7 @@ Stage numbers refer to the build order at the end.
 | Paths | Dirt strokes and wall crossings | Dirt strokes wear soft-edged earth into the ground mask and open arches or gates through walls and fences | 5 (done) |
 | Stone ground | Steep terrain turns rocky; dirt paths blend with the ground | The stone tool paints stone ground where it points, in the style the style tool last set (mossy or river cobble), fraying into the meadow stone by stone; a stroke begun on stone paints meadow back (see "Ground materials") | 7 (done) |
 | Towers | A loop held down straightens into a circle | A wall drawn into a loop, round or any shape, stays a freestanding wall, roofless. A round tower is its own tool beside the house, a little tower under a cone in the ring, put up and carried as a house is: 4.5 m tall under a cone roof, 3.4 m across, spread every way at once by two hands (from 2.4 m across, no widest) and made taller as they draw apart upright. No door until one is made, as for a house. `demo/tower.json` builds a stone tower, a plaster one and a house | 4 (done) |
-| Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Circle footprints are the round towers above. Its own tool, a little house in the ring. Its trigger puts up a square house where the hand points, and does nothing more: moving is the grip's. A grip anywhere on a house, roof included, carries it, turning it with the hand and raising it onto a plinth as the hand rises; the other hand's grip on it too sizes it, stretching the side nearest the line between the hands as they spread (each side from 2.4 m, with no longest or deepest) and making its walls taller as they draw apart upright (see "Moving and sizing a house" and "Raising a house"). Stone walls with corner piers and no door, level on its lowest ground; a door comes from the windows tool low on a wall, an arch from the arch tool or from a path running in | 4 (done) |
+| Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Circle footprints are the round towers above: a round house is one, its walls drawn down to a house's height by two hands upright. Raised, a house or a round one stands on its plinth, on stone pillars or on timber posts and beams, over a stone foundation the grip raises with it (see "Raising a house"). Its own tool, a little house in the ring. Its trigger puts up a square house where the hand points, and does nothing more: moving is the grip's. A grip anywhere on a house, roof included, carries it, turning it with the hand and raising it onto a plinth as the hand rises; the other hand's grip on it too sizes it, stretching the side nearest the line between the hands as they spread (each side from 2.4 m, with no longest or deepest) and making its walls taller as they draw apart upright (see "Moving and sizing a house" and "Raising a house"). Stone walls with corner piers and no door, level on its lowest ground; a door comes from the windows tool low on a wall, an arch from the arch tool or from a path running in | 4 (done) |
 | Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings"). Flat roofs stack: a house or tower set down on a deck stands on it, and pushed flat it is a deck of its own, so smaller storeys rise in terraces (see "Flat roofs, platforms and dormers") | 4 (done), 13 (done) |
 | Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, with lime torching under the tiles so no sky shows between them from inside. From outside every joint lies over a tile (each tile runs up under the two rows above, the eave row lies on an under-course, a cone's tiles lap their neighbours), and the walls' stones stop under the slopes at any pitch. A gable end continues the wall below it: a stone house's courses carry on up under the slopes, a plaster house's plaster does, and on both a verge of stones runs up each rake over the courses' ends (European town houses of Cotswold stone or Provençal plaster). The style tool on a gable end picks that house's gable ends, and houses laid after take it: the wall carried up; boarded, upright planks under a barge board up each rake (a barn's end), painted as woodwork; or crow-stepped, the stone courses or plaster climbing past the slopes in capped steps, the roof stopping inside them. The gable ends count against the budget at the face each style lays, as wall (boards as stone wall: laid as stones are, fewer). Two grips on a roof, whatever the hands hold: drawn apart upright they raise the ridge and together lower it; spread across they bow the slopes out, squeezed together inward (`RoofLayout`). Brought all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top then takes a style like an open wall's. The style tool offers tile or thatch on a pitched roof and a stone or wooden deck on a flat roof; only grabbing and pulling changes between flat and pitched, a tower's cone as a house's gable (see "Thatch"). Two grips on the eaves, past the walls, pull them out or push them back; pulled far on low walls the slopes come down to the ground like a tent. The windows tool on a gable's slope opens a dormer (see "Flat roofs, platforms and dormers") | 4 (done), 13 (done) |
 | Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. While it points, the wall stands as the press would leave it, laid by the same code. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light. Pointed at a gable roof's slope it opens a dormer instead (see "Flat roofs, platforms and dormers"). A grip on a placed one carries it along its wall, a window up and down it too, and two size it (see "Moving a fitting") | 6 (done), 13 (done) |
@@ -2427,11 +2427,36 @@ a wall over a pond already lays down to the bed, carry on down to the ground all
 slope. They stand a little proud of the faces in a darker stone, and stay stone under a plaster or timber-framed
 house. Its corner piers reach down with them. A door or an arch opens from its floor and the plinth runs whole under
 it, so nothing under the floor shows through; a raised house is walked into on its floor (`WallLayout.threshold`).
-Report (verbatim): "the arch should terminate at the foundation of the building." The Style tool aimed below the wall foot offers stone or plaster for the foundation independently of the wall above. Both use the same face wheel and plaster panels; the Colour tool uses the build’s shared plaster swatch. Foundation corner piers stay stone. The plinth counts against the budget as stone wall,
+Report (verbatim): "the arch should terminate at the foundation of the building." The Style tool aimed below the wall foot offers stone or plaster for the foundation independently of the wall above, and under a house or tower stone pillars or timber posts (see "Stilts" below). Both use the same face wheel and plaster panels; the Colour tool uses the build’s shared plaster swatch. Foundation corner piers stay stone. The plinth counts against the budget as stone wall,
 and a grip on it holds the house as one on its walls does. `demo/raise.json` raises a stone house on a slope and a
 timber-framed one, and places a third raised; `tests/test_house.gd` checks the rule and the plinth,
 `tests/test_controls.gd` both holds in tracked hands, `tests/test_keep.gd` that it is kept, and `scripts/coop.sh`
 that every player sees the joiner's raised wing.
+
+### Stilts
+
+A raised house or tower can stand on stilts instead of a whole plinth (`stilts` on the build, `WallLayout.Stilts`):
+stone pillars, or timber posts. The foundation wheel turns between a stone plinth, a plaster one, pillars and posts,
+and houses put up after take the stilts last turned to, standing on them once raised.
+
+- Where they stand (`WallLayout.stations`): on every corner and evenly between, at most 2 m apart along the walls'
+  centre line; round a round house, evenly all round. Each stands straight under the wall it carries.
+- Pillars, 0.5 m square on a broader base stone, carry a course of stone running whole round under the foot; a stone
+  house's corner pier, carried down, is its corner's pillar. Posts carry timber beams, one straight from each post to
+  the next, round under the walls; a corner pier stops on the foundation above its post.
+- The foundation: stilts stand in the raise up to 1.8 m (`STILT_SPAN`) over a stone foundation at least a course
+  high, laid as the plinth is, following the slope. Raised further, the foundation rises with the house, so the grip
+  that lifts the house sets the foundation's height under the stilts. Uphill, where the ground stands over the
+  foundation's level, the stilts stand on the ground, shorter. A raise too low for stilts (under 0.9 m) stands on its
+  plinth whole.
+- Ivy roots at the walls' foot, not down the stilts.
+- The budget charges the foundation as plinth, pillars and their course as stone wall by the face they lay, and each
+  post and beam as a timber; stilts cost less than the plinth they open up.
+
+`demo/raised.json` raises long and round houses on pillars and posts on a slope, one high enough that its foundation
+rises, and turns a plinth to pillars with the style tool; `tests/test_stilts.gd` checks where the stilts stand, the
+foundation, the slope, the beams and course, the budget and the command headless, `tests/test_style.gd` the wheel,
+and `tests/test_raised_demo.gd` the demo and the stress scene's `raised/*` ring of long and round houses on stilts.
 
 ## Floors
 
@@ -3239,6 +3264,7 @@ the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
 12. Stairs, ladders and stepped paths. (Done.)
 13. Flat roofs and platforms, railings, eaves and tents, dormers. (Done.)
 14. Standing on what you built: wall walks, flat roofs, platforms, stairs and bridges. (Done.)
+15. Round and raised houses: round footprints, stone pillars and timber posts and beams on a foundation the grip raises. (Done.)
 
 ## Water
 

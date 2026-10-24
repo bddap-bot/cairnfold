@@ -37,7 +37,7 @@ const MAX_SUPPORTS := 8
 ## What a `reshape` may change, by the garden's table of the builds it changes; `paint` and a wall's `roof` change
 ## by the entries they name.
 const RESHAPES := {
-	"walls": ["points", "height", "rise", "top", "plaster", "plinth_plaster", "planks", "gable_end", "timber_style", "openings", "lanterns", "flags", "ruins"],
+	"walls": ["points", "height", "rise", "top", "plaster", "plinth_plaster", "stilts", "planks", "gable_end", "timber_style", "openings", "lanterns", "flags", "ruins"],
 	"stairs": ["rail", "a", "b", "width", "on"],
 	"boulders": ["at", "turn", "sink", "scale", "style"],
 	"decorations": ["style", "at", "turn", "s"],
@@ -371,6 +371,9 @@ static func _wall(d: Variant) -> Variant:
 	var plinth_plaster: Variant = d.get("plinth_plaster")
 	if typeof(plinth_plaster) != TYPE_BOOL or (plinth_plaster and d.fence):
 		return null
+	var stilts: Variant = d.get("stilts")
+	if typeof(stilts) != TYPE_INT or stilts < 0 or stilts >= WallLayout.Stilts.size() or (stilts != WallLayout.Stilts.NONE and (d.fence or not d.closed)):
+		return null
 	var planks: Variant = d.get("planks")
 	if typeof(planks) != TYPE_BOOL:
 		return null
@@ -403,7 +406,7 @@ static func _wall(d: Variant) -> Variant:
 	var paint: Variant = d.get("paint")
 	if not Palette.valid(paint):
 		return null
-	var out := {"points": points, "height": d.height, "rise": rise, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "openings": openings, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "plinth_plaster": plinth_plaster, "planks": planks, "gable_end": gable_end, "timber_style": timber_style, "on": on, "paint": paint}
+	var out := {"points": points, "height": d.height, "rise": rise, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "openings": openings, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "plinth_plaster": plinth_plaster, "stilts": stilts, "planks": planks, "gable_end": gable_end, "timber_style": timber_style, "on": on, "paint": paint}
 	if d.has("roof"):
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():
