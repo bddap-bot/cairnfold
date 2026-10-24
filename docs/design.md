@@ -803,6 +803,39 @@ sat at every other refresh all 20 s at step 10, reading 13.8 and 14.8 ms with 1.
 primitives, against 8.9 ms and 0.93 M for the same village from the ground. There the scene is
 past the ladder's last step, not a step that costs more than it saves.
 
+What those two views drew on 07745685, the ladder pinned at step 10, each part hidden in turn with
+the driver's `layer` op (`part/<kind>` hides one kind of masonry piece, `part/<kind>/near` or `/far`
+only its whole or its coarse stones), each view entered from the sky. GPU ms a frame (fdinfo);
+"half rate" marks a reading taken at every other refresh, which reads high:
+
+| Hidden | Along | Across |
+| --- | --- | --- |
+| Nothing | 14.3, half rate (11.1 once at 72 Hz) | 14.9, half rate |
+| Walls and roofs (`masonry`) | 4.5 | 4.9 |
+| Stones | 8.1 | 9.2 |
+| Stones drawn whole | 8.7 | 9.9 |
+| Stones drawn coarse | 10.6 | 14.3, half rate |
+| Roof tiles | 9.4 | 9.9 |
+| Roof tiles drawn whole | 10.2 | 10.7 |
+| Ivy | 10.6 | 11.5 |
+| Flowers | 11.0 | 14.7, half rate |
+| Fog | 10.0 | 10.7 |
+| MSAA | 9.3 | 10.6 |
+
+Stones drawn whole cost most: a chunk draws its stones whole while its centre is within the step's
+4 m plus half a chunk's diagonal, so on the walk every chunk within about 11 m, the wall's own and
+the houses beside it, drew 108-triangle stones (0.58 M of the 1.26 M primitives along the street).
+A bottom step drawing stones whole to 0 m and ivy to 6 m held both views at 72 Hz pinned (along
+9.6 ms, across 10.2) and on the Quest 2 at step 10 took them from 22.4 and 22.1 ms to 17.6 and
+17.0 (`perf/quest-2/quest-standing` holds the 07745685 run). It did not land: main had meanwhile
+reached 72 Hz in both views without it. A governed run of the whole stress scene on dff34d8, every
+`quality` op in `demo/stress.json` set to -1 so the governor walks every phase
+(`perf/frame/stress-governed`), held 72 Hz in all 140 phases; at the bottom step (16 on that ladder)
+`standing/along` read 6.0 ms with 0.73 M primitives and `standing/across` 6.1 ms with 0.68 M, the
+roofs village from the ground 4.6 ms. That ladder's bottom rungs draw the Quest 2's last way of
+drawing (0.7 swapchain, 2x MSAA, no lake) as well as 07745685's step 10; which of the commits
+between the two builds made the difference was not isolated.
+
 ### Moving and acting at the build budget
 
 Report (verbatim): "That \"after a few seconds settle\" seems to be carrying weight. Framerate during movement and
