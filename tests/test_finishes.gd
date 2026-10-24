@@ -195,6 +195,16 @@ func _planks_lie_across_or_upright() -> void:
 				holes += o.half * 2.0 * (o.head - maxf(o.sill, c))
 			var face := w.length() * (w.height - c) - holes
 			check(area > face * 0.85 and area < face * 1.08, "%s: the planks cover the face but the openings: %.1f of %.1f m²" % [name, area, face])
+			if closed:
+				var gabled := w.inputs()
+				gabled.gable_end = WallLayout.GableEnd.STEPS
+				var r := RoofLayout.new()
+				r.corners = gabled.points
+				r.pitch = 2.0
+				gabled.gable = r
+				gabled.build(Terrain.flat)
+				var up := gabled.stones.filter(func(st: Dictionary) -> bool: return st.y > gabled.height + WallLayout.CAP and st.kind in ["board", "block", "plaster", "step"])
+				check(not up.is_empty() and up.all(func(st: Dictionary) -> bool: return st.kind == "board"), "%s: its gable ends are boarded, whatever they were turned to" % name)
 			if finish == WallLayout.Finish.BOARDS_ACROSS:
 				var joints := {}
 				for b in boards:
@@ -309,8 +319,6 @@ func _commands_check_finishes() -> void:
 		var ok: bool = finish in [WallLayout.Finish.BARE, WallLayout.Finish.BOARDS_ACROSS, WallLayout.Finish.BOARDS_UPRIGHT]
 		check((Commands._wall(fence) != null) == ok, "a fence %s %s" % ["takes" if ok else "turns down", WallLayout.Finish.keys()[finish]])
 	var tower := wall_data({"points": PackedVector3Array(WallLayout.circle(Vector3.ZERO, 2.0)), "closed": true, "seed": 2, "finish": WallLayout.Finish.PLASTER, "wear": 0.5, "roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.5, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
-	var house := wall_data({"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "closed": true, "seed": 2, "finish": WallLayout.Finish.BOARDS_UPRIGHT, "gable_end": WallLayout.GableEnd.STEPS, "roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3(3, 0, 2), "radius": 2.0, "pitch": 1.5, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
-	check(Commands._wall(house).gable_end == WallLayout.GableEnd.BOARDS, "a planked house's gable ends are boarded")
 	var cone: Variant = Commands._wall(tower)
 	check(cone != null and cone.finish == WallLayout.Finish.BARE and cone.wear == 0.0, "a coned tower stays stone")
 
@@ -333,6 +341,17 @@ func _budget_charges_each_finish() -> void:
 			var name := "%s %s" % ["fence" if fence else "wall", WallLayout.Finish.keys()[finish]]
 			check(units.get("timber", 0) >= laid and units.get("timber", 0) < laid * 1.4 + 4, "%s: charges its planks as laid: %d for %d" % [name, units.get("timber", 0), laid])
 			check(units.has("fence_m2") if fence else is_equal_approx(units.get("plaster_m2", 0.0), area) and not units.has("wall_m2"), "%s: and the face behind them: %s" % [name, units])
+	var arc := PackedVector3Array()
+	for i in 13:
+		arc.append(Vector3(cos(i / 12.0 * PI) * 4.0, 0.0, sin(i / 12.0 * PI) * 4.0))
+	for shape: Dictionary in [{"points": arc, "closed": false}, {"points": PackedVector3Array(WallLayout.circle(Vector3.ZERO, 2.0)), "closed": true}]:
+		for finish in [WallLayout.Finish.BOARDS_ACROSS, WallLayout.Finish.BOARDS_UPRIGHT, WallLayout.Finish.TIMBER]:
+			var curved := d.merged(shape, true).merged({"finish": finish, "ruins": PackedVector2Array([Vector2(3.0, 4.0)]) if not shape.closed else PackedVector2Array()}, true)
+			var w := WallLayout.new()
+			w.set_data(curved)
+			w.build(Terrain.flat)
+			var laid := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "board" or st.kind == "timber").size()
+			check(Budget.wall(curved).get("timber", 0) >= laid, "a %s %s charges at least the %d pieces it lays: %d" % ["loop" if shape.closed else "curved wall", WallLayout.Finish.keys()[finish], laid, Budget.wall(curved).get("timber", 0)])
 	check(Budget.wall(d.merged({"fence": true}, true)).has("fence_m2") and not Budget.wall(d.merged({"fence": true}, true)).has("timber"), "a railed fence counts as fence")
 	var framed := d.merged({"finish": WallLayout.Finish.TIMBER}, true)
 	var frame := WallLayout.new()

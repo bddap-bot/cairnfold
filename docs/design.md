@@ -4737,10 +4737,10 @@ Planks, a gable's, the walk's and a fence's included, are plain boxes drawn as t
 along a wall (a plank, the walk's, a frame's rail) is cut where the wall has turned `BOARD_TURN` along it
 (`WallLayout.straight`), and an open wall's frame stands a post there, so none stands off a curved face. The budget
 charges worn plaster as plaster plus the stone it shows as stone wall, a planked wall as plaster for its backing plus
-each plank at `TIMBER_US` (a planked house's gable ends stay boarded and count as stone wall), a planked fence its
+each plank at `TIMBER_US` (a planked house's gable ends are boarded whatever they were turned to, and count as stone wall), a planked fence its
 planks besides its fence, and a timber frame its members on each face and its walk's planks. Over the stress village
 of the `village/*` phases (two storeys with wings), the budget charges plain plaster 19.70 ms, plaster worn by a
-quarter, a half and three quarters 22.11, 24.52 and 26.93, timber 22.16, planks upright 23.27 and planks across 29.15:
+quarter, a half and three quarters 22.11, 24.52 and 26.93, timber 22.16, planks upright 23.27 and planks across 29.48:
 the `finishes/aerial` and `finishes/ground` phases stand it in planks across, the dearest finish over its stone.
 `tests/test_finishes.gd` checks every finish clear of every opening on a house and a bent wall, the wear, the planks,
 the frame and walk, fences, the command, the budget, the wheel, `demo/finishes.json` and the stress village.

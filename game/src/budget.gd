@@ -30,6 +30,8 @@ const CAPS := {"pond_m2": "water", "stone_m2": "stone"}
 
 ## The largest paired Quest 2 cost per timber member in the dense village, rounded up (docs/design.md).
 const TIMBER_US := 0.5
+## The mean plank laid across a wall or along a walk: BOARD_RUN's, less for each run's shorter first and the turns.
+const BOARD_MEAN := 1.3
 ## Largest residual above existing wall/timber charges in paired Quest 2 arch sweeps, rounded up.
 ## A larger opening still reserves a whole arch.
 const ARCH_US := 60.0
@@ -253,7 +255,8 @@ static func wall(d: Dictionary) -> Dictionary:
 			ends.gable_end = d.gable_end
 			ends.gable = slopes
 			var half_span: float = (Vector2(d.points[3].x - d.points[0].x, d.points[3].z - d.points[0].z).length() + WallLayout.THICKNESS) * 0.5
-			var units := "wall_m2" if ends.gable_end == WallLayout.GableEnd.BOARDS else face
+			ends.finish = d.finish
+			var units := "wall_m2" if ends.gable_kind() == WallLayout.GableEnd.BOARDS else face
 			out[units] = out.get(units, 0.0) + 2.0 * ends.gable_face(half_span)
 			var ridge := Vector2(d.points[1].x - d.points[0].x, d.points[1].z - d.points[0].z).length()
 			plan = (ridge + WallLayout.THICKNESS + 2.0 * RoofLayout.GABLE_OVERHANG) * 2.0 * (half_span + minf(d.roof.overhang, slopes.reach()))
@@ -274,9 +277,10 @@ static func wall(d: Dictionary) -> Dictionary:
 
 
 ## The planks a wall or fence `length` long lays as its finish: planked across, rows two to a course of planks
-## BOARD_RUN long at the mean, shorter where the wall curves, and one more a row on each side and at each opening, or
-## between a fence's posts FENCE_BOARDS rows; planked upright, a column BOARD.x or FENCE_PALE wide, a wall's broken in
-## two round each opening; framed in timber with no pitched roof, the walk's lanes and a square on each corner.
+## BOARD_MEAN long, scaled as a round loop's stones are, one more a row each time the wall turns BOARD_TURN, on each
+## side and at each opening and ruin, or between a fence's posts FENCE_BOARDS rows; planked upright, a column BOARD.x
+## or FENCE_PALE wide, a wall's broken in two round each opening and course by course down a ruin's stepped ends; framed in timber with no pitched roof, the walk's
+## lanes and a square on each corner.
 static func boards(d: Dictionary, length: float) -> int:
 	if d.finish == WallLayout.Finish.BARE or d.finish == WallLayout.Finish.PLASTER or d.finish == WallLayout.Finish.TIMBER and d.get("roof") != null and d.roof.pitch > 0.0:
 		return 0
@@ -293,8 +297,8 @@ static func boards(d: Dictionary, length: float) -> int:
 			sides += 1
 		else:
 			turn += bend
-	var run := minf((WallLayout.BOARD_RUN.x + WallLayout.BOARD_RUN.y) * 0.5, maxf(WallLayout.BOARD_RUN.x * 0.5, WallLayout.BOARD_TURN * length / maxf(turn, 1e-4)))
-	var along := ceili(length / run) + sides + 1
+	var scale := clampf(length / TAU / 3.0, 0.45, 1.0) if d.closed and sides == 0 else 1.0
+	var along: int = ceili(length / (BOARD_MEAN * scale) + turn / WallLayout.BOARD_TURN) + sides + 1 + d.get("ruins", []).size()
 	var openings: Array = d.get("openings", [])
 	match d.finish:
 		WallLayout.Finish.BOARDS_ACROSS:
@@ -304,7 +308,7 @@ static func boards(d: Dictionary, length: float) -> int:
 		WallLayout.Finish.BOARDS_UPRIGHT:
 			if d.fence:
 				return ceili(length / WallLayout.FENCE_PALE)
-			return ceili(length / WallLayout.BOARD.x) + openings.reduce(func(n: int, o: Vector4) -> int: return n + ceili(WallLayout.ARCH_HALF * 2.0 * o.w / WallLayout.BOARD.x) + 2, 0)
+			return ceili(length / WallLayout.BOARD.x) + d.get("ruins", []).size() * 2 * ceili(d.height / WallLayout.COURSE) + openings.reduce(func(n: int, o: Vector4) -> int: return n + ceili(WallLayout.ARCH_HALF * 2.0 * o.w / WallLayout.BOARD.x) + 2, 0)
 	return WallLayout.WALK_LANES * along + sides
 
 

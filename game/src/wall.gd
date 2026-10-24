@@ -93,8 +93,8 @@ var _perch_out := {}
 ## thatched roof's coat is a mesh of its own, from rows RoofLayout.FAR_STEP apart past the near distance; its slabs cast
 ## its shadow and stand in it for the bounce light. A timber, and a sawn plank of a boarded wall, gable or fence, is a
 ## plain box near, where a stone's lumps would cost it nine times the triangles and read no different on planed wood;
-## far it is the coarse
-## stone in a shader that reads nothing per pixel, since a few pixels wide its shading is what it costs. A floor's
+## far it is the coarse stone in a shader that reads nothing per pixel, since a few pixels wide its shading is what it
+## costs. A floor's
 ## flags and planks are drawn as timbers are, but lie in the walls' own shade and the light around them: they cast
 ## no shadow and shade no bounce light, which reads a room's builds from its roof down.
 static func kinds() -> Array[Masonry.Kind]:
@@ -470,7 +470,7 @@ func _lay_dressing(roofed := {}) -> void:
 static func pack_roof(built: WallLayout, r: RoofLayout, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Dictionary:
 	r.base = built.samples[0].y + built.height + WallLayout.CAP
 	r.foot = built.stands_at()
-	r.stepped = built.gable_end == WallLayout.GableEnd.STEPS
+	r.stepped = built.gable_kind() == WallLayout.GableEnd.STEPS
 	if r.kind == RoofLayout.Kind.GABLE:
 		r.corners = built.laid_points
 	r.build()

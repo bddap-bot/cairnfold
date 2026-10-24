@@ -108,7 +108,7 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 		if _on_timber(gable.wall.layout, gable.point):
 			return colour_target(Palette.Element.TIMBER, gable.point, "walls", gable.wall.id)
 		var end: WallLayout = gable.wall.layout
-		var wood := end.gable_end == WallLayout.GableEnd.BOARDS or end.boarded()
+		var wood := end.gable_kind() == WallLayout.GableEnd.BOARDS
 		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if end.plastered() else Palette.Element.STONE, gable.point, "walls", gable.wall.id)
 	if not roof.is_empty():
 		var r: RoofLayout = roof.wall.roof

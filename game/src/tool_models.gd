@@ -714,7 +714,7 @@ static func _house(root: Node3D, finish := WallLayout.Finish.BARE, gable_end := 
 	roof.seed = 7
 	roof.corners = layout.points
 	roof.pitch = 0.0 if flat else 1.8
-	roof.stepped = gable_end == WallLayout.GableEnd.STEPS
+	roof.stepped = layout.gable_kind() == WallLayout.GableEnd.STEPS
 	roof.thatch = thatched
 	roof.deck = deck
 	layout.gable = roof
