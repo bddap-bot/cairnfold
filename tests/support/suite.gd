@@ -64,6 +64,14 @@ static func wall_data(with: Dictionary) -> Dictionary:
 	return d
 
 
+## The index of the `village` step that `steps[at]` looks over: the last one before it.
+static func village_before(steps: Array, at: int) -> int:
+	var village := at
+	while steps[village].op != "village":
+		village -= 1
+	return village
+
+
 ## Runs `steps` through a Driver and waits for it; a run whose every step returns at once finishes inside add_child.
 func play(steps: Array) -> void:
 	var d := Driver.new(main, steps)

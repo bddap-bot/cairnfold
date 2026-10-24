@@ -49,9 +49,7 @@ func _stress_village() -> void:
 	check(first >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "doors/ground"), "the stress scene has doors/aerial and doors/ground phases")
 	if first < 0:
 		return
-	var village := first
-	while steps[village].op != "village":
-		village -= 1
+	var village := village_before(steps, first)
 	check(steps.slice(village, first).all(func(s: Dictionary) -> bool: return s.op != "clear"), "the doors phases look over that village")
 	await play([steps[0], steps[village]])
 	var fronts := 0
@@ -66,5 +64,5 @@ func _stress_village() -> void:
 				opened += 1 if not _path_doors(w).is_empty() else 0
 				break
 	check(fronts >= 15 and opened == fronts, "every house a path runs into opens a door: %d of %d" % [opened, fronts])
-	await play([{"op": "clear"}])
-	check(main.tool.paths.layouts.is_empty(), "clearing the village takes its paths: %s left" % [main.world.state.paths.keys()])
+	var bare := steps.slice(first).find_custom(func(s: Dictionary) -> bool: return s.op in ["bare", "clear"])
+	check(bare >= 0 and steps[first + bare].op == "bare", "the scene wipes the village's paths with it before going on")

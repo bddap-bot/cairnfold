@@ -448,9 +448,7 @@ func _stress_village() -> void:
 	check(first >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "finishes/ground"), "the stress scene has finishes/aerial and finishes/ground phases")
 	if first < 0:
 		return
-	var village := first
-	while steps[village].op != "village":
-		village -= 1
+	var village := village_before(steps, first)
 	var costs := {}
 	for face: Vector2 in PaletteTool.FACES:
 		if face.x == WallLayout.Finish.BARE:

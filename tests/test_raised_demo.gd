@@ -45,9 +45,7 @@ func _stress_ring() -> void:
 	check(first >= 0 and steps.any(func(s: Dictionary) -> bool: return s.get("name", "") == "raised/ground"), "the stress scene has raised/aerial and raised/ground phases")
 	if first < 0:
 		return
-	var village := first
-	while steps[village].op != "village":
-		village -= 1
+	var village := village_before(steps, first)
 	await play([steps[0], steps[village]])
 	var walls: Array[Wall] = main.tool.walls
 	var round := 0
