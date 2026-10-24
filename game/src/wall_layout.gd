@@ -1281,6 +1281,60 @@ func opening_fits(at: Vector4, placed: Array[Vector4]) -> bool:
 	return not added.is_empty() and added.style == at.z and placed.all(func(e): return _opening_in(before, e.x, e.y).is_empty() or not _opening_in(now, e.x, e.y).is_empty())
 
 
+## The largest size up to `upto` that opening `at` opens at among `placed`, to a hundredth, from its own size,
+## which must open there; NAN where it does not.
+func largest_fit(at: Vector4, placed: Array[Vector4], upto: float) -> float:
+	var sized := func(k: float) -> Vector4: return Vector4(at.x, at.y, at.z, k)
+	if opening_fits(sized.call(upto), placed):
+		return upto
+	if not opening_fits(at, placed):
+		return NAN
+	var lo := at.w
+	for i in 12:
+		var mid := (lo + upto) * 0.5
+		if opening_fits(sized.call(mid), placed):
+			lo = mid
+		else:
+			upto = mid
+	return floorf(lo * 100.0) / 100.0
+
+
+## The door a path running `span` along this house's wall opens where it meets it at arc length `s` among `placed`,
+## as plank doors on one course that fuse into one opening: a single door as wide as the path, or, past the widest the
+## wall holds, the number of lights of that size nearest the path's width, made as wide as it, fewer where the wall
+## holds fewer. None where a door or arch already stands across the path, where none opens, or where the floor stands
+## so high over the wall's foot that an opening there is a window (`opens_door`).
+func path_doors(s: float, span: float, placed: Array[Vector4]) -> Array[Vector4]:
+	var none: Array[Vector4] = []
+	var door := Vector4(s, maxf(threshold(), 0.0), Family.COTTAGE, MIN_SIZE)
+	var doors: Array[Dictionary] = []
+	doors.assign(openings_for(placed).filter(func(o: Dictionary) -> bool: return o.door))
+	if not opens_door(door) or placed.size() >= Commands.MAX_FITTINGS or not _opening_in(doors, door.x, door.y).is_empty():
+		return none
+	var widest := largest_fit(door, placed, maxf(span / _door_width(1), MIN_SIZE))
+	if is_nan(widest):
+		return none
+	var lights := maxi(roundi((span / widest + LIGHTS[Family.COTTAGE].mullion) / _door_width(1, true)), 1)
+	for n in range(lights, 1, -1):
+		var k := floorf(minf(widest, span / _door_width(n)) * 100.0) / 100.0
+		var run: Array[Vector4] = []
+		for i in n:
+			run.append(Vector4(self.wrap(s + (i - (n - 1) * 0.5) * FUSE * k * 0.5), door.y, door.z, maxf(k, MIN_SIZE)))
+		var rest: Array[Vector4] = placed + run.slice(1)
+		var all: Array[Vector4] = placed + run
+		if all.size() <= Commands.MAX_FITTINGS and opening_fits(run[0], rest) and _opening_in(openings_for(all), s, door.y).get("lights", 0) == n:
+			return run
+	door.w = widest
+	none.append(door)
+	return none
+
+
+## How wide `lights` plank doors fused into one opening stand at size 1, the mullions between them included, or with
+## `pitch` the mullion beside each too, so `lights` times one light's pitch less a mullion is their width.
+static func _door_width(lights: int, pitch := false) -> float:
+	return lights * DOOR_HALF * 2.0 + (lights - (0 if pitch else 1)) * LIGHTS[Family.COTTAGE].mullion
+
+
 ## The window among `placed` nearest `click` in the opening they make there, or -1 where they make none.
 func placed_at(click: Vector4, placed: Array[Vector4]) -> int:
 	var made := openings_for(placed)

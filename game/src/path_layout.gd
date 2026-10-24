@@ -1,7 +1,7 @@
 class_name PathLayout
 extends RefCounted
 
-## Dirt strokes wear the ground and open arches where they cross walls. Pure data.
+## Dirt strokes wear the ground and open arches, or doors into houses, where they cross walls. Pure data.
 
 const CELL := 1.0
 const ROW := 0.42
@@ -128,9 +128,21 @@ func _resample() -> void:
 
 ## Arc lengths along `wall` where this path opens arches: one where it crosses, or an arcade where the
 ## crossing runs long along the wall (a wide path, or one meeting the wall at a slant). Looks only in `cells` of
-## `segment_cells`, by default all of them; a cell the wall does not reach holds no crossing.
+## `segment_cells`, by default all of them.
 func crossings(wall: WallLayout, cells: Array = []) -> Array[float]:
 	var out: Array[float] = []
+	for m in meetings(wall, cells):
+		var n := 1 if m.span < ARCADE_SPAN else ceili((m.span - WallLayout.ARCH_HALF * 2.0) / WallLayout.ARCADE_PITCH) + 1
+		for k in n:
+			out.append(m.s + (k - (n - 1) * 0.5) * WallLayout.ARCADE_PITCH)
+	return out
+
+
+## Where this path crosses `wall`: the arc length along it of each crossing (`s`), and how far along it the path's width
+## runs there (`span`), its width or more where it meets the wall at a slant. Looks only in `cells` of `segment_cells`, by
+## default all of them; a cell the wall does not reach holds no crossing.
+func meetings(wall: WallLayout, cells: Array = []) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
 	if samples.size() < 2 or wall.samples.size() < 2:
 		return out
 	if not wall.bounds.grow(0.01).intersects(area, true):
@@ -166,10 +178,7 @@ func crossings(wall: WallLayout, cells: Array = []) -> Array[float]:
 				continue
 			found.append(s)
 			var slant := absf((b - a).normalized().cross((d - c).normalized()))
-			var span := 2.0 * lerpf(sample_half_widths[i], sample_half_widths[i + 1], a.distance_to(hit) / maxf(a.distance_to(b), 1e-5)) / maxf(slant, 0.4)
-			var n := 1 if span < ARCADE_SPAN else ceili((span - WallLayout.ARCH_HALF * 2.0) / WallLayout.ARCADE_PITCH) + 1
-			for k in n:
-				out.append(s + (k - (n - 1) * 0.5) * WallLayout.ARCADE_PITCH)
+			out.append({"s": s, "span": 2.0 * lerpf(sample_half_widths[i], sample_half_widths[i + 1], a.distance_to(hit) / maxf(a.distance_to(b), 1e-5)) / maxf(slant, 0.4)})
 	return out
 
 

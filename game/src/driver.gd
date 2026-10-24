@@ -25,6 +25,8 @@ var _area := 1.0
 var _stood: Array[Avatar] = []
 ## The units the last fill_flora's plants would count as, carried on the next units line.
 var _flora_units := {}
+## The paths `village` laid into its houses, by id, which `clear` takes with them.
+static var _village_paths: Array[int] = []
 
 
 func _init(owner: Main, script: Array) -> void:
@@ -1039,7 +1041,9 @@ func _layer_parts(name: String) -> Array[Array]:
 ## `overhang`, and `storeys` high, each storey above the first `upper` times the size of the one under it; a `round`
 ## entry is a round house as across as the others are deep, and one with `rise` stands raised that high on its plinth,
 ## on its `foundation` ("pillars" or "posts", else a stone plinth). With `windows`, every house opens windows of each
-## family in turn (`_open_windows`), and a flat roof a trapdoor.
+## family in turn (`_open_windows`), and a flat roof a trapdoor. With `doors`, a path runs into the middle of each
+## house's front from outside, its width taken from the list `doors` in turn, so each house opens a door as wide;
+## `clear` takes those paths with the houses.
 func _village(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var start := Time.get_ticks_usec()
@@ -1049,6 +1053,7 @@ func _village(s: Dictionary) -> void:
 	_lay_materials(s)
 	main.tool.thatch = s.get("thatch", false)
 	var k := 0
+	var fronts := []
 	for z in range(-int(r / step), int(r / step) + 1):
 		for x in range(-int(r / step), int(r / step) + 1):
 			var c := Vector2(x, z) * step
@@ -1074,6 +1079,8 @@ func _village(s: Dictionary) -> void:
 				if s.get("windows", false) and not round:
 					_open_windows(house, k + storey, on.is_empty())
 				tool.build([house])
+				if s.has("doors") and on.is_empty():
+					fronts.append([house.layout.points[0].lerp(house.layout.points[1], 0.5), at, s.doors[k % s.doors.size()]])
 				size *= entry.get("upper", 1.0)
 				tool.walls[-1].ivy_age = INF
 				on = PackedInt32Array([tool.walls[-1].id])
@@ -1086,6 +1093,16 @@ func _village(s: Dictionary) -> void:
 				wing_at.pitch = s.get("pitch", WallTool.pitch_for(wing_at))
 				tool.build([tool.new_house(wing_at)])
 				tool.walls[-1].ivy_age = INF
+	for n in fronts.size():
+		var f: Array = fronts[n]
+		var out: Vector3 = (f[0] - f[1]) * Vector3(1, 0, 1)
+		var path := PathLayout.new()
+		path.seed = n + 1
+		for i in 9:
+			var p: Vector3 = f[0] + out.normalized() * lerpf(2.2, -1.0, i / 8.0)
+			path.add(Terrain.ground(p.x, p.z), f[2])
+		main.world.submit({"op": "path", "path": path.data()})
+		_village_paths.append(main.world.seq)
 	print("village: %d buildings in %.0f ms" % [k, (Time.get_ticks_usec() - start) / 1000.0])
 
 
@@ -1122,9 +1139,14 @@ func _dress_roof(house: Wall, entry: Dictionary, size: Vector2) -> void:
 			r.dormers.append(Vector2(((i + 0.5) / n - 0.5) * (size.x - 1.2), side * size.y))
 
 
+## Takes every wall, and the paths a village laid into its houses.
 func _clear(_s: Dictionary) -> void:
 	for w in main.tool.walls.duplicate():
 		main.world.submit({"op": "take", "of": "walls", "ids": PackedInt32Array([w.id])})
+	for id in _village_paths:
+		if main.world.state.paths.has(id):
+			main.world.submit({"op": "take", "of": "paths", "ids": PackedInt32Array([id])})
+	_village_paths.clear()
 	await get_tree().process_frame
 
 

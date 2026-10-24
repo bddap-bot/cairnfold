@@ -11,8 +11,8 @@ extends Node3D
 ## house the pair stretch its width or depth, a tower's diameter, along a wall or fence its length, and drawn apart
 ## upright they make walls taller; both on a roof, drawn apart upright they raise the ridge, and across they bow the
 ## slopes; both on its eaves they pull them out. Letting go sets it as one reshape. One build is in hand at a time. A path across a wall opens an arch where they cross,
-## or an arcade where the crossing is wide: those arches follow from the paths standing, so they come and go
-## with the path. A hand holding the fence draws fences the same way: posts and rails, a wooden arch where a
+## or an arcade where the crossing is wide, and into a house or tower a door as wide as the path: those openings
+## follow from the paths standing, so they come and go with the path. A hand holding the fence draws fences the same way: posts and rails, a wooden arch where a
 ## path crosses. Every finished edit goes to the garden as a build command; this tool shows it until then.
 ## A hand points at the ground or at a build's top, and what it builds there stands on that build; builds that
 ## meet join (docs/design.md, "Buildings on buildings").
@@ -1370,18 +1370,11 @@ func _fitting_sizing(grip: FittingGrip, s: Sizing, in_hand: Callable) -> Sizing:
 	s.show = func(size: float) -> void:
 		if key == "openings":
 			var at: Vector4 = shown.value
-			var sized := func(k: float) -> Vector4: return Vector4(at.x, at.y, at.z, k)
-			if size > at.w and not fits.call(sized.call(size)):
-				var lo: float = at.w
-				for i in 12:
-					var mid := (lo + size) * 0.5
-					if fits.call(sized.call(mid)):
-						lo = mid
-					else:
-						size = mid
-				size = floorf(lo * 100.0) / 100.0
-			if not is_equal_approx(size, at.w) and fits.call(sized.call(size)):
-				shown.value = sized.call(size)
+			if size > at.w:
+				size = w.layout.largest_fit(at, standing_openings(w, others.call()), size)
+			var sized := Vector4(at.x, at.y, at.z, size)
+			if not is_nan(size) and not is_equal_approx(size, at.w) and fits.call(sized):
+				shown.value = sized
 		lay.call()
 	s.take = func() -> void: hold.from = shown.value
 	s.follow = func(m: Mason, hand: Transform3D) -> void:
@@ -1549,7 +1542,7 @@ func _walls_by_cell() -> Dictionary:
 ## wall is not resampled.
 func relay_crossings(path: PathLayout) -> void:
 	for w in walls:
-		if not path.crossings(w.layout).is_empty() and not _held(w):
+		if not path.meetings(w.layout).is_empty() and not _held(w):
 			var before := w.layout.openings.duplicate()
 			_open_paths(w)
 			if before != w.layout.openings:
@@ -1557,12 +1550,19 @@ func relay_crossings(path: PathLayout) -> void:
 			_sound(Cues.Act.ARCH, _top(w, w.layout.length() * 0.5))
 
 
-## Adds the arches `path` makes in `w` and returns them. A crossing already inside an opening needs none; one whose ring
-## would overlap an arch there stands a pitch from it as an arcade instead, on the crossing's side if that
-## fits, else the other, so no opening closes.
+## Adds the openings `path` makes in `w` and returns where they stand. Into a house or tower each crossing opens a
+## door as wide as the path (WallLayout.path_doors). Through any other wall it opens an arch: a crossing already inside
+## an opening needs none; one whose ring would overlap an arch there stands a pitch from it as an arcade instead, on
+## the crossing's side if that fits, else the other, so no opening closes.
 func _cut_crossings(w: Wall, path: PathLayout, cells: Array = []) -> Array[float]:
 	var opened: Array[float] = []
 	var layout := w.layout
+	if layout.floored():
+		for m in path.meetings(layout, cells):
+			for door in layout.path_doors(layout.wrap(m.s), m.span, layout.openings):
+				layout.openings.append(door)
+				opened.append(door.x)
+		return opened
 	if not layout.can_arch():
 		return opened
 	var placed := layout.openings.duplicate()

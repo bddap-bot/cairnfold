@@ -22,6 +22,8 @@ func _run() -> void:
 	_a_second_path_beside_an_arch_makes_an_arcade()
 	_a_crossing_that_cannot_open_leaves_no_arch()
 	_a_tower_opens_a_doorway_across_its_seam()
+	_a_path_into_a_house_opens_a_door_as_wide_as_it()
+	_a_path_and_a_house_make_a_door_in_either_order()
 	_painting_skips_a_path()
 	_a_scripted_stroke_outlasts_the_hand()
 	_undo_lifts_a_path_and_its_arches()
@@ -288,6 +290,102 @@ func _a_tower_opens_a_doorway_across_its_seam() -> void:
 		_teardown(nodes)
 		var blocks := w.stones.filter(func(s): return s.kind == "block" and s.y < w.spring())
 		check(not blocks.any(func(s): return Vector2(s.xform.origin.x - 1.3, s.xform.origin.z - 0.15).length() < WallLayout.ARCH_HALF - 0.2), "no block fills the doorway across the seam")
+
+
+## A house 8 m by 5 m with a gable roof, its front wall from (4, 2.5) back to (-4, 2.5) at arc length 13 to 21.
+func _house_layout() -> WallLayout:
+	var w := WallLayout.new()
+	w.points = WallLayout.rectangle(Vector3(-4, 0, 0), Vector3(4, 0, 0), 5.0)
+	w.closed = true
+	w.cover = WallLayout.Cover.ROOF
+	w.build(Terrain.flat)
+	return w
+
+
+func _doors(w: WallLayout) -> Array:
+	return w.apertures.filter(func(o: Dictionary) -> bool: return o.door and o.style != WallLayout.Family.ARCHWAY)
+
+
+func _a_path_into_a_house_opens_a_door_as_wide_as_it() -> void:
+	var w := _house_layout()
+	var none: Array[Vector4] = []
+	for t in [[0.45, 1], [0.55, 1], [1.0, 2], [1.6, 3]]:
+		var half: float = t[0]
+		var meets := _path([[0.5, 7], [0.5, 0]], half).meetings(w)
+		check(meets.size() == 1 and absf(meets[0].s - 16.5) < 0.05, "a path into a house meets its front once, where it runs in: %s" % [meets])
+		var doors := w.path_doors(meets[0].s, meets[0].span, none)
+		check(not doors.is_empty() and doors.all(func(d: Vector4) -> bool: return d.z == WallLayout.Family.COTTAGE and WallLayout.opens_door(d)), "a %.2f m path opens plank doors: %s" % [half * 2.0, doors])
+		w.openings.assign(doors)
+		w.build(Terrain.flat)
+		var made := _doors(w)
+		check(made.size() == 1 and absf(made[0].s - 16.5) < 0.05 and made[0].lights == t[1] and absf(made[0].half * 2.0 - half * 2.0) < 0.04, "a %.2f m path opens one door of %d lights where it meets the wall, as wide as it: %s" % [half * 2.0, t[1], made])
+		check(w.archways().is_empty(), "a path into a house opens no arch")
+	var wall_high := w.path_doors(16.5, 1.4, none)
+	w.openings.assign(wall_high)
+	w.build(Terrain.flat)
+	var made := _doors(w)
+	check(made.size() == 1 and made[0].lights == 1 and made[0].half * 2.0 < 1.4 and made[0].head + w.course_height() <= w.height + 0.01, "a path a little wider than the tallest door the wall holds opens that door: %s" % [made])
+	var wide := _path([[-4.5, 7], [2.5, 0]], 3.0).meetings(w)
+	w.openings.assign(w.path_doors(wide[0].s, wide[0].span, none))
+	w.build(Terrain.flat)
+	made = _doors(w)
+	check(made.size() == 1 and made[0].lights == w.openings.size() and made[0].half * 2.0 < wide[0].span and made[0].half * 2.0 > 4.0, "a path wider than the wall opens as many lights as it holds: %s for a %.2f m crossing" % [made, wide[0].span])
+	var placed: Array[Vector4] = [Vector4(16.6, 0.3, WallLayout.Family.COTTAGE, 1.0)]
+	var through := _path([[0.5, 7], [0.5, 0]], 0.45).meetings(w)
+	check(w.path_doors(through[0].s, through[0].span, placed).is_empty(), "a path through a door already there opens none")
+	var corner := _path([[3.9, 7], [3.9, 0]], 0.45).meetings(w)
+	check(w.path_doors(corner[0].s, corner[0].span, none).is_empty(), "a path into a corner pier opens no door")
+	var open := WallLayout.new()
+	open.points = w.points
+	open.closed = true
+	open.build(Terrain.flat)
+	check(_path([[0.5, 7], [0.5, 0]], 0.45).crossings(open).size() == 1 and not open.floored(), "a roofless loop is a wall, and a path through it opens an arch")
+
+
+func _a_path_and_a_house_make_a_door_in_either_order() -> void:
+	var nodes := _setup()
+	var tool: WallTool = nodes[0]
+	var world: World = nodes[2]
+	var house := _put_house(nodes, Vector3(-30, 0, 0))
+	_lay(nodes, Vector3(-29.5, 0, 7), Vector3(-29.5, 0, 0), 0.5)
+	var made := _doors(house.layout)
+	check(made.size() == 1 and made[0].lights == 1 and absf(made[0].half - 0.5) < 0.02, "a path laid into a house opens a door as wide as it: %s" % [made])
+	check(world.state.walls[house.id].openings.is_empty(), "the door is the path's: the house stores none")
+	world.undo()
+	_lay_walls(tool)
+	check(_doors(house.layout).is_empty() and world.state.paths.is_empty(), "undoing the path closes its door: %s" % [_doors(house.layout)])
+	world.redo()
+	_lay_walls(tool)
+	check(_doors(house.layout).size() == 1, "redo opens it again: %s" % [_doors(house.layout)])
+	_lay(nodes, Vector3(30.5, 0, 7), Vector3(30.5, 0, 0), 1.0)
+	var second := _put_house(nodes, Vector3(30, 0, 0))
+	made = _doors(second.layout)
+	check(made.size() == 1 and made[0].lights == 2 and absf(made[0].half - 1.0) < 0.04, "a house put up over a wide path opens a double door as wide as the path: %s" % [made])
+	world.undo()
+	_lay_walls(tool)
+	check(tool.find(second.id) == null, "undo takes the house")
+	world.redo()
+	_lay_walls(tool)
+	second = tool.find(second.id)
+	check(second != null and _doors(second.layout).size() == 1, "redo puts it back with its door: %s" % [_doors(second.layout) if second != null else []])
+	var path_id: int = world.state.paths.keys().max()
+	world.submit({"op": "take", "of": "paths", "ids": PackedInt32Array([path_id])})
+	_lay_walls(tool)
+	check(_doors(second.layout).is_empty(), "taking the path away closes the door: %s" % [_doors(second.layout)])
+	world.undo()
+	_lay_walls(tool)
+	check(_doors(second.layout).size() == 1, "undoing that opens it again")
+	_teardown(nodes)
+
+
+## Puts up a house 8 m by 5 m with a gable roof centred on `at`, its front facing +z.
+func _put_house(nodes: Array, at: Vector3) -> Wall:
+	var a := Terrain.ground(at.x - 4, at.z)
+	var b := Terrain.ground(at.x + 4, at.z)
+	var data := wall_data({"points": PackedVector3Array(WallLayout.rectangle(a, b, 5.0)), "seed": 3, "closed": true, "top": WallLayout.Top.CAP, "roof": {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(at.x, at.z), "radius": 2.5, "pitch": 1.4, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
+	(nodes[2] as World).submit({"op": "wall", "walls": [data]})
+	_lay_walls(nodes[0])
+	return nodes[0].walls[-1]
 
 
 func _painting_skips_a_path() -> void:
