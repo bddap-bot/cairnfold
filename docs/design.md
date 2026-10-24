@@ -4793,7 +4793,9 @@ its washing as one, and each trapdoor as one. `tests/test_windows.gd` checks eac
 the wall, the corner window, the glow and its colour, the dressing, trapdoors, the command, the budget and the tools;
 `demo/windows.json` renders every family by day and by night, the window wheel and the glow wheel; the stress scene's
 `windows/aerial` and `windows/ground` phases look over a village opening windows in every house, flat roofs with
-trapdoors, by night.
+trapdoors, by night. On the Steam Frame, governed, both hold 72 Hz with every window glowing (`perf/frame/stress`): 5.2 ms
+of GPU time a frame, no frame over 1.5× the refresh period at the ground view's landing, and one in the aerial phase, of
+the game-wide single late frames.
 
 ## Moss
 
