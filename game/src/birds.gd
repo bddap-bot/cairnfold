@@ -199,13 +199,13 @@ func tick(delta: float) -> void:
 			birds.remove_at(i)
 
 
-## A pair or a trio flies in from out of sight to a perch site, as many as find a free point there.
-func arrive() -> void:
+## A pair or a trio flies in from out of sight to a perch site, `to` or else any, as many as find a free point there.
+func arrive(to: Site = null) -> void:
 	var count := rng.randi_range(FLOCK.x, FLOCK.y)
 	var site: Site
 	var land := Vector3.INF
 	for attempt in 4:
-		site = sites[rng.randi() % sites.size()]
+		site = to if to != null else sites[rng.randi() % sites.size()]
 		land = _free_spot(site, Vector3.INF)
 		if land != Vector3.INF:
 			break

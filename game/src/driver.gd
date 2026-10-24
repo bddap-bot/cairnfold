@@ -2121,15 +2121,23 @@ func _befriend(s: Dictionary) -> void:
 
 
 ## Waits for a conure that trusts this player to come to their shoulder; with `trust`, the first to perch is given the
-## trust feeding would earn, and with no conure about a flock is brought to the garden's perches. With `look`, the head
-## then turns to that shoulder as far as a neck turns and looks down at it.
+## trust feeding would earn, and with no conure bound for a perch near enough to follow the player a flock is brought to
+## the perch nearest them. With `look`, the head then turns to that shoulder as far as a neck turns and looks down at it.
 func _shoulder_bird(s: Dictionary) -> void:
 	var flock: Birds = main.wildlife.birds
 	var elapsed := 0.0
-	if flock.birds.is_empty():
+	var head := main.rig.head.global_position
+	if not flock.birds.any(func(b: Birds.Bird) -> bool: return b.to.distance_to(head) < Birds.FOLLOW_FROM):
 		flock.look()
-		assert(not flock.sites.is_empty(), "no perch for a conure")
-		flock.arrive()
+		var nearest: Birds.Site = null
+		var reach := Birds.FOLLOW_FROM
+		for site in flock.sites:
+			for p in site.points():
+				if p.distance_to(head) < reach:
+					reach = p.distance_to(head)
+					nearest = site
+		assert(nearest != null, "no perch near enough for a conure to follow the player")
+		flock.arrive(nearest)
 	while elapsed < 120.0:
 		if s.get("trust", false):
 			for b in flock.birds:
