@@ -925,11 +925,11 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   Frame calibrations below: the Quest 2 prices throughout, each the larger of two interleaved costs runs
   ([record](../perf/quest-2/costs/20261022T103832Z-6c986f4.json),
   [record](../perf/quest-2/costs/20261022T110509Z-6c986f4.json)), except the flora "Cheaper flora" made cheaper,
-  refitted on that build: a tree 26.628 µs, a bush 4.712, and grass and flowers at their pools packed into a 1.8 m
-  disc beside the eye, 2.449 µs a clump and 3.447 µs a flower. The Frame sets one unit: `water`, 1,908.364 µs, its
-lake 1.91 ms over the meadow from the air against the Quest 2's 1.32 ms. Refitted on 0774568 (below), every other
-Frame price fell under the Quest 2's: `fitting`, the Frame's 15.609 µs until then, fits to 3.852 there against the
-Quest 2's 16.415, so the Frame no longer sets it. Each price a record carries (`prices`, added by `scripts/paired.py --price`) is held by
+  refitted on that build (trees and bushes from its costs fit, grass and flowers at their pools packed into a 1.8 m
+  disc beside the eye). The Frame sets one unit, `water`: its lake read 1.91 ms over the meadow from the air against
+  the Quest 2's 1.32 ms. Refitted on 0774568 (below), every other Frame price fell under the Quest 2's: `fitting`, the
+  Frame's 15.609 µs until then, fit to 3.852 in that run, under the Quest 2's, so the Frame no longer sets it. The prices
+  themselves live only in `Budget.COSTS`; this document cites the runs they came from. Each price a record carries (`prices`, added by `scripts/paired.py --price`) is held by
   `tests/test_prices.py`: no unit is charged below the latest one recorded for it. Capacity is the Quest 2's room, every device priced on its table: the 72 Hz calibration
   line of 11.111111111111111 ms less the Quest 2's 6.42 ms base, the meadow without its own trees and bushes plus
   wildlife, rounded down to 4.68 ms. That base is the meadow two costs runs measured, the larger of each view
@@ -939,11 +939,11 @@ Quest 2's 16.415, so the Frame no longer sets it. Each price a record carries (`
   of its views ([record](../perf/quest-2/meadow-flora/20261022T135336Z-6a5692a.json),
   [record](../perf/quest-2/meadow-flora/20261022T142008Z-6a5692a.json)): from the air 5.61 less 1.35,
   standing 4.64 less 0.33, from the shore 4.75 less 0.48, the dearest 4.31, plus the larger run's 2.11 of wildlife.
-  Its 46 trees and 60 bushes are charged 1.51 ms, at least the 0.33 the room gained. The Frame's room below (1.77 ms,
+  Its 46 trees and 60 bushes, at the prices of that refit, were charged 1.51 ms, at least the 0.33 the room gained. The Frame's room below (1.77 ms,
   its own plants in the base, the ladder held at step 8) is no input: Directive (verbatim): "I'd like everything
   priced on the quest2 table."
   The meadow's grass and flowers stay in the base: priced as painted plants, at their densest beside the eye, its
-  22,000 clumps and 3,200 flowers would charge 18.5 ms, where clearing them with its trees and bushes saves 1.92 to 1.93 ms
+  22,000 clumps and 3,200 flowers would charge several times the whole capacity, where clearing them with its trees and bushes saves 1.92 to 1.93 ms
   from the air, 1.68 to 2.29 standing and 0.83 to 0.85 from the shore (the same records). These are fixed design numbers, independent of future governor tuning.
   The Quest 2 is the weakest supported target; its full-garden runs below held 72 fps
   once the ladder settled. This choice admits no more cost than either measured table.
@@ -981,7 +981,7 @@ from the air and standing, every phase at 72 Hz, over the bare meadow's 5.05 and
 dusk). `scripts/costs.py` fits each unit below; the Frame's base and room are no input to `Budget`. Its prices before
 this run, on b717f4b before the specular cut, are in [that record](../perf/frame/costs/20261020T213034Z-b717f4b.json):
 
-| Phase | Units | From the air | Standing | Fitted cost | b717f4b |
+| Phase | Units | From the air | Standing | This run's fit | b717f4b |
 | --- | --- | --- | --- | --- | --- |
 | Grass pool full | 12,000 clumps | 5.20 | 5.41 | 0.198 µs a clump, packed beside the eye (7.48) | 0.177 |
 | Flower pool full | 4,000 flowers | 5.38 | 4.99 | 0.300 µs a flower, packed beside the eye (6.31) | 0.215 |
@@ -993,7 +993,7 @@ this run, on b717f4b before the specular cut, are in [that record](../perf/frame
 | Plaster walls, 15 m disc | 1,562 m² | 5.78 | 6.85 | 1.48 µs a m² | 2.01 |
 | Fences, 15 m disc | 416 m² | 5.32 | 5.12 | 1.37 µs a m² | 3.17 |
 | Ponds | 71 m² | 4.95 | 4.27 | nothing over the bare meadow | 19.5 a pond |
-| Lake, the meadow's bowl filled | | 7.72 | 3.52 | 1,908 µs, all of a garden's water (`water`) | |
+| Lake, the meadow's bowl filled | | 7.72 | 3.52 | 1,908 µs, all of a garden's water | |
 | Village | 215 m² of wall, 158 m² of roof | 6.39 | 5.74 | 2.35 µs a m² of roof | 6.65 |
 | Village thatched | 215 m² of wall, 158 m² of thatch | 6.20 | 5.53 | 1.14 µs a m² of thatch | 3.48 |
 | Lanterns | 90 on 714 m² of wall | 6.36 | 8.10 | 3.85 µs a lantern | 15.6 |
@@ -1002,7 +1002,7 @@ this run, on b717f4b before the specular cut, are in [that record](../perf/frame
 | Paths | | 4.85 | 4.14 | nothing | |
 | The meadow's own trees and bushes | 46, 60 | 5.81 | 4.93 | the base | |
 | Hills | | 4.78 | 4.24 | nothing | |
-| Stone ground | 1,304 m² | 4.96 | 4.29 | charged at the Quest 2's price (see "Ground materials") | |
+| Stone ground | 1,304 m² | 4.96 | 4.29 | not fitted: the Quest 2 prices it (see "Ground materials") | |
 
 The lake's view from the air is the meadow's 5.81 ms plus 1.91; standing in it, it drowns the plants around the eye
 and reads 1.40 ms under the meadow. The walls, village and paths are laid by `sized` steps, so their units are what
@@ -1122,7 +1122,7 @@ the middle keeps 2x. Fixed foveation is now one of the ladder's knobs on every r
 from the start rung down and 0 above it (see "One ladder for every headset"). Its saving
 only lowers what a frame costs, so `Budget.COSTS` were not refitted: every charge still bounds its unit, and a fit from
 the one foveated `demo/costs.json` run, which the system shell drew beside, scattered both ways (roofs 41 µs a m²
-against the 18.7 charged, walls 11 against 23.8), wider than any change foveation could make.
+against the 18.7 then charged, walls 11 against 23.8), wider than any change foveation could make.
 
 That saving was measured over the bare meadow. Over built walls seen from the air, the density map is the dearest
 thing the Quest 2 draws. Bisected on the device, the stress scene's village/aerial went from 29 ms (36f3888f) to 291
@@ -1155,9 +1155,9 @@ AA is out in VR.
 What walls cost the Quest 2 (`NESTCOMBE_SCENE=demo/costs.json bench.sh OUT --android APK`,
 the ladder at its bottom step): GPU milliseconds a frame over the bare meadow of the same run,
 whose own time read 19 to 27 ms here, so only the differences count. Before is 16 m masonry
-chunks, after is 8 m; the bar charges every headset the Frame's 6.07 µs a m²:
+chunks, after is 8 m; the bar of that time charged every headset the Frame's then 6.07 µs a m²:
 
-| Walls 2 m apart, 4.5 m tall | Units | Bar charges | Standing, before | Standing, after | From the air, before | From the air, after |
+| Walls 2 m apart, 4.5 m tall | Units | Bar then charged | Standing, before | Standing, after | From the air, before | From the air, after |
 | --- | --- | --- | --- | --- | --- | --- |
 | 10 m disc | 714 m² | 4.33 | 9.69 | 6.59 | 3.32 | 3.76 |
 | 15 m disc | 1,562 m² | 9.48 | 15.15 | 9.67 | 6.42 | 7.16 |
@@ -1245,12 +1245,13 @@ Earlier, sharing each lobe's vertices saved 0.4 ms, dropping its backlight nothi
 drawing one side 1.4 ms at the cost of the leaves vanishing from behind. From the air the stones cost about 8 ms over few primitives,
 and one detail-texture read instead of three saved nothing.
 
-On the Quest 2 (`bench.sh OUT --android APK`, the bottom step, 0.7 swapchain, 2x MSAA), viewport
+On the Quest 2, the run of 20261020 on 81105e0 that refitted the table then (`bench.sh OUT --android APK`, the bottom
+step, 0.7 swapchain, 2x MSAA; no record of it is in perf/, and every price since is refitted), viewport
 GPU milliseconds a frame over the bare meadow's 6.92 and 6.71, every view at 72 frames a second;
 each `sized` phase was laid over the share of its area shown, the first that read under the line or the
 fourth tried. With the wildlife the base, the meadow's own plants standing, is 9.10 ms and the room 2.0 ms:
 
-| Phase | Area laid | Units | From the air | Standing | Fitted cost |
+| Phase | Area laid | Units | From the air | Standing | This run's fit |
 | --- | --- | --- | --- | --- | --- |
 | Grass pool full | | 12,000 blades | 10.10 | 12.10 | 0.45 µs a blade |
 | Flower pool full | | 4,000 flowers | 8.22 | 9.43 | 0.68 µs a flower |
@@ -1706,7 +1707,8 @@ Prices refitted on the after build ([costs](../perf/quest-2/costs/20261022T10463
 [pondweed](../perf/quest-2/pondweed/)): a tree 26.628 µs and a bush 4.712, both from the costs fit, against the 28.491 and
 5.01 fitted on the build before them. The costs scene's packed discs fall under the refresh rate, so its fit leaves them out; priced directly
 (`scripts/paired.py --price`), a packed flower costs 3.447 µs and a packed grass clump 2.099 there and up to 2.449 in the
-pondweed scene, where main read 3.3. Grass and flowers are charged those, up from 0.706 and 0.918: the grass charge no
+pondweed scene, where main read 3.3. Grass and flowers were charged those from then (`Budget.COSTS`), up from 0.706
+and 0.918: the grass charge no
 longer covered main's packed disc, and no packed flower view had been priced before.
 
 ### Crowns
@@ -2188,7 +2190,7 @@ Stage numbers refer to the build order at the end.
 | Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces (a house or tower under a roof or deck only its outer one: [inside before and after, outside after](ivy.jpg)), wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`), kept out of windows and doors too | 3 (done), 6 (done) |
 | Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers grow in clumps about 1.3 m across, each one of nine soft colours (white, butter, peach, pinks, lavender, violet, blues), so a stroke paints a few colour patches with nothing to pick | 1 (done), 3 (done) |
 | Trees, bushes | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs in five species the style tool picks per tree; the trigger of a hand holding the tree tool plants an oak where it points. The tree's entry on the wheel opens two, trees and bushes; a bush is one blob like the meadow's own, placed through the same command, save and budget as a tree. Directive (verbatim): "Can you give us a way to place bushes, not just trees"; a grip on a tree or bush, the meadow's own too, carries it along the ground, and two grips on a tree size it by their span (see "Moving and sizing a tree") | 1 (done), 3 (done) |
-| Boulders | Not in Tiny Glade | The boulder tool's trigger sets one down where it points, each a new shape from its own seed (`BoulderLayout`): a squat ellipsoid cut by six to ten fracture planes and a flat bed, its edges worn round by a soft minimum and its faces pitted by noise, so no two are alike and none is a ball. The seed alone is stored, with where it stands and its turn, so a boulder loads and networks the same everywhere. One hand's grip carries it, turning it every way with the hand, and two size it by their span, from 0.08 times up without bound (`WallTool.Sizing`, as for trees and openings, each of which one hand carries); its far-mesh distance grows with it. Directive (verbatim): "During that grab and move, boulders position and 3D orientation both map to the boulder, not just position and 2D orientation like when placing houses." Wherever it is let go over the ground it drops straight down until some point of it meets the ground, then sinks a fifth of how far it reaches below its centre (`BoulderLayout.rest`), so it rests whichever way it is turned; pushed into the ground it stays as deep as it was let go, down to the depth that leaves 15% of its height showing, so a ray still finds it to grip, delete or restyle and a mostly buried one still reads as a stone (directive (verbatim): "Let's allow players to mostly bury a boulder. It need not snap up after placing it halfway underground."); its depth is stored with it, and a ray meeting its buried part through the ground meets nothing; it rides the ground as it is reshaped, rising on a hill pulled under it and sinking into a hollow, and undoing the ground edit sets it back; the colour tool paints it any stone swatch, and the style tool gives it any of painted stone's styles (see "Ground materials"). It draws in wall stone, near as 1280 triangles and past 30 m times its scale as 80; the delete beam, the teleport ray and a hand stop at its own surface, and a player over it stands on its top. The budget counts a boulder by its scale squared (a metre-wide one a unit, a pebble a quarter) up to 0.47 ms, the most one costs however large (see "Boulder cost by size"), so the room alone bounds how many giants a garden holds, never how big one grows. A unit costs 25.9 µs, the Quest 2's crowd price `demo/costs.json` fits (`Budget.COSTS.boulder`), charged the same on every device as every budget cost is | 7 (done) |
+| Boulders | Not in Tiny Glade | The boulder tool's trigger sets one down where it points, each a new shape from its own seed (`BoulderLayout`): a squat ellipsoid cut by six to ten fracture planes and a flat bed, its edges worn round by a soft minimum and its faces pitted by noise, so no two are alike and none is a ball. The seed alone is stored, with where it stands and its turn, so a boulder loads and networks the same everywhere. One hand's grip carries it, turning it every way with the hand, and two size it by their span, from 0.08 times up without bound (`WallTool.Sizing`, as for trees and openings, each of which one hand carries); its far-mesh distance grows with it. Directive (verbatim): "During that grab and move, boulders position and 3D orientation both map to the boulder, not just position and 2D orientation like when placing houses." Wherever it is let go over the ground it drops straight down until some point of it meets the ground, then sinks a fifth of how far it reaches below its centre (`BoulderLayout.rest`), so it rests whichever way it is turned; pushed into the ground it stays as deep as it was let go, down to the depth that leaves 15% of its height showing, so a ray still finds it to grip, delete or restyle and a mostly buried one still reads as a stone (directive (verbatim): "Let's allow players to mostly bury a boulder. It need not snap up after placing it halfway underground."); its depth is stored with it, and a ray meeting its buried part through the ground meets nothing; it rides the ground as it is reshaped, rising on a hill pulled under it and sinking into a hollow, and undoing the ground edit sets it back; the colour tool paints it any stone swatch, and the style tool gives it any of painted stone's styles (see "Ground materials"). It draws in wall stone, near as 1280 triangles and past 30 m times its scale as 80; the delete beam, the teleport ray and a hand stop at its own surface, and a player over it stands on its top. The budget counts a boulder by its scale squared (a metre-wide one a unit, a pebble a quarter) up to `Budget.BOULDER_MOST_US`, the most one costs however large (see "Boulder cost by size"), so the room alone bounds how many giants a garden holds, never how big one grows. A unit costs `Budget.COSTS.boulder`, the Quest 2's crowd price `demo/costs.json` fits (its records under "Build budget"), charged the same on every device as every budget cost is | 7 (done) |
 | Terrain | Stroke-drawn hills with editable height and steepness; steep means rocky | Not a tool: a grip on the ground, whatever the hand holds, grabs it where it points (a pond's bed under its water too) and the hand pulls it up into a hill or pushes it into a hollow; farther ground grabs a wider hill, and taller hills widen so their flanks stay walkable. Grass, flowers, trees and walls follow the ground live; earth and then stone ground show on steep slopes | 7 (shaping done) |
 | Water | Dug holes with a flat surface and normal-map waves | The pond tool fills the hollow beside the point it is aimed at up to that point's height, at most to just below its rim, with depth-tinted water, shore foam and ripples where a hand breaks it (see "Water") | 7 (water done) |
 | Global illumination | Software ray-traced GI at quarter resolution, SH-encoded and denoised | Mobile budget: baked per-instance occlusion, sky ambient, and a one-metre probe volume of sky seen and sunlight bounced off sunlit stone, solved again on a worker when a build settles or the sun moves (see "Bounce light") | 2 (done) |
@@ -3103,22 +3105,23 @@ three quarters of its width plus 2.5 m, where it fills most of the view, and car
 times, against it standing still. Viewport GPU milliseconds one boulder adds on a Quest 2, mean of the two pairs
 ([record](../perf/quest-2/boulder-scale/20261023T035459Z-7f86f7c.json)); every phase held 72 Hz:
 
-| Scale | From the air | Standing near | Carried, over still | Charged before | Charged now |
+| Scale | From the air | Standing near | Carried, over still | Charged before |
 | --- | --- | --- | --- | --- | --- |
-| 1 | 0.05 | 0.16 | -0.01 | 0.026 | 0.026 |
-| 4 | 0.04 | 0.34 | 0.06 | 0.414 | 0.414 |
-| 12 | 0.07 | 0.34 | -0.10 | 3.724 | 0.470 |
-| 30 | 0.03 | 0.46 | -0.04 | 23.275 | 0.470 |
-| 80 | -0.15 | -0.09 | 0.14 | 165.51 | 0.470 |
+| 1 | 0.05 | 0.16 | -0.01 | 0.026 |
+| 4 | 0.04 | 0.34 | 0.06 | 0.414 |
+| 12 | 0.07 | 0.34 | -0.10 | 3.724 |
+| 30 | 0.03 | 0.46 | -0.04 | 23.275 |
+| 80 | -0.15 | -0.09 | 0.14 | 165.51 |
 
 Its triangles do not grow with it, so what grows is the face it shows, and near the eye that stops once it fills the
 view; at 80 it fills the whole near view and hides more meadow than it draws. The dearest single pair, 0.47 ms at 30
-standing, is `BOULDER_MOST_US`: past about 4.3 times a metre wide a boulder counts that, and below it its scale squared
+standing, set `BOULDER_MOST_US`: past the scale where its scale squared at the crowd price reaches that, a boulder
+counts it, and below it its scale squared
 at the crowd price `demo/costs.json` fits. Carried, the dearest reading is 0.14 ms over the same boulder still at 80,
 where still it reads under the meadow, so no carried boulder passed the bound and a held one counts as one standing.
 At every size a carried phase's p99 frame reached 16.0 to 18.3 ms against at most 15.7 still: a hitch the carry or
 its landing brings, not GPU time that grows with the boulder. A lone metre-wide boulder seen close reads 0.16 ms against
-the 0.026 charged: the crowd price is what 32 of them spread over the meadow cost, and this run leaves it as it was.
+the 0.026 then charged: the crowd price is what 32 of them spread over the meadow cost, and this run leaves it as it was.
 
 ### Scaled tree cost on Quest 2
 
@@ -3241,10 +3244,11 @@ governor's signal; a record's `gpu_ms` is the headset's own App time), every vie
 Water costs by the pixels it covers: over the bare meadow the lake takes 4.0 ms from the air, 45 times the
 0.09 ms `Budget` charged a pond whatever its size. The plants it covers collapse, though, and they cost about as
 much, so over the meadow as it stands the lake adds 0.37 ms from the air and saves 1.4 ms from the shore and 4.7 ms
-under it. `Budget` prices water by the square metre, 5.15 µs, the most seven small ponds (71 m²) wholly in view
-gave over the bare meadow in either run (0.37 and 0.08 ms), and all of a garden's water at most 0.37 ms
-(`water`), what the lake adds to the meadow from its dearest view: a pond of 72 m² or more costs that, a fifth of
-the Quest 2's 2 ms of room. The Frame's lake, measured since, costs more and sets `water` ("Build budget").
+under it. So `Budget` prices water by the square metre (`pond_m2`), which these runs fitted at 5.15 µs, the most
+seven small ponds (71 m²) wholly in view gave over the bare meadow in either run (0.37 and 0.08 ms), and all of a
+garden's water at most what the lake adds to the meadow from its dearest view (`water`), here 0.37 ms, a fifth of
+the Quest 2's 2 ms of room then. Both are refitted since: their current prices are in `Budget.COSTS`, and the
+Frame's lake, measured later, costs more and sets `water` ("Build budget").
 
 Filling a lake never holds the main thread. Done on it, putting the lake held the Quest 2's for one frame of 476 to
 1,617 ms, and each ground edit inside it for one of 123 to 169 ms, 53 and 12 refresh periods or more. Timers placed
@@ -3391,14 +3395,15 @@ deep water and irises in the shallows.
   A pondweed clump costs about two thirds of a land clump in matching views, and both cost far more packed beside the
   eye than the 0.184 µs a clump grass was charged from the costs scene's pool spread over 20 m: 0.44 µs a pondweed
   clump, 0.71 a land clump. Charged that, 9,400 clumps would reach 13.8 ms of pondweed from above the pond and
-  15.8 ms of land grass standing over it, past the then 12.5 ms line. So `Budget.COSTS.grass` is the dearest of these,
-  0.706 µs a clump, the land disc standing (`scripts/paired.py --price` adds each kind's price to its record, and
+  15.8 ms of land grass standing over it, past the then 12.5 ms line. So `Budget.COSTS.grass` became the dearest of
+  these, 0.706 µs a clump, the land disc standing (`scripts/paired.py --price` adds each kind's price to its record, and
   `tests/test_prices.py` fails while any unit is charged below the latest price recorded for it). A placed clump
   stays one grass unit wherever the water stands, since a pond can rise over it later; land grass's charge covers
-  pondweed's. The 1.73 ms room now holds about 2,450 clumps: from above the pond, 9.92 + 1.02 = 10.9 ms; from the bed,
+  pondweed's. The 1.73 ms room then held about 2,450 clumps: from above the pond, 9.92 + 1.02 = 10.9 ms; from the bed,
   7.38 + 1.08 = 8.5 ms; the land disc standing, 9.14 + 1.73 = 10.9 ms, and from the bed's height 8.81 + 1.50 =
   10.3 ms, all under the line. The same scene a day later on main read 3.3 µs a land clump on a Quest 2, and
-  2.3 to 2.4 µs on the build with five wider blades a clump, so grass is now charged 2.449 ("Cheaper flora").
+  2.3 to 2.4 µs on the build with five wider blades a clump, so grass was refitted to those ("Cheaper flora";
+  the price is `Budget.COSTS.grass`).
   Flowers, the pool full (4,000) seen standing on the shore: irises over a shallow pond
   29.7 ms, the same disc of flowers on land 34.1 ms.
 
@@ -3473,8 +3478,8 @@ is bare (earth or stone), and the brushes plant nothing there.
     4.55 and 4.79 and the paths' 4.57 and 4.67 just before them
     ([record](../perf/quest-2/costs/20261022T150519Z-d4a9c75.json)): at most 0.468 µs a square metre.
   So a stroke counts the ground its discs reach on the mask, fade included (`Budget.ground`, overlapping strokes each
-  counting theirs), at 0.468 µs a square metre, and all the garden's stone at most 590 µs, the dearest pair of the
-  view full, as pond water is held to a view full of water. A stone stroke stops at the budget as a plant stroke
+  counting theirs), at `Budget.STONE_M2_US` a square metre, and all the garden's stone at most
+  `Budget.STONE_VIEW_US`, the dearest pair of the view full (0.59 ms above), as pond water is held to a view full of water. A stone stroke stops at the budget as a plant stroke
   does. Memory: the pattern array is 2 × 512² RGBA8 with mipmaps, 2.8 MB, and the mask grows from RG8 to RGBA8
   (+0.5 MB). The bake at load took 511, 484 and 520 ms on three launches of the Quest 2 (the first after installing
   the build), logged as `stone: 2 styles baked in … ms` while the game loads, 8 s before its XR session begins, under
@@ -4481,8 +4486,8 @@ stones under each member along the members' lines and drew those on their edges 
 the gables carried theirs as distances in their mesh; the near view and the frame's far look matched. It saved
 0.4 to 0.7 ms, within a standard error, for some 800 lines: in this village most members cannot be painted, since a
 lower storey's face stands behind the courses its upper storey lays down over it, and a joined wing's wall stands in
-front of the house's, so those members stay boxes and keep most of the cost. The budget charges 0.5 µs a member, the
-worst measured with the box path (2.2 ms over 4,914 Fachwerk members), rounded up.
+front of the house's, so those members stay boxes and keep most of the cost. The budget charges `Budget.TIMBER_US` a member, the
+worst measured with the box path (2.2 ms over 4,914 Fachwerk members, 0.45 µs each), rounded up.
 
 
 ### Archway GPU cost on Quest 2
@@ -4537,7 +4542,7 @@ ambient motion. The small stone cases are too variable to support a precise
 coefficient; their spread is part of the result. A negative result does not mean
 an arch mesh renders for free: opening the wall changes the rest of the scene too.
 
-The existing timber charge grows by 1.008 ms for the 144 arches, or 7 µs each.
+On that build the existing timber charge grew by 1.008 ms for the 144 arches, or 7 µs each.
 The aerial viewport differences exceed that charge. In the size sweep, the
 largest timber opening reduces the existing member charge by 9 µs per arch while
 adding up to 49.7 µs on the viewport timer: the residual is 58.7 µs. That is the
