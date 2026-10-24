@@ -27,6 +27,10 @@ var _area := 1.0
 var _stood: Array[Avatar] = []
 ## The units the last fill_flora's plants would count as, carried on the next units line.
 var _flora_units := {}
+## Where a headset's hands stand until a step poses them: as a player holds them while building, the book shut in the
+## left hand and the right pointing at the ground. Left to the controllers, an unworn headset's idle ones put the book
+## and the beam in view or out of it from run to run, about 2 ms of a Quest 2's GPU time.
+const HELD := [{"hand": "left", "at": [-0.06, -0.3, -0.34], "aim": [0.15, -0.55, -1.0]}, {"hand": "right", "at": [0.3, -0.55, -0.15], "aim": [0, -1, -0.3]}]
 
 
 func _init(owner: Main, script: Array) -> void:
@@ -46,6 +50,9 @@ func _ready() -> void:
 
 func _run() -> void:
 	await _drawing()
+	if main.get_viewport().use_xr:
+		for s in HELD:
+			await _hold_pose(s)
 	for step in steps:
 		if failed:
 			print("driver: failed")
@@ -1802,7 +1809,7 @@ func _wear(s: Dictionary) -> void:
 	await _frames(2)
 
 
-## Desktop only: holds `hand` at `at`, pointing along `aim`, rolled `roll` degrees, all in head space, as a lesson poses it.
+## Holds `hand` at `at`, pointing along `aim`, rolled `roll` degrees, all in head space, as a lesson poses it.
 func _hold_pose(s: Dictionary) -> void:
 	var hand := _hand(s)
 	hand.global_transform = main.rig.head.global_transform * Lessons.frame({"at": Lessons._v(s.at), "aim": Lessons._v(s.aim).normalized(), "roll": s.get("roll", 0.0)})

@@ -1,8 +1,6 @@
 [
   {"op": "budget", "bounded": false},
   {"op": "quality", "step": -1},
-  {"op": "hold_pose", "hand": "left", "at": [-0.06, -0.3, -0.34], "aim": [0.15, -0.55, -1.0]},
-  {"op": "hold_pose", "hand": "right", "at": [0.3, -0.55, -0.15], "aim": [0, -1, -0.3]},
   {"op": "label", "name": "-"},
   {"op": "wait", "seconds": 10},
   {"op": "held_cost", "seconds": 3},
