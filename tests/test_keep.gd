@@ -1,6 +1,6 @@
 extends "res://../tests/support/suite.gd"
 
-## Headless checks of keeping the garden: autosaved after every edit, loaded whole, and unreadable files
+## Headless checks of keeping the garden: autosaved after edits, loaded whole, and unreadable files
 ## reported: godot4 --headless --fixed-fps 60 --path game --script ../tests/test_keep.gd
 
 var world: World
@@ -84,13 +84,12 @@ func _a_burst_of_edits_is_kept_together() -> void:
 	var burst := []
 	for i in 6:
 		burst.append_array([{"op": "tree", "x": -6 + 2 * i, "z": 12}, {"op": "wait", "seconds": 0.1}])
-	await _play(burst)
+	await play(burst)
 	_landed()
-	_check(FileAccess.get_file_as_bytes(path) == before, "edits in a burst are not kept one by one")
-	for f in ceili(World.KEEP_EVERY * 60):
-		await process_frame
+	check(FileAccess.get_file_as_bytes(path) == before, "edits in a burst are not kept one by one")
+	await frames(ceili(World.KEEP_EVERY * 60))
 	_landed()
-	_check(FileAccess.get_file_as_bytes(path) == var_to_bytes(world.snapshot()), "but together, once the burst has waited its turn")
+	check(FileAccess.get_file_as_bytes(path) == var_to_bytes(world.snapshot()), "but together, once the burst has waited its turn")
 
 
 ## Waits for a save already being written, without writing one still due.
