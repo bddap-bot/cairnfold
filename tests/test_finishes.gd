@@ -22,6 +22,7 @@ func _run() -> void:
 	_finishes_clear_every_opening()
 	_plaster_wears_back_to_the_stones()
 	_planks_lie_across_or_upright()
+	_no_slivers_at_corners()
 	_timber_walls_are_framed_and_railed()
 	_ruined_timber_walls_break()
 	_fences_take_planks()
@@ -183,6 +184,7 @@ func _planks_lie_across_or_upright() -> void:
 			var upright := boards.all(func(b: Dictionary) -> bool: return b.size.y > b.size.x and b.size.x <= WallLayout.BOARD.x)
 			check(across if finish == WallLayout.Finish.BOARDS_ACROSS else upright, "%s: every plank lies %s" % [name, "across" if finish == WallLayout.Finish.BOARDS_ACROSS else "upright"])
 			check(boards.all(func(b: Dictionary) -> bool: return b.y - b.size.y * 0.5 > c - 0.01), "%s: the planks start over the stone foot course" % name)
+			check(boards.all(func(b: Dictionary) -> bool: return b.size.x > WallLayout.BOARD.y), "%s: no plank is a sliver" % name)
 			check(w.stones.any(func(st: Dictionary) -> bool: return st.kind == "block" and st.y < c), "%s: the foot course stays stone" % name)
 			check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind == "block" and st.y > c and st.y < w.height), "%s: no stone course above the foot" % name)
 			check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind in ["lintel", "sill"]), "%s: no stone head or sill" % name)
@@ -210,6 +212,23 @@ func _planks_lie_across_or_upright() -> void:
 				for b in boards:
 					joints[snappedf(b.s - b.size.x * 0.5, 0.05)] = joints.get(snappedf(b.s - b.size.x * 0.5, 0.05), 0) + 1
 				check(joints.values().max() < boards.size() / 4, "%s: joints are staggered, at most %d at one place" % [name, joints.values().max()])
+
+
+## Planked across, houses of many sizes lay no sliver of a plank at a corner, wherever their corners fall a rounding
+## either side of a sample.
+func _no_slivers_at_corners() -> void:
+	var slivers := 0
+	for k in 20:
+		var w := WallLayout.new()
+		w.points.assign(WallLayout.rectangle(Vector3(k * 0.37, 0, k * 0.11), Vector3(k * 0.37 + 5.0 + k * 0.13, 0, k * 0.11 + k * 0.07), 3.0 + k * 0.09))
+		w.closed = true
+		w.cover = WallLayout.Cover.ROOF
+		w.height = 3.0
+		w.seed = k
+		w.finish = WallLayout.Finish.BOARDS_ACROSS
+		w.build(Terrain.flat)
+		slivers += w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "board" and st.size.x < 0.05).size()
+	check(slivers == 0, "no plank laid across twenty houses is a sliver: %d are" % slivers)
 
 
 ## An open wall framed in timber carries its frame on both faces, posts at each end and rails broken at every post,

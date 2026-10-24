@@ -1555,11 +1555,13 @@ func _lay_run(a: float, b: float, y: float, size: Vector2, out: float, rng: Rand
 ## How far from `s`, up to `l`, the wall runs on turning no more than BOARD_TURN, so a straight piece that long keeps
 ## to its face; cut short, it ends where the turn is reached.
 func straight(s: float, l: float) -> float:
-	var first := clampi(lengths.bsearch(s, false), 1, samples.size() - 1)
+	# A loop's corners are summed from its points, its lengths from its samples: a corner can fall a rounding either side
+	# of its sample, which counts as the turn at the piece's end, never at its start.
+	var first := clampi(lengths.bsearch(s + 1e-4, false), 1, samples.size() - 1)
 	var last := Vector3(samples[first].x - samples[first - 1].x, 0.0, samples[first].z - samples[first - 1].z)
 	var turn := 0.0
 	for i in range(first, samples.size() - 1):
-		if lengths[i] >= s + l:
+		if lengths[i] >= s + l - 1e-4:
 			break
 		var t := Vector3(samples[i + 1].x - samples[i].x, 0.0, samples[i + 1].z - samples[i].z)
 		if t.length() < 1e-5:
@@ -1571,9 +1573,9 @@ func straight(s: float, l: float) -> float:
 	return l
 
 
-## Whether arc length `s` is a corner the wall turns at: any of a loop's, an open wall's but its ends.
-func _corner(s: float) -> bool:
-	return (closed or s > 0.001 and s < length() - 0.001) and corners().any(func(c: float) -> bool: return absf(c - s) < 0.001)
+## Whether arc length `s` is one of the `turns` (`corners()`) the wall turns at: any of a loop's, an open wall's but its ends.
+func _corner(s: float, turns: Array[float]) -> bool:
+	return (closed or s > 0.001 and s < length() - 0.001) and turns.any(func(c: float) -> bool: return absf(c - s) < 0.001)
 
 
 ## The rows of planks laid across a band `h` tall: as many as are BOARD.x tall or less.
@@ -1964,6 +1966,7 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 ## corner to corner, a square plank on each corner, under a wooden railing; broken where a ruin is.
 func _lay_walk(rng: RandomNumberGenerator) -> void:
 	var faces := _face_spans()
+	var turns := corners()
 	var wide := THICKNESS + 0.16
 	for face in faces.size():
 		var spans := [[faces[face].x, faces[face].y]]
@@ -1974,12 +1977,12 @@ func _lay_walk(rng: RandomNumberGenerator) -> void:
 			rng.seed = hash([seed, "walk", face, i])
 			var a: float = spans[i][0]
 			var b: float = spans[i][1]
-			var ends := Vector2(wide * 0.5 if _corner(a) else 0.0, wide * 0.5 if _corner(b) else 0.0)
+			var ends := Vector2(wide * 0.5 if _corner(a, turns) else 0.0, wide * 0.5 if _corner(b, turns) else 0.0)
 			for lane in WALK_LANES:
 				_lay_run(a + ends.x, b - ends.y, height + CAP * 0.5, Vector2(CAP, wide / WALK_LANES - BOARD.y), ((lane + 0.5) / WALK_LANES - 0.5) * wide, rng)
 			_lay_railing(a, b, rng, 0.08)
-	for s in corners():
-		if _corner(s) and not broken(s, wide * 0.5):
+	for s in turns:
+		if _corner(s, turns) and not broken(s, wide * 0.5):
 			_part(s, height + CAP * 0.5, Vector3(wide, CAP, wide), WOOD * rng.randf_range(0.85, 1.1), rng, "board")
 
 
