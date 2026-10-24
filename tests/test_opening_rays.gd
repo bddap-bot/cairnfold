@@ -81,7 +81,7 @@ func _through(world: World, fence: bool, size: float) -> void:
 
 ## A door's planks and a window's glass close their openings: rays stop on them, and pick them.
 func _closed_openings(world: World) -> void:
-	var w := _wall(world, false, [Vector4(1.6, 0.0, WallLayout.DoorStyle.PLAIN, 1.0), Vector4(4.4, 1.4, WallLayout.DoorStyle.PLAIN, 1.0)])
+	var w := _wall(world, false, [Vector4(1.6, 0.0, WallLayout.Family.COTTAGE, 1.0), Vector4(4.4, 1.4, WallLayout.Family.COTTAGE, 1.0)])
 	check(w.layout.apertures.size() == 2, "a door and a window open: %d" % w.layout.apertures.size())
 	for o in w.layout.apertures:
 		var ray := _ray(w, o.s, (o.sill + o.head) * 0.5)

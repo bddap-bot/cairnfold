@@ -58,7 +58,7 @@ func _init() -> void:
 			for panel in plaster.stones.filter(func(s): return s.kind == "plaster"):
 				check(panel.y > plaster.course_height(), "stone base retained")
 				for o in plaster.apertures:
-					check(not (panel.y > o.sill and panel.y < o.head and absf(panel.s - o.s) < (plaster.opening(panel.y, false) if o.style == WallLayout.DoorStyle.ARCHWAY else o.half)), "plaster does not fill an opening")
+					check(not (panel.y > o.sill and panel.y < o.head and absf(panel.s - o.s) < (plaster.opening(panel.y, false) if o.style == WallLayout.Family.ARCHWAY else o.half)), "plaster does not fill an opening")
 			print("plaster: closed=%s cover=%d pieces %d -> %d" % [closed, cover, stone.stones.size(), plaster.stones.size()])
 	var wall := Wall.new(1, null)
 	wall.layout.points = [Vector3.ZERO, Vector3(8, 0, 0)]

@@ -149,7 +149,7 @@ func _twisting_wraps_round_the_wheel() -> void:
 
 
 func _every_laid_kind_is_painted_or_kept() -> void:
-	var kept := ["glass", "iron", "finial", "pot", "ligger"]
+	var kept := ["iron", "finial", "pot", "ligger", "curtain", "bloom", "leaf", "rope"]
 	var kinds := {}
 	var wall := WallLayout.new()
 	wall.points = [Vector3(0, 0, 0), Vector3(16, 0, 0)]
@@ -178,6 +178,7 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	var deck := RoofLayout.new()
 	deck.corners = roof.corners
 	deck.pitch = 0.0
+	deck.hatches = [Vector2.ZERO]
 	deck.build()
 	var boarded := WallLayout.new()
 	boarded.points = roof.corners
@@ -185,6 +186,7 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	boarded.cover = WallLayout.Cover.ROOF
 	boarded.gable = roof
 	boarded.gable_end = WallLayout.GableEnd.BOARDS
+	boarded.openings.assign([Vector4(3.0, 0.0, WallLayout.Family.COTTAGE, 1.0), Vector4(1.2, 1.35, WallLayout.Family.COTTAGE, 1.0), Vector4(4.8, 1.35, WallLayout.Family.COTTAGE, 1.0)])
 	boarded.build(Terrain.flat)
 	var timber := boarded.inputs()
 	timber.finish = WallLayout.Finish.TIMBER
@@ -208,7 +210,8 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	var want := {
 		Palette.Element.STONE: ["block", "mortar", "voussoir", "keystone", "pillar", "cope", "cap", "merlon", "pier", "lintel", "sill", "mullion", "chimney", "rubble"],
 		Palette.Element.ROOF: ["tile", "ridge"],
-		Palette.Element.WOOD: ["post", "beam", "rail", "gate", "frame", "door", "pole"],
+		Palette.Element.WOOD: ["post", "beam", "rail", "gate", "frame", "door", "pole", "planter", "hatch"],
+		Palette.Element.GLOW: ["glass"],
 		Palette.Element.PLASTER: ["plaster"],
 		Palette.Element.TIMBER: ["timber"],
 	}

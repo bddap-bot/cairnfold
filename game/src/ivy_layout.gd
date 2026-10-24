@@ -67,7 +67,7 @@ static func blocked(wall: WallLayout, s: float, y: float) -> bool:
 	if y > wall.standing(s) - 0.2:
 		return true
 	for o in wall.apertures:
-		if o.style == WallLayout.DoorStyle.ARCHWAY:
+		if o.style == WallLayout.Family.ARCHWAY:
 			var half := wall.opening(y, true, o.size)
 			if half > 0.0 and absf(wall.offset(s, o.s)) < half + MARGIN:
 				return true

@@ -366,7 +366,7 @@ func _house_data(pitch: float) -> Dictionary:
 		"points": points, "height": 2.4, "rise": 0.0, "seed": 3, "closed": true, "top": WallLayout.Top.CAP,
 		"fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(), "flags": PackedFloat32Array(), "ruins": PackedVector2Array(),
 		"finish": WallLayout.Finish.BARE, "wear": 0.0, "foundation": 0, "planks": false, "gable_end": 0, "on": PackedInt32Array(), "paint": Palette.plain(),
-		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3(3.5, 0, 0), "radius": 2.0, "pitch": pitch, "curve": 0.0, "seed": 3, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false},
+		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3(3.5, 0, 0), "radius": 2.0, "pitch": pitch, "curve": 0.0, "seed": 3, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false},
 	}
 
 

@@ -47,15 +47,16 @@ static func slid(l: WallLayout, s: float, by: Vector3) -> float:
 
 
 ## Where fitting `v` from list `key` stands carried `by` on wall `w`: an opening, lantern or flag along the wall, a window
-## and a lantern up and down it too while a door keeps to its floor; a chimney or dormer over the roof.
+## and a lantern up and down it too while a door keeps to its floor and a corner window to its corner; a chimney,
+## dormer or trapdoor over the roof.
 static func moved(w: Wall, key: String, v: Variant, by: Vector3) -> Variant:
 	var l := w.layout
 	match key:
 		"openings":
 			var o: Vector4 = v
 			var door: bool = l.opening_for(o).door
-			var y := o.y if door else maxf(o.y + by.y, WallLayout.DOOR_SILL + WallLayout.WINDOW_TALL * 0.5)
-			return Vector4(slid(l, o.x, by), y, o.z, o.w)
+			var y := o.y if door else maxf(o.y + by.y, WallLayout.lowest(int(o.z), o.w))
+			return Vector4(o.x if o.z == WallLayout.Family.CORNER else slid(l, o.x, by), y, o.z, o.w)
 		"lanterns":
 			var e: Vector3 = v
 			if l.fence:
@@ -65,7 +66,12 @@ static func moved(w: Wall, key: String, v: Variant, by: Vector3) -> Variant:
 			return slid(l, v, by)
 	var f := w.roof.frame()
 	var c: Vector2 = v + Vector2(by.dot(f.along), by.dot(f.across))
-	return w.roof.chimney_spot(c) if key == "chimneys" else w.roof.dormer_spot(c)
+	match key:
+		"chimneys":
+			return w.roof.chimney_spot(c)
+		"hatches":
+			return w.roof.hatch_spot(c)
+	return w.roof.dormer_spot(c)
 
 
 ## Whether fitting `v` from list `key` stands on `w` beside `others`, the rest of its list, as the tools that place
@@ -81,6 +87,8 @@ static func fits(w: Wall, key: String, v: Variant, others: Array, openings: Arra
 			return l.flag_fits(v)
 		"chimneys":
 			return not is_nan(v.x) and w.roof.clear_of_dormers(v)
+		"hatches":
+			return w.roof.hatch_fits(v, others)
 	return not is_nan(v.x) and w.roof.dormer_fits(v, others)
 
 

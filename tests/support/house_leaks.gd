@@ -83,7 +83,7 @@ static func aperture(w: Wall, origin: Vector3, direction: Vector3, limit: float)
 		var s := lerpf(l.lengths[i - 1], l.lengths[i], u)
 		var y := p.y - lerpf(a.y, b.y, u)
 		for o in l.apertures:
-			var half: float = l.opening(y, false, o.size) if o.style == WallLayout.DoorStyle.ARCHWAY else o.half
+			var half: float = l.opening(y, false, o.size) if o.style == WallLayout.Family.ARCHWAY else o.half
 			if absf(l.offset(s, o.s)) < half and y > o.sill and y < o.head:
 				return true
 	return false

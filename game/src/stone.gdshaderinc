@@ -20,8 +20,13 @@ varying vec4 given;
 varying vec3 bounce_at;
 varying vec3 lamp_at;
 #endif
-// Lamps supplies the same strength to the opening's spill and its glass (colour alpha 0, Wall.pack).
+// Lamps supplies the same strength to the opening's spill and its glass (colour alpha 0, Stones.glazed).
 uniform float window_glow;
+// How strongly a room's glass glows at night in its colour (Look, Daylight.lit), on top of the lamps' light behind it.
+global uniform float window_night;
+// Glass by day (WallLayout.GLASS): dark, its own colour being the glow it shines at night.
+uniform vec3 glass_colour;
+varying float glass;
 #ifdef ROOF_TIMBER
 instance uniform vec3 timber_color = vec3(1.0);
 #endif
@@ -69,7 +74,8 @@ void vertex() {
 	bounce_at = bounce_coord(world_pos, world_nrm);
 	lamp_at = lamp_coord(world_pos, world_nrm);
 #endif
-	pane = COLOR.a < 0.5 ? textureLod(lamp_volume, lamp_coord(world_pos, -world_nrm), 0.0).r : 0.0;
+	glass = COLOR.a < 0.5 ? 1.0 : 0.0;
+	pane = glass > 0.5 ? textureLod(lamp_volume, lamp_coord(world_pos, -world_nrm), 0.0).r : 0.0;
 #ifdef ROOF_TIMBER
 	COLOR = vec4(timber_color, 1.0);
 	occlusion = 0.85;
@@ -95,8 +101,9 @@ void fragment() {
 		vec3 an = abs(world_nrm);
 		float tri = texture(detail, p.yz).r * an.x + texture(detail, p.xz).r * an.y + texture(detail, p.xy).r * an.z;
 		vec3 base = COLOR.rgb * (0.78 + tri * 0.45);
-		// Moss takes stone out under the sky: a floor under its roof and woodwork (Palette.Element WOOD, TIMBER) stay bare.
-		float wood = step(abs(material - 3.0), 0.5) + step(abs(material - 5.0), 0.5);
+		// Moss takes stone out under the sky: a floor under its roof, woodwork (Palette.Element WOOD, TIMBER), glass (GLOW)
+		// and parts with no paint (iron, curtains, flowers) stay bare.
+		float wood = step(abs(material - 3.0), 0.5) + step(abs(material - 5.0), 0.5) + step(material, 0.5) + step(abs(material - 7.0), 0.5);
 		float patch = texture(detail, surface_pos.xz * 0.3).r;
 		float mossy = smoothstep(0.55, 0.9, world_nrm.y) * smoothstep(0.45, 0.7, patch) * smoothstep(0.35, 0.7, bounce.a) * (1.0 - wood);
 		if (style >= 0) {
@@ -104,14 +111,14 @@ void fragment() {
 			// paint tints them (Boulders: the swatch over the one stone is laid in) and its shade darkens them.
 			base = pow(stone_rock(style, tone, moss, patch, tri), vec3(1.0 / 2.2)) * COLOR.rgb;
 		}
-		ALBEDO = mix(base, moss, mossy * 0.8) * occlusion;
+		ALBEDO = mix(mix(base, moss, mossy * 0.8), glass_colour, glass) * occlusion;
 	}
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.25;
 	AO = bounce.a;
 #ifdef GIVEN_PER_VERTEX
-	EMISSION = ALBEDO * given.rgb + pane * lamp_light * window_glow;
+	EMISSION = ALBEDO * given.rgb + pane * lamp_light * window_glow + glass * COLOR.rgb * window_night;
 #else
-	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce) + pane * lamp_light * window_glow;
+	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce) + pane * lamp_light * window_glow + glass * COLOR.rgb * window_night;
 #endif
 }

@@ -14,7 +14,10 @@ extends Node3D
 ## for it to stand on when raised; houses laid after take it), a house's or tower's floor (flags or planks, apart from its walls; houses laid after take
 ## it), a flight's or landing's railings (stairs laid after take them), a tree's species, or a stroke of painted
 ## stone ground's or a boulder's, one list of stone styles (StoneStyles; stone painted and boulders set down after take
-## the style let go last). It only restyles: openings are the windows' and the arch's.
+## the style let go last), or a window's family (cottage, arched, arrow slit or round; a door's cottage or arched, the
+## lights fused with it alike; windows opened after take it). It only restyles: openings are the windows' and the
+## arch's, and a corner window is the windows' at a corner. The colour tool on a room's window picks the colour its
+## glass glows at night.
 
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
 const WHEEL_RADIUS := 0.07
@@ -23,7 +26,7 @@ const CHOICE_GAP := 0.045
 ## Where the wheel stands from the controller, in its frame when the trigger went down.
 const WHEEL_AT := Vector3(0, 0.06, -0.05)
 
-enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, STONE, DECORATION, FLOOR, FOUNDATION }
+enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, STONE, DECORATION, FLOOR, FOUNDATION, WINDOW }
 ## The face wheel's choices, each a WallLayout.Finish and how worn its plaster is.
 const FACES: Array[Vector2] = [Vector2(WallLayout.Finish.BARE, 0.0), Vector2(WallLayout.Finish.PLASTER, 0.0), Vector2(WallLayout.Finish.PLASTER, 0.25), Vector2(WallLayout.Finish.PLASTER, 0.5), Vector2(WallLayout.Finish.PLASTER, 0.75), Vector2(WallLayout.Finish.TIMBER, 0.0), Vector2(WallLayout.Finish.BOARDS_ACROSS, 0.0), Vector2(WallLayout.Finish.BOARDS_UPRIGHT, 0.0)]
 enum Floor { FLAGS, PLANKS }
@@ -119,7 +122,10 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 		if _on_timber(layout, pick.point):
 			return colour_target(Palette.Element.TIMBER, pick.point, "walls", pick.wall.id)
 		var y: float = pick.point.y - layout.point_at(pick.s).y
-		var wood := layout.fence or layout.boards_at(y) or not layout.opening_at(pick.s, y).is_empty()
+		var opening := layout.opening_at(pick.s, y)
+		if not opening.is_empty() and not opening.door and layout.floored():
+			return colour_target(Palette.Element.GLOW, pick.point, "walls", pick.wall.id)
+		var wood := layout.fence or layout.boards_at(y) or not opening.is_empty()
 		return colour_target(Palette.Element.WOOD if wood else Palette.Element.PLASTER if layout.plaster_at(y) else Palette.Element.STONE, pick.point, "walls", pick.wall.id)
 	if hits.has(World.Kind.GROUND):
 		return colour_target(Palette.Element.MEADOW, hits[World.Kind.GROUND].point)
@@ -156,6 +162,8 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 		return style_target(Restyle.FLOOR, floor.wall, floor.point)
 	if not solid.is_empty() and solid.plants[0].pool == walls.flora.trunks:
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.TREE, "count": FloraLayout.Species.size(), "point": solid.point, "of": "", "id": -1, "wall": null, "tree": solid.plants[0]}
+	if pick.get("what") == "opening" and int(pick.value.z) in WallLayout.WINDOW_FAMILIES:
+		return window_target(pick.wall, pick.value, pick.point)
 	if pick.has("decoration"):
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.DECORATION, "options": range(DecorationLayout.STYLES.size()), "count": DecorationLayout.STYLES.size(), "point": pick.point, "of": "decorations", "id": pick.decoration, "wall": pick.wall}
 	if not gable.is_empty():
@@ -181,6 +189,44 @@ func style_target(restyle: Restyle, wall: Wall, point: Vector3) -> Dictionary:
 	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "options": options, "count": options.size(), "point": point, "of": "walls", "id": wall.id, "wall": wall}
 
 
+## The style tool on window `opening` of `wall`: a wheel of the families (indices into WallLayout.WINDOW_FAMILIES) its
+## opening, every light fused into it alike, still opens in where it stands.
+func window_target(wall: Wall, opening: Vector4, point: Vector3) -> Dictionary:
+	var options := range(WallLayout.WINDOW_FAMILIES.size()).filter(func(k: int) -> bool: return not _refamilied(wall, opening, WallLayout.WINDOW_FAMILIES[k]).is_empty())
+	return {"tool": Hand.Tool.STYLE, "restyle": Restyle.WINDOW, "options": options, "count": options.size(), "point": point, "of": "walls", "id": wall.id, "wall": wall, "opening": opening}
+
+
+## The openings of `wall` as the garden has them with every placed window making the opening `opening` makes put in
+## `family`, or empty where they no longer open as one opening of that family, a door as a door and a window as a
+## window, or `opening` is gone.
+func _refamilied(wall: Wall, opening: Vector4, family: int) -> PackedVector4Array:
+	var placed: Array[Vector4] = []
+	placed.assign(Array(world.state.walls.get(wall.id, {}).get("openings", [])))
+	var at := placed.find(opening)
+	if at < 0:
+		var same := placed.filter(func(e: Vector4) -> bool: return e.x == opening.x and e.y == opening.y and e.w == opening.w)
+		if same.is_empty():
+			return PackedVector4Array()
+		at = placed.find(same[0])
+	var layout := wall.layout
+	var made := layout.openings_for(walls.standing_openings(wall, placed))
+	var o := layout._opening_in(made, placed[at].x, placed[at].y)
+	if o.is_empty():
+		return PackedVector4Array()
+	var after := placed.duplicate()
+	var moved: Array[int] = []
+	for i in placed.size():
+		if i == at or layout._opening_in(made, placed[i].x, placed[i].y) == o:
+			after[i] = Vector4(placed[i].x, placed[i].y, family, placed[i].w)
+			moved.append(i)
+	var now := layout.openings_for(walls.standing_openings(wall, after))
+	for i in moved:
+		var into := layout._opening_in(now, after[i].x, after[i].y)
+		if into.is_empty() or into.style != family or into.door != o.door:
+			return PackedVector4Array()
+	return PackedVector4Array(after)
+
+
 static func styles(restyle: Restyle) -> int:
 	match restyle:
 		Restyle.GABLE:
@@ -199,6 +245,8 @@ static func styles(restyle: Restyle) -> int:
 			return Floor.size()
 		Restyle.FOUNDATION:
 			return WallLayout.Foundation.size()
+		Restyle.WINDOW:
+			return WallLayout.WINDOW_FAMILIES.size()
 	return FACES.size()
 
 
@@ -321,6 +369,9 @@ func _now(w: Wheel) -> int:
 			return Floor.PLANKS if d.planks else Floor.FLAGS
 		Restyle.FOUNDATION:
 			return d.foundation
+		Restyle.WINDOW:
+			var now := Array(d.openings).filter(func(e: Vector4) -> bool: return e.x == w.target.opening.x and e.y == w.target.opening.y and e.w == w.target.opening.w)
+			return -1 if now.is_empty() else w.target.options.find(WallLayout.WINDOW_FAMILIES.find(int(now[0].z)))
 	return face_choice(w.target.options, d.finish, d.wear)
 
 
@@ -345,6 +396,9 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 			return {"planks": pick == Floor.PLANKS}
 		Restyle.FOUNDATION:
 			return {"foundation": pick}
+		Restyle.WINDOW:
+			var after := _refamilied(w.target.wall, w.target.opening, WallLayout.WINDOW_FAMILIES[w.target.options[pick]])
+			return {} if after.is_empty() else {"openings": after}
 	var face: Vector2 = FACES[w.target.options[pick]]
 	var data := {}
 	if int(face.x) != world.state.walls[w.id].finish:
@@ -400,6 +454,8 @@ func close(hand: Hand) -> void:
 		walls.foundation = w.pick as WallLayout.Foundation
 	elif w.id >= 0 and w.target.restyle == Restyle.FLOOR:
 		walls.planks = w.pick == Floor.PLANKS
+	elif w.id >= 0 and w.target.restyle == Restyle.WINDOW:
+		walls.window_family = WallLayout.WINDOW_FAMILIES[w.target.options[w.pick]]
 	elif w.id >= 0 and w.target.restyle == Restyle.RAIL:
 		world.stairs.rail = StairLayout.RAILS[w.pick]
 	elif w.target.get("restyle") == Restyle.STONE:

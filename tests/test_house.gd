@@ -204,7 +204,7 @@ func _two_hands_drawn_apart_upright_raise_its_walls() -> void:
 ## middle, drawn out along its line by the hands' spread, and made taller upright, a fence keeping its height.
 func _a_wall_is_carried_and_sized_as_a_house_is() -> void:
 	var d := {"points": PackedVector3Array([Vector3(0, 0, 0), Vector3(4, 0, 0), Vector3(6, 0, 2)]), "height": 2.0, "rise": 0.0, "fence": false,
-		"openings": PackedVector4Array([Vector4(2.0, 0.0, WallLayout.DoorStyle.ARCHWAY, 1.0)]), "lanterns": PackedVector3Array([Vector3(5.0, 1.2, 1.0)]),
+		"openings": PackedVector4Array([Vector4(2.0, 0.0, WallLayout.Family.ARCHWAY, 1.0)]), "lanterns": PackedVector3Array([Vector3(5.0, 1.2, 1.0)]),
 		"flags": PackedFloat32Array([1.0]), "ruins": PackedVector2Array([Vector2(3.0, 3.5)])}
 	var at := WallTool.line_of(d)
 	check(at.center.is_equal_approx(Vector3(10.0 / 3.0, 0, 2.0 / 3.0)) and is_equal_approx(at.run, 4.0 + sqrt(8.0)) and at.length == 1.0, "a wall's middle and length read back: %s" % at)
@@ -278,7 +278,7 @@ func _a_resized_house_keeps_its_fittings_and_roof() -> void:
 	var at := {"center": Vector3(0, 0, 0), "yaw": 0.0, "size": Vector2(6, 4), "round": false}
 	var d := {"points": PackedVector3Array(WallTool.outline(at)), "closed": true, "rise": 0.0, "openings": PackedVector4Array([Vector4(3.0, 1.2, 0, 1), Vector4(8.0, 0.0, 0, 1), WallLayout.archway(1.0)]),
 		"lanterns": PackedVector3Array([Vector3(13.0, 2.0, -1.0)]), "flags": PackedFloat32Array([18.0]),
-		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array([Vector2(1.5, 0.8)]), "dormers": PackedVector2Array([Vector2(-1.0, -1.6)]), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
+		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.6, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array([Vector2(1.5, 0.8)]), "dormers": PackedVector2Array([Vector2(-1.0, -1.6)]), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
 	d.height = 2.4
 	var from := WallTool.house_of(d)
 	check(from.center.is_equal_approx(at.center) and from.size.is_equal_approx(at.size) and WallTool.outline(from) == WallTool.outline(at), "a built house's footprint reads back from its corners: %s" % from)
@@ -312,7 +312,7 @@ func _a_resized_house_keeps_its_fittings_and_roof() -> void:
 	check(is_equal_approx(r.openings[0].x, 3.0), "the front window stays in the middle of the front as it moves out: %s" % r.openings[0])
 	var tower := {"points": PackedVector3Array(WallLayout.circle(Vector3(2, 0, 2), 2.0)), "closed": true, "rise": 0.0, "height": 4.5, "openings": PackedVector4Array([Vector4(TAU * 0.5, 0.0, 0, 1)]),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array([TAU]),
-		"roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3(2, 0, 2), "radius": 2.0, "pitch": 3.2, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": true, "thatch": false}}
+		"roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3(2, 0, 2), "radius": 2.0, "pitch": 3.2, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": true, "thatch": false}}
 	var wider := WallTool.house_of(tower)
 	check(wider.round and wider.size == Vector2(4, 4), "a tower reads back round, 4 m across")
 	wider.size = Vector2(6, 6)
@@ -621,7 +621,7 @@ func _gabled(plaster: bool, curve := 0.0, style := WallLayout.GableEnd.WALL, poi
 func _gable_cases() -> Array:
 	var d := {"points": PackedVector3Array(WallLayout.rectangle(Vector3(0, 0, 0), Vector3(6, 0, 0), 4.0)), "closed": true, "rise": 0.0, "height": 2.4, "openings": PackedVector4Array(),
 		"lanterns": PackedVector3Array(), "flags": PackedFloat32Array(),
-		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
+		"roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
 	var shapes := [[d.points, 2.0], [WallLayout.rectangle(Vector3(0, 0, 0), Vector3(4, 0, 0), 2.4), 9.0]]
 	for size in [Vector2(12, 4), Vector2(6, 8), Vector2(3, 2.4)]:
 		var at := WallTool.house_of(d)
@@ -728,7 +728,7 @@ func _the_budget_counts_each_gable_end_as_laid() -> void:
 		for curve in [0.0, 0.8, -0.8]:
 			for pitch in [0.8, 2.0, 5.0]:
 				var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "gable_end": 0,
-					"finish": WallLayout.Finish.TIMBER if plaster else WallLayout.Finish.BARE, "wear": 0.0, "foundation": 0, "planks": false, "openings": [], "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": pitch, "curve": curve, "chimneys": [], "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
+					"finish": WallLayout.Finish.TIMBER if plaster else WallLayout.Finish.BARE, "wear": 0.0, "foundation": 0, "planks": false, "openings": [], "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": pitch, "curve": curve, "chimneys": [], "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
 				var walls := 20.0 * 2.4
 				var wall := Budget.wall(d)
 				d.gable_end = WallLayout.GableEnd.BOARDS
@@ -800,7 +800,7 @@ func _gable_faces_face_out_of_the_wall() -> void:
 
 func _the_budget_counts_gable_ends() -> void:
 	var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "gable_end": 0,
-		"finish": WallLayout.Finish.BARE, "wear": 0.0, "foundation": 0, "planks": false, "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
+		"finish": WallLayout.Finish.BARE, "wear": 0.0, "foundation": 0, "planks": false, "lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
 	var hs := (4.0 + WallLayout.THICKNESS) * 0.5
 	check(is_equal_approx(Budget.wall(d).wall_m2, 20.0 * 2.4 + 2.0 * hs * 2.0), "a house counts its two gable ends as wall: %s" % Budget.wall(d))
 	d.roof.pitch = 0.0

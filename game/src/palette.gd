@@ -8,7 +8,8 @@ extends RefCounted
 
 ## Each material's value is also its code in the parts' custom data, which tells a repaint what to scale; the
 ## meadow's 0 doubles as "kept as laid".
-enum Element { MEADOW = 0, STONE = 1, ROOF = 2, WOOD = 3, PLASTER = 4, TIMBER = 5, THATCH = 6 }
+## GLOW is the colour a room's windows shine at night.
+enum Element { MEADOW = 0, STONE = 1, ROOF = 2, WOOD = 3, PLASTER = 4, TIMBER = 5, THATCH = 6, GLOW = 7 }
 
 ## The meadow's swatches are the seasons, each a preset for the meadow (grass and ground) and foliage
 ## (trees, bushes, ivy): the colour plants turn toward (rgb) and how far (a); and the share of flowers in bloom.
@@ -29,9 +30,11 @@ const SWATCHES := {
 	Element.TIMBER: [TimberFrame.OAK, Color(0.16, 0.105, 0.075), Color(0.30, 0.20, 0.12), Color(0.25, 0.22, 0.18), Color(0.19, 0.16, 0.13), Color(0.22, 0.12, 0.07)],
 	Element.PLASTER: [WallLayout.PLASTER, Color(0.93, 0.92, 0.89), Color(0.91, 0.72, 0.68), Color(0.89, 0.73, 0.45), Color(0.72, 0.81, 0.87), Color(0.75, 0.81, 0.67)],
 	Element.THATCH: [RoofLayout.STRAW, Color(0.72, 0.56, 0.3), Color(0.78, 0.68, 0.45), Color(0.5, 0.38, 0.24), Color(0.5, 0.48, 0.43), Color(0.34, 0.29, 0.22)],
+	Element.GLOW: [Color(1.0, 0.62, 0.26), Color(1.0, 0.84, 0.56), Color(1.0, 0.42, 0.4), Color(0.95, 0.28, 0.14), Color(0.56, 0.92, 0.42), Color(0.36, 0.86, 0.8), Color(0.44, 0.6, 1.0), Color(0.78, 0.5, 1.0)],
 }
 
-## The material each kind of laid part is painted with; kinds not listed (glass, iron, flags) keep their colour.
+## The material each kind of laid part is painted with; kinds not listed (iron, flags, curtains, flowers) keep their
+## colour. Glass carries the colour it glows at night.
 const KINDS := {
 	"block": Element.STONE, "mortar": Element.STONE, "voussoir": Element.STONE, "keystone": Element.STONE,
 	"pillar": Element.STONE, "cope": Element.STONE, "cap": Element.STONE, "merlon": Element.STONE,
@@ -39,7 +42,8 @@ const KINDS := {
 	"chimney": Element.STONE, "rubble": Element.STONE, "deck": Element.STONE, "flagstone": Element.STONE, "bed": Element.STONE,
 	"tile": Element.ROOF, "ridge": Element.ROOF, "thatch": Element.THATCH,
 	"post": Element.WOOD, "beam": Element.WOOD, "rail": Element.WOOD, "board": Element.WOOD, "gate": Element.WOOD, "frame": Element.WOOD,
-	"door": Element.WOOD, "pole": Element.WOOD, "plank": Element.WOOD,
+	"door": Element.WOOD, "pole": Element.WOOD, "plank": Element.WOOD, "planter": Element.WOOD, "hatch": Element.WOOD,
+	"glass": Element.GLOW,
 	"plaster": Element.PLASTER, "timber": Element.TIMBER,
 }
 const TWIST_STEP := 28.0

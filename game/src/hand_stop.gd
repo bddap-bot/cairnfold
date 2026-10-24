@@ -354,7 +354,7 @@ class Near:
 		if y > top + RADIUS or y < -WallLayout.SINK - 2.0:
 			return false
 		for o in l.apertures:
-			var half: float = l.opening(y, false, o.size) - RADIUS if o.style == WallLayout.DoorStyle.ARCHWAY else o.half + 0.05
+			var half: float = l.opening(y, false, o.size) - RADIUS if o.style == WallLayout.Family.ARCHWAY else o.half + 0.05
 			if absf(l.offset(s, o.s)) < half and y > o.sill - 0.05 and y < o.head + 0.05:
 				return false
 		if with_facing:

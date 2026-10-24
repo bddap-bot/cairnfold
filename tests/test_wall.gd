@@ -107,7 +107,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 		if w.archways().is_empty():
 			continue
 		var a: float = w.archways()[0]
-		var k: float = w.apertures.filter(func(o): return o.style == WallLayout.DoorStyle.ARCHWAY)[0].size
+		var k: float = w.apertures.filter(func(o): return o.style == WallLayout.Family.ARCHWAY)[0].size
 		var near := w.stones.filter(func(st: Dictionary) -> bool: return absf(w.offset(st.s, a)) < 1.6 * k + 1.5)
 		var gaps := []
 		var blocked := []
@@ -140,7 +140,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 		if w.height < WallLayout.DOOR_TALL + w.course_height() * 1.4 or k != 1.0:
 			continue
 		var door := w.inputs()
-		door.openings = [Vector4(a, 0.0, WallLayout.DoorStyle.PLAIN, 1)]
+		door.openings = [Vector4(a, 0.0, WallLayout.Family.COTTAGE, 1)]
 		door.build(Terrain.flat)
 		check(door.apertures.size() == 1 and door.apertures[0].door, "%s: the same opening list takes a door" % name)
 		if door.apertures.is_empty():
@@ -233,10 +233,10 @@ func _doors_and_windows_scale_from_where_they_stand() -> void:
 	var w := WallLayout.new()
 	w.points = [Vector3(0, 0, 0), Vector3(14, 0, 0)]
 	w.height = 6.0
-	w.openings.assign([Vector4(3.0, 0.5, WallLayout.DoorStyle.PLAIN, 1.5), Vector4(9.0, 2.0, WallLayout.DoorStyle.PLAIN, 2.0)])
+	w.openings.assign([Vector4(3.0, 0.5, WallLayout.Family.COTTAGE, 1.5), Vector4(9.0, 2.0, WallLayout.Family.COTTAGE, 2.0)])
 	w.build(Terrain.flat)
 	var c := w.course_height()
-	var unit := w.opening_for(Vector4(9.0, 2.0, WallLayout.DoorStyle.PLAIN, 1.0))
+	var unit := w.opening_for(Vector4(9.0, 2.0, WallLayout.Family.COTTAGE, 1.0))
 	check(w.apertures.size() == 2, "a big door and a big window both open: %s" % [w.apertures])
 	if w.apertures.size() != 2:
 		return
@@ -578,7 +578,7 @@ func _a_low_wall_crosses_as_a_causeway() -> void:
 func _ducks_pass_only_under_arches() -> void:
 	var w := _wet(6.0, 2.6)
 	var a: float = w.archways()[0]
-	check(not w.opening_fits(Vector4(a, 1.5, WallLayout.DoorStyle.PLAIN, 1), w.openings), "placement respects the water opening it previews")
+	check(not w.opening_fits(Vector4(a, 1.5, WallLayout.Family.COTTAGE, 1), w.openings), "placement respects the water opening it previews")
 	var x := w.point_at(a).x
 	check(not w.blocks_swim(Vector2(x, -2), Vector2(x, 2)), "a duck swims under an arch")
 	var pillar: float = w.pillars()[0].s

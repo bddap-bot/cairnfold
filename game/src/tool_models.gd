@@ -144,7 +144,7 @@ static func style(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Finis
 
 
 ## The build styles whose miniatures the worker builds.
-const BUILT_STYLES: Array[PaletteTool.Restyle] = [PaletteTool.Restyle.GABLE, PaletteTool.Restyle.ROOF, PaletteTool.Restyle.TOP, PaletteTool.Restyle.FACE, PaletteTool.Restyle.FOUNDATION]
+const BUILT_STYLES: Array[PaletteTool.Restyle] = [PaletteTool.Restyle.GABLE, PaletteTool.Restyle.ROOF, PaletteTool.Restyle.TOP, PaletteTool.Restyle.FACE, PaletteTool.Restyle.FOUNDATION, PaletteTool.Restyle.WINDOW]
 
 
 ## Queues every build style's miniature for the worker, so a wheel opened later finds it built.
@@ -172,11 +172,11 @@ static func stop_styles() -> void:
 
 
 ## The arguments a build style's miniature differs by: the finish shows on a house's or wall's faces, not a tower's,
-## nor in a face's or foundation's own choices, and a face's choice of house, fence or wall is its own.
+## nor in a face's, foundation's or window's own choices, and a face's choice of house, fence or wall is its own.
 static func _style_key(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Finish, round: bool, house: bool, fence: bool) -> Array:
 	var tower := restyle == PaletteTool.Restyle.ROOF and round
 	var face := restyle == PaletteTool.Restyle.FACE
-	return [restyle, i, WallLayout.Finish.BARE if tower or restyle in [PaletteTool.Restyle.FACE, PaletteTool.Restyle.FOUNDATION] else finish, tower, house and face and not fence, fence and face]
+	return [restyle, i, WallLayout.Finish.BARE if tower or restyle in [PaletteTool.Restyle.FACE, PaletteTool.Restyle.FOUNDATION, PaletteTool.Restyle.WINDOW] else finish, tower, house and face and not fence, fence and face]
 
 
 static func _build_styles() -> void:
@@ -288,6 +288,8 @@ static func _style(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Fini
 				_wall(root, int(face.x) as WallLayout.Finish, WallLayout.Top.CAP, false, face.y)
 		PaletteTool.Restyle.FOUNDATION:
 			_house(root, WallLayout.Finish.BARE, WallLayout.GableEnd.WALL, false, false, RoofLayout.Deck.STONE, false, i)
+		PaletteTool.Restyle.WINDOW:
+			_wall(root, WallLayout.Finish.BARE, WallLayout.Top.CAP, false, 0.0, WallLayout.WINDOW_FAMILIES[i])
 	var turn := Basis(Vector3.UP, PI * 0.38) if restyle == PaletteTool.Restyle.GABLE else Basis(Vector3.UP, PI * 0.2) if house else Basis()
 	for part in root.get_children():
 		part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.03 if house else -PI * 0.22) * turn, Vector3.ZERO) * part.transform
@@ -662,16 +664,18 @@ static func _pond(root: Node3D) -> void:
 		_piece(root, part[0], Transform3D(Basis.from_scale(part[2]), part[1]), part[3])
 
 
-static func _wall(root: Node3D, finish := WallLayout.Finish.BARE, top := WallLayout.Top.CRENEL, arched := false, wear := 0.0) -> void:
+static func _wall(root: Node3D, finish := WallLayout.Finish.BARE, top := WallLayout.Top.CRENEL, arched := false, wear := 0.0, window := -1) -> void:
 	var layout := WallLayout.new()
 	layout.finish = finish
 	layout.wear = wear
 	layout.seed = 4
-	layout.height = 2.4 if arched or wear > 0.0 else 1.5
+	layout.height = 2.4 if arched or wear > 0.0 or window >= 0 else 1.5
 	layout.top = top
 	layout.points = [Vector3(-1.4, 0, 0), Vector3(1.4, 0, 0)]
 	if arched:
 		layout.openings = [WallLayout.archway(1.4)]
+	if window >= 0:
+		layout.openings = [Vector4(1.4, WallLayout.lowest(window) + 0.15, window, 1.0)]
 	layout.build(Terrain.flat)
 	_stones(root, layout.stones, 0.015)
 
@@ -843,7 +847,7 @@ static func fitting_parts(what: String, on: RoofLayout = null, spot := Vector2.Z
 		var s := layout.nearest_post(2.0) if layout.fence else 2.0
 		match what:
 			"window":
-				layout.openings = [Vector4(s, 1.5, WallLayout.DoorStyle.PLAIN, 1.0)]
+				layout.openings = [Vector4(s, 1.5, WallLayout.Family.COTTAGE, 1.0)]
 			"lantern", "post_lantern":
 				layout.lanterns = [Vector3(s, 1.5, 1.0)]
 			"flag":
@@ -909,7 +913,7 @@ static func _stones(root: Node3D, stones: Array[Dictionary], scale: float) -> vo
 		for stone in stones:
 			var at: Transform3D = stone.xform
 			at.basis *= Stones.FLIPS[stone.get("variant", 0)]
-			var colour: Color = stone.color
+			var colour: Color = WallLayout.GLASS if stone.kind == "glass" else stone.color
 			colour *= Color(stone.ao, stone.ao, stone.ao)
 			parts.append([Stones.far_mesh(), at, colour])
 		var imported := ImporterMesh.new()

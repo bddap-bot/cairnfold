@@ -103,9 +103,9 @@ func _doors_stand_their_height_over_the_floor() -> void:
 		var lift := w.floor_y - w.samples[0].y - WallLayout.SINK
 		check(lift > 0.3 and is_equal_approx(w.floor_lift(), lift), "up a slope the floor stands %.2f over the foot" % lift)
 		check(is_equal_approx(w.spring() - lift, WallLayout.SPRING), "the doorway arch springs its full height over the floor: %.2f" % (w.spring() - lift))
-		var door := w.opening_for(Vector4(1.5, 0.0, WallLayout.DoorStyle.PLAIN, 1.0))
+		var door := w.opening_for(Vector4(1.5, 0.0, WallLayout.Family.COTTAGE, 1.0))
 		check(door.head - lift >= WallLayout.DOOR_TALL - w.course_height() * 0.5, "a door's head stands its height over the floor: %.2f" % (door.head - lift))
-		var pet := w.opening_for(Vector4(1.5, 0.0, WallLayout.DoorStyle.ARCHWAY, WallLayout.MIN_SIZE))
+		var pet := w.opening_for(Vector4(1.5, 0.0, WallLayout.Family.ARCHWAY, WallLayout.MIN_SIZE))
 		check(w.can_arch(WallLayout.MIN_SIZE) and pet.head - lift < 1.2, "a pet door still opens small over the floor: %.2f" % (pet.head - lift))
 		check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind in ["block", "plaster"] and absf(st.s - 3.0) < WallLayout.ARCH_HALF - 0.1 and st.y > lift and st.y < w.spring()), "nothing of the wall stands in the doorway over the floor")
 
@@ -116,12 +116,12 @@ func _doors_and_arches_stop_at_the_floor() -> void:
 	for ground in [Terrain.flat, _slope]:
 		for rise in [0.0, 1.2]:
 			for finish in ["stone", "plaster", "timber"]:
-				for style in [WallLayout.DoorStyle.ARCHWAY, WallLayout.DoorStyle.PLAIN]:
+				for style in [WallLayout.Family.ARCHWAY, WallLayout.Family.COTTAGE]:
 					var w := _house(Terrain.flat, rise, finish != "stone", 3.0)
 					w.finish = {"stone": WallLayout.Finish.BARE, "plaster": WallLayout.Finish.PLASTER, "timber": WallLayout.Finish.TIMBER}[finish]
 					w.openings.assign([Vector4(3.0, 0.0, style, 1.0)])
 					w.build(ground)
-					var name := "%s %s %s, raised %.1f" % ["arch" if style == WallLayout.DoorStyle.ARCHWAY else "door", finish, "up a slope" if ground == _slope else "on the flat", rise]
+					var name := "%s %s %s, raised %.1f" % ["arch" if style == WallLayout.Family.ARCHWAY else "door", finish, "up a slope" if ground == _slope else "on the flat", rise]
 					var t := w.threshold()
 					check(w.apertures.size() == 1 and is_equal_approx(w.apertures[0].sill, t), "%s: it opens from the floor at %.2f: %s" % [name, t, w.apertures])
 					var low := w.stones.filter(func(st: Dictionary) -> bool: return (st.kind in ["door", "iron"] or st.kind == "timber" and absf(absf(st.s - 3.0) - WallLayout.ARCH_HALF - TimberFrame.WIDTH * 0.5) < 0.01) and st.y - st.size.y * 0.5 < t - 0.01)

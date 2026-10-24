@@ -2229,7 +2229,7 @@ Stage numbers refer to the build order at the end.
 | Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Circle footprints are the round towers above: a round house is one, its walls drawn down to a house's height by two hands upright. Raised, a house or a round one stands on its plinth, on stone pillars or on timber posts and beams, over a stone foundation the grip raises with it (see "Raising a house"). Its own tool, a little house in the ring. Its trigger puts up a square house where the hand points, and does nothing more: moving is the grip's. A grip anywhere on a house, roof included, carries it, turning it with the hand and raising it onto a plinth as the hand rises; the other hand's grip on it too sizes it, stretching the side nearest the line between the hands as they spread (each side from 2.4 m, with no longest or deepest) and making its walls taller as they draw apart upright (see "Moving and sizing a house" and "Raising a house"). Stone walls with corner piers and no door, level on its lowest ground; a door comes from the windows tool low on a wall, an arch from the arch tool or from a path running in | 4 (done) |
 | Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings"). Flat roofs stack: a house or tower set down on a deck stands on it, and pushed flat it is a deck of its own, so smaller storeys rise in terraces (see "Flat roofs, platforms and dormers") | 4 (done), 13 (done) |
 | Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, with lime torching under the tiles so no sky shows between them from inside. From outside every joint lies over a tile (each tile runs up under the two rows above, the eave row lies on an under-course, a cone's tiles lap their neighbours), and the walls' stones stop under the slopes at any pitch. A gable end continues the wall below it: a stone house's courses carry on up under the slopes, a plaster house's plaster does, and on both a verge of stones runs up each rake over the courses' ends (European town houses of Cotswold stone or Provençal plaster). The style tool on a gable end picks that house's gable ends, and houses laid after take it: the wall carried up; boarded, upright planks under a barge board up each rake (a barn's end), painted as woodwork; or crow-stepped, the stone courses or plaster climbing past the slopes in capped steps, the roof stopping inside them. The gable ends count against the budget at the face each style lays, as wall (boards as stone wall: laid as stones are, fewer). Two grips on a roof, whatever the hands hold: drawn apart upright they raise the ridge and together lower it; spread across they bow the slopes out, squeezed together inward (`RoofLayout`). Brought all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top then takes a style like an open wall's. The style tool offers tile or thatch on a pitched roof and a stone or wooden deck on a flat roof; only grabbing and pulling changes between flat and pitched, a tower's cone as a house's gable (see "Thatch"). Two grips on the eaves, past the walls, pull them out or push them back; pulled far on low walls the slopes come down to the ground like a tent. The windows tool on a gable's slope opens a dormer (see "Flat roofs, platforms and dormers") | 4 (done), 13 (done) |
-| Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. While it points, the wall stands as the press would leave it, laid by the same code. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light. Pointed at a gable roof's slope it opens a dormer instead (see "Flat roofs, platforms and dormers"). A grip on a placed one carries it along its wall, a window up and down it too, and two size it (see "Moving a fitting") | 6 (done), 13 (done) |
+| Windows, doors | Cottage, arched, arrow-slit, round and corner families that fuse, adapt and wear the plaster around them; doors where windows meet the ground; trapdoors in flat roofs; glowing at night; dressed where people live | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. While it points, the wall stands as the press would leave it, laid by the same code. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light. Pointed at a gable roof's slope it opens a dormer instead (see "Flat roofs, platforms and dormers"), at a flat roof a trapdoor, and at a corner's pier a corner window. The style tool turns a window to another family: arched, an arrow slit or round (see "Window families"). At night a room's windows glow in a colour the colour tool picks. A grip on a placed one carries it along its wall, a window up and down it too, and two size it (see "Moving a fitting") | 6 (done), 13 (done), 17 (done) |
 | Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | The decorations tool's trigger places what suits where it points: a stone chimney with two clay pots on a house's roof, rising clear of the ridge; a flag on a tower's roof or a wall's top, waving; a lantern on an iron arm off a wall's face, or on a fence post. Lanterns are emissive bodies in a soft additive halo, and every one lights the ground and walls around it (see "Lantern light"). A press on one takes it away; a grip carries it over what it stands on (see "Moving a fitting") | 6 (done) |
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | The fence tool draws like walls (same stroke, merging and junctions) with a wooden profile: posts at most 1.6 m apart and two rails between, or planks (see "Wall finishes"). A path through a fence, in either order, opens a gate: two tall posts under a bent wooden arch | 6 (done), 16 (done) |
 | Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces (a house or tower under a roof or deck only its outer one: [inside before and after, outside after](ivy.jpg)), wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`), kept out of windows and doors too | 3 (done), 6 (done) |
@@ -2507,7 +2507,8 @@ Colour belongs to the build, the one kind of thing every wall, fence, house and 
 buildings"):
 
 - A build carries its `paint`: a swatch for each material (stone, roof tiles, thatch, woodwork, plaster). Its roof, gable
-  ends, window frames, doors and chimneys are part of it and take its paint; flags, glass and iron keep theirs.
+  ends, window frames, doors and chimneys are part of it and take its paint; flags and iron keep theirs, and its
+  glass takes the colour a room's windows glow at night (the colour tool on a window's glass picks it).
   A storey on a house, or a wing across it, is a build of its own and keeps its own colours. Stairs are builds
   too: their treads and stone railings take the stone swatch, wooden railings and ladders the woodwork's, laid into
   their stones, so a repaint lays them again whole.
@@ -2946,7 +2947,7 @@ calibration of a short and a long arm, and a far house taken, moved and reeled i
 | Throw seeds | Trigger of a hand holding seeds: a handful leaves the dish the way the hand is swinging, or falls from a still one, and scatters where it lands (see "Feeding") |
 | Lay a path | Trigger held on a hand holding paths, sweep the pointer over the ground; the ring is the path's width, wider the farther you point. Through a wall it opens an arch or an arcade, through a fence a gate |
 | Draw a fence | Trigger held on a hand holding fences, swept like a wall |
-| Open a window or door | Trigger of a hand holding windows, pointing at a wall: a window where it points, a door if that is low on the wall; beside another window it fuses with it; on a window it closes that light |
+| Open a window or door | Trigger of a hand holding windows, pointing at a wall: a window of the family last turned to where it points, a door if that is low on the wall and the family opens one; on a corner's pier, a corner window; on a flat roof, a trapdoor; beside another window of its family it fuses with it; on a window or trapdoor it closes it |
 | Cut an arch | Trigger of a hand holding the arch, pointing at a wall: an archway through it where it points, shown on the wall before the press; on one of the wall's own arches, the press fills it. A path's arches and gates stay the path's |
 | Decorate | Trigger of a hand holding decorations: a chimney on a house's roof, a flag on a tower's roof or a wall's top, a lantern on a wall's face (on the side the hand is) or a fence; a present at a house's foot, on open ground, on a house's floor or on a flat roof, its lid drawn with the Style tool's own wand and turned to face the hand; the preview is the present a press places. Style turns it into any decoration on any of those surfaces (planter, bench, rain barrel, woodpile, steps, gatepost lantern, standing torch, campfire, chair, table, settle, bed, shelf, rug, stool, chest, potted plant, candle stand, table and chairs, garden bench, trough planter, parasol, string lights); on one already there it takes it away |
 | Turn the sky | Point either hand at open sky, whatever it holds, grip and aim: the sky turns with the pointer, carrying the sun round the day and the moon 100° behind it |
@@ -3150,7 +3151,8 @@ build live, and letting go keeps the one at the top, one undo step. What it offe
 at: a gable end, its house's gable ends (the wall's, boarded, crow-stepped; houses laid after take it); a
 house's or tower's roof, its covering: tile or thatch on a pitched roof or a cone (see "Thatch"), a stone or wooden deck on a flat one, since only grabbing and pulling changes its shape; a roofless
 wall's top, merlons, plain capping or coping; a wall's or fence's face, its finish (see "Wall finishes"; walls, houses
-and fences laid after take the finish turned to last); a house's or tower's floor, flags or boards, apart
+and fences laid after take the finish turned to last); a window, its family, the lights fused with it alike (see
+"Window families"; windows opened after take it); a house's or tower's floor, flags or boards, apart
 from its walls (see "Floors"); a flight or landing, its railings, stone, wooden or
 none (stairs laid after take them); painted stone or a boulder, its stone style from the one table (see "Ground materials"; stone painted and boulders set down after take it); a tree, its species: an oak's round crown, a
 fir's dark cone, a poplar's column, a birch's pale trunk under a light open crown, a copper beech's low
@@ -3306,6 +3308,7 @@ the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
 14. Standing on what you built: wall walks, flat roofs, platforms, stairs and bridges. (Done.)
 15. Round and raised houses: round footprints, stone pillars and timber posts and beams on a foundation the grip raises. (Done.)
 16. Wall finishes: worn plaster, half-timbered walls with railed walks, planks across or upright, planked fences. (Done.)
+17. Window families: arched windows, arrow slits, round and corner windows and roof trapdoors; windows glowing at night in a picked colour; lived-in houses' curtains, flower boxes and washing. (Done.)
 
 ## Water
 
@@ -4746,6 +4749,51 @@ the `finishes/aerial` and `finishes/ground` phases stand it in planks across, th
 the frame and walk, fences, the command, the budget, the wheel, `demo/finishes.json` and the stress village. On the
 Steam Frame, governed, both `finishes/*` views hold 72 Hz (`perf/frame/stress`): 4.8 to 5.5 ms of GPU time a frame, no
 frame over 1.5× the refresh period at the view's landing, and one in the phase, of the game-wide single late frames.
+
+## Window families
+
+A placed opening is its arc length, the height it was placed at, its `WallLayout.Family` and its size. Besides the
+cottage window, a window is:
+
+- **Arched**: a light 0.6 m wide and 1.2 m tall under a half-round head, a ring of wedges round the head standing
+  3 cm proud of both faces, on a sill. Low on a wall it opens as a round-headed door, its planks each reaching up into
+  the head.
+- **An arrow slit**: a slot 16 cm wide and 1.2 m tall between dressed jambs of pale stone, long and short in turn,
+  under a lintel and on a sill, its glass set deep toward the room.
+- **Round**: a circle 72 cm across, ringed all round with wedges, crossed by bars.
+- **A corner window**: a light on each face of a corner meeting at a stone post, a lintel and a sill on each face
+  running over the corner, the corner's pier standing under and over it. The windows tool opens one where it points at
+  a corner's pier, on a house, tower or a bent wall but never where a timber frame's corner post stands.
+
+Families that open no door (slits, round and corner windows) open no lower than a door's sill, wherever the hand
+points. Windows of one family on one course fuse as cottage windows do, a ringed light keeping its own ring and a
+slit its own jambs, the lights a mullion apart: a course of stone between ringed lights and slits. Families never fuse
+with each other, and a corner window with nothing. A ringed light cuts each course by the widest its light reaches
+across the course, or the narrowest its ring does where that is wider, and the wall's infill behind the ring closes the
+rest, as behind an arch. The style tool's window wheel (`PaletteTool.Restyle.WINDOW`) offers the families an opening
+still opens in where it stands, a door staying a door.
+
+**Trapdoors.** The windows tool on a flat roof lays a trapdoor on its deck (`RoofLayout.hatches`, placed as chimneys
+are, kept inside the walls and clear of chimneys, a tower's flag and each other): a lid of boards in an oak curb, on two iron strap
+hinges, with a ring. A press on one takes it away; a grip carries it over the deck.
+
+**Glow.** A room's glass (a house's or tower's under a roof or deck, its dormers' too) shines at night in its build's
+glow colour (`Palette.Element.GLOW`, eight swatches from candle amber to violet), picked by the colour tool on the
+glass; a window in a wall standing open does not. `Daylight.lit` brings it on as the sun sets from 6° to −4° below
+the horizon, and `Look` hands it to the stone shader as `window_night`, `Lamps.NIGHT_GLOW` strong, on top of the light
+of lanterns inside (see "Lantern light"): it costs the shader one more multiply and add on glass alone.
+
+**Lived-in houses.** A room with a door or an archway placed, or one standing on another build, is lived in, and its cottage
+and arched windows grow curtains drawn to either side of each light under a pelmet, in front of the glass on the face
+looking out, in one cloth colour per house; three in four of them a box of flowers under the sill; and one of them a
+line on two iron arms over it, its washing waving as flags do.
+
+The budget charges each arched or round window's ring as a fitting, each dressed window of a lived-in house as one and
+its washing as one, and each trapdoor as one. `tests/test_windows.gd` checks each family's cut and fusing, doors low on
+the wall, the corner window, the glow and its colour, the dressing, trapdoors, the command, the budget and the tools;
+`demo/windows.json` renders every family by day and by night, the window wheel and the glow wheel; the stress scene's
+`windows/aerial` and `windows/ground` phases look over a village opening windows in every house, flat roofs with
+trapdoors, by night.
 
 ## Moss
 

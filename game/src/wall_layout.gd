@@ -5,7 +5,10 @@ extends RefCounted
 ## house) standing level on its lowest ground, with its openings, doors, lanterns and flags; or, with the
 ## fence profile, the posts and rails of a wooden fence. Pure data: no nodes, so tests run headless.
 
-enum DoorStyle { PLAIN, ARCHWAY }
+## What an opening is: a cottage window, an archway, an arched window, an arrow slit, a round window, or a corner window
+## with a light on each face of a corner meeting at a post. Low on a wall a cottage window opens as a plank door and an
+## arched one as a round-headed door.
+enum Family { COTTAGE, ARCHWAY, ARCHED, SLIT, ROUND, CORNER }
 
 enum Top { CRENEL, CAP, COPE, RAIL }
 ## What rests on a closed wall's top: nothing, a pitched roof (the top stops flush under it) or a flat deck
@@ -111,8 +114,33 @@ const DOOR_TALL := 2.0
 ## A window whose sill would stand lower than this reaches down to the ground as a door.
 const DOOR_SILL := 0.6
 const MULLION := 0.14
-## Windows (or doors) on one course whose centres stand this near fuse into one opening.
+## Windows (or doors) of one family on one course whose centres stand this near fuse into one opening.
 const FUSE := WINDOW_HALF * 2.0 + 0.5
+## The ring of wedges round an arched or round light.
+const WINDOW_RING := 0.16
+## A ringed light's wedges stand this far proud of the faces, past the coursed stones' jitter.
+const RING_PROUD := 0.03
+## The post a corner window's lights meet at.
+const CORNER_POST := 0.14
+## Each window family's light at size 1: its half-width, how tall it stands, the stone between fused lights, whether
+## it opens as a door low on the wall, whether a ring of wedges heads it, and whether a lived-in house dresses it.
+const LIGHTS := {
+	Family.COTTAGE: {"half": WINDOW_HALF, "tall": WINDOW_TALL, "mullion": MULLION, "door": true, "ring": false, "dressed": true},
+	Family.ARCHED: {"half": 0.3, "tall": 1.2, "mullion": WINDOW_RING * 2.0 + 0.06, "door": true, "ring": true, "dressed": true},
+	Family.SLIT: {"half": 0.08, "tall": 1.2, "mullion": 0.6, "door": false, "ring": false, "dressed": false},
+	Family.ROUND: {"half": 0.36, "tall": 0.72, "mullion": WINDOW_RING * 2.0 + 0.06, "door": false, "ring": true, "dressed": false},
+	Family.CORNER: {"half": 0.6, "tall": WINDOW_TALL, "mullion": 0.0, "door": false, "ring": false, "dressed": false},
+}
+## The families the style tool offers a window, and a door.
+const WINDOW_FAMILIES: Array[Family] = [Family.COTTAGE, Family.ARCHED, Family.SLIT, Family.ROUND]
+## What a lived-in house hangs at its windows: curtains, flowers in its boxes and washing on its line.
+const CURTAINS: Array[Color] = [Color(0.66, 0.2, 0.17), Color(0.86, 0.8, 0.62), Color(0.24, 0.36, 0.52), Color(0.4, 0.5, 0.3), Color(0.72, 0.52, 0.22)]
+const BLOOMS: Array[Color] = [Color(0.85, 0.2, 0.22), Color(0.95, 0.75, 0.2), Color(0.92, 0.55, 0.7), Color(0.6, 0.35, 0.8), Color(0.96, 0.94, 0.88)]
+const LEAVES := Color(0.24, 0.42, 0.16)
+const WASHING: Array[Color] = [Color(0.94, 0.93, 0.88), Color(0.55, 0.68, 0.84), Color(0.85, 0.5, 0.45), Color(0.9, 0.82, 0.5)]
+const ROPE := Color(0.62, 0.56, 0.44)
+## How far past a window's sides its washing line's arms stand.
+const WASHING_ARM := 0.45
 const LINTEL_EAR := 0.16
 const LANTERN_OUT := 0.34
 const FLAG_POLE := 1.7
@@ -121,6 +149,7 @@ const POLE := Color(0.37, 0.26, 0.17)
 const FINIAL := Color(0.7, 0.58, 0.3)
 const WOOD := Color(0.46, 0.33, 0.21)
 const IRON := Color(0.16, 0.15, 0.14)
+## Glass by day; at night a room's glows in its own colour (`glow`).
 const GLASS := Color(0.12, 0.17, 0.22)
 const PLASTER := Color(0.86, 0.8, 0.68)
 ## The stone walls are laid in, before each stone's variation.
@@ -184,7 +213,7 @@ var planks := false
 var gable_end := GableEnd.WALL
 ## The gable roof a house's end walls rise under, course by course, as stone walls do; null for any other.
 var gable: RoofLayout
-## Placed openings: arc length, click height above the foot, DoorStyle, and size, 1 for a doorway's (or a plain
+## Placed openings: arc length, click height above the foot, Family, and size, 1 for a doorway's (or a plain
 ## window's) and more for a bigger one, scaling it every way.
 var openings: Array[Vector4] = []
 ## Lanterns: arc length, height above the foot, and the face they hang from (+1 or -1).
@@ -224,9 +253,11 @@ var stones: Array[Dictionary] = []
 ## Stones shorten on a round loop so their outer ends stay closed.
 var _stone_scale := 1.0
 ## The apertures `build` cut for the openings that fit, fused where they stand together: arc length `s`,
-## half-width `half`, `sill` and `head` heights, `door`, `lights`, the panes side by side, and `size`.
+## half-width `half`, `sill` and `head` heights, `door`, `lights`, the panes side by side, each `pane` either side of its
+## middle and `mullion` apart, the `ring` heading them, the Family `style`, and `size`.
 var apertures: Array[Dictionary] = []
-## Lantern flames and flag cloths, laid with the stones; flames are unit boxes, cloths unit quads off the pole.
+## Lantern flames, and flag cloths and washing, laid with the stones; flames are unit boxes, cloths unit quads off the
+## pole or line.
 var flames: Array[Transform3D] = []
 var cloths: Array[Dictionary] = []
 ## The height of the floor's top, and the outline it covers: -INF and empty but for a house or tower.
@@ -241,11 +272,11 @@ var laid := 0
 
 
 static func archway(s: float, size := 1.0) -> Vector4:
-	return Vector4(s, 0.0, DoorStyle.ARCHWAY, size)
+	return Vector4(s, 0.0, Family.ARCHWAY, size)
 
 
 func archways() -> Array:
-	return apertures.filter(func(o): return o.style == DoorStyle.ARCHWAY).map(func(o): return o.s)
+	return apertures.filter(func(o): return o.style == Family.ARCHWAY).map(func(o): return o.s)
 
 
 func length() -> float:
@@ -364,15 +395,16 @@ func build(ground: Callable, water := Callable()) -> void:
 		var spans := [[0.0, total]] if k >= 0 else _over_bed(-y0 - course_h)
 		var lintels := PackedVector2Array()
 		for o in apertures:
-			if o.style == DoorStyle.ARCHWAY:
+			if o.style == Family.ARCHWAY:
 				# Cut to the narrowest the arch's outline reaches across the band, so the band's stones meet it everywhere.
 				var w := minf(opening(maxf(y0, threshold()), true, o.size), opening(y0 + h, true, o.size))
 				if w > 0.0:
 					spans = _cut(spans, o.s - w, o.s + w)
-			elif yc > o.sill and yc < o.head:
-				spans = _cut(spans, o.s - o.half, o.s + o.half)
-			elif yc > o.head and yc < o.head + course_h:
-				lintels.append(Vector2(o.s - o.half, o.s + o.half))
+			else:
+				for cut in light_cuts(o, y0, h):
+					spans = _cut(spans, cut.x, cut.y)
+				if o.ring == 0.0 and yc > o.head and yc < o.head + course_h:
+					lintels.append(Vector2(o.s - o.half, o.s + o.half))
 		var filled := spans
 		for l in lintels:
 			spans = _cut(spans, l.x - LINTEL_EAR, l.y + LINTEL_EAR)
@@ -422,10 +454,13 @@ func build(ground: Callable, water := Callable()) -> void:
 		var s := turns[i]
 		rng.seed = hash([seed, "pier", i])
 		if not TimberFrame.applies(self) and not broken(s, PIER * 0.5):
-			_lay_pier(s, rng, wet, open if foundation == Foundation.POSTS else 0.0)
+			var window := _corner_window(s)
+			_lay_pier(s, rng, wet, open if foundation == Foundation.POSTS else 0.0, Vector2(window.sill, window.head + course_h) if not window.is_empty() else Vector2.ZERO)
 	if open > 0.0:
 		_lay_stilts(open, wet)
 	_lay_rubble()
+	if lived_in():
+		_lay_lived_in()
 	for l in lanterns:
 		if lantern_fits(l.x, l.y):
 			_lay_lantern(l.x, frame_at(l.x).point + Vector3.UP * l.y, _normal(l.x) * l.z, rng)
@@ -1022,24 +1057,64 @@ func inner_side() -> float:
 	return signf(area)
 
 
-## The opening a placed window makes on its own, before fusing: a door if its sill would be near the ground. Its size
-## scales it every way from where it stands: an arch about its springing, a door or window up from its sill; a door,
-## like an arch, stands its height over the floor, lowered under the top of a wall that holds it on level ground.
+## The opening a placed window makes on its own, before fusing: a door if its family opens as one and its sill would be
+## near the ground, else a window no lower than a door's sill. Its size scales it every way from where it stands: an arch
+## about its springing, a door or window up from its sill; a door, like an arch, stands its height over the floor, lowered
+## under the top of a wall that holds it on level ground. Each light is `pane` either side of its middle, `mullion`
+## apart, and an arched or round one wears a `ring` of wedges.
 func opening_for(w: Vector4) -> Dictionary:
 	var c := course_height()
 	var k := w.w
-	if w.z == DoorStyle.ARCHWAY:
-		return {"s": w.x, "half": ARCH_HALF * k, "sill": maxf(threshold(), 0.0), "head": spring(k) + arch_rise(0.0, k) + arch_style().ring * k, "door": true, "style": DoorStyle.ARCHWAY, "lights": 1, "size": k}
-	if w.y - WINDOW_TALL * 0.5 < DOOR_SILL:
+	var family := int(w.z)
+	if family == Family.ARCHWAY:
+		return {"s": w.x, "half": ARCH_HALF * k, "pane": ARCH_HALF * k, "mullion": 0.0, "ring": 0.0, "sill": maxf(threshold(), 0.0), "head": spring(k) + arch_rise(0.0, k) + arch_style().ring * k, "door": true, "style": Family.ARCHWAY, "lights": 1, "size": k}
+	var light: Dictionary = LIGHTS[family]
+	var s := w.x
+	if family == Family.CORNER:
+		var corner := corner_near(s)
+		s = corner if not is_nan(corner) else s
+	var ring := WINDOW_RING * k if light.ring else 0.0
+	var mullion: float = light.mullion * k
+	if opens_door(w):
 		var bottom := maxf(threshold(), 0.0)
-		return {"s": w.x, "half": DOOR_HALF * k, "sill": bottom, "head": minf(roundf((bottom + DOOR_TALL * k) / c) * c, floorf((height + 0.01) / c) * c - c), "door": true, "lights": 1, "style": DoorStyle.PLAIN, "size": k}
-	var sill := roundf((w.y - WINDOW_TALL * 0.5) / c) * c
-	return {"s": w.x, "half": WINDOW_HALF * k, "sill": sill, "head": sill + roundf(WINDOW_TALL * k / c) * c, "door": false, "lights": 1, "style": DoorStyle.PLAIN, "size": k}
+		return {"s": s, "half": DOOR_HALF * k, "pane": DOOR_HALF * k, "mullion": mullion, "ring": ring, "sill": bottom, "head": minf(roundf((bottom + DOOR_TALL * k) / c) * c, floorf((height + 0.01) / c) * c - c), "door": true, "lights": 1, "style": family, "size": k}
+	var sill := maxf(roundf((w.y - light.tall * 0.5) / c), roundf(DOOR_SILL / c)) * c
+	var tall: float = light.tall * k if family == Family.ROUND else roundf(light.tall * k / c) * c
+	return {"s": s, "half": light.half * k, "pane": light.half * k, "mullion": mullion, "ring": ring, "sill": sill, "head": sill + tall, "door": false, "lights": 1, "style": family, "size": k}
 
 
-## The apertures `placed` openings make on the built wall: neighbours on one course (doors beside doors) fuse,
-## round a loop's seam too, and those that fit are kept: under the top with a course left for the lintel,
-## clear of the ends, corner piers, arches and each other.
+## Whether placed opening `w` opens as a door: an archway, or a family that opens one, placed low on the wall.
+static func opens_door(w: Vector4) -> bool:
+	return int(w.z) == Family.ARCHWAY or LIGHTS[int(w.z)].door and w.y - LIGHTS[int(w.z)].tall * 0.5 < DOOR_SILL
+
+
+## The height a window of `family` at `size` is placed at for its sill to stand no lower than a door's: where a press
+## low on the wall puts a family that opens no door.
+static func lowest(family: int, size := 1.0) -> float:
+	return DOOR_SILL + LIGHTS[family].tall * size * 0.5
+
+
+## The corner a window at arc length `s` would wrap round, its pier being where it points: one a loop or an open wall
+## turns at, within half a pier of `s`; NAN where none is.
+func corner_near(s: float) -> float:
+	var turns := corners()
+	for c in turns:
+		if _corner(c, turns) and absf(offset(s, c)) < PIER * 0.5:
+			return c
+	return NAN
+
+
+## The middle of each of aperture `o`'s lights, by arc length.
+static func light_centres(o: Dictionary) -> PackedFloat32Array:
+	var out := PackedFloat32Array()
+	for i in o.lights:
+		out.append(o.s - o.half + o.pane * (2 * i + 1) + o.mullion * i)
+	return out
+
+
+## The apertures `placed` openings make on the built wall: neighbours of one family on one course (doors beside doors)
+## fuse, round a loop's seam too, and those that fit are kept: under the top with a course left for the lintel or ring
+## to stand in, clear of the ends, corner piers, arches and each other. Archways are kept first.
 func openings_for(placed: Array[Vector4]) -> Array[Dictionary]:
 	placed = placed.duplicate()
 	for a in _water_arches():
@@ -1049,16 +1124,16 @@ func openings_for(placed: Array[Vector4]) -> Array[Dictionary]:
 	var fused: Array[Dictionary] = []
 	for w in placed:
 		var o := opening_for(w)
-		if o.style == DoorStyle.ARCHWAY:
+		if o.style in [Family.ARCHWAY, Family.CORNER]:
 			fused.append(o)
 			continue
-		var key := Vector2i(roundi(o.sill * 100.0), roundi(o.size * 100.0))
+		var key := Vector3i(roundi(o.sill * 100.0), roundi(o.size * 100.0), o.style)
 		if not courses_of.has(key):
 			courses_of[key] = []
 		courses_of[key].append(o)
 	for row in courses_of.values():
 		fused.append_array(_fuse(row))
-	fused.sort_custom(func(a, b): return a.style > b.style if a.style != b.style else a.s < b.s)
+	fused.sort_custom(func(a, b): return a.style == Family.ARCHWAY if (a.style == Family.ARCHWAY) != (b.style == Family.ARCHWAY) else a.s < b.s)
 	var out: Array[Dictionary] = []
 	for o in fused:
 		if _opening_fits(o, out):
@@ -1067,7 +1142,7 @@ func openings_for(placed: Array[Vector4]) -> Array[Dictionary]:
 	return out
 
 
-## Fuses the apertures of one course and size that stand within FUSE of each other, at their size, into wider ones.
+## Fuses the apertures of one family, course and size that stand within FUSE of each other, at their size, into wider ones.
 func _fuse(row: Array) -> Array[Dictionary]:
 	row.sort_custom(func(a, b): return a.s < b.s)
 	if closed and row.size() > 1:
@@ -1093,13 +1168,13 @@ func _fuse(row: Array) -> Array[Dictionary]:
 			var into: Dictionary = out[-1]
 			into.lights += 1
 			into.s = self.wrap((first + u) * 0.5)
-			into.half = into.lights * (DOOR_HALF if o.door else WINDOW_HALF) * o.size + (into.lights - 1) * MULLION * 0.5
+			into.half = into.lights * into.pane + (into.lights - 1) * into.mullion * 0.5
 		last = u
 	return out
 
 
 func _opening_fits(o: Dictionary, others: Array[Dictionary]) -> bool:
-	var arched: bool = o.style == DoorStyle.ARCHWAY
+	var arched: bool = o.style == Family.ARCHWAY
 	if arched:
 		if not can_arch(o.size):
 			return false
@@ -1110,14 +1185,67 @@ func _opening_fits(o: Dictionary, others: Array[Dictionary]) -> bool:
 	var end: float = o.half + edge + END_CLEAR if arched else side
 	if broken(o.s, o.half + edge) or (not closed and (o.s < end or o.s > length() - end)):
 		return false
-	if (closed or not arched) and not corners().all(func(c): return absf(offset(o.s, c)) > side):
+	var turns := corners()
+	var own := func(c: float) -> bool: return o.style == Family.CORNER and absf(offset(o.s, c)) < 1e-3 and _corner(c, turns)
+	if o.style == Family.CORNER and (TimberFrame.applies(self) or not turns.any(own)):
 		return false
-	return others.all(func(e): return absf(offset(o.s, e.s)) >= o.half + e.half + edge + _edge(e) or (not arched and e.style != DoorStyle.ARCHWAY and (o.sill > e.head + course_height() * 0.5 or e.sill > o.head + course_height() * 0.5)))
+	if (closed or not arched) and not turns.all(func(c): return own.call(c) or absf(offset(o.s, c)) > side):
+		return false
+	return others.all(func(e): return absf(offset(o.s, e.s)) >= o.half + e.half + edge + _edge(e) or (not arched and e.style != Family.ARCHWAY and (o.sill > e.head + e.ring + course_height() * 0.5 or e.sill > o.head + o.ring + course_height() * 0.5)))
 
 
-## How far past its opening an aperture's surround reaches along the wall: an arch's ring, else a lintel's ear.
+## How far past its opening an aperture's surround reaches along the wall: an arch's ring or a light's, else a lintel's ear.
 static func _edge(o: Dictionary) -> float:
-	return RING * o.size if o.style == DoorStyle.ARCHWAY else LINTEL_EAR
+	return RING * o.size if o.style == Family.ARCHWAY else maxf(o.ring, LINTEL_EAR)
+
+
+## The half-width of one of window `o`'s lights at height `y` above the foot, its ring with `ring`; -1 where it does not
+## reach. A round light is a circle; an arched one rises square to its springing, a light's width under its head, and
+## its head is a half circle; every other is square.
+static func light_half(o: Dictionary, y: float, ring := false) -> float:
+	var r: float = o.pane + (o.ring if ring else 0.0)
+	if o.style == Family.ROUND:
+		var dy: float = y - (o.sill + o.head) * 0.5
+		return sqrt(r * r - dy * dy) if absf(dy) <= r else -1.0
+	if y < o.sill or y > o.head + (o.ring if ring else 0.0):
+		return -1.0
+	if o.style != Family.ARCHED:
+		return r
+	var up: float = y - (o.head - o.pane)
+	if up <= 0.0:
+		return o.pane
+	return sqrt(r * r - up * up) if up <= r else -1.0
+
+
+## Where window `o` cuts the course from `y0`, `h` tall, as arc-length stretches: square lights across the whole
+## opening, a slit's each on its own, and a ringed light by the widest its opening reaches over the course, or the
+## narrowest its ring does where that is wider, the infill behind its ring closing what that leaves (`_lay_ringed`).
+static func light_cuts(o: Dictionary, y0: float, h: float) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	var yc := y0 + h * 0.5
+	if o.ring == 0.0:
+		if yc > o.sill and yc < o.head:
+			if o.style == Family.SLIT:
+				for c in light_centres(o):
+					out.append(Vector2(c - o.pane, c + o.pane))
+			else:
+				out.append(Vector2(o.s - o.half, o.s + o.half))
+		return out
+	var widest := -1.0
+	var narrowest := INF
+	for i in 9:
+		var y := y0 + 0.001 + (h - 0.002) * i / 8.0
+		widest = maxf(widest, light_half(o, y))
+		narrowest = minf(narrowest, light_half(o, y, true))
+	if o.style == Family.ROUND:
+		var middle: float = (o.sill + o.head) * 0.5
+		if middle > y0 and middle < y0 + h:
+			widest = maxf(widest, o.pane)
+	var w := maxf(widest, narrowest)
+	if w > 0.0:
+		for c in light_centres(o):
+			out.append(Vector2(c - w, c + w))
+	return out
 
 
 ## The opening at a face point, or empty.
@@ -1129,14 +1257,14 @@ func opening_at(s: float, y: float) -> Dictionary:
 ## window's glass close theirs, nothing an arch's. A fence's gate is open between its posts.
 func open_at(s: float, y: float) -> bool:
 	for o in apertures:
-		if o.style == DoorStyle.ARCHWAY and absf(offset(s, o.s)) < (ARCH_HALF if fence else opening(y, false, o.size)):
+		if o.style == Family.ARCHWAY and absf(offset(s, o.s)) < (ARCH_HALF if fence else opening(y, false, o.size)):
 			return true
 	return false
 
 
 func _opening_in(list: Array[Dictionary], s: float, y: float) -> Dictionary:
 	for o in list:
-		if absf(offset(s, o.s)) < (opening(y, false, o.size) if o.style == DoorStyle.ARCHWAY else o.half + 0.05) and y > o.sill - 0.05 and y < o.head + 0.05:
+		if absf(offset(s, o.s)) < (opening(y, false, o.size) if o.style == Family.ARCHWAY else o.half + 0.05) and y > o.sill - 0.05 and y < o.head + 0.05:
 			return o
 	return {}
 
@@ -1171,7 +1299,7 @@ func lantern_fits(s: float, y: float) -> bool:
 		return true
 	if broken(s, 0.3) or y < 0.9 or y > height - 0.2 or (not closed and (s < PIER or s > length() - PIER)):
 		return false
-	return apertures.all(func(o): return absf(offset(s, o.s)) > o.half + _edge(o) + (0.2 if o.style == DoorStyle.ARCHWAY else 0.15) or y > o.head + course_height() + 0.3 or y < o.sill - 0.3)
+	return apertures.all(func(o): return absf(offset(s, o.s)) > o.half + _edge(o) + (0.2 if o.style == Family.ARCHWAY else 0.15) or y > o.head + course_height() + 0.3 or y < o.sill - 0.3)
 
 
 func flag_fits(s: float) -> bool:
@@ -1179,8 +1307,15 @@ func flag_fits(s: float) -> bool:
 
 
 func _lay_opening(o: Dictionary, rng: RandomNumberGenerator, bottom: float) -> void:
-	if o.style == DoorStyle.ARCHWAY:
-		_lay_arch(o.s, o.size, rng, maxf(bottom, threshold()))
+	match o.style:
+		Family.ARCHWAY:
+			_lay_arch(o.s, o.size, rng, maxf(bottom, threshold()))
+			return
+		Family.CORNER:
+			_lay_corner_window(o, rng)
+			return
+	if o.ring > 0.0:
+		_lay_ringed(o, rng)
 		return
 	var s: float = o.s
 	var half: float = o.half
@@ -1190,6 +1325,9 @@ func _lay_opening(o: Dictionary, rng: RandomNumberGenerator, bottom: float) -> v
 	_part(s, o.head + c * 0.5, Vector3(half * 2.0 + LINTEL_EAR * 2.0, c, THICKNESS * 1.04), _trim(wood, rng), rng, "beam" if wood else "lintel")
 	if not o.door:
 		_part(s, o.sill + 0.04, Vector3(half * 2.0 + 0.16, 0.08, THICKNESS + 0.1), _trim(wood, rng), rng, "beam" if wood else "sill")
+	if o.style == Family.SLIT:
+		_lay_slit(o, rng)
+		return
 	# The surround's back lies on a plaster wall's face, and its front stands proud of a stone one's.
 	var back := THICKNESS * 0.5 - PLASTER_INSET
 	var front := THICKNESS * 0.5 + 0.025
@@ -1199,16 +1337,30 @@ func _lay_opening(o: Dictionary, rng: RandomNumberGenerator, bottom: float) -> v
 			_part(s + edge * (half + 0.09), o.sill + tall * 0.5, Vector3(0.18, tall, front - back), casing * rng.randf_range(0.94, 1.02), rng, "frame" if wood else "plaster", face * (back + front) * 0.5)
 		if not o.door:
 			_part(s, o.sill - 0.1, Vector3(half * 2.0 + 0.36, 0.14, front - back), casing * rng.randf_range(0.94, 1.02), rng, "frame" if wood else "plaster", face * (back + front) * 0.5)
-	var n: int = o.lights
-	var light := (half * 2.0 - (n - 1) * MULLION) / n
-	for i in n:
-		var at := s - half + light * (i + 0.5) + MULLION * i
+	var light: float = o.pane * 2.0
+	var centres := light_centres(o)
+	for i in centres.size():
+		var at := centres[i]
 		if i > 0:
-			_part(at - light * 0.5 - MULLION * 0.5, o.sill + tall * 0.5, Vector3(MULLION, tall, THICKNESS * 0.9), stone_color(rng), rng, "mullion")
+			_part(at - light * 0.5 - o.mullion * 0.5, o.sill + tall * 0.5, Vector3(o.mullion, tall, THICKNESS * 0.9), stone_color(rng), rng, "mullion")
 		if o.door:
 			_lay_door(at, o.sill, light, tall, rng)
 		else:
 			_lay_window(at, o.sill, light, tall, rng)
+
+
+## Arrow slits: per light a dark slot reaching back to its glass near the inner face, between dressed jambs of pale
+## stone standing long and short in turn up each side, a course each.
+func _lay_slit(o: Dictionary, rng: RandomNumberGenerator) -> void:
+	var tall: float = o.head - o.sill
+	var c := course_height()
+	var dressed := stone_color(rng) * 1.12
+	for at in light_centres(o):
+		_part(at, o.sill + tall * 0.5, Vector3(o.pane * 2.0, tall, 0.02), glow() * rng.randf_range(0.9, 1.1), rng, "glass", inner_side() * THICKNESS * 0.3)
+		for k in roundi(tall / c):
+			for side in [-1.0, 1.0]:
+				var w := 0.3 if (k + (1 if side > 0.0 else 0)) % 2 == 0 else 0.18
+				_part(at + side * (o.pane + w * 0.5), o.sill + c * (k + 0.5), Vector3(w, c - 0.02, THICKNESS * 1.03), dressed * rng.randf_range(0.95, 1.04), rng, "lintel")
 
 
 ## An opening's head or sill: oak in a boarded wall, else stone.
@@ -1216,16 +1368,21 @@ static func _trim(wood: bool, rng: RandomNumberGenerator) -> Color:
 	return TimberFrame.OAK * rng.randf_range(0.88, 1.12) if wood else stone_color(rng) * 1.05
 
 
-## A casement set back in the wall.
-func _lay_window(s: float, sill: float, w: float, tall: float, rng: RandomNumberGenerator) -> void:
-	for p in casement(w, tall, rng):
-		_part(s + p.at.x, sill + tall * 0.5 + p.at.y, p.size, p.color, rng, p.kind, -THICKNESS * 0.12)
+## The colour a room's windows glow at night, before its paint (Palette.Element.GLOW); none in a wall standing open.
+func glow() -> Color:
+	return Palette.SWATCHES[Palette.Element.GLOW][0] if floored() else Color.BLACK
 
 
-## A casement `w` wide and `tall`: a dark pane in a wooden frame with a cross of glazing bars, as pieces each placed
-## `at` (along the face, up) from its middle.
-static func casement(w: float, tall: float, rng: RandomNumberGenerator) -> Array[Dictionary]:
-	var out: Array[Dictionary] = [{"at": Vector2.ZERO, "size": Vector3(w - 0.02, tall - 0.02, 0.02), "color": GLASS * rng.randf_range(0.9, 1.1), "kind": "glass"}]
+## A casement `out` off the wall's middle, set back in it unless given, on the straight `face` if given.
+func _lay_window(s: float, sill: float, w: float, tall: float, rng: RandomNumberGenerator, out := -THICKNESS * 0.12, face := INF) -> void:
+	for p in casement(w, tall, rng, glow()):
+		_part(s + p.at.x, sill + tall * 0.5 + p.at.y, p.size, p.color, rng, p.kind, out, 0.0, face)
+
+
+## A casement `w` wide and `tall`: a pane glowing `glow` at night in a wooden frame with a cross of glazing bars, as
+## pieces each placed `at` (along the face, up) from its middle.
+static func casement(w: float, tall: float, rng: RandomNumberGenerator, glow: Color) -> Array[Dictionary]:
+	var out: Array[Dictionary] = [{"at": Vector2.ZERO, "size": Vector3(w - 0.02, tall - 0.02, 0.02), "color": glow * rng.randf_range(0.9, 1.1), "kind": "glass"}]
 	for edge in [-1.0, 1.0]:
 		out.append({"at": Vector2(edge * (w * 0.5 - 0.03), 0.0), "size": Vector3(0.06, tall, 0.08), "color": WOOD * rng.randf_range(0.85, 1.05), "kind": "frame"})
 		out.append({"at": Vector2(0.0, edge * (tall * 0.5 - 0.03)), "size": Vector3(w - 0.12, 0.06, 0.08), "color": WOOD * rng.randf_range(0.85, 1.05), "kind": "frame"})
@@ -1243,6 +1400,186 @@ func _lay_door(s: float, sill: float, w: float, tall: float, rng: RandomNumberGe
 		_part(at, sill + tall * 0.5, Vector3(w / planks - 0.012, tall - 0.02, 0.06), WOOD * rng.randf_range(0.75, 1.1), rng, "door", back)
 	for y: float in [sill + 0.4, sill + tall - 0.45]:
 		_part(s, y, Vector3(w - 0.08, 0.06, 0.08), IRON, rng, "iron", back)
+
+
+## An arched or round window, or a round-headed door: per light a ring of wedges round its head, or all round it,
+## standing RING_PROUD off both faces, and behind the ring the wall's infill out a course past it, closing the gap
+## the courses' level cut leaves (`light_cuts`); in it a casement, its head a half circle of glass strips over a
+## transom, a round pane crossed by bars, or a door of planks each cut to the head. A row of arched windows stands
+## on one sill.
+func _lay_ringed(o: Dictionary, rng: RandomNumberGenerator) -> void:
+	var round: bool = o.style == Family.ROUND
+	var r: float = o.pane
+	var ring: float = o.ring
+	var depth := THICKNESS + RING_PROUD * 2.0
+	var fill := THICKNESS - (PLASTER_INSET if plastered() else JOINT) * 2.0 - 0.004
+	var wedge := {"kind": "voussoir", "jitter": 0.0}
+	var mortared := {"kind": "plaster" if plastered() else "mortar", "jitter": 0.0}
+	var middle: float = (o.sill + o.head) * 0.5 if round else o.head - r
+	var tint := rng.randf_range(0.92, 1.06)
+	if not o.door and not round:
+		_part(o.s, o.sill + 0.04, Vector3(o.half * 2.0 + 0.16, 0.08, THICKNESS + 0.1), _trim(boarded(), rng), rng, "beam" if boarded() else "sill")
+	for at in light_centres(o):
+		var arc := [Vector2.ZERO, r, -PI * 0.5 if round else 0.0, PI * 0.5]
+		var pieces := 5 if round else 3
+		for side in [-1.0, 1.0]:
+			for j in pieces:
+				var st := _voussoir(at, middle, side, arc, lerpf(arc[2], arc[3], float(j) / pieces), lerpf(arc[2], arc[3], float(j + 1) / pieces), 0.0, ring, depth, 0.012, wedge, rng)
+				st.color = stone_color(rng) * tint
+				stones.append(st)
+				var high := sin(lerpf(arc[2], arc[3], float(j + 1) / pieces))
+				# Out a course past the ring, but never up through the wall's top.
+				var reach := ring + course_height() if high < 0.1 else minf(ring + course_height(), (height - middle) / high - r)
+				var back := _voussoir(at, middle, side, arc, lerpf(arc[2], arc[3], float(j) / pieces), lerpf(arc[2], arc[3], float(j + 1) / pieces), 0.01, reach, fill, -0.02, mortared, rng)
+				back.color = PLASTER if plastered() else MORTAR
+				back.ao = 1.0 if plastered() else 0.8
+				back.variant = 0
+				stones.append(back)
+		if o.door:
+			_lay_round_door(at, o, middle, rng)
+			continue
+		if not round:
+			_lay_window(at, o.sill, r * 2.0, middle - o.sill, rng)
+		# One square pane fills the head or the round: its corners lie inside the ring.
+		_part(at, middle if round else middle + r * 0.5, Vector3(r * 2.0, r * (2.0 if round else 1.0), 0.02), glow() * rng.randf_range(0.9, 1.1), rng, "glass", -THICKNESS * 0.12)
+		_part(at, middle if round else middle + r * 0.5, Vector3(0.035, r * (2.0 if round else 1.0), 0.05), WOOD, rng, "frame", -THICKNESS * 0.12)
+		if round:
+			_part(at, middle, Vector3(r * 2.0, 0.035, 0.05), WOOD, rng, "frame", -THICKNESS * 0.12)
+
+
+## A round-headed door in light `at` of `o`: upright planks each reaching to the half circle springing at `middle`,
+## with two iron straps.
+func _lay_round_door(at: float, o: Dictionary, middle: float, rng: RandomNumberGenerator) -> void:
+	var r: float = o.pane
+	var planks := maxi(3, roundi(r * 2.0 / 0.2))
+	var back := -THICKNESS * 0.15
+	for i in planks:
+		var x := -r + r * 2.0 * (i + 0.5) / planks
+		var edge := maxf(absf(x) - r / planks, 0.0)
+		var top := middle + sqrt(r * r - edge * edge)
+		_part(at + x, (o.sill + top) * 0.5, Vector3(r * 2.0 / planks - 0.012, top - o.sill - 0.01, 0.06), WOOD * rng.randf_range(0.75, 1.1), rng, "door", back)
+	for y: float in [o.sill + 0.4, middle - 0.3]:
+		_part(at, y, Vector3(r * 2.0 - 0.08, 0.06, 0.08), IRON, rng, "iron", back)
+
+
+## A corner window: a light on each face of the corner, meeting at a stone post, each in the wall's middle; a lintel
+## and a sill on each face, one of each running on over the corner.
+func _lay_corner_window(o: Dictionary, rng: RandomNumberGenerator) -> void:
+	var c := course_height()
+	var corner: float = o.s
+	var tall: float = o.head - o.sill
+	var wood := boarded()
+	var cap := THICKNESS * 0.5
+	var reach: float = o.half + LINTEL_EAR
+	var lip := (THICKNESS + 0.1) * 0.5
+	var faces := [corner - o.half * 0.5, corner + o.half * 0.5]
+	_part(corner + (cap - reach) * 0.5, o.head + c * 0.5, Vector3(reach + cap, c, THICKNESS * 1.04), _trim(wood, rng), rng, "beam" if wood else "lintel", 0.0, 0.0, faces[0])
+	_part(corner + (reach + cap) * 0.5, o.head + c * 0.5, Vector3(reach - cap, c, THICKNESS * 1.04), _trim(wood, rng), rng, "beam" if wood else "lintel", 0.0, 0.0, faces[1])
+	_part(corner + (lip - o.half - 0.08) * 0.5, o.sill + 0.04, Vector3(o.half + 0.08 + lip, 0.08, THICKNESS + 0.1), _trim(wood, rng), rng, "beam" if wood else "sill", 0.0, 0.0, faces[0])
+	_part(corner + (o.half + 0.08 + lip) * 0.5, o.sill + 0.04, Vector3(o.half + 0.08 - lip, 0.08, THICKNESS + 0.1), _trim(wood, rng), rng, "beam" if wood else "sill", 0.0, 0.0, faces[1])
+	_part(corner, o.sill + tall * 0.5, Vector3(CORNER_POST, tall, CORNER_POST), stone_color(rng), rng, "mullion")
+	var w: float = o.half - CORNER_POST * 0.5
+	for side in [-1.0, 1.0]:
+		_lay_window(corner + side * (CORNER_POST * 0.5 + w * 0.5), o.sill, w, tall, rng, 0.0, faces[0 if side < 0.0 else 1])
+
+
+## The corner window standing at corner `s`, or empty.
+func _corner_window(s: float) -> Dictionary:
+	for o in apertures:
+		if o.style == Family.CORNER and absf(offset(o.s, s)) < 1e-3:
+			return o
+	return {}
+
+
+## Whether people live here: a room with a way in placed, a door or an archway, or one standing on another build,
+## reached from it.
+func lived_in() -> bool:
+	return floored() and lives(openings, not supports.is_empty())
+
+
+## Whether a room with placed `openings`, standing on another build or not, is lived in; the budget asks it of a command.
+static func lives(placed: Array, standing: bool) -> bool:
+	return standing or placed.any(opens_door)
+
+
+## What a lived-in house grows at its windows, on the face looking out: curtains drawn to either side of each light of
+## its cottage and arched windows, in front of the glass; a box of flowers under most of them; and at one, a line on two
+## iron arms with washing hung out along it.
+func _lay_lived_in() -> void:
+	var out := -inner_side()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([seed, "lived"])
+	var cloth: Color = CURTAINS[rng.randi() % CURTAINS.size()]
+	var windows := apertures.filter(func(o: Dictionary) -> bool: return not o.door and LIGHTS[o.style].dressed)
+	var hung := windows.filter(_washing_fits)
+	var line: Dictionary = {} if hung.is_empty() else hung[rng.randi() % hung.size()]
+	for i in windows.size():
+		var o: Dictionary = windows[i]
+		rng.seed = hash([seed, "lived", roundi(o.s * 100.0)])
+		var top: float = o.head if o.style == Family.COTTAGE else o.head - o.pane
+		var plane := -THICKNESS * 0.12 + out * 0.05
+		for at in light_centres(o):
+			for edge in [-1.0, 1.0]:
+				var w: float = o.pane * 0.55
+				_part(at + edge * (o.pane - w * 0.5), (o.sill + top) * 0.5 + 0.01, Vector3(w, top - o.sill - 0.04, 0.012), cloth * rng.randf_range(0.9, 1.05), rng, "curtain", plane)
+			_part(at, top - 0.05, Vector3(o.pane * 2.0, 0.08, 0.02), cloth * 0.85, rng, "curtain", plane + out * 0.01)
+		if rng.randf() < 0.75:
+			_lay_flower_box(o, out, rng)
+		if o == line:
+			_lay_washing(o, out, rng)
+
+
+## A wooden box of flowers on the sill of window `o`, out on face `out`.
+func _lay_flower_box(o: Dictionary, out: float, rng: RandomNumberGenerator) -> void:
+	var long: float = o.half * 2.0 + 0.1
+	var off := out * (THICKNESS * 0.5 + 0.17)
+	_part(o.s, o.sill - 0.02, Vector3(long, 0.18, 0.2), WOOD * rng.randf_range(0.8, 1.05), rng, "planter", off)
+	_part(o.s, o.sill + 0.1, Vector3(long - 0.04, 0.08, 0.16), LEAVES * rng.randf_range(0.85, 1.1), rng, "leaf", off)
+	var n := maxi(3, roundi(long / 0.13))
+	for k in n:
+		var at: float = o.s - long * 0.5 + long * (k + 0.5) / n
+		_part(at, o.sill + 0.15 + rng.randf_range(0.0, 0.04), Vector3(0.07, 0.06, 0.07), BLOOMS[rng.randi() % BLOOMS.size()], rng, "bloom", off + out * rng.randf_range(-0.05, 0.05), 0.5)
+
+
+## Whether a washing line's arms beside window `o` stand on its own straight face.
+func _washing_fits(o: Dictionary) -> bool:
+	var reach: float = o.half + WASHING_ARM
+	if not closed and (o.s - reach < 0.0 or o.s + reach > length()):
+		return false
+	var along: Vector3 = frame_at(o.s).tangent
+	return [-1.0, 1.0].all(func(edge: float) -> bool: return frame_at(o.s + edge * reach).tangent.dot(along) > 0.99)
+
+
+## A line strung over window `o`, out on face `out`, between two iron arms beyond its sides, sagging under the washing
+## pegged along it.
+func _lay_washing(o: Dictionary, out: float, rng: RandomNumberGenerator) -> void:
+	var y: float = o.head + 0.12
+	var arm := 0.55
+	var reach: float = o.half + WASHING_ARM
+	var ends: Array[Vector3] = []
+	for edge in [-1.0, 1.0]:
+		var s: float = o.s + edge * reach
+		var f := frame_at(s)
+		var n: Vector3 = f.tangent.cross(Vector3.UP) * out
+		var foot: Vector3 = f.point + Vector3.UP * y + n * THICKNESS * 0.5
+		_world(Transform3D(Basis(n, Vector3.UP, n.cross(Vector3.UP)).scaled_local(Vector3(arm, 0.035, 0.035)), foot + n * arm * 0.5), IRON, "iron", s)
+		ends.append(foot + n * arm)
+	var sag := Vector3.DOWN * 0.08
+	var mid := (ends[0] + ends[1]) * 0.5 + sag
+	for pair in [[ends[0], mid], [mid, ends[1]]]:
+		var a: Vector3 = pair[0]
+		var b: Vector3 = pair[1]
+		var x := (b - a).normalized()
+		var z := x.cross(Vector3.UP).normalized()
+		_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(a.distance_to(b), 0.012, 0.012)), (a + b) * 0.5), ROPE, "rope", o.s)
+	var pieces := maxi(2, roundi(reach * 2.0 / 0.5))
+	for k in pieces:
+		var t := (k + 0.5) / pieces
+		var at: Vector3 = ends[0].lerp(ends[1], t) + sag * (1.0 - absf(t * 2.0 - 1.0))
+		var along := (ends[1] - ends[0]).normalized()
+		var size := Vector2(rng.randf_range(0.22, 0.34), rng.randf_range(0.26, 0.42))
+		var hang := Basis(Vector3.DOWN, along, Vector3.DOWN.cross(along)).scaled_local(Vector3(size.y, size.x, 1.0))
+		cloths.append({"xform": Transform3D(hang, at), "color": WASHING[rng.randi() % WASHING.size()] * rng.randf_range(0.9, 1.05)})
 
 
 ## A lantern hanging from an iron arm `out` of the face at `at`, or standing on a post where `out` is zero.
@@ -1774,7 +2111,7 @@ func wrap(s: float) -> float:
 ## The pillars of the arcades, between arches nearer than ARCADE_GAP at their size: arc length, half-width, and the
 ## springing of the lower arch, which the pillar rises to.
 func pillars() -> Array[Dictionary]:
-	var arched := apertures.filter(func(o): return o.style == DoorStyle.ARCHWAY)
+	var arched := apertures.filter(func(o): return o.style == Family.ARCHWAY)
 	var out: Array[Dictionary] = []
 	var n := arched.size()
 	for i in range(0 if closed and n > 1 else 1, n):
@@ -2188,12 +2525,18 @@ func _rail(a: float, b: float, y: float, size: Vector3, color: Color, kind := "r
 
 
 ## A corner pier from the bed up past the top; over posts, its footing stops `open` under the foot, at the foundation.
-func _lay_pier(s: float, rng: RandomNumberGenerator, wet: RandomNumberGenerator, open := 0.0) -> void:
+## It leaves out `gap`, the heights a corner window opens over.
+func _lay_pier(s: float, rng: RandomNumberGenerator, wet: RandomNumberGenerator, open := 0.0, gap := Vector2.ZERO) -> void:
 	_lay_footing(s, depth_at(s), Vector3(PIER, 0.0, PIER), "pier", wet, -open)
 	var y := 0.0
 	var top_y := height + CAP + (0.0 if cover == Cover.ROOF else 0.35)
 	while y < top_y - 0.05:
+		if gap != Vector2.ZERO and y >= gap.x - 0.05 and y < gap.y:
+			y = gap.y
+			continue
 		var h := minf(rng.randf_range(0.36, 0.5), top_y - y)
+		if gap != Vector2.ZERO and y < gap.x:
+			h = minf(h, gap.x - y)
 		_add(s, y + h * 0.5, Vector3(PIER, h, PIER) * rng.randf_range(0.97, 1.03), rng, "pier", 0.97, 0.03)
 		y += h
 	if cover != Cover.ROOF:
@@ -2451,7 +2794,7 @@ func blocks_swim(a: Vector2, b: Vector2) -> bool:
 
 
 func _swims_through(s: float) -> bool:
-	return broken(s, -SWIM_CLEAR) or apertures.any(func(o): return o.style == DoorStyle.ARCHWAY and absf(offset(s, o.s)) < o.half - SWIM_CLEAR)
+	return broken(s, -SWIM_CLEAR) or apertures.any(func(o): return o.style == Family.ARCHWAY and absf(offset(s, o.s)) < o.half - SWIM_CLEAR)
 
 
 ## Closest arc length on the wall to a world point, measured on the ground plane.

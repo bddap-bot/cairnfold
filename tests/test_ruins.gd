@@ -108,7 +108,7 @@ func _a_ruin_drops_what_stood_in_it() -> void:
 	check(piers.all(func(s): return s.s < 1.0), "the ruined end loses its pier")
 	w.ruins = [Vector2(6.5, 7.5)]
 	w.build(Terrain.flat)
-	check(w.apertures.all(func(o): return o.style == WallLayout.DoorStyle.ARCHWAY), "a window in a ruin closes")
+	check(w.apertures.all(func(o): return o.style == WallLayout.Family.ARCHWAY), "a window in a ruin closes")
 	check(not w.lantern_fits(7.0, 1.5) and w.lantern_fits(12.0, 1.5), "no lantern hangs in a ruin")
 
 
@@ -196,7 +196,7 @@ func _the_eraser_sweeps_a_ruin_and_undo_mends_it() -> void:
 	var gap := Terrain.ground(0, -10) + Vector3.UP * 1.5
 	check(w.ray_hit(gap + Vector3(0, 0, 3), Vector3.FORWARD).is_empty(), "a ray through the empty gap hits no standing body")
 	var arches: PackedVector4Array = world.state.walls[w.id].openings
-	main.fitting_tool.fit({"what": "opening", "style": WallLayout.DoorStyle.ARCHWAY, "y": 0.0, "wall": w, "s": w.layout.closest_s(Terrain.ground(6.2, -10))})
+	main.fitting_tool.fit({"what": "opening", "style": WallLayout.Family.ARCHWAY, "y": 0.0, "wall": w, "s": w.layout.closest_s(Terrain.ground(6.2, -10))})
 	await process_frame
 	check(world.state.walls[w.id].openings == arches and world.stacks[world.me()].undo.size() == steps, "no arch opens in a ruin")
 	await play([{"op": "press", "button": "dpad_down"}])

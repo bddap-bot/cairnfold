@@ -24,6 +24,8 @@ const HANDOVER := -8.0
 const NIGHT := -18.0
 ## The moon's elevations between which it rises from lighting nothing to lighting the garden whole.
 const MOONRISE := Vector2(-2.0, 12.0)
+## The sun's elevations between which a room's windows come on, from dark to glowing whole.
+const LIT := Vector2(6.0, -4.0)
 ## How near the sun or moon, in degrees, a pointing hand takes the sky by it, under the ground too.
 const REACH := 7.0
 
@@ -73,6 +75,11 @@ static func moon_elevation(time: float) -> float:
 ## with the moon well up.
 static func moonlit(time: float) -> float:
 	return smoothstep(HANDOVER, NIGHT, elevation(time)) * smoothstep(MOONRISE.x, MOONRISE.y, moon_elevation(time))
+
+
+## How fully the rooms' windows glow at `time`: 0 by day, 1 once the sun is down.
+static func lit(time: float) -> float:
+	return smoothstep(LIT.x, LIT.y, elevation(time))
 
 
 ## Toward whichever of sun and moon lights the garden at `time`.

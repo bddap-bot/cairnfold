@@ -154,7 +154,7 @@ func _nearest(p: Vector3) -> Dictionary:
 ## The nearest arc length to `s` where a junction's pier stands clear of every arch opening; where arches
 ## stand too close for that, the spot farthest from any of them.
 static func _clear_of_arches(w: WallLayout, s: float) -> float:
-	var arched := w.apertures.filter(func(o): return o.style == WallLayout.DoorStyle.ARCHWAY)
+	var arched := w.apertures.filter(func(o): return o.style == WallLayout.Family.ARCHWAY)
 	if arched.is_empty():
 		return s
 	var spots: Array[float] = [s, 0.0, w.length()]

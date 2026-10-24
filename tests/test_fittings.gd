@@ -111,7 +111,7 @@ func _a_window_stands_over_a_door() -> void:
 
 func _windows_keep_clear() -> void:
 	check(_wall(8.0, 2.7, [Vector2(0.5, 1.5)]).apertures.is_empty(), "no window in a wall's end pier")
-	check(_wall(8.0, 2.7, [Vector2(4.0, 1.5)], [4.0]).apertures.all(func(o): return o.style == WallLayout.DoorStyle.ARCHWAY), "no window in an arch")
+	check(_wall(8.0, 2.7, [Vector2(4.0, 1.5)], [4.0]).apertures.all(func(o): return o.style == WallLayout.Family.ARCHWAY), "no window in an arch")
 	check(_wall(8.0, 2.7, [Vector2(4.0, 2.5)]).apertures.is_empty(), "no window above the top")
 	check(_wall(8.0, 2.7, [Vector2(4.0, 2.25)]).apertures.is_empty(), "no window whose head reaches the top, leaving no course for its lintel")
 	check(_wall(8.0, 1.2, [Vector2(4.0, 1.0)]).apertures.is_empty(), "a wall too low for a door takes none")
@@ -524,7 +524,7 @@ func _in_the_glade() -> void:
 	await play([{"op": "pave", "points": [[1.5, 12], [1.5, 4], [1.5, -4]], "radius": 0.6, "seconds": 0.3}])
 	check(fence.layout.archways().size() == 1 and _kind(fence.layout, "gate").size() == 9, "a path through the fence opens a wooden gate")
 	var gate: Vector3 = fence.layout.point_at(fence.layout.archways()[0]) + Vector3.UP * 0.8
-	check(not _fit(fit, {"what": "opening", "style": WallLayout.DoorStyle.ARCHWAY, "y": 0.0, "wall": fence, "s": fence.layout.archways()[0], "point": gate}) and fence.layout.archways().size() == 1, "the arch leaves a path's gate to the path")
+	check(not _fit(fit, {"what": "opening", "style": WallLayout.Family.ARCHWAY, "y": 0.0, "wall": fence, "s": fence.layout.archways()[0], "point": gate}) and fence.layout.archways().size() == 1, "the arch leaves a path's gate to the path")
 	_undo(world)
 	check(fence.layout.archways().is_empty(), "undoing the path closes the gate")
 	var cut := PackedVector4Array(world.state.walls[wall.id].openings)
@@ -557,7 +557,7 @@ func _shared_opening_cap(w: Wall) -> void:
 	for i in Commands.MAX_FITTINGS:
 		full.append(Vector4(2.0 + i * 3.0, float(i % 2) * 1.5, i % 2, 1.0 + i % 3))
 	world.state.walls[w.id].openings = full
-	for style in WallLayout.DoorStyle.values():
+	for style in WallLayout.Family.values():
 		check(not fit._change(w, false, "openings", Vector4(1, 0, style, 1), -1, true).ok, "the same cap refuses every door style")
 		check(fit._change(w, false, "openings", Vector4(1, 0, style, 1), 0, true).ok, "the cap still allows removal")
 	var data := before.duplicate(true)
@@ -588,7 +588,7 @@ static func _tower(center: Vector3, radius: float) -> Dictionary:
 		"points": PackedVector3Array(WallLayout.circle(center, radius)), "height": 4.5, "seed": 5,
 		"closed": true, "top": WallLayout.Top.CAP, "fence": false, "openings": PackedVector4Array(), "lanterns": PackedVector3Array(),
 		"flags": PackedFloat32Array(), "ruins": PackedVector2Array(), "finish": WallLayout.Finish.BARE, "wear": 0.0, "foundation": 0, "planks": false, "rise": 0.0, "gable_end": 0, "on": PackedInt32Array(), "paint": Palette.plain(),
-		"roof": {"kind": RoofLayout.Kind.CONE, "center": center, "radius": radius, "pitch": 3.2, "curve": 0.0, "seed": 5, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false},
+		"roof": {"kind": RoofLayout.Kind.CONE, "center": center, "radius": radius, "pitch": 3.2, "curve": 0.0, "seed": 5, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false},
 	}
 
 

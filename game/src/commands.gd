@@ -29,6 +29,7 @@ const MAX_STAMPS := 2000
 const MAX_FITTINGS := 64
 const MAX_CHIMNEYS := 8
 const MAX_DORMERS := 8
+const MAX_HATCHES := 8
 const MAX_RUINS := 32
 ## Most commands a snapshot holds: per thing one, and per plant group one more for its hidden plants.
 const MAX_SNAPSHOT := MAX_THINGS * 2 + 64
@@ -385,13 +386,13 @@ static func _wall(d: Variant) -> Variant:
 	var openings: Variant = d.get("openings")
 	var lanterns: Variant = d.get("lanterns")
 	var flags: Variant = d.get("flags")
-	if typeof(openings) != TYPE_PACKED_VECTOR4_ARRAY or openings.size() > MAX_FITTINGS or not Array(openings).all(func(w: Vector4) -> bool: return w.is_finite() and w.x >= 0.0 and w.x < 4000.0 and w.y >= 0.0 and (w.z == WallLayout.DoorStyle.PLAIN or w.z == WallLayout.DoorStyle.ARCHWAY) and w.w >= WallLayout.MIN_SIZE):
+	if typeof(openings) != TYPE_PACKED_VECTOR4_ARRAY or openings.size() > MAX_FITTINGS or not Array(openings).all(func(w: Vector4) -> bool: return w.is_finite() and w.x >= 0.0 and w.x < 4000.0 and w.y >= 0.0 and w.z == floorf(w.z) and w.z >= 0.0 and w.z < WallLayout.Family.size() and w.w >= WallLayout.MIN_SIZE):
 		return null
 	if typeof(lanterns) != TYPE_PACKED_VECTOR3_ARRAY or lanterns.size() > MAX_FITTINGS or not Array(lanterns).all(func(l: Vector3) -> bool: return l.is_finite() and l.x >= 0.0 and l.x < 4000.0 and l.y >= 0.0 and absf(l.z) == 1.0):
 		return null
 	if typeof(flags) != TYPE_PACKED_FLOAT32_ARRAY or flags.size() > MAX_FITTINGS or not Array(flags).all(func(f: float) -> bool: return is_finite(f) and f >= 0.0 and f < 4000.0):
 		return null
-	if d.fence and not (Array(openings).all(func(o): return o.z == WallLayout.DoorStyle.ARCHWAY and o.w == 1.0) and flags.is_empty()):
+	if d.fence and not (Array(openings).all(func(o): return o.z == WallLayout.Family.ARCHWAY and o.w == 1.0) and flags.is_empty()):
 		return null
 	var ruins: Variant = d.get("ruins")
 	if typeof(ruins) != TYPE_PACKED_VECTOR2_ARRAY or ruins.size() > MAX_RUINS or not Array(ruins).all(func(r: Vector2) -> bool: return r.is_finite() and r.x >= 0.0 and r.y > r.x and r.y < 4000.0):
@@ -421,6 +422,9 @@ static func _wall(d: Variant) -> Variant:
 			return null
 		if r.kind == RoofLayout.Kind.CONE and not dormers.is_empty():
 			return null
+		var hatches: Variant = r.get("hatches")
+		if typeof(hatches) != TYPE_PACKED_VECTOR2_ARRAY or hatches.size() > MAX_HATCHES or not Array(hatches).all(func(c: Vector2) -> bool: return c.is_finite() and absf(c.x) < 40.0 and absf(c.y) < 40.0):
+			return null
 		if not _at_least(r.get("overhang"), 0.0) or r.overhang > RoofLayout.MAX_OVERHANG:
 			return null
 		if typeof(r.get("deck")) != TYPE_INT or r.deck < 0 or r.deck >= RoofLayout.Deck.size():
@@ -430,7 +434,7 @@ static func _wall(d: Variant) -> Variant:
 		if r.kind == RoofLayout.Kind.CONE:
 			out.finish = WallLayout.Finish.BARE
 			out.wear = 0.0
-		out.roof = {"kind": r.kind, "center": r.center, "radius": r.radius, "pitch": r.pitch, "curve": r.curve, "seed": r.seed, "chimneys": chimneys, "dormers": dormers, "overhang": r.overhang, "deck": r.deck, "flag": r.flag, "thatch": r.thatch}
+		out.roof = {"kind": r.kind, "center": r.center, "radius": r.radius, "pitch": r.pitch, "curve": r.curve, "seed": r.seed, "chimneys": chimneys, "dormers": dormers, "hatches": hatches, "overhang": r.overhang, "deck": r.deck, "flag": r.flag, "thatch": r.thatch}
 	return out
 
 
@@ -451,7 +455,7 @@ static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 		elif k == "roof" and now.has("roof") and d.roof is Dictionary and not d.roof.is_empty():
 			out[k] = {}
 			for r in d.roof:
-				if typeof(r) != TYPE_STRING or not r in ["kind", "center", "radius", "pitch", "curve", "chimneys", "dormers", "overhang", "deck", "flag", "thatch"]:
+				if typeof(r) != TYPE_STRING or not r in ["kind", "center", "radius", "pitch", "curve", "chimneys", "dormers", "hatches", "overhang", "deck", "flag", "thatch"]:
 					return null
 				out[k][r] = d.roof[r]
 				trial.roof[r] = d.roof[r]

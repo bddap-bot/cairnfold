@@ -34,6 +34,9 @@ const PLANK := Vector2(0.18, 0.05)
 const PLANK_GAP := 0.01
 const PLANK_LENGTHS := Vector2(1.4, 3.2)
 const JOIST := Vector2(0.6, 0.12)
+## A trapdoor in a flat roof: the square its lid covers, and how far it keeps clear of the walls' inner faces.
+const HATCH := 0.8
+const HATCH_CLEAR := 0.15
 ## A dormer: half its width out to its cheeks' outer faces, how tall its front stands from the slope to its eaves, how
 ## far its own little gable rises over that, how far its roof reaches past its front and cheeks, how far from the gable
 ## ends and its neighbours it keeps, how far its ridge stays under the roof's, and its window's half-width.
@@ -109,6 +112,8 @@ var seed := 1
 var chimneys: Array[Vector2] = []
 ## Dormers on a gable, as chimneys are placed: metres along the ridge to a dormer's middle, and across it to its front.
 var dormers: Array[Vector2] = []
+## Trapdoors in a flat roof, as chimneys are placed: metres along the ridge (or east of a tower's axis) and across it.
+var hatches: Array[Vector2] = []
 var overhang := OVERHANG
 var deck := Deck.STONE
 ## A cone flies a flag from its top instead of a finial.
@@ -140,7 +145,7 @@ var timber_faces := PackedVector3Array()
 var bounds := AABB()
 
 
-const INPUTS: Array[StringName] = [&"kind", &"center", &"radius", &"pitch", &"curve", &"seed", &"chimneys", &"dormers", &"overhang", &"deck", &"flag", &"thatch"]
+const INPUTS: Array[StringName] = [&"kind", &"center", &"radius", &"pitch", &"curve", &"seed", &"chimneys", &"dormers", &"hatches", &"overhang", &"deck", &"flag", &"thatch"]
 
 
 ## What the roof is laid from, copied to lay on another thread.
@@ -167,6 +172,7 @@ func set_data(d: Dictionary) -> void:
 	deck = d.deck as Deck
 	chimneys.assign(Array(d.chimneys))
 	dormers.assign(Array(d.dormers))
+	hatches.assign(Array(d.hatches))
 
 
 ## Takes what `built` laid, as if `build` had run here.
@@ -350,6 +356,10 @@ func build() -> void:
 		else:
 			_lay_deck(rng)
 		_lay_ceiling()
+		for i in hatches.size():
+			if hatch_fits(hatches[i], hatches.slice(0, i)):
+				rng.seed = hash([seed, "hatch", i])
+				_lay_hatch(hatch_spot(hatches[i]), rng)
 		for i in chimneys.size():
 			_lay_chimney(chimney_spot(chimneys[i]), _chimney_rng(i))
 		if flag:
@@ -615,6 +625,72 @@ func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
 		_add(Transform3D(basis.scaled_local(Vector3(0.15, 0.24, 0.15)), foot + f.along * side * STACK_WIDTH * 0.22 + Vector3.UP * (top + 0.21)), "pot", _clay(0.0, rng) * 0.9, 1.0)
 
 
+## Where a trapdoor can lie in this flat roof nearest the spot `c`, its lid clear of the walls; NAN where none fits.
+func hatch_spot(c: Vector2) -> Vector2:
+	if not flat():
+		return Vector2(NAN, NAN)
+	var room := half_span() - WallLayout.THICKNESS * 0.5 - HATCH_CLEAR - HATCH * 0.5
+	if kind == Kind.CONE:
+		room -= HATCH * 0.5
+		if room < 0.0:
+			return Vector2(NAN, NAN)
+		return c.limit_length(room)
+	var along := ridge_length() * 0.5 - WallLayout.THICKNESS * 0.5 - HATCH_CLEAR - HATCH * 0.5
+	if room < 0.0 or along < 0.0:
+		return Vector2(NAN, NAN)
+	return Vector2(clampf(c.x, -along, along), clampf(c.y, -room, room))
+
+
+## Whether a trapdoor at `c` lies in this flat roof clear of the trapdoors in `placed`, its chimneys and its flag.
+func hatch_fits(c: Vector2, placed: Array) -> bool:
+	var spot := hatch_spot(c)
+	if is_nan(spot.x):
+		return false
+	var clear := placed.all(func(o: Vector2) -> bool: return not hatches_meet(hatch_spot(o), spot))
+	clear = clear and chimneys.all(func(k: Vector2) -> bool: return _square_apart(chimney_spot(k), spot, (HATCH + STACK_WIDTH) * 0.5 + 0.1))
+	return clear and (not flag or _square_apart(Vector2.ZERO, spot, HATCH * 0.5 + 0.15))
+
+
+## Whether trapdoors at spots `a` and `b` would lie on one another.
+static func hatches_meet(a: Vector2, b: Vector2) -> bool:
+	return not _square_apart(a, b, HATCH + 0.2)
+
+
+static func _square_apart(a: Vector2, b: Vector2, by: float) -> bool:
+	return is_nan(a.x) or is_nan(b.x) or maxf(absf(a.x - b.x), absf(a.y - b.y)) >= by
+
+
+## The frame of a trapdoor at `c` on this roof's deck, and the box it lies in there.
+func hatch_bounds(c: Vector2) -> Array:
+	var spot := hatch_spot(c)
+	if is_nan(spot.x):
+		return []
+	return [_hatch_frame(spot), AABB(Vector3(-HATCH * 0.5 - 0.06, -0.02, -HATCH * 0.5 - 0.06), Vector3(HATCH + 0.12, 0.14, HATCH + 0.12))]
+
+
+## Where a trapdoor at `spot` lies: on the deck's top, square to the roof's frame.
+func _hatch_frame(spot: Vector2) -> Transform3D:
+	var f := frame()
+	return _on_deck(f.mid + f.along * spot.x + f.across * spot.y + Vector3.UP * -DECK_DROP, Basis(f.along, Vector3.UP, f.across))
+
+
+## A trapdoor lying on the deck at `spot`: a lid of boards in a curb, on two iron strap hinges with a ring to lift it by.
+func _lay_hatch(spot: Vector2, rng: RandomNumberGenerator) -> void:
+	var at := _hatch_frame(spot)
+	var b := at.basis
+	var curb := 0.07
+	for side in [-1.0, 1.0]:
+		_add(Transform3D(b.scaled_local(Vector3(HATCH + curb * 2.0, 0.08, curb)), at * Vector3(0.0, 0.04, side * (HATCH + curb) * 0.5)), "hatch", WallLayout.WOOD * rng.randf_range(0.6, 0.7), 0.9)
+		_add(Transform3D(b.scaled_local(Vector3(curb, 0.08, HATCH)), at * Vector3(side * (HATCH + curb) * 0.5, 0.04, 0.0)), "hatch", WallLayout.WOOD * rng.randf_range(0.6, 0.7), 0.9)
+	var boards := 4
+	for i in boards:
+		var z := -HATCH * 0.5 + HATCH * (i + 0.5) / boards
+		_add(Transform3D(b.scaled_local(Vector3(HATCH - 0.01, 0.045, HATCH / boards - 0.012)), at * Vector3(0.0, 0.065, z)), "hatch", WallLayout.WOOD * rng.randf_range(0.8, 1.08), 0.9)
+	for side in [-1.0, 1.0]:
+		_add(Transform3D(b.scaled_local(Vector3(0.05, 0.012, HATCH * 0.8)), at * Vector3(side * HATCH * 0.28, 0.093, 0.0)), "iron", WallLayout.IRON, 1.0)
+	_add(Transform3D(b.scaled_local(Vector3(0.1, 0.02, 0.03)), at * Vector3(0.0, 0.095, HATCH * 0.36)), "iron", WallLayout.IRON, 1.0)
+
+
 ## Where a dormer can stand on this gable nearest the spot `c`: along the ridge clear of the gable ends, its front
 ## between the walls' centre line and as far up the slope as leaves its own gable under the ridge; NAN where none fits.
 func dormer_spot(c: Vector2) -> Vector2:
@@ -752,7 +828,7 @@ func _lay_dormer(c: Vector2, hue: float, rng: RandomNumberGenerator) -> void:
 			if eave_y - bottom > 0.02:
 				_add(Transform3D(Basis(out, Vector3.UP, side).scaled_local(Vector3(w - 0.012, eave_y - bottom, DORMER_BOARD.y)), f.mid + f.along * spot.x + side * (DORMER_HALF - DORMER_BOARD.y * 0.5) + out * m + Vector3.UP * ((bottom + eave_y) * 0.5)), "board", WallLayout.WOOD * rng.randf_range(0.82, 1.08), 0.95)
 			at -= w
-	for p in WallLayout.casement(DORMER_WINDOW * 2.0, head - sill, rng):
+	for p in WallLayout.casement(DORMER_WINDOW * 2.0, head - sill, rng, Palette.SWATCHES[Palette.Element.GLOW][0]):
 		_add(Transform3D(Basis(f.along, Vector3.UP, out).scaled_local(p.size), o - out * 0.08 + f.along * p.at.x + Vector3.UP * ((sill + head) * 0.5 + p.at.y)), p.kind, p.color, 1.0)
 	_add(Transform3D(Basis(f.along, Vector3.UP, out).scaled_local(Vector3(DORMER_WINDOW * 2.0 + 0.16, 0.06, 0.14)), o + Vector3.UP * (sill - 0.03) + out * 0.02), "sill", WallLayout.stone_color(rng), 0.95)
 	var slope := atan(DORMER_PITCH / DORMER_HALF)

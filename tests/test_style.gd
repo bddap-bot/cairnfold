@@ -98,7 +98,7 @@ func _foundations_turn_to_plaster() -> void:
 	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(-4, 0), Terrain.ground(4, 0), 6.0)))
 	d.closed = true
 	d.rise = 1.5
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(0, 0), "radius": 3.0, "pitch": 2.0, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
+	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(0, 0), "radius": 3.0, "pitch": 2.0, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
 	world._order({"op": "wall", "walls": [d]}, world.me())
 	var id := world.seq * Commands.MAX_PIECES
 	var w: Wall = main.tool.find(id)
@@ -149,7 +149,7 @@ func _floors_take_a_style() -> void:
 	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(-14, 24), Terrain.ground(-10, 24), 4.0)))
 	d.closed = true
 	d.height = 2.6
-	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(-12, 24), "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
+	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(-12, 24), "radius": 2.0, "pitch": 2.0, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
 	world._order({"op": "wall", "walls": [d]}, 1)
 	var id := world.seq * Commands.MAX_PIECES
 	var w: Wall = main.tool.find(id)
@@ -506,7 +506,7 @@ func _roof_choices_keep_shape() -> void:
 		for thatch in [false, true]:
 			var data := _wall_data(PackedVector3Array(WallLayout.rectangle(Vector3(-20, 0, 10), Vector3(-13, 0, 10), 5)))
 			data.closed = true
-			data.roof = {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": pitch, "curve": 0.4, "seed": 3, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": thatch}
+			data.roof = {"kind": RoofLayout.Kind.GABLE, "center": Vector3.ZERO, "radius": 2.0, "pitch": pitch, "curve": 0.4, "seed": 3, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": thatch}
 			world._order({"op": "wall", "walls": [data]}, world.me())
 			var id := world.seq * Commands.MAX_PIECES
 			var wall: Wall = main.tool.find(id)

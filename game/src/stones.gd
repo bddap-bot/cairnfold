@@ -31,6 +31,7 @@ static func _stone(shader: Shader) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.shader = shader
 	m.set_shader_parameter("window_glow", Lamps.WINDOW_GLOW)
+	m.set_shader_parameter("glass_colour", Vector3(WallLayout.GLASS.r, WallLayout.GLASS.g, WallLayout.GLASS.b))
 	StoneStyles.apply(m)
 	return m
 
@@ -63,8 +64,14 @@ func lay(stones: Array[Dictionary]) -> void:
 		var x: Transform3D = s.xform
 		x.basis = x.basis * FLIPS[s.variant]
 		mm.set_instance_transform(i, x)
-		mm.set_instance_color(i, s.color)
+		mm.set_instance_color(i, glazed(s, s.color))
 		mm.set_instance_custom_data(i, custom(s))
+
+
+## `color` for part `part`, its alpha marking glass, which the lamps light from behind and which glows at night in it.
+static func glazed(part: Dictionary, color: Color) -> Color:
+	color.a = 0.0 if part.get("kind") == "glass" else 1.0
+	return color
 
 
 ## A laid part's custom data: its occlusion, the code of the material it is painted with, and its end turns.

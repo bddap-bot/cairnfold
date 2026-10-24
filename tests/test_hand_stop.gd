@@ -195,7 +195,7 @@ func _a_wall_stops_a_hand_that_catches_up_when_it_comes_back(wall: Wall) -> void
 
 
 func _a_hand_reaches_through_an_arch(wall: Wall) -> void:
-	main.fitting_tool.fit({"what": "opening", "style": WallLayout.DoorStyle.ARCHWAY, "y": 0.0, "wall": wall, "s": 3.0})
+	main.fitting_tool.fit({"what": "opening", "style": WallLayout.Family.ARCHWAY, "y": 0.0, "wall": wall, "s": 3.0})
 	await frames(2)
 	wall.lay_now()
 	await frames(2)

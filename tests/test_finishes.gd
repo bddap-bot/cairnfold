@@ -48,7 +48,7 @@ static func _built(finish: WallLayout.Finish, wear: float, closed: bool, seed :=
 	w.seed = seed
 	w.finish = finish
 	w.wear = wear
-	w.openings.assign([Vector4(1.6, 1.6, WallLayout.DoorStyle.PLAIN, 1), Vector4(4.2, 0.0, WallLayout.DoorStyle.PLAIN, 1), WallLayout.archway(17.0 if closed else 9.0)])
+	w.openings.assign([Vector4(1.6, 1.6, WallLayout.Family.COTTAGE, 1), Vector4(4.2, 0.0, WallLayout.Family.COTTAGE, 1), WallLayout.archway(17.0 if closed else 9.0)])
 	w.build(Terrain.flat)
 	return w
 
@@ -66,8 +66,8 @@ static func _into(w: WallLayout, piece: Dictionary, o: Dictionary, margin: float
 		var at := Vector2(w.offset(piece.s, o.s) + (p - x.origin).dot(f.tangent), p.y - f.point.y)
 		lo = lo.min(at)
 		hi = hi.max(at)
-	var half: float = w.opening((lo.y + hi.y) * 0.5, false, o.size) if o.style == WallLayout.DoorStyle.ARCHWAY else o.half
-	var top: float = w.spring(o.size) + w.arch_rise(0.0, o.size) if o.style == WallLayout.DoorStyle.ARCHWAY else o.head
+	var half: float = w.opening((lo.y + hi.y) * 0.5, false, o.size) if o.style == WallLayout.Family.ARCHWAY else o.half
+	var top: float = w.spring(o.size) + w.arch_rise(0.0, o.size) if o.style == WallLayout.Family.ARCHWAY else o.head
 	return Vector2(minf(hi.x, half) - maxf(lo.x, -half), minf(hi.y, top) - maxf(lo.y, o.sill)) - Vector2.ONE * margin
 
 
@@ -337,7 +337,7 @@ func _commands_check_finishes() -> void:
 		var fence := d.merged({"fence": true, "finish": finish, "wear": 0.0}, true)
 		var ok: bool = finish in [WallLayout.Finish.BARE, WallLayout.Finish.BOARDS_ACROSS, WallLayout.Finish.BOARDS_UPRIGHT]
 		check((Commands._wall(fence) != null) == ok, "a fence %s %s" % ["takes" if ok else "turns down", WallLayout.Finish.keys()[finish]])
-	var tower := wall_data({"points": PackedVector3Array(WallLayout.circle(Vector3.ZERO, 2.0)), "closed": true, "seed": 2, "finish": WallLayout.Finish.PLASTER, "wear": 0.5, "roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.5, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
+	var tower := wall_data({"points": PackedVector3Array(WallLayout.circle(Vector3.ZERO, 2.0)), "closed": true, "seed": 2, "finish": WallLayout.Finish.PLASTER, "wear": 0.5, "roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.5, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
 	var cone: Variant = Commands._wall(tower)
 	check(cone != null and cone.finish == WallLayout.Finish.BARE and cone.wear == 0.0, "a coned tower stays stone")
 

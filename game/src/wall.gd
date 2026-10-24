@@ -172,6 +172,7 @@ static func _material(shader: String, albedo: Variant = null) -> ShaderMaterial:
 static func _wood() -> ShaderMaterial:
 	var m := _material("res://src/roof_timber.gdshader")
 	m.set_shader_parameter("window_glow", Lamps.WINDOW_GLOW)
+	m.set_shader_parameter("glass_colour", Vector3(WallLayout.GLASS.r, WallLayout.GLASS.g, WallLayout.GLASS.b))
 	StoneStyles.apply(m)
 	return m
 
@@ -213,7 +214,7 @@ func data() -> Dictionary:
 		"ruins": PackedVector2Array(layout.ruins), "finish": int(layout.finish), "wear": layout.wear, "foundation": int(layout.foundation), "planks": layout.planks, "gable_end": int(layout.gable_end), "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
 	}
 	if roof != null:
-		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "dormers": PackedVector2Array(roof.dormers), "overhang": roof.overhang, "deck": int(roof.deck), "flag": roof.flag, "thatch": roof.thatch}
+		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "dormers": PackedVector2Array(roof.dormers), "hatches": PackedVector2Array(roof.hatches), "overhang": roof.overhang, "deck": int(roof.deck), "flag": roof.flag, "thatch": roof.thatch}
 	return d
 
 
@@ -573,18 +574,11 @@ static func _pack_parts(parts: Array, into: Callable, ks: Array[Masonry.Kind], c
 		if own == Part.STONE:
 			x.basis = x.basis * Stones.FLIPS[s.variant]
 			ends = Stones.ends(s)
-		var colour := _glazed(s, colours) if own == Part.STONE or own == Part.TILE else _painted_as(s, colours)
+		var colour := Stones.glazed(s, _painted_as(s, colours)) if own == Part.STONE or own == Part.TILE else _painted_as(s, colours)
 		for part: Part in routes[i]:
 			ks[part].write(bufs[part], n[part], x, colour, s.ao, Palette.code(s.kind), ends)
 			n[part] += 1
 	return bufs
-
-
-## A stone-shaded part's colour in `colours`, its alpha marking glass, which the lamps light from behind.
-static func _glazed(part: Dictionary, colours: PackedInt32Array) -> Color:
-	var c := _painted_as(part, colours)
-	c.a = 0.0 if part.kind == "glass" else 1.0
-	return c
 
 
 ## A laid part's colour in `colours`.

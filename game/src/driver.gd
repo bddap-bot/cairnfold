@@ -395,7 +395,8 @@ func _stroke(s: Dictionary, held: Hand.Tool) -> void:
 ## from the x axis (the head's right with "relative"), raised `rise` metres on its plinth; with "round", the tower
 ## tool's, a round tower `size` [across, across]. Put up at `from` (default `at`) turned `turn_from` (default `turn`), a
 ## grip then carries it there over `seconds`, raising it as it goes; else "seconds" waits that long after. With "capture",
-## `shots` views named after it are saved at even steps of the carry, the last just before letting go.
+## `shots` views named after it are saved at even steps of the carry, the last just before letting go. With `windows`,
+## a square house opens windows of that family in WallLayout.WINDOW_FAMILIES all round it (`_open_windows`).
 func _house(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var round: bool = s.get("round", false)
@@ -418,7 +419,10 @@ func _house(s: Dictionary) -> void:
 	var on: int = _target(s, put.center).on
 	_lay_gables(s)
 	var count := tool.walls.size()
-	tool.build([tool.new_house(put, PackedInt32Array([on]) if on >= 0 else PackedInt32Array())])
+	var house := tool.new_house(put, PackedInt32Array([on]) if on >= 0 else PackedInt32Array())
+	if s.has("windows") and not round:
+		_open_windows(house, int(s.windows), on < 0)
+	tool.build([house])
 	if not carried:
 		await get_tree().create_timer(s.get("seconds", 0.0)).timeout
 		return
@@ -483,7 +487,7 @@ func _turn(s: Dictionary, x: float, z: float, degrees: float) -> float:
 
 
 ## Shapes the roof of build `index`: its `pitch` and `curve` as a grip pulls them, its eaves `overhang` metres past the
-## walls, its `deck` ("stone" or "wood") and its `dormers`, each [metres along the ridge, across it].
+## walls, its `deck` ("stone" or "wood"), its `dormers` and its `hatches`, each [metres along the ridge, across it].
 func _roof(s: Dictionary) -> void:
 	var w: Wall = main.tool.walls[s.index]
 	var r := w.roof
@@ -493,8 +497,9 @@ func _roof(s: Dictionary) -> void:
 	var roof := {"pitch": r.pitch, "curve": r.curve, "overhang": r.overhang}
 	if s.has("deck"):
 		roof["deck"] = int(RoofLayout.Deck[s.deck.to_upper()])
-	if s.has("dormers"):
-		roof["dormers"] = PackedVector2Array(s.dormers.map(func(d: Array) -> Vector2: return Vector2(d[0], d[1])))
+	for key in ["dormers", "hatches"]:
+		if s.has(key):
+			roof[key] = PackedVector2Array(s[key].map(func(d: Array) -> Vector2: return Vector2(d[0], d[1])))
 	main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": roof}})
 
 
@@ -652,7 +657,7 @@ func _fit(s: Dictionary) -> void:
 			target.style = int(s.style)
 		main.fitting_tool.fit(target)
 		return
-	var target := {"what": s.what, "wall": main.tool.walls[s.index], "s": s.get("s", 0.0), "y": s.get("y", 0.0), "style": s.get("style", WallLayout.DoorStyle.PLAIN), "size": s.get("size", 1.0), "side": s.get("side", 1.0)}
+	var target := {"what": s.what, "wall": main.tool.walls[s.index], "s": s.get("s", 0.0), "y": s.get("y", 0.0), "style": s.get("style", WallLayout.Family.COTTAGE), "size": s.get("size", 1.0), "side": s.get("side", 1.0)}
 	if s.has("at"):
 		target.at = Vector2(s.at[0], s.at[1])
 	main.fitting_tool.fit(target)
@@ -1033,7 +1038,8 @@ func _layer_parts(name: String) -> Array[Array]:
 ## its entry has it: `pitch` (0 flat), `deck` and `top` ("stone" or "wood"; a WallLayout.Top), `dormers` on each slope,
 ## `overhang`, and `storeys` high, each storey above the first `upper` times the size of the one under it; a `round`
 ## entry is a round house as across as the others are deep, and one with `rise` stands raised that high on its plinth,
-## on its `foundation` ("pillars" or "posts", else a stone plinth).
+## on its `foundation` ("pillars" or "posts", else a stone plinth). With `windows`, every house opens windows of each
+## family in turn (`_open_windows`), and a flat roof a trapdoor.
 func _village(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var start := Time.get_ticks_usec()
@@ -1065,6 +1071,8 @@ func _village(s: Dictionary) -> void:
 				var house := tool.new_house(stance, on)
 				house.layout.foundation = WallLayout.Foundation[String(entry.get("foundation", "stone")).to_upper()]
 				_dress_roof(house, entry, size)
+				if s.get("windows", false) and not round:
+					_open_windows(house, k + storey, on.is_empty())
 				tool.build([house])
 				size *= entry.get("upper", 1.0)
 				tool.walls[-1].ivy_age = INF
@@ -1079,6 +1087,26 @@ func _village(s: Dictionary) -> void:
 				tool.build([tool.new_house(wing_at)])
 				tool.walls[-1].ivy_age = INF
 	print("village: %d buildings in %.0f ms" % [k, (Time.get_ticks_usec() - start) / 1000.0])
+
+
+## Opens windows round square house `house` in family `k` of WallLayout.WINDOW_FAMILIES: two on its front side either
+## side of a door (cottage or arched in turn) when it stands on the `ground`, a fused pair on its back, one on each end,
+## and a corner window between its first end and its back; a flat roof gets a trapdoor in its middle.
+func _open_windows(house: Wall, k: int, ground: bool) -> void:
+	var p := house.layout.points
+	var front := Vector2(p[1].x - p[0].x, p[1].z - p[0].z).length()
+	var end := Vector2(p[2].x - p[1].x, p[2].z - p[1].z).length()
+	var family := WallLayout.WINDOW_FAMILIES[k % WallLayout.WINDOW_FAMILIES.size()]
+	var y := WallLayout.lowest(family) + 0.15
+	var openings := PackedVector4Array()
+	if ground:
+		openings.append(Vector4(front * 0.5, 0.0, WallLayout.Family.COTTAGE if k % 2 == 0 else WallLayout.Family.ARCHED, 1.0))
+	for at in [front * 0.2, front * 0.8, front + end * 0.5, front * 1.5 + end - 0.45, front * 1.5 + end + 0.45, front * 2.0 + end * 1.5]:
+		openings.append(Vector4(at, y, family, 1.0))
+	openings.append(Vector4(front + end, WallLayout.lowest(WallLayout.Family.CORNER) + 0.15, WallLayout.Family.CORNER, 1.0))
+	house.layout.openings.assign(Array(openings))
+	if house.roof.flat():
+		house.roof.hatches.assign([Vector2.ZERO])
 
 
 ## Lays `house`'s roof and top, `size` [along, across], as a village's `roofs` entry has them.

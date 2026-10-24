@@ -15,8 +15,9 @@ const PATH_TREADS_PER_ROW := 2
 ## fences (length along the ground by height, and a house's two gable ends: boards, laid as stones are but fewer, count
 ## as stone wall; worn plaster counts the stone it has worn back to as stone wall besides; a planked wall counts as
 ## plaster for the backing behind its planks), of tiled or flat roof and of thatch (laid along its slopes out to its
-## eaves); fittings that add a mesh (lanterns, flags, chimneys, dormers, whose boarded faces count as stone wall and
-## whose slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing; explicit arch
+## eaves); fittings that add a mesh (lanterns, flags, chimneys, trapdoors, the ring of an arched or round window,
+## a lived-in house's curtains and flower box at each window and its washing line, dormers, whose boarded faces count
+## as stone wall and whose slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing; explicit arch
 ## openings, with timber members and the planks a finish lays counted separately; square metres of pond water; easels,
 ## each a canvas drawn and simulated; boulders, a metre-wide one a unit (`boulder`); and square metres of painted stone
 ## ground, each stroke the ground its discs reach, a stroke over another counted again.
@@ -233,10 +234,17 @@ static func wall(d: Dictionary) -> Dictionary:
 			timber += n * 2
 	if timber > 0:
 		out.timber = timber
-	for opening: Vector4 in d.get("openings", []):
-		if int(opening.z) == WallLayout.DoorStyle.ARCHWAY:
-			out.arch = out.get("arch", 0) + 1
 	var fittings: int = d.lanterns.size() + d.flags.size()
+	var openings: Array = d.get("openings", [])
+	for opening: Vector4 in openings:
+		if int(opening.z) == WallLayout.Family.ARCHWAY:
+			out.arch = out.get("arch", 0) + 1
+		elif WallLayout.LIGHTS[int(opening.z)].ring:
+			fittings += 1
+	if d.closed and d.has("roof") and WallLayout.lives(openings, not d.get("on", PackedInt32Array()).is_empty()):
+		var dressed := openings.filter(func(o: Vector4) -> bool: return not WallLayout.opens_door(o) and WallLayout.LIGHTS[int(o.z)].dressed)
+		if not dressed.is_empty():
+			fittings += dressed.size() + 1
 	if d.has("roof"):
 		var slopes := RoofLayout.new()
 		slopes.kind = RoofLayout.Kind.CONE
@@ -270,7 +278,7 @@ static func wall(d: Dictionary) -> Dictionary:
 		out[covering] = out.get(covering, 0.0) + plan * slopes.stretch()
 		if slopes.flat():
 			out.timber = out.get("timber", 0) + slopes.ceiling_units()
-		fittings += d.roof.chimneys.size() + (1 if d.roof.flag else 0)
+		fittings += d.roof.chimneys.size() + (1 if d.roof.flag else 0) + (d.roof.hatches.size() if slopes.flat() else 0)
 	if fittings > 0:
 		out.fitting = fittings
 	return out

@@ -99,7 +99,7 @@ func _scene() -> Dictionary:
 func _wall_data(a: Vector3, b: Vector3, depth: float, on: PackedInt32Array, pitch: float) -> Dictionary:
 	var points := WallLayout.rectangle(Terrain.ground(a.x, a.z), Terrain.ground(b.x, b.z), depth)
 	var centre := Terrain.ground((a.x + b.x) * 0.5, (a.z + b.z) * 0.5)
-	return wall_data({"points": PackedVector3Array(points), "seed": 3, "closed": true, "on": on, "roof": {"kind": RoofLayout.Kind.GABLE, "center": centre, "radius": depth * 0.5, "pitch": pitch, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
+	return wall_data({"points": PackedVector3Array(points), "seed": 3, "closed": true, "on": on, "roof": {"kind": RoofLayout.Kind.GABLE, "center": centre, "radius": depth * 0.5, "pitch": pitch, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "hatches": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
 
 
 func _build(data: Dictionary) -> int:
@@ -148,7 +148,7 @@ func _house() -> Dictionary:
 	var a := Vector3(-6, 0, -30)
 	var b := Vector3(0, 0, -30)
 	var data := _wall_data(a, b, 5.0, PackedInt32Array(), 1.4)
-	data.openings = PackedVector4Array([Vector4(1.5, 1.4, WallLayout.DoorStyle.PLAIN, 1), Vector4(6 + 2.5, 0.0, WallLayout.DoorStyle.PLAIN, 1), WallLayout.archway(12 + 3.0)])
+	data.openings = PackedVector4Array([Vector4(1.5, 1.4, WallLayout.Family.COTTAGE, 1), Vector4(6 + 2.5, 0.0, WallLayout.Family.COTTAGE, 1), WallLayout.archway(12 + 3.0)])
 	data.lanterns = PackedVector3Array([Vector3(4.0, 1.8, 1), Vector3(14.0, 1.8, -1)])
 	data.flags = PackedFloat32Array([0.5])
 	data.finish = WallLayout.Finish.TIMBER

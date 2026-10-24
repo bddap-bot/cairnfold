@@ -118,18 +118,27 @@ func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 				return {"what": "decoration", "mount": "ground", "point": hit.point, "wall": null, "s": 0.0, "side": 1.0, "turn": facing}
 	if pick.has("fitting"):
 		var what: String = pick.what
-		if (tool == Hand.Tool.DECORATIONS and not what in ["opening", "dormer"]) or (tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH] and what == "opening") or (tool == Hand.Tool.WINDOWS and what == "dormer"):
+		if (tool == Hand.Tool.DECORATIONS and not what in ["opening", "dormer", "hatch"]) or (tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH] and what == "opening") or (tool == Hand.Tool.WINDOWS and what in ["dormer", "hatch"]):
 			return pick
 		if pick.on_roof and tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH]:
 			return {}
 	var roof := pick if pick.get("surface") == "roof" else {}
 	var on_roof := not roof.is_empty()
 	if tool in [Hand.Tool.WINDOWS, Hand.Tool.ARCH]:
-		if on_roof and tool == Hand.Tool.WINDOWS and roof.wall.roof.kind == RoofLayout.Kind.GABLE and not roof.wall.roof.flat():
+		if on_roof and tool == Hand.Tool.WINDOWS and roof.wall.roof.flat():
+			return {"what": "hatch", "wall": roof.wall, "at": roof.wall.roof.spot_of(roof.point), "point": roof.point}
+		if on_roof and tool == Hand.Tool.WINDOWS and roof.wall.roof.kind == RoofLayout.Kind.GABLE:
 			return {"what": "dormer", "wall": roof.wall, "at": roof.wall.roof.spot_of(roof.point), "point": roof.point}
 		if on_roof or pick.is_empty() or pick.wall.layout.fence:
 			return {}
-		return {"what": "opening", "wall": pick.wall, "s": pick.s, "y": 0.0 if tool == Hand.Tool.ARCH else _height(pick), "style": WallLayout.DoorStyle.ARCHWAY if tool == Hand.Tool.ARCH else WallLayout.DoorStyle.PLAIN, "point": pick.point}
+		if tool == Hand.Tool.ARCH:
+			return {"what": "opening", "wall": pick.wall, "s": pick.s, "y": 0.0, "style": WallLayout.Family.ARCHWAY, "point": pick.point}
+		var corner: float = pick.wall.layout.corner_near(pick.s)
+		var family := WallLayout.Family.CORNER if not is_nan(corner) else walls.window_family
+		var y := _height(pick)
+		if not WallLayout.LIGHTS[family].door:
+			y = maxf(y, WallLayout.lowest(family))
+		return {"what": "opening", "wall": pick.wall, "s": pick.s if is_nan(corner) else corner, "y": y, "style": family, "point": pick.point}
 	if on_roof:
 		var w: Wall = roof.wall
 		if w.roof.flat():
@@ -166,7 +175,7 @@ func _steady(i: int, target: Dictionary) -> Dictionary:
 
 
 static func _opening(target: Dictionary) -> Vector4:
-	return Vector4(target.s, target.y, target.get("style", WallLayout.DoorStyle.PLAIN), target.get("size", 1.0))
+	return Vector4(target.s, target.y, target.get("style", WallLayout.Family.COTTAGE), target.get("size", 1.0))
 
 
 ## Lays each wall in `shown`, by id, with its reshape data, as the command sending it would; every other wall laid
@@ -275,6 +284,11 @@ func change(target: Dictionary) -> Dictionary:
 			var spot := w.roof.dormer_spot(target.at)
 			var near := placed.find_custom(func(e: Vector2) -> bool: return not RoofLayout.spots_apart(w.roof.dormer_spot(e), spot, RoofLayout.DORMER_HALF + RoofLayout.DORMER_EAVE))
 			return _change(w, true, "dormers", spot, near, near >= 0 or w.roof.dormer_fits(spot, placed))
+		"hatch":
+			var placed := _placed(w, true, "hatches")
+			var spot := w.roof.hatch_spot(target.at)
+			var near := placed.find_custom(func(e: Vector2) -> bool: return RoofLayout.hatches_meet(w.roof.hatch_spot(e), spot))
+			return _change(w, true, "hatches", spot, near, near >= 0 or w.roof.hatch_fits(spot, placed))
 	return {"ok": true, "near": 0 if w.roof.flag else -1}
 
 
@@ -289,7 +303,7 @@ func _change(w: Wall, on_roof: bool, key: String, value: Variant, near: int, ok:
 	var after := _placed(w, on_roof, key).duplicate()
 	if near >= 0:
 		after.remove_at(near)
-	elif after.size() >= {"chimneys": Commands.MAX_CHIMNEYS, "dormers": Commands.MAX_DORMERS}.get(key, Commands.MAX_FITTINGS):
+	elif after.size() >= {"chimneys": Commands.MAX_CHIMNEYS, "dormers": Commands.MAX_DORMERS, "hatches": Commands.MAX_HATCHES}.get(key, Commands.MAX_FITTINGS):
 		ok = false
 	else:
 		after.append(value)
@@ -427,7 +441,7 @@ static func pick_target(builder: WallTool, origin: Vector3, dir: Vector3, held :
 		if builder._held(w) and not held:
 			continue
 		for item in targets(w):
-			if through_arches and item.what == "opening" and item.value.z == WallLayout.DoorStyle.ARCHWAY:
+			if through_arches and item.what == "opening" and item.value.z == WallLayout.Family.ARCHWAY:
 				continue
 			var box: AABB = item.box
 			var local: Vector3 = item.inverse * origin
@@ -511,6 +525,10 @@ static func targets(w: Wall) -> Array[Dictionary]:
 			var room := r.dormer_bounds(r.dormers[i])
 			if not room.is_empty():
 				out.append(_target(w, "dormer", "dormers", i, r.dormers[i], room[1], true, room[0]))
+		for i in r.hatches.size():
+			var lid := r.hatch_bounds(r.hatches[i])
+			if not lid.is_empty() and r.hatch_fits(r.hatches[i], r.hatches.slice(0, i)):
+				out.append(_target(w, "hatch", "hatches", i, r.hatches[i], lid[1], true, lid[0]))
 		if r.flag:
 			out.append(_target(w, "tower_flag", "flag", 0, true, _flag_bounds(r.flag_top(), RoofLayout.FLAG_ALONG), true))
 	w.set_meta(&"fitting_laid", w.layout.laid)

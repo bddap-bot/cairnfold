@@ -13,6 +13,8 @@ const REACH := 9.0
 const LIGHT := Color(0.4, 0.28, 0.16)
 ## A lit opening must read against the flame of an outdoor lantern, not only against unlit stone.
 const WINDOW_GLOW := 8.0
+## How brightly a room's glass shines in its glow colour once night falls, lantern or none.
+const NIGHT_GLOW := 0.4
 ## Light is stored this many times under its value, so a byte holds it from beside a flame out to its reach.
 const ENCODE := 4.0
 ## How far a lit window's light falls outside it.

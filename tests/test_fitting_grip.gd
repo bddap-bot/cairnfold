@@ -69,9 +69,9 @@ func _run() -> void:
 	var s0 := wall.layout.length() * 0.5
 	var high := WallLayout.DOOR_SILL + WallLayout.WINDOW_TALL * 0.5 + 0.4
 	for t in [
-		{"what": "opening", "wall": wall, "s": s0 - 2.0, "y": high, "style": WallLayout.DoorStyle.PLAIN},
-		{"what": "opening", "wall": wall, "s": s0 - 4.2, "y": 0.0, "style": WallLayout.DoorStyle.PLAIN},
-		{"what": "opening", "wall": wall, "s": s0 + 3.8, "y": 0.0, "style": WallLayout.DoorStyle.ARCHWAY},
+		{"what": "opening", "wall": wall, "s": s0 - 2.0, "y": high, "style": WallLayout.Family.COTTAGE},
+		{"what": "opening", "wall": wall, "s": s0 - 4.2, "y": 0.0, "style": WallLayout.Family.COTTAGE},
+		{"what": "opening", "wall": wall, "s": s0 + 3.8, "y": 0.0, "style": WallLayout.Family.ARCHWAY},
 		{"what": "lantern", "wall": wall, "s": s0 + 0.5, "y": 1.5, "side": 1.0},
 		{"what": "flag", "wall": wall, "s": s0},
 		{"what": "chimney", "wall": house, "at": Vector2(1.5, 0.8)},

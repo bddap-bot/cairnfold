@@ -122,6 +122,8 @@ var gable_end := WallLayout.GableEnd.WALL
 var finish := WallLayout.Finish.BARE
 var wear := 0.0
 var fence_finish := WallLayout.Finish.BARE
+## The family new windows open in: the one last turned to on a window on this machine.
+var window_family := WallLayout.Family.COTTAGE
 ## Whether new houses' floors are laid in planks: the floor last turned to on this machine.
 var planks := false
 ## What new houses and towers stand on once raised: the foundation last turned to on this machine.
@@ -830,7 +832,7 @@ static func reshape_house(d: Dictionary, to: Dictionary) -> Dictionary:
 				var o: Vector3 = _scaled(from, to, from.center + r0 * c.x + r0.cross(Vector3.UP) * c.y) - to.center
 				out.append(Vector2(o.dot(r1), o.dot(r1.cross(Vector3.UP))))
 			return out
-		roof = {"chimneys": moved_on.call(d.roof.chimneys), "dormers": moved_on.call(d.roof.dormers)}
+		roof = {"chimneys": moved_on.call(d.roof.chimneys), "dormers": moved_on.call(d.roof.dormers), "hatches": moved_on.call(d.roof.hatches)}
 	roof.merge({"pitch": to.pitch, "curve": to.curve, "overhang": to.overhang})
 	return {"points": PackedVector3Array(now), "rise": to.rise, "height": to.height, "openings": fits.openings, "lanterns": fits.lanterns, "flags": fits.flags, "roof": roof}
 

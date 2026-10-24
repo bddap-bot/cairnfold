@@ -191,6 +191,7 @@ func set_time(t: float) -> void:
 	disc.material_override.set_shader_parameter("tint", l.sun if toward == Daylight.toward_sun(t) else Color.BLACK)
 	moon_disc.material_override.set_shader_parameter("tint", l.moon)
 	env.ambient_light_energy = l.ambient
+	RenderingServer.global_shader_parameter_set(&"window_night", Daylight.lit(t) * Lamps.NIGHT_GLOW)
 	env.adjustment_saturation = l.saturation
 	_exposure = l.exposure
 	_grade()
