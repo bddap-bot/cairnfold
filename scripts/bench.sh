@@ -313,8 +313,10 @@ elif device == "quest":
         sys.exit("bench: another process rendered during " + ", ".join(f"{k} (pid {', '.join(sorted(v))})" for k, v in shared.items()) + "; see logcat.txt")
     if handed:
         sys.exit("bench: the headset tracked a hand during " + ", ".join(sorted(handed)) + ", which the game drew; see logcat.txt")
+    # A phase's first second takes its edits; a phase of one second, as a put lands, keeps it.
     for v in gpu.values():
-        v.pop(0)
+        if len(v) > 1:
+            v.pop(0)
     unmeasured = [name for name in phases if not gpu.get(name) and not name.startswith("sweep/")]
     if unmeasured:
         sys.exit("bench: no runtime GPU time for " + ", ".join(unmeasured) + "; see logcat.txt")
