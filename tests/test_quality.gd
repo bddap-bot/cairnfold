@@ -26,6 +26,7 @@ func _initialize() -> void:
 	_every_other_refresh_steps_down_whatever_the_timer_reads()
 	_a_step_under_way_is_judged_only_by_frames_over_budget()
 	_a_pause_is_not_every_other_refresh()
+	_the_frames_after_a_stall_are_not_judged()
 	_every_other_refresh_held_by_the_cpu_steps_nothing_down()
 	_nothing_branches_on_the_headset_or_the_build()
 	_every_headset_starts_conservative_and_climbs_to_what_it_holds()
@@ -354,6 +355,17 @@ func _a_pause_is_not_every_other_refresh() -> void:
 	_feed(g, BUDGET * 0.5, 72 * 2)
 	g.step(BUDGET * 0.5, BUDGET, 2.0)
 	check(_feed(g, BUDGET * 0.5, 72 * 2) == 0, "a two-second gap, as with the headset off the head, steps nothing down")
+
+
+func _the_frames_after_a_stall_are_not_judged() -> void:
+	var g := Quality.Governor.new(10, PackedInt32Array([0]), 1)
+	_feed_until(g, BUDGET * 0.1, 72 * 70, 0)
+	check(g.level == 0, "the governor climbs across the pop")
+	_feed(g, BUDGET * 0.5, 72 * 2)
+	g.step(BUDGET * 2.0, BUDGET, 0.5)
+	_feed(g, BUDGET * 2.0, 2)
+	check(_feed(g, BUDGET * UNDER_LINE, 72 * 2) == 0, "a half-second stall and the two heavy frames drawing what it built step nothing down")
+	check(_feed(g, BUDGET * 1.1, 2 + Quality.Governor.SETTLE_FRAMES) == 1, "frames over budget after it still do")
 
 
 func _a_step_up_that_shows_at_once_waits_longest_and_once_undone_holds() -> void:

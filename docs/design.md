@@ -1471,7 +1471,8 @@ refresh rate, the sun's shadows off and then the 3D scale at 0.78 of the swapcha
 frame's GPU time and steps down the ladder at once when frames run over the refresh period, a refresh
 is missed with the GPU over its line, or their average runs over the line, and back up only after a calm spell with room for what the step
 saved. The runtime holding the game at every other refresh counts as over budget, and frames
-over budget step on while a step is still arriving. Every headset starts at the cheapest way of
+over budget step on while a step is still arriving. The frames after a stall on the main thread (a build laid at
+once) draw what it built, not the scene, so the governor starts its averages again rather than judge them. Every headset starts at the cheapest way of
 drawing the view with every reach whole (`Quality.START`) and settles on the prettiest step it
 holds at its own refresh rate. There are no per-headset presets, nothing reads which headset or
 build it runs on, and there is no settings menu.

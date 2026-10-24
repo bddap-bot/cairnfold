@@ -134,6 +134,8 @@ var view: Viewport
 ## nothing to look at, so it stays on whole and is not the governor's.
 var _foveates := false
 var _warm := 0.0
+## When the last frame began, in microseconds: the engine's delta is capped, which hides a stall from the governor.
+var _tick := 0
 var _primed := 0
 var _priming := PackedInt32Array()
 ## The rung whose view knobs were last applied, or -1 to apply them again.
@@ -230,6 +232,9 @@ func step() -> int:
 
 func _process(delta: float) -> void:
 	var ms := RenderingServer.viewport_get_measured_render_time_gpu(view.get_viewport_rid())
+	var now := Time.get_ticks_usec()
+	var dt := (now - _tick) / 1000000.0 if _tick > 0 else delta
+	_tick = now
 	# The timer holds its last reading while the runtime skips rendering, as with the headset off the head.
 	fresh = ms > 0.0 and ms != frame_ms
 	frame_ms = ms
@@ -241,7 +246,7 @@ func _process(delta: float) -> void:
 		_primed += 1
 		if pin < 0 and _warm > WARMUP:
 			var was := governor.level
-			governor.step(frame_ms, budget_ms, delta, _settled)
+			governor.step(frame_ms, budget_ms, dt, _settled)
 			if governor.level != was:
 				print("quality: step %d to %d, the GPU at %.1f ms of %.1f" % [was, governor.level, frame_ms, budget_ms])
 	var priming := _primed < _priming.size() * PRIME_FRAMES
@@ -297,6 +302,10 @@ class Governor:
 	const HALVED := 1.5
 	## Every other refresh counts only with the timer above this share of the budget: lower, the CPU held the frame.
 	const HALVED_GPU := 0.6
+	## A frame this far from the last, as a share of the refresh period, followed a pause (the headset off the head)
+	## or a stall on the main thread (a build laid at once): the frames after it draw what it built, not the scene's
+	## cost, so the governor starts its averages again rather than judge them. Judged, two such stalls in a Steam
+	## Frame tour stepped it from 14 to the bottom and, the second right after a step up, held it there for the rest.
 	const PAUSE := 4.0
 	## The line, as a share of the budget: the Steam Frame's runtime drops the game to every other refresh once its
 	## GPU time nears 0.88 of the period, and keeps it there for seconds. This timer reads about 0.3 ms under that
@@ -393,15 +402,16 @@ class Governor:
 	## `settled` is whether the knobs have reached the step: only frames over the budget or at every other refresh
 	## judge a step still under way.
 	func step(frame_ms: float, budget_ms: float, dt: float, settled := true) -> void:
+		var dt_ms := dt * 1000.0
+		if dt_ms >= budget_ms * PAUSE:
+			_restart()
+			return
 		_since_up += dt
 		if _settle > 0:
 			_settle -= 1
 			return
 		_average = frame_ms if _average == 0.0 else _average + (frame_ms - _average) * minf(dt / AVERAGE_SECONDS, 1.0)
-		# A longer gap is a pause, as with the headset off the head, not a rate the runtime holds.
-		var dt_ms := dt * 1000.0
-		if dt_ms < budget_ms * PAUSE:
-			_interval = dt_ms if _interval == 0.0 else _interval + (dt_ms - _interval) * minf(dt / AVERAGE_SECONDS, 1.0)
+		_interval = dt_ms if _interval == 0.0 else _interval + (dt_ms - _interval) * minf(dt / AVERAGE_SECONDS, 1.0)
 		var averaged := _averaged >= AVERAGE_SECONDS
 		if not averaged:
 			_averaged += dt
@@ -419,7 +429,7 @@ class Governor:
 		# The Quest 2 misses refreshes from about 0.84 of the period, short of HOT: walking into a budget-full garden
 		# there dropped 36 frames while the average stepped down once a second. A missed refresh with the GPU over
 		# the line steps down two at once, as a frame far over budget does; one the CPU held, the GPU under it, does not.
-		var missed := dt_ms > budget_ms * HALVED and dt_ms < budget_ms * PAUSE and frame_ms > line
+		var missed := dt_ms > budget_ms * HALVED and frame_ms > line
 		# A step still under way has not shown what it saves, so it may not be followed into one that pops.
 		var floor := bottom if settled else _unpopped()
 		_calm = _calm + dt if settled and averaged and not halved and _average + cost(level, budget_ms) < line else 0.0
@@ -457,9 +467,12 @@ class Governor:
 
 	func _move(to: int) -> void:
 		level = to
-		_hot = 0
 		_calm = 0.0
 		_quiet = 0.0
+		_restart()
+
+	func _restart() -> void:
+		_hot = 0
 		_average = 0.0
 		_interval = 0.0
 		_averaged = 0.0
