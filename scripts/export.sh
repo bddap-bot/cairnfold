@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Exports a preset: export.sh GAME_DIR PRESET OUT LOG, printing the log's tail when it fails.
 # A preset with shader_baker/enabled ships its shaders compiled, which the baker does only from an editor running a
-# RenderingDevice renderer, never a headless one: a Quest 2 that compiled them itself sat 50 s on the first frame after
-# an install and 11 s on the first easel. So the editor runs on a virtual display through Mesa's software Vulkan.
+# RenderingDevice renderer, never a headless one: a Quest 2 with its data cleared sat 52 s on its first frame compiling
+# them, 34 s baked. So the editor runs on a virtual display through Mesa's software Vulkan.
 set -euo pipefail
 game=$1 preset=$2 out=$3 log=$4
 display=:$((100 + RANDOM % 800))

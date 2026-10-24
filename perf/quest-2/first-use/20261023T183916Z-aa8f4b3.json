@@ -1,0 +1,486 @@
+{
+ "budget_gpu_ms": 12.5,
+ "phases": {
+  "settle": {
+   "p50": 13.9340000152588,
+   "p99": 22.0949993133545,
+   "late": 9,
+   "draws": 70,
+   "prims": 300488,
+   "landings": [
+    {
+     "frames": 35,
+     "max": 27.943,
+     "late": 2
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 55.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "gpu_ms": 8.54
+  },
+  "pick/easel": {
+   "p50": 13.9300003051758,
+   "p99": 15.1470003128052,
+   "late": 2,
+   "draws": 72,
+   "prims": 296384,
+   "gpu_ms": 8.07
+  },
+  "easel/first": {
+   "p50": 14.0050001144409,
+   "p99": 16.9599990844727,
+   "late": 1,
+   "draws": 109,
+   "prims": 301832,
+   "stalls": [
+    {
+     "ms": 11114.7,
+     "notes": [],
+     "compiled": [
+      6,
+      39
+     ]
+    }
+   ],
+   "gpu_ms": 8.48
+  },
+  "pick/house": {
+   "p50": 13.9479999542236,
+   "p99": 16.0480003356934,
+   "late": 0,
+   "draws": 109,
+   "prims": 301832,
+   "gpu_ms": 9.23
+  },
+  "house/first": {
+   "p50": 46.5999984741211,
+   "p99": 86.1269989013672,
+   "late": 21,
+   "draws": 124,
+   "prims": 392264,
+   "stalls": [
+    {
+     "ms": 7057.5,
+     "notes": [],
+     "compiled": [
+      2,
+      28
+     ]
+    },
+    {
+     "ms": 51.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 53.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 52.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 50.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "gpu_ms": 41.36
+  },
+  "pick/tower": {
+   "p50": 14.0609998703003,
+   "p99": 16.9740009307861,
+   "late": 18,
+   "draws": 86,
+   "prims": 209066,
+   "gpu_ms": 7.27
+  },
+  "tower/first": {
+   "p50": 14.0019998550415,
+   "p99": 15.2950000762939,
+   "late": 0,
+   "draws": 93,
+   "prims": 221201,
+   "gpu_ms": 8.39
+  },
+  "pick/book": {
+   "p50": 13.9219999313354,
+   "p99": 24.8150005340576,
+   "late": 7,
+   "draws": 237,
+   "prims": 258445,
+   "stalls": [
+    {
+     "ms": 72.7,
+     "notes": [],
+     "compiled": [
+      13,
+      26
+     ]
+    }
+   ],
+   "gpu_ms": 10.05
+  },
+  "book/open": {
+   "p50": 13.9540004730225,
+   "p99": 16.4169998168945,
+   "late": 1,
+   "draws": 237,
+   "prims": 261139,
+   "gpu_ms": 9.57
+  },
+  "pick/camera": {
+   "p50": 17.5599994659424,
+   "p99": 24.7199993133545,
+   "late": 13,
+   "draws": 193,
+   "prims": 457370,
+   "gpu_ms": 9.19
+  },
+  "photo": {
+   "p50": 14.6149997711182,
+   "p99": 68.7789993286133,
+   "late": 232,
+   "draws": 323,
+   "prims": 1460491,
+   "stalls": [
+    {
+     "ms": 584.4,
+     "notes": [
+      {
+       "what": "photo: drawn at its finest"
+      }
+     ],
+     "compiled": [
+      9,
+      38
+     ]
+    },
+    {
+     "ms": 322.2,
+     "notes": [],
+     "compiled": [
+      0,
+      17
+     ]
+    },
+    {
+     "ms": 152.0,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 61.9,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 63.6,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 59.9,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 63.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 62.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 60.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 63.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 63.1,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 52.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 143.3,
+     "notes": [
+      {
+       "what": "photo: drawn at its finest"
+      }
+     ],
+     "compiled": [
+      1,
+      1
+     ]
+    },
+    {
+     "ms": 58.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 54.5,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 148.3,
+     "notes": [
+      {
+       "what": "photo: drawn at its finest"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 65.7,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 54.3,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 57.8,
+     "notes": [
+      {
+       "what": "photo: drawn at its finest"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 66.4,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    },
+    {
+     "ms": 55.2,
+     "notes": [],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "gpu_ms": 11.93
+  },
+  "walls": {
+   "p50": 13.875,
+   "p99": 21.5380001068115,
+   "late": 11,
+   "draws": 114,
+   "prims": 246453,
+   "gpu_ms": 10.77
+  },
+  "pick/delete": {
+   "p50": 13.9790000915527,
+   "p99": 14.9980001449585,
+   "late": 0,
+   "draws": 113,
+   "prims": 245137,
+   "gpu_ms": 10.88
+  },
+  "unwall": {
+   "p50": 13.8570003509521,
+   "p99": 15.3559999465942,
+   "late": 0,
+   "draws": 113,
+   "prims": 245137,
+   "gpu_ms": 10.82
+  },
+  "pick/pond": {
+   "p50": 13.8719997406006,
+   "p99": 16.5639991760254,
+   "late": 2,
+   "draws": 146,
+   "prims": 254285,
+   "stalls": [
+    {
+     "ms": 587.3,
+     "notes": [],
+     "compiled": [
+      1,
+      9
+     ]
+    }
+   ],
+   "gpu_ms": 11.3
+  },
+  "style/first": {
+   "p50": 14.41100025177,
+   "p99": 21.7360000610352,
+   "late": 2,
+   "draws": 111,
+   "prims": 259149,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.894,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 3145.9,
+     "notes": [],
+     "compiled": [
+      1,
+      9
+     ]
+    }
+   ],
+   "gpu_ms": 10.95
+  },
+  "style/again": {
+   "p50": 13.8909997940063,
+   "p99": 17.2360000610352,
+   "late": 1,
+   "draws": 111,
+   "prims": 259449,
+   "gpu_ms": 10.6
+  },
+  "wipe": {
+   "p50": 13.9270000457764,
+   "p99": 24.1569995880127,
+   "late": 3,
+   "draws": 106,
+   "prims": 172777,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 17.951,
+     "late": 0
+    }
+   ],
+   "stalls": [
+    {
+     "ms": 116.6,
+     "notes": [
+      {
+       "ms": 42.8,
+       "what": "world: applying wipe"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "gpu_ms": 8.62
+  },
+  "undo": {
+   "p50": 13.9289999008179,
+   "p99": 17.371000289917,
+   "late": 3,
+   "draws": 105,
+   "prims": 166507,
+   "stalls": [
+    {
+     "ms": 109.5,
+     "notes": [
+      {
+       "ms": 34.4,
+       "what": "world: applying garden"
+      }
+     ],
+     "compiled": [
+      0,
+      0
+     ]
+    }
+   ],
+   "gpu_ms": 7.66
+  }
+ }
+}

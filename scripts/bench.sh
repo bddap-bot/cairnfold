@@ -23,8 +23,8 @@
 # The land max and land late columns are the longest frame and the late frames over the phase's landings: each window of
 # game/src/metrics.gd's LANDING_S from a move of the play space's origin, a teleport or view; "-" for none.
 # NESTCOMBE_ARGS="--quality 8" passes more game arguments on a Quest, each word its own.
-# NESTCOMBE_COLD=1 empties the cache folders on a Quest first, as a fresh install does, so the game compiles every shader
-# and pipeline it has not shipped baked.
+# NESTCOMBE_COLD=1 clears the game's data on a Quest first, its saves copied off and put back after, so it starts as
+# a fresh install does: every shader and pipeline it has not shipped baked is compiled in the run.
 # NESTCOMBE_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
 # streaming their heads and hands. NESTCOMBE_WAVE=1 makes them flat-screen players repeatedly waving. NESTCOMBE_GUEST_AVATAR=FILE.vrm has each of them wear that VRM in place of a
 # built-in avatar, to measure what a player's own avatar costs the others; on a Quest it is also pushed as bench/guest.vrm,
@@ -131,11 +131,16 @@ if [ "${2:-}" = --android ]; then
     grep -m1 "$2" <<< "$dump" | grep -q "${3:-}"
   }
   rig=$(adb shell getprop ro.product.model | tr -d '\r' | tr 'A-Z ' 'a-z-')
+  saves=
+  if [ "${NESTCOMBE_COLD:-0}" = 1 ]; then
+    saves=$out/saves
+    "$here/quest-install.sh" --backup "$saves"
+    adb shell pm clear "$pkg" > /dev/null
+  fi
   "$here/quest-install.sh" "$3"
   build=$(adb shell dumpsys package "$pkg" | sed -n 's/.*versionName=//p' | head -1 | tr -d '\r')
   same "$build" --short HEAD
   adb shell "rm -rf $dir"
-  [ "${NESTCOMBE_COLD:-0}" != 1 ] || adb shell pm trim-caches 999G
   adb push "$out/stress.json" "$files/bench.json" > /dev/null
   [ -z "${NESTCOMBE_GUEST_AVATAR:-}" ] || adb push "$NESTCOMBE_GUEST_AVATAR" "$dir/guest.vrm" > /dev/null
   # Off the head the headset loses tracking, and its Guardian then puts up a dialog the shell keeps drawing beside
@@ -152,6 +157,7 @@ if [ "${2:-}" = --android ]; then
     adb shell am broadcast -a com.oculus.vrpowermanager.automation_disable > /dev/null
     for kv in $saved_props; do adb shell "setprop debug.oculus.${kv%%=*} '${kv#*=}'"; done
     adb shell am force-stop "$pkg"
+    [ -z "$saves" ] || "$here/quest-install.sh" --restore "$saves"
     stop
   }
   trap restore_headset EXIT

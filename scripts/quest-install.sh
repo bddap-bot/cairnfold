@@ -3,6 +3,7 @@
 #   quest-install.sh APK          installs over the app there. One adb refuses, an older version or another key, takes
 #                                 an uninstall, which erases the app's external files folder holding the garden and
 #                                 the avatars: they are copied to the host first and pushed back after the install.
+#   quest-install.sh --backup DIR   copies the saves to DIR by itself.
 #   quest-install.sh --restore DIR  pushes such a copy back by itself.
 #   quest-install.sh --package APK  prints the package APK installs as, read from its manifest: every step acts on
 #                                 that package, so a build renamed to stand beside the game never touches the game.
@@ -56,7 +57,7 @@ if [ "$1" = --package ]; then
   package "$2"
   exit 0
 fi
-[ "$1" = --restore ] || pkg=$(package "$1" quest)
+case $1 in --backup | --restore) ;; *) pkg=$(package "$1" quest) ;; esac
 files=/sdcard/Android/data/$pkg/files
 
 backup() {
@@ -93,10 +94,10 @@ restore() {
   echo "quest-install: saves restored from $dir" >&2
 }
 
-if [ "$1" = --restore ]; then
-  restore "$2"
-  exit 0
-fi
+case $1 in
+  --backup) backup "$2"; exit 0 ;;
+  --restore) restore "$2"; exit 0 ;;
+esac
 if failed=$(adb install -r -g "$1" 2>&1); then
   exit 0
 fi
