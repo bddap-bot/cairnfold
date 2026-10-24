@@ -7,12 +7,16 @@ player was doing.
 Sessions print oldest first, each with where its chunks were found, its device, build revision, id and length, then
 per activity (Metrics.ACTIVITIES) its frames, late frames, p50, p99 and worst frame time, and mean CPU and GPU ms a
 frame; then the seconds spent at each quality step, the garden's budget fill, the time paused (headset off, app in
-the background), and the worst stalls (Metrics.STALL_MS), each with what the game noted as running long in it."""
+the background), and the worst stalls (Metrics.STALL_MS), each with what the game noted as running long in it, and
+what its replay record holds: the frames of input (Replay), any lost to the ring, and its size an hour of play."""
 import argparse
+import base64
 import json
 from pathlib import Path
 import re
+import struct
 import sys
+import zlib
 
 METRICS = (Path(__file__).resolve().parents[1] / "game/src/metrics.gd").read_text()
 ACTIVITIES = json.loads(re.search(r"^const ACTIVITIES := (\[.*\])$", METRICS, re.M).group(1))
@@ -29,7 +33,8 @@ def read(folder):
                 record = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            s = sessions.setdefault(record.get("session"), {"rows": [], "where": chunk.parent.relative_to(folder.parent).as_posix()})
+            s = sessions.setdefault(record.get("session"), {"rows": [], "inputs": [], "replay_bytes": 0,
+                                                            "where": chunk.parent.relative_to(folder.parent).as_posix()})
             event = record.get("event")
             if event == "start":
                 s.setdefault("start", record)
@@ -37,13 +42,54 @@ def read(folder):
                 s["ended"] = record.get("ended")
             elif event == "frame":
                 s["rows"].append(record)
+            elif event == "input":
+                s["inputs"].append(record)
+                s["replay_bytes"] += len(line) + 1
+            elif event == "replay":
+                s["replay"] = record
+                s["replay_bytes"] += len(line) + 1
     out = []
     for sid, s in sessions.items():
         if sid is None or "start" not in s:
             continue
         rows = sorted(s["rows"], key=lambda r: r.get("unix") or 0)
-        out.append(summarise(sid, s["start"], s.get("ended"), s["where"], rows))
+        out.append(summarise(sid, s["start"], s.get("ended"), s["where"], rows) | {"replay": replay(s)})
     return sorted(out, key=lambda x: x["started"])
+
+
+def frames(event, layout):
+    """An "input" event's frames, each {delta, head, hands: [{pose, stick, inputs, flags}]}, as layout lays them out."""
+    raw = zlib.decompress(base64.b64decode(event["data"]))
+    head_bytes, hand_bytes = struct.calcsize(layout["head"]), struct.calcsize(layout["hand"])
+    out = []
+    for at in range(0, len(raw), layout["frame_bytes"]):
+        delta, *head = struct.unpack_from(layout["head"], raw, at)
+        hands = []
+        for i, tracker in enumerate(layout["hands"]):
+            *pose, sx, sy, held, flags = struct.unpack_from(layout["hand"], raw, at + head_bytes + i * hand_bytes)
+            hands.append({"pose": pose, "stick": [sx, sy],
+                          "inputs": [n for b, n in enumerate(layout["inputs"][tracker]) if held >> b & 1],
+                          "flags": [n for b, n in enumerate(layout["flags"]) if flags >> b & 1]})
+        out.append({"delta": delta, "head": head, "hands": hands})
+    return out
+
+
+def replay(s):
+    """How much of the session its replay record holds, and its size an hour of the play it covers."""
+    layout = s["start"].get("input")
+    if not s["inputs"] or not layout:
+        return None
+    inputs = sorted(s["inputs"], key=lambda e: e["first"])
+    held = sum(e["frames"] for e in inputs)
+    played = sum(f["delta"] for e in inputs for f in frames(e, layout))
+    return {
+        "frames": held,
+        "missing": inputs[-1]["first"] + inputs[-1]["frames"] - held,
+        "seconds": round(played, 1),
+        "start": "replay" in s,
+        "bytes": s["replay_bytes"],
+        "mb_per_hour": round(s["replay_bytes"] / played * 3600 / 1e6, 2) if played else None,
+    }
 
 
 def merge(rows):
@@ -129,6 +175,12 @@ def text(s):
         lines.append(f"  budget fill: max {s['fill']['max']:.3f}, last {s['fill']['last']:.3f}")
     if s["paused_s"]:
         lines.append(f"  paused: {s['paused_s']} s")
+    if s["replay"]:
+        r = s["replay"]
+        lost = f", {r['missing']} frames lost to the ring" if r["missing"] else ""
+        begun = "" if r["start"] else ", its start lost to the ring"
+        lines.append(f"  replay: {r['frames']} frames over {r['seconds']} s, {r['bytes'] / 1e6:.2f} MB, "
+                     f"{r['mb_per_hour']} MB an hour{lost}{begun}")
     if s["stalls"]:
         worst = sorted(sorted(s["stalls"], key=lambda x: -x["ms"])[:STALLS_SHOWN], key=lambda x: x["t"] or 0)
         lines.append(f"  stalls: {len(s['stalls'])}, the worst {len(worst)}:")

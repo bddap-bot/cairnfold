@@ -4815,8 +4815,15 @@ explicit `--record-sessions` writes it, and `--forget-sessions` or removing the 
 sending them anywhere: a dev tool pulls them off a device of ours, and `scripts/sessions.py DIR` reads them. Each
 row's `activity` holds that second's frames by what the player was doing (`Metrics.ACTIVITIES`): frames, late
 frames, the worst, a half-millisecond frame-time histogram and summed CPU and GPU ms, so a session's in-motion p99
-merges exactly. Sixteen JSONL chunks of at most 1 MiB retain recent history;
-rotation can discard the beginning of a long session. Each chunk repeats the
+merges exactly.
+
+Beside the rows the same chunks hold what a replay starts from and plays: a `replay` record once per session, with its
+seeds (the global generator's, which `Main` draws and sets as it starts, and the wildlife's) and the garden it began
+in (`World.snapshot`, deflated), and with each row an `input` record of every frame since the last, deflated and
+base64'd. A frame (`Replay`, laid out in each chunk's start record) is the frame's delta, the head's pose and each
+hand's controller pose in the play space, its stick and the inputs the controls table reads on it, held or not:
+110 bytes, written on the log's worker thread. Sixty-four chunks of at most 4 MiB retain recent history;
+rotation can discard the beginning of a long session, and `scripts/sessions.py` counts the frames lost. Each chunk repeats the
 session start, build revision and device model; a chunk is renamed into place
 holding that start record, and every line is flushed as it is written. A quit the
 engine reports (the window closing, the XR runtime ending the session) writes the end

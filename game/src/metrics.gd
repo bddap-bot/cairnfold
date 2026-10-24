@@ -12,6 +12,8 @@ var play_log: PlayLog
 var context: Callable
 ## The tags (ACTIVITIES) of what the player is doing this frame besides moving, which the head's own motion decides.
 var activity: Callable
+## This frame's input given its delta (Replay.frame), which the session record keeps every frame of.
+var input: Callable
 var _cpu: PackedFloat32Array = []
 var _gpu: PackedFloat32Array = []
 var _logging_us := 0
@@ -113,9 +115,11 @@ func _notification(what: int) -> void:
 		_unplayed = true
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if play_log == null and path.is_empty():
 		return
+	if play_log != null and input.is_valid():
+		play_log.record(input.call(delta))
 	if refresh.is_valid():
 		var hz: float = refresh.call()
 		if hz > 0.0 and hz != info.get("refresh_hz", 0.0):

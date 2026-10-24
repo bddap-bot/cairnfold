@@ -104,7 +104,8 @@ also holds the people: avatars to wear, and nearby gardens to join.
 
 Session telemetry is off by default and never sent by the game. Launch with
 `--record-sessions`, or put a `record-sessions` file in the player folder, to opt this
-device into bounded local frame and head-pose history in that folder's `sessions/`;
+device into bounded local frame-timing history and replay input (every frame's head and hand poses and buttons)
+in that folder's `sessions/`;
 `--forget-sessions` opts out. `scripts/sessions.py DIR` summarises a pulled folder.
 See [local play-session history](docs/design.md#local-play-session-history).
 

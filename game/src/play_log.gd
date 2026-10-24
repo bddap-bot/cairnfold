@@ -3,9 +3,10 @@ extends RefCounted
 
 ## Recording is on only where this file is in the player folder (Main.player_path): written by --record-sessions or
 ## by a dev tool on a device of ours, never by the game unasked. It may name another folder to record into.
+## Beside each second's metrics row it keeps every frame's input (Replay), so the ring holds hours of both.
 const SWITCH := "record-sessions"
-const MAX_BYTES := 1048576
-const MAX_FILES := 16
+const MAX_BYTES := 4194304
+const MAX_FILES := 64
 var directory: String
 var session_id: String
 var metadata: Dictionary
@@ -15,6 +16,9 @@ var _ended := false
 var _task := -1
 var _skipped := 0
 var _write_us := 0
+## Frames recorded since the last write, and how many the session recorded before them.
+var _input := PackedByteArray()
+var _frames := 0
 
 
 static func enabled(args: Dictionary) -> bool:
@@ -45,9 +49,26 @@ func _init(folder: String) -> void:
 	DirAccess.make_dir_recursive_absolute(directory)
 	var started := Time.get_unix_time_from_system()
 	session_id = "%d-%d-%d" % [started * 1000, OS.get_process_id(), Time.get_ticks_usec()]
-	metadata = {"schema": 1, "session": session_id, "started": started, "revision": Main.revision(),
-		"os": OS.get_name(), "device": OS.get_model_name()}
+	metadata = {"schema": 2, "session": session_id, "started": started, "revision": Main.revision(),
+		"os": OS.get_name(), "device": OS.get_model_name(), "input": Replay.layout()}
 	_open()
+
+
+## What the session replays from: the seeds it drew from and the garden it starts in, as World.snapshot gives it.
+## The garden is serialized here, so the edits that follow cannot change it under the writer.
+func begin(seeds: Dictionary, garden: Dictionary) -> void:
+	_join()
+	_task = WorkerThreadPool.add_task(_write_replay.bind(seeds, var_to_bytes(garden)))
+
+
+func _write_replay(seeds: Dictionary, save: PackedByteArray) -> void:
+	_store({"event": "replay", "session": session_id, "seeds": seeds, "save_bytes": save.size(),
+		"save": Marshalls.raw_to_base64(save.compress(FileAccess.COMPRESSION_DEFLATE))})
+
+
+## Keeps this frame's input (Replay.frame) for the next write.
+func record(frame: PackedByteArray) -> void:
+	_input.append_array(frame)
 
 
 func _open() -> void:
@@ -81,7 +102,17 @@ func sample(row: Dictionary) -> void:
 	snapshot.skipped_log_samples = _skipped
 	snapshot.writer_us = _write_us
 	_skipped = 0
-	_task = WorkerThreadPool.add_task(_write.bind(snapshot))
+	_task = WorkerThreadPool.add_task(_write.bind(snapshot, _take_input()))
+
+
+## The frames kept since the last write, as their "input" event; {} for none.
+func _take_input() -> Dictionary:
+	if _input.is_empty():
+		return {}
+	var block := {"first": _frames, "frames": _input.size() / Replay.FRAME_BYTES, "raw": _input}
+	_frames += block.frames
+	_input = PackedByteArray()
+	return block
 
 
 func _join() -> void:
@@ -90,17 +121,12 @@ func _join() -> void:
 		_task = -1
 
 
-func _write(row: Dictionary) -> void:
+func _write(row: Dictionary, input: Dictionary) -> void:
 	var begin := Time.get_ticks_usec()
 	if _file == null or _ended:
 		return
-	var line := JSON.stringify(row.merged({"event": "frame", "session": session_id}))
-	if _file.get_position() + line.length() + 1024 > MAX_BYTES:
-		_open()
-	if _file == null:
-		return
-	_file.store_line(line)
-	_file.flush()
+	_write_input(input)
+	_store(row.merged({"event": "frame", "session": session_id}))
 	# Rename keeps readers from seeing half of the current sample.
 	var latest := FileAccess.open(directory.path_join("latest.new"), FileAccess.WRITE)
 	if latest != null:
@@ -111,10 +137,32 @@ func _write(row: Dictionary) -> void:
 	_write_us = Time.get_ticks_usec() - begin
 
 
+func _write_input(input: Dictionary) -> void:
+	if input.is_empty():
+		return
+	var raw: PackedByteArray = input.raw
+	_store({"event": "input", "session": session_id, "first": input.first, "frames": input.frames, "bytes": raw.size(),
+		"data": Marshalls.raw_to_base64(raw.compress(FileAccess.COMPRESSION_DEFLATE))})
+
+
+## Appends `record` as a line of the current chunk, opening the next first when it would outgrow MAX_BYTES.
+func _store(record: Dictionary) -> void:
+	if _file == null:
+		return
+	var line := JSON.stringify(record)
+	if _file.get_position() + line.length() + 1024 > MAX_BYTES:
+		_open()
+	if _file == null:
+		return
+	_file.store_line(line)
+	_file.flush()
+
+
 func finish() -> void:
 	_join()
 	if _ended:
 		return
+	_write_input(_take_input())
 	_ended = true
 	if _file != null:
 		_file.store_line(JSON.stringify({"event": "end", "session": session_id, "ended": Time.get_unix_time_from_system()}))

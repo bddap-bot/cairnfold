@@ -34,10 +34,13 @@ var hand_stop: HandStop
 var flat: Flat
 var book: Book
 var _editors: Array
+## The global random generator's seed, which a session record keeps: drawn once, so a replay can start from it.
+var rng_seed := randi()
 
 
 func _ready() -> void:
 	args = _parse(launch_args())
+	seed(rng_seed)
 	Store.check(get_tree())
 	get_viewport().use_occlusion_culling = true
 	world = World.new()
@@ -183,8 +186,7 @@ func _ready() -> void:
 		metrics.xr = xr
 		metrics.refresh = func() -> float: return xr.display_refresh_rate
 	metrics.world = world
-	if get_tree().current_scene == self:
-		metrics.play_log = PlayLog.open_enabled(args)
+	metrics.input = func(delta: float) -> PackedByteArray: return Replay.frame(delta, rig.head, rig.hands)
 	metrics.context = func():
 		var counts := {}
 		for category in ["walls", "paths", "grounds", "groups", "easels", "boulders"]:
@@ -210,6 +212,10 @@ func _ready() -> void:
 		world.load_from(garden)
 	if args.has("photo"):
 		open_photo(args.photo)
+	if get_tree().current_scene == self:
+		var into := PlayLog.open_enabled(args)
+		if into != null:
+			record(into)
 	if args.has("script"):
 		var driver := Driver.new(self, Driver.read(args.script))
 		driver.finished.connect(func() -> void: if driver.failed: finish(1))
@@ -217,6 +223,13 @@ func _ready() -> void:
 	if args.has("quit-after"):
 		get_tree().create_timer(float(args["quit-after"])).timeout.connect(finish)
 	get_tree().auto_accept_quit = false
+
+
+## Records the session into `into` from here: the seeds and the garden it starts from, then every frame's input
+## beside the metrics.
+func record(into: PlayLog) -> void:
+	metrics.play_log = into
+	into.begin({"rng": str(rng_seed), "wildlife": str(wildlife.rng.seed)}, world.snapshot())
 
 
 ## The commit this build was exported from (scripts/package.sh), or "development" when run from the source.
