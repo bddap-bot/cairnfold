@@ -2459,7 +2459,9 @@ foundation last turned to, standing on its stilts once raised. A house on a buil
 `demo/raised.json` raises long and round houses on pillars and posts on a slope, one high enough that its foundation
 rises, and turns a plinth to pillars with the style tool; `tests/test_stilts.gd` checks where the stilts stand, the
 foundation, the slope, the beams and course, the budget and the command headless, `tests/test_style.gd` the wheel,
-and `tests/test_raised_demo.gd` the demo and the stress scene's `raised/*` ring of long and round houses on stilts.
+and `tests/test_raised_demo.gd` the demo and the stress scene's `raised/*` ring of long and round houses on stilts. On the
+Steam Frame, governed, both views hold 72 Hz (`perf/frame/stress`): 3.5 ms of GPU time a frame and no frame over
+1.5× the refresh period, the view's landing included.
 
 ## Floors
 
