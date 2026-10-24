@@ -1,7 +1,7 @@
 [
   {"op": "place", "x": 0, "z": 14},
   {"op": "house", "at": [-6, -5], "size": [6, 4], "seconds": 0.5},
-  {"op": "house", "at": [4, -5], "size": [6, 4], "plaster": true, "seconds": 0.5},
+  {"op": "house", "at": [4, -5], "size": [6, 4], "finish": "timber", "seconds": 0.5},
   {"op": "house", "at": [-4, 9], "size": [11, 6.5], "seconds": 0.5},
   {"op": "lift_wall", "index": 2, "height": 3.3},
   {"op": "wait", "seconds": 3},

@@ -13,10 +13,11 @@ const PATH_TREADS_PER_ROW := 2
 
 ## What a garden's builds count as, the units COSTS prices: square metres of face of stone walls, plaster walls and
 ## fences (length along the ground by height, and a house's two gable ends: boards, laid as stones are but fewer, count
-## as stone wall), of tiled or flat roof and of thatch (laid along its slopes out to its eaves);
+## as stone wall; worn plaster counts the stone it has worn back to as stone wall besides; a planked wall counts as
+## plaster for the backing behind its planks), of tiled or flat roof and of thatch (laid along its slopes out to its eaves);
 ## fittings that add a mesh (lanterns, flags, chimneys, dormers, whose boarded faces count as stone wall and whose
 ## slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing;
-## explicit arch openings, with timber members counted separately; square metres of pond water; easels, each a canvas
+## explicit arch openings, with timber members, and the planks of a planked wall or fence, counted separately; square metres of pond water; easels, each a canvas
 ## drawn and simulated; boulders, a metre-wide one a unit (`boulder`); and square metres of painted stone ground, each
 ## stroke the ground its discs reach, a stroke over another counted again.
 static var UNITS: Array = COSTS.keys().filter(func(k: String) -> bool: return not k in CAPS.values())
@@ -211,12 +212,14 @@ static func wall(d: Dictionary) -> Dictionary:
 	var length := Commands.length(d.points)
 	if d.closed and d.points.size() > 2:
 		length += Vector2(d.points[0].x - d.points[-1].x, d.points[0].z - d.points[-1].z).length()
-	var face := "fence_m2" if d.fence else ("plaster_m2" if d.plaster else "wall_m2")
+	var face := "fence_m2" if d.fence else "wall_m2" if d.finish == WallLayout.Finish.BARE else "plaster_m2"
 	var out := {face: length * d.height}
+	if d.wear > 0.0:
+		out.wall_m2 = out.get("wall_m2", 0.0) + length * d.height * d.wear
 	var span := WallLayout.stilt_span(d.foundation, d.rise) if d.get("on", PackedInt32Array()).is_empty() else 0.0
 	if d.rise > 0.0:
 		out.wall_m2 = out.get("wall_m2", 0.0) + length * (d.rise - span)
-	var timber := TimberFrame.count(d)
+	var timber := TimberFrame.count(d) + planks(d, length)
 	if span > 0.0:
 		var stilted := WallLayout.new()
 		stilted.points.assign(Array(d.points))
@@ -250,7 +253,7 @@ static func wall(d: Dictionary) -> Dictionary:
 			ends.gable_end = d.gable_end
 			ends.gable = slopes
 			var half_span: float = (Vector2(d.points[3].x - d.points[0].x, d.points[3].z - d.points[0].z).length() + WallLayout.THICKNESS) * 0.5
-			var units := "wall_m2" if ends.gable_end == WallLayout.GableEnd.BOARDS else face
+			var units := "wall_m2" if ends.gable_end == WallLayout.GableEnd.BOARDS or d.finish in [WallLayout.Finish.BOARDS_ACROSS, WallLayout.Finish.BOARDS_UPRIGHT] else face
 			out[units] = out.get(units, 0.0) + 2.0 * ends.gable_face(half_span)
 			var ridge := Vector2(d.points[1].x - d.points[0].x, d.points[1].z - d.points[0].z).length()
 			plan = (ridge + WallLayout.THICKNESS + 2.0 * RoofLayout.GABLE_OVERHANG) * 2.0 * (half_span + minf(d.roof.overhang, slopes.reach()))
@@ -268,6 +271,22 @@ static func wall(d: Dictionary) -> Dictionary:
 	if fittings > 0:
 		out.fitting = fittings
 	return out
+
+
+## The planks a planked wall or fence `length` long lays: across a wall, rows BOARD.x tall of planks BOARD_RUN long at
+## the mean, or between a fence's posts FENCE_BOARDS rows; upright, a column BOARD.x or FENCE_PALE wide, a wall's broken
+## in two round each opening.
+static func planks(d: Dictionary, length: float) -> int:
+	match d.finish:
+		WallLayout.Finish.BOARDS_ACROSS:
+			if d.fence:
+				return ceili(length / WallLayout.POST_SPACING) * WallLayout.FENCE_BOARDS.size()
+			return ceili(length / ((WallLayout.BOARD_RUN.x + WallLayout.BOARD_RUN.y) * 0.5) + 1.0) * ceili((d.height - WallLayout.COURSE) / WallLayout.COURSE) * WallLayout.rows_of(WallLayout.COURSE)
+		WallLayout.Finish.BOARDS_UPRIGHT:
+			if d.fence:
+				return ceili(length / WallLayout.FENCE_PALE)
+			return ceili(length / WallLayout.BOARD.x) + d.openings.size() * ceili(WallLayout.WINDOW_HALF * 4.0 / WallLayout.BOARD.x)
+	return 0
 
 
 ## `n` plants of a plant group's kind.

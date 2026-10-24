@@ -1,6 +1,6 @@
 [
   {"op": "place", "x": 0, "z": 12},
-  {"op": "house", "at": [-5, -4], "size": [6, 4], "plaster": true, "seconds": 0.5},
+  {"op": "house", "at": [-5, -4], "size": [6, 4], "finish": "timber", "seconds": 0.5},
   {"op": "fit", "what": "opening", "index": 0, "s": 3.0, "style": 1},
   {"op": "sun", "time": 0.4158, "seconds": 0.5},
   {"op": "wait", "seconds": 4},

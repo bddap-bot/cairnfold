@@ -30,7 +30,7 @@ func _house(ground: Callable, rise := 0.0, plaster := false, height := 2.4, plan
 	w.top = WallLayout.Top.CAP
 	w.height = height
 	w.rise = rise
-	w.plaster = plaster
+	w.finish = WallLayout.Finish.TIMBER if plaster else WallLayout.Finish.BARE
 	w.planks = planks
 	w.openings.assign([3.0].map(WallLayout.archway))
 	w.build(ground)
@@ -118,7 +118,7 @@ func _doors_and_arches_stop_at_the_floor() -> void:
 			for finish in ["stone", "plaster", "timber"]:
 				for style in [WallLayout.DoorStyle.ARCHWAY, WallLayout.DoorStyle.PLAIN]:
 					var w := _house(Terrain.flat, rise, finish != "stone", 3.0)
-					w.timber_style = 0 if finish == "timber" else -1
+					w.finish = {"stone": WallLayout.Finish.BARE, "plaster": WallLayout.Finish.PLASTER, "timber": WallLayout.Finish.TIMBER}[finish]
 					w.openings.assign([Vector4(3.0, 0.0, style, 1.0)])
 					w.build(ground)
 					var name := "%s %s %s, raised %.1f" % ["arch" if style == WallLayout.DoorStyle.ARCHWAY else "door", finish, "up a slope" if ground == _slope else "on the flat", rise]

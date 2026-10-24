@@ -11,25 +11,44 @@ const BRACES := [Vector4(0, 0, 1, 1), Vector4(1, 0, 0, 1)]
 ## How far rails sit behind posts, and braces behind rails: members laid in one plane fight wherever they cross.
 const STEP := 0.006
 
+## A wall, or a house's four walls, framed: a round tower or a loop of any other shape takes plaster alone.
 static func applies(w: WallLayout) -> bool:
-	return w.timber_style >= 0 and w.plaster and w.closed and not w.fence and w.corners().size() == 4
+	return w.finish == WallLayout.Finish.TIMBER and not w.fence and (not w.closed or w.corners().size() == 4)
 
 
+## The faces a frame is laid on, as `WallLayout._normal` calls them: a house's outer one, both of a wall standing open.
+static func faces(w: WallLayout) -> Array[float]:
+	var inner := w.inner_side()
+	var out: Array[float] = [-1.0, 1.0]
+	if inner != 0.0:
+		out = [-inner]
+	return out
+
+
+## The frame's members, each from `a` to `b` (along the wall, up) on the straight face through arc length `face`. A
+## house's sides are straight, so each member lies on its side's line; a wall's may curve, so there each lies on the
+## line through its own middle, its rails broken at every post.
 static func generate(w: WallLayout) -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	if not applies(w):
 		return out
 	var corners := w.corners()
-	corners.append(w.length())
-	for side in 4:
+	if w.closed:
+		corners.append(w.length())
+	var ruins: Array[Rect2] = []
+	for b in w.breaks[-1] if not w.breaks.is_empty() else PackedVector2Array():
+		ruins.append(Rect2(b.x - WIDTH, -WallLayout.THICKNESS, b.y - b.x + WIDTH * 2.0, w.height + WallLayout.THICKNESS * 2.0))
+	for side in corners.size() - 1:
 		var lo := corners[side]
 		var hi := corners[side + 1]
-		var mid := (lo + hi) * 0.5
+		var mid := (lo + hi) * 0.5 if w.closed else INF
 		var foot := w.course_height()
-		var eaves := w.height + WallLayout.CAP * 0.5
+		var eaves := w.height + WallLayout.CAP * 0.5 if w.cover == WallLayout.Cover.ROOF else w.height - WIDTH * 0.5
 		var corner := (WallLayout.THICKNESS - WIDTH) * 0.5
-		var xs: Array[float] = [lo - corner, hi + corner]
-		var holes: Array[Rect2] = []
+		var near := lo - corner if w.closed or side > 0 else lo + WIDTH * 0.5
+		var far := hi + corner if w.closed or side < corners.size() - 2 else hi - WIDTH * 0.5
+		var xs: Array[float] = [near, far]
+		var holes: Array[Rect2] = ruins.duplicate()
 		var clearance := WIDTH * 0.72 + 0.01
 		var frames: Array[Rect2] = []
 		for o in w.apertures:
@@ -48,7 +67,8 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 		var ys: Array[float] = [foot, lerpf(foot, eaves, 0.5), eaves]
 		for y in ys:
 			var rail := y - EAVE_DROP if y == eaves and side % 2 == 0 and w.cover == WallLayout.Cover.ROOF else y
-			_emit(out, Vector2(lo - corner, rail), Vector2(hi + corner, rail), mid, holes)
+			for i in (1 if w.closed else xs.size() - 1):
+				_emit(out, Vector2(xs[i], rail), Vector2(xs[-1] if w.closed else xs[i + 1], rail), mid, holes)
 		for x in xs:
 			_emit(out, Vector2(x, foot), Vector2(x, eaves), mid, holes)
 		for f in frames:
@@ -62,7 +82,7 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 					continue
 				for brace: Vector4 in BRACES:
 					_emit(out, panel.position + panel.size * Vector2(brace.x, brace.y), panel.position + panel.size * Vector2(brace.z, brace.w), mid, holes)
-		if side % 2 == 0 or w.gable == null or w.gable.kind != RoofLayout.Kind.GABLE or w.gable.flat() or w.cover != WallLayout.Cover.ROOF or w.gable_end == WallLayout.GableEnd.BOARDS:
+		if not w.closed or side % 2 == 0 or w.gable == null or w.gable.kind != RoofLayout.Kind.GABLE or w.gable.flat() or w.cover != WallLayout.Cover.ROOF or w.gable_end == WallLayout.GableEnd.BOARDS:
 			continue
 		var hs := (hi - lo + WallLayout.THICKNESS) * 0.5
 		var base := w.height + WallLayout.CAP
@@ -105,6 +125,7 @@ static func rake(w: WallLayout, hs: float, x: float) -> float:
 	return w.gable.rise(1.0 - x / hs) - WIDTH * sqrt(1.0 + slope * slope)
 
 
+## Adds the member from `a` to `b` on the face through `face` (INF: through its own middle), broken round the `holes`.
 static func _emit(out: Array[Dictionary], a: Vector2, b: Vector2, face: float, holes: Array[Rect2]) -> void:
 	if a.distance_to(b) < WIDTH or b.y < a.y and is_equal_approx(a.x, b.x):
 		return
@@ -124,7 +145,7 @@ static func _emit(out: Array[Dictionary], a: Vector2, b: Vector2, face: float, h
 		var start := a.lerp(b, span.x)
 		var end := a.lerp(b, span.y)
 		if start.distance_to(end) >= WIDTH:
-			out.append({"a": start, "b": end, "face": face})
+			out.append({"a": start, "b": end, "face": face if is_finite(face) else (start.x + end.x) * 0.5})
 
 
 static func _inside(a: Vector2, b: Vector2, rect: Rect2) -> Vector2:
@@ -146,6 +167,7 @@ static func _inside(a: Vector2, b: Vector2, rect: Rect2) -> Vector2:
 static func lay(w: WallLayout) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([w.seed, "timber"])
+	var sides := faces(w)
 	for beam in generate(w):
 		var center: Vector2 = (beam.a + beam.b) * 0.5
 		var run: Vector2 = beam.b - beam.a
@@ -153,10 +175,11 @@ static func lay(w: WallLayout) -> void:
 		var tangent: Vector3 = frame.tangent
 		var normal := tangent.cross(Vector3.UP)
 		var x := (tangent * run.x + Vector3.UP * run.y).normalized()
-		var origin: Vector3 = frame.point + tangent * (center.x - beam.face) + Vector3.UP * center.y
-		origin -= normal * w.inner_side() * (WallLayout.THICKNESS * 0.5 - WallLayout.PLASTER_INSET + DEPTH * 0.35 - STEP * rank(beam))
 		var size := Vector3(run.length() + 0.02, WIDTH, DEPTH)
-		w.stones.append({"xform": Transform3D(Basis(x, normal.cross(x), normal).scaled_local(size), origin), "color": OAK * rng.randf_range(0.88, 1.12), "kind": "timber", "s": center.x, "y": center.y, "size": size, "ao": 1.0, "variant": 0, "beam": beam})
+		for side in sides:
+			var origin: Vector3 = frame.point + tangent * (center.x - beam.face) + Vector3.UP * center.y
+			origin += normal * side * (WallLayout.THICKNESS * 0.5 - WallLayout.PLASTER_INSET + DEPTH * 0.35 - STEP * rank(beam))
+			w.stones.append({"xform": Transform3D(Basis(x, normal.cross(x), normal).scaled_local(size), origin), "color": OAK * rng.randf_range(0.88, 1.12), "kind": "timber", "s": center.x, "y": center.y, "size": size, "ao": 1.0, "variant": 0, "beam": beam})
 
 
 ## 0 for a post, 1 for a rail, 2 for a brace or rake.
@@ -166,15 +189,15 @@ static func rank(beam: Dictionary) -> int:
 	return 1 if is_equal_approx(beam.a.y, beam.b.y) else 2
 
 
+## The members a build command's frame lays, on each face it is laid on.
 static func count(d: Dictionary) -> int:
-	if not d.plaster or not d.closed or d.fence or d.points.size() != 4:
+	if d.finish != WallLayout.Finish.TIMBER or d.fence or d.closed and d.points.size() != 4:
 		return 0
 	var w := WallLayout.new()
 	w.points.assign(Array(d.points))
-	w.closed = true
-	w.plaster = true
+	w.closed = d.closed
+	w.finish = WallLayout.Finish.TIMBER
 	w.height = d.height
-	w.timber_style = d.timber_style
 	w.gable_end = d.gable_end
 	w.resample(Terrain.flat)
 	w.openings.assign(Array(d.openings))
@@ -188,4 +211,4 @@ static func count(d: Dictionary) -> int:
 	for o in w.apertures:
 		if o.style == WallLayout.DoorStyle.ARCHWAY:
 			w._lay_arch(o.s, o.size, RandomNumberGenerator.new(), 0.0)
-	return generate(w).size() + w.stones.filter(func(s: Dictionary) -> bool: return s.kind == "timber").size()
+	return generate(w).size() * faces(w).size() + w.stones.filter(func(s: Dictionary) -> bool: return s.kind == "timber").size()

@@ -25,7 +25,7 @@ func _slope(x: float, z: float) -> float:
 func _raised(kind: WallLayout.Foundation, round: bool, rise: float, ground := Callable(self, "_slope"), timbered := false, on: Array[Massing] = []) -> WallLayout:
 	var w := WallLayout.new()
 	w.supports = on
-	w.plaster = timbered
+	w.finish = WallLayout.Finish.TIMBER if timbered else WallLayout.Finish.BARE
 	w.points = WallLayout.circle(Vector3(1, 0, 1), 2.0) if round else WallLayout.rectangle(Vector3(0, 0, 0), Vector3(7, 0, 0), 4.0)
 	w.closed = true
 	w.cover = WallLayout.Cover.ROOF
@@ -157,7 +157,7 @@ func _pillars_carry_a_course_and_posts_beams() -> void:
 
 func _wall_data(kind: WallLayout.Foundation, rise: float, round := false) -> Dictionary:
 	var points := WallLayout.circle(Vector3(1, 0, 1), 2.0) if round else WallLayout.rectangle(Vector3.ZERO, Vector3(7, 0, 0), 4.0)
-	return {"points": PackedVector3Array(points), "height": 2.4, "rise": rise, "closed": true, "fence": false, "plaster": false, "foundation": kind, "planks": false, "lanterns": PackedVector3Array(), "flags": PackedFloat32Array()}
+	return {"points": PackedVector3Array(points), "height": 2.4, "rise": rise, "closed": true, "fence": false, "finish": WallLayout.Finish.BARE, "wear": 0.0, "foundation": kind, "planks": false, "lanterns": PackedVector3Array(), "flags": PackedFloat32Array()}
 
 
 ## Stilts are charged as they are laid: pillars and their course as stone wall, posts and beams as timbers, and only the
@@ -179,7 +179,7 @@ func _the_budget_counts_stilts_as_laid() -> void:
 ## A house's stilts come through the garden's command, which turns them down on an open wall or a fence.
 func _the_garden_keeps_stilts() -> void:
 	var d := _wall_data(WallLayout.Foundation.POSTS, 1.5)
-	d.merge({"seed": 1, "top": WallLayout.Top.CAP, "gable_end": 0, "timber_style": -1, "openings": PackedVector4Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array(), "paint": Palette.plain()})
+	d.merge({"seed": 1, "top": WallLayout.Top.CAP, "gable_end": 0, "openings": PackedVector4Array(), "ruins": PackedVector2Array(), "on": PackedInt32Array(), "paint": Palette.plain()})
 	var kept: Variant = Commands._wall(d)
 	check(kept != null and kept.foundation == WallLayout.Foundation.POSTS, "a house's stilts pass the garden's check")
 	var open := d.duplicate()

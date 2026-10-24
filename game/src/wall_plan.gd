@@ -24,7 +24,9 @@ var obstacles: PackedVector3Array
 var seed: int
 ## The stroke draws a fence: low posts and rails, with no arches over plants.
 var fence := false
-var plaster := false
+## What the stroke's faces are, and how worn its plaster.
+var finish := WallLayout.Finish.BARE
+var wear := 0.0
 var planks := false
 ## The builds the stroke is drawn on top of.
 var supports: Array[Massing] = []
@@ -46,7 +48,8 @@ func pieces(stroke: Array[Vector3], ground: Callable, commit := false) -> Array[
 		w.seed = seed + out.size()
 		w.points = run
 		w.fence = fence
-		w.plaster = plaster
+		w.finish = finish
+		w.wear = wear
 		w.planks = planks
 		if fence:
 			w.height = WallLayout.FENCE_HEIGHT

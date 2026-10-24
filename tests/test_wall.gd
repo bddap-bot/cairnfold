@@ -79,15 +79,14 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 				else:
 					w.points = [Vector3(0, 0, 0), Vector3(stretch, 0, 0)]
 				w.openings.assign([stretch * 0.5].map(WallLayout.archway))
-				w.plaster = style != "stone"
-				w.timber_style = 0 if style == "timber" else -1
+				w.finish = {"stone": WallLayout.Finish.BARE, "plaster": WallLayout.Finish.PLASTER, "timber": WallLayout.Finish.TIMBER}[style]
 				w.height = height
 				walls.append(w)
 	var arc := WallLayout.new()
 	for i in 9:
 		arc.points.append(Vector3(cos(i / 8.0 * PI) * 5.0, 0.0, sin(i / 8.0 * PI) * 5.0))
 	arc.height = 3.0
-	arc.plaster = true
+	arc.finish = WallLayout.Finish.PLASTER
 	arc.build(Terrain.flat)
 	arc.openings.assign([arc.length() * 0.5].map(WallLayout.archway))
 	walls.append(arc)
@@ -99,8 +98,7 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 		else:
 			grand.points = [Vector3(0, 0, 0), Vector3(12, 0, 0)]
 		grand.openings.assign([WallLayout.archway(6.0, 2.5)])
-		grand.plaster = style != "stone"
-		grand.timber_style = 0 if style == "timber" else -1
+		grand.finish = {"stone": WallLayout.Finish.BARE, "plaster": WallLayout.Finish.PLASTER, "timber": WallLayout.Finish.TIMBER}[style]
 		grand.height = 6.3
 		walls.append(grand)
 	for w in walls:
@@ -119,7 +117,9 @@ func _arch_meets_its_wall_with_no_gap() -> void:
 			while d <= 1.6 * k:
 				var inner := w.opening(y + 0.03, false, k)
 				var edge := maxf(w.opening(y - 0.03, false, k), w.opening(y + 0.03, false, k)) + 0.03
-				var reveal: bool = y < w.spring(k) and w.arch_style().jamb == 0.0 and absf(d) < WallLayout.ARCH_HALF * k + WallLayout.JOINT + 0.02
+				# A timber arch's jambs stand on the foot course, whose joints show at the reveal under them as a stone arch's do.
+				var jamb: float = w.arch_style().jamb * k if y < w.course_height() else 0.0
+				var reveal: bool = y < w.spring(k) and (w.arch_style().jamb == 0.0 or jamb > 0.0) and absf(d) < WallLayout.ARCH_HALF * k + jamb + WallLayout.JOINT + 0.02
 				var p: Vector3 = w.frame_at(a + d).point + Vector3.UP * y
 				var hit := near.any(func(st: Dictionary) -> bool:
 					return _holds(st, p))

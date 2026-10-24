@@ -75,7 +75,7 @@ static func build(tool: Hand.Tool) -> Node3D:
 		Hand.Tool.WINDOWS:
 			_windows(root)
 		Hand.Tool.ARCH:
-			_wall(root, false, WallLayout.Top.CAP, true)
+			_wall(root, WallLayout.Finish.BARE, WallLayout.Top.CAP, true)
 		Hand.Tool.DECORATIONS:
 			_decor(root)
 		Hand.Tool.STAIRS:
@@ -122,12 +122,12 @@ static func build(tool: Hand.Tool) -> Node3D:
 
 
 ## A miniature of choice `i` of a style the style tool sets (`PaletteTool.styles`), a build's in stone or plaster,
-## a roof's over a house or a round tower; a gable end's turned to face the eye. A build style's comes back empty
-## until the worker has built it, then fills: nothing waits on it.
-static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round := false, boulder := false, house := false) -> Node3D:
+## a roof's over a house or a round tower, a face's on a house, a wall or a fence; a gable end's turned to face the
+## eye. A build style's comes back empty until the worker has built it, then fills: nothing waits on it.
+static func style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round := false, boulder := false, house := false, fence := false) -> Node3D:
 	if restyle not in BUILT_STYLES:
-		return _style(restyle, i, plastered, round, boulder, house)
-	var key := _style_key(restyle, i, plastered, round, house)
+		return _style(restyle, i, plastered, round, boulder, house, fence)
+	var key := _style_key(restyle, i, plastered, round, house, fence)
 	var root := Node3D.new()
 	_lock.lock()
 	var pieces: Variant = _styled.get(key)
@@ -152,8 +152,8 @@ static func prepare_styles() -> void:
 	_lock.lock()
 	for restyle in BUILT_STYLES:
 		for i in PaletteTool.styles(restyle):
-			for flags in 8:
-				var key := _style_key(restyle, i, flags & 1, flags & 2, flags & 4)
+			for flags in 16:
+				var key := _style_key(restyle, i, flags & 1, flags & 2, flags & 4, flags & 8)
 				if not _styled.has(key) and key not in _queue:
 					_queue.append(key)
 	_lock.unlock()
@@ -171,10 +171,11 @@ static func stop_styles() -> void:
 
 
 ## The arguments a build style's miniature differs by: plaster shows on a house's or wall's stone, not a tower's, and a
-## face's choice of house or wall is its own.
-static func _style_key(restyle: PaletteTool.Restyle, i: int, plastered: bool, round: bool, house: bool) -> Array:
+## face's choice of house, fence or wall is its own.
+static func _style_key(restyle: PaletteTool.Restyle, i: int, plastered: bool, round: bool, house: bool, fence: bool) -> Array:
 	var tower := restyle == PaletteTool.Restyle.ROOF and round
-	return [restyle, i, plastered and not tower and restyle not in [PaletteTool.Restyle.FACE, PaletteTool.Restyle.FOUNDATION], tower, house and restyle == PaletteTool.Restyle.FACE]
+	var face := restyle == PaletteTool.Restyle.FACE
+	return [restyle, i, plastered and not tower and restyle not in [PaletteTool.Restyle.FACE, PaletteTool.Restyle.FOUNDATION], tower, house and face and not fence, fence and face]
 
 
 static func _build_styles() -> void:
@@ -202,7 +203,7 @@ static func _build_queued() -> void:
 		_lock.unlock()
 		if key == null:
 			return
-		var built := _style(key[0], key[1], key[2], key[3], false, key[4])
+		var built := _style(key[0], key[1], key[2], key[3], false, key[4], key[5])
 		var pieces := []
 		for mi: MeshInstance3D in built.get_children():
 			pieces.append([mi.mesh, mi.transform, mi.material_override])
@@ -235,7 +236,7 @@ static func _lay(root: Node3D, pieces: Array) -> void:
 		_piece(root, piece[0], piece[1], piece[2])
 
 
-static func _style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round: bool, boulder: bool, house: bool) -> Node3D:
+static func _style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round: bool, boulder: bool, house: bool, fence: bool) -> Node3D:
 	var root := Node3D.new()
 	if restyle == PaletteTool.Restyle.DECORATION:
 		var layout := DecorationLayout.new()
@@ -257,7 +258,7 @@ static func _style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round:
 		return root
 	match restyle:
 		PaletteTool.Restyle.GABLE:
-			_house(root, plastered, i as WallLayout.GableEnd, false, false, RoofLayout.Deck.STONE, false)
+			_house(root, _finish(plastered), i as WallLayout.GableEnd, false, false, RoofLayout.Deck.STONE, false)
 		PaletteTool.Restyle.ROOF:
 			var thatched := i == WallTool.RoofStyle.THATCHED
 			var flat := i in [WallTool.RoofStyle.FLAT, WallTool.RoofStyle.BOARDED]
@@ -265,9 +266,9 @@ static func _style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round:
 			if round:
 				_tower(root, thatched, flat, deck)
 			else:
-				_house(root, plastered, WallLayout.GableEnd.WALL, flat, thatched, deck, false)
+				_house(root, _finish(plastered), WallLayout.GableEnd.WALL, flat, thatched, deck, false)
 		PaletteTool.Restyle.TOP:
-			_wall(root, plastered, i as WallLayout.Top)
+			_wall(root, _finish(plastered), i as WallLayout.Top)
 		PaletteTool.Restyle.STONE:
 			if boulder:
 				_boulder_style(root, i)
@@ -277,14 +278,15 @@ static func _style(restyle: PaletteTool.Restyle, i: int, plastered: bool, round:
 			for part in root.get_children():
 				part.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.62).scaled(Vector3.ONE * 1.4), Vector3.ZERO) * part.transform
 		PaletteTool.Restyle.FACE:
-			if house:
-				_house(root, i != PaletteTool.Face.STONE, WallLayout.GableEnd.WALL, false, false, RoofLayout.Deck.STONE, false, 0 if i == PaletteTool.Face.TIMBER else -1)
-			elif i == PaletteTool.Face.TIMBER:
-				_house(root, true)
+			var face: Vector2 = PaletteTool.FACES[i]
+			if fence:
+				_fence(root, int(face.x) as WallLayout.Finish)
+			elif house:
+				_house(root, int(face.x) as WallLayout.Finish, WallLayout.GableEnd.WALL, false, false, RoofLayout.Deck.STONE, false, -1, face.y)
 			else:
-				_wall(root, i == PaletteTool.Face.PLASTER, WallLayout.Top.CAP)
+				_wall(root, int(face.x) as WallLayout.Finish, WallLayout.Top.CAP, false, face.y)
 		PaletteTool.Restyle.FOUNDATION:
-			_house(root, false, WallLayout.GableEnd.WALL, false, false, RoofLayout.Deck.STONE, false, 0, i)
+			_house(root, WallLayout.Finish.BARE, WallLayout.GableEnd.WALL, false, false, RoofLayout.Deck.STONE, false, i)
 	var turn := Basis(Vector3.UP, PI * 0.38) if restyle == PaletteTool.Restyle.GABLE else Basis(Vector3.UP, PI * 0.2) if house else Basis()
 	for part in root.get_children():
 		part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.03 if house else -PI * 0.22) * turn, Vector3.ZERO) * part.transform
@@ -659,11 +661,17 @@ static func _pond(root: Node3D) -> void:
 		_piece(root, part[0], Transform3D(Basis.from_scale(part[2]), part[1]), part[3])
 
 
-static func _wall(root: Node3D, plastered := false, top := WallLayout.Top.CRENEL, arched := false) -> void:
+## The face a build style's miniature shows the build it is for in: plaster where it is plaster, else stone.
+static func _finish(plastered: bool) -> WallLayout.Finish:
+	return WallLayout.Finish.PLASTER if plastered else WallLayout.Finish.BARE
+
+
+static func _wall(root: Node3D, finish := WallLayout.Finish.BARE, top := WallLayout.Top.CRENEL, arched := false, wear := 0.0) -> void:
 	var layout := WallLayout.new()
-	layout.plaster = plastered
+	layout.finish = finish
+	layout.wear = wear
 	layout.seed = 4
-	layout.height = 2.4 if arched else 1.5
+	layout.height = 2.4 if arched or wear > 0.0 else 1.5
 	layout.top = top
 	layout.points = [Vector3(-1.4, 0, 0), Vector3(1.4, 0, 0)]
 	if arched:
@@ -690,13 +698,13 @@ static func _floor(root: Node3D, planks: bool) -> void:
 
 ## A cottage: stone walls with a door toward the eye under a tiled gable roof, or a flat one decked in `deck`; with a
 ## `foundation` choice, raised on it.
-static func _house(root: Node3D, plastered := false, gable_end := WallLayout.GableEnd.WALL, flat := false, thatched := false, deck := RoofLayout.Deck.STONE, arched := true, timber_style := 0, foundation := -1) -> void:
+static func _house(root: Node3D, finish := WallLayout.Finish.BARE, gable_end := WallLayout.GableEnd.WALL, flat := false, thatched := false, deck := RoofLayout.Deck.STONE, arched := true, foundation := -1, wear := 0.0) -> void:
 	var layout := WallLayout.new()
 	if foundation >= 0:
 		layout.rise = 1.5
 		layout.foundation = foundation as WallLayout.Foundation
-	layout.timber_style = timber_style
-	layout.plaster = plastered
+	layout.finish = finish
+	layout.wear = wear
 	layout.seed = 7
 	layout.height = 2.4
 	layout.top = WallLayout.Top.CAP
@@ -718,7 +726,7 @@ static func _house(root: Node3D, plastered := false, gable_end := WallLayout.Gab
 	roof.base = layout.samples[0].y + layout.height + WallLayout.CAP
 	roof.build()
 	layout.fit_under(roof)
-	_roofed(root, layout, roof, plastered)
+	_roofed(root, layout, roof, layout.plastered())
 
 
 ## A round tower under a cone roof, or a flat one decked in `deck`.
@@ -762,10 +770,11 @@ static func _roofed(root: Node3D, layout: WallLayout, roof: RoofLayout, plastere
 	_piece(root, st.commit(), Transform3D(), _plain("plaster", WallLayout.PLASTER, {"roughness": 0.9}))
 
 
-static func _fence(root: Node3D) -> void:
+static func _fence(root: Node3D, finish := WallLayout.Finish.BARE) -> void:
 	var layout := WallLayout.new()
 	layout.seed = 6
 	layout.fence = true
+	layout.finish = finish
 	layout.height = WallLayout.FENCE_HEIGHT
 	layout.points = [Vector3(-1.2, 0, 0), Vector3(1.2, 0, 0)]
 	layout.build(Terrain.flat)

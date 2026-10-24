@@ -17,6 +17,10 @@ enum GableEnd { WALL, BOARDS, STEPS }
 ## What stands under a wall's foot: its plinth's courses whole, in stone or plaster, or under a raised house or tower
 ## stone pillars under a course of stone, or timber posts under timber beams, either on a stone foundation.
 enum Foundation { STONE, PLASTER, PILLARS, POSTS }
+## What a wall's faces show: its own stone courses, or a fence's posts and rails, bare; plaster, worn back to the stones
+## by `wear`; plaster framed in oak, its walk boarded and railed in wood; or wooden planks laid across or upright. A
+## fence takes bare rails or planks.
+enum Finish { BARE, PLASTER, TIMBER, BOARDS_ACROSS, BOARDS_UPRIGHT }
 
 const COURSE := 0.3
 ## The longest stone a course lays, at full scale.
@@ -94,6 +98,10 @@ const WADE_UNDER := 0.1
 ## How far a paddling duck keeps from the sides of an arch it swims under.
 const SWIM_CLEAR := 0.25
 const FENCE_HEIGHT := 1.1
+## A planked fence's planks: laid across, each this tall at these heights between its posts; or upright, this wide.
+const FENCE_BOARD_TALL := 0.14
+const FENCE_BOARDS: Array[float] = [0.0, 0.16, 0.32, 0.48, 0.64, 0.8, 0.96]
+const FENCE_PALE := 0.12
 const POST_SPACING := 1.6
 const GATE_POST := 2.1
 const WINDOW_HALF := 0.3
@@ -124,8 +132,19 @@ const JOINT := 0.07
 const PLASTER_INSET := 0.02
 ## The stones up a gable's rakes: through the wall, and tall.
 const VERGE := Vector2(THICKNESS + 0.06, 0.24)
-## A boarded gable's planks: how wide, and the gap between them.
+## A boarded gable's or wall's planks: how wide, and the gap between them.
 const BOARD := Vector2(0.2, 0.012)
+## The shortest and longest plank laid across a wall or along a walk, at full scale.
+const BOARD_RUN := Vector2(0.9, 1.8)
+## Planks side by side along a timber-framed wall's walk.
+const WALK_LANES := 3
+## Worn plaster: the width the face is judged in along the wall, the size of the patches it wears away in, how deep
+## stones laid where it has worn stand (their faces this far behind the plaster's at the deepest), and how far
+## they run on under the plaster round each patch.
+const WORN_STEP := 0.2
+const WORN_PATCH := Vector2(1.6, 0.9)
+const WORN_THICK := (THICKNESS - (PLASTER_INSET + 0.03) * 2.0) / 1.05
+const WORN_TUCK := 0.04
 ## Courses to a crow step at the least, the least a step's tread, and the narrowest the top step stands.
 const STEP_COURSES := 2
 const TREAD := 0.2
@@ -154,12 +173,13 @@ var top := Top.CRENEL
 var cover := Cover.OPEN
 ## Posts and rails instead of stone; a path through a fence opens a wooden arch.
 var fence := false
-var plaster := false
+var finish := Finish.BARE
+## How much of a plaster face has worn away to the stones behind it, 0 to 1.
+var wear := 0.0
 var foundation := Foundation.STONE
 ## Whether the floor is laid in planks rather than flags: its own choice, apart from the walls' material.
 var planks := false
 var gable_end := GableEnd.WALL
-var timber_style := 0
 ## The gable roof a house's end walls rise under, course by course, as stone walls do; null for any other.
 var gable: RoofLayout
 ## Placed openings: arc length, click height above the foot, DoorStyle, and size, 1 for a doorway's (or a plain
@@ -365,16 +385,22 @@ func build(ground: Callable, water := Callable()) -> void:
 		var stream := rng if k >= 0 else wet
 		stream.seed = hash([seed, "course", k])
 		var offset := (0.5 if posmod(k, 2) == 1 else 0.0) * stream.randf_range(0.3, 0.6)
-		if not plaster_at(y0):
-			for i in spans.size():
-				var span: Array = spans[i]
-				for face in faces.size():
-					var a: float = maxf(span[0], faces[face].x)
-					var b: float = minf(span[1], faces[face].y)
-					stream.seed = hash([seed, "course", k, i, face])
-					_lay_course(a, b, y0, h, offset, stream)
-		bands.append([y0, h, filled, breaks[maxi(k, 0)], lintels])
+		var worn := _worn(y0) if plaster_at(y0) and wear > 0.0 else PackedVector2Array()
+		var courses := spans if not plaster_at(y0) else _within(spans, worn, WORN_TUCK)
+		if boards_at(y0):
+			courses = []
+		for i in courses.size():
+			var span: Array = courses[i]
+			for face in faces.size():
+				var a: float = maxf(span[0], faces[face].x)
+				var b: float = minf(span[1], faces[face].y)
+				stream.seed = hash([seed, "course", k, i, face])
+				_lay_course(a, b, y0, h, offset, stream, THICKNESS if worn.is_empty() else WORN_THICK)
+		bands.append([y0, h, filled, breaks[maxi(k, 0)], lintels, worn])
 	_lay_mortar(bands)
+	if boarded():
+		rng.seed = hash([seed, "boards"])
+		_lay_planks(bands, faces, rng)
 	for i in bays.size():
 		rng.seed = hash([seed, "pillar", i])
 		_lay_pillar(bays[i].s, bays[i].half, pillar_tops[i], rng, wet)
@@ -384,6 +410,8 @@ func build(ground: Callable, water := Callable()) -> void:
 	rng.seed = hash([seed, "top"])
 	if not TimberFrame.applies(self):
 		_lay_top(rng)
+	elif cover != Cover.ROOF:
+		_lay_walk(rng)
 	_lay_gables()
 	TimberFrame.lay(self)
 	var turns := corners()
@@ -1155,17 +1183,19 @@ func _lay_opening(o: Dictionary, rng: RandomNumberGenerator, bottom: float) -> v
 	var half: float = o.half
 	var tall: float = o.head - o.sill
 	var c := course_height()
-	_part(s, o.head + c * 0.5, Vector3(half * 2.0 + LINTEL_EAR * 2.0, c, THICKNESS * 1.04), stone_color(rng) * 1.05, rng, "lintel")
+	var wood := boarded()
+	_part(s, o.head + c * 0.5, Vector3(half * 2.0 + LINTEL_EAR * 2.0, c, THICKNESS * 1.04), _trim(wood, rng), rng, "beam" if wood else "lintel")
 	if not o.door:
-		_part(s, o.sill + 0.04, Vector3(half * 2.0 + 0.16, 0.08, THICKNESS + 0.1), stone_color(rng) * 1.05, rng, "sill")
+		_part(s, o.sill + 0.04, Vector3(half * 2.0 + 0.16, 0.08, THICKNESS + 0.1), _trim(wood, rng), rng, "beam" if wood else "sill")
 	# The surround's back lies on a plaster wall's face, and its front stands proud of a stone one's.
 	var back := THICKNESS * 0.5 - PLASTER_INSET
 	var front := THICKNESS * 0.5 + 0.025
+	var casing := WOOD if wood else PLASTER
 	for face in [-1.0, 1.0]:
 		for edge in [-1.0, 1.0]:
-			_part(s + edge * (half + 0.09), o.sill + tall * 0.5, Vector3(0.18, tall, front - back), PLASTER * rng.randf_range(0.94, 1.02), rng, "plaster", face * (back + front) * 0.5)
+			_part(s + edge * (half + 0.09), o.sill + tall * 0.5, Vector3(0.18, tall, front - back), casing * rng.randf_range(0.94, 1.02), rng, "frame" if wood else "plaster", face * (back + front) * 0.5)
 		if not o.door:
-			_part(s, o.sill - 0.1, Vector3(half * 2.0 + 0.36, 0.14, front - back), PLASTER * rng.randf_range(0.94, 1.02), rng, "plaster", face * (back + front) * 0.5)
+			_part(s, o.sill - 0.1, Vector3(half * 2.0 + 0.36, 0.14, front - back), casing * rng.randf_range(0.94, 1.02), rng, "frame" if wood else "plaster", face * (back + front) * 0.5)
 	var n: int = o.lights
 	var light := (half * 2.0 - (n - 1) * MULLION) / n
 	for i in n:
@@ -1176,6 +1206,11 @@ func _lay_opening(o: Dictionary, rng: RandomNumberGenerator, bottom: float) -> v
 			_lay_door(at, o.sill, light, tall, rng)
 		else:
 			_lay_window(at, o.sill, light, tall, rng)
+
+
+## An opening's head or sill: oak in a boarded wall, else stone.
+static func _trim(wood: bool, rng: RandomNumberGenerator) -> Color:
+	return TimberFrame.OAK * rng.randf_range(0.88, 1.12) if wood else stone_color(rng) * 1.05
 
 
 ## A casement set back in the wall.
@@ -1279,8 +1314,14 @@ func _build_fence(rng: RandomNumberGenerator) -> void:
 		var prev := all[i - 1]
 		if arched.any(func(a): return a > prev and a < s):
 			continue
+		if finish == Finish.BOARDS_ACROSS:
+			for y in FENCE_BOARDS:
+				_rail(prev, s, y + 0.12, Vector3(-0.12, FENCE_BOARD_TALL, 0.03), WOOD * rng.randf_range(0.8, 1.1), "board")
+			continue
 		for y: float in [0.45, 0.85]:
 			_rail(prev, s, y + 0.12, Vector3(0.06, 0.08, 0.05), WOOD * rng.randf_range(0.8, 1.1))
+		if finish == Finish.BOARDS_UPRIGHT:
+			_lay_pales(prev, s, rng)
 	for a in arched:
 		var r := ARCH_HALF + 0.08
 		var squash := 0.5
@@ -1298,6 +1339,17 @@ func _build_fence(rng: RandomNumberGenerator) -> void:
 		if not lit.has(s):
 			lit.append(s)
 			_lay_lantern(s, frame_at(s).point + Vector3.UP * (FENCE_HEIGHT + 0.25), Vector3.ZERO, rng)
+
+
+## Upright planks nailed to a fence's rails between the posts at `a` and `b`, on its +1 face, standing clear of the
+## ground and a little over the top rail.
+func _lay_pales(a: float, b: float, rng: RandomNumberGenerator) -> void:
+	var n := maxi(1, roundi((b - a - 0.13) / FENCE_PALE))
+	var step := (b - a - 0.13) / n
+	for i in n:
+		var s := a + 0.065 + step * (i + 0.5)
+		var tall := FENCE_HEIGHT - 0.05 + rng.randf_range(-0.02, 0.02)
+		_part(s, 0.08 + tall * 0.5, Vector3(step - BOARD.y, tall, 0.025), WOOD * rng.randf_range(0.8, 1.1), rng, "board", 0.04)
 
 
 static func stone_color(rng: RandomNumberGenerator) -> Color:
@@ -1341,10 +1393,85 @@ func _cut_span(spans: Array, lo: float, hi: float) -> Array:
 
 
 func plaster_at(y: float) -> bool:
-	return foundation == Foundation.PLASTER if y < 0.0 else plaster and y > 0.0
+	return foundation == Foundation.PLASTER if y < 0.0 else plastered() and y > 0.0
 
 
-func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: RandomNumberGenerator) -> void:
+## Whether the faces are plaster, framed in timber or not.
+func plastered() -> bool:
+	return finish == Finish.PLASTER or finish == Finish.TIMBER
+
+
+## Whether the faces are wooden planks.
+func boarded() -> bool:
+	return finish == Finish.BOARDS_ACROSS or finish == Finish.BOARDS_UPRIGHT
+
+
+## Whether planks face the wall `y` over its foot: over its first course, which stays stone, as under plaster.
+func boards_at(y: float) -> bool:
+	return boarded() and y > 0.0
+
+
+## The stretches of the course `y` up whose plaster has worn back to the stones: `wear` of the face over the wall's
+## height, more toward the foot and less toward the top, taken where a noise over the face is lowest, so the patches
+## carry on from course to course.
+func _worn(y: float) -> PackedVector2Array:
+	var total := length()
+	var n := maxi(1, ceili(total / WORN_STEP))
+	var take := roundi(clampf(wear * (1.5 - y / height), 0.0, 1.0) * n)
+	var out := PackedVector2Array()
+	if take == 0:
+		return out
+	var order := range(n)
+	var scores := order.map(func(i: int) -> float: return _wear_noise((i + 0.5) * total / n, y))
+	order.sort_custom(func(a: int, b: int) -> bool: return scores[a] < scores[b] or scores[a] == scores[b] and a < b)
+	var worn := PackedByteArray()
+	worn.resize(n)
+	for i in take:
+		worn[order[i]] = 1
+	var i := 0
+	while i < n:
+		var j := i
+		while j < n and worn[j] == worn[i]:
+			j += 1
+		if worn[i] == 1:
+			out.append(Vector2(i, j) * total / n)
+		i = j
+	return out
+
+
+## Smooth noise over the face at `s` along it and `y` up, 0 to 1: two octaves of value noise from the wall's seed.
+func _wear_noise(s: float, y: float) -> float:
+	var total := 0.0
+	for octave in 2:
+		var p := Vector2(s / WORN_PATCH.x, y / WORN_PATCH.y) * (1 << octave)
+		var c := p.floor()
+		var f := p - c
+		f = f * f * (Vector2.ONE * 3.0 - f * 2.0)
+		var x := int(c.x)
+		var z := int(c.y)
+		var low := lerpf(_wear_at(octave, x, z), _wear_at(octave, x + 1, z), f.x)
+		var high := lerpf(_wear_at(octave, x, z + 1), _wear_at(octave, x + 1, z + 1), f.x)
+		total += lerpf(low, high, f.y) * (0.65 if octave == 0 else 0.35)
+	return total
+
+
+func _wear_at(octave: int, x: int, z: int) -> float:
+	return float(hash([seed, "wear", octave, x, z]) % 1024) / 1023.0
+
+
+## Where the `spans` meet the `stretches`, each grown by `grow` either way.
+static func _within(spans: Array, stretches: PackedVector2Array, grow: float) -> Array:
+	var out := []
+	for sp in spans:
+		for t in stretches:
+			var lo := maxf(sp[0], t.x - grow)
+			var hi := minf(sp[1], t.y + grow)
+			if hi - lo > 0.001:
+				out.append([lo, hi])
+	return out
+
+
+func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: RandomNumberGenerator, thick := THICKNESS) -> void:
 	var s := a
 	var first := true
 	while b - s > 0.001:
@@ -1354,15 +1481,15 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 			first = false
 		var l := minf(want, b - s)
 		var hj := h * rng.randf_range(0.9, 1.04)
-		var depth := THICKNESS * rng.randf_range(0.92, 1.05) + (PLINTH.x * 2.0 if y0 < 0.0 else 0.0)
+		var depth := thick * rng.randf_range(0.92, 1.05) + (PLINTH.x * 2.0 if y0 < 0.0 else 0.0)
 		_add(s + l * 0.5, y0 + h * 0.5, Vector3(l, hj, depth), rng, "block", PLINTH.y if y0 < 0.0 else 1.0, 0.035)
 		s += l
 
 
-## Mortar, or the selected plaster face, fills each band's spans `[y0, h, spans, broken, lintels]` as panels on cells
-## every band shares. Mortar stands JOINT back from the stones at every end a span leaves open, a ruin's, a doorway's or
-## the wall's own, and on the broken tops under the next band's; it runs on behind a lintel, standing up off the head
-## under it.
+## Mortar, or the selected plaster face, fills each band's spans `[y0, h, spans, broken, lintels, worn]` as panels on
+## cells every band shares; where plaster has worn away, mortar stands behind the stones laid there, as far back as they
+## are. Mortar stands JOINT back from the stones at every end a span leaves open, a ruin's, a doorway's or the wall's
+## own, and on the broken tops under the next band's; it runs on behind a lintel, standing up off the head under it.
 ## A panel runs straight between its cell's ends on the ground, so it climbs a slope rather than stepping, and is
 ## mitred into the next cell (`Masonry.Kind.write`'s `ends`), so a curved face stays closed and shades round. A panel
 ## with the same ends as the one below grows up instead of stacking on it.
@@ -1384,6 +1511,7 @@ func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 			# Stilts stand in the courses skipped between: no panel grows up across them.
 			below = {}
 		var face := plaster_at(y0)
+		var worn: PackedVector2Array = bands[j][5] if bands[j].size() > 5 else PackedVector2Array()
 		var spans: Array = bands[j][2]
 		var bare := _round(bands[j + 1][3] if j + 1 < bands.size() and bands[j + 1].size() > 3 and not face else PackedVector2Array())
 		var heads := PackedVector2Array()
@@ -1406,24 +1534,83 @@ func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 				var ends := Vector2(clampf(-turns[i], -1.0, 1.0) if left else 0.0, clampf(turns[i + 1], -1.0, 1.0) if right else 0.0)
 				for top in _pieces(a, b, bare):
 					for piece in _pieces(top[0], top[1], heads):
-						var key := "%d %.3f %.3f %s" % [i, piece[0], piece[1], face]
-						var p: Dictionary = below.get(key, {})
-						var e := Vector2(ends.x if piece[0] == a else 0.0, ends.y if piece[1] == b else 0.0)
-						if p.is_empty() or p.ends != e or piece[2]:
-							p = {"cell": c, "a": piece[0], "b": piece[1], "y0": y0 + (JOINT if piece[2] else 0.0), "face": face, "ends": e}
-							panels.append(p)
-						p.top = y0 + bands[j][1] + (-JOINT if top[2] else 0.02)
-						here[key] = p
+						for patch in _pieces(piece[0], piece[1], Array(worn)):
+							var plain: bool = face and not patch[2]
+							var key := "%d %.3f %.3f %s %s" % [i, patch[0], patch[1], plain, face]
+							var p: Dictionary = below.get(key, {})
+							var e := Vector2(ends.x if patch[0] == a else 0.0, ends.y if patch[1] == b else 0.0)
+							if p.is_empty() or p.ends != e or piece[2]:
+								p = {"cell": c, "a": patch[0], "b": patch[1], "y0": y0 + (JOINT if piece[2] else 0.0), "face": plain, "worn": face and patch[2], "ends": e}
+								panels.append(p)
+							p.top = y0 + bands[j][1] + (-JOINT if top[2] else 0.02)
+							here[key] = p
 		below = here
 	for p in panels:
 		var c: Dictionary = p.cell
 		var from: Vector3 = c.from.lerp(c.to, (p.a - c.a) / (c.b - c.a))
 		var to: Vector3 = c.from.lerp(c.to, (p.b - c.a) / (c.b - c.a))
 		var h: float = p.top - p.y0
-		var size := Vector3(p.b - p.a, h, thick - (PLASTER_INSET if p.face else JOINT) * 2.0)
+		var size := Vector3(p.b - p.a, h, (WORN_THICK if p.worn else thick) - (PLASTER_INSET if p.face else JOINT) * 2.0)
 		var basis := Basis(to - from, Vector3.UP * h, c.tangent.cross(Vector3.UP) * size.z)
 		var y: float = p.y0 + h * 0.5
-		stones.append({"xform": Transform3D(basis, (from + to) * 0.5 + Vector3.UP * y), "color": PLASTER if p.face else MORTAR, "kind": "plaster" if p.face else "mortar", "s": (p.a + p.b) * 0.5, "y": y, "size": size, "ao": 1.0 if plaster or p.face else 0.8, "variant": 0, "ends": p.ends})
+		stones.append({"xform": Transform3D(basis, (from + to) * 0.5 + Vector3.UP * y), "color": PLASTER if p.face else MORTAR, "kind": "plaster" if p.face else "mortar", "s": (p.a + p.b) * 0.5, "y": y, "size": size, "ao": 1.0 if plastered() or p.face else 0.8, "variant": 0, "ends": p.ends})
+
+
+## The rows of planks laid across a band `h` tall: as many as are BOARD.x tall or less.
+static func rows_of(h: float) -> int:
+	return maxi(1, ceili(h / BOARD.x - 1e-3))
+
+
+## A boarded wall's planks over each band `[y0, h, spans, ...]` above its foot, cut where its courses are (around its
+## openings, arches, pillars and ruins), on each straight `faces` stretch: across, in rows BOARD.x tall of staggered
+## lengths; or upright, side by side BOARD.x wide, each running up through the bands it spans whole. The mortar laid
+## behind them closes the gaps between them.
+func _lay_planks(bands: Array, faces: Array[Vector2], rng: RandomNumberGenerator) -> void:
+	var deep := THICKNESS - PLASTER_INSET * 2.0
+	var columns: Array[Dictionary] = []
+	var below := {}
+	var under := 0.0
+	for band: Array in bands:
+		var y0: float = band[0]
+		var h: float = band[1]
+		if not boards_at(y0):
+			continue
+		var here := {}
+		var rows := rows_of(h)
+		for span: Array in band[2]:
+			for face in faces:
+				var a := maxf(span[0], face.x)
+				var b := minf(span[1], face.y)
+				if b - a < BOARD.y * 2.0:
+					continue
+				if finish == Finish.BOARDS_ACROSS:
+					for r in rows:
+						rng.seed = hash([seed, "board", y0, r, a])
+						var s := a
+						var want := rng.randf_range(0.3, 1.0) * BOARD_RUN.y * _stone_scale
+						while b - s > BOARD.y * 2.0:
+							var l := minf(want, b - s)
+							_part(s + l * 0.5, y0 + h * (r + 0.5) / rows, Vector3(l - BOARD.y, h / rows - BOARD.y, deep), WOOD * rng.randf_range(0.85, 1.1), rng, "board")
+							s += l
+							want = rng.randf_range(BOARD_RUN.x, BOARD_RUN.y) * _stone_scale
+					continue
+				for i in range(floori(a / BOARD.x), ceili(b / BOARD.x)):
+					var lo := maxf(a, i * BOARD.x)
+					var hi := minf(b, (i + 1) * BOARD.x)
+					if hi - lo < BOARD.y * 2.0:
+						continue
+					var key := Vector2(lo, hi)
+					var column: Dictionary = below.get(key, {}) if absf(under - y0) < 1e-3 else {}
+					if column.is_empty():
+						column = {"a": lo, "b": hi, "y0": y0}
+						columns.append(column)
+					column.top = y0 + h
+					here[key] = column
+		below = here
+		under = y0 + h
+	for c in columns:
+		rng.seed = hash([seed, "board", c.a, c.y0])
+		_part((c.a + c.b) * 0.5, (c.y0 + c.top) * 0.5, Vector3(c.b - c.a - BOARD.y, c.top - c.y0, deep), WOOD * rng.randf_range(0.85, 1.1), rng, "board")
 
 
 ## The stretches, and round a loop each one a lap either way too, in order.
@@ -1488,7 +1675,7 @@ func _lay_arch(a: float, size: float, rng: RandomNumberGenerator, bottom: float)
 	var mortar := RING * size + JOINT
 	var inner: float = 0.01 + ring * (1.0 - style.meet) * 0.5
 	var depth := THICKNESS * 1.04
-	var fill := THICKNESS - (PLASTER_INSET if plaster else JOINT) * 2.0 - 0.004
+	var fill := THICKNESS - (PLASTER_INSET if plastered() else JOINT) * 2.0 - 0.004
 	var head := arch_head(0.0, size)
 	var crown: Array = head[-1]
 	var key: Vector3 = style.keystone * Vector3(size, size, 1.0)
@@ -1496,7 +1683,7 @@ func _lay_arch(a: float, size: float, rng: RandomNumberGenerator, bottom: float)
 	var key_half := atan(key.x * 0.5 / (crown[1] + ring * 0.5))
 	var parts: Array[Dictionary] = []
 	var infill: Array[Dictionary] = []
-	var mortared := {"kind": "plaster" if plaster else "mortar", "jitter": 0.0}
+	var mortared := {"kind": "plaster" if plastered() else "mortar", "jitter": 0.0}
 	for side in [-1.0, 1.0]:
 		if jamb > 0.0:
 			parts.append(_arch_part(a + side * (ARCH_HALF * size + jamb * 0.5), (bottom + spring_y) * 0.5, Vector3(jamb, spring_y - bottom, depth), 0.0, style, rng))
@@ -1512,8 +1699,8 @@ func _lay_arch(a: float, size: float, rng: RandomNumberGenerator, bottom: float)
 	if crown[3] < PI * 0.5 - 1e-3:
 		infill.append(_crown_wedge(a, spring_y, crown, 0.0, arch_rise(0.0, size) + (inner + mortar) * 0.5, Vector3(0.0, mortar - inner, fill), -0.02, mortared, rng))
 	for st in infill:
-		st.color = PLASTER if plaster else MORTAR
-		st.ao = 1.0 if plaster else 0.8
+		st.color = PLASTER if plastered() else MORTAR
+		st.ao = 1.0 if plastered() else 0.8
 		st.variant = 0
 		stones.append(st)
 	parts.append(_crown_wedge(a, spring_y, crown, key_half, key_y, key, 0.0, style.merged({"kind": style.capstone}, true), rng))
@@ -1759,6 +1946,31 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		edge += 1.15
 
 
+## A timber-framed wall's walk, open to the sky: planks along its top in WALK_LANES runs of staggered lengths, under a
+## wooden railing, broken where a ruin is.
+func _lay_walk(rng: RandomNumberGenerator) -> void:
+	var faces := _face_spans()
+	var wide := THICKNESS + 0.16
+	for face in faces.size():
+		var spans := [[faces[face].x, faces[face].y]]
+		if not breaks.is_empty():
+			for b in breaks[-1]:
+				spans = _cut(spans, b.x, b.y)
+		for i in spans.size():
+			rng.seed = hash([seed, "walk", face, i])
+			var a: float = spans[i][0]
+			var b: float = spans[i][1]
+			for lane in WALK_LANES:
+				var s := a
+				var want := rng.randf_range(0.3, 1.0) * BOARD_RUN.y * _stone_scale
+				while b - s > BOARD.y * 2.0:
+					var l := minf(want, b - s)
+					_part(s + l * 0.5, height + CAP * 0.5, Vector3(l - BOARD.y, CAP, wide / WALK_LANES - BOARD.y), WOOD * rng.randf_range(0.85, 1.1), rng, "board", ((lane + 0.5) / WALK_LANES - 0.5) * wide)
+					s += l
+					want = rng.randf_range(BOARD_RUN.x, BOARD_RUN.y) * _stone_scale
+			_lay_railing(a, b, rng)
+
+
 func _lay_gables() -> void:
 	if gable == null or gable.kind != RoofLayout.Kind.GABLE or gable.flat() or cover != Cover.ROOF:
 		return
@@ -1775,7 +1987,7 @@ func _lay_gables() -> void:
 		rng.seed = hash([seed, "gable", i])
 		var mid: float = (end[0] + end[1]) * 0.5
 		var hs: float = (end[1] - end[0] + THICKNESS) * 0.5
-		match gable_end:
+		match GableEnd.BOARDS if boarded() else gable_end:
 			GableEnd.BOARDS:
 				_lay_boards(mid, hs, base, rng)
 				if not gable.thatch:
@@ -1784,7 +1996,7 @@ func _lay_gables() -> void:
 				_lay_crow_steps(mid, hs, base, h, rng)
 			_:
 				var rows: Array[Vector2] = []
-				while not plaster and gable.out_at((rows.size() + 1) * h, hs) >= 0.2:
+				while not plastered() and gable.out_at((rows.size() + 1) * h, hs) >= 0.2:
 					rows.append(Vector2(rows.size(), gable.out_at((rows.size() + 1) * h, hs)))
 				_lay_gable_rows(mid, hs, base, h, rows, rng)
 				if not TimberFrame.applies(self) and not gable.thatch:
@@ -1796,18 +2008,18 @@ func _lay_gables() -> void:
 ## the walls' outer faces on a block filling each corner; the mortar stops JOINT short of a course's ends, behind its stones.
 func _lay_gable_rows(mid: float, hs: float, base: float, h: float, rows: Array[Vector2], rng: RandomNumberGenerator) -> void:
 	var edge := hs - THICKNESS * 0.5
-	var inset := 0.0 if plaster else JOINT
+	var inset := 0.0 if plastered() else JOINT
 	for row in rows:
 		var y := base + row.x * h
 		var half := minf(row.y, edge)
 		var offset := (0.5 if int(row.x) % 2 == 0 else 0.0) * rng.randf_range(0.3, 0.6)
 		for span in _standing([[mid - half, mid + half]]):
-			if not plaster:
+			if not plastered():
 				_lay_course(span[0], span[1], y, h, offset, rng)
 			_lay_mortar([[y, h, [[span[0] + inset, span[1] - inset]]]])
 		if row.y > hs - 0.01:
 			for side in [-1.0, 1.0]:
-				_part(mid + side * edge, y + h * 0.5, Vector3(THICKNESS, h, THICKNESS), PLASTER if plaster else stone_color(rng), rng, "plaster" if plaster else "block", 0.0, 0.0, mid)
+				_part(mid + side * edge, y + h * 0.5, Vector3(THICKNESS, h, THICKNESS), PLASTER if plastered() else stone_color(rng), rng, "plaster" if plastered() else "block", 0.0, 0.0, mid)
 
 
 ## A stepped gable end `hs` out from the ridge each side, from the eaves up, as Vector3(half-width, first course,
@@ -1945,13 +2157,14 @@ func _lay_railing(a: float, total: float, rng: RandomNumberGenerator) -> void:
 			_rail(posts[i - 1], posts[i], y + h, Vector3(0.04, 0.08 if h == RAILS.y else 0.06, 0.06), WOOD * rng.randf_range(0.8, 1.1))
 
 
-## A wooden rail `y` up from the wall's line at `a` to it at `b`, `size` its overrun past them, its depth and thickness.
-func _rail(a: float, b: float, y: float, size: Vector3, color: Color) -> void:
+## A wooden rail, or a plank, `y` up from the wall's line at `a` to it at `b`, `size` its overrun past them, its depth
+## and thickness.
+func _rail(a: float, b: float, y: float, size: Vector3, color: Color, kind := "rail") -> void:
 	var p: Vector3 = frame_at(a).point + Vector3.UP * y
 	var q: Vector3 = frame_at(b).point + Vector3.UP * y
 	var x := (q - p).normalized()
 	var z := x.cross(Vector3.UP).normalized()
-	_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(p.distance_to(q) + size.x, size.y, size.z)), (p + q) * 0.5), color, "rail", (a + b) * 0.5)
+	_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(p.distance_to(q) + size.x, size.y, size.z)), (p + q) * 0.5), color, kind, (a + b) * 0.5)
 
 
 ## A corner pier from the bed up past the top; over posts, its footing stops `open` under the foot, at the foundation.
@@ -2037,7 +2250,7 @@ func perches() -> PackedVector3Array:
 
 
 ## What `build` reads but `gable`: a wall lays its copy of the gable from its roof and compares the roof's own inputs.
-const INPUTS: Array[StringName] = [&"points", &"height", &"rise", &"seed", &"closed", &"top", &"cover", &"fence", &"plaster", &"foundation", &"planks", &"gable_end", &"timber_style", &"openings", &"lanterns", &"flags", &"ruins", &"supports", &"resting", &"joined", &"older"]
+const INPUTS: Array[StringName] = [&"points", &"height", &"rise", &"seed", &"closed", &"top", &"cover", &"fence", &"finish", &"wear", &"foundation", &"planks", &"gable_end", &"openings", &"lanterns", &"flags", &"ruins", &"supports", &"resting", &"joined", &"older"]
 
 
 ## A copy of what `build` reads, to build on another thread while this one is edited.
@@ -2067,10 +2280,10 @@ func set_data(d: Dictionary) -> void:
 	closed = d.closed
 	top = d.top as Top
 	fence = d.fence
-	plaster = d.plaster
+	finish = d.finish as Finish
+	wear = d.wear
 	foundation = d.foundation as Foundation
 	planks = d.planks
-	timber_style = d.timber_style
 	gable_end = d.gable_end as GableEnd
 	openings.assign(Array(d.openings))
 	lanterns.assign(Array(d.lanterns))
@@ -2117,7 +2330,8 @@ func snapshot() -> WallLayout:
 	w.apertures = apertures.duplicate(true)
 	w.breaks = breaks.duplicate()
 	w.fence = fence
-	w.plaster = plaster
+	w.finish = finish
+	w.wear = wear
 	w.foundation = foundation
 	w.planks = planks
 	w.cover = cover

@@ -16,7 +16,7 @@ func _run() -> void:
 	await driver._bare({})
 	await driver._clear({})
 	var before: int = main.tool.walls.size()
-	await driver._house({"at": [-4, -3], "size": [5, 4], "rise": 1.5, "plaster": true, "timber_style": -1, "seconds": 0.3})
+	await driver._house({"at": [-4, -3], "size": [5, 4], "rise": 1.5, "finish": "plaster", "seconds": 0.3})
 	await driver._standing()
 	check(main.tool.walls.size() == before + 1, "the following foundation fixture is actually built")
 	var step := {"from": [-4, 0.7, 2], "at": [-4, 0.7, -3]}

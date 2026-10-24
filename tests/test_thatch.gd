@@ -272,7 +272,7 @@ func _thatch_is_part_of_the_build_command() -> void:
 
 
 func _the_budget_counts_thatch() -> void:
-	var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "plaster": false, "foundation": 0, "planks": false, "gable_end": 0,
+	var d := {"points": WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "finish": WallLayout.Finish.BARE, "wear": 0.0, "foundation": 0, "planks": false, "gable_end": 0,
 		"lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.GABLE, "radius": 2.0, "pitch": 2.0, "curve": 0.0, "chimneys": [], "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": true}}
 	var plan := (6.0 + WallLayout.THICKNESS + 2.0 * RoofLayout.GABLE_OVERHANG) * (4.0 + WallLayout.THICKNESS + 2.0 * RoofLayout.OVERHANG)
 	var hs := 2.0 + WallLayout.THICKNESS * 0.5
@@ -284,7 +284,7 @@ func _the_budget_counts_thatch() -> void:
 	d.roof.pitch = 9.0
 	var steep: float = Budget.wall(d).get("roof_m2", 0.0)
 	check(is_equal_approx(steep, plan * sqrt(1.0 + pow(9.0 / hs, 2.0))) and steep > plan * 4.0, "a 9 m rise counts its long slopes, over four times its plan: %.1f m² over %.1f" % [steep, plan])
-	var tower := {"points": WallLayout.circle(Vector3.ZERO, 2.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "plaster": false, "foundation": 0, "planks": false, "gable_end": 0,
+	var tower := {"points": WallLayout.circle(Vector3.ZERO, 2.0), "closed": true, "height": 2.4, "rise": 0.0, "fence": false, "finish": WallLayout.Finish.BARE, "wear": 0.0, "foundation": 0, "planks": false, "gable_end": 0,
 		"lanterns": [], "flags": [], "roof": {"kind": RoofLayout.Kind.CONE, "radius": 2.0, "pitch": 9.0, "curve": 0.0, "chimneys": [], "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}}
 	var disc := PI * pow(hs + RoofLayout.OVERHANG, 2.0)
 	check(is_equal_approx(Budget.wall(tower).roof_m2, disc * sqrt(1.0 + pow(9.0 / hs, 2.0))), "a cone counts its surface, not its disc: %s" % Budget.wall(tower))

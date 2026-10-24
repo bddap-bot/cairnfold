@@ -281,7 +281,7 @@ class Near:
 		for w in walls:
 			if _in_wall(p, w, with_facing):
 				var l := w.layout
-				return Surface.WOOD if l.fence else (Surface.PLASTER if l.plaster else Surface.STONE)
+				return Surface.WOOD if l.fence or l.boarded() else (Surface.PLASTER if l.plastered() else Surface.STONE)
 		for r in roofs:
 			var below := p.y - r.height_at(p.x, p.z) + ROOF_SHELL * 0.5
 			if r.over(p.x, p.z) and absf(below) < ROOF_SHELL * 0.5 + RADIUS:

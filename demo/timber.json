@@ -1,6 +1,6 @@
 [
  {"op":"place","x":0,"z":14},
- {"op":"house","at":[0,0],"size":[7,5],"plaster":true,"seconds":0.5},
+ {"op":"house","at":[0,0],"size":[7,5],"finish":"timber","seconds":0.5},
  {"op":"fit","what": "opening","index":0,"s":1.8,"y":1.5},
  {"op":"fit","what": "opening","index":0,"s":5.2,"y":1.5},
  {"op":"fit","what": "opening","index":0,"s":9.5,"y":1.5},

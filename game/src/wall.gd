@@ -91,7 +91,9 @@ var _perch_out := {}
 ## stone or tile does, at a ninth of the triangles. Far off, a tile is a plain box too: from the air a roof's rounded
 ## tiles cost the Quest 2 ten times what plain ones do. Mortar only shows in the gaps, so it is a plain box too. A
 ## thatched roof's coat is a mesh of its own, from rows RoofLayout.FAR_STEP apart past the near distance; its slabs cast
-## its shadow and stand in it for the bounce light. A timber is a plain box near, where a stone's lumps would cost it nine times the triangles; far it is the coarse
+## its shadow and stand in it for the bounce light. A timber, and a sawn plank of a boarded wall, gable or fence, is a
+## plain box near, where a stone's lumps would cost it nine times the triangles and read no different on planed wood;
+## far it is the coarse
 ## stone in a shader that reads nothing per pixel, since a few pixels wide its shading is what it costs. A floor's
 ## flags and planks are drawn as timbers are, but lie in the walls' own shade and the light around them: they cast
 ## no shadow and shade no bounce light, which reads a room's builds from its roof down.
@@ -208,7 +210,7 @@ func data() -> Dictionary:
 		"points": PackedVector3Array(layout.points), "height": layout.height, "rise": layout.rise,
 		"seed": layout.seed, "closed": layout.closed, "top": int(layout.top), "fence": layout.fence,
 		"openings": PackedVector4Array(layout.openings), "lanterns": PackedVector3Array(layout.lanterns), "flags": PackedFloat32Array(layout.flags),
-		"ruins": PackedVector2Array(layout.ruins), "plaster": layout.plaster, "foundation": int(layout.foundation), "planks": layout.planks, "gable_end": int(layout.gable_end), "timber_style": layout.timber_style, "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
+		"ruins": PackedVector2Array(layout.ruins), "finish": int(layout.finish), "wear": layout.wear, "foundation": int(layout.foundation), "planks": layout.planks, "gable_end": int(layout.gable_end), "on": PackedInt32Array(on), "paint": PackedInt32Array(paint),
 	}
 	if roof != null:
 		d.roof = {"kind": int(roof.kind), "center": roof.center, "radius": roof.radius, "pitch": roof.pitch, "curve": roof.curve, "seed": roof.seed, "chimneys": PackedVector2Array(roof.chimneys), "dormers": PackedVector2Array(roof.dormers), "overhang": roof.overhang, "deck": int(roof.deck), "flag": roof.flag, "thatch": roof.thatch}
@@ -497,7 +499,7 @@ func _pack_roof(roofed := {}) -> void:
 		_parts[Part.MORTAR] = _wall_mortar + roofed.mortar
 		_chunked[Part.MORTAR] = Masonry.split(_parts[Part.MORTAR], kinds()[Part.MORTAR])
 	_fittings.lay(layout.flames, layout.cloths + roof.cloths)
-	var plastered := layout.plaster and layout.gable_end == WallLayout.GableEnd.WALL
+	var plastered := layout.plastered() and layout.gable_end == WallLayout.GableEnd.WALL
 	var faces := [roof.coat, roof.gable_faces if plastered else PackedVector3Array(), roof.torching_faces, roof.timber_faces]
 	if faces == _faced:
 		return
@@ -537,7 +539,7 @@ static func _faces_mesh(tris: PackedVector3Array, flat_normals := false) -> Arra
 ## arguments, so it runs on a worker thread.
 static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Dictionary:
 	var route := func(s: Dictionary) -> Array:
-		var own := Part.MORTAR if s.kind in ["mortar", "plaster", "bed"] else Part.TIMBER if s.kind == "timber" else Part.FLOOR if s.kind in ["flagstone", "plank"] else Part.STONE
+		var own := Part.MORTAR if s.kind in ["mortar", "plaster", "bed"] else Part.TIMBER if s.kind in ["timber", "board"] else Part.FLOOR if s.kind in ["flagstone", "plank"] else Part.STONE
 		return [own] if s.kind == "mortar" or s.kind in WallLayout.FLOOR_KINDS else [own, Part.STONE_SHADOW]
 	var bufs := _pack_parts(built.stones, route, ks, colours)
 	var box := AABB(built.samples[0] if built.samples.size() > 0 else Vector3.ZERO, Vector3.ZERO)

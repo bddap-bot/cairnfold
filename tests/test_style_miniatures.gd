@@ -24,7 +24,7 @@ func _run() -> void:
 	var until := Time.get_ticks_msec() + 60000
 	while roof.get_child_count() == 0 and Time.get_ticks_msec() < until:
 		await process_frame
-	var made := ToolModels._style(PaletteTool.Restyle.ROOF, WallTool.RoofStyle.THATCHED, false, false, false, false)
+	var made := ToolModels._style(PaletteTool.Restyle.ROOF, WallTool.RoofStyle.THATCHED, false, false, false, false, false)
 	check(roof.get_child_count() > 0 and roof.get_child_count() == made.get_child_count(), "the worker fills it with the pieces a build on the frame lays")
 	made.free()
 	var again := ToolModels.style(PaletteTool.Restyle.ROOF, WallTool.RoofStyle.THATCHED, false)

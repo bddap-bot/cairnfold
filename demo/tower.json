@@ -3,7 +3,7 @@
   {"op": "place", "x": 0, "z": 12},
   {"op": "view", "eye": [0, 3.5, 7], "at": [0, 2.2, -2]},
   {"op": "house", "round": true, "from": [-3, -2], "at": [0, -2], "size": [5.5, 5.5], "seconds": 2, "capture": "01-carrying", "shots": 3},
-  {"op": "house", "round": true, "plaster": true, "at": [7, -6], "size": [3.4, 3.4], "seconds": 0.5},
+  {"op": "house", "round": true, "finish": "timber", "at": [7, -6], "size": [3.4, 3.4], "seconds": 0.5},
   {"op": "house", "at": [-9, -4], "size": [6, 3.7], "turn": 20, "seconds": 0.5},
   {"op": "wait", "seconds": 3},
   {"op": "label", "name": "views"},

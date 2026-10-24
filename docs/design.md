@@ -2219,7 +2219,8 @@ Stage numbers refer to the build order at the end.
 | --- | --- | --- | --- |
 | Freehand walls | Drag on the ground; gridless, follows terrain, stroke speed sets corner sharpness; bricks laid by GPU compute | Hold trigger and sweep the pointer over the ground (from the ground or from the air). The stroke is Catmull-Rom smoothed and courses of individual stones are laid live while you draw. A stroke near a standing wall merges into it (see "Walls meeting walls") | 1 (done) |
 | Wall height | Height gizmo; walls from very low to very high | Grip a wall with both hands, one over the other, and draw them apart or together; height snaps to whole stone courses, so it grows and shrinks a row at a time. One hand's grip carries and turns the wall; two spread along it draw it longer or shorter | 1 (done) |
-| Wall tops | Merlons on flat tops, can be turned off; wooden railings on half-timber | Per wall: capping slabs with merlons, plain capping, dry-stone coping (stones on edge, tall and short in turn), or a wooden railing on the capping (posts at most 1.4 m apart between the piers, a top rail and a middle one); the style tool on a roofless wall's top picks one | 1 (done), 4 (done), 13 (done) |
+| Wall tops | Merlons on flat tops, can be turned off; wooden railings on half-timber | Per wall: capping slabs with merlons, plain capping, dry-stone coping (stones on edge, tall and short in turn), or a wooden railing on the capping (posts at most 1.4 m apart between the piers, a top rail and a middle one); the style tool on a roofless wall's top picks one. A half-timbered wall's walk is boarded and always railed in wood (see "Wall finishes") | 1 (done), 4 (done), 13 (done), 16 (done) |
+| Wall finishes | Stone, plaster worn back to the stone, half-timbering, planks across or upright | The style tool's face wheel (the colour tool's picker with styles) on a wall, house or fence: stone; plaster, whole or worn back to the stones by a quarter, a half or three quarters; half-timbering, its walk boarded under a wooden railing; or planks laid across or upright, cut round the windows, doors and arches; a fence takes rails or planks across or upright. See "Wall finishes" | 16 (done) |
 | Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | A wall drawn over a tree or bush arches over it, shown live while drawing; one of 5 m or more over open ground opens an arch at the middle; the arch tool (its icon a wall with an archway through it) cuts an archway where it points on a wall, in the wall's own style (`WallLayout.ARCH_STYLES`: a round stone ring of tapered voussoirs closed by a keystone, every joint running through the arch's centre as a built arch's do, the wedges pressed face to face with no mortar between them (`WallLayout.MEET`), or on a timber-framed house a four-centred oak head on oak posts, framed by a stud either side and a rail above; the wall's level courses are cut to the arch's one outline, so they meet it with no gap), and on an arch of the wall's own (not a path's) fills it again, one undo step either way. Each opening carries a size, 1 a doorway's, down to a pet door's 0.4 (`WallLayout.openings`): a door's height counts from the floor it opens onto, so a floor raised over higher ground inside takes none of it; an arch of size k is the doorway's scaled k times, ring, voussoirs, keystone and posts, laid round by the wall's courses through the same outline, so a grand arch still reads as built. Wall chemistry, in either order (a path laid through a wall, or a wall drawn across a path): one arch where they cross, or, where the crossing runs 2.8 m or more along the wall (a wide path, or one meeting it at a slant), an arcade of arches 2.3 m apart on stone pillars. A crossing beside an arch already there joins it as an arcade, so no opening closes; undoing the path closes the arches it opened | 1 (done), 5 (done) |
 | Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends and at the corners of a house | 1 (done), 4 (done) |
 | Paths | Dirt strokes and wall crossings | Dirt strokes wear soft-edged earth into the ground mask and open arches or gates through walls and fences | 5 (done) |
@@ -2230,7 +2231,7 @@ Stage numbers refer to the build order at the end.
 | Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, with lime torching under the tiles so no sky shows between them from inside. From outside every joint lies over a tile (each tile runs up under the two rows above, the eave row lies on an under-course, a cone's tiles lap their neighbours), and the walls' stones stop under the slopes at any pitch. A gable end continues the wall below it: a stone house's courses carry on up under the slopes, a plaster house's plaster does, and on both a verge of stones runs up each rake over the courses' ends (European town houses of Cotswold stone or Provençal plaster). The style tool on a gable end picks that house's gable ends, and houses laid after take it: the wall carried up; boarded, upright planks under a barge board up each rake (a barn's end), painted as woodwork; or crow-stepped, the stone courses or plaster climbing past the slopes in capped steps, the roof stopping inside them. The gable ends count against the budget at the face each style lays, as wall (boards as stone wall: laid as stones are, fewer). Two grips on a roof, whatever the hands hold: drawn apart upright they raise the ridge and together lower it; spread across they bow the slopes out, squeezed together inward (`RoofLayout`). Brought all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top then takes a style like an open wall's. The style tool offers tile or thatch on a pitched roof and a stone or wooden deck on a flat roof; only grabbing and pulling changes between flat and pitched, a tower's cone as a house's gable (see "Thatch"). Two grips on the eaves, past the walls, pull them out or push them back; pulled far on low walls the slopes come down to the ground like a tent. The windows tool on a gable's slope opens a dormer (see "Flat roofs, platforms and dormers") | 4 (done), 13 (done) |
 | Windows, doors | Cottage and gothic families that fuse, adapt and wear the plaster around them; doors where windows meet the ground | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. While it points, the wall stands as the press would leave it, laid by the same code. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light. Pointed at a gable roof's slope it opens a dormer instead (see "Flat roofs, platforms and dormers"). A grip on a placed one carries it along its wall, a window up and down it too, and two size it (see "Moving a fitting") | 6 (done), 13 (done) |
 | Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | The decorations tool's trigger places what suits where it points: a stone chimney with two clay pots on a house's roof, rising clear of the ridge; a flag on a tower's roof or a wall's top, waving; a lantern on an iron arm off a wall's face, or on a fence post. Lanterns are emissive bodies in a soft additive halo, and every one lights the ground and walls around it (see "Lantern light"). A press on one takes it away; a grip carries it over what it stands on (see "Moving a fitting") | 6 (done) |
-| Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | The fence tool draws like walls (same stroke, merging and junctions) with a wooden profile: posts at most 1.6 m apart and two rails between. A path through a fence, in either order, opens a gate: two tall posts under a bent wooden arch | 6 (done) |
+| Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | The fence tool draws like walls (same stroke, merging and junctions) with a wooden profile: posts at most 1.6 m apart and two rails between, or planks (see "Wall finishes"). A path through a fence, in either order, opens a gate: two tall posts under a bent wooden arch | 6 (done), 16 (done) |
 | Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces (a house or tower under a roof or deck only its outer one: [inside before and after, outside after](ivy.jpg)), wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`), kept out of windows and doors too | 3 (done), 6 (done) |
 | Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers grow in clumps about 1.3 m across, each one of nine soft colours (white, butter, peach, pinks, lavender, violet, blues), so a stroke paints a few colour patches with nothing to pick | 1 (done), 3 (done) |
 | Trees, bushes | Placed one at a time, random look, billboards that suggest leaves | Procedural trunks and lumpy foliage blobs in five species the style tool picks per tree; the trigger of a hand holding the tree tool plants an oak where it points. The tree's entry on the wheel opens two, trees and bushes; a bush is one blob like the meadow's own, placed through the same command, save and budget as a tree. Directive (verbatim): "Can you give us a way to place bushes, not just trees"; a grip on a tree or bush, the meadow's own too, carries it along the ground, and two grips on a tree size it by their span (see "Moving and sizing a tree") | 1 (done), 3 (done) |
@@ -3148,8 +3149,8 @@ thing opens a wheel of miniatures of that thing's styles, twisting the wrist tur
 build live, and letting go keeps the one at the top, one undo step. What it offers depends on what it points
 at: a gable end, its house's gable ends (the wall's, boarded, crow-stepped; houses laid after take it); a
 house's or tower's roof, its covering: tile or thatch on a pitched roof or a cone (see "Thatch"), a stone or wooden deck on a flat one, since only grabbing and pulling changes its shape; a roofless
-wall's top, merlons, plain capping or coping; a wall's face, stone or plaster, and on a house the timber framings
-(walls and houses laid after take the material turned to last); a house's or tower's floor, flags or boards, apart
+wall's top, merlons, plain capping or coping; a wall's or fence's face, its finish (see "Wall finishes"; walls, houses
+and fences laid after take the finish turned to last); a house's or tower's floor, flags or boards, apart
 from its walls (see "Floors"); a flight or landing, its railings, stone, wooden or
 none (stairs laid after take them); painted stone or a boulder, its stone style from the one table (see "Ground materials"; stone painted and boulders set down after take it); a tree, its species: an oak's round crown, a
 fir's dark cone, a poplar's column, a birch's pale trunk under a light open crown, a copper beech's low
@@ -3157,7 +3158,7 @@ wine-red dome. Every species is the same trunk and eight foliage blobs placed di
 species in the slots it holds and a forest costs what it did: on a Quest 2, `demo/forest.json`'s full tree
 pool drew 24.3 ms of GPU a frame with every species in turn, against 25.2 ms all oaks. Planted trees and the meadow's own are oaks
 until styled. A tree's size is apart from its species: two grips grow or shrink it in the slots it holds (see "Moving and sizing a tree"),
-and the frame budget charges one unit per planted tree at every scale (the measured fit below). Fences, ladders and bushes have no style. The style tool only restyles: it never cuts or fills an opening, which
+and the frame budget charges one unit per planted tree at every scale (the measured fit below). Ladders and bushes have no style. The style tool only restyles: it never cuts or fills an opening, which
 is the windows' and the arch's work. Report (verbatim): "I dont understand why the style selector is adding
 doorways. It seems the style selector seems to add archways to the house for some reason. Is that an
 accident" Directive (verbatim): "Yeah that would make more sense." (to taking arches off the style wheel as
@@ -3304,6 +3305,7 @@ the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
 13. Flat roofs and platforms, railings, eaves and tents, dormers. (Done.)
 14. Standing on what you built: wall walks, flat roofs, platforms, stairs and bridges. (Done.)
 15. Round and raised houses: round footprints, stone pillars and timber posts and beams on a foundation the grip raises. (Done.)
+16. Wall finishes: worn plaster, half-timbered walls with railed walks, planks across or upright, planked fences. (Done.)
 
 ## Water
 
@@ -4587,17 +4589,15 @@ most of the stress scene's phases.
 
 Directive (verbatim): "I like timbered on plaster houses in general, even the walls of plaster houses."
 
-Rectangular plaster houses have dark oak sole plates, corner posts, opening studs,
+Rectangular plaster houses, and open walls, have dark oak sole plates, corner posts, opening studs,
 head and sill rails, mid rails and braces. The wall's resolved openings drive the
 frame; resizing moves the openings and regenerates the frame together. Gable
 posts continue the wall's post positions, with rails and rakes following the roof.
 Stone houses retain their existing masonry. Boarded gables retain their boards;
 stepped plaster gables keep their crow steps above the framing.
 
-Fachwerk crosses in both rows are the timber pattern. The Style tool's face wheel offers
-stone, plain plaster and timber. Plain plaster switches the framing off explicitly.
-Existing timber choices load as Fachwerk; the choice is retained through
-save, undo, visits and resize. Point the colour tool at a beam to choose its dark
+Fachwerk crosses in both rows are the timber pattern. Timber is one of the face wheel's finishes (see "Wall
+finishes"); the choice is retained through save, undo, visits and resize. Point the colour tool at a beam to choose its dark
 oak colour independently of plaster, window frames and doors.
 
 `demo/timber.json` captures the front, gable and lantern-lit dusk view.
@@ -4710,6 +4710,37 @@ arches at doorway, 4 m, and near-wall-spanning sizes. Its four-house arch sectio
 measures 27.50 ms aerial and 15.84 ms ground in the runtime timer, also an
 unbounded sweep rather than a refresh-rate pass.
 
+
+## Wall finishes
+
+A build's faces are one `WallLayout.Finish`, with `wear` for plaster: the face wheel of the style tool, which is the
+colour tool's picker with styles (`PaletteTool.FACES`), offers each on a wall or house, and rails or planks on a fence.
+Walls, houses and fences laid after take the finish let go last. The colour tool colours each as its material: stone,
+plaster, the oak of a frame, and planks as woodwork.
+
+- **Worn plaster** shows the stones behind it over a quarter, a half or three quarters of the face above its stone foot
+  course, more toward the foot (each course's share is `wear` × (1.5 − its height over the wall's)), taken where a
+  smooth noise over the face is lowest, so the patches carry on from course to course. Stones laid there stand back
+  3 cm behind the plaster's face on mortar set back as far, and run 4 cm on under the plaster round each patch. The
+  gable ends stay whole.
+- **Half-timbering** frames plaster in oak on a house's outer faces, and on both faces of an open wall, straight or
+  curved: there each member lies on the face through its own middle, and the rails break at every post. Its walk is
+  boarded in three runs of planks under a wooden railing, where a player stands, and a ruin breaks the frame, walk and
+  railing with the courses.
+- **Planks** across lie in rows two to a course, staggered 0.9 to 1.8 m long; upright, side by side 0.2 m wide, each
+  running up through every course it spans whole. Either is cut where the courses are, round windows, doors, arches,
+  pillars and ruins, over a stone foot course, with oak heads, sills and casings at the openings and a dark backing
+  behind the joints; a planked house's gable ends are boarded.
+- **Fences** take planks across, seven between each pair of posts in the rails' place, or upright on the rails.
+
+Planks, the walk's and a fence's included, are plain boxes drawn as timbers are. The budget charges worn plaster as
+plaster plus the stone it shows as stone wall, a planked wall as plaster for its backing plus each plank at
+`TIMBER_US`, a planked fence its planks besides its fence, and a timber frame its members on each face. Over the stress
+village (`demo/stress.json`'s `village` of 7 m spacing), the budget charges plain plaster 7.26 ms, timber 8.04,
+planks upright 8.42, across 9.76, and plaster worn by a quarter, a half and three quarters 8.12, 8.99 and 9.85 (stone
+10.14): the `finishes/aerial` and `finishes/ground` phases stand it in plaster worn by three quarters.
+`tests/test_finishes.gd` checks every finish clear of every opening on a house and a bent wall, the wear, the planks,
+the frame and walk, fences, the command, the budget, the wheel, `demo/finishes.json` and the stress village.
 
 ## Moss
 

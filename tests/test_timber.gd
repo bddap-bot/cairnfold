@@ -5,7 +5,7 @@ func _init() -> void:
 	var wall := Wall.new(1, null)
 	wall.layout.points = WallLayout.rectangle(Vector3.ZERO, Vector3(7, 0, 0), 5.0)
 	wall.layout.closed = true
-	wall.layout.plaster = true
+	wall.layout.finish = WallLayout.Finish.TIMBER
 	wall.layout.height = 4.5
 	wall.layout.openings = [Vector4(1.8, 1.5, 0, 1), Vector4(5, 0.4, 0, 1), Vector4(9.5, 1.5, 0, 1), Vector4(14, 3, 0, 1), Vector4(14.7, 3, 0, 1)]
 	wall.roof = RoofLayout.new()
@@ -27,7 +27,7 @@ func _init() -> void:
 		var parts := w.stones.filter(func(p): return p.kind == "timber")
 		check(parts.size() > 30, "timber frames walls and gables")
 		check(TimberFrame.count(d) == parts.size(), "budget counts the exact generated members after resize")
-		check(w.inputs().timber_style == 0 and w.same_inputs(w.inputs()), "worker inputs retain pattern")
+		check(w.inputs().finish == WallLayout.Finish.TIMBER and w.same_inputs(w.inputs()), "worker inputs retain pattern")
 		var copy := w.inputs()
 		copy.build(Terrain.flat)
 		check(copy.stones == w.stones, "layout and colour deterministic")
@@ -58,11 +58,11 @@ func _init() -> void:
 			proud[snappedf(out, 0.0001)] = proud.get(snappedf(out, 0.0001), {}).merged({TimberFrame.rank(p.beam): true})
 		check(proud.size() == 3 and proud.values().all(func(ranks: Dictionary) -> bool: return ranks.size() == 1), "posts, rails and braces each lie in their own plane: %s" % proud)
 		var stone := w.inputs()
-		stone.plaster = false
+		stone.finish = WallLayout.Finish.BARE
 		stone.build(Terrain.flat)
 		check(stone.stones.all(func(p): return p.kind != "timber"), "stone houses unchanged")
 	var plain := original.duplicate(true)
-	plain.timber_style = -1
+	plain.finish = WallLayout.Finish.PLASTER
 	check(TimberFrame.count(plain) == 0 and not Budget.wall(plain).has("timber"), "explicit plain plaster has no timber charge")
 	var charge := Budget.wall(original)
 	check(charge.timber > 0 and Budget.cost_ms({"timber": charge.timber}) > 0, "timber is charged separately")
@@ -72,7 +72,7 @@ func _init() -> void:
 	paint[Palette.Element.TIMBER] = 3
 	var timber := {"kind": "timber", "color": TimberFrame.OAK}
 	check(Wall._painted_as(timber, paint).is_equal_approx(Palette.swatch(Palette.Element.TIMBER, 3)), "timber uses its own oak family")
-	check(PaletteTool.styles(PaletteTool.Restyle.FACE) == 3, "stone, plain plaster and timber are selectable")
+	check(PaletteTool.FACES.any(func(f: Vector2) -> bool: return f == Vector2(WallLayout.Finish.TIMBER, 0.0)) and PaletteTool.FACES.any(func(f: Vector2) -> bool: return f == Vector2(WallLayout.Finish.PLASTER, 0.0)), "plain plaster and timber are selectable")
 	wall.free()
 	finish()
 

@@ -14,7 +14,7 @@ func _continuous() -> void:
 		arc.append(Vector3(cos(t) * 5.0, 0.0, sin(t) * 5.0))
 	w.points.assign(arc)
 	w.height = 3.0
-	w.plaster = true
+	w.finish = WallLayout.Finish.PLASTER
 	w.build(_hill)
 	var panels := w.stones.filter(func(s): return s.kind == "plaster")
 	check(panels.size() > 3, "a curved plaster wall lays panels")
@@ -45,9 +45,9 @@ func _init() -> void:
 			stone.openings.append_array([Vector4(2, 1.6, 0, 1), Vector4(10, 0.4, 0, 1)])
 			stone.build(Terrain.flat)
 			var plaster := stone.inputs()
-			plaster.plaster = true
+			plaster.finish = WallLayout.Finish.PLASTER
 			plaster.build(Terrain.flat)
-			check(plaster.inputs().plaster and plaster.snapshot().plaster, "workers preserve plaster")
+			check(plaster.inputs().finish == WallLayout.Finish.PLASTER and plaster.snapshot().finish == WallLayout.Finish.PLASTER, "workers preserve plaster")
 			check(not plaster.same_inputs(stone), "material invalidates cached layout")
 			check(plaster.archways() == stone.archways() and plaster.apertures == stone.apertures, "same arches, windows and doors")
 			check(plaster.stones.size() < stone.stones.size(), "plaster replaces stones instead of overlaying them")
@@ -62,16 +62,17 @@ func _init() -> void:
 			print("plaster: closed=%s cover=%d pieces %d -> %d" % [closed, cover, stone.stones.size(), plaster.stones.size()])
 	var wall := Wall.new(1, null)
 	wall.layout.points = [Vector3.ZERO, Vector3(8, 0, 0)]
-	wall.layout.plaster = true
+	wall.layout.finish = WallLayout.Finish.PLASTER
+	wall.layout.wear = 0.5
 	var data := wall.data()
 	var clean: Variant = Commands._wall(data)
-	check(clean != null and clean.plaster, "commands preserve plaster")
+	check(clean != null and clean.finish == WallLayout.Finish.PLASTER and clean.wear == 0.5, "commands preserve plaster and its wear")
 	var restored := Wall.new(2, null)
 	restored.set_data(clean)
-	check(restored.layout.plaster, "saved plaster restores")
-	data.erase("plaster")
+	check(restored.layout.finish == WallLayout.Finish.PLASTER and restored.layout.wear == 0.5, "saved plaster restores worn")
+	data.erase("finish")
 	check(Commands._wall(data) == null, "a wall without a material is rejected")
-	data.plaster = "yes"
+	data.finish = "plaster"
 	check(Commands._wall(data) == null, "reject malformed material")
 	wall.free()
 	restored.free()

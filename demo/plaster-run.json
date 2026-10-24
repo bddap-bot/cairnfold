@@ -1,8 +1,8 @@
 [
   {"op": "place", "x": 0, "z": 12},
   {"op": "sculpt", "x": -4, "z": -2, "lift": 2.5, "radius": 6, "seconds": 2},
-  {"op": "wall", "points": [[-12, -2], [4, -2]], "plaster": true, "seconds": 0.5},
-  {"op": "wall", "points": [[6, -4], [7.5, -1], [10, 0.5], [13, 0.8], [16, -0.5], [18, -3]], "plaster": true, "seconds": 0.5},
+  {"op": "wall", "points": [[-12, -2], [4, -2]], "finish": "plaster", "seconds": 0.5},
+  {"op": "wall", "points": [[6, -4], [7.5, -1], [10, 0.5], [13, 0.8], [16, -0.5], [18, -3]], "finish": "plaster", "seconds": 0.5},
   {"op": "wait", "seconds": 3},
   {"op": "view", "eye": [-2, 2.3, 1.2], "at": [-6, 1.8, -2]},
   {"op": "capture", "name": "01-straight-close"},

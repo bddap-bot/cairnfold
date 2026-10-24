@@ -118,9 +118,10 @@ var walls: Array[Wall] = []
 var paint := Palette.plain()
 ## The gable ends new houses are laid with: the style last turned to on this machine.
 var gable_end := WallLayout.GableEnd.WALL
-## Whether new walls and houses are laid in plaster: the face last turned to on this machine.
-var plaster := false
-var timber_style := 0
+## What new walls and houses are faced in, and how worn, and what new fences are: the faces last turned to on this machine.
+var finish := WallLayout.Finish.BARE
+var wear := 0.0
+var fence_finish := WallLayout.Finish.BARE
 ## Whether new houses' floors are laid in planks: the floor last turned to on this machine.
 var planks := false
 ## What new houses and towers stand on once raised: the foundation last turned to on this machine.
@@ -360,7 +361,8 @@ func begin_stroke(m: Mason, p: Vector3, on := -1) -> void:
 			standing.append(w.layout)
 	m.stroke.plan = WallPlan.new(standing, flora.obstacles() if on < 0 else PackedVector3Array(), randi())
 	m.stroke.plan.fence = m.hand.tool == Hand.Tool.FENCE
-	m.stroke.plan.plaster = plaster and not m.stroke.plan.fence
+	m.stroke.plan.finish = fence_finish if m.stroke.plan.fence else finish
+	m.stroke.plan.wear = 0.0 if m.stroke.plan.fence else wear
 	m.stroke.plan.planks = planks
 	m.stroke.plan.supports = _solids(m.stroke.on)
 	_dirty = true
@@ -466,10 +468,10 @@ static func stance(at: Vector3, yaw: float, round := false) -> Dictionary:
 func new_house(at: Dictionary, on := PackedInt32Array()) -> Wall:
 	var w := _new_wall()
 	w.on = on
-	w.layout.plaster = plaster and not at.round
+	w.layout.finish = WallLayout.Finish.BARE if at.round else finish
+	w.layout.wear = 0.0 if at.round else wear
 	w.layout.planks = planks
 	w.layout.foundation = foundation
-	w.layout.timber_style = timber_style
 	w.layout.gable_end = gable_end
 	w.layout.closed = true
 	w.layout.top = WallLayout.Top.CAP

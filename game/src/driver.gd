@@ -356,17 +356,21 @@ func _wall(s: Dictionary) -> void:
 	await _stroke(s, Hand.Tool.WALLS)
 
 
-## Walls and houses a step lays are plaster with `plaster`, else stone, floored in planks with `planks`, else flags,
-## and raised on a `foundation` ("plaster", "pillars" or "posts"), else a stone plinth, as if the style tool had last
-## turned a face, a floor and a foundation to them.
+## Walls, fences and houses a step lays are faced in its `finish` (a WallLayout.Finish: "plaster", worn by `wear`,
+## "timber", "boards_across" or "boards_upright"; a fence takes only the planks), else bare, floored in planks with
+## `planks`, else flags, and raised on a `foundation` ("plaster", "pillars" or "posts"), else a stone plinth, as if the
+## style tool had last turned a face, a floor and a foundation to them.
 func _lay_materials(s: Dictionary) -> void:
-	main.tool.plaster = s.get("plaster", false)
+	var finish := WallLayout.Finish[String(s.get("finish", "bare")).to_upper()] as WallLayout.Finish
+	main.tool.finish = finish
+	main.tool.wear = s.get("wear", 0.0)
+	main.tool.fence_finish = WallLayout.Finish.BARE if finish in [WallLayout.Finish.PLASTER, WallLayout.Finish.TIMBER] else finish
 	main.tool.planks = s.get("planks", false)
 	main.tool.foundation = WallLayout.Foundation[String(s.get("foundation", "stone")).to_upper()]
-	main.tool.timber_style = int(s.get("timber_style", 0))
 
 
 func _fence(s: Dictionary) -> void:
+	_lay_materials(s)
 	await _stroke(s, Hand.Tool.FENCE)
 
 

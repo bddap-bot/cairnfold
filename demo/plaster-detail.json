@@ -24,7 +24,7 @@
         0
       ]
     ],
-    "plaster": true,
+    "finish": "plaster",
     "seconds": 0.5
   },
   {
@@ -102,7 +102,7 @@
     "radius": 25,
     "spacing": 2,
     "height": 4.5,
-    "plaster": true
+    "finish": "plaster"
   },
   {
     "op": "wait",
@@ -158,7 +158,7 @@
     "op": "village",
     "radius": 20,
     "spacing": 7,
-    "plaster": true,
+    "finish": "timber",
     "gable": "wall"
   },
   {

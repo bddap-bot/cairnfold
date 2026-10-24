@@ -37,7 +37,7 @@ const MAX_SUPPORTS := 8
 ## What a `reshape` may change, by the garden's table of the builds it changes; `paint` and a wall's `roof` change
 ## by the entries they name.
 const RESHAPES := {
-	"walls": ["points", "height", "rise", "top", "plaster", "foundation", "planks", "gable_end", "timber_style", "openings", "lanterns", "flags", "ruins"],
+	"walls": ["points", "height", "rise", "top", "finish", "wear", "foundation", "planks", "gable_end", "openings", "lanterns", "flags", "ruins"],
 	"stairs": ["rail", "a", "b", "width", "on"],
 	"boulders": ["at", "turn", "sink", "scale", "style"],
 	"decorations": ["style", "at", "turn", "s"],
@@ -365,8 +365,11 @@ static func _wall(d: Variant) -> Variant:
 		return null
 	if typeof(d.get("fence")) != TYPE_BOOL:
 		return null
-	var plaster: Variant = d.get("plaster")
-	if typeof(plaster) != TYPE_BOOL or (plaster and d.fence):
+	var finish: Variant = d.get("finish")
+	if typeof(finish) != TYPE_INT or finish < 0 or finish >= WallLayout.Finish.size() or (d.fence and finish in [WallLayout.Finish.PLASTER, WallLayout.Finish.TIMBER]):
+		return null
+	var wear: Variant = d.get("wear")
+	if not _in(wear, Vector2(0.0, 1.0)) or (wear > 0.0 and finish != WallLayout.Finish.PLASTER):
 		return null
 	var foundation: Variant = d.get("foundation")
 	if typeof(foundation) != TYPE_INT or foundation < 0 or foundation >= WallLayout.Foundation.size() or (foundation != WallLayout.Foundation.STONE and d.fence):
@@ -376,10 +379,6 @@ static func _wall(d: Variant) -> Variant:
 	var planks: Variant = d.get("planks")
 	if typeof(planks) != TYPE_BOOL:
 		return null
-	var timber_style: Variant = d.get("timber_style")
-	if typeof(timber_style) != TYPE_INT or timber_style < -1:
-		return null
-	timber_style = mini(timber_style, 0)
 	var gable_end: Variant = d.get("gable_end")
 	if typeof(gable_end) != TYPE_INT or gable_end < 0 or gable_end >= WallLayout.GableEnd.size():
 		return null
@@ -405,7 +404,7 @@ static func _wall(d: Variant) -> Variant:
 	var paint: Variant = d.get("paint")
 	if not Palette.valid(paint):
 		return null
-	var out := {"points": points, "height": d.height, "rise": rise, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "openings": openings, "lanterns": lanterns, "flags": flags, "ruins": ruins, "plaster": plaster, "foundation": foundation, "planks": planks, "gable_end": gable_end, "timber_style": timber_style, "on": on, "paint": paint}
+	var out := {"points": points, "height": d.height, "rise": rise, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "openings": openings, "lanterns": lanterns, "flags": flags, "ruins": ruins, "finish": finish, "wear": wear, "foundation": foundation, "planks": planks, "gable_end": gable_end, "on": on, "paint": paint}
 	if d.has("roof"):
 		var r: Variant = d.roof
 		if not r is Dictionary or typeof(r.get("kind")) != TYPE_INT or r.kind < 0 or r.kind >= RoofLayout.Kind.size():
@@ -428,7 +427,9 @@ static func _wall(d: Variant) -> Variant:
 			return null
 		if typeof(r.get("thatch")) != TYPE_BOOL:
 			return null
-		out.plaster = plaster and r.kind != RoofLayout.Kind.CONE
+		if r.kind == RoofLayout.Kind.CONE:
+			out.finish = WallLayout.Finish.BARE
+			out.wear = 0.0
 		out.roof = {"kind": r.kind, "center": r.center, "radius": r.radius, "pitch": r.pitch, "curve": r.curve, "seed": r.seed, "chimneys": chimneys, "dormers": dormers, "overhang": r.overhang, "deck": r.deck, "flag": r.flag, "thatch": r.thatch}
 	return out
 
@@ -467,8 +468,10 @@ static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 	var cleaned: Variant = _whole(of, trial)
 	if cleaned == null:
 		return null
-	if of == "walls" and cleaned.plaster != trial.plaster:
-		out["plaster"] = cleaned.plaster
+	if of == "walls":
+		for k in ["finish", "wear"]:
+			if cleaned[k] != trial[k]:
+				out[k] = cleaned[k]
 	return out
 
 

@@ -151,7 +151,7 @@ func _house() -> Dictionary:
 	data.openings = PackedVector4Array([Vector4(1.5, 1.4, WallLayout.DoorStyle.PLAIN, 1), Vector4(6 + 2.5, 0.0, WallLayout.DoorStyle.PLAIN, 1), WallLayout.archway(12 + 3.0)])
 	data.lanterns = PackedVector3Array([Vector3(4.0, 1.8, 1), Vector3(14.0, 1.8, -1)])
 	data.flags = PackedFloat32Array([0.5])
-	data.plaster = true
+	data.finish = WallLayout.Finish.TIMBER
 	data.foundation = WallLayout.Foundation.PLASTER
 	data.height = 5.4
 	data.roof.chimneys = PackedVector2Array([Vector2(1.5, 0.0)])

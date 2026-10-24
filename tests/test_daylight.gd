@@ -187,7 +187,7 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	boarded.gable_end = WallLayout.GableEnd.BOARDS
 	boarded.build(Terrain.flat)
 	var timber := boarded.inputs()
-	timber.plaster = true
+	timber.finish = WallLayout.Finish.TIMBER
 	timber.planks = true
 	timber.gable_end = WallLayout.GableEnd.WALL
 	timber.build(Terrain.flat)

@@ -75,22 +75,22 @@ func _faces_turn_to_plaster() -> void:
 	world._order({"op": "wall", "walls": [_wall_data(PackedVector3Array([Terrain.ground(-30, 20), Terrain.ground(-24, 20)]))]}, 1)
 	var id := world.seq * Commands.MAX_PIECES
 	var target: Dictionary = main.palette_tool.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO)
-	check(target.count == 2, "an open wall's face offers stone and plaster")
-	var relayed := _relayed({"op": "reshape", "of": "walls", "id": id, "data": {"plaster": true}}, 2)
-	check(relayed.get("data", {}).get("plaster") == true, "a peer takes the host's turn of a face to plaster: %s" % relayed)
-	_turn(target, PaletteTool.Face.PLASTER)
-	check(world.state.walls[id].plaster and main.tool.find(id).layout.plaster, "a twist of the style tool turns the face to plaster")
+	check(target.count == PaletteTool.FACES.size(), "an open wall's face offers every finish")
+	var relayed := _relayed({"op": "reshape", "of": "walls", "id": id, "data": {"finish": WallLayout.Finish.PLASTER}}, 2)
+	check(relayed.get("data", {}).get("finish") == WallLayout.Finish.PLASTER, "a peer takes the host's turn of a face to plaster: %s" % relayed)
+	_turn(target, 1)
+	check(world.state.walls[id].finish == WallLayout.Finish.PLASTER and main.tool.find(id).layout.finish == WallLayout.Finish.PLASTER, "a twist of the style tool turns the face to plaster")
 	main.tool.find(id).lay_now()
 	check(main.tool.find(id).layout.stones.any(func(s): return s.kind == "plaster"), "and it is laid in plaster panels")
-	check(main.tool.plaster, "walls laid after are plaster")
+	check(main.tool.finish == WallLayout.Finish.PLASTER, "walls laid after are plaster")
 	world._order({"op": "undo"}, world.me())
-	check(not world.state.walls[id].plaster and not main.tool.find(id).layout.plaster, "an undo puts the stone back")
+	check(world.state.walls[id].finish == WallLayout.Finish.BARE and main.tool.find(id).layout.finish == WallLayout.Finish.BARE, "an undo puts the stone back")
 	world._order({"op": "redo"}, world.me())
-	check(world.state.walls[id].plaster, "a redo brings the plaster again")
+	check(world.state.walls[id].finish == WallLayout.Finish.PLASTER, "a redo brings the plaster again")
 	world.restore(world.snapshot())
-	check(main.tool.find(id).layout.plaster, "a save carries it")
+	check(main.tool.find(id).layout.finish == WallLayout.Finish.PLASTER, "a save carries it")
 	_turn(main.palette_tool.style_target(PaletteTool.Restyle.FACE, main.tool.find(id), Vector3.ZERO), -1)
-	check(not world.state.walls[id].plaster and not main.tool.plaster, "a twist back turns it, and the walls after, to stone")
+	check(world.state.walls[id].finish == WallLayout.Finish.BARE and main.tool.finish == WallLayout.Finish.BARE, "a twist back turns it, and the walls after, to stone")
 	world.restore({"seq": 0, "cmds": []})
 
 
@@ -98,7 +98,6 @@ func _foundations_turn_to_plaster() -> void:
 	var d := _wall_data(PackedVector3Array(WallLayout.rectangle(Terrain.ground(-4, 0), Terrain.ground(4, 0), 6.0)))
 	d.closed = true
 	d.rise = 1.5
-	d.timber_style = -1
 	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(0, 0), "radius": 3.0, "pitch": 2.0, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
 	world._order({"op": "wall", "walls": [d]}, world.me())
 	var id := world.seq * Commands.MAX_PIECES
@@ -112,8 +111,8 @@ func _foundations_turn_to_plaster() -> void:
 	_turn(target, WallLayout.Foundation.PLASTER)
 	w.lay_now()
 	check(w.layout.stones.any(func(st): return st.kind == "plaster" and st.y < 0.0), "the foundation wheel lays plaster below the foot")
-	check(not w.layout.plaster, "styling a foundation leaves the upper wall stone")
-	check(not main.tool.plaster, "foundation style leaves the next wall's face unchanged")
+	check(w.layout.finish == WallLayout.Finish.BARE, "styling a foundation leaves the upper wall stone")
+	check(main.tool.finish == WallLayout.Finish.BARE, "foundation style leaves the next wall's face unchanged")
 	check(w.layout.stones.filter(func(st): return st.kind == "plaster" and st.y < 0.0).all(func(st): return st.color == WallLayout.PLASTER), "foundation panels share the wall plaster colour")
 	check(main.palette_tool.aim(origin, -out).get("element") == Palette.Element.PLASTER, "the colour tool recognises the foundation's plaster")
 	var relayed := _relayed({"op": "reshape", "of": "walls", "id": id, "data": {"foundation": WallLayout.Foundation.STONE}}, 2)
@@ -125,12 +124,12 @@ func _foundations_turn_to_plaster() -> void:
 	world.restore(world.snapshot())
 	w = main.tool.find(id)
 	w.lay_now()
-	check(w.layout.foundation == WallLayout.Foundation.PLASTER and not w.layout.plaster, "redo and save preserve foundation style independently")
-	world._order({"op": "reshape", "of": "walls", "id": id, "data": {"plaster": true}}, world.me())
+	check(w.layout.foundation == WallLayout.Foundation.PLASTER and w.layout.finish == WallLayout.Finish.BARE, "redo and save preserve foundation style independently")
+	world._order({"op": "reshape", "of": "walls", "id": id, "data": {"finish": WallLayout.Finish.PLASTER}}, world.me())
 	w.lay_now()
 	_turn(main.palette_tool.aim_style(origin, -out), -1)
 	w.lay_now()
-	check(w.layout.foundation == WallLayout.Foundation.STONE and w.layout.plaster, "turning the foundation back to stone keeps the wall plastered")
+	check(w.layout.foundation == WallLayout.Foundation.STONE and w.layout.finish == WallLayout.Finish.PLASTER, "turning the foundation back to stone keeps the wall plastered")
 	_turn(main.palette_tool.aim_style(origin, -out), WallLayout.Foundation.POSTS)
 	w.lay_now()
 	check(world.state.walls[id].foundation == WallLayout.Foundation.POSTS and w.layout.stones.any(func(st): return st.kind == "post" and st.y < 0.0), "turned to posts, the raised house stands on timber posts")
@@ -166,8 +165,8 @@ func _floors_take_a_style() -> void:
 	w.lay_now()
 	var floor_kinds := func(of: Wall) -> Array: return of.layout.stones.filter(func(st): return st.kind in ["flagstone", "plank"]).map(func(st): return st.kind)
 	check(world.state.walls[id].planks and floor_kinds.call(w).all(func(k): return k == "plank"), "a twist of the style tool boards the floor")
-	check(not world.state.walls[id].plaster and world.state.walls[id].foundation == WallLayout.Foundation.STONE, "boarding the floor leaves the walls stone")
-	check(main.tool.planks and not main.tool.plaster, "houses laid after are boarded, their walls still stone")
+	check(world.state.walls[id].finish == WallLayout.Finish.BARE and world.state.walls[id].foundation == WallLayout.Foundation.STONE, "boarding the floor leaves the walls stone")
+	check(main.tool.planks and main.tool.finish == WallLayout.Finish.BARE, "houses laid after are boarded, their walls still stone")
 	world._order({"op": "undo"}, world.me())
 	w.lay_now()
 	check(not world.state.walls[id].planks and floor_kinds.call(w).all(func(k): return k == "flagstone"), "an undo puts the flags back")
@@ -176,12 +175,12 @@ func _floors_take_a_style() -> void:
 	w = main.tool.find(id)
 	w.lay_now()
 	check(w.layout.planks and floor_kinds.call(w).all(func(k): return k == "plank"), "a save carries the boarded floor")
-	world._order({"op": "reshape", "of": "walls", "id": id, "data": {"plaster": true}}, world.me())
+	world._order({"op": "reshape", "of": "walls", "id": id, "data": {"finish": WallLayout.Finish.PLASTER}}, world.me())
 	w.lay_now()
-	check(w.layout.planks and w.layout.plaster, "plastering the walls keeps the floor boarded")
+	check(w.layout.planks and w.layout.finish == WallLayout.Finish.PLASTER, "plastering the walls keeps the floor boarded")
 	_turn(main.palette_tool.aim_style(inside, down), -1)
 	w.lay_now()
-	check(not w.layout.planks and w.layout.plaster, "turning the floor back to flags keeps the walls plastered")
+	check(not w.layout.planks and w.layout.finish == WallLayout.Finish.PLASTER, "turning the floor back to flags keeps the walls plastered")
 	check(not main.tool.planks, "and houses laid after are flagged again")
 	world.restore({"seq": 0, "cmds": []})
 
@@ -356,53 +355,44 @@ func _timber_faces() -> void:
 	wall.lay_now()
 	var picker: PaletteTool = main.palette_tool
 	var target := picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO)
-	check(target.count == 3, "a house's face wheel offers stone, plaster and timber")
-	picker.open(main.rig.right, target)
-	var start: int = picker.wheels[main.rig.right].start
-	picker.twist(main.rig.right, (PaletteTool.Face.TIMBER - start) * Palette.TWIST_STEP)
-	picker.close(main.rig.right)
-	check(world.state.walls[id].plaster and world.state.walls[id].timber_style == 0, "face wheel commits timber")
+	check(target.count == PaletteTool.FACES.size(), "a house's face wheel offers every finish")
+	var timber: int = target.options.find(PaletteTool.FACES.find(Vector2(WallLayout.Finish.TIMBER, 0.0)))
+	_turn(target, timber)
+	check(world.state.walls[id].finish == WallLayout.Finish.TIMBER, "face wheel commits timber")
 	wall.lay_now()
 	check(wall.layout.stones.any(func(p): return p.kind == "timber"), "selected timber face is rendered")
 	world._order({"op": "undo"}, world.me())
-	check(not world.state.walls[id].plaster, "undo restores stone")
+	check(world.state.walls[id].finish == WallLayout.Finish.BARE, "undo restores stone")
 	world._order({"op": "redo"}, world.me())
-	check(world.state.walls[id].timber_style == 0, "redo restores the selected timber face")
+	check(world.state.walls[id].finish == WallLayout.Finish.TIMBER, "redo restores the selected timber face")
 	world.restore(world.snapshot())
-	check(world.state.walls[id].timber_style == 0, "save retains the pattern")
-	var saved := world.snapshot().duplicate(true)
-	for previous in 5:
-		for cmd in saved.cmds:
-			if cmd.op == "wall":
-				cmd.walls[0].timber_style = previous
-		check(world.restore(saved) == saved.cmds.size(), "existing timber house loads")
-		check(world.state.walls[id].timber_style == 0, "existing timber choice loads as Fachwerk")
+	check(world.state.walls[id].finish == WallLayout.Finish.TIMBER, "save retains the pattern")
 	wall = main.tool.find(id)
-	_turn(picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO), -1)
+	_turn(picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO), 1 - timber)
 	wall.lay_now()
-	check(world.state.walls[id].plaster and world.state.walls[id].timber_style == -1, "plain plaster remains selectable on houses")
+	check(world.state.walls[id].finish == WallLayout.Finish.PLASTER and world.state.walls[id].wear == 0.0, "plain plaster remains selectable on houses")
 	check(wall.layout.stones.all(func(p): return p.kind != "timber"), "plain plaster has no framing")
 	world.restore({"seq": 0, "cmds": []})
 
 
 func _towers_keep_stone() -> void:
-	main.tool.plaster = true
+	main.tool.finish = WallLayout.Finish.PLASTER
 	main.tool.deck = RoofLayout.Deck.STONE
 	var tower: Wall = main.tool.new_house(WallTool.stance(Terrain.ground(-20, 10), 0.0, true))
-	check(not tower.layout.plaster, "new towers use stone even after choosing plaster on a house")
+	check(tower.layout.finish == WallLayout.Finish.BARE, "new towers use stone even after choosing plaster on a house")
 	var data: Dictionary = tower.data()
 	var built: Array[Wall] = [tower]
 	main.tool.build(built)
 	world.restore({"seq": 0, "cmds": []})
-	data.plaster = true
+	data.finish = WallLayout.Finish.PLASTER
 	var snap := {"seq": 2, "cmds": [
 		{"op": "wall", "walls": [data], "ids": PackedInt32Array([Commands.MAX_PIECES]), "seq": 1, "by": 1},
-		{"op": "reshape", "of": "walls", "id": Commands.MAX_PIECES, "data": {"plaster": true}, "seq": 2, "by": 1},
+		{"op": "reshape", "of": "walls", "id": Commands.MAX_PIECES, "data": {"finish": WallLayout.Finish.PLASTER}, "seq": 2, "by": 1},
 	]}
 	check(world.restore(snap) == 2, "a saved plaster tower and its style edit both load")
 	var id := Commands.MAX_PIECES
 	var wall: Wall = main.tool.find(id)
-	check(not world.state.walls[id].plaster and not wall.layout.plaster, "saved plaster towers take the default stone")
+	check(world.state.walls[id].finish == WallLayout.Finish.BARE and wall.layout.finish == WallLayout.Finish.BARE, "saved plaster towers take the default stone")
 	var picker: PaletteTool = main.palette_tool
 	for style in [WallTool.RoofStyle.PITCHED, WallTool.RoofStyle.THATCHED, WallTool.RoofStyle.FLAT]:
 		if style == WallTool.RoofStyle.FLAT:
@@ -420,7 +410,7 @@ func _towers_keep_stone() -> void:
 		var target := picker.style_target(PaletteTool.Restyle.FACE, wall, Vector3.ZERO)
 		check(target.count == 1, "every tower roof style offers only stone walls")
 		_turn(target, 1)
-		check(not world.state.walls[id].plaster, "turning the tower face wheel keeps stone")
+		check(world.state.walls[id].finish == WallLayout.Finish.BARE, "turning the tower face wheel keeps stone")
 	world.restore({"seq": 0, "cmds": []})
 
 

@@ -136,7 +136,7 @@
   {"op": "label", "name": "-"},
   {"op": "layer", "name": "ivy", "mode": "on"},
   {"op": "bare"},
-  {"op": "house", "at": [0, 0], "size": [8, 5], "plaster": true, "timber_style": 0, "seconds": 0.1},
+  {"op": "house", "at": [0, 0], "size": [8, 5], "finish": "timber", "seconds": 0.1},
   {"op": "wait", "seconds": 3},
   {"op": "label", "name": "timber"},
   {"op": "units"},

@@ -199,7 +199,7 @@
   {"op": "label", "name": "-"},
   {"op": "capture", "name": "walls-r20-ground"},
   {"op": "bare"},
-  {"op": "sized", "build": [{"op": "stress", "radius": 15, "spacing": 2.0, "height": 4.5, "plaster": true}], "views": [{"op": "view", "eye": [0, 22, 32], "at": [0, 0, 0]}, {"op": "view", "ground": true, "eye": [0, 1.65, 0], "at": [20, 1.2, 0]}]},
+  {"op": "sized", "build": [{"op": "stress", "radius": 15, "spacing": 2.0, "height": 4.5, "finish": "plaster"}], "views": [{"op": "view", "eye": [0, 22, 32], "at": [0, 0, 0]}, {"op": "view", "ground": true, "eye": [0, 1.65, 0], "at": [20, 1.2, 0]}]},
   {"op": "wait", "seconds": 3},
   {"op": "label", "name": "plaster"},
   {"op": "units"},

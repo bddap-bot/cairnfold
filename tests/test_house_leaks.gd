@@ -121,9 +121,8 @@ func _commands(seed_value: int) -> Array:
 	w.layout.rise = 1.2 if seed_value % 3 == 0 else 0.0
 	w.layout.closed = true
 	w.layout.top = seed_value % WallLayout.Top.size()
-	w.layout.plaster = shape != 1 and seed_value % 3 != 1
+	w.layout.finish = WallLayout.Finish.BARE if shape == 1 or seed_value % 3 == 1 else WallLayout.Finish.PLASTER if seed_value % 3 == 0 else WallLayout.Finish.TIMBER
 	w.layout.foundation = WallLayout.Foundation.PLASTER if seed_value % 2 == 0 else WallLayout.Foundation.STONE
-	w.layout.timber_style = -1 if seed_value % 3 == 0 else 0
 	if seed_value == 60:
 		w.layout.height = 5.4
 	w.layout.gable_end = seed_value % WallLayout.GableEnd.size()
@@ -137,7 +136,7 @@ func _commands(seed_value: int) -> Array:
 	r.seed = seed_value
 	r.thatch = seed_value % 4 == 3
 	if seed_value == 8756:
-		w.layout.plaster = false
+		w.layout.finish = WallLayout.Finish.BARE
 		w.layout.gable_end = WallLayout.GableEnd.WALL
 		w.layout.openings = []
 		r.pitch = 1.2
@@ -158,7 +157,7 @@ func _commands(seed_value: int) -> Array:
 	if shape == 2:
 		var plan := WallPlan.new([], PackedVector3Array(), seed_value)
 		plan.seed = seed_value
-		plan.plaster = data.plaster
+		plan.finish = WallLayout.Finish.BARE if data.finish == WallLayout.Finish.BARE else WallLayout.Finish.PLASTER
 		var stroke: Array[Vector3] = []
 		for i in 7:
 			stroke.append(center + Vector3(lerpf(-length, length, i / 6.0), 0, sin(i * 0.8) * depth * 0.3))
