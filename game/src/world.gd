@@ -86,7 +86,6 @@ var _done := {}
 var save_path := ""
 var _keep_due := false
 var _keep_task := -1
-## Seconds until the garden may be kept again: a burst of edits is kept once, not once a frame.
 var _keep_wait := 0.0
 ## What the garden's builds count as in the frame budget (Budget.UNITS), kept as each command applies; walls and paths
 ## by key too, so taking one away takes back what it added.
@@ -225,7 +224,7 @@ func _process(delta: float) -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_PAUSED:
+	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		flush()
 
 
@@ -367,7 +366,7 @@ func restore_whole(snap: Variant) -> bool:
 ## The snapshot is taken here, so the garden it describes cannot change under the writer.
 func _keep() -> void:
 	_keep_due = false
-	if save_path == "" or not multiplayer.is_server():
+	if save_path == "":
 		return
 	var start := Time.get_ticks_usec()
 	var bytes := var_to_bytes(snapshot())
@@ -388,12 +387,10 @@ static func _write(path: String, bytes: PackedByteArray) -> void:
 		return
 	var stored := f.store_buffer(bytes)
 	f.close()
-	var back := FileAccess.open(path + ".new", FileAccess.READ)
-	if not stored or back == null or back.get_length() != bytes.size():
+	if not stored or FileAccess.get_size(path + ".new") != bytes.size():
 		push_error("world: the disk did not take the garden at %s; the last one stays" % path)
 		DirAccess.remove_absolute(path + ".new")
 		return
-	back.close()
 	var err := DirAccess.rename_absolute(path + ".new", path)
 	if err != OK:
 		push_error("world: cannot save the garden at %s: %s" % [path, error_string(err)])
