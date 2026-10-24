@@ -4113,7 +4113,9 @@ seconds with a photo's render included; the line is `Budget.line_ms()`, 11.1 ms:
 Each photo the selfie camera took there shows the holder's avatar. It still draws a few calls fewer than the camera
 (the Frame's preview seconds: 428 against 438), since its lens looks back into the walls the player stands among and
 culls more of the garden than the avatar adds. Every camera phase is over the budget by what the scene under it
-already costs (`hands/walls`), which no camera change can recover.
+already costs (`hands/walls`), which no camera change can recover. A later Quest 2 run read the same: `hands/walls` 26.1,
+`camera/ground` 28.2, `camera/recording` 29.3, `camera/two` 35.0, while a camera held in the light garden of the
+`held/` phases holds (`held/camera` 6.6, `held/selfie` 6.7).
 
 Directive (verbatim):
 > I'd like to be able to take a super graphics quality photo that just turns everything all the way up, no level of detail or anything; it can take a long time to render that frame. ... I would like to take very fancy photos. Also give a way to embed metadata about where and how the photo was taken, that'd be cool. I don't know if you can embed a whole world in it, but if the world is small enough, then maybe you could.
@@ -4186,18 +4188,34 @@ the master bus (an `AudioEffectCapture` there while recording only) as 32-bit fl
 about 1.1 MB; plain AVI stops at 1 GiB, about 15 minutes, where recording stops by itself. On an APK the file
 is written through java.io into `Pictures/Nestcombe`, as a photo is.
 
-Measured with `demo/video.json` (`bench.sh`), held against recording over the same pan, milliseconds:
+Measured with `demo/video.json` (`bench.sh`): the governor first settles on the bare camera-less scene
+(`camera/none`), the ladder is then held at the step it stands on (`"step": "held"`), and the held camera pans
+over a wall and a pond twice without recording and twice recording, milliseconds:
 
-| Headset | Held: GPU, frame p50 | Recording: GPU, frame p50 |
-| --- | --- | --- |
-| Steam Frame, unworn, 72 Hz | 5.25, 13.92 | 5.31, 13.90 |
-| Quest 2, 72 Hz, ladder held at its top step | 27.72, 35.97 | 28.22, 36.29 |
+| Headset | Step held | None: GPU | Held: GPU, frame p50 | Recording: GPU, frame p50 |
+| --- | --- | --- | --- | --- |
+| Steam Frame, unworn, 72 Hz (ladder at its top step) | 0 | | 5.25, 13.92 | 5.31, 13.90 |
+| Quest 2, 72 Hz | 11 | 9.43 | 10.22, 13.78 | 10.76, 13.89 |
+| Quest 2, 72 Hz | 9 | 9.64 | 10.50, 13.73 | 10.97, 13.84 |
+
+Both hold the Quest 2's 11.1 ms at the step the scene holds without a camera. An earlier run here held the ladder
+at the top step, which the Quest 2 holds for no garden, and read 27.7 ms: the scene's cost at that step, not the
+camera's. The first second of a recording reads high (29 ms) as its view's buffers grow to `VIDEO_SIZE`.
+
+Where the camera's time goes on the Quest 2, read per render pass with the runtime's GPU profiler (`ovrgpuprofiler
+-t`) at the held step: the preview is one more pass, 2.0 ms at 256×192 (1.1 of it the binning pass, the scene's
+geometry run once more to sort it into the pass's one bin) and 3.5 to 3.8 ms at 640×480 (four bins); it draws on
+one frame in three, so 0.7 and 1.2 ms a frame. Its sun shadow pass is 0.12 ms, the own avatar's skinning 0.05 ms a
+dispatch, and the sky alone 0.15 ms a drawing: what it costs is the near garden on layer 1 (terrain, walls, near
+grass and flowers), which the same pass without it draws in 0.9 ms. The video's
+four bins are what recording adds: each bin draws the geometry it sees again, so a video small enough for one bin
+would cost what the screen does, at a quarter of the pixels. What else would cut the cost is drawing less of the
+garden in the camera's view or drawing it less often; each shows in its screen and its video, so neither is
+taken while both views hold the budget.
 
 On the Frame recording holds 72 Hz with no late frame, at 0.06 ms of GPU time, and every one of a clip's
-137 frames is a fresh drawing. On the Quest 2 it adds 0.5 ms of GPU time to a held camera, which on its
-own already runs there below the refresh rate (see "Photos" above): the second view of the garden is
-the cost, not the recording, and as play slows the clip repeats frames to keep its length (77 fresh of
-137). The file on an APK lands in `Pictures/Nestcombe` beside the photos and plays back whole.
+137 frames is a fresh drawing. The file on an APK lands in `Pictures/Nestcombe` beside the photos and plays back
+whole.
 
 Left out: Godot's MovieWriter, which renders the main view at a fixed time step and so slows play to the
 encoder's pace, and platform video encoders, which Godot does not reach from a script on either target.
@@ -4378,7 +4396,7 @@ walls in each top style, and shapes the roofs; `demo/paths.json` lays paths thro
 arcade), draws a wall across a wide path and raises the ground under a path; `demo/fittings.json` opens windows
 and doors in a wall, a house and a round wall, hangs lanterns, flies flags, builds a chimney and draws a fence a
 path crosses; `demo/stone.json` paints stone ground into the meadow, paints part of it back and
-walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete, empties the hand, then goes up to colour and style; `demo/photo.json` takes the camera from the wheel and takes two photos, each beside the view through the same lens as the headset draws it, the second at the ladder's bottom step; `demo/video.json` pans the held camera across a wall and a pond with the ladder held at its top step, twice without recording and twice recording, so `bench.sh` compares the two; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
+walks the history; `demo/wheel.json` opens the right wheel and zig-zags to trees, windows and delete, empties the hand, then goes up to colour and style; `demo/photo.json` takes the camera from the wheel and takes two photos, each beside the view through the same lens as the headset draws it, the second at the ladder's bottom step; `demo/video.json` lets the governor settle on the scene without a camera, holds the ladder there and pans the held camera across a wall and a pond, twice without recording and twice recording, so `bench.sh` compares the two with the scene alone; `demo/fireflies.json` digs a pond, paints flowers and drags the sun down to dusk; `demo/ducks.json` digs a pond and waits for ducks (`--seed N` fixes which arrive);
 `demo/birds.json` digs a pond, plants trees and draws a wall and a fence, waits for the conures and looks
 at a perched one from in front and from the side;
 `demo/feeding.json` builds a pond, trees, a wall and a fence, waits for the animals, then holds seeds out to a conure, the ducks and the sheep, throws handfuls to the sheep and onto the pond and watches the uneaten ones sink away;

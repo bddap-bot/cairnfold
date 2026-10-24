@@ -1834,11 +1834,15 @@ static func _along(path: Array[Vector3], fraction: float) -> Vector3:
 	return path[-1]
 
 
-## Holds the quality ladder at `step`, or with "fit" at the fixed table's calibration step (Budget.fit_step);
-## without one, the governor walks it again.
+## Holds the quality ladder at `step`, with "fit" at the fixed table's calibration step (Budget.fit_step), or with
+## "held" where the governor stands now; without one, the governor walks it again.
 func _quality(s: Dictionary) -> void:
 	var step: Variant = s.get("step", -1)
-	main.quality.pin = Budget.fit_step() if step is String and step == "fit" else int(step)
+	if step is String:
+		main.quality.pin = {"fit": Budget.fit_step(), "held": main.quality.step()}[step]
+	else:
+		main.quality.pin = int(step)
+	print("driver: quality pinned at %d" % main.quality.pin)
 
 
 ## Holds the view's anti-aliasing for measuring: `msaa` samples (0, 2, 4 or 8), `screen` ("none", "fxaa" or "smaa"),
