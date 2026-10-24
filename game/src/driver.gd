@@ -364,7 +364,7 @@ func _lay_materials(s: Dictionary) -> void:
 	var finish := WallLayout.Finish[String(s.get("finish", "bare")).to_upper()] as WallLayout.Finish
 	main.tool.finish = finish
 	main.tool.wear = s.get("wear", 0.0)
-	main.tool.fence_finish = WallLayout.Finish.BARE if finish in [WallLayout.Finish.PLASTER, WallLayout.Finish.TIMBER] else finish
+	main.tool.fence_finish = finish if WallLayout.suits(finish, true) else WallLayout.Finish.BARE
 	main.tool.planks = s.get("planks", false)
 	main.tool.foundation = WallLayout.Foundation[String(s.get("foundation", "stone")).to_upper()]
 

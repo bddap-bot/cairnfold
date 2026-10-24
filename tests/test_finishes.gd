@@ -161,6 +161,11 @@ func _plaster_wears_back_to_the_stones() -> void:
 		check(kept / worn > wear + 0.1, "%s: worn patches carry on up the courses, %.2f of each course's under the next's" % [name, kept / worn])
 	for i in range(1, shares.size()):
 		check(shares[i] > shares[i - 1], "more wear shows more stone: %s" % [shares])
+	var raised := _built(WallLayout.Finish.PLASTER, 0.75, true)
+	raised.foundation = WallLayout.Foundation.PLASTER
+	raised.rise = 1.2
+	raised.build(Terrain.flat)
+	check(not raised.stones.any(func(st: Dictionary) -> bool: return st.kind == "block" and st.y < 0.0), "a plaster plinth under worn plaster stays whole")
 
 
 ## Planks laid across lie level, longer than tall, staggered from row to row; laid upright they stand taller than wide,
@@ -174,7 +179,7 @@ func _planks_lie_across_or_upright() -> void:
 			var c := w.course_height()
 			var boards := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "board" and st.y < w.height)
 			check(not boards.is_empty(), "%s: planks are laid" % name)
-			var across := boards.all(func(b: Dictionary) -> bool: return b.size.x > b.size.y or b.size.x < WallLayout.BOARD.x)
+			var across := boards.all(func(b: Dictionary) -> bool: return b.size.y < WallLayout.BOARD.x) and boards.filter(func(b: Dictionary) -> bool: return b.size.x > b.size.y).size() > boards.size() * 0.9
 			var upright := boards.all(func(b: Dictionary) -> bool: return b.size.y > b.size.x and b.size.x <= WallLayout.BOARD.x)
 			check(across if finish == WallLayout.Finish.BOARDS_ACROSS else upright, "%s: every plank lies %s" % [name, "across" if finish == WallLayout.Finish.BOARDS_ACROSS else "upright"])
 			check(boards.all(func(b: Dictionary) -> bool: return b.y - b.size.y * 0.5 > c - 0.01), "%s: the planks start over the stone foot course" % name)
@@ -226,7 +231,19 @@ func _timber_walls_are_framed_and_railed() -> void:
 	var walk := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "board" and st.y > w.height)
 	var posts := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "post" and st.y > w.height)
 	var rails := w.stones.filter(func(st: Dictionary) -> bool: return st.kind == "rail")
-	check(walk.size() >= WallLayout.WALK_LANES * 4 and posts.size() >= 8 and rails.size() >= posts.size(), "the walk is boarded and railed in wood: %d planks, %d posts, %d rails" % [walk.size(), posts.size(), rails.size()])
+	check(walk.size() >= WallLayout.WALK_LANES * 4, "the walk is boarded: %d planks" % walk.size())
+	check(posts.size() >= 8 and rails.size() >= posts.size(), "the walk is railed in wood: %d posts, %d rails" % [posts.size(), rails.size()])
+	var bowed := 0
+	var out_of := func(p: Vector3) -> float:
+		var f := w.frame_at(w.closest_s(p))
+		return (p - f.point).dot(f.tangent.cross(Vector3.UP))
+	for piece in walk + beams:
+		var x: Transform3D = piece.xform
+		var middle: float = out_of.call(x.origin)
+		for end in [x.origin - x.basis.x * 0.5, x.origin + x.basis.x * 0.5]:
+			if absf(out_of.call(end) - middle) > 0.03:
+				bowed += 1
+	check(bowed == 0, "every plank and member keeps to the curved wall, its ends within 3 cm of its middle's line: %d off" % bowed)
 	check(not w.stones.any(func(st: Dictionary) -> bool: return st.kind in ["cap", "merlon", "cope", "pier"]), "no stone top or pier on a timber-framed wall")
 	var mid: Vector3 = w.frame_at(w.length() * 0.5).point
 	check(is_equal_approx(w.walk_under(mid + Vector3.UP * 5.0), mid.y + w.height + WallLayout.CAP), "a player stands on the walk's planks")
@@ -292,6 +309,8 @@ func _commands_check_finishes() -> void:
 		var ok: bool = finish in [WallLayout.Finish.BARE, WallLayout.Finish.BOARDS_ACROSS, WallLayout.Finish.BOARDS_UPRIGHT]
 		check((Commands._wall(fence) != null) == ok, "a fence %s %s" % ["takes" if ok else "turns down", WallLayout.Finish.keys()[finish]])
 	var tower := wall_data({"points": PackedVector3Array(WallLayout.circle(Vector3.ZERO, 2.0)), "closed": true, "seed": 2, "finish": WallLayout.Finish.PLASTER, "wear": 0.5, "roof": {"kind": RoofLayout.Kind.CONE, "center": Vector3.ZERO, "radius": 2.0, "pitch": 1.5, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
+	var house := wall_data({"points": PackedVector3Array(WallLayout.rectangle(Vector3.ZERO, Vector3(6, 0, 0), 4.0)), "closed": true, "seed": 2, "finish": WallLayout.Finish.BOARDS_UPRIGHT, "gable_end": WallLayout.GableEnd.STEPS, "roof": {"kind": RoofLayout.Kind.GABLE, "center": Vector3(3, 0, 2), "radius": 2.0, "pitch": 1.5, "curve": 0.0, "seed": 1, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}})
+	check(Commands._wall(house).gable_end == WallLayout.GableEnd.BOARDS, "a planked house's gable ends are boarded")
 	var cone: Variant = Commands._wall(tower)
 	check(cone != null and cone.finish == WallLayout.Finish.BARE and cone.wear == 0.0, "a coned tower stays stone")
 
@@ -319,7 +338,10 @@ func _budget_charges_each_finish() -> void:
 	var frame := WallLayout.new()
 	frame.set_data(framed)
 	frame.build(Terrain.flat)
-	check(Budget.wall(framed).get("timber", 0) == frame.stones.filter(func(st: Dictionary) -> bool: return st.kind == "timber").size(), "a timber-framed wall charges the members it lays on both faces")
+	var members := frame.stones.filter(func(st: Dictionary) -> bool: return st.kind == "timber").size()
+	var walk := frame.stones.filter(func(st: Dictionary) -> bool: return st.kind == "board").size()
+	var charged: int = Budget.wall(framed).get("timber", 0)
+	check(charged >= members + walk and charged < members + walk * 1.4 + 4, "a timber-framed wall charges the members it lays on both faces and its walk's planks: %d for %d and %d" % [charged, members, walk])
 
 
 ## The style tool's face wheel on an open wall offers every finish, worn plaster at each amount; on a fence rails and

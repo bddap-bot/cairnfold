@@ -4733,12 +4733,15 @@ plaster, the oak of a frame, and planks as woodwork.
   behind the joints; a planked house's gable ends are boarded.
 - **Fences** take planks across, seven between each pair of posts in the rails' place, or upright on the rails.
 
-Planks, the walk's and a fence's included, are plain boxes drawn as timbers are. The budget charges worn plaster as
-plaster plus the stone it shows as stone wall, a planked wall as plaster for its backing plus each plank at
-`TIMBER_US`, a planked fence its planks besides its fence, and a timber frame its members on each face. Over the stress
-village (`demo/stress.json`'s `village` of 7 m spacing), the budget charges plain plaster 7.26 ms, timber 8.04,
-planks upright 8.42, across 9.76, and plaster worn by a quarter, a half and three quarters 8.12, 8.99 and 9.85 (stone
-10.14): the `finishes/aerial` and `finishes/ground` phases stand it in plaster worn by three quarters.
+Planks, a gable's, the walk's and a fence's included, are plain boxes drawn as timbers are. Every straight piece laid
+along a wall (a plank, the walk's, a frame's rail) is cut where the wall has turned `BOARD_TURN` along it
+(`WallLayout.straight`), and an open wall's frame stands a post there, so none stands off a curved face. The budget
+charges worn plaster as plaster plus the stone it shows as stone wall, a planked wall as plaster for its backing plus
+each plank at `TIMBER_US` (a planked house's gable ends stay boarded and count as stone wall), a planked fence its
+planks besides its fence, and a timber frame its members on each face and its walk's planks. Over the stress village
+of the `village/*` phases (two storeys with wings), the budget charges plain plaster 19.70 ms, plaster worn by a
+quarter, a half and three quarters 22.11, 24.52 and 26.93, timber 22.16, planks upright 23.27 and planks across 29.15:
+the `finishes/aerial` and `finishes/ground` phases stand it in planks across, the dearest finish over its stone.
 `tests/test_finishes.gd` checks every finish clear of every opening on a house and a bent wall, the wear, the planks,
 the frame and walk, fences, the command, the budget, the wheel, `demo/finishes.json` and the stress village.
 

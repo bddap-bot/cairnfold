@@ -366,7 +366,7 @@ static func _wall(d: Variant) -> Variant:
 	if typeof(d.get("fence")) != TYPE_BOOL:
 		return null
 	var finish: Variant = d.get("finish")
-	if typeof(finish) != TYPE_INT or finish < 0 or finish >= WallLayout.Finish.size() or (d.fence and finish in [WallLayout.Finish.PLASTER, WallLayout.Finish.TIMBER]):
+	if typeof(finish) != TYPE_INT or finish < 0 or finish >= WallLayout.Finish.size() or not WallLayout.suits(finish, d.fence):
 		return null
 	var wear: Variant = d.get("wear")
 	if not _in(wear, Vector2(0.0, 1.0)) or (wear > 0.0 and finish != WallLayout.Finish.PLASTER):
@@ -404,6 +404,8 @@ static func _wall(d: Variant) -> Variant:
 	var paint: Variant = d.get("paint")
 	if not Palette.valid(paint):
 		return null
+	if WallLayout.boards(finish) and d.has("roof"):
+		gable_end = WallLayout.GableEnd.BOARDS
 	var out := {"points": points, "height": d.height, "rise": rise, "seed": d.seed, "closed": d.closed, "top": top, "fence": d.fence, "openings": openings, "lanterns": lanterns, "flags": flags, "ruins": ruins, "finish": finish, "wear": wear, "foundation": foundation, "planks": planks, "gable_end": gable_end, "on": on, "paint": paint}
 	if d.has("roof"):
 		var r: Variant = d.roof
@@ -469,7 +471,7 @@ static func _reshape(of: String, d: Dictionary, now: Dictionary) -> Variant:
 	if cleaned == null:
 		return null
 	if of == "walls":
-		for k in ["finish", "wear"]:
+		for k in ["finish", "wear", "gable_end"]:
 			if cleaned[k] != trial[k]:
 				out[k] = cleaned[k]
 	return out

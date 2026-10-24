@@ -225,7 +225,7 @@ func _trees_take_a_species() -> void:
 	var crown: Vector3 = flora.groups[g][1].xform.origin + Vector3.UP * Terrain.base_at(at.x, at.z)
 	var target: Dictionary = main.palette_tool.aim_style(crown + Vector3(0, 1, 8), (crown - (crown + Vector3(0, 1, 8))).normalized())
 	check(target.get("restyle") == PaletteTool.Restyle.TREE and target.get("tree") == trunk and target.count == FloraLayout.Species.size(), "the style tool aimed at a tree offers its species: %s" % [target.get("restyle")])
-	var models := ToolModels.style(PaletteTool.Restyle.TREE, FloraLayout.Species.FIR, false)
+	var models := ToolModels.style(PaletteTool.Restyle.TREE, FloraLayout.Species.FIR, WallLayout.Finish.BARE)
 	check(models.get_child_count() == 2, "each species has its miniature")
 	models.free()
 	var relayed := _relayed({"op": "tree", "group": g, "index": 0, "species": FloraLayout.Species.BIRCH}, 2)
@@ -430,7 +430,7 @@ func _stone_takes_a_style() -> void:
 	check(target.get("restyle") == PaletteTool.Restyle.STONE and target.get("stroke") == id and target.get("count") == StoneStyles.STYLES.size(), "the style tool aimed at painted stone offers its styles: %s" % [target])
 	check(main.palette_tool.aim_style(Terrain.ground(-40, -40) + Vector3(0, 3, 3), Vector3(0, -3, -3).normalized()).is_empty(), "bare meadow has no style")
 	for i in StoneStyles.STYLES.size():
-		var model := ToolModels.style(PaletteTool.Restyle.STONE, i, false)
+		var model := ToolModels.style(PaletteTool.Restyle.STONE, i, WallLayout.Finish.BARE)
 		check(model.get_child_count() == 2, "%s has its miniature" % StoneStyles.STYLES[i].name)
 		model.free()
 	var relayed := _relayed({"op": "restone", "id": id, "style": 1}, 2)

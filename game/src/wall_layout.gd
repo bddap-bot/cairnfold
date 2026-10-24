@@ -136,6 +136,8 @@ const VERGE := Vector2(THICKNESS + 0.06, 0.24)
 const BOARD := Vector2(0.2, 0.012)
 ## The shortest and longest plank laid across a wall or along a walk, at full scale.
 const BOARD_RUN := Vector2(0.9, 1.8)
+## How far a straight plank or rail may let the wall turn along it, so its ends keep to a curved face.
+const BOARD_TURN := 0.12
 ## Planks side by side along a timber-framed wall's walk.
 const WALK_LANES := 3
 ## Worn plaster: the width the face is judged in along the wall, the size of the patches it wears away in, how deep
@@ -385,8 +387,9 @@ func build(ground: Callable, water := Callable()) -> void:
 		var stream := rng if k >= 0 else wet
 		stream.seed = hash([seed, "course", k])
 		var offset := (0.5 if posmod(k, 2) == 1 else 0.0) * stream.randf_range(0.3, 0.6)
-		var worn := _worn(y0) if plaster_at(y0) and wear > 0.0 else PackedVector2Array()
-		var courses := spans if not plaster_at(y0) else _within(spans, worn, WORN_TUCK)
+		var worn := _worn(y0)
+		var tucked := Array(worn).map(func(t: Vector2) -> Vector2: return t + Vector2(-WORN_TUCK, WORN_TUCK))
+		var courses: Array = spans if not plaster_at(y0) else spans.reduce(func(out: Array, sp: Array) -> Array: return out + _pieces(sp[0], sp[1], tucked).filter(func(p: Array) -> bool: return p[2]), [])
 		if boards_at(y0):
 			courses = []
 		for i in courses.size():
@@ -400,7 +403,7 @@ func build(ground: Callable, water := Callable()) -> void:
 	_lay_mortar(bands)
 	if boarded():
 		rng.seed = hash([seed, "boards"])
-		_lay_planks(bands, faces, rng)
+		_lay_cladding(bands, faces, rng)
 	for i in bays.size():
 		rng.seed = hash([seed, "pillar", i])
 		_lay_pillar(bays[i].s, bays[i].half, pillar_tops[i], rng, wet)
@@ -1396,14 +1399,21 @@ func plaster_at(y: float) -> bool:
 	return foundation == Foundation.PLASTER if y < 0.0 else plastered() and y > 0.0
 
 
-## Whether the faces are plaster, framed in timber or not.
 func plastered() -> bool:
 	return finish == Finish.PLASTER or finish == Finish.TIMBER
 
 
-## Whether the faces are wooden planks.
 func boarded() -> bool:
-	return finish == Finish.BOARDS_ACROSS or finish == Finish.BOARDS_UPRIGHT
+	return boards(finish)
+
+
+static func boards(f: Finish) -> bool:
+	return f == Finish.BOARDS_ACROSS or f == Finish.BOARDS_UPRIGHT
+
+
+## Whether a fence, or a wall that is none, can be faced in `f`: a fence in rails or planks, a wall in anything.
+static func suits(f: Finish, is_fence: bool) -> bool:
+	return not is_fence or f == Finish.BARE or boards(f)
 
 
 ## Whether planks face the wall `y` over its foot: over its first course, which stays stone, as under plaster.
@@ -1411,18 +1421,22 @@ func boards_at(y: float) -> bool:
 	return boarded() and y > 0.0
 
 
-## The stretches of the course `y` up whose plaster has worn back to the stones: `wear` of the face over the wall's
-## height, more toward the foot and less toward the top, taken where a noise over the face is lowest, so the patches
-## carry on from course to course.
+## The stretches of the course `y` over the foot whose plaster has worn back to the stones: `wear` of the face over the
+## wall's height, more toward the foot and less toward the top, taken where a noise over the face is lowest, so the
+## patches carry on from course to course.
 func _worn(y: float) -> PackedVector2Array:
+	var out := PackedVector2Array()
+	if finish != Finish.PLASTER or wear <= 0.0 or y <= 0.0:
+		return out
 	var total := length()
 	var n := maxi(1, ceili(total / WORN_STEP))
 	var take := roundi(clampf(wear * (1.5 - y / height), 0.0, 1.0) * n)
-	var out := PackedVector2Array()
-	if take == 0:
-		return out
+	var noise := FastNoiseLite.new()
+	noise.seed = seed
+	noise.frequency = 0.5
+	noise.fractal_type = FastNoiseLite.FRACTAL_NONE
 	var order := range(n)
-	var scores := order.map(func(i: int) -> float: return _wear_noise((i + 0.5) * total / n, y))
+	var scores := order.map(func(i: int) -> float: return noise.get_noise_2d((i + 0.5) * total / n / WORN_PATCH.x, y / WORN_PATCH.y))
 	order.sort_custom(func(a: int, b: int) -> bool: return scores[a] < scores[b] or scores[a] == scores[b] and a < b)
 	var worn := PackedByteArray()
 	worn.resize(n)
@@ -1436,38 +1450,6 @@ func _worn(y: float) -> PackedVector2Array:
 		if worn[i] == 1:
 			out.append(Vector2(i, j) * total / n)
 		i = j
-	return out
-
-
-## Smooth noise over the face at `s` along it and `y` up, 0 to 1: two octaves of value noise from the wall's seed.
-func _wear_noise(s: float, y: float) -> float:
-	var total := 0.0
-	for octave in 2:
-		var p := Vector2(s / WORN_PATCH.x, y / WORN_PATCH.y) * (1 << octave)
-		var c := p.floor()
-		var f := p - c
-		f = f * f * (Vector2.ONE * 3.0 - f * 2.0)
-		var x := int(c.x)
-		var z := int(c.y)
-		var low := lerpf(_wear_at(octave, x, z), _wear_at(octave, x + 1, z), f.x)
-		var high := lerpf(_wear_at(octave, x, z + 1), _wear_at(octave, x + 1, z + 1), f.x)
-		total += lerpf(low, high, f.y) * (0.65 if octave == 0 else 0.35)
-	return total
-
-
-func _wear_at(octave: int, x: int, z: int) -> float:
-	return float(hash([seed, "wear", octave, x, z]) % 1024) / 1023.0
-
-
-## Where the `spans` meet the `stretches`, each grown by `grow` either way.
-static func _within(spans: Array, stretches: PackedVector2Array, grow: float) -> Array:
-	var out := []
-	for sp in spans:
-		for t in stretches:
-			var lo := maxf(sp[0], t.x - grow)
-			var hi := minf(sp[1], t.y + grow)
-			if hi - lo > 0.001:
-				out.append([lo, hi])
 	return out
 
 
@@ -1556,6 +1538,43 @@ func _lay_mortar(bands: Array, thick := THICKNESS) -> void:
 		stones.append({"xform": Transform3D(basis, (from + to) * 0.5 + Vector3.UP * y), "color": PLASTER if p.face else MORTAR, "kind": "plaster" if p.face else "mortar", "s": (p.a + p.b) * 0.5, "y": y, "size": size, "ao": 1.0 if plastered() or p.face else 0.8, "variant": 0, "ends": p.ends})
 
 
+## Planks from `a` to `b` along the wall, `y` up and `out` off its middle, `size` tall and deep, in staggered lengths
+## BOARD_RUN long, each cut short where the wall turns (`straight`) so its ends keep to the face.
+func _lay_run(a: float, b: float, y: float, size: Vector2, out: float, rng: RandomNumberGenerator) -> void:
+	var s := a
+	var want := rng.randf_range(0.3, 1.0) * BOARD_RUN.y
+	while b - s > BOARD.y * 2.0:
+		var l := straight(s, minf(want * _stone_scale, b - s))
+		if b - s - l < BOARD.x and straight(s, b - s) == b - s:
+			l = b - s
+		_part(s + l * 0.5, y, Vector3(l - BOARD.y, size.x - BOARD.y, size.y), WOOD * rng.randf_range(0.85, 1.1), rng, "board", out)
+		s += l
+		want = rng.randf_range(BOARD_RUN.x, BOARD_RUN.y)
+
+
+## How far from `s`, up to `l`, the wall runs on turning no more than BOARD_TURN, so a straight piece that long keeps
+## to its face; cut short, it ends where the turn is reached.
+func straight(s: float, l: float) -> float:
+	var last: Vector3 = frame_at(s).tangent
+	var turn := 0.0
+	for i in range(clampi(lengths.bsearch(s + 0.02), 1, samples.size()), samples.size() - 1):
+		if lengths[i] >= s + l:
+			break
+		var t := Vector3(samples[i + 1].x - samples[i].x, 0.0, samples[i + 1].z - samples[i].z)
+		if t.length() < 1e-5:
+			continue
+		turn += absf(last.signed_angle_to(t, Vector3.UP))
+		last = t
+		if turn > BOARD_TURN:
+			return lengths[i] - s
+	return l
+
+
+## Whether the wall turns at arc length `s`: at a corner of a loop, or of an open wall but its ends.
+func _turns(s: float) -> bool:
+	return closed or s > 0.001 and s < length() - 0.001
+
+
 ## The rows of planks laid across a band `h` tall: as many as are BOARD.x tall or less.
 static func rows_of(h: float) -> int:
 	return maxi(1, ceili(h / BOARD.x - 1e-3))
@@ -1565,7 +1584,7 @@ static func rows_of(h: float) -> int:
 ## openings, arches, pillars and ruins), on each straight `faces` stretch: across, in rows BOARD.x tall of staggered
 ## lengths; or upright, side by side BOARD.x wide, each running up through the bands it spans whole. The mortar laid
 ## behind them closes the gaps between them.
-func _lay_planks(bands: Array, faces: Array[Vector2], rng: RandomNumberGenerator) -> void:
+func _lay_cladding(bands: Array, faces: Array[Vector2], rng: RandomNumberGenerator) -> void:
 	var deep := THICKNESS - PLASTER_INSET * 2.0
 	var columns: Array[Dictionary] = []
 	var below := {}
@@ -1586,13 +1605,7 @@ func _lay_planks(bands: Array, faces: Array[Vector2], rng: RandomNumberGenerator
 				if finish == Finish.BOARDS_ACROSS:
 					for r in rows:
 						rng.seed = hash([seed, "board", y0, r, a])
-						var s := a
-						var want := rng.randf_range(0.3, 1.0) * BOARD_RUN.y * _stone_scale
-						while b - s > BOARD.y * 2.0:
-							var l := minf(want, b - s)
-							_part(s + l * 0.5, y0 + h * (r + 0.5) / rows, Vector3(l - BOARD.y, h / rows - BOARD.y, deep), WOOD * rng.randf_range(0.85, 1.1), rng, "board")
-							s += l
-							want = rng.randf_range(BOARD_RUN.x, BOARD_RUN.y) * _stone_scale
+						_lay_run(a, b, y0 + h * (r + 0.5) / rows, Vector2(h / rows, deep), 0.0, rng)
 					continue
 				for i in range(floori(a / BOARD.x), ceili(b / BOARD.x)):
 					var lo := maxf(a, i * BOARD.x)
@@ -1946,8 +1959,8 @@ func _lay_top_span(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		edge += 1.15
 
 
-## A timber-framed wall's walk, open to the sky: planks along its top in WALK_LANES runs of staggered lengths, under a
-## wooden railing, broken where a ruin is.
+## A timber-framed wall's walk, open to the sky: planks along its top in WALK_LANES runs of staggered lengths from
+## corner to corner, a square plank on each corner, under a wooden railing; broken where a ruin is.
 func _lay_walk(rng: RandomNumberGenerator) -> void:
 	var faces := _face_spans()
 	var wide := THICKNESS + 0.16
@@ -1960,15 +1973,13 @@ func _lay_walk(rng: RandomNumberGenerator) -> void:
 			rng.seed = hash([seed, "walk", face, i])
 			var a: float = spans[i][0]
 			var b: float = spans[i][1]
+			var ends := Vector2(wide * 0.5 if _turns(a) else 0.0, wide * 0.5 if _turns(b) else 0.0)
 			for lane in WALK_LANES:
-				var s := a
-				var want := rng.randf_range(0.3, 1.0) * BOARD_RUN.y * _stone_scale
-				while b - s > BOARD.y * 2.0:
-					var l := minf(want, b - s)
-					_part(s + l * 0.5, height + CAP * 0.5, Vector3(l - BOARD.y, CAP, wide / WALK_LANES - BOARD.y), WOOD * rng.randf_range(0.85, 1.1), rng, "board", ((lane + 0.5) / WALK_LANES - 0.5) * wide)
-					s += l
-					want = rng.randf_range(BOARD_RUN.x, BOARD_RUN.y) * _stone_scale
-			_lay_railing(a, b, rng)
+				_lay_run(a + ends.x, b - ends.y, height + CAP * 0.5, Vector2(CAP, wide / WALK_LANES - BOARD.y), ((lane + 0.5) / WALK_LANES - 0.5) * wide, rng)
+			_lay_railing(a, b, rng, 0.08)
+	for s in corners():
+		if _turns(s) and not broken(s, wide * 0.5):
+			_part(s, height + CAP * 0.5, Vector3(wide, CAP, wide), WOOD * rng.randf_range(0.85, 1.1), rng, "board")
 
 
 func _lay_gables() -> void:
@@ -1987,7 +1998,7 @@ func _lay_gables() -> void:
 		rng.seed = hash([seed, "gable", i])
 		var mid: float = (end[0] + end[1]) * 0.5
 		var hs: float = (end[1] - end[0] + THICKNESS) * 0.5
-		match GableEnd.BOARDS if boarded() else gable_end:
+		match gable_end:
 			GableEnd.BOARDS:
 				_lay_boards(mid, hs, base, rng)
 				if not gable.thatch:
@@ -2138,12 +2149,12 @@ func _lay_parapet(a: float, total: float, rng: RandomNumberGenerator) -> void:
 		s += l
 
 
-## Wooden posts standing on the cap from `a` to `total`, clear of the piers at its ends, under two rails that follow
-## the top from post to post.
-func _lay_railing(a: float, total: float, rng: RandomNumberGenerator) -> void:
+## Wooden posts standing on the cap from `a` to `total`, `inset` in from its ends (by default clear of the piers there),
+## under two rails that follow the top from post to post.
+func _lay_railing(a: float, total: float, rng: RandomNumberGenerator, inset := PIER * 0.5 + 0.03) -> void:
 	rng.seed = hash([rng.seed, "railing"])
 	var y := height + CAP
-	var ends := Vector2(a, total) + Vector2(1.0, -1.0) * (PIER * 0.5 + 0.03)
+	var ends := Vector2(a, total) + Vector2(1.0, -1.0) * inset
 	if ends.y - ends.x < 0.1:
 		return
 	var n := ceili((ends.y - ends.x) / RAIL_POSTS)

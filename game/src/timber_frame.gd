@@ -17,7 +17,7 @@ static func applies(w: WallLayout) -> bool:
 
 
 ## The faces a frame is laid on, as `WallLayout._normal` calls them: a house's outer one, both of a wall standing open.
-static func faces(w: WallLayout) -> Array[float]:
+static func sides(w: WallLayout) -> Array[float]:
 	var inner := w.inner_side()
 	var out: Array[float] = [-1.0, 1.0]
 	if inner != 0.0:
@@ -58,6 +58,12 @@ static func generate(w: WallLayout) -> Array[Dictionary]:
 			holes.append(f.grow(clearance))
 			xs.append(f.position.x - clearance)
 			xs.append(f.end.x + clearance)
+		if not w.closed:
+			var x := w.straight(lo, hi - lo) + lo
+			while x < hi - WIDTH:
+				if xs.all(func(v: float) -> bool: return absf(v - x) > WIDTH * 1.5):
+					xs.append(x)
+				x += w.straight(x, hi - x)
 		var count := ceili((hi - lo) / SPACING)
 		for i in range(1, count):
 			var x := lerpf(lo, hi, float(i) / count)
@@ -167,7 +173,7 @@ static func _inside(a: Vector2, b: Vector2, rect: Rect2) -> Vector2:
 static func lay(w: WallLayout) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = hash([w.seed, "timber"])
-	var sides := faces(w)
+	var faces := sides(w)
 	for beam in generate(w):
 		var center: Vector2 = (beam.a + beam.b) * 0.5
 		var run: Vector2 = beam.b - beam.a
@@ -176,7 +182,7 @@ static func lay(w: WallLayout) -> void:
 		var normal := tangent.cross(Vector3.UP)
 		var x := (tangent * run.x + Vector3.UP * run.y).normalized()
 		var size := Vector3(run.length() + 0.02, WIDTH, DEPTH)
-		for side in sides:
+		for side in faces:
 			var origin: Vector3 = frame.point + tangent * (center.x - beam.face) + Vector3.UP * center.y
 			origin += normal * side * (WallLayout.THICKNESS * 0.5 - WallLayout.PLASTER_INSET + DEPTH * 0.35 - STEP * rank(beam))
 			w.stones.append({"xform": Transform3D(Basis(x, normal.cross(x), normal).scaled_local(size), origin), "color": OAK * rng.randf_range(0.88, 1.12), "kind": "timber", "s": center.x, "y": center.y, "size": size, "ao": 1.0, "variant": 0, "beam": beam})
@@ -211,4 +217,4 @@ static func count(d: Dictionary) -> int:
 	for o in w.apertures:
 		if o.style == WallLayout.DoorStyle.ARCHWAY:
 			w._lay_arch(o.s, o.size, RandomNumberGenerator.new(), 0.0)
-	return generate(w).size() * faces(w).size() + w.stones.filter(func(s: Dictionary) -> bool: return s.kind == "timber").size()
+	return generate(w).size() * sides(w).size() + w.stones.filter(func(s: Dictionary) -> bool: return s.kind == "timber").size()

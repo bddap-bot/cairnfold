@@ -22,7 +22,7 @@ const WIPED := "*"
 const DROWNING := ["heights", "ponds", "plant", "tree"]
 ## A saved garden from another format is moved aside rather than rebuilt into a different one: 5 lays each floor
 ## in its own material.
-const FORMAT := 5
+const FORMAT := 6
 ## The garden is kept at most this often while it changes: keeping it takes the frame a copy of the whole garden.
 const KEEP_EVERY := 5.0
 const OVER := "over the frame budget"

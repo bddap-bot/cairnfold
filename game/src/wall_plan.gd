@@ -24,7 +24,6 @@ var obstacles: PackedVector3Array
 var seed: int
 ## The stroke draws a fence: low posts and rails, with no arches over plants.
 var fence := false
-## What the stroke's faces are, and how worn its plaster.
 var finish := WallLayout.Finish.BARE
 var wear := 0.0
 var planks := false

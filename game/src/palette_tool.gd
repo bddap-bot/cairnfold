@@ -202,11 +202,11 @@ static func styles(restyle: Restyle) -> int:
 	return FACES.size()
 
 
-## Whether `wall` can take `finish`: a fence rails or planks; a round tower under a cone stone alone; any other wall
-## any finish, but a loop framed in timber only with a house's four corners.
+## Whether `wall` can take `finish`: what suits a fence or a wall, but a round tower under a cone stone alone, and a
+## loop framed in timber only with a house's four corners.
 static func _faces(wall: Wall, finish: WallLayout.Finish) -> bool:
-	if wall.layout.fence:
-		return finish in [WallLayout.Finish.BARE, WallLayout.Finish.BOARDS_ACROSS, WallLayout.Finish.BOARDS_UPRIGHT]
+	if not WallLayout.suits(finish, wall.layout.fence):
+		return false
 	if wall.roof != null and wall.roof.kind == RoofLayout.Kind.CONE:
 		return finish == WallLayout.Finish.BARE
 	return finish != WallLayout.Finish.TIMBER or not wall.layout.closed or wall.layout.corners().size() == 4
@@ -254,7 +254,7 @@ func open(hand: Hand, target: Dictionary) -> void:
 static func _style(restyle: Restyle, i: int, wall: Wall, boulder := false) -> Node3D:
 	var holder := Node3D.new()
 	var house := restyle == Restyle.FACE and wall != null and wall.layout.closed and wall.layout.corners().size() == 4
-	var model := ToolModels.style(restyle, i, wall != null and wall.layout.plastered(), wall != null and wall.roof != null and wall.roof.kind == RoofLayout.Kind.CONE, boulder, house, wall != null and wall.layout.fence)
+	var model := ToolModels.style(restyle, i, wall.layout.finish if wall != null else WallLayout.Finish.BARE, wall != null and wall.roof != null and wall.roof.kind == RoofLayout.Kind.CONE, boulder, house, wall != null and wall.layout.fence)
 	model.scale = Vector3.ONE * 0.7
 	holder.add_child(model)
 	return holder

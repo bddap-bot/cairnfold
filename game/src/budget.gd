@@ -14,12 +14,12 @@ const PATH_TREADS_PER_ROW := 2
 ## What a garden's builds count as, the units COSTS prices: square metres of face of stone walls, plaster walls and
 ## fences (length along the ground by height, and a house's two gable ends: boards, laid as stones are but fewer, count
 ## as stone wall; worn plaster counts the stone it has worn back to as stone wall besides; a planked wall counts as
-## plaster for the backing behind its planks), of tiled or flat roof and of thatch (laid along its slopes out to its eaves);
-## fittings that add a mesh (lanterns, flags, chimneys, dormers, whose boarded faces count as stone wall and whose
-## slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing;
-## explicit arch openings, with timber members, and the planks of a planked wall or fence, counted separately; square metres of pond water; easels, each a canvas
-## drawn and simulated; boulders, a metre-wide one a unit (`boulder`); and square metres of painted stone ground, each
-## stroke the ground its discs reach, a stroke over another counted again.
+## plaster for the backing behind its planks), of tiled or flat roof and of thatch (laid along its slopes out to its
+## eaves); fittings that add a mesh (lanterns, flags, chimneys, dormers, whose boarded faces count as stone wall and
+## whose slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing; explicit arch
+## openings, with timber members and the planks a finish lays counted separately; square metres of pond water; easels,
+## each a canvas drawn and simulated; boulders, a metre-wide one a unit (`boulder`); and square metres of painted stone
+## ground, each stroke the ground its discs reach, a stroke over another counted again.
 static var UNITS: Array = COSTS.keys().filter(func(k: String) -> bool: return not k in CAPS.values())
 ## Masonry draws a chunk's stones whole only near the eye (Quality.Step.stone_near_m) and coarser past it, so each of
 ## these costs a far rate on all of it and, as `<unit>_near` (World counts them, `Near`), a near excess on what stands in
@@ -219,7 +219,7 @@ static func wall(d: Dictionary) -> Dictionary:
 	var span := WallLayout.stilt_span(d.foundation, d.rise) if d.get("on", PackedInt32Array()).is_empty() else 0.0
 	if d.rise > 0.0:
 		out.wall_m2 = out.get("wall_m2", 0.0) + length * (d.rise - span)
-	var timber := TimberFrame.count(d) + planks(d, length)
+	var timber := TimberFrame.count(d) + boards(d, length)
 	if span > 0.0:
 		var stilted := WallLayout.new()
 		stilted.points.assign(Array(d.points))
@@ -253,7 +253,7 @@ static func wall(d: Dictionary) -> Dictionary:
 			ends.gable_end = d.gable_end
 			ends.gable = slopes
 			var half_span: float = (Vector2(d.points[3].x - d.points[0].x, d.points[3].z - d.points[0].z).length() + WallLayout.THICKNESS) * 0.5
-			var units := "wall_m2" if ends.gable_end == WallLayout.GableEnd.BOARDS or d.finish in [WallLayout.Finish.BOARDS_ACROSS, WallLayout.Finish.BOARDS_UPRIGHT] else face
+			var units := "wall_m2" if ends.gable_end == WallLayout.GableEnd.BOARDS else face
 			out[units] = out.get(units, 0.0) + 2.0 * ends.gable_face(half_span)
 			var ridge := Vector2(d.points[1].x - d.points[0].x, d.points[1].z - d.points[0].z).length()
 			plan = (ridge + WallLayout.THICKNESS + 2.0 * RoofLayout.GABLE_OVERHANG) * 2.0 * (half_span + minf(d.roof.overhang, slopes.reach()))
@@ -273,20 +273,39 @@ static func wall(d: Dictionary) -> Dictionary:
 	return out
 
 
-## The planks a planked wall or fence `length` long lays: across a wall, rows BOARD.x tall of planks BOARD_RUN long at
-## the mean, or between a fence's posts FENCE_BOARDS rows; upright, a column BOARD.x or FENCE_PALE wide, a wall's broken
-## in two round each opening.
-static func planks(d: Dictionary, length: float) -> int:
+## The planks a wall or fence `length` long lays as its finish: planked across, rows two to a course of planks
+## BOARD_RUN long at the mean, shorter where the wall curves, and one more a row on each side and at each opening, or
+## between a fence's posts FENCE_BOARDS rows; planked upright, a column BOARD.x or FENCE_PALE wide, a wall's broken in
+## two round each opening; framed in timber with no pitched roof, the walk's lanes and a square on each corner.
+static func boards(d: Dictionary, length: float) -> int:
+	if d.finish == WallLayout.Finish.BARE or d.finish == WallLayout.Finish.PLASTER or d.finish == WallLayout.Finish.TIMBER and d.get("roof") != null and d.roof.pitch > 0.0:
+		return 0
+	var points: PackedVector3Array = d.points
+	var n := points.size()
+	var turn := 0.0
+	var sides := 0
+	for i in range(0 if d.closed else 1, n if d.closed else n - 1):
+		var a := points[(i + n - 1) % n]
+		var b := points[i]
+		var c := points[(i + 1) % n]
+		var bend := absf(Vector2(b.x - a.x, b.z - a.z).angle_to(Vector2(c.x - b.x, c.z - b.z)))
+		if bend > WallLayout.CORNER_TURN:
+			sides += 1
+		else:
+			turn += bend
+	var run := minf((WallLayout.BOARD_RUN.x + WallLayout.BOARD_RUN.y) * 0.5, maxf(WallLayout.BOARD_RUN.x * 0.5, WallLayout.BOARD_TURN * length / maxf(turn, 1e-4)))
+	var along := ceili(length / run) + sides + 1
+	var openings: Array = d.get("openings", [])
 	match d.finish:
 		WallLayout.Finish.BOARDS_ACROSS:
 			if d.fence:
 				return ceili(length / WallLayout.POST_SPACING) * WallLayout.FENCE_BOARDS.size()
-			return ceili(length / ((WallLayout.BOARD_RUN.x + WallLayout.BOARD_RUN.y) * 0.5) + 1.0) * ceili((d.height - WallLayout.COURSE) / WallLayout.COURSE) * WallLayout.rows_of(WallLayout.COURSE)
+			return (along + openings.size()) * ceili((d.height - WallLayout.COURSE) / WallLayout.COURSE) * WallLayout.rows_of(WallLayout.COURSE)
 		WallLayout.Finish.BOARDS_UPRIGHT:
 			if d.fence:
 				return ceili(length / WallLayout.FENCE_PALE)
-			return ceili(length / WallLayout.BOARD.x) + d.openings.size() * ceili(WallLayout.WINDOW_HALF * 4.0 / WallLayout.BOARD.x)
-	return 0
+			return ceili(length / WallLayout.BOARD.x) + openings.reduce(func(n: int, o: Vector4) -> int: return n + ceili(WallLayout.ARCH_HALF * 2.0 * o.w / WallLayout.BOARD.x) + 2, 0)
+	return WallLayout.WALK_LANES * along + sides
 
 
 ## `n` plants of a plant group's kind.
