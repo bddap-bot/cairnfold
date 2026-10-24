@@ -1832,6 +1832,9 @@ A crown is lit and shaded as one soft mass, at no measured cost
   it, and one sample removed it. On the Steam Frame (side-lit crown, both eyes, shadows-off control) the grain the
   shadows add at the finest scale fell from 0.19 and 0.14 to 0.05 and 0.03, all of what is
   left on the shade's own edge; off that edge the crown matches the control.
+  GPU time a frame on the Frame (`demo/crowns-bench.json`, two runs each) fell from 9.76, 8.43
+  and 9.56 ms to 9.35, 8.04 and 9.16 ms; on the Quest 2, which already filtered so, it held at
+  7.65, 6.69 and 8.61 ms.
 
 GPU time a frame on the Quest 2 (`demo/crowns-bench.json`: the meadow and the tree pool
 filled to 20 m, ladder pinned; two passes of each build in one session, mean of the two),
@@ -2013,7 +2016,10 @@ its doorways, and the floor by a door sees more than the back of the room. What
 hangs shows a probe only its shaded underside. When a build settles,
 changes or goes, when the sun moves, or when the ground is reshaped, the probes
 that could see the change are solved again on a worker thread, and the main
-thread only uploads the finished layers. On the desktop the densest stress scene
+thread only uploads the finished layers. Reading each column's bottom as well as its top
+costs a solve about an eighth: the same height field solved by the top-only reading and by the
+span reading, in turn on one device, took 117 and 131 ms on the Steam Frame and 260 and 295 ms
+on the Quest 2, the bottom tested at every column a probe passes, on every layer. On the desktop the densest stress scene
 (973 m of walls, about 40,000 stones) solves in under 0.7 s. While the sun is dragged the bounce follows a solve behind
 it. Walls still being drawn or pulled are left out until they settle.
 
