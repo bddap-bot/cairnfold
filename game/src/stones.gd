@@ -8,17 +8,31 @@ const FLIPS: Array[Basis] = [Basis.IDENTITY, Basis(Vector3.UP, PI), Basis(Vector
 static var _mesh: ArrayMesh
 static var _far_mesh: ArrayMesh
 static var _material: ShaderMaterial
+static var _small: ShaderMaterial
 
-var _instance := Masonry.Kind.new(mesh(), shared_material(), true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_ON).instance()
+var _instance := Masonry.Kind.new(mesh(), small_material(), true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_ON).instance()
 
 
 static func shared_material() -> ShaderMaterial:
 	if _material == null:
-		_material = ShaderMaterial.new()
-		_material.shader = preload("res://src/stone.gdshader")
-		_material.set_shader_parameter("window_glow", Lamps.WINDOW_GLOW)
-		StoneStyles.apply(_material)
+		_material = _stone(preload("res://src/stone.gdshader"))
 	return _material
+
+
+## shared_material for pieces small enough that the light volumes do not vary over a triangle, stones and tiles:
+## they read the volumes once a vertex (Bounce's given_at), not once a fragment.
+static func small_material() -> ShaderMaterial:
+	if _small == null:
+		_small = _stone(preload("res://src/stone_small.gdshader"))
+	return _small
+
+
+static func _stone(shader: Shader) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = shader
+	m.set_shader_parameter("window_glow", Lamps.WINDOW_GLOW)
+	StoneStyles.apply(m)
+	return m
 
 
 static func mesh() -> ArrayMesh:

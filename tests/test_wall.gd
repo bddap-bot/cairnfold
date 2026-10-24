@@ -328,10 +328,18 @@ func _a_long_wall_splits_by_the_ground_under_each_stone() -> void:
 
 func _stone_faces_share_their_borders() -> void:
 	for segments in [1, 2, 3]:
-		var a := Meshes.rounded_box(0.14, segments, 100).surface_get_arrays(0)
-		var row: int = segments + 1
-		check(a[Mesh.ARRAY_VERTEX].size() == 6 * row * row - 12 * row + 8, "%d segments: one vertex per lattice point, got %d" % [segments, a[Mesh.ARRAY_VERTEX].size()])
+		var mesh := Meshes.rounded_box(0.14, segments, 100)
+		var a := mesh.surface_get_arrays(0)
+		var points := func(n: int) -> int: return 6 * (n + 1) * (n + 1) - 12 * (n + 1) + 8
+		var lod: bool = segments > Meshes.LOD_SEGMENTS
+		var expected: int = points.call(segments) + (points.call(Meshes.LOD_SEGMENTS) if lod else 0)
+		check(a[Mesh.ARRAY_VERTEX].size() == expected, "%d segments: one vertex per lattice point, got %d" % [segments, a[Mesh.ARRAY_VERTEX].size()])
 		check(a[Mesh.ARRAY_INDEX].size() == 36 * segments * segments, "%d segments: every face's triangles" % segments)
+		var lods: Array = RenderingServer.mesh_get_surface(mesh.get_rid(), 0).get("lods", [])
+		check(lods.size() == (1 if lod else 0), "%d segments: %d levels of detail" % [segments, lods.size()])
+		if lod:
+			var error: float = lods[0].edge_length
+			check(error > 0.0 and error < 0.05, "%d segments: the coarse lattice strays %.4f, under a twentieth of the stone" % [segments, error])
 
 
 func _settled_chunks_draw_far_stones_and_stop_ivy_at_its_reach() -> void:

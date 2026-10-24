@@ -19,6 +19,8 @@ enum GableEnd { WALL, BOARDS, STEPS }
 enum Foundation { STONE, PLASTER, PILLARS, POSTS }
 
 const COURSE := 0.3
+## The longest stone a course lays, at full scale.
+const LONGEST := 0.85
 ## The lowest a wall stands. Nothing caps how tall it stands, or how high a house rises on its plinth: the budget
 ## charges both as wall.
 const MIN_HEIGHT := 0.9
@@ -1346,7 +1348,7 @@ func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: Ra
 	var s := a
 	var first := true
 	while b - s > 0.001:
-		var want := rng.randf_range(0.42, 0.85) * _stone_scale
+		var want := rng.randf_range(0.42, LONGEST) * _stone_scale
 		if first:
 			want = maxf(0.2, want * (1.0 - offset))
 			first = false

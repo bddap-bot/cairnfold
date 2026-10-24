@@ -40,6 +40,9 @@ class Kind:
 	## What `far` is drawn in; null to draw it in `material`.
 	var far_material: Material
 	var near := 0.0
+	## The longest a piece of it is laid, in metres: its mesh's level of detail is keyed in the mesh's own units
+	## (Meshes.lod_error), so a chunk scales that key by it and swaps none sooner than its error allows.
+	var size := 1.0
 
 	func _init(m: Mesh, mat: Material, use_colors: bool, use_custom: bool, cast: GeometryInstance3D.ShadowCastingSetting, occluding := false) -> void:
 		assert(use_colors or not occluding, "occluding pieces carry colours")
@@ -105,6 +108,7 @@ class Kind:
 		mmi.multimesh = mm
 		mmi.material_override = material
 		mmi.cast_shadow = shadow
+		mmi.lod_bias = size
 		return mmi
 
 

@@ -43,11 +43,38 @@ static func moss() -> ArrayMesh:
 
 
 
+## The lattice a finer rounded box carries as its level of detail.
+const LOD_SEGMENTS := 2
+
+
 ## A unit cube (-0.5..0.5) with rounded edges, its surface lumped by `seed` so no two variants match. Faces share
-## the vertices along their borders: a stone's cost on the GPU follows the vertices it runs.
+## the vertices along their borders: a stone's cost on the GPU follows the vertices it runs. One finer than
+## LOD_SEGMENTS carries that lattice as its level of detail, keyed by how far it strays (`lod_error`), so the renderer
+## draws it only where the difference is under its LOD threshold, a pixel by default.
 static func rounded_box(radius: float, segments: int, seed: int) -> ArrayMesh:
-	var st := SurfaceTool.new()
-	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var lump := FastNoiseLite.new()
+	lump.seed = seed
+	lump.frequency = 1.6
+	var arrays := []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array()
+	arrays[Mesh.ARRAY_NORMAL] = PackedVector3Array()
+	var full := _lattice(arrays, radius, segments, lump)
+	arrays[Mesh.ARRAY_INDEX] = full.indices
+	var lods := {}
+	if segments > LOD_SEGMENTS:
+		var coarse := _lattice(arrays, radius, LOD_SEGMENTS, lump)
+		lods[lod_error(arrays[Mesh.ARRAY_VERTEX], full, coarse)] = coarse.indices
+	var mesh := ArrayMesh.new()
+	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays, [], lods)
+	return mesh
+
+
+## Appends to `arrays` the vertices of a rounded box `segments` to a face's side: {indices, grids}, each face's
+## lattice point (i, j) its grid's j * (segments + 1) + i entry.
+static func _lattice(arrays: Array, radius: float, segments: int, lump: FastNoiseLite) -> Dictionary:
+	var verts: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
+	var normals: PackedVector3Array = arrays[Mesh.ARRAY_NORMAL]
 	var faces := [
 		[Vector3i.RIGHT, Vector3i.UP, Vector3i.BACK],
 		[Vector3i.LEFT, Vector3i.UP, Vector3i.FORWARD],
@@ -56,13 +83,12 @@ static func rounded_box(radius: float, segments: int, seed: int) -> ArrayMesh:
 		[Vector3i.BACK, Vector3i.UP, Vector3i.LEFT],
 		[Vector3i.FORWARD, Vector3i.UP, Vector3i.RIGHT],
 	]
-	var lump := FastNoiseLite.new()
-	lump.seed = seed
-	lump.frequency = 1.6
 	var inner := 1.0 - radius * 2.0
 	var row := segments + 1
 	## Lattice point on the cube's surface, in steps of 2 / segments -> vertex index.
 	var made := {}
+	var indices := PackedInt32Array()
+	var grids: Array[PackedInt32Array] = []
 	for f in faces:
 		var grid := PackedInt32Array()
 		for j in row:
@@ -74,16 +100,45 @@ static func rounded_box(radius: float, segments: int, seed: int) -> ArrayMesh:
 					var off := (d - core).normalized()
 					var p := core + off * radius * 2.0
 					p += off * lump.get_noise_3dv(p * 1.3) * 0.06
-					st.set_normal(off)
-					st.add_vertex(p * 0.5)
-					made[q] = made.size()
+					made[q] = verts.size()
+					normals.append(off)
+					verts.append(p * 0.5)
 				grid.append(made[q])
 		for j in segments:
 			for i in segments:
 				var a := j * row + i
-				st.add_index(grid[a]); st.add_index(grid[a + row]); st.add_index(grid[a + 1])
-				st.add_index(grid[a + 1]); st.add_index(grid[a + row]); st.add_index(grid[a + row + 1])
-	return st.commit()
+				indices.append_array([grid[a], grid[a + row], grid[a + 1], grid[a + 1], grid[a + row], grid[a + row + 1]])
+		grids.append(grid)
+	arrays[Mesh.ARRAY_VERTEX] = verts
+	arrays[Mesh.ARRAY_NORMAL] = normals
+	return {"indices": indices, "grids": grids, "segments": segments}
+
+
+## The farthest a vertex of lattice `fine` stands from lattice `coarse`'s surface at the same point of its face, in the
+## mesh's units: the renderer's LOD key, the error a level of detail makes in place of the surface it stands for.
+static func lod_error(verts: PackedVector3Array, fine: Dictionary, coarse: Dictionary) -> float:
+	var n: int = fine.segments
+	var m: int = coarse.segments
+	var error := 0.0
+	for f in fine.grids.size():
+		var g: PackedInt32Array = fine.grids[f]
+		var c: PackedInt32Array = coarse.grids[f]
+		for j in n + 1:
+			for i in n + 1:
+				var u := float(i) * m / n
+				var v := float(j) * m / n
+				var ci := mini(floori(u), m - 1)
+				var cj := mini(floori(v), m - 1)
+				var fu := u - ci
+				var fv := v - cj
+				var a := verts[c[cj * (m + 1) + ci]]
+				var b := verts[c[cj * (m + 1) + ci + 1]]
+				var d := verts[c[(cj + 1) * (m + 1) + ci]]
+				var e := verts[c[(cj + 1) * (m + 1) + ci + 1]]
+				## Each cell's two triangles meet along its b-d diagonal.
+				var at := a + (b - a) * fu + (d - a) * fv if fu + fv <= 1.0 else e + (d - e) * (1.0 - fu) + (b - e) * (1.0 - fv)
+				error = maxf(error, verts[g[j * (n + 1) + i]].distance_to(at))
+	return error
 
 
 ## A unit cube (-0.5..0.5) of 8 vertices, its normals leaning out at the corners: for what only casts a shadow

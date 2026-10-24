@@ -103,11 +103,12 @@ static func kinds() -> Array[Masonry.Kind]:
 		var off := GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		var shadow := Masonry.Kind.new(Meshes.plain_box(), null, false, false, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY)
 		_kinds.resize(Part.size())
-		_kinds[Part.STONE] = Masonry.Kind.new(Stones.mesh(), Stones.shared_material(), true, true, off, true)
+		_kinds[Part.STONE] = Masonry.Kind.new(Stones.mesh(), Stones.small_material(), true, true, off, true)
 		_kinds[Part.STONE].far = Stones.far_mesh()
+		_kinds[Part.STONE].size = WallLayout.LONGEST
 		_kinds[Part.MORTAR] = Masonry.Kind.new(box, Stones.shared_material(), true, true, off)
 		_kinds[Part.STONE_SHADOW] = shadow
-		_kinds[Part.TILE] = Masonry.Kind.new(Meshes.rounded_box(0.22, 2, 41), Stones.shared_material(), true, true, off, true)
+		_kinds[Part.TILE] = Masonry.Kind.new(Meshes.rounded_box(0.22, 2, 41), Stones.small_material(), true, true, off, true)
 		_kinds[Part.TILE].far = Stones.far_mesh()
 		_kinds[Part.TILE_SHADOW] = shadow
 		_kinds[Part.COAT] = Masonry.Kind.new(Meshes.plain_box(), null, true, true, GeometryInstance3D.SHADOW_CASTING_SETTING_SHADOWS_ONLY, true)

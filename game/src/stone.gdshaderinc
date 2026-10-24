@@ -13,8 +13,13 @@ varying vec3 world_pos;
 varying vec3 world_nrm;
 varying float occlusion;
 varying float material;
+#ifdef GIVEN_PER_VERTEX
+// Bounce's given_at, read once a vertex: Stones.small_material.
+varying vec4 given;
+#else
 varying vec3 bounce_at;
 varying vec3 lamp_at;
+#endif
 // Lamps supplies the same strength to the opening's spill and its glass (colour alpha 0, Wall.pack).
 uniform float window_glow;
 #ifdef ROOF_TIMBER
@@ -58,8 +63,12 @@ void vertex() {
 	world_pos = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 #endif
 	surface_pos = miniature ? VERTEX : world_pos;
+#ifdef GIVEN_PER_VERTEX
+	given = given_at(world_pos, world_nrm);
+#else
 	bounce_at = bounce_coord(world_pos, world_nrm);
 	lamp_at = lamp_coord(world_pos, world_nrm);
+#endif
 	pane = COLOR.a < 0.5 ? textureLod(lamp_volume, lamp_coord(world_pos, -world_nrm), 0.0).r : 0.0;
 #ifdef ROOF_TIMBER
 	COLOR = vec4(timber_color, 1.0);
@@ -74,7 +83,11 @@ void vertex() {
 }
 
 void fragment() {
+#ifdef GIVEN_PER_VERTEX
+	vec4 bounce = given;
+#else
 	vec4 bounce = texture(bounce_volume, bounce_at);
+#endif
 	if (abs(material - 4.0) < 0.5) {
 		ALBEDO = COLOR.rgb * occlusion * plaster_surface(detail, world_pos, world_nrm, world_pos.y - ground_at(world_pos.xz));
 	} else {
@@ -96,5 +109,9 @@ void fragment() {
 	ROUGHNESS = 0.92;
 	SPECULAR = 0.25;
 	AO = bounce.a;
+#ifdef GIVEN_PER_VERTEX
+	EMISSION = ALBEDO * given.rgb + pane * lamp_light * window_glow;
+#else
 	EMISSION = ALBEDO * given_back(bounce_at, lamp_at, bounce) + pane * lamp_light * window_glow;
+#endif
 }
