@@ -4832,6 +4832,14 @@ so an empty gap no longer behaves as a full-height wall. The fitting-delete
 highlight also encloses rubble's owning wall. `demo/rubble.json` exercises the
 picker across dense ruined walls; the same phases are in the stress scene.
 
+`demo/ruins-budget.json` holds four 16 m walls, each broken into a ruin, to the build
+limit and measures them from 5 m: 9.38 ms GPU without Delete and 8.52 and 8.53 ms with
+its beam through a gap and on fallen stones. Seven such walls take 0.977 of the limit,
+which refuses an eighth; ruining four of the seven measures 9.38 and 9.53 ms
+(`perf/quest-2/ruins-budget/`). From that view, over the meadow's viewport time, four
+standing walls add 2.31 ms and breaking them into ruins 1.86 ms more, while the limit
+charges all four 1.75 ms: dear in a view they fill, yet a full limit of them still holds.
+
 ### Drawn wall curves
 
 Releasing a drawn wall filters hand jitter and cuts corners within each smooth span,
