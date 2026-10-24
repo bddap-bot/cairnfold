@@ -248,7 +248,7 @@ func _process(delta: float) -> void:
 			var was := governor.level
 			governor.step(frame_ms, budget_ms, dt, _settled)
 			if governor.level != was:
-				print("quality: step %d to %d, the GPU at %.1f ms of %.1f" % [was, governor.level, frame_ms, budget_ms])
+				print("quality: step %d to %d, the GPU at %.1f ms of %.1f, %s" % [was, governor.level, frame_ms, budget_ms, governor.why])
 	var priming := _primed < _priming.size() * PRIME_FRAMES
 	var n := _priming[_primed / PRIME_FRAMES] if priming else step()
 	var at := ladder[n]
@@ -353,6 +353,8 @@ class Governor:
 	var _idle := PackedInt32Array()
 	## The level the last step up left.
 	var _up_from := 0
+	## What took the last step, for the log.
+	var why := ""
 
 	## The governor starts at `start`. A step up across a level of `sticky` (ascending) waits the longest calm once a
 	## step down has crossed it, and once undone is not taken again in the session: above the start it is crossed
@@ -449,12 +451,14 @@ class Governor:
 					_wait[i] = maxf(_wait[i], CALM_SECONDS_MAX)
 			_measuring = to
 			_went_up = false
+			why = "%s, %.1f ms since the last frame, averaging %.1f ms" % ["over budget" if _hot >= HOT_FRAMES else "missed" if missed else "every other refresh" if halved else "average over the line", dt_ms, _average]
 			_move(to)
 		elif level > 0 and _calm >= _climb_wait():
 			_before = _average
 			_measuring = level
 			_went_up = true
 			_up_from = level
+			why = "calm for %.1f s, averaging %.1f ms" % [_calm, _average]
 			_move(up(level))
 			_since_up = 0.0
 
