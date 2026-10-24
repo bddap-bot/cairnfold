@@ -3614,7 +3614,7 @@ is bare (earth or stone), and the brushes plant nothing there.
 - **Painting:** the stone tool's trigger lays stone under the brush; a stroke begun on stone paints meadow back, which
   takes away only stone, so a path through the area keeps its wear. The meadow's own grass and flowers
   stand up again where the stone goes. A stroke is one history step.
-- **Cliffs:** a slope too steep to hold soil (`rock` in `ground.gdshaderinc`, the one threshold) is bedded rock, not
+- **Cliffs:** a slope too steep to hold soil (`Terrain.ROCK`, the one threshold) is bedded rock, not
   laid stone. Report (verbatim): "I think that it is appropriate that a very steep cliff look stony. But the current
   stone texture on very steep cliffs does not look like a cliff." The paving seen from above read, on a face, as
   cobbles smeared down it. Drawn from photographs of sea cliffs, bedded limestone and sandstone and jointed granite
@@ -3630,7 +3630,8 @@ is bare (earth or stone), and the brushes plant nothing there.
   ([before](../perf/quest-2/cliff-cost/20261023T070655Z-0ea7e5a.json),
   [after](../perf/quest-2/cliff-cost/20261023T070028Z-3bd2619.json)). Sinking grass and flowers on rock by the
   grid's normal, read from the texel their vertex already fetches, cost 0.27 to 0.75 ms in the same scene, the cliff
-  look alone none, so plants still stand on a cliff face.
+  look alone none, so the GPU tests nothing: Flora finds the grass and flowers on rock as each is added or moved and
+  as the ground under it settles, and draws those at zero scale; laid gentle again, the ground grows them back.
 - **Styles:** each stroke of stone carries a style from one table (`StoneStyles`): mossy (the
   default) and river cobble; a boulder with lines on it did not fit, so no other style earned its place. The mask's blue channel holds the style of the stroke that laid most of the stone at each texel, read
   nearest-texel at a jittered spot so two styles meet along a ragged line. The style tool on painted stone
