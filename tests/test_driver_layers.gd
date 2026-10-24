@@ -37,5 +37,12 @@ func _run() -> void:
 	driver._layer({"name": "masonry", "mode": "on"})
 	check(not main.tool.masonry.visible, "an already hidden layer stays hidden")
 	main.tool.masonry.visible = true
+	driver._layer({"name": "boulders", "mode": "off"})
+	check(not main.boulders.visible, "boulders are hidden")
+	driver._layer({"name": "boulders", "mode": "on"})
+	check(main.boulders.visible, "boulders return")
+	driver._layer({"name": "all", "mode": "off"})
+	driver._layer({"name": "all", "mode": "on"})
+	check(main.boulders.visible and main.tool.masonry.visible, "every layer, ivy and moss among them, returns")
 	driver.free()
 	finish()

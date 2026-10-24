@@ -37,10 +37,9 @@ const BOULDER_LEAST := 0.25
 ## The most one boulder costs the Quest 2 however large, in microseconds: its dearest paired cost, carried or still, near
 ## or far, from 1 to 80 times a metre wide (docs/design.md, "Boulder cost by size").
 const BOULDER_MOST_US := 470.0
-## A moss patch spans roughly four flower widths: reserve sixteen flower allowances for its pixels.
-## This is conservative accounting until moss is measured on a headset.
-## Each opaque patch is twelve triangles, with no shadow pass or CPU animation.
-const MOSS_FLOWERS := 16.0
+## A moss patch's dearest paired Quest 2 cost: the pool's 256 packed into a 2 m disc 3 m from the eye; it falls with
+## distance, but the pool bounds all of a garden's moss to 1.8 ms (docs/design.md, "Cost by distance").
+const MOSS_US := 7.001
 ## The Quest 2's measured room, over the meadow without its own trees and bushes, and the larger unit costs of Quest 2
 ## and Frame; see docs/design.md.
 ## Fixed independently of the running device, refresh rate and quality governor.
@@ -49,7 +48,7 @@ const CAPACITY_MS := 4.68
 ## adds, charged however much is painted (docs/design.md, "Ground materials").
 const STONE_M2_US := 0.468
 const STONE_VIEW_US := 590.0
-const COSTS := {"grass": 2.503, "flower": 1.832, "tree": 26.628, "bush": 4.712, "wall_m2": 4.293, "plaster_m2": 1.105, "fence_m2": 2.271, "pond_m2": 15.9, "roof_m2": 9.437, "thatch_m2": 10.177, "fitting": 15.187, "easel": 876.552, "boulder": 25.861, "water": 1908.364, "stone_m2": STONE_M2_US, "stone": STONE_VIEW_US, "timber": TIMBER_US, "arch": ARCH_US, "moss": 1.832 * MOSS_FLOWERS, "wall_m2_near": 6.233, "plaster_m2_near": 4.282, "fence_m2_near": 3.381, "roof_m2_near": 0.0, "thatch_m2_near": 0.0}
+const COSTS := {"grass": 2.503, "flower": 1.832, "tree": 26.628, "bush": 4.712, "wall_m2": 4.293, "plaster_m2": 1.105, "fence_m2": 2.271, "pond_m2": 15.9, "roof_m2": 9.437, "thatch_m2": 10.177, "fitting": 15.187, "easel": 876.552, "boulder": 37.518, "water": 1908.364, "stone_m2": STONE_M2_US, "stone": STONE_VIEW_US, "timber": TIMBER_US, "arch": ARCH_US, "moss": MOSS_US, "wall_m2_near": 6.233, "plaster_m2_near": 4.282, "fence_m2_near": 3.381, "roof_m2_near": 0.0, "thatch_m2_near": 0.0}
 
 
 static func fit_step() -> int:

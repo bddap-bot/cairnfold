@@ -1751,7 +1751,7 @@ Refitted again on 5728d72, on one Quest 2, from both scenes' packed discs ([cost
 
 App time throughout; read in viewport time, as `scripts/costs.py` fits, the costs scene's packed flowers come to
 1.832 µs. Each plant unit is charged its dearest view: a grass clump 2.503 µs, up from 2.449, and a flower 1.832,
-down from 3.447, which the two runs on 2eb107d had already read at 1.51 (moss, sixteen flowers, follows). Trees and
+down from 3.447, which the two runs on 2eb107d had already read at 1.51 (moss is priced on its own: "Cost by distance"). Trees and
 bushes keep their charges: this run fitted them at 10.816 and 2.121 µs, under both. The packed grass and flower views,
 and the irises', fall under the refresh rate, so they are priced directly (`scripts/paired.py --price`), not by the fit.
 
@@ -2923,7 +2923,7 @@ calibration of a short and a long arm, and a far house taken, moved and reeled i
 | Move a tree or bush | Grip pointing at a tree or bush, the meadow's own too, whatever the hand holds: it moves along the ground with the hand, the gain growing with distance as a wall's does; let go to set it there, one undo step |
 | Grow or shrink a tree | Holding a tree with one grip, grip it with the other hand too: spread or close the hands and it scales by their span, from 0.4 to 3 times the size it grew at; letting one go leaves the other carrying it at its new size |
 | Move a boulder | Grip pointing at a boulder, whatever the hand holds: it moves with the hand, up off the ground too, the gain growing with distance, and turns about its centre as the hand turns, every way, so it can be tipped onto a face or stood on end. Let go and it drops straight down onto the ground under it, keeping its turn, or, pushed into the ground, stays as deep as it was let go, with at least 15% of its height showing: it is never left in the air (directive (verbatim): "Boulder should not be placeable in mid air") |
-| Grow or shrink a boulder | Grip a boulder with one hand, then the other: spread or close the hands and it scales by their span, from a pebble of 8 cm up to a hill, a giant costing no more than one 4.3 times a metre wide; letting one go leaves the other carrying it at its new size |
+| Grow or shrink a boulder | Grip a boulder with one hand, then the other: spread or close the hands and it scales by their span, from a pebble of 8 cm up to a hill, a giant costing no more than one 3.5 times a metre wide; letting one go leaves the other carrying it at its new size |
 | Move a fitting | Grip pointing at a placed door, window, arch, lantern, flag, chimney, dormer or decoration, whatever the hand holds: it moves with the hand over what it stands on, the gain growing with distance, and stops at the last place it fits; let go to set it there, one undo step (see "Moving a fitting") |
 | Size a door, window or arch | Holding an opening with one grip, grip it with the other hand too and spread or close the hands: it scales by their span, and letting either go leaves the other carrying it (two hands size a tree or boulder the same way, one `WallTool.Sizing`). It grows every way from where it stands, from a pet door's size to the largest that still opens without closing another: an arch about its springing up to its ring under the wall's top, so a tall wall carries a grand arch; a door or window up from its sill. A path's arches are the path's and take no grip |
 | Shape the ground | Grip held pointing at the ground, whatever the hand holds (a pond's bed too): the ring shows the hill's width; raise the hand to pull a hill, lower it to press a hollow, with a soft click in the hand for every quarter metre the ground rises or sinks; release to set it. Each hand grabs on its own, so both can shape the ground, or one holds it while the other grabs or builds something else |
@@ -3172,6 +3172,33 @@ in water. The garden keeps each moved tree's or bush's place with its group (`pl
 where they grew. Moving one regrows nothing: Flora shifts its instances, their anchors and its solid's place where a
 ray finds it (`Flora.move`), and refits only its own shade while it is held. `tests/test_carry_plants.gd` checks the
 carry, the pair, undo and the command a peer takes.
+
+### Cost by distance
+
+Directive (verbatim): "We also use distance lod elsewhere, right? So is density pricing applicable to other renderables too?"
+
+Stone walls, plaster, fences, roofs and thatch are: masonry pays a far rate on all of it and a near excess on the 3 by 3
+chunks around the dearest eye (`Budget.Near`). `demo/build-distance.json` measures what else draws by distance: each
+cluster at the meadow's centre seen from a spot, then hidden from the same view (`layer`), twice; standing N m off
+looking at it, out of view (looking away 6 m off, moss 3 m), and 22 m up N m off. `scripts/distance.py OUT RECORD`
+reads it. Microseconds a unit on a Quest 2 at the fit step, the larger pair
+([record](../perf/quest-2/build-distance/20261024T112939Z-d20f721.json)):
+
+| Cluster | 3 | 6 | 10 | 16 | 24 | 32 | 48 | 64 | Out of view | Air 32 | Air 64 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Ivy on 117 m² of 4.5 m walls, a wall m² | | 4.53 | 4.62 | 1.68 | 0.36 | | | | 0 | 0.46 | |
+| 16 boulders 1.5 m wide, a unit (scale²) | | 37.5 | 28.9 | 36.5 | 29.7 | 25.1 | 32.4 | 9.3 | 3.5 | 27.4 | 10.7 |
+| 256 moss patches in a 2 m disc, a patch | 7.00 | 4.78 | 4.33 | 3.42 | | 1.35 | | | 0.12 | 1.03 | |
+| 256 moss patches in a 6 m disc, a patch | | | | 2.51 (8 m: 1.93) | | 2.36 | | | | 0.94 | |
+
+- Boulders cost the same out to 48 m: their far mesh begins at 30 m times their width, 45 m here. No view sees them
+  cheaper but one past every boulder, so they keep one price, now the dense near cluster's 37.518 µs (was 25.861).
+- Ivy is no unit: it grows from its wall's seed, so it is a function of the walls, and it is gone past ivy's reach
+  (12 m at the fit step) like the near stones. The costs scene's walls stand with their ivy grown, so the masonry
+  rates carry it: 4.6 µs a m² near, inside a stone wall's 10.526 near rate.
+- Moss falls with distance, but its pool holds 256 patches, 1.79 ms at the dearest, so a patch pays that flat:
+  7.001 µs, where sixteen flowers charged 29.312 (`MOSS_US`).
+- Timber stays flat: a timber-framed 8 by 5 m plaster house has 116 members, 58 µs at `TIMBER_US`, 1.2% of the room.
 
 ### Boulder cost by size
 
@@ -4692,9 +4719,8 @@ plant strokes, ghost pool and delete brush. Other raised surfaces are not coated
 
 The painted moss pool holds 256 patches (3,072 triangles), in one draw with no
 shadows, plus a transient ghost pool capped at the same size while painting. Growth uses the
-existing 1.5 ms work slice. `Budget` reserves sixteen flower
-allowances per patch for its larger footprint (2.777 ms for the full pool on Quest 2); this is a reservation,
-not a moss-specific device measurement. `demo/moss.json` shows painted stone,
+existing 1.5 ms work slice. `Budget` charges a patch its dearest measured Quest 2 cost, 7.001 µs (1.79 ms for the full
+pool; "Cost by distance"). `demo/moss.json` shows painted stone,
 coated and resized trunks, and algae below water. The flora stress phase fills
 moss alongside the other plants. `tests/test_moss.gd` measures headless pool fill
 cost and checks placement, budgets, tree resizing, undo and restore.

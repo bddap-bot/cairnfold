@@ -107,7 +107,7 @@ print(f"lake over the meadow: {', '.join(f'{x:+.2f}' for x in lake)} ms", file=s
 water = max(lake)
 wild = sum(max([extra for extra, _ in extras(phase, None)] + [0.0]) for phase in WILD)
 meadow = [gpu[f"meadow/{v}"] for v in views if f"meadow/{v}" in gpu and f"meadow/{v}" not in halved]
-line = {**{k: round(v, 3) for k, v in cost.items()}, "water": round(water * 1000.0, 3), "timber": "TIMBER_US", "arch": "ARCH_US", "moss": f"{round(cost['flower'], 3)} * MOSS_FLOWERS"}
+line = {**{k: round(v, 3) for k, v in cost.items()}, "water": round(water * 1000.0, 3), "timber": "TIMBER_US", "arch": "ARCH_US", "moss": "MOSS_US"}
 print(", ".join(f'"{k}": {v}' for k, v in line.items()))
 base_ms = max([*base.values(), *meadow]) + wild
 print(f"base {base_ms:.2f} ms against the {d['info']['budget']['gpu_ms']:.2f} ms line (Budget.line_ms()); CAPACITY_MS is the line less "
