@@ -694,8 +694,7 @@ static func _house(root: Node3D, plastered := false, gable_end := WallLayout.Gab
 	var layout := WallLayout.new()
 	if foundation >= 0:
 		layout.rise = 1.5
-		layout.plinth_plaster = foundation == PaletteTool.Foundation.PLASTER
-		layout.stilts = PaletteTool.stilts_of(foundation)
+		layout.foundation = foundation as WallLayout.Foundation
 	layout.timber_style = timber_style
 	layout.plaster = plastered
 	layout.seed = 7

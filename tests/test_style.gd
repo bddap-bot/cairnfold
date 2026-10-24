@@ -99,6 +99,7 @@ func _foundations_turn_to_plaster() -> void:
 	d.closed = true
 	d.rise = 1.5
 	d.timber_style = -1
+	d.roof = {"kind": RoofLayout.Kind.GABLE, "center": Terrain.ground(0, 0), "radius": 3.0, "pitch": 2.0, "curve": 0.0, "seed": 4, "chimneys": PackedVector2Array(), "dormers": PackedVector2Array(), "overhang": RoofLayout.OVERHANG, "deck": RoofLayout.Deck.STONE, "flag": false, "thatch": false}
 	world._order({"op": "wall", "walls": [d]}, world.me())
 	var id := world.seq * Commands.MAX_PIECES
 	var w: Wall = main.tool.find(id)
@@ -107,37 +108,38 @@ func _foundations_turn_to_plaster() -> void:
 	var out: Vector3 = f.tangent.cross(Vector3.UP)
 	var origin: Vector3 = f.point + Vector3.DOWN * 0.6 + out * 2.0
 	var target: Dictionary = main.palette_tool.aim_style(origin, -out)
-	check(target.get("restyle") == PaletteTool.Restyle.FOUNDATION and target.get("count") == PaletteTool.Foundation.size(), "a house's foundation offers stone, plaster, pillars and posts: %s" % target)
-	_turn(target, PaletteTool.Foundation.PLASTER)
+	check(target.get("restyle") == PaletteTool.Restyle.FOUNDATION and target.get("count") == WallLayout.Foundation.size(), "a house's foundation offers stone, plaster, pillars and posts: %s" % target)
+	_turn(target, WallLayout.Foundation.PLASTER)
 	w.lay_now()
 	check(w.layout.stones.any(func(st): return st.kind == "plaster" and st.y < 0.0), "the foundation wheel lays plaster below the foot")
 	check(not w.layout.plaster, "styling a foundation leaves the upper wall stone")
 	check(not main.tool.plaster, "foundation style leaves the next wall's face unchanged")
 	check(w.layout.stones.filter(func(st): return st.kind == "plaster" and st.y < 0.0).all(func(st): return st.color == WallLayout.PLASTER), "foundation panels share the wall plaster colour")
 	check(main.palette_tool.aim(origin, -out).get("element") == Palette.Element.PLASTER, "the colour tool recognises the foundation's plaster")
-	var relayed := _relayed({"op": "reshape", "of": "walls", "id": id, "data": {"plinth_plaster": false}}, 2)
-	check(relayed.get("data", {}).get("plinth_plaster") == false, "foundation style survives host and peer validation")
+	var relayed := _relayed({"op": "reshape", "of": "walls", "id": id, "data": {"foundation": WallLayout.Foundation.STONE}}, 2)
+	check(relayed.get("data", {}).get("foundation") == WallLayout.Foundation.STONE, "foundation style survives host and peer validation")
 	world._order({"op": "undo"}, world.me())
 	w.lay_now()
-	check(not w.layout.plinth_plaster and w.layout.stones.any(func(st): return st.kind == "block" and st.y < 0.0), "undo restores stone foundation courses")
+	check(w.layout.foundation == WallLayout.Foundation.STONE and w.layout.stones.any(func(st): return st.kind == "block" and st.y < 0.0), "undo restores stone foundation courses")
 	world._order({"op": "redo"}, world.me())
 	world.restore(world.snapshot())
 	w = main.tool.find(id)
 	w.lay_now()
-	check(w.layout.plinth_plaster and not w.layout.plaster, "redo and save preserve foundation style independently")
+	check(w.layout.foundation == WallLayout.Foundation.PLASTER and not w.layout.plaster, "redo and save preserve foundation style independently")
 	world._order({"op": "reshape", "of": "walls", "id": id, "data": {"plaster": true}}, world.me())
 	w.lay_now()
 	_turn(main.palette_tool.aim_style(origin, -out), -1)
 	w.lay_now()
-	check(not w.layout.plinth_plaster and w.layout.plaster, "turning the foundation back to stone keeps the wall plastered")
-	_turn(main.palette_tool.aim_style(origin, -out), PaletteTool.Foundation.POSTS)
+	check(w.layout.foundation == WallLayout.Foundation.STONE and w.layout.plaster, "turning the foundation back to stone keeps the wall plastered")
+	_turn(main.palette_tool.aim_style(origin, -out), WallLayout.Foundation.POSTS)
 	w.lay_now()
-	check(world.state.walls[id].stilts == WallLayout.Stilts.POSTS and w.layout.stones.any(func(st): return st.kind == "post" and st.y < 0.0), "turned to posts, the raised house stands on timber posts")
-	check(main.tool.stilts == WallLayout.Stilts.POSTS, "houses laid after stand on posts once raised")
+	check(world.state.walls[id].foundation == WallLayout.Foundation.POSTS and w.layout.stones.any(func(st): return st.kind == "post" and st.y < 0.0), "turned to posts, the raised house stands on timber posts")
+	check(main.fitting_tool.aim(Hand.Tool.DECORATIONS, origin, -out).get("mount") != "foundation", "nothing is set at a stilted foundation, with no face to back it")
+	check(main.tool.foundation == WallLayout.Foundation.POSTS, "houses laid after stand on posts once raised")
 	world._order({"op": "undo"}, world.me())
 	w.lay_now()
-	check(world.state.walls[id].stilts == WallLayout.Stilts.NONE and not w.layout.stones.any(func(st): return st.kind == "post"), "an undo stands it back on its plinth")
-	main.tool.stilts = WallLayout.Stilts.NONE
+	check(world.state.walls[id].foundation == WallLayout.Foundation.STONE and not w.layout.stones.any(func(st): return st.kind == "post"), "an undo stands it back on its plinth")
+	main.tool.foundation = WallLayout.Foundation.STONE
 
 	world.restore({"seq": 0, "cmds": []})
 
@@ -164,7 +166,7 @@ func _floors_take_a_style() -> void:
 	w.lay_now()
 	var floor_kinds := func(of: Wall) -> Array: return of.layout.stones.filter(func(st): return st.kind in ["flagstone", "plank"]).map(func(st): return st.kind)
 	check(world.state.walls[id].planks and floor_kinds.call(w).all(func(k): return k == "plank"), "a twist of the style tool boards the floor")
-	check(not world.state.walls[id].plaster and not world.state.walls[id].plinth_plaster, "boarding the floor leaves the walls stone")
+	check(not world.state.walls[id].plaster and world.state.walls[id].foundation == WallLayout.Foundation.STONE, "boarding the floor leaves the walls stone")
 	check(main.tool.planks and not main.tool.plaster, "houses laid after are boarded, their walls still stone")
 	world._order({"op": "undo"}, world.me())
 	w.lay_now()

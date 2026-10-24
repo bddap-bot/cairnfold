@@ -214,7 +214,7 @@ static func wall(d: Dictionary) -> Dictionary:
 		length += Vector2(d.points[0].x - d.points[-1].x, d.points[0].z - d.points[-1].z).length()
 	var face := "fence_m2" if d.fence else ("plaster_m2" if d.plaster else "wall_m2")
 	var out := {face: length * d.height}
-	var span := WallLayout.stilt_span(d.stilts, d.rise)
+	var span := WallLayout.stilt_span(d.foundation, d.rise) if d.get("on", PackedInt32Array()).is_empty() else 0.0
 	if d.rise > 0.0:
 		out.wall_m2 = out.get("wall_m2", 0.0) + length * (d.rise - span)
 	var timber := TimberFrame.count(d)
@@ -223,7 +223,7 @@ static func wall(d: Dictionary) -> Dictionary:
 		stilted.points.assign(Array(d.points))
 		stilted.closed = true
 		var n := stilted.stations().size()
-		if d.stilts == WallLayout.Stilts.PILLARS:
+		if d.foundation == WallLayout.Foundation.PILLARS:
 			out.wall_m2 = out.get("wall_m2", 0.0) + length * WallLayout.COURSE + n * WallLayout.PILLAR * (span - WallLayout.COURSE)
 		else:
 			timber += n * 2

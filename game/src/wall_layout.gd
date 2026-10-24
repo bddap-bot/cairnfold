@@ -14,9 +14,9 @@ enum Cover { OPEN, ROOF, DECK }
 ## How a house's end walls rise under a gable roof: as the wall below, carried up under the slopes; boarded in
 ## upright planks under barge boards; or stepped up past the slopes in crow steps.
 enum GableEnd { WALL, BOARDS, STEPS }
-## What a raised house or tower stands on over its foundation: the plinth's courses whole, stone pillars under a course
-## of stone, or timber posts under timber beams.
-enum Stilts { NONE, PILLARS, POSTS }
+## What stands under a wall's foot: its plinth's courses whole, in stone or plaster, or under a raised house or tower
+## stone pillars under a course of stone, or timber posts under timber beams, either on a stone foundation.
+enum Foundation { STONE, PLASTER, PILLARS, POSTS }
 
 const COURSE := 0.3
 ## The lowest a wall stands. Nothing caps how tall it stands, or how high a house rises on its plinth: the budget
@@ -153,8 +153,7 @@ var cover := Cover.OPEN
 ## Posts and rails instead of stone; a path through a fence opens a wooden arch.
 var fence := false
 var plaster := false
-var plinth_plaster := false
-var stilts := Stilts.NONE
+var foundation := Foundation.STONE
 ## Whether the floor is laid in planks rather than flags: its own choice, apart from the walls' material.
 var planks := false
 var gable_end := GableEnd.WALL
@@ -331,10 +330,10 @@ func build(ground: Callable, water := Callable()) -> void:
 	var sink := 0.0
 	for d in depths:
 		sink = maxf(sink, d)
-	var open := stilt_span(stilts, laid_rise)
+	var open := stilt_span(foundation, laid_rise) if stilted() else 0.0
 	for k in range(-ceili(sink / course_h), courses()):
 		var y0 := k * course_h
-		if y0 < 0.0 and y0 > -open - 1e-4 and not (stilts == Stilts.PILLARS and k == -1):
+		if y0 < 0.0 and y0 > -open - 1e-4 and not (foundation == Foundation.PILLARS and k == -1):
 			continue
 		var h := minf(course_h, height - y0)
 		var yc := y0 + h * 0.5
@@ -390,7 +389,7 @@ func build(ground: Callable, water := Callable()) -> void:
 		var s := turns[i]
 		rng.seed = hash([seed, "pier", i])
 		if not TimberFrame.applies(self) and not broken(s, PIER * 0.5):
-			_lay_pier(s, rng, wet, open if stilts == Stilts.POSTS else 0.0)
+			_lay_pier(s, rng, wet, open if foundation == Foundation.POSTS else 0.0)
 	if open > 0.0:
 		_lay_stilts(open, wet)
 	_lay_rubble()
@@ -1340,7 +1339,7 @@ func _cut_span(spans: Array, lo: float, hi: float) -> Array:
 
 
 func plaster_at(y: float) -> bool:
-	return plinth_plaster if y < 0.0 else plaster and y > 0.0
+	return foundation == Foundation.PLASTER if y < 0.0 else plaster and y > 0.0
 
 
 func _lay_course(a: float, b: float, y0: float, h: float, offset: float, rng: RandomNumberGenerator) -> void:
@@ -1596,12 +1595,17 @@ func _lay_pillar(s: float, half: float, top_y: float, rng: RandomNumberGenerator
 	_add(s, top_y - 0.09, Vector3(w + 0.1, 0.18, THICKNESS + 0.1), rng, "pillar", 0.95, 0.0)
 
 
-## How far under the foot stilts of `kind` stand in a raise of `rise`, over a foundation at least a course high: all of
-## the raise but that course up to STILT_SPAN, the foundation taking the rest; 0 under a plinth or a raise too low for
-## stilts.
-static func stilt_span(kind: Stilts, rise: float) -> float:
+## How far under the foot the stilts of `kind` stand in a raise of `rise`, over a foundation at least a course high: all
+## of the raise but that course up to STILT_SPAN, the foundation taking the rest; 0 under a plinth or a raise too low
+## for stilts.
+static func stilt_span(kind: Foundation, rise: float) -> float:
 	var span := minf(STILT_SPAN, snappedf(rise, COURSE) - COURSE)
-	return span if kind != Stilts.NONE and span > 2.0 * COURSE - 1e-4 else 0.0
+	return span if kind in [Foundation.PILLARS, Foundation.POSTS] and span > 2.0 * COURSE - 1e-4 else 0.0
+
+
+## Whether this stands on stilts as last laid: raised on the ground high enough for them, on pillars or posts.
+func stilted() -> bool:
+	return supports.is_empty() and stilt_span(foundation, laid_rise) > 0.0
 
 
 ## Where a loop's stilts stand, by arc length in order round it: on its corners and evenly between them, at most
@@ -1632,12 +1636,12 @@ func _lay_stilts(span: float, rng: RandomNumberGenerator) -> void:
 	var piers: Array[float] = []
 	if not TimberFrame.applies(self):
 		piers = corners()
-	var top := -COURSE if stilts == Stilts.PILLARS else -BEAM.y
+	var top := -COURSE if foundation == Foundation.PILLARS else -BEAM.y
 	for i in at.size():
 		var s := at[i]
 		rng.seed = hash([seed, "stilt", i])
 		var bottom := -minf(depth_at(s) + 0.05, span)
-		if stilts == Stilts.POSTS:
+		if foundation == Foundation.POSTS:
 			var a: Vector3 = frame_at(s).point
 			var b: Vector3 = frame_at(at[(i + 1) % at.size()]).point
 			var along := Vector3(b.x - a.x, 0.0, b.z - a.z)
@@ -2031,7 +2035,7 @@ func perches() -> PackedVector3Array:
 
 
 ## What `build` reads but `gable`: a wall lays its copy of the gable from its roof and compares the roof's own inputs.
-const INPUTS: Array[StringName] = [&"points", &"height", &"rise", &"seed", &"closed", &"top", &"cover", &"fence", &"plaster", &"plinth_plaster", &"stilts", &"planks", &"gable_end", &"timber_style", &"openings", &"lanterns", &"flags", &"ruins", &"supports", &"resting", &"joined", &"older"]
+const INPUTS: Array[StringName] = [&"points", &"height", &"rise", &"seed", &"closed", &"top", &"cover", &"fence", &"plaster", &"foundation", &"planks", &"gable_end", &"timber_style", &"openings", &"lanterns", &"flags", &"ruins", &"supports", &"resting", &"joined", &"older"]
 
 
 ## A copy of what `build` reads, to build on another thread while this one is edited.
@@ -2062,8 +2066,7 @@ func set_data(d: Dictionary) -> void:
 	top = d.top as Top
 	fence = d.fence
 	plaster = d.plaster
-	plinth_plaster = d.plinth_plaster
-	stilts = d.stilts as Stilts
+	foundation = d.foundation as Foundation
 	planks = d.planks
 	timber_style = d.timber_style
 	gable_end = d.gable_end as GableEnd
@@ -2113,8 +2116,7 @@ func snapshot() -> WallLayout:
 	w.breaks = breaks.duplicate()
 	w.fence = fence
 	w.plaster = plaster
-	w.plinth_plaster = plinth_plaster
-	w.stilts = stilts
+	w.foundation = foundation
 	w.planks = planks
 	w.cover = cover
 	w.resting = resting.duplicate()
@@ -2292,7 +2294,7 @@ func finish_stroke() -> void:
 
 ## The ground curve, and the ruins' breaks along it, for the inputs as they stand.
 func resample(ground: Callable, water := Callable()) -> void:
-	var key := [points.duplicate(), height, rise, stilts, seed, closed, top, fence, lanterns.duplicate(), ruins.duplicate(), supports.duplicate(), Terrain.revision, ground, water]
+	var key := [points.duplicate(), height, rise, foundation, seed, closed, top, fence, lanterns.duplicate(), ruins.duplicate(), supports.duplicate(), Terrain.revision, ground, water]
 	if key == _sampled_from:
 		return
 	_sampled_from = key
@@ -2312,7 +2314,7 @@ func resample(ground: Callable, water := Callable()) -> void:
 	if water.is_valid():
 		footing = func(x: float, z: float) -> float: return maxf(ground.call(x, z), water.call(x, z))
 	_resample_curve(footing)
-	var stilted := stilt_span(stilts, rise) > 0.0
+	var stilted := supports.is_empty() and stilt_span(foundation, rise) > 0.0
 	for q in samples:
 		grounds.append(ground.call(q.x, q.z))
 		depths.append(maxf(q.y - grounds[-1], 0.0))

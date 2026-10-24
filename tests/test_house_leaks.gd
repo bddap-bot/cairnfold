@@ -122,7 +122,7 @@ func _commands(seed_value: int) -> Array:
 	w.layout.closed = true
 	w.layout.top = seed_value % WallLayout.Top.size()
 	w.layout.plaster = shape != 1 and seed_value % 3 != 1
-	w.layout.plinth_plaster = seed_value % 2 == 0
+	w.layout.foundation = WallLayout.Foundation.PLASTER if seed_value % 2 == 0 else WallLayout.Foundation.STONE
 	w.layout.timber_style = -1 if seed_value % 3 == 0 else 0
 	if seed_value == 60:
 		w.layout.height = 5.4

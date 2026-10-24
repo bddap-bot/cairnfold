@@ -145,6 +145,8 @@ func aim(tool: Hand.Tool, origin: Vector3, dir: Vector3) -> Dictionary:
 		return {"what": "flag", "wall": pick.wall, "s": pick.s, "point": pick.point}
 	var side := signf((origin - pick.point).dot(layout.frame_at(pick.s).tangent.cross(Vector3.UP)))
 	if not layout.fence and y <= 0.25:
+		if layout.stilted():
+			return {}
 		return {"what": "decoration", "mount": "foundation", "wall": pick.wall, "s": pick.s, "side": side if side != 0.0 else 1.0, "point": pick.point, "turn": 0.0}
 	return {"what": "lantern", "wall": pick.wall, "s": pick.s, "y": y, "side": side if side != 0.0 else 1.0, "point": pick.point}
 

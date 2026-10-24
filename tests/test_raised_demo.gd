@@ -32,9 +32,9 @@ func _demo() -> void:
 	var kinds := {}
 	for w in walls:
 		if _stilted(w):
-			kinds["%s %s" % ["round" if w.layout.corners().is_empty() else "long", WallLayout.Stilts.keys()[w.layout.stilts]]] = true
+			kinds["%s %s" % ["round" if w.layout.corners().is_empty() else "long", WallLayout.Foundation.keys()[w.layout.foundation]]] = true
 	check(kinds.size() == 4, "the demo raises long and round houses on pillars and on posts: %s" % kinds.keys())
-	check(walls[-1].layout.stilts == WallLayout.Stilts.PILLARS and _stilted(walls[-1]), "the style tool turns the last house's plinth to pillars")
+	check(walls[-1].layout.foundation == WallLayout.Foundation.PILLARS and _stilted(walls[-1]), "the style tool turns the last house's plinth to pillars")
 	await play([{"op": "clear"}])
 
 

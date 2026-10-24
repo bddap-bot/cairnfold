@@ -357,12 +357,12 @@ func _wall(s: Dictionary) -> void:
 
 
 ## Walls and houses a step lays are plaster with `plaster`, else stone, floored in planks with `planks`, else flags,
-## and raised on `stilts` ("pillars" or "posts"), else a plinth, as if the style tool had last turned a face, a floor and
-## a foundation to them.
+## and raised on a `foundation` ("plaster", "pillars" or "posts"), else a stone plinth, as if the style tool had last
+## turned a face, a floor and a foundation to them.
 func _lay_materials(s: Dictionary) -> void:
 	main.tool.plaster = s.get("plaster", false)
 	main.tool.planks = s.get("planks", false)
-	main.tool.stilts = WallLayout.Stilts[String(s.get("stilts", "none")).to_upper()]
+	main.tool.foundation = WallLayout.Foundation[String(s.get("foundation", "stone")).to_upper()]
 	main.tool.timber_style = int(s.get("timber_style", 0))
 
 
@@ -1023,7 +1023,7 @@ func _layer_parts(name: String) -> Array[Array]:
 ## its entry has it: `pitch` (0 flat), `deck` and `top` ("stone" or "wood"; a WallLayout.Top), `dormers` on each slope,
 ## `overhang`, and `storeys` high, each storey above the first `upper` times the size of the one under it; a `round`
 ## entry is a round house as across as the others are deep, and one with `rise` stands raised that high on its plinth,
-## or on `stilts` ("pillars" or "posts").
+## on its `foundation` ("pillars" or "posts", else a stone plinth).
 func _village(s: Dictionary) -> void:
 	var tool: WallTool = main.tool
 	var start := Time.get_ticks_usec()
@@ -1053,7 +1053,7 @@ func _village(s: Dictionary) -> void:
 				stance.rise = entry.get("rise", 0.0) if on.is_empty() else 0.0
 				stance.pitch = entry.get("pitch", s.get("pitch", WallTool.pitch_for(stance)))
 				var house := tool.new_house(stance, on)
-				house.layout.stilts = WallLayout.Stilts[String(entry.get("stilts", "none")).to_upper()]
+				house.layout.foundation = WallLayout.Foundation[String(entry.get("foundation", "stone")).to_upper()]
 				_dress_roof(house, entry, size)
 				tool.build([house])
 				size *= entry.get("upper", 1.0)
@@ -1337,7 +1337,7 @@ func _colour(s: Dictionary) -> void:
 
 
 ## The style tool's trigger held on what it finds from `from` toward `at`, as `PaletteTool.aim_style` does
-## (`restyle` names what that must be: gable, roof, top, face, rail or tree), twisted round to choice `pick` over
+## (`restyle` names what that must be: a PaletteTool.Restyle, such as gable, roof, top, face or foundation), twisted round to choice `pick` over
 ## `seconds` and let go, as `colour` does.
 ## With `tree`, it is aimed instead at the meadow's own tree of that number, across its crown from `side` metres away.
 func _style(s: Dictionary) -> void:

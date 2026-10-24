@@ -2426,8 +2426,8 @@ It never floats: its foot stands level, raised above its lowest ground, and the 
 a wall over a pond already lays down to the bed, carry on down to the ground all round as its plinth, following a
 slope. They stand a little proud of the faces in a darker stone, and stay stone under a plaster or timber-framed
 house. Its corner piers reach down with them. A door or an arch opens from its floor and the plinth runs whole under
-it, so nothing under the floor shows through; a raised house is walked into on its floor (`WallLayout.threshold`).
-Report (verbatim): "the arch should terminate at the foundation of the building." The Style tool aimed below the wall foot offers stone or plaster for the foundation independently of the wall above, and under a house or tower stone pillars or timber posts (see "Stilts" below). Both use the same face wheel and plaster panels; the Colour tool uses the build’s shared plaster swatch. Foundation corner piers stay stone. The plinth counts against the budget as stone wall,
+it, so nothing under the floor shows through (over stilts, the course or beams under the foot do); a raised house is walked into on its floor (`WallLayout.threshold`).
+Report (verbatim): "the arch should terminate at the foundation of the building." The Style tool aimed below the wall foot offers stone or plaster for the foundation independently of the wall above, and under a house or tower stone pillars or timber posts (see "Stilts" below), on its own foundation wheel. The plaster is laid in the face's panels; the Colour tool uses the build’s shared plaster swatch. Foundation corner piers stay stone. The plinth counts against the budget as stone wall,
 and a grip on it holds the house as one on its walls does. `demo/raise.json` raises a stone house on a slope and a
 timber-framed one, and places a third raised; `tests/test_house.gd` checks the rule and the plinth,
 `tests/test_controls.gd` both holds in tracked hands, `tests/test_keep.gd` that it is kept, and `scripts/coop.sh`
@@ -2435,9 +2435,10 @@ that every player sees the joiner's raised wing.
 
 ### Stilts
 
-A raised house or tower can stand on stilts instead of a whole plinth (`stilts` on the build, `WallLayout.Stilts`):
-stone pillars, or timber posts. The foundation wheel turns between a stone plinth, a plaster one, pillars and posts,
-and houses put up after take the stilts last turned to, standing on them once raised.
+A raised house or tower on the ground can stand on stilts instead of a whole plinth: stone pillars, or timber posts.
+A build's `foundation` (`WallLayout.Foundation`) is one of a stone plinth, a plaster one, pillars and posts, which
+the foundation wheel turns between, pillars and posts only under a house or tower; houses put up after take the
+foundation last turned to, standing on its stilts once raised. A house on a build is never raised, so stands on none.
 
 - Where they stand (`WallLayout.stations`): on every corner and evenly between, at most 2 m apart along the walls'
   centre line; round a round house, evenly all round. Each stands straight under the wall it carries.
@@ -2449,7 +2450,8 @@ and houses put up after take the stilts last turned to, standing on them once ra
   that lifts the house sets the foundation's height under the stilts. Uphill, where the ground stands over the
   foundation's level, the stilts stand on the ground, shorter. A raise too low for stilts (under 0.9 m) stands on its
   plinth whole.
-- Ivy roots at the walls' foot, not down the stilts.
+- Ivy roots at the walls' foot, not down the stilts, and the decorations tool sets nothing at a stilted foundation,
+  where no face stands to back it.
 - The budget charges the foundation as plinth, pillars and their course as stone wall by the face they lay, and each
   post and beam as a timber; stilts cost less than the plinth they open up.
 

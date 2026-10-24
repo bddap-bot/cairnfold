@@ -650,10 +650,10 @@
   {"op": "capture", "name": "standing-along"},
   {"op": "clear"},
   {"op": "village", "radius": 20, "spacing": 7, "inner": 9, "roofs": [
-    {"rise": 1.8, "stilts": "pillars"},
-    {"round": true, "rise": 1.5, "stilts": "posts"},
-    {"rise": 2.4, "stilts": "posts"},
-    {"round": true, "rise": 2.1, "stilts": "pillars"}
+    {"rise": 1.8, "foundation": "pillars"},
+    {"round": true, "rise": 1.5, "foundation": "posts"},
+    {"rise": 2.4, "foundation": "posts"},
+    {"round": true, "rise": 2.1, "foundation": "pillars"}
   ]},
   {"op": "wait", "seconds": 3},
   {"op": "label", "name": "raised/aerial"},

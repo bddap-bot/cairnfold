@@ -10,7 +10,7 @@ extends Node3D
 ## miniatures of the styles of what it points at: a gable end's, a roof's covering (stone when flat, tile or thatch when pitched, a house's or a
 ## tower's), a roofless wall's top, a wall's face (stone, plaster or a house's timber framing; builds laid after take
 ## the material let go last), a foundation (stone or plaster, or under a house or tower stone pillars or timber posts
-## for it to stand on when raised; houses laid after take the stilts), a house's or tower's floor (flags or planks, apart from its walls; houses laid after take
+## for it to stand on when raised; houses laid after take it), a house's or tower's floor (flags or planks, apart from its walls; houses laid after take
 ## it), a flight's or landing's railings (stairs laid after take them), a tree's species, or a stroke of painted
 ## stone ground's or a boulder's, one list of stone styles (StoneStyles; stone painted and boulders set down after take
 ## the style let go last). It only restyles: openings are the windows' and the arch's.
@@ -24,8 +24,6 @@ const WHEEL_AT := Vector3(0, 0.06, -0.05)
 
 enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, STONE, DECORATION, FLOOR, FOUNDATION }
 enum Face { STONE, PLASTER, TIMBER }
-## A foundation's choices: a plinth of stone or plaster, then each kind of stilts after NONE, on a stone foundation.
-enum Foundation { STONE, PLASTER, PILLARS, POSTS }
 enum Floor { FLAGS, PLANKS }
 
 ## A hand's open wheel: what it changes (`aim`'s target) on which build (its garden table `of` and `id`; "" and -1 for
@@ -174,8 +172,8 @@ func style_target(restyle: Restyle, wall: Wall, point: Vector3) -> Dictionary:
 	var count := styles(restyle)
 	if restyle == Restyle.FACE and not (wall.layout.closed and wall.layout.corners().size() == 4):
 		count = 1 if wall.roof != null and wall.roof.kind == RoofLayout.Kind.CONE else Face.TIMBER
-	if restyle == Restyle.FOUNDATION and not wall.layout.closed:
-		count = Foundation.PILLARS
+	if restyle == Restyle.FOUNDATION and not (wall.layout.floored() and wall.layout.supports.is_empty()):
+		count = WallLayout.Foundation.PILLARS
 	var options: Array = WallTool.roof_options(wall.roof.pitch) if restyle == Restyle.ROOF else range(count)
 	return {"tool": Hand.Tool.STYLE, "restyle": restyle, "options": options, "count": options.size(), "point": point, "of": "walls", "id": wall.id, "wall": wall}
 
@@ -197,7 +195,7 @@ static func styles(restyle: Restyle) -> int:
 		Restyle.FLOOR:
 			return Floor.size()
 		Restyle.FOUNDATION:
-			return Foundation.size()
+			return WallLayout.Foundation.size()
 	return Face.size()
 
 
@@ -299,7 +297,7 @@ func _now(w: Wheel) -> int:
 		Restyle.FLOOR:
 			return Floor.PLANKS if d.planks else Floor.FLAGS
 		Restyle.FOUNDATION:
-			return Foundation.PLASTER + d.stilts if d.stilts != WallLayout.Stilts.NONE else (Foundation.PLASTER if d.plinth_plaster else Foundation.STONE)
+			return d.foundation
 	if d.plaster and d.timber_style >= 0 and d.closed and d.points.size() == 4:
 		return Face.TIMBER
 	return Face.PLASTER if d.plaster else Face.STONE
@@ -325,7 +323,7 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 		Restyle.FLOOR:
 			return {"planks": pick == Floor.PLANKS}
 		Restyle.FOUNDATION:
-			return {"plinth_plaster": pick == Foundation.PLASTER, "stilts": stilts_of(pick)}
+			return {"foundation": pick}
 	var data := {}
 	var timber_style: int = 0 if pick == Face.TIMBER else -1
 	if timber_style != world.state.walls[w.id].timber_style:
@@ -334,11 +332,6 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 	if plaster != world.state.walls[w.id].plaster:
 		data["plaster"] = plaster
 	return data
-
-
-## The stilts a foundation's choice `pick` stands a raised house on.
-static func stilts_of(pick: Foundation) -> WallLayout.Stilts:
-	return maxi(pick - Foundation.PLASTER, 0) as WallLayout.Stilts
 
 
 ## Shows `w`'s build, tree or the meadow with choice `pick`, here alone.
@@ -382,7 +375,7 @@ func close(hand: Hand) -> void:
 		walls.plaster = w.pick >= Face.PLASTER
 		walls.timber_style = 0 if w.pick == Face.TIMBER else -1
 	elif w.id >= 0 and w.target.restyle == Restyle.FOUNDATION:
-		walls.stilts = stilts_of(w.pick as Foundation)
+		walls.foundation = w.pick as WallLayout.Foundation
 	elif w.id >= 0 and w.target.restyle == Restyle.FLOOR:
 		walls.planks = w.pick == Floor.PLANKS
 	elif w.id >= 0 and w.target.restyle == Restyle.RAIL:

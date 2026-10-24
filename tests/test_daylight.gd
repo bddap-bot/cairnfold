@@ -193,7 +193,7 @@ func _every_laid_kind_is_painted_or_kept() -> void:
 	timber.build(Terrain.flat)
 	var posted := boarded.inputs()
 	posted.rise = 1.5
-	posted.stilts = WallLayout.Stilts.POSTS
+	posted.foundation = WallLayout.Foundation.POSTS
 	posted.build(Terrain.flat)
 	var thatched := RoofLayout.new()
 	thatched.corners = roof.corners
