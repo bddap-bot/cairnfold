@@ -79,7 +79,7 @@ static func crc32(data: PackedByteArray) -> int:
 
 
 ## A 16-bit greyscale PNG `size` large of `samples`, two big-endian bytes a pixel row by row, saying `comment` of itself.
-## Godot writes no PNG deeper than 8 bits.
+## Godot writes no PNG deeper than 8 bits. Each chunk's CRC (crc32) packs it once more, so this costs two deflates.
 static func gray16(size: Vector2i, samples: PackedByteArray, comment: String) -> PackedByteArray:
 	var row := size.x * 2
 	var lines := PackedByteArray()

@@ -34,14 +34,14 @@ func _run() -> void:
 	await until(func() -> bool: return easels.all(func(e: Easels.Easel) -> bool: return not e.canvas.wet()), "the paintings dry")
 
 	var close := await _shoot([0, 1.45, 4.85], [0, 1.3, 0])
-	var covers := easels.map(func(e: Easels.Easel) -> float: return PhotoTool.coverage(close.lens, e.canvas_corners()))
+	var covers := easels.map(func(e: Easels.Easel) -> float: return PhotoTool.coverage(close.lens, e.canvas_frame()))
 	check(covers.all(func(c: float) -> bool: return c >= PhotoTool.SUBJECT), "a close shot is of both canvases: %s" % [covers])
 	check(close.canvases.size() == 2, "and saves both beside the photo: %s" % [close.files])
 	for i in mini(close.canvases.size(), easels.size()):
 		await _is_the_canvas(close.canvases[i], easels[i])
 
 	var wide := await _shoot([0, 1.6, 13], [0, 1.3, 0])
-	covers = easels.map(func(e: Easels.Easel) -> float: return PhotoTool.coverage(wide.lens, e.canvas_corners()))
+	covers = easels.map(func(e: Easels.Easel) -> float: return PhotoTool.coverage(wide.lens, e.canvas_frame()))
 	check(covers.all(func(c: float) -> bool: return c > 0.0 and c < PhotoTool.SUBJECT), "a wide shot has the canvases in view, small: %s" % [covers])
 	check(wide.files.size() == 1 and wide.canvases.is_empty(), "and saves the photo alone: %s" % [wide.files])
 
@@ -106,7 +106,6 @@ func _is_the_canvas(path: String, e: Easels.Easel) -> void:
 	var worst_height := 0
 	var painted := 0
 	var tall := 0
-	var top := Canvas.IMPASTO + Canvas.GRAIN
 	for y in Brushwork.SIZE.y:
 		for x in Brushwork.SIZE.x:
 			var w := tex[0].get_pixel(x, y)
@@ -126,7 +125,7 @@ func _is_the_canvas(path: String, e: Easels.Easel) -> void:
 			exact += int(off == 0)
 			worst = maxi(worst, off)
 			painted += int(d.r + d.g + d.b > 0.05)
-			var h := roundi(clampf((d.a * Canvas.IMPASTO + tooth.r * Canvas.GRAIN) / top, 0.0, 1.0) * 65535.0)
+			var h := roundi(clampf((d.a * Canvas.IMPASTO + tooth.r * Canvas.GRAIN) / Canvas.TOP, 0.0, 1.0) * 65535.0)
 			var got_h: int = height.samples.decode_u16((y * Brushwork.SIZE.x + x) * 2)
 			got_h = ((got_h & 0xFF) << 8) | (got_h >> 8)
 			exact_height += int(got_h == h)

@@ -190,11 +190,9 @@ func _player_data_lives_outside_the_app() -> void:
 	var pictures := OS.get_system_dir(OS.SYSTEM_DIR_PICTURES, true)
 	check(pictures.is_absolute_path() and Main.photos_folder(true) == pictures.path_join("Nestcombe"), "on Android, photos go to Nestcombe in the shared Pictures folder: %s" % Main.photos_folder(true))
 
-## A canvas Brushwork.METRES large centred at `at`, facing along `facing`, its corners as Easel.canvas_corners gives them.
-static func _canvas_at(at: Vector3, facing: Vector3) -> PackedVector3Array:
-	var t := Transform3D(Basis.looking_at(-facing), at)
-	var h := Brushwork.METRES * 0.5
-	return PackedVector3Array([t * Vector3(-h.x, -h.y, 0), t * Vector3(h.x, -h.y, 0), t * Vector3(h.x, h.y, 0), t * Vector3(-h.x, h.y, 0)])
+## The frame of a canvas centred at `at` facing along `facing`, as Easel.canvas_frame gives it.
+static func _canvas_at(at: Vector3, facing: Vector3) -> Transform3D:
+	return Transform3D(Basis.looking_at(-facing), at)
 
 
 func _a_photo_is_of_a_canvas_filling_its_frame_face_on() -> void:

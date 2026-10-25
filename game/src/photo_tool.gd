@@ -257,15 +257,14 @@ func shoot(hand: Hand) -> String:
 	var at := lens(hand)
 	Cues.play(Cues.Act.PHOTO, at.origin, hand)
 	var around: Dictionary = scene.call()
-	var views := _subjects(at)
+	var subjects := _subjects(at)
 	var img := await render(at, FOV, Quality.PHOTO_MASK)
-	var paintings: Array[Image] = []
-	for vp in views:
-		if img != null:
-			paintings.append(await _read(vp))
-		vp.queue_free()
 	if img == null:
 		return ""
+	var paintings: Array = []
+	for e in subjects:
+		if is_instance_valid(e):
+			paintings.append(await _flatten(e.canvas))
 	for h in _shots:
 		_shots[h] = 0.0
 	_shots[hand] = SHOT_HOLD
@@ -275,48 +274,64 @@ func shoot(hand: Hand) -> String:
 		"camera": {"position": _floats(at.origin), "rotation": _floats(at.basis.get_rotation_quaternion()), "fov": FOV}})
 	var saved := await save(img, path, about, around.world)
 	_reserved.erase(path)
-	if saved != OK:
-		push_error("photo: could not write %s: %s" % [path, error_string(saved)])
+	if not _report(path, saved):
 		return ""
-	print("photo: ", path)
-	for i in range(0, paintings.size(), 2):
-		var stem := "%s-canvas-%d" % [path.get_basename(), i / 2 + 1]
-		var colour := paintings[i]
-		var height := paintings[i + 1]
+	for i in paintings.size():
+		var stem := "%s-canvas-%d" % [path.get_basename(), i + 1]
+		var colour: Image = paintings[i][0]
+		var height: Image = paintings[i][1]
 		if colour != null:
-			_saved(stem + ".png", await save(colour, stem + ".png"))
+			_report(stem + ".png", await save(colour, stem + ".png"))
 		if height != null:
-			_saved(stem + "-height.png", await _store(stem + "-height.png", func() -> PackedByteArray:
+			_report(stem + "-height.png", await _store(stem + "-height.png", func() -> PackedByteArray:
+				# canvas_flat.gdshader puts each sample's high byte in red, so RG8's bytes are PNG's big-endian samples.
 				height.convert(Image.FORMAT_RG8)
-				return PhotoMeta.gray16(height.get_size(), height.get_data(), "Height off the board: 0 to 65535 is 0 to %.2f mm" % ((Canvas.IMPASTO + Canvas.GRAIN) * 1000.0))))
+				return PhotoMeta.gray16(height.get_size(), height.get_data(), "Height off the board: 0 to 65535 is 0 to %.2f mm" % (Canvas.TOP * 1000.0))))
 	return path
 
 
-func _saved(path: String, saved: Error) -> void:
-	if saved == OK:
-		print("photo: ", path)
-	else:
+## Whether `path` was written, as `saved` says; logs which.
+func _report(path: String, saved: Error) -> bool:
+	if saved != OK:
 		push_error("photo: could not write %s: %s" % [path, error_string(saved)])
+		return false
+	print("photo: ", path)
+	return true
 
 
-## Views of each canvas a photo from `at` is of, its colour then its height (Canvas.flat_view), drawn with the photo.
-func _subjects(at: Transform3D) -> Array[SubViewport]:
-	var out: Array[SubViewport] = []
+## The easels whose canvases a photo from `at` is of, oldest first.
+func _subjects(at: Transform3D) -> Array[Easels.Easel]:
+	var out: Array[Easels.Easel] = []
 	if easels == null or RenderingServer.get_rendering_device() == null:
 		return out
-	for e: Easels.Easel in easels.easels.values():
-		if coverage(at, e.canvas_corners()) >= SUBJECT:
-			for height in [false, true]:
-				var vp := e.canvas.flat_view(height)
-				add_child(vp)
-				out.append(vp)
+	var ids := easels.easels.keys()
+	ids.sort()
+	for id: int in ids:
+		var e := easels.find(id)
+		if coverage(at, e.canvas_frame()) >= SUBJECT:
+			out.append(e)
 	return out
 
 
-## How much of the frame of a photo from `at` the quad `corners` covers, as a fraction of the frame, negative when the
-## lens sees its back; corners go anticlockwise as its face sees them. Only what lies past the lens's near plane counts.
-static func coverage(at: Transform3D, corners: PackedVector3Array) -> float:
-	var seen := at.affine_inverse() * corners
+## `canvas` as it shows now, flat (Canvas.flat_view): its colour and its height, drawn on a frame of their own after the
+## photo's, which already costs its frame plenty.
+func _flatten(canvas: Canvas) -> Array[Image]:
+	var views: Array[SubViewport] = [canvas.flat_view(false), canvas.flat_view(true)]
+	for vp in views:
+		add_child(vp)
+	await RenderingServer.frame_post_draw
+	var out: Array[Image] = []
+	for vp in views:
+		out.append(await _read(vp))
+		vp.queue_free()
+	return out
+
+
+## How much of the frame of a photo from `at` a canvas in `frame` (Easel.canvas_frame) covers, as a fraction of the
+## frame, negative when the lens sees its back. Only what lies past the lens's near plane counts.
+static func coverage(at: Transform3D, frame: Transform3D) -> float:
+	var h := Brushwork.METRES * 0.5
+	var seen := (at.affine_inverse() * frame) * PackedVector3Array([Vector3(-h.x, -h.y, 0), Vector3(h.x, -h.y, 0), Vector3(h.x, h.y, 0), Vector3(-h.x, h.y, 0)])
 	var ahead := PackedVector2Array()
 	var half := Vector2(float(PHOTO_SIZE.x) / PHOTO_SIZE.y, 1.0) * tan(deg_to_rad(FOV) * 0.5)
 	for i in seen.size():
@@ -329,9 +344,9 @@ static func coverage(at: Transform3D, corners: PackedVector3Array) -> float:
 			ahead.append(Vector2(c.x, c.y) / (Rig.NEAR * half))
 	if ahead.size() < 3:
 		return 0.0
-	var frame := PackedVector2Array([Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)])
+	var shot := PackedVector2Array([Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)])
 	var inside := 0.0
-	for piece in Geometry2D.intersect_polygons(ahead, frame):
+	for piece in Geometry2D.intersect_polygons(ahead, shot):
 		inside += absf(_area(piece))
 	return signf(_area(ahead)) * inside / 4.0
 

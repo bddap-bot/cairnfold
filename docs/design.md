@@ -4343,9 +4343,9 @@ face toward the lens, covers `PhotoTool.SUBJECT` (a quarter) of the photo's fram
 signed by which face is seen). Each saves beside the photo as `NAME-canvas-N.png`, its paint flat and unlit at the
 canvas's own 1536×1152 (`Brushwork.SIZE`, the resolution it is painted at, about 1000 texels a metre), and
 `NAME-canvas-N-height.png`, its height off the board as 16-bit greyscale, 0 to 65535 for 0 to
-`Canvas.IMPASTO + Canvas.GRAIN` (3.75 mm), as its comment says. Both come from one pass over the canvas's own textures,
-drawn in the photo's frame by `Canvas.flat_view` with the colour and height `canvas.gdshaderinc` gives the canvas in
-the garden, read back a frame later and encoded on a worker thread like the photo. Godot writes no PNG deeper than 8
+`Canvas.TOP` (3.75 mm), as its comment says. Both are drawn from the canvas's own textures by `Canvas.flat_view`, with
+the colour and height `canvas.gdshaderinc` gives the canvas in the garden, each canvas on a frame of its own after the
+photo's, then read back and encoded on a worker thread like the photo. Godot writes no PNG deeper than 8
 bits, so `PhotoMeta.gray16` writes the height map, its CRCs read off a native gzip trailer. `tests/gpu_photo_canvas.gd`
 holds both files to the canvas's textures texel for texel. Occlusion is not asked: a canvas hidden behind a wall but
 filling the frame still saves.

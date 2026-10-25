@@ -26,6 +26,7 @@ const FLOW := 2
 ## paper's grain at its highest (canvas.gdshaderinc).
 const IMPASTO := 0.0035
 const GRAIN := 0.00025
+const TOP := IMPASTO + GRAIN
 ## Checkpoints a canvas keeps, each two textures of 14 MB: undo steps back this far without a replay.
 const CHECKPOINTS := 6
 
@@ -181,14 +182,14 @@ func _exit_tree() -> void:
 
 
 ## A view that draws the canvas as it shows now, flat and unlit, one texel to a pixel at its full size: its colour, or
-## with `height` its height off the board in 1/65535ths of IMPASTO + GRAIN as canvas_flat.gdshader packs it. It draws
+## with `height` its height off the board in 1/65535ths of TOP as canvas_flat.gdshader packs it. It draws
 ## on the first frame it is in the tree.
 func flat_view(height: bool) -> SubViewport:
-	return flat(_shown, height, Brushwork.SIZE)
+	return flat(_shown, height)
 
 
 ## A view drawing `textures`, a canvas's wet, dry and paper, as flat_view does, `size` large.
-static func flat(textures: Array, height: bool, size: Vector2i) -> SubViewport:
+static func flat(textures: Array, height: bool, size := Brushwork.SIZE) -> SubViewport:
 	var vp := SubViewport.new()
 	vp.size = size
 	vp.disable_3d = true
@@ -200,7 +201,6 @@ static func flat(textures: Array, height: bool, size: Vector2i) -> SubViewport:
 	look.set_shader_parameter("impasto", IMPASTO)
 	look.set_shader_parameter("grain", GRAIN)
 	look.set_shader_parameter("height", height)
-	look.set_shader_parameter("top", IMPASTO + GRAIN)
 	var sheet := ColorRect.new()
 	sheet.size = size
 	sheet.material = look
