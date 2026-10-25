@@ -5162,6 +5162,20 @@ canvas its share is within the smear's noise; fourteen remote birds filling the 
 add 1.74 ms, which takes that phase from 11.0 ms to over the then 12.5 ms budget in seven
 of its twelve readings. The runs are recorded in `perf/quest-2/conure-cost/`.
 
+Splitting the fourteen held birds on a Quest 2 put their cost in the vertex
+animation: the birds drawn at 0.4 scale, the same primitives with a sliver of the fill,
+cost what full-size ones did; without the cup they cost no less; static they added 0.23 ms
+of 0.97 ms, and unlit with their animation 0.52 ms, so every vertex was paying for
+the motion of its whole part. `Conure.pose` now works out each part's rigid turn once
+a bird a frame, and the vertex shader applies one quaternion and offset per vertex,
+keeping only the breathing scale, the wing's draw along the body in flight and the
+feet tucking up. Paired on the same headset, the held birds went from 0.81 ± 0.03 ms
+to 0.63 ± 0.02 ms and two carried birds from 0.13 to 0.07 ms, with every held reading
+inside the budget before and after (worst 10.78 and 10.50 ms; that run's garden left
+9.8 ms without them, against 11.0 ms in the first runs). The head's looking about
+now draws its random snaps in double precision, so a given moment's head turn differs
+from before while the motion is the same.
+
 To fit the added birds, their small surfaces use fewer vertices and their ambient
 lighting samples terrain height once per bird each frame. Feather variation uses
 mesh colour, and canvas relief uses screen derivatives of its existing height
