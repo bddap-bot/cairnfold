@@ -4761,7 +4761,9 @@ the bench's GPU ms a frame): the bare meadow read 5.29 from the air, 4.78 lookin
 cobbled ways, against 5.34, 4.83 and 5.39 on the build before the surfaces, so the sand and tilled shading costs the meadow
 nothing measurable; with the stress scene's materials laid, the same views read 7.11, 8.85 (six full beds filling the
 view) and 6.43, every one inside the budget ([record](../perf/quest-2/materials-cost/20261025T131357Z-76d9f9d.json)). The stress scene's `materials/aerial` and `materials/ground` phases look over
-the meadow's paths in cobbles, flagstones, sand and dirt, stepping stones across a pond and six full beds.
+the meadow's paths in cobbles, flagstones, sand and dirt, stepping stones across a pond and six full beds. On the
+Steam Frame, governed, both hold 72 Hz ([record](../perf/frame/stress/20261025T142017Z-1e4323e.json)): 4.6 ms of GPU
+time a frame from the air and 4.5 on the ground, at step 6.
 
 ## Stairs
 
