@@ -757,6 +757,29 @@ steps 8 to 9. With the ladder pinned instead, this garden reads 14.0 to 15.5 ms 
 to 6 with the wheel shut, half rate: a garden this far past the budget holds the rate only
 because the governor steps down for it.
 
+What the stone walls cost the Frame is their pixels. At step 6, unworn, each kind of masonry piece hidden in turn
+over `r25/ground` and `village/ground` (shown, hidden, shown; GPU ms a frame where the runtime held 72 Hz):
+the stones about 4 ms, every other kind under 0.4. Halving the stones' triangles moved the time 0.1 to 0.4 ms in
+those views, and dropping their three triplanar detail samples 0.1 to 0.3, inside the spread of two runs. Two
+changes (3899ff1e) measured above it, paired runs of the same scene, GPU ms a frame:
+
+| Change | `r25/ground` | `r20/ground` | `village/ground` |
+| --- | --- | --- | --- |
+| Before | 11.44 | 10.02 | 11.40 |
+| A rounded box carries its 2-segment lattice as a mesh LOD (`Meshes.lod_error`), scaled by the longest stone | 10.20 | 9.51 | 11.40 |
+| Stones and roof tiles read the bounce and lantern volumes once a vertex (`Stones.small_material`) | 9.80 | | 10.51 |
+
+The LOD's key is the coarse lattice's largest stray from the full one in the mesh's units, and a masonry kind's
+`lod_bias` scales it by its longest piece (`WallLayout.LONGEST` for stones), so the coarse stones draw only where
+they differ by under the renderer's one pixel: 2.57 M primitives became 1.34 M in `r25/ground`. Mortar, plaster,
+timber, floors and boulders keep reading the volumes once a fragment: their triangles span the volumes' metre.
+
+The stress scene, played governed since it holds the gardens a player can build, on the Frame on b4e2a39
+(`perf/frame/stress/20261025T161738Z-b4e2a39.json`, unworn through `frame-unworn`): all 140 phases other than the
+sweeps within the 11.1 ms line, the dearest `r25/ground` at 9.4 ms, and every one at the 72 Hz period but
+`held/house`, whose frame p50 reads 14.4 ms from a 324 ms main-thread stall as the house tool is taken, with the
+GPU at 5.2 ms.
+
 ### Steps 9 and 10 on the Quest 2
 
 The two bottom steps were built on the Frame, so they were measured on a Quest 2 too, where the
