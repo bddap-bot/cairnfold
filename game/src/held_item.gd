@@ -2,8 +2,14 @@ class_name HeldItem
 extends Node3D
 
 ## A held model's description travels only when it changes; the existing hand pose carries its motion. A conure's
-## detail is 1 when it stands on a shoulder (`perched`) rather than in a cupped hand.
+## detail is 1 when it stands on a shoulder (`perched`) rather than in a cupped hand; a brush's or palette's is the
+## easel it was taken from, which shows it gone (`EaselTool`), or 0.
 enum Kind { TOOL, BRUSH, PALETTE, BOOK, BIRD }
+
+## What a player across the garden holds, which `EaselTool` reads.
+const GROUP := &"held_item"
+## Where in a state its detail is.
+const DETAIL := 5
 
 var state: Array = []
 var model: Node3D
@@ -40,6 +46,7 @@ static func describe(hand: Hand, painting: EaselTool, book: Book) -> Array:
 		else:
 			kind = Kind.BRUSH
 			index = p.brush
+			detail = p.brush_from
 			source = p.models[p.brush]
 			colour = p.tip.albedo_color
 			load = p.load
@@ -88,7 +95,7 @@ static func valid(s: Array) -> bool:
 		Kind.TOOL:
 			return s[1] >= 0 and s[1] < Hand.Tool.size() and not s[1] in Hand.UNMODELLED
 		Kind.BRUSH:
-			return s[1] in Brushwork.Brush.values()
+			return s[1] in Brushwork.Brush.values() and s[5] >= 0
 		Kind.PALETTE:
 			return s[1] in Easels.KITS and s[5] > 0
 		Kind.BIRD:
@@ -115,7 +122,7 @@ func show_state(s: Array) -> void:
 				model = ToolModels.build(s[1])
 			Kind.BRUSH:
 				model = ToolModels.brush(s[1])
-				if s[1] != Brushwork.Brush.STICK:
+				if not Brushwork.is_stick(s[1]):
 					(model.get_node("tip") as MeshInstance3D).material_override = StandardMaterial3D.new()
 			Kind.PALETTE:
 				var e := easels.find(s[5]) if easels != null else null
@@ -134,7 +141,7 @@ func show_state(s: Array) -> void:
 		add_child(model)
 	model.visible = true
 	model.transform = s[2]
-	if s[0] == Kind.BRUSH and s[1] != Brushwork.Brush.STICK:
+	if s[0] == Kind.BRUSH and not Brushwork.is_stick(s[1]):
 		var tip := (model.get_node("tip") as MeshInstance3D).material_override as StandardMaterial3D
 		tip.albedo_color = s[3]
 		tip.roughness = 0.25 if s[4] > 0.02 else 0.7

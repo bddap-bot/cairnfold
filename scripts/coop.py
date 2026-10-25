@@ -46,8 +46,8 @@ def sample(name, names, count):
     ]
 
 
-# The host and the joiner, at the host's easel together, take the charcoal and switch, set down, tear and pick tools
-# while the other paints or holds the same palette; after each step the hand must hold what it should, and once the
+# The host and the joiner, at the host's easel together, each take a stick of charcoal and a palette of their own, as
+# an easel holds one of each, and switch, set down, tear and pick tools while the other paints; after each step the hand must hold what it should, and once the
 # host's grip sends its palette home both see every palette at rest on the tray. They lay six commands: a stroke each,
 # the joiner's fresh sheet, the joiner's stroke on it, the host's, and the host's blue painted onto the oil palette,
 # which every peer's digest must show.
@@ -66,16 +66,16 @@ EASEL_PHASES = {
          {"op": "set_down", "hand": "left"}],
     ],
     "join": [
-        [{"op": "take", "what": "stick"}, {"op": "holds", "what": "stick"},
+        [{"op": "take", "what": "thin_stick"}, {"op": "holds", "what": "thin_stick"},
          {"op": "brush", "points": [[0.6, 0.3, 0.8], [0.9, 0.35, 0.8]], "seconds": 0.3},
-         {"op": "take", "what": "palette"}, {"op": "holds", "what": "oil palette"}],
-        [{"op": "take", "what": "stick"}, {"op": "holds", "what": "stick"},
-         {"op": "sheet", "pull": 0.5}, {"op": "holds", "what": "stick"},
+         {"op": "take", "what": "box"}, {"op": "holds", "what": "water palette"}],
+        [{"op": "take", "what": "thin_stick"}, {"op": "holds", "what": "thin_stick"},
+         {"op": "sheet", "pull": 0.5}, {"op": "holds", "what": "thin_stick"},
          {"op": "brush", "points": [[0.6, 0.5, 0.8], [0.9, 0.55, 0.8]], "seconds": 0.3}],
         [{"op": "rests"}, {"op": "pick", "tool": "seeds"}, {"op": "holds", "what": "seeds"},
-         {"op": "pick", "tool": "easel"}, {"op": "holds", "what": "stick"},
+         {"op": "pick", "tool": "easel"}, {"op": "holds", "what": "thin_stick"},
          {"op": "take", "what": "flat"}, {"op": "holds", "what": "flat"},
-         {"op": "take", "what": "stick"}, {"op": "holds", "what": "stick"},
+         {"op": "take", "what": "thin_stick"}, {"op": "holds", "what": "thin_stick"},
          {"op": "pick", "tool": "camera"}, {"op": "holds", "what": "camera"}],
     ],
 }

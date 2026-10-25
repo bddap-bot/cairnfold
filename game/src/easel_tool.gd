@@ -4,7 +4,8 @@ extends Node3D
 ## Painting at an easel, with nothing to pick from a menu. A hand holding the easel tool holds a brush, reaching past
 ## the controller. Its trigger, pointed at open ground away from any easel, sets an easel up there facing the player.
 ## At an easel everything is picked up or touched: a grip at the pot takes a small round, a big round or a flat brush,
-## and at the tray the charcoal; a grip at either palette, the watercolour box or the oil palette, takes it by its
+## and at the tray one of three sticks of charcoal, thin to thick, held leaned back so its side meets the canvas. An
+## easel holds one of each, and the one a hand holds is off it until that hand takes another. A grip at either palette, the watercolour box or the oil palette, takes it by its
 ## thumb hole, and it stays in that hand, as a brush does, until the next grip, wherever the hand is, sends it back to
 ## its rest on the tray, or another tool is picked. The palette a brush is dipped into is its medium: a watercolour pan
 ## loads that pigment, mixing with what is on the brush already; an oil colour loads it pure, and oils mix on the oil
@@ -26,7 +27,7 @@ const PLACE_CLEAR := 2.5
 ## A brush held still on the canvas keeps laying paint this often, in ticks.
 const STILL_TICKS := 6
 ## On the mixing field a brush touches a disc whose radius, pressed fully, is its reach on the canvas in texels
-## (`Brushwork.RADII`) times this, in metres.
+## (`Brushwork.radii`) times this, in metres.
 const MIX_RADIUS := 0.0006
 ## The palette's thumb hole in the hand holding it, from the controller, the palette reaching forward and inward,
 ## turned this far off the hand's right.
@@ -43,6 +44,10 @@ class Painter:
 	var hand: Hand
 	var buttons: Buttons
 	var brush := Brushwork.Brush.BIG
+	## The id of the easel the brush was taken from, which lacks it while this hand shows it, and whether it showed it
+	## last frame.
+	var brush_from := 0
+	var showing := false
 	var medium := Brushwork.Medium.WATER
 	## The paint on the brush: its colour as optical density, how strong (a wash is weak), and how much is left.
 	var colour := Vector3.ZERO
@@ -87,6 +92,8 @@ var highlighted: Array[Node3D] = []
 var highlight := Meshes.glow(Color(1.0, 0.8, 0.3, 0.45))
 ## Each palette on its way back to its tray, by its node: [easel, kit, where it set off from, how far along (0..1)].
 var returning := {}
+## What each easel lacks, by Vector3i(easel id, HeldItem.Kind, brush or kit): the Painter or HeldItem showing it.
+var taken := {}
 
 
 func _init(player: Rig, stands: Easels, garden: World) -> void:
@@ -102,8 +109,9 @@ func _init(player: Rig, stands: Easels, garden: World) -> void:
 		p.tip.roughness = 0.5
 		for kind in Brushwork.Brush.values():
 			var m := ToolModels.brush(kind)
+			m.transform = ToolModels.hold(kind)
 			m.visible = false
-			if kind != Brushwork.Brush.STICK:
+			if not Brushwork.is_stick(kind):
 				(m.get_node("tip") as MeshInstance3D).material_override = p.tip
 			h.body.add_child(m)
 			p.models[kind] = m
@@ -143,10 +151,12 @@ func _forget() -> void:
 		p.mix_cost.clear()
 		_set_down(p)
 		p.peel = null
+		p.brush_from = 0
 
 
 func _process(delta: float) -> void:
 	_return(delta)
+	_rack()
 	_preview()
 	for p in painters:
 		_handle(p, delta)
@@ -173,7 +183,7 @@ func _handle(p: Painter, delta: float) -> void:
 		_clear_contact(p)
 		_lift(p)
 		return
-	var tip := hand.body.global_transform * ToolModels.BRUSH_TIP
+	var tip := held_brush(p) * ToolModels.BRUSH_TIP
 	var e := easels.nearest(tip)
 	if e != null:
 		_dip(p, tip)
@@ -269,14 +279,16 @@ func candidate(p: Painter) -> Dictionary:
 	var best := REACH
 	var choice := {}
 	for e: Easels.Easel in easels.easels.values():
-		for kind: Brushwork.Brush in Brushwork.Brush.values():
-			var node: Node3D = e.stick if kind == Brushwork.Brush.STICK else e.brushes[kind]
+		for kind: Brushwork.Brush in e.brushes:
+			var node: Node3D = e.brushes[kind]
+			if taken.get(Vector3i(e.id, HeldItem.Kind.BRUSH, kind), p) != p:
+				continue
 			var d := pick_distance(p.hand.global_transform, node.global_transform * Easels.grip(kind))
 			if d < best:
 				best = d
-				choice = {"take": _take_brush.bind(p, kind), "node": node}
+				choice = {"take": _take_brush.bind(p, kind, e), "node": node}
 		for kit: Brushwork.Medium in e.palettes:
-			if not painters.any(func(o: Painter) -> bool: return o.palette == e and o.kit == kit):
+			if not taken.has(Vector3i(e.id, HeldItem.Kind.PALETTE, kit)) and not painters.any(func(o: Painter) -> bool: return o.palette == e and o.kit == kit):
 				var d := at.distance_to(e.palettes[kit].global_position)
 				if d < maxf(REACH, Easels.KIT_REACH[kit]) and (choice.is_empty() or d < best):
 					best = d
@@ -307,17 +319,61 @@ func _preview() -> void:
 	highlighted = next
 
 
-func _take_brush(p: Painter, kind: Brushwork.Brush) -> void:
+## Puts a brush of `kind` in `p`'s hand, taken from easel `from`, and sends what the hand had back to its easel.
+func _take_brush(p: Painter, kind: Brushwork.Brush, from: Easels.Easel) -> void:
 	p.contact.reset()
 	end_stroke(p)
 	_set_down(p)
 	p.hand.tool = Hand.Tool.EASEL
 	p.brush = kind
+	for o in painters:
+		if o != p and o.brush_from == from.id and o.brush == kind:
+			o.brush_from = 0
+	p.brush_from = from.id
+	taken[Vector3i(from.id, HeldItem.Kind.BRUSH, kind)] = p
 	p.medium = Brushwork.medium_of(kind, p.medium)
 	p.colour = Vector3.ZERO
 	p.strength = 0.0
-	p.load = 1.0 if kind == Brushwork.Brush.STICK else 0.0
+	p.load = 1.0 if Brushwork.is_stick(kind) else 0.0
 	_show_paint(p)
+
+
+## Takes off each easel what a hand shows, here or a player's across the garden as their `HeldItem` shows it, so
+## everyone sees the same, and shows the rest: a brush is back on its easel while its hand shows anything else, and a
+## hand coming back to it finds it gone if someone took it meanwhile. A palette in a hand here is carried off already.
+func _rack() -> void:
+	taken.clear()
+	for item: HeldItem in get_tree().get_nodes_in_group(HeldItem.GROUP):
+		var s := item.state
+		if s.size() > HeldItem.DETAIL and s[HeldItem.DETAIL] > 0 and (s[0] == HeldItem.Kind.BRUSH or s[0] == HeldItem.Kind.PALETTE):
+			taken[Vector3i(s[HeldItem.DETAIL], s[0], s[1])] = item
+	for p in painters:
+		if p.showing and _shows_brush(p):
+			taken[Vector3i(p.brush_from, HeldItem.Kind.BRUSH, p.brush)] = p
+	for p in painters:
+		var key := Vector3i(p.brush_from, HeldItem.Kind.BRUSH, p.brush)
+		if not p.showing and _shows_brush(p):
+			if taken.has(key):
+				p.brush_from = 0
+			else:
+				taken[key] = p
+		p.showing = _shows_brush(p)
+	for e: Easels.Easel in easels.easels.values():
+		for kind: Brushwork.Brush in e.brushes:
+			e.brushes[kind].visible = not taken.has(Vector3i(e.id, HeldItem.Kind.BRUSH, kind))
+		for kit: Brushwork.Medium in e.palettes:
+			if not painters.any(func(o: Painter) -> bool: return o.palette == e and o.kit == kit):
+				e.palettes[kit].visible = not taken.has(Vector3i(e.id, HeldItem.Kind.PALETTE, kit))
+
+
+## Whether `p`'s hand shows a brush taken from an easel.
+static func _shows_brush(p: Painter) -> bool:
+	return p.brush_from > 0 and p.hand.tool == Hand.Tool.EASEL and p.palette == null and p.peel == null
+
+
+## Where `p`'s brush is, in its own frame (`ToolModels.brush`): held as `ToolModels.hold` holds it.
+static func held_brush(p: Painter) -> Transform3D:
+	return p.hand.body.global_transform * ToolModels.hold(p.brush)
 
 
 func _take_palette(p: Painter, e: Easels.Easel, kit: Brushwork.Medium) -> void:
@@ -345,7 +401,7 @@ func _hold_palette(p: Painter) -> void:
 
 
 ## What `p`'s hand holds: a palette ("oil palette", "water palette"), the canvas's sheet, the brush or charcoal
-## ("stick") while it holds the easel tool, or else its tool.
+## ("thin_stick", "stick", "thick_stick") while it holds the easel tool, or else its tool.
 static func holding(p: Painter) -> String:
 	if p.palette != null:
 		return "%s palette" % Brushwork.Medium.keys()[p.kit].to_lower()
@@ -438,13 +494,15 @@ func _dip(p: Painter, tip: Vector3) -> void:
 		if tip.distance_to(e.global_position) > 3.0:
 			continue
 		for kit: Brushwork.Medium in e.palettes:
+			if taken.has(Vector3i(e.id, HeldItem.Kind.PALETTE, kit)):
+				continue
 			var well := Easels.well_at(kit, e.palettes[kit].global_transform.affine_inverse() * tip)
 			if well >= 0:
 				into = "%s%d" % [PAINTS[kit], well]
 		if _inside(e.global_transform.affine_inverse() * tip, Easels.JAR, Easels.JAR_SIZE):
 			into = "jar"
 		if into != "":
-			if into != p.dipped and p.brush != Brushwork.Brush.STICK:
+			if into != p.dipped and not Brushwork.is_stick(p.brush):
 				if into == "jar":
 					_rinse(e, p)
 				dip(p, into)
@@ -467,7 +525,7 @@ static func _inside(local: Vector3, base: Vector3, size: Vector2) -> bool:
 ## Loads the brush from `what`: "jar", or a pigment as "pan<i>" or "oil<i>". A pan's mixes with the watercolour on the
 ## brush; an oil colour replaces what is on it. Paint of the other medium on the brush is wiped off first.
 func dip(p: Painter, what: String) -> void:
-	if p.brush == Brushwork.Brush.STICK:
+	if Brushwork.is_stick(p.brush):
 		return
 	if what == "jar":
 		p.medium = Brushwork.Medium.WATER
@@ -490,7 +548,7 @@ func dip(p: Painter, what: String) -> void:
 
 
 func _paint_colour(p: Painter) -> Color:
-	if p.brush == Brushwork.Brush.STICK:
+	if Brushwork.is_stick(p.brush):
 		return Brushwork.colour(Brushwork.CHARCOAL)
 	var density := p.colour * (p.strength if p.medium == Brushwork.Medium.WATER else 1.0) * (0.4 + 0.6 * p.load)
 	return Brushwork.colour(density) * Color(0.95, 0.92, 0.86)
@@ -515,8 +573,10 @@ func _show_brush(p: Painter, holding: bool, delta: float) -> void:
 func _mix(p: Painter, tip: Vector3, delta: float) -> bool:
 	var on: Easels.Easel = null
 	var local := Vector3.ZERO
-	if p.brush != Brushwork.Brush.STICK:
+	if not Brushwork.is_stick(p.brush):
 		for e: Easels.Easel in easels.easels.values():
+			if taken.has(Vector3i(e.id, HeldItem.Kind.PALETTE, Brushwork.Medium.OIL)):
+				continue
 			local = e.palettes[Brushwork.Medium.OIL].global_transform.affine_inverse() * tip
 			if local.y < Easels.BOARD_TOP + CONTACT and local.y > Easels.WELL_DEPTH.x and Mixing.open_at(Vector2(local.x, local.z)) and Easels.well_at(Brushwork.Medium.OIL, local) < 0:
 				on = e
@@ -528,7 +588,7 @@ func _mix(p: Painter, tip: Vector3, delta: float) -> bool:
 	p.board = on
 	var start := Time.get_ticks_usec()
 	var pressure := clampf((Easels.BOARD_TOP + CONTACT - local.y) / PRESS_DEPTH, 0.05, 1.0)
-	var radius: float = Brushwork.RADII[p.brush].y * MIX_RADIUS * (0.5 + 0.5 * pressure)
+	var radius: float = Brushwork.radii(p.brush).y * MIX_RADIUS * (0.5 + 0.5 * pressure)
 	var oil := p.medium == Brushwork.Medium.OIL
 	var got := on.mixing.touch({"ks": Mixing.ks_of(p.colour), "load": p.load if oil else 0.0}, Vector2(local.x, local.z), radius, delta)
 	if got[1]:
@@ -562,9 +622,9 @@ func _clear_contact(p: Painter) -> void:
 	p.contact_easel = null
 	p.contact_point = Vector3.INF
 	p.bend = Vector3.ZERO
-	if p.brush != Brushwork.Brush.STICK:
+	if not Brushwork.is_stick(p.brush):
 		ToolModels.bend(p.models[p.brush], p.brush, p.bend)
-	canvas_contact.emit(p.hand, p.hand.global_position, p.brush == Brushwork.Brush.STICK, false, 0.0, 0.0, 0.0, false)
+	canvas_contact.emit(p.hand, p.hand.global_position, Brushwork.is_stick(p.brush), false, 0.0, 0.0, 0.0, false)
 
 
 ## Paints while the tip touches easel `e`'s canvas; whether it does.
@@ -575,13 +635,14 @@ func _touch(p: Painter, e: Easels.Easel, delta: float) -> bool:
 		p.contact.reset()
 		p.contact_easel = e
 	var frame := e.canvas_frame()
-	var contact := p.contact.move(frame, p.hand.body.global_transform, p.brush == Brushwork.Brush.STICK)
-	p.hand.body.global_transform = contact.pose
-	if p.brush != Brushwork.Brush.STICK:
+	var stick := Brushwork.is_stick(p.brush)
+	var contact := p.contact.move(frame, held_brush(p), p.brush)
+	p.hand.body.global_transform = contact.pose * ToolModels.hold(p.brush).affine_inverse()
+	if not stick:
 		p.bend = contact.pose.basis.inverse() * frame.basis.z * contact.bend
 		ToolModels.bend(p.models[p.brush], p.brush, p.bend)
 	var distance: float = contact.point.distance_to(p.contact_point) if contact.on and p.contact_point != Vector3.INF else 0.0
-	canvas_contact.emit(p.hand, contact.point, p.brush == Brushwork.Brush.STICK, contact.on, contact.pressure, distance / maxf(delta, 1e-6), distance, contact.hard)
+	canvas_contact.emit(p.hand, contact.point, stick, contact.on, contact.pressure, distance / maxf(delta, 1e-6), distance, contact.hard)
 	if not contact.on:
 		end_stroke(p)
 		p.contact_point = Vector3.INF
@@ -591,8 +652,8 @@ func _touch(p: Painter, e: Easels.Easel, delta: float) -> bool:
 	return true
 
 
-## The tip at `uv` on easel `e`'s canvas, pressed `pressure` (0..1), a flat brush turned `angle`: starts a stroke or
-## carries one on, laying its paint at once.
+## The tip at `uv` on easel `e`'s canvas, pressed `pressure` (0..1), a flat brush or a stick turned `angle`, a stick
+## lying `side` (0..1) on the canvas: starts a stroke or carries one on, laying its paint at once.
 func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: float, side := 0.0) -> void:
 	var canvas := e.canvas
 	if p.stroke.is_empty():
@@ -602,16 +663,17 @@ func touch(p: Painter, e: Easels.Easel, uv: Vector2, pressure: float, angle: flo
 		p.stroke = {"easel": e, "data": data, "stroker": Brushwork.Stroker.new(data), "last": [], "at": canvas.ticks}
 	var s := p.stroke
 	if not s.last.is_empty():
-		var r: float = Brushwork.RADII[p.brush].y * pressure
-		var moved: float = (Vector2(uv - s.last[0]) * Vector2(Brushwork.SIZE)).length()
-		if p.brush == Brushwork.Brush.STICK and moved < 0.01:
+		var r: float = Brushwork.radii(p.brush).y * pressure
+		var size := Vector2(Brushwork.SIZE)
+		var moved := Brushwork.sweep(s.last[0] * size, s.last[2], uv * size, angle, maxf(side, s.last[3])).x
+		if Brushwork.is_stick(p.brush) and moved < 0.01:
 			return
 		if moved < maxf(r * 0.15, 1.0) and absf(pressure - s.last[1]) < 0.05 and canvas.ticks - s.at < STILL_TICKS:
 			return
 	var packed := Brushwork.pack(uv, pressure, angle, canvas.ticks - s.at if not s.last.is_empty() else 0, side)
 	s.data.samples.append_array(packed)
 	s.at = canvas.ticks
-	s.last = [uv, pressure]
+	s.last = [uv, pressure, angle, side]
 	canvas.lay(s.data, s.stroker.add(Brushwork.unpack(packed, 0)))
 	if Brushwork.count(s.data) >= Brushwork.MAX_SAMPLES:
 		end_stroke(p)
@@ -638,7 +700,7 @@ func end_stroke(p: Painter) -> void:
 	if not is_instance_valid(e):
 		return
 	e.canvas.end(s.data)
-	if p.medium != Brushwork.Medium.SMEAR and p.brush != Brushwork.Brush.STICK:
+	if p.medium != Brushwork.Medium.SMEAR and not Brushwork.is_stick(p.brush):
 		p.load *= s.stroker.left()
 		_show_paint(p)
 	var id := e.id

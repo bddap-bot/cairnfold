@@ -522,6 +522,7 @@ func _appear(look: int, tint: Color) -> void:
 	var models: Array[HeldItem] = []
 	for side in 4:
 		var item := HeldItem.new()
+		item.add_to_group(HeldItem.GROUP)
 		item.easels = painting.easels if painting != null else null
 		item.terrain = world.terrain
 		add_child(item)

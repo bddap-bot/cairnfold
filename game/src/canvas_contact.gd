@@ -17,10 +17,12 @@ func reset() -> void:
 	previous = Vector3.INF
 
 
-func move(frame: Transform3D, tracked: Transform3D, charcoal: bool) -> Dictionary:
+## Where a brush of `kind`, held at `tracked` (its own frame, as `ToolModels.brush` builds it), meets the canvas whose
+## frame is `frame`, stopped at its face.
+func move(frame: Transform3D, tracked: Transform3D, kind: Brushwork.Brush) -> Dictionary:
 	var local := frame.affine_inverse() * tracked
-	stick = charcoal
-	var radius := ToolModels.CHARCOAL_RADIUS if stick else 0.0
+	stick = Brushwork.is_stick(kind)
+	var radius: float = Brushwork.STICKS[kind] if stick else 0.0
 	var sheet := AABB(Vector3(-Brushwork.METRES.x * 0.5, -Brushwork.METRES.y * 0.5, -0.032), Vector3(Brushwork.METRES.x, Brushwork.METRES.y, 0.032))
 	box = sheet.grow(radius)
 	if not stick:

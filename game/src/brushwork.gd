@@ -8,7 +8,7 @@ extends RefCounted
 ## mixes on the brush and glazes on the canvas subtractively: blue and yellow make green, layers darken.
 
 enum Medium { WATER, OIL, CHARCOAL, SMEAR }
-enum Brush { SMALL, BIG, FLAT, STICK }
+enum Brush { SMALL, BIG, FLAT, STICK, THIN_STICK, THICK_STICK }
 
 ## The canvas in texels and in metres: about a millimetre a texel, finer than the Frame resolves at arm's length.
 const SIZE := Vector2i(1536, 1152)
@@ -22,10 +22,12 @@ const TILE := 64
 ## How far past the brush water may run, in texels: sideways and up, then down the tilted canvas.
 const MARGIN := 40
 const RUN := 160
-## Each brush's radius in texels, from a touch to full pressure, and how much paint it holds, in texels of area
-## laid at full pressure before it is spent.
-const RADII := {Brush.SMALL: Vector2(1.5, 8.0), Brush.BIG: Vector2(6.0, 40.0), Brush.FLAT: Vector2(10.0, 42.0), Brush.STICK: Vector2(2.5, 9.0)}
-const HOLDS := {Brush.SMALL: 40000.0, Brush.BIG: 400000.0, Brush.FLAT: 400000.0, Brush.STICK: 1.0e12}
+## Each brush's radius in texels, from a touch to full pressure (`radii`), and how much paint it holds, in texels of
+## area laid at full pressure before it is spent; charcoal is never spent.
+const RADII := {Brush.SMALL: Vector2(1.5, 8.0), Brush.BIG: Vector2(6.0, 40.0), Brush.FLAT: Vector2(10.0, 42.0)}
+const HOLDS := {Brush.SMALL: 40000.0, Brush.BIG: 400000.0, Brush.FLAT: 400000.0}
+## The charcoal sticks, thin, middling and thick, by their radius in metres, which their mark's width follows.
+const STICKS := {Brush.THIN_STICK: 0.0035, Brush.STICK: 0.0065, Brush.THICK_STICK: 0.011}
 ## Oil is spent a little sooner than a wet brush.
 const OIL_HOLDS := 0.8
 ## Dabs are laid this fraction of their radius apart.
@@ -61,8 +63,43 @@ static func colour(density: Vector3) -> Color:
 	return Color(exp(-density.x), exp(-density.y), exp(-density.z)).linear_to_srgb()
 
 
+static func is_stick(brush: Brush) -> bool:
+	return STICKS.has(brush)
+
+
+## `brush`'s radius in texels, from a touch to full pressure: a stick's mark is a little wider than the stick.
+static func radii(brush: Brush) -> Vector2:
+	if is_stick(brush):
+		return Vector2(0.4, 1.4) * STICKS[brush] * SIZE.x / METRES.x
+	return RADII[brush]
+
+
+## How far, in texels, a stick lying on the canvas `side` (0..1) reaches either way from its contact's middle.
+static func side_reach(side: float) -> float:
+	return side * ToolModels.CHARCOAL_LENGTH * 0.5 * SIZE.x / METRES.x
+
+
+## The shorter turn from footprint angle `from` to `to`: a stick's or a flat brush's footprint looks the same turned
+## half a turn.
+static func turn(from: float, to: float) -> float:
+	return wrapf(to - from, -PI * 0.5, PI * 0.5)
+
+
+## How far a footprint moves from `from` to `to` (texels) as it turns from `from_angle` to `to_angle`, a stick lying
+## `side` on the canvas being a line `side_reach` either way of its middle: the farthest any point of it goes, and how
+## far its points go on average.
+static func sweep(from: Vector2, from_angle: float, to: Vector2, to_angle: float, side: float) -> Vector2:
+	var moved := to - from
+	var end := side_reach(side) * (Vector2.from_angle(from_angle + turn(from_angle, to_angle)) - Vector2.from_angle(from_angle))
+	var mean := 0.0
+	for k in 8:
+		var along := (k + 0.5) / 4.0 - 1.0
+		mean += (moved + end * along).length() / 8.0
+	return Vector2(maxf((moved + end).length(), (moved - end).length()), mean)
+
+
 static func medium_of(brush: Brush, medium: Medium) -> Medium:
-	return Medium.CHARCOAL if brush == Brush.STICK else (Medium.WATER if medium == Medium.CHARCOAL else medium)
+	return Medium.CHARCOAL if is_stick(brush) else (Medium.WATER if medium == Medium.CHARCOAL else medium)
 
 
 ## One sample as the two ints a stroke keeps it in: where on the canvas (0..1 each way, to 1/65535), how hard
@@ -128,13 +165,14 @@ class Stroker:
 
 	func _init(of: Dictionary) -> void:
 		stroke = of
-		_hold = HOLDS[of.brush] * (OIL_HOLDS if of.medium == Medium.OIL else 1.0)
+		_hold = (INF if Brushwork.is_stick(of.brush) else HOLDS[of.brush]) * (OIL_HOLDS if of.medium == Medium.OIL else 1.0)
 
 	## The paint left on the brush, 0..1 of what the stroke began with.
 	func left() -> float:
 		return exp(-_spent / _hold)
 
-	## The dabs sample `s` ([uv, pressure, angle, ticks], as `unpack` gives) adds.
+	## The dabs sample `s` ([uv, pressure, angle, ticks, side], as `unpack` gives) adds. A stick on its side lays a
+	## line, so it lays by how far that line sweeps, turning about its middle as much as moving it.
 	func add(s: Array) -> PackedFloat32Array:
 		var out := PackedFloat32Array()
 		var to := Vector2(s[0].x * SIZE.x, s[0].y * SIZE.y)
@@ -148,26 +186,28 @@ class Stroker:
 		var run := from.distance_to(to)
 		if run > 0.01:
 			_heading = (to - from).angle()
-		if charcoal and run < 1e-5:
+		var turned := Brushwork.turn(_last[2], s[2])
+		var swept := Brushwork.sweep(from, _last[2], to, s[2], maxf(_last[3], side))
+		if charcoal and swept.y < 1e-5:
 			_last = [to, s[1], s[2], side]
 			return out
 		var speed := run / maxf(float(s[3]), 1.0)
 		var r := minf(_radius(_last[1]), _radius(s[1]))
-		var n := clampi(ceili(run / maxf(r * SPACING, 0.5)), 1, 4096)
+		var n := clampi(ceili(swept.x / maxf(r * SPACING, 0.5)), 1, 4096)
 		for k in range(1, n + 1):
 			var t := float(k) / n
-			_dab(out, from.lerp(to, t), lerpf(_last[1], s[1], t), lerp_angle(_last[2], s[2], t), speed, run / n / maxf(r * SPACING, 0.5) if charcoal else 1.0, lerpf(_last[3], side, t))
+			_dab(out, from.lerp(to, t), lerpf(_last[1], s[1], t), _last[2] + turned * t, speed, swept.y / n / maxf(r * SPACING, 0.5) if charcoal else 1.0, lerpf(_last[3], side, t))
 		_last = [to, s[1], s[2], side]
 		return out
 
 	func _radius(pressure: float) -> float:
-		var r: Vector2 = RADII[stroke.brush]
+		var r := Brushwork.radii(stroke.brush)
 		return lerpf(r.x, r.y, pow(pressure, 0.7))
 
 	func _dab(out: PackedFloat32Array, at: Vector2, pressure: float, angle: float, speed: float, travel := 1.0, side := 0.0) -> void:
 		var r := _radius(pressure)
 		var load: float = stroke.load * left()
 		var dryness: float = clampf(speed / SKIM, 0.0, 1.0) * SKIMS[stroke.medium] + (1.0 - load) * 0.45
-		var major := maxf(r, side * ToolModels.CHARCOAL_LENGTH * 0.5 * SIZE.x / METRES.x) if stroke.medium == Medium.CHARCOAL else r
+		var major := maxf(r, Brushwork.side_reach(side)) if stroke.medium == Medium.CHARCOAL else r
 		out.append_array([at.x, at.y, major, pressure, r if stroke.medium == Medium.CHARCOAL else _heading, load * travel, clampf(dryness, 0.0, 1.0), angle])
 		_spent += PI * r * r * SPACING * (0.3 + pressure)

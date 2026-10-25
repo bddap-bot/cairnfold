@@ -1573,16 +1573,17 @@ func _easel_of(s: Dictionary) -> Easels.Easel:
 	return main.easels.find(ids[s.get("easel", -1)])
 
 
-## Holds `hand` so its brush's tip is at `tip`, the brush pointing along `along`, turned `roll` about it.
+## Holds `hand` so its brush's tip is at `tip`, the brush pointing along `along`, turned `roll` about it, however the
+## hand holds that brush (`ToolModels.hold`).
 func _tip_at(hand: Hand, tip: Vector3, along: Vector3, up: Vector3, roll := 0.0) -> void:
 	var basis := Basis.looking_at(along, up).rotated(along.normalized(), roll)
-	hand.global_transform = Transform3D(basis, tip - basis * ToolModels.BRUSH_TIP)
+	hand.global_transform = Transform3D(basis, tip - basis * ToolModels.BRUSH_TIP) * ToolModels.hold(main.easel_tool.painter(hand).brush).affine_inverse()
 	hand.held_still = true
 
 
 ## A grip at the easel's tray, as a player's hand closing there: takes a brush from the pot ("small", "big",
-## "flat"), the charcoal ("stick"), or a palette, the watercolour box ("box") or the oil palette ("palette"), which
-## stays in the hand until a `set_down`. With `preview`, approaches the handle without closing the grip.
+## "flat"), a stick of charcoal ("thin_stick", "stick", "thick_stick"), or a palette, the watercolour box ("box") or
+## the oil palette ("palette"), which stays in the hand until a `set_down`. With `preview`, approaches the handle without closing the grip.
 func _take(s: Dictionary) -> void:
 	var hand := _hand(s)
 	var e := _easel_of(s)
@@ -1592,8 +1593,6 @@ func _take(s: Dictionary) -> void:
 			at = e.palettes[Brushwork.Medium.WATER].global_position
 		"palette":
 			at = e.palettes[Brushwork.Medium.OIL].global_position
-		"stick":
-			at = e.stick.global_transform * Easels.grip(Brushwork.Brush.STICK)
 		_:
 			var kind: Brushwork.Brush = Brushwork.Brush[s.what.to_upper()]
 			at = e.brushes[kind].global_transform * Easels.grip(kind)
@@ -1739,7 +1738,8 @@ func _brush(s: Dictionary) -> void:
 		_tip_at(hand, on.call([lerpf(a[0], b[0], t), lerpf(a[1], b[1], t), lerpf(a[2], b[2], t)], 0.0), direction, frame.basis.y, roll)
 		await _frames(1)
 	if s.has("capture"):
-		print("brush contact: tracked %s, visible %s" % [e.on_canvas(hand.global_transform * ToolModels.BRUSH_TIP), e.on_canvas(hand.body.global_transform * ToolModels.BRUSH_TIP)])
+		var hold := ToolModels.hold(main.easel_tool.painter(hand).brush)
+		print("brush contact: tracked %s, visible %s" % [e.on_canvas(hand.global_transform * hold * ToolModels.BRUSH_TIP), e.on_canvas(hand.body.global_transform * hold * ToolModels.BRUSH_TIP)])
 		await main.capture(s.capture)
 	_tip_at(hand, on.call(pts[-1], 0.05), direction, frame.basis.y, roll)
 	await _frames(2)
@@ -2148,7 +2148,7 @@ func _remote_holds(s: Dictionary) -> void:
 				matches = matches and item.model != null and item.model.is_visible_in_tree() and item.model.transform.is_equal_approx(item.state[2])
 				matches = matches and item.transform.is_equal_approx(avatar.hands[side] if side < 2 else Torso.frame(avatar.eyes, avatar.torso))
 				matches = matches and (side >= 2 or avatar.folded(side) == item.replaces_hand())
-				if item.state[0] == HeldItem.Kind.BRUSH and item.state[1] != Brushwork.Brush.STICK:
+				if item.state[0] == HeldItem.Kind.BRUSH and not Brushwork.is_stick(item.state[1]):
 					var tip := (item.model.get_node("tip") as MeshInstance3D).material_override as StandardMaterial3D
 					matches = matches and tip.albedo_color.is_equal_approx(item.state[3])
 		if matches:

@@ -26,7 +26,10 @@ const BRUSH_TIP := Vector3(0, 0.01, -0.27)
 ## A brush handle's radius at its widest, by the ferrule.
 const HANDLE_RADIUS := 0.005
 const CHARCOAL_LENGTH := 0.25
-const CHARCOAL_RADIUS := 0.0065
+## A stick of charcoal is held leaned back this far from the controller's aim, its tip dropped, about where a hand
+## grips it: aimed at the canvas it meets it at this angle, and a wrist turned down as far lays its side flat on it.
+const STICK_LEAN := deg_to_rad(45.0)
+const STICK_GRIP := Vector3(0, 0.01, -0.06)
 ## The parts of each fitting, by the kind its generator files them under.
 const FITTING_PARTS := {
 	"window": ["glass", "frame"],
@@ -399,14 +402,23 @@ static func _easel(root: Node3D) -> void:
 		_piece(root, dab, Transform3D(tilt.scaled(Vector3(1, 1, 0.5)), tilt * (d[0] - Vector3(0, 0.036, 0)) + Vector3(0, 0.036, 0.0015)), _plain("easel_dab%d" % d[1], Brushwork.PIGMENTS[d[1]]))
 
 
-## A brush of `kind` along the controller's aim, its tip at BRUSH_TIP; its bristles are the child named "tip", for
-## the paint on it. The stick is a bare stick of charcoal, black from end to end.
+## Where a held brush of `kind` lies in the controller's frame: a brush along the aim, a stick of charcoal leaned back
+## (STICK_LEAN).
+static func hold(kind: Brushwork.Brush) -> Transform3D:
+	if not Brushwork.is_stick(kind):
+		return Transform3D()
+	var lean := Basis(Vector3.RIGHT, -STICK_LEAN)
+	return Transform3D(lean, STICK_GRIP - lean * STICK_GRIP)
+
+
+## A brush of `kind` along its own -z, its tip at BRUSH_TIP; its bristles are the child named "tip", for the paint on
+## it. A stick is a bare stick of charcoal as thick as its size, black from end to end.
 static func brush(kind: Brushwork.Brush) -> Node3D:
 	var root := Node3D.new()
 	var along := Basis(Vector3.RIGHT, -PI * 0.5)
 	var tip_z := BRUSH_TIP.z
-	if kind == Brushwork.Brush.STICK:
-		var stick := _piece(root, charcoal(CHARCOAL_LENGTH), Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + CHARCOAL_LENGTH * 0.5)), charcoal_material())
+	if Brushwork.is_stick(kind):
+		var stick := _piece(root, charcoal(CHARCOAL_LENGTH, Brushwork.STICKS[kind]), Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + CHARCOAL_LENGTH * 0.5)), charcoal_material())
 		stick.name = "tip"
 		return root
 	_piece(root, cylinder(HANDLE_RADIUS, 0.0035, 0.2, 10), Transform3D(along, Vector3(0, BRUSH_TIP.y, tip_z + 0.155)), _plain("brush_handle", Color(0.75, 0.28, 0.2)))
@@ -433,13 +445,13 @@ static func charcoal_material() -> StandardMaterial3D:
 	return _plain("charcoal", Color.WHITE, {"roughness": 1.0, "metallic_specular": 0.0, "vertex_color_use_as_albedo": true, "vertex_color_is_srgb": true})
 
 
-## A stick of willow charcoal `length` long along y, centred on its middle: six-sided and uneven, crooked toward z as
-## the twig grew, so lying on its side it lies flat, mottled grey-black, its +y end worn grey.
-static func charcoal(length: float) -> ArrayMesh:
-	return shared("charcoal %s" % length, _charcoal.bind(length))
+## A stick of willow charcoal `length` long along y and `radius` round, centred on its middle: six-sided and uneven,
+## crooked toward z as the twig grew, so lying on its side it lies flat, mottled grey-black, its +y end worn grey.
+static func charcoal(length: float, radius: float) -> ArrayMesh:
+	return shared("charcoal %s %s" % [length, radius], _charcoal.bind(length, radius))
 
 
-static func _charcoal(length: float) -> ArrayMesh:
+static func _charcoal(length: float, radius: float) -> ArrayMesh:
 	var parts: Array = []
 	var at := Vector3(0, -length * 0.5, 0)
 	var bends := [0.0, 0.09, -0.07, 0.06, -0.05]
@@ -448,7 +460,7 @@ static func _charcoal(length: float) -> ArrayMesh:
 	var seg := length / bends.size()
 	for i in bends.size():
 		var b := Basis(Vector3.RIGHT, bends[i])
-		var c := cylinder(CHARCOAL_RADIUS * widths[i + 1], CHARCOAL_RADIUS * widths[i], seg + 0.002, 6)
+		var c := cylinder(radius * widths[i + 1], radius * widths[i], seg + 0.002, 6)
 		var grey: float = greys[i]
 		parts.append([c, Transform3D(b.scaled(Vector3(1.0, 1.0, 0.8)), at + b.y * seg * 0.5), Color(grey, grey * 0.96, grey * 0.92)])
 		at += b.y * seg

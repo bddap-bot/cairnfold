@@ -25,10 +25,10 @@ func _run() -> void:
 		check(HeldItem.valid(s), "painting implement accepted")
 		item.show_state(s)
 		check(item.model != null, "painting implement builds")
-		if kind != Brushwork.Brush.STICK:
+		if not Brushwork.is_stick(kind):
 			var mat: StandardMaterial3D = item.model.get_node("tip").material_override
 			check(mat.albedo_color == s[3] and is_equal_approx(mat.roughness, 0.25), "loaded paint reaches actual bristles")
-		if kind != Brushwork.Brush.STICK:
+		if not Brushwork.is_stick(kind):
 			var model := item.model
 			var tip := model.get_node("tip") as MeshInstance3D
 			var relaxed := tip.transform

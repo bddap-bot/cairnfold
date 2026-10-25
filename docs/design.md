@@ -4479,8 +4479,9 @@ Directive (verbatim): "There's a feature that I would like. That is a big painti
 An easel (`Easels`) stands where the easel tool's trigger sets it, its canvas 1.5 by 1.125 m at standing height,
 tilted back 10°, with a tray in front holding a painter's kit for each medium: a pot of brushes; a black box of
 watercolour pans beside a glass of water; a wooden oil palette with its eight colours squeezed out round the edge; and
-a few sticks of willow charcoal. Nothing is picked from a menu (`EaselTool`): a grip at the pot takes a small round, a
-big round or a flat brush, and at the charcoal a stick; a grip at either palette takes it by its thumb hole, paint up
+three sticks of willow charcoal, thin, middling and thick, laid 10 cm apart. An easel holds one of each tool. Nothing
+is picked from a menu (`EaselTool`): a grip at the pot takes a small round, a big round or a flat brush, and at the
+charcoal that stick; a grip at either palette takes it by its thumb hole, paint up
 and reaching toward the other hand, and it stays in that hand as a brush does, so the other hand dips into it, until
 a grip at its place on the tray sets it down. The palette a brush dips into is its medium: a tip anywhere over a pan
 or an oil colour, or pushed on through the palette under it, loads that pigment in that medium, wiping off the other.
@@ -4488,7 +4489,12 @@ A pan's mixes on the brush with the watercolour there already, and the box shows
 for watercolour, thinner each dip, and its water clouds with what is rinsed off. Oils mix as a painter mixes them, on
 the oil palette's open board (`Mixing`): an oil colour loads the brush with that colour alone; painting onto the board
 lays the paint there, painting over wet paint blends the two, and touching the board loads the brush with the paint
-under it. Charcoal takes no paint.
+under it. Charcoal takes no paint; a stick's thickness sets its mark's width.
+A tool a hand shows is off its easel, as everyone in the garden sees it (`HeldItem`), so no one takes it twice: a brush
+or stick is back while its hand shows anything else, and for good once that hand takes another; a palette goes back
+when set down.
+A stick of charcoal is held leaned back 45° from the hand's aim, its tip dropped: aimed at the canvas it meets it at
+45°, and a wrist turned down as far lays its side flat on it.
 The brush
 reaches past the controller; touching the canvas paints, pushing in presses harder and widens the mark, moving fast
 skims the paper's tooth, and the brush runs dry as it paints. A grip on the canvas takes its sheet and pulling it
@@ -4500,8 +4506,10 @@ travel; then the visible hand and brush stop while the tracked controller can
 continue. The rigid brush shaft and charcoal also stop at the sheet. Charcoal
 leaves a faint first touch and deposits further pigment only with contact travel.
 Its footprint follows the stick's angle: narrow at the tip, long and narrow across
-its side. Contact angle is kept in stroke samples, so replay and peers lay the
-same marks. `demo/canvas-contact.json` captures the stopped tools and compares
+its side. A stick on its side lays by how far its line sweeps, so one turned about
+its middle draws a disc and one turned about an end an arc, the footprint turning
+with it the short way (it looks the same half a turn round). Contact angle is kept
+in stroke samples, so replay and peers lay the same marks. `demo/canvas-contact.json` captures the stopped tools and compares
 charcoal taps, drags, tip strokes and side strokes.
 
 An easel moves as most things do: a grip on its legs or tray, whatever the hand holds, carries it along the ground
@@ -4530,6 +4538,10 @@ sit in a white box, the oil colours stand up as glossy dollops, and the charcoal
 no handle or ferrule, so it is never taken for a brush. Each palette is one or two baked meshes coloured by vertex.
 On a Quest 2 (`demo/easel-kit-bench.json`, `perf/quest-2/easel-kit-bench/`) the kits drew 6 to 30 fewer calls than
 the one palette, tin and jar before them, with GPU time within 0.11 ms in every easel view.
+
+Directive (verbatim, voice relay): "There should be only one palette per easel when you from an easel, it should take that palette off of the easel. There should also be only one type of paintbrush per easel. When you take a paintbrush off of the the easel, that paintbrush should disappear. Same with the charcoal pencils And the watercolor palette"
+
+Directive (verbatim, voice relay): "Please space the charcoal pencils out a little wider and make it so you can grab ones of different sizes Also, for pencils, when you grab them, I want them to be leaned back about forty five degrees to make it easier to paint with the side of the pencil. And I want to be able to select pencils of different size. Third, there's a little bug I notice with the charcoal pencil where if you paint with its side of the pencil it, it stays, it it cannot rotate while you are uh, while you are drawing with the side of the pencil. I'd like to be able to draw a circle or an arc with the side of the pencil by rotating it while painting with its side"
 
 Directive (paraphrased): oil mixing should work like real life: paint taken on the brush is painted onto the mixing
 surface, which is how colours mix, and touching that part of the surface with the brush picks up the paint there.

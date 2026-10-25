@@ -3,8 +3,9 @@ extends Node3D
 
 ## The garden's easels, each a big canvas on an A-frame with a tray in front holding a painter's kit for each medium: a
 ## box of watercolour pans beside a glass of water, a wooden oil palette with its paint squeezed out round the edge,
-## sticks of charcoal, and a pot of brushes. `World` puts and takes them and hands them their strokes; `EaselTool`
-## paints on them. An easel's local frame stands on the ground under it as the ground is now, the canvas facing +z.
+## three sticks of charcoal from thin to thick, and a pot of brushes, one of each. `World` puts and takes them and hands
+## them their strokes; `EaselTool` paints on them. An easel's local frame stands on the ground under it as the ground is
+## now, the canvas facing +z.
 
 ## The canvas tilts its top back from the painter this far.
 const TILT := deg_to_rad(10.0)
@@ -16,7 +17,10 @@ const LIP := Vector2(0.035, 0.012)
 ## Where each thing on the tray sits, on the tray's top.
 const POT := Vector3(-0.68, TRAY_Y, 0.2)
 const JAR := Vector3(-0.54, TRAY_Y, 0.23)
-const STICK := Vector3(-0.14, TRAY_Y, 0.29)
+## The charcoal sticks lie side by side from the tray's back to its front, thinnest on the left, so far apart that a
+## hand reaching for one from the front takes it alone: the middle of the middle one, and the gap between them.
+const CHARCOAL := Vector3(0.0, TRAY_Y, 0.19)
+const STICK_GAP := 0.1
 ## Each medium's palette where it rests: the watercolour box beside its water, the oil palette in the tray's far
 ## corner, inside its lip and clear of the leg crossing the tray behind it.
 const KITS := {
@@ -138,8 +142,9 @@ class Easel:
 	var field: ImageTexture
 	## The water in the jar, clouded by each rinse.
 	var water: StandardMaterial3D
+	## Each brush in the pot and stick of charcoal on the tray, by its Brushwork.Brush; one a hand holds is off it
+	## (`EaselTool`).
 	var brushes := {}
-	var stick: Node3D
 
 	## The canvas's frame: x along it, y up it, z out of it toward the painter, origin at its centre.
 	func canvas_frame() -> Transform3D:
@@ -428,10 +433,11 @@ func _build(e: Easel) -> void:
 		b.transform = in_pot(kind)
 		implements.add_child(b)
 		e.brushes[kind] = b
-	e.stick = ToolModels.brush(Brushwork.Brush.STICK)
-	e.stick.transform = Transform3D(Basis(Vector3.UP, -PI * 0.5), STICK + Vector3(0, ToolModels.CHARCOAL_RADIUS - ToolModels.BRUSH_TIP.y, 0))
-	implements.add_child(e.stick)
-	_part(implements, ToolModels.shared("tray_charcoal", _tray_charcoal), Transform3D(), ToolModels.charcoal_material())
+	for kind: Brushwork.Brush in Brushwork.STICKS:
+		var b := ToolModels.brush(kind)
+		b.transform = on_tray(kind)
+		implements.add_child(b)
+		e.brushes[kind] = b
 	for kit in KITS:
 		var palette := watercolours() if kit == Brushwork.Medium.WATER else oils()
 		palette.name = Brushwork.Medium.keys()[kit].to_lower()
@@ -453,12 +459,10 @@ static func _quad(key: String, size: Vector2) -> QuadMesh:
 		return q)
 
 
-static func _tray_charcoal() -> ArrayMesh:
-	var sticks: Array = []
-	for piece: Array in [[0.05, -0.021, 0.17], [0.02, -0.04, 0.12], [0.07, -0.06, 0.09]]:
-		var along := Basis(Vector3.UP, piece[0] - 0.04) * Basis(Vector3.BACK, -PI * 0.5)
-		sticks.append([ToolModels.charcoal(piece[2]), Transform3D(along, Vector3(STICK.x + piece[0] + piece[2] * 0.5, TRAY_Y + ToolModels.CHARCOAL_RADIUS, STICK.z + piece[1])), null])
-	return ToolModels.bake(sticks)
+## Where charcoal stick `kind` lies on the tray, in the easel's frame.
+static func on_tray(kind: Brushwork.Brush) -> Transform3D:
+	var across := STICK_GAP * (Brushwork.STICKS.keys().find(kind) - (Brushwork.STICKS.size() - 1) * 0.5)
+	return Transform3D(Basis(), CHARCOAL + Vector3(across, Brushwork.STICKS[kind] - ToolModels.BRUSH_TIP.y, -ToolModels.BRUSH_TIP.z - ToolModels.CHARCOAL_LENGTH * 0.5))
 
 
 ## How a brush of `kind` stands in the pot, in the easel's frame: its handle's axis rises from the floor by the wall
@@ -473,10 +477,10 @@ static func in_pot(kind: Brushwork.Brush) -> Transform3D:
 	return Transform3D(basis, POT + Vector3(0, POT_FLOOR, 0) - out * deep * tan(lean) * 0.5 - basis.y * ToolModels.BRUSH_TIP.y)
 
 
-## Where a grip takes a brush of `kind` (or the charcoal, "stick"), in its own frame: a brush in the pot by the middle of
-## what stands out of it, the charcoal by its middle.
+## Where a grip takes a brush of `kind`, in its own frame: a brush in the pot by the middle of what stands out of it, a
+## stick of charcoal by its middle.
 static func grip(kind: Brushwork.Brush) -> Vector3:
-	if kind == Brushwork.Brush.STICK:
+	if Brushwork.is_stick(kind):
 		return ToolModels.BRUSH_TIP * 0.5
 	var t := in_pot(kind)
 	var out := (t.basis * Vector3.FORWARD).y
