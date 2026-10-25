@@ -5,7 +5,7 @@ extends XRController3D
 ## selection wheel show it, so they cannot disagree. A hand holding a tool is drawn as that tool alone; only an empty
 ## hand shows the controller.
 
-enum Tool { WALLS, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, COLOUR, CAMERA, HOUSE, NONE, SEEDS, DIRT_PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK, SELFIE, BUSHES, BOULDER, MOSS }
+enum Tool { WALLS, FLOWERS, GRASS, TREES, DELETE, POND, FENCE, WINDOWS, DECORATIONS, STONE, COLOUR, CAMERA, HOUSE, NONE, SEEDS, PATH, STYLE, STAIRS, EASEL, TOWER, ARCH, BOOK, SELFIE, BUSHES, BOULDER, MOSS }
 
 ## The wheel's contents, clockwise from the top; an Array is a subtree, null an empty slot. Fixed, so every
 ## pick is a learnable motion.
@@ -15,7 +15,7 @@ const TREE := [
 	[Tool.FLOWERS, [Tool.GRASS, Tool.MOSS], [Tool.TREES, Tool.BUSHES], Tool.POND],
 	["avatars", "friends", Tool.BOOK],
 	Tool.DELETE,
-	[Tool.DIRT_PATH, Tool.STONE, Tool.STAIRS],
+	[Tool.PATH, Tool.STONE, Tool.STAIRS],
 	[Tool.WALLS, Tool.FENCE, Tool.WINDOWS, Tool.ARCH],
 	[Tool.HOUSE, Tool.TOWER, Tool.DECORATIONS, Tool.BOULDER],
 ]

@@ -52,7 +52,7 @@ func _run() -> void:
 	await frames(2)
 	var on_top := hand._models[Hand.Tool.NONE]
 	check(on_top.get_child_count() == 0, "nothing stands on an empty hand's controller")
-	await play([{"op": "pick", "hand": "right", "tool": "dirt_path"}])
+	await play([{"op": "pick", "hand": "right", "tool": "path"}])
 	await frames(3)
 	check(hand.aiming(), "picking a tool brings its sight back")
 	await _teleport_draws_no_ray(rig)

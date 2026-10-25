@@ -239,18 +239,21 @@ func _path_steps_follow_terrain(main: Node3D) -> void:
 	var flat := original.duplicate()
 	flat.fill(0.0)
 	world.submit({"op": "heights", "cells": cells, "values": flat})
-	world.submit({"op": "path", "path": {"points": PackedVector3Array([Vector3(-28, 0, -20), Vector3(-22, 0, -20)]), "half_widths": PackedFloat32Array([0.8, 0.8]), "seed": 42}})
+	world.submit({"op": "path", "path": {"points": PackedVector3Array([Vector3(-28, 0, -20), Vector3(-22, 0, -20)]), "half_widths": PackedFloat32Array([0.8, 0.8]), "seed": 42, "surface": PathLayout.Surface.DIRT}})
 	var id: int = world.state.paths.keys().max()
 	var owner := -2000000 - id
 	check(world.units != before, "paths reserve steps through World")
+	main.tool.paths.lay_now()
 	check(not main.tool.masonry._owners.has(owner), "flat path has no masonry")
 	var slope := flat.duplicate()
 	for j in cells.size.y:
 		for i in cells.size.x:
 			slope[j * cells.size.x + i] = Terrain.grid_xz(cells.position + Vector2i(i, j)).x * 0.8
 	world.submit({"op": "heights", "cells": cells, "values": slope})
+	main.tool.paths.lay_now()
 	check(main.tool.masonry._owners.has(owner), "terrain command builds steps on an existing path")
 	world.submit({"op": "heights", "cells": cells, "values": flat})
+	main.tool.paths.lay_now()
 	check(not main.tool.masonry._owners.has(owner), "flattening removes the old treads")
 	world.submit({"op": "heights", "cells": cells, "values": slope})
 	world.submit({"op": "take", "of": "paths", "ids": PackedInt32Array([id])})

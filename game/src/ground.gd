@@ -2,16 +2,20 @@ class_name Ground
 extends RefCounted
 
 ## What the ground is made of, one per World: one texel per TEXEL over the play area, shared with shaders as the global
-## ground_mask (ground.gdshaderinc). Red is trodden earth, green is stone, neither is meadow, and blue is the
-## stone's style (StoneStyles), the last stroke's that laid most of the stone there. Every path
+## ground_mask (ground.gdshaderinc). Red is trodden earth, green is stone, alpha is sand, none of them is meadow, and blue
+## holds the style (StoneStyles) of the stroke that laid most of the stone there, and TILLED where a garden bed laid most
+## of the earth. Every path
 ## and painted stroke is a mark that stamps soft discs onto it, and the mask is those marks replayed in
 ## the order of their build commands' ids, so lifting any one (undo) leaves exactly what the rest made, and
 ## every machine replays them alike. `laid` holds the garden's marks alone, for what build commands read;
 ## the shown image adds a player's own strokes still being drawn or on their way.
 
-## EARTH wears the ground to earth over whatever was there; STONE lays stone over it, earth included, and
-## MEADOW takes back only stone, so a path under painted-out stone keeps its wear.
-enum Kind { MEADOW, EARTH, STONE }
+## EARTH and SAND wear the ground to earth or sand over whatever was there; STONE lays stone over it, earth and sand
+## included, and MEADOW takes back only stone, so a path under painted-out stone keeps its wear.
+enum Kind { MEADOW, EARTH, STONE, SAND }
+
+## The bit of blue a bed's earth sets over the stone style's bits below it, so neither changes the other.
+const TILLED := 128
 
 const SIZE := 512
 const TEXEL := Terrain.SIZE / SIZE
@@ -93,10 +97,9 @@ static func _pixel(from: Image, x: float, z: float) -> Color:
 	return from.get_pixel(clampi(int((x / Terrain.SIZE + 0.5) * SIZE), 0, SIZE - 1), clampi(int((z / Terrain.SIZE + 0.5) * SIZE), 0, SIZE - 1))
 
 
-## How bare of plants the ground is at a point, 0 meadow to 1 earth or stone, as the plant shaders read it.
+## How bare of plants the ground is at a point, 0 meadow to 1 earth, sand or stone, as the plant shaders read it.
 func bare(x: float, z: float) -> float:
-	var c := _texel(x, z)
-	return minf(c.r + c.g, 1.0)
+	return bare_in(image, x, z)
 
 
 ## The same from the garden's marks alone.
@@ -112,21 +115,20 @@ func laid_image() -> Image:
 
 static func bare_in(from: Image, x: float, z: float) -> float:
 	var c := _pixel(from, x, z)
-	return minf(c.r + c.g, 1.0)
+	return minf(c.r + c.g + c.a, 1.0)
 
 
 func stone(x: float, z: float) -> float:
 	return _texel(x, z).g
 
 
-## The build command id of the topmost path or stone stroke showing at a point, or -1: stone where the garden's
-## ground there reads more stone than earth, else a path.
+## The build command id of the topmost stroke or path laying stone where the garden's ground there is mostly stone,
+## else of the topmost path, or -1. A house's worn floor is neither.
 func mark_at(x: float, z: float) -> int:
-	var c := _texel(x, z, laid)
-	var stony := c.g > c.r
+	var stony := _texel(x, z, laid).g >= 0.5
 	for i in range(_marks.size() - 1, -1, -1):
 		var m: Object = _marks[i]
-		if (m is Stroke) == stony and (not stony or m.kind == Kind.STONE) and m.covers(x, z):
+		if (m.kind == Kind.STONE if stony else m is PathLayout) and m.covers(x, z):
 			return _ids[i]
 	return -1
 
@@ -160,8 +162,13 @@ func restyle(id: int, look: int) -> void:
 	if i < 0 or _marks[i].style == look:
 		return
 	_marks[i].style = look
-	if not quiet:
-		_rewear_area(_areas.get(_marks[i], Rect2i(0, 0, SIZE, SIZE)))
+	rewear_mark(_marks[i])
+
+
+## Wears the garden's `mark` again where it lies, after what it lays changed.
+func rewear_mark(mark: Object) -> void:
+	if not quiet and _marks.has(mark):
+		_rewear_area(_areas.get(mark, Rect2i(0, 0, SIZE, SIZE)))
 
 
 ## Keeps showing a player's finished stroke until `release`, when its command has landed or been turned down.
@@ -253,7 +260,8 @@ func upload() -> void:
 
 
 ## Blends a disc of `kind` onto `onto`: full out to `radius`, fading to nothing over `verge` past it. Stone takes
-## the texels it lays most of, or that held little stone, for `look`.
+## the texels it lays most of, or that held little stone, for its style `look`; earth the texels it lays most of for its
+## look, TILLED or not.
 ## False if it fell off the mask, or was meadow that found no stone to take: a stamp that changes nothing
 ## now may still matter on a replay once an earlier mark is lifted.
 static func stamp(onto: Image, x: float, z: float, radius: float, verge: float, kind: Kind, look := 0) -> bool:
@@ -278,17 +286,25 @@ static func stamp(onto: Image, x: float, z: float, radius: float, verge: float, 
 			var e := px[k]
 			var g := px[k + 1]
 			var b := px[k + 2]
+			var s := px[k + 3]
 			match kind:
 				Kind.EARTH:
 					px[k] = e + ((255 - e) * a + 127) / 255
 					px[k + 1] = g - (g * a + 127) / 255
+					px[k + 3] = s - (s * a + 127) / 255
+					if a >= 128:
+						px[k + 2] = (b & ~TILLED) | look
+				Kind.SAND:
+					px[k] = e - (e * a + 127) / 255
+					px[k + 1] = g - (g * a + 127) / 255
+					px[k + 3] = s + ((255 - s) * a + 127) / 255
 				Kind.STONE:
 					px[k + 1] = g + ((255 - g) * a + 127) / 255
 					if a >= 128 or g < 128:
-						px[k + 2] = look
+						px[k + 2] = (b & TILLED) | look
 				Kind.MEADOW:
 					px[k + 1] = g - (g * a + 127) / 255
-			changed = changed or px[k] != e or px[k + 1] != g or px[k + 2] != b
+			changed = changed or px[k] != e or px[k + 1] != g or px[k + 2] != b or px[k + 3] != s
 	if changed:
 		region.set_data(area.size.x, area.size.y, false, Image.FORMAT_RGBA8, px)
 		onto.blit_rect(region, Rect2i(Vector2i.ZERO, area.size), area.position)

@@ -80,7 +80,7 @@ static func build(tool: Hand.Tool) -> Node3D:
 			_decor(root)
 		Hand.Tool.STAIRS:
 			_stairs(root, "wood")
-		Hand.Tool.DIRT_PATH:
+		Hand.Tool.PATH:
 			_path(root)
 		Hand.Tool.FLOWERS:
 			_flowers(root)
@@ -270,6 +270,10 @@ static func _style(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Fini
 				_house(root, finish, WallLayout.GableEnd.WALL, flat, thatched, deck, false)
 		PaletteTool.Restyle.TOP:
 			_wall(root, finish, i as WallLayout.Top)
+		PaletteTool.Restyle.PATH:
+			_path(root, i as PathLayout.Surface)
+			for part in root.get_children():
+				part.transform = Transform3D(Basis(Vector3.RIGHT, PI * 0.62).scaled(Vector3.ONE * 1.4), Vector3.ZERO) * part.transform
 		PaletteTool.Restyle.STONE:
 			if boulder:
 				_boulder_style(root, i)
@@ -884,13 +888,18 @@ static func fitting_parts(what: String, on: RoofLayout = null, spot := Vector2.Z
 	return {"parts": kept, "flames": moved_flames, "cloths": moved_cloths}
 
 
-## A short dirt stroke.
-static func _path(root: Node3D) -> void:
+## A short stroke of the path tool in `surface`: a strip of dirt, of sand, or of a bed's dark earth sprouting a row of
+## greens either side; cobbles and flagstones are the stone tool's disc of their style.
+static func _path(root: Node3D, surface := PathLayout.Surface.DIRT) -> void:
+	if PathLayout.wears(surface) == Ground.Kind.STONE:
+		_stone_ground(root, PathLayout.look(surface))
+		return
 	var layout := PathLayout.new()
 	layout.seed = 3
 	for p in [Vector3(-0.3, 0, -1.6), Vector3(0.25, 0, -0.5), Vector3(-0.2, 0, 0.6), Vector3(0.3, 0, 1.6)]:
 		layout.add(p, 0.62)
 	layout.plan()
+	var colour: Color = Meadow.GROUND[{PathLayout.Surface.SAND: &"sand", PathLayout.Surface.BED: &"tilled"}.get(surface, &"trodden")]
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
 	for i in layout.samples.size() - 1:
@@ -900,9 +909,26 @@ static func _path(root: Node3D) -> void:
 		var across_b: Vector3 = b.along.cross(Vector3.UP) * b.half
 		for v in [a.point - across_a, b.point - across_b, a.point + across_a, a.point + across_a, b.point - across_b, b.point + across_b]:
 			st.set_normal(Vector3.UP)
-			st.set_color(Color(0.48, 0.31, 0.16))
+			st.set_color(colour)
 			st.add_vertex(v * 0.024)
 	_piece(root, st.commit(), Transform3D(), _vertex_mat("dirt", 1.0, false))
+	if surface != PathLayout.Surface.BED:
+		return
+	var sprout := shared("bed_sprout", func() -> ArrayMesh:
+		var ball := SphereMesh.new()
+		ball.radius = 0.004
+		ball.height = 0.005
+		ball.radial_segments = 8
+		ball.rings = 3
+		var mesh := ArrayMesh.new()
+		mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, ball.get_mesh_arrays())
+		return mesh)
+	var green := _plain("bed_sprout", Color(0.36, 0.58, 0.22), {"roughness": 0.9})
+	for k in 7:
+		var f := layout.frame_at(layout.length() * (k + 0.5) / 7.0)
+		for edge in [-0.5, 0.5]:
+			var at: Vector3 = f.point + f.along.cross(Vector3.UP) * f.half * edge
+			_piece(root, sprout, Transform3D(Basis(), at * 0.024 + Vector3.UP * 0.002), green)
 
 
 static func _stones(root: Node3D, stones: Array[Dictionary], scale: float) -> void:

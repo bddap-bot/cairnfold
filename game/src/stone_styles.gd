@@ -15,6 +15,9 @@ const TEXELS := 512
 ## Room in the shaders' per-style arrays.
 const ROOM := 8
 
+## Indices into STYLES that paths lay (PathLayout.Surface's cobbles and flagstones).
+const MOSSY := 0
+const RIVER_COBBLE := 1
 const STYLES: Array[Dictionary] = [
 	{"name": "mossy", "kind": Kind.CELLS, "tile": 5.5, "across": 8, "jitter": 1.0, "warp": 0.25, "joint": 0.12, "dome": 0.6, "grain": 0.4, "relief": 0.12, "elongation": 1.0,
 		"light": Color(0.58, 0.57, 0.50), "dark": Color(0.33, 0.33, 0.30), "moss": 0.65, "meadow": 0.75},

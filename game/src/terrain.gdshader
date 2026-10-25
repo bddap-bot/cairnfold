@@ -16,7 +16,9 @@ render_mode diffuse_lambert_wrap, specular_disabled;
 // path keeps full precision for its divide by a cover that can be tiny.
 // Set from Meadow.GROUND.
 uniform mediump vec3 earth : source_color;
-uniform mediump vec3 trodden : source_color = vec3(0.52, 0.45, 0.33);
+uniform mediump vec3 trodden : source_color;
+uniform mediump vec3 tilled : source_color;
+uniform mediump vec3 sand : source_color;
 uniform mediump vec3 bed : source_color = vec3(0.50, 0.44, 0.32);
 uniform mediump vec3 cliff_light : source_color = vec3(0.80, 0.74, 0.63);
 uniform mediump vec3 cliff_dark : source_color = vec3(0.34, 0.32, 0.30);
@@ -121,7 +123,7 @@ void fragment() {
 	mediump vec3 grass = meadow * (0.85 + fine * 0.3);
 	mediump float s = steep + (fine - 0.5) * 0.06;
 	mediump vec3 c = mix(grass, earth, smoothstep(0.2, 0.32, s));
-	vec2 cover = ground_cover(world_xz);
+	vec4 cover = ground_cover(world_xz);
 	float rocky = smoothstep(rock_steep.x, rock_steep.y, s);
 	// Painted slabs line a pond's bed and banks; a slope's own rock goes under the sand like any ground.
 	float paved = 0.0;
@@ -157,7 +159,11 @@ void fragment() {
 			c += caustic(detail, world_xz) * 0.35 * smoothstep(0.05, 0.3, under);
 		}
 	}
-	ALBEDO = mix(c, trodden * (0.85 + fine * 0.3), smoothstep(0.1, 0.7, cover.r * (1.0 - cover.g) + (d - 0.5) * 0.3));
+	// Earth, sand and stone each fade out where another is laid over them, so where two paths meet they blend over the
+	// width of their soft edges, broken by the noise. A bed's earth is darker and lumpier than trodden earth.
+	mediump vec3 worn = mix(trodden * (0.85 + fine * 0.3), tilled * (0.7 + fine * 0.6), smoothstep(0.4, 0.5, cover.b));
+	c = mix(c, worn, smoothstep(0.1, 0.7, cover.r * (1.0 - cover.g) + (d - 0.5) * 0.3));
+	ALBEDO = mix(c, sand * (0.92 + fine * 0.16), smoothstep(0.1, 0.7, cover.a * (1.0 - cover.g) + (d - 0.5) * 0.3));
 	ROUGHNESS = 1.0;
 	AO = sky_seen;
 	EMISSION = ALBEDO * given;

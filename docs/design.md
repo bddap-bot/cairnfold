@@ -2359,7 +2359,7 @@ Stage numbers refer to the build order at the end.
 | Wall finishes | Stone, plaster worn back to the stone, half-timbering, planks across or upright | The style tool's face wheel (the colour tool's picker with styles) on a wall, house or fence: stone; plaster, whole or worn back to the stones by a quarter, a half or three quarters; half-timbering, its walk boarded under a wooden railing; or planks laid across or upright, cut round the windows, doors and arches; a fence takes rails or planks across or upright. See "Wall finishes" | 16 (done) |
 | Arches and gates | "Wall chemistry": a path through a tall wall makes an arch; wide gaps become arcades with pillars; doors widen into archways | A wall drawn over a tree or bush arches over it, shown live while drawing; one of 5 m or more over open ground opens an arch at the middle; the arch tool (its icon a wall with an archway through it) cuts an archway where it points on a wall, in the wall's own style (`WallLayout.ARCH_STYLES`: a round stone ring of tapered voussoirs closed by a keystone, every joint running through the arch's centre as a built arch's do, the wedges pressed face to face with no mortar between them (`WallLayout.MEET`), or on a timber-framed house a four-centred oak head on oak posts, framed by a stud either side and a rail above; the wall's level courses are cut to the arch's one outline, so they meet it with no gap), and on an arch of the wall's own (not a path's) fills it again, one undo step either way. Each opening carries a size, 1 a doorway's, down to a pet door's 0.4 (`WallLayout.openings`): a door's height counts from the floor it opens onto, so a floor raised over higher ground inside takes none of it; an arch of size k is the doorway's scaled k times, ring, voussoirs, keystone and posts, laid round by the wall's courses through the same outline, so a grand arch still reads as built. Wall chemistry, in either order (a path laid through a wall, or a wall drawn across a path): one arch where they cross, or, where the crossing runs 2.8 m or more along the wall (a wide path, or one meeting it at a slant), an arcade of arches 2.3 m apart on stone pillars. A crossing beside an arch already there joins it as an arcade, so no opening closes; undoing the path closes the arches it opened. A path into a house or tower opens a door instead (see Houses) | 1 (done), 5 (done), 18 (done) |
 | Wall ends and corners | Neater cornerstones; towers by drawing a loop | Stone piers at wall ends and at the corners of a house | 1 (done), 4 (done) |
-| Paths | Dirt strokes and wall crossings | Dirt strokes wear soft-edged earth into the ground mask and open arches or gates through walls and fences | 5 (done) |
+| Paths | Dirt strokes and wall crossings; dirt, sand, cobbles and stepping stones; vegetable gardens | Path strokes wear their surface, soft-edged, into the ground mask and open arches or gates through walls and fences. The style tool on a path turns it to dirt, sand, cobbles, flagstones or a garden bed, and paths laid after take the surface let go last; where two meet they blend across their soft edges. Across water a path lays stepping stones, and a bed's tilled earth sprouts rows of vegetables (see "Paths") | 5 (done), 19 (done) |
 | Stone ground | Steep terrain turns rocky; dirt paths blend with the ground | The stone tool paints stone ground where it points, in the style the style tool last set (mossy or river cobble), fraying into the meadow stone by stone; a stroke begun on stone paints meadow back (see "Ground materials") | 7 (done) |
 | Towers | A loop held down straightens into a circle | A wall drawn into a loop, round or any shape, stays a freestanding wall, roofless. A round tower is its own tool beside the house, a little tower under a cone in the ring, put up and carried as a house is: 4.5 m tall under a cone roof, 3.4 m across, spread every way at once by two hands (from 2.4 m across, no widest) and made taller as they draw apart upright. No door until one is made, as for a house. `demo/tower.json` builds a stone tower, a plaster one and a house | 4 (done) |
 | Houses | Rectangle and circle footprints, resizable and rotatable, raised on columns | Circle footprints are the round towers above: a round house is one, its walls drawn down to a house's height by two hands upright. Raised, a house or a round one stands on its plinth, on stone pillars or on timber posts and beams, over a stone foundation the grip raises with it (see "Raising a house"). Its own tool, a little house in the ring. Its trigger puts up a square house where the hand points, and does nothing more: moving is the grip's. A grip anywhere on a house, roof included, carries it, turning it with the hand and raising it onto a plinth as the hand rises; the other hand's grip on it too sizes it, stretching the side nearest the line between the hands as they spread (each side from 2.4 m, with no longest or deepest) and making its walls taller as they draw apart upright (see "Moving and sizing a house" and "Raising a house"). Stone walls with corner piers and no door, level on its lowest ground; a door comes from the windows tool low on a wall or from a path running in, an arch from the arch tool. A path that runs into a house's or tower's wall, laid before or after it, opens a plank door where it meets it (`WallLayout.path_doors`): a single door as wide as the path, or past the widest door the wall's height holds, that many doors fused into one opening, the number nearest the path's width made as wide as it, fewer where the wall holds fewer; none where a door or arch already stands across the path. The door is the path's: the house stores none, and undoing or taking the path closes it. On the Steam Frame, governed, the stress scene's `doors/*` phases, a path into each of the village's 21 houses, hold 72 Hz (`perf/frame/stress`): 5.7 to 6.2 ms of GPU time a frame, no frame over 1.5× the refresh period at either landing, and one in the ground phase, of the game-wide single late frames | 4 (done) |
@@ -3469,6 +3469,7 @@ the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
 16. Wall finishes: worn plaster, half-timbered walls with railed walks, planks across or upright, planked fences. (Done.)
 17. Window families: arched windows, arrow slits, round and corner windows and roof trapdoors; windows glowing at night in a picked colour; lived-in houses' curtains, flower boxes and washing. (Done.)
 18. Paths make doors: a path into a house opens a door as wide as it, which goes with the path. (Done.)
+19. Path materials and gardens: dirt, sand, cobbles and flagstones blending where they meet, stepping stones across water, garden beds sprouting rows of vegetables. (Done.)
 
 ## Water
 
@@ -3714,11 +3715,13 @@ dipping in plops, and a filling pond gurgles; all of it sits below 1.8 kHz.
 Directive (verbatim): "I would like stone." / "Stone as in terrain material that is not grass."
 
 What the ground is made of lives in one mask (`Ground`, the `ground_mask` shader global): one texel per
-0.31 m over the play area, red for trodden earth, green for stone, neither for meadow. Every path and
+0.31 m over the play area, red for trodden earth, green for stone, alpha for sand, none of them for meadow, and blue
+for the style of the stone laid most there in its low bits and, in its top bit, whether a garden bed laid most of the
+earth there, so neither look rewrites the other. Every path and
 painted stroke is a mark that stamps soft discs onto it, each blending over what lies beneath, and the
 mask is those marks replayed in the order they were laid, so undoing or redoing any stroke, a path's
 included, leaves exactly what the others made. Grass and flowers shrink to nothing wherever the mask
-is bare (earth or stone), and the brushes plant nothing there.
+is bare (earth, sand or stone), and the brushes plant nothing there.
 
 - **Painting:** the stone tool's trigger lays stone under the brush; a stroke begun on stone paints meadow back, which
   takes away only stone, so a path through the area keeps its wear. The meadow's own grass and flowers
@@ -4713,17 +4716,46 @@ benchmark output remains available separately.
 
 
 
-## Dirt paths
+## Paths
 
-The dirt path tool wears soft-edged earth into the ground mask. Paths open arches
-beneath walls and can be selected with Delete; undo restores the path and its
-crossings. `demo/dirt-path.json` shows the surface. Dirt reuses the ground material
-and adds no path draw calls on gentle ground. Where the path rises more than one metre in two,
-horizontal stone treads cover the slope, overlapping so no ground shows between them, and a
-timber stringer runs the length of each flight along either edge, from the ground at its foot to the
-ground at its head, standing a little proud of the treads it carries. They follow the terrain when a ground edit settles,
-and disappear when it is flattened. Paths reserve their whole surface as stone face in the
-build budget, so shaping the ground cannot add unbudgeted steps.
+The path tool wears its surface, soft-edged, into the ground mask: dirt (trodden earth), sand, cobbles (the river
+cobble stone style), flagstones (the mossy one) or a garden bed (tilled earth, darker and lumpier). The style tool on
+a path opens a wheel of the five, each a miniature of that surface; letting go resurfaces the path (a `reshape` of its
+`surface`, one undo step), and paths laid after take the surface let go last. A garden bed is the path tool on its bed
+surface: one stroke tool, one history, one budget. Each surface wears its kind of ground (`PathLayout.wears`: earth,
+sand or stone), so a later path lies over an earlier one down its middle and the two blend across its soft edge, every
+texel there part of each, the noise breaking the line; lifting the later gives the earlier back. Cobbles and
+flagstones lie on worn earth, so the stone tool painting meadow back over them leaves the path's way worn, and the path
+still there to pick. Paths open arches beneath walls and
+can be selected with Delete; undo restores the path and its crossings. `demo/dirt-path.json` shows the dirt
+surface, and `demo/paths.json` every surface, a junction of four, stepping stones across a pond and three beds.
+
+Dirt reuses the ground material and adds no path draw calls on gentle ground; sand and tilled earth are a few more
+ALU operations on the mask texel the terrain already reads; cobbles and flagstones are painted stone and count their
+ground as painted stone does (`stone_m2`, held to `Budget.STONE_VIEW_US` with it). Where the path rises more than one
+metre in two, horizontal stone treads cover the slope, overlapping so no ground shows between them, and a timber
+stringer runs the length of each flight along either edge, from the ground at its foot to the ground at its head,
+standing a little proud of the treads it carries. They follow the terrain when a ground edit settles, and disappear
+when it is flattened. Paths reserve their whole surface as stone face in the build budget, so shaping the ground
+cannot add unbudgeted steps.
+
+Where the path runs over water at least 4 cm deep, it lays flat stepping stones a stride (0.7 m) apart along its
+spine instead of treads, stepping a little to either side in turn, each standing on the bed with its top 5 cm out of
+the water; they come and go as a pond fills or drains under the path. A bed lays no treads: its rows run along it 0.4
+m apart, as many as its width holds, a plant every 0.32 m staggered row to row, each row one crop chosen by the bed's
+seed (cabbages, lettuces, carrots or leeks), none in water; on a steep slope the rows simply climb it. A plant is a few coloured pieces drawn as wall stone
+(`PathLayout.crop`): a cabbage's pale head in three spreading leaves, a lettuce's rosette, a carrot's fronds over its
+orange shoulder, a leek's pale stem under a fan, so beds add no draw calls, and casting no shadow they add no shadow
+instances either; the budget reserves every piece of a bed at a wall stone's share (0.1 `wall_m2`). A path's treads,
+stepping stones and crops are laid on a worker thread and placed when done: a 20 m bed's 1,200 pieces took 8 ms to lay
+on a desktop's main thread, and the Quest 2's cores are slower.
+
+Cost on a Quest 2 (`bench.sh OUT --android APK` with `NESTCOMBE_SCENE=demo/materials-cost.json` at `Budget.fit_step()`,
+the bench's GPU ms a frame): the bare meadow read 5.29 from the air, 4.78 looking over the beds' ground and 5.41 down the
+cobbled ways, against 5.34, 4.83 and 5.39 on the build before the surfaces, so the sand and tilled shading costs the meadow
+nothing measurable; with the stress scene's materials laid, the same views read 7.11, 8.85 (six full beds filling the
+view) and 6.43, every one inside the budget ([record](../perf/quest-2/materials-cost/20261025T131357Z-76d9f9d.json)). The stress scene's `materials/aerial` and `materials/ground` phases look over
+the meadow's paths in cobbles, flagstones, sand and dirt, stepping stones across a pond and six full beds.
 
 ## Stairs
 

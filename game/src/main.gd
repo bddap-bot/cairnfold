@@ -97,6 +97,7 @@ func _ready() -> void:
 	hands.assign(rig.hands)
 	water = Water.new(world.terrain, hands)
 	water.refilled.connect(tool.reground.bind(true))
+	water.refilled.connect(paths.reground.bind(true))
 	add_child(water)
 	water_tool = WaterTool.new(rig, world)
 	add_child(water_tool)

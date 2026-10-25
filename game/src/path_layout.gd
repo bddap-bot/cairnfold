@@ -1,7 +1,8 @@
 class_name PathLayout
 extends RefCounted
 
-## Dirt strokes wear the ground and open arches, or doors into houses, where they cross walls. Pure data.
+## Path strokes wear the ground to their surface and open arches, or doors into houses, where they cross walls; across
+## water they lay stepping stones, and a garden bed sprouts rows of vegetables. Pure data.
 
 const CELL := 1.0
 const ROW := 0.42
@@ -16,10 +17,29 @@ const TREAD_LAP := 0.06
 const STRINGER := Vector2(0.16, 0.34)
 ## How far a stringer's top stands above the treads it carries.
 const STRINGER_PROUD := 0.06
+## Water at least this deep over the spine lays stepping stones instead of treads.
+const WET := 0.04
+## Stepping stones' spacing along the spine, their size across, along and down, and how high they stand out of the water.
+const STRIDE := 0.7
+const STEPPING_STONE := Vector3(0.55, 0.16, 0.46)
+const STEPPING_PROUD := 0.05
+## A bed's rows lie this far apart across it, at least this far in from its edge, with a plant this often along each.
+const CROP_ROWS := 0.4
+const CROP_MARGIN := 0.12
+const CROP_EVERY := 0.32
+
+## What a path lays: dirt, sand, cobbles or flagstones, or a garden bed of tilled earth.
+enum Surface { DIRT, SAND, COBBLES, FLAGS, BED }
+enum Crop { CABBAGE, LETTUCE, CARROT, LEEK }
 
 var points: Array[Vector3] = []
 var half_widths: Array[float] = []
 var seed := 1
+var surface := Surface.DIRT
+## What this path wears into Ground's mask, as Ground's marks are read.
+var kind: Ground.Kind:
+	get:
+		return wears(surface)
 
 var samples: Array[Vector3] = []
 var sample_half_widths: Array[float] = []
@@ -31,11 +51,31 @@ var row_ends: Array[float] = []
 var area := Rect2()
 ## Grid cell → indices of the sample segments whose boxes reach into it, made when first asked for.
 var _segment_cells := {}
+## Each crop's pieces (`crop`), made as the class loads so workers laying beds only read them.
+static var _crop_pieces: Array = _made_crops()
+
+
+## What a path of surface `what` wears into Ground's mask.
+static func wears(what: Surface) -> Ground.Kind:
+	return {Surface.SAND: Ground.Kind.SAND, Surface.COBBLES: Ground.Kind.STONE, Surface.FLAGS: Ground.Kind.STONE}.get(what, Ground.Kind.EARTH)
+
+
+## The look a path of surface `what` lays in Ground's mask: a stone style, or Ground.TILLED for a bed.
+static func look(what: Surface) -> int:
+	match what:
+		Surface.COBBLES:
+			return StoneStyles.RIVER_COBBLE
+		Surface.FLAGS:
+			return StoneStyles.MOSSY
+		Surface.BED:
+			return Ground.TILLED
+	return 0
 
 
 static func of(data: Dictionary) -> PathLayout:
 	var path := PathLayout.new()
 	path.seed = data.seed
+	path.surface = data.surface
 	for i in data.points.size():
 		path.add(data.points[i], data.half_widths[i])
 	return path
@@ -43,7 +83,7 @@ static func of(data: Dictionary) -> PathLayout:
 
 ## What a build command carries to lay this path again.
 func data() -> Dictionary:
-	return {"points": PackedVector3Array(points), "half_widths": PackedFloat32Array(half_widths), "seed": seed}
+	return {"points": PackedVector3Array(points), "half_widths": PackedFloat32Array(half_widths), "seed": seed, "surface": surface}
 
 
 func add(p: Vector3, half_width: float) -> void:
@@ -92,11 +132,21 @@ func plan() -> void:
 		row_ends.append(s)
 
 
-## Wears rows `from_row` up to `to_row` (all of them by default) into the ground mask `onto`; a Ground mark.
+## Wears rows `from_row` up to `to_row` (all of them by default) into the ground mask `onto`; a Ground mark. Cobbles and
+## flagstones lie on worn earth under their full stone, so stone painted back to meadow over them leaves the path's way
+## showing, and their soft edge frays into the meadow as painted stone does, with no earth along it.
 func wear(onto: Image, from_row := 0, to_row := -1) -> void:
 	for k in range(from_row, row_ends.size() if to_row < 0 else to_row):
-		var f := frame_at(((row_ends[k - 1] if k > 0 else 0.0) + row_ends[k]) * 0.5)
-		Ground.stamp(onto, f.point.x, f.point.z, f.half - 0.1, VERGE + 0.1, Ground.Kind.EARTH)
+		var d := disc(k)
+		if kind == Ground.Kind.STONE:
+			Ground.stamp(onto, d.x, d.y, d.z - Ground.TEXEL, Ground.TEXEL, Ground.Kind.EARTH)
+		Ground.stamp(onto, d.x, d.y, d.z, d.w, kind, look(surface))
+
+
+## Row `k`'s disc on the ground mask: x, z, full radius and the width of the fade past it, as Ground.stamp takes them.
+func disc(k: int) -> Vector4:
+	var f := frame_at(((row_ends[k - 1] if k > 0 else 0.0) + row_ends[k]) * 0.5)
+	return Vector4(f.point.x, f.point.z, f.half - 0.1, VERGE + 0.1)
 
 
 ## The spine point, half-width and unit direction at arc length `s`.
@@ -225,10 +275,21 @@ static func _flat(p: Vector3) -> Vector2:
 	return Vector2(p.x, p.z)
 
 
-## Horizontal treads on steep rows, each flight carried by a timber stringer along either edge; height is supplied
-## so the layout stays pure data.
-func steps(height: Callable) -> Array[Dictionary]:
-	var pieces: Array[Dictionary] = []
+## What the path lays besides its wear: horizontal treads on steep dry rows, each flight carried by a timber stringer
+## along either edge (a bed's rows grow crops instead), stepping stones where it crosses water, and a bed's vegetables.
+## The ground's height and the water's surface are supplied (`water` none for dry ground) so the layout stays pure data.
+func pieces(height: Callable, water := Callable()) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var wet := func(p: Vector3) -> bool: return water.is_valid() and water.call(p.x, p.z) > height.call(p.x, p.z) + WET
+	if surface != Surface.BED:
+		_treads(height, wet, out)
+	_stepping_stones(height, water, wet, out)
+	if surface == Surface.BED:
+		_crops(height, wet, out)
+	return out
+
+
+func _treads(height: Callable, wet: Callable, pieces: Array[Dictionary]) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var flight: Array[Dictionary] = []
@@ -239,7 +300,7 @@ func steps(height: Callable) -> Array[Dictionary]:
 		var b := frame_at(end).point as Vector3
 		var run := Vector2(b.x - a.x, b.z - a.z).length()
 		var rise: float = height.call(b.x, b.z) - height.call(a.x, a.z) if run >= 0.001 else 0.0
-		if run < 0.001 or absf(rise) / run <= 0.5:
+		if run < 0.001 or absf(rise) / run <= 0.5 or wet.call(frame_at((start + end) * 0.5).point):
 			_stringers(flight, height, pieces, rng)
 			flight.clear()
 			continue
@@ -268,7 +329,87 @@ func steps(height: Callable) -> Array[Dictionary]:
 				pieces.append({"xform": Transform3D(Basis(side, Vector3.UP, -along).scaled_local(size), at), "color": Color(0.62, 0.58, 0.5) * rng.randf_range(0.88, 1.05), "ao": 0.9, "variant": 0, "kind": "block"})
 			flight.append({"point": Vector3(f.point.x, top + 0.025, f.point.z), "half": f.half, "along": along, "depth": depth})
 	_stringers(flight, height, pieces, rng)
-	return pieces
+
+
+## A flat stone every STRIDE along the spine where it runs over water, its top a little out of the water and its foot on
+## the bed, stepping a little to either side in turn.
+func _stepping_stones(height: Callable, water: Callable, wet: Callable, pieces: Array[Dictionary]) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([seed, "stepping"])
+	var k := 0
+	var s := STRIDE * 0.5
+	while s < length():
+		var f := frame_at(s)
+		s += STRIDE
+		k += 1
+		if not wet.call(f.point):
+			continue
+		var side: Vector3 = f.along.cross(Vector3.UP)
+		var at: Vector3 = f.point + side * minf(0.12, f.half * 0.3) * (1.0 if k % 2 == 0 else -1.0)
+		var top: float = water.call(at.x, at.z) + STEPPING_PROUD
+		var foot: float = height.call(at.x, at.z) - 0.05
+		var size := Vector3(STEPPING_STONE.x * rng.randf_range(0.85, 1.15), maxf(STEPPING_STONE.y, top - foot), STEPPING_STONE.z * rng.randf_range(0.85, 1.15))
+		var turn := Basis(Vector3.UP, rng.randf_range(-0.4, 0.4)) * Basis(side, Vector3.UP, -f.along)
+		pieces.append({"xform": Transform3D(turn.scaled_local(size), Vector3(at.x, top - size.y * 0.5, at.z)), "color": Color(0.46, 0.44, 0.4) * rng.randf_range(0.85, 1.08), "ao": 0.9, "variant": k % 3, "kind": "block"})
+
+
+## Rows of vegetables along a bed, one kind a row: as many rows as its width holds CROP_ROWS apart, a plant every
+## CROP_EVERY along each, none where it runs over water. Each plant is its crop's pieces turned a way of its own.
+func _crops(height: Callable, wet: Callable, pieces: Array[Dictionary]) -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = hash([seed, "crops"])
+	for spot in crop_spots():
+		var at: Vector3 = spot.at
+		if wet.call(at):
+			continue
+		at.y = height.call(at.x, at.z)
+		var root := Transform3D(Basis(Vector3.UP, rng.randf_range(0.0, TAU)), at)
+		var tone := rng.randf_range(0.88, 1.1)
+		for piece: Array in crop(spot.crop):
+			pieces.append({"xform": root * piece[0], "color": piece[1] * tone, "ao": 1.0, "variant": pieces.size() % 3, "kind": "crop"})
+
+
+## Where a bed's plants stand on flat ground and which crop each is: its rows run along the spine, the row through the
+## middle, or the two either side of it, then outward, each row's crop chosen by the bed's seed and how far out it lies.
+func crop_spots() -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var s := CROP_EVERY * 0.5
+	while s < length():
+		var f := frame_at(s)
+		var side: Vector3 = f.along.cross(Vector3.UP)
+		var rows := maxi(1, floori((f.half - CROP_MARGIN) * 2.0 / CROP_ROWS) + 1)
+		for r in rows:
+			var across := (r - (rows - 1) * 0.5) * CROP_ROWS
+			var crop := posmod(hash([seed, roundi(across / CROP_ROWS * 2.0)]), Crop.size()) as Crop
+			# Neighbouring rows stand staggered, as rows sown by hand do.
+			var stagger := CROP_EVERY * 0.5 * (r % 2) - CROP_EVERY * 0.25
+			out.append({"at": f.point + side * across + f.along * stagger, "crop": crop})
+		s += CROP_EVERY
+	return out
+
+
+## A crop's pieces about its root, as [transform, colour]: coloured stones for a cabbage's pale head in its spreading
+## leaves, a lettuce's rosette, a carrot's fronds over its orange shoulder, a leek's pale stem under its fan.
+static func crop(which: Crop) -> Array:
+	return _crop_pieces[which]
+
+
+static func _made_crops() -> Array:
+	var leaves := func(n: int, out: float, up: float, tilt: float, size: Vector3, color: Color) -> Array:
+		var ring := []
+		for i in n:
+			var turn := Basis(Vector3.UP, i * TAU / n)
+			ring.append([Transform3D((turn * Basis(Vector3.BACK, tilt)).scaled_local(size), turn * Vector3(out, up, 0)), color])
+		return ring
+	var cabbage := [[Transform3D(Basis(Vector3.UP, PI / 4.0).scaled_local(Vector3(0.17, 0.15, 0.17)), Vector3(0, 0.08, 0)), Color(0.42, 0.6, 0.3)]]
+	var carrot := [[Transform3D(Basis.from_scale(Vector3(0.05, 0.03, 0.05)), Vector3(0, 0.01, 0)), Color(0.9, 0.42, 0.08)]]
+	var leek := [[Transform3D(Basis.from_scale(Vector3(0.045, 0.1, 0.045)), Vector3(0, 0.05, 0)), Color(0.62, 0.7, 0.46)]]
+	return [
+		cabbage + leaves.call(3, 0.1, 0.05, 0.35, Vector3(0.2, 0.04, 0.15), Color(0.2, 0.42, 0.22)),
+		leaves.call(4, 0.05, 0.06, 0.6, Vector3(0.15, 0.05, 0.12), Color(0.38, 0.62, 0.12)),
+		carrot + leaves.call(2, 0.025, 0.12, 0.3, Vector3(0.05, 0.22, 0.03), Color(0.2, 0.48, 0.1)),
+		leek + leaves.call(2, 0.0, 0.22, 0.3, Vector3(0.07, 0.24, 0.02), Color(0.16, 0.36, 0.26)),
+	]
 
 
 ## Two timbers along a flight's edges, from the ground at its foot to the ground at its head, their tops a little

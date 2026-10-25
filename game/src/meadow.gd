@@ -9,7 +9,7 @@ const FLOWERS := 3200
 const TREES := 46
 const BUSHES := 60
 ## The terrain shader's ground colours.
-const GROUND := {&"earth": Color(0.45, 0.38, 0.27)}
+const GROUND := {&"earth": Color(0.45, 0.38, 0.27), &"trodden": Color(0.52, 0.45, 0.33), &"tilled": Color(0.29, 0.21, 0.14), &"sand": Color(0.8, 0.71, 0.54)}
 ## Where on a blade, root to tip, the meadow's ground takes its colour (terrain.gdshader): the tone blades rise from, so
 ## their roots melt into the ground through thin grass instead of reading as dark tufts, and far blades converge on.
 const CANOPY := 0.6

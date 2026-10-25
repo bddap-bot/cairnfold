@@ -700,11 +700,12 @@ func _paint(s: Dictionary) -> void:
 	flora_tool.end_stroke(b)
 
 
-## A stroke of the path tool from `hand` (left by default); `radius` is half the path's width.
+## A stroke of the path tool from `hand` (left by default) in `surface` (dirt by default); `radius` is half the path's width.
 func _pave(s: Dictionary) -> void:
 	var flora_tool: FloraTool = main.flora_tool
 	var b := flora_tool.brush(main.rig.left if s.get("hand", "left") == "left" else main.rig.right)
-	b.hand.tool = Hand.Tool.DIRT_PATH
+	b.hand.tool = Hand.Tool.PATH
+	flora_tool.paths.surface = PathLayout.Surface[String(s.get("surface", "dirt")).to_upper()]
 	var path := _path(s)
 	var mid := path[0].lerp(path[-1], 0.5)
 	for i in path.size():

@@ -20,7 +20,7 @@ const PATH_TREADS_PER_ROW := 2
 ## as stone wall and whose slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing; explicit arch
 ## openings, with timber members and the planks a finish lays counted separately; square metres of pond water; easels,
 ## each a canvas drawn and simulated; boulders, a metre-wide one a unit (`boulder`); and square metres of painted stone
-## ground, each stroke the ground its discs reach, a stroke over another counted again.
+## ground and of cobbled or flagged path, each stroke the ground its discs reach, a stroke over another counted again.
 static var UNITS: Array = COSTS.keys().filter(func(k: String) -> bool: return not k in CAPS.values())
 ## Masonry draws a chunk's stones whole only near the eye (Quality.Step.stone_near_m) and coarser past it, so each of
 ## these costs a far rate on all of it and, as `<unit>_near` (World counts them, `Near`), a near excess on what stands in
@@ -373,22 +373,36 @@ static func stone(reached: Image) -> Dictionary:
 	return {"stone_m2": n * Ground.TEXEL * Ground.TEXEL} if n > 0 else {}
 
 
-## Reserve the whole path for treads, so raising ground cannot exceed the build budget.
+## Reserve the whole path for treads, so raising ground cannot exceed the build budget, or a bed for its crops and
+## stepping stones; cobbles and flagstones count the ground their discs reach as painted stone does.
 static func path(d: Dictionary) -> Dictionary:
 	var layout := PathLayout.of(d)
 	layout.plan()
-	var stones := 0
-	var timbers := 0
-	for row in layout.row_ends.size():
-		var start := layout.row_ends[row - 1] if row > 0 else 0.0
-		var end := minf(layout.row_ends[row], layout.length())
-		for i in PATH_TREADS_PER_ROW:
-			var f := layout.frame_at(lerpf(start, end, (i + 0.5) / PATH_TREADS_PER_ROW))
-			stones += maxi(1, ceili(f.half * 2.0 / 0.5))
-			# Stringers come to at most three timbers a tread, where every flight is two treads long.
-			timbers += 3
-	# Wall courses lay roughly ten blocks per square metre.
-	return {"wall_m2": stones * 0.1, "timber": timbers}
+	var out := {}
+	if layout.surface == PathLayout.Surface.BED:
+		var stones := ceili(layout.length() / PathLayout.STRIDE)
+		for spot in layout.crop_spots():
+			stones += PathLayout.crop(spot.crop).size()
+		out = {"wall_m2": stones * 0.1}
+	else:
+		var stones := 0
+		var timbers := 0
+		for row in layout.row_ends.size():
+			var start := layout.row_ends[row - 1] if row > 0 else 0.0
+			var end := minf(layout.row_ends[row], layout.length())
+			for i in PATH_TREADS_PER_ROW:
+				var f := layout.frame_at(lerpf(start, end, (i + 0.5) / PATH_TREADS_PER_ROW))
+				stones += maxi(1, ceili(f.half * 2.0 / 0.5))
+				# Stringers come to at most three timbers a tread, where every flight is two treads long.
+				timbers += 3
+		# Wall courses lay roughly ten blocks per square metre.
+		out = {"wall_m2": stones * 0.1, "timber": timbers}
+	if layout.kind == Ground.Kind.STONE:
+		var reached := Image.create(Ground.SIZE, Ground.SIZE, false, Image.FORMAT_L8)
+		for k in layout.row_ends.size():
+			reach(layout.disc(k), reached)
+		out.merge(stone(reached))
+	return out
 
 
 ## A decoration's paired Quest 2 cost, the least linear rule at or over every style's dearest of two 24-copy runs of

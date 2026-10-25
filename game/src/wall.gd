@@ -547,7 +547,7 @@ static func _faces_mesh(tris: PackedVector3Array, flat_normals := false) -> Arra
 static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt32Array) -> Dictionary:
 	var route := func(s: Dictionary) -> Array:
 		var own := Part.MORTAR if s.kind in ["mortar", "plaster", "bed"] else Part.TIMBER if s.kind in ["timber", "board"] else Part.FLOOR if s.kind in ["flagstone", "plank"] else Part.STONE
-		return [own] if s.kind == "mortar" or s.kind in WallLayout.FLOOR_KINDS else [own, Part.STONE_SHADOW]
+		return [own] if s.kind in ["mortar", "crop"] or s.kind in WallLayout.FLOOR_KINDS else [own, Part.STONE_SHADOW]
 	var bufs := _pack_parts(built.stones, route, ks, colours)
 	var box := AABB(built.samples[0] if built.samples.size() > 0 else Vector3.ZERO, Vector3.ZERO)
 	for s in built.stones:

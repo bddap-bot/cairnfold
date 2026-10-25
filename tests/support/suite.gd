@@ -15,6 +15,17 @@ func check(ok: bool, what: String) -> void:
 		print("FAIL: ", what)
 
 
+## Which of earth, sand and stone `marks`' garden ground at (x, z) holds most of, as the terrain shader shows it.
+static func kind_at(marks: Ground, x: float, z: float) -> Ground.Kind:
+	var c := marks._texel(x, z, marks.laid)
+	return Ground.Kind.STONE if c.g >= 0.5 else Ground.Kind.SAND if c.a > c.r else Ground.Kind.EARTH
+
+
+## Whether `marks`' garden earth at (x, z) is a bed's.
+static func tilled(marks: Ground, x: float, z: float) -> bool:
+	return marks._texel(x, z, marks.laid).b8 & Ground.TILLED != 0
+
+
 func finish() -> void:
 	print("tests: %s" % ("FAILED %d" % failures if failures else "ok"))
 	Main.quit(self, 1 if failures else 0)

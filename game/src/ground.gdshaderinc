@@ -4,7 +4,8 @@
 global uniform sampler2D ground_height : filter_linear, repeat_disable;
 global uniform vec3 ground_grid;
 global uniform mat4 ground_humps;
-// What the ground is made of (Ground): red trodden earth, green stone, neither meadow; blue the stone's style.
+// What the ground is made of (Ground): red trodden earth, green stone, alpha sand, none of them meadow; blue the stone's
+// style in its low bits and Ground.TILLED, its top bit, where a garden bed's earth.
 global uniform sampler2D ground_mask : filter_linear, repeat_disable;
 
 // The texture coordinate of `xz` in a one-texel-per-grid-point texture.
@@ -56,21 +57,21 @@ float grid_smooth(sampler2D t, vec2 xz) {
 		+ s1.y * (s0.x * dot(textureLod(t, vec2(t0.x, t1.y), 0.0).rb, vec2(1.0)) + s1.x * dot(textureLod(t, t1, 0.0).rb, vec2(1.0)));
 }
 
-vec2 ground_cover(vec2 xz) {
-	return textureLod(ground_mask, (xz - ground_grid.x) / (ground_grid.y * (ground_grid.z - 1.0)), 0.0).rg;
+vec4 ground_cover(vec2 xz) {
+	return textureLod(ground_mask, (xz - ground_grid.x) / (ground_grid.y * (ground_grid.z - 1.0)), 0.0);
 }
 
 // The style of the stone at `xz`, `jitter` texels off so two styles meet along a ragged line.
 int ground_style(vec2 xz, vec2 jitter) {
 	ivec2 size = textureSize(ground_mask, 0);
 	vec2 t = (xz - ground_grid.x) / (ground_grid.y * (ground_grid.z - 1.0)) * vec2(size) + jitter;
-	return int(texelFetch(ground_mask, clamp(ivec2(t), ivec2(0), size - 1), 0).b * 255.0 + 0.5);
+	return int(texelFetch(ground_mask, clamp(ivec2(t), ivec2(0), size - 1), 0).b * 255.0 + 0.5) & 127;
 }
 
-// How bare of plants the ground is, as Ground.bare reads it: 1 on earth or stone.
+// How bare of plants the ground is, as Ground.bare reads it: 1 on earth, sand or stone.
 float bare(vec2 xz) {
-	vec2 c = ground_cover(xz);
-	return min(c.r + c.g, 1.0);
+	vec4 c = ground_cover(xz);
+	return min(c.r + c.g + c.a, 1.0);
 }
 
 vec3 ground_normal(vec2 xz) {

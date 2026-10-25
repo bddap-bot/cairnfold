@@ -43,6 +43,7 @@ const RESHAPES := {
 	"boulders": ["at", "turn", "sink", "scale", "style"],
 	"decorations": ["style", "at", "turn", "s"],
 	"easels": ["at", "yaw"],
+	"paths": ["surface"],
 }
 ## Per table of the garden, the field naming the builds an entry stands on, or "" for one standing only on the ground:
 ## whatever stands on a build goes when it goes (`World._take`). Every table is named here, so a new one cannot be
@@ -490,11 +491,16 @@ static func _whole(of: String, d: Dictionary) -> Variant:
 			return _decoration(d)
 		"easels":
 			return d if _stands(d) else null
+		"paths":
+			return _path(d)
 	return _boulder(d)
 
 
 static func _path(d: Variant) -> Variant:
-	if not d is Dictionary or d.size() != 3 or typeof(d.get("seed")) != TYPE_INT:
+	if not d is Dictionary or d.size() != 4 or typeof(d.get("seed")) != TYPE_INT:
+		return null
+	var surface: Variant = d.get("surface")
+	if typeof(surface) != TYPE_INT or surface < 0 or surface >= PathLayout.Surface.size():
 		return null
 	var points: Variant = d.get("points")
 	var halves: Variant = d.get("half_widths")
@@ -502,7 +508,7 @@ static func _path(d: Variant) -> Variant:
 		return null
 	if typeof(halves) != TYPE_PACKED_FLOAT32_ARRAY or halves.size() != points.size() or not Array(halves).all(func(h: float) -> bool: return h >= PathLayout.HALF_WIDTH.x - 0.001 and h <= PathLayout.HALF_WIDTH.y + 0.001):
 		return null
-	return {"points": points, "half_widths": halves, "seed": d.seed}
+	return {"points": points, "half_widths": halves, "seed": d.seed, "surface": surface}
 
 
 static func _ground(cmd: Dictionary, out: Dictionary) -> bool:

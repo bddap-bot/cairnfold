@@ -31,6 +31,7 @@ func _run() -> void:
 	_meadow_trees_grow()
 	_stone_takes_a_style()
 	_boulders_take_a_stone_style()
+	_paths_take_a_surface()
 	finish()
 
 
@@ -537,3 +538,41 @@ func _roof_choices_keep_shape() -> void:
 			main.tool.end_build()
 			check((world.state.walls[id].roof.pitch == 0.0) == (pitch > 0.0), "two hands drawn apart or together upright change the roof's shape")
 			world.restore({"seq": 0, "cmds": []})
+
+
+## A path aimed at offers every surface and turns to one through the host, which a peer takes; the mask carries it
+## where the path lies, a bed sprouts its crops, paths laid after take it, and an undo, a redo and a save follow it.
+func _paths_take_a_surface() -> void:
+	var p := PathLayout.new()
+	for q in [Vector3(-30, 0, 60), Vector3(-24, 0, 60)]:
+		p.add(world.terrain.ground(q.x, q.z), 0.8)
+	var data := p.data()
+	world._order({"op": "path", "path": data}, world.me())
+	var id := world.seq
+	world.marks.settle()
+	var at := world.terrain.ground(-27, 60)
+	var target: Dictionary = main.palette_tool.aim_style(at + Vector3(0, 3, 3), Vector3(0, -3, -3).normalized())
+	check(target.get("restyle") == PaletteTool.Restyle.PATH and target.get("id") == id and target.get("count") == PathLayout.Surface.size(), "the style tool aimed at a path offers its surfaces: %s" % [target])
+	for i in PathLayout.Surface.size():
+		var model := ToolModels.style(PaletteTool.Restyle.PATH, i, WallLayout.Finish.BARE)
+		check(model.get_child_count() >= 1, "%s has its miniature" % PathLayout.Surface.find_key(i))
+		model.free()
+	var relayed := _relayed({"op": "reshape", "of": "paths", "id": id, "data": {"surface": PathLayout.Surface.SAND}}, 2)
+	check(relayed.get("data") == {"surface": PathLayout.Surface.SAND}, "a peer takes the host's surface: %s" % relayed)
+	check(Commands.clean({"op": "reshape", "of": "paths", "id": id, "data": {"surface": PathLayout.Surface.size()}}, world.state, false, main.world.terrain).is_empty(), "no surface past the last")
+	var crops := func() -> int: return world.paths.layout(id).pieces(Terrain.flat).filter(func(q: Dictionary) -> bool: return q.kind == "crop").size()
+	_turn(target, PathLayout.Surface.BED)
+	check(world.state.paths[id].surface == PathLayout.Surface.BED and tilled(world.marks, -27, 60), "a twist of the wheel turns the path to a bed")
+	check(crops.call() > 50, "the bed sprouts its crops")
+	check(world.paths.surface == PathLayout.Surface.BED, "paths laid after take it")
+	world._order({"op": "undo"}, world.me())
+	world.marks.settle()
+	check(world.state.paths[id].surface == PathLayout.Surface.DIRT and not tilled(world.marks, -27, 60) and crops.call() == 0, "an undo turns it back to dirt")
+	world._order({"op": "redo"}, world.me())
+	world.marks.settle()
+	check(tilled(world.marks, -27, 60), "a redo makes it a bed again")
+	world.restore(world.snapshot())
+	world.marks.settle()
+	check(world.state.paths[id].surface == PathLayout.Surface.BED and tilled(world.marks, -27, 60), "a save carries it")
+	world.paths.surface = PathLayout.Surface.DIRT
+	world.restore({"seq": 0, "cmds": []})

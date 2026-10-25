@@ -34,6 +34,11 @@ func _run() -> void:
 	await _a_path_opens_its_arch_before_release()
 	await _a_laid_path_wears_the_garden_at_once_and_shows_by_the_next_frame()
 	await _dirt_wears_without_stones()
+	_each_surface_wears_its_own_ground()
+	_surfaces_blend_where_they_meet()
+	_earth_and_stone_keep_their_looks()
+	_a_path_across_water_lays_stepping_stones()
+	_a_bed_sprouts_rows_of_vegetables()
 	finish()
 
 
@@ -428,7 +433,7 @@ func _a_scripted_stroke_outlasts_the_hand() -> void:
 	t.set_process(false)
 	var paths: Paths = nodes[1]
 	var b := t.brushes[0]
-	b.hand.tool = Hand.Tool.DIRT_PATH
+	b.hand.tool = Hand.Tool.PATH
 	t.begin_path(b, world.terrain.ground(-30, 20), 0.6)
 	rig.aim_hand = b.hand
 	t._handle(b, 1.0 / 60.0)
@@ -439,7 +444,7 @@ func _a_scripted_stroke_outlasts_the_hand() -> void:
 	_teardown(nodes)
 
 
-func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.DIRT_PATH) -> void:
+func _undo_lifts_a_path_and_its_arches(kind := Hand.Tool.PATH) -> void:
 	var nodes := _setup()
 	var world: World = nodes[2]
 	world.marks.install()
@@ -654,8 +659,8 @@ func _steep_paths_lay_level_treads() -> void:
 	path.plan()
 	var flat := Terrain.flat
 	var slope := func(_x: float, z: float) -> float: return -z * 0.8
-	check(path.steps(flat).is_empty(), "flat dirt has no treads")
-	var pieces := path.steps(slope)
+	check(path.pieces(flat).is_empty(), "flat dirt has no treads")
+	var pieces := path.pieces(slope)
 	var treads := pieces.filter(func(p: Dictionary) -> bool: return p.kind == "block")
 	var timbers := pieces.filter(func(p: Dictionary) -> bool: return p.kind == "timber")
 	check(treads.size() > 30, "steep dirt lays a flight of stone treads")
@@ -669,13 +674,163 @@ func _steep_paths_lay_level_treads() -> void:
 		check(top >= maxf(slope.call(back.x, back.z), slope.call(front.x, front.z)) - 0.01, "tread is above its sloping ground")
 	_stringers_carry_the_flight(treads, timbers, slope)
 	_no_gaps_between_treads(treads)
-	var extreme := path.steps(func(_x: float, z: float) -> float: return -z * 100.0)
+	var extreme := path.pieces(func(_x: float, z: float) -> float: return -z * 100.0)
 	check(extreme.size() == pieces.size(), "raising terrain cannot multiply reserved geometry")
 	for piece in extreme.filter(func(p: Dictionary) -> bool: return p.kind == "block"):
 		var x: Transform3D = piece.xform
 		var uphill := x.origin - x.basis.z * 0.5
 		check(x.origin.y + x.basis.y.length() * 0.5 >= -uphill.z * 100.0, "the full tread footprint clears very steep ground")
-	check(path.steps(slope) == pieces, "steps rebuild deterministically")
-	check(path.steps(flat).is_empty(), "flattening a path removes its steps")
+	check(path.pieces(slope) == pieces, "steps rebuild deterministically")
+	check(path.pieces(flat).is_empty(), "flattening a path removes its steps")
 	var reserved := Budget.path(path.data())
 	check(reserved.wall_m2 >= treads.size() * 0.1 and reserved.timber >= timbers.size(), "flat paths reserve their possible treads and stringers before terrain is raised: %s" % reserved)
+
+
+## A path of each surface laid by the garden.
+func _laid(paths: Paths, id: int, surface: PathLayout.Surface, points: Array, half: float) -> PathLayout:
+	var p := _path(points, half)
+	p.surface = surface
+	p.seed = id
+	paths.put(id, Commands._path(p.data()))
+	marks.settle()
+	return paths.layouts[-1]
+
+
+## Each surface wears its own ground into the mask, in full down the middle of the stroke: dirt and a bed earth, a bed's
+## tilled and dirt's not, sand sand, cobbles and flagstones stone in their styles; and each is the mark found there.
+func _each_surface_wears_its_own_ground() -> void:
+	marks.install()
+	var paths := _paths()
+	var z := -60.0
+	var expect := {
+		PathLayout.Surface.DIRT: [Ground.Kind.EARTH, false],
+		PathLayout.Surface.SAND: [Ground.Kind.SAND, false],
+		PathLayout.Surface.COBBLES: [Ground.Kind.STONE, false],
+		PathLayout.Surface.FLAGS: [Ground.Kind.STONE, false],
+		PathLayout.Surface.BED: [Ground.Kind.EARTH, true],
+	}
+	for surface: PathLayout.Surface in expect:
+		var id := 500 + surface
+		_laid(paths, id, surface, [[-50, z], [-40, z]], 0.8)
+		var name: String = PathLayout.Surface.find_key(surface)
+		check(marks.bare(-45, z) > 0.99 and kind_at(marks, -45, z) == expect[surface][0], "%s wears the ground to its kind: %s" % [name, kind_at(marks, -45, z)])
+		check(tilled(marks, -45, z) == expect[surface][1], "%s is %stilled" % [name, "" if expect[surface][1] else "not "])
+		if expect[surface][0] == Ground.Kind.STONE:
+			check(marks._texel(-45, z, marks.laid).b8 & ~Ground.TILLED == PathLayout.look(surface), "%s lays stone in its own style" % name)
+		check(marks.mark_at(-45, z) == id, "the %s path is the mark found on it" % name)
+		check(marks.bare(-45, z + 2.0) == 0.0, "the meadow beside the %s path is untouched" % name)
+		z -= 4.0
+	check(StoneStyles.STYLES[PathLayout.look(PathLayout.Surface.COBBLES)].name == "river cobble" and StoneStyles.STYLES[PathLayout.look(PathLayout.Surface.FLAGS)].name == "mossy", "cobbles and flagstones are the river cobble and mossy stone styles")
+	var reserved := Budget.path(paths.layouts[PathLayout.Surface.COBBLES].data())
+	check(reserved.get("stone_m2", 0.0) > 10.0 and not Budget.path(paths.layouts[PathLayout.Surface.SAND].data()).has("stone_m2"), "cobbles count their ground as painted stone, sand none: %s" % reserved)
+	paths.free()
+
+
+## Where two surfaces meet, the later one lies over the earlier down its middle and the two blend across its soft edge,
+## each texel there part of each, with no meadow showing between them; lifting the later gives the earlier back.
+func _surfaces_blend_where_they_meet() -> void:
+	marks.install()
+	var paths := _paths()
+	_laid(paths, 601, PathLayout.Surface.SAND, [[-50, -70], [-40, -70]], 1.5)
+	_laid(paths, 602, PathLayout.Surface.DIRT, [[-45, -65], [-45, -75]], 0.8)
+	check(kind_at(marks, -45, -70) == Ground.Kind.EARTH and kind_at(marks, -48, -70) == Ground.Kind.SAND, "the later dirt lies over the sand down its middle")
+	var blended := 0
+	for i in 20:
+		var c := marks._texel(-45 + 0.5 + i * 0.1, -70, marks.laid)
+		blended += 1 if c.r > 0.1 and c.a > 0.1 else 0
+		check(c.r + c.a > 0.95, "no meadow shows between dirt and sand (%.2f)" % (c.r + c.a))
+	check(blended >= 2, "dirt and sand blend across the dirt's edge: %d texels" % blended)
+	paths.take(602)
+	marks.settle()
+	check(kind_at(marks, -45, -70) == Ground.Kind.SAND and marks._texel(-45, -70, marks.laid).a > 0.99, "lifting the dirt gives the sand back")
+	paths.free()
+
+
+## Across water a path lays flat stepping stones a stride apart, their tops just out of the water and their feet on the
+## bed, and no treads; on the dry ground either side it lays none.
+func _a_path_across_water_lays_stepping_stones() -> void:
+	var path := _path([[-6, 0], [6, 0]], 0.6)
+	var height := func(x: float, _z: float) -> float: return -0.3 * clampf(3.5 - absf(x), 0.0, 1.0)
+	var level := -0.1
+	var water := func(x: float, z: float) -> float: return level if absf(x) < 3.0 else height.call(x, z)
+	check(path.pieces(height).is_empty(), "with no water a flat path lays nothing")
+	var stones := path.pieces(height, water)
+	check(stones.size() >= 7 and stones.size() <= 9, "a stone a stride across 6 m of water: %d" % stones.size())
+	var xs: Array[float] = []
+	for st in stones:
+		var x: Transform3D = st.xform
+		xs.append(x.origin.x)
+		check(st.kind == "block" and absf(x.origin.x) < 3.0, "every stepping stone stands in the water")
+		check(x.basis.y.normalized().is_equal_approx(Vector3.UP), "a stepping stone lies flat")
+		var top := x.origin.y + x.basis.y.length() * 0.5
+		check(top > level and top < level + 0.1, "its top stands just out of the water (%.2f)" % top)
+		check(x.origin.y - x.basis.y.length() * 0.5 <= height.call(x.origin.x, x.origin.z), "its foot is on the bed")
+	xs.sort()
+	for i in xs.size() - 1:
+		check(absf(xs[i + 1] - xs[i] - PathLayout.STRIDE) < 0.05, "stepping stones lie a stride apart")
+	var bed := _path([[-6, 0], [6, 0]], 0.6)
+	bed.surface = PathLayout.Surface.BED
+	check(bed.pieces(height, water).all(func(p: Dictionary) -> bool: return p.kind == "block" or absf(p.xform.origin.x) > 3.0 - 0.3), "a bed across water sprouts nothing in it")
+
+
+## A bed sprouts rows along it as many as its width holds, each row one crop, a plant every CROP_EVERY, standing on
+## the ground inside the bed; a steep bed lays no treads, and the budget reserves every plant.
+func _a_bed_sprouts_rows_of_vegetables() -> void:
+	var bed := _path([[0, 0], [0, -6]], 1.0)
+	bed.surface = PathLayout.Surface.BED
+	var spots := bed.crop_spots()
+	var rows := {}
+	for spot in spots:
+		var across := snappedf(spot.at.x, 0.01)
+		if not rows.has(across):
+			rows[across] = []
+		rows[across].append(spot)
+	var offsets := rows.keys()
+	offsets.sort()
+	check(offsets.size() == 5, "a 2 m bed holds five rows: %s" % [offsets])
+	for i in offsets.size() - 1:
+		check(absf(offsets[i + 1] - offsets[i] - PathLayout.CROP_ROWS) < 0.01, "rows lie CROP_ROWS apart")
+	var crops := {}
+	for across in rows:
+		var row: Array = rows[across]
+		check(row.all(func(spot: Dictionary) -> bool: return spot.crop == row[0].crop), "one crop down each row")
+		check(row.size() >= 17, "a plant every CROP_EVERY down 6 m: %d" % row.size())
+		crops[row[0].crop] = true
+	check(crops.size() >= 2, "the rows grow more than one crop: %s" % [crops.keys()])
+	var slope := func(_x: float, z: float) -> float: return -z * 0.8
+	var pieces := bed.pieces(slope)
+	check(pieces.size() >= spots.size() * 3 and pieces.all(func(p: Dictionary) -> bool: return p.kind == "crop"), "every plant is a few coloured pieces and a steep bed lays no treads: %d" % pieces.size())
+	for p in pieces:
+		var at: Vector3 = p.xform.origin
+		check(absf(at.x) < 1.0 and at.y >= slope.call(at.x, at.z) - 0.1, "a plant stands on the ground inside its bed")
+	check(Budget.path(bed.data()).wall_m2 >= pieces.size() * 0.1, "the budget reserves every plant: %s" % Budget.path(bed.data()))
+	for crop in PathLayout.Crop.values():
+		check(PathLayout.crop(crop).size() >= 3, "a %s is a few pieces" % PathLayout.Crop.find_key(crop))
+
+
+## Dirt or a bed crossing stone leaves the stone it does not cover in its own style, stone over a bed leaves the bed
+## tilled under it, and stone painted back to meadow over cobbles leaves the cobbled path's way worn and found there.
+func _earth_and_stone_keep_their_looks() -> void:
+	marks.install()
+	var paths := _paths()
+	_laid(paths, 701, PathLayout.Surface.COBBLES, [[-50, -40], [-40, -40]], 1.5)
+	_laid(paths, 702, PathLayout.Surface.BED, [[-45, -35], [-45, -45]], 0.8)
+	var kept := true
+	for i in 30:
+		var c := marks._texel(-45 + i * 0.1, -40, marks.laid)
+		kept = kept and (c.g < 0.05 or c.b8 & ~Ground.TILLED == StoneStyles.RIVER_COBBLE)
+	check(kept, "the cobbles the bed leaves keep their style")
+	var r := FloraTool.MAX_RADIUS * 0.4
+	var over := Ground.Stroke.new(Ground.Kind.STONE, StoneStyles.MOSSY)
+	over.stamps = PackedVector4Array([Vector4(-45, -43, r, r * 2.0)])
+	marks.lay(over, 703)
+	var back := Ground.Stroke.new(Ground.Kind.MEADOW)
+	back.stamps = PackedVector4Array([Vector4(-45, -43, r, r * 2.0), Vector4(-48, -40, r, r * 2.0)])
+	marks.lay(back, 704)
+	marks.settle()
+	check(tilled(marks, -45, -43) and kind_at(marks, -45, -43) == Ground.Kind.EARTH, "stone painted over the bed and back leaves it tilled")
+	check(marks.stone(-48, -40) < 0.05 and marks.laid_bare(-48, -40) > 0.99, "painted back over cobbles, the path's way stays worn")
+	check(marks.mark_at(-48, -40) == 701, "and the cobbled path is found there")
+	marks.lift(back)
+	marks.lift(over)
+	paths.free()

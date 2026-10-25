@@ -14,7 +14,8 @@ extends Node3D
 ## for it to stand on when raised; houses laid after take it), a house's or tower's floor (flags or planks, apart from its walls; houses laid after take
 ## it), a flight's or landing's railings (stairs laid after take them), a tree's species, or a stroke of painted
 ## stone ground's or a boulder's, one list of stone styles (StoneStyles; stone painted and boulders set down after take
-## the style let go last), or a window's family (cottage, arched, arrow slit or round; a door's cottage or arched, the
+## the style let go last), a path's surface (dirt, sand, cobbles, flagstones or a garden bed; paths laid after take it),
+## or a window's family (cottage, arched, arrow slit or round; a door's cottage or arched, the
 ## lights fused with it alike; windows opened after take it). It only restyles: openings are the windows' and the
 ## arch's, and a corner window is the windows' at a corner. The colour tool on a room's window picks the colour its
 ## glass glows at night.
@@ -26,7 +27,7 @@ const CHOICE_GAP := 0.045
 ## Where the wheel stands from the controller, in its frame when the trigger went down.
 const WHEEL_AT := Vector3(0, 0.06, -0.05)
 
-enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, STONE, DECORATION, FLOOR, FOUNDATION, WINDOW }
+enum Restyle { GABLE, ROOF, TOP, FACE, TREE, RAIL, STONE, DECORATION, FLOOR, FOUNDATION, WINDOW, PATH }
 ## The face wheel's choices, each a WallLayout.Finish and how worn its plaster is.
 const FACES: Array[Vector2] = [Vector2(WallLayout.Finish.BARE, 0.0), Vector2(WallLayout.Finish.PLASTER, 0.0), Vector2(WallLayout.Finish.PLASTER, 0.25), Vector2(WallLayout.Finish.PLASTER, 0.5), Vector2(WallLayout.Finish.PLASTER, 0.75), Vector2(WallLayout.Finish.TIMBER, 0.0), Vector2(WallLayout.Finish.BOARDS_ACROSS, 0.0), Vector2(WallLayout.Finish.BOARDS_UPRIGHT, 0.0)]
 enum Floor { FLAGS, PLANKS }
@@ -137,8 +138,8 @@ func colour_target(element: Palette.Element, point: Vector3, of := "", id := -1)
 
 
 ## What the style tool would restyle from `origin` along `dir`, as `aim` gives it, with `restyle` in place of an
-## element, or empty: the tree, stairs, boulder, floor, gable end, roof, wall, fence or painted stone it meets first, a
-## roofless wall's top near it; ladders, bushes and unpaved ground have no style.
+## element, or empty: the tree, stairs, boulder, floor, gable end, roof, wall, fence, path or painted stone it meets first,
+## a roofless wall's top near it; ladders, bushes and the bare meadow have no style.
 func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var hits := world.pick(origin, dir, {World.Kind.TARGET: INF, World.Kind.PLANT: DeleteTool.REACH, World.Kind.FLOOR: INF, World.Kind.STAIRS: INF, World.Kind.BOULDER: INF, World.Kind.GROUND: INF})
 	var pick: Dictionary = hits.get(World.Kind.TARGET, {})
@@ -149,7 +150,9 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	var stair: Dictionary = hits.get(World.Kind.STAIRS, {})
 	var rock: Dictionary = hits.get(World.Kind.BOULDER, {})
 	var ground: Variant = hits[World.Kind.GROUND].point if hits.has(World.Kind.GROUND) else null
-	var stroke := world.marks.mark_at(ground.x, ground.z) if ground != null and world.marks.stone(ground.x, ground.z) > 0.5 else -1
+	var stroke := world.marks.mark_at(ground.x, ground.z) if ground != null and world.marks.laid_bare(ground.x, ground.z) > 0.5 else -1
+	if world.state.paths.has(stroke):
+		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.PATH, "count": styles(Restyle.PATH), "point": ground, "of": "paths", "id": stroke, "wall": null}
 	if world.state.grounds.has(stroke):
 		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.STONE, "count": styles(Restyle.STONE), "point": ground, "of": "", "id": -1, "wall": null, "stroke": stroke}
 	if not rock.is_empty():
@@ -241,6 +244,8 @@ static func styles(restyle: Restyle) -> int:
 			return StairLayout.RAILS.size()
 		Restyle.STONE:
 			return StoneStyles.STYLES.size()
+		Restyle.PATH:
+			return PathLayout.Surface.size()
 		Restyle.FLOOR:
 			return Floor.size()
 		Restyle.FOUNDATION:
@@ -365,6 +370,8 @@ func _now(w: Wheel) -> int:
 			return w.target.options.find(d.style)
 		Restyle.STONE:
 			return d.style
+		Restyle.PATH:
+			return d.surface
 		Restyle.FLOOR:
 			return Floor.PLANKS if d.planks else Floor.FLAGS
 		Restyle.FOUNDATION:
@@ -392,6 +399,8 @@ func _data(w: Wheel, pick: int) -> Dictionary:
 			return {"style": w.target.options[pick]}
 		Restyle.STONE:
 			return {"style": pick}
+		Restyle.PATH:
+			return {"surface": pick}
 		Restyle.FLOOR:
 			return {"planks": pick == Floor.PLANKS}
 		Restyle.FOUNDATION:
@@ -425,7 +434,7 @@ func _show(w: Wheel, pick: int) -> void:
 
 ## What lays the builds of the garden's table `of`: each shows a reshape before it is sent and `settle`s back.
 func _builder(of: String) -> Object:
-	return {"walls": walls, "stairs": world.stairs, "boulders": world.boulders, "decorations": world.decorations}[of]
+	return {"walls": walls, "stairs": world.stairs, "boulders": world.boulders, "decorations": world.decorations, "paths": world.paths}[of]
 
 
 ## Sends the choice at the top of `hand`'s wheel to the garden, unless the garden already has it (another
@@ -458,6 +467,8 @@ func close(hand: Hand) -> void:
 		walls.window_family = WallLayout.WINDOW_FAMILIES[w.target.options[w.pick]]
 	elif w.id >= 0 and w.target.restyle == Restyle.RAIL:
 		world.stairs.rail = StairLayout.RAILS[w.pick]
+	elif w.id >= 0 and w.target.restyle == Restyle.PATH:
+		world.paths.surface = w.pick as PathLayout.Surface
 	elif w.target.get("restyle") == Restyle.STONE:
 		Ground.style = w.pick
 	var data: Dictionary = (w.data[w.pick] if w.target.tool == Hand.Tool.STYLE else _data(w, w.pick)) if w.id >= 0 else {}

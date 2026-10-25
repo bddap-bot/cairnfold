@@ -93,7 +93,7 @@ def easel_steps(name, names, seq):
 
 def held_steps(name, names, capture=False):
     steps = []
-    tools = ["walls", "flowers", "grass", "trees", "delete", "pond", "fence", "windows", "decorations", "stone", "colour", "camera", "house", "seeds", "dirt_path", "style", "stairs", "tower", "arch", "book", "selfie", "bushes", "boulder", "moss", "none"]
+    tools = ["walls", "flowers", "grass", "trees", "delete", "pond", "fence", "windows", "decorations", "stone", "colour", "camera", "house", "seeds", "path", "style", "stairs", "tower", "arch", "book", "selfie", "bushes", "boulder", "moss", "none"]
     phases = [[{"op": "pick", "tool": t}] for t in tools]
     phases += [[{"op": "take", "what": b}] for b in ("small", "big", "flat", "stick")]
     phases += [[{"op": "take", "what": "big"}, {"op": "dip", "what": "oil", "index": 5},

@@ -10,7 +10,7 @@ extends Node3D
 ## Plants per square metre per second of painting.
 const RATES := {Hand.Tool.FLOWERS: 12.0, Hand.Tool.GRASS: 30.0, Hand.Tool.MOSS: 12.0}
 const PLACES := {Hand.Tool.TREES: "tree", Hand.Tool.BUSHES: "bush"}
-const TINTS := {Hand.Tool.MOSS: Color(0.4, 0.65, 0.15, 0.6), Hand.Tool.DIRT_PATH: Color(0.78, 0.58, 0.35, 0.6), Hand.Tool.FLOWERS: Color(1.0, 0.82, 0.9, 0.6), Hand.Tool.GRASS: Color(0.78, 1.0, 0.55, 0.6), Hand.Tool.TREES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.BUSHES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.BOULDER: Color(0.9, 0.88, 0.82, 0.6), Hand.Tool.STONE: Color(0.9, 0.88, 0.82, 0.6)}
+const TINTS := {Hand.Tool.MOSS: Color(0.4, 0.65, 0.15, 0.6), Hand.Tool.PATH: Color(0.78, 0.58, 0.35, 0.6), Hand.Tool.FLOWERS: Color(1.0, 0.82, 0.9, 0.6), Hand.Tool.GRASS: Color(0.78, 1.0, 0.55, 0.6), Hand.Tool.TREES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.BUSHES: Color(0.85, 1.0, 0.8, 0.6), Hand.Tool.BOULDER: Color(0.9, 0.88, 0.82, 0.6), Hand.Tool.STONE: Color(0.9, 0.88, 0.82, 0.6)}
 const RADIUS_PER_METRE := 0.15
 const MIN_RADIUS := 0.3
 const MAX_RADIUS := 3.0
@@ -169,10 +169,10 @@ func _handle(b: Brush, delta: float) -> void:
 			take_boulder(b, hit)
 		return
 	var radius := brush_radius(hand.origin, hit)
-	if held == Hand.Tool.DIRT_PATH:
+	if held == Hand.Tool.PATH:
 		radius = clampf(radius, PathLayout.HALF_WIDTH.x, PathLayout.HALF_WIDTH.y)
 	put_ring(b.ring, hit, radius)
-	if held == Hand.Tool.DIRT_PATH:
+	if held == Hand.Tool.PATH:
 		if b.buttons.pressed("tool") and not paths.busy() and not _ground_held():
 			begin_path(b, hit, radius)
 		elif b.buttons.held("tool") and b.drawing_path:
