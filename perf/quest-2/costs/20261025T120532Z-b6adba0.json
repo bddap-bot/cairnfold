@@ -14,6 +14,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.322,
    "gpu_ms": 5.72,
    "timewarp_ms": 1.15
   },
@@ -30,6 +32,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.322,
    "gpu_ms": 5.41,
    "timewarp_ms": 1.18
   },
@@ -46,6 +50,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.322,
    "gpu_ms": 5.24,
    "timewarp_ms": 1.19
   },
@@ -72,6 +78,8 @@
      ]
     }
    ],
+   "step": 16,
+   "fill": 0.413,
    "gpu_ms": 7.54,
    "timewarp_ms": 1.17
   },
@@ -88,6 +96,8 @@
      "late": 2
     }
    ],
+   "step": 16,
+   "fill": 0.413,
    "gpu_ms": 3.84,
    "timewarp_ms": 1.17
   },
@@ -104,6 +114,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.413,
    "gpu_ms": 7.8,
    "timewarp_ms": 1.17
   },
@@ -113,6 +125,8 @@
    "late": 0,
    "draws": 55,
    "prims": 125291,
+   "step": 16,
+   "fill": 0.413,
    "gpu_ms": 7.63,
    "timewarp_ms": 1.18
   },
@@ -129,6 +143,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 5.36,
    "timewarp_ms": 1.16
   },
@@ -145,6 +161,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 4.72,
    "timewarp_ms": 1.19
   },
@@ -161,6 +179,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 5.18,
    "timewarp_ms": 1.16
   },
@@ -177,6 +197,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 6.05,
    "timewarp_ms": 1.17
   },
@@ -193,6 +215,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 6.71,
    "timewarp_ms": 1.15
   },
@@ -209,6 +233,8 @@
      "late": 17
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 27.53,
    "timewarp_ms": 1.16
   },
@@ -225,6 +251,8 @@
      "late": 2
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 7.04,
    "timewarp_ms": 1.18
   },
@@ -241,6 +269,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 7.0,
    "timewarp_ms": 1.18
   },
@@ -257,6 +287,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 10.48,
    "timewarp_ms": 1.16
   },
@@ -273,6 +305,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 5.72,
    "timewarp_ms": 1.17
   },
@@ -289,6 +323,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 5.08,
    "timewarp_ms": 1.17
   },
@@ -305,6 +341,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 5.56,
    "timewarp_ms": 1.17
   },
@@ -321,6 +359,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 4.85,
    "timewarp_ms": 1.19
   },
@@ -337,6 +377,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 1.23,
    "gpu_ms": 6.81,
    "timewarp_ms": 1.16
   },
@@ -353,6 +395,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 1.23,
    "gpu_ms": 9.16,
    "timewarp_ms": 1.16
   },
@@ -369,6 +413,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 1.477,
    "gpu_ms": 7.02,
    "timewarp_ms": 1.17
   },
@@ -385,6 +431,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 1.477,
    "gpu_ms": 9.67,
    "timewarp_ms": 1.14
   },
@@ -401,6 +449,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 1.714,
    "gpu_ms": 8.65,
    "timewarp_ms": 1.15
   },
@@ -417,6 +467,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 1.714,
    "gpu_ms": 8.84,
    "timewarp_ms": 1.17
   },
@@ -433,6 +485,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 1.015,
    "gpu_ms": 6.59,
    "timewarp_ms": 1.17
   },
@@ -449,6 +503,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 1.015,
    "gpu_ms": 9.38,
    "timewarp_ms": 1.14
   },
@@ -465,6 +521,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.403,
    "gpu_ms": 5.78,
    "timewarp_ms": 1.17
   },
@@ -481,6 +539,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.403,
    "gpu_ms": 5.77,
    "timewarp_ms": 1.17
   },
@@ -497,6 +557,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.76,
    "gpu_ms": 8.05,
    "timewarp_ms": 1.17
   },
@@ -513,6 +575,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.76,
    "gpu_ms": 7.39,
    "timewarp_ms": 1.17
   },
@@ -529,6 +593,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.803,
    "gpu_ms": 6.96,
    "timewarp_ms": 1.17
   },
@@ -545,6 +611,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.803,
    "gpu_ms": 6.99,
    "timewarp_ms": 1.16
   },
@@ -561,6 +629,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.769,
    "gpu_ms": 8.06,
    "timewarp_ms": 1.17
   },
@@ -577,6 +647,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.769,
    "gpu_ms": 7.01,
    "timewarp_ms": 1.17
   },
@@ -593,6 +665,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 2.142,
    "gpu_ms": 8.22,
    "timewarp_ms": 1.17
   },
@@ -609,6 +683,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 2.142,
    "gpu_ms": 9.39,
    "timewarp_ms": 1.14
   },
@@ -625,6 +701,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 1.575,
    "gpu_ms": 4.81,
    "timewarp_ms": 1.19
   },
@@ -641,6 +719,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 1.575,
    "gpu_ms": 4.42,
    "timewarp_ms": 1.19
   },
@@ -657,6 +737,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.241,
    "gpu_ms": 5.34,
    "timewarp_ms": 1.17
   },
@@ -673,6 +755,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.241,
    "gpu_ms": 4.58,
    "timewarp_ms": 1.19
   },
@@ -689,6 +773,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 4.86,
    "timewarp_ms": 1.18
   },
@@ -705,6 +791,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 4.58,
    "timewarp_ms": 1.19
   },
@@ -721,6 +809,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.126,
    "gpu_ms": 5.29,
    "timewarp_ms": 1.18
   },
@@ -737,6 +827,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.126,
    "gpu_ms": 5.04,
    "timewarp_ms": 1.2
   },
@@ -746,6 +838,8 @@
    "late": 0,
    "draws": 97,
    "prims": 135539,
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 5.18,
    "timewarp_ms": 1.15
   },
@@ -762,6 +856,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 6.88,
    "timewarp_ms": 1.18
   },
@@ -778,6 +874,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 6.84,
    "timewarp_ms": 1.17
   },
@@ -787,6 +885,8 @@
    "late": 0,
    "draws": 96,
    "prims": 225819,
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 6.94,
    "timewarp_ms": 1.16
   },
@@ -803,6 +903,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 5.7,
    "timewarp_ms": 1.17
   },
@@ -819,6 +921,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.0,
    "gpu_ms": 4.78,
    "timewarp_ms": 1.19
   },
@@ -835,6 +939,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.403,
    "gpu_ms": 5.58,
    "timewarp_ms": 1.17
   },
@@ -851,6 +957,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.403,
    "gpu_ms": 5.68,
    "timewarp_ms": 1.17
   },
@@ -867,6 +975,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.241,
    "gpu_ms": 5.7,
    "timewarp_ms": 1.16
   },
@@ -883,6 +993,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.241,
    "gpu_ms": 4.84,
    "timewarp_ms": 1.18
   },
@@ -892,6 +1004,8 @@
    "late": 0,
    "draws": 112,
    "prims": 151453,
+   "step": 16,
+   "fill": 0.241,
    "gpu_ms": 5.71,
    "timewarp_ms": 1.14
   },
@@ -908,6 +1022,8 @@
      "late": 1
     }
    ],
+   "step": 16,
+   "fill": 0.749,
    "gpu_ms": 6.19,
    "timewarp_ms": 1.17
   },
@@ -924,6 +1040,8 @@
      "late": 1
     }
    ],
+   "step": 16,
+   "fill": 0.749,
    "gpu_ms": 7.06,
    "timewarp_ms": 1.13
   },
@@ -940,6 +1058,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.625,
    "gpu_ms": 5.92,
    "timewarp_ms": 1.16
   },
@@ -956,6 +1076,8 @@
      "late": 0
     }
    ],
+   "step": 16,
+   "fill": 0.625,
    "gpu_ms": 4.84,
    "timewarp_ms": 1.18
   }
