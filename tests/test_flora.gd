@@ -22,6 +22,7 @@ func _run() -> void:
 	_grass_thins_with_distance()
 	_flowers_out_of_reach_are_not_drawn()
 	_painted_plants_are_drawn_by_the_square()
+	_painted_flowers_draw_to_the_water_reach()
 	_ground_paints_far_grass()
 	_rock_holds_no_grass_or_flowers()
 	_blob_detail_changes_only_what_is_drawn()
@@ -456,12 +457,17 @@ func _painted_plants_are_drawn_by_the_square() -> void:
 		var drawn := patches.map(func(m: MultiMeshInstance3D) -> bool: return m.layers & Quality.VIEW_MASK != 0)
 		var photo := patches.all(func(m: MultiMeshInstance3D) -> bool: return m.layers & Quality.PHOTO_MASK != 0)
 		check(drawn.count(true) == 1 and photo, "the patch past reach is not drawn but stays for a photo: %s" % [drawn])
+		for m in patches:
+			m.layers = 7
+		pool.cull(Vector3.ZERO, flora.grass_reach)
+		check(patches.all(func(m: MultiMeshInstance3D) -> bool: return m.layers == 7), "culling again from the same eye writes no layers")
 		var first: Flora.Plant = pool.plants[pool.kept]
 		var moved: Flora.Plant = pool.plants[pool.kept + 2]
 		pool.shift(moved, far - near, Color())
 		check(pool._patch_of[2].key != pool._patch_of[0].key, "a plant moved to another square moves to its patch")
 		pool.reset()
 		check(pool.patches().all(func(m: MultiMeshInstance3D) -> bool: return m.multimesh.visible_instance_count == 0), "reset empties every patch")
+		check(pool.patches().all(func(m: MultiMeshInstance3D) -> bool: return not m.visible), "and an empty patch is not drawn at all")
 		for i in pool.capacity + 3:
 			pool.add(Transform3D(Basis.IDENTITY, near), Color.RED, near)
 		var counts := pool.patches().map(func(m: MultiMeshInstance3D) -> int: return m.multimesh.visible_instance_count)
@@ -472,6 +478,25 @@ func _painted_plants_are_drawn_by_the_square() -> void:
 			if p.slots[pool._index_in_patch[j]] != pool.kept + j:
 				break
 		check(not first.current(), "a recycled slot's plant has moved on")
+	flora.queue_free()
+
+
+## A painted flower may stand in a pond as an iris or a lily, which the flower shader draws out to the full flower
+## reach, past where the meadow's land flowers hand off to their far patches.
+func _painted_flowers_draw_to_the_water_reach() -> void:
+	var flora := Flora.new(Terrain.new(), Ground.new())
+	root.add_child(flora)
+	var eye := Camera3D.new()
+	root.add_child(eye)
+	eye.make_current()
+	flora.keep()
+	check(flora.flower_reach > Flora.FLOWER_NEAR + flora.flowers.cell * 2.0, "the top step's flower reach lies well past the land flowers'")
+	var p := Vector3(Flora.FLOWER_NEAR + flora.flowers.cell * 1.5, 0, 0.5)
+	flora.add_flower(p, _rng(13))
+	flora._process(0.0)
+	var drawn := flora.flowers.patches().map(func(m: MultiMeshInstance3D) -> bool: return m.layers & Quality.VIEW_MASK != 0)
+	check(drawn == [true], "a painted flower past the land flowers' reach is drawn: %s" % [drawn])
+	eye.queue_free()
 	flora.queue_free()
 
 

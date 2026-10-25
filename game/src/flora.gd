@@ -105,6 +105,8 @@ class Pool:
 	var _sparse_cell_of: Array[MultiMesh] = []
 	var _index_in_sparse := PackedInt32Array()
 	var _centres := PackedVector2Array()
+	## The layers each of `_cells` was last given, so `cull` writes only a change.
+	var _cell_layers := PackedInt32Array()
 	## With `indexed`, slots by the GRID square their anchor fell in, for finding plants near a point without a
 	## pass over all.
 	var indexed := false
@@ -203,6 +205,7 @@ class Pool:
 			terrain.lift(p.mm, p.box)
 		p.slots.append(i)
 		p.mm.visible_instance_count = n + 1
+		p.mmi.visible = true
 		_patch_of[j] = p
 		_index_in_patch[j] = n
 		_write(p, n, i)
@@ -221,6 +224,7 @@ class Pool:
 			_write(p, k, moved)
 		p.slots.resize(end)
 		p.mm.visible_instance_count = end
+		p.mmi.visible = end > 0
 		_patch_of[j] = null
 
 	func _write(p: Patch, k: int, i: int) -> void:
@@ -269,6 +273,7 @@ class Pool:
 				_cell_of[slots[j]] = whole
 				_index_in_cell[slots[j]] = j
 			_cells.append(_show(whole))
+			_cell_layers.append(1)
 			_centres.append((Vector2(key) + Vector2(0.5, 0.5)) * cell)
 			if sparse != null:
 				var few := slots.filter(func(i: int) -> bool: return _colors[i].a < survivors)
@@ -326,6 +331,7 @@ class Pool:
 		for p: Patch in _patches.values():
 			p.slots.clear()
 			p.mm.visible_instance_count = 0
+			p.mmi.visible = false
 		_patch_of.fill(null)
 		_count = 0
 		if far != null:
@@ -441,20 +447,27 @@ class Pool:
 			p.mm.mesh = m
 
 	## Not `visibility_range_end`: that measures to the box's centre, which sits high above the ground because a
-	## cell's box spans every height the terrain can be pulled to. A cell out of reach stays for a photo.
-	func cull(eye: Vector3, reach: float) -> void:
+	## cell's box spans every height the terrain can be pulled to. A cell out of reach stays for a photo. Patches reach
+	## `painted_reach`: a painted flower may be an iris or a lily, drawn further than the meadow's land flowers.
+	func cull(eye: Vector3, reach: float, painted_reach := reach) -> void:
 		var half := Vector2(cell, cell) * 0.5
 		for i in _cells.size():
 			var off := (_centres[i] - Vector2(eye.x, eye.z)).abs() - half
 			var d := Vector2(maxf(off.x, 0.0), maxf(off.y, 0.0)).length()
-			_cells[i].layers = 1 if d < minf(sparse_from, reach) else Quality.FULL_LAYER
+			var layers := 1 if d < minf(sparse_from, reach) else Quality.FULL_LAYER
+			if layers != _cell_layers[i]:
+				_cell_layers[i] = layers
+				_cells[i].layers = layers
 			if sparse != null and _sparse_cells[i] != null:
 				_sparse_cells[i].visible = d >= sparse_from and d < reach
 		for p: Patch in _patches.values():
 			var lo := Vector2(p.box.position.x, p.box.position.z) - Vector2(eye.x, eye.z)
 			var hi := Vector2(p.box.end.x, p.box.end.z) - Vector2(eye.x, eye.z)
 			var gap := Vector2(maxf(maxf(lo.x, -hi.x), 0.0), maxf(maxf(lo.y, -hi.y), 0.0))
-			p.mmi.layers = 1 if gap.length() < reach else Quality.FULL_LAYER
+			var layers := 1 if gap.length() < painted_reach else Quality.FULL_LAYER
+			if layers != p.layers:
+				p.layers = layers
+				p.mmi.layers = layers
 
 	func _setup(m: MultiMesh, drawn: Mesh, count: int) -> void:
 		m.transform_format = MultiMesh.TRANSFORM_3D
@@ -491,6 +504,8 @@ class Patch:
 	var mm: MultiMesh
 	var mmi: MultiMeshInstance3D
 	var slots := PackedInt32Array()
+	## The layers `Pool.cull` last gave `mmi`.
+	var layers := 1
 	## Around the plants it has drawn since it was last empty, through every height the ground can reach, so the
 	## camera culls a patch by where its plants stand rather than by its whole square.
 	var box: AABB
@@ -757,7 +772,7 @@ func _process(_delta: float) -> void:
 	var eye := get_viewport().get_camera_3d()
 	if eye != null:
 		grass.cull(eye.global_position, grass_reach)
-		flowers.cull(eye.global_position, minf(flower_reach, FLOWER_NEAR))
+		flowers.cull(eye.global_position, minf(flower_reach, FLOWER_NEAR), flower_reach)
 
 
 ## Fits a shade blob to each standing crown's blobs when any tree or bush has changed or been drawn otherwise.
