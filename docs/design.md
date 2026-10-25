@@ -4519,7 +4519,21 @@ texture copy however long the painting is. Paint still wet at the checkpoint car
 it dries to what a fresh replay dries to, bit for bit (`tests/gpu_canvas.gd`). A canvas keeps six checkpoints, the
 most recently made or used, each two 1536×1152 half-float textures (28 MB), made only once that canvas is painted
 on: undo steps back six strokes at a copy each, and further back replays from the nearest checkpoint kept or from
-the blank sheet. `demo/canvas-undo.json` times undo at 10, 50 and 200 strokes.
+the blank sheet. `demo/canvas-undo.json` times undo at 10, 50 and 200 strokes: how long from the undo until the
+canvas shows the painting without its last stroke, before (a full replay) and after (a checkpoint), on the Steam
+Frame unworn and on a Quest 2:
+
+| Strokes | Frame before | Frame after | Quest 2 before | Quest 2 after |
+| --- | --- | --- | --- | --- |
+| 10 | 3,393 ms | same frame | 7,128 ms | same frame |
+| 50 | 35,623 ms | same frame | 69,869 ms | same frame |
+| 200 | 149,686 ms | same frame | 295,263 ms | same frame |
+
+Before, the canvas showed the old painting for the whole replay (the 10-stroke row replayed 9, the bench's brushed
+stroke not having landed that round). After, the restore runs in the frame that applies the undo, logged in the same
+millisecond, and a screen recording of the Quest 2 at 200 strokes shows the stroke gone from one 33 ms video frame to
+the next. On the Frame no frame of the undo/50 or undo/200 phases ran late after the change; on the Quest 2 the late
+frames in the three seconds after an undo come no faster than in the three seconds before it, the drying canvas's own.
 
 `demo/easel.json` sets up three easels and paints a landscape on each, one per medium; `demo/oil-mixing.json` paints
 blue and then yellow onto the oil palette, stirs them green, picks the green up and paints with it; `demo/easel-bench.json`
