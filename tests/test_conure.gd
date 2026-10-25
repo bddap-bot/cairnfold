@@ -19,7 +19,8 @@ func _events_follow_motion(fps: int) -> void:
 	for i in fps * 3:
 		bird.animate(1.0 / fps)
 	check(events.count(Cues.Act.HAND_PECK) == 2, "two visible peck contacts in 3 s at %d Hz" % fps)
-	check(is_equal_approx(float(bird.get_instance_shader_parameter("animation_time")), bird.animation_time), "renderer uses the event clock")
+	var posed: Quaternion = bird.get_instance_shader_parameter("turn_head")
+	check(posed.is_equal_approx(Conure.pose(bird.animation_time, bird.mode, bird._gaze).turn_head), "renderer uses the event clock")
 	bird.mode = Conure.IDLE
 	bird.animation_time = 0.0
 	events.clear()

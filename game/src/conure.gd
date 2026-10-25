@@ -2,7 +2,8 @@ class_name Conure
 extends Critter
 
 ## A small parrot built from soft, slightly ruffled ellipsoids, standing on its feet at the origin and
-## facing -Z. Looking about, preening, pecking and flight run in its vertex shader, and its plumage turns
+## facing -Z. Looking about, preening, pecking and flight pose each part once a frame in `pose`, which the vertex
+## shader applies as one rigid turn per vertex, and its plumage turns
 ## in the fragment shader: one of the colourings wild conures come in, or iridescent, turning from blue facing the eye
 ## to green at grazing angles. Part ids ride in UV2.x. Plumage vertices carry brightness in red, a hue bias in green,
 ## their patch in blue and 1 in alpha; the bill carries its shade with alpha 0.5; the rest carry their colour with
@@ -48,6 +49,10 @@ const BILL_SIZE := Vector3(0.009, 0.0105, 0.0125)
 const WING_SIZE := Vector3(0.011, 0.052, 0.025)
 const TAIL_SIZE := Vector3(0.018, 0.058, 0.006)
 const NECK := Vector3(0, 0.098, -0.012)
+const ALONG := Vector3(0, 0.8192, -0.5736)
+const OUT := Vector3(0, 0.5736, 0.8192)
+## Each part's turn and shift parameters in the shader, by `Part`.
+const POSE := ["body", "head", "wing_l", "wing_r", "tail", "feet"]
 ## How far round and up or down the head turns to look at something, in radians.
 const GAZE_TURN := Vector2(1.7, 0.9)
 const GAZE_EASE := 4.0
@@ -75,7 +80,7 @@ func _init(phase: float, plumage: int) -> void:
 	colouring = plumage
 	prepare()
 	animation_time = phase
-	set_instance_shader_parameter("animation_time", animation_time)
+	_pose()
 	cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	set_instance_shader_parameter("plumage", plumage)
 
@@ -90,9 +95,7 @@ func look(delta: float) -> void:
 	to.x = lerpf(_gaze.x, to.x, 1.0 - exp(-delta * GAZE_TURN_EASE))
 	to.y = lerpf(_gaze.y, to.y, 1.0 - exp(-delta * GAZE_TURN_EASE))
 	looking = Vector3.INF
-	if to != _gaze:
-		_gaze = to
-		set_instance_shader_parameter("gaze", _gaze)
+	_gaze = to
 
 
 ## The shader and event crossings use this clock, including in fixed-step replays.
@@ -101,7 +104,7 @@ func animate(delta: float) -> void:
 		set_instance_shader_parameter("floor_height", terrain.height_at(global_position.x, global_position.z))
 	var before := animation_time
 	animation_time += delta
-	set_instance_shader_parameter("animation_time", animation_time)
+	_pose()
 	if mode.z > 0.5 and _crossed(before, animation_time, 4.2, PI * 0.5):
 		event(Cues.Act.HAND_PECK)
 	if mode.x > 0.5:
@@ -112,6 +115,64 @@ func animate(delta: float) -> void:
 			event(Cues.Act.HAND_LOOK)
 	if mode.y > 0.5 and _crossed(before, animation_time, 14.0, PI * 0.5):
 		event(Cues.Act.HAND_PREEN)
+
+
+func _pose() -> void:
+	var p := pose(animation_time, mode, _gaze)
+	for key: String in p:
+		set_instance_shader_parameter(key, p[key])
+
+
+## The shader's pose parameters at time `t` for motion weights `m` (looking about, preening, pecking, flight) and a
+## gaze of yaw, pitch and hold. The weights scale each motion so blends stay continuous.
+static func pose(t: float, m: Vector4, gaze: Vector3) -> Dictionary:
+	var idle := m.x
+	var preen := m.y
+	var peck := m.z
+	var fly := m.w
+	# Which shoulder a preening bird works at; it swings its head round to the other now and then.
+	var shoulder_side := clampf(sin(t * 0.35 + 0.5) * 4.0, -1.0, 1.0)
+	# Breathing, and now and then a fluff-up with a quick flick of both wings.
+	var burst := pow(maxf(sin(t * 0.45 + 2.1), 0.0), 40.0)
+	# Flight levels the body out, bobbing with each beat; pecking leans it forward over its feet.
+	var level := Transform3D(Basis(), Vector3(0, fly * 0.006 * sin(t * TAU * 8.0 + 1.0), 0)) * _about(BODY, Basis(Vector3.RIGHT, -fly * 0.96))
+	var body := level * Transform3D(Basis(Vector3.RIGHT, -peck * 0.55), Vector3.ZERO)
+	var yaw := lerpf(idle * 1.1 * _snap(t, 0.9, 3.0) + preen * 2.5 * shoulder_side, gaze.x, gaze.z)
+	var cock := idle * 0.45 * _snap(t, 0.7, 11.0) * (1.0 - 0.6 * gaze.z) + preen * 0.35 * sin(t * 9.0)
+	var nod := lerpf(preen * (0.75 + 0.12 * sin(t * 14.0)) + peck * (0.25 + 0.9 * pow(maxf(sin(t * 4.2), 0.0), 6.0)) - fly * 0.4, -gaze.y, gaze.z)
+	var head := body * _about(NECK, Basis(Vector3.UP, yaw) * Basis(Vector3.RIGHT, -nod)) * _about(NECK + Vector3(0, 0.016, -0.012), Basis(Vector3.BACK, cock))
+	var wings: Array[Transform3D] = []
+	for side: float in [-1.0, 1.0]:
+		var shoulder := BODY + ALONG * 0.03 + OUT * 0.012 + Vector3.RIGHT * side * 0.026
+		var flick := idle * burst * 0.5 * (0.6 + 0.4 * sin(t * 40.0))
+		var lift := preen * 0.25 * maxf(side * shoulder_side, 0.0)
+		var beat := fly * (0.25 + 1.0 * sin(t * TAU * 8.0))
+		wings.append(body * _about(shoulder, Basis(ALONG, -side * (beat + flick + lift)) * Basis(OUT, side * fly * 1.45)))
+	var wag := idle * (0.08 * sin(t * 1.7) + 0.4 * burst * sin(t * 30.0)) + peck * 0.1 * sin(t * 4.2)
+	var tail_lift := fly * 0.9 + 0.12 * _snap(t, 0.5, 23.0) * idle
+	var tail := body * _about(BODY - ALONG * 0.036 + OUT * 0.014, Basis(Vector3.RIGHT, tail_lift) * Basis(OUT, wag))
+	var p := {}
+	for part in Part.values():
+		var f: Transform3D = [body, head, wings[0], wings[1], tail, level][part]
+		p["turn_" + POSE[part]] = f.basis.get_rotation_quaternion()
+		p["shift_" + POSE[part]] = f.origin
+	p.shift_body = Vector4(body.origin.x, body.origin.y, body.origin.z, 1.0 + (idle + preen) * (0.014 * sin(t * 3.1) + 0.07 * burst))
+	p.shift_feet = Vector4(level.origin.x, level.origin.y, level.origin.z, fly)
+	return p
+
+
+static func _about(pivot: Vector3, b: Basis) -> Transform3D:
+	return Transform3D(b, pivot - b * pivot)
+
+
+static func _hash(n: float) -> float:
+	return fposmod(sin(n * 127.1 + 311.7) * 43758.547, 1.0) * 2.0 - 1.0
+
+
+## A held value that snaps to a new random one now and then, as a bird's head moves in quick turns.
+static func _snap(t: float, rate: float, seed: float) -> float:
+	var k := floorf(t * rate)
+	return lerpf(_hash(k + seed), _hash(k + 1.0 + seed), smoothstep(0.0, 0.18, fposmod(t * rate, 1.0)))
 
 
 static func _crossed(before: float, after: float, rate_hz: float, offset: float) -> bool:
