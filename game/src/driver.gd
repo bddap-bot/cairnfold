@@ -975,7 +975,7 @@ func _layer_parts(name: String) -> Array[Array]:
 		"flowers":
 			materials = [flora.flower_mat, flora.flower_far]
 		"trees":
-			materials = [flora.trunks.live.material_override, flora.foliage.live.material_override]
+			materials = [flora.trunks.material, flora.foliage.material]
 		"mountains":
 			for n in look.get_children():
 				if n is MeshInstance3D and n != look.disc and n != look.moon_disc:
@@ -997,7 +997,7 @@ func _layer_parts(name: String) -> Array[Array]:
 		"ivy":
 			materials = [Wall.kinds()[Wall.Part.IVY].material]
 		"moss":
-			materials = [flora.moss.live.material_override]
+			materials = [flora.moss.material]
 		"boulders":
 			out.append([main.boulders, "visible", false])
 		"camera_previews":

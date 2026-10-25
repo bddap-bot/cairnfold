@@ -52,8 +52,9 @@ signal grown
 ## One kind of plant, in numbered slots. Slots filled before `keep()` are the meadow's own: `keep()` bakes them into
 ## one MultiMesh per `cell` square, so the camera culls those off screen, and they are never recycled. A pool with a
 ## `sparse` mesh also bakes, per cell, the plants whose rank (colour alpha) is under `survivors` drawn with it, and
-## draws that instead of the whole cell once the cell lies wholly beyond `sparse_from`. Later slots fill
-## a fixed-capacity MultiMesh in order and, once it is full, replace the oldest. Every tree has the same number of
+## draws that instead of the whole cell once the cell lies wholly beyond `sparse_from`. Later slots fill `capacity`
+## in order and, once it is full, replace the oldest; each is drawn in a Patch, a growing MultiMesh per `cell`
+## square, so painted plants off screen or past reach cost nothing either. Every tree has the same number of
 ## blobs, so the trunk and foliage pools recycle in step.
 class Pool:
 	const GONE := Vector3(1e9, 0, 1e9)
@@ -64,18 +65,21 @@ class Pool:
 	var survivors := 0.0
 	## What the meadow's own plants bake with, where they need less than placed ones: no water plant parts.
 	var kept_mesh: Mesh
-	var mm := MultiMesh.new()
+	var capacity: int
 	var far: MultiMesh
 	var far_live: MultiMeshInstance3D
 	## For the painted and meadow grass, where the ground paints it past the clumps' reach.
 	var cover: FloraCover
-	## What draws `mm`, the slots after the kept ones.
-	var live: MultiMeshInstance3D
+	## Set on each patch's instance: the shaders tell placed plants from the meadow's own by it.
+	var planted := 0.0
+	var material: Material
 	## Bumped by every `Plant.draw`, so the crowns' shade can follow a tool's preview.
 	var draws := 0
 	## The mesh each plant was made with; `draw_with` may draw a simpler one in its place.
 	var mesh: Mesh
+	var drawn: Mesh
 	var kept := 0
+	var _count := 0
 	var last := -1
 	var _next := 0
 	## Bumped each time a slot is reused, so a remembered plant knows when its slot has moved on.
@@ -83,11 +87,16 @@ class Pool:
 	var anchors := PackedVector3Array()
 	var plants: Array[Plant] = []
 	var _parent: Node3D
-	var _mat: Material
 	var _shadows: bool
-	## Each slot's colour and custom data until `keep()` bakes it: a MultiMesh does not give them back.
+	## Each slot's colour and custom data, and each painted slot's drawn transform: a MultiMesh does not give them
+	## back, and a patch moves its instances about.
 	var _colors := PackedColorArray()
 	var _customs := PackedColorArray()
+	var _xforms: Array[Transform3D] = []
+	var _patches := {}
+	## By painted slot (slot - kept), the patch drawing it and its instance there.
+	var _patch_of: Array[Patch] = []
+	var _index_in_patch := PackedInt32Array()
 	var _cell_of: Array[MultiMesh] = []
 	var _index_in_cell := PackedInt32Array()
 	var _cells: Array[MultiMeshInstance3D] = []
@@ -103,34 +112,34 @@ class Pool:
 	## is gentle enough to hold soil.
 	var soil := false
 
-	func _init(parent: Node3D, m: Mesh, capacity: int, mat: Material, shadows: bool, size := 16.0) -> void:
+	func _init(parent: Node3D, m: Mesh, slots: int, mat: Material, shadows: bool, size := 16.0) -> void:
 		mesh = m
+		drawn = m
 		cell = size
+		capacity = slots
 		_parent = parent
-		_mat = mat
+		material = mat
 		_shadows = shadows
-		_setup(mm, m, capacity)
-		mm.visible_instance_count = 0
-		stamps.resize(capacity)
-		anchors.resize(capacity)
-		plants.resize(capacity)
-		_colors.resize(capacity)
-		_customs.resize(capacity)
-		# Painting changes the instance list every frame; a fixed box spares a bounds pass over every plant.
-		Terrain.lift(mm, Terrain.bounds())
-		live = _show(mm)
+		stamps.resize(slots)
+		anchors.resize(slots)
+		plants.resize(slots)
+		_colors.resize(slots)
+		_customs.resize(slots)
+		_xforms.resize(slots)
+		_patch_of.resize(slots)
+		_index_in_patch.resize(slots)
 
 	## `custom`'s blue and alpha are taken for `anchor`.
 	func add(xform: Transform3D, color: Color, anchor: Vector3, custom := Color()) -> Plant:
-		var n := mm.visible_instance_count
-		var i := kept + n
-		if n < mm.instance_count:
-			mm.visible_instance_count = n + 1
-		elif mm.instance_count == 0:
+		var i := kept + _count
+		if _count < capacity:
+			_count += 1
+		elif capacity == 0:
 			return null
 		else:
 			i = kept + _next
-			_next = (_next + 1) % mm.instance_count
+			_next = (_next + 1) % capacity
+			_unpatch(i - kept)
 		last = i
 		if indexed and plants[i] != null:
 			_unindex(i)
@@ -142,17 +151,15 @@ class Pool:
 		custom.b = anchor.x
 		custom.a = anchor.z
 		var rock := soil and Terrain.rock_at(anchor.x, anchor.z)
-		mm.set_instance_transform(i - kept, _drawn_as(xform, rock))
-		mm.set_instance_color(i - kept, color)
-		mm.set_instance_custom_data(i - kept, custom)
+		_colors[i] = color
+		_customs[i] = custom
+		_xforms[i] = _drawn_as(xform, rock)
+		_patch(i - kept)
 		if far != null:
-			far.visible_instance_count = kept + mm.visible_instance_count
-			far.set_instance_transform(i, _drawn_as(xform, rock))
+			far.visible_instance_count = kept + _count
+			far.set_instance_transform(i, _xforms[i])
 			far.set_instance_color(i, color)
 			far.set_instance_custom_data(i, custom)
-		if i < _colors.size():
-			_colors[i] = color
-			_customs[i] = custom
 		stamps[i] += 1
 		anchors[i] = anchor
 		plants[i] = Plant.new(self, i, xform, anchor)
@@ -163,6 +170,61 @@ class Pool:
 			cover.looks[i] = FloraCover.look(color, custom)
 			cover.touch(anchor)
 		return plants[i]
+
+	## Draws painted slot `j` from its `_xforms`, `_colors` and `_customs` in the patch of the square it stands in.
+	func _patch(j: int) -> void:
+		var i := kept + j
+		var key := Vector2i(floori(_xforms[i].origin.x / cell), floori(_xforms[i].origin.z / cell))
+		var p: Patch = _patches.get(key)
+		if p == null:
+			p = Patch.new()
+			p.key = key
+			p.mm = MultiMesh.new()
+			_setup(p.mm, drawn, Patch.FIRST)
+			p.mm.visible_instance_count = 0
+			p.mmi = _show(p.mm)
+			p.mmi.set_instance_shader_parameter(&"planted", planted)
+			_patches[key] = p
+		var n := p.slots.size()
+		if n == p.mm.instance_count:
+			p.mm.instance_count = n * 2
+			Terrain.lift(p.mm, p.box)
+			for k in n:
+				_write(p, k, p.slots[k])
+		var ground := Terrain.bounds()
+		var box := _xforms[i] * mesh.get_aabb()
+		box.position.y += ground.position.y
+		box.size.y += ground.size.y
+		box = box.grow(0.5)
+		if n == 0 or not p.box.encloses(box):
+			p.box = box if n == 0 else p.box.merge(box)
+			Terrain.lift(p.mm, p.box)
+		p.slots.append(i)
+		p.mm.visible_instance_count = n + 1
+		_patch_of[j] = p
+		_index_in_patch[j] = n
+		_write(p, n, i)
+
+	## Takes painted slot `j` out of its patch, its last instance moving into the gap.
+	func _unpatch(j: int) -> void:
+		var p := _patch_of[j]
+		if p == null:
+			return
+		var k := _index_in_patch[j]
+		var end: int = p.slots.size() - 1
+		if k != end:
+			var moved: int = p.slots[end]
+			p.slots[k] = moved
+			_index_in_patch[moved - kept] = k
+			_write(p, k, moved)
+		p.slots.resize(end)
+		p.mm.visible_instance_count = end
+		_patch_of[j] = null
+
+	func _write(p: Patch, k: int, i: int) -> void:
+		p.mm.set_instance_transform(k, _xforms[i])
+		p.mm.set_instance_color(k, _colors[i])
+		p.mm.set_instance_custom_data(k, _customs[i])
 
 	static func square(at: Vector3) -> Vector2i:
 		return Vector2i(floori(at.x / GRID), floori(at.z / GRID))
@@ -189,7 +251,7 @@ class Pool:
 		return out
 
 	func keep() -> void:
-		kept = mm.visible_instance_count
+		kept = _count
 		var cells := {}
 		for i in kept:
 			var o := plants[i].xform.origin
@@ -200,7 +262,7 @@ class Pool:
 		_index_in_sparse.resize(kept)
 		for key: Vector2i in cells:
 			var slots: Array = cells[key]
-			var whole := _bake(slots, kept_mesh if kept_mesh != null else mm.mesh)
+			var whole := _bake(slots, kept_mesh if kept_mesh != null else drawn)
 			for j in slots.size():
 				_cell_of[slots[j]] = whole
 				_index_in_cell[slots[j]] = j
@@ -218,10 +280,12 @@ class Pool:
 					mmi.visible = false
 					mmi.layers = Quality.LADDER_LAYER
 				_sparse_cells.append(mmi)
-		_colors = PackedColorArray()
-		_customs = PackedColorArray()
-		mm.instance_count = mm.instance_count - kept
-		mm.visible_instance_count = 0
+		for p: Patch in _patches.values():
+			p.mmi.free()
+		_patches = {}
+		capacity -= kept
+		_count = 0
+		_patch_of.fill(null)
 
 	func _bake(slots: Array, drawn: Mesh) -> MultiMesh:
 		var m := MultiMesh.new()
@@ -240,8 +304,15 @@ class Pool:
 		Terrain.lift(m, box.grow(0.5))
 		return m
 
+	## What draws the painted plants.
+	func patches() -> Array[MultiMeshInstance3D]:
+		var out: Array[MultiMeshInstance3D] = []
+		for p: Patch in _patches.values():
+			out.append(p.mmi)
+		return out
+
 	func size() -> int:
-		return kept + mm.visible_instance_count
+		return kept + _count
 
 	## Back to the kept plants; plants remembered from the rest no longer find their slots.
 	func reset() -> void:
@@ -250,7 +321,11 @@ class Pool:
 				_unindex(i)
 			plants[i] = null
 			stamps[i] += 1
-		mm.visible_instance_count = 0
+		for p: Patch in _patches.values():
+			p.slots.clear()
+			p.mm.visible_instance_count = 0
+		_patch_of.fill(null)
+		_count = 0
 		if far != null:
 			far.visible_instance_count = kept
 		if cover != null:
@@ -264,7 +339,9 @@ class Pool:
 			if _sparse_cell_of[slot] != null:
 				_sparse_cell_of[slot].set_instance_transform(_index_in_sparse[slot], xform)
 		else:
-			mm.set_instance_transform(slot - kept, xform)
+			_unpatch(slot - kept)
+			_xforms[slot] = xform
+			_patch(slot - kept)
 		if far != null:
 			far.set_instance_transform(slot, xform)
 		if cover != null:
@@ -282,7 +359,8 @@ class Pool:
 			_cell_of[p.slot].set_instance_color(_index_in_cell[p.slot], color)
 			_cover_cell(p.slot)
 		else:
-			mm.set_instance_color(p.slot - kept, color)
+			_colors[p.slot] = color
+			_write(_patch_of[p.slot - kept], _index_in_patch[p.slot - kept], p.slot)
 		if far != null:
 			far.set_instance_color(p.slot, color)
 
@@ -339,7 +417,8 @@ class Pool:
 			if _sparse_cell_of[slot] != null:
 				_sparse_cell_of[slot].set_instance_custom_data(_index_in_sparse[slot], custom)
 		else:
-			mm.set_instance_custom_data(slot - kept, custom)
+			_customs[slot] = custom
+			_write(_patch_of[slot - kept], _index_in_patch[slot - kept], slot)
 		if far != null:
 			far.set_instance_custom_data(slot, custom)
 
@@ -353,9 +432,11 @@ class Pool:
 		cell.custom_aabb = cell.custom_aabb.merge(box.grow(0.5))
 
 	func draw_with(m: Mesh) -> void:
-		mm.mesh = m
+		drawn = m
 		for c in _cells:
 			c.multimesh.mesh = m
+		for p: Patch in _patches.values():
+			p.mm.mesh = m
 
 	## Not `visibility_range_end`: that measures to the box's centre, which sits high above the ground because a
 	## cell's box spans every height the terrain can be pulled to. A cell out of reach stays for a photo.
@@ -367,6 +448,11 @@ class Pool:
 			_cells[i].layers = 1 if d < minf(sparse_from, reach) else Quality.FULL_LAYER
 			if sparse != null and _sparse_cells[i] != null:
 				_sparse_cells[i].visible = d >= sparse_from and d < reach
+		for p: Patch in _patches.values():
+			var lo := Vector2(p.box.position.x, p.box.position.z) - Vector2(eye.x, eye.z)
+			var hi := Vector2(p.box.end.x, p.box.end.z) - Vector2(eye.x, eye.z)
+			var gap := Vector2(maxf(maxf(lo.x, -hi.x), 0.0), maxf(maxf(lo.y, -hi.y), 0.0))
+			p.mmi.layers = 1 if gap.length() < reach else Quality.FULL_LAYER
 
 	func _setup(m: MultiMesh, drawn: Mesh, count: int) -> void:
 		m.transform_format = MultiMesh.TRANSFORM_3D
@@ -378,7 +464,7 @@ class Pool:
 	## The distant layer is one draw per pool. Keeping it whole costs fewer draws than pairing every near cell.
 	func far_with(mat: ShaderMaterial) -> void:
 		far = MultiMesh.new()
-		_setup(far, Flora.far_mesh(), mm.instance_count)
+		_setup(far, Flora.far_mesh(), capacity)
 		far.visible_instance_count = 0
 		Terrain.lift(far, Terrain.bounds())
 		far_live = _show(far)
@@ -388,11 +474,24 @@ class Pool:
 	func _show(m: MultiMesh) -> MultiMeshInstance3D:
 		var mmi := MultiMeshInstance3D.new()
 		mmi.multimesh = m
-		mmi.material_override = _mat
+		mmi.material_override = material
 		if not _shadows:
 			mmi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 		_parent.add_child(mmi)
 		return mmi
+
+
+## The painted plants of one pool standing in one `cell` square: `slots` in the order `mm` draws them. Its capacity
+## doubles when it fills, so painting rarely resizes a GPU buffer and an unpainted square costs none.
+class Patch:
+	const FIRST := 64
+	var key: Vector2i
+	var mm: MultiMesh
+	var mmi: MultiMeshInstance3D
+	var slots := PackedInt32Array()
+	## Around the plants it has drawn since it was last empty, through every height the ground can reach, so the
+	## camera culls a patch by where its plants stand rather than by its whole square.
+	var box: AABB
 
 
 ## A tree or bush, as what the delete tool's beam strikes: its parts (a tree's trunk then its blobs), and the
@@ -568,7 +667,7 @@ func _init() -> void:
 	for pool in [flowers, ghost_flowers]:
 		pool.far_with(flower_far)
 	for pool in [grass, ghost_grass, flowers, ghost_flowers]:
-		pool.live.set_instance_shader_parameter(&"planted", 1.0)
+		pool.planted = 1.0
 	var moss_mat := ShaderMaterial.new()
 	moss_mat.shader = load("res://src/moss.gdshader")
 	moss = Pool.new(self, Meshes.moss(), PAINTED_MOSS, moss_mat, false)
