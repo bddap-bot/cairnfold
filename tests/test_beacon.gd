@@ -215,6 +215,7 @@ func _the_picker_shows_a_host_s_own_avatar_before_joining() -> void:
 	host._shelved = shelved
 	viewer.nearby.erase("127.0.0.1:1")
 	for s in sessions:
+		set_multiplayer(null, s.get_parent().get_path())
 		s.get_parent().queue_free()
 	main.queue_free()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(folder.path_join("crimsom.vrm")))

@@ -115,6 +115,7 @@ func _the_look_reaches_the_other_players() -> void:
 		var right := seen.eyes.basis.x
 		check(points.dot(right) > face.dot(right) + 0.1 and points.dot(Vector3.UP) > face.dot(Vector3.UP) + 0.1, "and its eyes turn right and up with it")
 	for s in sessions:
+		set_multiplayer(null, s.get_parent().get_path())
 		s.get_parent().queue_free()
 	XRServer.remove_tracker(eyes)
 	await frames(2)

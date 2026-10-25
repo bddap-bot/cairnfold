@@ -82,6 +82,8 @@ var _look_type := Vrm.BONE
 var _ranges: Array[Vector2] = []
 var _eyes: Array[Joint] = []
 var _shapes: Array = []
+## The tinted surface materials: a mesh frees its own before its render instance, whose teardown then reads them.
+var _tints: Array[Material] = []
 
 
 static var _built_in := {}
@@ -581,6 +583,7 @@ func _dress(n: Node, tint: Color) -> void:
 			if m is StandardMaterial3D and m.resource_name.begins_with("tint"):
 				var t: StandardMaterial3D = m.duplicate()
 				t.albedo_color = tint
+				_tints.append(t)
 				mi.set_surface_override_material(i, t)
 	for c in n.get_children():
 		_dress(c, tint)
