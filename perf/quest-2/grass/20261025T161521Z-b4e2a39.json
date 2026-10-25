@@ -1,0 +1,46 @@
+{
+ "budget_gpu_ms": 11.1111111111111,
+ "phases": {
+  "bench-eye": {
+   "p50": 13.9119997024536,
+   "p99": 15.5200004577637,
+   "late": 0,
+   "draws": 70,
+   "prims": 302869,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.192,
+     "late": 0
+    }
+   ],
+   "step": 5,
+   "fill": 1.0,
+   "gpu_ms": 9.06,
+   "timewarp_ms": 1.14
+  },
+  "bench-kneel": {
+   "p50": 13.9440002441406,
+   "p99": 15.7390003204346,
+   "late": 0,
+   "draws": 136,
+   "prims": 614001,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 15.767,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 18.844,
+     "late": 0
+    }
+   ],
+   "step": 5,
+   "fill": 1.0,
+   "gpu_ms": 8.31,
+   "timewarp_ms": 1.14
+  }
+ }
+}

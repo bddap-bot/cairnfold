@@ -2317,9 +2317,9 @@ specifically to tame specular aliasing). Wind stays low-frequency and
 world-anchored, so it moves the grass rather than the ground. Tiny Glade's public
 talks cover its walls and lighting, not its grass.
 
-Cost so far: on a Quest 2 the painted-meadow views of `demo/grass.json` take 8.4 ms
-(standing) and 8.0 ms (kneeling) of the 12.5 ms GPU budget, with no late frame
-(`perf/quest-2/grass/`).
+Cost so far: on a Quest 2 the painted-meadow views of `demo/grass.json` take 9.1 ms
+(standing) and 8.3 ms (kneeling) of the 11.1 ms GPU budget, with no late frame
+(`perf/quest-2/grass/`, b4e2a39).
 
 `demo/grass.json` paints a meadow, captures it from fixed cameras (with a hand
 held in the grass for the last pair), and records two benchmark stretches;
