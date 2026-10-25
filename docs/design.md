@@ -3631,7 +3631,11 @@ is bare (earth or stone), and the brushes plant nothing there.
   [after](../perf/quest-2/cliff-cost/20261023T070028Z-3bd2619.json)). Sinking grass and flowers on rock by the
   grid's normal, read from the texel their vertex already fetches, cost 0.27 to 0.75 ms in the same scene, the cliff
   look alone none, so the GPU tests nothing: Flora finds the grass and flowers on rock as each is added or moved and
-  as the ground under it settles, and draws those at zero scale; laid gentle again, the ground grows them back.
+  as the ground under it settles, and draws those at zero scale; laid gentle again, the ground grows them back. In the
+  same scene that costs nothing and spares the fragments: the meadow 4.29 and 4.29 after against 4.28 to 4.30 before,
+  the cliff from afar 5.48 and 5.44 against 5.61 to 5.63, beside it 4.15 and 4.11 against 4.64 to 4.72
+  ([before](../perf/quest-2/cliff-cost/20261025T010128Z-5bf6f23.json),
+  [after](../perf/quest-2/cliff-cost/20261025T010711Z-f0e3995.json)).
 - **Styles:** each stroke of stone carries a style from one table (`StoneStyles`): mossy (the
   default) and river cobble; a boulder with lines on it did not fit, so no other style earned its place. The mask's blue channel holds the style of the stroke that laid most of the stone at each texel, read
   nearest-texel at a jittered spot so two styles meet along a ragged line. The style tool on painted stone

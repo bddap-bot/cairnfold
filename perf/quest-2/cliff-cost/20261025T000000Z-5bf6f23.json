@@ -1,0 +1,80 @@
+{
+ "budget_gpu_ms": 12.5,
+ "phases": {
+  "meadow/glide": {
+   "p50": 13.9379997253418,
+   "p99": 16.2099990844727,
+   "late": 3,
+   "draws": 71,
+   "prims": 145909,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 15.188,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 15.896,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 15.059,
+     "late": 0
+    }
+   ],
+   "gpu_ms": 4.28
+  },
+  "cliff/glide": {
+   "p50": 13.9139995574951,
+   "p99": 25.8880004882812,
+   "late": 7,
+   "draws": 65,
+   "prims": 140445,
+   "landings": [
+    {
+     "frames": 37,
+     "max": 14.954,
+     "late": 0
+    },
+    {
+     "frames": 37,
+     "max": 15.444,
+     "late": 0
+    },
+    {
+     "frames": 37,
+     "max": 16.193,
+     "late": 0
+    }
+   ],
+   "gpu_ms": 5.62
+  },
+  "cliff/near-glide": {
+   "p50": 13.9390001296997,
+   "p99": 16.1620006561279,
+   "late": 5,
+   "draws": 73,
+   "prims": 145909,
+   "landings": [
+    {
+     "frames": 36,
+     "max": 16.463,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 15.534,
+     "late": 0
+    },
+    {
+     "frames": 36,
+     "max": 15.381,
+     "late": 0
+    }
+   ],
+   "gpu_ms": 4.72
+  }
+ }
+}
