@@ -48,7 +48,8 @@ cd "$stage/game"
 # Install first so notices enter ordinary APK assets before signing.
 mkdir -p android/build
 unzip -q "$tdir/$template" -d android/build
-cp "$("$root/scripts/android-template.sh" android/build/libs/release/godot-lib.template_release.aar)" \
+# The engine build (scons) and the export (Gradle) size themselves to every CPU; with-jobs holds them to their share.
+cp "$("$root/scripts/with-jobs" "$root/scripts/android-template.sh" android/build/libs/release/godot-lib.template_release.aar)" \
   android/build/libs/release/godot-lib.template_release.aar
 printf '%s.stable\n' "$godot_version" > android/.build_version
 # The toolkit's Android library brings its own GDExtension and the Platform SDK loader. Its addon is left out: the
@@ -67,7 +68,7 @@ fi
 cp "$root/scripts/android-notices.gradle" "$stage/game/android/build/"
 printf '\napply from: "android-notices.gradle"\n' >> "$stage/game/android/build/build.gradle"
 rm -f "$out"
-"$root/scripts/export.sh" . "$preset" "$out" "$stage/export.log"
+"$root/scripts/with-jobs" "$root/scripts/export.sh" . "$preset" "$out" "$stage/export.log"
 
 tools=$ANDROID_HOME/build-tools/$ANDROID_BUILD_TOOLS
 "$tools/apksigner" verify "$out"

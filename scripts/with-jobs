@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+"""Runs a command with as many CPUs as the caller's make jobserver lends it: with-jobs CMD...
+
+Tools that cannot join a jobserver (scons, Gradle and the JVM) size themselves to every CPU, beside whatever else
+draws on the same jobserver. This takes the tokens it is lent while they keep coming, holds them for the command's
+life, and tells the command its count through OMP_NUM_THREADS, which nproc reports, and the JVM's processor count.
+Without a jobserver in MAKEFLAGS the command runs as it would have.
+"""
+
+import os
+import re
+import select
+import stat
+import subprocess
+import sys
+
+argv = sys.argv[1:]
+if not argv:
+    sys.exit(__doc__)
+auth = re.search(r"--jobserver-auth=fifo:(\S+)", os.environ.get("MAKEFLAGS", ""))
+if not auth or not os.path.exists(auth[1]) or not stat.S_ISFIFO(os.stat(auth[1]).st_mode):
+    os.execvp(argv[0], argv)
+
+fd = os.open(auth[1], os.O_RDWR | os.O_NONBLOCK)
+want = len(os.sched_getaffinity(0)) - 1
+held = b""
+# The jobserver lends a group its share a token at a time; a pause this long means it has lent what it will.
+while len(held) < want and select.select([fd], [], [], 0.5)[0]:
+    try:
+        held += os.read(fd, want - len(held))
+    except BlockingIOError:
+        pass
+jobs = len(held) + 1
+env = dict(os.environ, OMP_NUM_THREADS=str(jobs),
+           JAVA_TOOL_OPTIONS=f"{os.environ.get('JAVA_TOOL_OPTIONS', '')} -XX:ActiveProcessorCount={jobs}".strip())
+try:
+    code = subprocess.call(argv, env=env)
+finally:
+    os.write(fd, held)
+sys.exit(code if code >= 0 else 128 - code)
