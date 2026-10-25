@@ -208,17 +208,17 @@ if [ "${2:-}" = --android ]; then
   if [ "$players" -gt 1 ]; then
     join adb shell cat "$log" -- "$(adb shell ip -4 -o addr show wlan0 | awk '{print $4}' | cut -d/ -f1)"
   fi
-  # The stress scene runs past 15 minutes on a Quest 2, so the run is given an hour. A dropped connection is no end.
+  # A dropped connection is no end.
   ended=
   SECONDS=0
-  while [ "$SECONDS" -lt 3600 ]; do
+  while [ "$SECONDS" -lt $((limit + 300)) ]; do
     sleep 1
     [ "$(adb shell "pidof $pkg > /dev/null || echo gone" 2> /dev/null | tr -d '\r')" != gone ] || { ended=1; break; }
   done
   adb shell kill "$logcat_pid"
   logcat_pid=
   adb pull "$log" "$out/logcat.txt" > /dev/null
-  [ -n "$ended" ] || { echo "bench: the game was still running after an hour; see $out/logcat.txt" >&2; exit 1; }
+  [ -n "$ended" ] || { echo "bench: the game was still running after $((limit + 300)) s; see $out/logcat.txt" >&2; exit 1; }
   adb pull "$dir/." "$out/" > /dev/null
 elif [ $# -ge 4 ]; then
   device=frame
