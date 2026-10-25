@@ -41,7 +41,7 @@ const RESHAPES := {
 	"walls": ["points", "height", "rise", "top", "finish", "wear", "foundation", "planks", "gable_end", "openings", "lanterns", "flags", "ruins"],
 	"stairs": ["rail", "a", "b", "width", "sag", "on"],
 	"boulders": ["at", "turn", "sink", "scale", "style"],
-	"decorations": ["style", "at", "turn", "s"],
+	"decorations": ["style", "at", "turn", "s", "lantern", "to"],
 	"easels": ["at", "yaw"],
 	"paths": ["surface"],
 }
@@ -224,10 +224,15 @@ static func _holds(wall: Dictionary, mount: String) -> bool:
 	return true
 
 
+## A decoration: the build it stands on (-1 for none), its mount, style and seed, where it stands and its turn, its
+## place along its wall's foot, the lantern swatch its flames burn in, and on a span the far end `to` and the pole
+## `drop` under each end.
 static func _decoration(d: Dictionary) -> Variant:
-	if typeof(d.get("wall")) != TYPE_INT or typeof(d.get("style")) != TYPE_INT or typeof(d.get("seed")) != TYPE_INT:
+	if typeof(d.get("wall")) != TYPE_INT or typeof(d.get("style")) != TYPE_INT or typeof(d.get("seed")) != TYPE_INT or typeof(d.get("lantern")) != TYPE_INT:
 		return null
-	if d.style < 0 or d.style >= DecorationLayout.STYLES.size() or not d.get("mount") in DecorationLayout.MOUNTS or (d.wall < 0) != (d.mount == "ground"):
+	if d.style < 0 or d.style >= DecorationLayout.STYLES.size() or not d.get("mount") in DecorationLayout.MOUNTS or (d.wall < 0) != (d.mount in ["ground", "span"]):
+		return null
+	if not DecorationLayout.stands(d.style, d.mount) or d.lantern < 0 or d.lantern >= Palette.count(Palette.Element.LANTERN):
 		return null
 	if typeof(d.get("at")) != TYPE_VECTOR3 or not _finite(d.at):
 		return null
@@ -236,7 +241,20 @@ static func _decoration(d: Dictionary) -> Variant:
 			return null
 	if d.s < 0.0 or d.s >= 4000.0 or absf(d.side) != 1.0:
 		return null
-	return {"wall": d.wall, "mount": d.mount, "style": d.style, "seed": d.seed, "at": d.at, "turn": d.turn, "s": d.s, "side": d.side}
+	var out := {"wall": d.wall, "mount": d.mount, "style": d.style, "seed": d.seed, "at": d.at, "turn": d.turn, "s": d.s, "side": d.side, "lantern": d.lantern}
+	if d.mount != "span":
+		return out if not d.has("to") and not d.has("drop") else null
+	if typeof(d.get("to")) != TYPE_VECTOR3 or not _finite(d.to) or typeof(d.get("drop")) != TYPE_VECTOR2 or not d.drop.is_finite():
+		return null
+	var span: Vector3 = d.to - d.at
+	var run := Vector2(span.x, span.z).length()
+	if run < DecorationLayout.SPAN_LEAST or run > DecorationLayout.SPAN_MOST or absf(span.y) > run * DecorationLayout.SPAN_STEEPEST:
+		return null
+	if not (d.drop.x >= 0.0 and d.drop.x <= DecorationLayout.POLE and d.drop.y >= 0.0 and d.drop.y <= DecorationLayout.POLE):
+		return null
+	out.to = d.to
+	out.drop = d.drop
+	return out
 
 
 ## A boulder: the ground point under its centre, which way it is turned, how far it is pushed into the ground, the seed

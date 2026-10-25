@@ -4,7 +4,8 @@ extends Node3D
 ## One opening operation for windows and both door styles, plus decorations. A low window click makes a
 ## plain door; the arch selection supplies the archway door style; on a gable roof's slope the window opens a dormer.
 ## Both preview and commit the same list.
-## Decorations hang as ghosts until their command returns. Every edit goes through World.
+## Decorations hang as ghosts until their command returns, placed or taken away as the trigger is let go; a stroke
+## with it held from one point to another hangs a string between them. Every edit goes through World.
 
 const TINT := Color(1.0, 0.93, 0.78, 0.6)
 ## A press this near a placed fitting takes it away.
@@ -27,6 +28,8 @@ var _shaken: Array[float] = []
 var _aims: Array[Dictionary] = []
 ## Per hand, the seed of the decoration its next press places, drawn once per placement so its preview holds still.
 var _draws: Array[int] = []
+## Per hand, the aim its decorations trigger went down on, until it is let go; null while it is up.
+var _starts: Array = []
 ## The reshape data each wall is laid with that the garden does not have yet, by id.
 var _previewed := {}
 ## Fitting lists sent and not yet back, by wall id and key, so a quick second press builds on the first.
@@ -60,6 +63,7 @@ func _init(player: Rig, builder: WallTool, garden: World) -> void:
 		_shaken.append(INF)
 		_aims.append({})
 		_draws.append(randi())
+		_starts.append(null)
 
 
 func _process(delta: float) -> void:
@@ -77,20 +81,26 @@ func _process(delta: float) -> void:
 				target.seed = _draws[i]
 			var hit: Variant = target.point if not target.is_empty() else world.terrain.raycast(t.origin, -t.basis.z)
 			hand.point(hit, TINT)
-			if not target.is_empty():
+			var decorating := hand.tool == Hand.Tool.DECORATIONS
+			var stroke := string_command(_starts[i], target, _draws[i], world.decorations.string_style, walls.paint[Palette.Element.LANTERN]) if decorating and _starts[i] != null else {}
+			if not stroke.is_empty():
+				world.preview(hand, world.change_of(stroke))
+			elif not target.is_empty():
 				var c := change(target)
 				var cmd := _command(target, c)
 				world.preview(hand, world.change_of(cmd))
 				if target.what == "opening" and c.near < 0 and not cmd.is_empty():
 					shown.get_or_add(cmd.id, {}).merge(cmd.data, true)
-			if b.pressed("tool") and not walls.busy(hand):
-				if not fit(target, hand):
-					_shaken[i] = 0.0
-					Cues.play(Cues.Act.REFUSED, hand.global_position, hand)
-				elif placing:
-					_draws[i] = randi()
-			if not hand.picking and hand.tool == Hand.Tool.DECORATIONS:
-				ghost = ghost_of(target, t.origin, -t.basis.z, hit)
+			if decorating and b.pressed("tool") and not walls.busy(hand):
+				_starts[i] = target
+			elif decorating and b.released("tool") and _starts[i] != null:
+				_let_go(i, hand, stroke, target)
+			elif not decorating and b.pressed("tool") and not walls.busy(hand) and not fit(target, hand):
+				_refused(i, hand)
+			if not hand.picking and decorating:
+				ghost = ghost_of(target, t.origin, -t.basis.z, hit) if stroke.is_empty() else {"what": "decoration", "d": stroke, "xform": world.decorations.frame(stroke), "fits": true}
+		if hand.tool != Hand.Tool.DECORATIONS or not b.held("tool"):
+			_starts[i] = null
 		_show_ghost(i, ghost, delta)
 		b.latch()
 	for id in _sent:
@@ -101,6 +111,42 @@ func _process(delta: float) -> void:
 	if _since_lights >= LIGHT_EVERY:
 		light_lanterns()
 	lamps.update()
+
+
+## Hand `i`'s decorations trigger let go aiming at `target`: it hangs `stroke` where it drew one, or else does what its
+## preview showed there.
+func _let_go(i: int, hand: Hand, stroke: Dictionary, target: Dictionary) -> void:
+	_starts[i] = null
+	if not stroke.is_empty():
+		if world.fits(stroke):
+			Cues.play(Cues.Act.FITTING, stroke.to, hand)
+		world.submit(stroke, Callable(), hand)
+	elif not fit(target, hand):
+		_refused(i, hand)
+		return
+	if not stroke.is_empty() or (target.get("what") == "decoration" and not target.has("fitting")):
+		_draws[i] = randi()
+
+
+func _refused(i: int, hand: Hand) -> void:
+	_shaken[i] = 0.0
+	Cues.play(Cues.Act.REFUSED, hand.global_position, hand)
+
+
+## The string a stroke of the decorations tool from aim `from` to aim `to` hangs between their points, each on a pole
+## where a decoration would stand there outdoors, seeded `seed`, of `style` with its lanterns in `lantern` (a
+## Palette.Element.LANTERN swatch); {} where none hangs.
+func string_command(from: Dictionary, to: Dictionary, seed: int, style: int, lantern: int) -> Dictionary:
+	if from.is_empty() or to.is_empty():
+		return {}
+	var ends: Array[Vector3] = []
+	var drop := Vector2.ZERO
+	for k in 2:
+		var end: Dictionary = [from, to][k]
+		drop[k] = DecorationLayout.POLE if end.get("what") == "decoration" and end.get("mount") in ["ground", "deck", "foundation"] and not end.has("fitting") else 0.0
+		ends.append(end.point + Vector3.UP * drop[k])
+	var cmd := {"op": "decoration", "wall": -1, "mount": "span", "at": ends[0], "to": ends[1], "drop": drop, "s": 0.0, "side": 1.0, "turn": 0.0, "seed": seed, "style": style, "lantern": lantern}
+	return cmd if Commands._decoration(cmd) != null else {}
 
 
 ## What a press from `origin` along `dir` would do with `tool`: a dictionary naming `what` and where, or empty.
@@ -240,7 +286,7 @@ func _command(target: Dictionary, c: Dictionary) -> Dictionary:
 	if not c.ok:
 		return {}
 	if target.what == "decoration":
-		return decoration_command(target)
+		return decoration_command(target.merged({"lantern": walls.paint[Palette.Element.LANTERN]}))
 	var w: Wall = target.wall
 	if target.what == "tower_flag":
 		return {"op": "reshape", "of": "walls", "id": w.id, "data": {"roof": {"flag": not w.roof.flag}}}
@@ -322,10 +368,10 @@ func ghost_of(target: Dictionary, origin: Vector3, dir: Vector3, hit: Variant) -
 		var at: Vector3 = hit + Vector3.UP * HANG_OVER if hit != null and origin.distance_to(hit) < HANG * 2.0 else origin + dir * HANG
 		return {"what": "lantern", "xform": _facing(at, -dir), "fits": false}
 	if target.what == "decoration":
-		var d := decoration_command(target)
+		var d := decoration_command(target.merged({"lantern": walls.paint[Palette.Element.LANTERN]}))
 		if world.decorations.frame(d) == null:
 			return {}
-		return {"what": "decoration", "style": d.style, "seed": d.seed, "mount": d.mount, "rise": world.decorations.rise(d), "xform": world.decorations.frame(d), "fits": true}
+		return {"what": "decoration", "d": d, "xform": world.decorations.frame(d), "fits": true}
 	var w: Wall = target.wall
 	var layout := w.layout
 	var what: String = target.what
@@ -379,14 +425,16 @@ static func _ghost_material(tint: Color, glow: float) -> StandardMaterial3D:
 
 func _show_ghost(i: int, ghost: Dictionary, delta: float) -> void:
 	_shaken[i] += delta
-	if ghost.get("what") == "decoration" and (not _ghosts[i].has("decoration") or _ghosts[i].decoration.get_meta(&"shape") != [ghost.style, ghost.seed, ghost.rise, ghost.mount]):
+	var shape := []
+	if ghost.get("what") == "decoration":
+		var d: Dictionary = ghost.d
+		shape = [d.style, d.seed, world.decorations.rise(d), d.mount, Decorations.span(d).snapped(Vector3.ONE * 0.25), d.get("drop"), d.lantern]
+	if ghost.get("what") == "decoration" and (not _ghosts[i].has("decoration") or _ghosts[i].decoration.get_meta(&"shape") != shape):
 		if _ghosts[i].has("decoration"):
 			_ghosts[i].decoration.free()
-		var layout := DecorationLayout.new()
-		layout.build(ghost.style, ghost.seed, ghost.rise, ghost.mount)
-		var n := ToolModels.decoration(layout, ghost.seed)
+		var n := ToolModels.decoration(world.decorations.laid(ghost.d), ghost.d.seed, ghost.d.lantern)
 		n.top_level = true
-		n.set_meta(&"shape", [ghost.style, ghost.seed, ghost.rise, ghost.mount])
+		n.set_meta(&"shape", shape)
 		add_child(n)
 		_ghosts[i].decoration = n
 	# A chimney stands taller down its slope: its ghost is laid again as its height moves 5 cm, by the roof it goes on.
@@ -425,7 +473,7 @@ func _show_ghost(i: int, ghost: Dictionary, delta: float) -> void:
 ## Hands every lantern's flame, and the houses holding them, to the light they cast.
 func light_lanterns() -> void:
 	_since_lights = 0.0
-	lamps.light(walls.walls, world.decorations.flames)
+	lamps.light(walls.walls, world.decorations.flames, world.decorations.lights)
 
 
 func _exit_tree() -> void:
@@ -583,4 +631,4 @@ static func decoration_command(target: Dictionary) -> Dictionary:
 		var x := Decorations.plan(w)
 		at = x.affine_inverse() * Vector3(at.x, 0.0, at.z)
 		turn -= atan2(-x.basis.x.z, x.basis.x.x)
-	return {"op": "decoration", "wall": w.id if w != null else -1, "mount": mount, "at": at, "s": float(target.get("s", 0.0)), "side": float(target.get("side", 1.0)), "turn": turn, "seed": int(target.get("seed", 0)), "style": int(target.get("style", DecorationLayout.PRESENT))}
+	return {"op": "decoration", "wall": w.id if w != null else -1, "mount": mount, "at": at, "s": float(target.get("s", 0.0)), "side": float(target.get("side", 1.0)), "turn": turn, "seed": int(target.get("seed", 0)), "style": int(target.get("style", DecorationLayout.PRESENT)), "lantern": int(target.get("lantern", 0))}

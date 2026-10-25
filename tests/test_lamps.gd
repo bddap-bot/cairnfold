@@ -45,7 +45,7 @@ func _house(cover := WallLayout.Cover.ROOF) -> Lamps.Room:
 
 func _at(layers: Array[PackedByteArray], x: float, z: float, layer: int) -> float:
 	var c := Bounce.column(x, z)
-	return layers[layer][c.y * Bounce.CELLS + c.x] / 255.0 * Lamps.ENCODE
+	return layers[layer][(c.y * Bounce.CELLS + c.x) * 4] / 255.0 * Lamps.ENCODE
 
 
 func _a_house_keeps_its_light_in() -> void:

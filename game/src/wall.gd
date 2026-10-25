@@ -23,6 +23,7 @@ var masonry: Masonry
 var terrain: Terrain
 ## Lantern flames and flags: few, alive, and drawn by the wall itself.
 var _fittings := Fittings.new()
+var _smoke := Smoke.new()
 var finished := false
 ## The reshape data it is laid with in place of the garden's own, empty when laid as the garden has it.
 var reshaped := {}
@@ -159,6 +160,7 @@ func _init(seed: int, glade: Masonry, ground: Terrain) -> void:
 	masonry = glade
 	terrain = ground
 	add_child(_fittings)
+	add_child(_smoke)
 	_parts.resize(Part.size())
 	_chunked.resize(Part.size())
 
@@ -469,7 +471,8 @@ func _lay_dressing(roofed := {}) -> void:
 	if roof != null:
 		_pack_roof(roofed)
 	else:
-		_fittings.lay(layout.flames, layout.cloths)
+		_fittings.lay(layout.flames, layout.cloths, paint[Palette.Element.LANTERN])
+		_smoke.lay(PackedVector3Array())
 
 
 ## Lays `r` on a built layout's walls and packs its tiles as instance buffers by Part. Touches nothing but its
@@ -505,7 +508,8 @@ func _pack_roof(roofed := {}) -> void:
 	if not roofed.mortar.is_empty():
 		_parts[Part.MORTAR] = _wall_mortar + roofed.mortar
 		_chunked[Part.MORTAR] = Masonry.split(_parts[Part.MORTAR], kinds()[Part.MORTAR])
-	_fittings.lay(layout.flames, layout.cloths + roof.cloths)
+	_fittings.lay(layout.flames, layout.cloths + roof.cloths, paint[Palette.Element.LANTERN])
+	_smoke.lay(roof.vents)
 	var plastered := layout.plastered() and layout.gable_end == WallLayout.GableEnd.WALL
 	var faces := [roof.coat, roof.gable_faces if plastered else PackedVector3Array(), roof.torching_faces, roof.timber_faces]
 	if faces == _faced:
@@ -611,11 +615,14 @@ static func _painted_as(part: Dictionary, colours: PackedInt32Array) -> Color:
 
 
 ## Paints the wall in `to`. Its packed parts are scaled from the swatches they carry onto the new ones in place, a pass
-## over its pieces instead of a lay.
+## over its pieces instead of a lay, and its lanterns burn in theirs.
 func repaint(to: PackedInt32Array) -> void:
 	if to == paint:
 		return
+	var lit := to[Palette.Element.LANTERN] != paint[Palette.Element.LANTERN]
 	paint = to.duplicate()
+	if lit:
+		_fittings.lay(layout.flames, layout.cloths + roof.cloths if roof != null else layout.cloths, paint[Palette.Element.LANTERN])
 	_tint_roof()
 	_recolour()
 
@@ -643,10 +650,13 @@ func _recolour() -> void:
 		return
 	var scale := {}
 	for e in Palette.SWATCHES:
-		if _painted[e] != paint[e]:
+		if _painted[e] != paint[e] and e != Palette.Element.LANTERN:
 			var a := Palette.tint(e, _painted[e])
 			var b := Palette.tint(e, paint[e])
 			scale[float(e)] = Vector3(b.r / a.r, b.g / a.g, b.b / a.b)
+	if scale.is_empty():
+		_painted = paint.duplicate()
+		return
 	var ks := kinds()
 	var parts := {}
 	for p in PAINTED:

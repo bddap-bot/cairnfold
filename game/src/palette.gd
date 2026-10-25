@@ -8,8 +8,8 @@ extends RefCounted
 
 ## Each material's value is also its code in the parts' custom data, which tells a repaint what to scale; the
 ## meadow's 0 doubles as "kept as laid".
-## GLOW is the colour a room's windows shine at night.
-enum Element { MEADOW = 0, STONE = 1, ROOF = 2, WOOD = 3, PLASTER = 4, TIMBER = 5, THATCH = 6, GLOW = 7 }
+## GLOW is the colour a room's windows shine at night, LANTERN its lanterns' colour and brightness.
+enum Element { MEADOW = 0, STONE = 1, ROOF = 2, WOOD = 3, PLASTER = 4, TIMBER = 5, THATCH = 6, GLOW = 7, LANTERN = 8 }
 
 ## The meadow's swatches are the seasons, each a preset for the meadow (grass and ground) and foliage
 ## (trees, bushes, ivy): the colour plants turn toward (rgb) and how far (a); and the share of flowers in bloom.
@@ -22,7 +22,11 @@ const SEASONS := [
 ]
 const SUMMER := 1
 
-## Each material's swatches; the first is the colour its parts are laid in.
+## The colours a window or a lantern glows in.
+const GLOWS: Array[Color] = [Color(1.0, 0.62, 0.26), Color(1.0, 0.84, 0.56), Color(1.0, 0.42, 0.4), Color(0.95, 0.28, 0.14), Color(0.56, 0.92, 0.42), Color(0.36, 0.86, 0.8), Color(0.44, 0.6, 1.0), Color(0.78, 0.5, 1.0)]
+
+## Each material's swatches; the first is the colour its parts are laid in. A lantern's are each glow colour lit, bright
+## and dim in turn (Lamps.STRENGTHS), as its flame burns.
 const SWATCHES := {
 	Element.STONE: [WallLayout.STONE, Color(0.84, 0.81, 0.74), Color(0.78, 0.64, 0.42), Color(0.70, 0.46, 0.37), Color(0.48, 0.50, 0.55), Color(0.40, 0.38, 0.36), Color(0.56, 0.59, 0.48)],
 	Element.ROOF: [RoofLayout.CLAY, Color(0.33, 0.38, 0.46), Color(0.38, 0.48, 0.30), Color(0.66, 0.22, 0.19), Color(0.78, 0.58, 0.30), Color(0.24, 0.24, 0.26), Color(0.24, 0.47, 0.50), Color(0.45, 0.28, 0.38)],
@@ -30,7 +34,17 @@ const SWATCHES := {
 	Element.TIMBER: [TimberFrame.OAK, Color(0.16, 0.105, 0.075), Color(0.30, 0.20, 0.12), Color(0.25, 0.22, 0.18), Color(0.19, 0.16, 0.13), Color(0.22, 0.12, 0.07)],
 	Element.PLASTER: [WallLayout.PLASTER, Color(0.93, 0.92, 0.89), Color(0.91, 0.72, 0.68), Color(0.89, 0.73, 0.45), Color(0.72, 0.81, 0.87), Color(0.75, 0.81, 0.67)],
 	Element.THATCH: [RoofLayout.STRAW, Color(0.72, 0.56, 0.3), Color(0.78, 0.68, 0.45), Color(0.5, 0.38, 0.24), Color(0.5, 0.48, 0.43), Color(0.34, 0.29, 0.22)],
-	Element.GLOW: [Color(1.0, 0.62, 0.26), Color(1.0, 0.84, 0.56), Color(1.0, 0.42, 0.4), Color(0.95, 0.28, 0.14), Color(0.56, 0.92, 0.42), Color(0.36, 0.86, 0.8), Color(0.44, 0.6, 1.0), Color(0.78, 0.5, 1.0)],
+	Element.GLOW: GLOWS,
+	Element.LANTERN: [
+		GLOWS[0], GLOWS[0] * 0.55 + Color(0.45, 0.45, 0.45), GLOWS[0] * 0.6,
+		GLOWS[1], GLOWS[1] * 0.55 + Color(0.45, 0.45, 0.45), GLOWS[1] * 0.6,
+		GLOWS[2], GLOWS[2] * 0.55 + Color(0.45, 0.45, 0.45), GLOWS[2] * 0.6,
+		GLOWS[3], GLOWS[3] * 0.55 + Color(0.45, 0.45, 0.45), GLOWS[3] * 0.6,
+		GLOWS[4], GLOWS[4] * 0.55 + Color(0.45, 0.45, 0.45), GLOWS[4] * 0.6,
+		GLOWS[5], GLOWS[5] * 0.55 + Color(0.45, 0.45, 0.45), GLOWS[5] * 0.6,
+		GLOWS[6], GLOWS[6] * 0.55 + Color(0.45, 0.45, 0.45), GLOWS[6] * 0.6,
+		GLOWS[7], GLOWS[7] * 0.55 + Color(0.45, 0.45, 0.45), GLOWS[7] * 0.6,
+	],
 }
 
 ## The material each kind of laid part is painted with; kinds not listed (iron, flags, curtains, flowers) keep their

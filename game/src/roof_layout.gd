@@ -133,6 +133,8 @@ var slabs: Array[Dictionary] = []
 ## Plain mortar boxes bedding a deck's flags, so its joints show mortar rather than the floor below.
 var mortar: Array[Dictionary] = []
 var cloths: Array[Dictionary] = []
+## The mouth of each chimney pot, where its smoke rises.
+var vents := PackedVector3Array()
 ## The exclusions used when this roof was laid, shared by its surface picks.
 var joined: Array[Massing] = []
 var resting: Array[Massing] = []
@@ -187,6 +189,7 @@ func adopt(built: RoofLayout) -> void:
 	slabs = built.slabs
 	mortar = built.mortar
 	cloths = built.cloths
+	vents = built.vents
 	joined = built.joined
 	resting = built.resting
 	faces = built.faces
@@ -346,6 +349,7 @@ func build() -> void:
 	slabs.clear()
 	mortar.clear()
 	cloths.clear()
+	vents.clear()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed
 	var hue := rng.randf_range(-0.04, 0.04)
@@ -607,7 +611,7 @@ func _chimney_rng(i: int) -> RandomNumberGenerator:
 	return rng
 
 
-## A stone stack rising from the slope to clear the ridge, with a cap slab and two clay pots.
+## A stone stack rising from the slope to clear the ridge, with a cap slab and two clay pots, each smoking.
 func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
 	var f := frame()
 	var foot: Vector3 = f.mid + f.along * c.x + f.across * c.y
@@ -622,7 +626,9 @@ func _lay_chimney(c: Vector2, rng: RandomNumberGenerator) -> void:
 		y += h
 	_add(Transform3D(basis.scaled_local(Vector3(STACK_WIDTH + 0.14, 0.09, STACK_WIDTH + 0.14)), foot + Vector3.UP * (top + 0.045)), "chimney", Color(0.6, 0.56, 0.5), 1.0)
 	for side in [-1.0, 1.0]:
-		_add(Transform3D(basis.scaled_local(Vector3(0.15, 0.24, 0.15)), foot + f.along * side * STACK_WIDTH * 0.22 + Vector3.UP * (top + 0.21)), "pot", _clay(0.0, rng) * 0.9, 1.0)
+		var pot: Vector3 = foot + f.along * side * STACK_WIDTH * 0.22 + Vector3.UP * (top + 0.21)
+		_add(Transform3D(basis.scaled_local(Vector3(0.15, 0.24, 0.15)), pot), "pot", _clay(0.0, rng) * 0.9, 1.0)
+		vents.append(pot + Vector3.UP * 0.14)
 
 
 ## Where a trapdoor can lie in this flat roof nearest the spot `c`, its lid clear of the walls; NAN where none fits.

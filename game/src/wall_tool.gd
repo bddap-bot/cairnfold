@@ -1421,7 +1421,10 @@ func _decoration_grip(id: int, s: Sizing, in_hand: Callable) -> Sizing:
 			decorations.show_held(id, d)
 	s.command = func() -> Dictionary:
 		var d: Dictionary = shown.d
-		return {} if d == start else {"op": "reshape", "of": "decorations", "id": id, "data": {"at": d.at, "turn": d.turn, "s": d.s}}
+		var data := {"at": d.at, "turn": d.turn, "s": d.s}
+		if d.has("to"):
+			data.to = d.to
+		return {} if d == start else {"op": "reshape", "of": "decorations", "id": id, "data": data}
 	s.settle = func() -> void:
 		if not in_hand.call():
 			decorations.settle(id)

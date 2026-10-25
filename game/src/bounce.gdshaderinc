@@ -4,7 +4,7 @@
 global uniform sampler3D bounce_volume : filter_linear, repeat_disable;
 global uniform vec3 bounce_grid;
 global uniform vec3 bounce_light;
-// Lantern light baked on the same probes (Lamps).
+// Lantern light baked on the same probes (Lamps), in each lantern's colour.
 global uniform sampler3D lamp_volume : filter_linear, repeat_disable;
 global uniform vec3 lamp_light;
 
@@ -32,7 +32,7 @@ vec3 lamp_coord(vec3 p, vec3 n) {
 
 // What a surface reading bounce at `at` and lantern light at `lamp_at` adds over its albedo.
 vec3 given_back(vec3 at, vec3 lamp_at, vec4 bounce) {
-	return bounce.rgb * bounce_light + textureLod(lamp_volume, lamp_at, 0.0).r * lamp_light;
+	return bounce.rgb * bounce_light + textureLod(lamp_volume, lamp_at, 0.0).rgb * lamp_light;
 }
 
 // given_back and the sky seen, read once a vertex for things small or dense enough that the volumes do not vary

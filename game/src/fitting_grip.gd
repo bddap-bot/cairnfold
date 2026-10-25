@@ -93,7 +93,8 @@ static func fits(w: Wall, key: String, v: Variant, others: Array, openings: Arra
 
 
 ## Decoration `d` carried `by` and turned `turn` about the vertical: along its wall at a house's foot, across the ground,
-## or across its floor or deck in its house's plan (`Decorations.plan`), keeping to the floor it stands on.
+## or across its floor or deck in its house's plan (`Decorations.plan`), keeping to the floor it stands on; a string
+## carried whole, untouched by the turn.
 static func carried(d: Dictionary, w: Wall, by: Vector3, turn: float) -> Dictionary:
 	var out := d.duplicate()
 	var flat := Vector3(by.x, 0.0, by.z)
@@ -103,6 +104,10 @@ static func carried(d: Dictionary, w: Wall, by: Vector3, turn: float) -> Diction
 			return out
 		"ground":
 			out.at = d.at + flat
+		"span":
+			out.at = d.at + flat
+			out.to = d.to + flat
+			return out
 		_:
 			if flat.is_zero_approx():
 				out.turn = d.turn + turn

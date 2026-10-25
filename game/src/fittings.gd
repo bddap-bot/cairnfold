@@ -3,10 +3,11 @@ extends Node3D
 
 ## What a wall carries that is not stone: lantern flames, the glow they hang in the air, and flags waving.
 
+## A lit lantern's glow across; a brighter one's spreads wider.
 const HALO := 1.1
 
 ## Made as the game loads, as Wall's roof materials are: a shader made on first use stalls a frame.
-static var _flame := _flame_material()
+static var _flame := _shaded("res://src/flame.gdshader")
 ## A glow in the air has no colour of its own for an icon to draw (Hand.unlit).
 static var _halo := _shaded("res://src/halo.gdshader", Color.TRANSPARENT)
 static var _cloth := _shaded("res://src/cloth.gdshader")
@@ -17,15 +18,8 @@ static var _strip := _flag_mesh()
 var _flames := Masonry.Kind.new(_box, _flame, true, false, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF).instance()
 var _halos := Masonry.Kind.new(_disc, _halo, true, false, GeometryInstance3D.SHADOW_CASTING_SETTING_OFF).instance()
 var _cloths := Masonry.Kind.new(_strip, _cloth, true, false, GeometryInstance3D.SHADOW_CASTING_SETTING_ON).instance()
-
-
-static func _flame_material() -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = Color(1.0, 0.8, 0.5)
-	m.emission_enabled = true
-	m.emission = Color(1.0, 0.68, 0.32)
-	m.emission_energy_multiplier = 2.4
-	return m
+## The Palette.Element.LANTERN swatch the flames burn in.
+var look := 0
 
 
 static func _shaded(shader: String, icon_colour := Color.WHITE) -> ShaderMaterial:
@@ -46,15 +40,21 @@ func _init() -> void:
 		add_child(mmi)
 
 
-func lay(flames: Array[Transform3D], cloths: Array[Dictionary]) -> void:
+## Lays `flames` burning in `burning` (a Palette.Element.LANTERN swatch), and `cloths`.
+func lay(flames: Array[Transform3D], cloths: Array[Dictionary], burning := 0) -> void:
 	var fm := _flames.multimesh
 	var hm := _halos.multimesh
 	fm.instance_count = flames.size()
 	hm.instance_count = flames.size()
+	look = burning
+	var strength: float = Lamps.STRENGTHS[look % Lamps.STRENGTHS.size()]
+	var flame := Basis().scaled(Vector3.ONE * pow(strength, 0.25))
+	var halo := Basis().scaled(Vector3.ONE * sqrt(strength))
 	for i in flames.size():
-		fm.set_instance_transform(i, flames[i])
-		fm.set_instance_color(i, _flame.albedo_color)
-		hm.set_instance_transform(i, Transform3D(Basis(), flames[i].origin))
+		fm.set_instance_transform(i, Transform3D(flame * flames[i].basis, flames[i].origin))
+		fm.set_instance_color(i, Palette.swatch(Palette.Element.LANTERN, look))
+		hm.set_instance_transform(i, Transform3D(halo, flames[i].origin))
+		hm.set_instance_color(i, Color(Palette.GLOWS[look / Lamps.STRENGTHS.size()], sqrt(strength) * 0.5))
 	var cm := _cloths.multimesh
 	cm.instance_count = cloths.size()
 	for i in cloths.size():

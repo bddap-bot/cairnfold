@@ -15,7 +15,7 @@ const PATH_TREADS_PER_ROW := 2
 ## fences (length along the ground by height, and a house's two gable ends: boards, laid as stones are but fewer, count
 ## as stone wall; worn plaster counts the stone it has worn back to as stone wall besides; a planked wall counts as
 ## plaster for the backing behind its planks), of tiled or flat roof and of thatch (laid along its slopes out to its
-## eaves); fittings that add a mesh (lanterns, flags, chimneys, trapdoors, the ring of an arched or round window,
+## eaves); fittings that add a mesh (lanterns, flags and the runs joining them, chimneys with their smoke, trapdoors, the ring of an arched or round window,
 ## a lived-in house's curtains and flower box at each window and its washing line, dormers, whose boarded faces count
 ## as stone wall and whose slopes as tiled roof besides); painted grass blades and flowers; trees and bushes standing; explicit arch
 ## openings, with timber members and the planks a finish lays counted separately; square metres of pond water; easels,
@@ -234,7 +234,7 @@ static func wall(d: Dictionary) -> Dictionary:
 			timber += n * 2
 	if timber > 0:
 		out.timber = timber
-	var fittings: int = d.lanterns.size() + d.flags.size()
+	var fittings: int = d.lanterns.size() + d.flags.size() + WallLayout.flag_runs(Array(d.flags), length, d.closed).size()
 	var openings: Array = d.get("openings", [])
 	for opening: Vector4 in openings:
 		if int(opening.z) == WallLayout.Family.ARCHWAY:
@@ -413,9 +413,9 @@ const DECORATION_SOLID_US := 2.8
 const DECORATION_FLAME_US := 11.2
 
 
-static func decoration(style: int) -> Dictionary:
+static func decoration(d: Dictionary) -> Dictionary:
 	var layout := DecorationLayout.new()
-	layout.build(style, 0, 4.8)
+	layout.build(d.style, 0, 4.8, d.mount, Decorations.span(d), d.get("drop", Vector2.ZERO))
 	var flames := layout.flames.size() + layout.pictures.size() * 2
 	var us := DECORATION_PIECE_US + DECORATION_SOLID_US * layout.parts.size() + DECORATION_FLAME_US * flames
 	return {"fitting": us / COSTS.fitting, "flower": float(layout.flowers.size())}

@@ -21,7 +21,7 @@ const WIPED := "*"
 ## Commands that can leave a tree or bush standing where water covers its root, which `_drown` then takes out.
 const DROWNING := ["heights", "ponds", "plant", "tree"]
 ## A saved garden from another format is moved aside rather than rebuilt into a different one.
-const FORMAT := 9
+const FORMAT := 10
 ## The garden is kept at most this often while it changes: keeping it takes the frame a copy of the whole garden.
 const KEEP_EVERY := 5.0
 const OVER := "over the frame budget"
@@ -816,7 +816,7 @@ static func _units(of: String, d: Dictionary) -> Dictionary:
 		"grounds":
 			return Budget.ground(d)
 		"decorations":
-			return Budget.decoration(d.style)
+			return Budget.decoration(d)
 		"easels":
 			return {"easel": 1}
 	return {"boulder": Budget.boulder(d.scale)}

@@ -504,7 +504,7 @@ func _in_the_glade() -> void:
 	check(fit.lamps.at(flame.x + 12.0, flame.z, 0) == 0.0, "and not beyond its reach")
 	var high := Lamps.shine(PackedVector3Array([Vector3(0.5, 6.0, 0.5)]), Bounce.grounds(terrain.read(Terrain.ALL)))
 	var under := Bounce.column(0.5, 0.5)
-	var floor_light := high[0][under.y * Bounce.CELLS + under.x] / 255.0 * Lamps.ENCODE
+	var floor_light := high[0][(under.y * Bounce.CELLS + under.x) * 4] / 255.0 * Lamps.ENCODE
 	check(floor_light > 0.05, "a lantern hung 6 m up still lights the floor: %.2f" % floor_light)
 	_fit(fit, t)
 	check(wall.layout.flames.is_empty(), "a second press takes the lantern away")

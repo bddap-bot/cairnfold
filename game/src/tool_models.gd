@@ -255,9 +255,12 @@ static func _style(restyle: PaletteTool.Restyle, i: int, finish: WallLayout.Fini
 	var root := Node3D.new()
 	if restyle == PaletteTool.Restyle.DECORATION:
 		var layout := DecorationLayout.new()
-		layout.build(i, 0)
+		var strung: bool = DecorationLayout.STYLES[i].get("string", false)
+		layout.build(i, 0, 0.6, "span" if strung else "ground", Vector3(2.4, 0, 0), Vector2(1.6, 1.6))
 		var model := decoration(layout, 0)
 		model.scale = Vector3.ONE * 0.035
+		if strung:
+			model.position = Vector3(-1.2, 1.6, 0) * 0.035
 		root.add_child(model)
 		return root
 	if restyle == PaletteTool.Restyle.RAIL:
@@ -1103,17 +1106,15 @@ static func _vertex_mat(key: String, roughness: float, two_sided: bool) -> Stand
 	return _plain(key, Color.WHITE, {"vertex_color_use_as_albedo": true, "roughness": roughness, "cull_mode": BaseMaterial3D.CULL_DISABLED if two_sided else BaseMaterial3D.CULL_BACK})
 
 
-static func decoration(layout: DecorationLayout, seed: int) -> Node3D:
+## A decoration as `layout` lays it, its flames burning in `look` (a Palette.Element.LANTERN swatch).
+static func decoration(layout: DecorationLayout, seed: int, look := 0) -> Node3D:
 	var root := Node3D.new()
 	var stones := Stones.new()
 	stones.lay(layout.parts)
 	root.add_child(stones)
 	if not layout.flames.is_empty():
 		var fire := Fittings.new()
-		fire.lay(layout.flames, [])
-		var glow := ShaderMaterial.new()
-		glow.shader = preload("res://src/flame.gdshader")
-		fire._flames.material_override = glow
+		fire.lay(layout.flames, [], look)
 		root.add_child(fire)
 	if not layout.flowers.is_empty():
 		var surface := SurfaceTool.new()

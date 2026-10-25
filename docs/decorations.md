@@ -1,11 +1,13 @@
 # Decoration measurements
 
-Every decoration style in `DecorationLayout.STYLES` stands on every mount: a house's foundation, the ground,
-a house's floor or a flat roof's deck. Placement stores the mount and places a present, whose lid carries a
+Every decoration style in `DecorationLayout.STYLES` but the two strings stands on every mount: a house's foundation,
+the ground, a house's floor or a flat roof's deck; a string hangs on a span alone (docs/design.md, "Lights, strings
+and smoke"). Placement stores the mount and places a present, whose lid carries a
 picture built from the Style tool's own model; the Style wheel turns it into any other style.
 Each decoration keeps its own command identity for save, co-op, delete and undo.
 Foundation pieces follow the house frame. Planters use the existing flower meshes and colours.
-Lanterns, torches and campfires feed the shared baked lamp volume; no dynamic lights are added.
+Lanterns, torches and campfires feed the shared baked lamp volume, each in its own colour and brightness; no dynamic
+lights are added. The Lantern, Lamp post and the strings are charged by the rule below and not yet measured.
 
 ## Quest 2 paired cost
 

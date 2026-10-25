@@ -2174,7 +2174,7 @@ late-afternoon light and blue distant haze belong to the time-of-day colours
 Directive (verbatim): "I am inside of a house right now, and it's dark. So I added lights. But those lights did not illuminate the ground inside of the house, as I would have expected"
 
 Lantern light is baked into a second volume on the bounce probes (`Lamps`, `lamp_volume`): per probe, the
-light of every lantern within 9 m, fading with distance as Godot fades an omni light. Shaders add it with the
+light of every lantern within 9 m in its colour and strength, fading with distance as Godot fades an omni light. Shaders add it with the
 bounce (`given_back` in `bounce.gdshaderinc`), so it costs one more read of a small texture where they already
 read one, and nothing more however many lanterns hang. A worker solves it again when a lantern is hung or taken
 or the ground moves. A house or tower is a room to it: the air inside its walls' inner faces and under its roof.
@@ -2389,7 +2389,7 @@ Stage numbers refer to the build order at the end.
 | Combining buildings | Buildings stack and merge into one structure | Every build stands on what the hand points at: the ground, a wall's top, a flat roof, or a house's roof, which the storey built there replaces; builds that overlap join into one (see "Buildings on buildings"). Flat roofs stack: a house or tower set down on a deck stands on it, and pushed flat it is a deck of its own, so smaller storeys rise in terraces (see "Flat roofs, platforms and dormers") | 4 (done), 13 (done) |
 | Roofs | Tile-by-tile roofs; drag to change curvature; flat, peaked, curved, gable | Gable roofs on houses, cone roofs on towers, every tile laid individually as one MultiMesh, with lime torching under the tiles so no sky shows between them from inside. From outside every joint lies over a tile (each tile runs up under the two rows above, the eave row lies on an under-course, a cone's tiles lap their neighbours), and the walls' stones stop under the slopes at any pitch. A gable end continues the wall below it: a stone house's courses carry on up under the slopes, a plaster house's plaster does, and on both a verge of stones runs up each rake over the courses' ends (European town houses of Cotswold stone or Provençal plaster). The style tool on a gable end picks that house's gable ends, and houses laid after take it: the wall carried up; boarded, upright planks under a barge board up each rake (a barn's end), painted as woodwork; or crow-stepped, the stone courses or plaster climbing past the slopes in capped steps, the roof stopping inside them. The gable ends count against the budget at the face each style lays, as wall (boards as stone wall: laid as stones are, fewer). Two grips on a roof, whatever the hands hold: drawn apart upright they raise the ridge and together lower it; spread across they bow the slopes out, squeezed together inward (`RoofLayout`). Brought all the way down it snaps flat: a stone-flagged deck inside the walls, rimmed by the wall's top (a cap top rises into a low parapet, a crenellated one keeps its merlons), so the house or tower becomes a terrace; its top then takes a style like an open wall's. The style tool offers tile or thatch on a pitched roof and a stone or wooden deck on a flat roof; only grabbing and pulling changes between flat and pitched, a tower's cone as a house's gable (see "Thatch"). Two grips on the eaves, past the walls, pull them out or push them back; pulled far on low walls the slopes come down to the ground like a tent. The windows tool on a gable's slope opens a dormer (see "Flat roofs, platforms and dormers") | 4 (done), 13 (done) |
 | Windows, doors | Cottage, arched, arrow-slit, round and corner families that fuse, adapt and wear the plaster around them; doors where windows meet the ground; trapdoors in flat roofs; glowing at night; dressed where people live | The windows tool's trigger on a wall opens a cottage window where it points: a dark pane in a wooden frame with glazing bars, set back under a stone lintel and over a sill, the plaster worn around it. Pointed low on the wall it opens a plank door instead. While it points, the wall stands as the press would leave it, laid by the same code. Windows on one course standing together fuse into one opening with stone mullions, doors into a double door, and a window can stand over a door. Openings keep clear of wall ends, corner piers and arches; ivy grows around them; a press on one closes that light. Pointed at a gable roof's slope it opens a dormer instead (see "Flat roofs, platforms and dormers"), at a flat roof a trapdoor, and at a corner's pier a corner window. The style tool turns a window to another family: arched, an arrow slit or round (see "Window families"). At night a room's windows glow in a colour the colour tool picks. A grip on a placed one carries it along its wall, a window up and down it too, and two size it (see "Moving a fitting") | 6 (done), 13 (done), 17 (done) |
-| Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | The decorations tool's trigger places what suits where it points: a stone chimney with two clay pots on a house's roof, rising clear of the ridge; a flag on a tower's roof or a wall's top, waving; a lantern on an iron arm off a wall's face, or on a fence post. Lanterns are emissive bodies in a soft additive halo, and every one lights the ground and walls around it (see "Lantern light"). A press on one takes it away; a grip carries it over what it stands on (see "Moving a fitting") | 6 (done) |
+| Chimneys, flags, lanterns | Placed on walls and roofs; lanterns light the fog | The decorations tool's trigger places what suits where it points: a stone chimney with two clay pots on a house's roof, rising clear of the ridge; a flag on a tower's roof or a wall's top, waving; a lantern on an iron arm off a wall's face, or on a fence post. Lanterns are emissive bodies in a soft additive halo, and every one lights the ground and walls around it (see "Lantern light"). A press on one takes it away; a grip carries it over what it stands on (see "Moving a fitting"). Lanterns also stand on the ground (the Lantern and Lamp post styles), every lantern burns in one of the eight glow colours, lit, bright or dim, its flame and its light alike, a stroke of the decorations tool hangs a string of lanterns or flags, flags close together along a wall's top join into a run, and chimneys smoke (see "Lights, strings and smoke") | 6 (done), 21 (done) |
 | Fences | Same controls as walls, own tool; a path through a fence makes a wooden arch | The fence tool draws like walls (same stroke, merging and junctions) with a wooden profile: posts at most 1.6 m apart and two rails between, or planks (see "Wall finishes"). A path through a fence, in either order, opens a gate: two tall posts under a bent wooden arch | 6 (done), 16 (done) |
 | Ivy | Grows over time; finds nearby walls through a spatial hash and climbs between them; avoids arches and windows | Every finished wall grows ivy over about half a minute: vines start at the foot of both faces (a house or tower under a roof or deck only its outer one: [inside before and after, outside after](ivy.jpg)), wander upward, branch, and steer around arch openings; leaves are instanced cards on the face (`IvyLayout`), kept out of windows and doors too | 3 (done), 6 (done) |
 | Grass, flowers, bushes | Brush-painted vegetation, layered, painting again makes it bushier | Instanced geometry grass and flowers. Flowers and grass are two tools; the trigger of a hand holding one paints where it points; the brush widens with distance and painting a spot again thickens it. Flowers grow in clumps about 1.3 m across, each one of nine soft colours (white, butter, peach, pinks, lavender, violet, blues), so a stroke paints a few colour patches with nothing to pick | 1 (done), 3 (done) |
@@ -2570,6 +2570,44 @@ clear of the chimneys), it stops at the last place it stood. Let go, it is set a
 decoration), one undo step, and a peer checks the reshape as any other. Two hands size an opening by their span, as
 they size a boulder; every other fitting has no size, and the other hand's grip on it takes nothing.
 `tests/test_fitting_grip.gd` carries each kind headless, and through the grip button a lantern.
+
+## Lights, strings and smoke
+
+- **Colour and brightness.** A lantern burns in one of `Palette.GLOWS`, the eight colours a window glows in, at one of
+  three strengths (`Lamps.STRENGTHS`: lit, bright 2.2 times as strong, dim 0.45 times): the 24 swatches of
+  `Palette.Element.LANTERN`. The colour tool on a lantern opens that wheel. A wall's lanterns share its swatch, kept in
+  its paint like any material's, so a house's lanterns all burn alike; a decoration with a flame keeps its own
+  (`lantern`), a string's lanterns too. Walls built, decorations placed and strings hung after take the swatch let go last. The flame
+  shows the swatch as the wheel does, the glow round it widens and strengthens with the brightness, and the light baked
+  into the lamp volume (see "Lantern light") is the colour times the strength.
+- **Standing on the ground.** The Lantern style sets one down on its own iron foot, the Lamp post on an iron post on a
+  stone foot; like every decoration they come as a present the style tool turns into them, on any mount.
+- **Strings.** Held from one point to another, the decorations tool's trigger hangs a string between them when let go:
+  each end tied where it points, or on a 2.6 m pole where a decoration would stand there outdoors (the ground, a
+  flat roof's deck or a house's foot). A ray meets a string only about its rope and what hangs from it. It spans 1.5 to 20 m across the ground
+  and climbs no steeper than it runs. The rope sags 7 cm a metre across, between 5 cm and 1 m (`DecorationLayout.sag`),
+  on a parabola through both ends (`hang_at`), hung with a lantern every 1.1 m or a flag every 0.34 m, each a square
+  hung from its corner in the flag colour after the last. A press let go where it went down places as before. A
+  string is a decoration on the `span` mount, between its first end `at` and its second `to` with the poles `drop`
+  under them, saved, shared, carried whole by a grip and undone like any; the style tool on one offers the two strings
+  alone, and strings hung after take the one let go last. It stands free of the builds it is tied to.
+- **Flag runs.** Neighbouring flags on a wall's top 4 m apart or nearer join into a run (`WallLayout.flag_runs`): a
+  rope from pole to pole 1 m over the wall's top, sagging as a string does, hung with pennants in the two flags' colours.
+  Each run is charged as a fitting.
+- **Smoke.** Each chimney pot smokes (`RoofLayout.vents`, `Smoke`): five puffs, quads turned to the eye that the
+  shader lifts 2.4 m, drifts downwind, swells and fades over seven seconds, lit as the hour lights everything else.
+  The processor lays them once with the roof.
+- **Budget.** A string is charged by the decoration rule (`Budget.decoration`): a piece, a solid for each length of
+  rope, pole, lantern part and flag, a flame for each lantern; a 6 m string of lanterns on two poles costs 184 µs. Neither the
+  strings, the runs, the colours nor the smoke are measured on a headset yet: the stress scene's `lights/*` phases,
+  three houses with a chimney every 1.5 m along their ridges, a lantern every 1.5 m round them and strings between
+  them and in rows across the meadow until the budget is full, at dusk, are the next box's run on the Frame.
+
+`demo/lights.json` renders it at dusk and at night: a capped wall with three flags joined into two runs and red
+lanterns, a house with two smoking chimneys and a blue one, lanterns standing on the ground lit, bright and dim, lamp
+posts in green, teal and violet, strings of lanterns and of flags on poles, and a string tied from the wall's top to
+the house's eaves. `tests/test_lights.gd` covers the looks and the light they bake, the strings' sag and what hangs
+from them, their commands, the stroke, the colour and style tools on them, runs, smoke, the demo and the stress phases.
 
 ## Raising a house
 
@@ -3131,9 +3169,10 @@ calibration of a short and a long arm, and a far house taken, moved and reeled i
 | Draw a fence | Trigger held on a hand holding fences, swept like a wall |
 | Open a window or door | Trigger of a hand holding windows, pointing at a wall: a window of the family last turned to where it points, a door if that is low on the wall and the family opens one; on a corner's pier, a corner window; on a flat roof, a trapdoor; beside another window of its family it fuses with it; on a window or trapdoor it closes it |
 | Cut an arch | Trigger of a hand holding the arch, pointing at a wall: an archway through it where it points, shown on the wall before the press; on one of the wall's own arches, the press fills it. A path's arches and gates stay the path's |
-| Decorate | Trigger of a hand holding decorations: a chimney on a house's roof, a flag on a tower's roof or a wall's top, a lantern on a wall's face (on the side the hand is) or a fence; a present at a house's foot, on open ground, on a house's floor or on a flat roof, its lid drawn with the Style tool's own wand and turned to face the hand; the preview is the present a press places. Style turns it into any decoration on any of those surfaces (planter, bench, rain barrel, woodpile, steps, gatepost lantern, standing torch, campfire, chair, table, settle, bed, shelf, rug, stool, chest, potted plant, candle stand, table and chairs, garden bench, trough planter, parasol, string lights); on one already there it takes it away |
+| Hang a string | Trigger held on a hand holding decorations, from one point to another 1.5 m or more across: let go, a string of lanterns or flags hangs between them, on a pole where an end is the ground |
+| Decorate | Trigger of a hand holding decorations, let go where it went down: a chimney on a house's roof, a flag on a tower's roof or a wall's top, a lantern on a wall's face (on the side the hand is) or a fence; a present at a house's foot, on open ground, on a house's floor or on a flat roof, its lid drawn with the Style tool's own wand and turned to face the hand; the preview is the present a press places. Style turns it into any decoration on any of those surfaces (planter, bench, rain barrel, woodpile, steps, gatepost lantern, standing torch, campfire, chair, table, settle, bed, shelf, rug, stool, chest, potted plant, candle stand, table and chairs, garden bench, trough planter, parasol, string lights, lantern, lamp post); on one already there it takes it away |
 | Turn the sky | Point either hand at open sky, whatever it holds, grip and aim: the sky turns with the pointer, carrying the sun round the day and the moon 100° behind it |
-| Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window or door, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top on that build (or, on the meadow, the garden's season) |
+| Pick a colour or season | Trigger held on a hand holding the colour tool, pointing at a wall, roof, gable, fence, window, door or lantern, or the meadow: twist the wrist to turn the wheel, let go to keep the swatch at the top on that build (or, on the meadow, the garden's season) |
 | Take a photo | Trigger of a hand holding the camera: the screen on its back shows the shot for a moment |
 | Record a video | Hold the trigger of a hand holding the camera: its shutter button glows red while it records; let go to stop |
 | Set up an easel | Trigger of a hand holding the easel, pointing at open ground with no easel near the hand: it stands there facing the player |
@@ -3500,6 +3539,7 @@ the epic, https://github.com/bddap-bot/nestcombe/issues/1, in this order:
 18. Paths make doors: a path into a house opens a door as wide as it, which goes with the path. (Done.)
 19. Path materials and gardens: dirt, sand, cobbles and flagstones blending where they meet, stepping stones across water, garden beds sprouting rows of vegetables. (Done.)
 20. Bridges: plank-and-rope bridges hung between high points with a railing style, a single rope at the least width; walls arching over ponds. (Done.)
+21. Lights, strings and smoke: lanterns standing on the ground, in colours and three brightnesses; strings of lanterns or flags hung by a stroke; flags joining into runs along a wall; smoking chimneys. (Done.)
 
 ## Water
 

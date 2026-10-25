@@ -655,7 +655,8 @@ func _wall_of(s: Dictionary) -> Wall:
 ## would find it: `what` is opening, lantern, flag, chimney, dormer or tower_flag; `s` and `y` place it on the wall,
 ## `style` and `size` shape an opening, `side` picks a lantern's face, `at` a chimney's or dormer's spot along and across the ridge.
 ## A decoration with `from` is aimed as the hand would from there toward `at`, turned `turn` degrees if given: furniture
-## on a floor or a flat roof.
+## on a floor or a flat roof; its `style` is DecorationLayout's index or name. `glow`, a Palette.Element.LANTERN swatch,
+## is a decoration's flames' or, after the press, its wall's lanterns'.
 func _fit(s: Dictionary) -> void:
 	if s.what == "decoration":
 		var w: Wall = main.tool.walls[s.index] if s.has("index") else null
@@ -667,13 +668,30 @@ func _fit(s: Dictionary) -> void:
 			if s.has("turn"):
 				target.turn = deg_to_rad(s.turn)
 		if s.has("style"):
-			target.style = int(s.style)
+			target.style = DecorationLayout.named(s.style) if s.style is String else int(s.style)
+		target.lantern = int(s.get("lantern", 0))
 		main.fitting_tool.fit(target)
 		return
 	var target := {"what": s.what, "wall": main.tool.walls[s.index], "s": s.get("s", 0.0), "y": s.get("y", 0.0), "style": s.get("style", WallLayout.Family.COTTAGE), "size": s.get("size", 1.0), "side": s.get("side", 1.0)}
 	if s.has("at"):
 		target.at = Vector2(s.at[0], s.at[1])
 	main.fitting_tool.fit(target)
+	if s.has("lantern"):
+		main.world.submit({"op": "reshape", "of": "walls", "id": target.wall.id, "data": {"paint": {Palette.Element.LANTERN: int(s.lantern)}}})
+
+
+## Hangs a string of `style` (a DecorationLayout style name, "Lantern string" without one), its lanterns burning in
+## Palette.Element.LANTERN swatch `glow`, from `a` to `b`, each [x, z] on a pole on the ground or [x, y, z] tied there,
+## as a stroke of the decorations tool between them would.
+func _string(s: Dictionary) -> void:
+	var ends: Array[Dictionary] = []
+	for end: Array in [s.a, s.b]:
+		ends.append({"point": Vector3(end[0], end[1], end[2])} if end.size() == 3 else {"what": "decoration", "mount": "ground", "point": main.world.terrain.ground(end[0], end[1])})
+	var cmd := main.fitting_tool.string_command(ends[0], ends[1], int(s.get("seed", 1)), DecorationLayout.named(s.get("style", "Lantern string")), int(s.get("lantern", 0)))
+	if cmd.is_empty():
+		print("string: none hangs from %s to %s" % [s.a, s.b])
+		return
+	main.world.submit(cmd)
 
 
 ## A stroke of `tool` along `points`; stone in `style` (StoneStyles' index) when given, as if the style wheel last let go there.
@@ -923,6 +941,103 @@ func _lanterns(s: Dictionary) -> void:
 		if after.size() > layout.lanterns.size():
 			main.world.submit({"op": "reshape", "of": "walls", "id": w.id, "data": {"lanterns": after}})
 	print("stress: %d lanterns" % hung)
+
+
+## Lights the houses, until the frame budget is full, bounded or not: a chimney every `every` metres along each
+## gable's ridge, as many as a roof takes; a lantern every `every` metres round each, at 2 m on either face in turn; a string between each and every neighbour within `within` metres, tied to the nearest corners
+## of their eaves; then rows of strings `span` long on poles, `rows` apart, across the disc of `radius` about the
+## centre, from its middle row outward, clear of the houses. Strings are of lanterns and of flags in turn, and each house's lanterns and strings, and each row, burn in
+## the next colour and brightness. Its chimneys smoke as they stand.
+func _lights(s: Dictionary) -> void:
+	var houses: Array = main.tool.walls.filter(func(w: Wall) -> bool: return w.roof != null and w.layout.closed)
+	var looks := Palette.count(Palette.Element.LANTERN)
+	var tally := {"strings": 0, "lanterns": 0, "chimneys": 0, "full": false}
+	for w: Wall in houses:
+		w.lay_now()
+		if w.roof.kind != RoofLayout.Kind.GABLE:
+			continue
+		var stacks := PackedVector2Array(w.roof.chimneys)
+		var x: float = -w.roof.ridge_length() * 0.5 + s.every * 0.5
+		while x < w.roof.ridge_length() * 0.5 and stacks.size() < Commands.MAX_CHIMNEYS:
+			var spot := w.roof.chimney_spot(Vector2(x, 0.0))
+			if w.roof.clear_of_dormers(spot) and Array(stacks).all(func(c: Vector2) -> bool: return c.distance_to(spot) > RoofLayout.STACK_WIDTH + 0.3):
+				stacks.append(spot)
+			x += s.every
+		var hung := stacks.size() - w.roof.chimneys.size()
+		if hung > 0 and _lit({"op": "reshape", "of": "walls", "id": w.id, "data": FittingGrip.data("chimneys", FittingGrip.packed("chimneys", Array(stacks)), true)}, tally):
+			tally.chimneys += hung
+	for i in houses.size():
+		var w: Wall = houses[i]
+		var layout := w.layout
+		var after := PackedVector3Array(layout.lanterns)
+		var t := 0.5
+		while t < layout.length() and after.size() < Commands.MAX_FITTINGS:
+			if layout.lantern_fits(t, 2.0):
+				after.append(Vector3(t, 2.0, 1.0 if after.size() % 2 == 0 else -1.0))
+			t += s.every
+		var hung := after.size() - layout.lanterns.size()
+		if _lit({"op": "reshape", "of": "walls", "id": w.id, "data": {"lanterns": after, "paint": {Palette.Element.LANTERN: (i * 7) % looks}}}, tally):
+			tally.lanterns += hung
+	var corners := houses.map(func(w: Wall) -> PackedVector3Array:
+		var out := PackedVector3Array()
+		for p in w.layout.points:
+			out.append(w.transform * (p + Vector3.UP * w.layout.height))
+		return out)
+	for i in houses.size():
+		for j in range(i + 1, houses.size()):
+			var a := _middle(corners[i])
+			var b := _middle(corners[j])
+			if Vector2(a.x - b.x, a.z - b.z).length() <= s.within:
+				_hang({"point": _nearest(corners[i], b)}, {"point": _nearest(corners[j], a)}, (i * 7) % looks, tally)
+	var r: float = s.radius
+	var row := 0
+	while (row + 1) / 2 * s.rows <= r and not tally.full:
+		var z: float = (row + 1) / 2 * s.rows * (1 if row % 2 else -1)
+		var x := -sqrt(maxf(r * r - z * z, 0.0))
+		while x + s.span <= sqrt(maxf(r * r - z * z, 0.0)) and not tally.full:
+			var a := main.world.terrain.ground(x, z)
+			var b := main.world.terrain.ground(x + s.span, z)
+			var clear := func(c: PackedVector3Array) -> bool:
+				var mid := _middle(c)
+				var at := Vector2(mid.x, mid.z)
+				return Geometry2D.get_closest_point_to_segment(at, Vector2(x, z), Vector2(x + s.span, z)).distance_to(at) > Vector2(c[0].x, c[0].z).distance_to(at) + 0.5
+			if corners.all(clear):
+				_hang({"what": "decoration", "mount": "ground", "point": a}, {"what": "decoration", "mount": "ground", "point": b}, (row * 5) % looks, tally)
+			x += s.span
+		row += 1
+	print("stress: %d smoking chimneys, %d lanterns, %d strings on %d houses, fill %.3f%s" % [tally.chimneys, tally.lanterns, tally.strings, houses.size(), main.world.fill(), ", the budget full" if tally.full else ""])
+
+
+## Hangs a string between aims `from` and `to` for `_lights`, of lanterns burning in `look` or of flags as `tally`'s
+## count has it in turn.
+func _hang(from: Dictionary, to: Dictionary, look: int, tally: Dictionary) -> void:
+	var cmd := main.fitting_tool.string_command(from, to, tally.strings + 1, DecorationLayout.named("Flag string" if tally.strings % 2 else "Lantern string"), look)
+	if not cmd.is_empty() and _lit(cmd, tally):
+		tally.strings += 1
+
+
+## Submits `cmd` for `_lights` where the frame budget has room for it, or notes in `tally` that it is full.
+func _lit(cmd: Dictionary, tally: Dictionary) -> bool:
+	if tally.full or not Budget.fits(main.world.units, main.world.change_of(cmd)):
+		tally.full = true
+		return false
+	main.world.submit(cmd)
+	return true
+
+
+static func _middle(points: PackedVector3Array) -> Vector3:
+	var sum := Vector3.ZERO
+	for p in points:
+		sum += p
+	return sum / points.size()
+
+
+static func _nearest(points: PackedVector3Array, to: Vector3) -> Vector3:
+	var best := points[0]
+	for p in points:
+		if p.distance_to(to) < best.distance_to(to):
+			best = p
+	return best
 
 
 ## Fills every painted and placed flora pool to capacity, or with `count` of each, within `radius` of `at` (x, z; the centre by default), or only

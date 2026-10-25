@@ -24,7 +24,7 @@
   {"op": "wait", "seconds": 1},
   {"op": "pond", "x": 12, "z": 10, "brim": 3.0},
   {"op": "paint", "tool": "grass", "points": [[2.5, -3], [4.5, -1]], "radius": 1.5, "seconds": 0.5},
-  {"op": "colour", "hand": "left", "element": "plaster", "swatch": 2, "seconds": 0.3, "from": [5, 1.2, -4.5], "at": [5, 1.0, -7]},
+  {"op": "colour", "hand": "left", "element": "plaster", "swatch": 2, "seconds": 0.3, "from": [3.8, 1.2, -4.5], "at": [3.8, 1.0, -7]},
   {"op": "delete", "x": 9.6, "z": -10.6, "height": 14},
   {"op": "delete", "x": -19.2, "z": -19.2, "height": 14},
   {"op": "erase", "points": [[-8, -4], [-5, -4]], "height": 6, "seconds": 0.4},

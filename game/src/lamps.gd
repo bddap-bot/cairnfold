@@ -1,16 +1,18 @@
 class_name Lamps
 extends Bake
 
-## Lantern light, baked: how much reaches each of Bounce's probes, on its grid so shaders read it where they read
-## the bounce (bounce.gdshaderinc), shared as the global lamp_volume. Every lantern lights and none costs the frame:
+## Lantern light, baked: how much reaches each of Bounce's probes in each lantern's colour, on its grid so shaders read
+## it where they read the bounce (bounce.gdshaderinc), shared as the global lamp_volume. Every lantern lights and none costs the frame:
 ## the volume is solved again on a worker only when a lantern is hung or taken or the ground moves. Godot's own
 ## lights cost the Quest 2 milliseconds a frame each. A house's walls and roof hold its lanterns' light in and keep
 ## the light of lanterns outside out; its windows and, faintly, its doors shine with the light inside them.
 
 ## How far a lantern's light carries: from high on a tall house's wall down to its floor.
 const REACH := 9.0
-## Lantern light as the shaders add it, colour times strength.
-const LIGHT := Color(0.4, 0.28, 0.16)
+## Lantern light as the shaders add it, at a lit lantern's strength.
+const LIGHT := 0.4
+## A lantern's strength lit, bright and dim, in the order of each colour's swatches (Palette.Element.LANTERN).
+const STRENGTHS: Array[float] = [1.0, 2.2, 0.45]
 ## A lit opening must read against the flame of an outdoor lantern, not only against unlit stone.
 const WINDOW_GLOW := 8.0
 ## How brightly a room's glass shines in its glow colour once night falls, lantern or none.
@@ -29,6 +31,7 @@ const DOOR := 0.2
 var texture := ImageTexture3D.new()
 var _layers: Array[Image] = []
 var _flames := PackedVector3Array()
+var _lights := PackedColorArray()
 var _rooms: Array[Room] = []
 var _shells := []
 ## The ground the probes follow, and its heights_revision the last solve stood on.
@@ -39,13 +42,18 @@ var _dirty := false
 
 func _init() -> void:
 	for k in Bounce.LAYERS:
-		_layers.append(Image.create(Bounce.CELLS, Bounce.CELLS, false, Image.FORMAT_R8))
-	texture.create(Image.FORMAT_R8, Bounce.CELLS, Bounce.CELLS, Bounce.LAYERS, false, _layers)
+		_layers.append(Image.create(Bounce.CELLS, Bounce.CELLS, false, Image.FORMAT_RGBA8))
+	texture.create(Image.FORMAT_RGBA8, Bounce.CELLS, Bounce.CELLS, Bounce.LAYERS, false, _layers)
 
 
 func install() -> void:
 	RenderingServer.global_shader_parameter_set(&"lamp_volume", texture)
-	RenderingServer.global_shader_parameter_set(&"lamp_light", Vector3(LIGHT.r, LIGHT.g, LIGHT.b) * ENCODE)
+	RenderingServer.global_shader_parameter_set(&"lamp_light", Vector3.ONE * LIGHT * ENCODE)
+
+
+## The light a lantern of `look` (its Palette.Element.LANTERN swatch) casts: its glow colour times its strength.
+static func light_of(look: int) -> Color:
+	return Palette.GLOWS[look / STRENGTHS.size()] * STRENGTHS[look % STRENGTHS.size()]
 
 
 ## The air inside a house or tower: inside its walls' inner faces, from its floor up to its roof, and through
@@ -116,13 +124,17 @@ class Room:
 		return false
 
 
-## The lanterns hung on `walls` and the rooms of the houses and towers among them, wherever they stand now.
-func light(walls: Array, extra := PackedVector3Array()) -> void:
+## The lanterns hung on `walls`, and `extra` burning in `extra_lights`, and the rooms of the houses and towers among
+## them, wherever they stand now.
+func light(walls: Array, extra := PackedVector3Array(), extra_lights := PackedColorArray()) -> void:
 	var flames := extra.duplicate()
+	var lights := extra_lights.duplicate()
 	var shells := []
 	for w: Wall in walls:
+		var g := light_of(w.paint[Palette.Element.LANTERN])
 		for f in w.layout.flames:
 			flames.append(w.transform * f.origin)
+			lights.append(g)
 		if w.layout.closed and not w.layout.fence and w.massing != null:
 			shells.append([w, w.massing, w.layout.laid])
 	if shells != _shells:
@@ -131,8 +143,9 @@ func light(walls: Array, extra := PackedVector3Array()) -> void:
 		for s in shells:
 			_rooms.append(Room.of(s[0].layout, s[1]))
 		_dirty = true
-	if flames != _flames:
+	if flames != _flames or lights != _lights:
 		_flames = flames
+		_lights = lights
 		_dirty = true
 
 
@@ -144,35 +157,43 @@ func _next() -> Callable:
 		return Callable()
 	_dirty = false
 	var flames := _flames
+	var lights := _lights
 	var rooms := _rooms.duplicate()
 	var heights := terrain.read(Terrain.ALL)
-	return func() -> Dictionary: return {"layers": shine(flames, Bounce.grounds(heights), rooms)}
+	return func() -> Dictionary: return {"layers": shine(flames, Bounce.grounds(heights), rooms, lights)}
 
 
-## The light probe `layer` over column (x, z) holds, as shaders add it.
+## The light probe `layer` over column (x, z) holds in its strongest colour, as shaders add it.
 func at(x: float, z: float, layer: int) -> float:
 	var c := Bounce.column(x, z)
-	return _layers[layer].get_pixel(c.x, c.y).r * ENCODE
+	var p := _layers[layer].get_pixel(c.x, c.y)
+	return maxf(p.r, maxf(p.g, p.b)) * ENCODE
 
 
 func _take(out: Dictionary) -> void:
 	for k in Bounce.LAYERS:
-		_layers[k].set_data(Bounce.CELLS, Bounce.CELLS, false, Image.FORMAT_R8, out.layers[k])
+		_layers[k].set_data(Bounce.CELLS, Bounce.CELLS, false, Image.FORMAT_RGBA8, out.layers[k])
 	texture.update(_layers)
 
 
-## Per layer, the light each probe takes from `flames` with the ground at each column's middle `ground`: falling
-## off with distance and gone at REACH, as Godot fades an omni light. A flame in one of `rooms` lights only that
-## room, and its openings shine outward with the light at them; a flame outside lights no room.
-static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms: Array[Room] = []) -> Array[PackedByteArray]:
+## Per layer, the light each probe takes from `flames`, each in its `lights` (lit in the first colour where none is
+## given), with the ground at each column's middle `ground`: falling off with distance and gone at REACH, as Godot
+## fades an omni light. A flame in one of `rooms` lights only that room, and its openings shine outward with the light
+## at them; a flame outside lights no room.
+static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms: Array[Room] = [], lights := PackedColorArray()) -> Array[PackedByteArray]:
 	var n := Bounce.CELLS
 	var sum := PackedFloat32Array()
-	sum.resize(n * n * Bounce.LAYERS)
+	sum.resize(n * n * Bounce.LAYERS * 3)
+	if lights.is_empty():
+		lights.resize(flames.size())
+		lights.fill(light_of(0))
 	var groups := _groups(rooms)
 	var within := _rooms_at(rooms, ground, groups)
 	var homes := PackedInt32Array()
 	var r := ceili(REACH / Terrain.STEP)
-	for f in flames:
+	for fi in flames.size():
+		var f := flames[fi]
+		var g := lights[fi]
 		var home := 0
 		var near := false
 		for k in rooms.size():
@@ -193,22 +214,27 @@ static func shine(flames: PackedVector3Array, ground: PackedFloat32Array, rooms:
 					var y := ground[j * n + i] + k + 0.5
 					var d := sqrt(flat + pow(y - f.y, 2.0))
 					if d < REACH and not (home == 0 and near and _crosses(f, Vector3(x, y, z), within, ground)):
-						sum[p] += _falloff(d)
+						var lit := _falloff(d)
+						sum[p * 3] += lit * g.r
+						sum[p * 3 + 1] += lit * g.g
+						sum[p * 3 + 2] += lit * g.b
 	for k in rooms.size():
 		for o in rooms[k].openings:
 			var inner: Vector3 = o.at - o.out * (WallLayout.THICKNESS + OUT)
-			var lit := 0.0
+			var lit := Color(0, 0, 0)
 			for f in flames.size():
 				if homes[f] == groups[k]:
-					lit += _falloff(flames[f].distance_to(inner))
-			if lit > 0.0:
+					lit += lights[f] * _falloff(flames[f].distance_to(inner))
+			if lit.r + lit.g + lit.b > 0.0:
 				_spill(sum, o.at, o.out, lit * o.gives, within, ground)
 	var layers: Array[PackedByteArray] = []
 	for k in Bounce.LAYERS:
 		var px := PackedByteArray()
-		px.resize(n * n)
+		px.resize(n * n * 4)
 		for p in n * n:
-			px[p] = clampi(roundi(sum[k * n * n + p] / ENCODE * 255.0), 0, 255)
+			for c in 3:
+				px[p * 4 + c] = clampi(roundi(sum[(k * n * n + p) * 3 + c] / ENCODE * 255.0), 0, 255)
+			px[p * 4 + 3] = 255
 		layers.append(px)
 	return layers
 
@@ -240,7 +266,7 @@ static func _falloff(d: float) -> float:
 ## Adds to the probes outside every room the light `lit` an opening at `at` facing `out` throws, brightest
 ## straight out and gone at SPILL. None goes up: above an opening it would meet only the eaves' underside, and the
 ## probes there are what the roof over them reads.
-static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: float, within: PackedInt32Array, ground: PackedFloat32Array) -> void:
+static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: Color, within: PackedInt32Array, ground: PackedFloat32Array) -> void:
 	var n := Bounce.CELLS
 	var r := ceili(SPILL / Terrain.STEP)
 	var c := Bounce.column(at.x, at.z)
@@ -254,7 +280,10 @@ static func _spill(sum: PackedFloat32Array, at: Vector3, out: Vector3, lit: floa
 				var d := to.length()
 				var facing := to.dot(out)
 				if within[p] == 0 and facing > 0.0 and to.y <= 0.0 and d < SPILL:
-					sum[p] += lit * pow(facing / d, 2.0) * pow(1.0 - pow(d / SPILL, 2.0), 2.0)
+					var share := pow(facing / d, 2.0) * pow(1.0 - pow(d / SPILL, 2.0), 2.0)
+					sum[p * 3] += lit.r * share
+					sum[p * 3 + 1] += lit.g * share
+					sum[p * 3 + 2] += lit.b * share
 
 
 ## Per probe, its connected room group, or 0 outside every room.

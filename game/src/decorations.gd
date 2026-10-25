@@ -13,7 +13,11 @@ var _held := {}
 var _stamp := {}
 ## Decorations a delete sweep has taken, hidden until it lets go; the beam passes through them.
 var _swept := {}
+## Every decoration's flames where they burn, and the light each casts (Lamps.lantern).
 var flames := PackedVector3Array()
+var lights := PackedColorArray()
+## The string a stroke of the decorations tool hangs: the one the style wheel let go on a string last.
+var string_style := DecorationLayout.named("Lantern string")
 
 
 func _init(garden: World, builder: WallTool) -> void:
@@ -38,15 +42,14 @@ func sync() -> void:
 		var x: Variant = frame(d)
 		if x == null:
 			continue
-		var layout := DecorationLayout.new()
-		layout.build(d.style, d.seed, rise(d), d.mount)
+		var layout := laid(d)
 		var wall := walls.find(d.wall)
 		if wall != null:
 			for part in layout.parts:
 				part.color = Wall._painted_as(part, wall.paint)
-		var n := ToolModels.decoration(layout, d.seed)
+		var n := ToolModels.decoration(layout, d.seed, d.lantern)
 		n.transform = (wall.transform if wall != null else Transform3D.IDENTITY) * x
-		n.set_meta(&"bounds", layout.bounds)
+		n.set_meta(&"bounds", DecorationLayout.strung(span(d)) if d.mount == "span" else layout.bounds)
 		n.visible = not _swept.has(id)
 		add_child(n)
 		nodes[id] = n
@@ -55,11 +58,21 @@ func sync() -> void:
 	_gather()
 
 
-## Where a decoration stands, or null where its surface is gone: on the ground; at a house's foot, out from the wall
-## at `s` on `side`, on the ground or the top of a build the house stands on; or, for furniture, at `at` in its
-## house's plan (`plan`), turned `turn` from its ridge, on its floor or on a flat roof's deck, so it moves, turns, grows
-## and rises with the house.
+## Decoration `d` laid about its frame.
+func laid(d: Dictionary) -> DecorationLayout:
+	var layout := DecorationLayout.new()
+	layout.build(d.style, d.seed, rise(d), d.mount, span(d), d.get("drop", Vector2.ZERO))
+	return layout
+
+
+## Where a decoration stands, or null where its surface is gone: on the ground; a string at its first end, facing
+## across its span; at a house's foot, out from the wall at `s` on `side`, on the ground or the top of a build the
+## house stands on; or, for furniture, at `at` in its house's plan (`plan`), turned `turn` from its ridge, on its floor
+## or on a flat roof's deck, so it moves, turns, grows and rises with the house.
 func frame(d: Dictionary) -> Variant:
+	if d.mount == "span":
+		var run: Vector3 = d.to - d.at
+		return Transform3D(Basis(Vector3.UP, atan2(-run.z, run.x)), d.at)
 	if d.wall < 0:
 		return Transform3D(Basis(Vector3.UP, d.turn), Vector3(d.at.x, world.terrain.height_at(d.at.x, d.at.z), d.at.z))
 	var w := walls.find(d.wall)
@@ -87,6 +100,14 @@ func frame(d: Dictionary) -> Variant:
 	return FittingTool._facing(at, normal)
 
 
+## A string's span from its first end to its second in its frame, or zero for any other decoration.
+static func span(d: Dictionary) -> Vector3:
+	if d.mount != "span":
+		return Vector3.ZERO
+	var run: Vector3 = d.to - d.at
+	return Vector3(Vector2(run.x, run.z).length(), run.y, 0.0)
+
+
 ## A house's plan on the ground plane: its middle, and its ridge and across it, each scaled to the half span from the
 ## middle to its inner faces, so (1, 0, 1) is the corner and furniture keeps its share of the room when it is resized.
 static func plan(w: Wall) -> Transform3D:
@@ -107,10 +128,19 @@ func carry(w: Wall) -> void:
 
 func _gather() -> void:
 	flames.clear()
+	lights.clear()
 	for id in _flames:
-		var w := walls.find(world.state.decorations.get(id, {}).get("wall", -1))
+		var d: Dictionary = world.state.decorations.get(id, {})
+		var w := walls.find(d.get("wall", -1))
+		var g := Lamps.light_of(d.merged(_shown.get(id, {}), true).get("lantern", 0))
 		for f in _flames[id]:
 			flames.append(w.transform * f if w != null else f)
+			lights.append(g)
+
+
+## Whether decoration `id` burns a flame.
+func lit(id: int) -> bool:
+	return not _flames.get(id, PackedVector3Array()).is_empty()
 
 
 func targets() -> Array[Dictionary]:

@@ -30,7 +30,7 @@ varying float glass;
 #ifdef ROOF_TIMBER
 instance uniform vec3 timber_color = vec3(1.0);
 #endif
-varying float pane;
+varying vec3 pane;
 varying flat int style;
 // A styled boulder's tone within its style, its own from where it stands.
 varying flat float tone;
@@ -75,7 +75,7 @@ void vertex() {
 	lamp_at = lamp_coord(world_pos, world_nrm);
 #endif
 	glass = COLOR.a < 0.5 ? 1.0 : 0.0;
-	pane = glass > 0.5 ? textureLod(lamp_volume, lamp_coord(world_pos, -world_nrm), 0.0).r : 0.0;
+	pane = glass > 0.5 ? textureLod(lamp_volume, lamp_coord(world_pos, -world_nrm), 0.0).rgb : vec3(0.0);
 #ifdef ROOF_TIMBER
 	COLOR = vec4(timber_color, 1.0);
 	occlusion = 0.85;

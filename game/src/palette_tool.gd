@@ -16,9 +16,10 @@ extends Node3D
 ## stone ground's or a boulder's, one list of stone styles (StoneStyles; stone painted and boulders set down after take
 ## the style let go last), a path's surface (dirt, sand, cobbles, flagstones or a garden bed; paths laid after take it),
 ## or a window's family (cottage, arched, arrow slit or round; a door's cottage or arched, the
-## lights fused with it alike; windows opened after take it). It only restyles: openings are the windows' and the
-## arch's, and a corner window is the windows' at a corner. The colour tool on a room's window picks the colour its
-## glass glows at night.
+## lights fused with it alike; windows opened after take it), a decoration's (the strings' between a string of lanterns
+## and one of flags; strings hung after take it). It only restyles: openings are the windows' and the arch's, and a
+## corner window is the windows' at a corner. The colour tool on a room's window picks the colour its glass glows at
+## night, and on a lantern, or a decoration with a flame, its colour and brightness: a wall's lanterns all burn alike.
 
 const BEAM := Color(1.0, 1.0, 1.0, 0.6)
 const WHEEL_RADIUS := 0.07
@@ -98,7 +99,8 @@ func _process(_delta: float) -> void:
 ## What the colour tool's trigger would recolour from `origin` along `dir`: `element`, `point` and the build's garden
 ## table `of` and `id` ("" and -1 on the meadow), or empty.
 func aim(origin: Vector3, dir: Vector3) -> Dictionary:
-	var hits := world.pick(origin, dir, {World.Kind.BUILDING: INF, World.Kind.GROUND: INF, World.Kind.BOULDER: INF, World.Kind.STAIRS: INF})
+	var hits := world.pick(origin, dir, {World.Kind.BUILDING: INF, World.Kind.TARGET: INF, World.Kind.GROUND: INF, World.Kind.BOULDER: INF, World.Kind.STAIRS: INF})
+	var fitting: Dictionary = hits.get(World.Kind.TARGET, {})
 	var pick: Dictionary = hits.get(World.Kind.BUILDING, {})
 	var roof := pick if pick.get("surface") == "roof" else {}
 	var gable := pick if pick.get("surface") == "gable" else {}
@@ -108,6 +110,10 @@ func aim(origin: Vector3, dir: Vector3) -> Dictionary:
 		return colour_target(Palette.KINDS.get(stair.kind, Palette.Element.WOOD), stair.point, "stairs", stair.stair)
 	if not rock.is_empty():
 		return colour_target(Palette.Element.STONE, rock.point, "boulders", rock.boulder.id)
+	if fitting.get("what") == "lantern":
+		return colour_target(Palette.Element.LANTERN, fitting.point, "walls", fitting.wall.id)
+	if fitting.has("decoration") and world.decorations.lit(fitting.decoration):
+		return colour_target(Palette.Element.LANTERN, fitting.point, "decorations", fitting.decoration)
 	if not gable.is_empty():
 		if _on_timber(gable.wall.layout, gable.point):
 			return colour_target(Palette.Element.TIMBER, gable.point, "walls", gable.wall.id)
@@ -168,7 +174,8 @@ func aim_style(origin: Vector3, dir: Vector3) -> Dictionary:
 	if pick.get("what") == "opening" and int(pick.value.z) in WallLayout.WINDOW_FAMILIES:
 		return window_target(pick.wall, pick.value, pick.point)
 	if pick.has("decoration"):
-		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.DECORATION, "options": range(DecorationLayout.STYLES.size()), "count": DecorationLayout.STYLES.size(), "point": pick.point, "of": "decorations", "id": pick.decoration, "wall": pick.wall}
+		var options := DecorationLayout.standing(world.state.decorations[pick.decoration].mount)
+		return {"tool": Hand.Tool.STYLE, "restyle": Restyle.DECORATION, "options": options, "count": options.size(), "point": pick.point, "of": "decorations", "id": pick.decoration, "wall": pick.wall}
 	if not gable.is_empty():
 		return style_target(Restyle.GABLE, gable.wall, gable.point)
 	if not roof.is_empty() and not WallTool.house_of(world.state.walls.get(roof.wall.id, {})).is_empty():
@@ -356,7 +363,7 @@ func _now(w: Wheel) -> int:
 		return -1
 	var d: Dictionary = world.state[w.of][w.id]
 	if w.target.tool == Hand.Tool.COLOUR:
-		return d.paint[w.target.element]
+		return d.lantern if w.of == "decorations" else d.paint[w.target.element]
 	match w.target.restyle:
 		Restyle.RAIL:
 			return StairLayout.RAILS.find(d.rail)
@@ -385,7 +392,7 @@ func _now(w: Wheel) -> int:
 ## The `reshape` data that gives `w`'s build choice `pick`; empty for one that cannot stand.
 func _data(w: Wheel, pick: int) -> Dictionary:
 	if w.target.tool == Hand.Tool.COLOUR:
-		return {"paint": {w.target.element: pick}}
+		return {"lantern": pick} if w.of == "decorations" else {"paint": {w.target.element: pick}}
 	match w.target.restyle:
 		Restyle.GABLE:
 			return {"gable_end": pick}
@@ -469,6 +476,8 @@ func close(hand: Hand) -> void:
 		world.stairs.rail = StairLayout.RAILS[w.pick]
 	elif w.id >= 0 and w.target.restyle == Restyle.PATH:
 		world.paths.surface = w.pick as PathLayout.Surface
+	elif w.id >= 0 and w.target.restyle == Restyle.DECORATION and world.state.decorations[w.id].mount == "span":
+		world.decorations.string_style = w.target.options[w.pick]
 	elif w.target.get("restyle") == Restyle.STONE:
 		Ground.style = w.pick
 	var data: Dictionary = (w.data[w.pick] if w.target.tool == Hand.Tool.STYLE else _data(w, w.pick)) if w.id >= 0 else {}

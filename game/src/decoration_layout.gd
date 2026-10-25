@@ -2,7 +2,8 @@ class_name DecorationLayout
 extends RefCounted
 
 ## One catalogue for placement, style choices and geometry. The stored style never changes on reload.
-## Every style stands on every mount; a new decoration is a present the style tool turns into the rest.
+## Every style but the strings stands on every mount but a span, and a new one is a present the style tool turns into
+## the rest; a string hangs on a span alone, between the two points a stroke of the decorations tool joins.
 const STYLES := [
 	{"name": "Present"},
 	{"name": "Planter"},
@@ -28,10 +29,29 @@ const STYLES := [
 	{"name": "Trough planter"},
 	{"name": "Parasol"},
 	{"name": "String lights"},
+	{"name": "Lantern"},
+	{"name": "Lamp post"},
+	{"name": "Lantern string", "string": true},
+	{"name": "Flag string", "string": true},
 ]
 const PRESENT := 0
-## The surface a decoration stands on: at a house's "foundation", on the "ground", on a house's "floor" or on a flat roof's "deck".
-const MOUNTS := ["foundation", "ground", "floor", "deck"]
+## The surface a decoration stands on: at a house's "foundation", on the "ground", on a house's "floor" or on a flat
+## roof's "deck"; or the "span" a string hangs across, from `at` to `to`, each end on a pole `drop` tall or tied where
+## it is.
+const MOUNTS := ["foundation", "ground", "floor", "deck", "span"]
+## A string's sag a metre of its span across the ground, its least, and its most.
+const SAG := 0.07
+const SAG_LEAST := 0.05
+const SAG_MOST := 1.0
+## The span across the ground a string hangs over, least and most, and the steepest it climbs, rise over run.
+const SPAN_LEAST := 1.5
+const SPAN_MOST := 20.0
+const SPAN_STEEPEST := 1.0
+## How tall a pole stands under a string's end on the ground.
+const POLE := 2.6
+## Along a string, a lantern hangs every LANTERN_EVERY and a flag every FLAG_EVERY metres.
+const LANTERN_EVERY := 1.1
+const FLAG_EVERY := 0.34
 const WOOD := Color(0.30, 0.19, 0.10)
 ## Furniture: indoors, under dim light, it wants a paler wood than the weathered outdoor pieces.
 const OAK := Color(0.54, 0.38, 0.22)
@@ -71,8 +91,43 @@ func _part(x: Transform3D, color: Color, kind: String) -> void:
 	bounds = b if parts.size() == 1 else bounds.merge(b)
 
 
-## Style `style` as it stands on `mount`: backed against the wall at a house's foundation, else centred where it is put.
-func build(style: int, seed: int, rise := 0.6, mount := "ground") -> void:
+## The style named `name`, or -1.
+static func named(name: String) -> int:
+	for k in STYLES.size():
+		if STYLES[k].name == name:
+			return k
+	return -1
+
+
+## Whether `style` stands on `mount`: a string on a span, and every other style anywhere else.
+static func stands(style: int, mount: String) -> bool:
+	return STYLES[style].get("string", false) == (mount == "span")
+
+
+## The styles that stand on `mount`, in the order of STYLES.
+static func standing(mount: String) -> Array:
+	return range(STYLES.size()).filter(func(k: int) -> bool: return stands(k, mount))
+
+
+## How far a string across `span` (from its first end to its second) sags below the line between them at its middle.
+static func sag(span: Vector3) -> float:
+	return clampf(SAG * Vector2(span.x, span.z).length(), SAG_LEAST, SAG_MOST)
+
+
+## Where a string across `span` hangs a share `t` of the way along it from its first end: a parabola through both ends.
+static func hang_at(span: Vector3, t: float) -> Vector3:
+	return span * t + Vector3.DOWN * 4.0 * sag(span) * t * (1.0 - t)
+
+
+## The room a string across `span` takes about its rope and what hangs from it, poles left out, in its frame.
+static func strung(span: Vector3) -> AABB:
+	var low := minf(0.0, span.y) - sag(span) - 0.55
+	return AABB(Vector3(0.0, low, -0.2), Vector3(span.x, maxf(0.0, span.y) + 0.2 - low, 0.4))
+
+
+## Style `style` as it stands on `mount`: backed against the wall at a house's foundation, a string from its first end
+## across `span` with the poles `drop` under its ends, else centred where it is put.
+func build(style: int, seed: int, rise := 0.6, mount := "ground", span := Vector3.ZERO, drop := Vector2.ZERO) -> void:
 	parts.clear()
 	flames.clear()
 	flowers.clear()
@@ -222,7 +277,23 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground") -> void:
 				beam(hang[i], hang[i + 1], 0.02, IRON, "iron")
 			for i in range(1, 6):
 				flame(hang[i] - Vector3.UP * 0.07, Vector3(0.06, 0.09, 0.06))
+		"Lantern":
+			box(Vector3(0, 0.02, 0), Vector3(0.26, 0.04, 0.26), IRON, "iron")
+			for corner in [Vector2(-1, -1), Vector2(-1, 1), Vector2(1, -1), Vector2(1, 1)]:
+				box(Vector3(corner.x * 0.1, 0.19, corner.y * 0.1), Vector3(0.025, 0.32, 0.025), IRON, "iron")
+			lantern(Vector3(0, 0.18, 0))
+			box(Vector3(0, 0.44, 0), Vector3(0.12, 0.08, 0.02), IRON, "iron")
+		"Lamp post":
+			box(Vector3(0, 0.1, 0), Vector3(0.36, 0.2, 0.36), STONE, "block")
+			box(Vector3(0, 1.2, 0), Vector3(0.08, 2.0, 0.08), IRON, "iron")
+			box(Vector3(0, 2.22, 0), Vector3(0.14, 0.04, 0.14), IRON, "iron")
+			lantern(Vector3(0, 2.36, 0))
+			box(Vector3(0, 2.62, 0), Vector3(0.06, 0.08, 0.06), IRON, "iron")
+		"Lantern string", "Flag string":
+			_string(span, drop, seed, STYLES[style].name == "Lantern string")
 
+	if mount == "span":
+		return
 	var shift := Vector3(-bounds.get_center().x, 0.0, -bounds.position.z + 0.04 if mount == "foundation" else -bounds.get_center().z)
 	for part in parts:
 		part.xform.origin += shift
@@ -230,6 +301,34 @@ func build(style: int, seed: int, rise := 0.6, mount := "ground") -> void:
 		for i in list.size():
 			list[i].origin += shift
 	bounds.position += shift
+
+
+## A rope across `span` sagging as `hang_at` has it, on a wooden pole under each end `drop` stands on, hung with
+## lanterns or with flags, each a square hung from its corner in the flag colour after the last.
+func _string(span: Vector3, drop: Vector2, seed: int, lanterns: bool) -> void:
+	var run := span.length()
+	if run == 0.0:
+		return
+	var n := maxi(2, ceili(run / 0.6))
+	for i in n:
+		beam(hang_at(span, float(i) / n), hang_at(span, float(i + 1) / n), 0.02, WallLayout.ROPE, "rope")
+	for end in 2:
+		var tall := drop[end]
+		if tall > 0.0:
+			var at := span * end
+			box(at + Vector3.DOWN * (tall * 0.5 - 0.06), Vector3(0.09, tall + 0.12, 0.09), WOOD, "board")
+	var every := LANTERN_EVERY if lanterns else FLAG_EVERY
+	var count := maxi(1, floori(run / every))
+	var across := Vector3(span.x, 0.0, span.z).normalized().cross(Vector3.UP)
+	var turn := atan2(across.x, across.z)
+	for k in count:
+		var at := hang_at(span, (k + 0.5) / count)
+		if lanterns:
+			box(at + Vector3.DOWN * 0.07, Vector3(0.015, 0.14, 0.015), IRON, "iron")
+			lantern(at + Vector3.DOWN * 0.33)
+		else:
+			var diamond := Basis(Vector3.UP, turn) * Basis(Vector3.BACK, PI * 0.25)
+			_part(Transform3D(diamond.scaled_local(Vector3(0.2, 0.2, 0.012)), at + Vector3.DOWN * 0.141), WallLayout.FLAG_COLORS[posmod(seed + k, WallLayout.FLAG_COLORS.size())], "")
 
 
 func _chair(at: Vector3, turn: float) -> void:

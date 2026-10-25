@@ -15,7 +15,7 @@ func _run() -> void:
 	await play([{"op": "house", "at": [0, 0], "size": [8, 6], "seconds": 0.2}])
 	var w: Wall = main.tool.walls[0]
 	w.lay_now()
-	for style in DecorationLayout.STYLES.size():
+	for style in DecorationLayout.standing("ground"):
 		var layout := DecorationLayout.new()
 		layout.build(style, 53)
 		check(not layout.parts.is_empty() and layout.bounds.size.length() > 0.0, "geometry %d" % style)
@@ -86,14 +86,14 @@ func _run() -> void:
 	var roof_blocked := FittingTool.pick_target(main.tool, above, down)
 	check(roof_blocked.get("surface") == "roof", "near roof blocks foundation decoration below")
 	var foundation_style: Dictionary = main.palette_tool.aim_style(outside, -normal)
-	check(foundation_style.get("options") == range(DecorationLayout.STYLES.size()), "foundation Style wheel lists every style")
+	check(foundation_style.get("options") == DecorationLayout.standing("foundation"), "foundation Style wheel lists every style but the strings")
 	var torch: Dictionary = items.filter(func(i): return i.value.style == 7)[0]
 	var at: Vector3 = torch.bounds.get_center()
 	var eye := at + Vector3(0, 0, 3)
 	var picked: Dictionary = main.delete_tool.aim(eye, Vector3.FORWARD)
 	check(picked.get("decoration") == torch.decoration, "ground torch shares delete picker")
 	var style_target: Dictionary = main.palette_tool.aim_style(eye, Vector3.FORWARD)
-	check(style_target.get("options") == range(DecorationLayout.STYLES.size()), "Style wheel lists every style")
+	check(style_target.get("options") == DecorationLayout.standing("ground"), "Style wheel lists every style but the strings")
 	main.palette_tool.open(main.rig.right, style_target)
 	main.palette_tool.wheels[main.rig.right].pick = 8
 	main.palette_tool.close(main.rig.right)
@@ -167,6 +167,7 @@ func _the_preview_is_what_a_press_places(p: Vector3) -> void:
 	Buttons.injected["right_hand/trigger_click"] = true
 	await frames(2)
 	Buttons.injected.erase("right_hand/trigger_click")
+	await frames(2)
 	await until(func() -> bool: return main.world.idle(), "the press is applied")
 	var placed: Array = main.world.state.decorations.keys().filter(func(id: int) -> bool: return not before.has(id))
 	check(placed.size() == 1 and main.world.state.decorations[placed[0]].seed == shown[1], "a press places the decoration its preview showed")

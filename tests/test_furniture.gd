@@ -58,6 +58,7 @@ func _held_preview() -> void:
 	Buttons.injected["%s/trigger_click" % hand.tracker] = true
 	await process_frame
 	Buttons.injected.erase("%s/trigger_click" % hand.tracker)
+	await process_frame
 	main.world.decorations.sync()
 	var added: Array = main.world.state.decorations.keys().filter(func(k): return k not in before)
 	check(added.size() == 1, "a press places one piece")
@@ -94,7 +95,7 @@ func _run() -> void:
 	check(Commands.clean(bad, main.world.state, false, main.world.terrain).is_empty(), "a floor piece refused without its house")
 	for style in DecorationLayout.STYLES.size():
 		var any := {"op": "reshape", "of": "decorations", "id": chair, "data": {"style": style}}
-		check(not Commands.clean(any, main.world.state, false, main.world.terrain).is_empty(), "a floor piece restyles to %s" % DecorationLayout.STYLES[style].name)
+		check(Commands.clean(any, main.world.state, false, main.world.terrain).is_empty() == DecorationLayout.STYLES[style].has("string"), "a floor piece restyles to %s unless it is a string" % DecorationLayout.STYLES[style].name)
 	var pitched_deck: Dictionary = main.world.state.decorations[deck].merged({"op": "decoration", "wall": house.id}, true)
 	check(Commands.clean(pitched_deck, main.world.state, false, main.world.terrain).is_empty(), "deck piece refused on a pitched roof")
 	check(not Commands.clean(main.world.state.decorations[deck].merged({"op": "decoration"}), main.world.state, false, main.world.terrain).is_empty(), "deck piece accepted on a flat roof")
@@ -123,7 +124,7 @@ func _run() -> void:
 	var top: Vector3 = (n.transform * (n.get_meta(&"bounds") as AABB)).get_center()
 	var eye := top + Vector3(0.0, 1.2, 0.6)
 	var style_target: Dictionary = main.palette_tool.aim_style(eye, (top - eye).normalized())
-	check(style_target.get("id") == chair and style_target.get("options") == range(DecorationLayout.STYLES.size()), "Style on an indoor piece offers every style")
+	check(style_target.get("id") == chair and style_target.get("options") == DecorationLayout.standing("floor"), "Style on an indoor piece offers every style but the strings")
 	var picked: Dictionary = main.delete_tool.aim(eye, (top - eye).normalized())
 	check(picked.get("decoration") == chair, "delete picks the single indoor piece")
 	var walls: int = main.world.state.walls.size()
@@ -139,10 +140,10 @@ func _run() -> void:
 	decked.lay_now()
 	check(_node(deck) != null, "and stands again on the flat deck")
 
-	for style in DecorationLayout.STYLES.size():
+	for style in DecorationLayout.standing("floor"):
 		var layout := DecorationLayout.new()
 		layout.build(style, 0)
-		print("furniture cost: %s solids=%d flames=%d flowers=%d pictures=%d reserved_quest2_us=%.1f" % [DecorationLayout.STYLES[style].name, layout.parts.size(), layout.flames.size(), layout.flowers.size(), layout.pictures.size(), Budget.cost_ms(Budget.decoration(style)) * 1000.0])
+		print("furniture cost: %s solids=%d flames=%d flowers=%d pictures=%d reserved_quest2_us=%.1f" % [DecorationLayout.STYLES[style].name, layout.parts.size(), layout.flames.size(), layout.flowers.size(), layout.pictures.size(), Budget.cost_ms(Budget.decoration({"style": style, "mount": "floor"})) * 1000.0])
 	await _held_preview()
 	var saved: Dictionary = main.world.snapshot()
 	main.world.restore(saved)

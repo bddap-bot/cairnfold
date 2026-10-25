@@ -144,6 +144,11 @@ const WASHING_ARM := 0.45
 const LINTEL_EAR := 0.16
 const LANTERN_OUT := 0.34
 const FLAG_POLE := 1.7
+## Neighbouring flags on a wall's top this near join into a run: a rope between their poles, this high on them,
+## sagging as a string does (DecorationLayout.sag), hung with a pennant every FLAG_RUN_EVERY along it.
+const FLAG_RUN := 4.0
+const FLAG_RUN_ROPE := 1.0
+const FLAG_RUN_EVERY := 0.4
 const FLAG_COLORS := [Color(0.62, 0.12, 0.1), Color(0.14, 0.24, 0.5), Color(0.82, 0.62, 0.18), Color(0.2, 0.38, 0.2)]
 const POLE := Color(0.37, 0.26, 0.17)
 const FINIAL := Color(0.7, 0.58, 0.3)
@@ -465,12 +470,14 @@ func build(ground: Callable, water := Callable(), revision := 0) -> void:
 	for l in lanterns:
 		if lantern_fits(l.x, l.y):
 			_lay_lantern(l.x, frame_at(l.x).point + Vector3.UP * l.y, _normal(l.x) * l.z, rng)
-	for f in flags:
-		if flag_fits(f):
-			var parts := flag(frame_at(f).point + Vector3.UP * (height + CAP), frame_at(f).tangent, flag_color(seed, f))
-			_world(parts.pole, POLE, "pole", f)
-			_world(parts.finial, FINIAL, "finial", f)
-			cloths.append(parts.cloth)
+	var flying := flags.filter(flag_fits)
+	for f in flying:
+		var parts := flag(frame_at(f).point + Vector3.UP * (height + CAP), frame_at(f).tangent, flag_color(seed, f))
+		_world(parts.pole, POLE, "pole", f)
+		_world(parts.finial, FINIAL, "finial", f)
+		cloths.append(parts.cloth)
+	for run in flag_runs(flying, length(), closed):
+		_lay_flag_run(run.x, run.y)
 	_hide()
 	_lay_floor()
 
@@ -1663,6 +1670,47 @@ static func flag(foot: Vector3, along: Vector3, color: Color) -> Dictionary:
 		"finial": Transform3D(Basis().scaled(Vector3.ONE * 0.09), foot + Vector3.UP * (FLAG_POLE + 0.04)),
 		"cloth": {"xform": Transform3D(cloth, foot + Vector3.UP * (FLAG_POLE - 0.33) + x * 0.03), "color": color},
 	}
+
+
+## The neighbours among `flags` along a wall `length` long, round a loop where `closed`, that join into a run, each as
+## the arc lengths of its first flag and of the next one on along the wall.
+static func flag_runs(flags: Array, length: float, closed: bool) -> Array[Vector2]:
+	var sorted := flags.duplicate()
+	sorted.sort()
+	var n := sorted.size()
+	var out: Array[Vector2] = []
+	for i in (n if closed else n - 1):
+		var a: float = sorted[i]
+		var b: float = sorted[(i + 1) % n]
+		var gap := fposmod(b - a, length) if closed else b - a
+		if gap > 0.0 and gap <= FLAG_RUN:
+			out.append(Vector2(a, b))
+	# Two flags on a loop are neighbours both ways round it; they join the shorter way alone.
+	if closed and n == 2 and out.size() == 2:
+		out.remove_at(0 if fposmod(sorted[1] - sorted[0], length) > fposmod(sorted[0] - sorted[1], length) else 1)
+	return out
+
+
+## A rope from the pole of the flag at `a` to the one at `b`, sagging, with pennants hanging from it in the colours of
+## the two flags in turn.
+func _lay_flag_run(a: float, b: float) -> void:
+	var ends: Array[Vector3] = []
+	for s in [a, b]:
+		ends.append(frame_at(s).point + Vector3.UP * (height + CAP + FLAG_RUN_ROPE))
+	var span := ends[1] - ends[0]
+	var pieces := 4
+	for k in pieces:
+		var p := ends[0] + DecorationLayout.hang_at(span, float(k) / pieces)
+		var q := ends[0] + DecorationLayout.hang_at(span, float(k + 1) / pieces)
+		var x := (q - p).normalized()
+		var z := x.cross(Vector3.UP).normalized()
+		_world(Transform3D(Basis(x, z.cross(x), z).scaled_local(Vector3(p.distance_to(q), 0.014, 0.014)), (p + q) * 0.5), ROPE, "rope", a)
+	var along := (ends[1] - ends[0]).normalized()
+	var hang := Basis(Vector3.DOWN, along, Vector3.DOWN.cross(along)).scaled_local(Vector3(0.3, 0.2, 1.0))
+	var colours := [flag_color(seed, a), flag_color(seed, b)]
+	var count := maxi(2, floori(ends[0].distance_to(ends[1]) / FLAG_RUN_EVERY))
+	for k in count:
+		cloths.append({"xform": Transform3D(hang, ends[0] + DecorationLayout.hang_at(span, (k + 0.5) / count)), "color": colours[k % 2]})
 
 
 ## A flag keeps its colour through every other edit to its wall.
