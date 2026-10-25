@@ -3,6 +3,7 @@
 #   quest   the Quest build, OpenXR through the vendors plugin's Meta flavor
 #   lepton  the Steam Frame's Android build, run by its Lepton container, through the Khronos flavor: no Meta SDK
 #           material enters it, so the Meta SDK's approved-product terms stay off a Steam product
+# Both carry the engine scripts/android-template.sh builds from the pinned Godot source and android-template.patch.
 # A steam Lepton APK also carries the GodotSteam extension and Valve's steam_api library; a Quest APK never does.
 # Every APK, bench or release, signs with the one key in $NESTCOMBE_ANDROID_KEY (AGENTS.md, "Signing"), so any build
 # installs over any other and the garden on the device survives.
@@ -42,6 +43,8 @@ cd "$stage/game"
 # Install first so notices enter ordinary APK assets before signing.
 mkdir -p android/build
 unzip -q "$tdir/$template" -d android/build
+cp "$("$root/scripts/android-template.sh" android/build/libs/release/godot-lib.template_release.aar)" \
+  android/build/libs/release/godot-lib.template_release.aar
 printf '%s.stable\n' "$godot_version" > android/.build_version
 touch android/build/.gdignore
 # The vendors plugin declares head tracking optional; the Horizon Store requires an immersive app to require it.

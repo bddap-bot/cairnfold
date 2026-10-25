@@ -1,0 +1,316 @@
+--- a/doc/classes/RenderingServer.xml
++++ b/doc/classes/RenderingServer.xml
+@@ -5250,7 +5250,10 @@
+ 		<constant name="VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME" value="2" enum="ViewportRenderInfo">
+ 			Number of draw calls during this frame.
+ 		</constant>
+-		<constant name="VIEWPORT_RENDER_INFO_MAX" value="3" enum="ViewportRenderInfo">
++		<constant name="VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME" value="3" enum="ViewportRenderInfo">
++			Number of draws skipped in the most recent frame because their pipeline was still compiling (only with [code]rendering/rendering_device/pipeline_compilation/skip_unready_draws[/code] on the Mobile renderer). [code]0[/code] means every pass of that frame drew completely. [code]-1[/code] means the viewport did not render in the most recent frame. Wait until a frame has been drawn after the change you want to capture (compare [method Engine.get_frames_drawn]) before reading it.
++		</constant>
++		<constant name="VIEWPORT_RENDER_INFO_MAX" value="4" enum="ViewportRenderInfo">
+ 			Represents the size of the [enum ViewportRenderInfo] enum.
+ 		</constant>
+ 		<constant name="VIEWPORT_RENDER_INFO_TYPE_VISIBLE" value="0" enum="ViewportRenderInfoType">
+--- a/doc/classes/Viewport.xml
++++ b/doc/classes/Viewport.xml
+@@ -630,7 +630,10 @@
+ 		<constant name="RENDER_INFO_DRAW_CALLS_IN_FRAME" value="2" enum="RenderInfo">
+ 			Amount of draw calls in frame.
+ 		</constant>
+-		<constant name="RENDER_INFO_MAX" value="3" enum="RenderInfo">
++		<constant name="RENDER_INFO_SKIPPED_DRAWS_IN_FRAME" value="3" enum="RenderInfo">
++			Number of draws skipped in the most recent frame because their pipeline was still compiling (only with [code]rendering/rendering_device/pipeline_compilation/skip_unready_draws[/code] on the Mobile renderer). [code]0[/code] means every pass of that frame drew completely. [code]-1[/code] means the viewport did not render in the most recent frame. Wait until a frame has been drawn after the change you want to capture (compare [method Engine.get_frames_drawn]) before reading it.
++		</constant>
++		<constant name="RENDER_INFO_MAX" value="4" enum="RenderInfo">
+ 			Represents the size of the [enum RenderInfo] enum.
+ 		</constant>
+ 		<constant name="RENDER_INFO_TYPE_VISIBLE" value="0" enum="RenderInfoType">
+--- a/scene/main/viewport.cpp
++++ b/scene/main/viewport.cpp
+@@ -5260,6 +5260,7 @@
+ 	BIND_ENUM_CONSTANT(RENDER_INFO_OBJECTS_IN_FRAME);
+ 	BIND_ENUM_CONSTANT(RENDER_INFO_PRIMITIVES_IN_FRAME);
+ 	BIND_ENUM_CONSTANT(RENDER_INFO_DRAW_CALLS_IN_FRAME);
++	BIND_ENUM_CONSTANT(RENDER_INFO_SKIPPED_DRAWS_IN_FRAME);
+ 	BIND_ENUM_CONSTANT(RENDER_INFO_MAX);
+ 
+ 	BIND_ENUM_CONSTANT(RENDER_INFO_TYPE_VISIBLE);
+--- a/scene/main/viewport.h
++++ b/scene/main/viewport.h
+@@ -145,6 +145,7 @@
+ 		RENDER_INFO_OBJECTS_IN_FRAME,
+ 		RENDER_INFO_PRIMITIVES_IN_FRAME,
+ 		RENDER_INFO_DRAW_CALLS_IN_FRAME,
++		RENDER_INFO_SKIPPED_DRAWS_IN_FRAME,
+ 		RENDER_INFO_MAX
+ 	};
+ 
+--- a/servers/rendering/renderer_rd/forward_mobile/render_forward_mobile.cpp
++++ b/servers/rendering/renderer_rd/forward_mobile/render_forward_mobile.cpp
+@@ -1119,7 +1119,9 @@
+ 	// We don't have access to any rendered buffers but we may be able to effect mesh data...
+ 	_process_compositor_effects(RS::COMPOSITOR_EFFECT_CALLBACK_TYPE_PRE_OPAQUE, p_render_data);
+ 
++	const uint64_t shadow_skipped_begin = skipped_draw_total;
+ 	_pre_opaque_render(p_render_data);
++	const uint64_t visible_skipped_begin = skipped_draw_total;
+ 
+ 	SceneShaderForwardMobile::ShaderSpecialization base_specialization = scene_shader.default_specialization;
+ 
+@@ -1360,6 +1362,11 @@
+ 	}
+ 
+ 	_render_buffers_debug_draw(p_render_data);
++
++	if (p_render_data->render_info) {
++		p_render_data->render_info->info[RS::VIEWPORT_RENDER_INFO_TYPE_SHADOW][RS::VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME] += int(visible_skipped_begin - shadow_skipped_begin);
++		p_render_data->render_info->info[RS::VIEWPORT_RENDER_INFO_TYPE_VISIBLE][RS::VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME] += int(skipped_draw_total - visible_skipped_begin);
++	}
+ }
+ 
+ /* these are being called from RendererSceneRenderRD::_pre_opaque_render */
+@@ -2454,6 +2461,7 @@
+ 		RID index_array_rd;
+ 		const uint32_t ubershader_iterations = 2;
+ 		bool pipeline_valid = false;
++		bool pipeline_pending = false;
+ 		while (pipeline_key.ubershader < ubershader_iterations) {
+ 			// Skeleton and blend shape.
+ 			uint64_t input_mask = shader->get_vertex_input_mask(pipeline_key.version, pipeline_key.ubershader);
+@@ -2477,7 +2485,10 @@
+ 
+ 			if (shader != prev_shader || pipeline_hash != prev_pipeline_hash) {
+ 				RS::PipelineSource pipeline_source = pipeline_key.ubershader ? RS::PIPELINE_SOURCE_DRAW : RS::PIPELINE_SOURCE_SPECIALIZATION;
+-				pipeline_rd = shader->pipeline_hash_map.get_pipeline(pipeline_key, pipeline_hash, pipeline_key.ubershader, pipeline_source);
++				bool lookup_pending = false;
++				pipeline_rd = shader->pipeline_hash_map.get_pipeline(pipeline_key, pipeline_hash, pipeline_key.ubershader && !skip_unready_draws, pipeline_source, pipeline_key.ubershader, &lookup_pending);
++				// A surface whose ubershader failed still draws once its pending specialization lands, so either lookup pending makes the skip count.
++				pipeline_pending = pipeline_pending || lookup_pending;
+ 
+ 				if (pipeline_rd.is_valid()) {
+ 					pipeline_valid = true;
+@@ -2494,6 +2505,11 @@
+ 			}
+ 		}
+ 
++		if (!pipeline_valid && pipeline_pending && skip_unready_draws) {
++			skipped_draw_total++;
++			should_request_redraw = true;
++		}
++
+ 		if (pipeline_valid) {
+ 			if (!emulate_point_size) {
+ 				index_array_rd = mesh_storage->mesh_surface_get_index_array(mesh_surface, element_info.lod_index);
+@@ -3196,6 +3212,10 @@
+ void RenderForwardMobile::_mesh_compile_pipeline_for_surface(SceneShaderForwardMobile::ShaderData *p_shader, void *p_mesh_surface, bool p_instanced_surface, RS::PipelineSource p_source, SceneShaderForwardMobile::ShaderData::PipelineKey &r_pipeline_key, Vector<ShaderPipelinePair> *r_pipeline_pairs) {
+ 	RendererRD::MeshStorage *mesh_storage = RendererRD::MeshStorage::get_singleton();
+ 	uint64_t input_mask = p_shader->get_vertex_input_mask(r_pipeline_key.version, true);
++	// The mask lookup above still waits here, off the render thread, for the shader's variants. Draws that skip then compile exactly the ubershaders they meet, at high priority: speculative keys would occupy the low priority workers specializations need, and dedup would hold any demanded one to their priority.
++	if (skip_unready_draws) {
++		return;
++	}
+ 	bool emulate_point_size = p_shader->uses_point_size && scene_shader.emulate_point_size;
+ 	r_pipeline_key.vertex_format_id = mesh_storage->mesh_surface_get_vertex_format(p_mesh_surface, input_mask, p_instanced_surface, false, emulate_point_size);
+ 	r_pipeline_key.ubershader = true;
+@@ -3469,6 +3489,8 @@
+ 	const bool root_hdr_render_target = GLOBAL_GET("rendering/viewport/hdr_2d");
+ 	global_pipeline_data_required.use_hdr_render_target = root_hdr_render_target;
+ 	global_pipeline_data_required.use_ldr_render_target = !root_hdr_render_target;
++
++	skip_unready_draws = GLOBAL_DEF("rendering/rendering_device/pipeline_compilation/skip_unready_draws", false);
+ }
+ 
+ RenderForwardMobile::~RenderForwardMobile() {
+--- a/servers/rendering/renderer_rd/forward_mobile/render_forward_mobile.h
++++ b/servers/rendering/renderer_rd/forward_mobile/render_forward_mobile.h
+@@ -721,6 +721,14 @@
+ 
+ 	virtual void update() override;
+ 
++private:
++	// Drawing nothing for a surface whose ubershader is still compiling keeps the frame on time; the surface appears once it lands.
++	bool skip_unready_draws = false;
++	// Monotonic, render thread only; _render_scene attributes the per-pass difference to the viewport's render info.
++	uint64_t skipped_draw_total = 0;
++
++public:
++
+ 	virtual void base_uniforms_changed() override;
+ 
+ 	virtual bool is_dynamic_gi_supported() const override;
+--- a/servers/rendering/renderer_rd/forward_mobile/scene_shader_forward_mobile.cpp
++++ b/servers/rendering/renderer_rd/forward_mobile/scene_shader_forward_mobile.cpp
+@@ -444,12 +444,15 @@
+ 	specialization_constants.push_back(sc);
+ 
+ 	RID shader_rid = get_shader_variant(p_pipeline_key.version, p_pipeline_key.ubershader);
+-	ERR_FAIL_COND(shader_rid.is_null());
+-
+-	RID pipeline = RD::get_singleton()->render_pipeline_create(shader_rid, p_pipeline_key.framebuffer_format_id, p_pipeline_key.vertex_format_id, primitive_rd, raster_state, multisample_state, depth_stencil_state, blend_state, 0, p_pipeline_key.render_pass, specialization_constants);
+-	ERR_FAIL_COND(pipeline.is_null());
++	RID pipeline;
++	if (shader_rid.is_valid()) {
++		pipeline = RD::get_singleton()->render_pipeline_create(shader_rid, p_pipeline_key.framebuffer_format_id, p_pipeline_key.vertex_format_id, primitive_rd, raster_state, multisample_state, depth_stencil_state, blend_state, 0, p_pipeline_key.render_pass, specialization_constants);
++	}
+ 
++	// A failure is queued too, so a draw that never waits stops reading it as still compiling.
+ 	pipeline_hash_map.add_compiled_pipeline(p_pipeline_key.hash(), pipeline);
++	ERR_FAIL_COND(shader_rid.is_null());
++	ERR_FAIL_COND(pipeline.is_null());
+ }
+ 
+ RD::PolygonCullMode SceneShaderForwardMobile::ShaderData::get_cull_mode_from_cull_variant(CullVariant p_cull_variant) {
+--- a/servers/rendering/renderer_rd/pipeline_hash_map_rd.h
++++ b/servers/rendering/renderer_rd/pipeline_hash_map_rd.h
+@@ -169,6 +169,12 @@
+ 
+ 	// Retrieve a pipeline. It'll return an empty pipeline if it's not available yet, but it'll be guaranteed to succeed if 'wait for compilation' is true and stall as necessary. Source is just an optional number to aid debugging.
+ 	RID get_pipeline(const Key &p_key, uint32_t p_key_hash, bool p_wait_for_compilation, RS::PipelineSource p_source) {
++		return get_pipeline(p_key, p_key_hash, p_wait_for_compilation, p_source, p_wait_for_compilation);
++	}
++
++	// Priority is separate from waiting so a caller that will not wait can still queue a miss ahead of background work.
++	// r_pending tells a still-compiling pipeline apart from one that failed and is cached as empty.
++	RID get_pipeline(const Key &p_key, uint32_t p_key_hash, bool p_wait_for_compilation, RS::PipelineSource p_source, bool p_high_priority, bool *r_pending = nullptr) {
+ 		RBMap<uint32_t, RID>::Element *e = hash_map.find(p_key_hash);
+ 
+ 		if (e == nullptr) {
+@@ -178,9 +184,13 @@
+ 			}
+ 		}
+ 
++		if (r_pending != nullptr) {
++			*r_pending = e == nullptr && !p_wait_for_compilation;
++		}
++
+ 		if (e == nullptr) {
+ 			// Request compilation. The method will ignore the request if it's already being compiled.
+-			compile_pipeline(p_key, p_key_hash, p_source, p_wait_for_compilation);
++			compile_pipeline(p_key, p_key_hash, p_source, p_high_priority);
+ 
+ 			if (p_wait_for_compilation) {
+ 				wait_for_pipeline(p_key_hash);
+@@ -208,7 +218,9 @@
+ 		_add_new_pipelines_to_map();
+ 
+ 		for (KeyValue<uint32_t, RID> entry : hash_map) {
+-			RD::get_singleton()->free_rid(entry.value);
++			if (entry.value.is_valid()) {
++				RD::get_singleton()->free_rid(entry.value);
++			}
+ 		}
+ 
+ 		hash_map.clear();
+--- a/servers/rendering/renderer_scene_cull.cpp
++++ b/servers/rendering/renderer_scene_cull.cpp
+@@ -3413,13 +3413,20 @@
+ 			if (redraw && max_shadows_used < MAX_UPDATE_SHADOWS) {
+ 				//must redraw!
+ 				RENDER_TIMESTAMP("> Render Light3D " + itos(i));
++				const uint32_t shadows_before = max_shadows_used;
+ 				if (_light_instance_update_shadow(ins, p_camera_data->main_transform, p_camera_data->main_projection, p_camera_data->is_orthogonal, p_camera_data->vaspect, p_shadow_atlas, scenario, p_screen_mesh_lod_threshold, p_visible_layers)) {
+ 					light->make_shadow_dirty();
+ 				}
++				if (max_shadows_used == shadows_before) {
++					positional_shadows_deferred++;
++				} else {
++					positional_shadows_redrawn.push_back(light);
++				}
+ 				RENDER_TIMESTAMP("< Render Light3D " + itos(i));
+ 			} else {
+ 				if (redraw) {
+ 					light->make_shadow_dirty();
++					positional_shadows_deferred++;
+ 				}
+ 			}
+ 		}
+@@ -3484,12 +3491,26 @@
+ 	}
+ 
+ 	RENDER_TIMESTAMP("Render 3D Scene");
++	const int shadow_skipped_before = r_render_info ? r_render_info->info[RS::VIEWPORT_RENDER_INFO_TYPE_SHADOW][RS::VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME] : 0;
+ 	scene_render->render_scene(p_render_buffers, p_camera_data, prev_camera_data, scene_cull_result.geometry_instances, scene_cull_result.light_instances, scene_cull_result.reflections, scene_cull_result.voxel_gi_instances, scene_cull_result.decals, scene_cull_result.lightmaps, scene_cull_result.fog_volumes, p_environment, camera_attributes, p_compositor, p_shadow_atlas, occluders_tex, p_reflection_probe.is_valid() ? RID() : scenario->reflection_atlas, p_reflection_probe, p_reflection_probe_pass, p_screen_mesh_lod_threshold, render_shadow_data, max_shadows_used, render_sdfgi_data, cull.sdfgi.region_count, &sdfgi_update_data, r_render_info);
+ 
+ 	if (p_viewport.is_valid()) {
+ 		RSG::viewport->viewport_set_prev_camera_data(p_viewport, p_camera_data);
+ 	}
+ 
++	// A positional shadow is cached in the atlas until the light is dirtied, so one drawn with skipped casters must be drawn again.
++	if (r_render_info && r_render_info->info[RS::VIEWPORT_RENDER_INFO_TYPE_SHADOW][RS::VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME] > shadow_skipped_before) {
++		for (InstanceLightData *light : positional_shadows_redrawn) {
++			light->make_shadow_dirty();
++		}
++	}
++	positional_shadows_redrawn.clear();
++	// The atlas already holds the new version of a deferred shadow while its tile was not drawn, so this frame is incomplete too.
++	if (r_render_info) {
++		r_render_info->info[RS::VIEWPORT_RENDER_INFO_TYPE_SHADOW][RS::VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME] += positional_shadows_deferred;
++	}
++	positional_shadows_deferred = 0;
++
+ 	for (uint32_t i = 0; i < max_shadows_used; i++) {
+ 		render_shadow_data[i].instances.clear();
+ 	}
+--- a/servers/rendering/renderer_scene_cull.h
++++ b/servers/rendering/renderer_scene_cull.h
+@@ -1004,6 +1004,8 @@
+ 
+ 	RendererSceneRender::RenderShadowData render_shadow_data[MAX_UPDATE_SHADOWS];
+ 	uint32_t max_shadows_used = 0;
++	LocalVector<InstanceLightData *> positional_shadows_redrawn;
++	uint32_t positional_shadows_deferred = 0;
+ 
+ 	RendererSceneRender::RenderSDFGIData render_sdfgi_data[SDFGI_MAX_CASCADES * SDFGI_MAX_REGIONS_PER_CASCADE];
+ 	RendererSceneRender::RenderSDFGIUpdateData sdfgi_update_data;
+--- a/servers/rendering/renderer_viewport.cpp
++++ b/servers/rendering/renderer_viewport.cpp
+@@ -345,6 +345,7 @@
+ 			p_viewport->render_info.info[i][j] = 0;
+ 		}
+ 	}
++	p_viewport->render_info_pass = draw_viewports_pass;
+ 
+ 	if (RSG::scene->is_scenario(p_viewport->scenario)) {
+ 		RID environment = RSG::scene->scenario_get_environment(p_viewport->scenario);
+@@ -1514,6 +1515,10 @@
+ 	ERR_FAIL_INDEX_V(p_info, RS::VIEWPORT_RENDER_INFO_MAX, -1);
+ 
+ 	Viewport *viewport = viewport_owner.get_or_null(p_viewport);
++	if (p_info == RS::VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME && (!viewport || viewport->render_info_pass != draw_viewports_pass)) {
++		// -1 means the viewport did not render in the most recent frame, so there is no completed draw to report on.
++		return -1;
++	}
+ 	if (!viewport) {
+ 		return 0; //there should be a lock here..
+ 	}
+--- a/servers/rendering/renderer_viewport.h
++++ b/servers/rendering/renderer_viewport.h
+@@ -106,6 +106,7 @@
+ 		float mesh_lod_threshold = 1.0;
+ 
+ 		uint64_t last_pass = 0;
++		uint64_t render_info_pass = UINT64_MAX;
+ 
+ 		RS::ViewportDebugDraw debug_draw = RenderingServer::VIEWPORT_DEBUG_DRAW_DISABLED;
+ 
+--- a/servers/rendering/rendering_server.cpp
++++ b/servers/rendering/rendering_server.cpp
+@@ -3004,6 +3004,7 @@
+ 	BIND_ENUM_CONSTANT(VIEWPORT_RENDER_INFO_OBJECTS_IN_FRAME);
+ 	BIND_ENUM_CONSTANT(VIEWPORT_RENDER_INFO_PRIMITIVES_IN_FRAME);
+ 	BIND_ENUM_CONSTANT(VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME);
++	BIND_ENUM_CONSTANT(VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME);
+ 	BIND_ENUM_CONSTANT(VIEWPORT_RENDER_INFO_MAX);
+ 
+ 	BIND_ENUM_CONSTANT(VIEWPORT_RENDER_INFO_TYPE_VISIBLE);
+--- a/servers/rendering/rendering_server.h
++++ b/servers/rendering/rendering_server.h
+@@ -1112,6 +1112,7 @@
+ 		VIEWPORT_RENDER_INFO_OBJECTS_IN_FRAME,
+ 		VIEWPORT_RENDER_INFO_PRIMITIVES_IN_FRAME,
+ 		VIEWPORT_RENDER_INFO_DRAW_CALLS_IN_FRAME,
++		VIEWPORT_RENDER_INFO_SKIPPED_DRAWS_IN_FRAME,
+ 		VIEWPORT_RENDER_INFO_MAX,
+ 	};
+ 

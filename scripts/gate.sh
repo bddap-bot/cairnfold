@@ -23,7 +23,7 @@ if owes '^game/src/(world|commands|[a-z_]+_tool)\.gd$'; then
   echo "gate: scripts/coop.sh"
   nix-shell --run "scripts/coop.sh $out/coop"
 fi
-if owes '^(android\.nix|scripts/(android|export|notices|pins)\.sh|scripts/(android-notices\.gradle|notices\.py)|game/(project\.godot|export_presets\.cfg|android/.*))$'; then
+if owes '^(android\.nix|scripts/(android|android-template|export|notices|pins)\.sh|scripts/(android-notices\.gradle|android-template\.patch|notices\.py)|game/(project\.godot|export_presets\.cfg|android/.*))$'; then
   for target in quest lepton; do
     echo "gate: scripts/android.sh $target"
     nix-shell android.nix --run "scripts/android.sh $target $out/$target.apk"

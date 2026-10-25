@@ -73,6 +73,15 @@ the MinGW toolchain it was built with. The Windows package adds their license
 texts under `notices/windows/`. The template links no WinPixEventRuntime, and the
 export ships no Direct3D 12 Agility SDK library.
 
+## Android engine
+
+Both APKs carry Godot's official Android release library at the pinned version
+with one file replaced: `libgodot_android.so`, built by `scripts/android-template.sh`
+from the pinned Godot source with `scripts/android-template.patch` applied, using
+the official template's build flags and NDK revision. The patch modifies MIT-licensed
+Godot sources only and adds no component, so the source notices above cover the
+binary; it is part of this repository's source under its licenses.
+
 ## Building and checking
 
 `scripts/pins.sh` is the source of download versions and hashes. Every builder

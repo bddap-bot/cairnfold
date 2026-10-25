@@ -3,6 +3,8 @@
 godot_version=4.6
 godot_release=https://github.com/godotengine/godot/releases/download/$godot_version-stable
 godot_templates=("$godot_release/Godot_v$godot_version-stable_export_templates.tpz" 3b30ac8c1772f25f5dfa5f65922cab0a90e7b960176891237c5772515ebccc46)
+# The Swappy frame pacing libraries Godot's misc/scripts/install_swappy_android.py names for the pinned source.
+godot_swappy=(https://github.com/godotengine/godot-swappy/releases/download/from-source-2025-01-31/godot-swappy.zip 2dd05484de29a3040106658d6f95915778fd71abc3261130eada6090ed1c153d)
 openxr_vendors_version=5.1.0-stable
 openxr_vendors=("https://github.com/GodotVR/godot_openxr_vendors/releases/download/$openxr_vendors_version/godotopenxrvendorsaddon.zip" 6a838dbdf4115549e4511ebee0da9a5dcc8f9f6258d4cc2f2ee57a907a3e2911)
 godot_source=("$godot_release/godot-$godot_version-stable.tar.xz" 900ad0f6241b8051daa569cee1b07b6e30c4cb4f804471f72256d052334c0550)
