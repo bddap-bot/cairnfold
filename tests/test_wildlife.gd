@@ -482,7 +482,7 @@ func _ducks_keep_out_of_walls() -> void:
 ## At night the day's animals rest: a family on the bank stays there and quacks no more, a new pond draws no duck
 ## until morning, a butterfly stays on its flower and a conure only murmurs.
 func _night_rests_the_day_animals(world: World, wildlife: Wildlife, water: Water, flora: Flora, rig: Rig) -> void:
-	var look := Look.build(root)
+	var look := Look.build(root, world.terrain)
 	look.set_time(0.0)
 	wildlife.light = look
 	_run(wildlife, STEP)

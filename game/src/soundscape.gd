@@ -11,7 +11,7 @@ const STEMS := ["bed", "lead", "orn"]
 const IDLE := [0.0, 0.0, 0.0]
 const BUILDING := [-3.0, -14.0, -40.0]
 const QUIET_AFTER := 4.0
-## Sun elevations in degrees over which the songbirds wake at dawn; the crickets start up by Daylight.DUSK.
+## Sun elevations in degrees over which the songbirds wake at dawn; the crickets start up by Daylight.NIGHTFALL.
 const DAWN := Vector2(-10.0, 2.0)
 ## Heights of the head over the ground in metres over which the birds and crickets fall silent.
 const ALOFT := Vector2(6.0, 25.0)
@@ -31,6 +31,7 @@ const UNIT := 6.0
 
 var tool: WallTool
 var rig: Rig
+var terrain: Terrain
 var look: Look
 var night := AudioStreamPlayer.new()
 var rng := RandomNumberGenerator.new()
@@ -46,8 +47,9 @@ var since_edit := INF
 var _offsets: Array[float] = []
 
 
-func _init(builder: WallTool, flora_tool: FloraTool, player: Rig, light: Look, seed: int) -> void:
+func _init(builder: WallTool, flora_tool: FloraTool, player: Rig, land: Terrain, light: Look, seed: int) -> void:
 	tool = builder
+	terrain = land
 	rig = player
 	look = light
 	rng.seed = seed
@@ -122,7 +124,7 @@ func _process(delta: float) -> void:
 func _meadow(delta: float) -> void:
 	var head := rig.head.global_position
 	var elevation := Daylight.elevation(look.time)
-	var above := head.y - Terrain.height_at(head.x, head.z)
+	var above := head.y - terrain.height_at(head.x, head.z)
 	var dark := night_level(elevation, above, rig.under)
 	_dark = move_toward(_dark, dark, NIGHT_EASE * delta)
 	night.volume_db = NIGHT_DB + linear_to_db(maxf(_dark, 0.001))
@@ -154,15 +156,15 @@ func _call(clips: Array[AudioStream], head: Vector3, level: float) -> void:
 	bird.stream = clips[rng.randi() % clips.size()]
 	bird.volume_db = BIRD_DB + linear_to_db(level) + rng.randf_range(-3.0, 1.0)
 	bird.pitch_scale = rng.randf_range(0.94, 1.06)
-	bird.position = perch(head, rng)
+	bird.position = perch(head, rng, terrain)
 	bird.play()
 
 
 ## Where a bird calls from, about a head at `head`.
-static func perch(head: Vector3, from: RandomNumberGenerator) -> Vector3:
+static func perch(head: Vector3, from: RandomNumberGenerator, land: Terrain) -> Vector3:
 	var way := Vector2.from_angle(from.randf() * TAU) * from.randf_range(AWAY.x, AWAY.y)
 	var at := Vector3(head.x + way.x, 0.0, head.z + way.y)
-	at.y = Terrain.height_at(at.x, at.z) + from.randf_range(PERCH.x, PERCH.y)
+	at.y = land.height_at(at.x, at.z) + from.randf_range(PERCH.x, PERCH.y)
 	return at
 
 
