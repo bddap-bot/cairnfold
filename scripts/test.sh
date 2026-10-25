@@ -22,11 +22,18 @@ if grep -nE "^\s+quit\(" tests/*.gd; then echo "tests exit through Main.quit, wh
 # game's workers are doing, never on a frame count, and an until() still unmet after two minutes of the host's time
 # fails as the wait it names. The timeout catches any other hang, and stays an hour: test_house_leaks alone took 29
 # minutes in a full run on a loaded host, and the suite waits for it anyway, so a lower ceiling would only fail it.
-# shellcheck disable=SC2011,SC2016
-ls -S tests/test_*.gd | xargs -P "$(( $(nproc) / 2 ))" -I{} sh -c '
-  log="$1/$(basename "$2").log"
-  XDG_DATA_HOME=$(mktemp -d -p "$1") timeout 3600 godot4 --headless --fixed-fps 60 --path game --script "../$2" >"$log" 2>&1
-  echo $? >"$log.exit"' sh "$runs" {}
+# A make jobserver the caller advertises in MAKEFLAGS sets how many run at once, so suites and builds running beside
+# this one share the CPUs; without one, half the CPUs do.
+cat >"$runs/tests.mk" <<'MK'
+%.log.exit:
+	@XDG_DATA_HOME=$$(mktemp -d -p "$(@D)") timeout 3600 godot4 --headless --fixed-fps 60 --path game \
+	  --script "../tests/$(basename $(basename $(@F)))" >"$(basename $@)" 2>&1; echo $$? >"$@"
+MK
+fifo=${MAKEFLAGS-}
+fifo=${fifo##*--jobserver-auth=fifo:}
+if [ -p "${fifo%% *}" ]; then jobs=(); else jobs=(-j "$(( $(nproc) / 2 ))"); fi
+# shellcheck disable=SC2046,SC2012
+make -s -k -f "$runs/tests.mk" "${jobs[@]}" $(ls -S tests/test_*.gd | sed "s|^tests/\(.*\)|$runs/\1.log.exit|")
 for t in tests/test_*.gd; do
   log="$runs/$(basename "$t").log"
   code=$(cat "$log.exit")
