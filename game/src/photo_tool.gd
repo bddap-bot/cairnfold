@@ -263,8 +263,10 @@ func shoot(hand: Hand) -> String:
 		return ""
 	var paintings: Array = []
 	for e in subjects:
-		if is_instance_valid(e):
-			paintings.append(await _flatten(e.canvas))
+		if is_instance_valid(e) and e.is_inside_tree():
+			var painting := await _flatten(e.canvas)
+			if not painting.is_empty():
+				paintings.append(painting)
 	for h in _shots:
 		_shots[h] = 0.0
 	_shots[hand] = SHOT_HOLD
@@ -314,7 +316,7 @@ func _subjects(at: Transform3D) -> Array[Easels.Easel]:
 
 
 ## `canvas` as it shows now, flat (Canvas.flat_view): its colour and its height, drawn on a frame of their own after the
-## photo's, which already costs its frame plenty.
+## photo's, which already costs its frame plenty; none if the canvas was taken away before they were drawn.
 func _flatten(canvas: Canvas) -> Array[Image]:
 	var views: Array[SubViewport] = [canvas.flat_view(false), canvas.flat_view(true)]
 	for vp in views:
@@ -322,9 +324,10 @@ func _flatten(canvas: Canvas) -> Array[Image]:
 	await RenderingServer.frame_post_draw
 	var out: Array[Image] = []
 	for vp in views:
-		out.append(await _read(vp))
+		if is_instance_valid(canvas) and canvas.is_inside_tree():
+			out.append(await _read(vp))
 		vp.queue_free()
-	return out
+	return out if out.size() == views.size() else []
 
 
 ## How much of the frame of a photo from `at` a canvas in `frame` (Easel.canvas_frame) covers, as a fraction of the
