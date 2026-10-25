@@ -241,6 +241,7 @@ func _process(_delta: float) -> void:
 			row.head_position = [pos.x, pos.y, pos.z]
 			row.view_direction = [forward.x, forward.y, forward.z]
 		row.logging_us = _logging_us
+		row.mem_mb = memory_mb()
 		if play_log != null:
 			play_log.sample(row)
 		_cpu.clear()
@@ -295,6 +296,15 @@ static func tally(into: Dictionary, tag: String, ms: float, late: bool, cpu_ms: 
 	if gpu_ms >= 0.0:
 		t.gpu_ms += gpu_ms
 		t.gpu_frames += 1
+
+
+## The renderer's textures, buffers and all its video memory this second, in MiB, so a phase's memory pressure on the
+## headset names which of them grew.
+static func memory_mb() -> Dictionary:
+	const MIB := 1048576.0
+	return {"textures": snappedf(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TEXTURE_MEM_USED) / MIB, 0.1),
+		"buffers": snappedf(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_BUFFER_MEM_USED) / MIB, 0.1),
+		"video": snappedf(RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_VIDEO_MEM_USED) / MIB, 0.1)}
 
 
 static func _compilations() -> Vector2i:
