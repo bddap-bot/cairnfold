@@ -196,7 +196,7 @@ func _no_tool_places_an_animal() -> void:
 					check(not code.contains(part), "%s reaches no %s" % [f, what])
 		check(FileAccess.get_file_as_string("res://src/" + row[4]).count(row[5]) == 1, "%s alone makes the %s" % [row[4], what])
 	for m in (load("res://src/wildlife.gd") as Script).get_script_method_list():
-		check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "still", "approaching", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble", "in_hand", "feeding", "standable", "clear_way"], "Wildlife exposes no way to add an animal, found %s" % m.name)
+		check(m.name.begins_with("_") or m.name in ["tick", "ducks", "sudden", "still", "approaching", "offers", "offer_for", "claim", "release", "feeds", "eat_spot", "nibble", "in_hand", "feeding", "standable", "clear_way", "night", "asleep"], "Wildlife exposes no way to add an animal, found %s" % m.name)
 
 
 ## A teleport or a snap turn moves the head and hands across the garden in a frame; no animal takes that for a
@@ -311,6 +311,8 @@ func _ducks_come_only_to_ponds() -> void:
 	check(wildlife.families.size() == 1 and states.has(Wildlife.State.SWIM) and states.has(Wildlife.State.REST), "it swims, then rests on the bank, states %s" % [states.keys()])
 	check(worst[2] == 0 and worst[0] <= Wildlife.BANK.y + 0.75, "it rests on dry grass near the water, at most %.2f m from the shore" % worst[0])
 	check(worst[1] < 0.02, "afloat, each duck sits at the waterline, off by %.3f" % worst[1])
+
+	_night_rests_the_day_animals(world, wildlife, water, flora, rig)
 
 	var flier := Wildlife.new(world.terrain, world.marks, water, flora, null, Palette.new(), rig.head, no_hands, 0)
 	root.add_child(flier)
@@ -475,3 +477,72 @@ func _ducks_keep_out_of_walls() -> void:
 		wildlife.families.clear()
 	check(out == 0 and moved > 0, "nor walks out through it, %d of %d" % [out, moved])
 	await g.teardown()
+
+
+## At night the day's animals rest: a family on the bank stays there and quacks no more, a new pond draws no duck
+## until morning, a butterfly stays on its flower and a conure only murmurs.
+func _night_rests_the_day_animals(world: World, wildlife: Wildlife, water: Water, flora: Flora, rig: Rig) -> void:
+	var look := Look.build(root)
+	look.set_time(0.0)
+	wildlife.light = look
+	_run(wildlife, STEP)
+	look.set_time(Daylight.DEFAULT)
+	_run(wildlife, STEP)
+	check(wildlife.night() == 0.0 and not wildlife.asleep(), "late morning is day")
+	look.set_time(0.0)
+	_run(wildlife, STEP)
+	check(wildlife.night() > 0.99 and wildlife.asleep(), "midnight is night")
+
+	var f: Wildlife.Family = wildlife.families[0]
+	var quacks := func() -> int: return wildlife.calls.played.get("quack", [0])[0] + wildlife.calls.played.get("peep", [0])[0]
+	_run(wildlife, 120.0)
+	var before: int = quacks.call()
+	var states := {}
+	_run(wildlife, 600.0, func() -> void: states[f.state] = true)
+	check(states.keys() == [Wildlife.State.REST], "at night the family rests on the bank, states %s" % [states.keys()])
+	check(quacks.call() == before, "and is quiet, %d calls in ten minutes" % (quacks.call() - before))
+
+	var late := Wildlife.new(world.terrain, world.marks, water, flora, null, Palette.new(), rig.head, [] as Array[Node3D], 5, look)
+	root.add_child(late)
+	late.set_process(false)
+	_run(late, Wildlife.ARRIVE_AFTER.y + 5.0)
+	check(late.families.is_empty(), "no duck comes to a pond at night")
+	look.set_time(Daylight.DEFAULT)
+	_run(late, Wildlife.ARRIVE_AFTER.y + 5.0)
+	check(late.families.size() == 1, "one comes after morning")
+	look.set_time(0.0)
+	_run(late, STEP)
+
+	var b := Butterflies.Butterfly.new()
+	b.patch = Vector2i(99, 99)
+	b.at = Vector3(50, 0, 50)
+	b.state = Butterflies.State.PERCH
+	b.timer = 1.0
+	late.butterflies.patches[b.patch] = PackedVector3Array([b.at])
+	late.butterflies._think(b, 5.0)
+	check(b.state == Butterflies.State.PERCH and b.timer == 1.0, "a butterfly stays settled at night")
+	late.butterflies.patches.erase(b.patch)
+
+	var bird := Birds.Bird.new()
+	bird.node = Conure.new(0.0, 0)
+	bird.node.position = Vector3(40, 0, 40)
+	var heard := {}
+	late.calls.played.clear()
+	for i in 3000:
+		late.calls.tick(1.0)
+		late.birds._voice(bird, "PERCH", 1.0)
+	for kind in late.calls.played:
+		heard[kind] = true
+	check(heard.keys() == ["murmur"], "a roosting conure only murmurs, heard %s" % [heard.keys()])
+	bird.state = Birds.State.PERCH
+	bird.full = INF
+	var roost := bird.node.position
+	var stirred := [false]
+	for i in 3000:
+		late.birds._think(bird, 0.2)
+		stirred[0] = stirred[0] or bird.state != Birds.State.PERCH or bird.preening > 0.0 or bird.node.position != roost
+	check(not stirred[0], "and stays on its roost, neither hopping, preening nor flying")
+	bird.node.free()
+	late.queue_free()
+	wildlife.light = null
+	look.queue_free()

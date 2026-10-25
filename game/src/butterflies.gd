@@ -187,7 +187,8 @@ func _think(b: Butterfly, delta: float) -> void:
 				b.vel = Vector3.ZERO
 				b.stalk = b.goal_stalk
 		State.PERCH, State.FLEE:
-			b.timer -= delta
+			if b.state == State.FLEE or not wildlife.asleep():
+				b.timer -= delta
 			if b.timer <= 0.0:
 				_flit(b)
 

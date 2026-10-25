@@ -11,9 +11,8 @@ const STEMS := ["bed", "lead", "orn"]
 const IDLE := [0.0, 0.0, 0.0]
 const BUILDING := [-3.0, -14.0, -40.0]
 const QUIET_AFTER := 4.0
-## Sun elevations in degrees over which the songbirds wake at dawn, and over which the crickets start up at dusk.
+## Sun elevations in degrees over which the songbirds wake at dawn; the crickets start up by Daylight.DUSK.
 const DAWN := Vector2(-10.0, 2.0)
-const DUSK := Vector2(4.0, -6.0)
 ## Heights of the head over the ground in metres over which the birds and crickets fall silent.
 const ALOFT := Vector2(6.0, 25.0)
 const SONGS := 8
@@ -144,7 +143,7 @@ static func song_level(elevation: float, above: float, under: bool) -> float:
 
 ## How fully the night sounds, the crickets and the owl.
 static func night_level(elevation: float, above: float, under: bool) -> float:
-	return 0.0 if under else smoothstep(DUSK.x, DUSK.y, elevation) * _low(above)
+	return 0.0 if under else Daylight.night(elevation) * _low(above)
 
 
 static func _low(above: float) -> float:

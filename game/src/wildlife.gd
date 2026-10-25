@@ -10,7 +10,8 @@ extends Node3D
 ## after the ducks, to planted trees and wall tops (`Birds`), and sheep to the fences built (`Herds`); deer
 ## and a fox come out of the trees round the meadow (`Roamers`).
 ## A hand or the head coming near slowly startles none of them; a sudden one does. A hand holding seeds draws
-## those that eat from it, each kind as its `Appetite` says.
+## those that eat from it, each kind as its `Appetite` says. At night the day's animals rest: no new ones come but
+## the fireflies, butterflies stay settled on their flowers, conures roost and only murmur, and ducks rest quietly.
 
 ## How long after its habitat appears a duck, a pond's fish, or a flock of conures, comes.
 const ARRIVE_AFTER := Vector2(20.0, 60.0)
@@ -119,6 +120,8 @@ var birds: Birds
 var herds: Herds
 var roamers: Roamers
 var calls: Calls
+## The sky whose hour sets day and night; none is always day.
+var light: Look
 var rng := RandomNumberGenerator.new()
 ## Whether a duck has ever come: conures come only after.
 var ducks_came := false
@@ -127,6 +130,7 @@ var _due_butterflies := {}
 var _due_birds := {}
 var _due_sheep := {}
 var _since_look := INF
+var _asleep := false
 ## Per hand and the head: where it was last tick and how fast it has been moving. A teleport or a snap turn forgets
 ## where each was, so the cut is no motion to an animal: a player in a small room cannot help teleporting.
 var _was := {}
@@ -173,6 +177,7 @@ func _init(land: Terrain, wear: Ground, ponds: Water, plants: Flora, builds: Wal
 	palette = season
 	viewer = eyes
 	hands = near
+	light = sky
 	if eyes != null and eyes.get_parent() is Rig:
 		eyes.get_parent().jumped.connect(func() -> void: _was.clear())
 	Duck.prepare()
@@ -212,11 +217,23 @@ func _process(delta: float) -> void:
 	tick(delta)
 
 
+## 0 by day to 1 at night.
+func night() -> float:
+	return 0.0 if light == null else Daylight.night(Daylight.elevation(light.time))
+
+
+## Whether the day's animals rest, as of the last tick.
+func asleep() -> bool:
+	return _asleep
+
+
 func tick(delta: float) -> void:
 	calls.tick(delta)
 	_watch(delta)
-	_schedule(delta)
-	var room := butterflies.butterflies.size() < Butterflies.CAP
+	_asleep = night() >= 0.5
+	var day := not _asleep
+	_schedule(delta, day)
+	var room := day and butterflies.butterflies.size() < Butterflies.CAP
 	for key in _ripe(_due_butterflies, butterflies.empty_patches(), BUTTERFLIES_AFTER, delta, room):
 		if butterflies.butterflies.size() >= Butterflies.CAP:
 			break
@@ -235,12 +252,12 @@ func tick(delta: float) -> void:
 		roamers.look()
 	ducks_came = ducks_came or not families.is_empty()
 	var perches := [birds] if ducks_came and birds.birds.is_empty() and not birds.sites.is_empty() else []
-	if not _ripe(_due_birds, perches, ARRIVE_AFTER, delta, true, birds.rng).is_empty():
+	if not _ripe(_due_birds, perches, ARRIVE_AFTER, delta, day, birds.rng).is_empty():
 		_due_birds.clear()
 		birds.arrive()
 	birds.tick(delta)
 	herds.tick(delta)
-	for fence in _ripe(_due_sheep, herds.empty_pastures(), SHEEP_AFTER, delta, herds.count() < Herds.CAP):
+	for fence in _ripe(_due_sheep, herds.empty_pastures(), SHEEP_AFTER, delta, day and herds.count() < Herds.CAP):
 		_due_sheep.erase(fence)
 		if herds.count() < Herds.CAP:
 			herds.arrive(fence)
@@ -257,9 +274,9 @@ func tick(delta: float) -> void:
 			families.remove_at(i)
 
 
-func _schedule(delta: float) -> void:
+func _schedule(delta: float, day: bool) -> void:
 	var ponds := water.ponds.filter(func(p: PondWater) -> bool: return p.pond.cells.size() >= MIN_POND and _family_at(p) == null)
-	var ripe := _ripe(_due, ponds, ARRIVE_AFTER, delta, families.size() < FAMILIES)
+	var ripe := _ripe(_due, ponds, ARRIVE_AFTER, delta, day and families.size() < FAMILIES)
 	if not ripe.is_empty():
 		_due.erase(ripe[0])
 		_arrive(ripe[0])
@@ -346,7 +363,8 @@ func _think(f: Family, delta: float) -> void:
 		f.pond = _pond_near(f.home)
 		if f.pond == null:
 			_leave(f)
-	if f.state in [State.SWIM, State.ASHORE, State.REST, State.FEED]:
+	var resting := asleep()
+	if f.state in [State.SWIM, State.ASHORE, State.REST, State.FEED] and not resting:
 		calls.now_and_then("quack", lead.position, QUACK_EVERY, delta)
 		if f.ducks.size() > 1:
 			calls.now_and_then("peep", f.ducks[1 + calls.rng.randi() % (f.ducks.size() - 1)].position, PEEP_EVERY, delta)
@@ -366,7 +384,7 @@ func _think(f: Family, delta: float) -> void:
 					f.state = State.REST
 					f.timer = rng.randf_range(REST_FOR.x, REST_FOR.y)
 		State.SWIM:
-			f.timer -= delta
+			f.timer = 0.0 if resting else f.timer - delta
 			f.ripple -= delta
 			if f.ripple <= 0.0 and lead.afloat:
 				f.ripple = RIPPLE_EVERY
@@ -380,7 +398,8 @@ func _think(f: Family, delta: float) -> void:
 					f.goal = _deep_point(f.pond, lead.position)
 		State.REST:
 			_step(lead, Vector3.ZERO, delta)
-			f.timer -= delta
+			if not resting:
+				f.timer -= delta
 			if f.timer <= 0.0:
 				_swim(f)
 		State.WALK_OUT:

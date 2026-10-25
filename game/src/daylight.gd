@@ -31,6 +31,9 @@ const LIT := Vector2(6.0, -4.0)
 const MOONLESS := 0.3
 ## The sun's elevation in the evening, just set with the sky still glowing, where a garden kept moonless starts again.
 const DUSK := -1.0
+## The sun's elevations in degrees over which day turns to night: butterflies, conures and ducks rest and the
+## crickets start up.
+const NIGHTFALL := Vector2(4.0, -6.0)
 ## How near the sun or moon, in degrees, a pointing hand takes the sky by it, under the ground too.
 const REACH := 7.0
 
@@ -70,6 +73,11 @@ static func toward_moon(time: float) -> Vector3:
 
 static func elevation(time: float) -> float:
 	return rad_to_deg(asin(toward_sun(time).y))
+
+
+## 0 by day to 1 once night has fallen, by NIGHTFALL.
+static func night(elevation_deg: float) -> float:
+	return smoothstep(NIGHTFALL.x, NIGHTFALL.y, elevation_deg)
 
 
 static func moon_elevation(time: float) -> float:

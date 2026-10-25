@@ -364,6 +364,8 @@ func _think(b: Bird, delta: float) -> void:
 	if b.timer > 0.0:
 		return
 	b.timer = rng.randf_range(PAUSE.x, PAUSE.y)
+	if wildlife.asleep():
+		return
 	var roll := rng.randf()
 	if roll < 0.4:
 		var next := _hop_spot(b)
@@ -378,9 +380,12 @@ func _think(b: Bird, delta: float) -> void:
 		_swoop(b)
 
 
+## At night a roosting bird only murmurs.
 func _voice(b: Bird, doing: String, delta: float) -> void:
+	var asleep := wildlife.asleep()
 	for call: Array in VOICE[doing]:
-		wildlife.calls.now_and_then(call[0], b.node.position, call[1], delta)
+		if not asleep or call[0] == "murmur":
+			wildlife.calls.now_and_then(call[0], b.node.position, call[1], delta)
 
 
 ## Someone close and calm: the bird turns to them and looks about, and stays, stepping aside only from a face
