@@ -111,6 +111,7 @@ func _ready() -> void:
 	add_child(sky_tool)
 	photo_tool = PhotoTool.new(rig)
 	photo_tool.flora = flora
+	photo_tool.easels = easels
 	photo_tool.scene = _photo_scene
 	if args.has("capture-dir"):
 		photo_tool.folder = str(args["capture-dir"]).path_join("photos")

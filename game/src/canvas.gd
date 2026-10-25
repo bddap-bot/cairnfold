@@ -22,6 +22,10 @@ const DAB_ROOM := 8192
 const PAPER := 0
 const DAB := 1
 const FLOW := 2
+## Metres the paint stands off the board at its thickest oil (paint.glsl keeps a texel's thickness within 0..1), and the
+## paper's grain at its highest (canvas.gdshaderinc).
+const IMPASTO := 0.0035
+const GRAIN := 0.00025
 ## Checkpoints a canvas keeps, each two textures of 14 MB: undo steps back this far without a replay.
 const CHECKPOINTS := 6
 
@@ -79,6 +83,8 @@ func _init() -> void:
 	material = ShaderMaterial.new()
 	material.shader = preload("res://src/canvas.gdshader")
 	material.set_shader_parameter("metres", Brushwork.METRES)
+	material.set_shader_parameter("impasto", IMPASTO)
+	material.set_shader_parameter("grain", GRAIN)
 	_rd = RenderingServer.get_rendering_device()
 	for i in 3:
 		_shown.append(Texture2DRD.new())
@@ -172,6 +178,34 @@ func _exit_tree() -> void:
 			if r.is_valid():
 				rd.free_rid(r))
 	_rd = null
+
+
+## A view that draws the canvas as it shows now, flat and unlit, one texel to a pixel at its full size: its colour, or
+## with `height` its height off the board in 1/65535ths of IMPASTO + GRAIN as canvas_flat.gdshader packs it. It draws
+## on the first frame it is in the tree.
+func flat_view(height: bool) -> SubViewport:
+	return flat(_shown, height, Brushwork.SIZE)
+
+
+## A view drawing `textures`, a canvas's wet, dry and paper, as flat_view does, `size` large.
+static func flat(textures: Array, height: bool, size: Vector2i) -> SubViewport:
+	var vp := SubViewport.new()
+	vp.size = size
+	vp.disable_3d = true
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	var look := ShaderMaterial.new()
+	look.shader = preload("res://src/canvas_flat.gdshader")
+	for i in 3:
+		look.set_shader_parameter(["wet", "dry", "paper"][i], textures[i])
+	look.set_shader_parameter("impasto", IMPASTO)
+	look.set_shader_parameter("grain", GRAIN)
+	look.set_shader_parameter("height", height)
+	look.set_shader_parameter("top", IMPASTO + GRAIN)
+	var sheet := ColorRect.new()
+	sheet.size = size
+	sheet.material = look
+	vp.add_child(sheet)
+	return vp
 
 
 ## Whether a kept painting is still being replayed.

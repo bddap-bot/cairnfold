@@ -6,6 +6,8 @@ extends Node3D
 ## photo, saved as a PNG that says where and how it was taken (PhotoMeta); the shot stays on the screen a moment after.
 ## Held, the trigger records a video of what that camera's screen shows, with the game's sound, until let go. The player's own avatar stands in the lens's view while a camera is
 ## held, and in no other.
+## A photo is the intent to keep what it is of: a canvas covering SUBJECT of its frame, face on, is saved beside it as
+## the painting itself, flat at the canvas's own full size, and as its height off the board.
 ##
 ## A photo is drawn as well as this game can draw: whatever the headset's step on the quality ladder, it sees
 ## Quality.FULL_LAYER instead of LADDER_LAYER (every plant, stone and leaf whole at every distance, and a sun whose
@@ -32,6 +34,8 @@ const HOLD := 0.3
 const VIDEO_SIZE := Vector2i(640, 480)
 const VIDEO_FPS := 24
 const VIDEO_QUALITY := 0.8
+## A canvas covering at least this much of a photo's frame, its face toward the lens, is what the photo is of.
+const SUBJECT := 0.25
 ## Frames read back but not yet written, past which a frame is dropped rather than queued: writing never
 ## holds up play, and a dropped frame's time goes to the next one.
 const VIDEO_QUEUE := 6
@@ -40,6 +44,8 @@ var rig: Rig
 var folder := Main.photos_folder()
 ## Whose blobs a photo draws finest, if any.
 var flora: Flora
+## Whose canvases a photo saves when it is of them, if any.
+var easels: Easels
 ## Returns what a photo records of the garden around it: {"about": Dictionary, "world": World.snapshot's bytes or none},
 ## taken when the shutter is pressed: the garden changes on while the photo is drawn and written.
 var scene := func() -> Dictionary: return {"about": {}, "world": PackedByteArray()}
@@ -81,16 +87,19 @@ func _init(player: Rig) -> void:
 
 
 ## Godot draws a frame whose pipelines are still compiling without the photo sun's shadows, and the photo sun lights
-## no other view, so a session's first photo came out shadowless (docs/shadows.md). A photo's view is drawn once as
-## the game loads to compile them.
+## no other view, so a session's first photo came out shadowless (docs/shadows.md). A photo's view, and a canvas's flat
+## view, are drawn once as the game loads to compile them.
 func _ready() -> void:
 	if RenderingServer.get_rendering_device() == null:
 		return
 	var vp := _viewport(PREVIEW_SIZE, PHOTO_MSAA)
 	_aim(vp, rig.head.global_transform, FOV, Quality.PHOTO_MASK)
 	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	var flat := Canvas.flat([null, null, null], false, Vector2i(8, 8))
+	add_child(flat)
 	await RenderingServer.frame_post_draw
 	vp.queue_free()
+	flat.queue_free()
 
 
 func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:
@@ -248,7 +257,13 @@ func shoot(hand: Hand) -> String:
 	var at := lens(hand)
 	Cues.play(Cues.Act.PHOTO, at.origin, hand)
 	var around: Dictionary = scene.call()
+	var views := _subjects(at)
 	var img := await render(at, FOV, Quality.PHOTO_MASK)
+	var paintings: Array[Image] = []
+	for vp in views:
+		if img != null:
+			paintings.append(await _read(vp))
+		vp.queue_free()
 	if img == null:
 		return ""
 	for h in _shots:
@@ -264,7 +279,68 @@ func shoot(hand: Hand) -> String:
 		push_error("photo: could not write %s: %s" % [path, error_string(saved)])
 		return ""
 	print("photo: ", path)
+	for i in range(0, paintings.size(), 2):
+		var stem := "%s-canvas-%d" % [path.get_basename(), i / 2 + 1]
+		var colour := paintings[i]
+		var height := paintings[i + 1]
+		if colour != null:
+			_saved(stem + ".png", await save(colour, stem + ".png"))
+		if height != null:
+			_saved(stem + "-height.png", await _store(stem + "-height.png", func() -> PackedByteArray:
+				height.convert(Image.FORMAT_RG8)
+				return PhotoMeta.gray16(height.get_size(), height.get_data(), "Height off the board: 0 to 65535 is 0 to %.2f mm" % ((Canvas.IMPASTO + Canvas.GRAIN) * 1000.0))))
 	return path
+
+
+func _saved(path: String, saved: Error) -> void:
+	if saved == OK:
+		print("photo: ", path)
+	else:
+		push_error("photo: could not write %s: %s" % [path, error_string(saved)])
+
+
+## Views of each canvas a photo from `at` is of, its colour then its height (Canvas.flat_view), drawn with the photo.
+func _subjects(at: Transform3D) -> Array[SubViewport]:
+	var out: Array[SubViewport] = []
+	if easels == null or RenderingServer.get_rendering_device() == null:
+		return out
+	for e: Easels.Easel in easels.easels.values():
+		if coverage(at, e.canvas_corners()) >= SUBJECT:
+			for height in [false, true]:
+				var vp := e.canvas.flat_view(height)
+				add_child(vp)
+				out.append(vp)
+	return out
+
+
+## How much of the frame of a photo from `at` the quad `corners` covers, as a fraction of the frame, negative when the
+## lens sees its back; corners go anticlockwise as its face sees them. Only what lies past the lens's near plane counts.
+static func coverage(at: Transform3D, corners: PackedVector3Array) -> float:
+	var seen := at.affine_inverse() * corners
+	var ahead := PackedVector2Array()
+	var half := Vector2(float(PHOTO_SIZE.x) / PHOTO_SIZE.y, 1.0) * tan(deg_to_rad(FOV) * 0.5)
+	for i in seen.size():
+		var a := seen[i]
+		var b := seen[(i + 1) % seen.size()]
+		if a.z < -Rig.NEAR:
+			ahead.append(Vector2(a.x, a.y) / (-a.z * half))
+		if (a.z < -Rig.NEAR) != (b.z < -Rig.NEAR):
+			var c := a.lerp(b, (-Rig.NEAR - a.z) / (b.z - a.z))
+			ahead.append(Vector2(c.x, c.y) / (Rig.NEAR * half))
+	if ahead.size() < 3:
+		return 0.0
+	var frame := PackedVector2Array([Vector2(-1, -1), Vector2(1, -1), Vector2(1, 1), Vector2(-1, 1)])
+	var inside := 0.0
+	for piece in Geometry2D.intersect_polygons(ahead, frame):
+		inside += absf(_area(piece))
+	return signf(_area(ahead)) * inside / 4.0
+
+
+static func _area(polygon: PackedVector2Array) -> float:
+	var twice := 0.0
+	for i in polygon.size():
+		twice += polygon[i].cross(polygon[(i + 1) % polygon.size()])
+	return twice * 0.5
 
 
 ## A new file under `folder` named by the date and time.
@@ -420,15 +496,20 @@ static func lens_of(about: Dictionary) -> Transform3D:
 	return Transform3D(Basis(Quaternion(q[0], q[1], q[2], q[3])), Vector3(p[0], p[1], p[2]))
 
 
-## Writes `img` as a PNG on a worker thread, with `about` and `world` written into it when `about` is given (PhotoMeta):
-## converting and encoding a photo-sized image takes longer than a frame.
+## Writes `img` as a PNG, with `about` and `world` written into it when `about` is given (PhotoMeta).
 func save(img: Image, path: String, about: Variant = null, world := PackedByteArray()) -> Error:
-	var file := ProjectSettings.globalize_path(path)
-	var saved := [ERR_BUG]
-	var task := WorkerThreadPool.add_task(func() -> void:
+	return await _store(path, func() -> PackedByteArray:
 		img.convert(Image.FORMAT_RGB8)
 		var png := img.save_png_to_buffer()
-		saved[0] = Main.write_bytes(file, png if about == null else PhotoMeta.embed(png, about, world)))
+		return png if about == null else PhotoMeta.embed(png, about, world))
+
+
+## Writes what `encode` returns to `path`, both on a worker thread: encoding a photo-sized image takes longer than a
+## frame.
+func _store(path: String, encode: Callable) -> Error:
+	var file := ProjectSettings.globalize_path(path)
+	var saved := [ERR_BUG]
+	var task := WorkerThreadPool.add_task(func() -> void: saved[0] = Main.write_bytes(file, encode.call()))
 	while not WorkerThreadPool.is_task_completed(task):
 		await get_tree().process_frame
 	WorkerThreadPool.wait_for_task_completion(task)
@@ -436,8 +517,7 @@ func save(img: Image, path: String, about: Variant = null, world := PackedByteAr
 
 
 ## The garden seen from `at` by a camera seeing `mask`'s layers, rendered once, one render at a time: as a photo when
-## `mask` sees Quality.FULL_LAYER (see the top of this file), else as the eyes see it at VIEW_SIZE. The pixels come back
-## from the GPU a frame or two later instead of stalling the frame that asked for them.
+## `mask` sees Quality.FULL_LAYER (see the top of this file), else as the eyes see it at VIEW_SIZE.
 func render(at: Transform3D, fov: float, mask: int) -> Image:
 	var rd := RenderingServer.get_rendering_device()
 	if rd == null or not is_inside_tree():
@@ -458,12 +538,19 @@ func render(at: Transform3D, fov: float, mask: int) -> Image:
 		undo.call()
 	else:
 		await RenderingServer.frame_post_draw
+	var img := await _read(vp)
+	_busy = false
+	return img
+
+
+## What `vp` last drew. The pixels come back from the GPU a frame or two later instead of stalling the frame that asked.
+func _read(vp: SubViewport) -> Image:
+	var rd := RenderingServer.get_rendering_device()
 	var tex := RenderingServer.texture_get_rd_texture(vp.get_texture().get_rid())
 	var got := []
 	rd.texture_get_data_async(tex, 0, func(data: PackedByteArray) -> void: got.append(data))
 	while got.is_empty():
 		await get_tree().process_frame
-	_busy = false
 	var fmt := rd.texture_get_format(tex)
 	if fmt.format != RenderingDevice.DATA_FORMAT_R8G8B8A8_UNORM and fmt.format != RenderingDevice.DATA_FORMAT_R8G8B8A8_SRGB:
 		push_error("photo: the view came back in format %d, not RGBA8" % fmt.format)

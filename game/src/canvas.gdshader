@@ -2,19 +2,16 @@ shader_type spatial;
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
+#include "res://src/canvas.gdshaderinc"
 
-// A canvas as paint.glsl leaves it: paper under the pigment laid and the pigment still in the water, darkened and
-// glossy where wet, oil standing up off it in ridges the light catches, charcoal and dry paper matte. The sheet is
-// mounted on a board, so no light comes through it from behind.
+// A canvas as paint.glsl leaves it, coloured as canvas.gdshaderinc says: glossy where wet, oil standing up off it in
+// ridges the light catches, charcoal and dry paper matte. The sheet is mounted on a board, so no light comes through
+// it from behind.
 
 uniform sampler2D wet : filter_linear, repeat_disable;
 uniform sampler2D dry : filter_linear, repeat_disable;
 uniform sampler2D paper : filter_linear, repeat_disable;
 uniform vec2 metres;
-
-const vec3 SHEET = vec3(0.93, 0.91, 0.86);
-const float IMPASTO = 0.0035;
-const float GRAIN = 0.00025;
 
 varying vec4 given;
 
@@ -26,11 +23,9 @@ void fragment() {
 	vec4 w = texture(wet, UV);
 	vec4 d = texture(dry, UV);
 	vec2 tooth = texture(paper, UV).rg;
-	vec3 sheet = SHEET * (0.97 + 0.03 * tooth.x + 0.02 * tooth.y);
-	vec3 col = sheet * exp(-(d.rgb + w.rgb));
-	float damp = smoothstep(0.0, 0.25, w.a);
-	ALBEDO = col * (1.0 - 0.12 * damp);
-	float height = d.a * IMPASTO + tooth.x * GRAIN;
+	float damp = canvas_damp(w);
+	ALBEDO = canvas_colour(w, d, tooth);
+	float height = canvas_height(d, tooth);
 	vec2 dx = dFdx(UV * metres);
 	vec2 dy = dFdy(UV * metres);
 	float determinant = dx.x * dy.y - dx.y * dy.x;

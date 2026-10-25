@@ -424,7 +424,7 @@ density, and no build the player can make may bring the frame rate down.
   fixes the seed) and the most sheep at four fences between them (seen too from the ground by a fence), the deer and the fox each seen from a person's height, with every butterfly there can be
   over the full flower pool and the most conures there can be among the full pool of planted trees,
   every firefly there can be over the ponds at dusk, and a hill pulled up live under 973 m of walls,
-  each seen from the air and standing among them, then both hands pushed into the walls beside the player, then the camera held up to it and a photo taken each second, then the selfie camera held out at the player, whose own avatar it draws.
+  each seen from the air and standing among them, then both hands pushed into the walls beside the player, then two painted easels stood before them and the camera held up to them and a photo taken each second, each saving both paintings, then the selfie camera held out at the player, whose own avatar it draws.
   It plays governed, the ladder walking as it does in play, with its builds unbounded: most go past the build budget,
   which no player can do, and price what such a garden draws.
 - `scripts/bench.sh OUT_DIR` plays it and prints, per phase, frame time, draw
@@ -4328,6 +4328,27 @@ permission. The garden save lives in the external files directory (`Main.player_
 can be copied off before an uninstall. The screen holds the shot for a
 moment with a soft flash, and the hand gets a short buzz on the press. Either hand can hold a
 camera, and each camera's screen shows its own lens's view.
+
+Report (verbatim): "Well, I'm thinking whenever someone wants to take, export their painting from the easel they'll be
+taking a picture of it So, I think a picture of an easel pretty much one-to-one captures intent to capture the easel's
+value I just want to be able to export it in nice high resolution when a picture is taken of it"
+
+Directive (paraphrased): export the painting's height map beside it, the height the canvas's shader builds its normals
+from, as a 16-bit greyscale PNG; no normal map, which the height gives. A wide shot with a canvas incidentally in view
+must not export it: a canvas is what the photo is of when it covers about a quarter of the frame, facing the camera.
+
+**Decision: a photo of a painting is its export.** No button or menu: the shutter is the intent. A canvas whose quad,
+face toward the lens, covers `PhotoTool.SUBJECT` (a quarter) of the photo's frame or more is what the photo is of
+(`PhotoTool.coverage`: its corners projected through the photo's lens, clipped at the near plane and to the frame,
+signed by which face is seen). Each saves beside the photo as `NAME-canvas-N.png`, its paint flat and unlit at the
+canvas's own 1536×1152 (`Brushwork.SIZE`, the resolution it is painted at, about 1000 texels a metre), and
+`NAME-canvas-N-height.png`, its height off the board as 16-bit greyscale, 0 to 65535 for 0 to
+`Canvas.IMPASTO + Canvas.GRAIN` (3.75 mm), as its comment says. Both come from one pass over the canvas's own textures,
+drawn in the photo's frame by `Canvas.flat_view` with the colour and height `canvas.gdshaderinc` gives the canvas in
+the garden, read back a frame later and encoded on a worker thread like the photo. Godot writes no PNG deeper than 8
+bits, so `PhotoMeta.gray16` writes the height map, its CRCs read off a native gzip trailer. `tests/gpu_photo_canvas.gd`
+holds both files to the canvas's textures texel for texel. Occlusion is not asked: a canvas hidden behind a wall but
+filling the frame still saves.
 
 Directive (paraphrased): a turned-around version of the camera that acts as a selfie cam; while using it you can
 preview what it sees, so you can hold it out and take a picture of yourself. Placement (paraphrased): it goes in a

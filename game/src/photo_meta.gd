@@ -12,8 +12,6 @@ const WORLD_MAX := 4 << 20
 const RAW_MAX := 64 << 20
 const _SIGNATURE := [137, 80, 78, 71, 13, 10, 26, 10]
 
-static var _crc_table := PackedInt64Array()
-
 
 ## `png` with `about` and, if it fits, `world` (var_to_bytes of World.snapshot) written into it. Sets `about.world` to
 ## what became of the garden: "embedded" with its packed size, or "left out" and why.
@@ -73,18 +71,27 @@ static func read(png: PackedByteArray) -> Dictionary:
 	return out
 
 
+## PNG's CRC-32, read off the trailer of the gzip stream the engine packs `data` into: a chunk a megabyte long sums in
+## native code instead of a byte at a time.
 static func crc32(data: PackedByteArray) -> int:
-	if _crc_table.is_empty():
-		_crc_table.resize(256)
-		for n in 256:
-			var c := n
-			for k in 8:
-				c = (0xEDB88320 ^ (c >> 1)) if c & 1 else c >> 1
-			_crc_table[n] = c
-	var crc := 0xFFFFFFFF
-	for b in data:
-		crc = _crc_table[(crc ^ b) & 0xFF] ^ (crc >> 8)
-	return crc ^ 0xFFFFFFFF
+	var gz := data.compress(FileAccess.COMPRESSION_GZIP)
+	return gz.decode_u32(gz.size() - 8)
+
+
+## A 16-bit greyscale PNG `size` large of `samples`, two big-endian bytes a pixel row by row, saying `comment` of itself.
+## Godot writes no PNG deeper than 8 bits.
+static func gray16(size: Vector2i, samples: PackedByteArray, comment: String) -> PackedByteArray:
+	var row := size.x * 2
+	var lines := PackedByteArray()
+	for y in size.y:
+		lines.append(0)
+		lines.append_array(samples.slice(y * row, (y + 1) * row))
+	var out := PackedByteArray(_SIGNATURE)
+	out.append_array(_chunk("IHDR", _u32(size.x) + _u32(size.y) + PackedByteArray([16, 0, 0, 0, 0])))
+	out.append_array(_chunk("tEXt", "Comment".to_ascii_buffer() + PackedByteArray([0]) + comment.to_utf8_buffer()))
+	out.append_array(_chunk("IDAT", lines.compress(FileAccess.COMPRESSION_DEFLATE)))
+	out.append_array(_chunk("IEND", PackedByteArray()))
+	return out
 
 
 static func _chunk(type: String, data: PackedByteArray) -> PackedByteArray:

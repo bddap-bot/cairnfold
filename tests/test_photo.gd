@@ -15,6 +15,7 @@ func _initialize() -> void:
 	await _the_selfie_camera_looks_back_at_its_holder()
 	_player_data_lives_outside_the_app()
 	_a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows()
+	_a_photo_is_of_a_canvas_filling_its_frame_face_on()
 	await _holding_the_trigger_records_until_it_is_let_go()
 	finish()
 
@@ -188,6 +189,39 @@ func _player_data_lives_outside_the_app() -> void:
 	check(Main.photos_folder() == "user://photos" and Main.photos_folder(false) == "user://photos" and Main.player_path("garden.save") == "user://garden.save", "off Android, photos and the garden stay in user data")
 	var pictures := OS.get_system_dir(OS.SYSTEM_DIR_PICTURES, true)
 	check(pictures.is_absolute_path() and Main.photos_folder(true) == pictures.path_join("Nestcombe"), "on Android, photos go to Nestcombe in the shared Pictures folder: %s" % Main.photos_folder(true))
+
+## A canvas Brushwork.METRES large centred at `at`, facing along `facing`, its corners as Easel.canvas_corners gives them.
+static func _canvas_at(at: Vector3, facing: Vector3) -> PackedVector3Array:
+	var t := Transform3D(Basis.looking_at(-facing), at)
+	var h := Brushwork.METRES * 0.5
+	return PackedVector3Array([t * Vector3(-h.x, -h.y, 0), t * Vector3(h.x, -h.y, 0), t * Vector3(h.x, h.y, 0), t * Vector3(-h.x, h.y, 0)])
+
+
+func _a_photo_is_of_a_canvas_filling_its_frame_face_on() -> void:
+	var lens := Transform3D(Basis.IDENTITY, Vector3(0, 1.3, 5))
+	var half := tan(deg_to_rad(PhotoTool.FOV) * 0.5)
+	var frame := Vector2(float(PhotoTool.PHOTO_SIZE.x) / PhotoTool.PHOTO_SIZE.y * half, half) * 2.0
+	var fills := Brushwork.METRES.y / frame.y
+	var close := PhotoTool.coverage(lens, _canvas_at(Vector3(0, 1.3, 5 - fills), Vector3.BACK))
+	check(absf(close - Brushwork.METRES.x / (frame.x * fills)) < 1e-3, "a canvas whose height fills the frame covers its width's share of it: %.3f" % close)
+	check(close >= PhotoTool.SUBJECT, "and is what the photo is of")
+	var near := PhotoTool.coverage(lens, _canvas_at(Vector3(0, 1.3, 4.6), Vector3.BACK))
+	check(absf(near - 1.0) < 1e-3, "a canvas closer than that covers the whole frame: %.3f" % near)
+	var wide := PhotoTool.coverage(lens, _canvas_at(Vector3(0, 1.3, -5), Vector3.BACK))
+	check(wide > 0.0 and wide < PhotoTool.SUBJECT, "ten metres off, in view, it is not what a wide shot is of: %.3f" % wide)
+	var back := PhotoTool.coverage(lens, _canvas_at(Vector3(0, 1.3, 5 - fills), Vector3.FORWARD))
+	check(back < 0.0 and absf(back + close) < 1e-3, "its back covers the frame as much, and counts against it: %.3f" % back)
+	var edge := PhotoTool.coverage(lens, _canvas_at(Vector3(0, 1.3, 5 - fills), Vector3.RIGHT))
+	check(absf(edge) < 1e-3, "edge on it covers nothing: %.4f" % edge)
+	var tilted := PhotoTool.coverage(lens, _canvas_at(Vector3(0, 1.3, 5 - fills), Vector3(1, 0, 1).normalized()))
+	check(tilted > 0.0 and tilted < close, "turned half away it covers less: %.3f" % tilted)
+	var behind := PhotoTool.coverage(lens, _canvas_at(Vector3(0, 1.3, 7), Vector3.BACK))
+	check(behind == 0.0, "behind the lens it covers nothing")
+	var aside := PhotoTool.coverage(lens, _canvas_at(Vector3(frame.x * fills * 0.5, 1.3, 5 - fills), Vector3.BACK))
+	check(absf(aside - close * 0.5) < 1e-3, "half out of the frame, half of it counts: %.3f" % aside)
+	var through := PhotoTool.coverage(lens, _canvas_at(Vector3(0.4, 1.3, 5), Vector3(-1, 0, 0.3).normalized()))
+	check(through > 0.0 and through < 1.0, "half behind the lens, what lies ahead of it counts: %.3f" % through)
+
 
 func _a_photo_is_drawn_whole_and_the_headset_as_the_ladder_allows() -> void:
 	var rig := Rig.new(terrain)

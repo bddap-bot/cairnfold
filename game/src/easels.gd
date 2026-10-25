@@ -158,6 +158,12 @@ class Easel:
 	func tray(at: Vector3) -> Vector3:
 		return global_transform * at
 
+	## The canvas's corners in the garden, anticlockwise as its face sees them.
+	func canvas_corners() -> PackedVector3Array:
+		var t := canvas_mesh.global_transform
+		var h := Brushwork.METRES * 0.5
+		return PackedVector3Array([t * Vector3(-h.x, -h.y, 0), t * Vector3(h.x, -h.y, 0), t * Vector3(h.x, h.y, 0), t * Vector3(-h.x, h.y, 0)])
+
 	## Draws the mixing field as `mixing` holds it now.
 	func show_mixing() -> void:
 		field.update(Image.create_from_data(Mixing.SIZE.x, Mixing.SIZE.y, false, Image.FORMAT_RGBA8, mixing.bytes))
