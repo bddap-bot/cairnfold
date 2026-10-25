@@ -449,6 +449,8 @@ func _build(e: Easel) -> void:
 	var film := ShaderMaterial.new()
 	film.shader = preload("res://src/mixing.gdshader")
 	film.set_shader_parameter("field", e.field)
+	film.set_shader_parameter("metres", PALETTE_SIZE)
+	film.set_shader_parameter("impasto", Canvas.IMPASTO)
 	_part(e.palettes[Brushwork.Medium.OIL], _quad("oil_field", PALETTE_SIZE), Transform3D(Basis(Vector3.RIGHT, -PI * 0.5), Vector3(0, BOARD_TOP + 0.0003, 0)), film, false)
 
 

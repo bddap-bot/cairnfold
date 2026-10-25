@@ -2,9 +2,9 @@ shader_type spatial;
 
 #include "res://src/ground.gdshaderinc"
 #include "res://src/bounce.gdshaderinc"
-#include "res://src/canvas.gdshaderinc"
+#include "res://src/paint.gdshaderinc"
 
-// A canvas as paint.glsl leaves it, coloured as canvas.gdshaderinc says: glossy where wet, oil standing up off it in
+// A canvas as paint.glsl leaves it, coloured as paint.gdshaderinc says: glossy where wet, oil standing up off it in
 // ridges the light catches, charcoal and dry paper matte. The sheet is mounted on a board, so no light comes through
 // it from behind.
 
@@ -26,18 +26,10 @@ void fragment() {
 	float damp = canvas_damp(w);
 	ALBEDO = canvas_colour(w, d, tooth);
 	float height = canvas_height(d, tooth);
-	vec2 dx = dFdx(UV * metres);
-	vec2 dy = dFdy(UV * metres);
-	float determinant = dx.x * dy.y - dx.y * dy.x;
-	vec2 slope = vec2(0.0);
-	if (abs(determinant) > 1e-12) {
-		vec2 dh = vec2(dFdx(height), dFdy(height));
-		slope = vec2(dh.x * dy.y - dh.y * dx.y, dh.y * dx.x - dh.x * dy.x) / determinant;
-	}
-	NORMAL_MAP = normalize(vec3(-slope.x, slope.y, 1.0)) * 0.5 + 0.5;
+	NORMAL_MAP = paint_relief(height, UV, metres);
 	float oil = smoothstep(0.02, 0.2, d.a);
-	ROUGHNESS = mix(mix(0.92, 0.45, oil), 0.18, damp);
-	SPECULAR = mix(0.25, 0.6, max(oil, damp));
+	ROUGHNESS = paint_roughness(oil, damp);
+	SPECULAR = paint_specular(oil, damp);
 	AO = given.a;
 	EMISSION = ALBEDO * given.rgb;
 }

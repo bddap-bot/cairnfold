@@ -25,8 +25,6 @@ const SOAK := 1.5
 ## How fast brush and board trade, per second, and how much of that is smearing.
 const RATE := 12.0
 const STIR := 0.5
-## The colour of bare board where it shows through.
-const BOARD := Color(0.86, 0.68, 0.46)
 
 var bytes := PackedByteArray()
 var _ks := PackedFloat32Array()
@@ -87,10 +85,6 @@ func load_bytes(data: PackedByteArray) -> void:
 	if clean:
 		data = PackedByteArray()
 		data.resize(n * 4)
-		for i in n:
-			data[i * 4] = roundi(sqrt(BOARD.srgb_to_linear().r) * 255.0)
-			data[i * 4 + 1] = roundi(sqrt(BOARD.srgb_to_linear().g) * 255.0)
-			data[i * 4 + 2] = roundi(sqrt(BOARD.srgb_to_linear().b) * 255.0)
 	bytes = data.duplicate()
 	_ks.resize(n * 3)
 	_amount.resize(n)

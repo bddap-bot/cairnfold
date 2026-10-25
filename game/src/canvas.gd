@@ -23,8 +23,8 @@ const PAPER := 0
 const DAB := 1
 const FLOW := 2
 ## Metres the paint stands off the board at its thickest oil (paint.glsl keeps a texel's thickness within 0..1), and the
-## paper's grain at its highest (canvas.gdshaderinc).
-const IMPASTO := 0.0035
+## paper's grain at its highest (paint.gdshaderinc).
+const IMPASTO := 0.008
 const GRAIN := 0.00025
 const TOP := IMPASTO + GRAIN
 ## Checkpoints a canvas keeps, each two textures of 14 MB: undo steps back this far without a replay.

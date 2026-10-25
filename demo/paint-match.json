@@ -1,0 +1,468 @@
+[
+ {
+  "op": "place",
+  "x": 0.6,
+  "z": 2.2
+ },
+ {
+  "op": "easel",
+  "x": 0,
+  "z": 3,
+  "facing": [
+   1.8,
+   0.6
+  ]
+ },
+ {
+  "op": "hands",
+  "left": [
+   -0.25,
+   -0.6,
+   0.1
+  ],
+  "right": [
+   0.25,
+   -0.6,
+   0.1
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "take",
+  "what": "big"
+ },
+ {
+  "op": "dip",
+  "what": "oil",
+  "index": 5
+ },
+ {
+  "op": "mix",
+  "points": [
+   [
+    0.0,
+    -0.55,
+    0.9
+   ],
+   [
+    0.15,
+    -0.55,
+    0.9
+   ]
+  ],
+  "seconds": 0.3
+ },
+ {
+  "op": "take",
+  "what": "big"
+ },
+ {
+  "op": "dip",
+  "what": "oil",
+  "index": 5
+ },
+ {
+  "op": "brush",
+  "points": [
+   [
+    0.3,
+    0.3,
+    0.9
+   ],
+   [
+    0.7,
+    0.3,
+    0.9
+   ]
+  ],
+  "seconds": 0.5
+ },
+ {
+  "op": "take",
+  "what": "big"
+ },
+ {
+  "op": "dip",
+  "what": "oil",
+  "index": 3
+ },
+ {
+  "op": "mix",
+  "points": [
+   [
+    0.0,
+    -0.2,
+    0.9
+   ],
+   [
+    0.15,
+    -0.2,
+    0.9
+   ]
+  ],
+  "seconds": 0.3
+ },
+ {
+  "op": "take",
+  "what": "big"
+ },
+ {
+  "op": "dip",
+  "what": "oil",
+  "index": 3
+ },
+ {
+  "op": "brush",
+  "points": [
+   [
+    0.3,
+    0.42,
+    0.9
+   ],
+   [
+    0.7,
+    0.42,
+    0.9
+   ]
+  ],
+  "seconds": 0.5
+ },
+ {
+  "op": "take",
+  "what": "big"
+ },
+ {
+  "op": "dip",
+  "what": "oil",
+  "index": 1
+ },
+ {
+  "op": "mix",
+  "points": [
+   [
+    0.0,
+    0.15,
+    0.9
+   ],
+   [
+    0.15,
+    0.15,
+    0.9
+   ]
+  ],
+  "seconds": 0.3
+ },
+ {
+  "op": "take",
+  "what": "big"
+ },
+ {
+  "op": "dip",
+  "what": "oil",
+  "index": 1
+ },
+ {
+  "op": "brush",
+  "points": [
+   [
+    0.3,
+    0.54,
+    0.9
+   ],
+   [
+    0.7,
+    0.54,
+    0.9
+   ]
+  ],
+  "seconds": 0.5
+ },
+ {
+  "op": "take",
+  "what": "big"
+ },
+ {
+  "op": "dip",
+  "what": "oil",
+  "index": 6
+ },
+ {
+  "op": "mix",
+  "points": [
+   [
+    0.0,
+    0.5,
+    0.9
+   ],
+   [
+    0.15,
+    0.5,
+    0.9
+   ]
+  ],
+  "seconds": 0.3
+ },
+ {
+  "op": "take",
+  "what": "big"
+ },
+ {
+  "op": "dip",
+  "what": "oil",
+  "index": 6
+ },
+ {
+  "op": "brush",
+  "points": [
+   [
+    0.3,
+    0.6599999999999999,
+    0.9
+   ],
+   [
+    0.7,
+    0.6599999999999999,
+    0.9
+   ]
+  ],
+  "seconds": 0.5
+ },
+ {
+  "op": "take",
+  "what": "flat"
+ },
+ {
+  "op": "dip",
+  "what": "oil",
+  "index": 0
+ },
+ {
+  "op": "brush",
+  "roll": 90,
+  "points": [
+   [
+    0.2,
+    0.82,
+    1.0
+   ],
+   [
+    0.5,
+    0.84,
+    0.9
+   ],
+   [
+    0.8,
+    0.82,
+    1.0
+   ]
+  ],
+  "seconds": 0.6
+ },
+ {
+  "op": "take",
+  "what": "flat"
+ },
+ {
+  "op": "dip",
+  "what": "oil",
+  "index": 2
+ },
+ {
+  "op": "dip",
+  "what": "oil",
+  "index": 0
+ },
+ {
+  "op": "mix",
+  "points": [
+   [
+    0.1,
+    0.7,
+    0.9
+   ],
+   [
+    0.2,
+    0.6,
+    1.0
+   ],
+   [
+    0.0,
+    0.65,
+    1.0
+   ]
+  ],
+  "seconds": 0.5
+ },
+ {
+  "op": "wait",
+  "seconds": 1
+ },
+ {
+  "op": "view",
+  "subject": "easel",
+  "index": 0,
+  "eye": [
+   0.63,
+   1.12,
+   0.52
+  ],
+  "at": [
+   0.63,
+   0.73,
+   0.21
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 0.3
+ },
+ {
+  "op": "capture",
+  "name": "palette"
+ },
+ {
+  "op": "view",
+  "subject": "easel",
+  "index": 0,
+  "eye": [
+   0.0,
+   1.3,
+   0.75
+  ],
+  "at": [
+   0,
+   1.3,
+   0.0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 0.3
+ },
+ {
+  "op": "capture",
+  "name": "canvas"
+ },
+ {
+  "op": "view",
+  "subject": "easel",
+  "index": 0,
+  "eye": [
+   0.75,
+   1.4,
+   1.1
+  ],
+  "at": [
+   0.3,
+   1.0,
+   0.05
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 0.3
+ },
+ {
+  "op": "capture",
+  "name": "both"
+ },
+ {
+  "op": "view",
+  "subject": "easel",
+  "index": 0,
+  "eye": [
+   0.05,
+   1.25,
+   0.35
+  ],
+  "at": [
+   0,
+   1.22,
+   0.0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 0.3
+ },
+ {
+  "op": "capture",
+  "name": "canvas-close"
+ },
+ {
+  "op": "view",
+  "subject": "easel",
+  "index": 0,
+  "eye": [
+   0.58,
+   0.95,
+   0.33
+  ],
+  "at": [
+   0.63,
+   0.73,
+   0.21
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 0.3
+ },
+ {
+  "op": "capture",
+  "name": "palette-close"
+ },
+ {
+  "op": "antialias",
+  "unshaded": true
+ },
+ {
+  "op": "view",
+  "subject": "easel",
+  "index": 0,
+  "eye": [
+   0.63,
+   1.12,
+   0.52
+  ],
+  "at": [
+   0.63,
+   0.73,
+   0.21
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 0.3
+ },
+ {
+  "op": "capture",
+  "name": "palette-albedo"
+ },
+ {
+  "op": "view",
+  "subject": "easel",
+  "index": 0,
+  "eye": [
+   0.0,
+   1.3,
+   0.75
+  ],
+  "at": [
+   0,
+   1.3,
+   0.0
+  ]
+ },
+ {
+  "op": "wait",
+  "seconds": 0.3
+ },
+ {
+  "op": "capture",
+  "name": "canvas-albedo"
+ }
+]

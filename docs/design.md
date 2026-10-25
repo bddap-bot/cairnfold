@@ -4384,8 +4384,8 @@ face toward the lens, covers `PhotoTool.SUBJECT` (a quarter) of the photo's fram
 signed by which face is seen). Each saves beside the photo as `NAME-canvas-N.png`, its paint flat and unlit at the
 canvas's own 1536×1152 (`Brushwork.SIZE`, the resolution it is painted at, about 1000 texels a metre), and
 `NAME-canvas-N-height.png`, its height off the board as 16-bit greyscale, 0 to 65535 for 0 to
-`Canvas.TOP` (3.75 mm), as its comment says. Both are drawn from the canvas's own textures by `Canvas.flat_view`, with
-the colour and height `canvas.gdshaderinc` gives the canvas in the garden, each canvas on a frame of its own after the
+`Canvas.TOP` (8.25 mm), as its comment says. Both are drawn from the canvas's own textures by `Canvas.flat_view`, with
+the colour and height `paint.gdshaderinc` gives the canvas in the garden, each canvas on a frame of its own after the
 photo's, then read back and encoded on a worker thread like the photo. Godot writes no PNG deeper than 8
 bits, so `PhotoMeta.gray16` writes the height map, its CRCs read off a native gzip trailer. `tests/gpu_photo_canvas.gd`
 holds both files to the canvas's textures texel for texel. On a Quest 2 (stress run on 3281abe, two painted easels before the camera, each
@@ -4555,7 +4555,8 @@ A pan's mixes on the brush with the watercolour there already, and the box shows
 for watercolour, thinner each dip, and its water clouds with what is rinsed off. Oils mix as a painter mixes them, on
 the oil palette's open board (`Mixing`): an oil colour loads the brush with that colour alone; painting onto the board
 lays the paint there, painting over wet paint blends the two, and touching the board loads the brush with the paint
-under it. Charcoal takes no paint; a stick's thickness sets its mark's width.
+under it. The board draws its paint as the canvas does (`paint.gdshaderinc`): a colour on it shows as it will on the
+canvas, never tinted by the wood under it, and stands up off the board as thick as it lies. Charcoal takes no paint; a stick's thickness sets its mark's width.
 A tool a hand shows is off its easel, as everyone in the garden sees it (`HeldItem`), so no one takes it twice: a brush
 or stick is back while its hand shows anything else, and for good once that hand takes another; a palette goes back
 when set down.

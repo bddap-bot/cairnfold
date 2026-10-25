@@ -1,7 +1,7 @@
 shader_type canvas_item;
 render_mode unshaded, blend_disabled;
 
-#include "res://src/canvas.gdshaderinc"
+#include "res://src/paint.gdshaderinc"
 
 // A canvas flat and unlit, one texel to a pixel: its colour sRGB-encoded as an image file holds it, or with `height`
 // its height over the highest it can stand as a 16-bit number, the high byte in red and the low in green. Each channel is rounded to its
