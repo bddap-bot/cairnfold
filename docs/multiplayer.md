@@ -528,3 +528,21 @@ link at once, and a burst of loss leaves some of a sender's packets unacknowledg
 ENet's default timeout dropped a live player for that within about 15 s, so the files that player
 was sending and relaying never arrived. A player is now dropped only after 30 s without an
 acknowledgement; on the Quest 2, all three files arrive and are worn within 25 s.
+
+### Shared avatar runtime
+
+VRM 0.x/1.0 and VRChat-style Unity packages will feed one runtime in
+[Avatar Workshop](https://github.com/bddap-bot/avatar-workshop), a public Godot
+addon under MIT OR Apache-2.0. The first extracted component mixes eye-expression
+weights; `Avatar` supplies bindings and applies the results. Avatar selection,
+networking, tracked poses and quality policy stay in the game. The importer and
+rigid-body limits described above still apply until the fidelity milestones land.
+
+`game/addons/avatar_workshop/source.json` pins the upstream commit and SHA256 of
+each vendored file, following the immutable-version and content-hash convention
+of `scripts/pins.sh`. Vendoring keeps ordinary editor imports and the existing
+`git archive` packaging path offline. To update, copy only the listed source
+paths from the new upstream commit, update the commit and hashes, then run
+`scripts/test.sh`; its pin check rejects local edits to upstream files. Make
+runtime changes upstream first. Both license texts ship beside the runtime.
+No plugin activation or synchronous asset load was added.

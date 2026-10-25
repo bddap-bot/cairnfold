@@ -1,0 +1,19 @@
+{
+  "repository": "https://github.com/bddap-bot/avatar-workshop",
+  "commit": "14596647c2c51ea9ee925ba4c6b3d995073d3cc4",
+  "license": "MIT OR Apache-2.0",
+  "files": {
+    "expression_mixer.gd": {
+      "source": "addons/avatar_workshop/expression_mixer.gd",
+      "sha256": "22b2415500f9f9e31addd429d8a081ab277e2f6f5ab626907924ec419e3ad823"
+    },
+    "LICENSE-MIT": {
+      "source": "LICENSE-MIT",
+      "sha256": "3c543e908d7ff8956c0a57064c8abbdaa3556dd23715cacd0c26905635362a4b"
+    },
+    "LICENSE-APACHE": {
+      "source": "LICENSE-APACHE",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2"
+    }
+  }
+}
