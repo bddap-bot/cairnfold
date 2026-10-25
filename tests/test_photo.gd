@@ -48,7 +48,7 @@ func _the_screen_shows_the_lens_while_a_hand_holds_the_camera() -> void:
 	rig.right.position = Vector3(0.3, 1.2, -0.3)
 	rig.right.rotation = Vector3(0, PI * 0.5, 0)
 	var drawn_on := {rig.left: [], rig.right: []}
-	for i in PhotoTool.PREVIEW_EVERY * 2:
+	for i in PhotoTool.PREVIEW_EVERY * 4:
 		await process_frame
 		for h in drawn_on:
 			if tool._previews[h].render_target_update_mode == SubViewport.UPDATE_ONCE:
@@ -60,7 +60,7 @@ func _the_screen_shows_the_lens_while_a_hand_holds_the_camera() -> void:
 	var left_cam: Camera3D = tool._previews[rig.left].get_child(0)
 	var right_cam: Camera3D = tool._previews[rig.right].get_child(0)
 	check(left_cam.global_transform.is_equal_approx(PhotoTool.lens(rig.left)) and right_cam.global_transform.is_equal_approx(PhotoTool.lens(rig.right)), "each drawn from its own lens")
-	check(drawn_on[rig.left].size() == 2 and drawn_on[rig.right].size() == 2 and drawn_on[rig.left].all(func(f: int) -> bool: return not f in drawn_on[rig.right]), "on frames of their own: %s" % [drawn_on])
+	check(drawn_on[rig.left].size() == 2 and drawn_on[rig.right].size() == 2 and drawn_on[rig.left].all(func(f: int) -> bool: return not f in drawn_on[rig.right]), "taking turns, on frames of their own: %s" % [drawn_on])
 	rig.right.tool = Hand.Tool.WALLS
 	await process_frame
 	check(_dark(rig.right) and _screen_shows(tool, rig.left), "putting one camera away darkens its screen alone")

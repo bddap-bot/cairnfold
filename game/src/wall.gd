@@ -60,6 +60,8 @@ var _coat: MeshInstance3D
 var _coat_far: MeshInstance3D
 var _torching: MeshInstance3D
 var _ceiling: MeshInstance3D
+## The wall's mortar and plaster slabs, which hide what stands behind them from the renderer.
+var _occluder: OccluderInstance3D
 ## The roof faces its meshes were built from; a lay that leaves them alone keeps the meshes.
 var _faced := []
 var _settled := false
@@ -549,7 +551,24 @@ static func pack(built: WallLayout, ks: Array[Masonry.Kind], colours: PackedInt3
 	var chunks := {}
 	for part in [Part.STONE, Part.MORTAR, Part.STONE_SHADOW, Part.TIMBER, Part.FLOOR]:
 		chunks[part] = Masonry.split(bufs[part], ks[part])
-	return {"stone": bufs[Part.STONE], "mortar": bufs[Part.MORTAR], "shadow": bufs[Part.STONE_SHADOW], "timber": bufs[Part.TIMBER], "floor": bufs[Part.FLOOR], "chunks": chunks, "bounds": box.grow(0.6), "paint": colours, "ruin_pick": _pack_ruin(built)}
+	return {"stone": bufs[Part.STONE], "mortar": bufs[Part.MORTAR], "shadow": bufs[Part.STONE_SHADOW], "timber": bufs[Part.TIMBER], "floor": bufs[Part.FLOOR], "chunks": chunks, "bounds": box.grow(0.6), "paint": colours, "ruin_pick": _pack_ruin(built), "occluder": _pack_occluder(built)}
+
+
+## The boxes of a layout's mortar and plaster as occluder triangles: they stand behind the stones' faces, so whatever
+## they hide is hidden.
+static func _pack_occluder(built: WallLayout) -> Array:
+	var verts := PackedVector3Array()
+	var idx := PackedInt32Array()
+	for s: Dictionary in built.stones:
+		if s.kind != "mortar" and s.kind != "plaster":
+			continue
+		var x: Transform3D = s.xform
+		var base := verts.size()
+		for c in 8:
+			verts.append(x * Vector3(0.5 if c & 1 else -0.5, 0.5 if c & 2 else -0.5, 0.5 if c & 4 else -0.5))
+		for f: Array in [[0, 1, 3, 2], [4, 6, 7, 5], [0, 4, 5, 1], [2, 3, 7, 6], [0, 2, 6, 4], [1, 5, 7, 3]]:
+			idx.append_array(PackedInt32Array([base + f[0], base + f[1], base + f[2], base + f[0], base + f[2], base + f[3]]))
+	return [verts, idx]
 
 
 ## `parts` as instance buffers by Part, in their order: each in the Parts `into` names for it, its own first and then
@@ -678,6 +697,11 @@ func _take(packed: Dictionary) -> void:
 		_chunked[part] = packed.chunks[part]
 	pick_bounds = packed.bounds
 	_ruin_pick = packed.ruin_pick
+	if _occluder == null:
+		_occluder = OccluderInstance3D.new()
+		_occluder.occluder = ArrayOccluder3D.new()
+		add_child(_occluder)
+	(_occluder.occluder as ArrayOccluder3D).set_arrays(packed.occluder[0], packed.occluder[1])
 
 
 ## Draws the stones laid here rather than with the glade's, so moving this wall moves them, as a hold carries it.

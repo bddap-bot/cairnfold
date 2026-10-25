@@ -15,7 +15,8 @@ extends Node3D
 signal recorded(path: String)
 
 const PREVIEW_SIZE := Vector2i(256, 192)
-## Each hand's preview redraws on one frame in this many, its own, so two cameras held never draw on one frame.
+## Previews redraw one at a time, on one frame in this many: two cameras held take turns, and a camera recording takes
+## every turn, its video's frames, so a second camera costs the frame nothing more (each preview draws the garden again).
 const PREVIEW_EVERY := 3
 const PHOTO_SIZE := Vector2i(3200, 2400)
 const PHOTO_MSAA := Viewport.MSAA_8X
@@ -48,6 +49,7 @@ var _previews := {}
 var _photo: SubViewport
 var _view: SubViewport
 var _frame := 0
+var _turn := 0
 ## Per hand, how much longer its screen holds the shot it took.
 var _shots := {}
 var _busy := false
@@ -95,6 +97,7 @@ func _viewport(size: Vector2i, msaa: Viewport.MSAA) -> SubViewport:
 	var vp := SubViewport.new()
 	vp.size = size
 	vp.msaa_3d = msaa
+	vp.use_occlusion_culling = true
 	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	var cam := Camera3D.new()
 	cam.fov = FOV
@@ -153,6 +156,10 @@ func _process(delta: float) -> void:
 		_photo.queue_free()
 		_photo = null
 	_frame = (_frame + 1) % PREVIEW_EVERY
+	var drawing: Hand = null
+	if _frame == 0 and not held.is_empty():
+		_turn += 1
+		drawing = _clip_hand if held.has(_clip_hand) else held[_turn % held.size()]
 	for i in rig.hands.size():
 		var h := rig.hands[i]
 		for t in CAMERAS:
@@ -169,7 +176,7 @@ func _process(delta: float) -> void:
 			preview = _viewport(VIDEO_SIZE if h == _clip_hand else PREVIEW_SIZE, Viewport.MSAA_DISABLED)
 			_previews[h] = preview
 		_show(screen(h, h.tool), preview.get_texture(), Color.WHITE)
-		if _frame == i:
+		if h == drawing:
 			_aim(preview, lens(h), FOV, Quality.VIEW_MASK)
 			preview.render_target_update_mode = SubViewport.UPDATE_ONCE
 			if h == _clip_hand:

@@ -38,6 +38,7 @@ var _editors: Array
 
 func _ready() -> void:
 	args = _parse(launch_args())
+	get_viewport().use_occlusion_culling = true
 	Terrain.install()
 	Ground.install()
 	look = Look.build(self)

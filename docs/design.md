@@ -445,6 +445,13 @@ density, and no build the player can make may bring the frame rate down.
 
 What makes building cheap:
 
+- Each wall's mortar and plaster, which stand behind its stones' faces, is an occluder (`ArrayOccluder3D`), and
+  the view and every camera's view cull what those hide. Standing among walls, the ground chunks wholly behind the
+  nearest walls are not drawn. On the Frame (stress scene, step 6, 09f8b53 against it with occluders, fdinfo GPU
+  ms a frame): `hills/ground` 12.75 to 11.15, `hands/walls` 12.95 to 10.86, `camera/ground` 14.66 to 12.52, the
+  views from the air unchanged (7.8). On a Quest 2, standing 25.5 to 24.5 and the camera 29.0 to 27.3 (`App=`),
+  frame times no higher, so the CPU's occlusion pass costs no frame. Hiding the walls in those views left 4.8 ms of
+  13.05: the walls' stones are what is left of the cost.
 - Settled walls are drawn by `Masonry` per 8 m ground chunk: one MultiMesh per
   kind of piece per chunk, each piece in the chunk under it, so a chunk is culled
   and limited by distance by where its pieces stand, however long their wall. A
@@ -4245,6 +4252,12 @@ culls more of the garden than the avatar adds. Every camera phase is over the bu
 already costs (`hands/walls`), which no camera change can recover. A later Quest 2 run read the same: `hands/walls` 26.1,
 `camera/ground` 28.2, `camera/recording` 29.3, `camera/two` 35.0, while a camera held in the light garden of the
 `held/` phases holds (`held/camera` 6.6, `held/selfie` 6.7).
+
+On the Frame at 09f8b53 a held camera's view cost 1.7 ms over `hands/walls`, its preview drawn on one frame in three,
+so about 4.6 ms a draw: the preview draws the walls' stones again, and hiding them took a camera's whole cost but
+0.4 ms. Two cameras drew on two frames in three (2.4 ms). Previews now take turns on the one frame in three, so a
+second camera costs nothing more; each preview redraws at 12 fps while two are held, and a recording camera keeps
+every turn, its video's frames.
 
 Directive (verbatim):
 > I'd like to be able to take a super graphics quality photo that just turns everything all the way up, no level of detail or anything; it can take a long time to render that frame. ... I would like to take very fancy photos. Also give a way to embed metadata about where and how the photo was taken, that'd be cool. I don't know if you can embed a whole world in it, but if the world is small enough, then maybe you could.
