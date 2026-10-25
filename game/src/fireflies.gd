@@ -19,7 +19,6 @@ const REFRESH := 1.0
 const SIZE := 0.22
 
 var wildlife: Wildlife
-var sky: Look
 var rng := RandomNumberGenerator.new()
 var crowd: Crowd
 var mat := ShaderMaterial.new()
@@ -39,9 +38,8 @@ class Habitat:
 		spread = reach
 
 
-func _init(home: Wildlife, light: Look, seed: int) -> void:
+func _init(home: Wildlife, seed: int) -> void:
 	wildlife = home
-	sky = light
 	rng.seed = seed
 	var quad := QuadMesh.new()
 	quad.size = Vector2.ONE
@@ -53,9 +51,9 @@ func _init(home: Wildlife, light: Look, seed: int) -> void:
 
 ## 0 in daylight to 1 once the sun is well down.
 func dusk() -> float:
-	if sky == null:
+	if wildlife.light == null:
 		return 0.0
-	return smoothstep(DUSK.x, DUSK.y, Daylight.elevation(sky.time))
+	return smoothstep(DUSK.x, DUSK.y, Daylight.elevation(wildlife.light.time))
 
 
 func active() -> bool:

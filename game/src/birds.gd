@@ -340,7 +340,7 @@ func _think(b: Bird, delta: float) -> void:
 			b.duration = rng.randf_range(DECIDE_FOR.x, DECIDE_FOR.y)
 			b.timer = b.duration
 			return
-	if b.affection >= BirdCarry.TRUST and b.away <= 0.0 and rng.randf() < delta * FOLLOWS and _to_shoulder(b):
+	if not wildlife.asleep() and b.affection >= BirdCarry.TRUST and b.away <= 0.0 and rng.randf() < delta * FOLLOWS and _to_shoulder(b):
 		return
 	var near := wildlife._nearest(at, WATCH) if b.state == State.PERCH else null
 	if near != null:
@@ -779,5 +779,5 @@ func _animation_event(act: Cues.Act, b: Bird) -> void:
 		if act == Cues.Act.HAND_PECK:
 			wildlife.calls.call_out("click", b.node.position)
 	if act == Cues.Act.HAND_PERCH and b.state == State.PERCH:
-		if wildlife.calls.rng.randf() < 0.5 and not wildlife.calls.calm(b.to):
+		if not wildlife.asleep() and wildlife.calls.rng.randf() < 0.5 and not wildlife.calls.calm(b.to):
 			wildlife.calls.call_out("chirp", b.to)

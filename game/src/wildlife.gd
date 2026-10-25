@@ -190,7 +190,7 @@ func _init(land: Terrain, wear: Ground, ponds: Water, plants: Flora, builds: Wal
 		rng.randomize()
 	butterflies = Butterflies.new(self, rng.seed + 1)
 	add_child(butterflies)
-	fireflies = Fireflies.new(self, sky, rng.seed + 3)
+	fireflies = Fireflies.new(self, rng.seed + 3)
 	add_child(fireflies)
 	snails = Snails.new(self, rng.seed + 8)
 	add_child(snails)
@@ -378,7 +378,8 @@ func _think(f: Family, delta: float) -> void:
 		State.ENTER, State.ASHORE:
 			if _go(lead, f.goal, delta):
 				if f.state == State.ENTER:
-					calls.call_out("quack", lead.position)
+					if not resting:
+						calls.call_out("quack", lead.position)
 					_swim(f)
 				else:
 					f.state = State.REST
@@ -394,6 +395,9 @@ func _think(f: Family, delta: float) -> void:
 				if bank != Vector3.INF:
 					f.state = State.ASHORE
 					f.goal = bank
+				elif resting:
+					f.state = State.REST
+					f.timer = rng.randf_range(REST_FOR.x, REST_FOR.y)
 				else:
 					f.goal = _deep_point(f.pond, lead.position)
 		State.REST:
@@ -685,7 +689,8 @@ func _fly(f: Family, delta: float) -> void:
 		var splash := Vector3(at.x, f.pond.surface_y(), at.z)
 		f.pond.ripple(splash, 1.0)
 		Cues.play(Cues.Act.DIP, splash)
-		calls.call_out("quack", splash)
+		if not _asleep:
+			calls.call_out("quack", splash)
 		_swim(f)
 
 
