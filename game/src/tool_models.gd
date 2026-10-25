@@ -59,10 +59,18 @@ static var _lock := Mutex.new()
 ## Each mesh `bake` has read or built, by mesh, as its surface arrays: reading a mesh's arrays back from the GPU stalls
 ## the frame for every frame in flight, a Quest's style wheel hundreds of milliseconds on its first opening.
 static var _arrays := {}
+## The pieces of each masonry tool's miniature, by tool, kept from its first build: the hands build every tool as the
+## game loads, and laying its walls out again for each other player who takes it held a Frame's frame 324 ms.
+static var _masonry := {}
+const MASONRY: Array[Hand.Tool] = [Hand.Tool.WALLS, Hand.Tool.HOUSE, Hand.Tool.TOWER, Hand.Tool.ARCH, Hand.Tool.FENCE]
 
 
 static func build(tool: Hand.Tool) -> Node3D:
 	var root := Node3D.new()
+	var pieces: Variant = _masonry.get(tool)
+	if pieces != null:
+		_lay(root, pieces)
+		return root
 	match tool:
 		Hand.Tool.WALLS:
 			_wall(root)
@@ -118,6 +126,8 @@ static func build(tool: Hand.Tool) -> Node3D:
 	if tool in [Hand.Tool.WALLS, Hand.Tool.HOUSE, Hand.Tool.TOWER, Hand.Tool.ARCH]:
 		for part in root.get_children():
 			part.transform = Transform3D(Basis(Vector3.RIGHT, -PI * 0.22), Vector3.ZERO) * part.transform
+	if tool in MASONRY:
+		_masonry[tool] = root.get_children().map(func(mi: MeshInstance3D) -> Array: return [mi.mesh, mi.transform, mi.material_override])
 	return root
 
 
