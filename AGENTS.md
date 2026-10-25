@@ -1,4 +1,4 @@
-# Working on Nestcombe
+# Working on Cairnfold
 
 Read [docs/design.md](docs/design.md) first; it holds the element inventory, the
 controls and the build order.
@@ -42,7 +42,7 @@ controls and the build order.
   ladder. Directives (verbatim): "I usually prefer all hardware use the same dynamic quality systems, Branching on
   IS_QUEST2 is an antipattern, but fixed foveation and eye tracked foveation are likely legitimately different user
   experiences." "Even better when you can avoid the branch altogether."
-- Nestcombe is unreleased, so code carries no backwards compatibility. Save, network and
+- Cairnfold is unreleased, so code carries no backwards compatibility. Save, network and
   config formats change freely: no migrations, version branches, aliases for old names or
   compat shims. An old save that no longer loads fails loudly, and nothing is added to rescue it.
   Directive (verbatim): "remember we haven't released yet so don't sacrifice maintainability for backwards compatibility"
@@ -56,14 +56,14 @@ controls and the build order.
   tip; `scripts/release.sh --rollback TAG` marks an older release Latest. The Frame's install and
   library shortcut are kept outside this repo (README, "Running").
 - Signing: every APK, bench or release, signs with one key read from the directory
-  `$NESTCOMBE_ANDROID_KEY` (default `~/.config/nestcombe/android-key`), holding
-  `release.keystore` (alias `nestcombe`) and `password`, its store and key password. The key
+  `$CAIRNFOLD_ANDROID_KEY` (default `~/.config/cairnfold/android-key`), holding
+  `release.keystore` (alias `cairnfold`) and `password`, its store and key password. The key
   never enters the repo, and `scripts/android.sh` refuses to build without it. Build and deploy
   with the same key, so a bench build installs over the deployed one and keeps the garden saved
   on the device; a new key stops every installed APK from updating in place, so `release.sh`
   refuses an APK whose certificate is not `android_cert_sha256` in `scripts/pins.sh`. Without the
   deploying key, make your own once for bench builds:
-  `keytool -genkeypair -keystore release.keystore -alias nestcombe -keyalg RSA -keysize 2048 -validity 10000 -dname CN=Nestcombe`
+  `keytool -genkeypair -keystore release.keystore -alias cairnfold -keyalg RSA -keysize 2048 -validity 10000 -dname CN=Cairnfold`
   with the password you write to `password`.
 - Put an APK on a Quest only with `scripts/quest-install.sh APK`, never a bare `adb install` or
   `adb uninstall`: an install that needs an uninstall erases the players' garden and avatars, and

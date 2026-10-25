@@ -70,7 +70,7 @@ func _the_beacon_names_nobody_until_they_pick_a_name(s: Session) -> void:
 	heard = Session.read_beacon(s.beacon())
 	check(heard.get("name") == s.me.name, "a picked name rides the beacon: %s" % heard)
 	s.port = 0
-	var hostile := JSON.stringify({"nestcombe": 1, "key": 3, "port": Session.PORT, "avatar": 0, "name": "\u0000" + "W".repeat(400)}).to_utf8_buffer()
+	var hostile := JSON.stringify({"cairnfold": 1, "key": 3, "port": Session.PORT, "avatar": 0, "name": "\u0000" + "W".repeat(400)}).to_utf8_buffer()
 	heard = Session.read_beacon(hostile)
 	check(heard.is_empty() or heard.name.length() <= Persona.MAX_NAME, "a hostile beacon is cut down or dropped: %s" % heard)
 
@@ -90,14 +90,14 @@ func _another_build_is_heard_not_joined() -> void:
 		var s: Variant = load("res://src/" + f) if f.ends_with(".gd") else null
 		if s is Script and not (s as Script).get_rpc_config().is_empty():
 			check(s in [World, Session], "%s has RPCs, so the protocol fingerprint must cover it" % f)
-	var old := Session.read_beacon(JSON.stringify({"nestcombe": 1, "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer())
+	var old := Session.read_beacon(JSON.stringify({"cairnfold": 1, "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer())
 	check(not old.is_empty() and not old.joins, "a garden from a build before the protocol fingerprint is heard, not to be joined: %s" % old)
-	var other := Session.read_beacon(JSON.stringify({"nestcombe": Session.protocol() + 1, "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer())
+	var other := Session.read_beacon(JSON.stringify({"cairnfold": Session.protocol() + 1, "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer())
 	check(not other.is_empty() and not other.joins, "a garden from a build with other RPCs is heard, not to be joined: %s" % other)
-	var same := Session.read_beacon(JSON.stringify({"nestcombe": Session.protocol(), "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer())
+	var same := Session.read_beacon(JSON.stringify({"cairnfold": Session.protocol(), "key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer())
 	check(not same.is_empty() and same.joins, "a garden from this build is heard and joins: %s" % same)
 	var unversioned := JSON.stringify({"key": 3, "port": Session.PORT, "avatar": 0}).to_utf8_buffer()
-	check(Session.read_beacon(unversioned).is_empty(), "a packet without the nestcombe field is no garden")
+	check(Session.read_beacon(unversioned).is_empty(), "a packet without the cairnfold field is no garden")
 	var before := _networked("@rpc(\"any_peer\")\nfunc _propose(c): pass\n@rpc(\"any_peer\")\nfunc _resend(): pass\n")
 	var after := _networked("@rpc(\"any_peer\")\nfunc _device(d): pass\n@rpc(\"any_peer\")\nfunc _propose(c): pass\n@rpc(\"any_peer\")\nfunc _resend(): pass\n")
 	var takes := _networked("@rpc(\"any_peer\")\nfunc _propose(c): pass\n@rpc(\"any_peer\")\nfunc _resend(by): pass\n")

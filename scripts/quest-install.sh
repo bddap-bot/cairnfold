@@ -10,10 +10,10 @@
 # An APK whose manifest lacks the Quest's VR launcher category is refused: the Lepton APK shares the Quest build's
 # package and version code, so adb would install the Frame's build over the Quest's.
 # Saves never block an install: a copy that fails is reported and the install goes on. A push that fails to land every
-# file byte for byte fails the run, naming the copy to restore by hand. The copies stay under $NESTCOMBE_QUEST_SAVES
-# (default ~/.local/state/nestcombe/quest-saves). Bench output, bench/ and bench.json, is not a save and is left out.
+# file byte for byte fails the run, naming the copy to restore by hand. The copies stay under $CAIRNFOLD_QUEST_SAVES
+# (default ~/.local/state/cairnfold/quest-saves). Bench output, bench/ and bench.json, is not a save and is left out.
 set -euo pipefail
-pkg=io.github.bddapbot.nestcombe
+pkg=io.github.bddapbot.cairnfold
 
 # package APK [quest]: the manifest's package attribute, from the APK's binary XML; with quest, failing unless the
 # manifest names the Quest's VR category.
@@ -107,7 +107,7 @@ if failed=$(adb install -r -g "$1" 2>&1); then
 fi
 case $failed in
   *INSTALL_FAILED_VERSION_DOWNGRADE* | *INSTALL_FAILED_UPDATE_INCOMPATIBLE*)
-    saves=${NESTCOMBE_QUEST_SAVES:-$HOME/.local/state/nestcombe/quest-saves}/$(date -u +%Y%m%dT%H%M%SZ)
+    saves=${CAIRNFOLD_QUEST_SAVES:-$HOME/.local/state/cairnfold/quest-saves}/$(date -u +%Y%m%dT%H%M%SZ)
     backup "$saves"
     adb uninstall "$pkg" > /dev/null
     adb install -g "$1" > /dev/null

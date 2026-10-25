@@ -1,6 +1,6 @@
 Plaster shader comparison
 
-Run demo/plaster-detail.json with NESTCOMBE_SCENE through scripts/bench.sh on
+Run demo/plaster-detail.json with CAIRNFOLD_SCENE through scripts/bench.sh on
 an unworn Quest 2. The scene deliberately disables the build budget and fixes
 full detail to compare shader cost at the same density. These records exceed
 the GPU budget even before the change; they are cost comparisons, not a

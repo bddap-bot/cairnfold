@@ -86,5 +86,5 @@ Furniture phases, under the charges above:
 The first nine styles' phases held as well, at 6.83 to 8.49 ms runtime GPU.
 
 Reproduce the visual review with `scripts/render.sh demo/decorations.json OUT`.
-Run the device measurements with `NESTCOMBE_SCENE=demo/decoration-costs.json scripts/bench.sh OUT --android APK`
+Run the device measurements with `CAIRNFOLD_SCENE=demo/decoration-costs.json scripts/bench.sh OUT --android APK`
 (and `demo/decoration-density.json`) through the leased device wrapper.

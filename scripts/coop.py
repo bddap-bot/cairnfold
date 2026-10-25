@@ -486,7 +486,7 @@ def run(out, count, mode="full", capture=False):
         logs.append(log)
         env = dict(os.environ, DISPLAY=display) if rendered else None
         if mode == "flat":
-            env["VK_ICD_FILENAMES"] = os.environ.get("NESTCOMBE_ICD", "/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json")
+            env["VK_ICD_FILENAMES"] = os.environ.get("CAIRNFOLD_ICD", "/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json")
         processes[name] = subprocess.Popen(args, stdout=log, stderr=subprocess.STDOUT, env=env)
 
     progress = {"steps": 0, "cpu": 0.0, "quiet": 0.0}

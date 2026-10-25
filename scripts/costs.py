@@ -2,7 +2,7 @@
 """Fits the frame budget's unit costs from a run of demo/costs.json and prints a candidate for review:
 costs.py OUT_DIR
 
-OUT_DIR is what `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT_DIR ...` left on that headset. Each phase is the
+OUT_DIR is what `CAIRNFOLD_SCENE=demo/costs.json scripts/bench.sh OUT_DIR ...` left on that headset. Each phase is the
 bare meadow plus one kind of build, at the fixed calibration step (Budget.fit_step), from the air and standing; its cost is its
 median GPU time as the runtime counts it (VrApi's App=, bench.sh's record) over the bare meadow's from the same view, or over the phase it is built on
 (ON) for one that adds to another's builds. Masonry is fitted twice: its far rate on all its area from the air, where every

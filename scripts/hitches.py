@@ -3,7 +3,7 @@
 native functions inclusive in each. hitches.py SAMPLES.txt [THREAD] [WINDOWS]
 
 The Quest APK is profileable. While a bench runs, under the headset's adb:
-  simpleperf record --app io.github.bddapbot.nestcombe -g -f 1000 --duration SECONDS -o /data/local/tmp/nc.perf.data
+  simpleperf record --app io.github.bddapbot.cairnfold -g -f 1000 --duration SECONDS -o /data/local/tmp/nc.perf.data
 then, with Godot's native debug symbols for the template (Godot_native_debug_symbols.VERSION.template_release.android.zip,
 arm64-v8a/libgodot_android.so) pushed to /data/local/tmp/sym:
   simpleperf report-sample -i /data/local/tmp/nc.perf.data --symdir /data/local/tmp/sym --show-callchain \\

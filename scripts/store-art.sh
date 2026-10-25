@@ -2,8 +2,8 @@
 # Regenerates the store art in steam/ (store and library art, screenshots) and meta/ (Horizon Store covers, icon,
 # logo, screenshots) from one set of desktop captures of demo/steam.json and demo/steam-coop.json: store-art.sh
 set -euo pipefail
-font=${NESTCOMBE_TITLE_FONT:-}
-[ -f "$font" ] || { echo "store-art: no title font at '$font'; nix-shell sets NESTCOMBE_TITLE_FONT" >&2; exit 1; }
+font=${CAIRNFOLD_TITLE_FONT:-}
+[ -f "$font" ] || { echo "store-art: no title font at '$font'; nix-shell sets CAIRNFOLD_TITLE_FONT" >&2; exit 1; }
 root=$(cd "$(dirname "$0")/.." && pwd)
 title=$(sed -n 's/^config\/name="\(.*\)"$/\1/p' "$root/game/project.godot")
 out=$root/steam
@@ -11,16 +11,16 @@ meta=$root/meta
 shots=$(mktemp -d)
 trap 'rm -rf "$shots"' EXIT
 "$root/scripts/check.sh"
-NESTCOMBE_QUIT_AFTER=400 "$root/scripts/render.sh" "$root/demo/steam.json" "$shots" --resolution 3840x2160
+CAIRNFOLD_QUIT_AFTER=400 "$root/scripts/render.sh" "$root/demo/steam.json" "$shots" --resolution 3840x2160
 
 # Two players: this render hosts, a headless instance visits it and stays until the host's digest says it has its
 # shot. Ports of their own, as in coop.sh.
 port=$((7480 + 8 * (RANDOM % 7)))
-(cd "$root/game" && exec timeout "${NESTCOMBE_TIMEOUT:-1800}" godot4 --headless --path . --xr-mode off -- --desktop \
+(cd "$root/game" && exec timeout "${CAIRNFOLD_TIMEOUT:-1800}" godot4 --headless --path . --xr-mode off -- --desktop \
   --script "$root/demo/steam-coop-join.json" --capture-dir "$shots" --host-port "$port" --port $((port + 8)) --avatar 1 \
   >"$shots/join.log" 2>&1) &
 join=$!
-NESTCOMBE_QUIT_AFTER=600 "$root/scripts/render.sh" "$root/demo/steam-coop.json" "$shots" --resolution 3840x2160 -- --port "$port" 2>&1 | tee "$shots/host.log"
+CAIRNFOLD_QUIT_AFTER=600 "$root/scripts/render.sh" "$root/demo/steam-coop.json" "$shots" --resolution 3840x2160 -- --port "$port" 2>&1 | tee "$shots/host.log"
 kill "$join" 2>/dev/null || true
 wait "$join" || true
 ! grep -h "driver: until" "$shots/host.log" "$shots/join.log" || { echo "store-art: the visitor never arrived" >&2; exit 1; }

@@ -17,7 +17,7 @@ func _run() -> void:
 	world = main.world
 	# The meadow alone fills much of the frame budget; what is measured here is what goes, not what fits.
 	world.bounded = false
-	save = OS.get_user_data_dir().path_join("nestcombe-house-delete-%d.garden" % OS.get_process_id())
+	save = OS.get_user_data_dir().path_join("cairnfold-house-delete-%d.garden" % OS.get_process_id())
 	world.load_from(save)
 	world.restore({"seq": 0, "cmds": []})
 	await _settle()

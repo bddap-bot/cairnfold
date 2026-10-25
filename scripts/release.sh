@@ -41,21 +41,21 @@ store=$([ -f "$meta_store" ] && [ "$latest" = true ] && echo store || true)
 # An APK signed by another key installs over no deployed copy, so every player would have to reinstall.
 for build in quest lepton ${store:+quest:store}; do
   target=${build%:*} variant=${build#"$target"}
-  apk=$out/nestcombe-$target${variant/:/-}.apk
+  apk=$out/cairnfold-$target${variant/:/-}.apk
   nix-shell android.nix --run "scripts/android.sh $target '$apk' ${variant#:}"
   signer=$(nix-shell android.nix --run "\"\$ANDROID_HOME/build-tools/\$ANDROID_BUILD_TOOLS/apksigner\" verify --print-certs '$apk'" |
     sed -n 's/^Signer #[0-9]* certificate SHA-256 digest: //p')
   [ "$signer" = "$android_cert_sha256" ] || { echo "release: $target APK signed by ${signer:-nothing}, not the deploying key $android_cert_sha256" >&2; exit 1; }
 done
-for target in linux-x64 linux-arm64; do nix-shell --run "scripts/package.sh $target '$out/nestcombe-$target.tar.gz'"; done
-nix-shell --run "scripts/package.sh windows '$out/nestcombe-windows.zip'"
+for target in linux-x64 linux-arm64; do nix-shell --run "scripts/package.sh $target '$out/cairnfold-$target.tar.gz'"; done
+nix-shell --run "scripts/package.sh windows '$out/cairnfold-windows.zip'"
 if [ -n "$dry" ]; then
   echo "release: dry run, $tag of $rev (Latest: $latest) built and checked, not published"
   exit 0
 fi
 gh release create "$tag" --target "$rev" --latest="$latest" --title "$(sed -n 's/^config\/name="\(.*\)"$/\1/p' game/project.godot) $tag" \
-  --notes "Built from $rev. PC VR: nestcombe-windows.zip or nestcombe-linux-x64.tar.gz, run Nestcombe.exe or nestcombe/nestcombe with an OpenXR runtime (SteamVR). Steam Frame: nestcombe-lepton.apk for an Android depot, or nestcombe-linux-arm64.tar.gz (README, \"Running\"). Quest: install nestcombe-quest.apk (README, \"Quest\")." \
-  "$out/nestcombe-quest.apk" "$out/nestcombe-lepton.apk" "$out/nestcombe-linux-x64.tar.gz" "$out/nestcombe-linux-arm64.tar.gz" "$out/nestcombe-windows.zip"
+  --notes "Built from $rev. PC VR: cairnfold-windows.zip or cairnfold-linux-x64.tar.gz, run Cairnfold.exe or cairnfold/cairnfold with an OpenXR runtime (SteamVR). Steam Frame: cairnfold-lepton.apk for an Android depot, or cairnfold-linux-arm64.tar.gz (README, \"Running\"). Quest: install cairnfold-quest.apk (README, \"Quest\")." \
+  "$out/cairnfold-quest.apk" "$out/cairnfold-lepton.apk" "$out/cairnfold-linux-x64.tar.gz" "$out/cairnfold-linux-arm64.tar.gz" "$out/cairnfold-windows.zip"
 if [ -n "$store" ]; then
   util=$(fetch "${ovr_platform_util[@]}")
   chmod +x "$util"
@@ -63,6 +63,6 @@ if [ -n "$store" ]; then
   # environment.
   # shellcheck source=/dev/null
   (. "$meta_store"; "$util" upload-quest-build --app-id "$meta_app_id" --app-secret "$META_APP_SECRET" --channel ALPHA \
-    --age-group TEENS_AND_ADULTS --apk "$out/nestcombe-quest-store.apk" --notes "$tag, built from $rev" \
+    --age-group TEENS_AND_ADULTS --apk "$out/cairnfold-quest-store.apk" --notes "$tag, built from $rev" \
     --disable-progress-bar --wait-for-postprocessing)
 fi

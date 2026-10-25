@@ -13,7 +13,7 @@ func _run() -> void:
 	await process_frame
 	main.rig.set_process(false)
 	var world: World = main.world
-	world.load_from(OS.get_user_data_dir().path_join("nestcombe-opening-rays-%d.garden" % OS.get_process_id()))
+	world.load_from(OS.get_user_data_dir().path_join("cairnfold-opening-rays-%d.garden" % OS.get_process_id()))
 	_through(world, false, 1.0)
 	_through(world, false, 1.25)
 	_through(world, true, 1.0)

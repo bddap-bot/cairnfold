@@ -17,7 +17,7 @@ func _run() -> void:
 	main.world.bounded = false
 	await process_frame
 	world = main.world
-	dir = OS.get_user_data_dir().path_join("nestcombe-easel-%d" % OS.get_process_id())
+	dir = OS.get_user_data_dir().path_join("cairnfold-easel-%d" % OS.get_process_id())
 	DirAccess.make_dir_recursive_absolute(dir)
 	_samples_keep_what_the_brush_did()
 	_a_stroke_lays_the_same_dabs_every_time()

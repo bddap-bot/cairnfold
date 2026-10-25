@@ -6,7 +6,7 @@
 #           material enters it, so the Meta SDK's approved-product terms stay off a Steam product
 # Both carry the engine scripts/android-template.sh builds from the pinned Godot source and android-template.patch.
 # A steam Lepton APK also carries the GodotSteam extension and Valve's steam_api library; a Quest APK never does.
-# Every APK, bench or release, signs with the one key in $NESTCOMBE_ANDROID_KEY (AGENTS.md, "Signing"), so any build
+# Every APK, bench or release, signs with the one key in $CAIRNFOLD_ANDROID_KEY (AGENTS.md, "Signing"), so any build
 # installs over any other and the garden on the device survives.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
@@ -41,7 +41,7 @@ sed -i "s/^version\/code=.*/version\/code=$number/; s/^version\/name=.*/version\
 
 [ -f "$android_key/release.keystore" ] || { echo "android: no signing key in $android_key (AGENTS.md, \"Signing\")" >&2; exit 1; }
 password=$(< "$android_key/password")
-export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$android_key/release.keystore GODOT_ANDROID_KEYSTORE_RELEASE_USER=nestcombe \
+export GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$android_key/release.keystore GODOT_ANDROID_KEYSTORE_RELEASE_USER=cairnfold \
   GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$password
 
 cd "$stage/game"

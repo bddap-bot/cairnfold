@@ -93,7 +93,7 @@ func _run() -> void:
 	main.quality.pin = Quality.START
 	var settings := {"fov": main.metrics.info.get("eye_fov_deg", []), "sun": str(main.look.sun.basis), "head": str(main.rig.head.transform)}
 	print("shadows: ", JSON.stringify(settings))
-	var scene := OS.get_environment("NESTCOMBE_SHADOW_SCENE")
+	var scene := OS.get_environment("CAIRNFOLD_SHADOW_SCENE")
 	var eye := Vector3(0, terrain.height_at(0, 20) + 2, 20)
 	var facing := Vector3.FORWARD
 	var yaws := [-40, -30, -20, -10, 0, 10, 20, 30, 40]
@@ -105,10 +105,10 @@ func _run() -> void:
 		facing = Vector3(-6, terrain.height_at(-6, -25) + 4, -25) - eye
 		main.quality.pin = 14
 		yaws = [-20, 0, 20]
-	var folder := OS.get_environment("NESTCOMBE_SHADOW_OUT")
-	assert(not folder.is_empty(), "Set NESTCOMBE_SHADOW_OUT to the capture directory")
+	var folder := OS.get_environment("CAIRNFOLD_SHADOW_OUT")
+	assert(not folder.is_empty(), "Set CAIRNFOLD_SHADOW_OUT to the capture directory")
 	DirAccess.make_dir_recursive_absolute(folder)
-	if OS.get_environment("NESTCOMBE_SHADOW_BASELINE") == "1":
+	if OS.get_environment("CAIRNFOLD_SHADOW_BASELINE") == "1":
 		main.look.sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS
 		main.look.sun.directional_shadow_max_distance = 45.0
 		main.look.sun.directional_shadow_split_1 = 6.0 / 45.0

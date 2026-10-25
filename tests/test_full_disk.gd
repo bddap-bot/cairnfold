@@ -5,7 +5,7 @@ extends "res://../tests/support/suite.gd"
 ## godot4 --headless --fixed-fps 60 --path game --script ../tests/test_full_disk.gd
 
 const LIMIT_KB := 60
-const CAPPED := "NESTCOMBE_FILES_CAPPED"
+const CAPPED := "CAIRNFOLD_FILES_CAPPED"
 
 
 func _initialize() -> void:
@@ -24,7 +24,7 @@ func _initialize() -> void:
 func _run() -> void:
 	await process_frame
 	main.world.bounded = false
-	var path := OS.get_user_data_dir().path_join("nestcombe-full-%d.save" % OS.get_process_id())
+	var path := OS.get_user_data_dir().path_join("cairnfold-full-%d.save" % OS.get_process_id())
 	main.world.load_from(path)
 	await play([{"op": "wall", "points": [[-6, -4], [6, -4]], "seconds": 0.3}, {"op": "tree", "x": 4, "z": 4}])
 	await process_frame

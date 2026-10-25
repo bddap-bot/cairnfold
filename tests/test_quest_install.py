@@ -83,7 +83,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         (bin / 'adb').write_text(FAKE_ADB)
         (bin / 'adb').chmod(0o755)
         self.quest = self.root / 'quest'
-        self.files = self.quest / 'sdcard/Android/data/io.github.bddapbot.nestcombe/files'
+        self.files = self.quest / 'sdcard/Android/data/io.github.bddapbot.cairnfold/files'
         (self.files / 'avatars').mkdir(parents=True)
         (self.files / 'bench').mkdir()
         (self.files / 'garden.save').write_bytes(b'the players\x00 garden')
@@ -92,12 +92,12 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         (self.quest / 'installed').touch()
         self.saves = self.root / 'saves'
         self.env = dict(os.environ, PATH=f'{bin}:{os.environ["PATH"]}', FAKE_QUEST=str(self.quest),
-                        NESTCOMBE_QUEST_SAVES=str(self.saves))
+                        CAIRNFOLD_QUEST_SAVES=str(self.saves))
 
     def tearDown(self):
         self.temporary.cleanup()
 
-    def install(self, package='io.github.bddapbot.nestcombe', quest=True, **env):
+    def install(self, package='io.github.bddapbot.cairnfold', quest=True, **env):
         path = apk(self.root / 'old.apk', package, quest)
         return subprocess.run([str(script), str(path)], env=dict(self.env, **env), capture_output=True, text=True)
 
@@ -106,7 +106,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.assertEqual(run.returncode, 0, run.stderr)
         log = (self.quest / 'adb.log').read_text()
         self.assertIn('uninstall io.github.bddapbot.nestbisect', log)
-        self.assertNotIn('nestcombe', log)
+        self.assertNotIn('cairnfold', log)
         self.assertEqual((self.files / 'garden.save').read_bytes(), b'the players\x00 garden')
 
     def test_an_apk_without_the_vr_category_is_refused(self):
@@ -153,7 +153,7 @@ class QuestInstallKeepsSaves(unittest.TestCase):
         self.assertEqual(run.returncode, 0, run.stderr)
         log = (self.quest / 'adb.log').read_text()
         self.assertIn(package, log)
-        self.assertNotIn('nestcombe', log)
+        self.assertNotIn('cairnfold', log)
         self.assertEqual((files / 'garden.save').read_bytes(), b'the bisect garden')
 
 

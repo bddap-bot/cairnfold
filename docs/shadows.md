@@ -8,7 +8,7 @@ when finished. The normal game installation need not be replaced.
 From a source checkout on the headset:
 
 ```sh
-NESTCOMBE_SHADOW_OUT="$PWD/out/shadows" godot --path game --script "$PWD/scripts/shadows.gd"
+CAIRNFOLD_SHADOW_OUT="$PWD/out/shadows" godot --path game --script "$PWD/scripts/shadows.gd"
 ```
 
 Copy the output directory back, then run:
@@ -27,10 +27,10 @@ more than 2.5/255. A brightness ceiling also rejects a sweep with the shadows
 removed. Both eyes must pass; missing captures and insufficient visible coverage
 are errors.
 
-Set `NESTCOMBE_SHADOW_BASELINE=1` to restore the previous two splits, 45 m reach,
+Set `CAIRNFOLD_SHADOW_BASELINE=1` to restore the previous two splits, 45 m reach,
 6 m near split and 0.8 fade start in the diagnostic only. This is the negative
-control: the same rendered check must fail. `NESTCOMBE_SHADOW_SCENE=hill` captures
-the snowy hillside; `NESTCOMBE_SHADOW_SCENE=tree` captures a close canopy at the
+control: the same rendered check must fail. `CAIRNFOLD_SHADOW_SCENE=hill` captures
+the snowy hillside; `CAIRNFOLD_SHADOW_SCENE=tree` captures a close canopy at the
 coarsest quality step. Those alternate views are for visual comparison, not the
 fixed-region checker.
 

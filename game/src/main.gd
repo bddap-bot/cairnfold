@@ -382,9 +382,9 @@ func finish(code := 0) -> void:
 
 
 ## Where photos go: in user data, except on Android, where an uninstall erases user data and the app's own folders;
-## there they go to Pictures/Nestcombe in shared storage, which an uninstall leaves and the device's gallery shows.
+## there they go to Pictures/Cairnfold in shared storage, which an uninstall leaves and the device's gallery shows.
 static func photos_folder(android := OS.has_feature("android")) -> String:
-	return OS.get_system_dir(OS.SYSTEM_DIR_PICTURES, true).path_join("Nestcombe") if android else "user://photos"
+	return OS.get_system_dir(OS.SYSTEM_DIR_PICTURES, true).path_join("Cairnfold") if android else "user://photos"
 
 
 ## A run's arguments. Godot drops a launch intent's arguments on an exported activity, so on Android they come from

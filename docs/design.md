@@ -1,6 +1,6 @@
-# Nestcombe design
+# Cairnfold design
 
-Nestcombe is a cozy building toy for VR, inspired by Tiny Glade: no goals, no
+Cairnfold is a cozy building toy for VR, inspired by Tiny Glade: no goals, no
 failure, just a meadow and tools that turn rough strokes into stone walls, paths,
 houses and gardens that look hand-made. You draw in the space around you, stand in
 what you built at life size, or teleport into the air and float above it like a
@@ -63,7 +63,7 @@ can move to a GDExtension later without touching the rest.
 
 ### Steam Frame route
 
-**Decision: the Frame gets Nestcombe from Steam as an Android depot,
+**Decision: the Frame gets Cairnfold from Steam as an Android depot,
 `scripts/android.sh lepton`, run by the Frame's Lepton container.** It is the only
 Frame route Steamworks documents (a depot with its OS set to Android and a top-level
 `.apk`); its depot settings name no ARM Linux option. The APK uses the OpenXR vendors
@@ -225,7 +225,7 @@ late frames (over 1.5× the refresh period) and GPU time per frame (fdinfo):
 | Erase | 0, 0, 0 | 0, 0, 0 |
 An earlier pair of runs with the line at 0.82 gave 1 and 75 late frames; they were not split
 by cause.
-`scripts/bench.sh` with `NESTCOMBE_SCENE=demo/headset.json` runs this check on the Frame; its
+`scripts/bench.sh` with `CAIRNFOLD_SCENE=demo/headset.json` runs this check on the Frame; its
 `late` column counts every frame of a phase.
 
 ### Foveation on the Frame
@@ -431,7 +431,7 @@ density, and no build the player can make may bring the frame rate down.
   calls, primitives and GPU time; on a Quest it holds to the budget each phase whose garden the build budget admits
   (`World.fill` at most 1 throughout) and fails when one goes over. A phase past the build budget only measures ("The
   stress scene on the Quest 2"). A new feature adds itself to the stress scene.
-  `NESTCOMBE_PLAYERS=8 NESTCOMBE_WAVE=1` fills the session with flat-screen
+  `CAIRNFOLD_PLAYERS=8 CAIRNFOLD_WAVE=1` fills the session with flat-screen
   companions playing the recorded wave throughout the tour, including its final
   `avatars/wave` view.
 - Each run records its phases under `perf/HEADSET/SCENE/`, named by the build measured; `scripts/trend.py` prints the
@@ -442,7 +442,7 @@ density, and no build the player can make may bring the frame rate down.
   first frame, 34 s baked. What a cleared headset still compiles is its driver's pipelines, which no export can ship:
   the first easel 11 s, the first house 7 s, once per install; an update keeps them. The style wheel's miniatures are
   built on a thread of their own (`ToolModels`) and the rest of the warm-ups run from one list, `Warmup`.
-  `demo/first-use.json` plays each tool's first use, and `NESTCOMBE_COLD=1 scripts/bench.sh` clears the game's data
+  `demo/first-use.json` plays each tool's first use, and `CAIRNFOLD_COLD=1 scripts/bench.sh` clears the game's data
   first, its saves kept.
 
 What makes building cheap:
@@ -560,7 +560,7 @@ walls 0.8 ms, shadows 1.3 ms, terrain 0.5 ms.
 
 What is left grows with what is built, so building needs a bound: "Build budget" below.
 
-Measured on a Quest 2 (`NESTCOMBE_SCENE=demo/costs.json bench.sh OUT --android APK` on
+Measured on a Quest 2 (`CAIRNFOLD_SCENE=demo/costs.json bench.sh OUT --android APK` on
 ecef026: in the headset with its proximity sensor held closed, the runtime's `App=` GPU time
 per frame, median of each phase, CPU and GPU held at level 4, 525 MHz, the ladder at its
 bottom step, no other process rendering). GPU milliseconds a frame against the then 12.5 ms budget;
@@ -1096,7 +1096,7 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
 - Nothing shows the garden's fill in the hand: a held tool is the tool alone. A preview
   that would not fit turns the held tool's sight red. Refused actions knock twice;
   painting stops at capacity and knocks once.
-- `demo/costs.json`, played by `NESTCOMBE_SCENE=demo/costs.json scripts/bench.sh OUT ...`
+- `demo/costs.json`, played by `CAIRNFOLD_SCENE=demo/costs.json scripts/bench.sh OUT ...`
   and fitted by `scripts/costs.py OUT`, which prints a candidate table for review, measures each kind of build alone over the bare
   meadow at `Budget.fit_step()` (the bottom of the quality ladder), from the air and standing. Each phase of walls, a
   village or paths is laid by a `sized` step: while either view reads over the governor's line,
@@ -1120,7 +1120,7 @@ Directive (verbatim): "I'd like it to be fixed... a fixed amount and not change 
   the budget on purpose (`{"op": "budget", "bounded": false}`), to measure what lies
   beyond it.
 
-On the Steam Frame (`NESTCOMBE_SCENE=demo/costs.json bench.sh OUT SSH_HOST BUNDLE UNWORN...`, unworn, at
+On the Steam Frame (`CAIRNFOLD_SCENE=demo/costs.json bench.sh OUT SSH_HOST BUNDLE UNWORN...`, unworn, at
 `Budget.fit_step()`; [record](../perf/frame/costs/20261022T185026Z-0774568.json)), viewport GPU milliseconds a frame,
 from the air and standing, every phase at 72 Hz, over the bare meadow's 5.05 and 4.54 ms (5.11 beside the eye, 4.81 at
 dusk). `scripts/costs.py` fits each unit below; the Frame's base and room are no input to `Budget`. Its prices before
@@ -1206,7 +1206,7 @@ Three costs runs of one build with both: the base 7.44, 7.64 and 7.51 ms, where 
 
 ### What the bare meadow costs the Quest 2
 
-`NESTCOMBE_SCENE=demo/meadow-layers.json bench.sh OUT --android APK` hides each part of the meadow in turn, twice, each
+`CAIRNFOLD_SCENE=demo/meadow-layers.json bench.sh OUT --android APK` hides each part of the meadow in turn, twice, each
 stretch against the part shown beside it, from the air and standing, at the fit step; `scripts/layers.py OUT` reads it.
 Milliseconds a frame in the governor's signal, on main before the cut below
 ([record](../perf/quest-2/meadow-layers/20261021T203327Z-ab7159c.json)), and the share of each kept at a 0.5 swapchain
@@ -1322,7 +1322,7 @@ None of the meadow's plants cut out by alpha (`grass`, `flower`, `leaf` and `pla
 not discard), so alpha-to-coverage has nothing to act on. FXAA and SMAA blur textures and cost more standing; temporal
 AA is out in VR.
 
-What walls cost the Quest 2 (`NESTCOMBE_SCENE=demo/costs.json bench.sh OUT --android APK`,
+What walls cost the Quest 2 (`CAIRNFOLD_SCENE=demo/costs.json bench.sh OUT --android APK`,
 the ladder at its bottom step): GPU milliseconds a frame over the bare meadow of the same run,
 whose own time read 19 to 27 ms here, so only the differences count. Before is 16 m masonry
 chunks, after is 8 m; the bar of that time charged every headset the Frame's then 6.07 µs a m²:
@@ -1452,7 +1452,7 @@ and 7.91 ms, 0.62 ms an easel.
 ## Automatic quality
 
 Directive (verbatim):
-> I expect since [Nestcombe] can measure frame times it could dynamically choose graphics settings to keep players safer from stutter. Limitations/quirks I think:
+> I expect since [Cairnfold] can measure frame times it could dynamically choose graphics settings to keep players safer from stutter. Limitations/quirks I think:
 > - delta in the setting would need to not *cause* a frame pause
 > - not sure which settings are worth making dynamic
 > - multiple settings to tweak but only one signal
@@ -2409,7 +2409,7 @@ Stage numbers refer to the build order at the end.
 | Undo, erase | Animated undo; eraser splits walls into ruins | One history for every tool: a tap of left X (the Frame's D-pad down) undoes a step, right A redoes one; with others, each player's own steps (done); the delete tool takes away any tree or bush its beam strikes, the meadow's own included, a whole path or stone stroke (the ground under it coming back), and mows grass and flowers, the meadow's own included, under its ring while held (done), and is the eraser on walls: held on a wall, its beam sweeps along it and that stretch breaks away into a ruin (`WallLayout.ruins`), its ends stepping down course by course to a gap at the foot, stones fallen in the gap, ivy only on what stands; arches, windows, lanterns, flags and end piers in the ruin go with it. A tap breaks a 1 m gap; a sweep that leaves less than 0.8 m standing, or one on a fence, house or tower, takes the whole of it. Directive (verbatim): "make it so I hold the delete tool to use it so I can hold it down and swipe across things": one held stroke takes everything the beam passes over, walls, trees, bushes, paths, stone and grass alike, sent as one `batch` command, so one undo step (done) | 1 (done), 10 (done) |
 | Save and load | Autosave after every action, backups, cloud | The garden's snapshot (`World.snapshot`, the commands that rebuild it, the same a late joiner gets) is written to `user://garden.save` after every frame in which a command changed it, on a worker thread, beside the file and renamed over it, so a process killed mid-write leaves the last one whole (`tests/test_kill.gd`); a quit writes one still due before the sounds wind down. It is loaded at start. Only your own garden is kept, never one you are visiting. A file of another format, or one the game cannot read whole, is moved aside to `garden.save.bad` before the garden is saved again, and the log says which. Undo history is not kept. Scripted runs and tests keep nothing unless given `--garden FILE`. The main thread's share (`snapshot()` and `var_to_bytes`, best of 10) took 0.4 ms on the desktop after the stress scene's densest `stress` step (radius 25: 24 walls, 973 m, 40k stones) plus shaped ground, a paint stroke and a path: 122 kB | 10 (done) |
 | Wildlife | Sheep, birds, ducks, fireflies, deer, a fox | Animals arrive on their own, drawn by what you build: ducks fly in to a pond, fish swim in it, butterflies gather over painted flowers, fireflies come out over both at dusk and stay all night while the day's animals rest (no new arrivals, butterflies settled, conures roosting with only murmurs, ducks quiet on the bank), conures perch on a tree or wall, sheep graze beside a fence; deer and a fox come out of the trees round the meadow (see "Wildlife") | 11 |
-| Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 3200×2400 photo at full quality, saved as a PNG under `user://photos` (`Pictures/Nestcombe` in shared storage on Android) that records where and how it was taken (see "Photos") | 11 (done) |
+| Photo mode | Camera modes and filters | The camera tool: a small camera on the controller, its lens along the aim and a screen on its back showing the lens's view; the trigger takes a 3200×2400 photo at full quality, saved as a PNG under `user://photos` (`Pictures/Cairnfold` in shared storage on Android) that records where and how it was taken (see "Photos") | 11 (done) |
 | Painting | None | A big easel set up on the ground, painted with a brush held in the hand in watercolour, oil or charcoal (see "Painting") | done |
 | Co-op | None | Several players build one garden and see each other as VRM avatars; every edit is a small build command the host orders; finding each other on the local network through the wheel's people branch (see [multiplayer.md](multiplayer.md)) | co-op increment 1 (done) |
 
@@ -2438,7 +2438,7 @@ numbers are published):
   ([dev update](https://store.steampowered.com/news/app/2198150/view/5125698536871949230)).
 - Not public: snap distances, whether a crossing becomes a junction, any minimum gap between parallel walls.
 
-Nestcombe's version, adapted to a pointer swept by hand, where a few centimetres of jitter are normal
+Cairnfold's version, adapted to a pointer swept by hand, where a few centimetres of jitter are normal
 (`WallPlan`, pure data; tests in `tests/test_plan.gd` and, through the driver, `tests/test_join.gd`):
 
 - Any part of a stroke within 1.8 m (centre line to centre line) of a standing wall merges into that wall:
@@ -3584,7 +3584,7 @@ CPU (`demo/lake.json`'s lake against the largest pond the 24-point limit allowed
 takes 50 to 100 ms held under its rim and 230 to 320 ms pointed over it, work done off the main thread
 (below). Fish (`Fish.CAP`), ripples and the lapping sound are capped per garden or per pond already.
 
-What that lake costs a Quest 2, in `demo/costs.json` at the ladder's fit step (`NESTCOMBE_SCENE=demo/costs.json
+What that lake costs a Quest 2, in `demo/costs.json` at the ladder's fit step (`CAIRNFOLD_SCENE=demo/costs.json
 bench.sh OUT --android APK`), viewport GPU milliseconds a frame as `scripts/costs.py` reads them (the median of the
 governor's signal; a record's `gpu_ms` is the headset's own App time), every view at 72 Hz; over the bare meadow from
 [one run](../perf/quest-2/costs/20261021T192027Z-a049b03.json), over the meadow with its own plants from
@@ -3735,7 +3735,7 @@ deep water and irises in the shallows.
   them; the same pool on land 6.5 and 5.6 ms, against 4.9 and 6.7 ms before the leaves: inside the host's run-to-run
   noise. The leaves add 12 triangles to each placed flower (41,000 primitives for the full pool), collapsed and
   culled on land.
-- **On the Quest 2** (`NESTCOMBE_SCENE=demo/pondweed.json bench.sh OUT --android APK`, the ladder pinned at the
+- **On the Quest 2** (`CAIRNFOLD_SCENE=demo/pondweed.json bench.sh OUT --android APK`, the ladder pinned at the
   bottom step the build budget is fitted at, median runtime GPU time a frame;
   [record](../perf/quest-2/pondweed/20261021T231514Z-8c2be1b.json)), the painted grass pool full (12,000 clumps) in a
   1.8 m disc over each view of that disc empty:
@@ -3932,7 +3932,7 @@ sound costs no frame time.
   the head makes only its close calls (`Calls.CLOSE`): the soft ones, and a duck family's
   quacks and peeps, as a family fed from a hand held over the pond is that near. A duck
   splashing down quacks there too.
-  `NESTCOMBE_QUIT_AFTER=420 scripts/render.sh demo/animals.json OUT --write-movie
+  `CAIRNFOLD_QUIT_AFTER=420 scripts/render.sh demo/animals.json OUT --write-movie
   OUT/animals.avi --fixed-fps 30` records five minutes of a garden the animals come to.
 - `scripts/render.sh demo/sound.json OUT --write-movie OUT/sound.avi --fixed-fps 30`
   records the game's own mix through an idle stretch, a build and the return.
@@ -4360,8 +4360,8 @@ lens keeps the horizon level however the wrist rolls, so photos never come out t
 straight up or down, the top of the controller is up. The trigger takes a photo
 (`PhotoTool.PHOTO_SIZE`), saved as a PNG named by the date and time under `user://photos`, or
 under `photos/` in the `--capture-dir` of a scripted run. From the Linux package that is
-`~/.local/share/godot/app_userdata/Nestcombe/photos`. An uninstall erases an APK's user data and
-its external files directory, so an APK saves photos to `Pictures/Nestcombe` in shared storage
+`~/.local/share/godot/app_userdata/Cairnfold/photos`. An uninstall erases an APK's user data and
+its external files directory, so an APK saves photos to `Pictures/Cairnfold` in shared storage
 (`Main.photos_folder`), which outlives an uninstall and shows in the headset's own gallery. Godot's
 own file access reaches shared storage only in Download and Documents, so a photo goes through
 java.io (`Main.write_bytes`), which scoped storage lets write the app's own pictures with no
@@ -4465,21 +4465,21 @@ draws two such views, each on frames of its own, so no frame draws both. A photo
 render on the frame after the press, read back from the GPU asynchronously, then converted,
 encoded and written on a worker thread, so no frame waits on the pixels. Its 8x MSAA view is made
 for the shot and let go once the screen stops showing it. The frame drawing it is long; the
-runtime shows the last frame reprojected meanwhile. Measured on a Quest 2 at 72 Hz (`NESTCOMBE_SCENE=demo/photo.json
+runtime shows the last frame reprojected meanwhile. Measured on a Quest 2 at 72 Hz (`CAIRNFOLD_SCENE=demo/photo.json
 bench.sh OUT --android APK`), four photos in one session, which ran on: the first photo of a session drew a 310 ms
 frame and the second after it ran at 13 frames instead of about 39, as the 8x MSAA pipelines were first built; each
 later photo cost one frame of 76 to 148 ms and the runtime's App GPU time rose for that second only (42.6 ms against
 about 25). Converting, encoding and writing the 3200×2400 PNG took about 8 s on a worker thread there, with no
 frame waiting on it.
 
-Where and how it was taken (`PhotoMeta`): any PNG reader sees `Software: Nestcombe <rev>`; an
-iTXt chunk keyed `nestcombe` holds JSON with the lens's position, rotation and field of view, the
+Where and how it was taken (`PhotoMeta`): any PNG reader sees `Software: Cairnfold <rev>`; an
+iTXt chunk keyed `cairnfold` holds JSON with the lens's position, rotation and field of view, the
 time of day, the garden (its host, whether visited, its command count, the meadow's and the
 wildlife's seeds), the build's revision, when it was taken, and the settings above. The garden
 itself, as it is saved (`World.snapshot`), packed with zstd, goes in a private chunk `neSt` when
 it packs to at most `PhotoMeta.WORLD_MAX` (4 MiB); a bigger garden is left out and the JSON's
 `world` says how big it was. A garden of walls, houses and painted plants packs to a few
-kilobytes; ground shaped across the whole meadow adds its heights. `nestcombe -- --photo FILE`
+kilobytes; ground shaped across the whole meadow adds its heights. `cairnfold -- --photo FILE`
 opens a photo's garden at its time of day, seen from its lens, and keeps nothing of it; a photo
 without one opens nothing.
 
@@ -4503,7 +4503,7 @@ written again for the moments no drawing came back for, so a video always lasts 
 than `VIDEO_QUEUE` frames waiting to be written drop the newest instead of holding play up. Sound is taken from
 the master bus (an `AudioEffectCapture` there while recording only) as 32-bit float stereo. A second of video is
 about 1.1 MB; plain AVI stops at 1 GiB, about 15 minutes, where recording stops by itself. On an APK the file
-is written through java.io into `Pictures/Nestcombe`, as a photo is.
+is written through java.io into `Pictures/Cairnfold`, as a photo is.
 
 Measured with `demo/video.json` (`bench.sh`): the governor first settles on the bare camera-less scene
 (`camera/none`), the ladder is then held at the step it stands on (`"step": "held"`), and the held camera pans
@@ -4531,7 +4531,7 @@ garden in the camera's view or drawing it less often; each shows in its screen a
 taken while both views hold the budget.
 
 On the Frame recording holds 72 Hz with no late frame, at 0.06 ms of GPU time, and every one of a clip's
-137 frames is a fresh drawing. The file on an APK lands in `Pictures/Nestcombe` beside the photos and plays back
+137 frames is a fresh drawing. The file on an APK lands in `Pictures/Cairnfold` beside the photos and plays back
 whole.
 
 Left out: Godot's MovieWriter, which renders the main view at a fixed time step and so slows play to the
@@ -4682,7 +4682,7 @@ The flow shader reads the immutable water input and paper through integer textur
 four neighbours cannot supply water write zero to the next buffer without evaluating flow or settling; every
 other texel runs the same equations. Canvas resolution, wet-tile margins, drying ticks and the work budget stay
 unchanged. `demo/canvas-water-bench.json` reproduces the loaded big-water-brush phase on a single easel; run it with
-`NESTCOMBE_SCENE=demo/canvas-water-bench.json scripts/bench.sh OUT --android APK` on a Quest.
+`CAIRNFOLD_SCENE=demo/canvas-water-bench.json scripts/bench.sh OUT --android APK` on a Quest.
 
 On Quest 2, the loaded-water phase measured 15.52 ms before these changes, against the then 12.50 ms. A first candidate
 measured 12.11 ms but a repeat took 12.64 ms, so the empty-region check was simplified again: it fetches four water
@@ -4751,8 +4751,8 @@ measures painting on a headset, and `demo/costs.json` what an easel costs a fram
 ## Verifying on a headset
 
 `scripts/package.sh linux-arm64` exports the aarch64 build (the game binary plus its
-library art in `steam/`). Installed as `~/nestcombe` on the headset, it starts from a
-VR shortcut in the Steam library that runs `nestcombe/nestcombe`. `nestcombe -- --script
+library art in `steam/`). Installed as `~/cairnfold` on the headset, it starts from a
+VR shortcut in the Steam library that runs `cairnfold/cairnfold`. `cairnfold -- --script
 FILE --metrics FILE --capture-dir DIR` plays a scripted session through the same entry
 points as the controllers (teleport, float, draw a wall), logs per-second frame
 times and saves view captures. `scripts/test.sh` runs the headless layout tests;
@@ -4808,7 +4808,7 @@ Grass techniques (public material from other games):
 ### Local play-session history
 
 Session logging is off by default. A `record-sessions` file in the player folder (`Main.player_path`: user data,
-or on a Quest `/sdcard/Android/data/io.github.bddapbot.nestcombe/files/`, which adb reaches) opts that device in;
+or on a Quest `/sdcard/Android/data/io.github.bddapbot.cairnfold/files/`, which adb reaches) opts that device in;
 explicit `--record-sessions` writes it, and `--forget-sessions` or removing the file opts out. A path in the file, or
 `--session-directory PATH` with the opt-in, chooses another local folder. Enabled play records the one-second rows
 `Metrics` writes (the same rows as a bench's `--metrics` record) in the player folder's `sessions/`, without
@@ -4880,7 +4880,7 @@ instances either; the budget reserves every piece of a bed at a wall stone's sha
 stepping stones and crops are laid on a worker thread and placed when done: a 20 m bed's 1,200 pieces took 8 ms to lay
 on a desktop's main thread, and the Quest 2's cores are slower.
 
-Cost on a Quest 2 (`bench.sh OUT --android APK` with `NESTCOMBE_SCENE=demo/materials-cost.json` at `Budget.fit_step()`,
+Cost on a Quest 2 (`bench.sh OUT --android APK` with `CAIRNFOLD_SCENE=demo/materials-cost.json` at `Budget.fit_step()`,
 the bench's GPU ms a frame): the bare meadow read 5.29 from the air, 4.78 looking over the beds' ground and 5.41 down the
 cobbled ways, against 5.34, 4.83 and 5.39 on the build before the surfaces, so the sand and tilled shading costs the meadow
 nothing measurable; with the stress scene's materials laid, the same views read 7.11, 8.85 (six full beds filling the
@@ -5051,7 +5051,7 @@ worst measured with the box path (2.2 ms over 4,914 Fachwerk members, 0.45 µs e
 
 `demo/arch-cost.json` builds 36 timber houses with four doorway-sized arches each.
 It alternates plain, arched, plain, arched, plain, looking from above and along the
-street at each stage. Run it with `NESTCOMBE_SCENE=demo/arch-cost.json
+street at each stage. Run it with `CAIRNFOLD_SCENE=demo/arch-cost.json
 scripts/bench.sh OUT --android APK`, with `adb` addressing the Quest 2. For the
 historical build, replace each `fit` opening step with its former `arch` operation,
 retaining `index` and `s`; the houses, views, timing and ordering stay the same. Each phase settles before recording 25 seconds. The headset
@@ -5334,7 +5334,7 @@ and its validation remain unchanged.
 `demo/dense-sun-shadows.json` repeats sunlight on/off/on three times in a dense
 wall/hill view at full detail. It then compares quality steps 8 and 9, which differ
 only in shadows, and separately toggles sunlight with shadows already disabled.
-Run it with `NESTCOMBE_SCENE=demo/dense-sun-shadows.json scripts/bench.sh OUT --android APK`.
+Run it with `CAIRNFOLD_SCENE=demo/dense-sun-shadows.json scripts/bench.sh OUT --android APK`.
 These are diagnostic controls, not changes to the stress acceptance workload.
 
 On one physical Quest 2 at 72 Hz, levels 4/4 and 1478/525 MHz, the bracketed GPU

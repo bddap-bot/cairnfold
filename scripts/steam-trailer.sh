@@ -8,7 +8,7 @@ frames=$(mktemp -d)
 trap 'rm -rf "$frames"' EXIT
 "$root/scripts/check.sh"
 # Movie time is fixed-step, so the render may run far slower than real time without changing a frame.
-NESTCOMBE_QUIT_AFTER=200 NESTCOMBE_TIMEOUT=7200 "$root/scripts/render.sh" "$root/demo/trailer.json" "$frames" \
+CAIRNFOLD_QUIT_AFTER=200 CAIRNFOLD_TIMEOUT=7200 "$root/scripts/render.sh" "$root/demo/trailer.json" "$frames" \
   --resolution 1920x1080 --write-movie "$frames/frame.png" --fixed-fps 30
 seconds=$(python3 -c "import sys; print(int(sys.argv[1]) / 30)" "$(find "$frames" -name 'frame*.png' | wc -l)")
 end=$(python3 -c "import sys; print(float(sys.argv[1]) - 2)" "$seconds")

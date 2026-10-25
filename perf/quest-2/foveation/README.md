@@ -1,6 +1,6 @@
 # Fixed foveation's cost over walls from the air, Quest 2
 
-Stress-scene excerpts, `scripts/bench.sh OUT --android APK` with `NESTCOMBE_SCENE` set to the scene named below.
+Stress-scene excerpts, `scripts/bench.sh OUT --android APK` with `CAIRNFOLD_SCENE` set to the scene named below.
 docs/design.md reads them in "Anti-aliasing on the Quest 2".
 
 - `*-<rev>.json` with no suffix, the bisect: the stress scene's meadow, flora, r10 to r25, r15-tall and village

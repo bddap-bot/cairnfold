@@ -18,7 +18,7 @@ func _run() -> void:
 	var rig: Rig = main.rig
 	rig.set_process(false)
 	var world: World = main.world
-	world.load_from(OS.get_user_data_dir().path_join("nestcombe-teleport-%d.garden" % OS.get_process_id()))
+	world.load_from(OS.get_user_data_dir().path_join("cairnfold-teleport-%d.garden" % OS.get_process_id()))
 	_onto_a_pitched_roof(rig, world)
 	_onto_a_tree(rig, world)
 	_onto_a_wall_top(rig, world)

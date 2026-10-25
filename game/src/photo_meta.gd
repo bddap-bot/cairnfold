@@ -1,10 +1,10 @@
 class_name PhotoMeta
 
 ## Where and how a photo was taken, written into its PNG and read back. Any PNG reader shows `Software`; the rest is
-## an iTXt chunk keyed `nestcombe` holding JSON (`about`), and, when it fits in WORLD_MAX, the whole garden as World
+## an iTXt chunk keyed `cairnfold` holding JSON (`about`), and, when it fits in WORLD_MAX, the whole garden as World
 ## keeps it (World.snapshot), zstd-packed in a private chunk, so the photo can be opened as the garden it shows.
 
-const KEY := "nestcombe"
+const KEY := "cairnfold"
 const WORLD_CHUNK := "neSt"
 ## Bytes of packed garden a photo carries at most; a bigger garden is left out and `about.world` says why.
 const WORLD_MAX := 4 << 20
@@ -29,7 +29,7 @@ static func embed(png: PackedByteArray, about: Dictionary, world := PackedByteAr
 	var end := png.size() - 12
 	assert(png.slice(end + 4, end + 8).get_string_from_ascii() == "IEND", "a PNG ends with IEND")
 	var out := png.slice(0, end)
-	out.append_array(_chunk("tEXt", ("Software".to_ascii_buffer() + PackedByteArray([0]) + ("Nestcombe " + str(about.get("build", ""))).to_utf8_buffer())))
+	out.append_array(_chunk("tEXt", ("Software".to_ascii_buffer() + PackedByteArray([0]) + ("Cairnfold " + str(about.get("build", ""))).to_utf8_buffer())))
 	out.append_array(_chunk("iTXt", KEY.to_ascii_buffer() + PackedByteArray([0, 0, 0, 0, 0]) + JSON.stringify(about, "", false).to_utf8_buffer()))
 	if not packed.is_empty():
 		out.append_array(_chunk(WORLD_CHUNK, packed))

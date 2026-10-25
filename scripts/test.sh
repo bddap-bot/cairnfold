@@ -77,7 +77,7 @@ gpu_timeout() {
 for t in tests/gpu_*.gd; do
   log="$runs/$(basename "$t").log"
   code=0
-  DISPLAY=$display VK_ICD_FILENAMES=${NESTCOMBE_ICD:-/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json} XDG_DATA_HOME=$(mktemp -d -p "$runs") \
+  DISPLAY=$display VK_ICD_FILENAMES=${CAIRNFOLD_ICD:-/run/opengl-driver/share/vulkan/icd.d/nvidia_icd.json} XDG_DATA_HOME=$(mktemp -d -p "$runs") \
     gpu_timeout 600 godot4 --path game --fixed-fps 60 --xr-mode off --resolution 64x64 --script "../$t" >"$log" 2>&1 || code=$?
   grep -E "^(tests|FAIL):|SCRIPT ERROR|Parameter \"material\" is null" "$log" | sed "s|^|$t: |" || true
   if [ "$code" != 0 ] || grep -qE "SCRIPT ERROR|Parameter \"material\" is null" "$log" || ! grep -q "^tests: ok" "$log"; then echo "$t: exited $code"; tail -n 60 "$log" | sed "s|^|$t: |"; status=1; fi

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """What each part of the bare meadow costs a frame: layers.py OUT_DIR [JSON]
 
-OUT_DIR is what `NESTCOMBE_SCENE=demo/meadow-layers.json scripts/bench.sh OUT_DIR ...` left. Each layer was shown and
+OUT_DIR is what `CAIRNFOLD_SCENE=demo/meadow-layers.json scripts/bench.sh OUT_DIR ...` left. Each layer was shown and
 hidden in turn, twice each, from the air and standing; its cost is the median viewport GPU time (the governor's signal,
 as Budget prices in) shown over hidden, each hidden stretch against the shown ones beside it. "all" hides every layer
 at once: what is left is what a frame costs with nothing of the meadow drawn. With JSON, writes the table there too."""

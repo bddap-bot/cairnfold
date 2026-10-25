@@ -18,7 +18,7 @@ func _run() -> void:
 	main.world.bounded = false
 	await process_frame
 	world = main.world
-	dir = OS.get_user_data_dir().path_join("nestcombe-keep-%d" % OS.get_process_id())
+	dir = OS.get_user_data_dir().path_join("cairnfold-keep-%d" % OS.get_process_id())
 	DirAccess.make_dir_recursive_absolute(dir)
 	check(world.save_path == "", "a test or scripted run keeps no garden unless told to")
 	await _every_edit_is_kept_and_loads_whole()

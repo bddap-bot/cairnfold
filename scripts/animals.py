@@ -39,7 +39,7 @@ def decode(url, member=None):
     CACHE.mkdir(exist_ok=True)
     path = CACHE / url.rsplit("/", 1)[1]
     if not path.exists():
-        request = urllib.request.Request(url, headers={"User-Agent": "nestcombe-animals"})
+        request = urllib.request.Request(url, headers={"User-Agent": "cairnfold-animals"})
         path.write_bytes(urllib.request.urlopen(request, timeout=60).read())
     if member is not None:
         out = CACHE / f"{path.stem}-{pathlib.PurePosixPath(member).name}"

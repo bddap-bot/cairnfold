@@ -329,7 +329,7 @@ func _announce() -> void:
 
 ## Every second, to anyone on the network: nothing identifying, unless the player picked a name to show.
 func beacon() -> PackedByteArray:
-	var msg := {"nestcombe": protocol(), "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false), "players": players()}
+	var msg := {"cairnfold": protocol(), "key": _key, "port": port, "avatar": avatar, "colour": colour.to_html(false), "players": players()}
 	if me.shared and not me.steam():
 		msg.name = me.name
 	if worn_key != "" and _shelf.is_listening():
@@ -362,7 +362,7 @@ static func read_beacon(raw: PackedByteArray) -> Dictionary:
 	if json.parse(raw.slice(0, 512).get_string_from_utf8()) != OK:
 		return {}
 	var msg: Variant = json.data
-	if not (msg is Dictionary and msg.get("nestcombe") is float and msg.get("key") is float and msg.get("port") is float and msg.get("avatar") is float):
+	if not (msg is Dictionary and msg.get("cairnfold") is float and msg.get("key") is float and msg.get("port") is float and msg.get("avatar") is float):
 		return {}
 	var at := int(msg.port)
 	if at < PORT or at >= PORT + PORT_RANGE:
@@ -370,7 +370,7 @@ static func read_beacon(raw: PackedByteArray) -> Dictionary:
 	var wears := str(msg.get("wears", ""))
 	if not (wears.length() == 64 and wears.is_valid_hex_number()):
 		wears = ""
-	return {"key": int(msg.key), "port": at, "avatar": posmod(int(msg.avatar), Avatar.BUILT_IN.size()), "wears": wears, "colour": Color.from_string(str(msg.get("colour", "")), COLOURS[0]).clamp(), "name": Persona.clean(str(msg.get("name", ""))), "joins": msg.nestcombe == float(protocol())}
+	return {"key": int(msg.key), "port": at, "avatar": posmod(int(msg.avatar), Avatar.BUILT_IN.size()), "wears": wears, "colour": Color.from_string(str(msg.get("colour", "")), COLOURS[0]).clamp(), "name": Persona.clean(str(msg.get("name", ""))), "joins": msg.cairnfold == float(protocol())}
 
 
 func _hear() -> void:

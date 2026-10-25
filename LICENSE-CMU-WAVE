@@ -17,8 +17,8 @@ Acknowledgment:
 The data used in this project was obtained from mocap.cs.cmu.edu.
 The database was created with funding from NSF EIA-0196217.
 
-Nestcombe includes this human motion recording as part of the game, not as a
-standalone motion product. It is not relicensed under Nestcombe's MIT/Apache
+Cairnfold includes this human motion recording as part of the game, not as a
+standalone motion product. It is not relicensed under Cairnfold's MIT/Apache
 licenses. scripts/wave.gd converts the ASF/AMC recording into head-relative hand
 aim transforms at its original 120 Hz for game/animations/wave.tres. It authors
 no rotations or keyframes; the avatar uses the same hand targets as VR tracking.

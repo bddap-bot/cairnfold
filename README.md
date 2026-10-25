@@ -1,4 +1,4 @@
-# Nestcombe
+# Cairnfold
 
 A cozy VR building toy, inspired by Tiny Glade. Draw stone or plaster walls across a meadow
 and watch them grow courses of stone, crenellated tops and arches; teleport onto
@@ -38,11 +38,11 @@ also holds the people: avatars to wear, and nearby gardens to join.
 - Holding camera: the screen on its back shows what its lens sees, tilted as you
   hold it and with your own avatar in view when you turn it on yourself; the trigger
   takes a photo at the game's best quality, saved as a PNG in the game's `photos` folder
-  (`~/.local/share/godot/app_userdata/Nestcombe/photos` from the Linux package;
-  `Pictures/Nestcombe` in the headset's shared storage from an APK, where they
+  (`~/.local/share/godot/app_userdata/Cairnfold/photos` from the Linux package;
+  `Pictures/Cairnfold` in the headset's shared storage from an APK, where they
   outlive an uninstall). The PNG
   records where and how it was taken and, unless it is very large, the garden itself:
-  `nestcombe -- --photo FILE` opens that garden seen from the photo's lens.
+  `cairnfold -- --photo FILE` opens that garden seen from the photo's lens.
   A photo of an easel, its canvas a quarter of the frame or more and facing the lens,
   also saves that painting beside it, flat at the canvas's full 1536×1152, with its
   height off the board as a 16-bit greyscale PNG.
@@ -87,20 +87,20 @@ also holds the people: avatars to wear, and nearby gardens to join.
   records `demo/trailer.json`. Store copy: `steam/store.md`.
 - Release builds: `nix-shell --run 'scripts/package.sh TARGET OUT'` exports
   `linux-x64` or `linux-arm64` (a `.tar.gz`) or `windows` (a `.zip`). Each
-  unpacks to `nestcombe/` holding the game (`nestcombe` or `Nestcombe.exe`),
+  unpacks to `cairnfold/` holding the game (`cairnfold` or `Cairnfold.exe`),
   which starts in VR on the system's OpenXR runtime, such as SteamVR.
 - Steam Frame: unpack the `linux-arm64` package in the headset's home and add
-  `nestcombe/nestcombe` as a VR non-Steam shortcut with the art in
-  `nestcombe/steam/`.
+  `cairnfold/cairnfold` as a VR non-Steam shortcut with the art in
+  `cairnfold/steam/`.
 - The game keeps its garden, photos and engine logs in Godot's user
-  directory: `~/.local/share/godot/app_userdata/Nestcombe` on Linux,
-  `%APPDATA%\Godot\app_userdata\Nestcombe` on Windows. An APK keeps the garden
-  (`garden.save`) and avatars in `/sdcard/Android/data/io.github.bddapbot.nestcombe/files`,
-  where adb reads them, and photos in `Pictures/Nestcombe` in shared storage.
+  directory: `~/.local/share/godot/app_userdata/Cairnfold` on Linux,
+  `%APPDATA%\Godot\app_userdata\Cairnfold` on Windows. An APK keeps the garden
+  (`garden.save`) and avatars in `/sdcard/Android/data/io.github.bddapbot.cairnfold/files`,
+  where adb reads them, and photos in `Pictures/Cairnfold` in shared storage.
   Put a VRM avatar (1.0 or 0.x) in its `avatars` folder to wear it: the newest file there
   is yours, and other players see it (see [docs/multiplayer.md](docs/multiplayer.md)). On a
-  Quest the folder is `/sdcard/Android/data/io.github.bddapbot.nestcombe/files/avatars`:
-  `adb push avatar.vrm /sdcard/Android/data/io.github.bddapbot.nestcombe/files/avatars/`.
+  Quest the folder is `/sdcard/Android/data/io.github.bddapbot.cairnfold/files/avatars`:
+  `adb push avatar.vrm /sdcard/Android/data/io.github.bddapbot.cairnfold/files/avatars/`.
 
 Session telemetry is off by default and never sent by the game. Launch with
 `--record-sessions`, or put a `record-sessions` file in the player folder, to opt this
@@ -111,18 +111,18 @@ See [local play-session history](docs/design.md#local-play-session-history).
 ## Quest
 
 Each [release](https://github.com/bddap-bot/nestcombe/releases) carries
-`nestcombe-quest.apk`. To install it:
+`cairnfold-quest.apk`. To install it:
 
 1. Turn on developer mode for the headset in the Meta Horizon phone app
    (Devices, then Developer Mode; it asks you to register as a developer once).
 2. Connect the headset by USB and accept the debugging prompt inside it.
 3. Install with [SideQuest](https://sidequestvr.com) (drag the APK onto it) or
-   `adb install -r nestcombe-quest.apk`.
-4. In the headset, open the library's Unknown Sources filter and start Nestcombe.
+   `adb install -r cairnfold-quest.apk`.
+4. In the headset, open the library's Unknown Sources filter and start Cairnfold.
 
-Build it yourself with `nix-shell android.nix --run 'scripts/android.sh quest nestcombe.apk'`;
+Build it yourself with `nix-shell android.nix --run 'scripts/android.sh quest cairnfold.apk'`;
 it signs with your own key (AGENTS.md, "Signing"), so a release install must go before yours does:
-`scripts/quest-install.sh nestcombe.apk` uninstalls it when it must and puts your garden and avatars back.
+`scripts/quest-install.sh cairnfold.apk` uninstalls it when it must and puts your garden and avatars back.
 `scripts/release.sh` publishes the desktop and Frame builds and both APKs together; `--rollback TAG` makes an
 older release Latest again.
 

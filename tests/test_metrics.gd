@@ -21,7 +21,7 @@ func _read(path: String) -> Variant:
 
 
 func _every_flush_leaves_whole_json_with_every_second() -> void:
-	var path := OS.get_cache_dir().path_join("nestcombe-test-metrics-%d.json" % OS.get_process_id())
+	var path := OS.get_cache_dir().path_join("cairnfold-test-metrics-%d.json" % OS.get_process_id())
 	var m := Metrics.new(path)
 	m.info = {"xr": false, "label": "a long label to shrink later"}
 	m.flush()
@@ -66,7 +66,7 @@ func _eye_frusta_swing_is_the_widest_edge_change() -> void:
 ## A Quest 3 began the session at the shell's 90 Hz and ran it at 72: every second then read 90 Hz with 72 frames,
 ## and an 18 ms frame, on time at 72 Hz, counted late against 90 Hz's 16.7 ms line.
 func _late_and_refresh_follow_the_runtime_rate() -> void:
-	var m := Metrics.new(OS.get_cache_dir().path_join("nestcombe-test-refresh-%d.json" % OS.get_process_id()))
+	var m := Metrics.new(OS.get_cache_dir().path_join("cairnfold-test-refresh-%d.json" % OS.get_process_id()))
 	m.info = {"refresh_hz": 90.0}
 	var hz := [90.0]
 	m.refresh = func() -> float: return hz[0]
@@ -99,7 +99,7 @@ func _frames_tally_by_activity() -> void:
 
 ## The Frame's bench read a landing's one moving frame, 15 ms, as the worst of its second, which held a 21 ms frame.
 func _a_landing_keeps_every_frame_of_its_window() -> void:
-	var m := Metrics.new(OS.get_cache_dir().path_join("nestcombe-test-landing-%d.json" % OS.get_process_id()))
+	var m := Metrics.new(OS.get_cache_dir().path_join("cairnfold-test-landing-%d.json" % OS.get_process_id()))
 	m.info = {"refresh_hz": 72.0, "label": "-"}
 	var origin := Node3D.new()
 	var head := Node3D.new()
@@ -169,7 +169,7 @@ func _head_motion_is_moving() -> void:
 
 ## A wipe held a Quest 3's frame for 437 ms in a played session whose record could not say what had run.
 func _a_stall_names_what_ran_in_it() -> void:
-	var m := Metrics.new(OS.get_cache_dir().path_join("nestcombe-test-stall-%d.json" % OS.get_process_id()))
+	var m := Metrics.new(OS.get_cache_dir().path_join("cairnfold-test-stall-%d.json" % OS.get_process_id()))
 	m.info = {"refresh_hz": 72.0, "label": "-"}
 	var frame := func(ms: float) -> void:
 		m._last_tick = Time.get_ticks_usec() - int(ms * 1000.0)
@@ -195,7 +195,7 @@ func _a_stall_names_what_ran_in_it() -> void:
 
 ## Headset-off spans read as frames of a minute and more in a played session's worst frames.
 func _a_pause_is_no_frame() -> void:
-	var m := Metrics.new(OS.get_cache_dir().path_join("nestcombe-test-pause-%d.json" % OS.get_process_id()))
+	var m := Metrics.new(OS.get_cache_dir().path_join("cairnfold-test-pause-%d.json" % OS.get_process_id()))
 	m.info = {"refresh_hz": 72.0, "label": "-"}
 	var frame := func(ms: float) -> void:
 		m._last_tick = Time.get_ticks_usec() - int(ms * 1000.0)

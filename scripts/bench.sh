@@ -2,7 +2,7 @@
 # Plays the stress scene, demo/stress.json, and holds each phase to the frame budget in game/src/budget.gd:
 #   bench.sh OUT_DIR                          desktop renderer: draw calls and primitives only, its GPU is no target
 #   bench.sh OUT_DIR SSH_HOST BUNDLE.tar.gz UNWORN...
-#                                             a Steam Frame, from a scratch install of the linux-arm64 package that leaves ~/nestcombe alone,
+#                                             a Steam Frame, from a scratch install of the linux-arm64 package that leaves ~/cairnfold alone,
 #                                             in the headset's XR session unworn. SteamVR pauses the game while the
 #                                             headset is in standby, so the game runs as the command UNWORN... is
 #                                             given as its last argument: a host command that runs that bash command
@@ -20,15 +20,15 @@
 # On a Frame, exits 1 when the game exits non-zero, a crash at quit included; the desktop run stops with its status.
 # Each run's phases are recorded in perf/RIG/SCENE/, RIG the headset's model; commit the record with the change it
 # measured. scripts/trend.py then compares it with the runs before, and a phase's GPU time rising fails the bench.
-# NESTCOMBE_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
+# CAIRNFOLD_SCENE=SCRIPT.json plays another demo script in place of the stress scene. The late column counts a phase's
 # frames over 1.5x the refresh period from its first second, where its edits land; the others leave that second out.
 # The land max and land late columns are the longest frame and the late frames over the phase's landings: each window of
 # game/src/metrics.gd's LANDING_S from a move of the play space's origin, a teleport or view; "-" for none.
-# NESTCOMBE_ARGS="--quality 8" passes more game arguments on a Quest, each word its own.
-# NESTCOMBE_COLD=1 clears the game's data on a Quest first, its saves copied off and put back after, so it starts as
+# CAIRNFOLD_ARGS="--quality 8" passes more game arguments on a Quest, each word its own.
+# CAIRNFOLD_COLD=1 clears the game's data on a Quest first, its saves copied off and put back after, so it starts as
 # a fresh install does: every shader and pipeline it has not shipped baked is compiled in the run.
-# NESTCOMBE_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
-# streaming their heads and hands. NESTCOMBE_WAVE=1 makes them flat-screen players repeatedly waving. NESTCOMBE_GUEST_AVATAR=FILE.vrm has each of them wear that VRM in place of a
+# CAIRNFOLD_PLAYERS=N adds N-1 headless players from this host, who join the measured instance and stand in view
+# streaming their heads and hands. CAIRNFOLD_WAVE=1 makes them flat-screen players repeatedly waving. CAIRNFOLD_GUEST_AVATAR=FILE.vrm has each of them wear that VRM in place of a
 # built-in avatar, to measure what a player's own avatar costs the others; on a Quest it is also pushed as bench/guest.vrm,
 # which a scene's "figures" step stands in view with no other player or network (demo/avatar-cost.json).
 set -euo pipefail
@@ -41,14 +41,14 @@ device=desktop
 game=0
 rig=desktop
 build=$(git -C "$here" rev-parse HEAD)
-players=${NESTCOMBE_PLAYERS:-1}
-read -ra extra <<< "${NESTCOMBE_ARGS:-}"
-case $players in [1-8]) ;; *) echo "bench: NESTCOMBE_PLAYERS is 1 to 8" >&2; exit 1 ;; esac
+players=${CAIRNFOLD_PLAYERS:-1}
+read -ra extra <<< "${CAIRNFOLD_ARGS:-}"
+case $players in [1-8]) ;; *) echo "bench: CAIRNFOLD_PLAYERS is 1 to 8" >&2; exit 1 ;; esac
 # A scripted run hosts only when given a port.
 hosting=
 [ "$players" -eq 1 ] || hosting=7480
 # With other players the measured instance waits for them all before its first phase.
-python3 - "${NESTCOMBE_SCENE:-$here/../demo/stress.json}" "$players" > "$out/stress.json" <<'PY'
+python3 - "${CAIRNFOLD_SCENE:-$here/../demo/stress.json}" "$players" > "$out/stress.json" <<'PY'
 import json, sys
 steps = json.load(open(sys.argv[1]))
 players = int(sys.argv[2])
@@ -62,9 +62,9 @@ limit=$(python3 -c 'import json, sys; print(300 + 2 * round(sum(s.get("seconds",
 [ "$players" -eq 1 ] || godot4 --headless --path "$here/../game" --import > "$out/import.log" 2>&1 ||
   { echo "bench: the other players' game did not import, see $out/import.log" >&2; exit 1; }
 guest_avatar=()
-if [ -n "${NESTCOMBE_GUEST_AVATAR:-}" ]; then
+if [ -n "${CAIRNFOLD_GUEST_AVATAR:-}" ]; then
   mkdir -p "$out/avatars"
-  cp "$NESTCOMBE_GUEST_AVATAR" "$out/avatars/"
+  cp "$CAIRNFOLD_GUEST_AVATAR" "$out/avatars/"
   guest_avatar=(--avatars "$out/avatars")
 fi
 guests=()
@@ -90,7 +90,7 @@ join() {
   [ -n "$port" ] || { echo "bench: the measured instance never hosted" >&2; exit 1; }
   for ((g = 1; g < players; g++)); do
     read -r x z <<<"${spots[$((g - 1))]}"
-    python3 - "$x" "$z" "$players" "${NESTCOMBE_WAVE:-0}" > "$out/guest$g.json" <<'PYTHON'
+    python3 - "$x" "$z" "$players" "${CAIRNFOLD_WAVE:-0}" > "$out/guest$g.json" <<'PYTHON'
 import json, sys
 x, z, players, wave = map(int, sys.argv[1:])
 steps = [{"op": "place", "x": x, "z": z}, {"op": "until", "players": players, "seconds": 180}]
@@ -104,7 +104,7 @@ else:
 print(json.dumps(steps))
 PYTHON
     local flat=()
-    [ "${NESTCOMBE_WAVE:-0}" != 1 ] || flat=(--flat)
+    [ "${CAIRNFOLD_WAVE:-0}" != 1 ] || flat=(--flat)
     (cd "$out" && exec timeout 1500 godot4 --headless --path "$here/../game" --xr-mode off -- --desktop "${flat[@]}" --join "$addr:$port" \
       --port 7536 --avatar "$g" "${guest_avatar[@]}" --script "$out/guest$g.json") > "$out/guest$g.log" 2>&1 < /dev/null &
     guests+=($!)
@@ -125,7 +125,7 @@ if [ "${2:-}" = --android ]; then
   files=/sdcard/Android/data/$pkg/files
   dir=$files/bench
   # A host-side logcat over wireless adb stalls with no sign, so the headset records its own.
-  log=/data/local/tmp/nestcombe-bench.log
+  log=/data/local/tmp/cairnfold-bench.log
   # shows SERVICE PATTERN [TEXT]: whether the first line of `dumpsys SERVICE` matching PATTERN holds TEXT. The
   # dump is read whole, since a grep stopping early would fail the pipe under pipefail.
   shows() {
@@ -135,7 +135,7 @@ if [ "${2:-}" = --android ]; then
   }
   rig=$(adb shell getprop ro.product.model | tr -d '\r' | tr 'A-Z ' 'a-z-')
   saves=
-  if [ "${NESTCOMBE_COLD:-0}" = 1 ]; then
+  if [ "${CAIRNFOLD_COLD:-0}" = 1 ]; then
     saves=$out/saves
     "$here/quest-install.sh" --backup "$saves" "$apk"
     adb shell pm clear "$pkg" > /dev/null
@@ -145,7 +145,7 @@ if [ "${2:-}" = --android ]; then
   same "$build" --short HEAD
   adb shell "rm -rf $dir"
   adb push "$out/stress.json" "$files/bench.json" > /dev/null
-  [ -z "${NESTCOMBE_GUEST_AVATAR:-}" ] || adb push "$NESTCOMBE_GUEST_AVATAR" "$dir/guest.vrm" > /dev/null
+  [ -z "${CAIRNFOLD_GUEST_AVATAR:-}" ] || adb push "$CAIRNFOLD_GUEST_AVATAR" "$dir/guest.vrm" > /dev/null
   # Off the head the headset loses tracking, and its Guardian then puts up a dialog the shell keeps drawing beside
   # the game, at the cost of the game's GPU time, so the Guardian is held paused. The clocks are held at level 4,
   # the highest the headset sustains warm, so runs compare: left free it moves the GPU between 525 and 587 MHz as
@@ -223,25 +223,25 @@ if [ "${2:-}" = --android ]; then
 elif [ $# -ge 4 ]; then
   device=frame
   rig=frame
-  ssh "$2" 'set -e; rm -rf nestcombe-bench; mkdir nestcombe-bench; tar -xz -C nestcombe-bench; mkdir nestcombe-bench/nestcombe/log' < "$3"
-  build=$(ssh -n "$2" cat nestcombe-bench/nestcombe/REVISION)
+  ssh "$2" 'set -e; rm -rf cairnfold-bench; mkdir cairnfold-bench; tar -xz -C cairnfold-bench; mkdir cairnfold-bench/cairnfold/log' < "$3"
+  build=$(ssh -n "$2" cat cairnfold-bench/cairnfold/REVISION)
   same "$build"
-  scp -q "$out/stress.json" "$2:nestcombe-bench/nestcombe/log/stress.json"
-  trap 'ssh -n "$2" "[ ! -f nestcombe-bench/nestcombe/log/pid ] || kill \$(cat nestcombe-bench/nestcombe/log/pid)" || true; stop' EXIT
+  scp -q "$out/stress.json" "$2:cairnfold-bench/cairnfold/log/stress.json"
+  trap 'ssh -n "$2" "[ ! -f cairnfold-bench/cairnfold/log/pid ] || kill \$(cat cairnfold-bench/cairnfold/log/pid)" || true; stop' EXIT
   # shellcheck disable=SC2016 # expanded on the headset
-  "${@:4}" 'cd ~/nestcombe-bench/nestcombe
+  "${@:4}" 'cd ~/cairnfold-bench/cairnfold
     export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)} DISPLAY=${DISPLAY:-:0}
-    status=0; timeout '"$limit"' ./nestcombe -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --garden "$PWD/log/garden.save" --seed '"$seed${hosting:+ --port $hosting}"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
+    status=0; timeout '"$limit"' ./cairnfold -- --script "$PWD/log/stress.json" --metrics "$PWD/log/metrics.json" --capture-dir "$PWD/log" --garden "$PWD/log/garden.save" --seed '"$seed${hosting:+ --port $hosting}"' > log/godot.log 2>&1 & echo $! > log/pid; wait $! || status=$?
     rm log/pid; echo "bench: $(cat REVISION) exit $status"; exit $status' &
   remote=$!
   if [ "$players" -gt 1 ]; then
-    join ssh -n "$2" cat nestcombe-bench/nestcombe/log/godot.log -- \
+    join ssh -n "$2" cat cairnfold-bench/cairnfold/log/godot.log -- \
       "$(ssh -n "$2" "ip -4 route get 1.1.1.1" | awk '{for (i = 1; i < NF; i++) if ($i == "src") print $(i + 1)}')"
   fi
   wait "$remote" || game=$?
-  scp -rq "$2:nestcombe-bench/nestcombe/log/*" "$out/"
+  scp -rq "$2:cairnfold-bench/cairnfold/log/*" "$out/"
 else
-  setsid env NESTCOMBE_QUIT_AFTER="$limit" NESTCOMBE_TIMEOUT=$((limit + 300)) "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" ${hosting:+--port "$hosting"} > "$out/godot.log" 2>&1 &
+  setsid env CAIRNFOLD_QUIT_AFTER="$limit" CAIRNFOLD_TIMEOUT=$((limit + 300)) "$here/render.sh" "$out/stress.json" "$out" -- --seed "$seed" ${hosting:+--port "$hosting"} > "$out/godot.log" 2>&1 &
   measured=$!
   [ "$players" -eq 1 ] || join cat "$out/godot.log" -- 127.0.0.1
   wait "$measured"
@@ -251,7 +251,7 @@ if [ "$players" -gt 1 ] && grep -qs "driver: until .* timed out" "$out"/godot.lo
   echo "bench: not all $players players joined" >&2
   exit 1
 fi
-scene=$(basename "${NESTCOMBE_SCENE:-stress.json}" .json)
+scene=$(basename "${CAIRNFOLD_SCENE:-stress.json}" .json)
 record=$here/../perf/$rig/$scene/$(date -u +%Y%m%dT%H%M%SZ)-${build:0:7}.json
 failed=
 python3 - "$out" "$device" "$record" "$players" <<'PY' || failed=1

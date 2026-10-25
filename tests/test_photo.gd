@@ -188,7 +188,7 @@ func _the_selfie_camera_looks_back_at_its_holder() -> void:
 func _player_data_lives_outside_the_app() -> void:
 	check(Main.photos_folder() == "user://photos" and Main.photos_folder(false) == "user://photos" and Main.player_path("garden.save") == "user://garden.save", "off Android, photos and the garden stay in user data")
 	var pictures := OS.get_system_dir(OS.SYSTEM_DIR_PICTURES, true)
-	check(pictures.is_absolute_path() and Main.photos_folder(true) == pictures.path_join("Nestcombe"), "on Android, photos go to Nestcombe in the shared Pictures folder: %s" % Main.photos_folder(true))
+	check(pictures.is_absolute_path() and Main.photos_folder(true) == pictures.path_join("Cairnfold"), "on Android, photos go to Cairnfold in the shared Pictures folder: %s" % Main.photos_folder(true))
 
 ## The frame of a canvas centred at `at` facing along `facing`, as Easel.canvas_frame gives it.
 static func _canvas_at(at: Vector3, facing: Vector3) -> Transform3D:

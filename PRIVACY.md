@@ -1,6 +1,6 @@
 # Privacy
 
-Nestcombe collects no personal data and sends nothing to its makers or to any server they run.
+Cairnfold collects no personal data and sends nothing to its makers or to any server they run.
 It has no accounts, analytics, advertising or crash reporting.
 
 ## What stays on your device
